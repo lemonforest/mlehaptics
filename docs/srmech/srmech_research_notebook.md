@@ -7679,8 +7679,15 @@ not move**.
 ### §3.49.6 The catalog now counts itself — `describe()`'s twelfth key
 
 `describe()` grew a twelfth top-level key, **`cascade_catalog`**, carrying `{total, executable, leaf,
-status, run, enumerate}` — a live per-descriptor status map plus the names of the runner
-(`srmech.dsl.run_cascade_chain`) and the enumerator (`srmech.dsl.list_catalog_ops`). Before this, the
+c_runnable, status, run, enumerate}` — a live per-descriptor status map plus the names of the runner
+(`srmech.dsl.run_cascade_chain`) and the enumerator (`srmech.dsl.list_catalog_ops`). **`c_runnable`
+is rc447's (gh #1653)**: how many of the executable descriptors the COMPILED projection can drive.
+The report said which chains exist and were executable and nothing about which of them C could
+actually run — the same unenumerable half, one turn further in. It is derived from the live
+eligibility predicate, never a literal, and the ORDER of that mattered: that predicate was measured
+WRONG on every chain until rc447 (it required `class_id == "N"`, so it answered 0 while 9
+descriptors demonstrably ran), and publishing the key first would have shipped a `0` that was false
+the day it landed. Before this, the
 only statement anywhere of how many cascade descriptors exist was a **prose sentence in a
 non-hygiene-gated orientation file** — which is exactly how that sentence had already gone stale by a
 factor of two. The live count is now the SSoT and the prose defers to it (see the dated rc10 bullet in

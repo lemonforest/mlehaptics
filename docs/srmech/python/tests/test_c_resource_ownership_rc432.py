@@ -173,8 +173,16 @@ def _function_spans(lines: list[str]) -> list[tuple[str, int, int]]:
             i += 1
             continue
         m = def_pat.match(line)
-        if m is None or line.lstrip().startswith(
-                ("typedef", "static const", "extern", "#", "}")):
+        # ⚠️ SAME TWO BLIND SPOTS AS THE JPL SCANNER, fixed the same way at
+        # rc447 — and the agreement gate below is what surfaced them: fixing
+        # only the JPL side made the two scanners disagree about 40+ functions.
+        # (a) an unconditional `static const` skip hides every function
+        #     returning a CONST POINTER; an INITIALIZER is what marks const
+        #     DATA, so that is the test.
+        _const_data = (line.lstrip().startswith("static const")
+                       and "=" in line.split("(")[0])
+        if m is None or _const_data or line.lstrip().startswith(
+                ("typedef", "extern", "#", "}")):
             i += 1
             continue
         body = i
@@ -183,7 +191,10 @@ def _function_spans(lines: list[str]) -> list[tuple[str, int, int]]:
                 body = -1
                 break
             body += 1
-        if body < 0 or body >= len(lines) or body - i > 9:
+        # (b) a 9-line brace look-ahead loses any function whose PARAMETER
+        #     LIST is long — measured worst case +27 lines
+        #     (srmech_cn_vwp_multisum_lhs). 40 covers it with headroom.
+        if body < 0 or body >= len(lines) or body - i > 39:
             i += 1
             continue
         depth = lines[body].count("{") - lines[body].count("}")

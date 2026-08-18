@@ -208,7 +208,12 @@ _CATALOG_LITERAL = re.compile(
 _CATALOG_WORD = re.compile(r"The catalog's ([\w-]+) descriptors")
 
 #: §3.49.6 "carrying `{total, executable, leaf, status, run, enumerate}`"
-_CATALOG_KEYS = re.compile(r"carrying \**`?\{([a-z,\s>]+)\}")
+#: ⚠️ The class must include `_`: it did not, so this matcher could not read
+#: a key whose NAME carries an underscore, and rc447 added one
+#: (`c_runnable`). The failure presented as "§3.49.6 no longer lists the
+#: key set", i.e. as missing prose, when the prose was correct and the
+#: instrument could not see it.
+_CATALOG_KEYS = re.compile(r"carrying \**`?\{([a-z_,\s>]+)\}")
 
 #: §3.49.6 "`describe()` gained a twelfth top-level key"
 _DESCRIBE_ORDINAL = re.compile(r"`describe\(\)` gained a (\w+) top-level key")

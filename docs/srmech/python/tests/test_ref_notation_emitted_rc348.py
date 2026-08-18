@@ -707,6 +707,15 @@ SCAN_ROOTS = {
     # so reaching into c/ is the POINT of the gate, not an accident of layout.
     "tests/test_citation_contradiction_rc436.py": (
         "docs/srmech/python", "docs/srmech/c"),
+    # rc447 (gh #1653): the chain-ELIGIBILITY gate reads the C dispatch source
+    # directly, because the property it pins is an AGREEMENT between two
+    # projections — `_RUN_C_OPS` in Python and `cr_dispatch` / `cr_dispatch_real`
+    # in C. Deriving the C half from anything but the C source would let the two
+    # drift while the gate stayed green, which is the exact defect it exists to
+    # catch: the predicate said 0 where 9 chains ran, and the C work was
+    # unreachable from Python for as long as nobody compared them.
+    "tests/test_c_chain_eligibility_rc447.py": (
+        "docs/srmech/python", "docs/srmech/c"),
     # rc440 (`#T1147`): the One-preimage CONTRACT gate governs every surface
     # that ENUMERATES the coupling preimage's key set, and the two that mattered
     # most are outside python/: the compiled-in `c/src/srmech_tool_registry.c`

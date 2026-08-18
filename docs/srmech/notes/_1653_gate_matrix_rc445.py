@@ -51,7 +51,8 @@ def c_table_ops():
     end = body.find("static srmech_status_t cr_run_steps")
     if end > 0:
         body = body[:end]
-    ops = set(re.findall(r'memcmp\(op,\s*"([a-z0-9_]+)"', body))
+    ops = set(re.findall(r'cr_op_is\(op,\s*opl,\s*"([a-z0-9_]+)"', body))
+    ops |= set(re.findall(r'memcmp\(op,\s*"([a-z0-9_]+)"', body))
     ops |= set(re.findall(r'memcmp\(op \+ \([^)]*\),\s*"([a-z0-9_]+)"', body))
     assert ops, "the C dispatch-table scan found NOTHING — the anchors have " \
                 "drifted from the source and every gate below would be wrong"

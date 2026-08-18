@@ -1038,22 +1038,50 @@ static srmech_status_t cr_op_reorient(cr_ctx_t *c, const srmech_json_value_t *ar
     return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
 }
 
+/* Does `op` name `want`? TRUE for the BARE name, or any DOTTED spelling whose
+ * last segment is exactly `want` — `srmech.cascade.atoms.chiral_flip` and
+ * `chiral_flip` both match, `poly_gcd` does NOT match `gcd`.
+ *
+ * ⚠️ THE SEGMENT BOUNDARY IS THE POINT, and a raw suffix compare does not have
+ * it: `memcmp(op + (opl - 3), "gcd", 3)` matches `poly_gcd` and `bigint_gcd`
+ * too, which would dispatch a DIFFERENT op's chain to this one. Requiring a
+ * '.' immediately before the match makes the comparison respect the dotted
+ * namespace it is reading.
+ *
+ * Applied UNIFORMLY as of rc447. Before that the table mixed two rules: the
+ * Class-N arms used an exact bare `memcmp(op, ...)` while the rc447 arms used a
+ * raw suffix, so `srmech.math.rational.sin_series_truncate` was NOT_IMPL while
+ * `srmech.cascade.atoms.chiral_flip` ran. Measured, and it put the Python
+ * eligibility predicate (which uses the last segment) out of agreement with the
+ * runner on any dotted Class-N chain. One rule removes that class of
+ * disagreement rather than encoding it on both sides. */
+static int cr_op_is(const char *op, uint32_t opl, const char *want, uint32_t n)
+{
+    assert(op != NULL && want != NULL);
+    assert(n > 0u);
+    if (opl == n) { return memcmp(op, want, n) == 0; }
+    if (opl > n + 1u && op[opl - n - 1u] == '.') {
+        return memcmp(op + (opl - n), want, n) == 0;
+    }
+    return 0;
+}
+
 static srmech_status_t cr_dispatch_real(cr_ctx_t *c, const char *op, uint32_t opl,
                                         const srmech_json_value_t *args,
                                         cr_value_t **out)
 {
     assert(c != NULL && op != NULL);
     assert(args != NULL && out != NULL);
-    if (opl >= 16u && memcmp(op + (opl - 16u), "pin_slot_at_zero", 16u) == 0) {
+    if (cr_op_is(op, opl, "pin_slot_at_zero", 16u)) {
         return cr_op_pin_slot(c, args, out);
     }
-    if (opl >= 8u && memcmp(op + (opl - 8u), "reorient", 8u) == 0) {
+    if (cr_op_is(op, opl, "reorient", 8u)) {
         return cr_op_reorient(c, args, out);
     }
-    if (opl >= 11u && memcmp(op + (opl - 11u), "chiral_flip", 11u) == 0) {
+    if (cr_op_is(op, opl, "chiral_flip", 11u)) {
         return cr_op_dseq(c, args, "seq", srmech_cascade_chiral_flip_f64, out);
     }
-    if (opl >= 15u && memcmp(op + (opl - 15u), "autocorrelation", 15u) == 0) {
+    if (cr_op_is(op, opl, "autocorrelation", 15u)) {
         return cr_op_dseq(c, args, "x", srmech_autocorrelation_f64, out);
     }
     return SRMECH_ERR_NOT_IMPL;
@@ -1064,53 +1092,53 @@ static srmech_status_t cr_dispatch(cr_ctx_t *c, const char *op, uint32_t opl,
 {
     assert(c != NULL && op != NULL && out != NULL);
     assert(args != NULL);
-    if (opl == 17u && memcmp(op, "pi_cascade_digits", 17u) == 0) {
+    if (cr_op_is(op, opl, "pi_cascade_digits", 17u)) {
         return cr_op_pi(c, args, out);
     }
-    if (opl == 19u && memcmp(op, "exp_series_truncate", 19u) == 0) {
+    if (cr_op_is(op, opl, "exp_series_truncate", 19u)) {
         return cr_op_series(c, args, srmech_exp_series_truncate_big, out);
     }
-    if (opl == 19u && memcmp(op, "sin_series_truncate", 19u) == 0) {
+    if (cr_op_is(op, opl, "sin_series_truncate", 19u)) {
         return cr_op_series(c, args, srmech_sin_series_truncate_big, out);
     }
-    if (opl == 19u && memcmp(op, "cos_series_truncate", 19u) == 0) {
+    if (cr_op_is(op, opl, "cos_series_truncate", 19u)) {
         return cr_op_series(c, args, srmech_cos_series_truncate_big, out);
     }
-    if (opl == 21u && memcmp(op, "log1p_series_truncate", 21u) == 0) {
+    if (cr_op_is(op, opl, "log1p_series_truncate", 21u)) {
         return cr_op_series(c, args, srmech_log1p_series_truncate_big, out);
     }
-    if (opl == 20u && memcmp(op, "atan_series_truncate", 20u) == 0) {
+    if (cr_op_is(op, opl, "atan_series_truncate", 20u)) {
         return cr_op_series(c, args, srmech_atan_series_truncate_big, out);
     }
-    if (opl == 17u && memcmp(op, "rational_pow_uint", 17u) == 0) {
+    if (cr_op_is(op, opl, "rational_pow_uint", 17u)) {
         return cr_op_pow(c, args, out);
     }
-    if (opl == 12u && memcmp(op, "rational_add", 12u) == 0) {
+    if (cr_op_is(op, opl, "rational_add", 12u)) {
         return cr_op_rat(c, args, '+', out);
     }
-    if (opl == 12u && memcmp(op, "rational_mul", 12u) == 0) {
+    if (cr_op_is(op, opl, "rational_mul", 12u)) {
         return cr_op_rat(c, args, '*', out);
     }
-    if (opl == 12u && memcmp(op, "rational_div", 12u) == 0) {
+    if (cr_op_is(op, opl, "rational_div", 12u)) {
         return cr_op_rat(c, args, '/', out);
     }
     /* Class-I cyclic group (gh #1653). Declines out-of-uint64 operands. */
-    if (opl == 3u && memcmp(op, "gcd", 3u) == 0) {
+    if (cr_op_is(op, opl, "gcd", 3u)) {
         return cr_op_cyclic(c, args, CR_CY_GCD, out);
     }
-    if (opl == 7u && memcmp(op, "mod_add", 7u) == 0) {
+    if (cr_op_is(op, opl, "mod_add", 7u)) {
         return cr_op_cyclic(c, args, CR_CY_ADD, out);
     }
-    if (opl == 7u && memcmp(op, "mod_mul", 7u) == 0) {
+    if (cr_op_is(op, opl, "mod_mul", 7u)) {
         return cr_op_cyclic(c, args, CR_CY_MUL, out);
     }
-    if (opl == 12u && memcmp(op, "mod_mul_wide", 12u) == 0) {
+    if (cr_op_is(op, opl, "mod_mul_wide", 12u)) {
         return cr_op_cyclic(c, args, CR_CY_MUL, out);
     }
-    if (opl == 7u && memcmp(op, "mod_pow", 7u) == 0) {
+    if (cr_op_is(op, opl, "mod_pow", 7u)) {
         return cr_op_cyclic(c, args, CR_CY_POW, out);
     }
-    if (opl == 7u && memcmp(op, "mod_inv", 7u) == 0) {
+    if (cr_op_is(op, opl, "mod_inv", 7u)) {
         return cr_op_cyclic_inv(c, args, out);
     }
     return cr_dispatch_real(c, op, opl, args, out);   /* else: not in the
@@ -1303,7 +1331,7 @@ static int cr_body_is_orient_compose(const char *op, uint32_t opl)
     static const char dotted[21] = ".orientation_compose";
     assert(op != NULL);
     assert(opl > 0u);
-    if (opl == 19u && memcmp(op, "orientation_compose", 19u) == 0) { return 1; }
+    if (cr_op_is(op, opl, "orientation_compose", 19u)) { return 1; }
     if (opl > 20u && memcmp(op + (opl - 20u), dotted, 20u) == 0) { return 1; }
     return 0;
 }

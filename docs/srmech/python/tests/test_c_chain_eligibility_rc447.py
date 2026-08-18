@@ -48,7 +48,13 @@ def _c_dispatch_ops():
     every dotted op and make this gate agree by accident.
     """
     src = _C_SRC.read_text(encoding="utf-8")
-    ops = set(re.findall(r'memcmp\(op,\s*"([a-z0-9_]+)"', src))
+    # rc447 unified the arms onto `cr_op_is(op, opl, "name", N)` — a
+    # segment-boundary match, so `poly_gcd` does not answer to `gcd`. The two
+    # older `memcmp` spellings are still matched because the file documents
+    # both, and a scanner that reads only the current form would silently
+    # under-report if an arm were ever written the old way.
+    ops = set(re.findall(r'cr_op_is\(op,\s*opl,\s*"([a-z0-9_]+)"', src))
+    ops |= set(re.findall(r'memcmp\(op,\s*"([a-z0-9_]+)"', src))
     ops |= set(re.findall(r'memcmp\(op \+ \([^)]*\),\s*"([a-z0-9_]+)"', src))
     assert ops, "the C dispatch scan found NOTHING — anchors have drifted"
     return ops
