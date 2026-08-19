@@ -726,6 +726,29 @@ SCAN_ROOTS = {
     # point, exactly as for the eligibility gate above.
     "tests/test_c_cascade_value_parity_rc450.py": (
         "docs/srmech/python", "docs/srmech/c"),
+    # rc451 (`#T1164`, gh #1653 item 4): the ANTI-COARSE structural pin reads
+    # `c/src/srmech_compose_run.c` and `c/include/srmech.h` because the property
+    # it holds is not expressible anywhere else. The fused
+    # `srmech_cascade_best_rational_signed_f64` is MEASURED value-identical to
+    # the six declared steps of `best_rational_signed` over the entire
+    # C-accepted domain (agree=10, disagree=0), so a dispatcher that recognised
+    # the descriptor's SHAPE and answered with that one symbol would pass every
+    # value-level gate in the tree while the chain's steps drove nothing. No
+    # input can separate the two. The interpreter's own source is therefore the
+    # only surface on which the question can be asked at all — and the header is
+    # read to DERIVE the coarse-symbol population rather than hard-code it.
+    "tests/test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py": (
+        "docs/srmech/python", "docs/srmech/c"),
+    # rc451 (`#T1164`, closing `#T1163`): the README C-coverage gate parses
+    # `CR_OP_REG`'s initialiser out of `c/src/srmech_compose_run.c` to check a
+    # shipped PyPI sentence's op-spelling cardinal. It must read the C source:
+    # the defect is a literal in prose with NO TIE to the value it describes
+    # (two of them, both true at rc450 and both false one rc later), and a
+    # fixture copy of the table would rot in exactly the way the sentence did.
+    # The initialiser specifically, not a grep — a grep also matches the
+    # `cr_op_is` dispatch arms and over-counts, which the README says itself.
+    "tests/test_readme_c_coverage_figures_rc451.py": (
+        "docs/srmech/python", "docs/srmech/c"),
     # rc450 (`#T1160`): the BLOCKED-agreement gate reads two committed NDJSON
     # artifacts under notes/ — the rc445 gate matrix and the gh #1653 gap
     # ledger — and asserts the ratchet's BLOCKED table agrees with both. It has
