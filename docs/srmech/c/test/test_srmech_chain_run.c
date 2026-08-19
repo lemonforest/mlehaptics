@@ -385,6 +385,108 @@ int main(void)
     check(st == SRMECH_ERR_BAD_INPUT,
           "`precision_bits` is BAD_INPUT — Python raises TypeError on it");
 
+    /* ── rc451 (`#T1164`, gh #1653 item 4): THE SIX-STEP best_rational_signed
+     * CHAIN, FROM ITS DESCRIPTOR, WITH NO PYTHON.
+     *
+     * This is the ADR-0003 claim for this rc and it is the whole point of the
+     * slice: a firmware host embeds the descriptor and gets the answer by
+     * EXECUTING ITS SIX DECLARED STEPS — Class K pin-slot, Class K dead-band,
+     * Class N banker's scale-round, Class N best_rational, Class C reorient,
+     * Class B pair. The fused srmech_cascade_best_rational_signed_f64 exists
+     * and would answer identically; it is deliberately not what runs here, and
+     * the interpreter TU is pinned to reference no such symbol.
+     *
+     * The JSON below is exactly what
+     * cascade_catalog/best_rational_signed.toml's [[cascade.chain]] compiles
+     * to, transcribed rather than described. */
+#define BRS_CHAIN \
+    "{\"name\":\"brs\",\"chain_schema_version\":2,\"steps\":[" \
+    "{\"class\":\"K\",\"op\":\"srmech.cascade.pin_slot_at_zero\"," \
+    "\"args\":{\"x\":\"@input.x\"}}," \
+    "{\"class\":\"K\",\"op\":\"srmech.cascade.dead_band\"," \
+    "\"args\":{\"value\":\"@step[0].output[1]\",\"band\":1e-12}}," \
+    "{\"class\":\"N\",\"op\":\"scale_round_half_even\"," \
+    "\"args\":{\"value\":\"@step[1].output\",\"scale\":\"@input.fine_scale\"}}," \
+    "{\"class\":\"N\",\"op\":\"best_rational\",\"args\":{" \
+    "\"numerator\":\"@step[2].output\"," \
+    "\"denominator\":\"@input.fine_scale\"," \
+    "\"max_denominator\":\"@input.max_denominator\"}}," \
+    "{\"class\":\"C\",\"op\":\"srmech.cascade.reorient\"," \
+    "\"args\":{\"value\":\"@step[3].output[0]\"," \
+    "\"orientation\":\"@step[0].output[0]\"}}," \
+    "{\"class\":\"B\",\"op\":\"srmech.cascade.pair\"," \
+    "\"args\":{\"first\":\"@step[4].output\"," \
+    "\"second\":\"@step[3].output[1]\"}}]}"
+
+    st = run_chain(BRS_CHAIN,
+                   "{\"inputs\":{\"x\":3.14159265358979,"
+                   "\"fine_scale\":1000000,\"max_denominator\":100}}",
+                   out, sizeof(out));
+    check(st == SRMECH_OK,
+          "the SIX-step best_rational_signed chain runs with no Python present");
+    /* THE KIND IS ASSERTED AS A STRING, not inferred from the value. A wire
+     * spelling this pair as the pre-existing rational kind "q" would carry the
+     * same two integers and reconstruct to the same Python tuple — so it would
+     * satisfy every value-level check in the tree while leaving the tuple kind
+     * unshipped. Only the letter can refuse it. */
+    check(st == SRMECH_OK && strstr(out, "\"k\": \"t\"") != NULL,
+          "the final value crosses as the rc451 TUPLE kind {\"k\":\"t\"}, "
+          "not as a list and not as a rational");
+    check(st == SRMECH_OK && strstr(out, "\"v\": \"22\"") != NULL
+                          && strstr(out, "\"v\": \"7\"") != NULL,
+          "pi -> (22, 7): the Class-N convergent, INTEGER-carried through the "
+          "Class-C tail (a double there would print 22.0 and is the rc451 "
+          "reorient type-preservation fix)");
+
+    st = run_chain(BRS_CHAIN,
+                   "{\"inputs\":{\"x\":-3.14159265358979,"
+                   "\"fine_scale\":1000000,\"max_denominator\":100}}",
+                   out, sizeof(out));
+    check(st == SRMECH_OK && strstr(out, "\"v\": \"-22\"") != NULL,
+          "-pi -> (-22, 7): the Class-C re-application, from the descriptor");
+
+    /* THE LEMMA THE FUSED SYMBOL SHORT-CIRCUITS AND THE FINE PATH EXERCISES.
+     * The coarse op early-returns (0,1) on a sub-dead-band magnitude, so its
+     * zero NEVER flows through best_rational / reorient / pair. The declared
+     * chain has no such shortcut: 0 must flow through
+     * best_rational(0, d, m) == (0, 1) and out through the Class-C and Class-B
+     * steps. That is a TESTED path here rather than a vacuous one. */
+    st = run_chain(BRS_CHAIN,
+                   "{\"inputs\":{\"x\":5e-13,"
+                   "\"fine_scale\":10000000000000,"
+                   "\"max_denominator\":1000000000000}}",
+                   out, sizeof(out));
+    check(st == SRMECH_OK && strstr(out, "\"k\": \"t\"") != NULL
+                          && strstr(out, "\"v\": \"0\"") != NULL
+                          && strstr(out, "\"v\": \"1\"") != NULL,
+          "a sub-dead-band magnitude flows a ZERO through steps 2-5 to (0, 1) "
+          "— the branch the fused symbol never walks");
+
+    /* ── rc451: the two new OP-GRANULAR exports, called directly. A bare-C host
+     * gets the STEPS, not only the whole chain. */
+    {
+        double db = 1.0;
+        int64_t sr = 0;
+        check(srmech_cascade_dead_band_f64(-1.0, 1e-12, &db) == SRMECH_OK
+              && db == 0.0 && (1.0 / db) < 0.0,
+              "srmech_cascade_dead_band_f64(-1.0) is NEGATIVE zero — the "
+              "value's own zero, never a literal 0.0");
+        check(srmech_cascade_dead_band_f64(2.5, 1e-12, &db) == SRMECH_OK
+              && db == 2.5,
+              "dead_band passes a magnitude at or above the band unchanged");
+        check(srmech_cascade_scale_round_half_even_i64(2.5, 1, &sr)
+              == SRMECH_OK && sr == 2,
+              "scale_round_half_even ties to EVEN: 2.5 -> 2, not 3");
+        check(srmech_cascade_scale_round_half_even_i64(-1.5, 1, &sr)
+              == SRMECH_OK && sr == -2,
+              "and it is sign-symmetric via Class-K pin-slot + Class-C "
+              "reorient: -1.5 -> -2, with no abs() anywhere");
+        check(srmech_cascade_scale_round_half_even_i64(1e30, 1000000, &sr)
+              == SRMECH_ERR_BAD_INPUT,
+              "a product past 2^63 DECLINES rather than clamping — Python "
+              "answers there with a bignum, so C must refuse, not narrow");
+    }
+
     printf("== bare-C chain-run: %d passed, %d failed ==\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;
 }
