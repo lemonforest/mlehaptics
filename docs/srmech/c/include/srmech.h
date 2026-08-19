@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE "rc450"
-#define SRMECH_VERSION "0.9.0rc450"
+#define SRMECH_VERSION_PRE "rc451"
+#define SRMECH_VERSION "0.9.0rc451"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -417,8 +417,41 @@ extern "C" {
  *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — neither chain interpreter touches a
  *      strand byte, and nothing here writes one.
+ *
+ *   v20 (v0.9.0rc451, `#T1164`, gh #1653 item 4) — THE TUPLE WIRE KIND. Two
+ *      changes to srmech_chain_run's OUTPUT value-descriptor wire, and neither
+ *      is a new symbol:
+ *        (a) the kind set grows {n,i,s,q,f,l} -> {n,i,s,q,f,l,t}. `t` marshals a
+ *            carrier Python reconstructs as a TUPLE rather than a list. The
+ *            distinction is load-bearing, not cosmetic: the shipped value-parity
+ *            comparator pins `tuple != list` as a required-DIVERGENT witness, so
+ *            a chain whose declared return is `tuple[int, int]` (today exactly
+ *            one — best_rational_signed) could not have crossed this wire
+ *            correctly at all.
+ *        (b) the `l` payload key moves from "items" to "v", which `t` also uses.
+ *            Through rc450 the two chain wires spelled the same kind
+ *            differently — chain-run's `l` under "items", the DSL wire's `l`/`t`
+ *            under "v". Adding `t` forced the choice (see cr_desc_list), and
+ *            unifying rides this bump rather than costing its own later.
+ *
+ *      EXACTLY the v18 shape, and v18 (rc447) is the binding precedent: it
+ *      bumped 17 -> 18 for adding f/l to THIS SAME wire, on the stated ground
+ *      that a CURRENT .so emitting a new kind into an OLDER Python raises
+ *      mid-run on a chain that used to work. Same argument verbatim for t, and
+ *      (b) makes it stronger — with the key unified, a stale rc450 Python paired
+ *      with an rc451 lib would KeyError on EVERY list-final chain, including all
+ *      of the ones that are byte-identical today. The bump turns that mid-run
+ *      break into a clean load-refusal (EXPECTED_ABI_VERSION mismatch ->
+ *      HAS_NATIVE=False -> the pure projection answers, correctly).
+ *
+ *      The four new exported symbols this rc adds
+ *      (srmech_cascade_dead_band_f64, srmech_cascade_scale_round_half_even_i64)
+ *      do NOT contribute to the bump — adding a symbol never does. The wire
+ *      change alone earns it.
+ *
+ *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  */
-#define SRMECH_ABI_VERSION 19
+#define SRMECH_ABI_VERSION 20
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -888,6 +921,69 @@ srmech_status_t srmech_cascade_best_rational_signed_f64(
     int64_t   fine_scale,
     int64_t  *out_num,
     int64_t  *out_den);
+
+/* ------------------------------------------------------------------ *
+ * dead_band — Class K (pin-slot dead-band), AT OP GRANULARITY
+ *
+ * v0.9.0rc451 (`#T1164`, gh #1653 item 4). Peer of
+ * srmech.cascade.leaves.dead_band. Until this rc the op had no C symbol at
+ * ANY granularity — the capability existed only INLINED inside
+ * srmech_cascade_best_rational_signed_f64, which is a COARSER granularity and
+ * therefore not the op (gh #1653 symbol-gap census, ABSENT-6).
+ *
+ * Contract: *out = value when value >= band, else value's OWN zero
+ * (`value * 0.0`). The zero is spelled that way, never as a literal, so
+ * dead_band(-1.0, band) is -0.0 and dead_band(NaN, band) is NaN — both
+ * measured properties of the Python op, and the first is a pinned
+ * required-DIVERGENT witness in the rc450 value-parity comparator.
+ *
+ * The input domain is a Class-K MAGNITUDE (non-negative), so there is no sign
+ * branch and no abs(): the sign lives upstream in pin_slot_at_zero and
+ * downstream in reorient.
+ *
+ * Error returns:
+ *   SRMECH_OK            — success
+ *   SRMECH_ERR_NULL_ARG  — out is NULL
+ *
+ * Adding this symbol does NOT bump SRMECH_ABI_VERSION.
+ */
+srmech_status_t srmech_cascade_dead_band_f64(double value, double band,
+                                             double *out);
+
+/* ------------------------------------------------------------------ *
+ * scale_round_half_even — Class K ∘ Class N ∘ Class C, AT OP GRANULARITY
+ *
+ * v0.9.0rc451 (`#T1164`, gh #1653 item 4). Peer of
+ * srmech.math.rational.scale_round_half_even, whose contract is
+ * `int(round(value * scale))` under Python's banker's rounding. The MATH
+ * already shipped, but only as a static inside the fused
+ * best_rational_signed symbol — the second ABSENT-6 op this rc closes.
+ *
+ * ⚠️ ONE IMPLEMENTATION, TWO CALLERS: this symbol and
+ * srmech_cascade_best_rational_signed_f64 round through the SAME internal
+ * round-half-to-even kernel, so the fused op and the declared chain's step
+ * agree by construction rather than by a test that happens to agree.
+ *
+ * The sign is an explicit Class-K pin-slot of the PRODUCT, a Class-N round of
+ * the magnitude, and a Class-C re-application of the orientation — never an
+ * abs(). Banker's rounding is sign-symmetric, so this matches Python exactly
+ * on negatives (measured: -1.5 -> -2, -2.5 -> -2, -0.5 -> 0).
+ *
+ * Error returns:
+ *   SRMECH_OK            — success
+ *   SRMECH_ERR_NULL_ARG  — out is NULL
+ *   SRMECH_ERR_BAD_INPUT — value * scale is non-finite, or its magnitude is
+ *                          >= 2^63. Python returns an exact bignum in the
+ *                          second case, which int64 cannot carry; this
+ *                          DECLINES so the caller falls back rather than
+ *                          silently clamping. scale == 0 is ACCEPTED (Python
+ *                          accepts it and the product path agrees).
+ *
+ * Adding this symbol does NOT bump SRMECH_ABI_VERSION.
+ */
+srmech_status_t srmech_cascade_scale_round_half_even_i64(double value,
+                                                         int64_t scale,
+                                                         int64_t *out);
 
 /* ------------------------------------------------------------------ *
  * chiral_dual — HIGHER-ORDER Class C ∘ op ∘ Class C conjugation
