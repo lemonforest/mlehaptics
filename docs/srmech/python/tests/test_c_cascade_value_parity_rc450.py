@@ -169,7 +169,18 @@ _STATUS = {0: "SRMECH_OK", 2: "SRMECH_ERR_BAD_INPUT", 4: "SRMECH_ERR_OVERFLOW",
 
 #: The kind -> type bijection. Pinned against BOTH the C writer and the shipped
 #: Python reader by :func:`test_wire_kind_bijection_is_pinned_on_both_sides`.
-EXPECTED_WIRE_KINDS = frozenset({"n", "i", "s", "q", "f", "l"})
+#:
+#: ``t`` joined at rc451 (`#T1164`, gh #1653 item 4) — the TUPLE kind, which
+#: closes ledger row ``wire_tuple_kind_absent`` and is why that rc bumps ABI
+#: 19 -> 20.
+#:
+#: ⚠️ THIS PIN IS A SOURCE PARSE, NOT AN EMISSION CENSUS. A dead
+#: ``srmech_json_new_string(bd, "t", 1u)`` inside the parsed region plus a
+#: reader branch turns it green with no tuple ever crossing the wire. That hole
+#: is closed by :func:`test_an_executed_case_emits_the_tuple_kind_itself`, which
+#: reads the kind string off a REAL run — do not treat this pin as sufficient
+#: on its own.
+EXPECTED_WIRE_KINDS = frozenset({"n", "i", "s", "q", "f", "l", "t"})
 
 # ── down-only ceilings, seeded at the MEASURED rc450 population ──────────────
 #: STRICT ZERO. Not a ceiling that drains — a divergence between the two
@@ -188,14 +199,40 @@ CEIL_DIVERGENT = 0
 #: ``best_rational_signed`` appears in both tallies.
 CEIL_NONFINITE = 4
 
-#: Rows on chains the C run loop declines, measured at rc450 as:
-#:     autocorrelation 5, best_rational_signed 9, encode_loe_content 4,
-#:     klein4_from_one 7, kuramoto_step 10, octonion_dft 7,
-#:     parallel_sector_dispatch 4, quaternion_dft 6, schur_complement 3
-#: Down-only, and it is the same drain the rc446 ratchet's
-#: CEIL_C_REJECTED_CHAINS measures one level up — this one counts CASES, that
-#: one counts CHAINS, and they move together.
-CEIL_C_REJECTED_ROWS = 55
+#: Rows on chains the C run loop declines, PER CHAIN.
+#:
+#: ⚠️ THIS WAS A SINGLE SCALAR (55) THROUGH rc450, WITH THE PER-CHAIN SPLIT
+#: WRITTEN BESIDE IT AS A COMMENT. That is the "prose isn't a test" shape this
+#: arc exists to close, and it was reachable: a chain that PARTIALLY closes —
+#: C accepts some of its proof cases and declines the rest, which is exactly
+#: what a `scale >= 1`-style narrowing produces — moves the scalar by less than
+#: its whole contribution and reds with a message telling the builder to lower
+#: the ceiling by that smaller amount. Ratify that and the tree is fully green
+#: with the chain measurably broken; the cross-artifact tie stays green too,
+#: because the rc446 ratchet's ``_measure()`` reads only ``cases[0]``.
+#: Promoting the comment to an asserted dict costs nothing (it reproduced the
+#: live tallies exactly) and makes partial closure a named per-chain red.
+#:
+#: Down-only PER ENTRY: a chain closes by having its entry DELETED, never by
+#: being decremented to something it does not measure. Measured at rc451 after
+#: best_rational_signed closed (its 9 comparable rows became BYTE_IDENTICAL;
+#: its 10th, a non-finite x, is decided BEFORE C is called and stays in
+#: CEIL_NONFINITE — which is why that chain used to appear in both tallies).
+#: The same drain the rc446 ratchet's CEIL_C_REJECTED_CHAINS measures one level
+#: up: this one counts CASES, that one counts CHAINS, and they move together.
+CEIL_C_REJECTED_ROWS_BY_CHAIN = {
+    "autocorrelation": 5,
+    "encode_loe_content": 4,
+    "klein4_from_one": 7,
+    "kuramoto_step": 10,
+    "octonion_dft": 7,
+    "parallel_sector_dispatch": 4,
+    "quaternion_dft": 6,
+    "schur_complement": 3,
+}
+
+#: The total, DERIVED from the per-chain map so the two cannot disagree.
+CEIL_C_REJECTED_ROWS = sum(CEIL_C_REJECTED_ROWS_BY_CHAIN.values())
 
 #: Chains in the ACCEPTED set for which no case produced a comparison at all
 #: (every row classified). Such a chain reports as measured while measuring
@@ -497,6 +534,57 @@ def test_wire_kind_bijection_is_pinned_on_both_sides():
         "%s." % (sorted(py_kinds), sorted(EXPECTED_WIRE_KINDS)))
 
 
+def test_an_executed_case_emits_the_tuple_kind_itself():
+    """rc451 (`#T1164`, gh #1653 item 4). THE SUBJECT IS THE KIND STRING AN
+    EXECUTED SHIPPED PROOF CASE ACTUALLY EMITS — not that reconstruction
+    succeeded, not that :func:`classify` said BYTE_IDENTICAL, and not the
+    source-parsed bijection above.
+
+    WHY THIS ASSERTION AND NOT ONE OF THOSE THREE. The adjudicated dodge for
+    ``best_rational_signed`` is to emit its ``(num, den)`` as the EXISTING kind
+    ``q``, whose reader returns ``(int(n), int(d))`` — a tuple. Simulated
+    against this file's own predicates before rc451 was written, that dodge
+    scores 9 BYTE_IDENTICAL, DIVERGENT 0, the declined-row ceiling landing
+    exactly on its target, and a GREEN bijection pin, because q-spelling adds
+    no kind to either source. Every other instrument in the tree ratifies it.
+    Only a predicate whose subject is the emitted kind can refuse it — and the
+    refusal matters because it is what makes the ABI 19 -> 20 bump honest
+    rather than ceremonial.
+
+    It is also the emission census the bijection pin is NOT: that one parses
+    source, so a dead literal inside the parsed region plus a reader branch
+    turns it green with nothing ever crossing the wire. This runs the chain.
+
+    HOW IT RETURNS OTHERWISE: any kind other than ``t`` fails, naming what was
+    seen. Through rc450 it would have failed on rc=5 with an empty wire.
+    """
+    require_native("srmech_chain_run value parity (the emitted tuple kind)")
+    _variant, _spec, entry = cascade_chain_specs("best_rational_signed")[0]
+    cases = entry.get("proof_cases") or []
+    inputs = dict((cases[0] or {}).get("inputs") or {})
+    rc, wire, ok = _c_run(_chain_only(entry), inputs)
+    assert ok and rc == 0, (
+        "best_rational_signed did not run in C (ok=%r rc=%r). rc451 closed this "
+        "chain; if it declines again the ceilings above are also wrong."
+        % (ok, rc))
+    desc = _compose._srmech_json.loads(wire.decode("utf-8"))
+    assert desc.get("k") == "t", (
+        "the C wire spelled best_rational_signed's final value as kind %r, not "
+        "'t'. If that is 'q', the chain is being answered as a RATIONAL rather "
+        "than as the generic Class-B pair it declares — which reconstructs to a "
+        "tuple and so passes every value-level gate in this file, while forking "
+        "`pair`'s kind by operand type (klein4_from_one uses pair twice more) "
+        "and leaving the tuple kind unshipped. Wire: %r" % (desc.get("k"), wire))
+    assert sorted(desc) == ["k", "v"], (
+        "the tuple descriptor's key set is %r; rc451 unified l/t payloads under "
+        "'v' (ledger row wire_l_payload_key_divergence)." % (sorted(desc),))
+    got = _compose._reconstruct_value(desc)
+    assert type(got) is tuple, (
+        "the shipped reader rebuilt %r (%s) from a 't' descriptor; it must be a "
+        "tuple exactly, not a list and not a subclass"
+        % (got, type(got).__name__))
+
+
 def test_an_unknown_kind_is_a_hard_red_not_a_soft_verdict():
     """A synthetic ``{"k": "z"}`` must NOT pass through. If it did, the
     bijection pin above would be decoration: the comparator would meet a kind
@@ -515,8 +603,14 @@ def test_an_unknown_kind_is_a_hard_red_not_a_soft_verdict():
     (b'{"k": "i", "v": "6"}', 6,
      "a bignum-as-decimal-string vs a Python int"),
     (b'{"k": "f", "v": 3.5}', 3.5, "a double"),
-    (b'{"items": [{"k": "f", "v": 11.0}], "k": "l"}', [11.0],
-     "a flat list"),
+    (b'{"k": "l", "v": [{"k": "f", "v": 11.0}]}', [11.0],
+     "a flat list — payload key 'v' since rc451, unified with the sibling DSL "
+     "wire and with the new 't' kind (ledger row "
+     "wire_l_payload_key_divergence)"),
+    (b'{"k": "t", "v": [{"k": "i", "v": "5"}, {"k": "i", "v": "6"}]}', (5, 6),
+     "a TUPLE — the rc451 kind. The SAME payload as the red witness below "
+     "differing only in the kind letter, which is the whole point: the letter "
+     "is what carries the type"),
     (b'{"k": "n"}', None, "the null kind"),
 ])
 def test_green_witnesses_classify_identical(wire, py_value, why):
@@ -533,10 +627,17 @@ def test_green_witnesses_classify_identical(wire, py_value, why):
      "int -> float (the exact-vs-approximate dispatch contract)"),
     (b'{"k": "f", "v": 0.0}', -0.0,
      "signed zero (Class-K pin-slot phase boundary)"),
-    (b'{"items": [{"k": "i", "v": "5"}, {"k": "i", "v": "6"}], "k": "l"}',
+    (b'{"k": "l", "v": [{"k": "i", "v": "5"}, {"k": "i", "v": "6"}]}',
      (5, 6),
-     "list -> tuple (ledger row wire_tuple_kind_absent, the gap rc451 ships "
-     "into)"),
+     "list -> tuple. rc451 SHIPPED the 't' kind that closes ledger row "
+     "wire_tuple_kind_absent, and this witness SURVIVES UNCHANGED apart from "
+     "the payload-key respelling: an 'l' wire against a Python tuple is still "
+     "the wrong answer. Loosening it to green anything would be the tell"),
+    (b'{"k": "t", "v": [{"k": "i", "v": "5"}, {"k": "i", "v": "6"}]}',
+     [5, 6],
+     "tuple -> list, the MIRROR of the row above (rc451). Without it the new "
+     "kind would be pinned in one direction only, and a writer that flagged "
+     "EVERY list a tuple would pass"),
     (b'{"k": "i", "v": "1"}', True,
      "bool -> int"),
 ])
@@ -702,17 +803,45 @@ def test_classified_rows_are_enumerated_and_down_only():
     """The rows that could NOT be compared, counted per class. These are the
     honest holes; they are pinned so they drain rather than accumulate."""
     require_native("srmech_chain_run value parity")
-    _rows, tally, _per = _measure_all()
+    rows, tally, _per = _measure_all()
     nonfinite = tally.get(V_NONFINITE, 0)
-    rejected = sum(n for k, n in tally.items() if k.startswith(V_REJECTED))
     assert nonfinite == CEIL_NONFINITE, (
         "%d non-finite-input case(s), ceiling %d. Down-only: it falls when the "
         "wire learns to carry them." % (nonfinite, CEIL_NONFINITE))
-    assert rejected == CEIL_C_REJECTED_ROWS, (
-        "%d case(s) on C-declined chains, ceiling %d. This is the same drain "
-        "the rc446 ratchet's CEIL_C_REJECTED_CHAINS measures one level up — "
-        "if you unblocked a chain, lower BOTH." % (rejected,
-                                                   CEIL_C_REJECTED_ROWS))
+
+    # PER CHAIN, and per STATUS. rc451 (`#T1164`) split what was one scalar,
+    # because the scalar could not tell three genuinely different reds apart.
+    measured: dict = {}
+    statuses: dict = {}
+    for name, _v, _j, verdict, _w, _p in rows:
+        if verdict.startswith(V_REJECTED):
+            measured[name] = measured.get(name, 0) + 1
+            statuses[verdict] = statuses.get(verdict, 0) + 1
+
+    closed = sorted(set(CEIL_C_REJECTED_ROWS_BY_CHAIN) - set(measured))
+    grew = sorted(set(measured) - set(CEIL_C_REJECTED_ROWS_BY_CHAIN))
+    partial = sorted((n, measured[n], CEIL_C_REJECTED_ROWS_BY_CHAIN[n])
+                     for n in set(measured) & set(CEIL_C_REJECTED_ROWS_BY_CHAIN)
+                     if measured[n] != CEIL_C_REJECTED_ROWS_BY_CHAIN[n])
+    assert not (closed or grew or partial), (
+        "the C-declined population moved. THREE causes are reachable here and "
+        "they are NOT the same finding — read which one fired before touching "
+        "the ceiling:\n"
+        "  (1) FULL CLOSURE — a chain now runs every case. Chains with no "
+        "declined row left: %s. The fix is to DELETE that chain's entry (never "
+        "decrement it to 0) and lower the rc446 ratchet's "
+        "CEIL_C_REJECTED_CHAINS in the same change.\n"
+        "  (2) PARTIAL CLOSURE — C accepts SOME of a chain's cases and declines "
+        "the rest: %s (measured, seeded). That is a NARROWING BUG, not a drain: "
+        "an arm answering part of an op's domain and refusing the rest. Fix the "
+        "arm; do not write the smaller number here.\n"
+        "  (3) A NEW DECLINE — a chain that used to run now declines: %s. That "
+        "is a regression.\n"
+        "  per-status breakdown of every decline: %s\n"
+        "  (a status other than SRMECH_ERR_NOT_IMPL is the `#T1146` shape — C "
+        "REJECTING what Python ACCEPTS, e.g. a domain guard the Python twin "
+        "does not have.)"
+        % (closed, partial, grew, dict(sorted(statuses.items()))))
 
 
 def test_no_accepted_chain_reports_measured_while_measuring_nothing():

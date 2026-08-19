@@ -186,7 +186,21 @@ covers = "sub_dead_band"
 # The rc420 dead-band corner: fine_scale + max_denominator large enough that
 # a chain WITHOUT the Class-K dead_band step would return (1, 2000000000000)
 # where the shipped op's _ZERO_BAND branch returns (0, 1).
-inputs = { x = 5e-13, fine_scale = 10000000000000, max_denominator = 1000000000000 }
+#
+# ⚠️ rc451 (`#T1164`): THE INPUTS HAD LOST A ZERO AND THE COMMENT ABOVE WAS
+# FALSE OF THEM. At max_denominator = 10^12 the no-dead_band chain returns
+# (0, 1) — identical to the shipped op — because the 1/(2·10^12) convergent's
+# denominator EXCEEDS the 10^12 cap, so the Stern-Brocot walk keeps (0, 1) and
+# the case could not distinguish the chain WITH the step from the chain
+# WITHOUT it. A proof case labelled "covers = sub_dead_band" that cannot
+# return otherwise is a census asserted, not measured. The documented
+# (1, 2000000000000) is real one zero up, at max_denominator = 10^13, which is
+# what this case now carries — measured, not reasoned:
+#   scale_round_half_even(5e-13, 10**13)      = 5
+#   best_rational(5, 10**13, 10**13)          = (1, 2000000000000)   <- no band
+#   best_rational(5, 10**13, 10**12)          = (0, 1)               <- old cap
+# so the corner the comment describes is now the corner the case exercises.
+inputs = { x = 5e-13, fine_scale = 10000000000000, max_denominator = 10000000000000 }
 [[cascade.chain.proof_cases]]
 covers = "boundary_half"
 inputs = { x = 5e-7, fine_scale = 1000000, max_denominator = 100 }

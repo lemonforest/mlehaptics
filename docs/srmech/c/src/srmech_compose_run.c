@@ -92,6 +92,27 @@ typedef enum {
     CR_NONE = 0, CR_INT, CR_STR, CR_RATIONAL, CR_LIST, CR_DBL
 } cr_kind_t;
 
+/* THE TUPLE CARRIER IS A FLAG ON CR_LIST, NOT A SIXTH KIND (v0.9.0rc451,
+ * `#T1164`, gh #1653 item 4 — the RC-A slice).
+ *
+ * Python's chain vocabulary distinguishes a list from a 2-tuple and the
+ * shipped comparator pins `tuple != list` as a required-DIVERGENT witness, so
+ * the WIRE has to carry the distinction: srmech_chain_run's output-kind set
+ * grows {n,i,s,q,f,l} -> +t, which IS a discriminator widening and is why this
+ * rc bumps SRMECH_ABI_VERSION 19 -> 20 (the exact v18 shape — that bump added
+ * f/l to THIS SAME wire).
+ *
+ * ⚠️ WHY A FLAG AND NOT A `CR_TUPLE` ENUM MEMBER. The in-tree precedent is the
+ * sibling DSL interpreter, whose dv_value_t has carried `int is_tuple;` beside
+ * DV_LIST since it shipped (srmech_dsl_chain_run.c) and emits 't' or 'l' off
+ * it. A sixth enum member would instead have to widen every place that reads
+ * the kind as CR_LIST — the kind-bounds assert in cr_new_value, cr_as_rational's
+ * list arm, the @step[N].output[K] indexer cr_index_value, cr_list_to_f64 and
+ * cr_desc — five switches, any one of which is a silent wrong answer if missed.
+ * The flag touches NONE of them: a tuple is still a flat CR_LIST for every
+ * consumer, and only the MARSHALLER asks the question. The discriminator that
+ * widens is the wire's, which is the type the ruling names.
+ */
 typedef struct cr_value {
     cr_kind_t kind;
     srmech_bigint_t *num;      /* CR_INT: the value; CR_RATIONAL: numerator */
@@ -99,6 +120,7 @@ typedef struct cr_value {
     const char *s; uint32_t slen;          /* CR_STR (aliases arena)        */
     struct cr_value **items; uint32_t n;   /* CR_LIST                       */
     double d;                              /* CR_DBL                        */
+    int is_tuple;              /* CR_LIST only: 1 -> marshals as {"k":"t"}  */
 } cr_value_t;
 
 
@@ -115,6 +137,7 @@ static cr_value_t *cr_new_value(cr_bump_t *b, cr_kind_t kind)
     if (v == NULL) { return NULL; }
     v->kind = kind; v->num = NULL; v->den = NULL;
     v->s = NULL; v->slen = 0u; v->items = NULL; v->n = 0u; v->d = 0.0;
+    v->is_tuple = 0;   /* LIST unless an op says otherwise — see cr_desc_list */
     return v;
 }
 
@@ -1038,24 +1061,198 @@ static srmech_status_t cr_op_pin_slot(cr_ctx_t *c, const srmech_json_value_t *ar
     items[1] = cr_dbl(c->b, mag);
     if (items[0] == NULL || items[1] == NULL) { return SRMECH_ERR_OVERFLOW; }
     lst->items = items; lst->n = 2u;
+    /* rc451: the Python peer returns Tuple[int, Real] (atoms.py), so the
+     * carrier is flagged a tuple. A LATENT divergence until now, invisible only
+     * because every ACCEPTED CATALOG variant uses pin_slot INTERMEDIATELY — a
+     * chain ENDING here crossed the wire as a list against a Python tuple,
+     * which the rc450 comparator pins DIVERGENT.
+     *
+     * ⚠️ WHAT IT COSTS. This comment said "Costs no shipped chain anything",
+     * and that is MEASURABLY FALSE for the one case it named safe. A chain
+     * ENDING at pin_slot changes its emitted kind l -> t, so its reconstructed
+     * value moves [-1, 3.5] -> (-1, 3.5) — which IS the fix (Python answers the
+     * tuple), not a side effect. tests/test_c_ref_indexing_rc447.py ships
+     * exactly such a single-step chain and went red on it. INDEXING is what is
+     * genuinely unaffected: @step[N].output[K] reads the flat CR_LIST as
+     * before, because cr_index_value never asks about the flag. */
+    lst->is_tuple = 1;
     *out = lst;
     return SRMECH_OK;
 }
 
-/* reorient: Class C — re-apply an orientation to a real value. */
+/* reorient: Class C — re-apply an orientation to a real value.
+ *
+ * ⚠️ TYPE-PRESERVING SINCE v0.9.0rc451 (`#T1164`). The Python op's docstring
+ * states the contract outright — "int in -> int out, float in -> float out" —
+ * and dispatches to srmech_cascade_reorient_i64 or _f64 accordingly. This arm
+ * read EVERY operand through cr_arg_dbl and answered CR_DBL unconditionally,
+ * so `reorient(22, orientation=+1)` returned 22.0 where Python returns 22.
+ *
+ * That is a WRONG ANSWER, not a capability gap, and the rc450 comparator pins
+ * int != float as a required-DIVERGENT witness — but nothing had ever caught it
+ * because no ACCEPTED chain reached reorient with an integer operand: every
+ * shipped variant fed it a pin-slot magnitude, which is a double. rc451's
+ * best_rational_signed is the first chain to feed it the INT numerator out of
+ * best_rational, and the tuple wire is the first thing able to carry the result
+ * to a comparator. Measured on the shipped descriptor's case 0 the moment the
+ * chain first ran: C (22.0, 7) against Python (22, 7).
+ *
+ * Fixed at root rather than routed around. The int arm declines an out-of-int64
+ * operand (Python's own native dispatch does too, falling back to its
+ * arbitrary-precision path) so a bignum is deferred, never truncated. */
 static srmech_status_t cr_op_reorient(cr_ctx_t *c, const srmech_json_value_t *args,
                                       cr_value_t **out)
 {
-    double value = 0.0, ori = 0.0, r = 0.0; srmech_status_t st;
+    cr_value_t *v; double value = 0.0, ori = 0.0, r = 0.0;
+    int64_t iv = 0, ir = 0; srmech_status_t st;
     assert(c != NULL && args != NULL);
     assert(out != NULL);
-    if (!cr_arg_dbl(c, args, "value", &value)) { return SRMECH_ERR_NOT_IMPL; }
     if (!cr_arg_dbl(c, args, "orientation", &ori)) { return SRMECH_ERR_NOT_IMPL; }
     if (ori < -128.0 || ori > 127.0) { return SRMECH_ERR_NOT_IMPL; }
+    v = cr_arg(c, args, "value");
+    if (v == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (v->kind == CR_INT) {
+        if (!cr_as_i64(v, &iv)) { return SRMECH_ERR_NOT_IMPL; }
+        st = srmech_cascade_reorient_i64((int8_t)ori, iv, &ir);
+        if (st != SRMECH_OK) { return st; }
+        *out = cr_int_i64(c->b, ir);
+        return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    }
+    if (!cr_arg_dbl(c, args, "value", &value)) { return SRMECH_ERR_NOT_IMPL; }
     st = srmech_cascade_reorient_f64((int8_t)ori, value, &r);
     if (st != SRMECH_OK) { return st; }
     *out = cr_dbl(c->b, r);
     return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * The best_rational_signed step ops (v0.9.0rc451, `#T1164`, gh #1653 item 4).
+ *
+ * ⚠️ THESE ARE FOUR SEPARATE ARMS AT STEP GRANULARITY, ON PURPOSE — and the
+ * fused srmech_cascade_best_rational_signed_f64 is deliberately NOT called
+ * from this translation unit. It would be the cheap way to make the chain
+ * return rc=0, it is measured value-identical to the fine pipeline over the
+ * entire C-accepted domain, and it would therefore satisfy every value-level
+ * gate while the descriptor's declared steps drove NOTHING. A chain that runs
+ * because one coarse symbol recognised its shape is not a chain the C host can
+ * run. `srmech_cascade_scale_round_half_even_i64` is the honest opposite: an
+ * OP-granular export the fused symbol and this arm both call, so the two
+ * agree by construction.
+ * ------------------------------------------------------------------ */
+
+/* pair: Class B (framing) — assemble two carriers into a 2-TUPLE.
+ *
+ * The framing ops have no math, only a carrier shape, so this is an
+ * INTERPRETER PRIMITIVE and not an export: a bare-C host that already holds
+ * the two operands needs nothing from the library to put them side by side.
+ * The sibling DSL interpreter settled the same question the same way (its
+ * static dv_pair). What DOES cross the library boundary is the tuple's WIRE
+ * spelling, which is why this rc bumps the ABI. */
+static srmech_status_t cr_op_pair(cr_ctx_t *c, const srmech_json_value_t *args,
+                                  cr_value_t **out)
+{
+    cr_value_t *first, *second, *lst; cr_value_t **items;
+    assert(c != NULL && args != NULL);
+    assert(out != NULL);
+    first = cr_arg(c, args, "first");
+    second = cr_arg(c, args, "second");
+    if (first == NULL || second == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    lst = cr_new_value(c->b, CR_LIST);
+    items = (cr_value_t **)cr_carve(c->b, 2u * sizeof(void *));
+    if (lst == NULL || items == NULL) { return SRMECH_ERR_OVERFLOW; }
+    items[0] = first; items[1] = second;
+    lst->items = items; lst->n = 2u;
+    lst->is_tuple = 1;      /* Python's pair() returns a tuple, so must this */
+    *out = lst;
+    return SRMECH_OK;
+}
+
+/* dead_band: Class K (pin-slot dead-band). Delegates to the rc451 export so
+ * the fused chain symbol and this step share one implementation.
+ *
+ * ⚠️ DECLINES A NON-DOUBLE `value`, DELIBERATELY. The Python op is TYPE-
+ * PRESERVING — dead_band(5, band) is the int 5 and dead_band(5e-13, band) is
+ * the float 0.0 — and the shipped comparator pins int != float as a required
+ * DIVERGENT. Reading the operand through cr_arg_dbl (which widens a CR_INT the
+ * way `1` and `1.0` name the same operand elsewhere) would therefore answer
+ * 5.0 where Python answers 5: a silent wrong answer, not a capability gap. So
+ * the int arm is REFUSED rather than guessed, and the chain defers to the pure
+ * projection, which is right. Filed as its own ledger row. */
+static srmech_status_t cr_op_dead_band(cr_ctx_t *c, const srmech_json_value_t *args,
+                                       cr_value_t **out)
+{
+    cr_value_t *v; double band = 0.0, r = 0.0; srmech_status_t st;
+    assert(c != NULL && args != NULL);
+    assert(out != NULL);
+    v = cr_arg(c, args, "value");
+    if (v == NULL || v->kind != CR_DBL) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_arg_dbl(c, args, "band", &band)) { return SRMECH_ERR_NOT_IMPL; }
+    st = srmech_cascade_dead_band_f64(v->d, band, &r);
+    if (st != SRMECH_OK) { return st; }
+    *out = cr_dbl(c->b, r);
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* scale_round_half_even: Class K ∘ N ∘ C. Delegates to the rc451 export.
+ *
+ * `value` must be a CR_DBL for the same reason dead_band's must not be widened
+ * from CR_INT: a bigint operand cannot round-trip through a double exactly
+ * above 2^53, and answering approximately is worse than declining. */
+static srmech_status_t cr_op_scale_round(cr_ctx_t *c, const srmech_json_value_t *args,
+                                         cr_value_t **out)
+{
+    cr_value_t *v, *s; int64_t scale = 0, r = 0; srmech_status_t st;
+    assert(c != NULL && args != NULL);
+    assert(out != NULL);
+    v = cr_arg(c, args, "value");
+    s = cr_arg(c, args, "scale");
+    if (v == NULL || v->kind != CR_DBL) { return SRMECH_ERR_NOT_IMPL; }
+    if (s == NULL || !cr_as_i64(s, &scale)) { return SRMECH_ERR_NOT_IMPL; }
+    st = srmech_cascade_scale_round_half_even_i64(v->d, scale, &r);
+    if (st != SRMECH_OK) { return st; }
+    *out = cr_int_i64(c->b, r);
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* best_rational: Class N — the small-denominator anchor. Delegates to the
+ * step-granular srmech_best_rational, which already shipped.
+ *
+ * TWO STATED NARROWINGS, both DECLINES rather than guesses:
+ *   - the C symbol's wire is uint64 while the CR_INT carrier and the Python op
+ *     are both arbitrary-precision, so an out-of-uint64 or negative operand
+ *     declines through cr_as_u64 — the SAME convention the Class-I cyclic arm
+ *     documents. A narrower projection must REFUSE, never silently narrow.
+ *   - `with_path=True` returns a THIRD element (the convergent CF) that this
+ *     wire has no shape for, so its mere presence declines.
+ * The result is a 2-TUPLE because Python's best_rational returns one; it rides
+ * as a flagged CR_LIST so @step[N].output[K] still indexes it mid-chain. */
+static srmech_status_t cr_op_best_rational(cr_ctx_t *c, const srmech_json_value_t *args,
+                                           cr_value_t **out)
+{
+    cr_value_t *n, *d, *m, *lst; cr_value_t **items;
+    uint64_t nu = 0u, du = 0u, mu = 0u, p = 0u, q = 0u; srmech_status_t st;
+    assert(c != NULL && args != NULL);
+    assert(out != NULL);
+    if (srmech_json_object_get(args, "with_path") != NULL) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    n = cr_arg(c, args, "numerator");
+    d = cr_arg(c, args, "denominator");
+    m = cr_arg(c, args, "max_denominator");
+    if (n == NULL || d == NULL || m == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_as_u64(n, &nu) || !cr_as_u64(d, &du) || !cr_as_u64(m, &mu)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    st = srmech_best_rational(nu, du, mu, &p, &q);
+    if (st != SRMECH_OK) { return st; }
+    lst = cr_new_value(c->b, CR_LIST);
+    items = (cr_value_t **)cr_carve(c->b, 2u * sizeof(void *));
+    if (lst == NULL || items == NULL) { return SRMECH_ERR_OVERFLOW; }
+    items[0] = cr_int_u64(c->b, p); items[1] = cr_int_u64(c->b, q);
+    if (items[0] == NULL || items[1] == NULL) { return SRMECH_ERR_OVERFLOW; }
+    lst->items = items; lst->n = 2u; lst->is_tuple = 1;
+    *out = lst;
+    return SRMECH_OK;
 }
 
 /* Does `op` name `want`? TRUE for the BARE name, or any DOTTED spelling whose
@@ -1103,6 +1300,21 @@ static srmech_status_t cr_dispatch_real(cr_ctx_t *c, const char *op, uint32_t op
     }
     if (cr_op_is(op, opl, "autocorrelation", 15u)) {
         return cr_op_dseq(c, args, "x", srmech_autocorrelation_f64, out);
+    }
+    /* rc451 (`#T1164`): the four best_rational_signed step ops. They live HERE
+     * and not in cr_dispatch because that function is measured at 57 of JPL
+     * Rule 4's 60 lines — four more arms there is an immediate violation. */
+    if (cr_op_is(op, opl, "dead_band", 9u)) {
+        return cr_op_dead_band(c, args, out);
+    }
+    if (cr_op_is(op, opl, "scale_round_half_even", 21u)) {
+        return cr_op_scale_round(c, args, out);
+    }
+    if (cr_op_is(op, opl, "best_rational", 13u)) {
+        return cr_op_best_rational(c, args, out);
+    }
+    if (cr_op_is(op, opl, "pair", 4u)) {
+        return cr_op_pair(c, args, out);
     }
     return SRMECH_ERR_NOT_IMPL;
 }
@@ -1231,15 +1443,46 @@ static srmech_json_value_t *cr_desc_scalar(srmech_json_builder_t *bd,
     return NULL;   /* CR_LIST — handled by cr_desc, never here */
 }
 
-/* Marshal a flat CR_LIST as {"items": [...], "k": "l"} (keys canonical-sorted).
- * One level, a plain loop, NO recursion.
+/* Marshal a flat CR_LIST as {"k": "l", "v": [...]} — or {"k": "t", "v": [...]}
+ * when the carrier is flagged a TUPLE (keys canonical-sorted). One level, a
+ * plain loop, NO recursion.
  *
  * ⚠️ Python's _reconstruct_value has ALWAYS had a `k == "l"` branch, so the
  * scripting projection could read a list descriptor the compiled one could not
  * produce. That asymmetry ran the OTHER way from the one gh #1653 is about —
  * the reader was ahead of the writer — and it went unnoticed because nothing
  * exercised it. Closing it needs no Python change, which is exactly why it was
- * invisible. */
+ * invisible.
+ *
+ * ⚠️ THE PAYLOAD KEY IS "v", CHANGED FROM "items" AT v0.9.0rc451. That closes
+ * gap-ledger row wire_l_payload_key_divergence, which assigned the decision to
+ * "the rc that next changes a wire" — this one. Through rc450 the two chain
+ * wires spelled the SAME kind differently: chain-run's `l` carried its payload
+ * under "items" while the sibling DSL wire's `l`/`t` carried theirs under "v".
+ * Adding `t` FORCED the decision rather than merely permitting it: spelling t
+ * with "items" would have grown the divergence from one kind to two, and
+ * spelling t with "v" while l kept "items" would have made ONE wire internally
+ * inconsistent. Unifying on "v" rides the ABI 19 -> 20 bump this rc already
+ * pays for; deferring it would have cost its own bump later. Exactly ONE
+ * in-tree reader of the old key exists (compose.py::_reconstruct_value) and it
+ * moves in this same change.
+ *
+ * ⚠️ THE KIND IS EMITTED THROUGH TWO BARE-LITERAL BRANCHES, NEVER A TERNARY.
+ * The rc450 value-parity gate re-derives the writer's kind set by parsing this
+ * region for JSON-string constructions whose first argument is a ONE-CHARACTER
+ * LITERAL. The sibling DSL interpreter writes its equivalent as a ternary
+ * selecting between two kind letters in the argument position; copying that
+ * idiom here would make the parse lose BOTH kinds and red the bijection pin —
+ * and the tempting repair is to loosen the predicate, which is how a
+ * measurement stops being one. Same class as the require_native
+ * single-line-literal rule. If the predicate ever must change, change it
+ * deliberately and in the same commit.
+ *
+ * (Measured while writing this: an earlier draft of THIS COMMENT spelled the
+ * predicate out as a sample call with a placeholder letter, and the gate parsed
+ * the placeholder as an eighth emitted kind and went red. The gate returning
+ * otherwise on a comment is the gate being a measurement — so the comment
+ * moved, not the predicate.) */
 static srmech_json_value_t *cr_desc_list(srmech_json_builder_t *bd,
                                          const cr_value_t *v, cr_bump_t *tmp)
 {
@@ -1253,10 +1496,14 @@ static srmech_json_value_t *cr_desc_list(srmech_json_builder_t *bd,
         items[i] = cr_desc_scalar(bd, v->items[i], tmp);   /* NO recursion */
         if (items[i] == NULL) { return NULL; }
     }
-    keys[0] = "items"; keys[1] = "k";
-    vals[0] = srmech_json_new_array(bd, items, v->n);
-    vals[1] = srmech_json_new_string(bd, "l", 1u);
-    if (vals[0] == NULL) { return NULL; }
+    keys[0] = "k"; keys[1] = "v";
+    if (v->is_tuple) {
+        vals[0] = srmech_json_new_string(bd, "t", 1u);
+    } else {
+        vals[0] = srmech_json_new_string(bd, "l", 1u);
+    }
+    vals[1] = srmech_json_new_array(bd, items, v->n);
+    if (vals[0] == NULL || vals[1] == NULL) { return NULL; }
     return srmech_json_new_object(bd, keys, vals, 2u);
 }
 
@@ -1445,7 +1692,7 @@ static const struct {
     const char *bare;
     uint32_t    len;
     const char *full;
-} CR_OP_REG[20] = {
+} CR_OP_REG[24] = {
     { "pi_cascade_digits",     17u, "srmech.math.rational.pi_cascade_digits" },
     { "exp_series_truncate",   19u, "srmech.math.rational.exp_series_truncate" },
     { "sin_series_truncate",   19u, "srmech.math.rational.sin_series_truncate" },
@@ -1465,8 +1712,21 @@ static const struct {
     { "pin_slot_at_zero",      16u, "srmech.cascade.pin_slot_at_zero" },
     { "reorient",               8u, "srmech.cascade.reorient" },
     { "chiral_flip",           11u, "srmech.cascade.chiral_flip" },
-    { "autocorrelation",       15u, "srmech.cascade.autocorrelation" }
+    { "autocorrelation",       15u, "srmech.cascade.autocorrelation" },
+    { "dead_band",              9u, "srmech.cascade.dead_band" },
+    { "scale_round_half_even", 21u, "srmech.math.rational.scale_round_half_even" },
+    { "best_rational",         13u, "srmech.math.rational.best_rational" },
+    { "pair",                   4u, "srmech.cascade.pair" }
 };
+
+/* The table's own length, DERIVED. It was written out as a bare `20u` in the
+ * two loop bounds below through rc450, and nothing read those: the shipped gate
+ * pins the ARRAY DECLARATION via the marker string "} CR_OP_REG[N] = {" and
+ * then compares index rows to dispatch arms, never a bound. So growing the
+ * array while leaving a stale bound would have left the key-set validator
+ * silently OFF for exactly the tail entries — i.e. for precisely the four ops
+ * rc451 adds — with every other gate green. Deriving it removes the class. */
+#define CR_OP_REG_N (sizeof(CR_OP_REG) / sizeof(CR_OP_REG[0]))
 
 /* 1 iff `name` is a declared param of `e`. Every declared param is a legal `args`
  * key on this surface — see the params[*] note above. */
@@ -1492,13 +1752,14 @@ static srmech_status_t cr_args_keyset_ok(const char *op, uint32_t opl,
     uint32_t i;
     assert(op != NULL && args != NULL);
     assert(args->type == SRMECH_JSON_OBJECT);
-    for (i = 0u; i < 20u; i++) {
+    for (i = 0u; i < (uint32_t)CR_OP_REG_N; i++) {
         if (cr_op_is(op, opl, CR_OP_REG[i].bare, CR_OP_REG[i].len)) {
             e = srmech_tool_registry_find(CR_OP_REG[i].full);
             break;
         }
     }
-    if (i == 20u) { return SRMECH_OK; }   /* not in the table → dispatch defers */
+    if (i == (uint32_t)CR_OP_REG_N) { return SRMECH_OK; }   /* not in the table
+                                                             * → dispatch defers */
     /* ⚠️ NOT silent acceptance — a dispatched op with no registry entry is a broken
      * library invariant. Accepting here would let ONE typo in the table above
      * disable the validator for that op forever, with every other op still green. */

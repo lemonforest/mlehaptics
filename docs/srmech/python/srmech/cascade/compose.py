@@ -1010,6 +1010,13 @@ _RUN_C_OPS = frozenset({
     # Class C / K / L — the real-sequence and pin-slot arms (rc447)
     "chiral_flip", "autocorrelation", "pin_slot_at_zero", "reorient",
     "orientation_compose",
+    # Class K / N / B — the best_rational_signed steps (rc451, `#T1164`).
+    # FOUR separate arms at step granularity in cr_dispatch_real, deliberately
+    # NOT one dispatch of the fused srmech_cascade_best_rational_signed_f64:
+    # that symbol is value-identical to the fine pipeline over the whole
+    # C-accepted domain, so a coarse dispatch would satisfy every value-level
+    # gate while the descriptor's steps drove nothing.
+    "dead_band", "scale_round_half_even", "best_rational", "pair",
 })
 
 #: Fold-body ops the C runner dispatches (``cr_fold_body``). Deliberately its
@@ -1239,7 +1246,25 @@ def _reconstruct_value(desc: Dict[str, Any]) -> Any:
     if k == "n":
         return None
     if k == "l":
-        return [_reconstruct_value(it) for it in desc["items"]]
+        # rc451: the payload key is "v", changed from "items" in lockstep with
+        # the C writer (cr_desc_list) and the ABI 19 -> 20 bump. Closes gap-
+        # ledger row wire_l_payload_key_divergence, which had the chain-run wire
+        # spelling this kind's payload "items" while the sibling DSL wire spelled
+        # the SAME kind's payload "v". The `t` kind below forced the decision:
+        # leaving `l` on "items" would have made one wire internally inconsistent
+        # or grown the cross-wire divergence from one kind to two.
+        return [_reconstruct_value(it) for it in desc["v"]]
+    if k == "t":
+        # A TUPLE, not a list — the distinction the wire could not spell until
+        # rc451 (`#T1164`, gh #1653 item 4). `best_rational_signed` declares
+        # ``tuple[int, int]`` and is the only executable descriptor that returns
+        # one, so it was the chain this gap blocked; the shipped value-parity
+        # comparator pins ``tuple != list`` as a required-DIVERGENT witness, so
+        # answering `l` here would be a wrong value, not a missing capability.
+        # Lands with the C-side ``is_tuple`` flag in the SAME change — a kind
+        # that reached this reader before its branch existed would raise below,
+        # and ABI 20 enforces the converse for a stale ``.so``.
+        return tuple(_reconstruct_value(it) for it in desc["v"])
     if k == "f":
         # A real-valued result. EXACT, not approximate: the C writer formats
         # doubles via ``srmech_double_repr`` (an integer-only Ryu matching

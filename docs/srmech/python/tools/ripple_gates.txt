@@ -628,6 +628,21 @@ tests/test_genome_group_v20_rc442.py
 #    and chain_run_c_rc174, are ~45 s and ~42 s alone). They are kept anyway:
 #    they are the srmech_chain_run gates, and a fast runner that omits the
 #    surface under change is fast about nothing.
+# -- rc451 (`#T1164`, gh #1653 item 4 — the RC-A slice) -----------------------
+#    THE TWO GATES THAT JUDGE THIS RC. The first is the ONE instrument the
+#    value channel provably cannot be: the fused coarse symbol is MEASURED
+#    value-identical to the six declared steps on all 10 shipped proof cases,
+#    so no input distinguishes an honest per-step dispatch from a shape-matched
+#    coarse one — only a source-shape gate over the interpreter TU can. The
+#    second closes `#T1163` by keying two shipped README cardinals to the
+#    artifacts that own them, instead of restating them.
+#
+#    Both are listed HERE, by hand, because the manifest meta-test has NO
+#    GROWTH OBLIGATION: FROZEN_KNOWN_GATES is a floor, nothing enumerates
+#    tests/*.py, and a gate absent from both sets is invisible. rc449 added
+#    three gates and listed zero of them.
+tests/test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py
+tests/test_readme_c_coverage_figures_rc451.py
 tests/test_c_cascade_parity_ratchet_rc446.py
 tests/test_c_cascade_value_parity_rc450.py
 tests/test_blocked_row_agrees_with_gate_matrix_rc450.py

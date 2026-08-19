@@ -214,7 +214,55 @@ DRAINED_EXACT = {
 #: No conflation: the ceiling moved because the instrument counts VOLUME, and
 #: this rc added a real-sequence arm, a fold arm and a Class-K/C pair to the file
 #: that already holds the largest share of it.
-CEIL_CONFLATING_RETURN_LINES = 721
+#:
+#: ── rc451 (`#T1164`, gh #1653 item 4): 721 -> 724. THREE new lines, ALL in
+#: srmech_compose_run.c, ALL verified caller-arena failures. Named individually
+#: per this ratchet's own rule, with the NULL provenance for each:
+#:
+#:   cr_op_pair           lst == NULL || items == NULL  <- cr_new_value / cr_carve
+#:   cr_op_best_rational  lst == NULL || items == NULL  <- cr_new_value / cr_carve
+#:   cr_op_best_rational  items[0]/items[1] == NULL     <- cr_int_u64 -> cr_carve
+#:
+#: MEASURED, PREDICATE STATED, so the number is reproducible rather than
+#: asserted: this file's own `_count_returns` over `sorted(_C_SRC_DIR.glob(
+#: "*.c"))` reads 724 at HEAD and 721 at b9a5bc330 (the rc450 merge-base), and
+#: the whole delta is one file — srmech_compose_run.c 25 -> 28. The multiset of
+#: its stripped return lines has THREE additions and an EMPTY removal set, so
+#: nothing was re-statused to make room. Both ops are new in this rc; the base
+#: commit contains neither symbol.
+#:
+#: Provenance traced to the leaf, because "it came from a carve" is the claim
+#: being made and a carve is not the only way these helpers answer NULL:
+#:   * cr_new_value's ONLY NULL path is cr_carve(b, sizeof(cr_value_t));
+#:   * the item array is a direct cr_carve(b, 2u * sizeof(void *));
+#:   * cr_int_u64 answers NULL from cr_new_value or cr_new_bigint(b, 3u), and
+#:     cr_new_bigint's two NULL paths are both cr_carve. It has NO value-range
+#:     NULL — the uint64 is written straight into two of the three carved limbs
+#:     with no set/fit call that can fail — so no OPERAND can drive this line,
+#:     only an exhausted arena. (Its sibling cr_int_i64 does carry a third,
+#:     defensive srmech_bigint_set_i64 check; that line is rc447's, already
+#:     adjudicated above, and cap=3 limbs cannot be overrun by an int64.)
+#: cr_carve returns NULL for exactly one condition — the request does not fit
+#: the remaining bump arena, which is built on the CALLER-SUPPLIED ws/ws_len —
+#: so status 4 is correct under rc404's rule and a caller's grow-loop
+#: terminates: srmech_chain_run_arena_bytes reports a larger figure and the same
+#: call succeeds. None of the three is an unrepresentable value, a compiled-in
+#: cap, or a non-convergent iteration, so none of them is LIMIT.
+#:
+#: ⚠️ THE CONTRAST IS LIVE INSIDE THE SAME FUNCTIONS, which is why this is not a
+#: rubber stamp. cr_op_best_rational's other two early exits are deliberate
+#: NOT_IMPL declines rather than status 4: an out-of-uint64 or negative operand
+#: (cr_as_u64 refusing to narrow silently) and a `with_path=True` request whose
+#: third element the wire has no shape for. Those DEFER to the pure projection,
+#: and reading either as a buffer failure would have put a fourth line under
+#: this ceiling wrongly. rc451's sibling cr_op_dead_band declines a non-double
+#: operand for the same reason. So this rc placed exits on BOTH sides of the
+#: rc404 distinction, deliberately — and on a third side the ratchet does not
+#: count at all.
+#:
+#: No conflation: the ceiling moved because the instrument counts VOLUME, and
+#: this rc added four step arms to srmech_compose_run.c.
+CEIL_CONFLATING_RETURN_LINES = 724
 
 _RETURN_OVERFLOW = re.compile(r"return\s+SRMECH_ERR_OVERFLOW\s*;")
 

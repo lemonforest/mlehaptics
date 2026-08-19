@@ -659,8 +659,8 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **19** (`SRMECH_ABI_VERSION = 19` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 19` in
+C ABI version is currently **20** (`SRMECH_ABI_VERSION = 20` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 20` in
 *(this line said 12 until rc420, 13 until rc425, 14 until rc438, 15 until
 rc439, 16 until rc442, 17 until rc449 and — the point — **17 through the whole of
 rc447 AND rc448**, so it was two bumps behind by the time rc449 read it: a SIXTH
@@ -673,7 +673,19 @@ shape the rc404 note below records; the v13 bump was rc418's, the v14 bump is rc
 §GROUP/v20 `genome_cap_kind` widening, the v18 bump is rc447's `{"k":"f"}` /
 `{"k":"l"}` value-descriptor kinds on `srmech_chain_run`'s output wire, and the
 v19 bump is rc449's key-set refusal on both chain interpreters — all STATUS
-reinterpretations bar v18, the v10/v12/v14 shape. rc442 is also the first bump
+reinterpretations bar v18, the v10/v12/v14 shape. **The v20 bump is rc451's
+(`#T1164`, gh #1653 item 4) and it is v18's shape a second time**: the SAME
+`srmech_chain_run` output wire gains the `{"k":"t"}` TUPLE kind (so a chain
+declaring `tuple[int, int]` — today exactly one, `best_rational_signed` — can
+cross it as the type it declares rather than collapsing to a list), and the `l`
+payload key moves `"items"` → `"v"`, which `t` shares, so the chain-run wire and
+the sibling DSL wire finally spell the same kind the same way (gap-ledger row
+`wire_l_payload_key_divergence`, which had assigned that decision to "the rc
+that next changes a wire"). Load-bearing in the same direction v18 documented, and
+more strongly: with the key unified, an rc451 `.so` against rc450 Python would
+`KeyError` mid-run on EVERY list-final chain that is byte-identical today, and the
+bump converts that into a clean load-refusal. rc451's four new exported symbols
+contribute nothing to it — adding a symbol never bumps. rc442 is also the first bump
 since rc326 to move `SRMECH_GENOME_FORMAT_VERSION` alongside it, 19 → 20.
 ⚠️ **rc449 (`#T1158`) put this line under a gate** —
 `tests/test_abi_prose_currency_rc449.py` — precisely because six lags in a row

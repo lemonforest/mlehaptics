@@ -97,7 +97,19 @@ def test_the_pin_slot_returns_BOTH_halves_addressably():
          "args": {"x": "@input.x"}}]}
     rc, raw = _c_run(chain, {"x": -3.5})
     assert rc == 0, rc
-    assert _compose._reconstruct_value(json.loads(raw)) == [-1, 3.5]
+    # A TUPLE since v0.9.0rc451 (`#T1164`). This assertion read ``[-1, 3.5]``
+    # from rc447 to rc450 and that LIST was never the contract -- it was the
+    # WIRE'S LIMITATION, pinned as if it were one. ``pin_slot_at_zero``
+    # declares ``-> Tuple[int, 'Real']`` and returns ``(-1, 3.5)``; the rc447
+    # output-kind set {n,i,s,q,f,l} simply had no tuple spelling, so C could
+    # only answer ``l`` and this line recorded the collapse. rc451 adds
+    # ``{"k":"t"}`` and flags cr_op_pin_slot's CR_LIST, so the emitted wire is
+    #     {"k": "t", "v": [{"k": "i", "v": "-1"}, {"k": "f", "v": 3.5}]}
+    # and C now matches its Python peer exactly. The SUBJECT of this test is
+    # untouched: ``[0]`` and ``[1]`` must still address the two halves
+    # separately, which is what the docstring above is about and what the two
+    # tests below exercise from the declining side.
+    assert _compose._reconstruct_value(json.loads(raw)) == (-1, 3.5)
 
 
 def test_an_OUT_OF_RANGE_index_declines_rather_than_wrapping():

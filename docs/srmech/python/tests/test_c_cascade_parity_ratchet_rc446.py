@@ -69,7 +69,7 @@ from srmech.dsl import _catalog as _cat
 # Re-measured at rc445 by notes/_1653_chain_census_rc444.py:
 #   "CENSUS of 18 executable chains (20 chain-variants): ...
 #    C srmech_chain_run ACCEPT=0 REJECT=18 ... UNATTRIBUTED=0"
-CEIL_C_REJECTED_CHAINS = 9            # of 18 executable. Target 0.
+CEIL_C_REJECTED_CHAINS = 8            # of 18 executable. Target 0.
 #   The rc445 baseline was 18, verified against a PRISTINE origin/main .so with
 #   THIS harness — so the drain is attributable to the code, not to the probe.
 #   The drain, in full: 18 (rc445) -> 12 when the cr_dispatch arm closed the 6
@@ -84,6 +84,35 @@ CEIL_C_REJECTED_CHAINS = 9            # of 18 executable. Target 0.
 #   decrement trustworthy has to predate the decrement it judges. That
 #   instrument is tests/test_c_cascade_value_parity_rc450.py — until it landed,
 #   "accepted" meant rc == 0 and nothing had ever decoded the returned VALUE.
+#
+#   9 -> 8 at rc451 (`#T1164`, gh #1653 item 4): best_rational_signed. THE FIRST
+#   DECREMENT THIS RATCHET HAS EVER MADE WITH THE VALUE CHANNEL OPEN — every
+#   earlier one was rc == 0 and nothing more. Its 9 JSON-representable proof
+#   cases are BYTE_IDENTICAL under the rc450 typed comparator (its 10th, a
+#   non-finite x, never reaches C and stays in CEIL_NONFINITE), and the
+#   comparator's population stayed 0-DIVERGENT.
+#
+#   ⚠️ AND THE OPEN VALUE CHANNEL IMMEDIATELY EARNED ITS KEEP. The first run of
+#   the newly-accepted chain returned (22.0, 7) against Python's (22, 7): the
+#   interpreter's `reorient` arm read every operand through cr_arg_dbl and
+#   answered CR_DBL unconditionally, where the Python op's docstring states
+#   "int in -> int out". A LATENT WRONG ANSWER that had been dispatchable since
+#   rc447 and was invisible because no accepted chain had ever handed reorient
+#   an integer. Under the pre-rc450 ratchet — rc == 0, no decode — this
+#   decrement would have been recorded as a clean win. Fixed at root in the same
+#   change (cr_op_reorient now branches on the carrier kind).
+#
+#   ⚠️ WHAT rc451 DELIBERATELY DID NOT DO. srmech_cascade_best_rational_signed_f64
+#   already fuses this whole chain, and it is MEASURED value-identical to the
+#   six declared steps over the entire C-accepted domain (notes/
+#   _1653_rca_probe_rc451.py block D: agree=10 disagree=0). Dispatching it would
+#   have moved this ceiling with one arm and left the descriptor's steps driving
+#   nothing — and NO value-level gate could have seen the difference. The four
+#   step ops are separate arms in cr_dispatch_real instead, and the interpreter
+#   TU is pinned to reference no multi-step coarse cascade symbol
+#   (test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py), because for
+#   this defect class the value channel is provably blind and a source-shape
+#   gate is the only instrument that can still return otherwise.
 CEIL_SURFACE_A_UNSUPPORTED_FORMS = 2   # map + fold. plain executes. Target 0.
 #
 # ⚠️ ``fold`` STAYS COUNTED UNSUPPORTED even though ``net_chirality`` (a real
@@ -187,10 +216,13 @@ BLOCKED = {
     "autocorrelation":          {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "step_form_map", "new_type_reason": ""},
-    "best_rational_signed":     {"gates": [GATE_OP_TABLE],
-                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "wire_tuple_kind_absent",
-                                "new_type_reason": ""},
+    # best_rational_signed's row was DELETED at rc451 (`#T1164`, gh #1653 item
+    # 4) — the chain runs. It carried new_type=True against ledger row
+    # wire_tuple_kind_absent, and that flag was load-bearing exactly as the
+    # note above predicted: closing the chain DID widen a discriminator set
+    # (srmech_chain_run's output-kind vocabulary gained `t`), and the projection
+    # gap closed in the SAME change (the C `is_tuple` flag, the Python `t`
+    # branch in _reconstruct_value, and ABI 19 -> 20 together).
     "encode_loe_content":       {"gates": [GATE_CARRIER, GATE_OP_TABLE],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "carrier_bytes", "new_type_reason": ""},

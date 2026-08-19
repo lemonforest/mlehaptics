@@ -1017,7 +1017,7 @@ def test_native_bus_symbols_present():
     from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    assert _native.NATIVE_ABI_VERSION == 19, (
+    assert _native.NATIVE_ABI_VERSION == 20, (
         f"ABI 13 expected (rc418 `#T1108` gave the genome write ops + the catalog "
         f"audit a caller-attestation / descriptor channel, 12 -> 13); "
         f"got {_native.NATIVE_ABI_VERSION}"
@@ -1066,7 +1066,7 @@ def test_abi_version_is_pinned():
     # Fixed by construction rather than by digit: the expected value is named
     # once and interpolated, so the message cannot disagree with the assert.
     from srmech import _native
-    want_abi = 19
+    want_abi = 20
     assert _native.EXPECTED_ABI_VERSION == want_abi, (
         f"EXPECTED_ABI_VERSION should be {want_abi}; got "
         f"{_native.EXPECTED_ABI_VERSION}"

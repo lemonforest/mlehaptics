@@ -278,6 +278,13 @@ FROZEN_KNOWN_GATES = frozenset({
     "tests/test_c_cascade_value_parity_rc450.py",
     "tests/test_blocked_row_agrees_with_gate_matrix_rc450.py",
     "tests/test_step_mutation_witness_rc447.py",
+    # rc451 (`#T1164`): the anti-coarse structural pin. FROZEN because it is
+    # the only instrument in the tree that can see the defect it names — the
+    # fused best_rational_signed symbol is MEASURED value-identical to the six
+    # declared steps over the whole C-accepted domain, so every value-level
+    # gate stays green on a coarse dispatch. Dropping it from the manifest
+    # would leave the runner blind to the one thing this arc is protecting.
+    "tests/test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py",
     "tests/test_combinator_kernel_closure.py",
     "tests/test_t1146_rejection_parity_rc447.py",
     "tests/test_t1158_refusal_set_equality_rc449.py",

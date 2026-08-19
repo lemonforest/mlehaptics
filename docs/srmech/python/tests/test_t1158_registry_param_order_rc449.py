@@ -179,6 +179,20 @@ def test_params_zero_is_the_first_live_parameter() -> None:
 def _parse_index(path: Path, marker: str) -> Dict[str, Tuple[int, str]]:
     """Parse a C name-to-name index into {bare: (declared_len, full_name)}."""
     text = path.read_text(encoding="utf-8")
+    # rc451 (`#T1164`): the marker lookup gets its OWN assert. It used to be a
+    # bare ``text.index(marker)``, which raises ``ValueError: substring not
+    # found`` — no file, no marker, no instruction — BEFORE the friendly
+    # message below can evaluate. That is exactly what a builder growing the
+    # table hits (measured this rc, on the 20 -> 24 bump), and the message
+    # written for the case was unreachable.
+    assert marker in text, (
+        f"{path.name} no longer contains the index marker {marker!r}. If the "
+        f"array's DECLARED SIZE changed, update this marker in the same commit "
+        f"— the marker IS the array-size gate. (The loop bounds inside "
+        f"cr_args_keyset_ok are derived by sizeof since rc451 and need no "
+        f"edit; before that they were hand-written literals nothing read, so a "
+        f"stale bound silently disabled key-set validation for the tail "
+        f"entries.)")
     i = text.index(marker)
     j = text.index("};", i)
     rows = _INDEX_ROW.findall(text[i:j])
@@ -225,7 +239,7 @@ def test_dsl_leaf_index_resolves_and_matches_signatures() -> None:
 
 def test_compose_op_index_resolves_and_matches_signatures() -> None:
     """G4-A, Surface A — ``CR_OP_REG`` against the registry."""
-    _check_index(_parse_index(_COMPOSE_C, "} CR_OP_REG[20] = {"), "CR_OP_REG", 0)
+    _check_index(_parse_index(_COMPOSE_C, "} CR_OP_REG[24] = {"), "CR_OP_REG", 0)
 
 
 def test_dsl_index_covers_exactly_the_dispatch_arms() -> None:
@@ -269,7 +283,7 @@ def test_compose_index_covers_exactly_the_dispatch_arms() -> None:
         body = body[:body.index("\n}\n")]
         for name, ln in _CR_OP_IS.findall(body):
             arms[name] = int(ln)
-    index = _parse_index(_COMPOSE_C, "} CR_OP_REG[20] = {")
+    index = _parse_index(_COMPOSE_C, "} CR_OP_REG[24] = {")
     assert set(arms) == set(index), (
         f"CR_OP_REG and the compose dispatch arms disagree.\n"
         f"  dispatch-only (UNVALIDATED, still silently dropping): "

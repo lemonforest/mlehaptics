@@ -660,7 +660,7 @@ def test_native_status():
 
     # expected_abi is the compiled-against ABI (rc275: 6 — the §101 encode-progress /
     # graceful-abort callback typedef bumped it 5 → 6, #886; rc242 had bumped 4 → 5, #840).
-    assert status["expected_abi"] == 19
+    assert status["expected_abi"] == 20
 
     # Agrees with describe()['native'] on the shared fields (single source
     # of truth: both read srmech._native).

@@ -118,6 +118,28 @@ def _flip_fold_seed(ch):
     ch["steps"][0]["fold_init"] = -1
 
 
+def _widen_dead_band(ch):
+    """best_rational_signed's ONE interior literal: the Class-K dead band.
+
+    Every other arg in that descriptor is an ``@``-reference, so this literal is
+    the whole of what a coarse dispatcher cannot track — the fused
+    ``srmech_cascade_best_rational_signed_f64`` HARD-CODES 1e-12 and has no
+    parameter image for it, while ``max_denominator`` / ``fine_scale`` ride the
+    ctx wire where a shape-recogniser could still read them.
+    """
+    ch["steps"][1]["args"]["band"] = 1e-6
+
+
+def _flip_reorient_orientation(ch):
+    """best_rational_signed's Class-C tail, pinned separately from the band.
+
+    The band mutation alone would be satisfied by a runner that honours step 1
+    and fuses steps 2-5; flipping the reorient's orientation reference to a
+    literal -1 additionally requires the TAIL to be read step-by-step.
+    """
+    ch["steps"][4]["args"]["orientation"] = -1
+
+
 #: (chain, mutate, inputs-or-None, EXPECTED mutant value, why)
 #:
 #: ⚠️ THE EXPECTED VALUE IS THE POINT, not merely "it differs". "Something
@@ -148,6 +170,29 @@ MUTATIONS = [
     ("net_chirality", _flip_fold_seed, {"orientations": [1, -1, 1]}, 1,
      "the fold SEED +1 -> -1 negates the product: -1 -> +1. A compiled-in "
      "net_chirality seeds itself and returns -1"),
+    ("best_rational_signed", _widen_dead_band,
+     {"x": 1.5e-12, "fine_scale": 10 ** 13, "max_denominator": 10 ** 12},
+     (0, 1),
+     "⚠️ THE INPUTS ARE AN OVERRIDE AND THAT IS LOAD-BEARING. This chain's ONE "
+     "interior literal is step 1's band = 1e-12, and the fused C symbol "
+     "hard-codes the same 1e-12 with no parameter image — so widening it to "
+     "1e-6 is the single perturbation a coarse dispatch cannot follow. But the "
+     "mutation is MEASURED VACUOUS on the shipped proof case that looks like "
+     "its natural home (case 6, x = 5e-13): there the baseline, the mutant, the "
+     "chain with the dead_band step REMOVED, and the fused op all return (0, 1) "
+     "— an instrument that cannot return otherwise. At x = 1.5e-12 the magnitude "
+     "clears 1e-12 and not 1e-6, so the baseline computes "
+     "best_rational(15, 10**13, 10**12) = (1, 666666666667) while the mutant "
+     "dead-bands to zero and returns (0, 1). All three values re-measured at "
+     "rc451; see notes/_1653_rca_probe_rc451.py block E, which prints the "
+     "vacuous case beside the viable one as its own control"),
+    ("best_rational_signed", _flip_reorient_orientation, None, (-22, 7),
+     "the Class-C TAIL. Replacing step 4's '@step[0].output[0]' orientation "
+     "reference with a literal -1 on the +pi case must negate the numerator: "
+     "(22, 7) -> (-22, 7). A fused N-C-B tail that re-signs from its own "
+     "internally-computed orientation ignores the literal and still returns "
+     "(22, 7), so this catches a partial fusion the band mutation alone would "
+     "not"),
 ]
 
 

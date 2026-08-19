@@ -53,8 +53,18 @@ The two newest v0.6.0 C files:
 
 ### ABI
 
-C ABI version is **19** (`SRMECH_ABI_VERSION 19` in
-`c/include/srmech.h`). *(This line read **3** from the v0.5.0 era until rc442 —
+C ABI version is **20** (`SRMECH_ABI_VERSION 20` in
+`c/include/srmech.h`). The v20 bump is rc451's (`#T1164`, gh #1653 item 4): a
+WIRE-FORMAT change to the existing `srmech_chain_run`, whose output
+value-descriptor kind set grows `{n,i,s,q,f,l}` → `+t` (a TUPLE, distinct from a
+list) and whose `l` payload key moves `"items"` → `"v"` so both chain wires spell
+it the same way. Exactly the v18 shape — that bump added `f`/`l` to this same
+wire — and load-bearing for the same reason: a current `.so` emitting the new
+kind into an older Python raises mid-run, where the bump makes the pairing refuse
+to load and the pure projection answer. The four exported symbols rc451 also adds
+(`srmech_cascade_dead_band_f64`,
+`srmech_cascade_scale_round_half_even_i64`, …) contribute nothing to it; adding a
+symbol never bumps. *(This line read **3** from the v0.5.0 era until rc442 —
 fourteen bumps stale, and wrong long before that release touched it. It then went
 stale AGAIN five rcs later: rc447 bumped 17 → 18 and rc448 shipped over it, so by
 rc449 it was two behind. The note that used to sit here said "no gate covers

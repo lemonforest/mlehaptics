@@ -548,6 +548,130 @@ srmech_status_t srmech_cascade_best_rational_signed_f64(
     return SRMECH_OK;
 }
 
+/* dead_band — Class K (pin-slot dead-band), at OP granularity.
+ *
+ * v0.9.0rc451 (`#T1164`, gh #1653 item 4). Until now this op had NO C symbol
+ * at ANY granularity — it existed only INLINED inside
+ * srmech_cascade_best_rational_signed_f64 as the literal
+ * `orientation == 0 || magnitude < 1e-12` branch above, which is a
+ * COARSER-granularity capability and not the op. The symbol-gap census filed
+ * it under ABSENT-6; this closes it, so a bare-C host can run the step the
+ * shipped descriptor declares rather than only the whole chain fused.
+ *
+ * Contract, matched to srmech.cascade.leaves.dead_band exactly:
+ *   value >= band  ->  value unchanged
+ *   otherwise      ->  value's OWN zero, spelled `value * 0.0`
+ *
+ * ⚠️ THE ZERO IS `value * 0.0`, NEVER A LITERAL `0.0`. Two measured reasons,
+ * both of which a literal gets wrong:
+ *   - dead_band(-1.0, 1e-12) is -0.0 in Python, and the rc450 value-parity
+ *     comparator pins signed zero as a REQUIRED-DIVERGENT witness — a literal
+ *     +0.0 here is a wrong answer the gate is built to catch;
+ *   - dead_band(NaN, band) is NaN: `NaN >= band` is false, so NaN falls to the
+ *     zero branch and `NaN * 0.0` propagates NaN rather than silently reading
+ *     as the origin. That IS the Class-K discipline — the pin-slot never
+ *     invents a phase for a value that has none.
+ *
+ * No sign branch and no abs(): the declared input domain is a Class-K
+ * MAGNITUDE (already non-negative — the second element of a pin_slot_at_zero
+ * result), so the comparison is a plain `>=` on that domain. The sign lives
+ * upstream in the pin-slot and downstream in reorient.
+ *
+ * JPL: 2 asserts, no loop, no malloc, no goto, well under 60 lines.
+ */
+srmech_status_t srmech_cascade_dead_band_f64(double value, double band,
+                                             double *out)
+{
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    assert(sizeof(double) == 8u);
+    if (value >= band) {
+        *out = value;
+    } else {
+        *out = value * 0.0;   /* the value's OWN zero — sign- and NaN-faithful */
+    }
+    return SRMECH_OK;
+}
+
+/* scale_round_half_even — Class K ∘ Class N ∘ Class C, at OP granularity.
+ *
+ * v0.9.0rc451 (`#T1164`, gh #1653 item 4). The second of the two ABSENT-6 ops
+ * this rc closes. The banker's-rounding MATH already existed here as the
+ * static _cascade_brs_round_half_even, but only as a COARSER capability
+ * reachable through the fused chain symbol — there was no exported peer for
+ * srmech.math.rational.scale_round_half_even itself.
+ *
+ * ⚠️ ONE IMPLEMENTATION, TWO CALLERS. This function and
+ * srmech_cascade_best_rational_signed_f64 both round through
+ * _cascade_brs_round_half_even. That is deliberate and it is the whole point:
+ * parity between the fused op and the declared chain's step is then true BY
+ * CONSTRUCTION, not by a test that happens to agree. Duplicating a rounding
+ * kernel is how two rounding modes are born.
+ *
+ * THE SIGN IS A CASCADE, NOT AN ALU CALL. Python's op is
+ * `int(round(value * scale))` and accepts negative products;
+ * _cascade_brs_round_half_even asserts a non-negative operand because the
+ * fused caller's pin-slot has already stripped the sign. So this arm performs
+ * the SAME composition explicitly and names it:
+ *   Class K  — _cascade_brs_pin_slot splits the PRODUCT into
+ *              (orientation, magnitude);
+ *   Class N  — _cascade_brs_round_half_even rounds the magnitude;
+ *   Class C  — the orientation is re-applied to the rounded integer.
+ * Banker's rounding is sign-symmetric, so this reproduces Python exactly:
+ * measured round(-1.5) = -2, round(-2.5) = -2, round(-0.5) = 0. There is no
+ * abs() and no `v < 0 ? -v : v` written inline — the cascade-count matches the
+ * cascade-shape claimed.
+ *
+ * TWO DECLINES, both stated rather than guessed (a narrower projection must
+ * REFUSE, never silently answer):
+ *   - a non-finite product -> SRMECH_ERR_BAD_INPUT. NaN reaches neither ordered
+ *     branch of the pin-slot and would otherwise land in its `else` arm reading
+ *     as the origin, so it is caught BEFORE the split, not after.
+ *   - |product| >= 2^63 -> SRMECH_ERR_BAD_INPUT. Python returns an exact
+ *     bignum there (measured: scale_round_half_even(1e30, 10**6) is a ~2^119
+ *     int); int64 genuinely cannot carry it. A decline routes the chain to the
+ *     pure projection, which answers correctly — a clamp would be a silent
+ *     wrong answer.
+ *
+ * scale == 0 is NOT declined: Python accepts it (measured
+ * scale_round_half_even(0.5, 0) == 0) and the product path answers it
+ * identically, so refusing would narrow the C domain below its twin's for no
+ * reason.
+ *
+ * JPL: 2 asserts, no loop, no malloc, no goto, well under 60 lines.
+ */
+srmech_status_t srmech_cascade_scale_round_half_even_i64(double value,
+                                                         int64_t scale,
+                                                         int64_t *out)
+{
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    const double scaled = value * (double)scale;
+    /* NaN first: the ordered comparisons below cannot see it. */
+    if (!(scaled == scaled)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    int8_t orientation;
+    double magnitude;
+    /* Class K: pin-slot the PRODUCT at zero — the sign leaves the cascade here
+     * and is re-applied by the Class-C step below. */
+    _cascade_brs_pin_slot(scaled, &orientation, &magnitude);
+    if (!(magnitude < 9223372036854775808.0)) {   /* 2^63; catches +inf too */
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(magnitude >= 0.0);
+    /* Class N: the SHARED banker's-rounding kernel — the same body the fused
+     * best_rational_signed symbol calls. */
+    const long long rounded = _cascade_brs_round_half_even(magnitude);
+    /* Class C: re-apply the orientation. */
+    *out = (orientation < 0) ? -(int64_t)rounded : (int64_t)rounded;
+    return SRMECH_OK;
+}
+
 /* chiral_dual — HIGHER-ORDER Class C ∘ op ∘ Class C conjugation.
  *
  * Closes the cascade-catalog C-parity arc (v0.4.5rc8; op 8 of 8). The

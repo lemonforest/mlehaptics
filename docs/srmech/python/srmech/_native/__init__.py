@@ -219,7 +219,17 @@ from typing import Optional
 #        BEFORE dispatch so the Python read stays right, but a bare-C host on
 #        the stale lib still gets the silent blend, and the projections are
 #        co-equal. This pin rejects it.
-EXPECTED_ABI_VERSION: int = 19
+#   v20 (rc451, `#T1164`, gh #1653 item 4) — the TUPLE wire kind. srmech_chain_run's
+#        output value-descriptor kind set grows {n,i,s,q,f,l} -> +t, and the `l`
+#        payload key moves "items" -> "v" (which `t` shares). Both halves of the
+#        wire move in the same change as _reconstruct_value's reader; this pin is
+#        what stops the OTHER pairing from breaking mid-run. Without it an rc451
+#        .so paired with rc450 Python would emit `t` (unreadable: ValueError) and
+#        `{"k":"l","v":[...]}` (KeyError on desc["items"]) on EVERY list-final
+#        chain that is byte-identical today. With it, that pairing refuses to load
+#        and the pure projection answers correctly. Exactly v18's argument, which
+#        added f/l to this same wire.
+EXPECTED_ABI_VERSION: int = 20
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
