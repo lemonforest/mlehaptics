@@ -1255,8 +1255,8 @@ ROWS = [
                   "desc[\"items\"] for k == \"l\"; srmech/dsl/_chain.py reads "
                   "desc[\"v\"]. Three artifacts, two spellings.",
          probe="grep the three sites named in `evidence`",
-         disposition=FILED,
-         note="The THIRD divergence, which the two_divergent_value_kind_"
+         disposition=CLOSED,
+         note="CLOSED AT rc451 (`#T1164`) — unified on \"v\". The `t` kind FORCED the decision this row deferred to 'the rc that next changes a wire': spelling t with \"items\" would have grown a one-kind divergence into two. Rode the ABI bump the tuple kind already paid for. The THIRD divergence, which the two_divergent_value_kind_"
               "vocabularies row does not record -- that row says both wires are "
               "'spelled {k, v}', and for kind `l` on the chain-run wire that is "
               "false. The unify-or-decline decision belongs to the rc that next "
@@ -1296,8 +1296,8 @@ ROWS = [
                   "rational has no spelling. Today this is unobservable: every "
                   "accepted chain's tuple output IS a rational.",
          probe="pytest tests/test_c_cascade_value_parity_rc450.py -k tuple",
-         disposition=FILED,
-         note="NEW TYPE, and the reason best_rational_signed's BLOCKED row keeps "
+         disposition=CLOSED,
+         note="CLOSED AT rc451 (`#T1164`) — the wire carries {\"k\":\"t\"}, _reconstruct_value returns a tuple, ABI 19 -> 20, and an EXECUTED shipped proof case is asserted on the KIND STRING (not on reconstruction succeeding, which the q-dodge also satisfies). NEW TYPE, and the reason best_rational_signed's BLOCKED row keeps "
               "new_type=True. rc450 files this row because the row that BLOCKED "
               "cited (two_divergent_value_kind_vocabularies) is new_type=false "
               "and describes a DIFFERENT gap -- syncing the chain flag to it "
@@ -1606,6 +1606,361 @@ ROWS = [
          ceiling_blind_to="Nothing measures the suite size, so all three "
                           "figures were free to drift independently."),
 
+
+    # ══ rc451 (`#T1164`, gh #1653 item 4 — the RC-A slice) ═══════════════════
+    dict(id="symbol_gap_ABSENT_6_partial_drain_rc451", kind="gap",
+         missing="TWO of the six ABSENT-6 ops gained C symbols at OP "
+                 "granularity: srmech_cascade_dead_band_f64 and "
+                 "srmech_cascade_scale_round_half_even_i64. The row "
+                 "symbol_gap_ABSENT_6 enumerated six; it is drained "
+                 "APPEND-ONLY rather than rewritten, so what remains is "
+                 "stated by its own row rather than by an edit to a claim "
+                 "that was true when it was made.",
+         lacked_by="c", blocked_this_rc=True, new_type=False,
+         evidence="c/include/srmech.h now declares both; c/test/"
+                  "test_srmech_chain_run.c calls them with no Python present "
+                  "(42 passed, 0 failed). scale_round SHARES the fused chain "
+                  "symbol's banker's-rounding kernel, so coarse-vs-fine "
+                  "parity is by construction rather than by test.",
+         probe="cc -Iinclude test/test_srmech_chain_run.c build/libsrmech.a",
+         disposition=CLOSED,
+         note="Neither is a new TYPE — an added symbol never bumps ABI. The "
+              "rc451 bump is the wire's, not theirs.",
+         ceiling_blind_to="Nothing counts the ABSENT set, so a seventh absent "
+                          "op could join without any figure moving."),
+    dict(id="symbol_gap_ABSENT_4_residual_rc451", kind="gap",
+         missing="FOUR ops still have no C symbol at any granularity: bind, "
+                 "compensated_sum, f64_add, schur_complement.",
+         lacked_by="c", blocked_this_rc=False, new_type=False,
+         evidence="gh #1653 symbol census notes/_1653_symbol_gap.ndjson, "
+                  "resolution=ABSENT, minus the two rc451 closed.",
+         probe="python3 notes/_1653_gate_matrix_rc445.py",
+         disposition=FILED,
+         note="schur_complement is additionally the one op the subtree "
+              "CLAUDE.md advertised a C peer for and never had. Filed, not "
+              "attempted: each is new MATH in C, not a discriminator widening.",
+         ceiling_blind_to="Same as the row above — the ABSENT set is "
+                          "enumerated, never counted by a gate."),
+    dict(id="symbol_gap_FRAMING_pair_closed_rc451", kind="gap",
+         missing="`pair` is dispatched as a C interpreter primitive "
+                 "(cr_op_pair) and its result crosses the wire as the new "
+                 "TUPLE kind. It was one of the FRAMING-7.",
+         lacked_by="c", blocked_this_rc=True, new_type=True,
+         evidence="notes/_1653_rca_probe_rc451.py block A: the shipped 6-step "
+                  "descriptor's final value carries kind 't' and a 'v' "
+                  "payload, reconstructing to a Python tuple.",
+         probe="pytest tests/test_c_cascade_value_parity_rc450.py -k tuple_kind_itself",
+         disposition=CLOSED,
+         note="⚠️ THIS ROW RESOLVES THE `pair` new_type CONTRADICTION, AND IT "
+              "RESOLVES IT AGAINST THE LEDGER. notes/_1653_symbol_gap.ndjson "
+              "carried is_new_type=true for pair; the ledger's "
+              "symbol_gap_FRAMING_7 row, which ENUMERATES pair, carried "
+              "new_type=false. Two artifacts, one fact, nothing comparing "
+              "them. rc451 settled it by DOING the work: closing pair "
+              "required a cr_value_t tuple flag, a new wire kind, a new "
+              "reader branch and an ABI bump — the census was right and the "
+              "ledger row was wrong. Recorded here rather than by editing "
+              "either artifact's history.",
+         ceiling_blind_to="Nothing cross-checks the census's is_new_type "
+                          "against the ledger's new_type; that comparison is "
+                          "the deferred derivation gate below."),
+    dict(id="symbol_gap_FRAMING_6_residual_rc451", kind="gap",
+         missing="SIX framing ops remain with no C dispatch: str_concat, "
+                 "byte_slice, int_parse_le, utf8_encode, as_quat4, as_oct8.",
+         lacked_by="c", blocked_this_rc=False, new_type=True,
+         evidence="Census is_new_type=true for byte_slice, utf8_encode, "
+                  "as_quat4 and as_oct8 — four of the six.",
+         probe="python3 notes/_1653_gate_matrix_rc445.py",
+         disposition=FILED,
+         note="new_type=TRUE for the row as a whole, on rc451's own measured "
+              "precedent: `pair` looked like pure framing and still cost a "
+              "carrier flag, a wire kind and a bump. as_quat4 / as_oct8 are "
+              "the carrier VIEWS the adjudication says are unfiled — this "
+              "row files them, so octonion_dft / quaternion_dft no longer "
+              "rest their chain flag on a reason string alone.",
+         ceiling_blind_to="The FRAMING tally is prose in a census file; no "
+                          "gate reads it (grep of tests/ and tools/ for "
+                          "'symbol_gap' returns zero)."),
+    dict(id="interpreter_reorient_was_type_lossy_rc451", kind="bug",
+         missing="cr_op_reorient read EVERY operand through cr_arg_dbl and "
+                 "answered CR_DBL unconditionally, so reorient(22, "
+                 "orientation=+1) returned 22.0 where the Python op's stated "
+                 "contract is 'int in -> int out'. A WRONG ANSWER, "
+                 "dispatchable since rc447.",
+         lacked_by="c", blocked_this_rc=True, new_type=False,
+         evidence="MEASURED the first time best_rational_signed ran in C at "
+                  "rc451: the wire carried a float 22.0 in the first slot "
+                  "against Python's int 22 — 9 of 9 comparable proof cases "
+                  "DIVERGENT under the rc450 typed comparator.",
+         probe="python3 ../notes/_1653_rca_probe_rc451.py",
+         disposition=CLOSED,
+         note="⚠️ THE FINDING IS HOW IT WAS FOUND. It was invisible because no "
+              "ACCEPTED chain had ever handed reorient an integer — every "
+              "shipped variant fed it a pin-slot magnitude, a double. It "
+              "surfaced in the same run that first decoded a newly-accepted "
+              "chain's VALUE, i.e. on the first decrement this ratchet has "
+              "made with the value channel open. Under the pre-rc450 "
+              "'accepted == rc 0' rule the decrement would have been "
+              "recorded as a clean win. Fixed at root (a kind-branched arm "
+              "calling srmech_cascade_reorient_i64), not routed around.",
+         ceiling_blind_to="An op whose C arm is type-lossy stays invisible "
+                          "until a chain both REACHES it with the other type "
+                          "AND ends somewhere the wire can carry."),
+    dict(id="c_arm_declines_narrower_than_python_rc451", kind="gap",
+         missing="Three rc451 arms REFUSE inputs their Python twins accept: "
+                 "dead_band declines a non-CR_DBL `value` (Python is "
+                 "type-preserving over int, and widening would answer 5.0 "
+                 "where Python answers 5); scale_round_half_even declines a "
+                 "non-CR_DBL `value` and any |product| >= 2^63 (Python "
+                 "returns an exact bignum); best_rational declines an "
+                 "out-of-uint64 operand and any `with_path` key.",
+         lacked_by="c", blocked_this_rc=False, new_type=False,
+         evidence="notes/_1653_rca_probe_rc451.py block F: "
+                  "scale_round_half_even(1e30, 10**6) is C status 2 against a "
+                  "Python 2^119-scale int; best_rational(2**64, 10, 10) is "
+                  "(9223372036854775808, 5) in Python and outside the C wire.",
+         probe="python3 ../notes/_1653_rca_probe_rc451.py",
+         disposition=FILED,
+         note="EVERY one is a DECLINE, never a narrowed answer — the chain "
+              "then runs on the pure projection and is correct. That is the "
+              "Class-I convention applied uniformly: a narrower projection "
+              "must REFUSE, never silently answer. Filed rather than closed "
+              "because a decline is still a capability the C host lacks.",
+         ceiling_blind_to="The value-parity population runs DESCRIPTOR proof "
+                          "cases only, and this chain feeds every arm inside "
+                          "its domain — so none of these declines is "
+                          "reachable from the shipped population at all."),
+    dict(id="blocked_row_derivation_gate_deferred_rc451", kind="decline",
+         missing="The adjudicated replacement for BLOCKED's new_type rule — a "
+                 "ledger_rows LIST schema, deletion of new_type_reason, a "
+                 "`gate` field on ledger rows, and three assertions "
+                 "(citations-open / OR-derivation / gate-coverage) — is NOT "
+                 "shipped in rc451.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="MEASURED at rc451: the gap ledger has NO chain-attribution "
+                  "field. Its key union is [blocked_this_rc, "
+                  "ceiling_blind_to, disposition, evidence, id, kind, "
+                  "lacked_by, missing, new_type, note, probe, rc, task] and "
+                  "blocked_this_rc is a plain bool on all 69 pre-rc451 rows. "
+                  "So the proposed COVERAGE assertion cannot range over its "
+                  "own stated subject (a chain's COMPLETE citation set), and "
+                  "the value-level rows it was designed for are explicitly "
+                  "exempted from it by carrying gate=null.",
+         probe="see the reconciliation block in notes/_1653_rca_gate_provenance_rc451.py",
+         disposition=DECLINED,
+         note="DECLINED WITH REASON, not skipped. Shipping a completeness "
+              "gate that cannot check completeness would be an instrument "
+              "unable to return otherwise — the exact class this arc exists "
+              "to close. The data the mechanism needs ALREADY EXISTS with "
+              "per-chain attribution in notes/_1653_symbol_gap.ndjson's "
+              "`used_by` field (47 op rows), which no test or tool reads. "
+              "Re-key the check on that, then adopt. rc451 does the half "
+              "that does not depend on the mechanism: it RESOLVES the pair "
+              "contradiction by measurement and FILES the as_quat4 / as_oct8 "
+              "carrier-view rows the adjudication says are unfiled.",
+         ceiling_blind_to="Nothing compares the census's is_new_type to the "
+                          "ledger's new_type today, which is precisely the "
+                          "hole the deferred gate would close."),
+    dict(id="T1163_readme_c_coverage_figures_rc451", kind="bug",
+         missing="python/README.md carried TWO undated, ungated cardinals in "
+                 "one shipped sentence — 'CR_OP_REG holds 20 op spellings' "
+                 "and 'a bare-C host runs 9 of the 18 chains'. Both were TRUE "
+                 "at rc450 and both went FALSE the moment rc451 landed.",
+         lacked_by="neither", blocked_this_rc=True, new_type=False,
+         evidence="Live at rc451: 24 rows parsed from the CR_OP_REG "
+                  "initialiser, and 18 executable minus CEIL_C_REJECTED_CHAINS "
+                  "8 = 10 running.",
+         probe="pytest tests/test_readme_c_coverage_figures_rc451.py",
+         disposition=CLOSED,
+         note="`#T1163` named the second half only; the first was filed "
+              "nowhere. Closed by a GATE rather than by an edit — both are "
+              "now keyed to the artifacts that own them (the C initialiser, "
+              "parsed; and the rc446 ceiling), with a retro-check replaying "
+              "the rc450 strings verbatim so loosening either predicate "
+              "fails. Editing the numbers alone would have left rc452 free "
+              "to repeat it.",
+         ceiling_blind_to="The gate reads TWO sentences. Any third undated "
+                          "cardinal in the same paragraph is still ungated."),
+    dict(id="brs_proof_case_could_not_return_otherwise_rc451", kind="bug",
+         missing="best_rational_signed.toml's rc420 'dead-band corner' proof "
+                 "case documented a divergence its own inputs could not "
+                 "produce: at max_denominator = 10^12 the chain WITHOUT the "
+                 "Class-K dead_band step returns (0, 1), identical to the "
+                 "shipped op. The inputs had lost a zero.",
+         lacked_by="neither", blocked_this_rc=True, new_type=False,
+         evidence="MEASURED: best_rational(5, 10**13, 10**12) = (0, 1) — the "
+                  "1/(2*10^12) convergent's denominator EXCEEDS the cap, so "
+                  "the walk keeps (0,1). At 10^13 the no-dead_band chain "
+                  "returns (1, 2000000000000), the value the comment names.",
+         probe="python3 ../notes/_1653_rca_probe_rc451.py",
+         disposition=CLOSED,
+         note="A proof case labelled 'covers = sub_dead_band' that cannot "
+              "distinguish the chain WITH the step from the chain WITHOUT it "
+              "is a census asserted, not measured. Fixed rather than filed "
+              "because rc451 is already editing this file's adjacent "
+              "MUTATIONS surface. It mattered directly: a band-literal "
+              "mutation witness built on those inputs is VACUOUS (baseline "
+              "== mutant == (0,1)), so the rc451 witness carries an "
+              "inputs_override and the vacuous case is kept beside it as a "
+              "control.",
+         ceiling_blind_to="Nothing checks that a proof case labelled for a "
+                          "corner actually EXERCISES it — a covers= string is "
+                          "a claim, not a measurement."),
+    dict(id="ledger_divergence_alarm_was_a_regex_artifact_rc451", kind="bug",
+         missing="A pre-build audit reported the ledger generator holding 50 "
+                 "rows against 69 on disk and warned that a regen would "
+                 "DELETE 19 hand-appended rows including the one rc451 "
+                 "closes. It is FALSE, and the false measurement is worth a "
+                 "row because of how it was produced.",
+         lacked_by="neither", blocked_this_rc=True, new_type=False,
+         evidence="Re-measured BY EXECUTION at rc451: runpy over "
+                  "_1653_gap_ledger.py yields 69 rows, disk holds 69 "
+                  "id-bearing rows plus 1 summary, set difference empty in "
+                  "BOTH directions, and full dict comparison over all 69 "
+                  "shared ids differs on ZERO. The alarm's instrument was a "
+                  "DOUBLE-QUOTE-ONLY regex over `id=`, which reproduces "
+                  "exactly 50 here; 19 rows spell it with single quotes.",
+         probe="python3 ../notes/_1653_rca_gate_provenance_rc451.py",
+         disposition=CLOSED,
+         note="THE WRONG OPERATOR AGAIN, inside an audit written to catch "
+              "that very defect. rc450 really did close a 32-vs-51 "
+              "divergence; the residual hazard is only that any regen must "
+              "read universal-newline and must not commit the CRLF no-op "
+              "churn. Recorded so the phantom precondition is not "
+              "re-inherited — and so the DISCIPLINE survives the "
+              "correction: reconcile before editing, but do it by "
+              "execution, never by regex.",
+         ceiling_blind_to="Nothing gates the generator against its own "
+                          "output; the agreement is re-established by hand "
+                          "each rc."),
+
+    # ── item 11 / `#T1159` bucket: falsehoods found while building rc451.
+    #    EVERY live value below was RE-MEASURED here, never inherited from the
+    #    report that surfaced it — a filed row carrying a citation is a
+    #    citation, not a measurement, which is the defect these rows are about.
+    dict(id="T1159_count_pin_radius_claude_md_rc451", kind="bug",
+         missing="docs/srmech/CLAUDE.md:234 states the count-pin blast radius "
+                 "as '73 lines across 66 test files'.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="Re-measured at rc451 with the file's OWN stated predicate, "
+                  "`git grep -c \"== 663\" -- tests/`: 68 paths, of which one "
+                  "is tests/RIPPLE_GATES.md matching its own predicate string "
+                  "— so 67 .py files / 74 lines.",
+         probe="cd python && git grep -c '== 663' -- tests/",
+         disposition=FILED,
+         note="Owned by `#T1159`. HONEST-BUT-STALE rather than a bare "
+              "falsehood — it is explicitly dated to rc414 and the prose "
+              "beside it says 'Re-measure before quoting a number here'. "
+              "Filed anyway because tests/RIPPLE_GATES.md already names this "
+              "exact divergence ('the tree stated two different numbers for "
+              "one quantity and neither was current') and the CLAUDE.md side "
+              "was never updated, so a reader landing here first still "
+              "mis-scopes a count-bumping change.",
+         ceiling_blind_to="This file is explicitly NOT hygiene-gated and no "
+                          "ratchet reads it, so nothing but a reader catches "
+                          "it going stale again."),
+    dict(id="T1159_ripple_gates_md_55_rc451", kind="bug",
+         missing="python/tests/RIPPLE_GATES.md:103 says 'Running all 55 here "
+                 "would blur into the full suite', using 55 as the live "
+                 "count-pin blast radius.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="Re-measured at rc451: 67 .py files / 74 lines. The SAME "
+                  "paragraph, two lines earlier, explicitly corrects 55 and "
+                  "calls it 'an rc362-era figure [that] had gone ~22% low' — "
+                  "and then the next sentence uses 55 again.",
+         probe="cd python && git grep -c '== 663' -- tests/",
+         disposition=FILED,
+         note="Owned by `#T1159`. A self-correcting note that did not correct "
+              "its own next sentence — worth the row for the shape: fixing a "
+              "figure where it is DEFINED does not fix it where it is USED, "
+              "and only a gate keyed to the live value covers both.",
+         ceiling_blind_to="No gate reads RIPPLE_GATES.md's prose; the "
+                          "manifest meta-test reads the .txt beside it."),
+    dict(id="T1159_catalog_cardinal_three_more_surfaces_rc451", kind="bug",
+         missing="The stale '17 executable / 3 leaf' catalog cardinal lives "
+                 "on THREE surfaces the existing filing does not name: "
+                 "docs/srmech/CLAUDE.md:325 ('20 = 17 executable + 3 explicit "
+                 "leaves', BOTH cardinals wrong), "
+                 "adr/0012-introspect-as-the-api-contract.md:348 ('the "
+                 "section counts 17 executable / 3 leaf'), and — the "
+                 "load-bearing one — "
+                 "srmech/introspect/_tool_docs_curated.py:3834, which is the "
+                 "SOURCE the two already-filed generated artifacts are "
+                 "generated FROM.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="Live at rc451: describe()['cascade_catalog'] == "
+                  "{'total': 21, 'executable': 18, 'leaf': 3, "
+                  "'c_runnable': 10}. klein4_from_one joined at rc438.",
+         probe="python3 -c \"import srmech.introspect as I; print(I.describe()['cascade_catalog'])\"",
+         disposition=FILED,
+         note="Owned by `#T1159`. THE SOURCE LOCATION IS WHAT MAKES THIS "
+              "ACTIONABLE. The existing row "
+              "T1159_tool_docs_17_executable_vs_live_18 scopes to "
+              "srmech/introspect/_tool_docs.py and the compiled "
+              "c/src/srmech_tool_registry.c — both GENERATED — and its own "
+              "ceiling_blind_to says 'the regen reproduces whatever the "
+              "source says' without ever naming the source. A fix applied to "
+              "the generated pair alone is reverted by the next "
+              "tools/regen_all.py run. The ADR surface is a fourth copy and "
+              "is read by test_adr_citation_integrity_rc415 / "
+              "test_adr_clause_instrument_rc417. python/README.md, by "
+              "contrast, already says 21 correctly.",
+         ceiling_blind_to="No currency gate covers generated-artifact prose, "
+                          "the ADR clause table's cardinals, or either "
+                          "CLAUDE.md."),
+    dict(id="T1159_symbol_census_seq_ops_resolution_rc451", kind="bug",
+         missing="notes/_1653_symbol_gap.ndjson's seq_len and seq_get rows "
+                 "carry resolution='DIRECT' — an assertion of AT-GRANULARITY "
+                 "C coverage — while the SAME rows' own note fields say 'Vec "
+                 "carrier only' and 'Vec carrier only; generic seq is "
+                 "FRAMING'. A row cannot both assert and deny its own "
+                 "resolution.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="Re-parsed at rc451: both rows are resolution='DIRECT' with "
+                  "c_symbol srmech_vec_buf_len / srmech_vec_get. Those "
+                  "symbols exist, but they are typed accessors on "
+                  "srmech_vec_t, while the OPS are generic-sequence framing "
+                  "ops used by klein4_from_one / octonion_dft / "
+                  "quaternion_dft / autocorrelation / kuramoto_step over "
+                  "CR_LIST. Census tallies at rc451: DIRECT 22, COARSER 12, "
+                  "FRAMING 7, ABSENT 6, summing to 47 op rows (+1 summary).",
+         probe="python3 -c \"read notes/_1653_symbol_gap.ndjson and compare each row's resolution to its own note\"",
+         disposition=FILED,
+         note="Owned by `#T1159`. Correcting it moves two members from the "
+              "DIRECT-22 tally into FRAMING-7, so it is a census edit and not "
+              "a prose edit — which is why rc451 files it rather than fixing "
+              "it in passing while editing the ledger next door. NOTE for "
+              "whoever takes it: the rc451 brief's FRAMING-7 list named "
+              "seq_len / seq_get and omitted as_quat4 / as_oct8, i.e. it "
+              "described the corrected census rather than the shipped one; "
+              "the shipped FRAMING-7 is as_oct8, as_quat4, byte_slice, "
+              "int_parse_le, pair, str_concat, utf8_encode (re-measured).",
+         ceiling_blind_to="grep of tests/ and tools/ for 'symbol_gap' returns "
+                          "ZERO — nothing in the tree reads this census at "
+                          "all, so no internal contradiction in it can fire."),
+    dict(id="T1159_gate_matrix_c_table_counts_a_different_set_rc451", kind="bug",
+         missing="notes/_1653_gate_matrix_rc445.ndjson's summary record lists "
+                 "a c_table that does not equal CR_OP_REG, and says nothing "
+                 "about why — inviting a future reader to 'correct' one to "
+                 "match the other.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="Re-measured at rc451: the matrix c_table holds 25 "
+                  "spellings; CR_OP_REG's initialiser holds 24. The delta is "
+                  "exactly `orientation_compose`, which lives in the PRIVATE "
+                  "single-entry fold-body table (_RUN_C_FOLD_OPS / "
+                  "cr_fold_body), not in the shared dispatch table.",
+         probe="python3 notes/_1653_gate_matrix_rc445.py",
+         disposition=FILED,
+         note="Owned by `#T1159`. NOT a contradiction — the two artifacts "
+              "count different sets — but the keeping-them-separate is the "
+              "whole point of the rc446 ratchet's fold-body distinction, and "
+              "an artifact that states a number without stating its "
+              "population is one reader away from a wrong 'fix'. Filed for a "
+              "one-line population note on the summary record, not for a "
+              "number change.",
+         ceiling_blind_to="The agreement gate pins BLOCKED against the "
+                          "matrix's per-chain rows; nothing reads the summary "
+                          "record's c_table."),
 ]
 
 
