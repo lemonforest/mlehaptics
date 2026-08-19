@@ -1063,11 +1063,18 @@ static srmech_status_t cr_op_pin_slot(cr_ctx_t *c, const srmech_json_value_t *ar
     lst->items = items; lst->n = 2u;
     /* rc451: the Python peer returns Tuple[int, Real] (atoms.py), so the
      * carrier is flagged a tuple. A LATENT divergence until now, invisible only
-     * because every shipped variant uses pin_slot INTERMEDIATELY — a
-     * user-authored chain ENDING here would have crossed the wire as a list
-     * against a Python tuple, which the rc450 comparator pins DIVERGENT. Costs
-     * no shipped chain anything: @step[N].output[K] indexing reads the flat
-     * CR_LIST exactly as before. */
+     * because every ACCEPTED CATALOG variant uses pin_slot INTERMEDIATELY — a
+     * chain ENDING here crossed the wire as a list against a Python tuple,
+     * which the rc450 comparator pins DIVERGENT.
+     *
+     * ⚠️ WHAT IT COSTS. This comment said "Costs no shipped chain anything",
+     * and that is MEASURABLY FALSE for the one case it named safe. A chain
+     * ENDING at pin_slot changes its emitted kind l -> t, so its reconstructed
+     * value moves [-1, 3.5] -> (-1, 3.5) — which IS the fix (Python answers the
+     * tuple), not a side effect. tests/test_c_ref_indexing_rc447.py ships
+     * exactly such a single-step chain and went red on it. INDEXING is what is
+     * genuinely unaffected: @step[N].output[K] reads the flat CR_LIST as
+     * before, because cr_index_value never asks about the flag. */
     lst->is_tuple = 1;
     *out = lst;
     return SRMECH_OK;

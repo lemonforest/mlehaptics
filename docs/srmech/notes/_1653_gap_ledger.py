@@ -1961,6 +1961,73 @@ ROWS = [
          ceiling_blind_to="The agreement gate pins BLOCKED against the "
                           "matrix's per-chain rows; nothing reads the summary "
                           "record's c_table."),
+    dict(id="T1159_value_parity_population_cannot_reach_ad_hoc_chains_rc451",
+         kind="gap",
+         missing="The rc450 value-parity comparator's population is derived "
+                 "from the live ACCEPTED CATALOG set, so any chain that is not "
+                 "a catalog descriptor sits outside it BY CONSTRUCTION — every "
+                 "chain a user authors, and every ad-hoc chain a test builds "
+                 "inline. A live C-vs-Python divergence reachable only from "
+                 "such a chain is uncomparable, not merely uncompared.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="PREDICATE, at tests/test_c_cascade_value_parity_rc450.py:375 "
+                  "(_population): names = sorted(n for n, d in "
+                  "_cat.load_catalog().items() if _cc.descriptor_status(d) == "
+                  "'executable'), then cascade_chain_specs(name) x each entry's "
+                  "declared proof_cases. MEASURED at rc451: 18 executable "
+                  "descriptors -> 20 chain variants; exactly 2 of the 20 use "
+                  "pin_slot_at_zero (best_rational_signed, magnitude) and ZERO "
+                  "END at it, so the comparator has never once seen pin_slot's "
+                  "own emitted carrier kind — both uses are INTERMEDIATE and "
+                  "are consumed by @step[N].output[K], which is flag-blind. "
+                  "DEMONSTRATED LIVE: rc451 flags cr_op_pin_slot's CR_LIST as a "
+                  "tuple (c/src/srmech_compose_run.c:1070), moving the emitted "
+                  "wire of a chain ENDING at pin_slot from {'k':'l',...} to "
+                  "{'k':'t',...}; the only thing in the tree that noticed was "
+                  "an AD-HOC single-step chain at "
+                  "tests/test_c_ref_indexing_rc447.py:95. The divergence it "
+                  "then exposed — C answering a list where "
+                  "srmech.cascade.pin_slot_at_zero declares -> Tuple[int, "
+                  "'Real'] and returns (-1, 3.5) — was live from rc447 through "
+                  "rc450 and the comparator could not have reached it in any "
+                  "of those four rcs.",
+         probe="python3 -c \"from srmech.dsl import _cascade_chain as cc, "
+               "_catalog as cat; from srmech.dsl._cascade_chain import "
+               "cascade_chain_specs; print([(n,v) for n,d in "
+               "cat.load_catalog().items() if cc.descriptor_status(d)=="
+               "'executable' for v,_s,e in cascade_chain_specs(n) if "
+               "(e.get('steps') or [{}])[-1].get('op','').split('.')[-1]=="
+               "'pin_slot_at_zero'])\" -> [] . RUN, not asserted; the .get "
+               "spellings are load-bearing because some catalog steps carry no "
+               "'op' key at all (the loop / fold / parallel special forms), and "
+               "an indexing probe raises KeyError before it measures anything. "
+               "The NEGATIVE control is the same expression with the two "
+               "pin_slot uses read at ANY position rather than the last, which "
+               "returns [('best_rational_signed','default'), "
+               "('magnitude','default')] — so the empty result is a measured "
+               "absence and not a broken query.",
+         disposition=FILED,
+         note="Owned by `#T1159` (item 11). NOT a defect in the comparator's "
+              "own terms — _population's docstring is explicit that it takes "
+              "every EXECUTABLE chain, and the reason is sound (scoping to the "
+              "ACCEPTED set would make C_REJECTED_<status> unreachable). "
+              "Widening it to arbitrary chains is not a population, it is a "
+              "fuzzer. Filed because the CONSEQUENCE is written down nowhere: "
+              "'value parity is measured' reads as a claim about the "
+              "projection, while what is measured is the projection ON THE "
+              "CATALOG, in the step POSITIONS the catalog's own descriptors "
+              "happen to use. The cheap half is a sentence saying so. The real "
+              "question is whether carrier KIND parity deserves a population "
+              "of its own: a kind divergence is reachable from a ONE-STEP "
+              "chain over any op, and one-step chains are exactly what the "
+              "catalog does not contain.",
+         ceiling_blind_to="Every ratchet in this family counts over the same "
+                          "catalog-derived population, so none of them can "
+                          "detect a divergence only an off-catalog chain "
+                          "reaches — the blindness is shared, not per-gate. "
+                          "What caught this one was a hand-written test file, "
+                          "not a ratchet, and nothing guarantees the next such "
+                          "chain will have been written."),
 ]
 
 
