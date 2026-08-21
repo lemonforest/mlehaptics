@@ -36,6 +36,10 @@ if TYPE_CHECKING:                      # pragma: no cover — annotations only
     # can only be named here under TYPE_CHECKING (rc452, `#T1166`). Runtime
     # binding is the lazy :data:`_Q_CLS` below.
     from .q import Q as _QType
+    #: What a rational OPERAND may be spelled as, on BOTH projections: the
+    #: exact-ℚ carrier, or the ``(num, den)`` house pair. Mirrors C's
+    #: ``cr_as_rational`` (CR_RATIONAL or a 2-int CR_LIST).
+    _QOrPair = Union[_QType, Tuple[int, int]]
 
 __all__ = [
     "continued_fraction",
@@ -438,7 +442,7 @@ _EXP_SERIES_MAX_TERMS: int = 512
 
 def exp_series_truncate(numerator: int,
                         denominator: int,
-                        num_terms: int) -> Tuple[int, int]:
+                        num_terms: int) -> "_QType":
     """Return ``S_N(p/q) = sum_{k=0..N} (p/q)^k / k!`` as an exact rational.
 
     The partial sum is computed with pure integer/rational arithmetic
@@ -469,9 +473,12 @@ def exp_series_truncate(numerator: int,
 
     Returns
     -------
-    (out_num, out_den) : tuple[int, int]
-        Reduced rational ``S_N(p/q) = out_num / out_den``. Always
-        ``out_den > 0`` and ``gcd(|out_num|, out_den) == 1``.
+    q : srmech.math.q.Q
+        Reduced exact rational ``S_N(p/q)``. Always
+        ``q.denominator > 0`` and ``gcd(|q.numerator|, q.denominator) == 1``.
+        rc452 (`#T1166`): a ``Q``, not a ``(num, den)`` tuple — the same
+        exact-ℚ scalar the C peer builds as ``CR_RATIONAL`` and the chain
+        wire spells ``q``. ``num, den = q`` still unpacks.
 
     Raises
     ------
@@ -483,12 +490,12 @@ def exp_series_truncate(numerator: int,
     Examples
     --------
     >>> exp_series_truncate(1, 1, 10)  # S_10(1)
-    (9864101, 3628800)
+    Q(9864101, 3628800)
     >>> exp_series_truncate(1, 2, 5)   # S_5(0.5)
-    (6331, 3840)
+    Q(6331, 3840)
     >>> # S_N(0) = 1/1 (first term only contributes)
     >>> exp_series_truncate(0, 1, 5)
-    (1, 1)
+    Q(1, 1)
 
     Notes
     -----
@@ -738,6 +745,77 @@ def _as_q(pair: Tuple[int, int]):
     return _Q_CLS(num, den)
 
 
+def _q_cls():
+    """The lazily-bound :class:`srmech.math.q.Q`, for ``isinstance`` tests."""
+    global _Q_CLS
+    if _Q_CLS is None:
+        from .q import Q as _QC
+        _Q_CLS = _QC
+    return _Q_CLS
+
+
+def _as_operand_pair(name: str, value) -> Tuple[int, int]:
+    """Read a rational OPERAND as ``(num, den)`` ints — the Python mirror of C's
+    ``cr_as_rational`` (``c/src/srmech_compose_run.c:199``).
+
+    rc452 (`#T1166`) — the ACCEPTANCE half. The four binary Class-N ops took a
+    2-element tuple/list and nothing else, so once they RETURNED ``Q`` the
+    family was no longer closed under its own return type: an op could not
+    consume its own output. That is not a cosmetic asymmetry, it is a measured
+    defect — the return-widening arm alone reds **31** cases across five test
+    files with exactly this ``TypeError``, and every one of them goes green on
+    this widening with no edit to the failing file.
+
+    IT IS ALSO THE SIDE THAT WAS WRONG. C was already closed: executed against
+    the shipped library at ABI 20, a chain whose step 1 feeds ``@step[0].output``
+    (a ``CR_RATIONAL``) straight back into ``rational_add`` returns
+    ``{"d": "6", "k": "q", "n": "5"}`` with ``rc=0``. Python raised on the same
+    shape. Where two co-equal projections disagree the disagreement is the
+    finding, and here the contract says C is right, so Python widens.
+
+    WHAT IS ACCEPTED, and why exactly this set:
+
+    * a :class:`~srmech.math.q.Q` — C's ``CR_RATIONAL`` arm;
+    * a 2-element ``tuple``/``list`` of ints — C's 2-int ``CR_LIST`` arm, and
+      the spelling that SURVIVES from ADJ-4. It is not deprecated: an exact ℚ
+      can still only ENTER a chain this way, because ``json.dumps(Q)`` raises.
+
+    A bare ``int`` is NOT accepted even though ``int`` carries ``.numerator`` /
+    ``.denominator``: C's ``cr_as_rational`` rejects a ``CR_INT``, and widening
+    past the C arm would re-open the divergence one level down. Nor is a
+    ``fractions.Fraction`` — it has no C analog either.
+
+    THE ERROR CONTRACT IS UNCHANGED IN CLASS. A malformed operand still raises
+    ``TypeError``; a non-numeric entry still raises ``ValueError`` from the
+    ``int()`` coercion (not from the denominator check); a non-positive
+    denominator still raises ``ValueError``. Only the message widens to name
+    the second accepted form — two projections raising different classes on the
+    same malformed input is a live defect class in this tree, and this keeps
+    the three rows ``tests/test_input_contracts_rc431.py`` pins exactly as they
+    are.
+    """
+    if isinstance(value, _q_cls()):
+        return (value.numerator, value.denominator)
+    if isinstance(value, (tuple, list)) and len(value) == 2:
+        return (int(value[0]), int(value[1]))
+    raise TypeError(f"{name} must be Q or 2-tuple (num, den); got {value!r}")
+
+
+#: THE ACCEPTANCE BOUNDARY, as a MEASURED predicate rather than a preference.
+#:
+#: The ruling's sentence is "the nine Class-N ops … ACCEPT Q-or-pair". Only
+#: FOUR of the nine can: ``cr_as_rational`` is called at exactly two sites in
+#: the C runner — ``cr_op_pow`` (``:643``, the ``base`` operand) and
+#: ``cr_op_rat`` (``:671-672``, the ``a`` and ``b`` operands of ``+``, ``*``,
+#: ``/``) — and the five ``*_series_truncate`` ops declare
+#: ``(numerator: int, denominator: int, num_terms: int)`` on BOTH projections
+#: (Python ``rational.py:479``; C ``cr_op_series`` reads two separate
+#: ``CR_INT``s at ``:616``). There is no pair operand on a series op to widen.
+#: So four IS the C-isomorphic boundary, derived — not the ruled nine narrowed.
+_ACCEPTANCE_WIDENED_OPS = ("rational_add", "rational_mul", "rational_div",
+                           "rational_pow_uint")
+
+
 def _try_c_two_rationals(symbol: str,
                           a: Tuple[int, int],
                           b: Tuple[int, int]) -> Tuple[int, int] | None:
@@ -778,7 +856,7 @@ def _try_c_two_rationals(symbol: str,
     raise RuntimeError(f"{symbol} returned non-OK status {rc}")
 
 
-def rational_add(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+def rational_add(a: "_QOrPair", b: "_QOrPair") -> "_QType":
     """Add two rationals; return (num, den) reduced.
 
     a/b = (a_num, a_den), c/d = (b_num, b_den).
@@ -788,12 +866,8 @@ def rational_add(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     (`srmech_rational_add`) for inputs that fit u64; falls through to
     bignum on SRMECH_ERR_OVERFLOW.
     """
-    if not (isinstance(a, (tuple, list)) and len(a) == 2):
-        raise TypeError(f"a must be 2-tuple (num, den); got {a!r}")
-    if not (isinstance(b, (tuple, list)) and len(b) == 2):
-        raise TypeError(f"b must be 2-tuple (num, den); got {b!r}")
-    a_num, a_den = int(a[0]), int(a[1])
-    b_num, b_den = int(b[0]), int(b[1])
+    a_num, a_den = _as_operand_pair("a", a)      # Q or (num, den) — see helper
+    b_num, b_den = _as_operand_pair("b", b)
     if a_den <= 0 or b_den <= 0:
         raise ValueError("denominators must be positive")
     out = _try_c_two_rationals("srmech_rational_add", (a_num, a_den), (b_num, b_den))
@@ -807,7 +881,7 @@ def rational_add(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     return _as_q(_reduce_rational(a_num * b_den + b_num * a_den, a_den * b_den))
 
 
-def rational_mul(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+def rational_mul(a: "_QOrPair", b: "_QOrPair") -> "_QType":
     """Multiply two rationals; return (num, den) reduced.
 
     (a_num/a_den) * (b_num/b_den) = (a_num * b_num) / (a_den * b_den).
@@ -815,12 +889,8 @@ def rational_mul(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     Pure-Python bignum-capable; C path (`srmech_rational_mul`) for
     u64-fit inputs.
     """
-    if not (isinstance(a, (tuple, list)) and len(a) == 2):
-        raise TypeError(f"a must be 2-tuple (num, den); got {a!r}")
-    if not (isinstance(b, (tuple, list)) and len(b) == 2):
-        raise TypeError(f"b must be 2-tuple (num, den); got {b!r}")
-    a_num, a_den = int(a[0]), int(a[1])
-    b_num, b_den = int(b[0]), int(b[1])
+    a_num, a_den = _as_operand_pair("a", a)      # Q or (num, den) — see helper
+    b_num, b_den = _as_operand_pair("b", b)
     if a_den <= 0 or b_den <= 0:
         raise ValueError("denominators must be positive")
     out = _try_c_two_rationals("srmech_rational_mul", (a_num, a_den), (b_num, b_den))
@@ -834,7 +904,7 @@ def rational_mul(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     return _as_q(_reduce_rational(a_num * b_num, a_den * b_den))
 
 
-def rational_div(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+def rational_div(a: "_QOrPair", b: "_QOrPair") -> "_QType":
     """Divide two rationals (a / b); return (num, den) reduced.
 
     (a_num/a_den) / (b_num/b_den) = (a_num * b_den) / (a_den * b_num).
@@ -845,7 +915,11 @@ def rational_div(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     Raises
     ------
     TypeError
-        If ``a`` or ``b`` is not a 2-element tuple/list ``(num, den)``.
+        If ``a`` or ``b`` is neither a :class:`~srmech.math.q.Q` nor a
+        2-element tuple/list ``(num, den)``. rc452 (`#T1166`) widened the
+        accepted set to mirror C's ``cr_as_rational``, which takes a
+        ``CR_RATIONAL`` or a 2-int ``CR_LIST``; the CLASS raised on a
+        malformed operand is unchanged.
     ValueError
         If either denominator is non-positive. The canonical form keeps
         ``den > 0``, so sign lives entirely in the numerator; ``(1, -2)`` is
@@ -891,12 +965,8 @@ def rational_div(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     ``rational_div((1, -2), (1, 1))`` -> ValueError,
     ``rational_div((1, 2), (0, 1))`` -> ZeroDivisionError.
     """
-    if not (isinstance(a, (tuple, list)) and len(a) == 2):
-        raise TypeError(f"a must be 2-tuple (num, den); got {a!r}")
-    if not (isinstance(b, (tuple, list)) and len(b) == 2):
-        raise TypeError(f"b must be 2-tuple (num, den); got {b!r}")
-    a_num, a_den = int(a[0]), int(a[1])
-    b_num, b_den = int(b[0]), int(b[1])
+    a_num, a_den = _as_operand_pair("a", a)      # Q or (num, den) — see helper
+    b_num, b_den = _as_operand_pair("b", b)
     if a_den <= 0 or b_den <= 0:
         raise ValueError("denominators must be positive")
     if b_num == 0:
@@ -920,7 +990,7 @@ def rational_div(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     return _as_q(_reduce_rational(num, den))
 
 
-def rational_pow_uint(base: Tuple[int, int], exp: int) -> Tuple[int, int]:
+def rational_pow_uint(base: "_QOrPair", exp: int) -> "_QType":
     """Raise rational (p, q) to non-negative integer exponent.
 
     (p/q)^n = p^n / q^n, reduced. exp must satisfy 0 <= exp <= 64
@@ -935,13 +1005,12 @@ def rational_pow_uint(base: Tuple[int, int], exp: int) -> Tuple[int, int]:
     Pure-Python bignum-capable; C path
     (`srmech_rational_pow_uint`) for u64-fit inputs + exp <= 64.
     """
-    if not (isinstance(base, (tuple, list)) and len(base) == 2):
-        raise TypeError(f"base must be 2-tuple (num, den); got {base!r}")
+    _p, _q_den = _as_operand_pair("base", base)  # Q or (num, den) — see helper
     if not isinstance(exp, int):
         raise TypeError(f"exp must be int; got {type(exp).__name__}")
     if exp < 0:
         raise ValueError(f"exp must be non-negative; got {exp}")
-    p, q = int(base[0]), int(base[1])
+    p, q = _p, _q_den
     if q <= 0:
         raise ValueError("denominator must be positive")
     # 0**0 == (1, 1) — the deliberate convention above, INCLUDING p == 0.
@@ -1035,7 +1104,7 @@ _JACOBI_SERIES_MAX_TERMS: int = 50
 
 def sin_series_truncate(numerator: int,
                         denominator: int,
-                        num_terms: int) -> Tuple[int, int]:
+                        num_terms: int) -> "_QType":
     """Compute sin(p/q) Taylor partial sum to N terms as exact rational.
 
     sin(x) = Σ_{k=0..N} (-1)^k * x^(2k+1) / (2k+1)!
@@ -1047,8 +1116,8 @@ def sin_series_truncate(numerator: int,
     Examples
     --------
     >>> sin_series_truncate(0, 1, 5)
-    (0, 1)
-    >>> sin_series_truncate(1, 1, 5)[0] / sin_series_truncate(1, 1, 5)[1]
+    Q(0, 1)
+    >>> float(sin_series_truncate(1, 1, 5))
     0.841471...
     """
     _check_series_inputs(numerator, denominator, num_terms,
@@ -1085,7 +1154,7 @@ def sin_series_truncate(numerator: int,
 
 def cos_series_truncate(numerator: int,
                         denominator: int,
-                        num_terms: int) -> Tuple[int, int]:
+                        num_terms: int) -> "_QType":
     """Compute cos(p/q) Taylor partial sum to N terms as exact rational.
 
     cos(x) = Σ_{k=0..N} (-1)^k * x^(2k) / (2k)!
@@ -1121,7 +1190,7 @@ def cos_series_truncate(numerator: int,
 
 def log1p_series_truncate(numerator: int,
                           denominator: int,
-                          num_terms: int) -> Tuple[int, int]:
+                          num_terms: int) -> "_QType":
     """Compute log(1 + p/q) Taylor partial sum to N terms as exact rational.
 
     log(1+x) = Σ_{k=1..N} (-1)^(k+1) * x^k / k
@@ -1170,7 +1239,7 @@ def log1p_series_truncate(numerator: int,
 
 def atan_series_truncate(numerator: int,
                          denominator: int,
-                         num_terms: int) -> Tuple[int, int]:
+                         num_terms: int) -> "_QType":
     """Compute atan(p/q) Taylor partial sum to N terms as exact rational.
 
     atan(x) = Σ_{k=0..N} (-1)^k * x^(2k+1) / (2k+1)

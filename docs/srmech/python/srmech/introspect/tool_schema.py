@@ -3378,7 +3378,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("numerator", "int", True, "p of x = p/q (may be negative)"),
                         P("denominator", "int", True, "q of x = p/q (must be > 0)"),
                         P("num_terms", "int", True, "truncation N >= 0, <= 512")),
-            returns=R("tuple[int, int]", "(out_num, out_den) of S_N reduced to lowest terms"),
+            returns=R("Q", "the exact rational, srmech.math.q.Q — rc452 (`#T1166`); num/den stay recoverable via .numerator / .denominator or `num, den = q`"),
         ),
         ToolEntry(
             name="srmech.math.rational.rational_add", owner="srmech",
@@ -3386,9 +3386,9 @@ def _register_primitive_class_tools() -> None:
             summary="Add two rationals (a_num, a_den) + (b_num, b_den) and "
                     "return reduced (p, q). Pure integer arithmetic; Python "
                     "bignum-capable; C-standalone for u64-fit inputs.",
-            parameters=(P("a", "tuple[int, int]", True, "(num, den) of first operand"),
-                        P("b", "tuple[int, int]", True, "(num, den) of second operand")),
-            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+            parameters=(P("a", "Q | tuple[int, int]", True, "first operand: a Q, or the (num, den) pair"),
+                        P("b", "Q | tuple[int, int]", True, "second operand: a Q, or the (num, den) pair")),
+            returns=R("Q", "the exact rational, srmech.math.q.Q — rc452 (`#T1166`); num/den stay recoverable via .numerator / .denominator or `num, den = q`"),
         ),
         ToolEntry(
             name="srmech.math.rational.rational_mul", owner="srmech",
@@ -3396,9 +3396,9 @@ def _register_primitive_class_tools() -> None:
             summary="Multiply two rationals (a_num, a_den) * (b_num, b_den) and "
                     "return reduced (p, q). Pure integer arithmetic; Python "
                     "bignum-capable; C-standalone for u64-fit inputs.",
-            parameters=(P("a", "tuple[int, int]", True, "(num, den) of first operand"),
-                        P("b", "tuple[int, int]", True, "(num, den) of second operand")),
-            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+            parameters=(P("a", "Q | tuple[int, int]", True, "first operand: a Q, or the (num, den) pair"),
+                        P("b", "Q | tuple[int, int]", True, "second operand: a Q, or the (num, den) pair")),
+            returns=R("Q", "the exact rational, srmech.math.q.Q — rc452 (`#T1166`); num/den stay recoverable via .numerator / .denominator or `num, den = q`"),
         ),
         ToolEntry(
             name="srmech.math.rational.rational_div", owner="srmech",
@@ -3406,9 +3406,9 @@ def _register_primitive_class_tools() -> None:
             summary="Divide two rationals (a_num, a_den) / (b_num, b_den) and "
                     "return reduced (p, q). Pure integer arithmetic; raises "
                     "ZeroDivisionError on b_num==0; Python bignum-capable.",
-            parameters=(P("a", "tuple[int, int]", True, "(num, den) of dividend"),
-                        P("b", "tuple[int, int]", True, "(num, den) of divisor")),
-            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+            parameters=(P("a", "Q | tuple[int, int]", True, "dividend: a Q, or the (num, den) pair"),
+                        P("b", "Q | tuple[int, int]", True, "divisor: a Q, or the (num, den) pair")),
+            returns=R("Q", "the exact rational, srmech.math.q.Q — rc452 (`#T1166`); num/den stay recoverable via .numerator / .denominator or `num, den = q`"),
         ),
         ToolEntry(
             name="srmech.math.rational.rational_pow_uint", owner="srmech",
@@ -3416,9 +3416,9 @@ def _register_primitive_class_tools() -> None:
             summary="Raise rational (base_num, base_den) to non-negative integer "
                     "exponent. Pure integer arithmetic; Python bignum-capable; "
                     "C-standalone for u64-fit inputs + exp <= 64.",
-            parameters=(P("base", "tuple[int, int]", True, "(num, den) of base"),
+            parameters=(P("base", "Q | tuple[int, int]", True, "base: a Q, or the (num, den) pair"),
                         P("exp", "int", True, "non-negative integer exponent")),
-            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+            returns=R("Q", "the exact rational, srmech.math.q.Q — rc452 (`#T1166`); num/den stay recoverable via .numerator / .denominator or `num, den = q`"),
         ),
         ToolEntry(
             name="srmech.math.rational.sin_series_truncate", owner="srmech",
@@ -3427,7 +3427,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("numerator", "int", True, "p of x = p/q"),
                         P("denominator", "int", True, "q of x = p/q (must be > 0)"),
                         P("num_terms", "int", True, "truncation N, 0 <= N <= 50")),
-            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+            returns=R("Q", "the exact rational, srmech.math.q.Q — rc452 (`#T1166`); num/den stay recoverable via .numerator / .denominator or `num, den = q`"),
         ),
         ToolEntry(
             name="srmech.math.rational.cos_series_truncate", owner="srmech",
@@ -3436,7 +3436,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("numerator", "int", True, "p of x = p/q"),
                         P("denominator", "int", True, "q of x = p/q (must be > 0)"),
                         P("num_terms", "int", True, "truncation N, 0 <= N <= 50")),
-            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+            returns=R("Q", "the exact rational, srmech.math.q.Q — rc452 (`#T1166`); num/den stay recoverable via .numerator / .denominator or `num, den = q`"),
         ),
         ToolEntry(
             name="srmech.math.rational.log1p_series_truncate", owner="srmech",
@@ -3445,7 +3445,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("numerator", "int", True, "p of x = p/q (|p/q| < 1 for convergence)"),
                         P("denominator", "int", True, "q of x = p/q (must be > 0)"),
                         P("num_terms", "int", True, "truncation N, 0 <= N <= 64")),
-            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+            returns=R("Q", "the exact rational, srmech.math.q.Q — rc452 (`#T1166`); num/den stay recoverable via .numerator / .denominator or `num, den = q`"),
         ),
         ToolEntry(
             name="srmech.math.rational.atan_series_truncate", owner="srmech",
@@ -3454,7 +3454,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("numerator", "int", True, "p of x = p/q (|p/q| <= 1 typical)"),
                         P("denominator", "int", True, "q of x = p/q (must be > 0)"),
                         P("num_terms", "int", True, "truncation N, 0 <= N <= 64")),
-            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+            returns=R("Q", "the exact rational, srmech.math.q.Q — rc452 (`#T1166`); num/den stay recoverable via .numerator / .denominator or `num, den = q`"),
         ),
         ToolEntry(
             name="srmech.math.rational.jacobi_sncndn_series_truncate",

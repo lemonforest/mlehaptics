@@ -86,7 +86,7 @@ def test_zero_pow_numerator_is_an_exact_membership_bit(r):
     A mutation of ``0**0`` to ``(0, 1)`` collapses this to the constant ``0``:
     every caller keeps running and every answer is wrong, with nothing raised.
     """
-    bit = rational_pow_uint((0, 1), r)[0]
+    bit = rational_pow_uint((0, 1), r).numerator
     assert bit == (1 if r == 0 else 0)
 
 

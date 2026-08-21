@@ -1283,6 +1283,21 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # ── JSON-native-ish that still want a light shape fix ──
     "pathlib.Path": _to_path,
     "tuple[int, int]": _to_int_tuple,
+    # rc452 (`#T1166`) — the four binary Class-N ops now declare
+    # ``Q | tuple[int, int]``, because from PYTHON they accept either (the
+    # mirror of C's cr_as_rational). This wire cannot carry the Q half:
+    # ``json.dumps(Q)`` raises, so an operand always ARRIVES as a JSON list and
+    # the correct coercion is the same pair-building one. It is spelled out
+    # rather than pattern-matched because the C peer's MM_TYPE_RULES is an
+    # exact-strcmp table, and the two must agree string-for-string.
+    #
+    # THIS ENTRY IS LOAD-BEARING AND ITS ABSENCE WAS SILENT: with the ToolEntry
+    # respelled and this table untouched, C's mm_action_for returned
+    # MM_ACT_NOTIMPL and SIX ops fell off the native invoke_tool surface — no
+    # error, no wrong value, just a quiet drop to the pure path. Measured by
+    # tests/test_invoke_tool_clean_batch2_c_rc189.py going red on
+    # ``dispatched is True``; nothing else in the tree would have said a word.
+    "Q | tuple[int, int]": _to_int_tuple,
     # 0.9.0rc408 (`#T1078`): cascade.the_one `w` — the WINDING TRIAD
     # (n_sigma, n_theta, n_phi). ``_to_int_tuple`` is arity-agnostic (it turns
     # the JSON list into a tuple; the op validates the length), so the pair

@@ -662,6 +662,17 @@ static const mm_type_rule_t MM_TYPE_RULES[] = {
     {"bytes", MM_ACT_BYTES},
     {"complex", MM_ACT_COMPLEX},
     {"tuple[int, int]", MM_ACT_INT_TUPLE},
+    /* rc452 (`#T1166`): the four binary Class-N ops declare
+     * "Q | tuple[int, int]" — from Python they take either (the mirror of
+     * cr_as_rational). This wire carries only the pair half: json.dumps(Q)
+     * raises, so the operand always arrives as a JSON LIST and the action is
+     * the same. Added in LOCKSTEP with the Python peer
+     * srmech/mcp/_coercion.py::_PARAM_COERCERS, which this table mirrors
+     * string-for-string; mm_action_for is an exact strcmp, so a respelled type
+     * with no rule here returns MM_ACT_NOTIMPL and the op SILENTLY leaves the
+     * native invoke surface — measured at rc452, six ops, no error and no
+     * wrong value, only a quiet drop to the pure path. */
+    {"Q | tuple[int, int]", MM_ACT_INT_TUPLE},
     {"Sequence[bytes]", MM_ACT_SEQ_BYTES},
     {"list[bytes]", MM_ACT_SEQ_BYTES},
     {"list[complex]", MM_ACT_SEQ_COMPLEX},

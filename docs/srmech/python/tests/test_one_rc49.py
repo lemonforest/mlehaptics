@@ -248,7 +248,7 @@ def test_imaginary_entries_are_exact_rational_cos_sin():
     s = the_one(+1, tn, td, terms=terms)
     cos_t = cos_series_truncate(tn, td, terms)
     sin_t = sin_series_truncate(tn, td, terms)
-    neg_sin = (-sin_t[0], sin_t[1])
+    neg_sin = (-sin_t.numerator, sin_t.denominator)
     # ℍ block: seed e₁ in plane (1,2,+1) → (σ cos θ, σ sin θ, 0).
     assert s.blocks[1].imag[0] == cos_t
     assert s.blocks[1].imag[1] == sin_t

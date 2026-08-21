@@ -64,9 +64,14 @@ def _coeff_sequences(m_p: int, m_q: int, n: int):
             ab = ra(ab, rm(a[i], b[j]))
         inv = (1, k + 1)
         a.append(rm(bc, inv))
-        b.append(rm((-ac[0], ac[1]), inv))
-        c.append(rm(rm((-ab[0], ab[1]), m), inv))
-    to_f = lambda t: Fraction(t[0], t[1])
+        b.append(rm((-ac.numerator, ac.denominator), inv))
+        c.append(rm(rm((-ab.numerator, ab.denominator), m), inv))
+    # rc452 (`#T1166`): UNPACK, don't subscript. These lists are heterogeneous
+    # by construction — the seeds above are ``(num, den)`` tuples and every
+    # appended element is a ``Q`` — and ``Fraction(*t)`` reads both, because a
+    # ``Q`` defines ``__iter__`` (``num, den = q``) even though it has no
+    # ``[0]``. Exactly equivalent to ``Fraction(t[0], t[1])`` on the old shape.
+    to_f = lambda t: Fraction(*t)
     return [to_f(x) for x in a], [to_f(x) for x in b], [to_f(x) for x in c]
 
 

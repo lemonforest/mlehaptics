@@ -249,7 +249,7 @@ def test_seam_fold_vs_no_fold_contrast():
     """The with-fold-vs-without contrast: the RAW Class-N cos series BLOWS UP
     past its convergence radius (the reason the seam-fold is mandatory)."""
     raw = cos_series_truncate(44, 1, 18)     # NO fold — diverged partial sum
-    raw_val = raw[0] / raw[1]
+    raw_val = raw.numerator / raw.denominator
     assert abs(raw_val) > 1e6, "raw cos_series should blow up (>1e6)"
     # the folded propagate gets ~cos(44) ≈ 0.9998 right (see the large-t test):
     Lm = [[1.0, 0.0], [0.0, 0.0]]            # eigenvalues 1, 0
