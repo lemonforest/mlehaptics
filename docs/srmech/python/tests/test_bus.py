@@ -1017,6 +1017,16 @@ def test_native_bus_symbols_present():
     from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
+    # ABI-PIN: NATIVE_ABI_VERSION == 21
+    # ^ that comment is a GREP TARGET, and it is load-bearing. rc449 fixed this
+    # file's stale-message problem by naming the value once and interpolating it,
+    # which is right - but it moved the literal off the assert line, so rc452's
+    # `(NATIVE|EXPECTED)_ABI_VERSION == 20` sweep could not see the sibling pin
+    # below and shipped it stale into CI. The CHANGELOG already records one
+    # grep-invisible site (test_introspect.py's status['expected_abi']); this was
+    # a SECOND one, of a different kind - indirection through a local, introduced
+    # by the previous fix. Keeping a comment that spells NAME == LITERAL restores
+    # what the interpolation took away, without giving back the drift it prevents.
     want_abi = 21
     assert _native.NATIVE_ABI_VERSION == want_abi, (
         f"ABI {want_abi} expected (rc452 `#T1166` rebuilt the chain-run 'q' wire "
@@ -1073,6 +1083,7 @@ def test_abi_version_is_pinned():
     # staying put as an additive symbol would. This was the ONE pin the rc452
     # sweep did not reach; every other numeric ABI assert in tests/ already
     # read 21. Re-pinned because the bump did its job, not bumped to buy green.
+    # ABI-PIN: EXPECTED_ABI_VERSION == 21   (grep target - see the note above)
     want_abi = 21
     assert _native.EXPECTED_ABI_VERSION == want_abi, (
         f"EXPECTED_ABI_VERSION should be {want_abi}; got "
