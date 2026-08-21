@@ -3466,7 +3466,22 @@ def _rw_remainder_bound(prec: _ClassNPrecision, n_steps: int,
     b_sqrt = (8 * n_steps, 1 << prec.sqrt_bits)
     b_pi = (2 * v_mag, 10 ** prec.pi_digits)
     r = rational_add(b_anchor, b_sqrt)
-    return rational_add(r, b_pi)
+    # rc452 (`#T1166`) - NORMALISE AT THE BOUNDARY. `rational_add` is one of the
+    # nine Class-N ops whose return type became `Q` in this rc, so this function's
+    # own `-> Tuple[int, int]` annotation and `relative_writhe`'s documented
+    # Returns contract ("``remainder_bound`` (``(num, den)`` stated bound)") both
+    # became false the moment the flip landed. Its two sibling fields, `value` and
+    # `min_one_plus_dot`, come from `_rw_best_rational` and are STILL pairs - so the
+    # raw return made ONE of the three exact-rational fields a different type from
+    # the other two. That is what went red: `_is_int_pair` rejected it and `pair[0]`
+    # raised TypeError (`Q` defines __iter__ but no __getitem__).
+    #
+    # This is a COLLATERAL LEAK, not the contract moving. The rc452 ruling scoped the
+    # return-type flip to NINE NAMED ops; `relative_writhe` is not one of them and its
+    # public dict was never in scope. The rc's pre-registered red manifest could not
+    # see this site because its predicate enumerated TEST modules naming the nine ops
+    # - this is a PRODUCT-side transitive consumer, which that predicate cannot reach.
+    return rational_add(r, b_pi).as_pair()
 
 
 def relative_writhe(embedding, reference, *, closed: bool = True,

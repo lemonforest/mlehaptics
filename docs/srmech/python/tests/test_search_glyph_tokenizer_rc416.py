@@ -548,8 +548,31 @@ from srmech.math.text import fold_marks, glyph_stream
 #: The 663/29 split is unchanged from rc445: this rc registers and removes no
 #: op, so a moved FRAME COUNT (rather than a moved digest) would have been the
 #: signal that something other than prose had changed.
+#: rc452 (`#T1166`) - RE-PINNED, and the determinism question was SETTLED BY
+#: EXECUTION BEFORE the digit moved, because this gate's own message offers two
+#: readings ("if a prose edit caused it, re-pin; if nothing was edited, the frame
+#: build is non-deterministic") and re-pinning the second one would convert a real
+#: ADR-0011 contract break into a silent one. Both halves were measured:
+#:
+#:   DETERMINISM - `_build_frames("all")` was run in FOUR separate processes under
+#:   PYTHONHASHSEED 0 / 13 / 271 / 9999. All four returned the SAME digest, and all
+#:   three derivation paths agree inside each run (the witness `_build_frames`
+#:   returns, `sha256_bytes` recomputed over the joined blobs, and the live
+#:   `search("rank", k=1).witness`). It also matches what CI measured on its own
+#:   runners. The build is deterministic; the ADR-0011 witness contract HOLDS.
+#:
+#:   CAUSATION - the tree at the merge-base was materialised read-only and its
+#:   corpus built: it reproduces `eb9f7dd1...` EXACTLY, i.e. the OLD pin was correct
+#:   for the OLD prose. Diffing the two frame sets positionally shows the same 692
+#:   names in the same order and exactly TWO of 692 frame blobs moved - the `Q` and
+#:   `int` CARRIER frames. `int.produces` lost the nine Class-N ops rc452 flipped to
+#:   returning `Q`; `Q.produces` gained those same nine and `Q.consumes` gained the
+#:   four that now accept a `Q` operand. No op frame moved at all.
+#:
+#: The 663/29 split is UNCHANGED, which is the signal the rc445 note prescribes: a
+#: moved FRAME COUNT would have meant something other than prose changed. It did not.
 WITNESS_RC416 = (
-    "eb9f7dd1d1a7f7d3766089362aafa7a3d4bacbe1498f9a0c2083ed0f43d0f9b2")
+    "de17973d7a0edc4aae09ac069aaf83756972b8c1491dda4886f5b28c1727f60d")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

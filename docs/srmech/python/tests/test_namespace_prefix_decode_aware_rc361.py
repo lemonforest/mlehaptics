@@ -831,16 +831,37 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # Contrast the srmech.amsc channel in the same rc, which moved on as-text
     # only with decoded flat — the two channels behaving differently in one rc
     # is what this file exists to make visible.
-    assert math == 338, (
-        f"expected 338 srmech.math op references inside the DECODED channel "
+    # rc452 (`#T1166`) - 338 -> 329, and this is a FOURTH cause category: neither a
+    # move between NAMESPACES, nor a new op, nor a widened declaration, but a move
+    # between the two CHANNELS this file exists to tell apart. Nine Class-N ops
+    # (rational_add / _mul / _div / _pow_uint + the five *_series_truncate) stopped
+    # returning a 2-int pair and started returning `Q`, so the generated registry
+    # dropped them from the `int` carrier's produces row and added them to `Q`'s.
+    # The `int` fragment is baked as a BYTE ARRAY (decoded channel) and the `Q`
+    # fragment as an escaped STRING LITERAL (as-text channel), so the refs left the
+    # channel this pin counts and landed in the one it does not.
+    #
+    # MEASURED, not inferred, and conserved end to end. Per-op, each of the nine went
+    # from 2 decoded refs to exactly 1: 18 -> 9, so -9 and 338 -> 329. On the same
+    # file the AS-TEXT count for those nine rose 0 -> 13 and the as-text
+    # `srmech.math.` total rose 85 -> 98, also +13. The 13 splits 9 + 4 exactly as the
+    # Python-side carrier schema does: `Q.produces` gained all nine, `Q.consumes`
+    # gained the four that now accept a `Q` operand. Nothing was lost - it moved
+    # channels, which is precisely the distinction this module was written to make
+    # visible, and the first time this pin has caught that category.
+    assert math == 329, (
+        f"expected 329 srmech.math op references inside the DECODED channel "
         f"(rc372 octonion 16 + rc373 A-N primitives 298 + rc374 carriers 6 + rc384 "
         f"octonion_laplacian 3 + rc388 oct_torsor_act/div 4 + rc399 generalized_ngon "
         f"1 + rc408 mat_eigvals max_sweeps:int 1 + rc420 scale_round_half_even "
             f"3 — the local task T1114 Class-N registration: its float+int consumes "
             f"rows and int produces row in the carrier back-index — + rc422 the "
             f"covering layer 5, of which covering_catalog contributes 0 "
-            f"+ rc427 mod_mul_arrow 1), "
-            f"found {math}. If this is not 338 "
+            f"+ rc427 mod_mul_arrow 1 = 338, then rc452 -9: the nine Class-N "
+            f"ops that now return Q left the 'int' carrier's produces row, "
+            f"and the 'Q' row they joined is baked as-text rather than as a "
+            f"byte array — conserved, +13 on the as-text channel), "
+            f"found {math}. If this is not 329 "
         f"the population is not conserved — re-measure.")
     # rc375 — THE srmech.biology RECEIVING SIDE, the arc's SECOND-LARGEST positive
     # population move (after rc373's 298) and the FOURTH receiving namespace pinned

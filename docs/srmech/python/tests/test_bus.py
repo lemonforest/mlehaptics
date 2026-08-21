@@ -1017,10 +1017,11 @@ def test_native_bus_symbols_present():
     from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    assert _native.NATIVE_ABI_VERSION == 21, (
-        f"ABI 13 expected (rc418 `#T1108` gave the genome write ops + the catalog "
-        f"audit a caller-attestation / descriptor channel, 12 -> 13); "
-        f"got {_native.NATIVE_ABI_VERSION}"
+    want_abi = 21
+    assert _native.NATIVE_ABI_VERSION == want_abi, (
+        f"ABI {want_abi} expected (rc452 `#T1166` rebuilt the chain-run 'q' wire "
+        f"kind as srmech.math.q.Q - a wire-format change to an EXISTING signature, "
+        f"20 -> {want_abi}); got {_native.NATIVE_ABI_VERSION}"
     )
     for sym in (
         "srmech_bus_serve",
@@ -1066,7 +1067,13 @@ def test_abi_version_is_pinned():
     # Fixed by construction rather than by digit: the expected value is named
     # once and interpolated, so the message cannot disagree with the assert.
     from srmech import _native
-    want_abi = 20
+    # rc452 (`#T1166`): 20 -> 21. The wire-format of the chain-run value
+    # channel changed (the 'q' kind now rebuilds as srmech.math.q.Q), which is
+    # a change to an EXISTING exported signature, so the ABI bumps rather than
+    # staying put as an additive symbol would. This was the ONE pin the rc452
+    # sweep did not reach; every other numeric ABI assert in tests/ already
+    # read 21. Re-pinned because the bump did its job, not bumped to buy green.
+    want_abi = 21
     assert _native.EXPECTED_ABI_VERSION == want_abi, (
         f"EXPECTED_ABI_VERSION should be {want_abi}; got "
         f"{_native.EXPECTED_ABI_VERSION}"
