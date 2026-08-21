@@ -31,11 +31,28 @@ one above it:
   5. THE MUTUAL DECLINE on a bare ``[num, den]`` list — see the test's own
      docstring. It is a PARITY pin, and it disagrees with rc452's plan.
 
-⚠️ THIS FILE MUST FAIL, NOT SKIP, WITHOUT THE NATIVE LIBRARY. A stale or absent
-``.so`` makes every native gate skip silently green — the exact trap this arc
-has hit repeatedly — so the ABI is asserted at module scope and the missing
-library is an ERROR. It is the file that certifies rc452's DoD; a green it can
-produce while measuring nothing would be worthless.
+⚠️ WITHOUT THE NATIVE LIBRARY THIS FILE FAILS — UNLESS THE RUN DECLARES ITSELF
+PURE. A stale or absent ``.so`` makes every native gate skip silently green, the
+exact trap this arc has hit repeatedly, and this is the file that certifies
+rc452's DoD: a green it could produce while measuring nothing would be
+worthless. So a missing library is a FAILURE here, and it says LOAD_ERROR.
+
+The one exception is STATED, never inferred. ``tests/_native_gate.py`` is the
+tree's single resolution of that rule (`#T843`) against the rc351 ``fallback
+(pure-Python, no native)`` CI cell, which runs ``pytest tests/`` UNFILTERED with
+no library at all, because the pure / Pyodide / WASM projection must still be
+exercised. ``SRMECH_EXPECT_PURE=1`` is the discriminator and that cell is the
+only thing that sets it. Every C-touching test below therefore goes through
+:func:`require_native`, exactly as tests/test_c_cascade_value_parity_rc450.py
+does — that file was corrected at rc450 for this same defect, when three tests
+reached ``_c_run`` ungated while their six siblings gated and turned shard 1/6
+red on rc450's first CI round.
+
+⚠️ AS FIRST WRITTEN THIS FILE HARD-FAILED THAT CELL: 15 FAILURES, NOT SKIPS —
+measured, with the ``.so`` moved aside, both with and without the variable set.
+The gate is not a softening of the ABI assertions below; it is what they stand
+on. With a library present NOTHING here changes, and with one missing and no
+declaration the `#T843` failure is LOUDER than the bare assert it replaces.
 
 numpy-free.
 """
@@ -52,6 +69,8 @@ from srmech.cascade.compose import parse_chain_spec, run_chain
 from srmech.math.q import Q
 from srmech.math import rational as R
 
+from _native_gate import require_native
+
 RA = "srmech.math.rational.rational_add"
 RE = "srmech.cascade.reorient"
 
@@ -66,17 +85,26 @@ HEADLINE_WIRE = b'{"d": "6", "k": "q", "n": "-5"}'
 def test_the_native_library_is_present_and_at_this_rcs_abi() -> None:
     """The floor every other test in this file stands on.
 
-    Asserted rather than skipped-on, and asserted on all four truth fields.
-    A ``.so`` built at one ABI against a higher ``EXPECTED_ABI_VERSION`` sets
-    ``HAS_NATIVE=False`` with EVERY SYMBOL STILL PRESENT — ``nm -D`` says yes,
-    the import succeeds, and every native gate in the tree skips silently. The
-    only way to tell is to read these four fields and say what they are.
+    Asserted on all four truth fields. A ``.so`` built at one ABI against a
+    higher ``EXPECTED_ABI_VERSION`` sets ``HAS_NATIVE=False`` with EVERY SYMBOL
+    STILL PRESENT — ``nm -D`` says yes, the import succeeds, and every native
+    gate in the tree skips silently. The only way to tell is to read these four
+    fields and say what they are.
+
+    THE ORDER IS THE DESIGN. ``EXPECTED_ABI_VERSION`` is a PYTHON SOURCE
+    CONSTANT, so it is checked BEFORE the gate and stays live even on the pure
+    cell — a five-file version-pin sweep that missed this one is a defect no
+    absent library excuses, and gating it would be the arc's own named failure
+    (an instrument that cannot return otherwise). The three fields that describe
+    a LOADED library come AFTER :func:`require_native`, which is the only thing
+    entitled to decide whether "absent" was declared or is a broken C build.
     """
     assert _native.EXPECTED_ABI_VERSION == 21, (
         "rc452 bumps ABI 20 -> 21 for cr_op_reorient's CR_RATIONAL arm; the "
         "Python constant and the srmech.h macro move in the SAME commit or "
         "HAS_NATIVE goes silently False. Got %r"
         % (_native.EXPECTED_ABI_VERSION,))
+    require_native("the rc452 exact-Q pipeline floor (ABI 21 and a loaded library)")
     assert _native.LOAD_ERROR is None, _native.LOAD_ERROR
     assert _native.HAS_NATIVE is True, (
         "no native library loaded. This file certifies rc452's DoD across BOTH "
@@ -89,6 +117,17 @@ def test_the_native_library_is_present_and_at_this_rcs_abi() -> None:
 
 
 def _lib():
+    """The ONE choke point every C-touching test in this file goes through.
+
+    THE GATE LIVES HERE rather than copied into fifteen test bodies, and that is
+    a correctness decision, not a tidiness one. The assert below says the symbols
+    are missing "from a library that loaded" — a sentence that is FALSE unless
+    something has already established that a library loaded at all, which is
+    exactly the shape rc450 recorded when its own ``_c_run`` was reached ungated.
+    rc450 answers it with a warning comment on each call site and still shipped
+    three sites without one. A choke point cannot be forgotten.
+    """
+    require_native("the rc452 exact-Q pipeline's C wire (srmech_chain_run)")
     lib = _compose._compose_lib("srmech_chain_run", "srmech_chain_run_arena_bytes")
     assert lib is not None, (
         "srmech_chain_run is absent from a library that loaded and reported "
