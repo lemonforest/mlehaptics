@@ -134,7 +134,13 @@ Three of four cells sat inside 2:10 of the ceiling, and py3.10 had **already run
 
 **Two shipped premises refuted on their own cells' data, both recorded at the key.** (1) rc357's justification for the 10-minute floor asserts the "p50→max spread is ≤2 min in ABSOLUTE terms on every job". Measured over 60 observations, `build-and-test` is p50 **19:53**, max **26:15** — a **6:22** spread. The cell is bimodal: **15444 tests in 736.5 s (12:16)** on 2cead9b96 versus **15396 tests in 1486.0 s (24:46)** on f8e2f63c4 — same cell, same interpreter, *more* tests on the *faster* run, i.e. a ~2.0x runner-allocation swing rather than test growth. The floor does not bind at this length so 41 is unaffected, but the premise must not be re-quoted as measured. (2) The 22 was derived from "the max MOVES between shards run to run". At n=12 that was honest; at n=60 it fails — shard **4/4 holds the max in 13 of 15** complete runs, and the per-shard means separate cleanly (4/4 **12.46m**, 1/4 10.93m, 3/4 8.46m, 2/4 8.06m). There *is* a stable slow shard. `T` is unchanged either way, since the rule takes the max regardless.
 
-**Nothing was narrowed and no other ceiling moved.** Six jobs whose rule output is now *lower* than their shipped guard (`fallback-no-native` 40 vs 25, `fallback-shard-coverage-union` 15 vs 12, and four at the 10/11-minute floor) are left alone: this file's standing doctrine is "if a cell legitimately grows past its guard, RAISE THE NUMBER — do not narrow", and a false trip costs a whole cycle. Both changed keys carry their arithmetic and an explicit re-derive trigger in the YAML.
+**Nothing was narrowed and no other ceiling moved.** The other seven jobs were re-derived too and deliberately left alone; the split is stated exactly rather than rounded, because a re-derivation that reports only the keys it changed cannot be checked:
+
+* **2 are guarded ABOVE what the rule returns** — `fallback-no-native` 40 vs 25 (max 14:38), `fallback-shard-coverage-union` 15 vs 12 (max 1:27). Not lowered: this file's standing doctrine is "if a cell legitimately grows past its guard, RAISE THE NUMBER — do not narrow", and a false trip costs a whole cycle. rc357 flagged the first of these as a deliberate upward departure already.
+* **3 sit ONE MINUTE BELOW it** — `fallback-durations-merge` 10 vs 11 (max 0:07), `fallback-skip-audit` 10 vs 11 (max 0:35), `pure-wheel-build` 11 vs 12 (max 1:04). All three run at **≥90% headroom**, so none is thin and none is at risk; the 1-minute drift is the 10-minute floor tracking a few seconds of growth. Raising them would be churn with no risk removed, so it is reported instead of applied.
+* **2 match the rule exactly** — `pedantic-build` 12, `asserts-live-shard-coverage-union` 12.
+
+Both changed keys carry their arithmetic and an explicit re-derive trigger in the YAML.
 
 ### Counts moved
 
