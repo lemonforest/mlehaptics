@@ -111,6 +111,31 @@ Coverage added on both carriers for negative, mixed-sign, dyadic-negative and ze
 * `notes/_rc452_mechanicalness_check.py` — makes "any non-mechanical fix re-opens the placement question" executable instead of a review claim. 8 files, **0 NON-MECHANICAL, 1 DECLARED**. It self-checks that it can return both verdicts. It needed a **third** pattern (subscript-pair → unpack, for a heterogeneous container), reported rather than folded in.
 * `tools/ripple_gates.txt` gains rc452's two gates by hand — the manifest meta-test has no growth obligation, and rc449 added three gates and listed zero.
 
+### The guard that was already spent before the rc that tripped it
+
+`build-and-test` went red on `ubuntu-latest • py3.10` with **no failing test** — `--log-failed` returns nothing. The job was CANCELLED at **26:15** against `timeout-minutes: 26`. Confirmed as the job timeout and not a superseding push: only that one job died, and its siblings `windows-latest • py3.12` and `ubuntu-latest • py3.12` both **completed successfully at 22:43:51Z and 22:43:30Z**, after the kill at 22:45:50Z would have taken them too.
+
+**Re-derived by the rule this file already carries, not bumped.** rc357 (`#T951`) set all 42 job timeouts by one documented rule, restated verbatim: `T = ⌈max_observed⌉ + max(⌈0.5 × max_observed⌉, 10 min)`. It reproduces every shipped number exactly (15:17 → 26, 11:46 → 22, 1:47 → 12, 0:51 → 11), so the rule is real and recoverable — this is a re-derivation, not a rediscovery.
+
+**The framing that "rc452's added tests consumed the margin" does not survive measurement.** Over the 15 srmech-ci runs of 2026-08-17..21 (60 cell observations):
+
+| cell | max observed | % of 26 | margin |
+|---|---|---|---|
+| ubuntu py3.10 | 26:15 *(censored)* | 101% | OVER |
+| windows py3.12 | 24:14 | 93% | 1:46 |
+| ubuntu py3.12 | 23:53 | 92% | 2:07 |
+| macos-14 py3.12 | 13:08 | 51% | 12:52 |
+
+Three of four cells sat inside 2:10 of the ceiling, and py3.10 had **already run 25:27 GREEN on main** (f8e2f63c4, 2026-08-18) — **33 seconds** of margin, three days before the rc that went red. rc452 is the commit that arrived after the headroom ran out, not the one that spent it. That is the rc432 shape the asserts-live comment names: a guard reporting healthy at 98% budget use.
+
+**The censored input is defended, not assumed.** A killed job has no duration, only a lower bound. Its log emitted 215 progress lines ending `[ 99%]` at 22:45:17Z and was cancelled 32.8 s later; the completed reference run emitted 215 lines ending `[100%]` with **35.5 s** between its last `[ 99%]` and its summary — so the leg died roughly **3 seconds short of finishing** and the true max is ~26:15–26:25. The derivation does not lean on that estimate being tight: **41 is the rule's output for every `max_observed` in (26:00, 27:00]**, so the residual uncertainty provably cannot move it. `⌈26.25⌉ + max(⌈13.125⌉, 10) = 27 + 14 = 41`.
+
+**`asserts-live-smoke` 22 → 25 in the same pass, before it goes red rather than after.** Its 11:46 input has grown to 14:40, leaving 33% headroom — the same tightness rc357 called "the tightest ratio in the repo" when it raised `fallback-no-native` pre-emptively. The shipped 22 is now **below what the rule returns on current data**: `⌈14.67⌉ + max(⌈7.33⌉, 10) = 15 + 10 = 25` (the 10-minute floor binds here).
+
+**Two shipped premises refuted on their own cells' data, both recorded at the key.** (1) rc357's justification for the 10-minute floor asserts the "p50→max spread is ≤2 min in ABSOLUTE terms on every job". Measured over 60 observations, `build-and-test` is p50 **19:53**, max **26:15** — a **6:22** spread. The cell is bimodal: **15444 tests in 736.5 s (12:16)** on 2cead9b96 versus **15396 tests in 1486.0 s (24:46)** on f8e2f63c4 — same cell, same interpreter, *more* tests on the *faster* run, i.e. a ~2.0x runner-allocation swing rather than test growth. The floor does not bind at this length so 41 is unaffected, but the premise must not be re-quoted as measured. (2) The 22 was derived from "the max MOVES between shards run to run". At n=12 that was honest; at n=60 it fails — shard **4/4 holds the max in 13 of 15** complete runs, and the per-shard means separate cleanly (4/4 **12.46m**, 1/4 10.93m, 3/4 8.46m, 2/4 8.06m). There *is* a stable slow shard. `T` is unchanged either way, since the rule takes the max regardless.
+
+**Nothing was narrowed and no other ceiling moved.** Six jobs whose rule output is now *lower* than their shipped guard (`fallback-no-native` 40 vs 25, `fallback-shard-coverage-union` 15 vs 12, and four at the 10/11-minute floor) are left alone: this file's standing doctrine is "if a cell legitimately grows past its guard, RAISE THE NUMBER — do not narrow", and a false trip costs a whole cycle. Both changed keys carry their arithmetic and an explicit re-derive trigger in the YAML.
+
 ### Counts moved
 
 * `CR_OP_REG` **24** spellings (unchanged) · `cr_dispatch` **57/60** (unchanged) · zero new dispatch arms.

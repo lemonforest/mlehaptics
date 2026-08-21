@@ -88,7 +88,59 @@ jobs:
     # the job runs 30s or 45min), so purely proportional headroom would make the
     # SHORTEST jobs the tightest and turn the guard into a flake source.
     # build-and-test: max 15:17 (ubuntu py3.10 leg) → 26.
-    timeout-minutes: 26
+    #
+    # rc452 (`#T1166`): 26 was BREACHED — the ubuntu py3.10 leg was CANCELLED at
+    # 26:15 on 920c18873 (job 96927097091). RE-DERIVED by the rule above, not
+    # bumped to taste. What rc357's 15:17 input has become, measured over the 15
+    # srmech-ci runs from 2026-08-17 to 2026-08-21 (60 cell observations, via
+    # `gh run view --json jobs`):
+    #
+    #     cell                max observed   % of 26   margin
+    #     ubuntu  py3.10        26:15  (†)      101%     OVER
+    #     windows py3.12        24:14             93%     1:46
+    #     ubuntu  py3.12        23:53             92%     2:07
+    #     macos-14 py3.12       13:08             51%    12:52
+    #
+    # THREE of the four cells were inside 2:10 of the ceiling, so this was never
+    # "one slow cell" — and the py3.10 leg had already run 25:27 GREEN on main
+    # (f8e2f63c4, 2026-08-18), i.e. 33 SECONDS of margin, three days before the
+    # rc that went red. rc452 did not spend the headroom; it was already gone.
+    # That is the rc432 failure shape the asserts-live comment names: a guard
+    # reporting healthy at 98% budget use.
+    #
+    # (†) CENSORED — a killed job has no duration, only a lower bound, so the
+    # input is defended rather than assumed. That log emitted 215 progress lines
+    # ending `[ 99%]` at 22:45:17Z and was cancelled at 22:45:50Z; the completed
+    # reference run (f8e2f63c4) emitted 215 lines ending `[100%]` with 35.5 s
+    # between its last `[ 99%]` and its summary. So rc452's leg died ~3 s short
+    # of finishing and the true max is ~26:15–26:25, not merely ">= 26:15".
+    # The derivation does NOT rest on that estimate being tight: 41 is the rule's
+    # output for EVERY max_observed in (26:00, 27:00], so the residual
+    # uncertainty provably cannot move the answer.
+    #
+    #     max_observed = 26:15 = 26.25 min
+    #     T = ceil(26.25) + max(ceil(0.5 × 26.25), 10)
+    #       = 27          + max(ceil(13.125), 10)
+    #       = 27          + max(14, 10)
+    #       = 41
+    #
+    # RE-DERIVE TRIGGER, so the next person is not left guessing which way the
+    # input moved: recompute if a COMPLETED py3.10 leg reports over 27:00 (the
+    # input has then left the (26, 27] plateau and 41 is no longer the rule's
+    # output), or if any cell exceeds ~27:20 = 41 ÷ 1.5 (the point at which the
+    # rule's 50% headroom has been spent).
+    #
+    # ONE PREMISE OF THE rc357 TEXT ABOVE IS NOW FALSE for this job, and is left
+    # standing only because it does not change this result — do not re-quote it
+    # as though it were still measured. It claims the "p50→max spread is ≤2 min
+    # in ABSOLUTE terms on every job". Over the 60 observations above this job is
+    # p50 19:53, max 26:15 — a 6:22 spread. The cell is BIMODAL: 15444 tests ran
+    # in 736.5 s (12:16) on 2cead9b96 and 15396 tests in 1486.0 s (24:46) on
+    # f8e2f63c4 — SAME cell, SAME interpreter, MORE tests on the FAST run. That
+    # is a ~2.0x runner-allocation swing, not test growth. The 10-minute FLOOR is
+    # not what binds at this length (the 50% term gives 14), so 41 is unaffected;
+    # but the floor's stated justification is no longer supported here.
+    timeout-minutes: 41
     strategy:
       fail-fast: false
       matrix:
@@ -1149,7 +1201,35 @@ jobs:
     # The 45 is not "lowered"; it is REPLACED, because the thing it measured no
     # longer exists. The rc432 lesson stands unchanged and applies per shard: if a
     # shard approaches this, RAISE it — never narrow the run to fit.
-    timeout-minutes: 22
+    #
+    # rc452 (`#T1166`): 22 → 25. This shard did NOT go red; it was re-derived in
+    # the same pass as `build-and-test` above precisely so it does not have to.
+    # The 11:46 input has grown to 14:40 (920c18873) over 60 observations across
+    # the 15 srmech-ci runs of 2026-08-17..21, which leaves 7:20 — 33% headroom,
+    # the same tightness rc357 called "the tightest ratio in the repo" when it
+    # raised `fallback-no-native` rather than wait for a kill. The shipped 22 is
+    # therefore now BELOW what this file's own rule returns on current data:
+    #     T = ceil(14.67) + max(ceil(0.5 × 14.67), 10)
+    #       = 15          + max(ceil(7.33), 10)
+    #       = 15          + max(8, 10)      ← the 10-min FLOOR binds here
+    #       = 25
+    #
+    # AND THE PREMISE ABOVE IS REFUTED, on this cell's own data. The 22 was
+    # derived from "the largest of TWELVE observations across three runs, not
+    # 'the slow shard', because the table above shows the max MOVES between
+    # shards run to run". At n=12 that was the honest read. At n=60 it does not
+    # survive: shard 4/4 holds the max in 13 of 15 complete runs (shard 1 takes
+    # the other 2), and the per-shard means separate cleanly —
+    #     shard 1  mean 10.93m  max 13.08m
+    #     shard 2  mean  8.06m  max  8.57m
+    #     shard 3  mean  8.46m  max 10.17m
+    #     shard 4  mean 12.46m  max 14.67m
+    # So there IS a stable slow shard, and it is 4/4. This does not change T —
+    # the rule takes the max over all shards either way, and the guard is
+    # per-shard — but the reasoning above should not be cited for the claim that
+    # the max wanders, because over 15 runs it does not. Three runs were not
+    # enough to see it; that is the same lesson as the 19 → 22 change.
+    timeout-minutes: 25
     env:
       # THIS SHARD'S SELECTION, DEFINED EXACTLY ONCE. The "record" step and the
       # run step below BOTH expand `$SHARD_SELECT`, which is what makes the
