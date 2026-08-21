@@ -1232,15 +1232,54 @@ def _spec_to_chain_dict(spec: ChainSpec) -> Dict[str, Any]:
     }
 
 
+#: Cached :class:`srmech.math.q.Q`. Bound LAZILY and once: ``srmech.math.q``
+#: imports ``srmech.math.rational``, which is itself reachable from the chain
+#: op registry, so a module-level import here would put the reader inside that
+#: cycle for no gain. One ``if`` on a hot path is the whole cost.
+_Q_CLS = None
+
+
+def _Q(num: int, den: int):
+    """The exact-ℚ carrier for a ``q`` descriptor. See :func:`_reconstruct_value`."""
+    global _Q_CLS
+    if _Q_CLS is None:
+        from srmech.math.q import Q as _QC
+        _Q_CLS = _QC
+    return _Q_CLS(num, den)
+
+
 def _reconstruct_value(desc: Dict[str, Any]) -> Any:
     """Rebuild a Python value from the C value descriptor. Bignums arrive as
-    decimal strings (exact); a rational is a ``(num, den)`` tuple (matching the
-    Class-N ops' return type)."""
+    decimal strings (exact); a rational rebuilds as the exact-ℚ carrier
+    :class:`srmech.math.q.Q` (matching the Class-N ops' return type)."""
     k = desc.get("k")
     if k == "s":
         return desc["v"]
     if k == "q":
-        return (int(desc["n"]), int(desc["d"]))
+        # rc452 (`#T1166`): the exact-ℚ carrier, NOT a ``(num, den)`` tuple.
+        #
+        # THE DEFECT WAS NEVER IN THE WIRE. The shipped C has built CR_RATIONAL
+        # inside three op bodies since long before this rc (srmech_compose_run.c
+        # cr_op_rat / cr_op_pow / cr_op_series) and two live attested catalogs
+        # (asymptotic_calculus, cosmos_validation) dispatch those ops, so `q`
+        # was on the wire all along. The collapse lived HERE: this line rebuilt
+        # an exact rational as a generic 2-tuple of ints, which is also what a
+        # Class-K pin pair and a Class-B `pair` step rebuild as — so the value
+        # arrived type-erased and no comparator downstream could tell an exact
+        # ℚ chain from an integer-pair chain. Config C's controlled two-arm
+        # experiment isolated the causal variable with the wire held constant:
+        # Python returning tuples gave 39/39 DIVERGENT, Python returning Q gave
+        # 39/39 BYTE_IDENTICAL. The Python-side TYPE is what discrimination
+        # turns on, not the spelling.
+        #
+        # The docstring above pinned the tuple contract in prose and shipped
+        # inside the wheel; it is corrected in this same change rather than
+        # left to drift.
+        #
+        # ABI 20 -> 21 rides with this: a STALE reader paired with a current
+        # .so would rebuild a tuple from a q SILENTLY — the silent-wrong-value
+        # class, strictly worse than the raise-class condition rc451 bumped for.
+        return _Q(int(desc["n"]), int(desc["d"]))
     if k == "i":
         return int(desc["v"])
     if k == "n":

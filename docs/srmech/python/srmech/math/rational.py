@@ -26,10 +26,16 @@ from __future__ import annotations
 
 import ctypes
 import struct
-from typing import Dict, List, NamedTuple, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, NamedTuple, Tuple, Union
 
 from .. import _native
 from . import cyclic as _cyclic
+
+if TYPE_CHECKING:                      # pragma: no cover — annotations only
+    # ``srmech.math.q`` imports THIS module at its top, so the exact-ℚ carrier
+    # can only be named here under TYPE_CHECKING (rc452, `#T1166`). Runtime
+    # binding is the lazy :data:`_Q_CLS` below.
+    from .q import Q as _QType
 
 __all__ = [
     "continued_fraction",
@@ -542,7 +548,7 @@ def exp_series_truncate(numerator: int,
             ctypes.byref(out_den_c),
         )
         if rc == _native.SRMECH_OK:
-            return (int(out_num_c.value), int(out_den_c.value))
+            return _as_q((int(out_num_c.value), int(out_den_c.value)))
         # On overflow, fall through to bignum path. Other errors propagate.
         if rc != _native.SRMECH_ERR_OVERFLOW:
             raise RuntimeError(
@@ -557,7 +563,7 @@ def exp_series_truncate(numerator: int,
     _c = _native._bigexp_call(
         "srmech_exp_series_truncate_big", numerator, denominator, num_terms)
     if _c is not None:
-        return _c
+        return _as_q(_c)
 
     # Bignum / pure-Python path. Arbitrary-precision int via Python builtin.
     # S_N = sum_{k=0..N} (p^k) / (q^k * k!)
@@ -595,7 +601,7 @@ def exp_series_truncate(numerator: int,
     # Reduce to lowest terms via the Class-I cyclic gcd (use srmech for math,
     # not stdlib math.gcd; uncapped → big-int safe at One-scale numerators):
     if sum_num == 0:
-        return (0, 1)
+        return _as_q((0, 1))
     # Class-K magnitude as an EXPLICIT sign-branch, never an ALU abs()
     # (sum_den is already positive upstream).
     num_mag = sum_num if sum_num >= 0 else -sum_num
@@ -606,7 +612,7 @@ def exp_series_truncate(numerator: int,
     if out_den < 0:
         out_num = -out_num
         out_den = -out_den
-    return (out_num, out_den)
+    return _as_q((out_num, out_den))
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -688,6 +694,50 @@ def _reduce_rational(num: int, den: int) -> Tuple[int, int]:
     return (num, den)
 
 
+#: Cached :class:`srmech.math.q.Q`. LAZY on purpose: ``srmech.math.q`` imports
+#: THIS module at its top, so a module-level import here is a hard cycle. The
+#: binding happens on first CALL, by which time this module is fully
+#: initialised — never at import time.
+_Q_CLS = None
+
+
+def _as_q(pair: Tuple[int, int]):
+    """The exact-ℚ carrier :class:`srmech.math.q.Q` for a ``(num, den)`` pair.
+
+    rc452 (`#T1166`) — the RETURN half of the exact-ℚ contract. The nine
+    chain-dispatched Class-N ops (``rational_add`` / ``_mul`` / ``_div`` /
+    ``_pow_uint`` and the five ``*_series_truncate``) return this rather than a
+    bare 2-tuple, which makes the Python projection ISOMORPHIC to the C that
+    already ships: those op bodies build ``CR_RATIONAL`` and the chain wire
+    spells it ``q``, a single scalar kind — where a Python 2-tuple is the same
+    shape a Class-K pin pair and a Class-B ``pair`` step produce, so the type
+    was erased on arrival and no comparator could tell an exact ℚ from an
+    integer pair.
+
+    WHY THE PUBLIC CONSTRUCTOR AND NOT ``Q._from_coprime``. Every caller below
+    hands over a pair its own path claims is already reduced, so the trusted
+    constructor would be one gcd cheaper. It is not used, deliberately:
+    ``Q.__init__`` re-reduces through :func:`_reduce_rational` (native-
+    dispatched at bignum scale), so a producer that ever returns an UNREDUCED
+    pair — a C arm, a bignum fast path — still yields a canonical ``Q`` instead
+    of a silently non-canonical one that compares equal by cross-multiplication
+    and hashes differently. Trusting the pair here would convert a wrong value
+    into an invisible one, which is the defect class this whole arc exists to
+    close.
+
+    The pair form is NOT retired: it remains a legitimate INPUT spelling on both
+    projections (C's ``cr_as_rational`` takes a rational OR a 2-int list; the
+    widened Python acceptors take the tuple), because ``json.dumps(Q)`` fails
+    and an exact ℚ can still only ENTER a chain as ``[num, den]``.
+    """
+    global _Q_CLS
+    if _Q_CLS is None:
+        from .q import Q as _QC
+        _Q_CLS = _QC
+    num, den = pair
+    return _Q_CLS(num, den)
+
+
 def _try_c_two_rationals(symbol: str,
                           a: Tuple[int, int],
                           b: Tuple[int, int]) -> Tuple[int, int] | None:
@@ -748,13 +798,13 @@ def rational_add(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
         raise ValueError("denominators must be positive")
     out = _try_c_two_rationals("srmech_rational_add", (a_num, a_den), (b_num, b_den))
     if out is not None:
-        return out
+        return _as_q(out)
     # rc167 (#765): HUGE operands run the whole add on srmech's C bignum.
     if _bigq_max_bits(a_num, a_den, b_num, b_den) >= _BIGQ_MIN_BITS:
         out = _native.bigq_add_c(a_num, a_den, b_num, b_den)
         if out is not None:
-            return out
-    return _reduce_rational(a_num * b_den + b_num * a_den, a_den * b_den)
+            return _as_q(out)
+    return _as_q(_reduce_rational(a_num * b_den + b_num * a_den, a_den * b_den))
 
 
 def rational_mul(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
@@ -775,13 +825,13 @@ def rational_mul(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
         raise ValueError("denominators must be positive")
     out = _try_c_two_rationals("srmech_rational_mul", (a_num, a_den), (b_num, b_den))
     if out is not None:
-        return out
+        return _as_q(out)
     # rc167 (#765): HUGE operands run the whole multiply on srmech's C bignum.
     if _bigq_max_bits(a_num, a_den, b_num, b_den) >= _BIGQ_MIN_BITS:
         out = _native.bigq_mul_c(a_num, a_den, b_num, b_den)
         if out is not None:
-            return out
-    return _reduce_rational(a_num * b_num, a_den * b_den)
+            return _as_q(out)
+    return _as_q(_reduce_rational(a_num * b_num, a_den * b_den))
 
 
 def rational_div(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
@@ -853,13 +903,13 @@ def rational_div(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
         raise ZeroDivisionError("rational divisor is zero")
     out = _try_c_two_rationals("srmech_rational_div", (a_num, a_den), (b_num, b_den))
     if out is not None:
-        return out
+        return _as_q(out)
     # rc167 (#765): HUGE operands run the whole divide on srmech's C bignum
     # (bigq_div_c sign-normalises den > 0 internally, same as the body below).
     if _bigq_max_bits(a_num, a_den, b_num, b_den) >= _BIGQ_MIN_BITS:
         out = _native.bigq_div_c(a_num, a_den, b_num, b_den)
         if out is not None:
-            return out
+            return _as_q(out)
     # Python bignum path: a/b = (a_num * b_den) / (a_den * b_num)
     num = a_num * b_den
     den = a_den * b_num
@@ -867,7 +917,7 @@ def rational_div(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     if den < 0:
         num = -num
         den = -den
-    return _reduce_rational(num, den)
+    return _as_q(_reduce_rational(num, den))
 
 
 def rational_pow_uint(base: Tuple[int, int], exp: int) -> Tuple[int, int]:
@@ -899,7 +949,7 @@ def rational_pow_uint(base: Tuple[int, int], exp: int) -> Tuple[int, int]:
     # disagreement at exp == 0; both C surfaces are pinned directly by
     # tests/test_c_bignum_transcendentals_rc35.py instead.
     if exp == 0:
-        return (1, 1)
+        return _as_q((1, 1))
     # Try C path for u64-fit inputs + bounded exp.
     _INT64_MAX: int = (1 << 63) - 1
     _INT64_MIN: int = -(1 << 63)
@@ -920,13 +970,13 @@ def rational_pow_uint(base: Tuple[int, int], exp: int) -> Tuple[int, int]:
             ctypes.byref(out_den_c),
         )
         if rc == _native.SRMECH_OK:
-            return (int(out_num_c.value), int(out_den_c.value))
+            return _as_q((int(out_num_c.value), int(out_den_c.value)))
         if rc != _native.SRMECH_ERR_OVERFLOW:
             raise RuntimeError(
                 f"srmech_rational_pow_uint returned non-OK status {rc}"
             )
     # Python bignum path
-    return _reduce_rational(p ** exp, q ** exp)
+    return _as_q(_reduce_rational(p ** exp, q ** exp))
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1004,13 +1054,13 @@ def sin_series_truncate(numerator: int,
     _check_series_inputs(numerator, denominator, num_terms,
                          _TRIG_SERIES_MAX_TERMS, "sin_series_truncate")
     if numerator == 0:
-        return (0, 1)
+        return _as_q((0, 1))
     # Exact bignum C path (rc156, Qalg B1a): byte-identical (num, den) via
     # srmech_sin_series_truncate_big over caller-arena srmech_bigint.
     _c = _native._bigexp_call(
         "srmech_sin_series_truncate_big", numerator, denominator, num_terms)
     if _c is not None:
-        return _c
+        return _as_q(_c)
     # Bignum path: accumulate Σ_{k=0..N} (-1)^k * p^(2k+1) / (q^(2k+1) * (2k+1)!)
     num = 0
     den = 1
@@ -1030,7 +1080,7 @@ def sin_series_truncate(numerator: int,
         # Periodically reduce to keep numbers manageable
         if k % 4 == 3:
             num, den = _reduce_rational(num, den)
-    return _reduce_rational(num, den)
+    return _as_q(_reduce_rational(num, den))
 
 
 def cos_series_truncate(numerator: int,
@@ -1043,13 +1093,13 @@ def cos_series_truncate(numerator: int,
     _check_series_inputs(numerator, denominator, num_terms,
                          _TRIG_SERIES_MAX_TERMS, "cos_series_truncate")
     if numerator == 0:
-        return (1, 1)
+        return _as_q((1, 1))
     # Exact bignum C path (rc156, Qalg B1a): byte-identical (num, den) via
     # srmech_cos_series_truncate_big over caller-arena srmech_bigint.
     _c = _native._bigexp_call(
         "srmech_cos_series_truncate_big", numerator, denominator, num_terms)
     if _c is not None:
-        return _c
+        return _as_q(_c)
     num = 0
     den = 1
     p, q = numerator, denominator
@@ -1066,7 +1116,7 @@ def cos_series_truncate(numerator: int,
         den = den * term_den
         if k % 4 == 3:
             num, den = _reduce_rational(num, den)
-    return _reduce_rational(num, den)
+    return _as_q(_reduce_rational(num, den))
 
 
 def log1p_series_truncate(numerator: int,
@@ -1095,14 +1145,14 @@ def log1p_series_truncate(numerator: int,
             f"outside its radius and cannot range-reduce."
         )
     if numerator == 0 or num_terms == 0:
-        return (0, 1)
+        return _as_q((0, 1))
     # Exact bignum C path (rc156, Qalg B1a): byte-identical (num, den) via
     # srmech_log1p_series_truncate_big over caller-arena srmech_bigint (the C
     # peer enforces the SAME -1 < p/q <= 1 domain, unreached here after the guard).
     _c = _native._bigexp_call(
         "srmech_log1p_series_truncate_big", numerator, denominator, num_terms)
     if _c is not None:
-        return _c
+        return _as_q(_c)
     num = 0
     den = 1
     p, q = numerator, denominator
@@ -1115,7 +1165,7 @@ def log1p_series_truncate(numerator: int,
         den = den * term_den
         if k % 4 == 0:
             num, den = _reduce_rational(num, den)
-    return _reduce_rational(num, den)
+    return _as_q(_reduce_rational(num, den))
 
 
 def atan_series_truncate(numerator: int,
@@ -1146,14 +1196,14 @@ def atan_series_truncate(numerator: int,
             f"the range-reduced float projection srmech.math.rational.atan(x)."
         )
     if numerator == 0:
-        return (0, 1)
+        return _as_q((0, 1))
     # Exact bignum C path (rc156, Qalg B1a): byte-identical (num, den) via
     # srmech_atan_series_truncate_big over caller-arena srmech_bigint (the C peer
     # enforces the SAME |p/q| <= 1 domain, unreached here after the guard).
     _c = _native._bigexp_call(
         "srmech_atan_series_truncate_big", numerator, denominator, num_terms)
     if _c is not None:
-        return _c
+        return _as_q(_c)
     num = 0
     den = 1
     p, q = numerator, denominator
@@ -1167,7 +1217,7 @@ def atan_series_truncate(numerator: int,
         den = den * term_den
         if k % 4 == 3:
             num, den = _reduce_rational(num, den)
-    return _reduce_rational(num, den)
+    return _as_q(_reduce_rational(num, den))
 
 
 def _native_jacobi_sncndn(
@@ -1271,15 +1321,20 @@ def jacobi_sncndn_series_truncate(
         return out
 
     m = _reduce_rational(m_numerator, m_denominator)
-    # Coefficient sequences a (sn), b (cn), c (dn) as exact (num, den) pairs.
-    a: List[Tuple[int, int]] = [(0, 1)]
-    b: List[Tuple[int, int]] = [(1, 1)]
-    c: List[Tuple[int, int]] = [(1, 1)]
+    # Coefficient sequences a (sn), b (cn), c (dn) as exact rationals. rc452
+    # (`#T1166`): the seeds are Q, not (num, den) pairs, because everything the
+    # loop appends is a Q (rational_mul now returns the carrier) and a list that
+    # is a tuple at index 0 and a Q everywhere else forces every consumer to
+    # branch on type. The Class-N ops still ACCEPT either spelling — the pair
+    # remains a legal INPUT — so this is about the list being homogeneous.
+    a: List["_QType"] = [_as_q((0, 1))]
+    b: List["_QType"] = [_as_q((1, 1))]
+    c: List["_QType"] = [_as_q((1, 1))]
     for k in range(num_terms):
         # Discrete convolutions (b⊛c), (a⊛c), (a⊛b) at index k.
-        bc = (0, 1)
-        ac = (0, 1)
-        ab = (0, 1)
+        bc = _as_q((0, 1))
+        ac = _as_q((0, 1))
+        ab = _as_q((0, 1))
         for i in range(k + 1):
             j = k - i
             bc = rational_add(bc, rational_mul(b[i], c[j]))
@@ -1287,9 +1342,12 @@ def jacobi_sncndn_series_truncate(
             ab = rational_add(ab, rational_mul(a[i], b[j]))
         inv_kp1 = (1, k + 1)                       # 1/(k+1)
         a_next = rational_mul(bc, inv_kp1)
-        # Class-K sign-flip (negate numerator) then Class-N divide by (k+1).
-        b_next = rational_mul((-ac[0], ac[1]), inv_kp1)
-        c_next = rational_mul(rational_mul((-ab[0], ab[1]), m), inv_kp1)
+        # Class-K sign-flip (negate the NUMERATOR — never abs()) then Class-N
+        # divide by (k+1). rc452: read through the exact-ℚ accessors, since a
+        # Q is a scalar and has no [0] / [1]; the composition is unchanged.
+        b_next = rational_mul((-ac.numerator, ac.denominator), inv_kp1)
+        c_next = rational_mul(
+            rational_mul((-ab.numerator, ab.denominator), m), inv_kp1)
         a.append(a_next)
         b.append(b_next)
         c.append(c_next)
@@ -1301,23 +1359,31 @@ def jacobi_sncndn_series_truncate(
     return (sn, cn, dn)
 
 
-def _eval_poly_rational(coeffs: "List[Tuple[int, int]]",
+def _eval_poly_rational(coeffs: "List[_QType]",
                         p: int, q: int) -> Tuple[int, int]:
     """Evaluate Σ_k coeffs[k]·(p/q)^k as one reduced exact rational.
 
     Accumulates u^k = p^k / q^k incrementally; all-integer / exact-ℚ, no
     floating point. Used by :func:`jacobi_sncndn_series_truncate` to project
     each coefficient sequence onto the argument u = p/q in the fiber.
+
+    RETURNS A ``(num, den)`` PAIR, deliberately — this is a PRIVATE helper, not
+    one of the nine chain-dispatched Class-N ops, and rc452's derived predicate
+    (declared ``returns.type == tuple[int,int]`` AND the shape names num and
+    den) selects only those nine. ``jacobi_sncndn_series_truncate`` keeps its
+    3-tuple-of-pairs contract on top of it. An excluded op whose contract moved
+    anyway would mean the predicate was decoration.
     """
-    total = (0, 1)
-    u_pow = (1, 1)                                 # (p/q)^0
+    total = _as_q((0, 1))
+    u_pow = _as_q((1, 1))                          # (p/q)^0
     u = _reduce_rational(p, q)
     for k, ck in enumerate(coeffs):
         if k > 0:
             u_pow = rational_mul(u_pow, u)
-        if ck[0] != 0:
+        # rc452: exact-ℚ accessor, not [0] — a Q is a scalar, not a container.
+        if ck.numerator != 0:
             total = rational_add(total, rational_mul(ck, u_pow))
-    return _reduce_rational(total[0], total[1])
+    return _reduce_rational(total.numerator, total.denominator)
 
 
 # ──────────────────────────────────────────────────────────────────────

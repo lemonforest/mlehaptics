@@ -310,9 +310,6 @@ def main(argv: List[str]) -> int:
     print(f"testcases parsed : {len(records)}")
     if unmapped:
         print(f"UNMAPPED classnames (report shape changed?): {unmapped}")
-    if empty:
-        print(f"FAIL: these enumerated files collected 0 tests: {empty}")
-        return 1
 
     observed = reds_of(records, baseline_xfails)
     by_status: Dict[str, int] = {}
@@ -369,6 +366,18 @@ def main(argv: List[str]) -> int:
             for s in shortfall:
                 fh.write(json.dumps({"record": "shortfall", **s}, sort_keys=True) + "\n")
         print(f"ndjson written   : {out}")
+
+    # RULE 2 (continued). The abort sits HERE, after the artifact is written:
+    # rc452-s2's literal pre-registered state collapsed 41/41 enumerated files
+    # to zero collected tests (a module-scope subscript of a now-Q return broke
+    # `import srmech.cascade` outright), and the first shape of this function
+    # aborted BEFORE emitting — so the one run that most needed a record left
+    # none. A degenerate run is still a measurement and must leave one.
+    if empty:
+        print(f"FAIL: these enumerated files collected 0 tests: {empty}")
+        print("      A run in which nothing collected has measured NOTHING; "
+              "its red count is not zero, it is undefined.")
+        return 1
 
     # ── verdicts ─────────────────────────────────────────────────────────────
     if args.expect_green:
