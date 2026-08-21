@@ -634,19 +634,19 @@ a docs backlog, not a nice-to-have, and not a candidate for a `docs/` directory.
 
 Three measured facts make this a structural claim rather than a preference:
 
-1. **It crosses the C wire.** `srmech_tool_entry_t` carries `explanation` (`c/include/srmech.h:5929`)
-   and `example_json` (`:5616`). The gcd WHEN clause quoted in §1.1 is present in
+1. **It crosses the C wire.** `srmech_tool_entry_t` carries `explanation` (`c/include/srmech.h:5962`)
+   and `example_json` (`:5649`). The gcd WHEN clause quoted in §1.1 is present in
    `c/src/srmech_tool_registry.c` as shipped text. For a bare-C / MCU host this prose IS the
    introspect layer — ADR-0012 §7.1 makes exactly that point about the generated registry.
 2. **It is hash-bearing.** `srmech_tool_schema_to_json` emits bytes byte-identical to the Python
    `json.dumps(..., sort_keys=True, separators=(",", ":"))`, and `sha256(that) == tool_schema_sha256`
-   (`srmech.h:5712-5685`). The prose is inside the attestation. Documentation is not usually inside an
+   (`srmech.h:5745-5718`). The prose is inside the attestation. Documentation is not usually inside an
    attestation.
 3. **It is population-floored.** The coverage gates (§4) hold it at 100%, which is a contract, not a
    docs aspiration.
 
-**A vocabulary correction this ADR makes explicitly.** `c/include/srmech.h:5848` calls `example` /
-`smoke_test_hint` the **"documentation-hint fields"**, and `:5668` describes `explanation` as a
+**A vocabulary correction this ADR makes explicitly.** `c/include/srmech.h:5881` calls `example` /
+`smoke_test_hint` the **"documentation-hint fields"**, and `:5701` describes `explanation` as a
 **"hint"**. That wording is the calculator framing of §1 written into the wire contract — a *hint* is
 something a caller may ignore, and a *documentation* field is something that lives elsewhere by right.
 This ADR states the opposite: **the field is self-information, and the wire contract carries it because
@@ -1089,7 +1089,7 @@ three distinct objects:
 |---|---|---|
 | 1 | the **operator-chain / cascade** language — `chain()` + `[cascade]`/`[chain]` TOML | `srmech/dsl/__init__.py:1` (*"srmech.dsl — cascade DSL"*), `c/src/srmech_dsl_chain_run.c` |
 | 2 | the **argument-reference** grammar `@row.col` / `@step[0].output`, nested *inside* sense 1 | ADR-0008 §3.7 |
-| 3 | the **`[class]` object-model** descriptors — "DSL-declared class" | ADR-0003 `:54`, `srmech.h:6299`, `:6222` |
+| 3 | the **`[class]` object-model** descriptors — "DSL-declared class" | ADR-0003 `:54`, `srmech.h:6332`, `:6255` |
 
 **ADR-0008 alone applies "DSL" to two different languages in one document**, confirmed by line: sense 1
 at `:1` (*"Operator-chain DSL — schema specification"*) and `:18`; sense 2 at `:28`, `:100`, `:199`
@@ -1109,17 +1109,17 @@ one.
 
 **`affordance` was considered and rejected.** In this tree the word already carries a specific
 technical sense — **a host-language capability that cannot cross a wire** — and it is the single
-largest of its ~14 load-bearing uses. Verbatim, `c/include/srmech.h:7564-7528`:
+largest of its ~14 load-bearing uses. Verbatim, `c/include/srmech.h:7597-7561`:
 
 > The §101 `progress=` gate is a **Python-only affordance** (a splice has no meaningful partial;
 > **a callable cannot cross the C wire**).
 
-with the near-twin at `srmech.h:7422` — *"predicate stays a **Python-layer** affordance (a callable
+with the near-twin at `srmech.h:7455` — *"predicate stays a **Python-layer** affordance (a callable
 cannot cross the C wire)"* — and the JSON-RPC variant at `introspect/tool_schema.py:3750`, *"an
 IN-PROCESS Python affordance (a callable cannot cross JSON-RPC)"*.
 
 **The explanation surface does cross the C wire** (§3: `srmech_tool_entry_t.explanation`,
-`srmech.h:5751`; the gcd WHEN clause is present in `srmech_tool_registry.c`). Naming it `affordance`
+`srmech.h:5784`; the gcd WHEN clause is present in `srmech_tool_registry.c`). Naming it `affordance`
 would assert the exact opposite of the measured fact, using the tree's own most established sense of
 the word.
 
@@ -1277,8 +1277,8 @@ rewrite would target, and because §3 establishes that this payload is *inside t
 `srmech/mcp/_tools.py:395-402` (the `description` assembly that omits the prose) ·
 `srmech/cli/*.py` (the 57 hand-authored help strings; `cli/mcp.py:7` for the "nothing is
 hand-authored" docstring) ·
-`c/include/srmech.h:5929-5874` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
-`:5635`; `explanation` at `:5668`; the byte-identity/hash contract at `:5629-5639`) ·
+`c/include/srmech.h:5962-5907` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
+`:5668`; `explanation` at `:5701`; the byte-identity/hash contract at `:5662-5672`) ·
 `c/tools/gen_tool_registry.py:265,:276,:277,:278` (where `summary` / `example` / `smoke_test_hint` /
 `explanation` are baked into C) ·
 `c/src/srmech_tool_registry.c` (the third copy) ·
