@@ -97,7 +97,7 @@ def test_registered_in_tool_schema():
 def test_native_symbols_bound():
     assert hasattr(_native.LIB, "srmech_graph_kernel_encode")
     assert hasattr(_native.LIB, "srmech_graph_kernel_decode")
-    assert _native.NATIVE_ABI_VERSION == 20
+    assert _native.NATIVE_ABI_VERSION == 21
 
 
 @pytest.mark.skipif(not NATIVE, reason="rc249 graph-kernel C peer not loaded")

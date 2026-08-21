@@ -450,8 +450,41 @@ extern "C" {
  *      change alone earns it.
  *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
+ *
+ *   v21 (v0.9.0rc452, `#T1166`) — THE EXACT-Q REORIENT ARM. The first bump on
+ *      this wire driven by a SILENT-WRONG-VALUE pairing rather than a raise,
+ *      and the first that adds NO kind letter and moves NO descriptor shape.
+ *
+ *      What actually changes is WHO EMITS `q`. That kind has been on this wire
+ *      since long before this rc — cr_op_rat, cr_op_pow and cr_op_series all
+ *      build CR_RATIONAL, and two live attested catalogs (asymptotic_calculus,
+ *      cosmos_validation) dispatch them. cr_op_reorient did not: handed a
+ *      rational it fell through to the double arm, failed to read a list as a
+ *      double, and returned SRMECH_ERR_NOT_IMPL so the chain deferred to pure.
+ *      rc452 gives it a CR_RATIONAL arm, so the Class-C op now ANSWERS an exact
+ *      rational where it previously declined. Zero new dispatch arms;
+ *      cr_dispatch is untouched.
+ *
+ *      THE PAIRING THIS REJECTS, and why it outranks v20's. An rc452 .so
+ *      against rc451 Python emits `q` from reorient into a reader that rebuilds
+ *      a (num, den) TUPLE. Nothing raises. The chain returns a well-formed
+ *      2-tuple — which is also exactly how a Class-K pin pair and a Class-B
+ *      `pair` step spell themselves, so a downstream consumer reads it happily
+ *      and wrongly. v18 and v20 both bumped on the ground that a new kind makes
+ *      an older reader RAISE mid-run; a raise stops, a wrong value propagates.
+ *      The mirror pairing (rc451 .so, rc452 Python) is milder and still wrong:
+ *      every reorient-terminated rational chain silently loses the C path.
+ *
+ *      The arm carves a FRESH carrier from the chain arena and aliases the
+ *      write-once limbs; it never negates in place. Step outputs persist for
+ *      later @step[N].output reads, and an in-place flip corrupts them —
+ *      measured on a real rebuilt library during the rc452 workshop, where a
+ *      three-step chain returned -5/6 for a step that must be 5/6, at rc=0,
+ *      with a well-formed wire. See cr_rat_signed in srmech_compose_run.c.
+ *
+ *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  */
-#define SRMECH_ABI_VERSION 20
+#define SRMECH_ABI_VERSION 21
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)

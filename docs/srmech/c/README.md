@@ -53,7 +53,7 @@ The two newest v0.6.0 C files:
 
 ### ABI
 
-C ABI version is **20** (`SRMECH_ABI_VERSION 20` in
+C ABI version is **21** (`SRMECH_ABI_VERSION 21` in
 `c/include/srmech.h`). The v20 bump is rc451's (`#T1164`, gh #1653 item 4): a
 WIRE-FORMAT change to the existing `srmech_chain_run`, whose output
 value-descriptor kind set grows `{n,i,s,q,f,l}` → `+t` (a TUPLE, distinct from a

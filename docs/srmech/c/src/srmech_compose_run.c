@@ -1100,10 +1100,46 @@ static srmech_status_t cr_op_pin_slot(cr_ctx_t *c, const srmech_json_value_t *ar
  * Fixed at root rather than routed around. The int arm declines an out-of-int64
  * operand (Python's own native dispatch does too, falling back to its
  * arbitrary-precision path) so a bignum is deferred, never truncated. */
+/* A FRESH CR_RATIONAL carrying `num`/`den` with the numerator's sign set to
+ * `sgn`. The limb ARRAYS are ALIASED, never copied: every bigint reaching here
+ * is write-once (built by cr_op_rat / cr_op_pow / cr_op_series and never
+ * mutated afterwards), so aliasing is exact at any magnitude and costs two
+ * struct carves instead of an unbounded copy.
+ *
+ * ⚠️ WHY THIS IS A SEPARATE CARRIER AND NOT `v->num->sign = -v->num->sign`.
+ * Step outputs PERSIST in the chain arena so a later step can read
+ * @step[N].output. Config C's rev2 negated in place on the real rebuilt
+ * library and shipped a SILENT WRONG ANSWER: a three-step chain
+ * (step0 = 1/2 + 1/3; step1 = reorient(step0, -1); step2 = step0 + 0/1)
+ * returned -5/6 for step2 instead of 5/6, with rc=0 and a well-formed wire.
+ * Nothing in the value channel can see that — step2's answer is a perfectly
+ * plausible rational — so the discipline is structural, not a check:
+ * NEVER mutate a value another step can still read.
+ * Pinned by tests/test_exact_q_pipeline_rc452.py's 3-step regression. */
+static cr_value_t *cr_rat_signed(cr_bump_t *b, const srmech_bigint_t *num,
+                                 const srmech_bigint_t *den, int32_t sgn)
+{
+    cr_value_t *ov; srmech_bigint_t *n2, *d2;
+    assert(b != NULL);
+    assert(num != NULL && den != NULL);
+    ov = cr_new_value(b, CR_RATIONAL);
+    n2 = (srmech_bigint_t *)cr_carve(b, sizeof(srmech_bigint_t));
+    d2 = (srmech_bigint_t *)cr_carve(b, sizeof(srmech_bigint_t));
+    if (ov == NULL || n2 == NULL || d2 == NULL) { return NULL; }
+    *n2 = *num; *d2 = *den;
+    /* Class-K pin-slot: a ZERO numerator has sign 0 and MUST keep it — the
+     * bigint invariant is `sign == 0 iff n == 0`, so stamping -1 on a zero
+     * would build a malformed carrier that prints "-0". */
+    n2->sign = (num->n == 0u) ? 0 : sgn;
+    ov->num = n2; ov->den = d2;
+    return ov;
+}
+
 static srmech_status_t cr_op_reorient(cr_ctx_t *c, const srmech_json_value_t *args,
                                       cr_value_t **out)
 {
     cr_value_t *v; double value = 0.0, ori = 0.0, r = 0.0;
+    const srmech_bigint_t *qn, *qd;
     int64_t iv = 0, ir = 0; srmech_status_t st;
     assert(c != NULL && args != NULL);
     assert(out != NULL);
@@ -1111,6 +1147,38 @@ static srmech_status_t cr_op_reorient(cr_ctx_t *c, const srmech_json_value_t *ar
     if (ori < -128.0 || ori > 127.0) { return SRMECH_ERR_NOT_IMPL; }
     v = cr_arg(c, args, "value");
     if (v == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    /* rc452 (`#T1166`): the exact-Q arm. Class C re-application is
+     * negate-iff-orientation < 0, identical to the i64 and f64 arms below; the
+     * sign lives on the numerator because the carrier keeps den > 0.
+     *
+     * ⚠️ CR_RATIONAL ONLY — this arm deliberately does NOT call
+     * cr_as_rational, whose second arm would also admit a bare 2-int CR_LIST.
+     * Two reasons, both measured, and rc452's plan asked for the opposite:
+     *
+     *  1. IT WOULD MAKE C ANSWER WHERE PYTHON RAISES. `reorient((5, 6),
+     *     orientation=-1)` raises TypeError in Python (unary minus on a tuple)
+     *     and `orientation=+1` passes the tuple through un-negated. Admitting
+     *     the list here would return an exact -5/6 from C against a raise from
+     *     Python — a value-vs-capability divergence, which is the defect class
+     *     this rc exists to close, one level up.
+     *  2. IT WOULD RE-CREATE THE COLLISION THAT DISQUALIFIED ADJ-4. A 2-int
+     *     list is ALSO how a Class-K pin pair and a Class-B `pair` step spell
+     *     themselves. Config B measured that `pin_slot_at_zero(-1) = (-1, 1)`
+     *     and the rational -1/1 are byte-identical on the wire, that the
+     *     collision lands on THIS op, and that the repair is UNDECIDABLE — one
+     *     input, two correct answers. The ruling used that to reject the tuple
+     *     spelling; re-admitting it here would import the same ambiguity.
+     *
+     * So the pair stays a legal INPUT to the ops whose C peers take it
+     * (cr_op_rat, cr_op_pow via cr_as_rational — re-verified by execution),
+     * and reorient keeps DECLINING it on both projections. A mutual decline is
+     * parity; an answer on one side only is not. */
+    if (v->kind == CR_RATIONAL && v->num != NULL && v->den != NULL) {
+        int32_t sgn = (ori < 0.0) ? -v->num->sign : v->num->sign;
+        qn = v->num; qd = v->den;
+        *out = cr_rat_signed(c->b, qn, qd, sgn);
+        return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    }
     if (v->kind == CR_INT) {
         if (!cr_as_i64(v, &iv)) { return SRMECH_ERR_NOT_IMPL; }
         st = srmech_cascade_reorient_i64((int8_t)ori, iv, &ir);

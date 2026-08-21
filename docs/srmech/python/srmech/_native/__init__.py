@@ -229,7 +229,28 @@ from typing import Optional
 #        chain that is byte-identical today. With it, that pairing refuses to load
 #        and the pure projection answers correctly. Exactly v18's argument, which
 #        added f/l to this same wire.
-EXPECTED_ABI_VERSION: int = 20
+#   v21 (rc452, `#T1166`) — THE EXACT-ℚ REORIENT ARM, and the first bump in this
+#        family driven by a SILENT-WRONG-VALUE pairing rather than a raise. No
+#        kind letter is added and no descriptor shape moves: `q` has been on
+#        srmech_chain_run's wire since long before this rc (cr_op_rat /
+#        cr_op_pow / cr_op_series all build CR_RATIONAL, and two live attested
+#        catalogs dispatch them). What moves is WHO EMITS IT — cr_op_reorient
+#        gains a CR_RATIONAL arm, so the Class-C op returns an exact rational
+#        where it previously declined with SRMECH_ERR_NOT_IMPL and deferred to
+#        pure — and, on this side, WHAT THE READER BUILDS FROM IT:
+#        _reconstruct_value now returns srmech.math.q.Q where it returned a
+#        (num, den) tuple.
+#
+#        THE PAIRING THIS PIN REJECTS. An rc452 .so against rc451 Python emits
+#        `q` from reorient, and that reader rebuilds it as a TUPLE. Nothing
+#        raises. Nothing looks wrong. The chain returns a plausible 2-tuple that
+#        a downstream Class-K consumer will happily read as a pin pair — the
+#        silent-wrong-VALUE class, strictly worse than the raise-class condition
+#        v20 bumped for, because a raise stops and a wrong value propagates. The
+#        mirror pairing (rc451 .so, rc452 Python) is milder but still wrong: the
+#        chain silently loses the C fast path on every reorient-terminated
+#        rational chain. Only this version number can see either.
+EXPECTED_ABI_VERSION: int = 21
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-

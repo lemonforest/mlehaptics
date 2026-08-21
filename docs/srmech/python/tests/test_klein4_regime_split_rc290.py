@@ -390,8 +390,8 @@ def test_the_renamed_c_symbol_is_present_and_the_old_one_is_gone():
     # ABI has since advanced past rc290's 8 (rc306 = 9, section_counts caller-arena;
     # rc307 = 10, fiedler_sparse ws_len unified to BYTES); this pins the CURRENT
     # value so a stale lib is still caught.
-    assert _native.EXPECTED_ABI_VERSION == 20
-    assert _native.NATIVE_ABI_VERSION == 20
+    assert _native.EXPECTED_ABI_VERSION == 21
+    assert _native.NATIVE_ABI_VERSION == 21
 
 
 # ── the genome slot rename ────────────────────────────────────────────────
