@@ -60,6 +60,7 @@ from srmech.dsl._cascade_chain import (
     descriptor_status,
 )
 from srmech.math.laplacian import schur_complement
+from srmech.math.q import Q
 
 
 # ── the pinned population (drift here must be conscious) ───────────────
@@ -241,6 +242,22 @@ def _bits(x) -> bytes:
                 x.items(), key=lambda kv: repr(kv[0]))) + b"}"
     if x is None:
         return b"n"
+    if isinstance(x, Q):                         # rc452 — the exact-ℚ carrier
+        # PLACED BEFORE the tolist and repr arms, and explicit rather than
+        # inherited, because BOTH of the arms below silently mis-encode a Q:
+        #   * the final `b"r" + repr(x)` fallback is where a Q landed through
+        #     rc451. A decoy class whose __repr__ returns "Q(5, 6)" produces
+        #     BYTE-IDENTICAL comparator output — built independently by two of
+        #     the four rc452 workshops — so the discrimination rested on a repr
+        #     collision, not on the type.
+        #   * giving Q a `.tolist()` at any future point would move it to the
+        #     Mat/Vec arm and re-collapse it, silently.
+        # An == based comparator cannot discriminate at all here: Q(5,6) == (5,6)
+        # is True, and so is Q(5,6) == (10,12), because Q.__eq__ coerces through
+        # _as_pair and cross-multiplies. This encoder never calls ==; that is
+        # WHY it can tell them apart, and this arm is what makes that structural
+        # instead of accidental.
+        return b"q" + repr(x.numerator).encode() + b"/" + repr(x.denominator).encode()
     if hasattr(x, "tolist"):                     # Mat / Vec carriers
         return b"M" + _bits(x.tolist())
     return b"r" + repr(x).encode()

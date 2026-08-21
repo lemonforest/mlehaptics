@@ -149,6 +149,7 @@ from srmech.cascade import compose as _compose
 from srmech.dsl import _catalog as _cat
 from srmech.dsl import _cascade_chain as _cc
 from srmech.dsl._cascade_chain import cascade_chain_specs
+from srmech.math.q import Q
 
 from _native_gate import require_native
 
@@ -269,6 +270,22 @@ def _bits(x) -> bytes:
                 x.items(), key=lambda kv: repr(kv[0]))) + b"}"
     if x is None:
         return b"n"
+    if isinstance(x, Q):                         # rc452 — the exact-ℚ carrier
+        # PLACED BEFORE the tolist and repr arms, and explicit rather than
+        # inherited, because BOTH of the arms below silently mis-encode a Q:
+        #   * the final `b"r" + repr(x)` fallback is where a Q landed through
+        #     rc451. A decoy class whose __repr__ returns "Q(5, 6)" produces
+        #     BYTE-IDENTICAL comparator output — built independently by two of
+        #     the four rc452 workshops — so the discrimination rested on a repr
+        #     collision, not on the type.
+        #   * giving Q a `.tolist()` at any future point would move it to the
+        #     Mat/Vec arm and re-collapse it, silently.
+        # An == based comparator cannot discriminate at all here: Q(5,6) == (5,6)
+        # is True, and so is Q(5,6) == (10,12), because Q.__eq__ coerces through
+        # _as_pair and cross-multiplies. This encoder never calls ==; that is
+        # WHY it can tell them apart, and this arm is what makes that structural
+        # instead of accidental.
+        return b"q" + repr(x.numerator).encode() + b"/" + repr(x.denominator).encode()
     if hasattr(x, "tolist"):                     # Mat / Vec carriers
         return b"M" + _bits(x.tolist())
     return b"r" + repr(x).encode()
@@ -597,9 +614,22 @@ def test_an_unknown_kind_is_a_hard_red_not_a_soft_verdict():
 # ── 3. the witnesses. ALL of them go through classify(). ─────────────────────
 
 @pytest.mark.parametrize("wire,py_value,why", [
-    (b'{"d": "6", "k": "q", "n": "5"}', (5, 6),
-     "a rational: the encodings differ MAXIMALLY (three string fields vs a "
-     "2-tuple of ints) and the reconstructed values agree"),
+    (b'{"d": "6", "k": "q", "n": "5"}', Q(5, 6),
+     "an exact rational vs the exact-ℚ carrier. rc452 (`#T1166`) FLIPPED this "
+     "row's partner: through rc451 this wire was required IDENTICAL against a "
+     "Python (5, 6) TUPLE, which is the collapse the rc removes — the shipped "
+     "reader rebuilt `q` as a tuple, and a tuple is also what a Class-K pin "
+     "pair and a Class-B `pair` step produce, so the type was erased on "
+     "arrival. Against Q the agreement is real: same value AND same carrier. "
+     "Its DIVERGENT twin (this wire vs the tuple) is in the red set below, so "
+     "the pair is pinned in both directions and loosening either would show"),
+    (b'{"k": "t", "v": [{"k": "i", "v": "3"}, {"d": "6", "k": "q", "n": "5"}]}',
+     (3, Q(5, 6)),
+     "HETEROGENEOUS, DEPTH 1: a tuple of an int and a rational. The reader "
+     "rebuilds containers RECURSIVELY, so the `q` inside a `t` must come back "
+     "as a Q too — through rc451 it came back as a nested TUPLE, a latent "
+     "wrong value nothing exercised. This is the depth-1 half of the ruling's "
+     "carrier predicate, on the inside of its boundary"),
     (b'{"k": "i", "v": "6"}', 6,
      "a bignum-as-decimal-string vs a Python int"),
     (b'{"k": "f", "v": 3.5}', 3.5, "a double"),
@@ -621,6 +651,18 @@ def test_green_witnesses_classify_identical(wire, py_value, why):
 
 
 @pytest.mark.parametrize("wire,py_value,collapse", [
+    (b'{"d": "6", "k": "q", "n": "5"}', (5, 6),
+     "exact ℚ -> int pair. rc452 (`#T1166`): THE DELIVERABLE. This row was a "
+     "shipped GREEN witness through rc451 — the comparator was REQUIRED to "
+     "call a `q` wire identical to a Python 2-tuple, which is the collapse "
+     "this whole arc exists to remove. A tuple of two ints is also exactly "
+     "how pin_slot_at_zero and pair spell themselves, so under the old "
+     "requirement no comparator could ever tell an exact-ℚ chain from an "
+     "integer-pair one. Its IDENTICAL twin (this wire vs Q(5, 6)) is in the "
+     "green set above"),
+    (b'{"d": "6", "k": "q", "n": "5"}', 5 / 6,
+     "exact ℚ -> float. The exact-vs-approximate dispatch contract, on the "
+     "carrier the contract is about"),
     (b'{"k": "s", "v": "6"}', 6,
      "str -> int (the wedge-join script's strip('\"') collapse)"),
     (b'{"k": "i", "v": "3"}', 3.0,
@@ -648,6 +690,120 @@ def test_red_witnesses_classify_divergent(wire, py_value, collapse):
     assert classify(0, wire, py_value) == V_DIVERGENT, (
         "the comparator collapsed %s — the encoding is normalising values it "
         "must distinguish" % collapse)
+
+
+# ── rc452 (`#T1166`): the Q arm is EXPLICIT, and here is why it has to be ───
+
+class _QImpostor:
+    """A decoy whose ``__repr__`` is exactly a ``Q``'s.
+
+    Two of the four rc452 workshops built this independently, which is the tell
+    that it is not a contrived case: through rc451 a ``Q`` fell through every
+    arm of :func:`_bits` to the final ``b"r" + repr(x)`` FALLBACK, so ANY object
+    that repr'd the same way produced byte-identical comparator output. The
+    discrimination the whole arc turns on rested on a repr collision.
+    """
+
+    def __repr__(self):
+        return "Q(5, 6)"
+
+
+def test_a_repr_impostor_does_not_pass_as_the_exact_q_carrier():
+    """The impostor must classify DIVERGENT against the ``q`` wire.
+
+    Without the explicit ``isinstance(x, Q)`` arm this test FAILS — measured,
+    not asserted: the fallback encodes both as ``b"rQ(5, 6)"``.
+    """
+    v = classify(0, b'{"d": "6", "k": "q", "n": "5"}', _QImpostor())
+    assert v == V_DIVERGENT, (
+        "a class that merely REPRS like a Q was accepted as one (%s). The "
+        "comparator is reading text, not type." % v)
+
+
+@pytest.mark.parametrize("wire,why", [
+    (b'{"k": "t", "v": [{"k": "i", "v": "5"}, {"k": "i", "v": "6"}]}',
+     "a TUPLE of two ints. If Q were ever made a tuple subclass it would "
+     "encode as one and this would silently go IDENTICAL"),
+    (b'{"k": "l", "v": [{"k": "i", "v": "5"}, {"k": "i", "v": "6"}]}',
+     "a LIST of two ints. If Q ever grew a .tolist() it would move to the "
+     "Mat/Vec arm, whose encoding is the list's, and this would collapse"),
+    (b'{"k": "f", "v": 0.8333333333333334}',
+     "the FLOAT the rational is nearest to — the exact-vs-approximate "
+     "dispatch contract, on the carrier the contract is about"),
+])
+def test_the_exact_q_carrier_is_not_any_other_carrier(wire, why):
+    """Q must classify DIVERGENT against every neighbouring spelling.
+
+    THROUGH ``classify``, never through ``_bits`` directly — this file's own
+    structural rule (:func:`test_bits_is_reachable_only_through_classify`)
+    forbids a second comparison path, and these assertions are worth nothing if
+    they exercise an encoder the population does not.
+
+    Each row names a DIFFERENT way the explicit ``isinstance(x, Q)`` arm could
+    stop being reached without any other test in this file noticing.
+    """
+    assert classify(0, wire, Q(5, 6)) == V_DIVERGENT, why
+
+
+def test_an_unreduced_q_wire_rebuilds_canonically_and_that_is_correct():
+    """A ``q`` descriptor spelling 10/12 rebuilds as ``Q(5, 6)`` and AGREES.
+
+    Recorded as a positive rather than left implicit, because it is the one
+    place the reader legitimately normalises. ``Q.__init__`` reduces through
+    the Class-N canonical reducer, so two wire spellings of the same rational
+    land on one carrier — which is what "exact rational" MEANS, and is not the
+    collapse this gate refuses (that one erases the TYPE, not the spelling).
+    It is also unreachable from the shipped C: every ``q`` emission comes out
+    of an op that reduced it. Pinned so a future reader that stopped reducing
+    would be a red here rather than a silent canonical-form divergence.
+    """
+    assert classify(0, b'{"d": "12", "k": "q", "n": "10"}', Q(5, 6)) == V_IDENTICAL
+    assert classify(0, b'{"d": "12", "k": "q", "n": "10"}', (5, 6)) == V_DIVERGENT
+
+
+def test_a_rational_inside_a_tuple_rebuilds_as_a_rational():
+    """DEPTH 1: the reader is recursive, so a ``q`` nested in a ``t`` must come
+    back as a ``Q``. Through rc451 it came back as a nested tuple — a latent
+    wrong value with nothing exercising it."""
+    desc = _compose._srmech_json.loads(
+        '{"k": "t", "v": [{"k": "i", "v": "3"}, {"d": "6", "k": "q", "n": "5"}]}')
+    got = _compose._reconstruct_value(desc)
+    assert type(got) is tuple and len(got) == 2, got
+    assert got[0] == 3 and type(got[0]) is int, got
+    assert type(got[1]) is Q, (got[1], type(got[1]).__name__)
+    assert (got[1].numerator, got[1].denominator) == (5, 6), got[1]
+
+
+def test_a_pair_of_rationals_marshals_through_the_real_library():
+    """CONFIG B'S PINNED REGRESSION. ``pair(Q, Q)`` must still cross the wire.
+
+    Config B's tuple spelling regressed this from OK to ERR_OVERFLOW, because
+    each rational became a nested LIST and JPL Rule 1 forbids the recursion
+    needed to marshal it. The `q` spelling keeps the pair at depth 1, which is
+    exactly why it fits the marshal budget. Executed against the real .so, not
+    reasoned about.
+    """
+    require_native("pair(Q, Q) marshalling")
+    rc, wire, ok = _c_run(_chain_only({
+        "name": "rc452_pair_of_rationals", "on_error": "raise", "steps": [
+            {"class": "N", "op": "srmech.math.rational.rational_add",
+             "args": {"a": [1, 2], "b": [1, 3]}},
+            {"class": "N", "op": "srmech.math.rational.rational_add",
+             "args": {"a": [1, 4], "b": [1, 4]}},
+            {"class": "B", "op": "srmech.cascade.pair",
+             "args": {"first": "@step[0].output",
+                      "second": "@step[1].output"}},
+        ]}), {})
+    assert ok and rc == 0, (
+        "pair(Q, Q) did not marshal (ok=%r rc=%r). Config B's spelling "
+        "regressed exactly this to ERR_OVERFLOW; the `q` spelling must not."
+        % (ok, rc))
+    desc = _compose._srmech_json.loads(wire.decode("utf-8"))
+    assert desc.get("k") == "t", desc
+    got = _compose._reconstruct_value(desc)
+    assert type(got) is tuple and len(got) == 2, got
+    assert all(type(v) is Q for v in got), [type(v).__name__ for v in got]
+    assert got[0] == Q(5, 6) and got[1] == Q(1, 2), got
 
 
 def test_c_rejection_is_its_own_verdict_not_a_silence():

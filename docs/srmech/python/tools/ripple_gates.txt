@@ -641,6 +641,23 @@ tests/test_genome_group_v20_rc442.py
 #    GROWTH OBLIGATION: FROZEN_KNOWN_GATES is a floor, nothing enumerates
 #    tests/*.py, and a gate absent from both sets is invisible. rc449 added
 #    three gates and listed zero of them.
+# -- rc452 (`#T1166`) ---------------------------------------------------------
+#    THE TWO GATES THAT JUDGE THIS RC, listed HERE BY HAND for the same reason
+#    the rc451 block gives: the manifest meta-test has NO GROWTH OBLIGATION, so
+#    a gate absent from both FROZEN_KNOWN_GATES and this file is invisible to
+#    the fast pre-push surface. rc449 added three gates and listed zero.
+#
+#    test_exact_q_pipeline_rc452 is the DoD: rational_add -> reorient returns
+#    exact ℚ in both projections with byte-identical wires, plus the 3-step
+#    @step-re-read regression that is the only thing able to see an in-place
+#    arena mutation (rc=0, well-formed wire, wrong value).
+#    test_wire_kind_emission_rc452 closes the CLASS the arc opened on — a wire
+#    kind declared by both projections and emitted where no instrument looks.
+#    It censuses BOTH populations because the answer differs between them, and
+#    it is red-demonstrated: run before population B existed, it failed on
+#    residual ['n','q','s'].
+tests/test_exact_q_pipeline_rc452.py
+tests/test_wire_kind_emission_rc452.py
 tests/test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py
 tests/test_readme_c_coverage_figures_rc451.py
 tests/test_c_cascade_parity_ratchet_rc446.py

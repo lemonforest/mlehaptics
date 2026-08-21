@@ -5,6 +5,94 @@ All notable changes to this package will be documented here. The format follows 
 **Reference notation.** `#T###` is a LOCAL task-tracker item (our session task list); `F####` is an RBS-LM finding; bare `#NNNN` is reserved for a REAL GitHub issue/PR (write `gh #1293` when you want it unambiguous). The `T` prefix exists because GitHub autolinks `#` followed immediately by digits, so a bare task ID silently mints a cross-link to whatever issue happens to hold that number — several of ours collide with unrelated merged issues. Never write a task ID as bare `#NNNN`. **Two clauses the root `CLAUDE.md` carries and this paragraph did not** (reconciled 2026-07-29, `#T994`): (1) a ref inside a **code span** — `` `#938` `` — does **not** autolink, so it is the legitimate way to *quote* a bad ref while documenting it, and any mechanical check must exempt code spans and bound the digit range or it will flag `UAX #29` / `MS #20` / `Spike #24`; (2) the rule binds **four** surfaces — file content (including docstrings and `ToolEntry` prose, which are emitted into generated files and ship in the wheel), commit messages, the PR body, and **the PR title, which becomes the merge-commit subject**. Existence proves nothing; **topicality decides** — read the surrounding prose, never batch-convert.
 
 
+## [0.9.0rc452] - `#T1166`: exact ℚ crosses the wire, and the prediction that was right about mechanism and wrong about size
+
+The rc452 ruling overturned ADJ-4 and reinstated its broken acceptance criterion as this rc's headline: `rational_add` → `reorient` returns an exact rational in **both** projections with byte-identical wires. Through rc451 it threaded in **neither**. It threads now:
+
+```
+rc=0  {"d": "6", "k": "q", "n": "-5"}      # native, and forced-pure returns Q(-5, 6)
+```
+
+### The defect was never in the wire
+
+`q` has been on `srmech_chain_run`'s output wire since long before this release — `cr_op_rat`, `cr_op_pow` and `cr_op_series` all build `CR_RATIONAL`, and two live attested catalogs dispatch them. Re-derived here rather than inherited from the ruling: **39 `q` emissions over 51 catalog rows**. The collapse lived in the Python **reader**, which rebuilt a `q` as a `(num, den)` tuple — the same shape a Class-K pin pair and a Class-B `pair` step produce, so the type was erased on arrival and no comparator could tell an exact-ℚ chain from an integer-pair one. And it lived in one **shipped green witness** that *required* that collapse.
+
+**Four changes.** The reader rebuilds `q` as `srmech.math.q.Q`. The nine derived-predicate Class-N ops return `Q`, and the four binary ones accept `Q` **or** the pair — the Python mirror of C's `cr_as_rational`. `cr_op_reorient` gains a `CR_RATIONAL` arm. The rc450 witness flips required-IDENTICAL → required-DIVERGENT, with a `q`-vs-`Q(5,6)` IDENTICAL twin beside it.
+
+### C was the side that was right, and it was checked rather than believed
+
+A probe drives the real shipped library: a chain whose second step feeds `@step[0].output` — a `CR_RATIONAL` — straight back into `rational_add` returns `{"d": "6", "k": "q", "n": "5"}` at `rc=0`. C has been closed under its own return type all along; Python raised on the same shape. The disagreement was the finding, the contract named C correct, and Python widened to match — not the reverse.
+
+**The acceptance boundary is derived, not narrowed.** The ruling says "the nine ops accept Q-or-pair"; only **four** can. `cr_as_rational` is called at exactly two sites in the C runner (`cr_op_pow`'s `base`, `cr_op_rat`'s `a`/`b`), and the five `*_series_truncate` ops declare two separate ints on both projections — there is no pair operand to widen. Error classes are unchanged: a bare `int` and a `fractions.Fraction` are still **refused**, because `cr_as_rational` refuses a `CR_INT`.
+
+### The falsifiable prediction: confirmed on mechanism, refuted on count by 15.5×
+
+The ruling's surviving dissent (judge 3's A-CARRIER placement) was settled by experiment, not argument. A 21-entry red manifest was committed **before** the change it predicts; every run embeds its git blob hash.
+
+**Measured: 50 reds where 21 were pre-registered, shortfall zero.** All ten predicted sites fired at exactly their predicted counts. All 29 excess reds carry **one** error class — `TypeError: a|b must be 2-tuple (num, den); got Q(...)` — which is the closure defect the ruling itself named and priced at 2. It is 31. Nothing outside the two named mechanisms appeared, and every excess red goes green on the acceptance-widening with **zero edits to any failing file**.
+
+So: A-FULL's blast radius contains no third kind of breakage (**confirmed**), and the ruling's census under-reported that class by 15.5× (**refuted**). The reason is method — Config A's file set was "tests that call the nine ops **directly**", which cannot see a test reaching them through a catalog chain, the C chain runner, or a consumer op.
+
+**Two shipped-source findings the ruling did not have.** `srmech/math/laplacian.py:5421-5422` subscripts `atan_series_truncate`'s return at **module scope**, so it did not red a test — it broke `import srmech.cascade` outright. The ruling's census named 3 sites, all in `rational.py`, and could not have found this one: that module binds the op under an **alias**, and a name-resolving parse is blind to an alias. Consequently the literal rc452-s2 state is **not measurable** — 41 of 41 enumerated files collect zero tests — and the instrument refused the run rather than reporting "0 reds".
+
+### Six ops left the C surface without saying so
+
+Respelling the four binary ops' ToolEntry param type `"tuple[int, int]"` → `"Q | tuple[int, int]"` silently dropped **six ops** off the native `invoke_tool` surface. `mm_action_for` is an exact `strcmp` over `MM_TYPE_RULES`; an unknown type string returns `MM_ACT_NOTIMPL` and the whole invoke defers to pure — no error, no wrong value, just a capability quietly gone. Caught only because `test_invoke_tool_clean_batch2_c_rc189` asserts `dispatched is True` rather than comparing values. Repaired in **both** projections, string for string.
+
+### ABI 20 → 21, on a new argument
+
+The first bump on this wire driven by a **silent wrong value** rather than a raise, and the first that adds no kind letter and moves no descriptor shape. What changes is who emits `q`: `cr_op_reorient` now answers an exact rational where it returned `SRMECH_ERR_NOT_IMPL`. Pair an rc452 `.so` with rc451 Python and nothing raises — the chain returns a well-formed 2-tuple a downstream Class-K consumer reads happily and wrongly. v18 and v20 bumped because an older reader *raises*; a raise stops and a wrong value propagates.
+
+The pin sweep is mechanical, counted and residual-checked at zero: 1 macro, 1 shim constant, **21 literal pins across 18 test files** (including `test_introspect.py`'s `status['expected_abi']`, which an `(NATIVE|EXPECTED)_ABI_VERSION == 20` grep structurally cannot find), and the two prose files `test_abi_prose_currency_rc449` reads.
+
+**Fresh carrier, never in place.** `cr_rat_signed` carves a new value and two new bigint headers from the arena and aliases the write-once limbs. Step outputs persist for later `@step[N].output` reads, and an in-place flip corrupts them — measured during the workshop on a real library, where a three-step chain returned `-5/6` for a step that must be `5/6`, at `rc=0`, with a well-formed wire. The 3-step regression is mandatory and ships for both orientations. Zero new dispatch arms; `cr_dispatch` untouched at 57/60; `gcc -std=c99 -Wall -Wextra -Werror -pedantic` clean. **MSVC `/WX` and clang are not runnable locally and are not claimed** — CI is their first contact.
+
+### A deliberate divergence from the plan: `reorient` refuses the bare pair, on both sides
+
+The plan asked for the `[num, den]` list to be **accepted** by the C arm. It is not, and admitting it would have been a defect. Python's `reorient((5,6), orientation=-1)` **raises**; a C arm answering an exact `-5/6` there answers where its co-equal peer raises. And a 2-int list is also how a Class-K pin pair spells itself — Config B measured that `pin_slot_at_zero(-1)` and the rational `-1/1` emit byte-identical wires, that the collision lands on **this op**, and that the repair is **undecidable**. That measurement is why the ruling rejected the tuple spelling; re-admitting it inside `reorient` would import the ambiguity back into the op it was thrown out of. The **mutual decline** is pinned as parity instead.
+
+### The comparator can now tell a rational from a pair
+
+`_bits` gains an explicit `isinstance(x, Q)` arm in **both** copies, placed before the `tolist` and `repr` arms. Through rc451 a `Q` fell through to the `b"r" + repr(x)` fallback, so a decoy class whose `__repr__` returns `"Q(5, 6)"` produced byte-identical comparator output — built independently by two of the four workshops. The discrimination the whole arc turns on rested on a repr collision. An `==`-based comparator cannot discriminate at all: `Q(5,6) == (5,6)` is True and so is `Q(5,6) == (10,12)`.
+
+New witnesses: the impostor must classify DIVERGENT; `Q` must classify DIVERGENT against the tuple, list and float spellings of the same number; a `q` nested inside a `t` must rebuild as a `Q` (through rc451 it rebuilt as a nested tuple — a latent wrong value nothing exercised); and Config B's pinned regression, `pair(Q, Q)`, must still marshal through the real library, which it does, at depth 1.
+
+### The emitted-kind gate, and the figure it corrected
+
+`tests/test_wire_kind_emission_rc452.py` closes the **class**: a wire kind declared by both projections and emitted where no instrument looks. It censuses **two populations**, because the answer differs between them and picking one would have been the convenient side rather than the true one:
+
+* **A**, the cascade-catalog proof cases the value-parity comparator judges: 98 declared, 48 emitting, `{f:13, i:48, l:4, t:9}` — **no `q` at all**.
+* **B**, the AMSC catalog operator_chains: 51 declared, 51 emitting, `{q:39, s:12}`.
+
+The gate is **red-demonstrated**: run before population B was added, it failed on `residual ['n','q','s']`.
+
+**It corrected a figure the plan inherited.** The plan predicted the unemitted residual would be `{n, s}`; the workshops had disagreed about `s`, one reporting it emitted and another reporting 0 of 98. Both were right about different sets. `s` **is** emitted, 12 times, by `pi_digits`. **The union residual is `{n}` alone.**
+
+### What rc452 does NOT close — named, priced, pinned
+
+Eight new gap-ledger rows (86 → 95 lines). Notably:
+
+* **The comparator's own blind spot.** rc452's plan called for a proof-case chain to put `q` into the value-parity population. It is **not buildable as specified**: every `[cascade]` descriptor must name a real DSL-resolvable op, and there is no rational-family cascade op. That row costs a new public callable plus its descriptor, moving the tool-count axis across ~73 test files. Pinned down-only as `CEIL_UNEMITTED_IN_POPULATION_A` so it cannot widen quietly.
+* **`dead_band` / `scale_round_half_even`** accept `Q` in Python and decline non-`CR_DBL` in C — priced at one `q` arm each, **not built**, named rather than inherited silently.
+* **`json.dumps(Q)` raises**, so exact ℚ still enters a chain only as `[num, den]`. rc452 closes the **return** direction only, and the fact is given a test rather than a sentence.
+* **`Mat`/`Vec` silently coerce `Q` to float at construction** — a live carrier-layer violation below every wire this rc touches. **Inherited from the workshop, not re-executed here**, and flagged as such. The reading of "Mat/Vec/HV are carriers too" as exact-ℚ reach via `Q` + depth-1 containers + the deferred exact peers **requires explicit user sign-off; rc452 flags it PENDING and does not assume it**.
+* **Depth ≥ 2 exact carriers** (QMat / Poly / BiPoly) cost ~22-24 non-recursive lines per level (three independent counts agree; JPL Rule 1 forbids the recursive shortcut). The depth-1 boundary is pinned from both sides.
+* **The MCP two-wire divergence widens**: the Q-returning tool population grows **27 → 36** (re-derived by execution), with no MCP round-trip run under the change.
+* **`n` (CR_NONE) is emitted by nothing** in either population; no producer has ever been found.
+
+### Instrument changes
+
+* `notes/_rc452_red_experiment.py` — parses the pytest junit report (never greps), hard-fails on any enumerated file collecting zero tests, refuses `-k`/`-m`, counts a new xfail as a red, and diffs observed against predicted in **both** directions. It gained one repair mid-build: the run artifact is now written **before** the zero-collection abort, because the one run that most needed a record left none.
+* `notes/_rc452_mechanicalness_check.py` — makes "any non-mechanical fix re-opens the placement question" executable instead of a review claim. 8 files, **0 NON-MECHANICAL, 1 DECLARED**. It self-checks that it can return both verdicts. It needed a **third** pattern (subscript-pair → unpack, for a heterogeneous container), reported rather than folded in.
+* `tools/ripple_gates.txt` gains rc452's two gates by hand — the manifest meta-test has no growth obligation, and rc449 added three gates and listed zero.
+
+### Counts moved
+
+* `CR_OP_REG` **24** spellings (unchanged) · `cr_dispatch` **57/60** (unchanged) · zero new dispatch arms.
+* Value parity: **48 BYTE_IDENTICAL / 46 C_REJECTED / 4 NONFINITE / 0 DIVERGENT** over 98 cases, `raised` **0** — the "93 of 98 executed" bound this arc has been quoting is superseded; `_population`'s `CASE_DEFAULTS` already covers the kuramoto rows.
+* Gap ledger **86 → 95** lines.
+
+
 ## [0.9.0rc451] - `#T1164`: the type the wire could not spell, and the wrong answer that had been waiting for it
 
 gh #1653 **item 4** — the RC-A slice. `best_rational_signed` runs in C from its descriptor: `CEIL_C_REJECTED_CHAINS` **9 → 8**, the first decrement this ratchet has ever made **with the value channel open**.
