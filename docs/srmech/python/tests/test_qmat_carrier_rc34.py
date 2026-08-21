@@ -89,6 +89,89 @@ def test_from_float_rows_best_rational_snap():
     assert A[0, 1] == Q(1, 3)
 
 
+def test_from_float_rows_snaps_the_NEGATIVE_half_of_the_domain():
+    """rc452 (`#T1166`) - the half of the domain that was never driven.
+
+    `from_float_rows` called the UNSIGNED Class-N `best_rational` straight on a
+    possibly-negative numerator, so EVERY negative entry raised
+    "numerator must be non-negative". A shipped public method failed on half its
+    own input domain, and `from_mat` inherited it. It survived because the only
+    coverage above passes 0.1 and 0.3333333333333333 - both positive.
+
+    Same shape as the rc433 `Vec.__getitem__` finding: the test drove one half of
+    the domain and the other half was never exercised. The fix routes the shipped
+    Class-K pin-slot / Class-C reorient atoms around the Class-N snap; these
+    assertions pin the SIGN, and the magnitudes must equal the positive peers
+    exactly (the sign must not perturb the convergent).
+    """
+    A = QMat.from_float_rows([[-0.1, -0.3333333333333333]], max_denominator=1000)
+    assert A[0, 0] == Q(-1, 10)
+    assert A[0, 1] == Q(-1, 3)
+
+    # magnitude is sign-independent: |f(-x)| == f(|x|), entry by entry
+    P = QMat.from_float_rows([[0.1, 0.3333333333333333, 2.0 / 7]],
+                             max_denominator=1000)
+    N = QMat.from_float_rows([[-0.1, -0.3333333333333333, -2.0 / 7]],
+                             max_denominator=1000)
+    for j in range(3):
+        assert N[0, j] == Q(0, 1) - P[0, j], j
+
+
+def test_from_float_rows_mixed_signs_and_dyadic_negatives():
+    """A mixed-sign matrix - the realistic case - plus exact dyadic negatives,
+    which must lift to their EXACT ratio with no snapping at all."""
+    A = QMat.from_float_rows([[0.5, -0.25], [-0.125, 1.0]])
+    assert A[0, 0] == Q(1, 2)
+    assert A[0, 1] == Q(-1, 4)
+    assert A[1, 0] == Q(-1, 8)
+    assert A[1, 1] == Q(1, 1)
+
+    B = QMat.from_float_rows([[0.5, -0.25], [-1.0 / 3, 2.0 / 7]],
+                             max_denominator=1000)
+    assert B[0, 0] == Q(1, 2)
+    assert B[0, 1] == Q(-1, 4)
+    assert B[1, 0] == Q(-1, 3)
+    assert B[1, 1] == Q(2, 7)
+
+
+def test_from_float_rows_zero_and_negative_zero_agree():
+    """Zero matters: the Class-K pin-slot returns orientation 0 at the origin, so
+    -0.0 must land on the SAME canonical Q(0, 1) as +0.0 - not a signed zero and
+    not a `Q(-0, 1)`. Checked with and without a max_denominator, because those
+    are two different code paths (exact coercion vs the snap)."""
+    for max_den in (None, 1000):
+        A = QMat.from_float_rows([[0.0, -0.0]], max_denominator=max_den)
+        assert A[0, 0] == Q(0, 1), max_den
+        assert A[0, 1] == Q(0, 1), max_den
+        assert A[0, 0] == A[0, 1], max_den
+        # the numerator is a true 0, not a -0 that merely compares equal
+        assert str(A[0, 1]) == str(A[0, 0]) == "0", max_den
+
+
+def test_from_float_rows_snap_does_not_defeat_denoising_at_high_max_den():
+    """The signed fix reuses `best_rational_signed`'s K/N/C CASCADE but keeps the
+    Class-N stage's EXACT-pair input, rather than calling that op directly - it is
+    float-in and re-quantises through `fine_scale` first. Measured over a 120-case
+    sweep the two disagree on 33; this is the sharpest case. At max_denominator
+    1e6 the exact path gives 1/3, while a fine_scale round-trip gives
+    333333/1000000 and destroys the de-noising this method exists to do."""
+    A = QMat.from_float_rows([[1.0 / 3, -1.0 / 3]], max_denominator=10 ** 6)
+    assert A[0, 0] == Q(1, 3)
+    assert A[0, 1] == Q(-1, 3)
+
+
+def test_from_mat_lifts_negative_entries():
+    """`from_mat` routes through `from_float_rows`, so it inherited the same
+    one-sided defect. Pinned separately because it is its own public entry."""
+    from srmech.math.mat import Mat
+    A = QMat.from_mat(Mat.from_rows([[0.5, -0.25], [-0.75, 1.0]]),
+                      max_denominator=1000)
+    assert A[0, 0] == Q(1, 2)
+    assert A[0, 1] == Q(-1, 4)
+    assert A[1, 0] == Q(-3, 4)
+    assert A[1, 1] == Q(1, 1)
+
+
 def test_identity_and_zeros():
     ident = QMat.identity(3)
     assert ident.shape == (3, 3)

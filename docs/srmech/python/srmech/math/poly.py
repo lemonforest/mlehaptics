@@ -213,11 +213,36 @@ class Poly:
         if max_denominator is None:
             return cls([Q.from_float(float(x)) for x in seq])
         from . import rational as _rational
+        # rc452 (`#T1166`): the Class-K pin-slot + Class-C reorient atoms. Lazy,
+        # matching `rational` above, so `srmech.math.poly` keeps no module-level
+        # edge into `srmech.cascade`.
+        from ..cascade.atoms import pin_slot_at_zero as _pin_slot_at_zero
+        from ..cascade.atoms import reorient as _reorient
         out: List[Q] = []
         for x in seq:
             exact = Q.from_float(float(x))
             num, den = exact.as_pair()
-            p, q = _rational.best_rational(num, den, int(max_denominator))
+            # rc452 (`#T1166`) - THE SECOND INSTANCE of the QMat.from_float_rows
+            # sign bug, found by sweeping every unsigned `best_rational` call site
+            # rather than stopping at the one that was reported. Identical
+            # mechanism: the UNSIGNED Class-N primitive called straight on a
+            # possibly-negative numerator, so `Poly.from_floats([-0.5],
+            # max_denominator=1000)` raised "numerator must be non-negative" while
+            # the SAME call with `max_denominator=None` returned -1/2 happily. Both
+            # float->exact boundaries in this package reached past the signed
+            # cascade in exactly the same way, and only the SNAPPING branch of each
+            # was affected.
+            #
+            # Class K pin-slot strips the orientation, Class N snaps the
+            # NON-NEGATIVE magnitude, Class C re-applies it - the K∘N∘C shape
+            # `cascade.best_rational_signed` composes, with the Class-N stage kept
+            # on its EXACT-pair input (that op is float-in and re-quantises through
+            # `fine_scale`, which would defeat the snap; see the QMat peer).
+            # `Q.as_pair()` leaves the denominator positive, so only `num` is read.
+            orientation, num_magnitude = _pin_slot_at_zero(num)
+            p_magnitude, q = _rational.best_rational(
+                num_magnitude, den, int(max_denominator))
+            p = _reorient(p_magnitude, orientation=orientation)
             out.append(Q(p, q) if (p, q) != (0, 1) or exact == 0 else exact)
         return cls(out)
 
