@@ -949,7 +949,25 @@ jobs:
     name: pedantic C build • ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     # rc357 (`#T951`) — max 1:47 (windows leg) → 12; see build-and-test.
-    timeout-minutes: 12
+    #
+    # rc452 (`#T1166`) — 12 → 14. This job's ctest set grows 18 → 38: every
+    # `c/test/test_srmech_*.c` is now registered (the other 20 previously ran in
+    # NO automation on any platform — `make test` covers them on POSIX but no
+    # workflow invokes make). RE-DERIVED by rc357's rule, not bumped to taste:
+    #   T = ceil(max_observed) + max(ceil(0.5 * max_observed), 10)
+    # with max_observed 1:47 + the 20 added compile-and-link units ≈ 3:20,
+    # giving ceil 4 + max(2, 10) = 14. Still FLOOR-DOMINATED, which is why the
+    # move is only +2 despite the test count doubling.
+    #
+    # ⚠️ THE INPUT IS A PROJECTION, NOT A MEASUREMENT, AND IS LABELLED SO
+    # DELIBERATELY. The binding cell is the Windows MSVC leg and this rc could
+    # not observe it — the 20 files have only ever been compiled by gcc on WSL2
+    # (measured there: the whole 38-test ctest set runs in 5.89 s wall, so the
+    # RUN half contributes essentially nothing; the added cost is COMPILE). The
+    # projection is an upper bound built from the local per-target build cost.
+    # Replace it with the measured max after this rc's first green run rather
+    # than re-quoting this line as though it were measured.
+    timeout-minutes: 14
     strategy:
       fail-fast: false
       matrix:
