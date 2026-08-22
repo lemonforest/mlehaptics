@@ -1109,6 +1109,45 @@ def _run_ints_fit_i64(
     return ok
 
 
+def _map_body_c_eligible(step: "MapStepSpec") -> bool:
+    """True iff every step of a map body (recursively) is C-runnable.
+
+    A map body is "a chain in miniature", so the test is the chain test applied
+    to the body — including NESTED maps, which is why this recurses rather than
+    walking the body flat. A FLAT walk is a known-wrong census on this tree:
+    measured over the packaged descriptors, it sees 72 of 134 steps, and on
+    ``autocorrelation`` it sees 2 of 6. A predicate built on the flat walk would
+    admit a chain whose inner body C declines, costing a marshal-and-decline on
+    every call.
+
+    C's own frame stack caps map nesting at ``CR_MAP_DEPTH`` (4); the deepest
+    shipped nesting is 2. The cap is not mirrored here because C returns
+    ``NOT_IMPL`` past it and the chain then takes the complete pure path — a
+    decline, never a wrong answer.
+    """
+    for st in step.body:
+        if isinstance(st, MapStepSpec):
+            if not _map_body_c_eligible(st):
+                return False
+            continue
+        if not isinstance(st, StepSpec):
+            fold_op = getattr(st, "fold_op", None)
+            if fold_op is None:
+                return False
+            if str(fold_op).rpartition(".")[2] not in _RUN_C_FOLD_OPS:
+                return False
+            if getattr(st, "fold_args", None) is not None:
+                return False
+            continue
+        if st.on_error not in (None, "raise"):
+            return False
+        if st.op.rpartition(".")[2] not in _RUN_C_OPS:
+            return False
+        if not _step_args_are_bindable(st):
+            return False
+    return True
+
+
 def _chain_c_eligible(spec: ChainSpec) -> bool:
     """True iff every step is a "raise"-policy, in-table op — the
     precondition for the C run loop (else the complete pure path runs).
@@ -1127,9 +1166,20 @@ def _chain_c_eligible(spec: ChainSpec) -> bool:
         return False
     for step in spec.steps:
         if not isinstance(step, StepSpec):
-            # A v2 step (map / fold). C implements the FOLD form since rc446,
-            # for the single body op in cr_fold_body; MAP is still unimplemented
-            # (it needs the explicit frame stack JPL Rule 1 forces).
+            # A v2 step (map / fold). C implements BOTH since rc452: the FOLD
+            # form since rc446 (body now via the shared atom table), and the MAP
+            # form via `cr_drive`'s explicit frame stack.
+            #
+            # ⚠️ MAP MUST BE ADMITTED HERE OR THE C CAPABILITY IS UNREACHABLE.
+            # `_run_chain_native` returns `_NATIVE_MISS` when this predicate says
+            # False, BEFORE the library is consulted — which is exactly the rc447
+            # defect (`#T1141`): the C work was real and correct and the package
+            # could not reach it, and no parity gate could see it, because those
+            # drive `srmech_chain_run` through ctypes and bypass this function.
+            if isinstance(step, MapStepSpec):
+                if not _map_body_c_eligible(step):
+                    return False
+                continue
             fold_op = getattr(step, "fold_op", None)
             if fold_op is None:
                 return False

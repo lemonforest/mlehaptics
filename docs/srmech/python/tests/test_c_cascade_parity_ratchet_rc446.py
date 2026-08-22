@@ -113,9 +113,30 @@ CEIL_C_REJECTED_CHAINS = 8            # of 18 executable. Target 0.
 #   (test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py), because for
 #   this defect class the value channel is provably blind and a source-shape
 #   gate is the only instrument that can still return otherwise.
-CEIL_SURFACE_A_UNSUPPORTED_FORMS = 1   # map. plain + fold execute. Target 0.
+CEIL_SURFACE_A_UNSUPPORTED_FORMS = 0   # TARGET REACHED. All three forms execute.
 #
-# ⚠️ 2 -> 1 AT rc452 (`#T1166`), AND THE REASON IS THE ONE THE OLD NOTE NAMED.
+# ⚠️ 2 -> 1 -> 0 AT rc452 (`#T1166`), in two steps within the one rc, each
+# forced by this gate's own `==`. The MAP half is the second: `cr_drive` is an
+# explicit-frame-stack trampoline implementing compose.py's map contract — `n`
+# pinned at entry, binds resolved ONCE in the enclosing scope, body-local step
+# outputs, layered idx/bind environments, and the map returning the list of body
+# finals. The `@idx` / `@bind` namespaces close with it; measured, they occur
+# ONLY inside map bodies, so they are frame bindings rather than a wider path
+# grammar, which is why they could not be closed before the form existed.
+#
+# ⚠️ THE FORM RUNNING IS NOT THE CHAINS RUNNING, and this ceiling has been
+# careful about that distinction twice before. It says the three step FORMS
+# execute. `CEIL_C_REJECTED_CHAINS` is the separate number, and the map chains
+# still need their atoms.
+#
+# Verified on VALUES, not `rc == 0`: nested map with layered `@idx` shadowing,
+# body-local `@step[0]` scoping (a chain step deliberately precedes the map, so
+# a leaked scope would read it), `n` taken from len(map_over) rather than
+# element values, the empty map returning `[]` without running the body (a live
+# proof case on autocorrelation and kuramoto_step), and an unbound `@idx` name
+# DECLINING rather than resolving to 0.
+#
+# ⚠️ WHAT WAS 2 -> 1: the fold half.
 # Through rc451 this stayed at 2 with a real fold chain shipping, because the
 # fold BODY dispatched through a PRIVATE single-entry table (``cr_fold_body``,
 # ``orientation_compose`` only) rather than through the shared op table — so a

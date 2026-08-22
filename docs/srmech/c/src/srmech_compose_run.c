@@ -389,13 +389,86 @@ static cr_value_t *cr_json_to_value(cr_bump_t *b, const srmech_json_value_t *j)
  * The run context (row / inputs JSON + the persisting step outputs).
  * ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------
+ * THE MAP FRAME (v0.9.0rc452, `#T1166`).
+ *
+ * A map body is "a chain in miniature" (compose.py's rc420 scoping decision):
+ * it runs with its OWN body-local step outputs and a LAYERED idx/bind
+ * environment. Measured map nesting over the packaged descriptors: 2
+ * (autocorrelation, kuramoto_step and both DFTs are map-inside-map), so the
+ * cap of 4 is generous and, being a cap, is what keeps JPL Rule 1 satisfiable
+ * without recursion.
+ *
+ * ⚠️ THE TOP LEVEL IS FRAME 0, AS A DEGENERATE MAP OF n == 1. That is not a
+ * trick to save code — it is what makes the trampoline uniform, so the body
+ * of a map and the body of the chain cannot drift apart in how they resolve
+ * `@step[N]`, scope their outputs, or decide what "the final value" is. Frame 0
+ * is the one with `acc == NULL`, which is precisely the statement "my result is
+ * my last step's output, not a list of my iterations".
+ * ------------------------------------------------------------------ */
+
+#define CR_MAP_DEPTH 4u
+#define CR_BIND_MAX  8u
+
+typedef struct {
+    const srmech_json_value_t *body;   /* the step ARRAY this frame runs   */
+    uint32_t si;                       /* next step index within `body`    */
+    uint32_t k;                        /* current iteration                */
+    uint32_t n;                        /* iteration count, PINNED at entry */
+    cr_value_t **outs;                 /* body-local step outputs          */
+    cr_value_t *acc;                   /* the result list; NULL at frame 0 */
+    const char *idx_name; uint32_t idx_len;
+    const char *bname[CR_BIND_MAX]; uint32_t blen[CR_BIND_MAX];
+    cr_value_t *bval[CR_BIND_MAX]; uint32_t nb;
+} cr_mapframe_t;
+
 typedef struct cr_ctx {
     const srmech_json_value_t *row;      /* or NULL */
     const srmech_json_value_t *inputs;   /* or NULL */
-    cr_value_t **step_out;               /* [n_steps]; filled up to cur */
+    cr_value_t **step_out;               /* the ACTIVE frame's outputs */
     uint32_t cur;                        /* index of the step being run */
     cr_bump_t *b;
+    cr_mapframe_t *fr;                   /* [CR_MAP_DEPTH] frame stack */
+    uint32_t nfr;                        /* active frame count (>= 1) */
 } cr_ctx_t;
+
+/* Resolve `@idx.<name>` by walking the frame stack INNERMOST-OUTWARD.
+ *
+ * Walking outward IS the layering: compose.py builds each body's environment as
+ * `{**idx_env, index: k}`, so an inner name shadows an outer one of the same
+ * spelling. Scanning from the innermost frame and stopping at the first hit
+ * reproduces that without copying an environment per iteration. -1 = unbound. */
+static int64_t cr_env_idx(const cr_ctx_t *c, const char *nm, uint32_t nl)
+{
+    uint32_t d;
+    assert(c != NULL && nm != NULL);
+    assert(c->nfr >= 1u);
+    for (d = c->nfr; d > 0u; d--) {
+        const cr_mapframe_t *f = &c->fr[d - 1u];
+        if (f->idx_name != NULL && f->idx_len == nl &&
+            memcmp(f->idx_name, nm, nl) == 0) {
+            return (int64_t)f->k;
+        }
+    }
+    return -1;
+}
+
+/* Resolve `@bind.<name>` the same way. NULL = unbound. */
+static cr_value_t *cr_env_bind(const cr_ctx_t *c, const char *nm, uint32_t nl)
+{
+    uint32_t d, i;
+    assert(c != NULL && nm != NULL);
+    assert(c->nfr >= 1u);
+    for (d = c->nfr; d > 0u; d--) {
+        const cr_mapframe_t *f = &c->fr[d - 1u];
+        for (i = 0u; i < f->nb; i++) {
+            if (f->blen[i] == nl && memcmp(f->bname[i], nm, nl) == 0) {
+                return f->bval[i];
+            }
+        }
+    }
+    return NULL;
+}
 
 /* Resolve a `@...` reference string to a value carrier. NULL → defer. */
 /* Index a step output: the `[K]` tail of `@step[N].output[K]`. Returns NULL
@@ -449,7 +522,36 @@ static cr_value_t *cr_resolve_ref(cr_ctx_t *c, const char *ref, uint32_t len)
         if (rest == e) { return c->step_out[idx]; }
         return cr_index_value(c->step_out[idx], rest, e);
     }
-    return NULL;   /* @catalog / @op / @bind / @idx or unknown → defer */
+    /* @idx.<name> / @bind.<name> (v0.9.0rc452, `#T1166`) — two of the three
+     * namespaces GATE_REF_GRAMMAR names.
+     *
+     * ⚠️ THEY ARE FRAME BINDINGS, NOT A WIDER PATH WALKER, AND THAT IS
+     * MEASURED. Probing the refspaces of all five map chains: `@idx` and
+     * `@bind` occur ONLY inside map bodies — never at a chain's top level. So
+     * they are not addresses into the row/input trees that cr_walk_json
+     * descends; they are lexical bindings of the enclosing map frames, and
+     * resolving them needs the frame stack rather than a longer path grammar.
+     * That is why they could not be closed before the map form existed.
+     *
+     * `@bind.x` may carry a `.key`/`[N]` tail; `@idx.k` is a bare integer and
+     * a tail on it is a malformed ref, so it declines rather than ignoring it. */
+    if (len >= 6u && memcmp(p, "idx.", 4u) == 0) {
+        const char *nm = p + 4; int64_t v;
+        if (nm >= e) { return NULL; }
+        v = cr_env_idx(c, nm, (uint32_t)(e - nm));
+        if (v < 0) { return NULL; }              /* unbound → defer */
+        return cr_int_i64(c->b, v);
+    }
+    if (len >= 7u && memcmp(p, "bind.", 5u) == 0) {
+        const char *nm = p + 5; const char *t = nm; cr_value_t *bv;
+        if (nm >= e) { return NULL; }
+        while (t < e && *t != '.' && *t != '[') { t++; }
+        bv = cr_env_bind(c, nm, (uint32_t)(t - nm));
+        if (bv == NULL) { return NULL; }         /* unbound → defer */
+        if (t == e) { return bv; }
+        return cr_index_value(bv, t, e);         /* a `[N]` tail */
+    }
+    return NULL;   /* @catalog / @op or unknown → defer */
 }
 
 /* A list ELEMENT: a `@...` ref, a NESTED array literal, or a scalar literal.
@@ -2170,6 +2272,154 @@ static srmech_status_t cr_run_plain(cr_ctx_t *c, const srmech_json_value_t *step
     return cr_dispatch(c, o->u.str.ptr, o->u.str.len, args, out);
 }
 
+/* Bind one map frame's `bind` object into `f`, resolving each ref in the
+ * ENCLOSING scope. compose.py resolves binds ONCE, before the loop, against the
+ * environment in force at the map step — not per iteration — so a bind cannot
+ * see the index it is about to introduce. Resolving here (while the parent
+ * frame is still the active one) is that contract. */
+static srmech_status_t cr_map_binds(cr_ctx_t *c, const srmech_json_value_t *step,
+                                    cr_mapframe_t *f)
+{
+    const srmech_json_value_t *bo = srmech_json_object_get(step, "bind");
+    uint32_t i;
+    assert(c != NULL && step != NULL && f != NULL);
+    assert(c->nfr >= 1u);
+    f->nb = 0u;
+    if (bo == NULL) { return SRMECH_OK; }
+    if (bo->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
+    if (bo->u.obj.n > CR_BIND_MAX) { return SRMECH_ERR_NOT_IMPL; }
+    for (i = 0u; i < bo->u.obj.n; i++) {
+        cr_value_t *v = cr_resolve_arg(c, bo->u.obj.vals[i]);
+        if (v == NULL) { return SRMECH_ERR_NOT_IMPL; }
+        f->bname[i] = bo->u.obj.keys[i];
+        f->blen[i] = (uint32_t)strlen(bo->u.obj.keys[i]);
+        f->bval[i] = v;
+    }
+    f->nb = bo->u.obj.n;
+    return SRMECH_OK;
+}
+
+/* Open a map frame: pin `n` at entry, resolve the binds, carve the body-local
+ * outputs and the result list. The caller has already checked depth. */
+static srmech_status_t cr_map_enter(cr_ctx_t *c, const srmech_json_value_t *step,
+                                    cr_mapframe_t *f)
+{
+    const srmech_json_value_t *mo = srmech_json_object_get(step, "map_over");
+    const srmech_json_value_t *ix = srmech_json_object_get(step, "index");
+    const srmech_json_value_t *bd = srmech_json_object_get(step, "body");
+    cr_value_t *seq; srmech_status_t st;
+    assert(c != NULL && step != NULL && f != NULL);
+    assert(c->b != NULL);
+    if (mo == NULL || bd == NULL || bd->type != SRMECH_JSON_ARRAY ||
+        bd->u.arr.n == 0u) { return SRMECH_ERR_BAD_INPUT; }
+    if (ix != NULL && ix->type != SRMECH_JSON_STRING) { return SRMECH_ERR_BAD_INPUT; }
+    seq = cr_resolve_arg(c, mo);
+    /* `n` is FIXED AT ENTRY — the totality pin. A non-list map_over is
+     * compose.py's ChainSpecError ("must resolve to a SIZED sequence"); C
+     * declines so the pure path raises that exact error. */
+    if (seq == NULL || seq->kind != CR_LIST) { return SRMECH_ERR_NOT_IMPL; }
+    st = cr_map_binds(c, step, f);         /* binds see the ENCLOSING scope */
+    if (st != SRMECH_OK) { return st; }
+    f->body = bd; f->si = 0u; f->k = 0u; f->n = seq->n;
+    f->idx_name = (ix != NULL) ? ix->u.str.ptr : NULL;
+    f->idx_len = (ix != NULL) ? ix->u.str.len : 0u;
+    f->outs = (cr_value_t **)cr_carve(
+        c->b, (size_t)bd->u.arr.n * sizeof(void *) + sizeof(void *));
+    f->acc = cr_list_of(c->b, seq->n);
+    if (f->outs == NULL || f->acc == NULL) { return SRMECH_ERR_OVERFLOW; }
+    return SRMECH_OK;
+}
+
+/* Run ONE non-map step of the active frame. */
+static srmech_status_t cr_step_exec(cr_ctx_t *c, const srmech_json_value_t *step,
+                                    cr_value_t **out)
+{
+    const srmech_json_value_t *so;
+    assert(c != NULL && out != NULL);
+    assert(step != NULL);
+    if (step->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
+    so = srmech_json_object_get(step, "on_error");
+    if (so != NULL && so->type != SRMECH_JSON_NULL) { return SRMECH_ERR_BAD_INPUT; }
+    switch (cr_step_form(step)) {
+    case CR_FORM_PLAIN: return cr_run_plain(c, step, out);
+    case CR_FORM_FOLD:  return cr_run_fold(c, step, out);
+    /* MAP is handled by the trampoline, never here. MIXED / NONE are malformed
+     * and earn BAD_INPUT, deliberately distinct from a NOT_IMPL decline. */
+    default:            return SRMECH_ERR_BAD_INPUT;
+    }
+}
+
+/* ------------------------------------------------------------------
+ * THE TRAMPOLINE (v0.9.0rc452, `#T1166`) — the MAP step form, last of the
+ * three Surface-A forms.
+ *
+ * ⚠️ WHY THIS SHAPE AND NOT A RECURSIVE BODY WALK. compose.py's spine is
+ * frankly recursive (`_run_resolved_steps` re-enters itself per map body) and
+ * JPL Rule 1 forbids that here. The frame stack is the same computation with
+ * the call stack made explicit and BOUNDED: frames come from the caller arena
+ * (Rule 3), depth is capped, and the audit's recursion census stays at its
+ * seeded population.
+ *
+ * The loop is uniform over frames because frame 0 IS the chain body as a
+ * degenerate map of n == 1 — see the cr_mapframe_t note. A frame advances its
+ * parent's step index only when it POPS, which is the same discipline the
+ * nested value walkers use, and is what keeps a map's result landing in
+ * exactly one output slot.
+ * ------------------------------------------------------------------ */
+static srmech_status_t cr_drive(cr_ctx_t *c, cr_value_t **final_out)
+{
+    assert(c != NULL && final_out != NULL);
+    assert(c->nfr == 1u);
+    while (c->nfr > 0u) {
+        cr_mapframe_t *f = &c->fr[c->nfr - 1u];
+        c->step_out = f->outs; c->cur = f->si;
+        if (f->si < f->body->u.arr.n) {
+            const srmech_json_value_t *step = f->body->u.arr.items[f->si];
+            cr_value_t *out = NULL; srmech_status_t st;
+            if (step == NULL || step->type != SRMECH_JSON_OBJECT) {
+                return SRMECH_ERR_BAD_INPUT;
+            }
+            if (cr_step_form(step) == CR_FORM_MAP) {
+                if (c->nfr >= CR_MAP_DEPTH) { return SRMECH_ERR_NOT_IMPL; }
+                st = cr_map_enter(c, step, &c->fr[c->nfr]);
+                if (st != SRMECH_OK) { return st; }
+                /* n == 0: the body runs ZERO times and the result is the empty
+                 * list — compose.py's `for k in range(0)`. Handled WITHOUT
+                 * pushing, because a pushed frame would immediately execute its
+                 * body once (si starts at 0 and the pop test only runs after a
+                 * pass). An empty `x` / `theta` is a real proof case on both
+                 * autocorrelation and kuramoto_step, so this is a live path,
+                 * not a defensive one. */
+                if (c->fr[c->nfr].n == 0u) {
+                    f->outs[f->si] = c->fr[c->nfr].acc;
+                    f->si++;
+                    continue;
+                }
+                c->nfr++;                  /* parent's si advances on POP */
+                continue;
+            }
+            st = cr_step_exec(c, step, &out);
+            if (st != SRMECH_OK) { return st; }
+            f->outs[f->si] = out;
+            f->si++;
+            continue;
+        }
+        if (f->acc != NULL) {              /* a MAP frame finished one pass */
+            if (f->n > 0u) { f->acc->items[f->k] = f->outs[f->body->u.arr.n - 1u]; }
+            f->k++;
+            if (f->k < f->n) { f->si = 0u; continue; }   /* next iteration */
+        }
+        c->nfr--;                          /* frame complete */
+        if (c->nfr == 0u) {
+            *final_out = f->outs[f->body->u.arr.n - 1u];
+            return SRMECH_OK;
+        }
+        c->fr[c->nfr - 1u].outs[c->fr[c->nfr - 1u].si] = f->acc;
+        c->fr[c->nfr - 1u].si++;
+    }
+    return SRMECH_ERR_BAD_INPUT;           /* unreachable: nfr starts at 1 */
+}
+
 /* Parse chain + ctx trees, then drive the steps (kept < 60 lines). */
 static srmech_status_t cr_run_steps(const srmech_json_value_t *chain,
                                     const srmech_json_value_t *ctx, cr_bump_t *b,
@@ -2177,7 +2427,8 @@ static srmech_status_t cr_run_steps(const srmech_json_value_t *chain,
 {
     const srmech_json_value_t *steps = srmech_json_object_get(chain, "steps");
     const srmech_json_value_t *oe = srmech_json_object_get(chain, "on_error");
-    cr_ctx_t c; uint32_t i, ns; srmech_status_t st;
+    cr_mapframe_t frames[CR_MAP_DEPTH];
+    cr_ctx_t c; uint32_t ns;
     assert(chain != NULL && b != NULL && final_out != NULL);
     assert(b->cur <= b->end);
     if (steps == NULL || steps->type != SRMECH_JSON_ARRAY || steps->u.arr.n == 0u) {
@@ -2190,33 +2441,16 @@ static srmech_status_t cr_run_steps(const srmech_json_value_t *chain,
     c.inputs = ctx ? srmech_json_object_get(ctx, "inputs") : NULL;
     if (c.row != NULL && c.row->type != SRMECH_JSON_OBJECT) { c.row = NULL; }
     if (c.inputs != NULL && c.inputs->type != SRMECH_JSON_OBJECT) { c.inputs = NULL; }
-    c.b = b;
-    c.step_out = (cr_value_t **)cr_carve(b, (size_t)ns * sizeof(void *) + 1u);
-    if (c.step_out == NULL) { return SRMECH_ERR_OVERFLOW; }
-    for (i = 0u; i < ns; i++) {
-        const srmech_json_value_t *step = steps->u.arr.items[i];
-        const srmech_json_value_t *so;
-        cr_value_t *out = NULL;
-        if (step == NULL || step->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
-        so = srmech_json_object_get(step, "on_error");
-        if (so != NULL && so->type != SRMECH_JSON_NULL) { return SRMECH_ERR_BAD_INPUT; }
-        c.cur = i;
-        switch (cr_step_form(step)) {
-        case CR_FORM_PLAIN: st = cr_run_plain(&c, step, &out); break;
-        case CR_FORM_FOLD:  st = cr_run_fold(&c, step, &out); break;
-        /* MAP needs an explicit frame stack (JPL Rule 1 bans the recursive
-         * body walk), so it is filed rather than half-done here. NOT_IMPL —
-         * a recognised form this projection does not yet run — is deliberately
-         * distinct from the BAD_INPUT that MIXED / NONE earn, which are
-         * malformed rather than unimplemented. */
-        case CR_FORM_MAP:   st = SRMECH_ERR_NOT_IMPL; break;
-        default:            st = SRMECH_ERR_BAD_INPUT; break;
-        }
-        if (st != SRMECH_OK) { return st; }
-        c.step_out[i] = out;
-    }
-    *final_out = c.step_out[ns - 1u];
-    return SRMECH_OK;
+    c.b = b; c.fr = frames; c.nfr = 1u;
+    /* Frame 0 — the chain body, run ONCE. `acc == NULL` is what marks it as
+     * the frame whose result is its last step's output rather than a list. */
+    frames[0].body = steps; frames[0].si = 0u; frames[0].k = 0u; frames[0].n = 1u;
+    frames[0].acc = NULL; frames[0].idx_name = NULL; frames[0].idx_len = 0u;
+    frames[0].nb = 0u;
+    frames[0].outs = (cr_value_t **)cr_carve(b, (size_t)ns * sizeof(void *) + 1u);
+    if (frames[0].outs == NULL) { return SRMECH_ERR_OVERFLOW; }
+    c.step_out = frames[0].outs; c.cur = 0u;
+    return cr_drive(&c, final_out);
 }
 
 /* Run a validated chain node end-to-end + marshal the final value back as a

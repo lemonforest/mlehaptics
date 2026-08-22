@@ -307,13 +307,25 @@ int main(void)
         "\"args\":{}}]}", "{\"inputs\":{}}", out, sizeof(out));
     check(st == SRMECH_ERR_NOT_IMPL, "an op outside the table DECLINES (NOT_IMPL)");
 
+    /* ⚠️ THIS CHECK INVERTED AT rc452 (`#T1166`). It asserted the MAP form was
+     * NOT_IMPL — "recognised but unimplemented" — which was true from rc446
+     * until this rc and is now false: `cr_drive` implements it. The assertion
+     * FIRED when the map landed, which is the gate doing its job (a stale
+     * "still unimplemented" claim that kept passing would be the worse
+     * outcome), so the premise moves rather than the check being deleted.
+     * It now pins the VALUE: [i mod 2 for i in 0..2] over a 3-element sequence
+     * is [0, 1, 0]. */
     st = run_chain(
         "{\"name\":\"m\",\"steps\":[{\"map_over\":\"@input.xs\",\"index\":\"i\","
         "\"body\":[{\"class\":\"I\",\"op\":\"mod_add\","
         "\"args\":{\"a\":\"@idx.i\",\"b\":0,\"n\":2}}]}]}",
         "{\"inputs\":{\"xs\":[1,2,3]}}", out, sizeof(out));
-    check(st == SRMECH_ERR_NOT_IMPL,
-          "the MAP form is NOT_IMPL — recognised but unimplemented");
+    check(st == SRMECH_OK &&
+          strcmp(out,
+                 "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": \"0\"}, "
+                 "{\"k\": \"i\", \"v\": \"1\"}, "
+                 "{\"k\": \"i\", \"v\": \"0\"}]}") == 0,
+          "the MAP form RUNS and returns [i mod 2 for i in 0..2] = [0, 1, 0]");
 
     st = run_chain(
         "{\"name\":\"x\",\"steps\":[{\"fold_op\":\"orientation_compose\","
@@ -573,6 +585,101 @@ int main(void)
         check(st != SRMECH_OK,
               "past the depth cap the ingest DECLINES to the pure path rather "
               "than silently truncating the nesting");
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+     * rc452 (`#T1166`) — THE MAP STEP FORM on a bare-C host, the last of
+     * Surface A's three forms. `cr_drive` is an explicit-frame-stack
+     * trampoline: JPL Rule 1 bans the recursive body walk compose.py uses,
+     * so the call stack is made explicit, arena-backed and depth-capped.
+     *
+     * These assert VALUES. A map arm that ran the body the wrong number of
+     * times, leaked an outer scope into an inner one, or resolved `@idx` to
+     * a constant returns rc 0 just as happily as a correct one.
+     * ───────────────────────────────────────────────────────────────── */
+    {
+        /* n comes from len(map_over), NOT from element values: the elements
+         * are all 9 and the output counts 0..4. That is the totality pin —
+         * data-SIZED, never data-DEPENDENT. */
+        st = run_chain(
+            "{\"name\":\"m\",\"steps\":[{\"map_over\":\"@input.xs\","
+            "\"index\":\"i\",\"body\":[{\"class\":\"I\",\"op\":\"mod_add\","
+            "\"args\":{\"a\":\"@idx.i\",\"b\":0,\"n\":100}}]}]}",
+            "{\"inputs\":{\"xs\":[9,9,9,9,9]}}", out, sizeof(out));
+        check(st == SRMECH_OK &&
+              strcmp(out,
+                     "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": \"0\"}, "
+                     "{\"k\": \"i\", \"v\": \"1\"}, {\"k\": \"i\", \"v\": \"2\"}, "
+                     "{\"k\": \"i\", \"v\": \"3\"}, "
+                     "{\"k\": \"i\", \"v\": \"4\"}]}") == 0,
+              "MAP runs the body exactly len(map_over) times with @idx bound "
+              "to the iteration — n pinned at ENTRY from the sequence LENGTH, "
+              "never from its contents");
+
+        /* The EMPTY map. A live proof case on autocorrelation (x=[]) and
+         * kuramoto_step (theta=[]), and the one case that distinguishes
+         * "ran zero times" from "never entered": the body must NOT run. */
+        st = run_chain(
+            "{\"name\":\"m\",\"steps\":[{\"map_over\":\"@input.xs\","
+            "\"index\":\"i\",\"body\":[{\"class\":\"I\",\"op\":\"mod_add\","
+            "\"args\":{\"a\":\"@idx.i\",\"b\":0,\"n\":100}}]}]}",
+            "{\"inputs\":{\"xs\":[]}}", out, sizeof(out));
+        check(st == SRMECH_OK && strcmp(out, "{\"k\": \"l\", \"v\": []}") == 0,
+              "an EMPTY map_over yields the empty list and never runs the "
+              "body — compose.py's `for k in range(0)`");
+
+        /* NESTED map: the inner body sees BOTH indices (layered environments),
+         * and the inner frame's `@step[0]` is BODY-local. This is the shape
+         * autocorrelation, kuramoto_step and both DFT chains are built from. */
+        st = run_chain(
+            "{\"name\":\"m\",\"steps\":[{\"map_over\":\"@input.o\","
+            "\"index\":\"i\",\"body\":[{\"map_over\":\"@input.n\","
+            "\"index\":\"j\",\"body\":["
+            "{\"class\":\"I\",\"op\":\"mod_mul\","
+            "\"args\":{\"a\":\"@idx.i\",\"b\":10,\"n\":1000}},"
+            "{\"class\":\"I\",\"op\":\"mod_add\","
+            "\"args\":{\"a\":\"@step[0].output\",\"b\":\"@idx.j\","
+            "\"n\":1000}}]}]}]}",
+            "{\"inputs\":{\"o\":[0,0],\"n\":[0,0,0]}}", out, sizeof(out));
+        check(st == SRMECH_OK &&
+              strcmp(out,
+                     "{\"k\": \"l\", \"v\": ["
+                     "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": \"0\"}, "
+                     "{\"k\": \"i\", \"v\": \"1\"}, {\"k\": \"i\", \"v\": \"2\"}]}, "
+                     "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": \"10\"}, "
+                     "{\"k\": \"i\", \"v\": \"11\"}, "
+                     "{\"k\": \"i\", \"v\": \"12\"}]}]}") == 0,
+              "NESTED map: the inner body reads the OUTER @idx as well as its "
+              "own (layered environments), and its @step[0] is body-local");
+
+        /* @bind is resolved ONCE, in the ENCLOSING scope, and is visible
+         * throughout the body. */
+        st = run_chain(
+            "{\"name\":\"m\",\"steps\":[{\"map_over\":\"@input.xs\","
+            "\"index\":\"i\",\"bind\":{\"row\":\"@input.ys\"},\"body\":["
+            "{\"class\":\"I\",\"op\":\"mod_add\","
+            "\"args\":{\"a\":\"@bind.row[1]\",\"b\":\"@idx.i\","
+            "\"n\":100}}]}]}",
+            "{\"inputs\":{\"xs\":[0,0,0],\"ys\":[10,20,30]}}",
+            out, sizeof(out));
+        check(st == SRMECH_OK &&
+              strcmp(out,
+                     "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": \"20\"}, "
+                     "{\"k\": \"i\", \"v\": \"21\"}, "
+                     "{\"k\": \"i\", \"v\": \"22\"}]}") == 0,
+              "@bind resolves ONCE in the enclosing scope and supports a [N] "
+              "tail inside the body");
+
+        /* NEGATIVE CONTROL. An unbound @idx name must DECLINE. Resolving it to
+         * 0 would be a silent wrong answer, and 0 is the value most likely to
+         * look plausible in an index position. */
+        st = run_chain(
+            "{\"name\":\"m\",\"steps\":[{\"map_over\":\"@input.xs\","
+            "\"index\":\"i\",\"body\":[{\"class\":\"I\",\"op\":\"mod_add\","
+            "\"args\":{\"a\":\"@idx.NOPE\",\"b\":0,\"n\":100}}]}]}",
+            "{\"inputs\":{\"xs\":[1]}}", out, sizeof(out));
+        check(st != SRMECH_OK,
+              "an UNBOUND @idx name DECLINES rather than resolving to 0");
     }
 
     printf("== bare-C chain-run: %d passed, %d failed ==\n", g_pass, g_fail);
