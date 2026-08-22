@@ -1229,7 +1229,27 @@ jobs:
     # per-shard — but the reasoning above should not be cited for the claim that
     # the max wanders, because over 15 runs it does not. Three runs were not
     # enough to see it; that is the same lesson as the 19 → 22 change.
-    timeout-minutes: 25
+    #
+    # 25 → 27, SAME rc, ONE RUN LATER. The run that verified the 22 → 25 change
+    # (32537791849) put shard 4/4 at 16:08 — ABOVE the 14:40 that 25 was derived
+    # from. So 25 was stale on arrival, and the rule's output on the newest
+    # measurement is:
+    #     T = ceil(16.13) + max(ceil(0.5 × 16.13), 10)
+    #       = 17          + max(ceil(8.07), 10)
+    #       = 17          + max(9, 10)      ← the 10-min FLOOR still binds
+    #       = 27
+    # 16:08 against 25 is 64.5% budget use — and 62% on a first run is the exact
+    # ratio this comment already rejects two paragraphs up as "the rc432 failure
+    # shape". A guard cannot reject 62% for the number it replaced and then ship
+    # 64.5% for itself. Shard 4/4 also now holds the max in 14 of 16 runs, and
+    # the growth is fast rather than noisy: 11:46 → 14:40 → 16:08.
+    #
+    # WHAT THIS COSTS TO KNOW, recorded because the next re-derivation will hit
+    # it too: a max-of-measured rule is stale the moment a slower run lands, and
+    # this cell produced one INSIDE the same rc. Two observations do not fix
+    # that. If this shard exceeds ~18:00 (= 27 ÷ 1.5, where the rule's headroom
+    # is spent), re-derive rather than assume the trend flattened.
+    timeout-minutes: 27
     env:
       # THIS SHARD'S SELECTION, DEFINED EXACTLY ONCE. The "record" step and the
       # run step below BOTH expand `$SHARD_SELECT`, which is what makes the
