@@ -113,28 +113,26 @@ CEIL_C_REJECTED_CHAINS = 8            # of 18 executable. Target 0.
 #   (test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py), because for
 #   this defect class the value channel is provably blind and a source-shape
 #   gate is the only instrument that can still return otherwise.
-CEIL_SURFACE_A_UNSUPPORTED_FORMS = 2   # map + fold. plain executes. Target 0.
+CEIL_SURFACE_A_UNSUPPORTED_FORMS = 1   # map. plain + fold execute. Target 0.
 #
-# ⚠️ ``fold`` STAYS COUNTED UNSUPPORTED even though ``net_chirality`` (a real
-# shipped fold chain) now runs in C. That is not an oversight — it is the
-# distinction this ceiling exists to hold. rc446 implements the fold FORM
-# (``cr_step_form`` classifies it, ``cr_run_fold`` executes it), but the fold
-# BODY dispatches through a PRIVATE single-entry table (``cr_fold_body``,
-# ``orientation_compose`` only) rather than through the shared ``cr_dispatch``
-# op table. So a fold over ANY other op still declines, which is exactly what
-# the probe below folds (``gcd``).
+# ⚠️ 2 -> 1 AT rc452 (`#T1166`), AND THE REASON IS THE ONE THE OLD NOTE NAMED.
+# Through rc451 this stayed at 2 with a real fold chain shipping, because the
+# fold BODY dispatched through a PRIVATE single-entry table (``cr_fold_body``,
+# ``orientation_compose`` only) rather than through the shared op table — so a
+# fold over any other op declined, and the probe below folds ``gcd`` precisely
+# to measure that. The old note said lowering it "on the strength of one working
+# chain would be the looks-done-isn't move", and it was right.
 #
-# Lowering this to 1 on the strength of one working chain would be the
-# looks-done-isn't move: the form probe would go green while every fold body
-# except one was unreachable. The chain count (CEIL_C_REJECTED_CHAINS, 12 -> 11)
-# is where rc446's real progress is recorded.
+# rc452 removes the condition rather than the measurement: ``CR_OP_REG`` becomes
+# a name-to-FUNCTION-POINTER atom table whose rows carry a ``bin`` column, and
+# ``cr_fold_body`` resolves through THAT — the same table, the same matcher, as
+# ``cr_dispatch``. The ``gcd`` probe now runs and returns 6, and
+# tests/test_c_fold_step_form_rc446.py asserts the VALUE (plus an empty-fold
+# case that proves the seed is read), not merely ``rc == 0``.
 #
-# ⚠️ rc450 (`#T1160`) note for the README, which said the opposite twice. This
-# ceiling is the reason python/README.md must NOT be written as "C executes 2 of
-# 3 step forms": one working fold chain is not the form. The README now states
-# both facts together — plain runs generally, fold runs for exactly one body op,
-# map does not run — so the prose and this literal cannot be read as a
-# contradiction by anyone who meets only one of them.
+# ``map`` remains, and it is the whole residual: it needs the explicit frame
+# stack JPL Rule 1 forces, which is filed as its own slice rather than
+# half-done here.
 
 SURFACE_A_STEP_FORMS = ("plain", "map", "fold")
 

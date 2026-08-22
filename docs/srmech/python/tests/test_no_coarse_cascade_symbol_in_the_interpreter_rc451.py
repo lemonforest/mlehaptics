@@ -127,12 +127,58 @@ def _referenced(text: str, symbols) -> dict:
     """
     hits = {}
     lines = text.split("\n")
+    # The TABLE REGION, if present: a function-pointer column WIRES a symbol in
+    # without ever calling it, so inside this block a bare mention IS a
+    # dispatch. See the rc452 note below.
+    tbl_lo, tbl_hi = _table_line_span(lines)
     for sym in symbols:
         pat = re.compile(r"\b" + re.escape(sym) + r"\s*\(")
-        found = [i + 1 for i, ln in enumerate(lines) if pat.search(ln)]
+        bare = re.compile(r"\b" + re.escape(sym) + r"\b")
+        found = []
+        for i, ln in enumerate(lines):
+            if pat.search(ln):
+                found.append(i + 1)
+            elif tbl_lo <= i <= tbl_hi and bare.search(ln):
+                found.append(i + 1)
         if found:
             hits[sym] = found
     return hits
+
+
+def _table_line_span(lines) -> tuple:
+    """0-indexed [lo, hi] line span of the ``CR_OP_REG`` initialiser, or (-1,-2).
+
+    ⚠️ ADDED AT rc452 (`#T1166`) BECAUSE THE REFACTOR THAT rc452 PERFORMS WOULD
+    OTHERWISE HAVE DISARMED THIS GATE, AND ITS OWN RETRO-CHECK CAUGHT IT.
+
+    The call-shaped predicate above is correct for an IF-CHAIN dispatch, which
+    is what existed when it was written: a coarse dispatch there necessarily
+    spells ``srmech_cascade_foo(...)``. rc452 converts the dispatch to a
+    name-to-FUNCTION-POINTER atom table, where wiring a coarse symbol in is a
+    BARE IDENTIFIER in a row's ``fn`` column — no parenthesis anywhere. Measured
+    while writing this rc: the retro-check spliced exactly such a row and
+    ``_referenced`` returned ``{}``. The gate would have gone on reporting the
+    file clean while a coarse dispatch was live in it.
+
+    So the predicate widens for the table region ONLY. Scoping matters both
+    ways: a bare match over the whole file re-creates the rc451 defect this
+    file's own docstring records (it went red on the interpreter's COMMENT
+    explaining that the fused symbol is deliberately not called), while a
+    call-only match over the whole file now misses the live wiring shape. Prose
+    outside the initialiser is still exempt; anything named inside it is data
+    that the interpreter dispatches through.
+    """
+    lo = -1
+    for i, ln in enumerate(lines):
+        if re.search(r"\}\s*CR_OP_REG\[\d+\]\s*=\s*\{", ln):
+            lo = i
+            break
+    if lo < 0:
+        return (-1, -2)          # no table in this TU — call-shape only
+    for j in range(lo, len(lines)):
+        if lines[j].startswith("};"):
+            return (lo, j)
+    return (lo, len(lines) - 1)
 
 
 def test_the_derived_population_is_not_empty() -> None:
@@ -196,17 +242,24 @@ def test_the_pin_would_catch_a_coarse_dispatch() -> None:
     empty set or ``_referenced`` stopped matching.
     """
     text = _read(_INTERPRETER)
-    anchor = 'if (cr_op_is(op, opl, "pair", 4u)) {'
+    # ⚠️ RE-POINTED AT rc452 (`#T1166`), AS THIS TEST'S OWN MESSAGE INSTRUCTS.
+    # The anchor was `if (cr_op_is(op, opl, "pair", 4u)) {` — a dispatch ARM of
+    # the if-chain. rc452 converts the dispatch to a bounded loop over a
+    # function-pointer atom table, so there are no arms left to splice into and
+    # the assertion fired exactly as designed: it refused to run a retro-check
+    # whose mutation site no longer exists, rather than silently mutating
+    # nothing and passing. The equivalent site is now a TABLE ROW, so the splice
+    # adds a coarse row — which is the shape a real coarse dispatch would take
+    # under the new design, i.e. the retro-check still models the live threat.
+    anchor = ' { "pair",                4u, "srmech.cascade.pair",'
     assert anchor in text, (
-        "the mutation anchor is gone from %s — re-point it at another dispatch "
-        "arm rather than deleting this retro-check" % _INTERPRETER.name)
+        "the mutation anchor is gone from %s — re-point it at another CR_OP_REG "
+        "row rather than deleting this retro-check" % _INTERPRETER.name)
     mutated = text.replace(
         anchor,
-        'if (cr_op_is(op, opl, "best_rational_signed", 20u)) {\n'
-        '        return srmech_cascade_best_rational_signed_f64(0.0, 1, 1,\n'
-        '                                                       NULL, NULL);\n'
-        '    }\n'
-        '    ' + anchor,
+        ' { "best_rational_signed", 20u, "srmech.cascade.best_rational_signed",\n'
+        '   srmech_cascade_best_rational_signed_f64, NULL },\n'
+        + anchor,
         1)
     assert mutated != text, "the mutation did not change the source"
     coarse = _coarse_symbols()

@@ -99,20 +99,44 @@ def test_the_absorbing_zero_is_a_class_K_pin_slot():
         "semantics, not orientation_compose." % json.loads(raw)["v"])
 
 
-def test_a_fold_over_ANOTHER_op_still_DECLINES():
-    """THE HONEST EDGE. The body table has ONE entry; this must not pass.
+def test_a_fold_over_ANOTHER_op_now_RUNS_and_returns_the_right_value():
+    """THE FLIP THIS TEST'S OWN rc446 TEXT PREDICTED.
 
-    ``gcd`` IS in the shared dispatch table, so a decline here isolates the
-    fold BODY table from op availability. When the body is routed through
-    ``cr_dispatch``, this test flips and the ratchet's fold ceiling drops.
+    Through rc451 this asserted ``rc != 0`` and said: *"When the body is routed
+    through cr_dispatch, this test flips and the ratchet's fold ceiling drops."*
+    rc452 (`#T1166`) routes it — the fold body dispatches through the SHARED
+    ``CR_OP_REG`` atom table's ``bin`` column — so the premise is updated here
+    and ``CEIL_SURFACE_A_UNSUPPORTED_FORMS`` drops in the same change.
+
+    ⚠️ IT ASSERTS THE VALUE, NOT ``rc == 0``. An ``rc``-only flip is the defect
+    class this whole arc exists to close: a fold arm that ran the wrong body,
+    or folded in the wrong order, or ignored the seed, returns 0 just as
+    happily. gcd(gcd(gcd(0,12),18),24) = 6, and a seed the arm failed to read
+    would give the same 6 here — so the ``[]`` case below is what proves the
+    seed is read at all, and this case proves the body is.
     """
     chain = {"name": "t", "steps": [
         {"fold_class": "I", "fold_op": "gcd", "fold_init": 0,
          "over": "@input.xs"}]}
-    rc, _ = _c_run(chain, {"xs": [12, 18, 24]})
-    assert rc != 0, (
-        "a fold over `gcd` RAN — if the body table was widened, lower "
-        "CEIL_SURFACE_A_UNSUPPORTED_FORMS and update this test's premise")
+    rc, raw = _c_run(chain, {"xs": [12, 18, 24]})
+    assert rc == 0, (
+        "a fold over `gcd` DECLINED — rc452 routes the fold body through the "
+        "shared atom table, so this is a regression in that routing")
+    assert json.loads(raw) == {"k": "i", "v": "6"}, (
+        "the fold ran but returned %r; gcd folded from seed 0 over "
+        "[12, 18, 24] is 6" % (raw,))
+
+
+def test_a_fold_over_gcd_READS_ITS_SEED():
+    """The empty sequence returns the seed unchanged — the only case that can
+    prove the seed is read, since any non-empty gcd fold from 0 absorbs it."""
+    chain = {"name": "t", "steps": [
+        {"fold_class": "I", "fold_op": "gcd", "fold_init": 7,
+         "over": "@input.xs"}]}
+    rc, raw = _c_run(chain, {"xs": []})
+    assert rc == 0, "an empty fold over gcd declined"
+    assert json.loads(raw) == {"k": "i", "v": "7"}, (
+        "an empty fold must return the seed unchanged; got %r" % (raw,))
 
 
 def test_a_MIXED_step_is_rejected_not_guessed():

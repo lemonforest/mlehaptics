@@ -84,12 +84,33 @@ _KINDS = (
     inspect.Parameter.VAR_POSITIONAL,
 )
 
-#: one `{ "bare", 12u, "srmech.dotted.name" }` row of either C index
+#: one `{ "bare", 12u, "srmech.dotted.name" }` row of the DSL index (3 members)
 _INDEX_ROW = re.compile(
     r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,\s*"([A-Za-z0-9_.]+)"\s*\}')
 
-#: `cr_op_is(op, opl, "gcd", 3u)` — the compose dispatch arms
+#: one `{ "bare", 12u, "srmech.dotted.name", fn, bin }` row of ``CR_OP_REG``.
+#:
+#: ⚠️ FIVE MEMBERS SINCE v0.9.0rc452 (`#T1166`). The compose index stopped being
+#: a name-to-NAME table and became a name-to-FUNCTION-POINTER atom table, because
+#: ``cr_dispatch`` was measured at 57 of JPL Rule 4's 60 lines and the 32 op
+#: spellings the eight blocked chains need could not be added as an if-chain AT
+#: ALL. The 3-member ``_INDEX_ROW`` above matched ZERO rows against the new
+#: shape, and this file's own ``assert rows`` fired loudly — which is the parse
+#: refusing to observe rather than silently reporting an empty table. It keeps
+#: its own regex rather than being generalised, so the DSL surface (still 3
+#: members) cannot start accepting a shape it does not have.
+_COMPOSE_ROW = re.compile(
+    r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,\s*"([A-Za-z0-9_.]+)"\s*,'
+    r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}')
+
+#: `cr_op_is(op, opl, "gcd", 3u)` — kept to prove ``cr_dispatch`` has NONE.
 _CR_OP_IS = re.compile(r'cr_op_is\(op,\s*opl,\s*"([A-Za-z0-9_]+)",\s*(\d+)u\)')
+
+#: The ``CR_OP_REG`` declaration marker. ONE literal, deliberately: the DECLARED
+#: SIZE is itself a gate (a size that outran its rows would otherwise pass), so
+#: growing the table must be an explicit edit here. It is not derived from the
+#: file, because deriving it would make the gate agree with whatever it found.
+_COMPOSE_MARKER = "} CR_OP_REG[25] = {"
 
 #: `opl == 9u && memcmp(op, "magnitude", 9u)` — the DSL dispatch arms
 _DSL_ARM = re.compile(
@@ -176,6 +197,33 @@ def test_params_zero_is_the_first_live_parameter() -> None:
         + "\n".join(f"  {n}: declared {d!r}, live {l!r}" for n, d, l in bad))
 
 
+def _parse_compose_table(marker: str) -> Dict[str, Tuple[int, str, str, str]]:
+    """Parse ``CR_OP_REG`` into {bare: (declared_len, full, fn, bin)}.
+
+    The compose table carries two FUNCTION-POINTER columns as of rc452, so it
+    gets its own parse. Either column may be the literal ``NULL``; both being
+    NULL is a DEAD ROW and is asserted against below, since such a row would be
+    key-set-validated and then never runnable by any path.
+    """
+    text = _COMPOSE_C.read_text(encoding="utf-8")
+    assert marker in text, (
+        f"{_COMPOSE_C.name} no longer contains the index marker {marker!r}. If "
+        f"the array's DECLARED SIZE changed, update this marker in the same "
+        f"commit — the marker IS the array-size gate.")
+    i = text.index(marker)
+    j = text.index("};", i)
+    rows = _COMPOSE_ROW.findall(text[i:j])
+    assert rows, (
+        f"no CR_OP_REG rows parsed out of {_COMPOSE_C.name} at {marker!r}. An "
+        f"empty parse is not an empty table — re-point _COMPOSE_ROW at the row "
+        f"shape the file actually has; do not delete the assertion.")
+    out: Dict[str, Tuple[int, str, str, str]] = {}
+    for bare, ln, full, fn, bn in rows:
+        out[bare] = (int(ln), full, fn, bn)
+    assert len(out) == len(rows), "CR_OP_REG has a DUPLICATE bare spelling"
+    return out
+
+
 def _parse_index(path: Path, marker: str) -> Dict[str, Tuple[int, str]]:
     """Parse a C name-to-name index into {bare: (declared_len, full_name)}."""
     text = path.read_text(encoding="utf-8")
@@ -239,7 +287,9 @@ def test_dsl_leaf_index_resolves_and_matches_signatures() -> None:
 
 def test_compose_op_index_resolves_and_matches_signatures() -> None:
     """G4-A, Surface A — ``CR_OP_REG`` against the registry."""
-    _check_index(_parse_index(_COMPOSE_C, "} CR_OP_REG[24] = {"), "CR_OP_REG", 0)
+    table = _parse_compose_table(_COMPOSE_MARKER)
+    _check_index({b: (ln, full) for b, (ln, full, _f, _n) in table.items()},
+                 "CR_OP_REG", 0)
 
 
 def test_dsl_index_covers_exactly_the_dispatch_arms() -> None:
@@ -268,32 +318,75 @@ def test_dsl_index_covers_exactly_the_dispatch_arms() -> None:
             f"{index[name][0]}")
 
 
-def test_compose_index_covers_exactly_the_dispatch_arms() -> None:
-    """Same closure for ``cr_dispatch`` / ``cr_dispatch_real``.
+def test_compose_dispatch_is_TABLE_ONLY_not_an_if_chain_beside_it() -> None:
+    """THE ANTI-GAMING PIN for rc452's atom-table conversion.
 
-    ``cr_op_is`` is also used by a FORM predicate further down the file
-    (``orientation_compose``), which is not a dispatch arm — so the arms are
-    read from the two dispatch functions only, not from the whole file.
+    The cheap way to make the conversion "land" is to add the table BESIDE the
+    existing if-chain and leave the chain doing the work — every signature gate
+    goes green, the table is decorative, and the next 32 arms still cannot be
+    added. So this asserts the shape directly: ``cr_dispatch`` contains ZERO
+    ``cr_op_is`` calls of its own and reaches its op through ``CR_OP_REG``.
+
+    ``cr_op_is`` legitimately survives in ``cr_op_row`` (the single matcher) —
+    which is why the scan is scoped to ``cr_dispatch``'s body, not the file.
     """
     text = _COMPOSE_C.read_text(encoding="utf-8")
-    arms: Dict[str, int] = {}
-    for fn in ("static srmech_status_t cr_dispatch_real(",
-               "static srmech_status_t cr_dispatch("):
-        body = text[text.index(fn):]
-        body = body[:body.index("\n}\n")]
-        for name, ln in _CR_OP_IS.findall(body):
-            arms[name] = int(ln)
-    index = _parse_index(_COMPOSE_C, "} CR_OP_REG[24] = {")
-    assert set(arms) == set(index), (
-        f"CR_OP_REG and the compose dispatch arms disagree.\n"
-        f"  dispatch-only (UNVALIDATED, still silently dropping): "
-        f"{sorted(set(arms) - set(index))}\n"
-        f"  index-only (validated but never run): "
-        f"{sorted(set(index) - set(arms))}")
-    for name, ln in arms.items():
-        assert index[name][0] == ln, (
-            f"{name}: dispatch matches on length {ln}, index declares "
-            f"{index[name][0]}")
+    marker = "static srmech_status_t cr_dispatch("
+    assert marker in text, (
+        "cr_dispatch is gone from srmech_compose_run.c — if the dispatch was "
+        "renamed, re-point this gate in the same commit.")
+    body = text[text.index(marker):]
+    body = body[:body.index("\n}\n")]
+    arms = _CR_OP_IS.findall(body)
+    assert not arms, (
+        f"cr_dispatch still matches ops with its own cr_op_is arms {arms!r}. "
+        f"The atom table is then decorative and JPL Rule 4 still binds the "
+        f"op count — which is the exact condition rc452 exists to remove.")
+    assert "CR_OP_REG[" in body, (
+        "cr_dispatch does not reference CR_OP_REG — it is not dispatching "
+        "through the atom table at all.")
+    assert "static srmech_status_t cr_dispatch_real(" not in text, (
+        "cr_dispatch_real is back. It existed ONLY to absorb arms that would "
+        "have broken Rule 4 in cr_dispatch; with a table there is nothing for "
+        "it to absorb, and re-adding it means the if-chain has returned.")
+
+
+def test_every_compose_table_row_is_REACHABLE_by_some_path() -> None:
+    """No dead rows: each row runs as a plain op, as a fold body, or both.
+
+    A row with both columns NULL would be key-set-validated (so it LOOKS
+    covered — ``cr_args_keyset_ok`` resolves it and enforces its params) while
+    no execution path could ever call it. That is a validated surface with no
+    implementation behind it, which is precisely the shape this file's own
+    ``full in by_name`` assertion exists to refuse one level up.
+    """
+    table = _parse_compose_table(_COMPOSE_MARKER)
+    dead = sorted(b for b, (_l, _f, fn, bn) in table.items()
+                  if fn == "NULL" and bn == "NULL")
+    assert not dead, f"CR_OP_REG rows with neither an op fn nor a fold bin: {dead}"
+
+
+def test_every_compose_table_function_pointer_is_DEFINED_in_the_file() -> None:
+    """A row may not name a function that does not exist.
+
+    The C compiler already refuses an undeclared identifier, so this is not
+    catching a build break — it is catching the row pointing at a DIFFERENT
+    real function than its name suggests is impossible to check mechanically,
+    but a missing definition is. Kept because the table is now the whole
+    dispatch surface and a typo'd column would otherwise be a silent
+    mis-dispatch to a same-shaped neighbour.
+    """
+    text = _COMPOSE_C.read_text(encoding="utf-8")
+    table = _parse_compose_table(_COMPOSE_MARKER)
+    missing = []
+    for bare, (_ln, _full, fn, bn) in sorted(table.items()):
+        for sym in (fn, bn):
+            if sym == "NULL":
+                continue
+            if f" {sym}(" not in text:
+                missing.append((bare, sym))
+    assert not missing, (
+        f"CR_OP_REG rows naming an undefined function: {missing}")
 
 
 def test_the_order_gate_would_have_fired_on_the_rc448_registry() -> None:

@@ -1009,7 +1009,19 @@ _RUN_C_OPS = frozenset({
     "gcd", "mod_add", "mod_mul", "mod_mul_wide", "mod_pow", "mod_inv",
     # Class C / K / L — the real-sequence and pin-slot arms (rc447)
     "chiral_flip", "autocorrelation", "pin_slot_at_zero", "reorient",
-    "orientation_compose",
+    # ⚠️ `orientation_compose` WAS LISTED HERE AND WAS A PHANTOM (removed rc452,
+    # `#T1166`). It has NEVER been a plain dispatch arm: measured at the rc452
+    # branch point, neither `cr_dispatch` nor `cr_dispatch_real` carried an arm
+    # for it — it existed only inside `cr_body_is_orient_compose`, a FOLD-FORM
+    # predicate. It reached this set because the eligibility gate's scanner
+    # matched `cr_op_is` over the WHOLE FILE and so read that form predicate as
+    # a dispatch arm; the sibling gate in test_t1158 scoped its scan to the two
+    # dispatch functions precisely to avoid this and said so in its docstring,
+    # but the two scanners were never reconciled. Consequence while live: a
+    # chain naming `orientation_compose` as a PLAIN step was admitted here,
+    # marshalled to C, and declined NOT_IMPL — a full marshal-and-decline per
+    # call, never a wrong answer. It stays in `_RUN_C_FOLD_OPS`, which is the
+    # set that was always true of it. Surfaced by rc452's table-derived scan.
     # Class K / N / B — the best_rational_signed steps (rc451, `#T1164`).
     # FOUR separate arms at step granularity in cr_dispatch_real, deliberately
     # NOT one dispatch of the fused srmech_cascade_best_rational_signed_f64:
@@ -1019,10 +1031,22 @@ _RUN_C_OPS = frozenset({
     "dead_band", "scale_round_half_even", "best_rational", "pair",
 })
 
-#: Fold-body ops the C runner dispatches (``cr_fold_body``). Deliberately its
-#: own set: the fold body is a PRIVATE single-entry table in C, not the shared
-#: op table, and conflating them would claim a generality C does not have.
-_RUN_C_FOLD_OPS = frozenset({"orientation_compose"})
+#: Fold-body ops the C runner dispatches — the non-NULL ``bin`` column of the
+#: SHARED ``CR_OP_REG`` atom table (``cr_fold_body`` looks the row up with the
+#: same matcher ``cr_dispatch`` uses).
+#:
+#: ⚠️ STILL ITS OWN SET, AND FOR A DIFFERENT REASON THAN BEFORE. Through rc451
+#: this was separate because C's fold body was a PRIVATE single-entry table. As
+#: of rc452 it shares the op table, but the two sets are still not equal: a fold
+#: body takes two already-evaluated POSITIONAL carriers while a plain op pulls
+#: named operands out of ``args``, so an op can be dispatchable as one and not
+#: the other. ``orientation_compose`` is fold-body-ONLY (no shipped descriptor
+#: names it as a plain step); most ops are plain-only. Keeping the sets distinct
+#: states that difference instead of flattening it.
+#: ``tests/test_c_chain_eligibility_rc447.py`` derives BOTH columns out of the C
+#: table and asserts each against its Python peer, so a widened C row that is not
+#: mirrored here is red rather than silently unreachable.
+_RUN_C_FOLD_OPS = frozenset({"orientation_compose", "gcd"})
 
 _I64_MAX = (1 << 63) - 1
 _I64_MIN = -(1 << 63)

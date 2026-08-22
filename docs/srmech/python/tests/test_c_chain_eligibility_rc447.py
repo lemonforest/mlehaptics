@@ -48,15 +48,56 @@ def _c_dispatch_ops():
     every dotted op and make this gate agree by accident.
     """
     src = _C_SRC.read_text(encoding="utf-8")
-    # rc447 unified the arms onto `cr_op_is(op, opl, "name", N)` — a
-    # segment-boundary match, so `poly_gcd` does not answer to `gcd`. The two
-    # older `memcmp` spellings are still matched because the file documents
-    # both, and a scanner that reads only the current form would silently
-    # under-report if an arm were ever written the old way.
-    ops = set(re.findall(r'cr_op_is\(op,\s*opl,\s*"([a-z0-9_]+)"', src))
-    ops |= set(re.findall(r'memcmp\(op,\s*"([a-z0-9_]+)"', src))
-    ops |= set(re.findall(r'memcmp\(op \+ \([^)]*\),\s*"([a-z0-9_]+)"', src))
+    # ⚠️ READ THE TABLE, NOT THE ARMS (v0.9.0rc452, `#T1166`). Through rc451 the
+    # dispatch was an if-chain and this scan matched its `cr_op_is` arms. rc452
+    # converts CR_OP_REG into a name-to-FUNCTION-POINTER atom table and
+    # cr_dispatch into a bounded loop with ZERO arms of its own — so the arm
+    # patterns below now match only `cr_op_row`'s single generic call, whose
+    # operand is a table field rather than a literal, and the derived set went
+    # to EMPTY. An empty derived set does not fail loudly here by itself: it
+    # makes `_RUN_C_OPS - ops` report every Python entry as a phantom, which is
+    # the shape of a gate that has stopped observing while still returning a
+    # verdict. The table IS the dispatch surface now, so the table is what this
+    # reads; the `assert ops` below still refuses an empty parse.
+    m = re.search(r"\}\s*CR_OP_REG\[\d+\]\s*=\s*\{", src)
+    assert m, ("CR_OP_REG's initialiser was not found — the dispatch surface "
+               "was reshaped and this scan has stopped observing. Re-point it; "
+               "do not delete the assertion.")
+    body = src[m.end():src.index("};", m.end())]
+    # A row is { "bare", Nu, "full", fn, bin }; the FIRST string is the spelling
+    # the matcher compares. Rows whose `fn` is NULL are fold-body-only and are
+    # NOT plain-dispatchable, so they are excluded — otherwise this set would
+    # claim a plain-step capability the runner declines.
+    ops = set()
+    for bare, _ln, _full, fn, _bn in re.findall(
+            r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,'
+            r'\s*"([A-Za-z0-9_.]+)"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,'
+            r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
+        if fn != "NULL":
+            ops.add(bare)
     assert ops, "the C dispatch scan found NOTHING — anchors have drifted"
+    return ops
+
+
+def _c_fold_body_ops():
+    """Op names the C FOLD BODY dispatches — the table's non-NULL ``bin`` column.
+
+    rc451 pinned this set to the single private-table entry
+    ``orientation_compose``. rc452 gives the fold body the SHARED table, so the
+    set is derived the same way the plain set is, from the same rows.
+    """
+    src = _C_SRC.read_text(encoding="utf-8")
+    m = re.search(r"\}\s*CR_OP_REG\[\d+\]\s*=\s*\{", src)
+    assert m, "CR_OP_REG's initialiser was not found"
+    body = src[m.end():src.index("};", m.end())]
+    ops = set()
+    for bare, _ln, _full, _fn, bn in re.findall(
+            r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,'
+            r'\s*"([A-Za-z0-9_.]+)"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,'
+            r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
+        if bn != "NULL":
+            ops.add(bare)
+    assert ops, "the C fold-body scan found NOTHING — anchors have drifted"
     return ops
 
 
@@ -123,14 +164,32 @@ def test_every_op_in_the_python_set_is_actually_dispatched_by_C():
         % phantom)
 
 
-def test_the_fold_body_set_is_kept_SEPARATE_from_the_op_table():
-    """The fold body is a PRIVATE single-entry table in C (``cr_fold_body``),
-    not the shared dispatch. Merging the two sets would claim a generality C
-    does not have — a fold over any other op still declines."""
-    assert _compose._RUN_C_FOLD_OPS == frozenset({"orientation_compose"}), (
-        "the fold body table changed; update cr_fold_body and this gate "
-        "together, and lower CEIL_SURFACE_A_UNSUPPORTED_FORMS if the body now "
-        "routes through the shared op table")
+def test_the_fold_body_set_AGREES_WITH_C_row_for_row():
+    """The Python fold-body set equals the C table's non-NULL ``bin`` column.
+
+    ⚠️ THIS GATE INVERTED AT rc452 (`#T1166`), DELIBERATELY, AND ITS OLD TEXT
+    PREDICTED THE INVERSION. Through rc451 it asserted
+    ``_RUN_C_FOLD_OPS == {"orientation_compose"}`` and said so on the grounds
+    that "the fold body is a PRIVATE single-entry table in C, not the shared
+    dispatch — merging the two sets would claim a generality C does not have."
+    That was TRUE THEN and is false now: rc452 gives the fold body the shared
+    atom table (as a ``bin`` column on the same rows), so the set is no longer
+    a hand-written literal on either side and pinning it to one op would claim
+    LESS generality than C has — which is the same defect mirrored.
+
+    So the pin becomes an AGREEMENT, derived on both sides, exactly as the
+    plain op set already is. Its old instruction ("lower
+    CEIL_SURFACE_A_UNSUPPORTED_FORMS if the body now routes through the shared
+    op table") is the change rc452 makes.
+    """
+    c_ops = _c_fold_body_ops()
+    py_ops = set(_compose._RUN_C_FOLD_OPS)
+    assert py_ops == c_ops, (
+        "the Python fold-body set and the C `bin` column disagree.\n"
+        "  python-only (chain admitted, C body declines -> wasted C attempt): "
+        f"{sorted(py_ops - c_ops)}\n"
+        "  C-only (real capability unreachable from run_cascade_chain — the "
+        f"rc447 defect class): {sorted(c_ops - py_ops)}")
 
 
 def test_the_shipped_api_ACTUALLY_drives_the_C_runner():

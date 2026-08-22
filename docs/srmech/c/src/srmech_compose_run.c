@@ -1351,98 +1351,329 @@ static int cr_op_is(const char *op, uint32_t opl, const char *want, uint32_t n)
     return 0;
 }
 
-static srmech_status_t cr_dispatch_real(cr_ctx_t *c, const char *op, uint32_t opl,
-                                        const srmech_json_value_t *args,
-                                        cr_value_t **out)
+/* ------------------------------------------------------------------
+ * THE ATOM TABLE (v0.9.0rc452, `#T1166`).
+ *
+ * ⚠️ THIS IS "cascade.atoms IN C" — gh #1653's mandate clause 2 — and it is
+ * closed HERE rather than as a separate deliverable, because it is also the
+ * mechanism clause 1 needs. Through rc451 the dispatch was an if-chain, and
+ * `cr_dispatch` was MEASURED at 57 of JPL Rule 4's 60 lines with 16 arms; the
+ * eight remaining blocked chains need 32 more op spellings between them. Those
+ * arms could not be added AS AN IF-CHAIN AT ALL — not "would be untidy",
+ * cannot: the 17th arm breaks Rule 4 and the split that produced
+ * `cr_dispatch_real` had already been spent once to buy four.
+ *
+ * So `CR_OP_REG` stops being a name-to-name index and becomes a name-to-
+ * FUNCTION-POINTER atom registry: a bare-C, config-addressable table that IS
+ * the callable registry the interpreter resolves against. `cr_dispatch`
+ * collapses from a 57-line if-chain to a ~12-line bounded loop over it, and
+ * `cr_dispatch_real` — which existed only to absorb the overflow — is GONE.
+ * Adding an op is now adding a ROW, which is why the table can carry 56.
+ *
+ * ⚠️ THE TABLE IS THE ONLY DISPATCH PATH. `cr_dispatch` contains zero
+ * `cr_op_is` calls of its own; the one call site is inside the loop, against
+ * the row's own `bare`/`len`. tests/test_t1158_registry_param_order_rc449.py
+ * asserts exactly that, so a future arm added BESIDE the table (leaving the
+ * table decorative — the shape a green could otherwise be bought with) is red.
+ *
+ * FOUR COLUMNS, and the fourth is the one that closes the fold body:
+ *   bare/len  the segment-boundary match cr_op_is performs
+ *   full      the ToolEntry name cr_args_keyset_ok validates `args` keys against
+ *   fn        the op itself: pull operands from `args` BY NAME, write *out
+ *   bin       non-NULL iff the op can also serve as a FOLD BODY
+ *
+ * ⚠️ WHY `bin` IS A COLUMN AND NOT A SECOND TABLE. A fold body receives two
+ * POSITIONAL carriers (acc, elem) that are already evaluated — there is no
+ * `args` JSON object to pull from, so `fn` genuinely cannot serve. Through
+ * rc451 that difference was expressed as a PRIVATE single-entry table
+ * (`cr_fold_body`, orientation_compose only), which is why a fold over any
+ * other op declined and why CEIL_SURFACE_A_UNSUPPORTED_FORMS still counted
+ * `fold` unsupported with a real fold chain shipping. Making it a column on
+ * the SAME table keeps one registry — so the bijection gate still sees every
+ * op exactly once — while stating honestly that the two entry shapes differ.
+ * ------------------------------------------------------------------ */
+
+/* The op shape: operands arrive BY NAME inside `args` (cr_arg pulls them). */
+typedef srmech_status_t (*cr_op_fn_t)(cr_ctx_t *c, const srmech_json_value_t *args,
+                                      cr_value_t **out);
+
+/* The FOLD-BODY shape: two already-evaluated POSITIONAL carriers. */
+typedef srmech_status_t (*cr_bin_fn_t)(cr_bump_t *b, const cr_value_t *acc,
+                                       const cr_value_t *elem, cr_value_t **out);
+
+/* ---- thin wrappers giving the parameterised drivers the uniform shape ---- */
+
+static srmech_status_t cr_a_exp_series(cr_ctx_t *c, const srmech_json_value_t *a,
+                                       cr_value_t **o)
 {
-    assert(c != NULL && op != NULL);
-    assert(args != NULL && out != NULL);
-    if (cr_op_is(op, opl, "pin_slot_at_zero", 16u)) {
-        return cr_op_pin_slot(c, args, out);
-    }
-    if (cr_op_is(op, opl, "reorient", 8u)) {
-        return cr_op_reorient(c, args, out);
-    }
-    if (cr_op_is(op, opl, "chiral_flip", 11u)) {
-        return cr_op_dseq(c, args, "seq", srmech_cascade_chiral_flip_f64, out);
-    }
-    if (cr_op_is(op, opl, "autocorrelation", 15u)) {
-        return cr_op_dseq(c, args, "x", srmech_autocorrelation_f64, out);
-    }
-    /* rc451 (`#T1164`): the four best_rational_signed step ops. They live HERE
-     * and not in cr_dispatch because that function is measured at 57 of JPL
-     * Rule 4's 60 lines — four more arms there is an immediate violation. */
-    if (cr_op_is(op, opl, "dead_band", 9u)) {
-        return cr_op_dead_band(c, args, out);
-    }
-    if (cr_op_is(op, opl, "scale_round_half_even", 21u)) {
-        return cr_op_scale_round(c, args, out);
-    }
-    if (cr_op_is(op, opl, "best_rational", 13u)) {
-        return cr_op_best_rational(c, args, out);
-    }
-    if (cr_op_is(op, opl, "pair", 4u)) {
-        return cr_op_pair(c, args, out);
-    }
-    return SRMECH_ERR_NOT_IMPL;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_series(c, a, srmech_exp_series_truncate_big, o);
 }
 
+static srmech_status_t cr_a_sin_series(cr_ctx_t *c, const srmech_json_value_t *a,
+                                       cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_series(c, a, srmech_sin_series_truncate_big, o);
+}
+
+static srmech_status_t cr_a_cos_series(cr_ctx_t *c, const srmech_json_value_t *a,
+                                       cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_series(c, a, srmech_cos_series_truncate_big, o);
+}
+
+static srmech_status_t cr_a_log1p_series(cr_ctx_t *c, const srmech_json_value_t *a,
+                                         cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_series(c, a, srmech_log1p_series_truncate_big, o);
+}
+
+static srmech_status_t cr_a_atan_series(cr_ctx_t *c, const srmech_json_value_t *a,
+                                        cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_series(c, a, srmech_atan_series_truncate_big, o);
+}
+
+static srmech_status_t cr_a_rat_add(cr_ctx_t *c, const srmech_json_value_t *a,
+                                    cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_rat(c, a, '+', o);
+}
+
+static srmech_status_t cr_a_rat_mul(cr_ctx_t *c, const srmech_json_value_t *a,
+                                    cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_rat(c, a, '*', o);
+}
+
+static srmech_status_t cr_a_rat_div(cr_ctx_t *c, const srmech_json_value_t *a,
+                                    cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_rat(c, a, '/', o);
+}
+
+static srmech_status_t cr_a_gcd(cr_ctx_t *c, const srmech_json_value_t *a,
+                                cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_cyclic(c, a, CR_CY_GCD, o);
+}
+
+static srmech_status_t cr_a_mod_add(cr_ctx_t *c, const srmech_json_value_t *a,
+                                    cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_cyclic(c, a, CR_CY_ADD, o);
+}
+
+static srmech_status_t cr_a_mod_mul(cr_ctx_t *c, const srmech_json_value_t *a,
+                                    cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_cyclic(c, a, CR_CY_MUL, o);
+}
+
+static srmech_status_t cr_a_mod_pow(cr_ctx_t *c, const srmech_json_value_t *a,
+                                    cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_cyclic(c, a, CR_CY_POW, o);
+}
+
+static srmech_status_t cr_a_chiral_flip(cr_ctx_t *c, const srmech_json_value_t *a,
+                                        cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_dseq(c, a, "seq", srmech_cascade_chiral_flip_f64, o);
+}
+
+/* ⚠️ THE `autocorrelation` OP, NOT THE `autocorrelation` CHAIN. This arm backs
+ * a step whose op IS srmech.cascade.autocorrelation — the shipped leaf. The
+ * CHAIN of the same name is a different object: its steps are seq_len /
+ * correlation_product / compensated_sum and NONE of them names this op, so
+ * running that chain cannot reach this symbol and no coarse bypass exists
+ * between them structurally. */
+static srmech_status_t cr_a_autocorrelation(cr_ctx_t *c, const srmech_json_value_t *a,
+                                            cr_value_t **o)
+{
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_dseq(c, a, "x", srmech_autocorrelation_f64, o);
+}
+
+/* ---- fold bodies: two positional carriers ---- */
+
+/* orientation_compose(acc, elem) — Class K absorbing zero, else Class C
+ * reorient. Lifted verbatim out of the rc446 private cr_fold_body. */
+static srmech_status_t cr_b_orient_compose(cr_bump_t *b, const cr_value_t *acc,
+                                           const cr_value_t *elem, cr_value_t **out)
+{
+    int64_t a, e, r; srmech_status_t st;
+    assert(b != NULL && out != NULL);
+    assert(acc != NULL && elem != NULL);
+    if (!cr_as_i64(acc, &a) || !cr_as_i64(elem, &e)) { return SRMECH_ERR_NOT_IMPL; }
+    if (e < -128 || e > 127) { return SRMECH_ERR_NOT_IMPL; }
+    if (e == 0) {                        /* the ABSORBING zero — Class K     */
+        *out = cr_int_i64(b, 0);
+        return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    }
+    st = srmech_cascade_reorient_i64((int8_t)e, a, &r);   /* Class C         */
+    if (st != SRMECH_OK) { return st; }
+    *out = cr_int_i64(b, r);
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* gcd(acc, elem) as a fold body — the op the ratchet's form probe folds. */
+static srmech_status_t cr_b_gcd(cr_bump_t *b, const cr_value_t *acc,
+                                const cr_value_t *elem, cr_value_t **out)
+{
+    uint64_t a, e, t;
+    assert(b != NULL && out != NULL);
+    assert(acc != NULL && elem != NULL);
+    if (!cr_as_u64(acc, &a) || !cr_as_u64(elem, &e)) { return SRMECH_ERR_NOT_IMPL; }
+    while (e != 0u) { t = a % e; a = e; e = t; }
+    *out = cr_int_u64(b, a);
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * THE TABLE. Order and membership are read by
+ * tests/test_t1158_registry_param_order_rc449.py, which resolves every `full`
+ * against the LIVE ToolEntry registry and asserts the declared `len` matches
+ * the string — a wrong length silently disables the row, because cr_op_is
+ * compares it BEFORE memcmp.
+ *
+ * ⚠️ A ROW'S `full` MUST NAME THE OP THE ROW ACTUALLY RUNS. Pointing it at a
+ * registered SIBLING with the same param names (sha256_bytes for sha256_raw,
+ * say) passes every shipped gate — the entry resolves, the lengths agree, the
+ * params match — while validating `args` against the wrong contract. The three
+ * ops that had no ToolEntry at all were REGISTERED in this rc rather than
+ * aliased, for exactly that reason.
+ *
+ * .rodata beside map_k / fold_k / plain_k; JPL Rule 3 is untouched.
+ * ------------------------------------------------------------------ */
+static const struct {
+    const char *bare;
+    uint32_t    len;
+    const char *full;
+    cr_op_fn_t  fn;
+    cr_bin_fn_t bin;
+} CR_OP_REG[25] = {
+ { "pi_cascade_digits",  17u, "srmech.math.rational.pi_cascade_digits",
+   cr_op_pi, NULL },
+ { "exp_series_truncate", 19u, "srmech.math.rational.exp_series_truncate",
+   cr_a_exp_series, NULL },
+ { "sin_series_truncate", 19u, "srmech.math.rational.sin_series_truncate",
+   cr_a_sin_series, NULL },
+ { "cos_series_truncate", 19u, "srmech.math.rational.cos_series_truncate",
+   cr_a_cos_series, NULL },
+ { "log1p_series_truncate", 21u, "srmech.math.rational.log1p_series_truncate",
+   cr_a_log1p_series, NULL },
+ { "atan_series_truncate", 20u, "srmech.math.rational.atan_series_truncate",
+   cr_a_atan_series, NULL },
+ { "rational_pow_uint",  17u, "srmech.math.rational.rational_pow_uint",
+   cr_op_pow, NULL },
+ { "rational_add",       12u, "srmech.math.rational.rational_add",
+   cr_a_rat_add, NULL },
+ { "rational_mul",       12u, "srmech.math.rational.rational_mul",
+   cr_a_rat_mul, NULL },
+ { "rational_div",       12u, "srmech.math.rational.rational_div",
+   cr_a_rat_div, NULL },
+ { "gcd",                 3u, "srmech.math.cyclic.gcd",
+   cr_a_gcd, cr_b_gcd },
+ { "mod_add",             7u, "srmech.math.cyclic.mod_add",
+   cr_a_mod_add, NULL },
+ { "mod_mul",             7u, "srmech.math.cyclic.mod_mul",
+   cr_a_mod_mul, NULL },
+ { "mod_mul_wide",       12u, "srmech.math.cyclic.mod_mul_wide",
+   cr_a_mod_mul, NULL },
+ { "mod_pow",             7u, "srmech.math.cyclic.mod_pow",
+   cr_a_mod_pow, NULL },
+ { "mod_inv",             7u, "srmech.math.cyclic.mod_inv",
+   cr_op_cyclic_inv, NULL },
+ { "pin_slot_at_zero",   16u, "srmech.cascade.pin_slot_at_zero",
+   cr_op_pin_slot, NULL },
+ { "reorient",            8u, "srmech.cascade.reorient",
+   cr_op_reorient, NULL },
+ { "chiral_flip",        11u, "srmech.cascade.chiral_flip",
+   cr_a_chiral_flip, NULL },
+ { "autocorrelation",    15u, "srmech.cascade.autocorrelation",
+   cr_a_autocorrelation, NULL },
+ { "dead_band",           9u, "srmech.cascade.dead_band",
+   cr_op_dead_band, NULL },
+ { "scale_round_half_even", 21u, "srmech.math.rational.scale_round_half_even",
+   cr_op_scale_round, NULL },
+ { "best_rational",      13u, "srmech.math.rational.best_rational",
+   cr_op_best_rational, NULL },
+ { "pair",                4u, "srmech.cascade.pair",
+   cr_op_pair, NULL },
+ /* FOLD-BODY-ONLY: `fn` is NULL because orientation_compose is never a plain
+  * step in any shipped descriptor — it exists to be folded. A NULL `fn` row is
+  * a deliberate, expressible state (cr_dispatch returns NOT_IMPL for it), not
+  * an omission; the alternative was a second table, which is what rc451 had. */
+ { "orientation_compose", 19u, "srmech.cascade.orientation_compose",
+   NULL, cr_b_orient_compose }
+};
+
+/* The table's own length, DERIVED. It was written out as a bare literal in the
+ * loop bounds through rc450, and nothing read those: the shipped gate pins the
+ * ARRAY DECLARATION via the marker string "} CR_OP_REG[N] = {" and then compares
+ * index rows to dispatch arms, never a bound. So growing the array while leaving
+ * a stale bound would have left the key-set validator silently OFF for exactly
+ * the tail entries — with every other gate green. Deriving it removes the class. */
+#define CR_OP_REG_N (sizeof(CR_OP_REG) / sizeof(CR_OP_REG[0]))
+
+/* Find a row by op spelling. -1 when the op is not ours (→ the defer channel).
+ * ONE matcher for dispatch, for the fold body and for the key-set validator, so
+ * none of the three can disagree with the others about which op a dotted
+ * spelling names. */
+static int32_t cr_op_row(const char *op, uint32_t opl)
+{
+    uint32_t i;
+    assert(op != NULL);
+    assert(opl > 0u);
+    for (i = 0u; i < (uint32_t)CR_OP_REG_N; i++) {
+        if (cr_op_is(op, opl, CR_OP_REG[i].bare, CR_OP_REG[i].len)) {
+            return (int32_t)i;
+        }
+    }
+    return -1;
+}
+
+/* Dispatch one plain step's op. A bounded loop over the table — no if-chain,
+ * and (deliberately) no cr_op_is call of its own. An op with no row, or a row
+ * that is fold-body-ONLY (fn == NULL), returns NOT_IMPL and the whole chain
+ * defers to the complete pure path. */
 static srmech_status_t cr_dispatch(cr_ctx_t *c, const char *op, uint32_t opl,
                                    const srmech_json_value_t *args, cr_value_t **out)
 {
+    int32_t r;
     assert(c != NULL && op != NULL && out != NULL);
     assert(args != NULL);
-    if (cr_op_is(op, opl, "pi_cascade_digits", 17u)) {
-        return cr_op_pi(c, args, out);
-    }
-    if (cr_op_is(op, opl, "exp_series_truncate", 19u)) {
-        return cr_op_series(c, args, srmech_exp_series_truncate_big, out);
-    }
-    if (cr_op_is(op, opl, "sin_series_truncate", 19u)) {
-        return cr_op_series(c, args, srmech_sin_series_truncate_big, out);
-    }
-    if (cr_op_is(op, opl, "cos_series_truncate", 19u)) {
-        return cr_op_series(c, args, srmech_cos_series_truncate_big, out);
-    }
-    if (cr_op_is(op, opl, "log1p_series_truncate", 21u)) {
-        return cr_op_series(c, args, srmech_log1p_series_truncate_big, out);
-    }
-    if (cr_op_is(op, opl, "atan_series_truncate", 20u)) {
-        return cr_op_series(c, args, srmech_atan_series_truncate_big, out);
-    }
-    if (cr_op_is(op, opl, "rational_pow_uint", 17u)) {
-        return cr_op_pow(c, args, out);
-    }
-    if (cr_op_is(op, opl, "rational_add", 12u)) {
-        return cr_op_rat(c, args, '+', out);
-    }
-    if (cr_op_is(op, opl, "rational_mul", 12u)) {
-        return cr_op_rat(c, args, '*', out);
-    }
-    if (cr_op_is(op, opl, "rational_div", 12u)) {
-        return cr_op_rat(c, args, '/', out);
-    }
-    /* Class-I cyclic group (gh #1653). Declines out-of-uint64 operands. */
-    if (cr_op_is(op, opl, "gcd", 3u)) {
-        return cr_op_cyclic(c, args, CR_CY_GCD, out);
-    }
-    if (cr_op_is(op, opl, "mod_add", 7u)) {
-        return cr_op_cyclic(c, args, CR_CY_ADD, out);
-    }
-    if (cr_op_is(op, opl, "mod_mul", 7u)) {
-        return cr_op_cyclic(c, args, CR_CY_MUL, out);
-    }
-    if (cr_op_is(op, opl, "mod_mul_wide", 12u)) {
-        return cr_op_cyclic(c, args, CR_CY_MUL, out);
-    }
-    if (cr_op_is(op, opl, "mod_pow", 7u)) {
-        return cr_op_cyclic(c, args, CR_CY_POW, out);
-    }
-    if (cr_op_is(op, opl, "mod_inv", 7u)) {
-        return cr_op_cyclic_inv(c, args, out);
-    }
-    return cr_dispatch_real(c, op, opl, args, out);   /* else: not in the
-                                                      * table → pure */
+    r = cr_op_row(op, opl);
+    if (r < 0) { return SRMECH_ERR_NOT_IMPL; }
+    if (CR_OP_REG[r].fn == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    return CR_OP_REG[r].fn(c, args, out);
 }
 
 /* ------------------------------------------------------------------
@@ -1659,39 +1890,28 @@ static cr_form_t cr_step_form(const srmech_json_value_t *step)
 }
 
 
-/* 1 iff `op` names orientation_compose — bare, or any dotted spelling ending
- * `.orientation_compose` (descriptors write the dotted form). */
-static int cr_body_is_orient_compose(const char *op, uint32_t opl)
-{
-    static const char dotted[21] = ".orientation_compose";
-    assert(op != NULL);
-    assert(opl > 0u);
-    if (cr_op_is(op, opl, "orientation_compose", 19u)) { return 1; }
-    if (opl > 20u && memcmp(op + (opl - 20u), dotted, 20u) == 0) { return 1; }
-    return 0;
-}
-
-/* One binary fold step. An op outside the table, or an operand outside the
- * int64 shape, returns NOT_IMPL and the WHOLE chain defers to pure — the
- * inform-don't-limit contract, never a wrong answer. */
+/* One binary fold step, dispatched through the SHARED atom table's `bin`
+ * column. An op with no row, or a row with no `bin` (an op that exists but
+ * cannot serve as a fold body), returns NOT_IMPL and the WHOLE chain defers to
+ * pure — the inform-don't-limit contract, never a wrong answer.
+ *
+ * ⚠️ THIS REPLACES A PRIVATE SINGLE-ENTRY TABLE. Through rc451 the body was
+ * matched by a bespoke `cr_body_is_orient_compose` predicate that knew exactly
+ * one op, which is why CEIL_SURFACE_A_UNSUPPORTED_FORMS kept counting `fold`
+ * unsupported while a real fold chain shipped: the FORM ran, the BODY table
+ * had one row. Sharing the op table is what makes the ratchet's `gcd` probe —
+ * chosen precisely because it is in the shared table and was NOT in the
+ * private one — able to return otherwise. */
 static srmech_status_t cr_fold_body(cr_bump_t *b, const char *op, uint32_t opl,
                                     const cr_value_t *acc,
                                     const cr_value_t *elem, cr_value_t **out)
 {
-    int64_t a, e, r; srmech_status_t st;
+    int32_t r;
     assert(b != NULL && op != NULL && out != NULL);
     assert(acc != NULL && elem != NULL);
-    if (!cr_body_is_orient_compose(op, opl)) { return SRMECH_ERR_NOT_IMPL; }
-    if (!cr_as_i64(acc, &a) || !cr_as_i64(elem, &e)) { return SRMECH_ERR_NOT_IMPL; }
-    if (e < -128 || e > 127) { return SRMECH_ERR_NOT_IMPL; }
-    if (e == 0) {                        /* the ABSORBING zero — Class K     */
-        *out = cr_int_i64(b, 0);
-        return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
-    }
-    st = srmech_cascade_reorient_i64((int8_t)e, a, &r);   /* Class C         */
-    if (st != SRMECH_OK) { return st; }
-    *out = cr_int_i64(b, r);
-    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    r = cr_op_row(op, opl);
+    if (r < 0 || CR_OP_REG[r].bin == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    return CR_OP_REG[r].bin(b, acc, elem, out);
 }
 
 /* acc = fold_init; for elem in resolve(over): acc = fold_op(acc, elem).
@@ -1747,55 +1967,6 @@ static srmech_status_t cr_run_fold(cr_ctx_t *c, const srmech_json_value_t *step,
  * "unifies" the two rules later.
  * ------------------------------------------------------------------ */
 
-/* Bare op name -> tool-registry entry name, for the ops cr_dispatch actually runs.
- *
- * A NAME-to-NAME index, not a second copy of key names: the key names come from the
- * registry entry's own params, which two shipped gates pin set-equal to the live
- * Python signature in both directions. Order and membership mirror the cr_op_is
- * chain in cr_dispatch / cr_dispatch_real one-for-one, and
- * tests/test_t1158_registry_param_order_rc449.py parses BOTH out of this file and
- * asserts they agree — an entry here with no arm, or an arm with no entry, is red.
- * .rodata beside map_k / fold_k / plain_k / dotted[]; JPL Rule 3 is untouched. */
-static const struct {
-    const char *bare;
-    uint32_t    len;
-    const char *full;
-} CR_OP_REG[24] = {
-    { "pi_cascade_digits",     17u, "srmech.math.rational.pi_cascade_digits" },
-    { "exp_series_truncate",   19u, "srmech.math.rational.exp_series_truncate" },
-    { "sin_series_truncate",   19u, "srmech.math.rational.sin_series_truncate" },
-    { "cos_series_truncate",   19u, "srmech.math.rational.cos_series_truncate" },
-    { "log1p_series_truncate", 21u, "srmech.math.rational.log1p_series_truncate" },
-    { "atan_series_truncate",  20u, "srmech.math.rational.atan_series_truncate" },
-    { "rational_pow_uint",     17u, "srmech.math.rational.rational_pow_uint" },
-    { "rational_add",          12u, "srmech.math.rational.rational_add" },
-    { "rational_mul",          12u, "srmech.math.rational.rational_mul" },
-    { "rational_div",          12u, "srmech.math.rational.rational_div" },
-    { "gcd",                    3u, "srmech.math.cyclic.gcd" },
-    { "mod_add",                7u, "srmech.math.cyclic.mod_add" },
-    { "mod_mul",                7u, "srmech.math.cyclic.mod_mul" },
-    { "mod_mul_wide",          12u, "srmech.math.cyclic.mod_mul_wide" },
-    { "mod_pow",                7u, "srmech.math.cyclic.mod_pow" },
-    { "mod_inv",                7u, "srmech.math.cyclic.mod_inv" },
-    { "pin_slot_at_zero",      16u, "srmech.cascade.pin_slot_at_zero" },
-    { "reorient",               8u, "srmech.cascade.reorient" },
-    { "chiral_flip",           11u, "srmech.cascade.chiral_flip" },
-    { "autocorrelation",       15u, "srmech.cascade.autocorrelation" },
-    { "dead_band",              9u, "srmech.cascade.dead_band" },
-    { "scale_round_half_even", 21u, "srmech.math.rational.scale_round_half_even" },
-    { "best_rational",         13u, "srmech.math.rational.best_rational" },
-    { "pair",                   4u, "srmech.cascade.pair" }
-};
-
-/* The table's own length, DERIVED. It was written out as a bare `20u` in the
- * two loop bounds below through rc450, and nothing read those: the shipped gate
- * pins the ARRAY DECLARATION via the marker string "} CR_OP_REG[N] = {" and
- * then compares index rows to dispatch arms, never a bound. So growing the
- * array while leaving a stale bound would have left the key-set validator
- * silently OFF for exactly the tail entries — i.e. for precisely the four ops
- * rc451 adds — with every other gate green. Deriving it removes the class. */
-#define CR_OP_REG_N (sizeof(CR_OP_REG) / sizeof(CR_OP_REG[0]))
-
 /* 1 iff `name` is a declared param of `e`. Every declared param is a legal `args`
  * key on this surface — see the params[*] note above. */
 static int cr_key_is_legal(const char *name, const srmech_tool_entry_t *e)
@@ -1817,17 +1988,12 @@ static srmech_status_t cr_args_keyset_ok(const char *op, uint32_t opl,
                                          const srmech_json_value_t *args)
 {
     const srmech_tool_entry_t *e = NULL;
-    uint32_t i;
+    uint32_t i; int32_t r;
     assert(op != NULL && args != NULL);
     assert(args->type == SRMECH_JSON_OBJECT);
-    for (i = 0u; i < (uint32_t)CR_OP_REG_N; i++) {
-        if (cr_op_is(op, opl, CR_OP_REG[i].bare, CR_OP_REG[i].len)) {
-            e = srmech_tool_registry_find(CR_OP_REG[i].full);
-            break;
-        }
-    }
-    if (i == (uint32_t)CR_OP_REG_N) { return SRMECH_OK; }   /* not in the table
-                                                             * → dispatch defers */
+    r = cr_op_row(op, opl);                  /* the SAME matcher dispatch uses */
+    if (r < 0) { return SRMECH_OK; }         /* not in the table → dispatch defers */
+    e = srmech_tool_registry_find(CR_OP_REG[r].full);
     /* ⚠️ NOT silent acceptance — a dispatched op with no registry entry is a broken
      * library invariant. Accepting here would let ONE typo in the table above
      * disable the validator for that op forever, with every other op still green. */
