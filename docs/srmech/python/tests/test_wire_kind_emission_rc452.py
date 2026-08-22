@@ -50,17 +50,26 @@ import pytest
 import srmech._native as _native
 from srmech.cascade import compose as _compose
 from srmech.dsl._cascade_chain import cascade_chain_specs
+from srmech.math.q import Q as _Q
 
 from _native_gate import require_native
 # THE SAME POPULATION THE COMPARATOR USES, imported rather than re-derived.
 # A census over its own private enumeration could report full coverage of a set
 # the comparator never sees — which is the exact shape of the defect this file
 # is named after, one level up.
+#
+# ``classify`` joins the import at rc452 for the VALUE axis added at the foot of
+# this file. It is imported rather than reimplemented for the reason rc450
+# states in its own docstring: that module makes ``_bits`` reachable only
+# through ``classify`` so a strict-witness / lax-population split is
+# inexpressible, and writing a second comparator here would re-open exactly that
+# split one file over.
 from test_c_cascade_value_parity_rc450 import (
     EXPECTED_WIRE_KINDS,
     _c_emitted_kinds,
     _chain_only,
     _population,
+    classify,
 )
 
 # ── TWO POPULATIONS, AND THE GAP BETWEEN THEM IS THE FINDING ────────────────
@@ -117,6 +126,15 @@ CEIL_UNEMITTED_KINDS = frozenset({"n"})
 #: across ~73 test files. Priced, named, deferred — see the gap-ledger row
 #: `value_parity_population_has_no_rational_terminal_chain`.
 CEIL_UNEMITTED_IN_POPULATION_A = frozenset({"n", "s", "q"})
+
+#: DOWN-ONLY. Proof cases that RAISE before the C projection is reached.
+#:
+#: MEASURED at rc452: **0**, with an empty ``raisers`` list. This pin stood at 8
+#: on the strength of a "5 raise on a kuramoto ctx KeyError" figure that does not
+#: reproduce — see :func:`test_every_raising_case_is_named_not_dropped`. Raising
+#: it again is a deliberate edit that must name the raisers and say why they
+#: cannot be fixed instead.
+CEIL_CASES_RAISING_BEFORE_EXECUTION = 0
 
 
 # ── the walk ────────────────────────────────────────────────────────────────
@@ -309,16 +327,36 @@ def test_the_census_accounts_for_every_declared_case(census):
 def test_every_raising_case_is_named_not_dropped(census):
     """A raise is a CLASSIFIED outcome with a name attached.
 
-    5 of the value-parity population's proof cases raise before execution on an
-    unrelated kuramoto ctx KeyError, and every population claim in this arc is
-    bounded at executed/declared because of them. This gate does not fix them;
-    it refuses to let their count drift without notice.
+    ⚠️ THE FIGURE THIS DOCSTRING CARRIED DOES NOT REPRODUCE, and the pin it
+    justified was slack by eight. Through rc452-s5 this read "5 of the
+    value-parity population's proof cases raise before execution on an unrelated
+    kuramoto ctx KeyError" and pinned ``raised <= 8``. RE-MEASURED on the shipped
+    tree at ABI 21, printed by the sibling census test:
+
+        {'declared': 98, 'emitted': 48, 'declined': 46,
+         'unserialisable': 4, 'raised': 0, 'raisers': []}
+
+    ``raised`` is **0** and ``raisers`` is **empty**. A decline and an
+    unserialisable ctx are classified outcomes with their own buckets and
+    neither is a raise, so the "5 kuramoto KeyErrors" were a figure carried
+    across from a differently-shaped harness, not a property of this population.
+    It is corrected here rather than left to drift, because this file's own
+    header says every headline figure in this arc has been wrong at least once
+    and this one was.
+
+    THE CEILING DRAINS 8 -> 0 in the same edit that corrects the prose. That is
+    the point of the correction rather than a bonus: a pin eight above a measured
+    zero cannot report the drift it exists to report — eight proof cases could
+    start raising, the emitted FRACTION would climb because the denominator
+    shrank, and this gate would stay green through all of it.
     """
     _tally, acc = census
-    assert acc["raised"] <= 8, (
-        "the number of cases raising before execution GREW to %d. That is not "
-        "this gate's defect to fix, but it is this gate's job to say it moved: "
-        "%r" % (acc["raised"], acc["raisers"]))
+    assert acc["raised"] <= CEIL_CASES_RAISING_BEFORE_EXECUTION, (
+        "%d case(s) now RAISE before execution where the pinned ceiling is %d. "
+        "That is not this gate's defect to fix, but it is this gate's job to "
+        "say it moved — and a raising case is one the kind census never sees, "
+        "so every tally in this file loses a row to it: %r"
+        % (acc["raised"], CEIL_CASES_RAISING_BEFORE_EXECUTION, acc["raisers"]))
 
 
 def test_the_declared_kind_set_is_read_from_source_and_is_not_empty():
@@ -430,3 +468,244 @@ def test_the_comparators_own_blind_spot_is_pinned_and_named(census):
         "population A now emits %s. Drain the pin in the same commit as the "
         "descriptor that did it, and close the gap-ledger row "
         "`value_parity_population_has_no_rational_terminal_chain`." % (drained,))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# rc452 (`#T1166`) — POPULATION B, BY VALUE AND BY TYPE.
+#
+# WHAT THIS FILE ALREADY MEASURED, AND WHAT IT DID NOT
+# ----------------------------------------------------
+# Everything above judges population B by EMITTED KIND: it reads `k` off the
+# wire and tallies. That is a statement about what C WROTE. It is not a
+# statement about what either projection BUILT from it — `_walk_kinds` never
+# calls `_reconstruct_value`, so a reader-side collapse is invisible to every
+# assertion above.
+#
+# rc452 moved exactly that seam: `_reconstruct_value` now rebuilds kind `q` as
+# `Q` where it used to return a `(num, den)` tuple. All 39 live `q` rows are in
+# THIS population and none are in population A (CEIL_UNEMITTED_IN_POPULATION_A
+# pins that). So the one axis rc452 changed had no value-level gate over the
+# rows it changed.
+#
+# ⚠️ TWO INDEPENDENT REASONS THE EXISTING GATE CANNOT SEE THIS, and the second
+# is the one that matters more.
+#
+#   (1) `==` IS COERCIVE. tests/test_chain_run_c_rc174 compares these same rows
+#       with `assert native == pure`. `Q.__eq__` goes through `_as_pair` and
+#       cross-multiplies, so ALL of these are True:
+#
+#           Q(5, 6) == (5, 6)      Q(5, 6) == [5, 6]
+#           Q(5, 6) == Q(10, 12)   Q(3, 1) == 3        Q(3, 1) == 3.0
+#
+#   (2) ⚠️ THE TWO PROJECTIONS SHARE THE READER, so on this population a
+#       C-vs-Python value comparison CANNOT detect a reader-side collapse AT
+#       ALL — not with `==`, and not with the typed comparator either. The pure
+#       Class-N ops dispatch to native per-op and rebuild through the SAME
+#       `_reconstruct_value`. MEASURED: with the `q` arm reverted to a tuple for
+#       denominators > 1000, the C side returns tuples AND `run_chain` returns
+#       tuples for the same rows, so `classify` reports 51/51 BYTE_IDENTICAL.
+#       The collapse is SYMMETRIC. A parity gate compares a thing to itself
+#       here, which is this arc's named defect wearing the shape of a
+#       cross-projection check.
+#
+# Therefore the load-bearing assertion below is NOT the divergence one — it is
+# `test_the_q_rows_are_present_and_are_the_exact_carrier`, which checks the
+# rebuilt TYPE against the CONTRACT rather than against the other projection.
+# An independent expectation is the only instrument that can still return
+# otherwise when both projections move together.
+#
+# MEASURED COST OF NOT HAVING THIS: the d > 1000 revert corrupts 32 of the 39
+# live rows and leaves tests/test_chain_run_c_rc174 (72 passed), this file's
+# kind census, the rc450 comparator and the rc452 pipeline test ALL GREEN —
+# 633 tests across the entire chain-run surface, zero failures.
+#
+# WHY `classify` AND NOT A LOCAL COMPARATOR. rc450 makes `_bits` reachable only
+# through `classify` inside its own module so a strict-witness / lax-population
+# split is inexpressible. Importing `classify` here keeps ONE comparator across
+# both populations; writing a second one is the split that discipline forbids,
+# one file over.
+
+#: DOWN-ONLY FLOOR, not a fixed count. Population B's row count grows when a
+#: catalog gains rows, and pinning equality would red on a legitimate addition
+#: while a DISAPPEARING row is the actual failure mode. MEASURED at rc452: 39.
+FLOOR_Q_ROWS_POPULATION_B = 39
+
+#: Population-B rows where the C projection and the pure projection disagree.
+#: ⚠️ Read the scope note above before trusting a green here: this axis is real
+#: (a C-SIDE fault does move it — reverting the C writer's `q` emission reds 50
+#: of 72 in test_chain_run_c_rc174) but it is BLIND to a shared-reader collapse.
+CEIL_POPULATION_B_DIVERGENT = 0
+
+
+def _census_b_valued():
+    """POPULATION B again — but carrying the VALUE from BOTH projections.
+
+    Mirrors :func:`_census_b`'s row derivation exactly (same sources, same ctx
+    shape, same spec lookup) and additionally runs the PURE projection and
+    classifies the pair. Rows are not re-derived by a second predicate: a
+    population that disagreed with the one three tests above it would make both
+    unfalsifiable.
+    """
+    from srmech.amsc import catalog
+
+    rows = []
+    acc = {"declared": 0, "compared": 0, "declined": 0, "pure_raised": 0}
+    lib = _compose._compose_lib("srmech_chain_run",
+                                "srmech_chain_run_arena_bytes")
+    assert lib is not None, "chain-run symbols absent — not a skip"
+    for src in ("pi_digits", "asymptotic_calculus", "cosmos_validation"):
+        chains = {c.name: c for c in catalog._load_catalog_chains(src)}
+        ds = catalog.get_attested_dataset(src)
+        for row in ds.get("rows", []):
+            data = dict(row.get("data") or {})
+            spec = chains.get(data.get("chain_id"))
+            if spec is None:
+                continue
+            acc["declared"] += 1
+            chain_dict = _compose._spec_to_chain_dict(spec)
+            ctx, ok = _compose._drop_oversized_ints({"row": data, "inputs": {}})
+            if not ok:
+                acc["declined"] += 1
+                continue
+            try:
+                cj = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
+                xj = json.dumps(ctx, ensure_ascii=False).encode("utf-8")
+            except (TypeError, ValueError):
+                acc["declined"] += 1
+                continue
+            n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
+            ws = (ctypes.c_char * n)()
+            cap = max(n // 2, 16384)
+            out = (ctypes.c_char * cap)()
+            ol = ctypes.c_size_t()
+            rc = int(lib.srmech_chain_run(cj, len(cj), xj, len(xj), ws, n,
+                                          out, cap, ctypes.byref(ol)))
+            wire = out.raw[:ol.value]
+            if rc != 0 or not wire:
+                acc["declined"] += 1
+                continue
+            desc = _compose._srmech_json.loads(wire.decode("utf-8"))
+            kind = desc.get("k") if isinstance(desc, dict) else None
+            try:
+                pure = _compose.run_chain(spec, row=data, inputs={})
+            except Exception as exc:                    # noqa: BLE001
+                acc["pure_raised"] += 1
+                rows.append({"src": src, "chain": spec.name, "kind": kind,
+                             "verdict": "PURE_RAISED_%s" % type(exc).__name__,
+                             "native": None, "pure": None, "wire": wire})
+                continue
+            acc["compared"] += 1
+            # THE SAME comparator population A uses. rc == 0 by construction here.
+            verdict = classify(0, wire, pure, py_serialisable=True)
+            rows.append({"src": src, "chain": spec.name, "kind": kind,
+                         "verdict": verdict,
+                         "native": _compose._reconstruct_value(desc),
+                         "pure": pure, "wire": wire})
+    return rows, acc
+
+
+@pytest.fixture(scope="module")
+def census_b_valued():
+    require_native("population-B VALUE parity (it runs the C projection)")
+    return _census_b_valued()
+
+
+def test_population_b_value_rows_reconcile(census_b_valued):
+    """Every declared row lands in exactly one bucket, and the buckets sum.
+
+    A shrinking compared-set is the quiet failure this reconciliation refuses:
+    without it, a population that stopped producing rows would report a cleaner
+    result than one that produced them and agreed.
+    """
+    rows, acc = census_b_valued
+    assert acc["declared"] > 0, "population B derived NO rows — nothing measured"
+    assert len(rows) == acc["compared"] + acc["pure_raised"], (
+        "row list and accounting disagree: %d rows vs compared=%d + raised=%d"
+        % (len(rows), acc["compared"], acc["pure_raised"]))
+    assert acc["declared"] == acc["compared"] + acc["pure_raised"] + acc["declined"], (
+        "a declared row vanished: %r" % (acc,))
+    assert acc["pure_raised"] == 0, (
+        "the PURE projection raised on rows the C projection ran: %s"
+        % [r["chain"] for r in rows if r["verdict"].startswith("PURE_RAISED")])
+
+
+def test_no_value_divergence_in_population_b(census_b_valued):
+    """C and pure agree BY TYPED BITS on every population-B row.
+
+    ⚠️ SCOPE, stated so a green here is not over-read. This catches a C-SIDE
+    fault (the C writer emitting a different kind, a wrong numerator, a dropped
+    step) — measured: reverting the C `q` emission reds 50 of 72 in
+    test_chain_run_c_rc174 and this row set with it. It does NOT catch a
+    READER-side collapse, because both projections rebuild through the same
+    `_reconstruct_value` and move together. That case is the next test's, and
+    the split is deliberate rather than a gap left open.
+    """
+    rows, _acc = census_b_valued
+    bad = [(r["src"], r["chain"], r["verdict"], r["native"], r["pure"])
+           for r in rows if r["verdict"] != "BYTE_IDENTICAL"]
+    assert len(bad) <= CEIL_POPULATION_B_DIVERGENT, (
+        "population-B rows where the two projections disagree: %r" % (bad,))
+
+
+def test_the_q_rows_are_present_and_are_the_exact_carrier(census_b_valued):
+    """⚠️ THE LOAD-BEARING ONE. `q` rows must EXIST and rebuild as `Q`.
+
+    This is the ONLY assertion in either population that can fail when both
+    projections collapse together, because it compares each rebuilt value to
+    the CONTRACT rather than to the other projection.
+
+    Two parts, deliberately separate:
+
+      * the FLOOR — if these rows vanish, the population stopped exercising the
+        exact-ℚ wire and every other assertion here goes vacuously green. Same
+        failure `test_q_is_emitted_by_an_executed_shipped_chain` guards on the
+        kind axis, restated on the value axis.
+      * the TYPE — `type(...) is Q`, NOT `isinstance` and NOT `==`. A tuple
+        subclass satisfies `isinstance`; EVERY value here satisfies `==`. Only
+        identity of type separates the rc451 collapse from the rc452 contract.
+
+    RED-PLANT that proves it fires: in `_reconstruct_value`, return
+    `(int(desc["n"]), int(desc["d"]))` instead of `_Q(...)` — either wholesale
+    or, harder, only when `int(desc["d"]) > 1000`. The partial form corrupts 32
+    of 39 live rows, passes 633 tests elsewhere on the chain-run surface, and
+    reds HERE.
+    """
+    rows, _acc = census_b_valued
+    q_rows = [r for r in rows if r["kind"] == "q"]
+    assert len(q_rows) >= FLOOR_Q_ROWS_POPULATION_B, (
+        "population B emitted %d `q` rows, floor is %d. If this is a deliberate "
+        "catalog change, LOWER the floor in the same commit and say why — a "
+        "silently shrinking exact-ℚ population makes this whole section vacuous."
+        % (len(q_rows), FLOOR_Q_ROWS_POPULATION_B))
+    wrong = [(r["chain"], type(r["native"]).__name__, type(r["pure"]).__name__)
+             for r in q_rows
+             if type(r["native"]) is not _Q or type(r["pure"]) is not _Q]
+    assert not wrong, (
+        "wire kind `q` did not rebuild as the exact-ℚ carrier on both sides: %r. "
+        "This is the rc451 collapse: a `q` rebuilt as a 2-tuple is "
+        "indistinguishable from a Class-K pin pair or a Class-B `pair` step, and "
+        "neither `==` nor a cross-projection comparison can see it." % (wrong,))
+
+
+def test_an_equality_comparator_would_NOT_catch_the_collapse():
+    """CONTROL — prove the typed comparator is stronger than the shipped `==`.
+
+    A ratchet whose added strictness is never demonstrated is indistinguishable
+    from a duplicate of the gate beside it. This asserts BOTH directions on the
+    real carrier: `==` says same, typed `_bits` says different. If `Q.__eq__`
+    ever tightened, this control FAILS and tells you the rc174 gate became
+    sufficient on axis (1) — a real change worth being told about, not a silent
+    relaxation.
+    """
+    collapses = [
+        (_Q(5, 6), (5, 6), "tuple — what rc451 rebuilt"),
+        (_Q(5, 6), [5, 6], "list — the CR_LIST spelling"),
+        (_Q(3, 1), 3,      "int — an integral rational"),
+    ]
+    for exact, collapsed, why in collapses:
+        assert exact == collapsed, (
+            "premise failed for %s: `==` already separates these, so the rc174 "
+            "gate is not blind on this pair and this control is stale" % why)
+        assert classify(0, b'{"k": "q", "n": "%d", "d": "%d"}'
+                        % (exact.numerator, exact.denominator),
+                        collapsed) == "DIVERGENT", (
+            "the TYPED comparator failed to reject the %s collapse" % why)

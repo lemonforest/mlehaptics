@@ -285,3 +285,203 @@ def test_every_running_chain_has_a_mutation_or_is_named():
         "exemption: %s" % uncovered)
     stale = sorted(set(exempt) - running)
     assert not stale, "exempted chains that no longer run: %s" % stale
+
+# ══════════════════════════════════════════════════════════════════════════════
+# rc452 (`#T1166`) — TWO SEAMS THE COVERAGE TEST ABOVE LEAVES OPEN.
+#
+# `test_every_running_chain_has_a_mutation_or_is_named` is the right ratchet on
+# the right axis, and it is narrower than it reads in two ways:
+#
+#   SEAM 1 — IT SEES ONE VARIANT AND ONE CASE. `_shipped(nm)` takes
+#       `_chain_entries(...)[0]` and `proof_cases[0]`. The live population is 18
+#       chains / 20 VARIANTS / 98 proof cases, so "runs in C" is decided by 18 of
+#       98 rows. A chain whose FIRST variant declines while a LATER one runs is
+#       recorded as not-running and is therefore never asked for a witness.
+#       ⚠️ MEASURED at rc452 this is LATENT, not live: the only two multi-variant
+#       chains are `klein4_from_one` (rest, wound) and `kuramoto_step` (general,
+#       simple), and all four variants are C-rejected on every one of their 17
+#       proof cases. So the seam costs nothing TODAY and silently opens the day
+#       either one is unblocked — which is exactly when the witness is needed.
+#       Recorded as a live-zero rather than left implicit, because a gate that
+#       happens to be adequate is not the same as one that is.
+#
+#   SEAM 2 — IT IS CHAIN-LEVEL, NOT STEP-LEVEL. One mutation per chain proves
+#       ONE literal in ONE step is read. `best_rational_signed` has SIX steps and
+#       two mutations; `chiral_dual` has three steps and one. Nothing pins that
+#       the remaining steps are read at all, which is the same coarse-dispatch
+#       question this file exists for, asked at the granularity where the answer
+#       could still be no.
+# ══════════════════════════════════════════════════════════════════════════════
+
+BOGUS_OP = "__no_such_op_rc452_step_drive__"
+
+
+def _all_running_rows():
+    """(name, variant, entry, inputs) for EVERY variant x EVERY proof case that
+    runs in C — not `[0]` of either.
+
+    This is the predicate `test_every_running_chain_has_a_mutation_or_is_named`
+    should have used; it is factored out so the coverage test and the step-drive
+    test cannot drift onto different populations.
+    """
+    catalog = _cat.load_catalog()
+    rows = []
+    for nm in sorted(catalog):
+        if _cc.descriptor_status(catalog[nm]) != "executable":
+            continue
+        for variant, _spec, entry in _cc.cascade_chain_specs(nm):
+            chain = _chain_only(entry)
+            for j, case in enumerate(entry.get("proof_cases") or []):
+                inputs = dict(case.get("inputs") or {})
+                try:
+                    rc, _val = _c_value(chain, inputs)
+                except Exception:                      # noqa: BLE001
+                    continue
+                if rc == 0:
+                    rows.append((nm, variant, entry, inputs))
+    return rows
+
+
+def test_mutation_coverage_over_every_variant_and_case():
+    """SEAM 1. Coverage decided over the FULL population, not `[0]` of each.
+
+    Same exempt map and same MUTATIONS as the test above — deliberately, so the
+    two cannot disagree about what is covered. The only thing that widens is the
+    set of chains asked.
+
+    RED-PLANT that proves it fires: delete the `("cyclic_mod_add", ...)` row from
+    MUTATIONS. `cyclic_mod_add` runs in C on all four of its proof cases, so it
+    lands in `running`, is not exempt, and this reds naming it. (The same plant
+    reds the narrower test too — that is the point: this one must not be WEAKER,
+    only wider.)
+    """
+    covered = {m[0] for m in MUTATIONS}
+    exempt = {
+        "cyclic_mod_inv": "single op, no second op shares its (a, n) arity",
+        "cyclic_mod_mul_wide": "routes to the SAME arm as cyclic_mod_mul",
+        "cyclic_mod_pow": "swapping in mod_mul changes the arg NAMES (k vs b)",
+    }
+    rows = _all_running_rows()
+    assert rows, "no chain ran in C — the coverage claim would be vacuous"
+    running = {nm for nm, _v, _e, _i in rows}
+    uncovered = sorted(running - covered - set(exempt))
+    assert not uncovered, (
+        "these chains run in C on at least one (variant, proof case) with no "
+        "step-mutation witness and no stated exemption: %s" % uncovered)
+    stale = sorted(set(exempt) - running)
+    assert not stale, "exempted chains that no longer run: %s" % stale
+
+
+def _step_paths(steps, prefix=()):
+    """(path, op_key) for every step AT FULL DEPTH, recursing nested `body`.
+
+    ⚠️ TWO TRAPS, both of which have produced a wrong census in this arc.
+
+    * A FLAT walk over `steps` misses map/fold bodies entirely. On the shipped
+      catalog a flat walk sees 72 steps where the recursive one sees 134.
+    * THE OP KEY IS NOT ALWAYS `op`. A plain step spells it `op`; a FOLD step
+      spells it `fold_op`; a MAP step has NEITHER — it is a container whose
+      `body` carries the real ops. Writing `op` onto a fold step injects a
+      FOREIGN KEY, and the rejection that follows means "this document is
+      malformed", not "the runner read your op". Conflating those makes the
+      fold rows of this gate meaningless.
+    """
+    out = []
+    for i, st in enumerate(steps or []):
+        if not isinstance(st, dict):
+            continue
+        p = prefix + (i,)
+        key = "op" if "op" in st else ("fold_op" if "fold_op" in st else None)
+        if key is not None:
+            out.append((p, key))
+        body = st.get("body")
+        if isinstance(body, list):
+            out.extend(_step_paths(body, p + ("body",)))
+    return out
+
+
+def _at(chain, path):
+    node = chain["steps"]
+    for k in path:
+        node = node["body"] if k == "body" else node[k]
+    return node
+
+
+def test_every_step_of_every_running_chain_is_actually_read():
+    """SEAM 2. Point each step's op at a name nothing can resolve; it must react.
+
+    A step that can be replaced with an unresolvable op while the chain still
+    returns rc == 0 AND the identical value is a step the runner never read —
+    the coarse-dispatch signature, at the granularity the chain-level witness
+    cannot reach.
+
+    ⚠️ A STEP IS JUDGED OVER ALL ITS PROOF CASES, NOT case[0]. `net_chirality`'s
+    fold is genuinely vacuous on `{"orientations": []}` — an empty fold returns
+    `fold_init` without ever invoking `fold_op`, so a bogus op there is correctly
+    a no-op. Judging that step on case[0] alone reports a false DEAD. It reacts
+    on all six non-empty cases. This is the same vacuity that rc447's
+    `_widen_dead_band` mutation hit on `best_rational_signed` case 6, and the
+    same answer: require the reaction on SOME case, not on an arbitrary one.
+
+    MEASURED at rc452: 18 steps over 10 running chains, every one reacts.
+
+    RED-PLANT that proves it fires: in the C interpreter's op resolver
+    (`cr_dispatch` / `cr_dispatch_real` in src/srmech_compose_run.c) return
+    SRMECH_OK with the input passed through instead of NOT_IMPL for an
+    unresolved op. Every step then accepts a bogus name, the value does not
+    move, and this reds naming each step. A cheaper Python-side plant: make
+    `_step_paths` return `[]` — the self-check below reds first, which is what
+    it is for.
+    """
+    by_chain = {}
+    for nm, variant, entry, inputs in _all_running_rows():
+        by_chain.setdefault((nm, variant, id(entry)), [entry, []])[1].append(inputs)
+
+    probed = reacted = 0
+    dead = []
+    for (nm, variant, _k), (entry, input_list) in sorted(
+            by_chain.items(), key=lambda kv: (kv[0][0], kv[0][1])):
+        base = _chain_only(entry)
+        for path, opkey in _step_paths(base.get("steps")):
+            probed += 1
+            moved = False
+            for inputs in input_list:
+                rc_b, val_b = _c_value(base, inputs)
+                if rc_b != 0:
+                    continue
+                mutant = copy.deepcopy(base)
+                _at(mutant, path)[opkey] = BOGUS_OP
+                rc_m, val_m = _c_value(mutant, inputs)
+                # EITHER reaction counts as "the step was read": the runner
+                # declined the unresolvable op, or it ran and the value moved.
+                if rc_m != 0 or _bits_of(val_m) != _bits_of(val_b):
+                    moved = True
+                    break
+            if moved:
+                reacted += 1
+            else:
+                dead.append("%s/%s step[%s].%s"
+                            % (nm, variant,
+                               ".".join(str(x) for x in path), opkey))
+
+    # SELF-CHECK FIRST: a probe that reached no step would report a clean zero.
+    assert probed > 0, (
+        "no step was probed — either no chain runs in C or _step_paths walked "
+        "nothing, and a green here would mean neither")
+    assert reacted > 0, (
+        "NO step reacted to an unresolvable op name. The mutation is not "
+        "reaching the document at all and every row below is an artifact")
+    assert not dead, (
+        "these steps accept an unresolvable op on EVERY proof case with no "
+        "change in outcome — the C runner is not reading them: %s" % dead)
+
+
+def _bits_of(v):
+    """Typed identity for the step-drive comparison — never `==`.
+
+    `_c_value` returns RECONSTRUCTED values, so a step whose mutation turns
+    `Q(5, 6)` into `(5, 6)` must count as MOVED. `==` says those are equal (it
+    cross-multiplies through `_as_pair`) and would score that step DEAD.
+    """
+    from test_c_cascade_value_parity_rc450 import _bits as _b
+    return _b(v)
