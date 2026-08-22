@@ -270,40 +270,118 @@ static cr_value_t *cr_json_scalar(cr_bump_t *b, const srmech_json_value_t *j)
     if (j->type == SRMECH_JSON_INT) { return cr_int_i64(b, j->u.i); }
     if (j->type == SRMECH_JSON_DOUBLE) { return cr_dbl(b, j->u.f); }
     if (j->type == SRMECH_JSON_NULL) { return cr_new_value(b, CR_NONE); }
-    if (j->type != SRMECH_JSON_STRING) { return NULL; }   /* array / obj / bool */
+    /* BOOL -> CR_INT 0/1 (v0.9.0rc452, `#T1166`).
+     *
+     * ⚠️ THIS GAP WAS NAMED BY NO LISTED GATE. Through rc451 a BOOL arg returned
+     * NULL here, so BOTH DFT chains deferred WHOLE — their proof cases pass
+     * `inverse: false` (and `left` on the quaternion side) — and the rejection
+     * was attributed to the op table and the carrier width, which were also
+     * true and which no amount of work on would have released the chain.
+     *
+     * NO OUTPUT KIND IS ADDED, and that is MEASURED rather than assumed: over
+     * the 21 packaged descriptors, ZERO declare a bool return (the census also
+     * says bools appear ONLY as inputs, on exactly octonion_dft.inverse,
+     * quaternion_dft.inverse and quaternion_dft.left). So a bool can enter and
+     * be consumed but can never be the value that crosses the wire, and
+     * carrying it as CR_INT cannot silently change an output type. Python
+     * agrees on the arithmetic — `bool` IS an `int` subclass there, so
+     * `int(False) == 0` is the same coercion, not a C-side convention.
+     * If a chain ever DOES declare a bool return, this comment is the reason
+     * it needs its own kind letter rather than riding `i`. */
+    if (j->type == SRMECH_JSON_BOOL) { return cr_int_i64(b, j->u.b ? 1 : 0); }
+    if (j->type != SRMECH_JSON_STRING) { return NULL; }   /* array / object */
     out = cr_new_value(b, CR_STR);
     if (out == NULL) { return NULL; }
     out->s = j->u.str.ptr; out->slen = j->u.str.len;
     return out;
 }
 
-/* Convert an ARRAY json node to a flat CR_LIST of scalars (one level; a nested
- * array element → NULL → defer). No recursion. */
-static cr_value_t *cr_json_list(cr_bump_t *b, const srmech_json_value_t *j)
+/* ------------------------------------------------------------------
+ * NESTED VALUE INGEST (v0.9.0rc452, `#T1166`) — depth-bounded, explicit stack.
+ *
+ * Through rc451 an array ingested ONE level: `cr_json_list` called
+ * `cr_json_scalar` per element and a nested array element returned NULL, so the
+ * whole chain deferred. That is gap-ledger row `chain_run_list_is_flat_only`,
+ * and it is wider than the two DFT chains the BLOCKED table attributes it to —
+ * klein4's depth-2 bind literals, kuramoto-general's `adjacency`, and schur's
+ * `L` all need it too.
+ *
+ * ⚠️ NO NEW KIND, NO READER CHANGE. Nesting is a CR_LIST holding CR_LISTs; the
+ * `l` kind already exists and Python's `_reconstruct_value` has been recursive
+ * all along. So this widens a CAPABILITY, not a discriminator — which is why
+ * the gap-ledger row carries new_type=false and why no ABI implication follows
+ * from this half.
+ *
+ * ⚠️ WHY A STACK AND NOT RECURSION. JPL Rule 1 bans new recursion, and the
+ * obvious shape here (a walker that re-enters itself per element) is exactly
+ * that. The frame array is carved from the CALLER ARENA (Rule 3: no malloc) and
+ * the depth is capped by an assert. Cap 4 against a MEASURED maximum of 2 over
+ * every packaged descriptor's proof cases — generous, and bounded, so an
+ * adversarial document cannot walk the stack off its end.
+ * ------------------------------------------------------------------ */
+
+#define CR_MAX_DEPTH 4u
+
+typedef struct {
+    const srmech_json_value_t *node;   /* the ARRAY being ingested */
+    cr_value_t *val;                   /* its CR_LIST carrier */
+    uint32_t i;                        /* next child slot */
+} cr_iframe_t;
+
+/* Carve a CR_LIST carrier sized for `n` items. NULL on overflow. */
+static cr_value_t *cr_list_of(cr_bump_t *b, uint32_t n)
 {
-    cr_value_t *out; cr_value_t **items; uint32_t i;
+    cr_value_t *v;
+    assert(b != NULL);
+    assert(b->cur <= b->end);
+    v = cr_new_value(b, CR_LIST);
+    if (v == NULL) { return NULL; }
+    v->n = n;
+    v->items = (cr_value_t **)cr_carve(b, (size_t)n * sizeof(void *) + sizeof(void *));
+    return (v->items == NULL) ? NULL : v;
+}
+
+/* Ingest an ARRAY node to a (possibly nested) CR_LIST. NULL → defer. */
+static cr_value_t *cr_json_nested(cr_bump_t *b, const srmech_json_value_t *j)
+{
+    cr_iframe_t st[CR_MAX_DEPTH]; uint32_t sp = 0u;
     assert(b != NULL && j != NULL);
     assert(j->type == SRMECH_JSON_ARRAY);
-    out = cr_new_value(b, CR_LIST);
-    if (out == NULL) { return NULL; }
-    out->n = j->u.arr.n;
-    items = (cr_value_t **)cr_carve(b, (size_t)out->n * sizeof(void *) + 1u);
-    if (items == NULL) { return NULL; }
-    for (i = 0u; i < out->n; i++) {
-        items[i] = cr_json_scalar(b, j->u.arr.items[i]);   /* NO recursion */
-        if (items[i] == NULL) { return NULL; }
+    st[0].node = j; st[0].val = cr_list_of(b, j->u.arr.n); st[0].i = 0u;
+    if (st[0].val == NULL) { return NULL; }
+    sp = 1u;
+    while (sp > 0u) {
+        cr_iframe_t *f = &st[sp - 1u];
+        if (f->i < f->node->u.arr.n) {
+            const srmech_json_value_t *ch = f->node->u.arr.items[f->i];
+            if (ch != NULL && ch->type == SRMECH_JSON_ARRAY) {
+                if (sp >= CR_MAX_DEPTH) { return NULL; }   /* too deep → defer */
+                st[sp].node = ch; st[sp].val = cr_list_of(b, ch->u.arr.n);
+                st[sp].i = 0u;
+                if (st[sp].val == NULL) { return NULL; }
+                sp++;                       /* parent's i advances on POP */
+                continue;
+            }
+            f->val->items[f->i] = cr_json_scalar(b, ch);
+            if (f->val->items[f->i] == NULL) { return NULL; }
+            f->i++;
+            continue;
+        }
+        sp--;                               /* frame complete */
+        if (sp == 0u) { return st[0].val; }
+        st[sp - 1u].val->items[st[sp - 1u].i] = f->val;
+        st[sp - 1u].i++;
     }
-    out->items = items;
-    return out;
+    return st[0].val;
 }
 
 /* Convert a resolved JSON node (from a @row/@input walk) to a value carrier:
- * a flat list, else a scalar. NULL → defer. */
+ * a (possibly nested) list, else a scalar. NULL → defer. */
 static cr_value_t *cr_json_to_value(cr_bump_t *b, const srmech_json_value_t *j)
 {
     assert(b != NULL);
     assert(j == NULL || j->type <= SRMECH_JSON_OBJECT);
-    if (j != NULL && j->type == SRMECH_JSON_ARRAY) { return cr_json_list(b, j); }
+    if (j != NULL && j->type == SRMECH_JSON_ARRAY) { return cr_json_nested(b, j); }
     return cr_json_scalar(b, j);
 }
 
@@ -374,7 +452,15 @@ static cr_value_t *cr_resolve_ref(cr_ctx_t *c, const char *ref, uint32_t len)
     return NULL;   /* @catalog / @op / @bind / @idx or unknown → defer */
 }
 
-/* A list ELEMENT: a `@...` ref or a scalar literal (no nesting → no recursion). */
+/* A list ELEMENT: a `@...` ref, a NESTED array literal, or a scalar literal.
+ *
+ * The nested arm rides cr_json_nested's explicit stack, so still no recursion.
+ * It carries LITERALS only — a ref inside a nested literal would need the ctx,
+ * which cr_json_nested deliberately does not take. Measured over the packaged
+ * descriptors: nested literals (kuramoto-general `adjacency`, schur `L`, the
+ * klein4 bind literals) are pure data, and refs appear only at the top level or
+ * as whole args. A ref nested inside an array literal therefore declines rather
+ * than resolving wrongly. */
 static cr_value_t *cr_resolve_elem(cr_ctx_t *c, const srmech_json_value_t *j)
 {
     assert(c != NULL);
@@ -384,6 +470,7 @@ static cr_value_t *cr_resolve_elem(cr_ctx_t *c, const srmech_json_value_t *j)
         j->u.str.ptr[0] == '@') {
         return cr_resolve_ref(c, j->u.str.ptr, j->u.str.len);
     }
+    if (j->type == SRMECH_JSON_ARRAY) { return cr_json_nested(c->b, j); }
     return cr_json_scalar(c->b, j);
 }
 
@@ -1782,19 +1869,15 @@ static srmech_json_value_t *cr_desc_scalar(srmech_json_builder_t *bd,
  * the placeholder as an eighth emitted kind and went red. The gate returning
  * otherwise on a comment is the gate being a measurement — so the comment
  * moved, not the predicate.) */
-static srmech_json_value_t *cr_desc_list(srmech_json_builder_t *bd,
-                                         const cr_value_t *v, cr_bump_t *tmp)
+/* Close ONE completed list frame into its {"k": l|t, "v": [...]} object. Split
+ * out so the walker below stays well inside JPL Rule 4. */
+static srmech_json_value_t *cr_desc_close(srmech_json_builder_t *bd,
+                                          const cr_value_t *v,
+                                          srmech_json_value_t **items)
 {
     const char *keys[2]; srmech_json_value_t *vals[2];
-    srmech_json_value_t **items; uint32_t i;
     assert(bd != NULL && v != NULL);
-    assert(v->kind == CR_LIST);
-    items = (srmech_json_value_t **)cr_carve(tmp, (size_t)v->n * sizeof(void *) + 1u);
-    if (items == NULL) { return NULL; }
-    for (i = 0u; i < v->n; i++) {
-        items[i] = cr_desc_scalar(bd, v->items[i], tmp);   /* NO recursion */
-        if (items[i] == NULL) { return NULL; }
-    }
+    assert(items != NULL || v->n == 0u);
     keys[0] = "k"; keys[1] = "v";
     if (v->is_tuple) {
         vals[0] = srmech_json_new_string(bd, "t", 1u);
@@ -1804,6 +1887,64 @@ static srmech_json_value_t *cr_desc_list(srmech_json_builder_t *bd,
     vals[1] = srmech_json_new_array(bd, items, v->n);
     if (vals[0] == NULL || vals[1] == NULL) { return NULL; }
     return srmech_json_new_object(bd, keys, vals, 2u);
+}
+
+typedef struct {
+    const cr_value_t *v;             /* the CR_LIST being marshalled */
+    srmech_json_value_t **items;     /* its built children */
+    uint32_t i;                      /* next child slot */
+} cr_mframe_t;
+
+/* Marshal a (possibly NESTED) CR_LIST. POST-ORDER over an explicit frame stack:
+ * a JSON array node cannot be built until all its children exist, so a frame
+ * closes only when its last child has.
+ *
+ * ⚠️ THIS IS THE WRITER HALF OF `chain_run_list_is_flat_only`, AND IT WAS THE
+ * HALF WITH TEETH. The rc451 version looped `cr_desc_scalar` over the elements
+ * and returned NULL for a CR_LIST element — its comment reasoned that a list
+ * "is flat by construction and a nested element cannot arise", which was TRUE
+ * only because the INGEST could not build one. The two halves propped each
+ * other up: widening either alone yields a chain that runs and cannot report.
+ * Both move in this commit for that reason. */
+static srmech_json_value_t *cr_desc_list(srmech_json_builder_t *bd,
+                                         const cr_value_t *v, cr_bump_t *tmp)
+{
+    cr_mframe_t st[CR_MAX_DEPTH]; uint32_t sp;
+    assert(bd != NULL && v != NULL);
+    assert(v->kind == CR_LIST);
+    st[0].v = v; st[0].i = 0u;
+    st[0].items = (srmech_json_value_t **)cr_carve(
+        tmp, (size_t)v->n * sizeof(void *) + sizeof(void *));
+    if (st[0].items == NULL) { return NULL; }
+    sp = 1u;
+    while (sp > 0u) {
+        cr_mframe_t *f = &st[sp - 1u];
+        if (f->i < f->v->n) {
+            const cr_value_t *ch = f->v->items[f->i];
+            if (ch != NULL && ch->kind == CR_LIST) {
+                if (sp >= CR_MAX_DEPTH) { return NULL; }
+                st[sp].v = ch; st[sp].i = 0u;
+                st[sp].items = (srmech_json_value_t **)cr_carve(
+                    tmp, (size_t)ch->n * sizeof(void *) + sizeof(void *));
+                if (st[sp].items == NULL) { return NULL; }
+                sp++;                    /* parent's i advances on POP */
+                continue;
+            }
+            f->items[f->i] = cr_desc_scalar(bd, ch, tmp);
+            if (f->items[f->i] == NULL) { return NULL; }
+            f->i++;
+            continue;
+        }
+        {   /* frame complete → close it into the parent, or return it */
+            srmech_json_value_t *node = cr_desc_close(bd, f->v, f->items);
+            if (node == NULL) { return NULL; }
+            sp--;
+            if (sp == 0u) { return node; }
+            st[sp - 1u].items[st[sp - 1u].i] = node;
+            st[sp - 1u].i++;
+        }
+    }
+    return NULL;                          /* unreachable: sp starts at 1 */
 }
 
 /* Marshal any carrier to its value descriptor. */

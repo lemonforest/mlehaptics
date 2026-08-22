@@ -487,6 +487,94 @@ int main(void)
               "answers there with a bignum, so C must refuse, not narrow");
     }
 
+    /* ─────────────────────────────────────────────────────────────────
+     * rc452 (`#T1166`) — THE DEPTH-BOUNDED VALUE SPINE, on a bare-C host.
+     *
+     * ⚠️ WHY THESE ASSERT LITERAL WIRE BYTES. Every other check of this
+     * capability compares C against Python — and `resolve_chain` runs the
+     * NATIVE path first and returns `_reconstruct_value`'s output, so both
+     * "projections" pass through ONE reader. Measured this arc: a planted
+     * reader collapse left the classifier reporting 51/51 BYTE_IDENTICAL
+     * while 32 of 39 rows rebuilt as the wrong type. A C-vs-Python compare
+     * cannot see a defect both sides route through, at any strictness. A
+     * hand-written expected descriptor can, and there is no Python in this
+     * process at all.
+     *
+     * Nesting rides the EXISTING `l` kind — Python's reader has always been
+     * recursive — so this widens a capability, not a discriminator, and adds
+     * no kind letter.
+     * ───────────────────────────────────────────────────────────────── */
+    {
+        static const char nest_chain[] =
+            "{\"name\":\"p\",\"steps\":[{\"class\":\"B\",\"op\":\"pair\","
+            "\"args\":{\"first\":\"@input.a\",\"second\":\"@input.b\"}}]}";
+
+        st = run_chain(nest_chain,
+                       "{\"inputs\":{\"a\":[[1,2],[3]],\"b\":5}}",
+                       out, sizeof(out));
+        /* ⚠️ THE SEPARATORS CARRY SPACES — `", "` and `": "`. That is the
+         * shipped writer's canonical form, and it is asserted here in FULL
+         * rather than by strstr on a fragment, so the whole descriptor
+         * (nesting, order, key set, every scalar) is pinned rather than one
+         * substring of it. The compact spelling was written first and this
+         * check caught it, which is the difference between a strcmp and the
+         * strstr the older cases in this file use. */
+        check(st == SRMECH_OK &&
+              strcmp(out,
+                     "{\"k\": \"t\", \"v\": [{\"k\": \"l\", \"v\": ["
+                     "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": \"1\"}, "
+                     "{\"k\": \"i\", \"v\": \"2\"}]}, "
+                     "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": \"3\"}]}]}, "
+                     "{\"k\": \"i\", \"v\": \"5\"}]}") == 0,
+              "a depth-2 nested list INGESTS and MARSHALS to depth-3 wire "
+              "bytes, compared against a literal descriptor with no Python "
+              "reader in the loop");
+
+        /* BOOL ingest. Through rc451 cr_json_scalar returned NULL on
+         * SRMECH_JSON_BOOL, so BOTH DFT chains deferred WHOLE on their
+         * `inverse: false` argument — a gap NO listed gate named, attributed
+         * instead to the op table and carrier width (both also true, and
+         * neither of which could have released the chain). */
+        st = run_chain(nest_chain,
+                       "{\"inputs\":{\"a\":true,\"b\":false}}",
+                       out, sizeof(out));
+        check(st == SRMECH_OK &&
+              strcmp(out,
+                     "{\"k\": \"t\", \"v\": [{\"k\": \"i\", \"v\": \"1\"}, "
+                     "{\"k\": \"i\", \"v\": \"0\"}]}") == 0,
+              "a JSON bool INGESTS as 0/1 — matching Python, where bool IS an "
+              "int subclass, so this is the same coercion and not a C-side "
+              "convention. No output kind is added: measured over all 21 "
+              "descriptors, ZERO declare a bool return");
+
+        /* A nested LITERAL arg, not a reference — the other ingest path
+         * (cr_resolve_elem), which had its own flat-only limit. */
+        st = run_chain(
+            "{\"name\":\"p\",\"steps\":[{\"class\":\"B\",\"op\":\"pair\","
+            "\"args\":{\"first\":[[1.5,2.5],[3.5]],\"second\":0}}]}",
+            "{\"inputs\":{}}", out, sizeof(out));
+        check(st == SRMECH_OK &&
+              strcmp(out,
+                     "{\"k\": \"t\", \"v\": [{\"k\": \"l\", \"v\": ["
+                     "{\"k\": \"l\", \"v\": [{\"k\": \"f\", \"v\": 1.5}, "
+                     "{\"k\": \"f\", \"v\": 2.5}]}, "
+                     "{\"k\": \"l\", \"v\": [{\"k\": \"f\", \"v\": 3.5}]}]}, "
+                     "{\"k\": \"i\", \"v\": \"0\"}]}") == 0,
+              "a nested ARRAY LITERAL in args ingests too, not only a nested "
+              "@input reference");
+
+        /* NEGATIVE CONTROL. The cap must DECLINE, never truncate — a
+         * truncating walker would return a well-formed descriptor holding
+         * fewer levels than the input had, which is a silent wrong answer of
+         * exactly the class this arc exists to close. */
+        st = run_chain(nest_chain,
+                       "{\"inputs\":{\"a\":[[[[[1]]]]],\"b\":0}}",
+                       out, sizeof(out));
+        check(st != SRMECH_OK,
+              "past the depth cap the ingest DECLINES to the pure path rather "
+              "than silently truncating the nesting");
+    }
+
     printf("== bare-C chain-run: %d passed, %d failed ==\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;
 }
