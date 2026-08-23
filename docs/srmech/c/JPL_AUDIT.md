@@ -51,18 +51,21 @@ DOWN but not UP.
 |   6  | Smallest possible scope for data                  | 0        | ✅ pass |
 |   7  | Return values checked / parameters validated      | 0        | ✅ pass |
 |   8  | Limited preprocessor (no multiline macros)        | 0        | ✅ pass |
-|   9  | Pointer dereference depth ≤ 1; no function ptrs* | n/a      | partial — see note |
+|   9  | Pointer dereference depth ≤ 1; no function ptrs* | deref 0; **fn-ptr 10** | ⚠️ **partial** — deref depth clean; 10 function-pointer declarator sites under a seeded down-only ratchet (rc452; see Rule 9 below) |
 |  10  | Compile clean at most-pedantic warning level      | 0        | ✅ pass (`SRMECH_PEDANTIC=ON` CMake + CI matrix) |
 
-\* Rule 9 partial: `srmech_ndjson_iter` accepts a function pointer
-(`srmech_ndjson_line_cb`). This is a deliberate trade-off, see
-Rule 9 section below.
+\* Rule 9's function-pointer half was UNMEASURED until rc452, and the "one
+deliberate deviation" this line used to claim was false long before that —
+see the measured census in the Rule 9 section below.
 
-**Headline (corrected at v0.9.0rc441, `#T1148`):** Eight of the ten rules are
-clean. **Rule 1 is PARTIAL** — the goto/setjmp/longjmp half is clean, the
-recursion half carries a measured population of 9 depth-bounded cycles under a
-down-only ratchet. Rule 9 carries one deliberate deviation (callback-based
-iterator).
+**Headline (corrected at v0.9.0rc441 `#T1148`, and again at rc452):** Eight of
+the ten rules are clean. **Rule 1 is PARTIAL** — the goto/setjmp/longjmp half
+is clean, the recursion half carries a measured population of 9 depth-bounded
+cycles under a down-only ratchet. **Rule 9 is PARTIAL** — the
+dereference-depth half is clean, the function-pointer half carries a measured
+population of 10 declarator sites under a seeded down-only ratchet (this
+document said "one deliberate deviation" while the tree carried 12; rc452
+measured it, drained 4, and gated the rest).
 
 This headline read *"All ten JPL Power-of-Ten rules satisfied"* through rc440.
 It was **not** true, and the reason it survived is worth recording: the Rule 1
@@ -591,7 +594,7 @@ Return-value checks at every internal-callsite:
 
 > *"The use of pointers should be restricted. Specifically, no more than one level of dereferencing should be used. Pointer dereference operations may not be hidden in macro definitions or inside typedef declarations. Function pointers are not permitted."*
 
-### Status: **Partial — one deliberate deviation**
+### Status: **Partial — measured population of 10 under a seeded down-only ratchet (rc452)**
 
 #### Dereference depth: 0 violations
 
@@ -599,37 +602,71 @@ No `**ptr` syntax appears anywhere; all pointer indirection is
 single-level. The `size_t *line_len_inout, size_t *lineno_inout`
 parameters to `srmech_ndjson_process_chunk` are single-level —
 the caller passes addresses of local stack variables.
+(`cr_value_t **out` output parameters are a write-through-one-level
+out-slot, the same shape.)
 
-#### Function pointers: 1 deliberate deviation
+#### Function pointers: the rc452 census, and what this section used to claim
 
-`srmech_ndjson_iter` takes a `srmech_ndjson_line_cb` callback
-function pointer.
+Through rc451 this section said **"1 deliberate deviation"**
+(`srmech_ndjson_line_cb`). That sentence was written at Phase B6, when it was
+true, and it survived because *nothing measured the rule*:
+`tests/test_jpl_audit.py` mechanically checks Rules 1/3/4/5/8, and Rule 9 had
+no detector at all — the same "believed absent rather than known clean" shape
+Rule 1's recursion half had until rc441. Meanwhile the tree grew — including
+**`IV_VTABLE`** in `src/srmech_invoke.c`, a **38-row name-to-function-pointer
+dispatch table shipped since ~rc189** — and nothing contradicted the sentence.
 
-**Rationale for deviation:** The callback enables the Python ctypes
-binding to receive lines without copying through an intermediate
-C-side dynamic structure (which would violate Rule 3). The Python
-side wraps the callback in a `CFUNCTYPE` and collects lines into a
-list. Removing the callback would require either:
+**The census** (rc452; masked scan over `src/*.c` + `src/*.h` +
+`include/*.h`, 150 files, comments/strings/chars blanked, declarator pattern
+`(*name)(`):
 
-1. A pre-allocated caller-supplied output array of structs *and*
-   length, which the C code populates — but this requires the
-   caller to know the line count in advance (impossible without
-   a first pass over the file), OR to pass a maximum count + indicate
-   truncation;
-2. Or batched IO with the caller passing buffers per-batch and
-   draining them — equivalent to a callback but with extra book-
-   keeping.
+* **Before the A1 dispatch: 14 declarator sites across 5 files**, of which
+  **12 predated rc452** — so the "passes with one deviation" claim was
+  already false before this rc; rc452's first cut (the `CR_OP_REG`
+  function-pointer columns) had grown the undocumented population from 12
+  to 14.
+* **After the A1 dispatch: 10 sites across 4 files.**
+  `src/srmech_compose_run.c` went **4 → 0**: the two rc452-new table
+  typedefs (`cr_op_fn_t` / `cr_bin_fn_t`), plus two sites that predated
+  rc452 (`cr_series_fn_t` and `cr_op_dseq`'s inline function-pointer
+  parameter), all replaced by small-int enum columns / parameters plus
+  bounded per-domain switches with **no `default:` arm** — so gcc/clang's
+  `-Wswitch` under `-Werror`, and MSVC's `/w44062` under `/WX` (C4062 is off
+  by default even at `/W4`; measured, and added to `SRMECH_PEDANTIC`), make
+  "row added, case forgotten" a **compile error**. The A1 shape is also
+  *smaller*: the fourteen seven-line uniform-shape wrapper functions existed
+  only to feed the function-pointer column, and deleted with it.
 
-The callback shape is the smallest API surface that lets srmech
-satisfy Rules 3 + 4 without imposing Pyrrhic constraints on the
-caller. It is functionally equivalent to a coroutine and behaves
-the same at every callsite (single Python target, single C-side
-parity test).
+**The remaining population, seeded** (`RULE_9_FN_PTR_SEEDED` in
+`tests/test_jpl_audit.py`; strict on novel sites, down-only ceiling 10):
 
-This is the same trade-off ephemerides-spectral makes in several
-places for similar reasons.
+| Site | File | Why it stands |
+| ---- | ---- | ------------- |
+| `iv_thunk_t` (**`IV_VTABLE`**, 38 rows) | `src/srmech_invoke.c` | **THE NEXT DRAIN**, by the identical A1 recipe (enum + bounded switch, no `default:`). Deliberately not drained in the same change as the census, so the drain lands reviewed on its own. |
+| `fiedler_rec_cb` | `src/srmech_laplacian.c` | Internal recording callback; drainable after `IV_VTABLE` by the same recipe. |
+| `srmech_plat_thread_fn` | `src/srmech_platform.h` | The thread-start shape the platform shim hands to pthreads / Win32 — the OS API is a function-pointer contract. |
+| `srmech_ndjson_line_cb` | `include/srmech.h` | The original Phase B6 documented deviation (rationale below). |
+| `srmech_progress_tick_cb_t`, `srmech_cascade_op_callback_f64_t`, `srmech_cascade_body_f64`, `srmech_bus_handler_callback_t`, `srmech_bus_subscriber_callback_t`, `srmech_progress_cb_t` | `include/srmech.h` | Public callback typedefs — ctypes `CFUNCTYPE` wire contract; several drove ABI bumps (v2–v6). Draining these is an API redesign, not a refactor. |
 
-✅ **Pass with documented Rule 9b deviation.**
+**Enforcement (new at rc452):** `tests/test_jpl_audit.py` gains
+`test_rule_9_no_new_function_pointers` — the masked declarator scan, STRICT
+on any site not in the seeded set, with a down-only ceiling
+(`CEIL_RULE_9_FN_PTR = 10`) and a slack check pinning the ceiling to the live
+count — plus `test_rule_9_detector_is_not_vacuous`, which requires the scan
+to find `srmech_ndjson_line_cb`: a scanner that cannot find the known
+deviation is not a scanner.
+
+**Rationale for the `srmech_ndjson_line_cb` deviation** (Phase B6, still
+valid): the callback enables the Python ctypes binding to receive lines
+without copying through an intermediate C-side dynamic structure (which would
+violate Rule 3). The alternatives — a caller-supplied output array (requires
+knowing the line count in advance) or batched IO (a callback with extra
+bookkeeping) — impose Pyrrhic constraints on the caller. The same reasoning
+extends to the other `include/srmech.h` callback typedefs: each is the wire
+by which the Python side observes or steers a C-side computation.
+
+⚠️ **Partial** — dereference-depth clean; function-pointer population 10,
+seeded, down-only, next drain named (`IV_VTABLE`).
 
 ---
 

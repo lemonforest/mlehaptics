@@ -811,8 +811,13 @@ scratch remains single-thread-at-a-time until similarly converted.
 ### JPL Power-of-Ten audit
 
 The C library is clean on **eight** of the 10 Holzmann Power-of-Ten
-rules; **Rule 1 is PARTIAL** and Rule 9 carries one deliberate
-deviation (see [c/JPL_AUDIT.md](c/JPL_AUDIT.md)).
+rules; **Rule 1 and Rule 9 are both PARTIAL**, each under a seeded
+down-only ratchet (see [c/JPL_AUDIT.md](c/JPL_AUDIT.md)). Rule 9's
+measured population is **10 function-pointer declarator sites** —
+this line said "one deliberate deviation" until rc452, while the tree
+carried 12 pre-rc452 sites including `IV_VTABLE` (a 38-row dispatch
+table, named in the audit as the next drain by the A1 enum-switch
+recipe).
 
 ⚠️ *This line said "passes all 10" until rc441 (`#T1148`), and the
 sentence survived because nothing measured the half of Rule 1 it was
@@ -832,7 +837,11 @@ Enforcement:
    detects Rules 1 (no goto **and, since rc441, no new direct/indirect
    recursion — strict on novel cycles, down-only on the seeded
    population of 9**), 3 (no malloc), 4 (≤60-line functions), 5 (≥2
-   asserts per non-exempt function), 8 (no multi-line macros).
+   asserts per non-exempt function), 8 (no multi-line macros), and —
+   since rc452 — 9 (**no new function-pointer declarators** — masked
+   scan, strict on novel sites, down-only on the seeded population of
+   10, with a vacuity check that must find the documented
+   `srmech_ndjson_line_cb` deviation).
    **Violations can only go DOWN**, never up. Rules 4 and 5 now scan
    literal-masked text so a brace inside a char literal cannot run the
    counter off the end of the file.

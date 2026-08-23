@@ -78,8 +78,12 @@ symbol does not bump the ABI.
 
 ### JPL Power-of-Ten
 
-The C library is **JPL Power-of-Ten clean** — see
-[JPL_AUDIT.md](JPL_AUDIT.md) for the rule-by-rule audit.
+The C library is clean on **eight** of the ten Power-of-Ten rules;
+**Rule 1 (recursion half) and Rule 9 (function-pointer half) are
+PARTIAL**, each under a seeded down-only ratchet — see
+[JPL_AUDIT.md](JPL_AUDIT.md) for the rule-by-rule audit and the
+measured Rule 9 census. *(This line said "JPL Power-of-Ten clean"
+until rc452.)*
 Enforcement is mechanical: `tests/test_jpl_audit.py` is a ratchet
 (violations only ever go down) and the pedantic-build CI matrix
 (`-Werror` / `-Wpedantic`, `/WX` on MSVC) runs on

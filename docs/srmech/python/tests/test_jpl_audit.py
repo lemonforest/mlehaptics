@@ -789,6 +789,141 @@ def test_rule_8_no_multiline_macros() -> None:
                 )
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Rule 9: FUNCTION POINTERS (rc452, the A1-dispatch census)
+# ──────────────────────────────────────────────────────────────────────
+#
+# JPL Rule 9: "Function pointers are not permitted." Through the whole life of
+# this file, NOTHING measured that — the module docstring says Rules 1/3/4/5/8
+# are the mechanically detectable set, and JPL_AUDIT.md documented exactly ONE
+# deliberate deviation (the `srmech_ndjson_line_cb` callback). The census that
+# closed the gap (masked scan over src/*.c + src/*.h + include/*.h, 150 files)
+# measured **14 function-pointer declarator sites across 5 files**, of which
+# 12 PREDATED rc452 — including `IV_VTABLE` in src/srmech_invoke.c, a 38-row
+# name-to-function-pointer dispatch table shipped since ~rc189. So "passes all
+# ten rules" was ALREADY FALSE before rc452, and rc452's first cut grew the
+# undocumented population from 12 to 14 without tripping anything.
+#
+# rc452's A1 dispatch drained srmech_compose_run.c 4 -> 0 (two rc452-new table
+# typedefs, plus the two PRE-rc452 sites: the `cr_series_fn_t` typedef and
+# `cr_op_dseq`'s inline fn param — all replaced by small-int enums + no-default
+# switches). The remaining population is seeded below, down-only. The next
+# drain, by the identical recipe (enum + bounded switch, no `default:` arm), is
+# **IV_VTABLE / `iv_thunk_t` in srmech_invoke.c** — deliberately NOT done in
+# the same change as the census, so the drain lands reviewed on its own.
+#
+# The seven `include/srmech.h` sites are the PUBLIC CALLBACK TYPEDEFS
+# (progress / ndjson / cascade-op / bus). They are wire contract: each is bound
+# as a ctypes CFUNCTYPE and several drove ABI bumps (v2-v6). Draining those is
+# an API redesign, not a refactor, which is exactly why the record must be a
+# SEEDED population rather than a silent pass.
+
+#: The Rule-9 population as measured after the rc452 A1 dispatch landed.
+#: (file name, declarator identifier) pairs — line numbers deliberately NOT
+#: pinned (they drift; the identifier is the site).
+RULE_9_FN_PTR_SEEDED: "set[tuple[str, str]]" = {
+    # src — the two remaining in-library sites, both named next-drain material
+    ("srmech_invoke.c", "iv_thunk_t"),          # IV_VTABLE, 38 rows — NEXT DRAIN
+    ("srmech_laplacian.c", "fiedler_rec_cb"),
+    # src/srmech_platform.h — the thread-start shape the platform shim needs
+    ("srmech_platform.h", "srmech_plat_thread_fn"),
+    # include/srmech.h — public callback typedefs, CFUNCTYPE wire contract
+    ("srmech.h", "srmech_progress_tick_cb_t"),
+    ("srmech.h", "srmech_ndjson_line_cb"),      # the ONE documented deviation
+    ("srmech.h", "srmech_cascade_op_callback_f64_t"),
+    ("srmech.h", "srmech_cascade_body_f64"),
+    ("srmech.h", "srmech_bus_handler_callback_t"),
+    ("srmech.h", "srmech_bus_subscriber_callback_t"),
+    ("srmech.h", "srmech_progress_cb_t"),
+}
+
+#: Down-only. Draining a site above (enum + bounded switch, the A1 recipe)
+#: lowers this; it must NEVER go up.
+CEIL_RULE_9_FN_PTR: int = 10
+
+#: A function-pointer DECLARATOR: `(*name)(`, run over literal-masked text so
+#: a mention inside a comment or string cannot count. This catches typedefs,
+#: struct columns and inline function-pointer PARAMETERS alike — all three
+#: shapes existed in the measured population.
+_FN_PTR_RE = re.compile(r"\(\s*\*\s*(\w+)\s*\)\s*\(")
+
+
+def _rule9_files() -> "list[Path]":
+    """src/*.c + src/*.h + include/*.h — the census scope, stated.
+
+    Wider than :func:`_c_files` on purpose: that helper misses ``src/*.h``,
+    and ``src/srmech_platform.h`` carries a seeded site. ``c/test/`` stays
+    out of scope — harness code is not the shipped library.
+    """
+    return (sorted(_C_SRC_DIR.glob("*.c")) + sorted(_C_SRC_DIR.glob("*.h"))
+            + sorted(_C_INCLUDE_DIR.glob("*.h")))
+
+
+def _fn_ptr_sites() -> "set[tuple[str, str]]":
+    """Every (file, declarator-name) function-pointer site in scope."""
+    sites: "set[tuple[str, str]]" = set()
+    for f in _rule9_files():
+        text = _mask_c_literals(f.read_text(encoding="utf-8"))
+        for m in _FN_PTR_RE.finditer(text):
+            sites.add((f.name, m.group(1)))
+    return sites
+
+
+def test_rule_9_detector_is_not_vacuous() -> None:
+    """The detector must FIND the one deviation JPL_AUDIT.md always documented.
+
+    A scanner that cannot find `srmech_ndjson_line_cb` — the callback the
+    audit has named since Phase B6 — is not a scanner, and the ratchet below
+    would then pass while measuring zero. Same discipline as the Rule 1
+    recursion detector's vacuity check.
+    """
+    found = _fn_ptr_sites()
+    assert found, "the Rule 9 detector found NOTHING — it is not looking"
+    assert ("srmech.h", "srmech_ndjson_line_cb") in found, (
+        "the Rule 9 scan cannot see srmech_ndjson_line_cb, the ONE deviation "
+        "JPL_AUDIT.md has documented since Phase B6 — the detector is broken, "
+        "not the tree clean"
+    )
+
+
+def test_rule_9_no_new_function_pointers() -> None:
+    """JPL Rule 9: strict on NOVEL sites, down-only on the seeded population.
+
+    A function-pointer declarator not in the seeded set fails outright — the
+    A1 dispatch (enum columns + per-domain no-default switches, see
+    srmech_compose_run.c) is the shipped replacement shape, and it is SMALLER
+    than the wrappers a function-pointer column needs. The seeded set is a
+    debt record, not a licence: JPL_AUDIT.md Rule 9 carries the same census
+    and the two must move together.
+    """
+    found = _fn_ptr_sites()
+    novel = found - RULE_9_FN_PTR_SEEDED
+    assert not novel, (
+        "Rule 9 violation — NEW function-pointer declarator site(s): "
+        + "; ".join(f"{f}:{n}" for f, n in sorted(novel))
+        + ". Function pointers are not permitted; use the A1 dispatch shape "
+          "(small-int enum column + bounded switch with NO default arm, so "
+          "-Wswitch/-Werror and /w44062//WX make drift a compile error), or "
+          "justify a wire-contract callback in JPL_AUDIT.md AND extend "
+          "RULE_9_FN_PTR_SEEDED in the same commit."
+    )
+    assert len(found) <= CEIL_RULE_9_FN_PTR, (
+        f"Rule 9 population {len(found)} exceeds the down-only ceiling "
+        f"{CEIL_RULE_9_FN_PTR}"
+    )
+
+
+def test_rule_9_ceiling_is_not_slack() -> None:
+    """The ceiling tracks the measurement — it may not drift above it."""
+    found = _fn_ptr_sites()
+    assert len(found) == CEIL_RULE_9_FN_PTR, (
+        f"live Rule 9 population is {len(found)} but CEIL_RULE_9_FN_PTR is "
+        f"{CEIL_RULE_9_FN_PTR} — if a site was drained, LOWER the ceiling "
+        f"(it is down-only), drop its entry from RULE_9_FN_PTR_SEEDED, and "
+        f"update JPL_AUDIT.md's Rule 9 census in the same commit"
+    )
+
+
 def test_audit_doc_present_and_mentions_all_rules() -> None:
     """Sanity check: JPL_AUDIT.md exists and references every rule
     by number, so an auditor can find the rationale per rule."""
