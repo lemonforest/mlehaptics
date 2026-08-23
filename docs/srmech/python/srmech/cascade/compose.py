@@ -1041,9 +1041,9 @@ _RUN_C_OPS = frozenset({
     "dead_band", "scale_round_half_even", "best_rational", "pair",
 })
 
-#: Fold-body ops the C runner dispatches — the non-NULL ``bin`` column of the
-#: SHARED ``CR_OP_REG`` atom table (``cr_fold_body`` looks the row up with the
-#: same matcher ``cr_dispatch`` uses).
+#: Fold-body ops the C runner dispatches — the non-``CR_BIN_NONE`` ``bin``
+#: column of the SHARED ``CR_OP_REG`` atom table (``cr_fold_body`` looks the
+#: row up with the same matcher ``cr_dispatch`` uses).
 #:
 #: ⚠️ STILL ITS OWN SET, AND FOR A DIFFERENT REASON THAN BEFORE. Through rc451
 #: this was separate because C's fold body was a PRIVATE single-entry table. As

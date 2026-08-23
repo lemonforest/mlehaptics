@@ -31,7 +31,15 @@ endif()
 option(SRMECH_PEDANTIC "Treat compiler warnings as errors (JPL Rule 10)" OFF)
 if(SRMECH_PEDANTIC)
     if(MSVC OR (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_C_SIMULATE_ID STREQUAL "MSVC"))
-        add_compile_options(/WX)
+        # /w44062 enables C4062 (enumerator not handled in a switch with no
+        # `default:`) at level 4 — it is OFF BY DEFAULT even at /W4, so without
+        # this the Windows leg would not enforce the A1 dispatch's
+        # switch-exhaustiveness drift gate that gcc/clang get from -Wswitch
+        # (inside -Wall). MEASURED 2026-08-23 (MSVC 2022, /std:c11): a deleted
+        # `case` in cr_exec_cyc compiled SILENTLY CLEAN under /W4 alone, warned
+        # C4062 under /W4 /w44062, and failed under /W4 /w44062 /WX; the full
+        # 138-TU src sweep is clean under the new flags (zero C4062).
+        add_compile_options(/WX /w44062)
     else()
         add_compile_options(-Werror)
     endif()

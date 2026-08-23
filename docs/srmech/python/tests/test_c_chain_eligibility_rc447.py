@@ -50,37 +50,40 @@ def _c_dispatch_ops():
     src = _C_SRC.read_text(encoding="utf-8")
     # ⚠️ READ THE TABLE, NOT THE ARMS (v0.9.0rc452, `#T1166`). Through rc451 the
     # dispatch was an if-chain and this scan matched its `cr_op_is` arms. rc452
-    # converts CR_OP_REG into a name-to-FUNCTION-POINTER atom table and
-    # cr_dispatch into a bounded loop with ZERO arms of its own — so the arm
-    # patterns below now match only `cr_op_row`'s single generic call, whose
-    # operand is a table field rather than a literal, and the derived set went
-    # to EMPTY. An empty derived set does not fail loudly here by itself: it
-    # makes `_RUN_C_OPS - ops` report every Python entry as a phantom, which is
-    # the shape of a gate that has stopped observing while still returning a
-    # verdict. The table IS the dispatch surface now, so the table is what this
-    # reads; the `assert ops` below still refuses an empty parse.
+    # converts CR_OP_REG into the atom table (rows now carry the A1 enum
+    # columns dom/sub/bin — the first cut's function-pointer columns violated
+    # JPL Rule 9) and cr_dispatch into a row lookup with ZERO arms of its own —
+    # so the arm patterns below now match only `cr_op_row`'s single generic
+    # call, whose operand is a table field rather than a literal, and the
+    # derived set went to EMPTY. An empty derived set does not fail loudly here
+    # by itself: it makes `_RUN_C_OPS - ops` report every Python entry as a
+    # phantom, which is the shape of a gate that has stopped observing while
+    # still returning a verdict. The table IS the dispatch surface now, so the
+    # table is what this reads; the `assert ops` below still refuses an empty
+    # parse.
     m = re.search(r"\}\s*CR_OP_REG\[\d+\]\s*=\s*\{", src)
     assert m, ("CR_OP_REG's initialiser was not found — the dispatch surface "
                "was reshaped and this scan has stopped observing. Re-point it; "
                "do not delete the assertion.")
     body = src[m.end():src.index("};", m.end())]
-    # A row is { "bare", Nu, "full", fn, bin }; the FIRST string is the spelling
-    # the matcher compares. Rows whose `fn` is NULL are fold-body-only and are
-    # NOT plain-dispatchable, so they are excluded — otherwise this set would
-    # claim a plain-step capability the runner declines.
+    # A row is { "bare", Nu, "full", dom, sub, bin }; the FIRST string is the
+    # spelling the matcher compares. Rows whose `dom` is CR_DOM_NONE are
+    # fold-body-only and are NOT plain-dispatchable, so they are excluded —
+    # otherwise this set would claim a plain-step capability the runner
+    # declines.
     ops = set()
-    for bare, _ln, _full, fn, _bn in re.findall(
+    for bare, _ln, _full, dom, _sub, _bn in re.findall(
             r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,'
             r'\s*"([A-Za-z0-9_.]+)"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,'
-            r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
-        if fn != "NULL":
+            r'\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
+        if dom != "CR_DOM_NONE":
             ops.add(bare)
     assert ops, "the C dispatch scan found NOTHING — anchors have drifted"
     return ops
 
 
 def _c_fold_body_ops():
-    """Op names the C FOLD BODY dispatches — the table's non-NULL ``bin`` column.
+    """Op names the C FOLD BODY dispatches — the table's non-NONE ``bin`` column.
 
     rc451 pinned this set to the single private-table entry
     ``orientation_compose``. rc452 gives the fold body the SHARED table, so the
@@ -91,11 +94,11 @@ def _c_fold_body_ops():
     assert m, "CR_OP_REG's initialiser was not found"
     body = src[m.end():src.index("};", m.end())]
     ops = set()
-    for bare, _ln, _full, _fn, bn in re.findall(
+    for bare, _ln, _full, _dom, _sub, bn in re.findall(
             r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,'
             r'\s*"([A-Za-z0-9_.]+)"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,'
-            r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
-        if bn != "NULL":
+            r'\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
+        if bn != "CR_BIN_NONE":
             ops.add(bare)
     assert ops, "the C fold-body scan found NOTHING — anchors have drifted"
     return ops

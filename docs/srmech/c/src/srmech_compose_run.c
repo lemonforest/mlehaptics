@@ -786,21 +786,47 @@ static srmech_status_t cr_op_pi(cr_ctx_t *c, const srmech_json_value_t *args,
     return SRMECH_OK;
 }
 
-typedef srmech_status_t (*cr_series_fn_t)(const srmech_bigint_t *, const srmech_bigint_t *,
-                                          uint32_t, srmech_bigint_t *, srmech_bigint_t *,
-                                          void *, size_t);
+/* Which of the five *_series_truncate kernels a series step runs. An ENUM, not
+ * a function pointer: JPL Rule 9 bans function pointers, and the `cr_series_fn_t`
+ * typedef that stood here through the first rc452 cut was one of the 14 measured
+ * Rule-9 declarator sites the A1 conversion drains (see JPL_AUDIT.md Rule 9). */
+typedef enum {
+    CR_SER_EXP = 0, CR_SER_SIN, CR_SER_COS, CR_SER_LOG1P, CR_SER_ATAN
+} cr_series_id_t;
+
+/* The kernel switch. NO default arm, so gcc/clang's -Wswitch (in -Wall,
+ * promoted by -Werror under SRMECH_PEDANTIC) makes "enum grew, case forgotten"
+ * a COMPILE ERROR; MSVC gets the same property from /w44062 in CMakeLists.
+ * The trailing return is the open-enum path (a value outside the enum). */
+static srmech_status_t cr_series_kernel(cr_series_id_t id,
+                                        const srmech_bigint_t *xn,
+                                        const srmech_bigint_t *xd, uint32_t nt,
+                                        srmech_bigint_t *on, srmech_bigint_t *od,
+                                        void *ws, size_t wl)
+{
+    assert(xn != NULL && xd != NULL);
+    assert(on != NULL && od != NULL);
+    switch (id) {
+    case CR_SER_EXP:   return srmech_exp_series_truncate_big(xn, xd, nt, on, od, ws, wl);
+    case CR_SER_SIN:   return srmech_sin_series_truncate_big(xn, xd, nt, on, od, ws, wl);
+    case CR_SER_COS:   return srmech_cos_series_truncate_big(xn, xd, nt, on, od, ws, wl);
+    case CR_SER_LOG1P: return srmech_log1p_series_truncate_big(xn, xd, nt, on, od, ws, wl);
+    case CR_SER_ATAN:  return srmech_atan_series_truncate_big(xn, xd, nt, on, od, ws, wl);
+    }
+    return SRMECH_ERR_INTERNAL;
+}
 
 /* Shared driver for the five *_series_truncate ops:
  * (numerator, denominator, num_terms) -> reduced (num, den) rational. */
 static srmech_status_t cr_op_series(cr_ctx_t *c, const srmech_json_value_t *args,
-                                    cr_series_fn_t fn, cr_value_t **out)
+                                    cr_series_id_t id, cr_value_t **out)
 {
     cr_value_t *xn = cr_arg(c, args, "numerator");
     cr_value_t *xd = cr_arg(c, args, "denominator");
     cr_value_t *nt = cr_arg(c, args, "num_terms"), *ov;
     int64_t nterms; uint32_t cap, dig; void *ws; size_t wl; srmech_status_t st;
     assert(c != NULL && out != NULL);
-    assert(fn != NULL && args != NULL);
+    assert(args != NULL);
     if (xn == NULL || xd == NULL || nt == NULL) { return SRMECH_ERR_BAD_INPUT; }
     if (xn->kind != CR_INT || xd->kind != CR_INT || xn->num == NULL ||
         xd->num == NULL) { return SRMECH_ERR_BAD_INPUT; }
@@ -814,7 +840,8 @@ static srmech_status_t cr_op_series(cr_ctx_t *c, const srmech_json_value_t *args
     wl = (size_t)srmech_bigexp_ws_bound(xn->num->n, xd->num->n, (uint32_t)nterms);
     ws = cr_carve(c->b, wl);
     if (ov->num == NULL || ov->den == NULL || ws == NULL) { return SRMECH_ERR_OVERFLOW; }
-    st = fn(xn->num, xd->num, (uint32_t)nterms, ov->num, ov->den, ws, wl);
+    st = cr_series_kernel(id, xn->num, xd->num, (uint32_t)nterms,
+                          ov->num, ov->den, ws, wl);
     if (st != SRMECH_OK) { return st; }
     *out = ov;
     return SRMECH_OK;
@@ -1182,17 +1209,35 @@ static cr_value_t *cr_dvec_value(cr_bump_t *b, const double *src, size_t n)
     return out;
 }
 
-/* A unary f64 sequence op: resolve `key` as a real vector, run `fn`, wrap the
- * result. `out` must not alias the input, so a second buffer is carved. */
+/* Which f64 sequence kernel a dseq step runs. An ENUM, not a function-pointer
+ * parameter — the inline `(*fn)(const double *, size_t, double *)` param that
+ * stood here through the first rc452 cut was a Rule-9 declarator site (it
+ * PREDATES rc452; see JPL_AUDIT.md Rule 9). */
+typedef enum { CR_DSEQ_CHIRAL_FLIP = 0, CR_DSEQ_AUTOCORR } cr_dseq_id_t;
+
+/* The kernel switch — same no-default drift gate as cr_series_kernel. */
+static srmech_status_t cr_dseq_kernel(cr_dseq_id_t id, const double *in,
+                                      size_t n, double *res)
+{
+    assert(in != NULL && res != NULL);
+    assert(n > 0u);
+    switch (id) {
+    case CR_DSEQ_CHIRAL_FLIP: return srmech_cascade_chiral_flip_f64(in, n, res);
+    case CR_DSEQ_AUTOCORR:    return srmech_autocorrelation_f64(in, n, res);
+    }
+    return SRMECH_ERR_INTERNAL;
+}
+
+/* A unary f64 sequence op: resolve `key` as a real vector, run the kernel `id`
+ * names, wrap the result. `out` must not alias the input, so a second buffer
+ * is carved. */
 static srmech_status_t cr_op_dseq(cr_ctx_t *c, const srmech_json_value_t *args,
-                                  const char *key,
-                                  srmech_status_t (*fn)(const double *, size_t,
-                                                        double *),
+                                  const char *key, cr_dseq_id_t id,
                                   cr_value_t **out)
 {
     cr_value_t *v; double *in, *res; size_t n = 0u; srmech_status_t st;
     assert(c != NULL && args != NULL && out != NULL);
-    assert(key != NULL && fn != NULL);
+    assert(key != NULL);
     v = cr_arg(c, args, key);
     if (v == NULL) { return SRMECH_ERR_NOT_IMPL; }
     in = cr_as_dvec(c->b, v, &n);
@@ -1200,7 +1245,7 @@ static srmech_status_t cr_op_dseq(cr_ctx_t *c, const srmech_json_value_t *args,
     res = (double *)cr_carve(c->b, n * sizeof(double) + sizeof(double));
     if (res == NULL) { return SRMECH_ERR_OVERFLOW; }
     if (n > 0u) {
-        st = fn(in, n, res);
+        st = cr_dseq_kernel(id, in, n, res);
         if (st != SRMECH_OK) { return st; }
     }
     *out = cr_dvec_value(c->b, res, n);
@@ -1552,12 +1597,25 @@ static int cr_op_is(const char *op, uint32_t opl, const char *want, uint32_t n)
  * cannot: the 17th arm breaks Rule 4 and the split that produced
  * `cr_dispatch_real` had already been spent once to buy four.
  *
- * So `CR_OP_REG` stops being a name-to-name index and becomes a name-to-
- * FUNCTION-POINTER atom registry: a bare-C, config-addressable table that IS
- * the callable registry the interpreter resolves against. `cr_dispatch`
- * collapses from a 57-line if-chain to a ~12-line bounded loop over it, and
- * `cr_dispatch_real` — which existed only to absorb the overflow — is GONE.
- * Adding an op is now adding a ROW, which is why the table can carry 56.
+ * So `CR_OP_REG` stops being a name-to-name index and becomes the atom
+ * registry the interpreter resolves against: a bare-C, config-addressable
+ * table of pure DATA rows. `cr_dispatch` collapses from a 57-line if-chain to
+ * a row lookup plus a bounded per-domain switch tree, and `cr_dispatch_real` —
+ * which existed only to absorb the overflow — is GONE. Adding an op is now
+ * adding a ROW plus one `case` line, which is why the table can carry 56.
+ *
+ * ⚠️ NO FUNCTION POINTERS — the A1 dispatch (JPL Rule 9). The first rc452 cut
+ * gave rows `fn`/`bin` FUNCTION-POINTER columns, which Rule 9 bans outright
+ * ("Function pointers are not permitted."), and which the mechanical audit
+ * never saw because tests/test_jpl_audit.py checks Rules 1/3/4/5/8 only. The
+ * rows instead carry three small-int ENUM columns (`dom`/`sub`/`bin`) and
+ * `cr_dispatch` hands `sub` to one `cr_exec_<domain>()` per domain. Each exec
+ * switches on its OWN enum type with NO `default:` arm, so gcc/clang's
+ * -Wswitch under the existing -Werror makes "row added, case forgotten" a
+ * COMPILE ERROR (MSVC needs /w44062, added to SRMECH_PEDANTIC in CMakeLists —
+ * C4062 is off by default even at /W4). That compile-time drift gate is the
+ * point of this shape over a flat enum, whose single switch would have needed
+ * `default:` arms and let a deleted case compile green and fail at runtime.
  *
  * ⚠️ THE TABLE IS THE ONLY DISPATCH PATH. `cr_dispatch` contains zero
  * `cr_op_is` calls of its own; the one call site is inside the loop, against
@@ -1565,136 +1623,54 @@ static int cr_op_is(const char *op, uint32_t opl, const char *want, uint32_t n)
  * asserts exactly that, so a future arm added BESIDE the table (leaving the
  * table decorative — the shape a green could otherwise be bought with) is red.
  *
- * FOUR COLUMNS, and the fourth is the one that closes the fold body:
+ * FIVE COLUMNS, and the fifth is the one that closes the fold body:
  *   bare/len  the segment-boundary match cr_op_is performs
  *   full      the ToolEntry name cr_args_keyset_ok validates `args` keys against
- *   fn        the op itself: pull operands from `args` BY NAME, write *out
- *   bin       non-NULL iff the op can also serve as a FOLD BODY
+ *   dom       which cr_exec_<domain>() runs the op (cr_dom_t)
+ *   sub       the case label inside that exec (the domain's own op enum)
+ *   bin       non-NONE iff the op can also serve as a FOLD BODY (cr_bin_id_t)
  *
  * ⚠️ WHY `bin` IS A COLUMN AND NOT A SECOND TABLE. A fold body receives two
  * POSITIONAL carriers (acc, elem) that are already evaluated — there is no
- * `args` JSON object to pull from, so `fn` genuinely cannot serve. Through
- * rc451 that difference was expressed as a PRIVATE single-entry table
- * (`cr_fold_body`, orientation_compose only), which is why a fold over any
- * other op declined and why CEIL_SURFACE_A_UNSUPPORTED_FORMS still counted
- * `fold` unsupported with a real fold chain shipping. Making it a column on
- * the SAME table keeps one registry — so the bijection gate still sees every
- * op exactly once — while stating honestly that the two entry shapes differ.
+ * `args` JSON object to pull from, so the plain-op entry shape genuinely
+ * cannot serve. Through rc451 that difference was expressed as a PRIVATE
+ * single-entry table (`cr_fold_body`, orientation_compose only), which is why
+ * a fold over any other op declined and why CEIL_SURFACE_A_UNSUPPORTED_FORMS
+ * still counted `fold` unsupported with a real fold chain shipping. Making it
+ * a column on the SAME table keeps one registry — so the bijection gate still
+ * sees every op exactly once — while stating honestly that the two entry
+ * shapes differ.
  * ------------------------------------------------------------------ */
 
-/* The op shape: operands arrive BY NAME inside `args` (cr_arg pulls them). */
-typedef srmech_status_t (*cr_op_fn_t)(cr_ctx_t *c, const srmech_json_value_t *args,
-                                      cr_value_t **out);
+/* Which cr_exec_<domain>() runs an op. CR_DOM_NONE is the deliberate,
+ * expressible "fold-body-ONLY row" state (cr_dispatch returns NOT_IMPL for
+ * it) — the same state the first cut's `fn == NULL` encoded. */
+typedef enum { CR_DOM_NONE = 0, CR_DOM_RAT, CR_DOM_CYC, CR_DOM_CAS } cr_dom_t;
 
-/* The FOLD-BODY shape: two already-evaluated POSITIONAL carriers. */
-typedef srmech_status_t (*cr_bin_fn_t)(cr_bump_t *b, const cr_value_t *acc,
-                                       const cr_value_t *elem, cr_value_t **out);
+/* The Class-N rational-domain ops (srmech.math.rational.*). */
+typedef enum {
+    CR_RAT_PI = 0, CR_RAT_EXP, CR_RAT_SIN, CR_RAT_COS, CR_RAT_LOG1P,
+    CR_RAT_ATAN, CR_RAT_POW, CR_RAT_ADD, CR_RAT_MUL, CR_RAT_DIV,
+    CR_RAT_SCALE_ROUND, CR_RAT_BEST_RATIONAL
+} cr_rat_op_t;
 
-/* ---- thin wrappers giving the parameterised drivers the uniform shape ---- */
+/* The Class-I cyclic-domain ops (srmech.math.cyclic.*). MOD_MUL and
+ * MOD_MUL_WIDE are separate case labels dispatching the SAME driver arm, so
+ * the row-to-case mapping stays 1:1 for the bijection gate. */
+typedef enum {
+    CR_CYC_GCD = 0, CR_CYC_MOD_ADD, CR_CYC_MOD_MUL, CR_CYC_MOD_MUL_WIDE,
+    CR_CYC_MOD_POW, CR_CYC_MOD_INV
+} cr_cyc_op_t;
 
-static srmech_status_t cr_a_exp_series(cr_ctx_t *c, const srmech_json_value_t *a,
-                                       cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_series(c, a, srmech_exp_series_truncate_big, o);
-}
+/* The cascade-domain ops (srmech.cascade.*): Classes B / C / K / L. */
+typedef enum {
+    CR_CAS_SEQ_LEN = 0, CR_CAS_CORR_PRODUCT, CR_CAS_COMPENSATED_SUM,
+    CR_CAS_PIN_SLOT, CR_CAS_REORIENT, CR_CAS_CHIRAL_FLIP,
+    CR_CAS_AUTOCORRELATION, CR_CAS_DEAD_BAND, CR_CAS_PAIR
+} cr_cas_op_t;
 
-static srmech_status_t cr_a_sin_series(cr_ctx_t *c, const srmech_json_value_t *a,
-                                       cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_series(c, a, srmech_sin_series_truncate_big, o);
-}
-
-static srmech_status_t cr_a_cos_series(cr_ctx_t *c, const srmech_json_value_t *a,
-                                       cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_series(c, a, srmech_cos_series_truncate_big, o);
-}
-
-static srmech_status_t cr_a_log1p_series(cr_ctx_t *c, const srmech_json_value_t *a,
-                                         cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_series(c, a, srmech_log1p_series_truncate_big, o);
-}
-
-static srmech_status_t cr_a_atan_series(cr_ctx_t *c, const srmech_json_value_t *a,
-                                        cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_series(c, a, srmech_atan_series_truncate_big, o);
-}
-
-static srmech_status_t cr_a_rat_add(cr_ctx_t *c, const srmech_json_value_t *a,
-                                    cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_rat(c, a, '+', o);
-}
-
-static srmech_status_t cr_a_rat_mul(cr_ctx_t *c, const srmech_json_value_t *a,
-                                    cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_rat(c, a, '*', o);
-}
-
-static srmech_status_t cr_a_rat_div(cr_ctx_t *c, const srmech_json_value_t *a,
-                                    cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_rat(c, a, '/', o);
-}
-
-static srmech_status_t cr_a_gcd(cr_ctx_t *c, const srmech_json_value_t *a,
-                                cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_cyclic(c, a, CR_CY_GCD, o);
-}
-
-static srmech_status_t cr_a_mod_add(cr_ctx_t *c, const srmech_json_value_t *a,
-                                    cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_cyclic(c, a, CR_CY_ADD, o);
-}
-
-static srmech_status_t cr_a_mod_mul(cr_ctx_t *c, const srmech_json_value_t *a,
-                                    cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_cyclic(c, a, CR_CY_MUL, o);
-}
-
-static srmech_status_t cr_a_mod_pow(cr_ctx_t *c, const srmech_json_value_t *a,
-                                    cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_cyclic(c, a, CR_CY_POW, o);
-}
-
-static srmech_status_t cr_a_chiral_flip(cr_ctx_t *c, const srmech_json_value_t *a,
-                                        cr_value_t **o)
-{
-    assert(c != NULL && a != NULL);
-    assert(o != NULL);
-    return cr_op_dseq(c, a, "seq", srmech_cascade_chiral_flip_f64, o);
-}
+/* Which fold body a row provides. CR_BIN_NONE = the op cannot fold. */
+typedef enum { CR_BIN_NONE = 0, CR_BIN_GCD, CR_BIN_ORIENT } cr_bin_id_t;
 
 /* ⚠️ THE `autocorrelation` OP, NOT THE `autocorrelation` CHAIN. This arm backs
  * a step whose op IS srmech.cascade.autocorrelation — the shipped leaf. The
@@ -1707,7 +1683,7 @@ static srmech_status_t cr_a_autocorrelation(cr_ctx_t *c, const srmech_json_value
 {
     assert(c != NULL && a != NULL);
     assert(o != NULL);
-    return cr_op_dseq(c, a, "x", srmech_autocorrelation_f64, o);
+    return cr_op_dseq(c, a, "x", CR_DSEQ_AUTOCORR, o);
 }
 
 /* ---- fold bodies: two positional carriers ---- */
@@ -1852,70 +1828,73 @@ static const struct {
     const char *bare;
     uint32_t    len;
     const char *full;
-    cr_op_fn_t  fn;
-    cr_bin_fn_t bin;
+    uint8_t     dom;   /* cr_dom_t   — which cr_exec_<domain>() runs the op   */
+    uint8_t     sub;   /* per-domain — the case label inside that exec        */
+    uint8_t     bin;   /* cr_bin_id_t — non-NONE iff the op can fold          */
 } CR_OP_REG[28] = {
  /* wave A (rc452) — the autocorrelation CHAIN's own steps */
  { "seq_len",             7u, "srmech.cascade.seq_len",
-   cr_a_seq_len, NULL },
+   CR_DOM_CAS, CR_CAS_SEQ_LEN, CR_BIN_NONE },
  { "correlation_product", 19u, "srmech.cascade.correlation_product",
-   cr_a_corr_product, NULL },
+   CR_DOM_CAS, CR_CAS_CORR_PRODUCT, CR_BIN_NONE },
  { "compensated_sum",    15u, "srmech.cascade.compensated_sum",
-   cr_a_compensated_sum, NULL },
+   CR_DOM_CAS, CR_CAS_COMPENSATED_SUM, CR_BIN_NONE },
  { "pi_cascade_digits",  17u, "srmech.math.rational.pi_cascade_digits",
-   cr_op_pi, NULL },
+   CR_DOM_RAT, CR_RAT_PI, CR_BIN_NONE },
  { "exp_series_truncate", 19u, "srmech.math.rational.exp_series_truncate",
-   cr_a_exp_series, NULL },
+   CR_DOM_RAT, CR_RAT_EXP, CR_BIN_NONE },
  { "sin_series_truncate", 19u, "srmech.math.rational.sin_series_truncate",
-   cr_a_sin_series, NULL },
+   CR_DOM_RAT, CR_RAT_SIN, CR_BIN_NONE },
  { "cos_series_truncate", 19u, "srmech.math.rational.cos_series_truncate",
-   cr_a_cos_series, NULL },
+   CR_DOM_RAT, CR_RAT_COS, CR_BIN_NONE },
  { "log1p_series_truncate", 21u, "srmech.math.rational.log1p_series_truncate",
-   cr_a_log1p_series, NULL },
+   CR_DOM_RAT, CR_RAT_LOG1P, CR_BIN_NONE },
  { "atan_series_truncate", 20u, "srmech.math.rational.atan_series_truncate",
-   cr_a_atan_series, NULL },
+   CR_DOM_RAT, CR_RAT_ATAN, CR_BIN_NONE },
  { "rational_pow_uint",  17u, "srmech.math.rational.rational_pow_uint",
-   cr_op_pow, NULL },
+   CR_DOM_RAT, CR_RAT_POW, CR_BIN_NONE },
  { "rational_add",       12u, "srmech.math.rational.rational_add",
-   cr_a_rat_add, NULL },
+   CR_DOM_RAT, CR_RAT_ADD, CR_BIN_NONE },
  { "rational_mul",       12u, "srmech.math.rational.rational_mul",
-   cr_a_rat_mul, NULL },
+   CR_DOM_RAT, CR_RAT_MUL, CR_BIN_NONE },
  { "rational_div",       12u, "srmech.math.rational.rational_div",
-   cr_a_rat_div, NULL },
+   CR_DOM_RAT, CR_RAT_DIV, CR_BIN_NONE },
  { "gcd",                 3u, "srmech.math.cyclic.gcd",
-   cr_a_gcd, cr_b_gcd },
+   CR_DOM_CYC, CR_CYC_GCD, CR_BIN_GCD },
  { "mod_add",             7u, "srmech.math.cyclic.mod_add",
-   cr_a_mod_add, NULL },
+   CR_DOM_CYC, CR_CYC_MOD_ADD, CR_BIN_NONE },
  { "mod_mul",             7u, "srmech.math.cyclic.mod_mul",
-   cr_a_mod_mul, NULL },
+   CR_DOM_CYC, CR_CYC_MOD_MUL, CR_BIN_NONE },
  { "mod_mul_wide",       12u, "srmech.math.cyclic.mod_mul_wide",
-   cr_a_mod_mul, NULL },
+   CR_DOM_CYC, CR_CYC_MOD_MUL_WIDE, CR_BIN_NONE },
  { "mod_pow",             7u, "srmech.math.cyclic.mod_pow",
-   cr_a_mod_pow, NULL },
+   CR_DOM_CYC, CR_CYC_MOD_POW, CR_BIN_NONE },
  { "mod_inv",             7u, "srmech.math.cyclic.mod_inv",
-   cr_op_cyclic_inv, NULL },
+   CR_DOM_CYC, CR_CYC_MOD_INV, CR_BIN_NONE },
  { "pin_slot_at_zero",   16u, "srmech.cascade.pin_slot_at_zero",
-   cr_op_pin_slot, NULL },
+   CR_DOM_CAS, CR_CAS_PIN_SLOT, CR_BIN_NONE },
  { "reorient",            8u, "srmech.cascade.reorient",
-   cr_op_reorient, NULL },
+   CR_DOM_CAS, CR_CAS_REORIENT, CR_BIN_NONE },
  { "chiral_flip",        11u, "srmech.cascade.chiral_flip",
-   cr_a_chiral_flip, NULL },
+   CR_DOM_CAS, CR_CAS_CHIRAL_FLIP, CR_BIN_NONE },
  { "autocorrelation",    15u, "srmech.cascade.autocorrelation",
-   cr_a_autocorrelation, NULL },
+   CR_DOM_CAS, CR_CAS_AUTOCORRELATION, CR_BIN_NONE },
  { "dead_band",           9u, "srmech.cascade.dead_band",
-   cr_op_dead_band, NULL },
+   CR_DOM_CAS, CR_CAS_DEAD_BAND, CR_BIN_NONE },
  { "scale_round_half_even", 21u, "srmech.math.rational.scale_round_half_even",
-   cr_op_scale_round, NULL },
+   CR_DOM_RAT, CR_RAT_SCALE_ROUND, CR_BIN_NONE },
  { "best_rational",      13u, "srmech.math.rational.best_rational",
-   cr_op_best_rational, NULL },
+   CR_DOM_RAT, CR_RAT_BEST_RATIONAL, CR_BIN_NONE },
  { "pair",                4u, "srmech.cascade.pair",
-   cr_op_pair, NULL },
- /* FOLD-BODY-ONLY: `fn` is NULL because orientation_compose is never a plain
-  * step in any shipped descriptor — it exists to be folded. A NULL `fn` row is
-  * a deliberate, expressible state (cr_dispatch returns NOT_IMPL for it), not
-  * an omission; the alternative was a second table, which is what rc451 had. */
+   CR_DOM_CAS, CR_CAS_PAIR, CR_BIN_NONE },
+ /* FOLD-BODY-ONLY: `dom` is CR_DOM_NONE because orientation_compose is never
+  * a plain step in any shipped descriptor — it exists to be folded. A
+  * CR_DOM_NONE row is a deliberate, expressible state (cr_dispatch returns
+  * NOT_IMPL for it), not an omission; the alternative was a second table,
+  * which is what rc451 had. Its `sub` is a bare 0u: there is no domain enum
+  * for a row no exec runs. */
  { "orientation_compose", 19u, "srmech.cascade.orientation_compose",
-   NULL, cr_b_orient_compose }
+   CR_DOM_NONE, 0u, CR_BIN_ORIENT }
 };
 
 /* The table's own length, DERIVED. It was written out as a bare literal in the
@@ -1943,10 +1922,84 @@ static int32_t cr_op_row(const char *op, uint32_t opl)
     return -1;
 }
 
-/* Dispatch one plain step's op. A bounded loop over the table — no if-chain,
- * and (deliberately) no cr_op_is call of its own. An op with no row, or a row
- * that is fold-body-ONLY (fn == NULL), returns NOT_IMPL and the whole chain
- * defers to the complete pure path. */
+/* ------------------------------------------------------------------
+ * THE PER-DOMAIN EXECS — the switch half of the A1 dispatch. Each switches on
+ * its OWN enum type with NO `default:` arm, so -Wswitch under -Werror (and
+ * /w44062 under /WX on MSVC) makes a table row whose `sub` has no case a
+ * COMPILE ERROR, and a deleted case line equally so. The trailing return is
+ * the open-enum path: `sub` rides the table as a uint8_t, so a value outside
+ * the enum is expressible data, and it must answer INTERNAL rather than fall
+ * off the end. tests/test_t1158_registry_param_order_rc449.py parses each
+ * exec's case labels and pins them SET-EQUAL to the table's per-domain `sub`
+ * column, so the two cannot drift apart even where a compiler is lenient.
+ * ------------------------------------------------------------------ */
+
+static srmech_status_t cr_exec_rat(cr_ctx_t *c, uint8_t sub,
+                                   const srmech_json_value_t *args,
+                                   cr_value_t **out)
+{
+    assert(c != NULL && out != NULL);
+    assert(args != NULL);
+    switch ((cr_rat_op_t)sub) {
+    case CR_RAT_PI:            return cr_op_pi(c, args, out);
+    case CR_RAT_EXP:           return cr_op_series(c, args, CR_SER_EXP, out);
+    case CR_RAT_SIN:           return cr_op_series(c, args, CR_SER_SIN, out);
+    case CR_RAT_COS:           return cr_op_series(c, args, CR_SER_COS, out);
+    case CR_RAT_LOG1P:         return cr_op_series(c, args, CR_SER_LOG1P, out);
+    case CR_RAT_ATAN:          return cr_op_series(c, args, CR_SER_ATAN, out);
+    case CR_RAT_POW:           return cr_op_pow(c, args, out);
+    case CR_RAT_ADD:           return cr_op_rat(c, args, '+', out);
+    case CR_RAT_MUL:           return cr_op_rat(c, args, '*', out);
+    case CR_RAT_DIV:           return cr_op_rat(c, args, '/', out);
+    case CR_RAT_SCALE_ROUND:   return cr_op_scale_round(c, args, out);
+    case CR_RAT_BEST_RATIONAL: return cr_op_best_rational(c, args, out);
+    }
+    return SRMECH_ERR_INTERNAL;
+}
+
+static srmech_status_t cr_exec_cyc(cr_ctx_t *c, uint8_t sub,
+                                   const srmech_json_value_t *args,
+                                   cr_value_t **out)
+{
+    assert(c != NULL && out != NULL);
+    assert(args != NULL);
+    switch ((cr_cyc_op_t)sub) {
+    case CR_CYC_GCD:          return cr_op_cyclic(c, args, CR_CY_GCD, out);
+    case CR_CYC_MOD_ADD:      return cr_op_cyclic(c, args, CR_CY_ADD, out);
+    case CR_CYC_MOD_MUL:      return cr_op_cyclic(c, args, CR_CY_MUL, out);
+    case CR_CYC_MOD_MUL_WIDE: return cr_op_cyclic(c, args, CR_CY_MUL, out);
+    case CR_CYC_MOD_POW:      return cr_op_cyclic(c, args, CR_CY_POW, out);
+    case CR_CYC_MOD_INV:      return cr_op_cyclic_inv(c, args, out);
+    }
+    return SRMECH_ERR_INTERNAL;
+}
+
+static srmech_status_t cr_exec_cas(cr_ctx_t *c, uint8_t sub,
+                                   const srmech_json_value_t *args,
+                                   cr_value_t **out)
+{
+    assert(c != NULL && out != NULL);
+    assert(args != NULL);
+    switch ((cr_cas_op_t)sub) {
+    case CR_CAS_SEQ_LEN:         return cr_a_seq_len(c, args, out);
+    case CR_CAS_CORR_PRODUCT:    return cr_a_corr_product(c, args, out);
+    case CR_CAS_COMPENSATED_SUM: return cr_a_compensated_sum(c, args, out);
+    case CR_CAS_PIN_SLOT:        return cr_op_pin_slot(c, args, out);
+    case CR_CAS_REORIENT:        return cr_op_reorient(c, args, out);
+    case CR_CAS_CHIRAL_FLIP:
+        return cr_op_dseq(c, args, "seq", CR_DSEQ_CHIRAL_FLIP, out);
+    case CR_CAS_AUTOCORRELATION: return cr_a_autocorrelation(c, args, out);
+    case CR_CAS_DEAD_BAND:       return cr_op_dead_band(c, args, out);
+    case CR_CAS_PAIR:            return cr_op_pair(c, args, out);
+    }
+    return SRMECH_ERR_INTERNAL;
+}
+
+/* Dispatch one plain step's op. A row lookup plus the domain switch — no
+ * if-chain, and (deliberately) no cr_op_is call of its own. An op with no
+ * row, or a row that is fold-body-ONLY (dom == CR_DOM_NONE), returns NOT_IMPL
+ * and the whole chain defers to the complete pure path. The explicit
+ * CR_DOM_NONE arm keeps THIS switch exhaustive too — same -Wswitch gate. */
 static srmech_status_t cr_dispatch(cr_ctx_t *c, const char *op, uint32_t opl,
                                    const srmech_json_value_t *args, cr_value_t **out)
 {
@@ -1955,8 +2008,13 @@ static srmech_status_t cr_dispatch(cr_ctx_t *c, const char *op, uint32_t opl,
     assert(args != NULL);
     r = cr_op_row(op, opl);
     if (r < 0) { return SRMECH_ERR_NOT_IMPL; }
-    if (CR_OP_REG[r].fn == NULL) { return SRMECH_ERR_NOT_IMPL; }
-    return CR_OP_REG[r].fn(c, args, out);
+    switch ((cr_dom_t)CR_OP_REG[r].dom) {
+    case CR_DOM_NONE: return SRMECH_ERR_NOT_IMPL;
+    case CR_DOM_RAT:  return cr_exec_rat(c, CR_OP_REG[r].sub, args, out);
+    case CR_DOM_CYC:  return cr_exec_cyc(c, CR_OP_REG[r].sub, args, out);
+    case CR_DOM_CAS:  return cr_exec_cas(c, CR_OP_REG[r].sub, args, out);
+    }
+    return SRMECH_ERR_INTERNAL;
 }
 
 /* ------------------------------------------------------------------
@@ -2228,9 +2286,11 @@ static cr_form_t cr_step_form(const srmech_json_value_t *step)
 
 
 /* One binary fold step, dispatched through the SHARED atom table's `bin`
- * column. An op with no row, or a row with no `bin` (an op that exists but
- * cannot serve as a fold body), returns NOT_IMPL and the WHOLE chain defers to
- * pure — the inform-don't-limit contract, never a wrong answer.
+ * column. An op with no row, or a row whose `bin` is CR_BIN_NONE (an op that
+ * exists but cannot serve as a fold body), returns NOT_IMPL and the WHOLE
+ * chain defers to pure — the inform-don't-limit contract, never a wrong
+ * answer. The switch has no `default:` arm for the same -Wswitch drift gate
+ * the per-domain execs carry.
  *
  * ⚠️ THIS REPLACES A PRIVATE SINGLE-ENTRY TABLE. Through rc451 the body was
  * matched by a bespoke `cr_body_is_orient_compose` predicate that knew exactly
@@ -2247,8 +2307,13 @@ static srmech_status_t cr_fold_body(cr_bump_t *b, const char *op, uint32_t opl,
     assert(b != NULL && op != NULL && out != NULL);
     assert(acc != NULL && elem != NULL);
     r = cr_op_row(op, opl);
-    if (r < 0 || CR_OP_REG[r].bin == NULL) { return SRMECH_ERR_NOT_IMPL; }
-    return CR_OP_REG[r].bin(b, acc, elem, out);
+    if (r < 0) { return SRMECH_ERR_NOT_IMPL; }
+    switch ((cr_bin_id_t)CR_OP_REG[r].bin) {
+    case CR_BIN_NONE:   return SRMECH_ERR_NOT_IMPL;
+    case CR_BIN_GCD:    return cr_b_gcd(b, acc, elem, out);
+    case CR_BIN_ORIENT: return cr_b_orient_compose(b, acc, elem, out);
+    }
+    return SRMECH_ERR_INTERNAL;
 }
 
 /* acc = fold_init; for elem in resolve(over): acc = fold_op(acc, elem).
@@ -2347,11 +2412,12 @@ static srmech_status_t cr_args_keyset_ok(const char *op, uint32_t opl,
  * of cr_run_steps so the loop can branch on step form and both stay < 60
  * lines (JPL Rule 4).
  *
- * ⚠️ The key-set check lives HERE and not in cr_dispatch: that function is a
- * 16-arm if-chain measured at 57 of JPL Rule 4's 60 lines, and it exists in its
- * current split only because it hit the cap once already (the since-deleted
- * cr_dispatch_real, whose removal this rc's CR_OP_REG table made possible).
- * A per-op check inline there breaks the rule immediately. */
+ * ⚠️ The key-set check lives HERE and not in cr_dispatch. When that function
+ * was a 16-arm if-chain it measured 57 of JPL Rule 4's 60 lines and a per-op
+ * check inline there broke the rule immediately; the CR_OP_REG conversion
+ * shrank it, but the separation stands because validate-then-dispatch is the
+ * contract shape (the validator answers BAD_INPUT where the dispatch would
+ * merely defer, and the two must stay distinguishable). */
 static srmech_status_t cr_run_plain(cr_ctx_t *c, const srmech_json_value_t *step,
                                     cr_value_t **out)
 {

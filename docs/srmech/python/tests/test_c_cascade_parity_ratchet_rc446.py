@@ -155,7 +155,8 @@ CEIL_SURFACE_A_UNSUPPORTED_FORMS = 0   # TARGET REACHED. All three forms execute
 # chain would be the looks-done-isn't move", and it was right.
 #
 # rc452 removes the condition rather than the measurement: ``CR_OP_REG`` becomes
-# a name-to-FUNCTION-POINTER atom table whose rows carry a ``bin`` column, and
+# the shared atom table whose rows carry a ``bin`` enum column (the A1 dispatch —
+# the first cut's function-pointer columns violated JPL Rule 9), and
 # ``cr_fold_body`` resolves through THAT — the same table, the same matcher, as
 # ``cr_dispatch``. The ``gcd`` probe now runs and returns 6, and
 # tests/test_c_fold_step_form_rc446.py asserts the VALUE (plus an empty-fold

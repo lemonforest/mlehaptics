@@ -88,20 +88,28 @@ _KINDS = (
 _INDEX_ROW = re.compile(
     r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,\s*"([A-Za-z0-9_.]+)"\s*\}')
 
-#: one `{ "bare", 12u, "srmech.dotted.name", fn, bin }` row of ``CR_OP_REG``.
+#: one `{ "bare", 12u, "srmech.dotted.name", dom, sub, bin }` row of ``CR_OP_REG``.
 #:
-#: ⚠️ FIVE MEMBERS SINCE v0.9.0rc452 (`#T1166`). The compose index stopped being
-#: a name-to-NAME table and became a name-to-FUNCTION-POINTER atom table, because
-#: ``cr_dispatch`` was measured at 57 of JPL Rule 4's 60 lines and the 32 op
-#: spellings the eight blocked chains need could not be added as an if-chain AT
-#: ALL. The 3-member ``_INDEX_ROW`` above matched ZERO rows against the new
-#: shape, and this file's own ``assert rows`` fired loudly — which is the parse
-#: refusing to observe rather than silently reporting an empty table. It keeps
-#: its own regex rather than being generalised, so the DSL surface (still 3
-#: members) cannot start accepting a shape it does not have.
+#: ⚠️ SIX MEMBERS SINCE the rc452 A1 (Rule-9-clean) dispatch. The compose index
+#: stopped being a name-to-NAME table within rc452 because ``cr_dispatch`` was
+#: measured at 57 of JPL Rule 4's 60 lines and the 32 op spellings the eight
+#: blocked chains need could not be added as an if-chain AT ALL. The first cut
+#: gave rows two FUNCTION-POINTER columns — which JPL Rule 9 bans outright and
+#: the mechanical audit never saw (it tests Rules 1/3/4/5/8 only) — so the
+#: rows now carry three small-int ENUM columns instead: ``dom`` (which
+#: ``cr_exec_<domain>()`` runs the op), ``sub`` (the case label inside that
+#: exec) and ``bin`` (which fold body, or ``CR_BIN_NONE``). Each reshape made
+#: the previous regex match ZERO rows and this file's own ``assert rows`` fire
+#: loudly — the parse refusing to observe rather than silently reporting an
+#: empty table. It keeps its own regex rather than being generalised, so the
+#: DSL surface (still 3 members) cannot start accepting a shape it does not
+#: have. ``sub`` may be a bare ``0u`` (the CR_DOM_NONE fold-only row has no
+#: domain enum), so its group admits digits where ``dom``/``bin`` require an
+#: identifier.
 _COMPOSE_ROW = re.compile(
     r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,\s*"([A-Za-z0-9_.]+)"\s*,'
-    r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}')
+    r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z0-9_]+)\s*,'
+    r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}')
 
 #: `cr_op_is(op, opl, "gcd", 3u)` — kept to prove ``cr_dispatch`` has NONE.
 _CR_OP_IS = re.compile(r'cr_op_is\(op,\s*opl,\s*"([A-Za-z0-9_]+)",\s*(\d+)u\)')
@@ -197,13 +205,13 @@ def test_params_zero_is_the_first_live_parameter() -> None:
         + "\n".join(f"  {n}: declared {d!r}, live {l!r}" for n, d, l in bad))
 
 
-def _parse_compose_table(marker: str) -> Dict[str, Tuple[int, str, str, str]]:
-    """Parse ``CR_OP_REG`` into {bare: (declared_len, full, fn, bin)}.
+def _parse_compose_table(marker: str) -> Dict[str, Tuple[int, str, str, str, str]]:
+    """Parse ``CR_OP_REG`` into {bare: (declared_len, full, dom, sub, bin)}.
 
-    The compose table carries two FUNCTION-POINTER columns as of rc452, so it
-    gets its own parse. Either column may be the literal ``NULL``; both being
-    NULL is a DEAD ROW and is asserted against below, since such a row would be
-    key-set-validated and then never runnable by any path.
+    The compose table carries the A1 enum columns (``dom``/``sub``/``bin``) as
+    of rc452, so it gets its own parse. ``dom == CR_DOM_NONE`` with
+    ``bin == CR_BIN_NONE`` is a DEAD ROW and is asserted against below, since
+    such a row would be key-set-validated and then never runnable by any path.
     """
     text = _COMPOSE_C.read_text(encoding="utf-8")
     assert marker in text, (
@@ -217,9 +225,9 @@ def _parse_compose_table(marker: str) -> Dict[str, Tuple[int, str, str, str]]:
         f"no CR_OP_REG rows parsed out of {_COMPOSE_C.name} at {marker!r}. An "
         f"empty parse is not an empty table — re-point _COMPOSE_ROW at the row "
         f"shape the file actually has; do not delete the assertion.")
-    out: Dict[str, Tuple[int, str, str, str]] = {}
-    for bare, ln, full, fn, bn in rows:
-        out[bare] = (int(ln), full, fn, bn)
+    out: Dict[str, Tuple[int, str, str, str, str]] = {}
+    for bare, ln, full, dom, sub, bn in rows:
+        out[bare] = (int(ln), full, dom, sub, bn)
     assert len(out) == len(rows), "CR_OP_REG has a DUPLICATE bare spelling"
     return out
 
@@ -288,7 +296,7 @@ def test_dsl_leaf_index_resolves_and_matches_signatures() -> None:
 def test_compose_op_index_resolves_and_matches_signatures() -> None:
     """G4-A, Surface A — ``CR_OP_REG`` against the registry."""
     table = _parse_compose_table(_COMPOSE_MARKER)
-    _check_index({b: (ln, full) for b, (ln, full, _f, _n) in table.items()},
+    _check_index({b: (ln, full) for b, (ln, full, _d, _s, _n) in table.items()},
                  "CR_OP_REG", 0)
 
 
@@ -354,39 +362,88 @@ def test_compose_dispatch_is_TABLE_ONLY_not_an_if_chain_beside_it() -> None:
 def test_every_compose_table_row_is_REACHABLE_by_some_path() -> None:
     """No dead rows: each row runs as a plain op, as a fold body, or both.
 
-    A row with both columns NULL would be key-set-validated (so it LOOKS
-    covered — ``cr_args_keyset_ok`` resolves it and enforces its params) while
-    no execution path could ever call it. That is a validated surface with no
-    implementation behind it, which is precisely the shape this file's own
-    ``full in by_name`` assertion exists to refuse one level up.
+    A row with ``dom == CR_DOM_NONE`` and ``bin == CR_BIN_NONE`` would be
+    key-set-validated (so it LOOKS covered — ``cr_args_keyset_ok`` resolves it
+    and enforces its params) while no execution path could ever call it. That
+    is a validated surface with no implementation behind it, which is
+    precisely the shape this file's own ``full in by_name`` assertion exists
+    to refuse one level up.
     """
     table = _parse_compose_table(_COMPOSE_MARKER)
-    dead = sorted(b for b, (_l, _f, fn, bn) in table.items()
-                  if fn == "NULL" and bn == "NULL")
-    assert not dead, f"CR_OP_REG rows with neither an op fn nor a fold bin: {dead}"
+    dead = sorted(b for b, (_l, _f, dom, _s, bn) in table.items()
+                  if dom == "CR_DOM_NONE" and bn == "CR_BIN_NONE")
+    assert not dead, f"CR_OP_REG rows with neither a domain nor a fold bin: {dead}"
 
 
-def test_every_compose_table_function_pointer_is_DEFINED_in_the_file() -> None:
-    """A row may not name a function that does not exist.
+def _exec_case_labels(text: str, fn_name: str) -> set:
+    """The ``case`` labels of one dispatch function's switch, parsed."""
+    marker = f"static srmech_status_t {fn_name}("
+    assert marker in text, (
+        f"{fn_name} is gone from {_COMPOSE_C.name} — if the exec was renamed, "
+        f"re-point this gate in the same commit.")
+    body = text[text.index(marker):]
+    body = body[:body.index("\n}\n")]
+    labels = set(re.findall(r"case\s+([A-Za-z_][A-Za-z0-9_]*)\s*:", body))
+    assert labels, f"{fn_name} has NO case labels — the parse stopped observing"
+    return labels
 
-    The C compiler already refuses an undeclared identifier, so this is not
-    catching a build break — it is catching the row pointing at a DIFFERENT
-    real function than its name suggests is impossible to check mechanically,
-    but a missing definition is. Kept because the table is now the whole
-    dispatch surface and a typo'd column would otherwise be a silent
-    mis-dispatch to a same-shaped neighbour.
+
+def test_exec_case_labels_are_SET_EQUAL_to_the_tables_sub_column() -> None:
+    """THE BIJECTION GATE for the A1 (Rule-9-clean) dispatch.
+
+    The compiler already enforces one direction: an enum member with no
+    ``case`` in a no-default switch is a -Wswitch error under -Werror (and
+    C4062 under /w44062 /WX on MSVC). What the compiler CANNOT see is the
+    table: a row whose ``sub`` names an enum member that a DIFFERENT row also
+    names would compile clean and silently dispatch two spellings to one op.
+    So the mapping is parsed end-to-end here: ``cr_dispatch``'s own arms say
+    which exec serves which ``dom``, each exec's case labels are extracted,
+    and the table's per-domain ``sub`` column must be SET-EQUAL to them.
+
+    ⚠️ SET-equality is the right strength, not row-count equality:
+    ``mod_mul`` and ``mod_mul_wide`` are deliberately DISTINCT case labels
+    dispatching the same driver arm, so the row-to-case mapping stays 1:1 and
+    a shared label would be visible here as a set-size mismatch.
     """
     text = _COMPOSE_C.read_text(encoding="utf-8")
     table = _parse_compose_table(_COMPOSE_MARKER)
-    missing = []
-    for bare, (_ln, _full, fn, bn) in sorted(table.items()):
-        for sym in (fn, bn):
-            if sym == "NULL":
-                continue
-            if f" {sym}(" not in text:
-                missing.append((bare, sym))
-    assert not missing, (
-        f"CR_OP_REG rows naming an undefined function: {missing}")
+
+    # which exec serves which dom — parsed from cr_dispatch, not assumed
+    body = text[text.index("static srmech_status_t cr_dispatch("):]
+    body = body[:body.index("\n}\n")]
+    dom_to_exec = dict(re.findall(
+        r"case\s+(CR_DOM_[A-Z0-9_]+)\s*:\s*return\s+(cr_exec_[a-z0-9_]+)\(",
+        body))
+    assert dom_to_exec, (
+        "cr_dispatch dispatches to NO cr_exec_* — the domain-switch parse has "
+        "stopped observing")
+    assert "CR_DOM_NONE" not in dom_to_exec, (
+        "CR_DOM_NONE reaches an exec — the fold-body-only state must return "
+        "NOT_IMPL from cr_dispatch itself")
+
+    # every dom the table uses (bar NONE) is served by exactly one exec …
+    table_doms = {dom for (_l, _f, dom, _s, _b) in table.values()}
+    assert table_doms - {"CR_DOM_NONE"} == set(dom_to_exec), (
+        f"table domains {sorted(table_doms - {'CR_DOM_NONE'})} != dispatched "
+        f"domains {sorted(dom_to_exec)}")
+
+    # … and that exec's case labels are set-equal to the domain's sub column.
+    for dom, exec_fn in sorted(dom_to_exec.items()):
+        subs = {s for (_l, _f, d, s, _b) in table.values() if d == dom}
+        labels = _exec_case_labels(text, exec_fn)
+        assert subs == labels, (
+            f"{exec_fn} and the CR_OP_REG {dom} rows disagree.\n"
+            f"  case-only (an arm no row reaches): {sorted(labels - subs)}\n"
+            f"  row-only (an op with no arm — should be a compile error; if "
+            f"you are reading this the build gate is off): {sorted(subs - labels)}")
+
+    # the fold half rides the same table: cr_fold_body's labels == the bin
+    # column's values plus its explicit CR_BIN_NONE decline arm.
+    bins = {b for (_l, _f, _d, _s, b) in table.values()}
+    fold_labels = _exec_case_labels(text, "cr_fold_body")
+    assert fold_labels == bins | {"CR_BIN_NONE"}, (
+        f"cr_fold_body case labels {sorted(fold_labels)} != table bin values "
+        f"{sorted(bins | {'CR_BIN_NONE'})}")
 
 
 def test_the_order_gate_would_have_fired_on_the_rc448_registry() -> None:
