@@ -2349,7 +2349,8 @@ static srmech_status_t cr_args_keyset_ok(const char *op, uint32_t opl,
  *
  * ⚠️ The key-set check lives HERE and not in cr_dispatch: that function is a
  * 16-arm if-chain measured at 57 of JPL Rule 4's 60 lines, and it exists in its
- * current split only because it hit the cap once already (see cr_dispatch_real).
+ * current split only because it hit the cap once already (the since-deleted
+ * cr_dispatch_real, whose removal this rc's CR_OP_REG table made possible).
  * A per-op check inline there breaks the rule immediately. */
 static srmech_status_t cr_run_plain(cr_ctx_t *c, const srmech_json_value_t *step,
                                     cr_value_t **out)

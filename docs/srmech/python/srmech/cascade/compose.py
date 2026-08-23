@@ -984,8 +984,13 @@ def _resolve_args(
 _NATIVE_MISS = object()   # sentinel: C did NOT run (distinct from a None result)
 
 # The op names the C dispatch table covers — ALL Class N (srmech.math.rational).
-#: Ops the C chain runner's dispatch table handles. MUST track
-#: ``cr_dispatch`` / ``cr_dispatch_real`` in ``c/src/srmech_compose_run.c``;
+#: Ops the C chain runner's dispatch table handles. MUST track ``cr_dispatch``
+#: in ``c/src/srmech_compose_run.c`` — and, since rc452 (`#T1166`), the shared
+#: ``CR_OP_REG`` table it reads. *(This named ``cr_dispatch_real`` alongside it
+#: until rc453; rc452 DELETED that function — it existed only to absorb arms
+#: that would have pushed ``cr_dispatch`` past JPL Rule 4's 60 lines, and the
+#: table made it unnecessary. The name survived here, and in one more docstring
+#: below, in text that ships inside the wheel.)*
 #: ``tests/test_c_chain_eligibility_rc447.py`` asserts the two agree, so a C
 #: arm added without updating this set fails there rather than going unreachable.
 #:
@@ -1028,7 +1033,7 @@ _RUN_C_OPS = frozenset({
     # `autocorrelation` CHAIN is a different object whose steps never name it.
     "seq_len", "correlation_product", "compensated_sum",
     # Class K / N / B — the best_rational_signed steps (rc451, `#T1164`).
-    # FOUR separate arms at step granularity in cr_dispatch_real, deliberately
+    # FOUR separate arms at step granularity in the CR_OP_REG table, deliberately
     # NOT one dispatch of the fused srmech_cascade_best_rational_signed_f64:
     # that symbol is value-identical to the fine pipeline over the whole
     # C-accepted domain, so a coarse dispatch would satisfy every value-level

@@ -346,6 +346,13 @@ def test_every_running_chain_has_a_mutation_or_is_named():
 
 BOGUS_OP = "__no_such_op_rc452_step_drive__"
 
+#: rc453 (`#T1171`) — the population `test_every_step_of_every_running_chain_is
+#: _actually_read` walks, pinned so the figure in its docstring cannot rot. Both
+#: MEASURED at rc453 with a freshly built libsrmech (HAS_NATIVE=True, ABI 21):
+#: 11 chain x variant rows run in C, carrying 22 steps at full depth.
+EXPECTED_STEPS = 22
+EXPECTED_RUNNING_CHAINS = 11
+
 
 def _all_running_rows():
     """(name, variant, entry, inputs) for EVERY variant x EVERY proof case that
@@ -454,7 +461,16 @@ def test_every_step_of_every_running_chain_is_actually_read():
     `_widen_dead_band` mutation hit on `best_rational_signed` case 6, and the
     same answer: require the reaction on SOME case, not on an arbitrary one.
 
-    MEASURED at rc452: 18 steps over 10 running chains, every one reacts.
+    MEASURED at rc453: 22 steps over 11 running chains, every one reacts.
+
+    ⚠️ This line said "18 steps over 10 running chains" and shipped that way in
+    rc452, alongside the same figure in CHANGELOG.md. It was measured mid-rc and
+    never re-measured: commit 8649917b5 ("autocorrelation closes") added
+    `autocorrelation` as the 11th running chain with 4 steps, so 18 + 4 = 22 and
+    10 + 1 = 11. The SAME commit moved `CEIL_C_REJECTED_CHAINS` 8 -> 7, which is
+    the figure python/README.md also shipped stale — one commit falsified three
+    prose numbers in three files, and none of the three had a gate.
+    That is why the counts below are now PINNED rather than narrated.
 
     RED-PLANT that proves it fires: in the C interpreter's op resolver
     (`cr_dispatch` / `cr_dispatch_real` in src/srmech_compose_run.c) return
@@ -499,6 +515,19 @@ def test_every_step_of_every_running_chain_is_actually_read():
     assert probed > 0, (
         "no step was probed — either no chain runs in C or _step_paths walked "
         "nothing, and a green here would mean neither")
+    # rc453 (`#T1171`): PIN the population this docstring advertises. A measured
+    # figure with no tie to the measurement rots — rc452 shipped "18 steps over
+    # 10 chains" because a later commit in the same rc added a chain and nobody
+    # re-ran the count. Raising these is EXPECTED when a chain starts running in
+    # C; the point is that it cannot happen silently, and the docstring above is
+    # updated in the same edit.
+    assert (probed, len(by_chain)) == (EXPECTED_STEPS, EXPECTED_RUNNING_CHAINS), (
+        "step-mutation population moved: probed %d steps over %d running chains, "
+        "this file documents %d over %d. If a chain started (or stopped) running "
+        "in C, update BOTH these constants and the docstring figure above — and "
+        "check python/README.md's `CEIL_C_REJECTED_CHAINS` sentence, which moves "
+        "with the same commits."
+        % (probed, len(by_chain), EXPECTED_STEPS, EXPECTED_RUNNING_CHAINS))
     assert reacted > 0, (
         "NO step reacted to an unresolvable op name. The mutation is not "
         "reaching the document at all and every row below is an artifact")
