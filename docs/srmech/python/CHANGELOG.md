@@ -16,15 +16,58 @@ measured; the residual is stated plainly at the end rather than deferred
 silently.
 
 **Mandate clause 2 — `cascade.atoms` in C — is CLOSED.** `CR_OP_REG` stops being
-a name-to-name index and becomes a name-to-**function-pointer** atom registry:
-a bare-C, config-addressable table that IS the callable registry the interpreter
-resolves against. This was not a tidiness move. `cr_dispatch` was measured at
+a name-to-name index and becomes the atom registry the interpreter resolves
+against: a bare-C, config-addressable table of pure data rows. This was not a
+tidiness move. `cr_dispatch` was measured at
 **57 of JPL Rule 4's 60 lines** with 16 arms, and `cr_dispatch_real` already
 existed only to absorb an earlier overflow — so the 32 op spellings the blocked
 chains need could not be added as an if-chain **at all**. `cr_dispatch` is now a
-~12-line bounded loop and `cr_dispatch_real` is gone. A `bin` column gives the
+row lookup plus a bounded per-domain switch tree and `cr_dispatch_real` is gone.
+A `bin` column gives the
 FOLD BODY the same table, replacing the private single-entry table that had kept
 `fold` counted unsupported while a real fold chain shipped.
+
+**The table's rows are enum data, not function pointers — the "A1" dispatch —
+and the first cut of this rc was measured violating JPL Rule 9.** The first
+CR_OP_REG cut gave rows `fn`/`bin` FUNCTION-POINTER columns; Rule 9 says
+outright *"Function pointers are not permitted."* and nothing tripped, because
+`tests/test_jpl_audit.py` mechanically checks Rules 1/3/4/5/8 only. The
+shipped shape instead carries three small-int enum columns
+(`dom`/`sub`/`bin`): `cr_dispatch` switches on `dom` and hands `sub` to one
+`cr_exec_<domain>()` per domain (rat / cyc / cas), and each exec switches on
+its OWN enum type with **no `default:` arm** — so gcc/clang's `-Wswitch`
+under the existing `-Werror` makes "row added, case forgotten" (or a deleted
+case line) a **COMPILE ERROR**, demonstrated by mutation during the build.
+MSVC's C4062 is off by default even at `/W4` — measured: a deleted case
+compiled silently clean under `/W4` alone — so `/w44062` joins the
+`SRMECH_PEDANTIC` MSVC flags, and the full 138-TU src sweep is clean under
+it. The A1 shape is also SMALLER: the fourteen seven-line uniform-shape
+wrappers existed only to feed the function-pointer column and deleted with
+it, and the two Rule-9 sites that PREDATED this rc in the same file
+(`cr_series_fn_t`, `cr_op_dseq`'s inline fn param) drained by the same
+enum-plus-switch recipe — `srmech_compose_run.c` goes 4 → 0 declarator
+sites. A new bijection gate in
+`tests/test_t1158_registry_param_order_rc449.py` parses each exec's case
+labels and pins them set-equal to the table's per-domain `sub` column (the
+one drift the compiler cannot see: two rows sharing a label — red-planted,
+fired, reverted).
+
+**The Rule 9 census — a finding bigger than this rc.** A masked declarator
+scan over `src/*.c` + `src/*.h` + `include/*.h` (150 files) measured **14
+function-pointer declarator sites across 5 files**, of which **12 predate
+rc452** — including `IV_VTABLE` in `srmech_invoke.c`, a **38-row
+name-to-function-pointer dispatch table shipped since ~rc189** — while
+`JPL_AUDIT.md` documented exactly ONE deviation. So "passes all ten rules"
+was ALREADY FALSE before this rc. Post-A1 the population is **10 sites
+across 4 files**: seeded down-only in the new
+`test_rule_9_no_new_function_pointers` (strict on novel sites, ceiling
+pinned to the live count, vacuity check that must find the documented
+`srmech_ndjson_line_cb`), with `JPL_AUDIT.md`'s Rule 9 section rewritten to
+carry the measured census and `IV_VTABLE` named as the next drain by the
+identical A1 recipe — deliberately NOT drained in the same change as the
+census. The stale "passes all 10" / "one deliberate deviation" orientation
+lines in the root `CLAUDE.md`, `docs/srmech/CLAUDE.md` and `c/README.md`
+are corrected in the same commit.
 
 **All three Surface-A step forms now execute.**
 `CEIL_SURFACE_A_UNSUPPORTED_FORMS` **2 → 1 → 0**, each step forced by its own
