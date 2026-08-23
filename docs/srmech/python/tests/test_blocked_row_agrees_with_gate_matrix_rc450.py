@@ -72,11 +72,14 @@ _GATE_MATRIX = _NOTES / "_1653_gate_matrix_rc445.ndjson"
 _GAP_LEDGER = _NOTES / "_1653_gap_ledger.ndjson"
 _WITNESS = Path(__file__).resolve().parent / "test_step_mutation_witness_rc447.py"
 
-#: The step-mutation witness's exempt set, pinned at its rc450 population. A
-#: FOURTH exemption is then a deliberate red edit that must state its reason,
-#: rather than a one-line escape from the mutation obligation.
-EXPECTED_EXEMPT = frozenset({"cyclic_mod_inv", "cyclic_mod_mul_wide",
-                             "cyclic_mod_pow"})
+#: rc452 (`#T1166`) Phase 2 — the exempt MECHANISM is gone, and this pin now
+#: holds it at ZERO. It pinned the rc450 population ({cyclic_mod_inv,
+#: cyclic_mod_mul_wide, cyclic_mod_pow}) so a FOURTH exemption would be a
+#: deliberate red edit; all THREE pinned entries were then FALSIFIED — each
+#: chain carries a value-predicted witness via a one-line argument mutation,
+#: now in the witness file's MUTATIONS — so the escape hatch itself was
+#: removed. Reintroducing an `exempt = {...}` assignment is the red edit now.
+EXPECTED_EXEMPT = frozenset()
 
 
 # ── parsers, each of which refuses an empty result ───────────────────────────
@@ -115,18 +118,17 @@ def _ledger_rows():
     return rows
 
 
-def _exempt_names_by_ast():
-    """The exempt set, read out of the witness module's AST.
+def _exempt_names_in(src):
+    """Every ``exempt = {...}`` assignment's name set, from source text.
 
-    It is a local ``exempt = {...}`` inside a test function, so there is no
-    attribute to read. Anything other than a set literal of plain strings is a
-    hard failure: a comprehension or a name reference would mean the set is no
-    longer statically knowable, and a pin that cannot see its subject must say
-    so rather than pin nothing.
+    Returns a frozenset of names, EMPTY when no such assignment exists — which
+    since rc452 Phase 2 is the required state. Anything other than a set/dict
+    literal of plain strings is a hard failure: a comprehension or a name
+    reference would mean the set is no longer statically knowable, and a pin
+    that cannot see its subject must say so rather than pin nothing.
     """
-    assert _WITNESS.exists(), "step-mutation witness missing: %s" % _WITNESS
-    tree = ast.parse(_WITNESS.read_text(encoding="utf-8"))
-    found = None
+    tree = ast.parse(src)
+    found = frozenset()
     for node in ast.walk(tree):
         if not isinstance(node, ast.Assign):
             continue
@@ -139,23 +141,24 @@ def _exempt_names_by_ast():
             assert len(keys) == len(val.keys), (
                 "the exempt dict has a non-literal key; this pin can no longer "
                 "see its subject and must not pretend to")
-            found = frozenset(k.value for k in keys)
+            found |= frozenset(k.value for k in keys)
         elif isinstance(val, ast.Set):
             elts = [e for e in val.elts if isinstance(e, ast.Constant)]
             assert len(elts) == len(val.elts), "non-literal exempt element"
-            found = frozenset(e.value for e in elts)
+            found |= frozenset(e.value for e in elts)
         else:
             raise AssertionError(
                 "`exempt` is no longer a set/dict literal (%s). The pin reads "
                 "it statically; if it became dynamic, the exemption list is no "
                 "longer reviewable and that is the change to argue about."
                 % type(val).__name__)
-        break
-    assert found is not None, (
-        "no `exempt = {...}` assignment found in %s — the extraction stopped "
-        "matching, and an extraction that finds nothing must FAIL rather than "
-        "pin the empty set" % _WITNESS.name)
     return found
+
+
+def _exempt_names_by_ast():
+    """The witness module's exempt set — empty since rc452 Phase 2."""
+    assert _WITNESS.exists(), "step-mutation witness missing: %s" % _WITNESS
+    return _exempt_names_in(_WITNESS.read_text(encoding="utf-8"))
 
 
 # ── 1. the population, both directions ───────────────────────────────────────
@@ -309,42 +312,38 @@ def test_at_least_one_row_actually_exercises_the_contradiction_branch():
 # ── 4. the exempt-set pin ────────────────────────────────────────────────────
 
 def test_step_mutation_exempt_set_is_pinned():
-    """A FOURTH exemption must be a deliberate red edit.
+    """The exempt mechanism stays REMOVED — pinned at zero.
 
-    ``tests/test_step_mutation_witness_rc447.py`` requires every C-running chain
-    to carry a mutation witness OR be named in a local ``exempt`` dict with a
-    reason. That dict is a one-line escape hatch from the obligation, and rc451+
-    is precisely when something will want to use it — so it is pinned before it
-    is needed rather than after it is used.
+    Through mid-rc452 this pinned three names so a FOURTH exemption would be a
+    deliberate red edit. All three were then falsified by executed one-line
+    argument mutations (rc452 Phase 2), so the escape hatch itself is gone and
+    the pin's job inverts: the witness file must contain NO ``exempt = {...}``
+    assignment at all. Reintroducing one — with any content — is the red edit
+    this now exists to catch; a genuine impossibility claim belongs in an
+    EXECUTED proof beside the witness, not in a dict of prose.
     """
     got = _exempt_names_by_ast()
-    assert got == EXPECTED_EXEMPT, (
-        "the step-mutation exempt set is %s; the pin is %s. ADDING a name here "
-        "means a chain that runs in C now has NO mutation witness — state the "
-        "reason in the witness file and update this pin in the same change."
-        % (sorted(got), sorted(EXPECTED_EXEMPT)))
+    assert got == EXPECTED_EXEMPT == frozenset(), (
+        "the step-mutation witness has grown an exempt set again: %s. All "
+        "three previous exemptions were falsified by one-line argument "
+        "mutations; prove impossibility by execution instead." % sorted(got))
 
 
 def test_the_exempt_pin_would_notice_a_fourth_name():
     """RETRO-CHECK on the pin's own mechanism. Extraction is by AST over source
     text, so the check is run against a MUTATED copy of that source rather than
-    against a description of one."""
+    against a description of one: reintroduce an ``exempt`` dict and the
+    extractor must SEE it (the zero above is a measurement, not a dead
+    detector)."""
     src = _WITNESS.read_text(encoding="utf-8")
-    marker = "exempt = {"
-    assert marker in src, "the exempt assignment spelling changed"
-    mutated = src.replace(marker, 'exempt = {\n        "cyclic_gcd": "x",', 1)
-    tree = ast.parse(mutated)
-    names = None
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and any(
-                isinstance(t, ast.Name) and t.id == "exempt"
-                for t in node.targets):
-            names = frozenset(k.value for k in node.value.keys
-                              if isinstance(k, ast.Constant))
-            break
-    assert names is not None and "cyclic_gcd" in names, (
-        "the AST extraction did not see an added name, so the pin cannot "
-        "detect the thing it exists to detect")
+    assert "exempt = {" not in src, (
+        "an exempt assignment is back in the witness source; the strict-zero "
+        "pin above should already be red")
+    mutated = src + '\n\nexempt = {"cyclic_gcd": "x"}\n'
+    names = _exempt_names_in(mutated)
+    assert "cyclic_gcd" in names, (
+        "the AST extraction did not see a reintroduced exempt dict, so the "
+        "pin cannot detect the thing it exists to detect")
     assert names != EXPECTED_EXEMPT
 
 

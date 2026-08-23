@@ -158,6 +158,38 @@ def _pin_autocorr_lag_to_zero(ch):
     ch["steps"][1]["body"][0]["body"][0]["args"]["b"] = 0
 
 
+def _pin_mod_inv_modulus(ch):
+    """cyclic_mod_inv — the rc452 exemption FALSIFIED, first of three.
+
+    The exemption read "single op, no second op shares its (a, n) arity — a
+    swap would decline rather than compute". True, and beside the point: a
+    witness does not need an OP swap. Pinning the modulus REFERENCE to a
+    literal is a one-line argument mutation the runner executes.
+    """
+    ch["steps"][0]["args"]["n"] = 11
+
+
+def _pin_mul_wide_factor(ch):
+    """cyclic_mod_mul_wide — second falsified exemption.
+
+    "Routes to the SAME arm as cyclic_mod_mul, which is covered" — also true,
+    also beside the point: THIS chain's own descriptor was never witnessed,
+    and a dispatcher keyed on THIS chain's name would have passed unread.
+    Shared arm or not, the document is its own subject.
+    """
+    ch["steps"][0]["args"]["b"] = 9
+
+
+def _pin_pow_exponent(ch):
+    """cyclic_mod_pow — third falsified exemption.
+
+    "Swapping in mod_mul changes the arg NAMES (k vs b), so the mutant
+    declines" — true of the swap, irrelevant to the witness: mutate the
+    EXPONENT argument instead and the mutant computes.
+    """
+    ch["steps"][0]["args"]["k"] = 4
+
+
 #: (chain, mutate, inputs-or-None, EXPECTED mutant value, why)
 #:
 #: ⚠️ THE EXPECTED VALUE IS THE POINT, not merely "it differs". "Something
@@ -224,6 +256,23 @@ MUTATIONS = [
      "internally-computed orientation ignores the literal and still returns "
      "(22, 7), so this catches a partial fusion the band mutation alone would "
      "not"),
+    # ── rc452 (`#T1166`) Phase 2: the three chains that were EXEMPT, each with
+    # the witness its exemption claimed impossible. All three exemptions were
+    # justified solely by prose about OP swaps; every one is answered by a
+    # ONE-LINE ARGUMENT mutation, verified by execution before landing here.
+    ("cyclic_mod_inv", _pin_mod_inv_modulus, None, 4,
+     "mod_inv(3, 7) = 5; pinning the modulus reference '@input.n' to the "
+     "literal 11 gives mod_inv(3, 11) = 4 (3*4 = 12 === 1 mod 11). The rc452 "
+     "exemption claimed no witness exists because no op SWAP computes; the "
+     "witness needed an argument, not a swap"),
+    ("cyclic_mod_mul_wide", _pin_mul_wide_factor, None, 3,
+     "mod_mul_wide(7, 8, 12) = 8; pinning b to 9 gives 63 mod 12 = 3. A "
+     "coarse dispatcher keyed on this chain's NAME returns 8 — the shared "
+     "dispatch arm the exemption cited never made this descriptor read"),
+    ("cyclic_mod_pow", _pin_pow_exponent, None, 1,
+     "mod_pow(3, 7, 10) = 2187 mod 10 = 7; pinning the exponent k to 4 gives "
+     "81 mod 10 = 1. The k-vs-b arg-name mismatch the exemption cited blocks "
+     "an op swap, not an argument mutation"),
 ]
 
 
@@ -289,19 +338,20 @@ def test_the_witness_would_catch_a_coarse_dispatcher():
 def test_every_running_chain_has_a_mutation_or_is_named():
     """COVERAGE. A witness that silently skips chains proves less than it looks.
 
-    Any chain that runs in C but has no mutation here must be named with a
-    reason, so the uncovered set is explicit rather than emergent.
+    ⚠️ THE EXEMPTION MECHANISM IS GONE — rc452 (`#T1166`) Phase 2. Through the
+    first half of rc452 this test carried a three-entry ``exempt`` map
+    (``cyclic_mod_inv`` / ``cyclic_mod_mul_wide`` / ``cyclic_mod_pow``), each
+    justified solely by prose about why an OP SWAP would decline. All three
+    justifications were TRUE and all three exemptions were FALSE: each chain
+    carries a value-predicted witness via a one-line ARGUMENT mutation, now in
+    MUTATIONS with its expected value. An exemption is a claim that no witness
+    exists, and that claim is only ever provable by execution — three prose
+    exemptions went 0-for-3 against one afternoon of trying, so the mechanism
+    itself is removed. A chain that runs with no witness FAILS here until it
+    has one; if a witness is ever genuinely impossible, prove it by execution
+    in a test beside this one, not by a string in a dict.
     """
     covered = {m[0] for m in MUTATIONS}
-    #: Running chains deliberately WITHOUT a mutation, each with its reason.
-    exempt = {
-        "cyclic_mod_inv": "single op, no second op shares its (a, n) arity — a "
-                          "swap would decline rather than compute",
-        "cyclic_mod_mul_wide": "routes to the SAME arm as cyclic_mod_mul, which "
-                               "is covered; a duplicate proves nothing new",
-        "cyclic_mod_pow": "swapping in mod_mul changes the arg NAMES (k vs b), "
-                          "so the mutant declines instead of computing",
-    }
     catalog = _cat.load_catalog()
     running = set()
     for nm in sorted(catalog):
@@ -310,12 +360,10 @@ def test_every_running_chain_has_a_mutation_or_is_named():
         ch, inp = _shipped(nm)
         if _c_value(ch, inp)[0] == 0:
             running.add(nm)
-    uncovered = sorted(running - covered - set(exempt))
+    assert running, "no chain ran in C — the coverage claim would be vacuous"
+    uncovered = sorted(running - covered)
     assert not uncovered, (
-        "these chains run in C with no step-mutation witness and no stated "
-        "exemption: %s" % uncovered)
-    stale = sorted(set(exempt) - running)
-    assert not stale, "exempted chains that no longer run: %s" % stale
+        "these chains run in C with no step-mutation witness: %s" % uncovered)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # rc452 (`#T1166`) — TWO SEAMS THE COVERAGE TEST ABOVE LEAVES OPEN.
@@ -346,10 +394,11 @@ def test_every_running_chain_has_a_mutation_or_is_named():
 
 BOGUS_OP = "__no_such_op_rc452_step_drive__"
 
-#: rc453 (`#T1171`) — the population `test_every_step_of_every_running_chain_is
+#: rc452 (`#T1171`) — the population `test_every_step_of_every_running_chain_is
 #: _actually_read` walks, pinned so the figure in its docstring cannot rot. Both
-#: MEASURED at rc453 with a freshly built libsrmech (HAS_NATIVE=True, ABI 21):
+#: MEASURED at rc452 with a freshly built libsrmech (HAS_NATIVE=True, ABI 21):
 #: 11 chain x variant rows run in C, carrying 22 steps at full depth.
+#: Re-measured unchanged after the rc452 A1 dispatch reshape.
 EXPECTED_STEPS = 22
 EXPECTED_RUNNING_CHAINS = 11
 
@@ -383,31 +432,26 @@ def _all_running_rows():
 def test_mutation_coverage_over_every_variant_and_case():
     """SEAM 1. Coverage decided over the FULL population, not `[0]` of each.
 
-    Same exempt map and same MUTATIONS as the test above — deliberately, so the
-    two cannot disagree about what is covered. The only thing that widens is the
-    set of chains asked.
+    Same MUTATIONS roster as the test above — deliberately, so the two cannot
+    disagree about what is covered. The only thing that widens is the set of
+    chains asked. (The exempt map both tests once shared is gone for the
+    reason the narrower test's docstring states: all three entries were
+    falsified by executed one-line argument mutations.)
 
     RED-PLANT that proves it fires: delete the `("cyclic_mod_add", ...)` row from
     MUTATIONS. `cyclic_mod_add` runs in C on all four of its proof cases, so it
-    lands in `running`, is not exempt, and this reds naming it. (The same plant
-    reds the narrower test too — that is the point: this one must not be WEAKER,
-    only wider.)
+    lands in `running` and this reds naming it. (The same plant reds the
+    narrower test too — that is the point: this one must not be WEAKER, only
+    wider.)
     """
     covered = {m[0] for m in MUTATIONS}
-    exempt = {
-        "cyclic_mod_inv": "single op, no second op shares its (a, n) arity",
-        "cyclic_mod_mul_wide": "routes to the SAME arm as cyclic_mod_mul",
-        "cyclic_mod_pow": "swapping in mod_mul changes the arg NAMES (k vs b)",
-    }
     rows = _all_running_rows()
     assert rows, "no chain ran in C — the coverage claim would be vacuous"
     running = {nm for nm, _v, _e, _i in rows}
-    uncovered = sorted(running - covered - set(exempt))
+    uncovered = sorted(running - covered)
     assert not uncovered, (
         "these chains run in C on at least one (variant, proof case) with no "
-        "step-mutation witness and no stated exemption: %s" % uncovered)
-    stale = sorted(set(exempt) - running)
-    assert not stale, "exempted chains that no longer run: %s" % stale
+        "step-mutation witness: %s" % uncovered)
 
 
 def _step_paths(steps, prefix=()):
@@ -445,13 +489,90 @@ def _at(chain, path):
     return node
 
 
-def test_every_step_of_every_running_chain_is_actually_read():
-    """SEAM 2. Point each step's op at a name nothing can resolve; it must react.
+#: ── rc452 (`#T1166`) Phase 2: the per-step VALUE probes ─────────────────────
+#: bare op name -> (label, mutate(step_dict) -> None). Each probe is a one-line
+#: ARGUMENT mutation the C runner can EXECUTE (rc == 0) whose result must
+#: differ from the baseline on at least one proof case.
+#:
+#: WHY THESE EXIST. Through the first half of rc452 the step gate scored a step
+#: as "read" if the chain EITHER declined a bogus op name OR ran it to a moved
+#: value — and measured over all 22 steps, the value arm had fired ZERO times:
+#: an unresolvable op always declines, so the OR was decided by the decline arm
+#: alone. That makes the old gate a step-REACHABILITY instrument (a runner that
+#: VALIDATES op names up front without executing steps passes it), a weaker
+#: property than its name and docstring claimed. These probes are the value
+#: half made real: a name-validating non-executor declines nothing here — the
+#: mutant is a legal descriptor — so only a runner that EXECUTES the step with
+#: its mutated argument can produce the moved value the gate demands.
+VALUE_PROBES = {
+    "gcd":            ("args.b -> 1",
+                       lambda s: s["args"].__setitem__("b", 1)),
+    "mod_add":        ("args.b -> 1",
+                       lambda s: s["args"].__setitem__("b", 1)),
+    "mod_mul":        ("args.b -> 1",
+                       lambda s: s["args"].__setitem__("b", 1)),
+    "mod_mul_wide":   ("args.b -> 1",
+                       lambda s: s["args"].__setitem__("b", 1)),
+    "mod_pow":        ("args.k -> 1",
+                       lambda s: s["args"].__setitem__("k", 1)),
+    "mod_inv":        ("args.n -> 11",
+                       lambda s: s["args"].__setitem__("n", 11)),
+    "chiral_flip":    ("args.seq -> [9.0, 4.0]",
+                       lambda s: s["args"].__setitem__("seq", [9.0, 4.0])),
+    "autocorrelation": ("args.x -> [9.0, 4.0]",
+                        lambda s: s["args"].__setitem__("x", [9.0, 4.0])),
+    "pin_slot_at_zero": ("args.x -> -9.5",
+                         lambda s: s["args"].__setitem__("x", -9.5)),
+    "reorient":       ("args.orientation -> -1",
+                       lambda s: s["args"].__setitem__("orientation", -1)),
+    "dead_band":      ("args.band -> 1e6",
+                       lambda s: s["args"].__setitem__("band", 1e6)),
+    "scale_round_half_even": ("args.scale -> 10",
+                              lambda s: s["args"].__setitem__("scale", 10)),
+    "best_rational":  ("args.max_denominator -> 1",
+                       lambda s: s["args"].__setitem__("max_denominator", 1)),
+    "pair":           ("args.second -> 99",
+                       lambda s: s["args"].__setitem__("second", 99)),
+    "seq_len":        ("args.seq -> [1.0, 2.0]",
+                       lambda s: s["args"].__setitem__("seq", [1.0, 2.0])),
+    "correlation_product": ("args.i -> 0",
+                            lambda s: s["args"].__setitem__("i", 0)),
+    "compensated_sum": ("args.values -> [7.5]",
+                        lambda s: s["args"].__setitem__("values", [7.5])),
+}
 
-    A step that can be replaced with an unresolvable op while the chain still
-    returns rc == 0 AND the identical value is a step the runner never read —
-    the coarse-dispatch signature, at the granularity the chain-level witness
-    cannot reach.
+
+def _value_probe_for(step):
+    """(label, mutate) for one step, or None if no probe covers its op.
+
+    A FOLD step has no ``args`` to mutate; its probe flips ``fold_init``, which
+    a correct runner must thread through every application of the fold body
+    (and return unchanged on the empty fold — either way the value moves).
+    """
+    if "fold_op" in step:
+        return ("fold_init -> -1", lambda s: s.__setitem__("fold_init", -1))
+    bare = str(step.get("op", "")).rsplit(".", 1)[-1]
+    return VALUE_PROBES.get(bare)
+
+
+def test_every_step_of_every_running_chain_is_actually_read():
+    """SEAM 2, both halves. Every step must (1) DECLINE an unresolvable op and
+    (2) MOVE THE VALUE under a legal one-line argument mutation.
+
+    Half (1) — reachability. Point the step's op at a name nothing can
+    resolve; the chain must refuse to run. A step whose bogus op is accepted
+    with an identical value is a step the resolver never visited.
+
+    Half (2) — value-drive, rc452 (`#T1166`) Phase 2. Reachability alone is
+    weaker than this gate's name: a runner that VALIDATES every op name up
+    front and then dispatches something coarse passes half (1) with the steps
+    driving nothing. Measured mid-rc452: all 22 steps scored via the decline
+    arm and the value arm of the old EITHER/OR had fired ZERO times — the
+    gate could not return otherwise on the property its docstring claimed.
+    So each step now also carries a VALUE probe from ``VALUE_PROBES``: a
+    mutation the runner must EXECUTE (rc == 0) to a value that differs from
+    the baseline. Both halves are asserted per step, and both fire on all 22
+    (pinned below), so neither arm is decorative.
 
     ⚠️ A STEP IS JUDGED OVER ALL ITS PROOF CASES, NOT case[0]. `net_chirality`'s
     fold is genuinely vacuous on `{"orientations": []}` — an empty fold returns
@@ -461,66 +582,93 @@ def test_every_step_of_every_running_chain_is_actually_read():
     `_widen_dead_band` mutation hit on `best_rational_signed` case 6, and the
     same answer: require the reaction on SOME case, not on an arbitrary one.
 
-    MEASURED at rc453: 22 steps over 11 running chains, every one reacts.
+    MEASURED at rc452: 22 steps over 11 running chains; 22 decline, 22 move.
 
-    ⚠️ This line said "18 steps over 10 running chains" and shipped that way in
-    rc452, alongside the same figure in CHANGELOG.md. It was measured mid-rc and
-    never re-measured: commit 8649917b5 ("autocorrelation closes") added
-    `autocorrelation` as the 11th running chain with 4 steps, so 18 + 4 = 22 and
-    10 + 1 = 11. The SAME commit moved `CEIL_C_REJECTED_CHAINS` 8 -> 7, which is
-    the figure python/README.md also shipped stale — one commit falsified three
-    prose numbers in three files, and none of the three had a gate.
-    That is why the counts below are now PINNED rather than narrated.
+    ⚠️ The docstring figure said "18 steps over 10 running chains" for part of
+    rc452 — measured mid-rc, then falsified by the rc's own `autocorrelation`
+    commit (8649917b5), which added the 11th running chain with 4 steps and
+    moved `CEIL_C_REJECTED_CHAINS` 8 -> 7 in the same stroke, staling three
+    prose numbers in three files at once. Corrected before rc452 shipped, and
+    the counts are PINNED rather than narrated so it cannot recur silently.
 
-    RED-PLANT that proves it fires: in the C interpreter's op resolver
-    (`cr_dispatch` / `cr_dispatch_real` in src/srmech_compose_run.c) return
-    SRMECH_OK with the input passed through instead of NOT_IMPL for an
-    unresolved op. Every step then accepts a bogus name, the value does not
-    move, and this reds naming each step. A cheaper Python-side plant: make
-    `_step_paths` return `[]` — the self-check below reds first, which is what
-    it is for.
+    RED-PLANTS, both executed: (1) in the C resolver (`cr_dispatch` over the
+    `CR_OP_REG` table in src/srmech_compose_run.c — `cr_dispatch_real` was
+    deleted by the rc452 A1 reshape) return SRMECH_OK with the input passed
+    through for an unresolved op: every step accepts the bogus name and half
+    (1) reds naming each step. (2) point one op's VALUE probe at the value the
+    baseline already uses (gcd `args.b -> 18` on the (12, 18) case): the
+    mutant equals the baseline and half (2) reds naming the step and the arm.
+    A cheaper Python-side plant: make `_step_paths` return `[]` — the
+    self-check below reds first, which is what it is for.
     """
     by_chain = {}
     for nm, variant, entry, inputs in _all_running_rows():
         by_chain.setdefault((nm, variant, id(entry)), [entry, []])[1].append(inputs)
 
-    probed = reacted = 0
+    probed = declined = value_moved = 0
     dead = []
     for (nm, variant, _k), (entry, input_list) in sorted(
             by_chain.items(), key=lambda kv: (kv[0][0], kv[0][1])):
         base = _chain_only(entry)
         for path, opkey in _step_paths(base.get("steps")):
             probed += 1
-            moved = False
+            step_id = "%s/%s step[%s].%s" % (
+                nm, variant, ".".join(str(x) for x in path), opkey)
+
+            # ── half (1): the unresolvable op must be DECLINED ──────────
+            step_declined = False
+            for inputs in input_list:
+                rc_b, _val_b = _c_value(base, inputs)
+                if rc_b != 0:
+                    continue
+                mutant = copy.deepcopy(base)
+                _at(mutant, path)[opkey] = BOGUS_OP
+                if _c_value(mutant, inputs)[0] != 0:
+                    step_declined = True
+                    break
+            if step_declined:
+                declined += 1
+            else:
+                dead.append("%s [DECLINE arm: bogus op accepted]" % step_id)
+
+            # ── half (2): the VALUE probe must run AND move the value ───
+            probe = _value_probe_for(_at(base, path))
+            if probe is None:
+                dead.append(
+                    "%s [VALUE arm: no probe in VALUE_PROBES for this op — "
+                    "add one; an unprobed step is unmeasured, not exempt]"
+                    % step_id)
+                continue
+            label, mutate = probe
+            step_moved = False
             for inputs in input_list:
                 rc_b, val_b = _c_value(base, inputs)
                 if rc_b != 0:
                     continue
                 mutant = copy.deepcopy(base)
-                _at(mutant, path)[opkey] = BOGUS_OP
+                mutate(_at(mutant, path))
                 rc_m, val_m = _c_value(mutant, inputs)
-                # EITHER reaction counts as "the step was read": the runner
-                # declined the unresolvable op, or it ran and the value moved.
-                if rc_m != 0 or _bits_of(val_m) != _bits_of(val_b):
-                    moved = True
+                if rc_m == 0 and _bits_of(val_m) != _bits_of(val_b):
+                    step_moved = True
                     break
-            if moved:
-                reacted += 1
+            if step_moved:
+                value_moved += 1
             else:
-                dead.append("%s/%s step[%s].%s"
-                            % (nm, variant,
-                               ".".join(str(x) for x in path), opkey))
+                dead.append(
+                    "%s [VALUE arm: probe %r never ran to a moved value — "
+                    "the step's argument is not driving the C execution]"
+                    % (step_id, label))
 
     # SELF-CHECK FIRST: a probe that reached no step would report a clean zero.
     assert probed > 0, (
         "no step was probed — either no chain runs in C or _step_paths walked "
         "nothing, and a green here would mean neither")
-    # rc453 (`#T1171`): PIN the population this docstring advertises. A measured
-    # figure with no tie to the measurement rots — rc452 shipped "18 steps over
-    # 10 chains" because a later commit in the same rc added a chain and nobody
-    # re-ran the count. Raising these is EXPECTED when a chain starts running in
-    # C; the point is that it cannot happen silently, and the docstring above is
-    # updated in the same edit.
+    # rc452 (`#T1171`): PIN the population this docstring advertises. A measured
+    # figure with no tie to the measurement rots — mid-rc452 the docstring said
+    # "18 steps over 10 chains" because a later commit in the same rc added a
+    # chain and nobody re-ran the count. Raising these is EXPECTED when a chain
+    # starts running in C; the point is that it cannot happen silently, and the
+    # docstring above is updated in the same edit.
     assert (probed, len(by_chain)) == (EXPECTED_STEPS, EXPECTED_RUNNING_CHAINS), (
         "step-mutation population moved: probed %d steps over %d running chains, "
         "this file documents %d over %d. If a chain started (or stopped) running "
@@ -528,12 +676,20 @@ def test_every_step_of_every_running_chain_is_actually_read():
         "check python/README.md's `CEIL_C_REJECTED_CHAINS` sentence, which moves "
         "with the same commits."
         % (probed, len(by_chain), EXPECTED_STEPS, EXPECTED_RUNNING_CHAINS))
-    assert reacted > 0, (
-        "NO step reacted to an unresolvable op name. The mutation is not "
-        "reaching the document at all and every row below is an artifact")
+    assert declined > 0 and value_moved > 0, (
+        "an entire arm never fired (declined=%d, value_moved=%d over %d steps) "
+        "— the mutation is not reaching the document and every row below is an "
+        "artifact" % (declined, value_moved, probed))
     assert not dead, (
-        "these steps accept an unresolvable op on EVERY proof case with no "
-        "change in outcome — the C runner is not reading them: %s" % dead)
+        "steps failing the read-and-driving contract (arm named per row): %s"
+        % dead)
+    # BOTH arms across the WHOLE population — the claim the gate's name makes.
+    assert declined == probed and value_moved == probed, (
+        "arm coverage is partial: %d/%d declined, %d/%d value-moved. A step "
+        "counted by only one arm is reachability without drive (or drive "
+        "without a decline contract), and the docstring above explains why "
+        "neither alone is the property this gate sells."
+        % (declined, probed, value_moved, probed))
 
 
 def _bits_of(v):
