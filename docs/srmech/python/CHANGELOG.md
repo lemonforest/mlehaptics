@@ -181,6 +181,82 @@ updated for (a), and the step-gate population figures were re-measured
 unchanged after the A1 reshape (22 steps / 11 chains; `CEIL_C_REJECTED_CHAINS`
 still 7).
 
+### Phase 3 — `CEIL_C_REJECTED_CHAINS` 7 → 4: kuramoto_step, quaternion_dft, octonion_dft
+
+**Three of the seven remaining chains close, at step granularity, with the
+value channel open end to end.** 23 of 23 representable proof-case rows are
+BYTE_IDENTICAL under the rc450 typed comparator (kuramoto 10/10 across BOTH
+variants — the exact-ℚ general path with Sakaguchi α, pinning and broadcast
+included; the DFTs 6/6 and 7/7 including the `ijk`/√3 axes, the inverse
+transforms and both two-sided bracketing orders). Each chain carries a
+step-mutation witness through an interior literal the fused symbols have no
+parameter image of (the kuramoto bind's `dt` reference pinned to 0 must
+return the input phases VERBATIM; the DFT fold seeds bumped on the N=1
+identity-twiddle cases move the spectrum by exactly the seed), and the
+step-drive gate re-measures at **51/51 decline + 51/51 value-move over 15
+running chain×variant rows**. All three run from their SHIPPED TOML files in
+the bare-C host with hand-derived expected bytes (identity twiddles and
+sin(0) = 0 keep every derivation exact).
+
+**The atoms are step-granular on purpose.** Seventeen new `CR_OP_REG` rows
+(28 → 45): the five kuramoto term ops, the ten DFT step ops (`seq_get` /
+`as_quat4` / `as_oct8` / `qdft_resolve_mu` / `odft_resolve_mu` / `dft_sigma`
+/ `dft_scale` / `qdft_summand` / `odft_summand` / `vec_scale`) and the two
+fold-body-only Σ accumulators (`f64_add` scalar, `vec_add` vector — the fold
+seed widens from int-only to float/list/reference in the same change). The
+summand/term arms delegate ONLY to the step-granular exports the Python ops
+themselves compose — `srmech_sin_q61`, `srmech_sqrt_q61`,
+`srmech_quaternion_twiddle` + `srmech_quaternion_{left,right}_mult`,
+`srmech_octonion_twiddle` + `srmech_loop_{left,right}_op_f64` — never
+`srmech_cascade_kuramoto_step*_f64` / `srmech_quaternion_dft` /
+`srmech_octonion_dft`, and the no-coarse source gate gains an exact-name arm
+so all four fused symbols are in its pinned population (the DFT kernels are
+exported without the `cascade` infix and had escaped its predicate exactly as
+their chains started running).
+
+**The kuramoto middle is exact-ℚ, reproduced rather than approximated.**
+`kuramoto_sin_term` returns the Q61 rational `Q(v, 2⁶¹)` in Python (Class-N
+`rational.sin`, never libm) and the fold accumulates it EXACTLY — so the C
+arms build the same rationals on the bigint carrier (`srmech_sin_q61`,
+reduced), add them exactly, and collapse ONCE per output element through a
+correctly-rounded dyadic→double conversion (round-half-even over `num/2^k` —
+CPython's `int.__truediv__` on the domain the chain actually produces; a
+non-dyadic denominator declines to pure rather than rounding wrongly).
+
+**Two latent defects surfaced by the closure, both fixed at root.**
+(1) `_spec_to_chain_dict` could not spell a MAP step, so with a native
+library present `resolve_chain(...)` on ANY map chain — including the
+already-accepted `autocorrelation` — CRASHED with `AttributeError:
+'MapStepSpec' object has no attribute 'fold_op'`. Every ctypes-driven gate
+reached around it (the rc447 blind spot, again), and the end-to-end driver
+swallowed it as routing. The serialiser gains the map branch (recursive over
+bodies, like the spec it mirrors). (2) `CR_BIND_MAX` was 8 and the general
+kuramoto variant's outer map carries NINE binds — the frame declined with
+every op arm present, indistinguishable from an op-table gap until measured.
+Now 12, with the measured maximum stated at the definition. A third find of
+the same family: the step-witness population builder did not merge the
+descriptor's `input_defaults`/`optional_inputs`, so the general variant fell
+OUT of the witness population the moment it started running — SEAM 1's
+docstring had predicted exactly this opening; the builder now uses the same
+`chain_input_defaults` merge as the parity population.
+
+**Bookkeeping that moved with the drain, in the same change:** the three
+BLOCKED rows deleted; `CEIL_C_REJECTED_CHAINS` 7 → 4;
+`CEIL_C_REJECTED_ROWS_BY_CHAIN` loses its kuramoto/qdft/odft entries (23
+rows); the gate matrix regenerated (its generator still parsed the first-cut
+function-pointer row shape and its own `assert ops` fired; its
+carrier-width predicate learned that nested lists ship); the
+contradiction-branch control moved to a synthetic exercise now that the two
+legitimately-differing rows closed; README's five gated cardinals re-synced
+(45 op spellings, 14 of 18, ceiling 4); the eligibility sets
+(`_RUN_C_OPS` +15, `_RUN_C_FOLD_OPS` +2) re-derived green against the C
+table. The four still-blocked chains — `klein4_from_one`,
+`encode_loe_content`, `schur_complement`, `parallel_sector_dispatch` — keep
+enumerated BLOCKED rows with measured gates; closing them requires three new
+wire kinds (bytes / matrix / mapping, each an ABI-bumping discriminator
+widening) plus the `@op` reference namespace and a string/bytes op family,
+none of which is landed here.
+
 ### Instruments that refused to observe — and were right to
 
 Three gates went red on this rc's own refactor rather than reporting a

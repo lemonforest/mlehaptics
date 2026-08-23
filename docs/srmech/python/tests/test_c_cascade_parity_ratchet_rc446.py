@@ -4,9 +4,9 @@ srmech is a MULTI-IMPLEMENTATION codebase (ADR-0009): the scripting-coherency
 projection (``python/srmech``) and the compiled-coherency projection (``c/src``)
 are CO-EQUAL. The config-driven cascade surface violates that: of the 18
 executable ``[cascade]`` descriptors, the C run loop accepted **0** when this
-file landed at rc445, and accepts **11** as of rc452 — measured by this file's
-own ``_measure()``, and equal to 18 minus :data:`CEIL_C_REJECTED_CHAINS` three
-screens down.
+file landed at rc445, and accepts **14** as of rc452 Phase 3 — measured by this
+file's own ``_measure()``, and equal to 18 minus :data:`CEIL_C_REJECTED_CHAINS`
+three screens down.
 
 *(This paragraph said "accepts **0**" in undated present tense through rc449,
 while the same file's ceiling said 9. Corrected at rc450 (`#T1160`) under the
@@ -79,7 +79,7 @@ from srmech.dsl import _catalog as _cat
 # Re-measured at rc445 by notes/_1653_chain_census_rc444.py:
 #   "CENSUS of 18 executable chains (20 chain-variants): ...
 #    C srmech_chain_run ACCEPT=0 REJECT=18 ... UNATTRIBUTED=0"
-CEIL_C_REJECTED_CHAINS = 7            # of 18 executable. Target 0.
+CEIL_C_REJECTED_CHAINS = 4            # of 18 executable. Target 0.
 #   The rc445 baseline was 18, verified against a PRISTINE origin/main .so with
 #   THIS harness — so the drain is attributable to the code, not to the probe.
 #   The drain, in full: 18 (rc445) -> 12 when the cr_dispatch arm closed the 6
@@ -95,6 +95,20 @@ CEIL_C_REJECTED_CHAINS = 7            # of 18 executable. Target 0.
 #   instrument is tests/test_c_cascade_value_parity_rc450.py — until it landed,
 #   "accepted" meant rc == 0 and nothing had ever decoded the returned VALUE.
 #
+#   7 -> 4 within rc452 (`#T1166` Phase 3): kuramoto_step (BOTH variants),
+#   quaternion_dft and octonion_dft, all with the value channel open — 23 of 23
+#   representable proof-case rows BYTE_IDENTICAL under the rc450 typed
+#   comparator, a step-mutation witness per chain (an interior bind/seed
+#   literal the fused symbols have no parameter image of), and both witness
+#   arms firing on every step (51/51 decline, 51/51 value-move). The atoms are
+#   STEP-granular on purpose: the fused srmech_cascade_kuramoto_step_f64 /
+#   _general_f64 / srmech_quaternion_dft / srmech_octonion_dft symbols are
+#   NOT referenced by the interpreter TU (the no-coarse source gate widened to
+#   pin all four). Two latent defects surfaced and fixed in the same stroke:
+#   CR_BIND_MAX 8 declined the general variant's NINE-bind map frame (read as
+#   an op-table gap until measured), and _spec_to_chain_dict could not spell a
+#   MAP step at all — resolve_chain CRASHED (AttributeError) on every map
+#   chain with a native lib present, invisibly to every ctypes-driven gate.
 #   9 -> 8 at rc451 (`#T1164`, gh #1653 item 4): best_rational_signed. THE FIRST
 #   DECREMENT THIS RATCHET HAS EVER MADE WITH THE VALUE CHANNEL OPEN — every
 #   earlier one was rc == 0 and nothing more. Its 9 JSON-representable proof
@@ -179,10 +193,11 @@ SURFACE_A_STEP_FORMS = ("plain", "map", "fold")
 GATE_OP_TABLE = "op_table"          # cr_dispatch over CR_OP_REG -> NOT_IMPL
 #                                     (cr_dispatch_real: deleted, rc452 A1).
 #                                     Still the widest gate: it appears in ALL
-#                                     NINE BLOCKED rows, i.e. 9 of 18 chains.
-#                                     (Read "10 of 18" until rc450; the 10 was
-#                                     an rc446-era figure that the rc447
-#                                     closures moved and nothing re-measured.)
+#                                     FOUR remaining BLOCKED rows. (Read "ALL
+#                                     NINE" through the first two phases of
+#                                     rc452 and "10 of 18" until rc450 — each
+#                                     figure was correct when written and
+#                                     moved with the drains.)
 GATE_CARRIER = "carrier_width"      # cr_value_t kinds. NARROWED at rc447 —
 #                                     CR_DBL + CR_LIST now ship, so this is down
 #                                     to byte-buffer, dense-matrix and MAPPING
@@ -265,34 +280,26 @@ BLOCKED = {
     "encode_loe_content":       {"gates": [GATE_CARRIER, GATE_OP_TABLE],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "carrier_bytes", "new_type_reason": ""},
+    # kuramoto_step's, quaternion_dft's and octonion_dft's rows were DELETED
+    # at rc452 Phase 3 (`#T1166`) — all three run, 23/23 representable proof
+    # cases BYTE_IDENTICAL, a mutation witness per chain and both step-drive
+    # arms firing on every step. kuramoto closed through GATE_OP_TABLE +
+    # GATE_STEP_FORM (five term ops at step granularity, the exact-ℚ Q61-sin
+    # middle reproduced on the bigint carrier, the fold seed widened to
+    # float/list); the DFTs additionally through GATE_CARRIER (nested-list
+    # ingest/marshal already landed earlier in rc452; the as_quat4/as_oct8
+    # coercion arms landed with the chains). Their step ops delegate ONLY to
+    # the step-granular exports the Python ops themselves compose
+    # (srmech_sin_q61 / srmech_sqrt_q61 / srmech_quaternion_twiddle +
+    # _{left,right}_mult / srmech_octonion_twiddle +
+    # srmech_loop_{left,right}_op_f64) — never the fused whole-transform
+    # symbols, which the no-coarse source gate now pins by name.
     "klein4_from_one":          {"gates": [GATE_OP_TABLE],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "step_form_map", "new_type_reason": ""},
-    "kuramoto_step":            {"gates": [GATE_OP_TABLE, GATE_STEP_FORM],
-                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "step_form_map", "new_type_reason": ""},
-    "octonion_dft":             {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_STEP_FORM],
-                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "chain_run_list_is_flat_only",
-                                "new_type_reason":
-                                    "The cited row is new_type=false because the `l` kind "
-                                    "ALREADY EXISTS and only NESTING is missing — a true "
-                                    "statement about that GAP. The CHAIN is new_type=True "
-                                    "anyway: octonion_dft returns list[list[float]] and "
-                                    "closing it requires the as_oct8 carrier, which the "
-                                    "gh #1653 symbol census classes as a new type. Chain "
-                                    "flag and gap flag differ because their subjects do."},
     "parallel_sector_dispatch": {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "carrier_mapping", "new_type_reason": ""},
-    "quaternion_dft":           {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_STEP_FORM],
-                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "chain_run_list_is_flat_only",
-                                "new_type_reason":
-                                    "As octonion_dft: the cited row is a true statement "
-                                    "about a GAP (nesting, not the `l` kind), while the "
-                                    "CHAIN is new_type=True because it returns "
-                                    "list[list[float]] and needs the as_quat4 carrier."},
     "schur_complement":         {"gates": [GATE_CARRIER, GATE_OP_TABLE],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "carrier_matrix", "new_type_reason": ""},

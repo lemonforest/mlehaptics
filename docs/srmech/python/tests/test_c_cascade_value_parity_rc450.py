@@ -230,12 +230,19 @@ CEIL_C_REJECTED_ROWS_BY_CHAIN = {
     # fused kernel exists and IS dispatched — but for the `autocorrelation` OP,
     # which is a different object from the `autocorrelation` CHAIN, so no
     # coarse bypass exists between them structurally.
+    # ``kuramoto_step`` (10), ``octonion_dft`` (7) and ``quaternion_dft`` (6)
+    # were DELETED at rc452 Phase 3 (`#T1166`) — each chain closed FULLY, every
+    # representable proof case BYTE_IDENTICAL (kuramoto 10/10 across both
+    # variants, including the exact-ℚ general path with pinning/broadcast/α;
+    # the DFTs 6/6 and 7/7 including the S3/S7 sqrt axes and the inverse and
+    # two-sided-bracketing cases). Rows removed, not decremented, per the
+    # down-only-per-entry rule above. Their steps run as steps — the fused
+    # srmech_cascade_kuramoto_step*_f64 / srmech_{quaternion,octonion}_dft
+    # kernels are NOT referenced by the interpreter TU (the no-coarse gate
+    # names all four), so no coarse bypass exists structurally.
     "encode_loe_content": 4,
     "klein4_from_one": 7,
-    "kuramoto_step": 10,
-    "octonion_dft": 7,
     "parallel_sector_dispatch": 4,
-    "quaternion_dft": 6,
     "schur_complement": 3,
 }
 

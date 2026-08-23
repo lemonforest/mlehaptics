@@ -48,8 +48,13 @@ def c_table_ops():
     a scanner that had instead returned an empty set would have written a matrix
     declaring every chain op-table-blocked.
 
-    Rows whose ``fn`` is NULL are FOLD-BODY-ONLY and are excluded: they are not
-    dispatchable as plain steps, and including them would over-report the table.
+    Rows whose ``dom`` is CR_DOM_NONE are FOLD-BODY-ONLY and are excluded:
+    they are not dispatchable as plain steps, and including them would
+    over-report the table. (This read the first-cut function-pointer columns
+    — ``fn``/``bn`` — until rc452 Phase 3; the A1 reshape replaced them with
+    the three enum columns ``dom``/``sub``/``bin``, the regenerating run's
+    own ``assert ops`` fired on the stale 5-member regex, and the row shape
+    below is now the same 6-member one the eligibility gate parses.)
     """
     src = open(C_SRC, encoding="utf-8", errors="replace").read()
     m = re.search(r"\}\s*CR_OP_REG\[\d+\]\s*=\s*\{", src)
@@ -57,11 +62,11 @@ def c_table_ops():
               "was reshaped and this scan has stopped observing"
     body = src[m.end():src.index("};", m.end())]
     ops = set()
-    for bare, _ln, _full, fn, _bn in re.findall(
+    for bare, _ln, _full, dom, _sub, _bn in re.findall(
             r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,'
             r'\s*"([A-Za-z0-9_.]+)"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,'
-            r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
-        if fn != "NULL":
+            r'\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
+        if dom != "CR_DOM_NONE":
             ops.add(bare)
     assert ops, "the C dispatch-table scan found NOTHING — the anchors have " \
                 "drifted from the source and every gate below would be wrong"
@@ -77,11 +82,11 @@ def c_fold_ops():
     assert m, "CR_OP_REG's initialiser was not found"
     body = src[m.end():src.index("};", m.end())]
     ops = set()
-    for bare, _ln, _full, _fn, bn in re.findall(
+    for bare, _ln, _full, _dom, _sub, bn in re.findall(
             r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,'
             r'\s*"([A-Za-z0-9_.]+)"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,'
-            r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
-        if bn != "NULL":
+            r'\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
+        if bn != "CR_BIN_NONE":
             ops.add(bare)
     assert ops, "the C fold-body scan found NOTHING — anchors have drifted"
     return ops
@@ -253,23 +258,23 @@ def main():
             # Missing entries found so far: dict (parallel_sector_dispatch),
             # tuple (best_rational_signed), nested list (o/qDFT).
             #
-            # The chain-run value descriptor carries: n / i / q / s / f / l,
-            # and its `l` is FLAT BY CONSTRUCTION (cr_desc_list calls
-            # cr_desc_scalar, never itself — JPL Rule 1 bans the recursive
-            # walk). So a list[list[...]] is NOT expressible even though `l` is.
-            # ⚠️ `tuple` WAS UNCONDITIONAL HERE AND THAT WAS WRONG (rc447).
-            # A (num, den) RATIONAL is carried natively by the chain-run wire
-            # as kind `q` — _reconstruct_value returns exactly that tuple — so
-            # best_rational_signed was scored carrier-blocked when its carrier
-            # is fine. Only a NON-rational tuple needs the absent `t` kind.
-            _rational = (isinstance(v, tuple) and len(v) == 2
-                         and all(type(x) is int for x in v))
-            if (isinstance(v, (bytes, bytearray, dict)) or hasattr(v, "tolist")
-                    or (isinstance(v, tuple) and not _rational)):
+            # The chain-run value descriptor carries: n / i / q / s / f / l / t,
+            # and since rc452 both `l` halves are DEPTH-BOUNDED NESTED walks
+            # over explicit frame stacks (cr_json_nested / cr_desc_list) — a
+            # list[list[float]] IS expressible now, which is how the two DFT
+            # chains closed. Bytes, dense matrices and mappings remain the
+            # carrier kinds the wire cannot spell.
+            # ⚠️ `tuple` WAS UNCONDITIONAL HERE AND THAT WAS WRONG (rc447);
+            # `nested list` WAS carrier-blocking HERE AND THAT WENT STALE at
+            # rc452 Phase 3 (this file's own execution cross-check caught it:
+            # both DFT chains predicted carrier_width with C rc=0). The `t`
+            # kind ships since rc451, so a tuple is carried too.
+            if (isinstance(v, (bytes, bytearray, dict))
+                    or hasattr(v, "tolist")):
                 gates.add("carrier_width")
-            elif isinstance(v, list) and any(isinstance(e, (list, tuple, dict))
+            elif isinstance(v, list) and any(isinstance(e, dict)
                                              for e in v):
-                gates.add("carrier_width")     # nested — the wire's list is flat
+                gates.add("carrier_width")     # mappings have no wire kind
         except Exception:
             pass
         for g in gates:

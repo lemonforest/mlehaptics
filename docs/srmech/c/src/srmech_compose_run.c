@@ -408,7 +408,11 @@ static cr_value_t *cr_json_to_value(cr_bump_t *b, const srmech_json_value_t *j)
  * ------------------------------------------------------------------ */
 
 #define CR_MAP_DEPTH 4u
-#define CR_BIND_MAX  8u
+/* 12: the measured maximum over the packaged descriptors is 9 binds on one
+ * frame (kuramoto_step/general's outer map), and 8 — the rc452 first cut —
+ * declined that frame with every op arm present, which read as an op-table
+ * gap until measured. Slack of 3 over the live maximum, still bounded. */
+#define CR_BIND_MAX  12u
 
 typedef struct {
     const srmech_json_value_t *body;   /* the step ARRAY this frame runs   */
@@ -1663,15 +1667,30 @@ typedef enum {
     CR_CYC_MOD_POW, CR_CYC_MOD_INV
 } cr_cyc_op_t;
 
-/* The cascade-domain ops (srmech.cascade.*): Classes B / C / K / L. */
+/* The cascade-domain ops (srmech.cascade.*): Classes B / C / K / L — plus,
+ * since rc452 Phase 3 (`#T1166`), the Class-N/M/C kuramoto term ops and the
+ * Class-M/C/N hypercomplex-DFT step ops (the OP-granular arms of the three
+ * map chains this phase unblocks; the fused whole-transform symbols exist and
+ * are deliberately NOT dispatched — see the atom-table note below). */
 typedef enum {
     CR_CAS_SEQ_LEN = 0, CR_CAS_CORR_PRODUCT, CR_CAS_COMPENSATED_SUM,
     CR_CAS_PIN_SLOT, CR_CAS_REORIENT, CR_CAS_CHIRAL_FLIP,
-    CR_CAS_AUTOCORRELATION, CR_CAS_DEAD_BAND, CR_CAS_PAIR
+    CR_CAS_AUTOCORRELATION, CR_CAS_DEAD_BAND, CR_CAS_PAIR,
+    CR_CAS_SEQ_GET, CR_CAS_VEC_SCALE,
+    CR_CAS_KUR_INV_N, CR_CAS_KUR_SIN_TERM, CR_CAS_KUR_OUT_SIMPLE,
+    CR_CAS_KUR_GEN_TERM, CR_CAS_KUR_GEN_OUT,
+    CR_CAS_AS_QUAT4, CR_CAS_AS_OCT8,
+    CR_CAS_QDFT_RESOLVE_MU, CR_CAS_ODFT_RESOLVE_MU,
+    CR_CAS_DFT_SIGMA, CR_CAS_DFT_SCALE,
+    CR_CAS_QDFT_SUMMAND, CR_CAS_ODFT_SUMMAND
 } cr_cas_op_t;
 
-/* Which fold body a row provides. CR_BIN_NONE = the op cannot fold. */
-typedef enum { CR_BIN_NONE = 0, CR_BIN_GCD, CR_BIN_ORIENT } cr_bin_id_t;
+/* Which fold body a row provides. CR_BIN_NONE = the op cannot fold.
+ * F64_ADD / VEC_ADD (rc452 Phase 3) are the Σ accumulators of the kuramoto
+ * and hypercomplex-DFT map chains — fold-body-ONLY rows, like ORIENT. */
+typedef enum {
+    CR_BIN_NONE = 0, CR_BIN_GCD, CR_BIN_ORIENT, CR_BIN_F64_ADD, CR_BIN_VEC_ADD
+} cr_bin_id_t;
 
 /* ⚠️ THE `autocorrelation` OP, NOT THE `autocorrelation` CHAIN. This arm backs
  * a step whose op IS srmech.cascade.autocorrelation — the shipped leaf. The
@@ -1810,6 +1829,853 @@ static srmech_status_t cr_b_gcd(cr_bump_t *b, const cr_value_t *acc,
 }
 
 /* ------------------------------------------------------------------
+ * EXACT-DYADIC MACHINERY (v0.9.0rc452 Phase 3, `#T1166`) — the kuramoto
+ * chains' middle is EXACT-ℚ in Python: `kuramoto_sin_term` returns the Q61
+ * rational Q(v, 2^61) (srmech.math.rational.sin — never libm), the fold
+ * accumulates it exactly (float + Q promotes the float via as_integer_ratio),
+ * and ONE `float(...)` collapse happens in the Euler-combine op. Every
+ * denominator on that path is a power of two, so the collapse is a
+ * correctly-rounded DYADIC→double conversion (CPython int/int truediv,
+ * round-half-even) — implemented here on the bigint carrier. A non-dyadic
+ * denominator or an out-of-envelope exponent DECLINES to pure, never rounds
+ * wrongly.
+ * ------------------------------------------------------------------ */
+
+/* IEEE-754 2^e as a double, e in [-1022, 1023] (normal range only). */
+static double cr_pow2(int e)
+{
+    uint64_t bits; double out;
+    assert(e >= -1022);
+    assert(e <= 1023);
+    bits = ((uint64_t)(e + 1023)) << 52;
+    memcpy(&out, &bits, sizeof(out));
+    return out;
+}
+
+/* A fresh bigint holding mag * 2^shift (mag as uint64). NULL on overflow. */
+static srmech_bigint_t *cr_bi_u64_shl(cr_bump_t *b, uint64_t mag, uint32_t shift)
+{
+    srmech_bigint_t *bi; uint32_t w = shift / 32u, s = shift % 32u, i, n;
+    assert(b != NULL);
+    assert(shift <= 4096u);
+    bi = cr_new_bigint(b, w + 4u);
+    if (bi == NULL) { return NULL; }
+    for (i = 0u; i < w + 3u; i++) { bi->limbs[i] = 0u; }
+    bi->limbs[w] = (uint32_t)((mag << s) & 0xFFFFFFFFu);
+    bi->limbs[w + 1u] = (uint32_t)((s == 0u) ? (mag >> 32)
+                                  : ((mag >> (32u - s)) & 0xFFFFFFFFu));
+    bi->limbs[w + 2u] = (uint32_t)((s == 0u) ? 0u : (mag >> (64u - s)));
+    n = w + 3u;
+    while (n > 0u && bi->limbs[n - 1u] == 0u) { n--; }
+    bi->n = n; bi->sign = (n == 0u) ? 0 : 1;
+    return bi;
+}
+
+/* float.as_integer_ratio: the EXACT reduced (num, den) of a finite double.
+ * 0 on a non-finite x (no rational exists — the caller declines). */
+static int cr_q_of_dbl(cr_bump_t *b, double x,
+                       srmech_bigint_t **num, srmech_bigint_t **den)
+{
+    uint64_t bits, mant; int e, raw, neg;
+    assert(b != NULL);
+    assert(num != NULL && den != NULL);
+    memcpy(&bits, &x, sizeof(bits));
+    raw = (int)((bits >> 52) & 0x7FFu);
+    neg = (bits >> 63) != 0u;
+    if (raw == 0x7FF) { return 0; }              /* nan / inf — no rational */
+    mant = bits & ((UINT64_C(1) << 52) - 1u);
+    if (raw == 0) { e = -1074; } else { mant |= (UINT64_C(1) << 52); e = raw - 1075; }
+    if (mant == 0u) {                            /* ±0.0 -> (0, 1) */
+        *num = cr_bi_u64_shl(b, 0u, 0u); *den = cr_bi_u64_shl(b, 1u, 0u);
+        return (*num != NULL && *den != NULL);
+    }
+    while ((mant & 1u) == 0u && e < 0) { mant >>= 1; e++; }
+    if (e >= 0) {
+        *num = cr_bi_u64_shl(b, mant, (uint32_t)e);
+        *den = cr_bi_u64_shl(b, 1u, 0u);
+    } else {
+        *num = cr_bi_u64_shl(b, mant, 0u);
+        *den = cr_bi_u64_shl(b, 1u, (uint32_t)(-e));
+    }
+    if (*num == NULL || *den == NULL) { return 0; }
+    if (neg) { (*num)->sign = -(*num)->sign; }
+    return 1;
+}
+
+/* Bit `i` of a bigint's magnitude (0 past the top). */
+static int cr_bi_bit(const srmech_bigint_t *m, uint32_t i)
+{
+    assert(m != NULL);
+    assert(m->cap >= m->n);
+    if ((i / 32u) >= m->n) { return 0; }
+    return (int)((m->limbs[i / 32u] >> (i % 32u)) & 1u);
+}
+
+/* den == 2^k exactly? Yes -> *k_out; else 0 (the caller declines). */
+static int cr_bi_pow2_log(const srmech_bigint_t *den, uint32_t *k_out)
+{
+    uint32_t i, t = 0u, top;
+    assert(den != NULL);
+    assert(k_out != NULL);
+    if (den->sign <= 0 || den->n == 0u) { return 0; }
+    for (i = 0u; i + 1u < den->n; i++) {
+        if (den->limbs[i] != 0u) { return 0; }
+    }
+    top = den->limbs[den->n - 1u];
+    if (top == 0u || (top & (top - 1u)) != 0u) { return 0; }
+    while (((top >> t) & 1u) == 0u) { t++; }
+    *k_out = (den->n - 1u) * 32u + t;
+    return 1;
+}
+
+/* Correctly-rounded (round-half-even) double of num / 2^k — CPython's
+ * int.__truediv__ on the dyadic domain. 0 -> decline (non-dyadic den or an
+ * exponent outside the guarded normal envelope). */
+static int cr_q_dyadic_dbl(const srmech_bigint_t *num,
+                           const srmech_bigint_t *den, double *out)
+{
+    uint32_t k = 0u, L, i; uint64_t keep = 0u; int sticky = 0, e2;
+    double d;
+    assert(num != NULL && den != NULL);
+    assert(out != NULL);
+    if (!cr_bi_pow2_log(den, &k)) { return 0; }
+    if (num->n == 0u) { *out = 0.0; return 1; }
+    L = (num->n - 1u) * 32u + 32u;
+    while (L > 0u && cr_bi_bit(num, L - 1u) == 0) { L--; }
+    if (L <= 53u) {
+        d = 0.0;
+        for (i = num->n; i-- > 0u; ) { d = d * 4294967296.0 + (double)num->limbs[i]; }
+        e2 = -(int)k;
+    } else {
+        uint32_t shift = L - 54u; uint64_t top54 = 0u; int guard;
+        for (i = 0u; i < 54u; i++) {
+            top54 |= ((uint64_t)cr_bi_bit(num, shift + i)) << i;
+        }
+        for (i = 0u; i < shift && !sticky; i++) {
+            if (cr_bi_bit(num, i)) { sticky = 1; }
+        }
+        guard = (int)(top54 & 1u);
+        keep = top54 >> 1;
+        if (guard && (sticky || (keep & 1u))) { keep++; }
+        e2 = (int)shift + 1 - (int)k;
+        if (keep == (UINT64_C(1) << 53)) { keep >>= 1; e2++; }
+        d = (double)keep;                        /* <= 2^53: exact */
+    }
+    if (e2 < -960 || e2 > 960) { return 0; }     /* stay well inside normal */
+    d = d * cr_pow2(e2);                         /* pow-of-two scale: exact */
+    *out = (num->sign < 0) ? -d : d;
+    return 1;
+}
+
+/* One exact rational binop into FRESH arena carriers (reduced, den > 0). */
+static srmech_status_t cr_q_apply(cr_bump_t *b, char op,
+                                  const srmech_bigint_t *an, const srmech_bigint_t *ad,
+                                  const srmech_bigint_t *bn, const srmech_bigint_t *bd,
+                                  srmech_bigint_t **on, srmech_bigint_t **od)
+{
+    cr_qctx_t q; uint32_t lim, cap;
+    assert(b != NULL && on != NULL && od != NULL);
+    assert(an != NULL && ad != NULL && bn != NULL && bd != NULL);
+    lim = an->n + ad->n + bn->n + bd->n + 4u;
+    cap = lim * 2u + 8u;
+    *on = cr_new_bigint(b, cap); *od = cr_new_bigint(b, cap);
+    if (*on == NULL || *od == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (!cr_qctx_init(b, &q, lim)) { return SRMECH_ERR_OVERFLOW; }
+    return cr_q_binop(&q, op, an, ad, bn, bd, *on, *od);
+}
+
+/* The Q61 rational Q(v, 2^61), REDUCED — what srmech.math.rational.sin
+ * returns (Q.__init__ reduces; on a power-of-two denominator the whole gcd
+ * is the shared factor of two, i.e. v's trailing zeros capped at 61). */
+static cr_value_t *cr_q61_rat(cr_bump_t *b, int64_t v)
+{
+    cr_value_t *ov; uint64_t mag; uint32_t t = 0u;
+    assert(b != NULL);
+    assert(b->cur <= b->end);
+    ov = cr_new_value(b, CR_RATIONAL);
+    if (ov == NULL) { return NULL; }
+    if (v == 0) {
+        ov->num = cr_bi_u64_shl(b, 0u, 0u); ov->den = cr_bi_u64_shl(b, 1u, 0u);
+        return (ov->num != NULL && ov->den != NULL) ? ov : NULL;
+    }
+    mag = (v < 0) ? (uint64_t)(-v) : (uint64_t)v;   /* Class-K pin read */
+    while (((mag >> t) & 1u) == 0u && t < 61u) { t++; }
+    ov->num = cr_bi_u64_shl(b, mag >> t, 0u);
+    ov->den = cr_bi_u64_shl(b, 1u, 61u - t);
+    if (ov->num == NULL || ov->den == NULL) { return NULL; }
+    if (v < 0) { ov->num->sign = -1; }              /* Class-C re-application */
+    return ov;
+}
+
+/* ------------------------------------------------------------------
+ * THE KURAMOTO STEP OPS (rc452 Phase 3) — the five per-term atoms of
+ * kuramoto_step.toml's two chains, at STEP granularity. The fused
+ * srmech_cascade_kuramoto_step_f64 / _general_f64 symbols exist and are
+ * deliberately NOT referenced from this TU: a chain that runs because one
+ * coarse symbol recognised its shape is the bypass the step-mutation
+ * witness exists to refuse. The sin is srmech_sin_q61 — the SAME Q61
+ * cascade srmech.math.rational.sin projects (byte-exact pure mirror), so
+ * the chain's exact-ℚ middle is reproduced, not approximated.
+ * ------------------------------------------------------------------ */
+
+/* One list element as a double, i64-indexed with bounds. 1 on success. */
+static int cr_list_at_dbl(const cr_value_t *lst, int64_t i, double *out)
+{
+    assert(out != NULL);
+    assert(i >= INT64_MIN);
+    if (lst == NULL || lst->kind != CR_LIST) { return 0; }
+    if (i < 0 || (uint64_t)i >= (uint64_t)lst->n) { return 0; }
+    return cr_elem_dbl(lst, (uint32_t)i, out);
+}
+
+/* kuramoto_inv_n(coupling, n): the mean-field scale K/n (0.0 when n == 0). */
+static srmech_status_t cr_op_kur_inv_n(cr_ctx_t *c, const srmech_json_value_t *a,
+                                       cr_value_t **o)
+{
+    double coupling = 0.0; int64_t n = 0; cr_value_t *nv;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    if (!cr_arg_dbl(c, a, "coupling", &coupling)) { return SRMECH_ERR_NOT_IMPL; }
+    nv = cr_arg(c, a, "n");
+    if (nv == NULL || !cr_as_i64(nv, &n) || n < 0) { return SRMECH_ERR_NOT_IMPL; }
+    if (n > (INT64_C(1) << 53)) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_dbl(c->b, (n > 0) ? (coupling / (double)n) : 0.0);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* kuramoto_sin_term(theta, i, j) -> the EXACT Q61 rational sin(θj − θi). */
+static srmech_status_t cr_op_kur_sin_term(cr_ctx_t *c, const srmech_json_value_t *a,
+                                          cr_value_t **o)
+{
+    cr_value_t *th, *vi, *vj; int64_t i, j; double xi, xj, s; int64_t q61 = 0;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    th = cr_arg(c, a, "theta"); vi = cr_arg(c, a, "i"); vj = cr_arg(c, a, "j");
+    if (th == NULL || vi == NULL || vj == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_as_i64(vi, &i) || !cr_as_i64(vj, &j)) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_list_at_dbl(th, i, &xi) || !cr_list_at_dbl(th, j, &xj)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    s = xj - xi;
+    if (srmech_sin_q61(s, &q61) != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_q61_rat(c->b, q61);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* w * Q — the float coefficient promoted exactly, the product reduced (the
+ * Q.__rmul__ path both kuramoto term/combine ops ride). */
+static srmech_status_t cr_q_scale(cr_bump_t *b, double w, const cr_value_t *q,
+                                  srmech_bigint_t **on, srmech_bigint_t **od)
+{
+    srmech_bigint_t *wn, *wd;
+    assert(b != NULL && q != NULL);
+    assert(on != NULL && od != NULL);
+    if (!cr_q_of_dbl(b, w, &wn, &wd)) { return SRMECH_ERR_NOT_IMPL; }
+    return cr_q_apply(b, '*', wn, wd, q->num, q->den, on, od);
+}
+
+/* kuramoto_gen_term(theta, adjacency, coupling, inv_n, alpha, i, j) ->
+ * the EXACT rational w·sin(θj − θi − α); w = K·A[i][j], or inv_n when the
+ * adjacency is None (the mean-field row). */
+static srmech_status_t cr_op_kur_gen_term(cr_ctx_t *c, const srmech_json_value_t *a,
+                                          cr_value_t **o)
+{
+    cr_value_t *th, *adj, *vi, *vj, *qs, *ov;
+    double kc = 0.0, inv_n = 0.0, alpha = 0.0, xi, xj, w; int64_t i, j, q61 = 0;
+    srmech_status_t st;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    th = cr_arg(c, a, "theta"); adj = cr_arg(c, a, "adjacency");
+    vi = cr_arg(c, a, "i"); vj = cr_arg(c, a, "j");
+    if (th == NULL || adj == NULL || vi == NULL || vj == NULL) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!cr_arg_dbl(c, a, "coupling", &kc) || !cr_arg_dbl(c, a, "inv_n", &inv_n) ||
+        !cr_arg_dbl(c, a, "alpha", &alpha)) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_as_i64(vi, &i) || !cr_as_i64(vj, &j)) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_list_at_dbl(th, i, &xi) || !cr_list_at_dbl(th, j, &xj)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (adj->kind == CR_NONE) { w = inv_n; }
+    else {
+        double aij;
+        if (adj->kind != CR_LIST || i < 0 || (uint64_t)i >= (uint64_t)adj->n ||
+            !cr_list_at_dbl(adj->items[i], j, &aij)) { return SRMECH_ERR_NOT_IMPL; }
+        w = kc * aij;
+    }
+    if (srmech_sin_q61((xj - xi) - alpha, &q61) != SRMECH_OK) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    qs = cr_q61_rat(c->b, q61);
+    ov = cr_new_value(c->b, CR_RATIONAL);
+    if (qs == NULL || ov == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = cr_q_scale(c->b, w, qs, &ov->num, &ov->den);
+    if (st != SRMECH_OK) { return st; }
+    *o = ov;
+    return SRMECH_OK;
+}
+
+/* float(theta_i + dt·(om + coef·s)) with s an EXACT rational — the shared
+ * exact tail of both Euler-combine ops. Every op reduces, then ONE dyadic
+ * collapse (the chain's single float() boundary). */
+static srmech_status_t cr_kur_combine_q(cr_bump_t *b, double theta_i, double om,
+                                        double coef, double dt,
+                                        const srmech_bigint_t *sn,
+                                        const srmech_bigint_t *sd, cr_value_t **o)
+{
+    srmech_bigint_t *pn, *pd, *fn, *fd, *gn, *gd, *hn, *hd, *xn, *xd;
+    double r = 0.0; srmech_status_t st;
+    assert(b != NULL && o != NULL);
+    assert(sn != NULL && sd != NULL);
+    if (!cr_q_of_dbl(b, coef, &xn, &xd)) { return SRMECH_ERR_NOT_IMPL; }
+    st = cr_q_apply(b, '*', xn, xd, sn, sd, &pn, &pd);       /* coef * s   */
+    if (st != SRMECH_OK) { return st; }
+    if (!cr_q_of_dbl(b, om, &xn, &xd)) { return SRMECH_ERR_NOT_IMPL; }
+    st = cr_q_apply(b, '+', xn, xd, pn, pd, &fn, &fd);       /* om + .     */
+    if (st != SRMECH_OK) { return st; }
+    if (!cr_q_of_dbl(b, dt, &xn, &xd)) { return SRMECH_ERR_NOT_IMPL; }
+    st = cr_q_apply(b, '*', xn, xd, fn, fd, &gn, &gd);       /* dt * .     */
+    if (st != SRMECH_OK) { return st; }
+    if (!cr_q_of_dbl(b, theta_i, &xn, &xd)) { return SRMECH_ERR_NOT_IMPL; }
+    st = cr_q_apply(b, '+', xn, xd, gn, gd, &hn, &hd);       /* theta_i + .*/
+    if (st != SRMECH_OK) { return st; }
+    if (!cr_q_dyadic_dbl(hn, hd, &r)) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_dbl(b, r);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* kuramoto_out_simple(theta, omega, i, s, inv_n, dt). */
+static srmech_status_t cr_op_kur_out_simple(cr_ctx_t *c, const srmech_json_value_t *a,
+                                            cr_value_t **o)
+{
+    cr_value_t *th, *om, *vi, *sv; int64_t i;
+    double theta_i, om_i, inv_n = 0.0, dt = 0.0, s_d;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    th = cr_arg(c, a, "theta"); om = cr_arg(c, a, "omega");
+    vi = cr_arg(c, a, "i"); sv = cr_arg(c, a, "s");
+    if (th == NULL || om == NULL || vi == NULL || sv == NULL) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!cr_arg_dbl(c, a, "inv_n", &inv_n) || !cr_arg_dbl(c, a, "dt", &dt)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!cr_as_i64(vi, &i)) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_list_at_dbl(th, i, &theta_i) || !cr_list_at_dbl(om, i, &om_i)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (sv->kind == CR_RATIONAL && sv->num != NULL && sv->den != NULL) {
+        return cr_kur_combine_q(c->b, theta_i, om_i, inv_n, dt,
+                                sv->num, sv->den, o);
+    }
+    /* a float (or int) s: Python's whole expression stays in float ops */
+    if (sv->kind == CR_DBL) { s_d = sv->d; }
+    else {
+        int64_t s_i;
+        if (!cr_as_i64(sv, &s_i)) { return SRMECH_ERR_NOT_IMPL; }
+        if (s_i > (INT64_C(1) << 53) || s_i < -(INT64_C(1) << 53)) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        s_d = (double)s_i;
+    }
+    *o = cr_dbl(c->b, theta_i + dt * (om_i + inv_n * s_d));
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* kuramoto_gen_out(theta, omega, i, s, psi, ps, dt) — the general-path
+ * combine: f = om + s [+ pᵢ·sin(ψᵢ − θᵢ)]; θᵢ + dt·f; one float() collapse. */
+static srmech_status_t cr_op_kur_gen_out(cr_ctx_t *c, const srmech_json_value_t *a,
+                                         cr_value_t **o)
+{
+    cr_value_t *th, *om, *vi, *sv, *psi, *ps, *qterm; int64_t i, q61 = 0;
+    double theta_i, om_i, dt = 0.0, p_i;
+    srmech_bigint_t *fn, *fd, *tn, *td, *xn, *xd; srmech_status_t st;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    th = cr_arg(c, a, "theta"); om = cr_arg(c, a, "omega");
+    vi = cr_arg(c, a, "i"); sv = cr_arg(c, a, "s");
+    psi = cr_arg(c, a, "psi"); ps = cr_arg(c, a, "ps");
+    if (th == NULL || om == NULL || vi == NULL || sv == NULL || psi == NULL ||
+        ps == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_arg_dbl(c, a, "dt", &dt) || !cr_as_i64(vi, &i)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!cr_list_at_dbl(th, i, &theta_i) || !cr_list_at_dbl(om, i, &om_i)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (sv->kind != CR_RATIONAL || sv->num == NULL || sv->den == NULL) {
+        return SRMECH_ERR_NOT_IMPL;      /* s is the fold's exact-ℚ output */
+    }
+    if (!cr_q_of_dbl(c->b, om_i, &xn, &xd)) { return SRMECH_ERR_NOT_IMPL; }
+    st = cr_q_apply(c->b, '+', xn, xd, sv->num, sv->den, &fn, &fd);
+    if (st != SRMECH_OK) { return st; }
+    if (psi->kind != CR_NONE) {                      /* the pinning branch */
+        double psi_i;
+        if (ps->kind == CR_LIST) {
+            if (!cr_list_at_dbl(ps, i, &p_i)) { return SRMECH_ERR_NOT_IMPL; }
+        } else if (!cr_arg_dbl(c, a, "ps", &p_i)) { return SRMECH_ERR_NOT_IMPL; }
+        if (!cr_list_at_dbl(psi, i, &psi_i)) { return SRMECH_ERR_NOT_IMPL; }
+        if (srmech_sin_q61(psi_i - theta_i, &q61) != SRMECH_OK) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        qterm = cr_q61_rat(c->b, q61);
+        if (qterm == NULL) { return SRMECH_ERR_OVERFLOW; }
+        st = cr_q_scale(c->b, p_i, qterm, &tn, &td);     /* p_i * sin(...) */
+        if (st != SRMECH_OK) { return st; }
+        st = cr_q_apply(c->b, '+', fn, fd, tn, td, &xn, &xd);
+        if (st != SRMECH_OK) { return st; }
+        fn = xn; fd = xd;
+    }
+    /* theta_i + dt * f, exactly, with coef 1.0 folding the dt in: */
+    return cr_kur_combine_q(c->b, theta_i, 0.0, dt, 1.0, fn, fd, o);
+}
+
+/* ------------------------------------------------------------------
+ * THE HYPERCOMPLEX-DFT STEP OPS (rc452 Phase 3) — the per-(k, m) atoms of
+ * quaternion_dft.toml / octonion_dft.toml. Each summand delegates to the
+ * STEP-granular exports the Python op itself composes
+ * (srmech_quaternion_twiddle + srmech_quaternion_{left,right}_mult;
+ * srmech_octonion_twiddle + srmech_loop_{left,right}_op_f64) — the
+ * best_rational precedent. The fused whole-transform symbols
+ * (srmech_quaternion_dft / srmech_octonion_dft) are NOT referenced here:
+ * they are the coarse bypass the step-mutation witness refuses.
+ * ------------------------------------------------------------------ */
+
+/* CR_STR equality against a C literal. */
+static int cr_str_is(const cr_value_t *v, const char *want)
+{
+    size_t n;
+    assert(want != NULL);
+    assert(want[0] != '\0');
+    if (v == NULL || v->kind != CR_STR || v->s == NULL) { return 0; }
+    n = strlen(want);
+    return v->slen == (uint32_t)n && memcmp(v->s, want, n) == 0;
+}
+
+/* as_quat4(v): coerce one QDFT sample to 4 doubles (8-vec tail must be 0). */
+static srmech_status_t cr_op_as_quat4(cr_ctx_t *c, const srmech_json_value_t *a,
+                                      cr_value_t **o)
+{
+    cr_value_t *v; double buf[8]; size_t n = 0u, i; double *dv;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    v = cr_arg(c, a, "v");
+    if (v == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    dv = cr_as_dvec(c->b, v, &n);
+    if (dv == NULL || (n != 4u && n != 8u)) { return SRMECH_ERR_NOT_IMPL; }
+    for (i = 0u; i < n; i++) { buf[i] = dv[i]; }
+    if (n == 8u) {
+        for (i = 4u; i < 8u; i++) {
+            if (buf[i] != 0.0) { return SRMECH_ERR_NOT_IMPL; }   /* -> pure raise */
+        }
+    }
+    *o = cr_dvec_value(c->b, buf, 4u);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* as_oct8(vec): zero-extend a quaternion into ℍ ⊂ 𝕆, pass an octonion through. */
+static srmech_status_t cr_op_as_oct8(cr_ctx_t *c, const srmech_json_value_t *a,
+                                     cr_value_t **o)
+{
+    cr_value_t *v; double buf[8]; size_t n = 0u, i; double *dv;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    v = cr_arg(c, a, "vec");
+    if (v == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    dv = cr_as_dvec(c->b, v, &n);
+    if (dv == NULL || (n != 4u && n != 8u)) { return SRMECH_ERR_NOT_IMPL; }
+    for (i = 0u; i < 8u; i++) { buf[i] = (i < n) ? dv[i] : 0.0; }
+    *o = cr_dvec_value(c->b, buf, 8u);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* 1/float(√x) via the SAME Q61 cascade srmech.math.rational.sqrt projects:
+ * √x = root·2^p exactly (srmech_sqrt_q61), float() of that exact rational
+ * (dyadic — correctly rounded), then one IEEE divide. 0 -> decline. */
+static int cr_inv_sqrt(cr_bump_t *b, double x, double *out)
+{
+    int64_t root = 0, p = 0; srmech_bigint_t *num, *den; double f = 0.0;
+    assert(b != NULL);
+    assert(out != NULL);
+    if (srmech_sqrt_q61(x, &root, &p) != SRMECH_OK || root <= 0) { return 0; }
+    if (p >= 0) {
+        if (p > 2048) { return 0; }
+        num = cr_bi_u64_shl(b, (uint64_t)root, (uint32_t)p);
+        den = cr_bi_u64_shl(b, 1u, 0u);
+    } else {
+        if (p < -2048) { return 0; }
+        num = cr_bi_u64_shl(b, (uint64_t)root, 0u);
+        den = cr_bi_u64_shl(b, 1u, (uint32_t)(-p));
+    }
+    if (num == NULL || den == NULL) { return 0; }
+    if (!cr_q_dyadic_dbl(num, den, &f) || f == 0.0) { return 0; }
+    *out = 1.0 / f;
+    return 1;
+}
+
+/* qdft_resolve_mu(mu_axis): the NAMED unit axes ('i'/'j'/'k'/'ijk'; for ℍ
+ * 'diagonal' IS 'ijk'). A general vector axis declines to pure (its
+ * normalisation walks the Class-N sqrt over an arbitrary radicand). */
+static srmech_status_t cr_op_qdft_resolve_mu(cr_ctx_t *c, const srmech_json_value_t *a,
+                                             cr_value_t **o)
+{
+    cr_value_t *ax; double mu[4] = {0.0, 0.0, 0.0, 0.0}; double s3 = 0.0;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    ax = cr_arg(c, a, "mu_axis");
+    if (ax == NULL || ax->kind != CR_STR) { return SRMECH_ERR_NOT_IMPL; }
+    if (cr_str_is(ax, "i"))      { mu[1] = 1.0; }
+    else if (cr_str_is(ax, "j")) { mu[2] = 1.0; }
+    else if (cr_str_is(ax, "k")) { mu[3] = 1.0; }
+    else if (cr_str_is(ax, "ijk") || cr_str_is(ax, "diagonal")) {
+        if (!cr_inv_sqrt(c->b, 3.0, &s3)) { return SRMECH_ERR_NOT_IMPL; }
+        mu[1] = s3; mu[2] = s3; mu[3] = s3;
+    }
+    else { return SRMECH_ERR_NOT_IMPL; }         /* unknown -> pure raises */
+    *o = cr_dvec_value(c->b, mu, 4u);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* odft_resolve_mu(mu_axis): the NAMED octonion axes ('i'/'j'/'k' alias
+ * 'e1'..'e3', 'e4'..'e7', 'ijk', 'diagonal'). General vectors decline. */
+static srmech_status_t cr_op_odft_resolve_mu(cr_ctx_t *c, const srmech_json_value_t *a,
+                                             cr_value_t **o)
+{
+    cr_value_t *ax; double mu[8] = {0.0}; double s = 0.0; uint32_t i;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    ax = cr_arg(c, a, "mu_axis");
+    if (ax == NULL || ax->kind != CR_STR) { return SRMECH_ERR_NOT_IMPL; }
+    if (cr_str_is(ax, "i") || cr_str_is(ax, "e1"))      { mu[1] = 1.0; }
+    else if (cr_str_is(ax, "j") || cr_str_is(ax, "e2")) { mu[2] = 1.0; }
+    else if (cr_str_is(ax, "k") || cr_str_is(ax, "e3")) { mu[3] = 1.0; }
+    else if (cr_str_is(ax, "e4")) { mu[4] = 1.0; }
+    else if (cr_str_is(ax, "e5")) { mu[5] = 1.0; }
+    else if (cr_str_is(ax, "e6")) { mu[6] = 1.0; }
+    else if (cr_str_is(ax, "e7")) { mu[7] = 1.0; }
+    else if (cr_str_is(ax, "ijk")) {
+        if (!cr_inv_sqrt(c->b, 3.0, &s)) { return SRMECH_ERR_NOT_IMPL; }
+        mu[1] = s; mu[2] = s; mu[3] = s;
+    }
+    else if (cr_str_is(ax, "diagonal")) {
+        if (!cr_inv_sqrt(c->b, 7.0, &s)) { return SRMECH_ERR_NOT_IMPL; }
+        for (i = 1u; i < 8u; i++) { mu[i] = s; }
+    }
+    else { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_dvec_value(c->b, mu, 8u);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* dft_sigma(inverse): +1 inverse, −1 forward (the Class-C which-way). */
+static srmech_status_t cr_op_dft_sigma(cr_ctx_t *c, const srmech_json_value_t *a,
+                                       cr_value_t **o)
+{
+    cr_value_t *inv; int64_t v = 0;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    inv = cr_arg(c, a, "inverse");
+    if (inv == NULL || !cr_as_i64(inv, &v)) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_int_i64(c->b, (v != 0) ? 1 : -1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* dft_scale(inverse, n): 1/n on the inverse (n > 0), else 1.0. */
+static srmech_status_t cr_op_dft_scale(cr_ctx_t *c, const srmech_json_value_t *a,
+                                       cr_value_t **o)
+{
+    cr_value_t *inv, *nv; int64_t v = 0, n = 0;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    inv = cr_arg(c, a, "inverse"); nv = cr_arg(c, a, "n");
+    if (inv == NULL || nv == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_as_i64(inv, &v) || !cr_as_i64(nv, &n)) { return SRMECH_ERR_NOT_IMPL; }
+    if (n > (INT64_C(1) << 53)) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_dbl(c->b, (v != 0 && n > 0) ? (1.0 / (double)n) : 1.0);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* Shared summand argument unpack: xs[m] -> x (dim doubles), k/m/n/sigma
+ * validated to the twiddle exports' uint32/±1 wire, mu -> unit dim-vector. */
+static int cr_dft_args(cr_ctx_t *c, const srmech_json_value_t *a, uint32_t dim,
+                       const char *mu_key, double *x, double *mu,
+                       uint32_t *k, uint32_t *m, uint32_t *n, int32_t *sigma)
+{
+    cr_value_t *xs, *vk, *vm, *vn, *vs, *vmu; int64_t ik, im, in_, is;
+    double *dv; size_t nn = 0u; uint32_t i;
+    assert(c != NULL && a != NULL);
+    assert(x != NULL && mu != NULL);
+    xs = cr_arg(c, a, "xs"); vk = cr_arg(c, a, "k"); vm = cr_arg(c, a, "m");
+    vn = cr_arg(c, a, "n"); vs = cr_arg(c, a, "sigma"); vmu = cr_arg(c, a, mu_key);
+    if (xs == NULL || vk == NULL || vm == NULL || vn == NULL || vs == NULL ||
+        vmu == NULL || xs->kind != CR_LIST) { return 0; }
+    if (!cr_as_i64(vk, &ik) || !cr_as_i64(vm, &im) || !cr_as_i64(vn, &in_) ||
+        !cr_as_i64(vs, &is)) { return 0; }
+    if (ik < 0 || im < 0 || in_ < 1 || ik >= INT64_C(0x100000000) ||
+        im >= INT64_C(0x100000000) || in_ >= INT64_C(0x100000000)) { return 0; }
+    if (is != 1 && is != -1) { return 0; }
+    if ((uint64_t)im >= (uint64_t)xs->n) { return 0; }
+    dv = cr_as_dvec(c->b, xs->items[im], &nn);
+    if (dv == NULL || nn != (size_t)dim) { return 0; }
+    for (i = 0u; i < dim; i++) { x[i] = dv[i]; }
+    dv = cr_as_dvec(c->b, vmu, &nn);
+    if (dv == NULL || nn != (size_t)dim) { return 0; }
+    for (i = 0u; i < dim; i++) { mu[i] = dv[i]; }
+    *k = (uint32_t)ik; *m = (uint32_t)im; *n = (uint32_t)in_;
+    *sigma = (int32_t)is;
+    return 1;
+}
+
+/* rows(dim×dim) · v — the row-dot accumulated LEFT-TO-RIGHT in a scalar t:
+ * the exact float-op order of the Python summand ops (parity, not tolerance). */
+static void cr_matvec_lr(const double *rows, const double *v, uint32_t dim,
+                         double *out)
+{
+    uint32_t i, cN;
+    assert(rows != NULL && v != NULL);
+    assert(out != NULL);
+    for (i = 0u; i < dim; i++) {
+        double t = 0.0;
+        for (cN = 0u; cN < dim; cN++) { t += rows[i * dim + cN] * v[cN]; }
+        out[i] = t;
+    }
+}
+
+/* qdft_summand(xs, k, m, n, left, sigma, mu_hat) -> W·x[m] or x[m]·W. */
+static srmech_status_t cr_op_qdft_summand(cr_ctx_t *c, const srmech_json_value_t *a,
+                                          cr_value_t **o)
+{
+    double x[4], mu[4], w[4], rows[16], r[4]; uint32_t k, m, n; int32_t sigma;
+    cr_value_t *vl; int64_t left = 0; srmech_status_t st;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    if (!cr_dft_args(c, a, 4u, "mu_hat", x, mu, &k, &m, &n, &sigma)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    vl = cr_arg(c, a, "left");
+    if (vl == NULL || !cr_as_i64(vl, &left)) { return SRMECH_ERR_NOT_IMPL; }
+    st = srmech_quaternion_twiddle(k, m, n, sigma, mu, 4u, w);
+    if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    st = (left != 0) ? srmech_quaternion_left_mult(w, 4u, rows)
+                     : srmech_quaternion_right_mult(w, 4u, rows);
+    if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    cr_matvec_lr(rows, x, 4u, r);
+    *o = cr_dvec_value(c->b, r, 4u);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* Apply L_q (side != 0) or R_q (side == 0) to `v` in place of `out` — one
+ * octonion operator build + the left-to-right matvec (the shared inner move
+ * of every ODFT summand form). 1 on success. */
+static int cr_oct_apply(const double *q, int side, const double *v, double *out)
+{
+    double rows[64]; srmech_status_t st;
+    assert(q != NULL && v != NULL);
+    assert(out != NULL);
+    st = side ? srmech_loop_left_op_f64(q, 8u, rows)
+              : srmech_loop_right_op_f64(q, 8u, rows);
+    if (st != SRMECH_OK) { return 0; }
+    cr_matvec_lr(rows, v, 8u, out);
+    return 1;
+}
+
+/* odft_summand(xs, k, m, n, form, bracketing, sigma, mu_hat, mu_r_hat) —
+ * the one-sided single product, or the two-sided product in the DECLARED
+ * F378 association order. */
+static srmech_status_t cr_op_odft_summand(cr_ctx_t *c, const srmech_json_value_t *a,
+                                          cr_value_t **o)
+{
+    double x[8], mu[8], mur[8], w[8], t1[8], inner[8], r[8];
+    uint32_t k, m, n; int32_t sigma; cr_value_t *fv, *bv, *vmr;
+    int left_assoc; size_t nn = 0u; double *dv; uint32_t i; srmech_status_t st;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    if (!cr_dft_args(c, a, 8u, "mu_hat", x, mu, &k, &m, &n, &sigma)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    fv = cr_arg(c, a, "form"); bv = cr_arg(c, a, "bracketing");
+    if (fv == NULL || bv == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    st = srmech_octonion_twiddle(k, m, n, sigma, mu, 8u, w);
+    if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    if (cr_str_is(fv, "left")) {
+        if (!cr_oct_apply(w, 1, x, r)) { return SRMECH_ERR_NOT_IMPL; }
+    } else if (cr_str_is(fv, "right")) {
+        if (!cr_oct_apply(w, 0, x, r)) { return SRMECH_ERR_NOT_IMPL; }
+    } else if (cr_str_is(fv, "two_sided")) {
+        left_assoc = cr_str_is(bv, "left_associated");
+        if (!left_assoc && !cr_str_is(bv, "right_associated")) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        vmr = cr_arg(c, a, "mu_r_hat");
+        dv = (vmr == NULL) ? NULL : cr_as_dvec(c->b, vmr, &nn);
+        if (dv == NULL || nn != 8u) { return SRMECH_ERR_NOT_IMPL; }
+        for (i = 0u; i < 8u; i++) { mur[i] = dv[i]; }
+        st = srmech_octonion_twiddle(k, m, n, sigma, mur, 8u, t1);
+        if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+        if (left_assoc) {                          /* (W_l · x) · W_r */
+            if (!cr_oct_apply(w, 1, x, inner) ||
+                !cr_oct_apply(t1, 0, inner, r)) { return SRMECH_ERR_NOT_IMPL; }
+        } else {                                   /* W_l · (x · W_r) */
+            if (!cr_oct_apply(t1, 0, x, inner) ||
+                !cr_oct_apply(w, 1, inner, r)) { return SRMECH_ERR_NOT_IMPL; }
+        }
+    } else { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_dvec_value(c->b, r, 8u);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* seq_get(seq, i): dynamic element access — the degenerate catalog lookup.
+ * The returned carrier ALIASES the element (step outputs are write-once, so
+ * an alias is exact); a negative index declines to pure, which answers
+ * Python's wrap semantics. */
+static srmech_status_t cr_op_seq_get(cr_ctx_t *c, const srmech_json_value_t *a,
+                                     cr_value_t **o)
+{
+    cr_value_t *seq, *vi; int64_t i;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    seq = cr_arg(c, a, "seq"); vi = cr_arg(c, a, "i");
+    if (seq == NULL || vi == NULL || seq->kind != CR_LIST) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!cr_as_i64(vi, &i) || i < 0 || (uint64_t)i >= (uint64_t)seq->n) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (seq->items[i] == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    *o = seq->items[i];
+    return SRMECH_OK;
+}
+
+/* vec_scale(v, s): elementwise v[i] * s (the DFT output scale). */
+static srmech_status_t cr_op_vec_scale(cr_ctx_t *c, const srmech_json_value_t *a,
+                                       cr_value_t **o)
+{
+    cr_value_t *v; double s = 0.0, *dv, *r; size_t n = 0u, i;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    v = cr_arg(c, a, "v");
+    if (v == NULL || !cr_arg_dbl(c, a, "s", &s)) { return SRMECH_ERR_NOT_IMPL; }
+    dv = cr_as_dvec(c->b, v, &n);
+    if (dv == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    r = (double *)cr_carve(c->b, n * sizeof(double) + sizeof(double));
+    if (r == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < n; i++) { r[i] = dv[i] * s; }
+    *o = cr_dvec_value(c->b, r, n);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* ---- fold bodies (rc452 Phase 3): the Σ accumulators ---- */
+
+/* A scalar as a double for the fold's float tier: a CR_DBL directly, a
+ * CR_INT widened only where the widening is EXACT (|v| <= 2^53 — Python's
+ * int-to-float conversion at that magnitude). 0 -> decline. */
+static int cr_fold_dbl(const cr_value_t *v, double *out)
+{
+    int64_t iv;
+    assert(v != NULL);
+    assert(out != NULL);
+    if (v->kind == CR_DBL) { *out = v->d; return 1; }
+    if (v->kind == CR_INT && cr_as_i64(v, &iv) &&
+        iv <= (INT64_C(1) << 53) && iv >= -(INT64_C(1) << 53)) {
+        *out = (double)iv;
+        return 1;
+    }
+    return 0;
+}
+
+/* A value as an exact (num, den): a rational ALIASES its own carriers, a
+ * finite double promotes via as_integer_ratio, an int rides over den 1.
+ * 0 -> the value has no exact rational (non-finite / wrong kind). */
+static int cr_val_as_q(cr_bump_t *b, const cr_value_t *v,
+                       srmech_bigint_t **n, srmech_bigint_t **d)
+{
+    assert(b != NULL && v != NULL);
+    assert(n != NULL && d != NULL);
+    if (v->kind == CR_RATIONAL && v->num != NULL && v->den != NULL) {
+        *n = v->num; *d = v->den;
+        return 1;
+    }
+    if (v->kind == CR_DBL) { return cr_q_of_dbl(b, v->d, n, d); }
+    if (v->kind == CR_INT && v->num != NULL) {
+        *n = v->num; *d = cr_bi_u64_shl(b, 1u, 0u);
+        return *d != NULL;
+    }
+    return 0;
+}
+
+/* f64_add(a, b) as a fold body. Python's `a + b` tiering, transcribed:
+ * float+float is one IEEE add; int+float widens the int (exact <= 2^53);
+ * anything meeting an exact-ℚ operand promotes through as_integer_ratio and
+ * adds EXACTLY (Q.__radd__); int+int stays int. A non-finite double cannot
+ * promote — the rational arm declines rather than guesses. */
+static srmech_status_t cr_b_f64_add(cr_bump_t *b, const cr_value_t *acc,
+                                    const cr_value_t *elem, cr_value_t **out)
+{
+    srmech_bigint_t *n0, *d0, *n1, *d1; cr_value_t *ov; srmech_status_t st;
+    assert(b != NULL && out != NULL);
+    assert(acc != NULL && elem != NULL);
+    if (acc->kind == CR_RATIONAL || elem->kind == CR_RATIONAL) {
+        if (!cr_val_as_q(b, acc, &n0, &d0) || !cr_val_as_q(b, elem, &n1, &d1)) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        ov = cr_new_value(b, CR_RATIONAL);
+        if (ov == NULL) { return SRMECH_ERR_OVERFLOW; }
+        st = cr_q_apply(b, '+', n0, d0, n1, d1, &ov->num, &ov->den);
+        if (st != SRMECH_OK) { return st; }
+        *out = ov;
+        return SRMECH_OK;
+    }
+    if (acc->kind == CR_INT && elem->kind == CR_INT) {
+        uint32_t cap = acc->num->n + elem->num->n + 2u;
+        ov = cr_new_value(b, CR_INT);
+        if (ov == NULL) { return SRMECH_ERR_OVERFLOW; }
+        ov->num = cr_new_bigint(b, cap);
+        if (ov->num == NULL) { return SRMECH_ERR_OVERFLOW; }
+        st = srmech_bigint_add(ov->num, acc->num, elem->num);
+        if (st != SRMECH_OK) { return st; }
+        *out = ov;
+        return SRMECH_OK;
+    }
+    {   /* float + float, or int widened over the float tier (exact <= 2^53) */
+        double x, y;
+        if (!cr_fold_dbl(acc, &x) || !cr_fold_dbl(elem, &y)) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        *out = cr_dbl(b, x + y);
+        return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    }
+}
+
+/* vec_add(a, b) as a fold body: elementwise; equal length or decline (the
+ * pure path raises the documented ValueError). Element pairs ride the float
+ * tier only — an int-int pair stays int in Python, so it DECLINES here
+ * rather than widening to a float Python would not produce. */
+static srmech_status_t cr_b_vec_add(cr_bump_t *b, const cr_value_t *acc,
+                                    const cr_value_t *elem, cr_value_t **out)
+{
+    cr_value_t *ov; uint32_t i; double x, y;
+    assert(b != NULL && out != NULL);
+    assert(acc != NULL && elem != NULL);
+    if (acc->kind != CR_LIST || elem->kind != CR_LIST || acc->n != elem->n) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    ov = cr_list_of(b, acc->n);
+    if (ov == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < acc->n; i++) {
+        if (acc->items[i] == NULL || elem->items[i] == NULL ||
+            (acc->items[i]->kind == CR_INT && elem->items[i]->kind == CR_INT)) {
+            return SRMECH_ERR_NOT_IMPL;      /* int+int is int in Python */
+        }
+        if (!cr_elem_dbl(acc, i, &x) || !cr_elem_dbl(elem, i, &y)) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        ov->items[i] = cr_dbl(b, x + y);
+        if (ov->items[i] == NULL) { return SRMECH_ERR_OVERFLOW; }
+    }
+    *out = ov;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
  * THE TABLE. Order and membership are read by
  * tests/test_t1158_registry_param_order_rc449.py, which resolves every `full`
  * against the LIVE ToolEntry registry and asserts the declared `len` matches
@@ -1832,7 +2698,7 @@ static const struct {
     uint8_t     dom;   /* cr_dom_t   — which cr_exec_<domain>() runs the op   */
     uint8_t     sub;   /* per-domain — the case label inside that exec        */
     uint8_t     bin;   /* cr_bin_id_t — non-NONE iff the op can fold          */
-} CR_OP_REG[28] = {
+} CR_OP_REG[45] = {
  /* wave A (rc452) — the autocorrelation CHAIN's own steps */
  { "seq_len",             7u, "srmech.cascade.seq_len",
    CR_DOM_CAS, CR_CAS_SEQ_LEN, CR_BIN_NONE },
@@ -1888,14 +2754,52 @@ static const struct {
    CR_DOM_RAT, CR_RAT_BEST_RATIONAL, CR_BIN_NONE },
  { "pair",                4u, "srmech.cascade.pair",
    CR_DOM_CAS, CR_CAS_PAIR, CR_BIN_NONE },
+ /* wave B (rc452 Phase 3) — the kuramoto_step and hypercomplex-DFT chains'
+  * own steps, at STEP granularity (the fused whole-transform symbols are
+  * deliberately not referenced from this TU — see the section comments). */
+ { "seq_get",             7u, "srmech.cascade.seq_get",
+   CR_DOM_CAS, CR_CAS_SEQ_GET, CR_BIN_NONE },
+ { "vec_scale",           9u, "srmech.cascade.vec_scale",
+   CR_DOM_CAS, CR_CAS_VEC_SCALE, CR_BIN_NONE },
+ { "kuramoto_inv_n",     14u, "srmech.cascade.kuramoto_inv_n",
+   CR_DOM_CAS, CR_CAS_KUR_INV_N, CR_BIN_NONE },
+ { "kuramoto_sin_term",  17u, "srmech.cascade.kuramoto_sin_term",
+   CR_DOM_CAS, CR_CAS_KUR_SIN_TERM, CR_BIN_NONE },
+ { "kuramoto_out_simple", 19u, "srmech.cascade.kuramoto_out_simple",
+   CR_DOM_CAS, CR_CAS_KUR_OUT_SIMPLE, CR_BIN_NONE },
+ { "kuramoto_gen_term",  17u, "srmech.cascade.kuramoto_gen_term",
+   CR_DOM_CAS, CR_CAS_KUR_GEN_TERM, CR_BIN_NONE },
+ { "kuramoto_gen_out",   16u, "srmech.cascade.kuramoto_gen_out",
+   CR_DOM_CAS, CR_CAS_KUR_GEN_OUT, CR_BIN_NONE },
+ { "as_quat4",            8u, "srmech.cascade.as_quat4",
+   CR_DOM_CAS, CR_CAS_AS_QUAT4, CR_BIN_NONE },
+ { "as_oct8",             7u, "srmech.cascade.as_oct8",
+   CR_DOM_CAS, CR_CAS_AS_OCT8, CR_BIN_NONE },
+ { "qdft_resolve_mu",    15u, "srmech.cascade.qdft_resolve_mu",
+   CR_DOM_CAS, CR_CAS_QDFT_RESOLVE_MU, CR_BIN_NONE },
+ { "odft_resolve_mu",    15u, "srmech.cascade.odft_resolve_mu",
+   CR_DOM_CAS, CR_CAS_ODFT_RESOLVE_MU, CR_BIN_NONE },
+ { "dft_sigma",           9u, "srmech.cascade.dft_sigma",
+   CR_DOM_CAS, CR_CAS_DFT_SIGMA, CR_BIN_NONE },
+ { "dft_scale",           9u, "srmech.cascade.dft_scale",
+   CR_DOM_CAS, CR_CAS_DFT_SCALE, CR_BIN_NONE },
+ { "qdft_summand",       12u, "srmech.cascade.qdft_summand",
+   CR_DOM_CAS, CR_CAS_QDFT_SUMMAND, CR_BIN_NONE },
+ { "odft_summand",       12u, "srmech.cascade.odft_summand",
+   CR_DOM_CAS, CR_CAS_ODFT_SUMMAND, CR_BIN_NONE },
  /* FOLD-BODY-ONLY: `dom` is CR_DOM_NONE because orientation_compose is never
   * a plain step in any shipped descriptor — it exists to be folded. A
   * CR_DOM_NONE row is a deliberate, expressible state (cr_dispatch returns
   * NOT_IMPL for it), not an omission; the alternative was a second table,
   * which is what rc451 had. Its `sub` is a bare 0u: there is no domain enum
-  * for a row no exec runs. */
+  * for a row no exec runs. f64_add / vec_add (rc452 Phase 3) are the same
+  * state: the Σ accumulators the kuramoto / DFT chains fold, never plain. */
  { "orientation_compose", 19u, "srmech.cascade.orientation_compose",
-   CR_DOM_NONE, 0u, CR_BIN_ORIENT }
+   CR_DOM_NONE, 0u, CR_BIN_ORIENT },
+ { "f64_add",             7u, "srmech.cascade.f64_add",
+   CR_DOM_NONE, 0u, CR_BIN_F64_ADD },
+ { "vec_add",             7u, "srmech.cascade.vec_add",
+   CR_DOM_NONE, 0u, CR_BIN_VEC_ADD }
 };
 
 /* The table's own length, DERIVED. It was written out as a bare literal in the
@@ -1992,6 +2896,21 @@ static srmech_status_t cr_exec_cas(cr_ctx_t *c, uint8_t sub,
     case CR_CAS_AUTOCORRELATION: return cr_a_autocorrelation(c, args, out);
     case CR_CAS_DEAD_BAND:       return cr_op_dead_band(c, args, out);
     case CR_CAS_PAIR:            return cr_op_pair(c, args, out);
+    case CR_CAS_SEQ_GET:         return cr_op_seq_get(c, args, out);
+    case CR_CAS_VEC_SCALE:       return cr_op_vec_scale(c, args, out);
+    case CR_CAS_KUR_INV_N:       return cr_op_kur_inv_n(c, args, out);
+    case CR_CAS_KUR_SIN_TERM:    return cr_op_kur_sin_term(c, args, out);
+    case CR_CAS_KUR_OUT_SIMPLE:  return cr_op_kur_out_simple(c, args, out);
+    case CR_CAS_KUR_GEN_TERM:    return cr_op_kur_gen_term(c, args, out);
+    case CR_CAS_KUR_GEN_OUT:     return cr_op_kur_gen_out(c, args, out);
+    case CR_CAS_AS_QUAT4:        return cr_op_as_quat4(c, args, out);
+    case CR_CAS_AS_OCT8:         return cr_op_as_oct8(c, args, out);
+    case CR_CAS_QDFT_RESOLVE_MU: return cr_op_qdft_resolve_mu(c, args, out);
+    case CR_CAS_ODFT_RESOLVE_MU: return cr_op_odft_resolve_mu(c, args, out);
+    case CR_CAS_DFT_SIGMA:       return cr_op_dft_sigma(c, args, out);
+    case CR_CAS_DFT_SCALE:       return cr_op_dft_scale(c, args, out);
+    case CR_CAS_QDFT_SUMMAND:    return cr_op_qdft_summand(c, args, out);
+    case CR_CAS_ODFT_SUMMAND:    return cr_op_odft_summand(c, args, out);
     }
     return SRMECH_ERR_INTERNAL;
 }
@@ -2310,9 +3229,11 @@ static srmech_status_t cr_fold_body(cr_bump_t *b, const char *op, uint32_t opl,
     r = cr_op_row(op, opl);
     if (r < 0) { return SRMECH_ERR_NOT_IMPL; }
     switch ((cr_bin_id_t)CR_OP_REG[r].bin) {
-    case CR_BIN_NONE:   return SRMECH_ERR_NOT_IMPL;
-    case CR_BIN_GCD:    return cr_b_gcd(b, acc, elem, out);
-    case CR_BIN_ORIENT: return cr_b_orient_compose(b, acc, elem, out);
+    case CR_BIN_NONE:    return SRMECH_ERR_NOT_IMPL;
+    case CR_BIN_GCD:     return cr_b_gcd(b, acc, elem, out);
+    case CR_BIN_ORIENT:  return cr_b_orient_compose(b, acc, elem, out);
+    case CR_BIN_F64_ADD: return cr_b_f64_add(b, acc, elem, out);
+    case CR_BIN_VEC_ADD: return cr_b_vec_add(b, acc, elem, out);
     }
     return SRMECH_ERR_INTERNAL;
 }
@@ -2335,9 +3256,15 @@ static srmech_status_t cr_run_fold(cr_ctx_t *c, const srmech_json_value_t *step,
     if (srmech_json_object_get(step, "fold_args") != NULL) { return SRMECH_ERR_NOT_IMPL; }
     if (fo == NULL || fo->type != SRMECH_JSON_STRING) { return SRMECH_ERR_BAD_INPUT; }
     if (ov == NULL) { return SRMECH_ERR_BAD_INPUT; }
-    if (fi == NULL || fi->type != SRMECH_JSON_INT) { return SRMECH_ERR_NOT_IMPL; }
-    acc = cr_int_i64(c->b, fi->u.i);
-    if (acc == NULL) { return SRMECH_ERR_OVERFLOW; }
+    /* rc452 Phase 3: the seed is resolved GENERALLY — an int (the original
+     * arm), a real (the kuramoto Σ's 0.0), a LIST (the DFT Σ's zero vector),
+     * or a reference — exactly compose.py's `_resolve_args(step.fold_init)`.
+     * Through the first half of rc452 only a JSON_INT seed was accepted, so
+     * every float/vector fold declined at the SEED, and the gate blamed the
+     * op table. */
+    if (fi == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    acc = cr_resolve_arg(c, fi);
+    if (acc == NULL) { return SRMECH_ERR_NOT_IMPL; }
     seq = cr_resolve_arg(c, ov);
     if (seq == NULL || seq->kind != CR_LIST) { return SRMECH_ERR_NOT_IMPL; }
     for (i = 0u; i < seq->n; i++) {

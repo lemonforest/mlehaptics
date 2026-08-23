@@ -118,7 +118,7 @@ _CR_OP_IS = re.compile(r'cr_op_is\(op,\s*opl,\s*"([A-Za-z0-9_]+)",\s*(\d+)u\)')
 #: SIZE is itself a gate (a size that outran its rows would otherwise pass), so
 #: growing the table must be an explicit edit here. It is not derived from the
 #: file, because deriving it would make the gate agree with whatever it found.
-_COMPOSE_MARKER = "} CR_OP_REG[28] = {"
+_COMPOSE_MARKER = "} CR_OP_REG[45] = {"
 
 #: `opl == 9u && memcmp(op, "magnitude", 9u)` — the DSL dispatch arms
 _DSL_ARM = re.compile(

@@ -64,8 +64,10 @@ static void check(int cond, const char *desc)
 static unsigned char g_toml_ws[8u << 20];   /* TOML parse tree               */
 static unsigned char g_build_ws[1u << 20];  /* JSON builder tree             */
 static unsigned char g_write_ws[1u << 20];  /* canonical-writer sort scratch */
-static unsigned char g_run_ws[8u << 20];    /* chain-run arena (measured:    */
-                                            /* best_rational_signed ~4.3 MiB)*/
+static unsigned char g_run_ws[16u << 20];   /* chain-run arena (measured:    */
+                                            /* best_rational_signed ~4.3 MiB;*/
+                                            /* octonion_dft's ~2.9 KiB chain */
+                                            /* JSON sizes to ~13.4 MiB)      */
 static char g_file[262144];                 /* biggest descriptor is ~23 KiB */
 static char g_chain[16384];
 static char g_ctx[8192];
@@ -242,7 +244,7 @@ static int run_row(const char *fname, uint32_t case_idx, uint32_t n_steps,
     return 0;
 }
 
-/* The 11 chains that run in C at rc452 — every one driven FROM ITS SHIPPED
+/* The 14 chains that run in C at rc452 — every one driven FROM ITS SHIPPED
  * DESCRIPTOR FILE, one hand-derived proof case each. `n_steps` is the
  * declared top-level [[cascade.chain.steps]] count the file must yield. */
 typedef struct {
@@ -291,6 +293,39 @@ static const row_t ROWS[] = {
       "(all products exactly representable, so the Neumaier compensation "
       "contributes nothing and the values are exact). Runs the NESTED map "
       "bodies — [[cascade.chain.steps.body.body]] — from the file" },
+    /* ── rc452 Phase 3: the three chains this phase unblocked ─────────────
+     * Each expected wire is hand-derived on a proof case whose float
+     * arithmetic is EXACT, so the derivation needs no trusted oracle:
+     * identity twiddles (theta = 0) for the DFTs, sin(0) = 0 for kuramoto,
+     * with the one rounding collapse computed as an exact dyadic sum. */
+    { "kuramoto_step.toml", 2u, 3u,
+      "{\"k\": \"l\", \"v\": [{\"k\": \"f\", \"v\": 0.713}]}",
+      "n_one is PURE DRIFT: the only coupling term is sin(theta_0 - theta_0) "
+      "= sin(0), whose Q61 rational is exactly 0. The combine is then the "
+      "exact dyadic sum 0.7 + 0.01*(1.3 + 1.0*0): with 0.7 = "
+      "3152519739159347/2^52, 0.01 = 5764607523034235/2^59 and 1.3 = "
+      "5854679515581645/2^52, the sum rounds (half-even) to the double "
+      "spelled 0.713 — one float() collapse, as the op declares" },
+    { "quaternion_dft.toml", 5u, 6u,
+      "{\"k\": \"l\", \"v\": [{\"k\": \"l\", \"v\": [{\"k\": \"f\", \"v\": 1.0}, "
+      "{\"k\": \"f\", \"v\": 2.0}, {\"k\": \"f\", \"v\": 3.0}, "
+      "{\"k\": \"f\", \"v\": 4.0}]}]}",
+      "the 'single' case: N = 1, so the only twiddle angle is "
+      "sigma*2*pi*(0*0 mod 1)/1 = 0 and W = exp(0) = [1,0,0,0], whose "
+      "left-mult operator is the identity (e0*ek = ek). Summand = x[0]; "
+      "vec_add from the zero seed and vec_scale by 1.0 are exact; the "
+      "spectrum is [[1, 2, 3, 4]] verbatim — crossing as a NESTED l, the "
+      "kind the rc452 depth-bounded marshaller added" },
+    { "octonion_dft.toml", 6u, 7u,
+      "{\"k\": \"l\", \"v\": [{\"k\": \"l\", \"v\": [{\"k\": \"f\", \"v\": 1.0}, "
+      "{\"k\": \"f\", \"v\": 2.0}, {\"k\": \"f\", \"v\": 3.0}, "
+      "{\"k\": \"f\", \"v\": 4.0}, {\"k\": \"f\", \"v\": 0.0}, "
+      "{\"k\": \"f\", \"v\": 0.0}, {\"k\": \"f\", \"v\": 0.0}, "
+      "{\"k\": \"f\", \"v\": 0.0}]}]}",
+      "the 'quat_embed' case: as_oct8 zero-extends [1,2,3,4] into H c O; "
+      "N = 1 makes the e4-axis twiddle exp(0) = identity, so the one-sided "
+      "left product returns the embedded sample and the spectrum is "
+      "[[1, 2, 3, 4, 0, 0, 0, 0]] exactly" },
 };
 
 int main(void)
@@ -302,7 +337,7 @@ int main(void)
     printf("== Surface-A cascade-catalog TOML -> bare-C chain run "
            "(gh #1653, rc452 `#T1166`) ==\n");
 
-    /* ── the 11 config-driven rows ──────────────────────────────────────── */
+    /* ── the 14 config-driven rows ──────────────────────────────────────── */
     for (r = 0u; r < sizeof(ROWS) / sizeof(ROWS[0]); r++) {
         char desc[512];
         rc = run_row(ROWS[r].fname, ROWS[r].case_idx, ROWS[r].n_steps,
@@ -315,7 +350,7 @@ int main(void)
     /* ── negative controls: every refusal stage can actually refuse ─────── */
 
     /* The comparator can fail: a deliberately-wrong expected wire must be
-     * reported as a MISMATCH (6), not swallowed. Without this, 11 green rows
+     * reported as a MISMATCH (6), not swallowed. Without this, 14 green rows
      * are indistinguishable from a strcmp that cannot return nonzero. */
     rc = run_row("cyclic_gcd.toml", 0u, 1u, "{\"k\": \"i\", \"v\": \"7\"}");
     check(rc == 6, "a WRONG expected wire is refused as a mismatch (control)");

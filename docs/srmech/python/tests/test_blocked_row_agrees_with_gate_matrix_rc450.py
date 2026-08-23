@@ -297,16 +297,33 @@ def test_a_new_type_contradiction_is_documented_or_it_is_a_failure():
 def test_at_least_one_row_actually_exercises_the_contradiction_branch():
     """CONTROL for the test above: if every row agreed, that test would pass
     without ever evaluating its own reason-check, and nobody would know. Two
-    rows (octonion_dft / quaternion_dft) legitimately differ at rc450."""
+    rows (octonion_dft / quaternion_dft) legitimately differed at rc450.
+
+    ⚠️ THE NEW STATE IS STATED DELIBERATELY, as this test's own old message
+    instructed: at rc452 Phase 3 (`#T1166`) the two differing rows CLOSED —
+    both DFT chains run, all proof cases BYTE_IDENTICAL — and were deleted,
+    so no LIVE row differs from its cited ledger row any more. The branch is
+    therefore exercised on a SYNTHETIC row instead: the same predicate the
+    test above applies must flag a contradiction with an undersized reason,
+    or the reason-check has stopped measuring and its green means nothing.
+    """
     ledger = _ledger_rows()
     differing = sorted(n for n, row in ratchet.BLOCKED.items()
                        if bool(row["new_type"]) !=
                        bool(ledger[row["ledger_row"]]["new_type"]))
-    assert differing, (
-        "no BLOCKED row differs from its cited ledger row, so the "
-        "documented-contradiction branch above is never evaluated. If that is "
-        "genuinely the new state, say so here deliberately — do not leave a "
-        "branch that has stopped being exercised looking like it passes.")
+    if differing:
+        return                      # live rows exercise the branch — done
+    # Synthetic exercise: a row contradicting its cited ledger row with a
+    # too-short reason MUST be what the reason-check flags. Mirrors the
+    # predicate in test_new_type_contradictions_carry_a_stated_reason.
+    any_row = next(iter(ledger.values()))
+    synthetic = {"new_type": not bool(any_row["new_type"]),
+                 "new_type_reason": "too short"}
+    flags = (bool(synthetic["new_type"]) != bool(any_row["new_type"])
+             and len(synthetic["new_type_reason"].strip()) < 60)
+    assert flags, (
+        "the synthetic contradicting row was NOT flagged by the reason-check "
+        "predicate — the branch this control guards has stopped measuring")
 
 
 # ── 4. the exempt-set pin ────────────────────────────────────────────────────

@@ -1039,6 +1039,19 @@ _RUN_C_OPS = frozenset({
     # C-accepted domain, so a coarse dispatch would satisfy every value-level
     # gate while the descriptor's steps drove nothing.
     "dead_band", "scale_round_half_even", "best_rational", "pair",
+    # Class E / M / N / C — the kuramoto_step and hypercomplex-DFT chains'
+    # own steps (rc452 Phase 3, `#T1166`). Same discipline as above: the
+    # fused srmech_cascade_kuramoto_step_f64 / _general_f64 /
+    # srmech_quaternion_dft / srmech_octonion_dft symbols all exist and NONE
+    # is dispatched — each summand/term arm delegates only to the
+    # STEP-granular exports the Python op itself composes
+    # (srmech_sin_q61, srmech_quaternion_twiddle + _left/right_mult,
+    # srmech_octonion_twiddle + srmech_loop_{left,right}_op_f64).
+    "seq_get", "vec_scale",
+    "kuramoto_inv_n", "kuramoto_sin_term", "kuramoto_out_simple",
+    "kuramoto_gen_term", "kuramoto_gen_out",
+    "as_quat4", "as_oct8", "qdft_resolve_mu", "odft_resolve_mu",
+    "dft_sigma", "dft_scale", "qdft_summand", "odft_summand",
 })
 
 #: Fold-body ops the C runner dispatches — the non-``CR_BIN_NONE`` ``bin``
@@ -1056,7 +1069,10 @@ _RUN_C_OPS = frozenset({
 #: ``tests/test_c_chain_eligibility_rc447.py`` derives BOTH columns out of the C
 #: table and asserts each against its Python peer, so a widened C row that is not
 #: mirrored here is red rather than silently unreachable.
-_RUN_C_FOLD_OPS = frozenset({"orientation_compose", "gcd"})
+_RUN_C_FOLD_OPS = frozenset({"orientation_compose", "gcd",
+                             # rc452 Phase 3: the Σ accumulators of the
+                             # kuramoto (scalar) and DFT (vector) map chains.
+                             "f64_add", "vec_add"})
 
 _I64_MAX = (1 << 63) - 1
 _I64_MIN = -(1 << 63)
@@ -1290,29 +1306,58 @@ def _legal_arg_names(op: str, class_id: str) -> Optional[frozenset]:
                       inspect.Parameter.KEYWORD_ONLY))
 
 
+def _steps_to_dicts(steps) -> list:
+    """Serialise a step tuple (recursively — map bodies are step tuples too)
+    to the raw-dict shape ``srmech_chain_run`` reads.
+
+    ⚠️ THE MAP BRANCH WAS MISSING THROUGH THE FIRST TWO PHASES OF rc452, AND
+    THAT WAS A LIVE CRASH, NOT A MISS. ``_chain_c_eligible`` admits map chains
+    (it must — otherwise the C map capability is unreachable, the rc447
+    defect), and ``_run_chain_native`` then serialises the spec through here —
+    where a ``MapStepSpec`` fell into the fold branch and raised
+    ``AttributeError: 'MapStepSpec' object has no attribute 'fold_op'``.
+    Measured on the rc452 branch head with the freshly built ``.so``:
+    ``resolve_chain(autocorrelation)(x=[1.0, 2.0, 3.0])`` CRASHED, while every
+    ctypes-driven gate stayed green — those reach around ``resolve_chain``,
+    which is exactly the blind spot the rc447 eligibility gate documents. The
+    end-to-end ``run_cascade_chain`` gate did not catch it because its driver
+    swallows per-case exceptions as "routing, not values".
+    """
+    out: list = []
+    for s in steps:
+        if isinstance(s, StepSpec):
+            out.append({"class": s.class_id, "op": s.op, "args": s.args})
+        elif isinstance(s, MapStepSpec):
+            step: Dict[str, Any] = {
+                "map_over": s.map_over,
+                "index": s.index,
+                "body": _steps_to_dicts(s.body),
+            }
+            if s.bind:
+                step["bind"] = s.bind
+            out.append(step)
+        else:
+            # A FOLD step (rc447). Key names mirror the ADR-0008 §2 fold step
+            # the C classifier reads. ``fold_args`` chains are never admitted
+            # by ``_chain_c_eligible``, so the keyword-named form is not
+            # spelled here.
+            out.append({
+                "fold_class": getattr(s, "fold_class", None)
+                or getattr(s, "class_id", "C"),
+                "fold_op": s.fold_op,
+                "fold_init": s.fold_init,
+                "over": s.over,
+            })
+    return out
+
+
 def _spec_to_chain_dict(spec: ChainSpec) -> Dict[str, Any]:
     """Serialise a ChainSpec back to the chain-dict shape srmech_chain_run reads
     (name / summary / returns / on_error / steps[{class, op, args}])."""
-    steps: list = []
-    for s in spec.steps:
-        if isinstance(s, StepSpec):
-            steps.append({"class": s.class_id, "op": s.op, "args": s.args})
-            continue
-        # A FOLD step (rc447). ``_chain_c_eligible`` admits these since C
-        # implements the form, so the marshaller must be able to spell one —
-        # it could not, and the predicate widening surfaced that immediately
-        # (AttributeError: 'FoldStepSpec' object has no attribute 'args').
-        # Key names mirror the ADR-0008 §2 fold step the C classifier reads.
-        steps.append({
-            "fold_class": getattr(s, "fold_class", None) or getattr(s, "class_id", "C"),
-            "fold_op": s.fold_op,
-            "fold_init": s.fold_init,
-            "over": s.over,
-        })
     return {
         "name": spec.name, "summary": spec.summary, "returns": spec.returns,
         "on_error": spec.on_error,
-        "steps": steps,
+        "steps": _steps_to_dicts(spec.steps),
     }
 
 

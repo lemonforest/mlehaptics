@@ -190,6 +190,24 @@ def _pin_pow_exponent(ch):
     ch["steps"][0]["args"]["k"] = 4
 
 
+def _pin_kuramoto_dt(ch):
+    """kuramoto_step (simple variant): the outer map's `dt` BIND reference
+    pinned to the literal 0 — an interior edit the fused kuramoto symbols
+    cannot see (they read dt from the ctx wire, not from the bind table)."""
+    ch["steps"][2]["bind"]["dt"] = 0
+
+
+def _bump_qdft_fold_seed(ch):
+    """quaternion_dft: the Σ_m fold seed inside the outer map's body."""
+    ch["steps"][5]["body"][1]["fold_init"] = [1.0, 0.5, 0.0, 0.0]
+
+
+def _bump_odft_fold_seed(ch):
+    """octonion_dft: the Σ_m fold seed inside the outer map's body."""
+    ch["steps"][6]["body"][1]["fold_init"] = [1.0, 0.0, 0.0, 0.0,
+                                              0.0, 0.0, 0.0, 0.25]
+
+
 #: (chain, mutate, inputs-or-None, EXPECTED mutant value, why)
 #:
 #: ⚠️ THE EXPECTED VALUE IS THE POINT, not merely "it differs". "Something
@@ -273,6 +291,38 @@ MUTATIONS = [
      "mod_pow(3, 7, 10) = 2187 mod 10 = 7; pinning the exponent k to 4 gives "
      "81 mod 10 = 1. The k-vs-b arg-name mismatch the exemption cited blocks "
      "an op swap, not an argument mutation"),
+    # ── rc452 Phase 3 (`#T1166`): the three newly-unblocked map chains, each
+    # witnessed through an INTERIOR literal the fused whole-transform symbol
+    # has no parameter image of, with the expected value derivable EXACTLY by
+    # hand (no float derivation is trusted to narration).
+    ("kuramoto_step", _pin_kuramoto_dt, None, [0.1, 2.0, -1.0],
+     "pin the OUTER MAP's bind `dt` reference to the literal 0. The combine is "
+     "float(theta_i + float(dt)*(om + inv_n*s)): with dt = 0 the exact-Q "
+     "product 0*(...) is Q(0, 1) and theta_i + 0 collapses to theta_i EXACTLY, "
+     "so the mutant returns the input phases [0.1, 2.0, -1.0] verbatim. "
+     "srmech_cascade_kuramoto_step_f64 exists, reads dt from the CTX wire, and "
+     "has no image of the descriptor's bind table — a dispatcher keyed on this "
+     "chain's name returns the baseline (moved phases) and is caught"),
+    ("quaternion_dft", _bump_qdft_fold_seed,
+     {"x": [[1.0, 2.0, 3.0, 4.0]], "mu_axis": "j", "inverse": False,
+      "left": True},
+     [[2.0, 2.5, 3.0, 4.0]],
+     "the Σ_m fold SEED, one map level down. On the N=1 'single' case the "
+     "twiddle angle is σ·2π·(0·0 mod 1)/1 = 0, so W = exp(0) = [1,0,0,0] and "
+     "L_W is the identity: the summand IS x[0] and scale = 1.0. Bumping the "
+     "seed [0,0,0,0] -> [1.0, 0.5, 0, 0] must move the spectrum to "
+     "[[1+1, 0.5+2, 3, 4]] = [[2.0, 2.5, 3.0, 4.0]] — every add exact. "
+     "srmech_quaternion_dft seeds its own accumulator and returns the "
+     "baseline [[1, 2, 3, 4]], so a coarse dispatch is caught"),
+    ("octonion_dft", _bump_odft_fold_seed,
+     {"x": [[1.0, 2.0, 3.0, 4.0]], "mu_axis": "e4", "mu_r_axis": "e4",
+      "form": "left", "bracketing": "left_associated", "inverse": False},
+     [[2.0, 2.0, 3.0, 4.0, 0.0, 0.0, 0.0, 0.25]],
+     "the octonion twin of the QDFT seed witness, on the 'quat_embed' N=1 "
+     "case: as_oct8 zero-extends [1,2,3,4] into O, the k=m=0 twiddle is the "
+     "identity, scale = 1.0. Seed [0]*8 -> [1.0, 0, 0, 0, 0, 0, 0, 0.25] "
+     "moves the spectrum to [[2.0, 2.0, 3.0, 4.0, 0, 0, 0, 0.25]] exactly; "
+     "srmech_octonion_dft has no image of the seed and is caught"),
 ]
 
 
@@ -397,10 +447,12 @@ BOGUS_OP = "__no_such_op_rc452_step_drive__"
 #: rc452 (`#T1171`) — the population `test_every_step_of_every_running_chain_is
 #: _actually_read` walks, pinned so the figure in its docstring cannot rot. Both
 #: MEASURED at rc452 with a freshly built libsrmech (HAS_NATIVE=True, ABI 21):
-#: 11 chain x variant rows run in C, carrying 22 steps at full depth.
-#: Re-measured unchanged after the rc452 A1 dispatch reshape.
-EXPECTED_STEPS = 22
-EXPECTED_RUNNING_CHAINS = 11
+#: 11 chain x variant rows carrying 22 steps at full depth through Phase 2;
+#: Phase 3 (`#T1166`) unblocks kuramoto_step (BOTH variants — 5 steps each),
+#: quaternion_dft (9) and octonion_dft (10), re-measured at 15 rows / 51 steps
+#: with all four arms (decline + value-move, per step) firing.
+EXPECTED_STEPS = 51
+EXPECTED_RUNNING_CHAINS = 15
 
 
 def _all_running_rows():
@@ -419,7 +471,18 @@ def _all_running_rows():
         for variant, _spec, entry in _cc.cascade_chain_specs(nm):
             chain = _chain_only(entry)
             for j, case in enumerate(entry.get("proof_cases") or []):
-                inputs = dict(case.get("inputs") or {})
+                # rc452 Phase 3: the descriptor's input_defaults /
+                # optional_inputs merge UNDER the case, the same construction
+                # the rc450 parity population uses. Without it every
+                # kuramoto_step/general case failed `@input.pin_anchor`
+                # resolution and the variant fell OUT of this population the
+                # moment it started running in C — SEAM 1's docstring
+                # predicted exactly this opening, and it measured LIVE on the
+                # first post-unblock run: 14 rows where the parity population
+                # holds 15, with the general variant's 5 steps unwitnessed.
+                from srmech.dsl._cascade_chain import chain_input_defaults
+                inputs = dict(chain_input_defaults(entry))
+                inputs.update(dict(case.get("inputs") or {}))
                 try:
                     rc, _val = _c_value(chain, inputs)
                 except Exception:                      # noqa: BLE001
@@ -539,6 +602,39 @@ VALUE_PROBES = {
                             lambda s: s["args"].__setitem__("i", 0)),
     "compensated_sum": ("args.values -> [7.5]",
                         lambda s: s["args"].__setitem__("values", [7.5])),
+    # ── rc452 Phase 3: the kuramoto / hypercomplex-DFT step ops ─────────────
+    "seq_get":        ("args.i -> 0",
+                       lambda s: s["args"].__setitem__("i", 0)),
+    "vec_scale":      ("args.s -> 42.0",
+                       lambda s: s["args"].__setitem__("s", 42.0)),
+    "kuramoto_inv_n": ("args.coupling -> 9.5",
+                       lambda s: s["args"].__setitem__("coupling", 9.5)),
+    "kuramoto_sin_term": ("args.j -> 0",
+                          lambda s: s["args"].__setitem__("j", 0)),
+    "kuramoto_out_simple": ("args.dt -> 97.0",
+                            lambda s: s["args"].__setitem__("dt", 97.0)),
+    "kuramoto_gen_term": ("args.alpha -> 1.25",
+                          lambda s: s["args"].__setitem__("alpha", 1.25)),
+    "kuramoto_gen_out": ("args.dt -> 97.0",
+                         lambda s: s["args"].__setitem__("dt", 97.0)),
+    "as_quat4":       ("args.v -> [5.0, 0.0, 0.0, 0.0]",
+                       lambda s: s["args"].__setitem__(
+                           "v", [5.0, 0.0, 0.0, 0.0])),
+    "as_oct8":        ("args.vec -> [5.0, 0.0, 0.0, 0.0]",
+                       lambda s: s["args"].__setitem__(
+                           "vec", [5.0, 0.0, 0.0, 0.0])),
+    "qdft_resolve_mu": ("args.mu_axis -> 'k'",
+                        lambda s: s["args"].__setitem__("mu_axis", "k")),
+    "odft_resolve_mu": ("args.mu_axis -> 'e5'",
+                        lambda s: s["args"].__setitem__("mu_axis", "e5")),
+    "dft_sigma":      ("args.inverse -> True",
+                       lambda s: s["args"].__setitem__("inverse", True)),
+    "dft_scale":      ("args.inverse -> True",
+                       lambda s: s["args"].__setitem__("inverse", True)),
+    "qdft_summand":   ("args.m -> 0",
+                       lambda s: s["args"].__setitem__("m", 0)),
+    "odft_summand":   ("args.m -> 0",
+                       lambda s: s["args"].__setitem__("m", 0)),
 }
 
 
@@ -548,8 +644,16 @@ def _value_probe_for(step):
     A FOLD step has no ``args`` to mutate; its probe flips ``fold_init``, which
     a correct runner must thread through every application of the fold body
     (and return unchanged on the empty fold — either way the value moves).
+    A VECTOR fold (rc452 Phase 3 — the DFT chains' vec_add seed is a list)
+    bumps element 0 instead: a scalar ``-1`` seed on a vec_add fold is a
+    LENGTH-MISMATCHED descriptor both projections refuse, so it would score
+    the step dead for the wrong reason.
     """
     if "fold_op" in step:
+        if isinstance(step.get("fold_init"), list):
+            def _bump0(s):
+                s["fold_init"] = [1.0] + list(s["fold_init"][1:])
+            return ("fold_init[0] -> 1.0", _bump0)
         return ("fold_init -> -1", lambda s: s.__setitem__("fold_init", -1))
     bare = str(step.get("op", "")).rsplit(".", 1)[-1]
     return VALUE_PROBES.get(bare)

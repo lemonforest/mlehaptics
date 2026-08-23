@@ -95,15 +95,31 @@ def _multi_step_descriptors() -> dict:
 def _coarse_symbols() -> dict:
     """{exported symbol: descriptor it fuses}, derived from the header.
 
-    PREDICATE: an exported ``srmech_cascade_<...>`` whose name contains the name
-    of a multi-step descriptor. That deliberately catches
-    ``srmech_cascade_kuramoto_step_general_f64`` as well as the plain one — a
-    variant of a coarse symbol is still a coarse symbol.
+    PREDICATE, two arms: (1) an exported ``srmech_cascade_<...>`` whose name
+    contains the name of a multi-step descriptor — that deliberately catches
+    ``srmech_cascade_kuramoto_step_general_f64`` as well as the plain one (a
+    variant of a coarse symbol is still a coarse symbol); (2) an exported
+    ``srmech_<descriptor>`` EXACT-name match — added at rc452 Phase 3
+    (`#T1166`) because the whole-transform DFT kernels are exported WITHOUT
+    the ``cascade`` infix (``srmech_quaternion_dft`` / ``srmech_octonion_dft``)
+    and escaped arm (1) entirely, precisely as their chains started running.
+    Arm (2) is exact-match on purpose: a contains-match over the bare
+    ``srmech_`` namespace would flag ``srmech_autocorrelation_f64``, which the
+    interpreter legitimately calls for the ``autocorrelation`` OP row — a
+    different object from the ``autocorrelation`` CHAIN, as the interpreter's
+    own comment states.
     """
     header = _read(_HEADER)
-    exported = set(re.findall(r"\b(srmech_cascade_[A-Za-z0-9_]+)\s*\(", header))
+    exported = set(re.findall(r"\b(srmech_[A-Za-z0-9_]+)\s*\(", header))
     multi = _multi_step_descriptors()
-    return {sym: name for sym in exported for name in multi if name in sym}
+    out = {}
+    for sym in exported:
+        for name in multi:
+            if sym.startswith("srmech_cascade_") and name in sym:
+                out[sym] = name
+            elif sym == "srmech_" + name:
+                out[sym] = name
+    return out
 
 
 def _referenced(text: str, symbols) -> dict:
@@ -202,11 +218,22 @@ def test_the_derived_population_is_not_empty() -> None:
     assert len(coarse) >= 3, (
         "only %d coarse cascade symbols derived from %s. The predicate is an "
         "exported srmech_cascade_* whose name contains a multi-step "
-        "descriptor's name; if the naming convention moved, re-point it rather "
+        "descriptor's name, or an exported srmech_<descriptor> exact match; "
+        "if the naming convention moved, re-point it rather "
         "than deleting the assertion." % (len(coarse), _HEADER.name))
     assert "srmech_cascade_best_rational_signed_f64" in coarse, (
         "the symbol this gate was written for is not in the derived set: %s"
         % sorted(coarse))
+    # rc452 Phase 3: the four fused symbols of the newly-unblocked map chains
+    # must ALL be in the population, or the green over the interpreter proves
+    # nothing about exactly the chains most tempting to fuse.
+    for must in ("srmech_cascade_kuramoto_step_f64",
+                 "srmech_cascade_kuramoto_step_general_f64",
+                 "srmech_quaternion_dft", "srmech_octonion_dft"):
+        assert must in coarse, (
+            "%s is not in the derived coarse set %s — arm (2) of the "
+            "predicate has stopped seeing the non-cascade-infix exports"
+            % (must, sorted(coarse)))
 
 
 def test_the_interpreter_calls_no_multi_step_coarse_cascade_symbol() -> None:
