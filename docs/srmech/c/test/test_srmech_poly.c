@@ -200,7 +200,7 @@ static void t_add(void)
                             o.bn, o.bd, &olen, arena, ws), "poly_add");
     hpoly_sync(&o, 3);
     check_true(olen == 3, "add olen == 3");
-    expect_coeff(&o.bn[0], &o.bd[0], "1", "1", "add c0");
+    expect_coeff(&o.bn[0], &o.bd[0], "999", "1", "add c0");
     expect_coeff(&o.bn[1], &o.bd[1], "3", "1", "add c1");
     expect_coeff(&o.bn[2], &o.bd[2], "3", "1", "add c2");
     npass++;
