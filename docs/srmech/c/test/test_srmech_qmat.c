@@ -9,15 +9,55 @@
  *   gcc -std=c11 -Wall -Wextra -Werror -pedantic -Ic/include
  *       c/test/test_srmech_qmat.c c/src/[star].c -lm -o /tmp/qmat_smoke
  *
- * Exit 0 on all-pass; aborts (assert) on any mismatch.
+ * Exit 0 on all-pass; aborts on any mismatch, and exits non-zero if any case
+ * failed to run.
+ *
+ * ⚠️ rc453 (`#T1171`) — THIS FILE DID NO WORK UNDER Release/NDEBUG, the same
+ * defect as its sibling test_srmech_poly.c and found the same way (registering
+ * it with CMake in rc452 reddened the 3-OS pedantic matrix). Every call into the
+ * library was the OPERAND of an `assert()`, which `-DNDEBUG` deletes along with
+ * its operand: `hbi_set` never parsed, `hbi_dec` never rendered, and `expect_q`
+ * then ran `strcmp` over an UNINITIALISED 16384-byte stack buffer.
+ *
+ * MEASURED: built `gcc -std=c11 -O2 -DNDEBUG` against libsrmech.so, HEAD's
+ * version prints `FAIL rref[0,0]: got / expected 1/1` and aborts (core dumped).
+ * It does NOT pass vacuously — `expect_q`'s comparison is a real `if`/`abort`
+ * and survives; it just compares the EMPTY string `hbi_dec` never wrote. So this
+ * file could not have been green in ctest even with the warnings silenced.
+ *
+ * A SECOND, INDEPENDENT defect in the same file: the tally printed
+ * `"%d/%d", npass, npass` and `main` returned a literal 0 — a TAUTOLOGY that
+ * reads "9/9 pass" whatever npass is, over an exit status that cannot express a
+ * shortfall. That one is not reachable while the abort above fires first, but it
+ * is exactly the instrument-that-cannot-return-otherwise shape and is fixed here
+ * too: the tally is against the expected count, with a non-zero exit.
  */
 
 #include "srmech.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* ---- NDEBUG-surviving checks (see the ⚠️ note above) ---- */
+
+/* A library call that must succeed. Takes the STATUS as an argument, so the call
+ * is evaluated by the caller and cannot be compiled away. */
+static void must_ok(srmech_status_t st, const char *what)
+{
+    if (st != SRMECH_OK) {
+        fprintf(stderr, "FAIL %s: status %d\n", what, (int)st);
+        abort();
+    }
+}
+
+static void check_true(int cond, const char *what)
+{
+    if (!cond) {
+        fprintf(stderr, "FAIL %s\n", what);
+        abort();
+    }
+}
 
 #define LCAP 512u    /* limbs per harness bigint — far past the 81-digit det (~9 limbs) */
 
@@ -29,7 +69,7 @@ static void hbi_set(hbi_t *h, const char *dec)
     h->bi.cap = LCAP;
     h->bi.n = 0u;
     h->bi.sign = 0;
-    assert(srmech_bigint_from_dec(&h->bi, dec, strlen(dec)) == SRMECH_OK);
+    must_ok(srmech_bigint_from_dec(&h->bi, dec, strlen(dec)), "hbi_set from_dec");
 }
 
 static void hbi_blank(hbi_t *h)
@@ -44,7 +84,8 @@ static void hbi_dec(const srmech_bigint_t *a, char *buf, size_t cap)
 {
     static uint32_t ws[LCAP * 16];
     size_t outlen = 0u;
-    assert(srmech_bigint_to_dec(a, buf, cap, &outlen, ws, sizeof(ws)) == SRMECH_OK);
+    must_ok(srmech_bigint_to_dec(a, buf, cap, &outlen, ws, sizeof(ws)),
+            "hbi_dec to_dec");
 }
 
 static void expect_q(const srmech_bigint_t *num, const srmech_bigint_t *den,
@@ -76,7 +117,7 @@ static void hmat_set(hmat_t *m, const char *const *nums, const char *const *dens
                      size_t rows, size_t cols)
 {
     size_t i, cells = rows * cols;
-    assert(cells <= MAXCELLS);
+    check_true(cells <= MAXCELLS, "hmat_set cells <= MAXCELLS");
     m->rows = rows; m->cols = cols;
     for (i = 0u; i < cells; i++) {
         hbi_set(&m->num[i], nums[i]);
@@ -89,7 +130,7 @@ static void hmat_set(hmat_t *m, const char *const *nums, const char *const *dens
 static void hmat_blank(hmat_t *m, size_t cells)
 {
     size_t i;
-    assert(cells <= MAXCELLS);
+    check_true(cells <= MAXCELLS, "hmat_blank cells <= MAXCELLS");
     for (i = 0u; i < cells; i++) {
         hbi_blank(&m->num[i]);
         hbi_blank(&m->den[i]);
@@ -116,7 +157,7 @@ static void arena_ensure(size_t bytes)
     if (words > g_arena_words) {
         free(g_arena);
         g_arena = (uint32_t *)malloc(words * sizeof(uint32_t));
-        assert(g_arena != NULL);
+        check_true(g_arena != NULL, "arena_ensure malloc");
         g_arena_words = words;
     }
 }
@@ -133,10 +174,10 @@ static void t_rref(void)
     hmat_set(&a, n, d, 3, 3);
     hmat_blank(&o, 9);
     ws = srmech_qmat_ws_bound(2u, 3u, 3u); arena_ensure(ws);
-    assert(srmech_qmat_rref(a.bn, a.bd, 3, 3, o.bn, o.bd, &rank, piv,
-                            g_arena, ws) == SRMECH_OK);
+    must_ok(srmech_qmat_rref(a.bn, a.bd, 3, 3, o.bn, o.bd, &rank, piv,
+                             g_arena, ws), "qmat_rref");
     hmat_sync(&o, 9);
-    assert(rank == 3);
+    check_true(rank == 3, "rref rank == 3");
     expect_q(&o.bn[0], &o.bd[0], "1", "1", "rref[0,0]");
     expect_q(&o.bn[1], &o.bd[1], "0", "1", "rref[0,1]");
     expect_q(&o.bn[4], &o.bd[4], "1", "1", "rref[1,1]");
@@ -154,7 +195,7 @@ static void t_det_small(void)
     hmat_set(&a, n, d, 2, 2);
     hbi_blank(&on); hbi_blank(&od); bn = on.bi; bd = od.bi;
     ws = srmech_qmat_ws_bound(2u, 2u, 4u); arena_ensure(ws);
-    assert(srmech_qmat_det(a.bn, a.bd, 2, &bn, &bd, g_arena, ws) == SRMECH_OK);
+    must_ok(srmech_qmat_det(a.bn, a.bd, 2, &bn, &bd, g_arena, ws), "qmat_det 2x2");
     on.bi = bn; od.bi = bd;
     expect_q(&on.bi, &od.bi, "-2", "1", "det 2x2");
     npass++;
@@ -169,7 +210,8 @@ static void t_det_singular(void)
     hmat_set(&a, n, d, 2, 2);
     hbi_blank(&on); hbi_blank(&od); bn = on.bi; bd = od.bi;
     ws = srmech_qmat_ws_bound(2u, 2u, 4u); arena_ensure(ws);
-    assert(srmech_qmat_det(a.bn, a.bd, 2, &bn, &bd, g_arena, ws) == SRMECH_OK);
+    must_ok(srmech_qmat_det(a.bn, a.bd, 2, &bn, &bd, g_arena, ws),
+            "qmat_det singular");
     on.bi = bn; od.bi = bd;
     expect_q(&on.bi, &od.bi, "0", "1", "det singular");
     npass++;
@@ -200,7 +242,8 @@ static void t_det_keystone(void)
     hmat_set(&a, n, d, 2, 2);
     hbi_blank(&on); hbi_blank(&od); bn = on.bi; bd = od.bi;
     ws = srmech_qmat_ws_bound(8u, 2u, 4u); arena_ensure(ws);
-    assert(srmech_qmat_det(a.bn, a.bd, 2, &bn, &bd, g_arena, ws) == SRMECH_OK);
+    must_ok(srmech_qmat_det(a.bn, a.bd, 2, &bn, &bd, g_arena, ws),
+            "qmat_det keystone");
     on.bi = bn; od.bi = bd;
     expect_q(&on.bi, &od.bi, exp_num, exp_den, "det keystone 81-digit");
     npass++;
@@ -215,10 +258,10 @@ static void t_inverse(void)
     hmat_set(&a, n, d, 2, 2);
     hmat_blank(&o, 4);
     ws = srmech_qmat_ws_bound(2u, 2u, 4u); arena_ensure(ws);
-    assert(srmech_qmat_inverse(a.bn, a.bd, 2, o.bn, o.bd, &sing,
-                               g_arena, ws) == SRMECH_OK);
+    must_ok(srmech_qmat_inverse(a.bn, a.bd, 2, o.bn, o.bd, &sing,
+                                g_arena, ws), "qmat_inverse");
     hmat_sync(&o, 4);
-    assert(sing == 0);
+    check_true(sing == 0, "inverse sing == 0");
     expect_q(&o.bn[0], &o.bd[0], "3", "5", "inv[0,0]");
     expect_q(&o.bn[1], &o.bd[1], "-7", "10", "inv[0,1]");
     expect_q(&o.bn[2], &o.bd[2], "-1", "5", "inv[1,0]");
@@ -233,9 +276,9 @@ static void t_inverse_singular(void)
     hmat_set(&a, n, d, 2, 2);
     hmat_blank(&o, 4);
     ws = srmech_qmat_ws_bound(2u, 2u, 4u); arena_ensure(ws);
-    assert(srmech_qmat_inverse(a.bn, a.bd, 2, o.bn, o.bd, &sing,
-                               g_arena, ws) == SRMECH_OK);
-    assert(sing == 1);
+    must_ok(srmech_qmat_inverse(a.bn, a.bd, 2, o.bn, o.bd, &sing,
+                                g_arena, ws), "qmat_inverse singular");
+    check_true(sing == 1, "inverse-singular sing == 1");
     npass++;
 }
 
@@ -250,10 +293,10 @@ static void t_solve(void)
     hmat_set(&b, bn, bd, 2, 1);
     hmat_blank(&o, 2);
     ws = srmech_qmat_ws_bound(2u, 2u, 3u); arena_ensure(ws);
-    assert(srmech_qmat_solve(a.bn, a.bd, 2, b.bn, b.bd, 1, o.bn, o.bd, &sing,
-                             g_arena, ws) == SRMECH_OK);
+    must_ok(srmech_qmat_solve(a.bn, a.bd, 2, b.bn, b.bd, 1, o.bn, o.bd, &sing,
+                              g_arena, ws), "qmat_solve");
     hmat_sync(&o, 2);
-    assert(sing == 0);
+    check_true(sing == 0, "solve sing == 0");
     expect_q(&o.bn[0], &o.bd[0], "4", "5", "solve x0");
     expect_q(&o.bn[1], &o.bd[1], "7", "5", "solve x1");
     npass++;
@@ -268,9 +311,9 @@ static void t_solve_singular(void)
     hmat_set(&b, bn, bd, 2, 1);
     hmat_blank(&o, 2);
     ws = srmech_qmat_ws_bound(2u, 2u, 3u); arena_ensure(ws);
-    assert(srmech_qmat_solve(a.bn, a.bd, 2, b.bn, b.bd, 1, o.bn, o.bd, &sing,
-                             g_arena, ws) == SRMECH_OK);
-    assert(sing == 1);
+    must_ok(srmech_qmat_solve(a.bn, a.bd, 2, b.bn, b.bd, 1, o.bn, o.bd, &sing,
+                              g_arena, ws), "qmat_solve singular");
+    check_true(sing == 1, "solve-singular sing == 1");
     npass++;
 }
 
@@ -286,10 +329,10 @@ static void t_nullspace(void)
     hmat_set(&a, n, d, 2, 3);
     hmat_blank(&o, 9);
     ws = srmech_qmat_ws_bound(2u, 2u, 3u); arena_ensure(ws);
-    assert(srmech_qmat_nullspace(a.bn, a.bd, 2, 3, o.bn, o.bd, &nfree,
-                                 g_arena, ws) == SRMECH_OK);
+    must_ok(srmech_qmat_nullspace(a.bn, a.bd, 2, 3, o.bn, o.bd, &nfree,
+                                  g_arena, ws), "qmat_nullspace");
     hmat_sync(&o, 9);
-    assert(nfree == 2);
+    check_true(nfree == 2, "nullspace nfree == 2");
     /* basis col 0 = [-2,1,0]: out[0*3+0], out[1*3+0], out[2*3+0] */
     expect_q(&o.bn[0], &o.bd[0], "-2", "1", "null0[0]");
     expect_q(&o.bn[3], &o.bd[3], "1", "1", "null0[1]");
@@ -313,6 +356,13 @@ int main(void)
     t_solve_singular();
     t_nullspace();
     free(g_arena);
-    printf("srmech_qmat smoke: %d/%d cases pass\n", npass, npass);
+    /* NOT `"%d/%d", npass, npass` — that prints "9/9 pass" and "0/0 pass" with
+     * equal cheer, so it cannot report a shortfall. Tally against the expected
+     * count, and exit non-zero on it. */
+    printf("srmech_qmat smoke: %d/%d cases pass\n", npass, 9);
+    if (npass != 9) {
+        fprintf(stderr, "FAIL: %d/9 cases ran\n", npass);
+        return 1;
+    }
     return 0;
 }
