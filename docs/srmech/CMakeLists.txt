@@ -402,7 +402,8 @@ if(SRMECH_SRCS)
         # block removes.
         # ─────────────────────────────────────────────────────────────
         set(SRMECH_C_TESTS_RC452
-            test_srmech_bigexp test_srmech_config test_srmech_coupling
+            test_srmech_bigexp test_srmech_cascade_toml_host
+            test_srmech_config test_srmech_coupling
             test_srmech_factor_poly test_srmech_fiedler
             test_srmech_fiedler_file test_srmech_gosper test_srmech_hdc
             test_srmech_json test_srmech_ndjson test_srmech_parallel
@@ -423,6 +424,17 @@ if(SRMECH_SRCS)
         # missing include path had nowhere to surface. Exactly the class the
         # 3-OS matrix is being pointed at these 20 to find.
         target_include_directories(test_srmech_config PRIVATE c/src)
+
+        # rc452 (`#T1166`, gh #1653) — the Surface-A CONFIG-DRIVEN bare-C host
+        # proof. test_srmech_cascade_toml_host opens the SHIPPED cascade_catalog
+        # descriptors at run time (fopen -> srmech_toml_parse ->
+        # srmech_chain_run, no Python anywhere in the acceptance path), so it
+        # needs to know where the checkout keeps them. The path is compiled in
+        # from the source tree; ctest runs from the build dir on all three
+        # OSes, so a relative path would be a per-generator guess and an
+        # absolute one is the same checkout CI just configured.
+        target_compile_definitions(test_srmech_cascade_toml_host PRIVATE
+            "SRMECH_CASCADE_CATALOG_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/python/srmech/cascade/catalogs/cascade_catalog\"")
     endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the

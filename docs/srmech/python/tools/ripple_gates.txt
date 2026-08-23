@@ -656,8 +656,16 @@ tests/test_genome_group_v20_rc442.py
 #    It censuses BOTH populations because the answer differs between them, and
 #    it is red-demonstrated: run before population B existed, it failed on
 #    residual ['n','q','s'].
+#    Phase 2 of the same rc adds the third: test_ctest_collection_parity_rc452
+#    was this rc's OWN new gate and was absent from this file — the exact
+#    no-growth-obligation hole the two blocks above describe, recurring in the
+#    release that wrote them. It pins the c/test census == the ctest
+#    registration (strict two-way), so it moves whenever a C test file lands or
+#    a registration is touched — which the rc452 Phase-2 bare-C TOML host
+#    (c/test/test_srmech_cascade_toml_host.c) does. ~1 s, pure-Python.
 tests/test_exact_q_pipeline_rc452.py
 tests/test_wire_kind_emission_rc452.py
+tests/test_ctest_collection_parity_rc452.py
 tests/test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py
 tests/test_readme_c_coverage_figures_rc451.py
 tests/test_c_cascade_parity_ratchet_rc446.py
