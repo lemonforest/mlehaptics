@@ -1252,10 +1252,11 @@ static srmech_status_t cr_op_dseq(cr_ctx_t *c, const srmech_json_value_t *args,
     return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
 }
 
-/* The real-sequence arms, split out ONLY to keep cr_dispatch under JPL Rule 4's
- * 60 lines. Unmatched returns NOT_IMPL, which is exactly what cr_dispatch's own
- * fall-through returns — so calling this last composes with no change in
- * semantics. */
+/* The real-sequence helpers. Through rc451 these were the arms of
+ * cr_dispatch_real, a second dispatcher split out only to keep cr_dispatch
+ * under JPL Rule 4's 60 lines; the rc452 A1 reshape DELETED that function, and
+ * dispatch now reaches these bodies through a CR_OP_REG row's dom/sub enums
+ * via cr_exec_<domain>(). An unmatched op still returns NOT_IMPL. */
 /* Read one arg as a double. A CR_INT widens (a JSON `1` and `1.0` name the same
  * operand); anything else declines. */
 static int cr_arg_dbl(cr_ctx_t *c, const srmech_json_value_t *args,

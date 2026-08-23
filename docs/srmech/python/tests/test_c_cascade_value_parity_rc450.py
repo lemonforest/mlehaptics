@@ -389,7 +389,7 @@ def _py_run(spec, inputs):
 #: sides of this comparison are fed identically and a harness difference cannot
 #: surface as a DIVERGENT row.
 #:
-#: rc453 (`#T1171`): both sides now read the DESCRIPTOR rather than each holding
+#: rc452 (`#T1171`): both sides now read the DESCRIPTOR rather than each holding
 #: a copy. This file and rc420's held the same four kuramoto_step/general values
 #: verbatim and independently, and they were the only thing making that variant
 #: runnable at all — so the descriptor was not executable from shipped

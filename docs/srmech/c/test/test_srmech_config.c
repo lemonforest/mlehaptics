@@ -58,7 +58,7 @@ int main(void)
     /* FILE path THROUGH THE PAL: write a config file, then load_file it. */
     check(srmech_plat_has_filesystem() == 1, "PAL reports a filesystem (host)");
     /* ⚠️ RELATIVE, and that is the fix, not a style choice. This read
-     * "/tmp/srmech_test_limits.toml" until rc453. Windows has no /tmp, so
+     * "/tmp/srmech_test_limits.toml" until late in rc452. Windows has no /tmp, so
      * srmech_plat_file_write failed there and took the next three checks down
      * with it — MEASURED in CI: `test_srmech_config` reported `9 passed,
      * 4 failed` on windows-latest while ubuntu-latest and macos-14 were green

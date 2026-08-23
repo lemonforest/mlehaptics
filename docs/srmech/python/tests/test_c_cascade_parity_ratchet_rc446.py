@@ -118,7 +118,9 @@ CEIL_C_REJECTED_CHAINS = 7            # of 18 executable. Target 0.
 #   _1653_rca_probe_rc451.py block D: agree=10 disagree=0). Dispatching it would
 #   have moved this ceiling with one arm and left the descriptor's steps driving
 #   nothing — and NO value-level gate could have seen the difference. The four
-#   step ops are separate arms in cr_dispatch_real instead, and the interpreter
+#   step ops are separate dispatch arms instead (rc451 put them in
+#   cr_dispatch_real; they are rows in the shared CR_OP_REG table since the
+#   rc452 A1 reshape deleted that function), and the interpreter
 #   TU is pinned to reference no multi-step coarse cascade symbol
 #   (test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py), because for
 #   this defect class the value channel is provably blind and a source-shape
@@ -174,7 +176,8 @@ SURFACE_A_STEP_FORMS = ("plain", "map", "fold")
 # one of them went stale within two rcs as the dispatch was split and the
 # resolver grew — a citation that drifts is worse than none, because it reads as
 # precise. Each gate names the FUNCTION instead, which survives an edit.
-GATE_OP_TABLE = "op_table"          # cr_dispatch / cr_dispatch_real -> NOT_IMPL.
+GATE_OP_TABLE = "op_table"          # cr_dispatch over CR_OP_REG -> NOT_IMPL
+#                                     (cr_dispatch_real: deleted, rc452 A1).
 #                                     Still the widest gate: it appears in ALL
 #                                     NINE BLOCKED rows, i.e. 9 of 18 chains.
 #                                     (Read "10 of 18" until rc450; the 10 was

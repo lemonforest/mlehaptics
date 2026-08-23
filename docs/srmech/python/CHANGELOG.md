@@ -113,6 +113,74 @@ rather than propagated: the C Makefile **does** have header dependencies
 NON-pedantic configure, since registration is `SRMECH_PEDANTIC`-guarded and CI
 always sets it ON.
 
+### Phase 2 — four instrument defects, fixed before they certify the widening
+
+Adversarial verification of the two deliverables above found four defects of
+the "instrument that cannot return otherwise" class. Each is fixed here, and
+each fix was red-planted and watched firing.
+
+**(a) The bare-C host proof never read a descriptor — and no C entry point
+ever had.** `c/test/test_srmech_chain_run.c` is labelled the ADR-0003 bare-C
+host proof and contains no `fopen` and no TOML: its chains are hand-transcribed
+JSON literals, so it proves the interpreter computes without Python — not that
+a host without Python can drive a cascade **from configuration**. Worse, no
+shipped C surface ingested a Surface-A cascade-catalog TOML at all: every
+catalog/chain C API took JSON that Python produced, so the config-driven half
+of mandate clause 1 was unproven even for the chains that pass. The new ctest
+`c/test/test_srmech_cascade_toml_host.c` (registered on all three OSes; the
+`c/test` census is now 39 and the strict two-way collection-parity gate stays
+green) is the real thing: it opens each of the **11 running chains' shipped
+`.toml` files**, parses them with srmech's own `srmech_toml_parse` (whose
+fitness for this corpus is separately proven by the rc400 tomllib-parity gate),
+rebuilds the `[[cascade.chain]]` entry and the proof-case inputs through the
+shipped `srmech_json` builder/canonical writer, and runs `srmech_chain_run`
+against **hand-derived expected wire bytes** — a literal, not an oracle call,
+because a C-vs-Python compare cannot see a defect both projections route
+through. Three refusal controls (wrong expected bytes, wrong declared step
+count, absent proof case) plus a malformed-TOML control prove every stage can
+fail. Red-planted by editing a shipped descriptor's interior
+(`b = "@input.b"` → `b = 1` in cyclic_gcd.toml): the host reds with
+`got {"k": "i", "v": "1"}` — the FILE drives the C execution.
+
+**(b) All three step-mutation-witness exemptions were falsified.** Each
+exempted chain (`cyclic_mod_inv` / `cyclic_mod_mul_wide` / `cyclic_mod_pow`)
+was justified solely by prose about why an op SWAP would decline — true
+statements, none of which implied "no witness exists". All three carry a
+value-predicted witness via a ONE-LINE ARGUMENT mutation, verified by execution
+and now in MUTATIONS: pin `mod_inv`'s modulus to 11 → **4**; pin
+`mod_mul_wide`'s factor to 9 → **3**; pin `mod_pow`'s exponent to 4 → **1**.
+The exemption mechanism itself is REMOVED from both coverage tests: an
+exemption is a claim that no witness exists, that claim is only provable by
+execution, and three prose exemptions went 0-for-3 against one afternoon of
+trying.
+
+**(c) The step gate's VALUE_MOVED arm had never fired.** In
+`test_every_step_of_every_running_chain_is_actually_read`, all 22 op-bearing
+steps scored through the DECLINE arm of an either/or — an unresolvable op
+always declines — so the gate measured step REACHABILITY (a runner that
+validates op names without executing steps passes it), a weaker property than
+its name. The arm is now real rather than renamed: a per-op `VALUE_PROBES`
+table gives every step a legal one-line argument mutation the runner must
+EXECUTE (rc == 0) to a value that differs from baseline, and both arms are
+asserted per step over the whole population — **22/22 decline, 22/22 move**,
+pinned. Red-planted twice: an un-covered chain reds both coverage tests naming
+it, and a no-op value probe reds the VALUE arm naming the step and the arm.
+
+**(d) Prose relabels and stale mechanisms.** The previous round landed labelled
+rc453 / `#T1171` while the version SSOT is 0.9.0rc452; the user ruled it is
+rc452, so ~25 prose sites across 14 files are relabelled (task id `#T1171`
+kept; the version was never bumped, so nothing that said "rc452 shipped X
+wrong" survived either — the corrections landed before rc452 ships).
+`cr_dispatch_real`, deleted by this rc's A1 reshape, was still described as
+PRESENT in one live C comment and three gate docstrings — all four now state
+the deletion. `tools/ripple_gates.txt` gains this rc's own
+`test_ctest_collection_parity_rc452.py`, which was absent from the manifest in
+the release that wrote two blocks about gates being absent from the manifest.
+The README's "the declarative path to them is Python-only" paragraph is
+updated for (a), and the step-gate population figures were re-measured
+unchanged after the A1 reshape (22 steps / 11 chains; `CEIL_C_REJECTED_CHAINS`
+still 7).
+
 ### Instruments that refused to observe — and were right to
 
 Three gates went red on this rc's own refactor rather than reporting a
@@ -313,7 +381,7 @@ The exact-ℚ axis this rc ships was, until now, the one axis it moved with no v
 **Two ratchets, on the axes that were open.**
 
 * `tests/test_wire_kind_emission_rc452.py` gains the **value** axis on the population that already owned the kind axis (`_census_b`'s own rows, not a second enumeration — two populations that disagreed would make both unfalsifiable). Load-bearing assertion: `test_the_q_rows_are_present_and_are_the_exact_carrier`, which checks `type(...) is Q` — not `isinstance` (a tuple subclass passes) and not `==` (everything passes) — plus a **down-only floor of 39** so a vanishing population cannot turn the section vacuously green. `classify` is imported from rc450 rather than reimplemented, because that module makes `_bits` reachable only through `classify` precisely so a strict-witness / lax-population split is inexpressible; writing a second comparator would re-open that split one file over. A control test pins that `==` says *same* where the typed comparator says *different*, so the added strictness is demonstrated rather than assumed.
-* `tests/test_step_mutation_witness_rc447.py` closes two seams in its own coverage claim. **Multi-variant**: `_shipped()` reads `[0]` of the variants and `[0]` of the proof cases, so "runs in C" was decided by 18 of 98 rows; the new coverage test runs the full variant x case population. At rc452 this is a **live zero** — the only two multi-variant chains are C-rejected on all 17 of their cases — recorded as a measured zero rather than left implicit, because a gate that happens to be adequate is not the same as one that is. **Step-level**: one mutation per chain proves one literal in one step is read; the new test points every step's op (at full depth, recursing `body`, honouring `fold_op` vs `op`) at an unresolvable name and requires a reaction. 22 steps over 11 running chains, all reacting. *(This read "18 steps over 10 running chains" when rc452 shipped. It was measured before the rc's own `autocorrelation` commit — 8649917b5 — added the 11th running chain and its 4 steps, and never re-measured; that same commit moved `CEIL_C_REJECTED_CHAINS` 8 → 7, falsifying `python/README.md` in the same stroke. Corrected and PINNED in rc453 (`#T1171`): `EXPECTED_STEPS` / `EXPECTED_RUNNING_CHAINS` are now asserted against the live walk, so the figure cannot drift silently again.)*
+* `tests/test_step_mutation_witness_rc447.py` closes two seams in its own coverage claim. **Multi-variant**: `_shipped()` reads `[0]` of the variants and `[0]` of the proof cases, so "runs in C" was decided by 18 of 98 rows; the new coverage test runs the full variant x case population. At rc452 this is a **live zero** — the only two multi-variant chains are C-rejected on all 17 of their cases — recorded as a measured zero rather than left implicit, because a gate that happens to be adequate is not the same as one that is. **Step-level**: one mutation per chain proves one literal in one step is read; the new test points every step's op (at full depth, recursing `body`, honouring `fold_op` vs `op`) at an unresolvable name and requires a reaction. 22 steps over 11 running chains, all reacting. *(This read "18 steps over 10 running chains" mid-rc452. It was measured before the rc's own `autocorrelation` commit — 8649917b5 — added the 11th running chain and its 4 steps, and never re-measured; that same commit moved `CEIL_C_REJECTED_CHAINS` 8 → 7, falsifying `python/README.md` in the same stroke. Corrected and PINNED later in the same rc (`#T1171`): `EXPECTED_STEPS` / `EXPECTED_RUNNING_CHAINS` are now asserted against the live walk, so the figure cannot drift silently again. The mid-rc figure was then falsified a second way — the coverage claim, not the count: all 22 steps scored through the DECLINE arm alone, and the Phase-2 rework below is what made the value arm real.)*
 
 **Every red-plant was watched, not asserted.** Partial `d > 1000` collapse → **1 fail**, naming all 32 rows as `('tuple','tuple')` — both sides collapsed together — while the divergence test beside it stays green, which is the blindness itself on display. Full collapse → **2 fails** (the type pin, and the control, which correctly reports that the typed comparator lost its discrimination). Dropping the `cyclic_mod_add` row from `MUTATIONS` → the wider coverage test reds naming it, alongside the narrower one it must not be weaker than. `_step_paths` returning `[]` → the **self-check** fires first (`no step was probed`), refusing to report a clean zero. Judging each step on `case[0]` only → reds naming exactly `net_chirality/default step[0].fold_op`, the predicted false-DEAD from an empty fold that returns `fold_init` without ever invoking `fold_op` — which is why a step is judged over **all** its proof cases and not an arbitrary one.
 

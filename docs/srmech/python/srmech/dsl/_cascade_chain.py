@@ -185,7 +185,7 @@ def run_cascade_chain(
 def chain_input_defaults(entry: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """The declared default ``@input.*`` bindings for one chain entry.
 
-    rc453 (`#T1171`). A chain may `bind` inputs that not every proof case
+    rc452 (`#T1171`). A chain may `bind` inputs that not every proof case
     supplies — ``kuramoto_step``/``general`` binds ``adjacency``, ``alpha``,
     ``pin_anchor`` and ``pin_strength``, and only its ``pinning`` case supplies
     all four. ``@input.X`` raises on an absent X, so before this the variant was

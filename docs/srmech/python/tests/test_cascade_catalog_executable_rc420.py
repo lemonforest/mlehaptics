@@ -265,7 +265,7 @@ def _bits(x) -> bytes:
 
 # ── the shipped-op invocation glue, per descriptor/variant ─────────────
 
-#: rc453 (`#T1171`) — THIS TABLE IS GONE; the defaults are READ FROM THE
+#: rc452 (`#T1171`) — THIS TABLE IS GONE; the defaults are READ FROM THE
 #: DESCRIPTOR.
 #:
 #: It used to hold ``("kuramoto_step", "general"): {"adjacency": None,
@@ -375,7 +375,7 @@ def _executable_cases():
             assert cases, (
                 f"{name}.{variant}: a declared chain with NO proof cases "
                 f"is asserted-in-prose, which is the state rc420 removes")
-            # rc453 (`#T1171`): defaults come from the DESCRIPTOR, merged UNDER
+            # rc452 (`#T1171`): defaults come from the DESCRIPTOR, merged UNDER
             # the case's own inputs. Was a CASE_DEFAULTS dict in this file.
             defaults = _case_defaults(entry)
             for case in cases:
@@ -429,7 +429,7 @@ def test_leaf_reasons_are_machine_readable():
 # ── 2. the equivalence, executed ───────────────────────────────────────
 
 def test_kuramoto_general_runs_from_the_minimal_declared_input_set():
-    """rc453 (`#T1171`). The descriptor must be runnable from SHIPPED CONFIG
+    """rc452 (`#T1171`). The descriptor must be runnable from SHIPPED CONFIG
     with only the inputs a caller has reason to pass.
 
     WHY THIS EXISTS SEPARATELY. The 98 proof cases above do NOT exercise

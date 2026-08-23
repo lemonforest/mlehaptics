@@ -187,7 +187,7 @@ variant = "general"
 applies_when = "adjacency is not None or alpha != 0.0 or pin_anchor is not None"
 summary = "The generalised Kuramoto-Sakaguchi step: per-TERM weights (K*A_ij or inv_n), the alpha phase-lag inside the sin, optional per-oscillator pinning."
 returns = "list[float]  # the n phases after one forward-Euler step"
-# rc453 (`#T1171`) — THE DEFAULTS LIVE HERE NOW, not in a test file.
+# rc452 (`#T1171`) — THE DEFAULTS LIVE HERE NOW, not in a test file.
 #
 # This chain's `bind` names four inputs its own proof cases do not all supply:
 # `adjacency`, `alpha`, `pin_anchor`, `pin_strength`. `@input.X` raises when X

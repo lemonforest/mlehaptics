@@ -55,22 +55,22 @@ _OP_SPELLINGS = re.compile(r"\*\*(\d+) op spellings\*\*")
 #: "... runs **10 of the 18** chains from their descriptors today ..."
 _CHAINS_RUN = re.compile(r"runs \*\*(\d+) of the (\d+)\*\* chains")
 
-#: rc453 (`#T1171`) — "... `CEIL_C_REJECTED_CHAINS`, which is **7** ...". The
+#: rc452 (`#T1171`) — "... `CEIL_C_REJECTED_CHAINS`, which is **7** ...". The
 #: rc451 gate derived the running count from this ceiling but never read the
-#: ceiling's own literal where the README RESTATES it, so rc452 could ship
-#: `8` beside a gated `11 of the 18` and satisfy every assertion in this file.
+#: ceiling's own literal where the README RESTATES it, so mid-rc452 prose
+#: said `8` beside a gated `11 of the 18` and satisfied every assertion here.
 #: The two were self-refuting on one line — `18 - 8 = 10`, not 11 — and nothing
 #: compared them, because the derivation and the restatement were different
 #: strings.
 _REJECTED_CEIL = re.compile(r"`CEIL_C_REJECTED_CHAINS`, which is \*\*(\d+)\*\*")
 
-#: rc453 — "... counts **0 of 3 forms unsupported** ...". rc452 drove
+#: rc452 — "... counts **0 of 3 forms unsupported** ...". rc452 drove
 #: CEIL_SURFACE_A_UNSUPPORTED_FORMS to 0 in the same change that added the map
 #: form and left the README saying 2.
 _FORMS_UNSUPPORTED = re.compile(
     r"\*\*(\d+) of (\d+) forms unsupported\*\*")
 
-#: rc453 — the PROSE claim, not a cardinal. Through rc451 the README said the C
+#: rc452 — the PROSE claim, not a cardinal. Through rc451 the README said the C
 #: peer "does not execute `map` at all"; rc452 added `cr_step_map` and the
 #: sentence survived the release. A number gate cannot see this one, so it is
 #: pinned as a forbidden phrase keyed to the live form ceiling.
@@ -124,10 +124,10 @@ def _ratchet():
 
 
 def test_readme_rejected_chain_ceiling_matches_the_ratchet() -> None:
-    """rc453 (`#T1171`). The README RESTATES `CEIL_C_REJECTED_CHAINS` inline;
+    """rc452 (`#T1171`). The README RESTATES `CEIL_C_REJECTED_CHAINS` inline;
     pin that literal to the ratchet that owns it.
 
-    This is the assertion whose absence let rc452 ship `8` next to a gated
+    This is the assertion whose absence let mid-rc452 prose say `8` beside a gated
     `11 of the 18`. The derivation below is the same one
     ``test_readme_running_chain_cardinal_matches_the_live_ceiling`` uses, so if
     both figures are present they cannot disagree with each other either.
@@ -146,7 +146,7 @@ def test_readme_rejected_chain_ceiling_matches_the_ratchet() -> None:
 
 
 def test_readme_unsupported_form_count_matches_the_ceiling() -> None:
-    """rc453 (`#T1171`). rc452 drove CEIL_SURFACE_A_UNSUPPORTED_FORMS to 0 and
+    """rc452 (`#T1171`). One rc452 commit drove CEIL_SURFACE_A_UNSUPPORTED_FORMS to 0 and
     left the README advertising 2."""
     m = _FORMS_UNSUPPORTED.search(_text(_README))
     assert m, ("no '**N of M forms unsupported**' cardinal found in "
@@ -163,7 +163,7 @@ def test_readme_unsupported_form_count_matches_the_ceiling() -> None:
 
 
 def test_readme_does_not_deny_a_form_the_c_peer_now_runs() -> None:
-    """rc453 (`#T1171`). The PROSE half of the same defect.
+    """rc452 (`#T1171`). The PROSE half of the same defect.
 
     Numbers were not the only thing rc452 falsified: the README still said the
     C peer "does not execute `map` at all" in the release that added

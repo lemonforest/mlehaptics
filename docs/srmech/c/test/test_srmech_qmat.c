@@ -12,7 +12,7 @@
  * Exit 0 on all-pass; aborts on any mismatch, and exits non-zero if any case
  * failed to run.
  *
- * ⚠️ rc453 (`#T1171`) — THIS FILE DID NO WORK UNDER Release/NDEBUG, the same
+ * ⚠️ rc452 (`#T1171`) — THIS FILE DID NO WORK UNDER Release/NDEBUG, the same
  * defect as its sibling test_srmech_poly.c and found the same way (registering
  * it with CMake in rc452 reddened the 3-OS pedantic matrix). Every call into the
  * library was the OPERAND of an `assert()`, which `-DNDEBUG` deletes along with

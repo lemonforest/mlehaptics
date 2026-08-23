@@ -987,7 +987,7 @@ _NATIVE_MISS = object()   # sentinel: C did NOT run (distinct from a None result
 #: Ops the C chain runner's dispatch table handles. MUST track ``cr_dispatch``
 #: in ``c/src/srmech_compose_run.c`` — and, since rc452 (`#T1166`), the shared
 #: ``CR_OP_REG`` table it reads. *(This named ``cr_dispatch_real`` alongside it
-#: until rc453; rc452 DELETED that function — it existed only to absorb arms
+#: until mid-rc452; the same rc's A1 reshape DELETED that function — it existed only to absorb arms
 #: that would have pushed ``cr_dispatch`` past JPL Rule 4's 60 lines, and the
 #: table made it unnecessary. The name survived here, and in one more docstring
 #: below, in text that ships inside the wheel.)*

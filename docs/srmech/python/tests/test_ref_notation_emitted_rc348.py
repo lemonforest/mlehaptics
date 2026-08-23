@@ -709,8 +709,9 @@ SCAN_ROOTS = {
         "docs/srmech/python", "docs/srmech/c"),
     # rc447 (gh #1653): the chain-ELIGIBILITY gate reads the C dispatch source
     # directly, because the property it pins is an AGREEMENT between two
-    # projections — `_RUN_C_OPS` in Python and `cr_dispatch` / `cr_dispatch_real`
-    # in C. Deriving the C half from anything but the C source would let the two
+    # projections — `_RUN_C_OPS` in Python and `cr_dispatch` in C (through
+    # rc451 with `cr_dispatch_real` beside it; over the shared `CR_OP_REG`
+    # table since the rc452 A1 reshape deleted that function). Deriving the C half from anything but the C source would let the two
     # drift while the gate stayed green, which is the exact defect it exists to
     # catch: the predicate said 0 where 9 chains ran, and the C work was
     # unreachable from Python for as long as nobody compared them.
@@ -760,7 +761,7 @@ SCAN_ROOTS = {
     # because the CMakeLists sits at the subtree root, ABOVE c/ — the two inputs
     # straddle, and this is the narrowest single root containing both.
     #
-    # rc453 (`#T1171`) added this entry: the gate shipped in rc452 WITHOUT it and
+    # rc452 (`#T1171`) added this entry, later in the rc: the gate first landed WITHOUT it and
     # reddened `test_no_test_reaches_out_of_tree_without_declaring_it` — the
     # undeclared-reach guard doing exactly its job on the very next gate to
     # reach. Declaring it is what forces the trigger check above, and

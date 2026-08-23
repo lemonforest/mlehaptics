@@ -263,7 +263,7 @@ DRAINED_EXACT = {
 #: No conflation: the ceiling moved because the instrument counts VOLUME, and
 #: this rc added four step arms to srmech_compose_run.c.
 #:
-#: ── rc453 (`#T1171`): 724 -> 725. The rc452 map-form refactor, adjudicated
+#: ── rc452 (`#T1171`): 724 -> 725. The same rc's map-form refactor, adjudicated
 #: after it tripped this ratchet in CI. NET +1, and the net is the whole story:
 #: TWO lines added, ONE removed, all three in srmech_compose_run.c (28 -> 29).
 #:

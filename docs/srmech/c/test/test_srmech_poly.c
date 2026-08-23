@@ -11,7 +11,7 @@
  * Exit 0 on all-pass; aborts on any mismatch, and exits non-zero if any case
  * failed to run.
  *
- * ⚠️ rc453 (`#T1171`) — THIS FILE DID NO WORK UNDER Release/NDEBUG. Every call
+ * ⚠️ rc452 (`#T1171`) — THIS FILE DID NO WORK UNDER Release/NDEBUG. Every call
  * into the library was the OPERAND of an `assert()`, and CMAKE_BUILD_TYPE=Release
  * compiles `-DNDEBUG`, which deletes the assert AND its operand. So
  * `hbi_set` never parsed, `hbi_dec` never rendered, and `expect_coeff` then ran
@@ -187,7 +187,7 @@ static void arena_ensure(size_t bytes)
 
 /* ⚠️ THE `static` ON EVERY hpoly_t / hbi_t BELOW IS LOAD-BEARING, AND WINDOWS
  * IS THE CELL THAT PROVED IT. As stack locals these overflow the MSVC default
- * 1 MiB thread stack and the binary SegFaults — measured in CI at rc453:
+ * 1 MiB thread stack and the binary SegFaults — measured in CI during rc452:
  * `30/38 Test #30: test_srmech_poly ***Exception: SegFault`, with ubuntu-latest
  * and macos-14 green on the identical source because their default stack is
  * 8 MiB.
@@ -203,7 +203,8 @@ static void arena_ensure(size_t bytes)
  * This is exactly the class the CMakeLists comment predicted when it registered
  * these 20 tests: "these have only ever been executed on WSL2 ... a cell that
  * reds is a finding to FIX, not to deregister." It could not have been found
- * before rc453, because the file did not COMPILE on any of the three cells. */
+ * before the rc452 registration, because the file did not COMPILE on any of
+ * the three cells. */
 
 static int npass = 0;
 
