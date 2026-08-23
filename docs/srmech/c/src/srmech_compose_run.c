@@ -1732,6 +1732,93 @@ static srmech_status_t cr_b_orient_compose(cr_bump_t *b, const cr_value_t *acc,
     return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
 }
 
+/* ---- Class-B / L / M leaf atoms (rc452 wave A: the autocorrelation chain) ----
+ *
+ * ⚠️ THESE ARE THE CHAIN'S STEPS, NOT THE FUSED KERNEL. `srmech_autocorrelation_f64`
+ * exists and computes the whole transform, and the `autocorrelation` OP row above
+ * dispatches it. The autocorrelation CHAIN is a different object: its steps are
+ * seq_len / mod_add / correlation_product / compensated_sum and NONE of them names
+ * the fused symbol, so running the chain cannot reach it. Dispatching the kernel
+ * for the chain would move the ceiling with one arm while the descriptor's steps
+ * drove nothing — and no value-level gate could tell, since the two agree. */
+
+/* Read one element of a CR_LIST as a double. A CR_INT widens (a JSON `1` and
+ * `1.0` name the same operand); anything else declines. */
+static int cr_elem_dbl(const cr_value_t *v, uint32_t i, double *out)
+{
+    const cr_value_t *e; int64_t iv;
+    assert(v != NULL && out != NULL);
+    assert(i < 0x7fffffffu);
+    if (v->kind != CR_LIST || i >= v->n || v->items == NULL) { return 0; }
+    e = v->items[i];
+    if (e == NULL) { return 0; }
+    if (e->kind == CR_DBL) { *out = e->d; return 1; }
+    if (e->kind == CR_INT && cr_as_i64(e, &iv)) { *out = (double)iv; return 1; }
+    return 0;
+}
+
+/* seq_len(seq) -> int. Class B: the L in TLV, the frame's element count. */
+static srmech_status_t cr_a_seq_len(cr_ctx_t *c, const srmech_json_value_t *a,
+                                    cr_value_t **o)
+{
+    cr_value_t *v;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    v = cr_arg(c, a, "seq");
+    if (v == NULL || v->kind != CR_LIST) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_int_i64(c->b, (int64_t)v->n);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* correlation_product(x, i, j) -> float(x[i]) * float(x[j]). Class L. */
+static srmech_status_t cr_a_corr_product(cr_ctx_t *c, const srmech_json_value_t *a,
+                                         cr_value_t **o)
+{
+    cr_value_t *x = cr_arg(c, a, "x");
+    cr_value_t *vi = cr_arg(c, a, "i"), *vj = cr_arg(c, a, "j");
+    int64_t i, j; double xi, xj;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    if (x == NULL || vi == NULL || vj == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_as_i64(vi, &i) || !cr_as_i64(vj, &j)) { return SRMECH_ERR_NOT_IMPL; }
+    if (i < 0 || j < 0) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_elem_dbl(x, (uint32_t)i, &xi) ||
+        !cr_elem_dbl(x, (uint32_t)j, &xj)) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_dbl(c->b, xi * xj);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* compensated_sum(values) -> Kahan-Babuska-NEUMAIER compensated summation.
+ *
+ * Transcribed operation-for-operation from composites.py, because the Python
+ * op's docstring pins its float-op ORDER as the contract ("shipped as one leaf
+ * so the float-op order stays pinned to this exact body"). A mathematically
+ * equivalent reassociation would be a different answer in the last bits, and
+ * the shipped comparator is BYTE-typed.
+ *
+ * ⚠️ THE LARGER TERM IS SELECTED BY A SQUARE COMPARISON (`s*s >= v*v`), NOT BY
+ * abs(). That is the Class-K honest form the Python body uses and the house
+ * rule requires; writing `fabs` here would also pull in libm, which this
+ * library does not link. */
+static srmech_status_t cr_a_compensated_sum(cr_ctx_t *c, const srmech_json_value_t *a,
+                                            cr_value_t **o)
+{
+    cr_value_t *vs; double s = 0.0, cc = 0.0, v, t; uint32_t i;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    vs = cr_arg(c, a, "values");
+    if (vs == NULL || vs->kind != CR_LIST) { return SRMECH_ERR_NOT_IMPL; }
+    for (i = 0u; i < vs->n; i++) {
+        if (!cr_elem_dbl(vs, i, &v)) { return SRMECH_ERR_NOT_IMPL; }
+        t = s + v;
+        if (s * s >= v * v) { cc += (s - t) + v; }
+        else                { cc += (v - t) + s; }
+        s = t;
+    }
+    *o = cr_dbl(c->b, s + cc);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
 /* gcd(acc, elem) as a fold body — the op the ratchet's form probe folds. */
 static srmech_status_t cr_b_gcd(cr_bump_t *b, const cr_value_t *acc,
                                 const cr_value_t *elem, cr_value_t **out)
@@ -1767,7 +1854,14 @@ static const struct {
     const char *full;
     cr_op_fn_t  fn;
     cr_bin_fn_t bin;
-} CR_OP_REG[25] = {
+} CR_OP_REG[28] = {
+ /* wave A (rc452) — the autocorrelation CHAIN's own steps */
+ { "seq_len",             7u, "srmech.cascade.seq_len",
+   cr_a_seq_len, NULL },
+ { "correlation_product", 19u, "srmech.cascade.correlation_product",
+   cr_a_corr_product, NULL },
+ { "compensated_sum",    15u, "srmech.cascade.compensated_sum",
+   cr_a_compensated_sum, NULL },
  { "pi_cascade_digits",  17u, "srmech.math.rational.pi_cascade_digits",
    cr_op_pi, NULL },
  { "exp_series_truncate", 19u, "srmech.math.rational.exp_series_truncate",

@@ -1022,6 +1022,11 @@ _RUN_C_OPS = frozenset({
     # marshalled to C, and declined NOT_IMPL — a full marshal-and-decline per
     # call, never a wrong answer. It stays in `_RUN_C_FOLD_OPS`, which is the
     # set that was always true of it. Surfaced by rc452's table-derived scan.
+    # Class B / L / M — the autocorrelation CHAIN's own steps (rc452, `#T1166`).
+    # Deliberately the fine steps, NOT a dispatch of srmech_autocorrelation_f64:
+    # that fused kernel is what the `autocorrelation` OP row runs, and the
+    # `autocorrelation` CHAIN is a different object whose steps never name it.
+    "seq_len", "correlation_product", "compensated_sum",
     # Class K / N / B — the best_rational_signed steps (rc451, `#T1164`).
     # FOUR separate arms at step granularity in cr_dispatch_real, deliberately
     # NOT one dispatch of the fused srmech_cascade_best_rational_signed_f64:

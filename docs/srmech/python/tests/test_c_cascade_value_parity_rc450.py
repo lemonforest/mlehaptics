@@ -222,7 +222,14 @@ CEIL_NONFINITE = 4
 #: The same drain the rc446 ratchet's CEIL_C_REJECTED_CHAINS measures one level
 #: up: this one counts CASES, that one counts CHAINS, and they move together.
 CEIL_C_REJECTED_ROWS_BY_CHAIN = {
-    "autocorrelation": 5,
+    # ``autocorrelation``'s entry (5) was DELETED at rc452 (`#T1166`) — the
+    # chain closed FULLY, all 5 proof cases BYTE_IDENTICAL, so the row is
+    # removed rather than decremented, per the down-only-per-entry rule above.
+    # Its steps run as steps: seq_len / mod_add / correlation_product /
+    # compensated_sum, none of which names `srmech_autocorrelation_f64`. That
+    # fused kernel exists and IS dispatched — but for the `autocorrelation` OP,
+    # which is a different object from the `autocorrelation` CHAIN, so no
+    # coarse bypass exists between them structurally.
     "encode_loe_content": 4,
     "klein4_from_one": 7,
     "kuramoto_step": 10,

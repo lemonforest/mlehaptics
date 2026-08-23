@@ -4,15 +4,20 @@ srmech is a MULTI-IMPLEMENTATION codebase (ADR-0009): the scripting-coherency
 projection (``python/srmech``) and the compiled-coherency projection (``c/src``)
 are CO-EQUAL. The config-driven cascade surface violates that: of the 18
 executable ``[cascade]`` descriptors, the C run loop accepted **0** when this
-file landed at rc445, and accepts **9** as of rc450 — measured by this file's
-own ``_measure()``, and equal to :data:`CEIL_C_REJECTED_CHAINS` three screens
-down.
+file landed at rc445, and accepts **11** as of rc452 — measured by this file's
+own ``_measure()``, and equal to 18 minus :data:`CEIL_C_REJECTED_CHAINS` three
+screens down.
 
 *(This paragraph said "accepts **0**" in undated present tense through rc449,
 while the same file's ceiling said 9. Corrected at rc450 (`#T1160`) under the
 scoped-edit license, since the BLOCKED table below is being synced in the same
 change. A present-tense count in a docstring is a live claim, and nothing in
-this tree reads a docstring — so it went two drains stale with no detector.)*
+this tree reads a docstring — so it went two drains stale with no detector.
+Corrected AGAIN at rc452 (`#T1166`), 9 -> 11, for the same reason and by the
+same license: the ceiling moved twice in one rc and this sentence does not
+derive from it. It is now phrased as "18 minus the ceiling" so a reader who
+meets only this paragraph is pointed at the literal rather than given a second
+copy of it.)*
 
 This file exists so that gap can never again be invisible or silently deferred.
 It lands BEFORE the fix on purpose — `#T1141`'s own finding is that the causal
@@ -47,7 +52,12 @@ surface required, including the rows this ratchet cannot see.
 
 TWO GRAMMARS — do not conflate them (measured, gh #1653):
   SURFACE A  ``[[cascade.chain.steps]]``  ``srmech/cascade/compose.py``, ADR-0008.
-             ALL 21 packaged descriptors use this one. C executes 1 of 3 forms.
+             ALL 21 packaged descriptors use this one. C executes 3 of 3 forms
+             as of rc452 (`#T1166`) — plain, fold and map. *(This line read
+             "1 of 3" from rc446 until rc452 and was correct for that whole
+             span; it is a live claim in a docstring, so it is corrected in the
+             same change that moved CEIL_SURFACE_A_UNSUPPORTED_FORMS to 0
+             rather than left to drift the way the paragraph above did twice.)*
   SURFACE B  ``[[stage]]``  ``srmech/dsl/_toml_chain.py``, peer
              ``srmech_dsl_chain_run``. C executes 5 of 6; only ``parallel_body``
              is deferred, deliberately, as a host-thread affordance.
@@ -69,7 +79,7 @@ from srmech.dsl import _catalog as _cat
 # Re-measured at rc445 by notes/_1653_chain_census_rc444.py:
 #   "CENSUS of 18 executable chains (20 chain-variants): ...
 #    C srmech_chain_run ACCEPT=0 REJECT=18 ... UNATTRIBUTED=0"
-CEIL_C_REJECTED_CHAINS = 8            # of 18 executable. Target 0.
+CEIL_C_REJECTED_CHAINS = 7            # of 18 executable. Target 0.
 #   The rc445 baseline was 18, verified against a PRISTINE origin/main .so with
 #   THIS harness — so the drain is attributable to the code, not to the probe.
 #   The drain, in full: 18 (rc445) -> 12 when the cr_dispatch arm closed the 6
@@ -232,9 +242,15 @@ BLOCKED = {
     # the gap-ledger row that files it. Gates are synced from
     # notes/_1653_gate_matrix_rc445.ndjson, which cross-checks itself against
     # execution and against this file's ceiling.
-    "autocorrelation":          {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
-                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "step_form_map", "new_type_reason": ""},
+    # autocorrelation's row was DELETED at rc452 (`#T1166`) — the chain runs,
+    # all 5 proof cases BYTE_IDENTICAL. It carried all THREE of its gates being
+    # closed in one rc: GATE_STEP_FORM (the map form, `cr_drive`),
+    # GATE_REF_GRAMMAR (`@idx` / `@bind`, which are map-frame bindings and so
+    # could not close before the form did) and GATE_OP_TABLE (seq_len,
+    # correlation_product, compensated_sum as atom-table rows). It was
+    # new_type=True against ledger row `step_form_map`, and that flag was
+    # load-bearing exactly as the note above predicts: the MAP STEP FORM is the
+    # new type, and it closed in the same change as the chain.
     # best_rational_signed's row was DELETED at rc451 (`#T1164`, gh #1653 item
     # 4) — the chain runs. It carried new_type=True against ledger row
     # wire_tuple_kind_absent, and that flag was load-bearing exactly as the
@@ -245,14 +261,13 @@ BLOCKED = {
     "encode_loe_content":       {"gates": [GATE_CARRIER, GATE_OP_TABLE],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "carrier_bytes", "new_type_reason": ""},
-    "klein4_from_one":          {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
+    "klein4_from_one":          {"gates": [GATE_OP_TABLE],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "step_form_map", "new_type_reason": ""},
-    "kuramoto_step":            {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
+    "kuramoto_step":            {"gates": [GATE_OP_TABLE, GATE_STEP_FORM],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "step_form_map", "new_type_reason": ""},
-    "octonion_dft":             {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR,
-                                           GATE_STEP_FORM],
+    "octonion_dft":             {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_STEP_FORM],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "chain_run_list_is_flat_only",
                                 "new_type_reason":
@@ -266,8 +281,7 @@ BLOCKED = {
     "parallel_sector_dispatch": {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "carrier_mapping", "new_type_reason": ""},
-    "quaternion_dft":           {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR,
-                                           GATE_STEP_FORM],
+    "quaternion_dft":           {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_STEP_FORM],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "chain_run_list_is_flat_only",
                                 "new_type_reason":

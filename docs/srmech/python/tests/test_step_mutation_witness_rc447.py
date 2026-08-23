@@ -140,6 +140,24 @@ def _flip_reorient_orientation(ch):
     ch["steps"][4]["args"]["orientation"] = -1
 
 
+def _pin_autocorr_lag_to_zero(ch):
+    """autocorrelation's LAG ARITHMETIC, two map levels down.
+
+    The chain is seq_len -> map(k) -> map(i) -> [mod_add, correlation_product]
+    -> compensated_sum. The inner ``mod_add(a=@idx.i, b=@idx.k, n=@bind.n)`` IS
+    the circular lag: it computes ``j = (i + k) mod n``. Replacing ``b`` with the
+    literal ``0`` pins every lag to zero, so ``j == i`` for all k and each bin
+    sums ``x[i] * x[i]`` — i.e. every output element becomes the signal ENERGY.
+
+    ⚠️ IT IS AN INTERIOR LITERAL INSIDE TWO NESTED MAP BODIES. A dispatcher that
+    recognised "this is the autocorrelation chain" and called
+    ``srmech_autocorrelation_f64`` returns the true autocorrelation and is
+    caught; so is one that reads only the top-level step list, which is the
+    known-wrong flat walk (it sees 2 of this chain's 6 steps).
+    """
+    ch["steps"][1]["body"][0]["body"][0]["args"]["b"] = 0
+
+
 #: (chain, mutate, inputs-or-None, EXPECTED mutant value, why)
 #:
 #: ⚠️ THE EXPECTED VALUE IS THE POINT, not merely "it differs". "Something
@@ -186,6 +204,19 @@ MUTATIONS = [
      "dead-bands to zero and returns (0, 1). All three values re-measured at "
      "rc451; see notes/_1653_rca_probe_rc451.py block E, which prints the "
      "vacuous case beside the viable one as its own control"),
+    ("autocorrelation", _pin_autocorr_lag_to_zero,
+     {"x": [1.0, -2.0, 3.0, 0.5]},
+     [14.25, 14.25, 14.25, 14.25],
+     "the LAG literal, two nested map bodies deep. Baseline is the true "
+     "circular autocorrelation of [1, -2, 3, 0.5]; pinning the inner mod_add's "
+     "`b` from '@idx.k' to 0 makes j == i for every k, so each of the n bins "
+     "sums x[i]*x[i] and every element becomes the ENERGY "
+     "1 + 4 + 9 + 0.25 = 14.25 exactly (all four products are exactly "
+     "representable, so the Neumaier compensation contributes nothing and the "
+     "expected value is exact rather than approximate). Only a runner that "
+     "executes the descriptor step-by-step through BOTH map levels produces "
+     "it — srmech_autocorrelation_f64 returns the true transform, and a "
+     "top-level-only walk never reaches the literal at all"),
     ("best_rational_signed", _flip_reorient_orientation, None, (-22, 7),
      "the Class-C TAIL. Replacing step 4's '@step[0].output[0]' orientation "
      "reference with a literal -1 on the +pi case must negate the numerator: "
