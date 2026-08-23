@@ -262,7 +262,61 @@ DRAINED_EXACT = {
 #:
 #: No conflation: the ceiling moved because the instrument counts VOLUME, and
 #: this rc added four step arms to srmech_compose_run.c.
-CEIL_CONFLATING_RETURN_LINES = 724
+#:
+#: ── rc453 (`#T1171`): 724 -> 725. The rc452 map-form refactor, adjudicated
+#: after it tripped this ratchet in CI. NET +1, and the net is the whole story:
+#: TWO lines added, ONE removed, all three in srmech_compose_run.c (28 -> 29).
+#:
+#:   REMOVED  cr_chain_run_json  c.step_out == NULL   <- cr_carve (flat array)
+#:   ADDED    cr_step_map        f->outs == NULL || f->acc == NULL
+#:                                                    <- cr_carve / cr_list_of
+#:   ADDED    cr_chain_run_json  frames[0].outs == NULL  <- cr_carve
+#:
+#: MEASURED, PREDICATE STATED: this file's own `_count_returns` over
+#: `sorted(_C_SRC_DIR.glob("*.c"))` reads 725 at HEAD and 724 at c8d8c26d4 (the
+#: commit that set the current ceiling). Bisected to ONE commit — 2e8e45256,
+#: srmech_compose_run.c 28 -> 29; every other commit in the rc reads 28.
+#:
+#: WHY IT IS +1 AND NOT +2. rc452 replaced the chain runner's single flat
+#: `step_out` array with a FRAME spine, so the one carve that used to serve the
+#: whole chain became two: one for frame 0 (the chain body, run once) and one
+#: per map frame (its per-iteration outputs plus the accumulator). The removal
+#: is not a re-statusing to make room — the symbol `c.step_out` does not exist
+#: at HEAD.
+#:
+#: Provenance traced to the leaf, per this ratchet's own rule:
+#:   * f->outs and frames[0].outs are direct `cr_carve` calls;
+#:   * f->acc comes from cr_list_of, whose ONLY two NULL paths are cr_new_value
+#:     -> cr_carve and a direct cr_carve of the item array. It has no
+#:     value-range NULL: `n` is copied from the already-resolved sequence's own
+#:     length, so no OPERAND can drive it, only an exhausted arena.
+#: cr_carve returns NULL for exactly one condition — the request does not fit
+#: the remaining bump arena, built on the CALLER-SUPPLIED ws/ws_len — so status
+#: 4 is correct under rc404's rule and a caller's grow-loop terminates:
+#: srmech_chain_run_arena_bytes reports a larger figure and the same call
+#: succeeds. Neither is an unrepresentable value, a compiled-in cap, or a
+#: non-convergent iteration, so neither is LIMIT.
+#:
+#: ⚠️ THE CONTRAST IS LIVE THREE LINES AWAY, which is why this is not a rubber
+#: stamp. cr_step_map's own earlier exits are NOT status 4: a non-list
+#: `map_over` is SRMECH_ERR_NOT_IMPL (it defers to compose.py's ChainSpecError),
+#: and a missing/!ARRAY body or a non-STRING index name is
+#: SRMECH_ERR_BAD_INPUT. Reading any of those as a buffer failure would have put
+#: extra lines under this ceiling wrongly.
+#:
+#: ⚠️ AND THE DRAIN WAS CONSIDERED AND REJECTED ON THE MERITS. The alternative to
+#: raising was to re-status an existing site so the total stayed flat. Every one
+#: of srmech_compose_run.c's 29 status-4 returns was read for this: ALL 29 are
+#: `X == NULL` where X came from cr_carve. There is no mislabelled structural
+#: site in the file to drain honestly, and draining a CORRECT one is precisely
+#: what this ratchet's failure message forbids — "never re-label a correct
+#: status-4 return as LIMIT to keep the number flat — grow-loops key on 4". A
+#: flat number bought that way would have broken a caller's retry loop to
+#: protect a statistic.
+#:
+#: No conflation: the ceiling moved because the instrument counts VOLUME, and
+#: this rc turned one chain-wide carve into a per-frame one.
+CEIL_CONFLATING_RETURN_LINES = 725
 
 _RETURN_OVERFLOW = re.compile(r"return\s+SRMECH_ERR_OVERFLOW\s*;")
 
