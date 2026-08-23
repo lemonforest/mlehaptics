@@ -185,6 +185,26 @@ static void arena_ensure(size_t bytes)
 
 /* ---- the smoke cases ---- */
 
+/* ⚠️ THE `static` ON EVERY hpoly_t / hbi_t BELOW IS LOAD-BEARING, AND WINDOWS
+ * IS THE CELL THAT PROVED IT. As stack locals these overflow the MSVC default
+ * 1 MiB thread stack and the binary SegFaults — measured in CI at rc453:
+ * `30/38 Test #30: test_srmech_poly ***Exception: SegFault`, with ubuntu-latest
+ * and macos-14 green on the identical source because their default stack is
+ * 8 MiB.
+ *
+ * The arithmetic, so the margin is not a guess: sizeof(hbi_t) = 16408 B
+ * (LCAP 4096 limbs), sizeof(hpoly_t) = 525832 B = 513.5 KiB. `t_divmod` and
+ * `t_rational_divmod` declare FOUR (2.01 MiB) and six other cases declare
+ * three (1.50 MiB) — so every multi-polynomial case here overruns 1 MiB, not
+ * just the largest. File-scope storage costs the same bytes once instead of
+ * per frame, and the harness is single-threaded and sequential, with every
+ * object fully re-initialised by hpoly_set / hpoly_blank before use.
+ *
+ * This is exactly the class the CMakeLists comment predicted when it registered
+ * these 20 tests: "these have only ever been executed on WSL2 ... a cell that
+ * reds is a finding to FIX, not to deregister." It could not have been found
+ * before rc453, because the file did not COMPILE on any of the three cells. */
+
 static int npass = 0;
 
 static void t_add(void)
@@ -192,7 +212,7 @@ static void t_add(void)
     /* (1 + 2x + 3x^2) + (x) = 1 + 3x + 3x^2 */
     const char *an[] = {"1", "2", "3"}, *ad[] = {"1", "1", "1"};
     const char *bn[] = {"0", "1"}, *bd[] = {"1", "1"};
-    hpoly_t a, b, o; size_t olen = 0u, ws;
+    static hpoly_t a, b, o; size_t olen = 0u, ws;
     hpoly_set(&a, an, ad, 3); hpoly_set(&b, bn, bd, 2);
     hpoly_blank(&o, 3);
     ws = srmech_poly_ws_bound(2u, 3u); arena_ensure(ws);
@@ -211,7 +231,7 @@ static void t_mul(void)
     /* (x + 1)(x - 1) = x^2 - 1  ->  [-1, 0, 1] */
     const char *an[] = {"1", "1"}, *ad[] = {"1", "1"};
     const char *bn[] = {"-1", "1"}, *bd[] = {"1", "1"};
-    hpoly_t a, b, o; size_t olen = 0u, ws;
+    static hpoly_t a, b, o; size_t olen = 0u, ws;
     hpoly_set(&a, an, ad, 2); hpoly_set(&b, bn, bd, 2);
     hpoly_blank(&o, 3);
     ws = srmech_poly_ws_bound(2u, 4u); arena_ensure(ws);
@@ -230,7 +250,7 @@ static void t_divmod(void)
     /* (x^3 + 2) / (x + 1): q = x^2 - x + 1, r = 1  ->  q[1,-1,1] r[1] */
     const char *an[] = {"2", "0", "0", "1"}, *ad[] = {"1", "1", "1", "1"};
     const char *bn[] = {"1", "1"}, *bd[] = {"1", "1"};
-    hpoly_t a, b, q, r; size_t qn = 0u, rn = 0u, ws;
+    static hpoly_t a, b, q, r; size_t qn = 0u, rn = 0u, ws;
     hpoly_set(&a, an, ad, 4); hpoly_set(&b, bn, bd, 2);
     hpoly_blank(&q, 3); hpoly_blank(&r, 4);
     ws = srmech_poly_ws_bound(2u, 5u); arena_ensure(ws);
@@ -250,7 +270,7 @@ static void t_eval(void)
 {
     /* (1 + 2x + 3x^2) at x = 2  ->  1 + 4 + 12 = 17/1 */
     const char *pn[] = {"1", "2", "3"}, *pd[] = {"1", "1", "1"};
-    hpoly_t p; hbi_t x_n, x_d, o_n, o_d; size_t ws;
+    static hpoly_t p; static hbi_t x_n, x_d, o_n, o_d; size_t ws;
     hpoly_set(&p, pn, pd, 3);
     hbi_set(&x_n, "2"); hbi_set(&x_d, "1");
     hbi_blank(&o_n); hbi_blank(&o_d);
@@ -266,7 +286,7 @@ static void t_shift(void)
     /* p = 1 + 2x + 3x^2 ; p(x+1) = 6 + 8x + 3x^2  ->  [6, 8, 3] */
     const char *pn[] = {"1", "2", "3"}, *pd[] = {"1", "1", "1"};
     const char *hn = "1", *hd = "1";
-    hpoly_t p, o; hbi_t h_n, h_d; size_t olen = 0u, ws;
+    static hpoly_t p, o; static hbi_t h_n, h_d; size_t olen = 0u, ws;
     hpoly_set(&p, pn, pd, 3);
     hbi_set(&h_n, hn); hbi_set(&h_d, hd);
     hpoly_blank(&o, 3);
@@ -291,7 +311,7 @@ static void t_rational_divmod(void)
      *   r = 1/2 - (2/5)(-1/15) = 1/2 + 2/75 = 79/150 */
     const char *an[] = {"1", "1", "1"}, *ad[] = {"2", "3", "1"};
     const char *bn[] = {"2", "1"}, *bd[] = {"5", "1"};
-    hpoly_t a, b, q, r; size_t qn = 0u, rn = 0u, ws;
+    static hpoly_t a, b, q, r; size_t qn = 0u, rn = 0u, ws;
     hpoly_set(&a, an, ad, 3); hpoly_set(&b, bn, bd, 2);
     hpoly_blank(&q, 2); hpoly_blank(&r, 3);
     ws = srmech_poly_ws_bound(2u, 4u); arena_ensure(ws);
@@ -313,7 +333,7 @@ static void t_bignum_eval(void)
      * num = (10^40+1) + 2^65 * 3^30 ; den = 3^30. (reduced if gcd==1) */
     const char *pn[] = {"10000000000000000000000000000000000000001", "1"};
     const char *pd[] = {"205891132094649", "1"};
-    hpoly_t p; hbi_t x_n, x_d, o_n, o_d; size_t ws;
+    static hpoly_t p; static hbi_t x_n, x_d, o_n, o_d; size_t ws;
     hpoly_set(&p, pn, pd, 2);
     hbi_set(&x_n, "36893488147419103232");   /* 2^65 */
     hbi_set(&x_d, "1");
@@ -335,7 +355,7 @@ static void t_gcd(void)
     /* gcd(x^2 - 1, x - 1) = x - 1 (monic)  ->  [-1, 1] */
     const char *an[] = {"-1", "0", "1"}, *ad[] = {"1", "1", "1"};
     const char *bn[] = {"-1", "1"}, *bd[] = {"1", "1"};
-    hpoly_t a, b, o; size_t olen = 0u, ws;
+    static hpoly_t a, b, o; size_t olen = 0u, ws;
     hpoly_set(&a, an, ad, 3); hpoly_set(&b, bn, bd, 2);
     hpoly_blank(&o, 3);
     ws = srmech_poly_gcd_ws_bound(2u, 3u); arena_ensure(ws);
@@ -353,7 +373,7 @@ static void t_gcd_coprime(void)
     /* gcd(x, x + 3) = 1 (coprime -> monic constant 1)  ->  [1] */
     const char *an[] = {"0", "1"}, *ad[] = {"1", "1"};
     const char *bn[] = {"3", "1"}, *bd[] = {"1", "1"};
-    hpoly_t a, b, o; size_t olen = 0u, ws;
+    static hpoly_t a, b, o; size_t olen = 0u, ws;
     hpoly_set(&a, an, ad, 2); hpoly_set(&b, bn, bd, 2);
     hpoly_blank(&o, 2);
     ws = srmech_poly_gcd_ws_bound(2u, 2u); arena_ensure(ws);
@@ -369,7 +389,7 @@ static void t_gcd_p_zero(void)
 {
     /* gcd(2x^2 + 4, 0) = monic(2x^2+4) = x^2 + 2  ->  [2, 0, 1] */
     const char *an[] = {"4", "0", "2"}, *ad[] = {"1", "1", "1"};
-    hpoly_t a, b, o; size_t olen = 0u, ws;
+    static hpoly_t a, b, o; size_t olen = 0u, ws;
     hpoly_set(&a, an, ad, 3);
     hpoly_blank(&b, 0);
     hpoly_blank(&o, 3);
@@ -396,7 +416,7 @@ static void t_gcd_bignum(void)
     const char *ad[] = {"3", "3", "6", "6", "1"};
     const char *bn[] = {"-2", "10", "-11", "-5", "2"};
     const char *bd[] = {"3", "3", "3", "3", "1"};
-    hpoly_t a, b, o; size_t olen = 0u, ws;
+    static hpoly_t a, b, o; size_t olen = 0u, ws;
     hpoly_set(&a, an, ad, 5); hpoly_set(&b, bn, bd, 5);
     hpoly_blank(&o, 5);
     ws = srmech_poly_gcd_ws_bound(2u, 5u); arena_ensure(ws);

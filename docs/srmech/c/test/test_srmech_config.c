@@ -57,7 +57,18 @@ int main(void)
 
     /* FILE path THROUGH THE PAL: write a config file, then load_file it. */
     check(srmech_plat_has_filesystem() == 1, "PAL reports a filesystem (host)");
-    const char *path = "/tmp/srmech_test_limits.toml";
+    /* ⚠️ RELATIVE, and that is the fix, not a style choice. This read
+     * "/tmp/srmech_test_limits.toml" until rc453. Windows has no /tmp, so
+     * srmech_plat_file_write failed there and took the next three checks down
+     * with it — MEASURED in CI: `test_srmech_config` reported `9 passed,
+     * 4 failed` on windows-latest while ubuntu-latest and macos-14 were green
+     * on identical source. ctest runs each test with the build directory as its
+     * working directory, which is writable on all three cells, so a bare
+     * filename is portable where an absolute POSIX path is not.
+     *
+     * Found only because rc452 registered this file with CMake; `make test`
+     * covers it on POSIX, which is precisely where the bug is invisible. */
+    const char *path = "srmech_test_limits.toml";
     const char *body = "[hermitian]\nmax_nodes = 777\n";
     st = srmech_plat_file_write(path, 0, (const unsigned char *)body, strlen(body));
     check(st == SRMECH_OK, "PAL file_write the config file");
@@ -74,7 +85,9 @@ int main(void)
           && memcmp(rb, body, got) == 0, "PAL file_read round-trips the bytes");
 
     /* A missing file is a clean SRMECH_ERR_IO (not a crash). */
-    st = srmech_config_load_file("/tmp/srmech_does_not_exist_zzz.toml", ws, sizeof(ws));
+    /* Relative for the same portability reason, though this one passed on
+     * Windows by accident: a non-existent /tmp path is still non-existent. */
+    st = srmech_config_load_file("srmech_does_not_exist_zzz.toml", ws, sizeof(ws));
     check(st == SRMECH_ERR_IO, "load_file on a missing file -> SRMECH_ERR_IO");
 
     srmech_config_reset_defaults();
