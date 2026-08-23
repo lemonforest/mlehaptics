@@ -7,6 +7,106 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [0.9.0rc452] - `#T1166`: exact ℚ crosses the wire, and the prediction that was right about mechanism and wrong about size
 
+### The A-N cascade parity closure — the config-driven chain surface in C
+
+The rc452 ruling widened this rc to *"full closure of Python and C parity for our
+A-N operator cascade ... do whatever it takes to close this parity gap, and that
+we have CI for our C code where it's missing."* What follows is what LANDED,
+measured; the residual is stated plainly at the end rather than deferred
+silently.
+
+**Mandate clause 2 — `cascade.atoms` in C — is CLOSED.** `CR_OP_REG` stops being
+a name-to-name index and becomes a name-to-**function-pointer** atom registry:
+a bare-C, config-addressable table that IS the callable registry the interpreter
+resolves against. This was not a tidiness move. `cr_dispatch` was measured at
+**57 of JPL Rule 4's 60 lines** with 16 arms, and `cr_dispatch_real` already
+existed only to absorb an earlier overflow — so the 32 op spellings the blocked
+chains need could not be added as an if-chain **at all**. `cr_dispatch` is now a
+~12-line bounded loop and `cr_dispatch_real` is gone. A `bin` column gives the
+FOLD BODY the same table, replacing the private single-entry table that had kept
+`fold` counted unsupported while a real fold chain shipped.
+
+**All three Surface-A step forms now execute.**
+`CEIL_SURFACE_A_UNSUPPORTED_FORMS` **2 → 1 → 0**, each step forced by its own
+`==`. The MAP form is `cr_drive`, an explicit-frame-stack trampoline:
+compose.py's spine is frankly recursive and JPL Rule 1 forbids that here, so the
+call stack is made explicit, arena-backed (Rule 3) and depth-capped against a
+MEASURED maximum nesting of 2. It mirrors the contract point by point — `n`
+pinned at entry, binds resolved ONCE in the enclosing scope, body-local step
+outputs, layered idx/bind environments. The `@idx` and `@bind` namespaces close
+with it; measured, they occur ONLY inside map bodies, so they are frame bindings
+rather than a wider path grammar, which is why they could not close earlier.
+
+**The value spine is depth-bounded rather than flat.** Ingest and marshal were
+each one level, and each justified itself by the other — the marshal's comment
+reasoned a list "is flat by construction", true only because the ingest could
+not build one. Both move together; widening either alone gives a chain that runs
+and cannot report. No new kind and no reader change: `l` already exists and
+Python's reader has always been recursive. A **bool ingest** gap that NO listed
+gate named is closed in the same place — through rc451 a JSON bool returned
+NULL, so both DFT chains deferred WHOLE on `inverse: false`, attributed instead
+to gates whose closure could not have released them.
+
+**`CEIL_C_REJECTED_CHAINS` 8 → 7** — `autocorrelation`, all 5 proof cases
+BYTE_IDENTICAL, with a mutation witness pinning its lag literal two nested map
+bodies deep. Value-parity population 48 → 53 BYTE_IDENTICAL.
+
+### C CI — the second deliverable
+
+Measured at the branch point: **38** `c/test/test_srmech_*.c` files exist, **18**
+were registered with ctest, and the other **20 ran in NO automation on any
+platform**. `make test` covers all 38 on POSIX but no workflow invokes make, so
+"covered by the Makefile" was coverage nobody executed. All 38 are now
+registered and run by ctest on ubuntu / macOS / Windows;
+`CEIL_UNWIRED_C_TESTS` 20 → **0**, superseded functionally by a new STRICT
+two-way collection-parity gate, because a `<=` bound cannot see a partial
+deregistration. Registering them immediately found one real break:
+`test_srmech_config.c` includes the internal header `srmech_platform.h` and had
+never been compiled by CMake at all.
+
+Two terrain claims carried into this rc were **stale**, and are recorded here
+rather than propagated: the C Makefile **does** have header dependencies
+(`-MMD -MP`, `-include $(DEPS)`), and "ctest finds no tests" is true only of a
+NON-pedantic configure, since registration is `SRMECH_PEDANTIC`-guarded and CI
+always sets it ON.
+
+### Instruments that refused to observe — and were right to
+
+Three gates went red on this rc's own refactor rather than reporting a
+comfortable green, which is the property they exist for:
+
+* the **no-coarse-symbol pin** matches a CALL (`sym(`), correct for an if-chain
+  where a coarse dispatch must spell one. A table wires a symbol in as a BARE
+  FUNCTION POINTER. Its retro-check spliced exactly that and `_referenced`
+  returned `{}` — the gate would have gone on reporting the file clean with a
+  coarse dispatch live in it. Widened for the table region only.
+* the **gate-matrix generator** anchored on the deleted `cr_dispatch_real` and
+  raised rather than emitting a matrix; then its execution cross-check caught a
+  second, realer defect — `fold_op` was checked against the plain `fn` column,
+  mis-attributing `net_chirality`'s gate.
+* the **ctest wiring parser** could not see its own fix land (it read only
+  inline `foreach` names, not a `set()` the loop dereferences) and reported 20
+  files unwired while all 20 were registered and passing.
+
+One latent defect surfaced with them: **`orientation_compose` was a phantom in
+`_RUN_C_OPS`** and had been since rc446. It was never a plain dispatch arm — it
+lived only in a fold-FORM predicate — and reached the plain-op set because the
+eligibility scanner matched `cr_op_is` over the WHOLE FILE. Cost while live: a
+full marshal-and-decline per call, never a wrong answer.
+
+### Residual, stated rather than deferred
+
+**7 of 18 chains do not yet run in C**: `encode_loe_content`,
+`klein4_from_one`, `kuramoto_step`, `octonion_dft`, `parallel_sector_dispatch`,
+`quaternion_dft`, `schur_complement`. Their remaining gates are now
+NARROWER and are recorded per-chain in the regenerated gate matrix — e.g.
+`klein4_from_one` is down to `op_table` ALONE, its step-form and ref-grammar
+gates having closed here. No disposition changed to hide this: every row is
+still `FILED_AS_NEW_ITEM` with a named gate and a gap-ledger row, and
+`test_all_executable_chains_run_in_c` remains strict-xfail so it will FAIL the
+moment the last chain lands and force its own marker's deletion.
+
+
 The rc452 ruling overturned ADJ-4 and reinstated its broken acceptance criterion as this rc's headline: `rational_add` → `reorient` returns an exact rational in **both** projections with byte-identical wires. Through rc451 it threaded in **neither**. It threads now:
 
 ```
