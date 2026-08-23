@@ -749,6 +749,23 @@ SCAN_ROOTS = {
     # `cr_op_is` dispatch arms and over-counts, which the README says itself.
     "tests/test_readme_c_coverage_figures_rc451.py": (
         "docs/srmech/python", "docs/srmech/c"),
+    # rc452 (`#T1166`): the ctest-COLLECTION parity gate holds a two-way equality
+    # between the `c/test/test_srmech_*.c` census and the set CMake actually
+    # registers, so a test file cannot land unregistered and a registration
+    # cannot outlive its file. Both halves of that equality live outside
+    # python/ — the census is `docs/srmech/c/test/`, and the registration is
+    # parsed out of `docs/srmech/CMakeLists.txt`. A fixture copy of either would
+    # be a copy of the very claim under test, which is the rc447/rc450 argument
+    # one directory up. `docs/srmech` is declared rather than `docs/srmech/c`
+    # because the CMakeLists sits at the subtree root, ABOVE c/ — the two inputs
+    # straddle, and this is the narrowest single root containing both.
+    #
+    # rc453 (`#T1171`) added this entry: the gate shipped in rc452 WITHOUT it and
+    # reddened `test_no_test_reaches_out_of_tree_without_declaring_it` — the
+    # undeclared-reach guard doing exactly its job on the very next gate to
+    # reach. Declaring it is what forces the trigger check above, and
+    # `docs/srmech/**` does watch it.
+    "tests/test_ctest_collection_parity_rc452.py": ("docs/srmech",),
     # rc450 (`#T1160`): the BLOCKED-agreement gate reads two committed NDJSON
     # artifacts under notes/ — the rc445 gate matrix and the gh #1653 gap
     # ledger — and asserts the ratchet's BLOCKED table agrees with both. It has
