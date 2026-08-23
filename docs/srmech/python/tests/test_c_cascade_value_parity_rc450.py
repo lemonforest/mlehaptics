@@ -388,12 +388,16 @@ def _py_run(spec, inputs):
 #: construction tests/test_cascade_catalog_executable_rc420.py uses, so the two
 #: sides of this comparison are fed identically and a harness difference cannot
 #: surface as a DIVERGENT row.
-CASE_DEFAULTS = {
-    ("kuramoto_step", "general"): {
-        "adjacency": None, "alpha": 0.0,
-        "pin_anchor": None, "pin_strength": 1.0,
-    },
-}
+#:
+#: rc453 (`#T1171`): both sides now read the DESCRIPTOR rather than each holding
+#: a copy. This file and rc420's held the same four kuramoto_step/general values
+#: verbatim and independently, and they were the only thing making that variant
+#: runnable at all — so the descriptor was not executable from shipped
+#: configuration in either projection. "Fed identically" is now true by
+#: construction instead of by two literals agreeing.
+def _case_defaults(entry):
+    from srmech.dsl._cascade_chain import chain_input_defaults
+    return chain_input_defaults(entry)
 
 
 def _population():
@@ -412,7 +416,7 @@ def _population():
     for name in names:
         for variant, spec, entry in cascade_chain_specs(name):
             for j, case in enumerate(entry.get("proof_cases") or []):
-                merged = dict(CASE_DEFAULTS.get((name, variant), {}))
+                merged = dict(_case_defaults(entry))
                 merged.update(dict(case.get("inputs") or {}))
                 rows.append((name, variant, entry, spec, j, merged))
     return rows

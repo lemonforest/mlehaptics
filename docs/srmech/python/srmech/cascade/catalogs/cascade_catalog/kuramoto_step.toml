@@ -187,6 +187,26 @@ variant = "general"
 applies_when = "adjacency is not None or alpha != 0.0 or pin_anchor is not None"
 summary = "The generalised Kuramoto-Sakaguchi step: per-TERM weights (K*A_ij or inv_n), the alpha phase-lag inside the sin, optional per-oscillator pinning."
 returns = "list[float]  # the n phases after one forward-Euler step"
+# rc453 (`#T1171`) — THE DEFAULTS LIVE HERE NOW, not in a test file.
+#
+# This chain's `bind` names four inputs its own proof cases do not all supply:
+# `adjacency`, `alpha`, `pin_anchor`, `pin_strength`. `@input.X` raises when X
+# is absent, so the variant was NOT EXECUTABLE FROM SHIPPED CONFIGURATION in
+# either projection — running it needed a dict that existed only as
+# `CASE_DEFAULTS` inside tests/test_cascade_catalog_executable_rc420.py, and
+# duplicated verbatim in tests/test_c_cascade_value_parity_rc450.py. A
+# descriptor that cannot run without a test file is a descriptor defect: the
+# whole point of `#T1114`'s catalog inversion is that the TOML is the SSoT.
+#
+# TWO keys because there are genuinely two cases, and collapsing them would
+# lie about one of them:
+#   * `input_defaults` — values TOML CAN spell, merged UNDER caller inputs.
+#   * `optional_inputs` — names whose default is ABSENT/None, which TOML has no
+#     literal for. That gap is the actual reason the defaults ended up in
+#     Python; naming it as its own key states the limitation instead of
+#     smuggling a sentinel string through and hoping every reader decodes it.
+input_defaults = { alpha = 0.0, pin_strength = 1.0 }
+optional_inputs = ["adjacency", "pin_anchor"]
 
 [[cascade.chain.steps]]
 class = "B"

@@ -36,6 +36,7 @@ A LEAF declares::
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Dict, List, Optional
 
 from ._catalog import get_descriptor, load_catalog
@@ -174,6 +175,51 @@ def run_cascade_chain(
                 f"declared: {[v for v, _s, _e in specs]}"
             )
         spec = matches[0]
-    bound = dict(inputs or {})
+    entry = next((e for v, s, e in specs if s is spec), None)
+    bound = chain_input_defaults(entry)
+    bound.update(inputs or {})
     bound.update(kw)
     return _compose.run_chain(spec, inputs=bound)
+
+
+def chain_input_defaults(entry: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """The declared default ``@input.*`` bindings for one chain entry.
+
+    rc453 (`#T1171`). A chain may `bind` inputs that not every proof case
+    supplies — ``kuramoto_step``/``general`` binds ``adjacency``, ``alpha``,
+    ``pin_anchor`` and ``pin_strength``, and only its ``pinning`` case supplies
+    all four. ``@input.X`` raises on an absent X, so before this the variant was
+    not executable from shipped configuration at all: the four values existed
+    only as a ``CASE_DEFAULTS`` dict inside two Python TEST files. That is a
+    descriptor defect, not a fact about the op — `#T1114`'s whole claim is that
+    the TOML is the SSoT — so the defaults moved into the descriptor and this is
+    the reader BOTH projections key on.
+
+    Two declarations, because there are two genuinely different cases:
+
+    * ``input_defaults`` — a table of values TOML can spell, merged UNDER
+      anything the caller passes.
+    * ``optional_inputs`` — names whose default is ABSENT (Python ``None``).
+      TOML has no null literal, which is precisely why these leaked into Python
+      in the first place; declaring the NAMES lets the descriptor say "absent"
+      without inventing a sentinel value that every reader would have to decode.
+
+    Returns a fresh dict; callers merge their own inputs OVER it.
+    """
+    if not isinstance(entry, Mapping):
+        return {}
+    out: Dict[str, Any] = {}
+    for name in entry.get("optional_inputs", ()) or ():
+        if not isinstance(name, str):
+            raise ValueError(
+                f"optional_inputs must be a list of input NAMES; got "
+                f"{type(name).__name__}"
+            )
+        out[name] = None
+    declared = entry.get("input_defaults", {}) or {}
+    if not isinstance(declared, Mapping):
+        raise ValueError(
+            f"input_defaults must be a table; got {type(declared).__name__}"
+        )
+    out.update(declared)
+    return out
