@@ -413,7 +413,29 @@ DRAINED_EXACT = {
 #: a multiple of 8, a length mismatch, an empty vector) and SRMECH_ERR_BAD_INPUT
 #: (the delegated primitive refusing). Three statuses, three meanings, chosen
 #: per condition — the OVERFLOW arm is the arena one and only the arena one.
-CEIL_CONFLATING_RETURN_LINES = 743
+#: ── rc452 Phase 2, the K3 slice: 743 -> 745. NET +2, both in
+#: srmech_compose_run.c (47 -> 49), both inside cr_op_schur, both measured
+#: with THIS FILE'S counter and not with grep:
+#:
+#:   cr_op_schur   bi == NULL   <- cr_carve (the 2n boundary/interior index pair)
+#:   cr_op_schur   s  == NULL   <- cr_carve (the |d|x|d| result block)
+#:
+#: Same adjudication as the four above and the fifteen above those: cr_carve
+#: returns NULL for exactly one condition — the request does not fit the
+#: remaining caller arena — so status 4 keeps the retryable/grow meaning
+#: srmech.h:555 states is FORCED, and none of them is LIMIT-class.
+#:
+#: ⚠️ THE FUNCTION'S OTHER FOUR CARVE SITES ARE **NOT** UNDER THIS CEILING, and
+#: that is the adjudication, not an omission. cr_schur_mat, cr_schur_idx and
+#: cr_schur_solve return NULL rather than a status, and cr_op_schur maps that
+#: NULL to SRMECH_ERR_NOT_IMPL — because for those three a NULL means EITHER an
+#: arena failure OR a genuine refusal (a ragged L, a duplicate boundary index,
+#: a SINGULAR interior block, which is Python's ZeroDivisionError). A capability
+#: refusal must defer to the pure projection, which computes the complete
+#: answer or raises the documented exception; calling it status 4 would send a
+#: caller into a grow-loop that can never succeed. The two lines above are the
+#: only two in the arm whose NULL has exactly one cause.
+CEIL_CONFLATING_RETURN_LINES = 745
 
 _RETURN_OVERFLOW = re.compile(r"return\s+SRMECH_ERR_OVERFLOW\s*;")
 

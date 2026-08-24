@@ -251,6 +251,17 @@ def _bind_encode_against_itself(ch):
     ch["steps"][10]["args"]["b"] = "@step[7].output"
 
 
+def _schur_boundary_is_everything(ch):
+    """schur_complement: `boundary_idx` widened to the WHOLE index set.
+
+    One argument literal moves. With no interior left to integrate out, the
+    op's own contract fixes the answer: `S = L_dd` with `d` the whole space,
+    i.e. L itself, verbatim. No solve runs, so the prediction needs no
+    arithmetic at all — it is the input matrix.
+    """
+    ch["steps"][0]["args"]["boundary_idx"] = [0, 1, 2, 3]
+
+
 #: (chain, mutate, inputs-or-None, EXPECTED mutant value, why)
 #:
 #: ⚠️ THE EXPECTED VALUE IS THE POINT, not merely "it differs". "Something
@@ -404,6 +415,20 @@ MUTATIONS = [
      "and permute produced. D = 256 gives 32 zero bytes. The baseline is the "
      "real fingerprint and is nothing like it, so `moved != base` is not "
      "close-run either"),
+    ("schur_complement", _schur_boundary_is_everything,
+     {"L": [[1.0, -1.0, 0.0, 0.0], [-1.0, 2.0, -1.0, 0.0],
+            [0.0, -1.0, 2.0, -1.0], [0.0, 0.0, -1.0, 1.0]],
+      "boundary_idx": [0, 3]},
+     [[1.0, -1.0, 0.0, 0.0], [-1.0, 2.0, -1.0, 0.0],
+      [0.0, -1.0, 2.0, -1.0], [0.0, 0.0, -1.0, 1.0]],
+     "⚠️ THE PREDICTION IS THE OP'S OWN DEGENERATE CASE, so it needs no "
+     "arithmetic and cannot be a copy of the run. Widening the boundary to the "
+     "whole index set leaves NO interior, and S = L_dd - L_di L_ii^-1 L_id "
+     "collapses to L_dd = L: the mutant must return the input matrix verbatim, "
+     "as a Mat. The baseline is the 2x2 reduction onto {0, 3} with the "
+     "last-bit-distinct 1/3 pair, so `moved != base` is not close-run. It also "
+     "separates the two branches of the arm — a runner that always took the "
+     "solve path would divide by an empty interior block rather than answer"),
 ]
 
 
@@ -539,8 +564,10 @@ BOGUS_OP = "__no_such_op_rc452_step_drive__"
 #: 107 -> 118 / 17 -> 18 when encode_loe_content closed (rc452 Phase 2,
 #: `#T1166`, the K1 slice): its one variant carries 11 plain top-level steps,
 #: probed over its own proof cases with both arms firing on each.
-EXPECTED_STEPS = 118
-EXPECTED_RUNNING_CHAINS = 18
+#: 118 -> 119 / 18 -> 19 when schur_complement closed (rc452 Phase 2,
+#: `#T1166`, the K3 slice): a ONE-step chain, so it adds exactly one step row.
+EXPECTED_STEPS = 119
+EXPECTED_RUNNING_CHAINS = 19
 
 
 def _all_running_rows():
@@ -789,6 +816,14 @@ VALUE_PROBES = {
     # move whose magnitude does not depend on what the mints produced.
     "bind":           ("args.b -> args.a [self-XOR: forced to all-zero]",
                        lambda s: s["args"].__setitem__("b", s["args"]["a"])),
+    # ── rc452 Phase 2 (`#T1166`, the K3 slice): the Class-L reduction ────────
+    # `boundary_idx -> [0]` is in range for every shipped case (each L has at
+    # least one row) and reduces onto a 1x1 boundary, so the mutant is a legal
+    # descriptor whose value differs in SHAPE as well as in entries — a probe
+    # that cannot coincide with the baseline the way a permuted index set
+    # could.
+    "schur_complement": ("args.boundary_idx -> [0]",
+                         lambda s: s["args"].__setitem__("boundary_idx", [0])),
 }
 
 #: rc452 (gh #1653) — PER-STEP probe OVERRIDES, keyed (chain name, step path).

@@ -15,6 +15,66 @@ we have CI for our C code where it's missing."* What follows is what LANDED,
 measured; the residual is stated plainly at the end rather than deferred
 silently.
 
+### Phase 2, the K3 slice (gh #1653): the `x` (MATRIX) wire kind — `schur_complement` closes, `CEIL_C_REJECTED_CHAINS` 2 → 1
+
+**The only drain in this arc that BUILT SUBSTRATE rather than dispatching an
+existing symbol.** Measured before a line was written: `c/include/srmech.h`
+declares **zero** `schur` / `dirichlet` / `neumann` symbols and no `c/src`
+translation unit defines one — the op's name occurs in this tree only as DATA,
+in two generated registry tables. (`docs/srmech/CLAUDE.md` asserted a C peer
+for it for a long time and was corrected in 2026-08 for exactly that reason; it
+is one of the six ABSENT ops in the gh #1653 symbol-gap census.) The arm is
+therefore **composed** over `srmech_dense_solve_f64_ws` — the same Class-L
+float primitive the Python op's float path composes over for the same
+sub-problem — as one wave-E row on the A1 dispatch, zero function pointers.
+
+**The arithmetic ORDER is Python's, transcribed, and that is load-bearing.**
+`laplacian.py` spells the boundary combine `float(L_pp[a][c]) -
+sum(float(L_pi[a][k]) * X[k, c] ...)`, and `sum` accumulates from `0.0`
+strictly left to right; floating-point addition is not associative and the
+comparator is bit-exact, so the C loop does that and nothing cleverer. Measured
+first: the shipped `srmech_dense_solve_f64_ws` and the pure-Python solve
+already agree BIT-FOR-BIT on all three proof cases, so the interior solve
+contributes no divergence and the combine order was the only remaining degree
+of freedom. The `path4` case is what makes that checkable — its entries are
+`0.33333333333333337` and `-0.3333333333333333`, which differ in the last bit,
+so a right-to-left sum or a fused multiply-add would diverge there and agree
+everywhere else.
+
+**The matrix kind is a FLAG on `CR_LIST`, the third use of the `is_tuple`
+precedent, and its payload is the same nested array an `l` carries.** Only the
+outer letter differs. That is deliberate: the rows stay ordinary `l` frames, so
+the C writer's list walker is untouched and there is no second array grammar to
+keep in sync. What the letter buys is the TYPE — `schur_complement` declares
+`Mat`, and the shipped comparator encodes a Mat as `M` + its `.tolist()`, which
+no plain list produces. ⚠️ **Which is why the emitted-kind gate is not
+decoration here**: spelling this value as `l` would produce BYTE-IDENTICAL
+payload and satisfy every byte-level instrument in the file, while handing the
+reader a list of lists where the descriptor declares a Mat — a wrong TYPE with
+a right VALUE. Only a predicate whose subject is the emitted letter can refuse
+it.
+
+**The witness prediction is the op's own degenerate case**, so it needs no
+arithmetic and cannot be a copy of the run: widening `boundary_idx` to the whole
+index set leaves NO interior, and `S = L_∂∂ − L_∂i L_ii⁻¹ L_i∂` collapses to
+`L_∂∂ = L`, so the mutant must return the input matrix verbatim as a Mat. It
+also separates the arm's two branches — a runner that always took the solve path
+would divide by an empty interior block rather than answer.
+
+**The bare-C TOML host gains its first `x`-kind row** (18 config-driven rows, 23
+checks, ctest 39/39): `schur_complement.toml` chain 0 case 0, whose every value
+is a dyadic rational — the 3-path Laplacian reduced onto `{0, 2}` gives
+`[[1.5, −0.5], [−0.5, 1.5]]` by hand, with no oracle of any kind involved.
+
+**No further ABI bump: the kind ships under the ABI 22 the K1 slice already
+paid for** — one bump for the rc, not one per kind. The OVERFLOW ratchet takes
+a second adjudicated raise, 743 → **745**; ⚠️ the four OTHER carve sites in the
+new arm are deliberately NOT under it, because their NULL means either an arena
+failure or a genuine refusal (a ragged `L`, a duplicate boundary index, a
+SINGULAR interior block = Python's `ZeroDivisionError`), and a capability
+refusal must defer to the pure projection rather than send a caller into a
+grow-loop that can never succeed.
+
 ### Phase 2, the K1 slice (gh #1653): the `b` (BYTES) wire kind — `encode_loe_content` closes, `CEIL_C_REJECTED_CHAINS` 3 → 2, and **ABI 21 → 22**
 
 **A new wire kind, and the deliberate decline it replaces.** The wave-C phase

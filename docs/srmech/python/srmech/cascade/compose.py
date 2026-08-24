@@ -1385,6 +1385,22 @@ def _Q(num: int, den: int):
     return _Q_CLS(num, den)
 
 
+#: Cached :class:`srmech.math.mat.Mat`. Bound LAZILY and once, for the same
+#: reason :data:`_Q_CLS` is: the carrier module is reachable from the chain op
+#: registry, so a module-level import would put the reader inside that cycle.
+_MAT_CLS = None
+
+
+def _Mat_rows(rows):
+    """The numpy-free ``Mat`` carrier for an ``x`` descriptor. See
+    :func:`_reconstruct_value`."""
+    global _MAT_CLS
+    if _MAT_CLS is None:
+        from srmech.math.mat import Mat as _MC
+        _MAT_CLS = _MC
+    return _MAT_CLS.from_rows(rows, is_complex=False)
+
+
 def _reconstruct_value(desc: Dict[str, Any]) -> Any:
     """Rebuild a Python value from the C value descriptor. Bignums arrive as
     decimal strings (exact); a rational rebuilds as the exact-ℚ carrier
@@ -1441,6 +1457,28 @@ def _reconstruct_value(desc: Dict[str, Any]) -> Any:
         # that reached this reader before its branch existed would raise below,
         # and ABI 20 enforces the converse for a stale ``.so``.
         return tuple(_reconstruct_value(it) for it in desc["v"])
+    if k == "x":
+        # rc452 Phase 2 (`#T1166`, gh #1653): the MATRIX carrier — a real
+        # ``Mat``, not a list of lists.
+        #
+        # THE PAYLOAD IS THE SAME NESTED ARRAY AN ``l`` CARRIES; only the outer
+        # letter differs. That is deliberate: the rows are ordinary ``l``
+        # frames, so the C writer's list walker is untouched and there is no
+        # second array grammar to keep in sync. What the letter buys is the
+        # TYPE — ``schur_complement`` declares ``Mat`` and the shipped
+        # comparator encodes a Mat as ``M`` + its ``.tolist()``, which no plain
+        # list produces, so answering ``l`` here would be a wrong value rather
+        # than a missing capability.
+        #
+        # REAL ONLY, and stated rather than implied: ``is_complex=False``. The
+        # only executable descriptor returning this kind is
+        # ``schur_complement``, whose float path returns a real Mat; the C arm
+        # ingests real doubles and can produce nothing else. A complex Mat
+        # would need its own interleaved payload and is not on this wire.
+        #
+        # Lands with the C-side ``is_matrix`` flag in the SAME change, under
+        # the ABI 22 this rc already pays for.
+        return _Mat_rows([_reconstruct_value(r) for r in desc["v"]])
     if k == "b":
         # rc452 (`#T1166`, gh #1653): BYTES, spelled as lowercase hex.
         #

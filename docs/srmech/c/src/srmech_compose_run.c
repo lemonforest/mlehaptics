@@ -133,6 +133,18 @@ typedef struct cr_value {
      * declines (see cr_run_and_write) until the `b` kind ships with
      * encode_loe_content's closure, which is the chain that returns one. */
     int is_bytes;              /* CR_STR only: 1 -> the value is bytes      */
+    /* THE MATRIX CARRIER IS A FLAG ON CR_LIST, NOT AN ENUM MEMBER (rc452
+     * Phase 2, gh #1653 — the K3 slice). Third instance of the `is_tuple`
+     * precedent and for the third time the same reason: a `Mat` is, to every
+     * in-chain consumer, a list of equal-length rows of doubles — the indexer,
+     * the element reader, the fold bodies and the arg resolver all want
+     * exactly that. What differs is the TYPE CONTRACT the Python projection
+     * declares (`schur_complement` returns a `Mat`, and the shipped comparator
+     * encodes a Mat as `M` + its `.tolist()`, which no plain list produces).
+     * So only the MARSHALLER asks the question, and a sixth cr_kind_t member
+     * would instead have to widen five switches that have no opinion about it.
+     * The flag rides the OUTER list; the rows stay plain `l`. */
+    int is_matrix;             /* CR_LIST only: 1 -> marshals as {"k":"x"}  */
 } cr_value_t;
 
 
@@ -151,6 +163,7 @@ static cr_value_t *cr_new_value(cr_bump_t *b, cr_kind_t kind)
     v->s = NULL; v->slen = 0u; v->items = NULL; v->n = 0u; v->d = 0.0;
     v->is_tuple = 0;   /* LIST unless an op says otherwise — see cr_desc_list */
     v->is_bytes = 0;   /* STR unless an op says otherwise (utf8_encode etc.) */
+    v->is_matrix = 0;  /* LIST unless an op says otherwise — see cr_mat_value */
     return v;
 }
 
@@ -1709,7 +1722,11 @@ typedef enum {
      * srmech_hdc_bind) — there is no fused whole-chain symbol for this chain
      * to reach for, and the no-coarse source gate derives that population
      * itself. 34 of the documented 51-case split threshold. */
-    CR_CAS_SHA256_RAW, CR_CAS_MINT_VECTOR, CR_CAS_HDC_PERMUTE, CR_CAS_HDC_BIND
+    CR_CAS_SHA256_RAW, CR_CAS_MINT_VECTOR, CR_CAS_HDC_PERMUTE, CR_CAS_HDC_BIND,
+    /* wave E (rc452 Phase 2, gh #1653 — the K3 slice): the Class-L boundary
+     * reduction. The only wave whose op had NO C substrate at any granularity
+     * before this rc; see the section comment on cr_op_schur. */
+    CR_CAS_SCHUR
 } cr_cas_op_t;
 
 /* Which fold body a row provides. CR_BIN_NONE = the op cannot fold.
@@ -3040,6 +3057,212 @@ static srmech_status_t cr_op_hdc_bind(cr_ctx_t *c, const srmech_json_value_t *a,
     return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
 }
 
+/* ------------------------------------------------------------------
+ * THE CLASS-L BOUNDARY REDUCTION (rc452 Phase 2, gh #1653 — the K3 slice):
+ * schur_complement / the discrete Dirichlet-to-Neumann map.
+ *
+ *     S = L_dd - L_di * (L_ii^-1 * L_id)
+ *
+ * ⚠️ THIS IS NEW SUBSTRATE, NOT A WRAPPER, AND THAT WAS MEASURED BEFORE IT WAS
+ * WRITTEN. c/include/srmech.h declares ZERO `schur` / `dirichlet` / `neumann`
+ * symbols and no c/src translation unit defines one — the op's name occurs in this tree only
+ * as DATA, in two generated registry tables. (docs/srmech/CLAUDE.md asserted a
+ * C peer for it for a long time and was corrected in 2026-08 for exactly that
+ * reason; it is one of the six ABSENT ops in the gh #1653 symbol-gap census.)
+ * So the arm is COMPOSED here over the one Class-L float primitive that does
+ * ship, srmech_dense_solve_f64_ws — the same primitive the Python op's float
+ * path composes over for the same sub-problem.
+ *
+ * ⚠️ THE ARITHMETIC ORDER IS PYTHON'S, TRANSCRIBED, because the comparator is
+ * bit-exact and floating-point addition is not associative. laplacian.py
+ * spells the boundary combine as
+ *     S[a][c] = float(L_pp[a][c]) - sum(float(L_pi[a][k]) * X[k, c] ...)
+ * and `sum` accumulates from 0.0 strictly left to right, so the loop below
+ * does that and nothing cleverer. Measured before writing: the shipped
+ * srmech_dense_solve_f64_ws and the pure-Python solve already agree BIT-FOR-BIT
+ * on all three of this chain's proof cases, so the interior solve contributes
+ * no divergence and the combine order is the only remaining degree of freedom.
+ *
+ * REFUSALS MIRROR PYTHON'S RAISES: a non-square or ragged L, an empty /
+ * out-of-range / DUPLICATE boundary_idx are ValueError there and NOT_IMPL
+ * here; a singular interior block is ZeroDivisionError there and NOT_IMPL here
+ * (the pure projection then raises it, which is the complete answer).
+ * ------------------------------------------------------------------ */
+
+/* A |r|x|c| row-major double block as the MATRIX carrier: a CR_LIST of CR_LIST
+ * rows of CR_DBL, with is_matrix set on the outer frame. */
+static cr_value_t *cr_mat_value(cr_bump_t *b, const double *m,
+                                uint32_t nr, uint32_t nc)
+{
+    cr_value_t *outer, *row; uint32_t i, j;
+    assert(b != NULL && m != NULL);
+    assert(nr > 0u && nc > 0u);
+    outer = cr_new_value(b, CR_LIST);
+    if (outer == NULL) { return NULL; }
+    outer->items = (cr_value_t **)cr_carve(b, (size_t)nr * sizeof(cr_value_t *));
+    if (outer->items == NULL) { return NULL; }
+    outer->n = nr;
+    outer->is_matrix = 1;
+    for (i = 0u; i < nr; i++) {
+        row = cr_new_value(b, CR_LIST);
+        if (row == NULL) { return NULL; }
+        row->items = (cr_value_t **)cr_carve(b, (size_t)nc * sizeof(cr_value_t *));
+        if (row->items == NULL) { return NULL; }
+        row->n = nc;
+        for (j = 0u; j < nc; j++) {
+            row->items[j] = cr_dbl(b, m[(size_t)i * nc + j]);
+            if (row->items[j] == NULL) { return NULL; }
+        }
+        outer->items[i] = row;
+    }
+    return outer;
+}
+
+/* Ingest a nested-list square matrix as row-major doubles. NULL declines: a
+ * ragged or non-square L raises ValueError in the Python op. */
+static double *cr_schur_mat(cr_bump_t *b, const cr_value_t *v, uint32_t *n_out)
+{
+    double *m; uint32_t i, j, n;
+    assert(b != NULL);
+    assert(n_out != NULL);
+    if (v == NULL || v->kind != CR_LIST || v->n == 0u) { return NULL; }
+    n = v->n;
+    if ((size_t)n > (size_t)65535u) { return NULL; }   /* n*n must not wrap */
+    m = (double *)cr_carve(b, (size_t)n * n * sizeof(double) + sizeof(double));
+    if (m == NULL) { return NULL; }
+    for (i = 0u; i < n; i++) {
+        const cr_value_t *row = v->items[i];
+        if (row == NULL || row->kind != CR_LIST || row->n != n) { return NULL; }
+        for (j = 0u; j < n; j++) {
+            if (!cr_elem_dbl(row, j, &m[(size_t)i * n + j])) { return NULL; }
+        }
+    }
+    *n_out = n;
+    return m;
+}
+
+/* _validate_boundary transcribed: the boundary list, ASCENDING and deduped.
+ * Returns the count, or -1 to decline — Python raises ValueError on the empty
+ * list, on a duplicate and on an out-of-range entry, so all three refuse. */
+static int32_t cr_schur_idx(const cr_value_t *v, uint32_t n, uint32_t *idx)
+{
+    uint32_t k, j, m = 0u;
+    assert(idx != NULL);
+    assert(n > 0u);
+    if (v == NULL || v->kind != CR_LIST || v->n == 0u || v->n > n) { return -1; }
+    for (k = 0u; k < v->n; k++) {
+        int64_t iv;
+        if (v->items[k] == NULL || !cr_as_i64(v->items[k], &iv)) { return -1; }
+        if (iv < 0 || iv >= (int64_t)n) { return -1; }
+        for (j = 0u; j < m; j++) {
+            if (idx[j] == (uint32_t)iv) { return -1; }   /* duplicate */
+        }
+        idx[m] = (uint32_t)iv;
+        m++;
+    }
+    for (k = 1u; k < m; k++) {                 /* ascending, as sorted() gives */
+        uint32_t t = idx[k];
+        j = k;
+        while (j > 0u && idx[j - 1u] > t) { idx[j] = idx[j - 1u]; j--; }
+        idx[j] = t;
+    }
+    return (int32_t)m;
+}
+
+/* The interior solve X = L_ii^-1 * L_id, over the shipped Class-L primitive.
+ * NULL declines (a singular interior block, or an arena too small). */
+static double *cr_schur_solve(cr_bump_t *b, const double *lm, uint32_t n,
+                              const uint32_t *bi, uint32_t nb,
+                              const uint32_t *ii, uint32_t ni)
+{
+    double *lii, *lip, *x; void *ws; size_t wsz; uint32_t r, c;
+    assert(b != NULL && lm != NULL);
+    assert(bi != NULL && ii != NULL);
+    lii = (double *)cr_carve(b, (size_t)ni * ni * sizeof(double) + sizeof(double));
+    lip = (double *)cr_carve(b, (size_t)ni * nb * sizeof(double) + sizeof(double));
+    x   = (double *)cr_carve(b, (size_t)ni * nb * sizeof(double) + sizeof(double));
+    if (lii == NULL || lip == NULL || x == NULL) { return NULL; }
+    for (r = 0u; r < ni; r++) {
+        for (c = 0u; c < ni; c++) {
+            lii[(size_t)r * ni + c] = lm[(size_t)ii[r] * n + ii[c]];
+        }
+        for (c = 0u; c < nb; c++) {
+            lip[(size_t)r * nb + c] = lm[(size_t)ii[r] * n + bi[c]];
+        }
+    }
+    wsz = srmech_dense_solve_arena_bytes(ni, nb);
+    ws = (void *)cr_carve(b, wsz + 8u);
+    if (ws == NULL) { return NULL; }
+    if (srmech_dense_solve_f64_ws(ni, nb, lii, lip, x, ws, wsz) != SRMECH_OK) {
+        return NULL;
+    }
+    return x;
+}
+
+/* S = L_dd - L_di * X, in Python's accumulation order (0.0, then left to
+ * right). Split out so cr_op_schur stays well inside JPL Rule 4. */
+static void cr_schur_combine(double *s, const double *lm, uint32_t n,
+                             const uint32_t *bi, uint32_t nb,
+                             const uint32_t *ii, uint32_t ni, const double *x)
+{
+    uint32_t p, q, k;
+    assert(s != NULL && lm != NULL && x != NULL);
+    assert(bi != NULL && ii != NULL);
+    for (p = 0u; p < nb; p++) {
+        for (q = 0u; q < nb; q++) {
+            double acc = 0.0;
+            for (k = 0u; k < ni; k++) {
+                acc += lm[(size_t)bi[p] * n + ii[k]] * x[(size_t)k * nb + q];
+            }
+            s[(size_t)p * nb + q] = lm[(size_t)bi[p] * n + bi[q]] - acc;
+        }
+    }
+}
+
+/* schur_complement(L, boundary_idx) -> Mat. `exact` is not read: the shipped
+ * descriptor does not pass it, and the exact-rational path is a DIFFERENT
+ * return type (list[list[Q]]) that this arm does not claim — an args key set
+ * carrying `exact` is still accepted by the validator, so the guard is here:
+ * an explicit `exact` DECLINES rather than silently answering the float. */
+static srmech_status_t cr_op_schur(cr_ctx_t *c, const srmech_json_value_t *a,
+                                   cr_value_t **o)
+{
+    cr_value_t *vl, *vb; double *lm, *s, *x; uint32_t *bi, *ii;
+    uint32_t n = 0u, nb, ni = 0u, k, j; int32_t m; int found;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    if (srmech_json_object_get(a, "exact") != NULL) { return SRMECH_ERR_NOT_IMPL; }
+    vl = cr_arg(c, a, "L"); vb = cr_arg(c, a, "boundary_idx");
+    lm = cr_schur_mat(c->b, vl, &n);
+    if (lm == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    bi = (uint32_t *)cr_carve(c->b, (size_t)n * 2u * sizeof(uint32_t) + 8u);
+    if (bi == NULL) { return SRMECH_ERR_OVERFLOW; }
+    ii = bi + n;
+    m = cr_schur_idx(vb, n, bi);
+    if (m < 0) { return SRMECH_ERR_NOT_IMPL; }
+    nb = (uint32_t)m;
+    for (k = 0u; k < n; k++) {
+        found = 0;
+        for (j = 0u; j < nb; j++) { if (bi[j] == k) { found = 1; } }
+        if (!found) { ii[ni] = k; ni++; }
+    }
+    s = (double *)cr_carve(c->b, (size_t)nb * nb * sizeof(double) + sizeof(double));
+    if (s == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (ni == 0u) {                     /* no interior — the boundary IS all */
+        for (k = 0u; k < nb; k++) {
+            for (j = 0u; j < nb; j++) {
+                s[(size_t)k * nb + j] = lm[(size_t)bi[k] * n + bi[j]];
+            }
+        }
+    } else {
+        x = cr_schur_solve(c->b, lm, n, bi, nb, ii, ni);
+        if (x == NULL) { return SRMECH_ERR_NOT_IMPL; }
+        cr_schur_combine(s, lm, n, bi, nb, ii, ni, x);
+    }
+    *o = cr_mat_value(c->b, s, nb, nb);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
 /* ---- fold bodies (rc452 Phase 3): the Σ accumulators ---- */
 
 /* A scalar as a double for the fold's float tier: a CR_DBL directly, a
@@ -3175,7 +3398,7 @@ static const struct {
     uint8_t     dom;   /* cr_dom_t   — which cr_exec_<domain>() runs the op   */
     uint8_t     sub;   /* per-domain — the case label inside that exec        */
     uint8_t     bin;   /* cr_bin_id_t — non-NONE iff the op can fold          */
-} CR_OP_REG[55] = {
+} CR_OP_REG[56] = {
  /* wave A (rc452) — the autocorrelation CHAIN's own steps */
  { "seq_len",             7u, "srmech.cascade.seq_len",
    CR_DOM_CAS, CR_CAS_SEQ_LEN, CR_BIN_NONE },
@@ -3297,6 +3520,9 @@ static const struct {
    CR_DOM_CAS, CR_CAS_HDC_PERMUTE, CR_BIN_NONE },
  { "bind",                4u, "srmech.math.hdc.bind",
    CR_DOM_CAS, CR_CAS_HDC_BIND, CR_BIN_NONE },
+ /* wave E (rc452 Phase 2, gh #1653) — the Class-L boundary reduction. */
+ { "schur_complement",   16u, "srmech.math.laplacian.schur_complement",
+   CR_DOM_CAS, CR_CAS_SCHUR, CR_BIN_NONE },
  /* FOLD-BODY-ONLY: `dom` is CR_DOM_NONE because orientation_compose is never
   * a plain step in any shipped descriptor — it exists to be folded. A
   * CR_DOM_NONE row is a deliberate, expressible state (cr_dispatch returns
@@ -3431,6 +3657,7 @@ static srmech_status_t cr_exec_cas(cr_ctx_t *c, uint8_t sub,
     case CR_CAS_MINT_VECTOR:     return cr_op_mint_vector(c, args, out);
     case CR_CAS_HDC_PERMUTE:     return cr_op_hdc_permute(c, args, out);
     case CR_CAS_HDC_BIND:        return cr_op_hdc_bind(c, args, out);
+    case CR_CAS_SCHUR:           return cr_op_schur(c, args, out);
     }
     return SRMECH_ERR_INTERNAL;
 }
@@ -3622,7 +3849,16 @@ static srmech_json_value_t *cr_desc_close(srmech_json_builder_t *bd,
     assert(bd != NULL && v != NULL);
     assert(items != NULL || v->n == 0u);
     keys[0] = "k"; keys[1] = "v";
-    if (v->is_tuple) {
+    if (v->is_matrix) {
+        /* rc452 Phase 2 (`#T1166`, the K3 slice): the `x` kind. The PAYLOAD is
+         * the same nested array a plain `l` carries — the rows are ordinary
+         * `l` frames — so the walker below is untouched and the shape is not
+         * a second grammar. Only the OUTER letter differs, and it is what
+         * tells the reader to rebuild the Mat carrier the Python op returns
+         * rather than a list of lists. Rectangularity is guaranteed by the
+         * builder (cr_mat_value), not by the wire. */
+        vals[0] = srmech_json_new_string(bd, "x", 1u);
+    } else if (v->is_tuple) {
         vals[0] = srmech_json_new_string(bd, "t", 1u);
     } else {
         vals[0] = srmech_json_new_string(bd, "l", 1u);

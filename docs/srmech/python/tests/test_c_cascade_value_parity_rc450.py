@@ -181,7 +181,8 @@ _STATUS = {0: "SRMECH_OK", 2: "SRMECH_ERR_BAD_INPUT", 4: "SRMECH_ERR_OVERFLOW",
 #: is closed by :func:`test_an_executed_case_emits_the_tuple_kind_itself`, which
 #: reads the kind string off a REAL run — do not treat this pin as sufficient
 #: on its own.
-EXPECTED_WIRE_KINDS = frozenset({"n", "i", "s", "q", "f", "l", "t", "b"})
+EXPECTED_WIRE_KINDS = frozenset({"n", "i", "s", "q", "f", "l", "t", "b",
+                                 "x"})
 
 # ── down-only ceilings, seeded at the MEASURED rc450 population ──────────────
 #: STRICT ZERO. Not a ceiling that drains — a divergence between the two
@@ -259,8 +260,15 @@ CEIL_C_REJECTED_ROWS_BY_CHAIN = {
     # compiled export; there is no fused whole-chain symbol for this descriptor
     # anywhere in the library, so the no-coarse gate derives an empty
     # contribution from it and no coarse bypass exists to rule out.
+    # ``schur_complement``'s entry (3) was DELETED at rc452 Phase 2
+    # (`#T1166`, the K3 slice) — the chain closed FULLY, all 3 proof cases
+    # BYTE_IDENTICAL, including the `path4` case whose entries are the
+    # inexact 0.33333333333333337 / -0.3333333333333333 pair. That pair is
+    # the row that makes the closure worth something: the two values differ
+    # in the last bit from each other, so the boundary combine's accumulation
+    # ORDER is observable, and a C arm that summed right-to-left or fused a
+    # multiply-add would diverge here while agreeing everywhere else.
     "parallel_sector_dispatch": 4,
-    "schur_complement": 3,
 }
 
 #: The total, DERIVED from the per-chain map so the two cannot disagree.
@@ -706,6 +714,59 @@ def test_an_executed_case_emits_the_bytes_kind_itself():
         "the `b` payload %r is not the lowercase-hex spelling of the bytes it "
         "rebuilds. Base64, uppercase hex and a 0x prefix all fail here, which "
         "is the point: the kind pins ONE spelling." % (desc["v"][:32],))
+
+
+def test_an_executed_case_emits_the_matrix_kind_itself():
+    """rc452 Phase 2 (`#T1166`, gh #1653, the K3 slice). Same SUBJECT as the
+    tuple and bytes gates above: the kind string an EXECUTED shipped proof case
+    actually puts on the wire.
+
+    THE ADJUDICATED DODGE THIS REFUSES: spell the boundary operator as the
+    EXISTING nested ``l``. The payload bytes would be IDENTICAL — the `x` kind
+    deliberately carries the same nested array — so every byte-level instrument
+    in this file would be satisfied, and the reader would hand back a list of
+    lists where the descriptor declares ``Mat``. That is a wrong TYPE with a
+    right VALUE, which is the collapse class this whole file exists to pin, and
+    only a predicate whose subject is the emitted letter can see it.
+
+    HOW IT RETURNS OTHERWISE: any kind other than ``x`` fails, naming what was
+    seen. Before the C arm landed it would have failed on rc=5 with an empty
+    wire — measured, that is exactly what the chain returned.
+    """
+    require_native("srmech_chain_run value parity (the emitted matrix kind)")
+    _variant, _spec, entry = cascade_chain_specs("schur_complement")[0]
+    cases = entry.get("proof_cases") or []
+    inputs = dict(_case_defaults(entry))
+    inputs.update(dict((cases[1] or {}).get("inputs") or {}))   # the `path4` case
+    rc, wire, ok = _c_run(_chain_only(entry), inputs)
+    assert ok and rc == 0, (
+        "schur_complement did not run in C (ok=%r rc=%r). rc452 Phase 2 closed "
+        "this chain; if it declines again the ceilings above are also wrong."
+        % (ok, rc))
+    desc = _compose._srmech_json.loads(wire.decode("utf-8"))
+    assert desc.get("k") == "x", (
+        "the C wire spelled schur_complement's final value as kind %r, not 'x'. "
+        "If that is 'l', the boundary operator is crossing as a list of lists "
+        "with byte-identical payload — a wrong TYPE with a right VALUE, which "
+        "no byte-level instrument in this file can see. Wire: %r"
+        % (desc.get("k"), wire[:80]))
+    got = _compose._reconstruct_value(desc)
+    assert type(got).__name__ == "Mat", (
+        "the shipped reader rebuilt a %s from an 'x' descriptor; it must be the "
+        "Mat carrier" % type(got).__name__)
+    assert got.shape == (2, 2), (
+        "the path4 case reduces a 4-node path onto a 2-node boundary; shape is "
+        "%r" % (got.shape,))
+    #: THE LAST-BIT PAIR IS THE POINT. 1/3 is not representable, and the two
+    #: distinct doubles below differ in the final bit — so the accumulation
+    #: ORDER of the boundary combine is observable here and nowhere else in
+    #: this chain's corpus.
+    assert got.tolist() == [[0.33333333333333337, -0.3333333333333333],
+                            [-0.3333333333333333, 0.33333333333333337]], (
+        "the Schur complement of the 4-path onto {0, 3} is %r; the two distinct "
+        "doubles must survive bit-exactly, which they only do if the C combine "
+        "accumulates from 0.0 left to right the way Python's sum() does"
+        % (got.tolist(),))
 
 
 def test_an_unknown_kind_is_a_hard_red_not_a_soft_verdict():

@@ -324,7 +324,7 @@ static int run_row(const char *fname, uint32_t chain_idx, uint32_t case_idx,
     return 0;
 }
 
-/* The 17 config-driven rows at rc452 — every chain that runs in C, driven
+/* The 18 config-driven rows at rc452 — every chain that runs in C, driven
  * FROM ITS SHIPPED DESCRIPTOR FILE, one hand-derived proof case each (plus
  * the first SECOND-VARIANT rows — see `chain_idx`). `n_steps` is the
  * declared top-level [[cascade.chain.steps]] count the file must yield. */
@@ -488,6 +488,23 @@ static const row_t ROWS[] = {
       "substrate anchor, and the Class-M bind XORs the two -- 64 hex chars "
       "derived from FIPS 180-4 via coreutils plus integer arithmetic, "
       "before being frozen here" },
+    /* -- rc452 Phase 2 (`#T1166`, the K3 slice): the FIRST row whose final
+     * value crosses as the `x` (MATRIX) kind, and the first driven by a C arm
+     * with no pre-existing C symbol behind it at any granularity. Its
+     * expectation is derived by hand and is EXACTLY representable, so no
+     * oracle of any kind is involved. */
+    { "schur_complement.toml", 0u, 0u, 1u,
+      "{\"k\": \"x\", \"v\": [{\"k\": \"l\", \"v\": [{\"k\": \"f\", \"v\": 1.5}, "
+      "{\"k\": \"f\", \"v\": -0.5}]}, {\"k\": \"l\", \"v\": [{\"k\": \"f\", "
+      "\"v\": -0.5}, {\"k\": \"f\", \"v\": 1.5}]}]}",
+      "the 3-path Laplacian [[2,-1,0],[-1,2,-1],[0,-1,2]] reduced onto the "
+      "boundary {0, 2}. The interior is the single node 1, so L_ii = [[2]], "
+      "L_id = [[-1, -1]] and the interior solve is the scalar division "
+      "X = [[-0.5, -0.5]] -- exact in binary. Then S = L_dd - L_di X gives "
+      "S[0][0] = 2 - (-1)(-0.5) = 1.5, S[0][1] = 0 - (-1)(-0.5) = -0.5, and "
+      "the transpose by symmetry: [[1.5, -0.5], [-0.5, 1.5]]. Every value is "
+      "a dyadic rational, so this row needs no oracle at all -- it is the "
+      "textbook Schur complement done by hand" },
 };
 
 int main(void)
@@ -499,7 +516,7 @@ int main(void)
     printf("== Surface-A cascade-catalog TOML -> bare-C chain run "
            "(gh #1653, rc452 `#T1166`) ==\n");
 
-    /* ── the 17 config-driven rows ──────────────────────────────────────── */
+    /* ── the 18 config-driven rows ──────────────────────────────────────── */
     for (r = 0u; r < sizeof(ROWS) / sizeof(ROWS[0]); r++) {
         char desc[512];
         rc = run_row(ROWS[r].fname, ROWS[r].chain_idx, ROWS[r].case_idx,

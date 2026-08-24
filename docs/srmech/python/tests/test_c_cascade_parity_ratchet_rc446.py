@@ -4,7 +4,7 @@ srmech is a MULTI-IMPLEMENTATION codebase (ADR-0009): the scripting-coherency
 projection (``python/srmech``) and the compiled-coherency projection (``c/src``)
 are CO-EQUAL. The config-driven cascade surface violates that: of the 18
 executable ``[cascade]`` descriptors, the C run loop accepted **0** when this
-file landed at rc445, and accepts **16** as of the rc452 Phase-2 K1 slice
+file landed at rc445, and accepts **17** as of the rc452 Phase-2 K3 slice
 — measured by this file's own ``_measure()``, and equal to 18 minus
 :data:`CEIL_C_REJECTED_CHAINS` three screens down.
 
@@ -79,7 +79,21 @@ from srmech.dsl import _catalog as _cat
 # Re-measured at rc445 by notes/_1653_chain_census_rc444.py:
 #   "CENSUS of 18 executable chains (20 chain-variants): ...
 #    C srmech_chain_run ACCEPT=0 REJECT=18 ... UNATTRIBUTED=0"
-CEIL_C_REJECTED_CHAINS = 2            # of 18 executable. Target 0.
+CEIL_C_REJECTED_CHAINS = 1            # of 18 executable. Target 0.
+#   2 -> 1 within rc452 (`#T1166` Phase 2, the K3 slice): schur_complement,
+#   all 3 proof cases BYTE_IDENTICAL. THE ONLY DRAIN IN THIS ARC THAT BUILT
+#   NEW SUBSTRATE rather than dispatching an existing symbol: measured
+#   before writing it, c/include/srmech.h declares ZERO schur / dirichlet /
+#   neumann symbols and no c/src TU defines one — the op's name occurs in
+#   the tree only as DATA in two generated registry tables, and it is one
+#   of the six ABSENT ops in the gh #1653 symbol-gap census. The arm is
+#   composed over srmech_dense_solve_f64_ws, the same Class-L float
+#   primitive the Python op's float path composes over for the same
+#   sub-problem, with the boundary combine transcribed in PYTHON'S
+#   accumulation order because the comparator is bit-exact and float
+#   addition is not associative. GATE_CARRIER fell to the `x` WIRE KIND
+#   (the new type its `new_type: True` flag predicted); GATE_OP_TABLE fell
+#   to the one wave-E row.
 #   3 -> 2 within rc452 (`#T1166` Phase 2, the K1 slice): encode_loe_content,
 #   all 4 proof cases BYTE_IDENTICAL under the rc450 typed comparator. Its
 #   two gates closed together, which is why it could not be halved:
@@ -338,9 +352,18 @@ BLOCKED = {
     "parallel_sector_dispatch": {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "carrier_mapping", "new_type_reason": ""},
-    "schur_complement":         {"gates": [GATE_CARRIER, GATE_OP_TABLE],
-                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "carrier_matrix", "new_type_reason": ""},
+    # schur_complement's row was DELETED at rc452 Phase 2 (`#T1166`, the K3
+    # slice) — the chain runs, 3/3 proof cases BYTE_IDENTICAL. It carried
+    # new_type=True against ledger row `carrier_matrix`, and that flag was
+    # load-bearing exactly as the note above predicts: closing the chain DID
+    # widen a discriminator set (srmech_chain_run's output-kind vocabulary
+    # gained `x`), and the projection gap closed in the SAME change — the C
+    # `is_matrix` flag on cr_desc_close, the Python `x` branch rebuilding the
+    # Mat carrier, the EXPECTED_WIRE_KINDS pin and the emitted-kind gate, all
+    # under the ABI 22 the K1 slice already paid for (ONE bump for the rc, not
+    # one per kind). Its chain is ONE step, so it contributes nothing to the
+    # no-coarse population — that gate derives multi-step descriptors only,
+    # and here the op IS the chain.
 }
 
 _STATUS = {0: "SRMECH_OK", 2: "SRMECH_ERR_BAD_INPUT", 5: "SRMECH_ERR_NOT_IMPL"}
