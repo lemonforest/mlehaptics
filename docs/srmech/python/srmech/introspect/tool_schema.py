@@ -15853,9 +15853,27 @@ def _register_signal_processing_tools() -> None:
     # run loop's cr_args_keyset_ok — which refuses BY DESIGN to dispatch
     # an op with no ToolEntry — could never release encode_loe_content's
     # declared chain, which names it. Registered at the package-level
-    # spelling (the music_doa precedent); coverage is by OBJECT identity,
-    # so this one entry also drains the defining-module allowlist row in
+    # spelling; coverage is by OBJECT identity, so this one entry also
+    # drains the defining-module allowlist row in
     # tests/test_registry_completeness_rc416.py.
+    #
+    # ⚠️ CORRECTION (rc452, `#T1166`). This comment cited "the music_doa
+    # precedent" for taking the package spelling. THAT PRECEDENT DOES NOT
+    # COVER THIS CASE, measured: `music_doa` is named in NO `.toml` in the
+    # tree, so it has never been a chain step and never met the DSL naming
+    # gate. It is precedent for the completeness gate's OBJECT-identity rule
+    # and nothing else.
+    #
+    # The spelling choice here is therefore only half a decision: object
+    # identity drained the allowlist row, but tests/test_dsl_op_naming_
+    # boundaries.py resolves the SPELLING, and encode_loe_content's descriptor
+    # still named the defining-module path — so registering this op moved that
+    # step from "unregistered" into "invisible-while-target-registered", a
+    # STRICT ZERO, and reddened the naming gate. Resolved in the descriptor,
+    # not here: encode_loe_content.toml was respelled onto this name (the
+    # rc448 published-re-export rule, which that census states in terms). The
+    # ToolEntry name is load-bearing for that descriptor now — moving it
+    # re-opens the gap and needs both files changed together.
     # ────────────────────────────────────────────────────────────────
     register_tool(
         ToolEntry(

@@ -51,11 +51,11 @@ follow the callable through it. MEASURED at rc434:
   ``resolve("srmech.cascade.leaves.seq_len")`` is ``None`` even though it
   is the SAME object as the registered ``srmech.cascade.seq_len``.
   Measured over the 36 distinct dotted spellings in shipped
-  ``[[cascade.chain]]`` steps: 34 resolve, 0 return ``None`` while their
+  ``[[cascade.chain]]`` steps: 36 resolve, 0 return ``None`` while their
   target is registered under its published ``srmech.cascade.<name>``
-  re-export, and 2 (the RBS-HDC ``mint_vector`` and the Class-F
-  ``srmech.amsc.descriptor.render_template``) are registered under NO
-  spelling.
+  re-export, and 0 (the RBS-HDC ``mint_vector`` and the Class-F
+  ``srmech.amsc.descriptor.render_template`` were the last two, and rc452
+  closed both) are registered under NO spelling.
 
   ⚠️ **The invisible-while-registered census DRAINED 32 → 0 at rc448**
   (`#T1145`), and the mechanism above did NOT change — only the shipped
@@ -71,10 +71,28 @@ follow the callable through it. MEASURED at rc434:
   is what the down-only census in
   ``tests/test_dsl_op_naming_boundaries.py`` now guards against.
 
-  The 2 genuinely-unregistered rows are NOT the down-only census and did not
-  move: registering ``render_template`` and ``mint_vector`` is a live
-  follow-up. (``describe()["cascade_catalog"]`` is a different surface: it
-  lists every DESCRIPTOR by bare name regardless of how its chain steps are
+  ⚠️ **The 2 genuinely-unregistered rows CLOSED at rc452** (`#T1166`), and the
+  two halves closed DIFFERENTLY — which is the part worth keeping.
+  ``render_template`` was registered at the DEFINING-MODULE spelling its
+  descriptor already used (``srmech.amsc.descriptor.render_template``), so it
+  moved straight from ``unregistered`` to ``resolving``. ``mint_vector`` was
+  registered at the PACKAGE spelling ``srmech.signal_processing.mint_vector``
+  while its descriptor still said ``…rbs_hdc_instrument.mint_vector`` — which
+  did not close the row, it MOVED it, out of ``unregistered`` (accounted for
+  here) and into ``invisible`` (a strict zero). The descriptor was respelled
+  onto the registered name, per the guidance three paragraphs up, and the
+  census reached 0/0.
+
+  **The lesson is that "registered" is not one predicate.** The registry
+  completeness gate counts an op covered by OBJECT identity, so a single
+  ToolEntry under any spelling drains its allowlist row; this resolver answers
+  the SPELLING and cannot follow the callable. A registration that satisfies
+  the first and not the second leaves the chain step introspection-invisible —
+  which is exactly the state ``describe()`` is contracted not to be in. When
+  the two disagree, the descriptor and the ToolEntry must be made to spell the
+  op the SAME WAY; which of the two moves is decided by which spelling is the
+  published one. (``describe()["cascade_catalog"]`` is a third surface again:
+  it lists every DESCRIPTOR by bare name regardless of how its chain steps are
   spelled.)
 - **A dotted step does NOT evict a catalog chain from the C run loop.**
   ⚠️ RETRACTED at rc448. This bullet read *"ONE dotted step makes the whole

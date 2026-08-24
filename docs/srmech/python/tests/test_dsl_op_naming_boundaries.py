@@ -600,8 +600,21 @@ def test_the_dotted_match_respects_the_SEGMENT_boundary():
         pytest.skip("no native library")
 
     def _rc(op):
-        chain = {"name": "t", "steps": [
-            {"class": "I", "op": op, "args": {"a": 12, "b": 18}}]}
+        # rc452 (`#T1166`): the envelope carries name/summary/returns/steps.
+        # ⚠️ ALL FOUR ARE REQUIRED and this is load-bearing, not decoration.
+        # rc449 put a KEY-SET REFUSAL on both chain interpreters (the ABI-19
+        # bump): srmech_chain_run rejects an unrecognised OR incomplete key set
+        # with SRMECH_ERR_BAD_INPUT (2) BEFORE it ever resolves the op name.
+        # This helper used to send {"name", "steps"} only, so every call was
+        # refused at the envelope and the assertions below could not see the
+        # op at all — measured: `gcd`, `srmech.math.cyclic.gcd`, `poly_gcd`
+        # and a nonexistent `no_such_op_xyz` ALL returned 2, indistinguishably.
+        # Do not "simplify" these keys away; an `on_error` key must NOT be
+        # added (a null one is refused too).
+        chain = {"name": "t", "summary": "segment-boundary probe",
+                 "returns": "int",
+                 "steps": [{"class": "I", "op": op,
+                            "args": {"a": 12, "b": 18}}]}
         cj = json.dumps(chain).encode("utf-8")
         xj = json.dumps({"inputs": {}}).encode("utf-8")
         n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
@@ -609,12 +622,30 @@ def test_the_dotted_match_respects_the_SEGMENT_boundary():
         cap = max(n // 2, 65536)
         out = (ctypes.c_char * cap)()
         ol = ctypes.c_size_t()
-        return int(lib.srmech_chain_run(cj, len(cj), xj, len(xj), ws, n,
-                                        out, cap, ctypes.byref(ol)))
+        rc = int(lib.srmech_chain_run(cj, len(cj), xj, len(xj), ws, n,
+                                      out, cap, ctypes.byref(ol)))
+        return rc, bytes(out[:ol.value]).decode("utf-8", "replace")
 
-    assert _rc("gcd") == 0, "the bare spelling must run"
-    assert _rc("srmech.math.cyclic.gcd") == 0, "the dotted spelling must run"
+    # ── POSITIVE CONTROL, checked on the VALUE and not only the status ──
+    # "an instrument that cannot return otherwise is not a measurement": if
+    # this gate only asserted `!= 0` for the impostors, a refusal that hits
+    # EVERY op — which is exactly the state it shipped in until rc452 — passes
+    # the impostor clause for a reason that has nothing to do with segment
+    # boundaries. Pinning gcd(12, 18) == 6 proves the runner really dispatched
+    # this op, so a later blanket refusal reddens here instead of hiding.
+    rc, payload = _rc("gcd")
+    assert rc == 0, f"the bare spelling must run; got status {rc}"
+    assert '"v": "6"' in payload, (
+        f"bare `gcd` ran but did not compute gcd(12, 18) = 6: {payload!r}")
+
+    rc_dotted, payload_dotted = _rc("srmech.math.cyclic.gcd")
+    assert rc_dotted == 0, f"the dotted spelling must run; got {rc_dotted}"
+    assert '"v": "6"' in payload_dotted, (
+        f"dotted `gcd` ran but did not compute 6: {payload_dotted!r}")
+
     for impostor in ("poly_gcd", "bigint_gcd"):
-        assert _rc(impostor) != 0, (
+        rc_imp, payload_imp = _rc(impostor)
+        assert rc_imp != 0, (
             "%r dispatched to `gcd` — the match is not respecting the dotted "
-            "segment boundary, so one op's chain runs another's" % impostor)
+            "segment boundary, so one op's chain runs another's (payload %r)"
+            % (impostor, payload_imp))
