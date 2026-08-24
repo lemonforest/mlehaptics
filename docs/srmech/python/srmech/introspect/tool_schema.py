@@ -993,6 +993,34 @@ def _register_amsc_tools() -> None:
             # unreachable for this tool.
         ),
         ToolEntry(
+            # rc452 (gh #1653, `#T1166` follow-on): registered because
+            # encode_loe_content's DECLARED chain names this op for its mint
+            # stride, and the C run loop's cr_args_keyset_ok refuses BY DESIGN
+            # to dispatch an op with no ToolEntry — a hard prerequisite for
+            # that chain's C closure. Drains the op's OPEN_REGISTRATION
+            # allowlist row (tests/test_registry_completeness_rc416.py).
+            name="srmech.amsc.format.sha256_raw",
+            owner="srmech",
+            category="format",
+            summary="Class A (content-address): SHA-256 over raw input "
+                    "bytes, returned as the raw 32-BYTE digest (bytes) — the "
+                    "companion sha256_bytes / sha256_hex lack (their return "
+                    "is the 64-char lowercase hex str; the _bytes suffix on "
+                    "sha256_bytes names the INPUT type, not the return). A "
+                    "caller wanting the digest as an integer can "
+                    "int.from_bytes(sha256_raw(data), 'big') directly. "
+                    "Derived from sha256_bytes via bytes.fromhex, so it rides "
+                    "the SAME native/stdlib dispatch with no new hashlib call "
+                    "site (Phase B5 discipline)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                ToolParameter("data", "bytes", required=True,
+                              summary="Bytes to hash"),
+            ),
+            returns=ToolReturn(type="bytes",
+                               shape="the raw 32-byte SHA-256 digest"),
+            smoke_test_hint={"data": "b'hello'"},
+        ),
+        ToolEntry(
             name="srmech.amsc.format.read_ndjson",
             owner="srmech",
             category="format",
@@ -1022,6 +1050,45 @@ def _register_amsc_tools() -> None:
                               summary="Path to a TOML descriptor file"),
             ),
             returns=ToolReturn(type="str", shape="64-char lowercase hex"),
+        ),
+        ToolEntry(
+            # rc452 (gh #1653, `#T1166` follow-on): registered because
+            # klein4_from_one's DECLARED chain names this op as its Class-F
+            # serialisation step (s0 of both variants), and the C run loop's
+            # cr_args_keyset_ok refuses BY DESIGN to dispatch an op with no
+            # ToolEntry — so this registration is a hard prerequisite for that
+            # chain's C closure, not documentation after the fact. It also
+            # drains the op's OPEN_REGISTRATION allowlist row
+            # (tests/test_registry_completeness_rc416.py), which is the only
+            # sanctioned way that ceiling falls.
+            name="srmech.amsc.descriptor.render_template",
+            owner="srmech",
+            category="descriptor",
+            summary="Class F (render): substitute {key} and {key:fmt} "
+                    "placeholders in a template string against a context "
+                    "mapping — the self-describing verbiage step that renders "
+                    "cite_as_template / purpose_template from a descriptor's "
+                    "[rendering] block at attestation time. A dotted key walks "
+                    "nested mappings (then attributes); a MISSING key renders "
+                    "as the empty string (the Mapping.get default), and "
+                    "{key:fmt} applies a Python format-spec (datetime fields). "
+                    "Text outside the placeholder charclass — including "
+                    "literal braces around JSON, as in klein4_from_one's "
+                    "preimage template — passes through verbatim. The C arm "
+                    "mirrors the bare-{key} subset over int/str/None context "
+                    "values and DECLINES fmt / dotted keys to the pure path."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                ToolParameter("template", "str", required=True,
+                              summary="the template text; {key} / {key:fmt} "
+                                      "placeholders substitute, everything "
+                                      "else passes through"),
+                ToolParameter("context", "Mapping", required=True,
+                              summary="the substitution values; dotted keys "
+                                      "walk nested mappings / attributes"),
+            ),
+            returns=ToolReturn(type="str", shape="the rendered text"),
+            smoke_test_hint={"template": "'x = {x}'", "context": "{'x': 3}"},
         ),
         ToolEntry(
             name="srmech.amsc.catalog.list_attested_sources",
@@ -15774,6 +15841,53 @@ def _register_signal_processing_tools() -> None:
                 "numpy-free and abs()-free: |z|**2 is computed as "
                 "re**2 + im**2 through the native Mat carrier",
             ),
+        )
+    )
+
+    # ────────────────────────────────────────────────────────────────
+    # rc452 (gh #1653, `#T1166` follow-on) — the FIRST registration of
+    # mint_vector. Measured before this rc: it was registered under NO
+    # spelling at all (introspection-invisible while __all__-public in
+    # both srmech.signal_processing and its defining module), so it was
+    # absent from describe(), search() and the MCP tool list, and the C
+    # run loop's cr_args_keyset_ok — which refuses BY DESIGN to dispatch
+    # an op with no ToolEntry — could never release encode_loe_content's
+    # declared chain, which names it. Registered at the package-level
+    # spelling (the music_doa precedent); coverage is by OBJECT identity,
+    # so this one entry also drains the defining-module allowlist row in
+    # tests/test_registry_completeness_rc416.py.
+    # ────────────────────────────────────────────────────────────────
+    register_tool(
+        ToolEntry(
+            name="srmech.signal_processing.mint_vector",
+            owner="srmech", category="signal_processing",
+            summary=(
+                "Class A (content-address) mint of a deterministic D-bit HDC "
+                "vector from a NAME: counter-mode SHA-256 over the UTF-8 name "
+                "(sha256_raw(name || u64_be(counter)), chained until D/8 "
+                "bytes exist). Bit-exact reproducible from the name alone — "
+                "no RNG state anywhere — so the same name mints the same "
+                "vector on every host and the vector is shareable as "
+                "namespace+spec; distinct names give near-orthogonal "
+                "vectors. The atom under the RBS-HDC instrument's LoE "
+                "token/role vectors (encode_loe_content composes one mint "
+                "per token plus the two role mints). Native dispatch: the "
+                "whole chain runs in srmech_mint_vector when the library is "
+                "present, byte-identical pure-Python fallback otherwise."
+                + PUBLISH_OPT_IN_NOTE
+            ),
+            parameters=(
+                P("name", "str", True,
+                  "the canonical name — the mint's whole identity; encoded "
+                  "UTF-8 before hashing"),
+                P("D", "int", False,
+                  "output dimension in BITS (keyword-only); default 8192, "
+                  "any multiple of 8 in [D_MIN, D_MAX]"),
+            ),
+            returns=R("bytes",
+                      "D/8 bytes of deterministic content — the packed "
+                      "hypervector"),
+            smoke_test_hint={"name": "'LoE.token.example'"},
         )
     )
 

@@ -110,7 +110,7 @@ def _compose_status(op: str, args: Dict[str, Any],
                     inputs: Dict[str, Any]) -> int:
     lib = _native.LIB
     chain_json = json.dumps(
-        {"name": "t", "steps": [{"class": "I", "op": op, "args": args}]},
+        {"name": "t", "summary": "s", "returns": "r", "steps": [{"class": "I", "op": op, "args": args}]},
         ensure_ascii=False).encode("utf-8")
     ctx_json = json.dumps({"inputs": inputs},
                           ensure_ascii=False).encode("utf-8")

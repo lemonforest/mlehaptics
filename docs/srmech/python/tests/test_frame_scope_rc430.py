@@ -153,13 +153,43 @@ CEIL_FRAME_UNADJUDICATED = {
     # returns container structure, so there is nothing to translate. Its sibling
     # `genome_group` DID drain — it binds `label` and `dim` — which is what shows this
     # raise is about the parameter's type and not about the pair being under-exampled.
-    "NO_ARG": 276,          # no harvested argument binding at all
+    # rc452 (gh #1653, the registry-ripple phase): 276 -> 277 for
+    # `srmech.amsc.format.sha256_raw`, and it is the rc442 raise VERBATIM --
+    # third instance of one established structural class, not a new excuse.
+    # The gate's own advice is "bind the op's arguments", and that is NOT
+    # AVAILABLE HERE: the op takes exactly ONE parameter, `data`, whose type
+    # is `bytes`, and its worked example DOES call it four times with a real
+    # value (b"hello"). MEASURED as `status: no_jsonable_arg, unserializable:
+    # ["data"]` in tests/example_args_ledger.ndjson -- so the binding is
+    # missing because `bytes` has no JSON encoding for the harvester to
+    # record, exactly the wall `genome_groups` sits behind, not because the
+    # example is thin. `fp.classify` then assigns NO_ARG on `if not base`.
+    #
+    # And, as in both prior raises, NO_ARG is the CORRECT verdict rather than
+    # a probe gap. The frame axis asks whether an op translates along a frame
+    # when an INTEGER INPUT is varied; `sha256_raw` has no integer input at
+    # all -- it consumes opaque bytes and returns a digest, and a content
+    # address has no frame to move along BY DESIGN (that is what makes it an
+    # address). Its two sibling registrations in the same change did NOT need
+    # this raise, which is what shows the raise is about this parameter's
+    # type and not about the triple being under-exampled.
+    "NO_ARG": 277,          # no harvested argument binding at all
     # rc442 (local task T1150): 152 -> 153, `genome_group`. It DID drain out of NO_ARG
     # (it binds `label` and `dim`), and landed one tier along in the same structural
     # class: neither bound argument is an INTEGER the frame axis could translate —
     # `label` is a string and `dim` is a block WIDTH, not a coordinate. A group is a
     # container mark; there is no frame for it to move along.
-    "NO_INT_INPUT": 153,    # nothing translatable along a frame axis
+    # rc452 (gh #1653, the registry-ripple phase): 153 -> 154,
+    # `srmech.amsc.descriptor.render_template`. It DID drain out of NO_ARG --
+    # its worked example binds both parameters and the harvester records them
+    # (`status: ok`, four recorded calls) -- and it landed one tier along in
+    # the same structural class as `genome_group`: neither bound argument is
+    # an INTEGER the frame axis could translate. `template` is a string and
+    # `context` is a Mapping; the integers INSIDE that mapping are payload
+    # being serialised, not a coordinate the op reads, so varying one moves
+    # the rendered TEXT without there being any frame it moves along. A
+    # renderer is a serialisation step; there is no frame for it.
+    "NO_INT_INPUT": 154,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
     "SLOW_SKIP": 15,        # measured-slow, skipped BY NAME with a number
     # rc430 repair (`#T1127`): ops whose parameter carries a documented domain

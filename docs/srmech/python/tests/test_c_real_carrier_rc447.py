@@ -69,9 +69,23 @@ def _lib():
     return lib
 
 
+def _hdr(chain):
+    """rc452 (gh #1653 finding (b)): srmech_chain_run now refuses a chain
+    missing name/summary/returns (the required-key rule every parse layer
+    already enforced). This file's subject is op dispatch, not the header
+    contract (the rc446 ratchet pins that), so the harness synthesizes the
+    header exactly as cascade_chain_specs does. Idempotent over documents
+    that already carry one."""
+    out = dict(chain)
+    out.setdefault("name", str(out.get("variant", "chain")))
+    out.setdefault("summary", "")
+    out.setdefault("returns", "")
+    return out
+
+
 def _c_run(chain, inputs):
     lib = _lib()
-    cj = json.dumps(chain, ensure_ascii=False).encode("utf-8")
+    cj = json.dumps(_hdr(chain), ensure_ascii=False).encode("utf-8")
     xj = json.dumps({"inputs": inputs}, ensure_ascii=False).encode("utf-8")
     n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
     ws = (ctypes.c_char * n)()
@@ -118,7 +132,7 @@ def test_a_real_literal_ROUND_TRIPS_bit_exactly(value):
     ``%.17g``-style writer would break; they pass because the C writer uses
     ``srmech_double_repr``, an integer-only Ryu matching CPython ``repr``.
     """
-    chain = {"name": "t", "steps": [
+    chain = {"name": "t", "summary": "s", "returns": "r", "steps": [
         {"class": "C", "op": "srmech.cascade.atoms.chiral_flip",
          "args": {"seq": "@input.x"}}]}
     rc, raw = _c_run(chain, {"x": [value]})
@@ -130,7 +144,7 @@ def test_a_real_literal_ROUND_TRIPS_bit_exactly(value):
 def test_the_list_descriptor_kind_is_produced_at_all():
     """``{"k":"l"}`` — a kind the Python reader has ALWAYS had a branch for and
     the C writer could never emit. The reader was ahead of the writer."""
-    chain = {"name": "t", "steps": [
+    chain = {"name": "t", "summary": "s", "returns": "r", "steps": [
         {"class": "C", "op": "srmech.cascade.atoms.chiral_flip",
          "args": {"seq": "@input.x"}}]}
     rc, raw = _c_run(chain, {"x": [1.0, 2.0]})
@@ -141,7 +155,7 @@ def test_the_list_descriptor_kind_is_produced_at_all():
 def test_an_empty_real_sequence_is_not_an_error():
     """``[]`` distinguishes "empty result" from "declined" — a carve returning
     NULL for n == 0 would collapse the two."""
-    chain = {"name": "t", "steps": [
+    chain = {"name": "t", "summary": "s", "returns": "r", "steps": [
         {"class": "C", "op": "srmech.cascade.atoms.chiral_flip",
          "args": {"seq": "@input.x"}}]}
     rc, raw = _c_run(chain, {"x": []})
@@ -154,7 +168,7 @@ def test_a_double_is_NOT_coerced_into_an_exact_op():
     Silently coercing would turn a capability gap into a wrong answer, and
     would breach stay-rational discipline mid-cascade.
     """
-    chain = {"name": "t", "steps": [
+    chain = {"name": "t", "summary": "s", "returns": "r", "steps": [
         {"class": "N", "op": "rational_add",
          "args": {"a": [1.5, 2], "b": [1, 3]}}]}
     rc, _ = _c_run(chain, {})
@@ -171,7 +185,7 @@ def test_autocorrelation_C_vs_FORCED_PURE_is_close_but_NOT_bit_identical():
     (so the divergence cannot silently disappear or silently grow).
     """
     import srmech.cascade.composites as _comp
-    chain = {"name": "t", "steps": [
+    chain = {"name": "t", "summary": "s", "returns": "r", "steps": [
         {"class": "L", "op": "srmech.cascade.composites.autocorrelation",
          "args": {"x": "@input.x"}}]}
     x = _spread(64)

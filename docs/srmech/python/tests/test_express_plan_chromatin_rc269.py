@@ -260,4 +260,4 @@ def test_read_only():
 def test_no_format_or_abi_or_toolcount_change():
     assert G.GENOME_FORMAT_VERSION == 20
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 663
+    assert introspect.describe()["tools"]["total"] == 666

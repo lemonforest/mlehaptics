@@ -240,8 +240,17 @@ CEIL_C_REJECTED_ROWS_BY_CHAIN = {
     # srmech_cascade_kuramoto_step*_f64 / srmech_{quaternion,octonion}_dft
     # kernels are NOT referenced by the interpreter TU (the no-coarse gate
     # names all four), so no coarse bypass exists structurally.
+    # ``klein4_from_one``'s entry (7) was DELETED in the rc452 registry-ripple
+    # phase (gh #1653) — the chain closed FULLY, both variants, all 7 proof
+    # cases BYTE_IDENTICAL under this file's own comparator. Its steps run as
+    # steps through the six wave-C atom rows (render_template / utf8_encode /
+    # sha256_bytes / str_concat / byte_slice / int_parse_le); the fused
+    # srmech_klein4_from_one symbol is NOT referenced by the interpreter TU
+    # (the no-coarse gate derives it into its pinned population), and the
+    # str/bytes interior rides the `is_bytes` carrier flag with NO new wire
+    # kind — the final value is a list of ints, so nothing bytes-typed ever
+    # crosses the wire.
     "encode_loe_content": 4,
-    "klein4_from_one": 7,
     "parallel_sector_dispatch": 4,
     "schur_complement": 3,
 }
@@ -339,15 +348,29 @@ def classify(rc, wire: bytes, py_value, *, py_serialisable: bool = True) -> str:
 # ── driving the two projections ──────────────────────────────────────────────
 
 def _chain_only(entry):
-    """The CHAIN-DEFINING keys — same predicate as the rc446 ratchet.
+    """The chain document the runner CONTRACT takes — header + steps. Same
+    predicate as the rc446 ratchet.
 
-    ``proof_cases`` / ``summary`` / ``returns`` are documentation; the runner
-    never reads them, and sending them couples a chain's executability to its
-    own test data (rc447 measured that biting on ``magnitude``'s non-finite
-    cases, whose ``json.dumps`` spelling is not valid JSON).
+    ⚠️ REWRITTEN at rc452 (gh #1653 finding (b)). Through rc452 Phase 3 this
+    stripped ``summary`` / ``returns`` with the comment "the runner never
+    reads them" — and the raw ``[[cascade.chain]]`` entries carry no ``name``
+    at all, so every chain this harness drove was HEADERLESS. C accepted it;
+    Python's ``parse_chain_spec`` raises ``ChainSpecError`` on the same dict.
+    Per co-equal projections the disagreement was the finding, and the
+    CONTRACT (the runner's own header doc, plus BOTH parse peers) backs
+    Python — so ``srmech_chain_run`` now refuses a chain missing
+    name/summary/returns, and this harness builds the document the way
+    ``cascade_chain_specs`` does: header synthesized from the entry.
+    ``proof_cases`` stays stripped — rc447 measured non-finite case inputs
+    breaking ``json.dumps``, and test data is still not chain definition.
     """
-    return {k: v for k, v in entry.items()
-            if k in ("name", "steps", "on_error", "chain_schema_version")}
+    out = {k: v for k, v in entry.items()
+           if k in ("name", "summary", "returns", "steps", "on_error",
+                    "chain_schema_version")}
+    out.setdefault("name", str(entry.get("variant", "chain")))
+    out.setdefault("summary", "")
+    out.setdefault("returns", "")
+    return out
 
 
 def _c_run(chain_dict, ctx):
@@ -803,7 +826,8 @@ def test_a_pair_of_rationals_marshals_through_the_real_library():
     """
     require_native("pair(Q, Q) marshalling")
     rc, wire, ok = _c_run(_chain_only({
-        "name": "rc452_pair_of_rationals", "on_error": "raise", "steps": [
+        "name": "rc452_pair_of_rationals", "summary": "s", "returns": "r",
+        "on_error": "raise", "steps": [
             {"class": "N", "op": "srmech.math.rational.rational_add",
              "args": {"a": [1, 2], "b": [1, 3]}},
             {"class": "N", "op": "srmech.math.rational.rational_add",

@@ -15,6 +15,171 @@ we have CI for our C code where it's missing."* What follows is what LANDED,
 measured; the residual is stated plainly at the end rather than deferred
 silently.
 
+### The registry-ripple phase (gh #1653): klein4_from_one closes — `CEIL_C_REJECTED_CHAINS` 4 → 3 — and the runner honours its own header contract
+
+**The registration triple, done once and rippled whole.** `cr_args_keyset_ok`
+refuses BY DESIGN to dispatch an op with no ToolEntry, so registration was the
+hard prerequisite for two of the three remaining mechanism groups.
+`srmech.amsc.descriptor.render_template` (blocks `klein4_from_one`),
+`srmech.amsc.format.sha256_raw` and `srmech.signal_processing.mint_vector`
+(both block `encode_loe_content`; `mint_vector` was registered under **no
+spelling at all** — importable, `__all__`-public, and invisible to
+`describe()`/`search`/MCP) each earned a real `ToolEntry`. The full ripple
+landed in the same change: registry total 663 → **666**, the op-name-SET
+witness manifest + digest re-pinned, all 74 pinned `describe()` count sites
+bumped, three completeness-allowlist rows DELETED (`CEIL_REGISTRY_GAPS`
+167 → 164, `CEIL_OPEN_REGISTRATION` 107 → 104), and the four generated files
+regenerated through `tools/regen_all.py` — never hand-edited.
+
+**klein4_from_one runs in C, both variants, 7/7 proof cases BYTE_IDENTICAL.**
+Six wave-C rows join `CR_OP_REG` (45 → **51**): `render_template` /
+`utf8_encode` / `sha256_bytes` / `str_concat` / `byte_slice` /
+`int_parse_le`, each a step-granular arm — the fused `srmech_klein4_from_one`
+symbol is deliberately NOT referenced by the interpreter TU (the no-coarse
+gate derives it into its pinned population automatically), and the one
+compiled symbol the arms share with the fused path is `srmech_sha256_hex`,
+the Class-A export the Python op itself composes. The str/bytes boundary
+rides a new `is_bytes` carrier flag (the `is_tuple` precedent): NO new wire
+kind, because the chain's final value is a list of ints; a bytes FINAL
+declines (`NOT_IMPL`) until the `b` kind ships with `encode_loe_content`,
+and each arm refuses the wrong side of the boundary exactly where Python
+raises. The chain-level witness mutates the descriptor's own `frame14` bind
+table to zeros and predicts the UNMASKED crumbs — derived INDEPENDENTLY of
+srmech (coreutils `sha256sum` + base-4 arithmetic by hand); the per-step gate
+walks **107 steps over 17 running chain-variants, 107 decline + 106
+value-move + 1 forced**, where the one FORCED step (klein4 body[5], the
+byte-slice stop whose only executable value is its baseline's) is admitted
+through an EXECUTED exhaustion proof, not a string in a dict.
+
+**Finding (b) repaired at root — the runner now refuses a headerless chain.**
+`srmech_chain_run` ACCEPTED a chain object carrying neither `name` nor
+`summary` while Python's `parse_chain_spec` REJECTS both — and the CONTRACT
+(the runner's own header doc since rc174, plus BOTH parse peers) backs
+Python, so the C runner now answers `SRMECH_ERR_BAD_INPUT` for a chain
+missing `name`/`summary`/`returns` (presence, not string-ness: the pure
+parser coerces any value through `str()` — checked as presence so C cannot
+refuse what Python accepts). Measured blast radius of the old acceptance: every ctypes
+parity harness (`_chain_only` stripped `summary`/`returns` as
+"documentation") and the bare-C TOML host (whose `[[cascade.chain]]` entries
+carry no `name` at all) had been running headerless chains for four rcs.
+All harnesses now synthesize the header the way `cascade_chain_specs` does,
+and the refusal is pinned in both projections plus bare-C negative controls.
+Rides ABI v21 (same unreleased rc as the exact-ℚ arm; the srmech.h note
+covers both).
+
+**Finding (a) repaired — the TOML host honours the descriptor's own defaults,
+and the kuramoto `general` variant gets its first config-driven C gate.**
+The bare-C host's ctx builder ignored `input_defaults` / `optional_inputs` —
+the very keys rc452 moved into the descriptor so the variant would be
+executable from shipped configuration — and could only drive
+`[[cascade.chain]]` entry 0. It now merges the descriptor's own defaults
+UNDER the case inputs (`pin_anchor` rides as `null`, `pin_strength` as `1.0`,
+from the FILE), takes a `chain_idx`, and drives two new rows: the kuramoto
+**general** variant's zero-coupling case (θ' = θ = `[1.0, -1.0]` exactly) and
+klein4's rest case 0 against the independently-derived 64-crumb wire.
+The host is 21/21 with a new absent-chain-index negative control; ctest
+39/39; JPL audit 13/13.
+
+### The registry-ripple phase, COMPLETED (gh #1653): the four ripple surfaces the registration did not reach, and a shipped-prose defect a stale ledger was hiding
+
+**The registration slice was NOT coherent as landed — eleven gates were red.**
+Everything it claimed re-verifies: the three `ToolEntry` registrations are real,
+all six generated files are content-equal to a fresh `tools/regen_all.py`
+regeneration, `klein4_from_one` runs in C in both variants with 7/7 proof cases
+byte-identical, it carries a step-mutation witness, and it runs through the
+bare-C TOML host from its own `.toml` against a wire derived independently of
+srmech. `CEIL_C_REJECTED_CHAINS = 3` is HONEST. What the slice did not reach were
+the count-pins that are not COMPARISONS — which is precisely the "invisible
+class" the `RIPPLE_GATES.md` count-pin note names, since a `git grep "== 663"`
+predicate cannot see a DIGEST, a data-file field, a prose bar or a census
+ceiling. All four are recorded here so the next count bump has a list.
+
+**(1) The search-corpus witness — `WITNESS_RC416`, 3 tests red.** Registering an
+op rebuilds the corpus, so the digest moves: `de17973d…` → `7cb11ffb…`, over
+**692 → 695 frames (666 ops + 29 carriers)**. That gate's own message offers two
+readings and re-pinning the wrong one converts a real ADR-0011 break into a
+silent one, so both halves were MEASURED before the digit moved, and the
+generating code ships at `docs/srmech/notes/_rc452_witness_repin_provenance.py`.
+DETERMINISM: four processes under `PYTHONHASHSEED` 0/13/271/9999 return the same
+digest and the same 695 frames, with all three derivation paths agreeing inside
+each run. CAUSATION: the op-frame NAME set against the branch head's committed
+`registered_op_names.txt` (663 names) gives ADDED = exactly the three registered
+ops, REMOVED = none, carriers unchanged at 29, and exactly one carrier frame
+able to mention a new op — `int`, whose `consumes` gains `mint_vector` (its `D`
+is an int). A moved frame COUNT is the reading the rc445 note reserves for
+"something other than prose changed"; here that IS the declared change, and a
+count that had not moved would have been the failure.
+
+**(2) The synthesised-argument ledger, and a ceiling that ROSE — 3 tests red.**
+`tests/example_args_ledger.ndjson` still read `"n": 663`, and three ops
+registered with no worked example land in the frame census's `NO_ARG` class,
+which sits under a DOWN-ONLY ceiling: it went **276 → 279**, one per
+registration. Ceilings drain, so two of the three were drained the way the
+gate's own message prescribes — bind the arguments — rather than by raising the
+`CEIL`. Each op earned a worked example measured off the live op rather than
+typed: `render_template` renders `klein4_from_one`'s actual JSON pre-image
+(literal braces passing through) and shows a missing key rendering EMPTY rather
+than raising; `sha256_raw` shows the raw 32 bytes re-deriving from
+`bytes.fromhex(sha256_bytes(…))`, one dispatch and three shapes; `mint_vector`
+shows one name minting byte-identical content twice and two distinct names
+landing 4054 bits apart against the 4096 expected of independent 8192-bit
+vectors. Ledger: `n` 663 → **666**, `ok` 385 → **387**.
+
+*Two census ceilings then move, each attributed BY OP and by structural reason,
+both of them the rc436 / rc442 raise verbatim rather than a new excuse.*
+`NO_ARG` **276 → 277** for `sha256_raw`: its one parameter is `data: bytes`, its
+worked example DOES call it four times with a real value, and the harvester
+records `status: no_jsonable_arg, unserializable: ["data"]` — the binding is
+missing because `bytes` has no JSON image, not because the example is thin. It
+is also the CORRECT verdict: the frame axis asks whether an op translates when
+an INTEGER input varies, and a content address has no frame to move along BY
+DESIGN. `NO_INT_INPUT` **153 → 154** for `render_template`, which DID drain out
+of `NO_ARG` (`status: ok`, four recorded calls) and landed one tier along for
+`genome_group`'s reason: `template` is a string, `context` is a Mapping, and the
+integers inside it are payload being serialised rather than a coordinate the op
+reads. `mint_vector` needed neither raise — which is what shows both are about a
+parameter's type and not about the triple being under-exampled.
+
+**(3) The introspect surface was incomplete — `test_worked_examples_strict_zero`
+is STRICT ZERO on three perspectives plus a 400-char floor, and all three new
+ops failed it.** They were left on the auto-seed derived from their `ToolEntry`
+summary: 73, 320 and 68 characters, missing WHAT / WHEN / SIBLINGS between them.
+Registration is not complete when `describe()` can name an op but not explain
+it — the introspect surface IS the API contract, and an incomplete one is as bad
+as a false one. Each now carries a curated explanation in the house
+WHAT / WHEN / WHAT-YOU-WOULD-OTHERWISE-HAND-ROLL / SIBLINGS shape.
+
+**(4) THE ONE THAT WAS NOT THIS SLICE'S: four SHIPPED worked examples have been
+raising since rc452's own exact-ℚ arm, and the committed ledger said `ok`.**
+`tests/worked_examples_result.ndjson` had not been re-run since nine Class-N ops
+flipped from `(num, den)` tuples to the `Q` carrier, so it recorded
+`rational_mul`, `sin_series_truncate`, `cos_series_truncate` and
+`atan_series_truncate` as passing while all four in fact die on
+`TypeError: 'Q' object is not subscriptable` — they index the result. Reproduced
+independently by executing the snippet straight off `get_tool_schema()`, not by
+reading the ledger. This is shipped prose: worked examples flow
+`_tool_docs_curated.py` → `_tool_docs.py` → `ToolEntry.example` → `describe()`,
+the MCP tool list and the compiled-in `srmech_tool_registry.c`, so the defect was
+reaching users across four surfaces. Fixed at all 17 subscript sites with the
+accessor `Q` actually exposes (`.numerator` / `.denominator`), each snippet
+re-executed to green. The stale ledger IS the finding: an instrument that has
+not been re-run cannot return otherwise, and it is the only reason a
+breaking-by-design carrier flip left four callers broken in the shipped surface
+with every gate green.
+
+*Ledger discipline, stated because the number would otherwise look wrong.*
+Re-running all 581 snippets on this host puts NINE of the heavy triality /
+octonion examples over the 15 s per-snippet budget against the ONE that did on
+the cell where `CEIL_WORKED_EXAMPLE_FAILURES` was seeded — and the count is 9
+whether the run is alone or contended, so it is host speed, not load. Those rows
+are about ops this change does not touch, and re-measuring them on a slower host
+is a DIFFERENT experiment rather than a better one, so the committed ledger takes
+exactly the SEVEN rows whose prose this change edited and keeps HEAD's value for
+the other 574. Result: `n` 578 → **581**, `ok` 477 → **480**,
+`unexpected_raise` **96** and `timeout` **1**, both unmoved — the four repairs
+drain out of a class whose total was already 96 because the stale ledger had been
+counting them as `ok`.
+
 **Mandate clause 2 — `cascade.atoms` in C — is CLOSED.** `CR_OP_REG` stops being
 a name-to-name index and becomes the atom registry the interpreter resolves
 against: a bare-C, config-addressable table of pure data rows. This was not a

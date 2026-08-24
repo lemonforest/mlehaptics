@@ -123,8 +123,15 @@ def _runs_in_c(name, catalog):
         pytest.skip("no native library")
     entry = _cc._chain_entries(catalog[name])[0]
     case = (entry.get("proof_cases") or [{}])[0]
+    # rc452 (gh #1653 finding (b)): the runner refuses a headerless chain, so
+    # this probe synthesizes the header the way cascade_chain_specs does —
+    # same repair as every other srmech_chain_run harness in this suite.
     chain = {k: v for k, v in entry.items()
-             if k in ("name", "steps", "on_error", "chain_schema_version")}
+             if k in ("name", "summary", "returns", "steps", "on_error",
+                      "chain_schema_version")}
+    chain.setdefault("name", name)
+    chain.setdefault("summary", "")
+    chain.setdefault("returns", "")
     cj = json.dumps(chain).encode("utf-8")
     xj = json.dumps({"inputs": case.get("inputs") or {}}).encode("utf-8")
     n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))

@@ -1052,6 +1052,14 @@ _RUN_C_OPS = frozenset({
     "kuramoto_gen_term", "kuramoto_gen_out",
     "as_quat4", "as_oct8", "qdft_resolve_mu", "odft_resolve_mu",
     "dft_sigma", "dft_scale", "qdft_summand", "odft_summand",
+    # Class F / B / A — the klein4_from_one chain's string/bytes leaves
+    # (rc452, gh #1653 wave C). Step-granular arms in CR_OP_REG; the fused
+    # srmech_klein4_from_one symbol exists and is deliberately NOT dispatched
+    # (the no-coarse source gate derives it into its pinned population the
+    # moment the chain runs). sha256_bytes / render_template resolve to their
+    # REAL registered homes (srmech.amsc.format / srmech.amsc.descriptor).
+    "render_template", "utf8_encode", "sha256_bytes",
+    "str_concat", "byte_slice", "int_parse_le",
 })
 
 #: Fold-body ops the C runner dispatches — the non-``CR_BIN_NONE`` ``bin``

@@ -4,7 +4,7 @@ THE DEFECT CLASS (measured rc447: 16 occurrences tree-wide, some years stale).
 A pin on a moving value was named for the value it pinned::
 
     def test_tools_total_stays_367():
-        assert describe()["tools"]["total"] == 663      # named 367
+        assert describe()["tools"]["total"] == 666      # named 367
 
     def test_expected_abi_is_15():
         assert _native.EXPECTED_ABI_VERSION == 18       # named 15

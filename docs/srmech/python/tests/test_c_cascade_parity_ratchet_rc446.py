@@ -4,9 +4,9 @@ srmech is a MULTI-IMPLEMENTATION codebase (ADR-0009): the scripting-coherency
 projection (``python/srmech``) and the compiled-coherency projection (``c/src``)
 are CO-EQUAL. The config-driven cascade surface violates that: of the 18
 executable ``[cascade]`` descriptors, the C run loop accepted **0** when this
-file landed at rc445, and accepts **14** as of rc452 Phase 3 — measured by this
-file's own ``_measure()``, and equal to 18 minus :data:`CEIL_C_REJECTED_CHAINS`
-three screens down.
+file landed at rc445, and accepts **15** as of the rc452 registry-ripple phase
+— measured by this file's own ``_measure()``, and equal to 18 minus
+:data:`CEIL_C_REJECTED_CHAINS` three screens down.
 
 *(This paragraph said "accepts **0**" in undated present tense through rc449,
 while the same file's ceiling said 9. Corrected at rc450 (`#T1160`) under the
@@ -79,7 +79,7 @@ from srmech.dsl import _catalog as _cat
 # Re-measured at rc445 by notes/_1653_chain_census_rc444.py:
 #   "CENSUS of 18 executable chains (20 chain-variants): ...
 #    C srmech_chain_run ACCEPT=0 REJECT=18 ... UNATTRIBUTED=0"
-CEIL_C_REJECTED_CHAINS = 4            # of 18 executable. Target 0.
+CEIL_C_REJECTED_CHAINS = 3            # of 18 executable. Target 0.
 #   The rc445 baseline was 18, verified against a PRISTINE origin/main .so with
 #   THIS harness — so the drain is attributable to the code, not to the probe.
 #   The drain, in full: 18 (rc445) -> 12 when the cr_dispatch arm closed the 6
@@ -94,6 +94,19 @@ CEIL_C_REJECTED_CHAINS = 4            # of 18 executable. Target 0.
 #   decrement trustworthy has to predate the decrement it judges. That
 #   instrument is tests/test_c_cascade_value_parity_rc450.py — until it landed,
 #   "accepted" meant rc == 0 and nothing had ever decoded the returned VALUE.
+#
+#   4 -> 3 within rc452 (gh #1653, the registry-ripple phase): klein4_from_one,
+#   BOTH variants, all 7 proof cases BYTE_IDENTICAL under the rc450 typed
+#   comparator. Its one gate was GATE_OP_TABLE, and the blocker inside that
+#   gate was REGISTRATION, not code: cr_args_keyset_ok refuses by design to
+#   dispatch an op with no ToolEntry, and `render_template` carried none — so
+#   the ToolEntry registration (with `sha256_raw` / `mint_vector` for the
+#   sibling encode_loe_content chain) landed in the same change as the six
+#   CR_OP_REG rows (render_template / utf8_encode / sha256_bytes / str_concat
+#   / byte_slice / int_parse_le, wave C). The str/bytes boundary rides an
+#   `is_bytes` carrier flag (the `is_tuple` precedent): NO new wire kind,
+#   because the chain's FINAL value is a list of ints — a bytes FINAL still
+#   declines until the `b` kind ships with encode_loe_content.
 #
 #   7 -> 4 within rc452 (`#T1166` Phase 3): kuramoto_step (BOTH variants),
 #   quaternion_dft and octonion_dft, all with the value channel open — 23 of 23
@@ -193,11 +206,12 @@ SURFACE_A_STEP_FORMS = ("plain", "map", "fold")
 GATE_OP_TABLE = "op_table"          # cr_dispatch over CR_OP_REG -> NOT_IMPL
 #                                     (cr_dispatch_real: deleted, rc452 A1).
 #                                     Still the widest gate: it appears in ALL
-#                                     FOUR remaining BLOCKED rows. (Read "ALL
-#                                     NINE" through the first two phases of
-#                                     rc452 and "10 of 18" until rc450 — each
-#                                     figure was correct when written and
-#                                     moved with the drains.)
+#                                     THREE remaining BLOCKED rows. (Read "ALL
+#                                     FOUR" until klein4_from_one closed late
+#                                     in rc452, "ALL NINE" through the first
+#                                     two phases of rc452 and "10 of 18" until
+#                                     rc450 — each figure was correct when
+#                                     written and moved with the drains.)
 GATE_CARRIER = "carrier_width"      # cr_value_t kinds. NARROWED at rc447 —
 #                                     CR_DBL + CR_LIST now ship, so this is down
 #                                     to byte-buffer, dense-matrix and MAPPING
@@ -294,9 +308,15 @@ BLOCKED = {
     # _{left,right}_mult / srmech_octonion_twiddle +
     # srmech_loop_{left,right}_op_f64) — never the fused whole-transform
     # symbols, which the no-coarse source gate now pins by name.
-    "klein4_from_one":          {"gates": [GATE_OP_TABLE],
-                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "step_form_map", "new_type_reason": ""},
+    # klein4_from_one's row was DELETED at rc452 (gh #1653, the registry-ripple
+    # phase) — the chain runs, BOTH variants, 7/7 proof cases BYTE_IDENTICAL.
+    # Its one gate was GATE_OP_TABLE and the load-bearing half of that gate was
+    # the ToolEntry REGISTRATION (render_template had none, and the key-set
+    # validator refuses an unregistered op by design); the six wave-C atom rows
+    # and the `is_bytes` carrier flag were the code half. Its `new_type` flag
+    # pointed at ledger row `step_form_map`, which had already closed at Phase
+    # 3 — the residual closure needed no new type, exactly as the mechanism
+    # census predicted ("needs NO new wire kind").
     "parallel_sector_dispatch": {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
                                 "ledger_row": "carrier_mapping", "new_type_reason": ""},
@@ -348,7 +368,8 @@ def _c_runs(chain_dict, ctx):
 
 
 def _chain_only(entry):
-    """The CHAIN-DEFINING keys, without the descriptor's test metadata.
+    """The chain document the runner CONTRACT takes — header + steps, without
+    the descriptor's test metadata.
 
     ⚠️ Passing the whole catalog entry into the runner couples a chain's
     executability to its own PROOF CASES, and rc447 measured that biting:
@@ -356,18 +377,29 @@ def _chain_only(entry):
     ``json.dumps`` spells those as bare ``NaN`` / ``Infinity`` — which are NOT
     valid JSON. srmech's parser is strict RFC 8259 and rejects the document, so
     the whole chain returned BAD_INPUT and read as a grammar gap when every one
-    of its STEPS ran correctly.
+    of its STEPS ran correctly. ``proof_cases`` therefore stays stripped.
 
-    ``proof_cases`` / ``summary`` / ``returns`` are documentation, not chain
-    definition; the runner never reads them. Sending them was incidental, and
-    it made a test-data property look like a capability gap.
+    ⚠️ ``summary`` / ``returns`` DO travel now — rc452 (gh #1653 finding (b)).
+    This function used to strip them too, with the comment "the runner never
+    reads them", and the raw ``[[cascade.chain]]`` entries carry no ``name``
+    at all — so every chain this harness drove was HEADERLESS, and
+    ``srmech_chain_run`` ACCEPTED it while Python's ``parse_chain_spec``
+    raises ``ChainSpecError`` on the same dict. The disagreement was the
+    finding; the CONTRACT (the runner's own header doc plus BOTH parse peers)
+    backs Python, so the runner now refuses the headerless form and this
+    harness synthesizes the header the way ``cascade_chain_specs`` does.
 
     (The non-finite limit itself is real and stays filed — see the gap ledger's
     ``non_finite_doubles_cannot_cross_json`` row. It bounds which INPUTS can
     reach C, not which chains exist.)
     """
-    return {k: v for k, v in entry.items()
-            if k in ("name", "steps", "on_error", "chain_schema_version")}
+    out = {k: v for k, v in entry.items()
+           if k in ("name", "summary", "returns", "steps", "on_error",
+                    "chain_schema_version")}
+    out.setdefault("name", str(entry.get("variant", "chain")))
+    out.setdefault("summary", "")
+    out.setdefault("returns", "")
+    return out
 
 
 def _measure():
@@ -399,12 +431,43 @@ def test_harness_resolves_input_refs():
     # availability. A control built on an op this same rc adds would pass or fail
     # for the wrong reason and could not separate the two.
     rc, status = _c_runs(
-        {"name": "ctl", "steps": [{"class": "N", "op": "rational_add",
-                                   "args": {"a": "@input.a", "b": "@input.b"}}]},
+        {"name": "ctl", "summary": "s", "returns": "r",
+         "steps": [{"class": "N", "op": "rational_add",
+                    "args": {"a": "@input.a", "b": "@input.b"}}]},
         {"a": [1, 2], "b": [1, 3]})
     assert rc == 0, (
         "the harness cannot resolve @input.* refs (rc=%s %s) — fix the ctx shape "
         "before trusting any rejection in this file" % (rc, status))
+
+
+def test_a_headerless_chain_is_refused_in_both_projections():
+    """rc452 (gh #1653) — finding (b), pinned in BOTH directions.
+
+    Measured before the fix: ``srmech_chain_run`` ACCEPTED a chain object
+    carrying neither ``name`` nor ``summary`` (this file's own ``_chain_only``
+    fed it exactly those for four rcs) while ``parse_chain_spec`` REJECTS the
+    same dict with ChainSpecError. Co-equal projections must agree on what
+    they REFUSE, and the contract — the runner's own header doc plus both
+    parse peers — backs the refusal. So: each required header key missing
+    must be BAD_INPUT in C AND ChainSpecError in Python, and the full-header
+    control must run in C, so the refusal cannot be a harness artifact.
+    """
+    base = {"name": "h", "summary": "s", "returns": "r",
+            "steps": [{"class": "I", "op": "gcd",
+                       "args": {"a": 12, "b": 18}}]}
+    rc, status = _c_runs(dict(base), {})
+    assert rc == 0, (
+        "the FULL-HEADER control did not run (rc=%s %s) — the refusals below "
+        "would then prove nothing" % (rc, status))
+    for missing in ("name", "summary", "returns"):
+        broken = {k: v for k, v in base.items() if k != missing}
+        rc, status = _c_runs(broken, {})
+        assert rc == 2, (
+            "C accepted a chain missing %r (rc=%s %s); through rc452 Phase 3 "
+            "it RAN such chains, which is the co-equal divergence this test "
+            "pins closed" % (missing, rc, status))
+        with pytest.raises(_compose.ChainSpecError):
+            _compose.parse_chain_spec(broken)
 
 
 def test_every_c_rejected_chain_is_enumerated():
@@ -458,14 +521,14 @@ def test_surface_a_unsupported_step_forms_is_tight():
     """
     supported = set()
     for form, chain in (
-        ("plain", {"name": "p", "steps": [
+        ("plain", {"name": "p", "summary": "s", "returns": "r", "steps": [
             {"class": "N", "op": "rational_add",
              "args": {"a": [1, 2], "b": [1, 3]}}]}),
-        ("map", {"name": "m", "steps": [
+        ("map", {"name": "m", "summary": "s", "returns": "r", "steps": [
             {"map_over": "@input.xs", "index": "i", "body": [
                 {"class": "I", "op": "mod_add",
                  "args": {"a": "@idx.i", "b": 0, "n": 2}}]}]}),
-        ("fold", {"name": "f", "steps": [
+        ("fold", {"name": "f", "summary": "s", "returns": "r", "steps": [
             {"fold_class": "I", "fold_op": "gcd", "fold_init": 0,
              "over": "@input.xs"}]}),
     ):

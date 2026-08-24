@@ -482,6 +482,20 @@ extern "C" {
  *      three-step chain returned -5/6 for a step that must be 5/6, at rc=0,
  *      with a well-formed wire. See cr_rat_signed in srmech_compose_run.c.
  *
+ *      v21 ALSO COVERS A SECOND rc452 CONTRACT MOVE, of the v19 shape, landed
+ *      later in the same (unreleased) rc so it rides the same bump rather
+ *      than minting v22: srmech_chain_run now returns SRMECH_ERR_BAD_INPUT
+ *      for a chain object missing `name`, `summary` or `returns`, where it
+ *      used to ACCEPT and RUN it (gh #1653 finding (b)). The runner's own
+ *      doc below has declared its input "the FULL chain object" since rc174,
+ *      and BOTH parse peers (parse_chain_spec, srmech_chain_spec_parse)
+ *      refuse the headerless form — the runner was the one layer that did
+ *      not, and co-equal projections must agree on what they refuse. The
+ *      shipped Python callers are unaffected (_spec_to_chain_dict always
+ *      sends the full header); what changes is the bare-C / ctypes-direct
+ *      surface, where a headerless chain now refuses loudly instead of
+ *      computing.
+ *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  */
 #define SRMECH_ABI_VERSION 21
@@ -3510,6 +3524,13 @@ srmech_status_t srmech_chain_catalog_parse(
  *
  *   chain_json : the FULL chain object {name,summary,returns,on_error?,steps:
  *                [{class,op,args,on_error?}]} (json.dumps of the ChainSpec).
+ *                ENFORCED since rc452 (gh #1653 finding (b)): a chain missing
+ *                name/summary/returns is SRMECH_ERR_BAD_INPUT — the same
+ *                required-key rule parse_chain_spec and srmech_chain_spec_parse
+ *                have always applied. Through rc452 Phase 3 this line
+ *                described the input while the runner accepted headerless
+ *                chains, and every ctypes harness plus the bare-C TOML host
+ *                fed it exactly those.
  *   ctx_json   : {"row": <obj|null>, "inputs": <obj>} — the @row / @input
  *                binding tables (may be NULL / "" if the chain refs neither).
  *

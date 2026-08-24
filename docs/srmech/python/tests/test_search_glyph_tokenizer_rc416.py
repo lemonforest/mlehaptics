@@ -571,8 +571,34 @@ from srmech.math.text import fold_marks, glyph_stream
 #:
 #: The 663/29 split is UNCHANGED, which is the signal the rc445 note prescribes: a
 #: moved FRAME COUNT would have meant something other than prose changed. It did not.
+#: rc452 (gh #1653, the registry-ripple phase) - RE-PINNED AGAIN, and this time the
+#: FRAME COUNT ITSELF moves: 692 -> 695 (666 ops + 29 carriers). That is the reading
+#: the rc445 note reserves for "something other than prose changed", and here it is
+#: the DECLARED change - three ops were registered, so a frame count that had NOT
+#: moved would have been the failure. Both halves were measured BEFORE the digit
+#: moved, in the order the rc452 exact-Q note above prescribes:
+#:
+#:   DETERMINISM - `_build_frames("all")` run in FOUR separate processes under
+#:   PYTHONHASHSEED 0 / 13 / 271 / 9999 returned the SAME digest and 695 frames
+#:   each, and inside every run all three derivation paths agree (the witness
+#:   `_build_frames` returns, `sha256_bytes` recomputed over the joined blobs, and
+#:   the live `search(...).witness`). The ADR-0011 witness contract HOLDS.
+#:
+#:   CAUSATION - the op-frame NAME set was diffed against the pre-registration
+#:   population, `tests/registered_op_names.txt` at the branch head (663 names):
+#:   ADDED = exactly `srmech.amsc.descriptor.render_template`,
+#:   `srmech.amsc.format.sha256_raw`, `srmech.signal_processing.mint_vector`;
+#:   REMOVED = none. Carriers stay 29, and exactly ONE carrier frame's blob can
+#:   mention a new op - `int`, whose `consumes` gains `mint_vector` (its `D` is an
+#:   int). The digest move is therefore fully attributed to the three registrations.
+#:
+#: This gate was RED in the handed-over working tree: the registration slice bumped
+#: all 76 `describe()["tools"]["total"]` pins but not this witness, so three tests
+#: in this file failed on the stale digest. It is exactly the "invisible class" the
+#: RIPPLE_GATES.md count-pin note names - a pin that is a DIGEST rather than a
+#: comparison against the count, which no `== 663` predicate can find.
 WITNESS_RC416 = (
-    "de17973d7a0edc4aae09ac069aaf83756972b8c1491dda4886f5b28c1727f60d")
+    "7cb11ffbe75959a4dec0cf725dec2a387506812b868005c285aa1c2d3a8f3718")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

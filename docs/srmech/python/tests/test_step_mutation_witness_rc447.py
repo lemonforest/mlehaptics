@@ -51,8 +51,19 @@ def _lib():
 
 
 def _chain_only(entry):
-    return {k: v for k, v in entry.items()
-            if k in ("name", "steps", "on_error", "chain_schema_version")}
+    # rc452 (gh #1653 finding (b)): the runner now REFUSES a headerless chain
+    # (name/summary/returns required — the rule every parse layer already
+    # enforced), so the harness synthesizes the header the way
+    # cascade_chain_specs does. See the rc446 ratchet's _chain_only docstring
+    # for the full finding; this copy stays a copy on purpose (standalone
+    # collection), matching the value-parity file's.
+    out = {k: v for k, v in entry.items()
+           if k in ("name", "summary", "returns", "steps", "on_error",
+                    "chain_schema_version")}
+    out.setdefault("name", str(entry.get("variant", "chain")))
+    out.setdefault("summary", "")
+    out.setdefault("returns", "")
+    return out
 
 
 def _c_value(chain, inputs):
@@ -208,6 +219,20 @@ def _bump_odft_fold_seed(ch):
                                               0.0, 0.0, 0.0, 0.25]
 
 
+def _zero_klein4_frame(ch):
+    """klein4_from_one (rest): the (1,3,7,3) sector-mask BIND table zeroed.
+
+    `frame14` is an interior LITERAL of the map step's bind block —
+    `srmech_klein4_from_one` (the fused whole-address symbol) hard-codes the
+    same period-14 mask and has no parameter image of the descriptor's table,
+    so a dispatcher keyed on this chain's name returns the MASKED address and
+    is caught. With the mask all-zero the V4 Cayley XOR is against 0 =
+    identity, so the expected value is the chain's own crumbs UNMASKED — a
+    hand-derivable prediction (see the MUTATIONS row).
+    """
+    ch["steps"][9]["bind"]["frame14"] = [0] * 14
+
+
 #: (chain, mutate, inputs-or-None, EXPECTED mutant value, why)
 #:
 #: ⚠️ THE EXPECTED VALUE IS THE POINT, not merely "it differs". "Something
@@ -323,6 +348,29 @@ MUTATIONS = [
      "identity, scale = 1.0. Seed [0]*8 -> [1.0, 0, 0, 0, 0, 0, 0, 0.25] "
      "moves the spectrum to [[2.0, 2.0, 3.0, 4.0, 0, 0, 0, 0.25]] exactly; "
      "srmech_octonion_dft has no image of the seed and is caught"),
+    # ── rc452 (gh #1653): klein4_from_one, unblocked in the registry-ripple
+    # phase. The mask table is an interior BIND literal; zeroing it makes the
+    # V4 XOR the identity, so the prediction is the UNMASKED crumb sequence —
+    # derived INDEPENDENTLY of srmech: coreutils sha256sum over the preimage
+    # {"sigma":1,"terms":24,"theta":[1,1]} gives h =
+    # 5ee9cb2584d75d0374b481b86108c422d52a47c413b2bfb8bd40f8236dc6514e, then
+    # sha256sum over h||"|0" gives the counter-block digest
+    # a6a8e26568ca872670d49f75caeb60ed20eb07a779d10d5d8021407f6b10b2c9, and
+    # per hex byte the four crumbs are (lo%4, lo//4, hi%4, hi//4) — the FIPS
+    # digest plus grade-school base-4 arithmetic, no srmech call anywhere in
+    # the derivation.
+    ("klein4_from_one", _zero_klein4_frame, None,
+     [2, 1, 2, 2, 0, 2, 2, 2, 2, 0, 2, 3, 1, 1, 2, 1,
+      0, 2, 2, 1, 2, 2, 0, 3, 3, 1, 0, 2, 2, 1, 2, 0,
+      0, 0, 3, 1, 0, 1, 1, 3, 3, 3, 1, 2, 1, 1, 3, 1,
+      2, 2, 0, 3, 3, 2, 2, 3, 0, 0, 2, 1, 1, 3, 2, 3],
+     "zero the (1,3,7,3) frame BIND table on the rest case 0: XOR against 0 "
+     "is the identity, so the mutant must return the RAW crumbs of counter "
+     "block 0 — the 64 values above, hand-derived from the independent "
+     "sha256sum digest a6a8e265... . The fused srmech_klein4_from_one "
+     "hard-codes the mask and returns the MASKED baseline, so a coarse "
+     "dispatch is caught; so is a runner that reads only the top-level step "
+     "list, which never meets the bind table at all"),
 ]
 
 
@@ -426,13 +474,14 @@ def test_every_running_chain_has_a_mutation_or_is_named():
 #       chains / 20 VARIANTS / 98 proof cases, so "runs in C" is decided by 18 of
 #       98 rows. A chain whose FIRST variant declines while a LATER one runs is
 #       recorded as not-running and is therefore never asked for a witness.
-#       ⚠️ MEASURED at rc452 this is LATENT, not live: the only two multi-variant
-#       chains are `klein4_from_one` (rest, wound) and `kuramoto_step` (general,
-#       simple), and all four variants are C-rejected on every one of their 17
-#       proof cases. So the seam costs nothing TODAY and silently opens the day
-#       either one is unblocked — which is exactly when the witness is needed.
-#       Recorded as a live-zero rather than left implicit, because a gate that
-#       happens to be adequate is not the same as one that is.
+#       ⚠️ When this banner was written the seam was LATENT (all four
+#       multi-variant rows — klein4_from_one rest/wound, kuramoto_step
+#       simple/general — were C-rejected on every proof case), and its own
+#       prediction fired TWICE inside rc452: kuramoto's unblock measured the
+#       seam LIVE (see _all_running_rows' comment) and klein4's closure walked
+#       through the widened population from day one. All four variants RUN
+#       now; the wider tests below are what covers them, and this narrower
+#       test stays as the cheap first line.
 #
 #   SEAM 2 — IT IS CHAIN-LEVEL, NOT STEP-LEVEL. One mutation per chain proves
 #       ONE literal in ONE step is read. `best_rational_signed` has SIX steps and
@@ -451,8 +500,11 @@ BOGUS_OP = "__no_such_op_rc452_step_drive__"
 #: Phase 3 (`#T1166`) unblocks kuramoto_step (BOTH variants — 5 steps each),
 #: quaternion_dft (9) and octonion_dft (10), re-measured at 15 rows / 51 steps
 #: with all four arms (decline + value-move, per step) firing.
-EXPECTED_STEPS = 51
-EXPECTED_RUNNING_CHAINS = 15
+#: 51 -> 107 / 15 -> 17 when klein4_from_one closed (rc452, gh #1653): its two
+#: variants carry 9 plain top-level steps + 19 map-body steps each at full
+#: depth (the map container itself carries no op key and is not a step row).
+EXPECTED_STEPS = 107
+EXPECTED_RUNNING_CHAINS = 17
 
 
 def _all_running_rows():
@@ -594,8 +646,14 @@ VALUE_PROBES = {
                               lambda s: s["args"].__setitem__("scale", 10)),
     "best_rational":  ("args.max_denominator -> 1",
                        lambda s: s["args"].__setitem__("max_denominator", 1)),
-    "pair":           ("args.second -> 99",
-                       lambda s: s["args"].__setitem__("second", 99)),
+    # ⚠️ pair's probe was `second -> 99` through the rc452 Phase-3 round and
+    # was RETUNED to 1 when klein4_from_one closed: its map body feeds the
+    # pair into a seq_get whose result indexes the 4-row V4 Cayley table, so
+    # 99 made the mutant DECLINE (out of range) rather than move — a probe
+    # that kills the chain proves nothing. 1 is in-range for the crumb domain
+    # AND still moves best_rational_signed ((22, 7) -> (22, 1)).
+    "pair":           ("args.second -> 1",
+                       lambda s: s["args"].__setitem__("second", 1)),
     "seq_len":        ("args.seq -> [1.0, 2.0]",
                        lambda s: s["args"].__setitem__("seq", [1.0, 2.0])),
     "correlation_product": ("args.i -> 0",
@@ -635,10 +693,95 @@ VALUE_PROBES = {
                        lambda s: s["args"].__setitem__("m", 0)),
     "odft_summand":   ("args.m -> 0",
                        lambda s: s["args"].__setitem__("m", 0)),
+    # ── rc452 (gh #1653): the klein4_from_one string/bytes leaves ────────────
+    # A 64-char hex literal is the probe text wherever the mutated value flows
+    # into the chain's crumb reads: the body indexes hexb up to char 33 and
+    # feeds each char through the hexval table, so a SHORT or non-hex probe
+    # value makes the mutant DECLINE (out-of-range lookup) instead of moving —
+    # measured while tuning these, not guessed.
+    "render_template": ("args.template -> 'probe-template'",
+                        lambda s: s["args"].__setitem__(
+                            "template", "probe-template")),
+    "utf8_encode":    ("args.text -> '0123...cdef' (64 hex chars)",
+                       lambda s: s["args"].__setitem__(
+                           "text", "0123456789abcdef" * 4)),
+    "str_concat":     ("args.text -> 'X'",
+                       lambda s: s["args"].__setitem__("text", "X")),
+    "byte_slice":     ("args.start -> 0, args.stop -> 1",
+                       lambda s: (s["args"].__setitem__("start", 0),
+                                  s["args"].__setitem__("stop", 1))),
+    # sha256_bytes / int_parse_le have ONE argument each, and its only legal
+    # value is a ref to the one bytes-typed producer in scope — the wire has
+    # no bytes literal to substitute (that is the filed `b`-kind gap). So the
+    # probe swaps the OP for one that emits a legal constant the downstream
+    # steps accept: a str for the hash (the render of a 64-hex literal), an
+    # in-domain int for the parse (97 = 'a', whose hexval index is 49). A
+    # name-validating non-executor still fails these — the mutant is a legal
+    # descriptor whose VALUE only an executing runner can produce.
+    "sha256_bytes":   ("op -> render_template('0123...cdef')",
+                       lambda s: (s.__setitem__(
+                           "op", "srmech.amsc.descriptor.render_template"),
+                           s.__setitem__(
+                               "args", {"template": "0123456789abcdef" * 4,
+                                        "context": {}}))),
+    "int_parse_le":   ("op -> mod_add(97, 0, 257) [the constant 'a' code]",
+                       lambda s: (s.__setitem__(
+                           "op", "srmech.math.cyclic.mod_add"),
+                           s.__setitem__(
+                               "args", {"a": 97, "b": 0, "n": 257}))),
 }
 
+#: rc452 (gh #1653) — PER-STEP probe OVERRIDES, keyed (chain name, step path).
+#: The bare-op table above is one probe per OP; two klein4 steps need a
+#: DIFFERENT mutation than their op's default because the default is an
+#: identity there (a probe that cannot move is not a probe):
+#:   * step[8] (seq_get): its `i` is already the literal 0 — the only index
+#:     its 1-element seq literal accepts — so `i -> 0` moves nothing. The
+#:     override shrinks the SEQ literal to a 16-entry quotient table, which a
+#:     step-reading runner must honour by producing 16 crumbs instead of 64.
+#:   * body[8] (mod_add): the default `b -> 1` sends every hexval index to
+#:     ascii+1, which exceeds the 55-entry table for any digest containing
+#:     '6'..'9' or 'a'..'f' — i.e. always — so the mutant DECLINES. The
+#:     override pins `a` to 48 ('0'), whose index is exactly 0: executable,
+#:     and every nibble becomes 0 where the baseline's vary.
+VALUE_PROBE_OVERRIDES = {
+    ("klein4_from_one", (8,)): (
+        "args.seq -> [[0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3]]",
+        lambda s: s["args"].__setitem__(
+            "seq", [[0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]])),
+    ("klein4_from_one", (9, "body", 8)): (
+        "args.a -> 48 [the constant '0' code; hexval index 0]",
+        lambda s: s["args"].__setitem__("a", 48)),
+}
 
-def _value_probe_for(step):
+#: rc452 (gh #1653) — steps whose VALUE is FORCED by executability: every
+#: one-line argument mutation either leaves the value unchanged or makes the
+#: chain decline, so the value arm CANNOT fire and demanding it would demand
+#: the impossible. This is the "prove it by execution in a test beside this
+#: one, not by a string in a dict" clause of the coverage docstring, honoured:
+#: membership here is admissible ONLY with an executed exhaustion proof —
+#: test_forced_steps_are_actually_forced below runs the candidate mutation
+#: family and asserts every member is identity-or-decline. The DECLINE arm
+#: still applies to these steps in full (they must be REACHABLE); only the
+#: value-move demand is discharged by the proof.
+#:
+#: klein4 body[5] is mod_add(a=@step[4], b=1, n=257) — the byte-slice STOP,
+#: which downstream executability pins to exactly start+1: any other stop
+#: yields an empty slice (int 0 -> hexval index 209, out of range) or a
+#: multi-byte slice whose folded value leaves the hexval domain for some j of
+#: every real digest. The step's only executable output is its baseline's.
+FORCED_VALUE_STEPS = frozenset({
+    ("klein4_from_one", (9, "body", 5)),
+})
+
+#: How many times the population walk MEETS a forced step — one per running
+#: VARIANT that carries it (klein4's rest AND wound bodies are the same
+#: pipeline at the same paths, so its one forced path is walked twice).
+#: Pinned tight so a forced row can neither appear nor vanish silently.
+EXPECTED_FORCED_STEP_WALKS = 2
+
+
+def _value_probe_for(step, chain=None, path=None):
     """(label, mutate) for one step, or None if no probe covers its op.
 
     A FOLD step has no ``args`` to mutate; its probe flips ``fold_init``, which
@@ -648,7 +791,16 @@ def _value_probe_for(step):
     bumps element 0 instead: a scalar ``-1`` seed on a vec_add fold is a
     LENGTH-MISMATCHED descriptor both projections refuse, so it would score
     the step dead for the wrong reason.
+
+    rc452 (gh #1653): a ``(chain, path)`` pair in ``VALUE_PROBE_OVERRIDES``
+    outranks the bare-op table — the op's default probe is an IDENTITY on two
+    klein4 steps (see the overrides' own comments), and a probe that cannot
+    move is not a probe.
     """
+    if chain is not None and path is not None:
+        ov = VALUE_PROBE_OVERRIDES.get((chain, tuple(path)))
+        if ov is not None:
+            return ov
     if "fold_op" in step:
         if isinstance(step.get("fold_init"), list):
             def _bump0(s):
@@ -673,10 +825,14 @@ def test_every_step_of_every_running_chain_is_actually_read():
     driving nothing. Measured mid-rc452: all 22 steps scored via the decline
     arm and the value arm of the old EITHER/OR had fired ZERO times — the
     gate could not return otherwise on the property its docstring claimed.
-    So each step now also carries a VALUE probe from ``VALUE_PROBES``: a
-    mutation the runner must EXECUTE (rc == 0) to a value that differs from
-    the baseline. Both halves are asserted per step, and both fire on all 22
-    (pinned below), so neither arm is decorative.
+    So each step now also carries a VALUE probe from ``VALUE_PROBES`` (or a
+    per-step override in ``VALUE_PROBE_OVERRIDES``): a mutation the runner
+    must EXECUTE (rc == 0) to a value that differs from the baseline. Both
+    halves are asserted per step, so neither arm is decorative. The ONE
+    admissible exception is a step in ``FORCED_VALUE_STEPS`` — a step whose
+    value is pinned by executability itself — and its exception is not a
+    string in a dict but an EXECUTED exhaustion proof
+    (test_forced_steps_are_actually_forced); the decline arm still binds it.
 
     ⚠️ A STEP IS JUDGED OVER ALL ITS PROOF CASES, NOT case[0]. `net_chirality`'s
     fold is genuinely vacuous on `{"orientations": []}` — an empty fold returns
@@ -686,7 +842,9 @@ def test_every_step_of_every_running_chain_is_actually_read():
     `_widen_dead_band` mutation hit on `best_rational_signed` case 6, and the
     same answer: require the reaction on SOME case, not on an arbitrary one.
 
-    MEASURED at rc452: 22 steps over 11 running chains; 22 decline, 22 move.
+    MEASURED at rc452 Phase 3: 51 steps over 15 running chain-variants; 51
+    decline, 51 move. Re-measured when klein4_from_one closed (the registry-
+    ripple phase): 107 steps over 17 rows; 107 decline, 106 move + 1 forced.
 
     ⚠️ The docstring figure said "18 steps over 10 running chains" for part of
     rc452 — measured mid-rc, then falsified by the rc's own `autocorrelation`
@@ -709,7 +867,7 @@ def test_every_step_of_every_running_chain_is_actually_read():
     for nm, variant, entry, inputs in _all_running_rows():
         by_chain.setdefault((nm, variant, id(entry)), [entry, []])[1].append(inputs)
 
-    probed = declined = value_moved = 0
+    probed = declined = value_moved = forced = 0
     dead = []
     for (nm, variant, _k), (entry, input_list) in sorted(
             by_chain.items(), key=lambda kv: (kv[0][0], kv[0][1])):
@@ -736,7 +894,14 @@ def test_every_step_of_every_running_chain_is_actually_read():
                 dead.append("%s [DECLINE arm: bogus op accepted]" % step_id)
 
             # ── half (2): the VALUE probe must run AND move the value ───
-            probe = _value_probe_for(_at(base, path))
+            # A FORCED step (executability pins its value — see
+            # FORCED_VALUE_STEPS) discharges this arm through the executed
+            # exhaustion proof one test down, never through a probe; the
+            # decline arm above still binds it in full.
+            if (nm, tuple(path)) in FORCED_VALUE_STEPS:
+                forced += 1
+                continue
+            probe = _value_probe_for(_at(base, path), nm, path)
             if probe is None:
                 dead.append(
                     "%s [VALUE arm: no probe in VALUE_PROBES for this op — "
@@ -788,12 +953,21 @@ def test_every_step_of_every_running_chain_is_actually_read():
         "steps failing the read-and-driving contract (arm named per row): %s"
         % dead)
     # BOTH arms across the WHOLE population — the claim the gate's name makes.
-    assert declined == probed and value_moved == probed, (
-        "arm coverage is partial: %d/%d declined, %d/%d value-moved. A step "
-        "counted by only one arm is reachability without drive (or drive "
-        "without a decline contract), and the docstring above explains why "
-        "neither alone is the property this gate sells."
-        % (declined, probed, value_moved, probed))
+    # A FORCED step counts through its executed exhaustion proof
+    # (test_forced_steps_are_actually_forced), never as a free pass: the set
+    # is pinned tight here so a forced row cannot appear or vanish silently.
+    assert forced == EXPECTED_FORCED_STEP_WALKS, (
+        "forced-step population mismatch: walked %d, EXPECTED_FORCED_STEP_"
+        "WALKS is %d — a pinned forced step is not in the running population "
+        "(stale pin), a new one appeared unproven, or a variant carrying one "
+        "started/stopped running"
+        % (forced, EXPECTED_FORCED_STEP_WALKS))
+    assert declined == probed and value_moved + forced == probed, (
+        "arm coverage is partial: %d/%d declined, %d value-moved + %d forced "
+        "of %d. A step counted by only one arm is reachability without drive "
+        "(or drive without a decline contract), and the docstring above "
+        "explains why neither alone is the property this gate sells."
+        % (declined, probed, value_moved, forced, probed))
 
 
 def _bits_of(v):
@@ -805,3 +979,67 @@ def _bits_of(v):
     """
     from test_c_cascade_value_parity_rc450 import _bits as _b
     return _b(v)
+
+
+def test_forced_steps_are_actually_forced():
+    """The EXECUTED exhaustion proof behind ``FORCED_VALUE_STEPS``.
+
+    A forced-step entry claims "no one-line argument mutation of this step
+    both runs and moves the value", and per the coverage docstring that claim
+    is only ever provable by execution. So: for each pinned step, run a
+    CANDIDATE FAMILY of argument mutations spanning every argument and the
+    mechanistically distinct values (the identity-mod-n wrap, the off-by-one
+    stops, an empty-slice constant, a modulus narrowing), and assert every
+    member is IDENTITY-OR-DECLINE — and that at least one member DECLINES, so
+    the family demonstrably reaches the executing step rather than a
+    dead branch.
+
+    The family is bounded, not universal — no finite test enumerates every
+    int64 — but each candidate is chosen against the step's OWN mechanism
+    (klein4 body[5] computes the byte-slice stop; the family covers stop
+    shifted down, up, wrapped by a modulus, pinned constant, and the
+    b === 1 (mod n) identity images), so a runner for which any of these
+    moved the value would be caught. If a mutation outside the family is
+    ever found to move it, the fix is to DELETE the FORCED row and write the
+    probe — this proof then reds on the next population walk.
+    """
+    fam = [("args.b -> 0", lambda s: s["args"].__setitem__("b", 0)),
+           ("args.b -> 2", lambda s: s["args"].__setitem__("b", 2)),
+           ("args.b -> 3", lambda s: s["args"].__setitem__("b", 3)),
+           ("args.b -> -1", lambda s: s["args"].__setitem__("b", -1)),
+           ("args.b -> 258 [=== 1 mod 257: the identity image]",
+            lambda s: s["args"].__setitem__("b", 258)),
+           ("args.a -> 0", lambda s: s["args"].__setitem__("a", 0)),
+           ("args.a -> 1", lambda s: s["args"].__setitem__("a", 1)),
+           ("args.a -> 32", lambda s: s["args"].__setitem__("a", 32)),
+           ("args.n -> 2", lambda s: s["args"].__setitem__("n", 2)),
+           ("args.n -> 33", lambda s: s["args"].__setitem__("n", 33)),
+           ("args.n -> 514 [char_idx+1 < n: the identity image]",
+            lambda s: s["args"].__setitem__("n", 514))]
+    for nm, path in sorted(FORCED_VALUE_STEPS):
+        rows = [(v, e, i) for (n2, v, e, i) in _all_running_rows() if n2 == nm]
+        assert rows, "%s is pinned FORCED but not running — stale pin" % nm
+        proved_identity = declined_once = False
+        for variant, entry, inputs in rows:
+            base = _chain_only(entry)
+            rc_b, val_b = _c_value(base, inputs)
+            if rc_b != 0:
+                continue
+            for label, mutate in fam:
+                mutant = copy.deepcopy(base)
+                mutate(_at(mutant, path))
+                rc_m, val_m = _c_value(mutant, inputs)
+                if rc_m != 0:
+                    declined_once = True
+                    continue
+                assert _bits_of(val_m) == _bits_of(val_b), (
+                    "%s %s: candidate %r RAN TO A MOVED VALUE — the step is "
+                    "not forced. Delete its FORCED_VALUE_STEPS row and give "
+                    "it that mutation as a probe (via VALUE_PROBE_OVERRIDES)."
+                    % (nm, path, label))
+                proved_identity = True
+        assert proved_identity and declined_once, (
+            "%s %s: the family never produced BOTH an executed identity and "
+            "a decline (identity=%r, declined=%r) — the exhaustion proof is "
+            "not reaching the step and proves nothing"
+            % (nm, path, proved_identity, declined_once))

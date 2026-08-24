@@ -4,9 +4,11 @@ srmech.amsc.catalog.list_catalog_chains
 srmech.amsc.catalog.register_attested_root
 srmech.amsc.catalog.run_catalog_chain
 srmech.amsc.descriptor.descriptor_hash
+srmech.amsc.descriptor.render_template
 srmech.amsc.format.read_ndjson
 srmech.amsc.format.sha256_batch
 srmech.amsc.format.sha256_bytes
+srmech.amsc.format.sha256_raw
 srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger
 srmech.apokatastasis.ellbase.beat_relation_residue
 srmech.apokatastasis.ellbase.chirality_parity
@@ -633,6 +635,7 @@ srmech.signal_processing.lz77
 srmech.signal_processing.map_ml
 srmech.signal_processing.matched_filter
 srmech.signal_processing.mimo_svd
+srmech.signal_processing.mint_vector
 srmech.signal_processing.mlse
 srmech.signal_processing.multirate
 srmech.signal_processing.multitaper

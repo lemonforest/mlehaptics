@@ -121,6 +121,18 @@ typedef struct cr_value {
     struct cr_value **items; uint32_t n;   /* CR_LIST                       */
     double d;                              /* CR_DBL                        */
     int is_tuple;              /* CR_LIST only: 1 -> marshals as {"k":"t"}  */
+    /* THE BYTES CARRIER IS A FLAG ON CR_STR, NOT A SEVENTH KIND (rc452,
+     * gh #1653 — the klein4_from_one closure). Python's chain vocabulary
+     * distinguishes str from bytes and the ops enforce it (utf8_encode wants
+     * a str, sha256_bytes/byte_slice/int_parse_le want bytes — handing either
+     * the other RAISES in Python, so the C twin must DECLINE, never coerce).
+     * The precedent is `is_tuple` above, and for the same reason: every
+     * in-chain consumer reads the buffer identically; only the TYPE CONTRACT
+     * differs. Unlike `is_tuple` this flag has NO wire letter yet — a bytes
+     * FINAL value cannot cross srmech_chain_run's output wire and the run
+     * declines (see cr_run_and_write) until the `b` kind ships with
+     * encode_loe_content's closure, which is the chain that returns one. */
+    int is_bytes;              /* CR_STR only: 1 -> the value is bytes      */
 } cr_value_t;
 
 
@@ -138,6 +150,7 @@ static cr_value_t *cr_new_value(cr_bump_t *b, cr_kind_t kind)
     v->kind = kind; v->num = NULL; v->den = NULL;
     v->s = NULL; v->slen = 0u; v->items = NULL; v->n = 0u; v->d = 0.0;
     v->is_tuple = 0;   /* LIST unless an op says otherwise — see cr_desc_list */
+    v->is_bytes = 0;   /* STR unless an op says otherwise (utf8_encode etc.) */
     return v;
 }
 
@@ -1682,7 +1695,13 @@ typedef enum {
     CR_CAS_AS_QUAT4, CR_CAS_AS_OCT8,
     CR_CAS_QDFT_RESOLVE_MU, CR_CAS_ODFT_RESOLVE_MU,
     CR_CAS_DFT_SIGMA, CR_CAS_DFT_SCALE,
-    CR_CAS_QDFT_SUMMAND, CR_CAS_ODFT_SUMMAND
+    CR_CAS_QDFT_SUMMAND, CR_CAS_ODFT_SUMMAND,
+    /* wave C (rc452, gh #1653): the klein4_from_one chain's string/bytes
+     * leaves — Classes F / B / A at step granularity. 30 of the documented
+     * 51-case split threshold; the growth path is a new domain enum, not a
+     * default: arm. */
+    CR_CAS_RENDER_TEMPLATE, CR_CAS_UTF8_ENCODE, CR_CAS_SHA256_BYTES,
+    CR_CAS_STR_CONCAT, CR_CAS_BYTE_SLICE, CR_CAS_INT_PARSE_LE
 } cr_cas_op_t;
 
 /* Which fold body a row provides. CR_BIN_NONE = the op cannot fold.
@@ -2563,6 +2582,319 @@ static srmech_status_t cr_op_vec_scale(cr_ctx_t *c, const srmech_json_value_t *a
     return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
 }
 
+/* ------------------------------------------------------------------
+ * THE STRING / BYTES LEAVES (rc452, gh #1653 — wave C: the klein4_from_one
+ * chain's own steps). Classes F / B / A at STEP granularity.
+ *
+ * ⚠️ THE FUSED SYMBOL IS NOT CALLED. `srmech_klein4_from_one` exists and
+ * computes the whole coupling address; the no-coarse source gate
+ * (tests/test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py) derives
+ * it into its pinned population the moment the chain runs, so this TU must
+ * reach the address the way the DESCRIPTOR says: render -> utf8 -> sha256 ->
+ * counter block -> crumb arithmetic, each op its own dispatch arm. The one
+ * compiled symbol these arms share with the fused path is srmech_sha256_hex —
+ * the STEP-granular Class-A export the Python op itself composes.
+ *
+ * str vs bytes: the carrier flag `is_bytes` (see cr_value_t). Each arm below
+ * states which side of that boundary it requires and DECLINES the other —
+ * Python RAISES on the same misuse (bytes has no .encode; hashlib refuses a
+ * str), and co-equal projections must agree on what they refuse.
+ * ------------------------------------------------------------------ */
+
+/* A CR_STR carrier aliasing [s, s+n) (arena or parsed-JSON text — both
+ * outlive the run). `is_bytes` says which side of the boundary it is. */
+static cr_value_t *cr_str_value(cr_bump_t *b, const char *s, uint32_t n,
+                                int is_bytes)
+{
+    cr_value_t *v;
+    assert(b != NULL);
+    assert(s != NULL || n == 0u);
+    v = cr_new_value(b, CR_STR);
+    if (v == NULL) { return NULL; }
+    v->s = s; v->slen = n; v->is_bytes = (is_bytes != 0);
+    return v;
+}
+
+/* utf8_encode(text) -> bytes. Class B: the str -> bytes framing boundary.
+ * The carrier already holds UTF-8 (srmech_json decodes escapes to UTF-8), so
+ * the encode is byte-IDENTITY and only the TYPE moves. A bytes input
+ * declines: Python's bytes has no .encode, so the pure path raises. */
+static srmech_status_t cr_op_utf8_encode(cr_ctx_t *c, const srmech_json_value_t *a,
+                                         cr_value_t **o)
+{
+    cr_value_t *t;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    t = cr_arg(c, a, "text");
+    if (t == NULL || t->kind != CR_STR || t->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_str_value(c->b, t->s, t->slen, 1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* sha256_bytes(data) -> str. Class A: the content digest, returned as the
+ * 64-char lowercase hex STRING the Python op returns (its `_bytes` suffix
+ * names the INPUT type). A str input declines — hashlib refuses a str, so
+ * the pure path raises the documented TypeError. */
+static srmech_status_t cr_op_sha256_bytes(cr_ctx_t *c, const srmech_json_value_t *a,
+                                          cr_value_t **o)
+{
+    cr_value_t *d; char *hex; const uint8_t *p;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    d = cr_arg(c, a, "data");
+    if (d == NULL || d->kind != CR_STR || !d->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    hex = (char *)cr_carve(c->b, 65u);
+    if (hex == NULL) { return SRMECH_ERR_OVERFLOW; }
+    p = (const uint8_t *)((d->s != NULL) ? d->s : "");
+    if (srmech_sha256_hex(p, (size_t)d->slen, hex) != SRMECH_OK) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *o = cr_str_value(c->b, hex, 64u, 0);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* str_concat(prefix, text) -> str. Class F: the degenerate template. Both
+ * operands must be str — Python's str + bytes raises TypeError. */
+static srmech_status_t cr_op_str_concat(cr_ctx_t *c, const srmech_json_value_t *a,
+                                        cr_value_t **o)
+{
+    cr_value_t *p, *t; char *buf;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    p = cr_arg(c, a, "prefix"); t = cr_arg(c, a, "text");
+    if (p == NULL || t == NULL || p->kind != CR_STR || t->kind != CR_STR ||
+        p->is_bytes || t->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    buf = (char *)cr_carve(c->b, (size_t)p->slen + (size_t)t->slen + 1u);
+    if (buf == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (p->slen > 0u) { memcpy(buf, p->s, p->slen); }
+    if (t->slen > 0u) { memcpy(buf + p->slen, t->s, t->slen); }
+    *o = cr_str_value(c->b, buf, p->slen + t->slen, 0);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* byte_slice(data, start, stop) -> bytes: Python's data[start:stop], the
+ * slice rule transcribed WHOLE — a negative index counts from the end, both
+ * bounds clamp to [0, len], and stop <= start is the EMPTY bytes, never an
+ * error. The result aliases the parent buffer (the arena persists). */
+static srmech_status_t cr_op_byte_slice(cr_ctx_t *c, const srmech_json_value_t *a,
+                                        cr_value_t **o)
+{
+    cr_value_t *d, *vs, *ve; int64_t start = 0, stop = 0, len;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    d = cr_arg(c, a, "data");
+    if (d == NULL || d->kind != CR_STR || !d->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    vs = cr_arg(c, a, "start"); ve = cr_arg(c, a, "stop");
+    if (vs == NULL || ve == NULL ||
+        !cr_as_i64(vs, &start) || !cr_as_i64(ve, &stop)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    len = (int64_t)d->slen;
+    if (start < 0) { start += len; }
+    if (start < 0) { start = 0; }
+    if (start > len) { start = len; }
+    if (stop < 0) { stop += len; }
+    if (stop < 0) { stop = 0; }
+    if (stop > len) { stop = len; }
+    if (stop < start) { stop = start; }
+    /* NULL + 0 is formally UB; an empty parent stays the NULL/0 carrier. */
+    *o = cr_str_value(c->b, (d->s != NULL) ? d->s + start : NULL,
+                      (uint32_t)(stop - start), 1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* int_parse_le(data) -> int: int.from_bytes(data, "little"), unsigned. The
+ * little-endian byte order IS the 32-bit limb order, so the bigint fills
+ * directly — limb k is bytes [4k, 4k+4), missing high bytes zero. The empty
+ * bytes is the int 0, exactly as in Python. */
+static srmech_status_t cr_op_int_parse_le(cr_ctx_t *c, const srmech_json_value_t *a,
+                                          cr_value_t **o)
+{
+    cr_value_t *d, *ov; uint32_t nl, i;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    d = cr_arg(c, a, "data");
+    if (d == NULL || d->kind != CR_STR || !d->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    ov = cr_new_value(c->b, CR_INT);
+    if (ov == NULL) { return SRMECH_ERR_OVERFLOW; }
+    nl = d->slen / 4u + 1u;
+    ov->num = cr_new_bigint(c->b, nl);
+    if (ov->num == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < nl; i++) { ov->num->limbs[i] = 0u; }
+    for (i = 0u; i < d->slen; i++) {
+        ov->num->limbs[i / 4u] |=
+            ((uint32_t)(unsigned char)d->s[i]) << (8u * (i % 4u));
+    }
+    while (nl > 0u && ov->num->limbs[nl - 1u] == 0u) { nl--; }
+    ov->num->n = nl;
+    ov->num->sign = (nl == 0u) ? 0 : 1;
+    *o = ov;
+    return SRMECH_OK;
+}
+
+/* ---- render_template: the Class-F {key} substitution, three pieces ---- */
+
+/* The length of the {placeholder} starting at tmpl[i] (the opening brace),
+ * or 0 when no placeholder starts there; writes the key's span (braces
+ * excluded) to *k / *klen. The charclass is descriptor.py's
+ * _TEMPLATE_PATTERN, [A-Za-z0-9_.:%\-+ ], transcribed. Greedy-scan-then-
+ * check-'}' is EQUIVALENT to the regex here because '}' is not in the class,
+ * so no shorter run could match either — which is why literal JSON braces
+ * (klein4_from_one's preimage template) pass through untouched, exactly as
+ * they do in Python. */
+static uint32_t cr_tpl_span(const char *tmpl, uint32_t n, uint32_t i,
+                            const char **k, uint32_t *klen)
+{
+    uint32_t j = i + 1u;
+    assert(tmpl != NULL && k != NULL);
+    assert(klen != NULL && i < n);
+    if (tmpl[i] != '{') { return 0u; }
+    while (j < n) {
+        char ch = tmpl[j];
+        int in_class = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+                       (ch >= '0' && ch <= '9') || ch == '_' || ch == '.' ||
+                       ch == ':' || ch == '%' || ch == '-' || ch == '+' ||
+                       ch == ' ';
+        if (!in_class) { break; }
+        j++;
+    }
+    if (j == i + 1u || j >= n || tmpl[j] != '}') { return 0u; }
+    *k = tmpl + i + 1u; *klen = j - (i + 1u);
+    return (j - i) + 1u;
+}
+
+/* Render a CR_INT's i64 as decimal text in the arena (str(int); a wider
+ * integer declines one level up). Sign rides as a rendered '-' — the
+ * Class-K/Class-C split, never an ALU abs(): the magnitude is read
+ * two's-complement-safely and the sign re-applied as a character. */
+static const char *cr_i64_text(cr_bump_t *b, int64_t v, uint32_t *out_len)
+{
+    char tmp[24]; uint32_t n = 0u, i; char *dst; uint64_t mag;
+    assert(b != NULL);
+    assert(out_len != NULL);
+    if (v < 0) { mag = (uint64_t)(-(v + 1)) + 1u; } else { mag = (uint64_t)v; }
+    do {
+        tmp[n++] = (char)('0' + (char)(mag % 10u));
+        mag /= 10u;
+    } while (mag != 0u && n < 21u);
+    if (v < 0) { tmp[n++] = '-'; }
+    dst = (char *)cr_carve(b, n);
+    if (dst == NULL) { return NULL; }
+    for (i = 0u; i < n; i++) { dst[i] = tmp[n - 1u - i]; }
+    *out_len = n;
+    return dst;
+}
+
+#define CR_TPL_MAX_KEYS 16u
+
+/* One resolved context entry, rendered to text. */
+typedef struct {
+    const char *k; uint32_t kl;
+    const char *v; uint32_t vl;
+} cr_tpl_pair_t;
+
+/* Resolve the `context` object's members to rendered text pairs: str(value)
+ * for the kinds this arm transcribes — a str is itself, an i64 int its
+ * decimal, a null "None". Anything else (float / list / rational / a wider
+ * int / an unresolvable ref) returns -1 and the chain defers to pure, whose
+ * str() is the contract. */
+static int32_t cr_tpl_context(cr_ctx_t *c, const srmech_json_value_t *ctx,
+                              cr_tpl_pair_t *pairs, uint32_t cap)
+{
+    uint32_t i;
+    assert(c != NULL && pairs != NULL);
+    assert(ctx != NULL);
+    if (ctx->type != SRMECH_JSON_OBJECT || ctx->u.obj.n > cap) { return -1; }
+    for (i = 0u; i < ctx->u.obj.n; i++) {
+        cr_value_t *v = cr_resolve_arg(c, ctx->u.obj.vals[i]);
+        int64_t iv;
+        if (v == NULL) { return -1; }
+        pairs[i].k = ctx->u.obj.keys[i];
+        pairs[i].kl = (uint32_t)strlen(ctx->u.obj.keys[i]);
+        if (v->kind == CR_STR && !v->is_bytes) {
+            pairs[i].v = v->s; pairs[i].vl = v->slen;
+        } else if (v->kind == CR_INT && cr_as_i64(v, &iv)) {
+            pairs[i].v = cr_i64_text(c->b, iv, &pairs[i].vl);
+            if (pairs[i].v == NULL) { return -1; }
+        } else if (v->kind == CR_NONE) {
+            pairs[i].v = "None"; pairs[i].vl = 4u;
+        } else {
+            return -1;
+        }
+    }
+    return (int32_t)ctx->u.obj.n;
+}
+
+/* One pass over the template: substitute placeholders from `pairs`, write
+ * into `dst` when non-NULL, return the rendered length. -1 = DECLINE — a
+ * {key:fmt} format spec or a dotted key, Python semantics this arm does not
+ * transcribe (the pure path's format()/mapping walk is the contract). A key
+ * found in no pair renders EMPTY — context.get(part, "") — exactly as
+ * descriptor.py's _replace does. */
+static int64_t cr_tpl_pass(const char *tmpl, uint32_t n,
+                           const cr_tpl_pair_t *pairs, uint32_t np, char *dst)
+{
+    uint32_t i = 0u; int64_t w = 0;
+    assert(tmpl != NULL || n == 0u);
+    assert(pairs != NULL || np == 0u);
+    while (i < n) {
+        const char *k = NULL; uint32_t kl = 0u, span, j;
+        span = (tmpl[i] == '{') ? cr_tpl_span(tmpl, n, i, &k, &kl) : 0u;
+        if (span == 0u) {
+            if (dst != NULL) { dst[w] = tmpl[i]; }
+            w++; i++;
+            continue;
+        }
+        for (j = 0u; j < kl; j++) {
+            if (k[j] == ':' || k[j] == '.') { return -1; }   /* fmt / dotted */
+        }
+        for (j = 0u; j < np; j++) {
+            if (pairs[j].kl == kl && memcmp(pairs[j].k, k, kl) == 0) {
+                if (dst != NULL && pairs[j].vl > 0u) {
+                    memcpy(dst + w, pairs[j].v, pairs[j].vl);
+                }
+                w += (int64_t)pairs[j].vl;
+                break;
+            }
+        }
+        i += span;
+    }
+    return w;
+}
+
+/* render_template(template, context) -> str. Class F: the {key} substitution
+ * of srmech.amsc.descriptor.render_template, transcribed for the subset the
+ * shipped chains use. `context` is the one args value that is itself an
+ * OBJECT, so it is read from the raw args node and resolved member-by-member
+ * — the flat cr_resolve_arg path deliberately has no object arm, and growing
+ * one for every op would widen the whole grammar for a need one op has. */
+static srmech_status_t cr_op_render_template(cr_ctx_t *c,
+                                             const srmech_json_value_t *a,
+                                             cr_value_t **o)
+{
+    cr_tpl_pair_t pairs[CR_TPL_MAX_KEYS];
+    cr_value_t *t; const srmech_json_value_t *ctx; int32_t np; int64_t need;
+    char *buf;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    t = cr_arg(c, a, "template");
+    ctx = srmech_json_object_get(a, "context");
+    if (t == NULL || t->kind != CR_STR || t->is_bytes || ctx == NULL) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    np = cr_tpl_context(c, ctx, pairs, CR_TPL_MAX_KEYS);
+    if (np < 0) { return SRMECH_ERR_NOT_IMPL; }
+    need = cr_tpl_pass(t->s, t->slen, pairs, (uint32_t)np, NULL);
+    if (need < 0) { return SRMECH_ERR_NOT_IMPL; }
+    buf = (char *)cr_carve(c->b, (size_t)need + 1u);
+    if (buf == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (cr_tpl_pass(t->s, t->slen, pairs, (uint32_t)np, buf) != need) {
+        return SRMECH_ERR_INTERNAL;      /* the two passes must agree */
+    }
+    *o = cr_str_value(c->b, buf, (uint32_t)need, 0);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
 /* ---- fold bodies (rc452 Phase 3): the Σ accumulators ---- */
 
 /* A scalar as a double for the fold's float tier: a CR_DBL directly, a
@@ -2698,7 +3030,7 @@ static const struct {
     uint8_t     dom;   /* cr_dom_t   — which cr_exec_<domain>() runs the op   */
     uint8_t     sub;   /* per-domain — the case label inside that exec        */
     uint8_t     bin;   /* cr_bin_id_t — non-NONE iff the op can fold          */
-} CR_OP_REG[45] = {
+} CR_OP_REG[51] = {
  /* wave A (rc452) — the autocorrelation CHAIN's own steps */
  { "seq_len",             7u, "srmech.cascade.seq_len",
    CR_DOM_CAS, CR_CAS_SEQ_LEN, CR_BIN_NONE },
@@ -2787,6 +3119,25 @@ static const struct {
    CR_DOM_CAS, CR_CAS_QDFT_SUMMAND, CR_BIN_NONE },
  { "odft_summand",       12u, "srmech.cascade.odft_summand",
    CR_DOM_CAS, CR_CAS_ODFT_SUMMAND, CR_BIN_NONE },
+ /* wave C (rc452, gh #1653) — the klein4_from_one chain's string/bytes
+  * leaves. `sha256_bytes` and `render_template` carry their REAL registered
+  * homes (srmech.amsc.format / srmech.amsc.descriptor) — NOT a same-params
+  * sibling — per the aliasing warning at the head of this table. Their
+  * ToolEntries were REGISTERED in this same change; cr_args_keyset_ok
+  * answers INTERNAL, not silent acceptance, if either row's `full` stops
+  * resolving. */
+ { "render_template",    15u, "srmech.amsc.descriptor.render_template",
+   CR_DOM_CAS, CR_CAS_RENDER_TEMPLATE, CR_BIN_NONE },
+ { "utf8_encode",        11u, "srmech.cascade.utf8_encode",
+   CR_DOM_CAS, CR_CAS_UTF8_ENCODE, CR_BIN_NONE },
+ { "sha256_bytes",       12u, "srmech.amsc.format.sha256_bytes",
+   CR_DOM_CAS, CR_CAS_SHA256_BYTES, CR_BIN_NONE },
+ { "str_concat",         10u, "srmech.cascade.str_concat",
+   CR_DOM_CAS, CR_CAS_STR_CONCAT, CR_BIN_NONE },
+ { "byte_slice",         10u, "srmech.cascade.byte_slice",
+   CR_DOM_CAS, CR_CAS_BYTE_SLICE, CR_BIN_NONE },
+ { "int_parse_le",       12u, "srmech.cascade.int_parse_le",
+   CR_DOM_CAS, CR_CAS_INT_PARSE_LE, CR_BIN_NONE },
  /* FOLD-BODY-ONLY: `dom` is CR_DOM_NONE because orientation_compose is never
   * a plain step in any shipped descriptor — it exists to be folded. A
   * CR_DOM_NONE row is a deliberate, expressible state (cr_dispatch returns
@@ -2911,6 +3262,12 @@ static srmech_status_t cr_exec_cas(cr_ctx_t *c, uint8_t sub,
     case CR_CAS_DFT_SCALE:       return cr_op_dft_scale(c, args, out);
     case CR_CAS_QDFT_SUMMAND:    return cr_op_qdft_summand(c, args, out);
     case CR_CAS_ODFT_SUMMAND:    return cr_op_odft_summand(c, args, out);
+    case CR_CAS_RENDER_TEMPLATE: return cr_op_render_template(c, args, out);
+    case CR_CAS_UTF8_ENCODE:     return cr_op_utf8_encode(c, args, out);
+    case CR_CAS_SHA256_BYTES:    return cr_op_sha256_bytes(c, args, out);
+    case CR_CAS_STR_CONCAT:      return cr_op_str_concat(c, args, out);
+    case CR_CAS_BYTE_SLICE:      return cr_op_byte_slice(c, args, out);
+    case CR_CAS_INT_PARSE_LE:    return cr_op_int_parse_le(c, args, out);
     }
     return SRMECH_ERR_INTERNAL;
 }
@@ -2980,6 +3337,11 @@ static srmech_json_value_t *cr_desc_scalar(srmech_json_builder_t *bd,
         return srmech_json_new_object(bd, keys, vals, 2u);
     }
     if (v->kind == CR_STR) {
+        /* A BYTES carrier (is_bytes, rc452) has no wire kind yet — NULL, so
+         * the run defers rather than erasing the str/bytes type as `s`. The
+         * whole-chain case is caught earlier (cr_run_and_write) with the
+         * honest NOT_IMPL; this arm is the nested-element backstop. */
+        if (v->is_bytes) { return NULL; }
         keys[0] = "k"; keys[1] = "v";
         vals[0] = srmech_json_new_string(bd, "s", 1u);
         vals[1] = srmech_json_new_string(bd, v->s, v->slen);
@@ -3509,7 +3871,25 @@ static srmech_status_t cr_drive(cr_ctx_t *c, cr_value_t **final_out)
     return SRMECH_ERR_BAD_INPUT;           /* unreachable: nfr starts at 1 */
 }
 
-/* Parse chain + ctx trees, then drive the steps (kept < 60 lines). */
+/* Parse chain + ctx trees, then drive the steps (kept < 60 lines).
+ *
+ * THE REQUIRED CHAIN HEADER (rc452, gh #1653 — co-equal-projection finding
+ * (b)). Through rc452 Phase 3 this runner ACCEPTED a chain object carrying
+ * neither `name` nor `summary`, while Python's parse_chain_spec REJECTS both
+ * with ChainSpecError — and Python is the side the CONTRACT backs: this
+ * file's own header doc declares chain_json "the FULL chain object
+ * {name,summary,returns,on_error?,steps}", and the C parse peer
+ * (srmech_chain_spec_parse, srmech_compose.c cr_parse_chain_header) has
+ * required all three since it shipped. So the runner now refuses what every
+ * parse layer refuses. PRESENCE, not string-ness, is the test: the pure
+ * parser coerces any value through str(), and the native parse peer's
+ * stricter string check merely defers to pure, which accepts — so requiring
+ * a STRING here would refuse what Python accepts, the same divergence class
+ * mirrored. Measured cost of the old acceptance: the shipped parity
+ * harnesses' `_chain_only` stripped `summary`/`returns` on the reasoning
+ * "the runner never reads them", and the bare-C TOML host fed
+ * [[cascade.chain]] entries that carry no `name` at all — both ran
+ * headerless chains for four rcs with no instrument able to say so. */
 static srmech_status_t cr_run_steps(const srmech_json_value_t *chain,
                                     const srmech_json_value_t *ctx, cr_bump_t *b,
                                     cr_value_t **final_out)
@@ -3520,6 +3900,12 @@ static srmech_status_t cr_run_steps(const srmech_json_value_t *chain,
     cr_ctx_t c; uint32_t ns;
     assert(chain != NULL && b != NULL && final_out != NULL);
     assert(b->cur <= b->end);
+    /* the required header — the block comment above this function */
+    if (srmech_json_object_get(chain, "name") == NULL ||
+        srmech_json_object_get(chain, "summary") == NULL ||
+        srmech_json_object_get(chain, "returns") == NULL) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
     if (steps == NULL || steps->type != SRMECH_JSON_ARRAY || steps->u.arr.n == 0u) {
         return SRMECH_ERR_BAD_INPUT;
     }
@@ -3566,6 +3952,14 @@ static srmech_status_t cr_run_and_write(const srmech_json_value_t *chain,
     b->end = tail_end - wsz;                    /* shrink run bump */
     st = cr_run_steps(chain, ctx, b, &final_v);
     if (st != SRMECH_OK) { return st; }
+    /* A BYTES final value has no wire kind yet (rc452, gh #1653): the `b`
+     * descriptor letter ships with encode_loe_content's closure, and until it
+     * does a bytes final DECLINES — spelling it as `s` would erase the
+     * str/bytes type on the wire, the exact collapse class the rc450
+     * comparator pins. NOT_IMPL, not OVERFLOW: this is a capability gap. */
+    if (final_v != NULL && final_v->kind == CR_STR && final_v->is_bytes) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
     wa = cr_align(b->end);                      /* builder base, 8-aligned */
     if (wa >= tail_end) { return SRMECH_ERR_OVERFLOW; }
     region = (size_t)(tail_end - wa); half = region / 2u;

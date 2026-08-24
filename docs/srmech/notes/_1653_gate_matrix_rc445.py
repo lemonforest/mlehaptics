@@ -314,9 +314,19 @@ def main():
             # step ran. Both halves of this file were stale in the SAME
             # direction, which is exactly why the cross-check read 0
             # disagreements while disagreeing with the ratchet by one chain.
+            # rc452 (gh #1653 finding (b)): the runner now REFUSES a chain
+            # missing name/summary/returns — the required-key rule every parse
+            # layer already enforced — so this probe synthesizes the header
+            # the way cascade_chain_specs does, exactly as the ratchet's and
+            # the value-parity gate's _chain_only now do. (Before the fix
+            # this harness fed HEADERLESS chains and C ran them, which is the
+            # co-equal divergence the finding names.)
             chain_only = {k: v for k, v in entry.items()
-                          if k in ("name", "steps", "on_error",
-                                   "chain_schema_version")}
+                          if k in ("name", "summary", "returns", "steps",
+                                   "on_error", "chain_schema_version")}
+            chain_only.setdefault("name", str(entry.get("variant", "chain")))
+            chain_only.setdefault("summary", "")
+            chain_only.setdefault("returns", "")
             cj = _json.dumps(chain_only).encode("utf-8")
             xj = _json.dumps({"inputs": case.get("inputs") or {}}).encode("utf-8")
             n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))

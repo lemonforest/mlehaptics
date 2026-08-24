@@ -104,9 +104,38 @@ int main(void)
     check(srmech_chain_run_arena_bytes(64u, 16u) > 0u,
           "arena_bytes reports a size a host can allocate up-front");
 
+    /* ── the REQUIRED CHAIN HEADER (rc452, gh #1653 finding (b)) ──────────
+     * srmech_chain_run's declared input is "the FULL chain object
+     * {name,summary,returns,on_error?,steps}", and Python's parse_chain_spec
+     * refuses a dict missing any of the three header keys — yet through
+     * rc452 Phase 3 this runner ACCEPTED and RAN such chains (every literal
+     * in this file carried name+steps only, which is how the divergence
+     * stayed invisible). Co-equal projections agree on what they REFUSE. */
+    st = run_chain(
+        "{\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"I\","
+        "\"op\":\"gcd\",\"args\":{\"a\":12,\"b\":18}}]}",
+        "{\"inputs\":{}}", out, sizeof(out));
+    check(st == SRMECH_ERR_BAD_INPUT,
+          "a chain missing `name` is BAD_INPUT — parse_chain_spec's "
+          "required-key rule, now enforced by the runner too");
+    st = run_chain(
+        "{\"name\":\"g\",\"returns\":\"r\",\"steps\":[{\"class\":\"I\","
+        "\"op\":\"gcd\",\"args\":{\"a\":12,\"b\":18}}]}",
+        "{\"inputs\":{}}", out, sizeof(out));
+    check(st == SRMECH_ERR_BAD_INPUT,
+          "a chain missing `summary` is BAD_INPUT (this exact shape RAN "
+          "through rc452 Phase 3)");
+    st = run_chain(
+        "{\"name\":\"g\",\"summary\":\"s\",\"steps\":[{\"class\":\"I\","
+        "\"op\":\"gcd\",\"args\":{\"a\":12,\"b\":18}}]}",
+        "{\"inputs\":{}}", out, sizeof(out));
+    check(st == SRMECH_ERR_BAD_INPUT,
+          "a chain missing `returns` is BAD_INPUT — the full parse-layer "
+          "key set, not a two-of-three compromise");
+
     /* ── Class I: a cyclic chain, exact integer arithmetic ──────────────── */
     st = run_chain(
-        "{\"name\":\"g\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
+        "{\"name\":\"g\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
         "\"args\":{\"a\":\"@input.a\",\"b\":\"@input.b\"}}]}",
         "{\"inputs\":{\"a\":12,\"b\":18}}", out, sizeof(out));
     check(st == SRMECH_OK, "Class-I cyclic chain runs with no Python present");
@@ -126,7 +155,7 @@ int main(void)
      * rather than assumed, and so the day the parser widens, this fails and
      * the claim gets re-examined. */
     st = run_chain(
-        "{\"name\":\"g\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
+        "{\"name\":\"g\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
         "\"args\":{\"a\":\"@input.a\",\"b\":\"@input.b\"}}]}",
         "{\"inputs\":{\"a\":1180591620717411303424,\"b\":18}}",
         out, sizeof(out));
@@ -139,7 +168,7 @@ int main(void)
      * The chain runner was the one numeric surface not honouring it, which is
      * what made the bigint widening unreachable from a descriptor. */
     st = run_chain(
-        "{\"name\":\"g\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
+        "{\"name\":\"g\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
         "\"args\":{\"a\":\"@input.a\",\"b\":\"@input.b\"}}]}",
         "{\"inputs\":{\"a\":\"1180591620717411303424\",\"b\":\"18\"}}",
         out, sizeof(out));
@@ -150,7 +179,7 @@ int main(void)
     /* A result WIDER than int64: proves the whole path is arbitrary-precision,
      * not just the operands. gcd(2^200, 2^100) == 2^100. */
     st = run_chain(
-        "{\"name\":\"g\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
+        "{\"name\":\"g\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
         "\"args\":{\"a\":\"@input.a\",\"b\":\"@input.b\"}}]}",
         "{\"inputs\":{\"a\":\"1606938044258990275541962092341162602522202993782792835301376\","
         "\"b\":\"1267650600228229401496703205376\"}}", out, sizeof(out));
@@ -160,7 +189,7 @@ int main(void)
 
     /* The control: a genuine string must NOT be retyped as a number. */
     st = run_chain(
-        "{\"name\":\"g\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
+        "{\"name\":\"g\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
         "\"args\":{\"a\":\"@input.a\",\"b\":\"@input.b\"}}]}",
         "{\"inputs\":{\"a\":\"notanumber\",\"b\":\"18\"}}", out, sizeof(out));
     check(st != SRMECH_OK,
@@ -169,7 +198,7 @@ int main(void)
 
     /* ── the FOLD step form (rc446) ─────────────────────────────────────── */
     st = run_chain(
-        "{\"name\":\"n\",\"steps\":[{\"fold_class\":\"C\","
+        "{\"name\":\"n\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"fold_class\":\"C\","
         "\"fold_op\":\"srmech.cascade.leaves.orientation_compose\","
         "\"fold_init\":1,\"over\":\"@input.orientations\"}]}",
         "{\"inputs\":{\"orientations\":[1,-1,1]}}", out, sizeof(out));
@@ -178,7 +207,7 @@ int main(void)
 
     /* The ABSORBING zero — Class-K pin-slot, not a sign multiply. */
     st = run_chain(
-        "{\"name\":\"n\",\"steps\":[{\"fold_class\":\"C\","
+        "{\"name\":\"n\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"fold_class\":\"C\","
         "\"fold_op\":\"srmech.cascade.leaves.orientation_compose\","
         "\"fold_init\":1,\"over\":\"@input.orientations\"}]}",
         "{\"inputs\":{\"orientations\":[0,-1]}}", out, sizeof(out));
@@ -187,7 +216,7 @@ int main(void)
 
     /* ── CR_DBL + the list descriptor (rc447) ───────────────────────────── */
     st = run_chain(
-        "{\"name\":\"c\",\"steps\":["
+        "{\"name\":\"c\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":["
         "{\"class\":\"C\",\"op\":\"srmech.cascade.atoms.chiral_flip\","
         "\"args\":{\"seq\":\"@input.x\"}},"
         "{\"class\":\"L\",\"op\":\"srmech.cascade.composites.autocorrelation\","
@@ -203,7 +232,7 @@ int main(void)
 
     /* ── the INDEXED step ref + Class-K pin-slot (rc447) ────────────────── */
     st = run_chain(
-        "{\"name\":\"m\",\"steps\":["
+        "{\"name\":\"m\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":["
         "{\"class\":\"K\",\"op\":\"srmech.cascade.atoms.pin_slot_at_zero\","
         "\"args\":{\"x\":\"@input.x\"}},"
         "{\"class\":\"C\",\"op\":\"srmech.cascade.atoms.reorient\","
@@ -303,7 +332,7 @@ int main(void)
      * is the §6.3 failure mode in miniature — it cannot tell this DEFER from the
      * BAD_INPUT the rows above earn, which is the whole distinction of this rc. */
     st = run_chain(
-        "{\"name\":\"u\",\"steps\":[{\"class\":\"X\",\"op\":\"no_such_op\","
+        "{\"name\":\"u\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"X\",\"op\":\"no_such_op\","
         "\"args\":{}}]}", "{\"inputs\":{}}", out, sizeof(out));
     check(st == SRMECH_ERR_NOT_IMPL, "an op outside the table DECLINES (NOT_IMPL)");
 
@@ -316,7 +345,7 @@ int main(void)
      * It now pins the VALUE: [i mod 2 for i in 0..2] over a 3-element sequence
      * is [0, 1, 0]. */
     st = run_chain(
-        "{\"name\":\"m\",\"steps\":[{\"map_over\":\"@input.xs\",\"index\":\"i\","
+        "{\"name\":\"m\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"map_over\":\"@input.xs\",\"index\":\"i\","
         "\"body\":[{\"class\":\"I\",\"op\":\"mod_add\","
         "\"args\":{\"a\":\"@idx.i\",\"b\":0,\"n\":2}}]}]}",
         "{\"inputs\":{\"xs\":[1,2,3]}}", out, sizeof(out));
@@ -328,14 +357,14 @@ int main(void)
           "the MAP form RUNS and returns [i mod 2 for i in 0..2] = [0, 1, 0]");
 
     st = run_chain(
-        "{\"name\":\"x\",\"steps\":[{\"fold_op\":\"orientation_compose\","
+        "{\"name\":\"x\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"fold_op\":\"orientation_compose\","
         "\"fold_init\":1,\"over\":\"@input.xs\",\"op\":\"gcd\",\"args\":{}}]}",
         "{\"inputs\":{\"xs\":[1]}}", out, sizeof(out));
     check(st == SRMECH_ERR_BAD_INPUT,
           "a MIXED step is BAD_INPUT — malformed, distinct from unimplemented");
 
     st = run_chain(
-        "{\"name\":\"n\",\"steps\":[{\"class\":\"K\","
+        "{\"name\":\"n\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"K\","
         "\"op\":\"srmech.cascade.atoms.pin_slot_at_zero\","
         "\"args\":{\"x\":\"@input.x\"}}]}",
         "{\"inputs\":{\"x\":NaN}}", out, sizeof(out));
@@ -349,14 +378,14 @@ int main(void)
      * implicitly as a threaded value, so gcd{a,b} must run. A1/A3 are what stop
      * anyone "unifying" the two rules — under params[1..] they go red. */
     st = run_chain(
-        "{\"name\":\"g\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
+        "{\"name\":\"g\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
         "\"args\":{\"a\":\"@input.a\",\"b\":\"@input.b\"}}]}",
         "{\"inputs\":{\"a\":12,\"b\":18}}", out, sizeof(out));
     check(st == SRMECH_OK && strstr(out, "\"v\": \"6\"") != NULL,
           "gcd(12,18) == 6 — every DECLARED param is a legal `args` key");
 
     st = run_chain(
-        "{\"name\":\"g\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
+        "{\"name\":\"g\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
         "\"args\":{\"a\":\"@input.a\",\"b\":\"@input.b\",\"bogus\":99}}]}",
         "{\"inputs\":{\"a\":12,\"b\":18}}", out, sizeof(out));
     check(st == SRMECH_ERR_BAD_INPUT,
@@ -366,14 +395,14 @@ int main(void)
      * `n`; `n` is real and legal on mod_add and meaningless on gcd. Nothing that
      * keyed off arity, or off a global key vocabulary, could tell them apart. */
     st = run_chain(
-        "{\"name\":\"g\",\"steps\":[{\"class\":\"I\",\"op\":\"mod_add\","
+        "{\"name\":\"g\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"I\",\"op\":\"mod_add\","
         "\"args\":{\"a\":\"@input.a\",\"b\":\"@input.b\",\"n\":5}}]}",
         "{\"inputs\":{\"a\":12,\"b\":18}}", out, sizeof(out));
     check(st == SRMECH_OK,
           "mod_add{a,b,n} runs — a 3-key declaration where all three are legal");
 
     st = run_chain(
-        "{\"name\":\"g\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
+        "{\"name\":\"g\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
         "\"args\":{\"a\":\"@input.a\",\"b\":\"@input.b\",\"n\":5}}]}",
         "{\"inputs\":{\"a\":12,\"b\":18}}", out, sizeof(out));
     check(st == SRMECH_ERR_BAD_INPUT,
@@ -384,14 +413,14 @@ int main(void)
      * (TypeError) and ignored `precision`, the one Python accepts — a divergence
      * in BOTH directions on an op whose entire output is a number. */
     st = run_chain(
-        "{\"name\":\"p\",\"steps\":[{\"class\":\"N\",\"op\":\"pi_cascade_digits\","
+        "{\"name\":\"p\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"N\",\"op\":\"pi_cascade_digits\","
         "\"args\":{\"num_digits\":10,\"precision\":600}}]}",
         "{\"inputs\":{}}", out, sizeof(out));
     check(st == SRMECH_OK && strstr(out, "3.1415926535") != NULL,
           "pi_cascade_digits accepts `precision` — the name rc318 gave it");
 
     st = run_chain(
-        "{\"name\":\"p\",\"steps\":[{\"class\":\"N\",\"op\":\"pi_cascade_digits\","
+        "{\"name\":\"p\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"N\",\"op\":\"pi_cascade_digits\","
         "\"args\":{\"num_digits\":10,\"precision_bits\":600}}]}",
         "{\"inputs\":{}}", out, sizeof(out));
     check(st == SRMECH_ERR_BAD_INPUT,
@@ -412,7 +441,8 @@ int main(void)
      * cascade_catalog/best_rational_signed.toml's [[cascade.chain]] compiles
      * to, transcribed rather than described. */
 #define BRS_CHAIN \
-    "{\"name\":\"brs\",\"chain_schema_version\":2,\"steps\":[" \
+    "{\"name\":\"brs\",\"summary\":\"s\",\"returns\":\"r\"," \
+    "\"chain_schema_version\":2,\"steps\":[" \
     "{\"class\":\"K\",\"op\":\"srmech.cascade.pin_slot_at_zero\"," \
     "\"args\":{\"x\":\"@input.x\"}}," \
     "{\"class\":\"K\",\"op\":\"srmech.cascade.dead_band\"," \
@@ -518,7 +548,7 @@ int main(void)
      * ───────────────────────────────────────────────────────────────── */
     {
         static const char nest_chain[] =
-            "{\"name\":\"p\",\"steps\":[{\"class\":\"B\",\"op\":\"pair\","
+            "{\"name\":\"p\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"B\",\"op\":\"pair\","
             "\"args\":{\"first\":\"@input.a\",\"second\":\"@input.b\"}}]}";
 
         st = run_chain(nest_chain,
@@ -562,7 +592,7 @@ int main(void)
         /* A nested LITERAL arg, not a reference — the other ingest path
          * (cr_resolve_elem), which had its own flat-only limit. */
         st = run_chain(
-            "{\"name\":\"p\",\"steps\":[{\"class\":\"B\",\"op\":\"pair\","
+            "{\"name\":\"p\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"class\":\"B\",\"op\":\"pair\","
             "\"args\":{\"first\":[[1.5,2.5],[3.5]],\"second\":0}}]}",
             "{\"inputs\":{}}", out, sizeof(out));
         check(st == SRMECH_OK &&
@@ -602,7 +632,7 @@ int main(void)
          * are all 9 and the output counts 0..4. That is the totality pin —
          * data-SIZED, never data-DEPENDENT. */
         st = run_chain(
-            "{\"name\":\"m\",\"steps\":[{\"map_over\":\"@input.xs\","
+            "{\"name\":\"m\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"map_over\":\"@input.xs\","
             "\"index\":\"i\",\"body\":[{\"class\":\"I\",\"op\":\"mod_add\","
             "\"args\":{\"a\":\"@idx.i\",\"b\":0,\"n\":100}}]}]}",
             "{\"inputs\":{\"xs\":[9,9,9,9,9]}}", out, sizeof(out));
@@ -620,7 +650,7 @@ int main(void)
          * kuramoto_step (theta=[]), and the one case that distinguishes
          * "ran zero times" from "never entered": the body must NOT run. */
         st = run_chain(
-            "{\"name\":\"m\",\"steps\":[{\"map_over\":\"@input.xs\","
+            "{\"name\":\"m\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"map_over\":\"@input.xs\","
             "\"index\":\"i\",\"body\":[{\"class\":\"I\",\"op\":\"mod_add\","
             "\"args\":{\"a\":\"@idx.i\",\"b\":0,\"n\":100}}]}]}",
             "{\"inputs\":{\"xs\":[]}}", out, sizeof(out));
@@ -632,7 +662,7 @@ int main(void)
          * and the inner frame's `@step[0]` is BODY-local. This is the shape
          * autocorrelation, kuramoto_step and both DFT chains are built from. */
         st = run_chain(
-            "{\"name\":\"m\",\"steps\":[{\"map_over\":\"@input.o\","
+            "{\"name\":\"m\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"map_over\":\"@input.o\","
             "\"index\":\"i\",\"body\":[{\"map_over\":\"@input.n\","
             "\"index\":\"j\",\"body\":["
             "{\"class\":\"I\",\"op\":\"mod_mul\","
@@ -655,7 +685,7 @@ int main(void)
         /* @bind is resolved ONCE, in the ENCLOSING scope, and is visible
          * throughout the body. */
         st = run_chain(
-            "{\"name\":\"m\",\"steps\":[{\"map_over\":\"@input.xs\","
+            "{\"name\":\"m\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"map_over\":\"@input.xs\","
             "\"index\":\"i\",\"bind\":{\"row\":\"@input.ys\"},\"body\":["
             "{\"class\":\"I\",\"op\":\"mod_add\","
             "\"args\":{\"a\":\"@bind.row[1]\",\"b\":\"@idx.i\","
@@ -674,7 +704,7 @@ int main(void)
          * 0 would be a silent wrong answer, and 0 is the value most likely to
          * look plausible in an index position. */
         st = run_chain(
-            "{\"name\":\"m\",\"steps\":[{\"map_over\":\"@input.xs\","
+            "{\"name\":\"m\",\"summary\":\"s\",\"returns\":\"r\",\"steps\":[{\"map_over\":\"@input.xs\","
             "\"index\":\"i\",\"body\":[{\"class\":\"I\",\"op\":\"mod_add\","
             "\"args\":{\"a\":\"@idx.NOPE\",\"b\":0,\"n\":100}}]}]}",
             "{\"inputs\":{\"xs\":[1]}}", out, sizeof(out));
