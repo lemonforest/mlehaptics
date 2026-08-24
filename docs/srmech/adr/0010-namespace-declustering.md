@@ -194,8 +194,8 @@ shorthand for free. Traced to the three surfaces a name must reach, they arrive 
 
 So "it duplicates nothing" is an **EMPTY** null — *a mechanism with no consumers cannot duplicate
 anything*. It is additionally a **class method**, and the parity ledger structurally cannot see
-methods (`_live_ops()` skips classes, `tests/test_rosetta_completeness.py:1060-1062`; 741 live ops,
-zero `ToolSchema` entries), so it is not merely exempt from C-parity but **unclassifiable by the only
+methods (`_live_ops()` skips classes, `tests/test_rosetta_completeness.py:1063-1068`; 839 live ops
+measured at rc452, zero `ToolSchema` entries), so it is not merely exempt from C-parity but **unclassifiable by the only
 gate that enforces ADR-0009** — strictly worse than the `dsl.alias` it was meant to beat.
 
 ⚠️ **And the property it rested on is FALSE.** "The top-level namespace is never needed to

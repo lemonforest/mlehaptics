@@ -173,8 +173,38 @@ _DECLARING: Dict[str, Tuple[str, ...]] = {
 # would assert a sequence that never occurs, and the selected branch is left
 # undeclared exactly as `dispatch` leaves its selected implementation
 # undeclared. See the rc437 block in test_composes_grain_rc412.py::ROSTER.
+#
+# ── rc452 (`#T1166`): 181 -> 184. THREE ops registered, all three RESIDUAL,
+# and the raise is taken only after each was measured against THIS RATCHET'S
+# OWN RULE — "a new op with two or more call edges must have its ORDER TRACED
+# and go into ROSTER; do not raise the ceiling". The rule keys on call-edge
+# COUNT, so the count was taken per op rather than assumed, by AST-walking each
+# op's source for calls resolving into `BY_NAME` (666 registered ops):
+#
+#   srmech.amsc.format.sha256_raw           1 edge  -> srmech.amsc.format.sha256_bytes
+#   srmech.amsc.descriptor.render_template  0 edges
+#   srmech.signal_processing.mint_vector    0 edges
+#
+# NONE reaches two, so none is ROSTER-eligible: a ROSTER row asserts an ORDER
+# between two or more sub-ops, and there is no order to assert over a set of
+# size 0 or 1. Writing one anyway would be the "hand-write a row into the
+# ledger to make this pass" move the failure message forbids.
+#
+# `mint_vector`'s zero was CHECKED rather than trusted, because its ToolEntry
+# summary says "sha256_raw(name || u64_be(counter))" and an AST heuristic that
+# missed a real edge would be exactly the silent instrument failure this file
+# guards against. Its docstring settles it outright: the mint chain "uses raw
+# SHA-256 (not the Class-A dispatch in srmech.amsc.format.sha256_bytes) at the
+# bytes level for cross-platform bit-exactness", and the body dispatches to
+# `_native.mint_vector_c` or an inline hashlib chain. The summary names the
+# ALGORITHM, not a call. So 0 is the true count, not a blind spot.
+#
+# `sha256_raw` at 1 edge is SINGLE-shaped, not residual-by-accident: it is
+# `bytes.fromhex(sha256_bytes(data))` and nothing else. It sits in the residual
+# only because no ledger tier was written for it in the same commit that
+# registered it — a drain for a later rc, not a bump to hide.
 # ──────────────────────────────────────────────────────────────────────
-CEIL_UNADJUDICATED = 181
+CEIL_UNADJUDICATED = 184
 
 #: How far the residual may drain below the ceiling before the ceiling itself
 #: must come down. Small on purpose — a ratchet with slack ratchets nothing.
