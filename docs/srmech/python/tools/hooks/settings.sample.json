@@ -1,0 +1,124 @@
+{
+  "_comment": [
+    "SAMPLE ONLY — this file is NOT live. Nothing here is active until you MERGE",
+    "the `hooks` block below into .claude/settings.json (or settings.local.json).",
+    "",
+    "MERGE, do not replace: .claude/settings.json already carries a `Notification`",
+    "hook. Copy the event keys you want from below and leave the existing ones.",
+    "",
+    "Enable them in the order given. `ripple-stamp-before-push` is deliberately",
+    "LAST and is commented out — it is the one hook with a moderate-to-high",
+    "false-positive profile. See README.md.",
+    "",
+    "PATHS: $CLAUDE_PROJECT_DIR is expanded by Claude Code before the command runs.",
+    "python3 is used throughout; on a Windows shell without a `python3` shim,",
+    "replace it with `python` (both were verified present on this machine).",
+    "",
+    "DISABLE any single hook by deleting its entry. Disable ALL of them by",
+    "removing the keys you added. There is no other state — the hooks write",
+    "nothing except .git/srmech_ripple_stamp.json, which is inside .git and is",
+    "never staged."
+  ],
+
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/git_add_all_blocker.py\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/stale_native_tripwire.py\"",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ssot_agreement.py\"",
+            "timeout": 20
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/generated_file_edit_blocker.py\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ssot_agreement.py\"",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/stale_native_tripwire.py\"",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/derived_ledger_freshness.py\"",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ratchet_recount.py\"",
+            "timeout": 240
+          }
+        ]
+      }
+    ],
+
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ssot_agreement.py\"",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/derived_ledger_freshness.py\"",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ratchet_recount.py\"",
+            "timeout": 240
+          }
+        ]
+      }
+    ]
+  },
+
+  "_ship_last_when_you_are_ready": {
+    "_why": [
+      "ripple-stamp-before-push blocks `git push` on an op-touching branch unless",
+      "tools/hooks/ripple_stamp.py recorded a green ~27-minute sweep at the current",
+      "HEAD. It collides with the standing quota discipline ('commit and push",
+      "incrementally'), which is why the [ripple-pending] escape token exists.",
+      "To enable: move this entry into hooks.PreToolUse under the Bash matcher."
+    ],
+    "matcher": "Bash",
+    "hooks": [
+      {
+        "type": "command",
+        "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ripple_stamp_before_push.py\"",
+        "timeout": 20
+      }
+    ]
+  }
+}
