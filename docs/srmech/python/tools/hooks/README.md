@@ -33,9 +33,16 @@ no hook. Measurement failures, by contrast, always fail closed.
 ## Evaluation
 
 ```
-python3 tools/hooks/check_hooks.py          # 43 cases: 43 passed, 0 failed
+python3 tools/hooks/check_hooks.py          # 42 cases: 41 passed, 0 failed, 1 skipped
 python3 tools/hooks/check_hooks.py ssot     # substring-filtered
 ```
+
+The case count is tree-dependent by design, and watching it move is the point:
+it read **43 passed / 0 failed** while the shipped ABI lag described below was
+still present, and reads **41 passed / 1 skipped of 42** now that the lag is
+repaired — the two real-tree `ssot_agreement` cases collapsed into one
+self-announcing SKIP. A harness whose count never moved would not be observing
+the tree.
 
 Every hook has at least one planted violation it must catch (exit 2) **and** at
 least one legitimate case it must let through (exit 0); the loop guards are
