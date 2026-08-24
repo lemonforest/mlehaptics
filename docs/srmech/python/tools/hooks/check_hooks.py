@@ -135,6 +135,7 @@ def check_ratchet_recount() -> None:
          "ratchet_recount.py", {"hook_event_name": "Stop"}, 0)
 
     planted = REPO / "docs" / "srmech" / "c" / "src" / "_hook_fixture_rc452.c"
+    gate_before = gate.read_bytes()
     try:
         _write(planted,
                "/* TEMPORARY fixture written by tools/hooks/check_hooks.py.\n"
@@ -149,8 +150,45 @@ def check_ratchet_recount() -> None:
         case("ratchet-recount ALLOWS a repeat stop even while RED (loop guard)",
              "ratchet_recount.py",
              {"hook_event_name": "Stop", "stop_hook_active": True}, 0)
+
+        # THE DISTINCTION THE HOOK EXISTS TO DRAW. Same planted line, now
+        # ADJUDICATED: the ceiling constant is raised to meet the measured
+        # count, which is the tree's own marker for "an agent accounted for
+        # this". The gate goes green and the hook must allow. Nothing here is
+        # an honor system — the marker IS the constant, and the gate asserts
+        # equality in both directions, so it cannot be satisfied by a raise
+        # that overshoots either.
+        _raise_ceiling(gate, +1)
+        case("ratchet-recount ALLOWS the SAME rise once the ceiling is "
+             "adjudicated up to meet it",
+             "ratchet_recount.py", {"hook_event_name": "Stop"}, 0)
+
+        # And an OVERSHOOT is still red: the gate's second assertion forbids a
+        # ceiling above the measured count, so "just add slack" is not an exit.
+        _raise_ceiling(gate, +1)
+        case("ratchet-recount BLOCKS a ceiling raised BEYOND the measured "
+             "count (slack is not adjudication)",
+             "ratchet_recount.py", {"hook_event_name": "Stop"}, 2)
     finally:
         planted.unlink(missing_ok=True)
+        gate.write_bytes(gate_before)
+
+
+_CEIL_NAME = "CEIL_CONFLATING_RETURN_LINES"
+
+
+def _raise_ceiling(gate: Path, delta: int) -> None:
+    """Bump the ratchet's ceiling constant by ``delta``, in place."""
+    import re as _re
+    text = gate.read_text(encoding="utf-8")
+    m = _re.search(rf"(?m)^{_CEIL_NAME} = (\d+)$", text)
+    if not m:
+        raise RuntimeError(f"could not find {_CEIL_NAME} to adjust")
+    new = int(m.group(1)) + delta
+    gate.write_text(
+        text[:m.start()] + f"{_CEIL_NAME} = {new}" + text[m.end():],
+        encoding="utf-8", newline="",
+    )
 
 
 # ── 2. stale-native-tripwire ──────────────────────────────────────────────

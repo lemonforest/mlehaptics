@@ -33,16 +33,16 @@ no hook. Measurement failures, by contrast, always fail closed.
 ## Evaluation
 
 ```
-python3 tools/hooks/check_hooks.py          # 42 cases: 41 passed, 0 failed, 1 skipped
-python3 tools/hooks/check_hooks.py ssot     # substring-filtered
+python3 tools/hooks/check_hooks.py          # 44 cases: 43 passed, 0 failed, 1 skipped
+python3 tools/hooks/check_hooks.py ratchet  # substring-filtered
 ```
 
 The case count is tree-dependent by design, and watching it move is the point:
-it read **43 passed / 0 failed** while the shipped ABI lag described below was
-still present, and reads **41 passed / 1 skipped of 42** now that the lag is
-repaired — the two real-tree `ssot_agreement` cases collapsed into one
-self-announcing SKIP. A harness whose count never moved would not be observing
-the tree.
+it read **43 passed / 0 failed of 43** while the shipped ABI lag described
+below was still present, and **43 passed / 1 skipped of 44** now — the two
+real-tree `ssot_agreement` cases collapsed into one self-announcing SKIP when
+the lag was repaired, and two ceiling-adjudication cases were added. A harness
+whose count never moved would not be observing the tree.
 
 Every hook has at least one planted violation it must catch (exit 2) **and** at
 least one legitimate case it must let through (exit 0); the loop guards are
@@ -52,7 +52,13 @@ one:
 - `ratchet_recount` **passes** against this rc's genuine adjudicated state
   (`CEIL_CONFLATING_RETURN_LINES = 745`, measured 745) and **blocks** against a
   real planted `return SRMECH_ERR_OVERFLOW;` in a temporary `c/src` file,
-  removed in a `finally`.
+  removed in a `finally`. The distinction the hook exists to draw is then shown
+  end to end on that same planted line: **blocked** while unaccounted for,
+  **allowed** once the ceiling is adjudicated up to meet the measured count,
+  and **blocked again** if the ceiling overshoots it — because the gate asserts
+  equality in both directions, "just add slack" is not an exit, and the marker
+  cannot be gamed. The ratchet file is restored from bytes captured before the
+  run.
 - `ssot_agreement` **blocks the tree exactly as it stands** — see below.
 
 The harness was itself red-planted: inverting five expectations produced
