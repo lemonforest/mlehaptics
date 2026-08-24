@@ -593,7 +593,9 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   int). The digest move is therefore fully attributed to the three registrations.
 #:
 #: This gate was RED in the handed-over working tree: the registration slice bumped
-#: all 76 `describe()["tools"]["total"]` pins but not this witness, so three tests
+#: every `describe()["tools"]["total"]` pin (74 lines across 67 files against
+#: the RIPPLE_GATES.md predicate, plus the one `EXPECTED_N` assignment that
+#: predicate cannot match) but not this witness, so three tests
 #: in this file failed on the stale digest. It is exactly the "invisible class" the
 #: RIPPLE_GATES.md count-pin note names - a pin that is a DIGEST rather than a
 #: comparison against the count, which no `== 663` predicate can find.

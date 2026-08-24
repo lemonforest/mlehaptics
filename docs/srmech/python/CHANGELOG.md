@@ -92,7 +92,12 @@ srmech. `CEIL_C_REJECTED_CHAINS = 3` is HONEST. What the slice did not reach wer
 the count-pins that are not COMPARISONS — which is precisely the "invisible
 class" the `RIPPLE_GATES.md` count-pin note names, since a `git grep "== 663"`
 predicate cannot see a DIGEST, a data-file field, a prose bar or a census
-ceiling. All four are recorded here so the next count bump has a list.
+ceiling. *(That predicate is the one `RIPPLE_GATES.md` states, and it measures
+**74 lines across 67 files** at 666, plus the one `EXPECTED_N` assignment it
+structurally cannot match — the figure the registration slice itself quoted. An
+earlier draft of this section said 76, which is the raw count of diff lines
+mentioning 663 and sweeps in C rows and comment text; a count without its
+predicate is how this arc keeps minting wrong headlines.)* All four are recorded here so the next count bump has a list.
 
 **(1) The search-corpus witness — `WITNESS_RC416`, 3 tests red.** Registering an
 op rebuilds the corpus, so the digest moves: `de17973d…` → `7cb11ffb…`, over
@@ -179,6 +184,58 @@ the other 574. Result: `n` 578 → **581**, `ok` 477 → **480**,
 `unexpected_raise` **96** and `timeout` **1**, both unmoved — the four repairs
 drain out of a class whose total was already 96 because the stale ledger had been
 counting them as `ok`.
+
+### ⚠️ OPEN — the registry ripple is NOT finished: `tools/ripple_check.py` reports 12 more red gates, and two of them are capability defects rather than count-pins
+
+**Read this before the section above.** That section says "eleven gates were red,
+in four independent surfaces". That was true of every gate run at the time and
+is the wrong number: the prescribed pre-push sweep had not been run yet. It has
+now — `python3 tools/ripple_check.py`, the SSOT gate set for
+*"any rc that registers/edits an op or a ToolEntry"* — and it reports
+**12 failed, 2065 passed, 1 skipped, 1 xfailed in 1615.8 s**. So the registration
+triple left **at least 23** red gates across **six** surfaces, not 11 across four.
+The eleven above are fixed and stay fixed; these twelve are OPEN and this branch
+must not be pushed as a closed slice until they are.
+
+**TWO ARE NOT BOOKKEEPING — they are capability defects, and they say the
+registration itself is wrong, not merely un-rippled.**
+
+* **`test_mcp::test_all_param_types_json_coercible` — two of the three new ops
+  are UNCALLABLE over MCP / the Anthropic adapter.** `render_template`'s
+  `context: Mapping` and `sha256_raw`'s `data: bytes` are declared param types
+  with NO coercion handler in `srmech.mcp._coercion._PARAM_COERCERS`. The
+  registration was made so the C run loop's `cr_args_keyset_ok` would release
+  two chains; it shipped an op that `describe()` advertises and MCP cannot
+  invoke. Fix is a coercer per type, not a count bump. (`bytes` also has no JSON
+  image, which is the SAME root cause as the `NO_ARG` ceiling raise recorded
+  above — one defect wearing two gates.)
+* **`test_dsl_op_naming_boundaries` (×2) — `mint_vector` is registered under a
+  spelling the shipped descriptor does not use.** Measured: *"NEW
+  introspection-invisible chain-step spellings shipped:
+  `['srmech.signal_processing.rbs_hdc_instrument.mint_vector']`"*. The ToolEntry
+  registers the PACKAGE-level spelling on the `music_doa` precedent, with the
+  comment that "coverage is by OBJECT identity" — but this gate is
+  SPELLING-keyed, and `encode_loe_content`'s descriptor names the
+  defining-module spelling. So the very chain the registration exists to unblock
+  still names a step the introspect surface cannot see. Object identity is the
+  right rule for the completeness allowlist and the WRONG rule here; the two
+  gates disagree, and the disagreement is the finding.
+
+**The other ten are count/population ripple, each with its measured delta:**
+
+| gate | measured |
+|---|---|
+| `test_readme_currency_rc419` | `python/README.md` advertises a **663**-entry registry; live is **666**. This text SHIPS as the PyPI long-description. |
+| `test_notebook_currency_rc420` | the notebook says the registry holds **663** entries; `len(get_tool_schema().tools)` is **666**. |
+| `test_namespace_prefix_decode_aware_rc361` (×3) | as-text `srmech.amsc.` references grew by **5** in BOTH generated artifacts — `srmech_tool_registry.c` 88 → **93**, `_tool_docs.py` 80 → **85** — plus the totals pin. This is the DECODED-channel population `RIPPLE_GATES.md` warns is invisible to a text grep. |
+| `test_composes_population_rc423` | **184** registered ops carry no composes adjudication, ceiling **181** — +3, one per registration. Each new op with two or more call edges needs its ORDER TRACED into `test_composes_grain_rc412.py::ROSTER`. |
+| `test_status_conflation_ratchet_rc404` | `return SRMECH_ERR_OVERFLOW` lines rose to **739**, ceiling **725** — +14, with `srmech_compose_run.c` at 43 among the heaviest, i.e. the wave-C `CR_OP_REG` arms. Each new site must be adjudicated OVERFLOW-vs-LIMIT; a grow-loop keys on 4. |
+| `test_adr_citation_integrity_rc415` | V3 token-evidence violations rose to **8**, ceiling **7** (`ADR-0010:197 _live_ops`). |
+| `test_introspect::test_env_var_auto_publish` | red; not yet triaged to a cause. |
+
+**Nothing here retracts the section above.** `CEIL_C_REJECTED_CHAINS = 3` is
+still honest and `klein4_from_one` still runs in C by execution. What is
+retracted is any reading of that section as "the slice is now complete".
 
 **Mandate clause 2 — `cascade.atoms` in C — is CLOSED.** `CR_OP_REG` stops being
 a name-to-name index and becomes the atom registry the interpreter resolves
