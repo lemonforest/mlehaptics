@@ -1536,6 +1536,77 @@ def test_all_param_types_json_coercible() -> None:
     )
 
 
+def test_rc452_registrations_are_actually_invocable_over_json() -> None:
+    """rc452 (`#T1166`): the two rc452 ToolEntries EXECUTE over a JSON-only
+    payload — ``has_coercer() is True`` is NOT the property that matters.
+
+    WHY THIS IS NOT test_all_param_types_json_coercible. That gate is a
+    static membership check, and ``tool_schema.py:356`` already records
+    that the static ratchet "could not tell a pass-through from a
+    handler". A type mapped to ``_identity`` satisfies it while the op
+    stays broken. So this gate INVOKES both ops through the live
+    ``invoke_tool`` coercion path with arguments that have provably
+    survived ``json.dumps``/``json.loads``, and compares against a direct
+    in-process call.
+
+    THE DEFECT IT PINS, stated so a future reader can falsify it.
+    ``render_template`` resolves a placeholder via ``cursor.get(part, "")``
+    while ``cursor`` is a ``Mapping`` and ``getattr(cursor, part, "")``
+    otherwise (``srmech/amsc/descriptor.py:334``). Give it a NON-mapping
+    and every ``{key}`` renders as the empty string — no exception, no
+    missing-key signal, just a plausible fully-formed string with every
+    substitution dropped. That is a silent wrong answer, so the coercer's
+    entire content is the refusal, and the refusal is asserted here.
+
+    The ``bytes`` wire encoding is BASE64 and has been since rc14
+    (``_b64_to_bytes``); ``sha256_raw`` inherits it rather than minting a
+    second spelling. A hex payload is REJECTED by that same contract, and
+    that rejection is asserted too — pinning hex for one op would have
+    split one declared type across two encodings.
+    """
+    import base64
+    import json
+
+    from srmech.amsc.descriptor import render_template
+    from srmech.amsc.format import sha256_raw
+    from srmech.mcp._tools import invoke_tool
+
+    # ── sha256_raw: JSON base64 in, the identical 32 digest bytes out ──
+    raw = b"hello"
+    args = json.loads(json.dumps({"data": base64.b64encode(raw).decode()}))
+    via_mcp = invoke_tool("srmech.amsc.format.sha256_raw", args)
+    assert isinstance(via_mcp, (bytes, bytearray))
+    assert len(via_mcp) == 32, f"expected a 32-byte digest, got {len(via_mcp)}"
+    assert bytes(via_mcp) == sha256_raw(raw), (
+        "MCP-coerced sha256_raw disagrees with the direct call")
+
+    # the encoding is base64, NOT hex — one declared type, one spelling.
+    with pytest.raises(ValueError):
+        invoke_tool("srmech.amsc.format.sha256_raw", {"data": raw.hex()})
+
+    # ── render_template: a JSON object context renders identically ──
+    tmpl = "cite {src.name} v{ver} ({n} rows)"
+    ctx = {"src": {"name": "AMSC"}, "ver": "1.0", "n": 42}
+    args2 = json.loads(json.dumps({"template": tmpl, "context": ctx}))
+    via_mcp2 = invoke_tool("srmech.amsc.descriptor.render_template", args2)
+    assert via_mcp2 == render_template(tmpl, ctx)
+    # the dotted key really resolved — not the all-empty degenerate render
+    assert "AMSC" in via_mcp2 and "42" in via_mcp2, via_mcp2
+
+    # ── the silent-wrong-answer this handler exists to refuse ──
+    # First MEASURE the raw op's behaviour, so the guard is not asserted
+    # against a danger that does not exist (if this ever starts raising on
+    # its own, the coercer's justification changes and this gate says so).
+    degenerate = render_template(tmpl, ["src", "ver"])
+    assert "AMSC" not in degenerate and "42" not in degenerate, (
+        "render_template now REJECTS a non-mapping context on its own; the "
+        "_to_mapping coercer's stated rationale is stale — re-adjudicate it")
+    # ...and the coerced path refuses it instead of returning that string.
+    with pytest.raises(ValueError):
+        invoke_tool("srmech.amsc.descriptor.render_template",
+                    {"template": tmpl, "context": ["src", "ver"]})
+
+
 def test_coercion_roundtrips_scalar_leaf_types() -> None:
     """``coerce_param(serialise_native(x)) == x`` for representative
     bytes / complex / array-shaped values (the documented round-trip

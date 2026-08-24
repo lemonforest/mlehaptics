@@ -316,7 +316,70 @@ DRAINED_EXACT = {
 #:
 #: No conflation: the ceiling moved because the instrument counts VOLUME, and
 #: this rc turned one chain-wide carve into a per-frame one.
-CEIL_CONFLATING_RETURN_LINES = 725
+#:
+#: ── rc452 (`#T1166`, gh #1662): 725 -> 739. NET +14, and the net is the whole
+#: story: FIFTEEN lines added, ONE removed, every one of them in
+#: srmech_compose_run.c (29 -> 43). No other .c file moved at all.
+#:
+#: MEASURED, PREDICATE STATED, so the figure is reproducible rather than
+#: asserted: this file's own `_count_returns` over `sorted(_C_SRC_DIR.glob(
+#: "*.c"))` reads 739 at HEAD and 725 at 5b66e46c8 (the commit that set the
+#: previous ceiling). ⚠️ A raw `grep -c` reads 744 — five high, because it
+#: counts the block-comment narrations this file's counter strips. 744 is the
+#: WRONG INSTRUMENT for this ceiling and must never be quoted as the
+#: population. Bisected across the rc: 725 (5b66e46c8) -> 734 (6f2eabe99,
+#: +9) -> 739 (bc2cccd11, +5) -> 739 (d89d50157, +0).
+#:
+#: THE ADDED FIFTEEN, by file:line and enclosing function, each with the NULL
+#: provenance traced to its leaf — named individually because "fifteen new
+#: lines in one file" is exactly the shape a silent bump would hide:
+#:
+#:   2001  cr_q_apply           *on == NULL || *od == NULL   <- cr_new_bigint -> cr_carve
+#:   2002  cr_q_apply           !cr_qctx_init(b,&q,lim)      <- qctx limb carve
+#:   2130  cr_op_kur_gen_term   qs == NULL || ov == NULL     <- cr_carve / cr_new_value
+#:   2241  cr_op_kur_gen_out    qterm == NULL                <- cr_carve
+#:   2579  cr_op_vec_scale      r == NULL                    <- cr_dvec_value -> cr_carve
+#:   2647  cr_op_sha256_bytes   hex == NULL                  <- cr_carve (65-byte hex buf)
+#:   2668  cr_op_str_concat     buf == NULL                  <- cr_carve (joined text)
+#:   2719  cr_op_int_parse_le   ov == NULL                   <- cr_new_value -> cr_carve
+#:   2722  cr_op_int_parse_le   ov->num == NULL              <- cr_new_bigint -> cr_carve
+#:   2890  cr_op_render_template buf == NULL                 <- cr_carve (render buf)
+#:   2953  cr_b_f64_add         ov == NULL                   <- cr_new_value -> cr_carve
+#:   2962  cr_b_f64_add         ov == NULL                   <- cr_new_value -> cr_carve
+#:   2964  cr_b_f64_add         ov->num == NULL              <- cr_new_bigint -> cr_carve
+#:   2994  cr_b_vec_add         ov == NULL                   <- cr_new_value -> cr_carve
+#:   3004  cr_b_vec_add         ov->items[i] == NULL         <- cr_dbl -> cr_carve
+#:
+#: THE ONE REMOVED, so the net is auditable rather than a subtraction nobody
+#: sees: `acc == NULL` in cr_run_fold — rc447's line. It is NOT a re-statusing
+#: to make room: the fold accumulator moved into the frame spine, and its
+#: successor is the already-adjudicated `f->acc` arm of cr_map_enter (3780).
+#: The symbol `acc` no longer exists as a cr_run_fold local at HEAD.
+#:
+#: EVERY ONE of the fifteen is `X == NULL` (or the boolean form of the same
+#: check) where X came from the cr_carve family — the chain runner's bump
+#: allocator over the CALLER-SUPPLIED ws/ws_len. cr_carve returns NULL for
+#: exactly one condition: the request does not fit the remaining arena. So
+#: status 4 is CORRECT under rc404's rule and a caller's grow-loop terminates
+#: — srmech_chain_run_arena_bytes reports a larger figure and the same call
+#: succeeds. NONE of the fifteen is an unrepresentable value, a compiled-in
+#: cap, or a non-convergent iteration, so NONE of them is LIMIT-class and
+#: there is no structural site here to root-fix. Relabelling any of them would
+#: break the grow-loops this ratchet's own failure message protects.
+#:
+#: The two `cr_*ctx_init` lines are called out rather than glossed, because
+#: they are the only two that are not a bare pointer test. cr_qctx_init
+#: returns false on exactly one condition — its limb carves off `b` fail —
+#: so the boolean is a carve failure wearing a different type, not a
+#: value-range refusal.
+#:
+#: ⚠️ THE CONTRAST IS LIVE IN THE SAME FILE, which is why this is not a rubber
+#: stamp: cr_op_reorient's exact-ℚ arm (this rc's own ABI-21 driver) DECLINES
+#: with SRMECH_ERR_NOT_IMPL where it cannot answer, and cr_op_best_rational
+#: still declines an out-of-uint64 operand the same way. Those defer to the
+#: pure projection and are deliberately NOT status 4 — reading either as a
+#: buffer failure would have put extra lines under this ceiling wrongly.
+CEIL_CONFLATING_RETURN_LINES = 739
 
 _RETURN_OVERFLOW = re.compile(r"return\s+SRMECH_ERR_OVERFLOW\s*;")
 

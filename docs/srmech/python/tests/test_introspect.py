@@ -15,6 +15,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import site
 import subprocess
 import sys
 import threading
@@ -512,6 +513,30 @@ def test_env_var_auto_publish(tmp_path):
     env["SRMECH_PUBLISH_STATUS"] = "1"
     env["HOME"] = str(fake_home)
     env["USERPROFILE"] = str(fake_home)
+    # rc452 (`#T1166`): the HOME override is meant to relocate the STATUS
+    # WRITER's output directory, and nothing else. It also relocates
+    # `site.getusersitepackages()`, which is derived from ~ — so on an
+    # interpreter whose TOML backend lives in per-user site-packages the
+    # child cannot `import srmech` at all and this gate reds for a reason
+    # that has nothing to do with what it asserts.
+    #
+    # MEASURED on this host: Python 3.10.12 has no stdlib `tomllib`
+    # (3.11+ only), so `srmech._toml._stdlib_backend()` imports the `tomli`
+    # backport, which resolves ONLY at
+    # /home/<user>/.local/lib/python3.10/site-packages. Under the fake HOME
+    # that path becomes <tmp>/.local/... and the import raises
+    # ModuleNotFoundError inside `srmech/__init__.py`.
+    #
+    # Carrying the REAL user-site through on PYTHONPATH keeps the module
+    # search path intact while leaving the writer's HOME faked, so the
+    # assertion below is unchanged and still fully load-bearing. On 3.11+
+    # this is a no-op: tomllib is stdlib and user-site is never consulted.
+    _real_user_site = site.getusersitepackages()
+    if isinstance(_real_user_site, str):
+        _real_user_site = [_real_user_site]
+    env["PYTHONPATH"] = os.pathsep.join(
+        [p for p in (*_real_user_site, env.get("PYTHONPATH", "")) if p]
+    )
     proc = subprocess.run(
         [sys.executable, "-c", script],
         env=env,
