@@ -99,15 +99,25 @@ narrowing is to fire only on pushes whose head commit message claims closure
 (`_claims_closure` is already in the file, in place and unused, for exactly
 that).
 
-## `ssot_agreement` blocks this branch right now, and that is not a fixture
+## `ssot_agreement` blocked this branch on a real defect, which is now fixed
 
-At the time of writing, `docs/srmech/python/README.md` line 162 reads
-**"**ABI 21** at this release"** while `SRMECH_ABI_VERSION` is **22** — the
-21→22 bump did not carry the prose. That README is the PyPI long-description,
-so the false statement is shipped text. The existing gate
-`tests/test_readme_currency_rc419.py` is red on it (3 failed / 2 passed), so
-this is a live residual rather than a gap in coverage; the hook's contribution
-is moving detection to the moment of committing or stopping instead of a
-27-minute sweep that may be run afterwards, or not at all. `check_hooks.py`
-detects whether the lag is still present and, once it is repaired, flips that
-case to a self-announcing SKIP rather than silently passing.
+When it was first run, `ssot_agreement` blocked the tree as it stood — no
+fixture involved. `docs/srmech/python/README.md` read **"**ABI 21** at this
+release"** while `SRMECH_ABI_VERSION` was **22**: the 21→22 bump had not
+carried the prose, and that README is the PyPI long-description, so the false
+statement was shipped text. The existing gate
+`tests/test_readme_currency_rc419.py` was red on it (3 failed / 2 passed) —
+coverage existed, the repair did not. (A first hypothesis that the ABI-prose
+gate had a *hole* was falsified by running
+`test_abi_prose_currency_rc449.py`, which is green because it covers
+`CLAUDE.md` and `c/README.md`, not this sentence.)
+
+The defect is **repaired in the same slice**: the header, the bump-sentence
+enumeration and the worked `native_status()` block all now read 22, sourced
+from the CHANGELOG's own Phase 2 K1/K3 entries. Both gates are green (8
+passed), and `check_hooks.py` — which tests for the lag rather than assuming
+it — has flipped that case to a self-announcing SKIP instead of silently
+passing, while its two *planted* ABI-lag fixtures still block. That is the
+whole loop the hook exists to close: it found a live shipped falsehood, the
+falsehood was fixed, and the instrument still demonstrably fires on the same
+class.
