@@ -324,7 +324,7 @@ static int run_row(const char *fname, uint32_t chain_idx, uint32_t case_idx,
     return 0;
 }
 
-/* The 16 config-driven rows at rc452 — every chain that runs in C, driven
+/* The 17 config-driven rows at rc452 — every chain that runs in C, driven
  * FROM ITS SHIPPED DESCRIPTOR FILE, one hand-derived proof case each (plus
  * the first SECOND-VARIANT rows — see `chain_idx`). `n_steps` is the
  * declared top-level [[cascade.chain.steps]] count the file must yield. */
@@ -466,6 +466,28 @@ static const row_t ROWS[] = {
       "input_defaults tables — the case supplies neither, which is what "
       "makes this row the finding-(a) gate: a host ignoring the defaults "
       "cannot resolve @bind.psi and declines instead of answering" },
+    /* -- rc452 Phase 2 (`#T1166`, the K1 slice): the FIRST row whose final
+     * value crosses as the `b` (BYTES) kind. Its expected hex is derived
+     * INDEPENDENTLY of srmech and of CPython: the three SHA-256 digests come
+     * from coreutils sha256sum over the three exact preimages, and the
+     * stride / rotate / XOR arithmetic over those hex strings is plain
+     * integer arithmetic with no library involved. Case 2 is chosen over
+     * case 0 because D = 256 makes the whole fingerprint 32 bytes -- a
+     * 64-char expectation a reader can re-derive in a shell, where the
+     * D = 8192 sweep case would be 2048 chars nobody would check. */
+    { "encode_loe_content.toml", 0u, 2u, 11u,
+      "{\"k\": \"b\", \"v\": \"63322bf3973f4ed9a3891f3bc481b781"
+      "b69f941937d09aa0d32ace8c2e46b5bd\"}",
+      "the 'substrate_anchor' case (content 'hello', D 256, substrate "
+      "'audio'). sha256sum('LoE.content.hello' || u64_be(0)) = a9d325d3... "
+      "is the Class-A mint; sha256sum('hello') = 2cf24dba..., whose first 8 "
+      "bytes little-endian are 1054880662928880172, reduced mod D = 256 by "
+      "the Class-I mod_add to a stride of 44; the Class-C permute rotates "
+      "the mint by 44 bit positions (LSB-first within each byte); "
+      "sha256sum('LoE.substrate.audio' || u64_be(0)) = 2b9e13c4... is the "
+      "substrate anchor, and the Class-M bind XORs the two -- 64 hex chars "
+      "derived from FIPS 180-4 via coreutils plus integer arithmetic, "
+      "before being frozen here" },
 };
 
 int main(void)
@@ -477,7 +499,7 @@ int main(void)
     printf("== Surface-A cascade-catalog TOML -> bare-C chain run "
            "(gh #1653, rc452 `#T1166`) ==\n");
 
-    /* ── the 16 config-driven rows ──────────────────────────────────────── */
+    /* ── the 17 config-driven rows ──────────────────────────────────────── */
     for (r = 0u; r < sizeof(ROWS) / sizeof(ROWS[0]); r++) {
         char desc[512];
         rc = run_row(ROWS[r].fname, ROWS[r].chain_idx, ROWS[r].case_idx,

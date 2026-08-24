@@ -1441,6 +1441,27 @@ def _reconstruct_value(desc: Dict[str, Any]) -> Any:
         # that reached this reader before its branch existed would raise below,
         # and ABI 20 enforces the converse for a stale ``.so``.
         return tuple(_reconstruct_value(it) for it in desc["v"])
+    if k == "b":
+        # rc452 (`#T1166`, gh #1653): BYTES, spelled as lowercase hex.
+        #
+        # The hex is not a stylistic pick. A bytes payload has to cross RFC
+        # 8259 JSON, where a raw byte string is not expressible, so the kind
+        # has to choose an encoding — and the choosing is where two
+        # projections drift. Base64 offers an alphabet variant and a padding
+        # rule; hex offers neither, ``bytes.hex()`` produces exactly what the C
+        # writer's ``cr_bytes_hex`` produces, and ``bytes.fromhex`` inverts it
+        # exactly. Same reasoning class as the mapping kind's key ordering:
+        # remove the decision rather than document it.
+        #
+        # ⚠️ NOT the MCP surface's ``bytes`` coercer, which reads BASE64. That
+        # one is an INPUT coercion on a different surface, and measured this rc,
+        # feeding it hex raises ``binascii.Error: Incorrect padding``. Two
+        # encodings, two surfaces, deliberately not unified.
+        #
+        # Lands with the C-side ``b`` arm in cr_desc_scalar in the SAME change,
+        # and ABI 21 -> 22 enforces the converse for a stale ``.so``: a kind
+        # that reached this reader before its branch existed would raise below.
+        return bytes.fromhex(desc["v"])
     if k == "f":
         # A real-valued result. EXACT, not approximate: the C writer formats
         # doubles via ``srmech_double_repr`` (an integer-only Ryu matching

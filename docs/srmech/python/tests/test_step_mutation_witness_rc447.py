@@ -233,6 +233,24 @@ def _zero_klein4_frame(ch):
     ch["steps"][9]["bind"]["frame14"] = [0] * 14
 
 
+def _bind_encode_against_itself(ch):
+    """encode_loe_content: the Class-M bind's SECOND operand re-pointed at its
+    FIRST — ``@step[9].output`` -> ``@step[7].output``.
+
+    One reference moves. Every op survives, every step survives, no literal
+    changes. But ``bind`` is a component-wise XOR and XOR is self-inverse, so
+    the mutant's value is FORCED to the all-zero vector of the same width —
+    a prediction derivable from the op's algebra alone, with no digest to
+    compute and no oracle to trust. The substrate mint at step 9 is left
+    orphaned, which is the same shape as ``chiral_dual``'s reference mutation.
+
+    A dispatcher keyed on this chain's identity returns the real fingerprint
+    and is caught; so is a runner that resolves ``@step[N]`` positionally
+    without reading which N the descriptor names.
+    """
+    ch["steps"][10]["args"]["b"] = "@step[7].output"
+
+
 #: (chain, mutate, inputs-or-None, EXPECTED mutant value, why)
 #:
 #: ⚠️ THE EXPECTED VALUE IS THE POINT, not merely "it differs". "Something
@@ -371,6 +389,21 @@ MUTATIONS = [
      "hard-codes the mask and returns the MASKED baseline, so a coarse "
      "dispatch is caught; so is a runner that reads only the top-level step "
      "list, which never meets the bind table at all"),
+    ("encode_loe_content", _bind_encode_against_itself,
+     {"content": "hello", "D": 256, "substrate": "default"},
+     b"\x00" * 32,
+     "⚠️ THE PREDICTION NEEDS NO ORACLE, WHICH IS WHY THIS MUTATION AND NOT "
+     "ANOTHER. Every other interior perturbation of this chain (the stride's "
+     "mod-D reduction, either mint's name prefix, the 8-byte slice width) moves "
+     "the answer to a value only a SHA-256 chain can predict, so the expected "
+     "literal would have to be copied from a run — and a witness whose "
+     "expectation is copied from the thing it judges cannot judge it. Here the "
+     "Class-M op's own algebra fixes the answer: bind(a, b) is a component-wise "
+     "XOR, XOR is self-inverse, so re-pointing the second operand at the first "
+     "makes the result the all-zero D/8-byte vector EXACTLY, whatever the mint "
+     "and permute produced. D = 256 gives 32 zero bytes. The baseline is the "
+     "real fingerprint and is nothing like it, so `moved != base` is not "
+     "close-run either"),
 ]
 
 
@@ -503,8 +536,11 @@ BOGUS_OP = "__no_such_op_rc452_step_drive__"
 #: 51 -> 107 / 15 -> 17 when klein4_from_one closed (rc452, gh #1653): its two
 #: variants carry 9 plain top-level steps + 19 map-body steps each at full
 #: depth (the map container itself carries no op key and is not a step row).
-EXPECTED_STEPS = 107
-EXPECTED_RUNNING_CHAINS = 17
+#: 107 -> 118 / 17 -> 18 when encode_loe_content closed (rc452 Phase 2,
+#: `#T1166`, the K1 slice): its one variant carries 11 plain top-level steps,
+#: probed over its own proof cases with both arms firing on each.
+EXPECTED_STEPS = 118
+EXPECTED_RUNNING_CHAINS = 18
 
 
 def _all_running_rows():
@@ -729,6 +765,30 @@ VALUE_PROBES = {
                            "op", "srmech.math.cyclic.mod_add"),
                            s.__setitem__(
                                "args", {"a": 97, "b": 0, "n": 257}))),
+    # ── rc452 Phase 2 (`#T1166`): encode_loe_content's Class-A/C/M leaves ────
+    "mint_vector":    ("args.name -> 'probe' [a different content address]",
+                       lambda s: s["args"].__setitem__("name", "probe")),
+    # sha256_raw has ONE argument and its only legal value is a ref to the
+    # bytes-typed producer in scope — the args grammar still has no bytes
+    # LITERAL (the `b` kind rc452 adds is an OUTPUT kind; nothing spells a
+    # bytes constant on the input side). So this probe swaps the OP for
+    # another bytes -> bytes op over the SAME ref, exactly as the sha256_bytes
+    # probe above does: the mutant is a legal descriptor returning the first
+    # four bytes of the utf8 content instead of its 32-byte digest, which
+    # re-strides the permute and moves the fingerprint.
+    "sha256_raw":     ("op -> byte_slice(data, 0, 4) over the same ref",
+                       lambda s: (s.__setitem__(
+                           "op", "srmech.cascade.byte_slice"),
+                           s["args"].__setitem__("start", 0),
+                           s["args"].__setitem__("stop", 4))),
+    "permute":        ("args.rotate_bits -> 1",
+                       lambda s: s["args"].__setitem__("rotate_bits", 1)),
+    # bind's two operands are both bytes refs, so — same bytes-literal gap —
+    # the only argument-level probe available is to re-point one at the other.
+    # XOR is self-inverse, so the mutant is FORCED to the all-zero vector: a
+    # move whose magnitude does not depend on what the mints produced.
+    "bind":           ("args.b -> args.a [self-XOR: forced to all-zero]",
+                       lambda s: s["args"].__setitem__("b", s["args"]["a"])),
 }
 
 #: rc452 (gh #1653) — PER-STEP probe OVERRIDES, keyed (chain name, step path).

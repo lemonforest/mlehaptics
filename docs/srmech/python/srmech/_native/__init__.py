@@ -250,7 +250,7 @@ from typing import Optional
 #        mirror pairing (rc451 .so, rc452 Python) is milder but still wrong: the
 #        chain silently loses the C fast path on every reorient-terminated
 #        rational chain. Only this version number can see either.
-EXPECTED_ABI_VERSION: int = 21
+EXPECTED_ABI_VERSION: int = 22
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-

@@ -15,6 +15,72 @@ we have CI for our C code where it's missing."* What follows is what LANDED,
 measured; the residual is stated plainly at the end rather than deferred
 silently.
 
+### Phase 2, the K1 slice (gh #1653): the `b` (BYTES) wire kind — `encode_loe_content` closes, `CEIL_C_REJECTED_CHAINS` 3 → 2, and **ABI 21 → 22**
+
+**A new wire kind, and the deliberate decline it replaces.** The wave-C phase
+above placed a FINAL-decline in `cr_run_and_write` for a bytes-typed result,
+on the reasoning that spelling bytes as `s` would erase the str/bytes type on
+the wire. That seam is now filled rather than worked around: `cr_desc_scalar`
+gains a `b` arm, `_reconstruct_value` gains its `bytes.fromhex` branch, the
+`EXPECTED_WIRE_KINDS` bijection pin grows to eight, and the special case in
+`cr_run_and_write` is DELETED — there is no residual.
+
+**The payload is LOWERCASE HEX, and the choice is forced rather than
+preferred.** A bytes payload has to cross RFC 8259 JSON, where a raw byte
+string is not expressible, so the kind must choose an encoding — and the
+choosing is where two projections drift. Base64 carries an alphabet variant
+and a padding rule; hex carries neither, `bytes.hex()` produces exactly what
+the C writer's `cr_bytes_hex` produces, `bytes.fromhex` inverts it exactly,
+and it is already the alphabet `srmech_sha256_hex` emits, so no new encoder
+alphabet enters the library. ⚠️ This is NOT the MCP tool surface's `bytes`
+coercer, which reads BASE64 — a different surface, an INPUT coercion, and
+measured this rc, feeding it hex raises `Incorrect padding`. Both spellings
+are documented at both sites so nobody "unifies" them by guess.
+
+**`encode_loe_content` runs in C, 4/4 proof cases BYTE_IDENTICAL** (including
+the D = 8192 sweep case, whose final value is 1024 bytes). Four wave-D rows
+join `CR_OP_REG` (51 → **55**): `sha256_raw` / `mint_vector` / `permute` /
+`bind`, each a step-granular arm delegating to exactly ONE compiled export
+that the Python op of the same name delegates to as well —
+`srmech_sha256_hex`, `srmech_mint_vector`, `srmech_hdc_permute`,
+`srmech_hdc_bind`. No fused whole-chain symbol exists for this descriptor
+anywhere in the library, so the no-coarse gate derives an empty contribution
+from it and there is no coarse bypass to rule out. `sha256_raw` is composed
+the way `srmech.amsc.format.sha256_raw` composes it — hex then decode —
+rather than through `srmech_sha256_shani`, which also writes 32 raw bytes:
+both are bit-exact so no value gate could separate them, and keeping ONE
+Class-A core referenced from the interpreter TU is the reason to prefer it.
+
+**The chain-level witness needs no oracle.** Re-pointing step 10's second
+operand at its first (`@step[9].output` → `@step[7].output`) leaves every op
+and every step in place and changes ONE reference — but `bind` is a
+component-wise XOR and XOR is self-inverse, so the mutant's value is FORCED
+to the all-zero 32-byte vector whatever the mints produced. Every other
+interior perturbation of this chain moves the answer to a value only a
+SHA-256 chain can predict, which would make the expected literal a copy of
+the run it judges. The per-step gate now walks **118 steps over 18 running
+chain-variants**, with both arms firing.
+
+**The bare-C TOML host gains its first `b`-kind row** (ctest 39/39 → 40/40,
+22 checks in that binary): `encode_loe_content.toml` chain 0 case 2, driven
+from the shipped descriptor with no Python in the acceptance path, against a
+64-char expectation derived INDEPENDENTLY of srmech and of CPython —
+coreutils `sha256sum` for the three digests, plain integer arithmetic for the
+stride, the 44-bit rotate and the XOR.
+
+**ABI 21 → 22, once, for all of Phase 2's kinds.** `srmech_chain_run`'s
+output-kind vocabulary widens, which is the v18 / v20 shape a third time: a
+stale reader paired with a current `.so` meets a kind it has no branch for
+and RAISES mid-run, so the bump converts that into a clean load-refusal —
+executed, not asserted: an ABI-21 `libsrmech.so` against this Python reports
+`HAS_NATIVE = False`, `LIB = None` and a `LOAD_ERROR` naming the mismatch.
+The five VERSION SSOT files stay at **0.9.0rc452** — an ABI bump is not a
+version bump. `SRMECH_GENOME_FORMAT_VERSION` stays 20; no on-disk format
+moves. *(Also corrected in the same change: `docs/srmech/CLAUDE.md`'s ABI
+paragraph said `EXPECTED_ABI_VERSION = 20` beside `SRMECH_ABI_VERSION = 21`.
+The currency gate keys on the first pair only, so the second number was
+ungated prose and was already one bump stale before this one.)*
+
 ### The registry-ripple phase (gh #1653): klein4_from_one closes — `CEIL_C_REJECTED_CHAINS` 4 → 3 — and the runner honours its own header contract
 
 **The registration triple, done once and rippled whole.** `cr_args_keyset_ok`

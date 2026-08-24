@@ -4,7 +4,7 @@ srmech is a MULTI-IMPLEMENTATION codebase (ADR-0009): the scripting-coherency
 projection (``python/srmech``) and the compiled-coherency projection (``c/src``)
 are CO-EQUAL. The config-driven cascade surface violates that: of the 18
 executable ``[cascade]`` descriptors, the C run loop accepted **0** when this
-file landed at rc445, and accepts **15** as of the rc452 registry-ripple phase
+file landed at rc445, and accepts **16** as of the rc452 Phase-2 K1 slice
 — measured by this file's own ``_measure()``, and equal to 18 minus
 :data:`CEIL_C_REJECTED_CHAINS` three screens down.
 
@@ -79,7 +79,18 @@ from srmech.dsl import _catalog as _cat
 # Re-measured at rc445 by notes/_1653_chain_census_rc444.py:
 #   "CENSUS of 18 executable chains (20 chain-variants): ...
 #    C srmech_chain_run ACCEPT=0 REJECT=18 ... UNATTRIBUTED=0"
-CEIL_C_REJECTED_CHAINS = 3            # of 18 executable. Target 0.
+CEIL_C_REJECTED_CHAINS = 2            # of 18 executable. Target 0.
+#   3 -> 2 within rc452 (`#T1166` Phase 2, the K1 slice): encode_loe_content,
+#   all 4 proof cases BYTE_IDENTICAL under the rc450 typed comparator. Its
+#   two gates closed together, which is why it could not be halved:
+#   GATE_OP_TABLE fell to four wave-D atom rows (sha256_raw / mint_vector /
+#   permute / bind, each delegating to ONE step-granular compiled export
+#   the Python op itself composes — srmech_sha256_hex, srmech_mint_vector,
+#   srmech_hdc_permute, srmech_hdc_bind), and GATE_CARRIER fell to the `b`
+#   WIRE KIND, which is the new type this chain's `new_type: True` flag
+#   predicted. The rc452 wave-C phase had placed a deliberate FINAL-decline
+#   in cr_run_and_write for exactly this case; the `b` arm in cr_desc_scalar
+#   replaces it, and ABI 21 -> 22 rides with the widened kind vocabulary.
 #   The rc445 baseline was 18, verified against a PRISTINE origin/main .so with
 #   THIS harness — so the drain is attributable to the code, not to the probe.
 #   The drain, in full: 18 (rc445) -> 12 when the cr_dispatch arm closed the 6
@@ -291,9 +302,16 @@ BLOCKED = {
     # (srmech_chain_run's output-kind vocabulary gained `t`), and the projection
     # gap closed in the SAME change (the C `is_tuple` flag, the Python `t`
     # branch in _reconstruct_value, and ABI 19 -> 20 together).
-    "encode_loe_content":       {"gates": [GATE_CARRIER, GATE_OP_TABLE],
-                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "carrier_bytes", "new_type_reason": ""},
+    # encode_loe_content's row was DELETED at rc452 Phase 2 (`#T1166`, the K1
+    # slice) — the chain runs, 4/4 proof cases BYTE_IDENTICAL. It carried
+    # new_type=True against ledger row `carrier_bytes`, and that flag was
+    # load-bearing exactly as the note above predicts: closing the chain DID
+    # widen a discriminator set (srmech_chain_run's output-kind vocabulary
+    # gained `b`), and the projection gap closed in the SAME change — the C
+    # `cr_desc_scalar` bytes arm, the Python `b` branch in _reconstruct_value,
+    # the EXPECTED_WIRE_KINDS pin and ABI 21 -> 22 together, with the chain's
+    # own proof cases as the executed emitter so the kind is never declared
+    # without something emitting it (the rc450 q/n/s hole, not re-created).
     # kuramoto_step's, quaternion_dft's and octonion_dft's rows were DELETED
     # at rc452 Phase 3 (`#T1166`) — all three run, 23/23 representable proof
     # cases BYTE_IDENTICAL, a mutation witness per chain and both step-drive

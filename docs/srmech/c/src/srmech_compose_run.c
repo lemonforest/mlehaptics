@@ -1701,7 +1701,15 @@ typedef enum {
      * 51-case split threshold; the growth path is a new domain enum, not a
      * default: arm. */
     CR_CAS_RENDER_TEMPLATE, CR_CAS_UTF8_ENCODE, CR_CAS_SHA256_BYTES,
-    CR_CAS_STR_CONCAT, CR_CAS_BYTE_SLICE, CR_CAS_INT_PARSE_LE
+    CR_CAS_STR_CONCAT, CR_CAS_BYTE_SLICE, CR_CAS_INT_PARSE_LE,
+    /* wave D (rc452, gh #1653): the encode_loe_content chain's Class-A mint /
+     * Class-C permute / Class-M bind leaves, plus the raw-digest Class-A twin.
+     * Each delegates to ONE step-granular compiled export the Python op itself
+     * composes (srmech_sha256_hex / srmech_mint_vector / srmech_hdc_permute /
+     * srmech_hdc_bind) — there is no fused whole-chain symbol for this chain
+     * to reach for, and the no-coarse source gate derives that population
+     * itself. 34 of the documented 51-case split threshold. */
+    CR_CAS_SHA256_RAW, CR_CAS_MINT_VECTOR, CR_CAS_HDC_PERMUTE, CR_CAS_HDC_BIND
 } cr_cas_op_t;
 
 /* Which fold body a row provides. CR_BIN_NONE = the op cannot fold.
@@ -2895,6 +2903,143 @@ static srmech_status_t cr_op_render_template(cr_ctx_t *c,
     return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
 }
 
+/* ------------------------------------------------------------------
+ * THE HDC / DIGEST LEAVES (rc452, gh #1653 — wave D: the encode_loe_content
+ * chain's own steps). Classes A / C / M at STEP granularity.
+ *
+ * Every arm delegates to exactly ONE compiled export that the PYTHON op of
+ * the same name delegates to as well — srmech_sha256_hex (the Class-A core
+ * srmech.amsc.format.sha256_raw composes), srmech_mint_vector,
+ * srmech_hdc_permute, srmech_hdc_bind. None of the four is a multi-step
+ * cascade symbol, so this block adds nothing to the population
+ * test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py derives.
+ *
+ * All four are BYTES-typed on at least one side of their contract. Python
+ * RAISES on the wrong side (bytes has no .encode; hdc._check_pair raises on
+ * a length mismatch or an empty vector; _validate_D raises on a bad D), so
+ * each arm DECLINES there rather than coercing — co-equal projections must
+ * refuse the same inputs.
+ * ------------------------------------------------------------------ */
+
+/* sha256_raw(data) -> bytes: the RAW 32-byte digest.
+ *
+ * ⚠️ COMPOSED THE WAY THE PYTHON OP COMPOSES IT — `bytes.fromhex(
+ * sha256_bytes(data))` — rather than through srmech_sha256_shani, which also
+ * writes 32 raw bytes. Both are bit-exact, so no value-level gate could tell
+ * them apart; the reason to prefer this one is that it keeps ONE Class-A core
+ * referenced from this TU for BOTH digest arms, so a future divergence between
+ * the two entry points cannot reach the chain interpreter through the back
+ * door. The hex nibbles are unconditionally [0-9a-f] by srmech_sha256_hex's
+ * own contract, which is why the decode below needs no table and no guard. */
+static srmech_status_t cr_op_sha256_raw(cr_ctx_t *c, const srmech_json_value_t *a,
+                                        cr_value_t **o)
+{
+    cr_value_t *d; char hex[65]; char *raw; const uint8_t *p; uint32_t i;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    d = cr_arg(c, a, "data");
+    if (d == NULL || d->kind != CR_STR || !d->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    raw = (char *)cr_carve(c->b, 33u);
+    if (raw == NULL) { return SRMECH_ERR_OVERFLOW; }
+    p = (const uint8_t *)((d->s != NULL) ? d->s : "");
+    if (srmech_sha256_hex(p, (size_t)d->slen, hex) != SRMECH_OK) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (i = 0u; i < 32u; i++) {
+        char hi = hex[2u * i], lo = hex[2u * i + 1u];
+        int hv = (hi <= '9') ? (hi - '0') : (hi - 'a' + 10);
+        int lv = (lo <= '9') ? (lo - '0') : (lo - 'a' + 10);
+        raw[i] = (char)((hv << 4) | lv);
+    }
+    *o = cr_str_value(c->b, raw, 32u, 1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* mint_vector(name, D) -> bytes: the Class-A content-addressed hypervector,
+ * SHA-256(name || u64_be(counter)) chained to D/8 bytes.
+ *
+ * D IS VALIDATED, NOT CLAMPED. srmech.signal_processing._validate_D raises on
+ * a non-int, on D < D_MIN (256), on D > D_MAX (65536) and on D % 8 != 0, so
+ * every one of those DECLINES here. The three bounds are transcribed from
+ * srmech/signal_processing/_paths.py; a clamp would answer where Python
+ * raises, which is the co-equal-refusal rule this whole block turns on. */
+static srmech_status_t cr_op_mint_vector(cr_ctx_t *c, const srmech_json_value_t *a,
+                                         cr_value_t **o)
+{
+    cr_value_t *nm, *vd; int64_t dbits = 0; char *buf; uint32_t nb;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    nm = cr_arg(c, a, "name"); vd = cr_arg(c, a, "D");
+    if (nm == NULL || nm->kind != CR_STR || nm->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    if (vd == NULL || !cr_as_i64(vd, &dbits)) { return SRMECH_ERR_NOT_IMPL; }
+    if (dbits < 256 || dbits > 65536 || (dbits % 8) != 0) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    nb = (uint32_t)(dbits / 8);
+    buf = (char *)cr_carve(c->b, (size_t)nb + 1u);
+    if (buf == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (srmech_mint_vector((const uint8_t *)((nm->s != NULL) ? nm->s : ""),
+                           (size_t)nm->slen, nb, (uint8_t *)buf) != SRMECH_OK) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *o = cr_str_value(c->b, buf, nb, 1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* permute(a, rotate_bits) -> bytes: the Class-C cyclic BIT rotation.
+ *
+ * `rotate_bits` is reduced HERE, with Python's floor-mod sign convention
+ * (`eff = rotate_bits % D` is non-negative in Python even for a negative
+ * operand), before the int32 hand-off — so a rotation whose magnitude exceeds
+ * int32 cannot wrap on the cast. An empty vector declines: hdc.permute raises
+ * ValueError on it. */
+static srmech_status_t cr_op_hdc_permute(cr_ctx_t *c, const srmech_json_value_t *a,
+                                         cr_value_t **o)
+{
+    cr_value_t *av, *rv; int64_t rot = 0, dbits, eff; char *buf;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    av = cr_arg(c, a, "a"); rv = cr_arg(c, a, "rotate_bits");
+    if (av == NULL || av->kind != CR_STR || !av->is_bytes || av->slen == 0u) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (rv == NULL || !cr_as_i64(rv, &rot)) { return SRMECH_ERR_NOT_IMPL; }
+    dbits = (int64_t)av->slen * 8;
+    if (dbits > (int64_t)INT32_MAX) { return SRMECH_ERR_NOT_IMPL; }
+    eff = rot % dbits;
+    if (eff < 0) { eff += dbits; }       /* Python's % floors; C's truncates */
+    buf = (char *)cr_carve(c->b, (size_t)av->slen + 1u);
+    if (buf == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (srmech_hdc_permute((const uint8_t *)av->s, av->slen, (int32_t)eff,
+                           (uint8_t *)buf) != SRMECH_OK) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *o = cr_str_value(c->b, buf, av->slen, 1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* bind(a, b) -> bytes: the Class-M component-wise XOR. hdc._check_pair raises
+ * on unequal lengths and on the empty vector, so both DECLINE here. */
+static srmech_status_t cr_op_hdc_bind(cr_ctx_t *c, const srmech_json_value_t *a,
+                                      cr_value_t **o)
+{
+    cr_value_t *x, *y; char *buf;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    x = cr_arg(c, a, "a"); y = cr_arg(c, a, "b");
+    if (x == NULL || y == NULL || x->kind != CR_STR || y->kind != CR_STR ||
+        !x->is_bytes || !y->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    if (x->slen != y->slen || x->slen == 0u) { return SRMECH_ERR_NOT_IMPL; }
+    buf = (char *)cr_carve(c->b, (size_t)x->slen + 1u);
+    if (buf == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (srmech_hdc_bind((const uint8_t *)x->s, (const uint8_t *)y->s,
+                        x->slen, (uint8_t *)buf) != SRMECH_OK) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *o = cr_str_value(c->b, buf, x->slen, 1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
 /* ---- fold bodies (rc452 Phase 3): the Σ accumulators ---- */
 
 /* A scalar as a double for the fold's float tier: a CR_DBL directly, a
@@ -3030,7 +3175,7 @@ static const struct {
     uint8_t     dom;   /* cr_dom_t   — which cr_exec_<domain>() runs the op   */
     uint8_t     sub;   /* per-domain — the case label inside that exec        */
     uint8_t     bin;   /* cr_bin_id_t — non-NONE iff the op can fold          */
-} CR_OP_REG[51] = {
+} CR_OP_REG[55] = {
  /* wave A (rc452) — the autocorrelation CHAIN's own steps */
  { "seq_len",             7u, "srmech.cascade.seq_len",
    CR_DOM_CAS, CR_CAS_SEQ_LEN, CR_BIN_NONE },
@@ -3138,6 +3283,20 @@ static const struct {
    CR_DOM_CAS, CR_CAS_BYTE_SLICE, CR_BIN_NONE },
  { "int_parse_le",       12u, "srmech.cascade.int_parse_le",
    CR_DOM_CAS, CR_CAS_INT_PARSE_LE, CR_BIN_NONE },
+ /* wave D (rc452, gh #1653) — encode_loe_content's Class-A / C / M leaves.
+  * Each `full` names the op's REAL registered home, never a same-params
+  * sibling: `sha256_raw` is srmech.amsc.format's own entry (NOT sha256_bytes,
+  * which takes the same single `data` param and would validate against the
+  * wrong contract — the exact aliasing trap the head of this table names),
+  * and `mint_vector` / `permute` / `bind` carry their defining modules. */
+ { "sha256_raw",         10u, "srmech.amsc.format.sha256_raw",
+   CR_DOM_CAS, CR_CAS_SHA256_RAW, CR_BIN_NONE },
+ { "mint_vector",        11u, "srmech.signal_processing.mint_vector",
+   CR_DOM_CAS, CR_CAS_MINT_VECTOR, CR_BIN_NONE },
+ { "permute",             7u, "srmech.math.hdc.permute",
+   CR_DOM_CAS, CR_CAS_HDC_PERMUTE, CR_BIN_NONE },
+ { "bind",                4u, "srmech.math.hdc.bind",
+   CR_DOM_CAS, CR_CAS_HDC_BIND, CR_BIN_NONE },
  /* FOLD-BODY-ONLY: `dom` is CR_DOM_NONE because orientation_compose is never
   * a plain step in any shipped descriptor — it exists to be folded. A
   * CR_DOM_NONE row is a deliberate, expressible state (cr_dispatch returns
@@ -3268,6 +3427,10 @@ static srmech_status_t cr_exec_cas(cr_ctx_t *c, uint8_t sub,
     case CR_CAS_STR_CONCAT:      return cr_op_str_concat(c, args, out);
     case CR_CAS_BYTE_SLICE:      return cr_op_byte_slice(c, args, out);
     case CR_CAS_INT_PARSE_LE:    return cr_op_int_parse_le(c, args, out);
+    case CR_CAS_SHA256_RAW:      return cr_op_sha256_raw(c, args, out);
+    case CR_CAS_MINT_VECTOR:     return cr_op_mint_vector(c, args, out);
+    case CR_CAS_HDC_PERMUTE:     return cr_op_hdc_permute(c, args, out);
+    case CR_CAS_HDC_BIND:        return cr_op_hdc_bind(c, args, out);
     }
     return SRMECH_ERR_INTERNAL;
 }
@@ -3314,6 +3477,41 @@ static srmech_json_value_t *cr_dec_node(srmech_json_builder_t *bd,
     return srmech_json_new_string(bd, dec, (uint32_t)dl);
 }
 
+/* Lowercase-hex expansion of a byte buffer, carved from `tmp`. The payload
+ * encoding of the `b` (BYTES) wire kind.
+ *
+ * ⚠️ WHY HEX AND NOT BASE64. The choice is forced by the same reasoning the
+ * mapping kind's key ordering is: pick the encoding whose spelling leaves the
+ * two projections NO decision to disagree about. Base64 has an alphabet
+ * variant (standard vs URL-safe) and a padding rule, and each is a place a C
+ * writer and a Python reader can differ while both look correct; lowercase hex
+ * has exactly one spelling for any input, `bytes.hex()` produces it and
+ * `bytes.fromhex()` inverts it exactly, and it is already the alphabet
+ * srmech_sha256_hex emits, so no new encoder alphabet enters the library.
+ *
+ * (Not to be confused with the MCP tool surface's `bytes` coercer, which reads
+ * BASE64 — that is an INPUT coercion on a different surface. Measured this rc:
+ * feeding it hex raises `Incorrect padding`. The two are not interchangeable
+ * and this comment exists so nobody "unifies" them by guess.) */
+static char *cr_bytes_hex(cr_bump_t *tmp, const char *s, uint32_t n)
+{
+    static const char DIG[16] = { '0','1','2','3','4','5','6','7',
+                                  '8','9','a','b','c','d','e','f' };
+    char *out; uint32_t i;
+    assert(tmp != NULL);
+    assert(s != NULL || n == 0u);
+    if (n > 0x3FFFFFFFu) { return NULL; }      /* 2n must not wrap uint32 */
+    out = (char *)cr_carve(tmp, (size_t)n * 2u + 1u);
+    if (out == NULL) { return NULL; }
+    for (i = 0u; i < n; i++) {
+        unsigned char by = (unsigned char)s[i];
+        out[2u * i] = DIG[(by >> 4) & 0x0Fu];
+        out[2u * i + 1u] = DIG[by & 0x0Fu];
+    }
+    out[2u * n] = '\0';
+    return out;
+}
+
 /* Marshal a SCALAR carrier to its value descriptor. Split from cr_desc so the
  * list arm can loop over elements WITHOUT re-entering cr_desc — that would be
  * mutual recursion, which JPL Rule 1 bans. Safe because cr_json_list builds
@@ -3337,12 +3535,21 @@ static srmech_json_value_t *cr_desc_scalar(srmech_json_builder_t *bd,
         return srmech_json_new_object(bd, keys, vals, 2u);
     }
     if (v->kind == CR_STR) {
-        /* A BYTES carrier (is_bytes, rc452) has no wire kind yet — NULL, so
-         * the run defers rather than erasing the str/bytes type as `s`. The
-         * whole-chain case is caught earlier (cr_run_and_write) with the
-         * honest NOT_IMPL; this arm is the nested-element backstop. */
-        if (v->is_bytes) { return NULL; }
         keys[0] = "k"; keys[1] = "v";
+        if (v->is_bytes) {
+            /* rc452 (`#T1166`, gh #1653): the `b` kind. Through the wave-C
+             * phase this arm returned NULL and cr_run_and_write declined a
+             * bytes FINAL outright, because spelling bytes as `s` would erase
+             * the str/bytes type on the wire — the exact collapse class the
+             * rc450 comparator pins. The kind lands in the SAME change as
+             * encode_loe_content, the chain that emits it, so it is never a
+             * declared-but-unemitted letter. */
+            char *hx = cr_bytes_hex(tmp, v->s, v->slen);
+            if (hx == NULL) { return NULL; }
+            vals[0] = srmech_json_new_string(bd, "b", 1u);
+            vals[1] = srmech_json_new_string(bd, hx, v->slen * 2u);
+            return srmech_json_new_object(bd, keys, vals, 2u);
+        }
         vals[0] = srmech_json_new_string(bd, "s", 1u);
         vals[1] = srmech_json_new_string(bd, v->s, v->slen);
         return srmech_json_new_object(bd, keys, vals, 2u);
@@ -3952,14 +4159,10 @@ static srmech_status_t cr_run_and_write(const srmech_json_value_t *chain,
     b->end = tail_end - wsz;                    /* shrink run bump */
     st = cr_run_steps(chain, ctx, b, &final_v);
     if (st != SRMECH_OK) { return st; }
-    /* A BYTES final value has no wire kind yet (rc452, gh #1653): the `b`
-     * descriptor letter ships with encode_loe_content's closure, and until it
-     * does a bytes final DECLINES — spelling it as `s` would erase the
-     * str/bytes type on the wire, the exact collapse class the rc450
-     * comparator pins. NOT_IMPL, not OVERFLOW: this is a capability gap. */
-    if (final_v != NULL && final_v->kind == CR_STR && final_v->is_bytes) {
-        return SRMECH_ERR_NOT_IMPL;
-    }
+    /* (The rc452 wave-C FINAL-decline for a bytes carrier stood HERE and is
+     * GONE: the `b` kind ships with encode_loe_content in this change, so a
+     * bytes final now marshals rather than declining. cr_desc_scalar's `b`
+     * arm is the whole replacement — there is no residual special case.) */
     wa = cr_align(b->end);                      /* builder base, 8-aligned */
     if (wa >= tail_end) { return SRMECH_ERR_OVERFLOW; }
     region = (size_t)(tail_end - wa); half = region / 2u;

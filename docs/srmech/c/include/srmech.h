@@ -498,7 +498,7 @@ extern "C" {
  *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  */
-#define SRMECH_ABI_VERSION 21
+#define SRMECH_ABI_VERSION 22
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)

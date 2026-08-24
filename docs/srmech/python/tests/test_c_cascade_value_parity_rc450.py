@@ -181,7 +181,7 @@ _STATUS = {0: "SRMECH_OK", 2: "SRMECH_ERR_BAD_INPUT", 4: "SRMECH_ERR_OVERFLOW",
 #: is closed by :func:`test_an_executed_case_emits_the_tuple_kind_itself`, which
 #: reads the kind string off a REAL run — do not treat this pin as sufficient
 #: on its own.
-EXPECTED_WIRE_KINDS = frozenset({"n", "i", "s", "q", "f", "l", "t"})
+EXPECTED_WIRE_KINDS = frozenset({"n", "i", "s", "q", "f", "l", "t", "b"})
 
 # ── down-only ceilings, seeded at the MEASURED rc450 population ──────────────
 #: STRICT ZERO. Not a ceiling that drains — a divergence between the two
@@ -250,7 +250,15 @@ CEIL_C_REJECTED_ROWS_BY_CHAIN = {
     # str/bytes interior rides the `is_bytes` carrier flag with NO new wire
     # kind — the final value is a list of ints, so nothing bytes-typed ever
     # crosses the wire.
-    "encode_loe_content": 4,
+    # ``encode_loe_content``'s entry (4) was DELETED at rc452 Phase 2
+    # (`#T1166`, the K1 slice) — the chain closed FULLY, all 4 proof cases
+    # BYTE_IDENTICAL under this file's own comparator, including the D = 8192
+    # sweep case whose final value is 1024 bytes. Row removed, not decremented.
+    # Its steps run as steps through the four wave-D atom rows (sha256_raw /
+    # mint_vector / permute / bind), each delegating to ONE step-granular
+    # compiled export; there is no fused whole-chain symbol for this descriptor
+    # anywhere in the library, so the no-coarse gate derives an empty
+    # contribution from it and no coarse bypass exists to rule out.
     "parallel_sector_dispatch": 4,
     "schur_complement": 3,
 }
@@ -641,6 +649,63 @@ def test_an_executed_case_emits_the_tuple_kind_itself():
         "the shipped reader rebuilt %r (%s) from a 't' descriptor; it must be a "
         "tuple exactly, not a list and not a subclass"
         % (got, type(got).__name__))
+
+
+def test_an_executed_case_emits_the_bytes_kind_itself():
+    """rc452 Phase 2 (`#T1166`, gh #1653, the K1 slice). Same SUBJECT as the
+    tuple gate above and for the same reason: the kind string an EXECUTED
+    shipped proof case actually puts on the wire.
+
+    WHY IT IS NEEDED SEPARATELY FROM THE BIJECTION PIN. rc450 pinned a
+    wire-kind bijection while ZERO proof cases emitted ``q`` / ``n`` / ``s``,
+    so the pin was green on kinds nothing produced and the comparator could not
+    have told an exact-ℚ chain from an integer-pair chain. A kind declared in
+    ``EXPECTED_WIRE_KINDS`` and in both sources, with nothing emitting it,
+    re-creates that hole exactly. This runs the chain.
+
+    THE ADJUDICATED DODGE THIS REFUSES: spell the 32/1024-byte final value as
+    the EXISTING ``s`` kind. That scores 4 BYTE_IDENTICAL against a Python
+    projection whose value is ``bytes`` only if the reader coerces — and the
+    reader would then have to guess an encoding, which is the type erasure the
+    ``b`` kind exists to prevent. Only a predicate whose subject is the emitted
+    letter can refuse it.
+
+    HOW IT RETURNS OTHERWISE: any kind other than ``b`` fails, naming what was
+    seen. Before the C arm landed it would have failed on rc=5 with an empty
+    wire — measured, that is exactly what the chain returned.
+    """
+    require_native("srmech_chain_run value parity (the emitted bytes kind)")
+    _variant, _spec, entry = cascade_chain_specs("encode_loe_content")[0]
+    cases = entry.get("proof_cases") or []
+    inputs = dict(_case_defaults(entry))
+    inputs.update(dict((cases[1] or {}).get("inputs") or {}))   # the D = 256 case
+    rc, wire, ok = _c_run(_chain_only(entry), inputs)
+    assert ok and rc == 0, (
+        "encode_loe_content did not run in C (ok=%r rc=%r). rc452 Phase 2 "
+        "closed this chain; if it declines again the ceilings above are also "
+        "wrong." % (ok, rc))
+    desc = _compose._srmech_json.loads(wire.decode("utf-8"))
+    assert desc.get("k") == "b", (
+        "the C wire spelled encode_loe_content's final value as kind %r, not "
+        "'b'. If that is 's', the chain's bytes result is crossing as a STRING "
+        "and the str/bytes type is erased on the wire — the collapse class this "
+        "file exists to pin. Wire prefix: %r" % (desc.get("k"), wire[:64]))
+    assert sorted(desc) == ["k", "v"], (
+        "the bytes descriptor's key set is %r; the kind carries exactly k + v."
+        % (sorted(desc),))
+    got = _compose._reconstruct_value(desc)
+    assert type(got) is bytes, (
+        "the shipped reader rebuilt %r (%s) from a 'b' descriptor; it must be "
+        "bytes exactly, not str and not bytearray"
+        % (got[:16], type(got).__name__))
+    assert len(got) == 32, (
+        "the D = 256 case must rebuild 32 bytes (D / 8); got %d" % len(got))
+    #: The payload is LOWERCASE HEX and nothing else — the one property that
+    #: makes the two projections unable to disagree about the encoding.
+    assert desc["v"] == got.hex(), (
+        "the `b` payload %r is not the lowercase-hex spelling of the bytes it "
+        "rebuilds. Base64, uppercase hex and a 0x prefix all fail here, which "
+        "is the point: the kind pins ONE spelling." % (desc["v"][:32],))
 
 
 def test_an_unknown_kind_is_a_hard_red_not_a_soft_verdict():

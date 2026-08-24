@@ -99,19 +99,20 @@ def test_the_native_library_is_present_and_at_this_rcs_abi() -> None:
     a LOADED library come AFTER :func:`require_native`, which is the only thing
     entitled to decide whether "absent" was declared or is a broken C build.
     """
-    assert _native.EXPECTED_ABI_VERSION == 21, (
-        "rc452 bumps ABI 20 -> 21 for cr_op_reorient's CR_RATIONAL arm; the "
+    assert _native.EXPECTED_ABI_VERSION == 22, (
+        "rc452 bumps ABI 20 -> 21 for cr_op_reorient's CR_RATIONAL arm and "
+        "21 -> 22 for the b/m/o/x wire kinds; the "
         "Python constant and the srmech.h macro move in the SAME commit or "
         "HAS_NATIVE goes silently False. Got %r"
         % (_native.EXPECTED_ABI_VERSION,))
-    require_native("the rc452 exact-Q pipeline floor (ABI 21 and a loaded library)")
+    require_native("the rc452 exact-Q pipeline floor (ABI 22 and a loaded library)")
     assert _native.LOAD_ERROR is None, _native.LOAD_ERROR
     assert _native.HAS_NATIVE is True, (
         "no native library loaded. This file certifies rc452's DoD across BOTH "
         "projections; without the C half it would be a green that measured one "
         "of them. Build it (docs/srmech/c) and re-run.")
-    assert _native.NATIVE_ABI_VERSION == 21, (
-        "the loaded .so reports ABI %r, not 21 — it is stale against this "
+    assert _native.NATIVE_ABI_VERSION == 22, (
+        "the loaded .so reports ABI %r, not 22 — it is stale against this "
         "source tree and every measurement below would be of the old bytes."
         % (_native.NATIVE_ABI_VERSION,))
 
@@ -131,7 +132,7 @@ def _lib():
     lib = _compose._compose_lib("srmech_chain_run", "srmech_chain_run_arena_bytes")
     assert lib is not None, (
         "srmech_chain_run is absent from a library that loaded and reported "
-        "ABI 21 — that is a different failure and must not read as a skip")
+        "ABI 22 — that is a different failure and must not read as a skip")
     return lib
 
 

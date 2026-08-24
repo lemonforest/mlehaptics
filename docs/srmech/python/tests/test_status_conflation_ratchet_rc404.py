@@ -379,7 +379,41 @@ DRAINED_EXACT = {
 #: still declines an out-of-uint64 operand the same way. Those defer to the
 #: pure projection and are deliberately NOT status 4 — reading either as a
 #: buffer failure would have put extra lines under this ceiling wrongly.
-CEIL_CONFLATING_RETURN_LINES = 739
+#: ── rc452 Phase 2 (`#T1166`, the K1 slice): 739 -> 743. NET +4, all four in
+#: srmech_compose_run.c (43 -> 47). No other .c file moved.
+#:
+#: MEASURED with THIS FILE'S OWN `_count_returns` over `sorted(_C_SRC_DIR.glob(
+#: "*.c"))` — 743 — not with grep, for the reason the rc452 block above already
+#: records: a raw `grep -c` over-counts by five because it reads the
+#: block-comment narrations this counter strips.
+#:
+#: THE ADDED FOUR, by enclosing function, each with the NULL provenance traced
+#: to its leaf. Line numbers are deliberately omitted where the block above
+#: gives them, because the additions shift them; the FUNCTION survives an edit:
+#:
+#:   cr_op_sha256_raw    raw == NULL   <- cr_carve (33-byte raw-digest buffer)
+#:   cr_op_mint_vector   buf == NULL   <- cr_carve (D/8-byte hypervector)
+#:   cr_op_hdc_permute   buf == NULL   <- cr_carve (n-byte rotated vector)
+#:   cr_op_hdc_bind      buf == NULL   <- cr_carve (n-byte XOR result)
+#:
+#: ALL FOUR are `X == NULL` where X came from cr_carve — the chain runner's
+#: bump allocator over the CALLER-SUPPLIED ws/ws_len. cr_carve returns NULL for
+#: exactly one condition: the request does not fit the remaining arena. So
+#: status 4 is CORRECT under rc404's rule, srmech.h:555's forced direction
+#: holds (status 4 keeps the retryable/grow meaning), and a caller's grow-loop
+#: terminates — srmech_chain_run_arena_bytes reports a larger figure and the
+#: same call succeeds. NONE is an unrepresentable value, a compiled-in cap or a
+#: non-convergent iteration, so NONE is LIMIT-class and there is no structural
+#: site to root-fix. This is an ADJUDICATED raise with per-line provenance, not
+#: a silent bump.
+#:
+#: ⚠️ THE CONTRAST IS LIVE INSIDE THE SAME FOUR FUNCTIONS, which is what makes
+#: this an adjudication rather than a rubber stamp. Each of them ALSO returns
+#: SRMECH_ERR_NOT_IMPL (a wrong-typed operand, a D outside [256, 65536] or not
+#: a multiple of 8, a length mismatch, an empty vector) and SRMECH_ERR_BAD_INPUT
+#: (the delegated primitive refusing). Three statuses, three meanings, chosen
+#: per condition — the OVERFLOW arm is the arena one and only the arena one.
+CEIL_CONFLATING_RETURN_LINES = 743
 
 _RETURN_OVERFLOW = re.compile(r"return\s+SRMECH_ERR_OVERFLOW\s*;")
 
