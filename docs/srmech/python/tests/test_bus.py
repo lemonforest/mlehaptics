@@ -1017,7 +1017,7 @@ def test_native_bus_symbols_present():
     from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    # ABI-PIN: NATIVE_ABI_VERSION == 22
+    # ABI-PIN: NATIVE_ABI_VERSION == 23
     # ^ that comment is a GREP TARGET, and it is load-bearing. rc449 fixed this
     # file's stale-message problem by naming the value once and interpolating it,
     # which is right - but it moved the literal off the assert line, so rc452's
@@ -1027,7 +1027,7 @@ def test_native_bus_symbols_present():
     # a SECOND one, of a different kind - indirection through a local, introduced
     # by the previous fix. Keeping a comment that spells NAME == LITERAL restores
     # what the interpolation took away, without giving back the drift it prevents.
-    want_abi = 22
+    want_abi = 23
     assert _native.NATIVE_ABI_VERSION == want_abi, (
         f"ABI {want_abi} expected (rc452 `#T1166` rebuilt the chain-run 'q' wire "
         f"kind as srmech.math.q.Q - a wire-format change to an EXISTING signature, "
@@ -1077,14 +1077,20 @@ def test_abi_version_is_pinned():
     # Fixed by construction rather than by digit: the expected value is named
     # once and interpolated, so the message cannot disagree with the assert.
     from srmech import _native
-    # rc452 (`#T1166`): 20 -> 21. The wire-format of the chain-run value
-    # channel changed (the 'q' kind now rebuilds as srmech.math.q.Q), which is
-    # a change to an EXISTING exported signature, so the ABI bumps rather than
-    # staying put as an additive symbol would. This was the ONE pin the rc452
-    # sweep did not reach; every other numeric ABI assert in tests/ already
-    # read 21. Re-pinned because the bump did its job, not bumped to buy green.
-    # ABI-PIN: EXPECTED_ABI_VERSION == 22   (grep target - see the note above)
-    want_abi = 22
+    # rc452 (`#T1166`): 22 -> 23, the mapping/bool wire kinds landing with
+    # parallel_sector_dispatch. ⚠️ AND THIS PIN DRIFTED AGAIN, IN THE EXACT WAY
+    # THE COMMENT ABOVE PREDICTS. The rc452 closure swept tests/ for
+    # `(NATIVE|EXPECTED)_ABI_VERSION == 22` and updated 23 pins across 18
+    # files -- including the two GREP-TARGET comments in this file, which is
+    # what they are for. It did NOT update `want_abi` in either function,
+    # because the sweep matched the comment and the local is a plain
+    # assignment. So the grep target did its job (it named the site) and the
+    # automation did half of it (it edited the target instead of the value) --
+    # a mechanism designed for a human reader, driven by a script. Both
+    # functions FAILED on the next run, which is the assert being the
+    # measurement rather than the comment. Fixed together.
+    # ABI-PIN: EXPECTED_ABI_VERSION == 23   (grep target - see the note above)
+    want_abi = 23
     assert _native.EXPECTED_ABI_VERSION == want_abi, (
         f"EXPECTED_ABI_VERSION should be {want_abi}; got "
         f"{_native.EXPECTED_ABI_VERSION}"

@@ -99,7 +99,7 @@ def test_the_native_library_is_present_and_at_this_rcs_abi() -> None:
     a LOADED library come AFTER :func:`require_native`, which is the only thing
     entitled to decide whether "absent" was declared or is a broken C build.
     """
-    assert _native.EXPECTED_ABI_VERSION == 22, (
+    assert _native.EXPECTED_ABI_VERSION == 23, (
         "rc452 bumps ABI 20 -> 21 for cr_op_reorient's CR_RATIONAL arm and "
         "21 -> 22 for the b/m/o/x wire kinds; the "
         "Python constant and the srmech.h macro move in the SAME commit or "
@@ -111,7 +111,7 @@ def test_the_native_library_is_present_and_at_this_rcs_abi() -> None:
         "no native library loaded. This file certifies rc452's DoD across BOTH "
         "projections; without the C half it would be a green that measured one "
         "of them. Build it (docs/srmech/c) and re-run.")
-    assert _native.NATIVE_ABI_VERSION == 22, (
+    assert _native.NATIVE_ABI_VERSION == 23, (
         "the loaded .so reports ABI %r, not 22 — it is stale against this "
         "source tree and every measurement below would be of the old bytes."
         % (_native.NATIVE_ABI_VERSION,))

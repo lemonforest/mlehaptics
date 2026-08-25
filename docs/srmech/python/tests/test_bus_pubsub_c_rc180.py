@@ -70,12 +70,12 @@ def test_abi_is_pinned():
     # a name that spells the value is falsified by the next bump and was —
     # 16 such tests were found tree-wide, one named for 367 asserting 663.
     # See test_pinned_names_carry_no_value_rc447.py.
-    assert _native.NATIVE_ABI_VERSION == 22, (
+    assert _native.NATIVE_ABI_VERSION == 23, (
         f"ABI must be 15 (rc438 `#T1140` put the winding triad on the "
         f"srmech_klein4_from_one wire, 14 -> 15); "
         f"got {_native.NATIVE_ABI_VERSION}"
     )
-    assert _native.EXPECTED_ABI_VERSION == 22
+    assert _native.EXPECTED_ABI_VERSION == 23
 
 
 @requires_native
