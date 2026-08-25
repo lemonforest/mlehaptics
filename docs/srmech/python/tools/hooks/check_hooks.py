@@ -97,6 +97,48 @@ def skip(name: str, why: str) -> None:
     _results.append((name, SKIP, why))
 
 
+def _cost_case(name: str, script: str, payload: Dict[str, Any],
+               ceiling_s: float, **kw) -> None:
+    """Assert an invocation finishes under ``ceiling_s``.
+
+    Correctness is not the only way a hook fails. ``stale_native_tripwire``
+    cost 43 s per Bash call as shipped, which no one would keep enabled, and
+    its exit status said nothing about that. A wall-clock assertion is the
+    only thing that can see it.
+    """
+    try:
+        start = time.perf_counter()
+        invoke(script, payload, **kw)
+        dt = time.perf_counter() - start
+    except Exception as exc:
+        _results.append((name, FAIL, f"invocation raised {type(exc).__name__}: {exc}"))
+        return
+    status = PASS if dt < ceiling_s else FAIL
+    _results.append((name, status,
+                     f"{dt*1000:.0f} ms against a {ceiling_s*1000:.0f} ms ceiling"))
+
+
+def _selftest_case(name: str, script: str, must_contain: str) -> None:
+    """Run a hook's ``--selftest`` and require a population line.
+
+    This is the vacuity check. ``generated_file_edit_blocker``'s manifest
+    predicate returned ``[]`` on every invocation for its whole shipped life,
+    and no exit status could reveal it: a dead predicate and a satisfied one
+    both exit 0 on a hand-written file. Only the POPULATION distinguishes them.
+    """
+    proc = subprocess.run(
+        [sys.executable, str(HOOKS / script), "--selftest"],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        env={**os.environ, "CLAUDE_PROJECT_DIR": str(REPO)}, timeout=120)
+    out = proc.stdout.decode("utf-8", "replace")
+    if proc.returncode == 0 and must_contain in out:
+        _results.append((name, PASS, must_contain))
+    else:
+        _results.append((name, FAIL,
+                         f"exit {proc.returncode}; wanted {must_contain!r} in: "
+                         + " / ".join(out.strip().splitlines()[:3])))
+
+
 # ── fixture builders ──────────────────────────────────────────────────────
 
 def _write(p: Path, text: str) -> Path:
@@ -193,7 +235,17 @@ def _raise_ceiling(gate: Path, delta: int) -> None:
 
 # ── 2. stale-native-tripwire ──────────────────────────────────────────────
 
-def _native_fixture(tmp: Path, lib_older: bool, with_lib: bool = True) -> Path:
+def _native_fixture(tmp: Path, lib_older: bool, with_lib: bool = True,
+                    abandoned_build: bool = False,
+                    build_lib_older: Optional[bool] = None) -> Path:
+    """A minimal tree carrying the three artifact locations that matter.
+
+    ``abandoned_build`` plants an ancient ``build_rc342/libsrmech.so`` — the
+    shape that made the shipped hook permanently unsatisfiable on the real
+    tree, where 14 such rc-numbered snapshots (oldest 2026-06-05) sat beside
+    a genuinely fresh loaded library. No rebuild can ever refresh them, so a
+    hook that reads them can never go green.
+    """
     root = tmp / "repo"
     src = _write(root / "docs/srmech/c/src/srmech_core.c", "int x(void){return 0;}\n")
     _write(root / "docs/srmech/c/include/srmech.h", "#define SRMECH_ABI_VERSION 22\n")
@@ -202,6 +254,12 @@ def _native_fixture(tmp: Path, lib_older: bool, with_lib: bool = True) -> Path:
     if with_lib:
         lib = _write(root / "docs/srmech/python/srmech/_native/libsrmech.so", "ELF\n")
         os.utime(lib, (now - 600, now - 600) if lib_older else (now + 600, now + 600))
+    if build_lib_older is not None:
+        b = _write(root / "docs/srmech/build/libsrmech.so", "ELF\n")
+        os.utime(b, (now - 600, now - 600) if build_lib_older else (now + 600, now + 600))
+    if abandoned_build:
+        old = _write(root / "docs/srmech/build_rc342/libsrmech.so", "ELF\n")
+        os.utime(old, (now - 5_000_000, now - 5_000_000))
     return root
 
 
@@ -215,7 +273,7 @@ def check_stale_native() -> None:
         pytest_cmd = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
                       "tool_input": {"command": "PYTHONPATH=. pytest tests/ -q"}}
 
-        case("stale-native BLOCKS pytest when the lib predates c/src",
+        case("stale-native BLOCKS pytest when the LOADED lib predates c/src",
              "stale_native_tripwire.py", pytest_cmd, 2, project_dir=stale)
         case("stale-native ALLOWS pytest when the lib is newer",
              "stale_native_tripwire.py", pytest_cmd, 0, project_dir=fresh)
@@ -228,6 +286,53 @@ def check_stale_native() -> None:
         case("stale-native ALLOWS with the documented override set",
              "stale_native_tripwire.py", pytest_cmd, 0, project_dir=stale,
              env_extra={"SRMECH_ALLOW_STALE_NATIVE": "1"})
+
+        # ── the two defects this hook shipped with ────────────────────────
+        # 1. It read every ``build*`` directory, so 14 abandoned rc snapshots
+        #    that nothing can load and no rebuild refreshes held it red
+        #    forever, while the library actually loaded was fresh.
+        abandoned = _native_fixture(tmp / "d", lib_older=False,
+                                    abandoned_build=True)
+        case("stale-native ALLOWS a fresh LOADED lib beside an abandoned "
+             "build_rc342 snapshot (the permanent-block regression)",
+             "stale_native_tripwire.py", pytest_cmd, 0, project_dir=abandoned)
+
+        # 2. It listed ``cmake --build`` as a command that TRUSTS the native
+        #    path, so the rebuild printed in its own block message was itself
+        #    refused. A hook that cannot be satisfied gets disabled.
+        for cmd in ("cmake --build build -- -k",
+                    "cmake --build build && PYTHONPATH=. pytest tests/ -q",
+                    "make -C build",
+                    "ninja -C build"):
+            case(f"stale-native ALLOWS the rebuild path: {cmd[:38]}",
+                 "stale_native_tripwire.py",
+                 {"hook_event_name": "PreToolUse", "tool_name": "Bash",
+                  "tool_input": {"command": cmd}}, 0, project_dir=stale)
+
+        # ...but a MENTION of cmake must not launder a trusting command.
+        case("stale-native BLOCKS pytest that merely MENTIONS cmake in a string",
+             "stale_native_tripwire.py",
+             {"hook_event_name": "PreToolUse", "tool_name": "Bash",
+              "tool_input": {"command": 'echo "run cmake --build first"; pytest -q'}},
+             2, project_dir=stale)
+
+        # The artifact set is chosen BY THE COMMAND: ctest links against
+        # build/, pytest loads srmech/_native/. A stale one must not
+        # implicate the other in either direction.
+        ct = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
+              "tool_input": {"command": "cd build && ctest --output-on-failure"}}
+        split = _native_fixture(tmp / "e", lib_older=False, build_lib_older=True)
+        case("stale-native BLOCKS ctest when build/ is stale though the "
+             "loaded lib is fresh", "stale_native_tripwire.py", ct, 2,
+             project_dir=split)
+        case("stale-native ALLOWS pytest in that same tree (different artifact)",
+             "stale_native_tripwire.py", pytest_cmd, 0, project_dir=split)
+
+        # COST is the other disqualifying half: 43 s per Bash call is not a
+        # usable tax. This ceiling is ~8x the measured 0.4-0.7 s and ~1/8 of
+        # the shipped cost, so it separates the two without being brittle.
+        _cost_case("stale-native costs well under the 5 s usability ceiling",
+                   "stale_native_tripwire.py", pytest_cmd, 5.0)
 
 
 # ── 3. git-add-all-blocker ────────────────────────────────────────────────
@@ -259,6 +364,15 @@ def check_generated_edit() -> None:
         return {"hook_event_name": "PreToolUse", "tool_name": "Edit",
                 "tool_input": {"file_path": str(path)}}
 
+    # THE VACUITY CHECK. The manifest predicate returned [] on every
+    # invocation as shipped — a dataclass in codegen_manifest.py raised
+    # because the module was never put in sys.modules, and a bare
+    # `except Exception: return []` swallowed it. The hook ran on its banner
+    # alone and no exit status could show that.
+    _selftest_case("generated-edit manifest predicate is NON-EMPTY (vacuity)",
+                   "generated_file_edit_blocker.py",
+                   "manifest predicate population: 6")
+
     gen = PY / "srmech" / "introspect" / "_tool_docs.py"
     if gen.is_file():
         case("generated-edit BLOCKS a hand-edit to _tool_docs.py",
@@ -271,8 +385,45 @@ def check_generated_edit() -> None:
         case("generated-edit BLOCKS a hand-edit to srmech_tool_registry.c",
              "generated_file_edit_blocker.py", edit(reg), 2)
 
+    # THE FILE THE SHIPPED HOOK MISSED. `_c_claims.py` is a real regen_all
+    # output that spells its banner in lower case, so neither predicate saw
+    # it: the manifest was dead and the banner match was case-SENSITIVE.
+    # Measured against the HEAD hook: exit 0. It ships in the wheel and
+    # reaches users through describe(), MCP and the compiled-in C registry.
+    claims = PY / "srmech" / "introspect" / "_c_claims.py"
+    if claims.is_file():
+        case("generated-edit BLOCKS _c_claims.py — the output the shipped "
+             "hook ALLOWED (manifest dead + lowercase banner)",
+             "generated_file_edit_blocker.py", edit(claims), 2)
+
+    # An EXCLUDED-generator output: not in the manifest, lowercase banner,
+    # so it exercises the banner predicate alone. Also exit 0 at HEAD.
+    fold = PY / "srmech" / "math" / "_unicode_fold_tables.py"
+    if fold.is_file():
+        case("generated-edit BLOCKS an EXCLUDED-generator output via the "
+             "banner alone: _unicode_fold_tables.py",
+             "generated_file_edit_blocker.py", edit(fold), 2)
+
+    # THE FALSE POSITIVE THE CONJUNCTION REMOVES. This file's third line is
+    # the prose "Do not edit srmech package files in this session." — a
+    # sentence about OTHER files. A case-insensitive banner match ALONE would
+    # block it; requiring "generated" as well does not.
+    notes = REPO / "docs" / "srmech" / "rbs_nn_research" / "UPSTREAM_NOTES.md"
+    if notes.is_file():
+        case("generated-edit ALLOWS prose that says 'do not edit' but is not "
+             "a generated-file banner: UPSTREAM_NOTES.md",
+             "generated_file_edit_blocker.py", edit(notes), 0)
+
+    # Documented exemption: its own banner licenses hand-curated rows.
+    carrier = PY / "srmech" / "introspect" / "_carrier_examples.py"
+    if carrier.is_file():
+        case("generated-edit ALLOWS _carrier_examples.py (banner licenses "
+             "hand-curation) and says so",
+             "generated_file_edit_blocker.py", edit(carrier), 0)
+
     for p, label in ((PY / "srmech" / "math" / "rational.py", "a hand-written module"),
                      (PY / "tools" / "gen_tool_docs.py", "the GENERATOR itself"),
+                     (PY / "tools" / "gen_c_claims.py", "the generator of _c_claims"),
                      (PY / "tests" / "test_status_conflation_ratchet_rc404.py", "a test")):
         if p.is_file():
             case(f"generated-edit ALLOWS {label}: {p.name}",
