@@ -324,7 +324,7 @@ static int run_row(const char *fname, uint32_t chain_idx, uint32_t case_idx,
     return 0;
 }
 
-/* The 18 config-driven rows at rc452 — every chain that runs in C, driven
+/* The 19 config-driven rows at rc452 — every chain that runs in C, driven
  * FROM ITS SHIPPED DESCRIPTOR FILE, one hand-derived proof case each (plus
  * the first SECOND-VARIANT rows — see `chain_idx`). `n_steps` is the
  * declared top-level [[cascade.chain.steps]] count the file must yield. */
@@ -505,6 +505,111 @@ static const row_t ROWS[] = {
       "the transpose by symmetry: [[1.5, -0.5], [-0.5, 1.5]]. Every value is "
       "a dyadic rational, so this row needs no oracle at all -- it is the "
       "textbook Schur complement done by hand" },
+    /* -- rc452 (`#T1166`): the FIRST row whose final value crosses as the `m`
+     * (MAPPING) kind, and the only chain in the catalog that returns a dict.
+     * It also carries the `o` (BOOL) kind -- nine of them -- and a `t` label
+     * tuple, so ONE row exercises three kinds at three nesting depths.
+     *
+     * Case 2 (`sector0`) is chosen over the sweep cases for the reason
+     * encode_loe_content picks its 256-bit case: n_sectors = 1 makes the
+     * `sectors` block ONE entry, so the expectation stays re-derivable by hand
+     * instead of being 4 KB nobody would check.
+     *
+     * DERIVATION, and the ORDER is the point -- the value was derived first
+     * and ENCODED into this grammar, then found to agree with the C byte for
+     * byte. It is not a transcript of a run. Sector 0 is the IDENTITY
+     * transform, label (+1, +1), so its dual is inv_T_0(reverse(T_0(x))) =
+     * reverse([0.5, 1.5]) = [1.5, 0.5]; both values are dyadic rationals, so
+     * nothing in this row is an approximate float. combine "sector0" returns
+     * results[0] verbatim. Z4_DISPATCH_SLOTS[:1] = [0]. The net chiralities
+     * are the products over the ONE dispatched label, both +1. One sector
+     * cannot differ from itself, so n_distinct = 1, classes = [[0]] and
+     * _collapse_label(1) = "bi_symmetric_collapse_to_1"; `useful` is false
+     * because it ALSO requires n_sectors == 4. The cap and framework blocks
+     * are module CONSTANTS, transcribed.
+     *
+     * ⚠️ THE KEYS RIDE AS TYPED DESCRIPTORS in a flat k,v,k,v array, never as
+     * JSON object keys -- which is what lets the INT key 0 of the `sectors`
+     * map cross at all, since the two projections' canonical writers order int
+     * object-keys differently. And note `{"k": "o", "v": false}` for `useful`
+     * beside `{"k": "i", "v": "0"}` for `cross_sector_reads`: the wire
+     * distinguishes a bool from the int that compares equal to it in Python,
+     * which is the whole reason the `o` kind exists. */
+    { "parallel_sector_dispatch.toml", 0u, 2u, 1u,
+      "{\"k\": \"m\", \"v\": [{\"k\": \"s\", \"v\": \"sectors\"}, {\""
+      "k\": \"m\", \"v\": [{\"k\": \"i\", \"v\": \"0\"}, {\"k\": \"m"
+      "\", \"v\": [{\"k\": \"s\", \"v\": \"label\"}, {\"k\": \"t\", "
+      "\"v\": [{\"k\": \"i\", \"v\": \"1\"}, {\"k\": \"i\", \"v\": \""
+      "1\"}]}, {\"k\": \"s\", \"v\": \"result\"}, {\"k\": \"l\", \"v"
+      "\": [{\"k\": \"f\", \"v\": 1.5}, {\"k\": \"f\", \"v\": 0.5}]}]"
+      "}]}, {\"k\": \"s\", \"v\": \"combined\"}, {\"k\": \"l\", \"v\""
+      ": [{\"k\": \"f\", \"v\": 1.5}, {\"k\": \"f\", \"v\": 0.5}]}, {"
+      "\"k\": \"s\", \"v\": \"z4_dispatch_slots\"}, {\"k\": \"l\", \""
+      "v\": [{\"k\": \"i\", \"v\": \"0\"}]}, {\"k\": \"s\", \"v\": \""
+      "independence\"}, {\"k\": \"m\", \"v\": [{\"k\": \"s\", \"v\": "
+      "\"each_sector_reconstructs_from_own_input\"}, {\"k\": \"o\", "
+      "\"v\": true}, {\"k\": \"s\", \"v\": \"cross_sector_reads\"}, {"
+      "\"k\": \"i\", \"v\": \"0\"}, {\"k\": \"s\", \"v\": \"parallel_"
+      "equals_serial\"}, {\"k\": \"o\", \"v\": true}, {\"k\": \"s\", "
+      "\"v\": \"sector2_is_chiral_dual\"}, {\"k\": \"o\", \"v\": true"
+      "}, {\"k\": \"s\", \"v\": \"runtime_verified\"}, {\"k\": \"o\","
+      " \"v\": false}, {\"k\": \"s\", \"v\": \"n_sectors\"}, {\"k\": "
+      "\"i\", \"v\": \"1\"}, {\"k\": \"s\", \"v\": \"max_workers\"}, "
+      "{\"k\": \"i\", \"v\": \"4\"}, {\"k\": \"s\", \"v\": \"gamma5_n"
+      "et_chirality\"}, {\"k\": \"i\", \"v\": \"1\"}, {\"k\": \"s\", "
+      "\"v\": \"omega7_net_chirality\"}, {\"k\": \"i\", \"v\": \"1\"}"
+      "]}, {\"k\": \"s\", \"v\": \"collapse_lattice\"}, {\"k\": \"m\""
+      ", \"v\": [{\"k\": \"s\", \"v\": \"n_distinct\"}, {\"k\": \"i\""
+      ", \"v\": \"1\"}, {\"k\": \"s\", \"v\": \"classes\"}, {\"k\": "
+      "\"l\", \"v\": [{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": \""
+      "0\"}]}]}, {\"k\": \"s\", \"v\": \"label\"}, {\"k\": \"s\", \"v"
+      "\": \"bi_symmetric_collapse_to_1\"}, {\"k\": \"s\", \"v\": \"u"
+      "seful\"}, {\"k\": \"o\", \"v\": false}]}, {\"k\": \"s\", \"v\""
+      ": \"cap\"}, {\"k\": \"m\", \"v\": [{\"k\": \"s\", \"v\": \"sec"
+      "tor_cap\"}, {\"k\": \"i\", \"v\": \"4\"}, {\"k\": \"s\", \"v\""
+      ": \"n_sectors\"}, {\"k\": \"i\", \"v\": \"1\"}, {\"k\": \"s\","
+      " \"v\": \"klein4_has_no_order_4_plus_element\"}, {\"k\": \"o\""
+      ", \"v\": true}, {\"k\": \"s\", \"v\": \"beyond_4_needs\"}, {\""
+      "k\": \"s\", \"v\": \"srmech.physics.qm.triality.lean_isa_seven"
+      "th_primitive\"}, {\"k\": \"s\", \"v\": \"beyond_4_is_order_3_t"
+      "riality\"}, {\"k\": \"o\", \"v\": true}, {\"k\": \"s\", \"v\":"
+      " \"triality_not_implemented_here\"}, {\"k\": \"o\", \"v\": tru"
+      "e}]}, {\"k\": \"s\", \"v\": \"framework_thread_ladder_reading"
+      "\"}, {\"k\": \"m\", \"v\": [{\"k\": \"s\", \"v\": \"note\"}, {"
+      "\"k\": \"s\", \"v\": \"framework-reading, not derived\"}, {\"k"
+      "\": \"s\", \"v\": \"thread_count_ladder_is_chirality_access_la"
+      "dder\"}, {\"k\": \"s\", \"v\": \"1 \xe2\x86\x92 2 \xe2\x86\x92"
+      " 4 \xe2\x86\x92 triality\"}, {\"k\": \"s\", \"v\": \"rung_1\"}"
+      ", {\"k\": \"s\", \"v\": \"chirality-LOCKED (biology; one chira"
+      "lity \xe2\x86\x92 one thread; F133)\"}, {\"k\": \"s\", \"v\": "
+      "\"rung_2\"}, {\"k\": \"s\", \"v\": \"one axis un-locked = \xce"
+      "\xb3\xe2\x82\x85 (F232 chiral_dual 2-rung)\"}, {\"k\": \"s\", "
+      "\"v\": \"rung_4\"}, {\"k\": \"s\", \"v\": \"Klein-4, BOTH axes"
+      " un-locked (this dispatch; F233)\"}, {\"k\": \"s\", \"v\": \"b"
+      "eyond_4\"}, {\"k\": \"s\", \"v\": \"the order-3 triality (F220"
+      " \xe2\x80\x94 not reachable by composing order-2 sectors)\"}, "
+      "{\"k\": \"s\", \"v\": \"cap_at_4\"}, {\"k\": \"s\", \"v\": \"K"
+      "lein-4 = Z\xe2\x82\x82 \xc3\x97 Z\xe2\x82\x82 has no order-4+ "
+      "element; the involution group closes at |G| = 4\"}, {\"k\": \""
+      "s\", \"v\": \"z4_vs_klein4\"}, {\"k\": \"s\", \"v\": \"the Z"
+      "\xe2\x82\x84 dispatch slots are cyclic-order-4 TIMING, DISTINC"
+      "T from the order-2\xc3\x97order-2 Klein-4 sector IDENTITY\"}, "
+      "{\"k\": \"s\", \"v\": \"c_orchestration_parity\"}, {\"k\": \"s"
+      "\", \"v\": \"tracked by issue #771 (kept open): a native 4-sec"
+      "tor dispatch so srmech does not need Python to run the four-se"
+      "ctor cascade \xe2\x80\x94 Python is the ergonomic half, C (#77"
+      "1) the parity half\"}, {\"k\": \"s\", \"v\": \"cites\"}, {\"k"
+      "\": \"s\", \"v\": \"F233/R-RBS-LM-FINDING_233 (the thread-coun"
+      "t ladder); F219 (the chirality-access ladder); F220 (the order"
+      "-3 cap)\"}]}]}",
+      "case 2 (sector0): x = [0.5, 1.5], n_sectors = 1, body = chiral_flip "
+      "named through @op. Sector 0 is the identity transform, so its dual is "
+      "reverse([0.5, 1.5]) = [1.5, 0.5] and combine 'sector0' returns it "
+      "verbatim; both entries are dyadic, so no float here is approximate. "
+      "One sector gives n_distinct 1, classes [[0]] and useful false (which "
+      "additionally needs n_sectors == 4); the net chiralities are the "
+      "products over the single (+1, +1) label. Derived by hand and encoded "
+      "into the descriptor grammar BEFORE being compared to C" },
 };
 
 int main(void)
@@ -516,7 +621,7 @@ int main(void)
     printf("== Surface-A cascade-catalog TOML -> bare-C chain run "
            "(gh #1653, rc452 `#T1166`) ==\n");
 
-    /* ── the 18 config-driven rows ──────────────────────────────────────── */
+    /* ── the 19 config-driven rows ──────────────────────────────────────── */
     for (r = 0u; r < sizeof(ROWS) / sizeof(ROWS[0]); r++) {
         char desc[512];
         rc = run_row(ROWS[r].fname, ROWS[r].chain_idx, ROWS[r].case_idx,
