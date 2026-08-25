@@ -324,10 +324,29 @@ static int run_row(const char *fname, uint32_t chain_idx, uint32_t case_idx,
     return 0;
 }
 
-/* The 19 config-driven rows at rc452 — every chain that runs in C, driven
- * FROM ITS SHIPPED DESCRIPTOR FILE, one hand-derived proof case each (plus
- * the first SECOND-VARIANT rows — see `chain_idx`). `n_steps` is the
- * declared top-level [[cascade.chain.steps]] count the file must yield. */
+/* The 20 config-driven rows at rc452 — driven FROM THE SHIPPED DESCRIPTOR FILE,
+ * one hand-derived proof case each. `n_steps` is the declared top-level
+ * [[cascade.chain.steps]] count the file must yield.
+ *
+ * COVERAGE, AS A MEASURED PREDICATE rather than an implied one. The predicate
+ * is: for every (descriptor, chain-variant index) that srmech_chain_run accepts
+ * on at least one proof case, ROWS contains an entry naming that file and that
+ * chain_idx. Measured at rc452 (`#T1166`) by PARSING this table and comparing it
+ * to an execution census — not by counting rows, which is what let the gap below
+ * hide:
+ *
+ *     chain-variants srmech_chain_run accepts : 20
+ *     ROWS entries                            : 20
+ *     accepted variants with no row           : 0
+ *
+ * ⚠️ IT READ 18 OF 20 UNTIL rc452, AND THE TWO MISSING ROWS WENT MISSING FOR
+ * DIFFERENT REASONS. parallel_sector_dispatch had no row because it did not run
+ * at all — that one closed with the chain. klein4_from_one's `wound` variant
+ * (chain 1) is the instructive one: it RAN in C from the registry-ripple phase
+ * onward and simply never got a row, so this table covered 19 of 20 while
+ * reading as though it covered everything. A count cannot see that; only the
+ * per-variant predicate can, which is why the predicate is written down here
+ * rather than a number alone. */
 typedef struct {
     const char *fname;
     uint32_t    chain_idx;
@@ -455,6 +474,63 @@ static const row_t ROWS[] = {
       "(lo%4, lo/4, hi%4, hi/4) XOR the (1,3,7,3) period-14 mask "
       "[1,1,2,2,2,2,3,3,3,3,3,3,3,3] — 64 masked crumbs, all derived by "
       "hand from FIPS 180-4 + base-4 arithmetic before being frozen here" },
+    /* -- rc452 (`#T1166`): klein4_from_one's SECOND variant. The `rest`
+     * pipeline above has had a row since the registry-ripple phase; the
+     * `wound` twin RAN in C from that same phase and had no row, so the host
+     * covered 19 of the 20 chain-variants C accepts while reading as though it
+     * covered them all. Measured by parsing the ROWS table against an
+     * execution census rather than by counting rows.
+     *
+     * Same derivation standard as the `rest` row, and independent of srmech in
+     * the same way: both digests come from coreutils sha256sum over exact
+     * preimages, and everything after them is integer arithmetic over hex text.
+     * The winding triad is what distinguishes the variant -- it is IN the
+     * preimage, which is the whole point of ABI v15 (rc438 measured the
+     * unwound op taking ONE distinct value over 729 windings because the
+     * projection was dropping part of its own operand). */
+    { "klein4_from_one.toml", 1u, 0u, 10u,
+      "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": \"1\"}, {\"k\": "
+      "\"i\", \"v\": \"2\"}, {\"k\": \"i\", \"v\": \"1\"}, {\"k\": \""
+      "i\", \"v\": \"3\"}, {\"k\": \"i\", \"v\": \"1\"}, {\"k\": \"i"
+      "\", \"v\": \"3\"}, {\"k\": \"i\", \"v\": \"2\"}, {\"k\": \"i\""
+      ", \"v\": \"3\"}, {\"k\": \"i\", \"v\": \"3\"}, {\"k\": \"i\", "
+      "\"v\": \"3\"}, {\"k\": \"i\", \"v\": \"2\"}, {\"k\": \"i\", \""
+      "v\": \"1\"}, {\"k\": \"i\", \"v\": \"2\"}, {\"k\": \"i\", \"v"
+      "\": \"3\"}, {\"k\": \"i\", \"v\": \"2\"}, {\"k\": \"i\", \"v\""
+      ": \"1\"}, {\"k\": \"i\", \"v\": \"0\"}, {\"k\": \"i\", \"v\": "
+      "\"3\"}, {\"k\": \"i\", \"v\": \"0\"}, {\"k\": \"i\", \"v\": \""
+      "2\"}, {\"k\": \"i\", \"v\": \"3\"}, {\"k\": \"i\", \"v\": \"2"
+      "\"}, {\"k\": \"i\", \"v\": \"2\"}, {\"k\": \"i\", \"v\": \"2\""
+      "}, {\"k\": \"i\", \"v\": \"0\"}, {\"k\": \"i\", \"v\": \"2\"},"
+      " {\"k\": \"i\", \"v\": \"1\"}, {\"k\": \"i\", \"v\": \"2\"}, {"
+      "\"k\": \"i\", \"v\": \"3\"}, {\"k\": \"i\", \"v\": \"1\"}, {\""
+      "k\": \"i\", \"v\": \"0\"}, {\"k\": \"i\", \"v\": \"1\"}, {\"k"
+      "\": \"i\", \"v\": \"3\"}, {\"k\": \"i\", \"v\": \"0\"}, {\"k\""
+      ": \"i\", \"v\": \"3\"}, {\"k\": \"i\", \"v\": \"0\"}, {\"k\": "
+      "\"i\", \"v\": \"1\"}, {\"k\": \"i\", \"v\": \"0\"}, {\"k\": \""
+      "i\", \"v\": \"2\"}, {\"k\": \"i\", \"v\": \"0\"}, {\"k\": \"i"
+      "\", \"v\": \"2\"}, {\"k\": \"i\", \"v\": \"3\"}, {\"k\": \"i\""
+      ", \"v\": \"2\"}, {\"k\": \"i\", \"v\": \"3\"}, {\"k\": \"i\", "
+      "\"v\": \"1\"}, {\"k\": \"i\", \"v\": \"1\"}, {\"k\": \"i\", \""
+      "v\": \"2\"}, {\"k\": \"i\", \"v\": \"0\"}, {\"k\": \"i\", \"v"
+      "\": \"1\"}, {\"k\": \"i\", \"v\": \"1\"}, {\"k\": \"i\", \"v\""
+      ": \"0\"}, {\"k\": \"i\", \"v\": \"1\"}, {\"k\": \"i\", \"v\": "
+      "\"1\"}, {\"k\": \"i\", \"v\": \"2\"}, {\"k\": \"i\", \"v\": \""
+      "3\"}, {\"k\": \"i\", \"v\": \"3\"}, {\"k\": \"i\", \"v\": \"2"
+      "\"}, {\"k\": \"i\", \"v\": \"3\"}, {\"k\": \"i\", \"v\": \"0\""
+      "}, {\"k\": \"i\", \"v\": \"1\"}, {\"k\": \"i\", \"v\": \"3\"},"
+      " {\"k\": \"i\", \"v\": \"2\"}, {\"k\": \"i\", \"v\": \"2\"}, {"
+      "\"k\": \"i\", \"v\": \"2\"}]}",
+      "ONE-A14 WOUND, case 0 (sigma 1, terms 24, theta [1,1], winding "
+      "[1,0,0]). The preimage {\"sigma\":1,\"terms\":24,\"theta\":[1,1],"
+      "\"winding\":[1,0,0]} differs from the `rest` variant's ONLY by the "
+      "winding member -- which is exactly the operand ABI v15 was bumped to "
+      "stop dropping. sha256sum of it (independent coreutils run) gives "
+      "b4a7c199...2e5253e5; the counter block h||'|0' gives 7c179031..."
+      "8c3b2a39; each hex byte then yields crumbs (lo%4, lo/4, hi%4, hi/4) "
+      "XOR the (1,3,7,3) period-14 mask [1,1,2,2,2,2,3,3,3,3,3,3,3,3]. 64 "
+      "masked crumbs, derived from FIPS 180-4 via coreutils plus integer "
+      "arithmetic and compared to C only afterwards" },
     { "kuramoto_step.toml", 1u, 4u, 3u,
       "{\"k\": \"l\", \"v\": [{\"k\": \"f\", \"v\": 1.0}, "
       "{\"k\": \"f\", \"v\": -1.0}]}",
@@ -621,7 +697,7 @@ int main(void)
     printf("== Surface-A cascade-catalog TOML -> bare-C chain run "
            "(gh #1653, rc452 `#T1166`) ==\n");
 
-    /* ── the 19 config-driven rows ──────────────────────────────────────── */
+    /* ── the 20 config-driven rows ──────────────────────────────────────── */
     for (r = 0u; r < sizeof(ROWS) / sizeof(ROWS[0]); r++) {
         char desc[512];
         rc = run_row(ROWS[r].fname, ROWS[r].chain_idx, ROWS[r].case_idx,
