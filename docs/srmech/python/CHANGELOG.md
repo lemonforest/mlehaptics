@@ -5,6 +5,133 @@ All notable changes to this package will be documented here. The format follows 
 **Reference notation.** `#T###` is a LOCAL task-tracker item (our session task list); `F####` is an RBS-LM finding; bare `#NNNN` is reserved for a REAL GitHub issue/PR (write `gh #1293` when you want it unambiguous). The `T` prefix exists because GitHub autolinks `#` followed immediately by digits, so a bare task ID silently mints a cross-link to whatever issue happens to hold that number — several of ours collide with unrelated merged issues. Never write a task ID as bare `#NNNN`. **Two clauses the root `CLAUDE.md` carries and this paragraph did not** (reconciled 2026-07-29, `#T994`): (1) a ref inside a **code span** — `` `#938` `` — does **not** autolink, so it is the legitimate way to *quote* a bad ref while documenting it, and any mechanical check must exempt code spans and bound the digit range or it will flag `UAX #29` / `MS #20` / `Spike #24`; (2) the rule binds **four** surfaces — file content (including docstrings and `ToolEntry` prose, which are emitted into generated files and ship in the wheel), commit messages, the PR body, and **the PR title, which becomes the merge-commit subject**. Existence proves nothing; **topicality decides** — read the surrounding prose, never batch-convert.
 
 
+<!-- pypi-readme-changelog: these two markers slice the current-minor (0.9.0) entries into the PyPI
+     long-description (the fancy-pypi-readme hook in BOTH pyprojects). THE START MARKER SITS ABOVE
+     THE WHOLE ENTRY LIST, ON PURPOSE. Entries are PREPENDED, so a start marker placed "before the
+     first 0.9.x entry" falls BEHIND the newest one the moment the next release is written — which
+     is exactly what happened: rc447 through rc452, six releases and 132,112 characters, were
+     sliced out of the published project page and nothing said so. ADD A NEW ENTRY IMMEDIATELY
+     BELOW THE -start- MARKER and it is inside the slice by construction; the start marker then
+     never moves again, not even at a minor bump. ONLY THE -end- MARKER MOVES, and only at a MINOR
+     bump: it goes immediately before the prior minor (currently [0.8.2], the top of the 0.8.x
+     block). `tests/test_pypi_readme_changelog.py` now asserts the slice's NEWEST heading equals
+     `srmech.__version__` and that the slice holds EVERY current-minor entry in the file, so a
+     marker that drifts again fails at the moment of drift rather than six releases later. -->
+<!-- pypi-readme-changelog-start -->
+
+## [0.9.0rc453] - `#T1167`: six releases of changelog that never reached the project page, and the gate that watched the wrong half of the slice
+
+**The PyPI long-description has been missing its six newest changelog entries since rc447, and the
+gate that exists to watch that slice was green for every one of them.** No code changed, no symbol
+moved: ABI stays **23**, the registry stays where rc452 left it, `GENOME_FORMAT_VERSION` stays 20.
+This is a marker placement, a gate that could not see the boundary that moved, and a rule written
+so that following it produces the defect.
+
+### What shipped wrong, measured on the published artifact
+
+`https://test.pypi.org/pypi/srmech/0.9.0rc452/json` was fetched after rc452 published cleanly — 17
+files, every job green. Its `info.description` is 2,673,009 characters and contains **439**
+`## [0.9.0rcN]` headings. The newest is **`[0.9.0rc446]`**.
+
+That is not a truncation and not a size limit. The `pypi-readme-changelog-start` marker sat at
+`CHANGELOG.md:1305`, while entries are written at the TOP of the file — rc452's heading was at
+line 8. Every entry authored since the marker was last moved therefore sat **above** the slice
+window:
+
+*(The marker is named here without its `<!-- -->` delimiters ON PURPOSE. Writing the literal
+marker inside the file it delimits creates a second match; `text.index()` would still find the
+real one first, so the slice would look fine, while the uniqueness assertion goes red. That is not
+hypothetical either — this entry's first draft did it, and `test_changelog_markers_exist_and_are_unique`
+caught it on the first run.)*
+
+| entry | line | inside the slice? |
+|---|---|---|
+| `[0.9.0rc452]` | 8 | **no** |
+| `[0.9.0rc451]` | 924 | **no** |
+| `[0.9.0rc450]` | 970 | **no** |
+| `[0.9.0rc449]` | 1046 | **no** |
+| `[0.9.0rc448]` | 1152 | **no** |
+| `[0.9.0rc447]` | 1175 | **no** |
+| `[0.9.0rc446]` | 1307 | yes — the first one below the marker |
+
+132,112 characters of shipped release prose, describing among other things two ABI bumps and the C
+leaf key-set validator, were absent from the page a stranger reads. rc452's own entry — which
+records the ABI 22 → 23 move — was the largest single casualty.
+
+### The instruction guaranteed the drift
+
+The marker's own documenting comment read: *"MOVE BOTH MARKERS at each minor bump: -start- before
+the first 0.9.x entry, -end- immediately before the prior minor."* The clause is correct for the
+END marker, which bounds the 0.8.x block below it and genuinely only moves at a minor bump. It is
+wrong for the START marker, and wrongly in a way that reads as right: because entries are
+prepended, "the first 0.9.x entry" is a position that **moves on every release**, so an
+instruction keyed to "each minor bump" schedules the maintenance for a moment that arrives roughly
+a hundred releases too late.
+
+The fix is not a reminder to move it more often. The start marker now sits **above the entry list**
+— after the file preamble, before the newest heading — so a prepended entry lands inside the window
+without anyone doing anything. The position is stable for the entire minor by construction, which
+is the only kind of instruction that survives a hundred releases.
+
+### The gate was watching, and could not see it
+
+`tests/test_pypi_readme_changelog.py` has existed since MS #20 rc8 and ran green through all six
+dropped releases. It makes eight assertions about the slice. Every one is **existential** or
+**negative**; not one is a **completeness** assertion:
+
+* `test_changelog_slice_brackets_only_current_minor` asserts the slice contains *at least one*
+  `## [0.9.` heading, and that *every* heading inside it is current-minor. Both stay true when six
+  entries are missing — the slice still begins at rc446, which is a `0.9.` entry, and everything
+  inside it is `0.9.`. **The predicate is satisfied by any non-empty suffix of the entry list**,
+  which is precisely the shape the defect produces.
+* its header loop checks only that no *foreign* heading leaked IN. A loop over the slice's contents
+  structurally cannot observe an entry that was left OUT.
+* `test_long_description_changelog_text_matches_changelog_source` asserts `sliced in text` — that
+  the slice was faithfully *transported* into the description. It was. That says nothing about
+  whether the slice is the right *extent*.
+
+So the gate measured containment and purity, and the boundary that drifted was the one boundary no
+assertion looked at. This is `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`
+on a shipped artifact: eight green assertions, and the population they ranged over was chosen by the
+defect.
+
+**A SECOND vacuity in the same file, found while fixing the first.** The bounded-below check used
+`_PRIOR_MINOR_HEADER = "## [0.5.0]"`. The live prior minor is `[0.8.2]`. `## [0.5.0]` does appear in
+the file, far below the end marker and deep in history, so the assertion "the prior-minor header is
+not in the slice" could not have fired until the end marker slid down past the whole of 0.8.x,
+0.7.x and 0.6.x — **three entire minor blocks**. The end marker happens to be correctly placed
+today; nothing in the suite established that. The literal came from the file's own docstring, which
+still described the current minor as "(0.6.0)" in three places: `_CURRENT_MINOR` was derived live
+and moved with the package, while the two pinned strings beside it did not. That is the sentence
+`test_readme_currency_rc419.py`'s docstring already makes about this exact failure mode — *a number
+written as a literal, with no tie to the value it describes, rots, while the same number written as
+a live lookup cannot* — reproduced one file over.
+
+### What replaces it
+
+Three completeness assertions, all keyed to live values:
+
+* **the newest entry is inside the slice** — the slice's first `## [0.9.0rcN]` heading must equal
+  `srmech.__version__`. This is the direct predicate: it fails in the release that writes an entry
+  above the marker, not six releases later.
+* **nothing is dropped and nothing leaks** — the set of headings in the slice must EQUAL the set of
+  current-minor headings in the whole file. This subsumes the old purity loop and adds the direction
+  it could not express.
+* **the end marker is bounded against the real neighbour** — the prior-minor sentinel is now
+  DERIVED (the first heading below the end marker) instead of pinned to a string three minors stale.
+
+Plus a retro-check that runs the shipped predicates against the rc452 marker placement and requires
+them to FAIL, so a future loosening that would re-admit this defect cannot pass quietly. The stale
+"(0.6.0)" docstring literals are corrected in the same change.
+
+### What this rc does NOT claim
+
+The six entries are restored to the slice for **rc453 onward**. The already-published rc447–rc452
+artifacts on TestPyPI keep the descriptions they were uploaded with; a published wheel's metadata is
+immutable and is not rewritten here. The description grows 2,673,009 → 2,805,121 characters, which
+uploads fine, but **no ceiling was located** — PyPI's description limit was not measured, and this
+slice only ever grows. That is named as an open question rather than assumed away.
+
 ## [0.9.0rc452] - `#T1166`: exact ℚ crosses the wire, the last blocked chain closes, and the reserve that scaled the wrong quantity
 
 ### `parallel_sector_dispatch` closes — `CEIL_C_REJECTED_CHAINS` 1 → **0**, and the gate deletes itself
@@ -1300,9 +1427,6 @@ After runs 1 and 2 the obvious reading was "shard 4 is the max in both, so it is
 Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | grep -q __assert_fail`, against the library `_find_library()` actually resolves. Dropping it per-shard to save seconds would make the whole cell vacuous. Each shard additionally compares the test-case count its `--junitxml` reports against the ids it recorded, which closes the one hole a shared variable leaves open (a filter welded onto the run line, bypassing it).
 
 **#693 determination (documentation only — NO version bump; no behavior change).** Investigated whether the `ThetaSum.is_zero` interpolation degree bound can be tightened from **Σe²** to **Σ|e|**. **Verdict: UNSOUND — NOT adopted; the conservative Σe² is retained** at both bound sites (`thetasum._struct_one_var` base-case p-order band + `thetasum._structural_is_zero._deg` node count) and the C peer (`srmech_thetasum_interp.c` `ti_deg`). Rationale: the node count / p-band must bound the **true elliptic degree** of a theta-product in the interpolation variable = the quasi-period index = zeros-per-annulus, which is **Σe²** (a factor `θ(c·vᵉ;p)` gains multiplier `v^{−e²}` under `v↦p·v`, from Rosengren Eq. 1.6 / `ellbase.Theta.canonicalize`; confirmed by an independent explicit root count). Since `e² > |e|` for `|e| ≥ 2`, `Σ|e|` sits **below** the true degree and under-provisions the prover → a genuinely non-zero elliptic function can be falsely proved `≡ 0` (a **false theorem**). Explicit witness (single var, e=3): `N(x) = 2·θ(2x³) −27·θ(3x³) +120·θ(4x³) −250·θ(5x³) +270·θ(6x³) −147·θ(7x³) +32·θ(8x³)` (all `;p`) is exactly non-zero (lowest q-expansion coeff `(p⁶,x⁻⁹)=−1/112`; stable `0.180756` at `p=½,x=¾`), yet Σ|e| (band `k=5`) misses the `p⁶` term while Σe² (band `k=11`) correctly returns `False`. (Distinct from #692, which sized the **arena/ws_bound memory** band — this is the **soundness** degree band.) Full analysis: `docs/srmech/notes/thetasum_is_zero_degree_bound_693.md`; standing regression guard: `tests/test_thetasum_degree_bound_soundness_693.py`.
-
-<!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
-<!-- pypi-readme-changelog-start -->
 
 ## [0.9.0rc446]
 
