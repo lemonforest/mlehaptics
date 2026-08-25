@@ -435,7 +435,39 @@ DRAINED_EXACT = {
 #: answer or raises the documented exception; calling it status 4 would send a
 #: caller into a grow-loop that can never succeed. The two lines above are the
 #: only two in the arm whose NULL has exactly one cause.
-CEIL_CONFLATING_RETURN_LINES = 745
+#: ── rc452, the parallel_sector_dispatch closure: 745 -> 747. NET +2, both in
+#: srmech_compose_run.c (49 -> 51), both inside cr_op_psd, both measured with
+#: THIS FILE'S counter and not with grep:
+#:
+#:   cr_op_psd   xd == NULL   <- cr_carve (the n-double copy of the input x)
+#:   cr_op_psd   rc <  0      <- cr_psd_finish's own carve/build failure
+#:
+#: The first is the same adjudication as every carve site above: cr_carve
+#: returns NULL for exactly one condition. The SECOND needs its own sentence,
+#: because it is a status mapped from a helper's return code rather than from a
+#: pointer, and that is a shape this ceiling has not carried before.
+#: cr_psd_finish returns a THREE-valued code deliberately so the two failure
+#: kinds do not share a channel: 0 DECLINES (the named body has no unary form,
+#: or the combine is not one of the four reducer names -- capability refusals,
+#: which cr_op_psd maps to SRMECH_ERR_NOT_IMPL so the pure projection computes
+#: the complete answer), and -1 is arena-ONLY (cr_carve for res/scr/cmb, or a
+#: cr_map_of / cr_all_set failure, every one of which bottoms out in cr_carve).
+#: So the -1 channel has exactly one cause and status 4 keeps the retryable /
+#: grow meaning srmech.h:555 states is FORCED.
+#:
+#: ⚠️ ONE STATUS-4 SITE IN THIS FILE IS NOT GROW-FIXABLE, AND IT IS NOT NEW —
+#: named here because rc452 measured it and leaving it unrecorded would be the
+#: conflation this ratchet exists to surface. cr_run_and_write's
+#: `desc == NULL || bd.failed` (the value-descriptor writer) answers 4, but the
+#: writer reserve is derived from the INPUT length and not from `ws_len`, so
+#: growing the caller arena does NOT clear it -- measured on
+#: parallel_sector_dispatch at 1x and at 16x (37 MB), same OVERFLOW both times.
+#: rc452 raised CR_WRITER_FLOOR so the shipped population fits with headroom,
+#: which makes the condition unreachable for every chain in the catalog; the
+#: line's CLASS is unchanged and it is left alone rather than re-labelled,
+#: because re-labelling a correct status-4 return to keep a number flat is the
+#: move this file's own message forbids.
+CEIL_CONFLATING_RETURN_LINES = 747
 
 _RETURN_OVERFLOW = re.compile(r"return\s+SRMECH_ERR_OVERFLOW\s*;")
 

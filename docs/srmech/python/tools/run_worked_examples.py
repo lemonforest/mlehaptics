@@ -384,9 +384,35 @@ def load_ledger() -> Dict[str, Dict[str, Any]]:
     return out
 
 
+def _head_commit() -> str:
+    """HEAD's sha at run time, or "" outside a git checkout."""
+    try:
+        import subprocess
+        p = subprocess.run(["git", "rev-parse", "HEAD"],
+                           cwd=str(LEDGER.parent), stdout=subprocess.PIPE,
+                           stderr=subprocess.DEVNULL, check=False)
+        return p.stdout.decode("ascii", "replace").strip() if p.returncode == 0 \
+            else ""
+    except (OSError, ValueError):
+        return ""
+
+
 def write_ledger(records: List[Dict[str, Any]], native: bool) -> None:
+    # ⚠️ `verified_at` EXISTS SO THAT A CONFIRMING RE-RUN IS RECORDABLE (rc452,
+    # `#T1166`). tools/hooks/derived_ledger_freshness.py takes the ledger's own
+    # LAST COMMIT as its baseline and flags every row whose module changed
+    # after it. That works whenever a re-run moves a row — but when the re-run
+    # confirms that NOTHING moved, the file content is byte-identical, there is
+    # nothing to stage, the ledger's commit cannot advance, and the hook blocks
+    # forever on a ledger that is provably current. Measured here: the rc452
+    # compose.py change left all four srmech.cascade.compose rows byte-identical
+    # (480 ok / 96 unexpected_raise / 4 needs_subprocess / 1 timeout, unchanged),
+    # and the hook could not be cleared by doing the very thing it asked for.
+    # Stamping HEAD makes "I re-ran and it did not move" a committable fact
+    # rather than an unrepresentable one.
     lines = [json.dumps({"record": "meta", "native": native,
                          "python": "%d.%d" % sys.version_info[:2],
+                         "verified_at": _head_commit(),
                          "n": len(records)}, sort_keys=True)]
     for r in sorted(records, key=lambda r: r["name"]):
         lines.append(json.dumps(r, sort_keys=True))
