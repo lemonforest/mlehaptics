@@ -79,7 +79,27 @@ from srmech.dsl import _catalog as _cat
 # Re-measured at rc445 by notes/_1653_chain_census_rc444.py:
 #   "CENSUS of 18 executable chains (20 chain-variants): ...
 #    C srmech_chain_run ACCEPT=0 REJECT=18 ... UNATTRIBUTED=0"
-CEIL_C_REJECTED_CHAINS = 1            # of 18 executable. Target 0.
+CEIL_C_REJECTED_CHAINS = 0            # of 18 executable. TARGET REACHED.
+#   1 -> 0 within rc452 (`#T1166`): parallel_sector_dispatch, all 4 proof cases
+#   BYTE_IDENTICAL. ⚠️ AT ZERO THE STRICT-XFAIL ON
+#   test_all_executable_chains_run_in_c IS DELETED and that test now ASSERTS —
+#   the drain removing its own gate, which is what the marker was for.
+#   All THREE of its gates fell together, which is why it could not be halved:
+#   GATE_CARRIER to the `m` (mapping) and `o` (bool) wire kinds, GATE_OP_TABLE
+#   to the one wave-F row, and GATE_REF_GRAMMAR to the `@op` namespace — which
+#   is resolved as a CR_OP_REG row lookup plus a `un` column, NOT as a callable
+#   registry. That distinction is the whole reason it could close: JPL Rule 9
+#   bans function pointers, so the "callable registry" this file's own
+#   GATE_REF_GRAMMAR comment predicted would be needed is not buildable here,
+#   and naming the row's unary identity as data is what replaces it.
+#
+#   ⚠️ WHAT ZERO DOES NOT MEAN. Its four proof cases all collapse to
+#   n_distinct == 1 (body=chiral_flip is symmetric under both Klein-4 axes), so
+#   the collapse-lattice partition is executed only at its degenerate value.
+#   Two silent-wrong-value defects in that partition were found by
+#   differential-testing it against _distinct_classes directly and fixed before
+#   landing; neither was reachable through any proof case, and neither would
+#   have been caught by this ratchet or by the value comparator.
 #   2 -> 1 within rc452 (`#T1166` Phase 2, the K3 slice): schur_complement,
 #   all 3 proof cases BYTE_IDENTICAL. THE ONLY DRAIN IN THIS ARC THAT BUILT
 #   NEW SUBSTRATE rather than dispatching an existing symbol: measured
@@ -349,9 +369,18 @@ BLOCKED = {
     # pointed at ledger row `step_form_map`, which had already closed at Phase
     # 3 — the residual closure needed no new type, exactly as the mechanism
     # census predicted ("needs NO new wire kind").
-    "parallel_sector_dispatch": {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR],
-                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "carrier_mapping", "new_type_reason": ""},
+    # parallel_sector_dispatch's row was DELETED at rc452 (`#T1166`) — the chain
+    # runs, all 4 proof cases BYTE_IDENTICAL, and it was the LAST one, so this
+    # table is now EMPTY. It carried new_type=True against ledger row
+    # `carrier_mapping`, and that flag was load-bearing exactly as the note
+    # above predicts: closing the chain DID widen a discriminator set
+    # (srmech_chain_run's output-kind vocabulary gained `m` AND `o` — the only
+    # closure in this arc to need two letters), and both projection gaps closed
+    # in the SAME change: the C `is_map`/`is_bool` carrier flags, the Python `m`
+    # and `o` branches in _reconstruct_value, the EXPECTED_WIRE_KINDS bijection,
+    # REQUIRED_EMITTED_KINDS (which gained `b` and `x` in the same commit — a
+    # verifier found they had never been added when those kinds landed) and
+    # ABI 22 -> 23 together.
     # schur_complement's row was DELETED at rc452 Phase 2 (`#T1166`, the K3
     # slice) — the chain runs, 3/3 proof cases BYTE_IDENTICAL. It carried
     # new_type=True against ledger row `carrier_matrix`, and that flag was
@@ -583,13 +612,24 @@ def test_surface_a_unsupported_step_forms_is_tight():
         % (unsupported, len(unsupported), CEIL_SURFACE_A_UNSUPPORTED_FORMS))
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "gh #1653: the C projection runs 0 of 18 executable cascade chains at rc445. "
-    "STRICT on purpose — when the work lands this XPASSes, which FAILS, which "
-    "forces this marker to be deleted. The gate removes itself when satisfied "
-    "rather than quietly passing forever."))
 def test_all_executable_chains_run_in_c():
-    """THE TARGET. Co-equal projections means every declared chain runs in C."""
+    """THE TARGET, AND IT NOW ASSERTS. Co-equal projections means every declared
+    chain runs in C.
+
+    ⚠️ THE ``xfail(strict=True)`` MARKER IS GONE, DELETED AT rc452 (`#T1166`).
+    It read "the C projection runs 0 of 18 executable cascade chains at rc445"
+    and was strict precisely so that the moment the work landed it would XPASS,
+    which FAILS, which forces the marker's removal. That is what happened when
+    ``parallel_sector_dispatch`` closed and :data:`CEIL_C_REJECTED_CHAINS`
+    reached 0. The gate removed itself when satisfied instead of quietly passing
+    forever, which is the whole reason it was written that way — so this
+    docstring records the transition rather than letting the file read as though
+    the test had always asserted.
+
+    From here the test is a plain invariant: a NEW descriptor that C cannot run
+    fails on arrival. That is a stronger position than the ceiling ever was,
+    because it has no seeded population to hide behind.
+    """
     rejected, _ = _measure()
     assert not rejected, (
         "%d executable chains do not run in the C projection: %s"

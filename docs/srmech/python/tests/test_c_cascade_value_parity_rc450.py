@@ -181,8 +181,14 @@ _STATUS = {0: "SRMECH_OK", 2: "SRMECH_ERR_BAD_INPUT", 4: "SRMECH_ERR_OVERFLOW",
 #: is closed by :func:`test_an_executed_case_emits_the_tuple_kind_itself`, which
 #: reads the kind string off a REAL run — do not treat this pin as sufficient
 #: on its own.
+#: ``m`` (mapping) and ``o`` (bool) joined at rc452 (`#T1166`) with
+#: ``parallel_sector_dispatch``, the chain that returns a dict of bools. They
+#: close ledger row ``carrier_mapping`` and are why that rc bumps ABI 22 -> 23.
+#: Unlike ``t``/``b``/``x`` they arrive with their emission gate already closed:
+#: both letters are in ``REQUIRED_EMITTED_KINDS`` from the same commit, so
+#: neither can sit declared-and-dark the way ``q`` did through rc450.
 EXPECTED_WIRE_KINDS = frozenset({"n", "i", "s", "q", "f", "l", "t", "b",
-                                 "x"})
+                                 "x", "m", "o"})
 
 # ── down-only ceilings, seeded at the MEASURED rc450 population ──────────────
 #: STRICT ZERO. Not a ceiling that drains — a divergence between the two
@@ -268,7 +274,26 @@ CEIL_C_REJECTED_ROWS_BY_CHAIN = {
     # in the last bit from each other, so the boundary combine's accumulation
     # ORDER is observable, and a C arm that summed right-to-left or fused a
     # multiply-add would diverge here while agreeing everywhere else.
-    "parallel_sector_dispatch": 4,
+    # ``parallel_sector_dispatch``'s entry (4) was DELETED at rc452 (`#T1166`) —
+    # the chain closed FULLY, all 4 proof cases BYTE_IDENTICAL under this file's
+    # own comparator, and with it the map is EMPTY: every executable chain in
+    # the catalog now runs in C. Row removed, not decremented.
+    #
+    # It is the last one, so it is the one that had to bring its own wire
+    # vocabulary: `m` (mapping) and `o` (bool), both landing with their emission
+    # gate closed in the same commit. Its body is an `@op.<dotted>` reference
+    # rather than data, resolved through the CR_OP_REG `un` column because JPL
+    # Rule 9 bans the function pointer a callback would need.
+    #
+    # ⚠️ ITS FOUR PROOF CASES ALL COLLAPSE TO n_distinct == 1. body=chiral_flip
+    # is symmetric under BOTH Klein-4 axes, so every sector agrees and the
+    # collapse-lattice partition is exercised only at its degenerate value. The
+    # C arm is correct for the other partitions — two defects there were found
+    # and fixed by differential-testing the partition against
+    # _distinct_classes directly — but BYTE_IDENTICAL here is not evidence about
+    # them, and no @op body in the registry can produce n_distinct > 1 today
+    # (chiral_flip is the only sequence->sequence row with a `un`, and any
+    # elementwise body would collapse {0,2}/{1,3} instead).
 }
 
 #: The total, DERIVED from the per-chain map so the two cannot disagree.

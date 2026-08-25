@@ -164,18 +164,26 @@ def _exempt_names_by_ast():
 # ── 1. the population, both directions ───────────────────────────────────────
 
 def test_blocked_and_matrix_name_the_same_chains_in_both_directions():
-    """BIDIRECTIONAL set equality, plus a non-empty floor.
+    """BIDIRECTIONAL set equality.
 
     One-sidedness is not a style point here. ``rc451`` deletes the
     ``best_rational_signed`` BLOCKED row when it unblocks the chain; a gate that
     iterated BLOCKED only would then pass while the matrix kept the chain as
     ``c_runs: false`` forever, with nothing able to report the rot.
+
+    ⚠️ THE NON-EMPTY FLOOR IS GONE, REMOVED AT rc452 (`#T1166`). Both artifacts
+    asserted a blocked chain EXISTED — a reasonable guard while the population
+    was draining, and exactly wrong at the end of the drain: with
+    ``parallel_sector_dispatch`` closed, BOTH sets are legitimately empty and
+    the floor turned the finish line into a failure. Set equality alone still
+    catches every one-sided edit, including re-blocking a chain in one artifact
+    and not the other, so nothing is lost by dropping it. Recorded rather than
+    silently deleted, because "the gate that fired when the work was DONE" is
+    the same shape as a gate that cannot return otherwise.
     """
     matrix = _matrix_rows()
     matrix_blocked = {n for n, r in matrix.items() if r.get("c_runs") is False}
     table = set(ratchet.BLOCKED)
-    assert matrix_blocked, "no c_runs=false rows in the matrix"
-    assert table, "BLOCKED is empty"
     assert table == matrix_blocked, (
         "BLOCKED and the gate matrix disagree on WHICH chains are blocked.\n"
         "  in BLOCKED only: %s\n  in matrix only : %s\n"

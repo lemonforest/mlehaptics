@@ -92,7 +92,20 @@ from test_c_cascade_value_parity_rc450 import (
 
 #: Kinds an executed row of EITHER population must put on the wire. `q` is the
 #: rc452 entry and the reason this file exists.
-REQUIRED_EMITTED_KINDS = frozenset({"f", "i", "l", "t", "q"})
+#:
+#: ⚠️ `b` AND `x` WERE NEVER ADDED WHEN THOSE KINDS LANDED, and that is the
+#: exact hole this file was built to close, reproduced inside it. Both shipped
+#: earlier in rc452 — `b` with encode_loe_content, `x` with schur_complement —
+#: each with an executed emitter, so the omission cost nothing at the time; but
+#: it left this gate silently indifferent to whether either kind was still being
+#: emitted, which is precisely the state `q` was in through rc450. Found by a
+#: verifier, not by any gate. Added here in the same commit as `m`/`o`.
+#:
+#: `m` and `o` join with parallel_sector_dispatch (rc452, `#T1166`), whose four
+#: proof cases are their executed emitters — the kinds are never declared
+#: without something emitting them.
+REQUIRED_EMITTED_KINDS = frozenset({"f", "i", "l", "t", "q", "b", "x",
+                                    "m", "o"})
 
 #: DOWN-ONLY, over the UNION of both populations. A kind here is DECLARED by
 #: both projections and emitted by NO executed row anywhere. Draining one is a
@@ -125,7 +138,16 @@ CEIL_UNEMITTED_KINDS = frozenset({"n"})
 #: NEW PUBLIC CALLABLE plus its descriptor, which ripples the tool-count axis
 #: across ~73 test files. Priced, named, deferred — see the gap-ledger row
 #: `value_parity_population_has_no_rational_terminal_chain`.
-CEIL_UNEMITTED_IN_POPULATION_A = frozenset({"n", "s", "q"})
+#:
+#: ⚠️ `s` DRAINED at rc452 (`#T1166`) and NOT by the descriptor the plan
+#: expected. The note above prices a rational terminal chain to drain `q`;
+#: what actually moved was `s`, as a side effect of closing
+#: ``parallel_sector_dispatch`` — its result dict carries the F233 framework
+#: prose, the collapse-lattice label and `beyond_4_needs` as STRING leaves, so
+#: population A now emits `s` without anyone setting out to make it. Drained
+#: here in the same commit as that chain. `q` stays, for the structural reason
+#: above, which that closure does not touch.
+CEIL_UNEMITTED_IN_POPULATION_A = frozenset({"n", "q"})
 
 #: DOWN-ONLY. Proof cases that RAISE before the C projection is reached.
 #:
