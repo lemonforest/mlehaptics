@@ -32,17 +32,35 @@ FIVE version files (ADR-0007 §2.1 is the SSoT for this list):
   4. c/include/srmech.h            (SRMECH_VERSION)
   5. python/tests/test_signal_processing_scaffolding.py   (the literal pin)
 
-FOUR ABI surfaces:
+SEVEN ABI surfaces:
   6. c/include/srmech.h            (SRMECH_ABI_VERSION — the macro SSoT)
   7. python/srmech/_native/__init__.py  (EXPECTED_ABI_VERSION)
   8. docs/srmech/CLAUDE.md         "C ABI version is currently **N**"
   9. docs/srmech/c/README.md       "C ABI version is **N**"
  10. python/README.md              "(**ABI N** at this release"
+ 11. srmech_research_notebook.md   "**`SRMECH_ABI_VERSION` is N**"
+ 12. srmech/introspect/_c_claims.py "a stale-but-ABI-N library"
+
+⚠️ SURFACES 11 AND 12 WERE ADDED AFTER THIS HOOK MISSED THEM. The first
+version of this file checked 10 surfaces and passed the tree — while a
+27-minute ``ripple_check`` sweep found that rc452's ABI 21 -> 22 bump had left
+FOUR prose surfaces behind, not one: ``python/README.md`` (surface 10, which
+this hook did catch), ``_c_claims.py``, the notebook stamp, and CLAUDE.md
+(which Phase 2 had already fixed). A hook that catches one instance of a class
+and reports the tree clean is making the same error it was written to prevent,
+so the census was widened to the class rather than the instance.
+
+Surface 12 is GENERATED — the repair is ``tools/regen_all.py``, never a
+hand-edit, and ``generated_file_edit_blocker.py`` enforces that. It is listed
+here anyway because a missed REGEN is exactly as stale as a missed edit, and
+nothing else notices between sweeps.
 
 Surfaces 8 and 9 are covered by ``test_abi_prose_currency_rc449``; 10 by
-``test_readme_currency_rc419``. This hook reads all of them by regex in one
-pass so that a disagreement is named at commit time in under a second, rather
-than found by whichever gate happens to run.
+``test_readme_currency_rc419``; 11 by ``test_notebook_currency_rc420``; 12 by
+``test_regen_all_rc346``. This hook reads all of them by regex in one pass so
+that a disagreement is named at commit time in under a second, rather than
+found by whichever gate happens to run — or by a sweep, 27 minutes after the
+commit that broke it.
 
 WHAT IT DOES NOT DO
 ===================
@@ -93,6 +111,12 @@ _ABI_SURFACES: Tuple[Tuple[str, str, str], ...] = (
     ("docs/srmech/python/README.md (PyPI long-description)",
      "docs/srmech/python/README.md",
      r'\*\*ABI (\d+)\*\* at this release'),
+    ("srmech_research_notebook.md (Live-at stamp)",
+     "docs/srmech/srmech_research_notebook.md",
+     r'\*\*`SRMECH_ABI_VERSION` is (\d+)\*\*'),
+    ("srmech/introspect/_c_claims.py (GENERATED — regen, do not hand-edit)",
+     "docs/srmech/python/srmech/introspect/_c_claims.py",
+     r'stale-but-ABI-(\d+) library'),
 )
 
 
