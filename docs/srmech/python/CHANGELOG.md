@@ -5,7 +5,107 @@ All notable changes to this package will be documented here. The format follows 
 **Reference notation.** `#T###` is a LOCAL task-tracker item (our session task list); `F####` is an RBS-LM finding; bare `#NNNN` is reserved for a REAL GitHub issue/PR (write `gh #1293` when you want it unambiguous). The `T` prefix exists because GitHub autolinks `#` followed immediately by digits, so a bare task ID silently mints a cross-link to whatever issue happens to hold that number — several of ours collide with unrelated merged issues. Never write a task ID as bare `#NNNN`. **Two clauses the root `CLAUDE.md` carries and this paragraph did not** (reconciled 2026-07-29, `#T994`): (1) a ref inside a **code span** — `` `#938` `` — does **not** autolink, so it is the legitimate way to *quote* a bad ref while documenting it, and any mechanical check must exempt code spans and bound the digit range or it will flag `UAX #29` / `MS #20` / `Spike #24`; (2) the rule binds **four** surfaces — file content (including docstrings and `ToolEntry` prose, which are emitted into generated files and ship in the wheel), commit messages, the PR body, and **the PR title, which becomes the merge-commit subject**. Existence proves nothing; **topicality decides** — read the surrounding prose, never batch-convert.
 
 
-## [0.9.0rc452] - `#T1166`: exact ℚ crosses the wire, and the prediction that was right about mechanism and wrong about size
+## [0.9.0rc452] - `#T1166`: exact ℚ crosses the wire, the last blocked chain closes, and the reserve that scaled the wrong quantity
+
+### `parallel_sector_dispatch` closes — `CEIL_C_REJECTED_CHAINS` 1 → **0**, and the gate deletes itself
+
+The last executable cascade chain the C projection could not run. Every one of
+the 18 now runs, so `test_all_executable_chains_run_in_c` loses its
+`xfail(strict=True)` and **asserts**. That marker was written to remove itself
+the moment the work landed — XPASS fails, which forces the deletion — and this
+is that moment. The `BLOCKED` table is empty, the gate matrix row moves to
+`c_runs: true`, and gap-ledger row `carrier_mapping` closes, all in the same
+change so no artifact can rot against another.
+
+**It needed TWO wire kinds, the only closure in this arc that did.** The op
+returns a 66-leaf nested dict, and both letters land with their emission gate
+already closed:
+
+* **`m` (mapping)** — the payload is a **flat array of alternating key/value
+  DESCRIPTORS** in insertion order, never a JSON object. That is designed
+  around a measured divergence, not a stylistic pick: the `sectors` sub-map is
+  **int-keyed**, and on the canonical writer the two projections share,
+  `json.dumps(sort_keys=True)` sorts the key OBJECTS and then coerces them
+  (`"1"`, `"2"`, `"10"`) while the C writer holds already-stringified keys and
+  sorts them **bytewise** (`"1"`, `"10"`, `"2"`). Bool keys additionally
+  lowercase and collide with `1`/`0`, and a tuple key raises `TypeError`
+  outright. Flattening the pairs makes all three hazards **structurally
+  unreachable** instead of documented-around — the same reasoning class as the
+  `b` kind's hex choice.
+* **`o` (bool)** — the payload is a JSON bool literal, never `1`/`0`, because
+  **`True == 1` in Python**: an `i` spelling would deliver a right VALUE of the
+  wrong TYPE, which is the silent-wrong-value class ABI v21 bumped for. The op
+  returns nine of them per dispatch, so its four proof cases are this kind's
+  executed emitters.
+
+**The body is a row lookup, not a callback.** `body` arrives as a
+descriptor-level `@op.<dotted>` reference rather than as data, and JPL Rule 9
+bans the function pointer a callback would need — so it resolves through
+`cr_op_row` to a `CR_OP_REG` row and reads a new `un` column, the unary identity
+that row exposes when NAMED as a body. `CR_UN_NONE` is the default and the
+decline. This is why the ratchet's own `GATE_REF_GRAMMAR` comment — which
+predicted `@op` would need "a callable registry" — was closable at all: that
+registry is not buildable here, and naming the row's unary identity as *data* is
+what replaces it.
+
+**Two silent-wrong-value defects were found and fixed before landing, and
+neither was reachable through any proof case.** Both were in the collapse-lattice
+partition:
+
+* the class grouping guarded its inner loop with `grp[t] == t` to skip
+  non-representatives. That is wrong once any earlier group has absorbed a
+  member, because a later group's id then no longer equals its own first index.
+  Differential-tested against `_distinct_classes` on the `{0,1},{2,3}` partition
+  — the iω₇-symmetric case `parallel.py`'s own docstring names — it reported
+  `n_distinct` **3** where Python reports **2**;
+* it compared sector results with `memcmp`. Python's `_equal` is `==` per
+  element, which says `+0.0 == -0.0` and says `NaN != NaN`; `memcmp` says the
+  opposite of both. The iω₇ axis is a **sign flip**, so a `0.0` anywhere in `x`
+  puts a `-0.0` into a sector result and `memcmp` would split a class Python
+  merges.
+
+⚠️ **What the four proof cases do NOT exercise, stated at the ceiling rather
+than left implied.** All four collapse to `n_distinct == 1`, because
+`body=chiral_flip` is symmetric under **both** Klein-4 axes — so the partition
+code above runs only at its degenerate value, and neither the parity ratchet nor
+the bit-exact value comparator would have caught either defect. No `@op` body in
+the registry can produce `n_distinct > 1` today: `chiral_flip` is the only
+sequence→sequence row carrying a `un`, and any elementwise body collapses
+`{0,2}`/`{1,3}` instead.
+
+**The writer reserve scaled the wrong quantity, and no caller could work around
+it.** `cr_run_and_write`'s value-descriptor reserve bounds the OUTPUT tree but
+was derived from the INPUT length — sound while every chain returned something no
+bigger than what it was asked with, which held for a scalar, a short list and a
+small `Mat`. This op returns ~2 KB of CONSTANT framework prose from a 352-byte
+chain, so its output is not a function of its input at all. Because the term
+scaled with the input, **allocating more did not help**: the same
+`SRMECH_ERR_OVERFLOW` reproduced at 1× and at 16× (37 MB). The floor is now
+measured by bisection (the table is in the source: 16384 fails, 32768 covers the
+four proof cases, 262144 additionally covers a 4-sector dispatch over a
+64-element input) and both call sites route through one function so chain-run and
+catalog-run cannot drift. `srmech_chain_run_arena_bytes` over-approximates the
+same quantity and moved with it.
+
+**ABI 22 → 23**, across all seven surfaces the `ssot_agreement` hook enumerates.
+Two prose spellings its regexes do NOT cover were then caught by
+`test_abi_prose_currency_rc449` — three gates in series, each catching what the
+previous one structurally could not.
+
+**Also closed here: `REQUIRED_EMITTED_KINDS` gains `b` and `x`.** Neither was
+added when those kinds landed earlier in rc452 — the exact hole that gate exists
+to close, reproduced inside it. Both shipped with a real emitter so the omission
+cost nothing at the time, but it left the gate indifferent to whether either was
+still emitted, which is the state `q` was in through rc450. Found by a verifier,
+not by any gate. And `CEIL_UNEMITTED_IN_POPULATION_A` drains **`s`** — not the
+`q` the plan had priced a new descriptor for, but a side effect of this chain's
+framework prose being STRING leaves.
+
+The bare-C TOML host gains its 19th row, driven from the shipped descriptor with
+no Python present. Its 3273-byte expectation was **derived and encoded before
+being compared** — the value by hand from the ops, then encoded into the
+descriptor grammar — and the two constructions agreed byte for byte. `ctest`
+39/39.
 
 ### The A-N cascade parity closure — the config-driven chain surface in C
 

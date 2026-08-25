@@ -1233,16 +1233,39 @@ ROWS = [
                   "independence, sectors, z4_dispatch_slots. The C writer "
                   "(srmech_compose_run.c) emits exactly n/i/s/q/f/l.",
          probe="python3 notes/_1653_rc450_measure.py",
-         disposition=FILED,
+         disposition=CLOSED,
          note="NEW TYPE. Split out of carrier_matrix at rc450 because that row "
               "says 'cr_value_t has no DENSE-MATRIX kind' and its evidence line "
               "is about schur_complement returning a Mat -- a different type. "
               "The ratchet's BLOCKED row for parallel_sector_dispatch cited "
               "carrier_matrix while the same file's GATE_CARRIER comment two "
-              "screens up said MAPPING; rc450 repoints it here.",
+              "screens up said MAPPING; rc450 repoints it here. "
+              "CLOSED at rc452 (`#T1166`) and it took TWO letters, not one: "
+              "`m` for the mapping and `o` for the bool, because the dict is "
+              "full of bools and `True == 1` in Python makes an `i` spelling a "
+              "right value of the wrong TYPE. Both projections moved in the "
+              "same change (C is_map/is_bool carrier flags + cr_desc arms; "
+              "Python `m`/`o` branches in _reconstruct_value; the "
+              "EXPECTED_WIRE_KINDS bijection; REQUIRED_EMITTED_KINDS, which "
+              "gained `b` and `x` in the same commit after a verifier found "
+              "they were never added when those kinds landed) under ABI "
+              "22 -> 23. "
+              "THE KEY-ORDERING HAZARD IS DESIGNED OUT, NOT DOCUMENTED AROUND: "
+              "the `sectors` sub-map is INT-KEYED, and measured on the "
+              "canonical writer both projections share, json.dumps(sort_keys="
+              "True) sorts key OBJECTS then coerces ('1','2','10') while the C "
+              "writer sorts already-stringified keys BYTEWISE ('1','10','2'), "
+              "so the two DISAGREE on exactly this dict. Bool keys also "
+              "lowercase and collide with 1/0, and a tuple key raises "
+              "TypeError. The payload is therefore a FLAT array of alternating "
+              "key/value DESCRIPTORS in insertion order -- keys are never JSON "
+              "object keys, so all three hazards become unreachable.",
          ceiling_blind_to="A second dict-returning descriptor: the chain ceiling "
                           "counts chains, so the SECOND one to need MAPPING "
-                          "moves no literal at all."),
+                          "moves no literal at all. Still true after closure, "
+                          "and now the ONLY residual on this row -- the kind "
+                          "exists, so a second dict-returning chain would ride "
+                          "it silently rather than being counted."),
 
     dict(id="wire_l_payload_key_divergence", kind="gap",
          missing="The two value-descriptor wires disagree on the PAYLOAD KEY "
