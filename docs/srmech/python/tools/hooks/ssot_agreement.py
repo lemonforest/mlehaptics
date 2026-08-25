@@ -13,18 +13,29 @@ furthest", and then drifted again five rcs later. On the version side, the
 count of files that must agree was itself wrong: the orientation doc "said FOUR
 until rc358".
 
-⚠️ THIS HOOK BLOCKS ON THE TREE AS IT STANDS AT rc452. That is not a
-contrived fixture. ``docs/srmech/python/README.md`` line 162 still reads
-"**ABI 21** at this release" while ``SRMECH_ABI_VERSION`` is **22**, because
-this rc's 21 -> 22 bump did not carry the prose. That README is the PyPI
-long-description, so the false statement is shipped text. The existing gate
-``tests/test_readme_currency_rc419.py`` is red on it (3 failed / 2 passed) —
-this hook's contribution is not detection-where-there-was-none, it is moving
-the detection to the moment of committing or stopping rather than a 27-minute
-sweep the agent may run afterwards, or not at all.
+⚠️ THIS HOOK BLOCKED THE TREE AS IT STOOD, AND THE DEFECT IS NOW REPAIRED.
+That was not a contrived fixture: ``docs/srmech/python/README.md`` line 162
+read "**ABI 21** at this release" while ``SRMECH_ABI_VERSION`` was **22**,
+because this rc's 21 -> 22 bump did not carry the prose. That README is the
+PyPI long-description, so the false statement was shipped text. The existing
+gate ``tests/test_readme_currency_rc419.py`` was red on it (3 failed / 2
+passed) — this hook's contribution was not detection-where-there-was-none, it
+was moving the detection to the moment of committing or stopping rather than a
+27-minute sweep the agent may run afterwards, or not at all.
 
-THE NINE SURFACES
-=================
+**Re-measured after the repair: that sentence reads ABI 22, the macro reads 22,
+and this hook exits 0 on the real tree.** ``check_hooks.py`` tests for the lag
+rather than assuming it, so its real-tree case is now a self-announcing SKIP
+while both PLANTED lag fixtures still block. This paragraph is kept in the past
+tense on purpose — a hook whose own docstring asserts a defect that has been
+fixed is committing the class it exists to catch, which is why it was rewritten
+here rather than left standing.
+
+THE TWELVE SURFACES
+===================
+*(This heading read "THE NINE SURFACES" while the list below it — unchanged —
+enumerated twelve. Corrected here; the code is the SSoT and it has always
+carried 5 + 7.)*
 FIVE version files (ADR-0007 §2.1 is the SSoT for this list):
   1. python/pyproject.toml
   2. python/pyproject-pure.toml

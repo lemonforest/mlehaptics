@@ -121,12 +121,22 @@ SHA-256 chain can predict, which would make the expected literal a copy of
 the run it judges. The per-step gate now walks **118 steps over 18 running
 chain-variants**, with both arms firing.
 
-**The bare-C TOML host gains its first `b`-kind row** (ctest 39/39 → 40/40,
-22 checks in that binary): `encode_loe_content.toml` chain 0 case 2, driven
+**The bare-C TOML host gains its first `b`-kind row** (ctest **39/39**,
+23 checks in that binary): `encode_loe_content.toml` chain 0 case 2, driven
 from the shipped descriptor with no Python in the acceptance path, against a
 64-char expectation derived INDEPENDENTLY of srmech and of CPython —
 coreutils `sha256sum` for the three digests, plain integer arithmetic for the
 stride, the 44-bit rotate and the XOR.
+
+> *This entry read "ctest 39/39 → 40/40, 22 checks" until the rc452 hook
+> slice re-measured it. Both halves were wrong in the same way — the row was
+> added INSIDE the existing `test_srmech_cascade_toml_host` binary, so the
+> ctest **test** count never moved: `ctest -N` reports `Total Tests: 39` and a
+> full run reports `100% tests passed, 0 tests failed out of 39`. What grew
+> was the assertion count inside that one binary, which now self-reports
+> `== cascade-toml host: 23 passed, 0 failed ==`. A check added to an existing
+> binary is not a new ctest test, and writing it as one inflates the surface
+> the release claims to have.*
 
 **ABI 21 → 22, once, for all of Phase 2's kinds.** `srmech_chain_run`'s
 output-kind vocabulary widens, which is the v18 / v20 shape a third time: a
