@@ -35,10 +35,17 @@ WHAT IS GATED HERE
    not ``<=``), house style. Fixing a chain FORCES the literal down; you cannot
    silently improve either.
 3. ``test_surface_a_unsupported_step_forms_is_tight`` — same, for step forms.
-4. ``test_all_executable_chains_run_in_c`` — the TARGET. Marked
-   ``xfail(strict=True)``, so it is RED-but-expected now and, the moment the work
-   lands, XPASS makes it FAIL until the marker is deleted. That is the drain: the
-   gate removes itself when it is satisfied, instead of quietly passing forever.
+4. ``test_all_executable_chains_run_in_c`` — the TARGET, and it now ASSERTS.
+   It was marked ``xfail(strict=True)`` from rc446 so that the moment the work
+   landed, XPASS would make it FAIL until the marker was deleted — the gate
+   removing itself when satisfied instead of quietly passing forever. That
+   happened at rc452 (`#T1166`) when ``parallel_sector_dispatch`` closed and
+   :data:`CEIL_C_REJECTED_CHAINS` reached 0. *(This paragraph described the
+   marker as live for the length of one commit after it was deleted; corrected
+   in the same phase. A docstring that describes a decoration the file no
+   longer carries is the same class of stale live claim as the "accepts 0"
+   sentence two paragraphs down, which went two drains stale with no
+   detector.)*
 
 ⚠️ WHAT A SEEDED CEILING CANNOT DETECT — stated because this project has been
 bitten by prose claiming otherwise (srmech notebook §3.54). :data:`CEIL_*` below
