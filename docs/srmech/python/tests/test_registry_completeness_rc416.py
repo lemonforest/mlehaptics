@@ -389,12 +389,16 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
     'srmech.amsc.catalog.list_registered_roots': OPEN_REGISTRATION,
     'srmech.amsc.catalog.use_local_kernel': REGISTRY_MUTATOR,
     # ── srmech.amsc.descriptor ──
+    # rc452 (gh #1653): render_template's row is DELETED — the op earned a
+    # ToolEntry because klein4_from_one's declared chain names it and the C
+    # key-set validator refuses an unregistered op. A registration, so the
+    # ceiling falls; the sanctioned direction.
     'srmech.amsc.descriptor.discover_descriptors': OPEN_REGISTRATION,
     'srmech.amsc.descriptor.load_descriptor': OPEN_REGISTRATION,
-    'srmech.amsc.descriptor.render_template': OPEN_REGISTRATION,
     # ── srmech.amsc.format ──
+    # rc452 (gh #1653): sha256_raw's row is DELETED — registered because
+    # encode_loe_content's declared chain names it (same mechanism as above).
     'srmech.amsc.format.sha256_hex': OPEN_REGISTRATION,
-    'srmech.amsc.format.sha256_raw': OPEN_REGISTRATION,
     'srmech.amsc.format.validate_mpr_record': OPEN_REGISTRATION,
     'srmech.amsc.format.write_ndjson': OPEN_REGISTRATION,
     # ── srmech.amsc.gap_suggester ──
@@ -582,6 +586,11 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
     'srmech.signal_processing.profiling.iter_records': OPEN_REGISTRATION,
     'srmech.signal_processing.profiling.record_profile': OPEN_REGISTRATION,
     # ── srmech.signal_processing.rbs_hdc_instrument ──
+    # rc452 (gh #1653): mint_vector's row is DELETED — the op earned a
+    # ToolEntry (package-level spelling srmech.signal_processing.mint_vector,
+    # the music_doa precedent; coverage here is by OBJECT identity so the
+    # defining-module row discharges). It had been registered under NO
+    # spelling at all, and encode_loe_content's declared chain names it.
     'srmech.signal_processing.rbs_hdc_instrument.decode_loe_fingerprint':
         OPEN_REGISTRATION,
     'srmech.signal_processing.rbs_hdc_instrument.encode_loe_content':
@@ -591,8 +600,6 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
     'srmech.signal_processing.rbs_hdc_instrument.mint_class_operator':
         OPEN_REGISTRATION,
     'srmech.signal_processing.rbs_hdc_instrument.mint_stance_fingerprint':
-        OPEN_REGISTRATION,
-    'srmech.signal_processing.rbs_hdc_instrument.mint_vector':
         OPEN_REGISTRATION,
     # ── srmech.spectral ──
     'srmech.spectral.clear_eigenbasis_cache': REGISTRY_MUTATOR,
@@ -640,7 +647,14 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
 #: ``is_dispatch_table_locked``, ``has_path``, ``lookup``, ``registered_ops`` —
 #: earned nine ``ToolEntry`` rows, so nine allowlist rows were DELETED and the
 #: ceiling lowered, which is the only sanctioned way this number falls.
-CEIL_REGISTRY_GAPS = 167
+#:
+#: **167 -> 164 at rc452 (gh #1653), a discharge.** ``render_template``,
+#: ``sha256_raw`` and ``mint_vector`` earned real ``ToolEntry`` rows because
+#: the declared ``klein4_from_one`` / ``encode_loe_content`` chains name them
+#: and the C run loop's key-set validator refuses BY DESIGN to dispatch an op
+#: with no ToolEntry — registration is the mechanism that releases those
+#: chains, and three allowlist rows are DELETED with it.
+CEIL_REGISTRY_GAPS = 164
 
 #: DOWN-ONLY sub-ceiling on the DEBT bucket specifically. The other four codes
 #: are stated design positions; this one is *"nobody decided"*, and it is the
@@ -651,7 +665,11 @@ CEIL_REGISTRY_GAPS = 167
 #: the nine dispatcher-surface registrations, which is a real discharge: nine
 #: ops that were reachable-by-import and invisible-to-introspection now answer
 #: ``describe()`` / ``search`` / MCP.
-CEIL_OPEN_REGISTRATION = 107
+#: rc452 (gh #1653): 107 -> 104 — render_template / sha256_raw / mint_vector
+#: registered (the declared klein4_from_one / encode_loe_content chains name
+#: them and the C key-set validator refuses an unregistered op). A real
+#: discharge, not a re-label.
+CEIL_OPEN_REGISTRATION = 104
 
 #: ⚠️ DOWN-ONLY, and the OTHER half of the partition (rc419, `#T1110`). Rows
 #: here name public callables whose module declares NO ``__all__`` — the class

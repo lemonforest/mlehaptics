@@ -659,8 +659,8 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **20** (`SRMECH_ABI_VERSION = 20` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 20` in
+C ABI version is currently **23** (`SRMECH_ABI_VERSION = 23` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 23` in
 *(this line said 12 until rc420, 13 until rc425, 14 until rc438, 15 until
 rc439, 16 until rc442, 17 until rc449 and — the point — **17 through the whole of
 rc447 AND rc448**, so it was two bumps behind by the time rc449 read it: a SIXTH
@@ -687,6 +687,19 @@ more strongly: with the key unified, an rc451 `.so` against rc450 Python would
 bump converts that into a clean load-refusal. rc451's four new exported symbols
 contribute nothing to it — adding a symbol never bumps. rc442 is also the first bump
 since rc326 to move `SRMECH_GENOME_FORMAT_VERSION` alongside it, 19 → 20.
+**The v21 bump is rc452's (`#T1166`) and it is a NEW shape — the first on this wire
+driven by a SILENT WRONG VALUE rather than a raise, and the first that adds no kind
+letter and moves no descriptor shape at all.** `q` has been on `srmech_chain_run`'s
+wire all along (`cr_op_rat` / `cr_op_pow` / `cr_op_series` build `CR_RATIONAL`, and
+two live attested catalogs dispatch them); what changes is that `cr_op_reorient`
+gains a `CR_RATIONAL` arm, so the Class-C op ANSWERS an exact rational where it
+previously returned `SRMECH_ERR_NOT_IMPL` and deferred to pure. Paired with rc451
+Python — whose reader rebuilds a `q` as a `(num, den)` TUPLE — that emission
+produces no error and no complaint, just a well-formed 2-tuple, which is also
+exactly how a Class-K pin pair spells itself, so a downstream consumer reads it
+happily and wrongly. v18 and v20 both bumped on the ground that an older reader
+RAISES mid-run; a raise stops and a wrong value propagates, so this one outranks
+them. `SRMECH_GENOME_FORMAT_VERSION` stays 20 — no on-disk format moves.
 ⚠️ **rc449 (`#T1158`) put this line under a gate** —
 `tests/test_abi_prose_currency_rc449.py` — precisely because six lags in a row
 is not an accident: "ungated surfaces trickle; gated ones race to 100%". It and
@@ -798,8 +811,13 @@ scratch remains single-thread-at-a-time until similarly converted.
 ### JPL Power-of-Ten audit
 
 The C library is clean on **eight** of the 10 Holzmann Power-of-Ten
-rules; **Rule 1 is PARTIAL** and Rule 9 carries one deliberate
-deviation (see [c/JPL_AUDIT.md](c/JPL_AUDIT.md)).
+rules; **Rule 1 and Rule 9 are both PARTIAL**, each under a seeded
+down-only ratchet (see [c/JPL_AUDIT.md](c/JPL_AUDIT.md)). Rule 9's
+measured population is **10 function-pointer declarator sites** —
+this line said "one deliberate deviation" until rc452, while the tree
+carried 12 pre-rc452 sites including `IV_VTABLE` (a 38-row dispatch
+table, named in the audit as the next drain by the A1 enum-switch
+recipe).
 
 ⚠️ *This line said "passes all 10" until rc441 (`#T1148`), and the
 sentence survived because nothing measured the half of Rule 1 it was
@@ -819,7 +837,11 @@ Enforcement:
    detects Rules 1 (no goto **and, since rc441, no new direct/indirect
    recursion — strict on novel cycles, down-only on the seeded
    population of 9**), 3 (no malloc), 4 (≤60-line functions), 5 (≥2
-   asserts per non-exempt function), 8 (no multi-line macros).
+   asserts per non-exempt function), 8 (no multi-line macros), and —
+   since rc452 — 9 (**no new function-pointer declarators** — masked
+   scan, strict on novel sites, down-only on the seeded population of
+   10, with a vacuity check that must find the documented
+   `srmech_ndjson_line_cb` deviation).
    **Violations can only go DOWN**, never up. Rules 4 and 5 now scan
    literal-masked text so a brace inside a char literal cannot run the
    counter off the end of the file.

@@ -1,0 +1,148 @@
+{
+  "manifest_version": "rc452-s1",
+  "task": "#T1166",
+  "what_this_is": "The PRE-REGISTERED red set for rc452's experiment arm (rc452-s2): the Python chain-run reader rebuilds the 'q' wire kind as srmech.math.q.Q, and the nine derived-predicate Class-N ops RETURN Q, with NO acceptance-widening, NO call-site repairs and NO ToolEntry edits. The rc452 ruling enumerated this set IN ADVANCE. It is committed BEFORE the product change so the prediction cannot be fitted to the outcome; every run of _rc452_red_experiment.py embeds this file's git blob hash.",
+  "falsification_clause": "If the observed red set differs from this manifest in EITHER direction - a red outside it, a predicted red that stays green, or a wrong count at a predicted site - the ruling's projection of the never-executed A-FULL composite is FALSIFIED, judge 3's surviving A-CARRIER placement dissent RE-OPENS, and the build agent must halt and report loudly rather than absorb the surprise. A-CARRIER's own record is 691 passed / 1 honest red, executed end to end; A-FULL was never executed as a whole by any workshop.",
+  "enumeration_predicate": "A test module is enumerated iff its AST contains a Name, Attribute or string Constant node naming one of the nine Class-N ops (rational_add, rational_mul, rational_div, rational_pow_uint, exp_series_truncate, sin_series_truncate, cos_series_truncate, log1p_series_truncate, atan_series_truncate) - UNION the two chain-wire gates (test_c_cascade_value_parity_rc450.py, test_cascade_catalog_executable_rc420.py). Re-derivable with `_rc452_red_experiment.py --census`.",
+  "divergence_from_the_plan": "The rc452 plan calls this 'the enumerated 24-file set'. No 24-file list exists anywhere in the ruling or the four workshop reports, so the number could not be reproduced; the stated predicate yields 41 files. 41 is the STRICTLY WIDER set, so it can only make the prediction harder to satisfy, never easier - which is the honest direction for a falsification test. Reported rather than silently reconciled.",
+  "native_baseline": {
+    "requirement": "HAS_NATIVE=True, NATIVE_ABI_VERSION=20, EXPECTED_ABI_VERSION=20, LOAD_ERROR=None from a libsrmech.so freshly rebuilt from HEAD",
+    "why": "A .so built at one ABI against a higher EXPECTED_ABI_VERSION sets HAS_NATIVE=False with every symbol present, so nm -D says yes and every native gate SKIPS silently. A red set measured under that condition would be missing every native-gated site."
+  },
+  "enumerated_files": [
+    "tests/test_asymptotic_calculus_alias.py",
+    "tests/test_asymptotic_calculus_catalog.py",
+    "tests/test_c_bignum_transcendentals_rc35.py",
+    "tests/test_c_cascade_coherence.py",
+    "tests/test_c_cascade_parity_ratchet_rc446.py",
+    "tests/test_c_cascade_value_parity_rc450.py",
+    "tests/test_c_fold_step_form_rc446.py",
+    "tests/test_c_real_carrier_rc447.py",
+    "tests/test_c_ref_indexing_rc447.py",
+    "tests/test_carrier_contract_rc120.py",
+    "tests/test_cascade_catalog_executable_rc420.py",
+    "tests/test_catalog_chain_infer_c_rc175.py",
+    "tests/test_chain_run_c_rc174.py",
+    "tests/test_continuous_exp_cascade_rc34.py",
+    "tests/test_cosmos_validation_catalog.py",
+    "tests/test_dsl_op_naming_boundaries.py",
+    "tests/test_eph_propagate_rc136.py",
+    "tests/test_explog_sqrt_q61_parity.py",
+    "tests/test_frame_carrier_rc238.py",
+    "tests/test_input_contracts_rc431.py",
+    "tests/test_invoke_tool_clean_batch2_c_rc189.py",
+    "tests/test_jacobi_sncndn_series.py",
+    "tests/test_karatsuba_and_qpow_rc168.py",
+    "tests/test_octonion_dft_rc111.py",
+    "tests/test_one_leaf_ops_c_rc195.py",
+    "tests/test_one_rc49.py",
+    "tests/test_op_provenance_c_rc171.py",
+    "tests/test_op_provenance_rc117.py",
+    "tests/test_q_cross_gcd_mul_rc211.py",
+    "tests/test_q_cross_gcd_mul_rc220.py",
+    "tests/test_q_native_dispatch_rc167.py",
+    "tests/test_qalg_cdmult_c_rc160.py",
+    "tests/test_qalg_series_c_rc156.py",
+    "tests/test_qm_quaternion_rc109.py",
+    "tests/test_rational_zero_pow_convention.py",
+    "tests/test_series_domain_guard.py",
+    "tests/test_sqrt_rename_cascade_rc35.py",
+    "tests/test_t1158_refusal_set_equality_rc449.py",
+    "tests/test_the_one_c_foundation_rc138.py",
+    "tests/test_the_one_winding_rc137.py",
+    "tests/test_to_scalar_rc76.py"
+  ],
+  "baseline_xfails": [
+    "tests/test_c_cascade_parity_ratchet_rc446.py::test_all_executable_chains_run_in_c"
+  ],
+  "baseline_xfails_measured": "ONE xfail exists on the enumerated set at the rc451 baseline (measured, not assumed: the first --expect-green run reported it and the run was REJECTED until it was recorded here). It is frozen so that any NEW xfail during the build counts as a RED - marking a failure expected must not buy a green.",
+  "predicted_reds": [
+    {
+      "file": "tests/test_eph_propagate_rc136.py",
+      "line": 252,
+      "test": "test_seam_fold_vs_no_fold_contrast",
+      "expected_count": 1,
+      "class": "test-side subscript",
+      "why": "raw[0] / raw[1] subscript of cos_series_truncate's now-Q return; Q defines __iter__ but no __getitem__, so this raises TypeError: 'Q' object is not subscriptable. Mechanical fix in rc452-s3: .numerator / .denominator."
+    },
+    {
+      "file": "tests/test_one_rc49.py",
+      "line": 251,
+      "test": "test_imaginary_entries_are_exact_rational_cos_sin",
+      "expected_count": 1,
+      "class": "test-side subscript",
+      "why": "neg_sin = (-sin_t[0], sin_t[1]) subscripts sin_series_truncate's now-Q return. Note the two lines below it (s.blocks[1].imag[0] == cos_t) do NOT red: Q.__eq__ coerces a 2-int pair through _as_pair, so tuple == Q is True by the reflected op."
+    },
+    {
+      "file": "tests/test_qalg_series_c_rc156.py",
+      "line": 124,
+      "test": "test_exp_int64_overflow_band_is_recoverable_not_abort",
+      "expected_count": 4,
+      "class": "test-side subscript",
+      "why": "assert nat[1] > 0 on exp_series_truncate's now-Q return; 4 parametrizations (_EXP_ASSERT_ABORT_PINS has 4 entries)."
+    },
+    {
+      "file": "tests/test_qalg_series_c_rc156.py",
+      "line": 145,
+      "test": "test_series_native_equals_pure_byte_identical",
+      "expected_count": 5,
+      "class": "test-side subscript",
+      "why": "assert nat[1] > 0 inside the 120-draw loop; 5 parametrizations (_SERIES has 5 entries: exp/sin/cos/log1p/atan). The `nat == pure` assert on the line above does NOT red - Q == Q compares exactly."
+    },
+    {
+      "file": "tests/test_rational_zero_pow_convention.py",
+      "line": 89,
+      "test": "test_zero_pow_numerator_is_an_exact_membership_bit",
+      "expected_count": 5,
+      "class": "test-side subscript",
+      "why": "rational_pow_uint((0, 1), r)[0] subscripts the now-Q return; 5 parametrizations (r in [0,1,2,3,7])."
+    },
+    {
+      "file": "tests/test_the_one_winding_rc137.py",
+      "line": 70,
+      "test": "test_trace_spinor_shows_the_winding",
+      "expected_count": 1,
+      "class": "test-side subscript",
+      "why": "_reduce_rational(2 * two_cos[0], two_cos[1]) subscripts cos_series_truncate's now-Q return."
+    },
+    {
+      "file": "tests/test_asymptotic_calculus_alias.py",
+      "line": 62,
+      "test": "test_sin_series_truncate_returns_rational_tuple",
+      "expected_count": 1,
+      "class": "return-type pin",
+      "why": "assert isinstance(out, tuple) - the shipped pin on the OLD return contract. It is not a defect; it is the contract being changed, and it becomes isinstance(out, Q) in rc452-s3. The one predicted red that is a deliberate contract flip rather than a mechanical accessor edit."
+    },
+    {
+      "file": "tests/test_cosmos_validation_catalog.py",
+      "line": null,
+      "test": "test_friedmann_chain_falsification_all_rows",
+      "expected_count": 1,
+      "class": "TRUE closure defect",
+      "why": "The rational family is NOT CLOSED under its own return type: rational_add/_mul/_div/_pow_uint reject a Q operand (isinstance(a, (tuple, list)) guard at rational.py:739 and peers), so an op cannot consume its own output. Config A found this by attacking its own config; the acceptance-widening in rc452-s3 fixes it with ZERO edits to this test file - which is the executable proof that it was a source defect and not a stale contract."
+    },
+    {
+      "file": "tests/test_cosmos_validation_catalog.py",
+      "line": null,
+      "test": "test_rational_canonical_today_value",
+      "expected_count": 1,
+      "class": "TRUE closure defect",
+      "why": "Same closure defect, same zero-edit requirement."
+    },
+    {
+      "file": "tests/test_c_cascade_value_parity_rc450.py",
+      "line": 599,
+      "test": "test_green_witnesses_classify_identical",
+      "param_contains": "\"k\": \"q\"",
+      "expected_count": 1,
+      "class": "the deliverable witness",
+      "why": "The shipped GREEN witness at :599-602 REQUIRES the collapse rc452 removes: it asserts the q wire {\"d\":\"6\",\"k\":\"q\",\"n\":\"5\"} classifies IDENTICAL against the Python 2-tuple (5, 6). Once the reader rebuilds Q, _bits(Q) != _bits((5,6)) and the witness goes DIVERGENT. THIS RED IS THE DELIVERABLE - it flips to required-DIVERGENT in rc452-s5, with a q-vs-Q(5,6) required-IDENTICAL witness shipped beside it. ONLY this one parametrization reds; the other five green witnesses are untouched."
+    }
+  ],
+  "predicted_total": 21,
+  "notes_on_what_would_falsify_each_class": {
+    "subscript sites": "If a predicted subscript site stays GREEN, either the op did not in fact change return type on that path (a dispatch arm still returning a tuple - i.e. the return-widening is incomplete) or the site is dead. Both are findings.",
+    "closure defects": "If the two cosmos reds do NOT appear, the rational family was already closed under Q and Config A's finding (3) is wrong - which would shrink the ruled change by one arm and is reportable either way.",
+    "the witness": "If the parity witness stays GREEN, the reader change did not reach the comparator, and the entire discrimination claim (Config C's 39/39 two-arm experiment) is unreproduced on this tree."
+  }
+}

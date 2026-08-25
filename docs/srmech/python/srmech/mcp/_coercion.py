@@ -79,7 +79,7 @@ from __future__ import annotations
 
 import base64
 import binascii
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Tuple
 
 # numpy-FREE (#564): the wire form for a former ``np.ndarray`` param/return is a
 # plain nested JSON ``list`` (the numpy-free ops consume/return plain Python
@@ -1163,6 +1163,42 @@ def _to_reactions(value: Any, *, param: str = "") -> Any:
     return [tuple(pair) for pair in value]
 
 
+def _to_mapping(value: Any, *, param: str = "") -> Any:
+    """``srmech.amsc.descriptor.render_template`` ``context`` (v0.9.0rc452).
+
+    The substitution namespace. Over JSON it rides as an OBJECT, which
+    decodes to a ``dict`` — already a ``Mapping`` — so this handler
+    VALIDATES rather than converts, and that is precisely why it is not
+    ``_identity``. ``render_template`` resolves each placeholder by
+    walking ``cursor.get(part, "")`` while ``cursor`` is a ``Mapping``
+    and ``getattr(cursor, part, "")`` otherwise (``descriptor.py:334``).
+    Hand it a JSON ARRAY — or a str / number — and every ``{key}``
+    renders as the EMPTY STRING: no exception, no missing-key signal,
+    just a fully-formed template output with every substitution silently
+    dropped. A wrong answer that looks like a right one is the worst
+    failure class this dispatch can produce, so a non-mapping is refused
+    HERE, where the error can still name which param was wrong.
+
+    ``isinstance`` is checked against the SAME ``typing.Mapping`` the op
+    itself branches on, so this accepts exactly the set the op treats as
+    a mapping — not a narrower ``dict``-only test that would reject a
+    live ``MPRRecord`` block an in-process caller passes straight
+    through. ``deserialise_native`` has already rebuilt any
+    ``$srmech_carrier`` envelope nested among the VALUES, so a
+    carrier-valued context arrives live without this coercer touching it.
+    """
+    if isinstance(value, Mapping):
+        return value
+    raise ValueError(
+        f"expected a JSON object (mapping) for param "
+        f"{param or '<Mapping>'!r}; got {type(value).__name__}. A "
+        f"non-mapping context is refused rather than passed through: "
+        f"render_template would fall back to attribute lookup and "
+        f"render EVERY {{key}} placeholder as the empty string, "
+        f"returning a plausible string with no error."
+    )
+
+
 #: Declared-type-string -> inbound coercer. Pass-through (``_identity``)
 #: entries are JSON-native or opaque-handle types that ``invoke_tool``
 #: cannot meaningfully coerce — they are listed EXPLICITLY (not defaulted)
@@ -1213,6 +1249,12 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Sequence[str | dict[str,int]] | QMat": _to_species,        # balance_reaction species
     "QMat | Sequence[Sequence[int | Q]]": _to_qmat_rows,        # conservation_laws N
     "Sequence[tuple[dict[str,int], dict[str,int]]]": _to_reactions,  # deficiency reactions
+    # 0.9.0rc452 (`#T1166`): the Class-F render step's substitution namespace
+    # (srmech.amsc.descriptor.render_template `context`). NOT `_identity`: a
+    # JSON object already IS a Mapping, but a non-mapping silently renders
+    # every {key} as the empty string instead of failing, so this handler's
+    # whole content is the REFUSAL. See _to_mapping.
+    "Mapping": _to_mapping,
     "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
     # 0.9.0rc363: the same coercer, under the honest union name. _to_ellratio has
     # accepted (EllRatio, EllMonomial, Theta) since rc61 — five ops declared only
@@ -1283,6 +1325,21 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # ── JSON-native-ish that still want a light shape fix ──
     "pathlib.Path": _to_path,
     "tuple[int, int]": _to_int_tuple,
+    # rc452 (`#T1166`) — the four binary Class-N ops now declare
+    # ``Q | tuple[int, int]``, because from PYTHON they accept either (the
+    # mirror of C's cr_as_rational). This wire cannot carry the Q half:
+    # ``json.dumps(Q)`` raises, so an operand always ARRIVES as a JSON list and
+    # the correct coercion is the same pair-building one. It is spelled out
+    # rather than pattern-matched because the C peer's MM_TYPE_RULES is an
+    # exact-strcmp table, and the two must agree string-for-string.
+    #
+    # THIS ENTRY IS LOAD-BEARING AND ITS ABSENCE WAS SILENT: with the ToolEntry
+    # respelled and this table untouched, C's mm_action_for returned
+    # MM_ACT_NOTIMPL and SIX ops fell off the native invoke_tool surface — no
+    # error, no wrong value, just a quiet drop to the pure path. Measured by
+    # tests/test_invoke_tool_clean_batch2_c_rc189.py going red on
+    # ``dispatched is True``; nothing else in the tree would have said a word.
+    "Q | tuple[int, int]": _to_int_tuple,
     # 0.9.0rc408 (`#T1078`): cascade.the_one `w` — the WINDING TRIAD
     # (n_sigma, n_theta, n_phi). ``_to_int_tuple`` is arity-agnostic (it turns
     # the JSON list into a tuple; the op validates the length), so the pair

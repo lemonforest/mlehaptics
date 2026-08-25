@@ -355,14 +355,14 @@ def test_expected_abi_is_pinned():
     # a name that spells the value is falsified by the next bump and was —
     # 16 such tests were found tree-wide, one named for 367 asserting 663.
     # See test_pinned_names_carry_no_value_rc447.py.
-    assert _native.EXPECTED_ABI_VERSION == 20
+    assert _native.EXPECTED_ABI_VERSION == 23
 
 
 @requires_native
 def test_the_native_projection_agrees_byte_for_byte_in_BOTH_regimes():
     """Co-equal parity across the new wire — the half the rc435 study could not
     reach, because it ran with ``HAS_NATIVE`` False."""
-    assert _native.NATIVE_ABI_VERSION == 20
+    assert _native.NATIVE_ABI_VERSION == 23
 
     def pure(one):
         saved = _native.HAS_NATIVE

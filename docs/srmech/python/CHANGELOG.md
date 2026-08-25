@@ -5,6 +5,922 @@ All notable changes to this package will be documented here. The format follows 
 **Reference notation.** `#T###` is a LOCAL task-tracker item (our session task list); `F####` is an RBS-LM finding; bare `#NNNN` is reserved for a REAL GitHub issue/PR (write `gh #1293` when you want it unambiguous). The `T` prefix exists because GitHub autolinks `#` followed immediately by digits, so a bare task ID silently mints a cross-link to whatever issue happens to hold that number — several of ours collide with unrelated merged issues. Never write a task ID as bare `#NNNN`. **Two clauses the root `CLAUDE.md` carries and this paragraph did not** (reconciled 2026-07-29, `#T994`): (1) a ref inside a **code span** — `` `#938` `` — does **not** autolink, so it is the legitimate way to *quote* a bad ref while documenting it, and any mechanical check must exempt code spans and bound the digit range or it will flag `UAX #29` / `MS #20` / `Spike #24`; (2) the rule binds **four** surfaces — file content (including docstrings and `ToolEntry` prose, which are emitted into generated files and ship in the wheel), commit messages, the PR body, and **the PR title, which becomes the merge-commit subject**. Existence proves nothing; **topicality decides** — read the surrounding prose, never batch-convert.
 
 
+## [0.9.0rc452] - `#T1166`: exact ℚ crosses the wire, the last blocked chain closes, and the reserve that scaled the wrong quantity
+
+### `parallel_sector_dispatch` closes — `CEIL_C_REJECTED_CHAINS` 1 → **0**, and the gate deletes itself
+
+The last executable cascade chain the C projection could not run. Every one of
+the 18 now runs, so `test_all_executable_chains_run_in_c` loses its
+`xfail(strict=True)` and **asserts**. That marker was written to remove itself
+the moment the work landed — XPASS fails, which forces the deletion — and this
+is that moment. The `BLOCKED` table is empty, the gate matrix row moves to
+`c_runs: true`, and gap-ledger row `carrier_mapping` closes, all in the same
+change so no artifact can rot against another.
+
+**It needed TWO wire kinds, the only closure in this arc that did.** The op
+returns a 66-leaf nested dict, and both letters land with their emission gate
+already closed:
+
+* **`m` (mapping)** — the payload is a **flat array of alternating key/value
+  DESCRIPTORS** in insertion order, never a JSON object. That is designed
+  around a measured divergence, not a stylistic pick: the `sectors` sub-map is
+  **int-keyed**, and on the canonical writer the two projections share,
+  `json.dumps(sort_keys=True)` sorts the key OBJECTS and then coerces them
+  (`"1"`, `"2"`, `"10"`) while the C writer holds already-stringified keys and
+  sorts them **bytewise** (`"1"`, `"10"`, `"2"`). Bool keys additionally
+  lowercase and collide with `1`/`0`, and a tuple key raises `TypeError`
+  outright. Flattening the pairs makes all three hazards **structurally
+  unreachable** instead of documented-around — the same reasoning class as the
+  `b` kind's hex choice.
+* **`o` (bool)** — the payload is a JSON bool literal, never `1`/`0`, because
+  **`True == 1` in Python**: an `i` spelling would deliver a right VALUE of the
+  wrong TYPE, which is the silent-wrong-value class ABI v21 bumped for. The op
+  returns nine of them per dispatch, so its four proof cases are this kind's
+  executed emitters.
+
+**The body is a row lookup, not a callback.** `body` arrives as a
+descriptor-level `@op.<dotted>` reference rather than as data, and JPL Rule 9
+bans the function pointer a callback would need — so it resolves through
+`cr_op_row` to a `CR_OP_REG` row and reads a new `un` column, the unary identity
+that row exposes when NAMED as a body. `CR_UN_NONE` is the default and the
+decline. This is why the ratchet's own `GATE_REF_GRAMMAR` comment — which
+predicted `@op` would need "a callable registry" — was closable at all: that
+registry is not buildable here, and naming the row's unary identity as *data* is
+what replaces it.
+
+**Two silent-wrong-value defects were found and fixed before landing, and
+neither was reachable through any proof case.** Both were in the collapse-lattice
+partition:
+
+* the class grouping guarded its inner loop with `grp[t] == t` to skip
+  non-representatives. That is wrong once any earlier group has absorbed a
+  member, because a later group's id then no longer equals its own first index.
+  Differential-tested against `_distinct_classes` on the `{0,1},{2,3}` partition
+  — the iω₇-symmetric case `parallel.py`'s own docstring names — it reported
+  `n_distinct` **3** where Python reports **2**;
+* it compared sector results with `memcmp`. Python's `_equal` is `==` per
+  element, which says `+0.0 == -0.0` and says `NaN != NaN`; `memcmp` says the
+  opposite of both. The iω₇ axis is a **sign flip**, so a `0.0` anywhere in `x`
+  puts a `-0.0` into a sector result and `memcmp` would split a class Python
+  merges.
+
+⚠️ **What the four proof cases do NOT exercise, stated at the ceiling rather
+than left implied.** All four collapse to `n_distinct == 1`, because
+`body=chiral_flip` is symmetric under **both** Klein-4 axes — so the partition
+code above runs only at its degenerate value, and neither the parity ratchet nor
+the bit-exact value comparator would have caught either defect. No `@op` body in
+the registry can produce `n_distinct > 1` today: `chiral_flip` is the only
+sequence→sequence row carrying a `un`, and any elementwise body collapses
+`{0,2}`/`{1,3}` instead.
+
+**The writer reserve scaled the wrong quantity, and no caller could work around
+it.** `cr_run_and_write`'s value-descriptor reserve bounds the OUTPUT tree but
+was derived from the INPUT length — sound while every chain returned something no
+bigger than what it was asked with, which held for a scalar, a short list and a
+small `Mat`. This op returns ~2 KB of CONSTANT framework prose from a 352-byte
+chain, so its output is not a function of its input at all. Because the term
+scaled with the input, **allocating more did not help**: the same
+`SRMECH_ERR_OVERFLOW` reproduced at 1× and at 16× (37 MB). The floor is now
+measured by bisection (the table is in the source: 16384 fails, 32768 covers the
+four proof cases, 262144 additionally covers a 4-sector dispatch over a
+64-element input) and both call sites route through one function so chain-run and
+catalog-run cannot drift. `srmech_chain_run_arena_bytes` over-approximates the
+same quantity and moved with it.
+
+**ABI 22 → 23**, across all seven surfaces the `ssot_agreement` hook enumerates.
+Two prose spellings its regexes do NOT cover were then caught by
+`test_abi_prose_currency_rc449` — three gates in series, each catching what the
+previous one structurally could not.
+
+**Also closed here: `REQUIRED_EMITTED_KINDS` gains `b` and `x`.** Neither was
+added when those kinds landed earlier in rc452 — the exact hole that gate exists
+to close, reproduced inside it. Both shipped with a real emitter so the omission
+cost nothing at the time, but it left the gate indifferent to whether either was
+still emitted, which is the state `q` was in through rc450. Found by a verifier,
+not by any gate. And `CEIL_UNEMITTED_IN_POPULATION_A` drains **`s`** — not the
+`q` the plan had priced a new descriptor for, but a side effect of this chain's
+framework prose being STRING leaves.
+
+The bare-C TOML host gains its 19th row, driven from the shipped descriptor with
+no Python present. Its 3273-byte expectation was **derived and encoded before
+being compared** — the value by hand from the ops, then encoded into the
+descriptor grammar — and the two constructions agreed byte for byte. `ctest`
+39/39.
+
+### The A-N cascade parity closure — the config-driven chain surface in C
+
+The rc452 ruling widened this rc to *"full closure of Python and C parity for our
+A-N operator cascade ... do whatever it takes to close this parity gap, and that
+we have CI for our C code where it's missing."* What follows is what LANDED,
+measured; the residual is stated plainly at the end rather than deferred
+silently.
+
+### Phase 2, the K3 slice (gh #1653): the `x` (MATRIX) wire kind — `schur_complement` closes, `CEIL_C_REJECTED_CHAINS` 2 → 1
+
+**The only drain in this arc that BUILT SUBSTRATE rather than dispatching an
+existing symbol.** Measured before a line was written: `c/include/srmech.h`
+declares **zero** `schur` / `dirichlet` / `neumann` symbols and no `c/src`
+translation unit defines one — the op's name occurs in this tree only as DATA,
+in two generated registry tables. (`docs/srmech/CLAUDE.md` asserted a C peer
+for it for a long time and was corrected in 2026-08 for exactly that reason; it
+is one of the six ABSENT ops in the gh #1653 symbol-gap census.) The arm is
+therefore **composed** over `srmech_dense_solve_f64_ws` — the same Class-L
+float primitive the Python op's float path composes over for the same
+sub-problem — as one wave-E row on the A1 dispatch, zero function pointers.
+
+**The arithmetic ORDER is Python's, transcribed, and that is load-bearing.**
+`laplacian.py` spells the boundary combine `float(L_pp[a][c]) -
+sum(float(L_pi[a][k]) * X[k, c] ...)`, and `sum` accumulates from `0.0`
+strictly left to right; floating-point addition is not associative and the
+comparator is bit-exact, so the C loop does that and nothing cleverer. Measured
+first: the shipped `srmech_dense_solve_f64_ws` and the pure-Python solve
+already agree BIT-FOR-BIT on all three proof cases, so the interior solve
+contributes no divergence and the combine order was the only remaining degree
+of freedom. The `path4` case is what makes that checkable — its entries are
+`0.33333333333333337` and `-0.3333333333333333`, which differ in the last bit,
+so a right-to-left sum or a fused multiply-add would diverge there and agree
+everywhere else.
+
+**The matrix kind is a FLAG on `CR_LIST`, the third use of the `is_tuple`
+precedent, and its payload is the same nested array an `l` carries.** Only the
+outer letter differs. That is deliberate: the rows stay ordinary `l` frames, so
+the C writer's list walker is untouched and there is no second array grammar to
+keep in sync. What the letter buys is the TYPE — `schur_complement` declares
+`Mat`, and the shipped comparator encodes a Mat as `M` + its `.tolist()`, which
+no plain list produces. ⚠️ **Which is why the emitted-kind gate is not
+decoration here**: spelling this value as `l` would produce BYTE-IDENTICAL
+payload and satisfy every byte-level instrument in the file, while handing the
+reader a list of lists where the descriptor declares a Mat — a wrong TYPE with
+a right VALUE. Only a predicate whose subject is the emitted letter can refuse
+it.
+
+**The witness prediction is the op's own degenerate case**, so it needs no
+arithmetic and cannot be a copy of the run: widening `boundary_idx` to the whole
+index set leaves NO interior, and `S = L_∂∂ − L_∂i L_ii⁻¹ L_i∂` collapses to
+`L_∂∂ = L`, so the mutant must return the input matrix verbatim as a Mat. It
+also separates the arm's two branches — a runner that always took the solve path
+would divide by an empty interior block rather than answer.
+
+**The bare-C TOML host gains its first `x`-kind row** (18 config-driven rows, 23
+checks, ctest 39/39): `schur_complement.toml` chain 0 case 0, whose every value
+is a dyadic rational — the 3-path Laplacian reduced onto `{0, 2}` gives
+`[[1.5, −0.5], [−0.5, 1.5]]` by hand, with no oracle of any kind involved.
+
+**No further ABI bump: the kind ships under the ABI 22 the K1 slice already
+paid for** — one bump for the rc, not one per kind. The OVERFLOW ratchet takes
+a second adjudicated raise, 743 → **745**; ⚠️ the four OTHER carve sites in the
+new arm are deliberately NOT under it, because their NULL means either an arena
+failure or a genuine refusal (a ragged `L`, a duplicate boundary index, a
+SINGULAR interior block = Python's `ZeroDivisionError`), and a capability
+refusal must defer to the pure projection rather than send a caller into a
+grow-loop that can never succeed.
+
+### Phase 2, the K1 slice (gh #1653): the `b` (BYTES) wire kind — `encode_loe_content` closes, `CEIL_C_REJECTED_CHAINS` 3 → 2, and **ABI 21 → 22**
+
+**A new wire kind, and the deliberate decline it replaces.** The wave-C phase
+above placed a FINAL-decline in `cr_run_and_write` for a bytes-typed result,
+on the reasoning that spelling bytes as `s` would erase the str/bytes type on
+the wire. That seam is now filled rather than worked around: `cr_desc_scalar`
+gains a `b` arm, `_reconstruct_value` gains its `bytes.fromhex` branch, the
+`EXPECTED_WIRE_KINDS` bijection pin grows to eight, and the special case in
+`cr_run_and_write` is DELETED — there is no residual.
+
+**The payload is LOWERCASE HEX, and the choice is forced rather than
+preferred.** A bytes payload has to cross RFC 8259 JSON, where a raw byte
+string is not expressible, so the kind must choose an encoding — and the
+choosing is where two projections drift. Base64 carries an alphabet variant
+and a padding rule; hex carries neither, `bytes.hex()` produces exactly what
+the C writer's `cr_bytes_hex` produces, `bytes.fromhex` inverts it exactly,
+and it is already the alphabet `srmech_sha256_hex` emits, so no new encoder
+alphabet enters the library. ⚠️ This is NOT the MCP tool surface's `bytes`
+coercer, which reads BASE64 — a different surface, an INPUT coercion, and
+measured this rc, feeding it hex raises `Incorrect padding`. Both spellings
+are documented at both sites so nobody "unifies" them by guess.
+
+**`encode_loe_content` runs in C, 4/4 proof cases BYTE_IDENTICAL** (including
+the D = 8192 sweep case, whose final value is 1024 bytes). Four wave-D rows
+join `CR_OP_REG` (51 → **55**): `sha256_raw` / `mint_vector` / `permute` /
+`bind`, each a step-granular arm delegating to exactly ONE compiled export
+that the Python op of the same name delegates to as well —
+`srmech_sha256_hex`, `srmech_mint_vector`, `srmech_hdc_permute`,
+`srmech_hdc_bind`. No fused whole-chain symbol exists for this descriptor
+anywhere in the library, so the no-coarse gate derives an empty contribution
+from it and there is no coarse bypass to rule out. `sha256_raw` is composed
+the way `srmech.amsc.format.sha256_raw` composes it — hex then decode —
+rather than through `srmech_sha256_shani`, which also writes 32 raw bytes:
+both are bit-exact so no value gate could separate them, and keeping ONE
+Class-A core referenced from the interpreter TU is the reason to prefer it.
+
+**The chain-level witness needs no oracle.** Re-pointing step 10's second
+operand at its first (`@step[9].output` → `@step[7].output`) leaves every op
+and every step in place and changes ONE reference — but `bind` is a
+component-wise XOR and XOR is self-inverse, so the mutant's value is FORCED
+to the all-zero 32-byte vector whatever the mints produced. Every other
+interior perturbation of this chain moves the answer to a value only a
+SHA-256 chain can predict, which would make the expected literal a copy of
+the run it judges. The per-step gate now walks **118 steps over 18 running
+chain-variants**, with both arms firing.
+
+**The bare-C TOML host gains its first `b`-kind row** (ctest **39/39**,
+23 checks in that binary): `encode_loe_content.toml` chain 0 case 2, driven
+from the shipped descriptor with no Python in the acceptance path, against a
+64-char expectation derived INDEPENDENTLY of srmech and of CPython —
+coreutils `sha256sum` for the three digests, plain integer arithmetic for the
+stride, the 44-bit rotate and the XOR.
+
+> *This entry read "ctest 39/39 → 40/40, 22 checks" until the rc452 hook
+> slice re-measured it. Both halves were wrong in the same way — the row was
+> added INSIDE the existing `test_srmech_cascade_toml_host` binary, so the
+> ctest **test** count never moved: `ctest -N` reports `Total Tests: 39` and a
+> full run reports `100% tests passed, 0 tests failed out of 39`. What grew
+> was the assertion count inside that one binary, which now self-reports
+> `== cascade-toml host: 23 passed, 0 failed ==`. A check added to an existing
+> binary is not a new ctest test, and writing it as one inflates the surface
+> the release claims to have.*
+
+**ABI 21 → 22, once, for all of Phase 2's kinds.** `srmech_chain_run`'s
+output-kind vocabulary widens, which is the v18 / v20 shape a third time: a
+stale reader paired with a current `.so` meets a kind it has no branch for
+and RAISES mid-run, so the bump converts that into a clean load-refusal —
+executed, not asserted: an ABI-21 `libsrmech.so` against this Python reports
+`HAS_NATIVE = False`, `LIB = None` and a `LOAD_ERROR` naming the mismatch.
+The five VERSION SSOT files stay at **0.9.0rc452** — an ABI bump is not a
+version bump. `SRMECH_GENOME_FORMAT_VERSION` stays 20; no on-disk format
+moves. *(Also corrected in the same change: `docs/srmech/CLAUDE.md`'s ABI
+paragraph said `EXPECTED_ABI_VERSION = 20` beside `SRMECH_ABI_VERSION = 21`.
+The currency gate keys on the first pair only, so the second number was
+ungated prose and was already one bump stale before this one.)*
+
+### The registry-ripple phase (gh #1653): klein4_from_one closes — `CEIL_C_REJECTED_CHAINS` 4 → 3 — and the runner honours its own header contract
+
+**The registration triple, done once and rippled whole.** `cr_args_keyset_ok`
+refuses BY DESIGN to dispatch an op with no ToolEntry, so registration was the
+hard prerequisite for two of the three remaining mechanism groups.
+`srmech.amsc.descriptor.render_template` (blocks `klein4_from_one`),
+`srmech.amsc.format.sha256_raw` and `srmech.signal_processing.mint_vector`
+(both block `encode_loe_content`; `mint_vector` was registered under **no
+spelling at all** — importable, `__all__`-public, and invisible to
+`describe()`/`search`/MCP) each earned a real `ToolEntry`. The full ripple
+landed in the same change: registry total 663 → **666**, the op-name-SET
+witness manifest + digest re-pinned, all 74 pinned `describe()` count sites
+bumped, three completeness-allowlist rows DELETED (`CEIL_REGISTRY_GAPS`
+167 → 164, `CEIL_OPEN_REGISTRATION` 107 → 104), and the four generated files
+regenerated through `tools/regen_all.py` — never hand-edited.
+
+**klein4_from_one runs in C, both variants, 7/7 proof cases BYTE_IDENTICAL.**
+Six wave-C rows join `CR_OP_REG` (45 → **51**): `render_template` /
+`utf8_encode` / `sha256_bytes` / `str_concat` / `byte_slice` /
+`int_parse_le`, each a step-granular arm — the fused `srmech_klein4_from_one`
+symbol is deliberately NOT referenced by the interpreter TU (the no-coarse
+gate derives it into its pinned population automatically), and the one
+compiled symbol the arms share with the fused path is `srmech_sha256_hex`,
+the Class-A export the Python op itself composes. The str/bytes boundary
+rides a new `is_bytes` carrier flag (the `is_tuple` precedent): NO new wire
+kind, because the chain's final value is a list of ints; a bytes FINAL
+declines (`NOT_IMPL`) until the `b` kind ships with `encode_loe_content`,
+and each arm refuses the wrong side of the boundary exactly where Python
+raises. The chain-level witness mutates the descriptor's own `frame14` bind
+table to zeros and predicts the UNMASKED crumbs — derived INDEPENDENTLY of
+srmech (coreutils `sha256sum` + base-4 arithmetic by hand); the per-step gate
+walks **107 steps over 17 running chain-variants, 107 decline + 106
+value-move + 1 forced**, where the one FORCED step (klein4 body[5], the
+byte-slice stop whose only executable value is its baseline's) is admitted
+through an EXECUTED exhaustion proof, not a string in a dict.
+
+**Finding (b) repaired at root — the runner now refuses a headerless chain.**
+`srmech_chain_run` ACCEPTED a chain object carrying neither `name` nor
+`summary` while Python's `parse_chain_spec` REJECTS both — and the CONTRACT
+(the runner's own header doc since rc174, plus BOTH parse peers) backs
+Python, so the C runner now answers `SRMECH_ERR_BAD_INPUT` for a chain
+missing `name`/`summary`/`returns` (presence, not string-ness: the pure
+parser coerces any value through `str()` — checked as presence so C cannot
+refuse what Python accepts). Measured blast radius of the old acceptance: every ctypes
+parity harness (`_chain_only` stripped `summary`/`returns` as
+"documentation") and the bare-C TOML host (whose `[[cascade.chain]]` entries
+carry no `name` at all) had been running headerless chains for four rcs.
+All harnesses now synthesize the header the way `cascade_chain_specs` does,
+and the refusal is pinned in both projections plus bare-C negative controls.
+Rides ABI v21 (same unreleased rc as the exact-ℚ arm; the srmech.h note
+covers both).
+
+**Finding (a) repaired — the TOML host honours the descriptor's own defaults,
+and the kuramoto `general` variant gets its first config-driven C gate.**
+The bare-C host's ctx builder ignored `input_defaults` / `optional_inputs` —
+the very keys rc452 moved into the descriptor so the variant would be
+executable from shipped configuration — and could only drive
+`[[cascade.chain]]` entry 0. It now merges the descriptor's own defaults
+UNDER the case inputs (`pin_anchor` rides as `null`, `pin_strength` as `1.0`,
+from the FILE), takes a `chain_idx`, and drives two new rows: the kuramoto
+**general** variant's zero-coupling case (θ' = θ = `[1.0, -1.0]` exactly) and
+klein4's rest case 0 against the independently-derived 64-crumb wire.
+The host is 21/21 with a new absent-chain-index negative control; ctest
+39/39; JPL audit 13/13.
+
+### The registry-ripple phase, COMPLETED (gh #1653): the four ripple surfaces the registration did not reach, and a shipped-prose defect a stale ledger was hiding
+
+**The registration slice was NOT coherent as landed — eleven gates were red.**
+Everything it claimed re-verifies: the three `ToolEntry` registrations are real,
+all six generated files are content-equal to a fresh `tools/regen_all.py`
+regeneration, `klein4_from_one` runs in C in both variants with 7/7 proof cases
+byte-identical, it carries a step-mutation witness, and it runs through the
+bare-C TOML host from its own `.toml` against a wire derived independently of
+srmech. `CEIL_C_REJECTED_CHAINS = 3` is HONEST. What the slice did not reach were
+the count-pins that are not COMPARISONS — which is precisely the "invisible
+class" the `RIPPLE_GATES.md` count-pin note names, since a `git grep "== 663"`
+predicate cannot see a DIGEST, a data-file field, a prose bar or a census
+ceiling. *(That predicate is the one `RIPPLE_GATES.md` states, and it measures
+**74 lines across 67 files** at 666, plus the one `EXPECTED_N` assignment it
+structurally cannot match — the figure the registration slice itself quoted. An
+earlier draft of this section said 76, which is the raw count of diff lines
+mentioning 663 and sweeps in C rows and comment text; a count without its
+predicate is how this arc keeps minting wrong headlines.)* All four are recorded here so the next count bump has a list.
+
+**(1) The search-corpus witness — `WITNESS_RC416`, 3 tests red.** Registering an
+op rebuilds the corpus, so the digest moves: `de17973d…` → `7cb11ffb…`, over
+**692 → 695 frames (666 ops + 29 carriers)**. That gate's own message offers two
+readings and re-pinning the wrong one converts a real ADR-0011 break into a
+silent one, so both halves were MEASURED before the digit moved, and the
+generating code ships at `docs/srmech/notes/_rc452_witness_repin_provenance.py`.
+DETERMINISM: four processes under `PYTHONHASHSEED` 0/13/271/9999 return the same
+digest and the same 695 frames, with all three derivation paths agreeing inside
+each run. CAUSATION: the op-frame NAME set against the branch head's committed
+`registered_op_names.txt` (663 names) gives ADDED = exactly the three registered
+ops, REMOVED = none, carriers unchanged at 29, and exactly one carrier frame
+able to mention a new op — `int`, whose `consumes` gains `mint_vector` (its `D`
+is an int). A moved frame COUNT is the reading the rc445 note reserves for
+"something other than prose changed"; here that IS the declared change, and a
+count that had not moved would have been the failure.
+
+**(2) The synthesised-argument ledger, and a ceiling that ROSE — 3 tests red.**
+`tests/example_args_ledger.ndjson` still read `"n": 663`, and three ops
+registered with no worked example land in the frame census's `NO_ARG` class,
+which sits under a DOWN-ONLY ceiling: it went **276 → 279**, one per
+registration. Ceilings drain, so two of the three were drained the way the
+gate's own message prescribes — bind the arguments — rather than by raising the
+`CEIL`. Each op earned a worked example measured off the live op rather than
+typed: `render_template` renders `klein4_from_one`'s actual JSON pre-image
+(literal braces passing through) and shows a missing key rendering EMPTY rather
+than raising; `sha256_raw` shows the raw 32 bytes re-deriving from
+`bytes.fromhex(sha256_bytes(…))`, one dispatch and three shapes; `mint_vector`
+shows one name minting byte-identical content twice and two distinct names
+landing 4054 bits apart against the 4096 expected of independent 8192-bit
+vectors. Ledger: `n` 663 → **666**, `ok` 385 → **387**.
+
+*Two census ceilings then move, each attributed BY OP and by structural reason,
+both of them the rc436 / rc442 raise verbatim rather than a new excuse.*
+`NO_ARG` **276 → 277** for `sha256_raw`: its one parameter is `data: bytes`, its
+worked example DOES call it four times with a real value, and the harvester
+records `status: no_jsonable_arg, unserializable: ["data"]` — the binding is
+missing because `bytes` has no JSON image, not because the example is thin. It
+is also the CORRECT verdict: the frame axis asks whether an op translates when
+an INTEGER input varies, and a content address has no frame to move along BY
+DESIGN. `NO_INT_INPUT` **153 → 154** for `render_template`, which DID drain out
+of `NO_ARG` (`status: ok`, four recorded calls) and landed one tier along for
+`genome_group`'s reason: `template` is a string, `context` is a Mapping, and the
+integers inside it are payload being serialised rather than a coordinate the op
+reads. `mint_vector` needed neither raise — which is what shows both are about a
+parameter's type and not about the triple being under-exampled.
+
+**(3) The introspect surface was incomplete — `test_worked_examples_strict_zero`
+is STRICT ZERO on three perspectives plus a 400-char floor, and all three new
+ops failed it.** They were left on the auto-seed derived from their `ToolEntry`
+summary: 73, 320 and 68 characters, missing WHAT / WHEN / SIBLINGS between them.
+Registration is not complete when `describe()` can name an op but not explain
+it — the introspect surface IS the API contract, and an incomplete one is as bad
+as a false one. Each now carries a curated explanation in the house
+WHAT / WHEN / WHAT-YOU-WOULD-OTHERWISE-HAND-ROLL / SIBLINGS shape.
+
+**(4) THE ONE THAT WAS NOT THIS SLICE'S: four SHIPPED worked examples have been
+raising since rc452's own exact-ℚ arm, and the committed ledger said `ok`.**
+`tests/worked_examples_result.ndjson` had not been re-run since nine Class-N ops
+flipped from `(num, den)` tuples to the `Q` carrier, so it recorded
+`rational_mul`, `sin_series_truncate`, `cos_series_truncate` and
+`atan_series_truncate` as passing while all four in fact die on
+`TypeError: 'Q' object is not subscriptable` — they index the result. Reproduced
+independently by executing the snippet straight off `get_tool_schema()`, not by
+reading the ledger. This is shipped prose: worked examples flow
+`_tool_docs_curated.py` → `_tool_docs.py` → `ToolEntry.example` → `describe()`,
+the MCP tool list and the compiled-in `srmech_tool_registry.c`, so the defect was
+reaching users across four surfaces. Fixed at all 17 subscript sites with the
+accessor `Q` actually exposes (`.numerator` / `.denominator`), each snippet
+re-executed to green. The stale ledger IS the finding: an instrument that has
+not been re-run cannot return otherwise, and it is the only reason a
+breaking-by-design carrier flip left four callers broken in the shipped surface
+with every gate green.
+
+*Ledger discipline, stated because the number would otherwise look wrong.*
+Re-running all 581 snippets on this host puts NINE of the heavy triality /
+octonion examples over the 15 s per-snippet budget against the ONE that did on
+the cell where `CEIL_WORKED_EXAMPLE_FAILURES` was seeded — and the count is 9
+whether the run is alone or contended, so it is host speed, not load. Those rows
+are about ops this change does not touch, and re-measuring them on a slower host
+is a DIFFERENT experiment rather than a better one, so the committed ledger takes
+exactly the SEVEN rows whose prose this change edited and keeps HEAD's value for
+the other 574. Result: `n` 578 → **581**, `ok` 477 → **480**,
+`unexpected_raise` **96** and `timeout` **1**, both unmoved — the four repairs
+drain out of a class whose total was already 96 because the stale ledger had been
+counting them as `ok`.
+
+### ⚠️ OPEN — the registry ripple is NOT finished: `tools/ripple_check.py` reports 12 more red gates, and two of them are capability defects rather than count-pins
+
+**Read this before the section above.** That section says "eleven gates were red,
+in four independent surfaces". That was true of every gate run at the time and
+is the wrong number: the prescribed pre-push sweep had not been run yet. It has
+now — `python3 tools/ripple_check.py`, the SSOT gate set for
+*"any rc that registers/edits an op or a ToolEntry"* — and it reports
+**12 failed, 2065 passed, 1 skipped, 1 xfailed in 1615.8 s**. So the registration
+triple left **at least 23** red gates across **six** surfaces, not 11 across four.
+The eleven above are fixed and stay fixed; these twelve are OPEN and this branch
+must not be pushed as a closed slice until they are.
+
+**TWO ARE NOT BOOKKEEPING — they are capability defects, and they say the
+registration itself is wrong, not merely un-rippled.**
+
+* **`test_mcp::test_all_param_types_json_coercible` — two of the three new ops
+  are UNCALLABLE over MCP / the Anthropic adapter.** `render_template`'s
+  `context: Mapping` and `sha256_raw`'s `data: bytes` are declared param types
+  with NO coercion handler in `srmech.mcp._coercion._PARAM_COERCERS`. The
+  registration was made so the C run loop's `cr_args_keyset_ok` would release
+  two chains; it shipped an op that `describe()` advertises and MCP cannot
+  invoke. Fix is a coercer per type, not a count bump. (`bytes` also has no JSON
+  image, which is the SAME root cause as the `NO_ARG` ceiling raise recorded
+  above — one defect wearing two gates.)
+* **`test_dsl_op_naming_boundaries` (×2) — `mint_vector` is registered under a
+  spelling the shipped descriptor does not use.** Measured: *"NEW
+  introspection-invisible chain-step spellings shipped:
+  `['srmech.signal_processing.rbs_hdc_instrument.mint_vector']`"*. The ToolEntry
+  registers the PACKAGE-level spelling on the `music_doa` precedent, with the
+  comment that "coverage is by OBJECT identity" — but this gate is
+  SPELLING-keyed, and `encode_loe_content`'s descriptor names the
+  defining-module spelling. So the very chain the registration exists to unblock
+  still names a step the introspect surface cannot see. Object identity is the
+  right rule for the completeness allowlist and the WRONG rule here; the two
+  gates disagree, and the disagreement is the finding.
+
+**The other ten are count/population ripple, each with its measured delta:**
+
+| gate | measured |
+|---|---|
+| `test_readme_currency_rc419` | `python/README.md` advertises a **663**-entry registry; live is **666**. This text SHIPS as the PyPI long-description. |
+| `test_notebook_currency_rc420` | the notebook says the registry holds **663** entries; `len(get_tool_schema().tools)` is **666**. |
+| `test_namespace_prefix_decode_aware_rc361` (×3) | as-text `srmech.amsc.` references grew by **5** in BOTH generated artifacts — `srmech_tool_registry.c` 88 → **93**, `_tool_docs.py` 80 → **85** — plus the totals pin. This is the DECODED-channel population `RIPPLE_GATES.md` warns is invisible to a text grep. |
+| `test_composes_population_rc423` | **184** registered ops carry no composes adjudication, ceiling **181** — +3, one per registration. Each new op with two or more call edges needs its ORDER TRACED into `test_composes_grain_rc412.py::ROSTER`. |
+| `test_status_conflation_ratchet_rc404` | `return SRMECH_ERR_OVERFLOW` lines rose to **739**, ceiling **725** — +14, with `srmech_compose_run.c` at 43 among the heaviest, i.e. the wave-C `CR_OP_REG` arms. Each new site must be adjudicated OVERFLOW-vs-LIMIT; a grow-loop keys on 4. |
+| `test_adr_citation_integrity_rc415` | V3 token-evidence violations rose to **8**, ceiling **7** (`ADR-0010:197 _live_ops`). |
+| `test_introspect::test_env_var_auto_publish` | red; not yet triaged to a cause. |
+
+**Nothing here retracts the section above.** `CEIL_C_REJECTED_CHAINS = 3` is
+still honest and `klein4_from_one` still runs in C by execution. What is
+retracted is any reading of that section as "the slice is now complete".
+
+**Mandate clause 2 — `cascade.atoms` in C — is CLOSED.** `CR_OP_REG` stops being
+a name-to-name index and becomes the atom registry the interpreter resolves
+against: a bare-C, config-addressable table of pure data rows. This was not a
+tidiness move. `cr_dispatch` was measured at
+**57 of JPL Rule 4's 60 lines** with 16 arms, and `cr_dispatch_real` already
+existed only to absorb an earlier overflow — so the 32 op spellings the blocked
+chains need could not be added as an if-chain **at all**. `cr_dispatch` is now a
+row lookup plus a bounded per-domain switch tree and `cr_dispatch_real` is gone.
+A `bin` column gives the
+FOLD BODY the same table, replacing the private single-entry table that had kept
+`fold` counted unsupported while a real fold chain shipped.
+
+**The table's rows are enum data, not function pointers — the "A1" dispatch —
+and the first cut of this rc was measured violating JPL Rule 9.** The first
+CR_OP_REG cut gave rows `fn`/`bin` FUNCTION-POINTER columns; Rule 9 says
+outright *"Function pointers are not permitted."* and nothing tripped, because
+`tests/test_jpl_audit.py` mechanically checks Rules 1/3/4/5/8 only. The
+shipped shape instead carries three small-int enum columns
+(`dom`/`sub`/`bin`): `cr_dispatch` switches on `dom` and hands `sub` to one
+`cr_exec_<domain>()` per domain (rat / cyc / cas), and each exec switches on
+its OWN enum type with **no `default:` arm** — so gcc/clang's `-Wswitch`
+under the existing `-Werror` makes "row added, case forgotten" (or a deleted
+case line) a **COMPILE ERROR**, demonstrated by mutation during the build.
+MSVC's C4062 is off by default even at `/W4` — measured: a deleted case
+compiled silently clean under `/W4` alone — so `/w44062` joins the
+`SRMECH_PEDANTIC` MSVC flags, and the full 138-TU src sweep is clean under
+it. The A1 shape is also SMALLER: the fourteen seven-line uniform-shape
+wrappers existed only to feed the function-pointer column and deleted with
+it, and the two Rule-9 sites that PREDATED this rc in the same file
+(`cr_series_fn_t`, `cr_op_dseq`'s inline fn param) drained by the same
+enum-plus-switch recipe — `srmech_compose_run.c` goes 4 → 0 declarator
+sites. A new bijection gate in
+`tests/test_t1158_registry_param_order_rc449.py` parses each exec's case
+labels and pins them set-equal to the table's per-domain `sub` column (the
+one drift the compiler cannot see: two rows sharing a label — red-planted,
+fired, reverted).
+
+**The Rule 9 census — a finding bigger than this rc.** A masked declarator
+scan over `src/*.c` + `src/*.h` + `include/*.h` (150 files) measured **14
+function-pointer declarator sites across 5 files**, of which **12 predate
+rc452** — including `IV_VTABLE` in `srmech_invoke.c`, a **38-row
+name-to-function-pointer dispatch table shipped since ~rc189** — while
+`JPL_AUDIT.md` documented exactly ONE deviation. So "passes all ten rules"
+was ALREADY FALSE before this rc. Post-A1 the population is **10 sites
+across 4 files**: seeded down-only in the new
+`test_rule_9_no_new_function_pointers` (strict on novel sites, ceiling
+pinned to the live count, vacuity check that must find the documented
+`srmech_ndjson_line_cb`), with `JPL_AUDIT.md`'s Rule 9 section rewritten to
+carry the measured census and `IV_VTABLE` named as the next drain by the
+identical A1 recipe — deliberately NOT drained in the same change as the
+census. The stale "passes all 10" / "one deliberate deviation" orientation
+lines in the root `CLAUDE.md`, `docs/srmech/CLAUDE.md` and `c/README.md`
+are corrected in the same commit.
+
+**All three Surface-A step forms now execute.**
+`CEIL_SURFACE_A_UNSUPPORTED_FORMS` **2 → 1 → 0**, each step forced by its own
+`==`. The MAP form is `cr_drive`, an explicit-frame-stack trampoline:
+compose.py's spine is frankly recursive and JPL Rule 1 forbids that here, so the
+call stack is made explicit, arena-backed (Rule 3) and depth-capped against a
+MEASURED maximum nesting of 2. It mirrors the contract point by point — `n`
+pinned at entry, binds resolved ONCE in the enclosing scope, body-local step
+outputs, layered idx/bind environments. The `@idx` and `@bind` namespaces close
+with it; measured, they occur ONLY inside map bodies, so they are frame bindings
+rather than a wider path grammar, which is why they could not close earlier.
+
+**The value spine is depth-bounded rather than flat.** Ingest and marshal were
+each one level, and each justified itself by the other — the marshal's comment
+reasoned a list "is flat by construction", true only because the ingest could
+not build one. Both move together; widening either alone gives a chain that runs
+and cannot report. No new kind and no reader change: `l` already exists and
+Python's reader has always been recursive. A **bool ingest** gap that NO listed
+gate named is closed in the same place — through rc451 a JSON bool returned
+NULL, so both DFT chains deferred WHOLE on `inverse: false`, attributed instead
+to gates whose closure could not have released them.
+
+**`CEIL_C_REJECTED_CHAINS` 8 → 7** — `autocorrelation`, all 5 proof cases
+BYTE_IDENTICAL, with a mutation witness pinning its lag literal two nested map
+bodies deep. Value-parity population 48 → 53 BYTE_IDENTICAL.
+
+### C CI — the second deliverable
+
+Measured at the branch point: **38** `c/test/test_srmech_*.c` files exist, **18**
+were registered with ctest, and the other **20 ran in NO automation on any
+platform**. `make test` covers all 38 on POSIX but no workflow invokes make, so
+"covered by the Makefile" was coverage nobody executed. All 38 are now
+registered and run by ctest on ubuntu / macOS / Windows;
+`CEIL_UNWIRED_C_TESTS` 20 → **0**, superseded functionally by a new STRICT
+two-way collection-parity gate, because a `<=` bound cannot see a partial
+deregistration. Registering them immediately found one real break:
+`test_srmech_config.c` includes the internal header `srmech_platform.h` and had
+never been compiled by CMake at all.
+
+Two terrain claims carried into this rc were **stale**, and are recorded here
+rather than propagated: the C Makefile **does** have header dependencies
+(`-MMD -MP`, `-include $(DEPS)`), and "ctest finds no tests" is true only of a
+NON-pedantic configure, since registration is `SRMECH_PEDANTIC`-guarded and CI
+always sets it ON.
+
+### Phase 2 — four instrument defects, fixed before they certify the widening
+
+Adversarial verification of the two deliverables above found four defects of
+the "instrument that cannot return otherwise" class. Each is fixed here, and
+each fix was red-planted and watched firing.
+
+**(a) The bare-C host proof never read a descriptor — and no C entry point
+ever had.** `c/test/test_srmech_chain_run.c` is labelled the ADR-0003 bare-C
+host proof and contains no `fopen` and no TOML: its chains are hand-transcribed
+JSON literals, so it proves the interpreter computes without Python — not that
+a host without Python can drive a cascade **from configuration**. Worse, no
+shipped C surface ingested a Surface-A cascade-catalog TOML at all: every
+catalog/chain C API took JSON that Python produced, so the config-driven half
+of mandate clause 1 was unproven even for the chains that pass. The new ctest
+`c/test/test_srmech_cascade_toml_host.c` (registered on all three OSes; the
+`c/test` census is now 39 and the strict two-way collection-parity gate stays
+green) is the real thing: it opens each of the **11 running chains' shipped
+`.toml` files**, parses them with srmech's own `srmech_toml_parse` (whose
+fitness for this corpus is separately proven by the rc400 tomllib-parity gate),
+rebuilds the `[[cascade.chain]]` entry and the proof-case inputs through the
+shipped `srmech_json` builder/canonical writer, and runs `srmech_chain_run`
+against **hand-derived expected wire bytes** — a literal, not an oracle call,
+because a C-vs-Python compare cannot see a defect both projections route
+through. Three refusal controls (wrong expected bytes, wrong declared step
+count, absent proof case) plus a malformed-TOML control prove every stage can
+fail. Red-planted by editing a shipped descriptor's interior
+(`b = "@input.b"` → `b = 1` in cyclic_gcd.toml): the host reds with
+`got {"k": "i", "v": "1"}` — the FILE drives the C execution.
+
+**(b) All three step-mutation-witness exemptions were falsified.** Each
+exempted chain (`cyclic_mod_inv` / `cyclic_mod_mul_wide` / `cyclic_mod_pow`)
+was justified solely by prose about why an op SWAP would decline — true
+statements, none of which implied "no witness exists". All three carry a
+value-predicted witness via a ONE-LINE ARGUMENT mutation, verified by execution
+and now in MUTATIONS: pin `mod_inv`'s modulus to 11 → **4**; pin
+`mod_mul_wide`'s factor to 9 → **3**; pin `mod_pow`'s exponent to 4 → **1**.
+The exemption mechanism itself is REMOVED from both coverage tests: an
+exemption is a claim that no witness exists, that claim is only provable by
+execution, and three prose exemptions went 0-for-3 against one afternoon of
+trying.
+
+**(c) The step gate's VALUE_MOVED arm had never fired.** In
+`test_every_step_of_every_running_chain_is_actually_read`, all 22 op-bearing
+steps scored through the DECLINE arm of an either/or — an unresolvable op
+always declines — so the gate measured step REACHABILITY (a runner that
+validates op names without executing steps passes it), a weaker property than
+its name. The arm is now real rather than renamed: a per-op `VALUE_PROBES`
+table gives every step a legal one-line argument mutation the runner must
+EXECUTE (rc == 0) to a value that differs from baseline, and both arms are
+asserted per step over the whole population — **22/22 decline, 22/22 move**,
+pinned. Red-planted twice: an un-covered chain reds both coverage tests naming
+it, and a no-op value probe reds the VALUE arm naming the step and the arm.
+
+**(d) Prose relabels and stale mechanisms.** The previous round landed labelled
+rc453 / `#T1171` while the version SSOT is 0.9.0rc452; the user ruled it is
+rc452, so ~25 prose sites across 14 files are relabelled (task id `#T1171`
+kept; the version was never bumped, so nothing that said "rc452 shipped X
+wrong" survived either — the corrections landed before rc452 ships).
+`cr_dispatch_real`, deleted by this rc's A1 reshape, was still described as
+PRESENT in one live C comment and three gate docstrings — all four now state
+the deletion. `tools/ripple_gates.txt` gains this rc's own
+`test_ctest_collection_parity_rc452.py`, which was absent from the manifest in
+the release that wrote two blocks about gates being absent from the manifest.
+The README's "the declarative path to them is Python-only" paragraph is
+updated for (a), and the step-gate population figures were re-measured
+unchanged after the A1 reshape (22 steps / 11 chains; `CEIL_C_REJECTED_CHAINS`
+still 7).
+
+### Phase 3 — `CEIL_C_REJECTED_CHAINS` 7 → 4: kuramoto_step, quaternion_dft, octonion_dft
+
+**Three of the seven remaining chains close, at step granularity, with the
+value channel open end to end.** 23 of 23 representable proof-case rows are
+BYTE_IDENTICAL under the rc450 typed comparator (kuramoto 10/10 across BOTH
+variants — the exact-ℚ general path with Sakaguchi α, pinning and broadcast
+included; the DFTs 6/6 and 7/7 including the `ijk`/√3 axes, the inverse
+transforms and both two-sided bracketing orders). Each chain carries a
+step-mutation witness through an interior literal the fused symbols have no
+parameter image of (the kuramoto bind's `dt` reference pinned to 0 must
+return the input phases VERBATIM; the DFT fold seeds bumped on the N=1
+identity-twiddle cases move the spectrum by exactly the seed), and the
+step-drive gate re-measures at **51/51 decline + 51/51 value-move over 15
+running chain×variant rows**. All three run from their SHIPPED TOML files in
+the bare-C host with hand-derived expected bytes (identity twiddles and
+sin(0) = 0 keep every derivation exact).
+
+**The atoms are step-granular on purpose.** Seventeen new `CR_OP_REG` rows
+(28 → 45): the five kuramoto term ops, the ten DFT step ops (`seq_get` /
+`as_quat4` / `as_oct8` / `qdft_resolve_mu` / `odft_resolve_mu` / `dft_sigma`
+/ `dft_scale` / `qdft_summand` / `odft_summand` / `vec_scale`) and the two
+fold-body-only Σ accumulators (`f64_add` scalar, `vec_add` vector — the fold
+seed widens from int-only to float/list/reference in the same change). The
+summand/term arms delegate ONLY to the step-granular exports the Python ops
+themselves compose — `srmech_sin_q61`, `srmech_sqrt_q61`,
+`srmech_quaternion_twiddle` + `srmech_quaternion_{left,right}_mult`,
+`srmech_octonion_twiddle` + `srmech_loop_{left,right}_op_f64` — never
+`srmech_cascade_kuramoto_step*_f64` / `srmech_quaternion_dft` /
+`srmech_octonion_dft`, and the no-coarse source gate gains an exact-name arm
+so all four fused symbols are in its pinned population (the DFT kernels are
+exported without the `cascade` infix and had escaped its predicate exactly as
+their chains started running).
+
+**The kuramoto middle is exact-ℚ, reproduced rather than approximated.**
+`kuramoto_sin_term` returns the Q61 rational `Q(v, 2⁶¹)` in Python (Class-N
+`rational.sin`, never libm) and the fold accumulates it EXACTLY — so the C
+arms build the same rationals on the bigint carrier (`srmech_sin_q61`,
+reduced), add them exactly, and collapse ONCE per output element through a
+correctly-rounded dyadic→double conversion (round-half-even over `num/2^k` —
+CPython's `int.__truediv__` on the domain the chain actually produces; a
+non-dyadic denominator declines to pure rather than rounding wrongly).
+
+**Two latent defects surfaced by the closure, both fixed at root.**
+(1) `_spec_to_chain_dict` could not spell a MAP step, so with a native
+library present `resolve_chain(...)` on ANY map chain — including the
+already-accepted `autocorrelation` — CRASHED with `AttributeError:
+'MapStepSpec' object has no attribute 'fold_op'`. Every ctypes-driven gate
+reached around it (the rc447 blind spot, again), and the end-to-end driver
+swallowed it as routing. The serialiser gains the map branch (recursive over
+bodies, like the spec it mirrors). (2) `CR_BIND_MAX` was 8 and the general
+kuramoto variant's outer map carries NINE binds — the frame declined with
+every op arm present, indistinguishable from an op-table gap until measured.
+Now 12, with the measured maximum stated at the definition. A third find of
+the same family: the step-witness population builder did not merge the
+descriptor's `input_defaults`/`optional_inputs`, so the general variant fell
+OUT of the witness population the moment it started running — SEAM 1's
+docstring had predicted exactly this opening; the builder now uses the same
+`chain_input_defaults` merge as the parity population.
+
+**Bookkeeping that moved with the drain, in the same change:** the three
+BLOCKED rows deleted; `CEIL_C_REJECTED_CHAINS` 7 → 4;
+`CEIL_C_REJECTED_ROWS_BY_CHAIN` loses its kuramoto/qdft/odft entries (23
+rows); the gate matrix regenerated (its generator still parsed the first-cut
+function-pointer row shape and its own `assert ops` fired; its
+carrier-width predicate learned that nested lists ship); the
+contradiction-branch control moved to a synthetic exercise now that the two
+legitimately-differing rows closed; README's five gated cardinals re-synced
+(45 op spellings, 14 of 18, ceiling 4); the eligibility sets
+(`_RUN_C_OPS` +15, `_RUN_C_FOLD_OPS` +2) re-derived green against the C
+table. The four still-blocked chains — `klein4_from_one`,
+`encode_loe_content`, `schur_complement`, `parallel_sector_dispatch` — keep
+enumerated BLOCKED rows with measured gates; closing them requires three new
+wire kinds (bytes / matrix / mapping, each an ABI-bumping discriminator
+widening) plus the `@op` reference namespace and a string/bytes op family,
+none of which is landed here.
+
+### Instruments that refused to observe — and were right to
+
+Three gates went red on this rc's own refactor rather than reporting a
+comfortable green, which is the property they exist for:
+
+* the **no-coarse-symbol pin** matches a CALL (`sym(`), correct for an if-chain
+  where a coarse dispatch must spell one. A table wires a symbol in as a BARE
+  FUNCTION POINTER. Its retro-check spliced exactly that and `_referenced`
+  returned `{}` — the gate would have gone on reporting the file clean with a
+  coarse dispatch live in it. Widened for the table region only.
+* the **gate-matrix generator** anchored on the deleted `cr_dispatch_real` and
+  raised rather than emitting a matrix; then its execution cross-check caught a
+  second, realer defect — `fold_op` was checked against the plain `fn` column,
+  mis-attributing `net_chirality`'s gate.
+* the **ctest wiring parser** could not see its own fix land (it read only
+  inline `foreach` names, not a `set()` the loop dereferences) and reported 20
+  files unwired while all 20 were registered and passing.
+
+One latent defect surfaced with them: **`orientation_compose` was a phantom in
+`_RUN_C_OPS`** and had been since rc446. It was never a plain dispatch arm — it
+lived only in a fold-FORM predicate — and reached the plain-op set because the
+eligibility scanner matched `cr_op_is` over the WHOLE FILE. Cost while live: a
+full marshal-and-decline per call, never a wrong answer.
+
+### Residual, stated rather than deferred
+
+**7 of 18 chains do not yet run in C**: `encode_loe_content`,
+`klein4_from_one`, `kuramoto_step`, `octonion_dft`, `parallel_sector_dispatch`,
+`quaternion_dft`, `schur_complement`. Their remaining gates are now
+NARROWER and are recorded per-chain in the regenerated gate matrix — e.g.
+`klein4_from_one` is down to `op_table` ALONE, its step-form and ref-grammar
+gates having closed here. No disposition changed to hide this: every row is
+still `FILED_AS_NEW_ITEM` with a named gate and a gap-ledger row, and
+`test_all_executable_chains_run_in_c` remains strict-xfail so it will FAIL the
+moment the last chain lands and force its own marker's deletion.
+
+
+The rc452 ruling overturned ADJ-4 and reinstated its broken acceptance criterion as this rc's headline: `rational_add` → `reorient` returns an exact rational in **both** projections with byte-identical wires. Through rc451 it threaded in **neither**. It threads now:
+
+```
+rc=0  {"d": "6", "k": "q", "n": "-5"}      # native, and forced-pure returns Q(-5, 6)
+```
+
+### The defect was never in the wire
+
+`q` has been on `srmech_chain_run`'s output wire since long before this release — `cr_op_rat`, `cr_op_pow` and `cr_op_series` all build `CR_RATIONAL`, and two live attested catalogs dispatch them. Re-derived here rather than inherited from the ruling: **39 `q` emissions over 51 catalog rows**. The collapse lived in the Python **reader**, which rebuilt a `q` as a `(num, den)` tuple — the same shape a Class-K pin pair and a Class-B `pair` step produce, so the type was erased on arrival and no comparator could tell an exact-ℚ chain from an integer-pair one. And it lived in one **shipped green witness** that *required* that collapse.
+
+**Four changes.** The reader rebuilds `q` as `srmech.math.q.Q`. The nine derived-predicate Class-N ops return `Q`, and the four binary ones accept `Q` **or** the pair — the Python mirror of C's `cr_as_rational`. `cr_op_reorient` gains a `CR_RATIONAL` arm. The rc450 witness flips required-IDENTICAL → required-DIVERGENT, with a `q`-vs-`Q(5,6)` IDENTICAL twin beside it.
+
+### C was the side that was right, and it was checked rather than believed
+
+A probe drives the real shipped library: a chain whose second step feeds `@step[0].output` — a `CR_RATIONAL` — straight back into `rational_add` returns `{"d": "6", "k": "q", "n": "5"}` at `rc=0`. C has been closed under its own return type all along; Python raised on the same shape. The disagreement was the finding, the contract named C correct, and Python widened to match — not the reverse.
+
+**The acceptance boundary is derived, not narrowed.** The ruling says "the nine ops accept Q-or-pair"; only **four** can. `cr_as_rational` is called at exactly two sites in the C runner (`cr_op_pow`'s `base`, `cr_op_rat`'s `a`/`b`), and the five `*_series_truncate` ops declare two separate ints on both projections — there is no pair operand to widen. Error classes are unchanged: a bare `int` and a `fractions.Fraction` are still **refused**, because `cr_as_rational` refuses a `CR_INT`.
+
+### The falsifiable prediction: confirmed on mechanism, refuted on count by 15.5×
+
+The ruling's surviving dissent (judge 3's A-CARRIER placement) was settled by experiment, not argument. A 21-entry red manifest was committed **before** the change it predicts; every run embeds its git blob hash.
+
+**Measured: 50 reds where 21 were pre-registered, shortfall zero.** All ten predicted sites fired at exactly their predicted counts. All 29 excess reds carry **one** error class — `TypeError: a|b must be 2-tuple (num, den); got Q(...)` — which is the closure defect the ruling itself named and priced at 2. It is 31. Nothing outside the two named mechanisms appeared, and every excess red goes green on the acceptance-widening with **zero edits to any failing file**.
+
+So: A-FULL's blast radius contains no third kind of breakage (**confirmed**), and the ruling's census under-reported that class by 15.5× (**refuted**). The reason is method — Config A's file set was "tests that call the nine ops **directly**", which cannot see a test reaching them through a catalog chain, the C chain runner, or a consumer op.
+
+**Two shipped-source findings the ruling did not have.** `srmech/math/laplacian.py:5421-5422` subscripts `atan_series_truncate`'s return at **module scope**, so it did not red a test — it broke `import srmech.cascade` outright. The ruling's census named 3 sites, all in `rational.py`, and could not have found this one: that module binds the op under an **alias**, and a name-resolving parse is blind to an alias. Consequently the literal rc452-s2 state is **not measurable** — 41 of 41 enumerated files collect zero tests — and the instrument refused the run rather than reporting "0 reds".
+
+### Six ops left the C surface without saying so
+
+Respelling the four binary ops' ToolEntry param type `"tuple[int, int]"` → `"Q | tuple[int, int]"` silently dropped **six ops** off the native `invoke_tool` surface. `mm_action_for` is an exact `strcmp` over `MM_TYPE_RULES`; an unknown type string returns `MM_ACT_NOTIMPL` and the whole invoke defers to pure — no error, no wrong value, just a capability quietly gone. Caught only because `test_invoke_tool_clean_batch2_c_rc189` asserts `dispatched is True` rather than comparing values. Repaired in **both** projections, string for string.
+
+### ABI 20 → 21, on a new argument
+
+The first bump on this wire driven by a **silent wrong value** rather than a raise, and the first that adds no kind letter and moves no descriptor shape. What changes is who emits `q`: `cr_op_reorient` now answers an exact rational where it returned `SRMECH_ERR_NOT_IMPL`. Pair an rc452 `.so` with rc451 Python and nothing raises — the chain returns a well-formed 2-tuple a downstream Class-K consumer reads happily and wrongly. v18 and v20 bumped because an older reader *raises*; a raise stops and a wrong value propagates.
+
+The pin sweep is mechanical, counted and residual-checked at zero: 1 macro, 1 shim constant, **21 literal pins across 18 test files** (including `test_introspect.py`'s `status['expected_abi']`, which an `(NATIVE|EXPECTED)_ABI_VERSION == 20` grep structurally cannot find), and the two prose files `test_abi_prose_currency_rc449` reads.
+
+**Fresh carrier, never in place.** `cr_rat_signed` carves a new value and two new bigint headers from the arena and aliases the write-once limbs. Step outputs persist for later `@step[N].output` reads, and an in-place flip corrupts them — measured during the workshop on a real library, where a three-step chain returned `-5/6` for a step that must be `5/6`, at `rc=0`, with a well-formed wire. The 3-step regression is mandatory and ships for both orientations. Zero new dispatch arms; `cr_dispatch` untouched at 57/60; `gcc -std=c99 -Wall -Wextra -Werror -pedantic` clean. **MSVC `/WX` and clang are not runnable locally and are not claimed** — CI is their first contact.
+
+### A deliberate divergence from the plan: `reorient` refuses the bare pair, on both sides
+
+The plan asked for the `[num, den]` list to be **accepted** by the C arm. It is not, and admitting it would have been a defect. Python's `reorient((5,6), orientation=-1)` **raises**; a C arm answering an exact `-5/6` there answers where its co-equal peer raises. And a 2-int list is also how a Class-K pin pair spells itself — Config B measured that `pin_slot_at_zero(-1)` and the rational `-1/1` emit byte-identical wires, that the collision lands on **this op**, and that the repair is **undecidable**. That measurement is why the ruling rejected the tuple spelling; re-admitting it inside `reorient` would import the ambiguity back into the op it was thrown out of. The **mutual decline** is pinned as parity instead.
+
+### The comparator can now tell a rational from a pair
+
+`_bits` gains an explicit `isinstance(x, Q)` arm in **both** copies, placed before the `tolist` and `repr` arms. Through rc451 a `Q` fell through to the `b"r" + repr(x)` fallback, so a decoy class whose `__repr__` returns `"Q(5, 6)"` produced byte-identical comparator output — built independently by two of the four workshops. The discrimination the whole arc turns on rested on a repr collision. An `==`-based comparator cannot discriminate at all: `Q(5,6) == (5,6)` is True and so is `Q(5,6) == (10,12)`.
+
+New witnesses: the impostor must classify DIVERGENT; `Q` must classify DIVERGENT against the tuple, list and float spellings of the same number; a `q` nested inside a `t` must rebuild as a `Q` (through rc451 it rebuilt as a nested tuple — a latent wrong value nothing exercised); and Config B's pinned regression, `pair(Q, Q)`, must still marshal through the real library, which it does, at depth 1.
+
+### The emitted-kind gate, and the figure it corrected
+
+`tests/test_wire_kind_emission_rc452.py` closes the **class**: a wire kind declared by both projections and emitted where no instrument looks. It censuses **two populations**, because the answer differs between them and picking one would have been the convenient side rather than the true one:
+
+* **A**, the cascade-catalog proof cases the value-parity comparator judges: 98 declared, 48 emitting, `{f:13, i:48, l:4, t:9}` — **no `q` at all**.
+* **B**, the AMSC catalog operator_chains: 51 declared, 51 emitting, `{q:39, s:12}`.
+
+The gate is **red-demonstrated**: run before population B was added, it failed on `residual ['n','q','s']`.
+
+**It corrected a figure the plan inherited.** The plan predicted the unemitted residual would be `{n, s}`; the workshops had disagreed about `s`, one reporting it emitted and another reporting 0 of 98. Both were right about different sets. `s` **is** emitted, 12 times, by `pi_digits`. **The union residual is `{n}` alone.**
+
+### What rc452 does NOT close — named, priced, pinned
+
+Eight new gap-ledger rows (86 → 95 lines). Notably:
+
+* **The comparator's own blind spot.** rc452's plan called for a proof-case chain to put `q` into the value-parity population. It is **not buildable as specified**: every `[cascade]` descriptor must name a real DSL-resolvable op, and there is no rational-family cascade op. That row costs a new public callable plus its descriptor, moving the tool-count axis across ~73 test files. Pinned down-only as `CEIL_UNEMITTED_IN_POPULATION_A` so it cannot widen quietly.
+* **`dead_band` / `scale_round_half_even`** accept `Q` in Python and decline non-`CR_DBL` in C — priced at one `q` arm each, **not built**, named rather than inherited silently.
+* **`json.dumps(Q)` raises**, so exact ℚ still enters a chain only as `[num, den]`. rc452 closes the **return** direction only, and the fact is given a test rather than a sentence.
+* **`Mat`/`Vec` silently coerce `Q` to float at construction** — a live carrier-layer violation below every wire this rc touches. **Inherited from the workshop, not re-executed here**, and flagged as such. The reading of "Mat/Vec/HV are carriers too" as exact-ℚ reach via `Q` + depth-1 containers + the deferred exact peers **requires explicit user sign-off; rc452 flags it PENDING and does not assume it**.
+* **Depth ≥ 2 exact carriers** (QMat / Poly / BiPoly) cost ~22-24 non-recursive lines per level (three independent counts agree; JPL Rule 1 forbids the recursive shortcut). The depth-1 boundary is pinned from both sides.
+* **The MCP two-wire divergence widens**: the Q-returning tool population grows **27 → 36** (re-derived by execution), with no MCP round-trip run under the change.
+* **`n` (CR_NONE) is emitted by nothing** in either population; no producer has ever been found.
+
+### The CI ripple: three pins re-pinned on evidence, one collateral leak repaired
+
+Eleven of 23 CI cells were red on 9 distinct node ids across 4 causes. Every cause was diagnosed before anything moved, and each is labelled by WHY it moved.
+
+* **`test_bus::test_abi_version_is_pinned`** — `want_abi = 20`. The one site the "21 literal pins across 18 test files" sweep above did not reach; every other numeric ABI assert in `tests/` already read 21. **Re-pinned because the bump did its job.** Its neighbour `test_native_bus_symbols_present` asserted a correct `21` under a message reading *"ABI 13 expected … 12 → 13"* — the exact drift `test_abi_prose_currency_rc449` was built for, in the one place nothing parses. Rebuilt by construction (name the value once, interpolate it), like its sibling.
+* **`test_search_glyph_tokenizer_rc416`** ×3 — the corpus witness moved. This gate's own message offers two readings, and re-pinning the wrong one converts a real ADR-0011 break into a silent one, so **both halves were measured before the digit changed**. *Determinism*: `_build_frames("all")` in four separate processes under `PYTHONHASHSEED` 0/13/271/9999 returns one digest, all three derivation paths agree inside each run, and it matches what CI measured on its own runners. *Causation*: the merge-base tree, materialised read-only and built, reproduces the OLD pin `eb9f7dd1…` **exactly**; diffing the two frame sets positionally shows the same 692 names in the same order and exactly **2 of 692** blobs moved — the `Q` and `int` **carrier** frames. No op frame moved. The 663/29 split is unchanged, which is the signal rc445 prescribes. **Re-pinned because rc452 did its job.**
+* **`test_namespace_prefix_decode_aware_rc361`** — the decoded `srmech.math.` census, 338 → 329. **Verified as exactly the nine ops rather than assumed**: per-op, each went from 2 decoded refs to 1 (18 → 9). This is a **fourth cause category** for that pin — not a namespace move, not a new op, not a widened declaration, but a move between the two **channels** the module exists to tell apart. `int`'s registry fragment is baked as a byte array (decoded), `Q`'s as an escaped string literal (as-text), so the refs left the channel this pin counts. Conserved end to end: as-text for the nine rose **0 → 13** and the as-text `srmech.math.` total **85 → 98**, and the 13 splits 9 + 4 exactly as the Python carrier schema does (`Q.produces` +9, `Q.consumes` +4). **Re-pinned because rc452 did its job.**
+* **`test_relative_writhe_rc317`** ×4 — **not a pin, and not the numerical failure it looked like.** `_rw_remainder_bound` ends `return rational_add(r, b_pi)`, and `rational_add` is one of the nine. Its own `-> Tuple[int, int]` annotation and `relative_writhe`'s documented Returns contract both became false, and the raw `Q` made **one of three** exact-rational fields a different type from the other two — `value` and `min_one_plus_dot` come from `_rw_best_rational` and are still pairs. The visible symptom was `TypeError: 'Q' object is not subscriptable` inside the test's own `_f` helper, surfacing on a line that merely *reads* like a tolerance assertion. **No tolerance was widened and no numerical value moved**: `.as_pair()` carries the same numerator and denominator, and the bound assertion passes once the type is right. **A real defect, diagnosed, not bumped.**
+
+**Why the pre-registered manifest could not see it.** The red manifest enumerates a module iff its AST names one of the nine ops. `test_relative_writhe_rc317.py` names none — it exercises a **product-side transitive consumer**, and a test-only name-resolving predicate is structurally blind to one. This is the same class as the alias-blindness recorded above, one level further out: not "the census missed an alias" but "the census only looked at tests". Sweeping every direct `return` of the nine across shipped source found exactly two sites; the other, `frame_carrier._series`, is absorbed by its callers' tuple-unpack and leaks nothing.
+
+### The sign bug that shipped twice, because both tests drove the same half of the domain
+
+`QMat.from_float_rows(rows, max_denominator=X)` raised `ValueError: numerator must be non-negative` on **any** negative entry — a shipped public method failing on half its own input domain, with `QMat.from_mat` inheriting it. Reproduced before repair, and the sweep that followed found the identical defect in `Poly.from_floats` (and so, transitively, `QPoly.from_floats`). Both reached past the signed cascade to the UNSIGNED Class-N primitive; in both, only the **snapping** branch was affected, since `max_denominator=None` never calls it.
+
+**It survived because the coverage drove one side.** `test_qmat_carrier_rc34` passed `0.1` and `0.3333333333333333`; `test_poly_rc38` passed `[0.5, 0.25]` with no `max_denominator` at all, so the branch holding the defect had never been executed by any test. Same shape as the rc433 `Vec.__getitem__` finding — **name the shape, not the symptom**: a one-sided domain plus a one-sided fixture reads exactly like coverage.
+
+**Repaired as the shipped cascade, not a hand-rolled sign test.** Class K `pin_slot_at_zero` strips the orientation, Class N snaps the non-negative magnitude, Class C `reorient` re-applies it — the K∘N∘C shape `cascade.best_rational_signed` composes. No `abs()`, no `if x < 0`.
+
+**A deliberate divergence, measured rather than assumed.** Calling `best_rational_signed` directly was the obvious repair and is the wrong one: it is float-in and re-quantises through `fine_scale` before the convergent walk, while both sites already hold the float's EXACT binary expansion. Over a 120-case sweep the two disagree on **33** — at `max_denominator = 10**6`, `0.3333333333333333` gives `1/3` on the exact path and `333333/1000000` through `fine_scale`, gutting the de-noising these methods exist to perform. So the composed op's **cascade** is reused while the Class-N stage keeps its exact-pair input.
+
+**C never had it.** `srmech_qmat`'s public surface takes `srmech_bigint_t` numerator/denominator arrays and has **no float ingress at all**, so there is no C peer to carry the defect; and where C does snap a float, `srmech_cascade_best_rational_signed_f64` routes through the signed cascade correctly — driven here over ctypes, returning `(-1,2)`, `(-1,10)`, `(-1,3)` and mapping both zeros to `(0,1)`. The projections disagreed, **the contract named C right, and Python was repaired to match**.
+
+Coverage added on both carriers for negative, mixed-sign, dyadic-negative and zero input, including `-0.0` (it must land on the canonical `Q(0, 1)`, not a signed zero) and a high-`max_denominator` case pinning that the sign fix did not cost the de-noising. Red-planted: reverting each repair turns 4 of the 5 new QMat tests and the new Poly test red.
+
+### Instrument changes
+
+* `notes/_rc452_red_experiment.py` — parses the pytest junit report (never greps), hard-fails on any enumerated file collecting zero tests, refuses `-k`/`-m`, counts a new xfail as a red, and diffs observed against predicted in **both** directions. It gained one repair mid-build: the run artifact is now written **before** the zero-collection abort, because the one run that most needed a record left none.
+* `notes/_rc452_mechanicalness_check.py` — makes "any non-mechanical fix re-opens the placement question" executable instead of a review claim. 8 files, **0 NON-MECHANICAL, 1 DECLARED**. It self-checks that it can return both verdicts. It needed a **third** pattern (subscript-pair → unpack, for a heterogeneous container), reported rather than folded in.
+* `tools/ripple_gates.txt` gains rc452's two gates by hand — the manifest meta-test has no growth obligation, and rc449 added three gates and listed zero.
+
+### The guard that was already spent before the rc that tripped it
+
+`build-and-test` went red on `ubuntu-latest • py3.10` with **no failing test** — `--log-failed` returns nothing. The job was CANCELLED at **26:15** against `timeout-minutes: 26`. Confirmed as the job timeout and not a superseding push: only that one job died, and its siblings `windows-latest • py3.12` and `ubuntu-latest • py3.12` both **completed successfully at 22:43:51Z and 22:43:30Z**, after the kill at 22:45:50Z would have taken them too.
+
+**Re-derived by the rule this file already carries, not bumped.** rc357 (`#T951`) set all 42 job timeouts by one documented rule, restated verbatim: `T = ⌈max_observed⌉ + max(⌈0.5 × max_observed⌉, 10 min)`. It reproduces every shipped number exactly (15:17 → 26, 11:46 → 22, 1:47 → 12, 0:51 → 11), so the rule is real and recoverable — this is a re-derivation, not a rediscovery.
+
+**The framing that "rc452's added tests consumed the margin" does not survive measurement.** Over the 15 srmech-ci runs of 2026-08-17..21 (60 cell observations):
+
+| cell | max observed | % of 26 | margin |
+|---|---|---|---|
+| ubuntu py3.10 | 26:15 *(censored)* | 101% | OVER |
+| windows py3.12 | 24:14 | 93% | 1:46 |
+| ubuntu py3.12 | 23:53 | 92% | 2:07 |
+| macos-14 py3.12 | 13:08 | 51% | 12:52 |
+
+Three of four cells sat inside 2:10 of the ceiling, and py3.10 had **already run 25:27 GREEN on main** (f8e2f63c4, 2026-08-18) — **33 seconds** of margin, three days before the rc that went red. rc452 is the commit that arrived after the headroom ran out, not the one that spent it. That is the rc432 shape the asserts-live comment names: a guard reporting healthy at 98% budget use.
+
+**The censored input is defended, not assumed.** A killed job has no duration, only a lower bound. Its log emitted 215 progress lines ending `[ 99%]` at 22:45:17Z and was cancelled 32.8 s later; the completed reference run emitted 215 lines ending `[100%]` with **35.5 s** between its last `[ 99%]` and its summary — so the leg died roughly **3 seconds short of finishing** and the true max is ~26:15–26:25. The derivation does not lean on that estimate being tight: **41 is the rule's output for every `max_observed` in (26:00, 27:00]**, so the residual uncertainty provably cannot move it. `⌈26.25⌉ + max(⌈13.125⌉, 10) = 27 + 14 = 41`.
+
+**`asserts-live-smoke` 22 → 25 → 27 in the same pass, before it goes red rather than after.** Its 11:46 input had grown to 14:40, leaving 33% headroom — the same tightness rc357 called "the tightest ratio in the repo" when it raised `fallback-no-native` pre-emptively. That gave `⌈14.67⌉ + max(⌈7.33⌉, 10) = 15 + 10 = 25`.
+
+**Then the run that verified the 25 invalidated it, one run later.** Run 32537791849 put shard 4/4 at **16:08** — above the 14:40 the 25 was derived from — so `T = ⌈16.13⌉ + max(⌈8.07⌉, 10) = 17 + 10 = **27**`. 16:08 against 25 is **64.5% budget use**, and 62% on a first run is the exact ratio the same YAML comment rejects as "the rc432 failure shape"; a guard cannot reject 62% for the number it replaced and ship 64.5% for itself. The growth is fast rather than noisy — **11:46 → 14:40 → 16:08** — and shard 4/4 now holds the max in **14 of 16** runs, strengthening the refutation above rather than weakening it.
+
+That sequence is the honest cost of a max-of-measured rule and is recorded at the key: **it is stale the moment a slower run lands, and this cell produced one inside the same rc.** Two observations do not fix that, so both changed keys carry an explicit re-derive trigger (`build-and-test` above 27:00 or ~27:20; this shard above ~18:00) instead of an assumption that the trend flattened.
+
+**Two shipped premises refuted on their own cells' data, both recorded at the key.** (1) rc357's justification for the 10-minute floor asserts the "p50→max spread is ≤2 min in ABSOLUTE terms on every job". Measured over 60 observations, `build-and-test` is p50 **19:53**, max **26:15** — a **6:22** spread. The cell is bimodal: **15444 tests in 736.5 s (12:16)** on 2cead9b96 versus **15396 tests in 1486.0 s (24:46)** on f8e2f63c4 — same cell, same interpreter, *more* tests on the *faster* run, i.e. a ~2.0x runner-allocation swing rather than test growth. The floor does not bind at this length so 41 is unaffected, but the premise must not be re-quoted as measured. (2) The 22 was derived from "the max MOVES between shards run to run". At n=12 that was honest; at n=60 it fails — shard **4/4 holds the max in 13 of 15** complete runs, and the per-shard means separate cleanly (4/4 **12.46m**, 1/4 10.93m, 3/4 8.46m, 2/4 8.06m). There *is* a stable slow shard. `T` is unchanged either way, since the rule takes the max regardless.
+
+**Nothing was narrowed and no other ceiling moved.** The other seven jobs were re-derived too and deliberately left alone; the split is stated exactly rather than rounded, because a re-derivation that reports only the keys it changed cannot be checked:
+
+* **2 are guarded ABOVE what the rule returns** — `fallback-no-native` 40 vs 25 (max 14:38), `fallback-shard-coverage-union` 15 vs 12 (max 1:27). Not lowered: this file's standing doctrine is "if a cell legitimately grows past its guard, RAISE THE NUMBER — do not narrow", and a false trip costs a whole cycle. rc357 flagged the first of these as a deliberate upward departure already.
+* **3 sit ONE MINUTE BELOW it** — `fallback-durations-merge` 10 vs 11 (max 0:07), `fallback-skip-audit` 10 vs 11 (max 0:35), `pure-wheel-build` 11 vs 12 (max 1:04). All three run at **≥90% headroom**, so none is thin and none is at risk; the 1-minute drift is the 10-minute floor tracking a few seconds of growth. Raising them would be churn with no risk removed, so it is reported instead of applied.
+* **2 match the rule exactly** — `pedantic-build` 12, `asserts-live-shard-coverage-union` 12.
+
+Both changed keys carry their arithmetic and an explicit re-derive trigger in the YAML.
+
+### Counts moved
+
+* `CR_OP_REG` **24** spellings (unchanged) · `cr_dispatch` **57/60** (unchanged) · zero new dispatch arms.
+* Value parity: **48 BYTE_IDENTICAL / 46 C_REJECTED / 4 NONFINITE / 0 DIVERGENT** over 98 cases, `raised` **0** — the "93 of 98 executed" bound this arc has been quoting is superseded; `_population`'s `CASE_DEFAULTS` already covers the kuramoto rows.
+* Gap ledger **86 → 95** lines.
+
+
+### The defect class: SHARED-READER BLINDNESS — two co-equal projections cannot check a stage they share
+
+The exact-ℚ axis this rc ships was, until now, the one axis it moved with no value-level ratchet over the rows it changed. Everything that judged `q` judged the **kind on the wire** — what C *wrote*. Nothing asserted what either projection *built* from it, and `_walk_kinds` never calls `_reconstruct_value`.
+
+**Measured, not argued.** Revert `_reconstruct_value`'s `q` arm to a `(num, den)` tuple *only for denominators > 1000*. That corrupts **32 of the 39** live `q` rows (re-derived here: 39 rows, 32 with `d > 1000`, 7 with `d <= 1000`). The whole chain-run surface — 27 files, 638 tests including `test_chain_run_c_rc174`, this rc's kind census, the rc450 comparator and `test_exact_q_pipeline_rc452` — then reports **636 passed, 1 skipped, 1 xfailed: ZERO failures**, byte-identical to the unplanted baseline.
+
+**Two causes, and the second is the one that generalises.**
+
+1. **`==` is coercive.** `Q.__eq__` cross-multiplies through `_as_pair`, so `Q(5,6) == (5,6) == [5,6] == Q(10,12)`, and `Q(3,1) == 3 == 3.0`. Any gate spelling `assert native == pure` over these rows is blind by construction.
+
+2. ⚠️ **THE TWO PROJECTIONS SHARE THE READER.** `resolve_chain` calls `_run_chain_native` **first** and returns its `_reconstruct_value` output, so on population B — whose chains are Class-N end to end — the "pure" projection *is* the native path through the same reader. Under the plant, C returns tuples and `run_chain` returns tuples for the *same* rows: `classify` reports **51/51 BYTE_IDENTICAL** while 32 of the 39 `q` rows rebuild as `tuple`. The collapse is **symmetric**, so the parity gate compares a thing to itself.
+
+**The lesson outlives the instance, which is why it is here and not only in the test.** Co-equal dual construction is a consistency oracle *only where the two projections are independent*. Where they share a stage — a reader, an encoder, a serialiser — a cross-projection comparison **cannot return otherwise** on a fault in that stage. `==` was not the root cause: a perfectly typed comparator is equally blind here, and `_bits` is as strict as this tree gets. Only an assertion against the **contract** can still fail. Stated as a rule for the next wire change: *when a fault would move both projections the same way, parity is not a measurement — pin the type against the spec.*
+
+**Two ratchets, on the axes that were open.**
+
+* `tests/test_wire_kind_emission_rc452.py` gains the **value** axis on the population that already owned the kind axis (`_census_b`'s own rows, not a second enumeration — two populations that disagreed would make both unfalsifiable). Load-bearing assertion: `test_the_q_rows_are_present_and_are_the_exact_carrier`, which checks `type(...) is Q` — not `isinstance` (a tuple subclass passes) and not `==` (everything passes) — plus a **down-only floor of 39** so a vanishing population cannot turn the section vacuously green. `classify` is imported from rc450 rather than reimplemented, because that module makes `_bits` reachable only through `classify` precisely so a strict-witness / lax-population split is inexpressible; writing a second comparator would re-open that split one file over. A control test pins that `==` says *same* where the typed comparator says *different*, so the added strictness is demonstrated rather than assumed.
+* `tests/test_step_mutation_witness_rc447.py` closes two seams in its own coverage claim. **Multi-variant**: `_shipped()` reads `[0]` of the variants and `[0]` of the proof cases, so "runs in C" was decided by 18 of 98 rows; the new coverage test runs the full variant x case population. At rc452 this is a **live zero** — the only two multi-variant chains are C-rejected on all 17 of their cases — recorded as a measured zero rather than left implicit, because a gate that happens to be adequate is not the same as one that is. **Step-level**: one mutation per chain proves one literal in one step is read; the new test points every step's op (at full depth, recursing `body`, honouring `fold_op` vs `op`) at an unresolvable name and requires a reaction. 22 steps over 11 running chains, all reacting. *(This read "18 steps over 10 running chains" mid-rc452. It was measured before the rc's own `autocorrelation` commit — 8649917b5 — added the 11th running chain and its 4 steps, and never re-measured; that same commit moved `CEIL_C_REJECTED_CHAINS` 8 → 7, falsifying `python/README.md` in the same stroke. Corrected and PINNED later in the same rc (`#T1171`): `EXPECTED_STEPS` / `EXPECTED_RUNNING_CHAINS` are now asserted against the live walk, so the figure cannot drift silently again. The mid-rc figure was then falsified a second way — the coverage claim, not the count: all 22 steps scored through the DECLINE arm alone, and the Phase-2 rework below is what made the value arm real.)*
+
+**Every red-plant was watched, not asserted.** Partial `d > 1000` collapse → **1 fail**, naming all 32 rows as `('tuple','tuple')` — both sides collapsed together — while the divergence test beside it stays green, which is the blindness itself on display. Full collapse → **2 fails** (the type pin, and the control, which correctly reports that the typed comparator lost its discrimination). Dropping the `cyclic_mod_add` row from `MUTATIONS` → the wider coverage test reds naming it, alongside the narrower one it must not be weaker than. `_step_paths` returning `[]` → the **self-check** fires first (`no step was probed`), refusing to report a clean zero. Judging each step on `case[0]` only → reds naming exactly `net_chirality/default step[0].fold_op`, the predicted false-DEAD from an empty fold that returns `fold_init` without ever invoking `fold_op` — which is why a step is judged over **all** its proof cases and not an arbitrary one.
+
+**One stale figure in a shipped docstring, corrected.** `test_every_raising_case_is_named_not_dropped` claimed "5 of the value-parity population's proof cases raise before execution on an unrelated kuramoto ctx KeyError" and pinned `raised <= 8`. Re-measured at ABI 21: `raised` is **0** and `raisers` is empty (98 declared, 48 emitting, 46 declined, 4 unserialisable) — the same correction the "Counts moved" bullet above already records, which the docstring had not picked up. The ceiling **drains 8 -> 0** in the same edit, because a pin eight above a measured zero cannot report the drift it exists to report: eight cases could start raising, the emitted *fraction* would climb as the denominator shrank, and the gate would stay green throughout.
+
 ## [0.9.0rc451] - `#T1164`: the type the wire could not spell, and the wrong answer that had been waiting for it
 
 gh #1653 **item 4** — the RC-A slice. `best_rational_signed` runs in C from its descriptor: `CEIL_C_REJECTED_CHAINS` **9 → 8**, the first decrement this ratchet has ever made **with the value channel open**.

@@ -49,16 +49,30 @@ pytestmark = pytest.mark.skipif(
 #: Down-only CEIL: how many ``c/test/test_srmech_*.c`` are NOT registered with
 #: ctest. rc356 took this from 30 to 20 by wiring the nine already in the
 #: pedantic matrix plus ``test_srmech_genome`` (the test `#T953` was filed
-#: against). The residual 20 are green under gcc on WSL2 — all 30 pass, 0
-#: warnings, 551 ms for the whole set — but they have never been built by MSVC,
-#: and this matrix compiles with ``/WX``. Wiring 20 unverifiable files at once
-#: is how a wiring rc lands red, which is the one outcome worse than the gap it
-#: closes: a permanently-red gate everyone learns to ignore. They come in in
-#: batches, each verified on the 3-OS matrix as it lands.
+#: against). **rc452 (`#T1166`) takes it to 0** — every one of the 38 test files
+#: is registered and RUN by ctest.
+#:
+#: The rc356 reasoning for leaving 20 was that they had never been built by MSVC
+#: and "wiring 20 unverifiable files at once is how a wiring rc lands red". That
+#: was a real risk and it is being taken deliberately, because the alternative
+#: turned out to be worse: the batches never came. Between rc356 and rc452 the
+#: number sat at 20 for ~96 releases, and the residual files ran in NO
+#: automation on ANY platform for that entire span — ``c/Makefile``'s ``make
+#: test`` covers all 38 on POSIX but no workflow invokes make, so "covered by
+#: the Makefile" was coverage nobody executed. A slack ceiling on a down-only
+#: instrument does not drain by itself; it just stops anyone noticing.
+#:
+#: ⚠️ THIS CEILING IS NOW SUPERSEDED FUNCTIONALLY by
+#: ``tests/test_ctest_collection_parity_rc452.py``, which asserts STRICT two-way
+#: equality between the registered set and the file census. That is a stronger
+#: instrument: this one is a ``<=`` bound and would have accepted a future
+#: PARTIAL deregistration silently, which is the "instrument that cannot return
+#: otherwise" shape. It is kept at 0 rather than deleted so the historical drain
+#: 30 -> 20 -> 0 stays legible.
 #:
 #: **This number may only go DOWN.** Raising it means a new C test was added
 #: without wiring, which is exactly the state rc356 exists to end.
-CEIL_UNWIRED_C_TESTS = 20
+CEIL_UNWIRED_C_TESTS = 0
 
 
 def _c_tests() -> list[str]:
@@ -102,10 +116,28 @@ def _registered_tests() -> set[str]:
     """
     text = _cmake_text()
     direct = set(re.findall(r"add_test\(\s*NAME\s+(test_srmech_\w+)", text))
-    loop = re.search(
-        r"foreach\(\s*t\b(.*?)\)\s*\n\s*add_test\(\s*NAME\s+\$\{t\}", text, re.S)
-    if loop is not None:
-        direct |= set(re.findall(r"(test_srmech_\w+)", loop.group(1)))
+
+    # ⚠️ WIDENED AT rc452 (`#T1166`). The rc356 version used ``re.search``, which
+    # stops at the FIRST match, and read only names written INLINE in the
+    # foreach header. rc452 registers the remaining 20 through a
+    # ``set(SRMECH_C_TESTS_RC452 ...)`` list that a second foreach dereferences
+    # as ``${SRMECH_C_TESTS_RC452}`` — so the old parse saw neither the second
+    # loop nor the list, and reported 20 files still unwired when every one of
+    # them was registered and passing under ctest. That is this gate failing to
+    # observe, not the wiring failing to land; the fix is the parse, and the
+    # ceiling below moves on the strength of a `ctest -N` count of 38.
+    lists = {}
+    for m in re.finditer(r"set\(\s*([A-Za-z_]\w*)\s+(.*?)\)", text, re.S):
+        lists[m.group(1)] = set(re.findall(r"test_srmech_\w+", m.group(2)))
+
+    for m in re.finditer(
+            r"foreach\(\s*([A-Za-z_]\w*)\b(.*?)\)(.*?)endforeach\(\)", text, re.S):
+        header, body = m.group(2), m.group(3)
+        if "add_test(" not in body:
+            continue
+        direct |= set(re.findall(r"test_srmech_\w+", header))
+        for ref in re.findall(r"\$\{([A-Za-z_]\w*)\}", header):
+            direct |= lists.get(ref, set())
     return direct
 
 

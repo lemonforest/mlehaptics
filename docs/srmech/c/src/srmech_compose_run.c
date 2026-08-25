@@ -121,6 +121,55 @@ typedef struct cr_value {
     struct cr_value **items; uint32_t n;   /* CR_LIST                       */
     double d;                              /* CR_DBL                        */
     int is_tuple;              /* CR_LIST only: 1 -> marshals as {"k":"t"}  */
+    /* THE BYTES CARRIER IS A FLAG ON CR_STR, NOT A SEVENTH KIND (rc452,
+     * gh #1653 — the klein4_from_one closure). Python's chain vocabulary
+     * distinguishes str from bytes and the ops enforce it (utf8_encode wants
+     * a str, sha256_bytes/byte_slice/int_parse_le want bytes — handing either
+     * the other RAISES in Python, so the C twin must DECLINE, never coerce).
+     * The precedent is `is_tuple` above, and for the same reason: every
+     * in-chain consumer reads the buffer identically; only the TYPE CONTRACT
+     * differs. Unlike `is_tuple` this flag has NO wire letter yet — a bytes
+     * FINAL value cannot cross srmech_chain_run's output wire and the run
+     * declines (see cr_run_and_write) until the `b` kind ships with
+     * encode_loe_content's closure, which is the chain that returns one. */
+    int is_bytes;              /* CR_STR only: 1 -> the value is bytes      */
+    /* THE MATRIX CARRIER IS A FLAG ON CR_LIST, NOT AN ENUM MEMBER (rc452
+     * Phase 2, gh #1653 — the K3 slice). Third instance of the `is_tuple`
+     * precedent and for the third time the same reason: a `Mat` is, to every
+     * in-chain consumer, a list of equal-length rows of doubles — the indexer,
+     * the element reader, the fold bodies and the arg resolver all want
+     * exactly that. What differs is the TYPE CONTRACT the Python projection
+     * declares (`schur_complement` returns a `Mat`, and the shipped comparator
+     * encodes a Mat as `M` + its `.tolist()`, which no plain list produces).
+     * So only the MARSHALLER asks the question, and a sixth cr_kind_t member
+     * would instead have to widen five switches that have no opinion about it.
+     * The flag rides the OUTER list; the rows stay plain `l`. */
+    int is_matrix;             /* CR_LIST only: 1 -> marshals as {"k":"x"}  */
+    /* THE MAPPING CARRIER IS A FLAG ON CR_LIST TOO (rc452, `#T1166` — the
+     * parallel_sector_dispatch closure), and it is the fourth instance of the
+     * `is_tuple` precedent. The payload is the pairs FLATTENED —
+     * [k0, v0, k1, v1, ...] — so `n` is even and every in-chain consumer still
+     * sees a plain flat list of carriers.
+     *
+     * ⚠️ THE KEYS ARE VALUE DESCRIPTORS, NEVER JSON OBJECT KEYS, AND THAT IS
+     * THE WHOLE DESIGN. Measured on the canonical writer both projections
+     * share: a JSON object cannot carry this op's `sectors` map at all. Its
+     * keys are INTS, and `json.dumps(sort_keys=True)` sorts the key OBJECTS
+     * before coercing them (giving "1","2","10") while srmech_json_write_ws
+     * holds already-stringified keys and sorts them BYTEWISE (giving
+     * "1","10","2") — so the two projections would DISAGREE on byte order for
+     * exactly this dict. Bool keys additionally lowercase and collide with
+     * 1/0, and a tuple key raises TypeError outright. Flattening the pairs
+     * makes all three unreachable instead of documented-around, and carries
+     * INSERTION order, which is what a Python dict actually preserves. */
+    int is_map;                /* CR_LIST only: 1 -> marshals as {"k":"m"}  */
+    /* THE BOOL CARRIER IS A FLAG ON CR_INT (rc452, `#T1166`). A bool must not
+     * ride the wire as 1/0: `True == 1` in Python, so a numeric spelling is a
+     * wrong TYPE with a right value — and the shipped value comparator encodes
+     * bool as b1/b0 BEFORE its int arm precisely so that collapse is visible.
+     * The op returns nine of them per dispatch. Consumers that read a bool as
+     * an integer keep working; only the MARSHALLER asks. */
+    int is_bool;               /* CR_INT only: 1 -> marshals as {"k":"o"}   */
 } cr_value_t;
 
 
@@ -138,6 +187,10 @@ static cr_value_t *cr_new_value(cr_bump_t *b, cr_kind_t kind)
     v->kind = kind; v->num = NULL; v->den = NULL;
     v->s = NULL; v->slen = 0u; v->items = NULL; v->n = 0u; v->d = 0.0;
     v->is_tuple = 0;   /* LIST unless an op says otherwise — see cr_desc_list */
+    v->is_bytes = 0;   /* STR unless an op says otherwise (utf8_encode etc.) */
+    v->is_matrix = 0;  /* LIST unless an op says otherwise — see cr_mat_value */
+    v->is_map = 0;     /* LIST unless an op says otherwise — see cr_seq_new   */
+    v->is_bool = 0;    /* INT  unless an op says otherwise — see cr_bool      */
     return v;
 }
 
@@ -270,40 +323,124 @@ static cr_value_t *cr_json_scalar(cr_bump_t *b, const srmech_json_value_t *j)
     if (j->type == SRMECH_JSON_INT) { return cr_int_i64(b, j->u.i); }
     if (j->type == SRMECH_JSON_DOUBLE) { return cr_dbl(b, j->u.f); }
     if (j->type == SRMECH_JSON_NULL) { return cr_new_value(b, CR_NONE); }
-    if (j->type != SRMECH_JSON_STRING) { return NULL; }   /* array / obj / bool */
+    /* BOOL -> CR_INT 0/1 (v0.9.0rc452, `#T1166`).
+     *
+     * ⚠️ THIS GAP WAS NAMED BY NO LISTED GATE. Through rc451 a BOOL arg returned
+     * NULL here, so BOTH DFT chains deferred WHOLE — their proof cases pass
+     * `inverse: false` (and `left` on the quaternion side) — and the rejection
+     * was attributed to the op table and the carrier width, which were also
+     * true and which no amount of work on would have released the chain.
+     *
+     * NO OUTPUT KIND IS ADDED, and that is MEASURED rather than assumed: over
+     * the 21 packaged descriptors, ZERO declare a bool return (the census also
+     * says bools appear ONLY as inputs, on exactly octonion_dft.inverse,
+     * quaternion_dft.inverse and quaternion_dft.left). So a bool can enter and
+     * be consumed but can never be the value that crosses the wire, and
+     * carrying it as CR_INT cannot silently change an output type. Python
+     * agrees on the arithmetic — `bool` IS an `int` subclass there, so
+     * `int(False) == 0` is the same coercion, not a C-side convention.
+     * If a chain ever DOES declare a bool return, this comment is the reason
+     * it needs its own kind letter rather than riding `i`. */
+    if (j->type == SRMECH_JSON_BOOL) { return cr_int_i64(b, j->u.b ? 1 : 0); }
+    if (j->type != SRMECH_JSON_STRING) { return NULL; }   /* array / object */
     out = cr_new_value(b, CR_STR);
     if (out == NULL) { return NULL; }
     out->s = j->u.str.ptr; out->slen = j->u.str.len;
     return out;
 }
 
-/* Convert an ARRAY json node to a flat CR_LIST of scalars (one level; a nested
- * array element → NULL → defer). No recursion. */
-static cr_value_t *cr_json_list(cr_bump_t *b, const srmech_json_value_t *j)
+/* ------------------------------------------------------------------
+ * NESTED VALUE INGEST (v0.9.0rc452, `#T1166`) — depth-bounded, explicit stack.
+ *
+ * Through rc451 an array ingested ONE level: `cr_json_list` called
+ * `cr_json_scalar` per element and a nested array element returned NULL, so the
+ * whole chain deferred. That is gap-ledger row `chain_run_list_is_flat_only`,
+ * and it is wider than the two DFT chains the BLOCKED table attributes it to —
+ * klein4's depth-2 bind literals, kuramoto-general's `adjacency`, and schur's
+ * `L` all need it too.
+ *
+ * ⚠️ NO NEW KIND, NO READER CHANGE. Nesting is a CR_LIST holding CR_LISTs; the
+ * `l` kind already exists and Python's `_reconstruct_value` has been recursive
+ * all along. So this widens a CAPABILITY, not a discriminator — which is why
+ * the gap-ledger row carries new_type=false and why no ABI implication follows
+ * from this half.
+ *
+ * ⚠️ WHY A STACK AND NOT RECURSION. JPL Rule 1 bans new recursion, and the
+ * obvious shape here (a walker that re-enters itself per element) is exactly
+ * that. The frame array is carved from the CALLER ARENA (Rule 3: no malloc) and
+ * the depth is capped by an assert. Cap 4 against a MEASURED maximum of 2 over
+ * every packaged descriptor's proof cases — generous, and bounded, so an
+ * adversarial document cannot walk the stack off its end.
+ * ------------------------------------------------------------------ */
+
+#define CR_MAX_DEPTH 4u
+
+/* The floor of the value-DESCRIPTOR writer reserve (builder half | write-scratch
+ * half). Read by cr_writer_reserve and, at 2x, by srmech_chain_run_arena_bytes;
+ * see the note on cr_writer_reserve for why an input-derived term alone was
+ * wrong and what was measured. */
+#define CR_WRITER_FLOOR 262144u
+
+typedef struct {
+    const srmech_json_value_t *node;   /* the ARRAY being ingested */
+    cr_value_t *val;                   /* its CR_LIST carrier */
+    uint32_t i;                        /* next child slot */
+} cr_iframe_t;
+
+/* Carve a CR_LIST carrier sized for `n` items. NULL on overflow. */
+static cr_value_t *cr_list_of(cr_bump_t *b, uint32_t n)
 {
-    cr_value_t *out; cr_value_t **items; uint32_t i;
+    cr_value_t *v;
+    assert(b != NULL);
+    assert(b->cur <= b->end);
+    v = cr_new_value(b, CR_LIST);
+    if (v == NULL) { return NULL; }
+    v->n = n;
+    v->items = (cr_value_t **)cr_carve(b, (size_t)n * sizeof(void *) + sizeof(void *));
+    return (v->items == NULL) ? NULL : v;
+}
+
+/* Ingest an ARRAY node to a (possibly nested) CR_LIST. NULL → defer. */
+static cr_value_t *cr_json_nested(cr_bump_t *b, const srmech_json_value_t *j)
+{
+    cr_iframe_t st[CR_MAX_DEPTH]; uint32_t sp = 0u;
     assert(b != NULL && j != NULL);
     assert(j->type == SRMECH_JSON_ARRAY);
-    out = cr_new_value(b, CR_LIST);
-    if (out == NULL) { return NULL; }
-    out->n = j->u.arr.n;
-    items = (cr_value_t **)cr_carve(b, (size_t)out->n * sizeof(void *) + 1u);
-    if (items == NULL) { return NULL; }
-    for (i = 0u; i < out->n; i++) {
-        items[i] = cr_json_scalar(b, j->u.arr.items[i]);   /* NO recursion */
-        if (items[i] == NULL) { return NULL; }
+    st[0].node = j; st[0].val = cr_list_of(b, j->u.arr.n); st[0].i = 0u;
+    if (st[0].val == NULL) { return NULL; }
+    sp = 1u;
+    while (sp > 0u) {
+        cr_iframe_t *f = &st[sp - 1u];
+        if (f->i < f->node->u.arr.n) {
+            const srmech_json_value_t *ch = f->node->u.arr.items[f->i];
+            if (ch != NULL && ch->type == SRMECH_JSON_ARRAY) {
+                if (sp >= CR_MAX_DEPTH) { return NULL; }   /* too deep → defer */
+                st[sp].node = ch; st[sp].val = cr_list_of(b, ch->u.arr.n);
+                st[sp].i = 0u;
+                if (st[sp].val == NULL) { return NULL; }
+                sp++;                       /* parent's i advances on POP */
+                continue;
+            }
+            f->val->items[f->i] = cr_json_scalar(b, ch);
+            if (f->val->items[f->i] == NULL) { return NULL; }
+            f->i++;
+            continue;
+        }
+        sp--;                               /* frame complete */
+        if (sp == 0u) { return st[0].val; }
+        st[sp - 1u].val->items[st[sp - 1u].i] = f->val;
+        st[sp - 1u].i++;
     }
-    out->items = items;
-    return out;
+    return st[0].val;
 }
 
 /* Convert a resolved JSON node (from a @row/@input walk) to a value carrier:
- * a flat list, else a scalar. NULL → defer. */
+ * a (possibly nested) list, else a scalar. NULL → defer. */
 static cr_value_t *cr_json_to_value(cr_bump_t *b, const srmech_json_value_t *j)
 {
     assert(b != NULL);
     assert(j == NULL || j->type <= SRMECH_JSON_OBJECT);
-    if (j != NULL && j->type == SRMECH_JSON_ARRAY) { return cr_json_list(b, j); }
+    if (j != NULL && j->type == SRMECH_JSON_ARRAY) { return cr_json_nested(b, j); }
     return cr_json_scalar(b, j);
 }
 
@@ -311,13 +448,90 @@ static cr_value_t *cr_json_to_value(cr_bump_t *b, const srmech_json_value_t *j)
  * The run context (row / inputs JSON + the persisting step outputs).
  * ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------
+ * THE MAP FRAME (v0.9.0rc452, `#T1166`).
+ *
+ * A map body is "a chain in miniature" (compose.py's rc420 scoping decision):
+ * it runs with its OWN body-local step outputs and a LAYERED idx/bind
+ * environment. Measured map nesting over the packaged descriptors: 2
+ * (autocorrelation, kuramoto_step and both DFTs are map-inside-map), so the
+ * cap of 4 is generous and, being a cap, is what keeps JPL Rule 1 satisfiable
+ * without recursion.
+ *
+ * ⚠️ THE TOP LEVEL IS FRAME 0, AS A DEGENERATE MAP OF n == 1. That is not a
+ * trick to save code — it is what makes the trampoline uniform, so the body
+ * of a map and the body of the chain cannot drift apart in how they resolve
+ * `@step[N]`, scope their outputs, or decide what "the final value" is. Frame 0
+ * is the one with `acc == NULL`, which is precisely the statement "my result is
+ * my last step's output, not a list of my iterations".
+ * ------------------------------------------------------------------ */
+
+#define CR_MAP_DEPTH 4u
+/* 12: the measured maximum over the packaged descriptors is 9 binds on one
+ * frame (kuramoto_step/general's outer map), and 8 — the rc452 first cut —
+ * declined that frame with every op arm present, which read as an op-table
+ * gap until measured. Slack of 3 over the live maximum, still bounded. */
+#define CR_BIND_MAX  12u
+
+typedef struct {
+    const srmech_json_value_t *body;   /* the step ARRAY this frame runs   */
+    uint32_t si;                       /* next step index within `body`    */
+    uint32_t k;                        /* current iteration                */
+    uint32_t n;                        /* iteration count, PINNED at entry */
+    cr_value_t **outs;                 /* body-local step outputs          */
+    cr_value_t *acc;                   /* the result list; NULL at frame 0 */
+    const char *idx_name; uint32_t idx_len;
+    const char *bname[CR_BIND_MAX]; uint32_t blen[CR_BIND_MAX];
+    cr_value_t *bval[CR_BIND_MAX]; uint32_t nb;
+} cr_mapframe_t;
+
 typedef struct cr_ctx {
     const srmech_json_value_t *row;      /* or NULL */
     const srmech_json_value_t *inputs;   /* or NULL */
-    cr_value_t **step_out;               /* [n_steps]; filled up to cur */
+    cr_value_t **step_out;               /* the ACTIVE frame's outputs */
     uint32_t cur;                        /* index of the step being run */
     cr_bump_t *b;
+    cr_mapframe_t *fr;                   /* [CR_MAP_DEPTH] frame stack */
+    uint32_t nfr;                        /* active frame count (>= 1) */
 } cr_ctx_t;
+
+/* Resolve `@idx.<name>` by walking the frame stack INNERMOST-OUTWARD.
+ *
+ * Walking outward IS the layering: compose.py builds each body's environment as
+ * `{**idx_env, index: k}`, so an inner name shadows an outer one of the same
+ * spelling. Scanning from the innermost frame and stopping at the first hit
+ * reproduces that without copying an environment per iteration. -1 = unbound. */
+static int64_t cr_env_idx(const cr_ctx_t *c, const char *nm, uint32_t nl)
+{
+    uint32_t d;
+    assert(c != NULL && nm != NULL);
+    assert(c->nfr >= 1u);
+    for (d = c->nfr; d > 0u; d--) {
+        const cr_mapframe_t *f = &c->fr[d - 1u];
+        if (f->idx_name != NULL && f->idx_len == nl &&
+            memcmp(f->idx_name, nm, nl) == 0) {
+            return (int64_t)f->k;
+        }
+    }
+    return -1;
+}
+
+/* Resolve `@bind.<name>` the same way. NULL = unbound. */
+static cr_value_t *cr_env_bind(const cr_ctx_t *c, const char *nm, uint32_t nl)
+{
+    uint32_t d, i;
+    assert(c != NULL && nm != NULL);
+    assert(c->nfr >= 1u);
+    for (d = c->nfr; d > 0u; d--) {
+        const cr_mapframe_t *f = &c->fr[d - 1u];
+        for (i = 0u; i < f->nb; i++) {
+            if (f->blen[i] == nl && memcmp(f->bname[i], nm, nl) == 0) {
+                return f->bval[i];
+            }
+        }
+    }
+    return NULL;
+}
 
 /* Resolve a `@...` reference string to a value carrier. NULL → defer. */
 /* Index a step output: the `[K]` tail of `@step[N].output[K]`. Returns NULL
@@ -371,10 +585,47 @@ static cr_value_t *cr_resolve_ref(cr_ctx_t *c, const char *ref, uint32_t len)
         if (rest == e) { return c->step_out[idx]; }
         return cr_index_value(c->step_out[idx], rest, e);
     }
-    return NULL;   /* @catalog / @op / @bind / @idx or unknown → defer */
+    /* @idx.<name> / @bind.<name> (v0.9.0rc452, `#T1166`) — two of the three
+     * namespaces GATE_REF_GRAMMAR names.
+     *
+     * ⚠️ THEY ARE FRAME BINDINGS, NOT A WIDER PATH WALKER, AND THAT IS
+     * MEASURED. Probing the refspaces of all five map chains: `@idx` and
+     * `@bind` occur ONLY inside map bodies — never at a chain's top level. So
+     * they are not addresses into the row/input trees that cr_walk_json
+     * descends; they are lexical bindings of the enclosing map frames, and
+     * resolving them needs the frame stack rather than a longer path grammar.
+     * That is why they could not be closed before the map form existed.
+     *
+     * `@bind.x` may carry a `.key`/`[N]` tail; `@idx.k` is a bare integer and
+     * a tail on it is a malformed ref, so it declines rather than ignoring it. */
+    if (len >= 6u && memcmp(p, "idx.", 4u) == 0) {
+        const char *nm = p + 4; int64_t v;
+        if (nm >= e) { return NULL; }
+        v = cr_env_idx(c, nm, (uint32_t)(e - nm));
+        if (v < 0) { return NULL; }              /* unbound → defer */
+        return cr_int_i64(c->b, v);
+    }
+    if (len >= 7u && memcmp(p, "bind.", 5u) == 0) {
+        const char *nm = p + 5; const char *t = nm; cr_value_t *bv;
+        if (nm >= e) { return NULL; }
+        while (t < e && *t != '.' && *t != '[') { t++; }
+        bv = cr_env_bind(c, nm, (uint32_t)(t - nm));
+        if (bv == NULL) { return NULL; }         /* unbound → defer */
+        if (t == e) { return bv; }
+        return cr_index_value(bv, t, e);         /* a `[N]` tail */
+    }
+    return NULL;   /* @catalog / @op or unknown → defer */
 }
 
-/* A list ELEMENT: a `@...` ref or a scalar literal (no nesting → no recursion). */
+/* A list ELEMENT: a `@...` ref, a NESTED array literal, or a scalar literal.
+ *
+ * The nested arm rides cr_json_nested's explicit stack, so still no recursion.
+ * It carries LITERALS only — a ref inside a nested literal would need the ctx,
+ * which cr_json_nested deliberately does not take. Measured over the packaged
+ * descriptors: nested literals (kuramoto-general `adjacency`, schur `L`, the
+ * klein4 bind literals) are pure data, and refs appear only at the top level or
+ * as whole args. A ref nested inside an array literal therefore declines rather
+ * than resolving wrongly. */
 static cr_value_t *cr_resolve_elem(cr_ctx_t *c, const srmech_json_value_t *j)
 {
     assert(c != NULL);
@@ -384,6 +635,7 @@ static cr_value_t *cr_resolve_elem(cr_ctx_t *c, const srmech_json_value_t *j)
         j->u.str.ptr[0] == '@') {
         return cr_resolve_ref(c, j->u.str.ptr, j->u.str.len);
     }
+    if (j->type == SRMECH_JSON_ARRAY) { return cr_json_nested(c->b, j); }
     return cr_json_scalar(c->b, j);
 }
 
@@ -597,21 +849,47 @@ static srmech_status_t cr_op_pi(cr_ctx_t *c, const srmech_json_value_t *args,
     return SRMECH_OK;
 }
 
-typedef srmech_status_t (*cr_series_fn_t)(const srmech_bigint_t *, const srmech_bigint_t *,
-                                          uint32_t, srmech_bigint_t *, srmech_bigint_t *,
-                                          void *, size_t);
+/* Which of the five *_series_truncate kernels a series step runs. An ENUM, not
+ * a function pointer: JPL Rule 9 bans function pointers, and the `cr_series_fn_t`
+ * typedef that stood here through the first rc452 cut was one of the 14 measured
+ * Rule-9 declarator sites the A1 conversion drains (see JPL_AUDIT.md Rule 9). */
+typedef enum {
+    CR_SER_EXP = 0, CR_SER_SIN, CR_SER_COS, CR_SER_LOG1P, CR_SER_ATAN
+} cr_series_id_t;
+
+/* The kernel switch. NO default arm, so gcc/clang's -Wswitch (in -Wall,
+ * promoted by -Werror under SRMECH_PEDANTIC) makes "enum grew, case forgotten"
+ * a COMPILE ERROR; MSVC gets the same property from /w44062 in CMakeLists.
+ * The trailing return is the open-enum path (a value outside the enum). */
+static srmech_status_t cr_series_kernel(cr_series_id_t id,
+                                        const srmech_bigint_t *xn,
+                                        const srmech_bigint_t *xd, uint32_t nt,
+                                        srmech_bigint_t *on, srmech_bigint_t *od,
+                                        void *ws, size_t wl)
+{
+    assert(xn != NULL && xd != NULL);
+    assert(on != NULL && od != NULL);
+    switch (id) {
+    case CR_SER_EXP:   return srmech_exp_series_truncate_big(xn, xd, nt, on, od, ws, wl);
+    case CR_SER_SIN:   return srmech_sin_series_truncate_big(xn, xd, nt, on, od, ws, wl);
+    case CR_SER_COS:   return srmech_cos_series_truncate_big(xn, xd, nt, on, od, ws, wl);
+    case CR_SER_LOG1P: return srmech_log1p_series_truncate_big(xn, xd, nt, on, od, ws, wl);
+    case CR_SER_ATAN:  return srmech_atan_series_truncate_big(xn, xd, nt, on, od, ws, wl);
+    }
+    return SRMECH_ERR_INTERNAL;
+}
 
 /* Shared driver for the five *_series_truncate ops:
  * (numerator, denominator, num_terms) -> reduced (num, den) rational. */
 static srmech_status_t cr_op_series(cr_ctx_t *c, const srmech_json_value_t *args,
-                                    cr_series_fn_t fn, cr_value_t **out)
+                                    cr_series_id_t id, cr_value_t **out)
 {
     cr_value_t *xn = cr_arg(c, args, "numerator");
     cr_value_t *xd = cr_arg(c, args, "denominator");
     cr_value_t *nt = cr_arg(c, args, "num_terms"), *ov;
     int64_t nterms; uint32_t cap, dig; void *ws; size_t wl; srmech_status_t st;
     assert(c != NULL && out != NULL);
-    assert(fn != NULL && args != NULL);
+    assert(args != NULL);
     if (xn == NULL || xd == NULL || nt == NULL) { return SRMECH_ERR_BAD_INPUT; }
     if (xn->kind != CR_INT || xd->kind != CR_INT || xn->num == NULL ||
         xd->num == NULL) { return SRMECH_ERR_BAD_INPUT; }
@@ -625,7 +903,8 @@ static srmech_status_t cr_op_series(cr_ctx_t *c, const srmech_json_value_t *args
     wl = (size_t)srmech_bigexp_ws_bound(xn->num->n, xd->num->n, (uint32_t)nterms);
     ws = cr_carve(c->b, wl);
     if (ov->num == NULL || ov->den == NULL || ws == NULL) { return SRMECH_ERR_OVERFLOW; }
-    st = fn(xn->num, xd->num, (uint32_t)nterms, ov->num, ov->den, ws, wl);
+    st = cr_series_kernel(id, xn->num, xd->num, (uint32_t)nterms,
+                          ov->num, ov->den, ws, wl);
     if (st != SRMECH_OK) { return st; }
     *out = ov;
     return SRMECH_OK;
@@ -993,17 +1272,35 @@ static cr_value_t *cr_dvec_value(cr_bump_t *b, const double *src, size_t n)
     return out;
 }
 
-/* A unary f64 sequence op: resolve `key` as a real vector, run `fn`, wrap the
- * result. `out` must not alias the input, so a second buffer is carved. */
+/* Which f64 sequence kernel a dseq step runs. An ENUM, not a function-pointer
+ * parameter — the inline `(*fn)(const double *, size_t, double *)` param that
+ * stood here through the first rc452 cut was a Rule-9 declarator site (it
+ * PREDATES rc452; see JPL_AUDIT.md Rule 9). */
+typedef enum { CR_DSEQ_CHIRAL_FLIP = 0, CR_DSEQ_AUTOCORR } cr_dseq_id_t;
+
+/* The kernel switch — same no-default drift gate as cr_series_kernel. */
+static srmech_status_t cr_dseq_kernel(cr_dseq_id_t id, const double *in,
+                                      size_t n, double *res)
+{
+    assert(in != NULL && res != NULL);
+    assert(n > 0u);
+    switch (id) {
+    case CR_DSEQ_CHIRAL_FLIP: return srmech_cascade_chiral_flip_f64(in, n, res);
+    case CR_DSEQ_AUTOCORR:    return srmech_autocorrelation_f64(in, n, res);
+    }
+    return SRMECH_ERR_INTERNAL;
+}
+
+/* A unary f64 sequence op: resolve `key` as a real vector, run the kernel `id`
+ * names, wrap the result. `out` must not alias the input, so a second buffer
+ * is carved. */
 static srmech_status_t cr_op_dseq(cr_ctx_t *c, const srmech_json_value_t *args,
-                                  const char *key,
-                                  srmech_status_t (*fn)(const double *, size_t,
-                                                        double *),
+                                  const char *key, cr_dseq_id_t id,
                                   cr_value_t **out)
 {
     cr_value_t *v; double *in, *res; size_t n = 0u; srmech_status_t st;
     assert(c != NULL && args != NULL && out != NULL);
-    assert(key != NULL && fn != NULL);
+    assert(key != NULL);
     v = cr_arg(c, args, key);
     if (v == NULL) { return SRMECH_ERR_NOT_IMPL; }
     in = cr_as_dvec(c->b, v, &n);
@@ -1011,17 +1308,18 @@ static srmech_status_t cr_op_dseq(cr_ctx_t *c, const srmech_json_value_t *args,
     res = (double *)cr_carve(c->b, n * sizeof(double) + sizeof(double));
     if (res == NULL) { return SRMECH_ERR_OVERFLOW; }
     if (n > 0u) {
-        st = fn(in, n, res);
+        st = cr_dseq_kernel(id, in, n, res);
         if (st != SRMECH_OK) { return st; }
     }
     *out = cr_dvec_value(c->b, res, n);
     return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
 }
 
-/* The real-sequence arms, split out ONLY to keep cr_dispatch under JPL Rule 4's
- * 60 lines. Unmatched returns NOT_IMPL, which is exactly what cr_dispatch's own
- * fall-through returns — so calling this last composes with no change in
- * semantics. */
+/* The real-sequence helpers. Through rc451 these were the arms of
+ * cr_dispatch_real, a second dispatcher split out only to keep cr_dispatch
+ * under JPL Rule 4's 60 lines; the rc452 A1 reshape DELETED that function, and
+ * dispatch now reaches these bodies through a CR_OP_REG row's dom/sub enums
+ * via cr_exec_<domain>(). An unmatched op still returns NOT_IMPL. */
 /* Read one arg as a double. A CR_INT widens (a JSON `1` and `1.0` name the same
  * operand); anything else declines. */
 static int cr_arg_dbl(cr_ctx_t *c, const srmech_json_value_t *args,
@@ -1100,10 +1398,46 @@ static srmech_status_t cr_op_pin_slot(cr_ctx_t *c, const srmech_json_value_t *ar
  * Fixed at root rather than routed around. The int arm declines an out-of-int64
  * operand (Python's own native dispatch does too, falling back to its
  * arbitrary-precision path) so a bignum is deferred, never truncated. */
+/* A FRESH CR_RATIONAL carrying `num`/`den` with the numerator's sign set to
+ * `sgn`. The limb ARRAYS are ALIASED, never copied: every bigint reaching here
+ * is write-once (built by cr_op_rat / cr_op_pow / cr_op_series and never
+ * mutated afterwards), so aliasing is exact at any magnitude and costs two
+ * struct carves instead of an unbounded copy.
+ *
+ * ⚠️ WHY THIS IS A SEPARATE CARRIER AND NOT `v->num->sign = -v->num->sign`.
+ * Step outputs PERSIST in the chain arena so a later step can read
+ * @step[N].output. Config C's rev2 negated in place on the real rebuilt
+ * library and shipped a SILENT WRONG ANSWER: a three-step chain
+ * (step0 = 1/2 + 1/3; step1 = reorient(step0, -1); step2 = step0 + 0/1)
+ * returned -5/6 for step2 instead of 5/6, with rc=0 and a well-formed wire.
+ * Nothing in the value channel can see that — step2's answer is a perfectly
+ * plausible rational — so the discipline is structural, not a check:
+ * NEVER mutate a value another step can still read.
+ * Pinned by tests/test_exact_q_pipeline_rc452.py's 3-step regression. */
+static cr_value_t *cr_rat_signed(cr_bump_t *b, const srmech_bigint_t *num,
+                                 const srmech_bigint_t *den, int32_t sgn)
+{
+    cr_value_t *ov; srmech_bigint_t *n2, *d2;
+    assert(b != NULL);
+    assert(num != NULL && den != NULL);
+    ov = cr_new_value(b, CR_RATIONAL);
+    n2 = (srmech_bigint_t *)cr_carve(b, sizeof(srmech_bigint_t));
+    d2 = (srmech_bigint_t *)cr_carve(b, sizeof(srmech_bigint_t));
+    if (ov == NULL || n2 == NULL || d2 == NULL) { return NULL; }
+    *n2 = *num; *d2 = *den;
+    /* Class-K pin-slot: a ZERO numerator has sign 0 and MUST keep it — the
+     * bigint invariant is `sign == 0 iff n == 0`, so stamping -1 on a zero
+     * would build a malformed carrier that prints "-0". */
+    n2->sign = (num->n == 0u) ? 0 : sgn;
+    ov->num = n2; ov->den = d2;
+    return ov;
+}
+
 static srmech_status_t cr_op_reorient(cr_ctx_t *c, const srmech_json_value_t *args,
                                       cr_value_t **out)
 {
     cr_value_t *v; double value = 0.0, ori = 0.0, r = 0.0;
+    const srmech_bigint_t *qn, *qd;
     int64_t iv = 0, ir = 0; srmech_status_t st;
     assert(c != NULL && args != NULL);
     assert(out != NULL);
@@ -1111,6 +1445,38 @@ static srmech_status_t cr_op_reorient(cr_ctx_t *c, const srmech_json_value_t *ar
     if (ori < -128.0 || ori > 127.0) { return SRMECH_ERR_NOT_IMPL; }
     v = cr_arg(c, args, "value");
     if (v == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    /* rc452 (`#T1166`): the exact-Q arm. Class C re-application is
+     * negate-iff-orientation < 0, identical to the i64 and f64 arms below; the
+     * sign lives on the numerator because the carrier keeps den > 0.
+     *
+     * ⚠️ CR_RATIONAL ONLY — this arm deliberately does NOT call
+     * cr_as_rational, whose second arm would also admit a bare 2-int CR_LIST.
+     * Two reasons, both measured, and rc452's plan asked for the opposite:
+     *
+     *  1. IT WOULD MAKE C ANSWER WHERE PYTHON RAISES. `reorient((5, 6),
+     *     orientation=-1)` raises TypeError in Python (unary minus on a tuple)
+     *     and `orientation=+1` passes the tuple through un-negated. Admitting
+     *     the list here would return an exact -5/6 from C against a raise from
+     *     Python — a value-vs-capability divergence, which is the defect class
+     *     this rc exists to close, one level up.
+     *  2. IT WOULD RE-CREATE THE COLLISION THAT DISQUALIFIED ADJ-4. A 2-int
+     *     list is ALSO how a Class-K pin pair and a Class-B `pair` step spell
+     *     themselves. Config B measured that `pin_slot_at_zero(-1) = (-1, 1)`
+     *     and the rational -1/1 are byte-identical on the wire, that the
+     *     collision lands on THIS op, and that the repair is UNDECIDABLE — one
+     *     input, two correct answers. The ruling used that to reject the tuple
+     *     spelling; re-admitting it here would import the same ambiguity.
+     *
+     * So the pair stays a legal INPUT to the ops whose C peers take it
+     * (cr_op_rat, cr_op_pow via cr_as_rational — re-verified by execution),
+     * and reorient keeps DECLINING it on both projections. A mutual decline is
+     * parity; an answer on one side only is not. */
+    if (v->kind == CR_RATIONAL && v->num != NULL && v->den != NULL) {
+        int32_t sgn = (ori < 0.0) ? -v->num->sign : v->num->sign;
+        qn = v->num; qd = v->den;
+        *out = cr_rat_signed(c->b, qn, qd, sgn);
+        return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    }
     if (v->kind == CR_INT) {
         if (!cr_as_i64(v, &iv)) { return SRMECH_ERR_NOT_IMPL; }
         st = srmech_cascade_reorient_i64((int8_t)ori, iv, &ir);
@@ -1283,98 +1649,2646 @@ static int cr_op_is(const char *op, uint32_t opl, const char *want, uint32_t n)
     return 0;
 }
 
-static srmech_status_t cr_dispatch_real(cr_ctx_t *c, const char *op, uint32_t opl,
-                                        const srmech_json_value_t *args,
-                                        cr_value_t **out)
+/* ------------------------------------------------------------------
+ * THE ATOM TABLE (v0.9.0rc452, `#T1166`).
+ *
+ * ⚠️ THIS IS "cascade.atoms IN C" — gh #1653's mandate clause 2 — and it is
+ * closed HERE rather than as a separate deliverable, because it is also the
+ * mechanism clause 1 needs. Through rc451 the dispatch was an if-chain, and
+ * `cr_dispatch` was MEASURED at 57 of JPL Rule 4's 60 lines with 16 arms; the
+ * eight remaining blocked chains need 32 more op spellings between them. Those
+ * arms could not be added AS AN IF-CHAIN AT ALL — not "would be untidy",
+ * cannot: the 17th arm breaks Rule 4 and the split that produced
+ * `cr_dispatch_real` had already been spent once to buy four.
+ *
+ * So `CR_OP_REG` stops being a name-to-name index and becomes the atom
+ * registry the interpreter resolves against: a bare-C, config-addressable
+ * table of pure DATA rows. `cr_dispatch` collapses from a 57-line if-chain to
+ * a row lookup plus a bounded per-domain switch tree, and `cr_dispatch_real` —
+ * which existed only to absorb the overflow — is GONE. Adding an op is now
+ * adding a ROW plus one `case` line, which is why the table can carry 56.
+ *
+ * ⚠️ NO FUNCTION POINTERS — the A1 dispatch (JPL Rule 9). The first rc452 cut
+ * gave rows `fn`/`bin` FUNCTION-POINTER columns, which Rule 9 bans outright
+ * ("Function pointers are not permitted."), and which the mechanical audit
+ * never saw because tests/test_jpl_audit.py checks Rules 1/3/4/5/8 only. The
+ * rows instead carry three small-int ENUM columns (`dom`/`sub`/`bin`) and
+ * `cr_dispatch` hands `sub` to one `cr_exec_<domain>()` per domain. Each exec
+ * switches on its OWN enum type with NO `default:` arm, so gcc/clang's
+ * -Wswitch under the existing -Werror makes "row added, case forgotten" a
+ * COMPILE ERROR (MSVC needs /w44062, added to SRMECH_PEDANTIC in CMakeLists —
+ * C4062 is off by default even at /W4). That compile-time drift gate is the
+ * point of this shape over a flat enum, whose single switch would have needed
+ * `default:` arms and let a deleted case compile green and fail at runtime.
+ *
+ * ⚠️ THE TABLE IS THE ONLY DISPATCH PATH. `cr_dispatch` contains zero
+ * `cr_op_is` calls of its own; the one call site is inside the loop, against
+ * the row's own `bare`/`len`. tests/test_t1158_registry_param_order_rc449.py
+ * asserts exactly that, so a future arm added BESIDE the table (leaving the
+ * table decorative — the shape a green could otherwise be bought with) is red.
+ *
+ * FIVE COLUMNS, and the fifth is the one that closes the fold body:
+ *   bare/len  the segment-boundary match cr_op_is performs
+ *   full      the ToolEntry name cr_args_keyset_ok validates `args` keys against
+ *   dom       which cr_exec_<domain>() runs the op (cr_dom_t)
+ *   sub       the case label inside that exec (the domain's own op enum)
+ *   bin       non-NONE iff the op can also serve as a FOLD BODY (cr_bin_id_t)
+ *
+ * ⚠️ WHY `bin` IS A COLUMN AND NOT A SECOND TABLE. A fold body receives two
+ * POSITIONAL carriers (acc, elem) that are already evaluated — there is no
+ * `args` JSON object to pull from, so the plain-op entry shape genuinely
+ * cannot serve. Through rc451 that difference was expressed as a PRIVATE
+ * single-entry table (`cr_fold_body`, orientation_compose only), which is why
+ * a fold over any other op declined and why CEIL_SURFACE_A_UNSUPPORTED_FORMS
+ * still counted `fold` unsupported with a real fold chain shipping. Making it
+ * a column on the SAME table keeps one registry — so the bijection gate still
+ * sees every op exactly once — while stating honestly that the two entry
+ * shapes differ.
+ * ------------------------------------------------------------------ */
+
+/* Which cr_exec_<domain>() runs an op. CR_DOM_NONE is the deliberate,
+ * expressible "fold-body-ONLY row" state (cr_dispatch returns NOT_IMPL for
+ * it) — the same state the first cut's `fn == NULL` encoded. */
+typedef enum { CR_DOM_NONE = 0, CR_DOM_RAT, CR_DOM_CYC, CR_DOM_CAS } cr_dom_t;
+
+/* The Class-N rational-domain ops (srmech.math.rational.*). */
+typedef enum {
+    CR_RAT_PI = 0, CR_RAT_EXP, CR_RAT_SIN, CR_RAT_COS, CR_RAT_LOG1P,
+    CR_RAT_ATAN, CR_RAT_POW, CR_RAT_ADD, CR_RAT_MUL, CR_RAT_DIV,
+    CR_RAT_SCALE_ROUND, CR_RAT_BEST_RATIONAL
+} cr_rat_op_t;
+
+/* The Class-I cyclic-domain ops (srmech.math.cyclic.*). MOD_MUL and
+ * MOD_MUL_WIDE are separate case labels dispatching the SAME driver arm, so
+ * the row-to-case mapping stays 1:1 for the bijection gate. */
+typedef enum {
+    CR_CYC_GCD = 0, CR_CYC_MOD_ADD, CR_CYC_MOD_MUL, CR_CYC_MOD_MUL_WIDE,
+    CR_CYC_MOD_POW, CR_CYC_MOD_INV
+} cr_cyc_op_t;
+
+/* The cascade-domain ops (srmech.cascade.*): Classes B / C / K / L — plus,
+ * since rc452 Phase 3 (`#T1166`), the Class-N/M/C kuramoto term ops and the
+ * Class-M/C/N hypercomplex-DFT step ops (the OP-granular arms of the three
+ * map chains this phase unblocks; the fused whole-transform symbols exist and
+ * are deliberately NOT dispatched — see the atom-table note below). */
+typedef enum {
+    CR_CAS_SEQ_LEN = 0, CR_CAS_CORR_PRODUCT, CR_CAS_COMPENSATED_SUM,
+    CR_CAS_PIN_SLOT, CR_CAS_REORIENT, CR_CAS_CHIRAL_FLIP,
+    CR_CAS_AUTOCORRELATION, CR_CAS_DEAD_BAND, CR_CAS_PAIR,
+    CR_CAS_SEQ_GET, CR_CAS_VEC_SCALE,
+    CR_CAS_KUR_INV_N, CR_CAS_KUR_SIN_TERM, CR_CAS_KUR_OUT_SIMPLE,
+    CR_CAS_KUR_GEN_TERM, CR_CAS_KUR_GEN_OUT,
+    CR_CAS_AS_QUAT4, CR_CAS_AS_OCT8,
+    CR_CAS_QDFT_RESOLVE_MU, CR_CAS_ODFT_RESOLVE_MU,
+    CR_CAS_DFT_SIGMA, CR_CAS_DFT_SCALE,
+    CR_CAS_QDFT_SUMMAND, CR_CAS_ODFT_SUMMAND,
+    /* wave C (rc452, gh #1653): the klein4_from_one chain's string/bytes
+     * leaves — Classes F / B / A at step granularity. 30 of the documented
+     * 51-case split threshold; the growth path is a new domain enum, not a
+     * default: arm. */
+    CR_CAS_RENDER_TEMPLATE, CR_CAS_UTF8_ENCODE, CR_CAS_SHA256_BYTES,
+    CR_CAS_STR_CONCAT, CR_CAS_BYTE_SLICE, CR_CAS_INT_PARSE_LE,
+    /* wave D (rc452, gh #1653): the encode_loe_content chain's Class-A mint /
+     * Class-C permute / Class-M bind leaves, plus the raw-digest Class-A twin.
+     * Each delegates to ONE step-granular compiled export the Python op itself
+     * composes (srmech_sha256_hex / srmech_mint_vector / srmech_hdc_permute /
+     * srmech_hdc_bind) — there is no fused whole-chain symbol for this chain
+     * to reach for, and the no-coarse source gate derives that population
+     * itself. 34 of the documented 51-case split threshold. */
+    CR_CAS_SHA256_RAW, CR_CAS_MINT_VECTOR, CR_CAS_HDC_PERMUTE, CR_CAS_HDC_BIND,
+    /* wave E (rc452 Phase 2, gh #1653 — the K3 slice): the Class-L boundary
+     * reduction. The only wave whose op had NO C substrate at any granularity
+     * before this rc; see the section comment on cr_op_schur. */
+    CR_CAS_SCHUR,
+    /* wave F (rc452, `#T1166`): the Klein-4 four-sector fan-out — the last
+     * executable chain the C projection could not run. See cr_op_psd. */
+    CR_CAS_PSD
+} cr_cas_op_t;
+
+/* The UNARY BODY a row exposes when it is NAMED as an `@op.<dotted>` body
+ * rather than dispatched as a step (rc452, `#T1166`).
+ *
+ * ⚠️ THIS IS WHY THE BODY IS A COLUMN AND NOT A CALLBACK. JPL Rule 9 bans
+ * function pointers outright, so a higher-order op cannot hold one; instead the
+ * body reference resolves to a CR_OP_REG row and this small-int column says
+ * which unary form — if any — that row has. CR_UN_NONE is the default and the
+ * decline: a row with no unary form makes the whole chain defer to the pure
+ * path, which is executed as a negative control rather than assumed. */
+typedef enum {
+    CR_UN_NONE = 0, CR_UN_CHIRAL_FLIP
+} cr_un_id_t;
+
+/* Which fold body a row provides. CR_BIN_NONE = the op cannot fold.
+ * F64_ADD / VEC_ADD (rc452 Phase 3) are the Σ accumulators of the kuramoto
+ * and hypercomplex-DFT map chains — fold-body-ONLY rows, like ORIENT. */
+typedef enum {
+    CR_BIN_NONE = 0, CR_BIN_GCD, CR_BIN_ORIENT, CR_BIN_F64_ADD, CR_BIN_VEC_ADD
+} cr_bin_id_t;
+
+/* ⚠️ THE `autocorrelation` OP, NOT THE `autocorrelation` CHAIN. This arm backs
+ * a step whose op IS srmech.cascade.autocorrelation — the shipped leaf. The
+ * CHAIN of the same name is a different object: its steps are seq_len /
+ * correlation_product / compensated_sum and NONE of them names this op, so
+ * running that chain cannot reach this symbol and no coarse bypass exists
+ * between them structurally. */
+static srmech_status_t cr_a_autocorrelation(cr_ctx_t *c, const srmech_json_value_t *a,
+                                            cr_value_t **o)
 {
-    assert(c != NULL && op != NULL);
-    assert(args != NULL && out != NULL);
-    if (cr_op_is(op, opl, "pin_slot_at_zero", 16u)) {
-        return cr_op_pin_slot(c, args, out);
-    }
-    if (cr_op_is(op, opl, "reorient", 8u)) {
-        return cr_op_reorient(c, args, out);
-    }
-    if (cr_op_is(op, opl, "chiral_flip", 11u)) {
-        return cr_op_dseq(c, args, "seq", srmech_cascade_chiral_flip_f64, out);
-    }
-    if (cr_op_is(op, opl, "autocorrelation", 15u)) {
-        return cr_op_dseq(c, args, "x", srmech_autocorrelation_f64, out);
-    }
-    /* rc451 (`#T1164`): the four best_rational_signed step ops. They live HERE
-     * and not in cr_dispatch because that function is measured at 57 of JPL
-     * Rule 4's 60 lines — four more arms there is an immediate violation. */
-    if (cr_op_is(op, opl, "dead_band", 9u)) {
-        return cr_op_dead_band(c, args, out);
-    }
-    if (cr_op_is(op, opl, "scale_round_half_even", 21u)) {
-        return cr_op_scale_round(c, args, out);
-    }
-    if (cr_op_is(op, opl, "best_rational", 13u)) {
-        return cr_op_best_rational(c, args, out);
-    }
-    if (cr_op_is(op, opl, "pair", 4u)) {
-        return cr_op_pair(c, args, out);
-    }
-    return SRMECH_ERR_NOT_IMPL;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    return cr_op_dseq(c, a, "x", CR_DSEQ_AUTOCORR, o);
 }
 
+/* ---- fold bodies: two positional carriers ---- */
+
+/* orientation_compose(acc, elem) — Class K absorbing zero, else Class C
+ * reorient. Lifted verbatim out of the rc446 private cr_fold_body. */
+static srmech_status_t cr_b_orient_compose(cr_bump_t *b, const cr_value_t *acc,
+                                           const cr_value_t *elem, cr_value_t **out)
+{
+    int64_t a, e, r; srmech_status_t st;
+    assert(b != NULL && out != NULL);
+    assert(acc != NULL && elem != NULL);
+    if (!cr_as_i64(acc, &a) || !cr_as_i64(elem, &e)) { return SRMECH_ERR_NOT_IMPL; }
+    if (e < -128 || e > 127) { return SRMECH_ERR_NOT_IMPL; }
+    if (e == 0) {                        /* the ABSORBING zero — Class K     */
+        *out = cr_int_i64(b, 0);
+        return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    }
+    st = srmech_cascade_reorient_i64((int8_t)e, a, &r);   /* Class C         */
+    if (st != SRMECH_OK) { return st; }
+    *out = cr_int_i64(b, r);
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* ---- Class-B / L / M leaf atoms (rc452 wave A: the autocorrelation chain) ----
+ *
+ * ⚠️ THESE ARE THE CHAIN'S STEPS, NOT THE FUSED KERNEL. `srmech_autocorrelation_f64`
+ * exists and computes the whole transform, and the `autocorrelation` OP row above
+ * dispatches it. The autocorrelation CHAIN is a different object: its steps are
+ * seq_len / mod_add / correlation_product / compensated_sum and NONE of them names
+ * the fused symbol, so running the chain cannot reach it. Dispatching the kernel
+ * for the chain would move the ceiling with one arm while the descriptor's steps
+ * drove nothing — and no value-level gate could tell, since the two agree. */
+
+/* Read one element of a CR_LIST as a double. A CR_INT widens (a JSON `1` and
+ * `1.0` name the same operand); anything else declines. */
+static int cr_elem_dbl(const cr_value_t *v, uint32_t i, double *out)
+{
+    const cr_value_t *e; int64_t iv;
+    assert(v != NULL && out != NULL);
+    assert(i < 0x7fffffffu);
+    if (v->kind != CR_LIST || i >= v->n || v->items == NULL) { return 0; }
+    e = v->items[i];
+    if (e == NULL) { return 0; }
+    if (e->kind == CR_DBL) { *out = e->d; return 1; }
+    if (e->kind == CR_INT && cr_as_i64(e, &iv)) { *out = (double)iv; return 1; }
+    return 0;
+}
+
+/* seq_len(seq) -> int. Class B: the L in TLV, the frame's element count. */
+static srmech_status_t cr_a_seq_len(cr_ctx_t *c, const srmech_json_value_t *a,
+                                    cr_value_t **o)
+{
+    cr_value_t *v;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    v = cr_arg(c, a, "seq");
+    if (v == NULL || v->kind != CR_LIST) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_int_i64(c->b, (int64_t)v->n);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* correlation_product(x, i, j) -> float(x[i]) * float(x[j]). Class L. */
+static srmech_status_t cr_a_corr_product(cr_ctx_t *c, const srmech_json_value_t *a,
+                                         cr_value_t **o)
+{
+    cr_value_t *x = cr_arg(c, a, "x");
+    cr_value_t *vi = cr_arg(c, a, "i"), *vj = cr_arg(c, a, "j");
+    int64_t i, j; double xi, xj;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    if (x == NULL || vi == NULL || vj == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_as_i64(vi, &i) || !cr_as_i64(vj, &j)) { return SRMECH_ERR_NOT_IMPL; }
+    if (i < 0 || j < 0) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_elem_dbl(x, (uint32_t)i, &xi) ||
+        !cr_elem_dbl(x, (uint32_t)j, &xj)) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_dbl(c->b, xi * xj);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* compensated_sum(values) -> Kahan-Babuska-NEUMAIER compensated summation.
+ *
+ * Transcribed operation-for-operation from composites.py, because the Python
+ * op's docstring pins its float-op ORDER as the contract ("shipped as one leaf
+ * so the float-op order stays pinned to this exact body"). A mathematically
+ * equivalent reassociation would be a different answer in the last bits, and
+ * the shipped comparator is BYTE-typed.
+ *
+ * ⚠️ THE LARGER TERM IS SELECTED BY A SQUARE COMPARISON (`s*s >= v*v`), NOT BY
+ * abs(). That is the Class-K honest form the Python body uses and the house
+ * rule requires; writing `fabs` here would also pull in libm, which this
+ * library does not link. */
+static srmech_status_t cr_a_compensated_sum(cr_ctx_t *c, const srmech_json_value_t *a,
+                                            cr_value_t **o)
+{
+    cr_value_t *vs; double s = 0.0, cc = 0.0, v, t; uint32_t i;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    vs = cr_arg(c, a, "values");
+    if (vs == NULL || vs->kind != CR_LIST) { return SRMECH_ERR_NOT_IMPL; }
+    for (i = 0u; i < vs->n; i++) {
+        if (!cr_elem_dbl(vs, i, &v)) { return SRMECH_ERR_NOT_IMPL; }
+        t = s + v;
+        if (s * s >= v * v) { cc += (s - t) + v; }
+        else                { cc += (v - t) + s; }
+        s = t;
+    }
+    *o = cr_dbl(c->b, s + cc);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* gcd(acc, elem) as a fold body — the op the ratchet's form probe folds. */
+static srmech_status_t cr_b_gcd(cr_bump_t *b, const cr_value_t *acc,
+                                const cr_value_t *elem, cr_value_t **out)
+{
+    uint64_t a, e, t;
+    assert(b != NULL && out != NULL);
+    assert(acc != NULL && elem != NULL);
+    if (!cr_as_u64(acc, &a) || !cr_as_u64(elem, &e)) { return SRMECH_ERR_NOT_IMPL; }
+    while (e != 0u) { t = a % e; a = e; e = t; }
+    *out = cr_int_u64(b, a);
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * EXACT-DYADIC MACHINERY (v0.9.0rc452 Phase 3, `#T1166`) — the kuramoto
+ * chains' middle is EXACT-ℚ in Python: `kuramoto_sin_term` returns the Q61
+ * rational Q(v, 2^61) (srmech.math.rational.sin — never libm), the fold
+ * accumulates it exactly (float + Q promotes the float via as_integer_ratio),
+ * and ONE `float(...)` collapse happens in the Euler-combine op. Every
+ * denominator on that path is a power of two, so the collapse is a
+ * correctly-rounded DYADIC→double conversion (CPython int/int truediv,
+ * round-half-even) — implemented here on the bigint carrier. A non-dyadic
+ * denominator or an out-of-envelope exponent DECLINES to pure, never rounds
+ * wrongly.
+ * ------------------------------------------------------------------ */
+
+/* IEEE-754 2^e as a double, e in [-1022, 1023] (normal range only). */
+static double cr_pow2(int e)
+{
+    uint64_t bits; double out;
+    assert(e >= -1022);
+    assert(e <= 1023);
+    bits = ((uint64_t)(e + 1023)) << 52;
+    memcpy(&out, &bits, sizeof(out));
+    return out;
+}
+
+/* A fresh bigint holding mag * 2^shift (mag as uint64). NULL on overflow. */
+static srmech_bigint_t *cr_bi_u64_shl(cr_bump_t *b, uint64_t mag, uint32_t shift)
+{
+    srmech_bigint_t *bi; uint32_t w = shift / 32u, s = shift % 32u, i, n;
+    assert(b != NULL);
+    assert(shift <= 4096u);
+    bi = cr_new_bigint(b, w + 4u);
+    if (bi == NULL) { return NULL; }
+    for (i = 0u; i < w + 3u; i++) { bi->limbs[i] = 0u; }
+    bi->limbs[w] = (uint32_t)((mag << s) & 0xFFFFFFFFu);
+    bi->limbs[w + 1u] = (uint32_t)((s == 0u) ? (mag >> 32)
+                                  : ((mag >> (32u - s)) & 0xFFFFFFFFu));
+    bi->limbs[w + 2u] = (uint32_t)((s == 0u) ? 0u : (mag >> (64u - s)));
+    n = w + 3u;
+    while (n > 0u && bi->limbs[n - 1u] == 0u) { n--; }
+    bi->n = n; bi->sign = (n == 0u) ? 0 : 1;
+    return bi;
+}
+
+/* float.as_integer_ratio: the EXACT reduced (num, den) of a finite double.
+ * 0 on a non-finite x (no rational exists — the caller declines). */
+static int cr_q_of_dbl(cr_bump_t *b, double x,
+                       srmech_bigint_t **num, srmech_bigint_t **den)
+{
+    uint64_t bits, mant; int e, raw, neg;
+    assert(b != NULL);
+    assert(num != NULL && den != NULL);
+    memcpy(&bits, &x, sizeof(bits));
+    raw = (int)((bits >> 52) & 0x7FFu);
+    neg = (bits >> 63) != 0u;
+    if (raw == 0x7FF) { return 0; }              /* nan / inf — no rational */
+    mant = bits & ((UINT64_C(1) << 52) - 1u);
+    if (raw == 0) { e = -1074; } else { mant |= (UINT64_C(1) << 52); e = raw - 1075; }
+    if (mant == 0u) {                            /* ±0.0 -> (0, 1) */
+        *num = cr_bi_u64_shl(b, 0u, 0u); *den = cr_bi_u64_shl(b, 1u, 0u);
+        return (*num != NULL && *den != NULL);
+    }
+    while ((mant & 1u) == 0u && e < 0) { mant >>= 1; e++; }
+    if (e >= 0) {
+        *num = cr_bi_u64_shl(b, mant, (uint32_t)e);
+        *den = cr_bi_u64_shl(b, 1u, 0u);
+    } else {
+        *num = cr_bi_u64_shl(b, mant, 0u);
+        *den = cr_bi_u64_shl(b, 1u, (uint32_t)(-e));
+    }
+    if (*num == NULL || *den == NULL) { return 0; }
+    if (neg) { (*num)->sign = -(*num)->sign; }
+    return 1;
+}
+
+/* Bit `i` of a bigint's magnitude (0 past the top). */
+static int cr_bi_bit(const srmech_bigint_t *m, uint32_t i)
+{
+    assert(m != NULL);
+    assert(m->cap >= m->n);
+    if ((i / 32u) >= m->n) { return 0; }
+    return (int)((m->limbs[i / 32u] >> (i % 32u)) & 1u);
+}
+
+/* den == 2^k exactly? Yes -> *k_out; else 0 (the caller declines). */
+static int cr_bi_pow2_log(const srmech_bigint_t *den, uint32_t *k_out)
+{
+    uint32_t i, t = 0u, top;
+    assert(den != NULL);
+    assert(k_out != NULL);
+    if (den->sign <= 0 || den->n == 0u) { return 0; }
+    for (i = 0u; i + 1u < den->n; i++) {
+        if (den->limbs[i] != 0u) { return 0; }
+    }
+    top = den->limbs[den->n - 1u];
+    if (top == 0u || (top & (top - 1u)) != 0u) { return 0; }
+    while (((top >> t) & 1u) == 0u) { t++; }
+    *k_out = (den->n - 1u) * 32u + t;
+    return 1;
+}
+
+/* Correctly-rounded (round-half-even) double of num / 2^k — CPython's
+ * int.__truediv__ on the dyadic domain. 0 -> decline (non-dyadic den or an
+ * exponent outside the guarded normal envelope). */
+static int cr_q_dyadic_dbl(const srmech_bigint_t *num,
+                           const srmech_bigint_t *den, double *out)
+{
+    uint32_t k = 0u, L, i; uint64_t keep = 0u; int sticky = 0, e2;
+    double d;
+    assert(num != NULL && den != NULL);
+    assert(out != NULL);
+    if (!cr_bi_pow2_log(den, &k)) { return 0; }
+    if (num->n == 0u) { *out = 0.0; return 1; }
+    L = (num->n - 1u) * 32u + 32u;
+    while (L > 0u && cr_bi_bit(num, L - 1u) == 0) { L--; }
+    if (L <= 53u) {
+        d = 0.0;
+        for (i = num->n; i-- > 0u; ) { d = d * 4294967296.0 + (double)num->limbs[i]; }
+        e2 = -(int)k;
+    } else {
+        uint32_t shift = L - 54u; uint64_t top54 = 0u; int guard;
+        for (i = 0u; i < 54u; i++) {
+            top54 |= ((uint64_t)cr_bi_bit(num, shift + i)) << i;
+        }
+        for (i = 0u; i < shift && !sticky; i++) {
+            if (cr_bi_bit(num, i)) { sticky = 1; }
+        }
+        guard = (int)(top54 & 1u);
+        keep = top54 >> 1;
+        if (guard && (sticky || (keep & 1u))) { keep++; }
+        e2 = (int)shift + 1 - (int)k;
+        if (keep == (UINT64_C(1) << 53)) { keep >>= 1; e2++; }
+        d = (double)keep;                        /* <= 2^53: exact */
+    }
+    if (e2 < -960 || e2 > 960) { return 0; }     /* stay well inside normal */
+    d = d * cr_pow2(e2);                         /* pow-of-two scale: exact */
+    *out = (num->sign < 0) ? -d : d;
+    return 1;
+}
+
+/* One exact rational binop into FRESH arena carriers (reduced, den > 0). */
+static srmech_status_t cr_q_apply(cr_bump_t *b, char op,
+                                  const srmech_bigint_t *an, const srmech_bigint_t *ad,
+                                  const srmech_bigint_t *bn, const srmech_bigint_t *bd,
+                                  srmech_bigint_t **on, srmech_bigint_t **od)
+{
+    cr_qctx_t q; uint32_t lim, cap;
+    assert(b != NULL && on != NULL && od != NULL);
+    assert(an != NULL && ad != NULL && bn != NULL && bd != NULL);
+    lim = an->n + ad->n + bn->n + bd->n + 4u;
+    cap = lim * 2u + 8u;
+    *on = cr_new_bigint(b, cap); *od = cr_new_bigint(b, cap);
+    if (*on == NULL || *od == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (!cr_qctx_init(b, &q, lim)) { return SRMECH_ERR_OVERFLOW; }
+    return cr_q_binop(&q, op, an, ad, bn, bd, *on, *od);
+}
+
+/* The Q61 rational Q(v, 2^61), REDUCED — what srmech.math.rational.sin
+ * returns (Q.__init__ reduces; on a power-of-two denominator the whole gcd
+ * is the shared factor of two, i.e. v's trailing zeros capped at 61). */
+static cr_value_t *cr_q61_rat(cr_bump_t *b, int64_t v)
+{
+    cr_value_t *ov; uint64_t mag; uint32_t t = 0u;
+    assert(b != NULL);
+    assert(b->cur <= b->end);
+    ov = cr_new_value(b, CR_RATIONAL);
+    if (ov == NULL) { return NULL; }
+    if (v == 0) {
+        ov->num = cr_bi_u64_shl(b, 0u, 0u); ov->den = cr_bi_u64_shl(b, 1u, 0u);
+        return (ov->num != NULL && ov->den != NULL) ? ov : NULL;
+    }
+    mag = (v < 0) ? (uint64_t)(-v) : (uint64_t)v;   /* Class-K pin read */
+    while (((mag >> t) & 1u) == 0u && t < 61u) { t++; }
+    ov->num = cr_bi_u64_shl(b, mag >> t, 0u);
+    ov->den = cr_bi_u64_shl(b, 1u, 61u - t);
+    if (ov->num == NULL || ov->den == NULL) { return NULL; }
+    if (v < 0) { ov->num->sign = -1; }              /* Class-C re-application */
+    return ov;
+}
+
+/* ------------------------------------------------------------------
+ * THE KURAMOTO STEP OPS (rc452 Phase 3) — the five per-term atoms of
+ * kuramoto_step.toml's two chains, at STEP granularity. The fused
+ * srmech_cascade_kuramoto_step_f64 / _general_f64 symbols exist and are
+ * deliberately NOT referenced from this TU: a chain that runs because one
+ * coarse symbol recognised its shape is the bypass the step-mutation
+ * witness exists to refuse. The sin is srmech_sin_q61 — the SAME Q61
+ * cascade srmech.math.rational.sin projects (byte-exact pure mirror), so
+ * the chain's exact-ℚ middle is reproduced, not approximated.
+ * ------------------------------------------------------------------ */
+
+/* One list element as a double, i64-indexed with bounds. 1 on success. */
+static int cr_list_at_dbl(const cr_value_t *lst, int64_t i, double *out)
+{
+    assert(out != NULL);
+    assert(i >= INT64_MIN);
+    if (lst == NULL || lst->kind != CR_LIST) { return 0; }
+    if (i < 0 || (uint64_t)i >= (uint64_t)lst->n) { return 0; }
+    return cr_elem_dbl(lst, (uint32_t)i, out);
+}
+
+/* kuramoto_inv_n(coupling, n): the mean-field scale K/n (0.0 when n == 0). */
+static srmech_status_t cr_op_kur_inv_n(cr_ctx_t *c, const srmech_json_value_t *a,
+                                       cr_value_t **o)
+{
+    double coupling = 0.0; int64_t n = 0; cr_value_t *nv;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    if (!cr_arg_dbl(c, a, "coupling", &coupling)) { return SRMECH_ERR_NOT_IMPL; }
+    nv = cr_arg(c, a, "n");
+    if (nv == NULL || !cr_as_i64(nv, &n) || n < 0) { return SRMECH_ERR_NOT_IMPL; }
+    if (n > (INT64_C(1) << 53)) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_dbl(c->b, (n > 0) ? (coupling / (double)n) : 0.0);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* kuramoto_sin_term(theta, i, j) -> the EXACT Q61 rational sin(θj − θi). */
+static srmech_status_t cr_op_kur_sin_term(cr_ctx_t *c, const srmech_json_value_t *a,
+                                          cr_value_t **o)
+{
+    cr_value_t *th, *vi, *vj; int64_t i, j; double xi, xj, s; int64_t q61 = 0;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    th = cr_arg(c, a, "theta"); vi = cr_arg(c, a, "i"); vj = cr_arg(c, a, "j");
+    if (th == NULL || vi == NULL || vj == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_as_i64(vi, &i) || !cr_as_i64(vj, &j)) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_list_at_dbl(th, i, &xi) || !cr_list_at_dbl(th, j, &xj)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    s = xj - xi;
+    if (srmech_sin_q61(s, &q61) != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_q61_rat(c->b, q61);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* w * Q — the float coefficient promoted exactly, the product reduced (the
+ * Q.__rmul__ path both kuramoto term/combine ops ride). */
+static srmech_status_t cr_q_scale(cr_bump_t *b, double w, const cr_value_t *q,
+                                  srmech_bigint_t **on, srmech_bigint_t **od)
+{
+    srmech_bigint_t *wn, *wd;
+    assert(b != NULL && q != NULL);
+    assert(on != NULL && od != NULL);
+    if (!cr_q_of_dbl(b, w, &wn, &wd)) { return SRMECH_ERR_NOT_IMPL; }
+    return cr_q_apply(b, '*', wn, wd, q->num, q->den, on, od);
+}
+
+/* kuramoto_gen_term(theta, adjacency, coupling, inv_n, alpha, i, j) ->
+ * the EXACT rational w·sin(θj − θi − α); w = K·A[i][j], or inv_n when the
+ * adjacency is None (the mean-field row). */
+static srmech_status_t cr_op_kur_gen_term(cr_ctx_t *c, const srmech_json_value_t *a,
+                                          cr_value_t **o)
+{
+    cr_value_t *th, *adj, *vi, *vj, *qs, *ov;
+    double kc = 0.0, inv_n = 0.0, alpha = 0.0, xi, xj, w; int64_t i, j, q61 = 0;
+    srmech_status_t st;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    th = cr_arg(c, a, "theta"); adj = cr_arg(c, a, "adjacency");
+    vi = cr_arg(c, a, "i"); vj = cr_arg(c, a, "j");
+    if (th == NULL || adj == NULL || vi == NULL || vj == NULL) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!cr_arg_dbl(c, a, "coupling", &kc) || !cr_arg_dbl(c, a, "inv_n", &inv_n) ||
+        !cr_arg_dbl(c, a, "alpha", &alpha)) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_as_i64(vi, &i) || !cr_as_i64(vj, &j)) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_list_at_dbl(th, i, &xi) || !cr_list_at_dbl(th, j, &xj)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (adj->kind == CR_NONE) { w = inv_n; }
+    else {
+        double aij;
+        if (adj->kind != CR_LIST || i < 0 || (uint64_t)i >= (uint64_t)adj->n ||
+            !cr_list_at_dbl(adj->items[i], j, &aij)) { return SRMECH_ERR_NOT_IMPL; }
+        w = kc * aij;
+    }
+    if (srmech_sin_q61((xj - xi) - alpha, &q61) != SRMECH_OK) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    qs = cr_q61_rat(c->b, q61);
+    ov = cr_new_value(c->b, CR_RATIONAL);
+    if (qs == NULL || ov == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = cr_q_scale(c->b, w, qs, &ov->num, &ov->den);
+    if (st != SRMECH_OK) { return st; }
+    *o = ov;
+    return SRMECH_OK;
+}
+
+/* float(theta_i + dt·(om + coef·s)) with s an EXACT rational — the shared
+ * exact tail of both Euler-combine ops. Every op reduces, then ONE dyadic
+ * collapse (the chain's single float() boundary). */
+static srmech_status_t cr_kur_combine_q(cr_bump_t *b, double theta_i, double om,
+                                        double coef, double dt,
+                                        const srmech_bigint_t *sn,
+                                        const srmech_bigint_t *sd, cr_value_t **o)
+{
+    srmech_bigint_t *pn, *pd, *fn, *fd, *gn, *gd, *hn, *hd, *xn, *xd;
+    double r = 0.0; srmech_status_t st;
+    assert(b != NULL && o != NULL);
+    assert(sn != NULL && sd != NULL);
+    if (!cr_q_of_dbl(b, coef, &xn, &xd)) { return SRMECH_ERR_NOT_IMPL; }
+    st = cr_q_apply(b, '*', xn, xd, sn, sd, &pn, &pd);       /* coef * s   */
+    if (st != SRMECH_OK) { return st; }
+    if (!cr_q_of_dbl(b, om, &xn, &xd)) { return SRMECH_ERR_NOT_IMPL; }
+    st = cr_q_apply(b, '+', xn, xd, pn, pd, &fn, &fd);       /* om + .     */
+    if (st != SRMECH_OK) { return st; }
+    if (!cr_q_of_dbl(b, dt, &xn, &xd)) { return SRMECH_ERR_NOT_IMPL; }
+    st = cr_q_apply(b, '*', xn, xd, fn, fd, &gn, &gd);       /* dt * .     */
+    if (st != SRMECH_OK) { return st; }
+    if (!cr_q_of_dbl(b, theta_i, &xn, &xd)) { return SRMECH_ERR_NOT_IMPL; }
+    st = cr_q_apply(b, '+', xn, xd, gn, gd, &hn, &hd);       /* theta_i + .*/
+    if (st != SRMECH_OK) { return st; }
+    if (!cr_q_dyadic_dbl(hn, hd, &r)) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_dbl(b, r);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* kuramoto_out_simple(theta, omega, i, s, inv_n, dt). */
+static srmech_status_t cr_op_kur_out_simple(cr_ctx_t *c, const srmech_json_value_t *a,
+                                            cr_value_t **o)
+{
+    cr_value_t *th, *om, *vi, *sv; int64_t i;
+    double theta_i, om_i, inv_n = 0.0, dt = 0.0, s_d;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    th = cr_arg(c, a, "theta"); om = cr_arg(c, a, "omega");
+    vi = cr_arg(c, a, "i"); sv = cr_arg(c, a, "s");
+    if (th == NULL || om == NULL || vi == NULL || sv == NULL) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!cr_arg_dbl(c, a, "inv_n", &inv_n) || !cr_arg_dbl(c, a, "dt", &dt)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!cr_as_i64(vi, &i)) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_list_at_dbl(th, i, &theta_i) || !cr_list_at_dbl(om, i, &om_i)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (sv->kind == CR_RATIONAL && sv->num != NULL && sv->den != NULL) {
+        return cr_kur_combine_q(c->b, theta_i, om_i, inv_n, dt,
+                                sv->num, sv->den, o);
+    }
+    /* a float (or int) s: Python's whole expression stays in float ops */
+    if (sv->kind == CR_DBL) { s_d = sv->d; }
+    else {
+        int64_t s_i;
+        if (!cr_as_i64(sv, &s_i)) { return SRMECH_ERR_NOT_IMPL; }
+        if (s_i > (INT64_C(1) << 53) || s_i < -(INT64_C(1) << 53)) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        s_d = (double)s_i;
+    }
+    *o = cr_dbl(c->b, theta_i + dt * (om_i + inv_n * s_d));
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* kuramoto_gen_out(theta, omega, i, s, psi, ps, dt) — the general-path
+ * combine: f = om + s [+ pᵢ·sin(ψᵢ − θᵢ)]; θᵢ + dt·f; one float() collapse. */
+static srmech_status_t cr_op_kur_gen_out(cr_ctx_t *c, const srmech_json_value_t *a,
+                                         cr_value_t **o)
+{
+    cr_value_t *th, *om, *vi, *sv, *psi, *ps, *qterm; int64_t i, q61 = 0;
+    double theta_i, om_i, dt = 0.0, p_i;
+    srmech_bigint_t *fn, *fd, *tn, *td, *xn, *xd; srmech_status_t st;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    th = cr_arg(c, a, "theta"); om = cr_arg(c, a, "omega");
+    vi = cr_arg(c, a, "i"); sv = cr_arg(c, a, "s");
+    psi = cr_arg(c, a, "psi"); ps = cr_arg(c, a, "ps");
+    if (th == NULL || om == NULL || vi == NULL || sv == NULL || psi == NULL ||
+        ps == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_arg_dbl(c, a, "dt", &dt) || !cr_as_i64(vi, &i)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!cr_list_at_dbl(th, i, &theta_i) || !cr_list_at_dbl(om, i, &om_i)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (sv->kind != CR_RATIONAL || sv->num == NULL || sv->den == NULL) {
+        return SRMECH_ERR_NOT_IMPL;      /* s is the fold's exact-ℚ output */
+    }
+    if (!cr_q_of_dbl(c->b, om_i, &xn, &xd)) { return SRMECH_ERR_NOT_IMPL; }
+    st = cr_q_apply(c->b, '+', xn, xd, sv->num, sv->den, &fn, &fd);
+    if (st != SRMECH_OK) { return st; }
+    if (psi->kind != CR_NONE) {                      /* the pinning branch */
+        double psi_i;
+        if (ps->kind == CR_LIST) {
+            if (!cr_list_at_dbl(ps, i, &p_i)) { return SRMECH_ERR_NOT_IMPL; }
+        } else if (!cr_arg_dbl(c, a, "ps", &p_i)) { return SRMECH_ERR_NOT_IMPL; }
+        if (!cr_list_at_dbl(psi, i, &psi_i)) { return SRMECH_ERR_NOT_IMPL; }
+        if (srmech_sin_q61(psi_i - theta_i, &q61) != SRMECH_OK) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        qterm = cr_q61_rat(c->b, q61);
+        if (qterm == NULL) { return SRMECH_ERR_OVERFLOW; }
+        st = cr_q_scale(c->b, p_i, qterm, &tn, &td);     /* p_i * sin(...) */
+        if (st != SRMECH_OK) { return st; }
+        st = cr_q_apply(c->b, '+', fn, fd, tn, td, &xn, &xd);
+        if (st != SRMECH_OK) { return st; }
+        fn = xn; fd = xd;
+    }
+    /* theta_i + dt * f, exactly, with coef 1.0 folding the dt in: */
+    return cr_kur_combine_q(c->b, theta_i, 0.0, dt, 1.0, fn, fd, o);
+}
+
+/* ------------------------------------------------------------------
+ * THE HYPERCOMPLEX-DFT STEP OPS (rc452 Phase 3) — the per-(k, m) atoms of
+ * quaternion_dft.toml / octonion_dft.toml. Each summand delegates to the
+ * STEP-granular exports the Python op itself composes
+ * (srmech_quaternion_twiddle + srmech_quaternion_{left,right}_mult;
+ * srmech_octonion_twiddle + srmech_loop_{left,right}_op_f64) — the
+ * best_rational precedent. The fused whole-transform symbols
+ * (srmech_quaternion_dft / srmech_octonion_dft) are NOT referenced here:
+ * they are the coarse bypass the step-mutation witness refuses.
+ * ------------------------------------------------------------------ */
+
+/* CR_STR equality against a C literal. */
+static int cr_str_is(const cr_value_t *v, const char *want)
+{
+    size_t n;
+    assert(want != NULL);
+    assert(want[0] != '\0');
+    if (v == NULL || v->kind != CR_STR || v->s == NULL) { return 0; }
+    n = strlen(want);
+    return v->slen == (uint32_t)n && memcmp(v->s, want, n) == 0;
+}
+
+/* as_quat4(v): coerce one QDFT sample to 4 doubles (8-vec tail must be 0). */
+static srmech_status_t cr_op_as_quat4(cr_ctx_t *c, const srmech_json_value_t *a,
+                                      cr_value_t **o)
+{
+    cr_value_t *v; double buf[8]; size_t n = 0u, i; double *dv;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    v = cr_arg(c, a, "v");
+    if (v == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    dv = cr_as_dvec(c->b, v, &n);
+    if (dv == NULL || (n != 4u && n != 8u)) { return SRMECH_ERR_NOT_IMPL; }
+    for (i = 0u; i < n; i++) { buf[i] = dv[i]; }
+    if (n == 8u) {
+        for (i = 4u; i < 8u; i++) {
+            if (buf[i] != 0.0) { return SRMECH_ERR_NOT_IMPL; }   /* -> pure raise */
+        }
+    }
+    *o = cr_dvec_value(c->b, buf, 4u);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* as_oct8(vec): zero-extend a quaternion into ℍ ⊂ 𝕆, pass an octonion through. */
+static srmech_status_t cr_op_as_oct8(cr_ctx_t *c, const srmech_json_value_t *a,
+                                     cr_value_t **o)
+{
+    cr_value_t *v; double buf[8]; size_t n = 0u, i; double *dv;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    v = cr_arg(c, a, "vec");
+    if (v == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    dv = cr_as_dvec(c->b, v, &n);
+    if (dv == NULL || (n != 4u && n != 8u)) { return SRMECH_ERR_NOT_IMPL; }
+    for (i = 0u; i < 8u; i++) { buf[i] = (i < n) ? dv[i] : 0.0; }
+    *o = cr_dvec_value(c->b, buf, 8u);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* 1/float(√x) via the SAME Q61 cascade srmech.math.rational.sqrt projects:
+ * √x = root·2^p exactly (srmech_sqrt_q61), float() of that exact rational
+ * (dyadic — correctly rounded), then one IEEE divide. 0 -> decline. */
+static int cr_inv_sqrt(cr_bump_t *b, double x, double *out)
+{
+    int64_t root = 0, p = 0; srmech_bigint_t *num, *den; double f = 0.0;
+    assert(b != NULL);
+    assert(out != NULL);
+    if (srmech_sqrt_q61(x, &root, &p) != SRMECH_OK || root <= 0) { return 0; }
+    if (p >= 0) {
+        if (p > 2048) { return 0; }
+        num = cr_bi_u64_shl(b, (uint64_t)root, (uint32_t)p);
+        den = cr_bi_u64_shl(b, 1u, 0u);
+    } else {
+        if (p < -2048) { return 0; }
+        num = cr_bi_u64_shl(b, (uint64_t)root, 0u);
+        den = cr_bi_u64_shl(b, 1u, (uint32_t)(-p));
+    }
+    if (num == NULL || den == NULL) { return 0; }
+    if (!cr_q_dyadic_dbl(num, den, &f) || f == 0.0) { return 0; }
+    *out = 1.0 / f;
+    return 1;
+}
+
+/* qdft_resolve_mu(mu_axis): the NAMED unit axes ('i'/'j'/'k'/'ijk'; for ℍ
+ * 'diagonal' IS 'ijk'). A general vector axis declines to pure (its
+ * normalisation walks the Class-N sqrt over an arbitrary radicand). */
+static srmech_status_t cr_op_qdft_resolve_mu(cr_ctx_t *c, const srmech_json_value_t *a,
+                                             cr_value_t **o)
+{
+    cr_value_t *ax; double mu[4] = {0.0, 0.0, 0.0, 0.0}; double s3 = 0.0;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    ax = cr_arg(c, a, "mu_axis");
+    if (ax == NULL || ax->kind != CR_STR) { return SRMECH_ERR_NOT_IMPL; }
+    if (cr_str_is(ax, "i"))      { mu[1] = 1.0; }
+    else if (cr_str_is(ax, "j")) { mu[2] = 1.0; }
+    else if (cr_str_is(ax, "k")) { mu[3] = 1.0; }
+    else if (cr_str_is(ax, "ijk") || cr_str_is(ax, "diagonal")) {
+        if (!cr_inv_sqrt(c->b, 3.0, &s3)) { return SRMECH_ERR_NOT_IMPL; }
+        mu[1] = s3; mu[2] = s3; mu[3] = s3;
+    }
+    else { return SRMECH_ERR_NOT_IMPL; }         /* unknown -> pure raises */
+    *o = cr_dvec_value(c->b, mu, 4u);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* odft_resolve_mu(mu_axis): the NAMED octonion axes ('i'/'j'/'k' alias
+ * 'e1'..'e3', 'e4'..'e7', 'ijk', 'diagonal'). General vectors decline. */
+static srmech_status_t cr_op_odft_resolve_mu(cr_ctx_t *c, const srmech_json_value_t *a,
+                                             cr_value_t **o)
+{
+    cr_value_t *ax; double mu[8] = {0.0}; double s = 0.0; uint32_t i;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    ax = cr_arg(c, a, "mu_axis");
+    if (ax == NULL || ax->kind != CR_STR) { return SRMECH_ERR_NOT_IMPL; }
+    if (cr_str_is(ax, "i") || cr_str_is(ax, "e1"))      { mu[1] = 1.0; }
+    else if (cr_str_is(ax, "j") || cr_str_is(ax, "e2")) { mu[2] = 1.0; }
+    else if (cr_str_is(ax, "k") || cr_str_is(ax, "e3")) { mu[3] = 1.0; }
+    else if (cr_str_is(ax, "e4")) { mu[4] = 1.0; }
+    else if (cr_str_is(ax, "e5")) { mu[5] = 1.0; }
+    else if (cr_str_is(ax, "e6")) { mu[6] = 1.0; }
+    else if (cr_str_is(ax, "e7")) { mu[7] = 1.0; }
+    else if (cr_str_is(ax, "ijk")) {
+        if (!cr_inv_sqrt(c->b, 3.0, &s)) { return SRMECH_ERR_NOT_IMPL; }
+        mu[1] = s; mu[2] = s; mu[3] = s;
+    }
+    else if (cr_str_is(ax, "diagonal")) {
+        if (!cr_inv_sqrt(c->b, 7.0, &s)) { return SRMECH_ERR_NOT_IMPL; }
+        for (i = 1u; i < 8u; i++) { mu[i] = s; }
+    }
+    else { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_dvec_value(c->b, mu, 8u);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* dft_sigma(inverse): +1 inverse, −1 forward (the Class-C which-way). */
+static srmech_status_t cr_op_dft_sigma(cr_ctx_t *c, const srmech_json_value_t *a,
+                                       cr_value_t **o)
+{
+    cr_value_t *inv; int64_t v = 0;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    inv = cr_arg(c, a, "inverse");
+    if (inv == NULL || !cr_as_i64(inv, &v)) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_int_i64(c->b, (v != 0) ? 1 : -1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* dft_scale(inverse, n): 1/n on the inverse (n > 0), else 1.0. */
+static srmech_status_t cr_op_dft_scale(cr_ctx_t *c, const srmech_json_value_t *a,
+                                       cr_value_t **o)
+{
+    cr_value_t *inv, *nv; int64_t v = 0, n = 0;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    inv = cr_arg(c, a, "inverse"); nv = cr_arg(c, a, "n");
+    if (inv == NULL || nv == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_as_i64(inv, &v) || !cr_as_i64(nv, &n)) { return SRMECH_ERR_NOT_IMPL; }
+    if (n > (INT64_C(1) << 53)) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_dbl(c->b, (v != 0 && n > 0) ? (1.0 / (double)n) : 1.0);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* Shared summand argument unpack: xs[m] -> x (dim doubles), k/m/n/sigma
+ * validated to the twiddle exports' uint32/±1 wire, mu -> unit dim-vector. */
+static int cr_dft_args(cr_ctx_t *c, const srmech_json_value_t *a, uint32_t dim,
+                       const char *mu_key, double *x, double *mu,
+                       uint32_t *k, uint32_t *m, uint32_t *n, int32_t *sigma)
+{
+    cr_value_t *xs, *vk, *vm, *vn, *vs, *vmu; int64_t ik, im, in_, is;
+    double *dv; size_t nn = 0u; uint32_t i;
+    assert(c != NULL && a != NULL);
+    assert(x != NULL && mu != NULL);
+    xs = cr_arg(c, a, "xs"); vk = cr_arg(c, a, "k"); vm = cr_arg(c, a, "m");
+    vn = cr_arg(c, a, "n"); vs = cr_arg(c, a, "sigma"); vmu = cr_arg(c, a, mu_key);
+    if (xs == NULL || vk == NULL || vm == NULL || vn == NULL || vs == NULL ||
+        vmu == NULL || xs->kind != CR_LIST) { return 0; }
+    if (!cr_as_i64(vk, &ik) || !cr_as_i64(vm, &im) || !cr_as_i64(vn, &in_) ||
+        !cr_as_i64(vs, &is)) { return 0; }
+    if (ik < 0 || im < 0 || in_ < 1 || ik >= INT64_C(0x100000000) ||
+        im >= INT64_C(0x100000000) || in_ >= INT64_C(0x100000000)) { return 0; }
+    if (is != 1 && is != -1) { return 0; }
+    if ((uint64_t)im >= (uint64_t)xs->n) { return 0; }
+    dv = cr_as_dvec(c->b, xs->items[im], &nn);
+    if (dv == NULL || nn != (size_t)dim) { return 0; }
+    for (i = 0u; i < dim; i++) { x[i] = dv[i]; }
+    dv = cr_as_dvec(c->b, vmu, &nn);
+    if (dv == NULL || nn != (size_t)dim) { return 0; }
+    for (i = 0u; i < dim; i++) { mu[i] = dv[i]; }
+    *k = (uint32_t)ik; *m = (uint32_t)im; *n = (uint32_t)in_;
+    *sigma = (int32_t)is;
+    return 1;
+}
+
+/* rows(dim×dim) · v — the row-dot accumulated LEFT-TO-RIGHT in a scalar t:
+ * the exact float-op order of the Python summand ops (parity, not tolerance). */
+static void cr_matvec_lr(const double *rows, const double *v, uint32_t dim,
+                         double *out)
+{
+    uint32_t i, cN;
+    assert(rows != NULL && v != NULL);
+    assert(out != NULL);
+    for (i = 0u; i < dim; i++) {
+        double t = 0.0;
+        for (cN = 0u; cN < dim; cN++) { t += rows[i * dim + cN] * v[cN]; }
+        out[i] = t;
+    }
+}
+
+/* qdft_summand(xs, k, m, n, left, sigma, mu_hat) -> W·x[m] or x[m]·W. */
+static srmech_status_t cr_op_qdft_summand(cr_ctx_t *c, const srmech_json_value_t *a,
+                                          cr_value_t **o)
+{
+    double x[4], mu[4], w[4], rows[16], r[4]; uint32_t k, m, n; int32_t sigma;
+    cr_value_t *vl; int64_t left = 0; srmech_status_t st;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    if (!cr_dft_args(c, a, 4u, "mu_hat", x, mu, &k, &m, &n, &sigma)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    vl = cr_arg(c, a, "left");
+    if (vl == NULL || !cr_as_i64(vl, &left)) { return SRMECH_ERR_NOT_IMPL; }
+    st = srmech_quaternion_twiddle(k, m, n, sigma, mu, 4u, w);
+    if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    st = (left != 0) ? srmech_quaternion_left_mult(w, 4u, rows)
+                     : srmech_quaternion_right_mult(w, 4u, rows);
+    if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    cr_matvec_lr(rows, x, 4u, r);
+    *o = cr_dvec_value(c->b, r, 4u);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* Apply L_q (side != 0) or R_q (side == 0) to `v` in place of `out` — one
+ * octonion operator build + the left-to-right matvec (the shared inner move
+ * of every ODFT summand form). 1 on success. */
+static int cr_oct_apply(const double *q, int side, const double *v, double *out)
+{
+    double rows[64]; srmech_status_t st;
+    assert(q != NULL && v != NULL);
+    assert(out != NULL);
+    st = side ? srmech_loop_left_op_f64(q, 8u, rows)
+              : srmech_loop_right_op_f64(q, 8u, rows);
+    if (st != SRMECH_OK) { return 0; }
+    cr_matvec_lr(rows, v, 8u, out);
+    return 1;
+}
+
+/* odft_summand(xs, k, m, n, form, bracketing, sigma, mu_hat, mu_r_hat) —
+ * the one-sided single product, or the two-sided product in the DECLARED
+ * F378 association order. */
+static srmech_status_t cr_op_odft_summand(cr_ctx_t *c, const srmech_json_value_t *a,
+                                          cr_value_t **o)
+{
+    double x[8], mu[8], mur[8], w[8], t1[8], inner[8], r[8];
+    uint32_t k, m, n; int32_t sigma; cr_value_t *fv, *bv, *vmr;
+    int left_assoc; size_t nn = 0u; double *dv; uint32_t i; srmech_status_t st;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    if (!cr_dft_args(c, a, 8u, "mu_hat", x, mu, &k, &m, &n, &sigma)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    fv = cr_arg(c, a, "form"); bv = cr_arg(c, a, "bracketing");
+    if (fv == NULL || bv == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    st = srmech_octonion_twiddle(k, m, n, sigma, mu, 8u, w);
+    if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    if (cr_str_is(fv, "left")) {
+        if (!cr_oct_apply(w, 1, x, r)) { return SRMECH_ERR_NOT_IMPL; }
+    } else if (cr_str_is(fv, "right")) {
+        if (!cr_oct_apply(w, 0, x, r)) { return SRMECH_ERR_NOT_IMPL; }
+    } else if (cr_str_is(fv, "two_sided")) {
+        left_assoc = cr_str_is(bv, "left_associated");
+        if (!left_assoc && !cr_str_is(bv, "right_associated")) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        vmr = cr_arg(c, a, "mu_r_hat");
+        dv = (vmr == NULL) ? NULL : cr_as_dvec(c->b, vmr, &nn);
+        if (dv == NULL || nn != 8u) { return SRMECH_ERR_NOT_IMPL; }
+        for (i = 0u; i < 8u; i++) { mur[i] = dv[i]; }
+        st = srmech_octonion_twiddle(k, m, n, sigma, mur, 8u, t1);
+        if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+        if (left_assoc) {                          /* (W_l · x) · W_r */
+            if (!cr_oct_apply(w, 1, x, inner) ||
+                !cr_oct_apply(t1, 0, inner, r)) { return SRMECH_ERR_NOT_IMPL; }
+        } else {                                   /* W_l · (x · W_r) */
+            if (!cr_oct_apply(t1, 0, x, inner) ||
+                !cr_oct_apply(w, 1, inner, r)) { return SRMECH_ERR_NOT_IMPL; }
+        }
+    } else { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_dvec_value(c->b, r, 8u);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* seq_get(seq, i): dynamic element access — the degenerate catalog lookup.
+ * The returned carrier ALIASES the element (step outputs are write-once, so
+ * an alias is exact); a negative index declines to pure, which answers
+ * Python's wrap semantics. */
+static srmech_status_t cr_op_seq_get(cr_ctx_t *c, const srmech_json_value_t *a,
+                                     cr_value_t **o)
+{
+    cr_value_t *seq, *vi; int64_t i;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    seq = cr_arg(c, a, "seq"); vi = cr_arg(c, a, "i");
+    if (seq == NULL || vi == NULL || seq->kind != CR_LIST) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!cr_as_i64(vi, &i) || i < 0 || (uint64_t)i >= (uint64_t)seq->n) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (seq->items[i] == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    *o = seq->items[i];
+    return SRMECH_OK;
+}
+
+/* vec_scale(v, s): elementwise v[i] * s (the DFT output scale). */
+static srmech_status_t cr_op_vec_scale(cr_ctx_t *c, const srmech_json_value_t *a,
+                                       cr_value_t **o)
+{
+    cr_value_t *v; double s = 0.0, *dv, *r; size_t n = 0u, i;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    v = cr_arg(c, a, "v");
+    if (v == NULL || !cr_arg_dbl(c, a, "s", &s)) { return SRMECH_ERR_NOT_IMPL; }
+    dv = cr_as_dvec(c->b, v, &n);
+    if (dv == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    r = (double *)cr_carve(c->b, n * sizeof(double) + sizeof(double));
+    if (r == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < n; i++) { r[i] = dv[i] * s; }
+    *o = cr_dvec_value(c->b, r, n);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * THE STRING / BYTES LEAVES (rc452, gh #1653 — wave C: the klein4_from_one
+ * chain's own steps). Classes F / B / A at STEP granularity.
+ *
+ * ⚠️ THE FUSED SYMBOL IS NOT CALLED. `srmech_klein4_from_one` exists and
+ * computes the whole coupling address; the no-coarse source gate
+ * (tests/test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py) derives
+ * it into its pinned population the moment the chain runs, so this TU must
+ * reach the address the way the DESCRIPTOR says: render -> utf8 -> sha256 ->
+ * counter block -> crumb arithmetic, each op its own dispatch arm. The one
+ * compiled symbol these arms share with the fused path is srmech_sha256_hex —
+ * the STEP-granular Class-A export the Python op itself composes.
+ *
+ * str vs bytes: the carrier flag `is_bytes` (see cr_value_t). Each arm below
+ * states which side of that boundary it requires and DECLINES the other —
+ * Python RAISES on the same misuse (bytes has no .encode; hashlib refuses a
+ * str), and co-equal projections must agree on what they refuse.
+ * ------------------------------------------------------------------ */
+
+/* A CR_STR carrier aliasing [s, s+n) (arena or parsed-JSON text — both
+ * outlive the run). `is_bytes` says which side of the boundary it is. */
+static cr_value_t *cr_str_value(cr_bump_t *b, const char *s, uint32_t n,
+                                int is_bytes)
+{
+    cr_value_t *v;
+    assert(b != NULL);
+    assert(s != NULL || n == 0u);
+    v = cr_new_value(b, CR_STR);
+    if (v == NULL) { return NULL; }
+    v->s = s; v->slen = n; v->is_bytes = (is_bytes != 0);
+    return v;
+}
+
+/* utf8_encode(text) -> bytes. Class B: the str -> bytes framing boundary.
+ * The carrier already holds UTF-8 (srmech_json decodes escapes to UTF-8), so
+ * the encode is byte-IDENTITY and only the TYPE moves. A bytes input
+ * declines: Python's bytes has no .encode, so the pure path raises. */
+static srmech_status_t cr_op_utf8_encode(cr_ctx_t *c, const srmech_json_value_t *a,
+                                         cr_value_t **o)
+{
+    cr_value_t *t;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    t = cr_arg(c, a, "text");
+    if (t == NULL || t->kind != CR_STR || t->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    *o = cr_str_value(c->b, t->s, t->slen, 1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* sha256_bytes(data) -> str. Class A: the content digest, returned as the
+ * 64-char lowercase hex STRING the Python op returns (its `_bytes` suffix
+ * names the INPUT type). A str input declines — hashlib refuses a str, so
+ * the pure path raises the documented TypeError. */
+static srmech_status_t cr_op_sha256_bytes(cr_ctx_t *c, const srmech_json_value_t *a,
+                                          cr_value_t **o)
+{
+    cr_value_t *d; char *hex; const uint8_t *p;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    d = cr_arg(c, a, "data");
+    if (d == NULL || d->kind != CR_STR || !d->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    hex = (char *)cr_carve(c->b, 65u);
+    if (hex == NULL) { return SRMECH_ERR_OVERFLOW; }
+    p = (const uint8_t *)((d->s != NULL) ? d->s : "");
+    if (srmech_sha256_hex(p, (size_t)d->slen, hex) != SRMECH_OK) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *o = cr_str_value(c->b, hex, 64u, 0);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* str_concat(prefix, text) -> str. Class F: the degenerate template. Both
+ * operands must be str — Python's str + bytes raises TypeError. */
+static srmech_status_t cr_op_str_concat(cr_ctx_t *c, const srmech_json_value_t *a,
+                                        cr_value_t **o)
+{
+    cr_value_t *p, *t; char *buf;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    p = cr_arg(c, a, "prefix"); t = cr_arg(c, a, "text");
+    if (p == NULL || t == NULL || p->kind != CR_STR || t->kind != CR_STR ||
+        p->is_bytes || t->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    buf = (char *)cr_carve(c->b, (size_t)p->slen + (size_t)t->slen + 1u);
+    if (buf == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (p->slen > 0u) { memcpy(buf, p->s, p->slen); }
+    if (t->slen > 0u) { memcpy(buf + p->slen, t->s, t->slen); }
+    *o = cr_str_value(c->b, buf, p->slen + t->slen, 0);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* byte_slice(data, start, stop) -> bytes: Python's data[start:stop], the
+ * slice rule transcribed WHOLE — a negative index counts from the end, both
+ * bounds clamp to [0, len], and stop <= start is the EMPTY bytes, never an
+ * error. The result aliases the parent buffer (the arena persists). */
+static srmech_status_t cr_op_byte_slice(cr_ctx_t *c, const srmech_json_value_t *a,
+                                        cr_value_t **o)
+{
+    cr_value_t *d, *vs, *ve; int64_t start = 0, stop = 0, len;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    d = cr_arg(c, a, "data");
+    if (d == NULL || d->kind != CR_STR || !d->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    vs = cr_arg(c, a, "start"); ve = cr_arg(c, a, "stop");
+    if (vs == NULL || ve == NULL ||
+        !cr_as_i64(vs, &start) || !cr_as_i64(ve, &stop)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    len = (int64_t)d->slen;
+    if (start < 0) { start += len; }
+    if (start < 0) { start = 0; }
+    if (start > len) { start = len; }
+    if (stop < 0) { stop += len; }
+    if (stop < 0) { stop = 0; }
+    if (stop > len) { stop = len; }
+    if (stop < start) { stop = start; }
+    /* NULL + 0 is formally UB; an empty parent stays the NULL/0 carrier. */
+    *o = cr_str_value(c->b, (d->s != NULL) ? d->s + start : NULL,
+                      (uint32_t)(stop - start), 1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* int_parse_le(data) -> int: int.from_bytes(data, "little"), unsigned. The
+ * little-endian byte order IS the 32-bit limb order, so the bigint fills
+ * directly — limb k is bytes [4k, 4k+4), missing high bytes zero. The empty
+ * bytes is the int 0, exactly as in Python. */
+static srmech_status_t cr_op_int_parse_le(cr_ctx_t *c, const srmech_json_value_t *a,
+                                          cr_value_t **o)
+{
+    cr_value_t *d, *ov; uint32_t nl, i;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    d = cr_arg(c, a, "data");
+    if (d == NULL || d->kind != CR_STR || !d->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    ov = cr_new_value(c->b, CR_INT);
+    if (ov == NULL) { return SRMECH_ERR_OVERFLOW; }
+    nl = d->slen / 4u + 1u;
+    ov->num = cr_new_bigint(c->b, nl);
+    if (ov->num == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < nl; i++) { ov->num->limbs[i] = 0u; }
+    for (i = 0u; i < d->slen; i++) {
+        ov->num->limbs[i / 4u] |=
+            ((uint32_t)(unsigned char)d->s[i]) << (8u * (i % 4u));
+    }
+    while (nl > 0u && ov->num->limbs[nl - 1u] == 0u) { nl--; }
+    ov->num->n = nl;
+    ov->num->sign = (nl == 0u) ? 0 : 1;
+    *o = ov;
+    return SRMECH_OK;
+}
+
+/* ---- render_template: the Class-F {key} substitution, three pieces ---- */
+
+/* The length of the {placeholder} starting at tmpl[i] (the opening brace),
+ * or 0 when no placeholder starts there; writes the key's span (braces
+ * excluded) to *k / *klen. The charclass is descriptor.py's
+ * _TEMPLATE_PATTERN, [A-Za-z0-9_.:%\-+ ], transcribed. Greedy-scan-then-
+ * check-'}' is EQUIVALENT to the regex here because '}' is not in the class,
+ * so no shorter run could match either — which is why literal JSON braces
+ * (klein4_from_one's preimage template) pass through untouched, exactly as
+ * they do in Python. */
+static uint32_t cr_tpl_span(const char *tmpl, uint32_t n, uint32_t i,
+                            const char **k, uint32_t *klen)
+{
+    uint32_t j = i + 1u;
+    assert(tmpl != NULL && k != NULL);
+    assert(klen != NULL && i < n);
+    if (tmpl[i] != '{') { return 0u; }
+    while (j < n) {
+        char ch = tmpl[j];
+        int in_class = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+                       (ch >= '0' && ch <= '9') || ch == '_' || ch == '.' ||
+                       ch == ':' || ch == '%' || ch == '-' || ch == '+' ||
+                       ch == ' ';
+        if (!in_class) { break; }
+        j++;
+    }
+    if (j == i + 1u || j >= n || tmpl[j] != '}') { return 0u; }
+    *k = tmpl + i + 1u; *klen = j - (i + 1u);
+    return (j - i) + 1u;
+}
+
+/* Render a CR_INT's i64 as decimal text in the arena (str(int); a wider
+ * integer declines one level up). Sign rides as a rendered '-' — the
+ * Class-K/Class-C split, never an ALU abs(): the magnitude is read
+ * two's-complement-safely and the sign re-applied as a character. */
+static const char *cr_i64_text(cr_bump_t *b, int64_t v, uint32_t *out_len)
+{
+    char tmp[24]; uint32_t n = 0u, i; char *dst; uint64_t mag;
+    assert(b != NULL);
+    assert(out_len != NULL);
+    if (v < 0) { mag = (uint64_t)(-(v + 1)) + 1u; } else { mag = (uint64_t)v; }
+    do {
+        tmp[n++] = (char)('0' + (char)(mag % 10u));
+        mag /= 10u;
+    } while (mag != 0u && n < 21u);
+    if (v < 0) { tmp[n++] = '-'; }
+    dst = (char *)cr_carve(b, n);
+    if (dst == NULL) { return NULL; }
+    for (i = 0u; i < n; i++) { dst[i] = tmp[n - 1u - i]; }
+    *out_len = n;
+    return dst;
+}
+
+#define CR_TPL_MAX_KEYS 16u
+
+/* One resolved context entry, rendered to text. */
+typedef struct {
+    const char *k; uint32_t kl;
+    const char *v; uint32_t vl;
+} cr_tpl_pair_t;
+
+/* Resolve the `context` object's members to rendered text pairs: str(value)
+ * for the kinds this arm transcribes — a str is itself, an i64 int its
+ * decimal, a null "None". Anything else (float / list / rational / a wider
+ * int / an unresolvable ref) returns -1 and the chain defers to pure, whose
+ * str() is the contract. */
+static int32_t cr_tpl_context(cr_ctx_t *c, const srmech_json_value_t *ctx,
+                              cr_tpl_pair_t *pairs, uint32_t cap)
+{
+    uint32_t i;
+    assert(c != NULL && pairs != NULL);
+    assert(ctx != NULL);
+    if (ctx->type != SRMECH_JSON_OBJECT || ctx->u.obj.n > cap) { return -1; }
+    for (i = 0u; i < ctx->u.obj.n; i++) {
+        cr_value_t *v = cr_resolve_arg(c, ctx->u.obj.vals[i]);
+        int64_t iv;
+        if (v == NULL) { return -1; }
+        pairs[i].k = ctx->u.obj.keys[i];
+        pairs[i].kl = (uint32_t)strlen(ctx->u.obj.keys[i]);
+        if (v->kind == CR_STR && !v->is_bytes) {
+            pairs[i].v = v->s; pairs[i].vl = v->slen;
+        } else if (v->kind == CR_INT && cr_as_i64(v, &iv)) {
+            pairs[i].v = cr_i64_text(c->b, iv, &pairs[i].vl);
+            if (pairs[i].v == NULL) { return -1; }
+        } else if (v->kind == CR_NONE) {
+            pairs[i].v = "None"; pairs[i].vl = 4u;
+        } else {
+            return -1;
+        }
+    }
+    return (int32_t)ctx->u.obj.n;
+}
+
+/* One pass over the template: substitute placeholders from `pairs`, write
+ * into `dst` when non-NULL, return the rendered length. -1 = DECLINE — a
+ * {key:fmt} format spec or a dotted key, Python semantics this arm does not
+ * transcribe (the pure path's format()/mapping walk is the contract). A key
+ * found in no pair renders EMPTY — context.get(part, "") — exactly as
+ * descriptor.py's _replace does. */
+static int64_t cr_tpl_pass(const char *tmpl, uint32_t n,
+                           const cr_tpl_pair_t *pairs, uint32_t np, char *dst)
+{
+    uint32_t i = 0u; int64_t w = 0;
+    assert(tmpl != NULL || n == 0u);
+    assert(pairs != NULL || np == 0u);
+    while (i < n) {
+        const char *k = NULL; uint32_t kl = 0u, span, j;
+        span = (tmpl[i] == '{') ? cr_tpl_span(tmpl, n, i, &k, &kl) : 0u;
+        if (span == 0u) {
+            if (dst != NULL) { dst[w] = tmpl[i]; }
+            w++; i++;
+            continue;
+        }
+        for (j = 0u; j < kl; j++) {
+            if (k[j] == ':' || k[j] == '.') { return -1; }   /* fmt / dotted */
+        }
+        for (j = 0u; j < np; j++) {
+            if (pairs[j].kl == kl && memcmp(pairs[j].k, k, kl) == 0) {
+                if (dst != NULL && pairs[j].vl > 0u) {
+                    memcpy(dst + w, pairs[j].v, pairs[j].vl);
+                }
+                w += (int64_t)pairs[j].vl;
+                break;
+            }
+        }
+        i += span;
+    }
+    return w;
+}
+
+/* render_template(template, context) -> str. Class F: the {key} substitution
+ * of srmech.amsc.descriptor.render_template, transcribed for the subset the
+ * shipped chains use. `context` is the one args value that is itself an
+ * OBJECT, so it is read from the raw args node and resolved member-by-member
+ * — the flat cr_resolve_arg path deliberately has no object arm, and growing
+ * one for every op would widen the whole grammar for a need one op has. */
+static srmech_status_t cr_op_render_template(cr_ctx_t *c,
+                                             const srmech_json_value_t *a,
+                                             cr_value_t **o)
+{
+    cr_tpl_pair_t pairs[CR_TPL_MAX_KEYS];
+    cr_value_t *t; const srmech_json_value_t *ctx; int32_t np; int64_t need;
+    char *buf;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    t = cr_arg(c, a, "template");
+    ctx = srmech_json_object_get(a, "context");
+    if (t == NULL || t->kind != CR_STR || t->is_bytes || ctx == NULL) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    np = cr_tpl_context(c, ctx, pairs, CR_TPL_MAX_KEYS);
+    if (np < 0) { return SRMECH_ERR_NOT_IMPL; }
+    need = cr_tpl_pass(t->s, t->slen, pairs, (uint32_t)np, NULL);
+    if (need < 0) { return SRMECH_ERR_NOT_IMPL; }
+    buf = (char *)cr_carve(c->b, (size_t)need + 1u);
+    if (buf == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (cr_tpl_pass(t->s, t->slen, pairs, (uint32_t)np, buf) != need) {
+        return SRMECH_ERR_INTERNAL;      /* the two passes must agree */
+    }
+    *o = cr_str_value(c->b, buf, (uint32_t)need, 0);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * THE HDC / DIGEST LEAVES (rc452, gh #1653 — wave D: the encode_loe_content
+ * chain's own steps). Classes A / C / M at STEP granularity.
+ *
+ * Every arm delegates to exactly ONE compiled export that the PYTHON op of
+ * the same name delegates to as well — srmech_sha256_hex (the Class-A core
+ * srmech.amsc.format.sha256_raw composes), srmech_mint_vector,
+ * srmech_hdc_permute, srmech_hdc_bind. None of the four is a multi-step
+ * cascade symbol, so this block adds nothing to the population
+ * test_no_coarse_cascade_symbol_in_the_interpreter_rc451.py derives.
+ *
+ * All four are BYTES-typed on at least one side of their contract. Python
+ * RAISES on the wrong side (bytes has no .encode; hdc._check_pair raises on
+ * a length mismatch or an empty vector; _validate_D raises on a bad D), so
+ * each arm DECLINES there rather than coercing — co-equal projections must
+ * refuse the same inputs.
+ * ------------------------------------------------------------------ */
+
+/* sha256_raw(data) -> bytes: the RAW 32-byte digest.
+ *
+ * ⚠️ COMPOSED THE WAY THE PYTHON OP COMPOSES IT — `bytes.fromhex(
+ * sha256_bytes(data))` — rather than through srmech_sha256_shani, which also
+ * writes 32 raw bytes. Both are bit-exact, so no value-level gate could tell
+ * them apart; the reason to prefer this one is that it keeps ONE Class-A core
+ * referenced from this TU for BOTH digest arms, so a future divergence between
+ * the two entry points cannot reach the chain interpreter through the back
+ * door. The hex nibbles are unconditionally [0-9a-f] by srmech_sha256_hex's
+ * own contract, which is why the decode below needs no table and no guard. */
+static srmech_status_t cr_op_sha256_raw(cr_ctx_t *c, const srmech_json_value_t *a,
+                                        cr_value_t **o)
+{
+    cr_value_t *d; char hex[65]; char *raw; const uint8_t *p; uint32_t i;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    d = cr_arg(c, a, "data");
+    if (d == NULL || d->kind != CR_STR || !d->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    raw = (char *)cr_carve(c->b, 33u);
+    if (raw == NULL) { return SRMECH_ERR_OVERFLOW; }
+    p = (const uint8_t *)((d->s != NULL) ? d->s : "");
+    if (srmech_sha256_hex(p, (size_t)d->slen, hex) != SRMECH_OK) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (i = 0u; i < 32u; i++) {
+        char hi = hex[2u * i], lo = hex[2u * i + 1u];
+        int hv = (hi <= '9') ? (hi - '0') : (hi - 'a' + 10);
+        int lv = (lo <= '9') ? (lo - '0') : (lo - 'a' + 10);
+        raw[i] = (char)((hv << 4) | lv);
+    }
+    *o = cr_str_value(c->b, raw, 32u, 1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* mint_vector(name, D) -> bytes: the Class-A content-addressed hypervector,
+ * SHA-256(name || u64_be(counter)) chained to D/8 bytes.
+ *
+ * D IS VALIDATED, NOT CLAMPED. srmech.signal_processing._validate_D raises on
+ * a non-int, on D < D_MIN (256), on D > D_MAX (65536) and on D % 8 != 0, so
+ * every one of those DECLINES here. The three bounds are transcribed from
+ * srmech/signal_processing/_paths.py; a clamp would answer where Python
+ * raises, which is the co-equal-refusal rule this whole block turns on. */
+static srmech_status_t cr_op_mint_vector(cr_ctx_t *c, const srmech_json_value_t *a,
+                                         cr_value_t **o)
+{
+    cr_value_t *nm, *vd; int64_t dbits = 0; char *buf; uint32_t nb;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    nm = cr_arg(c, a, "name"); vd = cr_arg(c, a, "D");
+    if (nm == NULL || nm->kind != CR_STR || nm->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    if (vd == NULL || !cr_as_i64(vd, &dbits)) { return SRMECH_ERR_NOT_IMPL; }
+    if (dbits < 256 || dbits > 65536 || (dbits % 8) != 0) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    nb = (uint32_t)(dbits / 8);
+    buf = (char *)cr_carve(c->b, (size_t)nb + 1u);
+    if (buf == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (srmech_mint_vector((const uint8_t *)((nm->s != NULL) ? nm->s : ""),
+                           (size_t)nm->slen, nb, (uint8_t *)buf) != SRMECH_OK) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *o = cr_str_value(c->b, buf, nb, 1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* permute(a, rotate_bits) -> bytes: the Class-C cyclic BIT rotation.
+ *
+ * `rotate_bits` is reduced HERE, with Python's floor-mod sign convention
+ * (`eff = rotate_bits % D` is non-negative in Python even for a negative
+ * operand), before the int32 hand-off — so a rotation whose magnitude exceeds
+ * int32 cannot wrap on the cast. An empty vector declines: hdc.permute raises
+ * ValueError on it. */
+static srmech_status_t cr_op_hdc_permute(cr_ctx_t *c, const srmech_json_value_t *a,
+                                         cr_value_t **o)
+{
+    cr_value_t *av, *rv; int64_t rot = 0, dbits, eff; char *buf;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    av = cr_arg(c, a, "a"); rv = cr_arg(c, a, "rotate_bits");
+    if (av == NULL || av->kind != CR_STR || !av->is_bytes || av->slen == 0u) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (rv == NULL || !cr_as_i64(rv, &rot)) { return SRMECH_ERR_NOT_IMPL; }
+    dbits = (int64_t)av->slen * 8;
+    if (dbits > (int64_t)INT32_MAX) { return SRMECH_ERR_NOT_IMPL; }
+    eff = rot % dbits;
+    if (eff < 0) { eff += dbits; }       /* Python's % floors; C's truncates */
+    buf = (char *)cr_carve(c->b, (size_t)av->slen + 1u);
+    if (buf == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (srmech_hdc_permute((const uint8_t *)av->s, av->slen, (int32_t)eff,
+                           (uint8_t *)buf) != SRMECH_OK) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *o = cr_str_value(c->b, buf, av->slen, 1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* bind(a, b) -> bytes: the Class-M component-wise XOR. hdc._check_pair raises
+ * on unequal lengths and on the empty vector, so both DECLINE here. */
+static srmech_status_t cr_op_hdc_bind(cr_ctx_t *c, const srmech_json_value_t *a,
+                                      cr_value_t **o)
+{
+    cr_value_t *x, *y; char *buf;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    x = cr_arg(c, a, "a"); y = cr_arg(c, a, "b");
+    if (x == NULL || y == NULL || x->kind != CR_STR || y->kind != CR_STR ||
+        !x->is_bytes || !y->is_bytes) { return SRMECH_ERR_NOT_IMPL; }
+    if (x->slen != y->slen || x->slen == 0u) { return SRMECH_ERR_NOT_IMPL; }
+    buf = (char *)cr_carve(c->b, (size_t)x->slen + 1u);
+    if (buf == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (srmech_hdc_bind((const uint8_t *)x->s, (const uint8_t *)y->s,
+                        x->slen, (uint8_t *)buf) != SRMECH_OK) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *o = cr_str_value(c->b, buf, x->slen, 1);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * THE CLASS-L BOUNDARY REDUCTION (rc452 Phase 2, gh #1653 — the K3 slice):
+ * schur_complement / the discrete Dirichlet-to-Neumann map.
+ *
+ *     S = L_dd - L_di * (L_ii^-1 * L_id)
+ *
+ * ⚠️ THIS IS NEW SUBSTRATE, NOT A WRAPPER, AND THAT WAS MEASURED BEFORE IT WAS
+ * WRITTEN. c/include/srmech.h declares ZERO `schur` / `dirichlet` / `neumann`
+ * symbols and no c/src translation unit defines one — the op's name occurs in this tree only
+ * as DATA, in two generated registry tables. (docs/srmech/CLAUDE.md asserted a
+ * C peer for it for a long time and was corrected in 2026-08 for exactly that
+ * reason; it is one of the six ABSENT ops in the gh #1653 symbol-gap census.)
+ * So the arm is COMPOSED here over the one Class-L float primitive that does
+ * ship, srmech_dense_solve_f64_ws — the same primitive the Python op's float
+ * path composes over for the same sub-problem.
+ *
+ * ⚠️ THE ARITHMETIC ORDER IS PYTHON'S, TRANSCRIBED, because the comparator is
+ * bit-exact and floating-point addition is not associative. laplacian.py
+ * spells the boundary combine as
+ *     S[a][c] = float(L_pp[a][c]) - sum(float(L_pi[a][k]) * X[k, c] ...)
+ * and `sum` accumulates from 0.0 strictly left to right, so the loop below
+ * does that and nothing cleverer. Measured before writing: the shipped
+ * srmech_dense_solve_f64_ws and the pure-Python solve already agree BIT-FOR-BIT
+ * on all three of this chain's proof cases, so the interior solve contributes
+ * no divergence and the combine order is the only remaining degree of freedom.
+ *
+ * REFUSALS MIRROR PYTHON'S RAISES: a non-square or ragged L, an empty /
+ * out-of-range / DUPLICATE boundary_idx are ValueError there and NOT_IMPL
+ * here; a singular interior block is ZeroDivisionError there and NOT_IMPL here
+ * (the pure projection then raises it, which is the complete answer).
+ * ------------------------------------------------------------------ */
+
+/* A |r|x|c| row-major double block as the MATRIX carrier: a CR_LIST of CR_LIST
+ * rows of CR_DBL, with is_matrix set on the outer frame. */
+static cr_value_t *cr_mat_value(cr_bump_t *b, const double *m,
+                                uint32_t nr, uint32_t nc)
+{
+    cr_value_t *outer, *row; uint32_t i, j;
+    assert(b != NULL && m != NULL);
+    assert(nr > 0u && nc > 0u);
+    outer = cr_new_value(b, CR_LIST);
+    if (outer == NULL) { return NULL; }
+    outer->items = (cr_value_t **)cr_carve(b, (size_t)nr * sizeof(cr_value_t *));
+    if (outer->items == NULL) { return NULL; }
+    outer->n = nr;
+    outer->is_matrix = 1;
+    for (i = 0u; i < nr; i++) {
+        row = cr_new_value(b, CR_LIST);
+        if (row == NULL) { return NULL; }
+        row->items = (cr_value_t **)cr_carve(b, (size_t)nc * sizeof(cr_value_t *));
+        if (row->items == NULL) { return NULL; }
+        row->n = nc;
+        for (j = 0u; j < nc; j++) {
+            row->items[j] = cr_dbl(b, m[(size_t)i * nc + j]);
+            if (row->items[j] == NULL) { return NULL; }
+        }
+        outer->items[i] = row;
+    }
+    return outer;
+}
+
+/* Ingest a nested-list square matrix as row-major doubles. NULL declines: a
+ * ragged or non-square L raises ValueError in the Python op. */
+static double *cr_schur_mat(cr_bump_t *b, const cr_value_t *v, uint32_t *n_out)
+{
+    double *m; uint32_t i, j, n;
+    assert(b != NULL);
+    assert(n_out != NULL);
+    if (v == NULL || v->kind != CR_LIST || v->n == 0u) { return NULL; }
+    n = v->n;
+    if ((size_t)n > (size_t)65535u) { return NULL; }   /* n*n must not wrap */
+    m = (double *)cr_carve(b, (size_t)n * n * sizeof(double) + sizeof(double));
+    if (m == NULL) { return NULL; }
+    for (i = 0u; i < n; i++) {
+        const cr_value_t *row = v->items[i];
+        if (row == NULL || row->kind != CR_LIST || row->n != n) { return NULL; }
+        for (j = 0u; j < n; j++) {
+            if (!cr_elem_dbl(row, j, &m[(size_t)i * n + j])) { return NULL; }
+        }
+    }
+    *n_out = n;
+    return m;
+}
+
+/* _validate_boundary transcribed: the boundary list, ASCENDING and deduped.
+ * Returns the count, or -1 to decline — Python raises ValueError on the empty
+ * list, on a duplicate and on an out-of-range entry, so all three refuse. */
+static int32_t cr_schur_idx(const cr_value_t *v, uint32_t n, uint32_t *idx)
+{
+    uint32_t k, j, m = 0u;
+    assert(idx != NULL);
+    assert(n > 0u);
+    if (v == NULL || v->kind != CR_LIST || v->n == 0u || v->n > n) { return -1; }
+    for (k = 0u; k < v->n; k++) {
+        int64_t iv;
+        if (v->items[k] == NULL || !cr_as_i64(v->items[k], &iv)) { return -1; }
+        if (iv < 0 || iv >= (int64_t)n) { return -1; }
+        for (j = 0u; j < m; j++) {
+            if (idx[j] == (uint32_t)iv) { return -1; }   /* duplicate */
+        }
+        idx[m] = (uint32_t)iv;
+        m++;
+    }
+    for (k = 1u; k < m; k++) {                 /* ascending, as sorted() gives */
+        uint32_t t = idx[k];
+        j = k;
+        while (j > 0u && idx[j - 1u] > t) { idx[j] = idx[j - 1u]; j--; }
+        idx[j] = t;
+    }
+    return (int32_t)m;
+}
+
+/* The interior solve X = L_ii^-1 * L_id, over the shipped Class-L primitive.
+ * NULL declines (a singular interior block, or an arena too small). */
+static double *cr_schur_solve(cr_bump_t *b, const double *lm, uint32_t n,
+                              const uint32_t *bi, uint32_t nb,
+                              const uint32_t *ii, uint32_t ni)
+{
+    double *lii, *lip, *x; void *ws; size_t wsz; uint32_t r, c;
+    assert(b != NULL && lm != NULL);
+    assert(bi != NULL && ii != NULL);
+    lii = (double *)cr_carve(b, (size_t)ni * ni * sizeof(double) + sizeof(double));
+    lip = (double *)cr_carve(b, (size_t)ni * nb * sizeof(double) + sizeof(double));
+    x   = (double *)cr_carve(b, (size_t)ni * nb * sizeof(double) + sizeof(double));
+    if (lii == NULL || lip == NULL || x == NULL) { return NULL; }
+    for (r = 0u; r < ni; r++) {
+        for (c = 0u; c < ni; c++) {
+            lii[(size_t)r * ni + c] = lm[(size_t)ii[r] * n + ii[c]];
+        }
+        for (c = 0u; c < nb; c++) {
+            lip[(size_t)r * nb + c] = lm[(size_t)ii[r] * n + bi[c]];
+        }
+    }
+    wsz = srmech_dense_solve_arena_bytes(ni, nb);
+    ws = (void *)cr_carve(b, wsz + 8u);
+    if (ws == NULL) { return NULL; }
+    if (srmech_dense_solve_f64_ws(ni, nb, lii, lip, x, ws, wsz) != SRMECH_OK) {
+        return NULL;
+    }
+    return x;
+}
+
+/* S = L_dd - L_di * X, in Python's accumulation order (0.0, then left to
+ * right). Split out so cr_op_schur stays well inside JPL Rule 4. */
+static void cr_schur_combine(double *s, const double *lm, uint32_t n,
+                             const uint32_t *bi, uint32_t nb,
+                             const uint32_t *ii, uint32_t ni, const double *x)
+{
+    uint32_t p, q, k;
+    assert(s != NULL && lm != NULL && x != NULL);
+    assert(bi != NULL && ii != NULL);
+    for (p = 0u; p < nb; p++) {
+        for (q = 0u; q < nb; q++) {
+            double acc = 0.0;
+            for (k = 0u; k < ni; k++) {
+                acc += lm[(size_t)bi[p] * n + ii[k]] * x[(size_t)k * nb + q];
+            }
+            s[(size_t)p * nb + q] = lm[(size_t)bi[p] * n + bi[q]] - acc;
+        }
+    }
+}
+
+/* schur_complement(L, boundary_idx) -> Mat. `exact` is not read: the shipped
+ * descriptor does not pass it, and the exact-rational path is a DIFFERENT
+ * return type (list[list[Q]]) that this arm does not claim — an args key set
+ * carrying `exact` is still accepted by the validator, so the guard is here:
+ * an explicit `exact` DECLINES rather than silently answering the float. */
+static srmech_status_t cr_op_schur(cr_ctx_t *c, const srmech_json_value_t *a,
+                                   cr_value_t **o)
+{
+    cr_value_t *vl, *vb; double *lm, *s, *x; uint32_t *bi, *ii;
+    uint32_t n = 0u, nb, ni = 0u, k, j; int32_t m; int found;
+    assert(c != NULL && a != NULL);
+    assert(o != NULL);
+    if (srmech_json_object_get(a, "exact") != NULL) { return SRMECH_ERR_NOT_IMPL; }
+    vl = cr_arg(c, a, "L"); vb = cr_arg(c, a, "boundary_idx");
+    lm = cr_schur_mat(c->b, vl, &n);
+    if (lm == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    bi = (uint32_t *)cr_carve(c->b, (size_t)n * 2u * sizeof(uint32_t) + 8u);
+    if (bi == NULL) { return SRMECH_ERR_OVERFLOW; }
+    ii = bi + n;
+    m = cr_schur_idx(vb, n, bi);
+    if (m < 0) { return SRMECH_ERR_NOT_IMPL; }
+    nb = (uint32_t)m;
+    for (k = 0u; k < n; k++) {
+        found = 0;
+        for (j = 0u; j < nb; j++) { if (bi[j] == k) { found = 1; } }
+        if (!found) { ii[ni] = k; ni++; }
+    }
+    s = (double *)cr_carve(c->b, (size_t)nb * nb * sizeof(double) + sizeof(double));
+    if (s == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (ni == 0u) {                     /* no interior — the boundary IS all */
+        for (k = 0u; k < nb; k++) {
+            for (j = 0u; j < nb; j++) {
+                s[(size_t)k * nb + j] = lm[(size_t)bi[k] * n + bi[j]];
+            }
+        }
+    } else {
+        x = cr_schur_solve(c->b, lm, n, bi, nb, ii, ni);
+        if (x == NULL) { return SRMECH_ERR_NOT_IMPL; }
+        cr_schur_combine(s, lm, n, bi, nb, ii, ni, x);
+    }
+    *o = cr_mat_value(c->b, s, nb, nb);
+    return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* ---- fold bodies (rc452 Phase 3): the Σ accumulators ---- */
+
+/* A scalar as a double for the fold's float tier: a CR_DBL directly, a
+ * CR_INT widened only where the widening is EXACT (|v| <= 2^53 — Python's
+ * int-to-float conversion at that magnitude). 0 -> decline. */
+static int cr_fold_dbl(const cr_value_t *v, double *out)
+{
+    int64_t iv;
+    assert(v != NULL);
+    assert(out != NULL);
+    if (v->kind == CR_DBL) { *out = v->d; return 1; }
+    if (v->kind == CR_INT && cr_as_i64(v, &iv) &&
+        iv <= (INT64_C(1) << 53) && iv >= -(INT64_C(1) << 53)) {
+        *out = (double)iv;
+        return 1;
+    }
+    return 0;
+}
+
+/* A value as an exact (num, den): a rational ALIASES its own carriers, a
+ * finite double promotes via as_integer_ratio, an int rides over den 1.
+ * 0 -> the value has no exact rational (non-finite / wrong kind). */
+static int cr_val_as_q(cr_bump_t *b, const cr_value_t *v,
+                       srmech_bigint_t **n, srmech_bigint_t **d)
+{
+    assert(b != NULL && v != NULL);
+    assert(n != NULL && d != NULL);
+    if (v->kind == CR_RATIONAL && v->num != NULL && v->den != NULL) {
+        *n = v->num; *d = v->den;
+        return 1;
+    }
+    if (v->kind == CR_DBL) { return cr_q_of_dbl(b, v->d, n, d); }
+    if (v->kind == CR_INT && v->num != NULL) {
+        *n = v->num; *d = cr_bi_u64_shl(b, 1u, 0u);
+        return *d != NULL;
+    }
+    return 0;
+}
+
+/* f64_add(a, b) as a fold body. Python's `a + b` tiering, transcribed:
+ * float+float is one IEEE add; int+float widens the int (exact <= 2^53);
+ * anything meeting an exact-ℚ operand promotes through as_integer_ratio and
+ * adds EXACTLY (Q.__radd__); int+int stays int. A non-finite double cannot
+ * promote — the rational arm declines rather than guesses. */
+static srmech_status_t cr_b_f64_add(cr_bump_t *b, const cr_value_t *acc,
+                                    const cr_value_t *elem, cr_value_t **out)
+{
+    srmech_bigint_t *n0, *d0, *n1, *d1; cr_value_t *ov; srmech_status_t st;
+    assert(b != NULL && out != NULL);
+    assert(acc != NULL && elem != NULL);
+    if (acc->kind == CR_RATIONAL || elem->kind == CR_RATIONAL) {
+        if (!cr_val_as_q(b, acc, &n0, &d0) || !cr_val_as_q(b, elem, &n1, &d1)) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        ov = cr_new_value(b, CR_RATIONAL);
+        if (ov == NULL) { return SRMECH_ERR_OVERFLOW; }
+        st = cr_q_apply(b, '+', n0, d0, n1, d1, &ov->num, &ov->den);
+        if (st != SRMECH_OK) { return st; }
+        *out = ov;
+        return SRMECH_OK;
+    }
+    if (acc->kind == CR_INT && elem->kind == CR_INT) {
+        uint32_t cap = acc->num->n + elem->num->n + 2u;
+        ov = cr_new_value(b, CR_INT);
+        if (ov == NULL) { return SRMECH_ERR_OVERFLOW; }
+        ov->num = cr_new_bigint(b, cap);
+        if (ov->num == NULL) { return SRMECH_ERR_OVERFLOW; }
+        st = srmech_bigint_add(ov->num, acc->num, elem->num);
+        if (st != SRMECH_OK) { return st; }
+        *out = ov;
+        return SRMECH_OK;
+    }
+    {   /* float + float, or int widened over the float tier (exact <= 2^53) */
+        double x, y;
+        if (!cr_fold_dbl(acc, &x) || !cr_fold_dbl(elem, &y)) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        *out = cr_dbl(b, x + y);
+        return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    }
+}
+
+/* vec_add(a, b) as a fold body: elementwise; equal length or decline (the
+ * pure path raises the documented ValueError). Element pairs ride the float
+ * tier only — an int-int pair stays int in Python, so it DECLINES here
+ * rather than widening to a float Python would not produce. */
+static srmech_status_t cr_b_vec_add(cr_bump_t *b, const cr_value_t *acc,
+                                    const cr_value_t *elem, cr_value_t **out)
+{
+    cr_value_t *ov; uint32_t i; double x, y;
+    assert(b != NULL && out != NULL);
+    assert(acc != NULL && elem != NULL);
+    if (acc->kind != CR_LIST || elem->kind != CR_LIST || acc->n != elem->n) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    ov = cr_list_of(b, acc->n);
+    if (ov == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < acc->n; i++) {
+        if (acc->items[i] == NULL || elem->items[i] == NULL ||
+            (acc->items[i]->kind == CR_INT && elem->items[i]->kind == CR_INT)) {
+            return SRMECH_ERR_NOT_IMPL;      /* int+int is int in Python */
+        }
+        if (!cr_elem_dbl(acc, i, &x) || !cr_elem_dbl(elem, i, &y)) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        ov->items[i] = cr_dbl(b, x + y);
+        if (ov->items[i] == NULL) { return SRMECH_ERR_OVERFLOW; }
+    }
+    *out = ov;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * THE TABLE. Order and membership are read by
+ * tests/test_t1158_registry_param_order_rc449.py, which resolves every `full`
+ * against the LIVE ToolEntry registry and asserts the declared `len` matches
+ * the string — a wrong length silently disables the row, because cr_op_is
+ * compares it BEFORE memcmp.
+ *
+ * ⚠️ A ROW'S `full` MUST NAME THE OP THE ROW ACTUALLY RUNS. Pointing it at a
+ * registered SIBLING with the same param names (sha256_bytes for sha256_raw,
+ * say) passes every shipped gate — the entry resolves, the lengths agree, the
+ * params match — while validating `args` against the wrong contract. The three
+ * ops that had no ToolEntry at all were REGISTERED in this rc rather than
+ * aliased, for exactly that reason.
+ *
+ * .rodata beside map_k / fold_k / plain_k; JPL Rule 3 is untouched.
+ * ------------------------------------------------------------------ */
+static const struct {
+    const char *bare;
+    uint32_t    len;
+    const char *full;
+    uint8_t     dom;   /* cr_dom_t   — which cr_exec_<domain>() runs the op   */
+    uint8_t     sub;   /* per-domain — the case label inside that exec        */
+    uint8_t     bin;   /* cr_bin_id_t — non-NONE iff the op can fold          */
+    uint8_t     un;    /* cr_un_id_t  — the unary body this row exposes to @op */
+} CR_OP_REG[57] = {
+ /* wave A (rc452) — the autocorrelation CHAIN's own steps */
+ { "seq_len",             7u, "srmech.cascade.seq_len",
+   CR_DOM_CAS, CR_CAS_SEQ_LEN, CR_BIN_NONE, CR_UN_NONE },
+ { "correlation_product", 19u, "srmech.cascade.correlation_product",
+   CR_DOM_CAS, CR_CAS_CORR_PRODUCT, CR_BIN_NONE, CR_UN_NONE },
+ { "compensated_sum",    15u, "srmech.cascade.compensated_sum",
+   CR_DOM_CAS, CR_CAS_COMPENSATED_SUM, CR_BIN_NONE, CR_UN_NONE },
+ { "pi_cascade_digits",  17u, "srmech.math.rational.pi_cascade_digits",
+   CR_DOM_RAT, CR_RAT_PI, CR_BIN_NONE, CR_UN_NONE },
+ { "exp_series_truncate", 19u, "srmech.math.rational.exp_series_truncate",
+   CR_DOM_RAT, CR_RAT_EXP, CR_BIN_NONE, CR_UN_NONE },
+ { "sin_series_truncate", 19u, "srmech.math.rational.sin_series_truncate",
+   CR_DOM_RAT, CR_RAT_SIN, CR_BIN_NONE, CR_UN_NONE },
+ { "cos_series_truncate", 19u, "srmech.math.rational.cos_series_truncate",
+   CR_DOM_RAT, CR_RAT_COS, CR_BIN_NONE, CR_UN_NONE },
+ { "log1p_series_truncate", 21u, "srmech.math.rational.log1p_series_truncate",
+   CR_DOM_RAT, CR_RAT_LOG1P, CR_BIN_NONE, CR_UN_NONE },
+ { "atan_series_truncate", 20u, "srmech.math.rational.atan_series_truncate",
+   CR_DOM_RAT, CR_RAT_ATAN, CR_BIN_NONE, CR_UN_NONE },
+ { "rational_pow_uint",  17u, "srmech.math.rational.rational_pow_uint",
+   CR_DOM_RAT, CR_RAT_POW, CR_BIN_NONE, CR_UN_NONE },
+ { "rational_add",       12u, "srmech.math.rational.rational_add",
+   CR_DOM_RAT, CR_RAT_ADD, CR_BIN_NONE, CR_UN_NONE },
+ { "rational_mul",       12u, "srmech.math.rational.rational_mul",
+   CR_DOM_RAT, CR_RAT_MUL, CR_BIN_NONE, CR_UN_NONE },
+ { "rational_div",       12u, "srmech.math.rational.rational_div",
+   CR_DOM_RAT, CR_RAT_DIV, CR_BIN_NONE, CR_UN_NONE },
+ { "gcd",                 3u, "srmech.math.cyclic.gcd",
+   CR_DOM_CYC, CR_CYC_GCD, CR_BIN_GCD, CR_UN_NONE },
+ { "mod_add",             7u, "srmech.math.cyclic.mod_add",
+   CR_DOM_CYC, CR_CYC_MOD_ADD, CR_BIN_NONE, CR_UN_NONE },
+ { "mod_mul",             7u, "srmech.math.cyclic.mod_mul",
+   CR_DOM_CYC, CR_CYC_MOD_MUL, CR_BIN_NONE, CR_UN_NONE },
+ { "mod_mul_wide",       12u, "srmech.math.cyclic.mod_mul_wide",
+   CR_DOM_CYC, CR_CYC_MOD_MUL_WIDE, CR_BIN_NONE, CR_UN_NONE },
+ { "mod_pow",             7u, "srmech.math.cyclic.mod_pow",
+   CR_DOM_CYC, CR_CYC_MOD_POW, CR_BIN_NONE, CR_UN_NONE },
+ { "mod_inv",             7u, "srmech.math.cyclic.mod_inv",
+   CR_DOM_CYC, CR_CYC_MOD_INV, CR_BIN_NONE, CR_UN_NONE },
+ { "pin_slot_at_zero",   16u, "srmech.cascade.pin_slot_at_zero",
+   CR_DOM_CAS, CR_CAS_PIN_SLOT, CR_BIN_NONE, CR_UN_NONE },
+ { "reorient",            8u, "srmech.cascade.reorient",
+   CR_DOM_CAS, CR_CAS_REORIENT, CR_BIN_NONE, CR_UN_NONE },
+ { "chiral_flip",        11u, "srmech.cascade.chiral_flip",
+   CR_DOM_CAS, CR_CAS_CHIRAL_FLIP, CR_BIN_NONE, CR_UN_CHIRAL_FLIP },
+ { "autocorrelation",    15u, "srmech.cascade.autocorrelation",
+   CR_DOM_CAS, CR_CAS_AUTOCORRELATION, CR_BIN_NONE, CR_UN_NONE },
+ { "dead_band",           9u, "srmech.cascade.dead_band",
+   CR_DOM_CAS, CR_CAS_DEAD_BAND, CR_BIN_NONE, CR_UN_NONE },
+ { "scale_round_half_even", 21u, "srmech.math.rational.scale_round_half_even",
+   CR_DOM_RAT, CR_RAT_SCALE_ROUND, CR_BIN_NONE, CR_UN_NONE },
+ { "best_rational",      13u, "srmech.math.rational.best_rational",
+   CR_DOM_RAT, CR_RAT_BEST_RATIONAL, CR_BIN_NONE, CR_UN_NONE },
+ { "pair",                4u, "srmech.cascade.pair",
+   CR_DOM_CAS, CR_CAS_PAIR, CR_BIN_NONE, CR_UN_NONE },
+ /* wave B (rc452 Phase 3) — the kuramoto_step and hypercomplex-DFT chains'
+  * own steps, at STEP granularity (the fused whole-transform symbols are
+  * deliberately not referenced from this TU — see the section comments). */
+ { "seq_get",             7u, "srmech.cascade.seq_get",
+   CR_DOM_CAS, CR_CAS_SEQ_GET, CR_BIN_NONE, CR_UN_NONE },
+ { "vec_scale",           9u, "srmech.cascade.vec_scale",
+   CR_DOM_CAS, CR_CAS_VEC_SCALE, CR_BIN_NONE, CR_UN_NONE },
+ { "kuramoto_inv_n",     14u, "srmech.cascade.kuramoto_inv_n",
+   CR_DOM_CAS, CR_CAS_KUR_INV_N, CR_BIN_NONE, CR_UN_NONE },
+ { "kuramoto_sin_term",  17u, "srmech.cascade.kuramoto_sin_term",
+   CR_DOM_CAS, CR_CAS_KUR_SIN_TERM, CR_BIN_NONE, CR_UN_NONE },
+ { "kuramoto_out_simple", 19u, "srmech.cascade.kuramoto_out_simple",
+   CR_DOM_CAS, CR_CAS_KUR_OUT_SIMPLE, CR_BIN_NONE, CR_UN_NONE },
+ { "kuramoto_gen_term",  17u, "srmech.cascade.kuramoto_gen_term",
+   CR_DOM_CAS, CR_CAS_KUR_GEN_TERM, CR_BIN_NONE, CR_UN_NONE },
+ { "kuramoto_gen_out",   16u, "srmech.cascade.kuramoto_gen_out",
+   CR_DOM_CAS, CR_CAS_KUR_GEN_OUT, CR_BIN_NONE, CR_UN_NONE },
+ { "as_quat4",            8u, "srmech.cascade.as_quat4",
+   CR_DOM_CAS, CR_CAS_AS_QUAT4, CR_BIN_NONE, CR_UN_NONE },
+ { "as_oct8",             7u, "srmech.cascade.as_oct8",
+   CR_DOM_CAS, CR_CAS_AS_OCT8, CR_BIN_NONE, CR_UN_NONE },
+ { "qdft_resolve_mu",    15u, "srmech.cascade.qdft_resolve_mu",
+   CR_DOM_CAS, CR_CAS_QDFT_RESOLVE_MU, CR_BIN_NONE, CR_UN_NONE },
+ { "odft_resolve_mu",    15u, "srmech.cascade.odft_resolve_mu",
+   CR_DOM_CAS, CR_CAS_ODFT_RESOLVE_MU, CR_BIN_NONE, CR_UN_NONE },
+ { "dft_sigma",           9u, "srmech.cascade.dft_sigma",
+   CR_DOM_CAS, CR_CAS_DFT_SIGMA, CR_BIN_NONE, CR_UN_NONE },
+ { "dft_scale",           9u, "srmech.cascade.dft_scale",
+   CR_DOM_CAS, CR_CAS_DFT_SCALE, CR_BIN_NONE, CR_UN_NONE },
+ { "qdft_summand",       12u, "srmech.cascade.qdft_summand",
+   CR_DOM_CAS, CR_CAS_QDFT_SUMMAND, CR_BIN_NONE, CR_UN_NONE },
+ { "odft_summand",       12u, "srmech.cascade.odft_summand",
+   CR_DOM_CAS, CR_CAS_ODFT_SUMMAND, CR_BIN_NONE, CR_UN_NONE },
+ /* wave C (rc452, gh #1653) — the klein4_from_one chain's string/bytes
+  * leaves. `sha256_bytes` and `render_template` carry their REAL registered
+  * homes (srmech.amsc.format / srmech.amsc.descriptor) — NOT a same-params
+  * sibling — per the aliasing warning at the head of this table. Their
+  * ToolEntries were REGISTERED in this same change; cr_args_keyset_ok
+  * answers INTERNAL, not silent acceptance, if either row's `full` stops
+  * resolving. */
+ { "render_template",    15u, "srmech.amsc.descriptor.render_template",
+   CR_DOM_CAS, CR_CAS_RENDER_TEMPLATE, CR_BIN_NONE, CR_UN_NONE },
+ { "utf8_encode",        11u, "srmech.cascade.utf8_encode",
+   CR_DOM_CAS, CR_CAS_UTF8_ENCODE, CR_BIN_NONE, CR_UN_NONE },
+ { "sha256_bytes",       12u, "srmech.amsc.format.sha256_bytes",
+   CR_DOM_CAS, CR_CAS_SHA256_BYTES, CR_BIN_NONE, CR_UN_NONE },
+ { "str_concat",         10u, "srmech.cascade.str_concat",
+   CR_DOM_CAS, CR_CAS_STR_CONCAT, CR_BIN_NONE, CR_UN_NONE },
+ { "byte_slice",         10u, "srmech.cascade.byte_slice",
+   CR_DOM_CAS, CR_CAS_BYTE_SLICE, CR_BIN_NONE, CR_UN_NONE },
+ { "int_parse_le",       12u, "srmech.cascade.int_parse_le",
+   CR_DOM_CAS, CR_CAS_INT_PARSE_LE, CR_BIN_NONE, CR_UN_NONE },
+ /* wave D (rc452, gh #1653) — encode_loe_content's Class-A / C / M leaves.
+  * Each `full` names the op's REAL registered home, never a same-params
+  * sibling: `sha256_raw` is srmech.amsc.format's own entry (NOT sha256_bytes,
+  * which takes the same single `data` param and would validate against the
+  * wrong contract — the exact aliasing trap the head of this table names),
+  * and `mint_vector` / `permute` / `bind` carry their defining modules. */
+ { "sha256_raw",         10u, "srmech.amsc.format.sha256_raw",
+   CR_DOM_CAS, CR_CAS_SHA256_RAW, CR_BIN_NONE, CR_UN_NONE },
+ { "mint_vector",        11u, "srmech.signal_processing.mint_vector",
+   CR_DOM_CAS, CR_CAS_MINT_VECTOR, CR_BIN_NONE, CR_UN_NONE },
+ { "permute",             7u, "srmech.math.hdc.permute",
+   CR_DOM_CAS, CR_CAS_HDC_PERMUTE, CR_BIN_NONE, CR_UN_NONE },
+ { "bind",                4u, "srmech.math.hdc.bind",
+   CR_DOM_CAS, CR_CAS_HDC_BIND, CR_BIN_NONE, CR_UN_NONE },
+ /* wave E (rc452 Phase 2, gh #1653) — the Class-L boundary reduction. */
+ { "schur_complement",   16u, "srmech.math.laplacian.schur_complement",
+   CR_DOM_CAS, CR_CAS_SCHUR, CR_BIN_NONE, CR_UN_NONE },
+ /* wave F (rc452, `#T1166`) — the Klein-4 four-sector fan-out. The row's own
+  * `un` is CR_UN_NONE: the op is a COMBINATOR, not a unary body, so naming it
+  * as one via @op declines rather than recursing. `chiral_flip` is the one row
+  * that carries a non-NONE `un`, and it is the body this chain names. */
+ { "parallel_sector_dispatch", 24u, "srmech.cascade.parallel_sector_dispatch",
+   CR_DOM_CAS, CR_CAS_PSD, CR_BIN_NONE, CR_UN_NONE },
+ /* FOLD-BODY-ONLY: `dom` is CR_DOM_NONE because orientation_compose is never
+  * a plain step in any shipped descriptor — it exists to be folded. A
+  * CR_DOM_NONE row is a deliberate, expressible state (cr_dispatch returns
+  * NOT_IMPL for it), not an omission; the alternative was a second table,
+  * which is what rc451 had. Its `sub` is a bare 0u: there is no domain enum
+  * for a row no exec runs. f64_add / vec_add (rc452 Phase 3) are the same
+  * state: the Σ accumulators the kuramoto / DFT chains fold, never plain. */
+ { "orientation_compose", 19u, "srmech.cascade.orientation_compose",
+   CR_DOM_NONE, 0u, CR_BIN_ORIENT, CR_UN_NONE },
+ { "f64_add",             7u, "srmech.cascade.f64_add",
+   CR_DOM_NONE, 0u, CR_BIN_F64_ADD, CR_UN_NONE },
+ { "vec_add",             7u, "srmech.cascade.vec_add",
+   CR_DOM_NONE, 0u, CR_BIN_VEC_ADD, CR_UN_NONE }
+};
+
+/* The table's own length, DERIVED. It was written out as a bare literal in the
+ * loop bounds through rc450, and nothing read those: the shipped gate pins the
+ * ARRAY DECLARATION via the marker string "} CR_OP_REG[N] = {" and then compares
+ * index rows to dispatch arms, never a bound. So growing the array while leaving
+ * a stale bound would have left the key-set validator silently OFF for exactly
+ * the tail entries — with every other gate green. Deriving it removes the class. */
+#define CR_OP_REG_N (sizeof(CR_OP_REG) / sizeof(CR_OP_REG[0]))
+
+/* Find a row by op spelling. -1 when the op is not ours (→ the defer channel).
+ * ONE matcher for dispatch, for the fold body and for the key-set validator, so
+ * none of the three can disagree with the others about which op a dotted
+ * spelling names. */
+static int32_t cr_op_row(const char *op, uint32_t opl)
+{
+    uint32_t i;
+    assert(op != NULL);
+    assert(opl > 0u);
+    for (i = 0u; i < (uint32_t)CR_OP_REG_N; i++) {
+        if (cr_op_is(op, opl, CR_OP_REG[i].bare, CR_OP_REG[i].len)) {
+            return (int32_t)i;
+        }
+    }
+    return -1;
+}
+
+/* ------------------------------------------------------------------
+ * parallel_sector_dispatch (v0.9.0rc452, `#T1166`) — the Klein-4 four-sector
+ * fan-out, and the LAST executable chain the C projection could not run.
+ *
+ * The op returns a 66-leaf nested MAPPING carrying ~2 KB of framework prose,
+ * an INT-KEYED sub-map, tuple labels, nine bools and one of four combine
+ * reducers. It needed the `m` and `o` wire kinds (both land in this same
+ * change, with these four proof cases as their executed emitters) and an `@op`
+ * body-dispatch column, because the body arrives as a DESCRIPTOR-LEVEL
+ * reference (`body = "@op.srmech.cascade.chiral_flip"`) rather than as data.
+ *
+ * ⚠️ THE BODY IS A ROW LOOKUP, NOT A CALLBACK. JPL Rule 9 bans function
+ * pointers, so `@op.<dotted>` resolves through cr_op_row to a CR_OP_REG row and
+ * reads its `un` column — the unary identity that row exposes when NAMED as a
+ * body. A row whose `un` is CR_UN_NONE declines and the whole chain defers to
+ * the complete pure path; that is the same decline channel every other
+ * unsupported form uses, and it is executed as a negative control.
+ *
+ * ⚠️ THE SECTORS RUN SERIALLY HERE AND THAT IS NOT AN APPROXIMATION. Python
+ * dispatches them on a ThreadPoolExecutor, but F233's whole content is that the
+ * four sectors read ONLY their own T_s(x) — zero cross-sector reads — so the
+ * result is order-free and the serial evaluation is bit-identical by the same
+ * argument the Python module asserts. Nothing here depends on thread timing.
+ *
+ * ⚠️ NO abs(). The iw7 axis is a Class-C sign re-application (Python spells it
+ * `reorient(v, orientation=-1)`, i.e. `-value`), and the g5 axis is the Class-C
+ * `chiral_flip` reversal. Both are transcribed as such.
+ * ------------------------------------------------------------------ */
+
+/* .rodata GENERATED from srmech.cascade.parallel's own literals (the strings
+ * carry arrows and subscripts, where one retyped byte is a silent wire
+ * divergence). Regenerate, never hand-edit. */
+static const int CR_PSD_LABELS[4][2] = {
+    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
+};
+static const char *const CR_PSD_FRAMEWORK[10][2] = {
+    { "note",
+      "framework-reading, not derived" },
+    { "thread_count_ladder_is_chirality_access_ladder",
+      "1 \xe2\x86\x92 2 \xe2\x86\x92 4 \xe2\x86\x92 triality" },
+    { "rung_1",
+      "chirality-LOCKED (biology; one chirality \xe2\x86\x92 one thread; F133)" },
+    { "rung_2",
+      "one axis un-locked = \xce\xb3\xe2\x82\x85 (F232 chiral_dual 2-rung)" },
+    { "rung_4",
+      "Klein-4, BOTH axes un-locked (this dispatch; F233)" },
+    { "beyond_4",
+      "the order-3 triality (F220 \xe2\x80\x94 not reachable by composing order-2 sectors)" },
+    { "cap_at_4",
+      "Klein-4 = Z\xe2\x82\x82 \xc3\x97 Z\xe2\x82\x82 has no order-4+ element; the involution group closes at |G| = 4" },
+    { "z4_vs_klein4",
+      "the Z\xe2\x82\x84 dispatch slots are cyclic-order-4 TIMING, DISTINCT from the order-2\xc3\x97order-2 Klein-4 sector IDENTITY" },
+    { "c_orchestration_parity",
+      "tracked by issue #771 (kept open): a native 4-sector dispatch so srmech does not need Python to run the four-sector cascade \xe2\x80\x94 Python is the ergonomic half, C (#771) the parity half" },
+    { "cites",
+      "F233/R-RBS-LM-FINDING_233 (the thread-count ladder); F219 (the chirality-access ladder); F220 (the order-3 cap)" }
+};
+/* _collapse_label(n_distinct) for n_distinct = 1..4, indexed [ng - 1].
+ * ⚠️ Python's map covers 4/2/1 and FALLS THROUGH to an f-string for anything
+ * else, so index 2 is "collapse_to_3" and NOT a fourth named label. */
+static const char *const CR_PSD_COLLAPSE[4] = {
+    "bi_symmetric_collapse_to_1",
+    "single_axis_symmetric_collapse_to_2",
+    "collapse_to_3",
+    "bi_axial_4_distinct"
+};
+static const char CR_PSD_BEYOND4[] =
+    "srmech.physics.qm.triality.lean_isa_seventh_primitive";
+
+/* A BOOLEAN carrier: CR_INT + is_bool. See the is_bool note on cr_value_t for
+ * why a bool may not ride the wire as 1/0. */
+static cr_value_t *cr_bool(cr_bump_t *b, int truth)
+{
+    cr_value_t *v;
+    assert(b != NULL);
+    assert(truth == 0 || truth == 1);
+    v = cr_int_i64(b, (int64_t)truth);
+    if (v == NULL) { return NULL; }
+    v->is_bool = 1;
+    return v;
+}
+
+/* A CR_STR carrier over a NUL-terminated .rodata constant, which outlives the
+ * run, so the carrier may alias it rather than copy. */
+static cr_value_t *cr_cstr(cr_bump_t *b, const char *s)
+{
+    cr_value_t *v;
+    assert(b != NULL);
+    assert(s != NULL);
+    v = cr_new_value(b, CR_STR);
+    if (v == NULL) { return NULL; }
+    v->s = s; v->slen = (uint32_t)strlen(s);
+    return v;
+}
+
+/* A MAPPING carrier sized for `pairs` key/value pairs — a CR_LIST of 2*pairs
+ * slots with is_map set, filled [k0, v0, k1, v1, ...] in INSERTION order. */
+static cr_value_t *cr_map_of(cr_bump_t *b, uint32_t pairs)
+{
+    cr_value_t *m;
+    assert(b != NULL);
+    assert(pairs > 0u);
+    m = cr_list_of(b, pairs * 2u);
+    if (m == NULL) { return NULL; }
+    m->is_map = 1;
+    return m;
+}
+
+/* 1 iff every slot of a built frame is non-NULL. Lets each builder below carve
+ * its whole frame and test ONCE, instead of a NULL cascade per item. */
+static int cr_all_set(const cr_value_t *m)
+{
+    uint32_t i;
+    assert(m != NULL);
+    assert(m->kind == CR_LIST);
+    for (i = 0u; i < m->n; i++) {
+        if (m->items[i] == NULL) { return 0; }
+    }
+    return 1;
+}
+
+/* T_s(seq) — the Klein-4 stream-transform for sector `s`: the Class-C iw7
+ * per-element sign re-application, then the Class-C g5 reversal. The two
+ * commute (one is per-element, the other a permutation), so applying the sign
+ * on read and the reversal on write is _stream_transform's own composition.
+ * Each T_s is an involution, so this doubles as inv_T_s. */
+static void cr_psd_transform(uint32_t s, const double *in, uint32_t n,
+                             double *out)
+{
+    uint32_t i;
+    assert(in != NULL && out != NULL);
+    assert(s < 4u && n > 0u);
+    for (i = 0u; i < n; i++) {
+        double v = in[i];
+        if (CR_PSD_LABELS[s][1] < 0) { v = -v; }              /* iw7 (Class C) */
+        out[(CR_PSD_LABELS[s][0] < 0) ? (n - 1u - i) : i] = v; /* g5  (Class C) */
+    }
+}
+
+/* The unary `@op` body, selected by the CR_OP_REG row's `un` column. Returns 0
+ * to DECLINE — CR_UN_NONE means the named row exposes no unary form, and the
+ * chain defers to the pure path rather than guessing one. */
+static int cr_psd_body(uint8_t un, const double *in, uint32_t n, double *out)
+{
+    uint32_t i;
+    assert(in != NULL);
+    assert(out != NULL);
+    if (un != (uint8_t)CR_UN_CHIRAL_FLIP) { return 0; }
+    for (i = 0u; i < n; i++) { out[i] = in[n - 1u - i]; }
+    return 1;
+}
+
+/* The sector dual inv_T_s( body( T_s(x) ) ). `scratch` is 2n doubles. */
+static int cr_psd_dual(uint8_t un, uint32_t s, const double *x, uint32_t n,
+                       double *scratch, double *out)
+{
+    assert(x != NULL && scratch != NULL);
+    assert(out != NULL && n > 0u);
+    cr_psd_transform(s, x, n, scratch);
+    if (!cr_psd_body(un, scratch, n, scratch + n)) { return 0; }
+    cr_psd_transform(s, scratch + n, n, out);
+    return 1;
+}
+
+/* Bit-exact sector-result equality, ELEMENT-WISE `==`.
+ *
+ * ⚠️ NOT memcmp, and the difference is reachable. Python's `_equal` is `==` per
+ * element, which says +0.0 == -0.0 (memcmp says those differ) and says
+ * NaN != NaN (memcmp says those match). The iw7 axis is a sign flip, so a 0.0
+ * anywhere in `x` puts a -0.0 into a sector result — memcmp would then split a
+ * class Python merges and report a DIFFERENT n_distinct with no error. */
+static int cr_psd_row_eq(const double *a, const double *b, uint32_t n)
+{
+    uint32_t i;
+    assert(a != NULL && b != NULL);
+    assert(n > 0u);
+    for (i = 0u; i < n; i++) {
+        if (!(a[i] == b[i])) { return 0; }
+    }
+    return 1;
+}
+
+/* _distinct_classes — partition the sector indices by bit-exact equality.
+ * grp[s] = the group id of sector s; the return is the group COUNT.
+ *
+ * ⚠️ EACH SECTOR IS COMPARED AGAINST EVERY EARLIER SECTOR, first match wins.
+ * Python compares against each group's FIRST member in group order, and since
+ * groups are ordered by smallest member and equality is transitive here, "the
+ * smallest earlier equal index" names the same group. An earlier draft guarded
+ * the inner loop with `grp[t] == t` to skip non-representatives; that guard is
+ * WRONG once any earlier group has absorbed a member, because a later group's
+ * id then no longer equals its own first index. Measured against
+ * _distinct_classes on the {0,1},{2,3} partition — the iw7-symmetric case the
+ * module docstring names — it reported n_distinct = 3 where Python reports 2,
+ * a silent wrong value. */
+static uint32_t cr_psd_classes(const double *res, uint32_t ns, uint32_t n,
+                               uint32_t *grp)
+{
+    uint32_t s, t, ng = 0u;
+    assert(res != NULL && grp != NULL);
+    assert(ns >= 1u && ns <= 4u);
+    for (s = 0u; s < ns; s++) {
+        grp[s] = ng;
+        for (t = 0u; t < s; t++) {
+            if (cr_psd_row_eq(res + (size_t)t * n, res + (size_t)s * n, n)) {
+                grp[s] = grp[t];
+                break;
+            }
+        }
+        if (grp[s] == ng) { ng++; }
+    }
+    return ng;
+}
+
+/* _apply_combine over the sector results. Writes to `out` (>= ns*n doubles) and
+ * returns the produced length, or -1 to DECLINE an unknown reducer name.
+ *
+ * bundle/mean accumulate from 0.0 LEFT TO RIGHT — Python's `sum(col)` seeds an
+ * int 0 and adds each column entry in sector order, and float addition is not
+ * associative, so the order is part of the value. */
+static int32_t cr_psd_combine(const char *nm, uint32_t nl, const double *res,
+                              uint32_t ns, uint32_t n, double *out)
+{
+    uint32_t i, s;
+    assert(res != NULL && out != NULL);
+    assert(ns >= 1u && ns <= 4u);
+    if (nm == NULL || nl == 0u) { return -1; }
+    if (cr_op_is(nm, nl, "sector0", 7u)) {
+        for (i = 0u; i < n; i++) { out[i] = res[i]; }
+        return (int32_t)n;
+    }
+    if (cr_op_is(nm, nl, "concat", 6u)) {
+        for (s = 0u; s < ns; s++) {
+            for (i = 0u; i < n; i++) {
+                out[(size_t)s * n + i] = res[(size_t)s * n + i];
+            }
+        }
+        return (int32_t)(ns * n);
+    }
+    if (cr_op_is(nm, nl, "bundle", 6u) || cr_op_is(nm, nl, "mean", 4u)) {
+        int is_mean = cr_op_is(nm, nl, "mean", 4u);
+        for (i = 0u; i < n; i++) {
+            double acc = 0.0;
+            for (s = 0u; s < ns; s++) { acc += res[(size_t)s * n + i]; }
+            out[i] = is_mean ? (acc / (double)ns) : acc;
+        }
+        return (int32_t)n;
+    }
+    return -1;
+}
+
+/* A plain CR_LIST of CR_DBL over a double run — every `result` and the
+ * `combined` value. */
+static cr_value_t *cr_psd_vec(cr_bump_t *b, const double *v, uint32_t n)
+{
+    cr_value_t *lst; uint32_t i;
+    assert(b != NULL);
+    assert(v != NULL || n == 0u);
+    lst = cr_list_of(b, n);
+    if (lst == NULL) { return NULL; }
+    for (i = 0u; i < n; i++) { lst->items[i] = cr_dbl(b, v[i]); }
+    return cr_all_set(lst) ? lst : NULL;
+}
+
+/* The `sectors` block: the INT-KEYED mapping s -> {label, result}. Those int
+ * keys are the measured reason the `m` kind carries typed key DESCRIPTORS
+ * instead of JSON object keys — see the is_map note on cr_value_t. */
+static cr_value_t *cr_psd_sectors(cr_bump_t *b, const double *res,
+                                  uint32_t ns, uint32_t n)
+{
+    cr_value_t *map, *inner, *lab; uint32_t s;
+    assert(b != NULL);
+    assert(res != NULL && ns >= 1u && ns <= 4u);
+    map = cr_map_of(b, ns);
+    if (map == NULL) { return NULL; }
+    for (s = 0u; s < ns; s++) {
+        lab = cr_list_of(b, 2u);
+        inner = cr_map_of(b, 2u);
+        if (lab == NULL || inner == NULL) { return NULL; }
+        lab->is_tuple = 1;                    /* SECTOR_LABELS holds tuples */
+        lab->items[0] = cr_int_i64(b, (int64_t)CR_PSD_LABELS[s][0]);
+        lab->items[1] = cr_int_i64(b, (int64_t)CR_PSD_LABELS[s][1]);
+        inner->items[0] = cr_cstr(b, "label");
+        inner->items[1] = lab;
+        inner->items[2] = cr_cstr(b, "result");
+        inner->items[3] = cr_psd_vec(b, res + (size_t)s * n, n);
+        map->items[s * 2u] = cr_int_i64(b, (int64_t)s);
+        map->items[s * 2u + 1u] = inner;
+        if (!cr_all_set(lab) || !cr_all_set(inner)) { return NULL; }
+    }
+    return cr_all_set(map) ? map : NULL;
+}
+
+/* The `independence` certificate, in parallel.py's own key order.
+ *
+ * ⚠️ runtime_verified IS HARDCODED FALSE, and cr_op_psd DECLINES when the step
+ * carries a `verify` key that is not false. verify=True makes Python recompute
+ * the serial reference and report True here; emitting False for it would be a
+ * wrong value, so the arm refuses the input rather than answering for it. */
+static cr_value_t *cr_psd_independence(cr_bump_t *b, uint32_t ns,
+                                       int g5, int w7)
+{
+    cr_value_t *m;
+    assert(b != NULL);
+    assert(ns >= 1u && ns <= 4u);
+    m = cr_map_of(b, 9u);
+    if (m == NULL) { return NULL; }
+    m->items[0] = cr_cstr(b, "each_sector_reconstructs_from_own_input");
+    m->items[1] = cr_bool(b, 1);
+    m->items[2] = cr_cstr(b, "cross_sector_reads");
+    m->items[3] = cr_int_i64(b, 0);
+    m->items[4] = cr_cstr(b, "parallel_equals_serial");
+    m->items[5] = cr_bool(b, 1);
+    m->items[6] = cr_cstr(b, "sector2_is_chiral_dual");
+    m->items[7] = cr_bool(b, 1);
+    m->items[8] = cr_cstr(b, "runtime_verified");
+    m->items[9] = cr_bool(b, 0);
+    m->items[10] = cr_cstr(b, "n_sectors");
+    m->items[11] = cr_int_i64(b, (int64_t)ns);
+    m->items[12] = cr_cstr(b, "max_workers");
+    m->items[13] = cr_int_i64(b, 4);
+    m->items[14] = cr_cstr(b, "gamma5_net_chirality");
+    m->items[15] = cr_int_i64(b, (int64_t)g5);
+    m->items[16] = cr_cstr(b, "omega7_net_chirality");
+    m->items[17] = cr_int_i64(b, (int64_t)w7);
+    return cr_all_set(m) ? m : NULL;
+}
+
+/* The `classes` partition as a list of per-group sector-index lists, ordered by
+ * smallest member (which is the order cr_psd_classes assigns group ids in). */
+static cr_value_t *cr_psd_class_list(cr_bump_t *b, const uint32_t *grp,
+                                     uint32_t ns, uint32_t ng)
+{
+    cr_value_t *classes, *grow; uint32_t g, s, k, cnt;
+    assert(b != NULL && grp != NULL);
+    assert(ng >= 1u && ng <= ns);
+    classes = cr_list_of(b, ng);
+    if (classes == NULL) { return NULL; }
+    for (g = 0u; g < ng; g++) {
+        cnt = 0u;
+        for (s = 0u; s < ns; s++) { if (grp[s] == g) { cnt++; } }
+        grow = cr_list_of(b, cnt);
+        if (grow == NULL) { return NULL; }
+        for (s = 0u, k = 0u; s < ns; s++) {
+            if (grp[s] == g) { grow->items[k] = cr_int_i64(b, (int64_t)s); k++; }
+        }
+        if (!cr_all_set(grow)) { return NULL; }
+        classes->items[g] = grow;
+    }
+    return cr_all_set(classes) ? classes : NULL;
+}
+
+/* The `collapse_lattice` block — the F233 4/2/2/1 usefulness readout. */
+static cr_value_t *cr_psd_collapse(cr_bump_t *b, const uint32_t *grp,
+                                   uint32_t ns, uint32_t ng)
+{
+    cr_value_t *m, *classes;
+    assert(b != NULL && grp != NULL);
+    assert(ng >= 1u && ng <= ns);
+    classes = cr_psd_class_list(b, grp, ns, ng);
+    if (classes == NULL) { return NULL; }
+    m = cr_map_of(b, 4u);
+    if (m == NULL) { return NULL; }
+    m->items[0] = cr_cstr(b, "n_distinct");
+    m->items[1] = cr_int_i64(b, (int64_t)ng);
+    m->items[2] = cr_cstr(b, "classes");
+    m->items[3] = classes;
+    m->items[4] = cr_cstr(b, "label");
+    m->items[5] = cr_cstr(b, CR_PSD_COLLAPSE[ng - 1u]);
+    m->items[6] = cr_cstr(b, "useful");
+    /* useful = (n_distinct == n_sectors and n_sectors == KLEIN4_SECTOR_CAP) */
+    m->items[7] = cr_bool(b, (ng == ns && ns == 4u) ? 1 : 0);
+    return cr_all_set(m) ? m : NULL;
+}
+
+/* The `cap` block — the F220 cap-at-4 certificate. */
+static cr_value_t *cr_psd_cap(cr_bump_t *b, uint32_t ns)
+{
+    cr_value_t *m;
+    assert(b != NULL);
+    assert(ns >= 1u && ns <= 4u);
+    m = cr_map_of(b, 6u);
+    if (m == NULL) { return NULL; }
+    m->items[0] = cr_cstr(b, "sector_cap");
+    m->items[1] = cr_int_i64(b, 4);
+    m->items[2] = cr_cstr(b, "n_sectors");
+    m->items[3] = cr_int_i64(b, (int64_t)ns);
+    m->items[4] = cr_cstr(b, "klein4_has_no_order_4_plus_element");
+    m->items[5] = cr_bool(b, 1);
+    m->items[6] = cr_cstr(b, "beyond_4_needs");
+    m->items[7] = cr_cstr(b, CR_PSD_BEYOND4);
+    m->items[8] = cr_cstr(b, "beyond_4_is_order_3_triality");
+    m->items[9] = cr_bool(b, 1);
+    m->items[10] = cr_cstr(b, "triality_not_implemented_here");
+    m->items[11] = cr_bool(b, 1);
+    return cr_all_set(m) ? m : NULL;
+}
+
+/* The `framework_thread_ladder_reading` block, verbatim from .rodata. */
+static cr_value_t *cr_psd_framework(cr_bump_t *b)
+{
+    cr_value_t *m; uint32_t i, nf;
+    assert(b != NULL);
+    nf = (uint32_t)(sizeof(CR_PSD_FRAMEWORK) / sizeof(CR_PSD_FRAMEWORK[0]));
+    assert(nf == 10u);
+    m = cr_map_of(b, nf);
+    if (m == NULL) { return NULL; }
+    for (i = 0u; i < nf; i++) {
+        m->items[i * 2u] = cr_cstr(b, CR_PSD_FRAMEWORK[i][0]);
+        m->items[i * 2u + 1u] = cr_cstr(b, CR_PSD_FRAMEWORK[i][1]);
+    }
+    return cr_all_set(m) ? m : NULL;
+}
+
+/* The `z4_dispatch_slots` list: Z4_DISPATCH_SLOTS[:n_sectors] = [0 .. ns-1]. */
+static cr_value_t *cr_psd_z4(cr_bump_t *b, uint32_t ns)
+{
+    cr_value_t *l; uint32_t s;
+    assert(b != NULL);
+    assert(ns >= 1u && ns <= 4u);
+    l = cr_list_of(b, ns);
+    if (l == NULL) { return NULL; }
+    for (s = 0u; s < ns; s++) { l->items[s] = cr_int_i64(b, (int64_t)s); }
+    return cr_all_set(l) ? l : NULL;
+}
+
+/* Run the sector duals and the combine, then assemble the 7-pair top mapping.
+ * Returns 1 on success, 0 to DECLINE (no unary body / unknown reducer), -1 on
+ * arena overflow. `cnm` NULL means combine=None, which yields a None
+ * `combined` exactly as Python does. */
+static int cr_psd_finish(cr_bump_t *b, uint8_t un, uint32_t ns,
+                         const double *xd, uint32_t n,
+                         const char *cnm, uint32_t cnl, cr_value_t **o)
+{
+    double *res, *scr, *cmb; uint32_t grp[4], ng, s; int32_t cl = 0;
+    int g5 = 1, w7 = 1; cr_value_t *top;
+    assert(xd != NULL && o != NULL);
+    assert(ns >= 1u && ns <= 4u && n >= 1u);
+    res = (double *)cr_carve(b, (size_t)ns * n * sizeof(double));
+    scr = (double *)cr_carve(b, 2u * (size_t)n * sizeof(double));
+    cmb = (double *)cr_carve(b, (size_t)ns * n * sizeof(double));
+    if (res == NULL || scr == NULL || cmb == NULL) { return -1; }
+    for (s = 0u; s < ns; s++) {
+        if (!cr_psd_dual(un, s, xd, n, scr, res + (size_t)s * n)) { return 0; }
+        g5 *= CR_PSD_LABELS[s][0];   /* net_chirality over the dispatched      */
+        w7 *= CR_PSD_LABELS[s][1];   /* sector labels: a Class-C product, no abs */
+    }
+    ng = cr_psd_classes(res, ns, n, grp);
+    if (cnm != NULL) {
+        cl = cr_psd_combine(cnm, cnl, res, ns, n, cmb);
+        if (cl < 0) { return 0; }
+    }
+    top = cr_map_of(b, 7u);
+    if (top == NULL) { return -1; }
+    top->items[0] = cr_cstr(b, "sectors");
+    top->items[1] = cr_psd_sectors(b, res, ns, n);
+    top->items[2] = cr_cstr(b, "combined");
+    top->items[3] = (cnm == NULL) ? cr_new_value(b, CR_NONE)
+                                  : cr_psd_vec(b, cmb, (uint32_t)cl);
+    top->items[4] = cr_cstr(b, "z4_dispatch_slots");
+    top->items[5] = cr_psd_z4(b, ns);
+    top->items[6] = cr_cstr(b, "independence");
+    top->items[7] = cr_psd_independence(b, ns, g5, w7);
+    top->items[8] = cr_cstr(b, "collapse_lattice");
+    top->items[9] = cr_psd_collapse(b, grp, ns, ng);
+    top->items[10] = cr_cstr(b, "cap");
+    top->items[11] = cr_psd_cap(b, ns);
+    top->items[12] = cr_cstr(b, "framework_thread_ladder_reading");
+    top->items[13] = cr_psd_framework(b);
+    if (!cr_all_set(top)) { return -1; }
+    *o = top;
+    return 1;
+}
+
+/* Resolve the step's `body` arg to a CR_OP_REG row's `un` id. The value is a
+ * DESCRIPTOR-level `@op.<dotted>` reference, which cr_resolve_ref deliberately
+ * declines (it resolves to a callable, not a carrier), so this reads the raw
+ * JSON node instead. Returns CR_UN_NONE for anything else, which declines. */
+static uint8_t cr_psd_un_of(const srmech_json_value_t *args)
+{
+    const srmech_json_value_t *bj = srmech_json_object_get(args, "body");
+    int32_t r;
+    assert(args != NULL);
+    assert(args->type == SRMECH_JSON_OBJECT);
+    if (bj == NULL || bj->type != SRMECH_JSON_STRING) { return CR_UN_NONE; }
+    if (bj->u.str.len < 5u || memcmp(bj->u.str.ptr, "@op.", 4u) != 0) {
+        return CR_UN_NONE;
+    }
+    r = cr_op_row(bj->u.str.ptr + 4, bj->u.str.len - 4u);
+    if (r < 0) { return CR_UN_NONE; }
+    return CR_OP_REG[r].un;
+}
+
+/* 1 iff the step carries no `verify`, or one that is explicitly false. See the
+ * hardcoded-runtime_verified note on cr_psd_independence. */
+static int cr_psd_verify_ok(const srmech_json_value_t *args)
+{
+    const srmech_json_value_t *vj = srmech_json_object_get(args, "verify");
+    assert(args != NULL);
+    assert(args->type == SRMECH_JSON_OBJECT);
+    if (vj == NULL) { return 1; }
+    return vj->type == SRMECH_JSON_BOOL && vj->u.b == 0;
+}
+
+/* parallel_sector_dispatch. Declines (NOT_IMPL, deferring the whole chain to
+ * the complete pure path) on: a body with no unary form, verify=True, an
+ * n_sectors outside 1..4, an empty or non-list x, an x element that is not a
+ * real, or a combine that is not one of the four reducer names.
+ *
+ * ⚠️ REAL-VALUED x ONLY. An int x stays int through Python's sign flip and
+ * reversal, so the pure projection would emit `i` leaves where this arm emits
+ * `f` — a byte divergence with a right-looking value. The arm refuses rather
+ * than widening. */
+static srmech_status_t cr_op_psd(cr_ctx_t *c, const srmech_json_value_t *args,
+                                 cr_value_t **out)
+{
+    cr_value_t *vx, *vns, *vcb; double *xd; uint32_t i, n; int64_t nsi;
+    const char *cnm = NULL; uint32_t cnl = 0u; uint8_t un; int rc;
+    assert(c != NULL && out != NULL);
+    assert(args != NULL);
+    un = cr_psd_un_of(args);
+    if (un == (uint8_t)CR_UN_NONE) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_psd_verify_ok(args)) { return SRMECH_ERR_NOT_IMPL; }
+    vns = cr_arg(c, args, "n_sectors");
+    if (vns == NULL || !cr_as_i64(vns, &nsi)) { return SRMECH_ERR_NOT_IMPL; }
+    if (nsi < 1 || nsi > 4) { return SRMECH_ERR_NOT_IMPL; }
+    vcb = cr_arg(c, args, "combine");
+    if (vcb != NULL && vcb->kind == CR_STR && !vcb->is_bytes) {
+        cnm = vcb->s; cnl = vcb->slen;
+    } else if (vcb != NULL && vcb->kind != CR_NONE) {
+        return SRMECH_ERR_NOT_IMPL;              /* a callable cannot cross */
+    }
+    vx = cr_arg(c, args, "x");
+    if (vx == NULL || vx->kind != CR_LIST || vx->n == 0u || vx->is_map) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    n = vx->n;
+    xd = (double *)cr_carve(c->b, (size_t)n * sizeof(double));
+    if (xd == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < n; i++) {
+        if (vx->items[i] == NULL || vx->items[i]->kind != CR_DBL) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        xd[i] = vx->items[i]->d;
+    }
+    rc = cr_psd_finish(c->b, un, (uint32_t)nsi, xd, n, cnm, cnl, out);
+    if (rc < 0) { return SRMECH_ERR_OVERFLOW; }
+    return (rc == 0) ? SRMECH_ERR_NOT_IMPL : SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * THE PER-DOMAIN EXECS — the switch half of the A1 dispatch. Each switches on
+ * its OWN enum type with NO `default:` arm, so -Wswitch under -Werror (and
+ * /w44062 under /WX on MSVC) makes a table row whose `sub` has no case a
+ * COMPILE ERROR, and a deleted case line equally so. The trailing return is
+ * the open-enum path: `sub` rides the table as a uint8_t, so a value outside
+ * the enum is expressible data, and it must answer INTERNAL rather than fall
+ * off the end. tests/test_t1158_registry_param_order_rc449.py parses each
+ * exec's case labels and pins them SET-EQUAL to the table's per-domain `sub`
+ * column, so the two cannot drift apart even where a compiler is lenient.
+ * ------------------------------------------------------------------ */
+
+static srmech_status_t cr_exec_rat(cr_ctx_t *c, uint8_t sub,
+                                   const srmech_json_value_t *args,
+                                   cr_value_t **out)
+{
+    assert(c != NULL && out != NULL);
+    assert(args != NULL);
+    switch ((cr_rat_op_t)sub) {
+    case CR_RAT_PI:            return cr_op_pi(c, args, out);
+    case CR_RAT_EXP:           return cr_op_series(c, args, CR_SER_EXP, out);
+    case CR_RAT_SIN:           return cr_op_series(c, args, CR_SER_SIN, out);
+    case CR_RAT_COS:           return cr_op_series(c, args, CR_SER_COS, out);
+    case CR_RAT_LOG1P:         return cr_op_series(c, args, CR_SER_LOG1P, out);
+    case CR_RAT_ATAN:          return cr_op_series(c, args, CR_SER_ATAN, out);
+    case CR_RAT_POW:           return cr_op_pow(c, args, out);
+    case CR_RAT_ADD:           return cr_op_rat(c, args, '+', out);
+    case CR_RAT_MUL:           return cr_op_rat(c, args, '*', out);
+    case CR_RAT_DIV:           return cr_op_rat(c, args, '/', out);
+    case CR_RAT_SCALE_ROUND:   return cr_op_scale_round(c, args, out);
+    case CR_RAT_BEST_RATIONAL: return cr_op_best_rational(c, args, out);
+    }
+    return SRMECH_ERR_INTERNAL;
+}
+
+static srmech_status_t cr_exec_cyc(cr_ctx_t *c, uint8_t sub,
+                                   const srmech_json_value_t *args,
+                                   cr_value_t **out)
+{
+    assert(c != NULL && out != NULL);
+    assert(args != NULL);
+    switch ((cr_cyc_op_t)sub) {
+    case CR_CYC_GCD:          return cr_op_cyclic(c, args, CR_CY_GCD, out);
+    case CR_CYC_MOD_ADD:      return cr_op_cyclic(c, args, CR_CY_ADD, out);
+    case CR_CYC_MOD_MUL:      return cr_op_cyclic(c, args, CR_CY_MUL, out);
+    case CR_CYC_MOD_MUL_WIDE: return cr_op_cyclic(c, args, CR_CY_MUL, out);
+    case CR_CYC_MOD_POW:      return cr_op_cyclic(c, args, CR_CY_POW, out);
+    case CR_CYC_MOD_INV:      return cr_op_cyclic_inv(c, args, out);
+    }
+    return SRMECH_ERR_INTERNAL;
+}
+
+static srmech_status_t cr_exec_cas(cr_ctx_t *c, uint8_t sub,
+                                   const srmech_json_value_t *args,
+                                   cr_value_t **out)
+{
+    assert(c != NULL && out != NULL);
+    assert(args != NULL);
+    switch ((cr_cas_op_t)sub) {
+    case CR_CAS_SEQ_LEN:         return cr_a_seq_len(c, args, out);
+    case CR_CAS_CORR_PRODUCT:    return cr_a_corr_product(c, args, out);
+    case CR_CAS_COMPENSATED_SUM: return cr_a_compensated_sum(c, args, out);
+    case CR_CAS_PIN_SLOT:        return cr_op_pin_slot(c, args, out);
+    case CR_CAS_REORIENT:        return cr_op_reorient(c, args, out);
+    case CR_CAS_CHIRAL_FLIP:
+        return cr_op_dseq(c, args, "seq", CR_DSEQ_CHIRAL_FLIP, out);
+    case CR_CAS_AUTOCORRELATION: return cr_a_autocorrelation(c, args, out);
+    case CR_CAS_DEAD_BAND:       return cr_op_dead_band(c, args, out);
+    case CR_CAS_PAIR:            return cr_op_pair(c, args, out);
+    case CR_CAS_SEQ_GET:         return cr_op_seq_get(c, args, out);
+    case CR_CAS_VEC_SCALE:       return cr_op_vec_scale(c, args, out);
+    case CR_CAS_KUR_INV_N:       return cr_op_kur_inv_n(c, args, out);
+    case CR_CAS_KUR_SIN_TERM:    return cr_op_kur_sin_term(c, args, out);
+    case CR_CAS_KUR_OUT_SIMPLE:  return cr_op_kur_out_simple(c, args, out);
+    case CR_CAS_KUR_GEN_TERM:    return cr_op_kur_gen_term(c, args, out);
+    case CR_CAS_KUR_GEN_OUT:     return cr_op_kur_gen_out(c, args, out);
+    case CR_CAS_AS_QUAT4:        return cr_op_as_quat4(c, args, out);
+    case CR_CAS_AS_OCT8:         return cr_op_as_oct8(c, args, out);
+    case CR_CAS_QDFT_RESOLVE_MU: return cr_op_qdft_resolve_mu(c, args, out);
+    case CR_CAS_ODFT_RESOLVE_MU: return cr_op_odft_resolve_mu(c, args, out);
+    case CR_CAS_DFT_SIGMA:       return cr_op_dft_sigma(c, args, out);
+    case CR_CAS_DFT_SCALE:       return cr_op_dft_scale(c, args, out);
+    case CR_CAS_QDFT_SUMMAND:    return cr_op_qdft_summand(c, args, out);
+    case CR_CAS_ODFT_SUMMAND:    return cr_op_odft_summand(c, args, out);
+    case CR_CAS_RENDER_TEMPLATE: return cr_op_render_template(c, args, out);
+    case CR_CAS_UTF8_ENCODE:     return cr_op_utf8_encode(c, args, out);
+    case CR_CAS_SHA256_BYTES:    return cr_op_sha256_bytes(c, args, out);
+    case CR_CAS_STR_CONCAT:      return cr_op_str_concat(c, args, out);
+    case CR_CAS_BYTE_SLICE:      return cr_op_byte_slice(c, args, out);
+    case CR_CAS_INT_PARSE_LE:    return cr_op_int_parse_le(c, args, out);
+    case CR_CAS_SHA256_RAW:      return cr_op_sha256_raw(c, args, out);
+    case CR_CAS_MINT_VECTOR:     return cr_op_mint_vector(c, args, out);
+    case CR_CAS_HDC_PERMUTE:     return cr_op_hdc_permute(c, args, out);
+    case CR_CAS_HDC_BIND:        return cr_op_hdc_bind(c, args, out);
+    case CR_CAS_SCHUR:           return cr_op_schur(c, args, out);
+    case CR_CAS_PSD:             return cr_op_psd(c, args, out);
+    }
+    return SRMECH_ERR_INTERNAL;
+}
+
+/* Dispatch one plain step's op. A row lookup plus the domain switch — no
+ * if-chain, and (deliberately) no cr_op_is call of its own. An op with no
+ * row, or a row that is fold-body-ONLY (dom == CR_DOM_NONE), returns NOT_IMPL
+ * and the whole chain defers to the complete pure path. The explicit
+ * CR_DOM_NONE arm keeps THIS switch exhaustive too — same -Wswitch gate. */
 static srmech_status_t cr_dispatch(cr_ctx_t *c, const char *op, uint32_t opl,
                                    const srmech_json_value_t *args, cr_value_t **out)
 {
+    int32_t r;
     assert(c != NULL && op != NULL && out != NULL);
     assert(args != NULL);
-    if (cr_op_is(op, opl, "pi_cascade_digits", 17u)) {
-        return cr_op_pi(c, args, out);
+    r = cr_op_row(op, opl);
+    if (r < 0) { return SRMECH_ERR_NOT_IMPL; }
+    switch ((cr_dom_t)CR_OP_REG[r].dom) {
+    case CR_DOM_NONE: return SRMECH_ERR_NOT_IMPL;
+    case CR_DOM_RAT:  return cr_exec_rat(c, CR_OP_REG[r].sub, args, out);
+    case CR_DOM_CYC:  return cr_exec_cyc(c, CR_OP_REG[r].sub, args, out);
+    case CR_DOM_CAS:  return cr_exec_cas(c, CR_OP_REG[r].sub, args, out);
     }
-    if (cr_op_is(op, opl, "exp_series_truncate", 19u)) {
-        return cr_op_series(c, args, srmech_exp_series_truncate_big, out);
-    }
-    if (cr_op_is(op, opl, "sin_series_truncate", 19u)) {
-        return cr_op_series(c, args, srmech_sin_series_truncate_big, out);
-    }
-    if (cr_op_is(op, opl, "cos_series_truncate", 19u)) {
-        return cr_op_series(c, args, srmech_cos_series_truncate_big, out);
-    }
-    if (cr_op_is(op, opl, "log1p_series_truncate", 21u)) {
-        return cr_op_series(c, args, srmech_log1p_series_truncate_big, out);
-    }
-    if (cr_op_is(op, opl, "atan_series_truncate", 20u)) {
-        return cr_op_series(c, args, srmech_atan_series_truncate_big, out);
-    }
-    if (cr_op_is(op, opl, "rational_pow_uint", 17u)) {
-        return cr_op_pow(c, args, out);
-    }
-    if (cr_op_is(op, opl, "rational_add", 12u)) {
-        return cr_op_rat(c, args, '+', out);
-    }
-    if (cr_op_is(op, opl, "rational_mul", 12u)) {
-        return cr_op_rat(c, args, '*', out);
-    }
-    if (cr_op_is(op, opl, "rational_div", 12u)) {
-        return cr_op_rat(c, args, '/', out);
-    }
-    /* Class-I cyclic group (gh #1653). Declines out-of-uint64 operands. */
-    if (cr_op_is(op, opl, "gcd", 3u)) {
-        return cr_op_cyclic(c, args, CR_CY_GCD, out);
-    }
-    if (cr_op_is(op, opl, "mod_add", 7u)) {
-        return cr_op_cyclic(c, args, CR_CY_ADD, out);
-    }
-    if (cr_op_is(op, opl, "mod_mul", 7u)) {
-        return cr_op_cyclic(c, args, CR_CY_MUL, out);
-    }
-    if (cr_op_is(op, opl, "mod_mul_wide", 12u)) {
-        return cr_op_cyclic(c, args, CR_CY_MUL, out);
-    }
-    if (cr_op_is(op, opl, "mod_pow", 7u)) {
-        return cr_op_cyclic(c, args, CR_CY_POW, out);
-    }
-    if (cr_op_is(op, opl, "mod_inv", 7u)) {
-        return cr_op_cyclic_inv(c, args, out);
-    }
-    return cr_dispatch_real(c, op, opl, args, out);   /* else: not in the
-                                                      * table → pure */
+    return SRMECH_ERR_INTERNAL;
 }
 
 /* ------------------------------------------------------------------
@@ -1397,11 +4311,83 @@ static srmech_json_value_t *cr_dec_node(srmech_json_builder_t *bd,
     return srmech_json_new_string(bd, dec, (uint32_t)dl);
 }
 
+/* Lowercase-hex expansion of a byte buffer, carved from `tmp`. The payload
+ * encoding of the `b` (BYTES) wire kind.
+ *
+ * ⚠️ WHY HEX AND NOT BASE64. The choice is forced by the same reasoning the
+ * mapping kind's key ordering is: pick the encoding whose spelling leaves the
+ * two projections NO decision to disagree about. Base64 has an alphabet
+ * variant (standard vs URL-safe) and a padding rule, and each is a place a C
+ * writer and a Python reader can differ while both look correct; lowercase hex
+ * has exactly one spelling for any input, `bytes.hex()` produces it and
+ * `bytes.fromhex()` inverts it exactly, and it is already the alphabet
+ * srmech_sha256_hex emits, so no new encoder alphabet enters the library.
+ *
+ * (Not to be confused with the MCP tool surface's `bytes` coercer, which reads
+ * BASE64 — that is an INPUT coercion on a different surface. Measured this rc:
+ * feeding it hex raises `Incorrect padding`. The two are not interchangeable
+ * and this comment exists so nobody "unifies" them by guess.) */
+static char *cr_bytes_hex(cr_bump_t *tmp, const char *s, uint32_t n)
+{
+    static const char DIG[16] = { '0','1','2','3','4','5','6','7',
+                                  '8','9','a','b','c','d','e','f' };
+    char *out; uint32_t i;
+    assert(tmp != NULL);
+    assert(s != NULL || n == 0u);
+    if (n > 0x3FFFFFFFu) { return NULL; }      /* 2n must not wrap uint32 */
+    out = (char *)cr_carve(tmp, (size_t)n * 2u + 1u);
+    if (out == NULL) { return NULL; }
+    for (i = 0u; i < n; i++) {
+        unsigned char by = (unsigned char)s[i];
+        out[2u * i] = DIG[(by >> 4) & 0x0Fu];
+        out[2u * i + 1u] = DIG[by & 0x0Fu];
+    }
+    out[2u * n] = '\0';
+    return out;
+}
+
+/* The CR_STR arm of cr_desc_scalar: `s` for a str, `b` for bytes.
+ *
+ * Split out at rc452 (`#T1166`) because adding the `o` arm took cr_desc_scalar
+ * to 65 lines and JPL Rule 4 caps it at 60. The STRING arm is the right thing to
+ * lift rather than the newest one: it is the only arm with an interior branch
+ * and a scratch allocation, so it is the largest, and it is self-contained.
+ *
+ * The `b` kind spells bytes as lowercase hex. Through the wave-C phase this
+ * returned NULL and cr_run_and_write declined a bytes FINAL outright, because
+ * spelling bytes as `s` would erase the str/bytes type on the wire — the exact
+ * collapse class the rc450 comparator pins. The kind landed in the SAME change
+ * as encode_loe_content, the chain that emits it, so it was never a
+ * declared-but-unemitted letter. */
+static srmech_json_value_t *cr_desc_str(srmech_json_builder_t *bd,
+                                        const cr_value_t *v, cr_bump_t *tmp)
+{
+    const char *keys[2]; srmech_json_value_t *vals[2];
+    assert(bd != NULL && tmp != NULL);
+    assert(v != NULL && v->kind == CR_STR);
+    keys[0] = "k"; keys[1] = "v";
+    if (v->is_bytes) {
+        char *hx = cr_bytes_hex(tmp, v->s, v->slen);
+        if (hx == NULL) { return NULL; }
+        vals[0] = srmech_json_new_string(bd, "b", 1u);
+        vals[1] = srmech_json_new_string(bd, hx, v->slen * 2u);
+        return srmech_json_new_object(bd, keys, vals, 2u);
+    }
+    vals[0] = srmech_json_new_string(bd, "s", 1u);
+    vals[1] = srmech_json_new_string(bd, v->s, v->slen);
+    return srmech_json_new_object(bd, keys, vals, 2u);
+}
+
 /* Marshal a SCALAR carrier to its value descriptor. Split from cr_desc so the
  * list arm can loop over elements WITHOUT re-entering cr_desc — that would be
  * mutual recursion, which JPL Rule 1 bans. Safe because cr_json_list builds
  * lists from cr_json_scalar only, so a list is flat by construction and a
- * nested element cannot arise. Returns NULL for CR_LIST. */
+ * nested element cannot arise. Returns NULL for CR_LIST.
+ *
+ * ⚠️ THE `o` ARM MUST PRECEDE THE PLAIN CR_INT ARM. A bool carrier IS a CR_INT
+ * with is_bool set, so the int arm would otherwise claim it and emit `i` — a
+ * right value of the wrong TYPE, which is exactly the collapse the kind exists
+ * to prevent. Its payload is a JSON bool LITERAL, never 1/0. */
 static srmech_json_value_t *cr_desc_scalar(srmech_json_builder_t *bd,
                                            const cr_value_t *v, cr_bump_t *tmp)
 {
@@ -1412,6 +4398,17 @@ static srmech_json_value_t *cr_desc_scalar(srmech_json_builder_t *bd,
         keys[0] = "k"; vals[0] = srmech_json_new_string(bd, "n", 1u);
         return srmech_json_new_object(bd, keys, vals, 1u);
     }
+    if (v->kind == CR_INT && v->is_bool) {
+        /* rc452 (`#T1166`): the `o` kind. The payload is a JSON bool LITERAL,
+         * never 1/0 — see the is_bool note on cr_value_t. This arm must come
+         * BEFORE the plain CR_INT arm below, which would otherwise claim it. */
+        keys[0] = "k"; keys[1] = "v";
+        vals[0] = srmech_json_new_string(bd, "o", 1u);
+        if (v->num == NULL) { return NULL; }
+        vals[1] = srmech_json_new_bool(bd, srmech_bigint_is_zero(v->num) ? 0 : 1);
+        if (vals[0] == NULL || vals[1] == NULL) { return NULL; }
+        return srmech_json_new_object(bd, keys, vals, 2u);
+    }
     if (v->kind == CR_INT) {
         keys[0] = "k"; keys[1] = "v";
         vals[0] = srmech_json_new_string(bd, "i", 1u);
@@ -1419,12 +4416,7 @@ static srmech_json_value_t *cr_desc_scalar(srmech_json_builder_t *bd,
         if (vals[1] == NULL) { return NULL; }
         return srmech_json_new_object(bd, keys, vals, 2u);
     }
-    if (v->kind == CR_STR) {
-        keys[0] = "k"; keys[1] = "v";
-        vals[0] = srmech_json_new_string(bd, "s", 1u);
-        vals[1] = srmech_json_new_string(bd, v->s, v->slen);
-        return srmech_json_new_object(bd, keys, vals, 2u);
-    }
+    if (v->kind == CR_STR) { return cr_desc_str(bd, v, tmp); }
     if (v->kind == CR_RATIONAL) {
         srmech_json_value_t *n = cr_dec_node(bd, v->num, tmp);
         srmech_json_value_t *d = cr_dec_node(bd, v->den, tmp);
@@ -1483,21 +4475,35 @@ static srmech_json_value_t *cr_desc_scalar(srmech_json_builder_t *bd,
  * the placeholder as an eighth emitted kind and went red. The gate returning
  * otherwise on a comment is the gate being a measurement — so the comment
  * moved, not the predicate.) */
-static srmech_json_value_t *cr_desc_list(srmech_json_builder_t *bd,
-                                         const cr_value_t *v, cr_bump_t *tmp)
+/* Close ONE completed list frame into its {"k": l|t, "v": [...]} object. Split
+ * out so the walker below stays well inside JPL Rule 4. */
+static srmech_json_value_t *cr_desc_close(srmech_json_builder_t *bd,
+                                          const cr_value_t *v,
+                                          srmech_json_value_t **items)
 {
     const char *keys[2]; srmech_json_value_t *vals[2];
-    srmech_json_value_t **items; uint32_t i;
     assert(bd != NULL && v != NULL);
-    assert(v->kind == CR_LIST);
-    items = (srmech_json_value_t **)cr_carve(tmp, (size_t)v->n * sizeof(void *) + 1u);
-    if (items == NULL) { return NULL; }
-    for (i = 0u; i < v->n; i++) {
-        items[i] = cr_desc_scalar(bd, v->items[i], tmp);   /* NO recursion */
-        if (items[i] == NULL) { return NULL; }
-    }
+    assert(items != NULL || v->n == 0u);
     keys[0] = "k"; keys[1] = "v";
-    if (v->is_tuple) {
+    if (v->is_map) {
+        /* rc452 (`#T1166`): the `m` kind. The PAYLOAD is the same flat array
+         * an `l` carries — alternating key/value descriptors, so the walker
+         * below is untouched and there is no second array grammar. What the
+         * letter buys is that the reader rebuilds a DICT, and that the keys
+         * cross as typed descriptors rather than as JSON object keys (which
+         * could not carry this op's int keys in agreeing byte order across the
+         * two projections — see the is_map note on cr_value_t). */
+        vals[0] = srmech_json_new_string(bd, "m", 1u);
+    } else if (v->is_matrix) {
+        /* rc452 Phase 2 (`#T1166`, the K3 slice): the `x` kind. The PAYLOAD is
+         * the same nested array a plain `l` carries — the rows are ordinary
+         * `l` frames — so the walker below is untouched and the shape is not
+         * a second grammar. Only the OUTER letter differs, and it is what
+         * tells the reader to rebuild the Mat carrier the Python op returns
+         * rather than a list of lists. Rectangularity is guaranteed by the
+         * builder (cr_mat_value), not by the wire. */
+        vals[0] = srmech_json_new_string(bd, "x", 1u);
+    } else if (v->is_tuple) {
         vals[0] = srmech_json_new_string(bd, "t", 1u);
     } else {
         vals[0] = srmech_json_new_string(bd, "l", 1u);
@@ -1505,6 +4511,64 @@ static srmech_json_value_t *cr_desc_list(srmech_json_builder_t *bd,
     vals[1] = srmech_json_new_array(bd, items, v->n);
     if (vals[0] == NULL || vals[1] == NULL) { return NULL; }
     return srmech_json_new_object(bd, keys, vals, 2u);
+}
+
+typedef struct {
+    const cr_value_t *v;             /* the CR_LIST being marshalled */
+    srmech_json_value_t **items;     /* its built children */
+    uint32_t i;                      /* next child slot */
+} cr_mframe_t;
+
+/* Marshal a (possibly NESTED) CR_LIST. POST-ORDER over an explicit frame stack:
+ * a JSON array node cannot be built until all its children exist, so a frame
+ * closes only when its last child has.
+ *
+ * ⚠️ THIS IS THE WRITER HALF OF `chain_run_list_is_flat_only`, AND IT WAS THE
+ * HALF WITH TEETH. The rc451 version looped `cr_desc_scalar` over the elements
+ * and returned NULL for a CR_LIST element — its comment reasoned that a list
+ * "is flat by construction and a nested element cannot arise", which was TRUE
+ * only because the INGEST could not build one. The two halves propped each
+ * other up: widening either alone yields a chain that runs and cannot report.
+ * Both move in this commit for that reason. */
+static srmech_json_value_t *cr_desc_list(srmech_json_builder_t *bd,
+                                         const cr_value_t *v, cr_bump_t *tmp)
+{
+    cr_mframe_t st[CR_MAX_DEPTH]; uint32_t sp;
+    assert(bd != NULL && v != NULL);
+    assert(v->kind == CR_LIST);
+    st[0].v = v; st[0].i = 0u;
+    st[0].items = (srmech_json_value_t **)cr_carve(
+        tmp, (size_t)v->n * sizeof(void *) + sizeof(void *));
+    if (st[0].items == NULL) { return NULL; }
+    sp = 1u;
+    while (sp > 0u) {
+        cr_mframe_t *f = &st[sp - 1u];
+        if (f->i < f->v->n) {
+            const cr_value_t *ch = f->v->items[f->i];
+            if (ch != NULL && ch->kind == CR_LIST) {
+                if (sp >= CR_MAX_DEPTH) { return NULL; }
+                st[sp].v = ch; st[sp].i = 0u;
+                st[sp].items = (srmech_json_value_t **)cr_carve(
+                    tmp, (size_t)ch->n * sizeof(void *) + sizeof(void *));
+                if (st[sp].items == NULL) { return NULL; }
+                sp++;                    /* parent's i advances on POP */
+                continue;
+            }
+            f->items[f->i] = cr_desc_scalar(bd, ch, tmp);
+            if (f->items[f->i] == NULL) { return NULL; }
+            f->i++;
+            continue;
+        }
+        {   /* frame complete → close it into the parent, or return it */
+            srmech_json_value_t *node = cr_desc_close(bd, f->v, f->items);
+            if (node == NULL) { return NULL; }
+            sp--;
+            if (sp == 0u) { return node; }
+            st[sp - 1u].items[st[sp - 1u].i] = node;
+            st[sp - 1u].i++;
+        }
+    }
+    return NULL;                          /* unreachable: sp starts at 1 */
 }
 
 /* Marshal any carrier to its value descriptor. */
@@ -1528,7 +4592,12 @@ size_t srmech_chain_run_arena_bytes(size_t chain_len, size_t ctx_len)
      * the persisting step-output carriers; a generous static envelope (an op
      * that outgrows it → OVERFLOW → the pure path). */
     size_t run = 4096u * chain_len + (1u << 20);
-    size_t writer = 32768u + 16u * (chain_len + ctx_len);
+    /* Over-approximates cr_writer_reserve (2x its floor and its per-byte term),
+     * so a caller sizing `ws` with this function always has room for the
+     * reserve cr_run_and_write then carves out of the tail. The two moved
+     * TOGETHER at rc452 (`#T1166`) — raising the reserve without raising this
+     * would have left the caller's arena short by exactly the difference. */
+    size_t writer = 2u * (size_t)CR_WRITER_FLOOR + 16u * (chain_len + ctx_len);
     assert(sizeof(srmech_bigint_t) <= 64u);
     assert(sizeof(cr_value_t) <= 128u);
     return parse + run + writer;
@@ -1591,39 +4660,37 @@ static cr_form_t cr_step_form(const srmech_json_value_t *step)
 }
 
 
-/* 1 iff `op` names orientation_compose — bare, or any dotted spelling ending
- * `.orientation_compose` (descriptors write the dotted form). */
-static int cr_body_is_orient_compose(const char *op, uint32_t opl)
-{
-    static const char dotted[21] = ".orientation_compose";
-    assert(op != NULL);
-    assert(opl > 0u);
-    if (cr_op_is(op, opl, "orientation_compose", 19u)) { return 1; }
-    if (opl > 20u && memcmp(op + (opl - 20u), dotted, 20u) == 0) { return 1; }
-    return 0;
-}
-
-/* One binary fold step. An op outside the table, or an operand outside the
- * int64 shape, returns NOT_IMPL and the WHOLE chain defers to pure — the
- * inform-don't-limit contract, never a wrong answer. */
+/* One binary fold step, dispatched through the SHARED atom table's `bin`
+ * column. An op with no row, or a row whose `bin` is CR_BIN_NONE (an op that
+ * exists but cannot serve as a fold body), returns NOT_IMPL and the WHOLE
+ * chain defers to pure — the inform-don't-limit contract, never a wrong
+ * answer. The switch has no `default:` arm for the same -Wswitch drift gate
+ * the per-domain execs carry.
+ *
+ * ⚠️ THIS REPLACES A PRIVATE SINGLE-ENTRY TABLE. Through rc451 the body was
+ * matched by a bespoke `cr_body_is_orient_compose` predicate that knew exactly
+ * one op, which is why CEIL_SURFACE_A_UNSUPPORTED_FORMS kept counting `fold`
+ * unsupported while a real fold chain shipped: the FORM ran, the BODY table
+ * had one row. Sharing the op table is what makes the ratchet's `gcd` probe —
+ * chosen precisely because it is in the shared table and was NOT in the
+ * private one — able to return otherwise. */
 static srmech_status_t cr_fold_body(cr_bump_t *b, const char *op, uint32_t opl,
                                     const cr_value_t *acc,
                                     const cr_value_t *elem, cr_value_t **out)
 {
-    int64_t a, e, r; srmech_status_t st;
+    int32_t r;
     assert(b != NULL && op != NULL && out != NULL);
     assert(acc != NULL && elem != NULL);
-    if (!cr_body_is_orient_compose(op, opl)) { return SRMECH_ERR_NOT_IMPL; }
-    if (!cr_as_i64(acc, &a) || !cr_as_i64(elem, &e)) { return SRMECH_ERR_NOT_IMPL; }
-    if (e < -128 || e > 127) { return SRMECH_ERR_NOT_IMPL; }
-    if (e == 0) {                        /* the ABSORBING zero — Class K     */
-        *out = cr_int_i64(b, 0);
-        return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    r = cr_op_row(op, opl);
+    if (r < 0) { return SRMECH_ERR_NOT_IMPL; }
+    switch ((cr_bin_id_t)CR_OP_REG[r].bin) {
+    case CR_BIN_NONE:    return SRMECH_ERR_NOT_IMPL;
+    case CR_BIN_GCD:     return cr_b_gcd(b, acc, elem, out);
+    case CR_BIN_ORIENT:  return cr_b_orient_compose(b, acc, elem, out);
+    case CR_BIN_F64_ADD: return cr_b_f64_add(b, acc, elem, out);
+    case CR_BIN_VEC_ADD: return cr_b_vec_add(b, acc, elem, out);
     }
-    st = srmech_cascade_reorient_i64((int8_t)e, a, &r);   /* Class C         */
-    if (st != SRMECH_OK) { return st; }
-    *out = cr_int_i64(b, r);
-    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    return SRMECH_ERR_INTERNAL;
 }
 
 /* acc = fold_init; for elem in resolve(over): acc = fold_op(acc, elem).
@@ -1644,9 +4711,15 @@ static srmech_status_t cr_run_fold(cr_ctx_t *c, const srmech_json_value_t *step,
     if (srmech_json_object_get(step, "fold_args") != NULL) { return SRMECH_ERR_NOT_IMPL; }
     if (fo == NULL || fo->type != SRMECH_JSON_STRING) { return SRMECH_ERR_BAD_INPUT; }
     if (ov == NULL) { return SRMECH_ERR_BAD_INPUT; }
-    if (fi == NULL || fi->type != SRMECH_JSON_INT) { return SRMECH_ERR_NOT_IMPL; }
-    acc = cr_int_i64(c->b, fi->u.i);
-    if (acc == NULL) { return SRMECH_ERR_OVERFLOW; }
+    /* rc452 Phase 3: the seed is resolved GENERALLY — an int (the original
+     * arm), a real (the kuramoto Σ's 0.0), a LIST (the DFT Σ's zero vector),
+     * or a reference — exactly compose.py's `_resolve_args(step.fold_init)`.
+     * Through the first half of rc452 only a JSON_INT seed was accepted, so
+     * every float/vector fold declined at the SEED, and the gate blamed the
+     * op table. */
+    if (fi == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    acc = cr_resolve_arg(c, fi);
+    if (acc == NULL) { return SRMECH_ERR_NOT_IMPL; }
     seq = cr_resolve_arg(c, ov);
     if (seq == NULL || seq->kind != CR_LIST) { return SRMECH_ERR_NOT_IMPL; }
     for (i = 0u; i < seq->n; i++) {
@@ -1679,55 +4752,6 @@ static srmech_status_t cr_run_fold(cr_ctx_t *c, const srmech_json_value_t *step,
  * "unifies" the two rules later.
  * ------------------------------------------------------------------ */
 
-/* Bare op name -> tool-registry entry name, for the ops cr_dispatch actually runs.
- *
- * A NAME-to-NAME index, not a second copy of key names: the key names come from the
- * registry entry's own params, which two shipped gates pin set-equal to the live
- * Python signature in both directions. Order and membership mirror the cr_op_is
- * chain in cr_dispatch / cr_dispatch_real one-for-one, and
- * tests/test_t1158_registry_param_order_rc449.py parses BOTH out of this file and
- * asserts they agree — an entry here with no arm, or an arm with no entry, is red.
- * .rodata beside map_k / fold_k / plain_k / dotted[]; JPL Rule 3 is untouched. */
-static const struct {
-    const char *bare;
-    uint32_t    len;
-    const char *full;
-} CR_OP_REG[24] = {
-    { "pi_cascade_digits",     17u, "srmech.math.rational.pi_cascade_digits" },
-    { "exp_series_truncate",   19u, "srmech.math.rational.exp_series_truncate" },
-    { "sin_series_truncate",   19u, "srmech.math.rational.sin_series_truncate" },
-    { "cos_series_truncate",   19u, "srmech.math.rational.cos_series_truncate" },
-    { "log1p_series_truncate", 21u, "srmech.math.rational.log1p_series_truncate" },
-    { "atan_series_truncate",  20u, "srmech.math.rational.atan_series_truncate" },
-    { "rational_pow_uint",     17u, "srmech.math.rational.rational_pow_uint" },
-    { "rational_add",          12u, "srmech.math.rational.rational_add" },
-    { "rational_mul",          12u, "srmech.math.rational.rational_mul" },
-    { "rational_div",          12u, "srmech.math.rational.rational_div" },
-    { "gcd",                    3u, "srmech.math.cyclic.gcd" },
-    { "mod_add",                7u, "srmech.math.cyclic.mod_add" },
-    { "mod_mul",                7u, "srmech.math.cyclic.mod_mul" },
-    { "mod_mul_wide",          12u, "srmech.math.cyclic.mod_mul_wide" },
-    { "mod_pow",                7u, "srmech.math.cyclic.mod_pow" },
-    { "mod_inv",                7u, "srmech.math.cyclic.mod_inv" },
-    { "pin_slot_at_zero",      16u, "srmech.cascade.pin_slot_at_zero" },
-    { "reorient",               8u, "srmech.cascade.reorient" },
-    { "chiral_flip",           11u, "srmech.cascade.chiral_flip" },
-    { "autocorrelation",       15u, "srmech.cascade.autocorrelation" },
-    { "dead_band",              9u, "srmech.cascade.dead_band" },
-    { "scale_round_half_even", 21u, "srmech.math.rational.scale_round_half_even" },
-    { "best_rational",         13u, "srmech.math.rational.best_rational" },
-    { "pair",                   4u, "srmech.cascade.pair" }
-};
-
-/* The table's own length, DERIVED. It was written out as a bare `20u` in the
- * two loop bounds below through rc450, and nothing read those: the shipped gate
- * pins the ARRAY DECLARATION via the marker string "} CR_OP_REG[N] = {" and
- * then compares index rows to dispatch arms, never a bound. So growing the
- * array while leaving a stale bound would have left the key-set validator
- * silently OFF for exactly the tail entries — i.e. for precisely the four ops
- * rc451 adds — with every other gate green. Deriving it removes the class. */
-#define CR_OP_REG_N (sizeof(CR_OP_REG) / sizeof(CR_OP_REG[0]))
-
 /* 1 iff `name` is a declared param of `e`. Every declared param is a legal `args`
  * key on this surface — see the params[*] note above. */
 static int cr_key_is_legal(const char *name, const srmech_tool_entry_t *e)
@@ -1749,17 +4773,12 @@ static srmech_status_t cr_args_keyset_ok(const char *op, uint32_t opl,
                                          const srmech_json_value_t *args)
 {
     const srmech_tool_entry_t *e = NULL;
-    uint32_t i;
+    uint32_t i; int32_t r;
     assert(op != NULL && args != NULL);
     assert(args->type == SRMECH_JSON_OBJECT);
-    for (i = 0u; i < (uint32_t)CR_OP_REG_N; i++) {
-        if (cr_op_is(op, opl, CR_OP_REG[i].bare, CR_OP_REG[i].len)) {
-            e = srmech_tool_registry_find(CR_OP_REG[i].full);
-            break;
-        }
-    }
-    if (i == (uint32_t)CR_OP_REG_N) { return SRMECH_OK; }   /* not in the table
-                                                             * → dispatch defers */
+    r = cr_op_row(op, opl);                  /* the SAME matcher dispatch uses */
+    if (r < 0) { return SRMECH_OK; }         /* not in the table → dispatch defers */
+    e = srmech_tool_registry_find(CR_OP_REG[r].full);
     /* ⚠️ NOT silent acceptance — a dispatched op with no registry entry is a broken
      * library invariant. Accepting here would let ONE typo in the table above
      * disable the validator for that op forever, with every other op still green. */
@@ -1776,10 +4795,12 @@ static srmech_status_t cr_args_keyset_ok(const char *op, uint32_t opl,
  * of cr_run_steps so the loop can branch on step form and both stay < 60
  * lines (JPL Rule 4).
  *
- * ⚠️ The key-set check lives HERE and not in cr_dispatch: that function is a
- * 16-arm if-chain measured at 57 of JPL Rule 4's 60 lines, and it exists in its
- * current split only because it hit the cap once already (see cr_dispatch_real).
- * A per-op check inline there breaks the rule immediately. */
+ * ⚠️ The key-set check lives HERE and not in cr_dispatch. When that function
+ * was a 16-arm if-chain it measured 57 of JPL Rule 4's 60 lines and a per-op
+ * check inline there broke the rule immediately; the CR_OP_REG conversion
+ * shrank it, but the separation stands because validate-then-dispatch is the
+ * contract shape (the validator answers BAD_INPUT where the dispatch would
+ * merely defer, and the two must stay distinguishable). */
 static srmech_status_t cr_run_plain(cr_ctx_t *c, const srmech_json_value_t *step,
                                     cr_value_t **out)
 {
@@ -1795,16 +4816,189 @@ static srmech_status_t cr_run_plain(cr_ctx_t *c, const srmech_json_value_t *step
     return cr_dispatch(c, o->u.str.ptr, o->u.str.len, args, out);
 }
 
-/* Parse chain + ctx trees, then drive the steps (kept < 60 lines). */
+/* Bind one map frame's `bind` object into `f`, resolving each ref in the
+ * ENCLOSING scope. compose.py resolves binds ONCE, before the loop, against the
+ * environment in force at the map step — not per iteration — so a bind cannot
+ * see the index it is about to introduce. Resolving here (while the parent
+ * frame is still the active one) is that contract. */
+static srmech_status_t cr_map_binds(cr_ctx_t *c, const srmech_json_value_t *step,
+                                    cr_mapframe_t *f)
+{
+    const srmech_json_value_t *bo = srmech_json_object_get(step, "bind");
+    uint32_t i;
+    assert(c != NULL && step != NULL && f != NULL);
+    assert(c->nfr >= 1u);
+    f->nb = 0u;
+    if (bo == NULL) { return SRMECH_OK; }
+    if (bo->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
+    if (bo->u.obj.n > CR_BIND_MAX) { return SRMECH_ERR_NOT_IMPL; }
+    for (i = 0u; i < bo->u.obj.n; i++) {
+        cr_value_t *v = cr_resolve_arg(c, bo->u.obj.vals[i]);
+        if (v == NULL) { return SRMECH_ERR_NOT_IMPL; }
+        f->bname[i] = bo->u.obj.keys[i];
+        f->blen[i] = (uint32_t)strlen(bo->u.obj.keys[i]);
+        f->bval[i] = v;
+    }
+    f->nb = bo->u.obj.n;
+    return SRMECH_OK;
+}
+
+/* Open a map frame: pin `n` at entry, resolve the binds, carve the body-local
+ * outputs and the result list. The caller has already checked depth. */
+static srmech_status_t cr_map_enter(cr_ctx_t *c, const srmech_json_value_t *step,
+                                    cr_mapframe_t *f)
+{
+    const srmech_json_value_t *mo = srmech_json_object_get(step, "map_over");
+    const srmech_json_value_t *ix = srmech_json_object_get(step, "index");
+    const srmech_json_value_t *bd = srmech_json_object_get(step, "body");
+    cr_value_t *seq; srmech_status_t st;
+    assert(c != NULL && step != NULL && f != NULL);
+    assert(c->b != NULL);
+    if (mo == NULL || bd == NULL || bd->type != SRMECH_JSON_ARRAY ||
+        bd->u.arr.n == 0u) { return SRMECH_ERR_BAD_INPUT; }
+    if (ix != NULL && ix->type != SRMECH_JSON_STRING) { return SRMECH_ERR_BAD_INPUT; }
+    seq = cr_resolve_arg(c, mo);
+    /* `n` is FIXED AT ENTRY — the totality pin. A non-list map_over is
+     * compose.py's ChainSpecError ("must resolve to a SIZED sequence"); C
+     * declines so the pure path raises that exact error. */
+    if (seq == NULL || seq->kind != CR_LIST) { return SRMECH_ERR_NOT_IMPL; }
+    st = cr_map_binds(c, step, f);         /* binds see the ENCLOSING scope */
+    if (st != SRMECH_OK) { return st; }
+    f->body = bd; f->si = 0u; f->k = 0u; f->n = seq->n;
+    f->idx_name = (ix != NULL) ? ix->u.str.ptr : NULL;
+    f->idx_len = (ix != NULL) ? ix->u.str.len : 0u;
+    f->outs = (cr_value_t **)cr_carve(
+        c->b, (size_t)bd->u.arr.n * sizeof(void *) + sizeof(void *));
+    f->acc = cr_list_of(c->b, seq->n);
+    if (f->outs == NULL || f->acc == NULL) { return SRMECH_ERR_OVERFLOW; }
+    return SRMECH_OK;
+}
+
+/* Run ONE non-map step of the active frame. */
+static srmech_status_t cr_step_exec(cr_ctx_t *c, const srmech_json_value_t *step,
+                                    cr_value_t **out)
+{
+    const srmech_json_value_t *so;
+    assert(c != NULL && out != NULL);
+    assert(step != NULL);
+    if (step->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
+    so = srmech_json_object_get(step, "on_error");
+    if (so != NULL && so->type != SRMECH_JSON_NULL) { return SRMECH_ERR_BAD_INPUT; }
+    switch (cr_step_form(step)) {
+    case CR_FORM_PLAIN: return cr_run_plain(c, step, out);
+    case CR_FORM_FOLD:  return cr_run_fold(c, step, out);
+    /* MAP is handled by the trampoline, never here. MIXED / NONE are malformed
+     * and earn BAD_INPUT, deliberately distinct from a NOT_IMPL decline. */
+    default:            return SRMECH_ERR_BAD_INPUT;
+    }
+}
+
+/* ------------------------------------------------------------------
+ * THE TRAMPOLINE (v0.9.0rc452, `#T1166`) — the MAP step form, last of the
+ * three Surface-A forms.
+ *
+ * ⚠️ WHY THIS SHAPE AND NOT A RECURSIVE BODY WALK. compose.py's spine is
+ * frankly recursive (`_run_resolved_steps` re-enters itself per map body) and
+ * JPL Rule 1 forbids that here. The frame stack is the same computation with
+ * the call stack made explicit and BOUNDED: frames come from the caller arena
+ * (Rule 3), depth is capped, and the audit's recursion census stays at its
+ * seeded population.
+ *
+ * The loop is uniform over frames because frame 0 IS the chain body as a
+ * degenerate map of n == 1 — see the cr_mapframe_t note. A frame advances its
+ * parent's step index only when it POPS, which is the same discipline the
+ * nested value walkers use, and is what keeps a map's result landing in
+ * exactly one output slot.
+ * ------------------------------------------------------------------ */
+static srmech_status_t cr_drive(cr_ctx_t *c, cr_value_t **final_out)
+{
+    assert(c != NULL && final_out != NULL);
+    assert(c->nfr == 1u);
+    while (c->nfr > 0u) {
+        cr_mapframe_t *f = &c->fr[c->nfr - 1u];
+        c->step_out = f->outs; c->cur = f->si;
+        if (f->si < f->body->u.arr.n) {
+            const srmech_json_value_t *step = f->body->u.arr.items[f->si];
+            cr_value_t *out = NULL; srmech_status_t st;
+            if (step == NULL || step->type != SRMECH_JSON_OBJECT) {
+                return SRMECH_ERR_BAD_INPUT;
+            }
+            if (cr_step_form(step) == CR_FORM_MAP) {
+                if (c->nfr >= CR_MAP_DEPTH) { return SRMECH_ERR_NOT_IMPL; }
+                st = cr_map_enter(c, step, &c->fr[c->nfr]);
+                if (st != SRMECH_OK) { return st; }
+                /* n == 0: the body runs ZERO times and the result is the empty
+                 * list — compose.py's `for k in range(0)`. Handled WITHOUT
+                 * pushing, because a pushed frame would immediately execute its
+                 * body once (si starts at 0 and the pop test only runs after a
+                 * pass). An empty `x` / `theta` is a real proof case on both
+                 * autocorrelation and kuramoto_step, so this is a live path,
+                 * not a defensive one. */
+                if (c->fr[c->nfr].n == 0u) {
+                    f->outs[f->si] = c->fr[c->nfr].acc;
+                    f->si++;
+                    continue;
+                }
+                c->nfr++;                  /* parent's si advances on POP */
+                continue;
+            }
+            st = cr_step_exec(c, step, &out);
+            if (st != SRMECH_OK) { return st; }
+            f->outs[f->si] = out;
+            f->si++;
+            continue;
+        }
+        if (f->acc != NULL) {              /* a MAP frame finished one pass */
+            if (f->n > 0u) { f->acc->items[f->k] = f->outs[f->body->u.arr.n - 1u]; }
+            f->k++;
+            if (f->k < f->n) { f->si = 0u; continue; }   /* next iteration */
+        }
+        c->nfr--;                          /* frame complete */
+        if (c->nfr == 0u) {
+            *final_out = f->outs[f->body->u.arr.n - 1u];
+            return SRMECH_OK;
+        }
+        c->fr[c->nfr - 1u].outs[c->fr[c->nfr - 1u].si] = f->acc;
+        c->fr[c->nfr - 1u].si++;
+    }
+    return SRMECH_ERR_BAD_INPUT;           /* unreachable: nfr starts at 1 */
+}
+
+/* Parse chain + ctx trees, then drive the steps (kept < 60 lines).
+ *
+ * THE REQUIRED CHAIN HEADER (rc452, gh #1653 — co-equal-projection finding
+ * (b)). Through rc452 Phase 3 this runner ACCEPTED a chain object carrying
+ * neither `name` nor `summary`, while Python's parse_chain_spec REJECTS both
+ * with ChainSpecError — and Python is the side the CONTRACT backs: this
+ * file's own header doc declares chain_json "the FULL chain object
+ * {name,summary,returns,on_error?,steps}", and the C parse peer
+ * (srmech_chain_spec_parse, srmech_compose.c cr_parse_chain_header) has
+ * required all three since it shipped. So the runner now refuses what every
+ * parse layer refuses. PRESENCE, not string-ness, is the test: the pure
+ * parser coerces any value through str(), and the native parse peer's
+ * stricter string check merely defers to pure, which accepts — so requiring
+ * a STRING here would refuse what Python accepts, the same divergence class
+ * mirrored. Measured cost of the old acceptance: the shipped parity
+ * harnesses' `_chain_only` stripped `summary`/`returns` on the reasoning
+ * "the runner never reads them", and the bare-C TOML host fed
+ * [[cascade.chain]] entries that carry no `name` at all — both ran
+ * headerless chains for four rcs with no instrument able to say so. */
 static srmech_status_t cr_run_steps(const srmech_json_value_t *chain,
                                     const srmech_json_value_t *ctx, cr_bump_t *b,
                                     cr_value_t **final_out)
 {
     const srmech_json_value_t *steps = srmech_json_object_get(chain, "steps");
     const srmech_json_value_t *oe = srmech_json_object_get(chain, "on_error");
-    cr_ctx_t c; uint32_t i, ns; srmech_status_t st;
+    cr_mapframe_t frames[CR_MAP_DEPTH];
+    cr_ctx_t c; uint32_t ns;
     assert(chain != NULL && b != NULL && final_out != NULL);
     assert(b->cur <= b->end);
+    /* the required header — the block comment above this function */
+    if (srmech_json_object_get(chain, "name") == NULL ||
+        srmech_json_object_get(chain, "summary") == NULL ||
+        srmech_json_object_get(chain, "returns") == NULL) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
     if (steps == NULL || steps->type != SRMECH_JSON_ARRAY || steps->u.arr.n == 0u) {
         return SRMECH_ERR_BAD_INPUT;
     }
@@ -1815,33 +5009,60 @@ static srmech_status_t cr_run_steps(const srmech_json_value_t *chain,
     c.inputs = ctx ? srmech_json_object_get(ctx, "inputs") : NULL;
     if (c.row != NULL && c.row->type != SRMECH_JSON_OBJECT) { c.row = NULL; }
     if (c.inputs != NULL && c.inputs->type != SRMECH_JSON_OBJECT) { c.inputs = NULL; }
-    c.b = b;
-    c.step_out = (cr_value_t **)cr_carve(b, (size_t)ns * sizeof(void *) + 1u);
-    if (c.step_out == NULL) { return SRMECH_ERR_OVERFLOW; }
-    for (i = 0u; i < ns; i++) {
-        const srmech_json_value_t *step = steps->u.arr.items[i];
-        const srmech_json_value_t *so;
-        cr_value_t *out = NULL;
-        if (step == NULL || step->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
-        so = srmech_json_object_get(step, "on_error");
-        if (so != NULL && so->type != SRMECH_JSON_NULL) { return SRMECH_ERR_BAD_INPUT; }
-        c.cur = i;
-        switch (cr_step_form(step)) {
-        case CR_FORM_PLAIN: st = cr_run_plain(&c, step, &out); break;
-        case CR_FORM_FOLD:  st = cr_run_fold(&c, step, &out); break;
-        /* MAP needs an explicit frame stack (JPL Rule 1 bans the recursive
-         * body walk), so it is filed rather than half-done here. NOT_IMPL —
-         * a recognised form this projection does not yet run — is deliberately
-         * distinct from the BAD_INPUT that MIXED / NONE earn, which are
-         * malformed rather than unimplemented. */
-        case CR_FORM_MAP:   st = SRMECH_ERR_NOT_IMPL; break;
-        default:            st = SRMECH_ERR_BAD_INPUT; break;
-        }
-        if (st != SRMECH_OK) { return st; }
-        c.step_out[i] = out;
-    }
-    *final_out = c.step_out[ns - 1u];
-    return SRMECH_OK;
+    c.b = b; c.fr = frames; c.nfr = 1u;
+    /* Frame 0 — the chain body, run ONCE. `acc == NULL` is what marks it as
+     * the frame whose result is its last step's output rather than a list. */
+    frames[0].body = steps; frames[0].si = 0u; frames[0].k = 0u; frames[0].n = 1u;
+    frames[0].acc = NULL; frames[0].idx_name = NULL; frames[0].idx_len = 0u;
+    frames[0].nb = 0u;
+    frames[0].outs = (cr_value_t **)cr_carve(b, (size_t)ns * sizeof(void *) + 1u);
+    if (frames[0].outs == NULL) { return SRMECH_ERR_OVERFLOW; }
+    c.step_out = frames[0].outs; c.cur = 0u;
+    return cr_drive(&c, final_out);
+}
+
+/* The writer reserve: the builder half plus the write-scratch half, for the
+ * value DESCRIPTOR a run marshals back.
+ *
+ * ⚠️ IT WAS `16384 + 8 * (chain_len + ctx_len)` UNTIL rc452 (`#T1166`), AND
+ * THAT SCALED THE WRONG QUANTITY. The reserve bounds the OUTPUT tree, but it
+ * was derived from the INPUT length — sound only while every chain returned
+ * something no bigger than what it was asked with, which held for a scalar, a
+ * short list and a small Mat. parallel_sector_dispatch is the first chain to
+ * break it: from a 352-byte chain and a 78-byte ctx it returns a 66-leaf dict
+ * carrying ~2 KB of CONSTANT framework prose out of .rodata, so its output is
+ * not a function of its input at all. Measured at the old constant: 9.9 KB of
+ * builder for a tree needing far more, so cr_desc returned NULL and the run
+ * answered SRMECH_ERR_OVERFLOW — and because the term scaled with the input,
+ * a caller could not fix it by allocating more: the same OVERFLOW reproduced
+ * with the arena at 1x and at 16x (37 MB).
+ *
+ * THE FLOOR IS MEASURED, NOT GUESSED. Bisected on this tree by rebuilding at
+ * each candidate and running the chain (predicate: srmech_chain_run returns
+ * SRMECH_OK; failure is rc 4 OVERFLOW):
+ *
+ *     floor    p1   p2   p3   p4   ns=4,n=64
+ *     16384   FAIL  ok   ok  FAIL   FAIL      <- the pre-rc452 value
+ *     28672   FAIL  ok   ok  FAIL   FAIL
+ *     32768    ok   ok   ok   ok    FAIL      <- the 4 shipped proof cases
+ *    131072    ok   ok   ok   ok    FAIL
+ *    262144    ok   ok   ok   ok     ok       <- shipped
+ *
+ * So 262144 carries 8x headroom over the shipped proof cases and additionally
+ * covers a 4-sector dispatch over a 64-element input. The tree grows with
+ * n_sectors * len(x) (each sector result is a float leaf, and `concat` repeats
+ * them), so a wide enough input still exceeds it — and that is a SAFE decline:
+ * cr_desc returns NULL, the run answers OVERFLOW, and the caller takes the
+ * complete pure path. An OVERFLOW here is never a wrong value.
+ *
+ * Both call sites route through here so the chain-run and catalog-run paths
+ * cannot drift apart on it, and srmech_chain_run_arena_bytes over-approximates
+ * the same quantity. */
+static size_t cr_writer_reserve(size_t a_len, size_t b_len)
+{
+    assert(a_len < (size_t)1 << 40);
+    assert(b_len < (size_t)1 << 40);
+    return (size_t)CR_WRITER_FLOOR + 8u * (a_len + b_len);
 }
 
 /* Run a validated chain node end-to-end + marshal the final value back as a
@@ -1868,6 +5089,10 @@ static srmech_status_t cr_run_and_write(const srmech_json_value_t *chain,
     b->end = tail_end - wsz;                    /* shrink run bump */
     st = cr_run_steps(chain, ctx, b, &final_v);
     if (st != SRMECH_OK) { return st; }
+    /* (The rc452 wave-C FINAL-decline for a bytes carrier stood HERE and is
+     * GONE: the `b` kind ships with encode_loe_content in this change, so a
+     * bytes final now marshals rather than declining. cr_desc_scalar's `b`
+     * arm is the whole replacement — there is no residual special case.) */
     wa = cr_align(b->end);                      /* builder base, 8-aligned */
     if (wa >= tail_end) { return SRMECH_ERR_OVERFLOW; }
     region = (size_t)(tail_end - wa); half = region / 2u;
@@ -1905,7 +5130,7 @@ srmech_status_t srmech_chain_run(const char *chain_json, size_t chain_len,
         st = srmech_json_parse(ctx_json, ctx_len, ca, cj, &ctx);
         if (st != SRMECH_OK) { return st; }
     }
-    return cr_run_and_write(chain, ctx, &b, 16384u + 8u * (chain_len + ctx_len),
+    return cr_run_and_write(chain, ctx, &b, cr_writer_reserve(chain_len, ctx_len),
                             out, out_cap, out_len);
 }
 
@@ -1990,6 +5215,6 @@ srmech_status_t srmech_catalog_run_chain(const char *cat_json, size_t cat_len,
         st = srmech_json_parse(ctx_json, ctx_len, ca, cj, &ctx);
         if (st != SRMECH_OK) { return st; }
     }
-    return cr_run_and_write(chain, ctx, &b, 16384u + 8u * (cat_len + ctx_len),
+    return cr_run_and_write(chain, ctx, &b, cr_writer_reserve(cat_len, ctx_len),
                             out, out_cap, out_len);
 }

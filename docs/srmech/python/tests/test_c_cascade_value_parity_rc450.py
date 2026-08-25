@@ -149,6 +149,7 @@ from srmech.cascade import compose as _compose
 from srmech.dsl import _catalog as _cat
 from srmech.dsl import _cascade_chain as _cc
 from srmech.dsl._cascade_chain import cascade_chain_specs
+from srmech.math.q import Q
 
 from _native_gate import require_native
 
@@ -180,7 +181,14 @@ _STATUS = {0: "SRMECH_OK", 2: "SRMECH_ERR_BAD_INPUT", 4: "SRMECH_ERR_OVERFLOW",
 #: is closed by :func:`test_an_executed_case_emits_the_tuple_kind_itself`, which
 #: reads the kind string off a REAL run — do not treat this pin as sufficient
 #: on its own.
-EXPECTED_WIRE_KINDS = frozenset({"n", "i", "s", "q", "f", "l", "t"})
+#: ``m`` (mapping) and ``o`` (bool) joined at rc452 (`#T1166`) with
+#: ``parallel_sector_dispatch``, the chain that returns a dict of bools. They
+#: close ledger row ``carrier_mapping`` and are why that rc bumps ABI 22 -> 23.
+#: Unlike ``t``/``b``/``x`` they arrive with their emission gate already closed:
+#: both letters are in ``REQUIRED_EMITTED_KINDS`` from the same commit, so
+#: neither can sit declared-and-dark the way ``q`` did through rc450.
+EXPECTED_WIRE_KINDS = frozenset({"n", "i", "s", "q", "f", "l", "t", "b",
+                                 "x", "m", "o"})
 
 # ── down-only ceilings, seeded at the MEASURED rc450 population ──────────────
 #: STRICT ZERO. Not a ceiling that drains — a divergence between the two
@@ -221,14 +229,71 @@ CEIL_NONFINITE = 4
 #: The same drain the rc446 ratchet's CEIL_C_REJECTED_CHAINS measures one level
 #: up: this one counts CASES, that one counts CHAINS, and they move together.
 CEIL_C_REJECTED_ROWS_BY_CHAIN = {
-    "autocorrelation": 5,
-    "encode_loe_content": 4,
-    "klein4_from_one": 7,
-    "kuramoto_step": 10,
-    "octonion_dft": 7,
-    "parallel_sector_dispatch": 4,
-    "quaternion_dft": 6,
-    "schur_complement": 3,
+    # ``autocorrelation``'s entry (5) was DELETED at rc452 (`#T1166`) — the
+    # chain closed FULLY, all 5 proof cases BYTE_IDENTICAL, so the row is
+    # removed rather than decremented, per the down-only-per-entry rule above.
+    # Its steps run as steps: seq_len / mod_add / correlation_product /
+    # compensated_sum, none of which names `srmech_autocorrelation_f64`. That
+    # fused kernel exists and IS dispatched — but for the `autocorrelation` OP,
+    # which is a different object from the `autocorrelation` CHAIN, so no
+    # coarse bypass exists between them structurally.
+    # ``kuramoto_step`` (10), ``octonion_dft`` (7) and ``quaternion_dft`` (6)
+    # were DELETED at rc452 Phase 3 (`#T1166`) — each chain closed FULLY, every
+    # representable proof case BYTE_IDENTICAL (kuramoto 10/10 across both
+    # variants, including the exact-ℚ general path with pinning/broadcast/α;
+    # the DFTs 6/6 and 7/7 including the S3/S7 sqrt axes and the inverse and
+    # two-sided-bracketing cases). Rows removed, not decremented, per the
+    # down-only-per-entry rule above. Their steps run as steps — the fused
+    # srmech_cascade_kuramoto_step*_f64 / srmech_{quaternion,octonion}_dft
+    # kernels are NOT referenced by the interpreter TU (the no-coarse gate
+    # names all four), so no coarse bypass exists structurally.
+    # ``klein4_from_one``'s entry (7) was DELETED in the rc452 registry-ripple
+    # phase (gh #1653) — the chain closed FULLY, both variants, all 7 proof
+    # cases BYTE_IDENTICAL under this file's own comparator. Its steps run as
+    # steps through the six wave-C atom rows (render_template / utf8_encode /
+    # sha256_bytes / str_concat / byte_slice / int_parse_le); the fused
+    # srmech_klein4_from_one symbol is NOT referenced by the interpreter TU
+    # (the no-coarse gate derives it into its pinned population), and the
+    # str/bytes interior rides the `is_bytes` carrier flag with NO new wire
+    # kind — the final value is a list of ints, so nothing bytes-typed ever
+    # crosses the wire.
+    # ``encode_loe_content``'s entry (4) was DELETED at rc452 Phase 2
+    # (`#T1166`, the K1 slice) — the chain closed FULLY, all 4 proof cases
+    # BYTE_IDENTICAL under this file's own comparator, including the D = 8192
+    # sweep case whose final value is 1024 bytes. Row removed, not decremented.
+    # Its steps run as steps through the four wave-D atom rows (sha256_raw /
+    # mint_vector / permute / bind), each delegating to ONE step-granular
+    # compiled export; there is no fused whole-chain symbol for this descriptor
+    # anywhere in the library, so the no-coarse gate derives an empty
+    # contribution from it and no coarse bypass exists to rule out.
+    # ``schur_complement``'s entry (3) was DELETED at rc452 Phase 2
+    # (`#T1166`, the K3 slice) — the chain closed FULLY, all 3 proof cases
+    # BYTE_IDENTICAL, including the `path4` case whose entries are the
+    # inexact 0.33333333333333337 / -0.3333333333333333 pair. That pair is
+    # the row that makes the closure worth something: the two values differ
+    # in the last bit from each other, so the boundary combine's accumulation
+    # ORDER is observable, and a C arm that summed right-to-left or fused a
+    # multiply-add would diverge here while agreeing everywhere else.
+    # ``parallel_sector_dispatch``'s entry (4) was DELETED at rc452 (`#T1166`) —
+    # the chain closed FULLY, all 4 proof cases BYTE_IDENTICAL under this file's
+    # own comparator, and with it the map is EMPTY: every executable chain in
+    # the catalog now runs in C. Row removed, not decremented.
+    #
+    # It is the last one, so it is the one that had to bring its own wire
+    # vocabulary: `m` (mapping) and `o` (bool), both landing with their emission
+    # gate closed in the same commit. Its body is an `@op.<dotted>` reference
+    # rather than data, resolved through the CR_OP_REG `un` column because JPL
+    # Rule 9 bans the function pointer a callback would need.
+    #
+    # ⚠️ ITS FOUR PROOF CASES ALL COLLAPSE TO n_distinct == 1. body=chiral_flip
+    # is symmetric under BOTH Klein-4 axes, so every sector agrees and the
+    # collapse-lattice partition is exercised only at its degenerate value. The
+    # C arm is correct for the other partitions — two defects there were found
+    # and fixed by differential-testing the partition against
+    # _distinct_classes directly — but BYTE_IDENTICAL here is not evidence about
+    # them, and no @op body in the registry can produce n_distinct > 1 today
+    # (chiral_flip is the only sequence->sequence row with a `un`, and any
+    # elementwise body would collapse {0,2}/{1,3} instead).
 }
 
 #: The total, DERIVED from the per-chain map so the two cannot disagree.
@@ -269,6 +334,22 @@ def _bits(x) -> bytes:
                 x.items(), key=lambda kv: repr(kv[0]))) + b"}"
     if x is None:
         return b"n"
+    if isinstance(x, Q):                         # rc452 — the exact-ℚ carrier
+        # PLACED BEFORE the tolist and repr arms, and explicit rather than
+        # inherited, because BOTH of the arms below silently mis-encode a Q:
+        #   * the final `b"r" + repr(x)` fallback is where a Q landed through
+        #     rc451. A decoy class whose __repr__ returns "Q(5, 6)" produces
+        #     BYTE-IDENTICAL comparator output — built independently by two of
+        #     the four rc452 workshops — so the discrimination rested on a repr
+        #     collision, not on the type.
+        #   * giving Q a `.tolist()` at any future point would move it to the
+        #     Mat/Vec arm and re-collapse it, silently.
+        # An == based comparator cannot discriminate at all here: Q(5,6) == (5,6)
+        # is True, and so is Q(5,6) == (10,12), because Q.__eq__ coerces through
+        # _as_pair and cross-multiplies. This encoder never calls ==; that is
+        # WHY it can tell them apart, and this arm is what makes that structural
+        # instead of accidental.
+        return b"q" + repr(x.numerator).encode() + b"/" + repr(x.denominator).encode()
     if hasattr(x, "tolist"):                     # Mat / Vec carriers
         return b"M" + _bits(x.tolist())
     return b"r" + repr(x).encode()
@@ -308,15 +389,29 @@ def classify(rc, wire: bytes, py_value, *, py_serialisable: bool = True) -> str:
 # ── driving the two projections ──────────────────────────────────────────────
 
 def _chain_only(entry):
-    """The CHAIN-DEFINING keys — same predicate as the rc446 ratchet.
+    """The chain document the runner CONTRACT takes — header + steps. Same
+    predicate as the rc446 ratchet.
 
-    ``proof_cases`` / ``summary`` / ``returns`` are documentation; the runner
-    never reads them, and sending them couples a chain's executability to its
-    own test data (rc447 measured that biting on ``magnitude``'s non-finite
-    cases, whose ``json.dumps`` spelling is not valid JSON).
+    ⚠️ REWRITTEN at rc452 (gh #1653 finding (b)). Through rc452 Phase 3 this
+    stripped ``summary`` / ``returns`` with the comment "the runner never
+    reads them" — and the raw ``[[cascade.chain]]`` entries carry no ``name``
+    at all, so every chain this harness drove was HEADERLESS. C accepted it;
+    Python's ``parse_chain_spec`` raises ``ChainSpecError`` on the same dict.
+    Per co-equal projections the disagreement was the finding, and the
+    CONTRACT (the runner's own header doc, plus BOTH parse peers) backs
+    Python — so ``srmech_chain_run`` now refuses a chain missing
+    name/summary/returns, and this harness builds the document the way
+    ``cascade_chain_specs`` does: header synthesized from the entry.
+    ``proof_cases`` stays stripped — rc447 measured non-finite case inputs
+    breaking ``json.dumps``, and test data is still not chain definition.
     """
-    return {k: v for k, v in entry.items()
-            if k in ("name", "steps", "on_error", "chain_schema_version")}
+    out = {k: v for k, v in entry.items()
+           if k in ("name", "summary", "returns", "steps", "on_error",
+                    "chain_schema_version")}
+    out.setdefault("name", str(entry.get("variant", "chain")))
+    out.setdefault("summary", "")
+    out.setdefault("returns", "")
+    return out
 
 
 def _c_run(chain_dict, ctx):
@@ -364,12 +459,16 @@ def _py_run(spec, inputs):
 #: construction tests/test_cascade_catalog_executable_rc420.py uses, so the two
 #: sides of this comparison are fed identically and a harness difference cannot
 #: surface as a DIVERGENT row.
-CASE_DEFAULTS = {
-    ("kuramoto_step", "general"): {
-        "adjacency": None, "alpha": 0.0,
-        "pin_anchor": None, "pin_strength": 1.0,
-    },
-}
+#:
+#: rc452 (`#T1171`): both sides now read the DESCRIPTOR rather than each holding
+#: a copy. This file and rc420's held the same four kuramoto_step/general values
+#: verbatim and independently, and they were the only thing making that variant
+#: runnable at all — so the descriptor was not executable from shipped
+#: configuration in either projection. "Fed identically" is now true by
+#: construction instead of by two literals agreeing.
+def _case_defaults(entry):
+    from srmech.dsl._cascade_chain import chain_input_defaults
+    return chain_input_defaults(entry)
 
 
 def _population():
@@ -388,7 +487,7 @@ def _population():
     for name in names:
         for variant, spec, entry in cascade_chain_specs(name):
             for j, case in enumerate(entry.get("proof_cases") or []):
-                merged = dict(CASE_DEFAULTS.get((name, variant), {}))
+                merged = dict(_case_defaults(entry))
                 merged.update(dict(case.get("inputs") or {}))
                 rows.append((name, variant, entry, spec, j, merged))
     return rows
@@ -585,6 +684,116 @@ def test_an_executed_case_emits_the_tuple_kind_itself():
         % (got, type(got).__name__))
 
 
+def test_an_executed_case_emits_the_bytes_kind_itself():
+    """rc452 Phase 2 (`#T1166`, gh #1653, the K1 slice). Same SUBJECT as the
+    tuple gate above and for the same reason: the kind string an EXECUTED
+    shipped proof case actually puts on the wire.
+
+    WHY IT IS NEEDED SEPARATELY FROM THE BIJECTION PIN. rc450 pinned a
+    wire-kind bijection while ZERO proof cases emitted ``q`` / ``n`` / ``s``,
+    so the pin was green on kinds nothing produced and the comparator could not
+    have told an exact-ℚ chain from an integer-pair chain. A kind declared in
+    ``EXPECTED_WIRE_KINDS`` and in both sources, with nothing emitting it,
+    re-creates that hole exactly. This runs the chain.
+
+    THE ADJUDICATED DODGE THIS REFUSES: spell the 32/1024-byte final value as
+    the EXISTING ``s`` kind. That scores 4 BYTE_IDENTICAL against a Python
+    projection whose value is ``bytes`` only if the reader coerces — and the
+    reader would then have to guess an encoding, which is the type erasure the
+    ``b`` kind exists to prevent. Only a predicate whose subject is the emitted
+    letter can refuse it.
+
+    HOW IT RETURNS OTHERWISE: any kind other than ``b`` fails, naming what was
+    seen. Before the C arm landed it would have failed on rc=5 with an empty
+    wire — measured, that is exactly what the chain returned.
+    """
+    require_native("srmech_chain_run value parity (the emitted bytes kind)")
+    _variant, _spec, entry = cascade_chain_specs("encode_loe_content")[0]
+    cases = entry.get("proof_cases") or []
+    inputs = dict(_case_defaults(entry))
+    inputs.update(dict((cases[1] or {}).get("inputs") or {}))   # the D = 256 case
+    rc, wire, ok = _c_run(_chain_only(entry), inputs)
+    assert ok and rc == 0, (
+        "encode_loe_content did not run in C (ok=%r rc=%r). rc452 Phase 2 "
+        "closed this chain; if it declines again the ceilings above are also "
+        "wrong." % (ok, rc))
+    desc = _compose._srmech_json.loads(wire.decode("utf-8"))
+    assert desc.get("k") == "b", (
+        "the C wire spelled encode_loe_content's final value as kind %r, not "
+        "'b'. If that is 's', the chain's bytes result is crossing as a STRING "
+        "and the str/bytes type is erased on the wire — the collapse class this "
+        "file exists to pin. Wire prefix: %r" % (desc.get("k"), wire[:64]))
+    assert sorted(desc) == ["k", "v"], (
+        "the bytes descriptor's key set is %r; the kind carries exactly k + v."
+        % (sorted(desc),))
+    got = _compose._reconstruct_value(desc)
+    assert type(got) is bytes, (
+        "the shipped reader rebuilt %r (%s) from a 'b' descriptor; it must be "
+        "bytes exactly, not str and not bytearray"
+        % (got[:16], type(got).__name__))
+    assert len(got) == 32, (
+        "the D = 256 case must rebuild 32 bytes (D / 8); got %d" % len(got))
+    #: The payload is LOWERCASE HEX and nothing else — the one property that
+    #: makes the two projections unable to disagree about the encoding.
+    assert desc["v"] == got.hex(), (
+        "the `b` payload %r is not the lowercase-hex spelling of the bytes it "
+        "rebuilds. Base64, uppercase hex and a 0x prefix all fail here, which "
+        "is the point: the kind pins ONE spelling." % (desc["v"][:32],))
+
+
+def test_an_executed_case_emits_the_matrix_kind_itself():
+    """rc452 Phase 2 (`#T1166`, gh #1653, the K3 slice). Same SUBJECT as the
+    tuple and bytes gates above: the kind string an EXECUTED shipped proof case
+    actually puts on the wire.
+
+    THE ADJUDICATED DODGE THIS REFUSES: spell the boundary operator as the
+    EXISTING nested ``l``. The payload bytes would be IDENTICAL — the `x` kind
+    deliberately carries the same nested array — so every byte-level instrument
+    in this file would be satisfied, and the reader would hand back a list of
+    lists where the descriptor declares ``Mat``. That is a wrong TYPE with a
+    right VALUE, which is the collapse class this whole file exists to pin, and
+    only a predicate whose subject is the emitted letter can see it.
+
+    HOW IT RETURNS OTHERWISE: any kind other than ``x`` fails, naming what was
+    seen. Before the C arm landed it would have failed on rc=5 with an empty
+    wire — measured, that is exactly what the chain returned.
+    """
+    require_native("srmech_chain_run value parity (the emitted matrix kind)")
+    _variant, _spec, entry = cascade_chain_specs("schur_complement")[0]
+    cases = entry.get("proof_cases") or []
+    inputs = dict(_case_defaults(entry))
+    inputs.update(dict((cases[1] or {}).get("inputs") or {}))   # the `path4` case
+    rc, wire, ok = _c_run(_chain_only(entry), inputs)
+    assert ok and rc == 0, (
+        "schur_complement did not run in C (ok=%r rc=%r). rc452 Phase 2 closed "
+        "this chain; if it declines again the ceilings above are also wrong."
+        % (ok, rc))
+    desc = _compose._srmech_json.loads(wire.decode("utf-8"))
+    assert desc.get("k") == "x", (
+        "the C wire spelled schur_complement's final value as kind %r, not 'x'. "
+        "If that is 'l', the boundary operator is crossing as a list of lists "
+        "with byte-identical payload — a wrong TYPE with a right VALUE, which "
+        "no byte-level instrument in this file can see. Wire: %r"
+        % (desc.get("k"), wire[:80]))
+    got = _compose._reconstruct_value(desc)
+    assert type(got).__name__ == "Mat", (
+        "the shipped reader rebuilt a %s from an 'x' descriptor; it must be the "
+        "Mat carrier" % type(got).__name__)
+    assert got.shape == (2, 2), (
+        "the path4 case reduces a 4-node path onto a 2-node boundary; shape is "
+        "%r" % (got.shape,))
+    #: THE LAST-BIT PAIR IS THE POINT. 1/3 is not representable, and the two
+    #: distinct doubles below differ in the final bit — so the accumulation
+    #: ORDER of the boundary combine is observable here and nowhere else in
+    #: this chain's corpus.
+    assert got.tolist() == [[0.33333333333333337, -0.3333333333333333],
+                            [-0.3333333333333333, 0.33333333333333337]], (
+        "the Schur complement of the 4-path onto {0, 3} is %r; the two distinct "
+        "doubles must survive bit-exactly, which they only do if the C combine "
+        "accumulates from 0.0 left to right the way Python's sum() does"
+        % (got.tolist(),))
+
+
 def test_an_unknown_kind_is_a_hard_red_not_a_soft_verdict():
     """A synthetic ``{"k": "z"}`` must NOT pass through. If it did, the
     bijection pin above would be decoration: the comparator would meet a kind
@@ -597,9 +806,22 @@ def test_an_unknown_kind_is_a_hard_red_not_a_soft_verdict():
 # ── 3. the witnesses. ALL of them go through classify(). ─────────────────────
 
 @pytest.mark.parametrize("wire,py_value,why", [
-    (b'{"d": "6", "k": "q", "n": "5"}', (5, 6),
-     "a rational: the encodings differ MAXIMALLY (three string fields vs a "
-     "2-tuple of ints) and the reconstructed values agree"),
+    (b'{"d": "6", "k": "q", "n": "5"}', Q(5, 6),
+     "an exact rational vs the exact-ℚ carrier. rc452 (`#T1166`) FLIPPED this "
+     "row's partner: through rc451 this wire was required IDENTICAL against a "
+     "Python (5, 6) TUPLE, which is the collapse the rc removes — the shipped "
+     "reader rebuilt `q` as a tuple, and a tuple is also what a Class-K pin "
+     "pair and a Class-B `pair` step produce, so the type was erased on "
+     "arrival. Against Q the agreement is real: same value AND same carrier. "
+     "Its DIVERGENT twin (this wire vs the tuple) is in the red set below, so "
+     "the pair is pinned in both directions and loosening either would show"),
+    (b'{"k": "t", "v": [{"k": "i", "v": "3"}, {"d": "6", "k": "q", "n": "5"}]}',
+     (3, Q(5, 6)),
+     "HETEROGENEOUS, DEPTH 1: a tuple of an int and a rational. The reader "
+     "rebuilds containers RECURSIVELY, so the `q` inside a `t` must come back "
+     "as a Q too — through rc451 it came back as a nested TUPLE, a latent "
+     "wrong value nothing exercised. This is the depth-1 half of the ruling's "
+     "carrier predicate, on the inside of its boundary"),
     (b'{"k": "i", "v": "6"}', 6,
      "a bignum-as-decimal-string vs a Python int"),
     (b'{"k": "f", "v": 3.5}', 3.5, "a double"),
@@ -621,6 +843,18 @@ def test_green_witnesses_classify_identical(wire, py_value, why):
 
 
 @pytest.mark.parametrize("wire,py_value,collapse", [
+    (b'{"d": "6", "k": "q", "n": "5"}', (5, 6),
+     "exact ℚ -> int pair. rc452 (`#T1166`): THE DELIVERABLE. This row was a "
+     "shipped GREEN witness through rc451 — the comparator was REQUIRED to "
+     "call a `q` wire identical to a Python 2-tuple, which is the collapse "
+     "this whole arc exists to remove. A tuple of two ints is also exactly "
+     "how pin_slot_at_zero and pair spell themselves, so under the old "
+     "requirement no comparator could ever tell an exact-ℚ chain from an "
+     "integer-pair one. Its IDENTICAL twin (this wire vs Q(5, 6)) is in the "
+     "green set above"),
+    (b'{"d": "6", "k": "q", "n": "5"}', 5 / 6,
+     "exact ℚ -> float. The exact-vs-approximate dispatch contract, on the "
+     "carrier the contract is about"),
     (b'{"k": "s", "v": "6"}', 6,
      "str -> int (the wedge-join script's strip('\"') collapse)"),
     (b'{"k": "i", "v": "3"}', 3.0,
@@ -648,6 +882,121 @@ def test_red_witnesses_classify_divergent(wire, py_value, collapse):
     assert classify(0, wire, py_value) == V_DIVERGENT, (
         "the comparator collapsed %s — the encoding is normalising values it "
         "must distinguish" % collapse)
+
+
+# ── rc452 (`#T1166`): the Q arm is EXPLICIT, and here is why it has to be ───
+
+class _QImpostor:
+    """A decoy whose ``__repr__`` is exactly a ``Q``'s.
+
+    Two of the four rc452 workshops built this independently, which is the tell
+    that it is not a contrived case: through rc451 a ``Q`` fell through every
+    arm of :func:`_bits` to the final ``b"r" + repr(x)`` FALLBACK, so ANY object
+    that repr'd the same way produced byte-identical comparator output. The
+    discrimination the whole arc turns on rested on a repr collision.
+    """
+
+    def __repr__(self):
+        return "Q(5, 6)"
+
+
+def test_a_repr_impostor_does_not_pass_as_the_exact_q_carrier():
+    """The impostor must classify DIVERGENT against the ``q`` wire.
+
+    Without the explicit ``isinstance(x, Q)`` arm this test FAILS — measured,
+    not asserted: the fallback encodes both as ``b"rQ(5, 6)"``.
+    """
+    v = classify(0, b'{"d": "6", "k": "q", "n": "5"}', _QImpostor())
+    assert v == V_DIVERGENT, (
+        "a class that merely REPRS like a Q was accepted as one (%s). The "
+        "comparator is reading text, not type." % v)
+
+
+@pytest.mark.parametrize("wire,why", [
+    (b'{"k": "t", "v": [{"k": "i", "v": "5"}, {"k": "i", "v": "6"}]}',
+     "a TUPLE of two ints. If Q were ever made a tuple subclass it would "
+     "encode as one and this would silently go IDENTICAL"),
+    (b'{"k": "l", "v": [{"k": "i", "v": "5"}, {"k": "i", "v": "6"}]}',
+     "a LIST of two ints. If Q ever grew a .tolist() it would move to the "
+     "Mat/Vec arm, whose encoding is the list's, and this would collapse"),
+    (b'{"k": "f", "v": 0.8333333333333334}',
+     "the FLOAT the rational is nearest to — the exact-vs-approximate "
+     "dispatch contract, on the carrier the contract is about"),
+])
+def test_the_exact_q_carrier_is_not_any_other_carrier(wire, why):
+    """Q must classify DIVERGENT against every neighbouring spelling.
+
+    THROUGH ``classify``, never through ``_bits`` directly — this file's own
+    structural rule (:func:`test_bits_is_reachable_only_through_classify`)
+    forbids a second comparison path, and these assertions are worth nothing if
+    they exercise an encoder the population does not.
+
+    Each row names a DIFFERENT way the explicit ``isinstance(x, Q)`` arm could
+    stop being reached without any other test in this file noticing.
+    """
+    assert classify(0, wire, Q(5, 6)) == V_DIVERGENT, why
+
+
+def test_an_unreduced_q_wire_rebuilds_canonically_and_that_is_correct():
+    """A ``q`` descriptor spelling 10/12 rebuilds as ``Q(5, 6)`` and AGREES.
+
+    Recorded as a positive rather than left implicit, because it is the one
+    place the reader legitimately normalises. ``Q.__init__`` reduces through
+    the Class-N canonical reducer, so two wire spellings of the same rational
+    land on one carrier — which is what "exact rational" MEANS, and is not the
+    collapse this gate refuses (that one erases the TYPE, not the spelling).
+    It is also unreachable from the shipped C: every ``q`` emission comes out
+    of an op that reduced it. Pinned so a future reader that stopped reducing
+    would be a red here rather than a silent canonical-form divergence.
+    """
+    assert classify(0, b'{"d": "12", "k": "q", "n": "10"}', Q(5, 6)) == V_IDENTICAL
+    assert classify(0, b'{"d": "12", "k": "q", "n": "10"}', (5, 6)) == V_DIVERGENT
+
+
+def test_a_rational_inside_a_tuple_rebuilds_as_a_rational():
+    """DEPTH 1: the reader is recursive, so a ``q`` nested in a ``t`` must come
+    back as a ``Q``. Through rc451 it came back as a nested tuple — a latent
+    wrong value with nothing exercising it."""
+    desc = _compose._srmech_json.loads(
+        '{"k": "t", "v": [{"k": "i", "v": "3"}, {"d": "6", "k": "q", "n": "5"}]}')
+    got = _compose._reconstruct_value(desc)
+    assert type(got) is tuple and len(got) == 2, got
+    assert got[0] == 3 and type(got[0]) is int, got
+    assert type(got[1]) is Q, (got[1], type(got[1]).__name__)
+    assert (got[1].numerator, got[1].denominator) == (5, 6), got[1]
+
+
+def test_a_pair_of_rationals_marshals_through_the_real_library():
+    """CONFIG B'S PINNED REGRESSION. ``pair(Q, Q)`` must still cross the wire.
+
+    Config B's tuple spelling regressed this from OK to ERR_OVERFLOW, because
+    each rational became a nested LIST and JPL Rule 1 forbids the recursion
+    needed to marshal it. The `q` spelling keeps the pair at depth 1, which is
+    exactly why it fits the marshal budget. Executed against the real .so, not
+    reasoned about.
+    """
+    require_native("pair(Q, Q) marshalling")
+    rc, wire, ok = _c_run(_chain_only({
+        "name": "rc452_pair_of_rationals", "summary": "s", "returns": "r",
+        "on_error": "raise", "steps": [
+            {"class": "N", "op": "srmech.math.rational.rational_add",
+             "args": {"a": [1, 2], "b": [1, 3]}},
+            {"class": "N", "op": "srmech.math.rational.rational_add",
+             "args": {"a": [1, 4], "b": [1, 4]}},
+            {"class": "B", "op": "srmech.cascade.pair",
+             "args": {"first": "@step[0].output",
+                      "second": "@step[1].output"}},
+        ]}), {})
+    assert ok and rc == 0, (
+        "pair(Q, Q) did not marshal (ok=%r rc=%r). Config B's spelling "
+        "regressed exactly this to ERR_OVERFLOW; the `q` spelling must not."
+        % (ok, rc))
+    desc = _compose._srmech_json.loads(wire.decode("utf-8"))
+    assert desc.get("k") == "t", desc
+    got = _compose._reconstruct_value(desc)
+    assert type(got) is tuple and len(got) == 2, got
+    assert all(type(v) is Q for v in got), [type(v).__name__ for v in got]
+    assert got[0] == Q(5, 6) and got[1] == Q(1, 2), got
 
 
 def test_c_rejection_is_its_own_verdict_not_a_silence():

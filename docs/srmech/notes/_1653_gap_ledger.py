@@ -1233,16 +1233,39 @@ ROWS = [
                   "independence, sectors, z4_dispatch_slots. The C writer "
                   "(srmech_compose_run.c) emits exactly n/i/s/q/f/l.",
          probe="python3 notes/_1653_rc450_measure.py",
-         disposition=FILED,
+         disposition=CLOSED,
          note="NEW TYPE. Split out of carrier_matrix at rc450 because that row "
               "says 'cr_value_t has no DENSE-MATRIX kind' and its evidence line "
               "is about schur_complement returning a Mat -- a different type. "
               "The ratchet's BLOCKED row for parallel_sector_dispatch cited "
               "carrier_matrix while the same file's GATE_CARRIER comment two "
-              "screens up said MAPPING; rc450 repoints it here.",
+              "screens up said MAPPING; rc450 repoints it here. "
+              "CLOSED at rc452 (`#T1166`) and it took TWO letters, not one: "
+              "`m` for the mapping and `o` for the bool, because the dict is "
+              "full of bools and `True == 1` in Python makes an `i` spelling a "
+              "right value of the wrong TYPE. Both projections moved in the "
+              "same change (C is_map/is_bool carrier flags + cr_desc arms; "
+              "Python `m`/`o` branches in _reconstruct_value; the "
+              "EXPECTED_WIRE_KINDS bijection; REQUIRED_EMITTED_KINDS, which "
+              "gained `b` and `x` in the same commit after a verifier found "
+              "they were never added when those kinds landed) under ABI "
+              "22 -> 23. "
+              "THE KEY-ORDERING HAZARD IS DESIGNED OUT, NOT DOCUMENTED AROUND: "
+              "the `sectors` sub-map is INT-KEYED, and measured on the "
+              "canonical writer both projections share, json.dumps(sort_keys="
+              "True) sorts key OBJECTS then coerces ('1','2','10') while the C "
+              "writer sorts already-stringified keys BYTEWISE ('1','10','2'), "
+              "so the two DISAGREE on exactly this dict. Bool keys also "
+              "lowercase and collide with 1/0, and a tuple key raises "
+              "TypeError. The payload is therefore a FLAT array of alternating "
+              "key/value DESCRIPTORS in insertion order -- keys are never JSON "
+              "object keys, so all three hazards become unreachable.",
          ceiling_blind_to="A second dict-returning descriptor: the chain ceiling "
                           "counts chains, so the SECOND one to need MAPPING "
-                          "moves no literal at all."),
+                          "moves no literal at all. Still true after closure, "
+                          "and now the ONLY residual on this row -- the kind "
+                          "exists, so a second dict-returning chain would ride "
+                          "it silently rather than being counted."),
 
     dict(id="wire_l_payload_key_divergence", kind="gap",
          missing="The two value-descriptor wires disagree on the PAYLOAD KEY "
@@ -2028,6 +2051,206 @@ ROWS = [
                           "What caught this one was a hand-written test file, "
                           "not a ratchet, and nothing guarantees the next such "
                           "chain will have been written."),
+
+    # ── rc452 (`#T1166`) — the exact-ℚ arc. What it closed, and what it did
+    #    not. Every row below is NAMED because rc452 met it, not inherited.
+
+    dict(id="reorient_declines_exact_rational", kind="gap",
+         missing="cr_op_reorient had no CR_RATIONAL arm: handed an exact "
+                 "rational it fell through to the double arm, failed to read "
+                 "it, and returned SRMECH_ERR_NOT_IMPL. rational_add -> "
+                 "reorient therefore threaded in NEITHER projection.",
+         lacked_by="c", blocked_this_rc=True, new_type=False,
+         evidence="Executed against the shipped .so at ABI 20: the two-step "
+                  "chain returned rc=5 with an empty wire. At ABI 21 it "
+                  "returns rc=0 and {\"d\": \"6\", \"k\": \"q\", \"n\": \"-5\"}.",
+         probe="PYTHONPATH=. python3 ../notes/_rc452_c_probe.py",
+         disposition=CLOSED,
+         note="Zero new dispatch arms; the arm carves a FRESH carrier from the "
+              "arena and aliases the write-once limbs, never negating in "
+              "place. ABI 20 -> 21, and the bump's argument is new: an rc452 "
+              ".so against rc451 Python produces no error at all, just a "
+              "well-formed 2-tuple a Class-K consumer reads wrongly.",
+         ceiling_blind_to="A rational reaching reorient through a step form "
+                          "the chain runner does not yet parse. The pin is on "
+                          "the op's arm, not on every route into it."),
+
+    dict(id="python_rational_family_not_closed_under_its_return", kind="bug",
+         missing="rational_add/_mul/_div/_pow_uint REJECTED a Q operand while "
+                 "C's cr_as_rational accepted CR_RATIONAL directly, so the "
+                 "Python family could not consume its own output.",
+         lacked_by="python", blocked_this_rc=True, new_type=False,
+         evidence="Measured at the rc452-s2 commit: 31 reds across five test "
+                  "files, all carrying one error class -- 'TypeError: a|b must "
+                  "be 2-tuple (num, den); got Q(...)'. All 31 go green on the "
+                  "acceptance-widening with ZERO edits to any failing file.",
+         probe="PYTHONPATH=. python3 ../notes/_rc452_red_experiment.py --expect-red",
+         disposition=CLOSED,
+         note="kind='bug', not 'gap': C ANSWERED where Python RAISED on the "
+              "same shape, so this was a divergence, not a capability the "
+              "projection declined to offer. The co-equality is the oracle -- "
+              "the contract named C correct and Python widened to match.",
+         ceiling_blind_to="An op OUTSIDE the four binary ones growing a pair "
+                          "operand later. The boundary is derived from "
+                          "cr_as_rational's two call sites, so a third call "
+                          "site added in C without the Python peer is not "
+                          "counted by anything here."),
+
+    dict(id="value_parity_population_has_no_rational_terminal_chain",
+         kind="gap",
+         missing="The value-parity comparator's population (the [cascade] "
+                 "catalog's proof cases) contains NO chain whose final value "
+                 "is an exact rational, so the comparator has never judged a "
+                 "`q` even though the wire carries 39 of them per run.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="rc452's emitted-kind gate, executed: population A (98 "
+                  "declared proof cases, 48 emitting) tallies {f:13, i:48, "
+                  "l:4, t:9} and NO q. Population B (51 AMSC operator_chain "
+                  "rows, 51 emitting) tallies {q:39, s:12}. The two sets do "
+                  "not overlap on q, which is exactly why the collapse "
+                  "survived every value-level instrument in the tree.",
+         probe="PYTHONPATH=. python3 -m pytest "
+               "tests/test_wire_kind_emission_rc452.py -s",
+         disposition=FILED,
+         note="rc452's PLAN called for a proof-case chain to close this and it "
+              "is NOT buildable as specified: every [cascade] descriptor must "
+              "name a real DSL-resolvable op (tests/test_dsl.py pins the set) "
+              "and there is no rational-family cascade op -- the Class-N "
+              "rationals are catalogued as AMSC operator_chains instead. A `q` "
+              "row in population A therefore costs a NEW PUBLIC CALLABLE plus "
+              "its descriptor, which moves the tool-count axis across ~73 test "
+              "files. Priced, named, deferred -- and PINNED down-only as "
+              "CEIL_UNEMITTED_IN_POPULATION_A so it cannot widen quietly.",
+         ceiling_blind_to="The pin is on which KINDS population A emits, not "
+                          "on whether population A is the right population. A "
+                          "kind emitted by neither set is caught by the union "
+                          "ceiling; a kind emitted only by B stays a named "
+                          "gap and nothing forces it shut."),
+
+    dict(id="wire_kind_n_emitted_by_nothing", kind="gap",
+         missing="CR_NONE (`n`) is declared by the C writer and branched on by "
+                 "the Python reader, and no executed row of EITHER population "
+                 "emits it. No producer has ever been found.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="rc452's emitted-kind gate over both populations: the union "
+                  "residual is exactly {n}. THE PLAN PREDICTED {n, s} AND WAS "
+                  "WRONG ABOUT s -- `s` IS emitted, 12 times, by pi_digits. "
+                  "The two workshops that disagreed were each right about a "
+                  "different population, which is why it never resolved.",
+         probe="PYTHONPATH=. python3 -m pytest "
+               "tests/test_wire_kind_emission_rc452.py -s",
+         disposition=FILED,
+         note="Closable by auditing every cr_op_* return path for a CR_NONE "
+              "result. rc452 does not; it pins the residual DOWN-ONLY so a "
+              "second dark kind cannot join it silently.",
+         ceiling_blind_to="A kind that is emitted but never REACHES a "
+                          "comparator -- the census walks wires that a chain "
+                          "actually returned, so a kind produced only inside a "
+                          "step and consumed before the final value is "
+                          "invisible to it."),
+
+    dict(id="dead_band_and_scale_round_accept_q_in_python_only", kind="gap",
+         missing="dead_band and scale_round_half_even accept a Q in Python and "
+                 "DECLINE a non-CR_DBL operand in C, so the two projections "
+                 "disagree on what they accept even though neither is wrong.",
+         lacked_by="c", blocked_this_rc=False, new_type=False,
+         evidence="cr_op_dead_band's own comment states the decline and its "
+                  "reason (reading an int through cr_arg_dbl would answer 5.0 "
+                  "where Python answers 5 -- a silent wrong answer, not a "
+                  "capability gap). The rc452 workshop priced the repair at "
+                  "one q arm each, zero new dispatch arms.",
+         probe="grep -n cr_op_dead_band c/src/srmech_compose_run.c",
+         disposition=FILED,
+         note="NAMED rather than inherited, per the ruling's own open-questions "
+              "list. Ops that diverge on what they ACCEPT are not at parity "
+              "even when neither projection gives a wrong answer. Contrast the "
+              "measured PARITY-LEGAL decline this rc pins: reorient refuses a "
+              "bare [num, den] list on BOTH sides, deliberately.",
+         ceiling_blind_to="Nothing counts acceptance-set divergence. This row "
+                          "is prose because the tree has no instrument that "
+                          "enumerates, per op, what each projection takes."),
+
+    dict(id="mcp_wire_spells_a_rational_as_a_pair", kind="gap",
+         missing="The rc414 MCP envelope deliberately excludes Q, so the same "
+                 "rational is spelled [num, den] on the MCP wire and `q` on "
+                 "the chain wire. rc452 WIDENS that divergence: the "
+                 "Q-returning tool population grows 27 -> 36.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="Re-derived at rc452 by execution rather than inherited: the "
+                  "carrier back-index (a token scan over the ToolEntry types) "
+                  "now lists 36 ops under Q.produces, up from 27. No MCP "
+                  "round-trip was executed under the change.",
+         probe="PYTHONPATH=. python3 -c \"from srmech.introspect."
+               "carrier_schema import _pure_carrier_schema as S; "
+               "print(len(S()['Q']['ops']['produces']))\"",
+         disposition=FILED,
+         note="rc452 DID have to repair the C half of this surface: respelling "
+              "the four binary ops' param type dropped SIX ops off the native "
+              "invoke_tool surface silently, because mm_action_for is an exact "
+              "strcmp. Fixed in both projections string-for-string. The "
+              "SPELLING divergence itself is not reconciled here.",
+         ceiling_blind_to="Nothing executes an MCP round-trip over the widened "
+                          "population, so a coercion that is wrong rather than "
+                          "merely absent would not show up as a red."),
+
+    dict(id="exact_q_cannot_enter_a_chain", kind="gap",
+         missing="json.dumps(Q) raises TypeError, so an exact rational can "
+                 "only ENTER a chain spelled [num, den]. rc452 closes the "
+                 "RETURN direction only; the wire is asymmetric.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="Executed and PINNED, not asserted: "
+                  "tests/test_exact_q_pipeline_rc452.py::"
+                  "test_json_dumps_of_a_q_still_raises_so_the_input_direction_"
+                  "is_open. The ruling's open-questions list is single-sourced "
+                  "on this fact, so it is given a test rather than a sentence.",
+         probe="PYTHONPATH=. python3 -m pytest "
+               "tests/test_exact_q_pipeline_rc452.py -k json_dumps",
+         disposition=FILED,
+         note="This is WHY the (num, den) pair survives ADJ-4 as a legitimate "
+              "INPUT spelling on both projections. It is not deprecated and "
+              "must not be 'cleaned up'.",
+         ceiling_blind_to="The row is about the ctx wire's JSON encoder. A "
+                          "future encoder that serialised Q would close it "
+                          "without anything here noticing the row went stale."),
+
+    dict(id="mat_vec_coerce_exact_q_to_float_at_construction", kind="bug",
+         missing="Mat and Vec are array('d') float64 and SILENTLY coerce a Q "
+                 "to float at construction, so exact ℚ dies BELOW every wire "
+                 "rc452 touches.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="Two independent workshop executions. rc452 does not "
+                  "re-derive it and does not claim to have measured it.",
+         probe="n/a -- inherited from the rc452 workshop, NOT re-executed here",
+         disposition=FILED,
+         note="A live 'returning to float is the default' violation at the "
+              "CARRIER layer that no wire configuration can touch. rc452 reads "
+              "the mandate's 'Mat/Vec/HV are carriers too' as exact-ℚ reach "
+              "via Q, depth-1 containers, and the exact peers (QMat / Poly / "
+              "BiPoly, deferred). THAT REINTERPRETATION NEEDS EXPLICIT USER "
+              "SIGN-OFF and rc452 flags it as PENDING rather than assuming it.",
+         ceiling_blind_to="Everything. There is no instrument in this family "
+                          "that looks below the wire at carrier storage."),
+
+    dict(id="depth_ge_2_exact_carriers_do_not_cross", kind="gap",
+         missing="Exact carriers nested two or more levels deep (QMat, Poly, "
+                 "BiPoly) do not cross the chain wire. rc452's q spelling "
+                 "banks ONE nesting level; the next costs an explicit "
+                 "non-recursive loop.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="Three independent workshop counts agree at ~22-24 "
+                  "non-recursive lines per level; JPL Rule 1 forbids the "
+                  "recursive shortcut. rc452 PINS the depth-1 boundary from "
+                  "both sides: a q inside a t rebuilds as a Q, and pair(Q, Q) "
+                  "marshals -- both executed against the real library.",
+         probe="PYTHONPATH=. python3 -m pytest "
+               "tests/test_c_cascade_value_parity_rc450.py "
+               "-k 'pair_of_rationals or rational_inside_a_tuple'",
+         disposition=FILED,
+         note="Deferred to a follow-on arc with a measured price attached, "
+              "which is the difference between a deferral and a silence.",
+         ceiling_blind_to="Nothing enumerates the depth of the carriers a "
+                          "descriptor could produce, so a descriptor authored "
+                          "at depth 2 would decline rather than red."),
 ]
 
 

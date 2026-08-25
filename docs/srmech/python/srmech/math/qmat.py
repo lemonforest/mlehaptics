@@ -183,6 +183,12 @@ class QMat:
             return cls.__new__(cls)._init_from(
                 _coerce_rows(rows, allow_float=True))
         from . import rational as _rational
+        # rc452 (`#T1166`): the Class-K pin-slot + Class-C reorient atoms. Lazy,
+        # like `rational` above, so `srmech.math.qmat` keeps no module-level edge
+        # into `srmech.cascade` (verified: a fresh `import srmech.math.qmat` in a
+        # clean interpreter is cycle-free).
+        from ..cascade.atoms import pin_slot_at_zero as _pin_slot_at_zero
+        from ..cascade.atoms import reorient as _reorient
         snapped: List[List[Q]] = []
         n_cols = None
         for r in rows:
@@ -198,8 +204,37 @@ class QMat:
                     raise TypeError(
                         f"QMat.from_float_rows: entry not float-coercible: {x!r}")
                 num, den = exact.as_pair()
-                # Class-N best-rational snap of the exact float ratio to ≤ max_den.
-                p, q = _rational.best_rational(num, den, int(max_denominator))
+                # rc452 (`#T1166`) - THE SIGN BUG. This line called the UNSIGNED
+                # Class-N `best_rational` straight on `num`, which raises
+                # "numerator must be non-negative" for ANY negative entry - so a
+                # shipped public method failed on half its own domain, and
+                # `from_mat` inherited it. The sole coverage passed only positive
+                # floats, which is exactly why it survived. Same shape as the rc433
+                # Vec.__getitem__ finding: the test drove one half of the domain and
+                # the other half was never exercised.
+                #
+                # Fixed as the SHIPPED cascade, not a hand-rolled sign test: Class K
+                # pin-slot strips the orientation, Class N snaps the NON-NEGATIVE
+                # magnitude, Class C re-applies it - the identical K∘N∘C shape
+                # `cascade.best_rational_signed` composes. No `abs()`, no `if x < 0`;
+                # the sign lives in the K/C pair end to end.
+                #
+                # WHY NOT CALL `best_rational_signed` DIRECTLY: it is float-in and
+                # re-quantises through `fine_scale` (round(mag * fine_scale)) before
+                # the convergent walk, while this site already holds the float's
+                # EXACT binary expansion. Measured over a 120-case sweep, the two
+                # disagree on 33 - at max_denominator=10**6, 0.3333333333333333 gives
+                # (1, 3) exactly here but (333333, 1000000) through fine_scale. That
+                # would gut this method's documented purpose ("de-noising the float64
+                # round-off"), so the composed op's CASCADE is reused while the
+                # Class-N stage keeps its exact-pair input.
+                #
+                # `Q.as_pair()` puts the sign on the numerator and leaves the
+                # denominator positive, so the pin-slot only has to read `num`.
+                orientation, num_magnitude = _pin_slot_at_zero(num)
+                p_magnitude, q = _rational.best_rational(
+                    num_magnitude, den, int(max_denominator))
+                p = _reorient(p_magnitude, orientation=orientation)
                 # best_rational returns (0, 1) when no nontrivial convergent fits;
                 # keep the exact ratio in that degenerate case (no worse snap).
                 out.append(Q(p, q) if (p, q) != (0, 1) or exact == 0 else exact)

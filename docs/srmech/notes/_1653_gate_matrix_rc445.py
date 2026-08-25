@@ -38,25 +38,58 @@ def c_table_ops():
     """The ops the C dispatch actually handles — read from the C source, not a
     list, so this cannot drift from what is compiled.
 
-    Spans cr_dispatch AND cr_dispatch_real: rc447 split the real-sequence arms
-    into the second function purely to keep the first under JPL Rule 4, and a
-    scanner anchored to one of them would silently under-report the table. It
-    also matches the SUFFIX form ``memcmp(op + (opl - N), "name", N)`` used by
-    ops whose descriptors write a dotted spelling — reading only the bare
-    ``memcmp(op, ...)`` form would miss every one of those.
+    ⚠️ RE-POINTED AT THE TABLE AT rc452 (`#T1166`). This scanned the bodies of
+    ``cr_dispatch_real`` and ``cr_dispatch`` for ``cr_op_is`` arms. rc452
+    converts ``CR_OP_REG`` into a name-to-FUNCTION-POINTER atom table, deletes
+    ``cr_dispatch_real`` outright (it existed only to absorb arms that would
+    have broken JPL Rule 4) and leaves ``cr_dispatch`` a bounded loop with ZERO
+    arms of its own. The old anchor therefore raised ``ValueError: substring
+    not found`` — loudly, before producing a matrix, which is the right failure:
+    a scanner that had instead returned an empty set would have written a matrix
+    declaring every chain op-table-blocked.
+
+    Rows whose ``dom`` is CR_DOM_NONE are FOLD-BODY-ONLY and are excluded:
+    they are not dispatchable as plain steps, and including them would
+    over-report the table. (This read the first-cut function-pointer columns
+    — ``fn``/``bn`` — until rc452 Phase 3; the A1 reshape replaced them with
+    the three enum columns ``dom``/``sub``/``bin``, the regenerating run's
+    own ``assert ops`` fired on the stale 5-member regex, and the row shape
+    below is now the same 6-member one the eligibility gate parses.)
     """
     src = open(C_SRC, encoding="utf-8", errors="replace").read()
-    start = src.index("static srmech_status_t cr_dispatch_real")
-    body = src[start:]
-    end = body.find("static srmech_status_t cr_run_steps")
-    if end > 0:
-        body = body[:end]
-    ops = set(re.findall(r'cr_op_is\(op,\s*opl,\s*"([a-z0-9_]+)"', body))
-    ops |= set(re.findall(r'memcmp\(op,\s*"([a-z0-9_]+)"', body))
-    ops |= set(re.findall(r'memcmp\(op \+ \([^)]*\),\s*"([a-z0-9_]+)"', body))
+    m = re.search(r"\}\s*CR_OP_REG\[\d+\]\s*=\s*\{", src)
+    assert m, "CR_OP_REG's initialiser was not found — the dispatch surface " \
+              "was reshaped and this scan has stopped observing"
+    body = src[m.end():src.index("};", m.end())]
+    ops = set()
+    for bare, _ln, _full, dom, _sub, _bn in re.findall(
+            r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,'
+            r'\s*"([A-Za-z0-9_.]+)"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,'
+            r'\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
+        if dom != "CR_DOM_NONE":
+            ops.add(bare)
     assert ops, "the C dispatch-table scan found NOTHING — the anchors have " \
                 "drifted from the source and every gate below would be wrong"
     return sorted(ops)
+
+
+def c_fold_ops():
+    """Bare op names the C FOLD BODY can dispatch — CR_OP_REG's non-NULL ``bin``
+    column. Derived, not hard-coded: rc452 gave the fold body the shared atom
+    table, so the admissible set moves with the table."""
+    src = open(C_SRC, encoding="utf-8", errors="replace").read()
+    m = re.search(r"\}\s*CR_OP_REG\[\d+\]\s*=\s*\{", src)
+    assert m, "CR_OP_REG's initialiser was not found"
+    body = src[m.end():src.index("};", m.end())]
+    ops = set()
+    for bare, _ln, _full, _dom, _sub, bn in re.findall(
+            r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,'
+            r'\s*"([A-Za-z0-9_.]+)"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,'
+            r'\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
+        if bn != "CR_BIN_NONE":
+            ops.add(bare)
+    assert ops, "the C fold-body scan found NOTHING — anchors have drifted"
+    return ops
 
 
 def walk_steps(steps, depth=0):
@@ -73,12 +106,31 @@ def walk_steps(steps, depth=0):
 
 
 def step_ops(st):
+    """Ops a step dispatches as a PLAIN step (checked against CR_OP_REG's `fn`).
+
+    ⚠️ ``fold_op`` MOVED OUT AT rc452 (`#T1166`) and this is a real correction,
+    caught by this file's own execution cross-check. A fold BODY dispatches
+    through the table's ``bin`` column, which is a different admissible set from
+    the ``fn`` column a plain step uses, so checking a fold_op against the plain
+    set mis-attributes the gate. It fired on ``net_chirality``: predicted
+    ``op_table``-blocked on ``orientation_compose`` (a fold-body-ONLY row, whose
+    ``fn`` is deliberately NULL because no shipped descriptor names it as a
+    plain step) while C ran the chain rc=0. The cross-check refused to write a
+    matrix disagreeing with execution — which is the assertion earning its keep,
+    since every gate row would otherwise have been suspect.
+    """
     out = []
-    for k in ("op", "fold_op", "reduce_op", "parallel_body", "map_op"):
+    for k in ("op", "reduce_op", "parallel_body", "map_op"):
         v = st.get(k)
         if isinstance(v, str):
             out.append(v)
     return out
+
+
+def step_fold_ops(st):
+    """Ops a step dispatches as a FOLD BODY (checked against CR_OP_REG's `bin`)."""
+    v = st.get("fold_op")
+    return [v] if isinstance(v, str) else []
 
 
 def has_real(node):
@@ -96,9 +148,19 @@ def has_real(node):
 
 INDEXED_REF = re.compile(r"@step\[\d+\]\.output\[")
 
-#: Namespaces cr_resolve_ref does NOT know. @op is the sharpest: it names an OP
-#: as a VALUE, which needs a callable registry in C, not a wider path walker.
-UNKNOWN_NS = re.compile(r"@(op|bind|idx|catalog)[.\[]")
+#: Namespaces cr_resolve_ref does NOT know.
+#:
+#: ⚠️ NARROWED AT rc452 (`#T1166`): `@bind` and `@idx` SHIPPED. They resolve
+#: against the map frame stack (`cr_env_bind` / `cr_env_idx`), which is why they
+#: could not close before the MAP step form existed — measured, they occur ONLY
+#: inside map bodies, so they are lexical bindings of the enclosing frames and
+#: not addresses into the row/input trees a path walker descends.
+#:
+#: `@op` remains, and it is still the sharpest: it names an OP as a VALUE, which
+#: needs a callable registry in C. rc452's atom table IS that registry, so the
+#: mechanism now exists — but no arm reads it yet, so the gate stands.
+#: `@catalog` remains and routes to pure by design.
+UNKNOWN_NS = re.compile(r"@(op|catalog)[.\[]")
 
 
 def has_indexed_ref(node):
@@ -143,17 +205,28 @@ def main():
     for name in names:
         gates = set()
         ops_used = set()
+        fold_ops_used = set()
         for entry in _cc._chain_entries(catalog[name]):
             for st, _d in walk_steps(entry.get("steps")):
                 ops_used |= set(step_ops(st))
-                if "map_over" in st or "body" in st:
-                    gates.add("step_form")          # MAP: still unimplemented
-                # FOLD executes since rc446 — but only for the ONE body op in
-                # cr_fold_body. A fold over anything else is still a step_form
-                # block, so the predicate tests the BODY OP, not the form.
+                fold_ops_used |= set(step_fold_ops(st))
+                # ⚠️ THE MAP PREDICATE IS GONE AT rc452 (`#T1166`). It read
+                # `if "map_over" in st or "body" in st: gates.add("step_form")`
+                # — MAP: still unimplemented. `cr_drive`'s explicit frame stack
+                # implements it, so the whole FORM now executes and the
+                # predicate is DELETED rather than left scoring zero, so the
+                # column cannot quietly come back (the same discipline the
+                # real_literal_arg note below records).
+                #
+                # FOLD executes since rc446, and since rc452 its BODY dispatches
+                # through the SHARED atom table's `bin` column rather than a
+                # private single-entry table. So the predicate still tests the
+                # BODY OP — a fold over an op with no `bin` is a real block —
+                # but the admissible set is now derived from C rather than being
+                # the hard-coded `orientation_compose` this line used to carry.
                 if "fold_op" in st or "fold_class" in st:
                     fop = str(st.get("fold_op") or "").rpartition(".")[2]
-                    if fop != "orientation_compose":
+                    if fop not in c_fold_ops():
                         gates.add("step_form")
                 if has_indexed_ref(st.get("args")):
                     gates.add("ref_grammar")
@@ -163,6 +236,11 @@ def main():
                 # scoring zero, so the column cannot quietly come back.
         outside = sorted(o for o in ops_used
                          if o.rpartition(".")[2] not in table and o not in table)
+        # A fold body is admissible via the `bin` column, a DIFFERENT set.
+        fold_table = c_fold_ops()
+        outside += sorted(o for o in fold_ops_used
+                          if o.rpartition(".")[2] not in fold_table
+                          and o not in fold_table)
         if outside:
             gates.add("op_table")
         # carrier: does the Python projection return a non-int/str/rational?
@@ -180,23 +258,23 @@ def main():
             # Missing entries found so far: dict (parallel_sector_dispatch),
             # tuple (best_rational_signed), nested list (o/qDFT).
             #
-            # The chain-run value descriptor carries: n / i / q / s / f / l,
-            # and its `l` is FLAT BY CONSTRUCTION (cr_desc_list calls
-            # cr_desc_scalar, never itself — JPL Rule 1 bans the recursive
-            # walk). So a list[list[...]] is NOT expressible even though `l` is.
-            # ⚠️ `tuple` WAS UNCONDITIONAL HERE AND THAT WAS WRONG (rc447).
-            # A (num, den) RATIONAL is carried natively by the chain-run wire
-            # as kind `q` — _reconstruct_value returns exactly that tuple — so
-            # best_rational_signed was scored carrier-blocked when its carrier
-            # is fine. Only a NON-rational tuple needs the absent `t` kind.
-            _rational = (isinstance(v, tuple) and len(v) == 2
-                         and all(type(x) is int for x in v))
-            if (isinstance(v, (bytes, bytearray, dict)) or hasattr(v, "tolist")
-                    or (isinstance(v, tuple) and not _rational)):
+            # The chain-run value descriptor carries: n / i / q / s / f / l / t,
+            # and since rc452 both `l` halves are DEPTH-BOUNDED NESTED walks
+            # over explicit frame stacks (cr_json_nested / cr_desc_list) — a
+            # list[list[float]] IS expressible now, which is how the two DFT
+            # chains closed. Bytes, dense matrices and mappings remain the
+            # carrier kinds the wire cannot spell.
+            # ⚠️ `tuple` WAS UNCONDITIONAL HERE AND THAT WAS WRONG (rc447);
+            # `nested list` WAS carrier-blocking HERE AND THAT WENT STALE at
+            # rc452 Phase 3 (this file's own execution cross-check caught it:
+            # both DFT chains predicted carrier_width with C rc=0). The `t`
+            # kind ships since rc451, so a tuple is carried too.
+            if (isinstance(v, (bytes, bytearray, dict))
+                    or hasattr(v, "tolist")):
                 gates.add("carrier_width")
-            elif isinstance(v, list) and any(isinstance(e, (list, tuple, dict))
+            elif isinstance(v, list) and any(isinstance(e, dict)
                                              for e in v):
-                gates.add("carrier_width")     # nested — the wire's list is flat
+                gates.add("carrier_width")     # mappings have no wire kind
         except Exception:
             pass
         for g in gates:
@@ -236,9 +314,19 @@ def main():
             # step ran. Both halves of this file were stale in the SAME
             # direction, which is exactly why the cross-check read 0
             # disagreements while disagreeing with the ratchet by one chain.
+            # rc452 (gh #1653 finding (b)): the runner now REFUSES a chain
+            # missing name/summary/returns — the required-key rule every parse
+            # layer already enforced — so this probe synthesizes the header
+            # the way cascade_chain_specs does, exactly as the ratchet's and
+            # the value-parity gate's _chain_only now do. (Before the fix
+            # this harness fed HEADERLESS chains and C ran them, which is the
+            # co-equal divergence the finding names.)
             chain_only = {k: v for k, v in entry.items()
-                          if k in ("name", "steps", "on_error",
-                                   "chain_schema_version")}
+                          if k in ("name", "summary", "returns", "steps",
+                                   "on_error", "chain_schema_version")}
+            chain_only.setdefault("name", str(entry.get("variant", "chain")))
+            chain_only.setdefault("summary", "")
+            chain_only.setdefault("returns", "")
             cj = _json.dumps(chain_only).encode("utf-8")
             xj = _json.dumps({"inputs": case.get("inputs") or {}}).encode("utf-8")
             n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))

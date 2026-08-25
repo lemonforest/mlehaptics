@@ -984,8 +984,13 @@ def _resolve_args(
 _NATIVE_MISS = object()   # sentinel: C did NOT run (distinct from a None result)
 
 # The op names the C dispatch table covers — ALL Class N (srmech.math.rational).
-#: Ops the C chain runner's dispatch table handles. MUST track
-#: ``cr_dispatch`` / ``cr_dispatch_real`` in ``c/src/srmech_compose_run.c``;
+#: Ops the C chain runner's dispatch table handles. MUST track ``cr_dispatch``
+#: in ``c/src/srmech_compose_run.c`` — and, since rc452 (`#T1166`), the shared
+#: ``CR_OP_REG`` table it reads. *(This named ``cr_dispatch_real`` alongside it
+#: until mid-rc452; the same rc's A1 reshape DELETED that function — it existed only to absorb arms
+#: that would have pushed ``cr_dispatch`` past JPL Rule 4's 60 lines, and the
+#: table made it unnecessary. The name survived here, and in one more docstring
+#: below, in text that ships inside the wheel.)*
 #: ``tests/test_c_chain_eligibility_rc447.py`` asserts the two agree, so a C
 #: arm added without updating this set fails there rather than going unreachable.
 #:
@@ -1009,20 +1014,103 @@ _RUN_C_OPS = frozenset({
     "gcd", "mod_add", "mod_mul", "mod_mul_wide", "mod_pow", "mod_inv",
     # Class C / K / L — the real-sequence and pin-slot arms (rc447)
     "chiral_flip", "autocorrelation", "pin_slot_at_zero", "reorient",
-    "orientation_compose",
+    # ⚠️ `orientation_compose` WAS LISTED HERE AND WAS A PHANTOM (removed rc452,
+    # `#T1166`). It has NEVER been a plain dispatch arm: measured at the rc452
+    # branch point, neither `cr_dispatch` nor `cr_dispatch_real` carried an arm
+    # for it — it existed only inside `cr_body_is_orient_compose`, a FOLD-FORM
+    # predicate. It reached this set because the eligibility gate's scanner
+    # matched `cr_op_is` over the WHOLE FILE and so read that form predicate as
+    # a dispatch arm; the sibling gate in test_t1158 scoped its scan to the two
+    # dispatch functions precisely to avoid this and said so in its docstring,
+    # but the two scanners were never reconciled. Consequence while live: a
+    # chain naming `orientation_compose` as a PLAIN step was admitted here,
+    # marshalled to C, and declined NOT_IMPL — a full marshal-and-decline per
+    # call, never a wrong answer. It stays in `_RUN_C_FOLD_OPS`, which is the
+    # set that was always true of it. Surfaced by rc452's table-derived scan.
+    # Class B / L / M — the autocorrelation CHAIN's own steps (rc452, `#T1166`).
+    # Deliberately the fine steps, NOT a dispatch of srmech_autocorrelation_f64:
+    # that fused kernel is what the `autocorrelation` OP row runs, and the
+    # `autocorrelation` CHAIN is a different object whose steps never name it.
+    "seq_len", "correlation_product", "compensated_sum",
     # Class K / N / B — the best_rational_signed steps (rc451, `#T1164`).
-    # FOUR separate arms at step granularity in cr_dispatch_real, deliberately
+    # FOUR separate arms at step granularity in the CR_OP_REG table, deliberately
     # NOT one dispatch of the fused srmech_cascade_best_rational_signed_f64:
     # that symbol is value-identical to the fine pipeline over the whole
     # C-accepted domain, so a coarse dispatch would satisfy every value-level
     # gate while the descriptor's steps drove nothing.
     "dead_band", "scale_round_half_even", "best_rational", "pair",
+    # Class E / M / N / C — the kuramoto_step and hypercomplex-DFT chains'
+    # own steps (rc452 Phase 3, `#T1166`). Same discipline as above: the
+    # fused srmech_cascade_kuramoto_step_f64 / _general_f64 /
+    # srmech_quaternion_dft / srmech_octonion_dft symbols all exist and NONE
+    # is dispatched — each summand/term arm delegates only to the
+    # STEP-granular exports the Python op itself composes
+    # (srmech_sin_q61, srmech_quaternion_twiddle + _left/right_mult,
+    # srmech_octonion_twiddle + srmech_loop_{left,right}_op_f64).
+    "seq_get", "vec_scale",
+    "kuramoto_inv_n", "kuramoto_sin_term", "kuramoto_out_simple",
+    "kuramoto_gen_term", "kuramoto_gen_out",
+    "as_quat4", "as_oct8", "qdft_resolve_mu", "odft_resolve_mu",
+    "dft_sigma", "dft_scale", "qdft_summand", "odft_summand",
+    # Class F / B / A — the klein4_from_one chain's string/bytes leaves
+    # (rc452, gh #1653 wave C). Step-granular arms in CR_OP_REG; the fused
+    # srmech_klein4_from_one symbol exists and is deliberately NOT dispatched
+    # (the no-coarse source gate derives it into its pinned population the
+    # moment the chain runs). sha256_bytes / render_template resolve to their
+    # REAL registered homes (srmech.amsc.format / srmech.amsc.descriptor).
+    "render_template", "utf8_encode", "sha256_bytes",
+    "str_concat", "byte_slice", "int_parse_le",
+    # Class A / M / L — the encode_loe_content and schur_complement chains'
+    # steps (rc452 Phase 2, gh #1653 K1 + K3). ⚠️ THESE ARMS SHIPPED IN C AND
+    # THIS SET WAS NOT UPDATED WITH THEM, which is the rc447 defect recurring
+    # in miniature: `srmech_chain_run` runs both chains, `_chain_c_eligible`
+    # answered False for both, and `_run_chain_native` therefore returned
+    # `_NATIVE_MISS` BEFORE the library was consulted — so the C work was
+    # real, correct, and unreachable from the package. Every value-parity gate
+    # stayed green throughout, because those drive `srmech_chain_run` through
+    # ctypes and bypass this predicate; only
+    # `test_c_chain_eligibility_rc447`, which compares the predicate against
+    # the runner chain by chain, could see it, and it is what caught this.
+    "mint_vector", "sha256_raw", "permute", "bind", "schur_complement",
+    # Class C — the Klein-4 four-sector fan-out (rc452, `#T1166`), the last
+    # blocked chain. ⚠️ THE MISS ABOVE RECURRED A THIRD TIME AND THIS ENTRY IS
+    # WHY THE GATE EXISTS: the C arm landed, `srmech_chain_run` ran all four
+    # proof cases BYTE_IDENTICAL, every value-parity gate went green — and this
+    # predicate still answered False, so `_run_chain_native` would have returned
+    # `_NATIVE_MISS` before the library was consulted and the C work would have
+    # been correct and unreachable. The value gates cannot see it (they drive
+    # `srmech_chain_run` through ctypes and bypass this set); only
+    # `test_c_chain_eligibility_rc447` compares the predicate against the runner
+    # chain by chain, and it is what caught this one too.
+    #
+    # ONE spelling, not several: the fan-out is a COMBINATOR and the whole
+    # dispatch is a single step, so unlike the chains above it contributes no
+    # step-granular arms. The fused `srmech_cascade_parallel_sector_dispatch`
+    # symbol exists and is deliberately NOT dispatched — the C arm composes the
+    # sector transforms itself, which is what makes the descriptor's own
+    # `n_sectors` drive the result rather than a name-matched kernel.
+    "parallel_sector_dispatch",
 })
 
-#: Fold-body ops the C runner dispatches (``cr_fold_body``). Deliberately its
-#: own set: the fold body is a PRIVATE single-entry table in C, not the shared
-#: op table, and conflating them would claim a generality C does not have.
-_RUN_C_FOLD_OPS = frozenset({"orientation_compose"})
+#: Fold-body ops the C runner dispatches — the non-``CR_BIN_NONE`` ``bin``
+#: column of the SHARED ``CR_OP_REG`` atom table (``cr_fold_body`` looks the
+#: row up with the same matcher ``cr_dispatch`` uses).
+#:
+#: ⚠️ STILL ITS OWN SET, AND FOR A DIFFERENT REASON THAN BEFORE. Through rc451
+#: this was separate because C's fold body was a PRIVATE single-entry table. As
+#: of rc452 it shares the op table, but the two sets are still not equal: a fold
+#: body takes two already-evaluated POSITIONAL carriers while a plain op pulls
+#: named operands out of ``args``, so an op can be dispatchable as one and not
+#: the other. ``orientation_compose`` is fold-body-ONLY (no shipped descriptor
+#: names it as a plain step); most ops are plain-only. Keeping the sets distinct
+#: states that difference instead of flattening it.
+#: ``tests/test_c_chain_eligibility_rc447.py`` derives BOTH columns out of the C
+#: table and asserts each against its Python peer, so a widened C row that is not
+#: mirrored here is red rather than silently unreachable.
+_RUN_C_FOLD_OPS = frozenset({"orientation_compose", "gcd",
+                             # rc452 Phase 3: the Σ accumulators of the
+                             # kuramoto (scalar) and DFT (vector) map chains.
+                             "f64_add", "vec_add"})
 
 _I64_MAX = (1 << 63) - 1
 _I64_MIN = -(1 << 63)
@@ -1085,6 +1173,45 @@ def _run_ints_fit_i64(
     return ok
 
 
+def _map_body_c_eligible(step: "MapStepSpec") -> bool:
+    """True iff every step of a map body (recursively) is C-runnable.
+
+    A map body is "a chain in miniature", so the test is the chain test applied
+    to the body — including NESTED maps, which is why this recurses rather than
+    walking the body flat. A FLAT walk is a known-wrong census on this tree:
+    measured over the packaged descriptors, it sees 72 of 134 steps, and on
+    ``autocorrelation`` it sees 2 of 6. A predicate built on the flat walk would
+    admit a chain whose inner body C declines, costing a marshal-and-decline on
+    every call.
+
+    C's own frame stack caps map nesting at ``CR_MAP_DEPTH`` (4); the deepest
+    shipped nesting is 2. The cap is not mirrored here because C returns
+    ``NOT_IMPL`` past it and the chain then takes the complete pure path — a
+    decline, never a wrong answer.
+    """
+    for st in step.body:
+        if isinstance(st, MapStepSpec):
+            if not _map_body_c_eligible(st):
+                return False
+            continue
+        if not isinstance(st, StepSpec):
+            fold_op = getattr(st, "fold_op", None)
+            if fold_op is None:
+                return False
+            if str(fold_op).rpartition(".")[2] not in _RUN_C_FOLD_OPS:
+                return False
+            if getattr(st, "fold_args", None) is not None:
+                return False
+            continue
+        if st.on_error not in (None, "raise"):
+            return False
+        if st.op.rpartition(".")[2] not in _RUN_C_OPS:
+            return False
+        if not _step_args_are_bindable(st):
+            return False
+    return True
+
+
 def _chain_c_eligible(spec: ChainSpec) -> bool:
     """True iff every step is a "raise"-policy, in-table op — the
     precondition for the C run loop (else the complete pure path runs).
@@ -1103,9 +1230,20 @@ def _chain_c_eligible(spec: ChainSpec) -> bool:
         return False
     for step in spec.steps:
         if not isinstance(step, StepSpec):
-            # A v2 step (map / fold). C implements the FOLD form since rc446,
-            # for the single body op in cr_fold_body; MAP is still unimplemented
-            # (it needs the explicit frame stack JPL Rule 1 forces).
+            # A v2 step (map / fold). C implements BOTH since rc452: the FOLD
+            # form since rc446 (body now via the shared atom table), and the MAP
+            # form via `cr_drive`'s explicit frame stack.
+            #
+            # ⚠️ MAP MUST BE ADMITTED HERE OR THE C CAPABILITY IS UNREACHABLE.
+            # `_run_chain_native` returns `_NATIVE_MISS` when this predicate says
+            # False, BEFORE the library is consulted — which is exactly the rc447
+            # defect (`#T1141`): the C work was real and correct and the package
+            # could not reach it, and no parity gate could see it, because those
+            # drive `srmech_chain_run` through ctypes and bypass this function.
+            if isinstance(step, MapStepSpec):
+                if not _map_body_c_eligible(step):
+                    return False
+                continue
             fold_op = getattr(step, "fold_op", None)
             if fold_op is None:
                 return False
@@ -1206,41 +1344,125 @@ def _legal_arg_names(op: str, class_id: str) -> Optional[frozenset]:
                       inspect.Parameter.KEYWORD_ONLY))
 
 
+def _steps_to_dicts(steps) -> list:
+    """Serialise a step tuple (recursively — map bodies are step tuples too)
+    to the raw-dict shape ``srmech_chain_run`` reads.
+
+    ⚠️ THE MAP BRANCH WAS MISSING THROUGH THE FIRST TWO PHASES OF rc452, AND
+    THAT WAS A LIVE CRASH, NOT A MISS. ``_chain_c_eligible`` admits map chains
+    (it must — otherwise the C map capability is unreachable, the rc447
+    defect), and ``_run_chain_native`` then serialises the spec through here —
+    where a ``MapStepSpec`` fell into the fold branch and raised
+    ``AttributeError: 'MapStepSpec' object has no attribute 'fold_op'``.
+    Measured on the rc452 branch head with the freshly built ``.so``:
+    ``resolve_chain(autocorrelation)(x=[1.0, 2.0, 3.0])`` CRASHED, while every
+    ctypes-driven gate stayed green — those reach around ``resolve_chain``,
+    which is exactly the blind spot the rc447 eligibility gate documents. The
+    end-to-end ``run_cascade_chain`` gate did not catch it because its driver
+    swallows per-case exceptions as "routing, not values".
+    """
+    out: list = []
+    for s in steps:
+        if isinstance(s, StepSpec):
+            out.append({"class": s.class_id, "op": s.op, "args": s.args})
+        elif isinstance(s, MapStepSpec):
+            step: Dict[str, Any] = {
+                "map_over": s.map_over,
+                "index": s.index,
+                "body": _steps_to_dicts(s.body),
+            }
+            if s.bind:
+                step["bind"] = s.bind
+            out.append(step)
+        else:
+            # A FOLD step (rc447). Key names mirror the ADR-0008 §2 fold step
+            # the C classifier reads. ``fold_args`` chains are never admitted
+            # by ``_chain_c_eligible``, so the keyword-named form is not
+            # spelled here.
+            out.append({
+                "fold_class": getattr(s, "fold_class", None)
+                or getattr(s, "class_id", "C"),
+                "fold_op": s.fold_op,
+                "fold_init": s.fold_init,
+                "over": s.over,
+            })
+    return out
+
+
 def _spec_to_chain_dict(spec: ChainSpec) -> Dict[str, Any]:
     """Serialise a ChainSpec back to the chain-dict shape srmech_chain_run reads
     (name / summary / returns / on_error / steps[{class, op, args}])."""
-    steps: list = []
-    for s in spec.steps:
-        if isinstance(s, StepSpec):
-            steps.append({"class": s.class_id, "op": s.op, "args": s.args})
-            continue
-        # A FOLD step (rc447). ``_chain_c_eligible`` admits these since C
-        # implements the form, so the marshaller must be able to spell one —
-        # it could not, and the predicate widening surfaced that immediately
-        # (AttributeError: 'FoldStepSpec' object has no attribute 'args').
-        # Key names mirror the ADR-0008 §2 fold step the C classifier reads.
-        steps.append({
-            "fold_class": getattr(s, "fold_class", None) or getattr(s, "class_id", "C"),
-            "fold_op": s.fold_op,
-            "fold_init": s.fold_init,
-            "over": s.over,
-        })
     return {
         "name": spec.name, "summary": spec.summary, "returns": spec.returns,
         "on_error": spec.on_error,
-        "steps": steps,
+        "steps": _steps_to_dicts(spec.steps),
     }
+
+
+#: Cached :class:`srmech.math.q.Q`. Bound LAZILY and once: ``srmech.math.q``
+#: imports ``srmech.math.rational``, which is itself reachable from the chain
+#: op registry, so a module-level import here would put the reader inside that
+#: cycle for no gain. One ``if`` on a hot path is the whole cost.
+_Q_CLS = None
+
+
+def _Q(num: int, den: int):
+    """The exact-ℚ carrier for a ``q`` descriptor. See :func:`_reconstruct_value`."""
+    global _Q_CLS
+    if _Q_CLS is None:
+        from srmech.math.q import Q as _QC
+        _Q_CLS = _QC
+    return _Q_CLS(num, den)
+
+
+#: Cached :class:`srmech.math.mat.Mat`. Bound LAZILY and once, for the same
+#: reason :data:`_Q_CLS` is: the carrier module is reachable from the chain op
+#: registry, so a module-level import would put the reader inside that cycle.
+_MAT_CLS = None
+
+
+def _Mat_rows(rows):
+    """The numpy-free ``Mat`` carrier for an ``x`` descriptor. See
+    :func:`_reconstruct_value`."""
+    global _MAT_CLS
+    if _MAT_CLS is None:
+        from srmech.math.mat import Mat as _MC
+        _MAT_CLS = _MC
+    return _MAT_CLS.from_rows(rows, is_complex=False)
 
 
 def _reconstruct_value(desc: Dict[str, Any]) -> Any:
     """Rebuild a Python value from the C value descriptor. Bignums arrive as
-    decimal strings (exact); a rational is a ``(num, den)`` tuple (matching the
-    Class-N ops' return type)."""
+    decimal strings (exact); a rational rebuilds as the exact-ℚ carrier
+    :class:`srmech.math.q.Q` (matching the Class-N ops' return type)."""
     k = desc.get("k")
     if k == "s":
         return desc["v"]
     if k == "q":
-        return (int(desc["n"]), int(desc["d"]))
+        # rc452 (`#T1166`): the exact-ℚ carrier, NOT a ``(num, den)`` tuple.
+        #
+        # THE DEFECT WAS NEVER IN THE WIRE. The shipped C has built CR_RATIONAL
+        # inside three op bodies since long before this rc (srmech_compose_run.c
+        # cr_op_rat / cr_op_pow / cr_op_series) and two live attested catalogs
+        # (asymptotic_calculus, cosmos_validation) dispatch those ops, so `q`
+        # was on the wire all along. The collapse lived HERE: this line rebuilt
+        # an exact rational as a generic 2-tuple of ints, which is also what a
+        # Class-K pin pair and a Class-B `pair` step rebuild as — so the value
+        # arrived type-erased and no comparator downstream could tell an exact
+        # ℚ chain from an integer-pair chain. Config C's controlled two-arm
+        # experiment isolated the causal variable with the wire held constant:
+        # Python returning tuples gave 39/39 DIVERGENT, Python returning Q gave
+        # 39/39 BYTE_IDENTICAL. The Python-side TYPE is what discrimination
+        # turns on, not the spelling.
+        #
+        # The docstring above pinned the tuple contract in prose and shipped
+        # inside the wheel; it is corrected in this same change rather than
+        # left to drift.
+        #
+        # ABI 20 -> 21 rides with this: a STALE reader paired with a current
+        # .so would rebuild a tuple from a q SILENTLY — the silent-wrong-value
+        # class, strictly worse than the raise-class condition rc451 bumped for.
+        return _Q(int(desc["n"]), int(desc["d"]))
     if k == "i":
         return int(desc["v"])
     if k == "n":
@@ -1265,6 +1487,49 @@ def _reconstruct_value(desc: Dict[str, Any]) -> Any:
         # that reached this reader before its branch existed would raise below,
         # and ABI 20 enforces the converse for a stale ``.so``.
         return tuple(_reconstruct_value(it) for it in desc["v"])
+    if k == "x":
+        # rc452 Phase 2 (`#T1166`, gh #1653): the MATRIX carrier — a real
+        # ``Mat``, not a list of lists.
+        #
+        # THE PAYLOAD IS THE SAME NESTED ARRAY AN ``l`` CARRIES; only the outer
+        # letter differs. That is deliberate: the rows are ordinary ``l``
+        # frames, so the C writer's list walker is untouched and there is no
+        # second array grammar to keep in sync. What the letter buys is the
+        # TYPE — ``schur_complement`` declares ``Mat`` and the shipped
+        # comparator encodes a Mat as ``M`` + its ``.tolist()``, which no plain
+        # list produces, so answering ``l`` here would be a wrong value rather
+        # than a missing capability.
+        #
+        # REAL ONLY, and stated rather than implied: ``is_complex=False``. The
+        # only executable descriptor returning this kind is
+        # ``schur_complement``, whose float path returns a real Mat; the C arm
+        # ingests real doubles and can produce nothing else. A complex Mat
+        # would need its own interleaved payload and is not on this wire.
+        #
+        # Lands with the C-side ``is_matrix`` flag in the SAME change, under
+        # the ABI 22 this rc already pays for.
+        return _Mat_rows([_reconstruct_value(r) for r in desc["v"]])
+    if k == "b":
+        # rc452 (`#T1166`, gh #1653): BYTES, spelled as lowercase hex.
+        #
+        # The hex is not a stylistic pick. A bytes payload has to cross RFC
+        # 8259 JSON, where a raw byte string is not expressible, so the kind
+        # has to choose an encoding — and the choosing is where two
+        # projections drift. Base64 offers an alphabet variant and a padding
+        # rule; hex offers neither, ``bytes.hex()`` produces exactly what the C
+        # writer's ``cr_bytes_hex`` produces, and ``bytes.fromhex`` inverts it
+        # exactly. Same reasoning class as the mapping kind's key ordering:
+        # remove the decision rather than document it.
+        #
+        # ⚠️ NOT the MCP surface's ``bytes`` coercer, which reads BASE64. That
+        # one is an INPUT coercion on a different surface, and measured this rc,
+        # feeding it hex raises ``binascii.Error: Incorrect padding``. Two
+        # encodings, two surfaces, deliberately not unified.
+        #
+        # Lands with the C-side ``b`` arm in cr_desc_scalar in the SAME change,
+        # and ABI 21 -> 22 enforces the converse for a stale ``.so``: a kind
+        # that reached this reader before its branch existed would raise below.
+        return bytes.fromhex(desc["v"])
     if k == "f":
         # A real-valued result. EXACT, not approximate: the C writer formats
         # doubles via ``srmech_double_repr`` (an integer-only Ryu matching
@@ -1275,6 +1540,54 @@ def _reconstruct_value(desc: Dict[str, Any]) -> Any:
         # the two halves cannot ship apart (ABI 17 -> 18 enforces it for a
         # stale ``.so`` paired with a current Python).
         return float(desc["v"])
+    if k == "o":
+        # rc452 (`#T1166`): a BOOLEAN, and it needs its own kind because
+        # ``True == 1`` in Python. Rebuilding a bool from an ``i`` descriptor
+        # would give a right value of the wrong TYPE, and the shipped value
+        # comparator encodes bool as ``b1``/``b0`` BEFORE its int arm precisely
+        # so that collapse is a visible divergence rather than a silent pass.
+        # The payload is a JSON bool literal, so ``desc["v"]`` is already a
+        # Python bool; ``bool()`` states the contract rather than trusting the
+        # parser.
+        #
+        # ``parallel_sector_dispatch`` returns nine of these per call, and its
+        # four proof cases are this kind's executed emitters — the kind is never
+        # declared with nothing emitting it (the rc450 q/n/s hole, not recreated).
+        return bool(desc["v"])
+    if k == "m":
+        # rc452 (`#T1166`): a MAPPING, carried as a FLAT array of alternating
+        # key/value descriptors — [k0, v0, k1, v1, ...] — in insertion order.
+        #
+        # ⚠️ THE KEYS ARE DESCRIPTORS, NOT JSON OBJECT KEYS, AND THAT IS THE
+        # WHOLE POINT. Measured on the canonical writer both projections share,
+        # a JSON object could not carry this op's ``sectors`` map in agreeing
+        # byte order: its keys are ints, and ``json.dumps(sort_keys=True)``
+        # sorts the key OBJECTS then coerces (1, 2, 10) while the C writer holds
+        # already-stringified keys and sorts them BYTEWISE ("1", "10", "2") — so
+        # the two projections DISAGREE on exactly this dict. Bool keys further
+        # lowercase and collide with 1/0, and a tuple key raises TypeError
+        # outright. Flattening the pairs makes all three structurally
+        # unreachable instead of documented-around. Same reasoning class as the
+        # ``b`` kind's hex choice above: remove the decision, don't record it.
+        #
+        # Insertion order is carried for wire determinism, not for verdict
+        # equality — the shipped comparator's dict arm sorts by ``repr(key)``,
+        # so a reordered dict would still compare equal. It is carried because
+        # a Python dict preserves it and a projection that dropped it would be
+        # returning a different object than the pure path does.
+        #
+        # Lands with the C-side ``is_map`` flag on cr_desc_close in the SAME
+        # change; ABI 22 -> 23 enforces the converse for a stale ``.so``.
+        pairs = desc["v"]
+        if len(pairs) % 2:
+            raise ValueError(
+                f"chain-run mapping descriptor has an odd payload length "
+                f"{len(pairs)} — keys and values must alternate"
+            )
+        return {
+            _reconstruct_value(pairs[i]): _reconstruct_value(pairs[i + 1])
+            for i in range(0, len(pairs), 2)
+        }
     raise ValueError(f"unknown chain-run value descriptor kind {k!r}")
 
 

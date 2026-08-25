@@ -8,15 +8,64 @@
  *   gcc -std=c11 -Wall -Wextra -Werror -pedantic -Ic/include
  *       c/test/test_srmech_poly.c c/src/[star].c -lm -o /tmp/poly_smoke
  *
- * Exit 0 on all-pass; aborts (assert) on any mismatch.
+ * Exit 0 on all-pass; aborts on any mismatch, and exits non-zero if any case
+ * failed to run.
+ *
+ * ⚠️ rc452 (`#T1171`) — THIS FILE DID NO WORK UNDER Release/NDEBUG. Every call
+ * into the library was the OPERAND of an `assert()`, and CMAKE_BUILD_TYPE=Release
+ * compiles `-DNDEBUG`, which deletes the assert AND its operand. So
+ * `hbi_set` never parsed, `hbi_dec` never rendered, and `expect_coeff` then ran
+ * `strcmp` over an UNINITIALISED 8192-byte stack buffer — undefined behaviour in
+ * the only configuration CI builds. gcc said so directly
+ * (`-Werror=uninitialized` on `bn`), which is why registering this file with
+ * CMake in rc452 turned the whole 3-OS pedantic matrix red: the compiler was
+ * reporting a real defect, not being fussy.
+ *
+ * MEASURED, not inferred — and the measurement corrected the first guess. Build
+ * HEAD's version `gcc -std=c11 -O2 -DNDEBUG` against libsrmech.so and run it:
+ *
+ *     FAIL add c0: got / expected 1/1
+ *     Aborted (core dumped)
+ *
+ * It does NOT pass vacuously, which is what "the asserts are stripped" suggests
+ * at first. `expect_coeff`'s comparison is a real `if`/`abort`, so it survives —
+ * it just compares the EMPTY string that `hbi_dec` never wrote. So these two
+ * files could not have been green in ctest even with the warnings silenced, and
+ * "38/38 on 3 OSes" was false on two independent counts, not one.
+ *
+ * The fix is NOT `(void)param;`. Every side-effecting call is HOISTED out of the
+ * assert into `must_ok`, and every value check into `check_true` — both of which
+ * survive NDEBUG. The unused-variable warnings disappear as a CONSEQUENCE of the
+ * variables becoming genuinely used; silencing them would have left the abort.
  */
 
 #include "srmech.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* ---- NDEBUG-surviving checks (see the ⚠️ note above) ---- */
+
+/* A library call that must succeed. Takes the STATUS as an argument, so the call
+ * is evaluated by the caller and cannot be compiled away. */
+static void must_ok(srmech_status_t st, const char *what)
+{
+    if (st != SRMECH_OK) {
+        fprintf(stderr, "FAIL %s: status %d\n", what, (int)st);
+        abort();
+    }
+}
+
+/* A value/bounds check. Replaces `assert(cond)` where the condition is a real
+ * assertion about the result, not a debug-only sanity note. */
+static void check_true(int cond, const char *what)
+{
+    if (!cond) {
+        fprintf(stderr, "FAIL %s\n", what);
+        abort();
+    }
+}
 
 /* ---- tiny bigint helpers for the harness (caller-owned limb buffers) ---- */
 
@@ -30,7 +79,7 @@ static void hbi_set(hbi_t *h, const char *dec)
     h->bi.cap = LCAP;
     h->bi.n = 0u;
     h->bi.sign = 0;
-    assert(srmech_bigint_from_dec(&h->bi, dec, strlen(dec)) == SRMECH_OK);
+    must_ok(srmech_bigint_from_dec(&h->bi, dec, strlen(dec)), "hbi_set from_dec");
 }
 
 static void hbi_blank(hbi_t *h)
@@ -46,7 +95,8 @@ static void hbi_dec(const srmech_bigint_t *a, char *buf, size_t cap)
 {
     static uint32_t ws[LCAP * 16];
     size_t outlen = 0u;
-    assert(srmech_bigint_to_dec(a, buf, cap, &outlen, ws, sizeof(ws)) == SRMECH_OK);
+    must_ok(srmech_bigint_to_dec(a, buf, cap, &outlen, ws, sizeof(ws)),
+            "hbi_dec to_dec");
 }
 
 /* Assert a (num,den) coefficient equals the expected decimal strings. */
@@ -80,7 +130,7 @@ static void hpoly_set(hpoly_t *p, const char *const *nums,
                       const char *const *dens, size_t n)
 {
     size_t i;
-    assert(n <= MAXTERMS);
+    check_true(n <= MAXTERMS, "hpoly_set n <= MAXTERMS");
     p->n = n;
     for (i = 0u; i < n; i++) {
         hbi_set(&p->num[i], nums[i]);
@@ -94,7 +144,7 @@ static void hpoly_set(hpoly_t *p, const char *const *nums,
 static void hpoly_blank(hpoly_t *p, size_t n)
 {
     size_t i;
-    assert(n <= MAXTERMS);
+    check_true(n <= MAXTERMS, "hpoly_blank n <= MAXTERMS");
     p->n = n;
     for (i = 0u; i < n; i++) {
         hbi_blank(&p->num[i]);
@@ -128,12 +178,33 @@ static void arena_ensure(size_t bytes)
     if (words > arena_words) {
         free(arena);
         arena = (uint32_t *)malloc(words * sizeof(uint32_t));
-        assert(arena != NULL);
+        check_true(arena != NULL, "arena_ensure malloc");
         arena_words = words;
     }
 }
 
 /* ---- the smoke cases ---- */
+
+/* ⚠️ THE `static` ON EVERY hpoly_t / hbi_t BELOW IS LOAD-BEARING, AND WINDOWS
+ * IS THE CELL THAT PROVED IT. As stack locals these overflow the MSVC default
+ * 1 MiB thread stack and the binary SegFaults — measured in CI during rc452:
+ * `30/38 Test #30: test_srmech_poly ***Exception: SegFault`, with ubuntu-latest
+ * and macos-14 green on the identical source because their default stack is
+ * 8 MiB.
+ *
+ * The arithmetic, so the margin is not a guess: sizeof(hbi_t) = 16408 B
+ * (LCAP 4096 limbs), sizeof(hpoly_t) = 525832 B = 513.5 KiB. `t_divmod` and
+ * `t_rational_divmod` declare FOUR (2.01 MiB) and six other cases declare
+ * three (1.50 MiB) — so every multi-polynomial case here overruns 1 MiB, not
+ * just the largest. File-scope storage costs the same bytes once instead of
+ * per frame, and the harness is single-threaded and sequential, with every
+ * object fully re-initialised by hpoly_set / hpoly_blank before use.
+ *
+ * This is exactly the class the CMakeLists comment predicted when it registered
+ * these 20 tests: "these have only ever been executed on WSL2 ... a cell that
+ * reds is a finding to FIX, not to deregister." It could not have been found
+ * before the rc452 registration, because the file did not COMPILE on any of
+ * the three cells. */
 
 static int npass = 0;
 
@@ -142,14 +213,14 @@ static void t_add(void)
     /* (1 + 2x + 3x^2) + (x) = 1 + 3x + 3x^2 */
     const char *an[] = {"1", "2", "3"}, *ad[] = {"1", "1", "1"};
     const char *bn[] = {"0", "1"}, *bd[] = {"1", "1"};
-    hpoly_t a, b, o; size_t olen = 0u, ws;
+    static hpoly_t a, b, o; size_t olen = 0u, ws;
     hpoly_set(&a, an, ad, 3); hpoly_set(&b, bn, bd, 2);
     hpoly_blank(&o, 3);
     ws = srmech_poly_ws_bound(2u, 3u); arena_ensure(ws);
-    assert(srmech_poly_add(a.bn, a.bd, 3, b.bn, b.bd, 2,
-                           o.bn, o.bd, &olen, arena, ws) == SRMECH_OK);
+    must_ok(srmech_poly_add(a.bn, a.bd, 3, b.bn, b.bd, 2,
+                            o.bn, o.bd, &olen, arena, ws), "poly_add");
     hpoly_sync(&o, 3);
-    assert(olen == 3);
+    check_true(olen == 3, "add olen == 3");
     expect_coeff(&o.bn[0], &o.bd[0], "1", "1", "add c0");
     expect_coeff(&o.bn[1], &o.bd[1], "3", "1", "add c1");
     expect_coeff(&o.bn[2], &o.bd[2], "3", "1", "add c2");
@@ -161,14 +232,14 @@ static void t_mul(void)
     /* (x + 1)(x - 1) = x^2 - 1  ->  [-1, 0, 1] */
     const char *an[] = {"1", "1"}, *ad[] = {"1", "1"};
     const char *bn[] = {"-1", "1"}, *bd[] = {"1", "1"};
-    hpoly_t a, b, o; size_t olen = 0u, ws;
+    static hpoly_t a, b, o; size_t olen = 0u, ws;
     hpoly_set(&a, an, ad, 2); hpoly_set(&b, bn, bd, 2);
     hpoly_blank(&o, 3);
     ws = srmech_poly_ws_bound(2u, 4u); arena_ensure(ws);
-    assert(srmech_poly_mul(a.bn, a.bd, 2, b.bn, b.bd, 2,
-                           o.bn, o.bd, &olen, arena, ws) == SRMECH_OK);
+    must_ok(srmech_poly_mul(a.bn, a.bd, 2, b.bn, b.bd, 2,
+                            o.bn, o.bd, &olen, arena, ws), "poly_mul");
     hpoly_sync(&o, 3);
-    assert(olen == 3);
+    check_true(olen == 3, "mul olen == 3");
     expect_coeff(&o.bn[0], &o.bd[0], "-1", "1", "mul c0");
     expect_coeff(&o.bn[1], &o.bd[1], "0", "1", "mul c1");
     expect_coeff(&o.bn[2], &o.bd[2], "1", "1", "mul c2");
@@ -180,15 +251,15 @@ static void t_divmod(void)
     /* (x^3 + 2) / (x + 1): q = x^2 - x + 1, r = 1  ->  q[1,-1,1] r[1] */
     const char *an[] = {"2", "0", "0", "1"}, *ad[] = {"1", "1", "1", "1"};
     const char *bn[] = {"1", "1"}, *bd[] = {"1", "1"};
-    hpoly_t a, b, q, r; size_t qn = 0u, rn = 0u, ws;
+    static hpoly_t a, b, q, r; size_t qn = 0u, rn = 0u, ws;
     hpoly_set(&a, an, ad, 4); hpoly_set(&b, bn, bd, 2);
     hpoly_blank(&q, 3); hpoly_blank(&r, 4);
     ws = srmech_poly_ws_bound(2u, 5u); arena_ensure(ws);
-    assert(srmech_poly_divmod(a.bn, a.bd, 4, b.bn, b.bd, 2,
-                              q.bn, q.bd, &qn, r.bn, r.bd, &rn,
-                              arena, ws) == SRMECH_OK);
+    must_ok(srmech_poly_divmod(a.bn, a.bd, 4, b.bn, b.bd, 2,
+                               q.bn, q.bd, &qn, r.bn, r.bd, &rn,
+                               arena, ws), "poly_divmod");
     hpoly_sync(&q, 3); hpoly_sync(&r, 4);
-    assert(qn == 3 && rn == 1);
+    check_true(qn == 3 && rn == 1, "divmod qn == 3 && rn == 1");
     expect_coeff(&q.bn[0], &q.bd[0], "1", "1", "divmod q0");
     expect_coeff(&q.bn[1], &q.bd[1], "-1", "1", "divmod q1");
     expect_coeff(&q.bn[2], &q.bd[2], "1", "1", "divmod q2");
@@ -200,13 +271,13 @@ static void t_eval(void)
 {
     /* (1 + 2x + 3x^2) at x = 2  ->  1 + 4 + 12 = 17/1 */
     const char *pn[] = {"1", "2", "3"}, *pd[] = {"1", "1", "1"};
-    hpoly_t p; hbi_t x_n, x_d, o_n, o_d; size_t ws;
+    static hpoly_t p; static hbi_t x_n, x_d, o_n, o_d; size_t ws;
     hpoly_set(&p, pn, pd, 3);
     hbi_set(&x_n, "2"); hbi_set(&x_d, "1");
     hbi_blank(&o_n); hbi_blank(&o_d);
     ws = srmech_poly_ws_bound(2u, 4u); arena_ensure(ws);
-    assert(srmech_poly_eval(p.bn, p.bd, 3, &x_n.bi, &x_d.bi,
-                            &o_n.bi, &o_d.bi, arena, ws) == SRMECH_OK);
+    must_ok(srmech_poly_eval(p.bn, p.bd, 3, &x_n.bi, &x_d.bi,
+                             &o_n.bi, &o_d.bi, arena, ws), "poly_eval");
     expect_coeff(&o_n.bi, &o_d.bi, "17", "1", "eval(2)");
     npass++;
 }
@@ -216,15 +287,15 @@ static void t_shift(void)
     /* p = 1 + 2x + 3x^2 ; p(x+1) = 6 + 8x + 3x^2  ->  [6, 8, 3] */
     const char *pn[] = {"1", "2", "3"}, *pd[] = {"1", "1", "1"};
     const char *hn = "1", *hd = "1";
-    hpoly_t p, o; hbi_t h_n, h_d; size_t olen = 0u, ws;
+    static hpoly_t p, o; static hbi_t h_n, h_d; size_t olen = 0u, ws;
     hpoly_set(&p, pn, pd, 3);
     hbi_set(&h_n, hn); hbi_set(&h_d, hd);
     hpoly_blank(&o, 3);
     ws = srmech_poly_ws_bound(2u, 4u); arena_ensure(ws);
-    assert(srmech_poly_shift(p.bn, p.bd, 3, &h_n.bi, &h_d.bi,
-                             o.bn, o.bd, &olen, arena, ws) == SRMECH_OK);
+    must_ok(srmech_poly_shift(p.bn, p.bd, 3, &h_n.bi, &h_d.bi,
+                              o.bn, o.bd, &olen, arena, ws), "poly_shift");
     hpoly_sync(&o, 3);
-    assert(olen == 3);
+    check_true(olen == 3, "shift olen == 3");
     expect_coeff(&o.bn[0], &o.bd[0], "6", "1", "shift c0");
     expect_coeff(&o.bn[1], &o.bd[1], "8", "1", "shift c1");
     expect_coeff(&o.bn[2], &o.bd[2], "3", "1", "shift c2");
@@ -241,15 +312,15 @@ static void t_rational_divmod(void)
      *   r = 1/2 - (2/5)(-1/15) = 1/2 + 2/75 = 79/150 */
     const char *an[] = {"1", "1", "1"}, *ad[] = {"2", "3", "1"};
     const char *bn[] = {"2", "1"}, *bd[] = {"5", "1"};
-    hpoly_t a, b, q, r; size_t qn = 0u, rn = 0u, ws;
+    static hpoly_t a, b, q, r; size_t qn = 0u, rn = 0u, ws;
     hpoly_set(&a, an, ad, 3); hpoly_set(&b, bn, bd, 2);
     hpoly_blank(&q, 2); hpoly_blank(&r, 3);
     ws = srmech_poly_ws_bound(2u, 4u); arena_ensure(ws);
-    assert(srmech_poly_divmod(a.bn, a.bd, 3, b.bn, b.bd, 2,
-                              q.bn, q.bd, &qn, r.bn, r.bd, &rn,
-                              arena, ws) == SRMECH_OK);
+    must_ok(srmech_poly_divmod(a.bn, a.bd, 3, b.bn, b.bd, 2,
+                               q.bn, q.bd, &qn, r.bn, r.bd, &rn,
+                               arena, ws), "poly_divmod rational");
     hpoly_sync(&q, 2); hpoly_sync(&r, 3);
-    assert(qn == 2 && rn == 1);
+    check_true(qn == 2 && rn == 1, "ratdivmod qn == 2 && rn == 1");
     expect_coeff(&q.bn[0], &q.bd[0], "-1", "15", "ratdivmod q0");
     expect_coeff(&q.bn[1], &q.bd[1], "1", "1", "ratdivmod q1");
     expect_coeff(&r.bn[0], &r.bd[0], "79", "150", "ratdivmod r0");
@@ -263,14 +334,14 @@ static void t_bignum_eval(void)
      * num = (10^40+1) + 2^65 * 3^30 ; den = 3^30. (reduced if gcd==1) */
     const char *pn[] = {"10000000000000000000000000000000000000001", "1"};
     const char *pd[] = {"205891132094649", "1"};
-    hpoly_t p; hbi_t x_n, x_d, o_n, o_d; size_t ws;
+    static hpoly_t p; static hbi_t x_n, x_d, o_n, o_d; size_t ws;
     hpoly_set(&p, pn, pd, 2);
     hbi_set(&x_n, "36893488147419103232");   /* 2^65 */
     hbi_set(&x_d, "1");
     hbi_blank(&o_n); hbi_blank(&o_d);
     ws = srmech_poly_ws_bound(4u, 3u); arena_ensure(ws);
-    assert(srmech_poly_eval(p.bn, p.bd, 2, &x_n.bi, &x_d.bi,
-                            &o_n.bi, &o_d.bi, arena, ws) == SRMECH_OK);
+    must_ok(srmech_poly_eval(p.bn, p.bd, 2, &x_n.bi, &x_d.bi,
+                             &o_n.bi, &o_d.bi, arena, ws), "poly_eval bignum");
     /* expected (verified against the Python Poly / Fraction oracle):
      *   num = (10^40+1) + 2^65 * 3^30  (reduced; gcd == 1)
      *   den = 3^30 = 205891132094649 */
@@ -285,14 +356,14 @@ static void t_gcd(void)
     /* gcd(x^2 - 1, x - 1) = x - 1 (monic)  ->  [-1, 1] */
     const char *an[] = {"-1", "0", "1"}, *ad[] = {"1", "1", "1"};
     const char *bn[] = {"-1", "1"}, *bd[] = {"1", "1"};
-    hpoly_t a, b, o; size_t olen = 0u, ws;
+    static hpoly_t a, b, o; size_t olen = 0u, ws;
     hpoly_set(&a, an, ad, 3); hpoly_set(&b, bn, bd, 2);
     hpoly_blank(&o, 3);
     ws = srmech_poly_gcd_ws_bound(2u, 3u); arena_ensure(ws);
-    assert(srmech_poly_gcd(a.bn, a.bd, 3, b.bn, b.bd, 2,
-                           o.bn, o.bd, &olen, arena, ws) == SRMECH_OK);
+    must_ok(srmech_poly_gcd(a.bn, a.bd, 3, b.bn, b.bd, 2,
+                            o.bn, o.bd, &olen, arena, ws), "poly_gcd");
     hpoly_sync(&o, 3);
-    assert(olen == 2);
+    check_true(olen == 2, "gcd olen == 2");
     expect_coeff(&o.bn[0], &o.bd[0], "-1", "1", "gcd c0");
     expect_coeff(&o.bn[1], &o.bd[1], "1", "1", "gcd c1");
     npass++;
@@ -303,14 +374,14 @@ static void t_gcd_coprime(void)
     /* gcd(x, x + 3) = 1 (coprime -> monic constant 1)  ->  [1] */
     const char *an[] = {"0", "1"}, *ad[] = {"1", "1"};
     const char *bn[] = {"3", "1"}, *bd[] = {"1", "1"};
-    hpoly_t a, b, o; size_t olen = 0u, ws;
+    static hpoly_t a, b, o; size_t olen = 0u, ws;
     hpoly_set(&a, an, ad, 2); hpoly_set(&b, bn, bd, 2);
     hpoly_blank(&o, 2);
     ws = srmech_poly_gcd_ws_bound(2u, 2u); arena_ensure(ws);
-    assert(srmech_poly_gcd(a.bn, a.bd, 2, b.bn, b.bd, 2,
-                           o.bn, o.bd, &olen, arena, ws) == SRMECH_OK);
+    must_ok(srmech_poly_gcd(a.bn, a.bd, 2, b.bn, b.bd, 2,
+                            o.bn, o.bd, &olen, arena, ws), "poly_gcd coprime");
     hpoly_sync(&o, 2);
-    assert(olen == 1);
+    check_true(olen == 1, "gcd-coprime olen == 1");
     expect_coeff(&o.bn[0], &o.bd[0], "1", "1", "gcd-coprime c0");
     npass++;
 }
@@ -319,15 +390,15 @@ static void t_gcd_p_zero(void)
 {
     /* gcd(2x^2 + 4, 0) = monic(2x^2+4) = x^2 + 2  ->  [2, 0, 1] */
     const char *an[] = {"4", "0", "2"}, *ad[] = {"1", "1", "1"};
-    hpoly_t a, b, o; size_t olen = 0u, ws;
+    static hpoly_t a, b, o; size_t olen = 0u, ws;
     hpoly_set(&a, an, ad, 3);
     hpoly_blank(&b, 0);
     hpoly_blank(&o, 3);
     ws = srmech_poly_gcd_ws_bound(2u, 3u); arena_ensure(ws);
-    assert(srmech_poly_gcd(a.bn, a.bd, 3, b.bn, b.bd, 0,
-                           o.bn, o.bd, &olen, arena, ws) == SRMECH_OK);
+    must_ok(srmech_poly_gcd(a.bn, a.bd, 3, b.bn, b.bd, 0,
+                            o.bn, o.bd, &olen, arena, ws), "poly_gcd p_zero");
     hpoly_sync(&o, 3);
-    assert(olen == 3);
+    check_true(olen == 3, "gcd(p,0) olen == 3");
     expect_coeff(&o.bn[0], &o.bd[0], "2", "1", "gcd(p,0) c0");
     expect_coeff(&o.bn[2], &o.bd[2], "1", "1", "gcd(p,0) c2");
     npass++;
@@ -346,14 +417,14 @@ static void t_gcd_bignum(void)
     const char *ad[] = {"3", "3", "6", "6", "1"};
     const char *bn[] = {"-2", "10", "-11", "-5", "2"};
     const char *bd[] = {"3", "3", "3", "3", "1"};
-    hpoly_t a, b, o; size_t olen = 0u, ws;
+    static hpoly_t a, b, o; size_t olen = 0u, ws;
     hpoly_set(&a, an, ad, 5); hpoly_set(&b, bn, bd, 5);
     hpoly_blank(&o, 5);
     ws = srmech_poly_gcd_ws_bound(2u, 5u); arena_ensure(ws);
-    assert(srmech_poly_gcd(a.bn, a.bd, 5, b.bn, b.bd, 5,
-                           o.bn, o.bd, &olen, arena, ws) == SRMECH_OK);
+    must_ok(srmech_poly_gcd(a.bn, a.bd, 5, b.bn, b.bd, 5,
+                            o.bn, o.bd, &olen, arena, ws), "poly_gcd bignum");
     hpoly_sync(&o, 5);
-    assert(olen == 4);
+    check_true(olen == 4, "gcd-bignum olen == 4");
     expect_coeff(&o.bn[0], &o.bd[0], "2", "3", "gcd-bignum c0");
     expect_coeff(&o.bn[1], &o.bd[1], "-2", "1", "gcd-bignum c1");
     expect_coeff(&o.bn[2], &o.bd[2], "-1", "3", "gcd-bignum c2");
@@ -376,6 +447,11 @@ int main(void)
     t_gcd_bignum();
     free(arena);
     printf("srmech_poly smoke: %d/%d cases PASS\n", npass, 11);
-    assert(npass == 11);
+    /* NOT `assert(npass == 11)` — Release/NDEBUG strips it, and a stripped
+     * count check is how a test that ran nothing still exits 0. */
+    if (npass != 11) {
+        fprintf(stderr, "FAIL: %d/11 cases ran\n", npass);
+        return 1;
+    }
     return 0;
 }

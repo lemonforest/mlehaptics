@@ -40,7 +40,7 @@ from srmech.dsl import _cascade_chain as _cc
 from srmech.dsl import _catalog as _cat
 from srmech.dsl import run_cascade_chain
 
-_MAGNITUDE = {"name": "magnitude", "steps": [
+_MAGNITUDE = {"name": "magnitude", "summary": "s", "returns": "r", "steps": [
     {"class": "K", "op": "srmech.cascade.pin_slot_at_zero",
      "args": {"x": "@input.x"}},
     {"class": "C", "op": "srmech.cascade.reorient",
@@ -54,9 +54,23 @@ def _lib():
     return lib
 
 
+def _hdr(chain):
+    """rc452 (gh #1653 finding (b)): srmech_chain_run now refuses a chain
+    missing name/summary/returns (the required-key rule every parse layer
+    already enforced). This file's subject is op dispatch, not the header
+    contract (the rc446 ratchet pins that), so the harness synthesizes the
+    header exactly as cascade_chain_specs does. Idempotent over documents
+    that already carry one."""
+    out = dict(chain)
+    out.setdefault("name", str(out.get("variant", "chain")))
+    out.setdefault("summary", "")
+    out.setdefault("returns", "")
+    return out
+
+
 def _c_run(chain, inputs):
     lib = _lib()
-    cj = json.dumps(chain, ensure_ascii=False).encode("utf-8")
+    cj = json.dumps(_hdr(chain), ensure_ascii=False).encode("utf-8")
     xj = json.dumps({"inputs": inputs}, ensure_ascii=False).encode("utf-8")
     n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
     ws = (ctypes.c_char * n)()
@@ -92,7 +106,7 @@ def test_the_pin_slot_returns_BOTH_halves_addressably():
     """``[0]`` is the orientation, ``[1]`` the magnitude. If indexing silently
     returned the whole list, the reorient step would still 'work' on a truthy
     value and this asymmetry is what proves it does not."""
-    chain = {"name": "t", "steps": [
+    chain = {"name": "t", "summary": "s", "returns": "r", "steps": [
         {"class": "K", "op": "srmech.cascade.pin_slot_at_zero",
          "args": {"x": "@input.x"}}]}
     rc, raw = _c_run(chain, {"x": -3.5})
@@ -114,7 +128,7 @@ def test_the_pin_slot_returns_BOTH_halves_addressably():
 
 def test_an_OUT_OF_RANGE_index_declines_rather_than_wrapping():
     """Defer, never wrap or clamp — a wrong element is a wrong answer."""
-    chain = {"name": "t", "steps": [
+    chain = {"name": "t", "summary": "s", "returns": "r", "steps": [
         {"class": "K", "op": "srmech.cascade.pin_slot_at_zero",
          "args": {"x": "@input.x"}},
         {"class": "C", "op": "srmech.cascade.reorient",
@@ -125,7 +139,7 @@ def test_an_OUT_OF_RANGE_index_declines_rather_than_wrapping():
 
 def test_indexing_a_NON_LIST_output_declines():
     """``@step[N].output[K]`` on a scalar must defer, not coerce."""
-    chain = {"name": "t", "steps": [
+    chain = {"name": "t", "summary": "s", "returns": "r", "steps": [
         {"class": "N", "op": "rational_add", "args": {"a": [1, 2], "b": [1, 3]}},
         {"class": "C", "op": "srmech.cascade.reorient",
          "args": {"value": "@step[0].output[0]", "orientation": 1}}]}

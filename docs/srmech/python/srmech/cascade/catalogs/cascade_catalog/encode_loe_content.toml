@@ -59,7 +59,7 @@ args = { prefix = "LoE.content.", text = "@input.content" }
 
 [[cascade.chain.steps]]
 class = "A"
-op = "srmech.signal_processing.rbs_hdc_instrument.mint_vector"
+op = "srmech.signal_processing.mint_vector"
 args = { name = "@step[0].output", D = "@input.D" }
 
 [[cascade.chain.steps]]
@@ -99,7 +99,7 @@ args = { prefix = "LoE.substrate.", text = "@input.substrate" }
 
 [[cascade.chain.steps]]
 class = "A"
-op = "srmech.signal_processing.rbs_hdc_instrument.mint_vector"
+op = "srmech.signal_processing.mint_vector"
 args = { name = "@step[8].output", D = "@input.D" }
 
 [[cascade.chain.steps]]

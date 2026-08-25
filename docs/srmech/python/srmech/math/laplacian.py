@@ -5417,9 +5417,18 @@ def _eph_two_pi_rational() -> Tuple[int, int]:
     (~1e-24) — far below float64, so the winding fold is exact at any t·λ."""
     a5 = _atan_series(1, 5, _EPH_ATAN_TERMS)       # ≈ atan(1/5)
     a239 = _atan_series(1, 239, _EPH_ATAN_TERMS)   # ≈ atan(1/239)
-    # 32·a5 − 8·a239 over the common denominator a5.den·a239.den
-    num = 32 * a5[0] * a239[1] - 8 * a239[0] * a5[1]
-    den = a5[1] * a239[1]
+    # 32·a5 − 8·a239 over the common denominator a5.den·a239.den.
+    #
+    # rc452 (`#T1166`): read through the exact-ℚ accessors. ``atan_series_
+    # truncate`` returns :class:`srmech.math.q.Q` — a SCALAR, with no ``[0]`` /
+    # ``[1]`` — and this module binds it under an ALIAS
+    # (``_atan_series``), which is precisely why the ruling's shipped-source
+    # census, resolving the nine ops by NAME, could not see this site. It is
+    # module-scope (``_EPH_TWO_PI`` below is computed at import), so before the
+    # fix it did not red a test — it broke ``import srmech.cascade`` outright.
+    num = (32 * a5.numerator * a239.denominator
+           - 8 * a239.numerator * a5.denominator)
+    den = a5.denominator * a239.denominator
     return (_eph_round_div(num * _EPH_TWO_PI_DEN, den), _EPH_TWO_PI_DEN)
 
 

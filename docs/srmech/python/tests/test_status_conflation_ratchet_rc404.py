@@ -262,7 +262,212 @@ DRAINED_EXACT = {
 #:
 #: No conflation: the ceiling moved because the instrument counts VOLUME, and
 #: this rc added four step arms to srmech_compose_run.c.
-CEIL_CONFLATING_RETURN_LINES = 724
+#:
+#: ── rc452 (`#T1171`): 724 -> 725. The same rc's map-form refactor, adjudicated
+#: after it tripped this ratchet in CI. NET +1, and the net is the whole story:
+#: TWO lines added, ONE removed, all three in srmech_compose_run.c (28 -> 29).
+#:
+#:   REMOVED  cr_chain_run_json  c.step_out == NULL   <- cr_carve (flat array)
+#:   ADDED    cr_step_map        f->outs == NULL || f->acc == NULL
+#:                                                    <- cr_carve / cr_list_of
+#:   ADDED    cr_chain_run_json  frames[0].outs == NULL  <- cr_carve
+#:
+#: MEASURED, PREDICATE STATED: this file's own `_count_returns` over
+#: `sorted(_C_SRC_DIR.glob("*.c"))` reads 725 at HEAD and 724 at c8d8c26d4 (the
+#: commit that set the current ceiling). Bisected to ONE commit — 2e8e45256,
+#: srmech_compose_run.c 28 -> 29; every other commit in the rc reads 28.
+#:
+#: WHY IT IS +1 AND NOT +2. rc452 replaced the chain runner's single flat
+#: `step_out` array with a FRAME spine, so the one carve that used to serve the
+#: whole chain became two: one for frame 0 (the chain body, run once) and one
+#: per map frame (its per-iteration outputs plus the accumulator). The removal
+#: is not a re-statusing to make room — the symbol `c.step_out` does not exist
+#: at HEAD.
+#:
+#: Provenance traced to the leaf, per this ratchet's own rule:
+#:   * f->outs and frames[0].outs are direct `cr_carve` calls;
+#:   * f->acc comes from cr_list_of, whose ONLY two NULL paths are cr_new_value
+#:     -> cr_carve and a direct cr_carve of the item array. It has no
+#:     value-range NULL: `n` is copied from the already-resolved sequence's own
+#:     length, so no OPERAND can drive it, only an exhausted arena.
+#: cr_carve returns NULL for exactly one condition — the request does not fit
+#: the remaining bump arena, built on the CALLER-SUPPLIED ws/ws_len — so status
+#: 4 is correct under rc404's rule and a caller's grow-loop terminates:
+#: srmech_chain_run_arena_bytes reports a larger figure and the same call
+#: succeeds. Neither is an unrepresentable value, a compiled-in cap, or a
+#: non-convergent iteration, so neither is LIMIT.
+#:
+#: ⚠️ THE CONTRAST IS LIVE THREE LINES AWAY, which is why this is not a rubber
+#: stamp. cr_step_map's own earlier exits are NOT status 4: a non-list
+#: `map_over` is SRMECH_ERR_NOT_IMPL (it defers to compose.py's ChainSpecError),
+#: and a missing/!ARRAY body or a non-STRING index name is
+#: SRMECH_ERR_BAD_INPUT. Reading any of those as a buffer failure would have put
+#: extra lines under this ceiling wrongly.
+#:
+#: ⚠️ AND THE DRAIN WAS CONSIDERED AND REJECTED ON THE MERITS. The alternative to
+#: raising was to re-status an existing site so the total stayed flat. Every one
+#: of srmech_compose_run.c's 29 status-4 returns was read for this: ALL 29 are
+#: `X == NULL` where X came from cr_carve. There is no mislabelled structural
+#: site in the file to drain honestly, and draining a CORRECT one is precisely
+#: what this ratchet's failure message forbids — "never re-label a correct
+#: status-4 return as LIMIT to keep the number flat — grow-loops key on 4". A
+#: flat number bought that way would have broken a caller's retry loop to
+#: protect a statistic.
+#:
+#: No conflation: the ceiling moved because the instrument counts VOLUME, and
+#: this rc turned one chain-wide carve into a per-frame one.
+#:
+#: ── rc452 (`#T1166`, gh #1662): 725 -> 739. NET +14, and the net is the whole
+#: story: FIFTEEN lines added, ONE removed, every one of them in
+#: srmech_compose_run.c (29 -> 43). No other .c file moved at all.
+#:
+#: MEASURED, PREDICATE STATED, so the figure is reproducible rather than
+#: asserted: this file's own `_count_returns` over `sorted(_C_SRC_DIR.glob(
+#: "*.c"))` reads 739 at HEAD and 725 at 5b66e46c8 (the commit that set the
+#: previous ceiling). ⚠️ A raw `grep -c` reads 744 — five high, because it
+#: counts the block-comment narrations this file's counter strips. 744 is the
+#: WRONG INSTRUMENT for this ceiling and must never be quoted as the
+#: population. Bisected across the rc: 725 (5b66e46c8) -> 734 (6f2eabe99,
+#: +9) -> 739 (bc2cccd11, +5) -> 739 (d89d50157, +0).
+#:
+#: THE ADDED FIFTEEN, by file:line and enclosing function, each with the NULL
+#: provenance traced to its leaf — named individually because "fifteen new
+#: lines in one file" is exactly the shape a silent bump would hide:
+#:
+#:   2001  cr_q_apply           *on == NULL || *od == NULL   <- cr_new_bigint -> cr_carve
+#:   2002  cr_q_apply           !cr_qctx_init(b,&q,lim)      <- qctx limb carve
+#:   2130  cr_op_kur_gen_term   qs == NULL || ov == NULL     <- cr_carve / cr_new_value
+#:   2241  cr_op_kur_gen_out    qterm == NULL                <- cr_carve
+#:   2579  cr_op_vec_scale      r == NULL                    <- cr_dvec_value -> cr_carve
+#:   2647  cr_op_sha256_bytes   hex == NULL                  <- cr_carve (65-byte hex buf)
+#:   2668  cr_op_str_concat     buf == NULL                  <- cr_carve (joined text)
+#:   2719  cr_op_int_parse_le   ov == NULL                   <- cr_new_value -> cr_carve
+#:   2722  cr_op_int_parse_le   ov->num == NULL              <- cr_new_bigint -> cr_carve
+#:   2890  cr_op_render_template buf == NULL                 <- cr_carve (render buf)
+#:   2953  cr_b_f64_add         ov == NULL                   <- cr_new_value -> cr_carve
+#:   2962  cr_b_f64_add         ov == NULL                   <- cr_new_value -> cr_carve
+#:   2964  cr_b_f64_add         ov->num == NULL              <- cr_new_bigint -> cr_carve
+#:   2994  cr_b_vec_add         ov == NULL                   <- cr_new_value -> cr_carve
+#:   3004  cr_b_vec_add         ov->items[i] == NULL         <- cr_dbl -> cr_carve
+#:
+#: THE ONE REMOVED, so the net is auditable rather than a subtraction nobody
+#: sees: `acc == NULL` in cr_run_fold — rc447's line. It is NOT a re-statusing
+#: to make room: the fold accumulator moved into the frame spine, and its
+#: successor is the already-adjudicated `f->acc` arm of cr_map_enter (3780).
+#: The symbol `acc` no longer exists as a cr_run_fold local at HEAD.
+#:
+#: EVERY ONE of the fifteen is `X == NULL` (or the boolean form of the same
+#: check) where X came from the cr_carve family — the chain runner's bump
+#: allocator over the CALLER-SUPPLIED ws/ws_len. cr_carve returns NULL for
+#: exactly one condition: the request does not fit the remaining arena. So
+#: status 4 is CORRECT under rc404's rule and a caller's grow-loop terminates
+#: — srmech_chain_run_arena_bytes reports a larger figure and the same call
+#: succeeds. NONE of the fifteen is an unrepresentable value, a compiled-in
+#: cap, or a non-convergent iteration, so NONE of them is LIMIT-class and
+#: there is no structural site here to root-fix. Relabelling any of them would
+#: break the grow-loops this ratchet's own failure message protects.
+#:
+#: The two `cr_*ctx_init` lines are called out rather than glossed, because
+#: they are the only two that are not a bare pointer test. cr_qctx_init
+#: returns false on exactly one condition — its limb carves off `b` fail —
+#: so the boolean is a carve failure wearing a different type, not a
+#: value-range refusal.
+#:
+#: ⚠️ THE CONTRAST IS LIVE IN THE SAME FILE, which is why this is not a rubber
+#: stamp: cr_op_reorient's exact-ℚ arm (this rc's own ABI-21 driver) DECLINES
+#: with SRMECH_ERR_NOT_IMPL where it cannot answer, and cr_op_best_rational
+#: still declines an out-of-uint64 operand the same way. Those defer to the
+#: pure projection and are deliberately NOT status 4 — reading either as a
+#: buffer failure would have put extra lines under this ceiling wrongly.
+#: ── rc452 Phase 2 (`#T1166`, the K1 slice): 739 -> 743. NET +4, all four in
+#: srmech_compose_run.c (43 -> 47). No other .c file moved.
+#:
+#: MEASURED with THIS FILE'S OWN `_count_returns` over `sorted(_C_SRC_DIR.glob(
+#: "*.c"))` — 743 — not with grep, for the reason the rc452 block above already
+#: records: a raw `grep -c` over-counts by five because it reads the
+#: block-comment narrations this counter strips.
+#:
+#: THE ADDED FOUR, by enclosing function, each with the NULL provenance traced
+#: to its leaf. Line numbers are deliberately omitted where the block above
+#: gives them, because the additions shift them; the FUNCTION survives an edit:
+#:
+#:   cr_op_sha256_raw    raw == NULL   <- cr_carve (33-byte raw-digest buffer)
+#:   cr_op_mint_vector   buf == NULL   <- cr_carve (D/8-byte hypervector)
+#:   cr_op_hdc_permute   buf == NULL   <- cr_carve (n-byte rotated vector)
+#:   cr_op_hdc_bind      buf == NULL   <- cr_carve (n-byte XOR result)
+#:
+#: ALL FOUR are `X == NULL` where X came from cr_carve — the chain runner's
+#: bump allocator over the CALLER-SUPPLIED ws/ws_len. cr_carve returns NULL for
+#: exactly one condition: the request does not fit the remaining arena. So
+#: status 4 is CORRECT under rc404's rule, srmech.h:555's forced direction
+#: holds (status 4 keeps the retryable/grow meaning), and a caller's grow-loop
+#: terminates — srmech_chain_run_arena_bytes reports a larger figure and the
+#: same call succeeds. NONE is an unrepresentable value, a compiled-in cap or a
+#: non-convergent iteration, so NONE is LIMIT-class and there is no structural
+#: site to root-fix. This is an ADJUDICATED raise with per-line provenance, not
+#: a silent bump.
+#:
+#: ⚠️ THE CONTRAST IS LIVE INSIDE THE SAME FOUR FUNCTIONS, which is what makes
+#: this an adjudication rather than a rubber stamp. Each of them ALSO returns
+#: SRMECH_ERR_NOT_IMPL (a wrong-typed operand, a D outside [256, 65536] or not
+#: a multiple of 8, a length mismatch, an empty vector) and SRMECH_ERR_BAD_INPUT
+#: (the delegated primitive refusing). Three statuses, three meanings, chosen
+#: per condition — the OVERFLOW arm is the arena one and only the arena one.
+#: ── rc452 Phase 2, the K3 slice: 743 -> 745. NET +2, both in
+#: srmech_compose_run.c (47 -> 49), both inside cr_op_schur, both measured
+#: with THIS FILE'S counter and not with grep:
+#:
+#:   cr_op_schur   bi == NULL   <- cr_carve (the 2n boundary/interior index pair)
+#:   cr_op_schur   s  == NULL   <- cr_carve (the |d|x|d| result block)
+#:
+#: Same adjudication as the four above and the fifteen above those: cr_carve
+#: returns NULL for exactly one condition — the request does not fit the
+#: remaining caller arena — so status 4 keeps the retryable/grow meaning
+#: srmech.h:555 states is FORCED, and none of them is LIMIT-class.
+#:
+#: ⚠️ THE FUNCTION'S OTHER FOUR CARVE SITES ARE **NOT** UNDER THIS CEILING, and
+#: that is the adjudication, not an omission. cr_schur_mat, cr_schur_idx and
+#: cr_schur_solve return NULL rather than a status, and cr_op_schur maps that
+#: NULL to SRMECH_ERR_NOT_IMPL — because for those three a NULL means EITHER an
+#: arena failure OR a genuine refusal (a ragged L, a duplicate boundary index,
+#: a SINGULAR interior block, which is Python's ZeroDivisionError). A capability
+#: refusal must defer to the pure projection, which computes the complete
+#: answer or raises the documented exception; calling it status 4 would send a
+#: caller into a grow-loop that can never succeed. The two lines above are the
+#: only two in the arm whose NULL has exactly one cause.
+#: ── rc452, the parallel_sector_dispatch closure: 745 -> 747. NET +2, both in
+#: srmech_compose_run.c (49 -> 51), both inside cr_op_psd, both measured with
+#: THIS FILE'S counter and not with grep:
+#:
+#:   cr_op_psd   xd == NULL   <- cr_carve (the n-double copy of the input x)
+#:   cr_op_psd   rc <  0      <- cr_psd_finish's own carve/build failure
+#:
+#: The first is the same adjudication as every carve site above: cr_carve
+#: returns NULL for exactly one condition. The SECOND needs its own sentence,
+#: because it is a status mapped from a helper's return code rather than from a
+#: pointer, and that is a shape this ceiling has not carried before.
+#: cr_psd_finish returns a THREE-valued code deliberately so the two failure
+#: kinds do not share a channel: 0 DECLINES (the named body has no unary form,
+#: or the combine is not one of the four reducer names -- capability refusals,
+#: which cr_op_psd maps to SRMECH_ERR_NOT_IMPL so the pure projection computes
+#: the complete answer), and -1 is arena-ONLY (cr_carve for res/scr/cmb, or a
+#: cr_map_of / cr_all_set failure, every one of which bottoms out in cr_carve).
+#: So the -1 channel has exactly one cause and status 4 keeps the retryable /
+#: grow meaning srmech.h:555 states is FORCED.
+#:
+#: ⚠️ ONE STATUS-4 SITE IN THIS FILE IS NOT GROW-FIXABLE, AND IT IS NOT NEW —
+#: named here because rc452 measured it and leaving it unrecorded would be the
+#: conflation this ratchet exists to surface. cr_run_and_write's
+#: `desc == NULL || bd.failed` (the value-descriptor writer) answers 4, but the
+#: writer reserve is derived from the INPUT length and not from `ws_len`, so
+#: growing the caller arena does NOT clear it -- measured on
+#: parallel_sector_dispatch at 1x and at 16x (37 MB), same OVERFLOW both times.
+#: rc452 raised CR_WRITER_FLOOR so the shipped population fits with headroom,
+#: which makes the condition unreachable for every chain in the catalog; the
+#: line's CLASS is unchanged and it is left alone rather than re-labelled,
+#: because re-labelling a correct status-4 return to keep a number flat is the
+#: move this file's own message forbids.
+CEIL_CONFLATING_RETURN_LINES = 747
 
 _RETURN_OVERFLOW = re.compile(r"return\s+SRMECH_ERR_OVERFLOW\s*;")
 

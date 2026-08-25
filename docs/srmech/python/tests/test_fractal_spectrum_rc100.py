@@ -167,7 +167,7 @@ def test_registered_in_tool_schema():
 def test_tools_total_matches_live():
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 663
+    assert introspect.describe()["tools"]["total"] == 666
 
 
 # ─────────────────────────────────────────────────────────────────────

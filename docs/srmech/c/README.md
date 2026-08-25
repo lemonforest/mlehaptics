@@ -53,7 +53,7 @@ The two newest v0.6.0 C files:
 
 ### ABI
 
-C ABI version is **20** (`SRMECH_ABI_VERSION 20` in
+C ABI version is **23** (`SRMECH_ABI_VERSION 23` in
 `c/include/srmech.h`). The v20 bump is rc451's (`#T1164`, gh #1653 item 4): a
 WIRE-FORMAT change to the existing `srmech_chain_run`, whose output
 value-descriptor kind set grows `{n,i,s,q,f,l}` → `+t` (a TUPLE, distinct from a
@@ -78,8 +78,12 @@ symbol does not bump the ABI.
 
 ### JPL Power-of-Ten
 
-The C library is **JPL Power-of-Ten clean** — see
-[JPL_AUDIT.md](JPL_AUDIT.md) for the rule-by-rule audit.
+The C library is clean on **eight** of the ten Power-of-Ten rules;
+**Rule 1 (recursion half) and Rule 9 (function-pointer half) are
+PARTIAL**, each under a seeded down-only ratchet — see
+[JPL_AUDIT.md](JPL_AUDIT.md) for the rule-by-rule audit and the
+measured Rule 9 census. *(This line said "JPL Power-of-Ten clean"
+until rc452.)*
 Enforcement is mechanical: `tests/test_jpl_audit.py` is a ratchet
 (violations only ever go down) and the pedantic-build CI matrix
 (`-Werror` / `-Wpedantic`, `/WX` on MSVC) runs on

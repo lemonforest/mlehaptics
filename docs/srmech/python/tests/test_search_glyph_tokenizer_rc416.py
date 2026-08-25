@@ -548,8 +548,59 @@ from srmech.math.text import fold_marks, glyph_stream
 #: The 663/29 split is unchanged from rc445: this rc registers and removes no
 #: op, so a moved FRAME COUNT (rather than a moved digest) would have been the
 #: signal that something other than prose had changed.
+#: rc452 (`#T1166`) - RE-PINNED, and the determinism question was SETTLED BY
+#: EXECUTION BEFORE the digit moved, because this gate's own message offers two
+#: readings ("if a prose edit caused it, re-pin; if nothing was edited, the frame
+#: build is non-deterministic") and re-pinning the second one would convert a real
+#: ADR-0011 contract break into a silent one. Both halves were measured:
+#:
+#:   DETERMINISM - `_build_frames("all")` was run in FOUR separate processes under
+#:   PYTHONHASHSEED 0 / 13 / 271 / 9999. All four returned the SAME digest, and all
+#:   three derivation paths agree inside each run (the witness `_build_frames`
+#:   returns, `sha256_bytes` recomputed over the joined blobs, and the live
+#:   `search("rank", k=1).witness`). It also matches what CI measured on its own
+#:   runners. The build is deterministic; the ADR-0011 witness contract HOLDS.
+#:
+#:   CAUSATION - the tree at the merge-base was materialised read-only and its
+#:   corpus built: it reproduces `eb9f7dd1...` EXACTLY, i.e. the OLD pin was correct
+#:   for the OLD prose. Diffing the two frame sets positionally shows the same 692
+#:   names in the same order and exactly TWO of 692 frame blobs moved - the `Q` and
+#:   `int` CARRIER frames. `int.produces` lost the nine Class-N ops rc452 flipped to
+#:   returning `Q`; `Q.produces` gained those same nine and `Q.consumes` gained the
+#:   four that now accept a `Q` operand. No op frame moved at all.
+#:
+#: The 663/29 split is UNCHANGED, which is the signal the rc445 note prescribes: a
+#: moved FRAME COUNT would have meant something other than prose changed. It did not.
+#: rc452 (gh #1653, the registry-ripple phase) - RE-PINNED AGAIN, and this time the
+#: FRAME COUNT ITSELF moves: 692 -> 695 (666 ops + 29 carriers). That is the reading
+#: the rc445 note reserves for "something other than prose changed", and here it is
+#: the DECLARED change - three ops were registered, so a frame count that had NOT
+#: moved would have been the failure. Both halves were measured BEFORE the digit
+#: moved, in the order the rc452 exact-Q note above prescribes:
+#:
+#:   DETERMINISM - `_build_frames("all")` run in FOUR separate processes under
+#:   PYTHONHASHSEED 0 / 13 / 271 / 9999 returned the SAME digest and 695 frames
+#:   each, and inside every run all three derivation paths agree (the witness
+#:   `_build_frames` returns, `sha256_bytes` recomputed over the joined blobs, and
+#:   the live `search(...).witness`). The ADR-0011 witness contract HOLDS.
+#:
+#:   CAUSATION - the op-frame NAME set was diffed against the pre-registration
+#:   population, `tests/registered_op_names.txt` at the branch head (663 names):
+#:   ADDED = exactly `srmech.amsc.descriptor.render_template`,
+#:   `srmech.amsc.format.sha256_raw`, `srmech.signal_processing.mint_vector`;
+#:   REMOVED = none. Carriers stay 29, and exactly ONE carrier frame's blob can
+#:   mention a new op - `int`, whose `consumes` gains `mint_vector` (its `D` is an
+#:   int). The digest move is therefore fully attributed to the three registrations.
+#:
+#: This gate was RED in the handed-over working tree: the registration slice bumped
+#: every `describe()["tools"]["total"]` pin (74 lines across 67 files against
+#: the RIPPLE_GATES.md predicate, plus the one `EXPECTED_N` assignment that
+#: predicate cannot match) but not this witness, so three tests
+#: in this file failed on the stale digest. It is exactly the "invisible class" the
+#: RIPPLE_GATES.md count-pin note names - a pin that is a DIGEST rather than a
+#: comparison against the count, which no `== 663` predicate can find.
 WITNESS_RC416 = (
-    "eb9f7dd1d1a7f7d3766089362aafa7a3d4bacbe1498f9a0c2083ed0f43d0f9b2")
+    "7cb11ffbe75959a4dec0cf725dec2a387506812b868005c285aa1c2d3a8f3718")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

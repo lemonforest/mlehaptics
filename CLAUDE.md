@@ -179,7 +179,7 @@ These reading-rules apply across ALL framework-research arcs. Per memory feedbac
 
 ### C library discipline (when any C-touching work occurs)
 
-- **JPL Power-of-Ten audit** — srmech C library passes all 10 Holzmann Power-of-Ten rules (`docs/srmech/c/JPL_AUDIT.md`). `tests/test_jpl_audit.py` is a mechanical ratchet (Rules 1 no-goto / 3 no-malloc / 4 ≤60-line-functions / 5 ≥2-asserts-per-non-exempt-function / 8 no-multi-line-macros). **Violations only go DOWN, never up.**
+- **JPL Power-of-Ten audit** — srmech C library is clean on **eight** of the 10 Holzmann rules; **Rule 1 and Rule 9 are PARTIAL** under seeded down-only ratchets (9 depth-bounded recursion cycles; 10 function-pointer declarator sites, `IV_VTABLE` named as next drain) — see `docs/srmech/c/JPL_AUDIT.md`. *(This line said "passes all 10" until rc452; it had been false since before rc441, surviving because the unmeasured halves of both rules had no detector.)* `tests/test_jpl_audit.py` is a mechanical ratchet (Rules 1 no-goto+no-new-recursion / 3 no-malloc / 4 ≤60-line-functions / 5 ≥2-asserts-per-non-exempt-function / 8 no-multi-line-macros / 9 no-new-function-pointers). **Violations only go DOWN, never up.**
 - **Pedantic-build CI matrix** (Linux gcc / macOS clang / Windows MSVC) — `-Werror` / `/WX` enforced; any new warning fails CI.
 - **ABI compatibility** — bump `SRMECH_ABI_VERSION` in lockstep whenever wire-format of any exported function changes. Adding a new symbol does NOT bump ABI.
 - **No new `hashlib.sha256(...)` direct calls** — route through `srmech.amsc.format.sha256_bytes(...)` so native dispatch picks up transparently.

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE "rc451"
-#define SRMECH_VERSION "0.9.0rc451"
+#define SRMECH_VERSION_PRE "rc452"
+#define SRMECH_VERSION "0.9.0rc452"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -450,8 +450,90 @@ extern "C" {
  *      change alone earns it.
  *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
+ *
+ *   v21 (v0.9.0rc452, `#T1166`) — THE EXACT-Q REORIENT ARM. The first bump on
+ *      this wire driven by a SILENT-WRONG-VALUE pairing rather than a raise,
+ *      and the first that adds NO kind letter and moves NO descriptor shape.
+ *
+ *      What actually changes is WHO EMITS `q`. That kind has been on this wire
+ *      since long before this rc — cr_op_rat, cr_op_pow and cr_op_series all
+ *      build CR_RATIONAL, and two live attested catalogs (asymptotic_calculus,
+ *      cosmos_validation) dispatch them. cr_op_reorient did not: handed a
+ *      rational it fell through to the double arm, failed to read a list as a
+ *      double, and returned SRMECH_ERR_NOT_IMPL so the chain deferred to pure.
+ *      rc452 gives it a CR_RATIONAL arm, so the Class-C op now ANSWERS an exact
+ *      rational where it previously declined. Zero new dispatch arms;
+ *      cr_dispatch is untouched.
+ *
+ *      THE PAIRING THIS REJECTS, and why it outranks v20's. An rc452 .so
+ *      against rc451 Python emits `q` from reorient into a reader that rebuilds
+ *      a (num, den) TUPLE. Nothing raises. The chain returns a well-formed
+ *      2-tuple — which is also exactly how a Class-K pin pair and a Class-B
+ *      `pair` step spell themselves, so a downstream consumer reads it happily
+ *      and wrongly. v18 and v20 both bumped on the ground that a new kind makes
+ *      an older reader RAISE mid-run; a raise stops, a wrong value propagates.
+ *      The mirror pairing (rc451 .so, rc452 Python) is milder and still wrong:
+ *      every reorient-terminated rational chain silently loses the C path.
+ *
+ *      The arm carves a FRESH carrier from the chain arena and aliases the
+ *      write-once limbs; it never negates in place. Step outputs persist for
+ *      later @step[N].output reads, and an in-place flip corrupts them —
+ *      measured on a real rebuilt library during the rc452 workshop, where a
+ *      three-step chain returned -5/6 for a step that must be 5/6, at rc=0,
+ *      with a well-formed wire. See cr_rat_signed in srmech_compose_run.c.
+ *
+ *      v21 ALSO COVERS A SECOND rc452 CONTRACT MOVE, of the v19 shape, landed
+ *      later in the same (unreleased) rc so it rides the same bump rather
+ *      than minting v22: srmech_chain_run now returns SRMECH_ERR_BAD_INPUT
+ *      for a chain object missing `name`, `summary` or `returns`, where it
+ *      used to ACCEPT and RUN it (gh #1653 finding (b)). The runner's own
+ *      doc below has declared its input "the FULL chain object" since rc174,
+ *      and BOTH parse peers (parse_chain_spec, srmech_chain_spec_parse)
+ *      refuse the headerless form — the runner was the one layer that did
+ *      not, and co-equal projections must agree on what they refuse. The
+ *      shipped Python callers are unaffected (_spec_to_chain_dict always
+ *      sends the full header); what changes is the bare-C / ctypes-direct
+ *      surface, where a headerless chain now refuses loudly instead of
+ *      computing.
+ *
+ *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
+ *
+ *   v23 (v0.9.0rc452, `#T1166`) — THE MAPPING AND BOOL WIRE KINDS. v18's and
+ *      v20's shape, and the third time this same wire has gained a kind
+ *      letter: srmech_chain_run's output vocabulary gains `m` (a mapping) and
+ *      `o` (a boolean), landed with parallel_sector_dispatch — the last
+ *      executable cascade chain the C projection could not run, and the only
+ *      one whose value is a dict.
+ *
+ *      Load-bearing in v18's direction, and for BOTH kinds at once. An rc452
+ *      `.so` against an older Python reader would emit a `k` neither `m` nor
+ *      `o` branch exists for, and _reconstruct_value RAISES ValueError on an
+ *      unknown kind — mid-run, on every proof case of that chain. The bump
+ *      converts that into a clean load-refusal.
+ *
+ *      ⚠️ THE `o` KIND IS NOT COSMETIC, and the reason is Python's, not C's.
+ *      `True == 1` in Python, so spelling a bool as `i` would deliver a right
+ *      VALUE of the wrong TYPE — the silent-wrong-value class v21 bumped for.
+ *      The op returns nine bools per dispatch. The `m` kind is likewise not a
+ *      JSON object: its payload is a FLAT array of alternating key/value
+ *      descriptors, because this op's `sectors` map is INT-KEYED and the two
+ *      projections' canonical writers order int keys DIFFERENTLY (json.dumps
+ *      sorts key objects then coerces; srmech_json_write_ws sorts the already
+ *      stringified keys bytewise) — so an object payload would be byte
+ *      divergent on exactly this dict.
+ *
+ *      v23 ALSO COVERS A WRITER-RESERVE CONTRACT MOVE, of the v10/v12 shape
+ *      (no signature changed; an existing parameter's meaning did):
+ *      srmech_chain_run_arena_bytes now returns a LARGER envelope, because the
+ *      value-descriptor writer reserve was derived from the INPUT length while
+ *      it bounds the OUTPUT tree. A caller that cached the old figure and
+ *      passes it to a v23 library gets a correct SRMECH_ERR_OVERFLOW rather
+ *      than a wrong value, but it is the same wire-sizing contract, so it
+ *      rides this bump rather than going unrecorded.
+ *
+ *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  */
-#define SRMECH_ABI_VERSION 20
+#define SRMECH_ABI_VERSION 23
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -3477,6 +3559,13 @@ srmech_status_t srmech_chain_catalog_parse(
  *
  *   chain_json : the FULL chain object {name,summary,returns,on_error?,steps:
  *                [{class,op,args,on_error?}]} (json.dumps of the ChainSpec).
+ *                ENFORCED since rc452 (gh #1653 finding (b)): a chain missing
+ *                name/summary/returns is SRMECH_ERR_BAD_INPUT — the same
+ *                required-key rule parse_chain_spec and srmech_chain_spec_parse
+ *                have always applied. Through rc452 Phase 3 this line
+ *                described the input while the runner accepted headerless
+ *                chains, and every ctypes harness plus the bare-C TOML host
+ *                fed it exactly those.
  *   ctx_json   : {"row": <obj|null>, "inputs": <obj>} — the @row / @input
  *                binding tables (may be NULL / "" if the chain refs neither).
  *

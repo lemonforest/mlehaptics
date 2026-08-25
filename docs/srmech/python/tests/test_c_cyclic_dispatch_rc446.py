@@ -57,10 +57,24 @@ def _lib():
     return lib
 
 
+def _hdr(chain):
+    """rc452 (gh #1653 finding (b)): srmech_chain_run now refuses a chain
+    missing name/summary/returns (the required-key rule every parse layer
+    already enforced). This file's subject is op dispatch, not the header
+    contract (the rc446 ratchet pins that), so the harness synthesizes the
+    header exactly as cascade_chain_specs does. Idempotent over documents
+    that already carry one."""
+    out = dict(chain)
+    out.setdefault("name", str(out.get("variant", "chain")))
+    out.setdefault("summary", "")
+    out.setdefault("returns", "")
+    return out
+
+
 def _c_run(chain, inputs):
     """Run a chain in C. NOTE the ctx WRAPPING — see the ratchet's harness note."""
     lib = _lib()
-    cj = json.dumps(chain, ensure_ascii=False).encode("utf-8")
+    cj = json.dumps(_hdr(chain), ensure_ascii=False).encode("utf-8")
     xj = json.dumps({"inputs": inputs}, ensure_ascii=False).encode("utf-8")
     n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
     ws = (ctypes.c_char * n)()
@@ -96,7 +110,7 @@ def test_every_proof_case_runs_in_c_byte_identical(name):
 ])
 def test_out_of_uint64_operand_is_DECLINED_not_narrowed(a, b, narrowed_would_give):
     """THE DECLINE CONTRACT, probed where narrowing would be VISIBLE."""
-    chain = {"name": "t", "steps": [
+    chain = {"name": "t", "summary": "s", "returns": "r", "steps": [
         {"class": "I", "op": "gcd", "args": {"a": "@input.a", "b": "@input.b"}}]}
     truth = run_cascade_chain("cyclic_gcd", a=a, b=b)
     assert truth != narrowed_would_give, (
@@ -111,7 +125,7 @@ def test_out_of_uint64_operand_is_DECLINED_not_narrowed(a, b, narrowed_would_giv
 
 def test_in_range_control_still_runs():
     """The positive control. A guard that declines everything is not a fix."""
-    chain = {"name": "t", "steps": [
+    chain = {"name": "t", "summary": "s", "returns": "r", "steps": [
         {"class": "I", "op": "gcd", "args": {"a": "@input.a", "b": "@input.b"}}]}
     rc, raw = _c_run(chain, {"a": 12, "b": 18})
     assert rc == 0 and json.loads(raw)["v"] == "6", (rc, raw)
@@ -138,7 +152,7 @@ def test_in_range_control_still_runs():
     (12, 18),                          # in-range control, same code path
 ])
 def test_a_WIDE_operand_reaches_the_bigint_carrier_as_a_decimal_string(a, b):
-    chain = {"name": "g", "steps": [
+    chain = {"name": "g", "summary": "s", "returns": "r", "steps": [
         {"class": "I", "op": "gcd",
          "args": {"a": "@input.a", "b": "@input.b"}}]}
     rc, raw = _c_run(chain, {"a": str(a), "b": str(b)})
@@ -150,7 +164,7 @@ def test_a_NON_NUMERIC_string_is_not_retyped():
     """THE CONTROL. Widening happens at the point of USE, not at ingest — args
     here are heterogeneous, so ``combine="4"`` must stay a mode name. A blanket
     ingest-time conversion would silently retype it."""
-    chain = {"name": "g", "steps": [
+    chain = {"name": "g", "summary": "s", "returns": "r", "steps": [
         {"class": "I", "op": "gcd",
          "args": {"a": "@input.a", "b": "@input.b"}}]}
     rc, _ = _c_run(chain, {"a": "notanumber", "b": "18"})
@@ -159,7 +173,7 @@ def test_a_NON_NUMERIC_string_is_not_retyped():
 
 def test_the_out_of_int64_LITERAL_still_declines():
     """The transport is ADDITIVE — it does not weaken the literal contract."""
-    chain = {"name": "g", "steps": [
+    chain = {"name": "g", "summary": "s", "returns": "r", "steps": [
         {"class": "I", "op": "gcd",
          "args": {"a": "@input.a", "b": "@input.b"}}]}
     rc, _ = _c_run(chain, {"a": 2 ** 70, "b": 18})

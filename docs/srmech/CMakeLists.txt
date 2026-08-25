@@ -31,7 +31,15 @@ endif()
 option(SRMECH_PEDANTIC "Treat compiler warnings as errors (JPL Rule 10)" OFF)
 if(SRMECH_PEDANTIC)
     if(MSVC OR (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_C_SIMULATE_ID STREQUAL "MSVC"))
-        add_compile_options(/WX)
+        # /w44062 enables C4062 (enumerator not handled in a switch with no
+        # `default:`) at level 4 — it is OFF BY DEFAULT even at /W4, so without
+        # this the Windows leg would not enforce the A1 dispatch's
+        # switch-exhaustiveness drift gate that gcc/clang get from -Wswitch
+        # (inside -Wall). MEASURED 2026-08-23 (MSVC 2022, /std:c11): a deleted
+        # `case` in cr_exec_cyc compiled SILENTLY CLEAN under /W4 alone, warned
+        # C4062 under /W4 /w44062, and failed under /W4 /w44062 /WX; the full
+        # 138-TU src sweep is clean under the new flags (zero C4062).
+        add_compile_options(/WX /w44062)
     else()
         add_compile_options(-Werror)
     endif()
@@ -365,6 +373,68 @@ if(SRMECH_SRCS)
             test_srmech_chain_run)
             add_test(NAME ${t} COMMAND ${t})
         endforeach()
+
+        # ─────────────────────────────────────────────────────────────
+        # rc452 (`#T1166`) — THE REMAINING 20. The block above carried
+        # only the tests "already proven to build on the 3-OS matrix",
+        # and the down-only CEIL_UNWIRED_C_TESTS ratchet was supposed to
+        # drain the rest. Measured at the rc452 branch point: 38 test
+        # files exist, 18 were registered, and the other 20 ran in NO
+        # automation at all. `c/Makefile`'s `make test` runs all 38 on
+        # POSIX (38/38 pass on WSL2, measured this session) but NO
+        # WORKFLOW INVOKES make — so "covered by the Makefile" was
+        # coverage nobody executed, which is the rc356 shape one level up:
+        # rc356 fixed "compiled but not run", and this fixes "runnable but
+        # not reached".
+        #
+        # These are registered as a LIST rather than 20 hand-written
+        # stanzas so that adding a test file is a one-line change, and
+        # tests/test_ctest_collection_parity_rc452.py asserts STRICT
+        # two-way equality between the registered set and the
+        # c/test/test_srmech_*.c census — so a future file cannot land
+        # unregistered and a registration cannot outlive its file. That
+        # closes the rc356 shape STRUCTURALLY instead of once.
+        #
+        # ⚠️ These 20 have only ever been executed on WSL2. The macOS
+        # clang and Windows MSVC cells are UNMEASURED for them as of this
+        # commit. A cell that reds is a finding to FIX, not to
+        # deregister — deregistering would restore exactly the state this
+        # block removes.
+        # ─────────────────────────────────────────────────────────────
+        set(SRMECH_C_TESTS_RC452
+            test_srmech_bigexp test_srmech_cascade_toml_host
+            test_srmech_config test_srmech_coupling
+            test_srmech_factor_poly test_srmech_fiedler
+            test_srmech_fiedler_file test_srmech_gosper test_srmech_hdc
+            test_srmech_json test_srmech_ndjson test_srmech_parallel
+            test_srmech_poly test_srmech_q_wz_verify test_srmech_qi
+            test_srmech_qmat test_srmech_recursive_cut test_srmech_sha256
+            test_srmech_toml test_srmech_wz test_srmech_zeilberger)
+        foreach(t ${SRMECH_C_TESTS_RC452})
+            add_executable(${t} c/test/${t}.c)
+            target_link_libraries(${t} PRIVATE srmech ${SRMECH_MATH_LIB})
+            add_test(NAME ${t} COMMAND ${t})
+        endforeach()
+
+        # test_srmech_config.c includes the INTERNAL header srmech_platform.h,
+        # which lives in c/src rather than the public c/include. Same treatment
+        # as test_srmech_text_fold above (line ~214), and the same rationale
+        # c/Makefile:81 already records for its own `-I$(SRCDIR)`. Found by
+        # registering it: the file had never been compiled by CMake, so the
+        # missing include path had nowhere to surface. Exactly the class the
+        # 3-OS matrix is being pointed at these 20 to find.
+        target_include_directories(test_srmech_config PRIVATE c/src)
+
+        # rc452 (`#T1166`, gh #1653) — the Surface-A CONFIG-DRIVEN bare-C host
+        # proof. test_srmech_cascade_toml_host opens the SHIPPED cascade_catalog
+        # descriptors at run time (fopen -> srmech_toml_parse ->
+        # srmech_chain_run, no Python anywhere in the acceptance path), so it
+        # needs to know where the checkout keeps them. The path is compiled in
+        # from the source tree; ctest runs from the build dir on all three
+        # OSes, so a relative path would be a per-generator guess and an
+        # absolute one is the same checkout CI just configured.
+        target_compile_definitions(test_srmech_cascade_toml_host PRIVATE
+            "SRMECH_CASCADE_CATALOG_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/python/srmech/cascade/catalogs/cascade_catalog\"")
     endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the

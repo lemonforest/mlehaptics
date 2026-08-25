@@ -67,7 +67,7 @@ def test_trace_spinor_shows_the_winding():
     # to_scalar trace (which is w-blind); both are exact (num, den).
     two_cos = cos_series_truncate(tn, 2 * td, terms)
     from srmech.cascade.one import _reduce_rational
-    assert base == _reduce_rational(2 * two_cos[0], two_cos[1])
+    assert base == _reduce_rational(2 * two_cos.numerator, two_cos.denominator)
 
 
 def test_spinor_sign_driven_by_total_winding():

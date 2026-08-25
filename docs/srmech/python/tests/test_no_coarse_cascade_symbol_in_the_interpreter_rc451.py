@@ -95,15 +95,31 @@ def _multi_step_descriptors() -> dict:
 def _coarse_symbols() -> dict:
     """{exported symbol: descriptor it fuses}, derived from the header.
 
-    PREDICATE: an exported ``srmech_cascade_<...>`` whose name contains the name
-    of a multi-step descriptor. That deliberately catches
-    ``srmech_cascade_kuramoto_step_general_f64`` as well as the plain one — a
-    variant of a coarse symbol is still a coarse symbol.
+    PREDICATE, two arms: (1) an exported ``srmech_cascade_<...>`` whose name
+    contains the name of a multi-step descriptor — that deliberately catches
+    ``srmech_cascade_kuramoto_step_general_f64`` as well as the plain one (a
+    variant of a coarse symbol is still a coarse symbol); (2) an exported
+    ``srmech_<descriptor>`` EXACT-name match — added at rc452 Phase 3
+    (`#T1166`) because the whole-transform DFT kernels are exported WITHOUT
+    the ``cascade`` infix (``srmech_quaternion_dft`` / ``srmech_octonion_dft``)
+    and escaped arm (1) entirely, precisely as their chains started running.
+    Arm (2) is exact-match on purpose: a contains-match over the bare
+    ``srmech_`` namespace would flag ``srmech_autocorrelation_f64``, which the
+    interpreter legitimately calls for the ``autocorrelation`` OP row — a
+    different object from the ``autocorrelation`` CHAIN, as the interpreter's
+    own comment states.
     """
     header = _read(_HEADER)
-    exported = set(re.findall(r"\b(srmech_cascade_[A-Za-z0-9_]+)\s*\(", header))
+    exported = set(re.findall(r"\b(srmech_[A-Za-z0-9_]+)\s*\(", header))
     multi = _multi_step_descriptors()
-    return {sym: name for sym in exported for name in multi if name in sym}
+    out = {}
+    for sym in exported:
+        for name in multi:
+            if sym.startswith("srmech_cascade_") and name in sym:
+                out[sym] = name
+            elif sym == "srmech_" + name:
+                out[sym] = name
+    return out
 
 
 def _referenced(text: str, symbols) -> dict:
@@ -127,12 +143,63 @@ def _referenced(text: str, symbols) -> dict:
     """
     hits = {}
     lines = text.split("\n")
+    # The TABLE REGION, if present: under the first rc452 cut a function-pointer
+    # column WIRED a symbol in without ever calling it, so inside this block a
+    # bare mention IS a dispatch. The shipped A1 rows are enum data and cannot
+    # name a symbol, but the wider predicate is KEPT — it costs nothing and
+    # guards a regression to fn columns. See the rc452 note below.
+    tbl_lo, tbl_hi = _table_line_span(lines)
     for sym in symbols:
         pat = re.compile(r"\b" + re.escape(sym) + r"\s*\(")
-        found = [i + 1 for i, ln in enumerate(lines) if pat.search(ln)]
+        bare = re.compile(r"\b" + re.escape(sym) + r"\b")
+        found = []
+        for i, ln in enumerate(lines):
+            if pat.search(ln):
+                found.append(i + 1)
+            elif tbl_lo <= i <= tbl_hi and bare.search(ln):
+                found.append(i + 1)
         if found:
             hits[sym] = found
     return hits
+
+
+def _table_line_span(lines) -> tuple:
+    """0-indexed [lo, hi] line span of the ``CR_OP_REG`` initialiser, or (-1,-2).
+
+    ⚠️ ADDED AT rc452 (`#T1166`) BECAUSE THE REFACTOR THAT rc452 PERFORMS WOULD
+    OTHERWISE HAVE DISARMED THIS GATE, AND ITS OWN RETRO-CHECK CAUGHT IT.
+
+    The call-shaped predicate above is correct for an IF-CHAIN dispatch, which
+    is what existed when it was written: a coarse dispatch there necessarily
+    spells ``srmech_cascade_foo(...)``. rc452's first cut converted the
+    dispatch to a name-to-FUNCTION-POINTER atom table, where wiring a coarse
+    symbol in was a BARE IDENTIFIER in a row's ``fn`` column — no parenthesis
+    anywhere. Measured while writing this rc: the retro-check spliced exactly
+    such a row and ``_referenced`` returned ``{}``. The gate would have gone on
+    reporting the file clean while a coarse dispatch was live in it.
+
+    So the predicate widens for the table region ONLY. Scoping matters both
+    ways: a bare match over the whole file re-creates the rc451 defect this
+    file's own docstring records (it went red on the interpreter's COMMENT
+    explaining that the fused symbol is deliberately not called), while a
+    call-only match over the whole file misses the row-wiring shape. Prose
+    outside the initialiser is still exempt; anything named inside it is data
+    that the interpreter dispatches through. (The shipped A1 rows are enum
+    data — a symbol cannot ride a row today — but the span rule is kept as a
+    regression guard; the A1-realistic threat, a coarse CALL in an exec arm,
+    is covered by the call predicate and its own retro-check splice.)
+    """
+    lo = -1
+    for i, ln in enumerate(lines):
+        if re.search(r"\}\s*CR_OP_REG\[\d+\]\s*=\s*\{", ln):
+            lo = i
+            break
+    if lo < 0:
+        return (-1, -2)          # no table in this TU — call-shape only
+    for j in range(lo, len(lines)):
+        if lines[j].startswith("};"):
+            return (lo, j)
+    return (lo, len(lines) - 1)
 
 
 def test_the_derived_population_is_not_empty() -> None:
@@ -151,11 +218,22 @@ def test_the_derived_population_is_not_empty() -> None:
     assert len(coarse) >= 3, (
         "only %d coarse cascade symbols derived from %s. The predicate is an "
         "exported srmech_cascade_* whose name contains a multi-step "
-        "descriptor's name; if the naming convention moved, re-point it rather "
+        "descriptor's name, or an exported srmech_<descriptor> exact match; "
+        "if the naming convention moved, re-point it rather "
         "than deleting the assertion." % (len(coarse), _HEADER.name))
     assert "srmech_cascade_best_rational_signed_f64" in coarse, (
         "the symbol this gate was written for is not in the derived set: %s"
         % sorted(coarse))
+    # rc452 Phase 3: the four fused symbols of the newly-unblocked map chains
+    # must ALL be in the population, or the green over the interpreter proves
+    # nothing about exactly the chains most tempting to fuse.
+    for must in ("srmech_cascade_kuramoto_step_f64",
+                 "srmech_cascade_kuramoto_step_general_f64",
+                 "srmech_quaternion_dft", "srmech_octonion_dft"):
+        assert must in coarse, (
+            "%s is not in the derived coarse set %s — arm (2) of the "
+            "predicate has stopped seeing the non-cascade-infix exports"
+            % (must, sorted(coarse)))
 
 
 def test_the_interpreter_calls_no_multi_step_coarse_cascade_symbol() -> None:
@@ -196,23 +274,50 @@ def test_the_pin_would_catch_a_coarse_dispatch() -> None:
     empty set or ``_referenced`` stopped matching.
     """
     text = _read(_INTERPRETER)
-    anchor = 'if (cr_op_is(op, opl, "pair", 4u)) {'
+    # ⚠️ RE-POINTED AT rc452 (`#T1166`), AS THIS TEST'S OWN MESSAGE INSTRUCTS.
+    # The anchor was `if (cr_op_is(op, opl, "pair", 4u)) {` — a dispatch ARM of
+    # the if-chain. rc452 converts the dispatch to a table, so there are no
+    # arms left to splice into and the assertion fired exactly as designed: it
+    # refused to run a retro-check whose mutation site no longer exists, rather
+    # than silently mutating nothing and passing.
+    #
+    # TWO SPLICES since the A1 (Rule-9-clean) reshape, because the threat has
+    # two shapes. Under the first rc452 cut a row's function-pointer column
+    # wired a symbol in with NO parenthesis — the table-span bare-mention rule
+    # exists for that, and splice 1 keeps it honest (also guarding a regression
+    # to fn columns). Under the shipped A1 design rows are pure enum data and
+    # cannot name a symbol at all; the realistic coarse dispatch is a CASE ARM
+    # in a cr_exec_* CALLING the fused symbol — splice 2 models exactly that
+    # and is caught by the call-shape predicate.
+    anchor = ' { "pair",                4u, "srmech.cascade.pair",'
     assert anchor in text, (
-        "the mutation anchor is gone from %s — re-point it at another dispatch "
-        "arm rather than deleting this retro-check" % _INTERPRETER.name)
+        "the mutation anchor is gone from %s — re-point it at another CR_OP_REG "
+        "row rather than deleting this retro-check" % _INTERPRETER.name)
     mutated = text.replace(
         anchor,
-        'if (cr_op_is(op, opl, "best_rational_signed", 20u)) {\n'
-        '        return srmech_cascade_best_rational_signed_f64(0.0, 1, 1,\n'
-        '                                                       NULL, NULL);\n'
-        '    }\n'
-        '    ' + anchor,
+        ' { "best_rational_signed", 20u, "srmech.cascade.best_rational_signed",\n'
+        '   srmech_cascade_best_rational_signed_f64, NULL },\n'
+        + anchor,
         1)
     assert mutated != text, "the mutation did not change the source"
     coarse = _coarse_symbols()
     assert _referenced(mutated, coarse), (
         "the predicate did NOT flag a spliced coarse dispatch — it has stopped "
         "measuring, and the green above is therefore worth nothing")
+    # splice 2: the A1-shaped threat — an exec case arm calling the fused symbol
+    arm_anchor = "    case CR_CAS_PAIR:            return cr_op_pair(c, args, out);"
+    assert arm_anchor in text, (
+        "the exec-arm anchor is gone from %s — re-point it at another cr_exec_* "
+        "case rather than deleting this retro-check" % _INTERPRETER.name)
+    mutated2 = text.replace(
+        arm_anchor,
+        arm_anchor + "\n    case CR_CAS_BRS: return "
+        "srmech_cascade_best_rational_signed_f64(c, args, out);",
+        1)
+    assert mutated2 != text, "the arm mutation did not change the source"
+    assert _referenced(mutated2, coarse), (
+        "the predicate did NOT flag a coarse CALL spliced into an exec arm — "
+        "the call-shape half has stopped measuring")
     assert not _referenced(text, coarse), (
         "control: the UNMUTATED source must still be clean, or the retro-check "
         "above proves nothing about the mutation")

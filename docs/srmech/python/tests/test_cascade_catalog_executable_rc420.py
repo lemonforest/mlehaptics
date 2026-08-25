@@ -60,6 +60,7 @@ from srmech.dsl._cascade_chain import (
     descriptor_status,
 )
 from srmech.math.laplacian import schur_complement
+from srmech.math.q import Q
 
 
 # ── the pinned population (drift here must be conscious) ───────────────
@@ -241,6 +242,22 @@ def _bits(x) -> bytes:
                 x.items(), key=lambda kv: repr(kv[0]))) + b"}"
     if x is None:
         return b"n"
+    if isinstance(x, Q):                         # rc452 — the exact-ℚ carrier
+        # PLACED BEFORE the tolist and repr arms, and explicit rather than
+        # inherited, because BOTH of the arms below silently mis-encode a Q:
+        #   * the final `b"r" + repr(x)` fallback is where a Q landed through
+        #     rc451. A decoy class whose __repr__ returns "Q(5, 6)" produces
+        #     BYTE-IDENTICAL comparator output — built independently by two of
+        #     the four rc452 workshops — so the discrimination rested on a repr
+        #     collision, not on the type.
+        #   * giving Q a `.tolist()` at any future point would move it to the
+        #     Mat/Vec arm and re-collapse it, silently.
+        # An == based comparator cannot discriminate at all here: Q(5,6) == (5,6)
+        # is True, and so is Q(5,6) == (10,12), because Q.__eq__ coerces through
+        # _as_pair and cross-multiplies. This encoder never calls ==; that is
+        # WHY it can tell them apart, and this arm is what makes that structural
+        # instead of accidental.
+        return b"q" + repr(x.numerator).encode() + b"/" + repr(x.denominator).encode()
     if hasattr(x, "tolist"):                     # Mat / Vec carriers
         return b"M" + _bits(x.tolist())
     return b"r" + repr(x).encode()
@@ -248,14 +265,26 @@ def _bits(x) -> bytes:
 
 # ── the shipped-op invocation glue, per descriptor/variant ─────────────
 
-#: Per-variant defaults merged UNDER a proof case's inputs, so a TOML case
-#: can omit what TOML cannot spell (None) or what the op defaults.
-CASE_DEFAULTS = {
-    ("kuramoto_step", "general"): {
-        "adjacency": None, "alpha": 0.0,
-        "pin_anchor": None, "pin_strength": 1.0,
-    },
-}
+#: rc452 (`#T1171`) — THIS TABLE IS GONE; the defaults are READ FROM THE
+#: DESCRIPTOR.
+#:
+#: It used to hold ``("kuramoto_step", "general"): {"adjacency": None,
+#: "alpha": 0.0, "pin_anchor": None, "pin_strength": 1.0}``, verbatim — and so
+#: did tests/test_c_cascade_value_parity_rc450.py, independently. Those four
+#: values were the ONLY thing that made the `general` variant runnable, because
+#: its `bind` names all four and its proof cases do not all supply them. A
+#: descriptor whose execution depends on a dict in a TEST FILE is not
+#: executable from shipped configuration in EITHER projection, which is the
+#: opposite of what `#T1114`'s catalog inversion claims.
+#:
+#: The defaults now live in kuramoto_step.toml as `input_defaults` +
+#: `optional_inputs`, and `srmech.dsl._cascade_chain.chain_input_defaults` is
+#: the single reader. Deriving them here rather than restating them is the
+#: point: a copy in a test is how the SSoT drifted from the shipped artifact.
+def _case_defaults(entry):
+    """Declared defaults for one chain entry, from the DESCRIPTOR."""
+    from srmech.dsl._cascade_chain import chain_input_defaults
+    return chain_input_defaults(entry)
 
 
 def _invoke_op(name: str, variant: str, inp: dict):
@@ -346,9 +375,13 @@ def _executable_cases():
             assert cases, (
                 f"{name}.{variant}: a declared chain with NO proof cases "
                 f"is asserted-in-prose, which is the state rc420 removes")
+            # rc452 (`#T1171`): defaults come from the DESCRIPTOR, merged UNDER
+            # the case's own inputs. Was a CASE_DEFAULTS dict in this file.
+            defaults = _case_defaults(entry)
             for case in cases:
-                out.append((name, variant, spec, case.get("covers", ""),
-                            dict(case.get("inputs", {}))))
+                merged = dict(defaults)
+                merged.update(dict(case.get("inputs", {})))
+                out.append((name, variant, spec, case.get("covers", ""), merged))
     return out
 
 
@@ -395,6 +428,40 @@ def test_leaf_reasons_are_machine_readable():
 
 # ── 2. the equivalence, executed ───────────────────────────────────────
 
+def test_kuramoto_general_runs_from_the_minimal_declared_input_set():
+    """rc452 (`#T1171`). The descriptor must be runnable from SHIPPED CONFIG
+    with only the inputs a caller has reason to pass.
+
+    WHY THIS EXISTS SEPARATELY. The 98 proof cases above do NOT exercise
+    `input_defaults`: every kuramoto_step/general case supplies `alpha`
+    explicitly, so mutating the declared default to a wrong value leaves all of
+    them green — MEASURED, by planting `alpha = 0.9` and watching 10/10 pass.
+    A default no case can falsify is an instrument that cannot return
+    otherwise, so the gate is the MINIMAL call instead: `applies_when` says the
+    general variant applies when `adjacency is not None`, so a caller may
+    legitimately pass adjacency and nothing else, and that call must work.
+
+    Emptying `input_defaults` in the descriptor makes this raise
+    `KeyError: path element .alpha not found` — that is the red-plant, and it
+    is the state the tree shipped in until the defaults moved out of
+    CASE_DEFAULTS and into the TOML.
+
+    Deliberately NOT a new proof case: adding one would move the 98-case
+    population that several sibling gates pin, to test a property that is about
+    the descriptor's self-sufficiency rather than about a value.
+    """
+    from srmech.dsl import run_cascade_chain
+    minimal = {"theta": [0.1, 2.0], "omega": [1.0, 0.5], "coupling": 2.0,
+               "dt": 0.05, "adjacency": [[0.0, 1.0], [0.25, 0.0]]}
+    out = run_cascade_chain("kuramoto_step", dict(minimal), variant="general")
+    want = cascade.kuramoto_step(
+        minimal["theta"], minimal["omega"], coupling=minimal["coupling"],
+        dt=minimal["dt"], adjacency=minimal["adjacency"])
+    assert _bits(list(out)) == _bits(list(want)), (
+        "kuramoto_step/general run from the minimal shipped-config input set "
+        "does not match the shipped op: chain=%r op=%r" % (out, want))
+
+
 @pytest.mark.parametrize(
     "name,variant,spec,covers,inputs",
     [pytest.param(n, v, s, c, i, id=f"{n}.{v}.{c}.{j}")
@@ -405,8 +472,7 @@ def test_declared_chain_is_bit_identical_to_shipped_op(
     """Chain output == op output, BIT-for-bit, on the pure projection —
     per proof case (see the module docstring for the projection rationale).
     """
-    merged = dict(CASE_DEFAULTS.get((name, variant), {}))
-    merged.update(inputs)
+    merged = dict(inputs)   # descriptor defaults already merged in _executable_cases
     with _pure_projection():
         chain_out = _compose.run_chain(spec, inputs=merged)
         op_out = _invoke_op(name, variant, merged)

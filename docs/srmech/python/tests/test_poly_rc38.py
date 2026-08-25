@@ -107,6 +107,39 @@ def test_float_coeff_rejected():
     assert p.coeffs == (Q(1, 2), Q(1, 4))
 
 
+def test_from_floats_snaps_negative_coefficients():
+    """rc452 (`#T1166`) - the SECOND instance of the `QMat.from_float_rows` sign
+    bug, found by sweeping every unsigned `best_rational` call site.
+
+    `from_floats` called the UNSIGNED Class-N `best_rational` on a possibly-
+    negative numerator, so ANY negative coefficient raised "numerator must be
+    non-negative" - but ONLY on the `max_denominator` branch. With
+    `max_denominator=None` the same input returned -1/2 happily, which is what
+    made it invisible: the one shipped call above passes `[0.5, 0.25]` with NO
+    max_denominator, so the snapping branch where the defect lives was never
+    executed by any test at all.
+    """
+    p = Poly.from_floats([0.5, -0.25], max_denominator=1000)
+    assert p.coeffs == (Q(1, 2), Q(-1, 4))
+
+    # the all-negative case, and the non-dyadic snap that must still de-noise
+    assert Poly.from_floats([-0.5], max_denominator=1000).coeffs == (Q(-1, 2),)
+    assert Poly.from_floats([-0.1], max_denominator=1000).coeffs == (Q(-1, 10),)
+
+    # magnitude is sign-independent
+    pos = Poly.from_floats([0.1, 1.0 / 3], max_denominator=1000).coeffs
+    neg = Poly.from_floats([-0.1, -1.0 / 3], max_denominator=1000).coeffs
+    assert neg == tuple(Q(0, 1) - c for c in pos)
+
+    # the SAME inputs on the no-snap branch agree in sign (it never had the bug)
+    assert Poly.from_floats([-0.5]).coeffs == (Q(-1, 2),)
+
+    # de-noising survives the sign fix at a high bound (the exact-pair input is
+    # kept rather than routing through best_rational_signed's fine_scale)
+    assert Poly.from_floats([1.0 / 3, -1.0 / 3],
+                            max_denominator=10 ** 6).coeffs == (Q(1, 3), Q(-1, 3))
+
+
 def test_degree_leading_iszero_conventions():
     z = Poly.zero()
     assert z.is_zero and z.degree == -1 and z.leading == Q(0) and len(z) == 0

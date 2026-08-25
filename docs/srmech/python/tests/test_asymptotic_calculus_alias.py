@@ -13,6 +13,7 @@ import importlib
 import srmech.asymptotic_calculus as ac
 import srmech.trigonometry as trig
 from srmech.math import rational as R
+from srmech.math.q import Q
 
 
 def test_asymptotic_calculus_imports():
@@ -56,10 +57,29 @@ def test_everything_in_dunder_all_is_present():
         assert hasattr(trig, name), name
 
 
-def test_sin_series_truncate_returns_rational_tuple():
-    """The substrate-native 'continuous' trig returns an exact rational."""
+def test_sin_series_truncate_returns_exact_q():
+    """The substrate-native 'continuous' trig returns an exact rational.
+
+    rc452 (`#T1166`) — the RETURN-TYPE PIN, flipped with the contract it pins.
+    Through rc451 this asserted ``isinstance(out, tuple)``; the nine
+    chain-dispatched Class-N ops now return :class:`srmech.math.q.Q`, the same
+    exact-ℚ scalar the C ops build as ``CR_RATIONAL`` and the chain wire spells
+    ``q``. The pin is not weakened by the flip — ``Q`` is a STRICTER assertion
+    than ``tuple``, because a 2-tuple of ints is also what a Class-K pin pair
+    and a Class-B ``pair`` step return, and telling those apart is the whole
+    point of the rc.
+
+    The function was renamed with the assertion: a test still called
+    ``..._returns_rational_tuple`` while asserting a ``Q`` is a falsehood that
+    ships in the sdist. This is the ONE edit in rc452's test sweep that is not
+    the mechanical subscript→accessor pattern, and it is declared as such.
+
+    ``num, den = out`` below is UNCHANGED and still passes: ``Q`` defines
+    ``__iter__``, so unpacking a rational into its two ints keeps working. What
+    a ``Q`` does not have is ``[0]`` — it is a scalar, not a container.
+    """
     out = ac.sin_series_truncate(1, 2, 8)
-    assert isinstance(out, tuple) and len(out) == 2
+    assert isinstance(out, Q), type(out).__name__
     num, den = out
     assert isinstance(num, int) and isinstance(den, int) and den != 0
     # sin(0.5) ≈ 0.4794; the rational should be within a loose band.

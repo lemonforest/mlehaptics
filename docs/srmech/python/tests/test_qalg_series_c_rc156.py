@@ -121,7 +121,7 @@ def test_exp_int64_overflow_band_is_recoverable_not_abort(num, den, terms):
     # The C tier signals OVERFLOW and the wrapper completes on the bignum path,
     # so the native answer must still be byte-identical to the pure one.
     assert nat == pure, (num, den, terms, nat, pure)
-    assert nat[1] > 0
+    assert nat.denominator > 0
 
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
@@ -142,7 +142,7 @@ def test_series_native_equals_pure_byte_identical(name, fn, max_terms):
             _native.HAS_NATIVE = saved
             assert nat == pure, (name, num, den, terms, nat, pure)
             # positive denominator + lowest terms (canonical exact rational)
-            assert nat[1] > 0
+            assert nat.denominator > 0
     finally:
         _native.HAS_NATIVE = saved
 
