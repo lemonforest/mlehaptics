@@ -1522,6 +1522,54 @@ def _reconstruct_value(desc: Dict[str, Any]) -> Any:
         # the two halves cannot ship apart (ABI 17 -> 18 enforces it for a
         # stale ``.so`` paired with a current Python).
         return float(desc["v"])
+    if k == "o":
+        # rc452 (`#T1166`): a BOOLEAN, and it needs its own kind because
+        # ``True == 1`` in Python. Rebuilding a bool from an ``i`` descriptor
+        # would give a right value of the wrong TYPE, and the shipped value
+        # comparator encodes bool as ``b1``/``b0`` BEFORE its int arm precisely
+        # so that collapse is a visible divergence rather than a silent pass.
+        # The payload is a JSON bool literal, so ``desc["v"]`` is already a
+        # Python bool; ``bool()`` states the contract rather than trusting the
+        # parser.
+        #
+        # ``parallel_sector_dispatch`` returns nine of these per call, and its
+        # four proof cases are this kind's executed emitters — the kind is never
+        # declared with nothing emitting it (the rc450 q/n/s hole, not recreated).
+        return bool(desc["v"])
+    if k == "m":
+        # rc452 (`#T1166`): a MAPPING, carried as a FLAT array of alternating
+        # key/value descriptors — [k0, v0, k1, v1, ...] — in insertion order.
+        #
+        # ⚠️ THE KEYS ARE DESCRIPTORS, NOT JSON OBJECT KEYS, AND THAT IS THE
+        # WHOLE POINT. Measured on the canonical writer both projections share,
+        # a JSON object could not carry this op's ``sectors`` map in agreeing
+        # byte order: its keys are ints, and ``json.dumps(sort_keys=True)``
+        # sorts the key OBJECTS then coerces (1, 2, 10) while the C writer holds
+        # already-stringified keys and sorts them BYTEWISE ("1", "10", "2") — so
+        # the two projections DISAGREE on exactly this dict. Bool keys further
+        # lowercase and collide with 1/0, and a tuple key raises TypeError
+        # outright. Flattening the pairs makes all three structurally
+        # unreachable instead of documented-around. Same reasoning class as the
+        # ``b`` kind's hex choice above: remove the decision, don't record it.
+        #
+        # Insertion order is carried for wire determinism, not for verdict
+        # equality — the shipped comparator's dict arm sorts by ``repr(key)``,
+        # so a reordered dict would still compare equal. It is carried because
+        # a Python dict preserves it and a projection that dropped it would be
+        # returning a different object than the pure path does.
+        #
+        # Lands with the C-side ``is_map`` flag on cr_desc_close in the SAME
+        # change; ABI 22 -> 23 enforces the converse for a stale ``.so``.
+        pairs = desc["v"]
+        if len(pairs) % 2:
+            raise ValueError(
+                f"chain-run mapping descriptor has an odd payload length "
+                f"{len(pairs)} — keys and values must alternate"
+            )
+        return {
+            _reconstruct_value(pairs[i]): _reconstruct_value(pairs[i + 1])
+            for i in range(0, len(pairs), 2)
+        }
     raise ValueError(f"unknown chain-run value descriptor kind {k!r}")
 
 
