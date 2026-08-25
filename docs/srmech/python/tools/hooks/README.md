@@ -69,6 +69,26 @@ The harness was itself red-planted: inverting five expectations produced
 collection counts in a slice whose mandate is not to change the suite. Move it
 into `tests/` when the hooks are switched on.
 
+## What the hooks found on their first outing
+
+Written to catch future mistakes, they were run against the present tree and
+the class they target was already there. `ssot_agreement` blocked on a live
+shipped falsehood; chasing it, and then chasing the full sweep properly,
+closed every red on the branch:
+
+| | before | after |
+|---|---|---|
+| `tools/ripple_check.py` (WSL2, native loading) | 12 failed | **0 failed — 2081 passed, 1 skipped, 1 xfailed** |
+
+Four surfaces still said **ABI 21** after the 21→22 bump (`python/README.md`,
+the generated `_c_claims.py`, the notebook's live stamp, and `CLAUDE.md` which
+Phase 2 had already fixed), and `_chain_c_eligible` refused five ops the C
+runner actually runs — making shipped C work unreachable from the package, the
+rc447 defect in miniature. **The first version of `ssot_agreement` caught one
+of the four and reported the tree clean**, which is the same error it exists to
+prevent; it now censuses the class across twelve surfaces rather than the one
+instance.
+
 ## Two things measurement changed
 
 **1. `derived_ledger_freshness` does not use the mechanism it was specified
