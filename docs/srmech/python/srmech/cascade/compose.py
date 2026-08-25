@@ -1072,6 +1072,24 @@ _RUN_C_OPS = frozenset({
     # `test_c_chain_eligibility_rc447`, which compares the predicate against
     # the runner chain by chain, could see it, and it is what caught this.
     "mint_vector", "sha256_raw", "permute", "bind", "schur_complement",
+    # Class C — the Klein-4 four-sector fan-out (rc452, `#T1166`), the last
+    # blocked chain. ⚠️ THE MISS ABOVE RECURRED A THIRD TIME AND THIS ENTRY IS
+    # WHY THE GATE EXISTS: the C arm landed, `srmech_chain_run` ran all four
+    # proof cases BYTE_IDENTICAL, every value-parity gate went green — and this
+    # predicate still answered False, so `_run_chain_native` would have returned
+    # `_NATIVE_MISS` before the library was consulted and the C work would have
+    # been correct and unreachable. The value gates cannot see it (they drive
+    # `srmech_chain_run` through ctypes and bypass this set); only
+    # `test_c_chain_eligibility_rc447` compares the predicate against the runner
+    # chain by chain, and it is what caught this one too.
+    #
+    # ONE spelling, not several: the fan-out is a COMBINATOR and the whole
+    # dispatch is a single step, so unlike the chains above it contributes no
+    # step-granular arms. The fused `srmech_cascade_parallel_sector_dispatch`
+    # symbol exists and is deliberately NOT dispatched — the C arm composes the
+    # sector transforms itself, which is what makes the descriptor's own
+    # `n_sectors` drive the result rather than a name-matched kernel.
+    "parallel_sector_dispatch",
 })
 
 #: Fold-body ops the C runner dispatches — the non-``CR_BIN_NONE`` ``bin``

@@ -66,16 +66,18 @@ def _c_dispatch_ops():
                "was reshaped and this scan has stopped observing. Re-point it; "
                "do not delete the assertion.")
     body = src[m.end():src.index("};", m.end())]
-    # A row is { "bare", Nu, "full", dom, sub, bin }; the FIRST string is the
+    # A row is { "bare", Nu, "full", dom, sub, bin, un }; the FIRST string is
+    # the
     # spelling the matcher compares. Rows whose `dom` is CR_DOM_NONE are
     # fold-body-only and are NOT plain-dispatchable, so they are excluded —
     # otherwise this set would claim a plain-step capability the runner
     # declines.
     ops = set()
-    for bare, _ln, _full, dom, _sub, _bn in re.findall(
+    for bare, _ln, _full, dom, _sub, _bn, _un in re.findall(
             r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,'
             r'\s*"([A-Za-z0-9_.]+)"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,'
-            r'\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
+            r'\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,'
+            r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
         if dom != "CR_DOM_NONE":
             ops.add(bare)
     assert ops, "the C dispatch scan found NOTHING — anchors have drifted"
@@ -94,10 +96,11 @@ def _c_fold_body_ops():
     assert m, "CR_OP_REG's initialiser was not found"
     body = src[m.end():src.index("};", m.end())]
     ops = set()
-    for bare, _ln, _full, _dom, _sub, bn in re.findall(
+    for bare, _ln, _full, _dom, _sub, bn, _un in re.findall(
             r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,'
             r'\s*"([A-Za-z0-9_.]+)"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,'
-            r'\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
+            r'\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,'
+            r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}', body):
         if bn != "CR_BIN_NONE":
             ops.add(bare)
     assert ops, "the C fold-body scan found NOTHING — anchors have drifted"
