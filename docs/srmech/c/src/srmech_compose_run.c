@@ -4346,11 +4346,48 @@ static char *cr_bytes_hex(cr_bump_t *tmp, const char *s, uint32_t n)
     return out;
 }
 
+/* The CR_STR arm of cr_desc_scalar: `s` for a str, `b` for bytes.
+ *
+ * Split out at rc452 (`#T1166`) because adding the `o` arm took cr_desc_scalar
+ * to 65 lines and JPL Rule 4 caps it at 60. The STRING arm is the right thing to
+ * lift rather than the newest one: it is the only arm with an interior branch
+ * and a scratch allocation, so it is the largest, and it is self-contained.
+ *
+ * The `b` kind spells bytes as lowercase hex. Through the wave-C phase this
+ * returned NULL and cr_run_and_write declined a bytes FINAL outright, because
+ * spelling bytes as `s` would erase the str/bytes type on the wire — the exact
+ * collapse class the rc450 comparator pins. The kind landed in the SAME change
+ * as encode_loe_content, the chain that emits it, so it was never a
+ * declared-but-unemitted letter. */
+static srmech_json_value_t *cr_desc_str(srmech_json_builder_t *bd,
+                                        const cr_value_t *v, cr_bump_t *tmp)
+{
+    const char *keys[2]; srmech_json_value_t *vals[2];
+    assert(bd != NULL && tmp != NULL);
+    assert(v != NULL && v->kind == CR_STR);
+    keys[0] = "k"; keys[1] = "v";
+    if (v->is_bytes) {
+        char *hx = cr_bytes_hex(tmp, v->s, v->slen);
+        if (hx == NULL) { return NULL; }
+        vals[0] = srmech_json_new_string(bd, "b", 1u);
+        vals[1] = srmech_json_new_string(bd, hx, v->slen * 2u);
+        return srmech_json_new_object(bd, keys, vals, 2u);
+    }
+    vals[0] = srmech_json_new_string(bd, "s", 1u);
+    vals[1] = srmech_json_new_string(bd, v->s, v->slen);
+    return srmech_json_new_object(bd, keys, vals, 2u);
+}
+
 /* Marshal a SCALAR carrier to its value descriptor. Split from cr_desc so the
  * list arm can loop over elements WITHOUT re-entering cr_desc — that would be
  * mutual recursion, which JPL Rule 1 bans. Safe because cr_json_list builds
  * lists from cr_json_scalar only, so a list is flat by construction and a
- * nested element cannot arise. Returns NULL for CR_LIST. */
+ * nested element cannot arise. Returns NULL for CR_LIST.
+ *
+ * ⚠️ THE `o` ARM MUST PRECEDE THE PLAIN CR_INT ARM. A bool carrier IS a CR_INT
+ * with is_bool set, so the int arm would otherwise claim it and emit `i` — a
+ * right value of the wrong TYPE, which is exactly the collapse the kind exists
+ * to prevent. Its payload is a JSON bool LITERAL, never 1/0. */
 static srmech_json_value_t *cr_desc_scalar(srmech_json_builder_t *bd,
                                            const cr_value_t *v, cr_bump_t *tmp)
 {
@@ -4379,26 +4416,7 @@ static srmech_json_value_t *cr_desc_scalar(srmech_json_builder_t *bd,
         if (vals[1] == NULL) { return NULL; }
         return srmech_json_new_object(bd, keys, vals, 2u);
     }
-    if (v->kind == CR_STR) {
-        keys[0] = "k"; keys[1] = "v";
-        if (v->is_bytes) {
-            /* rc452 (`#T1166`, gh #1653): the `b` kind. Through the wave-C
-             * phase this arm returned NULL and cr_run_and_write declined a
-             * bytes FINAL outright, because spelling bytes as `s` would erase
-             * the str/bytes type on the wire — the exact collapse class the
-             * rc450 comparator pins. The kind lands in the SAME change as
-             * encode_loe_content, the chain that emits it, so it is never a
-             * declared-but-unemitted letter. */
-            char *hx = cr_bytes_hex(tmp, v->s, v->slen);
-            if (hx == NULL) { return NULL; }
-            vals[0] = srmech_json_new_string(bd, "b", 1u);
-            vals[1] = srmech_json_new_string(bd, hx, v->slen * 2u);
-            return srmech_json_new_object(bd, keys, vals, 2u);
-        }
-        vals[0] = srmech_json_new_string(bd, "s", 1u);
-        vals[1] = srmech_json_new_string(bd, v->s, v->slen);
-        return srmech_json_new_object(bd, keys, vals, 2u);
-    }
+    if (v->kind == CR_STR) { return cr_desc_str(bd, v, tmp); }
     if (v->kind == CR_RATIONAL) {
         srmech_json_value_t *n = cr_dec_node(bd, v->num, tmp);
         srmech_json_value_t *d = cr_dec_node(bd, v->den, tmp);

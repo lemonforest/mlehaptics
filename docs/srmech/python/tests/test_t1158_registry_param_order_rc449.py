@@ -106,10 +106,16 @@ _INDEX_ROW = re.compile(
 #: have. ``sub`` may be a bare ``0u`` (the CR_DOM_NONE fold-only row has no
 #: domain enum), so its group admits digits where ``dom``/``bin`` require an
 #: identifier.
+#:
+#: ⚠️ THE `un` COLUMN JOINED AT rc452 (`#T1166`) and this pattern moved with it.
+#: It is anchored on the row's CLOSING BRACE, so a new trailing column does not
+#: loosen the match — it BREAKS it, and every row silently stops being seen.
+#: That is the safe direction (the count assertions go red), but it means the
+#: regex has to be edited in the same commit as the table, not afterwards.
 _COMPOSE_ROW = re.compile(
     r'\{\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*(\d+)u\s*,\s*"([A-Za-z0-9_.]+)"\s*,'
     r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z0-9_]+)\s*,'
-    r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}')
+    r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}')
 
 #: `cr_op_is(op, opl, "gcd", 3u)` — kept to prove ``cr_dispatch`` has NONE.
 _CR_OP_IS = re.compile(r'cr_op_is\(op,\s*opl,\s*"([A-Za-z0-9_]+)",\s*(\d+)u\)')
@@ -118,7 +124,7 @@ _CR_OP_IS = re.compile(r'cr_op_is\(op,\s*opl,\s*"([A-Za-z0-9_]+)",\s*(\d+)u\)')
 #: SIZE is itself a gate (a size that outran its rows would otherwise pass), so
 #: growing the table must be an explicit edit here. It is not derived from the
 #: file, because deriving it would make the gate agree with whatever it found.
-_COMPOSE_MARKER = "} CR_OP_REG[56] = {"
+_COMPOSE_MARKER = "} CR_OP_REG[57] = {"   # 56 -> 57 at rc452: the wave-F row
 
 #: `opl == 9u && memcmp(op, "magnitude", 9u)` — the DSL dispatch arms
 _DSL_ARM = re.compile(
@@ -205,8 +211,9 @@ def test_params_zero_is_the_first_live_parameter() -> None:
         + "\n".join(f"  {n}: declared {d!r}, live {l!r}" for n, d, l in bad))
 
 
-def _parse_compose_table(marker: str) -> Dict[str, Tuple[int, str, str, str, str]]:
-    """Parse ``CR_OP_REG`` into {bare: (declared_len, full, dom, sub, bin)}.
+def _parse_compose_table(
+        marker: str) -> Dict[str, Tuple[int, str, str, str, str, str]]:
+    """Parse ``CR_OP_REG`` into {bare: (declared_len, full, dom, sub, bin, un)}.
 
     The compose table carries the A1 enum columns (``dom``/``sub``/``bin``) as
     of rc452, so it gets its own parse. ``dom == CR_DOM_NONE`` with
@@ -225,9 +232,9 @@ def _parse_compose_table(marker: str) -> Dict[str, Tuple[int, str, str, str, str
         f"no CR_OP_REG rows parsed out of {_COMPOSE_C.name} at {marker!r}. An "
         f"empty parse is not an empty table — re-point _COMPOSE_ROW at the row "
         f"shape the file actually has; do not delete the assertion.")
-    out: Dict[str, Tuple[int, str, str, str, str]] = {}
-    for bare, ln, full, dom, sub, bn in rows:
-        out[bare] = (int(ln), full, dom, sub, bn)
+    out: Dict[str, Tuple[int, str, str, str, str, str]] = {}
+    for bare, ln, full, dom, sub, bn, un in rows:
+        out[bare] = (int(ln), full, dom, sub, bn, un)
     assert len(out) == len(rows), "CR_OP_REG has a DUPLICATE bare spelling"
     return out
 
@@ -296,7 +303,7 @@ def test_dsl_leaf_index_resolves_and_matches_signatures() -> None:
 def test_compose_op_index_resolves_and_matches_signatures() -> None:
     """G4-A, Surface A — ``CR_OP_REG`` against the registry."""
     table = _parse_compose_table(_COMPOSE_MARKER)
-    _check_index({b: (ln, full) for b, (ln, full, _d, _s, _n) in table.items()},
+    _check_index({b: (ln, full) for b, (ln, full, _d, _s, _n, _u) in table.items()},
                  "CR_OP_REG", 0)
 
 
@@ -370,7 +377,7 @@ def test_every_compose_table_row_is_REACHABLE_by_some_path() -> None:
     to refuse one level up.
     """
     table = _parse_compose_table(_COMPOSE_MARKER)
-    dead = sorted(b for b, (_l, _f, dom, _s, bn) in table.items()
+    dead = sorted(b for b, (_l, _f, dom, _s, bn, _u) in table.items()
                   if dom == "CR_DOM_NONE" and bn == "CR_BIN_NONE")
     assert not dead, f"CR_OP_REG rows with neither a domain nor a fold bin: {dead}"
 
@@ -422,14 +429,14 @@ def test_exec_case_labels_are_SET_EQUAL_to_the_tables_sub_column() -> None:
         "NOT_IMPL from cr_dispatch itself")
 
     # every dom the table uses (bar NONE) is served by exactly one exec …
-    table_doms = {dom for (_l, _f, dom, _s, _b) in table.values()}
+    table_doms = {dom for (_l, _f, dom, _s, _b, _u) in table.values()}
     assert table_doms - {"CR_DOM_NONE"} == set(dom_to_exec), (
         f"table domains {sorted(table_doms - {'CR_DOM_NONE'})} != dispatched "
         f"domains {sorted(dom_to_exec)}")
 
     # … and that exec's case labels are set-equal to the domain's sub column.
     for dom, exec_fn in sorted(dom_to_exec.items()):
-        subs = {s for (_l, _f, d, s, _b) in table.values() if d == dom}
+        subs = {s for (_l, _f, d, s, _b, _u) in table.values() if d == dom}
         labels = _exec_case_labels(text, exec_fn)
         assert subs == labels, (
             f"{exec_fn} and the CR_OP_REG {dom} rows disagree.\n"
@@ -439,11 +446,56 @@ def test_exec_case_labels_are_SET_EQUAL_to_the_tables_sub_column() -> None:
 
     # the fold half rides the same table: cr_fold_body's labels == the bin
     # column's values plus its explicit CR_BIN_NONE decline arm.
-    bins = {b for (_l, _f, _d, _s, b) in table.values()}
+    bins = {b for (_l, _f, _d, _s, b, _u) in table.values()}
     fold_labels = _exec_case_labels(text, "cr_fold_body")
     assert fold_labels == bins | {"CR_BIN_NONE"}, (
         f"cr_fold_body case labels {sorted(fold_labels)} != table bin values "
         f"{sorted(bins | {'CR_BIN_NONE'})}")
+
+
+def test_the_un_column_is_a_real_enum_and_only_chiral_flip_carries_one() -> None:
+    """rc452 (`#T1166`) — the `un` column, ASSERTED rather than merely parsed.
+
+    ⚠️ A COLUMN THIS FILE READS AND NEVER CHECKS IS WORSE THAN ONE IT DOES NOT
+    READ, because the parse makes it look covered. When `un` was added, widening
+    `_COMPOSE_ROW` was mandatory (the regex anchors on the row's closing brace,
+    so a new trailing column breaks the match outright) — and having widened it,
+    this file would otherwise carry the column in every tuple and assert nothing
+    about it.
+
+    Two things are pinned. First, every value is a real `cr_un_id_t` enumerator
+    declared in the C source — a typo'd `CR_UN_CHIRAL_FILP` is a compile error
+    in C, but a row naming a DIFFERENT valid enumerator is not, and that is the
+    reachable mistake. Second, the population: `chiral_flip` is the ONLY row
+    with a non-NONE `un`, because it is the only sequence->sequence atom in the
+    table and the `un` column exists to say which rows are legal `@op` BODIES.
+
+    Widening that population is a real decision with a real consequence — the
+    collapse-lattice partition in cr_op_psd is currently exercised only at
+    n_distinct == 1, precisely BECAUSE chiral_flip is symmetric under both
+    Klein-4 axes. The first body that is not would reach arms no proof case
+    reaches today, so it must arrive with cases that do.
+    """
+    text = _COMPOSE_C.read_text(encoding="utf-8")
+    declared = set(re.findall(r"\bCR_UN_[A-Z0-9_]+\b", text.split(
+        "} cr_un_id_t;")[0].split("typedef enum {")[-1]))
+    assert declared, (
+        "no cr_un_id_t enumerators parsed — re-point this at the enum; an "
+        "empty parse is not an empty enum")
+
+    table = _parse_compose_table(_COMPOSE_MARKER)
+    used = {un for (_l, _f, _d, _s, _b, un) in table.values()}
+    assert used <= declared, (
+        f"CR_OP_REG rows name `un` values that are not cr_un_id_t enumerators: "
+        f"{sorted(used - declared)}")
+
+    bodies = sorted(b for b, (_l, _f, _d, _s, _b, un) in table.items()
+                    if un != "CR_UN_NONE")
+    assert bodies == ["chiral_flip"], (
+        f"the set of rows exposing a unary `@op` body changed: {bodies}. "
+        f"Adding one is legal but not free — see this test's docstring on why "
+        f"a body that is NOT symmetric under both Klein-4 axes must arrive "
+        f"with proof cases that reach n_distinct > 1.")
 
 
 def test_the_order_gate_would_have_fired_on_the_rc448_registry() -> None:
