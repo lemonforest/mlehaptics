@@ -659,8 +659,8 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **22** (`SRMECH_ABI_VERSION = 22` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 22` in
+C ABI version is currently **23** (`SRMECH_ABI_VERSION = 23` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 23` in
 *(this line said 12 until rc420, 13 until rc425, 14 until rc438, 15 until
 rc439, 16 until rc442, 17 until rc449 and — the point — **17 through the whole of
 rc447 AND rc448**, so it was two bumps behind by the time rc449 read it: a SIXTH

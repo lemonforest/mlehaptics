@@ -497,8 +497,43 @@ extern "C" {
  *      computing.
  *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
+ *
+ *   v23 (v0.9.0rc452, `#T1166`) — THE MAPPING AND BOOL WIRE KINDS. v18's and
+ *      v20's shape, and the third time this same wire has gained a kind
+ *      letter: srmech_chain_run's output vocabulary gains `m` (a mapping) and
+ *      `o` (a boolean), landed with parallel_sector_dispatch — the last
+ *      executable cascade chain the C projection could not run, and the only
+ *      one whose value is a dict.
+ *
+ *      Load-bearing in v18's direction, and for BOTH kinds at once. An rc452
+ *      `.so` against an older Python reader would emit a `k` neither `m` nor
+ *      `o` branch exists for, and _reconstruct_value RAISES ValueError on an
+ *      unknown kind — mid-run, on every proof case of that chain. The bump
+ *      converts that into a clean load-refusal.
+ *
+ *      ⚠️ THE `o` KIND IS NOT COSMETIC, and the reason is Python's, not C's.
+ *      `True == 1` in Python, so spelling a bool as `i` would deliver a right
+ *      VALUE of the wrong TYPE — the silent-wrong-value class v21 bumped for.
+ *      The op returns nine bools per dispatch. The `m` kind is likewise not a
+ *      JSON object: its payload is a FLAT array of alternating key/value
+ *      descriptors, because this op's `sectors` map is INT-KEYED and the two
+ *      projections' canonical writers order int keys DIFFERENTLY (json.dumps
+ *      sorts key objects then coerces; srmech_json_write_ws sorts the already
+ *      stringified keys bytewise) — so an object payload would be byte
+ *      divergent on exactly this dict.
+ *
+ *      v23 ALSO COVERS A WRITER-RESERVE CONTRACT MOVE, of the v10/v12 shape
+ *      (no signature changed; an existing parameter's meaning did):
+ *      srmech_chain_run_arena_bytes now returns a LARGER envelope, because the
+ *      value-descriptor writer reserve was derived from the INPUT length while
+ *      it bounds the OUTPUT tree. A caller that cached the old figure and
+ *      passes it to a v23 library gets a correct SRMECH_ERR_OVERFLOW rather
+ *      than a wrong value, but it is the same wire-sizing contract, so it
+ *      rides this bump rather than going unrecorded.
+ *
+ *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  */
-#define SRMECH_ABI_VERSION 22
+#define SRMECH_ABI_VERSION 23
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
