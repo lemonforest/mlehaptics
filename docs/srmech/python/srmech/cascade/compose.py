@@ -1060,6 +1060,18 @@ _RUN_C_OPS = frozenset({
     # REAL registered homes (srmech.amsc.format / srmech.amsc.descriptor).
     "render_template", "utf8_encode", "sha256_bytes",
     "str_concat", "byte_slice", "int_parse_le",
+    # Class A / M / L — the encode_loe_content and schur_complement chains'
+    # steps (rc452 Phase 2, gh #1653 K1 + K3). ⚠️ THESE ARMS SHIPPED IN C AND
+    # THIS SET WAS NOT UPDATED WITH THEM, which is the rc447 defect recurring
+    # in miniature: `srmech_chain_run` runs both chains, `_chain_c_eligible`
+    # answered False for both, and `_run_chain_native` therefore returned
+    # `_NATIVE_MISS` BEFORE the library was consulted — so the C work was
+    # real, correct, and unreachable from the package. Every value-parity gate
+    # stayed green throughout, because those drive `srmech_chain_run` through
+    # ctypes and bypass this predicate; only
+    # `test_c_chain_eligibility_rc447`, which compares the predicate against
+    # the runner chain by chain, could see it, and it is what caught this.
+    "mint_vector", "sha256_raw", "permute", "bind", "schur_complement",
 })
 
 #: Fold-body ops the C runner dispatches — the non-``CR_BIN_NONE`` ``bin``
