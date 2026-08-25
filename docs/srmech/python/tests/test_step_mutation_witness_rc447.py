@@ -262,6 +262,84 @@ def _schur_boundary_is_everything(ch):
     ch["steps"][0]["args"]["boundary_idx"] = [0, 1, 2, 3]
 
 
+def _pin_psd_n_sectors(ch):
+    """parallel_sector_dispatch — pin `n_sectors` from '@input.n_sectors' to 1.
+
+    The descriptor's args are ALL references, so there is no interior literal to
+    perturb; replacing a reference with a literal is the same shape the three
+    rc452 Phase-2 exemptions were answered with. It is the right perturbation
+    here for a specific reason: ``srmech_cascade_parallel_sector_dispatch``
+    EXISTS as a compiled symbol (the descriptor's own `[cascade.native]` block
+    names it), and it reads n_sectors from the ctx wire — where the value is
+    still 4. A dispatcher keyed on this chain's name therefore returns the
+    4-sector baseline and is caught.
+    """
+    ch["steps"][0]["args"]["n_sectors"] = 1
+
+
+#: The F233 framework block, TRANSCRIBED. It is constant for every input, so the
+#: mutation below leaves it untouched and it has to appear verbatim in the
+#: expected value. Kept as its own constant so the expected dict stays readable,
+#: and stated here rather than imported: this is a CONTRACT copy, and if
+#: parallel.py's prose ever moves, this pin going red is the point.
+_PSD_FRAMEWORK = {
+    "note": "framework-reading, not derived",
+    "thread_count_ladder_is_chirality_access_ladder": "1 → 2 → 4 → triality",
+    "rung_1": "chirality-LOCKED (biology; one chirality → one thread; F133)",
+    "rung_2": "one axis un-locked = γ₅ (F232 chiral_dual 2-rung)",
+    "rung_4": "Klein-4, BOTH axes un-locked (this dispatch; F233)",
+    "beyond_4": "the order-3 triality (F220 — not reachable by composing "
+                "order-2 sectors)",
+    "cap_at_4": "Klein-4 = Z₂ × Z₂ has no order-4+ element; the "
+                "involution group closes at |G| = 4",
+    "z4_vs_klein4": "the Z₄ dispatch slots are cyclic-order-4 TIMING, "
+                    "DISTINCT from the order-2×order-2 Klein-4 sector "
+                    "IDENTITY",
+    "c_orchestration_parity": "tracked by issue #771 (kept open): a native "
+                              "4-sector dispatch so srmech does not need "
+                              "Python to run the four-sector cascade — "
+                              "Python is the ergonomic half, C (#771) the "
+                              "parity half",
+    "cites": "F233/R-RBS-LM-FINDING_233 (the thread-count ladder); F219 "
+             "(the chirality-access ladder); F220 (the order-3 cap)",
+}
+
+#: The value step-by-step execution of the MUTATED parallel_sector_dispatch
+#: descriptor predicts, DERIVED BY HAND from the ops (verified leaf by leaf
+#: before landing; see the MUTATIONS row for the derivation).
+_PSD_MUTANT = {
+    "sectors": {0: {"label": (1, 1), "result": [3.0, 2.0, 1.0]}},
+    "combined": [3.0, 2.0, 1.0],
+    "z4_dispatch_slots": [0],
+    "independence": {
+        "each_sector_reconstructs_from_own_input": True,
+        "cross_sector_reads": 0,
+        "parallel_equals_serial": True,
+        "sector2_is_chiral_dual": True,
+        "runtime_verified": False,
+        "n_sectors": 1,
+        "max_workers": 4,
+        "gamma5_net_chirality": 1,
+        "omega7_net_chirality": 1,
+    },
+    "collapse_lattice": {
+        "n_distinct": 1,
+        "classes": [[0]],
+        "label": "bi_symmetric_collapse_to_1",
+        "useful": False,
+    },
+    "cap": {
+        "sector_cap": 4,
+        "n_sectors": 1,
+        "klein4_has_no_order_4_plus_element": True,
+        "beyond_4_needs": "srmech.physics.qm.triality.lean_isa_seventh_primitive",
+        "beyond_4_is_order_3_triality": True,
+        "triality_not_implemented_here": True,
+    },
+    "framework_thread_ladder_reading": _PSD_FRAMEWORK,
+}
+
+
 #: (chain, mutate, inputs-or-None, EXPECTED mutant value, why)
 #:
 #: ⚠️ THE EXPECTED VALUE IS THE POINT, not merely "it differs". "Something
@@ -429,6 +507,32 @@ MUTATIONS = [
      "last-bit-distinct 1/3 pair, so `moved != base` is not close-run. It also "
      "separates the two branches of the arm — a runner that always took the "
      "solve path would divide by an empty interior block rather than answer"),
+    # ── rc452 (`#T1166`): the LAST chain to unblock, and the only one whose
+    # value is a MAPPING.
+    ("parallel_sector_dispatch", _pin_psd_n_sectors, None, _PSD_MUTANT,
+     "pin `n_sectors` from '@input.n_sectors' to the literal 1 while the ctx "
+     "still says 4. DERIVED BY HAND: body=chiral_flip is the reversal, and it "
+     "is symmetric under BOTH Klein-4 axes, so every sector dual "
+     "inv_T_s(reverse(T_s(x))) collapses to reverse(x) = [3.0, 2.0, 1.0] "
+     "exactly. The mutant dispatches ONE sector, so `sectors` carries the "
+     "single key 0 with label (+1, +1); `combined` is bundle over one sector, "
+     "i.e. sum(col) for a one-element column = [3.0, 2.0, 1.0]; "
+     "`z4_dispatch_slots` is Z4_DISPATCH_SLOTS[:1] = [0]; the net chiralities "
+     "are the products over the ONE dispatched label, both +1; `classes` is "
+     "[[0]] and `useful` is False because n_distinct == n_sectors requires "
+     "n_sectors == 4. The baseline dispatches four sectors and bundles them, "
+     "giving combined [12.0, 8.0, 4.0], z4 [0, 1, 2, 3] and classes "
+     "[[0, 1, 2, 3]] — so six leaves move and none of them is close-run. "
+     "⚠️ THE COARSE SYMBOL IS REAL HERE, not hypothetical: "
+     "srmech_cascade_parallel_sector_dispatch is a shipped export named by "
+     "this descriptor's own [cascade.native] block, and it takes n_sectors "
+     "from the ctx wire, which the mutation does not touch. A dispatcher keyed "
+     "on the chain's name returns the 4-sector baseline. "
+     "⚠️ WHAT THIS WITNESS DOES NOT REACH: the framework block is CONSTANT and "
+     "must appear unchanged, which pins it as constant but proves nothing about "
+     "the collapse-lattice partition — every proof case of this chain has "
+     "n_distinct == 1, so the ng >= 2 arms are unexercised here and were "
+     "verified separately against _distinct_classes"),
 ]
 
 
@@ -566,8 +670,14 @@ BOGUS_OP = "__no_such_op_rc452_step_drive__"
 #: probed over its own proof cases with both arms firing on each.
 #: 118 -> 119 / 18 -> 19 when schur_complement closed (rc452 Phase 2,
 #: `#T1166`, the K3 slice): a ONE-step chain, so it adds exactly one step row.
-EXPECTED_STEPS = 119
-EXPECTED_RUNNING_CHAINS = 19
+#: 119 -> 120 / 19 -> 20 when parallel_sector_dispatch closed (rc452,
+#: `#T1166`): also a ONE-step chain — the Klein-4 fan-out is a COMBINATOR, a
+#: special form rather than a first-order composition, so the whole dispatch is
+#: one step however many sectors it runs. 20 running chains is now the WHOLE
+#: executable catalog; CEIL_C_REJECTED_CHAINS is 0 and this figure can no longer
+#: rise by a chain unblocking, only by a new descriptor arriving.
+EXPECTED_STEPS = 120
+EXPECTED_RUNNING_CHAINS = 20
 
 
 def _all_running_rows():
@@ -824,6 +934,24 @@ VALUE_PROBES = {
     # could.
     "schur_complement": ("args.boundary_idx -> [0]",
                          lambda s: s["args"].__setitem__("boundary_idx", [0])),
+    # ── rc452 (`#T1166`): the Klein-4 fan-out ────────────────────────────────
+    # `n_sectors -> 1` is legal for every shipped case (the descriptor's own
+    # boundary_cases put the floor at 1) and it moves SIX leaves at once —
+    # sectors, combined, z4_dispatch_slots, independence.n_sectors,
+    # collapse_lattice.classes and cap.n_sectors — so the mutant differs in
+    # SHAPE, not only in entries.
+    #
+    # ⚠️ IT IS AN IDENTITY ON ONE OF THE FOUR CASES AND THAT IS FINE HERE, but
+    # only because of how this gate is quantified: the `sector0` case already
+    # passes n_sectors = 1, so the probe cannot move it. The step-drive loop
+    # requires the reaction on SOME case rather than on every one (its own
+    # docstring says so), and the other three cases dispatch 4, 2 and 4 sectors
+    # respectively, so three of four move. Stated rather than left for a reader
+    # to rediscover — a probe that is vacuous on a case it is silently not
+    # required to move is exactly the shape that reads as measured and is not.
+    "parallel_sector_dispatch": ("args.n_sectors -> 1",
+                                 lambda s: s["args"].__setitem__(
+                                     "n_sectors", 1)),
 }
 
 #: rc452 (gh #1653) — PER-STEP probe OVERRIDES, keyed (chain name, step path).
