@@ -23,8 +23,11 @@ passed) — this hook's contribution was not detection-where-there-was-none, it
 was moving the detection to the moment of committing or stopping rather than a
 27-minute sweep the agent may run afterwards, or not at all.
 
-**Re-measured after the repair: that sentence reads ABI 22, the macro reads 22,
-and this hook exits 0 on the real tree.** ``check_hooks.py`` tests for the lag
+**Re-measured after the repair: the sentence and the macro AGREED — both read
+22 at that moment, and the pair has since moved to 23 together — and this hook
+exits 0 on the real tree.** What is pinned here is the agreement, not the
+integer; quoting a number that the next bump falsifies would make this
+paragraph the very lag the hook exists to catch. ``check_hooks.py`` tests for the lag
 rather than assuming it, so its real-tree case is now a self-announcing SKIP
 while both PLANTED lag fixtures still block. This paragraph is kept in the past
 tense on purpose — a hook whose own docstring asserts a defect that has been

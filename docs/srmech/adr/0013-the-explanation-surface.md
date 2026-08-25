@@ -645,9 +645,10 @@ Three measured facts make this a structural claim rather than a preference:
 3. **It is population-floored.** The coverage gates (§4) hold it at 100%, which is a contract, not a
    docs aspiration.
 
-**A vocabulary correction this ADR makes explicitly.** `c/include/srmech.h:5881` calls `example` /
-`smoke_test_hint` the **"documentation-hint fields"**, and `:5701` describes `explanation` as a
-**"hint"**. That wording is the calculator framing of §1 written into the wire contract — a *hint* is
+**A vocabulary correction this ADR makes explicitly.** The header calls `example` /
+`smoke_test_hint` the **"documentation-hint fields"** at `c/include/srmech.h:5937`, and it
+describes `explanation` as a **"hint"** at `c/include/srmech.h:5970`.
+That wording is the calculator framing of §1 written into the wire contract — a *hint* is
 something a caller may ignore, and a *documentation* field is something that lives elsewhere by right.
 This ADR states the opposite: **the field is self-information, and the wire contract carries it because
 it is part of what srmech is.** The header comment is not corrected by this ADR (that is a source
