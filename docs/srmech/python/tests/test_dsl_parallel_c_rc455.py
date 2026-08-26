@@ -204,9 +204,27 @@ def test_sector_order_is_part_of_the_value(combine):
     assert sectors == [[1e34, 2e17, 2e17], [-1e34, -2e17, -2e17],
                        [2e17, 2e17, 1e34]], sectors
 
+    # ⚠️ NAIVE ACCUMULATION, NOT builtin ``sum`` — and this is the whole point.
+    # CPython 3.12 gave ``sum()`` NEUMAIER COMPENSATED summation for floats, which
+    # is ORDER-INSENSITIVE by construction. Using it here modelled the C loop with
+    # a DIFFERENT ALGORITHM than the one under test, so on 3.12+ both folds agreed
+    # and this test correctly declared itself vacuous — it was written and passed
+    # on 3.10, and CI's 3.12/3.13/3.14 cells caught it on the first run.
+    # MEASURED, same seed, same sectors:
+    #   3.10.12  sum() fwd 2e+17 rev 0.0     naive fwd 2e+17 rev 0.0
+    #   3.14.4   sum() fwd 2e+17 rev 2e+17   naive fwd 2e+17 rev 0.0
+    # Re-choosing the seed CANNOT fix it: compensation recovers the lost low-order
+    # term for any seed inside its range, so the discriminator dissolves whatever
+    # values are chosen. The ORACLE was wrong, not the seed. Keep this loop naive.
+    def _naive_fold(values):
+        acc = 0.0
+        for v in values:
+            acc += v
+        return acc
+
     n = len(sectors[0])
-    forward = [sum(s[i] for s in sectors) for i in range(n)]
-    reversed_ = [sum(s[i] for s in reversed(sectors)) for i in range(n)]
+    forward = [_naive_fold([s[i] for s in sectors]) for i in range(n)]
+    reversed_ = [_naive_fold([s[i] for s in reversed(sectors)]) for i in range(n)]
     assert forward != reversed_, (
         f"the seed {_ORDER_SEED} no longer distinguishes summation order "
         f"(both folds give {forward}) — this test has gone vacuous and the "

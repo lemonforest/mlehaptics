@@ -634,7 +634,7 @@ a docs backlog, not a nice-to-have, and not a candidate for a `docs/` directory.
 
 Three measured facts make this a structural claim rather than a preference:
 
-1. **It crosses the C wire.** `srmech_tool_entry_t` carries `explanation` (`c/include/srmech.h:5962`)
+1. **It crosses the C wire.** `srmech_tool_entry_t` carries `explanation` (`c/include/srmech.h:6036`)
    and `example_json` (`:5649`). The gcd WHEN clause quoted in §1.1 is present in
    `c/src/srmech_tool_registry.c` as shipped text. For a bare-C / MCU host this prose IS the
    introspect layer — ADR-0012 §7.1 makes exactly that point about the generated registry.
@@ -646,8 +646,8 @@ Three measured facts make this a structural claim rather than a preference:
    docs aspiration.
 
 **A vocabulary correction this ADR makes explicitly.** The header calls `example` /
-`smoke_test_hint` the **"documentation-hint fields"** at `c/include/srmech.h:5937`, and it
-describes `explanation` as a **"hint"** at `c/include/srmech.h:5970`.
+`smoke_test_hint` the **"documentation-hint fields"** at `c/include/srmech.h:6011`, and it
+describes `explanation` as a **"hint"** at `c/include/srmech.h:6044`.
 That wording is the calculator framing of §1 written into the wire contract — a *hint* is
 something a caller may ignore, and a *documentation* field is something that lives elsewhere by right.
 This ADR states the opposite: **the field is self-information, and the wire contract carries it because
@@ -1278,7 +1278,7 @@ rewrite would target, and because §3 establishes that this payload is *inside t
 `srmech/mcp/_tools.py:395-402` (the `description` assembly that omits the prose) ·
 `srmech/cli/*.py` (the 57 hand-authored help strings; `cli/mcp.py:7` for the "nothing is
 hand-authored" docstring) ·
-`c/include/srmech.h:5962-5907` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
+`c/include/srmech.h:6036-5981` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
 `:5668`; `explanation` at `:5701`; the byte-identity/hash contract at `:5662-5672`) ·
 `c/tools/gen_tool_registry.py:265,:276,:277,:278` (where `summary` / `example` / `smoke_test_hint` /
 `explanation` are baked into C) ·
