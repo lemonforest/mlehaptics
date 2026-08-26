@@ -19,6 +19,135 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc455] - `#T1169`: the last step form C could not run, the cliff underneath it, and the hooks that were written but never switched on
+
+Three things land together because measuring any one of them exposed the next.
+
+**ABI 23 → 24.** Not additive — see "the bump that had a precedent" below.
+`GENOME_FORMAT_VERSION` stays 20; no on-disk format moves.
+
+### Surface B reaches 6 of 6, and the reason it was 5 had already been refuted in-house
+
+srmech has **two** TOML chain grammars, and conflating them is the mistake gh #1653 was mostly
+about. **Surface A** (`[[cascade.chain.steps]]`, ADR-0008) is the grammar our 21 shipped
+descriptors are written in; C has executed all 3 of its forms since rc452. **Surface B**
+(`[[stage]]`, `srmech_dsl_chain_run`) is the grammar **a user writes their own chain in** — and C
+executed 5 of its 6. The missing one was `parallel_body`, the Klein-4 fan-out, declined at
+`srmech_dsl_chain_run.c:911` with the comment `/* host-thread fan-out */`.
+
+**That justification was already dead, one file over.** `srmech_compose_run.c` has shipped a
+complete SERIAL, thread-free Klein-4 kernel since rc452 — `cr_psd_transform` / `_dual` /
+`_combine` / `_finish` — whose own header says *"THE SECTORS RUN SERIALLY HERE AND THAT IS NOT AN
+APPROXIMATION."* Measured on the Python side: 72 configs × 30 repeats, **0 nondeterministic**;
+results are collected **by sector index**, so completion order cannot reach the value. Concurrency
+was never load-bearing for correctness. The gap was wiring, and the ledger row justifying the
+decline had outlived its own reason by six releases.
+
+So it is implemented serially, with a **leaf-only body** — measured against the audit's own
+detector, a body calling only `dsl_leaf_dispatch` keeps JPL Rule 1's recursion population at 9 with
+`novel=[]`, while one re-entering `dsl_run_stage_array` mints a novel cycle and fails outright.
+320 differential configs, 300 native, **0 mismatches**.
+
+Two things the plan had wrong, both caught by measurement rather than review:
+
+* **The seed is the carrier's own zero, not `0.0`.** Python's `bundle` is builtin `sum`, seed int
+  `0`. A `0.0` seed silently floats every integer result — a wrong VALUE of the right shape. The
+  scope document contradicted *itself* on this point; the tests now pin int-preservation.
+* **The illegal-body negative control is 5 ops, not 4.** `best_rational_signed` also builds fine as
+  a `parallel_body` and raises only at run. All 5 now decline in C and raise in pure — agreement,
+  never a computed answer.
+
+### The cliff underneath it — pre-existing, larger, and invisible to every gate
+
+While sizing the arena the slice found something older and worse. **`srmech_dsl_chain_run` silently
+stopped running in C above 165 int / 198 float elements** — on `.then('chiral_flip')`, a form shipped
+since rc181. It returned `SRMECH_ERR_OVERFLOW`, Python fell back to pure, and the answer stayed
+correct, so **nothing ever failed**. The C projection simply stopped being the thing under test.
+
+Why no gate saw it: **the entire C-parity proof corpus runs at ≤18 elements** (largest literal
+sequence: 18). The cliff sat a full order of magnitude above every test that could have met it.
+
+The cause was a writer reserve derived from the **input** length while it bounds the **output**
+tree. It is now carved forward from the value actually produced. Gated by a bisection across
+**16 / 256 / 4096 / 65536** elements × `n_sectors` ∈ {1,4} × `combine` ∈ {concat, none}, asserting
+the marginal bytes-per-extra-output-element stays flat — measured ~371 across three orders of
+magnitude. A fixed pad makes that figure decay as 1/n and an input-derived reserve makes it 0, so
+the gate cannot be satisfied by the two wrong shapes.
+
+### The bump that had a precedent, and the reasoning that missed it
+
+The build's first conclusion was "no new exported symbol → ABI stays 23." That is the **additive**
+rule, and this change is not additive. `srmech.h:525` already records v23 covering
+*"A WRITER-RESERVE CONTRACT MOVE, of the v10/v12 shape (no signature changed; an existing
+parameter's meaning did)"* — for `srmech_chain_run_arena_bytes`, **the sibling function**. Same
+shape, precedent one screen above the constant.
+
+So **v24 is the second instance of a recorded shape, and a recorded shape cannot have a silent
+second instance.** The direction is opposite to v23's — a *smaller* envelope, by exactly
+`32768 + 16*(chain_len + input_len)` — so both mixed-version pairings are stated: an old cached
+figure into v24 over-provisions harmlessly; a new smaller figure into v23 meets the old tail-slice
+guard and gets a correct `SRMECH_ERR_OVERFLOW`.
+
+The ABI pin sweep found the rc452 lesson recurring **exactly as `test_bus.py`'s own comment
+predicts it will**: a mechanical `ABI_VERSION == 23` pass caught 23 sites in 18 files and missed the
+same three shapes it missed last time — two `want_abi = 23` locals and one `status["expected_abi"]
+== 23` subscript. Also found: `c/README.md`'s ABI narrative was **three** bumps stale and
+`docs/srmech/CLAUDE.md`'s was **two**, while both files' gated *integers* were correct. The gate
+asserts one decidable thing per file and deliberately leaves the rationale unconstrained — which is
+the right scope for it, and is also exactly the residual it leaves.
+
+### The hooks were already written. They had never been switched on.
+
+⚠️ **A correction worth stating plainly, because it changed the shape of this work.** This session
+reported that the repo had "exactly one hook." It has **eight**, plus a 239-line shared library and
+a 678-line test harness, tracked at `docs/srmech/python/tools/hooks/` since rc452 — deliberately
+inactive, because the README says activating them mid-session changes the behaviour of agents still
+running and that is the user's call. The error was looking in `.claude/` and stopping.
+
+**The new JPL gate imports `tests/test_jpl_audit.py`'s own functions.** Not a reimplementation and
+not a pytest shell-out: one copy of the rule logic, so it cannot drift from the SSoT, at ~5s rather
+than the measured ~30s native / ~53s WSL a pytest invocation costs. It is a **Claude Code hook
+only** — a git pre-commit hook was proven, in an isolated repo, to be a **silent no-op from WSL2**
+under `core.hooksPath`, and a gate that silently does nothing is worse than no gate.
+
+**Two of the repairs are the same defect class this project keeps meeting: a gate that cannot see
+its own subject.**
+
+* `prose_currency_gate` diffed the **working tree** against HEAD — so it went silent the moment a
+  prose edit was *committed*, blind to precisely the state that ships.
+* The tracked-set narrowing **degraded silently to the naive glob** whenever git could not answer,
+  which is the flake it was built to close.
+
+And a census that falsified itself three ways: two shipped docstrings said 38/23, the live selftest
+printed 40/25, the README predicted 39/24. The prose now derives from the measurement instead of
+restating a literal.
+
+`check_hooks.py`: **121 passed, 0 failed, 1 skipped** (was 58/0/1). The one skip is named, not
+hidden.
+
+### What is NOT here, and why
+
+**Retry-on-transient for workflow subagents is not in this release.** It was scoped and then
+declined on measurement: there is no Workflow runtime in the repo, no `@anthropic-ai` in
+`node_modules`, and zero null-handling in either workflow script. Whether "transient" and "quota
+exhausted" are even distinguishable from inside a script is not answerable from what the tree
+contains. Building it now would be guessing at a contract, so it stays filed.
+
+### Named residuals
+
+* **The sector-order property shipped ungated and the verifier proved it** — its mutation
+  (`for (s = ns; s-- > 0u;)`) survived all 327 checks, because every carrier row in the matrix was
+  within a few orders of magnitude and float addition was therefore associative to the last bit on
+  all of them. Fixed by adding a magnitude-spread row and a named order test; the same mutation now
+  scores **4 red**. The gate existed, the *corpus* was blind.
+* `notes/_1653_step_forms_rc444.ndjson` was deliberately **not** regenerated. Re-running an rc444
+  capture against a current library rewrites 40 of its 55 rows — the library has gained capability
+  across many unrelated forms since. Any future "refresh the notes probes" hygiene pass would
+  silently re-date a body of dated evidence.
+* The status-5 / status-4 conflation at `srmech_dsl_chain_run.c:1436` is **recorded, not repaired** —
+  pre-existing, byte-identical at rc454, and repairing it changes what an exported function returns
+  for a class of input, which is its own wire-contract decision and its own rc.
+
 ## [0.9.0rc454] - `#T1168`: the shipped prose that outlived its own measurement, and the cardinals that can no longer drift
 
 **rc453 moved the changelog slice marker so that rc447–rc453 reached the project page for the first
