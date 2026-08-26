@@ -467,7 +467,75 @@ DRAINED_EXACT = {
 #: line's CLASS is unchanged and it is left alone rather than re-labelled,
 #: because re-labelling a correct status-4 return to keep a number flat is the
 #: move this file's own message forbids.
-CEIL_CONFLATING_RETURN_LINES = 747
+#:
+#: ─────────────────────────────────────────────────────────────────────
+#: rc455 — 747 -> 754. An EXPLICIT raise with the adjudication this ceiling's
+#: own message demands: every new line named, with its NULL provenance.
+#:
+#: All ten additions are in ``srmech_dsl_chain_run.c`` (33 lines there, up from
+#: 26), and every one of them tests a pointer that came from ``dcr_carve`` —
+#: directly, or through ``dv_new``, whose only failure is its own ``dcr_carve``.
+#: ``dcr_carve`` (srmech_dsl_chain_run.c:89) returns NULL for EXACTLY ONE
+#: condition: the requested bytes do not fit the remaining caller arena. So the
+#: retryable / grow-it-and-retry meaning srmech.h states for status 4 is FORCED
+#: on all ten, by the same adjudication every carve site above carries.
+#:
+#:   dsl_psd_transform    r == NULL       <- dv_new     (the T_s output carrier)
+#:   dsl_psd_transform    items == NULL   <- dcr_carve  (its item-pointer array)
+#:   dsl_psd_bundle       r == NULL       <- dv_new
+#:   dsl_psd_bundle       items == NULL   <- dcr_carve
+#:   dsl_psd_concat       r == NULL       <- dv_new
+#:   dsl_psd_concat       items == NULL   <- dcr_carve
+#:   dsl_psd_sector_list  r == NULL       <- dv_new
+#:   dsl_psd_sector_list  items == NULL   <- dcr_carve
+#:   dsl_run_and_write    sa/ba == NULL   <- dcr_carve  (emit scratch, builder)
+#:   dsl_run_and_write    wa == NULL      <- dcr_carve  (write scratch)
+#:
+#: The three status-4 lines rc455 DELETED were the old writer-reserve guards
+#: (``b->end - b->cur <= wsz + 4096``, ``wa >= tail_end``, and the write-scratch
+#: fit test), so the raw delta is +10 - 3 = +7. Three ``dsl_psd_*`` sites use the
+#: ``return (cond) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;`` ternary and are NOT
+#: counted by ``_RETURN_OVERFLOW`` — noted so a future re-count does not read
+#: the arithmetic as wrong.
+#:
+#: ⚠️ AND THE LAST FOUR ARE THE CURE FOR THE SITE THE rc452 NOTE ABOVE HAD TO
+#: RECORD AS NOT GROW-FIXABLE. That note says the value-descriptor writer
+#: answers 4 while its reserve is derived from the INPUT length, so growing the
+#: caller arena does not clear it — a status-4 return that lies about being
+#: retryable. rc455 removes that property FROM THE WRITER: the emit scratch,
+#: the json builder and the write scratch are now sized from the OUTPUT VALUE
+#: and carved FORWARD out of whatever the run left, so more ``ws_len`` really
+#: is more of all three. MEASURED on a 4-sector concat fan-out over 2000 int
+#: elements, arena swept 1 -> 32 MiB: OVERFLOW through 8 MiB, OK from 9 MiB up,
+#: exactly ONE transition and no reversion. The sibling site in
+#: ``srmech_compose_run.c`` is untouched and its rc452 note still stands.
+#:
+#: ⚠️ THAT CLAIM IS TRUE OF THE WRITER AND NOT OF THE RUNNER, and the earlier
+#: wording ("more ws_len really is more of all three", unscoped, on the
+#: strength of a MiB-granularity sweep) overstated it. RE-MEASURED at 1 KiB
+#: granularity, the same runner is NON-MONOTONE — three transitions, not one:
+#:
+#:   parallel concat ns=4, n=50   status 4 → 5 at ws 186000 → 4 at 189000 → OK at 261000
+#:   .then chiral_flip,   n=50    status 4 → 5 at ws 180000 → 4 at 183000 → OK at 197000
+#:   fold cyclic_gcd,     n=50    status 4 → 5 at ws 183000 → 4 at 186000 → OK at 189000
+#:
+#: A purely SIZE-driven shortage answers SRMECH_ERR_NOT_IMPL (5) inside a
+#: narrow band, so a caller's grow-loop keyed on 4 gives up. ROOT CAUSE:
+#: ``srmech_dsl_chain_run.c:1436-1437`` maps ``dv_from_desc(...) == NULL`` onto
+#: status 5 under the comment "unsupported seed -> pure", and ``dv_from_desc``
+#: also returns NULL when its arena CARVE fails. Two conditions, one status.
+#:
+#: ⚠️ PRE-EXISTING, AND STRUCTURALLY INVISIBLE TO THIS RATCHET. Those two lines
+#: are byte-identical at rc454 (where they sit at :999) and the same bands
+#: measure against the rc454 library, so rc455 neither introduced nor widened
+#: it. It is the exact MIRROR of the defect this file polices — this ratchet
+#: counts sites that return 4 where the condition is not retryable; that one
+#: returns 5 where it IS — and ``_RETURN_OVERFLOW`` cannot see it, because it
+#: greps for ``return SRMECH_ERR_OVERFLOW;``. Recorded here rather than
+#: repaired: splitting the two NULL meanings changes what an existing exported
+#: function RETURNS for a class of input, which is its own wire-contract move
+#: and belongs to its own slice with its own ABI adjudication.
+CEIL_CONFLATING_RETURN_LINES = 754
 
 _RETURN_OVERFLOW = re.compile(r"return\s+SRMECH_ERR_OVERFLOW\s*;")
 

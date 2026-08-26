@@ -73,7 +73,7 @@ def test_format_version_and_abi_are_pinned():
     # 16 such tests were found tree-wide, one named for 367 asserting 663.
     # See test_pinned_names_carry_no_value_rc447.py.
     assert G.GENOME_FORMAT_VERSION == 20
-    assert _native.EXPECTED_ABI_VERSION == 23
+    assert _native.EXPECTED_ABI_VERSION == 24
 
 
 def test_the_two_markers_are_distinct_leaf_wide_caps_above_the_klein4_range():

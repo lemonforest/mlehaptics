@@ -659,8 +659,8 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **23** (`SRMECH_ABI_VERSION = 23` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 23` in
+C ABI version is currently **24** (`SRMECH_ABI_VERSION = 24` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 24` in
 *(this line said 12 until rc420, 13 until rc425, 14 until rc438, 15 until
 rc439, 16 until rc442, 17 until rc449 and — the point — **17 through the whole of
 rc447 AND rc448**, so it was two bumps behind by the time rc449 read it: a SIXTH
@@ -700,10 +700,46 @@ exactly how a Class-K pin pair spells itself, so a downstream consumer reads it
 happily and wrongly. v18 and v20 both bumped on the ground that an older reader
 RAISES mid-run; a raise stops and a wrong value propagates, so this one outranks
 them. `SRMECH_GENOME_FORMAT_VERSION` stays 20 — no on-disk format moves.
+**rc452 bumped twice more in the same release: v21 → v22** adds `b` (a bytes
+result, payload lowercase hex) and `x` (a matrix result, which is what let
+`schur_complement` cross the wire at all), and **v22 → v23** adds `m` (a
+mapping — payload a FLAT array of alternating key/value descriptors, because the
+one chain that needs it is INT-keyed and the two canonical writers order int keys
+differently) and `o` (a boolean, which cannot ride as `i` because `True == 1` in
+Python and the right value would arrive as the wrong type). Both are v18's
+shape: a stale reader meets a kind it has no branch for and RAISES mid-run, so
+the bump converts that into a clean load-refusal. **v23 also carried a
+WRITER-RESERVE contract move** of the v10/v12 shape — no signature changed, but
+`srmech_chain_run_arena_bytes` began returning a LARGER envelope, because the
+value-descriptor writer's reserve was derived from the INPUT length while it
+bounds the OUTPUT tree.
+**The v24 bump is rc455's, and it is that same writer-reserve move on the
+SIBLING function.** `srmech_dsl_chain_run_arena_bytes` now returns a **smaller**
+envelope — by exactly `32768 + 16*(chain_len + input_len)` — because the DSL
+runner's builder / emit-scratch / write-scratch reserves are carved forward from
+the value actually produced instead of sliced off the tail at a size derived from
+`input_len`. Measured: the old share bought ~4 builder bytes per input byte
+against a required ~6.4, so `.then('chiral_flip')` stopped running in C above 165
+int elements and answered from pure with no signal. It adds no kind letter, no
+symbol and no signature change, so the additive rule does not reach it; what
+moved is what an existing function RETURNS. **It bumps because v23's own note
+says the identical move "is the same wire-sizing contract, so it rides this bump
+rather than going unrecorded"** — the second instance of a recorded shape cannot
+be the silent one. Neither mixed-version pairing computes a wrong value: an old
+(larger) cached figure over-provisions a v24 library, and a new (smaller) figure
+handed to a v23 library meets the old tail-slice guard and gets a correct
+`SRMECH_ERR_OVERFLOW`. `SRMECH_GENOME_FORMAT_VERSION` stays 20.
 ⚠️ **rc449 (`#T1158`) put this line under a gate** —
 `tests/test_abi_prose_currency_rc449.py` — precisely because six lags in a row
 is not an accident: "ungated surfaces trickle; gated ones race to 100%". It and
-`c/README.md` were the last two ABI statements in the tree with no gate on them.)*
+`c/README.md` were the last two ABI statements in the tree with no gate on them.
+⚠️ **AND THE GATE DOES NOT COVER THIS NARRATIVE — only the integer.** Measured at
+rc454: the number above read a correct **23** while the prose stopped at **v21**,
+two bumps behind, and `c/README.md` was three behind, still explaining v20. That
+is the gate working as designed (it asserts one decidable thing per file and
+leaves the rationale unconstrained), and it is also the residual it leaves: a
+cardinal that cannot go stale sitting above a story that can. rc455 rewrote both
+stories with both numbers.)*
 `python/srmech/_native/__init__.py`). *(These three lines said ABI **9** and
 pointed at `python/srmech/amsc/_native.py` until rc404 (`#T1069`) — two stale
 facts in three lines: the version was three bumps behind, and ADR-0010 moved

@@ -14,10 +14,19 @@
  * srmech_json parse/build, the rc103 defer-to-pure gate) WITHOUT touching
  * srmech_chain_run.
  *
- * rc182 (pt2 — THIS ship) adds the LOOP / FOLD / REDUCE combinators (the whole
- * chain interpreter, not just the linear spine) + the TOML front-end bridge
- * srmech_dsl_toml_chain_to_json. `parallel_body` (the Klein-4 host-thread fan-out)
- * still DEFERS to pure — a host-runtime affordance, not a C shell violation.
+ * rc182 (pt2) added the LOOP / FOLD / REDUCE combinators (the whole chain
+ * interpreter, not just the linear spine) + the TOML front-end bridge
+ * srmech_dsl_toml_chain_to_json.
+ *
+ * rc455 closes the LAST combinator: `parallel_body` (the Klein-4 four-sector
+ * fan-out) now RUNS here, SERIALLY. It had deferred since rc182 on the ground
+ * that the fan-out is a "host-thread affordance" — that justification is dead:
+ * the sectors read only their own T_s(x) and Python collects them BY SECTOR
+ * INDEX, so nothing about the value depends on concurrency, and
+ * srmech_compose_run.c has shipped a complete serial Klein-4 kernel since rc452
+ * (cr_psd_* at :3748) saying exactly that at :3640. See the parallel section
+ * below for why srmech_cascade_parallel_sector_dispatch is NOT the thing to
+ * call, and why the body is LEAF-ONLY.
  *
  *   chain_json  : {"chain":{"name":..},"stage":[<stage>, ...]} — the
  *                 build_chain_from_dict discriminator grammar. A stage is one of:
@@ -25,8 +34,12 @@
  *                   {"loop_n":N,"sub_chain":[<stage>,..]}    — bounded loop
  *                   {"fold_init":<scalar>,"fold_op":<op>}    — seeded fold
  *                   {"reduce_op":<op>}                       — seedless reduce
- *                 A `parallel_body` stage, a non-C leaf, or a non-C binary body
- *                 → the whole chain DEFERS to pure (rc103 inform-don't-limit).
+ *                   {"map_op":<op>}                          — indexed map
+ *                   {"parallel_body":<op>,"n_sectors":N,
+ *                    "combine":<name>|null}                  — Klein-4 fan-out
+ *                 A non-C leaf, a non-C binary/map/parallel body, or an unknown
+ *                 combine reducer → the whole chain DEFERS to pure (rc103
+ *                 inform-don't-limit).
  *   input_json  : an F1 VALUE DESCRIPTOR for the seed value (see below).
  *   out         : the F1 VALUE DESCRIPTOR for the final value.
  *
@@ -52,7 +65,10 @@
  *
  * ARENA: ONE caller arena `ws`, bump-allocated FORWARD (size with
  * srmech_dsl_chain_run_arena_bytes). Each stage's output carrier persists (the
- * next stage reads it); a too-small arena → SRMECH_ERR_OVERFLOW → pure.
+ * next stage reads it); a too-small arena → SRMECH_ERR_OVERFLOW → pure. As of
+ * rc455 the emit/builder/write reserves are DERIVED FROM THE OUTPUT VALUE
+ * rather than from `input_len` — see the dsl_out_reserve block for the measured
+ * 165-element cliff that sizing-by-input had put in every shipped chain.
  *
  * JPL Power-of-Ten: caller-arena only (no malloc), <=60-line functions, >=2
  * asserts/function, no goto, DEPTH-BOUNDED recursion (DV_MAX_DEPTH for the value
@@ -741,10 +757,9 @@ static srmech_status_t dsl_binary_dispatch(dcr_bump_t *b, const char *op,
 
 /* ------------------------------------------------------------------
  * build_chain_from_dict-in-C: parse the stage array + thread the value. A plain
- * `op` stage runs the leaf-dispatch atom; a loop/fold/reduce/map_indexed
- * discriminator runs the combinator; a `parallel_body` discriminator, a missing
- * `op`, a non-C leaf, or a non-C binary/map body → SRMECH_ERR_NOT_IMPL (defer
- * to pure).
+ * `op` stage runs the leaf-dispatch atom; a loop/fold/reduce/map_indexed/
+ * parallel discriminator runs the combinator; a missing `op`, a non-C leaf, or a
+ * non-C binary/map/parallel body → SRMECH_ERR_NOT_IMPL (defer to pure).
  * ------------------------------------------------------------------ */
 
 /* 1 iff `stage` carries a combinator discriminator
@@ -900,8 +915,349 @@ static srmech_status_t dsl_run_map_indexed(const srmech_json_value_t *stage,
     return SRMECH_OK;
 }
 
-/* Run ONE combinator stage. A `parallel_body` fan-out DEFERS to pure (host
- * threads — inform-don't-limit, not a shell violation). */
+/* ------------------------------------------------------------------
+ * parallel {"parallel_body":<op>,"n_sectors":N,"combine":<name>|null}
+ * (v0.9.0rc455) — the Klein-4 four-sector fan-out, SERIALLY.
+ *
+ * ⚠️ THE SECTORS RUN SERIALLY AND THAT IS NOT AN APPROXIMATION. Python
+ * dispatches them on a ThreadPoolExecutor, but F233's whole content is that
+ * each sector reads ONLY its own T_s(x) — zero cross-sector reads — and Python
+ * collects `future_by_sector[s].result()` BY SECTOR INDEX, so completion order
+ * cannot reach the value. srmech_compose_run.c's cr_psd_* kernels already state
+ * and rely on the same argument (:3640). Nothing here depends on thread timing.
+ *
+ * ⚠️ DELIBERATELY NOT srmech_cascade_parallel_sector_dispatch, for two measured
+ * reasons: it computes only sector DUALS into out_sectors (no combine, no output
+ * shaping), and it spawns real threads when srmech_plat_has_threads(), whose
+ * bodies would carve dv_value_t from one shared dcr_bump_t on a NON-ATOMIC
+ * `b->cur = p + n` bump — a data race. The serial kernels are mirrored instead.
+ *
+ * ⚠️ LEAF-ONLY BODY, and that is a JPL Rule 1 constraint, not a simplification.
+ * A body that re-entered dsl_run_stage_array would mint a NOVEL recursion SCC
+ * (dsl_run_combinator / dsl_run_loop / dsl_run_parallel / dsl_run_stage_array)
+ * beside the seeded population of 9 and fail tests/test_jpl_audit.py's strict
+ * novel-cycle check — the same hazard :658 already names for the keyset walk.
+ *
+ * ⚠️ NO abs(). The iw7 axis is Class-C sign RE-APPLICATION, routed through the
+ * same srmech_cascade_reorient_* kernel leaf_reorient uses; the g5 axis is the
+ * Class-C chiral_flip reversal.
+ * ------------------------------------------------------------------ */
+
+#define DSL_PSD_CAP 4u                    /* Klein-4 has no order-4+ element */
+/* Largest |int| a double represents exactly — the bound past which Python's
+ * exact int/int true division stops agreeing with C's (double)/(double). */
+#define DSL_F64_EXACT_INT ((int64_t)1 << 53)
+
+/* The (g5, iw7) sign pair per sector — the peer of srmech_compose_run.c's
+ * CR_PSD_LABELS and of srmech.cascade.parallel.SECTOR_LABELS. .rodata, so JPL
+ * Rule 3 (no malloc) is untouched. */
+static const int DSL_PSD_LABELS[DSL_PSD_CAP][2] = {
+    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
+};
+
+/* 1 iff `op` names `want` — bare, or as the last dotted component (the Python
+ * IR may carry `srmech.cascade.chiral_flip`). The dsl_map_body_is_seq_get
+ * idiom, generalised over the name. */
+static int dsl_name_is(const char *op, uint32_t opl, const char *want, uint32_t wl)
+{
+    assert(op != NULL && want != NULL);
+    assert(wl > 0u);
+    if (opl == wl && memcmp(op, want, (size_t)wl) == 0) { return 1; }
+    if (opl > wl && op[opl - wl - 1u] == '.' &&
+        memcmp(op + (opl - wl), want, (size_t)wl) == 0) { return 1; }
+    return 0;
+}
+
+/* The iw7 axis on ONE element: Class-C reorient(v, orientation=-1), through the
+ * SAME kernel leaf_reorient calls. NOT a bare negate — routing it through the
+ * shipped op is what stops the sector transform and the `reorient` leaf
+ * drifting apart on the sign of zero. INT64_MIN has no i64 negation and Python
+ * ints do not overflow, so it defers. */
+static srmech_status_t dsl_psd_neg(dcr_bump_t *b, const dv_value_t *e,
+                                   dv_value_t **out)
+{
+    srmech_status_t st;
+    assert(b != NULL && out != NULL);
+    assert(e != NULL);
+    if (e->kind == DV_INT) {
+        int64_t r;
+        if (e->i == INT64_MIN) { return SRMECH_ERR_NOT_IMPL; }
+        st = srmech_cascade_reorient_i64((int8_t)-1, e->i, &r);
+        if (st != SRMECH_OK) { return st; }
+        *out = dv_int(b, r);
+    } else if (e->kind == DV_FLOAT) {
+        double r;
+        st = srmech_cascade_reorient_f64((int8_t)-1, e->f, &r);
+        if (st != SRMECH_OK) { return st; }
+        *out = dv_float(b, r);
+    } else {
+        return SRMECH_ERR_NOT_IMPL;                  /* str/none element -> pure */
+    }
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* T_s(seq) — the Klein-4 stream-transform for sector `s`: the Class-C iw7
+ * per-element sign re-application composed with the Class-C g5 reversal. The
+ * two commute (one is per-element, the other a permutation), so reading the
+ * reversed index and re-signing on write IS _stream_transform's composition.
+ * Each T_s is an involution, so this doubles as inv_T_s. A TUPLE carrier defers:
+ * Python's iw7 arm returns a list while its g5 arm preserves the type, so the
+ * sector results would not share one carrier type. */
+static srmech_status_t dsl_psd_transform(dcr_bump_t *b, uint32_t s,
+                                         const dv_value_t *in, dv_value_t **out)
+{
+    dv_value_t *r; dv_value_t **items; uint32_t i, n; int neg, rev;
+    srmech_status_t st;
+    assert(b != NULL && out != NULL);
+    assert(in != NULL && s < DSL_PSD_CAP);
+    if (in->kind != DV_LIST || in->is_tuple) { return SRMECH_ERR_NOT_IMPL; }
+    n = in->n;
+    if (n > (uint32_t)DCR_MAX_SEQ) { return SRMECH_ERR_NOT_IMPL; }
+    r = dv_new(b, DV_LIST);
+    if (r == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (n == 0u) { *out = r; return SRMECH_OK; }      /* T_s([]) == [] */
+    items = (dv_value_t **)dcr_carve(b, (size_t)n * sizeof(void *) + 1u);
+    if (items == NULL) { return SRMECH_ERR_OVERFLOW; }
+    neg = (DSL_PSD_LABELS[s][1] < 0); rev = (DSL_PSD_LABELS[s][0] < 0);
+    for (i = 0u; i < n; i++) {
+        dv_value_t *e = in->items[rev ? (n - 1u - i) : i];
+        assert(i < (uint32_t)DCR_MAX_SEQ);            /* JPL Rule 2 bound */
+        if (e == NULL) { return SRMECH_ERR_NOT_IMPL; }
+        if (!neg) { items[i] = e; continue; }         /* values are immutable */
+        st = dsl_psd_neg(b, e, &items[i]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    r->items = items; r->n = n; r->is_tuple = 0;
+    *out = r;
+    return SRMECH_OK;
+}
+
+/* The parallel-stage BODY table.
+ *
+ * ⚠️ DELIBERATELY NARROWER THAN dsl_leaf_dispatch's SEVEN, and that is a
+ * MEASURED negative control, not caution. A parallel body must be
+ * sequence -> sequence; five of the seven are not, and all five BUILD fine as a
+ * `parallel_body=` and raise TypeError at RUN in Python — magnitude, reorient,
+ * pin_slot_at_zero, best_rational_signed and net_chirality. Declining them here
+ * defers the whole chain to pure, which raises that same TypeError from the
+ * same place. Accepting one would compute an answer Python refuses.
+ *
+ * Neither legal body takes a kwarg, so no stage object is threaded and
+ * dsl_leaf_keyset_ok has nothing to validate — the parallel stage's own keys
+ * (parallel_body/n_sectors/combine) are not the body's, and passing that stage
+ * to dsl_leaf_dispatch would have it reject every one of them. */
+static srmech_status_t dsl_parallel_body(dcr_bump_t *b, const char *op,
+                                         uint32_t opl, const dv_value_t *in,
+                                         dv_value_t **out)
+{
+    assert(b != NULL && op != NULL && out != NULL);
+    assert(in != NULL && opl > 0u);
+    if (dsl_name_is(op, opl, "chiral_flip", 11u)) {
+        return leaf_chiral_flip(b, in, out);
+    }
+    if (dsl_name_is(op, opl, "autocorrelation", 15u)) {
+        return leaf_autocorrelation(b, in, out);
+    }
+    return SRMECH_ERR_NOT_IMPL;              /* not a sequence->sequence leaf */
+}
+
+/* One column of `bundle` / `mean`: sum(col) over the sectors.
+ *
+ * ⚠️ LEFT TO RIGHT IN SECTOR ORDER — float addition is not associative, so the
+ * order is part of the value ([[1e16],[1.0],[-1e16],[1.0]] bundles to [1.0] in
+ * sector order and [0.0] reversed).
+ *
+ * ⚠️ SEEDED WITH THE CARRIER'S OWN ZERO, NOT 0.0. Python's `sum` seeds an INT
+ * 0, so an all-int column stays INT; a 0.0 seed would silently float every
+ * integer result. The accumulator promotes to double at the first float and
+ * never demotes, which is exactly what `int + float -> float` does. An i64
+ * overflow defers (Python ints are unbounded). */
+static srmech_status_t dsl_psd_bundle_at(dcr_bump_t *b, dv_value_t *const *sect,
+                                         uint32_t ns, uint32_t i, int mean,
+                                         dv_value_t **out)
+{
+    int64_t ai = 0; double af = 0.0; int is_f = 0; uint32_t s;
+    assert(b != NULL && sect != NULL && out != NULL);
+    assert(ns >= 1u && ns <= DSL_PSD_CAP);
+    for (s = 0u; s < ns; s++) {
+        const dv_value_t *e = sect[s]->items[i];
+        if (e == NULL) { return SRMECH_ERR_NOT_IMPL; }
+        if (e->kind != DV_INT && e->kind != DV_FLOAT) { return SRMECH_ERR_NOT_IMPL; }
+        if (!is_f && e->kind == DV_INT) {
+            if ((e->i > 0 && ai > INT64_MAX - e->i) ||
+                (e->i < 0 && ai < INT64_MIN - e->i)) {
+                return SRMECH_ERR_NOT_IMPL;        /* unbounded in Python -> pure */
+            }
+            ai += e->i;
+            continue;
+        }
+        if (!is_f) { af = (double)ai; is_f = 1; }
+        af += (e->kind == DV_INT) ? (double)e->i : e->f;
+    }
+    if (!mean) {
+        *out = is_f ? dv_float(b, af) : dv_int(b, ai);
+        return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    }
+    if (!is_f) {                                   /* Python: int / int -> float */
+        if (ai > DSL_F64_EXACT_INT || ai < -DSL_F64_EXACT_INT) {
+            return SRMECH_ERR_NOT_IMPL;            /* double-rounding risk -> pure */
+        }
+        af = (double)ai;
+    }
+    *out = dv_float(b, af / (double)ns);
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* `bundle` (element-wise sum) / `mean` (that, divided by n_sectors). Python's
+ * _equal_lengths ASSERTS the sectors share one length; an unequal set defers so
+ * the pure path raises that AssertionError from its own place. */
+static srmech_status_t dsl_psd_bundle(dcr_bump_t *b, dv_value_t *const *sect,
+                                      uint32_t ns, int mean, dv_value_t **out)
+{
+    dv_value_t *r; dv_value_t **items; uint32_t i, n; srmech_status_t st;
+    assert(b != NULL && sect != NULL && out != NULL);
+    assert(ns >= 1u && ns <= DSL_PSD_CAP);
+    n = sect[0]->n;
+    for (i = 1u; i < ns; i++) {
+        if (sect[i]->n != n) { return SRMECH_ERR_NOT_IMPL; }
+    }
+    r = dv_new(b, DV_LIST);
+    if (r == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (n == 0u) { *out = r; return SRMECH_OK; }
+    items = (dv_value_t **)dcr_carve(b, (size_t)n * sizeof(void *) + 1u);
+    if (items == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < n; i++) {
+        assert(i < (uint32_t)DCR_MAX_SEQ);           /* JPL Rule 2 bound */
+        st = dsl_psd_bundle_at(b, sect, ns, i, mean, &items[i]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    r->items = items; r->n = n; r->is_tuple = 0;
+    *out = r;
+    return SRMECH_OK;
+}
+
+/* `concat` — the sector results end to end, in SECTOR ORDER. Items are SHARED
+ * with the sector carriers (dv values are immutable through this runner, the
+ * same aliasing dsl_run_map_indexed relies on). */
+static srmech_status_t dsl_psd_concat(dcr_bump_t *b, dv_value_t *const *sect,
+                                      uint32_t ns, dv_value_t **out)
+{
+    dv_value_t *r; dv_value_t **items; uint32_t s, i, k = 0u, tot = 0u;
+    assert(b != NULL && sect != NULL && out != NULL);
+    assert(ns >= 1u && ns <= DSL_PSD_CAP);
+    for (s = 0u; s < ns; s++) {
+        if (sect[s]->n > (uint32_t)DCR_MAX_SEQ - tot) { return SRMECH_ERR_NOT_IMPL; }
+        tot += sect[s]->n;
+    }
+    r = dv_new(b, DV_LIST);
+    if (r == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (tot == 0u) { *out = r; return SRMECH_OK; }
+    items = (dv_value_t **)dcr_carve(b, (size_t)tot * sizeof(void *) + 1u);
+    if (items == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (s = 0u; s < ns; s++) {
+        for (i = 0u; i < sect[s]->n; i++) {
+            assert(k < tot);                         /* JPL Rule 2 bound */
+            items[k] = sect[s]->items[i]; k++;
+        }
+    }
+    r->items = items; r->n = tot; r->is_tuple = 0;
+    *out = r;
+    return SRMECH_OK;
+}
+
+/* combine=None — the ordered per-sector LIST OF LISTS. No new wire kind: DV_LIST
+ * already nests to DV_MAX_DEPTH and the {"k":"l","v":[..]} descriptor already
+ * round-trips nested lists, so this needs no ABI bump. */
+static srmech_status_t dsl_psd_sector_list(dcr_bump_t *b, dv_value_t *const *sect,
+                                           uint32_t ns, dv_value_t **out)
+{
+    dv_value_t *r; dv_value_t **items; uint32_t s;
+    assert(b != NULL && sect != NULL && out != NULL);
+    assert(ns >= 1u && ns <= DSL_PSD_CAP);
+    r = dv_new(b, DV_LIST);
+    if (r == NULL) { return SRMECH_ERR_OVERFLOW; }
+    items = (dv_value_t **)dcr_carve(b, (size_t)ns * sizeof(void *) + 1u);
+    if (items == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (s = 0u; s < ns; s++) {
+        assert(s < DSL_PSD_CAP);
+        items[s] = sect[s];
+    }
+    r->items = items; r->n = ns; r->is_tuple = 0;
+    *out = r;
+    return SRMECH_OK;
+}
+
+/* Fold the <=4 sector results into the stage's output value.
+ *
+ * ⚠️ THE FOUR REDUCER NAMES ARE THE WHOLE ACCEPTED SET, and an unknown one
+ * DEFERS rather than guessing. combine='nope' BUILDS fine from an ordinary
+ * Python chain and raises ValueError only at RUN, so "combine is a string" is
+ * not a safe predicate on either side of the wire. */
+static srmech_status_t dsl_psd_combine(dcr_bump_t *b,
+                                       const srmech_json_value_t *cn,
+                                       dv_value_t *const *sect, uint32_t ns,
+                                       dv_value_t **out)
+{
+    const char *nm; uint32_t nl;
+    assert(b != NULL && sect != NULL && out != NULL);
+    assert(ns >= 1u && ns <= DSL_PSD_CAP);
+    if (cn == NULL) { return SRMECH_ERR_NOT_IMPL; }        /* key absent -> pure */
+    if (cn->type == SRMECH_JSON_NULL) {
+        return dsl_psd_sector_list(b, sect, ns, out);
+    }
+    if (cn->type != SRMECH_JSON_STRING) { return SRMECH_ERR_NOT_IMPL; }
+    nm = cn->u.str.ptr; nl = cn->u.str.len;
+    if (nl == 7u && memcmp(nm, "sector0", 7u) == 0) {
+        *out = sect[0];
+        return SRMECH_OK;
+    }
+    if (nl == 6u && memcmp(nm, "concat", 6u) == 0) {
+        return dsl_psd_concat(b, sect, ns, out);
+    }
+    if (nl == 6u && memcmp(nm, "bundle", 6u) == 0) {
+        return dsl_psd_bundle(b, sect, ns, 0, out);
+    }
+    if (nl == 4u && memcmp(nm, "mean", 4u) == 0) {
+        return dsl_psd_bundle(b, sect, ns, 1, out);
+    }
+    return SRMECH_ERR_NOT_IMPL;                 /* unknown reducer -> pure raises */
+}
+
+/* The parallel stage: sector_dual(s) = inv_T_s( body( T_s(x) ) ) for each of the
+ * <=4 sectors, then the combine. Results are indexed BY SECTOR, so the order in
+ * which they were produced cannot reach the value. */
+static srmech_status_t dsl_run_parallel(const srmech_json_value_t *stage,
+                                        dv_value_t *cur, dcr_bump_t *b,
+                                        dv_value_t **out)
+{
+    const srmech_json_value_t *bo = srmech_json_object_get(stage, "parallel_body");
+    const srmech_json_value_t *nsn = srmech_json_object_get(stage, "n_sectors");
+    dv_value_t *sect[DSL_PSD_CAP]; uint32_t s, ns; srmech_status_t st;
+    assert(stage != NULL && b != NULL && out != NULL);
+    assert(cur != NULL);
+    if (bo == NULL || bo->type != SRMECH_JSON_STRING || bo->u.str.len == 0u) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (nsn == NULL || nsn->type != SRMECH_JSON_INT) { return SRMECH_ERR_NOT_IMPL; }
+    if (nsn->u.i < 1 || nsn->u.i > (int64_t)DSL_PSD_CAP) {
+        return SRMECH_ERR_NOT_IMPL;             /* Python raises past the cap */
+    }
+    ns = (uint32_t)nsn->u.i;
+    for (s = 0u; s < ns; s++) {
+        dv_value_t *tx = NULL, *inner = NULL;
+        assert(s < DSL_PSD_CAP);                /* JPL Rule 2 bound */
+        st = dsl_psd_transform(b, s, cur, &tx);
+        if (st != SRMECH_OK) { return st; }
+        st = dsl_parallel_body(b, bo->u.str.ptr, bo->u.str.len, tx, &inner);
+        if (st != SRMECH_OK) { return st; }
+        st = dsl_psd_transform(b, s, inner, &sect[s]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return dsl_psd_combine(b, srmech_json_object_get(stage, "combine"),
+                           sect, ns, out);
+}
+
+/* Run ONE combinator stage. */
 static srmech_status_t dsl_run_combinator(const srmech_json_value_t *stage,
                                           dv_value_t *cur, dcr_bump_t *b,
                                           uint32_t depth, dv_value_t **out)
@@ -909,7 +1265,7 @@ static srmech_status_t dsl_run_combinator(const srmech_json_value_t *stage,
     assert(stage != NULL && b != NULL && out != NULL);
     assert(cur != NULL);
     if (srmech_json_object_get(stage, "parallel_body") != NULL) {
-        return SRMECH_ERR_NOT_IMPL;                     /* host-thread fan-out */
+        return dsl_run_parallel(stage, cur, b, out);
     }
     if (srmech_json_object_get(stage, "map_op") != NULL) {
         return dsl_run_map_indexed(stage, cur, b, out);
@@ -981,50 +1337,148 @@ static srmech_status_t dsl_run_stages(const srmech_json_value_t *chain,
  * thread the value, marshal the final value back as an F1 descriptor.
  * ------------------------------------------------------------------ */
 
-/* Run + write: parse the input desc, run the linear stages, emit the output desc.
- * Reserves a writer arena at the TAIL of `b` (builder half | write-scratch half);
- * the middle backs the run carriers + the emit item-pointer scratch. Both writer
- * bases are void*-aligned. Kept < 60 lines (mirrors cr_run_and_write). */
+/* ------------------------------------------------------------------
+ * THE WRITER RESERVE IS DERIVED FROM THE OUTPUT (v0.9.0rc455).
+ *
+ * ⚠️ MEASURED at rc454: srmech_dsl_chain_run returned SRMECH_ERR_OVERFLOW — and
+ * so silently stopped running in C — above 165 int / 198 float elements, on
+ * `.then('chiral_flip')`, a form that has shipped since rc181. The whole
+ * existing C-parity proof corpus runs at <= 18 elements (the largest literal
+ * sequence in test_dsl_chain_c_rc181.py), so NO GATE COULD SEE IT: the Python
+ * side collapses a non-OK status to a native-miss and returns the right answer
+ * from the pure path, which is why it read as green for 273 rcs.
+ *
+ * THE CAUSE was a writer reserve of `16384 + 8*(chain_len + input_len)` split
+ * in half between the json builder and the write scratch — i.e. 4 bytes of
+ * builder per byte of INPUT — against a measured ~137 bytes of builder per
+ * ~21.5-byte int element, or ~6.4 bytes per input byte. The 16384 constant paid
+ * the difference for the first ~165 elements and then ran out. A larger
+ * constant would have moved the cliff, not removed it, and a form whose OUTPUT
+ * is longer than its input (concat over 4 sectors is 4x) would have re-crossed
+ * it immediately.
+ *
+ * THE FIX: run first with the whole arena, then size the builder and the emit
+ * scratch from the FINAL VALUE, exactly, and carve them forward. The write
+ * scratch is sized by srmech_json_write_arena_bytes on the BUILT tree, which is
+ * exact by construction. No constant to rot, and no input-length proxy.
+ * ------------------------------------------------------------------ */
+
+/* Builder bytes ONE descriptor node costs. dv_to_desc emits at most three JSON
+ * nodes per value ({"k":..,"v":..} object + the 1-char "k" string + the value)
+ * plus the object's 2-key key/value pointer copies, plus one item-pointer array
+ * for a LIST (new_array allocates max(n,1) slots). Each of the <= 6
+ * json_arena_alloc calls may insert a pointer-alignment pad. */
+static size_t dsl_desc_build_bytes(const dv_value_t *v)
+{
+    size_t w;
+    assert(v != NULL);
+    assert(v->kind >= DV_NONE && v->kind <= DV_LIST);
+    w = 3u * sizeof(srmech_json_value_t) + 10u * sizeof(void *);
+    if (v->kind == DV_LIST) { w += (size_t)(v->n ? v->n : 1u) * sizeof(void *); }
+    return w;
+}
+
+/* Emit item-pointer SCRATCH bytes one node costs: dv_list_to_desc carves
+ * `n * sizeof(void*) + 1` per LIST, pointer-aligned, and every list on the path
+ * is live at once (a child's carve happens inside the parent's), so the reserve
+ * is the SUM over all list nodes, not the maximum. */
+static size_t dsl_desc_scratch_bytes(const dv_value_t *v)
+{
+    assert(v != NULL);
+    assert(v->kind >= DV_NONE && v->kind <= DV_LIST);
+    if (v->kind != DV_LIST) { return 0u; }
+    return (size_t)v->n * sizeof(void *) + 1u + sizeof(void *);
+}
+
+/* Walk the OUTPUT value and total both reserves.
+ *
+ * ⚠️ AN EXPLICIT STACK, NOT RECURSION — a recursive walk here would mint a novel
+ * JPL Rule 1 cycle beside the seeded population. The stack is DV_MAX_DEPTH deep,
+ * the same bound dv_to_desc refuses past; a tree deeper than that cannot be
+ * emitted at all (dv_to_desc returns NULL -> SRMECH_ERR_OVERFLOW -> pure), so
+ * stopping the descent there cannot under-reserve a tree that will be written. */
+static void dsl_out_reserve(const dv_value_t *v, size_t *build, size_t *scratch)
+{
+    const dv_value_t *stk[DV_MAX_DEPTH + 2]; uint32_t idx[DV_MAX_DEPTH + 2];
+    int d;
+    assert(build != NULL && scratch != NULL);
+    assert(v != NULL);
+    *build = dsl_desc_build_bytes(v); *scratch = dsl_desc_scratch_bytes(v);
+    stk[0] = v; idx[0] = 0u; d = 1;
+    while (d > 0) {
+        const dv_value_t *cur = stk[d - 1]; const dv_value_t *ch;
+        assert(d <= (int)DV_MAX_DEPTH + 1);
+        if (cur->kind != DV_LIST || idx[d - 1] >= cur->n) { d--; continue; }
+        ch = cur->items[idx[d - 1]];
+        idx[d - 1] += 1u;
+        if (ch == NULL) { continue; }
+        *build += dsl_desc_build_bytes(ch);
+        *scratch += dsl_desc_scratch_bytes(ch);
+        if (ch->kind == DV_LIST && d <= (int)DV_MAX_DEPTH) {
+            stk[d] = ch; idx[d] = 0u; d++;
+        }
+    }
+}
+
+/* Run + write: parse the input desc, run the stages over the WHOLE arena, then
+ * carve the emit scratch / json builder / write scratch forward, each sized from
+ * the value actually produced. Kept < 60 lines. */
 static srmech_status_t dsl_run_and_write(const srmech_json_value_t *chain,
                                          const srmech_json_value_t *input_desc,
-                                         dcr_bump_t *b, size_t wsz,
+                                         dcr_bump_t *b,
                                          char *out, size_t out_cap, size_t *out_len)
 {
-    dcr_bump_t wb; dv_value_t *input, *final_v = NULL; srmech_json_builder_t bd;
-    srmech_json_value_t *desc; unsigned char *tail_end, *wa; size_t region, half;
-    srmech_status_t st;
+    dcr_bump_t tmp; dv_value_t *input, *final_v = NULL; srmech_json_builder_t bd;
+    srmech_json_value_t *desc; unsigned char *sa, *ba, *wa;
+    size_t nb = 0u, nsc = 0u, nw; srmech_status_t st;
     assert(chain != NULL && b != NULL && out_len != NULL);
     assert(b->cur <= b->end);
     input = dv_from_desc(b, input_desc, 0u);
     if (input == NULL) { return SRMECH_ERR_NOT_IMPL; }   /* unsupported seed -> pure */
-    tail_end = b->end;
-    if ((size_t)(b->end - b->cur) <= wsz + 4096u) { return SRMECH_ERR_OVERFLOW; }
-    b->end = tail_end - wsz;                              /* shrink run bump */
     st = dsl_run_stages(chain, input, b, &final_v);
     if (st != SRMECH_OK) { return st; }
-    wa = dcr_align(b->end);                               /* builder base, aligned */
-    if (wa >= tail_end) { return SRMECH_ERR_OVERFLOW; }
-    region = (size_t)(tail_end - wa); half = region / 2u;
-    st = srmech_json_builder_init(&bd, wa, half);
+    dsl_out_reserve(final_v, &nb, &nsc);                 /* DERIVED FROM THE OUTPUT */
+    sa = dcr_carve(b, nsc ? nsc : 1u);
+    ba = dcr_carve(b, nb);
+    if (sa == NULL || ba == NULL) { return SRMECH_ERR_OVERFLOW; }
+    tmp.cur = sa; tmp.end = sa + (nsc ? nsc : 1u);
+    st = srmech_json_builder_init(&bd, ba, nb);
     if (st != SRMECH_OK) { return st; }
-    desc = dv_to_desc(&bd, final_v, b, 0u);              /* item scratch from run bump */
+    desc = dv_to_desc(&bd, final_v, &tmp, 0u);
     if (desc == NULL || bd.failed) { return SRMECH_ERR_OVERFLOW; }
-    wb.cur = dcr_align(wa + half); wb.end = tail_end;     /* write scratch */
-    { size_t need = srmech_json_write_arena_bytes(desc);
-      if (wb.cur >= wb.end || need > (size_t)(wb.end - wb.cur)) {
-          return SRMECH_ERR_OVERFLOW;
-      }
-      return srmech_json_write_ws(desc, out, out_cap, out_len, wb.cur, need); }
+    nw = srmech_json_write_arena_bytes(desc);            /* exact on the built tree */
+    wa = dcr_carve(b, nw);
+    if (wa == NULL) { return SRMECH_ERR_OVERFLOW; }
+    return srmech_json_write_ws(desc, out, out_cap, out_len, wa, nw);
 }
 
+/* The caller's arena size. The separate `writer` term this used to carry is
+ * GONE — the writer no longer gets a slice sized from `input_len`; it carves
+ * forward from whatever the run left, in amounts derived from the output value
+ * (dsl_out_reserve). What remains is the parse tree plus the run carriers.
+ *
+ * ⚠️ THE RUN TERM MUST COVER THE <=4x FAN-OUT, and it does — MEASURED, not
+ * assumed, so `256u` is left where it is. A `parallel_body` stage with
+ * combine='concat' / combine=None holds all DSL_PSD_CAP = 4 sector carriers at
+ * once and emits up to 4x the input's element count: the first shipped form
+ * that is not length-preserving. At 65536 int elements x 4 sectors
+ * (chain_len 106, input_len 1561771) the run + emit + builder + write regions
+ * consumed 92.0 MiB — 61.8 bytes per input byte — against the 382.3 MiB this
+ * term provides, 4.2x headroom. Whole call: 282.7 MiB required against
+ * 573.0 MiB returned here, the tightest of the sixteen rows at 2.03x.
+ *
+ * THE CLIFF WAS NEVER THE TOTAL — it was the writer's SHARE of it, and that
+ * share is now output-derived. tests/test_dsl_chain_arena_scale_rc455.py
+ * re-measures required-bytes / output-element at 16 / 256 / 4096 / 65536 so
+ * this stops being prose: flat to within 4% from 256 up, which is the property
+ * a padding constant cannot fake. */
 size_t srmech_dsl_chain_run_arena_bytes(size_t chain_len, size_t input_len)
 {
     size_t parse = 128u * chain_len + 128u * input_len + 65536u;
     size_t run = 256u * (chain_len + input_len) + (1u << 20);
-    size_t writer = 32768u + 16u * (chain_len + input_len);
     assert(sizeof(dv_value_t) <= 128u);
     assert(sizeof(srmech_json_value_t) <= 128u);
-    return parse + run + writer;
+    return parse + run;
 }
 
 srmech_status_t srmech_dsl_chain_run(const char *chain_json, size_t chain_len,
@@ -1047,9 +1501,7 @@ srmech_status_t srmech_dsl_chain_run(const char *chain_json, size_t chain_len,
     st = srmech_json_parse(input_json, input_len, ia, ij, &input_desc);
     if (st != SRMECH_OK) { return st; }
     if (chain->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
-    return dsl_run_and_write(chain, input_desc, &b,
-                             16384u + 8u * (chain_len + input_len),
-                             out, out_cap, out_len);
+    return dsl_run_and_write(chain, input_desc, &b, out, out_cap, out_len);
 }
 
 /* ------------------------------------------------------------------

@@ -250,7 +250,24 @@ from typing import Optional
 #        mirror pairing (rc451 .so, rc452 Python) is milder but still wrong: the
 #        chain silently loses the C fast path on every reorient-terminated
 #        rational chain. Only this version number can see either.
-EXPECTED_ABI_VERSION: int = 23
+#
+# v24 (v0.9.0rc455) — THE SIBLING WRITER-RESERVE MOVE. No kind letter, no
+#        signature, no new symbol: srmech_dsl_chain_run_arena_bytes now returns
+#        a SMALLER envelope (by exactly 32768 + 16*(chain_len + input_len)),
+#        because its writer reserve was derived from the INPUT length while it
+#        bounds the OUTPUT tree — the same defect, on the sibling function, that
+#        v23 recorded for srmech_chain_run_arena_bytes. Measured: the old share
+#        bought ~4 builder bytes per input byte against a required ~6.4, so
+#        ``.then('chiral_flip')`` stopped running in C above 165 int elements
+#        and answered from pure with no signal.
+#
+#        THE PAIRING THIS PIN REJECTS is milder than v21's or v23's and the pin
+#        is recorded anyway, because "no live breakage" is not the predicate v23
+#        set — "it is the same wire-sizing contract" is. Old (larger) cached
+#        figure into a v24 library: over-provisioned, correct. New (smaller)
+#        figure into a v23 library: the old tail-slice guard answers a correct
+#        SRMECH_ERR_OVERFLOW. Neither computes and lies.
+EXPECTED_ABI_VERSION: int = 24
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-

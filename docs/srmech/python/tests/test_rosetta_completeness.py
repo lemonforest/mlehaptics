@@ -773,7 +773,10 @@ CEIL_BIGNUM_REFERENCE = 0
 # CEIL_NON_COMPUTE_OWED 8 → 4. ABI stays 4 (additive symbols). The remaining 4 owed =
 # the tool_schema pair (get_tool_schema / tool_schema_view — host-glue MCP) + make_class /
 # run_class_method (HONEST-DEFERRED — leaf-op-blocked on the genome / sed_* domain-leaf
-# C backlog, past Batch B). `parallel` still defers to pure (host-thread fan-out).
+# C backlog, past Batch B). At rc182 `parallel` still deferred to pure on a host-thread
+# ground; rc455 RETIRED that — the Klein-4 fan-out runs in C, serially, because the
+# sectors read only their own T_s(x) and are collected BY SECTOR INDEX, so completion
+# order cannot reach the value. This line read as a live deferral until then.
 # rc183 (2026-07-08): the HOST-GLUE ANNEX — extend the ledger walk (_ROOTS) to
 # srmech.mcp + srmech.cli + srmech.llm (test-infra ONLY, NO C). The walk yields
 # +24 new rows (4 mcp + 17 cli + 3 llm; the 2 cli.klass re-exports resolve to the

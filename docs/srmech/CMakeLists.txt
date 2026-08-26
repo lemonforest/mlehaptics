@@ -349,8 +349,21 @@ if(SRMECH_SRCS)
         # the arena is dominated by 4096 * chain_len (a 3-step chain wants
         # ~2.6 MiB). Wired here rather than raising CEIL_UNWIRED_C_TESTS,
         # because an unwired C test is one nobody runs.
+        # rc455 extended it onto the parallel_body fan-out (which returned
+        # NOT_IMPL on the ground that the fan-out needs host threads — and a
+        # bare-C host is precisely the host with no threads to defer TO) and
+        # onto the arena cliff that stopped this runner working in C above 165
+        # elements, a defect only a bare-C host experiences as a FAILURE: a
+        # Python caller collapses the status to a native miss and gets the
+        # right answer from the pure path.
+        # MEASURED, 54 -> 66 (+12 rows): the rc454 file run against the rc455
+        # library prints "54 passed, 0 failed"; the rc455 file prints 66. The
+        # line below said 17 until rc455 — stale by 37 rows, because the count
+        # is prose and nothing reads it. Re-measure by RUNNING the binary
+        # (grep -c "check(" answers 67, one high: it also matches the helper's
+        # own definition).
         # Public-API only (srmech.h). ~0 s. Run it:
-        #   ./build/test_srmech_chain_run   (exit 0 = pass, 17 checks)
+        #   ./build/test_srmech_chain_run   (exit 0 = pass, 66 checks)
         add_executable(test_srmech_chain_run
                        c/test/test_srmech_chain_run.c)
         target_link_libraries(test_srmech_chain_run
