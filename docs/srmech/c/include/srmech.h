@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE "rc454"
-#define SRMECH_VERSION "0.9.0rc454"
+#define SRMECH_VERSION_PRE "rc455"
+#define SRMECH_VERSION "0.9.0rc455"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -532,8 +532,56 @@ extern "C" {
  *      rides this bump rather than going unrecorded.
  *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
+ *
+ *   v24 (v0.9.0rc455) — THE SIBLING WRITER-RESERVE MOVE, and the
+ *      SECOND instance of the shape v23 recorded one function over. It adds no
+ *      kind letter, changes no signature and exports no new symbol; what moves
+ *      is what an existing function RETURNS, which is the v10/v12 shape (an
+ *      existing parameter's meaning changed) reached from the other side.
+ *
+ *      THE PRECEDENT IS THE v23 NOTE ABOVE, VERBATIM IN ITS REASONING. That
+ *      note covers "a WRITER-RESERVE CONTRACT MOVE ... srmech_chain_run_arena_
+ *      bytes now returns a LARGER envelope, because the value-descriptor writer
+ *      reserve was derived from the INPUT length while it bounds the OUTPUT
+ *      tree ... it is the same wire-sizing contract, so it rides this bump
+ *      rather than going unrecorded." rc455 makes the IDENTICAL move on the
+ *      SIBLING function, srmech_dsl_chain_run_arena_bytes: the same
+ *      input-derived reserve, the same reason it was wrong, the same repair.
+ *      Declining to bump here would apply the ADDITIVE rule ("adding a symbol
+ *      never bumps") to a change that adds nothing, and would leave the second
+ *      instance of a recorded shape unrecorded. Silence is the one option the
+ *      v23 note rules out.
+ *
+ *      WHAT THE NUMBER DOES, and it is the OPPOSITE DIRECTION from v23's.
+ *      srmech_dsl_chain_run_arena_bytes carried a third term,
+ *      `writer = 32768 + 16*(chain_len + input_len)`, which
+ *      dsl_run_and_write sliced off the arena TAIL and halved between the json
+ *      builder and the write scratch. That share was derived from the INPUT
+ *      length while it bounds the OUTPUT tree — measured, it bought ~4 bytes of
+ *      builder per input byte against a required ~6.4, so `.then('chiral_flip')`
+ *      stopped running in C above 165 int elements and silently answered from
+ *      pure. rc455 deletes the term and carves the emit scratch / builder /
+ *      write scratch FORWARD, each sized from the value actually produced
+ *      (dsl_out_reserve). So the returned envelope is now SMALLER by exactly
+ *      32768 + 16*(chain_len + input_len). MEASURED on `.then('chiral_flip')`
+ *      (chain_len 90): 35440 bytes at 3 elements, 23.86 MiB at 65536
+ *      (input_len 1561771) — while the arena the call actually NEEDS went down
+ *      much further, because the cliff was never the total, it was the writer's
+ *      share of it.
+ *
+ *      THE TWO MIXED-VERSION PAIRINGS, and why this is a recording defect
+ *      rather than a live one. A caller that cached the OLD (larger) figure and
+ *      passes it to a v24 library is over-provisioned and runs correctly — the
+ *      forgiving direction, and the one v23 did NOT have. A caller that caches
+ *      the NEW (smaller) figure and passes it to a v23 library meets the old
+ *      tail-slice guard, `(b->end - b->cur) <= wsz + 4096`, and gets a correct
+ *      SRMECH_ERR_OVERFLOW — a refusal, never a wrong value. Neither pairing
+ *      computes and lies. But "no live breakage" is not the predicate v23 set;
+ *      "it is the same wire-sizing contract" is, and it is the same one.
+ *
+ *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  */
-#define SRMECH_ABI_VERSION 23
+#define SRMECH_ABI_VERSION 24
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -3638,9 +3686,13 @@ srmech_status_t srmech_catalog_run_chain(
  * leaf-dispatch table) + build_chain_from_dict (the stage-IR discriminator parse).
  *
  *   chain_json  : {"chain":{"name":..},"stage":[{"op":..,<kwargs>..},...]} — the
- *                 build_chain_from_dict grammar. Only `op` (LINEAR) stages run
- *                 here; a loop/fold/reduce/parallel discriminator → non-OK → the
- *                 pure path (rc182 adds the combinators + the TOML front-ends).
+ *                 build_chain_from_dict grammar. AT rc181 only `op` (LINEAR)
+ *                 stages ran here and every combinator discriminator → non-OK →
+ *                 the pure path. That is a DATED statement of the rc181 shape,
+ *                 not the current one: rc182 added loop/fold/reduce + the TOML
+ *                 front-ends, rc420 added map_indexed and rc455 added parallel,
+ *                 so the whole discriminator grammar runs in C today — see THE
+ *                 COMBINATORS below, which is the live list.
  *   input_json  : an F1 VALUE DESCRIPTOR for the seed value.
  *   out         : the F1 VALUE DESCRIPTOR for the final value.
  *
@@ -3681,10 +3733,32 @@ srmech_status_t srmech_catalog_run_chain(
  *            Python dispatcher + tests/test_combinator_kernel_closure.py in
  *            the same change (the closure ratchet now cross-reads this
  *            file's discriminator array, so the two sides cannot drift).
- * `parallel_body` (the Klein-4 fan-out over host threads) still DEFERS to pure.
- * A combinator whose body op is not a C leaf / binary kernel → non-OK → pure.
- * ABI-additive → SRMECH_ABI_VERSION stays 4 (and the rc420 map form adds no
- * symbol, changes no signature and adds no callback typedef → ABI unchanged). */
+ *   * parallel {"parallel_body":<op>,"n_sectors":N,"combine":<name>|null}
+ *            (0.9.0rc455 — the LAST combinator to reach C) — the Klein-4
+ *            four-sector fan-out, run SERIALLY:
+ *            sector_dual(s) = inv_T_s(body(T_s(x))) for s in 0..N-1 (N ≤ 4),
+ *            then the combine. ⚠️ SERIAL IS NOT AN APPROXIMATION: each sector
+ *            reads only its own T_s(x), and Python collects the futures BY
+ *            SECTOR INDEX, so completion order cannot reach the value. This
+ *            sentence read *"`parallel_body` (the Klein-4 fan-out over host
+ *            threads) still DEFERS to pure"* until rc455 made it false; no gate
+ *            caught it, because nothing in the tree reads this header's prose.
+ *            C parallel-body table: chiral_flip, autocorrelation — the only two
+ *            of the seven leaves that are sequence → sequence. The other five
+ *            BUILD fine as a `parallel_body=` and raise TypeError at RUN in
+ *            Python, so accepting one here would compute an answer Python
+ *            refuses. combine ∈ {sector0, concat, bundle, mean} or JSON null
+ *            (the per-sector list of lists); any other name → non-OK → pure.
+ * A combinator whose body op is not a C leaf / binary / map / parallel kernel →
+ * non-OK → pure.
+ * ABI: the rc182 forms were ABI-additive (SRMECH_ABI_VERSION stayed 4) and the
+ * rc420 map form adds no symbol, changes no signature and adds no callback
+ * typedef. THE rc455 PARALLEL FORM ADDS NO SYMBOL EITHER — but the same rc
+ * re-derived srmech_dsl_chain_run_arena_bytes' writer reserve from the OUTPUT
+ * value instead of `input_len`, so what that function RETURNS changed, and that
+ * is the v10/v12 wire-sizing shape v23 already recorded for the sibling
+ * srmech_chain_run_arena_bytes → SRMECH_ABI_VERSION 23 → 24. See the ABI
+ * history block at the top of this header. */
 size_t srmech_dsl_chain_run_arena_bytes(size_t chain_len, size_t input_len);
 srmech_status_t srmech_dsl_chain_run(
     const char *chain_json, size_t chain_len,

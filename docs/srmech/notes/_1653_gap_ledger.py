@@ -659,17 +659,30 @@ ROWS = [
                           "the parity ratchet by construction, which is why it "
                           "needs its own gate."),
     # ── declined, with reason ───────────────────────────────────────────────
-    dict(id="parallel_body", kind="decline",
-         missing="Surface B's parallel_body returns SRMECH_ERR_NOT_IMPL.",
-         lacked_by="c", blocked_this_rc=False, new_type=False,
-         evidence="notes/_1653_step_forms_rc444.ndjson: the C discriminator table "
-                  "RECOGNISES parallel_body and rejects it deliberately.",
-         probe="python3 notes/_1653_step_forms_rc444.py",
-         disposition=DECLINED,
-         note="A host-thread affordance. The compiled projection deliberately does "
-              "not offer thread fan-out; it is RECOGNISED and refused, not "
-              "unrecognised, which is the difference between a decline and a gap.",
-         ceiling_blind_to="n/a — a deliberate decline needs no ceiling."),
+    dict(id="parallel_body", kind="gap",
+         missing="Surface B's parallel_body returned SRMECH_ERR_NOT_IMPL from "
+                 "rc182 to rc454 — the LAST combinator missing from the C "
+                 "projection.",
+         lacked_by="c", blocked_this_rc=True, new_type=False,
+         evidence="pytest tests/test_dsl_parallel_c_rc455.py: 336 rows, Python-vs-C "
+                  "byte identity over 280 (body x n_sectors x combine x carrier) "
+                  "cells with 0 native misses, plus the sector-ORDER assertion.",
+         probe="pytest tests/test_dsl_parallel_c_rc455.py",
+         disposition=CLOSED,
+         note="rc455 — AND THIS ROW SPENT SIX RCs AS A DECLINE ON A DEAD "
+              "JUSTIFICATION. It read: \"A host-thread affordance. The compiled "
+              "projection deliberately does not offer thread fan-out.\" That is "
+              "RETRACTED. The fan-out never needed threads: each sector reads only "
+              "its own T_s(x) and parallel_sector_dispatch collects the futures BY "
+              "SECTOR INDEX, so completion order cannot reach the value — and "
+              "srmech_compose_run.c had shipped a complete SERIAL Klein-4 kernel "
+              "(cr_psd_*) since rc452 saying exactly that. A decline is only honest "
+              "while its reason holds; this one outlived its reason, and the row is "
+              "what said otherwise while the slice above it closed 6 of 6.",
+         ceiling_blind_to="The BODY table, not the discriminator: C accepts only "
+                          "chiral_flip / autocorrelation as parallel bodies (the "
+                          "two sequence->sequence leaves of seven). A chain "
+                          "count cannot see a body that starts being accepted."),
     dict(id="descriptor_lookup_in_c", kind="gap",
          missing="C has NO descriptor lookup, so a composite op resolving to "
                  "another descriptor's chain, or a step referencing a descriptor, "

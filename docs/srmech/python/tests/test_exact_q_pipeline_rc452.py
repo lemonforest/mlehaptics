@@ -99,22 +99,25 @@ def test_the_native_library_is_present_and_at_this_rcs_abi() -> None:
     a LOADED library come AFTER :func:`require_native`, which is the only thing
     entitled to decide whether "absent" was declared or is a broken C build.
     """
-    assert _native.EXPECTED_ABI_VERSION == 23, (
+    assert _native.EXPECTED_ABI_VERSION == 24, (
         "rc452 bumps ABI 20 -> 21 for cr_op_reorient's CR_RATIONAL arm, "
-        "21 -> 22 for the b/x wire kinds, and 22 -> 23 for the m/o pair; the "
-        "Python constant and the srmech.h macro move in the SAME commit or "
-        "HAS_NATIVE goes silently False. Got %r"
+        "21 -> 22 for the b/x wire kinds, and 22 -> 23 for the m/o pair; "
+        "rc455 bumps 23 -> 24 for the srmech_dsl_chain_run_arena_bytes "
+        "writer-reserve move. The Python constant and the srmech.h macro move "
+        "in the SAME commit or HAS_NATIVE goes silently False. Got %r"
         % (_native.EXPECTED_ABI_VERSION,))
-    require_native("the rc452 exact-Q pipeline floor (ABI 23 and a loaded library)")
+    require_native(
+        "the rc452 exact-Q pipeline floor (ABI %d and a loaded library)"
+        % (_native.EXPECTED_ABI_VERSION,))
     assert _native.LOAD_ERROR is None, _native.LOAD_ERROR
     assert _native.HAS_NATIVE is True, (
         "no native library loaded. This file certifies rc452's DoD across BOTH "
         "projections; without the C half it would be a green that measured one "
         "of them. Build it (docs/srmech/c) and re-run.")
-    assert _native.NATIVE_ABI_VERSION == 23, (
-        "the loaded .so reports ABI %r, not 23 — it is stale against this "
+    assert _native.NATIVE_ABI_VERSION == 24, (
+        "the loaded .so reports ABI %r, not %d — it is stale against this "
         "source tree and every measurement below would be of the old bytes."
-        % (_native.NATIVE_ABI_VERSION,))
+        % (_native.NATIVE_ABI_VERSION, _native.EXPECTED_ABI_VERSION))
 
 
 def _lib():
@@ -132,7 +135,8 @@ def _lib():
     lib = _compose._compose_lib("srmech_chain_run", "srmech_chain_run_arena_bytes")
     assert lib is not None, (
         "srmech_chain_run is absent from a library that loaded and reported "
-        "ABI 23 — that is a different failure and must not read as a skip")
+        "ABI %r — that is a different failure and must not read as a skip"
+        % (_native.NATIVE_ABI_VERSION,))
     return lib
 
 

@@ -98,9 +98,15 @@ def main():
         and p7["synthetic"]["inf"] == "BAD_INPUT=2")
 
     p8 = nd["P8"][0]
-    chk("two Surface-B controls pass, parallel_body is NOT_IMPL",
+    # rc455: parallel_body RUNS in C (dsl_run_parallel), so the P8 capture this
+    # reads is a DATED rc444 record and this assertion is re-scoped to the two
+    # controls. The "NOT_IMPL=5" half is retained ONLY as the historical value
+    # the capture holds; re-running the probe against an rc455 library answers
+    # OK=0, which is the point of the row above it in the gap ledger.
+    chk("two Surface-B controls pass (parallel_body was NOT_IMPL at rc444; it "
+        "RUNS in C from rc455)",
         p8["control_leaf"] == "OK=0" and p8["control_loop_n"] == "OK=0"
-        and p8["parallel_body"] == "NOT_IMPL=5")
+        and p8["parallel_body"] in ("NOT_IMPL=5", "OK=0"))
     chk("threading is available on this host", p8["plat_has_threads"] == 1)
     chk("sector dispatch is public and loadable",
         p8["symbols"]["srmech_cascade_parallel_sector_dispatch"]["in_header"]

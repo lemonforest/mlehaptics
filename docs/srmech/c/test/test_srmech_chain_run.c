@@ -327,6 +327,167 @@ int main(void)
     check(st == SRMECH_ERR_NOT_IMPL,
           "a MISSING REQUIRED kwarg still DEFERS — a disjoint defect class");
 
+    /* ── rc455: the `parallel_body` FAN-OUT, on a host with no threads ─────
+     *
+     * Through rc454 srmech_dsl_chain_run returned NOT_IMPL for every
+     * parallel_body stage, guarded by the comment "host-thread fan-out". A
+     * bare-C host is exactly the host that has no ThreadPoolExecutor to defer
+     * TO, so the deferral did not inform it of anything — it just refused. The
+     * four sectors read only their own T_s(x) and are collected BY SECTOR
+     * INDEX, so the serial evaluation below is the same value.
+     *
+     * Every row pins the FULL output descriptor, not a substring: the four
+     * reducers differ from each other only in the numbers, so a `strstr` on one
+     * of them would pass against three wrong answers. */
+
+    /* P1 — combine='sector0'. chiral_flip commutes with BOTH Klein-4 axes, so
+     * every sector agrees; this row is the value-transparent one. Checked FIRST
+     * because a dirty row whose clean twin does not run is vacuous. */
+    st = run_dsl("{\"chain\":{\"name\":\"p\"},\"stage\":[{\"parallel_body\":"
+                 "\"chiral_flip\",\"n_sectors\":4,\"combine\":\"sector0\"}]}",
+                 "{\"k\":\"l\",\"v\":[{\"k\":\"i\",\"v\":1},{\"k\":\"i\",\"v\":2},"
+                 "{\"k\":\"i\",\"v\":3}]}", out, sizeof(out));
+    check(st == SRMECH_OK &&
+          strcmp(out, "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": 3}, "
+                      "{\"k\": \"i\", \"v\": 2}, {\"k\": \"i\", \"v\": 1}]}") == 0,
+          "DSL parallel sector0 == chiral_flip([1,2,3]) == [3,2,1]");
+
+    /* P2 — combine='bundle', and THE INT-PRESERVATION WITNESS. Python's bundle
+     * is builtin `sum`, whose seed is an INT 0, so an all-int input stays int.
+     * A 0.0 seed would emit {"k":"f"} here and read as harmless. */
+    st = run_dsl("{\"chain\":{\"name\":\"p\"},\"stage\":[{\"parallel_body\":"
+                 "\"chiral_flip\",\"n_sectors\":4,\"combine\":\"bundle\"}]}",
+                 "{\"k\":\"l\",\"v\":[{\"k\":\"i\",\"v\":1},{\"k\":\"i\",\"v\":2},"
+                 "{\"k\":\"i\",\"v\":3}]}", out, sizeof(out));
+    check(st == SRMECH_OK &&
+          strcmp(out, "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": 12}, "
+                      "{\"k\": \"i\", \"v\": 8}, {\"k\": \"i\", \"v\": 4}]}") == 0,
+          "DSL parallel bundle over 4 sectors == [12,8,4] and stays INT — the "
+          "carrier's own zero, not 0.0");
+
+    /* P3 — combine='mean'. Python divides with `/`, which is TRUE division, so
+     * an int bundle becomes float: the one reducer that must change kind. */
+    st = run_dsl("{\"chain\":{\"name\":\"p\"},\"stage\":[{\"parallel_body\":"
+                 "\"chiral_flip\",\"n_sectors\":4,\"combine\":\"mean\"}]}",
+                 "{\"k\":\"l\",\"v\":[{\"k\":\"i\",\"v\":1},{\"k\":\"i\",\"v\":2},"
+                 "{\"k\":\"i\",\"v\":3}]}", out, sizeof(out));
+    check(st == SRMECH_OK &&
+          strcmp(out, "{\"k\": \"l\", \"v\": [{\"k\": \"f\", \"v\": 3.0}, "
+                      "{\"k\": \"f\", \"v\": 2.0}, {\"k\": \"f\", \"v\": 1.0}]}") == 0,
+          "DSL parallel mean == [3.0,2.0,1.0] — int/int true division floats it");
+
+    /* P4 — combine='concat'. The first shipped form whose OUTPUT IS LONGER THAN
+     * ITS INPUT (4x), which is what the rc455 output-derived writer reserve
+     * exists for. n_sectors=2 so the sector ORDER is legible in the value. */
+    st = run_dsl("{\"chain\":{\"name\":\"p\"},\"stage\":[{\"parallel_body\":"
+                 "\"chiral_flip\",\"n_sectors\":2,\"combine\":\"concat\"}]}",
+                 "{\"k\":\"l\",\"v\":[{\"k\":\"i\",\"v\":1},{\"k\":\"i\",\"v\":2}]}",
+                 out, sizeof(out));
+    check(st == SRMECH_OK &&
+          strcmp(out, "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": 2}, "
+                      "{\"k\": \"i\", \"v\": 1}, {\"k\": \"i\", \"v\": 2}, "
+                      "{\"k\": \"i\", \"v\": 1}]}") == 0,
+          "DSL parallel concat is 2x long and in SECTOR ORDER");
+
+    /* P5 — combine=null, the per-sector LIST OF LISTS. It rides the EXISTING
+     * {"k":"l"} wire nested one deep — no new kind, no ABI bump. */
+    st = run_dsl("{\"chain\":{\"name\":\"p\"},\"stage\":[{\"parallel_body\":"
+                 "\"chiral_flip\",\"n_sectors\":2,\"combine\":null}]}",
+                 "{\"k\":\"l\",\"v\":[{\"k\":\"i\",\"v\":1},{\"k\":\"i\",\"v\":2}]}",
+                 out, sizeof(out));
+    check(st == SRMECH_OK &&
+          strcmp(out, "{\"k\": \"l\", \"v\": ["
+                      "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": 2}, "
+                      "{\"k\": \"i\", \"v\": 1}]}, "
+                      "{\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": 2}, "
+                      "{\"k\": \"i\", \"v\": 1}]}]}") == 0,
+          "DSL parallel combine=null nests LIST OF LISTS on the existing wire");
+
+    /* P6 — the iw7 axis is VISIBLE. autocorrelation is even, so its sector-1
+     * dual is the NEGATION of sector 0: a body for which the four sectors do
+     * NOT agree, which is what makes P2's bundle non-vacuous. */
+    st = run_dsl("{\"chain\":{\"name\":\"p\"},\"stage\":[{\"parallel_body\":"
+                 "\"autocorrelation\",\"n_sectors\":2,\"combine\":\"concat\"}]}",
+                 "{\"k\":\"l\",\"v\":[{\"k\":\"f\",\"v\":1.0},{\"k\":\"f\",\"v\":2.0}]}",
+                 out, sizeof(out));
+    check(st == SRMECH_OK &&
+          strcmp(out, "{\"k\": \"l\", \"v\": [{\"k\": \"f\", \"v\": 5.0}, "
+                      "{\"k\": \"f\", \"v\": 4.0}, {\"k\": \"f\", \"v\": -5.0}, "
+                      "{\"k\": \"f\", \"v\": -4.0}]}") == 0,
+          "sector 1 (iw7) is the NEGATED dual — the sectors genuinely differ");
+
+    /* P7 — NEGATIVE CONTROL, the whole point of a bare-C row. `magnitude` is IN
+     * the seven-op leaf table and is NOT a legal parallel body (scalar -> scalar,
+     * and Python raises TypeError for it). Four of the seven are like this. A
+     * body table that just reused dsl_leaf_dispatch would have computed
+     * SOMETHING here, on a host with no Python to disagree with it. */
+    st = run_dsl("{\"chain\":{\"name\":\"p\"},\"stage\":[{\"parallel_body\":"
+                 "\"magnitude\",\"n_sectors\":4,\"combine\":\"bundle\"}]}",
+                 "{\"k\":\"l\",\"v\":[{\"k\":\"f\",\"v\":1.0}]}", out, sizeof(out));
+    check(st == SRMECH_ERR_NOT_IMPL,
+          "an IN-TABLE but non-sequence body DEFERS (NOT_IMPL), never computes");
+
+    st = run_dsl("{\"chain\":{\"name\":\"p\"},\"stage\":[{\"parallel_body\":"
+                 "\"net_chirality\",\"n_sectors\":4,\"combine\":\"bundle\"}]}",
+                 "{\"k\":\"l\",\"v\":[{\"k\":\"i\",\"v\":1}]}", out, sizeof(out));
+    check(st == SRMECH_ERR_NOT_IMPL,
+          "net_chirality (seq -> scalar) is likewise not a legal body");
+
+    /* P8 — an UNKNOWN REDUCER defers rather than guessing. combine='nope'
+     * BUILDS fine from an ordinary Python chain and raises only at run, so this
+     * is reachable without a bare-C host at all. */
+    st = run_dsl("{\"chain\":{\"name\":\"p\"},\"stage\":[{\"parallel_body\":"
+                 "\"chiral_flip\",\"n_sectors\":4,\"combine\":\"nope\"}]}",
+                 "{\"k\":\"l\",\"v\":[{\"k\":\"i\",\"v\":1}]}", out, sizeof(out));
+    check(st == SRMECH_ERR_NOT_IMPL,
+          "an unknown combine reducer DEFERS — 'combine is a string' is not the "
+          "predicate");
+
+    /* P9 — the cap at 4 is Klein-4's own order, not a buffer size. */
+    st = run_dsl("{\"chain\":{\"name\":\"p\"},\"stage\":[{\"parallel_body\":"
+                 "\"chiral_flip\",\"n_sectors\":5,\"combine\":\"bundle\"}]}",
+                 "{\"k\":\"l\",\"v\":[{\"k\":\"i\",\"v\":1}]}", out, sizeof(out));
+    check(st == SRMECH_ERR_NOT_IMPL,
+          "n_sectors past the Klein-4 cap of 4 DEFERS (Python raises)");
+
+    /* ── rc455: THE ARENA CLIFF, from a bare-C host ───────────────────────
+     *
+     * ⚠️ MEASURED at rc454: this exact form returned SRMECH_ERR_OVERFLOW above
+     * 165 int elements, because the writer reserve was 8 bytes per byte of
+     * INPUT and the builder needs ~137 bytes per ~21.5-byte element. A Python
+     * caller never saw it — a non-OK status is collapsed to a native-miss and
+     * the pure path answers correctly — so the ONLY host that experiences the
+     * defect as a failure is this one. The whole pre-rc455 C-parity corpus ran
+     * at <= 18 elements.
+     *
+     * 300 elements is past both the int (166) and float (199) cliffs and still
+     * fits the 8 MiB static arena above; the pytest peer sweeps to 65536. */
+    {
+        static char big_in[16384];
+        static char big_out[16384];
+        size_t k, w = 0u;
+        big_in[w++] = '{'; big_in[w++] = '"'; big_in[w++] = 'k'; big_in[w++] = '"';
+        big_in[w++] = ':'; big_in[w++] = '"'; big_in[w++] = 'l'; big_in[w++] = '"';
+        big_in[w++] = ','; big_in[w++] = '"'; big_in[w++] = 'v'; big_in[w++] = '"';
+        big_in[w++] = ':'; big_in[w++] = '[';
+        for (k = 0u; k < 300u; k++) {
+            if (k > 0u) { big_in[w++] = ','; }
+            /* {"k":"i","v":7} — a constant element keeps the literal short; the
+             * cliff is about COUNT, not about the digits. */
+            memcpy(big_in + w, "{\"k\":\"i\",\"v\":7}", 15u);
+            w += 15u;
+        }
+        big_in[w++] = ']'; big_in[w++] = '}'; big_in[w] = '\0';
+        st = run_dsl("{\"chain\":{\"name\":\"t\"},\"stage\":"
+                     "[{\"op\":\"chiral_flip\"}]}",
+                     big_in, big_out, sizeof(big_out));
+        check(st == SRMECH_OK,
+              "a 300-element chiral_flip RUNS — rc454 returned OVERFLOW past "
+              "165, on a form shipped since rc181");
+        check(st == SRMECH_OK && strlen(big_out) > 300u * 14u,
+              "and the 300-element output was actually WRITTEN, not truncated");
+    }
+
     /* ── DECLINES: a bare-C host must refuse, never guess ───────────────── */
     /* rc449: tightened from `!= SRMECH_OK` to the literal value. The loose form
      * is the §6.3 failure mode in miniature — it cannot tell this DEFER from the

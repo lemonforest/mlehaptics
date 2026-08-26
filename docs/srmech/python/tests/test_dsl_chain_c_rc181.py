@@ -68,7 +68,7 @@ def _pure(ch, inp):
 def test_symbols_bound_and_abi_5():
     assert hasattr(_native.LIB, "srmech_dsl_chain_run")
     assert hasattr(_native.LIB, "srmech_dsl_chain_run_arena_bytes")
-    assert _native.NATIVE_ABI_VERSION == 23
+    assert _native.NATIVE_ABI_VERSION == 24
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -212,8 +212,15 @@ def test_full_run_uses_native_and_matches_pure():
 def test_loop_fold_reduce_now_nativize():
     """rc182 INVERTED the rc181 deferral pin: loop / fold / reduce over C-backed
     bodies now RUN in C (they no longer defer). The pure combinator path still
-    runs correctly and matches. (The parallel fan-out stays deferred — see
-    test_parallel_combinator_defers_to_pure.)"""
+    runs correctly and matches.
+
+    ⚠️ THIS DOCSTRING READ *"(The parallel fan-out stays deferred — see
+    test_parallel_combinator_defers_to_pure.)"* UNTIL rc455, AND BOTH HALVES
+    WERE WRONG. rc455 landed the Klein-4 fan-out in C, so the fan-out no
+    longer defers; and the test it named had been renamed to
+    ``test_parallel_combinator_runs_in_c`` in the same change, so the only
+    surviving occurrence of the old name in the whole tree was this
+    sentence pointing at it. See tests/test_dsl_parallel_c_rc455.py."""
     looped = chain("loop").loop(3, chain("body").then("magnitude"))
     assert looped._run_native(-2.0) is not _NATIVE_MISS
     assert looped.run(-2.0) == pytest.approx(2.0)

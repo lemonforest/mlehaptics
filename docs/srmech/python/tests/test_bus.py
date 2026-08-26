@@ -1017,7 +1017,10 @@ def test_native_bus_symbols_present():
     from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    # ABI-PIN: NATIVE_ABI_VERSION == 23
+    # ABI-PIN: NATIVE_ABI_VERSION == 24
+    # ⚠️ rc455: the local below is the SAME grep-invisible site the note that
+    # follows describes. It was found by hand this time, not by the
+    # `ABI_VERSION == 23` sweep, which matched only the comment above.
     # ^ that comment is a GREP TARGET, and it is load-bearing. rc449 fixed this
     # file's stale-message problem by naming the value once and interpolating it,
     # which is right - but it moved the literal off the assert line, so rc452's
@@ -1027,11 +1030,12 @@ def test_native_bus_symbols_present():
     # a SECOND one, of a different kind - indirection through a local, introduced
     # by the previous fix. Keeping a comment that spells NAME == LITERAL restores
     # what the interpolation took away, without giving back the drift it prevents.
-    want_abi = 23
+    want_abi = 24
     assert _native.NATIVE_ABI_VERSION == want_abi, (
-        f"ABI {want_abi} expected (rc452 `#T1166` rebuilt the chain-run 'q' wire "
-        f"kind as srmech.math.q.Q - a wire-format change to an EXISTING signature, "
-        f"20 -> {want_abi}); got {_native.NATIVE_ABI_VERSION}"
+        f"ABI {want_abi} expected (rc455 re-derived "
+        f"srmech_dsl_chain_run_arena_bytes' writer reserve from the OUTPUT "
+        f"value instead of input_len - the v10/v12 wire-sizing shape, "
+        f"23 -> {want_abi}); got {_native.NATIVE_ABI_VERSION}"
     )
     for sym in (
         "srmech_bus_serve",
@@ -1089,8 +1093,8 @@ def test_abi_version_is_pinned():
     # a mechanism designed for a human reader, driven by a script. Both
     # functions FAILED on the next run, which is the assert being the
     # measurement rather than the comment. Fixed together.
-    # ABI-PIN: EXPECTED_ABI_VERSION == 23   (grep target - see the note above)
-    want_abi = 23
+    # ABI-PIN: EXPECTED_ABI_VERSION == 24   (grep target - see the note above)
+    want_abi = 24
     assert _native.EXPECTED_ABI_VERSION == want_abi, (
         f"EXPECTED_ABI_VERSION should be {want_abi}; got "
         f"{_native.EXPECTED_ABI_VERSION}"

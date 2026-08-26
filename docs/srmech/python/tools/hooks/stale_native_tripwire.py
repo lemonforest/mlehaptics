@@ -292,10 +292,17 @@ def body(payload: Dict[str, Any]) -> int:
     # NARROWING, EVALUATED LAST. A Stop in a session that touched no C source
     # is not this hook's business; the check costs 2.4-8.1 s on this mount, so
     # it is paid only once the cheap predicate has already decided to block.
+    #
+    # ⚠️ rc455: this narrowing read ``git status --porcelain -- docs/srmech/c``,
+    # which is not a platform-independent question on this checkout — WSL git
+    # reports every CRLF working file modified against its LF blob and the
+    # narrowing then never narrows. It is now a CONTENT difference
+    # (``_hooklib.dirty_paths``), measured identical under both gits. The
+    # verdict only ever moves toward ALLOW, so the repair cannot introduce a
+    # false block; what it removes is a false FAILURE TO NARROW.
     event = payload.get("hook_event_name") or ""
     if event in ("Stop", "SubagentStop"):
-        code, out = H.git(["status", "--porcelain", "--", "docs/srmech/c"], cwd=root)
-        if code != 0 or not out.strip():
+        if not H.dirty_paths(root, ["docs/srmech/c"]):
             return H.allow()
 
     if os.environ.get(OVERRIDE) == "1":

@@ -15,9 +15,13 @@ Pins the loop / fold / reduce COMBINATORS completing ``srmech_dsl_chain_run``
 Parity contract: for a combinator chain over a C-backed body, the native run
 (``Chain._run_native`` / ``run_toml_chain``) == the pure run (native lib
 disabled) — byte-exact for the exact/structural atoms (chiral_flip / cyclic_gcd),
-WITHIN-TOL for the numeric ones (magnitude f64). A `parallel` fan-out, a non-C
-body, or an unsupported carrier → the C peer returns non-OK → the pure path runs
-(rc103 inform-don't-limit). ABI stays 4 (additive symbols).
+WITHIN-TOL for the numeric ones (magnitude f64). A non-C body or an unsupported
+carrier → the C peer returns non-OK → the pure path runs (rc103
+inform-don't-limit). ABI stays 4 (additive symbols).
+
+⚠️ The `parallel` fan-out is NO LONGER on the defer list — rc455 runs it in C,
+serially; see test_parallel_combinator_runs_in_c below, which replaced the
+rc182 pin that asserted the opposite.
 
 numpy-free (stdlib json/math + pytest.approx; the DSL is numpy-free).
 """
@@ -113,7 +117,7 @@ def _pure(ch, inp):
 def test_toml_bridge_symbols_bound_and_abi_5():
     assert hasattr(_native.LIB, "srmech_dsl_toml_chain_to_json")
     assert hasattr(_native.LIB, "srmech_dsl_toml_chain_to_json_arena_bytes")
-    assert _native.NATIVE_ABI_VERSION == 23
+    assert _native.NATIVE_ABI_VERSION == 24
 
 
 def test_no_combinator_defer_pin_present():
@@ -241,18 +245,42 @@ def test_flip_then_reduce_native_eq_pure():
 
 
 # ─────────────────────────────────────────────────────────────────────
-# defer paths: parallel + non-C fold body
+# defer paths: non-C parallel body + non-C fold body
 # ─────────────────────────────────────────────────────────────────────
 
 
 @_needs_native
-def test_parallel_combinator_defers_to_pure():
-    """A `parallel` fan-out runs on host threads → the C engine declines
-    (_run_native miss) → the pure sector dispatch runs (inform-don't-limit)."""
+def test_parallel_combinator_runs_in_c():
+    """A `parallel` fan-out RUNS in C as of rc455 — it no longer defers.
+
+    ⚠️ THIS TEST ASSERTED THE OPPOSITE THROUGH rc454, and the assertion was
+    load-bearing prose rather than a finding: ``parallel_body`` returned
+    SRMECH_ERR_NOT_IMPL guarded by the comment "host-thread fan-out". The
+    justification was dead — the four sectors read only their own ``T_s(x)`` and
+    the Python dispatcher collects the futures BY SECTOR INDEX, so completion
+    order cannot reach the value, and ``srmech_compose_run.c`` had shipped a
+    complete SERIAL Klein-4 kernel since rc452 saying so in its own header. A
+    test that pins a deferral is only ever as true as the deferral, which is why
+    it is REPLACED here rather than deleted: the same chain, the opposite claim.
+    """
     ch = chain("par").parallel_sectors("chiral_flip", n_sectors=4, combine="bundle")
+    native = ch._run_native([1.0, 2.0, 3.0, 4.0])
+    assert native is not _NATIVE_MISS
+    assert native == _pure(ch, [1.0, 2.0, 3.0, 4.0]) == [16.0, 12.0, 8.0, 4.0]
+
+
+@_needs_native
+def test_parallel_non_c_body_defers_to_pure():
+    """A body outside the C parallel table declines → the pure dispatch runs.
+
+    ``magnitude`` is IN the seven-op C leaf table and still not a legal parallel
+    body: a body must be sequence → sequence, and Python raises ``TypeError``
+    for it at run. Declining is what makes the two projections agree.
+    """
+    ch = chain("par").parallel_sectors("magnitude", n_sectors=4, combine="bundle")
     assert ch._run_native([1.0, 2.0, 3.0, 4.0]) is _NATIVE_MISS
-    # the pure parallel path still produces a value:
-    assert ch.run([1.0, 2.0, 3.0, 4.0]) is not None
+    with pytest.raises(TypeError):
+        ch.run([1.0, 2.0, 3.0, 4.0])
 
 
 @_needs_native

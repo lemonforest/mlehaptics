@@ -53,18 +53,32 @@ The two newest v0.6.0 C files:
 
 ### ABI
 
-C ABI version is **23** (`SRMECH_ABI_VERSION 23` in
-`c/include/srmech.h`). The v20 bump is rc451's (`#T1164`, gh #1653 item 4): a
-WIRE-FORMAT change to the existing `srmech_chain_run`, whose output
-value-descriptor kind set grows `{n,i,s,q,f,l}` → `+t` (a TUPLE, distinct from a
-list) and whose `l` payload key moves `"items"` → `"v"` so both chain wires spell
-it the same way. Exactly the v18 shape — that bump added `f`/`l` to this same
-wire — and load-bearing for the same reason: a current `.so` emitting the new
-kind into an older Python raises mid-run, where the bump makes the pairing refuse
-to load and the pure projection answer. The four exported symbols rc451 also adds
-(`srmech_cascade_dead_band_f64`,
-`srmech_cascade_scale_round_half_even_i64`, …) contribute nothing to it; adding a
-symbol never bumps. *(This line read **3** from the v0.5.0 era until rc442 —
+C ABI version is **24** (`SRMECH_ABI_VERSION 24` in
+`c/include/srmech.h`). The v24 bump is rc455's, and it is the SECOND instance of
+a shape this header already recorded one function over. `srmech_dsl_chain_run`'s
+writer reserve was derived from the INPUT length while it bounds the OUTPUT
+tree, so `srmech_dsl_chain_run_arena_bytes` now returns a **smaller** envelope —
+by exactly `32768 + 16*(chain_len + input_len)` — with the json builder, the
+emit scratch and the write scratch carved forward from the value actually
+produced instead. No signature changed and no symbol was added or removed; what
+moved is what an existing function returns, which is the v10/v12 wire-sizing
+shape. rc452's v23 note in `srmech.h` covers exactly that move on the SIBLING
+`srmech_chain_run_arena_bytes` and says it "rides this bump rather than going
+unrecorded", so declining here would leave the second instance of a recorded
+shape unrecorded. Neither mixed-version pairing computes a wrong value: an old
+(larger) cached figure over-provisions a v24 library, and a new (smaller) figure
+handed to a v23 library gets a correct `SRMECH_ERR_OVERFLOW`.
+
+*(⚠️ The narrative under this heading has lagged the integer even while the
+integer was gated. At rc454 this paragraph still explained the **v20** bump —
+rc451's `{"k":"t"}` TUPLE kind — beside a correct **23**, three bumps behind,
+because `test_abi_prose_currency_rc449.py` asserts one decidable thing per file
+(the integer equals the macro) and deliberately does not read the surrounding
+rationale. That is the right scope for that gate and it is also the residual: a
+number that cannot go stale above a story that can. rc455 rewrote the story with
+the number.)*
+
+*(This line read **3** from the v0.5.0 era until rc442 —
 fourteen bumps stale, and wrong long before that release touched it. It then went
 stale AGAIN five rcs later: rc447 bumped 17 → 18 and rc448 shipped over it, so by
 rc449 it was two behind. The note that used to sit here said "no gate covers

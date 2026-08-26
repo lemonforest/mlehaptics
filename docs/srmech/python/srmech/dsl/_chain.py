@@ -41,10 +41,12 @@ from ._control_flow import (
 # ``Chain.run`` value-threads the F1 carrier through the C-backed cascade atoms
 # via ``srmech_dsl_chain_run`` (srmech_dsl_chain_run.c) — the leaf-dispatch table
 # (``lookup_cascade_op``) + the ``build_chain_from_dict`` stage-IR grammar, both
-# in C. Only LINEAR (``.then(...)``) chains over the C-backed unary atoms take the
-# native path; a combinator (loop/fold/reduce/parallel) stage, a non-C leaf, or an
-# unsupported carrier shape falls through to the pure loop below (rc103 inform-
-# don't-limit — never a wrong answer). The F1 value descriptor is shared with the
+# in C. Since rc455 ALL FIVE combinators run in C as well as the linear spine —
+# which is the whole six-builder kernel, because `then` IS the spine and is one
+# of the six (tests/test_combinator_kernel_closure.py::KERNEL_BUILDERS); a
+# non-C leaf, a non-C combinator body, or an unsupported carrier shape falls
+# through to the pure loop below (rc103 inform-don't-limit — never a wrong
+# answer). The F1 value descriptor is shared with the
 # #796 F2/F3/F4 carrier extensions:
 #   None -> {"k":"n"} ; int -> {"k":"i","v":..} ; float -> {"k":"f","v":..} ;
 #   str -> {"k":"s","v":..} ; list -> {"k":"l","v":[..]} ; tuple -> {"k":"t",..}
@@ -201,6 +203,49 @@ def _then_native_desc(op_name: str, kwargs: dict,
         stage[kk] = vv
     return stage
 
+
+def _parallel_native_desc(body: str, n_sectors: Any, combine: Any,
+                          body_kwargs: dict) -> Optional[dict]:
+    """Build the C ``parallel`` stage dict, or ``None`` to defer to pure.
+
+    The Klein-4 fan-out ran in C from v0.9.0rc455 (``dsl_run_parallel``). It had
+    deferred since rc182 on the ground that the fan-out needs host threads; it
+    does not. The sectors read only their own ``T_s(x)`` and
+    :func:`~srmech.cascade.parallel.parallel_sector_dispatch` collects the
+    futures **by sector index**, so completion order cannot reach the value —
+    measured over 72 configs x 30 repeats with 0 nondeterministic results. C
+    evaluates the same four duals serially and bit-identically.
+
+    ⚠️ ``combine`` MUST BE ONE OF THE FOUR REDUCER NAMES (or ``None``), never
+    merely "a string". An invalid name reaches the runner from an ORDINARY
+    Python chain, not only from a bare-C host: ``parallel_sectors('chiral_flip',
+    combine='nope')`` BUILDS fine and raises ``ValueError`` only at ``.run()``.
+    A "combine is a str" predicate would have emitted native IR for it, and C
+    would then have had to invent a behaviour for a name Python refuses.
+    ``None`` rides the wire as JSON ``null`` — not the string ``"none"``, which
+    is itself an invalid Python reducer name and would collide.
+
+    ⚠️ A CALLABLE ``combine`` defers. So does any ``**body_kwargs``: the C body
+    is leaf-only and takes no stage, and neither legal C body (``chiral_flip`` /
+    ``autocorrelation``) has a keyword option, so binding one is by definition a
+    body C does not run.
+    """
+    # Lazy import (cycle-safe — the same reason _control_flow resolves
+    # srmech.cascade at call time): the accepted-name set is READ from the
+    # dispatcher's own SSoT, never re-spelled here.
+    from srmech.cascade.parallel import COMBINE_REDUCERS, KLEIN4_SECTOR_CAP
+    if body_kwargs:
+        return None
+    if type(n_sectors) is not int or not (1 <= n_sectors <= KLEIN4_SECTOR_CAP):
+        return None
+    if combine is None:
+        wire: Any = None
+    elif type(combine) is str and combine in COMBINE_REDUCERS:
+        wire = combine
+    else:
+        return None
+    return {"parallel_body": body, "n_sectors": n_sectors, "combine": wire}
+
 # Introspection emit hook — same gating pattern as srmech.cascade.
 # The DSL emits ``dsl.<chain_name>.stage.<N>`` / ``dsl.<chain_name>
 # .complete`` events when a publish context is active; otherwise the
@@ -267,9 +312,10 @@ class Chain:
         # Each stage: (op_name, callable, kwargs-dict).
         self._stages: List[Tuple[str, Callable, dict]] = []
         # Parallel to ``_stages``: the C-side build_chain_from_dict stage dict for
-        # each stage (rc181 `then` atoms + rc182 loop/fold/reduce combinators), or
-        # ``None`` for a stage the C engine cannot run (a `parallel` fan-out, a
-        # non-scalar kwarg, a non-F1 fold seed, a non-nativizable sub-chain). If
+        # each stage (rc181 `then` atoms, rc182 loop/fold/reduce, rc420
+        # map_indexed, rc455 parallel), or ``None`` for a stage the C engine
+        # cannot run (an ineligible `parallel` body/reducer, a non-scalar kwarg,
+        # a non-F1 fold seed, a non-nativizable sub-chain). If
         # every entry is a dict, ``_run_native`` assembles the whole chain_json and
         # runs it in ``srmech_dsl_chain_run``; a single ``None`` → the pure path.
         self._native_ir: List[Optional[dict]] = []
@@ -475,9 +521,18 @@ class Chain:
             stage_fn,
             {},
         ))
-        # The Klein-4 fan-out runs on host threads (a runtime affordance) — it
-        # DEFERS to the pure runner; no C combinator IR (rc182).
-        self._native_ir.append(None)
+        # C combinator IR: {"parallel_body": op, "n_sectors": N, "combine":
+        # <name>|null} (rc455 — the SIXTH and last KERNEL BUILDER to reach C,
+        # counting `then`, which is the fifth and last COMBINATOR. Both
+        # cardinals are right and they count different sets; this line said
+        # "combinator" and meant "builder", which is how the sibling docstrings
+        # at :44 and :611 came to say six while listing five). The
+        # C peer evaluates the same four sector duals SERIALLY and bit-
+        # identically; an ineligible body / reducer / kwarg binding emits None
+        # and the whole chain defers to pure (rc103 inform-don't-limit).
+        self._native_ir.append(
+            _parallel_native_desc(body, n_sectors, combine, body_kwargs)
+        )
         if combine is None:
             self._terminal_reason = (
                 f"cannot chain past a non-combining parallel_sectors "
@@ -534,10 +589,11 @@ class Chain:
     def _native_stage_list(self) -> Optional[List[dict]]:
         """The C build_chain_from_dict stage list, or ``None`` if not nativizable.
 
-        Returns the per-stage ``_native_ir`` dicts (rc181 `then` atoms + rc182
-        loop/fold/reduce combinators) when EVERY stage nativizes; a single
-        non-nativizable stage (a `parallel` fan-out, a non-scalar kwarg, a
-        non-F1 fold seed, a non-nativizable loop sub-chain) → ``None``. An empty
+        Returns the per-stage ``_native_ir`` dicts (rc181 `then` atoms, rc182
+        loop/fold/reduce, rc420 map_indexed, rc455 parallel) when EVERY stage
+        nativizes; a single non-nativizable stage (an ineligible `parallel`
+        body/reducer, a non-scalar kwarg, a non-F1 fold seed, a
+        non-nativizable loop sub-chain) → ``None``. An empty
         chain (the identity) also returns ``None`` (the pure identity handles it).
         Used both by :meth:`_run_native` and by an enclosing :meth:`loop` to embed
         this chain as a nativized sub-chain.
@@ -555,11 +611,12 @@ class Chain:
         """Run this chain in C via ``srmech_dsl_chain_run``; ``_NATIVE_MISS`` → pure.
 
         Eligible iff the chain is a non-empty pipeline whose every stage nativizes
-        to the C build_chain_from_dict grammar (a plain ``op`` atom, or a rc182
-        loop / fold / reduce combinator — a `parallel` fan-out always defers), and
-        the seed is an F1-representable value. The C peer decides per-leaf / per
-        -binary-body whether it is C-backed; a non-C leaf / non-C fold body /
-        unsupported carrier returns non-OK → pure (rc103 inform-don't-limit).
+        to the C build_chain_from_dict grammar (a plain ``op`` atom, or any of the
+        FIVE combinators — loop / fold / reduce / map_indexed / parallel), and the
+        seed is an F1-representable value. The C peer decides per-leaf / per
+        -binary-body / per-parallel-body whether it is C-backed; a non-C leaf /
+        non-C fold body / non-C parallel body / unsupported carrier returns
+        non-OK → pure (rc103 inform-don't-limit).
         """
         from srmech import _native
         if not (_native.HAS_NATIVE and _native.LIB is not None):

@@ -457,10 +457,21 @@ def main() -> int:
          {"reduce_op": "cyclic_gcd"}, L_INT, [12, 18], ""),
         ("parallel_body", "discriminator",
          "_toml_chain.py:229/:335-365 (+ _chain.py:340 parallel_sectors)",
-         "srmech_dsl_chain_run.c:637-639 RECOGNISES it, :791-793 returns "
-         "SRMECH_ERR_NOT_IMPL by design (host-thread fan-out)",
+         # ⚠️ THE CHECKED-IN .ndjson BESIDE THIS FILE IS THE rc444 CAPTURE
+         # AND IS DELIBERATELY NOT REGENERATED. Re-running this probe against an
+         # rc455 library rewrites 40 of its 55 rows — the library has gained
+         # capabilities across many unrelated forms since rc444, so a
+         # regeneration would silently re-date a record whose whole identity is
+         # the release in its filename. Only THIS SOURCE line is corrected, so
+         # the description of the C source is true today while the capture stays
+         # what it captured. Re-run the probe to see current behaviour.
+         "srmech_dsl_chain_run.c: RECOGNISED and RUN since rc455 "
+         "(dsl_run_parallel; the four sector duals evaluated SERIALLY). This "
+         "row read ':791-793 returns SRMECH_ERR_NOT_IMPL by design "
+         "(host-thread fan-out)' / 'deliberate deferral' until then — the "
+         "justification was retracted, not the measurement",
          {"parallel_body": "chiral_flip", "n_sectors": 4,
-          "combine": "bundle"}, L_ANY, [1, 2], "deliberate deferral"),
+          "combine": "bundle"}, L_ANY, [1, 2], "runs in C (rc455)"),
         ("map_op", "discriminator",
          "_toml_chain.py:230/:314-323 (+ _chain.py:413 map_indexed)",
          "srmech_dsl_chain_run.c:639 disc table -> :755-781 "
