@@ -116,6 +116,41 @@ code spans"*. A gate that forbade the quotation would forbid documenting the fix
 * One more literal drained under the same Form-B logic: the ToolEntry's `98 proof cases` became a
   pointer form. Leaving one cardinal behind is precisely the rc447 shape.
 
+### The release committed its own defect against itself, and CI caught it
+
+The rc416 search-corpus witness — a Class-A content-address over all 695 introspect frames — had to
+be re-pinned, because de-literalizing the ToolEntry changes its blob. It was re-pinned **twice**,
+and the first value was already wrong when it was written.
+
+Nothing was miscalculated. The first pin was measured correctly against the tree as it stood at
+that moment: the `(17 executable / 3 leaf)` pair had been drained and nothing else had. **Then the
+release continued** and drained `98 proof cases` from the SAME explanation, one field away. One more
+regen, one more blob, and a digest measured earlier described a tree that no longer existed.
+
+That is this release's subject happening to this release: **a measurement that stops being true
+because time passed, carrying no date to warn you.** It is the dated-vs-present-tense discriminator
+in miniature, and it is why the rule now sits in the pin's own note — **a content-address is valid
+only against the tree at SHIP time; measure it LAST, after the final regen, never after the edit
+that prompted it. A pin taken mid-release is a measurement of a draft.**
+
+Re-measured at the ship head: `regen_all.py --check` clean FIRST, then three separate numpy-absent
+processes, all returning the same digest and the same 695 frames (666 ops + 29 carriers), with all
+three derivation paths agreeing inside every run — the witness `_build_frames` returns, a
+`sha256_bytes` recomputation over the joined blobs (srmech's own Class-A op, not `hashlib`), and the
+live `search(...).witness`. Green in BOTH projections.
+
+⚠️ One claim in the earlier note is corrected rather than repeated: it said the three processes ran
+under `PYTHONHASHSEED` 0 / 13 / 271. Measured — that variable does **not** reach the interpreter
+through the invocation path used, `os.environ.get` returns `None` in the child, and `hash("abc")`
+returns three different values across the three runs. So the runs used CPython's DEFAULT hash
+randomization. That is a **stronger** result than intended, not a weaker one: three independent
+random seeds agreed rather than three chosen ones. But an env var that is silently dropped is an
+instrument that cannot fail, so the note now says so instead of restating the intent as a fact.
+
+**How it reached CI at all** is the part I own: my pre-push gate set was chosen by which gates I
+thought the change affected, not by which files my own diff touched. `test_search_glyph_tokenizer_rc416.py`
+was in the diff at 43 added / 1 deleted and I did not run it. The pure shard did.
+
 ### Named residuals — filed, not hidden
 
 * **`test_tool_registry_c_rc184` went 2-failed/7-passed mid-release, and the diagnosis was then
