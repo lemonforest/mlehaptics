@@ -345,8 +345,18 @@ the build measured is recorded here because **it corrected this draft twice**.
 | **C3** | closed rc362, ungated | `tests/test_carrier_use_derivation_rc363.py::test_every_used_carrier_is_registered` | **strict-zero, no CEIL** |
 | prose op-refs (`#T1045`) | — | `tests/test_prose_oprefs_resolve_rc363.py::test_no_unresolved_citation_anywhere` | **strict-zero, no CEIL** |
 | **C5** *(added rc414, `#T1092`)* | marked `CLOSED in-rc` at rc362 and **refuted by execution** at rc411/rc413 | `tests/test_wire_round_trip_rc414.py::test_no_carrier_crosses_as_a_repr_string` | **strict-zero on the repr-string class; DOWN-ONLY CEILs on the rest** |
-| **C6** (cascade_catalog front) *(added rc363 §3.4; closed rc420, `#T1114`)* | 20 descriptors, zero `describe()` visibility through rc419 | `tests/test_cascade_catalog_executable_rc420.py::test_no_third_state_strict_zero` | **GATED — strict-zero (no third state) + the 12-key root pin; the section counts 17 executable / 3 leaf** |
+| **C6** (cascade_catalog front) *(added rc363 §3.4; closed rc420, `#T1114`)* | 20 descriptors, zero `describe()` visibility through rc419 | `tests/test_cascade_catalog_executable_rc420.py::test_no_third_state_strict_zero` | **GATED — strict-zero (no third state) + the 12-key root pin; the section counted 17 executable / 3 leaf at rc420 (18 / 3 since rc438)** |
 | **C6** (alias front) | `"alias"` occurs 0 times in `json.dumps(describe())` (re-measured rc420) | none | **still OPEN** (the layer has a package home since rc364; the `describe()` axis does not exist yet) |
+
+**⚠️ Amendment (rc454, `#T1159`) — the C6 verdict cell is now PINNED prose, not LIVE prose.**
+That cell read *"the section counts 17 executable / 3 leaf"* — present tense, in the VERDICT column, with
+no release attached. The catalog moved to 18 executable at rc438 and the sentence did not, so for
+sixteen rcs the table asserted a current state that was false while the row header beside it
+("closed rc420") argued it was a dated closure record. Both readings were available, which is the
+defect: a cell a reader cannot classify is neither pinned nor live. It is re-dated rather than bumped,
+because the closure record is the thing worth keeping and a silently-bumped ledger row fabricates
+history. The live pair is served by the API this ADR is about, and prose that wants to restate it
+should carry its own date — as this cell now does.
 
 **⚠️ Amendment (rc417, `#T1100`) — the instrument column now names a NODE ID, and what that does and does not buy.**
 Through rc416 every cell above named a **file**. A file-valued instrument is falsifiable in exactly one

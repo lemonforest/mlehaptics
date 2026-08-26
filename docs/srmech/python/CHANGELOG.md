@@ -19,6 +19,131 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc454] - `#T1168`: the shipped prose that outlived its own measurement, and the cardinals that can no longer drift
+
+**rc453 moved the changelog slice marker so that rc447–rc453 reached the project page for the first
+time. It also made ~132,000 characters of MID-ARC release prose public in one step** — written while
+the gh #1653 work was still in flight, and describing a state four releases have since falsified.
+rc454 corrects what that exposed, and closes gh #1653's last open item. No behaviour changes: ABI
+stays **23**, `GENOME_FORMAT_VERSION` stays 20, the registry is untouched.
+
+### The discriminator, because it decides every edit below
+
+Two kinds of sentence live in that slice and they get OPPOSITE treatment.
+
+* A **dated ledger entry** — "at v0.9.0rc447: 21 descriptors", "Measured at v0.9.0rc450 … 62 plain /
+  9 map / 1 fold" — is HISTORY. It dates itself in its own words. Rewriting one FABRICATES history,
+  which this project treats as worse than the staleness. Those are **left alone**.
+* A **present-tense status claim** — `7 of 18 chains do not yet run in C`, `⚠️ OPEN — the registry
+  ripple is NOT finished` — reads as CURRENT STATE to a stranger on the project page. Those are
+  defects.
+
+The boundary is not always clean, so where a sentence carried real history AND a false present
+tense, rc454 **RE-DATES rather than rewrites**: the original names and cardinals survive, an
+explicit date anchor is added, and a measured closure note is appended. No historical figure
+changes value anywhere in this release.
+
+### What was measured
+
+Three independent census lenses swept README.md, the CHANGELOG slice and the PyPI Summary; every
+candidate then went to adversarial verifiers briefed to REFUTE by default. **21 unique findings →
+13 verified → 8 confirmed false-and-shipped.** Five were REFUTED and are deliberately untouched —
+including README's `14 of the 21` native-symbol census, where the flagger's "12" was two cancelling
+miscounts. Touching a refuted site would ship a FRESH falsehood.
+
+The sharpest confirmation: `7 of 18 chains do not yet run in C` carries no date of its own, so the
+ONLY date a reader can attach to it is the enclosing `## [0.9.0rc452]` heading — **the very date
+that makes it false**. Three separate refutation attempts failed on it, and Phase 3 of that same
+entry, 100 lines above, closes three of the seven by name.
+
+### gh #1653 item 11 — Form B, because Form A was already tried and already rotted
+
+The `srmech.dsl.run_cascade_chain` ToolEntry shipped `counts the catalog (17 executable / 3 leaf)`
+against a live 18/3, while its OWN `example` said "any of the 18 executable descriptors" — a
+self-contradiction reaching users through `describe()` and the MCP tool list.
+
+**The fix removes the literal CLASS rather than bumping the number.** rc447 already ran the other
+experiment: it bumped one of the two literals and the sibling shipped stale for SIX consecutive
+releases. Both halves are now pointer forms naming the live fields, and a strict-zero gate forbids a
+catalog cardinal in emitted ToolEntry prose at all — with a seeded-detector self-test proving the
+predicate can fire, and a **dated-clause carve-out** without which the gate would demand history be
+fabricated the next time the catalog grows.
+
+⚠️ **Why rc447 fixed only "2 of 4 sites", stated because it is the reusable lesson.** The curated
+SSoT is Black-formatted, so the claim is SPLIT ACROSS TWO SOURCE LINES — `counts the catalog (17 "`
+then `'executable / 3 leaf)`. A literal `grep '17 executable'` returns **0** in the source and 1 in
+its generated child. The defect was invisible to grep and to `git log -S` in the one file whose
+pickaxe-invisibility is this release's subject. Verification here is split-tolerant for that reason.
+
+Regeneration followed the one-shot procedure: `--check` clean immediately before, then
+`--accept-seed-drift` exactly once, then `--check` clean again WITHOUT the flag, idempotent across
+two passes. The flag survives in no script and no CI step.
+
+### The defect the build slices did NOT catch, found by the verify phase
+
+Two adversarial verifiers independently flagged the same site — README:340's tail. It claimed the
+bare-C host runs `all 15 running chains (16 rows: …)` and ended `and the 3 blocked chains still
+decline in C`. Measured: the ctest host's `ROWS[]` holds **20 rows over 18 distinct descriptors**
+(`kuramoto_step`'s general and `klein4_from_one`'s wound variants each drive their own
+`[[cascade.chain]]` entry), and `CEIL_C_REJECTED_CHAINS` is **0**.
+
+Worse: rc454's own earlier edit three lines above now says `18 of the 18 … which is 0`. **The
+shipped README asserted 0 blocked and 3 blocked inside one screen**, and item 4 of gh #1653 was
+about to be checked off while it did. The clause has had no subject since rc452.
+
+The instructive part is where the gate stood. rc454 keyed the `14 of the 21` and `5 of the
+remaining 7` clauses at the START of that line to live values — and stopped. **The gate walked past
+the rest of the sentence it was standing on.** Both cardinals are now derived from the ctest host's
+own `ROWS[]` table, and the dead clause is forbidden by a phrase check conditioned on the ceiling
+(while chains genuinely decline, saying so is true, so the gate skips rather than bans).
+
+That check needed one refinement its first run exposed: it fired on rc454's OWN retraction note,
+which quotes the removed clause so a reader can see what changed. Code spans are now exempt —
+the tree's standing ref-notation rule already says a bad ref quoted as a code span is *"the
+legitimate way to quote a bad ref while documenting it"*, and any mechanical check *"MUST exempt
+code spans"*. A gate that forbade the quotation would forbid documenting the fix.
+
+### Also in this release
+
+* **Q3** — the two non-PyPI present-tense `17 executable` sites re-dated (ADR-0012's C6 verdict
+  cell, marked LIVE per that ADR's PINNED-or-LIVE discipline; and the notebook). The two sites
+  DATED by an adjacent rc420 anchor are deliberately untouched.
+* **Q5** — README:16 and :340's opening clauses gated to live values with the prose unchanged.
+  Dating a claim a gate keys live would invert the discriminator: dated entries are history, and
+  these are meant to be perpetual present-tense claims held true by machinery.
+* The notebook's four `Live at rcN` stamps were **re-measured, not re-typed** — 666 / 666 / 21-18-3
+  / ABI 23 all confirmed before the token moved, per that gate's own instruction.
+* One more literal drained under the same Form-B logic: the ToolEntry's `98 proof cases` became a
+  pointer form. Leaving one cardinal behind is precisely the rc447 shape.
+
+### Named residuals — filed, not hidden
+
+* **`test_tool_registry_c_rc184` went 2-failed/7-passed mid-release, and the diagnosis was then
+  PROVEN rather than asserted.** It first read red before any rc454 edit — established by stashing
+  the three regenerated files and re-running, which reproduced both failures identically. The cause
+  was a stale local `libsrmech.so` built before the curated docstring changed, so the compiled
+  registry and the Python source genuinely disagreed. Rebuilding the library closes it: the fresh
+  binary carries **0** occurrences of both retired literals and reports `0.9.0rc454`, and the test
+  is **9 passed**. Recorded because a stale `.so` produces a FALSE RED here — the safe direction —
+  and it would have been cheap to wave at CI and move on instead of rebuilding and checking.
+* **The EOL alarm did not survive measurement, and the way it failed is the point.** A verifier
+  reported 191 dirty files with 179 of them pure line-ending churn, and a whole-file rewrite of
+  `srmech_tool_registry.c` — 18,372 lines for a 2-line change — which would have cost `git blame`
+  and `git log -S` on the exact files this release is about. Re-measured under the authoritative
+  Windows git (`core.autocrlf=true`): **18 modified files, every one of them a numstat proportional
+  to its actual edit**, `srmech_tool_registry.c` at 2 added / 2 deleted. The 191/18,372 reading is
+  what WSL git sees, because it has no `autocrlf` and therefore reads a CRLF worktree against an LF
+  index as a total rewrite. The staging normalises back to LF, so the committed blobs carry the
+  small diffs and blame is intact. **A teammate had documented this exact false positive one phase
+  earlier and the verifier walked into it anyway** — which is why the correction is recorded here
+  rather than quietly dropped.
+* `gh #1653` closes on this release. Its four unchecked items measure green: step forms
+  (`CEIL_SURFACE_A_UNSUPPORTED_FORMS = 0`), all 18 chains in C (`CEIL_C_REJECTED_CHAINS = 0`),
+  carrier-spelling normalisation proven in BOTH mandated directions, and item 11 above. The four
+  `NONFINITE_CANNOT_CROSS_WIRE` proof cases ride the ledger's `DECLINED_WITH_REASON` row: `nan`/`inf`
+  are unrepresentable in JSON, which is a property of the WIRE, not of either projection — both
+  agree on the value. ADR-0009 §5 accepts a filed, enumerated decline, which is what that is.
+
 ## [0.9.0rc453] - `#T1167`: six releases of changelog that never reached the project page, and the gate that watched the wrong half of the slice
 
 **The PyPI long-description has been missing its six newest changelog entries since rc447, and the
@@ -548,7 +673,9 @@ the other 574. Result: `n` 578 → **581**, `ok` 477 → **480**,
 drain out of a class whose total was already 96 because the stale ledger had been
 counting them as `ok`.
 
-### ⚠️ OPEN — the registry ripple is NOT finished: `tools/ripple_check.py` reports 12 more red gates, and two of them are capability defects rather than count-pins
+### OPEN MID-rc452, CLOSED BEFORE rc452 SHIPPED — the registry ripple was NOT finished at this point: `tools/ripple_check.py` reported 12 more red gates, and two of them were capability defects rather than count-pins
+
+*(Re-dated, not rewritten. All twelve closed inside rc452's own later phases and were re-measured green at rc453 by node id, no `-k` filter: `test_mcp::test_all_param_types_json_coercible`, `test_dsl_op_naming_boundaries` (x2), `test_readme_currency_rc419`, `test_notebook_currency_rc420`, `test_namespace_prefix_decode_aware_rc361` (x3), `test_composes_population_rc423`, `test_status_conflation_ratchet_rc404`, `test_adr_citation_integrity_rc415`, `test_introspect::test_env_var_auto_publish` — 76 passed, 0 failed. The two capability defects went by construction rather than by a count bump: the missing MCP coercers were built, and `encode_loe_content.toml` now names `srmech.signal_processing.mint_vector`, the same spelling the `ToolEntry` registers. The section is kept verbatim below because the methodological finding IS the point — the prescribed pre-push sweep had not been run, so the earlier "eleven gates in four surfaces" was the wrong number — not because the twelve are still open.)*
 
 **Read this before the section above.** That section says "eleven gates were red,
 in four independent surfaces". That was true of every gate run at the time and
@@ -588,7 +715,7 @@ registration itself is wrong, not merely un-rippled.**
 
 | gate | measured |
 |---|---|
-| `test_readme_currency_rc419` | `python/README.md` advertises a **663**-entry registry; live is **666**. This text SHIPS as the PyPI long-description. |
+| `test_readme_currency_rc419` | at this sweep, `python/README.md` still advertised a **663**-entry registry against a live **666**. Closed later in the same rc (`8b18fab69`): the shipped README reads **666** and the gate is green. This text SHIPS as the PyPI long-description. |
 | `test_notebook_currency_rc420` | the notebook says the registry holds **663** entries; `len(get_tool_schema().tools)` is **666**. |
 | `test_namespace_prefix_decode_aware_rc361` (×3) | as-text `srmech.amsc.` references grew by **5** in BOTH generated artifacts — `srmech_tool_registry.c` 88 → **93**, `_tool_docs.py` 80 → **85** — plus the totals pin. This is the DECODED-channel population `RIPPLE_GATES.md` warns is invisible to a text grep. |
 | `test_composes_population_rc423` | **184** registered ops carry no composes adjudication, ceiling **181** — +3, one per registration. Each new op with two or more call edges needs its ORDER TRACED into `test_composes_grain_rc412.py::ROSTER`. |
@@ -596,8 +723,10 @@ registration itself is wrong, not merely un-rippled.**
 | `test_adr_citation_integrity_rc415` | V3 token-evidence violations rose to **8**, ceiling **7** (`ADR-0010:197 _live_ops`). |
 | `test_introspect::test_env_var_auto_publish` | red; not yet triaged to a cause. |
 
-**Nothing here retracts the section above.** `CEIL_C_REJECTED_CHAINS = 3` is
-still honest and `klein4_from_one` still runs in C by execution. What is
+**Nothing here retracts the section above.** `CEIL_C_REJECTED_CHAINS = 3` was
+honest at this point in rc452 — the release's own later phases drained it
+3 → 2 → 1 → 0, where it stands at rc453 (`describe()['cascade_catalog']` reports
+c_runnable 18 of 18) — and `klein4_from_one` still runs in C by execution. What is
 retracted is any reading of that section as "the slice is now complete".
 
 **Mandate clause 2 — `cascade.atoms` in C — is CLOSED.** `CR_OP_REG` stops being
@@ -868,15 +997,7 @@ full marshal-and-decline per call, never a wrong answer.
 
 ### Residual, stated rather than deferred
 
-**7 of 18 chains do not yet run in C**: `encode_loe_content`,
-`klein4_from_one`, `kuramoto_step`, `octonion_dft`, `parallel_sector_dispatch`,
-`quaternion_dft`, `schur_complement`. Their remaining gates are now
-NARROWER and are recorded per-chain in the regenerated gate matrix — e.g.
-`klein4_from_one` is down to `op_table` ALONE, its step-form and ref-grammar
-gates having closed here. No disposition changed to hide this: every row is
-still `FILED_AS_NEW_ITEM` with a named gate and a gap-ledger row, and
-`test_all_executable_chains_run_in_c` remains strict-xfail so it will FAIL the
-moment the last chain lands and force its own marker's deletion.
+**At the `CEIL_C_REJECTED_CHAINS` = 7 waypoint (this rc's own Phase 3 above closes three of these), 7 of 18 chains did not yet run in C**: `encode_loe_content`, `klein4_from_one`, `kuramoto_step`, `octonion_dft`, `parallel_sector_dispatch`, `quaternion_dft`, `schur_complement`. Their remaining gates were by then NARROWER and are recorded per-chain in the regenerated gate matrix — e.g. `klein4_from_one` was down to `op_table` ALONE, its step-form and ref-grammar gates having closed here. No disposition changed to hide this: every row was still `FILED_AS_NEW_ITEM` with a named gate and a gap-ledger row, and `test_all_executable_chains_run_in_c` was still strict-xfail so it would FAIL the moment the last chain landed and force its own marker's deletion. *(That is what happened, inside this same rc: all seven closed, `CEIL_C_REJECTED_CHAINS` reached **0** — 18 of 18 accepted by `srmech_chain_run` — and the strict-xfail marker was deleted when the test XPASSed, which is exactly what the marker existed for.)*
 
 
 The rc452 ruling overturned ADJ-4 and reinstated its broken acceptance criterion as this rc's headline: `rational_add` → `reorient` returns an exact rational in **both** projections with byte-identical wires. Through rc451 it threaded in **neither**. It threads now:
@@ -1381,9 +1502,7 @@ dispatches one op's chain to another). This is also what `#T1145`'s unlanded res
 
 ### Not done, filed with dispositions
 
-The gap ledger carries **32 rows** (10 closed / 2 declined / 20 filed). `#T1145`'s respelling,
-the map step form, the 6 ABSENT symbols, the bytes/matrix/mapping carriers, and carrier-spelling
-normalisation remain open — each with a disposition, none implicit.
+The gap ledger carried **32 rows** at rc447 (10 closed / 2 declined / 20 filed). `#T1145`'s respelling, the map step form, the 6 ABSENT symbols, the bytes/matrix/mapping carriers, and carrier-spelling normalisation were open **at that release** — each with a disposition, none implicit. (Since closed: the respelling at rc448; two of the six ABSENT symbols at rc451; the map form and the matrix and mapping carriers at rc452.)
 
 ## [Unreleased]
 

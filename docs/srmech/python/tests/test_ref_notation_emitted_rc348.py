@@ -767,6 +767,21 @@ SCAN_ROOTS = {
     # reach. Declaring it is what forces the trigger check above, and
     # `docs/srmech/**` does watch it.
     "tests/test_ctest_collection_parity_rc452.py": ("docs/srmech",),
+    # rc454 (`#T1159`, gh #1653 item 11): the cascade-catalog PROSE-CURRENCY
+    # gate is strict-zero on catalog cardinals written as literals in emitted
+    # ToolEntry prose, and it must read `c/src/srmech_tool_registry.c` because
+    # that is where the defect had the most copies — the stale
+    # "17 executable / 3 leaf" clause shipped simultaneously in the curated
+    # SSoT, the generated `_tool_docs.py`, the compiled-in C registry and the
+    # built `libsrmech`, reaching users through `describe()`, the MCP tool list
+    # and a bare-C host with no interpreter. It also reads the C file in BOTH of
+    # that file's encodings (plain octal-escaped `const char *` and
+    # JSON-escaped-inside-C), which no fixture copy could reproduce. The roster
+    # is DERIVED from `tools/codegen_manifest.GENERATORS` rather than listed, so
+    # a seventh generator is scanned the day it lands — the rc348 pattern, and
+    # the reason `docs/srmech/c` has to be declared rather than inferred.
+    "tests/test_cascade_catalog_prose_currency_rc454.py": (
+        "docs/srmech/python", "docs/srmech/c"),
     # rc450 (`#T1160`): the BLOCKED-agreement gate reads two committed NDJSON
     # artifacts under notes/ — the rc445 gate matrix and the gh #1653 gap
     # ledger — and asserts the ratchet's BLOCKED table agrees with both. It has

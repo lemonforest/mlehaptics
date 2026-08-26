@@ -289,6 +289,28 @@ FROZEN_KNOWN_GATES = frozenset({
     "tests/test_t1146_rejection_parity_rc447.py",
     "tests/test_t1158_refusal_set_equality_rc449.py",
     "tests/test_abi_prose_currency_rc449.py",
+    # rc454 (`#T1159`, gh #1653 item 11): the cascade-catalog PROSE-CURRENCY
+    # gate. Frozen because the defect it names is one this tree has already
+    # failed to see TWICE with a hand-written check. rc447 went looking for the
+    # stale `17 executable` literal, found the copy in the entry's `example`,
+    # fixed it, wrote "THE STALE LITERALS WERE TWO, NOT ONE" in its own commit
+    # message — and left the copy in the SAME entry's `explanation`, which then
+    # shipped in every wheel for six more releases. It survived because the
+    # curated SSoT is Black-formatted and splits the claim across two source
+    # lines, so `grep -c '17 executable'` returns 0 on the file that contains
+    # it and `git log -S '17 executable / 3 leaf'` returns 0 hits: git's own
+    # pickaxe is defeated by the same split. Only a gate that reads the curated
+    # module as a LOADED DICT can see it at all, and this is that gate.
+    #
+    # It is also the only instrument on the OTHER three copies. The same
+    # sentence reaches users through the generated `_tool_docs.py`, through
+    # `c/src/srmech_tool_registry.c` in two different encodings, and through
+    # the compiled `libsrmech` a bare-C host reads with no interpreter — and
+    # measured at rc453, NOTHING in the suite read any of those prose forms
+    # (`grep -rn 'executable / [0-9]* leaf' tests/*.py` -> empty). Dropping it
+    # from the manifest does not weaken a gate; it restores a surface that had
+    # none, on the axis every op rc edits.
+    "tests/test_cascade_catalog_prose_currency_rc454.py",
 })
 
 

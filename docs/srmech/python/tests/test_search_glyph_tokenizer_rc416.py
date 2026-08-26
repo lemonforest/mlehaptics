@@ -599,8 +599,50 @@ from srmech.math.text import fold_marks, glyph_stream
 #: in this file failed on the stale digest. It is exactly the "invisible class" the
 #: RIPPLE_GATES.md count-pin note names - a pin that is a DIGEST rather than a
 #: comparison against the count, which no `== 663` predicate can find.
+#:
+#: rc454 (`#T1168`) — RE-PINNED, and this is the NARROWEST move the constant has
+#: recorded: exactly ONE frame of 695 changed. Both halves were measured BEFORE
+#: the digit moved, in the order every note above prescribes:
+#:
+#:   DETERMINISM — `regen_all.py --check` reported "all 6 generated files are up
+#:   to date" FIRST (7.6s, no `REFUSED:`), so the digest is taken against a fully
+#:   regenerated tree rather than a half-regenerated one. Then `_build_frames("all")`
+#:   was run in THREE separate processes under PYTHONHASHSEED 0 / 13 / 271, each a
+#:   fresh numpy-absent interpreter in the MAIN checkout. All three returned the
+#:   SAME digest and 695 frames (666 ops + 29 carriers), and inside every run all
+#:   three derivation paths agree (the witness `_build_frames` returns,
+#:   `sha256_bytes` recomputed over the joined blobs, and the live
+#:   `search("rank", k=1).witness`). The ADR-0011 witness contract HOLDS.
+#:
+#:   CAUSATION — the tree at the pre-rc454 head (`a15bfd4f0`, rc453) was
+#:   materialised read-only with `git archive` and its corpus built: it reproduces
+#:   `7cb11ffb...` EXACTLY, i.e. the OLD pin was correct for the OLD prose.
+#:   Diffing the two frame sets positionally gives the same 695 names in the same
+#:   order, ZERO added, ZERO removed, and exactly ONE moved blob —
+#:   `srmech.dsl.run_cascade_chain`.
+#:
+#: That ONE frame is the entire rc454 corpus delta, and the reason the rest of the
+#: release is invisible here is worth stating rather than leaving to be
+#: rediscovered: rc454 is a prose-currency release that also edited README,
+#: CHANGELOG, ADR-0012 and the research notebook, and NONE of those feed this
+#: corpus. It is built from ToolEntry prose and the carrier registry — see
+#: `_build_frames` — not from repository documents, so a reader who expects a
+#: four-document prose sweep to move this digest is reading the wrong corpus.
+#:
+#: The frame that DID move is `run_cascade_chain`, whose `explanation` carried a
+#: hard `(17 executable / 3 leaf)` against a live 18 / 3 while its OWN `example`,
+#: one field away in the same entry, already said `18 executable descriptors`.
+#: rc447 bumped one of those two literals and left the other, so the entry shipped
+#: self-contradictory for six rcs. rc454 DE-LITERALIZES both halves rather than
+#: bumping them — the explanation now names the `executable` / `leaf` split and the
+#: example defers to `describe()['cascade_catalog']['status']` — so no cardinal
+#: remains in that entry for a seventh rc to strand.
+#:
+#: The 666/29 split is UNCHANGED from rc452, which is the signal the rc445 note
+#: prescribes: this rc registers and removes no op, so a moved FRAME COUNT would
+#: have meant something other than prose changed. It did not move.
 WITNESS_RC416 = (
-    "7cb11ffbe75959a4dec0cf725dec2a387506812b868005c285aa1c2d3a8f3718")
+    "6e607fc2223b036f047c685eab7abe3d878b356e3d3b4663372122e9e905b076")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

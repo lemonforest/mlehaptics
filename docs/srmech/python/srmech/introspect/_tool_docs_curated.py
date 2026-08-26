@@ -3799,8 +3799,9 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                 'rather than a DFT bin.'},
     'srmech.dsl.run_cascade_chain': {"composes": ["srmech.cascade.compose.run_chain"], 'example': {'input': {'inputs': "{'a': 12, 'b': 18} — the chain's @input.* "
                                  'bindings',
-                       'op_name': "'cyclic_gcd' — any of the 18 executable "
-                                  'descriptors'},
+                       'op_name': "'cyclic_gcd' — any descriptor whose "
+                                  "describe()['cascade_catalog']['status'] "
+                                  'is executable'},
              'output': "run_cascade_chain('cyclic_gcd', {'a': 12, 'b': 18}) "
                        "= 6; run_cascade_chain('magnitude', x=-3.25) = 3.25; "
                        "run_cascade_chain('net_chirality', orientations=[1, "
@@ -3833,12 +3834,13 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                 'you want the CASCADE a shipped op performs, as data — the '
                 'op → chain half of the word-problem bridge ADR-0012 C6 '
                 'measured as unenumerable through rc419: '
-                "``describe()['cascade_catalog']`` counts the catalog (17 "
-                'executable / 3 leaf), ``srmech.dsl.list_catalog_ops`` '
+                "``describe()['cascade_catalog']`` counts the catalog (its "
+                '``executable`` / ``leaf`` split), '
+                '``srmech.dsl.list_catalog_ops`` '
                 'carries per-descriptor ``status``, and this runs the '
                 'declared chain. Every shipped chain is proven BIT-identical '
-                'to its shipped op by the rc420 gate (98 proof cases '
-                "including each descriptor's documented boundary cases), so "
+                'to its shipped op by the rc420 gate (one proof case per '
+                "boundary case each descriptor documents), so "
                 'this is not a second implementation to drift — it is the '
                 'same cascade, declared. A parameter-dispatched op with '
                 'float-order-distinct paths declares one chain per path: '
