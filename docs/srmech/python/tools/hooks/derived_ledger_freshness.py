@@ -99,16 +99,45 @@ def _module_of(repo_rel_path: str) -> str:
 
 
 def _changed_paths(root: Path, base: str) -> List[str]:
+    """Committed drift since ``base``, plus real working-tree drift.
+
+    ⚠️ THE WORKING-TREE HALF USED ``git status --porcelain`` AND THAT MADE THIS
+    HOOK PLATFORM-DEPENDENT. Measured at rc454, same tree, same commit, nothing
+    edited::
+
+        Windows git 2.53.0 :  0 files under srmech/  ->  hook exit 0
+        WSL2 git    2.34.1 :  324 files              ->  hook exit 2,
+                                                        266 modules "changed",
+                                                        all 581 ledger rows
+                                                        declared UNVERIFIED
+
+    *(That module count read 263 in the first cut. Predicate, so it can be
+    re-measured without WSL: the DISTINCT results of :func:`_module_of` over the
+    tracked ``.py`` files under ``docs/srmech/python/srmech`` — because under
+    WSL git every one of them reports modified. Measured 266, by two routes
+    that agree: the hook's own block message enumerates 8 modules then says
+    "(+258 more)", and ``git ls-files`` gives 266 tracked ``.py`` mapping to 266
+    distinct modules.)*
+
+    WSL2 is the standing build-subagent environment, so under an agent this
+    hook blocked EVERY stop, permanently, on a clean tree — the same
+    unsatisfiable shape ``stale_native_tripwire`` shipped with at rc452. The
+    cause is ``core.autocrlf=true`` living in the Windows user's global config:
+    LF blobs against CRLF working files, and WSL git cannot see the setting
+    that reconciles them.
+
+    :func:`_hooklib.dirty_paths` asks for a CONTENT difference instead
+    (``diff HEAD --numstat --ignore-cr-at-eol``, dropping 0/0 rows). Measured
+    on the same tree: **0 under both gits**, and both still report a real
+    planted two-line edit. The commit-to-commit half below never needed the
+    repair — both sides of ``base..HEAD`` are index blobs, so EOL policy does
+    not enter.
+    """
     seen: List[str] = []
     code, out = H.git(["diff", "--name-only", f"{base}..HEAD"], cwd=root)
     if code == 0:
         seen.extend(l.strip() for l in out.splitlines() if l.strip())
-    code, out = H.git(["status", "--porcelain", "--", WATCHED, *C_WATCHED], cwd=root)
-    if code == 0:
-        for line in out.splitlines():
-            line = line.rstrip()
-            if len(line) > 3:
-                seen.append(line[3:].strip().strip('"'))
+    seen.extend(H.dirty_paths(root, [WATCHED, *C_WATCHED]))
     return seen
 
 

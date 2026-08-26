@@ -10,14 +10,79 @@
     "LAST and is commented out — it is the one hook with a moderate-to-high",
     "false-positive profile. See README.md.",
     "",
-    "PATHS: $CLAUDE_PROJECT_DIR is expanded by Claude Code before the command runs.",
-    "python3 is used throughout; on a Windows shell without a `python3` shim,",
-    "replace it with `python` (both were verified present on this machine).",
-    "",
     "DISABLE any single hook by deleting its entry. Disable ALL of them by",
     "removing the keys you added. There is no other state — the hooks write",
     "nothing except .git/srmech_ripple_stamp.json, which is inside .git and is",
     "never staged."
+  ],
+
+  "_interpreter_pin": [
+    "⚠️ PIN THE INTERPRETER. THE COMMANDS BELOW SAY `<REPLACE-WITH-YOUR-PYTHON>`,",
+    "WHICH IS NOT A RUNNABLE PROGRAM. THAT IS DELIBERATE — SUBSTITUTE IT.",
+    "",
+    "`python3` IS NOT `python` ON THIS MACHINE, MEASURED:",
+    "",
+    "    python  -> C:\\Python314\\python.exe                                   3.14.4",
+    "    python3 -> C:\\Users\\sckir\\AppData\\Local\\Python\\pythoncore-3.14-64\\  3.14.3",
+    "",
+    "Two independently-managed installs, resolved by PATH order, and the second",
+    "arrives via a WindowsApps shim. AUTHORITATIVE FOR THIS CHECKOUT: `python`,",
+    "i.e. C:\\Python314\\python.exe — a direct install rather than a Store",
+    "redirector, and the interpreter every cost figure in README.md was measured",
+    "with. They are interchangeable TODAY (same pytest 9.0.3, both numpy-absent,",
+    "both resolving srmech from the worktree) and nothing keeps them that way.",
+    "",
+    "These commands said `python3` from rc452 with only a prose note asking you to",
+    "substitute it. That is the shape this whole directory argues against: merged",
+    "unedited, it RUNS, under the interpreter the hooks were not tested with, and",
+    "says nothing. An unrunnable placeholder fails visibly instead — the harness",
+    "warns per invocation and continues. Same trade as the no-git-hook note below.",
+    "",
+    "Print yours with",
+    "",
+    "    python -c \"import sys; print(sys.executable)\"",
+    "",
+    "Why it is load-bearing: `jpl_audit_gate` imports `tests/test_jpl_audit.py`,",
+    "which imports pytest, and `prose_currency_gate` re-enters pytest. Under an",
+    "interpreter without pytest the JPL hook FAILS OPEN with a loud note — correct",
+    "behaviour, and silent enough that you would keep believing you had a gate. The",
+    "check that catches it is",
+    "",
+    "    <your-python> tools/hooks/jpl_audit_gate.py --selftest      # exit 1 if it",
+    "                                                               # cannot load",
+    "",
+    "Everything a hook re-enters (pytest, the ratchet) uses `sys.executable`, so",
+    "pinning the launcher pins the whole chain.",
+    "",
+    "PATHS: $CLAUDE_PROJECT_DIR is expanded by Claude Code before the command runs."
+  ],
+
+  "_git_pin": [
+    "⚠️ PIN THE GIT — OR ASK A QUESTION THAT DOES NOT DEPEND ON IT. Measured at",
+    "rc454 on ONE clean tree at ONE commit:",
+    "",
+    "    git status --porcelain -- python/README.md CHANGELOG.md",
+    "        Windows git 2.53.0  ->  0 modified",
+    "        WSL2 git    2.34.1  ->  2 modified",
+    "    git status --porcelain -- docs/srmech/python/srmech",
+    "        Windows -> 0        WSL2 -> 324",
+    "    derived_ledger_freshness.py",
+    "        Windows -> exit 0   WSL2 -> exit 2, blocking all 581 ledger rows",
+    "",
+    "The checkout has core.autocrlf=true in the WINDOWS user's global config: index",
+    "blobs are LF, working files CRLF, and WSL git does not read that config (a",
+    "different HOME), so it honestly reports every text file modified. Windows git",
+    "is the authority here — the worktree's own .git file holds a `D:/...` gitdir",
+    "that WSL git cannot open at all without GIT_DIR overrides.",
+    "",
+    "Rather than pin a binary and break under a WSL agent, the hooks ask git for a",
+    "CONTENT difference (`diff HEAD --numstat --ignore-cr-at-eol`, dropping 0/0",
+    "rows) via _hooklib.dirty_paths. Measured identical under both gits — 0/0/0 for",
+    "the three queries above, and BOTH report `2  0  tools/hooks/README.md` for one",
+    "real planted two-line edit, so the instrument can still return otherwise.",
+    "",
+    "SRMECH_HOOK_GIT=<path> forces a specific binary if you ever need it. Each",
+    "hook's --selftest prints which git and which interpreter answered."
   ],
 
   "hooks": {
@@ -27,27 +92,39 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/git_add_all_blocker.py\"",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/git_add_all_blocker.py\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/stale_native_tripwire.py\"",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/stale_native_tripwire.py\"",
             "timeout": 20
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ssot_agreement.py\"",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ssot_agreement.py\"",
             "timeout": 20
+          },
+          {
+            "_why": "Fires on any segment that INVOKES `git commit`, INCLUDING the option-carrying forms `git -C <dir> commit`, `git --no-pager commit` and `git -c k=v commit` — the first cut required the subcommand to be args[0] and all three escaped it silently. Every other Bash command exits at the ~0.15 s _hooklib floor without importing the audit. On the commit path it costs 4.1-4.9 s Windows-native (median 4.3) and 4.5-9.5 s on the WSL2 9p mount (median 5.4); the cost is a property of the MOUNT and both figures are in README.md rather than one being rounded into the other.",
+            "type": "command",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/jpl_audit_gate.py\"",
+            "timeout": 60
           }
         ]
       },
       {
-        "matcher": "Edit|Write|NotebookEdit",
+        "_why": "MultiEdit added to the matcher at rc455 — sha256_routing_gate simulates a MultiEdit's whole edit list, and generated_file_edit_blocker reads `file_path`, which MultiEdit also carries.",
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/generated_file_edit_blocker.py\"",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/generated_file_edit_blocker.py\"",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/sha256_routing_gate.py\"",
             "timeout": 15
           }
         ]
@@ -56,25 +133,36 @@
 
     "Stop": [
       {
+        "_order": "Cheapest first, so a block on a fast predicate is reported before a slow one is paid: ssot 0.5 s, stale-native 0.8 s, jpl-audit 4.1-4.9 s Windows-native / 4.5-9.5 s WSL2-9p, derived-ledger 4.5-5.7 s, prose-currency ~0.46 s when no prose surface moved and ~14 s with all four armed, ratchet-recount 18-20 s. Every figure is mount-dependent; see the two-environment tables in README.md.",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ssot_agreement.py\"",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ssot_agreement.py\"",
             "timeout": 20
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/stale_native_tripwire.py\"",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/stale_native_tripwire.py\"",
             "timeout": 20
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/derived_ledger_freshness.py\"",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/jpl_audit_gate.py\"",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/derived_ledger_freshness.py\"",
             "timeout": 30
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ratchet_recount.py\"",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/prose_currency_gate.py\"",
+            "timeout": 330
+          },
+          {
+            "type": "command",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ratchet_recount.py\"",
             "timeout": 240
           }
         ]
@@ -86,23 +174,44 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ssot_agreement.py\"",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ssot_agreement.py\"",
             "timeout": 20
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/derived_ledger_freshness.py\"",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/jpl_audit_gate.py\"",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/derived_ledger_freshness.py\"",
             "timeout": 30
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ratchet_recount.py\"",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/prose_currency_gate.py\"",
+            "timeout": 330
+          },
+          {
+            "type": "command",
+            "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ratchet_recount.py\"",
             "timeout": 240
           }
         ]
       }
     ]
   },
+
+  "_no_git_pre_commit_hook": [
+    "There is deliberately NO .git/hooks/pre-commit peer for jpl_audit_gate, and",
+    "that is a measurement rather than a preference. `core.hooksPath` on this",
+    "machine is `D:\\GitHub\\mlehaptics\\.git\\hooks` — a Windows path. WSL2 is the",
+    "standing build-subagent environment and cannot resolve it, so a git hook",
+    "installed there is a SILENT NO-OP from WSL: it does not run, it does not",
+    "warn, and the commit succeeds. A gate that silently does nothing is worse",
+    "than no gate, because it is believed. The PreToolUse(Bash) arm above covers",
+    "the same moment and reports through the same channel as every other hook."
+  ],
 
   "_ship_last_when_you_are_ready": {
     "_why": [
@@ -116,7 +225,7 @@
     "hooks": [
       {
         "type": "command",
-        "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ripple_stamp_before_push.py\"",
+        "command": "<REPLACE-WITH-YOUR-PYTHON> \"$CLAUDE_PROJECT_DIR/docs/srmech/python/tools/hooks/ripple_stamp_before_push.py\"",
         "timeout": 20
       }
     ]
