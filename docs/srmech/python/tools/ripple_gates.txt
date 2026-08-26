@@ -692,3 +692,23 @@ tests/test_t1146_rejection_parity_rc447.py
 tests/test_t1158_refusal_set_equality_rc449.py
 tests/test_t1158_registry_param_order_rc449.py
 tests/test_abi_prose_currency_rc449.py
+
+# -- rc454 (`#T1159`, gh #1653 item 11) ---------------------------------------
+#    THE GATE THAT JUDGES THIS RC, listed HERE BY HAND for the reason the rc451
+#    and rc452 blocks above give: the manifest meta-test has NO GROWTH
+#    OBLIGATION, nothing enumerates tests/*.py, and a gate absent from both
+#    FROZEN_KNOWN_GATES and this file is armed and silent. rc449 added three
+#    gates and listed zero; rc452 then repeated it with its own new gate in the
+#    very release that wrote the warning.
+#
+#    It is a RIPPLE gate in the strictest sense — its whole subject is
+#    `ToolEntry` explanation / example prose, which is exactly what an op rc
+#    edits. Strict-zero on catalog cardinals written as literals, across four
+#    layers: the curated SSoT (read as a LOADED DICT, because Black splits the
+#    claim across two source lines and both `grep` and `git log -S` return 0 on
+#    it), the live registry, every `codegen_manifest.GENERATORS` output in both
+#    its text and its embedded byte-array channel, and the compiled library
+#    (skip-clean when absent). It carries a seeded detector and a dated-clause
+#    carve-out with its own tests. ~13 s, pure-Python apart from the optional
+#    native read.
+tests/test_cascade_catalog_prose_currency_rc454.py

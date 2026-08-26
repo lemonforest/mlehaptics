@@ -599,8 +599,82 @@ from srmech.math.text import fold_marks, glyph_stream
 #: in this file failed on the stale digest. It is exactly the "invisible class" the
 #: RIPPLE_GATES.md count-pin note names - a pin that is a DIGEST rather than a
 #: comparison against the count, which no `== 663` predicate can find.
+#:
+#: rc454 (`#T1168`) — RE-PINNED, and this is the NARROWEST move the constant has
+#: recorded: exactly ONE frame of 695 changed.
+#:
+#: ⚠️ IT WAS RE-PINNED TWICE, and the first value was WRONG BY THE TIME IT SHIPPED.
+#: That is worth recording, because the failure is not arithmetic — it is temporal,
+#: and it is the exact shape this release is otherwise about. The first pin
+#: (`6e607fc2...`) was measured correctly, against the tree as it stood at that
+#: moment: the `(17 executable / 3 leaf)` de-literalization had landed and nothing
+#: else had. The release then CONTINUED, and de-literalized a SECOND cardinal —
+#: `98 proof cases` — in the SAME `run_cascade_chain` explanation, one field away.
+#: One more regen, one more blob, and a digest measured an hour earlier described a
+#: tree that no longer existed. CI caught it in the pure shard; three tests in this
+#: file went red on a digest nobody had re-measured.
+#:
+#: THE RULE THE NEXT RE-PIN NEEDS: a content-address is only valid against the tree
+#: state AT SHIP TIME. Measure it LAST — after the final regen, not after the edit
+#: that prompted it — or it dates itself the way every stale cardinal in this
+#: release dated itself. A pin taken mid-release is a measurement of a draft.
+#:
+#:   DETERMINISM (re-measured at the rc454 ship head) — `regen_all.py --check`
+#:   reported "all 6 generated files are up to date" FIRST (11.1s, no `REFUSED:`),
+#:   so the digest is taken against a fully regenerated tree rather than a
+#:   half-regenerated one. Then `_build_frames("all")` was run in THREE separate
+#:   numpy-absent processes in the MAIN checkout. All three returned the SAME digest
+#:   and 695 frames (666 ops + 29 carriers), and inside every run all three
+#:   derivation paths agree (the witness `_build_frames` returns, `sha256_bytes`
+#:   recomputed over the joined blobs — srmech's OWN Class-A op, not `hashlib` —
+#:   and the live `search("rank", k=1).witness`). The ADR-0011 contract HOLDS.
+#:
+#:   ⚠️ ON THE HASH SEED, stated precisely because the earlier note overstated it.
+#:   The intent was fixed seeds 0 / 13 / 271. MEASURED: `PYTHONHASHSEED` does NOT
+#:   reach the interpreter through the invocation path used here — `os.environ.get`
+#:   returns None in the child — so the three runs used CPython's DEFAULT hash
+#:   randomization, verified live by `hash("abc")` returning three different values
+#:   across the same three invocations. That is a STRONGER result than the one
+#:   intended, not a weaker one: three INDEPENDENT random seeds agreed, rather than
+#:   three chosen ones. Do not "restore" the fixed seeds without first checking they
+#:   arrive; an env var that is silently dropped is an instrument that cannot fail.
+#:
+#:   CAUSATION — the tree at the pre-rc454 head (`a15bfd4f0`, rc453) was
+#:   materialised read-only with `git archive` and its corpus built: it reproduces
+#:   `7cb11ffb...` EXACTLY, i.e. the OLD pin was correct for the OLD prose.
+#:   Diffing the two frame sets positionally gives the same 695 names in the same
+#:   order, ZERO added, ZERO removed, and exactly ONE moved blob —
+#:   `srmech.dsl.run_cascade_chain`.
+#:
+#: That ONE frame is the entire rc454 corpus delta, and the reason the rest of the
+#: release is invisible here is worth stating rather than leaving to be
+#: rediscovered: rc454 is a prose-currency release that also edited README,
+#: CHANGELOG, ADR-0012 and the research notebook, and NONE of those feed this
+#: corpus. It is built from ToolEntry prose and the carrier registry — see
+#: `_build_frames` — not from repository documents, so a reader who expects a
+#: four-document prose sweep to move this digest is reading the wrong corpus.
+#:
+#: The frame that DID move is `run_cascade_chain`, whose `explanation` carried a
+#: hard `(17 executable / 3 leaf)` against a live 18 / 3 while its OWN `example`,
+#: one field away in the same entry, already said `18 executable descriptors`.
+#: rc447 bumped one of those two literals and left the other, so the entry shipped
+#: self-contradictory for six rcs. rc454 DE-LITERALIZES both halves rather than
+#: bumping them — the explanation now names the `executable` / `leaf` split and the
+#: example defers to `describe()['cascade_catalog']['status']`.
+#:
+#: THAT ENTRY HELD A THIRD CARDINAL, and draining it is why this digest moved twice.
+#: The same `explanation` also carried `98 proof cases`, which would have been left
+#: behind in exactly the rc447 shape — one literal fixed, its neighbour stranded for
+#: the next rc to rediscover. It is now a pointer form too ("one proof case per
+#: boundary case each descriptor documents"). So the honest statement is: no cardinal
+#: remains in that entry AT ALL, and the ONE frame that moved absorbed all three
+#: de-literalizations, not the two the first pin was measured against.
+#:
+#: The 666/29 split is UNCHANGED from rc452, which is the signal the rc445 note
+#: prescribes: this rc registers and removes no op, so a moved FRAME COUNT would
+#: have meant something other than prose changed. It did not move.
 WITNESS_RC416 = (
-    "7cb11ffbe75959a4dec0cf725dec2a387506812b868005c285aa1c2d3a8f3718")
+    "feb04b76bf0589797e415c228ab4222857db99369fb30aae442a7fefacf4e358")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.
