@@ -1,0 +1,88 @@
+{
+  "srmech_version": "0.4.3",
+  "D": 8192,
+  "corpus_n": 1993,
+  "n_buckets": 16,
+  "category_stats": {
+    "in_training": {
+      "n": 50,
+      "mean": 0.6734609363427585,
+      "std": 0.024492771875237754,
+      "min": 0.6137036004609798,
+      "max": 0.717229434078774
+    },
+    "compositional": {
+      "n": 75,
+      "mean": 0.718984482700496,
+      "std": 0.040474367520827254,
+      "min": 0.6313913519555303,
+      "max": 0.7808327847178952
+    },
+    "random_junk": {
+      "n": 50,
+      "mean": 0.050717666690369444,
+      "std": 0.06612060546704525,
+      "min": 0.00016572291630624451,
+      "max": 0.2147409561477384
+    }
+  },
+  "discrimination_ratios": {
+    "training_vs_junk": 13.27862617289212,
+    "training_vs_compositional": 0.93668354818069,
+    "compositional_vs_junk": 14.176213726271852
+  },
+  "top_5_generated": [
+    {
+      "sentence": "a bird painted behind the wizard",
+      "skel_sim": 1.0,
+      "combined_score": 0.7808327847178952
+    },
+    {
+      "sentence": "the musician painted under the house",
+      "skel_sim": 1.0,
+      "combined_score": 0.7754185046255352
+    },
+    {
+      "sentence": "the musician painted behind the house",
+      "skel_sim": 1.0,
+      "combined_score": 0.7706957699231063
+    },
+    {
+      "sentence": "a bird painted on the wizard",
+      "skel_sim": 1.0,
+      "combined_score": 0.7701291557191402
+    },
+    {
+      "sentence": "the musician painted on the house",
+      "skel_sim": 1.0,
+      "combined_score": 0.7700555146313826
+    }
+  ],
+  "bottom_5_generated": [
+    {
+      "sentence": "the cat sat tree",
+      "skel_sim": 1.0,
+      "combined_score": 0.6502369537505264
+    },
+    {
+      "sentence": "a wolf played near bread",
+      "skel_sim": 1.0,
+      "combined_score": 0.6493846566411723
+    },
+    {
+      "sentence": "the scientist ran above paper",
+      "skel_sim": 1.0,
+      "combined_score": 0.6461702372993792
+    },
+    {
+      "sentence": "the scientist ran above patient",
+      "skel_sim": 1.0,
+      "combined_score": 0.6374378561972528
+    },
+    {
+      "sentence": "a bird slept song",
+      "skel_sim": 1.0,
+      "combined_score": 0.6313913519555303
+    }
+  ]
+}

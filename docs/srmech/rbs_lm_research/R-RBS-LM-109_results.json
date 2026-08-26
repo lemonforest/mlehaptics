@@ -1,0 +1,36 @@
+{
+  "partition": "R-RBS-LM-109",
+  "scope": "REDUCED \u2014 1 music corpus split-half; no Tyndall/Helmholtz/Rameau/Hawkins/Burke/Kant proper",
+  "music_within_alignment": 0.1411904761904762,
+  "cross_to_all_non_music": 0.06321428571428572,
+  "cross_to_aesthetic_only": 0.0925,
+  "cross_to_math_only": 0.06738095238095237,
+  "cross_to_baseline_only": 0.056944444444444436,
+  "ratio_with_composing_substrates": 2.2335216572504706,
+  "ratio_baseline_only": 2.479442508710802,
+  "ratio_minus_math": 2.0954063604240285,
+  "ratio_change": -0.2459208514603315,
+  "verdict": "PARTIAL \u2014 composition-over-some-substrates evident. Ratio = 2.23 \u2208 [2.0, 3.0]; substrate not fully irrep at this corpus scale.",
+  "kernels_included": [
+    "music_h1",
+    "music_h2",
+    "frankenstein",
+    "plato",
+    "kjv_nt",
+    "milton",
+    "astronomy_yf",
+    "iliad_pope",
+    "openstax_elem",
+    "openstax_inter",
+    "perspective_art"
+  ],
+  "corpus_gaps": [
+    "Helmholtz 'Sensations of Tone' (proper PG ID needs verification)",
+    "Rameau 'Treatise on Harmony' (canonical English edition)",
+    "Hawkins 'History of Music' (multi-volume)",
+    "Tyndall 'Sound' (physics_acoustic substrate)",
+    "Burke 'Sublime and Beautiful' (aesthetic substrate)",
+    "Kant 'Critique of Judgment' (aesthetic substrate)"
+  ],
+  "klein4_composability_variant": "NOT RUN \u2014 deferred to v2 per scope"
+}

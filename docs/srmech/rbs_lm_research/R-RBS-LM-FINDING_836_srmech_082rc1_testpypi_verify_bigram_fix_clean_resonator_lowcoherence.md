@@ -1,0 +1,22 @@
+# F836 — srmech 0.8.2rc1 (TestPyPI) verified: the §57 bigram-Counter contaminant is REMOVED + §56 greedy fixed + numpy-free clean install — so the PACKAGE is live-PyPI-ready. But the pure-resonator rbs_lm inference is grounded-yet-LOW-COHERENCE (true successor ranks 3/190, near-flat distribution; greedy loops) — the §57 honest-risk realized: one `M` holds 387 relationships in a single bundle, crosstalk swamps the per-context signal. Fix = chunk `M` to capacity (F832), the resonator-quality follow-on; NOT a package blocker and NOT a flaw in the §57 approach.
+
+**Date:** 2026-06-18 · **srmech:** 0.8.2rc1 (TestPyPI) · **Provenance:** clean venv `/tmp/srmech_082rc1/venv` (system py3.14, numpy-absent, under the machine-wide pip numpy block), `pip install --pre --index-url test.pypi.org srmech==0.8.2rc1` · **Composes:** §57 (the bigram fix spec — the contaminant is ours, ported up), §56 (T=0 greedy), F834/F835 (relationship inference = resonator), F832 (bundle capacity: ≤~128 binds/bundle round-trips clean; over-stuffed bundles crosstalk) · **User direction (2026-06-18):** "srmech 0.8.2rc1 on test.pypi.org with the bigram fixes to test to see if we can take srmech to live pypi."
+
+## Package verification (clean venv, ground truth)
+- `srmech.__version__ == 0.8.2rc1`; `native_status()` → has_native/dispatching True, abi 3/3, native_version 0.8.2rc1, load_error None.
+- **numpy-free:** installed cleanly **under the user-global numpy pip block** (impossible-pin constraint) → it pulled NO numpy; `importlib.util.find_spec('numpy') is None` in the venv.
+- **§57 fix present in the published rc:** `srmech/rbs_lm/inference.py` has NO `Counter`/`bigram_counts`/`next_after` in code (only docstrings explaining the removal). `next_token_distribution` docstring: "the candidate set is the FULL bounded per-tome atom set (`self.vocab`), scored by the Class-M resonator … There is NO bigram-count gate … grounding comes from `M`, not a statistical-LM next-token table." This is the §57 FIX SPEC implemented faithfully.
+- **§56 fix present:** `T <= 0` is greedy (argmax → one-hot); `infer(temperature=0.0)` runs (was `ZeroDivisionError` in 0.8.1).
+
+## Inference-quality measurement (tomato, D=10000, k=3, learned=387/4000)
+- **Grounded:** 30/30 generated tokens are tomato's own atoms (nothing invented).
+- **Low discrimination:** `next_token_distribution(['the','tomato','solanum'], T=0.3)` ranks the true successor `lycopersicum` at **3 of 190**, but the distribution is **near-flat** (top-8 probs 0.006/0.006/0.006/0.005/…). So the right answer is *in the top tier* but the signal is weak.
+- **Consequence:** greedy (T=0) **loops** ("tomato solanum lycopersicum tomato solanum …"); T=0.3 gives a grounded-but-incoherent walk (31/36 distinct, all tomato-vocab). Contrast 0.8.1 (WITH the bigram gate, T=0.3): grounded prose ("…used to make ketchup tomatoes can also … many small seeds …").
+
+## Diagnosis (the §57 honest-risk, as predicted)
+The bigram gate was doing real *accuracy* work — pruning candidates to the legal successors so the one-shot resonance was sharp. Removing it (correctly — it was the statistical-LM contaminant) leaves the resonator reading **one `M` that superposes 387 context→next binds**; crosstalk from 387 terms swamps the per-context signal over 190 atoms → near-flat scores. F832 already measured the fix: a bundle holding ≤~128 binds round-trips cleanly; over-stuffed bundles crosstalk. So the path to coherent inference is **chunk `M` to capacity** (per-tome / bounded binds-per-bundle), the resonator-quality build — tractable, and exactly the §57/F835 open item. It is NOT a flaw in the resonator approach and NOT a package defect.
+
+## Verdict
+- **PACKAGE (live-PyPI readiness):** 0.8.2rc1 is clean — numpy-free, native, ABI-stable, the §57 Counter contaminant removed, §56 greedy fixed, imports + inference run without error. **Shippable to live PyPI on package grounds.**
+- **rbs_lm INFERENCE coherence:** grounded but weak (resonator over an over-stuffed single `M`); the directed design (no statistical bigram gate). The coherence fix = chunk `M` to capacity — a known follow-on, not a release blocker.
+- **The cut is the user's/maintainer's call:** if the bar is "contaminant gone + clean package," cut `srmech-v0.8.2`; if the bar is "coherent rbs_lm generation," hold for the M-capacity chunking. The contaminant removal + numpy-free + §56 are verified done either way.

@@ -1,0 +1,205 @@
+{
+  "partition": "R-RBS-LM-54h",
+  "per_pair": [
+    {
+      "anchor": "milton",
+      "target": "shakespeare",
+      "note": "rule-dense poetry (54m positive)",
+      "baseline": 0.2819372362972902,
+      "variants": {
+        "V0 baseline (54g)": {
+          "ride_mean": 0.33466573716637815,
+          "ride_minus_baseline": 0.05272850086908798
+        },
+        "V1 align-sim weighted": {
+          "ride_mean": 0.31821485304200436,
+          "ride_minus_baseline": 0.03627761674471419
+        },
+        "V2 mag \u00d7 sim weighted": {
+          "ride_mean": 0.2535628305850118,
+          "ride_minus_baseline": -0.028374405712278394
+        },
+        "V3 mag \u00d7 sim, top-3": {
+          "ride_mean": 0.1844117569247795,
+          "ride_minus_baseline": -0.09752547937251066
+        },
+        "V4 mag \u00d7 sim, top-1": {
+          "ride_mean": 0.07265529262535803,
+          "ride_minus_baseline": -0.20928194367193215
+        },
+        "V5 uniform top-1": {
+          "ride_mean": 0.24238893179404636,
+          "ride_minus_baseline": -0.039548304503243814
+        }
+      }
+    },
+    {
+      "anchor": "frankenstein",
+      "target": "plato",
+      "note": "prose\u2192prose (54m near-zero)",
+      "baseline": 0.3397658943792289,
+      "variants": {
+        "V0 baseline (54g)": {
+          "ride_mean": 0.32210795340060255,
+          "ride_minus_baseline": -0.01765794097862633
+        },
+        "V1 align-sim weighted": {
+          "ride_mean": 0.3348845192579863,
+          "ride_minus_baseline": -0.004881375121242593
+        },
+        "V2 mag \u00d7 sim weighted": {
+          "ride_mean": 0.2931655264611071,
+          "ride_minus_baseline": -0.04660036791812178
+        },
+        "V3 mag \u00d7 sim, top-3": {
+          "ride_mean": 0.25292829115925974,
+          "ride_minus_baseline": -0.08683760321996914
+        },
+        "V4 mag \u00d7 sim, top-1": {
+          "ride_mean": 0.15006646596118076,
+          "ride_minus_baseline": -0.18969942841804813
+        },
+        "V5 uniform top-1": {
+          "ride_mean": 0.2077914142068205,
+          "ride_minus_baseline": -0.13197448017240837
+        }
+      }
+    },
+    {
+      "anchor": "kjv_nt",
+      "target": "quran_sale",
+      "note": "same-fam religious (54g best)",
+      "baseline": 0.21881494535203236,
+      "variants": {
+        "V0 baseline (54g)": {
+          "ride_mean": 0.18738997109980274,
+          "ride_minus_baseline": -0.03142497425222962
+        },
+        "V1 align-sim weighted": {
+          "ride_mean": 0.16123102791639563,
+          "ride_minus_baseline": -0.05758391743563673
+        },
+        "V2 mag \u00d7 sim weighted": {
+          "ride_mean": 0.15357950215088192,
+          "ride_minus_baseline": -0.06523544320115043
+        },
+        "V3 mag \u00d7 sim, top-3": {
+          "ride_mean": 0.10907407656522561,
+          "ride_minus_baseline": -0.10974086878680675
+        },
+        "V4 mag \u00d7 sim, top-1": {
+          "ride_mean": 0.035109851930813174,
+          "ride_minus_baseline": -0.18370509342121918
+        },
+        "V5 uniform top-1": {
+          "ride_mean": 0.11025374372848076,
+          "ride_minus_baseline": -0.1085612016235516
+        }
+      }
+    },
+    {
+      "anchor": "whitman",
+      "target": "milton",
+      "note": "free-verse anchor (54m -0.245)",
+      "baseline": 0.402674056689175,
+      "variants": {
+        "V0 baseline (54g)": {
+          "ride_mean": 0.16254888357344457,
+          "ride_minus_baseline": -0.24012517311573042
+        },
+        "V1 align-sim weighted": {
+          "ride_mean": 0.1925035162824485,
+          "ride_minus_baseline": -0.2101705404067265
+        },
+        "V2 mag \u00d7 sim weighted": {
+          "ride_mean": 0.2035552741679193,
+          "ride_minus_baseline": -0.1991187825212557
+        },
+        "V3 mag \u00d7 sim, top-3": {
+          "ride_mean": 0.21776960088489256,
+          "ride_minus_baseline": -0.18490445580428244
+        },
+        "V4 mag \u00d7 sim, top-1": {
+          "ride_mean": 0.22820185476839341,
+          "ride_minus_baseline": -0.17447220192078158
+        },
+        "V5 uniform top-1": {
+          "ride_mean": 0.15381125483578534,
+          "ride_minus_baseline": -0.24886280185338966
+        }
+      }
+    },
+    {
+      "anchor": "origin",
+      "target": "frankenstein",
+      "note": "prose Victorian (54m -0.220)",
+      "baseline": 0.5715626861133545,
+      "variants": {
+        "V0 baseline (54g)": {
+          "ride_mean": 0.3513674293007618,
+          "ride_minus_baseline": -0.22019525681259267
+        },
+        "V1 align-sim weighted": {
+          "ride_mean": 0.3487260161547826,
+          "ride_minus_baseline": -0.22283666995857188
+        },
+        "V2 mag \u00d7 sim weighted": {
+          "ride_mean": 0.3337789769821151,
+          "ride_minus_baseline": -0.23778370913123936
+        },
+        "V3 mag \u00d7 sim, top-3": {
+          "ride_mean": 0.2970017676647574,
+          "ride_minus_baseline": -0.2745609184485971
+        },
+        "V4 mag \u00d7 sim, top-1": {
+          "ride_mean": 0.21916604661547223,
+          "ride_minus_baseline": -0.35239663949788225
+        },
+        "V5 uniform top-1": {
+          "ride_mean": 0.2933886032496347,
+          "ride_minus_baseline": -0.27817408286371975
+        }
+      }
+    }
+  ],
+  "variant_summary": {
+    "V0 baseline (54g)": {
+      "avg_ride": 0.271615994908198,
+      "avg_delta": -0.09133496885801821,
+      "wins": 1,
+      "losses": 3
+    },
+    "V1 align-sim weighted": {
+      "avg_ride": 0.2711119865307235,
+      "avg_delta": -0.0918389772354927,
+      "wins": 1,
+      "losses": 3
+    },
+    "V2 mag \u00d7 sim weighted": {
+      "avg_ride": 0.24752842206940703,
+      "avg_delta": -0.11542254169680914,
+      "wins": 0,
+      "losses": 5
+    },
+    "V3 mag \u00d7 sim, top-3": {
+      "avg_ride": 0.21223709863978296,
+      "avg_delta": -0.1507138651264332,
+      "wins": 0,
+      "losses": 5
+    },
+    "V4 mag \u00d7 sim, top-1": {
+      "avg_ride": 0.1410399023802435,
+      "avg_delta": -0.22191106138597266,
+      "wins": 0,
+      "losses": 5
+    },
+    "V5 uniform top-1": {
+      "avg_ride": 0.2015267895629535,
+      "avg_delta": -0.16142417420326263,
+      "wins": 0,
+      "losses": 5
+    }
+  },
+  "best_variant": "V0 baseline (54g)",
+  "verdict": "SHARPER RIDE INSUFFICIENT: even best variant (V0 baseline (54g)) below baseline (-0.091)"
+}

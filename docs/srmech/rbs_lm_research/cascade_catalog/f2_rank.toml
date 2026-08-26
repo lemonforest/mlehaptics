@@ -1,0 +1,19 @@
+[cascade]
+name = "f2_rank"
+class_composition = "I"
+purpose = "The F_2 rank of a set of square-class vectors — the compositum exponent k."
+
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "gf_rref over GF(2); the rank IS k, so the compositum degree is 2**k."
+returns = "int"
+
+[[cascade.chain.steps]]
+class = "I"
+op = "srmech.math.modular_linalg.gf_rref"
+args = { rows = "@input.rows", p = 2 }
+
+[[cascade.chain.steps]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@step[0].output", i = "rank" }

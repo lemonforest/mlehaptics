@@ -432,4 +432,305 @@ Same wire format; same ecosystem clients; just a cleaner CLI surface.
 
 ---
 
-*Updated: 2026-05-25 — R-RBS-LM-34 ships this guide.*
+## §11 Worked example — Windows browser front-end for llama.cpp + RBS-LM over LAN
+
+Per user direction 2026-05-25: end-to-end concrete walkthrough for the
+common case — a Linux server on the LAN hosts BOTH `llama-server` (real
+LLM via llama.cpp) AND `rbs_lm_server.py` (RBS-LM cascade); a Windows
+machine on the same LAN runs a browser-based chat UI that can switch
+between them.
+
+This section is the "I want to use the actual stack from a browser on my
+Windows box" guide.
+
+### §11.1 Topology
+
+```
+  ┌─────────────────────────────────┐         ┌──────────────────────────┐
+  │ Linux server  (192.168.1.10)    │         │ Windows machine          │
+  │                                 │         │                          │
+  │ • llama-server  :8090           │ ─LAN─►  │  Browser                 │
+  │   (Llama-3.1-8B Q4 GGUF)        │         │   ↓                      │
+  │ • rbs_lm_server :8788           │ ─LAN─►  │   http://192.168.1.10:3000 │
+  │   (byte-mode v25b instrument)   │         │   (Open WebUI)            │
+  │ • Open WebUI    :3000  (Docker) │         │                          │
+  └─────────────────────────────────┘         └──────────────────────────┘
+```
+
+Three services on the Linux box, all reachable from any browser on the
+LAN. Pick a model in Open WebUI → it routes to either llama-server (real
+LLM) or rbs_lm_server (cascade transducer).
+
+### §11.2 Step-by-step on the Linux server
+
+#### Step 1: find the Linux box's LAN IP
+
+```bash
+hostname -I
+# → 192.168.1.10 192.168.1.10
+# (first IP is the LAN address; second is often the same if single-NIC)
+
+# Alternative
+ip -4 addr show | grep -oP 'inet \K[\d.]+' | grep -v '127.0'
+```
+
+Note the IP — Windows clients connect to it.
+
+#### Step 2: open firewall ports
+
+If using `ufw`:
+
+```bash
+sudo ufw allow 8090/tcp comment 'llama-server (llama.cpp)'
+sudo ufw allow 8788/tcp comment 'rbs_lm_server (RBS-LM cascade)'
+sudo ufw allow 3000/tcp comment 'Open WebUI'
+sudo ufw status
+```
+
+If using `firewalld`:
+
+```bash
+sudo firewall-cmd --add-port=8090/tcp --permanent
+sudo firewall-cmd --add-port=8788/tcp --permanent
+sudo firewall-cmd --add-port=3000/tcp --permanent
+sudo firewall-cmd --reload
+```
+
+#### Step 3: start `llama-server` (real LLM via llama.cpp)
+
+llama-cpp-python (R-RBS-LM-31) does NOT ship the `llama-server` binary;
+that comes from the C++ llama.cpp project. Install separately or use the
+ready-built Python wrapper:
+
+```bash
+# Option A: use llama-cpp-python's bundled server CLI
+~/.venvs/rbs-lm-research/bin/python -m llama_cpp.server \
+    --model_alias Llama-3.1-8B-Instruct-Q4 \
+    --hf_pretrained_model_name_or_path bartowski/Meta-Llama-3.1-8B-Instruct-GGUF \
+    --hf_model_repo_id bartowski/Meta-Llama-3.1-8B-Instruct-GGUF \
+    --port 8090 \
+    --host 0.0.0.0 &
+
+# Option B: native llama.cpp llama-server binary (if installed)
+~/llama.cpp/build/bin/llama-server \
+    --hf-repo bartowski/Meta-Llama-3.1-8B-Instruct-GGUF \
+    --hf-file Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf \
+    --host 0.0.0.0 \
+    --port 8090 \
+    --threads 16 \
+    --ctx-size 4096 &
+```
+
+Verify it's up:
+
+```bash
+curl http://192.168.1.10:8090/v1/models
+# → {"object": "list", "data": [{"id": "Llama-3.1-8B-Instruct-Q4", ...}]}
+```
+
+llama-server's built-in browser UI is also at `http://192.168.1.10:8090/`
+if you want the llama.cpp-shipped front-end specifically (zero install
+beyond llama-server itself).
+
+#### Step 4: start `rbs_lm_server.py` (RBS-LM cascade)
+
+```bash
+cd ~/GitHub/mlehaptics  # or wherever the worktree lives
+RBS_LM_HOST=0.0.0.0 \
+RBS_LM_PORT=8788 \
+RBS_LM_INSTRUMENT="docs/srmech/rbs_lm_research/rbs_lm_instrument_v25b_distill_gpt2.bin" \
+RBS_LM_BYTE_MODE=1 \
+RBS_LM_MODEL_ID="rbs-lm-v25b" \
+~/.venvs/rbs-lm-research/bin/python docs/srmech/rbs_lm_research/rbs_lm_server.py &
+```
+
+Verify:
+
+```bash
+curl http://192.168.1.10:8788/health | python3 -m json.tool
+```
+
+#### Step 5: start Open WebUI via Docker
+
+If Docker is installed on Linux:
+
+```bash
+docker run -d \
+    -p 3000:8080 \
+    --add-host=host.docker.internal:host-gateway \
+    -v open-webui:/app/backend/data \
+    --name open-webui \
+    --restart always \
+    ghcr.io/open-webui/open-webui:main
+```
+
+The `--add-host=host.docker.internal:host-gateway` makes the host's
+loopback (the place where llama-server + rbs_lm_server listen on
+127.0.0.1 OR the LAN IP) reachable from inside the container.
+
+If Docker is NOT installed on Linux but IS on Windows, see §11.4 below
+for the Windows-side-Docker option.
+
+#### Step 6: confirm everything is reachable
+
+From the Linux box:
+
+```bash
+curl -s http://localhost:8090/v1/models | python3 -m json.tool
+curl -s http://localhost:8788/v1/models | python3 -m json.tool
+curl -sI http://localhost:3000 | head -1  # → HTTP/1.1 200 OK from Open WebUI
+```
+
+### §11.3 Step-by-step on the Windows machine
+
+#### Step 1: verify LAN connectivity
+
+Open PowerShell or Command Prompt:
+
+```powershell
+ping 192.168.1.10
+```
+
+Should respond. If not, troubleshoot LAN routing (both machines on same
+subnet; firewall on Linux side allowed the ports).
+
+#### Step 2: open the Open WebUI URL in any modern browser
+
+```
+http://192.168.1.10:3000
+```
+
+Edge / Chrome / Firefox all work. First-time setup creates a local
+account on the Open WebUI instance (the account lives in Open WebUI's
+Docker volume on the Linux box).
+
+#### Step 3: register the two OpenAI endpoints
+
+In Open WebUI:
+
+1. Click profile icon (top-right) → **Settings** → **Admin Settings**
+2. **Connections** → **OpenAI API**
+3. Add connection #1:
+   - **URL:** `http://192.168.1.10:8090/v1`
+   - **API Key:** `not-needed`
+   - Save
+4. Add connection #2:
+   - **URL:** `http://192.168.1.10:8788/v1`
+   - **API Key:** `not-needed`
+   - Save
+5. **Models** pane → refresh — both `Llama-3.1-8B-Instruct-Q4` and
+   `rbs-lm-v25b` should appear
+
+#### Step 4: chat
+
+Top of the chat page, click the model selector. Pick:
+
+- **`Llama-3.1-8B-Instruct-Q4`** — get real LLM responses (slow on 2009
+  Xeon E5530 at ~3-5 tok/sec; ~30-60 sec per ~100-token response)
+- **`rbs-lm-v25b`** — get RBS-LM cascade output (~60 ms/byte; mode-collapsed
+  per the structural ceiling)
+
+Same chat history is preserved across model switches. The framework
+reading: **both are wire-compatible; behavioral difference is the
+cascade ceiling per R-RBS-LM-19**.
+
+### §11.4 Alternative — Open WebUI runs on Windows (no Docker on Linux)
+
+If your Linux server can't run Docker but your Windows machine can:
+
+1. Install Docker Desktop on Windows
+2. Run Open WebUI on Windows:
+
+```powershell
+docker run -d `
+    -p 3000:8080 `
+    -v open-webui:/app/backend/data `
+    --name open-webui `
+    --restart always `
+    ghcr.io/open-webui/open-webui:main
+```
+
+3. Open browser at `http://localhost:3000` (now LOCAL on Windows)
+4. Configure the two OpenAI endpoints pointing to Linux:
+   - `http://192.168.1.10:8090/v1` (llama-server)
+   - `http://192.168.1.10:8788/v1` (rbs_lm_server)
+
+This trades "Docker-on-Linux" for "Docker-on-Windows" but the integration
+is otherwise identical.
+
+### §11.5 Minimum-friction alternative — llama.cpp's built-in web UI
+
+If you only want llama-server's responses (no RBS-LM, no Open WebUI):
+
+1. Start `llama-server` per §11.2 step 3
+2. From Windows browser, open `http://192.168.1.10:8090/`
+3. The llama.cpp shipped front-end loads — type in the chat box
+
+This works without Docker, without Open WebUI, without any other moving
+parts. It's the simplest "browser on Windows talking to LLM on Linux"
+setup possible. **Limitation: this UI does NOT see the rbs_lm_server.py
+endpoint**; it's llama-server-only. Use Open WebUI (§11.3) if you want
+both models in one UI.
+
+### §11.6 Other Windows-friendly clients (no browser)
+
+If a browser-based UI is overkill:
+
+- **LM Studio** (Windows desktop app): Settings → "Local Server" → add
+  endpoint URL → chat in the GUI. Supports OpenAI API endpoints.
+- **AnythingLLM Desktop** (Windows installer): supports custom OpenAI
+  endpoints in Settings → LLM Selection.
+- **Hollama** (PWA / single-page): https://hollama.fernando.is — pure
+  HTML/JS; just point at your endpoint URL.
+- **PowerShell** with `curl`:
+  ```powershell
+  $body = '{"model":"rbs-lm-v25b","messages":[{"role":"user","content":"Hello"}],"max_tokens":24}'
+  curl http://192.168.1.10:8788/v1/chat/completions `
+       -H "Content-Type: application/json" `
+       -d $body
+  ```
+
+### §11.7 Multi-instrument switching from the chat UI
+
+If you've followed R-RBS-LM-33's "library of domain instruments" pattern
+(running multiple `rbs_lm_server.py` instances on different ports per
+§8 above), Open WebUI will surface ALL of them as separate models if you
+register each port as its own OpenAI endpoint. **Switch domains by
+switching models in the dropdown.** Useful for testing:
+
+```
+  rbs-lm-v25b-gpt2-base       (port 8788; GPT-2 124M distilled)
+  rbs-lm-v31-llama-base       (port 8789; Llama 3.2 1B Q4)
+  rbs-lm-v33-merged           (port 8790; 3-source merge)
+  Llama-3.1-8B-Instruct-Q4    (port 8090; real LLM via llama-server)
+```
+
+Four models; one UI; one click between them.
+
+### §11.8 What to expect (honest performance reminders)
+
+On 2009 Xeon E5530 hardware:
+
+- `llama-server` Llama 3.1 8B Q4: ~3-5 tok/sec → ~20-30 sec for a
+  100-token response
+- `rbs_lm_server.py` byte-mode: ~60 ms/byte → ~3 sec for a 50-byte response
+- Open WebUI UI overhead: negligible (~50 ms per request); responses
+  stream as the model produces them
+
+If the cascade output mode-collapses to single bytes (`'                    '`
+or `'eeeeeee'`), that's expected behavior per R-RBS-LM-19. **Switch to the
+llama-server model in the same chat for real LLM output.** The cascade
+is a transducer demonstration; not a chat replacement.
+
+### §11.9 Security reminder
+
+- All three services on the Linux box have **no authentication** by
+  design (research scope).
+- Anyone on your LAN can reach them once firewall ports are open.
+- For multi-tenant or internet-exposed deployments: put nginx / Caddy
+  with auth in front; do NOT expose these directly to the public
+  internet.
+
+---
+
+*Updated: 2026-05-25 — R-RBS-LM-34 ships this guide; §11 added by R-RBS-LM-36 (Windows browser walkthrough).*

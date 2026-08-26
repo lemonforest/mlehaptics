@@ -1,0 +1,160 @@
+{
+  "srmech_version": "0.4.3",
+  "has_native": true,
+  "abi": 2,
+  "D": 10000,
+  "N_pairs": 32,
+  "decay_fractions": [
+    0.0,
+    0.1,
+    0.2,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.7
+  ],
+  "seed": 42,
+  "baselines": {
+    "bipolar": 0.0014879999999999982,
+    "polar_default": 0.49976629094675906,
+    "polar_skip_zero": 0.49976629094675906
+  },
+  "polar_results": [
+    {
+      "decay_fraction": 0.0,
+      "mean_sim_default": 0.6161317734415749,
+      "std_sim_default": 0.007724333895312986,
+      "mean_sim_skip_zero": 0.6161317734415749,
+      "std_sim_skip_zero": 0.007724333895312986,
+      "composite_density": 0.8925
+    },
+    {
+      "decay_fraction": 0.1,
+      "mean_sim_default": 0.6116949722662861,
+      "std_sim_default": 0.009045253831336936,
+      "mean_sim_skip_zero": 0.6116949722662861,
+      "std_sim_skip_zero": 0.009045253831336936,
+      "composite_density": 0.8872
+    },
+    {
+      "decay_fraction": 0.2,
+      "mean_sim_default": 0.6065538070696419,
+      "std_sim_default": 0.007144298307349189,
+      "mean_sim_skip_zero": 0.6065538070696419,
+      "std_sim_skip_zero": 0.007144298307349189,
+      "composite_density": 0.8801
+    },
+    {
+      "decay_fraction": 0.3,
+      "mean_sim_default": 0.600727424990817,
+      "std_sim_default": 0.007820236804737635,
+      "mean_sim_skip_zero": 0.600727424990817,
+      "std_sim_skip_zero": 0.007820236804737635,
+      "composite_density": 0.8688
+    },
+    {
+      "decay_fraction": 0.4,
+      "mean_sim_default": 0.5930383315939208,
+      "std_sim_default": 0.007473683300590303,
+      "mean_sim_skip_zero": 0.5930383315939208,
+      "std_sim_skip_zero": 0.007473683300590303,
+      "composite_density": 0.8614
+    },
+    {
+      "decay_fraction": 0.5,
+      "mean_sim_default": 0.5864114365489463,
+      "std_sim_default": 0.007414134706882237,
+      "mean_sim_skip_zero": 0.5864114365489463,
+      "std_sim_skip_zero": 0.007414134706882237,
+      "composite_density": 0.8461
+    },
+    {
+      "decay_fraction": 0.6,
+      "mean_sim_default": 0.5776027978907179,
+      "std_sim_default": 0.0074705466054900945,
+      "mean_sim_skip_zero": 0.5776027978907179,
+      "std_sim_skip_zero": 0.0074705466054900945,
+      "composite_density": 0.8233
+    },
+    {
+      "decay_fraction": 0.7,
+      "mean_sim_default": 0.5713977799067327,
+      "std_sim_default": 0.006733600721008933,
+      "mean_sim_skip_zero": 0.5713977799067327,
+      "std_sim_skip_zero": 0.006733600721008933,
+      "composite_density": 0.8001
+    }
+  ],
+  "bipolar_results": [
+    {
+      "decay_fraction": 0.0,
+      "mean_sim_default": 0.14066874999999995,
+      "std_sim_default": 0.010105519454115164,
+      "mean_sim_skip_zero": null,
+      "std_sim_skip_zero": null,
+      "composite_density": null
+    },
+    {
+      "decay_fraction": 0.1,
+      "mean_sim_default": 0.126325,
+      "std_sim_default": 0.010773085676815165,
+      "mean_sim_skip_zero": null,
+      "std_sim_skip_zero": null,
+      "composite_density": null
+    },
+    {
+      "decay_fraction": 0.2,
+      "mean_sim_default": 0.1106,
+      "std_sim_default": 0.010725786684434854,
+      "mean_sim_skip_zero": null,
+      "std_sim_skip_zero": null,
+      "composite_density": null
+    },
+    {
+      "decay_fraction": 0.3,
+      "mean_sim_default": 0.09693125,
+      "std_sim_default": 0.010931332189513785,
+      "mean_sim_skip_zero": null,
+      "std_sim_skip_zero": null,
+      "composite_density": null
+    },
+    {
+      "decay_fraction": 0.4,
+      "mean_sim_default": 0.0827,
+      "std_sim_default": 0.011794066304714438,
+      "mean_sim_skip_zero": null,
+      "std_sim_skip_zero": null,
+      "composite_density": null
+    },
+    {
+      "decay_fraction": 0.5,
+      "mean_sim_default": 0.0712375,
+      "std_sim_default": 0.00899964409018492,
+      "mean_sim_skip_zero": null,
+      "std_sim_skip_zero": null,
+      "composite_density": null
+    },
+    {
+      "decay_fraction": 0.6,
+      "mean_sim_default": 0.058274999999999993,
+      "std_sim_default": 0.011868840507817087,
+      "mean_sim_skip_zero": null,
+      "std_sim_skip_zero": null,
+      "composite_density": null
+    },
+    {
+      "decay_fraction": 0.7,
+      "mean_sim_default": 0.03825625000000002,
+      "std_sim_default": 0.009524341758751631,
+      "mean_sim_skip_zero": null,
+      "std_sim_skip_zero": null,
+      "composite_density": null
+    }
+  ],
+  "verdicts": {
+    "H1_polar_graceful": false,
+    "H2_bipolar_catastrophic": true,
+    "H3_polar_beats_bipolar_at_high_decay": true
+  }
+}

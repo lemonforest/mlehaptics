@@ -1,0 +1,8 @@
+# build artifacts — the .so is compiled from siona_debruijn.c (committed); a real plugin builds via cibuildwheel
+*.so
+*.dll
+*.dylib
+build/
+dist/
+*.egg-info/
+__pycache__/

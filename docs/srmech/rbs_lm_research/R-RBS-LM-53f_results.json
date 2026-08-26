@@ -1,0 +1,341 @@
+{
+  "partition": "R-RBS-LM-53f",
+  "srmech_version": "0.4.2",
+  "inter_instrument_K1": {
+    "sale_rodwell": 0.41015625,
+    "sale_kjv": 0.275634765625,
+    "rodwell_kjv": 0.252685546875
+  },
+  "translation_stability_ratio": 1.49,
+  "matrix": {
+    "quran": {
+      "quran_sale_1734": [
+        {
+          "probe": "Allah merciful most gracious",
+          "z_K1": -0.774185944409722,
+          "z_K3": -0.13617520455319904,
+          "max_z": -0.13617520455319904,
+          "above_max": false
+        },
+        {
+          "probe": "messenger of God Mohammed",
+          "z_K1": -0.3892762144658866,
+          "z_K3": -0.005707942705822713,
+          "max_z": -0.005707942705822713,
+          "above_max": false
+        },
+        {
+          "probe": "Day of Judgment paradise",
+          "z_K1": -0.45913996681870606,
+          "z_K3": -0.23185119657460831,
+          "max_z": -0.23185119657460831,
+          "above_max": false
+        },
+        {
+          "probe": "fasting Ramadan",
+          "z_K1": -0.7992314405362044,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "infidels unbelievers",
+          "z_K1": -0.9877317534881512,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "alms charity zakat",
+          "z_K1": -0.8941406890155063,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "Surah opening Bismillah",
+          "z_K1": -0.8796406649422797,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        }
+      ],
+      "quran_rodwell_1861": [
+        {
+          "probe": "Allah merciful most gracious",
+          "z_K1": 0.6405983628626246,
+          "z_K3": -0.39833401202277513,
+          "max_z": 0.6405983628626246,
+          "above_max": false
+        },
+        {
+          "probe": "messenger of God Mohammed",
+          "z_K1": -0.05878909026270918,
+          "z_K3": -1.5727276973627786,
+          "max_z": -0.05878909026270918,
+          "above_max": false
+        },
+        {
+          "probe": "Day of Judgment paradise",
+          "z_K1": 0.544305887432325,
+          "z_K3": 0.23403181854491895,
+          "max_z": 0.544305887432325,
+          "above_max": false
+        },
+        {
+          "probe": "fasting Ramadan",
+          "z_K1": -0.25644206614595566,
+          "z_K3": 1.295503034140691,
+          "max_z": 1.295503034140691,
+          "above_max": false
+        },
+        {
+          "probe": "infidels unbelievers",
+          "z_K1": -0.6365439428445067,
+          "z_K3": 1.295503034140691,
+          "max_z": 1.295503034140691,
+          "above_max": false
+        },
+        {
+          "probe": "alms charity zakat",
+          "z_K1": -0.13480946560241938,
+          "z_K3": 1.295503034140691,
+          "max_z": 1.295503034140691,
+          "above_max": false
+        },
+        {
+          "probe": "Surah opening Bismillah",
+          "z_K1": -0.3324624414856659,
+          "z_K3": 1.295503034140691,
+          "max_z": 1.295503034140691,
+          "above_max": false
+        }
+      ],
+      "kjv_nt": [
+        {
+          "probe": "Allah merciful most gracious",
+          "z_K1": -0.42124536350685415,
+          "z_K3": 2.0407411141050926,
+          "max_z": 2.0407411141050926,
+          "above_max": false
+        },
+        {
+          "probe": "messenger of God Mohammed",
+          "z_K1": 0.040930944235172344,
+          "z_K3": -1.8815569398379248,
+          "max_z": 0.040930944235172344,
+          "above_max": false
+        },
+        {
+          "probe": "Day of Judgment paradise",
+          "z_K1": 0.7341954058482121,
+          "z_K3": -0.04775525228015037,
+          "max_z": 0.7341954058482121,
+          "above_max": false
+        },
+        {
+          "probe": "fasting Ramadan",
+          "z_K1": -0.5302492096724264,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.5302492096724264,
+          "above_max": false
+        },
+        {
+          "probe": "infidels unbelievers",
+          "z_K1": -0.5694905942920324,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.5694905942920324,
+          "above_max": false
+        },
+        {
+          "probe": "alms charity zakat",
+          "z_K1": -0.5389695173656722,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.5389695173656722,
+          "above_max": false
+        },
+        {
+          "probe": "Surah opening Bismillah",
+          "z_K1": -0.5084484404393119,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.5084484404393119,
+          "above_max": false
+        }
+      ]
+    },
+    "christian": {
+      "quran_sale_1734": [
+        {
+          "probe": "Jesus Christ Lord savior",
+          "z_K1": -0.6225947836441704,
+          "z_K3": -0.2883870100418047,
+          "max_z": -0.2883870100418047,
+          "above_max": false
+        },
+        {
+          "probe": "Holy Spirit Pentecost",
+          "z_K1": -0.9666408093816397,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "Sermon on the Mount",
+          "z_K1": -0.8137314646094311,
+          "z_K3": -0.6536953432144584,
+          "max_z": -0.6536953432144584,
+          "above_max": false
+        },
+        {
+          "probe": "Last Supper bread wine",
+          "z_K1": -0.6924585359969898,
+          "z_K3": -0.5014835377258527,
+          "max_z": -0.5014835377258527,
+          "above_max": false
+        },
+        {
+          "probe": "kingdom of heaven parable",
+          "z_K1": -0.6885039839770188,
+          "z_K3": -0.24924683148759183,
+          "max_z": -0.24924683148759183,
+          "above_max": false
+        },
+        {
+          "probe": "twelve apostles disciples",
+          "z_K1": -0.859867904842425,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "Paul epistles letters",
+          "z_K1": -0.9007316090487911,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        }
+      ],
+      "quran_rodwell_1861": [
+        {
+          "probe": "Jesus Christ Lord savior",
+          "z_K1": -0.12467341555712469,
+          "z_K3": 1.2051650583453062,
+          "max_z": 1.2051650583453062,
+          "above_max": false
+        },
+        {
+          "probe": "Holy Spirit Pentecost",
+          "z_K1": -0.8291288937051058,
+          "z_K3": 1.295503034140691,
+          "max_z": 1.295503034140691,
+          "above_max": false
+        },
+        {
+          "probe": "Sermon on the Mount",
+          "z_K1": -0.36287059162154994,
+          "z_K3": -1.098453324437008,
+          "max_z": -0.36287059162154994,
+          "above_max": false
+        },
+        {
+          "probe": "Last Supper bread wine",
+          "z_K1": -0.6973602431162748,
+          "z_K3": -0.3531650241250827,
+          "max_z": -0.3531650241250827,
+          "above_max": false
+        },
+        {
+          "probe": "kingdom of heaven parable",
+          "z_K1": 0.047639435212885085,
+          "z_K3": 2.4021432376341556,
+          "max_z": 2.4021432376341556,
+          "above_max": true
+        },
+        {
+          "probe": "twelve apostles disciples",
+          "z_K1": -0.5807956675953858,
+          "z_K3": 1.295503034140691,
+          "max_z": 1.295503034140691,
+          "above_max": false
+        },
+        {
+          "probe": "Paul epistles letters",
+          "z_K1": -0.7176323432068642,
+          "z_K3": 1.295503034140691,
+          "max_z": 1.295503034140691,
+          "above_max": false
+        }
+      ],
+      "kjv_nt": [
+        {
+          "probe": "Jesus Christ Lord savior",
+          "z_K1": 2.43465540603114,
+          "z_K3": -2.6711104442030775,
+          "max_z": 2.43465540603114,
+          "above_max": false
+        },
+        {
+          "probe": "Holy Spirit Pentecost",
+          "z_K1": -0.11603459424325174,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.11603459424325174,
+          "above_max": false
+        },
+        {
+          "probe": "Sermon on the Mount",
+          "z_K1": -0.7526170558501939,
+          "z_K3": 0.23240889443006515,
+          "max_z": 0.23240889443006515,
+          "above_max": false
+        },
+        {
+          "probe": "Last Supper bread wine",
+          "z_K1": -0.386364132733871,
+          "z_K3": -0.5062056741695939,
+          "max_z": -0.386364132733871,
+          "above_max": false
+        },
+        {
+          "probe": "kingdom of heaven parable",
+          "z_K1": -0.4430461327399686,
+          "z_K3": -1.8306180040724311,
+          "max_z": -0.4430461327399686,
+          "above_max": false
+        },
+        {
+          "probe": "twelve apostles disciples",
+          "z_K1": 0.2109769442534651,
+          "z_K3": -0.6335530135833283,
+          "max_z": 0.2109769442534651,
+          "above_max": false
+        },
+        {
+          "probe": "Paul epistles letters",
+          "z_K1": -0.865981055862389,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        }
+      ]
+    }
+  },
+  "quran_probes_sale_peaks": [
+    -0.13617520455319904,
+    -0.005707942705822713,
+    -0.23185119657460831,
+    -0.27968919258531294,
+    -0.27968919258531294,
+    -0.27968919258531294,
+    -0.27968919258531294
+  ],
+  "quran_probes_rodwell_peaks": [
+    0.6405983628626246,
+    -0.05878909026270918,
+    0.544305887432325,
+    1.295503034140691,
+    1.295503034140691,
+    1.295503034140691,
+    1.295503034140691
+  ],
+  "verdict": "TRANSLATION STABILITY MODERATE \u2014 same-source signal detectable but cross-source signal also present"
+}

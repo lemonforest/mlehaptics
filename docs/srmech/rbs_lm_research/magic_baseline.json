@@ -1,0 +1,14 @@
+{
+  "_comment": "JPL-style ratchet baseline (CLAUDE.md model: violations only go DOWN). Per-file genuinely-IRREDUCIBLE-C counts (F228 v2 / nomagic.py \u2014 attestation-to-source) as of the freeze. NOT a magic-number count; it is the residue that does NOT yet reduce to a source. Regenerate ONLY when REDUCING, via: python3 R-RBS-LM-228_magic_number_audit.py --update-baseline",
+  "files": {
+    "R-RBS-LM-112_variable_length_sentences.py": 7,
+    "R-RBS-LM-113_larger_corpus_scaling.py": 3,
+    "R-RBS-LM-126_context_state_encoder_capacity.py": 2,
+    "R-RBS-LM-146_instrument_scaleup_hierarchical_domain.py": 3,
+    "R-RBS-LM-222_instrument_scaleup_catalog_driven_ceiling.py": 2,
+    "_canonical_substrate.py": 3,
+    "descriptor.toml": 8,
+    "descriptor_rbs_lm_inference.toml": 3
+  },
+  "total": 31
+}

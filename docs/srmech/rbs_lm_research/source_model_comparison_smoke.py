@@ -105,6 +105,8 @@ def main():
          "docs/srmech/rbs_lm_research/rbs_lm_instrument_v29_distill_TinyLlama__TinyLlama-1.1B-intermediate-step-1431k-3T.bin"),
         ("v31 Llama-3.2-1B-Instruct Q4 GGUF (~3.6k bytes)",
          "docs/srmech/rbs_lm_research/rbs_lm_instrument_v31_gguf_llama32-1b-q4.bin"),
+        ("v35 Llama-3.1-8B-Instruct Q4 GGUF (~10k bytes)",
+         "docs/srmech/rbs_lm_research/rbs_lm_instrument_v31_gguf_llama31-8b-q4.bin"),
     ]
 
     print(f"=== R-RBS-LM-29 — Source-model comparison smoke ===\n")

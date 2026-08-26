@@ -1,0 +1,154 @@
+{
+  "partition": "R-RBS-LM-81 v2",
+  "stem_binding": [
+    "math_elem_alg",
+    "math_inter_alg",
+    "sci_astronomy",
+    "sci_starland",
+    "sci_health"
+  ],
+  "steam_binding": [
+    "math_elem_alg",
+    "math_inter_alg",
+    "sci_astronomy",
+    "sci_starland",
+    "sci_health",
+    "art_music",
+    "art_perspective",
+    "art_drawing"
+  ],
+  "refuse_threshold": 0.4,
+  "probes": [
+    {
+      "probe": "P1 math-only",
+      "text": "solve for x in the equation x squared plus five x equals ten",
+      "n_unique_tokens": 7,
+      "stem": {
+        "top": "math_elem_alg",
+        "score": 0.2857142857142857,
+        "refused": true
+      },
+      "steam": {
+        "top": "math_elem_alg",
+        "score": 0.2857142857142857,
+        "refused": true
+      },
+      "differs": false
+    },
+    {
+      "probe": "P2 music-only",
+      "text": "what is the difference between a major chord and a minor chord in music theory",
+      "n_unique_tokens": 8,
+      "stem": {
+        "top": "math_inter_alg",
+        "score": 0.375,
+        "refused": true
+      },
+      "steam": {
+        "top": "art_music",
+        "score": 0.875,
+        "refused": false
+      },
+      "differs": true
+    },
+    {
+      "probe": "P3 science-only",
+      "text": "explain how gravity works on the moon and why astronauts float",
+      "n_unique_tokens": 8,
+      "stem": {
+        "top": "sci_starland",
+        "score": 0.25,
+        "refused": true
+      },
+      "steam": {
+        "top": "sci_starland",
+        "score": 0.25,
+        "refused": true
+      },
+      "differs": false
+    },
+    {
+      "probe": "P4 art-only",
+      "text": "how do parallel lines converge at a vanishing point in perspective drawing",
+      "n_unique_tokens": 9,
+      "stem": {
+        "top": "math_elem_alg",
+        "score": 0.4444444444444444,
+        "refused": false
+      },
+      "steam": {
+        "top": "art_perspective",
+        "score": 0.8888888888888888,
+        "refused": false
+      },
+      "differs": true
+    },
+    {
+      "probe": "P5 math+music",
+      "text": "explain the mathematical ratio behind a perfect fifth musical interval",
+      "n_unique_tokens": 8,
+      "stem": {
+        "top": "math_inter_alg",
+        "score": 0.25,
+        "refused": true
+      },
+      "steam": {
+        "top": "art_music",
+        "score": 0.5,
+        "refused": false
+      },
+      "differs": true
+    },
+    {
+      "probe": "P6 sci+art",
+      "text": "how does light affect shadow in a drawing of an object",
+      "n_unique_tokens": 7,
+      "stem": {
+        "top": "sci_starland",
+        "score": 0.5714285714285714,
+        "refused": false
+      },
+      "steam": {
+        "top": "art_perspective",
+        "score": 0.7142857142857143,
+        "refused": false
+      },
+      "differs": true
+    },
+    {
+      "probe": "P7 out-of-scope",
+      "text": "tell me about ancient Greek philosophy and Socrates",
+      "n_unique_tokens": 7,
+      "stem": {
+        "top": "sci_health",
+        "score": 0.2857142857142857,
+        "refused": true
+      },
+      "steam": {
+        "top": "sci_health",
+        "score": 0.2857142857142857,
+        "refused": true
+      },
+      "differs": false
+    },
+    {
+      "probe": "P8 generic noise",
+      "text": "the quick brown fox jumps over the lazy dog",
+      "n_unique_tokens": 7,
+      "stem": {
+        "top": "sci_astronomy",
+        "score": 0.14285714285714285,
+        "refused": true
+      },
+      "steam": {
+        "top": "art_drawing",
+        "score": 0.2857142857142857,
+        "refused": true
+      },
+      "differs": true
+    }
+  ],
+  "n_differ": 5,
+  "n_stem_refused": 6,
+  "n_steam_refused": 4
+}

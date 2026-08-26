@@ -1,0 +1,13 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "e8_squared_re": -1.0,
+  "octonion_lifts_into_mirror": true,
+  "zero_divisor_pairs": 84,
+  "first_zero_divisor": [
+    1,
+    10,
+    5,
+    14
+  ],
+  "is_division_algebra": false
+}

@@ -1,0 +1,47 @@
+{
+  "partition": "R-RBS-LM-R4 (#855 R4)",
+  "srmech_version": "0.7.0rc25",
+  "D": 8192,
+  "trials": 40,
+  "rows": [
+    {
+      "corrupt_p": 0.1,
+      "k1_sim": 0.9236907958984375,
+      "k2_clean_base": 1.0,
+      "k2_cross": 0.9236907958984375,
+      "k2_detect_rate": 1.0,
+      "k3_sim": 1.0,
+      "k3_correct_rate": 1.0
+    },
+    {
+      "corrupt_p": 0.25,
+      "k1_sim": 0.810552978515625,
+      "k2_clean_base": 1.0,
+      "k2_cross": 0.810552978515625,
+      "k2_detect_rate": 1.0,
+      "k3_sim": 1.0,
+      "k3_correct_rate": 1.0
+    },
+    {
+      "corrupt_p": 0.4,
+      "k1_sim": 0.697247314453125,
+      "k2_clean_base": 1.0,
+      "k2_cross": 0.697247314453125,
+      "k2_detect_rate": 1.0,
+      "k3_sim": 1.0,
+      "k3_correct_rate": 1.0
+    },
+    {
+      "corrupt_p": 0.5,
+      "k1_sim": 0.62208251953125,
+      "k2_clean_base": 1.0,
+      "k2_cross": 0.62208251953125,
+      "k2_detect_rate": 1.0,
+      "k3_sim": 1.0,
+      "k3_correct_rate": 1.0
+    }
+  ],
+  "k3_always_corrects": true,
+  "k2_detects": true,
+  "reading": "Klein-4 store IS the error-correcting substrate; k=2 detects / k=3 corrects (F291)."
+}

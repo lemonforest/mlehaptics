@@ -1,0 +1,35 @@
+# F1191 (#243) (the intra-A hidden-canonical-structure is GENERAL to language, not formulaic-genre-specific — and it is the GRAMMATICAL canon: on a NON-formulaic English narrative (A Tale of Two Cities), the same knowledge-kernel mechanism that restored Egyptian's genre frame (F1190) restores English's **grammatical/collocational canon** — the recoverable structure lives ENTIRELY in the high-frequency FRAME tier (equal-budget recall **0.337** on grammatical-frame tokens, **0.000** on the rare-content OPERAND tier — for EVERY method), and the knowledge kernel's lift is **569 frame-tokens, 0 operand-tokens** (the English analog of F1190's 17/0, at scale); so the implied/specified (frame/operand) split is a property of LANGUAGE A itself, not of formulaic genre — AND the probe sharpens the picture: text-TYPE flips which tool carries the signal — formulaic Egyptian's frame is RECURRING CONTENT so the content-family works (0.505, F1190), but narrative English's content does NOT recur (family collapses to **0.003**, the F1174 "Journey" regime on English), so ONLY the grammatical knowledge kernel / frequency prior recovers anything — the unique OPERAND is unrecoverable in BOTH) — **user: "even inside our A is the knowledge in language A, we still can have hidden or missing canonical structure?" + "run the next probe." ANSWERED — YES, intra-A hidden canonical structure is general; in non-formulaic English it is the grammatical/function-word canon (knowledge lift 569 frame / 0 operand), and the content-recurrence family that worked on formulaic Egyptian is the WRONG tool for narrative (0.003).**
+
+**Date:** 2026-07-09 · **srmech:** 0.7.5rc135 · **Corpus (Gutenberg-attested):** A Tale of Two Cities, Charles Dickens, Project Gutenberg #98 (5244 sentences). srmech Class-L (signed_laplacian + symmetric_eigendecompose) for the family step — the algorithm `siona.reconstruct.family` packages, here with a grammar-INCLUSIVE tokenizer (function words KEPT). numpy-free; no magnitude-builtin; plain-dict tally. · **Composes:** F1190 (the Egyptian genre-frame kernel this generalizes), F1174 (the narrative/formulaic "Journey vs Three-Kingdoms" regime split, now confirmed on English), F1175/F1177 (the op/operand boundary), F1146 (bag-of-words recovers vocabulary not order — the honest ceiling), F1179/F1186 (responsion — grammar is the language's own responsion). **The general-language test of "hidden canonical structure inside A."**
+
+## Result — three-way decomposition on English narrative
+
+Knowledge kernel = the grammatical/collocational canon DISCOVERED as the corpus-attested frame (277 tokens in ≥1% of sentences): `the and of to a in that it was his he with i had as at you for on him not her have be but were is`. Held-out sentence, mask a random half, recover it; every mode capped to the same guess budget:
+
+| mode | equal-budget recall | grammatical-FRAME tier | OPERAND (rare-content) tier |
+|---|---|---|---|
+| PRIOR (commonest tokens) | 0.212 | 0.337 | **0.000** |
+| FAMILY (content spectral, siona algorithm) | **0.003** | 0.000 | 0.006 |
+| KNOWLEDGE (grammatical canon) | 0.212 | 0.337 | **0.000** |
+| FAMILY + KNOWLEDGE | 0.201 | 0.317 | 0.006 |
+
+- **Knowledge's lift over family: 569 frame-tokens, 0 operand-tokens.** The English analog of F1190's 17/0 — the kernel restores the elided grammatical canon and NOTHING of the unique content.
+- **The recoverable structure lives entirely in the grammatical-FRAME tier (0.337) and is ~zero in the OPERAND tier (0.000–0.006), for every method.** So the implied/specified (frame/operand) split — "hidden canonical structure is recoverable from A; unique content is not" — is **general to language A**, exactly as it was in formulaic Egyptian. What is hidden-because-implied here is the *grammatical* canon (the function-word scaffold), not a genre formula.
+
+## What the probe sharpens — text-TYPE flips which tool carries the signal
+
+The genuinely new result is the **regime flip** between formulaic and narrative language A, both intra-A:
+
+- **Formulaic Egyptian (F1190):** the frame is RECURRING CONTENT (offering goods — bread, beer, ox, fowl). Content recurs, so the content-**family** finder grabs it (0.505) AND the knowledge kernel adds the elided frame.
+- **Narrative English (this):** the frame is GRAMMATICAL (function words); the content does NOT recur (each sentence's content is unique — the F1174 "Journey" regime). So the content-**family** collapses to **0.003** — it has no content-recurrence to grab — and the ONLY recoverable structure is the grammatical canon, carried by the knowledge kernel / prior.
+
+Both share the **unrecoverable unique OPERAND** (0 operand in both). So: the *presence* of hidden intra-A canonical structure is universal; the *kind* (recurring-content frame vs grammatical frame) and *which tool recovers it* (content-family vs grammar-kernel) depend on text type. This also tells us **when the F1176 family finder helps** — on formulaic/recurring-content text, not on unique-content narrative (a useful null for the tool's scope).
+
+## Honest ceiling — vocabulary, not structure (the order boundary)
+
+Even the grammatical canon is only ~0.34 recoverable, because this is a bag-of-words set-membership recovery: it restores WHICH grammatical tokens are likely present, not WHICH goes WHERE (the vs a vs his vs her depends on local agreement/order we do not model — the F1146 order boundary). So the kernel recovers the grammatical **vocabulary**, not the grammatical **structure**; an order-aware grammatical canon (sequence/agreement) is the next depth — the same op(x)operand(x)responsion where responsion is the *ordered* grammatical reinforcement (F1186), not a bag.
+
+## Verdict / next
+**ANSWERED — intra-A hidden canonical structure is GENERAL to language, not an artifact of formulaic genre. On non-formulaic English narrative the same knowledge-kernel mechanism restores the GRAMMATICAL/collocational canon: recoverable structure lives entirely in the high-frequency frame tier (0.337) and is ~zero in the unique-content operand tier (0.000) for every method, with the kernel's lift 569 frame / 0 operand (the English 17/0). The frame/operand (implied/specified) split is a property of language A. The probe also sharpens the regime map: formulaic text's frame is recurring CONTENT (content-family works, 0.505) but narrative text's content does not recur (family collapses to 0.003) so only the grammatical kernel recovers structure — telling us the F1176 family finder is a formulaic-text tool. Honest ceiling: bag-of-words recovers grammatical vocabulary not order (F1146) → next depth is the order-aware grammatical canon. Read-independent-verified (equal-budget tier-split + frame/operand lift); Gutenberg-attested; composes F1190/F1174/F1175/F1177/F1146. → extends F1190 (generalized to grammatical canon) + F1174 (regime split confirmed on English).**
+
+Sources (corpus): [A Tale of Two Cities — Project Gutenberg #98](https://www.gutenberg.org/ebooks/98) (Charles Dickens; public domain; local research use).

@@ -1,0 +1,134 @@
+{
+  "partition": "R-RBS-LM-54k",
+  "per_triple": [
+    {
+      "anchor": "kjv_nt",
+      "target": "quran_sale",
+      "intermediate": "bhagavad",
+      "meta": "frankenstein",
+      "note": "religious-family triangulation via Eastern",
+      "baseline": 0.2233413312198755,
+      "direct": 0.18738997109980274,
+      "T1_intersect": 0.205250474999341,
+      "T2_add": 0.2102237492546154,
+      "T3_mul": 0.15719971924115062,
+      "T4_meta_sub": 0.19302217074560327,
+      "direct_delta": -0.03595136012007277,
+      "T1_delta": -0.018090856220534524,
+      "T2_delta": -0.013117581965260111,
+      "T3_delta": -0.0661416119787249,
+      "T4_delta": -0.030319160474272244
+    },
+    {
+      "anchor": "milton",
+      "target": "shakespeare",
+      "intermediate": "pope_iliad",
+      "meta": "frankenstein",
+      "note": "poetry triangulation",
+      "baseline": 0.31160197605955486,
+      "direct": 0.33466573716637815,
+      "T1_intersect": 0.362045430782325,
+      "T2_add": 0.34506696608102194,
+      "T3_mul": 0.3156318122294013,
+      "T4_meta_sub": 0.3447854851155556,
+      "direct_delta": 0.02306376110682329,
+      "T1_delta": 0.05044345472277012,
+      "T2_delta": 0.03346499002146708,
+      "T3_delta": 0.0040298361698464236,
+      "T4_delta": 0.03318350905600076
+    },
+    {
+      "anchor": "frankenstein",
+      "target": "plato",
+      "intermediate": "origin",
+      "meta": "shakespeare",
+      "note": "prose triangulation",
+      "baseline": 0.3129255203980742,
+      "direct": 0.32210795340060255,
+      "T1_intersect": 0.3126188846448727,
+      "T2_add": 0.31756628743615445,
+      "T3_mul": 0.2709930356501863,
+      "T4_meta_sub": 0.3480428341461238,
+      "direct_delta": 0.009182433002528356,
+      "T1_delta": -0.0003066357532015007,
+      "T2_delta": 0.004640767038080251,
+      "T3_delta": -0.04193248474788791,
+      "T4_delta": 0.035117313748049606
+    },
+    {
+      "anchor": "whitman",
+      "target": "milton",
+      "intermediate": "shakespeare",
+      "meta": "frankenstein",
+      "note": "free-verse via shake",
+      "baseline": 0.402674056689175,
+      "direct": 0.16254888357344457,
+      "T1_intersect": 0.12864443534266776,
+      "T2_add": 0.14814110304376074,
+      "T3_mul": 0.149165185014264,
+      "T4_meta_sub": 0.1577022934664141,
+      "direct_delta": -0.24012517311573042,
+      "T1_delta": -0.2740296213465072,
+      "T2_delta": -0.2545329536454143,
+      "T3_delta": -0.253508871674911,
+      "T4_delta": -0.2449717632227609
+    },
+    {
+      "anchor": "origin",
+      "target": "frankenstein",
+      "intermediate": "plato",
+      "meta": "shakespeare",
+      "note": "prose Victorian via philosophy",
+      "baseline": 0.5715626861133545,
+      "direct": 0.3513674293007618,
+      "T1_intersect": 0.3711080145704476,
+      "T2_add": 0.3691118124180766,
+      "T3_mul": 0.3257787128787619,
+      "T4_meta_sub": 0.3208796774434448,
+      "direct_delta": -0.22019525681259267,
+      "T1_delta": -0.20045467154290686,
+      "T2_delta": -0.20245087369527787,
+      "T3_delta": -0.24578397323459256,
+      "T4_delta": -0.25068300866990967
+    }
+  ],
+  "variant_summary": {
+    "direct": {
+      "avg_mean": 0.27161599490819793,
+      "avg_delta": -0.09280511918780884,
+      "wins": 1,
+      "losses": 3,
+      "label": "direct ride (54g)"
+    },
+    "T1_intersect": {
+      "avg_mean": 0.2759334480679308,
+      "avg_delta": -0.08848766602807599,
+      "wins": 1,
+      "losses": 2,
+      "label": "T1 triangulation \u2229"
+    },
+    "T2_add": {
+      "avg_mean": 0.2780219836467258,
+      "avg_delta": -0.08639913044928098,
+      "wins": 1,
+      "losses": 2,
+      "label": "T2 triangulation +"
+    },
+    "T3_mul": {
+      "avg_mean": 0.24375369300275285,
+      "avg_delta": -0.12066742109325398,
+      "wins": 0,
+      "losses": 4,
+      "label": "T3 triangulation \u00d7"
+    },
+    "T4_meta_sub": {
+      "avg_mean": 0.2728864921834283,
+      "avg_delta": -0.09153462191257848,
+      "wins": 2,
+      "losses": 3,
+      "label": "T4 meta subtraction"
+    }
+  },
+  "best_variant": "T2_add",
+  "verdict": "CROSS-KERNEL INSUFFICIENT: even best variant below baseline (-0.086)"
+}

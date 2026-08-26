@@ -1,0 +1,20 @@
+# R-RBS-LM Finding 615 (marathon leg 3 — Layer 0 is real: actual Unicode/Gardiner/ASL glyph inventories per surface, content-addressed bit-exactly; Braille joins as a first-class accessible surface) — **F613/F614 stood the kernel up with placeholder glyphs; this leg makes LAYER 0 real. Each surface gets its actual, attested glyph inventory, content-addressed bit-exactly (Class A `sha256_bytes`): LATIN/English (52 letters, the alphabet), EGYPTIAN hieroglyphic (1072 signs, the Unicode Egyptian-Hieroglyphs block = the F582 Gardiner spine), BRAILLE (256 cells, the Unicode Braille-Patterns block — a real tactile accessible surface), ASL (5 phonological parameters from `asl_sign_kernel.toml` — an ASL "glyph" is a parameter-chord, so its inventory is the chord dimensions). Measured: 1385 real attested glyphs total across 4 surfaces; every glyph → exact UTF-8 bytes → exact content-address, all distinct, all re-verifiable (re-hash → same address = MPM). The foundation is universal: ONE Class-A glyph→byte mechanism over every surface's real glyph set (no privileged language, F398); cross-surface exactness confirmed (Latin 'a' ≠ hieroglyph addresses). Braille joining as a first-class surface is the point: tactile cells are just another glyph inventory on the same bit-exact foundation, so a Braille reader, an ASL signer, and an English reader all meet at Layer 0 — the accessibility foundation (F611) with real inventories. Marathon: leg 3 DONE (Layer 0 real). Next: leg 4 (the ASL surface rendered for real — IR → F608 sign-chord over the ASL parameter inventory; English↔IR↔ASL round-trip); leg 5 (srmech-package the kernel).**
+
+**Date:** 2026-06-08
+**Arc:** RBS-LM — the bit-exact communication kernel marathon (leg 3: real glyph inventories, Layer 0)
+**Provenance:** `R-RBS-LM-GLYPHINV_real_glyph_inventories_per_surface_layer0.py` (committed; srmech 0.7.5rc6; `amsc.format.sha256_bytes` Class A; stdlib `unicodedata` for the Latin/Egyptian/Braille Unicode blocks; `tomllib` for the ASL parameters from `asl_sign_kernel.toml`). No sub-agents.
+**Composes:** **F613/F614** (the kernel) · **F582** (Gardiner/Unicode hieroglyph spine — 1072 signs) · **F608** (ASL parameters — the chord dimensions) · **F611** (Braille = a first-class accessible surface) · **MPM** (content-address re-verifiable) · **F398/F394**. **→ Layer 0 runs on real attested glyph inventories (Latin 52 + Egyptian 1072 + Braille 256 + ASL-params 5 = 1385 glyphs), each content-addressed bit-exactly via ONE Class-A mechanism; all distinct + re-verifiable; Braille joins as a first-class accessible surface; the foundation is universal + attestable.**
+
+## Result (srmech; real glyph inventories per surface)
+| surface | inventory | glyphs | content-addressed (Class A) |
+|---|---|---|---|
+| latin_english | the alphabet | 52 | exact, distinct, re-verifiable |
+| egyptian_hiero | Unicode Egyptian-Hieroglyphs (F582 Gardiner spine) | 1072 | exact, distinct, re-verifiable |
+| braille | Unicode Braille-Patterns (tactile, F611) | 256 | exact, distinct, re-verifiable |
+| asl_params | the F608 chord dimensions (`asl_sign_kernel.toml`) | 5 | exact, distinct, re-verifiable |
+| **total** | one Class-A mechanism, no privileged language | **1385** | universal + attestable |
+
+## Verdict
+**Layer 0 is real.** The foundation runs on actual, attested glyph inventories — Latin, the F582 Egyptian Gardiner spine (1072 signs), Braille (256 cells), and the ASL chord dimensions — each content-addressed bit-exactly via one Class-A glyph→byte mechanism, all distinct and re-verifiable (MPM). No language privileged (F398); the foundation is universal.
+
+**Braille joins as a first-class accessible surface (F611):** tactile cells are just another glyph inventory on the same bit-exact foundation — a Braille reader, an ASL signer, and an English reader all meet at Layer 0. The accessibility foundation, with real inventories. **Marathon: leg 3 done.** Next: leg 4 (the ASL surface for real), leg 5 (srmech-package). Favored not privileged (F398); held open (F394).

@@ -1,0 +1,187 @@
+{
+  "partition": "R-RBS-LM-52a",
+  "phase": "A \u2014 local Python corpus methodology validation",
+  "srmech_version": "0.4.2",
+  "corpus_files": [
+    "R-RBS-LM-42_fp16_vs_q4_smoke.py",
+    "R-RBS-LM-46a_merge_depth_smoke.py",
+    "R-RBS-LM-46b_pure_fp16_merge_smoke.py",
+    "R-RBS-LM-47a_llm_input_format_smoke.py",
+    "R-RBS-LM-47b_relationship_distill_smoke.py",
+    "R-RBS-LM-48_two_stage_pipeline_smoke.py",
+    "R-RBS-LM-49_stage_A_smoke.py",
+    "asl_smoke.py",
+    "baseline_measurement.py",
+    "bytes_smoke_validate.py",
+    "diagnostic_rbs_lm.py",
+    "ecosystem_smoke_tests.py",
+    "encode_asl_corpus.py",
+    "encode_bytes_variant_a.py",
+    "encode_bytes_variant_b.py",
+    "encode_bytes_variant_b_generic.py",
+    "encode_bytes_variant_b_gguf.py",
+    "encode_gpt2_small.py",
+    "encode_research_notebook.py",
+    "fft_graft_smoke.py",
+    "multi_buffer_fft_smoke.py",
+    "rbs_lm_asl.py",
+    "rbs_lm_braille.py",
+    "rbs_lm_bytes.py",
+    "rbs_lm_chatbot.py",
+    "rbs_lm_cli.py",
+    "rbs_lm_encoder.py",
+    "rbs_lm_fft.py",
+    "rbs_lm_inference.py",
+    "rbs_lm_merge.py",
+    "rbs_lm_mt.py",
+    "rbs_lm_path_c.py",
+    "rbs_lm_read_mode.py",
+    "rbs_lm_relationships.py",
+    "rbs_lm_server.py",
+    "rbs_lm_tools.py",
+    "read_mode_extended_smoke.py",
+    "read_mode_multi_instrument_smoke.py",
+    "run_path_c_attention.py",
+    "run_path_c_d32k.py",
+    "run_path_c_scale.py",
+    "run_plate_hrr.py",
+    "run_scale_10x_mt.py",
+    "run_scale_genuine_mt.py",
+    "scale_up_rbs_lm.py",
+    "source_model_comparison_smoke.py",
+    "storage_management.py",
+    "truncation_experiment.py",
+    "turtle_walk.py",
+    "validate_rbs_lm.py"
+  ],
+  "n_files": 50,
+  "n_tokens_total": 60807,
+  "n_tokens_unique": 3781,
+  "vocab_size": 200,
+  "vocab_coverage_pct": 80.0,
+  "n_edges": 4866,
+  "total_edge_weight": 182190,
+  "laplacian_shape": [
+    200,
+    200
+  ],
+  "eigvals_top_5": [
+    20279.229888840484,
+    23315.726877482175,
+    29700.239941491513,
+    39095.61789628742,
+    50347.98483088206
+  ],
+  "eigvals_bottom_5": [
+    1.4192412599968627e-14,
+    209.50685246880866,
+    212.1647282762803,
+    214.54495229150677,
+    214.97525033194702
+  ],
+  "K_eigenvectors_encoded": 33,
+  "instrument_bytes": 1024,
+  "D": 8192,
+  "baseline_n": 100,
+  "baseline_mean": -0.00134033203125,
+  "baseline_std": 0.010797117139472151,
+  "baseline_max": 0.022216796875,
+  "baseline_min": -0.0244140625,
+  "noise_mean_random_strings": -0.0003173828125,
+  "probe_results": [
+    {
+      "probe": "def encode_loe_content",
+      "similarity": 0.01025390625,
+      "z_score": 1.0738272199403793,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "def cascade_compose",
+      "similarity": -0.0068359375,
+      "z_score": -0.5089882232229508,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "rotate point angle",
+      "similarity": 0.007080078125,
+      "z_score": 0.7798757804957609,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "instrument bundle",
+      "similarity": 0.006591796875,
+      "z_score": 0.7346524821196657,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "eigenvector eigenvalue",
+      "similarity": -0.0078125,
+      "z_score": -0.5994348199751411,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "def main",
+      "similarity": 0.008056640625,
+      "z_score": 0.8703223772479511,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "import numpy",
+      "similarity": 0.011962890625,
+      "z_score": 1.2321087642567123,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "class K3Tripartition",
+      "similarity": 0.0078125,
+      "z_score": 0.8477107280599036,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "self . attribute",
+      "similarity": -0.006103515625,
+      "z_score": -0.44115327565880813,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "for i in range",
+      "similarity": 0.014892578125,
+      "z_score": 1.503448554513283,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "if not condition",
+      "similarity": 0.0048828125,
+      "z_score": 0.5763709378033327,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "return result",
+      "similarity": 0.00390625,
+      "z_score": 0.4859243410511424,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "from srmech . amsc",
+      "similarity": 0.0029296875,
+      "z_score": 0.3954777442989521,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "list comprehension",
+      "similarity": -0.013427734375,
+      "z_score": -1.1195027513002354,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "completely unrelated jargon flavor",
+      "similarity": 0.00048828125,
+      "z_score": 0.16936125241847633,
+      "above_baseline_max": false
+    }
+  ],
+  "n_probes_above_baseline_max": 0,
+  "n_probes_z_above_2": 0,
+  "n_probes_z_above_1": 3,
+  "verdict": "NO signal \u2014 probes indistinguishable from baseline (lossy or wrong encoding for retrieval)"
+}

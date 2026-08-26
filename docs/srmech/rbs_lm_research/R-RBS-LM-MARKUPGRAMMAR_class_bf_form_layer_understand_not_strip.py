@@ -1,0 +1,204 @@
+r"""R-RBS-LM-MARKUPGRAMMAR (F764) — the unified markup grammar as a SHARED, IMPORTABLE language-layer component:
+markup is a Class-B/F FORM layer Siona COMPREHENDS, never strips (the F762 correction made operational + put in the
+genome language layer, per the user 2026-06-15: "we don't strip markup, we make a kernel to understand it like with
+latex and markdown … you can't just strip things Siona needs to understand").
+
+What "understand, don't strip" means concretely (the difference from R-RBS-LM-CLEANGATE's demo-only blanket strip):
+  * a LINK / BOLD / ITALIC / HEADING wraps CONTENT — the word is real; we UNWRAP it (keep the word, drop the syntax).
+  * a TEMPLATE / REF / TABLE / CSS-attr / LaTeX-cmd / CODE-fence is PURE FORM — no prose inside; we remove the form.
+  * the LINK forms carry CURATED RELATIONSHIP edges (wiki [[Target]] / markdown [text](url)) — stronger than
+    co-occurrence; we EXTRACT them as edges so "everything and its relationships" survives the read.
+So `understand_markup(text) -> (clean_prose, edges)`: comprehend the form, keep the content + relationships.
+
+This is the SSoT grammar both R-RBS-LM-WIKIGLOSS (the definition tier) and the SionaGenepool language layer import —
+markup is now a genome language-layer FORM vocabulary (a `markup` chromosome of form-classes, sibling to SignWriting),
+not a one-off research script. Composes F762 (comprehend-not-discard), F761 (the language layer), F567/CLEANGATE
+(the unified wiki+LaTeX+HTML+CSS+Markdown+code grammar), Class-B (TLV-framing) / Class-F (render).
+
+srmech 0.7.5rc155. Pure form-grammar (Class-B/F) — no math primitive, no abs(), no CAD. CC-BY-SA simplewiki.
+"""
+import re
+
+# The language-layer FORM vocabulary — the Class-B/F framing classes the genome carries (used as the `markup`
+# chromosome's gene labels; chosen so none collides with a common bare English query word — e.g. *_emphasis not "bold").
+MARKUP_FORM_CLASSES = (
+    "wiki_link", "md_link", "bold_emphasis", "italic_emphasis", "section_heading",
+    "bullet_list", "blockquote", "template", "citation_ref", "html_tag",
+    "css_style", "latex_cmd", "code_span",
+)
+
+# RELATIONSHIP-bearing link forms (the curated edges).
+_WIKI_LINK_DISP = re.compile(r"\[\[(?:[^\]|]+)\|([^\]]+)\]\]")   # [[Target|Display]] -> Display (the CONTENT shown)
+_WIKI_LINK      = re.compile(r"\[\[([^\]|]+)\]\]")                # [[Entity]]         -> Entity
+_MD_LINK        = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")          # [text](url)        -> text
+_WIKI_LINK_TGT  = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")   # the link TARGET (the relationship edge)
+
+# BALANCED nesting (F814-no-doctoring): on RAW wikitext the lead-tier regexes break on nesting — a
+# [[File:…|caption with [[nested]]]] or a {{tpl with {{nested}}}} leaves residue. We resolve INNERMOST-first
+# to a fixpoint: a template {{…}} is pure form (removed); a wiki-link [[…]] either is media/namespace form
+# (File/Image/Category/Media → removed) or wraps CONTENT (→ keep the display text). Inner links resolve first,
+# so an outer File caption is whole-form by the time it is seen. Pure UNDERSTANDING — no content discarded.
+_TPL_INNER = re.compile(r"\{\{[^{}]*\}\}")                       # innermost {{template}} (no nested braces)
+_WL_INNER  = re.compile(r"\[\[[^\[\]]*\]\]")                     # innermost [[wiki-link]] (no nested brackets)
+_NS_FORM   = re.compile(r"(?i)^\s*(?:file|image|category|media)\s*:")   # media/namespace link = pure form
+
+
+def _resolve_wiki_link(m):
+    """An innermost [[…]]: media/namespace → form (drop); else KEEP the display (text after last pipe)."""
+    inner = m.group(0)[2:-2]
+    if _NS_FORM.match(inner.split("|", 1)[0]):
+        return " "
+    return inner.rsplit("|", 1)[-1] if "|" in inner else inner
+
+# Per-form-class detectors (for detect_markup — so the genome can SAY which forms it recognized).
+_DETECT = {
+    "wiki_link":       re.compile(r"\[\[[^\]]+\]\]"),
+    "md_link":         re.compile(r"\[[^\]]+\]\([^)]+\)"),
+    "bold_emphasis":   re.compile(r"'''[^']+'''|\*\*[^*]+\*\*|__[^_]+__"),
+    "italic_emphasis": re.compile(r"''[^']+''"),
+    "section_heading": re.compile(r"={2,6}[^=\n]+={2,6}|^#{1,6}\s", re.M),
+    "bullet_list":     re.compile(r"^\s*[-*+]\s|^\s*\d+\.\s", re.M),
+    "blockquote":      re.compile(r"^\s*>\s", re.M),
+    "template":        re.compile(r"\{\{[^{}]*\}\}|\{\|.*?\|\}", re.S),
+    "citation_ref":    re.compile(r"<ref[^>]*>.*?</ref>|<ref[^>]*/>", re.S | re.I),
+    "html_tag":        re.compile(r"</?[a-z][^>]*>", re.I),
+    "css_style":       re.compile(r'\b[a-z-]+\s*=\s*"[^"]*"|\b\d+px\b', re.I),
+    "latex_cmd":       re.compile(r"\\[a-zA-Z]+\{[^}]*\}|\\[a-zA-Z]+"),
+    "code_span":       re.compile(r"```.*?```|`[^`]+`", re.S),
+}
+
+
+def detect_markup(text):
+    """Which Class-B/F form-classes appear in `text` — the genome's "I recognize this form" read-out."""
+    t = text or ""
+    return [c for c in MARKUP_FORM_CLASSES if _DETECT[c].search(t)]
+
+
+def extract_edges(text):
+    """The CURATED relationship edges the markup carries (link targets/text) — stronger than co-occurrence."""
+    t = text or ""
+    edges = []
+    for tgt in _WIKI_LINK_TGT.findall(t):
+        e = tgt.strip().lower()
+        if e and len(e) < 60 and ":" not in e:                   # ":" = a namespace (File:/Image:/Category:) — not a prose entity
+            edges.append(e)
+    for disp, _url in _MD_LINK.findall(t):
+        e = disp.strip().lower()
+        if e and len(e) < 60:
+            edges.append(e)
+    seen, uniq = set(), []
+    for e in edges:                                              # dedup, order-preserving
+        if e not in seen:
+            seen.add(e); uniq.append(e)
+    return uniq
+
+
+# ── Template sub-language kernel (F819) — a wiki {{name|pos|k=v}} is a DISCRETE grammar, not noise. CONTENT-bearing
+#    templates render their args as inline prose; an unknown family is SURFACED as a gap (the missing-kernel signal,
+#    per "do not do manually removing edits … it shows us where we are missing sublanguage kernels") rather than
+#    silently dropped. Innermost-first (in understand_markup's fixpoint) resolves nested templates inside-out.
+#    Each entry is a discrete render rule per the template's wiki semantics (attested to its purpose, not a magic str).
+_TPL_CONTENT = {
+    "convert": lambda p: " ".join(p[:2]), "cvt": lambda p: " ".join(p[:2]),     # {{convert|5|km}} -> "5 km"
+    "nowrap": lambda p: " ".join(p), "nobr": lambda p: " ".join(p), "nobreak": lambda p: " ".join(p),
+    "lang": lambda p: p[-1] if p else "",                                        # {{lang|fr|bonjour}} -> "bonjour"
+    "frac": lambda p: "/".join(p) if p else "", "sfrac": lambda p: "/".join(p) if p else "",
+    "val": lambda p: p[0] if p else "", "formatnum": lambda p: p[0] if p else "",
+    "as of": lambda p: "as of " + " ".join(p), "quote": lambda p: " ".join(p),
+    "nihongo": lambda p: p[0] if p else "",
+}
+
+
+def _resolve_template(inner, gaps):
+    """Render a wiki template (inner = text between the braces, no nested braces — innermost). CONTENT family ->
+    its inline prose; unknown family -> '' + RECORD the family in `gaps` (the missing-kernel signal). Metadata
+    templates (infobox/cite/navbox/stub/…) carry FACTS not lead prose — dropping them from the WALK is correct, but
+    the family is surfaced so an infobox-FACTS kernel can be built next (these are discrete, tractable)."""
+    head = inner.split("|", 1)[0]
+    base = head.split(":", 1)[0].strip().lower()                 # {{formatnum:1000}} colon form
+    pos = [a.strip() for a in inner.split("|")[1:] if "=" not in a]
+    if base in _TPL_CONTENT:
+        return " " + _TPL_CONTENT[base](pos) + " "
+    if base.startswith("lang-"):                                 # {{lang-fr|bonjour}} -> "bonjour"
+        return " " + (pos[0] if pos else "") + " "
+    if gaps is not None and base:
+        fam = base.split()[0]
+        gaps[fam] = gaps.get(fam, 0) + 1                         # this template family has no kernel yet
+    return " "
+
+
+def understand_markup(text, *, gaps=None):
+    """COMPREHEND markup, do NOT discard it. Returns (clean_prose, edges). If `gaps` (a dict) is passed it is
+    POPULATED with construct-class -> count for everything that has NO content kernel yet (the missing-kernel MAP,
+    F819) — a manual strip would HIDE that signal, so we SURFACE it. CONTENT kernels (kept): links (unwrap + edges,
+    F764), emphasis/heading (unwrap), CONTENT templates (render). Surfaced-as-gap (dropped + counted): unknown
+    template families, <ref>, tables, <math>/$LaTeX$, <code>, and the <score>/<chem>/<gallery>/<timeline> block tags
+    (#226). html-tag/css/list markers wrap content we KEEP, so they are form-not-gap."""
+    t = text or ""
+    edges = extract_edges(t)
+
+    def _g(k, n=1):
+        if gaps is not None and n:
+            gaps[k] = gaps.get(k, 0) + n
+
+    # 0) blocks that may CONTAIN {{/[[ — remove before the balanced pass (comment/code/ref/specialized #226 tags)
+    t = re.sub(r"<!--.*?-->", " ", t, flags=re.S)                # html comments (no content)
+    _g("<code>", len(_DETECT["code_span"].findall(t)))
+    t = _DETECT["code_span"].sub(" ", t)
+    for tag in ("ref", "gallery", "score", "chem", "ce", "math", "timeline", "syntaxhighlight", "pre", "mapframe"):
+        pat = rf"<{tag}\b[^>]*?/>|<{tag}\b[^>]*>.*?</{tag}>"
+        _g(f"<{tag}>", len(re.findall(pat, t, flags=re.S | re.I)))
+        t = re.sub(pat, " ", t, flags=re.S | re.I)
+    # 1) BALANCED templates {{..}} (CONTENT kernel / gap-surface) + wiki-links [[..]] (media->form, else KEEP display),
+    #    INNERMOST-first to a fixpoint, so nesting (File caption w/ nested link, template-in-template) is comprehended.
+    prev = None
+    while prev != t:
+        prev = t
+        t = _TPL_INNER.sub(lambda m: _resolve_template(m.group(0)[2:-2], gaps), t)
+        t = _WL_INNER.sub(_resolve_wiki_link, t)
+    # 2) tables {| .. |} (loop for nested) — cell content is layout, not lead prose -> surfaced as gap
+    prev = None
+    while prev != t:
+        prev = t
+        _g("table {|", len(re.findall(r"\{\|.*?\|\}", t, flags=re.S)))
+        t = re.sub(r"\{\|.*?\|\}", " ", t, flags=re.S)
+    # 3) UNWRAP remaining inline content — KEEP the word the form wraps (the comprehend-not-discard core)
+    t = _MD_LINK.sub(r"\1", t)                                   # [text](url)        -> text
+    _g("$latex$", len(re.findall(r"\$[^$\n]+\$", t)))
+    t = re.sub(r"\$[^$]+\$", " ", t)                             # inline LaTeX math = notation form (-> F452/F454)
+    t = re.sub(r"'''([^']+)'''", r"\1", t)                       # wiki '''bold'''
+    t = re.sub(r"''([^']+)''", r"\1", t)                         # wiki ''italic''
+    t = re.sub(r"\*\*([^*]+)\*\*|__([^_]+)__", lambda m: m.group(1) or m.group(2), t)   # markdown **bold**/__bold__
+    t = re.sub(r"\*([^*]+)\*", r"\1", t)                         # markdown *italic*
+    t = re.sub(r"={2,6}\s*([^=\n]+?)\s*={2,6}", r"\1. ", t)      # wiki ==Heading== -> "Heading." (its own sentence)
+    t = re.sub(r"^#{1,6}\s*(.+?)\s*$", r"\1. ", t, flags=re.M)   # markdown # Heading -> "Heading."
+    # 4) remaining FORM syntax that WRAPS content we keep (tag/css/list/entity) — form-not-gap (content survives)
+    t = re.sub(r"</?[a-z][^>]*>", " ", t, flags=re.I)            # html tags (text between them kept)
+    t = re.sub(r'\b[a-z-]+\s*=\s*"[^"]*"|\b\d+px\b', " ", t, flags=re.I)   # css attr="…" / 100px
+    t = re.sub(r"\\[a-zA-Z]+(?:\{[^}]*\})*|\\[a-zA-Z]+", " ", t) # LaTeX \cmd{…}{…} (all args) / bare \cmd
+    t = re.sub(r"^\s*[-*+>:;]\s|^\s*\d+\.\s|^-{3,}$", " ", t, flags=re.M)    # list / quote / def / hr markers
+    t = re.sub(r"&[a-z]+;|&#\d+;", " ", t)                       # html entities &amp; &#160;
+    t = re.sub(r"[\[\]{}|]", " ", t)                            # stray bracket/pipe residue
+    t = re.sub(r"\s+", " ", t).strip()
+    return t, edges
+
+
+def main():                                                      # self-test on representative leads
+    import srmech
+    print(f"=== R-RBS-LM-MARKUPGRAMMAR — understand (don't strip) Class-B/F markup (srmech {srmech.__version__}) ===\n")
+    samples = [
+        "The [[tomato]] ('''Solanum lycopersicum''') is a [[fruit|fruit]], specifically a [[berry]].",
+        "==Volcanoes==The plural of volcano can be either volcanos or volcanoes.",
+        "{{Infobox food|name=Pizza}} '''Pizza''' is a dish of [[Italy|Italian]] origin.<ref>x</ref>",
+        "A **computer** is a [machine](https://x) that runs `code` and uses $E=mc^2$ \\frac{a}{b}.",
+        "<div style=\"width:100px\">thumb|right|250px|A caption.</div> The Earth is a [[planet]].",
+    ]
+    for s in samples:
+        clean, edges = understand_markup(s)
+        print(f"  forms : {detect_markup(s)}")
+        print(f"  clean : {clean!r}")
+        print(f"  edges : {edges}\n")
+
+
+if __name__ == "__main__":
+    main()

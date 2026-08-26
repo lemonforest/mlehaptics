@@ -1,0 +1,37 @@
+{
+  "basic_properties": {
+    "self_inverse": true,
+    "commutative": true,
+    "associative": true,
+    "random_sectors": [
+      2484,
+      2484,
+      2445,
+      2587
+    ],
+    "random_similarity": 0.2464
+  },
+  "capacity_comparison": {
+    "n_bound_pairs": 100,
+    "D_klein": 10000,
+    "D_bipolar": 10000,
+    "klein4_mean_sim": 0.29142399999999996,
+    "klein4_std": 0.004565700822436791,
+    "bipolar_mean_sim": 0.0002939999999999997,
+    "bipolar_std": 0.00728167315937759,
+    "klein4_signal_normalized": 0.05523199999999995,
+    "bipolar_signal_normalized": 0.0002939999999999997
+  },
+  "chirality_flip_operations": {
+    "gamma5_flip_correct": true,
+    "omega7_flip_correct": true,
+    "cpt_mirror_correct": true
+  },
+  "cross_sector_retrieval": {
+    "same_sector_mean": 0.308638,
+    "cpt_key_vs_true": 0.19737000000000002,
+    "cpt_key_vs_mirror": 0.308638,
+    "cpt_substrate_symmetry": true
+  },
+  "all_algebraic_properties_pass": true
+}

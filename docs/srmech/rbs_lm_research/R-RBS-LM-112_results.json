@@ -1,0 +1,15 @@
+{
+  "srmech_version": "0.4.3",
+  "D": 8192,
+  "training_size": 14,
+  "length_distribution": {
+    "4": 3,
+    "5": 3,
+    "6": 5,
+    "7": 3
+  },
+  "n_words": 39,
+  "n_bigrams": 50,
+  "n_skeletons": 14,
+  "sentence_self_recall": 1.0
+}

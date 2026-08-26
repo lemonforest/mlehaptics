@@ -1,0 +1,25 @@
+# storyteller.amsc_catalog.toml — an AMSC catalog descriptor (the foundational AMSC form; 6 mandatory sections).
+# Lands in srmech: srmech.amsc.catalog.register_attested_root registers the storyteller as an attested source.
+
+[source]
+human_readable_name = "RBS-LM Story Teller world-kernel"  # NOT 'name' (AMSC gotcha)
+description = "the grounded compositional Story Teller (F613-F688)"
+
+[fetch]
+ndjson_path = "storyteller_worlds.ndjson"  # load-bearing (AMSC gotcha)
+mode = "literature_curated"
+
+[attestation]
+license = "framework-internal (class-A)"
+source_kind = "our-math"
+
+[schema]
+data_schema_id = "rbs-lm://schema/storyteller-world"
+
+[rendering]
+cite_as = "RBS-LM Story Teller (F613-F689)"
+purpose = "a grounded world-kernel content-shelf"
+
+[provenance]
+parser_version = "srmech.storyteller 0.1 (reference)"
+findings = "F613-F695"

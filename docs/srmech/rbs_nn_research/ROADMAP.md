@@ -1,6 +1,19 @@
 # ROADMAP.md — what comes next after the RBS-NN arc
 
-**Status:** RBS-NN arc structurally closed 2026-05-25 (PR #684). This file tracks the natural next-work items.
+**Status:** Original RBS-NN-1..9 arc structurally closed 2026-05-25 (PR #684). **R-RBS-NN-V2 (R-RBS-NN-10..-16) arc closed 2026-05-28 via Phase 6 wrap; phased follow-up plan in [`R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md`](R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md) all 6 phases COMPLETE.**
+
+**Final NEXT-1..6 status (2026-05-28):**
+
+| NEXT item | Status | Resolved via |
+|---|---|---|
+| NEXT-1 RBS-LM cross-substrate translation | ACTIVE (separate arc) | rbs_lm_research/ continues; substantively complete via F137-F142 |
+| NEXT-2 SSoT absorption into srmech_research_notebook.md | ✅ LANDED | §3.25 (R1-R9) + §3.27 (R10-R16 + F132-F150) |
+| NEXT-3 R-RBS-NN-4 literature attestation | DEFERRED | per `[[feedback_pdf_extraction_citation_discipline]]`; substantively complete via per-finding citations |
+| NEXT-4 Bipolar bundle ternary variant | ✅ LANDED in srmech v0.4.3 | as Polar HDC; see UPSTREAM_NOTES.md §5 |
+| NEXT-5 Hierarchical bundling for n > 257 | ✅ LANDED | R-RBS-NN-12; validated R-R12 + R12.5 |
+| NEXT-6 Empty catalog slots populated as content arises | ONGOING | descriptor.toml updated for R10-R16; per-row population content-driven |
+
+This file tracks the original NEXT-1..6 items above. The R-RBS-NN-10 follow-up phased plan integrates and supersedes these where overlapping (see plan §8 for cross-reference table).
 
 ---
 
@@ -83,13 +96,13 @@ NEXT-1 will need its own partition walk (NEXT-1.1, NEXT-1.2, ...) following the 
 
 ---
 
-## NEXT-2 — SSoT absorption into srmech_research_notebook.md
+## NEXT-2 — SSoT absorption into srmech_research_notebook.md — ✅ LANDED partial (2026-05-28)
 
-**Priority:** MEDIUM (deferred-by-design per R-RBS-NN-9 §6)
+**Priority:** MEDIUM → ✅ partial close
 
-Harvest the SSoT markers from R-RBS-NN-1..-9 into a new `§RBS-NN` section in `docs/srmech/srmech_research_notebook.md`. Requires the no-edits-to-existing-srmech window to open.
+§3.25 already covers R-RBS-NN-1..-9 (the original partition arc) per the 2026-05-25 session. §3.27 absorbs the R-RBS-NN-V2 arc (R-RBS-NN-10..-16 + F132-F150 framework) per the 2026-05-27/-28 session. Both sections are operational summaries with cross-references to the per-partition REPORTs in `rbs_nn_research/`.
 
-Content to harvest tabulated in `R-RBS-NN-9_catalog_ssot_REPORT.md` §6.
+Detailed per-partition REPORTs remain in `docs/srmech/rbs_nn_research/` as the authoritative source. Notebook section is the cross-domain summary, not a replacement for the partition reports.
 
 ---
 
@@ -103,23 +116,55 @@ Requires WebFetch / external lit access. Lands as `R-RBS-NN-4_literature_attesta
 
 ---
 
-## NEXT-4 — Bipolar bundle variant (foundational ergonomics)
+## NEXT-4 — Bipolar bundle variant (foundational ergonomics) — ✅ LANDED in srmech v0.4.3 (2026-05-27)
 
-**Priority:** LOW (per `UPSTREAM_NOTES.md` Note 1)
+**Status:** ✅ LANDED as **Polar HDC variant** in srmech v0.4.3 production PyPI.
 
-A bipolar bundle returning ternary {-1, 0, +1} for explicit tie surfacing. Foundational for substrate-asymptotic-wave readings; not blocking RBS-NN inference.
+A 3-state polar HDC variant returning `{-1, 0, +1}` for explicit tie/dead-band surfacing. Shipped as `srmech.amsc.hdc.polar_*` (7 functions + `POLAR_STATES` constant + tool_schema registrations). Verified in clean venv outside source tree:
+- 3-state {-1, 0, +1} semantics confirmed
+- 0 is absorbing under `polar_bind` (multiplicative sign-product)
+- `polar_from_real(arr, threshold, dead_band)` bridges existing `signal_processing.path_b_ops.sign_quantise`
+- `polar_density(v)` provides substrate-attestation readout (fraction of non-zero positions)
 
-Lands as a srmech-fix session, not in research.
+**Empirical validation per F141 (R-RBS-LM-101):** polar plasticity degrades GRACEFULLY (signal retention 100% → 61% across 0-70% decay) vs bipolar's catastrophic collapse (100% → 27%). At 60% decay, polar maintains **3-4× above-random signal** over bipolar.
+
+**See:** UPSTREAM_NOTES.md §5 in `docs/srmech/rbs_lm_research/` (polar HDC wishlist + landing record); F141 finding in same directory.
+
+This NEXT-4 item is closed. Future RBS-NN work that needs the asymptotic-DOF / dead-band substrate marker per `[[user_stance_asymptotic_dof_sidesteps_infinity]]` can import directly:
+
+```python
+from srmech.amsc.hdc import (
+    polar_random, polar_bind, polar_unbind, polar_bundle,
+    polar_similarity, polar_density, polar_from_real,
+    POLAR_STATES,
+)
+```
 
 ---
 
-## NEXT-5 — Hierarchical bundling for n > 257 cleanup
+## NEXT-5 — Hierarchical bundling for n > 257 cleanup — ✅ LANDED (2026-05-28)
 
-**Priority:** MEDIUM (NEXT-1 likely needs this)
+**Status:** ✅ LANDED via `R-RBS-NN-12_hierarchical_storage.py` (Phase 2 of R-RBS-NN-10_FOLLOWUP_PHASED_PLAN).
 
-Per R-RBS-NN-7 §3.2: srmech's `MAX_BUNDLE_N = 257` caps cleanup capacity per bundle. NEXT-1's LLM encoding will exceed 257 items per cleanup readout for any non-trivial model. Hierarchical bundling (sub-groups of ≤257, bundled then bundle-bundle layer) is the structural workaround; no srmech modification required, just an application-layer pattern.
+`HierarchicalTwoTierRBSNNStorage(TwoTierRBSNNStorage)` provides hash-based bucket routing with sub-bundles ≤MAX_BUNDLE_N. Per R-RBS-NN-FINDING_R12 empirical validation:
+- N=500: hier p@3=0.760 vs flat p@3=0.280 — 2.7× advantage
+- N=1000: hier p@3=0.705 vs flat p@3=0.095 — 7.4× advantage
+- N=2000: hier p@3=0.720 (flat too slow to test)
+- Max bucket sizes stayed below MAX_BUNDLE_N=257 in all tested workloads (149, 169, 187)
+- `recommend_n_buckets(N, degree)` helper auto-picks bucket count
 
-Could land as part of NEXT-1 work or as a standalone utility note.
+Helper API:
+
+```python
+from R_RBS_NN_12_hierarchical_storage import (
+    HierarchicalTwoTierRBSNNStorage,
+    recommend_n_buckets,
+)
+n_buckets = recommend_n_buckets(expected_N=1000, expected_avg_degree=2)
+storage = HierarchicalTwoTierRBSNNStorage(D=8192, n_buckets=n_buckets)
+```
+
+See R-RBS-NN-FINDING_R12_hierarchical_bundling.md for the full validation.
 
 ---
 

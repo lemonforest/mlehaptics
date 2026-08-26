@@ -1,0 +1,413 @@
+{
+  "refresh_date": "2026-06-03",
+  "srmech_version": "0.7.0rc21",
+  "D": 8192,
+  "prior_build": {
+    "srmech": "0.4.2",
+    "n_ngrams_total_corpus": 116198
+  },
+  "per_notebook": {
+    "srmech": {
+      "K1_meta": {
+        "kernel": "K1_presence",
+        "vocab_size": 200,
+        "n_edges": 13283,
+        "K_eigvecs": 33,
+        "M_per_eigvec": 21,
+        "eig_tail_top8": [
+          7860.034766631895,
+          6365.7157405642265,
+          3844.9896724048626,
+          2531.235761367249,
+          2183.942493922005,
+          1965.32255265634,
+          1918.5560241482344,
+          1866.7674991130943
+        ],
+        "total_tokens": 59151,
+        "unique_tokens": 11442
+      },
+      "K3_meta": {
+        "kernel": "K3_sequence",
+        "n_gram": 3,
+        "n_ngrams_total_corpus": 58551,
+        "n_ngrams_sampled": 5000,
+        "position_stride": 2731
+      },
+      "K1_fw_peak_z": 2.594893721048256,
+      "K1_fw_above_max": 0,
+      "K1_neg_peak_z": -0.2660010173027681,
+      "K1_neg_above_max": 0,
+      "K3_fw_peak_z": 1.791458809832748,
+      "K3_fw_above_max": 0,
+      "K3_neg_peak_z": 0.8795428974719701,
+      "K3_neg_above_max": 0,
+      "K1_fw_results": [
+        {
+          "probe": "stored relationship mechanism cyclic group",
+          "sim": 0.03857421875,
+          "z": 0.5922674042025392,
+          "above_max": false
+        },
+        {
+          "probe": "primitive class operator vocabulary A N",
+          "sim": 0.107177734375,
+          "z": 2.339900929151752,
+          "above_max": false
+        },
+        {
+          "probe": "AMSC attestation provenance source doi",
+          "sim": -0.017578125,
+          "z": -0.838179964972973,
+          "above_max": false
+        },
+        {
+          "probe": "hyperdimensional bind bundle permute klein four",
+          "sim": -0.0107421875,
+          "z": -0.6640385461168237,
+          "above_max": false
+        },
+        {
+          "probe": "cascade composition class L laplacian eigenspectrum",
+          "sim": 0.1171875,
+          "z": 2.594893721048256,
+          "above_max": false
+        },
+        {
+          "probe": "metric field ontology substrate excitation",
+          "sim": 0.02734375,
+          "z": 0.3061779303674368,
+          "above_max": false
+        },
+        {
+          "probe": "hopf fibration quaternionic four three seven",
+          "sim": 0.019287109375,
+          "z": 0.10093982957268938,
+          "above_max": false
+        },
+        {
+          "probe": "so8 triality twenty eight dimension g2",
+          "sim": -0.009033203125,
+          "z": -0.6205031914027863,
+          "above_max": false
+        },
+        {
+          "probe": "chirality gamma5 sector flip capacitor plate",
+          "sim": 0.01171875,
+          "z": -0.09185959844661877,
+          "above_max": false
+        },
+        {
+          "probe": "one three seven three partition hurwitz",
+          "sim": 0.1015625,
+          "z": 2.196856192234201,
+          "above_max": false
+        },
+        {
+          "probe": "falsification null finding triality trimmed",
+          "sim": 0.0107421875,
+          "z": -0.11673694399749725,
+          "above_max": false
+        },
+        {
+          "probe": "epistemic ceiling form not substrate reading",
+          "sim": 0.079833984375,
+          "z": 1.6433352537271548,
+          "above_max": false
+        }
+      ],
+      "K3_fw_results": [
+        {
+          "probe": "stored relationship mechanism cyclic group",
+          "sim": 0.00537109375,
+          "z": 0.514776532527659,
+          "above_max": false
+        },
+        {
+          "probe": "primitive class operator vocabulary A N",
+          "sim": 0.01708984375,
+          "z": 1.6090756273605924,
+          "above_max": false
+        },
+        {
+          "probe": "AMSC attestation provenance source doi",
+          "sim": -0.015380859375,
+          "z": -1.4230447812389937,
+          "above_max": false
+        },
+        {
+          "probe": "hyperdimensional bind bundle permute klein four",
+          "sim": 0.00341796875,
+          "z": 0.3323933500555035,
+          "above_max": false
+        },
+        {
+          "probe": "cascade composition class L laplacian eigenspectrum",
+          "sim": -0.010009765625,
+          "z": -0.9214910294405659,
+          "above_max": false
+        },
+        {
+          "probe": "metric field ontology substrate excitation",
+          "sim": 0.01904296875,
+          "z": 1.791458809832748,
+          "above_max": false
+        },
+        {
+          "probe": "hopf fibration quaternionic four three seven",
+          "sim": 0.012451171875,
+          "z": 1.175915568989223,
+          "above_max": false
+        },
+        {
+          "probe": "so8 triality twenty eight dimension g2",
+          "sim": 0.015869140625,
+          "z": 1.4950861383154952,
+          "above_max": false
+        },
+        {
+          "probe": "chirality gamma5 sector flip capacitor plate",
+          "sim": 0.00927734375,
+          "z": 0.8795428974719701,
+          "above_max": false
+        },
+        {
+          "probe": "one three seven three partition hurwitz",
+          "sim": -0.00439453125,
+          "z": -0.39713937983311876,
+          "above_max": false
+        },
+        {
+          "probe": "falsification null finding triality trimmed",
+          "sim": -0.000732421875,
+          "z": -0.055170912697827056,
+          "above_max": false
+        },
+        {
+          "probe": "epistemic ceiling form not substrate reading",
+          "sim": 0.007568359375,
+          "z": 0.719957612808834,
+          "above_max": false
+        }
+      ]
+    },
+    "mfo": {
+      "K1_meta": {
+        "kernel": "K1_presence",
+        "vocab_size": 200,
+        "n_edges": 14712,
+        "K_eigvecs": 33,
+        "M_per_eigvec": 21,
+        "eig_tail_top8": [
+          7136.642050065703,
+          5129.204968950769,
+          5007.647621388483,
+          4676.972988054545,
+          3170.0369475456446,
+          2854.8911779278383,
+          2628.825363179475,
+          2362.1562582102256
+        ],
+        "total_tokens": 69004,
+        "unique_tokens": 11295
+      },
+      "K3_meta": {
+        "kernel": "K3_sequence",
+        "n_gram": 3,
+        "n_ngrams_total_corpus": 68690,
+        "n_ngrams_sampled": 5000,
+        "position_stride": 2731
+      },
+      "K1_fw_peak_z": 2.681964430476331,
+      "K1_fw_above_max": 0,
+      "K1_neg_peak_z": -0.1664916350992542,
+      "K1_neg_above_max": 0,
+      "K3_fw_peak_z": 1.335500853652359,
+      "K3_fw_above_max": 0,
+      "K3_neg_peak_z": 1.0391281821351062,
+      "K3_neg_above_max": 0,
+      "K1_fw_results": [
+        {
+          "probe": "stored relationship mechanism cyclic group",
+          "sim": 0.0537109375,
+          "z": 0.9778662602411555,
+          "above_max": false
+        },
+        {
+          "probe": "primitive class operator vocabulary A N",
+          "sim": 0.064208984375,
+          "z": 1.245297724913099,
+          "above_max": false
+        },
+        {
+          "probe": "AMSC attestation provenance source doi",
+          "sim": -0.00341796875,
+          "z": -0.47745845448523516,
+          "above_max": false
+        },
+        {
+          "probe": "hyperdimensional bind bundle permute klein four",
+          "sim": -0.02685546875,
+          "z": -1.0745147477063184,
+          "above_max": false
+        },
+        {
+          "probe": "cascade composition class L laplacian eigenspectrum",
+          "sim": 0.09521484375,
+          "z": 2.035153446153491,
+          "above_max": false
+        },
+        {
+          "probe": "metric field ontology substrate excitation",
+          "sim": 0.0751953125,
+          "z": 1.5251678623604819,
+          "above_max": false
+        },
+        {
+          "probe": "hopf fibration quaternionic four three seven",
+          "sim": 0.038330078125,
+          "z": 0.5860480678148196,
+          "above_max": false
+        },
+        {
+          "probe": "so8 triality twenty eight dimension g2",
+          "sim": -0.003173828125,
+          "z": -0.4712391180975155,
+          "above_max": false
+        },
+        {
+          "probe": "chirality gamma5 sector flip capacitor plate",
+          "sim": 0.00927734375,
+          "z": -0.15405296232381496,
+          "above_max": false
+        },
+        {
+          "probe": "one three seven three partition hurwitz",
+          "sim": 0.12060546875,
+          "z": 2.681964430476331,
+          "above_max": false
+        },
+        {
+          "probe": "falsification null finding triality trimmed",
+          "sim": 0.02490234375,
+          "z": 0.24398456649024058,
+          "above_max": false
+        },
+        {
+          "probe": "epistemic ceiling form not substrate reading",
+          "sim": 0.099365234375,
+          "z": 2.140882164744724,
+          "above_max": false
+        }
+      ],
+      "K3_fw_results": [
+        {
+          "probe": "stored relationship mechanism cyclic group",
+          "sim": -0.001708984375,
+          "z": -0.14636250393390482,
+          "above_max": false
+        },
+        {
+          "probe": "primitive class operator vocabulary A N",
+          "sim": 0.004150390625,
+          "z": 0.4007870434825618,
+          "above_max": false
+        },
+        {
+          "probe": "AMSC attestation provenance source doi",
+          "sim": -0.0009765625,
+          "z": -0.0779688105068465,
+          "above_max": false
+        },
+        {
+          "probe": "hyperdimensional bind bundle permute klein four",
+          "sim": 0.009033203125,
+          "z": 0.8567449996629507,
+          "above_max": false
+        },
+        {
+          "probe": "cascade composition class L laplacian eigenspectrum",
+          "sim": 0.01416015625,
+          "z": 1.335500853652359,
+          "above_max": false
+        },
+        {
+          "probe": "metric field ontology substrate excitation",
+          "sim": 0.011474609375,
+          "z": 1.084723977753145,
+          "above_max": false
+        },
+        {
+          "probe": "hopf fibration quaternionic four three seven",
+          "sim": 0.00390625,
+          "z": 0.37798914567354236,
+          "above_max": false
+        },
+        {
+          "probe": "so8 triality twenty eight dimension g2",
+          "sim": 0.00048828125,
+          "z": 0.05881857634727017,
+          "above_max": false
+        },
+        {
+          "probe": "chirality gamma5 sector flip capacitor plate",
+          "sim": -0.004638671875,
+          "z": -0.4199372776421382,
+          "above_max": false
+        },
+        {
+          "probe": "one three seven three partition hurwitz",
+          "sim": 0.001708984375,
+          "z": 0.1728080653923674,
+          "above_max": false
+        },
+        {
+          "probe": "falsification null finding triality trimmed",
+          "sim": -0.017578125,
+          "z": -1.6282258615201688,
+          "above_max": false
+        },
+        {
+          "probe": "epistemic ceiling form not substrate reading",
+          "sim": 0.0107421875,
+          "z": 1.0163302843260869,
+          "above_max": false
+        }
+      ]
+    }
+  },
+  "combined": {
+    "K1_meta": {
+      "kernel": "K1_presence",
+      "vocab_size": 200,
+      "n_edges": 16438,
+      "K_eigvecs": 33,
+      "M_per_eigvec": 21,
+      "eig_tail_top8": [
+        13801.963279828282,
+        12303.490182180996,
+        8737.423641873243,
+        5540.834405617558,
+        5357.622596709157,
+        5090.157311823015,
+        4781.160345176306,
+        3788.3117218972943
+      ],
+      "total_tokens": 128155,
+      "unique_tokens": 15933
+    },
+    "K3_meta": {
+      "kernel": "K3_sequence",
+      "n_gram": 3,
+      "n_ngrams_total_corpus": 127241,
+      "n_ngrams_sampled": 5000,
+      "position_stride": 2731
+    },
+    "K1_fw_peak_z": 2.8561058493324802,
+    "K1_fw_above_max": 0,
+    "K1_neg_peak_z": -0.28465902646592695,
+    "K3_fw_peak_z": 2.270214663822156,
+    "K3_fw_above_max": 0,
+    "K3_neg_peak_z": 1.3810966492703978
+  }
+}

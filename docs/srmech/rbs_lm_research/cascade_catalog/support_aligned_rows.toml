@@ -1,0 +1,210 @@
+# R-RBS-LM cascade descriptor — the SUPPORT-ALIGNMENT JOIN (F1342 row matrix).
+#
+# Given a list of radicands, emit one F_2 parity row per radicand over the
+# UNION of prime supports, in canonical (ascending) order — the exact row
+# matrix gf_rref(rows, 2) consumes. The join is declared with NO set ops and
+# NO branches, via two identities:
+#
+#   1. UNION-AS-LCM (Class I ∘ J): the union of prime supports of the inputs
+#      IS the support of lcm(ns) — a fold of the shipped binary lcm, then one
+#      Class-J factor call. factor() emits pairs in ascending-prime order, so
+#      the canonical column order is free.
+#   2. MEMBERSHIP-AS-DELTA (Class N): the row bit for radicand n at union
+#      prime q is delta_0(sqfree(n) mod q) — the squarefree part of n (the
+#      proven square_class sub-cascade, inlined) reduced mod q, pushed through
+#      the Kronecker gate (0,1)**r, which is (1,1) exactly when r == 0. An
+#      EVEN exponent leaves its prime out of sqfree(n) but NOT out of lcm(ns),
+#      so the union column exists and the bit is 0 — the F1342 3^2 case.
+#
+# Both selections are arithmetic (rational_pow_uint on a bit / on a residue),
+# so the chain is data-SIZED and never data-DEPENDENT: every map length is
+# pinned at entry (len(ns), len(union), len(factorization)); no predicate
+# decides continuation.
+
+[cascade]
+name = "support_aligned_rows"
+class_composition = "I o J o E o N"
+purpose = "F_2 parity rows over the UNION prime support of a list of radicands — the gf_rref(rows, 2) input matrix."
+description = """
+Chain-level: fold lcm over ns (Class I) -> factor the lcm (Class J; ascending
+primes = canonical union order) -> map to the bare prime list (Class E).
+Per radicand (outer map): factor n, gate each prime by exponent parity
+(mod_add(e,0,2) then rational_pow_uint((p,1), parity) — the proven
+square_class body), fold rational_mul to the squarefree part s. Per union
+prime (inner map): r = mod_add(s, 0, q); bit = numerator of
+rational_pow_uint((0,1), r) — the Kronecker delta at zero, so bit = 1 exactly
+when q divides s, i.e. when v_q(n) is ODD. Absent primes and even-exponent
+primes both give bit 0 while the union column survives via the lcm.
+
+HONEST BOUND: factor() is uint64-bounded, so lcm(ns) must stay below 2**64.
+The raw product of the F1342 inputs (~1.4e26) overflows; their lcm
+(579529024074000) does not — lcm is the right fold for exactly this reason,
+but a pathological input family whose lcm exceeds uint64 is out of contract.
+
+The output is rows only (list of lists of 0/1 ints), matching the gf_rref
+input contract. The column labels are recoverable as
+[p for (p, e) in factor(fold(lcm, ns))] — the same step this chain runs.
+"""
+
+[cascade.signature]
+input = "list[int]  # ns, each > 0; lcm(ns) < 2**64"
+output = "list[list[int]]  # one F_2 parity row per n, columns = sorted union prime support"
+operation = "rows[i][j] = v_{q_j}(ns[i]) mod 2, q_j ascending over support(lcm(ns))"
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "MIT"
+canonical_landings = [
+  "F1342 — the tier-2 frame-change group is (Z/2)^k from square classes; this is its row matrix",
+  "F1343/F1344 — square_class_vector + square_class (the per-n halves this joins)",
+  "f2_rank descriptor — the gf_rref consumer this feeds",
+  "Kummer theory (n=2): Q*/(Q*)^2 is an F_2 vector space; k = rank of these rows",
+]
+
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "I lcm-fold -> J factor -> E prime list -> per-n (J factor -> N parity-gate -> N sqfree fold) -> per-prime N delta_0(s mod q)."
+returns = "list[list[int]]"
+
+# step 0 — Class I fold: lcm over the radicand list. support(lcm) IS the union support.
+[[cascade.chain.steps]]
+fold_class = "I"
+fold_op = "srmech.math.cyclic.lcm"
+fold_init = 1
+over = "@input.ns"
+
+# step 1 — Class J: factor the lcm; ascending primes = the canonical column order.
+[[cascade.chain.steps]]
+class = "J"
+op = "factor"
+args = { n = "@step[0].output" }
+
+# step 2 — Class E map: strip the (p, e) pairs to the bare union prime list.
+[[cascade.chain.steps]]
+map_over = "@step[1].output"
+index = "j"
+bind = { pairs = "@step[1].output" }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.pairs", i = "@idx.j" }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@step[0].output", i = 0 }
+
+# step 3 — the outer map: one parity row per radicand.
+[[cascade.chain.steps]]
+map_over = "@input.ns"
+index = "i"
+bind = { ns = "@input.ns", primes = "@step[2].output" }
+
+  # body 0 — Class E: the i-th radicand.
+  [[cascade.chain.steps.body]]
+  class = "E"
+  op = "srmech.cascade.leaves.seq_get"
+  args = { seq = "@bind.ns", i = "@idx.i" }
+
+  # body 1 — Class J: factor it.
+  [[cascade.chain.steps.body]]
+  class = "J"
+  op = "factor"
+  args = { n = "@step[0].output" }
+
+  # body 2 — the square_class parity gate, inlined: (p,1)**(e mod 2) per pair.
+  [[cascade.chain.steps.body]]
+  map_over = "@step[1].output"
+  index = "k"
+  bind = { pairs = "@step[1].output" }
+
+    [[cascade.chain.steps.body.body]]
+    class = "E"
+    op = "srmech.cascade.leaves.seq_get"
+    args = { seq = "@bind.pairs", i = "@idx.k" }
+
+    [[cascade.chain.steps.body.body]]
+    class = "E"
+    op = "srmech.cascade.leaves.seq_get"
+    args = { seq = "@step[0].output", i = 0 }
+
+    [[cascade.chain.steps.body.body]]
+    class = "E"
+    op = "srmech.cascade.leaves.seq_get"
+    args = { seq = "@step[0].output", i = 1 }
+
+    [[cascade.chain.steps.body.body]]
+    class = "I"
+    op = "mod_add"
+    args = { a = "@step[2].output", b = 0, n = 2 }
+
+    [[cascade.chain.steps.body.body]]
+    class = "E"
+    op = "srmech.cascade.leaves.pair"
+    args = { first = "@step[1].output", second = 1 }
+
+    [[cascade.chain.steps.body.body]]
+    class = "N"
+    op = "rational_pow_uint"
+    args = { base = "@step[4].output", exp = "@step[3].output" }
+
+  # body 3 — Class N fold: collapse the gated pairs to (sqfree part, 1).
+  [[cascade.chain.steps.body]]
+  fold_class = "N"
+  fold_op = "srmech.math.rational.rational_mul"
+  fold_init = [1, 1]
+  over = "@step[2].output"
+
+  # body 4 — Class E: the squarefree INTEGER s.
+  [[cascade.chain.steps.body]]
+  class = "E"
+  op = "srmech.cascade.leaves.seq_get"
+  args = { seq = "@step[3].output", i = 0 }
+
+  # body 5 — the inner map: one bit per union prime, delta_0(s mod q).
+  [[cascade.chain.steps.body]]
+  map_over = "@bind.primes"
+  index = "j"
+  bind = { primes = "@bind.primes", s = "@step[4].output" }
+
+    [[cascade.chain.steps.body.body]]
+    class = "E"
+    op = "srmech.cascade.leaves.seq_get"
+    args = { seq = "@bind.primes", i = "@idx.j" }
+
+    [[cascade.chain.steps.body.body]]
+    class = "I"
+    op = "mod_add"
+    args = { a = "@bind.s", b = 0, n = "@step[0].output" }
+
+    [[cascade.chain.steps.body.body]]
+    class = "E"
+    op = "srmech.cascade.leaves.pair"
+    args = { first = 0, second = 1 }
+
+    [[cascade.chain.steps.body.body]]
+    class = "N"
+    op = "rational_pow_uint"
+    args = { base = "@step[2].output", exp = "@step[1].output" }
+
+    [[cascade.chain.steps.body.body]]
+    class = "E"
+    op = "srmech.cascade.leaves.seq_get"
+    args = { seq = "@step[3].output", i = 0 }
+
+# ── THE ORACLE. Each case is re-derived independently by the runner
+# (its own trial-division factorizer + its own GF(2) elimination), and the
+# gf_rref rank of the emitted rows is checked against the independent rank.
+[[cascade.chain.proof_cases]]
+covers = "four_radicand_f1342"
+inputs = { ns = [1001000, 62750, 9081000, 254000] }
+[[cascade.chain.proof_cases]]
+covers = "prime_in_only_one_input"
+inputs = { ns = [6, 35] }
+[[cascade.chain.proof_cases]]
+covers = "even_exponent_occupies_union_column"
+inputs = { ns = [36, 5] }
+[[cascade.chain.proof_cases]]
+covers = "single_input"
+inputs = { ns = [1001000] }

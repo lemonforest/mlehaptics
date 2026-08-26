@@ -1,0 +1,57 @@
+{
+  "srmech_version": "0.4.3",
+  "D": 8192,
+  "scaling_results": [
+    {
+      "n_target": 50,
+      "n_actual": 50,
+      "n_words": 78,
+      "n_bigrams": 173,
+      "n_skeletons": 50,
+      "n_sentences": 50,
+      "self_recall_sampled": 1.0,
+      "build_seconds": 0.8741781711578369,
+      "recall_seconds": 0.2520747184753418
+    },
+    {
+      "n_target": 100,
+      "n_actual": 100,
+      "n_words": 83,
+      "n_bigrams": 300,
+      "n_skeletons": 99,
+      "n_sentences": 100,
+      "self_recall_sampled": 1.0,
+      "build_seconds": 1.3472638130187988,
+      "recall_seconds": 0.23213696479797363
+    },
+    {
+      "n_target": 200,
+      "n_actual": 200,
+      "n_words": 84,
+      "n_bigrams": 497,
+      "n_skeletons": 198,
+      "n_sentences": 200,
+      "self_recall_sampled": 1.0,
+      "build_seconds": 2.4964287281036377,
+      "recall_seconds": 0.2642378807067871
+    },
+    {
+      "n_target": 400,
+      "n_actual": 400,
+      "n_words": 84,
+      "n_bigrams": 746,
+      "n_skeletons": 397,
+      "n_sentences": 400,
+      "self_recall_sampled": 1.0,
+      "build_seconds": 4.7480926513671875,
+      "recall_seconds": 0.37931394577026367
+    }
+  ],
+  "n_at_400_diversity": {
+    "('the', 'cat')": 10,
+    "('the', 'scientist')": 10,
+    "('a', 'bird')": 10,
+    "('the', 'musician')": 10,
+    "('a', 'wolf')": 10
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "srmech_version": "0.4.3",
+  "D": 8192,
+  "test_1_cascade_ordering": {
+    "A_H3_then_H2": {
+      "raw_sim": 0.35825347900390625,
+      "above_rand": 0.14440760029294492,
+      "ops": [
+        "L_spectral",
+        "I_cyclic",
+        "M_bipolar",
+        "M_klein4_tag"
+      ]
+    },
+    "B_H2_then_H3": {
+      "raw_sim": 0.24973297119140625,
+      "above_rand": -0.00027463585320205064,
+      "ops": [
+        "M_bipolar",
+        "M_klein4_tag",
+        "L_spectral",
+        "I_cyclic"
+      ]
+    },
+    "C_interleaved": {
+      "raw_sim": 0.35868072509765625,
+      "above_rand": 0.14497721539588249,
+      "ops": [
+        "L_spectral",
+        "M_bipolar",
+        "I_cyclic",
+        "M_klein4_tag"
+      ]
+    }
+  },
+  "test_2_harmonic_bucketing": {
+    "hash": {
+      "precision_top_5": 1.0,
+      "bucket_sizes": [
+        3,
+        3,
+        2,
+        3,
+        3,
+        1,
+        4,
+        4,
+        0
+      ],
+      "max_bucket": 4
+    },
+    "sector": {
+      "precision_top_5": 1.0,
+      "bucket_sizes": [
+        8,
+        10,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "max_bucket": 10
+    },
+    "harmonic": {
+      "precision_top_5": 1.0,
+      "bucket_sizes": [
+        1,
+        1,
+        1,
+        3,
+        2,
+        0,
+        3,
+        5,
+        2
+      ],
+      "max_bucket": 5
+    }
+  },
+  "test_3_3cycle_rotation": {
+    "same_to_C": 0.3369852701822917,
+    "cpt_to_C_anticorrelation": 0.17673746744791666,
+    "cyc_to_C": 0.219696044921875,
+    "cyc_to_C_rotated": 0.3369852701822917,
+    "random_baseline": 0.24977783203125,
+    "above_rand": {
+      "same": 0.11624215049144515,
+      "cpt": -0.09735831291295008,
+      "cyc": -0.040097171736237,
+      "cyc_rotated": 0.11624215049144515
+    }
+  },
+  "hypothesis_summary": {
+    "best_cascade_ordering": "C_interleaved",
+    "best_bucketing_strategy": "hash",
+    "3cycle_recovers_rotated": true
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "multiply_is_shift_add": true,
+  "cordic_rotation_is_shift_add_sign": true,
+  "cordic_worst_err": 5.429439065007813e-09
+}

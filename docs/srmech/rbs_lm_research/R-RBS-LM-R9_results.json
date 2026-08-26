@@ -1,0 +1,29 @@
+{
+  "partition": "R-RBS-LM-R9 (erasure-vs-majority, F352 decisive test)",
+  "srmech_version": "0.7.0rc25",
+  "D": 512,
+  "trials": 30,
+  "erasure_keep_success": {
+    "1": 1.0,
+    "2": 1.0,
+    "3": 1.0,
+    "4": 1.0
+  },
+  "corruption_correct": {
+    "0": 1.0,
+    "1": 1.0,
+    "2": 0.0,
+    "3": 0.0
+  },
+  "corruption_detect": {
+    "0": 0.0,
+    "1": 1.0,
+    "2": 1.0,
+    "3": 1.0
+  },
+  "erasure_tolerance": 3,
+  "corruption_correction": 1,
+  "corruption_detection": 3,
+  "holographic_signature": true,
+  "ec_signature": true
+}

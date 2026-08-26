@@ -1,0 +1,108 @@
+# R-RBS-LM cascade descriptor — the F_2 SQUARE-CLASS PARITY VECTOR (F1343).
+#
+# The datum F1342 asked srmech for, declared as a CONFIG-DRIVEN cascade of the
+# A-N primitives rather than hand-rolled Python. Registered out-of-tree via
+# srmech.dsl.register_catalog_dir(); run via srmech.dsl.run_cascade_chain().
+#
+# This is the INDEX-LANE half of the tier-2 frame-change repair: the square class
+# of a radicand is its monzo reduced mod 2, and the compositum's Galois group
+# (Z/2)^k is the F_2 span of these vectors.
+
+[cascade]
+name = "square_class_vector"
+class_composition = "J o E o I"
+purpose = "The monzo of n reduced MOD 2 — the per-prime parity vector that IS n's square class in Q*/(Q*)^2."
+description = """
+Class J factors n. Class E (sequence access) reaches the k-th (prime, exponent)
+pair and then its exponent. Class I reduces that exponent mod 2 via
+mod_add(e, 0, 2) — parity as a cyclic-group operation, not a Python `%`.
+
+The output is the F_2 coordinate vector of n's square class. Two radicands are
+in the SAME square class exactly when their vectors are equal over the union of
+their prime supports, and the F_2 RANK of a set of these vectors is k, the
+number of independent sqrt adjunctions in the compositum Q(sqrt a_0, ...).
+
+WHAT THIS DOES NOT DO (honest boundary, F1343): it does not collapse the vector
+back to the squarefree INTEGER, and it does not compute the F_2 rank. Both need
+leaves the shipped set does not carry — see the cascade.gaps block below.
+"""
+
+[cascade.signature]
+input = "int  # n > 0"
+output = "list[int]  # one parity bit per prime of n, in factor order"
+operation = "monzo(n) mod 2"
+
+[cascade.gaps]
+missing_leaf_pow = """
+Collapsing the parity vector to the squarefree integer needs p**(e mod 2) — a
+value GATED ON A BIT. srmech.math.cyclic has mod_pow (modular) and bigint_mul,
+but no plain integer pow and no bit-gate leaf. A gate-on-a-bit is a Class-K
+pin-slot shape, and no Class-K leaf takes an integer. THIS is the one missing
+piece; with it the collapse is a fold of bigint_mul and needs no new Python.
+"""
+missing_leaf_xor = """
+The F_2 RANK step (Gaussian elimination over the parity vectors) is XOR-reduce.
+srmech.cascade.leaves carries orientation_compose (sign) and vec_add (float) but
+no integer XOR leaf, so the rank cannot be declared either.
+"""
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "MIT"
+canonical_landings = [
+  "F1341 — the tier-2 frame-change group does not exist (the defect this repairs)",
+  "F1342 — the group is (Z/2)^k from square classes (the structure)",
+  "F1343 — this descriptor: the parity vector IS declarable today",
+  "Kummer theory (n=2): Q*/(Q*)^2 is an F_2 vector space; multiquadratic extensions have elementary-abelian Galois group",
+]
+
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "J factor -> E seq_get pair -> E seq_get exponent -> I mod_add(e,0,2) parity."
+returns = "list[int]"
+
+[[cascade.chain.steps]]
+class = "J"
+op = "factor"
+args = { n = "@input.n" }
+
+[[cascade.chain.steps]]
+map_over = "@step[0].output"
+index = "k"
+bind = { pairs = "@step[0].output" }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.pairs", i = "@idx.k" }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@step[0].output", i = 1 }
+
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@step[1].output", b = 0, n = 2 }
+
+# ── THE ORACLE. Each case is checked against srmech's own shipped Class-J monzo,
+# so the descriptor carries its own falsification rather than trusting the author.
+[[cascade.chain.proof_cases]]
+covers = "all_odd_exponents"
+inputs = { n = 1001000 }
+[[cascade.chain.proof_cases]]
+covers = "mixed_parity"
+inputs = { n = 254000 }
+[[cascade.chain.proof_cases]]
+covers = "mixed_parity"
+inputs = { n = 9081000 }
+[[cascade.chain.proof_cases]]
+covers = "perfect_square"
+inputs = { n = 36 }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { n = 12 }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { n = 62750 }

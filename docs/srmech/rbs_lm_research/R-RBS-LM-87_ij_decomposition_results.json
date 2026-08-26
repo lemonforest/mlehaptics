@@ -1,0 +1,1005 @@
+{
+  "signatures": {
+    "B": [
+      "book",
+      "hear",
+      "heard",
+      "letter",
+      "letters",
+      "line",
+      "look",
+      "looks",
+      "name",
+      "names",
+      "page",
+      "read",
+      "reading",
+      "saw",
+      "say",
+      "seen",
+      "sound",
+      "sounds",
+      "speak",
+      "spell",
+      "spelling",
+      "stories",
+      "story",
+      "syllable",
+      "syllables",
+      "tale",
+      "tales",
+      "tell",
+      "told",
+      "voice",
+      "word",
+      "words"
+    ],
+    "H": [
+      "adjective",
+      "adverb",
+      "agreement",
+      "case",
+      "clause",
+      "clauses",
+      "conjunction",
+      "define",
+      "definition",
+      "form",
+      "grammar",
+      "meaning",
+      "means",
+      "noun",
+      "nouns",
+      "object",
+      "parse",
+      "phrase",
+      "phrases",
+      "predicate",
+      "preposition",
+      "pronoun",
+      "rule",
+      "rules",
+      "sentence",
+      "sentences",
+      "structure",
+      "subject",
+      "syntax",
+      "tense",
+      "verb",
+      "verbs"
+    ],
+    "N": [
+      "about",
+      "approximate",
+      "approximately",
+      "circle",
+      "count",
+      "counts",
+      "day",
+      "days",
+      "degree",
+      "diameter",
+      "distance",
+      "earth",
+      "hour",
+      "length",
+      "measure",
+      "measurement",
+      "minute",
+      "moon",
+      "number",
+      "numbers",
+      "orbit",
+      "planet",
+      "ratio",
+      "ratios",
+      "size",
+      "star",
+      "stars",
+      "sun",
+      "time",
+      "weight",
+      "year",
+      "years"
+    ],
+    "C": [
+      "above",
+      "across",
+      "around",
+      "backward",
+      "below",
+      "between",
+      "beyond",
+      "cross",
+      "crosses",
+      "east",
+      "eastern",
+      "fall",
+      "falls",
+      "forward",
+      "inside",
+      "left",
+      "near",
+      "north",
+      "northern",
+      "outside",
+      "over",
+      "right",
+      "rise",
+      "rises",
+      "south",
+      "southern",
+      "through",
+      "turn",
+      "turns",
+      "under",
+      "west",
+      "western"
+    ],
+    "I": [
+      "calendar",
+      "clock",
+      "cycle",
+      "cycles",
+      "hour",
+      "mod",
+      "modular",
+      "modulo",
+      "month",
+      "months",
+      "period",
+      "periodic",
+      "periods",
+      "remainder",
+      "remainders",
+      "repeat",
+      "repeated",
+      "repeating",
+      "repeats",
+      "repetition",
+      "revolution",
+      "revolutions",
+      "revolve",
+      "revolves",
+      "rotate",
+      "rotates",
+      "rotation",
+      "round",
+      "rounds",
+      "season",
+      "seasons",
+      "week",
+      "weeks",
+      "wheel",
+      "wheels"
+    ],
+    "J": [
+      "composite",
+      "composites",
+      "cube",
+      "cubed",
+      "cubic",
+      "divide",
+      "divided",
+      "divisible",
+      "division",
+      "divisions",
+      "divisor",
+      "divisors",
+      "exponent",
+      "exponential",
+      "exponents",
+      "factor",
+      "factoring",
+      "factorization",
+      "factors",
+      "multiple",
+      "multiples",
+      "multiplication",
+      "multiplied",
+      "multiply",
+      "power",
+      "powers",
+      "prime",
+      "primes",
+      "produce",
+      "produces",
+      "product",
+      "products",
+      "quotient",
+      "quotients",
+      "root",
+      "roots",
+      "square",
+      "squared",
+      "squares"
+    ]
+  },
+  "results": {
+    "reading": {
+      "B": {
+        "overlap": 15,
+        "score": 0.46875,
+        "hits": [
+          "book",
+          "hear",
+          "heard",
+          "look",
+          "name",
+          "read",
+          "saw",
+          "seen",
+          "sound",
+          "sounds",
+          "tell",
+          "told",
+          "voice",
+          "word",
+          "words"
+        ]
+      },
+      "H": {
+        "overlap": 2,
+        "score": 0.0625,
+        "hits": [
+          "agreement",
+          "form"
+        ]
+      },
+      "N": {
+        "overlap": 5,
+        "score": 0.15625,
+        "hits": [
+          "day",
+          "days",
+          "earth",
+          "sun",
+          "years"
+        ]
+      },
+      "C": {
+        "overlap": 6,
+        "score": 0.1875,
+        "hits": [
+          "above",
+          "left",
+          "near",
+          "right",
+          "through",
+          "under"
+        ]
+      },
+      "I": {
+        "overlap": 1,
+        "score": 0.02857142857142857,
+        "hits": [
+          "round"
+        ]
+      },
+      "J": {
+        "overlap": 1,
+        "score": 0.02564102564102564,
+        "hits": [
+          "power"
+        ]
+      }
+    },
+    "grammar": {
+      "B": {
+        "overlap": 10,
+        "score": 0.3125,
+        "hits": [
+          "book",
+          "name",
+          "saw",
+          "seen",
+          "sound",
+          "speak",
+          "tell",
+          "voice",
+          "word",
+          "words"
+        ]
+      },
+      "H": {
+        "overlap": 28,
+        "score": 0.875,
+        "hits": [
+          "adjective",
+          "adverb",
+          "agreement",
+          "case",
+          "clause",
+          "clauses",
+          "conjunction",
+          "form",
+          "grammar",
+          "meaning",
+          "means",
+          "noun",
+          "nouns",
+          "object",
+          "phrase",
+          "phrases",
+          "predicate",
+          "preposition",
+          "pronoun",
+          "rule",
+          "rules",
+          "sentence",
+          "sentences",
+          "subject",
+          "syntax",
+          "tense",
+          "verb",
+          "verbs"
+        ]
+      },
+      "N": {
+        "overlap": 2,
+        "score": 0.0625,
+        "hits": [
+          "day",
+          "number"
+        ]
+      },
+      "C": {
+        "overlap": 3,
+        "score": 0.09375,
+        "hits": [
+          "between",
+          "through",
+          "under"
+        ]
+      },
+      "I": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      },
+      "J": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      }
+    },
+    "science": {
+      "B": {
+        "overlap": 5,
+        "score": 0.15625,
+        "hits": [
+          "line",
+          "look",
+          "name",
+          "seen",
+          "tell"
+        ]
+      },
+      "H": {
+        "overlap": 2,
+        "score": 0.0625,
+        "hits": [
+          "form",
+          "object"
+        ]
+      },
+      "N": {
+        "overlap": 15,
+        "score": 0.46875,
+        "hits": [
+          "day",
+          "days",
+          "diameter",
+          "distance",
+          "earth",
+          "moon",
+          "number",
+          "orbit",
+          "planet",
+          "size",
+          "star",
+          "stars",
+          "sun",
+          "year",
+          "years"
+        ]
+      },
+      "C": {
+        "overlap": 10,
+        "score": 0.3125,
+        "hits": [
+          "above",
+          "around",
+          "between",
+          "east",
+          "near",
+          "north",
+          "right",
+          "south",
+          "through",
+          "under"
+        ]
+      },
+      "I": {
+        "overlap": 2,
+        "score": 0.05714285714285714,
+        "hits": [
+          "period",
+          "round"
+        ]
+      },
+      "J": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      }
+    },
+    "math": {
+      "B": {
+        "overlap": 5,
+        "score": 0.15625,
+        "hits": [
+          "book",
+          "line",
+          "look",
+          "name",
+          "read"
+        ]
+      },
+      "H": {
+        "overlap": 2,
+        "score": 0.0625,
+        "hits": [
+          "form",
+          "sentence"
+        ]
+      },
+      "N": {
+        "overlap": 5,
+        "score": 0.15625,
+        "hits": [
+          "distance",
+          "hour",
+          "length",
+          "number",
+          "numbers"
+        ]
+      },
+      "C": {
+        "overlap": 3,
+        "score": 0.09375,
+        "hits": [
+          "between",
+          "left",
+          "right"
+        ]
+      },
+      "I": {
+        "overlap": 1,
+        "score": 0.02857142857142857,
+        "hits": [
+          "hour"
+        ]
+      },
+      "J": {
+        "overlap": 16,
+        "score": 0.41025641025641024,
+        "hits": [
+          "divide",
+          "division",
+          "exponent",
+          "exponential",
+          "exponents",
+          "factor",
+          "factoring",
+          "factors",
+          "multiply",
+          "power",
+          "product",
+          "quotient",
+          "root",
+          "roots",
+          "square",
+          "squares"
+        ]
+      }
+    },
+    "geography": {
+      "B": {
+        "overlap": 1,
+        "score": 0.03125,
+        "hits": [
+          "name"
+        ]
+      },
+      "H": {
+        "overlap": 2,
+        "score": 0.0625,
+        "hits": [
+          "form",
+          "means"
+        ]
+      },
+      "N": {
+        "overlap": 2,
+        "score": 0.0625,
+        "hits": [
+          "year",
+          "years"
+        ]
+      },
+      "C": {
+        "overlap": 9,
+        "score": 0.28125,
+        "hits": [
+          "between",
+          "east",
+          "near",
+          "north",
+          "south",
+          "through",
+          "under",
+          "west",
+          "western"
+        ]
+      },
+      "I": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      },
+      "J": {
+        "overlap": 4,
+        "score": 0.10256410256410256,
+        "hits": [
+          "power",
+          "produce",
+          "product",
+          "products"
+        ]
+      }
+    },
+    "history": {
+      "B": {
+        "overlap": 5,
+        "score": 0.15625,
+        "hits": [
+          "heard",
+          "name",
+          "saw",
+          "seen",
+          "told"
+        ]
+      },
+      "H": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      },
+      "N": {
+        "overlap": 3,
+        "score": 0.09375,
+        "hits": [
+          "day",
+          "days",
+          "years"
+        ]
+      },
+      "C": {
+        "overlap": 4,
+        "score": 0.125,
+        "hits": [
+          "around",
+          "left",
+          "through",
+          "under"
+        ]
+      },
+      "I": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      },
+      "J": {
+        "overlap": 1,
+        "score": 0.02564102564102564,
+        "hits": [
+          "power"
+        ]
+      }
+    },
+    "composition": {
+      "B": {
+        "overlap": 10,
+        "score": 0.3125,
+        "hits": [
+          "book",
+          "look",
+          "name",
+          "page",
+          "read",
+          "reading",
+          "story",
+          "voice",
+          "word",
+          "words"
+        ]
+      },
+      "H": {
+        "overlap": 8,
+        "score": 0.25,
+        "hits": [
+          "case",
+          "meaning",
+          "means",
+          "sentence",
+          "sentences",
+          "structure",
+          "subject",
+          "verb"
+        ]
+      },
+      "N": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      },
+      "C": {
+        "overlap": 2,
+        "score": 0.0625,
+        "hits": [
+          "between",
+          "through"
+        ]
+      },
+      "I": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      },
+      "J": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      }
+    },
+    "music": {
+      "B": {
+        "overlap": 5,
+        "score": 0.15625,
+        "hits": [
+          "letters",
+          "line",
+          "name",
+          "sound",
+          "voice"
+        ]
+      },
+      "H": {
+        "overlap": 4,
+        "score": 0.125,
+        "hits": [
+          "agreement",
+          "case",
+          "form",
+          "rule"
+        ]
+      },
+      "N": {
+        "overlap": 2,
+        "score": 0.0625,
+        "hits": [
+          "measure",
+          "number"
+        ]
+      },
+      "C": {
+        "overlap": 5,
+        "score": 0.15625,
+        "hits": [
+          "above",
+          "below",
+          "between",
+          "through",
+          "under"
+        ]
+      },
+      "I": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      },
+      "J": {
+        "overlap": 2,
+        "score": 0.05128205128205128,
+        "hits": [
+          "prime",
+          "produce"
+        ]
+      }
+    },
+    "art": {
+      "B": {
+        "overlap": 4,
+        "score": 0.125,
+        "hits": [
+          "book",
+          "line",
+          "look",
+          "seen"
+        ]
+      },
+      "H": {
+        "overlap": 6,
+        "score": 0.1875,
+        "hits": [
+          "agreement",
+          "case",
+          "form",
+          "means",
+          "object",
+          "rule"
+        ]
+      },
+      "N": {
+        "overlap": 7,
+        "score": 0.21875,
+        "hits": [
+          "circle",
+          "distance",
+          "length",
+          "measure",
+          "number",
+          "size",
+          "sun"
+        ]
+      },
+      "C": {
+        "overlap": 7,
+        "score": 0.21875,
+        "hits": [
+          "above",
+          "below",
+          "between",
+          "left",
+          "right",
+          "through",
+          "under"
+        ]
+      },
+      "I": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      },
+      "J": {
+        "overlap": 7,
+        "score": 0.1794871794871795,
+        "hits": [
+          "cube",
+          "divide",
+          "division",
+          "divisions",
+          "produce",
+          "square",
+          "squares"
+        ]
+      }
+    },
+    "games": {
+      "B": {
+        "overlap": 1,
+        "score": 0.03125,
+        "hits": [
+          "line"
+        ]
+      },
+      "H": {
+        "overlap": 4,
+        "score": 0.125,
+        "hits": [
+          "case",
+          "form",
+          "object",
+          "rule"
+        ]
+      },
+      "N": {
+        "overlap": 2,
+        "score": 0.0625,
+        "hits": [
+          "number",
+          "numbers"
+        ]
+      },
+      "C": {
+        "overlap": 6,
+        "score": 0.1875,
+        "hits": [
+          "above",
+          "between",
+          "left",
+          "right",
+          "turn",
+          "under"
+        ]
+      },
+      "I": {
+        "overlap": 1,
+        "score": 0.02857142857142857,
+        "hits": [
+          "round"
+        ]
+      },
+      "J": {
+        "overlap": 1,
+        "score": 0.02564102564102564,
+        "hits": [
+          "square"
+        ]
+      }
+    },
+    "sports": {
+      "B": {
+        "overlap": 2,
+        "score": 0.0625,
+        "hits": [
+          "book",
+          "read"
+        ]
+      },
+      "H": {
+        "overlap": 3,
+        "score": 0.09375,
+        "hits": [
+          "agreement",
+          "case",
+          "rules"
+        ]
+      },
+      "N": {
+        "overlap": 4,
+        "score": 0.125,
+        "hits": [
+          "day",
+          "days",
+          "year",
+          "years"
+        ]
+      },
+      "C": {
+        "overlap": 5,
+        "score": 0.15625,
+        "hits": [
+          "between",
+          "left",
+          "right",
+          "through",
+          "under"
+        ]
+      },
+      "I": {
+        "overlap": 1,
+        "score": 0.02857142857142857,
+        "hits": [
+          "season"
+        ]
+      },
+      "J": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      }
+    },
+    "cooking": {
+      "B": {
+        "overlap": 1,
+        "score": 0.03125,
+        "hits": [
+          "page"
+        ]
+      },
+      "H": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      },
+      "N": {
+        "overlap": 1,
+        "score": 0.03125,
+        "hits": [
+          "hour"
+        ]
+      },
+      "C": {
+        "overlap": 4,
+        "score": 0.125,
+        "hits": [
+          "around",
+          "between",
+          "through",
+          "turn"
+        ]
+      },
+      "I": {
+        "overlap": 2,
+        "score": 0.05714285714285714,
+        "hits": [
+          "hour",
+          "season"
+        ]
+      },
+      "J": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      }
+    },
+    "scouting": {
+      "B": {
+        "overlap": 4,
+        "score": 0.125,
+        "hits": [
+          "book",
+          "line",
+          "page",
+          "tell"
+        ]
+      },
+      "H": {
+        "overlap": 2,
+        "score": 0.0625,
+        "hits": [
+          "form",
+          "means"
+        ]
+      },
+      "N": {
+        "overlap": 7,
+        "score": 0.21875,
+        "hits": [
+          "day",
+          "number",
+          "size",
+          "star",
+          "stars",
+          "sun",
+          "years"
+        ]
+      },
+      "C": {
+        "overlap": 12,
+        "score": 0.375,
+        "hits": [
+          "above",
+          "around",
+          "between",
+          "left",
+          "near",
+          "north",
+          "right",
+          "south",
+          "through",
+          "turn",
+          "under",
+          "west"
+        ]
+      },
+      "I": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      },
+      "J": {
+        "overlap": 0,
+        "score": 0.0,
+        "hits": []
+      }
+    }
+  },
+  "math_ij": 0.4388278388278388,
+  "math_i": 0.02857142857142857,
+  "math_j": 0.41025641025641024,
+  "avg_nonmath_ij": 0.05085470085470085,
+  "max_nonmath_ij": 0.1794871794871795
+}

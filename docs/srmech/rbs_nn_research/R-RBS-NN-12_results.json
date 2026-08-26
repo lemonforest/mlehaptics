@@ -1,0 +1,93 @@
+{
+  "srmech_version": "0.4.3",
+  "has_native": true,
+  "abi": 2,
+  "D": 8192,
+  "hypotheses": {
+    "H1_hier_at_n_gt_256_above_threshold": true,
+    "H2_flat_crash_confirmed_at_n_1000": true,
+    "H3_overlap_no_degradation": false
+  },
+  "T2_4_overlap": [
+    {
+      "N": 100,
+      "n_buckets": 4,
+      "flat_p3": 0.7085427135678392,
+      "hierarchical_p3": 0.7085427135678392,
+      "bucket_sizes": [
+        89,
+        83,
+        104,
+        76
+      ],
+      "max_bucket": 104,
+      "exceeds_max_bundle": [],
+      "build_flat_sec": 0.43721675872802734,
+      "build_hier_sec": 0.2993042469024658
+    },
+    {
+      "N": 256,
+      "n_buckets": 8,
+      "flat_p3": 0.49,
+      "hierarchical_p3": 0.67,
+      "bucket_sizes": [
+        113,
+        138,
+        112,
+        95,
+        100,
+        146,
+        116,
+        130
+      ],
+      "max_bucket": 146,
+      "exceeds_max_bundle": [],
+      "build_flat_sec": 1.075493335723877,
+      "build_hier_sec": 0.7629246711730957
+    }
+  ],
+  "T2_3_past_ceiling": [
+    {
+      "N": 500,
+      "n_buckets": 16,
+      "hierarchical_p3": 0.76,
+      "flat_p3": 0.28,
+      "max_bucket": 149,
+      "min_bucket": 81,
+      "mean_bucket": 120.25,
+      "exceeds_max_bundle_n": [],
+      "build_hier_sec": 1.5112278461456299,
+      "retrieve_hier_sec": 50.97247910499573,
+      "retrieve_flat_sec": 50.3031108379364,
+      "n_evaluated": 200
+    },
+    {
+      "N": 1000,
+      "n_buckets": 32,
+      "hierarchical_p3": 0.705,
+      "flat_p3": 0.095,
+      "max_bucket": 169,
+      "min_bucket": 89,
+      "mean_bucket": 123.375,
+      "exceeds_max_bundle_n": [],
+      "build_hier_sec": 3.039228677749634,
+      "retrieve_hier_sec": 102.31537890434265,
+      "retrieve_flat_sec": 101.00870490074158,
+      "n_evaluated": 200
+    },
+    {
+      "N": 2000,
+      "n_buckets": 64,
+      "hierarchical_p3": 0.72,
+      "flat_p3": null,
+      "max_bucket": 187,
+      "min_bucket": 65,
+      "mean_bucket": 124.0,
+      "exceeds_max_bundle_n": [],
+      "build_hier_sec": 6.420806169509888,
+      "retrieve_hier_sec": 203.8757574558258,
+      "retrieve_flat_sec": null,
+      "n_evaluated": 200
+    }
+  ]
+}

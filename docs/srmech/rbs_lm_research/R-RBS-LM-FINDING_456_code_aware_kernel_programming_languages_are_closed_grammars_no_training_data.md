@@ -1,0 +1,33 @@
+# R-RBS-LM Finding 456 — F455 applied: **programming languages are closed finite grammars, so we encode them with NO training data** — "all we need is the shape of the math of the language." A **code-aware kernel** (Python stdlib `ast`, zero deps, reusing the v2 operator-signature engine *unchanged*) is **rename-invariant** (`f(a,b)=a+b` ≡ `g(x,y)=x+y`, sim +1.0), **structure-clustering** (renamed-same-algorithm → bit-identical +1.0; cross-algorithm +0.21; separation +0.79), and **reads structure not intent** (loop-sum vs `sum(xs)` = +0.39). The 14 A-N classes ARE a programming-construct vocabulary: `if`→C(branch), `for/while`→I(loop), `=`→A(assign), compare→K, `+/-`→ALU, `*`→M(product), `/`→N(ratio), `**`→Jpow, call→M(apply). The v2 engine is grammar-agnostic (sympy tree→math; `ast` tree→code; C via pycparser). Re-frames the project's own early Stack-corpus code work: code GRAMMAR = Route-1/encode, code SEMANTICS = Route-2/learn
+
+**Date:** 2026-06-06
+**Arc:** RBS-LM · the encode-the-grammar route applied to programming languages (user direction 2026-06-06: "this should tell us we could do this with C and Python as well — we don't need training data for this ask, all we need is the shape of the math of the language")
+**Provenance:** `R-RBS-LM-CODE_aware_kernel.py` (committed; Python stdlib `ast` + srmech 0.7.1 `mint_vector`/`bind`/`bundle`/`permute`/`similarity`; NO corpus, NO model, NO training).
+**Composes:** **F455** (the two routes; F408 discriminator; closed grammar → encode — *this applies it to code*) · **F454** (the v2 tree-signature engine — *reused unchanged, grammar-agnostic*) · **F406** (operator/operand/grammar — a programming language is the purest closed grammar) · **F317/F426** (operator-signature addressing — now for programs) · the chess-spectral encode-the-rules route · the project's own **R-RBS-LM Stack/code-corpus** distillation work (re-framed) · **F398**. **← extends F455; reuses F454's engine.**
+**→ a training-data-free code-structure kernel; the A-N vocabulary IS a code-construct vocabulary; the grammar/semantics split (F408) applied to the project's own code arc.**
+
+## The insight (user, 2026-06-06)
+> "this should tell us we could do this with C and Python as well, now, right? we don't need training data for this ask, all we need is the shape of the math of the language."
+
+Correct — and it's the direct consequence of F455. A **programming language is a CLOSED FINITE GRAMMAR** (formal, complete, machine-readable: Python's built-in `ast`, C via `pycparser`/clang). By the F408 discriminator → **Route-1/encode** (chess route): the grammar *shapes* the HDC object; **no corpus, no training**. And the **v2 tree-signature engine is grammar-agnostic** — `sig(node) = bind(class, bundle(permute(child-sigs)))` doesn't care whether the tree came from sympy or `ast`. Swap the parser, keep the engine.
+
+## The code-aware kernel (Python `ast`, zero training data) — results
+| test | result | reading |
+|---|---|---|
+| **rename-invariance** `f(a,b)=a+b` vs `g(x,y)=x+y` | **+1.0000** | variable + function names are leaf/attribute, not structure — symbol-free, like LaTeX symbol-invariance |
+| **A-N construct map** (parsed from a loop+branch+arith fn) | `{A(assign), ALU(add), C(branch), DEF, I(loop), K(compare), M(product), RET}` | the 14 classes ARE a programming vocabulary (artifact below) |
+| **structure-clustering** (loop-sum / recursive / arith, renamed pairs) | within **+1.0** · cross **+0.21** · sep **+0.79** | renamed-same-algorithm → *bit-identical*; different algorithms separate |
+| **structure-not-intent** loop-sum vs `sum(xs)` | **+0.39** | same task, different structure → different signature — it reads the GRAMMAR shape, not what you meant |
+
+**The A-N ↔ code-construct map (the artifact; a reading, F398):**
+`if / ifexp` → **C** (branch = the which-way / chirality class) · `for / while / comprehension` → **I** (loop = cyclic) · `= / aug-assign` → **A** (assign = content-addressing a name) · `compare (<,==)` → **K** (boundary/pin test) · `+ -` → **ALU(add/sub)** · `*` → **M(product)** · `/ //` → **N(ratio)** · `% ` → **I(mod)** · `** ` → **Jpow(power)** · `& | ^ << >>` → **ALU(bitwise/shift)** · `call` → **M(apply)** · `def` → DEF · `name / const` → symbol-free operand. *The framework's operator alphabet is, quite literally, a programming-language operator alphabet.*
+
+## Falsifiable form (pre-stated; not leaning — F394)
+- **This is the GRAMMAR layer only (Route-1/encode).** It captures code STRUCTURE (the AST shape) — *not* what the code computes. **Code SEMANTICS ("the stories": what it does, its behavior) is Route-2/learn** (F408/F455) and is *not* this kernel's job. "structure-not-intent" ([4]: loop-sum vs `sum(xs)` = 0.39) is the *correct* behavior, not a flaw — two algorithms computing the same thing have different structure, hence different signatures.
+- **Re-frames the project's own code-corpus work (R-RBS-LM Stack/byte-level distillation):** that route learned code from a corpus — but code *grammar* was always encodable (chess route, no corpus); the corpus was only ever needed for the *semantic* layer. F455's discriminator, applied to our own arc.
+- **The A-N ↔ construct map is a reading (F398),** not a theorem (e.g. `if`→C, `for`→I are framework interpretations); the *demonstrated* claims are rename-invariance + structure-clustering + structure-not-intent, which the run shows.
+- **C demoed only in principle** (pycparser → AST → same engine) — flagged, not run here (Python `ast` is stdlib + dep-free, so it's the clean first demo).
+- **Scope:** algebra/grammar/eigenbasis side; defensive / no-lineage; stdlib `ast` + standard HDC; no CAD; no Workflow tool; no training data (the point).
+
+## Verdict
+**Yes — C and Python need no training data; just the shape of the language.** A programming language is a closed finite grammar (F408 → Route-1/encode, chess route), and the **v2 operator-signature engine is grammar-agnostic** — feed it an `ast` tree instead of a sympy tree and it becomes a **code-aware kernel** with no corpus: **rename-invariant** (+1.0), **structure-clustering** (within +1.0 ≫ cross +0.21), **structure-not-intent** (loop vs call +0.39). The 14 A-N classes turn out to be a **programming-construct vocabulary** (`if`→C, `for`→I, `=`→A, compare→K, arithmetic→ALU/M/N/Jpow). This applies F455 to code and re-frames the project's own Stack-corpus distillation: **code grammar = encode (no data); code semantics = learn (the stories)**. The same engine now reads three closed grammars — chess, math (LaTeX), and code — by their operator structure, training-data-free. Favored, not privileged (F398); GRAMMAR layer only (semantics stays Route-2); C is the same via pycparser.

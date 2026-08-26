@@ -1,0 +1,40 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "names": [
+    "Axis of Evil (Quadrupole-Octupole Alignment)",
+    "Cold Spot",
+    "Hemispherical Power Asymmetry (Dipolar Modulation)"
+  ],
+  "pairwise": [
+    [
+      "Axis of Evil (Quadrupole-Octupole Alignment)",
+      "Cold Spot",
+      119.37176709099582
+    ],
+    [
+      "Axis of Evil (Quadrupole-Octupole Alignment)",
+      "Hemispherical Power Asymmetry (Dipolar Modulation)",
+      80.0374601937155
+    ],
+    [
+      "Cold Spot",
+      "Hemispherical Power Asymmetry (Dipolar Modulation)",
+      42.02494951428617
+    ]
+  ],
+  "centroid_norm": 0.6541123338476632,
+  "centroid_to_dipole_deg": 64.69233142418614,
+  "inplane_gaps": [
+    40.52650813218895,
+    79.5925844187187,
+    239.88090744909235
+  ],
+  "splay_dev": 119.88090744909235,
+  "p_splay": 0.63545,
+  "kuramoto_locked_gaps": [
+    119.99999999999763,
+    120.00000000000108,
+    120.0000000000013
+  ],
+  "splay_locked": true
+}

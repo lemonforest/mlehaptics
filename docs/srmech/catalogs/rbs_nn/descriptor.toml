@@ -6,10 +6,15 @@ license              = "CC0 (substrate content-mint is deterministic; mints are 
 homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/catalogs/rbs_nn"
 
 [source.primary_references]
-spike_170              = "docs/srmech/notes/spike170_loe_rbs_hdc_architecture_design.md — RBS-HDC instrument architecture; D=8192; 10 strict-spec invariants verified."
-mfo_VII_1_1            = "docs/antikythera-maths/mfo_spectral_research_notebook.md §VII.1.1 lines 668-684 — two-level ontology (substrate ALU / excitation FPU); §VII.1.3 lines 735-761 (three-mechanism asymmetry: bind 0-cost / bundle ~6.9% / MAX-pool no averaging)."
-srmech_resnotebook_2_6 = "docs/srmech/srmech_research_notebook.md §2.6 lines 175-182 — 1:3:7:3 substrate-native ordering (1 anchor + 3 projection + 7 detection + 3 meta = 14 classes)."
-rbs_nn_research        = "docs/srmech/rbs_nn_research/ — full partition walk REPORTs (R-RBS-NN-1 through -9). See PR #684."
+spike_170                       = "docs/srmech/notes/spike170_loe_rbs_hdc_architecture_design.md — RBS-HDC instrument architecture; D=8192; 10 strict-spec invariants verified."
+mfo_VII_1_1                     = "docs/antikythera-maths/mfo_spectral_research_notebook.md §VII.1.1 lines 668-684 — two-level ontology (substrate ALU / excitation FPU); §VII.1.3 lines 735-761 (three-mechanism asymmetry: bind 0-cost / bundle ~6.9% / MAX-pool no averaging)."
+srmech_resnotebook_2_6          = "docs/srmech/srmech_research_notebook.md §2.6 lines 175-182 — 1:3:7:3 substrate-native ordering (1 anchor + 3 projection + 7 detection + 3 meta = 14 classes)."
+rbs_nn_research                 = "docs/srmech/rbs_nn_research/ — full partition walk REPORTs (R-RBS-NN-1 through -9). See PR #684."
+rbs_nn_research_v2              = "docs/srmech/rbs_nn_research/ — V2 operational arc (R-RBS-NN-10..-16) closed 2026-05-28 via Phase 6. Two-tier storage prototype + hierarchical bundling + chirality auto-detect + multi-step retrieval + interface polish. See PR #687."
+architectural_pattern           = "docs/srmech/rbs_nn_research/ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md — canonical two-tier RBS-NN architecture (Klein-4 Tier 1 + Polar Tier 2 + Class K bridge). HARD RULE: H2 chirality tag must be outermost cascade operation (per F-R16 Test 1)."
+phased_followup_plan            = "docs/srmech/rbs_nn_research/R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md — Phases 1-6 of the V2 operational arc; all closed 2026-05-28."
+chirality_harmonics_framework   = "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_150_chirality_harmonics_1_2_3_AN_operators_siona.md — F150 1-2-3 chirality harmonic framework across A-N operators. Validated at Class L spectral (F-R15: +67%) and Klein-4 binding (F-R16 Test 3) levels."
+srmech_v043                     = "srmech v0.4.3 on production PyPI (2026-05-27) — Klein-4 rank-2 abelian HDC + Polar 3-state HDC LANDED. See UPSTREAM_NOTES.md §4 + §5."
 
 [fetch]
 adapter      = "literature_curated"
@@ -33,3 +38,11 @@ provenance  = "Class A content-mint via srmech.signal_processing.rbs_hdc_instrum
 
 [gap_targeting]
 gap_label = "rbs_nn_arc"
+
+[arc_status]
+# Arc closure status as of 2026-05-28 (Phase 6 wrap)
+r1_through_r9_partition_arc = "CLOSED 2026-05-25 via PR #684"
+r10_through_r16_v2_arc      = "CLOSED 2026-05-28 via PR #687 Phase 6 wrap"
+phased_followup_plan_phases = "all 6 phases COMPLETE (P1 capacity / P2 hierarchical / P2.5 followups / P3a multi-step / P3b mixed-precision / P4 interface / P5 validation / P6 wrap)"
+total_findings              = "F-R10 through F-R16 (operational findings) + F132, F133, F135-F150 (framework findings)"
+total_partitions_closed     = "16 R-RBS-NN + 16 frameworks = 32 lodge events across the two arcs"

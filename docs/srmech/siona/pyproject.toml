@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "siona"
+# 0.1.0rc1 — the UN-MIRROR cut: siona stops being a co-name alias for srmech (srmech rc173 removed the in-wheel
+# `import siona` alias) and becomes its OWN real package — the grounded RBS-HDC inference layer, a srmech PROFILE
+# built ON lean srmech. TestPyPI rc first (its OWN PR; NOT via PR #687); a clean tag -> PyPI is the human gate.
+version = "0.1.0rc1"
+description = "Siona — a grounded RBS-HDC instrument with a calibrated honest-STOP: storage + retrieval (k=3 chiral addressing) of spectrally-encoded knowledge, built on srmech (Stored-Relationship Mechanism). Emissions are reads of stored relationships; when uncertain it says so."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Steven Kirkland" }]
+keywords = ["siona", "srmech", "rbs-hdc", "stored-relationship", "de-bruijn", "recall", "grounded-lm", "spectral", "hyperdimensional"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+]
+# srmech is the lean MATH CORE siona rides on (the 14-class A-N vocabulary + klein4 HDC + native genome
+# file-management + the profile loader). Floor >=0.8.1 = the live production srmech (graduated past the 0.7.5rc
+# series; MIT-licensed; verified: native dispatching, and it ships everything siona's roadmap needs —
+# srmech.amsc.genome, klein4_triality_cycle, klein4_unbundle). So the native-genome recall (PKG-3) + the
+# error-correcting recall (klein4_triality_cycle) are production-resolvable on this floor — no TestPyPI pin needed.
+dependencies = ["srmech>=0.8.1"]
+
+# THE plugin hook: siona declares itself as a srmech profile (package-only entry-point form; the loader reads
+# siona/srmech_profile.toml via importlib.resources). `srmech.profile("siona")` discovers + smoke-tests + activates it.
+[project.scripts]
+siona = "siona.cli:main"
+
+[project.entry-points."srmech.profiles"]
+siona = "siona"
+
+[project.urls]
+Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/siona"
+Repository = "https://github.com/lemonforest/mlehaptics"
+Issues = "https://github.com/lemonforest/mlehaptics/issues"
+"srmech (math core)" = "https://pypi.org/project/srmech/"
+
+[tool.hatch.build.targets.wheel]
+packages = ["siona"]
+
+# Ship the profile descriptor + the native plugin as package data (the loader reads the descriptor via
+# importlib.resources and locates libsiona_native.so via importlib.metadata.files). NOTE: force-include of a
+# prebuilt .so makes a linux-only py3-none-any wheel — fine for local/dev; a RELEASE builds true platform wheels
+# per-OS via cibuildwheel (the two-pyproject pattern srmech uses). Build the .so first: `make -C c`.
+[tool.hatch.build.targets.wheel.force-include]
+"siona/srmech_profile.toml" = "siona/srmech_profile.toml"
+"siona/_native/libsiona_native.so" = "siona/_native/libsiona_native.so"
+
+[tool.hatch.build.targets.sdist]
+include = ["siona/", "README.md", "pyproject.toml"]

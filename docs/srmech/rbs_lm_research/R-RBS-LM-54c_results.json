@@ -1,0 +1,5393 @@
+{
+  "partition": "R-RBS-LM-54c",
+  "domain_A": "KJV-NT",
+  "domain_B_same_family": "Quran-Sale",
+  "domain_C_cross_family": "Bhagavad Gita",
+  "avg_alignment_sim_AB_same_family": 0.105496826171875,
+  "avg_alignment_sim_AC_cross_family": 0.0925048828125,
+  "ratio_AB_to_AC": 1.1404460279757194,
+  "rank_correlation_AB": 0.4187909697742444,
+  "rank_correlation_AC": 0.4846966174154355,
+  "top_10_aligned_AB": [
+    {
+      "rank_A": 3,
+      "rank_B": 3,
+      "sim": 0.332275390625,
+      "A_tokens": [
+        "god",
+        "his",
+        "jesus",
+        "man",
+        "him",
+        "unto",
+        "things"
+      ],
+      "B_tokens": [
+        "him",
+        "unto",
+        "his",
+        "god",
+        "lord",
+        "one",
+        "verily"
+      ],
+      "eigval_A": 10227.444833338332,
+      "eigval_B": 17975.43504407588
+    },
+    {
+      "rank_A": 7,
+      "rank_B": 1,
+      "sim": 0.28662109375,
+      "A_tokens": [
+        "things",
+        "lord",
+        "christ",
+        "come",
+        "into",
+        "one",
+        "man"
+      ],
+      "B_tokens": [
+        "his",
+        "him",
+        "god",
+        "unto",
+        "mohammed",
+        "al",
+        "one"
+      ],
+      "eigval_A": 5453.903271064311,
+      "eigval_B": 25740.45864090673
+    },
+    {
+      "rank_A": 15,
+      "rank_B": 21,
+      "sim": 0.23193359375,
+      "A_tokens": [
+        "up",
+        "now",
+        "men",
+        "therefore",
+        "christ",
+        "went",
+        "know"
+      ],
+      "B_tokens": [
+        "earth",
+        "after",
+        "therefore",
+        "true",
+        "others",
+        "people",
+        "heaven"
+      ],
+      "eigval_A": 3240.324087255033,
+      "eigval_B": 4566.694711414204
+    },
+    {
+      "rank_A": 19,
+      "rank_B": 17,
+      "sim": 0.23193359375,
+      "A_tokens": [
+        "therefore",
+        "son",
+        "father",
+        "let",
+        "now",
+        "because",
+        "men"
+      ],
+      "B_tokens": [
+        "people",
+        "therefore",
+        "earth",
+        "after",
+        "believe",
+        "sent",
+        "verily"
+      ],
+      "eigval_A": 2829.9568627062417,
+      "eigval_B": 4829.0266642695
+    },
+    {
+      "rank_A": 10,
+      "rank_B": 12,
+      "sim": 0.22802734375,
+      "A_tokens": [
+        "come",
+        "one",
+        "christ",
+        "into",
+        "out",
+        "came",
+        "things"
+      ],
+      "B_tokens": [
+        "verily",
+        "before",
+        "day",
+        "lord",
+        "men",
+        "people",
+        "other"
+      ],
+      "eigval_A": 4597.061167450527,
+      "eigval_B": 5984.030738004502
+    },
+    {
+      "rank_A": 13,
+      "rank_B": 13,
+      "sim": 0.227783203125,
+      "A_tokens": [
+        "out",
+        "came",
+        "saying",
+        "into",
+        "went",
+        "come",
+        "christ"
+      ],
+      "B_tokens": [
+        "before",
+        "verily",
+        "day",
+        "men",
+        "same",
+        "people",
+        "into"
+      ],
+      "eigval_A": 3902.028174492073,
+      "eigval_B": 5775.573946802764
+    },
+    {
+      "rank_A": 6,
+      "rank_B": 0,
+      "sim": 0.223388671875,
+      "A_tokens": [
+        "lord",
+        "things",
+        "christ",
+        "jesus",
+        "into",
+        "saying",
+        "one"
+      ],
+      "B_tokens": [
+        "god",
+        "his",
+        "unto",
+        "him",
+        "verily",
+        "earth",
+        "true"
+      ],
+      "eigval_A": 5644.393012070604,
+      "eigval_B": 31496.302274973485
+    },
+    {
+      "rank_A": 5,
+      "rank_B": 7,
+      "sim": 0.218017578125,
+      "A_tokens": [
+        "man",
+        "jesus",
+        "things",
+        "lord",
+        "his",
+        "god",
+        "into"
+      ],
+      "B_tokens": [
+        "lord",
+        "verily",
+        "mohammed",
+        "one",
+        "day",
+        "unto",
+        "before"
+      ],
+      "eigval_A": 6979.931257415674,
+      "eigval_B": 7745.132249015474
+    },
+    {
+      "rank_A": 64,
+      "rank_B": 50,
+      "sim": 0.215087890625,
+      "A_tokens": [
+        "earth",
+        "forth",
+        "dead",
+        "name",
+        "heaven",
+        "glory",
+        "yet"
+      ],
+      "B_tokens": [
+        "themselves",
+        "good",
+        "because",
+        "punishment",
+        "though",
+        "name",
+        "first"
+      ],
+      "eigval_A": 1462.788366388631,
+      "eigval_B": 3147.994127703992
+    },
+    {
+      "rank_A": 58,
+      "rank_B": 199,
+      "sim": 0.212158203125,
+      "A_tokens": [
+        "against",
+        "law",
+        "word",
+        "see",
+        "own",
+        "among",
+        "give"
+      ],
+      "B_tokens": [
+        "world",
+        "entitled",
+        "made",
+        "earth",
+        "men",
+        "others",
+        "people"
+      ],
+      "eigval_A": 1591.9601393843218,
+      "eigval_B": 3.833188932487558e-13
+    }
+  ],
+  "top_5_aligned_AC": [
+    {
+      "rank_A": 1,
+      "rank_B": 16,
+      "sim": 0.232177734375,
+      "A_tokens": [
+        "him",
+        "unto",
+        "his",
+        "god",
+        "jesus",
+        "man",
+        "lord"
+      ],
+      "B_tokens": [
+        "mind",
+        "faith",
+        "man",
+        "yet",
+        "work",
+        "heart",
+        "him"
+      ],
+      "eigval_A": 16979.41737656345,
+      "eigval_B": 330.6553062213803
+    },
+    {
+      "rank_A": 5,
+      "rank_B": 15,
+      "sim": 0.231201171875,
+      "A_tokens": [
+        "man",
+        "jesus",
+        "things",
+        "lord",
+        "his",
+        "god",
+        "into"
+      ],
+      "B_tokens": [
+        "mind",
+        "man",
+        "yet",
+        "men",
+        "faith",
+        "arjuna",
+        "work"
+      ],
+      "eigval_A": 6979.931257415674,
+      "eigval_B": 337.8344453647383
+    },
+    {
+      "rank_A": 9,
+      "rank_B": 24,
+      "sim": 0.229736328125,
+      "A_tokens": [
+        "one",
+        "come",
+        "christ",
+        "another",
+        "man",
+        "came",
+        "men"
+      ],
+      "B_tokens": [
+        "come",
+        "thus",
+        "things",
+        "unto",
+        "good",
+        "gods",
+        "faith"
+      ],
+      "eigval_A": 4670.881596358258,
+      "eigval_B": 271.24462021246876
+    },
+    {
+      "rank_A": 7,
+      "rank_B": 14,
+      "sim": 0.226318359375,
+      "A_tokens": [
+        "things",
+        "lord",
+        "christ",
+        "come",
+        "into",
+        "one",
+        "man"
+      ],
+      "B_tokens": [
+        "yet",
+        "man",
+        "krishna",
+        "again",
+        "nor",
+        "men",
+        "am"
+      ],
+      "eigval_A": 5453.903271064311,
+      "eigval_B": 346.0747206578603
+    },
+    {
+      "rank_A": 10,
+      "rank_B": 3,
+      "sim": 0.21923828125,
+      "A_tokens": [
+        "come",
+        "one",
+        "christ",
+        "into",
+        "out",
+        "came",
+        "things"
+      ],
+      "B_tokens": [
+        "prince",
+        "life",
+        "krishna",
+        "him",
+        "arjuna",
+        "nor",
+        "am"
+      ],
+      "eigval_A": 4597.061167450527,
+      "eigval_B": 488.4286619405757
+    }
+  ],
+  "full_alignment_AB": [
+    {
+      "rank_A": 0,
+      "rank_B": 11,
+      "sim": 0.173095703125,
+      "A_tokens": [
+        "unto",
+        "him",
+        "god",
+        "his",
+        "things",
+        "lord",
+        "verily"
+      ],
+      "B_tokens": [
+        "into",
+        "other",
+        "day",
+        "verily",
+        "before",
+        "one",
+        "men"
+      ],
+      "eigval_A": 19506.321255805928,
+      "eigval_B": 6324.953458423995
+    },
+    {
+      "rank_A": 1,
+      "rank_B": 105,
+      "sim": 0.17919921875,
+      "A_tokens": [
+        "him",
+        "unto",
+        "his",
+        "god",
+        "jesus",
+        "man",
+        "lord"
+      ],
+      "B_tokens": [
+        "person",
+        "came",
+        "god's",
+        "forth",
+        "worship",
+        "last",
+        "paradise"
+      ],
+      "eigval_A": 16979.41737656345,
+      "eigval_B": 1956.3528051367177
+    },
+    {
+      "rank_A": 2,
+      "rank_B": 2,
+      "sim": 0.187744140625,
+      "A_tokens": [
+        "his",
+        "god",
+        "him",
+        "man",
+        "jesus",
+        "unto",
+        "into"
+      ],
+      "B_tokens": [
+        "unto",
+        "him",
+        "god",
+        "his",
+        "lord",
+        "verily",
+        "come"
+      ],
+      "eigval_A": 10882.426495644948,
+      "eigval_B": 20259.53169598858
+    },
+    {
+      "rank_A": 3,
+      "rank_B": 3,
+      "sim": 0.332275390625,
+      "A_tokens": [
+        "god",
+        "his",
+        "jesus",
+        "man",
+        "him",
+        "unto",
+        "things"
+      ],
+      "B_tokens": [
+        "him",
+        "unto",
+        "his",
+        "god",
+        "lord",
+        "one",
+        "verily"
+      ],
+      "eigval_A": 10227.444833338332,
+      "eigval_B": 17975.43504407588
+    },
+    {
+      "rank_A": 4,
+      "rank_B": 112,
+      "sim": 0.16748046875,
+      "A_tokens": [
+        "jesus",
+        "man",
+        "lord",
+        "christ",
+        "god",
+        "his",
+        "him"
+      ],
+      "B_tokens": [
+        "viz",
+        "now",
+        "worship",
+        "arabs",
+        "besides",
+        "fire",
+        "let"
+      ],
+      "eigval_A": 7747.58781729261,
+      "eigval_B": 1876.1890249576604
+    },
+    {
+      "rank_A": 5,
+      "rank_B": 7,
+      "sim": 0.218017578125,
+      "A_tokens": [
+        "man",
+        "jesus",
+        "things",
+        "lord",
+        "his",
+        "god",
+        "into"
+      ],
+      "B_tokens": [
+        "lord",
+        "verily",
+        "mohammed",
+        "one",
+        "day",
+        "unto",
+        "before"
+      ],
+      "eigval_A": 6979.931257415674,
+      "eigval_B": 7745.132249015474
+    },
+    {
+      "rank_A": 6,
+      "rank_B": 0,
+      "sim": 0.223388671875,
+      "A_tokens": [
+        "lord",
+        "things",
+        "christ",
+        "jesus",
+        "into",
+        "saying",
+        "one"
+      ],
+      "B_tokens": [
+        "god",
+        "his",
+        "unto",
+        "him",
+        "verily",
+        "earth",
+        "true"
+      ],
+      "eigval_A": 5644.393012070604,
+      "eigval_B": 31496.302274973485
+    },
+    {
+      "rank_A": 7,
+      "rank_B": 1,
+      "sim": 0.28662109375,
+      "A_tokens": [
+        "things",
+        "lord",
+        "christ",
+        "come",
+        "into",
+        "one",
+        "man"
+      ],
+      "B_tokens": [
+        "his",
+        "him",
+        "god",
+        "unto",
+        "mohammed",
+        "al",
+        "one"
+      ],
+      "eigval_A": 5453.903271064311,
+      "eigval_B": 25740.45864090673
+    },
+    {
+      "rank_A": 8,
+      "rank_B": 102,
+      "sim": 0.165771484375,
+      "A_tokens": [
+        "into",
+        "come",
+        "one",
+        "out",
+        "came",
+        "christ",
+        "went"
+      ],
+      "B_tokens": [
+        "forth",
+        "book",
+        "son",
+        "created",
+        "person",
+        "death",
+        "god's"
+      ],
+      "eigval_A": 5062.031105336758,
+      "eigval_B": 2014.5149357878945
+    },
+    {
+      "rank_A": 9,
+      "rank_B": 5,
+      "sim": 0.181884765625,
+      "A_tokens": [
+        "one",
+        "come",
+        "christ",
+        "another",
+        "man",
+        "came",
+        "men"
+      ],
+      "B_tokens": [
+        "one",
+        "see",
+        "chapter",
+        "lord",
+        "other",
+        "beid",
+        "al"
+      ],
+      "eigval_A": 4670.881596358258,
+      "eigval_B": 8817.30290006888
+    },
+    {
+      "rank_A": 10,
+      "rank_B": 12,
+      "sim": 0.22802734375,
+      "A_tokens": [
+        "come",
+        "one",
+        "christ",
+        "into",
+        "out",
+        "came",
+        "things"
+      ],
+      "B_tokens": [
+        "verily",
+        "before",
+        "day",
+        "lord",
+        "men",
+        "people",
+        "other"
+      ],
+      "eigval_A": 4597.061167450527,
+      "eigval_B": 5984.030738004502
+    },
+    {
+      "rank_A": 11,
+      "rank_B": 109,
+      "sim": 0.172119140625,
+      "A_tokens": [
+        "christ",
+        "one",
+        "come",
+        "lord",
+        "out",
+        "came",
+        "jesus"
+      ],
+      "B_tokens": [
+        "paradise",
+        "worship",
+        "person",
+        "fire",
+        "now",
+        "arabs",
+        "came"
+      ],
+      "eigval_A": 4327.887692819267,
+      "eigval_B": 1923.079975315354
+    },
+    {
+      "rank_A": 12,
+      "rank_B": 115,
+      "sim": 0.132080078125,
+      "A_tokens": [
+        "came",
+        "out",
+        "come",
+        "saying",
+        "went",
+        "cast",
+        "pass"
+      ],
+      "B_tokens": [
+        "let",
+        "certain",
+        "viz",
+        "arabs",
+        "fire",
+        "saying",
+        "faith"
+      ],
+      "eigval_A": 4055.5248321874237,
+      "eigval_B": 1843.0422922368832
+    },
+    {
+      "rank_A": 13,
+      "rank_B": 13,
+      "sim": 0.227783203125,
+      "A_tokens": [
+        "out",
+        "came",
+        "saying",
+        "into",
+        "went",
+        "come",
+        "christ"
+      ],
+      "B_tokens": [
+        "before",
+        "verily",
+        "day",
+        "men",
+        "same",
+        "people",
+        "into"
+      ],
+      "eigval_A": 3902.028174492073,
+      "eigval_B": 5775.573946802764
+    },
+    {
+      "rank_A": 14,
+      "rank_B": 104,
+      "sim": 0.187255859375,
+      "A_tokens": [
+        "saying",
+        "came",
+        "out",
+        "men",
+        "now",
+        "up",
+        "come"
+      ],
+      "B_tokens": [
+        "last",
+        "god's",
+        "came",
+        "person",
+        "book",
+        "paradise",
+        "created"
+      ],
+      "eigval_A": 3589.60667820974,
+      "eigval_B": 1970.3909493882425
+    },
+    {
+      "rank_A": 15,
+      "rank_B": 21,
+      "sim": 0.23193359375,
+      "A_tokens": [
+        "up",
+        "now",
+        "men",
+        "therefore",
+        "christ",
+        "went",
+        "know"
+      ],
+      "B_tokens": [
+        "earth",
+        "after",
+        "therefore",
+        "true",
+        "others",
+        "people",
+        "heaven"
+      ],
+      "eigval_A": 3240.324087255033,
+      "eigval_B": 4566.694711414204
+    },
+    {
+      "rank_A": 16,
+      "rank_B": 15,
+      "sim": 0.185791015625,
+      "A_tokens": [
+        "now",
+        "up",
+        "men",
+        "went",
+        "therefore",
+        "son",
+        "father"
+      ],
+      "B_tokens": [
+        "men",
+        "same",
+        "verily",
+        "people",
+        "before",
+        "other",
+        "earth"
+      ],
+      "eigval_A": 3208.77740219297,
+      "eigval_B": 5330.948188500598
+    },
+    {
+      "rank_A": 17,
+      "rank_B": 46,
+      "sim": 0.19384765625,
+      "A_tokens": [
+        "men",
+        "up",
+        "now",
+        "therefore",
+        "went",
+        "saying",
+        "father"
+      ],
+      "B_tokens": [
+        "made",
+        "prophet",
+        "out",
+        "mecca",
+        "two",
+        "because",
+        "first"
+      ],
+      "eigval_A": 3069.782797426389,
+      "eigval_B": 3305.4796027187185
+    },
+    {
+      "rank_A": 18,
+      "rank_B": 54,
+      "sim": 0.172607421875,
+      "A_tokens": [
+        "father",
+        "son",
+        "therefore",
+        "even",
+        "heaven",
+        "because",
+        "day"
+      ],
+      "B_tokens": [
+        "good",
+        "punishment",
+        "moses",
+        "name",
+        "though",
+        "themselves",
+        "first"
+      ],
+      "eigval_A": 2882.3927983478907,
+      "eigval_B": 3063.8189619360055
+    },
+    {
+      "rank_A": 19,
+      "rank_B": 17,
+      "sim": 0.23193359375,
+      "A_tokens": [
+        "therefore",
+        "son",
+        "father",
+        "let",
+        "now",
+        "because",
+        "men"
+      ],
+      "B_tokens": [
+        "people",
+        "therefore",
+        "earth",
+        "after",
+        "believe",
+        "sent",
+        "verily"
+      ],
+      "eigval_A": 2829.9568627062417,
+      "eigval_B": 4829.0266642695
+    },
+    {
+      "rank_A": 20,
+      "rank_B": 132,
+      "sim": 0.15576171875,
+      "A_tokens": [
+        "son",
+        "went",
+        "father",
+        "let",
+        "therefore",
+        "know",
+        "heaven"
+      ],
+      "B_tokens": [
+        "put",
+        "world",
+        "answered",
+        "afterwards",
+        "knoweth",
+        "evil",
+        "infidels"
+      ],
+      "eigval_A": 2683.6574111003742,
+      "eigval_B": 1705.2169564917522
+    },
+    {
+      "rank_A": 21,
+      "rank_B": 107,
+      "sim": 0.154052734375,
+      "A_tokens": [
+        "went",
+        "son",
+        "father",
+        "day",
+        "let",
+        "up",
+        "out"
+      ],
+      "B_tokens": [
+        "paradise",
+        "came",
+        "person",
+        "fire",
+        "reward",
+        "arabs",
+        "certain"
+      ],
+      "eigval_A": 2654.483085390945,
+      "eigval_B": 1939.1235496397571
+    },
+    {
+      "rank_A": 22,
+      "rank_B": 27,
+      "sim": 0.17919921875,
+      "A_tokens": [
+        "let",
+        "day",
+        "therefore",
+        "saith",
+        "son",
+        "father",
+        "her"
+      ],
+      "B_tokens": [
+        "sent",
+        "down",
+        "believe",
+        "against",
+        "people",
+        "come",
+        "man"
+      ],
+      "eigval_A": 2588.0848305944724,
+      "eigval_B": 4233.216160263869
+    },
+    {
+      "rank_A": 23,
+      "rank_B": 106,
+      "sim": 0.133544921875,
+      "A_tokens": [
+        "day",
+        "because",
+        "after",
+        "let",
+        "went",
+        "saith",
+        "son"
+      ],
+      "B_tokens": [
+        "came",
+        "last",
+        "paradise",
+        "god's",
+        "forth",
+        "created",
+        "worship"
+      ],
+      "eigval_A": 2467.2227044607935,
+      "eigval_B": 1951.8756661773914
+    },
+    {
+      "rank_A": 24,
+      "rank_B": 113,
+      "sim": 0.0908203125,
+      "A_tokens": [
+        "saith",
+        "know",
+        "because",
+        "her",
+        "after",
+        "let",
+        "disciples"
+      ],
+      "B_tokens": [
+        "certain",
+        "now",
+        "viz",
+        "unbelievers",
+        "arabs",
+        "saying",
+        "fire"
+      ],
+      "eigval_A": 2416.7108933050877,
+      "eigval_B": 1867.0832442993553
+    },
+    {
+      "rank_A": 25,
+      "rank_B": 40,
+      "sim": 0.1416015625,
+      "A_tokens": [
+        "because",
+        "know",
+        "day",
+        "after",
+        "made",
+        "saith",
+        "before"
+      ],
+      "B_tokens": [
+        "her",
+        "religion",
+        "two",
+        "revealed",
+        "out",
+        "time",
+        "because"
+      ],
+      "eigval_A": 2377.0365198024147,
+      "eigval_B": 3605.647850100436
+    },
+    {
+      "rank_A": 26,
+      "rank_B": 9,
+      "sim": 0.1005859375,
+      "A_tokens": [
+        "after",
+        "before",
+        "know",
+        "made",
+        "day",
+        "went",
+        "spirit"
+      ],
+      "B_tokens": [
+        "other",
+        "into",
+        "day",
+        "one",
+        "verily",
+        "men",
+        "mohammed"
+      ],
+      "eigval_A": 2335.117755363993,
+      "eigval_B": 6465.160667847165
+    },
+    {
+      "rank_A": 27,
+      "rank_B": 114,
+      "sim": 0.136962890625,
+      "A_tokens": [
+        "know",
+        "before",
+        "saith",
+        "because",
+        "even",
+        "am",
+        "spirit"
+      ],
+      "B_tokens": [
+        "fire",
+        "unbelievers",
+        "viz",
+        "let",
+        "certain",
+        "paradise",
+        "arabs"
+      ],
+      "eigval_A": 2317.370273805619,
+      "eigval_B": 1856.5817053693945
+    },
+    {
+      "rank_A": 28,
+      "rank_B": 16,
+      "sim": 0.1591796875,
+      "A_tokens": [
+        "before",
+        "made",
+        "know",
+        "after",
+        "even",
+        "because",
+        "am"
+      ],
+      "B_tokens": [
+        "same",
+        "men",
+        "before",
+        "therefore",
+        "earth",
+        "people",
+        "after"
+      ],
+      "eigval_A": 2279.561874285606,
+      "eigval_B": 5229.71703041349
+    },
+    {
+      "rank_A": 29,
+      "rank_B": 44,
+      "sim": 0.168212890625,
+      "A_tokens": [
+        "made",
+        "even",
+        "before",
+        "after",
+        "her",
+        "because",
+        "day"
+      ],
+      "B_tokens": [
+        "out",
+        "vide",
+        "idem",
+        "made",
+        "jallalo'ddin",
+        "two",
+        "her"
+      ],
+      "eigval_A": 2227.512715192336,
+      "eigval_B": 3409.4967718467988
+    },
+    {
+      "rank_A": 30,
+      "rank_B": 8,
+      "sim": 0.1318359375,
+      "A_tokens": [
+        "her",
+        "even",
+        "know",
+        "great",
+        "before",
+        "saith",
+        "am"
+      ],
+      "B_tokens": [
+        "mohammed",
+        "other",
+        "one",
+        "before",
+        "lord",
+        "into",
+        "ebn"
+      ],
+      "eigval_A": 2194.4290986532865,
+      "eigval_B": 7571.808518147658
+    },
+    {
+      "rank_A": 31,
+      "rank_B": 49,
+      "sim": 0.18212890625,
+      "A_tokens": [
+        "even",
+        "her",
+        "made",
+        "spirit",
+        "know",
+        "before",
+        "upon"
+      ],
+      "B_tokens": [
+        "because",
+        "themselves",
+        "punishment",
+        "name",
+        "though",
+        "first",
+        "made"
+      ],
+      "eigval_A": 2156.5607700087494,
+      "eigval_B": 3175.0440005343917
+    },
+    {
+      "rank_A": 32,
+      "rank_B": 24,
+      "sim": 0.13232421875,
+      "A_tokens": [
+        "upon",
+        "great",
+        "heaven",
+        "spirit",
+        "am",
+        "house",
+        "saw"
+      ],
+      "B_tokens": [
+        "others",
+        "true",
+        "kor",
+        "earth",
+        "believe",
+        "idem",
+        "after"
+      ],
+      "eigval_A": 2065.91622891291,
+      "eigval_B": 4421.512517658396
+    },
+    {
+      "rank_A": 33,
+      "rank_B": 48,
+      "sim": 0.147216796875,
+      "A_tokens": [
+        "heaven",
+        "great",
+        "am",
+        "earth",
+        "her",
+        "spirit",
+        "down"
+      ],
+      "B_tokens": [
+        "mecca",
+        "name",
+        "because",
+        "themselves",
+        "made",
+        "first",
+        "prophet"
+      ],
+      "eigval_A": 2048.23068628118,
+      "eigval_B": 3205.9318726696993
+    },
+    {
+      "rank_A": 34,
+      "rank_B": 47,
+      "sim": 0.130859375,
+      "A_tokens": [
+        "spirit",
+        "am",
+        "faith",
+        "heaven",
+        "good",
+        "great",
+        "go"
+      ],
+      "B_tokens": [
+        "prophet",
+        "made",
+        "mecca",
+        "first",
+        "because",
+        "themselves",
+        "ebn"
+      ],
+      "eigval_A": 2007.802234096796,
+      "eigval_B": 3240.9726421693786
+    },
+    {
+      "rank_A": 35,
+      "rank_B": 52,
+      "sim": 0.19287109375,
+      "A_tokens": [
+        "am",
+        "go",
+        "great",
+        "spirit",
+        "heard",
+        "heaven",
+        "disciples"
+      ],
+      "B_tokens": [
+        "heaven",
+        "first",
+        "up",
+        "though",
+        "moses",
+        "punishment",
+        "good"
+      ],
+      "eigval_A": 2005.3538406244938,
+      "eigval_B": 3107.2308800025417
+    },
+    {
+      "rank_A": 36,
+      "rank_B": 85,
+      "sim": 0.11669921875,
+      "A_tokens": [
+        "heard",
+        "great",
+        "heaven",
+        "go",
+        "spirit",
+        "upon",
+        "am"
+      ],
+      "B_tokens": [
+        "called",
+        "place",
+        "apostle",
+        "know",
+        "jallalo'ddin",
+        "sect",
+        "word"
+      ],
+      "eigval_A": 1988.9255080312382,
+      "eigval_B": 2301.4405685606507
+    },
+    {
+      "rank_A": 37,
+      "rank_B": 118,
+      "sim": 0.12060546875,
+      "A_tokens": [
+        "go",
+        "am",
+        "disciples",
+        "spirit",
+        "heard",
+        "great",
+        "world"
+      ],
+      "B_tokens": [
+        "faith",
+        "unbelievers",
+        "let",
+        "besides",
+        "fire",
+        "over",
+        "saying"
+      ],
+      "eigval_A": 1978.633504654689,
+      "eigval_B": 1817.041430385486
+    },
+    {
+      "rank_A": 38,
+      "rank_B": 23,
+      "sim": 0.135986328125,
+      "A_tokens": [
+        "heard",
+        "great",
+        "disciples",
+        "heaven",
+        "faith",
+        "people",
+        "am"
+      ],
+      "B_tokens": [
+        "true",
+        "others",
+        "believe",
+        "idem",
+        "after",
+        "religion",
+        "wi"
+      ],
+      "eigval_A": 1948.7268326045937,
+      "eigval_B": 4470.961076705061
+    },
+    {
+      "rank_A": 39,
+      "rank_B": 137,
+      "sim": 0.142578125,
+      "A_tokens": [
+        "good",
+        "faith",
+        "disciples",
+        "spirit",
+        "am",
+        "down",
+        "heard"
+      ],
+      "B_tokens": [
+        "judgment",
+        "evil",
+        "knoweth",
+        "afterwards",
+        "used",
+        "opinion",
+        "answer"
+      ],
+      "eigval_A": 1931.826623722337,
+      "eigval_B": 1639.6910071406821
+    },
+    {
+      "rank_A": 40,
+      "rank_B": 41,
+      "sim": 0.122802734375,
+      "A_tokens": [
+        "disciples",
+        "good",
+        "go",
+        "heard",
+        "down",
+        "again",
+        "called"
+      ],
+      "B_tokens": [
+        "revealed",
+        "words",
+        "mecca",
+        "name",
+        "down",
+        "her",
+        "passage"
+      ],
+      "eigval_A": 1917.2989726015276,
+      "eigval_B": 3583.148655098396
+    },
+    {
+      "rank_A": 41,
+      "rank_B": 130,
+      "sim": 0.11181640625,
+      "A_tokens": [
+        "faith",
+        "good",
+        "world",
+        "down",
+        "brethren",
+        "law",
+        "spirit"
+      ],
+      "B_tokens": [
+        "knoweth",
+        "answered",
+        "world",
+        "put",
+        "right",
+        "evil",
+        "fire"
+      ],
+      "eigval_A": 1885.6977857265178,
+      "eigval_B": 1716.2518764156923
+    },
+    {
+      "rank_A": 42,
+      "rank_B": 25,
+      "sim": 0.19482421875,
+      "A_tokens": [
+        "down",
+        "saw",
+        "people",
+        "again",
+        "brethren",
+        "behold",
+        "heaven"
+      ],
+      "B_tokens": [
+        "believe",
+        "sent",
+        "kor",
+        "true",
+        "come",
+        "therefore",
+        "down"
+      ],
+      "eigval_A": 1849.69978270147,
+      "eigval_B": 4328.847851619633
+    },
+    {
+      "rank_A": 43,
+      "rank_B": 38,
+      "sim": 0.1640625,
+      "A_tokens": [
+        "people",
+        "called",
+        "again",
+        "saw",
+        "heard",
+        "down",
+        "brethren"
+      ],
+      "B_tokens": [
+        "down",
+        "religion",
+        "sent",
+        "her",
+        "come",
+        "life",
+        "part"
+      ],
+      "eigval_A": 1839.9140688366645,
+      "eigval_B": 3690.268065871011
+    },
+    {
+      "rank_A": 44,
+      "rank_B": 37,
+      "sim": 0.1572265625,
+      "A_tokens": [
+        "brethren",
+        "world",
+        "called",
+        "people",
+        "another",
+        "behold",
+        "down"
+      ],
+      "B_tokens": [
+        "ebn",
+        "great",
+        "among",
+        "religion",
+        "down",
+        "idem",
+        "beid"
+      ],
+      "eigval_A": 1819.6212082290676,
+      "eigval_B": 3752.533874097751
+    },
+    {
+      "rank_A": 45,
+      "rank_B": 82,
+      "sim": 0.109375,
+      "A_tokens": [
+        "world",
+        "again",
+        "brethren",
+        "people",
+        "called",
+        "saw",
+        "faith"
+      ],
+      "B_tokens": [
+        "place",
+        "concerning",
+        "called",
+        "know",
+        "jallalo'ddin",
+        "apostle",
+        "jews"
+      ],
+      "eigval_A": 1806.3176631306874,
+      "eigval_B": 2342.747174656713
+    },
+    {
+      "rank_A": 46,
+      "rank_B": 123,
+      "sim": 0.096435546875,
+      "A_tokens": [
+        "again",
+        "called",
+        "world",
+        "people",
+        "saw",
+        "down",
+        "behold"
+      ],
+      "B_tokens": [
+        "return",
+        "entitled",
+        "verses",
+        "infidels",
+        "besides",
+        "taken",
+        "over"
+      ],
+      "eigval_A": 1792.5336952978237,
+      "eigval_B": 1774.483541884911
+    },
+    {
+      "rank_A": 47,
+      "rank_B": 99,
+      "sim": 0.10791015625,
+      "A_tokens": [
+        "called",
+        "behold",
+        "world",
+        "saw",
+        "again",
+        "brethren",
+        "people"
+      ],
+      "B_tokens": [
+        "book",
+        "reward",
+        "created",
+        "forth",
+        "death",
+        "paradise",
+        "things"
+      ],
+      "eigval_A": 1782.2582997777993,
+      "eigval_B": 2040.1650389858003
+    },
+    {
+      "rank_A": 48,
+      "rank_B": 139,
+      "sim": 0.123779296875,
+      "A_tokens": [
+        "behold",
+        "saw",
+        "called",
+        "brethren",
+        "world",
+        "see",
+        "own"
+      ],
+      "B_tokens": [
+        "used",
+        "ibid",
+        "judgment",
+        "answer",
+        "de",
+        "power",
+        "whether"
+      ],
+      "eigval_A": 1760.1490975719616,
+      "eigval_B": 1609.3251000071207
+    },
+    {
+      "rank_A": 49,
+      "rank_B": 58,
+      "sim": 0.164794921875,
+      "A_tokens": [
+        "saw",
+        "behold",
+        "see",
+        "down",
+        "away",
+        "called",
+        "another"
+      ],
+      "B_tokens": [
+        "according",
+        "up",
+        "name",
+        "heaven",
+        "first",
+        "moses",
+        "though"
+      ],
+      "eigval_A": 1724.2862970830367,
+      "eigval_B": 2950.5972521642693
+    },
+    {
+      "rank_A": 50,
+      "rank_B": 39,
+      "sim": 0.13037109375,
+      "A_tokens": [
+        "another",
+        "away",
+        "own",
+        "law",
+        "see",
+        "against",
+        "love"
+      ],
+      "B_tokens": [
+        "religion",
+        "revealed",
+        "among",
+        "down",
+        "great",
+        "two",
+        "out"
+      ],
+      "eigval_A": 1665.606135783715,
+      "eigval_B": 3629.9447518698153
+    },
+    {
+      "rank_A": 51,
+      "rank_B": 63,
+      "sim": 0.20068359375,
+      "A_tokens": [
+        "away",
+        "another",
+        "own",
+        "sent",
+        "among",
+        "law",
+        "answered"
+      ],
+      "B_tokens": [
+        "signs",
+        "therein",
+        "hell",
+        "surely",
+        "truth",
+        "yet",
+        "upon"
+      ],
+      "eigval_A": 1649.3039779964747,
+      "eigval_B": 2660.325370639219
+    },
+    {
+      "rank_A": 52,
+      "rank_B": 67,
+      "sim": 0.166748046875,
+      "A_tokens": [
+        "own",
+        "among",
+        "against",
+        "law",
+        "house",
+        "see",
+        "word"
+      ],
+      "B_tokens": [
+        "truth",
+        "himself",
+        "surely",
+        "own",
+        "upon",
+        "yet",
+        "take"
+      ],
+      "eigval_A": 1631.2190688256171,
+      "eigval_B": 2600.540179457598
+    },
+    {
+      "rank_A": 53,
+      "rank_B": 74,
+      "sim": 0.137939453125,
+      "A_tokens": [
+        "own",
+        "among",
+        "word",
+        "see",
+        "answered",
+        "house",
+        "law"
+      ],
+      "B_tokens": [
+        "jews",
+        "make",
+        "between",
+        "own",
+        "take",
+        "surely",
+        "jallalo'ddin"
+      ],
+      "eigval_A": 1627.9607291386794,
+      "eigval_B": 2509.6528874571786
+    },
+    {
+      "rank_A": 54,
+      "rank_B": 19,
+      "sim": 0.126708984375,
+      "A_tokens": [
+        "among",
+        "against",
+        "law",
+        "answered",
+        "see",
+        "own",
+        "house"
+      ],
+      "B_tokens": [
+        "therefore",
+        "earth",
+        "people",
+        "after",
+        "chapter",
+        "believe",
+        "wi"
+      ],
+      "eigval_A": 1625.3977095993434,
+      "eigval_B": 4716.315163325999
+    },
+    {
+      "rank_A": 55,
+      "rank_B": 111,
+      "sim": 0.098388671875,
+      "A_tokens": [
+        "answered",
+        "own",
+        "himself",
+        "word",
+        "law",
+        "see",
+        "against"
+      ],
+      "B_tokens": [
+        "arabs",
+        "now",
+        "viz",
+        "certain",
+        "worship",
+        "used",
+        "fire"
+      ],
+      "eigval_A": 1618.6904808421837,
+      "eigval_B": 1886.321902453392
+    },
+    {
+      "rank_A": 56,
+      "rank_B": 71,
+      "sim": 0.108642578125,
+      "A_tokens": [
+        "himself",
+        "see",
+        "word",
+        "law",
+        "another",
+        "answered",
+        "against"
+      ],
+      "B_tokens": [
+        "hell",
+        "given",
+        "own",
+        "himself",
+        "therein",
+        "surely",
+        "jews"
+      ],
+      "eigval_A": 1608.3318209606928,
+      "eigval_B": 2547.62295232972
+    },
+    {
+      "rank_A": 57,
+      "rank_B": 73,
+      "sim": 0.13330078125,
+      "A_tokens": [
+        "word",
+        "himself",
+        "answered",
+        "see",
+        "law",
+        "own",
+        "among"
+      ],
+      "B_tokens": [
+        "make",
+        "between",
+        "given",
+        "truth",
+        "own",
+        "concerning",
+        "fear"
+      ],
+      "eigval_A": 1605.687055113792,
+      "eigval_B": 2525.437529972764
+    },
+    {
+      "rank_A": 58,
+      "rank_B": 199,
+      "sim": 0.212158203125,
+      "A_tokens": [
+        "against",
+        "law",
+        "word",
+        "see",
+        "own",
+        "among",
+        "give"
+      ],
+      "B_tokens": [
+        "world",
+        "entitled",
+        "made",
+        "earth",
+        "men",
+        "others",
+        "people"
+      ],
+      "eigval_A": 1591.9601393843218,
+      "eigval_B": 3.833188932487558e-13
+    },
+    {
+      "rank_A": 59,
+      "rank_B": 135,
+      "sim": 0.114013671875,
+      "A_tokens": [
+        "house",
+        "law",
+        "word",
+        "answered",
+        "among",
+        "himself",
+        "yet"
+      ],
+      "B_tokens": [
+        "commentators",
+        "suppose",
+        "evil",
+        "knoweth",
+        "put",
+        "taken",
+        "used"
+      ],
+      "eigval_A": 1585.9270390874315,
+      "eigval_B": 1682.5537930432936
+    },
+    {
+      "rank_A": 60,
+      "rank_B": 59,
+      "sim": 0.152587890625,
+      "A_tokens": [
+        "give",
+        "against",
+        "law",
+        "house",
+        "himself",
+        "among",
+        "life"
+      ],
+      "B_tokens": [
+        "another",
+        "according",
+        "up",
+        "moses",
+        "passage",
+        "give",
+        "first"
+      ],
+      "eigval_A": 1567.0980228451574,
+      "eigval_B": 2932.016525568379
+    },
+    {
+      "rank_A": 61,
+      "rank_B": 61,
+      "sim": 0.2001953125,
+      "A_tokens": [
+        "sent",
+        "house",
+        "yet",
+        "against",
+        "give",
+        "himself",
+        "own"
+      ],
+      "B_tokens": [
+        "give",
+        "passage",
+        "another",
+        "upon",
+        "yet",
+        "signs",
+        "according"
+      ],
+      "eigval_A": 1550.595458913805,
+      "eigval_B": 2818.794953907739
+    },
+    {
+      "rank_A": 62,
+      "rank_B": 60,
+      "sim": 0.15478515625,
+      "A_tokens": [
+        "sent",
+        "yet",
+        "away",
+        "forth",
+        "house",
+        "against",
+        "same"
+      ],
+      "B_tokens": [
+        "another",
+        "give",
+        "according",
+        "passage",
+        "up",
+        "moses",
+        "though"
+      ],
+      "eigval_A": 1528.373665994481,
+      "eigval_B": 2875.361118988091
+    },
+    {
+      "rank_A": 63,
+      "rank_B": 35,
+      "sim": 0.163818359375,
+      "A_tokens": [
+        "yet",
+        "sent",
+        "earth",
+        "forth",
+        "house",
+        "dead",
+        "himself"
+      ],
+      "B_tokens": [
+        "great",
+        "come",
+        "life",
+        "ebn",
+        "down",
+        "among",
+        "idem"
+      ],
+      "eigval_A": 1504.3138113705663,
+      "eigval_B": 3818.23117942158
+    },
+    {
+      "rank_A": 64,
+      "rank_B": 50,
+      "sim": 0.215087890625,
+      "A_tokens": [
+        "earth",
+        "forth",
+        "dead",
+        "name",
+        "heaven",
+        "glory",
+        "yet"
+      ],
+      "B_tokens": [
+        "themselves",
+        "good",
+        "because",
+        "punishment",
+        "though",
+        "name",
+        "first"
+      ],
+      "eigval_A": 1462.788366388631,
+      "eigval_B": 3147.994127703992
+    },
+    {
+      "rank_A": 65,
+      "rank_B": 55,
+      "sim": 0.172607421875,
+      "A_tokens": [
+        "forth",
+        "dead",
+        "sent",
+        "name",
+        "through",
+        "holy",
+        "life"
+      ],
+      "B_tokens": [
+        "punishment",
+        "moses",
+        "good",
+        "because",
+        "though",
+        "themselves",
+        "up"
+      ],
+      "eigval_A": 1453.3992159301877,
+      "eigval_B": 3048.242229797352
+    },
+    {
+      "rank_A": 66,
+      "rank_B": 51,
+      "sim": 0.171875,
+      "A_tokens": [
+        "name",
+        "dead",
+        "forth",
+        "life",
+        "earth",
+        "sent",
+        "holy"
+      ],
+      "B_tokens": [
+        "first",
+        "heaven",
+        "though",
+        "up",
+        "good",
+        "earth",
+        "prophet"
+      ],
+      "eigval_A": 1445.7844530977131,
+      "eigval_B": 3114.5696074945467
+    },
+    {
+      "rank_A": 67,
+      "rank_B": 20,
+      "sim": 0.11767578125,
+      "A_tokens": [
+        "name",
+        "life",
+        "holy",
+        "forth",
+        "earth",
+        "through",
+        "paul"
+      ],
+      "B_tokens": [
+        "after",
+        "earth",
+        "true",
+        "heaven",
+        "therefore",
+        "wi",
+        "sent"
+      ],
+      "eigval_A": 1437.5452421917369,
+      "eigval_B": 4631.619778558468
+    },
+    {
+      "rank_A": 68,
+      "rank_B": 28,
+      "sim": 0.157470703125,
+      "A_tokens": [
+        "holy",
+        "life",
+        "through",
+        "dead",
+        "ghost",
+        "name",
+        "against"
+      ],
+      "B_tokens": [
+        "life",
+        "come",
+        "vide",
+        "time",
+        "man",
+        "among",
+        "against"
+      ],
+      "eigval_A": 1429.1393061157655,
+      "eigval_B": 4016.0486429520806
+    },
+    {
+      "rank_A": 69,
+      "rank_B": 98,
+      "sim": 0.09130859375,
+      "A_tokens": [
+        "through",
+        "life",
+        "forth",
+        "earth",
+        "dead",
+        "name",
+        "love"
+      ],
+      "B_tokens": [
+        "death",
+        "son",
+        "created",
+        "put",
+        "forth",
+        "last",
+        "book"
+      ],
+      "eigval_A": 1421.1717798441114,
+      "eigval_B": 2048.5999862482818
+    },
+    {
+      "rank_A": 70,
+      "rank_B": 53,
+      "sim": 0.15283203125,
+      "A_tokens": [
+        "through",
+        "glory",
+        "life",
+        "name",
+        "holy",
+        "paul",
+        "dead"
+      ],
+      "B_tokens": [
+        "though",
+        "moses",
+        "good",
+        "name",
+        "first",
+        "yet",
+        "mecca"
+      ],
+      "eigval_A": 1393.8940253074832,
+      "eigval_B": 3069.504211031165
+    },
+    {
+      "rank_A": 71,
+      "rank_B": 145,
+      "sim": 0.128662109375,
+      "A_tokens": [
+        "love",
+        "paul",
+        "same",
+        "jews",
+        "through",
+        "name",
+        "time"
+      ],
+      "B_tokens": [
+        "go",
+        "children",
+        "law",
+        "whether",
+        "used",
+        "knowledge",
+        "till"
+      ],
+      "eigval_A": 1375.0540308939849,
+      "eigval_B": 1565.856401285389
+    },
+    {
+      "rank_A": 72,
+      "rank_B": 78,
+      "sim": 0.08447265625,
+      "A_tokens": [
+        "same",
+        "paul",
+        "jews",
+        "love",
+        "about",
+        "first",
+        "dead"
+      ],
+      "B_tokens": [
+        "merciful",
+        "wherefore",
+        "take",
+        "make",
+        "called",
+        "name",
+        "concerning"
+      ],
+      "eigval_A": 1365.9988565361093,
+      "eigval_B": 2428.191127659065
+    },
+    {
+      "rank_A": 73,
+      "rank_B": 26,
+      "sim": 0.13525390625,
+      "A_tokens": [
+        "glory",
+        "love",
+        "same",
+        "jews",
+        "children",
+        "power",
+        "time"
+      ],
+      "B_tokens": [
+        "kor",
+        "vide",
+        "others",
+        "believe",
+        "sent",
+        "true",
+        "chapter"
+      ],
+      "eigval_A": 1359.105767913265,
+      "eigval_B": 4312.795734969926
+    },
+    {
+      "rank_A": 74,
+      "rank_B": 138,
+      "sim": 0.109130859375,
+      "A_tokens": [
+        "jews",
+        "paul",
+        "glory",
+        "took",
+        "days",
+        "same",
+        "about"
+      ],
+      "B_tokens": [
+        "suppose",
+        "commentators",
+        "used",
+        "evil",
+        "knoweth",
+        "however",
+        "opinion"
+      ],
+      "eigval_A": 1344.3571597936318,
+      "eigval_B": 1630.9753613940052
+    },
+    {
+      "rank_A": 75,
+      "rank_B": 68,
+      "sim": 0.104736328125,
+      "A_tokens": [
+        "time",
+        "glory",
+        "love",
+        "days",
+        "cast",
+        "first",
+        "children"
+      ],
+      "B_tokens": [
+        "surely",
+        "himself",
+        "own",
+        "truth",
+        "upon",
+        "jews",
+        "given"
+      ],
+      "eigval_A": 1339.3596806738547,
+      "eigval_B": 2592.8138630349017
+    },
+    {
+      "rank_A": 76,
+      "rank_B": 62,
+      "sim": 0.178955078125,
+      "A_tokens": [
+        "first",
+        "glory",
+        "love",
+        "same",
+        "given",
+        "time",
+        "paul"
+      ],
+      "B_tokens": [
+        "passage",
+        "yet",
+        "according",
+        "jews",
+        "upon",
+        "revealed",
+        "himself"
+      ],
+      "eigval_A": 1323.7811637281054,
+      "eigval_B": 2725.6437657501574
+    },
+    {
+      "rank_A": 77,
+      "rank_B": 66,
+      "sim": 0.11669921875,
+      "A_tokens": [
+        "first",
+        "cast",
+        "days",
+        "given",
+        "glory",
+        "love",
+        "paul"
+      ],
+      "B_tokens": [
+        "himself",
+        "upon",
+        "yet",
+        "truth",
+        "signs",
+        "surely",
+        "therein"
+      ],
+      "eigval_A": 1307.5549300833093,
+      "eigval_B": 2626.836608910341
+    },
+    {
+      "rank_A": 78,
+      "rank_B": 174,
+      "sim": 0.100830078125,
+      "A_tokens": [
+        "took",
+        "peter",
+        "days",
+        "take",
+        "cast",
+        "hand",
+        "given"
+      ],
+      "B_tokens": [
+        "under",
+        "about",
+        "water",
+        "understand",
+        "reason",
+        "former",
+        "wicked"
+      ],
+      "eigval_A": 1298.1076508992496,
+      "eigval_B": 1361.1639352723557
+    },
+    {
+      "rank_A": 79,
+      "rank_B": 72,
+      "sim": 0.097900390625,
+      "A_tokens": [
+        "peter",
+        "about",
+        "cast",
+        "days",
+        "took",
+        "take",
+        "first"
+      ],
+      "B_tokens": [
+        "given",
+        "hell",
+        "fear",
+        "jews",
+        "between",
+        "take",
+        "truth"
+      ],
+      "eigval_A": 1294.0907464313998,
+      "eigval_B": 2529.7600921631524
+    },
+    {
+      "rank_A": 80,
+      "rank_B": 156,
+      "sim": 0.09130859375,
+      "A_tokens": [
+        "days",
+        "cast",
+        "first",
+        "took",
+        "about",
+        "take",
+        "given"
+      ],
+      "B_tokens": [
+        "however",
+        "three",
+        "towards",
+        "mercy",
+        "women",
+        "suppose",
+        "till"
+      ],
+      "eigval_A": 1292.4510621808904,
+      "eigval_B": 1499.825575407794
+    },
+    {
+      "rank_A": 81,
+      "rank_B": 142,
+      "sim": 0.07470703125,
+      "A_tokens": [
+        "peter",
+        "cast",
+        "days",
+        "given",
+        "about",
+        "first",
+        "children"
+      ],
+      "B_tokens": [
+        "abu",
+        "used",
+        "power",
+        "women",
+        "however",
+        "till",
+        "answer"
+      ],
+      "eigval_A": 1289.267252767502,
+      "eigval_B": 1584.3007161279354
+    },
+    {
+      "rank_A": 82,
+      "rank_B": 153,
+      "sim": 0.07470703125,
+      "A_tokens": [
+        "given",
+        "take",
+        "cast",
+        "days",
+        "speak",
+        "power",
+        "love"
+      ],
+      "B_tokens": [
+        "resurrection",
+        "night",
+        "brought",
+        "women",
+        "whether",
+        "call",
+        "three"
+      ],
+      "eigval_A": 1284.5332597392382,
+      "eigval_B": 1517.4329979592549
+    },
+    {
+      "rank_A": 83,
+      "rank_B": 30,
+      "sim": 0.093994140625,
+      "A_tokens": [
+        "take",
+        "about",
+        "children",
+        "days",
+        "speak",
+        "given",
+        "hand"
+      ],
+      "B_tokens": [
+        "man",
+        "time",
+        "part",
+        "come",
+        "life",
+        "her",
+        "vide"
+      ],
+      "eigval_A": 1270.435448079616,
+      "eigval_B": 3942.9113821015953
+    },
+    {
+      "rank_A": 84,
+      "rank_B": 69,
+      "sim": 0.05908203125,
+      "A_tokens": [
+        "about",
+        "hand",
+        "children",
+        "peter",
+        "days",
+        "first",
+        "speak"
+      ],
+      "B_tokens": [
+        "surely",
+        "truth",
+        "own",
+        "hell",
+        "upon",
+        "himself",
+        "therein"
+      ],
+      "eigval_A": 1260.5470119433364,
+      "eigval_B": 2580.6000407554075
+    },
+    {
+      "rank_A": 85,
+      "rank_B": 70,
+      "sim": 0.104736328125,
+      "A_tokens": [
+        "speak",
+        "kingdom",
+        "children",
+        "hand",
+        "took",
+        "put",
+        "about"
+      ],
+      "B_tokens": [
+        "given",
+        "own",
+        "make",
+        "himself",
+        "truth",
+        "jews",
+        "upon"
+      ],
+      "eigval_A": 1250.3676657388535,
+      "eigval_B": 2562.50427342297
+    },
+    {
+      "rank_A": 86,
+      "rank_B": 100,
+      "sim": 0.076171875,
+      "A_tokens": [
+        "children",
+        "hand",
+        "put",
+        "about",
+        "took",
+        "other",
+        "speak"
+      ],
+      "B_tokens": [
+        "son",
+        "reward",
+        "book",
+        "death",
+        "person",
+        "forth",
+        "created"
+      ],
+      "eigval_A": 1244.2281556212856,
+      "eigval_B": 2032.8962964848665
+    },
+    {
+      "rank_A": 87,
+      "rank_B": 120,
+      "sim": 0.102783203125,
+      "A_tokens": [
+        "speak",
+        "kingdom",
+        "put",
+        "given",
+        "children",
+        "other",
+        "take"
+      ],
+      "B_tokens": [
+        "faith",
+        "over",
+        "without",
+        "besides",
+        "infidels",
+        "entitled",
+        "saying"
+      ],
+      "eigval_A": 1239.1001625552617,
+      "eigval_B": 1796.7446087855608
+    },
+    {
+      "rank_A": 88,
+      "rank_B": 77,
+      "sim": 0.111328125,
+      "A_tokens": [
+        "put",
+        "kingdom",
+        "children",
+        "power",
+        "cast",
+        "city",
+        "time"
+      ],
+      "B_tokens": [
+        "merciful",
+        "take",
+        "jews",
+        "make",
+        "own",
+        "wherefore",
+        "hell"
+      ],
+      "eigval_A": 1218.956155656134,
+      "eigval_B": 2458.8500052169597
+    },
+    {
+      "rank_A": 89,
+      "rank_B": 155,
+      "sim": 0.16552734375,
+      "A_tokens": [
+        "other",
+        "put",
+        "power",
+        "city",
+        "kingdom",
+        "children",
+        "hand"
+      ],
+      "B_tokens": [
+        "brought",
+        "call",
+        "till",
+        "night",
+        "knowledge",
+        "however",
+        "three"
+      ],
+      "eigval_A": 1197.4356586358783,
+      "eigval_B": 1508.5997646385322
+    },
+    {
+      "rank_A": 90,
+      "rank_B": 127,
+      "sim": 0.074462890625,
+      "A_tokens": [
+        "other",
+        "power",
+        "two",
+        "city",
+        "put",
+        "hand",
+        "hear"
+      ],
+      "B_tokens": [
+        "taken",
+        "infidels",
+        "right",
+        "put",
+        "besides",
+        "think",
+        "years"
+      ],
+      "eigval_A": 1180.5074263673112,
+      "eigval_B": 1742.221123674464
+    },
+    {
+      "rank_A": 91,
+      "rank_B": 129,
+      "sim": 0.17138671875,
+      "A_tokens": [
+        "city",
+        "power",
+        "make",
+        "other",
+        "kingdom",
+        "given",
+        "hand"
+      ],
+      "B_tokens": [
+        "right",
+        "world",
+        "put",
+        "afterwards",
+        "evil",
+        "knoweth",
+        "infidels"
+      ],
+      "eigval_A": 1176.0503386043586,
+      "eigval_B": 1717.6932709705102
+    },
+    {
+      "rank_A": 92,
+      "rank_B": 149,
+      "sim": 0.15234375,
+      "A_tokens": [
+        "city",
+        "make",
+        "jerusalem",
+        "kingdom",
+        "other",
+        "brought",
+        "cast"
+      ],
+      "B_tokens": [
+        "whether",
+        "children",
+        "law",
+        "knowledge",
+        "power",
+        "till",
+        "brought"
+      ],
+      "eigval_A": 1163.844911262399,
+      "eigval_B": 1538.631965799561
+    },
+    {
+      "rank_A": 93,
+      "rank_B": 121,
+      "sim": 0.126953125,
+      "A_tokens": [
+        "make",
+        "power",
+        "without",
+        "jerusalem",
+        "flesh",
+        "put",
+        "hear"
+      ],
+      "B_tokens": [
+        "over",
+        "besides",
+        "faith",
+        "worship",
+        "fire",
+        "years",
+        "taken"
+      ],
+      "eigval_A": 1146.4714688757533,
+      "eigval_B": 1792.6262468205618
+    },
+    {
+      "rank_A": 94,
+      "rank_B": 136,
+      "sim": 0.15478515625,
+      "A_tokens": [
+        "without",
+        "hear",
+        "jerusalem",
+        "flesh",
+        "certain",
+        "way",
+        "make"
+      ],
+      "B_tokens": [
+        "opinion",
+        "suppose",
+        "abu",
+        "afterwards",
+        "world",
+        "evil",
+        "put"
+      ],
+      "eigval_A": 1122.1097813347508,
+      "eigval_B": 1669.282255319835
+    },
+    {
+      "rank_A": 95,
+      "rank_B": 150,
+      "sim": 0.079345703125,
+      "A_tokens": [
+        "jerusalem",
+        "without",
+        "hear",
+        "john",
+        "certain",
+        "together",
+        "way"
+      ],
+      "B_tokens": [
+        "till",
+        "children",
+        "resurrection",
+        "towards",
+        "call",
+        "three",
+        "night"
+      ],
+      "eigval_A": 1118.9125913086818,
+      "eigval_B": 1529.8268934321202
+    },
+    {
+      "rank_A": 96,
+      "rank_B": 152,
+      "sim": 0.06396484375,
+      "A_tokens": [
+        "hear",
+        "flesh",
+        "without",
+        "jerusalem",
+        "together",
+        "two",
+        "spake"
+      ],
+      "B_tokens": [
+        "towards",
+        "night",
+        "whether",
+        "three",
+        "resurrection",
+        "children",
+        "women"
+      ],
+      "eigval_A": 1114.1650220241315,
+      "eigval_B": 1520.2675349938527
+    },
+    {
+      "rank_A": 97,
+      "rank_B": 146,
+      "sim": 0.126953125,
+      "A_tokens": [
+        "flesh",
+        "without",
+        "spake",
+        "together",
+        "two",
+        "way",
+        "according"
+      ],
+      "B_tokens": [
+        "power",
+        "knowledge",
+        "law",
+        "night",
+        "abu",
+        "towards",
+        "children"
+      ],
+      "eigval_A": 1102.8180284762018,
+      "eigval_B": 1552.946512883421
+    },
+    {
+      "rank_A": 98,
+      "rank_B": 131,
+      "sim": 0.12109375,
+      "A_tokens": [
+        "spake",
+        "certain",
+        "john",
+        "flesh",
+        "death",
+        "without",
+        "according"
+      ],
+      "B_tokens": [
+        "answered",
+        "right",
+        "knoweth",
+        "evil",
+        "put",
+        "world",
+        "afterwards"
+      ],
+      "eigval_A": 1092.7773390108641,
+      "eigval_B": 1708.579874579244
+    },
+    {
+      "rank_A": 99,
+      "rank_B": 43,
+      "sim": 0.0712890625,
+      "A_tokens": [
+        "john",
+        "together",
+        "certain",
+        "way",
+        "spake",
+        "gave",
+        "brought"
+      ],
+      "B_tokens": [
+        "two",
+        "words",
+        "out",
+        "idem",
+        "vide",
+        "jallalo'ddin",
+        "revealed"
+      ],
+      "eigval_A": 1087.1025162745768,
+      "eigval_B": 3478.279019285285
+    },
+    {
+      "rank_A": 100,
+      "rank_B": 143,
+      "sim": 0.07568359375,
+      "A_tokens": [
+        "certain",
+        "way",
+        "spake",
+        "john",
+        "together",
+        "eat",
+        "according"
+      ],
+      "B_tokens": [
+        "answer",
+        "used",
+        "knowledge",
+        "abu",
+        "women",
+        "call",
+        "power"
+      ],
+      "eigval_A": 1083.6637811183061,
+      "eigval_B": 1577.880220367556
+    },
+    {
+      "rank_A": 101,
+      "rank_B": 160,
+      "sim": 0.083984375,
+      "A_tokens": [
+        "together",
+        "way",
+        "john",
+        "certain",
+        "two",
+        "brought",
+        "death"
+      ],
+      "B_tokens": [
+        "de",
+        "mercy",
+        "ibid",
+        "art",
+        "disc",
+        "prelim",
+        "brought"
+      ],
+      "eigval_A": 1079.6377901954984,
+      "eigval_B": 1468.6012852029555
+    },
+    {
+      "rank_A": 102,
+      "rank_B": 171,
+      "sim": 0.079345703125,
+      "A_tokens": [
+        "two",
+        "john",
+        "brought",
+        "spake",
+        "certain",
+        "way",
+        "death"
+      ],
+      "B_tokens": [
+        "wherein",
+        "water",
+        "under",
+        "understand",
+        "use",
+        "reason",
+        "near"
+      ],
+      "eigval_A": 1074.3707517633345,
+      "eigval_B": 1384.6928844484382
+    },
+    {
+      "rank_A": 103,
+      "rank_B": 169,
+      "sim": 0.078125,
+      "A_tokens": [
+        "hast",
+        "eat",
+        "gave",
+        "art",
+        "together",
+        "two",
+        "flesh"
+      ],
+      "B_tokens": [
+        "abraham",
+        "tribe",
+        "art",
+        "set",
+        "until",
+        "wherein",
+        "de"
+      ],
+      "eigval_A": 1068.0033884528848,
+      "eigval_B": 1400.9538787627891
+    },
+    {
+      "rank_A": 104,
+      "rank_B": 128,
+      "sim": 0.089599609375,
+      "A_tokens": [
+        "hast",
+        "eat",
+        "death",
+        "two",
+        "gave",
+        "art",
+        "john"
+      ],
+      "B_tokens": [
+        "infidels",
+        "right",
+        "knoweth",
+        "world",
+        "afterwards",
+        "evil",
+        "unbelievers"
+      ],
+      "eigval_A": 1067.1049630400303,
+      "eigval_B": 1732.8352473566858
+    },
+    {
+      "rank_A": 105,
+      "rank_B": 116,
+      "sim": 0.1171875,
+      "A_tokens": [
+        "death",
+        "eat",
+        "gave",
+        "hast",
+        "spake",
+        "brought",
+        "two"
+      ],
+      "B_tokens": [
+        "let",
+        "certain",
+        "fire",
+        "saying",
+        "unbelievers",
+        "viz",
+        "arabs"
+      ],
+      "eigval_A": 1064.0762650062168,
+      "eigval_B": 1836.3439130416587
+    },
+    {
+      "rank_A": 106,
+      "rank_B": 170,
+      "sim": 0.099853515625,
+      "A_tokens": [
+        "brought",
+        "two",
+        "gave",
+        "together",
+        "spake",
+        "other",
+        "art"
+      ],
+      "B_tokens": [
+        "water",
+        "believed",
+        "abraham",
+        "wherein",
+        "tribe",
+        "am",
+        "account"
+      ],
+      "eigval_A": 1056.8928364874002,
+      "eigval_B": 1389.4185616751429
+    },
+    {
+      "rank_A": 107,
+      "rank_B": 188,
+      "sim": 0.07568359375,
+      "A_tokens": [
+        "gave",
+        "brought",
+        "eat",
+        "according",
+        "certain",
+        "body",
+        "way"
+      ],
+      "B_tokens": [
+        "present",
+        "directed",
+        "different",
+        "turn",
+        "year",
+        "prayer",
+        "follow"
+      ],
+      "eigval_A": 1043.8796922995975,
+      "eigval_B": 1283.7043239282627
+    },
+    {
+      "rank_A": 108,
+      "rank_B": 147,
+      "sim": 0.098388671875,
+      "A_tokens": [
+        "according",
+        "written",
+        "grace",
+        "gave",
+        "brought",
+        "eat",
+        "flesh"
+      ],
+      "B_tokens": [
+        "law",
+        "go",
+        "women",
+        "till",
+        "knowledge",
+        "power",
+        "whether"
+      ],
+      "eigval_A": 1036.6719532642583,
+      "eigval_B": 1549.1143684185347
+    },
+    {
+      "rank_A": 109,
+      "rank_B": 148,
+      "sim": 0.131103515625,
+      "A_tokens": [
+        "written",
+        "grace",
+        "according",
+        "gave",
+        "brought",
+        "eat",
+        "certain"
+      ],
+      "B_tokens": [
+        "knowledge",
+        "power",
+        "children",
+        "law",
+        "women",
+        "call",
+        "go"
+      ],
+      "eigval_A": 1034.9973032142245,
+      "eigval_B": 1543.9526608117912
+    },
+    {
+      "rank_A": 110,
+      "rank_B": 178,
+      "sim": 0.1142578125,
+      "A_tokens": [
+        "art",
+        "received",
+        "evil",
+        "brought",
+        "body",
+        "two",
+        "grace"
+      ],
+      "B_tokens": [
+        "former",
+        "mohammed's",
+        "thus",
+        "wicked",
+        "understand",
+        "believed",
+        "near"
+      ],
+      "eigval_A": 1022.7221144900478,
+      "eigval_B": 1349.062227850374
+    },
+    {
+      "rank_A": 111,
+      "rank_B": 125,
+      "sim": 0.08740234375,
+      "A_tokens": [
+        "evil",
+        "art",
+        "body",
+        "hast",
+        "receive",
+        "received",
+        "cometh"
+      ],
+      "B_tokens": [
+        "think",
+        "years",
+        "taken",
+        "put",
+        "right",
+        "unbelievers",
+        "infidels"
+      ],
+      "eigval_A": 1017.9926362495827,
+      "eigval_B": 1763.04899378386
+    },
+    {
+      "rank_A": 112,
+      "rank_B": 117,
+      "sim": 0.113037109375,
+      "A_tokens": [
+        "art",
+        "receive",
+        "evil",
+        "body",
+        "hast",
+        "grace",
+        "cometh"
+      ],
+      "B_tokens": [
+        "saying",
+        "unbelievers",
+        "fire",
+        "without",
+        "years",
+        "answered",
+        "besides"
+      ],
+      "eigval_A": 1010.2955793567551,
+      "eigval_B": 1831.0456291151918
+    },
+    {
+      "rank_A": 113,
+      "rank_B": 175,
+      "sim": 0.08984375,
+      "A_tokens": [
+        "received",
+        "grace",
+        "according",
+        "body",
+        "receive",
+        "written",
+        "works"
+      ],
+      "B_tokens": [
+        "near",
+        "reason",
+        "about",
+        "mohammed's",
+        "wicked",
+        "former",
+        "believed"
+      ],
+      "eigval_A": 1007.8530240532034,
+      "eigval_B": 1355.3347236941024
+    },
+    {
+      "rank_A": 114,
+      "rank_B": 165,
+      "sim": 0.09765625,
+      "A_tokens": [
+        "receive",
+        "grace",
+        "received",
+        "evil",
+        "according",
+        "art",
+        "written"
+      ],
+      "B_tokens": [
+        "account",
+        "until",
+        "set",
+        "number",
+        "received",
+        "believed",
+        "resurrection"
+      ],
+      "eigval_A": 1004.2178118227229,
+      "eigval_B": 1427.56007563098
+    },
+    {
+      "rank_A": 115,
+      "rank_B": 159,
+      "sim": 0.11279296875,
+      "A_tokens": [
+        "body",
+        "received",
+        "receive",
+        "believe",
+        "evil",
+        "grace",
+        "gave"
+      ],
+      "B_tokens": [
+        "cause",
+        "manner",
+        "de",
+        "mercy",
+        "towards",
+        "until",
+        "three"
+      ],
+      "eigval_A": 993.4540179891907,
+      "eigval_B": 1480.3068904040463
+    },
+    {
+      "rank_A": 116,
+      "rank_B": 10,
+      "sim": 0.10546875,
+      "A_tokens": [
+        "cometh",
+        "body",
+        "believe",
+        "received",
+        "over",
+        "receive",
+        "grace"
+      ],
+      "B_tokens": [
+        "day",
+        "other",
+        "into",
+        "verily",
+        "before",
+        "last",
+        "mohammed"
+      ],
+      "eigval_A": 980.3319190861781,
+      "eigval_B": 6413.417003334944
+    },
+    {
+      "rank_A": 117,
+      "rank_B": 158,
+      "sim": 0.087158203125,
+      "A_tokens": [
+        "over",
+        "believe",
+        "body",
+        "brother",
+        "thing",
+        "cometh",
+        "according"
+      ],
+      "B_tokens": [
+        "manner",
+        "cause",
+        "three",
+        "however",
+        "call",
+        "till",
+        "brought"
+      ],
+      "eigval_A": 967.5549363605677,
+      "eigval_B": 1490.4834486391853
+    },
+    {
+      "rank_A": 118,
+      "rank_B": 79,
+      "sim": 0.081787109375,
+      "A_tokens": [
+        "believe",
+        "verily",
+        "cometh",
+        "truth",
+        "brother",
+        "receive",
+        "works"
+      ],
+      "B_tokens": [
+        "wherefore",
+        "believers",
+        "merciful",
+        "concerning",
+        "fear",
+        "jallalo'ddin",
+        "know"
+      ],
+      "eigval_A": 956.8528880899905,
+      "eigval_B": 2390.871260173646
+    },
+    {
+      "rank_A": 119,
+      "rank_B": 193,
+      "sim": 0.07666015625,
+      "A_tokens": [
+        "over",
+        "thing",
+        "brother",
+        "found",
+        "body",
+        "pass",
+        "believe"
+      ],
+      "B_tokens": [
+        "divine",
+        "medina",
+        "whole",
+        "prophets",
+        "present",
+        "disc",
+        "prelim"
+      ],
+      "eigval_A": 953.5240720147114,
+      "eigval_B": 1244.6969588095278
+    },
+    {
+      "rank_A": 120,
+      "rank_B": 154,
+      "sim": 0.076416015625,
+      "A_tokens": [
+        "brother",
+        "thing",
+        "over",
+        "verily",
+        "nothing",
+        "believe",
+        "cometh"
+      ],
+      "B_tokens": [
+        "night",
+        "towards",
+        "brought",
+        "three",
+        "till",
+        "resurrection",
+        "women"
+      ],
+      "eigval_A": 949.6283460482622,
+      "eigval_B": 1515.3735614874245
+    },
+    {
+      "rank_A": 121,
+      "rank_B": 176,
+      "sim": 0.05908203125,
+      "A_tokens": [
+        "verily",
+        "brother",
+        "pass",
+        "believe",
+        "found",
+        "nothing",
+        "works"
+      ],
+      "B_tokens": [
+        "mohammed's",
+        "about",
+        "former",
+        "under",
+        "koreish",
+        "gave",
+        "near"
+      ],
+      "eigval_A": 941.4296067498706,
+      "eigval_B": 1351.7516612494496
+    },
+    {
+      "rank_A": 122,
+      "rank_B": 173,
+      "sim": 0.062744140625,
+      "A_tokens": [
+        "brother",
+        "pass",
+        "thing",
+        "works",
+        "nothing",
+        "found",
+        "nor"
+      ],
+      "B_tokens": [
+        "believed",
+        "understand",
+        "under",
+        "former",
+        "am",
+        "wicked",
+        "reason"
+      ],
+      "eigval_A": 936.4333137077607,
+      "eigval_B": 1363.298174307226
+    },
+    {
+      "rank_A": 123,
+      "rank_B": 134,
+      "sim": 0.06640625,
+      "A_tokens": [
+        "found",
+        "pass",
+        "verily",
+        "voice",
+        "temple",
+        "truth",
+        "believe"
+      ],
+      "B_tokens": [
+        "evil",
+        "put",
+        "commentators",
+        "afterwards",
+        "knoweth",
+        "infidels",
+        "opinion"
+      ],
+      "eigval_A": 925.5887616871622,
+      "eigval_B": 1687.2829859498777
+    },
+    {
+      "rank_A": 124,
+      "rank_B": 162,
+      "sim": 0.07275390625,
+      "A_tokens": [
+        "voice",
+        "nothing",
+        "nor",
+        "truth",
+        "pass",
+        "temple",
+        "chief"
+      ],
+      "B_tokens": [
+        "received",
+        "mercy",
+        "until",
+        "cause",
+        "set",
+        "towards",
+        "de"
+      ],
+      "eigval_A": 921.1972726489224,
+      "eigval_B": 1447.8003418625665
+    },
+    {
+      "rank_A": 125,
+      "rank_B": 163,
+      "sim": 0.0498046875,
+      "A_tokens": [
+        "nothing",
+        "voice",
+        "truth",
+        "thing",
+        "verily",
+        "chief",
+        "found"
+      ],
+      "B_tokens": [
+        "number",
+        "received",
+        "account",
+        "mercy",
+        "until",
+        "art",
+        "set"
+      ],
+      "eigval_A": 914.1510589504082,
+      "eigval_B": 1437.3491780331196
+    },
+    {
+      "rank_A": 126,
+      "rank_B": 84,
+      "sim": 0.076416015625,
+      "A_tokens": [
+        "works",
+        "pass",
+        "temple",
+        "truth",
+        "found",
+        "verily",
+        "chief"
+      ],
+      "B_tokens": [
+        "know",
+        "believers",
+        "concerning",
+        "thereof",
+        "called",
+        "well",
+        "angels"
+      ],
+      "eigval_A": 912.3566244076227,
+      "eigval_B": 2318.816570068484
+    },
+    {
+      "rank_A": 127,
+      "rank_B": 133,
+      "sim": 0.056884765625,
+      "A_tokens": [
+        "nor",
+        "truth",
+        "works",
+        "nothing",
+        "found",
+        "temple",
+        "body"
+      ],
+      "B_tokens": [
+        "afterwards",
+        "evil",
+        "knoweth",
+        "right",
+        "world",
+        "put",
+        "infidels"
+      ],
+      "eigval_A": 908.5639777630402,
+      "eigval_B": 1694.6050762841774
+    },
+    {
+      "rank_A": 128,
+      "rank_B": 96,
+      "sim": 0.048583984375,
+      "A_tokens": [
+        "nor",
+        "works",
+        "truth",
+        "pass",
+        "nothing",
+        "verily",
+        "temple"
+      ],
+      "B_tokens": [
+        "except",
+        "word",
+        "things",
+        "created",
+        "mohammedans",
+        "like",
+        "book"
+      ],
+      "eigval_A": 907.7121856839165,
+      "eigval_B": 2109.2200548055607
+    },
+    {
+      "rank_A": 129,
+      "rank_B": 93,
+      "sim": 0.065185546875,
+      "A_tokens": [
+        "chief",
+        "temple",
+        "works",
+        "voice",
+        "found",
+        "nor",
+        "priests"
+      ],
+      "B_tokens": [
+        "nor",
+        "mohammedans",
+        "way",
+        "things",
+        "like",
+        "except",
+        "word"
+      ],
+      "eigval_A": 905.5389427407424,
+      "eigval_B": 2156.8426198637417
+    },
+    {
+      "rank_A": 130,
+      "rank_B": 14,
+      "sim": 0.0751953125,
+      "A_tokens": [
+        "chief",
+        "temple",
+        "works",
+        "truth",
+        "priests",
+        "peace",
+        "believe"
+      ],
+      "B_tokens": [
+        "beid",
+        "wi",
+        "verily",
+        "chapter",
+        "idem",
+        "see",
+        "prelim"
+      ],
+      "eigval_A": 890.8348242021094,
+      "eigval_B": 5673.804152669631
+    },
+    {
+      "rank_A": 131,
+      "rank_B": 86,
+      "sim": 0.081787109375,
+      "A_tokens": [
+        "peace",
+        "whosoever",
+        "hands",
+        "chief",
+        "temple",
+        "place",
+        "gospel"
+      ],
+      "B_tokens": [
+        "well",
+        "apostle",
+        "believers",
+        "thereof",
+        "angels",
+        "fear",
+        "sect"
+      ],
+      "eigval_A": 872.7053908556181,
+      "eigval_B": 2251.8600649133637
+    },
+    {
+      "rank_A": 132,
+      "rank_B": 81,
+      "sim": 0.063720703125,
+      "A_tokens": [
+        "peace",
+        "hands",
+        "gospel",
+        "whosoever",
+        "heart",
+        "grace",
+        "truth"
+      ],
+      "B_tokens": [
+        "called",
+        "concerning",
+        "know",
+        "jallalo'ddin",
+        "believers",
+        "place",
+        "idem"
+      ],
+      "eigval_A": 861.8721864097495,
+      "eigval_B": 2353.7098550046157
+    },
+    {
+      "rank_A": 133,
+      "rank_B": 42,
+      "sim": 0.071533203125,
+      "A_tokens": [
+        "whosoever",
+        "hands",
+        "sin",
+        "gospel",
+        "wherefore",
+        "temple",
+        "receive"
+      ],
+      "B_tokens": [
+        "words",
+        "two",
+        "revealed",
+        "out",
+        "made",
+        "down",
+        "her"
+      ],
+      "eigval_A": 849.3621255054592,
+      "eigval_B": 3507.8066197363564
+    },
+    {
+      "rank_A": 134,
+      "rank_B": 157,
+      "sim": 0.011474609375,
+      "A_tokens": [
+        "hands",
+        "gospel",
+        "place",
+        "whosoever",
+        "sin",
+        "ghost",
+        "temple"
+      ],
+      "B_tokens": [
+        "three",
+        "however",
+        "cause",
+        "towards",
+        "call",
+        "night",
+        "brought"
+      ],
+      "eigval_A": 844.3929869448526,
+      "eigval_B": 1497.9580384914236
+    },
+    {
+      "rank_A": 135,
+      "rank_B": 90,
+      "sim": 0.089599609375,
+      "A_tokens": [
+        "gospel",
+        "place",
+        "heart",
+        "sin",
+        "wherefore",
+        "peace",
+        "whosoever"
+      ],
+      "B_tokens": [
+        "like",
+        "way",
+        "nor",
+        "sect",
+        "well",
+        "thereof",
+        "apostle"
+      ],
+      "eigval_A": 832.8883663868417,
+      "eigval_B": 2187.2524039504838
+    },
+    {
+      "rank_A": 136,
+      "rank_B": 88,
+      "sim": 0.101806640625,
+      "A_tokens": [
+        "heart",
+        "wherefore",
+        "place",
+        "gospel",
+        "shalt",
+        "themselves",
+        "hands"
+      ],
+      "B_tokens": [
+        "thereof",
+        "angels",
+        "way",
+        "well",
+        "apostle",
+        "believers",
+        "know"
+      ],
+      "eigval_A": 829.1028916557735,
+      "eigval_B": 2207.0472072333355
+    },
+    {
+      "rank_A": 137,
+      "rank_B": 180,
+      "sim": 0.091796875,
+      "A_tokens": [
+        "wherefore",
+        "sin",
+        "heart",
+        "whosoever",
+        "place",
+        "themselves",
+        "gospel"
+      ],
+      "B_tokens": [
+        "reason",
+        "about",
+        "near",
+        "mohammed's",
+        "former",
+        "wicked",
+        "understand"
+      ],
+      "eigval_A": 823.8297615160225,
+      "eigval_B": 1341.0609723055256
+    },
+    {
+      "rank_A": 138,
+      "rank_B": 34,
+      "sim": 0.087158203125,
+      "A_tokens": [
+        "place",
+        "sin",
+        "wherefore",
+        "gospel",
+        "righteousness",
+        "ghost",
+        "themselves"
+      ],
+      "B_tokens": [
+        "among",
+        "great",
+        "life",
+        "come",
+        "time",
+        "ebn",
+        "against"
+      ],
+      "eigval_A": 821.8446723518975,
+      "eigval_B": 3828.614639533787
+    },
+    {
+      "rank_A": 139,
+      "rank_B": 92,
+      "sim": 0.06884765625,
+      "A_tokens": [
+        "themselves",
+        "sin",
+        "righteousness",
+        "shalt",
+        "wherefore",
+        "whosoever",
+        "woman"
+      ],
+      "B_tokens": [
+        "sect",
+        "nor",
+        "mohammedans",
+        "angels",
+        "prelim",
+        "disc",
+        "word"
+      ],
+      "eigval_A": 806.5940828993131,
+      "eigval_B": 2176.11512825959
+    },
+    {
+      "rank_A": 140,
+      "rank_B": 36,
+      "sim": 0.0595703125,
+      "A_tokens": [
+        "themselves",
+        "woman",
+        "while",
+        "righteousness",
+        "gentiles",
+        "wherefore",
+        "ghost"
+      ],
+      "B_tokens": [
+        "ebn",
+        "down",
+        "come",
+        "among",
+        "great",
+        "life",
+        "part"
+      ],
+      "eigval_A": 799.1265540496007,
+      "eigval_B": 3769.3245917062773
+    },
+    {
+      "rank_A": 141,
+      "rank_B": 91,
+      "sim": 0.093505859375,
+      "A_tokens": [
+        "woman",
+        "blood",
+        "themselves",
+        "while",
+        "shalt",
+        "angel",
+        "gentiles"
+      ],
+      "B_tokens": [
+        "nor",
+        "sect",
+        "like",
+        "angels",
+        "prelim",
+        "disc",
+        "well"
+      ],
+      "eigval_A": 792.8178010909232,
+      "eigval_B": 2180.7059026570946
+    },
+    {
+      "rank_A": 142,
+      "rank_B": 87,
+      "sim": 0.114990234375,
+      "A_tokens": [
+        "angel",
+        "blood",
+        "sea",
+        "shalt",
+        "while",
+        "gospel",
+        "voice"
+      ],
+      "B_tokens": [
+        "well",
+        "thereof",
+        "way",
+        "believers",
+        "mohammedans",
+        "apostle",
+        "like"
+      ],
+      "eigval_A": 784.3416224803906,
+      "eigval_B": 2229.6103439694853
+    },
+    {
+      "rank_A": 143,
+      "rank_B": 32,
+      "sim": 0.045654296875,
+      "A_tokens": [
+        "while",
+        "words",
+        "shalt",
+        "blood",
+        "seen",
+        "righteousness",
+        "little"
+      ],
+      "B_tokens": [
+        "time",
+        "man",
+        "vide",
+        "idem",
+        "life",
+        "part",
+        "come"
+      ],
+      "eigval_A": 779.7406904966523,
+      "eigval_B": 3911.988551996691
+    },
+    {
+      "rank_A": 144,
+      "rank_B": 31,
+      "sim": 0.04736328125,
+      "A_tokens": [
+        "shalt",
+        "while",
+        "themselves",
+        "words",
+        "blood",
+        "little",
+        "righteousness"
+      ],
+      "B_tokens": [
+        "vide",
+        "man",
+        "part",
+        "idem",
+        "time",
+        "ebn",
+        "kor"
+      ],
+      "eigval_A": 779.560139230458,
+      "eigval_B": 3932.4098829915383
+    },
+    {
+      "rank_A": 145,
+      "rank_B": 192,
+      "sim": 0.046142578125,
+      "A_tokens": [
+        "blood",
+        "ghost",
+        "sea",
+        "words",
+        "gentiles",
+        "woman",
+        "righteousness"
+      ],
+      "B_tokens": [
+        "medina",
+        "year",
+        "use",
+        "koreish",
+        "divine",
+        "disc",
+        "prophets"
+      ],
+      "eigval_A": 770.8245473051338,
+      "eigval_B": 1251.8616171538201
+    },
+    {
+      "rank_A": 146,
+      "rank_B": 186,
+      "sim": 0.086181640625,
+      "A_tokens": [
+        "words",
+        "ghost",
+        "gentiles",
+        "shalt",
+        "while",
+        "seen",
+        "spoken"
+      ],
+      "B_tokens": [
+        "prayer",
+        "follow",
+        "koreish",
+        "turn",
+        "thus",
+        "directed",
+        "am"
+      ],
+      "eigval_A": 769.0970697811445,
+      "eigval_B": 1298.9357998675955
+    },
+    {
+      "rank_A": 147,
+      "rank_B": 45,
+      "sim": 0.044921875,
+      "A_tokens": [
+        "gentiles",
+        "blood",
+        "ghost",
+        "angel",
+        "believed",
+        "woman",
+        "seen"
+      ],
+      "B_tokens": [
+        "vide",
+        "idem",
+        "jallalo'ddin",
+        "prophet",
+        "made",
+        "beid",
+        "wi"
+      ],
+      "eigval_A": 767.6462151247088,
+      "eigval_B": 3356.7842101674582
+    },
+    {
+      "rank_A": 148,
+      "rank_B": 195,
+      "sim": 0.056396484375,
+      "A_tokens": [
+        "seen",
+        "gentiles",
+        "ghost",
+        "words",
+        "believed",
+        "righteousness",
+        "sat"
+      ],
+      "B_tokens": [
+        "whole",
+        "disc",
+        "prelim",
+        "prophets",
+        "ibid",
+        "de",
+        "divine"
+      ],
+      "eigval_A": 763.0235578918381,
+      "eigval_B": 1230.1551201091572
+    },
+    {
+      "rank_A": 149,
+      "rank_B": 33,
+      "sim": -0.010009765625,
+      "A_tokens": [
+        "sat",
+        "sea",
+        "blood",
+        "believed",
+        "like",
+        "woman",
+        "righteousness"
+      ],
+      "B_tokens": [
+        "part",
+        "vide",
+        "idem",
+        "come",
+        "among",
+        "kor",
+        "life"
+      ],
+      "eigval_A": 758.4562716569961,
+      "eigval_B": 3885.057766888997
+    },
+    {
+      "rank_A": 150,
+      "rank_B": 184,
+      "sim": 0.072998046875,
+      "A_tokens": [
+        "righteousness",
+        "sea",
+        "words",
+        "ghost",
+        "believed",
+        "seen",
+        "sat"
+      ],
+      "B_tokens": [
+        "follow",
+        "turn",
+        "prayer",
+        "wicked",
+        "thus",
+        "koreish",
+        "present"
+      ],
+      "eigval_A": 753.4833719090459,
+      "eigval_B": 1307.5241542944918
+    },
+    {
+      "rank_A": 151,
+      "rank_B": 198,
+      "sim": 0.04541015625,
+      "A_tokens": [
+        "sea",
+        "righteousness",
+        "sat",
+        "like",
+        "multitude",
+        "seen",
+        "angel"
+      ],
+      "B_tokens": [
+        "verses",
+        "entitled",
+        "merciful",
+        "name",
+        "revealed",
+        "medina",
+        "chapter"
+      ],
+      "eigval_A": 747.8420506640294,
+      "eigval_B": 780.3768134995428
+    },
+    {
+      "rank_A": 152,
+      "rank_B": 185,
+      "sim": 0.105224609375,
+      "A_tokens": [
+        "believed",
+        "whole",
+        "righteousness",
+        "sea",
+        "like",
+        "blood",
+        "seen"
+      ],
+      "B_tokens": [
+        "turn",
+        "prayer",
+        "follow",
+        "koreish",
+        "different",
+        "directed",
+        "gave"
+      ],
+      "eigval_A": 744.5959561063453,
+      "eigval_B": 1305.568758294087
+    },
+    {
+      "rank_A": 153,
+      "rank_B": 22,
+      "sim": 0.002685546875,
+      "A_tokens": [
+        "whole",
+        "believed",
+        "light",
+        "like",
+        "multitude",
+        "sat",
+        "righteousness"
+      ],
+      "B_tokens": [
+        "idem",
+        "wi",
+        "beid",
+        "chapter",
+        "true",
+        "vide",
+        "others"
+      ],
+      "eigval_A": 738.9998053239017,
+      "eigval_B": 4520.528773221286
+    },
+    {
+      "rank_A": 154,
+      "rank_B": 103,
+      "sim": 0.091552734375,
+      "A_tokens": [
+        "like",
+        "spoken",
+        "believed",
+        "righteousness",
+        "sea",
+        "sat",
+        "seen"
+      ],
+      "B_tokens": [
+        "god's",
+        "forth",
+        "created",
+        "book",
+        "last",
+        "things",
+        "paradise"
+      ],
+      "eigval_A": 733.2904350962632,
+      "eigval_B": 1986.9341094822278
+    },
+    {
+      "rank_A": 155,
+      "rank_B": 191,
+      "sim": 0.03125,
+      "A_tokens": [
+        "stood",
+        "mother",
+        "like",
+        "spoken",
+        "wife",
+        "high",
+        "multitude"
+      ],
+      "B_tokens": [
+        "use",
+        "whole",
+        "medina",
+        "directed",
+        "year",
+        "follow",
+        "different"
+      ],
+      "eigval_A": 727.4039368544258,
+      "eigval_B": 1256.2963813765987
+    },
+    {
+      "rank_A": 156,
+      "rank_B": 18,
+      "sim": 0.041015625,
+      "A_tokens": [
+        "spoken",
+        "like",
+        "mother",
+        "prophets",
+        "righteousness",
+        "multitude",
+        "words"
+      ],
+      "B_tokens": [
+        "chapter",
+        "wi",
+        "beid",
+        "therefore",
+        "idem",
+        "revealed",
+        "see"
+      ],
+      "eigval_A": 725.1416779765052,
+      "eigval_B": 4765.634246031511
+    },
+    {
+      "rank_A": 157,
+      "rank_B": 196,
+      "sim": 0.031005859375,
+      "A_tokens": [
+        "mother",
+        "spoken",
+        "stood",
+        "believed",
+        "prophets",
+        "known",
+        "righteousness"
+      ],
+      "B_tokens": [
+        "prophets",
+        "medina",
+        "year",
+        "disc",
+        "prelim",
+        "de",
+        "ibid"
+      ],
+      "eigval_A": 723.8606957733837,
+      "eigval_B": 1226.439651441765
+    },
+    {
+      "rank_A": 158,
+      "rank_B": 177,
+      "sim": 0.030517578125,
+      "A_tokens": [
+        "mother",
+        "prophets",
+        "multitude",
+        "like",
+        "stood",
+        "known",
+        "lest"
+      ],
+      "B_tokens": [
+        "understand",
+        "wicked",
+        "am",
+        "thus",
+        "reason",
+        "wherein",
+        "believed"
+      ],
+      "eigval_A": 714.984873304059,
+      "eigval_B": 1349.8149345162662
+    },
+    {
+      "rank_A": 159,
+      "rank_B": 141,
+      "sim": 0.01416015625,
+      "A_tokens": [
+        "lest",
+        "light",
+        "whole",
+        "prophets",
+        "high",
+        "priest",
+        "spoken"
+      ],
+      "B_tokens": [
+        "abu",
+        "used",
+        "suppose",
+        "children",
+        "commentators",
+        "however",
+        "call"
+      ],
+      "eigval_A": 706.4833835226774,
+      "eigval_B": 1602.1498363940125
+    },
+    {
+      "rank_A": 160,
+      "rank_B": 189,
+      "sim": 0.09130859375,
+      "A_tokens": [
+        "high",
+        "priest",
+        "multitude",
+        "lest",
+        "stood",
+        "pharisees",
+        "like"
+      ],
+      "B_tokens": [
+        "present",
+        "koreish",
+        "different",
+        "year",
+        "tribe",
+        "turn",
+        "divine"
+      ],
+      "eigval_A": 704.2205448985054,
+      "eigval_B": 1280.5103873856333
+    },
+    {
+      "rank_A": 161,
+      "rank_B": 194,
+      "sim": 0.068359375,
+      "A_tokens": [
+        "multitude",
+        "prophets",
+        "lest",
+        "pharisees",
+        "sea",
+        "whole",
+        "hour"
+      ],
+      "B_tokens": [
+        "whole",
+        "medina",
+        "prophets",
+        "directed",
+        "disc",
+        "prelim",
+        "de"
+      ],
+      "eigval_A": 701.7258050138378,
+      "eigval_B": 1233.5199933381398
+    },
+    {
+      "rank_A": 162,
+      "rank_B": 182,
+      "sim": 0.0126953125,
+      "A_tokens": [
+        "prophets",
+        "known",
+        "light",
+        "king",
+        "spoken",
+        "multitude",
+        "pharisees"
+      ],
+      "B_tokens": [
+        "gave",
+        "thus",
+        "am",
+        "about",
+        "wicked",
+        "reason",
+        "under"
+      ],
+      "eigval_A": 696.6261698346577,
+      "eigval_B": 1328.1489033320036
+    },
+    {
+      "rank_A": 163,
+      "rank_B": 168,
+      "sim": 0.077880859375,
+      "A_tokens": [
+        "light",
+        "known",
+        "lest",
+        "pharisees",
+        "king",
+        "under",
+        "whole"
+      ],
+      "B_tokens": [
+        "tribe",
+        "art",
+        "koreish",
+        "set",
+        "water",
+        "near",
+        "mohammed's"
+      ],
+      "eigval_A": 693.7431272482966,
+      "eigval_B": 1403.587771709605
+    },
+    {
+      "rank_A": 164,
+      "rank_B": 167,
+      "sim": 0.063232421875,
+      "A_tokens": [
+        "king",
+        "known",
+        "priests",
+        "departed",
+        "sat",
+        "set",
+        "ever"
+      ],
+      "B_tokens": [
+        "abraham",
+        "art",
+        "tribe",
+        "mercy",
+        "set",
+        "water",
+        "account"
+      ],
+      "eigval_A": 690.2412332267512,
+      "eigval_B": 1407.3112032756305
+    },
+    {
+      "rank_A": 165,
+      "rank_B": 179,
+      "sim": 0.04052734375,
+      "A_tokens": [
+        "hour",
+        "known",
+        "pharisees",
+        "king",
+        "prophets",
+        "under",
+        "fear"
+      ],
+      "B_tokens": [
+        "thus",
+        "wicked",
+        "reason",
+        "former",
+        "believed",
+        "about",
+        "mohammed's"
+      ],
+      "eigval_A": 686.2499701985485,
+      "eigval_B": 1344.2491590760935
+    },
+    {
+      "rank_A": 166,
+      "rank_B": 108,
+      "sim": 0.027587890625,
+      "A_tokens": [
+        "pharisees",
+        "hour",
+        "known",
+        "king",
+        "departed",
+        "multitude",
+        "priests"
+      ],
+      "B_tokens": [
+        "prelim",
+        "disc",
+        "last",
+        "sect",
+        "person",
+        "reward",
+        "viz"
+      ],
+      "eigval_A": 683.196219353805,
+      "eigval_B": 1929.3216742650989
+    },
+    {
+      "rank_A": 167,
+      "rank_B": 197,
+      "sim": 0.063720703125,
+      "A_tokens": [
+        "departed",
+        "pharisees",
+        "known",
+        "under",
+        "sins",
+        "fell",
+        "light"
+      ],
+      "B_tokens": [
+        "year",
+        "medina",
+        "prophets",
+        "directed",
+        "koreish",
+        "follow",
+        "whole"
+      ],
+      "eigval_A": 675.563990712243,
+      "eigval_B": 1200.3922240707248
+    },
+    {
+      "rank_A": 168,
+      "rank_B": 183,
+      "sim": 0.056640625,
+      "A_tokens": [
+        "laid",
+        "under",
+        "set",
+        "departed",
+        "pharisees",
+        "hour",
+        "wife"
+      ],
+      "B_tokens": [
+        "gave",
+        "thus",
+        "wicked",
+        "koreish",
+        "reason",
+        "understand",
+        "former"
+      ],
+      "eigval_A": 672.7715725427707,
+      "eigval_B": 1324.6233036400697
+    },
+    {
+      "rank_A": 169,
+      "rank_B": 6,
+      "sim": 0.02001953125,
+      "A_tokens": [
+        "set",
+        "under",
+        "laid",
+        "seven",
+        "wife",
+        "tell",
+        "fear"
+      ],
+      "B_tokens": [
+        "see",
+        "one",
+        "chapter",
+        "al",
+        "mohammed",
+        "lord",
+        "other"
+      ],
+      "eigval_A": 671.6420982926367,
+      "eigval_B": 8704.932611487442
+    },
+    {
+      "rank_A": 170,
+      "rank_B": 187,
+      "sim": 0.044677734375,
+      "A_tokens": [
+        "seven",
+        "wife",
+        "departed",
+        "angels",
+        "fell",
+        "bring",
+        "tell"
+      ],
+      "B_tokens": [
+        "different",
+        "koreish",
+        "tribe",
+        "year",
+        "present",
+        "follow",
+        "mohammed's"
+      ],
+      "eigval_A": 668.7418477625839,
+      "eigval_B": 1287.9529324489356
+    },
+    {
+      "rank_A": 171,
+      "rank_B": 119,
+      "sim": 0.0595703125,
+      "A_tokens": [
+        "fell",
+        "laid",
+        "seven",
+        "ever",
+        "under",
+        "departed",
+        "angels"
+      ],
+      "B_tokens": [
+        "without",
+        "faith",
+        "unbelievers",
+        "over",
+        "think",
+        "saying",
+        "fire"
+      ],
+      "eigval_A": 666.0509098882219,
+      "eigval_B": 1814.0267684570126
+    },
+    {
+      "rank_A": 172,
+      "rank_B": 172,
+      "sim": 0.064208984375,
+      "A_tokens": [
+        "bring",
+        "set",
+        "laid",
+        "under",
+        "tell",
+        "departed",
+        "little"
+      ],
+      "B_tokens": [
+        "believed",
+        "water",
+        "wherein",
+        "under",
+        "understand",
+        "near",
+        "about"
+      ],
+      "eigval_A": 663.0671203137447,
+      "eigval_B": 1373.5154797306918
+    },
+    {
+      "rank_A": 173,
+      "rank_B": 151,
+      "sim": 0.02783203125,
+      "A_tokens": [
+        "tell",
+        "ever",
+        "under",
+        "laid",
+        "fear",
+        "fell",
+        "bring"
+      ],
+      "B_tokens": [
+        "call",
+        "resurrection",
+        "brought",
+        "towards",
+        "whether",
+        "till",
+        "law"
+      ],
+      "eigval_A": 660.9596472632945,
+      "eigval_B": 1523.9045568540282
+    },
+    {
+      "rank_A": 174,
+      "rank_B": 166,
+      "sim": 0.068115234375,
+      "A_tokens": [
+        "bring",
+        "set",
+        "under",
+        "tell",
+        "must",
+        "sins",
+        "servant"
+      ],
+      "B_tokens": [
+        "set",
+        "account",
+        "art",
+        "number",
+        "cause",
+        "mercy",
+        "water"
+      ],
+      "eigval_A": 659.007162928508,
+      "eigval_B": 1419.984212064335
+    },
+    {
+      "rank_A": 175,
+      "rank_B": 190,
+      "sim": 0.04052734375,
+      "A_tokens": [
+        "fear",
+        "tell",
+        "must",
+        "laid",
+        "departed",
+        "fire",
+        "yourselves"
+      ],
+      "B_tokens": [
+        "directed",
+        "present",
+        "year",
+        "use",
+        "different",
+        "disc",
+        "follow"
+      ],
+      "eigval_A": 657.1973737062696,
+      "eigval_B": 1271.429752372903
+    },
+    {
+      "rank_A": 176,
+      "rank_B": 95,
+      "sim": 0.004638671875,
+      "A_tokens": [
+        "must",
+        "fear",
+        "ever",
+        "servant",
+        "set",
+        "little",
+        "laid"
+      ],
+      "B_tokens": [
+        "things",
+        "word",
+        "created",
+        "nor",
+        "reward",
+        "book",
+        "know"
+      ],
+      "eigval_A": 655.1898620771648,
+      "eigval_B": 2120.8998967867183
+    },
+    {
+      "rank_A": 177,
+      "rank_B": 101,
+      "sim": 0.072509765625,
+      "A_tokens": [
+        "sins",
+        "little",
+        "bring",
+        "tell",
+        "fire",
+        "fell",
+        "must"
+      ],
+      "B_tokens": [
+        "reward",
+        "created",
+        "son",
+        "paradise",
+        "forth",
+        "things",
+        "came"
+      ],
+      "eigval_A": 653.6031184865767,
+      "eigval_B": 2028.3256243863632
+    },
+    {
+      "rank_A": 178,
+      "rank_B": 76,
+      "sim": 0.026611328125,
+      "A_tokens": [
+        "ever",
+        "wife",
+        "angels",
+        "tell",
+        "seven",
+        "fell",
+        "priests"
+      ],
+      "B_tokens": [
+        "fear",
+        "between",
+        "jews",
+        "make",
+        "wherefore",
+        "take",
+        "merciful"
+      ],
+      "eigval_A": 651.0600902894548,
+      "eigval_B": 2493.763302290959
+    },
+    {
+      "rank_A": 179,
+      "rank_B": 122,
+      "sim": 0.03955078125,
+      "A_tokens": [
+        "fell",
+        "ever",
+        "little",
+        "fear",
+        "wife",
+        "sins",
+        "though"
+      ],
+      "B_tokens": [
+        "entitled",
+        "besides",
+        "verses",
+        "over",
+        "taken",
+        "fire",
+        "think"
+      ],
+      "eigval_A": 647.7325582243211,
+      "eigval_B": 1783.5269436851927
+    },
+    {
+      "rank_A": 180,
+      "rank_B": 75,
+      "sim": 0.0458984375,
+      "A_tokens": [
+        "wife",
+        "fire",
+        "angels",
+        "little",
+        "sins",
+        "fear",
+        "ever"
+      ],
+      "B_tokens": [
+        "take",
+        "fear",
+        "make",
+        "between",
+        "jews",
+        "wherefore",
+        "concerning"
+      ],
+      "eigval_A": 646.3480759461985,
+      "eigval_B": 2499.222041659818
+    },
+    {
+      "rank_A": 181,
+      "rank_B": 181,
+      "sim": 0.035888671875,
+      "A_tokens": [
+        "servant",
+        "fire",
+        "sins",
+        "yourselves",
+        "priests",
+        "tell",
+        "under"
+      ],
+      "B_tokens": [
+        "am",
+        "about",
+        "wicked",
+        "gave",
+        "under",
+        "mohammed's",
+        "follow"
+      ],
+      "eigval_A": 644.5537369032589,
+      "eigval_B": 1335.1212000547116
+    },
+    {
+      "rank_A": 182,
+      "rank_B": 89,
+      "sim": 0.032958984375,
+      "A_tokens": [
+        "blessed",
+        "servant",
+        "priests",
+        "fire",
+        "moses",
+        "wife",
+        "yourselves"
+      ],
+      "B_tokens": [
+        "angels",
+        "way",
+        "like",
+        "nor",
+        "thereof",
+        "things",
+        "sect"
+      ],
+      "eigval_A": 641.1977767545519,
+      "eigval_B": 2191.6140635161623
+    },
+    {
+      "rank_A": 183,
+      "rank_B": 110,
+      "sim": 0.07421875,
+      "A_tokens": [
+        "fire",
+        "yourselves",
+        "little",
+        "set",
+        "though",
+        "seven",
+        "wife"
+      ],
+      "B_tokens": [
+        "worship",
+        "arabs",
+        "now",
+        "besides",
+        "god's",
+        "saying",
+        "paradise"
+      ],
+      "eigval_A": 639.1772298901793,
+      "eigval_B": 1904.5636805939353
+    },
+    {
+      "rank_A": 184,
+      "rank_B": 164,
+      "sim": 0.043212890625,
+      "A_tokens": [
+        "though",
+        "yourselves",
+        "blessed",
+        "priests",
+        "little",
+        "sins",
+        "moses"
+      ],
+      "B_tokens": [
+        "until",
+        "received",
+        "account",
+        "number",
+        "mercy",
+        "set",
+        "however"
+      ],
+      "eigval_A": 635.990876957159,
+      "eigval_B": 1432.1850772767825
+    },
+    {
+      "rank_A": 185,
+      "rank_B": 65,
+      "sim": 0.10888671875,
+      "A_tokens": [
+        "blessed",
+        "yourselves",
+        "priests",
+        "fire",
+        "though",
+        "little",
+        "moses"
+      ],
+      "B_tokens": [
+        "upon",
+        "signs",
+        "therein",
+        "hell",
+        "yet",
+        "himself",
+        "make"
+      ],
+      "eigval_A": 632.9813490122712,
+      "eigval_B": 2633.3146749799657
+    },
+    {
+      "rank_A": 186,
+      "rank_B": 161,
+      "sim": 0.064208984375,
+      "A_tokens": [
+        "blessed",
+        "priests",
+        "though",
+        "servant",
+        "yourselves",
+        "chief",
+        "ever"
+      ],
+      "B_tokens": [
+        "mercy",
+        "number",
+        "manner",
+        "received",
+        "account",
+        "however",
+        "until"
+      ],
+      "eigval_A": 631.5933912470615,
+      "eigval_B": 1458.2040532529552
+    },
+    {
+      "rank_A": 187,
+      "rank_B": 64,
+      "sim": 0.1044921875,
+      "A_tokens": [
+        "moses",
+        "yourselves",
+        "little",
+        "blessed",
+        "though",
+        "fire",
+        "wife"
+      ],
+      "B_tokens": [
+        "yet",
+        "therein",
+        "upon",
+        "signs",
+        "hell",
+        "truth",
+        "though"
+      ],
+      "eigval_A": 630.0082533136459,
+      "eigval_B": 2650.5567448710744
+    },
+    {
+      "rank_A": 188,
+      "rank_B": 83,
+      "sim": 0.067626953125,
+      "A_tokens": [
+        "bread",
+        "feet",
+        "seven",
+        "judgment",
+        "though",
+        "israel",
+        "yourselves"
+      ],
+      "B_tokens": [
+        "apostle",
+        "believers",
+        "know",
+        "called",
+        "concerning",
+        "fear",
+        "jallalo'ddin"
+      ],
+      "eigval_A": 616.6120639873183,
+      "eigval_B": 2332.0895242217643
+    },
+    {
+      "rank_A": 189,
+      "rank_B": 4,
+      "sim": 0.041259765625,
+      "A_tokens": [
+        "angels",
+        "seven",
+        "bread",
+        "fire",
+        "blessed",
+        "israel",
+        "wife"
+      ],
+      "B_tokens": [
+        "al",
+        "see",
+        "beid",
+        "wi",
+        "ebn",
+        "idem",
+        "vide"
+      ],
+      "eigval_A": 612.9088779562408,
+      "eigval_B": 12121.920356064818
+    },
+    {
+      "rank_A": 190,
+      "rank_B": 80,
+      "sim": 0.016357421875,
+      "A_tokens": [
+        "thine",
+        "feet",
+        "judgment",
+        "eyes",
+        "simon",
+        "bread",
+        "fell"
+      ],
+      "B_tokens": [
+        "jallalo'ddin",
+        "concerning",
+        "place",
+        "idem",
+        "sect",
+        "beid",
+        "wi"
+      ],
+      "eigval_A": 606.2658015843889,
+      "eigval_B": 2369.822758234399
+    },
+    {
+      "rank_A": 191,
+      "rank_B": 126,
+      "sim": 0.009765625,
+      "A_tokens": [
+        "church",
+        "feet",
+        "thine",
+        "bread",
+        "israel",
+        "judgment",
+        "seven"
+      ],
+      "B_tokens": [
+        "years",
+        "taken",
+        "think",
+        "infidels",
+        "return",
+        "answered",
+        "over"
+      ],
+      "eigval_A": 602.6226328327035,
+      "eigval_B": 1754.8668291946178
+    },
+    {
+      "rank_A": 192,
+      "rank_B": 94,
+      "sim": 0.070068359375,
+      "A_tokens": [
+        "judgment",
+        "feet",
+        "church",
+        "simon",
+        "fell",
+        "eyes",
+        "fire"
+      ],
+      "B_tokens": [
+        "mohammedans",
+        "word",
+        "things",
+        "way",
+        "except",
+        "well",
+        "sect"
+      ],
+      "eigval_A": 598.576775082228,
+      "eigval_B": 2144.909171056279
+    },
+    {
+      "rank_A": 193,
+      "rank_B": 140,
+      "sim": 0.04541015625,
+      "A_tokens": [
+        "church",
+        "judgment",
+        "israel",
+        "thine",
+        "seven",
+        "feet",
+        "angels"
+      ],
+      "B_tokens": [
+        "ibid",
+        "de",
+        "used",
+        "abu",
+        "answer",
+        "power",
+        "judgment"
+      ],
+      "eigval_A": 596.3382063399415,
+      "eigval_B": 1605.5429662616227
+    },
+    {
+      "rank_A": 194,
+      "rank_B": 124,
+      "sim": 0.044677734375,
+      "A_tokens": [
+        "israel",
+        "feet",
+        "judgment",
+        "eyes",
+        "simon",
+        "thine",
+        "twelve"
+      ],
+      "B_tokens": [
+        "return",
+        "years",
+        "think",
+        "entitled",
+        "infidels",
+        "verses",
+        "knoweth"
+      ],
+      "eigval_A": 592.3823723981235,
+      "eigval_B": 1767.427646270518
+    },
+    {
+      "rank_A": 195,
+      "rank_B": 57,
+      "sim": 0.06787109375,
+      "A_tokens": [
+        "simon",
+        "israel",
+        "thine",
+        "church",
+        "feet",
+        "judgment",
+        "though"
+      ],
+      "B_tokens": [
+        "up",
+        "name",
+        "mecca",
+        "though",
+        "heaven",
+        "merciful",
+        "revealed"
+      ],
+      "eigval_A": 589.5416430304322,
+      "eigval_B": 3012.319414617242
+    },
+    {
+      "rank_A": 196,
+      "rank_B": 97,
+      "sim": 0.044921875,
+      "A_tokens": [
+        "eyes",
+        "thine",
+        "israel",
+        "church",
+        "fire",
+        "simon",
+        "judgment"
+      ],
+      "B_tokens": [
+        "except",
+        "book",
+        "word",
+        "created",
+        "reward",
+        "son",
+        "forth"
+      ],
+      "eigval_A": 582.0039807261101,
+      "eigval_B": 2087.3271877094085
+    },
+    {
+      "rank_A": 197,
+      "rank_B": 144,
+      "sim": 0.047607421875,
+      "A_tokens": [
+        "priest",
+        "high",
+        "priests",
+        "eyes",
+        "thine",
+        "church",
+        "feet"
+      ],
+      "B_tokens": [
+        "women",
+        "go",
+        "children",
+        "answer",
+        "whether",
+        "knowledge",
+        "abu"
+      ],
+      "eigval_A": 557.9471141559658,
+      "eigval_B": 1569.3801580174497
+    },
+    {
+      "rank_A": 198,
+      "rank_B": 56,
+      "sim": 0.066650390625,
+      "A_tokens": [
+        "twelve",
+        "israel",
+        "simon",
+        "multitude",
+        "eyes",
+        "thine",
+        "judgment"
+      ],
+      "B_tokens": [
+        "moses",
+        "up",
+        "name",
+        "punishment",
+        "though",
+        "mecca",
+        "good"
+      ],
+      "eigval_A": 505.2141365563211,
+      "eigval_B": 3033.43446158911
+    },
+    {
+      "rank_A": 199,
+      "rank_B": 29,
+      "sim": 0.15673828125,
+      "A_tokens": [
+        "hast",
+        "like",
+        "spirit",
+        "name",
+        "brother",
+        "made",
+        "come"
+      ],
+      "B_tokens": [
+        "against",
+        "part",
+        "come",
+        "man",
+        "down",
+        "religion",
+        "ebn"
+      ],
+      "eigval_A": -3.399142199782257e-13,
+      "eigval_B": 3965.1202339388865
+    }
+  ],
+  "verdict": "FIND-CASCADE WEAK \u2014 alignment slightly favors same-family; partial ITN"
+}

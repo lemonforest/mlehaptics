@@ -1,0 +1,37 @@
+# srmech_profile.toml — the `siona` profile (the un-mirror cut). Discovered via the `srmech.profiles`
+# entry-point; activated with `srmech.profile("siona")`. Bridge tier (pure-Python) + native tier (libsiona_native.so).
+profile_schema_version = "1.0"
+
+[profile]
+name            = "siona"
+version         = "0.1.0rc1"
+summary         = "Siona — grounded RBS-HDC recall instrument: de Bruijn fiber walk + full-body recall over a spectrally-encoded knowledge instrument, on srmech."
+package         = "siona"
+srmech_requires = ">=0.8.1"
+
+# Bridge surface — "name = module:callable"; the loader's smoke test imports each + checks it is callable.
+# NOTE: `board` is NOT a bridge surface — siona.boards.ENGLISH is a Board DATA constant, not a callable, so the
+# loader's callability smoke test rejected it and (pre-fix) the WHOLE profile failed to activate. The default board
+# is reachable as `siona.boards.ENGLISH` (data); nothing consumes it through the profile bridge. Bridge = callables only.
+[profile.bridge]
+walk    = "siona.bridge:walk"
+recall  = "siona.bridge:recall"
+session = "siona.infer:Session"
+
+# Native tier — Siona's OWN .so plugin. The loader locates libsiona_native.so via importlib.metadata.files("siona"),
+# calls abi_version_function and checks it against expected_abi_version, then binds the declared symbols; the lib is
+# then reachable as `srmech.profile("siona").native`. siona.<op> dispatches here when present, else the validated
+# pure-Python reference (siona._native, the has_native pattern). SCAFFOLD op = FNV-1a-64 content hash (the bytes->int
+# shape the tokenize/content-address hot-path needs); the heavy ports (tokenize / cooccurrence accumulator) follow.
+[profile.native]
+library              = "siona_native"     # -> libsiona_native.so / .dylib / .dll
+install_path         = "siona/_native"    # package-relative (informational; loader resolves via the files manifest)
+abi_version_function = "siona_native_abi_version"
+expected_abi_version = 1
+
+[profile.native.symbols]
+siona_native_fnv1a64 = "uint64(const unsigned char *, size_t)"
+siona_native_tokenize = "long(const unsigned char *, size_t, int32 *, size_t)"
+siona_native_cooccurrence_accumulate = "long(const int32 *, size_t, const int32 *, size_t, int, uint64 *, uint32 *, size_t)"
+siona_native_arena_compact = "long(const uint64 *, const uint32 *, size_t, int32 *, int32 *, uint32 *, size_t)"
+siona_native_cooccurrence_laplacian = "long(const int32 *, size_t, const int32 *, size_t, int, const int32 *, size_t, int32, double *)"

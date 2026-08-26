@@ -1,0 +1,43 @@
+{
+  "kernel": "K1_presence",
+  "vocab_size": 256,
+  "n_edges": 31252,
+  "K_eigvecs": 33,
+  "M_per_eigvec": 21,
+  "window": 5,
+  "eig_tail_top8": [
+    1499508.7966953036,
+    1252813.3004917894,
+    1150001.4345553461,
+    1106910.3615028667,
+    1053878.5417860087,
+    939425.7131585082,
+    822421.5808477335,
+    804792.5992052476
+  ],
+  "total_tokens": 35073072,
+  "unique_tokens": 1252024,
+  "tag": "simplewiki",
+  "top20_vocab": [
+    "km",
+    "american",
+    "his",
+    "people",
+    "other",
+    "new",
+    "first",
+    "united",
+    "linear",
+    "one",
+    "socorro",
+    "note",
+    "born",
+    "states",
+    "after",
+    "television",
+    "movies",
+    "september",
+    "world",
+    "births"
+  ]
+}

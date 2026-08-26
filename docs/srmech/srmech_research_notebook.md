@@ -8033,6 +8033,68 @@ Rebuilt in srmech from that stated rule — an element is `a + i·b` with `i` **
 
 ---
 
+## §3.58 The lane split found in a shipped encoding — and an observable that reads only half of it (2026-08-15; F1352 / F1353; MEASURED on srmech 0.9.0rc434)
+
+Two results here. The first is that the index/sign lane distinction turns up, unsought, in an encoding srmech already ships a reader for. The second is that a standard observable used across this project reads **only the index lane**, and on a cyclic topology that makes it actively misleading.
+
+### §3.58.1 The DNA base alphabet IS the index lane, literally
+
+The three classical base involutions are **exactly XOR on srmech's shipped `CODON_BASES` index**:
+
+| | | |
+|---|---|---|
+| XOR 1 | transition | U↔C, A↔G |
+| **XOR 2** | **complement** | **U↔A, C↔G — Watson–Crick pairing** |
+| XOR 3 | transversion | U↔G, C↔A |
+
+All three are involutions, they close with the identity, and they **commute** — `V₄ = (ℤ/2)²`, two 2-point loops (§F1348). **Watson–Crick complementarity is not *like* an XOR; it is the XOR of the base index.**
+
+And `codon_read` already enforces the other half: it applies `q8_project_v4` **first**, so the winding/sign bit cannot reach amino-acid identity. Measured across the whole table — **sign-lane blind on all 64 codons × 8 sign patterns (512/512)**. The docstring says why outright: *"the winding / center SIGN BIT must NOT leak into amino-acid identity."*
+
+**But the code is order-carrying, and the order is not in the alphabet.** Of 20 base multisets only **4** are order-blind — exactly the homogeneous ones, the four that *have* no order. `{U,C,A}` alone yields **six** different amino acids. So an operation is acting that is not among the values being acted on.
+
+Per position, and this refused the prediction made of it:
+
+| position | contexts blind to it |
+|---|---|
+| 1 | **0 of 16** |
+| 2 | **0 of 16** |
+| 3 | **8 of 16** |
+
+**Not a gradient — a 2 + 1 split.** Positions 1 and 2 tie at fully order-carrying; position 3 alone is half free, and it is exactly the wobble position. Three registers, only the first in the alphabet: **which base** (V₄) · **which way** (the Q₈ sign) · **where the frame starts** (ℤ₃, `codon_frame_monodromy`).
+
+### §3.58.2 Phase coherence is an index-lane read — the cnidarian ring proves it
+
+Calibrating `kuramoto_step(adjacency=…)` on an 8-cycle rather than an arbitrary all-to-all ensemble:
+
+| K | `r` | winding **q** | freq spread |
+|---|---|---|---|
+| 1.0 | 0.9246 | −0.0000 | 1.39e-06 |
+| **2.0** | **0.1872** | **+1.0000** | **2.25e-08** |
+| 3.0 | 0.9921 | +0.0000 | 0.00e+00 |
+
+> **At K = 2.0 the ring is perfectly frequency-locked and `r` says it is not.** Every oscillator at the same rate; the phases wind once around the cycle.
+
+The non-monotonicity in `r` (0.92 → **0.19** → 0.99) is not noise and not a failed lock — it is the twisted state between two untwisted ones, and it is what flagged the observable. **`r` averages the phases: order-blind, the index-lane read, structurally unable to see a twist.** The winding number is the sign-lane read — an **integer**, topological, and it does not come off.
+
+And the twist needs a **cycle**: the ring supports `q = +1`; the complete graph (28 edges) and the cut chain (7 edges) both give `q = 0`. **The twist is a property of the sparse cyclic topology** — the cheap one.
+
+**Carry this forward as a reading rule.** Anywhere this project reports a Kuramoto order parameter as evidence of coordination — §XIV.8's resonant-body work, F1183/F1184, F231/F234, the `kuramoto_step` examples — `r` alone is an **incomplete** read. On an all-to-all coupling it is adequate (no cycle to wind). On any sparse cyclic coupling it must be paired with a winding count, or a locked twisted state will be reported as disorder.
+
+### §3.58.3 Provenance, and three corrections against the run itself
+
+- **The first Kuramoto construction was degenerate and is recorded in the script rather than silently fixed.** Evenly-spaced phases + *linear* ω keeps the phase set an arithmetic progression forever; its order parameter is a Dirichlet kernel and **recurs to r = 1.0000 at t = 6 with ZERO coupling**. The reported "lock" was that artifact. The fix is a derived golden-ratio spread plus a control that the baseline stays incoherent at every horizon — `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`.
+- **The discipline ratchet rejected the first commit** for an `abs()`-based ring adjacency and was right: `abs(i−j)` is an ALU-shaped workaround for what is natively a **ℤ/N membership test**, `(i−j) % N ∈ {1, N−1}`. Rewritten as the cyclic-group statement; results bit-identical. A ring **is** ℤ/N, and writing it that way is not stylistic.
+- **A predicted gradient across codon positions was refused by the measurement** (2 + 1, not a slope). Recorded because the prediction is in the script's own prose.
+
+**Scope.** §3.58.1 is measured on the shipped attested table (NCBI `transl_table=1`), exact integers. §3.58.2 is a simulation of an **8-cycle**, not of any animal — no biological parameter was fitted, and the frequency spread is DERIVED, not measured. The biological framing (rhopalia count, ring arrangement, wobble tolerance) is **textbook-level, not MPM-attested**, and is a GAP; it selects the instrument, not the mathematics, which holds for any 8-cycle. Nothing here claims biology *uses* this structure — a shared free/paid seam is FORM, per `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`.
+
+**Provenance.** `docs/srmech/rbs_lm_research/R-RBS-LM-GENOMELANE_the_alphabet_is_the_index_lane_and_order_is_what_the_cell_pays_for.py` (33 checks) · findings **F1352**, **F1353**.
+
+**Cross-references.** §3.57 (the composition-law round this follows) · F1348 (split vs non-split 2-loops — the distinction this re-finds) · F1337 (the lane surface) · MFO §XIV.10 (the ontology side) · `codon_read` / `codon_frame_monodromy` / `q8_project_v4` in `srmech.biology`.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb

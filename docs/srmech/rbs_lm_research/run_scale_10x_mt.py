@@ -19,8 +19,7 @@ import json
 import sys
 import time
 from pathlib import Path
-
-import numpy as np
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 import torch
 
 sys.path.insert(0, "docs/srmech/python")
@@ -205,7 +204,7 @@ def main():
 
     overall = n_agree / n_total
     print(f"\n  Overall: {n_agree}/{n_total} ({100*overall:.1f}%)")
-    print(f"  Per-token latency: {np.mean(latencies):.1f} ± {np.std(latencies):.1f} ms")
+    print(f"  Per-token latency: {_nps.mean(latencies):.1f} ± {_nps.std(latencies):.1f} ms")
     print(f"  Latency w/ 16 torch threads vs prior 8-thread default: comparison in REPORT")
 
     print(f"\n=== Comparison across scales ===")
@@ -225,8 +224,8 @@ def main():
         "n_workers_encode": 8,
         "harvest_batch_size": 32,
         "overall_agreement_pct": 100 * overall,
-        "latency_ms_mean": float(np.mean(latencies)),
-        "latency_ms_std": float(np.std(latencies)),
+        "latency_ms_mean": float(_nps.mean(latencies)),
+        "latency_ms_std": float(_nps.std(latencies)),
         "per_prompt_results": per_prompt_results,
         "comparison": {
             "r_rbs_lm_5_76obs_pct": 0.0,

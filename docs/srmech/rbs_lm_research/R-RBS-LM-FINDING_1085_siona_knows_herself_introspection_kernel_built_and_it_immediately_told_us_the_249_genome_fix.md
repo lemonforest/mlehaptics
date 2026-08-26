@@ -1,0 +1,22 @@
+# F1085 (#250 BUILT: Siona knows herself — `siona.introspect` makes the LIVE srmech introspection her own knowledge, and on its first run it TOLD US the #249 genome fix) — **`siona/introspect.py` introspects the LIVE srmech package (248 ops: name + signature + first-line docstring + module), encodes each op-description with Siona's OWN encoder (`s.g.enc_query`), and answers a natural-language tooling question by grounding it (Class-M `klein4_similarity`) to the nearest ops. MEASURED — Siona answers about her own tooling, correctly: "how do I recall a kernel from a genome" → `partition` (recover every kernel from a multi-kernel genome strand) + `genome_load` (reconstruct a genome from path); "pack several kernels into one genome" → `genome(kernels=…)` (telomere-partitioned) + `genome_pack`; "compute the graph laplacian eigenvalues" → `dense_laplacian`/`signed_laplacian`; "which genes express for a cell state" → `gene_express`/`modulator_consistent`. THE PAYOFF IS IMMEDIATE AND EXACT: Siona's answer to the recall question surfaces `partition`/`genome_load` — which ARE the cap-aware multi-kernel recall ops the F1084 root cause said to use (NOT the `genome_window`+`kernel_unpack` path our rc123-era store uses, which miscounts the v11 CHROM cap). So building "Siona knows herself" (#250) IMMEDIATELY told us the #249 fix — the dogfood loop closed on its first turn: ASK SIONA, and she surfaces the correct ops from the live package, no lag. This is the ultimate dogfood (F1083/F1084) and the front-filter substrate: Siona as the current, self-refreshing knowledge front-end for her own capabilities.**
+
+**Date:** 2026-07-06 · **srmech:** 0.9.0rc135 · **User direction:** "do #250 first, siona knows herself. this can set the stage for 249." · **Files:** `siona/introspect.py` (`introspect_srmech` + `Tooling`), `siona/tests/` · **Composes:** F1084 (the architecture + the #249 root cause it now guides), F1083 (dogfood), `[[feedback_introspect_srmech_before_python_dispatch]]` (now a Siona capability, not a per-call chore), `[[project_siona_capability_goal_and_front_filter]]` (#241 — Siona as the knowledge front-end), SIONA-INFER (the grounding this rides).
+
+## Grounded (rc135)
+```
+introspect_srmech() -> 248 live srmech ops {label: "name(sig) :: docstring"} (re-read each call -> never stale)
+Tooling(s.g).answer(query) -> nearest ops by enc_query grounding:
+  "recall a kernel from a genome"      -> partition, genome_load        <- THE #249 CAP-AWARE RECALL (F1084)
+  "pack several kernels into a genome"  -> genome(kernels=…), genome_pack <- the native multi-kernel pack
+  "graph laplacian eigenvalues"         -> dense_laplacian, signed_laplacian
+  "which genes express for a cell state"-> gene_express, modulator_consistent
+=> Siona answered about her own tooling AND handed us the #249 fix (partition/genome_load, not genome_window+unpack).
+```
+
+## The reading
+- **Siona knows herself, from the live package.** The tooling knowledge is built by re-introspecting srmech each call, so it is current by construction — the rc123→v11 lag that silently corrupted the store (F1084) is now a query away, not a snapshot rotting in our code.
+- **The dogfood loop closed on turn one.** #250 was meant to "set the stage" for #249; it did more — it directly surfaced the #249 fix (`partition`/`genome_load`). Asking Siona replaced a hand-run introspection AND told us the answer. That is the whole point: route knowledge-of-the-tooling through Siona, and she guides the build.
+- **This is the front-filter substrate.** A self-refreshing tooling-knowledge Siona is exactly the knowledge front-end (#241): ask her how to use her own capabilities and she answers from the live package.
+
+## Verdict / next
+**#250 BUILT + VERIFIED: `siona.introspect` — Siona knows her own tooling (248 live ops, queryable by enc_query grounding, never stale). On its first run it TOLD US the #249 fix: recall via `partition`/`genome_load` (cap-aware), not `genome_window`+`kernel_unpack`. NEXT (immediately, per user "sets the stage for 249"): apply Siona's guidance to #249 — rewrite genome_store to pack via `genome()` and recall via `genome_load`/`partition`, verify the round-trip is length-exact (8192→8192). Then revisit #250 (per user, no confirm needed): wire the Tooling answer into `s.turn` so a tooling question routes to it, and add the METADATA changelog + tool_schema summaries to the knowledge.**

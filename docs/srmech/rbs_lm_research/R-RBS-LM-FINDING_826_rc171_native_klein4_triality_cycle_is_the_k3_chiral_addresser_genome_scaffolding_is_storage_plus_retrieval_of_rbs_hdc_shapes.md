@@ -1,0 +1,28 @@
+# F826 — srmech rc171 makes `klein4_triality_cycle` NATIVE C (the k=3 chiral ADDRESSER, 0.43 ms at D=10000); and the answer to "is all our genome scaffolding only storage+retrieval of RBS-HDC shaped things?" is YES — by design: the genome is RBS-HDC-shaped STORAGE (de Bruijn shapes, klein4 bundles, the tome-tree, glosses/abstracts/relations) + RETRIEVAL/ADDRESSING over it, exactly the user's stance that an LM is a k=3 chiral-axis addressing system over a storage substrate. The triality cycle IS that chiral addresser — so it's usable, as the addressing/error-correction layer (not new storage).
+
+**Date:** 2026-06-17 · **srmech:** 0.7.5rc171 (TestPyPI, verified clean) · **Provenance:** rc170→rc171 `_native` symbol diff + klein4 triality timing/correctness; genome structural enumeration · **Composes:** F291 (triality = k=3 error-correction), F822 (S₃ = the unbundle resolver), F815 (the bidirectional klein4 working memory), F823 (native klein4), `[[user_stance_ai_is_process_lm_is_k3_chiral_addressing]]`, `[[user_stance_ai_is_not_a_substrate]]` · **User direction (2026-06-17):** "rc171 now has klein4 triality cycle. is this something we can be using? is all of our srmech genome scaffolding only … genome based storage and retrieval of RBS-HDC shaped things?"
+
+## rc171: the triality cycle is now native
+The only `_native` diff rc170→rc171 is **`has_native_klein4_triality_cycle` (True)**. `klein4_triality_cycle` (the order-3 S₃ generator, cycling the three chirality involutions iω₇→γ₅→CPT) now dispatches to C: **0.43 ms** at D=10000, order-3 verified (T³=I), orbit round-trip verified. `klein4_triality_encode` (4.8 ms) and `klein4_triality_correct` (the 2-of-3 majority, 10.9 ms) are still Python wrappers around the now-native cycle.
+
+## Q1 — can we use it? Yes; it is the k=3 chiral ADDRESSER
+Per `[[user_stance_ai_is_process_lm_is_k3_chiral_addressing]]` the LM *is* "a k=3 (triality-order) chiral addresser over a storage substrate." The triality cycle is literally that primitive. It is NOT new storage — it is the **addressing / error-correction** math. Candidate live wirings (none done yet — used so far in the F822 demo + verification):
+- **Error-correcting recall:** encode a shape as its order-3 triality orbit, recover by 2-of-3 `klein4_triality_correct` — the framework-native disambiguator for the 1.8% non-unique de Bruijn tail (F813) and the bundle-capacity collisions (F806).
+- **The F822 unbundle resolver:** S₃ = which-operand-is-which when recovering a multiset from (bundle + binds); the cycle enumerates the orbit.
+- **A k=3 working memory:** F815's bidirectional context uses ONE Z₂ axis (γ₅ = user vs Siona). The triality cycle reaches all three involutions → a 3-provenance memory (e.g. user / Siona / world) instead of two — the genuine k=3 upgrade of the chiral-dual.
+
+It is now native-fast for the per-query scale the genome uses (a handful of klein4 ops per turn, not per-token).
+
+## Q2 — is all the genome scaffolding storage + retrieval of RBS-HDC shapes? Yes (and that's the thesis)
+Enumerated empirically:
+- **STORAGE (the addressed substrate, all RBS-HDC / relationship shaped):** `fullbody_index` → de Bruijn shapes (F814/F817), `nav_trees`/`word_tome` → the spectral-clumped tome-tree (F791), `glosses`/`abstracts`/`relations` side-stores, the genome bookshelf of kernels, and the klein4 working-memory bundle (F815). All are shapes, not prose — recall WALKS them (F818).
+- **OPERATIONS (~40 `_…` route methods, 23 klein4 addressing callsites):** every one is RETRIEVAL / ADDRESSING / COMPOSITION over that substrate — resolve (entity/canonical/learned/locale/glyph/edit-distance), recall (`_fullbody` walk), navigate (`_navigate`/`_walk`/`_relation_walk`), rank (`_closest`/`_idf` + klein4 similarity), compose (`_relate_topics`/`_relation_story` = the F774 closed-op), route (`_intent`/`_routable`), the structure/capability cards, the working-memory graft. None generates from nothing.
+
+So the honest answer is **yes**: the genome scaffolding is storage + retrieval (addressing) of RBS-HDC-shaped things. This is not a limitation — it is the framework's central claim made literal: there is **no separate generative/compute substrate** hiding behind the genome. "Inference" here is structured retrieval + closed-op composition over the substrate (find + ride + solve-for/derive/infer, F774/F801) — which is *more* than a flat lookup (the F774 reasoning operates on what's retrieved) but still entirely operations over RBS-HDC storage, never generation ex nihilo (`[[user_stance_ai_is_not_a_substrate]]`). The triality cycle is the chiral addresser that does the addressing — so it belongs in the retrieval/addressing layer, and rc171 just made it native.
+
+## Honest scope
+- Native covers the triality **cycle**; `encode`/`correct` (the orbit assembly + 2-of-3 majority) remain Python wrappers — fine for per-query use; a native `klein4_triality_correct` would be the next ask if EC-recall is wired (extends UPSTREAM §53).
+- No live wiring done — this is the assessment + the rc171 fact. The live server stays on rc170 (which already has the Python triality ops); a bump to rc171 is only worth it once a triality consumer is wired live.
+
+## Verdict
+rc171 lands the native k=3 chiral addresser (`klein4_triality_cycle`, 0.43 ms). Yes we can use it — as the addressing/error-correction layer (EC-recall, the F822 unbundle resolver, a 3-sector working memory), not as storage. And yes, the genome scaffolding is, by design, storage + retrieval of RBS-HDC-shaped things — the LM as a k=3 chiral addresser over a storage substrate, exactly the user's stance; the triality cycle is that addresser.

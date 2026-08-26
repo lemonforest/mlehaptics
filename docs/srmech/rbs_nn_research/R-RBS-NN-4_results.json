@@ -1,0 +1,23 @@
+{
+  "srmech_version": "0.4.3",
+  "has_native": true,
+  "abi": 2,
+  "D": 8192,
+  "lexicon_size": 20,
+  "variant_distribution": {
+    "bipolar": 8,
+    "klein4": 6,
+    "polar": 5,
+    "hybrid": 1
+  },
+  "T1_deterministic": true,
+  "T4_bipolar_round_trip_sim": 1.0,
+  "T5_klein4_round_trip_sim": 1.0,
+  "T9_chirality_sim_left_vs_right_helix": 0.2489013671875,
+  "T9_chirality_sim_amino_L_vs_D": 0.2515869140625,
+  "baselines": {
+    "bipolar": -0.0023779296875,
+    "klein4": 0.24993896484375,
+    "polar": 0.5002648155963214
+  }
+}

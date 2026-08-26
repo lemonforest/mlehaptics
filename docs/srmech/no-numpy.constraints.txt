@@ -1,0 +1,14 @@
+# srmech / siona are numpy-FREE (the #564 numpy purge; UPSTREAM_NOTES §57).
+# This is a pip *constraints* file: the impossible pin below makes ANY numpy
+# install — direct (`pip install numpy`) or transitive (a dep that pulls numpy) —
+# fail to resolve (ResolutionImpossible), so numpy can never sneak back into a
+# srmech/siona venv. Other packages are unaffected (verified: tomli still installs).
+#
+# Wire it into a venv (recommended scope) by dropping a pip.conf into the venv:
+#   printf '[install]\nconstraint = %s/docs/srmech/no-numpy.constraints.txt\n' "$REPO" > "$VENV/pip.conf"
+# or per-invocation:  pip install -c docs/srmech/no-numpy.constraints.txt ...
+# or for a shell:     export PIP_CONFIG_FILE=$VENV/pip.conf
+#
+# Do NOT install this user-global (~/.config/pip/pip.conf): it would block numpy for
+# EVERY project on the machine, breaking legitimately numpy-dependent work (bio/data).
+numpy==0

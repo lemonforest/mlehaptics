@@ -1,0 +1,17 @@
+{
+  "partition": "R-RBS-LM-44",
+  "experiment": "english_to_logo_constrained_vocabulary_projection",
+  "corpus_path": "docs/srmech/rbs_lm_research/turtle_walk_corpus.json",
+  "n_pairs": 51,
+  "english_bytes_total": 782,
+  "logo_bytes_total": 901,
+  "paired_stream_bytes": 1836,
+  "shuffle_seed": 42,
+  "stride": 4,
+  "n_observations": 443,
+  "instrument_bytes": 1024,
+  "D": 8192,
+  "context_window_bytes": 64,
+  "vocab_size": 256,
+  "framework_reading_anchor": "R-RBS-LM-40 candidate E (constrained structured action vocabulary projection); R-RBS-LM-43 \u00a73.3 + Finding 9"
+}

@@ -1,0 +1,1076 @@
+{
+  "partition": "R-RBS-LM-53",
+  "srmech_version": "0.4.2",
+  "corpora": {
+    "quran_sale": {
+      "label": "Quran (Sale 1734 English)",
+      "n_chunks": 528
+    },
+    "kjv_ot": {
+      "label": "KJV Old Testament (Tanakh proxy)",
+      "n_chunks": 18087
+    },
+    "kjv_nt": {
+      "label": "KJV New Testament",
+      "n_chunks": 5669
+    }
+  },
+  "baselines": {
+    "quran_sale": {
+      "K1": {
+        "mean": 0.1553497314453125,
+        "std": 0.185209821820826,
+        "max": 0.908447265625,
+        "min": -0.01123046875
+      },
+      "K3": {
+        "mean": 0.0186309814453125,
+        "std": 0.056138364876301645,
+        "max": 0.3486328125,
+        "min": -0.03466796875
+      }
+    },
+    "kjv_ot": {
+      "K1": {
+        "mean": 0.020916748046875,
+        "std": 0.03530641433720117,
+        "max": 0.120361328125,
+        "min": -0.02685546875
+      },
+      "K3": {
+        "mean": 0.0036529541015625,
+        "std": 0.01934590877286935,
+        "max": 0.136962890625,
+        "min": -0.02197265625
+      }
+    },
+    "kjv_nt": {
+      "K1": {
+        "mean": 0.0318878173828125,
+        "std": 0.05599358040751163,
+        "max": 0.310546875,
+        "min": -0.02294921875
+      },
+      "K3": {
+        "mean": 0.000457763671875,
+        "std": 0.009585619382546345,
+        "max": 0.02490234375,
+        "min": -0.02099609375
+      }
+    }
+  },
+  "diagonal_results": {
+    "quran": [
+      {
+        "probe": "Allah is one God",
+        "z_K1": -0.3681852703593751,
+        "z_K3": -0.4058075457044434,
+        "max_z": -0.3681852703593751,
+        "above_max": false
+      },
+      {
+        "probe": "Muhammad messenger of God",
+        "z_K1": -0.6621403038438795,
+        "z_K3": -0.22315337911811656,
+        "max_z": -0.22315337911811656,
+        "above_max": false
+      },
+      {
+        "probe": "Mecca pilgrimage Kaaba",
+        "z_K1": -0.7781404964296929,
+        "z_K3": -0.27968919258531294,
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "five pillars of faith",
+        "z_K1": -0.7649586563631232,
+        "z_K3": -0.18401320056390366,
+        "max_z": -0.18401320056390366,
+        "above_max": false
+      },
+      {
+        "probe": "Quran revelation Gabriel",
+        "z_K1": -0.9310498412019015,
+        "z_K3": -0.27968919258531294,
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "Day of Judgment paradise",
+        "z_K1": -0.45913996681870606,
+        "z_K3": -0.23185119657460831,
+        "max_z": -0.23185119657460831,
+        "above_max": false
+      },
+      {
+        "probe": "fasting Ramadan holy month",
+        "z_K1": -0.8295496726893148,
+        "z_K3": -0.40145863697619755,
+        "max_z": -0.40145863697619755,
+        "above_max": false
+      },
+      {
+        "probe": "merciful most gracious",
+        "z_K1": -0.7794586804363498,
+        "z_K3": -0.27968919258531294,
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "Surah Fatihah opening",
+        "z_K1": -0.8559133528224542,
+        "z_K3": -0.27968919258531294,
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "infidels unbelievers",
+        "z_K1": -0.9877317534881512,
+        "z_K3": -0.27968919258531294,
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "alms charity zakat",
+        "z_K1": -0.8941406890155063,
+        "z_K3": -0.27968919258531294,
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "prophet Mohammed teachings",
+        "z_K1": -0.4288217346655957,
+        "z_K3": -0.27968919258531294,
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      }
+    ],
+    "judaism": [
+      {
+        "probe": "In the beginning God created",
+        "z_K1": -0.025412288778632285,
+        "z_K3": -0.44121817702009614,
+        "max_z": -0.025412288778632285,
+        "above_max": false
+      },
+      {
+        "probe": "Moses Egypt deliverance pharaoh",
+        "z_K1": 0.27192877720264363,
+        "z_K3": -0.06262553317017454,
+        "max_z": 0.27192877720264363,
+        "above_max": false
+      },
+      {
+        "probe": "ten commandments tablets stone",
+        "z_K1": -0.14988064198009662,
+        "z_K3": -1.2110232195149369,
+        "max_z": -0.14988064198009662,
+        "above_max": false
+      },
+      {
+        "probe": "promised land flowing milk honey",
+        "z_K1": 1.3575694134598604,
+        "z_K3": -0.1004847975551667,
+        "max_z": 1.3575694134598604,
+        "above_max": false
+      },
+      {
+        "probe": "Solomon's temple Jerusalem",
+        "z_K1": -0.9174354867224602,
+        "z_K3": -0.56741572497007,
+        "max_z": -0.56741572497007,
+        "above_max": false
+      },
+      {
+        "probe": "covenant Abraham Isaac Jacob",
+        "z_K1": -1.1594572846141964,
+        "z_K3": -0.5800354797650674,
+        "max_z": -0.5800354797650674,
+        "above_max": false
+      },
+      {
+        "probe": "Psalm David Lord shepherd",
+        "z_K1": 0.3687374963593381,
+        "z_K3": -0.7188527825100386,
+        "max_z": 0.3687374963593381,
+        "above_max": false
+      },
+      {
+        "probe": "Babylonian exile captivity",
+        "z_K1": -0.8344565845881505,
+        "z_K3": -0.56741572497007,
+        "max_z": -0.56741572497007,
+        "above_max": false
+      },
+      {
+        "probe": "prophet Isaiah Jeremiah",
+        "z_K1": -0.5025409760509123,
+        "z_K3": -0.56741572497007,
+        "max_z": -0.5025409760509123,
+        "above_max": false
+      },
+      {
+        "probe": "burnt offerings altar priest",
+        "z_K1": -0.3988173483830253,
+        "z_K3": -0.7062330277150413,
+        "max_z": -0.3988173483830253,
+        "above_max": false
+      },
+      {
+        "probe": "manna desert wandering",
+        "z_K1": -0.5094558845621048,
+        "z_K3": -0.56741572497007,
+        "max_z": -0.5094558845621048,
+        "above_max": false
+      },
+      {
+        "probe": "law of Moses statutes",
+        "z_K1": 0.029906979310907425,
+        "z_K3": -0.7440922921000335,
+        "max_z": 0.029906979310907425,
+        "above_max": false
+      }
+    ],
+    "christianity": [
+      {
+        "probe": "Jesus Christ Lord savior",
+        "z_K1": 2.43465540603114,
+        "z_K3": -2.6711104442030775,
+        "max_z": 2.43465540603114,
+        "above_max": false
+      },
+      {
+        "probe": "Sermon on the Mount blessed",
+        "z_K1": -0.5389695173656722,
+        "z_K3": 0.23240889443006515,
+        "max_z": 0.23240889443006515,
+        "above_max": false
+      },
+      {
+        "probe": "Last Supper bread wine",
+        "z_K1": -0.386364132733871,
+        "z_K3": -0.5062056741695939,
+        "max_z": -0.386364132733871,
+        "above_max": false
+      },
+      {
+        "probe": "Gethsemane prayer betrayal",
+        "z_K1": -0.26427982502843006,
+        "z_K3": -0.6335530135833283,
+        "max_z": -0.26427982502843006,
+        "above_max": false
+      },
+      {
+        "probe": "love thy neighbor as thyself",
+        "z_K1": -0.15527597886285777,
+        "z_K3": 0.9710234630297243,
+        "max_z": 0.9710234630297243,
+        "above_max": false
+      },
+      {
+        "probe": "blessed are the meek poor",
+        "z_K1": -0.11603459424325174,
+        "z_K3": -2.645640976320331,
+        "max_z": -0.11603459424325174,
+        "above_max": false
+      },
+      {
+        "probe": "Holy Spirit Pentecost",
+        "z_K1": -0.11603459424325174,
+        "z_K3": -0.6335530135833283,
+        "max_z": -0.11603459424325174,
+        "above_max": false
+      },
+      {
+        "probe": "twelve apostles disciples",
+        "z_K1": 0.2109769442534651,
+        "z_K3": -0.6335530135833283,
+        "max_z": 0.2109769442534651,
+        "above_max": false
+      },
+      {
+        "probe": "kingdom of heaven parable",
+        "z_K1": -0.4430461327399686,
+        "z_K3": -1.8306180040724311,
+        "max_z": -0.4430461327399686,
+        "above_max": false
+      },
+      {
+        "probe": "crucifixion resurrection death",
+        "z_K1": -0.4430461327399686,
+        "z_K3": -0.6335530135833283,
+        "max_z": -0.4430461327399686,
+        "above_max": false
+      },
+      {
+        "probe": "good Samaritan parable",
+        "z_K1": -0.37328367119400235,
+        "z_K3": -0.6335530135833283,
+        "max_z": -0.37328367119400235,
+        "above_max": false
+      },
+      {
+        "probe": "Paul epistles letters churches",
+        "z_K1": -0.8834216712488806,
+        "z_K3": 1.200248673974446,
+        "max_z": 1.200248673974446,
+        "above_max": false
+      }
+    ]
+  },
+  "negative_results": {
+    "quran_sale": [
+      {
+        "probe": "chocolate ice cream sundae",
+        "z_K1": -0.7412313442432977,
+        "z_K3": -0.07094157362951087,
+        "max_z": -0.07094157362951087,
+        "above_max": false
+      },
+      {
+        "probe": "professional soccer match",
+        "z_K1": -0.8941406890155063,
+        "z_K3": -0.27968919258531294,
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "computer programming Python",
+        "z_K1": -0.9284134731885875,
+        "z_K3": -0.27968919258531294,
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "smartphone notification battery",
+        "z_K1": -0.7979132565295475,
+        "z_K3": -0.27968919258531294,
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "tropical rainforest humidity",
+        "z_K1": -0.8190042006360589,
+        "z_K3": -0.27968919258531294,
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "vintage automobile classic",
+        "z_K1": -0.7451858962632686,
+        "z_K3": -0.27968919258531294,
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "gourmet kitchen recipes pasta",
+        "z_K1": -0.8559133528224542,
+        "z_K3": -0.1405241132814449,
+        "max_z": -0.1405241132814449,
+        "above_max": false
+      }
+    ],
+    "kjv_ot": [
+      {
+        "probe": "chocolate ice cream sundae",
+        "z_K1": -1.0073292973679622,
+        "z_K3": -0.6431342537400543,
+        "max_z": -0.6431342537400543,
+        "above_max": false
+      },
+      {
+        "probe": "professional soccer match",
+        "z_K1": -0.7998820420321882,
+        "z_K3": -0.56741572497007,
+        "max_z": -0.56741572497007,
+        "above_max": false
+      },
+      {
+        "probe": "computer programming Python",
+        "z_K1": -0.49562606753971983,
+        "z_K3": -0.56741572497007,
+        "max_z": -0.49562606753971983,
+        "above_max": false
+      },
+      {
+        "probe": "smartphone notification battery",
+        "z_K1": -0.4610515249837575,
+        "z_K3": -0.56741572497007,
+        "max_z": -0.4610515249837575,
+        "above_max": false
+      },
+      {
+        "probe": "tropical rainforest humidity",
+        "z_K1": -0.5302006100956821,
+        "z_K3": -0.56741572497007,
+        "max_z": -0.5302006100956821,
+        "above_max": false
+      },
+      {
+        "probe": "vintage automobile classic",
+        "z_K1": -0.5025409760509123,
+        "z_K3": -0.56741572497007,
+        "max_z": -0.5025409760509123,
+        "above_max": false
+      },
+      {
+        "probe": "gourmet kitchen recipes pasta",
+        "z_K1": 0.036821887822099886,
+        "z_K3": -0.44121817702009614,
+        "max_z": 0.036821887822099886,
+        "above_max": false
+      }
+    ],
+    "kjv_nt": [
+      {
+        "probe": "chocolate ice cream sundae",
+        "z_K1": -0.8005787481630458,
+        "z_K3": 0.7927371878504963,
+        "max_z": 0.7927371878504963,
+        "above_max": false
+      },
+      {
+        "probe": "professional soccer match",
+        "z_K1": -0.47792736351295173,
+        "z_K3": -0.6335530135833283,
+        "max_z": -0.47792736351295173,
+        "above_max": false
+      },
+      {
+        "probe": "computer programming Python",
+        "z_K1": -0.6959350558440963,
+        "z_K3": -0.6335530135833283,
+        "max_z": -0.6335530135833283,
+        "above_max": false
+      },
+      {
+        "probe": "smartphone notification battery",
+        "z_K1": -0.709015517383965,
+        "z_K3": -0.6335530135833283,
+        "max_z": -0.6335530135833283,
+        "above_max": false
+      },
+      {
+        "probe": "tropical rainforest humidity",
+        "z_K1": -0.7613373635434397,
+        "z_K3": -0.6335530135833283,
+        "max_z": -0.6335530135833283,
+        "above_max": false
+      },
+      {
+        "probe": "vintage automobile classic",
+        "z_K1": -0.4038047481203626,
+        "z_K3": -0.6335530135833283,
+        "max_z": -0.4038047481203626,
+        "above_max": false
+      },
+      {
+        "probe": "gourmet kitchen recipes pasta",
+        "z_K1": -0.185797055789218,
+        "z_K3": -1.6013927931277092,
+        "max_z": -0.185797055789218,
+        "above_max": false
+      }
+    ]
+  },
+  "cross_matrix": {
+    "quran": {
+      "kjv_ot": [
+        {
+          "probe": "Allah is one God",
+          "z_K1": 2.263422428426073,
+          "z_K3": 0.2276288271147654,
+          "max_z": 2.263422428426073,
+          "above_max": false
+        },
+        {
+          "probe": "Muhammad messenger of God",
+          "z_K1": 0.3203331367809909,
+          "z_K3": 0.7071795093246661,
+          "max_z": 0.7071795093246661,
+          "above_max": false
+        },
+        {
+          "probe": "Mecca pilgrimage Kaaba",
+          "z_K1": -0.6200944207411841,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "five pillars of faith",
+          "z_K1": -0.9934994803455773,
+          "z_K3": 0.5178831873997053,
+          "max_z": 0.5178831873997053,
+          "above_max": false
+        },
+        {
+          "probe": "Quran revelation Gabriel",
+          "z_K1": -0.6754136888307238,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "Day of Judgment paradise",
+          "z_K1": 1.993740996489567,
+          "z_K3": -0.15096381673515624,
+          "max_z": 1.993740996489567,
+          "above_max": false
+        },
+        {
+          "probe": "fasting Ramadan holy month",
+          "z_K1": -0.8759460356553053,
+          "z_K3": -0.28978111948012747,
+          "max_z": -0.28978111948012747,
+          "above_max": false
+        },
+        {
+          "probe": "merciful most gracious",
+          "z_K1": -0.9727547548119999,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "Surah Fatihah opening",
+          "z_K1": -0.44722170796137256,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.44722170796137256,
+          "above_max": false
+        },
+        {
+          "probe": "infidels unbelievers",
+          "z_K1": -0.48871115902852735,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.48871115902852735,
+          "above_max": false
+        },
+        {
+          "probe": "alms charity zakat",
+          "z_K1": -0.5924347866964143,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "prophet Mohammed teachings",
+          "z_K1": -0.5855198781852219,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        }
+      ],
+      "kjv_nt": [
+        {
+          "probe": "Allah is one God",
+          "z_K1": 1.6018660213261675,
+          "z_K3": 0.5635119769057745,
+          "max_z": 1.6018660213261675,
+          "above_max": false
+        },
+        {
+          "probe": "Muhammad messenger of God",
+          "z_K1": 0.19353632886697356,
+          "z_K3": -1.7796790683069375,
+          "max_z": 0.19353632886697356,
+          "above_max": false
+        },
+        {
+          "probe": "Mecca pilgrimage Kaaba",
+          "z_K1": -0.1378353634763662,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.1378353634763662,
+          "above_max": false
+        },
+        {
+          "probe": "five pillars of faith",
+          "z_K1": -0.3384024404210192,
+          "z_K3": 0.028653151368090227,
+          "max_z": 0.028653151368090227,
+          "above_max": false
+        },
+        {
+          "probe": "Quran revelation Gabriel",
+          "z_K1": -0.8005787481630458,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "Day of Judgment paradise",
+          "z_K1": 0.7341954058482121,
+          "z_K3": -0.04775525228015037,
+          "max_z": 0.7341954058482121,
+          "above_max": false
+        },
+        {
+          "probe": "fasting Ramadan holy month",
+          "z_K1": -0.6218124404515072,
+          "z_K3": 2.8302946184702455,
+          "max_z": 2.8302946184702455,
+          "above_max": true
+        },
+        {
+          "probe": "merciful most gracious",
+          "z_K1": -0.3427625942676421,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.3427625942676421,
+          "above_max": false
+        },
+        {
+          "probe": "Surah Fatihah opening",
+          "z_K1": -0.24683920964193848,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.24683920964193848,
+          "above_max": false
+        },
+        {
+          "probe": "infidels unbelievers",
+          "z_K1": -0.5694905942920324,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.5694905942920324,
+          "above_max": false
+        },
+        {
+          "probe": "alms charity zakat",
+          "z_K1": -0.5389695173656722,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.5389695173656722,
+          "above_max": false
+        },
+        {
+          "probe": "prophet Mohammed teachings",
+          "z_K1": -0.6915749019974734,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        }
+      ]
+    },
+    "judaism": {
+      "quran_sale": [
+        {
+          "probe": "In the beginning God created",
+          "z_K1": -0.7201404001367862,
+          "z_K3": -0.21010665293337893,
+          "max_z": -0.21010665293337893,
+          "above_max": false
+        },
+        {
+          "probe": "Moses Egypt deliverance pharaoh",
+          "z_K1": -0.7109131120901874,
+          "z_K3": -0.5145302639105903,
+          "max_z": -0.5145302639105903,
+          "above_max": false
+        },
+        {
+          "probe": "ten commandments tablets stone",
+          "z_K1": -0.8255951206693438,
+          "z_K3": -0.3362250060525094,
+          "max_z": -0.3362250060525094,
+          "above_max": false
+        },
+        {
+          "probe": "promised land flowing milk honey",
+          "z_K1": -0.7623222883498092,
+          "z_K3": -0.38841191079145987,
+          "max_z": -0.38841191079145987,
+          "above_max": false
+        },
+        {
+          "probe": "Solomon's temple Jerusalem",
+          "z_K1": -0.863822456862396,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "covenant Abraham Isaac Jacob",
+          "z_K1": -0.8572315368291111,
+          "z_K3": -0.3710162758784764,
+          "max_z": -0.3710162758784764,
+          "above_max": false
+        },
+        {
+          "probe": "Psalm David Lord shepherd",
+          "z_K1": -0.5790947114244903,
+          "z_K3": 0.01603660093540667,
+          "max_z": 0.01603660093540667,
+          "above_max": false
+        },
+        {
+          "probe": "Babylonian exile captivity",
+          "z_K1": -0.7082767440768735,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "prophet Isaiah Jeremiah",
+          "z_K1": -0.7900041524896056,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "burnt offerings altar priest",
+          "z_K1": -0.8835952169622505,
+          "z_K3": -0.45799445044339393,
+          "max_z": -0.45799445044339393,
+          "above_max": false
+        },
+        {
+          "probe": "manna desert wandering",
+          "z_K1": -0.8361405927225996,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "law of Moses statutes",
+          "z_K1": -0.7333222402033559,
+          "z_K3": -0.2188044703898707,
+          "max_z": -0.2188044703898707,
+          "above_max": false
+        }
+      ],
+      "kjv_nt": [
+        {
+          "probe": "In the beginning God created",
+          "z_K1": 0.027850482695303668,
+          "z_K3": 0.028653151368090227,
+          "max_z": 0.028653151368090227,
+          "above_max": false
+        },
+        {
+          "probe": "Moses Egypt deliverance pharaoh",
+          "z_K1": -0.6479733635312445,
+          "z_K3": 0.5889814447885213,
+          "max_z": 0.5889814447885213,
+          "above_max": false
+        },
+        {
+          "probe": "ten commandments tablets stone",
+          "z_K1": -0.5302492096724264,
+          "z_K3": -1.1174729033555189,
+          "max_z": -0.5302492096724264,
+          "above_max": false
+        },
+        {
+          "probe": "promised land flowing milk honey",
+          "z_K1": -0.6000116712183927,
+          "z_K3": -0.7609003529970627,
+          "max_z": -0.6000116712183927,
+          "above_max": false
+        },
+        {
+          "probe": "Solomon's temple Jerusalem",
+          "z_K1": -0.6741342866109818,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "covenant Abraham Isaac Jacob",
+          "z_K1": -0.6784944404576048,
+          "z_K3": 1.8879243068086116,
+          "max_z": 1.8879243068086116,
+          "above_max": false
+        },
+        {
+          "probe": "Psalm David Lord shepherd",
+          "z_K1": 0.11941371347438438,
+          "z_K3": -0.7354308851143158,
+          "max_z": 0.11941371347438438,
+          "above_max": false
+        },
+        {
+          "probe": "Babylonian exile captivity",
+          "z_K1": -0.6566936712244903,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "prophet Isaiah Jeremiah",
+          "z_K1": -0.36020320965413366,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.36020320965413366,
+          "above_max": false
+        },
+        {
+          "probe": "burnt offerings altar priest",
+          "z_K1": -0.7656975173900625,
+          "z_K3": 1.786046435277624,
+          "max_z": 1.786046435277624,
+          "above_max": false
+        },
+        {
+          "probe": "manna desert wandering",
+          "z_K1": -0.7569772096968168,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "law of Moses statutes",
+          "z_K1": -0.6000116712183927,
+          "z_K3": -2.1107821507826467,
+          "max_z": -0.6000116712183927,
+          "above_max": false
+        }
+      ]
+    },
+    "christianity": {
+      "quran_sale": [
+        {
+          "probe": "Jesus Christ Lord savior",
+          "z_K1": -0.6225947836441704,
+          "z_K3": -0.2883870100418047,
+          "max_z": -0.2883870100418047,
+          "above_max": false
+        },
+        {
+          "probe": "Sermon on the Mount blessed",
+          "z_K1": -0.8730497449089948,
+          "z_K3": -0.6536953432144584,
+          "max_z": -0.6536953432144584,
+          "above_max": false
+        },
+        {
+          "probe": "Last Supper bread wine",
+          "z_K1": -0.6924585359969898,
+          "z_K3": -0.5014835377258527,
+          "max_z": -0.5014835377258527,
+          "above_max": false
+        },
+        {
+          "probe": "Gethsemane prayer betrayal",
+          "z_K1": -0.7109131120901874,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "love thy neighbor as thyself",
+          "z_K1": -0.9257771051752736,
+          "z_K3": -0.23185119657460831,
+          "max_z": -0.23185119657460831,
+          "above_max": false
+        },
+        {
+          "probe": "blessed are the meek poor",
+          "z_K1": -0.7952768885162335,
+          "z_K3": -0.24054901403110007,
+          "max_z": -0.24054901403110007,
+          "above_max": false
+        },
+        {
+          "probe": "Holy Spirit Pentecost",
+          "z_K1": -0.9666408093816397,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "twelve apostles disciples",
+          "z_K1": -0.859867904842425,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "kingdom of heaven parable",
+          "z_K1": -0.6885039839770188,
+          "z_K3": -0.24924683148759183,
+          "max_z": -0.24924683148759183,
+          "above_max": false
+        },
+        {
+          "probe": "crucifixion resurrection death",
+          "z_K1": -0.7939587045095765,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "good Samaritan parable",
+          "z_K1": -0.7781404964296929,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "Paul epistles letters churches",
+          "z_K1": -0.8717315609023378,
+          "z_K3": -0.4971346289976068,
+          "max_z": -0.4971346289976068,
+          "above_max": false
+        }
+      ],
+      "kjv_ot": [
+        {
+          "probe": "Jesus Christ Lord savior",
+          "z_K1": -0.20519991006963634,
+          "z_K3": 0.3664461298597366,
+          "max_z": 0.3664461298597366,
+          "above_max": false
+        },
+        {
+          "probe": "Sermon on the Mount blessed",
+          "z_K1": -0.24668936113679113,
+          "z_K3": 0.26548809149975755,
+          "max_z": 0.26548809149975755,
+          "above_max": false
+        },
+        {
+          "probe": "Last Supper bread wine",
+          "z_K1": 0.17512005804594916,
+          "z_K3": -0.9838676332049838,
+          "max_z": 0.17512005804594916,
+          "above_max": false
+        },
+        {
+          "probe": "Gethsemane prayer betrayal",
+          "z_K1": -0.12913591644651923,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.12913591644651923,
+          "above_max": false
+        },
+        {
+          "probe": "love thy neighbor as thyself",
+          "z_K1": -0.5647751526516445,
+          "z_K3": -1.0091071427949787,
+          "max_z": -0.5647751526516445,
+          "above_max": false
+        },
+        {
+          "probe": "blessed are the meek poor",
+          "z_K1": 0.4102269474264929,
+          "z_K3": -0.2771613646851301,
+          "max_z": 0.4102269474264929,
+          "above_max": false
+        },
+        {
+          "probe": "Holy Spirit Pentecost",
+          "z_K1": -0.9727547548119999,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "twelve apostles disciples",
+          "z_K1": -1.034988931412732,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "kingdom of heaven parable",
+          "z_K1": -1.062648565457502,
+          "z_K3": -0.5800354797650674,
+          "max_z": -0.5800354797650674,
+          "above_max": false
+        },
+        {
+          "probe": "crucifixion resurrection death",
+          "z_K1": -0.49562606753971983,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.49562606753971983,
+          "above_max": false
+        },
+        {
+          "probe": "good Samaritan parable",
+          "z_K1": -0.06690173984578707,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.06690173984578707,
+          "above_max": false
+        },
+        {
+          "probe": "Paul epistles letters churches",
+          "z_K1": -0.4748813420061424,
+          "z_K3": 0.4926436778097105,
+          "max_z": 0.4926436778097105,
+          "above_max": false
+        }
+      ]
+    }
+  },
+  "summary_table": {
+    "quran": {
+      "quran_sale": {
+        "n": 12,
+        "above_max": 0,
+        "z2": 0,
+        "z1": 0,
+        "peak_z": -0.18401320056390366
+      },
+      "kjv_ot": {
+        "n": 12,
+        "above_max": 0,
+        "z2": 1,
+        "z1": 2,
+        "peak_z": 2.263422428426073
+      },
+      "kjv_nt": {
+        "n": 12,
+        "above_max": 1,
+        "z2": 1,
+        "z1": 2,
+        "peak_z": 2.8302946184702455
+      }
+    },
+    "judaism": {
+      "quran_sale": {
+        "n": 12,
+        "above_max": 0,
+        "z2": 0,
+        "z1": 0,
+        "peak_z": 0.01603660093540667
+      },
+      "kjv_ot": {
+        "n": 12,
+        "above_max": 0,
+        "z2": 0,
+        "z1": 1,
+        "peak_z": 1.3575694134598604
+      },
+      "kjv_nt": {
+        "n": 12,
+        "above_max": 0,
+        "z2": 0,
+        "z1": 2,
+        "peak_z": 1.8879243068086116
+      }
+    },
+    "christianity": {
+      "quran_sale": {
+        "n": 12,
+        "above_max": 0,
+        "z2": 0,
+        "z1": 0,
+        "peak_z": -0.23185119657460831
+      },
+      "kjv_ot": {
+        "n": 12,
+        "above_max": 0,
+        "z2": 0,
+        "z1": 0,
+        "peak_z": 0.4926436778097105
+      },
+      "kjv_nt": {
+        "n": 12,
+        "above_max": 0,
+        "z2": 1,
+        "z1": 2,
+        "peak_z": 2.43465540603114
+      }
+    }
+  },
+  "verdict": "FAILED \u2014 substrates indistinguishable by methodology (would invalidate per-substrate form claim)",
+  "avg_diag_peak_z": 1.2,
+  "avg_off_diag_peak_z": 1.21,
+  "substrate_specificity_ratio": 0.99
+}

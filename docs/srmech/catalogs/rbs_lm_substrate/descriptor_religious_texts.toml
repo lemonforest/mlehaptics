@@ -1,0 +1,552 @@
+# RBS-LM substrate catalog — religious-texts variant (28D chirality revisit)
+#
+# Variant of the canonical rbs_lm_substrate catalog. Same substrate library
+# (_canonical_substrate.py), same srmech 0.5.0 Klein-4 machinery, same MPR
+# attestation — different corpus source (6 real religious texts) + a
+# chirality-signature measurement config.
+#
+# Research question (per user direction 2026-05-29): the R-RBS-LM-53 arc found
+# the big-3 Abrahamic texts FLAT-SPECTRAL-IDENTICAL (diagonal/off-diagonal
+# similarity ratio 0.99 — MFO §VII.6.20 epistemic ceiling). Does the 28D
+# bi-axial chirality decomposition (F158) LIFT that degeneracy — i.e., do texts
+# that look identical under flat similarity DIFFER along the chirality axes?
+#
+# SCOPE DISCIPLINE (load-bearing): structural/spectral reading ONLY. No
+# doctrinal claims, no ranking of texts, no truth/origin/supersession claims
+# per [[feedback_no_lineage_claims_in_notebook]] + [[feedback_trauma_informed
+# _defensive_scope]]. Texts are STRUCTURAL TEST-OBJECTS. §VII.6.20 honored:
+# form-claims only; substrate-identity/meaning still requires a DOMAIN anchor.
+
+[source]
+key                  = "rbs_lm_substrate_religious_texts"
+human_readable_name  = "RBS-LM substrate — religious-texts 28D chirality revisit (6 corpora)"
+purpose              = "Catalog variant feeding 6 open religious texts (3 Abrahamic + 3 Eastern) through the canonical Klein-4 chirality substrate to test whether the 28D bi-axial chirality decomposition lifts the flat-spectral structural degeneracy R-RBS-LM-53 found (ratio 0.99). Phase 1: per-text 28D chirality signature + cross-text discrimination. Phase 2: cross-navigation (grammar of one text walked via relational structure of another) as F156 Mode D generalized to whole-text structure. Structural-only; §VII.6.20 ceiling honored."
+license              = "CC0 for the catalog; corpora are public-domain open translations (Gutenberg / public translations)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/catalogs/rbs_lm_substrate"
+
+[source.primary_references]
+rbs_lm_53_arc          = "docs/srmech/rbs_lm_research/R-RBS-LM-53_SUMMARY_REPORT.md — the flat-spectral 0.99 identity finding + DOMAIN-anchor framework (F44-F50)"
+f158_28d_chirality     = "F158 — 28D bi-axial chirality (14 A-N × 2 axes = 4 sectors × 7 G2); the lens this variant applies"
+f164_grammar_native    = "F164 — grammar is substrate-native; chirality sectors ARE grammatical-hierarchy levels (the basis for cross-navigation)"
+f142_chirality_pure    = "F142 — chirality discriminates WHERE chirality is the load-bearing distinction; the null-risk this variant must honestly face"
+mfo_VII_6_20           = "MFO §VII.6.20 — epistemic ceiling: cascade reads form, not substrate-identity; the ceiling this variant probes"
+canonical_catalog      = "docs/srmech/catalogs/rbs_lm_substrate/descriptor.toml — the canonical variant this derives from"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "substrate_measurements/religious_texts.ndjson"
+
+# ---------------------------------------------------------------------------
+# Substrate parameters — same as canonical (Klein-4, D=8192, ABI=3 native)
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.substrate]
+D                       = 8192
+sector_count            = 4
+min_skeleton_length     = 4
+token_seed_hex_chars    = 16   # raised from 8: real-text vocab is large (10k+ types)
+
+[fetch.literature_curated.encoding]
+backend                 = "klein4"
+encoder_library         = "docs/srmech/rbs_lm_research/_canonical_substrate.py"
+encoder_version         = "0.1.0"
+
+[fetch.literature_curated.generation]
+default_top_k                = 10
+max_walk_length              = 30
+max_paths                    = 100
+cycle_policy                 = "allow"   # real prose repeats tokens; allow cycles in the walk
+l4_direct_composition        = false
+skeleton_length_fallback     = []
+
+[fetch.literature_curated.hierarchical]
+n_buckets                   = 16
+default_strategy            = "hash"
+allowed_strategies          = ["hash", "first_bigram_hash", "sector_then_hash"]
+sentence_hash_hex_chars     = 16
+
+# ---------------------------------------------------------------------------
+# Corpus source — 6 religious texts (cached; attested by content SHA-256)
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.corpus]
+source                  = "religious_text_kernels"
+tokenizer               = "whitespace"
+cache_dir               = "~/.cache/rbs_lm_corpora"
+strip_gutenberg         = true     # strip PG header/footer boilerplate (per 53-arc strip_gutenberg)
+unit                    = "verse_line"   # one structural unit per non-empty line (verse/aphorism)
+
+[fetch.literature_curated.corpus.texts.quran_yusuf_ali]
+label    = "Quran (Sale 1734 / Yusuf Ali register)"
+family   = "abrahamic"
+filename = "quran_yusuf_ali.txt"
+sha256   = "e91167f80f73ab9efc2a9613af16689628413bfc03b0d11dc4c153c979fd9d8b"
+
+[fetch.literature_curated.corpus.texts.kjv_ot]
+label    = "KJV Old Testament"
+family   = "abrahamic"
+filename = "kjv_old_testament.txt"
+sha256   = "60b2b8021452180eb0ad9ce11e275451b809f257bfb86f1f6a66f54abecc71f5"
+
+[fetch.literature_curated.corpus.texts.kjv_nt]
+label    = "KJV New Testament"
+family   = "abrahamic"
+filename = "kjv_new_testament.txt"
+sha256   = "f26f3c9c32bee2e3f1a71437ba69b7c47f1420d822b3b3681943ccb2825f7fc6"
+
+[fetch.literature_curated.corpus.texts.bhagavad_gita]
+label    = "Bhagavad Gita (Arnold)"
+family   = "eastern"
+filename = "bhagavad_gita.txt"
+sha256   = "a5d170ed807a42a8ff196fd5c6d61ceeda4b51788c1918f9b64fbbd5b2317900"
+
+[fetch.literature_curated.corpus.texts.tao_te_ching]
+label    = "Tao Te Ching (Legge)"
+family   = "eastern"
+filename = "tao_te_ching.txt"
+sha256   = "ff1f2d83b2737d08ce93dec90ee74fe07919d37b019c5e81b1dfd2e9d48ff5fd"
+
+[fetch.literature_curated.corpus.texts.dhammapada]
+label    = "Dhammapada (Müller)"
+family   = "eastern"
+filename = "dhammapada.txt"
+sha256   = "2b57e8ecdf63644586db1e74baca10d7b532e09362d7f94ff46711cde5676957"
+
+# ---------------------------------------------------------------------------
+# Chirality-signature measurement (Phase 1) — the 28D revisit config
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.chirality_signature]
+# Per-text signature components computed against the text's aggregate Klein-4
+# encoding. The flat-spectral baseline (bundle similarity) reproduces the 0.99
+# R-RBS-LM-53 result; the chirality components test whether resolving along the
+# (γ₅, iω₇) axes lifts the degeneracy.
+n_units_per_text        = 2000     # sample N verse-lines per text (balanced across texts)
+seed                    = 42
+sector_routing          = "bigram_parity"   # route bigrams to sectors by word-order parity
+                                             # (forward/reverse presence) so sector occupancy
+                                             # carries word-order STRUCTURE, not token hash.
+                                             # "hash" = null-control (uniform sectors expected).
+chirality_ops           = ["gamma5_flip", "omega7_flip", "cpt_mirror"]
+compute_flat_baseline   = true     # reproduce the 0.99 flat-similarity matrix for comparison
+
+# ---------------------------------------------------------------------------
+# Cross-navigation (Phase 2) — grammar(A) walked via logic(B)
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.cross_navigation]
+enabled                 = true
+# For each ordered pair (A, B): take A's sector-hierarchy (grammar) and walk it
+# using B's bigram-adjacency (logic). Measure coherence + breakpoints + the
+# hybrid's chirality signature. F156 Mode D generalized.
+max_pairs               = 30       # all ordered pairs of 6 texts = 30
+sample_seeds_per_pair   = 20
+
+# ---------------------------------------------------------------------------
+# Emergent-perplexity profile (F168) — resolution-level = chirality-sector depth
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.emergent_perplexity]
+# F168 test: read perplexity off the RESOLUTION-LEVEL profile, NOT a forced
+# softmax. The n-gram orders ARE the F155 structural levels = the chirality
+# sectors (word=order1, bigram=order2, ... long-range=higher). Backoff-accuracy
+# as a function of max-order is the emergent profile: the order beyond which it
+# plateaus is the corpus's resolution DEPTH (its emergent perplexity profile).
+# Per-text = domain-anchored (each labeled kernel its own domain, F165); the
+# template corpus is the SHALLOW-structure control (Step 4 plateaued at order 2).
+# Prediction (F168 §5): real long-range corpora keep gaining accuracy at higher
+# orders (deeper sectors populate) where the template plateaus. Null counts.
+max_order               = 6      # resolution levels (sectors) to profile (unigram..6-gram)
+n_units_per_text        = 4000   # verse-lines sampled per text
+held_out_fraction       = 0.5    # train-half / test-half (F163 §7 length-control)
+test_positions          = 4000   # held-out positions scored per corpus
+seed                    = 42
+klein4_sector_demo      = true   # bind level-predictions into Klein-4 sectors; read occupancy
+
+# ---------------------------------------------------------------------------
+# Confound control (F169) — separate STORAGE structure from SURFACE repetition
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.confound_control]
+# F168 §5.1 caveat: resolution depth conflated intrinsic structure with
+# repetition-density × data budget. This controls both: match TOKEN BUDGET and
+# VOCAB across the real-language corpora, so resolution depth becomes a clean
+# INTRINSIC (the STORAGE axis). Surface repetition (1 - distinct-trigram ratio of
+# the corpus itself) is reported as the SEPARATE EXPRESSION/surface axis.
+# Hypothesis (user 2026-05-29): storage and expression are SEPARABLE axes — if
+# controlled storage-depth is ~invariant across expression styles while surface
+# repetition varies independently, knowledge-storage is shared and only the
+# arts-of-communication layer differs. Structural test on text objects ONLY;
+# NOT a clinical claim about real cognition (§VII.6.20).
+budget_tokens           = 12000    # matched token budget per corpus (auto-clamped to min available)
+shared_vocab            = 600      # matched top-V vocab; rest → <unk> (auto-clamped to min available)
+max_order               = 6
+seed                    = 42
+
+# ---------------------------------------------------------------------------
+# Recipient-fiber retrieval-vs-render test (F214 / R-RBS-LM-214) — F212 §5
+# ---------------------------------------------------------------------------
+# F212 §5 test: condition the SAME fixed knowledge query on three recipient-
+# absorption frames (ELI5 / peer / expert), each encoded as a Class-C orientation
+# (hdc.klein4_chirality_flip_* — the rigid vector-level Class-C operators) bound
+# into the F166 rolling context-state (the QUERY/hidden-state, NOT the render).
+# Then measure whether RETRIEVAL/ADDRESSING shifts across the three frames vs
+# only the final render: (1) Klein-4 SECTOR OCCUPANCY of the recipient-conditioned
+# probe (F168 resolution-depth sectors), (2) the Class-L EIGEN-PROJECTION of the
+# per-frame activation graph (dense_laplacian -> jacobi_eigvals; spectral distance
+# across frames), (3) WHICH stored relationships (candidate continuations) the
+# probe activates (ranked-set overlap across frames). A shape-matched RANDOM
+# orientation control (n_random rigid random Klein-4 orientations bound the same
+# way) is the noise floor: structured-frame spread must EXCEED random-frame spread
+# to count as real steering.
+#   Pre-stated null (F212 §5): "only the render differs; retrieval / sector-
+#   occupancy / eigen-projection is INVARIANT across recipient frames" => naive
+#   separable model holds (recipient is render-only).
+#   Retrieval differs (beyond the random control) => recipient-fiber threads into
+#   the QUERY/addressing => the RECIPIENT anchor must live in the F166 context-
+#   state (CONFIRMS F212). Nulls count. STRUCTURAL test-objects ONLY; §VII.6.20.
+[fetch.literature_curated.recipient_fiber]
+demo_text          = "kjv_nt"  # F168: deepest sector structure -> most retrieval headroom for steering to surface
+n_units            = 6000      # verse-lines sampled to build the bigram store + candidate sets
+n_queries          = 400       # fixed held-out queries (context windows) scored per frame
+window             = 5         # k-token context window (the F166 rolling state width)
+min_candidates     = 3         # only score queries whose last token has >=3 legal successors (a real distribution)
+top_k_activate     = 5         # ranked-set size for the "which relationships activate" overlap metric
+n_random           = 16        # shape-matched random orientation control frames: enough pairwise
+                               # distances to estimate the random-spread DISTRIBUTION (not a 3-sample
+                               # point estimate), so the structured spread's noise-floor PERCENTILE is meaningful
+noise_percentile   = 0.90      # structured pairwise spread must exceed this percentile of the random-spread
+                               # distribution to count as a retrieval-shift beyond noise (honest gate)
+seed               = 42
+
+# ---------------------------------------------------------------------------
+# Structured RECIPIENT depth-anchor (F221 / R-RBS-LM-221) — the F214 forward-ask
+# ---------------------------------------------------------------------------
+# F214 falsified the CONTENT-FREE operationalization: a rigid global Class-C twist
+# of the F166 context-state (klein4_chirality_flip_*) re-labels every F168 sector
+# uniformly => indistinguishable from a random orientation in retrieval (1/3 metrics
+# beyond the p90 noise floor, and that one a construction artifact). F214 §8 forward
+# ask: build a STRUCTURED RECIPIENT anchor that is a WHICH-DEPTH operator over the
+# F168 sector ladder (peer to the F165 DOMAIN labeled-store), bound into the F166
+# query/context-state (NOT the render), that biases sector occupancy NON-RANDOMLY:
+#   ELI5   -> shallow band, sectors [0,1]    (word/bigram resolution depth)
+#   peer   -> neutral band, all sectors      (the native register)
+#   expert -> deep band,    sectors [2,3]    (the F168 load-bearing deep sectors)
+# Each frame's anchor = the klein4 BUNDLE of encode_word_k4 depth-tag vectors over
+# its target sector band (the F168 sector tagging), bound into the SAME context-state
+# the SAME way (klein4_bind) the F214 random control is bound. The ONLY difference
+# from the F214 random control is that the bound vector carries DEPTH STRUCTURE
+# (points at a sector band) rather than being a random orientation — so any shift
+# beyond the floor is attributable to the absorption-depth STRUCTURE, not the op-kind.
+# Re-run the identical F212 §5 retrieval-vs-render test vs the SAME 16-frame
+# shape-matched random-orientation control (the F214 noise floor, p90 gate).
+#   Pre-stated null (STRONGER than F214's): "even the STRUCTURED depth-anchor does
+#   not exceed the noise floor in retrieval => the recipient-fiber is render-only
+#   even WITH depth structure." Retrieval-shift beyond floor => CONFIRMS F212: the
+#   recipient-fiber threads into the addressing as a depth-operator; the RECIPIENT
+#   anchor belongs in the F166 context-state (resolves #760). Nulls count.
+# STRUCTURAL test-objects ONLY; §VII.6.20 (texts are test-objects; no doctrinal claims).
+[fetch.literature_curated.recipient_depth_anchor]
+demo_text          = "kjv_nt"  # F168: deepest sector structure -> most depth headroom to bias
+n_units            = 6000      # verse-lines sampled to build the bigram store + candidate sets
+n_queries          = 400       # fixed held-out queries (context windows) scored per frame
+window             = 5         # k-token context window (the F166 rolling state width)
+min_candidates     = 3         # only score queries whose last token has >=3 legal successors
+top_k_activate     = 5         # ranked-set size for the "which relationships activate" overlap metric
+n_random           = 16        # SAME shape-matched random-orientation control as F214 (the noise floor)
+noise_percentile   = 0.90      # structured spread must exceed this percentile of the random-spread dist
+n_anchor_tags      = 9         # depth-tag vectors bundled per band (odd, for klein4_bundle majority)
+shallow_band       = [0, 1]    # ELI5  -> word/bigram sectors
+neutral_band       = [0, 1, 2, 3]  # peer -> native register (all F168 sectors)
+deep_band          = [2, 3]    # expert -> the F168 load-bearing deep sectors
+seed               = 42
+
+# ---------------------------------------------------------------------------
+# DECISIVE teaching==bilingualism head-to-head (F224 / R-RBS-LM-224) — #760 ask #1+#2
+# ---------------------------------------------------------------------------
+# THE CONJECTURE (R-RBS-LM-54 Rosetta cross-encoding-projection cascade): teaching
+# == bilingualism — both "hold one content in two encodings, project across via a
+# Class-C which-way selector + an anchor bound into the query (Class M)." ONLY the
+# anchor's AXIS differs: BILINGUAL = which-LANGUAGE label = a DOMAIN axis (F165
+# labeled-store; WORKS, +0.388 to N=8192 per F222); TEACHING = which-DEPTH operator
+# over the F168 sector ladder = the RECIPIENT/ELI5 axis (F212; NULL so far — F221
+# built it as an XOR-twist of the probe -> tier-1 render-only null, partly anchor +
+# partly meter). THE DECISIVE TEST: build the depth anchor the SAME WAY the WORKING
+# DOMAIN/language anchor is built (a labeled-store key bound into retrieval, read as
+# a Tier-2 similarity RE-WEIGHTING per F119/F120 Class-K bridge, NOT an XOR-twist),
+# AND read it with a meter that has REAL DYNAMIC RANGE (a band-conditioned ranking-
+# divergence: does a SHALLOW-band query rank DIFFERENT continuations first than a
+# DEEP-band query?), and see whether the DEPTH axis steers retrieval LIKE the
+# LANGUAGE axis does. 3 conditions, identical corpus/queries/readout/floor; ONLY the
+# anchor build/read differs:
+#   (A) DOMAIN/language labeled-store key bound into the key (KNOWN-WORKING, F165/F146/F222)
+#   (B) RECIPIENT depth XOR-twist of the probe                (KNOWN-NULL, F221)
+#   (C) RECIPIENT depth as a read-side Tier-2 re-weight       (NEW; #760 ask #2, F120 Class-K)
+# Readout gated on the SAME 16-frame shape-matched random-orientation floor (p90).
+#   Pre-stated NULL: "(C) stays at the noise floor like (B) => teaching != bilingual
+#   on the addressing side; depth is genuinely render-only, not language-like."
+#   Pre-stated POSITIVE: "(C) clears the floor like (A) => CONFIRMS teaching ==
+#   bilingual on the addressing side; resolves #760 forward-ask #2." Nulls count.
+# STRUCTURAL test-objects ONLY; §VII.6.20 (texts + languages are test-objects; no
+# cognitive / doctrinal / BCI claim).
+[fetch.literature_curated.recipient_tier2]
+demo_text          = "kjv_nt"  # F168: deepest sector structure -> most depth headroom (SAME as F214/F221)
+n_units            = 6000      # verse-lines sampled to build the bigram store + candidate sets (SAME)
+n_queries          = 400       # fixed held-out queries scored per condition (SAME as F214/F221)
+window             = 5         # k-token context window (the F166 rolling state width) (SAME)
+min_candidates     = 3         # only score queries whose last token has >=3 legal successors (SAME)
+n_random           = 16        # SAME shape-matched random-orientation control as F214/F221 (the noise floor)
+noise_percentile   = 0.90      # a condition's shallow-vs-deep divergence must exceed this percentile to clear the floor
+n_anchor_tags      = 9         # depth-tag vectors bundled per band (odd, for klein4_bundle majority) (SAME as F221)
+shallow_band       = [0, 1]    # shallow/learner depth -> word/bigram sectors (SAME band defs as F221 ELI5)
+deep_band          = [2, 3]    # deep/expert depth -> the F168 load-bearing deep sectors (SAME as F221 expert)
+tier2_alpha        = 0.5       # Class-K Tier-1<->Tier-2 bridge mix: score = (1-a)*base_sim + a*depth_match
+                               # (0.5 = equal weight; the depth-band match re-weights the un-conditioned
+                               # context->candidate similarity at SCORING time, NOT an XOR twist of the probe)
+seed               = 42
+
+# ---------------------------------------------------------------------------
+# RENDER-side channel-choice test (F227 / R-RBS-LM-227) — the render-side complement
+# ---------------------------------------------------------------------------
+# F221/F224 measured the ADDRESSING side (which continuation is legal / how candidates
+# RANK) and found recipient/depth is RENDER-ONLY: the depth anchor does NOT steer
+# retrieval (F221 0/3 NULL; F224 condition-C Tier-2 labeled-key sep=0.0409 < p90=0.0500,
+# pctile=0.12 — below its own matched-random floor). THE UNTESTED HALF: with the CONTEXT
+# (legal candidate set) held FIXED, is the actually-EMITTED render — the sequence the
+# F166 autoregressive loop (R-RBS-LM-129 gen_substrate) generates under each channel
+# anchor — systematically CHANNEL-TUNED or RANDOM? The channel anchor is applied at the
+# scoring step ONLY (the F224 condition-C Tier-2 labeled-key re-weight — the strongest
+# WORKING build, the same one that was a clean retrieval-null), so it re-orders/re-weights
+# WITHIN the FIXED candidate set next_after[last] WITHOUT changing which tokens are legal:
+#       base_sims  = sim_k4_batch(klein4_bind(M, encode_context(win[-k:])), cand_vecs)
+#       depth_match = sim_k4_batch(klein4_bind(encode_context(win[-k:]), band_key), cand_vecs)
+#       score = (1-alpha)*base_sims + alpha*depth_match ;  p = softmax(score, T)
+# Three structured channel bands (the F221 depth ladder): ELI5/shallow [0,1],
+# peer/neutral [0,1,2,3], expert/deep [2,3]; band_key = enc('__band_{name}__') (the
+# F165/F146 labeled-store key — condition (C)'s build). Render-spread per metric FAMILY
+# is gated against the SAME-metric spread among n_random=16 RANDOM-LABEL channels
+# (enc('__rand_render_{r}__')) generated by the IDENTICAL Tier-2 mechanism (the F224
+# matched-mechanism floor, verbatim; p90 gate).
+#   Render families: (F1) F168-native emitted-sector-occupancy (encode_word_k4(sector=s)
+#   argmax under the channel-conditioned probe) — the depth-native readout; (F2) F129
+#   corpus-agnostic length/structure (corpus-trigram-legality + repeat_rate +
+#   distinct_ratio + cycle_3gram — pos_valid OMITTED on KJV-NT, the R-113 template
+#   grammar does not exist for real text); (F3) lexical/argmax (1 - mean Jaccard of
+#   emitted-token sets); (F4) emitted Class-L co-occurrence eigen-spectrum L2.
+#   Pre-stated NULL (counts equally per [[feedback_dont_pre_commit_spike_query_operators]]):
+#   "holding context FIXED and varying ONLY the channel band, the F166 loop's EMITTED
+#   render is channel-INVARIANT beyond the F224 matched-random-label floor — 0 families
+#   clear, or only families EXCLUDING sector-occupancy with <2 total => the apparent
+#   chaos is noise on the render axis too (combined with the F221/F224 addressing-null,
+#   recipient/depth steers NEITHER retrieval NOR the emitted surface beyond the floor)."
+#   Pre-stated POSITIVE: ">=2/3 families clear AND the F168-native emitted-sector-
+#   occupancy family is among them => CONFIRMS chaos = real render-axis CHANNEL-CHOICE:
+#   the recipient/depth anchor systematically tunes WHAT IS EMITTED even though it does
+#   NOT steer WHICH continuation is retrieved (render-only, per F212/F214/F221/F224)."
+# Non-degeneracy precondition: the 3 channel labeled-keys must be pairwise distinct
+# (sim<1.0, ~0.25 Klein-4 floor) AND the 3 structured renders must not be byte-identical
+# (else INDETERMINATE-anchor, not null). STRUCTURAL render-axis channel-choice; texts +
+# depth-bands are test-objects; NO clinical/biological/BCI/cognitive claim; §VII.6.20.
+[fetch.literature_curated.render_channel]
+demo_text          = "kjv_nt"  # F168: deepest sector structure -> most render headroom (SAME as F214/F221/F224)
+n_units            = 6000      # verse-lines sampled to build the bigram store + candidate sets (SAME)
+gen_n_seeds        = 80        # SEED windows to generate from; each runs a full gen_length-token render
+                               # (3 structured + 16 random-label = 19 renders/seed -> kept modest for tractability)
+window             = 5         # k-token context window (the F166 rolling state width) (SAME as F214/F221/F224)
+min_candidates     = 3         # only seed from windows whose last token has >=3 legal successors (a real distribution)
+gen_length         = 40        # render length (F129 gen_length_sweep top -> dynamic range w/o runaway cost)
+operating_temp     = 0.01      # cold-confident regime (F129 operating_temps[1] -> the cold render)
+warm_temp          = 0.05      # secondary slightly-warmer temp (F129 operating_temps[-1]) — cold-pinning cross-check ONLY
+n_random           = 16        # SAME matched-mechanism random-LABEL floor as F224 (the noise floor; p90 gate)
+noise_percentile   = 0.90      # render-spread among structured channels must exceed this percentile of the random-label spread
+n_anchor_tags      = 9         # (carried for parity with F221/F224; the (C) build uses the labeled key, not the bundle)
+shallow_band       = [0, 1]    # ELI5  -> word/bigram sectors (SAME band defs as F221/F224)
+neutral_band       = [0, 1, 2, 3]  # peer -> native register (all F168 sectors)
+deep_band          = [2, 3]    # expert -> the F168 load-bearing deep sectors
+tier2_alpha        = 0.5       # Class-K Tier-1<->Tier-2 bridge mix at the scoring step (SAME as F224 condition C)
+seed               = 42        # query/seed-pool + random-label-index seed (derived via sha256_bytes, not python hash)
+loop_seed          = 7         # generation RNG seed base (deterministic / bit-exact; SAME as F129)
+
+# ---------------------------------------------------------------------------
+# Translation pairs (F171) — SAME content, DIFFERENT translator (the invariance test)
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.translation_pairs]
+# The F169 core test needs SAME content rendered by different translators. The
+# Quran is the available pair: the cached Yusuf-Ali/Sale-register text vs Rodwell.
+# Storage-depth (controlled) should be INVARIANT across translations of the same
+# content if storage is expression-independent; surface repetition is free to vary.
+# STRUCTURAL test-objects ONLY; no doctrinal claims (§VII.6.20).
+
+[fetch.literature_curated.translation_pairs.quran_yusuf_ali]
+label       = "Quran (Sale 1734 / Yusuf Ali register)"
+filename    = "quran_yusuf_ali.txt"
+sha256      = "e91167f80f73ab9efc2a9613af16689628413bfc03b0d11dc4c153c979fd9d8b"
+pair_id     = "quran"
+source_note = "previously cached (R-RBS-LM-53 arc)"
+
+[fetch.literature_curated.translation_pairs.quran_rodwell]
+label        = "Quran (Rodwell 1861)"
+filename     = "quran_rodwell.txt"
+sha256       = "1cda1809c67ae8743b9be7f8f8cc5893872243dd39eb2f96247c0de01edf3fe0"
+pair_id      = "quran"
+source_url   = "https://www.gutenberg.org/cache/epub/3434/pg3434.txt"
+source_ref   = "Project Gutenberg ebook #3434 (J. M. Rodwell, The Koran)"
+retrieved_at = "2026-05-29"
+license      = "public domain (Project Gutenberg)"
+
+# ---------------------------------------------------------------------------
+# Strong-invariance test (F199 / R-RBS-LM-143) — SEVERAL within-source translation
+# clusters, so within-vs-across becomes statistically meaningful (F171 was n=1).
+# ---------------------------------------------------------------------------
+# The F171/F172 core test had ONE Quran pair (n=1). The strong test sources MULTIPLE
+# translations of the SAME source so WITHIN-source storage-similarity is a DISTRIBUTION
+# tested against the ACROSS-source distribution. Three within-source clusters:
+#   (1) QURAN  — 5 translations of the identical Arabic source: Sale, Rodwell,
+#                Yusuf-Ali, Pickthall, Shakir  -> C(5,2)=10 within-pairs
+#   (2) BIBLE-OT — KJV-OT vs WEB-OT (Books 01-39)  -> 1 within-pair
+#   (3) BIBLE-NT — KJV-NT vs WEB-NT (Books 40-66)  -> 1 within-pair
+# Pre-specified outcomes (spike-query discipline; nulls count): (a) storage HIGH
+# within-source / LOW across-source while expression varies -> NT/ND storage
+# hypothesis supported; (b) storage also varies within-source -> not a clean storage
+# axis (null); (c) can't source enough pairs -> scope-limited. Storage signatures are
+# srmech-native Class L (co-occurrence Laplacian eigenspectrum + envelope-residual +
+# 28D chirality K1-chiral) + controlled resolution-depth; expression axis = surface
+# repetition. STRUCTURAL test-objects ONLY; no doctrinal claims (§VII.6.20).
+[fetch.literature_curated.strong_invariance]
+budget_tokens = 12000    # matched token budget per translation (auto-clamped to min available)
+seed          = 42
+
+# --- Quran cluster (5 translations of one source) ---
+[fetch.literature_curated.strong_invariance.translations.quran_sale]
+label        = "Quran (George Sale 1734)"
+filename     = "quran_yusuf_ali.txt"   # cached file IS PG #7440 Sale (header-verified 2026-05-30)
+sha256       = "e91167f80f73ab9efc2a9613af16689628413bfc03b0d11dc4c153c979fd9d8b"
+source_id    = "quran"
+source_url   = "https://www.gutenberg.org/cache/epub/7440/pg7440.txt"
+source_ref   = "Project Gutenberg ebook #7440 (George Sale, The Koran / Al-Qur'an)"
+retrieved_at = "2026-05-29"
+license      = "public domain (Project Gutenberg)"
+
+[fetch.literature_curated.strong_invariance.translations.quran_rodwell]
+label        = "Quran (J. M. Rodwell 1861)"
+filename     = "quran_rodwell.txt"
+sha256       = "1cda1809c67ae8743b9be7f8f8cc5893872243dd39eb2f96247c0de01edf3fe0"
+source_id    = "quran"
+source_url   = "https://www.gutenberg.org/cache/epub/3434/pg3434.txt"
+source_ref   = "Project Gutenberg ebook #3434 (J. M. Rodwell, The Koran)"
+retrieved_at = "2026-05-29"
+license      = "public domain (Project Gutenberg)"
+
+[fetch.literature_curated.strong_invariance.translations.quran_yusufali]
+label        = "Quran (Abdullah Yusuf Ali)"
+filename     = "quran_yusufali_pg16955.txt"   # split from PG #16955 (Y: lines)
+sha256       = "c2a4ede6b581dd8f4c395ded30b0211a3bf23dbfad6b6766c2fc780b6402c65a"
+source_id    = "quran"
+source_url   = "https://www.gutenberg.org/cache/epub/16955/pg16955.txt"
+source_ref   = "Project Gutenberg ebook #16955 (Three translations side by side; Yusuf-Ali column, 'Y:' prefix)"
+parent_sha256 = "68c0cf5b08c51b2ee2155937f6e6162d7f7abeb36fa479a57c4ffd8b755f903d"
+split_rule   = "stateful Y:/P:/S: line-prefix demux; Y: -> Yusuf-Ali (see split_corpora.py in R-143)"
+retrieved_at = "2026-05-30"
+license      = "public domain (Project Gutenberg)"
+
+[fetch.literature_curated.strong_invariance.translations.quran_pickthall]
+label        = "Quran (Marmaduke Pickthall)"
+filename     = "quran_pickthall_pg16955.txt"   # split from PG #16955 (P: lines)
+sha256       = "21a70802cc693779bf866fb55eeeee85c328ef21d077a75a9ae6229e7c837fd5"
+source_id    = "quran"
+source_url   = "https://www.gutenberg.org/cache/epub/16955/pg16955.txt"
+source_ref   = "Project Gutenberg ebook #16955 (Three translations side by side; Pickthall column, 'P:' prefix)"
+parent_sha256 = "68c0cf5b08c51b2ee2155937f6e6162d7f7abeb36fa479a57c4ffd8b755f903d"
+split_rule   = "stateful Y:/P:/S: line-prefix demux; P: -> Pickthall (see split_corpora.py in R-143)"
+retrieved_at = "2026-05-30"
+license      = "public domain (Project Gutenberg)"
+
+[fetch.literature_curated.strong_invariance.translations.quran_shakir]
+label        = "Quran (M. H. Shakir)"
+filename     = "quran_shakir_pg16955.txt"   # split from PG #16955 (S: lines)
+sha256       = "524791284c19922f596ef5b75990ff9c943871ccdaa244c5079c27e2d3181a2a"
+source_id    = "quran"
+source_url   = "https://www.gutenberg.org/cache/epub/16955/pg16955.txt"
+source_ref   = "Project Gutenberg ebook #16955 (Three translations side by side; Shakir column, 'S:' prefix)"
+parent_sha256 = "68c0cf5b08c51b2ee2155937f6e6162d7f7abeb36fa479a57c4ffd8b755f903d"
+split_rule   = "stateful Y:/P:/S: line-prefix demux; S: -> Shakir (see split_corpora.py in R-143)"
+retrieved_at = "2026-05-30"
+license      = "public domain (Project Gutenberg)"
+
+# --- Bible-OT cluster (2 translations) ---
+[fetch.literature_curated.strong_invariance.translations.kjv_ot]
+label        = "Bible Old Testament (KJV)"
+filename     = "kjv_old_testament.txt"
+sha256       = "60b2b8021452180eb0ad9ce11e275451b809f257bfb86f1f6a66f54abecc71f5"
+source_id    = "bible_ot"
+source_note  = "previously cached (R-RBS-LM-53 arc)"
+
+[fetch.literature_curated.strong_invariance.translations.web_ot]
+label         = "Bible Old Testament (World English Bible)"
+filename      = "web_ot_pg8294.txt"   # split from PG #8294 (Books 01-39 Genesis..Malachi)
+sha256        = "e7f29ba4679a127cfcd4ca1cbb05e5f552e7e171e836a34f5b5923195a590d12"
+source_id     = "bible_ot"
+source_url    = "https://www.gutenberg.org/cache/epub/8294/pg8294.txt"
+source_ref    = "Project Gutenberg ebook #8294 (World English Bible, Complete); OT = Books 01-39"
+parent_sha256 = "164d718121fec9e24db48a7d9acc802abfc20dc5ecf2c4d310d3ae1aacbc9324"
+split_rule    = "'Book NN <name>' markers; books 01-39 -> OT (see split_corpora.py in R-143)"
+retrieved_at  = "2026-05-30"
+license       = "public domain (Project Gutenberg)"
+
+# --- Bible-NT cluster (2 translations) ---
+[fetch.literature_curated.strong_invariance.translations.kjv_nt]
+label        = "Bible New Testament (KJV)"
+filename     = "kjv_new_testament.txt"
+sha256       = "f26f3c9c32bee2e3f1a71437ba69b7c47f1420d822b3b3681943ccb2825f7fc6"
+source_id    = "bible_nt"
+source_note  = "previously cached (R-RBS-LM-53 arc)"
+
+[fetch.literature_curated.strong_invariance.translations.web_nt]
+label         = "Bible New Testament (World English Bible)"
+filename      = "web_nt_pg8294.txt"   # split from PG #8294 (Books 40-66 Matthew..Revelation)
+sha256        = "1ce31c278a38682718ba7c44def5603a2ae9bc8d688d40e0e3cfd1ddaf4c5d48"
+source_id     = "bible_nt"
+source_url    = "https://www.gutenberg.org/cache/epub/8294/pg8294.txt"
+source_ref    = "Project Gutenberg ebook #8294 (World English Bible, Complete); NT = Books 40-66"
+parent_sha256 = "164d718121fec9e24db48a7d9acc802abfc20dc5ecf2c4d310d3ae1aacbc9324"
+split_rule    = "'Book NN <name>' markers; books 40-66 -> NT (see split_corpora.py in R-143)"
+retrieved_at  = "2026-05-30"
+license        = "public domain (Project Gutenberg)"
+
+# --- distinct-content reference anchors (NOT translation pairs; across-source baseline) ---
+[fetch.literature_curated.strong_invariance.translations.bhagavad_gita]
+label       = "Bhagavad Gita (Edwin Arnold)"
+filename    = "bhagavad_gita.txt"
+sha256      = "a5d170ed807a42a8ff196fd5c6d61ceeda4b51788c1918f9b64fbbd5b2317900"
+source_id   = "gita"
+source_note = "previously cached; distinct-content anchor (singleton source)"
+
+[fetch.literature_curated.strong_invariance.translations.tao_legge]
+label       = "Tao Te Ching (James Legge)"
+filename    = "tao_te_ching.txt"
+sha256      = "ff1f2d83b2737d08ce93dec90ee74fe07919d37b019c5e81b1dfd2e9d48ff5fd"
+source_id   = "tao"
+source_note = "previously cached; distinct-content anchor (singleton source)"
+
+[fetch.literature_curated.strong_invariance.translations.dhammapada]
+label       = "Dhammapada (Max Müller)"
+filename    = "dhammapada.txt"
+sha256      = "2b57e8ecdf63644586db1e74baca10d7b532e09362d7f94ff46711cde5676957"
+source_id   = "dhammapada"
+source_note = "previously cached; distinct-content anchor (singleton source)"
+
+# ---------------------------------------------------------------------------
+# Standard AMSC tail
+# ---------------------------------------------------------------------------
+[parse]
+natural_key = "measurement_id"
+
+[schema]
+data_schema_id = "srmech.rbs_lm.religious_text_chirality.v1"
+ndjson_file    = "substrate_measurements/religious_texts.ndjson"
+
+[rendering]
+name_template    = "RBS-LM religious-text chirality '{measurement_id}'"
+purpose_template = "Chirality signature / cross-navigation for {text_label} (phase={phase})"
+cite_as_template = "mlehaptics RBS-LM religious-texts variant ('{measurement_id}') via srmech v{srmech_version}; descriptor_hash={descriptor_hash}; STRUCTURAL-ONLY per §VII.6.20"
+
+[attestation]
+method     = "config_descriptor"
+provenance = "Variant of the canonical rbs_lm_substrate catalog. Each corpus is attested by content SHA-256 (recorded above); corpora are public-domain open translations cached at ~/.cache/rbs_lm_corpora, re-fetchable from Project Gutenberg. Measurement consumes the canonical Klein-4 substrate library via srmech 0.5.0 native (ABI=3). STRUCTURAL/SPECTRAL READING ONLY per [[feedback_trauma_informed_defensive_scope]] + [[feedback_no_lineage_claims_in_notebook]]: the texts are structural test-objects; no doctrinal/truth/origin/ranking claims; MFO §VII.6.20 epistemic ceiling honored (form-claims only; substrate-identity requires a DOMAIN anchor). The research question is whether 28D chirality lifts the flat-spectral degeneracy R-RBS-LM-53 measured — an honest test that may return null (F142: chirality discriminates only where it is the load-bearing distinction)."
+
+[gap_targeting]
+gap_label = "rbs_lm_substrate_religious_texts_28d_chirality"

@@ -1,0 +1,561 @@
+{
+  "partition": "R-RBS-LM-52a-v3",
+  "summary": [
+    {
+      "label": "K1",
+      "code_above_max": 0,
+      "code_z2": 3,
+      "code_z1": 5,
+      "noncode_above_max": 0,
+      "code_peak": 3.1464140352985703
+    },
+    {
+      "label": "K3_n4",
+      "code_above_max": 0,
+      "code_z2": 0,
+      "code_z1": 0,
+      "noncode_above_max": 0,
+      "code_peak": 0.4935858233185978
+    },
+    {
+      "label": "smoothie_max",
+      "code_above_max": 0,
+      "code_z2": 3,
+      "code_z1": 5,
+      "noncode_above_max": 0,
+      "code_peak": 3.1464140352985703
+    }
+  ],
+  "K1_meta": {
+    "vocab_top_15": [
+      [
+        "print",
+        1380
+      ],
+      [
+        "len",
+        850
+      ],
+      [
+        "in",
+        744
+      ],
+      [
+        "if",
+        701
+      ],
+      [
+        "for",
+        678
+      ],
+      [
+        "r",
+        520
+      ],
+      [
+        "import",
+        505
+      ],
+      [
+        "d",
+        472
+      ],
+      [
+        "time",
+        428
+      ],
+      [
+        "return",
+        346
+      ],
+      [
+        "np",
+        316
+      ],
+      [
+        "path",
+        314
+      ],
+      [
+        "def",
+        312
+      ],
+      [
+        "s",
+        301
+      ],
+      [
+        "i",
+        268
+      ]
+    ],
+    "vocab_size": 200,
+    "n_edges": 5827
+  },
+  "K3_meta": {
+    "kernel": "K3_n4",
+    "n_ngrams_corpus": 69399,
+    "n_sampled": 500
+  },
+  "baselines": {
+    "K1": {
+      "mean": 0.02823486328125,
+      "std": 0.045496827138061635,
+      "max": 0.19384765625,
+      "min": -0.0302734375
+    },
+    "K3": {
+      "mean": 0.0050390625,
+      "std": 0.03331804059814932,
+      "max": 0.275390625,
+      "min": -0.027587890625
+    }
+  },
+  "K1_results": [
+    {
+      "probe": "def encode loe content",
+      "kind": "code",
+      "sim": 0.072509765625,
+      "z": 0.9731426371644848,
+      "above_max": false
+    },
+    {
+      "probe": "def cascade compose",
+      "kind": "code",
+      "sim": 0.052734375,
+      "z": 0.5384883575376678,
+      "above_max": false
+    },
+    {
+      "probe": "def main self",
+      "kind": "code",
+      "sim": 0.054931640625,
+      "z": 0.586783277496203,
+      "above_max": false
+    },
+    {
+      "probe": "import numpy as",
+      "kind": "code",
+      "sim": 0.054931640625,
+      "z": 0.586783277496203,
+      "above_max": false
+    },
+    {
+      "probe": "class K3 Tripartition",
+      "kind": "code",
+      "sim": 0.01904296875,
+      "z": -0.20203374849320574,
+      "above_max": false
+    },
+    {
+      "probe": "for i in range",
+      "kind": "code",
+      "sim": 0.17138671875,
+      "z": 3.1464140352985703,
+      "above_max": false
+    },
+    {
+      "probe": "if not condition return",
+      "kind": "code",
+      "sim": 0.130126953125,
+      "z": 2.2395427605216307,
+      "above_max": false
+    },
+    {
+      "probe": "from srmech amsc import",
+      "kind": "code",
+      "sim": 0.119873046875,
+      "z": 2.0141664673818,
+      "above_max": false
+    },
+    {
+      "probe": "self instrument bytes",
+      "kind": "code",
+      "sim": 0.07373046875,
+      "z": 0.9999731482525599,
+      "above_max": false
+    },
+    {
+      "probe": "def hierarchical bundle vectors",
+      "kind": "code",
+      "sim": 0.076904296875,
+      "z": 1.0697324770815553,
+      "above_max": false
+    },
+    {
+      "probe": "bind permute mint vector",
+      "kind": "code",
+      "sim": 0.016845703125,
+      "z": -0.25032866845174095,
+      "above_max": false
+    },
+    {
+      "probe": "dense laplacian eigendecompose",
+      "kind": "code",
+      "sim": -0.01220703125,
+      "z": -0.888894832347929,
+      "above_max": false
+    },
+    {
+      "probe": "n gram position stride",
+      "kind": "code",
+      "sim": 0.0087890625,
+      "z": -0.4274100416330368,
+      "above_max": false
+    },
+    {
+      "probe": "tokenize text raw",
+      "kind": "code",
+      "sim": 0.082763671875,
+      "z": 1.1985189303043158,
+      "above_max": false
+    },
+    {
+      "probe": "encode probe K1",
+      "kind": "code",
+      "sim": -0.001708984375,
+      "z": -0.6581524369904829,
+      "above_max": false
+    },
+    {
+      "probe": "chocolate ice cream sundae",
+      "kind": "non_code",
+      "sim": 0.012451171875,
+      "z": -0.3469185083688114,
+      "above_max": false
+    },
+    {
+      "probe": "professional soccer team striker",
+      "kind": "non_code",
+      "sim": 0.001953125,
+      "z": -0.5776609037262574,
+      "above_max": false
+    },
+    {
+      "probe": "kitchen pencil sharpener metal",
+      "kind": "non_code",
+      "sim": 0.00830078125,
+      "z": -0.43814224606826685,
+      "above_max": false
+    },
+    {
+      "probe": "tropical rainforest jungle humid",
+      "kind": "non_code",
+      "sim": 0.01171875,
+      "z": -0.3630168150216565,
+      "above_max": false
+    },
+    {
+      "probe": "vintage automobile classic ford",
+      "kind": "non_code",
+      "sim": 0.006103515625,
+      "z": -0.48643716602680204,
+      "above_max": false
+    }
+  ],
+  "K3_results": [
+    {
+      "probe": "def encode loe content",
+      "kind": "code",
+      "sim": 0.01611328125,
+      "z": 0.33237905204470897,
+      "above_max": false
+    },
+    {
+      "probe": "def cascade compose",
+      "kind": "code",
+      "sim": -0.000244140625,
+      "z": -0.158568842289407,
+      "above_max": false
+    },
+    {
+      "probe": "def main self",
+      "kind": "code",
+      "sim": -0.000244140625,
+      "z": -0.158568842289407,
+      "above_max": false
+    },
+    {
+      "probe": "import numpy as",
+      "kind": "code",
+      "sim": -0.000244140625,
+      "z": -0.158568842289407,
+      "above_max": false
+    },
+    {
+      "probe": "class K3 Tripartition",
+      "kind": "code",
+      "sim": -0.000244140625,
+      "z": -0.158568842289407,
+      "above_max": false
+    },
+    {
+      "probe": "for i in range",
+      "kind": "code",
+      "sim": -0.013427734375,
+      "z": -0.5542581899616796,
+      "above_max": false
+    },
+    {
+      "probe": "if not condition return",
+      "kind": "code",
+      "sim": -0.0078125,
+      "z": -0.3857238381753413,
+      "above_max": false
+    },
+    {
+      "probe": "from srmech amsc import",
+      "kind": "code",
+      "sim": -0.004638671875,
+      "z": -0.29046529151349787,
+      "above_max": false
+    },
+    {
+      "probe": "self instrument bytes",
+      "kind": "code",
+      "sim": -0.000244140625,
+      "z": -0.158568842289407,
+      "above_max": false
+    },
+    {
+      "probe": "def hierarchical bundle vectors",
+      "kind": "code",
+      "sim": 0.016845703125,
+      "z": 0.35436179358205744,
+      "above_max": false
+    },
+    {
+      "probe": "bind permute mint vector",
+      "kind": "code",
+      "sim": -0.0087890625,
+      "z": -0.4150341602251392,
+      "above_max": false
+    },
+    {
+      "probe": "dense laplacian eigendecompose",
+      "kind": "code",
+      "sim": -0.000244140625,
+      "z": -0.158568842289407,
+      "above_max": false
+    },
+    {
+      "probe": "n gram position stride",
+      "kind": "code",
+      "sim": 0.021484375,
+      "z": 0.4935858233185978,
+      "above_max": false
+    },
+    {
+      "probe": "tokenize text raw",
+      "kind": "code",
+      "sim": -0.000244140625,
+      "z": -0.158568842289407,
+      "above_max": false
+    },
+    {
+      "probe": "encode probe K1",
+      "kind": "code",
+      "sim": -0.000244140625,
+      "z": -0.158568842289407,
+      "above_max": false
+    },
+    {
+      "probe": "chocolate ice cream sundae",
+      "kind": "non_code",
+      "sim": 0.007568359375,
+      "z": 0.07591373410897674,
+      "above_max": false
+    },
+    {
+      "probe": "professional soccer team striker",
+      "kind": "non_code",
+      "sim": -0.009033203125,
+      "z": -0.42236174073758875,
+      "above_max": false
+    },
+    {
+      "probe": "kitchen pencil sharpener metal",
+      "kind": "non_code",
+      "sim": -0.0107421875,
+      "z": -0.47365480432473517,
+      "above_max": false
+    },
+    {
+      "probe": "tropical rainforest jungle humid",
+      "kind": "non_code",
+      "sim": -0.00634765625,
+      "z": -0.34175835510064434,
+      "above_max": false
+    },
+    {
+      "probe": "vintage automobile classic ford",
+      "kind": "non_code",
+      "sim": 0.0029296875,
+      "z": -0.06331029562756361,
+      "above_max": false
+    }
+  ],
+  "smoothie_results": [
+    {
+      "probe": "def encode loe content",
+      "kind": "code",
+      "z_K1": 0.9731426371644848,
+      "z_K3": 0.33237905204470897,
+      "max_z": 0.9731426371644848,
+      "above_max": false
+    },
+    {
+      "probe": "def cascade compose",
+      "kind": "code",
+      "z_K1": 0.5384883575376678,
+      "z_K3": -0.158568842289407,
+      "max_z": 0.5384883575376678,
+      "above_max": false
+    },
+    {
+      "probe": "def main self",
+      "kind": "code",
+      "z_K1": 0.586783277496203,
+      "z_K3": -0.158568842289407,
+      "max_z": 0.586783277496203,
+      "above_max": false
+    },
+    {
+      "probe": "import numpy as",
+      "kind": "code",
+      "z_K1": 0.586783277496203,
+      "z_K3": -0.158568842289407,
+      "max_z": 0.586783277496203,
+      "above_max": false
+    },
+    {
+      "probe": "class K3 Tripartition",
+      "kind": "code",
+      "z_K1": -0.20203374849320574,
+      "z_K3": -0.158568842289407,
+      "max_z": -0.158568842289407,
+      "above_max": false
+    },
+    {
+      "probe": "for i in range",
+      "kind": "code",
+      "z_K1": 3.1464140352985703,
+      "z_K3": -0.5542581899616796,
+      "max_z": 3.1464140352985703,
+      "above_max": false
+    },
+    {
+      "probe": "if not condition return",
+      "kind": "code",
+      "z_K1": 2.2395427605216307,
+      "z_K3": -0.3857238381753413,
+      "max_z": 2.2395427605216307,
+      "above_max": false
+    },
+    {
+      "probe": "from srmech amsc import",
+      "kind": "code",
+      "z_K1": 2.0141664673818,
+      "z_K3": -0.29046529151349787,
+      "max_z": 2.0141664673818,
+      "above_max": false
+    },
+    {
+      "probe": "self instrument bytes",
+      "kind": "code",
+      "z_K1": 0.9999731482525599,
+      "z_K3": -0.158568842289407,
+      "max_z": 0.9999731482525599,
+      "above_max": false
+    },
+    {
+      "probe": "def hierarchical bundle vectors",
+      "kind": "code",
+      "z_K1": 1.0697324770815553,
+      "z_K3": 0.35436179358205744,
+      "max_z": 1.0697324770815553,
+      "above_max": false
+    },
+    {
+      "probe": "bind permute mint vector",
+      "kind": "code",
+      "z_K1": -0.25032866845174095,
+      "z_K3": -0.4150341602251392,
+      "max_z": -0.25032866845174095,
+      "above_max": false
+    },
+    {
+      "probe": "dense laplacian eigendecompose",
+      "kind": "code",
+      "z_K1": -0.888894832347929,
+      "z_K3": -0.158568842289407,
+      "max_z": -0.158568842289407,
+      "above_max": false
+    },
+    {
+      "probe": "n gram position stride",
+      "kind": "code",
+      "z_K1": -0.4274100416330368,
+      "z_K3": 0.4935858233185978,
+      "max_z": 0.4935858233185978,
+      "above_max": false
+    },
+    {
+      "probe": "tokenize text raw",
+      "kind": "code",
+      "z_K1": 1.1985189303043158,
+      "z_K3": -0.158568842289407,
+      "max_z": 1.1985189303043158,
+      "above_max": false
+    },
+    {
+      "probe": "encode probe K1",
+      "kind": "code",
+      "z_K1": -0.6581524369904829,
+      "z_K3": -0.158568842289407,
+      "max_z": -0.158568842289407,
+      "above_max": false
+    },
+    {
+      "probe": "chocolate ice cream sundae",
+      "kind": "non_code",
+      "z_K1": -0.3469185083688114,
+      "z_K3": 0.07591373410897674,
+      "max_z": 0.07591373410897674,
+      "above_max": false
+    },
+    {
+      "probe": "professional soccer team striker",
+      "kind": "non_code",
+      "z_K1": -0.5776609037262574,
+      "z_K3": -0.42236174073758875,
+      "max_z": -0.42236174073758875,
+      "above_max": false
+    },
+    {
+      "probe": "kitchen pencil sharpener metal",
+      "kind": "non_code",
+      "z_K1": -0.43814224606826685,
+      "z_K3": -0.47365480432473517,
+      "max_z": -0.43814224606826685,
+      "above_max": false
+    },
+    {
+      "probe": "tropical rainforest jungle humid",
+      "kind": "non_code",
+      "z_K1": -0.3630168150216565,
+      "z_K3": -0.34175835510064434,
+      "max_z": -0.34175835510064434,
+      "above_max": false
+    },
+    {
+      "probe": "vintage automobile classic ford",
+      "kind": "non_code",
+      "z_K1": -0.48643716602680204,
+      "z_K3": -0.06331029562756361,
+      "max_z": -0.06331029562756361,
+      "above_max": false
+    }
+  ],
+  "verdict": "\u2713 Loop closed \u2014 Python code substrate works with corrected methodology"
+}

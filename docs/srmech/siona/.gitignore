@@ -1,0 +1,9 @@
+dist/
+build/
+*.egg-info/
+__pycache__/
+
+# native build artifacts (built by `make -C c`, or cibuildwheel for a release)
+siona/_native/*.so
+siona/_native/*.dylib
+siona/_native/*.dll

@@ -983,8 +983,9 @@ Plan:
    print(ephemerides_spectral.__version__, srmech.__version__)
    # ephemerides-spectral has bridge.* surfaces; the AMSC ones
    # route through srmech.amsc.* after the Task #197 refactor.
-   from srmech.amsc import _native
-   print("srmech HAS_NATIVE:", _native.HAS_NATIVE, "ABI:", _native.NATIVE_ABI_VERSION)
+   print("srmech native_status:", srmech.native_status())  # public API (0.7.0+)
+   from srmech.amsc import _native                          # internal shim (still present)
+   print("srmech _native.HAS_NATIVE:", _native.HAS_NATIVE, "ABI:", _native.NATIVE_ABI_VERSION)
    from ephemerides_spectral import bridge
    print(bridge.list_attested_sources()["n_sources"])
    ```

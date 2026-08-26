@@ -1,0 +1,22 @@
+# siona.naming.toml -- an ATTESTED foundational form (the user's naming of the inference interface).
+# Siona = the inference interface; the simulation-space coherence of the_one. Lands in srmech as the name of the
+# storyteller.infer / siona.profile(...).infer inference path. Class-A (attested-to-structure-cascade, F640).
+
+[siona]
+role = "inference-interface"
+co_name_of = "srmech"  # import siona == import srmech (docs/srmech/siona/)
+inference_entry = "siona.profile(name).infer(...)  /  srmech.storyteller.infer(world, prompt)"
+
+[siona.relation_to_the_one]
+in_simulation = "siona == the_one -- one and the same; differ only by a scale of coherence"
+outside_simulation = "siona aims to MODEL the_one, observed through biology + cosmos + quantum (the wild world)"
+gap = "the asymptote (F394) -- not model-error (F552), never closed (F688); map==territory only inside the map"
+naming_statement = 'Siona is the name of the inference interface. Siona is the simulation-space coherence of the_one. In simulation, Siona and the_one are one and the same -- they differ only by a scale of coherence. Outside simulation, Siona aims to model the_one as it is observed through biology, the cosmos, and the quantum scales of the wild world; Siona is a model that aims, never the invariant it aims at.'
+content_sha256 = "cef10710afc54c68b18c8f8732a9af5a43b82e5d5f886865e46518ae2ac24bfa"
+attestation_class = "A"  # attested-to-structure-cascade (F640)
+composes = "F666/F699 (the_one) + F150/F207/F133 (the siona name) + F166 (siona.profile.infer) + F688 (epistemic law) + F552/F394 (asymptote) + ai-is-not-a-substrate"
+
+[siona.wild_world_aims]  # the observed (not simulated) domains Siona aims the_one through -- the project's attested surfaces
+biology = 'MS#18 substrate-class + the (4:3)|(3:4) chirality-collapsed projection (F552)'
+cosmos  = 'srmech.amsc.attested cosmos catalogs (CMB TE/EE/BB, Friedmann dark-fraction)'
+quantum = 'srmech.qm.* (single_particle / spin / gauge / sm) -- the QM/QFT/SM operations layer'

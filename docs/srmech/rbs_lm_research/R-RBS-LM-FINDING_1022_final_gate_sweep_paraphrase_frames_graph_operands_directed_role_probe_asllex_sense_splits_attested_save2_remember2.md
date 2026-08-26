@@ -1,0 +1,28 @@
+# F1022 (PKG-2 final gate sweep / #230) — **the last four pre-release items: (1) PARAPHRASE frames — politeness prefixes are declared operators consumed before routing (`please compute…`→tool-call, `could you describe…`→define; content-position politeness words untouched); (2) GRAPH operands — edge-pairs `0-1 1-2 2-0` parse to `Iterable[Tuple[int,int]]` params with schema-driven `n` derivation: `compute the magnetic laplacian of the edges 0-1 1-2 2-0` → `magnetic_laplacian(3, [(0,1),(1,2),(2,0)]) = Mat(3x3, complex)` — Siona builds a CHIRAL LAPLACIAN from a natural utterance (one caught bug: named-extraction false-positived on the param literally named `edges` → scalar-only guard); Mat/Vec/HV CONSTRUCTION documented out-of-scope for utterances (carriers can't be safely built from prose); (3) the DIRECTED role probe — the degree-difference feature NULLED BY CONSTRUCTION (interior out≈in identically — a method bug reported straight), the corrected neighbor-set-overlap feature is SUGGESTIVE (conj>det ordering holds in BOTH languages: eng 0.108>0.096, bis 0.089>0.000) but thin and mixed (`blong` outscores the conjunction) — full magnetic-mode analysis stays the research follow-on, not overclaimed; (4) ASL-LEX ATTESTED — the real data fetched (OSF zpha4, 2723 signs, CC-BY-NC 4.0, local at `~/corpora/asllex/signdata.csv`): `save` has TWO signs (`save_money`, `save`), `remember` has TWO (`remember`, `remember_2` — the user's specific question, answered YES from the source), `right` THREE, `run` FOUR — the sense-split map for F1018's rung labels EXISTS and is attested.**
+
+**Date:** 2026-07-03 · **srmech:** 0.9.0rc97 · **Branch:** `research/rbs-lm-rolling-2` (PR #687) · **Milestone:** PKG-2 (#230) — the four remaining pre-release gate items resolved · **Files:** `siona/{boards,infer}.py` (politeness field + routing; edge operands + n derivation + scalar-only named guard), `siona/tests/test_frames_and_graph_operands.py`, probe `R-RBS-LM-FINDING_1022_probe_directed_role_signature.py`; ASL-LEX data → `~/corpora/asllex/` (user-side) · **Grounds / composes:** F1019 (the declared directed follow-on — first tier run, honestly scoped), F1018/F608/F609 (the rung labels the ASL EntryIDs now attest), F1009/F1015 (the operand ladder this completes: int/float/bytes/named-kwargs/edge-pairs), F1007 (the magnetic Laplacian Siona can now BUILD conversationally), `[[feedback_dont_pre_commit_spike_query_operators]]` (the degree-diff method-null + the corrected feature's thin result both reported straight).
+
+## Grounded (rc97)
+```
+(1) FRAMES: 'please compute the gcd of 48 and 36' -> tool-call -> 12 ; 'could you describe the fiedler vector'
+    -> define ; 'water can flow down the' -> continue (politeness words in content position untouched)
+(2) GRAPH OPERANDS: 'compute the magnetic laplacian of the edges 0-1 1-2 2-0'
+    -> magnetic_laplacian(3, [(0, 1), (1, 2), (2, 0)]) = Mat(3x3, complex)
+    caught bug: named-extraction matched 'edges 0' -> edges=0; fixed with the scalar-only guard.
+    Mat/Vec/HV construction: OUT OF SCOPE for utterances (documented; unbindable -> recovery/ask path).
+(3) DIRECTED ROLE PROBE: degree-diff d(w) NULL BY CONSTRUCTION (all ~0.000: interior out==in identically --
+    method bug, predictions untested not falsified). Corrected neighbor-overlap: conj>det holds BOTH languages
+    (and .108 > the .096 ; mo .089 > ol .000) -- SUGGESTIVE, thin, mixed (blong .142 > mo). Full magnetic-mode
+    analysis = the honest follow-on; not overclaimed.
+(4) ASL-LEX (OSF zpha4, 2723 signs, CC-BY-NC 4.0, fetched): save -> {save_money, save} ; remember ->
+    {remember, remember_2} ; right -> {right_1,_2,_3} ; run -> {run, run_2, run_out_of, run_faucet}
+    => the ATTESTED sense-split map for the F1018 superposition rung labels. License note: NC -- research use.
+```
+
+## The reading
+- **The operand ladder is complete as scoped:** ints, exact-rational floats, bytes, schema-named kwargs, cross-turn memory values, and now graph edge-pairs with schema-driven `n` — and the honest boundary is explicit: carrier objects (Mat/Vec/HV) are not built from prose; they arrive via tools that RETURN them (Siona just built one: the 3-cycle magnetic Laplacian, conversationally).
+- **The directed probe models the discipline under time pressure:** the first feature nulled *by construction* (a real method bug — out≈in for every interior token), and rather than hiding it, the corrected feature was declared with corrected predictions and run once. Its result is labeled exactly what it is: suggestive, thin, mixed. The role-substructure question stays open honestly.
+- **The user's ASL chain is now fully attested end-to-end:** intuition (ASL signs meaning, not spelling) → prior findings (F608/F609) → the data itself (`remember` really does have two signs; `save` splits the money-sense). The EntryIDs are ready-made rung labels: `save@save_money` vs `save@save` as F1018 superposition identities, grounded in a public, licensed lexical database — zero training-data assertions anywhere in the chain.
+
+## Verdict / next
+**All four remaining pre-release gate items resolved: frames shipped, graph operands shipped (with the scoped Mat/Vec/HV boundary), the directed role probe run and honestly labeled, and ASL-LEX fetched with the sense-splits attested. The PKG-2 gate is now down to pure release mechanics: version SSOT pass, clean-venv verify outside the source tree, then the own-PR release cut + lemonforest/siona publisher move (MIT ✓) + the `siona-v0.1.0rc1` tag → TestPyPI — all gated on the user's ready-call.** Research follow-ons banked (not blockers): full magnetic-mode role analysis; wiring ASL EntryIDs as rung labels; the F1018 HDC superposed store at N-language scale.

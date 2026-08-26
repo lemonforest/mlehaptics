@@ -1,0 +1,30 @@
+{
+  "partition": "R-RBS-LM-R7 Phase B0",
+  "srmech_version": "0.7.0rc25",
+  "dim": 8,
+  "k_anchors": 10,
+  "noise_frac": 0.05,
+  "results": {
+    "B_pos_zeronoise (sanity: same struct, frame Q, no noise)": {
+      "top1": 0.7894736842105263,
+      "top5": 0.9,
+      "anchor_resid": 0.0009407164049604913
+    },
+    "B_pos (same structure, diff frame + 5% noise)": {
+      "top1": 0.3105263157894737,
+      "top5": 0.5631578947368421,
+      "anchor_resid": 0.007135827138941829
+    },
+    "B_neg (different structure)": {
+      "top1": 0.005263157894736842,
+      "top5": 0.015789473684210527,
+      "anchor_resid": 0.010082291413319037
+    }
+  },
+  "transfer_pos_top1": 0.3105263157894737,
+  "transfer_pos_top5": 0.5631578947368421,
+  "transfer_neg_top1": 0.005263157894736842,
+  "zeronoise_sanity": 0.7894736842105263,
+  "chance": 0.005263157894736842,
+  "method_valid": false
+}

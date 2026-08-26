@@ -1,0 +1,12 @@
+{
+  "partition": "R-RBS-LM-70_Test_A_hdc_decorative",
+  "n_total": 30,
+  "accuracy_hdc": 0.9666666666666667,
+  "accuracy_jaccard": 0.9666666666666667,
+  "accuracy_cosine": 0.9666666666666667,
+  "pearson_hdc_jaccard": 0.9965583013409269,
+  "pearson_hdc_cosine": 0.9951474402322126,
+  "pearson_jaccard_cosine": 0.9978029066732503,
+  "n_pairs_correlated": 180,
+  "verdict": "HDC IS DECORATIVE \u2014 Jaccard and set-cosine give identical routing accuracy (29/30) AND correlate at r > 0.90 with HDC. The HDC layer adds no measurable signal beyond top-K token-set overlap."
+}

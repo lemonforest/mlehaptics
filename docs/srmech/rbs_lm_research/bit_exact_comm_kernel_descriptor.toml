@@ -1,0 +1,60 @@
+# bit_exact_comm_kernel_descriptor.toml
+# The bit-exact communication kernel as a srmech cascade-catalog descriptor (F617, marathon leg 5).
+# Modeled on the srmech _research/cascade_catalog/*.toml idiom; this is the COMPOSED kernel (the rosetta foundation),
+# ready to upstream as a cascade-catalog peer (the end-goal: RBS-LM as the human-language rosetta for srmech).
+#
+# NO srmech package edits made from here (per [[feedback_upstream_srmech_fixes_as_research_notes]]); this descriptor
+# lives in the rbs_lm_research subtree and the upstream ASK is lodged in SRMECH_BUGFIX_WISHLIST.md (W21).
+
+[kernel]
+name = "bit_exact_comm_kernel"
+class_composition = "A ∘ M ∘ C"                                # content-address (A) ∘ HDC bind/bundle (M) ∘ rotate (C)
+purpose = "communicate at a BIT-EXACT foundation (glyph->byte + meaning-class); each language is a CORDIC ROTATE at the end (F612)."
+composes = ["F612", "F613", "F614", "F615", "F616", "F609", "F610", "F608", "F582", "F611", "R-RBS-LM-54"]
+no_privileged_language = true                                  # F398; every surface meets at the bit-exact layer
+description = """
+Three layers (F612 'bit-exact first, rotate at the end'):
+  L0 glyph->byte (Class A): content-addressed, exact, universal, attestable (re-hash -> same address, MPM).
+  L1 meaning-class IR (Class M): the bit-exact anchor = (glyph-address, determinative/sense), stable digest.
+  L2 per-language rotate (Class C / CORDIC, norm-preserving): each surface rotates the IR into its frame; in-frame
+     surfaces (hieroglyphic/ASL) carry the meaning-class, English's big rotate hides it (un-rotate = F602/F614).
+The foundation is bit-identical across surfaces; only the rotate differs (verified F613/F616: English<->IR<->ASL loop
+bit-identical 6/6).
+"""
+
+[layer.l0_glyph_to_byte]
+srmech_class = "A"
+op = "amsc.format.sha256_bytes(glyph.encode('utf-8'))"
+inventories = ["latin (52)", "egyptian_hieroglyph (1072, F582 Gardiner spine)", "braille (256)", "asl_params (5, F608)"]  # F615
+property = "exact + universal + re-verifiable (attestable)"
+
+[layer.l1_meaning_class_ir]
+srmech_class = "M"
+op = "hdc.bind(role, value) + hdc.bundle(...)  ->  IR digest = sha256(address|meaning_class)"
+property = "bit-exact anchor; distinguishes senses (the determinative / sigma_B, F595/F609)"
+
+[layer.l2_rotate]
+srmech_class = "C"
+op = "cascade.the_one(sigma, deg, 360, terms)  -- the per-language CORDIC frame rotation (norm-preserving, |content|=sqrt(6))"
+in_frame = ["ir_native (deg~0)", "asl (small deg; the sign IS the class, F608)"]
+big_rotate = "english (large deg; meaning-class hidden, F569) -> un-rotate via the learned context-class (F602/F614)"
+property = "norm-preserving (content bit-exact); CORDIC = shift-add+sign (discrete, F392)"
+
+[cascade.composition]
+render  = "encode(glyph, meaning_class) -> rotate(IR, language)            # IR -> surface"
+recover = "unrotate(surface, language[, context]) -> IR                    # surface -> IR (English needs context, F614)"
+roundtrip_verified = "English<->IR<->ASL bit-identical 6/6 (F616); English un-rotate 48->73% (F614)"
+
+[attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "rbs-lm bit_exact_comm_kernel 0.1.0 (F613-F617)"
+canonical_landings = [
+  "F612 — the pattern: bit-exact first, rotate at the end (silicon/continuous-math/the_one/language)",
+  "F613 — BitExactCommKernel stood up; foundation bit-identical across 3 surfaces",
+  "F614 — the English un-rotate (context recovers the hidden class, 48->73%)",
+  "F615 — real glyph inventories per surface (Latin/Egyptian/Braille/ASL, 1385 glyphs)",
+  "F616 — the ASL surface for real; English<->IR<->ASL loop bit-identical 6/6",
+  "R-RBS-LM-54 — the Rosetta-layer golden path (this kernel IS its bit-exact foundation)",
+]
+upstream_ask = "SRMECH_BUGFIX_WISHLIST.md W21 — land as a cascade-catalog peer + a tool_schema entry (the rosetta foundation)"

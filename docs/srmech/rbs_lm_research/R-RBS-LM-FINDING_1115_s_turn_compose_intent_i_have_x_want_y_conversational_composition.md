@@ -1,0 +1,18 @@
+# F1115 (#2 — the `s.turn` COMPOSE intent: a plain conversational "I have X … want Y" turn routes to compose, plans the op-chain via `plan_nl`, and reports it — the #255 engine is now conversational) — **user: "#2 then #1." DONE #2. `Session.route` detects a compose request — an "I have X" operand clause AND a "want Y" goal clause (`_is_compose`) — and returns the `compose` intent; `Session.turn` dispatches to `_compose`, which splits the operand + goal clauses (on `want`/`need`/`give me`/`produce`/`into`), runs `planner.plan_nl` (F1114), and renders the op-chain — or an honest OPEN / untyped. MEASURED (via `s.turn`): "I have a two-variable polynomial and want a three-variable form" → `[compose/siona.compose]` → "compose: BiPoly → TriPoly via poly_promote"; "I've got an octonion and I want a scalar magnitude" → "cayley_dickson:8 → float via octonion_norm"; "here is a three-variable polynomial, give me a one-variable form" → "TriPoly → Poly via poly_project → poly_project"; "I have a matrix and want a polynomial" → "no known op-chain from Mat to Poly (honest OPEN)"; "I have something vague and want a scalar" → "I could not type the operand — name a carrier". So the #255 composition engine is now CONVERSATIONAL: a plain-English "I have X and want Y" turn → Siona plans the composition and reports it (or honestly OPENs/untypes). The compose detection is SPECIFIC (requires BOTH the have-clause AND the want-clause), so it does NOT steal the define / tool-call / self-command / continue intents (verified: "which has more days february or march" ≠ compose). This is the last integration that makes the plan-level engine feel like talking to Siona.**
+
+**Date:** 2026-07-06 · **srmech:** 0.9.0rc135 · **User direction:** "#2 then #1." · **Files:** `siona/infer.py` (`route` compose case + `_is_compose` + `_compose`), `siona/tests/` · **Composes:** F1114 (`plan_nl` — the engine this drives), F1108 (`run` — the value-level companion for #1), F1109/F1113 (goal/operand typing), the intent router (#233), F1042/#255 (the target, now conversational at plan level), F552 (honest OPEN/untyped). **Feeds #1 (value-extraction → conversational RUN).**
+
+## Grounded (rc135)
+```
+route: 'I have X (operand) … want/need/give me/into Y (goal)' -> intent "compose" (specific; both clauses required)
+turn -> _compose: split operand/goal -> plan_nl -> render:
+  "I have a two-variable polynomial and want a three-variable form" -> compose: BiPoly -> TriPoly via poly_promote
+  "I've got an octonion and I want a scalar magnitude"              -> compose: cayley_dickson:8 -> float via octonion_norm
+  "here is a three-variable polynomial, give me a one-variable form"-> compose: TriPoly -> Poly via poly_project -> poly_project
+  "I have a matrix and want a polynomial"                          -> compose: no known op-chain from Mat to Poly (honest OPEN)
+  "I have something vague and want a scalar"                       -> compose: I could not type the operand — name a carrier
+  "which has more days february or march"                          -> NOT compose (specific detection)
+```
+
+## Verdict / next
+**#2 DONE: the `s.turn` COMPOSE intent makes the #255 engine conversational — a plain "I have X and want Y" turn plans the op-chain (or honest OPEN/untyped), specifically detected so it steals no other intent. NEXT (#1): VALUE-EXTRACTION — parse the operand's actual value ("I have the polynomial 1 2 3" → a `Poly([1,2,3])`) so `_compose` can RUN the chain (via `planner.run_goal`) and return the RESULT + provenance, not just the plan. Then multi-operand ("X, Y, Z"). Composes F1114/F1108/F1109/F1113/#255.**

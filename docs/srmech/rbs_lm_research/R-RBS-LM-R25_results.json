@@ -1,0 +1,107 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "K": 100,
+  "parts": {
+    "q4": {
+      "native_bit_exact": true,
+      "binary_any_bit_exact": true,
+      "shadows": [
+        {
+          "bits": 4,
+          "stored": [
+            0,
+            16
+          ],
+          "shadow_turn": 0.0,
+          "exact_turn": 0.0,
+          "drift": 0.0,
+          "bit_exact": true
+        },
+        {
+          "bits": 8,
+          "stored": [
+            0,
+            256
+          ],
+          "shadow_turn": 0.0,
+          "exact_turn": 0.0,
+          "drift": 0.0,
+          "bit_exact": true
+        },
+        {
+          "bits": 16,
+          "stored": [
+            0,
+            65536
+          ],
+          "shadow_turn": 0.0,
+          "exact_turn": 0.0,
+          "drift": 0.0,
+          "bit_exact": true
+        },
+        {
+          "bits": 32,
+          "stored": [
+            0,
+            4294967296
+          ],
+          "shadow_turn": 0.0,
+          "exact_turn": 0.0,
+          "drift": 0.0,
+          "bit_exact": true
+        }
+      ]
+    },
+    "q3": {
+      "native_bit_exact": true,
+      "binary_any_bit_exact": false,
+      "shadows": [
+        {
+          "bits": 4,
+          "stored": [
+            4,
+            16
+          ],
+          "shadow_turn": 0.25,
+          "exact_turn": 0.3333333333333333,
+          "drift": 0.08333333333333331,
+          "bit_exact": false
+        },
+        {
+          "bits": 8,
+          "stored": [
+            52,
+            256
+          ],
+          "shadow_turn": 0.203125,
+          "exact_turn": 0.3333333333333333,
+          "drift": 0.13020833333333331,
+          "bit_exact": false
+        },
+        {
+          "bits": 16,
+          "stored": [
+            21812,
+            65536
+          ],
+          "shadow_turn": 0.33282470703125,
+          "exact_turn": 0.3333333333333333,
+          "drift": 0.0005086263020833148,
+          "bit_exact": false
+        },
+        {
+          "bits": 32,
+          "stored": [
+            1431655732,
+            4294967296
+          ],
+          "shadow_turn": 0.3333333255723119,
+          "exact_turn": 0.3333333333333333,
+          "drift": 7.76102143662527e-09,
+          "bit_exact": false
+        }
+      ]
+    }
+  },
+  "klein4_triality_roundtrip_bit_exact": true
+}

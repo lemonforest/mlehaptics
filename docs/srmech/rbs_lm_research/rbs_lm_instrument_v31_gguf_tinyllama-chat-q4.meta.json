@@ -1,0 +1,21 @@
+{
+  "partition": "R-RBS-LM-31",
+  "variant": "gguf_path_d_distillation",
+  "source_gguf": "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF:tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+  "n_ctx": 2048,
+  "n_threads": 16,
+  "gen_target_bytes": 3500,
+  "gen_actual_bytes": 3560,
+  "n_generation_prompts": 12,
+  "max_per_prompt": 80,
+  "n_observations": 437,
+  "stride": 8,
+  "instrument_bytes": 1024,
+  "D": 8192,
+  "context_window_bytes": 64,
+  "vocab_size": 256,
+  "tokenizer_at_inference_time": "utf-8 bytes (no GGUF dependency at serve time)",
+  "encode_seconds": 56.871769189834595,
+  "bundle_seconds": 0.772362232208252,
+  "generation_seconds": 2032.032672405243
+}

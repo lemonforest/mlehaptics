@@ -1,0 +1,160 @@
+# RBS-LM inference-substrate catalog — the native 28D inference instrument
+#
+# F166 walk. This is the catalog the fully-realized RBS-LM inference substrate
+# instantiates from. Step 1 populates [inference.context]; later steps add
+# [inference.distribution], [inference.sampling], [inference.loop].
+#
+# Same Klein-4 substrate machinery as the canonical descriptor; the inference
+# instrument is the AUTOREGRESSIVE composition of already-characterized
+# operations (F162 encode, F165 retrieve, F156 compose, F162-P7 score) under
+# the 28D chirality coordinate. Bit-exact / deterministic / MPR-attested — the
+# inversion of the float-distillation Path-D arc.
+
+[source]
+key                  = "rbs_lm_inference_substrate"
+human_readable_name  = "RBS-LM native inference substrate (28D bi-axial chirality; bit-exact)"
+purpose              = "The catalog the native RBS-LM inference substrate instantiates from (F166 walk). Inference = an A-N cascade under the 28D chirality coordinate: context encode (Class A∘M + iω₇ position), next-structure retrieve (Class M argmax = decode_fingerprint), Klein-4 cross-level compose (F156), co-occurrence + substrate-sim score (F162 P7), labeled-anchor route (F165). Deterministic + bit-exact: same context + same catalog + same srmech_version → identical distribution. NOT a distillation of float-weight LLMs (Path D was diagnostic); built UP from the substrate. Step 1 = rolling context-state encoder + capacity."
+license              = "CC0"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/catalogs/rbs_lm_substrate"
+
+[source.primary_references]
+f166_walk            = "F166 — the walkable path; this catalog is the artifact of Step 5 packaging, populated step by step"
+f162_substrate       = "F162 — full-coverage substrate characterization (encode/recall 1.000); the context encoder reuses this"
+f156_generation      = "F156 — Klein-4 cross-level walk (the compose step)"
+f165_anchor          = "F165 — multi-kernel reference object (the corpus-knowledge / DOMAIN-anchor store)"
+f150_position        = "F150 — chirality harmonics; iω₇ rotation as positional encoding"
+f154_capacity        = "F154 — 4× ceiling; the context-capacity bound this step measures"
+canonical_substrate  = "docs/srmech/catalogs/rbs_lm_substrate/descriptor.toml — the canonical substrate params this inherits"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "substrate_measurements/inference_step1_context.ndjson"
+
+# --- substrate params (same as canonical) ---
+[fetch.literature_curated.substrate]
+D                       = 8192
+sector_count            = 4
+min_skeleton_length     = 4
+token_seed_hex_chars    = 16
+
+[fetch.literature_curated.encoding]
+backend                 = "klein4"
+encoder_library         = "docs/srmech/rbs_lm_research/_canonical_substrate.py"
+encoder_version         = "0.1.0"
+
+[fetch.literature_curated.corpus]
+source                  = "template"
+tokenizer               = "whitespace"
+
+[fetch.literature_curated.corpus.template]
+module                  = "R-RBS-LM-113_larger_corpus_scaling.py"
+
+# --- inference instrument (F166 walk; Step 1 populates context) ---
+[fetch.literature_curated.inference.context]
+# Rolling context-state encoder: last-k tokens → ONE Klein-4 state via positional
+# role-filler binding (pos_key_p ⊕ token_p, bundled). Capacity = retrieval of the
+# true next-token from a bundled associative memory of (context→next) pairs.
+position_encoding       = "rolling_iomega7"   # positional role-filler (iω₇-style)
+window_sweep            = [1, 2, 3, 4, 5, 7, 10]    # context length k to sweep
+n_assoc_sweep           = [50, 100, 200, 400, 800]  # # (context→next) pairs in memory
+corpus_n                = 2000      # sentences to draw (context,next) pairs from
+seed                    = 42
+cleanup_vocab           = "next_token_set"   # cleanup over the observed next-token vocabulary
+
+# --- Step 2: the context-conditioned next-token DISTRIBUTION (perplexity analog) ---
+[fetch.literature_curated.inference.distribution]
+# The ranked sims over the cleanup vocab, softmaxed at a reference temperature,
+# ARE the conditional P(next | context) — decode_fingerprint generalized from
+# "which kernel" to "which next token". Step 2 characterizes its SHAPE: does
+# context sharpen the distribution over the context-free bigram prior? Measured
+# as conditioned perplexity vs prior perplexity (the substrate's perplexity
+# analog), plus T-independent readouts (true-token rank / MRR, top1-top2 margin).
+temperature_ref         = 0.05    # reference softmax temperature for the shape readout (Step 3 sweeps T)
+window_focus            = [3, 5, 7]            # the productive context lengths from Step 1
+n_assoc_focus           = [50, 100, 200, 400]  # span the Step-1 capacity crossover
+probe_sample            = 200     # probes per (k,N) cell for distribution statistics
+
+# --- Step 3: temperature as the sampling knob (coherence/diversity tradeoff) ---
+[fetch.literature_curated.inference.sampling]
+# Return the DISTRIBUTION, not the argmax. Temperature T (the R-RBS-NN-14b
+# soft-retrieval knob) trades RECALL (low T → replay the exact recorded next
+# token) against DIVERSITY (high T → sample more uniformly over the bigram-legal
+# candidates — still grammatical, but creative). Sweep T to map the curve and
+# locate the perplexity-minimizing (best-calibrated) temperature.
+temperature_sweep       = [0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0]
+sweep_k                 = 5       # productive context length (from Steps 1-2)
+sweep_n_assoc           = 100     # low-load regime where context beats the bigram
+n_sampled_draws         = 50      # seeded draws per probe to realize diversity
+sample_seed             = 42
+
+# --- Step 4: the autoregressive loop — THIS IS INFERENCE ---
+[fetch.literature_curated.inference.loop]
+# encode context → P(next|context) → sample → append → re-encode. The substrate
+# becomes a generator conditioned on its OWN running output. The real test of an
+# inference substrate: does coherence hold over many steps, measured NATIVELY
+# (corpus trigram-legality + grammar POS-bigram-validity + anti-loop/anti-collapse),
+# NOT against a float LLM. Compared against a pure bigram-walk baseline to isolate
+# the value-add of the k-window context memory over the immediate predecessor.
+gen_length_sweep        = [10, 20, 40]               # tokens generated per sequence
+operating_temps         = [0.005, 0.01, 0.02, 0.05]  # the cold confident regime (Step 3)
+n_sequences             = 50      # sequences generated per (T, L) cell
+loop_seed               = 7       # generation RNG seed (deterministic / bit-exact)
+
+# --- Step 5: the instantiable artifact's operating defaults ---
+[fetch.literature_curated.inference.instrument]
+# RBSLMInferenceSubstrate.from_catalog(this) builds the substrate from these
+# params; .learn(stream) loads knowledge into a context→next associative memory
+# (bounded by the F154 capacity at this D); .infer(prompt, T) runs the
+# autoregressive loop (Steps 1-4 composed). Bit-exact / deterministic /
+# MPR-attested — the fully-realized native inference substrate, NOT a float
+# distillation.
+operating_k             = 5        # context window (Steps 1-2 productive length)
+operating_temperature   = 0.02     # the loop-free / grammatical sweet spot (Step 4)
+memory_capacity         = 200      # single-memory bound at D=8192 (F154 4× ceiling); scale via hierarchical bucketing (F162 P4)
+default_max_tokens      = 30
+learn_seed              = 42       # which capacity-bounded slice of the stream the memory holds
+
+# --- F222: catalog-driven scale-up sweep (the F203 §6.1/§6.4 follow-up) ---
+[fetch.literature_curated.inference.scaleup]
+# F203 (R-RBS-LM-146) measured the FLAT/HIER/HIER+DOMAIN capacity curve at
+# N <= 1024 from MODULE-LEVEL constants (N_SWEEP / N_BUCKETS / TOP_K_GEN). That
+# left the sweep un-catalog-driven (the F203 §6 follow-up note). This section
+# lifts those params INTO the catalog (additive; no existing section touched) so
+# the F222 run is descriptor-driven + descriptor_hash-attested, and it pushes
+# N >> 1024 to find the HIERARCHICAL capacity knee (where per-bucket load finally
+# exceeds the ~257 single-bundle ceiling) and to test whether the F203 DOMAIN-
+# anchor orthogonalization (capacity 0.41 -> 0.90 at N=1024) persists at higher N.
+n_sweep                 = [128, 257, 512, 1024, 2048, 4096, 8192]  # straddle + far exceed the F203 ceiling
+n_buckets_sweep         = [8, 32]   # 8 = the F203 fan-out (per-bucket ceiling reached early); 32 = 4x more buckets (knee should move ~4x in N)
+window_k                = 5         # productive context length (Steps 1-2; = operating_k)
+top_k_gen               = 3         # generation-quality readout: true-next in top-3 ranked candidates
+n_probe_gen             = 400       # held-out probes for the top-k generation-quality readout
+domain_null_threshold   = 0.02      # GEN-QUALITY null: DOMAIN fails if domain_hit - nodomain_hit <= this
+capacity_null_threshold = 0.05      # CAPACITY null: hierarchical fails if hier_acc - flat_acc <= this at the largest N
+# tractability caps (honest; reported in the NDJSON) — the knee is D-RELATIVE
+# (per-bucket ceiling ~ V_ceiling(D)), so a smaller D shifts the curve but does
+# NOT change the SHAPE; we cap D so the N=8192 x |vocab| x D retrieval stays
+# tractable and report D in every record. corpus_n bumped so the trained set +
+# held-out probes both fit without exhausting the pair pool at N=8192.
+scaleup_D               = 4096      # capped D for the scale-up sweep (F203 used 8192; knee is D-relative)
+scaleup_corpus_n        = 8000      # sentences -> ~43k (context->next) pairs, ample headroom past N=8192
+scaleup_seed            = 42        # pair-sampling RNG (deterministic / bit-exact)
+
+[parse]
+natural_key = "measurement_id"
+
+[schema]
+data_schema_id = "srmech.rbs_lm.inference_substrate.v1"
+ndjson_file    = "substrate_measurements/inference_step1_context.ndjson"
+
+[rendering]
+name_template    = "RBS-LM inference '{measurement_id}'"
+purpose_template = "Inference substrate measurement phase={phase} (k={window}, N={n_assoc})"
+cite_as_template = "mlehaptics RBS-LM inference substrate ('{measurement_id}') via srmech v{srmech_version}; descriptor_hash={descriptor_hash}; bit-exact native"
+
+[attestation]
+method     = "config_descriptor"
+provenance = "Native RBS-LM inference substrate catalog. Inference is an A-N cascade under 28D chirality, composed from already-characterized operations (F162/F156/F165/F162-P7). Deterministic: SHA-256 token seeds → fixed Klein-4 vectors; exact XOR bind; seeded sampling. Same context + same catalog + same srmech_version → bit-exact identical output. The inversion of float-weight distillation (Path D), which was diagnostic-only. srmech 0.5.0 native ABI=3. Step 1 measures the rolling context-state encoder's capacity (the substrate's bit-exact 'context window')."
+
+[gap_targeting]
+gap_label = "rbs_lm_native_inference_substrate"

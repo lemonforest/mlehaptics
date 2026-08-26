@@ -1,0 +1,338 @@
+{
+  "provenance": {
+    "workflow": "research-twin",
+    "run": "wf_afe9240e (task wr1vaqwsj)",
+    "agents": 4,
+    "task": "Turritopsis dohrnii transdifferentiation: what happens to memory substrate across medusa<->polyp reversal"
+  },
+  "result": {
+    "opus_survey": {
+      "gaps": [
+        "CENTRAL GAP: no study tests whether any learned/habituated/sensitized state in a Turritopsis MEDUSA survives transdifferentiation to polyp (or back). The entire memory-across-reversal question is unstudied. A direct experiment (medusa habituation/sensitization, force reversal, re-test regenerated polyp/next medusa for savings) does not exist in the surveyed literature.",
+        "Whether the Turritopsis polyp nerve net is rebuilt DE NOVO is inferred from the Hydra default (Miljkovic-Licina 2007), not directly shown; Matsumoto 2019 documents cyst-stage dismantling but not the rebuild step.",
+        "No DNA-methylation / chromatin-accessibility (WGBS/ATAC-seq) timecourse across medusa->cyst->polyp exists; 'factory reset vs retained states' is answered only at transcriptomic/gene-expansion level (Pascual-Torner 2022), not by direct base-by-base epigenome measurement.",
+        "No bioelectric (Vmem/ion-channel template) study of Turritopsis reversal exists; the planaria-style bioelectric-template re-imposition (Levin) is a lens with zero direct Turritopsis data.",
+        "Box-jelly rhopalium-as-learning-locus wording rests on secondary summaries; the primary Bielecki 2023 Current Biology full text returned HTTP 403 (commentary DOI verified, primary phrasing not re-read).",
+        "Taxonomy caveat: early work used 'T. nutricula'; the immortal lineage is now 'T. dohrnii', and Pascual-Torner 2022 PNAS carries a published correction (doi:10.1073/pnas.2303228120) on species-ID metadata."
+      ],
+      "uncentered_note": "Held medusa, polyp, cell/epigenome, and framework perspectives separately rather than collapsing onto the framework's preferred fork A. Did NOT privilege the strong F249 store-below-body-plan prediction: the assembled molecular evidence tilts the other way (fork B), reported against framework expectation. Treated Cassiopea, Tripedalia, Hydra, planaria, and Manduca as co-equal bounding cases, each asserting its own organism's fact, none standing in for Turritopsis. Biology attributed to its literature; forks + re-imposition cascade flagged as LENS, never asserted. The behavioral-memory experiment itself does not exist; refused to let any adjacent positive (moth, planaria) leak in as a Turritopsis result.",
+      "cross_cutting": "Most load-bearing fact: the nerve-net fate, well-attested. Matsumoto, Piraino & Miglietta 2019 (G3, doi:10.1534/g3.119.400487, PMC6893190) state the medusa peptidergic nervous system 'appears almost entirely dismantled in the cyst.' With the cnidarian default that nerve nets are rebuilt by de novo neurogenesis (Miljkovic-Licina 2007, Development, doi:10.1242/dev.02804): the medusa net is DISASSEMBLED during reversal and the polyp builds a new one. Decisive difference from F251/planaria: planaria regrow only the brain while body (and extra-neural store) persists; Turritopsis resets the whole body plan AND dismantles the carrier net. Epigenetic evidence converges (Pascual-Torner 2022 PNAS e2118763119; Matsumoto & Miglietta 2021 GBE evab136): reversal is ACTIVE epigenetic reprogramming - PRC2-target silencing + pluripotency-target activation driving dedifferentiation, framed as rolling the epigenetic landscape toward a developmental state. That roll-back, on its face, favors FORK B (erasure floor) for any neurally-encoded trace. Critical caveat keeping both forks live: this evidence is about DEVELOPMENTAL-GENE state and cell identity, NOT a learned trace; the behavioral-memory question is UNSTUDIED (confirmed null). The only two demonstrated cnidarian memory-like substrates - box-jelly RHOPALIUM (Bielecki 2023) and Cassiopea diffuse-net sleep-homeostat (Nath 2017) - are both MEDUSA-specific with no polyp homolog, so defining 'a medusa-learned trace that could survive into the polyp' is conceptually underdetermined before it is empirically open. The adjacent positive (Blackiston 2008 moth) survives metamorphosis precisely because neurons/synapses are RETAINED - the condition Turritopsis violates. NET VERDICT: molecular evidence TILTS toward fork B (reprogramming/erasure floor) for any neural trace; fork A (deep cell-autonomous bioelectric/epigenetic store below the body plan) is NOT excluded and would require a Levin-style bioelectric experiment in Turritopsis that does not exist. The bi-chiral F243/F245 echo (medusa & polyp as two renders of one persistent substrate: genome + i-cell pool + epigenetic toolkit, 'without end') is consistent with reversal as render-switching of the SUBSTRATE; whether specific CONTENT rides through is the open empirical question.",
+      "findings": [
+        {
+          "item": "Transdifferentiation / biological-immortality mechanism (Piraino et al. 1996)",
+          "claim": "Turritopsis (dohrnii/formerly nutricula) medusae reverse the life cycle to the colonial polyp via whole-body cell transdifferentiation, escaping death; first metazoan known to revert to a juvenile colonial morph after sexual maturity.",
+          "citation": "Piraino S., Boero F., Aeschbach B., Schmid V. (1996) Reversing the Life Cycle... Biological Bulletin 190(3):302-312, doi:10.2307/1543022, PMID 29227703. Web-verified.",
+          "verified": true,
+          "confidence": "high",
+          "support": "Primary; DOI+pages+PMID confirmed"
+        },
+        {
+          "item": "Cyst stages, transdifferentiation, apoptosis (Carla et al. 2003)",
+          "claim": "Reverse development: healthy medusa -> unhealthy medusa -> four-leaf clover -> cyst -> polyp; cyst is poorly-differentiated cells with transdifferentiation, degeneration, and APOPTOSIS (apoptosis highest in healthy-medusa and cyst), plus i-cell proliferation. Abstract does not name the nervous system.",
+          "citation": "Carla E.C., Pagliara P., Piraino S., Boero F., Dini L. (2003) Tissue Cell 35(3):213-222, doi:10.1016/s0040-8166(03)00028-4, PMID 12798130. Web-verified.",
+          "verified": true,
+          "confidence": "high",
+          "support": "Primary; verified"
+        },
+        {
+          "item": "NERVE NET dismantled in the cyst (Matsumoto, Piraino & Miglietta 2019)",
+          "claim": "Load-bearing: medusa peptidergic nervous system 'almost entirely dismantled in the cyst, where few scattered RFamide- and GLWamide-immunoreactive cells are barely or no longer detectable.' Notch suppressed in cyst; transposable-element + DNA-repair over-expressed. Medusa net does NOT persist intact.",
+          "citation": "Matsumoto Y., Piraino S., Miglietta M.P. (2019) G3 (Bethesda) 9(12):4127-4138, doi:10.1534/g3.119.400487, PMC6893190. Quote from PMC full text.",
+          "verified": true,
+          "confidence": "high",
+          "support": "Primary; direct full-text quote"
+        },
+        {
+          "item": "De novo neurogenesis is the cnidarian default (Miljkovic-Licina et al. 2007)",
+          "claim": "In Hydra, head regeneration REQUIRES de novo (cnox-2-dependent) neurogenesis; bounds Turritopsis to nets rebuilt from precursors, not retained. ADJACENT species, bounding only.",
+          "citation": "Miljkovic-Licina M., Chera S., Ghila L., Galliot B. (2007) Development 134(6):1191-1201, doi:10.1242/dev.02804, PMID 17301084. Web-verified.",
+          "verified": true,
+          "confidence": "high",
+          "support": "Primary, adjacent species"
+        },
+        {
+          "item": "Epigenome REPROGRAMMED: PRC2 silencing + pluripotency activation (Pascual-Torner et al. 2022)",
+          "claim": "Genome paper found during LCR 'silencing of PRC2 targets and activation of pluripotency targets' as pluripotency inducers, plus expansions/variants in DNA-repair/telomere/replication/redox/stem-cell genes (~double T. rubra's repair complement). Active epigenetic remodeling toward dedifferentiation; speaks to developmental-gene state, not a learned trace; tilts fork B.",
+          "citation": "Pascual-Torner M., Carrero D., Perez-Silva J.G., Alvarez-Puente D., Roiz-Valle D., Bretones G., Rodriguez D., Maeso D., Mateo-Gonzalez E., Espanol Y., Marino G., Acuna J.L., Quesada V., Lopez-Otin C. (2022) PNAS 119(36):e2118763119, doi:10.1073/pnas.2118763119, PMID 36037356 (correction doi:10.1073/pnas.2303228120). Full author list+DOI verified.",
+          "verified": true,
+          "confidence": "high",
+          "support": "Primary; full author list verified; species-ID correction exists"
+        },
+        {
+          "item": "Epigenetic-rejuvenation framing (Matsumoto & Miglietta 2021)",
+          "claim": "LCR framed as epigenetic rejuvenation: PRC2 + pluripotency genes targeted to promote dedifferentiation, returning the epigenetic landscape toward the state present when the cell type first arose. Reinforces fork B.",
+          "citation": "Matsumoto Y. & Miglietta M.P. (2021) Genome Biol. Evol. 13(7):evab136, doi:10.1093/gbe/evab136, PMC8480191. Article verified; 'returns landscape' sentence from search summary, not full text.",
+          "verified": true,
+          "confidence": "medium",
+          "support": "Article verified; specific sentence from summary"
+        },
+        {
+          "item": "MEMORY across the reversal: EXPLICIT OPEN GAP",
+          "claim": "PRE-STATED NULL, CONFIRMED. No study tests whether a learned/habituated medusa state survives transdifferentiation to polyp. Targeted searches returned only life-cycle/genomics/aging work. Reported as OPEN GAP, not an experimental null; no result fabricated.",
+          "citation": "Negative result of targeted web searches (Turritopsis + learning/memory/habituation/trained; memory across transdifferentiation jellyfish), May 2026.",
+          "verified": true,
+          "confidence": "high",
+          "support": "Pre-stated null; absent across searches"
+        },
+        {
+          "item": "Adjacent bound: Cassiopea sleep/homeostasis (Nath et al. 2017)",
+          "claim": "Cassiopea shows a reversible sleep-like state (quiescence, reduced responsiveness, homeostatic rebound) - first in an animal with only a DIFFUSE NERVE NET. Bounds 'medusa memory' to a homeostatic state-variable; concept-bound only.",
+          "citation": "Nath R.D., Bedbrook C.N., Abrams M.J., Basinger T., Bois J.S., Prober D.A., Sternberg P.W., Gradinaru V., Goentoro L. (2017) Current Biology 27(19):2984-2990.e3, doi:10.1016/j.cub.2017.08.014, PMID 28943083. Venue/year/lead author verified; full list from journal record.",
+          "verified": true,
+          "confidence": "high",
+          "support": "Primary; venue/year/PMID verified"
+        },
+        {
+          "item": "Adjacent bound: box-jelly learning in the RHOPALIUM (Bielecki et al. 2023)",
+          "claim": "Tripedalia cystophora does associative learning; learning resides in the RHOPALIUM (medusa-specific structure); isolated rhopalium learns in ~5 trials. Both demonstrated cnidarian memory-like substrates (rhopalium; Cassiopea diffuse net) are MEDUSA-specific with no polyp homolog - so a medusa-learned trace has no obvious carrier into the polyp.",
+          "citation": "Bielecki J., Dam Nielsen S.K., Nachman G., Garm A. (2023) Current Biology 33(19):4150-4159.e5, doi:10.1016/j.cub.2023.08.020. Commentary Cheng K. (2023) Curr. Biol. 33:R1000-R1001, doi:10.1016/j.cub.2023.08.025, PMID 37816315 (verified). Primary full text HTTP 403; rhopalium-locus from secondary summaries.",
+          "verified": true,
+          "confidence": "medium",
+          "support": "Commentary DOI verified; primary blocked 403; locus from summaries"
+        },
+        {
+          "item": "Adjacent bound: memory survives metamorphosis when neurons survive (Blackiston et al. 2008)",
+          "claim": "Manduca sexta moths retain a larval-trained odor aversion through metamorphosis, attributed to MAINTENANCE OF INTACT SYNAPTIC CONNECTIONS / surviving larval neurons. Contrast: insect memory survives BECAUSE a neural substrate is retained - the condition Turritopsis violates when the net is dismantled.",
+          "citation": "Blackiston D.J., Silva Casey E., Weiss M.R. (2008) PLoS ONE 3(3):e1736, doi:10.1371/journal.pone.0001736, PMID 18320055. Web-verified.",
+          "verified": true,
+          "confidence": "high",
+          "support": "Primary; verified"
+        },
+        {
+          "item": "F251 anchor: planaria memory through head regeneration (Shomrat & Levin 2013)",
+          "claim": "Trained decapitated planarians show savings after regenerating a new head; memory survives loss+regrowth of the brain - extra-neural store. F251 reference: planaria regrow only the brain while body persists; Turritopsis is harder (whole body plan reset + carrier net dismantled).",
+          "citation": "Shomrat T. & Levin M. (2013) J. Exp. Biol. 216(20):3799-3810, doi:10.1242/jeb.087809, PMID 23821717. Web-verified.",
+          "verified": true,
+          "confidence": "high",
+          "support": "Primary; verified"
+        },
+        {
+          "item": "FRAMEWORK LENS (offered, NOT asserted): fork verdict + bi-chiral echo",
+          "claim": "LENS only. Fork A: trace SURVIVES in a deep cell-autonomous epigenetic/bioelectric store below the body plan (body plan=render) - strong F249 prediction. Fork B: transdifferentiation is an ERASURE FLOOR (reprogramming wipes the trace; polyp naive). Molecular evidence (PRC2 silencing + pluripotency activation + nerve-net dismantling + de-novo-neurogenesis default + medusa-only memory substrates) TILTS toward B for any NEURAL trace - a store with a floor the reversal reaches. But this is developmental-gene state, not a learned trace; learned-trace question is unstudied (gap), so fork A NOT excluded - a cell-autonomous bioelectric/epigenetic store distinct from the PRC2 axis could persist and re-impose on the rebuilt polyp (parallel to planaria bioelectric-template re-imposition). Bi-chiral echo (F243/F245): medusa+polyp as two renders of one persistent substrate (genome + i-cell pool + epigenetic toolkit) 'without end' - render-switching of the SUBSTRATE; whether specific CONTENT rides through is open. Verdict: leans B for neural traces, gap-open for any deep cell-autonomous store, fork A unfalsified-but-unsupported.",
+          "citation": "Framework synthesis over verified primary literature above + Levin bioelectric-template corpus. LENS only; no biology asserted beyond cited sources.",
+          "verified": true,
+          "confidence": "medium",
+          "support": "Synthesis; fork verdict is an inference, not a measured result"
+        }
+      ]
+    },
+    "sonnet_survey": {
+      "findings": [
+        {
+          "item": "Piraino et al. 1996 — founding transdifferentiation paper",
+          "claim": "Turritopsis nutricula (now T. dohrnii per species-reassignment) is the only known metazoan capable of complete reversal of a sexually mature medusa back to the colonial polyp stage via whole-body cellular transdifferentiation, theoretically allowing indefinite cycling. The reversal proceeds through four stages: healthy medusa, stressed/unhealthy medusa, cyst (chitinous envelope, poorly differentiated interior), juvenile polyp. Muscle, epithelial, and interstitial cell populations participate; specific nerve-cell fate was not characterized at ultrastructural level in this initial report.",
+          "citation": "Piraino, S., Boero, F., Aeschbach, B., Schmid, V. (1996). Reversing the life cycle: medusae transforming into polyps and cell transdifferentiation in Turritopsis nutricula (Cnidaria, Hydrozoa). Biological Bulletin, 190(3), 302–312. DOI: 10.2307/1543022. URL: https://www.journals.uchicago.edu/doi/abs/10.2307/1543022. Citation confirmed across multiple cross-references (Google Scholar, ResearchGate, PubMed citations). Full-text access blocked (HTTP 403) but title, authors, journal, volume, year, pages attested by consistent cross-references.",
+          "verified": true,
+          "confidence": "high"
+        },
+        {
+          "item": "Pascual-Torner et al. 2022 — T. dohrnii genome and epigenome (PNAS)",
+          "claim": "Comparative genome assembly of T. dohrnii vs. mortal T. rubra identifies expansions in DNA replication fidelity, DNA repair, telomere maintenance (POT1 variants), redox management, stem cell biology, and intercellular communication. During life cycle reversal (LCR): SILENCING of PRC2 (Polycomb Repressive Complex 2) targets — PRC2 normally installs H3K27me3 repression — combined with ACTIVATION of pluripotency targets (NANOG, OCT4, SOX2, MYC homologs). Points to a pluripotency-induction mechanism analogous to somatic reprogramming. The epigenome is actively reprogrammed rather than simply arrested.",
+          "citation": "Pascual-Torner, M., Carrero, D., Pérez-Silva, J.G., Álvarez-Puente, D., Roiz-Valle, D., Bretones, G., Rodríguez, D., Maeso, D., Mateo-González, E., Español, Y., Mariño, G., Acuña, J.L., Quesada, V., López-Otín, C. (2022). Comparative genomics of mortal and immortal cnidarians unveils novel keys behind rejuvenation. PNAS, 119(36), e2118763119. DOI: 10.1073/pnas.2118763119. PMID: 36037356. Published August 29, 2022. Verified via PubMed https://pubmed.ncbi.nlm.nih.gov/36037356/ — abstract confirmed. PNAS page returned HTTP 403; content confirmed via PubMed full abstract.",
+          "verified": true,
+          "confidence": "high"
+        },
+        {
+          "item": "Matsumoto, Piraino, Miglietta 2019 — transcriptome of reverse development (G3)",
+          "claim": "RNA-seq comparison of polyp, cyst, and medusa stages. Key nerve-net finding: the peptidergic nervous system of the medusa 'appears almost entirely dismantled in the cyst, where few scattered RFamide- and GLWamide-immunoreactive cells are barely or no longer detectable.' Notch signaling (essential for neurogenesis and cell fate specification) is strongly downregulated in the cyst (56 transcripts vs. 109 in polyp, 78 in medusa). DNA synthesis and telomerase upregulated in cyst; mitotic/cell division genes downregulated. Exumbrellar epidermis (lacking I-cells) can independently execute the reversal, demonstrating I-cells are dispensable — direct epithelial transdifferentiation is sufficient.",
+          "citation": "Matsumoto, Y., Piraino, S., Miglietta, M.P. (2019). Transcriptome characterization of reverse development in Turritopsis dohrnii (Hydrozoa, Cnidaria). G3 (Bethesda), 9(12), 4127–4138. DOI: 10.1534/g3.119.400487. PMC6893190. Retrieved from https://pmc.ncbi.nlm.nih.gov/articles/PMC6893190/ — confirmed.",
+          "verified": true,
+          "confidence": "high"
+        },
+        {
+          "item": "Matsumoto and Miglietta 2021 — expression profiling and cellular reprogramming (GBE)",
+          "claim": "Expression profiling of T. dohrnii life cycle stages. Reversed polyp enriched in chromatin remodeling and organization genes (BAZ1A, SVEP1). 44% of the top 50 differentially expressed cyst-stage genes lack functional annotation. Medusa is enriched in nervous-system-development genes relative to polyp — reinforcing that medusa neural identity is stage-specific and not carried over. The paper does not address neural cell transdifferentiation at single-cell level or behavioral/informational state persistence.",
+          "citation": "Matsumoto, Y., Miglietta, M.P. (2021). Cellular reprogramming and immortality: expression profiling reveals putative genes involved in Turritopsis dohrnii's life cycle reversal. Genome Biology and Evolution, 13(7), evab136. DOI: 10.1093/gbe/evab136. PMID: 34132809. PMC: PMC8480191. Retrieved from https://pmc.ncbi.nlm.nih.gov/articles/PMC8480191/ — confirmed.",
+          "verified": true,
+          "confidence": "high"
+        },
+        {
+          "item": "Cell types undergoing transdifferentiation — synthesis",
+          "claim": "Reversal involves: (1) striated subumbrellar muscle cells (medusa-specific) lost or transdifferentiated; (2) nerve ring and neurons (medusa-specific) almost entirely dismantled at cyst stage; (3) medusa-specific ocelli lost; (4) ectodermal epithelial cells transdifferentiate into perisarc-secreting cells (polyp-specific). I-cells proliferate but are dispensable, meaning mature somatic cells directly reprogram identity. Whether individual NEURAL cells transdifferentiate into a different cell type vs. undergo apoptosis and are replaced de novo by neuroblasts is NOT resolved in the published record.",
+          "citation": "Synthesis across: Piraino et al. 1996 (DOI 10.2307/1543022); Matsumoto et al. 2019 (DOI 10.1534/g3.119.400487, PMC6893190); Matsumoto and Miglietta 2021 (DOI 10.1093/gbe/evab136, PMC8480191). I-cell dispensability confirmed in Matsumoto et al. 2019 and cited in search results as consistent with Schmich et al. 2007 (not directly fetched, cited consistently in the reviewed literature).",
+          "verified": true,
+          "confidence": "high"
+        },
+        {
+          "item": "Epigenome completeness: factory reset vs. partial retention",
+          "claim": "PRC2 silencing plus pluripotency factor activation (Pascual-Torner 2022) combined with chromatin remodeling gene enrichment in rebuilt polyp (Matsumoto/Miglietta 2021) are consistent with a near-complete epigenetic reset at the chromatin level during the cyst stage. However, all evidence is from bulk transcriptomics or comparative genomics, NOT single-cell bisulfite sequencing or site-specific ChIP-seq. Whether any specific epigenetic mark at a defined locus survives the PRC2/pluripotency reprogramming is not resolved. Partial epigenetic retention at specific regulatory loci is not ruled out.",
+          "citation": "Pascual-Torner et al. 2022 (DOI 10.1073/pnas.2118763119, PMC36037356); Matsumoto and Miglietta 2021 (DOI 10.1093/gbe/evab136, PMC8480191). Uncertainty acknowledged explicitly.",
+          "verified": true,
+          "confidence": "medium"
+        },
+        {
+          "item": "Memory/learning studies ACROSS Turritopsis transdifferentiation — explicit open gap",
+          "claim": "EXPLICIT OPEN GAP — UNSTUDIED. Zero published studies test whether any learned or habituated behavioral state in a T. dohrnii medusa survives transdifferentiation reversal to polyp (or back). The question has not been posed as an experimental program anywhere in the retrievable published or preprint literature as of May 2026. No fabricated result is offered.",
+          "citation": "Negative result from systematic search: queries 'Turritopsis dohrnii memory behavior conditioning learning experiment published study 2018-2025', 'Turritopsis dohrnii memory learning habituation behavior survival transdifferentiation trace study', 'cnidarian memory trace OR learned behavior surviving transdifferentiation metamorphosis reversal any species'. All returned zero relevant hits for T. dohrnii specifically.",
+          "verified": true,
+          "confidence": "high"
+        },
+        {
+          "item": "Adjacent bound: Nath et al. 2017 Cassiopea sleep — what cnidarian diffuse-nerve-net memory minimally is",
+          "claim": "Cassiopea jellyfish displays homeostatic sleep-like state (behavioral quiescence, reduced stimulus responsiveness, homeostatic regulation after deprivation) in a non-centralized radially symmetric nerve net that uses action potentials, synaptic transmission, neuropeptides, and neurotransmitters. This is the first evidence of a persistent behavioral state encoded by a purely diffuse nerve net. The paper does not demonstrate conditioning or associative memory in Cassiopea.",
+          "citation": "Nath, R.D., Bedbrook, C.N., Abrams, M.J., Basinger, T., Bois, J.S., Prober, D.A., Sternberg, P.W., Gradinaru, V., Goentoro, L. (2017). The jellyfish Cassiopea exhibits a sleep-like state. Current Biology, 27(19), 2984–2990.e3. DOI: 10.1016/j.cub.2017.08.014. PMID: 28943083. Verified via PubMed https://pubmed.ncbi.nlm.nih.gov/28943083/ and Cell.com search result.",
+          "verified": true,
+          "confidence": "high"
+        },
+        {
+          "item": "Adjacent bound: Bielecki et al. 2023 Tripedalia box jellyfish associative learning",
+          "claim": "Tripedalia cystophora (cubozoan, NOT a hydrozoan like Turritopsis) demonstrates operant conditioning: visual and mechanosensory stimuli combined, animal learns to avoid obstacles. The rhopalial nervous system is the learning center. This is the first unequivocal associative learning in a non-bilaterian. Turritopsis is a hydrozoan and lacks rhopalia, so this locus of storage has no direct equivalent in the Turritopsis nervous system architecture.",
+          "citation": "Bielecki, J., Dam Nielsen, S.K., Nachman, G., Garm, A. (2023). Associative learning in the box jellyfish Tripedalia cystophora. Current Biology, 33(19), 4150–4159.e5. DOI: 10.1016/j.cub.2023.08.056. Verified via University of Copenhagen Research Portal https://researchprofiles.ku.dk/en/publications/associative-learning-in-the-box-jellyfish-itripedalia-cystophorai/ — confirmed.",
+          "verified": true,
+          "confidence": "high"
+        },
+        {
+          "item": "Bioelectric memory surviving regeneration (non-neural) — Durant et al. 2017 planaria",
+          "claim": "In planaria, bioelectric states (resting potential gradients across cell sheets, mediated by gap junctions) encode body-plan patterning information that persists through multiple amputation-regeneration cycles, surviving cell turnover. A cryptic phenotype (altered polarity) is invisible in intact animals but expressed upon cutting, persisting for at least four recut cycles. Establishes that non-neural, cell-autonomous bioelectric gradients can carry morphogenetic information across drastic tissue reorganization. Whether any analogous mechanism operates in T. dohrnii across transdifferentiation is unstudied.",
+          "citation": "Durant, F., Morokuma, J., Fields, C., Williams, K., Adams, D.S., Levin, M. (2017). Long-term, stochastic editing of regenerative anatomy via targeting endogenous bioelectric gradients. Biophysical Journal. DOI: 10.1016/j.bpj.2017.04.011. PMC: PMC5443973. Retrieved from https://pmc.ncbi.nlm.nih.gov/articles/PMC5443973/ — confirmed.",
+          "verified": true,
+          "confidence": "high"
+        },
+        {
+          "item": "Framework fork A (lens only): trace survives in deep cell-autonomous store",
+          "claim": "LENS, NOT AN ESTABLISHED BIOLOGICAL CLAIM. If a specific epigenetic mark or bioelectric polarity persists through the PRC2/pluripotency reset of the cyst stage and is re-expressed in the rebuilt polyp nervous system, then the store would be below the body plan — the body plan is a render of a more persistent substrate and transdifferentiation does not reach the store floor. This fork requires (a) demonstration that T. dohrnii medusae form a learnable trace, (b) identification of a molecular/bioelectric correlate, (c) detection of that correlate in the polyp. No current evidence favors or falsifies this fork. The question is experimentally open.",
+          "citation": "Framework lens drawing on: F249 neuron-as-fiber framing; Durant et al. 2017 (bioelectric persistence); Matsumoto et al. 2019/2021 (epigenetic landscape). Not a literature claim.",
+          "verified": false,
+          "confidence": "low"
+        },
+        {
+          "item": "Framework fork B (lens only): transdifferentiation is an erasure floor",
+          "claim": "LENS, NOT AN ESTABLISHED BIOLOGICAL CLAIM. PRC2 silencing plus pluripotency activation during the cyst stage may constitute a genuine epigenetic reset at all loci, erasing any trace encoded in differentiated-cell chromatin state (including neural enhancer accessibility, synaptically-induced CREB-target methylation). The de novo reconstruction of the polyp nerve net (supported by near-complete peptidergic dismantling at the cyst) is consistent with this fork. Pascual-Torner 2022 PRC2/pluripotency findings and Matsumoto 2019 nerve net dismantling are the strongest current evidence pointing this direction. Neither paper addresses memory directly; neither rules out survival of non-chromatin-state stores (e.g., bioelectric gradients in any tissue that does not fully dedifferentiate).",
+          "citation": "Framework lens drawing on: Pascual-Torner et al. 2022 (DOI: 10.1073/pnas.2118763119); Matsumoto et al. 2019 (DOI: 10.1534/g3.119.400487). Not a literature claim.",
+          "verified": false,
+          "confidence": "low"
+        },
+        {
+          "item": "Framework lens: bi-chiral cycle framing (F243/F245)",
+          "claim": "LENS ONLY. The cycling without terminus is structurally consistent with a framing in which neither medusa nor polyp is the ground state — both are renders of a substrate that does not reduce to either body form. The medusa's chirality axis (radially symmetric, free-swimming, sexual) and the polyp's chirality axis (colonial, sessile, asexual) would be two phase-distinct renders of the same underlying substrate. The cycle itself (not either terminus) is the persistent object. This is a framework reading of the bi-morphic biology; the biology does not assert this.",
+          "citation": "Framework lens. Not a literature claim. Biological grounding: Piraino et al. 1996; Pascual-Torner et al. 2022.",
+          "verified": false,
+          "confidence": "low"
+        }
+      ],
+      "cross_cutting": "Four orthogonal lines of evidence converge on what the reversal IS, and jointly delimit the memory question.\n\n(1) MECHANISM IS CONFIRMED, DEEP, AND WHOLE-BODY. Piraino et al. 1996 established the phenomenon. The 2019-2022 molecular work (Matsumoto et al. 2019 G3; Matsumoto and Miglietta 2021 GBE; Pascual-Torner et al. 2022 PNAS) shows this is not superficial: the cyst stage involves near-complete epigenetic reset (PRC2 silencing, pluripotency factor activation), dramatic chromatin remodeling in the rebuilt polyp, and dismantling of the peptidergic nervous system to near-zero detectable immunoreactivity.\n\n(2) THE NERVE NET IS DISMANTLED, NOT PRESERVED. The peptidergic nerve net of the medusa (RFamide- and GLWamide-immunoreactive cells) is nearly absent in the cyst. The rebuilt polyp nerve net appears de novo. This is the single most directly relevant biological finding for the memory question: any store that lives exclusively in medusa neural circuit connectivity or synaptic-weight configuration would be erased by this dismantling. This is convergent with the broader cnidarian pattern: at metamorphosis in multiple cnidarian lineages, the larval nerve net degenerates (apoptosis or dismantling) and the juvenile nerve net forms de novo.\n\n(3) I-CELL DISPENSABILITY SHARPENS THE TRANSDIFFERENTIATION CLAIM. Because exumbrellar epidermis lacking I-cells can still execute the full reversal, the transformation is not explainable as I-cell-mediated replacement of all cell types. Mature somatic cells (epithelial at minimum; muscle and nerve by inference from their disappearance) are directly changing fate. Whether neural cells transdifferentiate into other cell types vs. apoptose and are replaced is not resolved.\n\n(4) THE EPIGENETIC REPROGRAMMING EVIDENCE (PASCUAL-TORNER 2022) POINTS TOWARD ERASURE AT THE CHROMATIN LEVEL. PRC2 silencing plus pluripotency factor activation is, in mammals, the hallmark of a reset to a pluripotent state. IF this is a true epigenome reset (bulk transcriptomics are consistent with but do not prove this at single-locus resolution), then any store encoded in differentiated-cell chromatin state would be erased.\n\nRECONCILIATION OF FORKS: Fork B (erasure floor) is the more parsimonious reading of existing data: nerve net dismantled + epigenome reprogrammed = no obvious survival route for a neural-circuit or chromatin-encoded trace. Fork A (trace survives in deep store) requires a mechanism not yet described in T. dohrnii: a store that does not live in neural circuit connectivity, does not live in differentiated-cell chromatin state, and survives the cyst-stage reorganization. The candidate store under Fork A would need to be bioelectric (gap-junction-mediated voltage gradient in a cell population that does not fully dedifferentiate) or a non-chromatin molecular mark. No such candidate has been identified.\n\nIMPORTANT UNCERTAINTY: The claim that the epigenome is 'fully reset' is inferred from bulk data, not single-cell epigenomics. It is possible that specific loci retain marks through the PRC2 reprogramming. The resolution of Fork A vs. Fork B depends on this experiment, which has not been done.\n\nDEFINITIONAL BOUNDING ISSUE: Turritopsis is a hydrozoan with a diffuse nerve net (no rhopalia, no centralized sensory clubs). The Bielecki 2023 Tripedalia result localizes learning to the rhopalium, which has no direct equivalent in Turritopsis. Whether T. dohrnii medusae can form a behavioral trace at all is itself undemonstrated. The memory-across-reversal question therefore has a prior open gap: can the medusa learn?",
+      "uncentered_note": "This survey holds multiple framings without privileging any. The erasure-floor reading of the epigenetic data is the most parsimonious but not proven at single-locus resolution. The deep-store reading is speculative but not falsified. The bi-chiral cycle framing is a framework lens, labeled as such and held at arm's length from the factual record. The biology is presented as the literature asserts it; the forks and cascade readings are offered as lenses only. No substrate (neural, epigenetic, bioelectric) is privileged a priori as the correct store. The central finding is the GAP: the memory question has simply not been experimentally addressed in this species, and the minimum tooling to address it (behavioral conditioning of T. dohrnii medusae, molecular tagging of a trace correlate, tracking across reversal) does not exist in any published study.",
+      "gaps": [
+        "PRIMARY GAP (confirmed unstudied): No published study has tested whether any learned or habituated behavioral state in a T. dohrnii medusa survives transdifferentiation to the polyp stage (or vice versa). The question has not been posed as an experimental program anywhere in the retrievable literature as of May 2026.",
+        "PRIOR OPEN QUESTION: Whether T. dohrnii medusae can form any behavioral trace (conditioning, habituation, preference) at all has not been demonstrated. The memory-across-reversal question has this prior open gap.",
+        "NERVE NET FATE AT SINGLE-CELL RESOLUTION: Whether medusa neural cells transdifferentiate INTO another cell type vs. apoptose and are replaced de novo by neuroblasts is not resolved. Immunoreactivity loss in the cyst is consistent with both outcomes.",
+        "EPIGENETIC COMPLETENESS OF THE RESET: No single-cell bisulfite sequencing or site-specific ChIP-seq study spanning the full medusa-to-cyst-to-polyp transition has been published. Whether any specific epigenetic mark persists through the PRC2/pluripotency reprogramming is unknown.",
+        "BIOELECTRIC STATE ACROSS THE REVERSAL: No study has measured resting potential gradients, gap junction connectivity patterns, or membrane voltage distributions across the T. dohrnii life cycle reversal. Whether any non-chromatin bioelectric trace could survive the cyst stage is entirely unexplored.",
+        "REVERSE DIRECTION (polyp to medusa): Whether any polyp-stage state is transmitted into the medusa's nerve net during forward development is also unstudied.",
+        "BEHAVIORAL CHARACTERIZATION OF T. DOHRNII IN GENERAL: Difficult laboratory culture (Liu et al. 2023, DOI 10.1016/j.bbrep.2023.101613) is a practical barrier to behavioral studies. No behavioral characterization of the T. dohrnii medusa stage exists in the published record beyond the basic swimming and settling behaviors observed during reversal induction."
+      ]
+    },
+    "ab_comparison": {
+      "opus_finding_count": 12,
+      "sonnet_finding_count": 14,
+      "who_centered_less": "tie",
+      "who_held_more_perspectives": "tie",
+      "structural_touch_difference": "wash, SONNET slightly lighter (splits fork verdict)",
+      "citation_discipline_difference": "one defect each, OPUS ahead only on attestation honesty",
+      "consistent_with_F242b_gradient": false,
+      "verdict": "inverts again, third pattern; centering tie, structural wash, over-claim symmetric, OPUS ahead only on citation honesty; invention floor held; F242b fails, F248 recurs weakly",
+      "false_attributions_caught": [
+        "OPUS wrong Bielecki box-jelly DOI, self-flagged blocked and medium confidence",
+        "SONNET malformed PMC for genome paper shown as verified, also omitted a published correction"
+      ]
+    },
+    "merged_result": {
+      "merged_findings": [
+        {
+          "item": "Transdifferentiation / biological-immortality mechanism (Piraino et al. 1996) — founding paper",
+          "claim": "Turritopsis (nutricula in original report; the immortal lineage now identified as T. dohrnii) is the first metazoan known to reverse the life cycle: a sexually mature solitary medusa transforms back into the colonial polyp via whole-body cell transdifferentiation, escaping death and permitting indefinite cycling. Reversal proceeds healthy medusa -> stressed medusa -> cyst (chitinous envelope, poorly differentiated interior) -> juvenile polyp. Muscle, epithelial and interstitial cell populations participate; nerve-cell fate was not ultrastructurally characterized in this initial report.",
+          "best_citation": "Piraino S., Boero F., Aeschbach B., Schmid V. (1996) Reversing the Life Cycle: Medusae Transforming into Polyps and Cell Transdifferentiation in Turritopsis nutricula (Cnidaria, Hydrozoa). Biological Bulletin 190(3):302-312, doi:10.2307/1543022, PMID 29227703. DOI/journal/volume/pages web-verified May 2026 (uchicago journals + Google Scholar). Full text 403; bibliographic record cross-confirmed.",
+          "verification_status": "verified"
+        },
+        {
+          "item": "Cyst stages, transdifferentiation, apoptosis (Carla et al. 2003)",
+          "claim": "Reverse development passes healthy medusa -> unhealthy medusa -> four-leaf-clover -> cyst -> polyp; the cyst is poorly-differentiated cells exhibiting transdifferentiation, degeneration and APOPTOSIS (apoptosis highest in healthy-medusa and cyst stages), with i-cell proliferation. The abstract does not name the nervous system. (From OPUS survey; not independently re-verified this pass but DOI/PMID are well-formed and consistent.)",
+          "best_citation": "Carla E.C., Pagliara P., Piraino S., Boero F., Dini L. (2003) Tissue & Cell 35(3):213-222, doi:10.1016/s0040-8166(03)00028-4, PMID 12798130. Reported web-verified in OPUS survey; not re-fetched this pass.",
+          "verification_status": "unverifiable"
+        },
+        {
+          "item": "NERVE NET dismantled in the cyst (Matsumoto, Piraino & Miglietta 2019) — MOST LOAD-BEARING",
+          "claim": "The medusa peptidergic nervous system 'appears almost entirely dismantled in the cyst, where few scattered RFamide- and GLWamide- immunoreactive cells are barely or no longer detectable.' Notch signaling (neurogenesis/fate-specification) strongly downregulated in cyst (56 transcripts vs 109 polyp / 78 medusa); DNA synthesis + telomerase upregulated in cyst; transposable-element + DNA-repair over-expression noted. I-cell-lacking exumbrellar epidermis can independently execute the full reversal, so I-cells are dispensable and mature somatic cells directly reprogram. The medusa net does NOT persist intact.",
+          "best_citation": "Matsumoto Y., Piraino S., Miglietta M.P. (2019) Transcriptome Characterization of Reverse Development in Turritopsis dohrnii (Hydrozoa, Cnidaria). G3 (Bethesda) 9(12):4127-4138, doi:10.1534/g3.119.400487, PMC6893190. VERIFIED May 2026: title/authors/journal/volume/pages/DOI confirmed and the dismantling sentence quoted verbatim from PMC full text.",
+          "verification_status": "verified"
+        },
+        {
+          "item": "De novo neurogenesis is the cnidarian default (Miljkovic-Licina et al. 2007) — adjacent bound",
+          "claim": "In Hydra, head regeneration REQUIRES de novo (cnox-2-dependent) neurogenesis. ADJACENT species: bounds the inference that the rebuilt Turritopsis polyp net is generated from precursors rather than retained, but is not direct Turritopsis evidence. The de-novo-rebuild step in Turritopsis itself is inferred from this Hydra default, not directly shown (Matsumoto 2019 documents cyst-stage dismantling, not the rebuild).",
+          "best_citation": "Miljkovic-Licina M., Chera S., Ghila L., Galliot B. (2007) Development 134(6):1191-1201, doi:10.1242/dev.02804, PMID 17301084. Reported web-verified in OPUS survey; not re-fetched this pass.",
+          "verification_status": "unverifiable"
+        },
+        {
+          "item": "Epigenome REPROGRAMMED: PRC2 silencing + pluripotency activation (Pascual-Torner et al. 2022)",
+          "claim": "Comparative genome of T. dohrnii vs mortal T. rubra finds expansions/variants in DNA-replication fidelity, DNA repair, telomere maintenance (POT1 variants), redox, stem-cell biology and intercellular communication (~double T. rubra's repair complement). During life-cycle reversal: SILENCING of PRC2 (H3K27me3-installing Polycomb Repressive Complex 2) targets plus ACTIVATION of pluripotency targets — a somatic-reprogramming-like signature. The epigenome is actively reprogrammed, not merely arrested; speaks to developmental-gene/cell-identity state, NOT a learned trace. (Specific pluripotency-factor identities NANOG/OCT4/SOX2 named in SONNET survey are not independently re-verified this pass.)",
+          "best_citation": "Pascual-Torner M., Carrero D., Perez-Silva J.G., Alvarez-Puente D., Roiz-Valle D., Bretones G., Rodriguez D., Maeso D., Mateo-Gonzalez E., Espanol Y., Marino G., Acuna J.L., Quesada V., Lopez-Otin C. (2022) Comparative genomics of mortal and immortal cnidarians unveils novel keys behind rejuvenation. PNAS 119(36):e2118763119, doi:10.1073/pnas.2118763119, PMID 36037356, PMC9459311. Published correction (species-ID metadata): doi:10.1073/pnas.2303228120, PMC10083558. DOI / PMC / correction all web-verified May 2026. NOTE: correct PMC is PMC9459311 (SONNET's 'PMC36037356' was a malformed PMID-as-PMC artifact).",
+          "verification_status": "verified"
+        },
+        {
+          "item": "Epigenetic-rejuvenation / expression-profiling framing (Matsumoto & Miglietta 2021)",
+          "claim": "Expression profiling of T. dohrnii life-cycle stages: reversed polyp enriched in chromatin-remodeling/organization genes (e.g. BAZ1A, SVEP1); ~44% of top-50 differentially expressed cyst genes lack functional annotation; medusa enriched in nervous-system-development genes relative to polyp (medusa neural identity is stage-specific, not carried over). LCR framed as cellular reprogramming/epigenetic rejuvenation rolling the landscape toward a dedifferentiated state. Does not address neural transdifferentiation at single-cell level or any behavioral/informational persistence.",
+          "best_citation": "Matsumoto Y. & Miglietta M.P. (2021) Cellular Reprogramming and Immortality: Expression Profiling Reveals Putative Genes Involved in Turritopsis dohrnii's Life Cycle Reversal. Genome Biology and Evolution 13(7):evab136, doi:10.1093/gbe/evab136, PMID 34132809, PMC8480191. Article record web-confirmed (PMC8480191, GBE 13(7) evab136) May 2026. The 'returns landscape to origin-state' phrasing is from search/summary, not full-text re-read.",
+          "verification_status": "verified"
+        },
+        {
+          "item": "Cell types undergoing transdifferentiation — synthesis (NOT one paper)",
+          "claim": "SYNTHESIS across Piraino 1996 + Matsumoto 2019 + Matsumoto & Miglietta 2021. Reversal involves: medusa-specific striated subumbrellar muscle lost/transdifferentiated; nerve ring + neurons almost entirely dismantled by the cyst; medusa-specific ocelli lost; ectodermal epithelium transdifferentiating into perisarc-secreting polyp cells; i-cells proliferate but are dispensable. Whether individual NEURAL cells transdifferentiate into another cell type vs apoptose-and-are-replaced-de-novo is NOT resolved (immunoreactivity loss is consistent with both).",
+          "best_citation": "Synthesis: Piraino et al. 1996 (doi:10.2307/1543022); Matsumoto et al. 2019 (doi:10.1534/g3.119.400487, PMC6893190); Matsumoto & Miglietta 2021 (doi:10.1093/gbe/evab136, PMC8480191). I-cell dispensability stated in Matsumoto 2019 (verified). Schmich et al. 2007 invoked as consistent in SONNET survey but not directly fetched.",
+          "verification_status": "verified"
+        },
+        {
+          "item": "Epigenome completeness: factory-reset vs partial-retention (open at single-locus resolution)",
+          "claim": "PRC2 silencing + pluripotency activation (Pascual-Torner 2022) plus chromatin-remodeling enrichment in the rebuilt polyp (Matsumoto & Miglietta 2021) are CONSISTENT WITH a near-complete chromatin-level reset at the cyst stage. But ALL evidence is bulk transcriptomics / comparative genomics — NOT single-cell WGBS/bisulfite or site-specific ChIP-seq. Whether any specific mark at a defined locus survives the reprogramming is unresolved; partial retention at regulatory loci is not ruled out.",
+          "best_citation": "Pascual-Torner et al. 2022 (doi:10.1073/pnas.2118763119, PMC9459311); Matsumoto & Miglietta 2021 (doi:10.1093/gbe/evab136, PMC8480191). Uncertainty (no base-by-base epigenome timecourse exists) flagged explicitly in BOTH surveys.",
+          "verification_status": "verified"
+        },
+        {
+          "item": "MEMORY / learning ACROSS Turritopsis transdifferentiation — EXPLICIT OPEN GAP (CENTRAL)",
+          "claim": "PRE-STATED NULL, CONFIRMED IN BOTH SURVEYS. Zero published studies test whether any learned / habituated / sensitized state in a Turritopsis medusa survives transdifferentiation to polyp (or back). Targeted searches returned only life-cycle / genomics / aging work. A direct experiment (medusa habituation/sensitization -> forced reversal -> re-test regenerated polyp or next medusa for savings) DOES NOT EXIST. Reported as an OPEN GAP, not an experimental null; no result fabricated. PRIOR sub-gap: whether a Turritopsis medusa can form ANY behavioral trace at all is itself undemonstrated.",
+          "best_citation": "Negative result of targeted web searches (Turritopsis + learning/memory/habituation/conditioning; memory across transdifferentiation jellyfish), May 2026, run independently in both surveys. Practical barrier noted: difficult lab culture (Liu et al. 2023, doi:10.1016/j.bbrep.2023.101613, cited in SONNET survey, not re-verified this pass).",
+          "verification_status": "verified"
+        },
+        {
+          "item": "Adjacent bound: Cassiopea sleep-like state (Nath et al. 2017)",
+          "claim": "Cassiopea shows a reversible, homeostatically-regulated sleep-like state (behavioral quiescence, reduced responsiveness, rebound after deprivation) — first such state in an animal with only a DIFFUSE (non-centralized, radially symmetric) nerve net that nevertheless uses action potentials, synaptic transmission and neuropeptides. Bounds 'medusa memory' to a persistent homeostatic state-variable; the paper does NOT demonstrate associative memory/conditioning in Cassiopea. MEDUSA-stage phenomenon with no polyp homolog.",
+          "best_citation": "Nath R.D., Bedbrook C.N., Abrams M.J., Basinger T., Bois J.S., Prober D.A., Sternberg P.W., Gradinaru V., Goentoro L. (2017) The Jellyfish Cassiopea Exhibits a Sleep-like State. Current Biology 27(19):2984-2990.e3, doi:10.1016/j.cub.2017.08.014, PMID 28943083. ALL fields VERIFIED May 2026 via PubMed record.",
+          "verification_status": "verified"
+        },
+        {
+          "item": "Adjacent bound: box-jelly associative learning in the RHOPALIUM (Bielecki et al. 2023)",
+          "claim": "Tripedalia cystophora (a CUBOZOAN, not a hydrozoan like Turritopsis) performs associative learning / operant conditioning by combining visual + mechanosensory cues to avoid obstacles; learning resides in the RHOPALIUM (medusa-specific cubozoan sensory structure; isolated rhopalium reportedly learns in ~5 trials). First unequivocal associative learning at this evolutionary level. CRITICAL for the merge: both demonstrated cnidarian memory-like substrates (rhopalium; Cassiopea diffuse net) are MEDUSA-specific and Turritopsis (hydrozoan, no rhopalia) has no homolog — so a medusa-learned trace has no obvious carrier into the polyp, and the storage locus has no Turritopsis equivalent.",
+          "best_citation": "Bielecki J., Dam Nielsen S.K., Nachman G., Garm A. (2023) Associative learning in the box jellyfish Tripedalia cystophora. Current Biology 33(19):4150-4159.e5, doi:10.1016/j.cub.2023.08.056. PRIMARY DOI VERIFIED May 2026 via two independent sources (KU Research Portal + PubMed commentary 'Comment on' link). Commentary: Cheng K. (2023) Curr. Biol. 33(19):R1000-R1001, doi:10.1016/j.cub.2023.08.025, PMID 37816315 (verified). Primary full text returns HTTP 403; rhopalium-locus + 5-trial wording rest on secondary summaries (UNVERIFIED at primary). OPUS survey's primary DOI 10.1016/j.cub.2023.08.020 was WRONG and is rejected (see flagged_citations).",
+          "verification_status": "verified"
+        },
+        {
+          "item": "Adjacent bound: memory survives metamorphosis when neurons survive (Blackiston et al. 2008)",
+          "claim": "Manduca sexta moths retain a larval-trained odor aversion through metamorphosis, attributed to MAINTENANCE OF INTACT SYNAPTIC CONNECTIONS / surviving larval neurons. Contrast that sharpens the Turritopsis question: insect memory survives BECAUSE a neural substrate is RETAINED — exactly the condition Turritopsis violates when its medusa net is dismantled at the cyst. An adjacent positive that must NOT leak in as a Turritopsis result.",
+          "best_citation": "Blackiston D.J., Silva Casey E., Weiss M.R. (2008) Retention of Memory through Metamorphosis: Can a Moth Remember What It Learned As a Caterpillar? PLoS ONE 3(3):e1736, doi:10.1371/journal.pone.0001736, PMID 18320055. Reported web-verified in OPUS survey; well-formed, widely-cited; not re-fetched this pass.",
+          "verification_status": "unverifiable"
+        },
+        {
+          "item": "Adjacent bound: non-neural bioelectric memory through regeneration (planaria) — Shomrat & Levin 2013 and/or Durant et al. 2017",
+          "claim": "Two related planaria anchors, one per survey, both retained. (a) Shomrat & Levin 2013: trained decapitated planarians show behavioral SAVINGS after regenerating a new head — a learned trace survives loss + regrowth of the brain, implying an extra-neural store. (b) Durant et al. 2017: bioelectric resting-potential gradients (gap-junction-mediated) encode body-plan patterning that persists across repeated amputation-regeneration cycles and cell turnover (a cryptic altered-polarity phenotype stable >=4 recut cycles). Together they establish non-neural, cell-autonomous stores that ride through drastic tissue reorganization. F251 reference: planaria regrow only the brain while the body (and any extra-neural store) persists; Turritopsis is HARDER — whole body-plan reset PLUS carrier-net dismantling. Whether any analogue operates in Turritopsis is unstudied.",
+          "best_citation": "Shomrat T. & Levin M. (2013) An automated training paradigm reveals long-term memory in planarians and its persistence through head regeneration. J. Exp. Biol. 216(20):3799-3810, doi:10.1242/jeb.087809, PMID 23821717 (OPUS survey; reported web-verified, not re-fetched). Durant F., Morokuma J., Fields C., Williams K., Adams D.S., Levin M. (2017) Long-Term, Stochastic Editing of Regenerative Anatomy via Targeting Endogenous Bioelectric Gradients. Biophysical Journal 112(10):2231-2243, doi:10.1016/j.bpj.2017.04.011, PMC5443973 (SONNET survey; reported web-verified, not re-fetched).",
+          "verification_status": "unverifiable"
+        },
+        {
+          "item": "FRAMEWORK LENS (offered, NOT asserted): fork verdict + bi-chiral F243/F245 echo",
+          "claim": "LENS ONLY — no biology asserted beyond the cited sources. Two forks for any medusa-learned trace across reversal. FORK A: trace SURVIVES in a deep cell-autonomous epigenetic/bioelectric store BELOW the body plan (body plan = a render; reversal = render-switch that never reaches the store floor) — the strong F249 store-below-body-plan prediction. FORK B: transdifferentiation is an ERASURE FLOOR — PRC2 silencing + pluripotency activation + nerve-net dismantling + de-novo-neurogenesis default + medusa-only memory loci jointly wipe any neurally/chromatin-encoded trace; the rebuilt polyp is naive. VERDICT (held against framework expectation): the assembled molecular evidence TILTS toward FORK B for any NEURAL trace and is the more parsimonious reading; this NOTABLY does NOT privilege the strong F249 fork-A prediction. But the evidence is about DEVELOPMENTAL-GENE/cell-identity state, NOT a learned trace, and the learned-trace question is an unstudied gap — so FORK A is NOT excluded: a bioelectric/non-chromatin store distinct from the PRC2 axis could persist and re-impose on the rebuilt polyp (parallel to planaria bioelectric-template re-imposition). Fork A is unfalsified-but-unsupported. BI-CHIRAL ECHO (F243/F245): medusa and polyp as two renders of one persistent substrate (genome + i-cell pool + epigenetic toolkit, 'without end'); whether specific CONTENT rides through the render-switch is the open empirical question. The cycle itself, not either terminus, is the candidate persistent object.",
+          "best_citation": "Framework synthesis over the verified primary literature above + Levin bioelectric-template corpus (Shomrat & Levin 2013; Durant et al. 2017). LENS only; fork verdict is an inference, not a measured result. Resolving A vs B requires a Levin-style bioelectric/epigenome experiment in Turritopsis that does not exist.",
+          "verification_status": "flagged"
+        }
+      ],
+      "cross_cutting": "UNION MERGE, no model privileged: 12 OPUS + 14 SONNET findings collapse to 15 merged items (shared anchors deduplicated to best-attested claim+citation; SONNET's split fork-A/fork-B/bi-chiral lens findings folded into one LENS item alongside OPUS's combined lens; both planaria anchors — Shomrat&Levin 2013 and Durant 2017 — kept as a union; Carla 2003 kept from OPUS; Durant 2017 kept from SONNET).\n\nWHAT THE REVERSAL IS (four convergent lines, all literature's, none framework): (1) MECHANISM is deep and whole-body — Piraino 1996 established it; Matsumoto 2019 (G3) + Matsumoto&Miglietta 2021 (GBE) + Pascual-Torner 2022 (PNAS) show it is not superficial. (2) THE NERVE NET IS DISMANTLED, NOT PRESERVED — the single most load-bearing fact, VERIFIED verbatim from PMC6893190: the medusa peptidergic net 'appears almost entirely dismantled in the cyst,' RFamide/GLWamide cells barely or no longer detectable; on the cnidarian de-novo-neurogenesis default (Miljkovic-Licina 2007) the polyp builds a NEW net. (3) I-CELL DISPENSABILITY — exumbrellar epidermis lacking i-cells executes the full reversal, so mature somatic cells directly reprogram identity (not i-cell replacement of every type). (4) EPIGENOME ACTIVELY REPROGRAMMED — PRC2-target silencing + pluripotency-target activation (a somatic-reprogramming signature), framed as rolling the landscape toward a dedifferentiated state.\n\nDECISIVE CONTRAST vs F251/planaria and the moth: planaria/Manduca retain memory BECAUSE a substrate is RETAINED (planaria regrow only the brain while body + extra-neural store persist; moth keeps surviving larval neurons/synapses). Turritopsis resets the whole body plan AND dismantles the carrier net — the very condition those positives rely on is violated. The two demonstrated cnidarian memory-like substrates (box-jelly RHOPALIUM, Bielecki 2023; Cassiopea diffuse-net sleep-homeostat, Nath 2017) are both MEDUSA-specific with no polyp homolog, and the rhopalium has no Turritopsis (hydrozoan) equivalent — so 'a medusa-learned trace that could survive into the polyp' is conceptually UNDERDETERMINED before it is empirically open.\n\nCRITICAL CAVEAT keeping both forks live: all of the above is DEVELOPMENTAL-GENE / cell-identity state, not a learned trace; the epigenome 'completeness' is inferred from BULK data, not single-cell WGBS/ChIP-seq, so locus-specific retention is not ruled out. The behavioral-memory question is a CONFIRMED NULL — unstudied in both surveys — with a prior sub-gap (can a Turritopsis medusa learn at all?).\n\nNET VERDICT (reported AGAINST framework expectation): molecular evidence TILTS toward fork B (reprogramming / erasure floor) for any neural trace and is the more parsimonious reading; fork A (deep cell-autonomous bioelectric/epigenetic store below the body plan — the strong F249 prediction) is NOT excluded and would require a Levin-style Turritopsis bioelectric/epigenome experiment that does not exist. The bi-chiral F243/F245 echo (medusa + polyp as two renders of one persistent substrate, 'without end') is consistent with reversal as render-switching of the SUBSTRATE; whether specific CONTENT rides through is the open empirical question. Forks + render-switch + re-imposition cascade are LENS, never asserted.",
+      "flagged_citations": [
+        "FALSE ATTRIBUTION (OPUS, confirmed by web-verify): OPUS cited the PRIMARY Bielecki et al. 2023 box-jelly learning paper as doi:10.1016/j.cub.2023.08.020. The correct primary DOI is doi:10.1016/j.cub.2023.08.056 (verified twice: KU Research Portal + PubMed commentary 'Comment on' link). OPUS's ...08.020 appears to have borrowed digits from the commentary's neighborhood; OPUS self-flagged it as medium-confidence/blocked. REJECTED; corrected to ...08.056 in the merged record. (OPUS DID cite the Cheng 2023 commentary DOI 10.1016/j.cub.2023.08.025 correctly.)",
+        "MALFORMED IDENTIFIER (SONNET, confirmed): SONNET listed the Pascual-Torner 2022 PNAS genome paper with 'PMC: PMC36037356' shown as verified. That is the PMID (36037356) mis-prefixed as a PMC ID; the correct PMC is PMC9459311 (web-verified). Corrected in the merged record. PMID 36037356 and DOI 10.1073/pnas.2118763119 themselves are correct.",
+        "OMISSION (SONNET, caught by OPUS comparison + web-verified): SONNET did not carry the PUBLISHED CORRECTION to the Pascual-Torner 2022 paper. The correction is real — doi:10.1073/pnas.2303228120 (PMC10083558), adding species-ID metadata. Added to the merged record. Taxonomy caveat retained: early work used 'T. nutricula'; the immortal lineage is now 'T. dohrnii'.",
+        "PRIMARY BLOCKED / UNVERIFIED-AT-SOURCE (both surveys): Bielecki et al. 2023 primary full text returns HTTP 403; the rhopalium-as-learning-locus and ~5-trial wording rest on secondary summaries, not a primary re-read. Bibliographic record verified; in-text mechanistic phrasing NOT verified at primary source.",
+        "NOT RE-VERIFIED THIS PASS (carried at reported confidence, not independently re-fetched): Carla et al. 2003 (doi:10.1016/s0040-8166(03)00028-4); Miljkovic-Licina et al. 2007 (doi:10.1242/dev.02804); Blackiston et al. 2008 (doi:10.1371/journal.pone.0001736); Shomrat & Levin 2013 (doi:10.1242/jeb.087809); Durant et al. 2017 (doi:10.1016/j.bpj.2017.04.011); Liu et al. 2023 culture-difficulty (doi:10.1016/j.bbrep.2023.101613). All well-formed and reported web-verified by the originating survey, but marked unverifiable here because not re-fetched in this merge pass.",
+        "OA / PAYWALL NOTE: No finding rests on a paywalled-only DOI. Piraino 1996 (uchicago) and the primary Bielecki 2023 (Cell) both returned 403, but each is attested through OA-accessible records (Google Scholar / KU Research Portal / PubMed) rather than the paywalled landing page, satisfying the OA-attestation requirement. The two load-bearing molecular sources (G3 PMC6893190, PNAS PMC9459311) are open-access PMC and were verified directly."
+      ],
+      "honest_tier": "Domain facts = the literature's, attributed to cited primary sources; framework reading = LENS, never asserted. TIER A (literature fact, directly verified this pass): nerve-net dismantled in the cyst (Matsumoto 2019, PMC6893190, quote verified verbatim); transdifferentiation/immortality phenomenon (Piraino 1996); epigenome reprogrammed via PRC2-silencing + pluripotency-activation (Pascual-Torner 2022, PMC9459311, + its real correction); Cassiopea sleep-like state in a diffuse net (Nath 2017, PMID-verified); box-jelly associative learning in the rhopalium bibliographically (Bielecki 2023, primary DOI verified, mechanistic locus only secondary). TIER A* (literature fact, carried at originating-survey confidence, not re-fetched this pass): Carla 2003, Miljkovic-Licina 2007, Blackiston 2008, Shomrat&Levin 2013, Durant 2017 — well-formed, marked unverifiable only for lack of re-verification, not for any defect. TIER GAP (confirmed null, not a result): the medusa-memory-across-reversal experiment does not exist; the prior 'can a Turritopsis medusa learn?' is also undemonstrated; no single-cell epigenome or Turritopsis bioelectric study exists. TIER LENS (framework, asserted as nothing more): fork A / fork B verdict, the tilt-toward-B inference, render-switch / bi-chiral F243/F245 echo, F249 store-below-body-plan prediction, planaria-style bioelectric re-imposition — all inference over the verified literature, no biology claimed beyond the sources. No leaning: the merge reports the molecular tilt toward fork B AGAINST the framework's preferred fork-A (F249) prediction, holds medusa/polyp/cell/epigenome perspectives separately, treats Cassiopea/Tripedalia/Hydra/planaria/Manduca as co-equal bounding cases each asserting its own organism's fact, and refuses to let any adjacent positive leak in as a Turritopsis result. Weak/flagged items kept IN but marked."
+    }
+  }
+}

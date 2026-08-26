@@ -1,0 +1,136 @@
+{
+  "partition": "R-RBS-LM-54n",
+  "per_pair": [
+    {
+      "anchor": "milton",
+      "target": "shakespeare",
+      "note": "blank-verse \u2192 mixed",
+      "within_ride": 0.2947667338302525,
+      "lineend_ride": 0.35694879448710426,
+      "freq_baseline": 0.2819372362972902,
+      "within_minus_baseline": 0.012829497532962308,
+      "lineend_minus_baseline": 0.07501155818981409,
+      "lineend_minus_within": 0.06218206065685178
+    },
+    {
+      "anchor": "pope_iliad",
+      "target": "milton",
+      "note": "rhymed-couplets \u2192 blank-verse",
+      "within_ride": 0.2792019526738459,
+      "lineend_ride": 0.21580306358810497,
+      "freq_baseline": 0.15987505483415188,
+      "within_minus_baseline": 0.11932689783969402,
+      "lineend_minus_baseline": 0.055928008753953096,
+      "lineend_minus_within": -0.06339888908574093
+    },
+    {
+      "anchor": "milton",
+      "target": "pope_iliad",
+      "note": "blank-verse \u2192 rhymed-couplets",
+      "within_ride": 0.1200778442849637,
+      "lineend_ride": 0.11559476763846158,
+      "freq_baseline": 0.16129242628749366,
+      "within_minus_baseline": -0.04121458200252996,
+      "lineend_minus_baseline": -0.04569765864903208,
+      "lineend_minus_within": -0.004483076646502118
+    },
+    {
+      "anchor": "whitman",
+      "target": "milton",
+      "note": "free-verse \u2192 blank-verse",
+      "within_ride": 0.1053258782389696,
+      "lineend_ride": 0.09836822698385952,
+      "freq_baseline": 0.402674056689175,
+      "within_minus_baseline": -0.2973481784502054,
+      "lineend_minus_baseline": -0.3043058297053155,
+      "lineend_minus_within": -0.006957651255110081
+    },
+    {
+      "anchor": "whitman",
+      "target": "pope_iliad",
+      "note": "free-verse \u2192 rhymed",
+      "within_ride": 0.12661862030867954,
+      "lineend_ride": 0.06768921208193109,
+      "freq_baseline": 0.4901994582872108,
+      "within_minus_baseline": -0.36358083797853125,
+      "lineend_minus_baseline": -0.4225102462052797,
+      "lineend_minus_within": -0.058929408226748456
+    },
+    {
+      "anchor": "longfellow",
+      "target": "pope_iliad",
+      "note": "translation \u2192 rhymed",
+      "within_ride": 0.18122443392551724,
+      "lineend_ride": 0.13355006936414987,
+      "freq_baseline": 0.35118242406595845,
+      "within_minus_baseline": -0.16995799014044122,
+      "lineend_minus_baseline": -0.21763235470180858,
+      "lineend_minus_within": -0.047674364561367366
+    },
+    {
+      "anchor": "milton",
+      "target": "frankenstein",
+      "note": "poetry \u2192 prose control",
+      "within_ride": 0.2887619131147532,
+      "lineend_ride": 0.30855429304357573,
+      "freq_baseline": 0.21868752894840968,
+      "within_minus_baseline": 0.07007438416634351,
+      "lineend_minus_baseline": 0.08986676409516606,
+      "lineend_minus_within": 0.019792379928822545
+    },
+    {
+      "anchor": "frankenstein",
+      "target": "plato",
+      "note": "prose \u2192 prose control",
+      "within_ride": 0.30659339642902655,
+      "lineend_ride": 0.3450237851419121,
+      "freq_baseline": 0.3483317352064349,
+      "within_minus_baseline": -0.041738338777408346,
+      "lineend_minus_baseline": -0.00330795006452278,
+      "lineend_minus_within": 0.038430388712885566
+    }
+  ],
+  "by_anchor": [
+    {
+      "anchor": "milton",
+      "rule_density": "high-blank-verse",
+      "wn_baseline": 0.01389643323225862,
+      "le_baseline": 0.03972688787864936,
+      "le_within": 0.025830454646390735,
+      "n": 3
+    },
+    {
+      "anchor": "pope_iliad",
+      "rule_density": "very-high-couplets",
+      "wn_baseline": 0.11932689783969402,
+      "le_baseline": 0.055928008753953096,
+      "le_within": -0.06339888908574093,
+      "n": 1
+    },
+    {
+      "anchor": "whitman",
+      "rule_density": "free-verse-parallel",
+      "wn_baseline": -0.33046450821436835,
+      "le_baseline": -0.36340803795529764,
+      "le_within": -0.03294352974092927,
+      "n": 2
+    },
+    {
+      "anchor": "longfellow",
+      "rule_density": "translation-blank",
+      "wn_baseline": -0.16995799014044122,
+      "le_baseline": -0.21763235470180858,
+      "le_within": -0.047674364561367366,
+      "n": 1
+    },
+    {
+      "anchor": "frankenstein",
+      "rule_density": "n/a-prose",
+      "wn_baseline": -0.041738338777408346,
+      "le_baseline": -0.00330795006452278,
+      "le_within": 0.038430388712885566,
+      "n": 1
+    }
+  ],
+  "verdict": "RULE-AWARE KERNEL HELPS: 2/5 anchors gain alignment-specific signal (avg lift +0.032)"
+}

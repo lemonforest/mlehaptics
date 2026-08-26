@@ -1,0 +1,31 @@
+{
+  "partition": "R-RBS-LM-76 v2",
+  "decay_alpha": 0.999,
+  "prune_threshold": 0.01,
+  "n_paragraphs": 6651,
+  "endpoint_summary": {
+    "A": {
+      "n_edges": 462037,
+      "total_weight": 170457.66809150396,
+      "top100_share": 0.01711692686415704
+    },
+    "B": {
+      "n_edges": 329000,
+      "total_weight": 68210.86190665852
+    },
+    "C": {
+      "n_edges": 392059,
+      "total_weight": 120113.61920868859
+    },
+    "BL": {
+      "n_edges": 539072,
+      "total_weight": 816163.0,
+      "top100_share": 0.019708073019727677
+    }
+  },
+  "top100_AB_intersect": 35,
+  "top100_AC_intersect": 68,
+  "top100_BC_intersect": 54,
+  "verdict_path": "Q1: PATH-DEPENDENCE OBSERVED with decay. Orders A/B/C produce different final states (Jaccard <90). Plasticity introduces iteration-sensitivity.",
+  "verdict_quality": "Q2: PLASTICITY DEGRADES substrate. Decay top-100 share 0.017 < no-decay 0.020. Decay erodes more signal than it concentrates."
+}

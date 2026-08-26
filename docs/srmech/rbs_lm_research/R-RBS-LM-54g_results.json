@@ -1,0 +1,71 @@
+{
+  "partition": "R-RBS-LM-54g",
+  "pairs": [
+    {
+      "anchor": "kjv_nt",
+      "target": "quran_sale",
+      "family_relation": "same-family (abrahamic)",
+      "ride_qualities": [
+        0.18386516661372299,
+        0.18897744883357026,
+        0.19206343578910967,
+        0.18465383316280803
+      ],
+      "mean_ride": 0.18738997109980274,
+      "mean_identity": -0.057590398091314055,
+      "mean_random_target": 0.18624878097861794,
+      "mean_freq_weighted_target": 0.2233413312198755,
+      "improvement_over_identity": 0.2449803691911168
+    },
+    {
+      "anchor": "kjv_nt",
+      "target": "bhagavad",
+      "family_relation": "cross-super-family (religious eastern)",
+      "ride_qualities": [
+        0.26773294893096966,
+        0.27080754316512895,
+        0.2803841996856529,
+        0.28219216416153026
+      ],
+      "mean_ride": 0.27527921398582045,
+      "mean_identity": -0.28922036372258236,
+      "mean_random_target": 0.3425844061715602,
+      "mean_freq_weighted_target": 0.43288753137672836,
+      "improvement_over_identity": 0.5644995777084028
+    },
+    {
+      "anchor": "kjv_nt",
+      "target": "frankenstein",
+      "family_relation": "cross-substrate (religious\u2192novel)",
+      "ride_qualities": [
+        0.3324628025891863,
+        0.33995798312170045,
+        0.3331902773919141,
+        0.3290602821807675
+      ],
+      "mean_ride": 0.3336678363208921,
+      "mean_identity": -0.27259642520857597,
+      "mean_random_target": 0.33347576892237263,
+      "mean_freq_weighted_target": 0.40894038218214707,
+      "improvement_over_identity": 0.606264261529468
+    },
+    {
+      "anchor": "plato",
+      "target": "frankenstein",
+      "family_relation": "cross-substrate-secular (philos\u2192novel)",
+      "ride_qualities": [
+        0.23891276721990057,
+        0.23356804418131544,
+        0.23819811868899166,
+        0.23115479567628122
+      ],
+      "mean_ride": 0.2354584314416222,
+      "mean_identity": -0.1928601328127627,
+      "mean_random_target": 0.20719507945846222,
+      "mean_freq_weighted_target": 0.30790207557530075,
+      "improvement_over_identity": 0.4283185642543849
+    }
+  ],
+  "avg_improvement_over_identity": 0.4610156931708431,
+  "verdict": "STRONG ride: avg ride-iden improvement +0.461; closed-loop translation works"
+}

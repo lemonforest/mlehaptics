@@ -1,0 +1,98 @@
+# asl_sign_kernel.toml
+# The "LaTeX-like language for signs" -- an ASL SUB-LANGUAGE KERNEL, tracked the srmech way (F608).
+#
+# Why this file exists (the user's direction, 2026-06-08): "we will have to create our own LaTeX-like language for
+# signs. like Beat has a dozen different signs depending upon context." F608's reading: ASL is two-axis/hieroglyphic
+# (F595) and CHORD-native (F601) -- a SIGN is the SIMULTANEOUS bundle of phonological PARAMETERS (the notes), and the
+# SENSE is the determinative (sigma_B) made PRIMARY. So the notation must capture the parameter-CHORD + the sense.
+#
+# DISCIPLINE: ASL is a complete living language of the Deaf community, NOT "English on the hands". This kernel is a
+# STRUCTURAL scaffold (framework reading, F282) handed to a Deaf / sign-linguistics expert to choose the surface; the
+# linguistics here is standard textbook (Stokoe 1960 parameters; classifiers) and MUST be verified with a Deaf source.
+# Plugs into the F607 sub-language ROUTER exactly as <hiero> routes to the F582 Egyptian kernel.
+
+[kernel]
+name = "asl_sign"
+version = "0.1.0"
+description = "ASL signs as parameter-CHORDS with a sense-determinative -- a LaTeX-like sign notation kernel (F608)"
+composes = ["F608", "F595", "F596", "F601", "F569", "F582", "F607"]
+plugs_into = "formatting_language_kernel.toml [router] -- ASL is a sub-language like <hiero>"
+note = "a SIGN = a CHORD (simultaneous parameters, F601); the SENSE = the determinative (sigma_B, F595, PRIMARY); grammar = SPATIAL (sigma_E, 3D movement)"
+expert_handoff = "a Deaf / sign-linguistics expert chooses the surface; we supply the structure (F282); verify all linguistics with a Deaf source (MPM)"
+
+# --- the PARAMETER tiers: the NOTES of a sign-chord (Stokoe/HOLME 5-parameter model; standard, verify w/ expert) ---
+# A sign is bundle([ bind(role_p, value_p) for p in parameters ]) -- a labeled role-filler chord (F608: 5/5 recoverable).
+
+[[parameter]]
+name = "handshape"
+stokoe = "dez (designator)"
+srmech_class = "M"                                          # an HDC anchor per handshape
+role = "note"
+note = "the configuration of the hand; ALSO the locus of CLASSIFIERS (CL:1 person / CL:3 vehicle / CL:B flat-surface) = the determinative made grammatical"
+inventory_hint = "the ASL handshape inventory (~40-80 phonemic handshapes; expert/source for the canonical set)"
+
+[[parameter]]
+name = "location"
+stokoe = "tab (tabula)"
+srmech_class = "M"
+role = "note"
+note = "where the sign is made (neutral space / chest / chin / forehead ...); also classifier LOCI in signing space (sigma_E)"
+
+[[parameter]]
+name = "movement"
+stokoe = "sig (signation)"
+srmech_class = "C+I"                                        # direction (Class-C chirality) + cyclic/repeated motion (Class-I)
+role = "note"
+note = "path/manner of motion; DIRECTIONAL VERBS inflect by movement direction (I-give-you vs you-give-me) = the sigma_E axis (F595)"
+
+[[parameter]]
+name = "orientation"
+stokoe = "(added post-Stokoe)"
+srmech_class = "C"                                          # palm-facing = an orientation/chirality
+role = "note"
+note = "palm/finger orientation (palm-down / palm-in / palm-up)"
+
+[[parameter]]
+name = "nonmanual"
+stokoe = "(added; grammatical)"
+srmech_class = "B"                                          # framing / grammatical marker
+role = "note"
+note = "face/body markers (brow raise = question, head-shake = negation, mouth morphemes) -- GRAMMATICAL, not decoration"
+
+# --- the two axes (F595/F608): the SENSE is the determinative (sigma_B, PRIMARY); SPACE is sigma_E ---
+
+[axis.meaning_class]
+symbol = "sigma_B"
+is = "the SENSE / classifier -- the DETERMINATIVE (F595/F596), and in ASL it is the SIGN ITSELF (primary, not hidden)"
+note = "'beat' (rhythm/heart/strike/exhausted/whisk-egg) -> distinct signs (F608: 5 senses, 10/10 distinguishable); you cannot form the sign without choosing the sense -- sigma_B is MAXIMALLY visible (vs English F569-hidden, Egyptian determinative-added)"
+
+[axis.spatial]
+symbol = "sigma_E"
+is = "the 3D SIGNING SPACE -- classifier loci, directional-verb movement, role-shift; the F595 reading-direction/chirality axis as literal motion"
+note = "grammar lives in space + movement-direction (the sequence/chirality axis), NOT in a 1D letter sequence"
+
+# --- candidate NOTATION SURFACES (the 'LaTeX-like' renderers) -- the expert picks; honest notes on each ---
+
+[[surface]]
+name = "stokoe"
+captures = "tab-dez-sig (location-handshape-movement); the original phonemic notation"
+limitation = "pre-dates orientation + non-manual; partial chord"
+
+[[surface]]
+name = "hamnosys"
+captures = "Hamburg Notation System -- phonetic: handshape/orientation/location/movement; a fuller chord, machine-readable"
+limitation = "phonetic, not semantic; the sense-determinative is external"
+
+[[surface]]
+name = "sutton_signwriting"
+captures = "a VISUAL/iconic written form (the sign drawn) -- closest to writing-as-the-language"
+limitation = "iconic glyphs; encoding/parsing is its own sub-problem (Unicode SignWriting block exists)"
+
+[[surface]]
+name = "asl_gloss"
+captures = "English words in CAPS + markers (the slash-notation, R-RBS-LM-27); easy but..."
+limitation = "ENGLISH-PRIVILEGED (F398 violation): flattens the chord + the spatial sigma_E to an English token; a CROSS-CHECK, NOT the language (cf F581: the dict is the check, not the source)"
+
+[render]
+note = "the kernel reads the parameter-CHORD (the 5 notes) + routes by the sense-determinative; a surface is chosen by the expert. The honest target: a notation that preserves the CHORD + the spatial sigma_E without collapsing to an English gloss (no-privileged-language, F398)."
+next_question = "F282 handoff: which surface best preserves the chord + spatial axis for a Deaf reader? We supply the structure (sign=chord, sense=determinative, space=sigma_E); the Deaf-linguistics expert chooses the surface."

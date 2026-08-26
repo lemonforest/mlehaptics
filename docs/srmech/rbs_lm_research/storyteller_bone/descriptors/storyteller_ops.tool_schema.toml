@@ -1,0 +1,18 @@
+# storyteller_ops.tool_schema.toml — the Story Teller op registrations.
+# Lands in srmech: the dev session converts these to ToolEntry and registers into amsc.tool_schema._REGISTRY.
+
+[[op]]
+name = "storyteller.infer"
+summary = "compose seen-rules over a world's attested shelf; ask at a gap; render"
+
+[[op]]
+name = "storyteller.navigate"
+summary = "walk a world's section/board graph to a tome"
+
+[[op]]
+name = "storyteller.tell"
+summary = "declare a new seen rule / tome (build-by-dialogue); GPU-free add"
+
+[[op]]
+name = "storyteller.ask"
+summary = "surface a gap as a question instead of hallucinating"

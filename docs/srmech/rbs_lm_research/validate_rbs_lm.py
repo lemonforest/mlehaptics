@@ -25,8 +25,7 @@ import resource
 import sys
 import time
 from pathlib import Path
-
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
@@ -135,9 +134,9 @@ def main():
 
     # ---- 2. per-position divergence trajectory -------------------------
     print(f"\n=== Per-position divergence trajectory ===")
-    per_position_agreement = np.zeros(N_GENERATE)
+    per_position_agreement = _nps.zeros(N_GENERATE)
     for r in hallucination_results:
-        per_position_agreement += np.array(r["agreement_per_position"])
+        per_position_agreement += _nps.array(r["agreement_per_position"])
     per_position_agreement /= len(hallucination_results)
     print(f"  agreement rate at position k (averaged over all {len(hallucination_results)} prompts):")
     for k in range(N_GENERATE):
@@ -151,10 +150,10 @@ def main():
     test_ids = tokenizer.encode(test_prompt)
     _, latencies = rbs_generate(instrument, test_ids, N_GENERATE, vocab_table)
     print(f"  prompt: '{test_prompt}'")
-    print(f"  per-token latency: {np.mean(latencies):.1f} ± {np.std(latencies):.1f} ms")
-    print(f"  min/max:           {np.min(latencies):.1f} / {np.max(latencies):.1f} ms")
+    print(f"  per-token latency: {_nps.mean(latencies):.1f} ± {_nps.std(latencies):.1f} ms")
+    print(f"  min/max:           {_nps.minimum(latencies):.1f} / {_nps.maximum(latencies):.1f} ms")
     bci_threshold = 100
-    bci_pass = np.mean(latencies) <= bci_threshold
+    bci_pass = _nps.mean(latencies) <= bci_threshold
     print(f"  BCI threshold (≤ {bci_threshold} ms): {'PASS' if bci_pass else 'FAIL'}")
 
     # ---- 4. memory footprint -------------------------------------------
@@ -197,10 +196,10 @@ def main():
         "overall_token_agreement": float(overall_agreement),
         "per_position_agreement": per_position_agreement.tolist(),
         "latency": {
-            "per_token_ms_mean": float(np.mean(latencies)),
-            "per_token_ms_std": float(np.std(latencies)),
-            "per_token_ms_min": float(np.min(latencies)),
-            "per_token_ms_max": float(np.max(latencies)),
+            "per_token_ms_mean": float(_nps.mean(latencies)),
+            "per_token_ms_std": float(_nps.std(latencies)),
+            "per_token_ms_min": float(_nps.minimum(latencies)),
+            "per_token_ms_max": float(_nps.maximum(latencies)),
             "bci_threshold_ms": bci_threshold,
             "bci_pass": bool(bci_pass),
         },

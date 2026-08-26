@@ -1,0 +1,7 @@
+{
+  "kernel": "K3_sequence",
+  "n_gram": 3,
+  "n_ngrams_total_corpus": 68690,
+  "n_ngrams_sampled": 5000,
+  "position_stride": 2731
+}

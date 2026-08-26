@@ -1,3 +1,5 @@
+**→ grounded by F1251** (attested Shropshire bacterial genomics: the measured HGT compatibility-boundary IS integrate's compatibility gate).
+
 # F1244 — The three genome modes are NOT alternatives to decide between — they MEET in the k=3 coherency tower. Measured: diploid is the erasure/break specialist (2×), triality the substitution specialist (3×), and **2 homologous copies + 1 which-template mark = 3 = the triality**. So the architecture should SUPPORT ALL THREE on one shared cascade; the centromere/imprinting chirality IS the mark that translates between levels — and a virus editing a eukaryote is that translation layer, watched.
 
 **User reframe (2026-07-16):** *"I don't think it's a decide between them, I think it's make the genome architecture support all of them and find out where the different choices biology makes fall into another coherency tower … if a virus can edit a eukaryotic DNA, there must be some coherency translation layer biology follows to re-use the same cascade — we watch it happen so we know it does it. research and measure should cover all three — also means we have prototyped all 3 in the process."*

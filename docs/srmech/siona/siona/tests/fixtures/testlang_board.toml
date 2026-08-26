@@ -1,0 +1,27 @@
+# SYNTHETIC test-language board (the operator-board swap test, PKG-1 §testing / PUBLISH_GATE).
+# Tokens are INVENTED (clearly synthetic; not a real language — a real Bislama board is authored
+# only from UDHR-attested vocabulary, per the citation discipline). The test proves the English
+# lexicon is a PROFILE, not core: the router + session run UNCHANGED under this descriptor.
+[board]
+name = "testlang"
+address = "ada"
+define_frames = [["kesa","lo"],["defina"]]
+self_verbs = ["memoru","rikolu","forgetu","injesu","sevu","sowa"]
+imperatives = ["komputa","lista"]
+interrogatives = ["kesa","hu"]
+strip = ["ada","memoru","rikolu","forgetu","injesu","sevu","sowa","defina","da"]
+
+[board.verb_tools]
+memoru  = "siona.memory.remember"
+injesu  = "siona.memory.remember"
+sevu    = "siona.memory.remember"
+rikolu  = "siona.memory.recall"
+forgetu = "siona.memory.forget"
+sowa    = "siona.memory.show"
+
+[board.kernel_ops]
+kernel = "kernelu"
+is     = "esa"
+times  = "taimsa"
+over   = "ova"
+plus   = "plusa"

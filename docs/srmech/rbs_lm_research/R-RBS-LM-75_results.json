@@ -1,0 +1,31 @@
+{
+  "partition": "R-RBS-LM-75",
+  "scope": "Order-invariance falsification of current cascade",
+  "n_paragraphs": 6651,
+  "endpoint_totals": {
+    "A": {
+      "tokens": 222042,
+      "vocab": 22624,
+      "edges": 539072
+    },
+    "B": {
+      "tokens": 222042,
+      "vocab": 22624,
+      "edges": 539072
+    },
+    "C": {
+      "tokens": 222042,
+      "vocab": 22624,
+      "edges": 539072
+    }
+  },
+  "freq_identical_AB": true,
+  "freq_identical_AC": true,
+  "edges_identical_AB": true,
+  "edges_identical_AC": true,
+  "top100_synapse_intersection_AB": 100,
+  "top100_synapse_intersection_AC": 99,
+  "top_eigvec0_identical_AB": true,
+  "top_eigvec0_identical_AC": true,
+  "verdict": "FULL ORDER-INVARIANCE CONFIRMED: freq counters, edge counters, AND top eigvec content are all bit-identical across A/B/C. The current cumulative-cooccurrence cascade has zero path-dependence on presentation order. Iteration in 73/74 was measurement convenience, not substrate learning."
+}

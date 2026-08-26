@@ -20,8 +20,7 @@ import json
 import sys
 import time
 from pathlib import Path
-
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
@@ -157,7 +156,7 @@ def main():
     n_total = 0
     n_agree = 0
     per_prompt_results = []
-    per_position_agreement = np.zeros(20)
+    per_position_agreement = _nps.zeros(20)
     latencies = []
     for prompt in HALLUCINATION_PROMPTS:
         prompt_ids = tokenizer.encode(prompt)
@@ -184,7 +183,7 @@ def main():
         rbs_new = rbs_tokens[len(prompt_ids):]
         latencies.extend(prompt_latencies)
         agreement = [int(s == r) for s, r in zip(src_new, rbs_new)]
-        per_position_agreement += np.array(agreement)
+        per_position_agreement += _nps.array(agreement)
         n_total += len(agreement)
         n_agree += sum(agreement)
         per_prompt_results.append({
@@ -201,7 +200,7 @@ def main():
     print(f"  Overall agreement: {n_agree}/{n_total} ({100*overall:.1f}%)")
     print(f"  Per-position agreement (avg over {len(HALLUCINATION_PROMPTS)} prompts):")
     print(f"    " + " ".join(f"{p:4.2f}" for p in per_position_agreement))
-    print(f"  Per-token latency: {np.mean(latencies):.1f} ± {np.std(latencies):.1f} ms")
+    print(f"  Per-token latency: {_nps.mean(latencies):.1f} ± {_nps.std(latencies):.1f} ms")
 
     # ---- Comparison vs prior partitions --------------------------------
     print(f"\n=== Comparison ===")
@@ -218,8 +217,8 @@ def main():
         "instrument_bytes": len(inst),
         "overall_agreement_pct": 100 * overall,
         "per_position_agreement": per_position_agreement.tolist(),
-        "latency_ms_mean": float(np.mean(latencies)),
-        "latency_ms_std": float(np.std(latencies)),
+        "latency_ms_mean": float(_nps.mean(latencies)),
+        "latency_ms_std": float(_nps.std(latencies)),
         "per_prompt_results": per_prompt_results,
         "comparison": {
             "r_rbs_lm_7_76obs_pct": 0.0,

@@ -1,0 +1,343 @@
+{
+  "proposed_partition": {
+    "math": "MATH",
+    "reading": "COMMUNICATION",
+    "grammar": "COMMUNICATION",
+    "composition": "COMMUNICATION",
+    "science": "STRUCTURE-AND-ORDER",
+    "geography": "PLACES-AND-THINGS",
+    "scouting": "PLACES-AND-THINGS",
+    "history": "PLACES-AND-THINGS",
+    "music": null,
+    "art": null,
+    "games": null,
+    "sports": null,
+    "cooking": null
+  },
+  "within_coherence": {
+    "MATH": {
+      "members": [
+        "math"
+      ],
+      "mean_sim": null,
+      "n_pairs": 0
+    },
+    "COMMUNICATION": {
+      "members": [
+        "reading",
+        "grammar",
+        "composition"
+      ],
+      "mean_sim": 0.6982073613456191,
+      "min_sim": 0.46175775265028857,
+      "max_sim": 0.8349061193339821,
+      "n_pairs": 3
+    },
+    "STRUCTURE-AND-ORDER": {
+      "members": [
+        "science"
+      ],
+      "mean_sim": null,
+      "n_pairs": 0
+    },
+    "PLACES-AND-THINGS": {
+      "members": [
+        "geography",
+        "scouting",
+        "history"
+      ],
+      "mean_sim": 0.7978609979481867,
+      "min_sim": 0.665440500752718,
+      "max_sim": 0.872796053456428,
+      "n_pairs": 3
+    }
+  },
+  "cross_separation": {
+    "COMMUNICATION|MATH": 0.3909573745559683,
+    "COMMUNICATION|PLACES-AND-THINGS": 0.5018586506644853,
+    "COMMUNICATION|STRUCTURE-AND-ORDER": 0.4375834363828543,
+    "MATH|PLACES-AND-THINGS": 0.5324199319241473,
+    "MATH|STRUCTURE-AND-ORDER": 0.44712018257250985,
+    "PLACES-AND-THINGS|STRUCTURE-AND-ORDER": 0.7887922317461128
+  },
+  "merge_history": [
+    {
+      "step": 1,
+      "merged_a": [
+        "sports"
+      ],
+      "merged_b": [
+        "scouting"
+      ],
+      "merge_dist": 0.055466507148621,
+      "merge_sim": 0.944533492851379,
+      "result": [
+        "sports",
+        "scouting"
+      ]
+    },
+    {
+      "step": 2,
+      "merged_a": [
+        "reading"
+      ],
+      "merged_b": [
+        "history"
+      ],
+      "merge_dist": 0.06965829078938035,
+      "merge_sim": 0.9303417092106196,
+      "result": [
+        "reading",
+        "history"
+      ]
+    },
+    {
+      "step": 3,
+      "merged_a": [
+        "science"
+      ],
+      "merged_b": [
+        "sports",
+        "scouting"
+      ],
+      "merge_dist": 0.09715946232855965,
+      "merge_sim": 0.9028405376714403,
+      "result": [
+        "science",
+        "sports",
+        "scouting"
+      ]
+    },
+    {
+      "step": 4,
+      "merged_a": [
+        "geography"
+      ],
+      "merged_b": [
+        "science",
+        "sports",
+        "scouting"
+      ],
+      "merge_dist": 0.12720394654357203,
+      "merge_sim": 0.872796053456428,
+      "result": [
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ]
+    },
+    {
+      "step": 5,
+      "merged_a": [
+        "music"
+      ],
+      "merged_b": [
+        "reading",
+        "history"
+      ],
+      "merge_dist": 0.13319555334809186,
+      "merge_sim": 0.8668044466519081,
+      "result": [
+        "music",
+        "reading",
+        "history"
+      ]
+    },
+    {
+      "step": 6,
+      "merged_a": [
+        "cooking"
+      ],
+      "merged_b": [
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ],
+      "merge_dist": 0.14320077662233732,
+      "merge_sim": 0.8567992233776627,
+      "result": [
+        "cooking",
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ]
+    },
+    {
+      "step": 7,
+      "merged_a": [
+        "music",
+        "reading",
+        "history"
+      ],
+      "merged_b": [
+        "cooking",
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ],
+      "merge_dist": 0.1446535603645862,
+      "merge_sim": 0.8553464396354138,
+      "result": [
+        "music",
+        "reading",
+        "history",
+        "cooking",
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ]
+    },
+    {
+      "step": 8,
+      "merged_a": [
+        "games"
+      ],
+      "merged_b": [
+        "music",
+        "reading",
+        "history",
+        "cooking",
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ],
+      "merge_dist": 0.14775419659821176,
+      "merge_sim": 0.8522458034017882,
+      "result": [
+        "games",
+        "music",
+        "reading",
+        "history",
+        "cooking",
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ]
+    },
+    {
+      "step": 9,
+      "merged_a": [
+        "grammar"
+      ],
+      "merged_b": [
+        "composition"
+      ],
+      "merge_dist": 0.16509388066601793,
+      "merge_sim": 0.8349061193339821,
+      "result": [
+        "grammar",
+        "composition"
+      ]
+    },
+    {
+      "step": 10,
+      "merged_a": [
+        "art"
+      ],
+      "merged_b": [
+        "games",
+        "music",
+        "reading",
+        "history",
+        "cooking",
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ],
+      "merge_dist": 0.1796414443996499,
+      "merge_sim": 0.8203585556003501,
+      "result": [
+        "art",
+        "games",
+        "music",
+        "reading",
+        "history",
+        "cooking",
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ]
+    },
+    {
+      "step": 11,
+      "merged_a": [
+        "grammar",
+        "composition"
+      ],
+      "merged_b": [
+        "art",
+        "games",
+        "music",
+        "reading",
+        "history",
+        "cooking",
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ],
+      "merge_dist": 0.1829869653148305,
+      "merge_sim": 0.8170130346851695,
+      "result": [
+        "grammar",
+        "composition",
+        "art",
+        "games",
+        "music",
+        "reading",
+        "history",
+        "cooking",
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ]
+    },
+    {
+      "step": 12,
+      "merged_a": [
+        "math"
+      ],
+      "merged_b": [
+        "grammar",
+        "composition",
+        "art",
+        "games",
+        "music",
+        "reading",
+        "history",
+        "cooking",
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ],
+      "merge_dist": 0.3240663093085714,
+      "merge_sim": 0.6759336906914286,
+      "result": [
+        "math",
+        "grammar",
+        "composition",
+        "art",
+        "games",
+        "music",
+        "reading",
+        "history",
+        "cooking",
+        "geography",
+        "science",
+        "sports",
+        "scouting"
+      ]
+    }
+  ]
+}

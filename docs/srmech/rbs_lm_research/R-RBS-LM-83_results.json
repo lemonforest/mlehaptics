@@ -1,0 +1,11 @@
+{
+  "partition": "R-RBS-LM-83",
+  "math_within_alignment": 0.3602380952380952,
+  "cross_to_all_non_math": 0.06518849206349207,
+  "cross_to_kinesthetic_only": 0.08170634920634921,
+  "cross_to_non_kinesthetic": 0.059682539682539684,
+  "ratio_with_kinesthetic": 5.5260995282301,
+  "ratio_without_kinesthetic": 6.0359042553191475,
+  "ratio_change": -0.5098047270890476,
+  "verdict": "MATH IS UNIQUE SUBSTRATE-CONTENT IRREP CONFIRMED. Even with Montessori (kinesthetic/procedural) corpora added, math's within/cross ratio = 5.53 stays > 3.0. Math substrate-content is irreducible per delivery; the 'irrep' appearance is NOT an artifact of incomplete substrate catalog."
+}

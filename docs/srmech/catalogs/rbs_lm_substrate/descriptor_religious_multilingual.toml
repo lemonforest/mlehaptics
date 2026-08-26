@@ -1,0 +1,173 @@
+# RBS-LM substrate catalog — MULTILINGUAL extension variant (F225 / R-RBS-LM-225)
+#
+# NEW descriptor (does NOT touch descriptor_religious_texts.toml). Same substrate
+# library (_canonical_substrate.py), same srmech 0.5.0 Klein-4 machinery, same MPR
+# attestation, same 6 public-domain religious-text corpora — a DIFFERENT measurement
+# config: the MULTILINGUAL extension of the teaching ≡ bilingualism conjecture.
+#
+# Research question (F225, extends F224's bilingual decisive test): F224 tests
+# BILINGUAL = 2 anchors (which can be ~orthogonal). MULTILINGUAL = N anchors with a
+# GRADED SIMILARITY STRUCTURE — languages cluster typologically. THE KEY INSIGHT:
+# an anchor axis (language OR depth) is NOT a basis of orthogonal labels — it is a
+# SIMILARITY-STRUCTURED space = a Class-L spectral graph. That is exactly what F221
+# found on the DEPTH axis (depth-bands pairwise sim ~0.25; non-orthogonal; share
+# sectors). So MULTILINGUAL puts the LANGUAGE axis into the SAME non-orthogonal
+# regime the DEPTH axis already lives in → the apples-to-apples test of teaching ≡
+# bilingual ≡ multilingual.
+#
+# CORPUS-GATE HONESTY (load-bearing): genuine foreign-language corpora (En↔Fr/Es/Zh)
+# are GATED (not on disk). The runnable analog is the N=6 religious-text typological
+# clustering: Abrahamic = {Quran, KJV-OT, KJV-NT} vs Eastern = {Gita, Tao, Dhammapada}
+# (the R-RBS-LM-53a/b/c/e corpora). The foreign-language path is the corpus-gated
+# CONJECTURE-tier extension; no foreign-language claim is made.
+#
+# SCOPE DISCIPLINE (load-bearing): structural/spectral reading ONLY. No doctrinal /
+# truth / origin / ranking / linguistic / cognitive / BCI claims, per
+# [[feedback_no_lineage_claims_in_notebook]] + [[feedback_trauma_informed_defensive_scope]].
+# Texts + languages are STRUCTURAL TEST-OBJECTS. MFO §VII.6.20 honored: form-claims
+# only; substrate-identity/meaning requires a DOMAIN anchor and is ceiling-bounded.
+
+[source]
+key                  = "rbs_lm_substrate_religious_multilingual"
+human_readable_name  = "RBS-LM substrate — multilingual anchor-as-Class-L-similarity-space (F225, 6 corpora)"
+purpose              = "Catalog variant for F225 (R-RBS-LM-225): the MULTILINGUAL extension of teaching ≡ bilingualism. Tests whether the N-domain anchor axis is a recoverable similarity-structured Class-L spectral space (PRED1: N×N domain-anchor similarity → dense_laplacian → Fiedler → recover Abrahamic-vs-Eastern?) and whether the F222 ×n_domains effective-capacity multiplier degrades gracefully with inter-domain similarity (PRED2). Reuses the 6 R-RBS-LM-53 religious-text corpora as the runnable typological-clustering analog for the corpus-gated foreign-language (Fr/Es/Zh) conjecture. Structural-only; §VII.6.20 ceiling honored."
+license              = "CC0 for the catalog; corpora are public-domain open translations (Project Gutenberg / public translations)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/catalogs/rbs_lm_substrate"
+
+[source.primary_references]
+f224_bilingual_decisive = "F224 (R-RBS-LM-224) — the bilingual decisive head-to-head; 2-anchor case this generalizes to N"
+f165_domain_anchor      = "F165 (R-RBS-LM-125/54f) — the labeled DOMAIN anchor; family routing 6/6, within-family at the degeneracy (contrast 1.12)"
+f222_capacity_multiplier = "F222 (R-RBS-LM-222) — the F165 DOMAIN-anchor orthogonalization persists to N=8192 (+0.388) as a ~×n_domains effective-capacity multiplier (assumes ORTHOGONAL domains)"
+f221_depth_nonorthogonal = "F221 (R-RBS-LM-221) — depth-bands are NON-orthogonal (pairwise sim ~0.243/0.250/0.252; share sectors); top-k separation vanished — the regime this puts the language axis into"
+rbs_lm_53_clustering    = "R-RBS-LM-53 SUMMARY (53e/53f/53h) — cross-religion clustering: family-specificity 1.24, coherence ratio 1.57; translator-stability dominates (KJV-OT↔NT 0.428; Quran Sale↔Rodwell 0.392)"
+mfo_VII_6_20            = "MFO §VII.6.20 — epistemic ceiling: cascade reads form, not substrate-identity; the ceiling this variant respects"
+religious_texts_catalog = "docs/srmech/catalogs/rbs_lm_substrate/descriptor_religious_texts.toml — the sibling variant (F224 owns it; NOT touched here)"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "substrate_measurements/multilingual_anchor_classL_similarity_space.ndjson"
+
+# ---------------------------------------------------------------------------
+# Substrate parameters — same Klein-4 substrate as canonical / religious-texts
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.substrate]
+D                       = 8192
+sector_count            = 4
+min_skeleton_length     = 4
+token_seed_hex_chars    = 16   # real-text vocab is large (10k+ types)
+
+[fetch.literature_curated.encoding]
+backend                 = "klein4"
+encoder_library         = "docs/srmech/rbs_lm_research/_canonical_substrate.py"
+encoder_version         = "0.1.0"
+
+# ---------------------------------------------------------------------------
+# Corpus source — the SAME 6 religious texts (3 Abrahamic + 3 Eastern), attested
+# by content SHA-256. (Identical SHA-256s to descriptor_religious_texts.toml; the
+# corpora are shared, the measurement config is what differs.)
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.corpus]
+source                  = "religious_text_kernels"
+tokenizer               = "whitespace"
+cache_dir               = "~/.cache/rbs_lm_corpora"
+strip_gutenberg         = true
+unit                    = "verse_line"
+
+# typological-family grouping (the runnable analog for language-family clustering)
+[fetch.literature_curated.corpus.families]
+abrahamic = "abrahamic"
+eastern   = "eastern"
+
+[fetch.literature_curated.corpus.texts.quran_yusuf_ali]
+label    = "Quran (Sale 1734 / Yusuf Ali register)"
+family   = "abrahamic"
+filename = "quran_yusuf_ali.txt"
+sha256   = "e91167f80f73ab9efc2a9613af16689628413bfc03b0d11dc4c153c979fd9d8b"
+
+[fetch.literature_curated.corpus.texts.kjv_ot]
+label    = "KJV Old Testament"
+family   = "abrahamic"
+filename = "kjv_old_testament.txt"
+sha256   = "60b2b8021452180eb0ad9ce11e275451b809f257bfb86f1f6a66f54abecc71f5"
+
+[fetch.literature_curated.corpus.texts.kjv_nt]
+label    = "KJV New Testament"
+family   = "abrahamic"
+filename = "kjv_new_testament.txt"
+sha256   = "f26f3c9c32bee2e3f1a71437ba69b7c47f1420d822b3b3681943ccb2825f7fc6"
+
+[fetch.literature_curated.corpus.texts.bhagavad_gita]
+label    = "Bhagavad Gita (Arnold)"
+family   = "eastern"
+filename = "bhagavad_gita.txt"
+sha256   = "a5d170ed807a42a8ff196fd5c6d61ceeda4b51788c1918f9b64fbbd5b2317900"
+
+[fetch.literature_curated.corpus.texts.tao_te_ching]
+label    = "Tao Te Ching (Legge)"
+family   = "eastern"
+filename = "tao_te_ching.txt"
+sha256   = "ff1f2d83b2737d08ce93dec90ee74fe07919d37b019c5e81b1dfd2e9d48ff5fd"
+
+[fetch.literature_curated.corpus.texts.dhammapada]
+label    = "Dhammapada (Müller)"
+family   = "eastern"
+filename = "dhammapada.txt"
+sha256   = "2b57e8ecdf63644586db1e74baca10d7b532e09362d7f94ff46711cde5676957"
+
+# ---------------------------------------------------------------------------
+# F225 multilingual extension config
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.multilingual]
+# --- PRED1: the N domain-anchors as a Class-L spectral similarity space ---
+# Anchor build = F165 / R-RBS-LM-54f / R-RBS-LM-124 K1-flat path: the co-occurrence
+# Laplacian (dense_laplacian) → top-K eigvecs (symmetric_eigendecompose) → top-M
+# vocab each → bipolar-mint bundle (the F165-attested family-routing kernel). The
+# N×N inter-anchor similarity → dense_laplacian → Fiedler split tests whether the
+# Class-L spectrum recovers the known Abrahamic-vs-Eastern typological clustering.
+anchor_D              = 8192   # bipolar-mint anchor dimension (F165/124 used 8192)
+anchor_vocab_size     = 200    # top-V co-occurrence vocab per anchor (F124 K1 VOCAB_SIZE)
+anchor_k_eig          = 33     # top-K eigvecs bundled (F124 K1 K_EIG)
+anchor_m_vocab        = 21     # top-M vocab per eigvec (F124 K1 M_VOCAB)
+anchor_window         = 5      # co-occurrence window (F124 K1 WINDOW)
+anchor_token_budget   = 20000  # tokens per anchor (length-control across the 6 texts)
+
+# --- PRED2: capacity multiplier vs inter-domain similarity ---
+# F146/F222 HIER+DOM capacity harness (synthetic R-RBS-LM-113 corpus, structural
+# length-domains), with the domain key-vector swapped from F222's ORTHOGONAL
+# enc("__domain_d__") to (a) a parametric inter-domain-similarity SWEEP and (b) the
+# REAL religious-text structured-anchor geometry. Measures whether the ×n_domains
+# multiplier degrades gracefully as inter-domain similarity rises.
+capacity_D            = 4096   # capped for tractability (F222 used 4096 at N=8192)
+capacity_N            = 2048   # stored pairs (F222 regime where the multiplier is large)
+capacity_n_buckets    = 32     # hierarchical fan-out (F222 best-case host)
+capacity_window_k     = 5      # context window (F146/F222 WINDOW_K)
+capacity_corpus_n     = 8000   # synthetic corpus sentences (F222 scaleup_corpus_n)
+correlation_sweep     = [0.3, 0.6, 0.9]  # fraction of coords shared toward a common
+                                          # root: 0.0=orthogonal (F222 baseline) →
+                                          # 1.0=identical; the inter-domain-similarity knob
+capacity_null_threshold = 0.05  # gain must DROP by > this from orthogonal→correlated
+                                # for PRED2 (graceful-degradation) to clear
+
+seed                  = 42      # deterministic / bit-exact (per-domain seeds via sha256)
+
+# ---------------------------------------------------------------------------
+# Standard AMSC tail
+# ---------------------------------------------------------------------------
+[parse]
+natural_key = "measurement_id"
+
+[schema]
+data_schema_id = "srmech.rbs_lm.multilingual_anchor_classL.v1"
+ndjson_file    = "substrate_measurements/multilingual_anchor_classL_similarity_space.ndjson"
+
+[rendering]
+name_template    = "RBS-LM multilingual anchor-as-Class-L '{measurement_id}'"
+purpose_template = "Multilingual anchor Class-L spectral / capacity-vs-similarity for {phase}"
+cite_as_template = "mlehaptics RBS-LM multilingual variant ('{measurement_id}') via srmech v{srmech_version}; descriptor_hash={descriptor_hash}; STRUCTURAL-ONLY per §VII.6.20"
+
+[attestation]
+method     = "config_descriptor"
+provenance = "NEW variant for F225 (does NOT touch descriptor_religious_texts.toml). Reuses the 6 public-domain religious-text corpora (attested by content SHA-256, identical to the religious-texts variant), cached at ~/.cache/rbs_lm_corpora, re-fetchable from Project Gutenberg. Measurement consumes the canonical Klein-4 substrate library + the F146 HierarchicalMemory via srmech 0.5.0 native (ABI=3). STRUCTURAL/SPECTRAL READING ONLY per [[feedback_trauma_informed_defensive_scope]] + [[feedback_no_lineage_claims_in_notebook]]: texts + languages are structural test-objects; no doctrinal/truth/origin/ranking/linguistic/cognitive/BCI claims; MFO §VII.6.20 epistemic ceiling honored. The foreign-language (Fr/Es/Zh) extension is corpus-gated CONJECTURE-tier — NOT run. The test may return null (e.g. the §VII.6.20 translator-register degeneracy may dominate the Class-L spectrum over theological family); nulls count and refine the conjecture per [[feedback_dont_pre_commit_spike_query_operators]]."
+
+[gap_targeting]
+gap_label = "rbs_lm_substrate_religious_multilingual_classL_anchor"

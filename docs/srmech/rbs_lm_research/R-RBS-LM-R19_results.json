@@ -1,0 +1,27 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "directions": [
+    [
+      "Axis of Evil (Quadrupole-Octupole Alignment)",
+      240.0,
+      60.0
+    ],
+    [
+      "Cold Spot",
+      210.0,
+      -57.0
+    ],
+    [
+      "Hemispherical Power Asymmetry (Dipolar Modulation)",
+      237.0,
+      -20.0
+    ]
+  ],
+  "aoe_dipole_axis_angle_deg": 18.10903710221317,
+  "lam_max": 0.6057891691703792,
+  "null_mean": 0.671787655950402,
+  "p_value": 0.70805,
+  "lam_with_dipole": 0.5683237794926763,
+  "p_with_dipole": 0.6685,
+  "n_directional": 3
+}

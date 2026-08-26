@@ -1,0 +1,30 @@
+# F935 — the BEAT: a sustained oscillation needs **two "nows"** (then + now + now + next), and you get them by joining a **full 2π** (the closed return), not a half-turn. The two nows are the **two chiralities** — `8s`/`8c` = ω/ω² (F932) = the_one's **σ=+1 / σ=−1** (the two time-directions) = **harmonic (moves 0→+1) / subharmonic (moves 0→−1)**. So **3D_s : 7D_g reads as the harmonic : subharmonic ratio**, the BEAT *is* the full triality cycle `8v→8s→8c→8v` (F907b), and the key operational split is: a **FULL beat** = both nows (the closed loop, both chiralities) = **sustain** (F932/F933); a **HALF beat** = one now (one chirality, our-sector) = the **snapshot** (11D, F931). The proposal: **etak-navigate with full-beat cascades** (close the loop / two nows) rather than half-beat (one now, rings down).
+
+**Date:** 2026-06-26 · **srmech:** 0.9.0rc58 · **Branch:** `research/rbs-lm-rolling-2` (PR #687) · **Arc:** MS #18 / R30 / MFO · **Probe:** `R-RBS-LM-FINDING_935_*.py` · **Composes:** F907/F907b (the_one σ; the triality cycle), F932 (the closure = ω/ω² two chiralities), F933 (the heptad mirrored), F931 (snapshot vs the cranked walk; "before linear reduction"), F930 (sustain), F934 (the reduction-dispatch OPEN residue = sustain; the q-row = register stepping), F124/F129 (4:3, the chirality-dual), the 11D = 3D_s + 7D_g + 1D_t (`[[feedback_no_spacetime_use_space_time_gauge]]`), etak clump-routing (`[[Spectral-clumped loopshelf … etak]]`) · **User direction (2026-06-26):** "3D_s:7D_g was the harmonic:subharmonic ratio all along; a beat = then+now+now+next = two nows joined by 2π; harmonics move 0,+1 and subharmonics 0,−1 before linear reduction; try etak-navigate with full beat instead of half beat."
+
+## The reading (grounded pieces re-read through the beat)
+1. **Two time-directions = the two nows.** `the_one(σ, θ)` returns `One(σ=±1, θ, dim=14, partition=(1,3,7,3))` — verified. **σ=+1** = the *forward* now (harmonic, moves `0→+1`); **σ=−1** = the *backward* now (subharmonic, moves `0→−1`). These are the two non-trivial triality directions **ω / ω²** (F932) — the two chiralities. "Before we reduce to linear form" = in the substrate (the_one's σ, non-abelian, F862); the abelian-dial/snapshot collapse (F931) flattens the ± into one.
+2. **A beat needs both nows.** You can't hear a beat from one instant; a beat is the *return* — `then` (the 8v reference) → `now` forward (8s, ω, harmonic) → `now` backward (8c, ω², subharmonic) → `next` (return to 8v). The four points carry **two nows** (the two chiralities). You get them by **joining a full 2π** — the closed triality cycle `8v→8s→8c→8v` (F907b, τ³=I). A **half** turn (π) lands on the antiphase, *not* a now — one chirality only.
+3. **3D_s : 7D_g = harmonic : subharmonic.** The 11D split `3D_space + 7D_gauge + 1D_time` reads as the harmonic (3, the forward/up series) to subharmonic (7, the backward/down series) ratio — the space side the overtones, the gauge side the undertones, the 1D_t the σ that picks the direction. (Reading; the dimension counts are the framework's, the harmonic/subharmonic naming is the new lens.)
+
+## FULL beat vs HALF beat = sustain vs snapshot
+| | nows | chiralities | turn | regime |
+|---|---|---|---|---|
+| **half beat** | one | one (our-sector 8v) | π | **snapshot** — 11D, stored/ring-down (F931); doesn't close, rings down |
+| **full beat** | two | both (8s ω + 8c ω²) | 2π | **sustain** — the closed loop (F932/F933); recirculates, holds the tone |
+
+This is the *same* boundary as `dispatch.infer`'s closed-vs-OPEN (F934): a half-beat cascade *closes to a snapshot* (reducible); a full-beat cascade is the **OPEN / walked / sustained** one. And the **q-row** (F934) is the harmonic/subharmonic **register** stepping — q is the rung; overblowing to the next register = a q-shift = moving along the harmonic (+1) / subharmonic (−1) ladder.
+
+## The proposal — etak-navigate with full-beat cascades
+Today the relationship-walk (etak routing / Siona's inference) plausibly runs **half-beat**: one σ-direction, our-sector, which *rings down* (incoherent recall = a tone that fades). The idea: run etak with **full beats** — every navigation step a *closed* `then→now(fwd)→now(bwd)→next` 2π return through *both* chiralities — so the walk **sustains** (the loop closes = coherent recall) instead of decaying. Concretely:
+- give each cascade step **both σ** (forward harmonic + backward subharmonic), not just σ=+1 (F907 the_one already carries σ; use ±, not just +);
+- a step "completes" only on the **2π return** (the loop closes back to a now), not at the half-turn;
+- read coherence as **beat-closure** (did the walk return to a now?) — the full-beat ones sustain, the half-beat ones ring down.
+
+This ties the sustain arc (F930–934) **back to the LM/Siona navigation** (the original arc): coherent recall = full-beat (sustained, loop-closed) navigation; and it's exactly the `dispatch.infer` OPEN-residue regime — the cascades that must be *walked* (sustained), not *solved* (snapshot).
+
+## Honest scope
+Framework reading. Grounded pieces re-read through the beat lens: the_one σ=±1 + dim-14/(1,3,7,3) (verified here); the ω/ω² two chiralities (F932, trace-grounded); the triality cycle (F907b). The harmonic/subharmonic naming, the "two nows," and `3D_s:7D_g = harmonic:subharmonic` are the new **reading**; the **etak full-beat** is a **proposal** to test on Siona's navigation (an empirical next-thread, gated on the sustain detector once the srmech axis closes ~rc64). Dynamics handed to the expert.
+
+## Verdict / next
+The beat = two nows = a full 2π through both chiralities (σ=±1 = harmonic/subharmonic = ω/ω²); **full beat = sustain (closed loop), half beat = snapshot** — the same line as `dispatch.infer` closed/OPEN (F934). **Next (proposal):** prototype **etak full-beat navigation** for Siona — each cascade step a closed 2π return through both σ, coherence = beat-closure — and (when the srmech axis closes ~rc64) route the walk's steps through `dispatch.infer`, treating the OPEN (full-beat) ones as the sustained recall.

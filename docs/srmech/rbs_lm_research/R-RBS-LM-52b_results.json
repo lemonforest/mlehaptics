@@ -1,0 +1,604 @@
+{
+  "partition": "R-RBS-LM-52b",
+  "srmech_version": "0.4.2",
+  "K1_meta": {
+    "kernel": "K1_presence",
+    "vocab_size": 200,
+    "n_edges": 15950,
+    "K_eigvecs": 33,
+    "M_per_eigvec": 21
+  },
+  "K3_meta": {
+    "kernel": "K3_sequence",
+    "n_gram": 3,
+    "n_ngrams_total_corpus": 116198,
+    "n_ngrams_sampled": 5000,
+    "position_stride": 2731
+  },
+  "baselines": {
+    "K1": {
+      "mean": 0.0172900390625,
+      "std": 0.04968172795580137,
+      "max": 0.235107421875,
+      "min": -0.0263671875,
+      "n": 100
+    },
+    "K3": {
+      "mean": 0.00052978515625,
+      "std": 0.010567034351909269,
+      "max": 0.027587890625,
+      "min": -0.033935546875,
+      "n": 100
+    }
+  },
+  "summary": [
+    {
+      "label": "K1_alone",
+      "n_notebook": 15,
+      "n_negative": 7,
+      "nb_above_max": 0,
+      "nb_z2": 1,
+      "nb_z1": 4,
+      "neg_above_max": 0,
+      "neg_z2": 0,
+      "nb_peak_z": 2.310508184510436
+    },
+    {
+      "label": "K3_alone",
+      "n_notebook": 15,
+      "n_negative": 7,
+      "nb_above_max": 3,
+      "nb_z2": 3,
+      "nb_z1": 5,
+      "neg_above_max": 0,
+      "neg_z2": 0,
+      "nb_peak_z": 3.36925443393843
+    },
+    {
+      "label": "smoothie_score_max",
+      "n_notebook": 15,
+      "n_negative": 7,
+      "nb_above_max": 3,
+      "nb_z2": 3,
+      "nb_z1": 6,
+      "neg_above_max": 0,
+      "neg_z2": 0,
+      "nb_peak_z": 3.36925443393843
+    }
+  ],
+  "K1_alone_results": [
+    {
+      "probe": "two substrate framework",
+      "kind": "notebook",
+      "sim": 0.106201171875,
+      "z": 1.7896143405398157,
+      "above_max": false
+    },
+    {
+      "probe": "class l spine spectral",
+      "kind": "notebook",
+      "sim": 0.05517578125,
+      "z": 0.7625689312015175,
+      "above_max": false
+    },
+    {
+      "probe": "born hopf readout",
+      "kind": "notebook",
+      "sim": 0.002197265625,
+      "z": -0.3037892210779598,
+      "above_max": false
+    },
+    {
+      "probe": "operation primary cyclic algebra",
+      "kind": "notebook",
+      "sim": 0.00634765625,
+      "z": -0.22024964232795466,
+      "above_max": false
+    },
+    {
+      "probe": "epistemic ceiling form not substrate",
+      "kind": "notebook",
+      "sim": 0.0048828125,
+      "z": -0.24973419953383882,
+      "above_max": false
+    },
+    {
+      "probe": "fractal recursion substrate",
+      "kind": "notebook",
+      "sim": 0.022705078125,
+      "z": 0.1089945798044185,
+      "above_max": false
+    },
+    {
+      "probe": "metric field ontology",
+      "kind": "notebook",
+      "sim": 0.026611328125,
+      "z": 0.18762006568677625,
+      "above_max": false
+    },
+    {
+      "probe": "cascade match form claim",
+      "kind": "notebook",
+      "sim": 0.132080078125,
+      "z": 2.310508184510436,
+      "above_max": false
+    },
+    {
+      "probe": "Reading-D scale ladder",
+      "kind": "notebook",
+      "sim": 0.070556640625,
+      "z": 1.072156781863301,
+      "above_max": false
+    },
+    {
+      "probe": "biology cascade encoding",
+      "kind": "notebook",
+      "sim": 0.056396484375,
+      "z": 0.7871393955397542,
+      "above_max": false
+    },
+    {
+      "probe": "class n rational anchor",
+      "kind": "notebook",
+      "sim": 0.083740234375,
+      "z": 1.3375177967162586,
+      "above_max": false
+    },
+    {
+      "probe": "weak coupling truncate instrument",
+      "kind": "notebook",
+      "sim": -0.007080078125,
+      "z": -0.4905247500485595,
+      "above_max": false
+    },
+    {
+      "probe": "cross substrate matching method",
+      "kind": "notebook",
+      "sim": 0.014404296875,
+      "z": -0.05808457769559177,
+      "above_max": false
+    },
+    {
+      "probe": "L-system seed grammar tree",
+      "kind": "notebook",
+      "sim": -0.00048828125,
+      "z": -0.35784424262208075,
+      "above_max": false
+    },
+    {
+      "probe": "Kaluza Klein photon metric",
+      "kind": "notebook",
+      "sim": 0.0166015625,
+      "z": -0.013857741886765524,
+      "above_max": false
+    },
+    {
+      "probe": "chocolate ice cream flavor",
+      "kind": "negative",
+      "sim": -0.00634765625,
+      "z": -0.4757824714456174,
+      "above_max": false
+    },
+    {
+      "probe": "professional soccer match score",
+      "kind": "negative",
+      "sim": 0.0,
+      "z": -0.34801605688678605,
+      "above_max": false
+    },
+    {
+      "probe": "kitchen pencil sharpener metal",
+      "kind": "negative",
+      "sim": 0.001708984375,
+      "z": -0.3136174068132545,
+      "above_max": false
+    },
+    {
+      "probe": "tropical rainforest humidity bright",
+      "kind": "negative",
+      "sim": 0.001953125,
+      "z": -0.3087033139456072,
+      "above_max": false
+    },
+    {
+      "probe": "vintage automobile manufacturing",
+      "kind": "negative",
+      "sim": -0.002197265625,
+      "z": -0.3922428926956123,
+      "above_max": false
+    },
+    {
+      "probe": "ocean coral reef colorful",
+      "kind": "negative",
+      "sim": 0.002685546875,
+      "z": -0.2939610353426651,
+      "above_max": false
+    },
+    {
+      "probe": "morning coffee croissant breakfast",
+      "kind": "negative",
+      "sim": 0.006591796875,
+      "z": -0.2153355494603073,
+      "above_max": false
+    }
+  ],
+  "K3_alone_results": [
+    {
+      "probe": "two substrate framework",
+      "kind": "notebook",
+      "sim": -0.01025390625,
+      "z": -1.020503108736614,
+      "above_max": false
+    },
+    {
+      "probe": "class l spine spectral",
+      "kind": "notebook",
+      "sim": -0.0068359375,
+      "z": -0.6970472898026635,
+      "above_max": false
+    },
+    {
+      "probe": "born hopf readout",
+      "kind": "notebook",
+      "sim": 0.001953125,
+      "z": 0.1346962445989237,
+      "above_max": false
+    },
+    {
+      "probe": "operation primary cyclic algebra",
+      "kind": "notebook",
+      "sim": 0.0009765625,
+      "z": 0.042280296332080684,
+      "above_max": false
+    },
+    {
+      "probe": "epistemic ceiling form not substrate",
+      "kind": "notebook",
+      "sim": -0.013671875,
+      "z": -1.3439589276705646,
+      "above_max": false
+    },
+    {
+      "probe": "fractal recursion substrate",
+      "kind": "notebook",
+      "sim": 0.00927734375,
+      "z": 0.8278158566002463,
+      "above_max": false
+    },
+    {
+      "probe": "metric field ontology",
+      "kind": "notebook",
+      "sim": 0.00048828125,
+      "z": -0.003927677801340826,
+      "above_max": false
+    },
+    {
+      "probe": "cascade match form claim",
+      "kind": "notebook",
+      "sim": 0.0361328125,
+      "z": 3.36925443393843,
+      "above_max": true
+    },
+    {
+      "probe": "Reading-D scale ladder",
+      "kind": "notebook",
+      "sim": 0.031494140625,
+      "z": 2.930278679670925,
+      "above_max": true
+    },
+    {
+      "probe": "biology cascade encoding",
+      "kind": "notebook",
+      "sim": 0.01416015625,
+      "z": 1.2898955979344613,
+      "above_max": false
+    },
+    {
+      "probe": "class n rational anchor",
+      "kind": "notebook",
+      "sim": 0.012451171875,
+      "z": 1.128167688467486,
+      "above_max": false
+    },
+    {
+      "probe": "weak coupling truncate instrument",
+      "kind": "notebook",
+      "sim": -0.01318359375,
+      "z": -1.2977509535371432,
+      "above_max": false
+    },
+    {
+      "probe": "cross substrate matching method",
+      "kind": "notebook",
+      "sim": 0.0302734375,
+      "z": 2.814758744337371,
+      "above_max": true
+    },
+    {
+      "probe": "L-system seed grammar tree",
+      "kind": "notebook",
+      "sim": -0.00244140625,
+      "z": -0.2811755226018699,
+      "above_max": false
+    },
+    {
+      "probe": "Kaluza Klein photon metric",
+      "kind": "notebook",
+      "sim": -0.01416015625,
+      "z": -1.3901669018039862,
+      "above_max": false
+    },
+    {
+      "probe": "chocolate ice cream flavor",
+      "kind": "negative",
+      "sim": 0.00390625,
+      "z": 0.31952814113260974,
+      "above_max": false
+    },
+    {
+      "probe": "professional soccer match score",
+      "kind": "negative",
+      "sim": -0.0068359375,
+      "z": -0.6970472898026635,
+      "above_max": false
+    },
+    {
+      "probe": "kitchen pencil sharpener metal",
+      "kind": "negative",
+      "sim": -0.003662109375,
+      "z": -0.3966954579354237,
+      "above_max": false
+    },
+    {
+      "probe": "tropical rainforest humidity bright",
+      "kind": "negative",
+      "sim": 0.003173828125,
+      "z": 0.25021617993247747,
+      "above_max": false
+    },
+    {
+      "probe": "vintage automobile manufacturing",
+      "kind": "negative",
+      "sim": 0.004150390625,
+      "z": 0.3426321281993205,
+      "above_max": false
+    },
+    {
+      "probe": "ocean coral reef colorful",
+      "kind": "negative",
+      "sim": -0.0068359375,
+      "z": -0.6970472898026635,
+      "above_max": false
+    },
+    {
+      "probe": "morning coffee croissant breakfast",
+      "kind": "negative",
+      "sim": 0.005615234375,
+      "z": 0.481256050599585,
+      "above_max": false
+    }
+  ],
+  "smoothie_score_max_results": [
+    {
+      "probe": "two substrate framework",
+      "kind": "notebook",
+      "sim_K1": 0.106201171875,
+      "z_K1": 1.7896143405398157,
+      "sim_K3": -0.01025390625,
+      "z_K3": -1.020503108736614,
+      "max_z": 1.7896143405398157,
+      "above_max": false
+    },
+    {
+      "probe": "class l spine spectral",
+      "kind": "notebook",
+      "sim_K1": 0.05517578125,
+      "z_K1": 0.7625689312015175,
+      "sim_K3": -0.0068359375,
+      "z_K3": -0.6970472898026635,
+      "max_z": 0.7625689312015175,
+      "above_max": false
+    },
+    {
+      "probe": "born hopf readout",
+      "kind": "notebook",
+      "sim_K1": 0.002197265625,
+      "z_K1": -0.3037892210779598,
+      "sim_K3": 0.001953125,
+      "z_K3": 0.1346962445989237,
+      "max_z": 0.1346962445989237,
+      "above_max": false
+    },
+    {
+      "probe": "operation primary cyclic algebra",
+      "kind": "notebook",
+      "sim_K1": 0.00634765625,
+      "z_K1": -0.22024964232795466,
+      "sim_K3": 0.0009765625,
+      "z_K3": 0.042280296332080684,
+      "max_z": 0.042280296332080684,
+      "above_max": false
+    },
+    {
+      "probe": "epistemic ceiling form not substrate",
+      "kind": "notebook",
+      "sim_K1": 0.0048828125,
+      "z_K1": -0.24973419953383882,
+      "sim_K3": -0.013671875,
+      "z_K3": -1.3439589276705646,
+      "max_z": -0.24973419953383882,
+      "above_max": false
+    },
+    {
+      "probe": "fractal recursion substrate",
+      "kind": "notebook",
+      "sim_K1": 0.022705078125,
+      "z_K1": 0.1089945798044185,
+      "sim_K3": 0.00927734375,
+      "z_K3": 0.8278158566002463,
+      "max_z": 0.8278158566002463,
+      "above_max": false
+    },
+    {
+      "probe": "metric field ontology",
+      "kind": "notebook",
+      "sim_K1": 0.026611328125,
+      "z_K1": 0.18762006568677625,
+      "sim_K3": 0.00048828125,
+      "z_K3": -0.003927677801340826,
+      "max_z": 0.18762006568677625,
+      "above_max": false
+    },
+    {
+      "probe": "cascade match form claim",
+      "kind": "notebook",
+      "sim_K1": 0.132080078125,
+      "z_K1": 2.310508184510436,
+      "sim_K3": 0.0361328125,
+      "z_K3": 3.36925443393843,
+      "max_z": 3.36925443393843,
+      "above_max": true
+    },
+    {
+      "probe": "Reading-D scale ladder",
+      "kind": "notebook",
+      "sim_K1": 0.070556640625,
+      "z_K1": 1.072156781863301,
+      "sim_K3": 0.031494140625,
+      "z_K3": 2.930278679670925,
+      "max_z": 2.930278679670925,
+      "above_max": true
+    },
+    {
+      "probe": "biology cascade encoding",
+      "kind": "notebook",
+      "sim_K1": 0.056396484375,
+      "z_K1": 0.7871393955397542,
+      "sim_K3": 0.01416015625,
+      "z_K3": 1.2898955979344613,
+      "max_z": 1.2898955979344613,
+      "above_max": false
+    },
+    {
+      "probe": "class n rational anchor",
+      "kind": "notebook",
+      "sim_K1": 0.083740234375,
+      "z_K1": 1.3375177967162586,
+      "sim_K3": 0.012451171875,
+      "z_K3": 1.128167688467486,
+      "max_z": 1.3375177967162586,
+      "above_max": false
+    },
+    {
+      "probe": "weak coupling truncate instrument",
+      "kind": "notebook",
+      "sim_K1": -0.007080078125,
+      "z_K1": -0.4905247500485595,
+      "sim_K3": -0.01318359375,
+      "z_K3": -1.2977509535371432,
+      "max_z": -0.4905247500485595,
+      "above_max": false
+    },
+    {
+      "probe": "cross substrate matching method",
+      "kind": "notebook",
+      "sim_K1": 0.014404296875,
+      "z_K1": -0.05808457769559177,
+      "sim_K3": 0.0302734375,
+      "z_K3": 2.814758744337371,
+      "max_z": 2.814758744337371,
+      "above_max": true
+    },
+    {
+      "probe": "L-system seed grammar tree",
+      "kind": "notebook",
+      "sim_K1": -0.00048828125,
+      "z_K1": -0.35784424262208075,
+      "sim_K3": -0.00244140625,
+      "z_K3": -0.2811755226018699,
+      "max_z": -0.2811755226018699,
+      "above_max": false
+    },
+    {
+      "probe": "Kaluza Klein photon metric",
+      "kind": "notebook",
+      "sim_K1": 0.0166015625,
+      "z_K1": -0.013857741886765524,
+      "sim_K3": -0.01416015625,
+      "z_K3": -1.3901669018039862,
+      "max_z": -0.013857741886765524,
+      "above_max": false
+    },
+    {
+      "probe": "chocolate ice cream flavor",
+      "kind": "negative",
+      "sim_K1": -0.00634765625,
+      "z_K1": -0.4757824714456174,
+      "sim_K3": 0.00390625,
+      "z_K3": 0.31952814113260974,
+      "max_z": 0.31952814113260974,
+      "above_max": false
+    },
+    {
+      "probe": "professional soccer match score",
+      "kind": "negative",
+      "sim_K1": 0.0,
+      "z_K1": -0.34801605688678605,
+      "sim_K3": -0.0068359375,
+      "z_K3": -0.6970472898026635,
+      "max_z": -0.34801605688678605,
+      "above_max": false
+    },
+    {
+      "probe": "kitchen pencil sharpener metal",
+      "kind": "negative",
+      "sim_K1": 0.001708984375,
+      "z_K1": -0.3136174068132545,
+      "sim_K3": -0.003662109375,
+      "z_K3": -0.3966954579354237,
+      "max_z": -0.3136174068132545,
+      "above_max": false
+    },
+    {
+      "probe": "tropical rainforest humidity bright",
+      "kind": "negative",
+      "sim_K1": 0.001953125,
+      "z_K1": -0.3087033139456072,
+      "sim_K3": 0.003173828125,
+      "z_K3": 0.25021617993247747,
+      "max_z": 0.25021617993247747,
+      "above_max": false
+    },
+    {
+      "probe": "vintage automobile manufacturing",
+      "kind": "negative",
+      "sim_K1": -0.002197265625,
+      "z_K1": -0.3922428926956123,
+      "sim_K3": 0.004150390625,
+      "z_K3": 0.3426321281993205,
+      "max_z": 0.3426321281993205,
+      "above_max": false
+    },
+    {
+      "probe": "ocean coral reef colorful",
+      "kind": "negative",
+      "sim_K1": 0.002685546875,
+      "z_K1": -0.2939610353426651,
+      "sim_K3": -0.0068359375,
+      "z_K3": -0.6970472898026635,
+      "max_z": -0.2939610353426651,
+      "above_max": false
+    },
+    {
+      "probe": "morning coffee croissant breakfast",
+      "kind": "negative",
+      "sim_K1": 0.006591796875,
+      "z_K1": -0.2153355494603073,
+      "sim_K3": 0.005615234375,
+      "z_K3": 0.481256050599585,
+      "max_z": 0.481256050599585,
+      "above_max": false
+    }
+  ],
+  "methodology_note_fft_bandpass_substrate_dependent": true
+}

@@ -1,0 +1,90 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "A_rational": {
+    "cartesian_decimal": 0.375,
+    "own_coordinate": [
+      3,
+      8
+    ],
+    "cyclic_group": "Z_8",
+    "element": 3,
+    "compose_two_mod_add": 6
+  },
+  "B_irrational": {
+    "cartesian_decimal": 0.6180339887,
+    "convergent_cascade": [
+      {
+        "max_d": 2,
+        "convergent": [
+          1,
+          2
+        ],
+        "err": 0.11803398870000004
+      },
+      {
+        "max_d": 3,
+        "convergent": [
+          2,
+          3
+        ],
+        "err": 0.04863267796666659
+      },
+      {
+        "max_d": 5,
+        "convergent": [
+          3,
+          5
+        ],
+        "err": 0.01803398870000006
+      },
+      {
+        "max_d": 8,
+        "convergent": [
+          5,
+          8
+        ],
+        "err": 0.0069660112999999635
+      },
+      {
+        "max_d": 13,
+        "convergent": [
+          8,
+          13
+        ],
+        "err": 0.0026493733153846177
+      },
+      {
+        "max_d": 21,
+        "convergent": [
+          13,
+          21
+        ],
+        "err": 0.0010136303476190323
+      },
+      {
+        "max_d": 55,
+        "convergent": [
+          34,
+          55
+        ],
+        "err": 0.00014782948181812916
+      },
+      {
+        "max_d": 144,
+        "convergent": [
+          89,
+          144
+        ],
+        "err": 2.1566855555543718e-05
+      },
+      {
+        "max_d": 377,
+        "convergent": [
+          233,
+          377
+        ],
+        "err": 3.1465785145234904e-06
+      }
+    ]
+  }
+}

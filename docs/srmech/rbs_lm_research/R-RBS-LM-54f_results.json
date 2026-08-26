@@ -1,0 +1,545 @@
+{
+  "partition": "R-RBS-LM-54f",
+  "n_total": 28,
+  "n_correct_kernel": 28,
+  "n_correct_family": 28,
+  "exact_kernel_accuracy": 1.0,
+  "family_accuracy": 1.0,
+  "chance_kernel": 0.16666666666666666,
+  "family_chance": 0.3333333333333333,
+  "verdict": "STRONG: structural-fingerprint DOMAIN anchor works at 100% kernel-level accuracy",
+  "per_probe": [
+    {
+      "true_key": "kjv_nt",
+      "true_label": "KJV-NT",
+      "true_family": "religious_abrahamic",
+      "probe_idx": 0,
+      "picked_key": "kjv_nt",
+      "picked_label": "KJV-NT",
+      "picked_family": "religious_abrahamic",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.1957568359375,
+        "quran_sale": 0.123095703125,
+        "bhagavad": 0.1327978515625,
+        "origin": 0.0839599609375,
+        "plato": 0.1278369140625,
+        "frankenstein": 0.121435546875
+      }
+    },
+    {
+      "true_key": "kjv_nt",
+      "true_label": "KJV-NT",
+      "true_family": "religious_abrahamic",
+      "probe_idx": 1,
+      "picked_key": "kjv_nt",
+      "picked_label": "KJV-NT",
+      "picked_family": "religious_abrahamic",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.1714111328125,
+        "quran_sale": 0.096953125,
+        "bhagavad": 0.1265771484375,
+        "origin": 0.071982421875,
+        "plato": 0.1038037109375,
+        "frankenstein": 0.091220703125
+      }
+    },
+    {
+      "true_key": "kjv_nt",
+      "true_label": "KJV-NT",
+      "true_family": "religious_abrahamic",
+      "probe_idx": 2,
+      "picked_key": "kjv_nt",
+      "picked_label": "KJV-NT",
+      "picked_family": "religious_abrahamic",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.136611328125,
+        "quran_sale": 0.1128369140625,
+        "bhagavad": 0.1058154296875,
+        "origin": 0.073896484375,
+        "plato": 0.0975244140625,
+        "frankenstein": 0.0949169921875
+      }
+    },
+    {
+      "true_key": "kjv_nt",
+      "true_label": "KJV-NT",
+      "true_family": "religious_abrahamic",
+      "probe_idx": 3,
+      "picked_key": "kjv_nt",
+      "picked_label": "KJV-NT",
+      "picked_family": "religious_abrahamic",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.1429833984375,
+        "quran_sale": 0.1321044921875,
+        "bhagavad": 0.0913134765625,
+        "origin": 0.0719384765625,
+        "plato": 0.09501953125,
+        "frankenstein": 0.1001025390625
+      }
+    },
+    {
+      "true_key": "kjv_nt",
+      "true_label": "KJV-NT",
+      "true_family": "religious_abrahamic",
+      "probe_idx": 4,
+      "picked_key": "kjv_nt",
+      "picked_label": "KJV-NT",
+      "picked_family": "religious_abrahamic",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.1618896484375,
+        "quran_sale": 0.11853515625,
+        "bhagavad": 0.11875,
+        "origin": 0.06185546875,
+        "plato": 0.09185546875,
+        "frankenstein": 0.0931591796875
+      }
+    },
+    {
+      "true_key": "quran_sale",
+      "true_label": "Quran-Sale",
+      "true_family": "religious_abrahamic",
+      "probe_idx": 0,
+      "picked_key": "quran_sale",
+      "picked_label": "Quran-Sale",
+      "picked_family": "religious_abrahamic",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.1375390625,
+        "quran_sale": 0.253173828125,
+        "bhagavad": 0.0933935546875,
+        "origin": 0.071513671875,
+        "plato": 0.1055517578125,
+        "frankenstein": 0.098935546875
+      }
+    },
+    {
+      "true_key": "quran_sale",
+      "true_label": "Quran-Sale",
+      "true_family": "religious_abrahamic",
+      "probe_idx": 1,
+      "picked_key": "quran_sale",
+      "picked_label": "Quran-Sale",
+      "picked_family": "religious_abrahamic",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.136513671875,
+        "quran_sale": 0.230625,
+        "bhagavad": 0.10796875,
+        "origin": 0.0943212890625,
+        "plato": 0.109052734375,
+        "frankenstein": 0.108125
+      }
+    },
+    {
+      "true_key": "quran_sale",
+      "true_label": "Quran-Sale",
+      "true_family": "religious_abrahamic",
+      "probe_idx": 2,
+      "picked_key": "quran_sale",
+      "picked_label": "Quran-Sale",
+      "picked_family": "religious_abrahamic",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.1241259765625,
+        "quran_sale": 0.1891259765625,
+        "bhagavad": 0.0911572265625,
+        "origin": 0.06751953125,
+        "plato": 0.0920703125,
+        "frankenstein": 0.086103515625
+      }
+    },
+    {
+      "true_key": "quran_sale",
+      "true_label": "Quran-Sale",
+      "true_family": "religious_abrahamic",
+      "probe_idx": 3,
+      "picked_key": "quran_sale",
+      "picked_label": "Quran-Sale",
+      "picked_family": "religious_abrahamic",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.1267138671875,
+        "quran_sale": 0.2453564453125,
+        "bhagavad": 0.1168603515625,
+        "origin": 0.0748828125,
+        "plato": 0.109833984375,
+        "frankenstein": 0.098291015625
+      }
+    },
+    {
+      "true_key": "quran_sale",
+      "true_label": "Quran-Sale",
+      "true_family": "religious_abrahamic",
+      "probe_idx": 4,
+      "picked_key": "quran_sale",
+      "picked_label": "Quran-Sale",
+      "picked_family": "religious_abrahamic",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.1030810546875,
+        "quran_sale": 0.1604345703125,
+        "bhagavad": 0.078955078125,
+        "origin": 0.047626953125,
+        "plato": 0.078486328125,
+        "frankenstein": 0.0664990234375
+      }
+    },
+    {
+      "true_key": "bhagavad",
+      "true_label": "Bhagavad Gita",
+      "true_family": "religious_eastern",
+      "probe_idx": 0,
+      "picked_key": "bhagavad",
+      "picked_label": "Bhagavad Gita",
+      "picked_family": "religious_eastern",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.087568359375,
+        "quran_sale": 0.0698828125,
+        "bhagavad": 0.134658203125,
+        "origin": 0.06873046875,
+        "plato": 0.1042041015625,
+        "frankenstein": 0.080009765625
+      }
+    },
+    {
+      "true_key": "bhagavad",
+      "true_label": "Bhagavad Gita",
+      "true_family": "religious_eastern",
+      "probe_idx": 1,
+      "picked_key": "bhagavad",
+      "picked_label": "Bhagavad Gita",
+      "picked_family": "religious_eastern",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.0936181640625,
+        "quran_sale": 0.0725048828125,
+        "bhagavad": 0.1512890625,
+        "origin": 0.0484814453125,
+        "plato": 0.0899365234375,
+        "frankenstein": 0.0686181640625
+      }
+    },
+    {
+      "true_key": "bhagavad",
+      "true_label": "Bhagavad Gita",
+      "true_family": "religious_eastern",
+      "probe_idx": 2,
+      "picked_key": "bhagavad",
+      "picked_label": "Bhagavad Gita",
+      "picked_family": "religious_eastern",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.0744580078125,
+        "quran_sale": 0.064169921875,
+        "bhagavad": 0.102373046875,
+        "origin": 0.0583642578125,
+        "plato": 0.0631982421875,
+        "frankenstein": 0.066240234375
+      }
+    },
+    {
+      "true_key": "origin",
+      "true_label": "Origin of Species",
+      "true_family": "secular_science",
+      "probe_idx": 0,
+      "picked_key": "origin",
+      "picked_label": "Origin of Species",
+      "picked_family": "secular_science",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.084716796875,
+        "quran_sale": 0.0810888671875,
+        "bhagavad": 0.0702001953125,
+        "origin": 0.1814892578125,
+        "plato": 0.098740234375,
+        "frankenstein": 0.098046875
+      }
+    },
+    {
+      "true_key": "origin",
+      "true_label": "Origin of Species",
+      "true_family": "secular_science",
+      "probe_idx": 1,
+      "picked_key": "origin",
+      "picked_label": "Origin of Species",
+      "picked_family": "secular_science",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.0579296875,
+        "quran_sale": 0.0800634765625,
+        "bhagavad": 0.059033203125,
+        "origin": 0.2023779296875,
+        "plato": 0.0920361328125,
+        "frankenstein": 0.0770458984375
+      }
+    },
+    {
+      "true_key": "origin",
+      "true_label": "Origin of Species",
+      "true_family": "secular_science",
+      "probe_idx": 2,
+      "picked_key": "origin",
+      "picked_label": "Origin of Species",
+      "picked_family": "secular_science",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.0605712890625,
+        "quran_sale": 0.086513671875,
+        "bhagavad": 0.0515771484375,
+        "origin": 0.1818359375,
+        "plato": 0.076083984375,
+        "frankenstein": 0.0801220703125
+      }
+    },
+    {
+      "true_key": "origin",
+      "true_label": "Origin of Species",
+      "true_family": "secular_science",
+      "probe_idx": 3,
+      "picked_key": "origin",
+      "picked_label": "Origin of Species",
+      "picked_family": "secular_science",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.0496044921875,
+        "quran_sale": 0.0463720703125,
+        "bhagavad": 0.0535302734375,
+        "origin": 0.1523681640625,
+        "plato": 0.052939453125,
+        "frankenstein": 0.0632275390625
+      }
+    },
+    {
+      "true_key": "origin",
+      "true_label": "Origin of Species",
+      "true_family": "secular_science",
+      "probe_idx": 4,
+      "picked_key": "origin",
+      "picked_label": "Origin of Species",
+      "picked_family": "secular_science",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.0372412109375,
+        "quran_sale": 0.0345068359375,
+        "bhagavad": 0.026904296875,
+        "origin": 0.116787109375,
+        "plato": 0.04189453125,
+        "frankenstein": 0.04203125
+      }
+    },
+    {
+      "true_key": "plato",
+      "true_label": "Plato Republic",
+      "true_family": "secular_philosophy",
+      "probe_idx": 0,
+      "picked_key": "plato",
+      "picked_label": "Plato Republic",
+      "picked_family": "secular_philosophy",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.1381494140625,
+        "quran_sale": 0.1204248046875,
+        "bhagavad": 0.1042138671875,
+        "origin": 0.1097607421875,
+        "plato": 0.2053662109375,
+        "frankenstein": 0.13875
+      }
+    },
+    {
+      "true_key": "plato",
+      "true_label": "Plato Republic",
+      "true_family": "secular_philosophy",
+      "probe_idx": 1,
+      "picked_key": "plato",
+      "picked_label": "Plato Republic",
+      "picked_family": "secular_philosophy",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.0900830078125,
+        "quran_sale": 0.1078271484375,
+        "bhagavad": 0.110439453125,
+        "origin": 0.08615234375,
+        "plato": 0.174453125,
+        "frankenstein": 0.1019921875
+      }
+    },
+    {
+      "true_key": "plato",
+      "true_label": "Plato Republic",
+      "true_family": "secular_philosophy",
+      "probe_idx": 2,
+      "picked_key": "plato",
+      "picked_label": "Plato Republic",
+      "picked_family": "secular_philosophy",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.1227392578125,
+        "quran_sale": 0.1159521484375,
+        "bhagavad": 0.1159033203125,
+        "origin": 0.0951611328125,
+        "plato": 0.19984375,
+        "frankenstein": 0.1077099609375
+      }
+    },
+    {
+      "true_key": "plato",
+      "true_label": "Plato Republic",
+      "true_family": "secular_philosophy",
+      "probe_idx": 3,
+      "picked_key": "plato",
+      "picked_label": "Plato Republic",
+      "picked_family": "secular_philosophy",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.1214990234375,
+        "quran_sale": 0.1121630859375,
+        "bhagavad": 0.1147705078125,
+        "origin": 0.1035546875,
+        "plato": 0.22482421875,
+        "frankenstein": 0.120966796875
+      }
+    },
+    {
+      "true_key": "plato",
+      "true_label": "Plato Republic",
+      "true_family": "secular_philosophy",
+      "probe_idx": 4,
+      "picked_key": "plato",
+      "picked_label": "Plato Republic",
+      "picked_family": "secular_philosophy",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.1489892578125,
+        "quran_sale": 0.1356396484375,
+        "bhagavad": 0.1495849609375,
+        "origin": 0.1109521484375,
+        "plato": 0.19328125,
+        "frankenstein": 0.1243896484375
+      }
+    },
+    {
+      "true_key": "frankenstein",
+      "true_label": "Frankenstein",
+      "true_family": "secular_novel",
+      "probe_idx": 0,
+      "picked_key": "frankenstein",
+      "picked_label": "Frankenstein",
+      "picked_family": "secular_novel",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.0841845703125,
+        "quran_sale": 0.0710302734375,
+        "bhagavad": 0.086025390625,
+        "origin": 0.09220703125,
+        "plato": 0.076796875,
+        "frankenstein": 0.150478515625
+      }
+    },
+    {
+      "true_key": "frankenstein",
+      "true_label": "Frankenstein",
+      "true_family": "secular_novel",
+      "probe_idx": 1,
+      "picked_key": "frankenstein",
+      "picked_label": "Frankenstein",
+      "picked_family": "secular_novel",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.104140625,
+        "quran_sale": 0.069716796875,
+        "bhagavad": 0.1165576171875,
+        "origin": 0.0816162109375,
+        "plato": 0.1081298828125,
+        "frankenstein": 0.14580078125
+      }
+    },
+    {
+      "true_key": "frankenstein",
+      "true_label": "Frankenstein",
+      "true_family": "secular_novel",
+      "probe_idx": 2,
+      "picked_key": "frankenstein",
+      "picked_label": "Frankenstein",
+      "picked_family": "secular_novel",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.096025390625,
+        "quran_sale": 0.0844140625,
+        "bhagavad": 0.1026611328125,
+        "origin": 0.078134765625,
+        "plato": 0.10302734375,
+        "frankenstein": 0.1317529296875
+      }
+    },
+    {
+      "true_key": "frankenstein",
+      "true_label": "Frankenstein",
+      "true_family": "secular_novel",
+      "probe_idx": 3,
+      "picked_key": "frankenstein",
+      "picked_label": "Frankenstein",
+      "picked_family": "secular_novel",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.0757421875,
+        "quran_sale": 0.06197265625,
+        "bhagavad": 0.0732763671875,
+        "origin": 0.06513671875,
+        "plato": 0.0876171875,
+        "frankenstein": 0.1225732421875
+      }
+    },
+    {
+      "true_key": "frankenstein",
+      "true_label": "Frankenstein",
+      "true_family": "secular_novel",
+      "probe_idx": 4,
+      "picked_key": "frankenstein",
+      "picked_label": "Frankenstein",
+      "picked_family": "secular_novel",
+      "correct_kernel": true,
+      "correct_family": true,
+      "scores": {
+        "kjv_nt": 0.093994140625,
+        "quran_sale": 0.06359375,
+        "bhagavad": 0.0953125,
+        "origin": 0.0844287109375,
+        "plato": 0.09794921875,
+        "frankenstein": 0.1432275390625
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "mpr_version": "1.0",
+  "data_schema_id": "dblp://toc/v1",
+  "attestation": {
+    "source_url": "https://dblp.org/xml/dblp.xml.gz",
+    "license": "CC0-1.0 (primary); ODC-BY-1.0 (secondary)",
+    "retrieved_at": "2026-06-06T02:31:52+00:00",
+    "response_sha256": "0aee53f0ca21a253ea39534e2ab74e8d1023d7714636da4e413a86d49b491cc7",
+    "publisher_md5": "5a942653b968a3e47f400cbabda389c0",
+    "publisher_md5_verified": true,
+    "dump_bytes": 1072817798,
+    "parser_version": "R-RBS-LM-DBLP / srmech 0.7.1"
+  },
+  "rendering": {
+    "name": "dblp attested TOC (peer-reviewed CS bibliography)",
+    "purpose": "local hash-checked citation index (F446)",
+    "cite_as": "dblp computer science bibliography, dblp.org, CC0 1.0"
+  },
+  "summary": {
+    "n_records": 12676702,
+    "with_doi": 7211597,
+    "with_doi_fraction": 0.5689,
+    "by_type": {
+      "incollection": 71100,
+      "book": 21426,
+      "proceedings": 64552,
+      "mastersthesis": 27,
+      "data": 23769,
+      "article": 4329621,
+      "inproceedings": 3897032,
+      "phdthesis": 154816,
+      "www": 4114359
+    }
+  }
+}

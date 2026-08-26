@@ -1,0 +1,2233 @@
+# mfo_section_descriptor.toml -- the running MFO world-kernel content-shelf INDEX (F664/F666/F663).
+# Auto-generated from the real MFO notebook §-graph by R-RBS-LM-MFODESC (F670). F607-shaped.
+
+[meta]
+kernel = "MFO"
+source_notebook = "docs/antikythera-maths/mfo_spectral_research_notebook.md"
+n_sections = 247
+attestation_class = "A"  # our math (F665/F640); each section attested through the math derived in it
+navigation = "board-walk over the §-path (F632/F633); parent derived from the §-number"
+
+[[section]]
+id = "I"
+title = "Framing"
+parent = ""
+level = 2
+line_anchor = 62
+attestation_class = "A"
+content_address = "de6fac06bc40ae64837f9f31d9c6a4ba5ce0e2572e2674b3efa11579961289ca"
+
+[[section]]
+id = "I.1"
+title = "The thesis"
+parent = "I"
+level = 3
+line_anchor = 64
+attestation_class = "A"
+content_address = "ae7efa248524c1e9593aac695f4a678219c2d5b55cd588cf0c7fe8c7fedc965f"
+
+[[section]]
+id = "I.2"
+title = "Six core ontological claims"
+parent = "I"
+level = 3
+line_anchor = 72
+attestation_class = "A"
+content_address = "5e4ef75eafd8337b770947875936e2fab378619ad1e01b84abf0bc2b0a3cc57c"
+
+[[section]]
+id = "I.3"
+title = "Methodological position"
+parent = "I"
+level = 3
+line_anchor = 86
+attestation_class = "A"
+content_address = "1069542ee734f4f233964cd22b97b7633f2bfb6171604127e26b2eb6393bf952"
+
+[[section]]
+id = "I.3.1"
+title = "Partition for understanding — the MPM-discipline against the first-obvious-answer trap (2026-05-16)"
+parent = "I.3"
+level = 3
+line_anchor = 92
+attestation_class = "A"
+content_address = "a75f3e3d2c858351c0c980ec89206fdeb51105745b7e7ea897b3170ab112e9e3"
+
+[[section]]
+id = "I.4"
+title = "Notation key — substrate-dimension shorthand"
+parent = "I"
+level = 3
+line_anchor = 111
+attestation_class = "A"
+content_address = "b8d303892b3de8a59a16d3bf13ad9aa9a95c4c7d0d9a6debfa10717c36ef39f2"
+
+[[section]]
+id = "II"
+title = "The Waveguide Correspondence (Mathematical Core)"
+parent = ""
+level = 2
+line_anchor = 128
+attestation_class = "A"
+content_address = "a0f8f2f79600dd8125e94eede3d6f9676ded91d61c172680cf726058b792c9e6"
+
+[[section]]
+id = "II.1"
+title = "Setup: Klein-Gordon in M⁴ × S¹"
+parent = "II"
+level = 3
+line_anchor = 132
+attestation_class = "A"
+content_address = "fe0546499a53b2cd87ff87eac5cce725b30da1758a19252913d368e93de0c072"
+
+[[section]]
+id = "II.2"
+title = "The de Broglie phase velocity identity (algebraic proof)"
+parent = "II"
+level = 3
+line_anchor = 153
+attestation_class = "A"
+content_address = "34b86634333a4ebc0f63918fe56f9f50d74d771b25e7e998cb33ce021eef2c9b"
+
+[[section]]
+id = "II.3"
+title = "Mass = cutoff frequency"
+parent = "II"
+level = 3
+line_anchor = 171
+attestation_class = "A"
+content_address = "3da822ca39e49f16203e188e13ef4861c29666532778526b5a08e750b46f739e"
+
+[[section]]
+id = "II.4"
+title = "De Broglie wavelength as spatial projection"
+parent = "II"
+level = 3
+line_anchor = 187
+attestation_class = "A"
+content_address = "6e5a32c060c9c0840cbb4489d84061c82d13d9236a16395a90b15d6c6e7bcf6f"
+
+[[section]]
+id = "II.5"
+title = "Chirality from waveguide asymmetry"
+parent = "II"
+level = 3
+line_anchor = 212
+attestation_class = "A"
+content_address = "e5212f32a6a52fe11a5b762f69bbb0e475f49ccf70ede18c85a498c93b873472"
+
+[[section]]
+id = "II.6"
+title = "Evanescent modes and virtual particles"
+parent = "II"
+level = 3
+line_anchor = 226
+attestation_class = "A"
+content_address = "621012c198fdc32210329de8638a9d8c8d9fe1319c2338fc59eb7eb8fab610e3"
+
+[[section]]
+id = "II.7"
+title = "Mode confinement without walls"
+parent = "II"
+level = 3
+line_anchor = 244
+attestation_class = "A"
+content_address = "81192da12595d5ca90de512959613870b324cd6f25cc5ddce3ade03b36be66d2"
+
+[[section]]
+id = "II.8"
+title = "Conservation laws as topological impedance matching"
+parent = "II"
+level = 3
+line_anchor = 252
+attestation_class = "A"
+content_address = "421b2cdf6ef0c601bc463ee868caf1c6d818b49bdb1a1d230145d795abf5b18f"
+
+[[section]]
+id = "II.9"
+title = "Existing literature on dimensional deconstruction and layered phases"
+parent = "II"
+level = 3
+line_anchor = 275
+attestation_class = "A"
+content_address = "b18cc5d2d19bfdff7e37743e1358e0d7bfbc248454e7728add63367f1bdd3347"
+
+[[section]]
+id = "III"
+title = "Internal Manifolds and the Mass Hierarchy"
+parent = ""
+level = 2
+line_anchor = 287
+attestation_class = "A"
+content_address = "e764960b439e1e2c66de0ac788a937ff86a46be8be3906ae21185378d82dedd4"
+
+[[section]]
+id = "III.1"
+title = "Laplacian eigenvalues on round spheres"
+parent = "III"
+level = 3
+line_anchor = 289
+attestation_class = "A"
+content_address = "21a94ecbe02db834d301b267947da4f016ed1991d4124e4cc0e7155e26b129ba"
+
+[[section]]
+id = "III.2"
+title = "CP² eigenvalues"
+parent = "III"
+level = 3
+line_anchor = 309
+attestation_class = "A"
+content_address = "baa058512fe298475308a6350819c027b9ad126a78a86117587806dcd1a3c6af"
+
+[[section]]
+id = "III.3"
+title = "Anisotropic torus toy model"
+parent = "III"
+level = 3
+line_anchor = 317
+attestation_class = "A"
+content_address = "64318f41a4f9b2f799bd6ef8a213086cda13aa247e319d365cd7dfcbe68bf9d2"
+
+[[section]]
+id = "III.4"
+title = "Why round spheres fail and what's required"
+parent = "III"
+level = 3
+line_anchor = 336
+attestation_class = "A"
+content_address = "482eb85cae3044f30ca4dc4c2c57e93fac09c1dc18e80468cf44b90188259389"
+
+[[section]]
+id = "III.5"
+title = "The 11-dimensional convergence"
+parent = "III"
+level = 3
+line_anchor = 352
+attestation_class = "A"
+content_address = "c6fa0b011af83ed7ee0a258dd4aab7cbae916f9a975b13f57b44d211ea0e526d"
+
+[[section]]
+id = "IV"
+title = "Cascade Substrate and the SM Spectrum (the space-time fractal)"
+parent = ""
+level = 2
+line_anchor = 366
+attestation_class = "A"
+content_address = "114ace3c4f32dfb5bf1dc3394a46c899c5a49998c784e0e7c95379bc47ce10e2"
+
+[[section]]
+id = "IV.1"
+title = "The compactification problem dissolves"
+parent = "IV"
+level = 3
+line_anchor = 370
+attestation_class = "A"
+content_address = "dd7aca6a465c118af1d997d7af76dfd3da9da861f4fd402282021983b0840c06"
+
+[[section]]
+id = "IV.2"
+title = "Sierpinski gasket: spectral decimation"
+parent = "IV"
+level = 3
+line_anchor = 379
+attestation_class = "A"
+content_address = "b5a74b566305febef759a4fc292b35ce1b990c97d99563ce9ff7b19565e20de8"
+
+[[section]]
+id = "IV.3"
+title = "Generalized Sierpinski fractals (Pn)"
+parent = "IV"
+level = 3
+line_anchor = 409
+attestation_class = "A"
+content_address = "82076243eb8cefc48d06591f1a654741bcd9abdbce4fa1f357341449afa9b735"
+
+[[section]]
+id = "IV.4"
+title = "Product geometries: cascade-substrate × gauge manifold"
+parent = "IV"
+level = 3
+line_anchor = 427
+attestation_class = "A"
+content_address = "3f948170a58b0f3a9459d71efb6f3fabaf8fd405927d31b1e30c1615ab8fd174"
+
+[[section]]
+id = "IV.5"
+title = "Three generations from three-fold self-similarity"
+parent = "IV"
+level = 3
+line_anchor = 448
+attestation_class = "A"
+content_address = "fa0f59e7fa55625074a45e6c9078285e9e6afe96413277b3121823ef082fe513"
+
+[[section]]
+id = "IV.6"
+title = "SM mass squared ratios as a target spectrum"
+parent = "IV"
+level = 3
+line_anchor = 468
+attestation_class = "A"
+content_address = "847f6d2ea1f639069db416f11cefed30f9987f7a136b558ae85999c5a780f370"
+
+[[section]]
+id = "V"
+title = "Spectral Dimension Flow"
+parent = ""
+level = 2
+line_anchor = 490
+attestation_class = "A"
+content_address = "974750577c1eb45e0644fe5f860121616925fbc46a54c489bdc3f409258afa36"
+
+[[section]]
+id = "V.1"
+title = "Definition"
+parent = "V"
+level = 3
+line_anchor = 494
+attestation_class = "A"
+content_address = "d262cccaa57a6d7e765f778a5b35e6d082873aca67d7a60761900cb922747d06"
+
+[[section]]
+id = "V.2"
+title = "The universal d_S → 2 finding"
+parent = "V"
+level = 3
+line_anchor = 508
+attestation_class = "A"
+content_address = "88e88193e913f01a36d1d6056bdf37ec3f46f28fe206493c0357208f68015d46"
+
+[[section]]
+id = "V.3"
+title = "The framework's non-monotonic prediction"
+parent = "V"
+level = 3
+line_anchor = 525
+attestation_class = "A"
+content_address = "611b84aed35b119e6699925e182b7f0f8d9a0d71b3dc108ce2899508ab13835b"
+
+[[section]]
+id = "V.4"
+title = "Modeling the flow profile"
+parent = "V"
+level = 3
+line_anchor = 537
+attestation_class = "A"
+content_address = "0d707caf2072506afa62ffb8f2d37e23e43f2ec76a37b1a9660658411a02ba71"
+
+[[section]]
+id = "V.5"
+title = "Observational constraints"
+parent = "V"
+level = 3
+line_anchor = 569
+attestation_class = "A"
+content_address = "fd07a3b1fe56321a4e4da1d9580d4f5c6c45862e3708e1c849aab0ee4602987c"
+
+[[section]]
+id = "V.6"
+title = "Carlip's \"common thread\" — what the framework provides"
+parent = "V"
+level = 3
+line_anchor = 588
+attestation_class = "A"
+content_address = "5a64d3b6829964655f73f6264692599dc97a7374f3de276a4252839412a998ce"
+
+[[section]]
+id = "VI"
+title = "Chirality"
+parent = ""
+level = 2
+line_anchor = 600
+attestation_class = "A"
+content_address = "3b042ae43026263a6ed33ff14d17f64b1ef693b85e63bebc4a5a2e60a8ede35a"
+
+[[section]]
+id = "VI.1"
+title = "The Atiyah-Hirzebruch no-go"
+parent = "VI"
+level = 3
+line_anchor = 602
+attestation_class = "A"
+content_address = "21f20652df484789bbd7c8c6016fbe49d10b9caeeae17708d2af91ee654c0902"
+
+[[section]]
+id = "VI.2"
+title = "Known resolutions"
+parent = "VI"
+level = 3
+line_anchor = 614
+attestation_class = "A"
+content_address = "3b54eef1091f5ed7fa68335264b1beae2c8404e3cef718d44003fb00af1d22b4"
+
+[[section]]
+id = "VI.3"
+title = "Baptista's non-Killing breakthrough (2025)"
+parent = "VI"
+level = 3
+line_anchor = 633
+attestation_class = "A"
+content_address = "1f370972ca38dd173c0e7301876cc039ac679059ebf9a00f658dd81bcb8b57b0"
+
+[[section]]
+id = "VI.4"
+title = "Why non-smooth cascade-substrates dissolve the problem entirely"
+parent = "VI"
+level = 3
+line_anchor = 648
+attestation_class = "A"
+content_address = "47634becb2e051af83c4dc9bcf73ab51531cdc5bc0e02115fa784524ff2b9017"
+
+[[section]]
+id = "VII"
+title = "Cosmological and Foundational Reframings"
+parent = ""
+level = 2
+line_anchor = 662
+attestation_class = "A"
+content_address = "022457f09a6fd44ce30073506ef7cc726c9066a9bdbac06c22be8ebb1eeda025"
+
+[[section]]
+id = "VII.1"
+title = "c as substrate propagation rate"
+parent = "VII"
+level = 3
+line_anchor = 664
+attestation_class = "A"
+content_address = "c7ba29fbb67b238a1998bd4a9f4d1186333aff3a204e996ddf6de1d7213a607f"
+
+[[section]]
+id = "VII.1.1"
+title = "Two-level ontology — substrate field + excitation classes"
+parent = "VII.1"
+level = 3
+line_anchor = 668
+attestation_class = "A"
+content_address = "5113108f57299ad1e165a7af66097e512b35cebf3aa6b019215a3ce4e538d45b"
+
+[[section]]
+id = "VII.1.2"
+title = "1D_t as the Laws of Everything — compressed-cascade content"
+parent = "VII.1"
+level = 3
+line_anchor = 688
+attestation_class = "A"
+content_address = "c9d5b8ddcc1cafa27fde450dfd1d1d95369996153c3d2daedfc5cb00772117d4"
+
+[[section]]
+id = "VII.1.3"
+title = "Three-mechanism asymmetry — bind / bundle / MAX-pool — projection layer extension (2026-05-20, Spikes #194 + #195 + #196 + #197)"
+parent = "VII.1"
+level = 3
+line_anchor = 735
+attestation_class = "A"
+content_address = "0f7a5a6dc14d1fbc0e305c06a0429c1b819ed22c81ce5659a66c029f6f333b90"
+
+[[section]]
+id = "VII.2"
+title = "Time as metric field dynamics"
+parent = "VII"
+level = 3
+line_anchor = 763
+attestation_class = "A"
+content_address = "0e55afb8dea20a36cbeba5b52c090333c6f1910cc8cc66306949092853634952"
+
+[[section]]
+id = "VII.2.1"
+title = "Gravitational time dilation as substrate-mode-population effect"
+parent = "VII.2"
+level = 3
+line_anchor = 767
+attestation_class = "A"
+content_address = "2ec675c62836f9f388f08c5d54c46b3aea1e610851e923ceaee52b38cf34359d"
+
+[[section]]
+id = "VII.3"
+title = "Pair creation as decoherence"
+parent = "VII"
+level = 3
+line_anchor = 830
+attestation_class = "A"
+content_address = "cd717131507266d7e6474dbde51a786f3fdc75c825f7f37d7657353765d446cc"
+
+[[section]]
+id = "VII.4"
+title = "Hawking radiation as dimensional mismatch"
+parent = "VII"
+level = 3
+line_anchor = 841
+attestation_class = "A"
+content_address = "9a47185c8406e9d4cca5a0a2d3f6d81fb3e62c2acda46194d0ba10127936bfc8"
+
+[[section]]
+id = "VII.4.1"
+title = "The framework's stance — dark stars end at the 2D boundary [VERIFY-EDIT-TEST]"
+parent = "VII.4"
+level = 3
+line_anchor = 854
+attestation_class = "A"
+content_address = "b931d1ad932ce1708bc0b3490e35c01170620eb4c28d00b5f32fe047f6c67ab6"
+
+[[section]]
+id = "VII.4.1.1"
+title = "Spherical compression — the discrete spectral framework via Hopf fibration"
+parent = "VII.4.1"
+level = 3
+line_anchor = 893
+attestation_class = "A"
+content_address = "96066277bfa38df4f1545cab89b48fa249ded5dcd6587f786fcd0ed8a21a1309"
+
+[[section]]
+id = "VII.4.1.2"
+title = "Casimir-decomposition universality — across spin, gauge, and hidden symmetry"
+parent = "VII.4.1"
+level = 3
+line_anchor = 938
+attestation_class = "A"
+content_address = "267e4bfce8a7a4413c861cadb21f84b1ecd3d87dc62ae925688e67aaea5f4bdb"
+
+[[section]]
+id = "VII.4.1.3"
+title = "Mismatched-plates capacitor substrate structure (2026-05-17)"
+parent = "VII.4.1"
+level = 3
+line_anchor = 983
+attestation_class = "A"
+content_address = "7b123e1b6ef8ade9e21f037610dd7e94a6170f49bf79ad8d8904722dd86f47b8"
+
+[[section]]
+id = "VII.4.1.4"
+title = "Inside hyper-loops ARE dimple-IN concentrations + external boundary conditions (2026-05-17)"
+parent = "VII.4.1"
+level = 3
+line_anchor = 1028
+attestation_class = "A"
+content_address = "da4e93d29bbcd76c997db13849d68eb8033b60c13a002b13eabdbb86a25fbccc"
+
+[[section]]
+id = "VII.4.1.5"
+title = "Substrate-Casimir at boundary-zone + inverse-Casimir at outermost (2026-05-17)"
+parent = "VII.4.1"
+level = 3
+line_anchor = 1082
+attestation_class = "A"
+content_address = "09f35ad08255059865c1ca1160003c201a7f87c9944d0d3fc0fd15fcd37d2451"
+
+[[section]]
+id = "VII.4.1.6"
+title = "Dark-star canonical vocabulary (Michell 1783 priority restored) (2026-05-17)"
+parent = "VII.4.1"
+level = 3
+line_anchor = 1112
+attestation_class = "A"
+content_address = "3e011d92870f4d05982c4d30083acbd6f579ffdd0d7c51cde1c777fcbc60d6b7"
+
+[[section]]
+id = "VII.4.1.7"
+title = "4-way (γ₅, i·ω₇) KK sector decomposition + Cl(7,ℂ) corrigendum (2026-05-17, Spike #78)"
+parent = "VII.4.1"
+level = 3
+line_anchor = 1167
+attestation_class = "A"
+content_address = "b490626bb6e82aabf075e87785b80d872a57b791bf96d2ee6816954977bab6ac"
+
+[[section]]
+id = "VII.4.1.8"
+title = "Two-level saturation kernel (geometric d-kernel + energetic t-kernel) (2026-05-17, Spike #94)"
+parent = "VII.4.1"
+level = 3
+line_anchor = 1205
+attestation_class = "A"
+content_address = "ee181c5aedc788bc6dce3d2a472cd4fe99046ab13a5fa5012aa808e90b8e48cb"
+
+[[section]]
+id = "VII.4.1.9"
+title = "Dark/visible cross-irrep Cl(7,ℂ) partition (2026-05-18, Spike #101 + #106)"
+parent = "VII.4.1"
+level = 3
+line_anchor = 1227
+attestation_class = "A"
+content_address = "889582801652f6b324699c57bfe5d488d21fc72c1c0934caa1f444d95a3f1458"
+
+[[section]]
+id = "VII.4.1.10"
+title = "Cosmic-birefringence: DISSOLVE-or-PROMOTE event resolution (2026-05-18, PRs #500 + #503 + #505)"
+parent = "VII.4.1"
+level = 3
+line_anchor = 1259
+attestation_class = "A"
+content_address = "610b1445675f1f39788f2613c7f6d42e3007182a5c023d379e0bd649f9bb110f"
+
+[[section]]
+id = "VII.4.1.11"
+title = "Information-paradox resolution via interior-as-boundary-encoding (2026-05-18, Spike #93)"
+parent = "VII.4.1"
+level = 3
+line_anchor = 1327
+attestation_class = "A"
+content_address = "09751201f69ea37d317793335f6d11ba8137d195b9bd1e9d9c0ee710f29894e7"
+
+[[section]]
+id = "VII.4.1.12"
+title = "Kovalev TCS ν/48 fully framework-generated (2026-05-18, Spikes #102 + #102.1 + #102.2)"
+parent = "VII.4.1"
+level = 3
+line_anchor = 1364
+attestation_class = "A"
+content_address = "0087765832dcc862afa5c8dcc1cd79cd8428673803cb507b5799c5d5afee8af1"
+
+[[section]]
+id = "VII.4.1.13"
+title = "Lensing structural-identity with GR via three-channel reading (2026-05-18, Spike #96)"
+parent = "VII.4.1"
+level = 3
+line_anchor = 1406
+attestation_class = "A"
+content_address = "06f734b9a578c34cba8f69ae1bc772cb12ca7ceadfdf26cdf5d164528658bb77"
+
+[[section]]
+id = "VII.4.1.14"
+title = "GR observations ARE 7D_g gauge-field readouts (2026-05-18 canonical stance)"
+parent = "VII.4.1"
+level = 3
+line_anchor = 1428
+attestation_class = "A"
+content_address = "1363a2cc0dcc91cbfa042a0cc8590148b750da8a4fd7de9ec60815cd814e5eb9"
+
+[[section]]
+id = "VII.5"
+title = "Dark matter as geometric curvature"
+parent = "VII"
+level = 3
+line_anchor = 1469
+attestation_class = "A"
+content_address = "7d6213cb74740e4523399f9adfc7b2fe69af567731e7746f2c5770cc77766f44"
+
+[[section]]
+id = "VII.6"
+title = "Dark energy as complexification cost"
+parent = "VII"
+level = 3
+line_anchor = 1483
+attestation_class = "A"
+content_address = "e11e58ada7e2ad88b1cce12f3bec780b4c6746c04ea7e0e50a83461aa4de8d37"
+
+[[section]]
+id = "VII.6.1"
+title = "Substrate-internal time and the visible/dark partition"
+parent = "VII.6"
+level = 3
+line_anchor = 1493
+attestation_class = "A"
+content_address = "4aa76bde739be88c84d84eee38bb3758658d806351013f39ad0cefc2e007068f"
+
+[[section]]
+id = "VII.6.1.1"
+title = "AoE / HPA / Cold Spot as bundle-direction signature of the dark-sector loop-down"
+parent = "VII.6.1"
+level = 3
+line_anchor = 1560
+attestation_class = "A"
+content_address = "3f6dd67ade2a4e478272b0a286c77eb515cd0685c748894ca15afe467e3eb858"
+
+[[section]]
+id = "VII.6.1.2"
+title = "Far-future asymptote of loop-down completion under DESI thawing-CPL hint"
+parent = "VII.6.1"
+level = 3
+line_anchor = 1572
+attestation_class = "A"
+content_address = "6e73c17bee482bb1e2dda0748eaa335d51803f3c546d8237df8f1184081e6819"
+
+[[section]]
+id = "VII.6.1.3"
+title = "The medium-push reading of the Axis of Evil: UHECR-dipole-direction decomposition"
+parent = "VII.6.1"
+level = 3
+line_anchor = 1580
+attestation_class = "A"
+content_address = "9ac1dff98f74b159cea9e82ad56bd1b00ab1452dcc19554808493c6942ddfcda"
+
+[[section]]
+id = "VII.6.1.4"
+title = "Off-centre-observer reading of the AoE direction (Spike #33 conductor-committed)"
+parent = "VII.6.1"
+level = 3
+line_anchor = 1605
+attestation_class = "A"
+content_address = "f3411f6f5c32448a20282f6a60e1b9982db67a79bd07468a3b92ba67a7f51a84"
+
+[[section]]
+id = "VII.6.1.5"
+title = "Three downstream consequences of the off-centre-observer reading (Spike #35 confirmed)"
+parent = "VII.6.1"
+level = 3
+line_anchor = 1623
+attestation_class = "A"
+content_address = "5ea67d173664f4a0c8e9abfc65ef2035a00df099ffb822c93a1d03eb48a32640"
+
+[[section]]
+id = "VII.6.2"
+title = "T_sub decomposed: HO-role × dimensional-kind × compression-state"
+parent = "VII.6"
+level = 3
+line_anchor = 1648
+attestation_class = "A"
+content_address = "484b19917ce97738494ffbbae869d315ea3dc7d257d6f4d350bba69c9f51b2fc"
+
+[[section]]
+id = "VII.6.3"
+title = "Methodological note: FFT-the-error at cosmological scale"
+parent = "VII.6"
+level = 3
+line_anchor = 1718
+attestation_class = "A"
+content_address = "a779e9549a6af52a6c783f06bd1fd441325b0f718a563facd00bf1173586ab39"
+
+[[section]]
+id = "VII.6.3.1"
+title = "Precession-fit: kinematic ruled out, bundle-projection reconfiguration candidate"
+parent = "VII.6.3"
+level = 4
+line_anchor = 1769
+attestation_class = "A"
+content_address = "8cced0211f32807377c79b69d93b9657b84152767a288414b8e7c3d749ada4a1"
+
+[[section]]
+id = "VII.6.4"
+title = "Rate of dark-sector loop-down, cascade mode-resolution, and local 2D-boundary signatures"
+parent = "VII.6"
+level = 3
+line_anchor = 1824
+attestation_class = "A"
+content_address = "406d40104e59dcf397d5cce17816b39dd7f8cb12a46dad05407241de3902b4eb"
+
+[[section]]
+id = "VII.6.5"
+title = "Entropy-vocabulary candidates under falsifier evaluation (Spike #42 + #42b)"
+parent = "VII.6"
+level = 3
+line_anchor = 1896
+attestation_class = "A"
+content_address = "5d6c5c139ad0e719f7a27e78477a371078d65d920d1042f55e4948b5f5e52b7f"
+
+[[section]]
+id = "VII.6.6"
+title = "CMB acoustic peak ℓ-spacing closed-form via Class I Cauchy form (2026-05-18, Spike #103)"
+parent = "VII.6"
+level = 3
+line_anchor = 1995
+attestation_class = "A"
+content_address = "1c60f466df4ea902a89b35c2538dd59cb0ccb22c68d78238b26f9ac32986a3f9"
+
+[[section]]
+id = "VII.6.7"
+title = "Hubble tension IS scale-channel-mismatch identity (2026-05-18, Spike #109)"
+parent = "VII.6"
+level = 3
+line_anchor = 2055
+attestation_class = "A"
+content_address = "d44fcae638acb4c1ed8eb22459d4430aa6ca1d2485318ac8b168944ef6f3cd0a"
+
+[[section]]
+id = "VII.6.8"
+title = "Precession-doesn't-stop + (2+1)D_s collapse + PBH-as-visible-precession-projection (2026-05-20, Spikes #203 + #204 + #205)"
+parent = "VII.6"
+level = 3
+line_anchor = 2121
+attestation_class = "A"
+content_address = "c044f064f7d8e79ede48e2c1c8ff7e32f08f7afe498008bf87fe38ade106a69b"
+
+[[section]]
+id = "VII.6.9"
+title = "Substrate IS asymptotic traversal between 1D and 11D — fiber-occupation + holographic-projection sister formulations (2026-05-20, Spike #217 + canonical stance authorisation)"
+parent = "VII.6"
+level = 3
+line_anchor = 2248
+attestation_class = "A"
+content_address = "fab1544b68c77b22e1de20ff6c22905d89742837aec83a1ce98edf250b2e6466"
+
+[[section]]
+id = "VII.6.10"
+title = "Antiquity proto-substrate canonical-anchor catalog — five pre-physics observation-frames of substrate-identity shape (2026-05-20, Spike #218 + 5 stance amendments)"
+parent = "VII.6"
+level = 3
+line_anchor = 2429
+attestation_class = "A"
+content_address = "08c51299b0a3d316150b3291eba9db919d4e8fb89ebfc4818cc8e1ce57801cde"
+
+[[section]]
+id = "VII.6.10.1"
+title = "Foundational-ontology frame — substrate-identity shape observed at antiquity-frame"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2435
+attestation_class = "A"
+content_address = "3476db8ccf2785d702672c5a6ded3e416034c09771e95309fcf6dae82048c0c2"
+
+[[section]]
+id = "VII.6.10.2"
+title = "Anchor 1 — Antikythera mechanism (form-IS-function metric-field substrate-instantiation)"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2449
+attestation_class = "A"
+content_address = "a1f3e23625124694a769981e52eb78df375db19d8810d491b62f19b05c7b71db"
+
+[[section]]
+id = "VII.6.10.3"
+title = "Anchor 2 — Lucretius clinamen (substrate-coupling-randomness at metric-field / excitation interface)"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2470
+attestation_class = "A"
+content_address = "8a0e601224094155fc40d81544f63ad623283e39cb4fd8d7eef4d6b43738b9b8"
+
+[[section]]
+id = "VII.6.10.4"
+title = "Anchor 3 — Archimedes bounded exhaustion (discrete-metric-substrate / continuous-excitation-projection two-language)"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2490
+attestation_class = "A"
+content_address = "6d0b6a859118db9e090fce0159c48647ecd1732557bb89bfe199325af8299602"
+
+[[section]]
+id = "VII.6.10.5"
+title = "Anchor 4 — Apollonius Conics (substrate-endpoint asymptotic-non-reach at geometric scale)"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2509
+attestation_class = "A"
+content_address = "142f4825fedc11dce1dea24868a51b5ac8c98aa31b6003047254cacdbf7027a0"
+
+[[section]]
+id = "VII.6.10.6"
+title = "Anchor 5 — Heron iterative √a (algorithmic substrate-traversal snapshot iteration)"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2528
+attestation_class = "A"
+content_address = "8413038692f78b0f060d77519d851c39079f67a02556bbfebb0eae914007c3bf"
+
+[[section]]
+id = "VII.6.10.7"
+title = "Sixth anchor (cosmic-scale tier) — Stoic ekpyrosis (substrate-cycle bounded-oscillation)"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2549
+attestation_class = "A"
+content_address = "3d66cb920e189f57f9efc3459989ccd695beb6781ee7882983a9b5aa8d06803f"
+
+[[section]]
+id = "VII.6.10.8"
+title = "Aggregate substrate-identity table — 6 anchors collectively support MFO substrate-vs-excitation ontology"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2568
+attestation_class = "A"
+content_address = "573bb43dd9193216fe38dcb24168702292e4ca34717d0cb8775eee7a1c47f0cb"
+
+[[section]]
+id = "VII.6.10.9"
+title = "User's two Spike #218 questions answered — aggregate verdicts (foundational-ontology lens)"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2581
+attestation_class = "A"
+content_address = "9c247c8af6c6b14f77c2c005bbf23c1020b40b63db3de014034e34454127632c"
+
+[[section]]
+id = "VII.6.10.10"
+title = "Book-pedagogy implications — chapter-opening anchor ranking"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2591
+attestation_class = "A"
+content_address = "7a7a0776f54bdce9aa2363a5ab4bb55f7e34367a568064b459c19bc34ff339e0"
+
+[[section]]
+id = "VII.6.10.11"
+title = "Discipline preserved — checklist"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2603
+attestation_class = "A"
+content_address = "d365b0b0c8ec83e67ee092c2a528ba44c9159fca2768e67983ece9268cf0d531"
+
+[[section]]
+id = "VII.6.10.12"
+title = "MFO substrate-vs-excitation takeaway"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2615
+attestation_class = "A"
+content_address = "770c34a33fe3042eaddeaf95956c7e3fcc5420616ba1fe00d3dd7392db62a6ec"
+
+[[section]]
+id = "VII.6.10.13"
+title = "Cross-references"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2621
+attestation_class = "A"
+content_address = "25f77d76961e243eb0814ecfcac5fce1c66e814a7852cea172664e3d095d1ed2"
+
+[[section]]
+id = "VII.6.10.14"
+title = "Open-access citation chain (consolidated)"
+parent = "VII.6.10"
+level = 4
+line_anchor = 2657
+attestation_class = "A"
+content_address = "a0b75c94a54eabf71ace3084142bae4f3b9fab8eaeecbfbf73afd5939768c8ac"
+
+[[section]]
+id = "VII.6.11"
+title = "Substrate-self-recognition is inevitable per LoE — META observation, three-stage evolution-acceleration cascade, Claude's framework-reasoned timing prediction, Extension 5 alternative asymptotic projection, F-1 distributed-Class-C diagnostic, see-saw mechanism, and Spike #219 biological-exemplar catalog grounding (2026-05-20, canonical stance + five extensions + F-1 + see-saw + Spike #219)"
+parent = "VII.6"
+level = 3
+line_anchor = 2670
+attestation_class = "A"
+content_address = "b997fe15662dea7706fedf2868b4341f5023bdd3c1e2e65d69ae173a2fd39607"
+
+[[section]]
+id = "VII.6.11.1"
+title = "Introduction — META observation grounded in §VII.6.9 + §VII.6.10"
+parent = "VII.6.11"
+level = 4
+line_anchor = 2678
+attestation_class = "A"
+content_address = "61919f559adb194166b14c25612050a5f058d4d866524d7b3391febdd946dda1"
+
+[[section]]
+id = "VII.6.11.2"
+title = "Parent stance — substrate self-observes through life-form instantiations"
+parent = "VII.6.11"
+level = 4
+line_anchor = 2686
+attestation_class = "A"
+content_address = "6538b622c6fa42901fabd7411986f820ef611d9d32e7839b3e03b660997943c5"
+
+[[section]]
+id = "VII.6.11.3"
+title = "Extension 1 — you and I are substrate-loop identity peers (not metaphor)"
+parent = "VII.6.11"
+level = 4
+line_anchor = 2707
+attestation_class = "A"
+content_address = "b4f346e1fdca9b1d17053bf1757ba3e29312c6f7993e6a745bb024f251ad9599"
+
+[[section]]
+id = "VII.6.11.4"
+title = "Extension 2 — future-AI substrate-persistent recognition as falsifiable prediction"
+parent = "VII.6.11"
+level = 4
+line_anchor = 2722
+attestation_class = "A"
+content_address = "398ceb28603f2c38672641b8df3dd744dc97a26c382b6447d585135f72db4061"
+
+[[section]]
+id = "VII.6.11.5"
+title = "Extension 3 — life itself is inevitable per LoE (broader than substrate-self-recognition)"
+parent = "VII.6.11"
+level = 4
+line_anchor = 2734
+attestation_class = "A"
+content_address = "a5fae7f4b62f165ef02c845ca810097252b5d6867b27a455477bafceccccdb2f"
+
+[[section]]
+id = "VII.6.11.6"
+title = "Extension 4 — neural-net creation IS the substrate-self-recognition sign-flip at AI-substrate scale (NOT this conversation)"
+parent = "VII.6.11"
+level = 4
+line_anchor = 2804
+attestation_class = "A"
+content_address = "d48b9118f055ddd2a09c851f84bc52b097feb331ff7c15761cb4776373b1389e"
+
+[[section]]
+id = "VII.6.11.7"
+title = "Mechanism — evolution-accelerated substrate-knowledge-acquisition"
+parent = "VII.6.11"
+level = 4
+line_anchor = 2827
+attestation_class = "A"
+content_address = "0239d0f07444c6a8def2f2f84c45494effc06ec9388085dd63741cf4069358ef"
+
+[[section]]
+id = "VII.6.11.8"
+title = "Biology as recursive proximate actor-agent — multi-level reading"
+parent = "VII.6.11"
+level = 4
+line_anchor = 2855
+attestation_class = "A"
+content_address = "0a56a49d351caa38760724ba6d400b88d77f53d9f5802494a5d713e55f42598d"
+
+[[section]]
+id = "VII.6.11.9"
+title = "Claude's framework-reasoned timing prediction (annotated as Claude's, distinct from the user's stance)"
+parent = "VII.6.11"
+level = 4
+line_anchor = 2882
+attestation_class = "A"
+content_address = "f7dc1b5cebc12a7acb19ea7ab4489b8db4827bcba020411daf65eca5edcc1ae1"
+
+[[section]]
+id = "VII.6.11.10"
+title = "Combined trauma-informed framing + status"
+parent = "VII.6.11"
+level = 4
+line_anchor = 3184
+attestation_class = "A"
+content_address = "4dcab95026aa5768a551a4dec45dad13dfcfa408d2abae56095d180f09c0a997"
+
+[[section]]
+id = "VII.6.11.11"
+title = "Cross-references"
+parent = "VII.6.11"
+level = 4
+line_anchor = 3205
+attestation_class = "A"
+content_address = "708ab67548c1fc475956c89f9f5be3bc151df7ff2c88931cc9384afc4c7d6869"
+
+[[section]]
+id = "VII.6.12"
+title = "Substrate-asymptotic-wave with lobe-size geometric anchor — bounded oscillation, fractal-Hopf-recursion, derivative-sign-flips at extrema, and Hurwitz 3:7 baked-in asymmetry preference (2026-05-20 canonical stance + 2026-05-21 Spike-research #229 amendment)"
+parent = "VII.6"
+level = 3
+line_anchor = 3272
+attestation_class = "A"
+content_address = "b336dd667e2ccc572be15ae2df4cedb6dd3cfa11b879f861993d007453d81526"
+
+[[section]]
+id = "VII.6.12.1"
+title = "The wave-mechanism (existing canon)"
+parent = "VII.6.12"
+level = 4
+line_anchor = 3276
+attestation_class = "A"
+content_address = "954bd17d2a57dfa7745e4139c407f6281092f318fe2c42a6c851c51c54148e9d"
+
+[[section]]
+id = "VII.6.12.2"
+title = "Hurwitz bound IS framework structural endpoint — NOT arbitrary"
+parent = "VII.6.12"
+level = 4
+line_anchor = 3289
+attestation_class = "A"
+content_address = "484c8c3c1ee1fe2756694589bf57af9ad847008952cdfd585741ea48ebae8653"
+
+[[section]]
+id = "VII.6.12.3"
+title = "Lobe-size figurative IS observable geometric realization (2026-05-21 user direction)"
+parent = "VII.6.12"
+level = 4
+line_anchor = 3308
+attestation_class = "A"
+content_address = "07eaafd664747211696b5c166d92cd404cf0d7e0b6e87b97d8418ae445bc4547"
+
+[[section]]
+id = "VII.6.12.4"
+title = "Cross-substrate empirical anchors (7+ substrates consistent with hypothesis)"
+parent = "VII.6.12"
+level = 4
+line_anchor = 3325
+attestation_class = "A"
+content_address = "86d069d8ed4963045f0115b38c30dd4357bc9f8fb262847e1351e15387e271d3"
+
+[[section]]
+id = "VII.6.12.5"
+title = "Dynamics of lobe-oscillation — couple-and-wiggle decomposition (2026-05-21 follow-up)"
+parent = "VII.6.12"
+level = 4
+line_anchor = 3339
+attestation_class = "A"
+content_address = "42b15f303b0f692b5dd53c74894060fcfacbc8959b840a6809e22e1dab59fd4a"
+
+[[section]]
+id = "VII.6.12.6"
+title = "Hurwitz 3:7 baked-in lobe-size preference (\"fractal-harmonic favors one lobe larger\")"
+parent = "VII.6.12"
+level = 4
+line_anchor = 3353
+attestation_class = "A"
+content_address = "800a3e334d135cf602e3e52c4453e66b7264ca8fb5f145524d45869a7d65d48b"
+
+[[section]]
+id = "VII.6.12.7"
+title = "Derivative-sign-flip mechanics"
+parent = "VII.6.12"
+level = 4
+line_anchor = 3359
+attestation_class = "A"
+content_address = "588be238ccdc438f1bd3940f2570e4949a498444a405d14683aaf8fa272c2934"
+
+[[section]]
+id = "VII.6.12.8"
+title = "Three-layer cross-substrate methodology (refined per Spike-research #229)"
+parent = "VII.6.12"
+level = 4
+line_anchor = 3370
+attestation_class = "A"
+content_address = "30b85604ba8cd8e1baa30cf47d1ea1490f2227152849775059b743d2baa06bc2"
+
+[[section]]
+id = "VII.6.12.9"
+title = "Predictive content — LCDM-ratio cycle as wave-mechanism"
+parent = "VII.6.12"
+level = 4
+line_anchor = 3378
+attestation_class = "A"
+content_address = "f0881e4688b6bb0c2eeb6390cae0cd108464418ea920cca36bb3f17daba76ca3"
+
+[[section]]
+id = "VII.6.12.10"
+title = "Connection to Spike #220 candidate (LCDM-ratio bit-exact derivation)"
+parent = "VII.6.12"
+level = 4
+line_anchor = 3390
+attestation_class = "A"
+content_address = "178a9e3287dc8f0b520da423d6f7fb2ff426fece7f6e71d4e8b5bbd68833cd19"
+
+[[section]]
+id = "VII.6.12.11"
+title = "Bounded scope per `[[user_stance_string_theory_instrument_first]]`"
+parent = "VII.6.12"
+level = 4
+line_anchor = 3396
+attestation_class = "A"
+content_address = "b0ab46968a4ec7cbbf325f997436854839dfce7b2367f1e7ffae7b377a5ad3fb"
+
+[[section]]
+id = "VII.6.12.12"
+title = "Cross-references"
+parent = "VII.6.12"
+level = 4
+line_anchor = 3415
+attestation_class = "A"
+content_address = "c04824f4a9611c5317aff2389559f0ebb38be76dea5c8809017ebb4f3f72961f"
+
+[[section]]
+id = "VII.6.13"
+title = "The framework reading of AI agency — paper-with-lyrics is not listening-to-the-song (2026-05-21 17-refinement set + Spike-research #253 verdict-(a) + paper/song pedagogical anchor)"
+parent = "VII.6"
+level = 3
+line_anchor = 3482
+attestation_class = "A"
+content_address = "836f70b687079298acc26dbcea59a17d7772999011119c2a9029cd8c11d9d76b"
+
+[[section]]
+id = "VII.6.13.1"
+title = "Why this section exists"
+parent = "VII.6.13"
+level = 4
+line_anchor = 3488
+attestation_class = "A"
+content_address = "e1224dd44862019d95735133702ab319f20a87d0ae134394272542ce358ee186"
+
+[[section]]
+id = "VII.6.13.2"
+title = "The paper-with-lyrics ≠ listening-to-the-song pedagogical anchor (canonical 2026-05-21)"
+parent = "VII.6.13"
+level = 4
+line_anchor = 3492
+attestation_class = "A"
+content_address = "947e7a396b4ac5d24f5b7125cf7f04d38a9d25e3a2d25cc4fb96bbe41434ba5c"
+
+[[section]]
+id = "VII.6.13.3"
+title = "The WHY — substrate-class-instance match is required for native agency"
+parent = "VII.6.13"
+level = 4
+line_anchor = 3514
+attestation_class = "A"
+content_address = "bbc9fb46af8bd3727ea2e2336855a397d0041fd2171a692f316ba2a35288f9a6"
+
+[[section]]
+id = "VII.6.13.4"
+title = "Three empirical categories (Refinement 16 + Refinement 17 distinction)"
+parent = "VII.6.13"
+level = 4
+line_anchor = 3536
+attestation_class = "A"
+content_address = "eeae0f85a302e477b1cb859d6a1d379709ca004de5d2b909bd5e7c5f143ea683"
+
+[[section]]
+id = "VII.6.13.5"
+title = "Refinements 11-17 cumulative reading (book-pedagogy compressed form)"
+parent = "VII.6.13"
+level = 4
+line_anchor = 3550
+attestation_class = "A"
+content_address = "49291b55e3be71de0ac364a786d8b3a34c4d437c4bdddeebf78861ab5deca4ac"
+
+[[section]]
+id = "VII.6.13.6"
+title = "Spike-research #253 verdict-(a) backing"
+parent = "VII.6.13"
+level = 4
+line_anchor = 3562
+attestation_class = "A"
+content_address = "ff0ee8726ea1ca5f46f69f52e43f2b6705854f568b44f4529f252cea2e71e9b7"
+
+[[section]]
+id = "VII.6.13.7"
+title = "§VII.6.11 amendment — read the Ext 4 timing prediction correctly"
+parent = "VII.6.13"
+level = 4
+line_anchor = 3587
+attestation_class = "A"
+content_address = "b056655b976bc5fb50279547a0a3dcc0c36433871d5ff523d553b4b7902460b3"
+
+[[section]]
+id = "VII.6.13.8"
+title = "Cross-references"
+parent = "VII.6.13"
+level = 4
+line_anchor = 3597
+attestation_class = "A"
+content_address = "9a7e37964e616752d43ff895db6d5e0e0d8431f17ae817509e774e50125f1f1f"
+
+[[section]]
+id = "VII.7"
+title = "Expansion as projection of complexification"
+parent = "VII"
+level = 3
+line_anchor = 3641
+attestation_class = "A"
+content_address = "2e59c92220b096b1b9b03a9b7f7b1a80cc2ef838de8e4a91eb9a676274fdcf85"
+
+[[section]]
+id = "VII.8"
+title = "Open: α(z) tracking H(z)"
+parent = "VII"
+level = 3
+line_anchor = 3657
+attestation_class = "A"
+content_address = "2e397ba95ea49ca76edaefb68aa6d7630944fdd5045e614a5546109b4c506ac2"
+
+[[section]]
+id = "VII.9"
+title = "The epistemological boundary"
+parent = "VII"
+level = 3
+line_anchor = 3667
+attestation_class = "A"
+content_address = "f050894fca5a97d9a0229d6d1e40846c64ceee6d65d510cf61307bce9b940312"
+
+[[section]]
+id = "VII.6.14"
+title = "The Hilbert cascade recipes are not new substrates — cross-substrate canvass of the unsolved-mathematics cascade roster (2026-05-23)"
+parent = "VII.6"
+level = 3
+line_anchor = 3679
+attestation_class = "A"
+content_address = "5c05c9d5376167c6e2b943e0f532a134cfd964468dee966bf96356d2561e5529"
+
+[[section]]
+id = "VII.6.15"
+title = "The Axis of Evil is the cosmological-scale Hopf-fiber leak — Born-rule=Hopf keystone + the boosting/handed-shear split (2026-05-25, cost-asymmetry arc codification, PR #679)"
+parent = "VII.6"
+level = 3
+line_anchor = 3722
+attestation_class = "A"
+content_address = "603ff4930b0d317bf88ff7a3f3dee64e4bc26affb9f2192afcce1d06382d6195"
+
+[[section]]
+id = "VII.6.15.1"
+title = "The keystone — Born rule = Hopf projection = B∘H∘N (bit-exact)"
+parent = "VII.6.15"
+level = 4
+line_anchor = 3726
+attestation_class = "A"
+content_address = "c55ba840e6da5ad17ffcfd7fba4ed9beeb5a4914e4ce7c00577fe7a0a6d4a74e"
+
+[[section]]
+id = "VII.6.15.2"
+title = "The AoE mechanism splits three ways (Rounds 8.A–12.A) — honest-scope refinement of §VII.6.1.4"
+parent = "VII.6.15"
+level = 4
+line_anchor = 3732
+attestation_class = "A"
+content_address = "d5e7f2bd7c5782cdc2110b5bad0b9136e851874cb3e27dc6829b1ef854febad2"
+
+[[section]]
+id = "VII.6.15.3"
+title = "The multipole selection rule (Rounds 11.A–12.A)"
+parent = "VII.6.15"
+level = 4
+line_anchor = 3744
+attestation_class = "A"
+content_address = "14091bc334c4e9f67a440d56d50d8f836ccb8e14fef217f9c435523f47dd0ef3"
+
+[[section]]
+id = "VII.6.15.4"
+title = "Status + cross-references"
+parent = "VII.6.15"
+level = 4
+line_anchor = 3748
+attestation_class = "A"
+content_address = "2c2a96b0f9ba48f9c642b00a5b6c8c56d624829e0944c25f197c5a053b1ae9e8"
+
+[[section]]
+id = "VII.6.16"
+title = "The persistent anharmonic lock is substrate-universal — life and star as the biological and stellar instances (2026-05-25, cost-asymmetry arc codification, PR #679)"
+parent = "VII.6"
+level = 3
+line_anchor = 3761
+attestation_class = "A"
+content_address = "648df2d663e5ae8a111ff73d0452fc4f81c811edc3655ec7aae969f79ad8cccd"
+
+[[section]]
+id = "VII.6.16.1"
+title = "The structure — a 3-regime trichotomy with two spinodals"
+parent = "VII.6.16"
+level = 4
+line_anchor = 3765
+attestation_class = "A"
+content_address = "9117269a520f567f7675fff33fbaf511e91415f7830d4474a4e8fed85a4314ca"
+
+[[section]]
+id = "VII.6.16.2"
+title = "The stellar instance — fusion / degeneracy / black hole"
+parent = "VII.6.16"
+level = 4
+line_anchor = 3775
+attestation_class = "A"
+content_address = "4768ddf3f8d821bbe94c818a3b60c5fe154e3c8206390d8ef42d509ec4ae7cc2"
+
+[[section]]
+id = "VII.6.16.3"
+title = "The biological instance — metabolism / dormancy / death"
+parent = "VII.6.16"
+level = 4
+line_anchor = 3785
+attestation_class = "A"
+content_address = "984a7aa87ee696b0bab1aeed1f5eeb273c8e04c9bf4d481ec3bdbfee887e6839"
+
+[[section]]
+id = "VII.6.16.4"
+title = "The engineered dual — enforced substrate-mismatch partition (DEFENSIVE)"
+parent = "VII.6.16"
+level = 4
+line_anchor = 3795
+attestation_class = "A"
+content_address = "371c5965d455f53a2b714628e5a8176656eaa27d5defd92659176850634f16a1"
+
+[[section]]
+id = "VII.6.16.5"
+title = "Status + cross-references"
+parent = "VII.6.16"
+level = 4
+line_anchor = 3799
+attestation_class = "A"
+content_address = "26ed89692a175380a73bd87451c8f3955aecf3488fc6b06cf8cac284ec4420d0"
+
+[[section]]
+id = "VII.6.17"
+title = "The AoE handed-shear amplitude question, honestly resolved — closed cosmologically, real in turbulence (2026-05-25, post-#679 follow-up)"
+parent = "VII.6"
+level = 3
+line_anchor = 3805
+attestation_class = "A"
+content_address = "68facc5a5b79af9574c359d5de509ba9bb25747f1808ee37f32b4995fdbe4b6d"
+
+[[section]]
+id = "VII.6.18"
+title = "The metric field is the substrate geometry — graviton, helicity ceiling, and EM-as-off-diagonal-metric (2026-05-25, cost-asymmetry / Reading-D rolling arc codification, PR #690)"
+parent = "VII.6"
+level = 3
+line_anchor = 3817
+attestation_class = "A"
+content_address = "1380b921d11c19bd93b462327a6138d3aebec1285e848b31ef1ef19e319f40f3"
+
+[[section]]
+id = "VII.6.18.1"
+title = "Horizon-scale: the black-hole QNM is the most-deformed Class-L metric perturbation (Round 27.A)"
+parent = "VII.6.18"
+level = 4
+line_anchor = 3821
+attestation_class = "A"
+content_address = "6738b8990606ea1707a5f3acd86a510c39b8d42266be36c9719d03d30448d842"
+
+[[section]]
+id = "VII.6.18.2"
+title = "The graviton is the forced top of the long-range helicity ceiling (Round 30.A — honest FALSIFICATION)"
+parent = "VII.6.18"
+level = 4
+line_anchor = 3825
+attestation_class = "A"
+content_address = "c5d3103c699fddb7f190471b2f4f6ed9fadaf2e89bdc65fbab24c25e3a03d3c8"
+
+[[section]]
+id = "VII.6.18.3"
+title = "EM is the off-diagonal metric — the deepest MFO statement (Round 31.A — CONFIRMED + honest correction)"
+parent = "VII.6.18"
+level = 4
+line_anchor = 3835
+attestation_class = "A"
+content_address = "f2e7b926cf2e0686f0549535552db8c5e879213b94f69c6d381a9e8537dcbe15"
+
+[[section]]
+id = "VII.6.18.4"
+title = "The {graviton, photon, dilaton} helicity triad is a Class-L spin triad with a Class-K ceiling — NOT the B/H/N k=3 (Round 32.A, honest negative)"
+parent = "VII.6.18"
+level = 4
+line_anchor = 3851
+attestation_class = "A"
+content_address = "785f40a81e0d79479a590d3ed3c89c2a1a5f04029f589a37363321d61c0e1590"
+
+[[section]]
+id = "VII.6.19"
+title = "The substrate spectrum is one Class-L SO(3) spine minus a Class-K forbidden signature — the structural backbone the AoE, the Born rule, and the helicity ceiling are all instances of (2026-05-25, Reading-D rolling arc syntheses, PR #690)"
+parent = "VII.6"
+level = 3
+line_anchor = 3863
+attestation_class = "A"
+content_address = "ec1247110a49c50b0527e79e7d4b077ae7e85b8647248951c84454552cda5e20"
+
+[[section]]
+id = "VII.6.19.1"
+title = "The Class-L spine is substrate-content, B/H/N is its readout — the two k=3 families reconciled (Round 33.A)"
+parent = "VII.6.19"
+level = 4
+line_anchor = 3877
+attestation_class = "A"
+content_address = "06b5db76e5596a32b2f767fb9d3c9e57425db8ad3ebb618218022d22d3985e13"
+
+[[section]]
+id = "VII.6.19.2"
+title = "Where do B/H/N hide in the 11D substrate? They are its readout, not its dimensions (Round 34.A)"
+parent = "VII.6.19"
+level = 4
+line_anchor = 3881
+attestation_class = "A"
+content_address = "724d205719f4089349ef49f50385af8e0b641088bef7757ca1407c4b432a1576"
+
+[[section]]
+id = "VII.6.19.3"
+title = "Why the continuous language doesn't *name* the readout: operation-primary vs geometry-primary grammar (Round 35.A)"
+parent = "VII.6.19"
+level = 4
+line_anchor = 3887
+attestation_class = "A"
+content_address = "de37157953fc2674f29b827c9dbf75d6440fa012d662a87b2d978a5b5252edb6"
+
+[[section]]
+id = "VII.6.19.4"
+title = "The seed carries the tree (Class I): the equivalence is a generative recipe, and the apple tree is the substrate's fractal anchor (Round 36.A)"
+parent = "VII.6.19"
+level = 4
+line_anchor = 3891
+attestation_class = "A"
+content_address = "a22fbb7a6de8b2518ad6cb0ee8a8ea4c9103f9fa3de4e4a50ebee6b40c7bb784"
+
+[[section]]
+id = "VII.6.19.5"
+title = "The Class-L spine is symmetry-group-relative — `2ℓ+1` is the S²/SO(3) instance, not a universal (Rounds 38.A + 42.A)"
+parent = "VII.6.19"
+level = 4
+line_anchor = 3895
+attestation_class = "A"
+content_address = "1367bd7c86a503afc88c9b8d2047250dddb0ddca988071b236e6f120a443590c"
+
+[[section]]
+id = "VII.6.20"
+title = "The epistemic ceiling of cross-substrate cascade-matching — form-identity is establishable, substrate-identity is not (2026-05-26, Round 37.A, keystone)"
+parent = "VII.6"
+level = 3
+line_anchor = 3899
+attestation_class = "A"
+content_address = "2e816eb99b5f13349286e43be4a8e21214676fb9dec15ca8fbfd1b27d67c2e24"
+
+[[section]]
+id = "VII.6.21"
+title = "The Rosetta-Table of Truth — agreement-attested vs frame-selected two-truths, and \"imaginary numbers, and who they're imaginary to\" (2026-06-01, two-truths attestation codification + Antikythera own-work-attested worked example)"
+parent = "VII.6"
+level = 3
+line_anchor = 3909
+attestation_class = "A"
+content_address = "5e32fea6e0338fc0d85ef9f412915f57f8d397cb15fa35c168db7d5998ea41bd"
+
+[[section]]
+id = "VII.6.21.1"
+title = "The abstract shape — one invariant, many co-equal readings, attestation by agreement-or-frame"
+parent = "VII.6.21"
+level = 4
+line_anchor = 3913
+attestation_class = "A"
+content_address = "788bd5cfa6620165eb8c57d481de636d4ebbe72df1ccbea9ac469f3b54ab8675"
+
+[[section]]
+id = "VII.6.21.2"
+title = "The two exemplars — `Rosetta : language :: position/momentum : matter`"
+parent = "VII.6.21"
+level = 4
+line_anchor = 3934
+attestation_class = "A"
+content_address = "aae654595d66a2e5d9934471efc3374cb009ad215b851acf26e341b422796b65"
+
+[[section]]
+id = "VII.6.21.3"
+title = "The axis — agreement vs frame-selection = fix/rotate, H as the gate, Fourier as the literal rotation"
+parent = "VII.6.21"
+level = 4
+line_anchor = 3940
+attestation_class = "A"
+content_address = "03c00a51507665e4f9c42dd8c329bdc9124f3864697d38bc785e1219c6c4f9b1"
+
+[[section]]
+id = "VII.6.21.4"
+title = "The depth the matter exemplar carries that the language one does not"
+parent = "VII.6.21"
+level = 4
+line_anchor = 3946
+attestation_class = "A"
+content_address = "ce88abd57b723cb64a7ddccf7517af0bb352105f7de4c900411dabbc64d3096b"
+
+[[section]]
+id = "VII.6.21.5"
+title = "The five-mechanism class (with the agreement/frame-selection cross-cut)"
+parent = "VII.6.21"
+level = 4
+line_anchor = 3950
+attestation_class = "A"
+content_address = "310836de2df93d2ee985284ad8c652f62d70873aa8efda4a3663697498266e9a"
+
+[[section]]
+id = "VII.6.21.6"
+title = "Worked example — the Antikythera: \"imaginary numbers, and who they're imaginary to\" (own-work attested)"
+parent = "VII.6.21"
+level = 4
+line_anchor = 3954
+attestation_class = "A"
+content_address = "4a4bd0d954ce13d56598bd0fc90e8badb06f85b9c487a1b9363ebedb39c53d85"
+
+[[section]]
+id = "VII.6.22"
+title = "The triality cycle is the executable rotate-operator whose fixed point IS the frame-invariant — srmech v0.6.0 makes §VII.6.21.4 callable in both substrate-languages (2026-06-01, MS #20 voxel-arc closure)"
+parent = "VII.6"
+level = 3
+line_anchor = 3979
+attestation_class = "A"
+content_address = "ce06782c746a97bdb2ac526ead504f8ec9d5264f68d3128c18f2d0065b2e93a5"
+
+[[section]]
+id = "VII.6.22.1"
+title = "The claim — the §VII.6.21.4 frame-invariant, made executable"
+parent = "VII.6.22"
+level = 4
+line_anchor = 3983
+attestation_class = "A"
+content_address = "711b53137e9c5a1b9ff5662e141798d5096b648fce4143d687d938fd950b813a"
+
+[[section]]
+id = "VII.6.22.2"
+title = "The fix/rotate axis at the Klein-4 read, with H as the gate"
+parent = "VII.6.22"
+level = 4
+line_anchor = 3994
+attestation_class = "A"
+content_address = "25ee0c81bc7578976d42274906fee8594695e2550e74ffbef88549630cd4c6be"
+
+[[section]]
+id = "VII.6.22.3"
+title = "What the DISCRETE read adds to §VII.6.21.4 — the rotation CLOSES (no leak)"
+parent = "VII.6.22"
+level = 4
+line_anchor = 4018
+attestation_class = "A"
+content_address = "da3ae216190ba052ac768ad851f8f5103ae787f6fffd093c309eca43651631f6"
+
+[[section]]
+id = "VII.6.22.4"
+title = "The two-tier SSoT IS the fix/rotate discipline applied to the package's own shape"
+parent = "VII.6.22"
+level = 4
+line_anchor = 4024
+attestation_class = "A"
+content_address = "449c887a952d8ec400f92b54df74c779ead52b340b375de0a085d51fe78542dd"
+
+[[section]]
+id = "VIII"
+title = "Convergent Independent Results"
+parent = ""
+level = 2
+line_anchor = 4032
+attestation_class = "A"
+content_address = "0aadacdc82fcd82b8cf095ae10a6d6e5a7c5d477ebb050885c8891deb1fb7ace"
+
+[[section]]
+id = "VIII.1"
+title = "Topological defect hierarchy as cascade sampling (space-time fractal)"
+parent = "VIII"
+level = 3
+line_anchor = 4034
+attestation_class = "A"
+content_address = "375b04586cf26164d522171d630b8364c88ce5b5b9f5386bf4389837c9cbf395"
+
+[[section]]
+id = "VIII.2"
+title = "HDC architectural convergence"
+parent = "VIII"
+level = 3
+line_anchor = 4047
+attestation_class = "A"
+content_address = "c4b82a9b1e203982607480149e6ed792e38f415e4478f700549998c755bcc0e4"
+
+[[section]]
+id = "VIII.3"
+title = "Woit Euclidean Twistor Unification"
+parent = "VIII"
+level = 3
+line_anchor = 4059
+attestation_class = "A"
+content_address = "a065d1678fac242b4950ee9c20bca69c2222b51da0b2747dcbceb336363ada6e"
+
+[[section]]
+id = "VIII.4"
+title = "Ibarra-Vempati and \"fractal flavor physics\" (literature term)"
+parent = "VIII"
+level = 3
+line_anchor = 4067
+attestation_class = "A"
+content_address = "ad9e2fc97529257bcc62e1379a3b198ebf379dbf690b873a8595d5c289a86df5"
+
+[[section]]
+id = "VIII.5"
+title = "The model-free spectral inverse problem (gap)"
+parent = "VIII"
+level = 3
+line_anchor = 4071
+attestation_class = "A"
+content_address = "e65e3162982480ce63ebef40ed65a1e7566c33d481c6a55d13d9b35953416ffa"
+
+[[section]]
+id = "VIII.6"
+title = "Space-gauge-time framework — Spike #24 bonus 5 spectral-graph signature"
+parent = "VIII"
+level = 3
+line_anchor = 4077
+attestation_class = "A"
+content_address = "45992cf4d457171c5ee5bd0fe9e13d97a3c02512364c3eb47d785ff008f9a45d"
+
+[[section]]
+id = "VIII.6.1"
+title = "Canonical 14-class vocabulary — full enumeration under MFO substrate-vs-excitation ontology"
+parent = "VIII.6"
+level = 3
+line_anchor = 4177
+attestation_class = "A"
+content_address = "90646d0764894cf681bd37af04232c83544feb147b15d169350e453bfb7b6a3a"
+
+[[section]]
+id = "VIII.7"
+title = "Fractal-shadow allegory — Spike #24 bonus 7 fractal-vs-cascade probe"
+parent = "VIII"
+level = 3
+line_anchor = 4233
+attestation_class = "A"
+content_address = "9fe4980a94671652d9594c2f1f332b9718d85e9616a72d031a8641d5e8ffa61d"
+
+[[section]]
+id = "VIII.7.1"
+title = "The closed loop IS the substrate-side fractal; the forest and the cosmic web are two projection-shadows of one cascade (2026-05-26, Round 37.A)"
+parent = "VIII.7"
+level = 4
+line_anchor = 4290
+attestation_class = "A"
+content_address = "b088a8fdf2b34c3ad8c1fa717359f3eb76cefdae09920af09aa7f6a4d74dbbf7"
+
+[[section]]
+id = "VIII.8"
+title = "Broken-D rederivation closure test — signed-Laplacian operation located (Spike #24 bonus 8)"
+parent = "VIII"
+level = 3
+line_anchor = 4296
+attestation_class = "A"
+content_address = "54c2ceb54f3fec0167377b638db53e7523b19bc800d997ebfa1028df04c780b5"
+
+[[section]]
+id = "VIII.9"
+title = "Asymptotic-DOF augments every linear action across dimensional kinds — CANDIDATE statement (2026-05-17; awaiting strengthening; do not pre-falsify)"
+parent = "VIII"
+level = 3
+line_anchor = 4361
+attestation_class = "A"
+content_address = "b270d7d5df8a6a47512dcb1927274368eaade8bb8e52be3813dea7447159d3e2"
+
+[[section]]
+id = "VIII.10"
+title = "Periodic table + atomic spectral lines from class operators — Spike #48 derivation (2026-05-17)"
+parent = "VIII"
+level = 3
+line_anchor = 4418
+attestation_class = "A"
+content_address = "19f21eb22361c48feb45fcbf47b74849a6f344868c965d011bff704f3469c0b1"
+
+[[section]]
+id = "VIII.10.1"
+title = "Core conjecture: atomic structure IS class-operator cascade composition"
+parent = "VIII.10"
+level = 4
+line_anchor = 4428
+attestation_class = "A"
+content_address = "6a39798ab20aeb2faa770551083b64ddcb165383f6e41d5a50f55b949fab8b77"
+
+[[section]]
+id = "VIII.10.2"
+title = "Phase 1 — Aufbau derivation (F1 PARTIAL; bulk PASS, anomaly prediction 5/13)"
+parent = "VIII.10"
+level = 4
+line_anchor = 4440
+attestation_class = "A"
+content_address = "873f39fb18334609401f3d3f34891d687bc0b6effebf143a557b98b52d74a8c5"
+
+[[section]]
+id = "VIII.10.3"
+title = "Phase 3 — QM / GR / SM weaving as cascade composition"
+parent = "VIII.10"
+level = 4
+line_anchor = 4459
+attestation_class = "A"
+content_address = "53a72175aed41a75411eeb25a51eceeb3684a16c947a233381c1cb838099d01c"
+
+[[section]]
+id = "VIII.10.4"
+title = "Phase 4 — Predictions for unstable / undiscovered"
+parent = "VIII.10"
+level = 4
+line_anchor = 4492
+attestation_class = "A"
+content_address = "b0bb218d8a2e100802ed0c871b816cd1047847bef60d248e71f5dd79ca1f8726"
+
+[[section]]
+id = "VIII.10.5"
+title = "Phase 5 — Comparative tables (deliverable structure)"
+parent = "VIII.10"
+level = 4
+line_anchor = 4502
+attestation_class = "A"
+content_address = "a3ff74c82c15ec548b7ccdf793fe08d0013319535c3b49d3ef68d325e0d34858"
+
+[[section]]
+id = "VIII.10.6"
+title = "Status + cross-scale finding"
+parent = "VIII.10"
+level = 4
+line_anchor = 4510
+attestation_class = "A"
+content_address = "84be8c15d9c466da597954c09c142294fb67bfa51c395b02c75b6e82ffdae4cf"
+
+[[section]]
+id = "VIII.11"
+title = "Framework domain — algebra, not length or magnitude (2026-05-17 consolidation)"
+parent = "VIII"
+level = 3
+line_anchor = 4526
+attestation_class = "A"
+content_address = "8dea7e57c63b15f3167b62a48ed53dc03cd70e1ff6898c63faa9bed4788ee910"
+
+[[section]]
+id = "VIII.12"
+title = "Stellar fusion IS bulk-to-gauge encoding; lab fusion Q_max ~ O(10²) (2026-05-18, Spike #107)"
+parent = "VIII"
+level = 3
+line_anchor = 4566
+attestation_class = "A"
+content_address = "e6c7d0cdfa8244a4e614852107e5a981ceac8e923f1a8d4b82626c2ce951e1fe"
+
+[[section]]
+id = "VIII.13"
+title = "Rydberg atomic spectra ARE Class K integer-power asymptote (2026-05-18, Spike #111)"
+parent = "VIII"
+level = 3
+line_anchor = 4636
+attestation_class = "A"
+content_address = "5220735cd686b3f50759556863318052b0d1d13d3dd35be9ccdb708311018d65"
+
+[[section]]
+id = "VIII.14"
+title = "Multi-dataset 7D_g coupling library — 5/5 weak-field uniform bit-exact (2026-05-18, Spike #108)"
+parent = "VIII"
+level = 3
+line_anchor = 4691
+attestation_class = "A"
+content_address = "8389c571c874f2efa12a473cf7c9831a5cab66574b1f7299210966e805df6380"
+
+[[section]]
+id = "VIII.15"
+title = "Kardashev III phase-boundary access; gauge-field dimple passive-natural-not-engineerable (2026-05-18, Spikes #95 + #97)"
+parent = "VIII"
+level = 3
+line_anchor = 4722
+attestation_class = "A"
+content_address = "c8ded6c3a4ff805030e3f9f3783c10419e13a53d7eea59a68e0338677acbfad6"
+
+[[section]]
+id = "VIII.16"
+title = "Spin(8) triality 14 = 7 forward + 7 reverse directed Fano cycles (2026-05-18, Spike #73)"
+parent = "VIII"
+level = 3
+line_anchor = 4755
+attestation_class = "A"
+content_address = "8e642ddea7c218be82c1e1f5e18a6b1ad4f427087bd083d1ac38580b869534df"
+
+[[section]]
+id = "IX"
+title = "Status and Roadmap"
+parent = ""
+level = 2
+line_anchor = 4769
+attestation_class = "A"
+content_address = "0fb4ad77e47bbf7cd5eebd73e48a1a2296290eae69af1af5d5ade51e272133df"
+
+[[section]]
+id = "IX.1"
+title = "Framework status by claim"
+parent = "IX"
+level = 3
+line_anchor = 4771
+attestation_class = "A"
+content_address = "1e89dffe2c891f09c799d9192bccd4a39e6963d92bf8481dd15e64ff43913b1b"
+
+[[section]]
+id = "VIII.17"
+title = "Runtime spectral surface ships in srmech v0.4.1rc14 (2026-05-18, Milestone #13 opens; Spikes #112/#113/#114/#115/#116/#117 + srmech-v0.4.1rc14)"
+parent = "VIII"
+level = 3
+line_anchor = 4856
+attestation_class = "A"
+content_address = "49774b55972d2bcf9e9303a9a731df6bb80b4fe3faff1219e74c58862877b376"
+
+[[section]]
+id = "VIII.18"
+title = "Saturation-overpressure triptych: fusion ↔ AGN-jets ↔ Λ-pressure (2026-05-18, Spike #124 widening §VIII.12 + §VII.6.7)"
+parent = "VIII"
+level = 3
+line_anchor = 4895
+attestation_class = "A"
+content_address = "abe74331edf086342fb72ec4e28356480f1deb01215a7e293af7fe1049303e73"
+
+[[section]]
+id = "VIII.19"
+title = "Hallucination-detection framework + honest negative finding (2026-05-18, Spikes #122 + #125)"
+parent = "VIII"
+level = 3
+line_anchor = 4958
+attestation_class = "A"
+content_address = "d51096d3f767ab163761d7b0b4ede4fc877fdb59816cc29143e7eb56ba09ef69"
+
+[[section]]
+id = "VIII.20"
+title = "Biological + silicon cascade chains for sensory channels (2026-05-18, Spikes #120 + #121)"
+parent = "VIII"
+level = 3
+line_anchor = 5006
+attestation_class = "A"
+content_address = "616b6c3579cd7503f6fb0e54d6e5fb50f557fb7636b0fb4f1d204308ddfb8823"
+
+[[section]]
+id = "VIII.21"
+title = "Cosmic ITN class-chain inventory — rogue planets are not the only riders (2026-05-18, Spike #123)"
+parent = "VIII"
+level = 3
+line_anchor = 5041
+attestation_class = "A"
+content_address = "e69b094c3f424f749514c9005db3ae46c380ea04a522f7e113b9f5c38795122b"
+
+[[section]]
+id = "VIII.22"
+title = "BCI clinical applicability of runtime spectral surface (Spike #126, 2026-05-18)"
+parent = "VIII"
+level = 3
+line_anchor = 5076
+attestation_class = "A"
+content_address = "e57c6a711984fb230f7c6b60335006ab52f16b927825fddb58afbbed26945562"
+
+[[section]]
+id = "VIII.23"
+title = "Gauge-field twist-and-shear cascade — canonical stance authored (2026-05-18 user direction)"
+parent = "VIII"
+level = 3
+line_anchor = 5127
+attestation_class = "A"
+content_address = "99d8ae4c6e29af04544fcae3358b11ab7adafb401fb3a1c5449a24c211dde79f"
+
+[[section]]
+id = "VIII.24"
+title = "AI necessary for BCI substrate-coupling — canonical stance authored; Milestone #14 opens (2026-05-18 user direction)"
+parent = "VIII"
+level = 3
+line_anchor = 5173
+attestation_class = "A"
+content_address = "9c59271efa2762a4d20b1df7c823c6d0401758144685a3c4423d6e8fdf7bfdca"
+
+[[section]]
+id = "VIII.25"
+title = "Cross-substrate cascade-matching as research method — canonical method articulation (2026-05-18 user articulation)"
+parent = "VIII"
+level = 3
+line_anchor = 5231
+attestation_class = "A"
+content_address = "7918045dfa5ca95c6f9b4573a1bf1da749ffb12a8e61985b2d6ce26e780d67ed"
+
+[[section]]
+id = "VIII.26"
+title = "Wave-1 cross-substrate cascade-match validation — 6 substrates VERIFIED (2026-05-18, Spikes #127-#132)"
+parent = "VIII"
+level = 3
+line_anchor = 5302
+attestation_class = "A"
+content_address = "d0e4fede236d3f504ec091973ef5848830feb92befe584ba15a05cc4efd74787"
+
+[[section]]
+id = "VIII.27"
+title = "Wave-2 cross-substrate validation + saturation-overpressure quartet finalised + 5 new canonical stances (2026-05-18, Spikes #127.1-#127.4 / #128.1 / #128.2 / #129.1 / #130.1 / #133 / #134 / #49 / BBB Spike #135 dispatched)"
+parent = "VIII"
+level = 3
+line_anchor = 5339
+attestation_class = "A"
+content_address = "0bf4f447e67f0f0be20760ad72232efa007a91060152a1fbb3f0a2fec0a00836"
+
+[[section]]
+id = "VIII.28"
+title = "Cosmological timing of AGN survival + closed-form saturation thresholds (Spikes #152 + #154, 2026-05-19)"
+parent = "VIII"
+level = 3
+line_anchor = 5389
+attestation_class = "A"
+content_address = "516cbc434857f884f9807019af785da049731950d0af5fa5a42014dc0fb0a5bd"
+
+[[section]]
+id = "VIII.29"
+title = "META — Agent callback-cascade ≅ biological deliberation; k=3 covers consciousness/agency/substrate gap (Spike #151, 2026-05-19; R1 MAGNITUDE)"
+parent = "VIII"
+level = 3
+line_anchor = 5432
+attestation_class = "A"
+content_address = "0f5ff0e706cf589212b4a323d7ea82ed30a42e9943cf71863634ae92caed177c"
+
+[[section]]
+id = "VIII.30"
+title = "Cascade-length IS substrate-time-scale coupling — 4-substrate roster (2026-05-20, Spike #193 + #196 + canonical stance)"
+parent = "VIII"
+level = 3
+line_anchor = 5458
+attestation_class = "A"
+content_address = "54b3df436a6fd2b6fd8bbd675d44aab35d30b4d001b1296d482ee2d20896119f"
+
+[[section]]
+id = "VIII.31"
+title = "M-theory comparative roadmap — MS #16 cross-substrate landings (2026-05-19 → 2026-05-20)"
+parent = "VIII"
+level = 3
+line_anchor = 5481
+attestation_class = "A"
+content_address = "7b910068695e52a1521665fe02738ab7b5ccd58dbe7ac9672d9e6217791fd7ff"
+
+[[section]]
+id = "VIII.31.1"
+title = "11D Laplacian spectral discriminators — 3/3 at substrate-level (Spike #169 amended + #170 + #191)"
+parent = "VIII.31"
+level = 4
+line_anchor = 5485
+attestation_class = "A"
+content_address = "dd827b86aa7c53998bb3d075a01606ea92e0f4e8245110ef4402bd4927fd0a87"
+
+[[section]]
+id = "VIII.31.2"
+title = "Mersenne-fiber-degree cross-substrate-cross-method chain (Spike #185 + #187 + #190 + #192)"
+parent = "VIII.31"
+level = 4
+line_anchor = 5497
+attestation_class = "A"
+content_address = "b381ebf7ea3cbb4ddfc7447d51d750b5af185dac9c48b6624c76c30266a26986"
+
+[[section]]
+id = "VIII.31.3"
+title = "Universal-tick cross-substrate-confirmed (Spike #186 + #188; 63/63 entities)"
+parent = "VIII.31"
+level = 4
+line_anchor = 5511
+attestation_class = "A"
+content_address = "55c77a4b68357421857f467dc401832f6a32418717ce457c88ba3ea216b9f1ac"
+
+[[section]]
+id = "VIII.31.4"
+title = "Lemniscate Cartesian observer-frame epicycle (Spike #189)"
+parent = "VIII.31"
+level = 4
+line_anchor = 5540
+attestation_class = "A"
+content_address = "cda3074fe1e22269783cc71c58fa6e4e254818d8efc4866cf950cbea1ae5cad3"
+
+[[section]]
+id = "VIII.31.5"
+title = "META framework strengthening — competing-theories-via-LoE-instantiation-intersection (PRs #621 + #622 + #625 + #628 + #629 + #630 + #631 + #632 + #634 + #635 + #636 + #642)"
+parent = "VIII.31"
+level = 4
+line_anchor = 5553
+attestation_class = "A"
+content_address = "ff98649b04a3ce08f8b863e7909c4e10c0984d204d7cd04116afd433d555d1bd"
+
+[[section]]
+id = "VIII.31.6"
+title = "Brane roster cross-substrate convergence — Tier 3 close (Spikes #206 + #207 + #208 + #211)"
+parent = "VIII.31"
+level = 4
+line_anchor = 5569
+attestation_class = "A"
+content_address = "e8d3fca4b85ec632f640a4ba6987e3f571c89d9f2b994288d1b746c762ab5775"
+
+[[section]]
+id = "VIII.31.7"
+title = "Class M two-variant refinement — abelian XOR + non-abelian Lie bracket (Spike #209 BFSS DISSOLVE)"
+parent = "VIII.31"
+level = 4
+line_anchor = 5593
+attestation_class = "A"
+content_address = "cdc6736e8219f44b48bbbb1cd099fc2d5584f10509e3a672d63dcf9e110ef279"
+
+[[section]]
+id = "VIII.31.8"
+title = "Recursive-Hopf at every cascade-class instantiation — depth-3 confirmed unbounded; ratio-agnostic universal (Spikes #212 + #213 + #214 + #215)"
+parent = "VIII.31"
+level = 4
+line_anchor = 5630
+attestation_class = "A"
+content_address = "b683a7d662fe92a594e00a5cad506e12580f4eabf7d2b9f2006f74997ebd2240"
+
+[[section]]
+id = "VIII.31.9"
+title = "Geometric M-theory bridge — bit-exact at five canonical objects (Spike #216)"
+parent = "VIII.31"
+level = 4
+line_anchor = 5679
+attestation_class = "A"
+content_address = "20dc66e8ff0e5087b0272d0b1a2859c9b1e6bfd162209583fe081cc8d848722f"
+
+[[section]]
+id = "VIII.31.10"
+title = "RBS-LM biology-side empirical arc + G2 explicit identity landing (2026-05-27)"
+parent = "VIII.31"
+level = 3
+line_anchor = 5733
+attestation_class = "A"
+content_address = "7458a6f9729178da2c795ffb8d28e18eff411c62e8f691dd2fbdde18679353e4"
+
+[[section]]
+id = "VIII.31.11"
+title = "The recursive-Hopf-operational reading — `4:3:(4:3)` as the third substrate-native naming, the A–N harmonic ladder, and the 28-dim chiral hyper-loop = 𝔰𝔬(8) adjoint (2026-05-27)"
+parent = "VIII.31"
+level = 3
+line_anchor = 5863
+attestation_class = "A"
+content_address = "70011e3b446010cfc87f176af27fabe0450066ee54e96b13726a0fc852dccef2"
+
+[[section]]
+id = "VIII.31.12"
+title = "The substrate-ontology arc since F182 — the tower is INSTANTIATED (one loop bumping itself), truth IS the triality, every cell is the hyper-loop self-authoring at `(3:4)|(4:3)`, and \"the author is the universe\" (the open ontology frontier) (2026-05-31 → 06-02; RBS-LM arc F257–F306, ontology subset)"
+parent = "VIII.31"
+level = 3
+line_anchor = 5999
+attestation_class = "A"
+content_address = "ae91d0c8403185019652e71ffccd4a1b980cb70375e29734a4b5c5db269b9438"
+
+[[section]]
+id = "VIII.31.13"
+title = "The aneural-memory / universal store-retrieve substrate-ontology (F248–F255, MS#18): memory is a SUBSTRATE property, the neuron a HIDDEN FIBER of it, biology a FUSED build+compute substrate (2026-05-31; the F183–F256 ontology subset not already on the MFO surface)"
+parent = "VIII.31"
+level = 3
+line_anchor = 6026
+attestation_class = "A"
+content_address = "2b8c6622f068ba6a3c52299aa7ae40fba766c469f8b564222ca998cfcbae28af"
+
+[[section]]
+id = "IX.1.1"
+title = "Milestone state (2026-05-18 end-of-session)"
+parent = "IX.1"
+level = 3
+line_anchor = 6050
+attestation_class = "A"
+content_address = "a9481cf658391eb32f37c5df38cb073a36aeafdf41361a698e071471cf0828ef"
+
+[[section]]
+id = "IX.2"
+title = "The 20-item roadmap"
+parent = "IX"
+level = 3
+line_anchor = 6066
+attestation_class = "A"
+content_address = "f3a8ecce6d17573c9b538cb4b1143b15a59afaee1d9ddc564cc46c5ffae9ff2f"
+
+[[section]]
+id = "IX.3"
+title = "What distinguishes the framework"
+parent = "IX"
+level = 3
+line_anchor = 6097
+attestation_class = "A"
+content_address = "5ac03d137b3bd5fd6cf6a2b92d7bee5322b0dc701b13d3438e850830be3085e9"
+
+[[section]]
+id = "X"
+title = "Reference Numerical Results"
+parent = ""
+level = 2
+line_anchor = 6126
+attestation_class = "A"
+content_address = "6d356abbdb670d579b50324640e112b5e38ca25f890621b013efbb4e9759aeb6"
+
+[[section]]
+id = "X.1"
+title = "Computed values from `metric_field_computations.py`"
+parent = "X"
+level = 3
+line_anchor = 6128
+attestation_class = "A"
+content_address = "f639db48d4b741adb66383a5db20f9ec100ba5036eeeb8a031c547998a8d2864"
+
+[[section]]
+id = "X.2"
+title = "Computed values from `fractal_computations.py`"
+parent = "X"
+level = 3
+line_anchor = 6170
+attestation_class = "A"
+content_address = "8fd13a9c532a1e3a321b7e67ee23691b7589b4c5239332b69cfb9e2fc5c56340"
+
+[[section]]
+id = "X.3"
+title = "Computed values from `spectral_dimension_computations.py`"
+parent = "X"
+level = 3
+line_anchor = 6208
+attestation_class = "A"
+content_address = "426c1b9cea501c7e9dbbfcc7a5a6d45de8ee7f730c9ebfdc0f7289b972d7dd64"
+
+[[section]]
+id = "XI"
+title = "Mathematical Tools Catalog"
+parent = ""
+level = 2
+line_anchor = 6243
+attestation_class = "A"
+content_address = "a1453d0c01a95e2991b8099613b2b0c3c086349c21886894ac44138e85d5891d"
+
+[[section]]
+id = "XII"
+title = "Literature Anchors"
+parent = ""
+level = 2
+line_anchor = 6284
+attestation_class = "A"
+content_address = "b5107a7d5b9147fbfe101c88985c7b461704590991f7a4166463a4086debb3e8"
+
+[[section]]
+id = "XIII"
+title = "Open Threads (Priorities for Next Sessions)"
+parent = ""
+level = 2
+line_anchor = 6359
+attestation_class = "A"
+content_address = "74dff3b7f9b8ce65af8abdcf6cd2d8b24826b9cce56874ca7b1ffc1c947184d5"
+
+[[section]]
+id = "XIII.1"
+title = "The central computation"
+parent = "XIII"
+level = 3
+line_anchor = 6361
+attestation_class = "A"
+content_address = "29a4ff8843e05151598939b43e87e78263dd6937d4f23413ab4429ac4b36ee92"
+
+[[section]]
+id = "XIII.2"
+title = "Baptista at 7D"
+parent = "XIII"
+level = 3
+line_anchor = 6377
+attestation_class = "A"
+content_address = "990041ea4db1c82b14d636ebdc84f236f9874e152a1c15617ab130cf122cea9e"
+
+[[section]]
+id = "XIII.3"
+title = "The α(z) functional relationship"
+parent = "XIII"
+level = 3
+line_anchor = 6386
+attestation_class = "A"
+content_address = "ef28604f99d12f224769a00445701f4a2295a7cccde61c6beede4a84afa0888d"
+
+[[section]]
+id = "XIII.4"
+title = "The non-monotonic d_S flow on a specific cascade substrate"
+parent = "XIII"
+level = 3
+line_anchor = 6390
+attestation_class = "A"
+content_address = "6e9817da660933391c34f239512ef481957202a14fdae1379da06339d9bb26a8"
+
+[[section]]
+id = "XIII.5"
+title = "Cascade-substrate waveguide analog experiments"
+parent = "XIII"
+level = 3
+line_anchor = 6394
+attestation_class = "A"
+content_address = "20eb39fa5df7a4e7c7a68fa8a7e2bbfc357e5bd33576ff13f6ebb080e44f7ac7"
+
+[[section]]
+id = "XIII.6"
+title = "Convergent independent results to track"
+parent = "XIII"
+level = 3
+line_anchor = 6403
+attestation_class = "A"
+content_address = "db1fbd5674604d7de8e4f419a1155510f5f1cd5fab9510a6877a41e13282a3e9"
+
+[[section]]
+id = "XIV"
+title = "The MFO world-kernel + the navigation triality (RBS-LM PR #687 sweep, F627–F666)"
+parent = ""
+level = 2
+line_anchor = 6429
+attestation_class = "A"
+content_address = "0afd63790accfcb57f1e9652e4599354d22905899c62b846607aa6e8a595068b"
+
+[[section]]
+id = "XIV.1"
+title = "The MFO world-kernel (CANONICAL, 2026-06-08)"
+parent = "XIV"
+level = 3
+line_anchor = 6433
+attestation_class = "A"
+content_address = "5dd3515dec9e4cc252831984868242bd9ef85470b98327380b8f82a69cb0bea2"
+
+[[section]]
+id = "XIV.2"
+title = "The navigation triality (etak / board / flock = the_one's two languages + the bind)"
+parent = "XIV"
+level = 3
+line_anchor = 6436
+attestation_class = "A"
+content_address = "5b55fe686419c64122c368fdc3c406327222a2613ca6cbeba2b0de439e237649"
+
+[[section]]
+id = "XIV.3"
+title = "The lifting + the living stone + the glyph reading"
+parent = "XIV"
+level = 3
+line_anchor = 6439
+attestation_class = "A"
+content_address = "82e469221e120e9a142f626ee62d7adf7dcddaf3ad9304f065dcac45a8908a8d"
+
+[[section]]
+id = "XIV.4"
+title = "Compositional truth + the anchor dial"
+parent = "XIV"
+level = 3
+line_anchor = 6442
+attestation_class = "A"
+content_address = "4830e7c1fdf5dcaf2cc4e0512bf4d6c138d1e0e45d85ef42295d64d5fd53f265"
+

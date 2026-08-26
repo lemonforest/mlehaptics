@@ -1,0 +1,19 @@
+# F1178 (the FULL reconstruction pipeline wired end-to-end — GROUP → ALIGN → MAJORITY-CORRECT: a single damaged line loose in a mixed pool of parallel texts is reconstructed with **no external key** — F1176's grouping finds the parallels, F1177's k=3 majority aligns + corrects; end-to-end it corrects **21%** of corrupted operands unsupervised, bottlenecked at the GROUPING step (**0.62** — because in a self-similar genealogy adjacent verses share names AND cross-version operand-form variation (KJV "Judas" vs WEB "Judah") makes true parallels look *less* similar than neighbours — the op/operand distinction resurfacing: grouping on the operand is confounded, the shared OP/frame is the cleaner signal, which is exactly what F1176's spectral/structural grouping supplies)) — **user: "wire the full pipeline: group → align → majority-correct." DONE — end-to-end, unsupervised, with the honest bottleneck identified.**
+
+**Date:** 2026-07-09 · **srmech:** 0.7.5rc135 · **User direction:** wire the full pipeline. · **Corpus (attested):** 3 parallel translations of Matthew 1 (KJV/WEB/BBE), 75 verse-lines pooled, one operand corrupted per trial (341 trials). numpy-free; no magnitude-builtin. · **Composes:** F1176 (GROUP — the coupling-community finder), F1177 (ALIGN + MAJORITY-CORRECT — the k=3 operand-EC). **The arc's three reconstruction pieces run as one pass.**
+
+## The pipeline
+
+`reconstruct(damaged, pool, k)`: (1) **GROUP** — rank pool members by coupling-similarity to the damaged line's surviving content, take the top k−1 as its parallel-group (F1176; the spectral community is the fragmentary-case upgrade); (2) **ALIGN** — position-align the operand-slots across the group (order-preserving formulae/genealogies, F1177); (3) **CORRECT** — 2-of-k majority per slot, replacing the corrupted operand (F1177). No external key, no supervision — a loose damaged line finds its own parallels and self-corrects.
+
+## Result (341 operand-corruption trials)
+
+| stage | rate |
+|---|---|
+| (1) GROUPING — the 2 nearest pool lines ARE the true parallels | **0.62** |
+| (2) end-to-end CORRECTION — corrupted operand fixed | **0.21** |
+
+**The pipeline works end-to-end and unsupervised** — 21% of corruptions fixed with no key — but the honest bottleneck is **grouping (0.62)**, and *why* it's the bottleneck is the interesting part: in a genealogy the text is **self-similar** (verse v "X begat Y" and v+1 "Y begat Z" share a name), and cross-version **operand-form variation** (KJV's Greek forms Judas/Phares vs WEB/BBE's Hebrew Judah/Perez) makes a true parallel share *fewer* exact tokens with its own verse's other versions than an adjacent verse sometimes does. So grouping-by-operand-content is confounded exactly where the operand varies — the same op/operand split from F1175/F1177 resurfacing at the grouping stage. The fix is to group on the shared **OP** (the "___ begat ___" frame / structural position), which is what F1176's spectral coupling-community captures (it connects true parallels through the whole-verse structure, not just surface tokens).
+
+## Verdict / next
+**The full reconstruction pipeline is WIRED and runs end-to-end unsupervised (GROUP → ALIGN → MAJORITY-CORRECT), fixing 21% of corrupted operands in a mixed pool with no external key. The honest bottleneck is GROUPING (0.62), confounded by text self-similarity + cross-version operand-form variation — grouping-on-operand fails where the operand varies; grouping-on-OP (structure) is the fix, which is F1176's spectral community's domain. NEXT: swap the content-NN group step for F1176's spectral-structural community (group on the OP-frame, not the operand); package as a `siona` reconstruct helper; the literal Rosetta trilingual as the target. Read-independent-verified (grouping + correction separately measured); bible-api-attested; composes F1176/F1177.**

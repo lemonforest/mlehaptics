@@ -1,0 +1,237 @@
+{
+  "partition": "R-RBS-LM-47b",
+  "meta": {
+    "partition": "R-RBS-LM-47b",
+    "variant": "relationship_form_cascade_distill",
+    "source_corpus": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v29_distill_TinyLlama__TinyLlama-1.1B-Chat-v1.0.corpus.txt",
+    "source_bytes": 3596,
+    "rel_corpus_bytes": 3551,
+    "n_triples": 36,
+    "n_entities_mapped": 25,
+    "n_observations": 436,
+    "stride": 8,
+    "instrument_bytes": 1024,
+    "D": 8192,
+    "context_window_bytes": 64,
+    "vocab_size": 256,
+    "encode_seconds": 55.98,
+    "bundle_seconds": 0.79,
+    "extract_seconds": 0.0,
+    "pii_audit_suspects_in_wire_form": 0,
+    "framework_reading": "R-RBS-LM-47b: cascade-distill from relationship-form corpus. Per R-RBS-LM-43 two-substrate framework, relationships are M1-native (discrete-cyclic-algebra); the proper-noun naming layer is M2-instantiation cost. This instrument tests whether stripping the M2 cost from the input corpus preserves more retrievable cascade signal."
+  },
+  "results": {
+    "text_instr_text_probes": {
+      "corpus_size": 41,
+      "n_probes": 20,
+      "baseline": {
+        "mean": 0.0473,
+        "std": 0.0285,
+        "max": 0.1404,
+        "min": -0.0137,
+        "n_samples": 194
+      },
+      "stats": {
+        "n_probes": 20,
+        "n_found": 20,
+        "rank_1_count": 1,
+        "rank_1_rate": 0.05,
+        "top_quartile_count": 7,
+        "top_quartile_rate": 0.35,
+        "top_decile_count": 4,
+        "top_decile_rate": 0.2,
+        "mean_rank_percentile": 41.6,
+        "chi2_5bins": 2.0,
+        "p_estimate": ">0.10",
+        "rank_bins": [
+          6,
+          3,
+          5,
+          3,
+          3
+        ],
+        "rank_array": [
+          39,
+          18,
+          9,
+          19,
+          22,
+          2,
+          3,
+          5,
+          33,
+          17,
+          15,
+          25,
+          12,
+          40,
+          28,
+          27,
+          0,
+          2,
+          18,
+          7
+        ]
+      }
+    },
+    "rel_instr_text_probes": {
+      "corpus_size": 41,
+      "n_probes": 20,
+      "baseline": {
+        "mean": 0.0473,
+        "std": 0.0285,
+        "max": 0.1404,
+        "min": -0.0137,
+        "n_samples": 194
+      },
+      "stats": {
+        "n_probes": 20,
+        "n_found": 20,
+        "rank_1_count": 1,
+        "rank_1_rate": 0.05,
+        "top_quartile_count": 5,
+        "top_quartile_rate": 0.25,
+        "top_decile_count": 3,
+        "top_decile_rate": 0.15,
+        "mean_rank_percentile": 46.7,
+        "chi2_5bins": 1.0,
+        "p_estimate": ">0.10",
+        "rank_bins": [
+          4,
+          5,
+          3,
+          3,
+          5
+        ],
+        "rank_array": [
+          40,
+          35,
+          14,
+          18,
+          36,
+          1,
+          1,
+          27,
+          5,
+          10,
+          24,
+          36,
+          0,
+          37,
+          15,
+          26,
+          18,
+          18,
+          8,
+          14
+        ]
+      }
+    },
+    "text_instr_rel_probes": {
+      "corpus_size": 35,
+      "n_probes": 20,
+      "baseline": {
+        "mean": 0.0472,
+        "std": 0.0245,
+        "max": 0.1147,
+        "min": -0.0205,
+        "n_samples": 193
+      },
+      "stats": {
+        "n_probes": 20,
+        "n_found": 20,
+        "rank_1_count": 0,
+        "rank_1_rate": 0.0,
+        "top_quartile_count": 5,
+        "top_quartile_rate": 0.25,
+        "top_decile_count": 1,
+        "top_decile_rate": 0.05,
+        "mean_rank_percentile": 44.0,
+        "chi2_5bins": 3.5,
+        "p_estimate": ">0.10",
+        "rank_bins": [
+          4,
+          5,
+          4,
+          6,
+          1
+        ],
+        "rank_array": [
+          19,
+          10,
+          3,
+          8,
+          3,
+          21,
+          7,
+          2,
+          23,
+          21,
+          11,
+          20,
+          24,
+          13,
+          18,
+          18,
+          33,
+          21,
+          27,
+          6
+        ]
+      }
+    },
+    "rel_instr_rel_probes": {
+      "corpus_size": 35,
+      "n_probes": 20,
+      "baseline": {
+        "mean": 0.0472,
+        "std": 0.0245,
+        "max": 0.1147,
+        "min": -0.0205,
+        "n_samples": 193
+      },
+      "stats": {
+        "n_probes": 20,
+        "n_found": 20,
+        "rank_1_count": 1,
+        "rank_1_rate": 0.05,
+        "top_quartile_count": 6,
+        "top_quartile_rate": 0.3,
+        "top_decile_count": 4,
+        "top_decile_rate": 0.2,
+        "mean_rank_percentile": 43.4,
+        "chi2_5bins": 1.0,
+        "p_estimate": ">0.10",
+        "rank_bins": [
+          5,
+          5,
+          3,
+          4,
+          3
+        ],
+        "rank_array": [
+          13,
+          22,
+          19,
+          23,
+          2,
+          7,
+          19,
+          1,
+          32,
+          25,
+          1,
+          21,
+          16,
+          34,
+          12,
+          10,
+          30,
+          6,
+          11,
+          0
+        ]
+      }
+    }
+  }
+}

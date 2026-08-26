@@ -1,0 +1,325 @@
+{
+  "partition": "R-RBS-LM-53h",
+  "srmech_version": "0.4.2",
+  "corpora": {
+    "quran_sale": {
+      "family": "religious_abrahamic"
+    },
+    "quran_rodwell": {
+      "family": "religious_abrahamic"
+    },
+    "kjv_ot": {
+      "family": "religious_abrahamic"
+    },
+    "kjv_nt": {
+      "family": "religious_abrahamic"
+    },
+    "bhagavad": {
+      "family": "religious_eastern"
+    },
+    "tao": {
+      "family": "religious_eastern"
+    },
+    "dhamma": {
+      "family": "religious_eastern"
+    },
+    "shakespeare": {
+      "family": "secular_drama"
+    },
+    "origin": {
+      "family": "secular_science"
+    },
+    "frankenstein": {
+      "family": "secular_novel"
+    },
+    "plato": {
+      "family": "secular_philosophy"
+    },
+    "whitman": {
+      "family": "secular_poetry"
+    },
+    "alice": {
+      "family": "secular_children"
+    },
+    "sherlock": {
+      "family": "secular_detective"
+    }
+  },
+  "pairwise_matrix": {
+    "quran_sale": {
+      "quran_sale": 1.0,
+      "quran_rodwell": 0.3923,
+      "kjv_ot": 0.2351,
+      "kjv_nt": 0.2239,
+      "bhagavad": 0.1802,
+      "tao": 0.2007,
+      "dhamma": 0.1658,
+      "shakespeare": 0.1145,
+      "origin": 0.1169,
+      "frankenstein": 0.1641,
+      "plato": 0.1909,
+      "whitman": 0.1594,
+      "alice": 0.1077,
+      "sherlock": 0.1748
+    },
+    "quran_rodwell": {
+      "quran_sale": 0.3923,
+      "quran_rodwell": 1.0,
+      "kjv_ot": 0.2368,
+      "kjv_nt": 0.2266,
+      "bhagavad": 0.2097,
+      "tao": 0.1853,
+      "dhamma": 0.1611,
+      "shakespeare": 0.1519,
+      "origin": 0.0806,
+      "frankenstein": 0.1702,
+      "plato": 0.1643,
+      "whitman": 0.1699,
+      "alice": 0.1035,
+      "sherlock": 0.196
+    },
+    "kjv_ot": {
+      "quran_sale": 0.2351,
+      "quran_rodwell": 0.2368,
+      "kjv_ot": 1.0,
+      "kjv_nt": 0.4277,
+      "bhagavad": 0.1384,
+      "tao": 0.0955,
+      "dhamma": 0.1328,
+      "shakespeare": 0.2051,
+      "origin": 0.0308,
+      "frankenstein": 0.1667,
+      "plato": 0.1155,
+      "whitman": 0.1753,
+      "alice": 0.1484,
+      "sherlock": 0.2371
+    },
+    "kjv_nt": {
+      "quran_sale": 0.2239,
+      "quran_rodwell": 0.2266,
+      "kjv_ot": 0.4277,
+      "kjv_nt": 1.0,
+      "bhagavad": 0.2156,
+      "tao": 0.176,
+      "dhamma": 0.165,
+      "shakespeare": 0.2324,
+      "origin": 0.0557,
+      "frankenstein": 0.2063,
+      "plato": 0.177,
+      "whitman": 0.2158,
+      "alice": 0.1846,
+      "sherlock": 0.2356
+    },
+    "bhagavad": {
+      "quran_sale": 0.1802,
+      "quran_rodwell": 0.2097,
+      "kjv_ot": 0.1384,
+      "kjv_nt": 0.2156,
+      "bhagavad": 1.0,
+      "tao": 0.187,
+      "dhamma": 0.1863,
+      "shakespeare": 0.2556,
+      "origin": 0.0837,
+      "frankenstein": 0.1875,
+      "plato": 0.1919,
+      "whitman": 0.2722,
+      "alice": 0.0916,
+      "sherlock": 0.1392
+    },
+    "tao": {
+      "quran_sale": 0.2007,
+      "quran_rodwell": 0.1853,
+      "kjv_ot": 0.0955,
+      "kjv_nt": 0.176,
+      "bhagavad": 0.187,
+      "tao": 1.0,
+      "dhamma": 0.22,
+      "shakespeare": 0.158,
+      "origin": 0.0876,
+      "frankenstein": 0.1367,
+      "plato": 0.1948,
+      "whitman": 0.2478,
+      "alice": 0.1047,
+      "sherlock": 0.1221
+    },
+    "dhamma": {
+      "quran_sale": 0.1658,
+      "quran_rodwell": 0.1611,
+      "kjv_ot": 0.1328,
+      "kjv_nt": 0.165,
+      "bhagavad": 0.1863,
+      "tao": 0.22,
+      "dhamma": 1.0,
+      "shakespeare": 0.1118,
+      "origin": 0.0537,
+      "frankenstein": 0.1331,
+      "plato": 0.2019,
+      "whitman": 0.1626,
+      "alice": 0.0786,
+      "sherlock": 0.0676
+    },
+    "shakespeare": {
+      "quran_sale": 0.1145,
+      "quran_rodwell": 0.1519,
+      "kjv_ot": 0.2051,
+      "kjv_nt": 0.2324,
+      "bhagavad": 0.2556,
+      "tao": 0.158,
+      "dhamma": 0.1118,
+      "shakespeare": 1.0,
+      "origin": 0.1133,
+      "frankenstein": 0.1521,
+      "plato": 0.2205,
+      "whitman": 0.2822,
+      "alice": 0.2212,
+      "sherlock": 0.2854
+    },
+    "origin": {
+      "quran_sale": 0.1169,
+      "quran_rodwell": 0.0806,
+      "kjv_ot": 0.0308,
+      "kjv_nt": 0.0557,
+      "bhagavad": 0.0837,
+      "tao": 0.0876,
+      "dhamma": 0.0537,
+      "shakespeare": 0.1133,
+      "origin": 1.0,
+      "frankenstein": 0.115,
+      "plato": 0.1736,
+      "whitman": 0.127,
+      "alice": 0.0771,
+      "sherlock": 0.1189
+    },
+    "frankenstein": {
+      "quran_sale": 0.1641,
+      "quran_rodwell": 0.1702,
+      "kjv_ot": 0.1667,
+      "kjv_nt": 0.2063,
+      "bhagavad": 0.1875,
+      "tao": 0.1367,
+      "dhamma": 0.1331,
+      "shakespeare": 0.1521,
+      "origin": 0.115,
+      "frankenstein": 1.0,
+      "plato": 0.1968,
+      "whitman": 0.2913,
+      "alice": 0.1453,
+      "sherlock": 0.1953
+    },
+    "plato": {
+      "quran_sale": 0.1909,
+      "quran_rodwell": 0.1643,
+      "kjv_ot": 0.1155,
+      "kjv_nt": 0.177,
+      "bhagavad": 0.1919,
+      "tao": 0.1948,
+      "dhamma": 0.2019,
+      "shakespeare": 0.2205,
+      "origin": 0.1736,
+      "frankenstein": 0.1968,
+      "plato": 1.0,
+      "whitman": 0.1995,
+      "alice": 0.1667,
+      "sherlock": 0.2065
+    },
+    "whitman": {
+      "quran_sale": 0.1594,
+      "quran_rodwell": 0.1699,
+      "kjv_ot": 0.1753,
+      "kjv_nt": 0.2158,
+      "bhagavad": 0.2722,
+      "tao": 0.2478,
+      "dhamma": 0.1626,
+      "shakespeare": 0.2822,
+      "origin": 0.127,
+      "frankenstein": 0.2913,
+      "plato": 0.1995,
+      "whitman": 1.0,
+      "alice": 0.1909,
+      "sherlock": 0.2542
+    },
+    "alice": {
+      "quran_sale": 0.1077,
+      "quran_rodwell": 0.1035,
+      "kjv_ot": 0.1484,
+      "kjv_nt": 0.1846,
+      "bhagavad": 0.0916,
+      "tao": 0.1047,
+      "dhamma": 0.0786,
+      "shakespeare": 0.2212,
+      "origin": 0.0771,
+      "frankenstein": 0.1453,
+      "plato": 0.1667,
+      "whitman": 0.1909,
+      "alice": 1.0,
+      "sherlock": 0.2976
+    },
+    "sherlock": {
+      "quran_sale": 0.1748,
+      "quran_rodwell": 0.196,
+      "kjv_ot": 0.2371,
+      "kjv_nt": 0.2356,
+      "bhagavad": 0.1392,
+      "tao": 0.1221,
+      "dhamma": 0.0676,
+      "shakespeare": 0.2854,
+      "origin": 0.1189,
+      "frankenstein": 0.1953,
+      "plato": 0.2065,
+      "whitman": 0.2542,
+      "alice": 0.2976,
+      "sherlock": 1.0
+    }
+  },
+  "family_avg": {
+    "religious_abrahamic": {
+      "within": 0.2904,
+      "cross": 0.1619275,
+      "n_within": 6
+    },
+    "religious_eastern": {
+      "within": 0.19776666666666665,
+      "cross": 0.1548121212121212,
+      "n_within": 3
+    },
+    "secular_children": {
+      "within": null,
+      "cross": 0.14753076923076922,
+      "n_within": 0
+    },
+    "secular_detective": {
+      "within": null,
+      "cross": 0.19463846153846154,
+      "n_within": 0
+    },
+    "secular_drama": {
+      "within": null,
+      "cross": 0.1926153846153846,
+      "n_within": 0
+    },
+    "secular_novel": {
+      "within": null,
+      "cross": 0.1738769230769231,
+      "n_within": 0
+    },
+    "secular_philosophy": {
+      "within": null,
+      "cross": 0.1846076923076923,
+      "n_within": 0
+    },
+    "secular_poetry": {
+      "within": null,
+      "cross": 0.21139230769230768,
+      "n_within": 0
+    },
+    "secular_science": {
+      "within": null,
+      "cross": 0.09491538461538461,
+      "n_within": 0
+    }
+  },
+  "overall_within": 0.2595222222222222,
+  "overall_cross": 0.1657341463414634,
+  "coherence_ratio": 1.565894705171537,
+  "verdict": "MODERATE family-clustering \u2014 form-categories visible; some cross-family overlap"
+}

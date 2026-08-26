@@ -1,0 +1,42 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "N": 8,
+  "anchor": 1,
+  "reached": [
+    2,
+    4
+  ],
+  "out_nbr_anchor": [
+    2,
+    4
+  ],
+  "reached2": [
+    3,
+    5
+  ],
+  "expect2": [
+    3,
+    5
+  ],
+  "relocated_ok": true,
+  "new_diag_ok": true,
+  "back_directed": false,
+  "back_symmetric": true,
+  "frontiers": [
+    [
+      2,
+      4
+    ],
+    [
+      3,
+      5
+    ],
+    [
+      6
+    ],
+    [
+      7
+    ]
+  ],
+  "genuine_relocation": true
+}

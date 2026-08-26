@@ -1,0 +1,227 @@
+{
+  "partition": "R-RBS-LM-52a-v2",
+  "phase": "A-v2 \u2014 mint_vector + bundle (corrected encoding)",
+  "srmech_version": "0.4.2",
+  "n_tokens": 117008,
+  "n_unique": 14284,
+  "vocab_size": 200,
+  "vocab_top_10": [
+    [
+      "spike",
+      1992
+    ],
+    [
+      "class",
+      1822
+    ],
+    [
+      "substrate",
+      1093
+    ],
+    [
+      "vii",
+      755
+    ],
+    [
+      "cascade",
+      663
+    ],
+    [
+      "framework",
+      641
+    ],
+    [
+      "same",
+      581
+    ],
+    [
+      "canonical",
+      480
+    ],
+    [
+      "d_s",
+      479
+    ],
+    [
+      "d_g",
+      430
+    ]
+  ],
+  "n_edges": 15950,
+  "K": 33,
+  "M_per_eigenvec": 21,
+  "instrument_bytes": 1024,
+  "baseline_mean": 0.00660888671875,
+  "baseline_std": 0.01697110167869618,
+  "baseline_max": 0.069580078125,
+  "baseline_min": -0.02783203125,
+  "notebook_probes": [
+    {
+      "probe": "two substrate framework",
+      "similarity": 0.106201171875,
+      "z_score": 5.868345322641497,
+      "above_baseline_max": true
+    },
+    {
+      "probe": "class l spine spectral",
+      "similarity": 0.05517578125,
+      "z_score": 2.861740825712924,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "born hopf readout",
+      "similarity": 0.002197265625,
+      "z_score": -0.2599490108110015,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "operation primary cyclic algebra",
+      "similarity": 0.001953125,
+      "z_score": -0.2743346782604206,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "geometry primary continuous hopf",
+      "similarity": 0.006103515625,
+      "z_score": -0.029778331620297357,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "epistemic ceiling form not substrate",
+      "similarity": 0.006591796875,
+      "z_score": -0.0010069967214593348,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "B/H/N readout projection",
+      "similarity": -0.00732421875,
+      "z_score": -0.820990041338343,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "fractal recursion substrate",
+      "similarity": 0.022705078125,
+      "z_score": 0.9484470549401955,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "Hopf fibration division algebra",
+      "similarity": 0.0048828125,
+      "z_score": -0.10170666886739242,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "Class N rational anchor",
+      "similarity": 0.083740234375,
+      "z_score": 4.544863917294949,
+      "above_baseline_max": true
+    },
+    {
+      "probe": "weak coupling truncate instrument",
+      "similarity": 0.006591796875,
+      "z_score": -0.0010069967214593348,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "metric field ontology",
+      "similarity": 0.026611328125,
+      "z_score": 1.1786177341308997,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "cascade match form claim",
+      "similarity": 0.080078125,
+      "z_score": 4.329078905553663,
+      "above_baseline_max": true
+    },
+    {
+      "probe": "cross substrate matching",
+      "similarity": 0.036865234375,
+      "z_score": 1.7828157670064981,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "Reading-D scale ladder",
+      "similarity": 0.070556640625,
+      "z_score": 3.7680378750263217,
+      "above_baseline_max": true
+    },
+    {
+      "probe": "Kaluza Klein photon off diagonal metric",
+      "similarity": 0.019287109375,
+      "z_score": 0.7470477106483293,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "combination principle dissociation",
+      "similarity": 0.000244140625,
+      "z_score": -0.37503435040635363,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "L-system seed grammar",
+      "similarity": -0.010009765625,
+      "z_score": -0.9792323832819521,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "biology cascade encoding",
+      "similarity": 0.056396484375,
+      "z_score": 2.933669162960019,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "AMSC attestation provenance",
+      "similarity": -0.00927734375,
+      "z_score": -0.936075380933695,
+      "above_baseline_max": false
+    }
+  ],
+  "negative_probes": [
+    {
+      "probe": "chocolate ice cream flavor",
+      "similarity": 0.0048828125,
+      "z_score": -0.10170666886739242,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "professional soccer match score",
+      "similarity": -0.0029296875,
+      "z_score": -0.5620480272488008,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "kitchen pencil sharpener metal",
+      "similarity": -0.001708984375,
+      "z_score": -0.49011969000170574,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "tropical rainforest humidity bright",
+      "similarity": 0.007080078125,
+      "z_score": 0.027764338177378688,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "vintage automobile manufacturing",
+      "similarity": -0.002197265625,
+      "z_score": -0.5188910249005437,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "ocean coral reef colorful",
+      "similarity": 0.005615234375,
+      "z_score": -0.05854966651913538,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "morning coffee croissant breakfast",
+      "similarity": 0.0078125,
+      "z_score": 0.07092134052563573,
+      "above_baseline_max": false
+    }
+  ],
+  "n_above_max_notebook": 4,
+  "n_above_max_negative": 0,
+  "verdict": "SIGNAL \u2014 methodology shows positive signal"
+}

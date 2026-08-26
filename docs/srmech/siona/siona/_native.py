@@ -1,0 +1,332 @@
+"""siona._native — the ctypes shim for Siona's native plugin (libsiona_native.so).
+
+Mirrors srmech's own ``srmech._native`` pattern: locate the shared library
+inside the package's ``_native/`` dir, verify the ABI handshake, expose
+``HAS_NATIVE`` + wrapped symbols, and provide a pure-Python REFERENCE twin for
+every native op so the surface works identically with or without the ``.so``
+(the has_native dispatch pattern). srmech's ``profile_loader`` loads the SAME
+library independently as ``srmech.profile("siona").native``; this module is
+Siona's own internal dispatch path.
+
+Scaffold op: FNV-1a-64 content hash (the bytes->int shape the tokenize /
+content-address hot-path needs). ``fnv1a64(data)`` dispatches to the native
+symbol when present, else to the validated pure-Python ``_fnv1a64_py``.
+Parity (native == python, bit-for-bit) is asserted by tests/test_native_parity.py.
+"""
+from __future__ import annotations
+
+import array as _array
+import ctypes
+from pathlib import Path
+from typing import Optional
+
+EXPECTED_ABI_VERSION = 1
+_U64_MASK = (1 << 64) - 1
+_FNV64_OFFSET_BASIS = 14695981039346656037
+_FNV64_PRIME = 1099511628211
+
+HAS_NATIVE: bool = False
+LOAD_ERROR: Optional[str] = None
+NATIVE_ABI_VERSION: Optional[int] = None
+LIB_PATH: Optional[str] = None
+
+_LIB: Optional[ctypes.CDLL] = None
+
+
+def _candidate_names() -> tuple[str, ...]:
+    import sys
+    if sys.platform == "win32":
+        return ("siona_native.dll", "libsiona_native.dll")
+    if sys.platform == "darwin":
+        return ("libsiona_native.dylib",)
+    return ("libsiona_native.so",)
+
+
+def _load() -> None:
+    """Locate + bind libsiona_native, run the ABI handshake. On any failure
+    HAS_NATIVE stays False and LOAD_ERROR is populated (pure-Python fallback)."""
+    global HAS_NATIVE, LOAD_ERROR, NATIVE_ABI_VERSION, LIB_PATH, _LIB
+    native_dir = Path(__file__).resolve().parent / "_native"
+    names = _candidate_names()
+    lib_path = next((native_dir / n for n in names if (native_dir / n).exists()), None)
+    if lib_path is None:
+        LOAD_ERROR = f"no {names} in {native_dir}"
+        return
+    try:
+        lib = ctypes.CDLL(str(lib_path))
+        lib.siona_native_abi_version.argtypes = []
+        lib.siona_native_abi_version.restype = ctypes.c_int
+        observed = int(lib.siona_native_abi_version())
+        if observed != EXPECTED_ABI_VERSION:
+            LOAD_ERROR = f"ABI {observed} != expected {EXPECTED_ABI_VERSION}"
+            return
+        lib.siona_native_fnv1a64.argtypes = [ctypes.c_char_p, ctypes.c_size_t]
+        lib.siona_native_fnv1a64.restype = ctypes.c_uint64
+        lib.siona_native_tokenize.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_int32), ctypes.c_size_t]
+        lib.siona_native_tokenize.restype = ctypes.c_long
+        lib.siona_native_cooccurrence_accumulate.argtypes = [
+            ctypes.POINTER(ctypes.c_int32), ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_int32), ctypes.c_size_t, ctypes.c_int,
+            ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint32),
+            ctypes.c_size_t]
+        lib.siona_native_cooccurrence_accumulate.restype = ctypes.c_long
+        lib.siona_native_arena_compact.argtypes = [
+            ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint32),
+            ctypes.c_size_t, ctypes.POINTER(ctypes.c_int32),
+            ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_uint32),
+            ctypes.c_size_t]
+        lib.siona_native_arena_compact.restype = ctypes.c_long
+        lib.siona_native_cooccurrence_laplacian.argtypes = [
+            ctypes.POINTER(ctypes.c_int32), ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_int32), ctypes.c_size_t, ctypes.c_int,
+            ctypes.POINTER(ctypes.c_int32), ctypes.c_size_t, ctypes.c_int32,
+            ctypes.POINTER(ctypes.c_double)]
+        lib.siona_native_cooccurrence_laplacian.restype = ctypes.c_long
+    except (OSError, AttributeError) as exc:
+        LOAD_ERROR = f"{type(exc).__name__}: {exc}"
+        return
+    _LIB = lib
+    NATIVE_ABI_VERSION = observed
+    LIB_PATH = str(lib_path)
+    HAS_NATIVE = True
+
+
+def _fnv1a64_py(data: bytes) -> int:
+    """The validated pure-Python reference (the fallback + the parity oracle)."""
+    h = _FNV64_OFFSET_BASIS
+    for b in data:
+        h = ((h ^ b) * _FNV64_PRIME) & _U64_MASK
+    return h
+
+
+def fnv1a64(data: bytes) -> int:
+    """FNV-1a-64 content hash — native when available, else pure-Python."""
+    if HAS_NATIVE and _LIB is not None:
+        return int(_LIB.siona_native_fnv1a64(data, len(data)))
+    return _fnv1a64_py(data)
+
+
+# ── tokenize (byte-scan word boundaries) ───────────────────────────────
+def _is_word_byte(c: int) -> bool:
+    return (48 <= c <= 57) or (97 <= c <= 122) or (65 <= c <= 90) or c >= 0x80
+
+
+def _tokenize_spans_py(data: bytes) -> list:
+    """Pure-Python reference: (start, length) byte-spans of tokens."""
+    out, i, n = [], 0, len(data)
+    while i < n:
+        while i < n and not _is_word_byte(data[i]):
+            i += 1
+        if i >= n:
+            break
+        s = i
+        while i < n and _is_word_byte(data[i]):
+            i += 1
+        out.append((s, i - s))
+    return out
+
+
+def tokenize_spans(data: bytes) -> list:
+    """(start, length) token byte-spans — native scan when available."""
+    if HAS_NATIVE and _LIB is not None:
+        n = len(data)
+        cap = n // 2 + 2                       # >= max possible tokens
+        buf = (ctypes.c_int32 * (2 * cap))()
+        got = int(_LIB.siona_native_tokenize(data, n, buf, cap))
+        if got >= 0:
+            return [(buf[2 * k], buf[2 * k + 1]) for k in range(got)]
+    return _tokenize_spans_py(data)
+
+
+def tokenize(text) -> list:
+    """Lowercased token strings (span-scan + slice + casefold)."""
+    data = text.encode("utf-8") if isinstance(text, str) else bytes(text)
+    return [data[s:s + ln].decode("utf-8", "replace").lower()
+            for s, ln in tokenize_spans(data)]
+
+
+# ── windowed co-occurrence (tokens -> edge weights; the encode hot loop) ─
+def flatten_docs(docs) -> tuple:
+    """[[id,...], ...] -> (token_ids, doc_ends) with cumulative exclusive ends."""
+    token_ids, doc_ends, cum = [], [], 0
+    for d in docs:
+        token_ids.extend(d)
+        cum += len(d)
+        doc_ends.append(cum)
+    return token_ids, doc_ends
+
+
+def _cooccurrence_counts_py(token_ids, doc_ends, window) -> dict:
+    """The validated reference: {(i, j): count}, i < j, window resets per doc."""
+    counts, start, n = {}, 0, len(token_ids)
+    for raw_end in doc_ends:
+        end = raw_end if raw_end <= n else n
+        for a in range(start, end):
+            ia = token_ids[a]
+            bmax = min(a + window, end - 1)
+            for b in range(a + 1, bmax + 1):
+                jb = token_ids[b]
+                if ia == jb:
+                    continue
+                key = (ia, jb) if ia < jb else (jb, ia)
+                counts[key] = counts.get(key, 0) + 1
+        start = end
+    return counts
+
+
+def _next_pow2(x: int) -> int:
+    p = 1
+    while p < x:
+        p <<= 1
+    return p
+
+
+def _as_c_int32(seq):
+    """Python int-seq -> (backing, c_int32 ptr). Buffer-protocol when itemsize
+    matches (avoids per-element ctypes unpacking); returns backing to keep alive."""
+    a = _array.array("i", seq)
+    if a.itemsize == 4:
+        return a, (ctypes.c_int32 * len(a)).from_buffer(a)
+    ca = (ctypes.c_int32 * len(seq))(*seq)
+    return ca, ca
+
+
+def _cooccurrence_native_edges(token_ids, doc_ends, window):
+    """Native accumulate + C-side compact. Returns (i_list, j_list, w_list) with
+    the arena read back IN C (never a Python scan of the sparse arena), or None
+    to fall back (arena / output overflow, or arena too big to allocate)."""
+    n = len(token_ids)
+    cap = _next_pow2(max(16, 2 * n * window))  # loose upper bound on pairs
+    if cap > (1 << 26):                        # too big -> let Python handle
+        return None
+    _kt, tid = _as_c_int32(token_ids)
+    _kd, de = _as_c_int32(doc_ends)
+    keys = (ctypes.c_uint64 * cap)()
+    ctypes.memset(keys, 0xFF, cap * 8)         # prefill to ARENA_EMPTY
+    vals = (ctypes.c_uint32 * cap)()
+    got = int(_LIB.siona_native_cooccurrence_accumulate(
+        tid, n, de, len(doc_ends), window, keys, vals, cap))
+    if got < 0:
+        return None                            # arena full -> fall back
+    if got == 0:
+        return _array.array("i"), _array.array("i"), _array.array("I")
+    # P0 (Fable): compact straight INTO array() buffers via from_buffer — a zero-copy
+    # readback. The old `oi[:m]` ctypes slice built ~m per-element PyLong ints (the real
+    # bottleneck, ~60-75% of native wall time at 800k edges); array buffers skip it and
+    # keep the result as a dense buffer the fused/Laplacian path can consume without
+    # per-edge Python objects.
+    oi = _array.array("i", bytes(4 * got))
+    oj = _array.array("i", bytes(4 * got))
+    ow = _array.array("I", bytes(4 * got))
+    m = int(_LIB.siona_native_arena_compact(
+        keys, vals, cap, (ctypes.c_int32 * got).from_buffer(oi),
+        (ctypes.c_int32 * got).from_buffer(oj),
+        (ctypes.c_uint32 * got).from_buffer(ow), got))
+    if m < 0:
+        return None
+    return oi, oj, ow                          # array('i')/('I') buffers, not lists
+
+
+def _cooccurrence_counts_native(token_ids, doc_ends, window):
+    """Native accumulator returning the counts dict (parity shape), or None."""
+    res = _cooccurrence_native_edges(token_ids, doc_ends, window)
+    if res is None:
+        return None
+    ii, jj, ww = res
+    return {(ii[k], jj[k]): ww[k] for k in range(len(ii))}
+
+
+def cooccurrence_edges_parallel(token_ids, doc_ends, window=2) -> tuple:
+    """Windowed co-occurrence -> THREE PARALLEL lists (i_list, j_list, w_list),
+    each edge (i_list[k], j_list[k]) with i < j, weight w_list[k]. ORDER UNSPECIFIED.
+
+    THIS is the fast form — it keeps the native win (~1.3x in the encode's
+    large-vocab regime) because it never builds Python (i, j) tuples or a dict.
+    Feed the three arrays straight to a Laplacian builder. The FFI lesson: the edge
+    list is Theta(input) for a large vocabulary, so ANY per-edge Python
+    materialisation (dict rebuild 0.6x, tuple list ~0.9x, sort 0.55x) gives the C
+    win back — the pipeline pays off only while the data stays dense/native (which
+    is why tokens->edges->laplacian wants to stay together in C). Native when the
+    lib is present + the arena fits; pure-Python fallback otherwise.
+    """
+    token_ids, doc_ends = list(token_ids), list(doc_ends)
+    if HAS_NATIVE and _LIB is not None:
+        res = _cooccurrence_native_edges(token_ids, doc_ends, window)
+        if res is not None:
+            return res
+    counts = _cooccurrence_counts_py(token_ids, doc_ends, window)
+    return (_array.array("i", [k[0] for k in counts]),
+            _array.array("i", [k[1] for k in counts]),
+            _array.array("I", counts.values()))
+
+
+def cooccurrence_edges(token_ids, doc_ends, window=2) -> tuple:
+    """Convenience: (edges, weights) with edges as (i, j) tuples. Prefer
+    cooccurrence_edges_parallel() for speed — building the (i, j) tuples here is
+    the per-edge Python cost that erases the native win for a large vocabulary."""
+    ii, jj, ww = cooccurrence_edges_parallel(token_ids, doc_ends, window)
+    return list(zip(ii, jj)), ww
+
+
+_MAX_SUBSET = 4096  # matches SIONA_NATIVE_MAX_SUBSET
+
+
+def cooccurrence_laplacian(token_ids, doc_ends, subset, window=2, vocab_size=None):
+    """FUSED (P1): tokens -> the dense Class-L Laplacian (a srmech ``Mat``) of the
+    windowed co-occurrence subgraph restricted to ``subset`` (vocab-ids; keep <=256
+    to feed ``symmetric_eigendecompose`` natively).
+
+    The Theta(input) full-vocab edge list NEVER crosses the ctypes boundary: the C op
+    accumulates the subset adjacency directly from the token stream and writes L = D - A
+    into an ``array('d')`` that IS srmech's ``Mat`` wire form (wrapped zero-copy). The
+    pure-Python fallback composes ``cooccurrence_edges_parallel`` + ``dense_laplacian``
+    to the SAME Mat (bit-for-bit; integer counts are exact float64). Returns the ``Mat``,
+    ready for ``srmech.math.laplacian.symmetric_eigendecompose``.
+    """
+    from srmech.math.mat import Mat
+    token_ids, doc_ends, subset = list(token_ids), list(doc_ends), list(subset)
+    n_sub = len(subset)
+    if vocab_size is None:
+        vocab_size = (max(subset) + 1) if subset else 0
+
+    if HAS_NATIVE and _LIB is not None and 0 < n_sub <= _MAX_SUBSET:
+        node_map = _array.array("i", b"\xff\xff\xff\xff" * vocab_size)   # all -1
+        for k, vid in enumerate(subset):
+            node_map[vid] = k
+        out_L = _array.array("d", bytes(8 * n_sub * n_sub))
+        _kt, tid = _as_c_int32(token_ids)
+        _kd, de = _as_c_int32(doc_ends)
+        nm = (ctypes.c_int32 * vocab_size).from_buffer(node_map)
+        cL = (ctypes.c_double * (n_sub * n_sub)).from_buffer(out_L)
+        _LIB.siona_native_cooccurrence_laplacian(
+            tid, len(token_ids), de, len(doc_ends), window,
+            nm, vocab_size, n_sub, cL)
+        return Mat(out_L, n_sub, n_sub)
+
+    # fallback: compose cooccurrence + dense_laplacian to the same Mat
+    from srmech.math import laplacian as _lap
+    pos = {vid: k for k, vid in enumerate(subset)}
+    ii, jj, ww = cooccurrence_edges_parallel(token_ids, doc_ends, window)
+    edges, weights = [], []
+    for a in range(len(ii)):
+        ka, kb = pos.get(ii[a]), pos.get(jj[a])
+        if ka is not None and kb is not None:
+            edges.append((ka, kb))
+            weights.append(float(ww[a]))
+    return _lap.dense_laplacian(n_sub, edges, weights)
+
+
+def native_status() -> dict:
+    """Public introspection — mirrors srmech.native_status()."""
+    return {
+        "has_native": HAS_NATIVE,
+        "abi_version": NATIVE_ABI_VERSION,
+        "expected_abi": EXPECTED_ABI_VERSION,
+        "library_path": LIB_PATH,
+        "load_error": LOAD_ERROR,
+    }
+
+
+_load()

@@ -1,0 +1,36 @@
+# F850 — The knowledge metric has MULTIPLE forces with DIFFERENT attractors (measured), and the substrate↔walk relation is the two-truths DUALITY at the dynamical level. **Gravity** (symmetric Laplacian) attracts toward the **function-word masses** (`a, or, is, in, an` — the operators/curvature); **magnetic** (magnetic Laplacian, q=0.25) attracts along the **directed circulation** carried by *different* tokens (`applications, many, have, steel, out` — the content flow). Gravity ground state 0.0000 (blind to direction); magnetic ground state 0.0366 — the directed flux gravity can't see; **the loops are directed cycles = magnetic charge.** The etak walk needs to navigate by the magnetic current (along cosmic-web filaments) not just gravity (which captures into clusters). The frame question — substrate-fixed vs walk-fixed — is the field↔excitation duality (DUALITY.md); "both frames unfixed" = co-evolution = the un-collapsed asymptote (the triality coupling, F400/F401). srmech Class-L, 0.8.2rc1, numpy-absent.
+
+**Date:** 2026-06-18 · **srmech:** 0.8.2rc1 · **Provenance:** `/tmp/magnetic_force.py` (`srmech.amsc.laplacian.{dense_laplacian, magnetic_laplacian, symmetric_eigendecompose, hermitian_eigendecompose}`) on the directed bigram graph of a simplewiki article · **Composes:** F849 (gravity = mass-attraction), [[F782]] (hub-lensing, cosmic-web), [[Finding 131]] (dark-sector check — no corrections then), F357/F372 (magnetic/directed Laplacian), DUALITY.md (field↔excitation two-truths) + TRIALITY.md (k=3 completion; F400/F401), [[user_stance_no_information_without_value]], [[user_stance_cross_substrate_cascade_matching_as_research_method]], [[user_stance_framework_hands_the_next_question_to_the_expert]] · **User direction (2026-06-18):** "different attractors for different forces … etak walk needs to know how to move through cosmic webs … dark-sector force equivalent may guide us … measure with magnetic forces … view both frames [substrate + walk] unfixed."
+
+## Measured force taxonomy (one directed bigram graph, two operators)
+| force | operator | ground state | attractors (top) |
+|---|---|---|---|
+| **gravity** (mass) | symmetric Laplacian (q=0) | 0.0000 | `a, or, is, in, an` (function-word masses) |
+| **magnetic** (circulation) | magnetic Laplacian (q=0.25) | 0.0366 | `applications, many, have, steel, out` (flow carriers) |
+- Gravity sees mass/degree, **blind to direction**; magnetic sees the **directed flux through cycles** (the q≠0 phase lifts the zero mode — Aharonov-Bohm-like). Smoke: a pure directed 3-cycle has gravity ground state 0.000 but magnetic 0.134.
+- **Different forces ⇒ different attractors** (the two top-lists barely overlap). Ties to the operator/operand stance: gravity pulls to the **operators** (function words = the curvature/background); magnetic flows with the **operands** (content = the current).
+- **The loops (F849 orbital capture) are directed cycles ⇒ magnetic features** — gravity can't even see them; the magnetic Laplacian does.
+
+## The force zoo (srmech operators already present)
+- **Gravity** = `dense_laplacian` (symmetric degree = mass). Attractor: hubs. Capture: drift/wells (F849).
+- **Magnetic / EM** = `magnetic_laplacian` (directed flux; the γ₅ time-direction axis is this). Attractor: circulation. This is the **current that carries the walk along filaments** — how to move THROUGH the cosmic web instead of falling IN.
+- **Signed / repulsion** = `signed_laplacian` (negative edges = anti-association). A repulsive force (yet to probe).
+- **Dark sector** = the guiding structure NOT explained by visible mass+circulation — the residual after gravity+magnetic (cf. dark matter inferred from the rotation-curve gap). [[Finding 131]] found no corrections at that scale; with the force-frame, the probe is the **gap between the walk's behavior and the gravity+magnetic prediction** — and the **void structure** (what's absent guides, as voids shape the cosmic web). "Something we haven't noticed to try to find."
+
+## Cosmic-web navigation (the answer to "move through cosmic webs")
+F781 classifies nodes into void/filament/wall/cluster by local eigen-count. Gravity pulls the walk INTO clusters (mass-capture = the drift/loops). **Magnetic is the current along filaments** that carries the walk between clusters without falling in. So coherent long-range generation = ride the magnetic current along filaments, only dipping into a cluster (domain) when the context routes there (F848). Navigating = gravity (which domain's well) + magnetic (the directed path through) + the web environment (F781).
+
+## The frame question — the deepest point (DUALITY.md / TRIALITY.md)
+Two frames: the **substrate surface** (the field — the metric, masses, curvature) and the **etak walk** (the excitation — the trajectory on it). This is the MFO **field↔excitation two-truths** (DUALITY.md, F399):
+- **Fix the substrate** → privilege the field; watch the walk drift in a static metric (what F849 did). The "field truth."
+- **Fix the walk** → privilege the excitation; the substrate flows past the observer. The "excitation truth."
+- **Both unfixed** → neither privileged = the **un-collapsed asymptote** (F398). Dynamically this is **co-evolution**: the walk reshapes the metric as it binds (mass accretes where it goes) AND the metric guides the walk — Wheeler's matter↔geometry loop, the Einstein-equation coupling. Per **F400/F401**, the asymptote IS the **triality coupling**: duality is the *fibration* of triality, the third truth = the **fiber = the coupling between the two frames** (the binding itself). So "a view of both frames unfixed" = the **triality view** — observe the coupling, not either frame relative to the other.
+- **Operationalization (for RBS-LM):** recall must **co-evolve** with the store (plasticity — the walk strengthens the path it takes, F76/F94), not read a fixed store. A co-evolving walk could **carve its own geodesic** (matter-curves-space): the path deepens into a stable channel, escaping mass-capture by reshaping the local metric. Risk: runaway (plasticity reinforces drift into mass) — the co-evolution must be coherence-gated.
+
+## Next questions (handed to the expert — [[user_stance_framework_hands_the_next_question_to_the_expert]])
+- Is the magnetic (directed-flux) structure of the knowledge flow a cross-substrate match to the **ephemerides** magnetic/orbital-flux structure (same q-Laplacian spectrum)?
+- Is there a real **dark-sector residual** — guiding structure beyond gravity+magnetic (the void structure; the walk-vs-prediction gap)?
+- Is the **frame-coupling** (substrate↔walk, both unfixed) literally the **triality fiber** (F400/F401) — and does a co-evolving (plastic) etak walk carve stable geodesics?
+
+## Verdict
+Multiple forces with distinct attractors are measured (gravity = function-word mass; magnetic = content circulation; the loops are magnetic cycles). The walk navigates by gravity + magnetic + web-environment, not gravity alone. The substrate↔walk frame relation is the field↔excitation duality; "both frames unfixed" is co-evolution = the triality coupling — operationalized as coherence-gated plastic recall. Framework reading + Class-L measurement; the physics-correspondence and triality questions go to the expert. Evaluate by groundedness, never throughput.

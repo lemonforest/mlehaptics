@@ -1,0 +1,222 @@
+{
+  "v29 Chat fp16 (1.1B; 442 obs from 3596 bytes)": {
+    "label": "v29 Chat fp16 (1.1B; 442 obs from 3596 bytes)",
+    "instrument": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v29_distill_TinyLlama__TinyLlama-1.1B-Chat-v1.0.bin",
+    "corpus_size": 35,
+    "n_probes": 20,
+    "baseline": {
+      "mean": 0.0473,
+      "std": 0.0248,
+      "max": 0.1147,
+      "min": -0.0022,
+      "n_samples": 193
+    },
+    "stats": {
+      "n_probes": 20,
+      "n_found": 19,
+      "rank_1_count": 1,
+      "rank_1_rate": 0.05,
+      "top_quartile_count": 4,
+      "top_quartile_rate": 0.2,
+      "top_decile_count": 3,
+      "top_decile_rate": 0.15,
+      "mean_rank_percentile": 40.6,
+      "chi2_5bins": 3.89,
+      "p_estimate": ">0.10",
+      "rank_bins": [
+        4,
+        5,
+        6,
+        1,
+        3
+      ],
+      "rank_array": [
+        -1,
+        13,
+        8,
+        0,
+        19,
+        28,
+        4,
+        14,
+        19,
+        11,
+        10,
+        15,
+        34,
+        1,
+        15,
+        21,
+        14,
+        12,
+        2,
+        30
+      ]
+    }
+  },
+  "v31 Chat Q4   (1.1B; 437 obs from 3560 bytes)": {
+    "label": "v31 Chat Q4   (1.1B; 437 obs from 3560 bytes)",
+    "instrument": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v31_gguf_tinyllama-chat-q4.bin",
+    "corpus_size": 29,
+    "n_probes": 20,
+    "baseline": {
+      "mean": 0.046,
+      "std": 0.0222,
+      "max": 0.1248,
+      "min": -0.0044,
+      "n_samples": 189
+    },
+    "stats": {
+      "n_probes": 20,
+      "n_found": 20,
+      "rank_1_count": 0,
+      "rank_1_rate": 0.0,
+      "top_quartile_count": 5,
+      "top_quartile_rate": 0.25,
+      "top_decile_count": 0,
+      "top_decile_rate": 0.0,
+      "mean_rank_percentile": 50.2,
+      "chi2_5bins": 4.5,
+      "p_estimate": ">0.10",
+      "rank_bins": [
+        2,
+        5,
+        4,
+        2,
+        7
+      ],
+      "rank_array": [
+        5,
+        4,
+        13,
+        18,
+        14,
+        8,
+        9,
+        27,
+        20,
+        21,
+        4,
+        5,
+        23,
+        16,
+        28,
+        21,
+        11,
+        5,
+        28,
+        11
+      ]
+    }
+  },
+  "v29 intermediate fp32 (1.1B; 443 obs from 3.5k bytes)": {
+    "label": "v29 intermediate fp32 (1.1B; 443 obs from 3.5k bytes)",
+    "instrument": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v29_distill_TinyLlama__TinyLlama-1.1B-intermediate-step-1431k-3T.bin",
+    "corpus_size": 29,
+    "n_probes": 20,
+    "baseline": {
+      "mean": 0.0483,
+      "std": 0.038,
+      "max": 0.262,
+      "min": -0.0122,
+      "n_samples": 189
+    },
+    "stats": {
+      "n_probes": 20,
+      "n_found": 20,
+      "rank_1_count": 1,
+      "rank_1_rate": 0.05,
+      "top_quartile_count": 6,
+      "top_quartile_rate": 0.3,
+      "top_decile_count": 4,
+      "top_decile_rate": 0.2,
+      "mean_rank_percentile": 33.4,
+      "chi2_5bins": 3.5,
+      "p_estimate": ">0.10",
+      "rank_bins": [
+        6,
+        4,
+        5,
+        4,
+        1
+      ],
+      "rank_array": [
+        14,
+        13,
+        1,
+        15,
+        9,
+        11,
+        9,
+        0,
+        16,
+        8,
+        14,
+        4,
+        16,
+        1,
+        9,
+        2,
+        21,
+        11,
+        19,
+        1
+      ]
+    }
+  },
+  "v31 Llama-3.2-1B Q4 (different family; 448 obs from 3.6k)": {
+    "label": "v31 Llama-3.2-1B Q4 (different family; 448 obs from 3.6k)",
+    "instrument": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v31_gguf_llama32-1b-q4.bin",
+    "corpus_size": 28,
+    "n_probes": 20,
+    "baseline": {
+      "mean": 0.0497,
+      "std": 0.0376,
+      "max": 0.415,
+      "min": -0.0044,
+      "n_samples": 191
+    },
+    "stats": {
+      "n_probes": 20,
+      "n_found": 20,
+      "rank_1_count": 1,
+      "rank_1_rate": 0.05,
+      "top_quartile_count": 6,
+      "top_quartile_rate": 0.3,
+      "top_decile_count": 1,
+      "top_decile_rate": 0.05,
+      "mean_rank_percentile": 45.9,
+      "chi2_5bins": 3.5,
+      "p_estimate": ">0.10",
+      "rank_bins": [
+        4,
+        5,
+        4,
+        1,
+        6
+      ],
+      "rank_array": [
+        2,
+        7,
+        6,
+        0,
+        3,
+        27,
+        9,
+        12,
+        3,
+        27,
+        10,
+        21,
+        27,
+        15,
+        11,
+        9,
+        23,
+        27,
+        5,
+        13
+      ]
+    }
+  }
+}
