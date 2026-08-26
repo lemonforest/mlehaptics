@@ -125,6 +125,30 @@ restating a literal.
 `check_hooks.py`: **121 passed, 0 failed, 1 skipped** (was 58/0/1). The one skip is named, not
 hidden.
 
+### The audit that could not read a reason it derived
+
+Repairing this rc's ABI literals turned up a contract nobody had written down. The pure-by-design
+skip audit pairs **DECLARED** (`require_native("…")`, read out of the source) against **OBSERVED**
+(the `pure-by-design: …` line in the run's own output). Those two are equal as literals *only* when
+the reason interpolates nothing — true, silently, for all 53 gates.
+
+So when the exact-Q floor's reason stopped saying a hard-coded `ABI 23` and started saying
+`"…(ABI %d…)" % EXPECTED_ABI_VERSION`, the audit reported the **same gate twice**: never-fired as
+`ABI %d`, undeclared as `ABI 24` — at 53 declared / 53 observed, a count that agrees perfectly while
+the pairing does not.
+
+The tempting fix is to put the literal back. That re-introduces exactly the staleness the repair
+existed to remove: a re-spelled constant goes wrong at the next bump, and it had already been wrong
+at three sites. Deriving the number is not the defect. **An instrument that cannot read a derived
+reason is.** A declared literal carrying a placeholder is now paired as a pattern against the
+message it produces, and `%d` narrows to digits rather than anything-at-all, so the widened match
+stays as tight as the format string. Plain literals keep pairing by equality — stricter, and still
+the rule for 53 of the 54.
+
+Verified in both directions, because widening a matcher until it always says yes would be this
+release's own recurring defect one level up: the green arm pairs the derived gate at 53/53, and
+withholding *that* gate specifically still goes red.
+
 ### What is NOT here, and why
 
 **Retry-on-transient for workflow subagents is not in this release.** It was scoped and then
