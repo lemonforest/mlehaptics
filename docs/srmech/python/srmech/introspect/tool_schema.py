@@ -12004,14 +12004,15 @@ def _register_primitive_class_tools() -> None:
                     "idempotents e_chi = (d/|G|)·Σ chi(g⁻¹)·g, needing "
                     "ONLY characters, and (b) the projector onto an "
                     "isotypic subspace of a caller's module, needing "
-                    "actual rho(g) matrices, which srmech does not carry "
-                    "(no representation object; the physics.qm matrices "
-                    "are fixed Lie generators, the CD left/right "
-                    "mult-matrices are algebra regular reps). This op "
-                    "ships (a) under the name of what it actually is: the "
+                    "actual rho(g) matrices. This op ships (a): the "
                     "elements ARE the isotypic projectors of the REGULAR "
-                    "module, and for any other module the caller "
-                    "evaluates rho(e_chi) = (d/|G|)·Σ chi(g⁻¹)·rho(g). "
+                    "module, and for any other module the evaluation "
+                    "rho(e_chi) = (d/|G|)·Σ chi(g⁻¹)·rho(g) is the rc458 "
+                    "srmech.math.groups.isotypic_projector — reach for "
+                    "THAT op when a rep payload is in hand (the 'srmech "
+                    "has no representation object' clause this ruling "
+                    "carried at rc457 was true then and retired at rc458 "
+                    "by permutation_representation). "
                     "The coefficients d·chi(g⁻¹)/|G| are NOT algebraic "
                     "integers — the stratum's first genuinely rational "
                     "object — so they ship as integer NUMERATOR vectors "
@@ -12054,6 +12055,510 @@ def _register_primitive_class_tools() -> None:
                              "[[0, 1], [1, 0]]], 'table_sha256': "
                              "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
                              "258a09071d4efa3c0da2'}"},
+        ),
+        # rc458 — the representation stratum, tier 4: the rho stratum.
+        # Tiers 1–3 stop at CHARACTERS; tier 4 is the REPRESENTATION
+        # ITSELF — permutation_representation mints rho: G -> GL(V) as a
+        # REP PAYLOAD dict (matrices over an exact field, element-indexed
+        # by the SAME Cayley-table indexing), character_of bridges back,
+        # decompose_representation projects onto the irrep eigenbasis,
+        # isotypic_projector is the op rc457 declined (the rho(e_chi)
+        # evaluation central_idempotents' docstring promised), tensor /
+        # direct_sum close the payload under ⊗ / ⊕, intertwiner_space is
+        # the Schur readout over QMat.nullspace, and zeta_mul is the
+        # public promotion of the private ℤ[ζ_e] ring kernel. All
+        # Python-first under the ADR-0009 noted-disparity ruling; no new
+        # C symbol; ABI stays 24.
+        ToolEntry(
+            name="srmech.math.groups.zeta_mul", owner="srmech",
+            category="groups",
+            summary="The exact ℤ[ζ_e] ring product of two ζ-power-basis "
+                    "integer vectors reduced mod the monic Φ_e — Class I, "
+                    "the FIRST registered exact ζ-vector atom, and the "
+                    "public promotion of the private kernel every tier-2/3/4 "
+                    "ζ contraction already rides (fusion_multiplicities, "
+                    "decompose_representation, isotypic_projector). rc456 "
+                    "promised the promotion, rc457 deferred it (recorded), "
+                    "this rc delivers it. Integer convolution then exact "
+                    "monic polynomial reduction to length φ(e) = "
+                    "len(phi_e) - 1; no rational ever appears (Φ_e is monic "
+                    "and the operands are algebraic integers). phi_e is the "
+                    "character_table payload field, verbatim. Guards raise "
+                    "on any non-plain-int coordinate (bool REJECTED — "
+                    "plain-int law) and a non-monic or degree-0 modulus "
+                    "(monic-modulus law). Worked: Φ₄ = (1, 0, 1); "
+                    "zeta_mul((0,1), (0,1), (1,0,1)) == (-1, 0) — i·i = -1. "
+                    "A caller wanting DIVISION lifts into "
+                    "srmech.math.qalg.Qalg over m = Φ_e (the two-line move "
+                    "character_table documents). C-parity (ADR-0009, "
+                    "recorded): no srmech_zeta_mul symbol; the near-peer "
+                    "srmech_riemann_theta_cyc_mul is a ℤ[ζ] ring multiply "
+                    "speaking a DIFFERENT wire (ζ-power-table reduction, "
+                    "deg ≤ 16, int64 fast path) under a foreign namespace; "
+                    "the table-based wire adapter from phi_e is deliberately "
+                    "deferred per the stay-the-course-with-Python ruling. "
+                    "Exact ℤ.",
+            parameters=(
+                P("u", "list[int]", True,
+                  "integer coordinates in the ζ_e power basis, low→high "
+                  "(any length; reduced)"),
+                P("v", "list[int]", True, "same carrier as u"),
+                P("phi_e", "list[int]", True,
+                  "the monic Φ_e coefficients low→high — a "
+                  "character_table payload's phi_e field, verbatim"),
+            ),
+            returns=R("tuple", "the product as a length-φ(e) tuple of "
+                               "plain ints"),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"u": "[0, 1]", "v": "[0, 1]",
+                             "phi_e": "[1, 0, 1]"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.permutation_representation",
+            owner="srmech", category="groups",
+            summary="The permutation representation rho: G -> GL(V) of a "
+                    "group acting on a finite point set — Class L (mints "
+                    "the operator family, the cayley_graph precedent) over "
+                    "Class-I action-law validation. THE op that gives the "
+                    "stratum a representation OBJECT: tiers 1-3 stop at "
+                    "characters, and rc457's central_idempotents ruling "
+                    "recorded 'srmech has NO representation object' as the "
+                    "reason the module-subspace isotypic projector could "
+                    "not ship. This op retires that clause. Returns a REP "
+                    "PAYLOAD dict — matrices (0/1 ints) + action + order / "
+                    "degree / field 'Q' / kind 'permutation' + Class-A "
+                    "content addresses (cayley_sha256, matrices_sha256) — "
+                    "element-indexed by the SAME Cayley-table indexing, "
+                    "which IS the composition contract. PINNED matrix "
+                    "convention, used by every tier-4 op: matrices[g]·e_j "
+                    "= e_{action[g][j]} (column j carries its 1 in row "
+                    "action[g][j]); vectorization is ROW-MAJOR everywhere. "
+                    "Validation raises ValueError NAMING the law: operand-"
+                    "group laws, one row per element, plain-int bijections, "
+                    "identity-action law, and the LEFT-action law "
+                    "action[table[g][h]][x] == action[g][action[h][x]] over "
+                    "ALL g,h,x — which under the pinned convention IS "
+                    "rho(gh) = rho(g)·rho(h) executed at construction, the "
+                    "one place it is checkable (the payload carries the "
+                    "table's hash, not the table). THE REGULAR "
+                    "REPRESENTATION is permutation_representation(tbl, tbl) "
+                    "— the left-multiplication action IS the Cayley table; "
+                    "no separate op (the direct-product precedent). "
+                    "C-parity (ADR-0009, recorded): no C peer; the "
+                    "representation stratum ships Python-first under the "
+                    "noted-disparity ruling. Exact ℤ.",
+            parameters=(
+                P("cayley_table", "list[list[int]]", True,
+                  "the n × n group table (ValueError naming the "
+                  "operand-group law otherwise)"),
+                P("action", "list[list[int]]", True,
+                  "action[g] is a permutation table of the point set "
+                  "range(degree) — a table, not a callable, so it crosses "
+                  "JSON-RPC; pass the cayley_table itself for the regular "
+                  "representation"),
+            ),
+            returns=R("dict", "{order, degree, field: 'Q', kind: "
+                              "'permutation', matrices (0/1 ints, "
+                              "Cayley-indexed), action (echoed), "
+                              "cayley_sha256, matrices_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"cayley_table": "[[0, 1], [1, 0]]",
+                             "action": "[[0, 1], [1, 0]]"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.character_of", owner="srmech",
+            category="groups",
+            summary="The character of a representation — Class L (the "
+                    "trace readout), the bridge from the tier-4 rep object "
+                    "back to the tier-2/3 character stratum, and the free "
+                    "consistency oracle (on the regular representation the "
+                    "result must be |G| at the identity class and 0 "
+                    "elsewhere; per irreducible content it must match the "
+                    "shipped character_table rows — the rc458 tests execute "
+                    "both). Computes the EXACT trace of every element's "
+                    "matrix (fixed-point count for a permutation kind; "
+                    "exact rational diagonal sum for a general kind) and "
+                    "returns it CLASS-ordered. Reads ONLY the "
+                    "class-partition fields of the char-table payload "
+                    "(class_of / k / order / degrees / table for the "
+                    "identity location) — the character VALUES are not "
+                    "consulted. Guards, each a raise: order law; "
+                    "integrality law (a rational trace of a true ℚ-rep is "
+                    "an integer — eigenvalues are roots of unity; a "
+                    "divmod remainder is corruption); CLASS-CONSTANCY law "
+                    "— equal trace across each class, which is also the "
+                    "honest SAME-GROUP mismatch DETECTOR (stated as such: "
+                    "a detector, not a proof — the two payloads share no "
+                    "Cayley bind); identity-trace law "
+                    "(character[identity] == degree, the identity class "
+                    "located payload-only via the hoisted "
+                    "central_idempotents unique-column technique). The "
+                    "ℤ[ζ_e] lift of an integer t is (t, 0, …, 0), done by "
+                    "consumers internally. C-parity (ADR-0009, recorded): "
+                    "no C peer; Python-first under the noted-disparity "
+                    "ruling. Exact ℤ.",
+            parameters=(
+                P("rep", "dict", True,
+                  "a tier-4 rep payload dict, passed VERBATIM (ValueError "
+                  "naming the failing law otherwise)"),
+                P("char_table", "dict", True,
+                  "a character_table payload dict, passed VERBATIM"),
+            ),
+            returns=R("dict", "{k, order, degree, kind, character "
+                              "(length-k tuple of plain ints, "
+                              "class-ordered), cayley_sha256 (echoed from "
+                              "rep), table_sha256 (echoed from "
+                              "char_table), character_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={
+                "rep": "{'order': 2, 'degree': 2, 'field': 'Q', 'kind': "
+                       "'permutation', 'matrices': [[[1, 0], [0, 1]], "
+                       "[[0, 1], [1, 0]]], 'action': [[0, 1], [1, 0]], "
+                       "'cayley_sha256': "
+                       "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca8185132"
+                       "169d3920a8eeae36', 'matrices_sha256': "
+                       "'1247237b24cae0c6b3dc2e9148c1e9730abfb2379a53de91"
+                       "5491e65b903521d7'}",
+                "char_table":
+                    "{'order': 2, 'exponent': 2, 'zeta_order': 2, "
+                    "'phi_e': (1, 1), 'degree': 1, 'k': 2, "
+                    "'class_sizes': [1, 1], 'representatives': "
+                    "[0, 1], 'class_of': [0, 1], 'inverse_class': "
+                    "[0, 1], 'square_class': [0, 0], 'degrees': "
+                    "[1, 1], 'table': [[(1,), (-1,)], [(1,), "
+                    "(1,)]], 'class_algebra': [[[1, 0], [0, 1]], "
+                    "[[0, 1], [1, 0]]], 'table_sha256': "
+                    "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
+                    "258a09071d4efa3c0da2'}"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.decompose_representation",
+            owner="srmech", category="groups",
+            summary="The irrep multiplicities of a representation — "
+                    "Class L, the projection of the rep's character onto "
+                    "the irrep eigenbasis of the class algebra (the fusion "
+                    "slot: fusion_multiplicities does this for a product "
+                    "of two CHARACTERS; this op does it for an actual "
+                    "REP). The body COMPOSES character_of (a real "
+                    "composes-ledger row), then contracts m_i·|G| = Σ_j "
+                    "class_sizes[j]·character[j]·table[i][inverse_class[j]]"
+                    " — pure integer ζ-vector arithmetic, conjugation as "
+                    "the shipped inverse_class column permutation, no "
+                    "Galois machinery. Guards, each a raise: non-scalar-"
+                    "sum law (each summed ζ-vector must land (M, 0, …, 0) "
+                    "— corruption detector), |G|-divisibility (_exact_div; "
+                    "the tier-3 corruption detector), non-negativity, and "
+                    "the dimension law Σ m_i·d_i == degree. norm = Σ m² = "
+                    "⟨χ, χ⟩ rides the payload; is_irreducible is a bool "
+                    "as a BOOL FIELD — never riding an integer lane. "
+                    "Founding captures the rc458 tests pin: the regular "
+                    "rep of EVERY fixture decomposes as m_i == d_i (S3: "
+                    "(1,1,2); C7⋊C3: (1,1,1,3,3) over Φ₂₁); Burnside — "
+                    "m_trivial of a permutation rep == #orbits, the "
+                    "trivial row located by CONTENT. ⚠️ payload rows sort "
+                    "(degree, lex) — the trivial character is NOT at "
+                    "index 0 in general; locate rows by CONTENT. C-parity "
+                    "(ADR-0009, recorded): no C peer; Python-first under "
+                    "the noted-disparity ruling. Exact ℤ.",
+            parameters=(
+                P("rep", "dict", True,
+                  "a tier-4 rep payload dict, passed VERBATIM"),
+                P("char_table", "dict", True,
+                  "a character_table payload dict, passed VERBATIM (both "
+                  "validated inside the character_of composition)"),
+            ),
+            returns=R("dict", "{k, order, degree, multiplicities "
+                              "(length-k tuple, payload row order), norm, "
+                              "is_irreducible (bool field), character "
+                              "(echoed), degrees (echoed), table_sha256, "
+                              "cayley_sha256, multiplicities_sha256}"),
+            composes=("srmech.math.groups.character_of",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={
+                "rep": "{'order': 2, 'degree': 2, 'field': 'Q', 'kind': "
+                       "'permutation', 'matrices': [[[1, 0], [0, 1]], "
+                       "[[0, 1], [1, 0]]], 'action': [[0, 1], [1, 0]], "
+                       "'cayley_sha256': "
+                       "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca8185132"
+                       "169d3920a8eeae36', 'matrices_sha256': "
+                       "'1247237b24cae0c6b3dc2e9148c1e9730abfb2379a53de91"
+                       "5491e65b903521d7'}",
+                "char_table":
+                    "{'order': 2, 'exponent': 2, 'zeta_order': 2, "
+                    "'phi_e': (1, 1), 'degree': 1, 'k': 2, "
+                    "'class_sizes': [1, 1], 'representatives': "
+                    "[0, 1], 'class_of': [0, 1], 'inverse_class': "
+                    "[0, 1], 'square_class': [0, 0], 'degrees': "
+                    "[1, 1], 'table': [[(1,), (-1,)], [(1,), "
+                    "(1,)]], 'class_algebra': [[[1, 0], [0, 1]], "
+                    "[[0, 1], [1, 0]]], 'table_sha256': "
+                    "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
+                    "258a09071d4efa3c0da2'}"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.isotypic_projector",
+            owner="srmech", category="groups",
+            summary="The isotypic projector family of a MODULE — Class L, "
+                    "THE OP rc457 DECLINED for want of a representation "
+                    "object, now buildable: the evaluation rho(e_chi) = "
+                    "(d_i/|G|)·Σ_g chi_i(g⁻¹)·rho(g) that "
+                    "central_idempotents' own docstring promises the "
+                    "caller performs — this op IS that evaluation, "
+                    "shipped. chi_i(g⁻¹) is payload-resident "
+                    "(table[i][inverse_class[class_of[g]]]) so no element "
+                    "inverses are ever computed; the contraction groups by "
+                    "class (P_i = d_i·Σ_j chi_i(j⁻¹)·S_j over the class "
+                    "sums S_j). DEFERRED-DIVISION carrier (the "
+                    "central_idempotents precedent): integer ζ-vector "
+                    "NUMERATORS over ONE explicit denominator — |G| for a "
+                    "permutation kind, |G|·L for a general kind with L = "
+                    "lcm of every entry denominator (each numerator scaled "
+                    "by L/den, DERIVED per entry, not asserted). In-op "
+                    "guards, each a raise: completeness law (Σ_i P_i == "
+                    "denominator·I as ζ-vectors, executed) and trace law "
+                    "(trace(P_i) scalar-lane and == denominator·m_i·d_i, "
+                    "the multiplicities being the internal "
+                    "decompose_representation contraction, echoed). "
+                    "Idempotence P_i² == denominator·P_i, orthogonality "
+                    "P_iP_j == 0 and equivariance P_i·rho(g) == "
+                    "rho(g)·P_i are TEST-side by TWO independent routes "
+                    "(the rc457 e·e = e ruling): the ζ-contraction route, "
+                    "and — on the regular rep — equality with "
+                    "central_idempotents' numerators expanded per element "
+                    "via class_of (the shipped universal element meeting "
+                    "its promised evaluation); a disagreement is a "
+                    "finding. Cost honest: O(|G|·d² + k²·d²·φ(e)) — a "
+                    "large order or degree makes it SLOW, never wrong. "
+                    "C-parity (ADR-0009, recorded): no C peer; "
+                    "Python-first under the noted-disparity ruling. Exact "
+                    "ℤ over one explicit denominator.",
+            parameters=(
+                P("rep", "dict", True,
+                  "a tier-4 rep payload dict, passed VERBATIM"),
+                P("char_table", "dict", True,
+                  "a character_table payload dict, passed VERBATIM (both "
+                  "validated inside the internal decompose_representation "
+                  "composition)"),
+            ),
+            returns=R("dict", "{k, order, degree, degrees (echoed), "
+                              "multiplicities (echoed from the internal "
+                              "decompose), denominator, projectors "
+                              "(k × d × d × φ(e) nested int tuples, "
+                              "irrep-major), phi_e (echoed), table_sha256, "
+                              "cayley_sha256, matrices_sha256 (echoed), "
+                              "projectors_sha256}"),
+            composes=("srmech.math.groups.decompose_representation",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={
+                "rep": "{'order': 2, 'degree': 2, 'field': 'Q', 'kind': "
+                       "'permutation', 'matrices': [[[1, 0], [0, 1]], "
+                       "[[0, 1], [1, 0]]], 'action': [[0, 1], [1, 0]], "
+                       "'cayley_sha256': "
+                       "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca8185132"
+                       "169d3920a8eeae36', 'matrices_sha256': "
+                       "'1247237b24cae0c6b3dc2e9148c1e9730abfb2379a53de91"
+                       "5491e65b903521d7'}",
+                "char_table":
+                    "{'order': 2, 'exponent': 2, 'zeta_order': 2, "
+                    "'phi_e': (1, 1), 'degree': 1, 'k': 2, "
+                    "'class_sizes': [1, 1], 'representatives': "
+                    "[0, 1], 'class_of': [0, 1], 'inverse_class': "
+                    "[0, 1], 'square_class': [0, 0], 'degrees': "
+                    "[1, 1], 'table': [[(1,), (-1,)], [(1,), "
+                    "(1,)]], 'class_algebra': [[[1, 0], [0, 1]], "
+                    "[[0, 1], [1, 0]]], 'table_sha256': "
+                    "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
+                    "258a09071d4efa3c0da2'}"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.tensor_product_representation",
+            owner="srmech", category="groups",
+            summary="The tensor product rho1 ⊗ rho2 of two "
+                    "representations of ONE group — Class M, ARGUED "
+                    "rather than adopted: fusion_multiplicities declined "
+                    "Class M because an M-bind claim implies an unbind "
+                    "(character division), neither shipped nor measured "
+                    "then; decompose_representation and isotypic_projector "
+                    "ARE that unbind for the rep object, shipped and "
+                    "measured in this same rc, so the bind half may "
+                    "finally say its name. Kronecker per element, the "
+                    "ROW-MAJOR pair index pinned once: (x1, x2) ↦ "
+                    "x1·d2 + x2 — the same convention QMat.kron and "
+                    "intertwiner_space use; one convention, executed by "
+                    "the tests via (A⊗B)(C⊗D) == AC⊗BD. SAME-GROUP law: "
+                    "the two payloads must carry EQUAL cayley_sha256 "
+                    "(same table, same indexing) — raise otherwise. "
+                    "perm⊗perm stays kind='permutation' with the "
+                    "constructed pair action, and the output payload is "
+                    "RE-VALIDATED by the shared rep-payload validator "
+                    "before return (never trusted by construction — "
+                    "bijection, matrix-entry, matrix-action coherence and "
+                    "content-address laws all execute on the op's OWN "
+                    "output); any general operand makes a general output, "
+                    "entries as canonical (num, den) pairs. The tests "
+                    "execute decompose(rho_a ⊗ rho_b) against the SHIPPED "
+                    "fusion_multiplicities tensor (S3: nat⊗nat -> "
+                    "(1, 2, 3), fusion-predicted (1, 2, 3)) and the "
+                    "pointwise character product. C-parity (ADR-0009, "
+                    "recorded): no C peer; Python-first under the "
+                    "noted-disparity ruling. Exact ℤ / canonical pairs.",
+            parameters=(
+                P("rep1", "dict", True,
+                  "a tier-4 rep payload dict, passed VERBATIM"),
+                P("rep2", "dict", True,
+                  "a second rep payload OF THE SAME GROUP (same-group "
+                  "law: cayley_sha256 equality)"),
+            ),
+            returns=R("dict", "a full rep payload dict of degree d1·d2 — "
+                              "eats anywhere a constructor payload does"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={
+                "rep1": "{'order': 2, 'degree': 2, 'field': 'Q', 'kind': "
+                        "'permutation', 'matrices': [[[1, 0], [0, 1]], "
+                        "[[0, 1], [1, 0]]], 'action': [[0, 1], [1, 0]], "
+                        "'cayley_sha256': "
+                        "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca8185132"
+                        "169d3920a8eeae36', 'matrices_sha256': "
+                        "'1247237b24cae0c6b3dc2e9148c1e9730abfb2379a53de91"
+                        "5491e65b903521d7'}",
+                "rep2": "{'order': 2, 'degree': 2, 'field': 'Q', 'kind': "
+                        "'permutation', 'matrices': [[[1, 0], [0, 1]], "
+                        "[[0, 1], [1, 0]]], 'action': [[0, 1], [1, 0]], "
+                        "'cayley_sha256': "
+                        "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca8185132"
+                        "169d3920a8eeae36', 'matrices_sha256': "
+                        "'1247237b24cae0c6b3dc2e9148c1e9730abfb2379a53de91"
+                        "5491e65b903521d7'}"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.direct_sum_representation",
+            owner="srmech", category="groups",
+            summary="The direct sum rho1 ⊕ rho2 of two representations "
+                    "of ONE group — Class B (TLV shape: the blocks are "
+                    "RECOVERABLE — the leading d1×d1 block is rho1(g) "
+                    "verbatim and the trailing d2×d2 block is rho2(g) "
+                    "verbatim, a claim the rc458 tests execute rather "
+                    "than assert). Block-diagonal per element, degree "
+                    "d1 + d2; characters ADD and multiplicities ADD "
+                    "(both executed). SAME-GROUP law: equal cayley_sha256 "
+                    "or raise. perm⊕perm stays kind='permutation' with "
+                    "the disjoint-union action (j < d1 ↦ a1[g][j], else "
+                    "d1 + a2[g][j-d1]), and the output payload is "
+                    "RE-VALIDATED by the shared rep-payload validator "
+                    "before return (never trusted by construction); any "
+                    "general operand makes a general output, entries as "
+                    "canonical pairs with off-block zeros as (0, 1). "
+                    "C-parity (ADR-0009, recorded): no C peer; "
+                    "Python-first under the noted-disparity ruling. "
+                    "Exact ℤ / canonical pairs.",
+            parameters=(
+                P("rep1", "dict", True,
+                  "a tier-4 rep payload dict, passed VERBATIM"),
+                P("rep2", "dict", True,
+                  "a second rep payload OF THE SAME GROUP (same-group "
+                  "law: cayley_sha256 equality)"),
+            ),
+            returns=R("dict", "a full rep payload dict of degree d1 + d2 "
+                              "— eats anywhere a constructor payload "
+                              "does"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={
+                "rep1": "{'order': 2, 'degree': 2, 'field': 'Q', 'kind': "
+                        "'permutation', 'matrices': [[[1, 0], [0, 1]], "
+                        "[[0, 1], [1, 0]]], 'action': [[0, 1], [1, 0]], "
+                        "'cayley_sha256': "
+                        "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca8185132"
+                        "169d3920a8eeae36', 'matrices_sha256': "
+                        "'1247237b24cae0c6b3dc2e9148c1e9730abfb2379a53de91"
+                        "5491e65b903521d7'}",
+                "rep2": "{'order': 2, 'degree': 2, 'field': 'Q', 'kind': "
+                        "'permutation', 'matrices': [[[1, 0], [0, 1]], "
+                        "[[0, 1], [1, 0]]], 'action': [[0, 1], [1, 0]], "
+                        "'cayley_sha256': "
+                        "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca8185132"
+                        "169d3920a8eeae36', 'matrices_sha256': "
+                        "'1247237b24cae0c6b3dc2e9148c1e9730abfb2379a53de91"
+                        "5491e65b903521d7'}"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.intertwiner_space",
+            owner="srmech", category="groups",
+            summary="The intertwiner space Hom_G(V1, V2) — Class L, the "
+                    "Schur readout: an EXACT basis of the d2×d1 matrices "
+                    "X with rho2(g)·X == X·rho1(g) for EVERY g. Schur's "
+                    "lemma made an operand: between inequivalent "
+                    "irreducible constituents the dimension is 0, and "
+                    "dimension == Σ_i m_i(rho1)·m_i(rho2) == ⟨χ1, χ2⟩ — "
+                    "the tests execute that identity by a SECOND "
+                    "independent route (the cyclotomic "
+                    "decompose_representation contraction); a "
+                    "disagreement is a finding. Engine: the equivariance "
+                    "system vectorized ROW-MAJOR — vec(rho2(g)·X − "
+                    "X·rho1(g)) = (rho2(g) ⊗ I − I ⊗ rho1(g)ᵀ)·vec(X) "
+                    "via the rc458 QMat.kron carrier method — stacked "
+                    "over ALL |G| elements (rep payloads carry no "
+                    "generator set; the small-order stratum contract), "
+                    "kernel via the shipped exact-ℚ QMat.nullspace "
+                    "(C-backed through srmech_qmat_nullspace). THE "
+                    "ZERO-DIMENSION CASE IS A CLASSIFIED RETURN, not a "
+                    "failure — an instrument that cannot return otherwise "
+                    "is not a measurement: dimension 0 with basis [] IS "
+                    "the Schur verdict for disjoint irreducible content. "
+                    "Every returned basis element's equivariance is "
+                    "re-executed test-side against raw matrix products "
+                    "(the independent route — a Kronecker-convention "
+                    "defect inside the op would survive an in-op recheck "
+                    "using the same convention). Cost honest: the stacked "
+                    "system is (|G|·d1·d2) × (d1·d2) over exact ℚ — a "
+                    "large order or degree makes it SLOW, never wrong. "
+                    "C-parity (ADR-0009, recorded): C-backed THROUGH its "
+                    "carrier only — the nullspace kernel dispatches to "
+                    "srmech_qmat_nullspace; the system builder is Python, "
+                    "honestly stated. Exact ℚ.",
+            parameters=(
+                P("rep1", "dict", True,
+                  "a tier-4 rep payload dict, passed VERBATIM"),
+                P("rep2", "dict", True,
+                  "a second rep payload OF THE SAME GROUP (same-group "
+                  "law: cayley_sha256 equality)"),
+            ),
+            returns=R("dict", "{dimension (plain int), basis (list of "
+                              "d2 × d1 matrices of canonical (num, den) "
+                              "pairs, row-major de-vectorized), "
+                              "cayley_sha256 (echoed), basis_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={
+                "rep1": "{'order': 2, 'degree': 2, 'field': 'Q', 'kind': "
+                        "'permutation', 'matrices': [[[1, 0], [0, 1]], "
+                        "[[0, 1], [1, 0]]], 'action': [[0, 1], [1, 0]], "
+                        "'cayley_sha256': "
+                        "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca8185132"
+                        "169d3920a8eeae36', 'matrices_sha256': "
+                        "'1247237b24cae0c6b3dc2e9148c1e9730abfb2379a53de91"
+                        "5491e65b903521d7'}",
+                "rep2": "{'order': 2, 'degree': 2, 'field': 'Q', 'kind': "
+                        "'permutation', 'matrices': [[[1, 0], [0, 1]], "
+                        "[[0, 1], [1, 0]]], 'action': [[0, 1], [1, 0]], "
+                        "'cayley_sha256': "
+                        "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca8185132"
+                        "169d3920a8eeae36', 'matrices_sha256': "
+                        "'1247237b24cae0c6b3dc2e9148c1e9730abfb2379a53de91"
+                        "5491e65b903521d7'}"},
         ),
         # rc399 (`#T1064` Tier 2/3): the octonion CAYLEY PLANE 𝕆P² (carrier-
         # native, one rung above octonion_frame_read's ℍP¹≅S⁴) + the guarded

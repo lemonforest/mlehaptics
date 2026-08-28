@@ -1,5 +1,5 @@
 """``srmech.math.groups`` — the REPRESENTATION stratum over finite Cayley
-tables (rc456 tiers 1–2; rc457 tier 3).
+tables (rc456 tiers 1–2; rc457 tier 3; rc458 tier 4).
 
 THE GAP THIS CLOSES
 ===================
@@ -60,10 +60,43 @@ unrepresentable.  A caller wanting DIVISION lifts into
 :func:`character_table`'s docstring — but the table itself never needs a
 rational.
 
-Exact arithmetic ONLY: no float, no ``abs`` — the single sign-handling site
-is :func:`_small_lift`, the named Class-K pin-slot at the ``p/2`` phase
-boundary with Class-C re-application.  All content addresses route through
-:func:`srmech.amsc.format.sha256_bytes`.
+TIER 4 (rc458) — THE REPRESENTATION ITSELF
+==========================================
+Tiers 1–3 stop at CHARACTERS: every value is a trace, and rc457's
+``central_idempotents`` docstring records exactly why the module-subspace
+isotypic projector could not ship — no ``rho: G -> GL(V)`` existed anywhere
+in the tree.  Tier 4 is that object.  :func:`permutation_representation`
+mints a REP PAYLOAD dict (``rho(g)`` as actual matrices over an exact field,
+element-indexed by the SAME Cayley-table indexing — that indexing IS the
+composition contract), :func:`character_of` is the bridge back to tier 2/3
+(trace readout), :func:`decompose_representation` projects onto the irrep
+eigenbasis (multiplicities), :func:`isotypic_projector` is the op rc457
+declined — the evaluation ``rho(e_chi)`` that ``central_idempotents``'
+docstring promised the caller would perform, now shipped —
+:func:`tensor_product_representation` / :func:`direct_sum_representation`
+close the payload under ⊗ / ⊕, and :func:`intertwiner_space` is the Schur
+readout ``Hom_G(V1, V2)`` over the exact-ℚ :class:`srmech.math.qmat.QMat`
+nullspace.  :func:`zeta_mul` is the public promotion of the private
+``_zeta_mul`` ring kernel (rc456 promised it, rc457 deferred it, this tier
+delivers it).
+
+The rep-payload carrier, stated once: matrices are plain 0/1 ints
+(``kind="permutation"``) or CANONICAL ``(num, den)`` plain-int pairs with
+``gcd == 1``, ``den >= 1`` (``kind="general"``) — canonicality is
+load-bearing because ``matrices_sha256`` is a content address, so two
+spellings of one rep must be one hash.  The pinned matrix convention:
+``matrices[g] · e_j = e_{action[g][j]}`` (column ``j`` carries its 1 in row
+``action[g][j]``); vectorization everywhere is ROW-MAJOR (the
+``qmat._row_major_pairs`` house form).  The ζ-vector ops (decompose /
+isotypic) keep the tier-2 value carrier: integer numerator vectors in the
+``ζ_e`` power basis over ONE explicit denominator, division never performed
+(the ``central_idempotents`` deferred-division shape).
+
+Exact arithmetic ONLY: no float, no ``abs`` — the sign-handling sites are
+:func:`_small_lift` (the named Class-K pin-slot at the ``p/2`` phase
+boundary with Class-C re-application) and :func:`_pair_magnitude` (the
+Class-K pin-slot at zero the canonical-pair law reads through).  All
+content addresses route through :func:`srmech.amsc.format.sha256_bytes`.
 """
 
 from __future__ import annotations
@@ -76,20 +109,29 @@ from srmech.math.cyclic import gcd, mod_add, mod_inv, mod_pow
 from srmech.math.modular_linalg import gf_nullspace, gf_solve
 from srmech.math.poly import cyclotomic_polynomial
 from srmech.math.primes import factor, is_prime
+from srmech.math.qmat import QMat
 
 __all__ = [
     "abelianization",
     "cayley_graph",
     "central_idempotents",
+    "character_of",
     "character_table",
     "conjugacy_classes",
     "cyclic_group",
+    "decompose_representation",
     "derived_subgroup",
+    "direct_sum_representation",
     "frobenius_schur_indicator",
     "fusion_multiplicities",
+    "intertwiner_space",
     "irrep_dimensions",
+    "isotypic_projector",
+    "permutation_representation",
     "quotient_group",
     "semidirect_product",
+    "tensor_product_representation",
+    "zeta_mul",
 ]
 
 
@@ -182,18 +224,18 @@ def _small_lift(residue: int, p: int) -> int:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# cyclotomic power-basis arithmetic (private).  Public promotion of
-# _zeta_mul was considered at tier 3 (rc457) and DELIBERATELY DEFERRED:
-# fusion_multiplicities composes on the private helper and needs no
-# public spelling, and an honest promotion is not a one-line move — it
-# drags in the ADR-0009 dispatch ruling against the existing C ring
-# multiply srmech_riemann_theta_cyc_mul, a peer speaking a DIFFERENT
-# wire (zeta-power-table reduction, deg <= 16, int64 fast path) under a
-# foreign namespace, so the promotion rc must either ship a table-based
-# wire adapter from phi_e (with the pure-bignum fallback recorded) or
-# record an explicit projection gap.  Bundling that here would be the
-# unexpected-coupling shape rc456 declined on the exact_dft refactor.
-# Recorded in the rc457 CHANGELOG "deliberately deferred" section.
+# cyclotomic power-basis arithmetic.  _zeta_mul is the PRIVATE kernel;
+# its public registered spelling is :func:`zeta_mul` (tier 4, rc458 —
+# the promotion rc456 promised and rc457 deliberately deferred).  The
+# internal hot paths (fusion_multiplicities, isotypic_projector) keep
+# calling the kernel directly — the public op adds the plain-int /
+# monic-Φ_e guards a wire crossing needs, and guards cost per call.
+# The ADR-0009 dispatch question the rc457 deferral named is RESOLVED
+# as a RECORDED PROJECTION GAP (see zeta_mul's docstring): the C
+# near-peer srmech_riemann_theta_cyc_mul speaks a different wire
+# (ζ-power-table reduction, deg <= 16, int64 fast path) under a foreign
+# namespace, and the table-based wire adapter from phi_e is deliberately
+# deferred per the stay-the-course-with-Python ruling.
 # ──────────────────────────────────────────────────────────────────────
 
 
@@ -1439,6 +1481,32 @@ def _check_char_table_payload(op: str, ct: Mapping[str, Any]) -> None:
                 f"in [0, {k}) (class-index law)")
 
 
+def _identity_class(op: str, ct: Mapping[str, Any]) -> int:
+    """The identity class of a :func:`character_table` payload, located
+    PAYLOAD-ONLY: the UNIQUE column where every row equals its degree
+    vector ``(d_i, 0, …, 0)`` — unique because only the identity acts
+    trivially in every irrep.  Hoisted at rc458 from the
+    :func:`central_idempotents` body (tier-4 ``character_of`` needs the
+    same location and a second copy would drift).  Raises ``ValueError``
+    naming the identity-location law when the payload does not carry
+    exactly one such column — a guard that fires is evidence."""
+    k = ct["k"]
+    deg = ct["degree"]
+    table = ct["table"]
+    degrees = ct["degrees"]
+    identity_columns = [
+        j for j in range(k)
+        if all(tuple(table[i][j]) == (degrees[i],) + (0,) * (deg - 1)
+               for i in range(k))]
+    if len(identity_columns) != 1:
+        raise ValueError(
+            f"{op}: expected exactly ONE identity-class "
+            f"column (every row equal to its degree vector); found "
+            f"{len(identity_columns)} (identity-location law; a guard "
+            f"that fires is evidence)")
+    return identity_columns[0]
+
+
 def _exact_div(op: str, numerator: int, denominator: int, what: str) -> int:
     """Exact integer division via ``divmod`` with a remainder-must-be-zero
     guard — THE corruption detector of the tier-3 ops: every character-sum
@@ -1675,22 +1743,21 @@ def central_idempotents(char_table: Mapping[str, Any]) -> Dict[str, Any]:
     the class algebra, :func:`character_table`'s decomposition made into
     an operand.
 
-    **The scope ruling this op's name carries (final).**  Two objects wear
-    the name "isotypic projector": (a) the primitive central idempotents
+    **The scope ruling this op's name carries.**  Two objects wear the
+    name "isotypic projector": (a) the primitive central idempotents
     ``e_chi = (d/|G|) · Σ_g chi(g⁻¹)·g`` of ``Z(ℂ[G])`` — these need ONLY
     characters, and everything they need ships; (b) the projector onto an
     isotypic SUBSPACE of a caller's module, which needs the actual
-    representation matrices ``rho(g)`` — and srmech has NO representation
-    object (the ``physics.qm`` matrices are fixed Lie generators, not
-    G → GL(V); the CD ``left_mult_matrix`` / ``right_mult_matrix`` are
-    algebra regular representations, not group-element-keyed).  This op
-    ships object (a) under the name of what it actually is.  The elements
-    returned ARE the isotypic projectors of the REGULAR module; for any
-    other module the caller evaluates ``rho(e_chi) = (d/|G|) ·
-    Σ_g chi(g⁻¹)·rho(g)`` — the group-algebra element is universal, the
-    matrix projector is its evaluation at a module srmech does not carry.
-    Shipping (a) under the bare name "isotypic_projector" would be a
-    silent wrong answer waiting for a caller with a module in hand.
+    representation matrices ``rho(g)``.  This op ships object (a) under
+    the name of what it actually is.  The elements returned ARE the
+    isotypic projectors of the REGULAR module.  *(This ruling said
+    "srmech has NO representation object" when it shipped at rc457, and
+    that was true then.  Since rc458 it is no longer true:
+    :func:`permutation_representation` mints ``rho: G -> GL(V)`` as a rep
+    payload, and :func:`isotypic_projector` IS the evaluation
+    ``rho(e_chi) = (d/|G|) · Σ_g chi(g⁻¹)·rho(g)`` this paragraph used to
+    assign to the caller.  The group-algebra element here stays universal;
+    reach for :func:`isotypic_projector` when a module is in hand.)*
 
     **The denominator, and why it is explicit.**  The coefficients
     ``d·chi(g⁻¹)/|G|`` are NOT algebraic integers (the trivial idempotent
@@ -1745,17 +1812,7 @@ def central_idempotents(char_table: Mapping[str, Any]) -> Dict[str, Any]:
               for j in range(k))
         for i in range(k))
 
-    identity_columns = [
-        j for j in range(k)
-        if all(tuple(table[i][j]) == (degrees[i],) + (0,) * (deg - 1)
-               for i in range(k))]
-    if len(identity_columns) != 1:
-        raise ValueError(
-            f"central_idempotents: expected exactly ONE identity-class "
-            f"column (every row equal to its degree vector); found "
-            f"{len(identity_columns)} (identity-location law; a guard "
-            f"that fires is evidence)")
-    identity_class = identity_columns[0]
+    identity_class = _identity_class("central_idempotents", char_table)
 
     for j in range(k):
         for t in range(deg):
@@ -1783,4 +1840,1176 @@ def central_idempotents(char_table: Mapping[str, Any]) -> Dict[str, Any]:
         "phi_e": char_table["phi_e"],
         "table_sha256": char_table["table_sha256"],
         "idempotents_sha256": sha256_bytes(body),
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# tier 4 — the representation itself (rc458).  rho: G -> GL(V) as a REP
+# PAYLOAD dict over an exact field, element-indexed by the SAME
+# Cayley-table indexing the whole stratum uses — that indexing IS the
+# composition contract.  The homomorphism law is checkable only at
+# CONSTRUCTION (the payload carries the table's HASH, not the table);
+# downstream, the corruption detectors are the coherence laws exactly
+# as tier 3's _exact_div is the character-payload one.
+# ──────────────────────────────────────────────────────────────────────
+
+
+#: The payload keys every rep-eating tier-4 op requires.  ``action`` is
+#: additionally required when ``kind == "permutation"`` (and is what the
+#: matrix-action coherence law reads against).
+_REP_KEYS = ("order", "degree", "field", "kind", "matrices",
+             "cayley_sha256", "matrices_sha256")
+
+_SHA256_HEX = frozenset("0123456789abcdef")
+
+
+def _pair_magnitude(value: int) -> int:
+    """The magnitude read of a plain int — tier 4's Class-K pin-slot at
+    the zero phase boundary with Class-C re-entry (the :func:`_small_lift`
+    precedent): an explicit sign-branch, never an ALU magnitude call.  The
+    canonical-pair law reads numerator magnitudes through this so the
+    Class-I :func:`srmech.math.cyclic.gcd` (non-negative domain) sees only
+    magnitudes while the orientation stays on the pair."""
+    if value < 0:
+        return -value          # Class K flip at 0, Class C re-entry
+    return value
+
+
+def _canonical_pair(num: int, den: int) -> Tuple[int, int]:
+    """Reduce an integer pair to the CANONICAL ``(num, den)`` spelling:
+    ``gcd == 1``, ``den >= 1``, sign on the numerator, zero as ``0/1``.
+    Exact integers; the sign read is the :func:`_pair_magnitude` Class-K
+    pin-slot."""
+    if den < 0:
+        num, den = -num, -den  # Class-K flip: the sign lives on num
+    g = gcd(_pair_magnitude(num), den)
+    if g > 1:
+        num //= g
+        den //= g
+    if num == 0:
+        den = 1                # the canonical zero is 0/1
+    return (num, den)
+
+
+def _rep_matrices_bytes(kind: str, matrices) -> bytes:
+    """Canonical bytes of a rep's matrix family for the Class-A content
+    address: elements blank-line-joined, rows newline-joined, cells
+    comma-joined; a general-kind cell is spelled ``num/den``.  The
+    validator's canonical-pair law is what makes two spellings of one rep
+    ONE hash — canonicality is load-bearing, not cosmetic."""
+    if kind == "permutation":
+        return "\n\n".join(
+            "\n".join(",".join(str(v) for v in row) for row in mat)
+            for mat in matrices).encode("utf-8")
+    return "\n\n".join(
+        "\n".join(",".join(f"{cell[0]}/{cell[1]}" for cell in row)
+                  for row in mat)
+        for mat in matrices).encode("utf-8")
+
+
+def _check_rep_payload(op: str, rep: Mapping[str, Any]) -> None:
+    """Validate a REP PAYLOAD dict ONCE, raising ``ValueError`` NAMING the
+    failing law (the :func:`_check_char_table_payload` sibling; the
+    :func:`semidirect_product` convention).  Shared by every rep-eating
+    tier-4 op so a malformed or hand-edited payload is refused identically
+    everywhere.
+
+    **What this validator can and cannot check, stated plainly.**  The
+    homomorphism law ``rho(g·h) == rho(g)·rho(h)`` is checkable only at
+    CONSTRUCTION — the payload carries the Cayley table's HASH
+    (``cayley_sha256``), not the table — exactly as a tier-3 op cannot
+    re-verify that a character table is one.  Downstream the corruption
+    detectors are the coherence laws: here the matrix-action coherence /
+    one-1-per-row-and-column / canonical-pair / content-address laws; in
+    the consumers the divisibility, non-scalar ζ-sum, dimension and trace
+    laws (the :func:`_exact_div` shape — a guard that fires is evidence).
+
+    Laws, in checking order: payload-key, payload-scalar, field, kind,
+    shape (element-count / rectangularity), then per kind — permutation:
+    action shape, plain-int, bijection, matrix-entry (0/1 — which with the
+    bijection law IS one-1-per-row-and-column), matrix-action coherence;
+    general: canonical-pair (a 2-pair of plain ints, ``den >= 1``,
+    ``gcd == 1`` — bool REJECTED on every integer lane) — and LAST the
+    content-address law (``matrices_sha256`` recomputed over the canonical
+    serialization must match; ``cayley_sha256`` is shape-checked only,
+    since the table is not in the payload)."""
+    missing = [key for key in _REP_KEYS if key not in rep]
+    if missing:
+        raise ValueError(
+            f"{op}: rep payload is missing {missing} - pass a "
+            f"permutation_representation(...) payload dict verbatim "
+            f"(payload-key law)")
+    for label in ("order", "degree"):
+        if not _plain_int(rep[label]) or rep[label] < 1:
+            raise ValueError(
+                f"{op}: {label} must be a positive plain int, not "
+                f"{rep[label]!r} (payload-scalar law)")
+    if rep["field"] != "Q":
+        raise ValueError(
+            f"{op}: field must be 'Q', not {rep['field']!r} - tier 4 reps "
+            f"are exact-rational (field law)")
+    kind = rep["kind"]
+    if kind not in ("permutation", "general"):
+        raise ValueError(
+            f"{op}: kind must be 'permutation' or 'general', not "
+            f"{kind!r} (kind law)")
+    order = rep["order"]
+    degree = rep["degree"]
+    matrices = rep["matrices"]
+    if len(matrices) != order:
+        raise ValueError(
+            f"{op}: len(matrices) = {len(matrices)} != order = {order} - "
+            f"one matrix per element, Cayley-indexed (element-count law)")
+    for g, mat in enumerate(matrices):
+        if len(mat) != degree:
+            raise ValueError(
+                f"{op}: matrices[{g}] has {len(mat)} rows, expected "
+                f"{degree} (shape law)")
+        for r, row in enumerate(mat):
+            if len(row) != degree:
+                raise ValueError(
+                    f"{op}: matrices[{g}][{r}] has {len(row)} cells, "
+                    f"expected {degree} (shape law)")
+    if kind == "permutation":
+        if "action" not in rep:
+            raise ValueError(
+                f"{op}: a permutation-kind payload must carry its action "
+                f"table (payload-key law)")
+        action = rep["action"]
+        if len(action) != order:
+            raise ValueError(
+                f"{op}: len(action) = {len(action)} != order = {order} "
+                f"(element-count law)")
+        for g, arow in enumerate(action):
+            if len(arow) != degree:
+                raise ValueError(
+                    f"{op}: action[{g}] has {len(arow)} cells, expected "
+                    f"{degree} (shape law)")
+            for x, val in enumerate(arow):
+                if not _plain_int(val):
+                    raise ValueError(
+                        f"{op}: action[{g}][{x}] carries a "
+                        f"{type(val).__name__}; the action is plain-int "
+                        f"points only (plain-int law)")
+            if sorted(arow) != list(range(degree)):
+                raise ValueError(
+                    f"{op}: action[{g}] is not a bijection of "
+                    f"range({degree}) (bijection law)")
+        for g, mat in enumerate(matrices):
+            arow = action[g]
+            for r, row in enumerate(mat):
+                for c, val in enumerate(row):
+                    if not _plain_int(val) or val not in (0, 1):
+                        raise ValueError(
+                            f"{op}: matrices[{g}][{r}][{c}] = {val!r} is "
+                            f"not a plain 0/1 int (matrix-entry law)")
+                    want = 1 if arow[c] == r else 0
+                    if val != want:
+                        raise ValueError(
+                            f"{op}: matrices[{g}][{r}][{c}] = {val} but "
+                            f"action[{g}][{c}] = {arow[c]} - the pinned "
+                            f"convention is matrices[g][action[g][j]][j] "
+                            f"== 1 (matrix-action coherence law)")
+    else:
+        for g, mat in enumerate(matrices):
+            for r, row in enumerate(mat):
+                for c, cell in enumerate(row):
+                    if (not isinstance(cell, (tuple, list))
+                            or len(cell) != 2):
+                        raise ValueError(
+                            f"{op}: matrices[{g}][{r}][{c}] = {cell!r} is "
+                            f"not a (num, den) pair (canonical-pair law)")
+                    num, den = cell
+                    if not _plain_int(num) or not _plain_int(den):
+                        raise ValueError(
+                            f"{op}: matrices[{g}][{r}][{c}] carries a "
+                            f"non-plain-int coordinate "
+                            f"({type(num).__name__}, {type(den).__name__}"
+                            f") (canonical-pair law)")
+                    if den < 1:
+                        raise ValueError(
+                            f"{op}: matrices[{g}][{r}][{c}] = "
+                            f"({num}, {den}) has den < 1; the sign lives "
+                            f"on the numerator (canonical-pair law)")
+                    if gcd(_pair_magnitude(num), den) != 1 or (
+                            num == 0 and den != 1):
+                        raise ValueError(
+                            f"{op}: matrices[{g}][{r}][{c}] = "
+                            f"({num}, {den}) is not reduced - a content-"
+                            f"addressed carrier needs ONE spelling per "
+                            f"value (canonical-pair law)")
+    for label in ("cayley_sha256", "matrices_sha256"):
+        value = rep[label]
+        if (not isinstance(value, str) or len(value) != 64
+                or not set(value) <= _SHA256_HEX):
+            raise ValueError(
+                f"{op}: {label} = {value!r} is not a 64-hex content "
+                f"address (content-address-shape law)")
+    recomputed = sha256_bytes(_rep_matrices_bytes(kind, matrices))
+    if recomputed != rep["matrices_sha256"]:
+        raise ValueError(
+            f"{op}: matrices_sha256 does not match the canonical "
+            f"serialization of the matrices carried in the same payload - "
+            f"the payload does not cohere (content-address law; a guard "
+            f"that fires is evidence)")
+
+
+def zeta_mul(u: Sequence[int], v: Sequence[int],
+             phi_e: Sequence[int]) -> Tuple[int, ...]:
+    """The exact ``ℤ[ζ_e]`` ring product of two ζ-power-basis integer
+    vectors, reduced mod the monic ``Φ_e`` — **Class I**, the first
+    registered exact ζ-vector atom, and the public promotion of the
+    private kernel every tier-2/3/4 ζ contraction already rides
+    (:func:`fusion_multiplicities`, :func:`decompose_representation`,
+    :func:`isotypic_projector` all multiply in exactly this ring).
+
+    rc456 promised this promotion, rc457 deliberately deferred it (its
+    CHANGELOG records why), and this rc delivers it: integer convolution
+    of ``u`` and ``v`` (any lengths), then exact monic polynomial
+    reduction to length ``φ(e) = len(phi_e) - 1``.  No rational ever
+    appears — ``Φ_e`` is monic and the operands are algebraic integers.
+
+    Args:
+        u: integer coordinates in the ``ζ_e`` power basis, low→high.
+        v: same carrier as ``u``.
+        phi_e: the monic ``Φ_e`` coefficients low→high — the ``phi_e``
+            field of a :func:`character_table` payload, verbatim.
+
+    Returns:
+        The product as a length-``φ(e)`` tuple of plain ints.
+
+    Guards, each a raise: every coordinate of all three vectors is a
+    plain int — bool REJECTED (plain-int law); ``len(phi_e) >= 2`` and
+    ``phi_e[-1] == 1`` (monic-modulus law).
+
+    Worked example (``Φ_4 = x² + 1`` is ``(1, 0, 1)``)::
+
+        zeta_mul((0, 1), (0, 1), (1, 0, 1))   # ζ₄ · ζ₄ = i·i
+        # -> (-1, 0)                          # = -1, reduced mod Φ₄
+
+    The caller wanting DIVISION lifts into
+    :class:`srmech.math.qalg.Qalg` over ``m = Φ_e`` — the two-line move
+    :func:`character_table` documents; this op stays in the ring.
+
+    Internal hot paths keep calling the private kernel directly (guards
+    cost per call and their operands are already validated payloads);
+    this public spelling adds the wire-crossing guards.  It is also the
+    one op legitimately ``[[cascade.chain]]``-declarable in a LATER rc —
+    not this one (the ``cyclic_mod_pow.toml`` delegation precedent).
+
+    C-parity (ADR-0009, recorded): no ``srmech_zeta_mul`` symbol exists.
+    The near-peer ``srmech_riemann_theta_cyc_mul`` (srmech.h) is a
+    ``ℤ[ζ]`` ring multiply speaking a DIFFERENT wire — ζ-power-table
+    reduction, deg ≤ 16, int64 fast path — under a foreign namespace.
+    The table-based wire adapter from ``phi_e`` (pure-bignum fallback)
+    is deliberately deferred per the STAY-THE-COURSE-WITH-PYTHON ruling;
+    recorded, not hidden.
+
+    Note:
+        Exact integers end to end; no float; no ``abs``.
+    """
+    for label, vec in (("u", u), ("v", v), ("phi_e", phi_e)):
+        for i, coordinate in enumerate(vec):
+            if not _plain_int(coordinate):
+                raise ValueError(
+                    f"zeta_mul: {label}[{i}] carries a "
+                    f"{type(coordinate).__name__} coordinate; the carrier "
+                    f"is plain-int vectors only (plain-int law)")
+    phi = list(phi_e)
+    if len(phi) < 2:
+        raise ValueError(
+            f"zeta_mul: phi_e must have degree >= 1 (len >= 2); got "
+            f"len {len(phi)} (monic-modulus law)")
+    if phi[-1] != 1:
+        raise ValueError(
+            f"zeta_mul: phi_e must be MONIC (leading coefficient 1); got "
+            f"{phi[-1]} (monic-modulus law)")
+    return _zeta_mul(list(u), list(v), phi)
+
+
+def permutation_representation(
+        cayley_table: Sequence[Sequence[int]],
+        action: Sequence[Sequence[int]]) -> Dict[str, Any]:
+    """The permutation representation ``rho: G -> GL(V)`` of a group
+    acting on a finite point set — **Class L** (mints the operator
+    family, the :func:`cayley_graph` precedent) over Class-I action-law
+    validation.  THE op that gives the stratum a representation OBJECT:
+    everything before tier 4 stops at characters.
+
+    Args:
+        cayley_table: the ``n × n`` group table — validated as a group
+            (associative, two-sided identity, unique two-sided inverses;
+            ``ValueError`` naming the operand-group law otherwise).
+        action: ``action[g]`` is a permutation TABLE of the point set
+            ``range(degree)`` — a table, not a callable, because a
+            callable cannot cross JSON-RPC and these operands ARE the
+            semantics (the :func:`semidirect_product` convention).
+
+    Validation, each failure a ``ValueError`` naming the law: one action
+    row per element; every row a plain-int bijection of the point set;
+    the identity acts as the identity permutation (identity-action law);
+    and the LEFT-action law ``action[table[g][h]][x] ==
+    action[g][action[h][x]]`` over ALL g, h, x — which for the pinned
+    matrix convention IS the homomorphism law ``rho(g·h) = rho(g)·rho(h)``
+    executed at construction (the one place it is checkable; the payload
+    carries the table's hash, not the table).
+
+    **The pinned matrix convention** (stated once, used by every tier-4
+    op): ``matrices[g] · e_j = e_{action[g][j]}`` — column ``j`` carries
+    its 1 in row ``action[g][j]``.  Vectorization everywhere is
+    ROW-MAJOR.
+
+    **The regular representation is** ``permutation_representation(tbl,
+    tbl)`` — the left-multiplication action IS the Cayley table (the
+    left-action law reduces to associativity); there is no separate op
+    (the direct-product precedent: the special case is a call pattern,
+    not a sibling).
+
+    Returns:
+        The REP PAYLOAD dict ``{"order", "degree", "field": "Q",
+        "kind": "permutation", "matrices"`` (0/1 ints, Cayley-indexed),
+        ``"action"`` (echoed, validated), ``"cayley_sha256"``
+        (Class-A bind of the operand table), ``"matrices_sha256"``
+        (Class-A bind of the canonical matrices serialization)``}`` —
+        what :func:`character_of` / :func:`decompose_representation` /
+        :func:`isotypic_projector` / :func:`tensor_product_representation`
+        / :func:`direct_sum_representation` / :func:`intertwiner_space`
+        all eat.
+
+    C-parity (ADR-0009, recorded): this op has no C peer; the
+    representation stratum ships Python-first under the noted-disparity
+    ruling.
+
+    Note:
+        Exact integers; no float; no ``abs``.
+    """
+    tbl = _check_table("permutation_representation", cayley_table)
+    n = len(tbl)
+    e_idx = _identity_of(tbl)
+    if e_idx is None:
+        raise ValueError(
+            "permutation_representation: cayley_table has no two-sided "
+            "identity (operand-group law)")
+    if _inverse_scan(tbl, e_idx) is None:
+        raise ValueError(
+            "permutation_representation: cayley_table lacks unique "
+            "two-sided inverses (operand-group law)")
+    _check_associative("permutation_representation", "cayley_table", tbl)
+
+    act = [list(r) for r in action]
+    if len(act) != n:
+        raise ValueError(
+            f"permutation_representation: action must have one "
+            f"permutation row per element; got {len(act)} rows for "
+            f"|G| = {n}")
+    degree = len(act[0]) if act else 0
+    if degree < 1:
+        raise ValueError(
+            "permutation_representation: the point set must be "
+            "non-empty (shape law)")
+    for g, row in enumerate(act):
+        if len(row) != degree:
+            raise ValueError(
+                f"permutation_representation: action[{g}] has "
+                f"{len(row)} cells, expected {degree} (shape law)")
+        for x, val in enumerate(row):
+            if not _plain_int(val):
+                raise ValueError(
+                    f"permutation_representation: action[{g}][{x}] "
+                    f"carries a {type(val).__name__}; the action is "
+                    f"plain-int points only (plain-int law)")
+        if sorted(row) != list(range(degree)):
+            raise ValueError(
+                f"permutation_representation: action[{g}] is not a "
+                f"bijection of range({degree}) (bijection law)")
+    if act[e_idx] != list(range(degree)):
+        raise ValueError(
+            "permutation_representation: the identity must act as the "
+            "identity permutation (identity-action law)")
+    for g in range(n):
+        for h in range(n):
+            composed = tbl[g][h]
+            for x in range(degree):
+                if act[composed][x] != act[g][act[h][x]]:
+                    raise ValueError(
+                        f"permutation_representation: "
+                        f"action[table[{g}][{h}]][{x}] != "
+                        f"action[{g}][action[{h}][{x}]] "
+                        f"(left-action law)")
+
+    matrices: List[List[List[int]]] = []
+    for g in range(n):
+        mat = [[0] * degree for _ in range(degree)]
+        for j in range(degree):
+            mat[act[g][j]][j] = 1      # matrices[g]·e_j = e_{action[g][j]}
+        matrices.append(mat)
+
+    return {
+        "order": n,
+        "degree": degree,
+        "field": "Q",
+        "kind": "permutation",
+        "matrices": matrices,
+        "action": act,
+        "cayley_sha256": sha256_bytes(_table_bytes(tbl)),
+        "matrices_sha256": sha256_bytes(
+            _rep_matrices_bytes("permutation", matrices)),
+    }
+
+
+def _exact_trace(op: str, g: int, kind: str, mat, degree: int) -> int:
+    """The exact integer trace of one rep matrix: a diagonal 0/1 count
+    for a permutation kind; an exact rational diagonal sum for a general
+    kind, with the integrality law enforced by divmod-raise (the
+    eigenvalues of a true finite-group rep are roots of unity, so its
+    rational trace is an integer; a remainder is corruption).  Private so
+    the Class-I ``gcd`` reduction stays a helper edge — it runs on the
+    general-kind branch only, and a composes tuple cannot be true of both
+    branches (the rc437 regular-representation precedent)."""
+    if kind == "permutation":
+        return sum(mat[i][i] for i in range(degree))
+    t_num, t_den = 0, 1
+    for i in range(degree):
+        num, den = mat[i][i]
+        t_num = t_num * den + num * t_den
+        t_den = t_den * den
+        shrink = gcd(_pair_magnitude(t_num), t_den)
+        if shrink > 1:
+            t_num //= shrink
+            t_den //= shrink
+    quotient, remainder = divmod(t_num, t_den)
+    if remainder != 0:
+        raise ValueError(
+            f"{op}: trace of matrices[{g}] is "
+            f"{t_num}/{t_den}, not an integer - the eigenvalues "
+            f"of a true finite-group rep are roots of unity, so "
+            f"its rational trace is an integer (integrality law; "
+            f"a guard that fires is evidence)")
+    return quotient
+
+
+def character_of(rep: Mapping[str, Any],
+                 char_table: Mapping[str, Any]) -> Dict[str, Any]:
+    """The character of a representation — **Class L** (the trace
+    readout), and the bridge from the tier-4 rep object back to the
+    tier-2/3 character stratum; the free consistency oracle (on the
+    regular representation the result must be ``(|G|, 0, …, 0)`` in
+    class order, and per irreducible content it must match the shipped
+    :func:`character_table` rows — the tests execute both).
+
+    Args:
+        rep: a tier-4 REP PAYLOAD dict, passed VERBATIM (``ValueError``
+            naming the failing law otherwise).
+        char_table: a :func:`character_table` payload dict, passed
+            VERBATIM.  Only its CLASS-PARTITION fields are read
+            (``class_of`` / ``k`` / ``order`` / ``degrees`` / ``table``
+            for the identity location) — the character VALUES are not
+            consulted; this op measures the rep, the payload supplies
+            the partition.
+
+    The trace of every element's matrix is computed exactly (an integer
+    count of fixed points for a permutation kind; an exact rational
+    diagonal sum for a general kind).  Guards, each a raise:
+
+    * **order law** — ``rep["order"] == char_table["order"]``;
+    * **integrality law** — each trace is a plain integer via a
+      divmod-raise (the eigenvalues of ``rho(g)`` are roots of unity, so
+      a rational trace of a true ℚ-rep is a rational algebraic integer,
+      i.e. an integer; a remainder is corruption);
+    * **class-constancy law** — the trace is equal across each conjugacy
+      class.  This is also the honest SAME-GROUP mismatch detector,
+      stated as such: a rep and a char table from different groups of
+      equal order usually break class-constancy, but not provably always
+      — it is a DETECTOR, not a proof (the payloads share no
+      Cayley-table bind; ``table_sha256`` addresses the character table,
+      not the group);
+    * **identity-trace law** — ``character[identity_class] == degree``,
+      the identity class located payload-only via the shared
+      :func:`_identity_class` (the :func:`central_idempotents`
+      unique-column technique, hoisted at this rc).
+
+    Returns:
+        ``{"k", "order", "degree", "kind", "character"`` (length-k tuple
+        of plain ints, CLASS-ordered — the ``ℤ[ζ_e]`` lift of an integer
+        ``t`` is ``(t, 0, …, 0)`` and is done by consumers internally),
+        ``"cayley_sha256"`` (echoed from the rep), ``"table_sha256"``
+        (echoed from the char table), ``"character_sha256"}``.
+
+    C-parity (ADR-0009, recorded): this op has no C peer; the
+    representation stratum ships Python-first under the noted-disparity
+    ruling.
+
+    Note:
+        Exact integers; no float; no ``abs``.
+    """
+    _check_rep_payload("character_of", rep)
+    _check_char_table_payload("character_of", char_table)
+    if rep["order"] != char_table["order"]:
+        raise ValueError(
+            f"character_of: rep order {rep['order']} != char_table order "
+            f"{char_table['order']} (order law)")
+    order = rep["order"]
+    degree = rep["degree"]
+    kind = rep["kind"]
+    matrices = rep["matrices"]
+    k = char_table["k"]
+    class_of = char_table["class_of"]
+
+    traces: List[int] = []
+    for g in range(order):
+        traces.append(
+            _exact_trace("character_of", g, kind, matrices[g], degree))
+
+    character: List[Optional[int]] = [None] * k
+    for g, trace in enumerate(traces):
+        j = class_of[g]
+        if character[j] is None:
+            character[j] = trace
+        elif character[j] != trace:
+            raise ValueError(
+                f"character_of: elements of class {j} carry unequal "
+                f"traces {character[j]} and {trace} - a character is a "
+                f"class function (class-constancy law; a guard that "
+                f"fires is evidence.  This is also the honest detector "
+                f"for a rep and a char_table from DIFFERENT groups)")
+    empty = [j for j, v in enumerate(character) if v is None]
+    if empty:
+        raise ValueError(
+            f"character_of: class_of names no element of class(es) "
+            f"{empty} - every conjugacy class is non-empty "
+            f"(class-coverage law; a guard that fires is evidence)")
+    values = [v for v in character if v is not None]
+
+    identity = _identity_class("character_of", char_table)
+    if values[identity] != degree:
+        raise ValueError(
+            f"character_of: character at the identity class is "
+            f"{values[identity]}, expected the degree {degree} "
+            f"(identity-trace law; a guard that fires is evidence)")
+
+    body = ",".join(str(v) for v in values).encode("utf-8")
+    return {
+        "k": k,
+        "order": order,
+        "degree": degree,
+        "kind": kind,
+        "character": tuple(values),
+        "cayley_sha256": rep["cayley_sha256"],
+        "table_sha256": char_table["table_sha256"],
+        "character_sha256": sha256_bytes(body),
+    }
+
+
+def decompose_representation(
+        rep: Mapping[str, Any],
+        char_table: Mapping[str, Any]) -> Dict[str, Any]:
+    """The irrep multiplicities of a representation — **Class L**, the
+    projection of the rep's character onto the irrep eigenbasis of the
+    class algebra (the fusion slot: :func:`fusion_multiplicities` does
+    this for a product of two CHARACTERS; this op does it for an actual
+    REP).
+
+    The body composes :func:`character_of` (a real composes-ledger row,
+    not decoration), then contracts::
+
+        m_i · |G| = Σ_j class_sizes[j] · character[j] ·
+                    table[i][inverse_class[j]]
+
+    — pure integer ζ-vector arithmetic (``χ_i(g⁻¹)`` is the shipped
+    ``inverse_class`` column permutation, no Galois machinery; the
+    integer character lifts as ``(t, 0, …, 0)`` internally).
+
+    Guards, each a raise: the **non-scalar-sum law** (each summed
+    ζ-vector must land exactly ``(M, 0, …, 0)`` — a nonzero higher
+    coordinate is corruption); :func:`_exact_div` by ``|G|`` (the
+    divisibility corruption detector); **non-negativity** (a
+    multiplicity counts irrep constituents); and the **dimension law**
+    ``Σ m_i·d_i == degree``.
+
+    Args:
+        rep: a tier-4 REP PAYLOAD dict, passed VERBATIM.
+        char_table: a :func:`character_table` payload dict, passed
+            VERBATIM (both validated inside :func:`character_of`).
+
+    Returns:
+        ``{"k", "order", "degree", "multiplicities"`` (length-k tuple of
+        plain ints, payload row order), ``"norm"`` (= Σ m² = ⟨χ, χ⟩),
+        ``"is_irreducible"`` (a bool as a BOOL FIELD — never riding an
+        integer lane), ``"character"`` (echoed from
+        :func:`character_of`), ``"degrees"`` (echoed), ``"table_sha256"``
+        / ``"cayley_sha256"`` (echoed), ``"multiplicities_sha256"}``.
+
+    ⚠️ Row order: payload rows sort (degree, lex) — the trivial
+    character is NOT at index 0 in general; locate rows by CONTENT.
+
+    C-parity (ADR-0009, recorded): this op has no C peer; the
+    representation stratum ships Python-first under the noted-disparity
+    ruling.
+
+    Note:
+        Exact integers end to end; no float; no ``abs``.
+    """
+    chi = character_of(rep, char_table)
+    k = char_table["k"]
+    order = char_table["order"]
+    deg = char_table["degree"]
+    sizes = char_table["class_sizes"]
+    invc = char_table["inverse_class"]
+    table = char_table["table"]
+    degrees = char_table["degrees"]
+    character = chi["character"]
+
+    multiplicities: List[int] = []
+    for i in range(k):
+        acc = [0] * deg
+        for j in range(k):
+            weight = sizes[j] * character[j]
+            if weight:
+                cell = table[i][invc[j]]
+                for t in range(deg):
+                    acc[t] += weight * cell[t]
+        if any(acc[1:]):
+            raise ValueError(
+                f"decompose_representation: <chi, chi_{i}> keeps nonzero "
+                f"zeta coordinates {tuple(acc)} - a multiplicity is a "
+                f"rational integer (non-scalar-sum law; a guard that "
+                f"fires is evidence)")
+        m_i = _exact_div("decompose_representation", acc[0], order,
+                         f"the <chi, chi_{i}> numerator")
+        if m_i < 0:
+            raise ValueError(
+                f"decompose_representation: <chi, chi_{i}> = {m_i} is "
+                f"negative - multiplicities count irrep constituents "
+                f"(non-negativity law; a guard that fires is evidence)")
+        multiplicities.append(m_i)
+
+    dimension_total = 0
+    for m_i, d_i in zip(multiplicities, degrees):
+        dimension_total += m_i * d_i
+    if dimension_total != chi["degree"]:
+        raise ValueError(
+            f"decompose_representation: sum m_i*d_i = {dimension_total} "
+            f"!= degree = {chi['degree']} (dimension law; a guard that "
+            f"fires is evidence)")
+
+    norm = sum(m_i * m_i for m_i in multiplicities)
+    body = ",".join(str(m) for m in multiplicities).encode("utf-8")
+    return {
+        "k": k,
+        "order": order,
+        "degree": chi["degree"],
+        "multiplicities": tuple(multiplicities),
+        "norm": norm,
+        "is_irreducible": norm == 1,
+        "character": character,
+        "degrees": degrees,
+        "table_sha256": chi["table_sha256"],
+        "cayley_sha256": chi["cayley_sha256"],
+        "multiplicities_sha256": sha256_bytes(body),
+    }
+
+
+def isotypic_projector(rep: Mapping[str, Any],
+                       char_table: Mapping[str, Any]) -> Dict[str, Any]:
+    """The isotypic projector family of a MODULE — **Class L**, the op
+    rc457 declined for want of a representation object, now buildable:
+    the evaluation ``rho(e_chi) = (d_i/|G|) · Σ_g chi_i(g⁻¹)·rho(g)``
+    that :func:`central_idempotents`' own docstring promises the caller
+    performs ("for any other module the caller evaluates rho(e_chi)") —
+    THIS op is that evaluation, shipped.
+
+    ``chi_i(g⁻¹)`` is payload-resident — ``table[i][inverse_class[
+    class_of[g]]]`` — so no element inverses are ever computed
+    (measured: the contraction groups by class, ``P_i = d_i · Σ_j
+    chi_i(j⁻¹) · S_j`` with ``S_j = Σ_{g ∈ C_j} rho(g)`` the class
+    sums).
+
+    **The deferred-division carrier** (the :func:`central_idempotents`
+    precedent): integer ζ-vector NUMERATORS over ONE explicit
+    ``denominator`` — ``|G|`` for a permutation kind; ``|G| · L`` for a
+    general kind, ``L`` = lcm of every entry denominator (each entry
+    numerator scaled by ``L / den`` — DERIVED per entry, not asserted).
+    Division is never performed; the caller lifts into
+    :class:`srmech.math.qalg.Qalg` when a rational is wanted.
+
+    In-op guards (cheap, ``O(k·d²·φ(e))``), each a raise:
+
+    * **completeness law** — ``Σ_i P_i == denominator · I`` as
+      ζ-vectors (column orthogonality against the identity, executed);
+    * **trace law** — ``trace(P_i)`` lands on the scalar lane and equals
+      ``denominator · m_i · d_i`` (the multiplicities are the internal
+      :func:`decompose_representation` contraction, echoed).
+
+    Idempotence ``P_i·P_i == denominator·P_i``, mutual orthogonality
+    ``P_i·P_j == 0`` and equivariance ``P_i·rho(g) == rho(g)·P_i`` are
+    TEST-side by two independent routes (the rc457 ``e·e = e`` ruling,
+    restated here next to the guards that stay in-op): route (i)
+    contracts via :func:`zeta_mul`'s kernel; route (ii), on the regular
+    representation, the family must equal :func:`central_idempotents`'
+    numerators expanded per element via ``class_of`` — the shipped
+    universal element meeting its promised evaluation; a disagreement
+    between routes is a finding.
+
+    Args:
+        rep: a tier-4 REP PAYLOAD dict, passed VERBATIM.
+        char_table: a :func:`character_table` payload dict, passed
+            VERBATIM (both validated inside the internal
+            :func:`decompose_representation` composition).
+
+    Returns:
+        ``{"k", "order", "degree", "degrees"`` (echoed),
+        ``"multiplicities"`` (the internal decompose contraction,
+        echoed), ``"denominator"``, ``"projectors"`` — k × d × d × φ(e)
+        nested int tuples, irrep-major — ``"phi_e"`` (echoed),
+        ``"table_sha256"`` / ``"cayley_sha256"`` / ``"matrices_sha256"``
+        (echoed), ``"projectors_sha256"}``.
+
+    Cost honest: ``O(|G|·d² + k²·d²·φ(e))`` — the op targets the same
+    small-order stratum every sibling does; a large order or degree
+    makes it SLOW, never wrong.
+
+    C-parity (ADR-0009, recorded): this op has no C peer; the
+    representation stratum ships Python-first under the noted-disparity
+    ruling.
+
+    Note:
+        Exact integers over one explicit denominator; no float; no
+        ``abs``.
+    """
+    decomposition = decompose_representation(rep, char_table)
+    k = char_table["k"]
+    order = char_table["order"]
+    deg = char_table["degree"]
+    invc = char_table["inverse_class"]
+    table = char_table["table"]
+    degrees = char_table["degrees"]
+    class_of = char_table["class_of"]
+    d = rep["degree"]
+    kind = rep["kind"]
+    matrices = rep["matrices"]
+    multiplicities = decomposition["multiplicities"]
+
+    if kind == "permutation":
+        scale_lcm = 1
+        scaled = matrices
+    else:
+        scale_lcm = 1
+        for mat in matrices:
+            for row in mat:
+                for cell in row:
+                    den = cell[1]
+                    shrink = gcd(scale_lcm, den)
+                    scale_lcm = scale_lcm // shrink * den
+        scaled = [[[cell[0] * (scale_lcm // cell[1]) for cell in row]
+                   for row in mat] for mat in matrices]
+    denominator = order * scale_lcm
+
+    class_sums = [[[0] * d for _ in range(d)] for _ in range(k)]
+    for g in range(order):
+        target = class_sums[class_of[g]]
+        source = scaled[g]
+        for r in range(d):
+            target_row = target[r]
+            source_row = source[r]
+            for c in range(d):
+                target_row[c] += source_row[c]
+
+    projectors: List[Tuple[Tuple[Tuple[int, ...], ...], ...]] = []
+    for i in range(k):
+        d_i = degrees[i]
+        chi_inv = [table[i][invc[j]] for j in range(k)]
+        rows_out: List[Tuple[Tuple[int, ...], ...]] = []
+        for r in range(d):
+            row_out: List[Tuple[int, ...]] = []
+            for c in range(d):
+                acc = [0] * deg
+                for j in range(k):
+                    s = class_sums[j][r][c]
+                    if s:
+                        vec = chi_inv[j]
+                        for t in range(deg):
+                            acc[t] += s * vec[t]
+                row_out.append(tuple(d_i * x for x in acc))
+            rows_out.append(tuple(row_out))
+        projectors.append(tuple(rows_out))
+
+    for r in range(d):
+        for c in range(d):
+            for t in range(deg):
+                total = 0
+                for i in range(k):
+                    total += projectors[i][r][c][t]
+                want = denominator if (r == c and t == 0) else 0
+                if total != want:
+                    raise ValueError(
+                        f"isotypic_projector: sum_i P_i[{r}][{c}] "
+                        f"coordinate {t} is {total}, expected {want} - "
+                        f"the projector family must sum to "
+                        f"denominator * I (completeness law; a guard "
+                        f"that fires is evidence)")
+    for i in range(k):
+        acc = [0] * deg
+        for r in range(d):
+            cell = projectors[i][r][r]
+            for t in range(deg):
+                acc[t] += cell[t]
+        if any(acc[1:]):
+            raise ValueError(
+                f"isotypic_projector: trace(P_{i}) keeps nonzero zeta "
+                f"coordinates {tuple(acc)} - an isotypic dimension is a "
+                f"rational integer (trace law; a guard that fires is "
+                f"evidence)")
+        want = denominator * multiplicities[i] * degrees[i]
+        if acc[0] != want:
+            raise ValueError(
+                f"isotypic_projector: trace(P_{i}) = {acc[0]}, expected "
+                f"denominator * m_{i} * d_{i} = {want} (trace law; a "
+                f"guard that fires is evidence)")
+
+    body = "\n\n".join(
+        "\n".join(
+            ";".join(",".join(str(x) for x in cell) for cell in row)
+            for row in proj)
+        for proj in projectors).encode("utf-8")
+    return {
+        "k": k,
+        "order": order,
+        "degree": d,
+        "degrees": degrees,
+        "multiplicities": multiplicities,
+        "denominator": denominator,
+        "projectors": tuple(projectors),
+        "phi_e": char_table["phi_e"],
+        "table_sha256": char_table["table_sha256"],
+        "cayley_sha256": rep["cayley_sha256"],
+        "matrices_sha256": rep["matrices_sha256"],
+        "projectors_sha256": sha256_bytes(body),
+    }
+
+
+def _entry_pair(kind: str, cell) -> Tuple[int, int]:
+    """A matrix entry as a canonical ``(num, den)`` pair: a permutation
+    kind's 0/1 int rides as ``(v, 1)``; a general kind's pair is already
+    canonical (the validator's canonical-pair law)."""
+    if kind == "permutation":
+        return (cell, 1)
+    return (cell[0], cell[1])
+
+
+def _same_group_guard(op: str, rep1: Mapping[str, Any],
+                      rep2: Mapping[str, Any]) -> None:
+    """The same-group law: two rep operands compose only over ONE group
+    with ONE element indexing, and the payloads carry that bind as the
+    Class-A ``cayley_sha256``.  Equality of the content address is the
+    executable form of "same table, same indexing"."""
+    if rep1["cayley_sha256"] != rep2["cayley_sha256"]:
+        raise ValueError(
+            f"{op}: the two rep payloads carry different cayley_sha256 "
+            f"content addresses - representations compose only over ONE "
+            f"group with ONE Cayley indexing (same-group law)")
+    if rep1["order"] != rep2["order"]:
+        raise ValueError(
+            f"{op}: rep orders {rep1['order']} != {rep2['order']} "
+            f"(same-group law)")
+
+
+def tensor_product_representation(
+        rep1: Mapping[str, Any],
+        rep2: Mapping[str, Any]) -> Dict[str, Any]:
+    """The tensor product ``rho1 ⊗ rho2`` of two representations of ONE
+    group — **Class M**, argued rather than adopted: the M-bind claim is
+    honest now by fusion's own criterion.  :func:`fusion_multiplicities`
+    declined Class M because "an M-bind claim implies an unbind
+    (character division), which is neither shipped nor measured" —
+    :func:`decompose_representation` and :func:`isotypic_projector` ARE
+    that unbind for the rep object (the bound module splits back into
+    its constituents), shipped and measured in this same rc, so the bind
+    half may finally say its name.
+
+    Kronecker per element, the ROW-MAJOR pair index pinned once:
+    ``(x1, x2) ↦ x1·d2 + x2`` — the same convention
+    :meth:`srmech.math.qmat.QMat.kron` and :func:`intertwiner_space`
+    use; ONE convention, stated once, executed by the tests via
+    ``(A⊗B)(C⊗D) == AC⊗BD``.
+
+    ``perm ⊗ perm`` stays ``kind="permutation"`` with the constructed
+    pair action — and the output payload is RE-VALIDATED by
+    :func:`_check_rep_payload` before it is returned (never trusted by
+    construction: bijection, matrix-entry, matrix-action coherence and
+    content-address laws all execute on the op's OWN output).  Any
+    general operand makes a general output, entries as canonical pairs.
+
+    Args:
+        rep1: a tier-4 REP PAYLOAD dict, passed VERBATIM.
+        rep2: a second rep payload OF THE SAME GROUP — the same-group
+            law checks ``cayley_sha256`` equality (same table, same
+            indexing) and raises otherwise.
+
+    Returns:
+        A full REP PAYLOAD dict of degree ``d1·d2`` — it eats anywhere a
+        constructor payload does (:func:`character_of` /
+        :func:`decompose_representation` / :func:`isotypic_projector` /
+        :func:`intertwiner_space`); the tests execute
+        ``decompose(rho_a ⊗ rho_b)`` against the SHIPPED
+        :func:`fusion_multiplicities` tensor.
+
+    C-parity (ADR-0009, recorded): this op has no C peer; the
+    representation stratum ships Python-first under the noted-disparity
+    ruling.
+
+    Note:
+        Exact integers / canonical pairs; no float; no ``abs``.
+    """
+    _check_rep_payload("tensor_product_representation", rep1)
+    _check_rep_payload("tensor_product_representation", rep2)
+    _same_group_guard("tensor_product_representation", rep1, rep2)
+    order = rep1["order"]
+    d1 = rep1["degree"]
+    d2 = rep2["degree"]
+    degree = d1 * d2
+
+    if rep1["kind"] == "permutation" and rep2["kind"] == "permutation":
+        a1 = rep1["action"]
+        a2 = rep2["action"]
+        action = [
+            [a1[g][x1] * d2 + a2[g][x2]
+             for x1 in range(d1) for x2 in range(d2)]
+            for g in range(order)]
+        matrices = []
+        for g in range(order):
+            mat = [[0] * degree for _ in range(degree)]
+            for j in range(degree):
+                mat[action[g][j]][j] = 1
+            matrices.append(mat)
+        out: Dict[str, Any] = {
+            "order": order,
+            "degree": degree,
+            "field": "Q",
+            "kind": "permutation",
+            "matrices": matrices,
+            "action": action,
+            "cayley_sha256": rep1["cayley_sha256"],
+            "matrices_sha256": sha256_bytes(
+                _rep_matrices_bytes("permutation", matrices)),
+        }
+    else:
+        k1 = rep1["kind"]
+        k2 = rep2["kind"]
+        m1 = rep1["matrices"]
+        m2 = rep2["matrices"]
+        matrices = []
+        for g in range(order):
+            mat = []
+            for r1 in range(d1):
+                for r2 in range(d2):
+                    row = []
+                    for c1 in range(d1):
+                        n1, e1 = _entry_pair(k1, m1[g][r1][c1])
+                        for c2 in range(d2):
+                            n2, e2 = _entry_pair(k2, m2[g][r2][c2])
+                            row.append(_canonical_pair(n1 * n2, e1 * e2))
+                    mat.append(row)
+            matrices.append(mat)
+        out = {
+            "order": order,
+            "degree": degree,
+            "field": "Q",
+            "kind": "general",
+            "matrices": matrices,
+            "cayley_sha256": rep1["cayley_sha256"],
+            "matrices_sha256": sha256_bytes(
+                _rep_matrices_bytes("general", matrices)),
+        }
+    _check_rep_payload("tensor_product_representation", out)
+    return out
+
+
+def direct_sum_representation(
+        rep1: Mapping[str, Any],
+        rep2: Mapping[str, Any]) -> Dict[str, Any]:
+    """The direct sum ``rho1 ⊕ rho2`` of two representations of ONE
+    group — **Class B** (TLV shape: the blocks are RECOVERABLE — the
+    leading ``d1 × d1`` block is ``rho1(g)`` verbatim and the trailing
+    ``d2 × d2`` block is ``rho2(g)`` verbatim, a claim the tests execute
+    rather than assert).
+
+    Block-diagonal per element; degree ``d1 + d2``.  ``perm ⊕ perm``
+    stays ``kind="permutation"`` with the disjoint-union action
+    (``j < d1 ↦ a1[g][j]``; else ``d1 + a2[g][j-d1]``), and the output
+    payload is RE-VALIDATED by :func:`_check_rep_payload` before return
+    (never trusted by construction).  Any general operand makes a
+    general output, entries as canonical pairs (off-block zeros as
+    ``(0, 1)``).
+
+    Args:
+        rep1: a tier-4 REP PAYLOAD dict, passed VERBATIM.
+        rep2: a second rep payload OF THE SAME GROUP (same-group law:
+            ``cayley_sha256`` equality, raise otherwise).
+
+    Returns:
+        A full REP PAYLOAD dict of degree ``d1 + d2`` — characters ADD
+        and multiplicities ADD, both executed by the tests.
+
+    C-parity (ADR-0009, recorded): this op has no C peer; the
+    representation stratum ships Python-first under the noted-disparity
+    ruling.
+
+    Note:
+        Exact integers / canonical pairs; no float; no ``abs``.
+    """
+    _check_rep_payload("direct_sum_representation", rep1)
+    _check_rep_payload("direct_sum_representation", rep2)
+    _same_group_guard("direct_sum_representation", rep1, rep2)
+    order = rep1["order"]
+    d1 = rep1["degree"]
+    d2 = rep2["degree"]
+    degree = d1 + d2
+
+    if rep1["kind"] == "permutation" and rep2["kind"] == "permutation":
+        a1 = rep1["action"]
+        a2 = rep2["action"]
+        action = [
+            [a1[g][j] for j in range(d1)]
+            + [d1 + a2[g][j] for j in range(d2)]
+            for g in range(order)]
+        matrices = []
+        for g in range(order):
+            mat = [[0] * degree for _ in range(degree)]
+            for j in range(degree):
+                mat[action[g][j]][j] = 1
+            matrices.append(mat)
+        out: Dict[str, Any] = {
+            "order": order,
+            "degree": degree,
+            "field": "Q",
+            "kind": "permutation",
+            "matrices": matrices,
+            "action": action,
+            "cayley_sha256": rep1["cayley_sha256"],
+            "matrices_sha256": sha256_bytes(
+                _rep_matrices_bytes("permutation", matrices)),
+        }
+    else:
+        k1 = rep1["kind"]
+        k2 = rep2["kind"]
+        m1 = rep1["matrices"]
+        m2 = rep2["matrices"]
+        zero = (0, 1)
+        matrices = []
+        for g in range(order):
+            mat = []
+            for r in range(d1):
+                row = [_canonical_pair(*_entry_pair(k1, m1[g][r][c]))
+                       for c in range(d1)] + [zero] * d2
+                mat.append(row)
+            for r in range(d2):
+                row = [zero] * d1 + [
+                    _canonical_pair(*_entry_pair(k2, m2[g][r][c]))
+                    for c in range(d2)]
+                mat.append(row)
+            matrices.append(mat)
+        out = {
+            "order": order,
+            "degree": degree,
+            "field": "Q",
+            "kind": "general",
+            "matrices": matrices,
+            "cayley_sha256": rep1["cayley_sha256"],
+            "matrices_sha256": sha256_bytes(
+                _rep_matrices_bytes("general", matrices)),
+        }
+    _check_rep_payload("direct_sum_representation", out)
+    return out
+
+
+def intertwiner_space(rep1: Mapping[str, Any],
+                      rep2: Mapping[str, Any]) -> Dict[str, Any]:
+    """The intertwiner space ``Hom_G(V1, V2)`` — **Class L**, the Schur
+    readout: an exact basis of the ``d2 × d1`` matrices ``X`` with
+    ``rho2(g) · X == X · rho1(g)`` for EVERY ``g``.  Schur's lemma made
+    an operand: between inequivalent irreducible constituents the
+    dimension is 0, and ``dimension == Σ_i m_i(rho1) · m_i(rho2) ==
+    ⟨χ1, χ2⟩`` — the tests execute that identity by a SECOND independent
+    route (the cyclotomic :func:`decompose_representation` contraction)
+    and a disagreement is a finding.
+
+    The engine is the shipped exact-ℚ carrier: the equivariance system
+    is vectorized ROW-MAJOR — ``vec(rho2(g)·X - X·rho1(g)) =
+    (rho2(g) ⊗ I_{d1} - I_{d2} ⊗ rho1(g)ᵀ) · vec(X)`` via
+    :meth:`srmech.math.qmat.QMat.kron` (the carrier method this rc
+    adds) — stacked over ALL ``|G|`` elements (rep payloads carry no
+    generator set; the small-order stratum contract), and the kernel is
+    :meth:`srmech.math.qmat.QMat.nullspace` (exact Gauss-Jordan over ℚ,
+    C-backed via ``srmech_qmat_nullspace``).
+
+    **The zero-dimension case is a CLASSIFIED RETURN, not a failure** —
+    an instrument that cannot return otherwise is not a measurement:
+    ``dimension == 0`` with ``basis == []`` IS the Schur verdict for
+    disjoint irreducible content.
+
+    Args:
+        rep1: a tier-4 REP PAYLOAD dict, passed VERBATIM.
+        rep2: a second rep payload OF THE SAME GROUP (same-group law:
+            ``cayley_sha256`` equality, raise otherwise).
+
+    Returns:
+        ``{"dimension"`` (plain int), ``"basis"`` — a list of ``d2 × d1``
+        matrices of canonical ``(num, den)`` pairs, one per kernel basis
+        vector, row-major de-vectorized — ``"cayley_sha256"`` (echoed),
+        ``"basis_sha256"}``.  Every returned basis element's equivariance
+        is re-executed test-side against the raw matrix products (the
+        independent route — a Kronecker-convention defect inside this op
+        would survive an in-op recheck that used the same convention).
+
+    Cost honest: the stacked system is ``(|G|·d1·d2) × (d1·d2)`` over
+    exact ℚ — a large order or degree makes it SLOW, never wrong (the
+    fusion wording; same stratum contract).
+
+    C-parity (ADR-0009, recorded): C-backed THROUGH its carrier only —
+    the nullspace kernel dispatches to ``srmech_qmat_nullspace``; the
+    system builder is Python, honestly stated.
+
+    Note:
+        Exact rationals end to end; no float; no ``abs``.
+    """
+    _check_rep_payload("intertwiner_space", rep1)
+    _check_rep_payload("intertwiner_space", rep2)
+    _same_group_guard("intertwiner_space", rep1, rep2)
+    order = rep1["order"]
+    d1 = rep1["degree"]
+    d2 = rep2["degree"]
+    k1 = rep1["kind"]
+    k2 = rep2["kind"]
+
+    def _as_qmat(kind: str, mat) -> QMat:
+        if kind == "permutation":
+            return QMat.from_rows(mat)
+        return QMat.from_rows(
+            [[(cell[0], cell[1]) for cell in row] for row in mat])
+
+    eye1 = QMat.identity(d1)
+    eye2 = QMat.identity(d2)
+    stacked: List[List[Any]] = []
+    for g in range(order):
+        rho1_t = _as_qmat(k1, rep1["matrices"][g]).transpose()
+        rho2 = _as_qmat(k2, rep2["matrices"][g])
+        block = rho2.kron(eye1) - eye2.kron(rho1_t)
+        for row in block:
+            stacked.append(list(row))
+    kernel = QMat.from_rows(stacked).nullspace()
+
+    basis = []
+    for vec in kernel:
+        mat = [[vec[r * d1 + c, 0].as_pair() for c in range(d1)]
+               for r in range(d2)]
+        basis.append(mat)
+    body = "\n\n".join(
+        "\n".join(",".join(f"{cell[0]}/{cell[1]}" for cell in row)
+                  for row in mat)
+        for mat in basis).encode("utf-8")
+    return {
+        "dimension": len(basis),
+        "basis": basis,
+        "cayley_sha256": rep1["cayley_sha256"],
+        "basis_sha256": sha256_bytes(body),
     }

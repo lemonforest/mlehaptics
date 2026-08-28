@@ -717,14 +717,15 @@ CURATED: Dict[str, Dict[str, Any]] = {
             "two objects wear the name 'isotypic projector' — (a) these "
             'central idempotents, needing only characters, and (b) the '
             "projector onto an isotypic subspace of a caller's module, "
-            'needing actual rho(g) matrices, which srmech does not carry '
-            '(no representation object). This op ships (a) under the '
+            'needing actual rho(g) matrices. This op ships (a) under the '
             'name of what it actually is: the elements ARE the isotypic '
             'projectors of the REGULAR module, and for any other module '
-            'the caller evaluates rho(e_chi) = (d/|G|)·Σ '
-            'chi(g-inverse)·rho(g) — the element is universal, the '
-            'matrix projector is its evaluation at a module srmech does '
-            'not carry. '
+            'the evaluation rho(e_chi) = (d/|G|)·Σ '
+            'chi(g-inverse)·rho(g) is the rc458 '
+            'srmech.math.groups.isotypic_projector — the element here is '
+            "universal, and the 'srmech has no representation object' "
+            'clause this ruling carried at rc457 was true then and was '
+            'retired at rc458 by permutation_representation. '
             'WHEN to reach for it: to project onto an isotypic component '
             'or split a group algebra into blocks without hand-rolling '
             'd·chi-bar/|G| coefficient tables — the in-op guard checks '
@@ -740,6 +741,458 @@ CURATED: Dict[str, Dict[str, Any]] = {
             'fusion_multiplicities are the sibling tier-3 readouts; '
             'srmech.math.qalg.Qalg is the exact-division carrier the '
             'numerator/denominator pair lifts into.'},
+
+    # ── rc458 — the representation stratum, tier 4 (the rho stratum).
+    # Every output below is a REAL capture from the shipped implementation
+    # (WSL2, numpy-absent); none is typed from memory. The `composes`
+    # declarations ride the ToolEntry registrations, NOT rows here.
+    'srmech.math.groups.zeta_mul': {
+        'example': {
+            'input': {'u': [0, 1], 'v': [0, 1], 'phi_e': [1, 0, 1]},
+            'output': "(-1, 0)",
+            'worked': "from srmech.math.groups import zeta_mul\n"
+                      "zeta_mul((0, 1), (0, 1), (1, 0, 1))\n"
+                      "# -> (-1, 0)    zeta_4 * zeta_4 = i*i = -1 mod "
+                      "Phi_4 = x^2 + 1\n"
+                      "zeta_mul((0, 1), (0, 0, 1), (1, 1, 1))\n"
+                      "# -> (1, 0)    zeta_3 * zeta_3^2 = 1 mod Phi_3\n"
+                      "phi7 = (1, 1, 1, 1, 1, 1, 1)   # Phi_7, low->high\n"
+                      "zeta_mul((0, 0, 0, 1), (0, 0, 0, 0, 0, 1), phi7)\n"
+                      "# -> (0, 1, 0, 0, 0, 0)    zeta_7^3 * zeta_7^5 = "
+                      "zeta_7^8 = zeta_7\n"
+                      "zeta_mul((0, 1), (0, 1), (1, 0, 2))\n"
+                      "# -> ValueError\n",
+            'why': 'The ring the whole character stratum computes in, as '
+                   'a public atom: i·i = -1 falls out of the monic Phi_4 '
+                   'reduction, and the deep-ring example shows the '
+                   'exponent arithmetic zeta_7^3·zeta_7^5 = zeta_7 with '
+                   'no root of unity ever floated.'},
+        'explanation':
+            'WHAT it computes: the exact ZZ[zeta_e] ring product of two '
+            'zeta-power-basis integer vectors, reduced mod the monic '
+            'Phi_e — integer convolution then exact monic polynomial '
+            'reduction to length phi(e) = len(phi_e) - 1; Class I, the '
+            'first registered exact zeta-vector atom, and the public '
+            'promotion of the private kernel fusion_multiplicities / '
+            'decompose_representation / isotypic_projector ride. '
+            'WHEN to reach for it: whenever two character values (or any '
+            'algebraic integers in the zeta_e power basis) need '
+            'multiplying — the phi_e operand is a character_table '
+            "payload's phi_e field verbatim, so the two ops compose "
+            'directly; a caller wanting DIVISION lifts into '
+            'srmech.math.qalg.Qalg over m = Phi_e. '
+            'SIBLINGS: srmech.math.poly.cyclotomic_polynomial produces '
+            'Phi_e; srmech.math.groups.character_table produces the '
+            'payload whose values live in this ring; the C near-peer '
+            'srmech_riemann_theta_cyc_mul speaks a different wire '
+            '(zeta-power-table, deg <= 16) — the ADR-0009 projection gap '
+            'is recorded in the docstring.'},
+    'srmech.math.groups.permutation_representation': {
+        'example': {
+            'input': {'cayley_table': [[0, 1], [1, 0]],
+                      'action': [[0, 1], [1, 0]]},
+            'output': "{'order': 2, 'degree': 2, 'field': 'Q', 'kind': "
+                      "'permutation', 'matrices': [[[1, 0], [0, 1]], "
+                      "[[0, 1], [1, 0]]], 'action': [[0, 1], [1, 0]], "
+                      "'cayley_sha256': 'a2e0353d09d6778d...', "
+                      "'matrices_sha256': '1247237b24cae0c6...'}",
+            'worked': "from srmech.math.groups import (cyclic_group,\n"
+                      "    permutation_representation, "
+                      "semidirect_product)\n"
+                      "C3 = cyclic_group(3)['cayley_table']\n"
+                      "C2 = cyclic_group(2)['cayley_table']\n"
+                      "S3 = semidirect_product(C3, C2, "
+                      "[[0, 1, 2], [0, 2, 1]])['cayley_table']\n"
+                      "reg = permutation_representation(S3, S3)"
+                      "  # the REGULAR rep: action IS the table\n"
+                      "reg['order'], reg['degree'], reg['kind']\n"
+                      "# -> (6, 6, 'permutation')\n"
+                      "act = [[(a + (x if h == 0 else -x)) % 3 "
+                      "for x in range(3)]\n"
+                      "       for a in range(3) for h in range(2)]\n"
+                      "nat = permutation_representation(S3, act)"
+                      "  # the natural 3-point action\n"
+                      "nat['matrices'][3]\n"
+                      "# -> [[0, 1, 0], [1, 0, 0], [0, 0, 1]]    "
+                      "matrices[g].e_j = e_(action[g][j])\n"
+                      "bad = [row[:] for row in act]\n"
+                      "bad[3][0] = bad[3][1]\n"
+                      "permutation_representation(S3, bad)\n"
+                      "# -> ValueError\n",
+            'why': 'The regular rep is the table acting on itself and '
+                   'the natural rep is the 3-point action, both minted '
+                   'by the one constructor; the corrupted action row is '
+                   'refused with the law named (bijection law).'},
+        'explanation':
+            'WHAT it computes: the permutation representation rho: G -> '
+            'GL(V) of a group acting on a finite point set, as a REP '
+            'PAYLOAD dict — matrices (0/1 ints) + action + Class-A '
+            'content addresses, element-indexed by the SAME Cayley-table '
+            'indexing (the composition contract). The LEFT-action law '
+            'action[table[g][h]][x] == action[g][action[h][x]] is '
+            'executed over ALL g,h,x at construction — under the pinned '
+            'convention matrices[g]·e_j = e_(action[g][j]) that IS the '
+            'homomorphism law rho(gh) = rho(g)·rho(h), checked at the '
+            'one place it is checkable. '
+            'WHEN to reach for it: to get an actual rho(g) matrix family '
+            'where tiers 1-3 stop at characters — the regular rep is '
+            'permutation_representation(tbl, tbl), no separate op. '
+            'SIBLINGS: character_of / decompose_representation / '
+            'isotypic_projector / tensor_product_representation / '
+            'direct_sum_representation / intertwiner_space all eat the '
+            'payload this returns; srmech.math.groups.cyclic_group and '
+            'semidirect_product build the table operand.'},
+    'srmech.math.groups.character_of': {
+        'example': {
+            'input': {'rep': "permutation_representation(tbl, tbl)",
+                      'char_table': "character_table(tbl)"},
+            'output': "{'k': 2, 'order': 2, 'degree': 2, 'kind': "
+                      "'permutation', 'character': (2, 0), "
+                      "'cayley_sha256': 'a2e0353d09d6778d...', "
+                      "'table_sha256': '5f30cf261f91323e...', "
+                      "'character_sha256': 'da3e59883b89334c...'}",
+            'worked': "from srmech.math.groups import (character_of,\n"
+                      "    character_table, cyclic_group, "
+                      "permutation_representation,\n"
+                      "    semidirect_product)\n"
+                      "C3 = cyclic_group(3)['cayley_table']\n"
+                      "C2 = cyclic_group(2)['cayley_table']\n"
+                      "S3 = semidirect_product(C3, C2, "
+                      "[[0, 1, 2], [0, 2, 1]])['cayley_table']\n"
+                      "ct = character_table(S3)\n"
+                      "reg = permutation_representation(S3, S3)\n"
+                      "character_of(reg, ct)['character']\n"
+                      "# -> (6, 0, 0)    the regular character: |G| at "
+                      "the identity class, 0 elsewhere\n"
+                      "act = [[(a + (x if h == 0 else -x)) % 3 "
+                      "for x in range(3)]\n"
+                      "       for a in range(3) for h in range(2)]\n"
+                      "nat = permutation_representation(S3, act)\n"
+                      "character_of(nat, ct)['character']\n"
+                      "# -> (3, 1, 0)    fixed-point counts per class: "
+                      "3 at e, 1 per transposition, 0 per 3-cycle\n",
+            'why': 'The free consistency oracle: the regular character '
+                   'is (|G|, 0, 0) by theorem and the natural character '
+                   'IS the fixed-point count per class — both captured '
+                   'from the shipped code, either failing loudly on a '
+                   'corrupted payload (class-constancy law).'},
+        'explanation':
+            'WHAT it computes: the character of a tier-4 rep payload — '
+            'the exact trace of every element matrix (fixed-point count '
+            'for a permutation kind, exact rational diagonal sum with a '
+            'divmod integrality raise for a general kind), returned '
+            'CLASS-ordered against the char-table payload whose '
+            'class-partition fields (class_of / k / order / degrees / '
+            'table) are the only thing it reads. '
+            'WHEN to reach for it: the bridge from a rep object back to '
+            'the tier-2/3 character stratum — its output feeds the same '
+            'contractions fusion_multiplicities runs on table rows. '
+            'CAUTION: class-constancy is the honest SAME-GROUP mismatch '
+            'DETECTOR, stated as a detector, not a proof — the rep and '
+            'char-table payloads share no Cayley bind. '
+            'SIBLINGS: decompose_representation composes this op; '
+            'character_table produces the partition operand; '
+            'frobenius_schur_indicator / fusion_multiplicities are the '
+            'value-side readouts of the same stratum.'},
+    'srmech.math.groups.decompose_representation': {
+        'example': {
+            'input': {'rep': "permutation_representation(tbl, tbl)",
+                      'char_table': "character_table(tbl)"},
+            'output': "{'k': 2, 'order': 2, 'degree': 2, "
+                      "'multiplicities': (1, 1), 'norm': 2, "
+                      "'is_irreducible': False, 'character': (2, 0), "
+                      "'degrees': [1, 1], 'table_sha256': "
+                      "'5f30cf261f91323e...', 'cayley_sha256': "
+                      "'a2e0353d09d6778d...', 'multiplicities_sha256': "
+                      "'03ebfc2d40db3012...'}",
+            'worked': "from srmech.math.groups import (character_table,\n"
+                      "    cyclic_group, decompose_representation,\n"
+                      "    permutation_representation, "
+                      "semidirect_product)\n"
+                      "C3 = cyclic_group(3)['cayley_table']\n"
+                      "C2 = cyclic_group(2)['cayley_table']\n"
+                      "S3 = semidirect_product(C3, C2, "
+                      "[[0, 1, 2], [0, 2, 1]])['cayley_table']\n"
+                      "ct = character_table(S3)\n"
+                      "reg = permutation_representation(S3, S3)\n"
+                      "decompose_representation(reg, ct)"
+                      "['multiplicities']\n"
+                      "# -> (1, 1, 2)    the regular-rep theorem: "
+                      "m_i == d_i (degrees are [1, 1, 2])\n"
+                      "act = [[(a + (x if h == 0 else -x)) % 3 "
+                      "for x in range(3)]\n"
+                      "       for a in range(3) for h in range(2)]\n"
+                      "nat = permutation_representation(S3, act)\n"
+                      "dec = decompose_representation(nat, ct)\n"
+                      "dec['multiplicities'], dec['norm'], "
+                      "dec['is_irreducible']\n"
+                      "# -> ((0, 1, 1), 2, False)    trivial + standard; "
+                      "the trivial multiplicity is Burnside's orbit "
+                      "count, 1\n",
+            'why': 'The regular-rep theorem m_i = d_i lands as data on '
+                   'S3, and the natural 3-point action splits as trivial '
+                   '+ standard with m_trivial equal to the orbit count — '
+                   'the Burnside cross-check the tests execute on every '
+                   'fixture.'},
+        'explanation':
+            'WHAT it computes: the irrep multiplicities of a rep payload '
+            '— the body composes character_of, then contracts m_i·|G| = '
+            'Σ_j class_sizes[j]·character[j]·table[i][inverse_class[j]] '
+            'in pure integer zeta-vector arithmetic, guarded by the '
+            'non-scalar-sum / divisibility / non-negativity / dimension '
+            'laws (each a named raise). norm = Σ m² = <chi, chi>; '
+            'is_irreducible is a bool FIELD, never a count. '
+            'WHEN to reach for it: the fusion slot for an actual rep — '
+            'what fusion_multiplicities answers for a product of two '
+            'table rows, this answers for a module in hand. CAUTION: '
+            'payload rows sort (degree, lex) — locate rows by CONTENT, '
+            'never index (the trivial character sits at index 1 on S3). '
+            'SIBLINGS: isotypic_projector composes this op and echoes '
+            'its multiplicities; tensor_product_representation + this op '
+            'executed together reproduce the fusion tensor (the rc458 '
+            'tests pin nat⊗nat -> (1, 2, 3) on S3 against '
+            'fusion_multiplicities).'},
+    'srmech.math.groups.isotypic_projector': {
+        'example': {
+            'input': {'rep': "permutation_representation(tbl, tbl)",
+                      'char_table': "character_table(tbl)"},
+            'output': "{'k': 2, 'order': 2, 'degree': 2, 'degrees': "
+                      "[1, 1], 'multiplicities': (1, 1), 'denominator': "
+                      "2, 'projectors': ((((1,), (-1,)), ((-1,), (1,))), "
+                      "(((1,), (1,)), ((1,), (1,)))), 'phi_e': (1, 1), "
+                      "'table_sha256': '5f30cf261f91323e...', "
+                      "'cayley_sha256': 'a2e0353d09d6778d...', "
+                      "'matrices_sha256': '1247237b24cae0c6...', "
+                      "'projectors_sha256': 'b0cdbb8d49bce182...'}",
+            'worked': "from srmech.math.groups import (character_table,\n"
+                      "    cyclic_group, isotypic_projector,\n"
+                      "    permutation_representation, "
+                      "semidirect_product)\n"
+                      "C3 = cyclic_group(3)['cayley_table']\n"
+                      "C2 = cyclic_group(2)['cayley_table']\n"
+                      "S3 = semidirect_product(C3, C2, "
+                      "[[0, 1, 2], [0, 2, 1]])['cayley_table']\n"
+                      "ct = character_table(S3)\n"
+                      "act = [[(a + (x if h == 0 else -x)) % 3 "
+                      "for x in range(3)]\n"
+                      "       for a in range(3) for h in range(2)]\n"
+                      "nat = permutation_representation(S3, act)\n"
+                      "iso = isotypic_projector(nat, ct)\n"
+                      "iso['denominator']\n"
+                      "# -> 6    perm kind: |G|; a general kind scales "
+                      "to |G|*lcm(entry dens)\n"
+                      "iso['projectors'][1]\n"
+                      "# -> (((2, 0), (2, 0), (2, 0)), ((2, 0), (2, 0), "
+                      "(2, 0)), ((2, 0), (2, 0), (2, 0)))    the "
+                      "trivial component: (1/3)*J over denominator 6, "
+                      "cells phi(6) = 2 wide\n"
+                      "iso['projectors'][2]\n"
+                      "# -> (((4, 0), (-2, 0), (-2, 0)), ((-2, 0), "
+                      "(4, 0), (-2, 0)), ((-2, 0), (-2, 0), (4, 0)))"
+                      "    the standard component\n"
+                      "iso['projectors'][0]\n"
+                      "# -> (((0, 0), (0, 0), (0, 0)), ((0, 0), (0, 0), "
+                      "(0, 0)), ((0, 0), (0, 0), (0, 0)))    the sign "
+                      "component: multiplicity 0, projector 0\n",
+            'why': 'The 3-point S3 module splits before your eyes: the '
+                   'trivial projector is the rank-1 averaging matrix '
+                   '(1/3)J, the standard projector is its complement, '
+                   'and the absent sign component projects to zero — '
+                   'numerators over the one explicit denominator 6, '
+                   'division never performed.'},
+        'explanation':
+            'WHAT it computes: the isotypic projector family P_i = '
+            '(d_i/|G|)·Σ_g chi_i(g-inverse)·rho(g) of a MODULE — the op '
+            "rc457 declined and central_idempotents' docstring promised "
+            '(rho(e_chi), the evaluation of the universal element at a '
+            'rep in hand). chi_i(g-inverse) is payload-resident '
+            '(inverse_class ∘ class_of), so no element inverses are '
+            'computed; the carrier is integer zeta-vector NUMERATORS '
+            'over ONE explicit denominator (|G|, or |G|·L for a general '
+            'kind, L = lcm of entry denominators, derived per entry). '
+            'In-op guards: completeness Σ P_i = denominator·I and the '
+            'trace law trace(P_i) = denominator·m_i·d_i, each a named '
+            'raise; idempotence / orthogonality / equivariance are '
+            'test-side by TWO independent routes (zeta-contraction; '
+            'regular-rep equality with central_idempotents expanded per '
+            'element) — a disagreement is a finding. '
+            'WHEN to reach for it: to actually project a module onto an '
+            'isotypic component — where central_idempotents gives the '
+            'universal group-algebra element, this gives the matrix. '
+            'SIBLINGS: decompose_representation supplies (and echoes '
+            'into) the multiplicities; central_idempotents is the '
+            'regular-module special case; srmech.math.qalg.Qalg is the '
+            'division lift.'},
+    'srmech.math.groups.tensor_product_representation': {
+        'example': {
+            'input': {'rep1': "permutation_representation(tbl, tbl)",
+                      'rep2': "permutation_representation(tbl, tbl)"},
+            'output': "{'order': 2, 'degree': 4, 'field': 'Q', 'kind': "
+                      "'permutation', 'matrices': [[[1, 0, 0, 0], "
+                      "[0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], "
+                      "[[0, 0, 0, 1], [0, 0, 1, 0], [0, 1, 0, 0], "
+                      "[1, 0, 0, 0]]], 'action': [[0, 1, 2, 3], "
+                      "[3, 2, 1, 0]], 'cayley_sha256': "
+                      "'a2e0353d09d6778d...', 'matrices_sha256': "
+                      "'2f55cdddfb638a98...'}",
+            'worked': "from srmech.math.groups import (character_table,\n"
+                      "    cyclic_group, decompose_representation,\n"
+                      "    fusion_multiplicities, "
+                      "permutation_representation,\n"
+                      "    semidirect_product, "
+                      "tensor_product_representation)\n"
+                      "C3 = cyclic_group(3)['cayley_table']\n"
+                      "C2 = cyclic_group(2)['cayley_table']\n"
+                      "S3 = semidirect_product(C3, C2, "
+                      "[[0, 1, 2], [0, 2, 1]])['cayley_table']\n"
+                      "ct = character_table(S3)\n"
+                      "act = [[(a + (x if h == 0 else -x)) % 3 "
+                      "for x in range(3)]\n"
+                      "       for a in range(3) for h in range(2)]\n"
+                      "nat = permutation_representation(S3, act)\n"
+                      "tp = tensor_product_representation(nat, nat)\n"
+                      "tp['degree'], tp['kind']\n"
+                      "# -> (9, 'permutation')    perm x perm stays a "
+                      "permutation rep on the 9-point pair set\n"
+                      "decompose_representation(tp, ct)"
+                      "['multiplicities']\n"
+                      "# -> (1, 2, 3)    and the SHIPPED fusion tensor "
+                      "predicts exactly (1, 2, 3) from m(nat) = "
+                      "(0, 1, 1)\n",
+            'why': 'The rep-level witness of the shipped fusion tensor: '
+                   'decomposing nat⊗nat gives (1, 2, 3), and summing '
+                   'm_a·m_b·N_abc over fusion_multiplicities gives the '
+                   'same vector — two independent routes through two '
+                   'different objects, agreeing exactly.'},
+        'explanation':
+            'WHAT it computes: the tensor product of two rep payloads '
+            'of ONE group — Kronecker per element, ROW-MAJOR pair index '
+            '(x1, x2) -> x1·d2 + x2 (the QMat.kron convention), '
+            'same-group law on the cayley_sha256 bind. Class M, argued: '
+            'fusion_multiplicities declined the M-bind claim for lack '
+            'of an unbind; decompose_representation / isotypic_projector '
+            'ARE the unbind, shipped in the same rc. perm⊗perm stays '
+            'permutation kind and the output is re-validated by the '
+            'shared payload validator before return (never trusted by '
+            'construction). '
+            'WHEN to reach for it: to build the bound module the fusion '
+            'tensor only counts — then decompose_representation splits '
+            'it and isotypic_projector projects it. '
+            'SIBLINGS: direct_sum_representation is the ⊕ peer; '
+            'fusion_multiplicities is the character-level shadow this '
+            'op realises; intertwiner_space measures Hom between the '
+            'factors.'},
+    'srmech.math.groups.direct_sum_representation': {
+        'example': {
+            'input': {'rep1': "permutation_representation(tbl, tbl)",
+                      'rep2': "permutation_representation(tbl, tbl)"},
+            'output': "{'order': 2, 'degree': 4, 'field': 'Q', 'kind': "
+                      "'permutation', 'matrices': [[[1, 0, 0, 0], "
+                      "[0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], "
+                      "[[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1], "
+                      "[0, 0, 1, 0]]], 'action': [[0, 1, 2, 3], "
+                      "[1, 0, 3, 2]], 'cayley_sha256': "
+                      "'a2e0353d09d6778d...', 'matrices_sha256': "
+                      "'e5c4a6cac7cd4ebb...'}",
+            'worked': "from srmech.math.groups import (character_of,\n"
+                      "    character_table, cyclic_group,\n"
+                      "    direct_sum_representation, "
+                      "permutation_representation,\n"
+                      "    semidirect_product)\n"
+                      "C3 = cyclic_group(3)['cayley_table']\n"
+                      "C2 = cyclic_group(2)['cayley_table']\n"
+                      "S3 = semidirect_product(C3, C2, "
+                      "[[0, 1, 2], [0, 2, 1]])['cayley_table']\n"
+                      "ct = character_table(S3)\n"
+                      "act = [[(a + (x if h == 0 else -x)) % 3 "
+                      "for x in range(3)]\n"
+                      "       for a in range(3) for h in range(2)]\n"
+                      "nat = permutation_representation(S3, act)\n"
+                      "reg = permutation_representation(S3, S3)\n"
+                      "ds = direct_sum_representation(nat, reg)\n"
+                      "ds['degree']\n"
+                      "# -> 9\n"
+                      "character_of(ds, ct)['character']\n"
+                      "# -> (9, 1, 0)    characters ADD: (3,1,0) + "
+                      "(6,0,0)\n"
+                      "[row[:3] for row in ds['matrices'][3][:3]] == "
+                      "nat['matrices'][3]\n"
+                      "# -> True    the leading block is rho1(g) "
+                      "VERBATIM - the Class-B recoverability claim, "
+                      "executed\n",
+            'why': 'Characters add block by block and the leading block '
+                   'IS the first operand verbatim — the TLV-shape '
+                   '(Class B) claim demonstrated by slicing, not '
+                   'asserted.'},
+        'explanation':
+            'WHAT it computes: the direct sum of two rep payloads of '
+            'ONE group — block-diagonal per element, degree d1 + d2, '
+            'same-group law on the cayley_sha256 bind; perm⊕perm keeps '
+            'the permutation kind via the disjoint-union action, and '
+            'the output is re-validated by the shared payload validator '
+            'before return. Class B: the blocks are RECOVERABLE (TLV '
+            'shape), and the tests recover them. '
+            'WHEN to reach for it: to assemble a module with known '
+            'constituents — characters and multiplicities both ADD, so '
+            'it is the ⊕ control for every tier-4 identity. '
+            'SIBLINGS: tensor_product_representation is the ⊗ peer; '
+            'decompose_representation verifies the assembly; '
+            'intertwiner_space between the summands counts the shared '
+            'content.'},
+    'srmech.math.groups.intertwiner_space': {
+        'example': {
+            'input': {'rep1': "permutation_representation(tbl, tbl)",
+                      'rep2': "permutation_representation(tbl, tbl)"},
+            'output': "{'dimension': 2, 'basis': [[[(0, 1), (1, 1)], "
+                      "[(1, 1), (0, 1)]], [[(1, 1), (0, 1)], [(0, 1), "
+                      "(1, 1)]]], 'cayley_sha256': "
+                      "'a2e0353d09d6778d...', 'basis_sha256': "
+                      "'c215646159b2b551...'}",
+            'worked': "from srmech.math.groups import (character_table,\n"
+                      "    cyclic_group, intertwiner_space,\n"
+                      "    permutation_representation, "
+                      "semidirect_product)\n"
+                      "C3 = cyclic_group(3)['cayley_table']\n"
+                      "C2 = cyclic_group(2)['cayley_table']\n"
+                      "S3 = semidirect_product(C3, C2, "
+                      "[[0, 1, 2], [0, 2, 1]])['cayley_table']\n"
+                      "act = [[(a + (x if h == 0 else -x)) % 3 "
+                      "for x in range(3)]\n"
+                      "       for a in range(3) for h in range(2)]\n"
+                      "nat = permutation_representation(S3, act)\n"
+                      "iw = intertwiner_space(nat, nat)\n"
+                      "iw['dimension']\n"
+                      "# -> 2    = <chi_nat, chi_nat>: nat = trivial + "
+                      "standard, two distinct irreducibles\n"
+                      "iw['basis'][1]\n"
+                      "# -> [[(1, 1), (0, 1), (0, 1)], [(0, 1), (1, 1), "
+                      "(0, 1)], [(0, 1), (0, 1), (1, 1)]]    the "
+                      "identity; basis[0] is J - I\n",
+            'why': 'End_G of the 3-point S3 module is 2-dimensional — '
+                   'spanned by I and J−I, exactly one dimension per '
+                   'distinct irreducible constituent — and the exact-Q '
+                   'nullspace hands back the basis as canonical '
+                   '(num, den) pairs.'},
+        'explanation':
+            'WHAT it computes: an exact basis of Hom_G(V1, V2) = the '
+            'd2×d1 matrices X with rho2(g)·X == X·rho1(g) for every g — '
+            "Schur's lemma made an operand. The equivariance system is "
+            'vectorized ROW-MAJOR via the rc458 QMat.kron carrier '
+            'method, stacked over ALL |G| elements, and solved by the '
+            'shipped exact-Q QMat.nullspace (C-backed via '
+            'srmech_qmat_nullspace). dimension == Σ m_i(rho1)·m_i(rho2) '
+            '== <chi1, chi2> — executed by a second independent route '
+            'in the tests. THE ZERO-DIMENSION CASE IS A CLASSIFIED '
+            'RETURN, not a failure: dimension 0 with basis [] IS the '
+            'Schur verdict for disjoint irreducible content. '
+            'WHEN to reach for it: to count shared irreducible content '
+            'between two modules, or to extract an explicit '
+            'G-equivariant map. CAUTION: cost is (|G|·d1·d2) × (d1·d2) '
+            'exact rows — slow on large operands, never wrong. '
+            'SIBLINGS: decompose_representation gives the '
+            'multiplicity-side answer; QMat is the carrier '
+            '(srmech.math.qmat); tensor/direct_sum build the operands '
+            'it measures.'},
 
     # ── rc419 (`#T1110`) — the signal_processing dispatcher + path-registry
     # read surface, registered at last. Every output below is a REAL WSL2
