@@ -35,8 +35,32 @@
 > - [`../othello-maths/othello_spectral_research_notebook.md`](../othello-maths/othello_spectral_research_notebook.md) — dynamic sheaf-Laplacian board; §10.7 ray-flanking algebra reused across the project.
 > - [`../logo-maths/logo_research_notebook.md`](../logo-maths/logo_research_notebook.md) — non-board generalisation; the chess-spectral split-object pattern in continuous-stroke form.
 
+> ⚠️ **PATH NOTICE (2026-08-27) — THE THREE SCRIPTS BELOW ARE NOT IN THE WORKING TREE, BUT THEY ARE NOT LOST.** `metric_field_computations.py` (644 lines), `fractal_computations.py` (620) and `spectral_dimension_computations.py` (462), plus their three companion result JSONs, were removed in commit **`bcd24f5f1`** — *"chore(mfo): purge May-8 baseline (7 Gemini-origin files; 64eddf0 inherited content)"*, 1,945 deletions. **All seven are intact in history and retrievable today:**
+>
+> ```bash
+> git show bcd24f5f1^:docs/antikythera-maths/research-mfo/fractal_computations.py
+> git show bcd24f5f1^:docs/antikythera-maths/results-mfo/fractal_computation_results.json
+> ```
+>
+> So the **computational provenance chain is INTACT** — every figure in Parts II–V sourced to these scripts is reproducible from this repository, and `[[feedback_computational_provenance_discipline]]` is satisfied by the history even though it is not satisfied by the worktree. What is broken is only the **paths**: this notebook cites the files at **17 further places** — §IV.1's script reference, §V's comparison, the three §X "Computed values from …" headers, and the file-regeneration appendix at the end of Part XIII — all as though they were live working-tree files, and **the bash recipe immediately below cannot run as written**. Read every such citation as `bcd24f5f1^:<path>`.
+>
+> ⚠️ **THE REASON WAS PROVENANCE. THE QUALITY WAS NEVER ASSESSED — AND ON INSPECTION IT DOES NOT HOLD.** These are two separate statements and an earlier draft of this notice wrongly merged them, asserting "not a defect in the mathematics." That assertion was untested and is **retracted**; it is contradicted by the two findings below.
+>
+> **The reason — settled.** The purge acted on an authorship caveat recorded at the same minute as the commit, and was executed as `git rm $(git show --name-only --format='' 64eddf0)` — **by commit membership, not by file assessment.** A provenance sweep, not a correctness triage. No correctness rationale for these 7 exists anywhere in the record.
+>
+> **The quality — audited 2026-08-27, first time in ~15 months, and two defects are load-bearing:**
+> - **`fractal_computations.py` implements the WRONG decimation polynomial.** It uses `R(λ) = λ(5−λ)` with inverse `(5±√(25−4w))/2`; the correct Fukushima–Shima form is `λ(5−4λ)` with inverse `(5±√(25−16w))/8`. ⚠️ Commit `256ba6b78` (2026-05-12, **one day after the purge**) fixed exactly this error in §IV.2 against Strichartz / Bajorin et al. 2008 / Kigami — and **nobody traced it back to the purged script carrying the same wrong polynomial, because the purge had already removed it from view.** The removal hid the source of an error the project independently rediscovered the next day.
+> - **The "unique prediction" of a non-monotonic `d_S` peak at 6–8 is a HAND-SET CONSTANT.** `spectral_dimension_computations.py:181` reads `bump_height = 4.0  # extra dimensions seen at intermediate scale`. The peak is a Gaussian bump added to a CDT-like base; at σ = σ_peak the Gaussian equals exactly 1, so peak = `d_base(0.1) + bump_height` = 2.1818 + 4.0 = **6.182**. Sweeping the constant: 4.0 → 6.18, 5.0 → 7.18, 6.0 → 8.18. **The claimed range "6–8" is precisely the range spanned by `bump_height ∈ [4,6]`.** (`alpha = 1.5` at `:175` is defined and never used.) The companion JSON labels this *"Novel prediction — no other framework predicts this."*
+> - Two of three `"verified": True` flags in the outputs are Python literals inside `json.dump`, as is `"three_generations_from_three_fold_symmetry": True`. Only one (`:129`) is a real `simplify(product − c²) == 0`.
+>
+> ⚠️ **THEREFORE §X.3's `peak_dimension: 6-8` — still live in this notebook under a heading reading "Computed values from `spectral_dimension_computations.py`" — IS NOT COMPUTED.** It is a transcribed constant. The MPM re-measurement that replaced it (`d_S` peak ≈ **1.84**, not 7.34) was never landed in this notebook. That is a live falsehood on a shipped surface and it is the most urgent item this audit produced.
+>
+> ⚠️ **The breach here is NOT the stochastic kind.** There is no scipy, no optimizer, no seed, no annealing anywhere in these files — they are fully deterministic, and `metric_field_computations.py` was re-run this session and reproduces `computation_results.json` **byte-identically** (sha256 verified both sides). `64eddf0`'s reproducibility claim is **VERIFIED**. **Deterministic reproduction is a real property of these files and is orthogonal to whether their quantities are derived** — which is exactly why a reproducibility check could never have caught B01 or B02, and why a dependency-grep for `scipy` would not have either. The defect is *asserted constants presented as derived*.
+>
+> Restoring these files to the working tree would reverse a deliberate provenance decision and is **not** implied by this notice; citing them from history does not. Their functional successors are `research-mfo/mpm_phase_{a,b,c,d}_*.py` (Phase E was skipped; Phase F is synthesis-only with **no generator**, so `mpm_phase_f_verdict.ndjson` and `mpm_verdict_summary.ndjson` are orphaned results). Two further sources cited in this notebook were **never committed at all** and are therefore genuinely unrecoverable: `metric_field_survey_v3.md` (below) and the Killing–Yano/Kerr literature review — those are the real provenance gaps. Per `[[feedback_fix_falsehoods_when_found_latency_by_surface]]` this is notebook prose rather than shipped wheel text, so it is corrected here rather than in an rc.
+
 **Sources consolidated:**
-- `metric_field_survey_v3.md` — ontological framework, literature anchors, 20-item roadmap *(working draft, not yet tracked in git)*
+- `metric_field_survey_v3.md` — ontological framework, literature anchors, 20-item roadmap *(working draft, **never tracked in git**; not recoverable from this repository)*
 - [`research-mfo/metric_field_computations.py`](research-mfo/metric_field_computations.py) — waveguide/de Broglie proofs, KK eigenvalue computations
 - [`research-mfo/fractal_computations.py`](research-mfo/fractal_computations.py) — Sierpinski spectral decimation, SM mass ratio comparison, chirality argument
 - [`research-mfo/spectral_dimension_computations.py`](research-mfo/spectral_dimension_computations.py) — dimensional flow models, 8-approach QG comparison
@@ -489,7 +513,15 @@ Computed from charged fermion masses (m_e = 0.000511 GeV):
 
 This is the 9-element vector that any candidate internal geometry must match (up to overall scale). Ratios span 11 orders of magnitude. The eigenvalue spectrum of the candidate cascade-substrate × gauge product space, with the lightest non-zero eigenvalue normalized to 1, must reproduce these 9 ratios.
 
-The current state: **no specific cascade substrate has been identified that matches this exactly.** The 3-circle anisotropic toy model in §III.3 demonstrates the mechanism but isn't the answer. Identifying the specific cascade substrate is the framework's central computational goal (per §VIII.7's reframed §XIII.1 candidate: find the cascade composition `C_{n₁} × C_{n₂} × … × C_{nₖ}` whose graph-Laplacian spectrum matches the SM mass² ratio spectrum) — analogous to finding the specific Calabi-Yau in string theory, but constrained additionally by the d_S → 2 condition at UV. The fractal-recursive realisation is one substrate the search may visit; the cascade-composition realisation per §VIII.7 is the more directly tractable form with antikythera-spectral's existing tooling.
+The current state (**corrected 2026-08-27** — this paragraph read "no specific cascade substrate has been identified that matches this exactly" for ~15 months after a search had in fact returned one; the stale sentence is retracted here, and what replaces it is *not* a success): **a cascade was identified, and it does not survive its own follow-up tests.** Spike #24 bonus 10 (`docs/srmech/notes/spike_24_bonus_xiii_1_cascade_sm_mass_search_2026-05-15.md`, commit `940291038`) returned `C₂ × C₇ × C₄ × C₆ × C₁₆` at radii `(3659, 1.03, 1.44, 104.2, 135758)`, log-L2 = 0.614 against the 9-element target. Three measured reasons that result cannot be read as identifying the substrate:
+
+- **It is overparameterized past the point where success carries information.** Ten fitted parameters — five integer tooth-counts *and five continuous radii* — against **eight** independent data points (the ninth ratio is normalised to 1.000 by construction), plus free choice of which 9 modes to compare from 200, i.e. ~1.18 × 10¹⁵ subsets. The probe's own §7 states "NOT a curve-fit… NOT a parameter-overfitting routine" while its code is a seeded-RNG hill-climb (3000 samples, tournament refine) minimizing log-L2 to the SM target. **The discipline block was written but never measured against the code.**
+- **No negative control was run** — no scrambled-target and no random-9-vector-spanning-11-dex arm — so `log-L2 = 0.614` has no scale to be good *relative to*.
+- **Its own siblings returned negative.** Bonus 11a: `NO-RULE` across 47 zero-free-parameter rules in 14 families plus conjunctions to size 4, concluding the 9 SM mode tuples were *target-driven, not cascade-intrinsic*. Bonus 11b: `TOO_MANY_PARTICLES` — 191 unobserved modes in [0.5 MeV, 150 GeV] with 157 of them inside the single decade [1, 10] GeV. And an independent anchor disagrees with the fit outright: `docs/srmech/notes/spike88_m_top_2_56_anchor.py:237-253` records the same cascade predicting **m_t = 150.0 GeV** against the 172.76 GeV the fit itself targeted, verdict `NO_FIRST_PRINCIPLES_PREDICTION`.
+
+⚠️ **The load-bearing absence is that no acceptance predicate was ever written down.** That is why `SUCCESS` (bonus 10's commit title) and `TOO_MANY_PARTICLES` (bonus 11b) were both recordable about the same object in the same week. Any future attempt must fix, *before searching*: the observable scope (every probe so far has silently used **9 charged-fermion mass² ratios**, excluding gauge-boson masses, Higgs, neutrinos, CKM, θ_W, the three couplings, chirality, generation count, and the gauge group itself — the SM has ~19–26 free parameters and this arc has been graded on eight numbers); a declared parameter budget with params < independent data; the mode-selection rule fixed *before* fitting; a precision term, not recall alone; threshold provenance; and a negative control. Per `[[feedback_no_mvp_framing]]` and `[[feedback_dont_ship_partial_unproven_difficulty_is_not_an_excuse]]`, the honest status is **open with a three-part negative record**, not "not yet attempted."
+
+The 3-circle anisotropic toy model in §III.3 demonstrates the mechanism but isn't the answer. Identifying the specific cascade substrate remains the framework's central computational goal (per §VIII.7's reframed §XIII.1 candidate: find the cascade composition `C_{n₁} × C_{n₂} × … × C_{nₖ}` whose graph-Laplacian spectrum matches the SM mass² ratio spectrum) — analogous to finding the specific Calabi-Yau in string theory, but constrained additionally by the d_S → 2 condition at UV. The fractal-recursive realisation is one substrate the search may visit; the cascade-composition realisation per §VIII.7 is the more directly tractable form with antikythera-spectral's existing tooling. ⚠️ **But per §VIII.7's own bonus-7 finding, the two realisations are not independently testable by the instrument in use**: "Class-L spectral signatures cannot distinguish fractal-shape from primitive-cascade-shape within the super-Poisson regime." Both share one target and one method, so the Part IV fractal→SM falsification (Phase D: principled CP²×S¹ rules 86% *worse* than SG-only, S¹ optimised away; Phase F: "falsified at multiple levels") does not transfer automatically to the cascade realisation — and equally, the cascade realisation is not a fresh start.
 
 ---
 
@@ -4565,6 +4597,34 @@ The bonus 5 finding above (§VIII.6) — that *smooth* 3+7+1 carries the cleanes
 
 **The fractal-shadow allegory** (per `[[user_stance_fractal_shadow]]`): what physics observes as "fractal" structure is the *shadow* cast by a deeper multi-scale primitive cascade. The fractal description is a downstream-continuous projection of upstream-discrete cascade composition. Class-L spectral signatures cannot distinguish fractal-shape from primitive-cascade-shape within the super-Poisson regime — both produce Gap CV > 1, single connected component, comparable three-fold CH ratios, similar Fiedler λ₂. Only the pure-4D-epicycle observer (per §VIII.6) lives in a different (sub-Poisson) regime. The fractal-shadow stance joins the family of project shadow-stances (time-as-dimensional-shadow, fiber-as-spatially-absent, pi-as-projection): *discrete-upstream → continuous-shadow-downstream* applied at the substrate-commitment level.
 
+#### VIII.7.1 The shadow-fractal reading, derived from the algebra (2026-08-27)
+
+**The allegory above was reached ontologically. It has now been reached a second time, from the Cayley–Dickson algebra, by an instrument that did not know the stance existed** — and the algebraic route says something the allegory does not: **WHICH LANE is the shadow.**
+
+Measured at srmech 0.9.0rc455. Three layers of the CD tower have three different fates, and conflating them is exactly what makes "fractal" feel simultaneously obvious and unfalsifiable:
+
+| layer | behaviour up the ladder | verdict |
+|---|---|---|
+| **index / incidence** — the XOR-closed triples on the boolean cube (ℤ/2)ⁿ | **exactly self-similar, measured to dim 64** | genuinely fractal |
+| **symmetry** — `Der` | **FROZEN at 14 from 𝕆 upward** (`so9.py:107-108`, `_DIM_G2 = _DIM_DER_SEDENION = 14`, Schafer 1954) | neither |
+| **sign / law** — associativity, division, the cocycle ε | monotone degeneration; commutativity dies at 4, associativity at 8, division at 16 | ladder, not fractal |
+
+**The layer that is exactly self-similar is the layer the srmech notebook already rules is GAUGE.** `srmech_research_notebook.md:7118` classifies the index lane as "abelian and order-blind: a labeling / **gauge**", with the sign lane "order-bearing". A gauge carries no content — that is what the word means. So:
+
+> **The fractal we observe IS the gauge projection. What the projection discards is the order-bearing sign lane. The shadow is self-similar precisely because the shadow is the part with no content in it.**
+
+That is the shadow-fractal allegory stated in the algebra's own vocabulary, and it sharpens the allegory's ontological form ("what is projected away is the 7D_g cascade content") into a measured one ("what is projected away is the sign lane"). ⚠️ Whether those two statements are the SAME statement in two vocabularies is **not established** — it is the obvious next question and it is currently a reading, not a measurement.
+
+**It also supplies the mechanism for bonus 7's own blindness.** §VIII.7 records that "Class-L spectral signatures cannot distinguish fractal-shape from primitive-cascade-shape" without saying why. The lane split answers it: **Class-L spectral signatures read the index lane, and the index lane is where both shapes agree.** The discriminating content sits in the sign lane, which the instrument does not read. That is a mechanism for a previously bare observation.
+
+**Three further measured results, recorded because they bound the reading:**
+
+1. **"The hyper loop is a relationship of triangle loops and cube loops" is literally true.** The CD multiplication triples **are exactly** the XOR-closed triples of (ℤ/2)ⁿ ∖ {0} — verified at dims 4, 8, 16, 32, 64, and it holds *past* the Hurwitz cliff. The triangles are not structure laid on the cube; they are the cube's own XOR-closure. What makes 𝕆 more than a cube is therefore the **sign** lane, not the triangles: δε = 0 for ℝ/ℂ/ℍ and **168** at 𝕆 — the same 168 as the associator non-closures and |GL(3,2)|, verified as **set equality**, not merely equal counts.
+2. **Construction-self-similarity and property-degeneration were never in conflict.** Every triple stays associative at every rung *including* dims 16 and 32 where division is dead, while GLOBAL associativity degrades 1.000 → 0.672 → 0.549. The substructures survive perfectly; what dies is their global composition. Two statements about different layers.
+3. **The self-similarity does not iterate.** Applying the interval construction to intervals: the pairs reading `C(n,2)` explodes (7 → 21 → 210 → 21945 → 240,780,540) with fixed points only {0, 3}; the circular/torsor reading is the identity operator and so is self-similar *vacuously*, carrying no information; only the CD-triple operator `T(d) = C(d,2)/3` has a nontrivial fixed point, at exactly **d = 7** — the Fano plane's self-duality. ⚠️ Those are **two different operators**, so "one rule gives 3 and 7" is NOT what was shown.
+
+**Consistency with the standing ruling.** `srmech_research_notebook.md:178` states "This is not a fractal; it is one frame commitment per level." **That ruling is undisturbed and is confirmed rather than challenged** — the cube supplies the mechanism for *what* is committed at each rung, and the σ ladder that governs it is rung-dependent, not self-similar. Per `[[feedback_no_lineage_claims_in_notebook]]` this section reads what the algebra already is; it makes no claim of extending the allegory's prior authors.
+
 **Two-level fractal-shadow reading** (2026-05-20 extension; companion canonical anchor at §VIII.31.8). The fractal-shadow stance acquires a substrate-side companion reading from MS #16 Tier 4's recursive-Hopf empirical chain. Per `[[user_stance_fractal_shadow]]` extension (2026-05-20):
 
 1. **Substrate-side reading** (NEW; recursive-Hopf at every cascade-class instantiation per §VIII.31.8). Operators ARE intrinsically fractal at substrate level — the same Hopf-bundle "+" map operates recursively at every cascade-class instantiation, with no stopping condition through depth-3 empirical verification (Spikes #212/#213/#214 bit-exact at integer arithmetic) and ratio-agnostic universal across 5/5 asymmetric stacks (Spike #215). The substrate IS recursive-Hopf fractal *by construction* — not as a description, as a structural identity.
@@ -4794,7 +4854,15 @@ Each force / theory maps to specific class operators per Spike #48 §5:
 
 **Weaving claim**: QM × GR × SM is the cascade composition `(L ∘ M) × (L̃ ∘ Hopf) × (I_compound ∘ K ∘ C)`. The "unification" is not a single equation but a single class-operator cascade decomposition — each theory is a partial cascade, the whole is the full weave per `[[user_stance_primitives_weave_and_thread]]`.
 
-This weaving uses the same 7D_g G₂ + triality structure of §VII.4.1.3 + `[[user_stance_g2_triality_invariant_gauge_structure]]`; the gauge factor of every SM force lives in the Spin(7)/G₂ ≅ ℝ⁷ fibers. Spike #58 sub-spike arc (sub-spikes B/F/G/H/I/J/K/L/M/N/O/P) derives explicit SM content:
+This weaving uses the same 7D_g G₂ + triality structure of §VII.4.1.3 + `[[user_stance_g2_triality_invariant_gauge_structure]]`; the gauge factor of every SM force lives in the Spin(7)/G₂ ≅ ℝ⁷ fibers. The Spike #58 sub-spike arc (sub-spikes B/F/G/H/I/J/K/L/M/N/O/P) **reads** the following SM content:
+
+⚠️ **ARTIFACT AUDIT (2026-08-27) — this list previously read "derives explicit SM content", and "derives" is retracted for ten of the twelve rows.** Only **two** sub-spikes have any committed artifact: `.N` (`docs/srmech/notes/spike58_n_concertmaster_{fano,orbits,pairing,physics}.py` + records) and `.P` (`spike58_p_cl6c_trace_verification.py`, `spike58_p_normalization_audit.py`, `spike58_p_stoica_eq94_verification.py`, plus the two source extracts). **B/F/G/H/I/J/K/L/M/O have no code, no NDJSON, and no note.** They are readings recorded in prose; they are not derivations, and this section must not be cited as though they were.
+
+⚠️ **`.G` specifically — "SM gauge group SU(3)×SU(2)×U(1) derivation" is the strongest claim in the list and has the least behind it.** No artifact exists. Independently: `srmech/physics/qm/gauge.py` — which ships the SM gauge generators — imports `_native`, `math.rational`, `math.laplacian`, `math.mat` and `physics.qm.spin`, and **never imports `octonion`, `so8`, or `triality`**. The tree therefore contains two architecturally disconnected SU(3)s and says so in its own docstrings (`so8.py:1213-1219`; `_tool_docs.py:612`: "this su(3) is EIGHT ANTISYMMETRIC 8x8 REAL matrices — it is NOT `gauge.su3_generators()`… do not compare their f^abc directly"). What the shipped code does is a **division-algebra Lie-branching engine that stops at the algebra**: octonion table → so(8) = 14 + 7 + 7 → g₂ = Der(𝕆) at exact-ℚ rank 14 → su(3) ⊕ 3 ⊕ 3̄ branching → triality τ with τ³ = I, Fix(τ) = g₂. All of that is bit-exact and real. **None of it produces SU(3)×SU(2)×U(1).**
+
+⚠️ **`.P` is DERIVED but CIRCULAR, by its own script's admission.** `spike58_p_cl6c_trace_verification.py` concedes that the trace ratio giving sin²θ_W = 1/4 "depends only on the SM rep assignment, not on the algebraic substrate… substrate-independent." A quantity that is invariant under changing the substrate cannot be evidence *for* that substrate. Keep the computation; retire the inference.
+
+Per `[[feedback_no_lineage_claims_in_notebook]]`, note that the division-algebra→SM programme proper (Furey-style minimal left ideals → gauge group) is **not implemented in the shipped package** — zero hits for Witt basis, ladder operator, minimal left ideal or primitive idempotent across `srmech/` and `c/`. §VIII.31's existing fencing at `:6267` ("corroboration, not the source… no extends/supersedes claim either direction") and the explicit disclaimer that the Cℓ(6) ladder-operator structure is "untouched and uncited" remain correct and are unaffected by this audit.
 
 - **Spike #58.P**: sin²θ_W = 1/4 bit-exact via Cℓ(6,ℂ) bivector trace (Stoica)
 - **Spike #58.N**: (1,3,3) Fano decomposition: FL 3-cycle = generations; CT 3-cycle = colors
@@ -6813,6 +6881,33 @@ three_generations_from_three_fold_sub_structure: True
 
 ### X.3 Computed values from `spectral_dimension_computations.py`
 
+> ⚠️ **CORRECTION (2026-08-27) — `peak_dimension: 6-8` BELOW IS NOT A COMPUTED VALUE. It is a
+> hand-set constant, and this section heading says "Computed values from", which makes the heading
+> false for that row.** The audit is recorded in the Part-I path notice; the mechanism is:
+> `spectral_dimension_computations.py:181` reads `bump_height = 4.0  # extra dimensions seen at
+> intermediate scale`. The peak is a Gaussian bump ADDED to a CDT-like base, and at σ = σ_peak the
+> Gaussian equals exactly 1 — so `peak = d_base(0.1) + bump_height = 2.1818 + 4.0 = ` **6.182**.
+> Sweep the constant and the "prediction" follows it: 4.0 → 6.18, 5.0 → 7.18, 6.0 → 8.18. **The
+> claimed range "6–8" is precisely the range spanned by `bump_height ∈ [4,6]`.** (`alpha = 1.5` at
+> `:175` is defined and never used.) The companion JSON labels this *"Novel prediction — no other
+> framework predicts this."* It is not a prediction; it is a restatement of an input.
+>
+> ⚠️ **THE MEASURED REPLACEMENT WAS NEVER LANDED HERE.** The MPM re-measurement (2026-05-11, PR #325)
+> put the `d_S` peak at **1.84**, not 7.34 — and `research-mfo/mfo_mpm_notes.ndjson` line 8 tags the
+> 7.34 explicitly as `"kind":"gemini_artifact"`. That correction has sat un-transcribed into this
+> notebook for ~15 months while the superseded figure stayed live under a "Computed values" heading.
+> ⚠️ **A further sharpening measured 2026-08-27:** the 7.34 decomposes as **2.34 + 5.0**, where 2.34 is
+> a truncated-spectrum artifact (71% above the script's own recorded theoretical SG value of 1.365)
+> and 5.0 is transcribed from `# User says dS_S1 = 1, dS_CP2 = 4 (constant)` at
+> `spectral_dimension_computations.py:56-57` — a dictated assumption, attributed in prose to the
+> fractal. Phase B's 1.84 is a different, direct-graph estimator and is not the same quantity as the
+> 2.34; do not treat them as rival measurements of one thing.
+>
+> **The rest of this block is untouched by the correction.** The eight-approach QG comparison table
+> is a literature transcription, and the UV=2 / IR=4 limits are the framework's stated boundary
+> conditions rather than outputs of the bump model. Only `peak_dimension` and the
+> `distinguishing_feature` / `unique_predictions` claims that rest on it are affected.
+
 ```
 QG approach summary:
   CDT:                d_S(UV) = 1.80, d_S(IR) = 4.02
@@ -6979,6 +7074,13 @@ Constraints (apply equally to both realisations):
 - Non-Killing perturbation enabling chirality
 
 Approach: parametric search over the cascade-substrate space. The cascade-composition realisation is the more directly tractable form (antikythera-spectral has the tooling) and instantiates Spike #24 Classes I, J, K, L, M, N natively. The fractal-recursive realisation (PCF self-similar fractals; SG generalisations, nested fractals, products) is computable via spectral decimation; both compare against the 9-dimensional SM mass² ratio target.
+
+⚠️ **STATUS CORRECTION (2026-08-27).** This thread was listed as open-and-unattempted while **both** realisations had in fact been run. The cascade realisation: Spike #24 bonus 10 (returned `C₂ × C₇ × C₄ × C₆ × C₁₆`, log-L2 = 0.614), bonus 11a (`NO-RULE`, 47 rules), bonus 11b (`TOO_MANY_PARTICLES`, 191 unobserved modes). The fractal realisation: `research-mfo/mpm_phase_{a,b,c,d}_*.py` through to Phase F's "falsified at multiple levels." **None of these artifacts was cited anywhere in this notebook** — the section framing the question could not see either the arc that answered it or the arc that falsified it. See §IV.1's corrected status paragraph for the full measured record and for why bonus 10's `SUCCESS` commit title does not survive contact with its own parameter count.
+
+Two consequences for anyone resuming this thread:
+
+1. **Write the acceptance predicate first.** Its absence is the reason contradictory verdicts coexisted. The seven components it needs are enumerated in §IV.1.
+2. **The tooling floor was not enforced on the probes.** No script under `research-mfo/` imports `srmech` — `mpm_central_computation.py` uses `scipy.optimize.minimize_scalar`, and bonus 10's probe uses `numpy` with a seeded-RNG hill-climb. Per `[[feedback_scratch_measurements_must_use_srmech_or_gaps_stay_invisible]]` this is precisely where capability gaps stay invisible, and it is how a stochastic optimiser ran inside an arc whose own discipline is closed-form.
 
 ### XIII.2 Baptista at 7D
 

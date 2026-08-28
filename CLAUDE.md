@@ -37,7 +37,7 @@ R30 **final-refined** (substrate notebook §5): 11D-quantum-language and 14 = 1+
 
 ### Class O dissolution note (vocabulary discipline; 2026-05-16)
 
-**Class O is NOT a separate class.** The signed-metric / Wick-rotation operation initially located by Spike #24 bonus 8 was dissolved into **Class L as a signed-Laplacian-variant sub-operation** per `[[feedback_no_privileged_primitive_classes]]`. Vocabulary stays at **14 classes A–N** (no Class O). **The signed-Laplacian op SHIPPED** (`srmech/amsc/laplacian.py:3279` `signed_laplacian`, plus `magnetic_laplacian` at `:3458` — the Hermitian directed/chiral peer); this line previously read "future Class L rcs will add it" and was stale per `[[feedback_claude_md_orientation_can_lag_notebook_ssot]]` (corrected 2026-07-25).
+**Class O is NOT a separate class.** The signed-metric / Wick-rotation operation initially located by Spike #24 bonus 8 was dissolved into **Class L as a signed-Laplacian-variant sub-operation** per `[[feedback_no_privileged_primitive_classes]]`. Vocabulary stays at **14 classes A–N** (no Class O). **The signed-Laplacian op SHIPPED** (`srmech/math/laplacian.py:3475` `signed_laplacian`, plus `magnetic_laplacian` at `:3654` — the Hermitian directed/chiral peer; the path was a dead pre-ADR-0010 `amsc` spelling with stale line numbers until 2026-08-27); this line previously read "future Class L rcs will add it" and was stale per `[[feedback_claude_md_orientation_can_lag_notebook_ssot]]` (corrected 2026-07-25).
 
 ---
 
