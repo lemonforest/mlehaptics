@@ -240,7 +240,7 @@ def test_runs_and_matches_past_256():
 
 def test_registration():
     assert "resonant_spectrum_sparse" in C.__all__
-    assert introspect.describe()["tools"]["total"] == 676
+    assert introspect.describe()["tools"]["total"] == 679
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.biology.coupling.resonant_spectrum_sparse" in names
     entry = next(t for t in get_tool_schema().tools

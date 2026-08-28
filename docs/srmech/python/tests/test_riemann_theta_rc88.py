@@ -170,7 +170,7 @@ def test_addition_holds_at_input_validation():
 
 # ── gate (4a): tools.total is UNCHANGED (a CARRIER verifier method, not a ToolEntry) ─
 def test_addition_holds_at_is_a_carrier_method_total_matches_live():
-    assert introspect.describe()["tools"]["total"] == 676
+    assert introspect.describe()["tools"]["total"] == 679
 
 
 # ── gate (4b): Python == C byte-exact parity for the cyclotomic-multiply kernel ──────

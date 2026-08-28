@@ -1,5 +1,5 @@
 """``srmech.math.groups`` — the REPRESENTATION stratum over finite Cayley
-tables (rc456).
+tables (rc456 tiers 1–2; rc457 tier 3).
 
 THE GAP THIS CLOSES
 ===================
@@ -17,9 +17,13 @@ the representation stratum via ``srmech.introspect.resolve`` was **0 of 10**
 (``character_table`` / ``conjugacy_classes`` / ``irrep_dimensions`` /
 ``semidirect_product`` / ``abelianization`` / ``derived_subgroup`` /
 ``cayley_graph`` and kin, ALL absent).  An external oracle had to be reached
-for.  This module is the tier-1/tier-2 closure of that gap: integer /
+for.  This module is the closure of that gap: tiers 1–2 are integer /
 permutation combinatorics (the constructors and the subgroup / quotient /
-graph reads) plus EXACT cyclotomic character tables.
+graph reads) plus EXACT cyclotomic character tables; tier 3 (rc457) is the
+readout layer over the tier-2 payload — :func:`frobenius_schur_indicator`,
+:func:`fusion_multiplicities` and :func:`central_idempotents`, each consuming
+a :func:`character_table` payload dict VERBATIM rather than re-running the
+split-and-lift.
 
 THE READING THE MODULE EQUIPS THE TREE TO TEST
 ==============================================
@@ -64,7 +68,7 @@ boundary with Class-C re-application.  All content addresses route through
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from srmech.amsc.format import sha256_bytes
 from srmech.cascade import conjugacy_census
@@ -76,10 +80,13 @@ from srmech.math.primes import factor, is_prime
 __all__ = [
     "abelianization",
     "cayley_graph",
+    "central_idempotents",
     "character_table",
     "conjugacy_classes",
     "cyclic_group",
     "derived_subgroup",
+    "frobenius_schur_indicator",
+    "fusion_multiplicities",
     "irrep_dimensions",
     "quotient_group",
     "semidirect_product",
@@ -175,10 +182,18 @@ def _small_lift(residue: int, p: int) -> int:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# cyclotomic power-basis arithmetic (private; tier 3 promotes _zeta_mul
-# to a public registered op when fusion_multiplicities ships — see the
-# rc456 build report; the C ring multiply already exists as
-# srmech_riemann_theta_cyc_mul)
+# cyclotomic power-basis arithmetic (private).  Public promotion of
+# _zeta_mul was considered at tier 3 (rc457) and DELIBERATELY DEFERRED:
+# fusion_multiplicities composes on the private helper and needs no
+# public spelling, and an honest promotion is not a one-line move — it
+# drags in the ADR-0009 dispatch ruling against the existing C ring
+# multiply srmech_riemann_theta_cyc_mul, a peer speaking a DIFFERENT
+# wire (zeta-power-table reduction, deg <= 16, int64 fast path) under a
+# foreign namespace, so the promotion rc must either ship a table-based
+# wire adapter from phi_e (with the pure-bignum fallback recorded) or
+# record an explicit projection gap.  Bundling that here would be the
+# unexpected-coupling shape rc456 declined on the exact_dft refactor.
+# Recorded in the rc457 CHANGELOG "deliberately deferred" section.
 # ──────────────────────────────────────────────────────────────────────
 
 
@@ -1193,8 +1208,13 @@ def character_table(cayley_table: Sequence[Sequence[int]]) -> Dict[str, Any]:
         conjugacy_classes call), "degrees" (ascending), "table" (k × k of
         int tuples), "class_algebra" (the k × k × k structure constants),
         "table_sha256"}`` — every field is load-bearing for tier 3
-        (fusion multiplicities read ``class_algebra`` / ``inverse_class``;
-        the Frobenius–Schur indicator reads ``square_class``).
+        (fusion multiplicities read ``inverse_class`` / ``phi_e``; the
+        Frobenius–Schur indicator reads ``square_class``;
+        ``class_algebra`` no tier-3 op computes from — the shared payload
+        validator requires it present, and it is the operand of the
+        test-side idempotent oracle.  This line said fusion "read
+        ``class_algebra``" until the rc457 repair pass measured the
+        fusion body against it: 0 reads).
 
     Note:
         Exact integers end to end; no float; no ``abs``.
@@ -1307,4 +1327,460 @@ def irrep_dimensions(cayley_table: Sequence[Sequence[int]]) -> Dict[str, Any]:
         "order": ct["order"],
         "num_linear": degrees.count(1),
         "sum_of_squares": sum(d * d for d in degrees),
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# tier 3 — readouts over the character-table payload (rc457).  Each op
+# consumes the :func:`character_table` payload dict VERBATIM (that is
+# what "rc456 shaped its payloads so tier 3 composes" means
+# operationally): no re-run of the split-and-lift, no second class
+# census, and each body's only registered-op call is the Class-A
+# content address.
+# ──────────────────────────────────────────────────────────────────────
+
+
+#: The payload keys every tier-3 op requires — the exact field list
+#: :func:`character_table` returns (``zeta_order`` is a documented alias
+#: of ``exponent`` and is deliberately not required).
+_CHAR_TABLE_KEYS = (
+    "table", "degrees", "class_sizes", "class_of", "inverse_class",
+    "square_class", "class_algebra", "phi_e", "degree", "k", "order",
+    "exponent", "representatives", "table_sha256",
+)
+
+
+def _plain_int(value: Any) -> bool:
+    """True for a plain ``int`` — a ``bool`` is REJECTED (True == 1 would
+    otherwise ride every integer lane silently)."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _check_char_table_payload(op: str, ct: Mapping[str, Any]) -> None:
+    """Validate a :func:`character_table` payload ONCE, raising
+    ``ValueError`` NAMING the failing law (the :func:`semidirect_product`
+    convention).  Shared by every tier-3 op so a malformed or hand-edited
+    payload is refused identically everywhere."""
+    missing = [key for key in _CHAR_TABLE_KEYS if key not in ct]
+    if missing:
+        raise ValueError(
+            f"{op}: char_table payload is missing {missing} - pass the "
+            f"character_table(cayley_table) dict verbatim (payload-key law)")
+    for label in ("k", "order", "exponent", "degree"):
+        if not _plain_int(ct[label]) or ct[label] < 1:
+            raise ValueError(
+                f"{op}: {label} must be a positive plain int, not "
+                f"{ct[label]!r} (payload-scalar law)")
+    k = ct["k"]
+    deg = ct["degree"]
+    if deg != len(ct["phi_e"]) - 1:
+        raise ValueError(
+            f"{op}: degree {deg} != len(phi_e) - 1 = "
+            f"{len(ct['phi_e']) - 1} (carrier-width law)")
+    for i, coefficient in enumerate(ct["phi_e"]):
+        if not _plain_int(coefficient):
+            raise ValueError(
+                f"{op}: phi_e[{i}] carries a "
+                f"{type(coefficient).__name__} coefficient; the modulus "
+                f"is plain-int coefficients only (plain-int law)")
+    for label in ("table", "degrees", "class_sizes", "inverse_class",
+                  "square_class", "representatives", "class_algebra"):
+        if len(ct[label]) != k:
+            raise ValueError(
+                f"{op}: len({label}) = {len(ct[label])} != k = {k} "
+                f"(class-count law)")
+    for i, row in enumerate(ct["table"]):
+        if len(row) != k:
+            raise ValueError(
+                f"{op}: table row {i} has {len(row)} cells, expected {k} "
+                f"(class-count law)")
+        for j, cell in enumerate(row):
+            if len(cell) != deg:
+                raise ValueError(
+                    f"{op}: table[{i}][{j}] has length {len(cell)}, "
+                    f"expected phi(e) = {deg} (carrier-width law)")
+            for coordinate in cell:
+                if not _plain_int(coordinate):
+                    raise ValueError(
+                        f"{op}: table[{i}][{j}] carries a "
+                        f"{type(coordinate).__name__} coordinate; the "
+                        f"carrier is plain-int vectors only "
+                        f"(plain-int law)")
+    for label in ("degrees", "class_sizes"):
+        for i, value in enumerate(ct[label]):
+            if not _plain_int(value) or value < 1:
+                raise ValueError(
+                    f"{op}: {label}[{i}] = {value!r} is not a positive "
+                    f"plain int (payload-scalar law)")
+    if sum(ct["class_sizes"]) != ct["order"]:
+        raise ValueError(
+            f"{op}: class_sizes sum to {sum(ct['class_sizes'])} != order "
+            f"= {ct['order']} (class-equation law)")
+    degree_square_sum = sum(d * d for d in ct["degrees"])
+    if degree_square_sum != ct["order"]:
+        raise ValueError(
+            f"{op}: sum of squared degrees = {degree_square_sum} != "
+            f"order = {ct['order']} - the degrees do not cohere with the "
+            f"group order (degree-square law)")
+    for label in ("inverse_class", "square_class"):
+        for i, value in enumerate(ct[label]):
+            if not _plain_int(value) or not 0 <= value < k:
+                raise ValueError(
+                    f"{op}: {label}[{i}] = {value!r} is not a class index "
+                    f"in [0, {k}) (class-index law)")
+    if len(ct["class_of"]) != ct["order"]:
+        raise ValueError(
+            f"{op}: len(class_of) = {len(ct['class_of'])} != order = "
+            f"{ct['order']} (element-count law)")
+    for g, value in enumerate(ct["class_of"]):
+        if not _plain_int(value) or not 0 <= value < k:
+            raise ValueError(
+                f"{op}: class_of[{g}] = {value!r} is not a class index "
+                f"in [0, {k}) (class-index law)")
+
+
+def _exact_div(op: str, numerator: int, denominator: int, what: str) -> int:
+    """Exact integer division via ``divmod`` with a remainder-must-be-zero
+    guard — THE corruption detector of the tier-3 ops: every character-sum
+    these ops take is |G|-divisible on a true character table, so a nonzero
+    remainder means the payload does not cohere as one.  Raises; never
+    rounds."""
+    quotient, remainder = divmod(numerator, denominator)
+    if remainder != 0:
+        raise ValueError(
+            f"{op}: {what} = {numerator} is not divisible by "
+            f"{denominator} - the payload does not cohere as a character "
+            f"table (divisibility law; a guard that fires is evidence)")
+    return quotient
+
+
+def frobenius_schur_indicator(
+        char_table: Mapping[str, Any]) -> Dict[str, Any]:
+    """The Frobenius–Schur indicator of every irreducible character —
+    **Class K**, the three-point pin at the reality phase boundary.
+
+    ``nu_i = (1/|G|) * sum_g chi_i(g^2)``, computed off the payload as the
+    class-weighted sum over the shipped ``square_class`` column gather —
+    pure integer vector arithmetic, NO cyclotomic multiplication.  The
+    result is EXACTLY ``+1`` (real / orthogonal: the invariant bilinear
+    form is symmetric — the ℝ rung), ``0`` (complex: no invariant form;
+    the character and its conjugate are a chirality PAIR, the Class-C
+    datum), or ``-1`` (quaternionic / symplectic: the form is
+    antisymmetric — the ℍ rung).
+
+    **The Class-K argument, stated rather than assumed.**  The op's entire
+    pronouncement is a position at a phase boundary: which Hurwitz rung
+    ``End_G(V)`` occupies.  Honest counter: the computing cascade is a
+    class-weighted sum over the Class-I squaring map, and
+    ``signed_laplacian`` resolved a similar tension toward L — but unlike
+    that op, the indicator has NO other payload; the three-state sign
+    classification IS the whole answer, so the readout class is the op's
+    class.  Composition: Class I (x → x² via the ``square_class`` gather)
+    → Class I (class-weighted integer sum) → **Class K three-point pin
+    readout**, the 0 branch carrying the Class-C chirality read.  The pin
+    is implemented as exact set membership in {-1, 0, +1} — never a
+    sign or magnitude call.  Module precedent: :func:`_small_lift` is the
+    named K pin-slot; :func:`semidirect_product` is K-as-coupling.
+
+    ⚠️ **Row order**: payload rows sort by (degree, lexicographic value
+    tuple) — the trivial character is NOT at index 0 in general (measured:
+    C7⋊C3 carries it at index 2; S4 carries the sign character at row 0).
+    Locate rows by CONTENT, never by index.
+
+    Args:
+        char_table: a :func:`character_table` payload dict, passed
+            VERBATIM (``ValueError`` naming the failing law otherwise).
+
+    Returns:
+        ``{"k", "order", "indicators"`` (tuple of len k, payload row
+        order, each exactly -1 / 0 / +1), ``"num_real", "num_complex",
+        "num_quaternionic", "square_roots_of_identity"`` (= Σ nu_i·d_i,
+        the Frobenius–Schur count of solutions of g² = e — an identity the
+        tests read character-free off the Cayley table),
+        ``"table_sha256"`` (echoed), ``"indicators_sha256"}``.
+
+    In-op guards, each a raise: every weighted sum lands exactly
+    ``(s, 0, …, 0)`` (rationality); ``order | s`` (divisibility — the
+    corruption detector); ``s // order`` in {-1, 0, +1} (the three-point
+    pin).  Corruption of a table cell OUTSIDE the square-class image is
+    mathematically invisible to nu — the counting identity above is the
+    paired detector for that.
+
+    Note:
+        Exact integers end to end; no ALU magnitude call anywhere.
+    """
+    _check_char_table_payload("frobenius_schur_indicator", char_table)
+    k = char_table["k"]
+    order = char_table["order"]
+    deg = char_table["degree"]
+    sizes = char_table["class_sizes"]
+    square = char_table["square_class"]
+    table = char_table["table"]
+    degrees = char_table["degrees"]
+
+    indicators: List[int] = []
+    for i in range(k):
+        acc = [0] * deg
+        for j in range(k):
+            cell = table[i][square[j]]
+            weight = sizes[j]
+            for t in range(deg):
+                acc[t] += weight * cell[t]
+        if any(acc[1:]):
+            raise ValueError(
+                f"frobenius_schur_indicator: the weighted square-class sum "
+                f"of row {i} keeps nonzero zeta coordinates {tuple(acc)} - "
+                f"a Frobenius-Schur sum is rational (rationality law; a "
+                f"guard that fires is evidence)")
+        nu = _exact_div("frobenius_schur_indicator", acc[0], order,
+                        f"the weighted square-class sum of row {i}")
+        if nu not in (-1, 0, 1):
+            raise ValueError(
+                f"frobenius_schur_indicator: row {i} pinned to {nu}, "
+                f"outside the three-point pin -1 / 0 / +1 (Class-K pin "
+                f"law; a guard that fires is evidence)")
+        indicators.append(nu)
+
+    square_roots = 0
+    for nu, d in zip(indicators, degrees):
+        square_roots += nu * d
+    body = ",".join(str(v) for v in indicators).encode("utf-8")
+    return {
+        "k": k,
+        "order": order,
+        "indicators": tuple(indicators),
+        "num_real": indicators.count(1),
+        "num_complex": indicators.count(0),
+        "num_quaternionic": indicators.count(-1),
+        "square_roots_of_identity": square_roots,
+        "table_sha256": char_table["table_sha256"],
+        "indicators_sha256": sha256_bytes(body),
+    }
+
+
+def fusion_multiplicities(char_table: Mapping[str, Any]) -> Dict[str, Any]:
+    """The full fusion tensor ``N_abc = <chi_a · chi_b, chi_c>`` — exact
+    non-negative integers, **Class L**: projection of each pointwise
+    character product onto the irrep eigenbasis of the class algebra, the
+    same stratum slot :func:`character_table` (the spectral decomposition)
+    and :func:`irrep_dimensions` (its readout) occupy.
+
+    Internal stages, named: Class I — the exact ``ℤ[ζ_e]`` pointwise
+    product ``chi_a(g)·chi_b(g)`` via the module's private ring multiply;
+    Class C — conjugation of ``chi_c`` as the shipped ``inverse_class``
+    column permutation (``chi̅(g) = chi(g⁻¹)``; no Galois machinery);
+    Class I — the class-weighted integer sum.  The pointwise product is
+    deliberately NOT claimed as a Class-M bind: an M-bind claim implies an
+    unbind (character division), which is neither shipped nor measured.
+
+    ⚠️ **Row order**: payload rows sort by (degree, lexicographic value
+    tuple) — the trivial character is NOT at index 0 in general.  Locate
+    rows by CONTENT (degree + value vector), never by index.
+
+    Args:
+        char_table: a :func:`character_table` payload dict, passed
+            VERBATIM (``ValueError`` naming the failing law otherwise).
+
+    Returns:
+        ``{"k", "order", "degrees"`` (echoed), ``"multiplicities"`` —
+        k × k × k nested int tuples, a-major, then b, then c —
+        ``"table_sha256"`` (echoed), ``"multiplicities_sha256"}``.
+
+    In-op guards, each a raise: every entry lands exactly
+    ``(N·order, 0, …, 0)`` (integrality), is ``order``-divisible (the
+    corruption detector) and non-negative; plus the dimension law
+    ``Σ_c N_abc·d_c = d_a·d_b`` for ALL pairs — an O(k³) check, free
+    relative to the O(k⁴·φ(e)²) compute.  Cost honest: the op targets the
+    same small-order groups :func:`character_table` does; a large exponent
+    makes it SLOW, never wrong.
+
+    Note:
+        Exact integers end to end; no ALU magnitude call anywhere.
+    """
+    _check_char_table_payload("fusion_multiplicities", char_table)
+    k = char_table["k"]
+    order = char_table["order"]
+    deg = char_table["degree"]
+    phi = char_table["phi_e"]
+    sizes = char_table["class_sizes"]
+    invc = char_table["inverse_class"]
+    table = char_table["table"]
+    degrees = char_table["degrees"]
+
+    rows_out: List[Tuple[Tuple[int, ...], ...]] = []
+    for a in range(k):
+        row_a = table[a]
+        cols_out: List[Tuple[int, ...]] = []
+        for b in range(k):
+            row_b = table[b]
+            pointwise = [_zeta_mul(row_a[j], row_b[j], phi)
+                         for j in range(k)]
+            cell_out: List[int] = []
+            for c in range(k):
+                row_c = table[c]
+                acc = [0] * deg
+                for j in range(k):
+                    prod = _zeta_mul(pointwise[j], row_c[invc[j]], phi)
+                    weight = sizes[j]
+                    for t in range(deg):
+                        acc[t] += weight * prod[t]
+                if any(acc[1:]):
+                    raise ValueError(
+                        f"fusion_multiplicities: <chi_{a}*chi_{b}, chi_{c}> "
+                        f"keeps nonzero zeta coordinates {tuple(acc)} - a "
+                        f"fusion inner product is a rational integer "
+                        f"(integrality law; a guard that fires is evidence)")
+                n_abc = _exact_div(
+                    "fusion_multiplicities", acc[0], order,
+                    f"the <chi_{a}*chi_{b}, chi_{c}> numerator")
+                if n_abc < 0:
+                    raise ValueError(
+                        f"fusion_multiplicities: <chi_{a}*chi_{b}, chi_{c}> "
+                        f"= {n_abc} is negative - fusion multiplicities "
+                        f"count irrep constituents (non-negativity law; a "
+                        f"guard that fires is evidence)")
+                cell_out.append(n_abc)
+            cols_out.append(tuple(cell_out))
+        rows_out.append(tuple(cols_out))
+    multiplicities = tuple(rows_out)
+
+    for a in range(k):
+        for b in range(k):
+            total = 0
+            for c in range(k):
+                total += multiplicities[a][b][c] * degrees[c]
+            if total != degrees[a] * degrees[b]:
+                raise ValueError(
+                    f"fusion_multiplicities: sum_c N[{a}][{b}][c]*d_c = "
+                    f"{total} != d_{a}*d_{b} = "
+                    f"{degrees[a] * degrees[b]} (dimension law; a guard "
+                    f"that fires is evidence)")
+
+    body = "\n".join(
+        ";".join(",".join(str(n) for n in cell) for cell in row)
+        for row in multiplicities).encode("utf-8")
+    return {
+        "k": k,
+        "order": order,
+        "degrees": degrees,
+        "multiplicities": multiplicities,
+        "table_sha256": char_table["table_sha256"],
+        "multiplicities_sha256": sha256_bytes(body),
+    }
+
+
+def central_idempotents(char_table: Mapping[str, Any]) -> Dict[str, Any]:
+    """The primitive central idempotents of the group algebra, in the
+    class-sum basis — **Class L**: the rank-1 spectral-projector family of
+    the class algebra, :func:`character_table`'s decomposition made into
+    an operand.
+
+    **The scope ruling this op's name carries (final).**  Two objects wear
+    the name "isotypic projector": (a) the primitive central idempotents
+    ``e_chi = (d/|G|) · Σ_g chi(g⁻¹)·g`` of ``Z(ℂ[G])`` — these need ONLY
+    characters, and everything they need ships; (b) the projector onto an
+    isotypic SUBSPACE of a caller's module, which needs the actual
+    representation matrices ``rho(g)`` — and srmech has NO representation
+    object (the ``physics.qm`` matrices are fixed Lie generators, not
+    G → GL(V); the CD ``left_mult_matrix`` / ``right_mult_matrix`` are
+    algebra regular representations, not group-element-keyed).  This op
+    ships object (a) under the name of what it actually is.  The elements
+    returned ARE the isotypic projectors of the REGULAR module; for any
+    other module the caller evaluates ``rho(e_chi) = (d/|G|) ·
+    Σ_g chi(g⁻¹)·rho(g)`` — the group-algebra element is universal, the
+    matrix projector is its evaluation at a module srmech does not carry.
+    Shipping (a) under the bare name "isotypic_projector" would be a
+    silent wrong answer waiting for a caller with a module in hand.
+
+    **The denominator, and why it is explicit.**  The coefficients
+    ``d·chi(g⁻¹)/|G|`` are NOT algebraic integers (the trivial idempotent
+    alone has every coefficient ``1/|G|``), so this is the stratum's first
+    genuinely rational object.  It ships as integer NUMERATOR vectors over
+    one explicit common ``denominator = order`` — the deferred-division
+    shape of ``exact_dft``'s inverse — never a decimal carrier, never a
+    ``Qalg`` in the payload (the ``Qalg`` lift stays the caller's two-line
+    move, exactly as :func:`character_table` documents it).
+
+    Internals, named: Class C — conjugation as the ``inverse_class``
+    column permutation; Class I — plain integer scaling by the degree.
+
+    Args:
+        char_table: a :func:`character_table` payload dict, passed
+            VERBATIM (``ValueError`` naming the failing law otherwise).
+
+    Returns:
+        ``{"k", "order", "degrees"`` (echoed), ``"denominator"`` (= order),
+        ``"numerators"`` — k × k × φ(e) int tuples, irrep-major,
+        class-minor: ``numerators[i][j] = degrees[i] ·
+        table[i][inverse_class[j]]``, the coefficient numerator of the
+        class sum ``K_j`` in ``e_i`` — ``"class_of"`` (echoed: expands
+        per-class coefficients to per-element ones), ``"phi_e"`` (echoed:
+        the ring the vectors live in), ``"table_sha256"`` (echoed),
+        ``"idempotents_sha256"}``.
+
+    In-op guards, each a raise: the identity class is located
+    payload-only as the UNIQUE column where every row equals its degree
+    vector (unique because only the identity acts trivially in every
+    irrep), then the column sums are checked — ``Σ_i numerators[i][j]``
+    equals ``(order, 0, …, 0)`` at the identity class and the zero vector
+    elsewhere (``Σ e_chi = δ_e``, column orthogonality against the
+    identity column).  Per-idempotent ``e·e = e`` stays test-side (two
+    independent routes there; a disagreement is a finding).
+
+    Note:
+        Exact integers over one explicit denominator; no decimal carrier
+        anywhere.
+    """
+    _check_char_table_payload("central_idempotents", char_table)
+    k = char_table["k"]
+    order = char_table["order"]
+    deg = char_table["degree"]
+    invc = char_table["inverse_class"]
+    table = char_table["table"]
+    degrees = char_table["degrees"]
+
+    numerators = tuple(
+        tuple(tuple(degrees[i] * coordinate
+                    for coordinate in table[i][invc[j]])
+              for j in range(k))
+        for i in range(k))
+
+    identity_columns = [
+        j for j in range(k)
+        if all(tuple(table[i][j]) == (degrees[i],) + (0,) * (deg - 1)
+               for i in range(k))]
+    if len(identity_columns) != 1:
+        raise ValueError(
+            f"central_idempotents: expected exactly ONE identity-class "
+            f"column (every row equal to its degree vector); found "
+            f"{len(identity_columns)} (identity-location law; a guard "
+            f"that fires is evidence)")
+    identity_class = identity_columns[0]
+
+    for j in range(k):
+        for t in range(deg):
+            total = 0
+            for i in range(k):
+                total += numerators[i][j][t]
+            want = order if (j == identity_class and t == 0) else 0
+            if total != want:
+                raise ValueError(
+                    f"central_idempotents: column {j} coordinate {t} sums "
+                    f"to {total}, expected {want} - the idempotents do not "
+                    f"sum to the identity-class delta (column-orthogonality "
+                    f"law; a guard that fires is evidence)")
+
+    body = "\n".join(
+        ";".join(",".join(str(c) for c in cell) for cell in row)
+        for row in numerators).encode("utf-8")
+    return {
+        "k": k,
+        "order": order,
+        "degrees": degrees,
+        "denominator": order,
+        "numerators": numerators,
+        "class_of": char_table["class_of"],
+        "phi_e": char_table["phi_e"],
+        "table_sha256": char_table["table_sha256"],
+        "idempotents_sha256": sha256_bytes(body),
     }

@@ -698,8 +698,20 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   as-text prose delta beyond the ten new frames is the two rc452-drain
 #:   `composes` declarations (sha256_raw, mint_vector) riding their existing
 #:   frames.
+#: rc457 re-pin — the corpus witness moved because the registry PROSE moved,
+#: which is the sanctioned cause: three new ToolEntry registrations (the
+#: representation-stratum tier-3 triple under srmech.math.groups) plus their
+#: curated example/explanation rows. Frame count 705 -> 708, exactly the
+#: three new op frames; REMOVED = none; carriers unmoved. Measured LAST,
+#: after the final regen (`regen_all.py --check` reported "all 6 generated
+#: files are up to date" FIRST, no `REFUSED:`), per the rc454 rule ("a pin
+#: taken mid-release is a measurement of a draft").
+#:
+#:   DETERMINISM — `_build_frames("all")` ran in THREE separate numpy-absent
+#:   WSL2 processes; all three returned the SAME digest and 708 frames each.
+#:   The ADR-0011 witness contract HOLDS.
 WITNESS_RC416 = (
-    "66de1afa2678e376dde83262aed789a2b76ea18f21cb653fbb60a9bb2ec2381e")
+    "d30982b120062dde08913609d3b23cc888f6ea6104c76b3ebe474cd8bc503b0b")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

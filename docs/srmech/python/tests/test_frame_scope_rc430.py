@@ -204,7 +204,18 @@ CEIL_FRAME_UNADJUDICATED = {
     # probe could drive their int/list inputs and measured no frame
     # translation), which is what shows the raise is about the operand's
     # type, not about the family being under-exampled.
-    "NO_INT_INPUT": 160,    # nothing translatable along a frame axis
+    # rc457: 160 -> 163, the three tier-3 registrations, and it is the rc456
+    # structural class a SEVENTH, EIGHTH and NINTH time. MEASURED per op
+    # (fp.probe_from_ledger over the refreshed ledger):
+    # frobenius_schur_indicator / fusion_multiplicities / central_idempotents
+    # -> NO_INT_INPUT. Each binds its one argument (the harvester records the
+    # worked example's real calls), but the bound operand is the whole
+    # character_table PAYLOAD DICT, whose integers are class indices, character
+    # coordinates and content-address echoes — payload naming structure inside
+    # one measurement, not a coordinate the op reads along any modulus/frame
+    # axis; varying one corrupts the payload (the ops' own divisibility guards
+    # raise on exactly that) rather than translating anything.
+    "NO_INT_INPUT": 163,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
     "SLOW_SKIP": 15,        # measured-slow, skipped BY NAME with a number
     # rc430 repair (`#T1127`): ops whose parameter carries a documented domain

@@ -11880,6 +11880,181 @@ def _register_primitive_class_tools() -> None:
                        "pin-slot + Class-C",),
             smoke_test_hint={"cayley_table": "[[0, 1], [1, 0]]"},
         ),
+        # rc457 — the representation stratum, tier 3 (the FINAL slice):
+        # three readouts over the character_table payload dict. Each op
+        # eats the payload VERBATIM (no re-run of the split-and-lift, no
+        # second census) and its body's only registered-op call is the
+        # Class-A content address — forced-order singletons in the
+        # composes adjudication, composition_of_c in the rosetta ledger.
+        ToolEntry(
+            name="srmech.math.groups.frobenius_schur_indicator",
+            owner="srmech", category="groups",
+            summary="The Frobenius–Schur indicator of every irreducible "
+                    "character — Class K, the three-point pin at the "
+                    "reality phase boundary. nu = (1/|G|)·Σ chi(g²), "
+                    "computed as the class-weighted sum over the payload's "
+                    "square_class column gather (pure integer vector "
+                    "arithmetic — no cyclotomic multiplication), landing "
+                    "EXACTLY on +1 (real/orthogonal: symmetric invariant "
+                    "form, the ℝ rung), 0 (complex: no invariant form — "
+                    "the character and its conjugate are a chirality PAIR, "
+                    "the Class-C datum), or -1 (quaternionic/symplectic: "
+                    "antisymmetric form, the ℍ rung). The Class-K argument "
+                    "is argued in the docstring, counter included: the "
+                    "cascade is Class-I sums over the Class-I squaring "
+                    "map, but the indicator has NO payload beyond the "
+                    "three-state sign classification, so the pin readout "
+                    "IS the op — implemented as exact set membership, "
+                    "never a sign or magnitude call. In-op guards raise on "
+                    "non-rational sums, |G|-indivisibility (the corruption "
+                    "detector) and any lift outside the three-point pin; "
+                    "square_roots_of_identity = Σ nu·d is returned so the "
+                    "Frobenius–Schur count of g² = e solutions can be "
+                    "cross-read character-free off the Cayley table. "
+                    "⚠️ payload rows sort (degree, lex) — the trivial "
+                    "character is NOT at index 0 in general (C7⋊C3 "
+                    "carries it at index 2); locate rows by CONTENT. "
+                    "Exact ℤ.",
+            parameters=(
+                P("char_table", "dict", True,
+                  "a character_table payload dict, passed VERBATIM "
+                  "(ValueError naming the failing law otherwise)"),
+            ),
+            returns=R("dict", "{k, order, indicators (len-k tuple, payload "
+                              "row order, each exactly -1/0/+1), num_real, "
+                              "num_complex, num_quaternionic, "
+                              "square_roots_of_identity, table_sha256 "
+                              "(echoed), indicators_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"char_table":
+                             "{'order': 2, 'exponent': 2, 'zeta_order': 2, "
+                             "'phi_e': (1, 1), 'degree': 1, 'k': 2, "
+                             "'class_sizes': [1, 1], 'representatives': "
+                             "[0, 1], 'class_of': [0, 1], 'inverse_class': "
+                             "[0, 1], 'square_class': [0, 0], 'degrees': "
+                             "[1, 1], 'table': [[(1,), (-1,)], [(1,), "
+                             "(1,)]], 'class_algebra': [[[1, 0], [0, 1]], "
+                             "[[0, 1], [1, 0]]], 'table_sha256': "
+                             "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
+                             "258a09071d4efa3c0da2'}"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.fusion_multiplicities",
+            owner="srmech", category="groups",
+            summary="The full fusion tensor N_abc = <chi_a·chi_b, chi_c> "
+                    "of a finite group — exact NON-NEGATIVE INTEGERS, "
+                    "Class L: projection of each pointwise character "
+                    "product onto the irrep eigenbasis of the class "
+                    "algebra, the same stratum slot character_table (the "
+                    "spectral decomposition) and irrep_dimensions (its "
+                    "readout) occupy. Internal stages named: Class I — "
+                    "the exact ℤ[ζ_e] pointwise product; Class C — "
+                    "conjugation of chi_c as the shipped inverse_class "
+                    "column permutation (no Galois machinery); Class I — "
+                    "the class-weighted sum. The pointwise product is "
+                    "deliberately NOT claimed as a Class-M bind: an M-bind "
+                    "claim implies an unbind (character division), neither "
+                    "shipped nor measured. In-op guards raise on "
+                    "non-integrality, |G|-indivisibility (the corruption "
+                    "detector), negativity, and the dimension law "
+                    "Σ_c N_abc·d_c = d_a·d_b for ALL pairs. Founding "
+                    "values the rc457 tests pin: S3 2⊗2 = 1+1'+2; Q8 "
+                    "2⊗2 = the four linears; C7⋊C3 3⊗3 = 3+2·3̄ over "
+                    "Φ₂₁. On an abelian table the tensor IS the dual "
+                    "group's multiplication. ⚠️ payload rows sort "
+                    "(degree, lex) — the trivial character is NOT at "
+                    "index 0 in general; locate rows by CONTENT. Cost "
+                    "honest: O(k⁴·φ(e)²) — the same small-order targets "
+                    "as character_table; a large exponent makes it SLOW, "
+                    "never wrong. Exact ℤ.",
+            parameters=(
+                P("char_table", "dict", True,
+                  "a character_table payload dict, passed VERBATIM "
+                  "(ValueError naming the failing law otherwise)"),
+            ),
+            returns=R("dict", "{k, order, degrees (echoed), "
+                              "multiplicities (k × k × k nested int "
+                              "tuples, a-major), table_sha256 (echoed), "
+                              "multiplicities_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"char_table":
+                             "{'order': 2, 'exponent': 2, 'zeta_order': 2, "
+                             "'phi_e': (1, 1), 'degree': 1, 'k': 2, "
+                             "'class_sizes': [1, 1], 'representatives': "
+                             "[0, 1], 'class_of': [0, 1], 'inverse_class': "
+                             "[0, 1], 'square_class': [0, 0], 'degrees': "
+                             "[1, 1], 'table': [[(1,), (-1,)], [(1,), "
+                             "(1,)]], 'class_algebra': [[[1, 0], [0, 1]], "
+                             "[[0, 1], [1, 0]]], 'table_sha256': "
+                             "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
+                             "258a09071d4efa3c0da2'}"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.central_idempotents",
+            owner="srmech", category="groups",
+            summary="The primitive central idempotents of the group "
+                    "algebra in the class-sum basis — Class L, the rank-1 "
+                    "spectral-projector family of the class algebra. THE "
+                    "NAME CARRIES A SCOPE RULING: two objects wear the "
+                    "name 'isotypic projector' — (a) these central "
+                    "idempotents e_chi = (d/|G|)·Σ chi(g⁻¹)·g, needing "
+                    "ONLY characters, and (b) the projector onto an "
+                    "isotypic subspace of a caller's module, needing "
+                    "actual rho(g) matrices, which srmech does not carry "
+                    "(no representation object; the physics.qm matrices "
+                    "are fixed Lie generators, the CD left/right "
+                    "mult-matrices are algebra regular reps). This op "
+                    "ships (a) under the name of what it actually is: the "
+                    "elements ARE the isotypic projectors of the REGULAR "
+                    "module, and for any other module the caller "
+                    "evaluates rho(e_chi) = (d/|G|)·Σ chi(g⁻¹)·rho(g). "
+                    "The coefficients d·chi(g⁻¹)/|G| are NOT algebraic "
+                    "integers — the stratum's first genuinely rational "
+                    "object — so they ship as integer NUMERATOR vectors "
+                    "over ONE explicit denominator = |G| (the deferred-"
+                    "division shape of exact_idft), never a decimal "
+                    "carrier; the Qalg lift stays the caller's two-line "
+                    "move exactly as character_table documents. In-op "
+                    "guard: the identity class is located payload-only "
+                    "(the unique column where every row equals its degree "
+                    "vector) and the column sums are checked against "
+                    "Σ e_chi = δ_e; per-idempotent e·e = e is verified "
+                    "test-side by TWO independent routes (class-algebra "
+                    "structure constants; full group-algebra convolution) "
+                    "— a disagreement is a finding. ⚠️ payload rows sort "
+                    "(degree, lex); locate rows by CONTENT. Exact ℤ over "
+                    "one explicit denominator.",
+            parameters=(
+                P("char_table", "dict", True,
+                  "a character_table payload dict, passed VERBATIM "
+                  "(ValueError naming the failing law otherwise)"),
+            ),
+            returns=R("dict", "{k, order, degrees (echoed), denominator "
+                              "(= order), numerators (k × k × φ(e) int "
+                              "tuples, irrep-major, class-minor), class_of "
+                              "(echoed — expands per-class to per-element), "
+                              "phi_e (echoed — the ring the vectors live "
+                              "in), table_sha256 (echoed), "
+                              "idempotents_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"char_table":
+                             "{'order': 2, 'exponent': 2, 'zeta_order': 2, "
+                             "'phi_e': (1, 1), 'degree': 1, 'k': 2, "
+                             "'class_sizes': [1, 1], 'representatives': "
+                             "[0, 1], 'class_of': [0, 1], 'inverse_class': "
+                             "[0, 1], 'square_class': [0, 0], 'degrees': "
+                             "[1, 1], 'table': [[(1,), (-1,)], [(1,), "
+                             "(1,)]], 'class_algebra': [[[1, 0], [0, 1]], "
+                             "[[0, 1], [1, 0]]], 'table_sha256': "
+                             "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
+                             "258a09071d4efa3c0da2'}"},
+        ),
         # rc399 (`#T1064` Tier 2/3): the octonion CAYLEY PLANE 𝕆P² (carrier-
         # native, one rung above octonion_frame_read's ℍP¹≅S⁴) + the guarded
         # generalized-n-gon incidence-graph / Feit–Higman spectral read. §3.41.7

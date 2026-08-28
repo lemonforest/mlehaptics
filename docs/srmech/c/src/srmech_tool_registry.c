@@ -13,7 +13,7 @@
  * const data table (JPL-clean: const arrays, no dynamic init, no malloc).
  * The accessors + the canonical serialiser live in srmech_tool_schema.c.
  *
- * Entries: 676. tool_schema_version: 1.0.
+ * Entries: 679. tool_schema_version: 1.0.
  */
 
 #include "srmech.h"
@@ -3153,111 +3153,120 @@ static const srmech_tool_param_t ts_params_425[] = {
     { "cayley_table", "list[list[int]]", 1, "the n \303\227 n group table (ValueError otherwise)" },
 };
 static const srmech_tool_param_t ts_params_426[] = {
+    { "char_table", "dict", 1, "a character_table payload dict, passed VERBATIM (ValueError naming the failing law otherwise)" },
+};
+static const srmech_tool_param_t ts_params_427[] = {
+    { "char_table", "dict", 1, "a character_table payload dict, passed VERBATIM (ValueError naming the failing law otherwise)" },
+};
+static const srmech_tool_param_t ts_params_428[] = {
+    { "char_table", "dict", 1, "a character_table payload dict, passed VERBATIM (ValueError naming the failing law otherwise)" },
+};
+static const srmech_tool_param_t ts_params_429[] = {
     { "a", "sequence", 1, "a J\342\202\203(\360\235\225\206) element \342\200\224 a length-27 exact-rational vector [d\342\202\201,d\342\202\202,d\342\202\203] + x\342\202\201(8) + x\342\202\202(8) + x\342\202\203(8) (int / Q / Fraction / float \342\206\222 its EXACT ratio / (num, den))" },
     { "b", "sequence", 1, "the second J\342\202\203(\360\235\225\206) element, length 27" },
 };
-static const srmech_tool_param_t ts_params_427[] = {
+static const srmech_tool_param_t ts_params_430[] = {
     { "x1", "sequence", 1, "the first octonion coordinate \342\200\224 a length-8 exact-rational vector (int / Q / Fraction / float \342\206\222 its EXACT ratio / (num, den)); v must be nonzero" },
     { "x2", "sequence", 1, "the second octonion coordinate, length 8" },
     { "x3", "sequence", 1, "the third octonion coordinate, length 8" },
 };
-static const srmech_tool_param_t ts_params_428[] = {
+static const srmech_tool_param_t ts_params_431[] = {
     { "a", "sequence", 1, "a J\342\202\203(\360\235\225\206) element (a point or a line) \342\200\224 a length-27 exact-rational vector [d\342\202\201,d\342\202\202,d\342\202\203] + x\342\202\201(8) + x\342\202\202(8) + x\342\202\203(8)" },
     { "b", "sequence", 1, "the second J\342\202\203(\360\235\225\206) element, length 27" },
 };
-static const srmech_tool_param_t ts_params_429[] = {
+static const srmech_tool_param_t ts_params_432[] = {
     { "x", "sequence", 1, "a length-16 vector (a,b) \342\210\210 \360\235\225\206\302\262 (a = x[:8], b = x[8:]) \342\200\224 every exact-rational scalar cd_mult accepts (int / Q / Fraction / float \342\206\222 its EXACT ratio / (num, den))" },
 };
-static const srmech_tool_param_t ts_params_430[] = {
+static const srmech_tool_param_t ts_params_433[] = {
     { "n_points", "Optional[int]", 0, "number of points (used with lines=); ignored when example= is set" },
     { "lines", "list[list[int]]", 0, "a sequence of point-index sequences (one per line); ignored when example= is set" },
     { "example", "Optional[str]", 0, "a built-in structure: 'fano' (n=3), 'doily' (n=4), or 'ordinary_k' for k\342\211\2452 (the thin k-gon C_2k)" },
     { "spectral_max_nodes", "int", 0, "skip the adjacency-spectrum read above this vertex count (default 256, the native Jacobi bound; 0 = skip the spectrum). girth / diameter are always computed" },
 };
-static const srmech_tool_param_t ts_params_431[] = {
+static const srmech_tool_param_t ts_params_434[] = {
     { "a", "int", 1, "a Q\342\202\210 element in [0, 8)" },
     { "b", "int", 1, "a Q\342\202\210 element in [0, 8)" },
 };
-static const srmech_tool_param_t ts_params_432[] = {
+static const srmech_tool_param_t ts_params_435[] = {
     { "a", "int", 1, "a Q\342\202\210 element in [0, 8)" },
 };
-static const srmech_tool_param_t ts_params_433[] = {
+static const srmech_tool_param_t ts_params_436[] = {
     { "turn", "bytes", 1, "left operand Q\342\202\210 byte buffer" },
     { "one", "bytes", 1, "right operand, same length" },
 };
-static const srmech_tool_param_t ts_params_434[] = {
+static const srmech_tool_param_t ts_params_437[] = {
     { "q", "bytes", 1, "a Q\342\202\210 byte buffer" },
 };
-static const srmech_tool_param_t ts_params_435[] = {
+static const srmech_tool_param_t ts_params_438[] = {
     { "one", "One", 1, "a cascade One (exposes .sigma, .theta=(num, den), .terms, and optionally .winding as a length-3 int triad \342\200\224 absent reads as at rest, malformed raises)" },
     { "D", "int", 1, "dimension \342\200\224 free; nothing requires or gains from divisibility by 14" },
 };
-static const srmech_tool_param_t ts_params_436[] = {
+static const srmech_tool_param_t ts_params_439[] = {
     { "a", "int", 1, "an octonion element in [0, 16)" },
     { "b", "int", 1, "an octonion element in [0, 16)" },
 };
-static const srmech_tool_param_t ts_params_437[] = {
+static const srmech_tool_param_t ts_params_440[] = {
     { "a", "int", 1, "an octonion element in [0, 16)" },
 };
-static const srmech_tool_param_t ts_params_438[] = {
+static const srmech_tool_param_t ts_params_441[] = {
     { "turn", "bytes", 1, "left operand octonion buffer" },
     { "one", "bytes", 1, "right operand, same length" },
 };
-static const srmech_tool_param_t ts_params_439[] = {
+static const srmech_tool_param_t ts_params_442[] = {
     { "t", "int", 1, "the seam element acted on \342\200\224 an octonion byte in [0, 16); a torsor element t\342\210\210T in the reading" },
     { "g", "int", 1, "the group element acting on the right \342\200\224 an octonion byte in [0, 16); a quaternion element g\342\210\210H in the reading" },
 };
-static const srmech_tool_param_t ts_params_440[] = {
+static const srmech_tool_param_t ts_params_443[] = {
     { "t1", "int", 1, "the source seam element \342\200\224 an octonion byte in [0, 16) with a NON-zero index (t1&7 != 0), an imaginary unit" },
     { "t2", "int", 1, "the target seam element \342\200\224 an octonion byte in [0, 16)" },
 };
-static const srmech_tool_param_t ts_params_441[] = {
+static const srmech_tool_param_t ts_params_444[] = {
     { "x", "sequence", 1, "a power-of-two-length element" },
     { "dim", "int", 1, "target power-of-two dimension (\342\211\245 the element's dim, \342\211\244 64)" },
 };
-static const srmech_tool_param_t ts_params_442[] = {
+static const srmech_tool_param_t ts_params_445[] = {
     { "x", "sequence", 1, "a power-of-two-length element (dim \342\211\245 2)" },
 };
-static const srmech_tool_param_t ts_params_443[] = {
+static const srmech_tool_param_t ts_params_446[] = {
     { "dim", "int", 0, "power-of-two dimension 16 \342\211\244 dim \342\211\244 CD_MAX_DIM (default 16); dim \342\211\244 8 returns None" },
 };
-static const srmech_tool_param_t ts_params_444[] = {
-    { "dim", "int", 0, "power-of-two dimension 16 \342\211\244 dim \342\211\244 CD_MAX_DIM (default 16); dim \342\211\244 8 returns []" },
-};
-static const srmech_tool_param_t ts_params_445[] = {
-    { "x", "sequence", 1, "a power-of-two-length element" },
-    { "table", "list[list[list[int]]] | None", 0, "the dim \303\227 dim \303\227 dim structure-constant tensor naming the algebra (e.g. from algebra_table). None (default) is the shipped Cayley\342\200\223Dickson product, unchanged" },
-};
-static const srmech_tool_param_t ts_params_446[] = {
-    { "x", "sequence", 1, "a power-of-two-length element" },
-    { "table", "list[list[list[int]]] | None", 0, "the dim \303\227 dim \303\227 dim structure-constant tensor naming the algebra (e.g. from algebra_table). None (default) is the shipped Cayley\342\200\223Dickson product, unchanged" },
-};
 static const srmech_tool_param_t ts_params_447[] = {
-    { "x", "sequence", 1, "a power-of-two-length element" },
-    { "table", "list[list[list[int]]] | None", 0, "the dim \303\227 dim \303\227 dim structure-constant tensor naming the algebra (e.g. from algebra_table). None (default) is the shipped Cayley\342\200\223Dickson product, unchanged" },
+    { "dim", "int", 0, "power-of-two dimension 16 \342\211\244 dim \342\211\244 CD_MAX_DIM (default 16); dim \342\211\244 8 returns []" },
 };
 static const srmech_tool_param_t ts_params_448[] = {
     { "x", "sequence", 1, "a power-of-two-length element" },
     { "table", "list[list[list[int]]] | None", 0, "the dim \303\227 dim \303\227 dim structure-constant tensor naming the algebra (e.g. from algebra_table). None (default) is the shipped Cayley\342\200\223Dickson product, unchanged" },
 };
 static const srmech_tool_param_t ts_params_449[] = {
+    { "x", "sequence", 1, "a power-of-two-length element" },
+    { "table", "list[list[list[int]]] | None", 0, "the dim \303\227 dim \303\227 dim structure-constant tensor naming the algebra (e.g. from algebra_table). None (default) is the shipped Cayley\342\200\223Dickson product, unchanged" },
+};
+static const srmech_tool_param_t ts_params_450[] = {
+    { "x", "sequence", 1, "a power-of-two-length element" },
+    { "table", "list[list[list[int]]] | None", 0, "the dim \303\227 dim \303\227 dim structure-constant tensor naming the algebra (e.g. from algebra_table). None (default) is the shipped Cayley\342\200\223Dickson product, unchanged" },
+};
+static const srmech_tool_param_t ts_params_451[] = {
+    { "x", "sequence", 1, "a power-of-two-length element" },
+    { "table", "list[list[list[int]]] | None", 0, "the dim \303\227 dim \303\227 dim structure-constant tensor naming the algebra (e.g. from algebra_table). None (default) is the shipped Cayley\342\200\223Dickson product, unchanged" },
+};
+static const srmech_tool_param_t ts_params_452[] = {
     { "a", "sequence", 1, "the DIVISOR \342\200\224 a power-of-two-length element (the left operand of a\302\267q = c)" },
     { "c", "sequence", 1, "the DIVIDEND \342\200\224 same dimension as a" },
     { "table", "list[list[list[int]]] | None", 0, "the dim \303\227 dim \303\227 dim structure-constant tensor naming the algebra (e.g. from algebra_table). None (default) is the shipped Cayley\342\200\223Dickson product, unchanged" },
 };
-static const srmech_tool_param_t ts_params_450[] = {
+static const srmech_tool_param_t ts_params_453[] = {
     { "c", "sequence", 1, "the DIVIDEND \342\200\224 a power-of-two-length element (the left side of q\302\267b = c)" },
     { "b", "sequence", 1, "the DIVISOR \342\200\224 same dimension as c (the RIGHT operand of q\302\267b = c)" },
     { "table", "list[list[list[int]]] | None", 0, "the dim \303\227 dim \303\227 dim structure-constant tensor naming the algebra (e.g. from algebra_table). None (default) is the shipped Cayley\342\200\223Dickson product, unchanged" },
 };
-static const srmech_tool_param_t ts_params_451[] = {
+static const srmech_tool_param_t ts_params_454[] = {
     { "dim", "int", 1, "an algebra dimension" },
 };
-static const srmech_tool_param_t ts_params_452[] = {
+static const srmech_tool_param_t ts_params_455[] = {
     { "D", "int", 0, "hypervector width in bits (default 8192; the RBS-HDC dimension)" },
     { "codebook", "dict", 0, "optional preset {name: bytes} value-vectors for read cleanup" },
 };
-static const srmech_tool_param_t ts_params_453[] = {
+static const srmech_tool_param_t ts_params_456[] = {
     { "dim", "int", 1, "slot count \342\200\224 a Cayley\342\200\223Dickson algebra dimension; a power of two in [1, 64] (8 \360\235\225\206 / 16 \360\235\225\212 / 32 \360\235\225\213 / 64)" },
     { "D", "int", 0, "hypervector width in bits (default 8192; the RBS-HDC dimension)" },
     { "codebook", "dict", 0, "optional preset {name: bytes} value-vectors for read cleanup" },
@@ -3265,62 +3274,62 @@ static const srmech_tool_param_t ts_params_453[] = {
     { "coupling", "bool", 0, "opt into OPT layer 1 \342\200\224 the reversible working word (couple_working / uncouple_working, Class M, cap min(dim,8)\342\210\2221). Default False (bare = pure addressing)" },
     { "error_correction", "bool", 0, "opt into OPT layer 2 \342\200\224 the Hamming EC/carry block (carry / correct, an axis independent of dim). Default False" },
 };
-static const srmech_tool_param_t ts_params_454[] = {
+static const srmech_tool_param_t ts_params_457[] = {
     { "dim", "int", 1, "algebra dimension \342\200\224 a power of two in [1, 64]" },
     { "j", "int", 1, "navigation basis direction in [0, dim)" },
 };
-static const srmech_tool_param_t ts_params_455[] = {
+static const srmech_tool_param_t ts_params_458[] = {
     { "dim", "int", 1, "algebra dimension \342\200\224 a power of two in [1, 64]" },
     { "j", "int", 1, "navigation basis direction in [0, dim)" },
     { "slots", "Sequence[int]", 1, "occupied slot indices, each in [0, dim)" },
     { "signs", "Sequence[int]", 1, "the Class-C sign of each record, each in {+1,-1}" },
 };
-static const srmech_tool_param_t ts_params_456[] = {
+static const srmech_tool_param_t ts_params_459[] = {
     { "dim", "int", 1, "algebra dimension \342\200\224 a power of two in [1, 64]" },
 };
-static const srmech_tool_param_t ts_params_457[] = {
+static const srmech_tool_param_t ts_params_460[] = {
     { "vals", "sequence", 1, "\342\211\244 min(dim,8)\342\210\2221 real streams to fold into the working word" },
     { "dim", "int", 0, "register rung (power of two in [1, 256]); sets the cap. Default 8 (the octonion working word, cap 7)" },
 };
-static const srmech_tool_param_t ts_params_458[] = {
+static const srmech_tool_param_t ts_params_461[] = {
     { "word", "sequence", 1, "a coupled working word (4-component quaternion / 8-component octonion) from cd_couple_working" },
 };
-static const srmech_tool_param_t ts_params_459[] = {
+static const srmech_tool_param_t ts_params_462[] = {
     { "overflow_bits", "sequence", 1, "exactly 2\342\201\277\342\210\2221\342\210\222n data bits, each 0/1 (4 for H(7,4), 11 for H(15,11))" },
     { "n", "int", 0, "parity-bit count, 2 \342\211\244 n \342\211\244 16; codeword length 2\342\201\277\342\210\2221. Default 3 (Hamming(7,4) \342\200\224 the octonion's own Fano plane)" },
 };
-static const srmech_tool_param_t ts_params_460[] = {
+static const srmech_tool_param_t ts_params_463[] = {
     { "codeword", "sequence", 1, "a 2\342\201\277\342\210\2221-bit codeword (0/1 list)" },
 };
-static const srmech_tool_param_t ts_params_461[] = {
+static const srmech_tool_param_t ts_params_464[] = {
     { "sources", "sequence", 1, "non-empty sequence of equal-length 0/1 bit sequences" },
 };
-static const srmech_tool_param_t ts_params_462[] = {
+static const srmech_tool_param_t ts_params_465[] = {
     { "scores", "sequence", 1, "one comparable score per item" },
     { "k", "int", 1, "how many indices to return (0 \342\211\244 k \342\211\244 len(scores))" },
     { "largest", "bool", 0, "True (default) \342\206\222 highest k; False \342\206\222 lowest k" },
 };
-static const srmech_tool_param_t ts_params_463[] = {
+static const srmech_tool_param_t ts_params_466[] = {
     { "vectors", "sequence", 1, "sequence of equal-length BSC byte vectors; any count (odd or even)" },
 };
-static const srmech_tool_param_t ts_params_464[] = {
+static const srmech_tool_param_t ts_params_467[] = {
     { "sigma", "int", 1, "chirality \317\203 \342\210\210 {+1,-1} (Class K\302\267C sign-flip)" },
     { "theta_num", "int", 1, "epicycle angle numerator (radians)" },
     { "theta_den", "int", 0, "epicycle angle denominator > 0; default 1" },
     { "terms", "int", 0, "Class-N Taylor depth for cos/sin; default 24" },
     { "w", "tuple[int, int, int]", 0, "winding TRIAD (w_saros, w_metonic, w_callippic) \342\200\224 three whole-\342\204\244 metacycle windings filling the three \342\204\235\302\2671 grammar anchors B/H/N (the Antikythera back-panel dials). Default (0,0,0) = at rest, byte-identical to the unwound One. Lifts SO\342\206\222Spin (the double cover): carried WHOLE, never mod-2, and read back by One.winding_tower() / One.sigma_effective(); the adjoint projection (One.to_matrix) is w-INVARIANT, so the winding folds away there" },
 };
-static const srmech_tool_param_t ts_params_465[] = {
+static const srmech_tool_param_t ts_params_468[] = {
     { "theta", "float", 1, "the accumulated angle in radians \342\200\224 any finite real" },
 };
-static const srmech_tool_param_t ts_params_466[] = {
+static const srmech_tool_param_t ts_params_469[] = {
     { "func", "str", 1, "'sin' or 'cos' \342\200\224 the 2\317\200-periodic series to frame" },
     { "numerator", "int", 1, "the argument angle numerator (radians, exact rational p/q)" },
     { "denominator", "int", 1, "the argument angle denominator (non-zero)" },
     { "num_terms", "int", 1, "Taylor truncation depth N (0..50)" },
     { "sigma", "int", 0, "chirality frame component: +1 or -1 (default +1)" },
 };
-static const srmech_tool_param_t ts_params_467[] = {
+static const srmech_tool_param_t ts_params_470[] = {
     { "func", "str", 1, "'sin' or 'cos' (same series for both)" },
     { "num_a", "int", 1, "carrier A argument numerator" },
     { "den_a", "int", 1, "carrier A argument denominator" },
@@ -3330,394 +3339,394 @@ static const srmech_tool_param_t ts_params_467[] = {
     { "sigma_a", "int", 0, "carrier A chirality (+1/-1, default +1)" },
     { "sigma_b", "int", 0, "carrier B chirality (+1/-1, default +1)" },
 };
-static const srmech_tool_param_t ts_params_468[] = {
+static const srmech_tool_param_t ts_params_471[] = {
     { "seq", "sequence", 1, "sliceable sequence" },
 };
-static const srmech_tool_param_t ts_params_469[] = {
+static const srmech_tool_param_t ts_params_472[] = {
     { "op", "operator_name", 1, "dotted NAME of a unary sequence\342\206\222sequence operator (e.g. srmech.cascade.chiral_flip); resolved to its callable through the srmech-namespace operator-name resolver" },
     { "x", "sequence", 1, "input sequence" },
 };
-static const srmech_tool_param_t ts_params_470[] = {
+static const srmech_tool_param_t ts_params_473[] = {
     { "orientations", "iterable[int]", 1, "orientations in {-1,0,+1}" },
 };
-static const srmech_tool_param_t ts_params_471[] = {
+static const srmech_tool_param_t ts_params_474[] = {
     { "body", "operator_name", 1, "dotted NAME of a unary sequence\342\206\222sequence cascade operator (resolved to its callable through the srmech-namespace operator-name resolver)" },
     { "x", "sequence", 1, "input sequence" },
     { "n_sectors", "int", 0, "how many of the 4 Klein-4 sectors to dispatch (1..4; default 4; hard-capped at 4)" },
     { "verify", "bool", 0, "keyword-only; when True, RE-CHECK the correctness invariants at RUNTIME \342\200\224 recompute the serial (single-thread, same-sector) reference and assert parallel == serial bit-for-bit, plus sector 2 == cascade.chiral_dual. Default False, because those are STRUCTURAL guarantees of the F233 4-way independence (each worker reads ONLY its own sector-transformed input, 0 cross-thread reads) already proven in the test suite, NOT facts that need recomputing per call: recomputing them inline DOUBLED the body invocations and turned the dispatch into a 2.6\342\200\2237.7\303\227 slowdown against serial (the rc8 fix). Whichever path ran is reported back at result['independence']['runtime_verified']." },
     { "combine", "str", 0, "rc12 recombine: None (default; leaf dict, combined None) | 'bundle'/'mean'/'sector0'/'concat' \342\206\222 one composable value at result['combined'] so the dispatch chains / nests" },
 };
-static const srmech_tool_param_t ts_params_472[] = {
+static const srmech_tool_param_t ts_params_475[] = {
     { "theta", "float", 1, "phase angle in radians" },
     { "handedness", "int", 0, "rotation-sense convention +1 or -1 (both first-class; default +1 is an ARBITRARY convention; -1 = Class-K phase flip theta\342\206\222-theta)" },
     { "components", "sequence", 0, "the (E_fn, B_fn) quadrature pair, each 'sin' or 'cos' and distinct; default ('sin','cos') \342\206\222 E=sin, B=cos" },
 };
-static const srmech_tool_param_t ts_params_473[] = {
+static const srmech_tool_param_t ts_params_476[] = {
     { "streams", "sequence", 1, "N equal-length real-valued sequences (the steering waves; ideally each a coupled_wave bearing)" },
     { "mode", "str", 0, "'roundrobin' (default) | 'superpose' (real interference sum + renorm) | 'pickbest' (max-magnitude bearing)" },
     { "roles", "sequence", 0, "optional N clause-role labels e.g. ('S','V','O'); role k steers clause-slot k, tagged via Class-M hdc.bind" },
 };
-static const srmech_tool_param_t ts_params_474[] = {
+static const srmech_tool_param_t ts_params_477[] = {
     { "state", "Vec", 1, "(n,) state vector" },
     { "laplacian", "Mat", 1, "(n, n) Hermitian" },
     { "encoder_tag", "str", 0, "default 'default'" },
 };
-static const srmech_tool_param_t ts_params_475[] = {
+static const srmech_tool_param_t ts_params_478[] = {
     { "ref", "SpectralHandle | bytes", 1, "" },
     { "current", "SpectralHandle | bytes", 1, "" },
 };
-static const srmech_tool_param_t ts_params_476[] = {
+static const srmech_tool_param_t ts_params_479[] = {
     { "handle", "SpectralHandle", 1, "" },
     { "laplacian", "Mat", 1, "" },
     { "encoder_tag", "str", 0, "default 'default'" },
 };
-static const srmech_tool_param_t ts_params_477[] = {
+static const srmech_tool_param_t ts_params_480[] = {
     { "a", "SpectralHandle | bytes", 1, "" },
     { "b", "SpectralHandle | bytes", 1, "" },
 };
-static const srmech_tool_param_t ts_params_478[] = {
+static const srmech_tool_param_t ts_params_481[] = {
     { "handle", "SpectralHandle", 1, "" },
     { "laplacian", "Mat", 1, "" },
     { "steps", "int", 0, "default 1; ticks forward" },
     { "dt", "float", 0, "default 1.0; tick magnitude" },
     { "encoder_tag", "str", 0, "default 'default'" },
 };
-static const srmech_tool_param_t ts_params_479[] = {
+static const srmech_tool_param_t ts_params_482[] = {
     { "predicted", "SpectralHandle | bytes", 1, "" },
     { "observed", "SpectralHandle | bytes", 1, "" },
     { "threshold", "float", 0, "default 0.0; in [0.0, 1.0]" },
 };
-static const srmech_tool_param_t ts_params_480[] = {
+static const srmech_tool_param_t ts_params_483[] = {
     { "handle", "SpectralHandle", 1, "" },
     { "keep_k", "Optional[int]", 0, "top-k modes by magnitude" },
     { "threshold", "Optional[float]", 0, "magnitude floor; modes >= kept" },
 };
-static const srmech_tool_param_t ts_params_481[] = {
+static const srmech_tool_param_t ts_params_484[] = {
     { "H", "Mat", 1, "Hermitian (n, n)" },
     { "psi", "Vec", 1, "(n,)" },
     { "t", "float", 1, "" },
 };
-static const srmech_tool_param_t ts_params_482[] = {
+static const srmech_tool_param_t ts_params_485[] = {
     { "H", "Mat", 1, "Hermitian (n, n)" },
 };
-static const srmech_tool_param_t ts_params_483[] = {
+static const srmech_tool_param_t ts_params_486[] = {
     { "A", "Mat", 1, "" },
     { "B", "Mat", 1, "" },
 };
-static const srmech_tool_param_t ts_params_484[] = {
+static const srmech_tool_param_t ts_params_487[] = {
     { "A", "Mat", 1, "" },
     { "H", "Mat", 1, "" },
     { "t", "float", 1, "" },
 };
-static const srmech_tool_param_t ts_params_485[] = {
+static const srmech_tool_param_t ts_params_488[] = {
     { "n", "int", 1, "n_sites \342\211\245 2" },
     { "dx", "float", 0, "default 1.0" },
 };
-static const srmech_tool_param_t ts_params_486[] = {
+static const srmech_tool_param_t ts_params_489[] = {
     { "n", "int", 1, "ring sites \342\211\245 2" },
 };
-static const srmech_tool_param_t ts_params_487[] = {
+static const srmech_tool_param_t ts_params_490[] = {
     { "n", "int", 1, "ring sites \342\211\245 2" },
 };
-static const srmech_tool_param_t ts_params_488[] = {
+static const srmech_tool_param_t ts_params_491[] = {
     { "psi", "Vec", 1, "(n,)" },
 };
-static const srmech_tool_param_t ts_params_489[] = {
+static const srmech_tool_param_t ts_params_492[] = {
     { "rho", "Mat", 1, "" },
     { "H", "Mat", 1, "" },
     { "t", "float", 1, "" },
 };
-static const srmech_tool_param_t ts_params_493[] = {
+static const srmech_tool_param_t ts_params_496[] = {
     { "direction", "Vec", 1, "3-vector" },
 };
-static const srmech_tool_param_t ts_params_496[] = {
+static const srmech_tool_param_t ts_params_499[] = {
     { "H", "Mat", 1, "Hermitian square" },
 };
-static const srmech_tool_param_t ts_params_501[] = {
+static const srmech_tool_param_t ts_params_504[] = {
     { "tolerance", "float", 0, "default 1e-14" },
 };
-static const srmech_tool_param_t ts_params_502[] = {
+static const srmech_tool_param_t ts_params_505[] = {
     { "n_grid", "int", 0, "default 400" },
     { "r_max", "float", 0, "default 80.0" },
     { "l_quantum", "int", 0, "default 0" },
 };
-static const srmech_tool_param_t ts_params_503[] = {
+static const srmech_tool_param_t ts_params_506[] = {
     { "n_dim", "int", 0, "default 30" },
     { "omega", "float", 0, "default 1.0" },
 };
-static const srmech_tool_param_t ts_params_504[] = {
+static const srmech_tool_param_t ts_params_507[] = {
     { "n_dim", "int", 0, "" },
     { "omega", "float", 0, "" },
 };
-static const srmech_tool_param_t ts_params_512[] = {
+static const srmech_tool_param_t ts_params_515[] = {
     { "k", "Vec", 1, "4-vector" },
     { "m", "float", 1, "mass" },
 };
-static const srmech_tool_param_t ts_params_513[] = {
+static const srmech_tool_param_t ts_params_516[] = {
     { "k_spatial", "Vec", 1, "3-vector" },
     { "m", "float", 1, "\342\211\245 0" },
 };
-static const srmech_tool_param_t ts_params_514[] = {
+static const srmech_tool_param_t ts_params_517[] = {
     { "k", "Vec", 1, "4-vector" },
 };
-static const srmech_tool_param_t ts_params_515[] = {
+static const srmech_tool_param_t ts_params_518[] = {
     { "k_squared", "float", 1, "" },
     { "m", "float", 1, "\342\211\245 0" },
     { "epsilon", "float", 0, "i\316\265 regulator" },
 };
-static const srmech_tool_param_t ts_params_516[] = {
+static const srmech_tool_param_t ts_params_519[] = {
     { "k", "Vec", 1, "4-vector" },
     { "m", "float", 1, "" },
     { "epsilon", "float", 0, "" },
 };
-static const srmech_tool_param_t ts_params_517[] = {
+static const srmech_tool_param_t ts_params_520[] = {
     { "k_squared", "float", 1, "" },
     { "gauge_xi", "float", 0, "default 0 \342\207\222 Feynman" },
     { "epsilon", "float", 0, "" },
     { "k", "Optional[Vec]", 0, "" },
 };
-static const srmech_tool_param_t ts_params_518[] = {
+static const srmech_tool_param_t ts_params_521[] = {
     { "k", "Vec", 1, "" },
     { "m", "float", 1, "> 0" },
     { "epsilon", "float", 0, "" },
 };
-static const srmech_tool_param_t ts_params_519[] = {
+static const srmech_tool_param_t ts_params_522[] = {
     { "a", "Vec", 1, "" },
     { "b", "Vec", 1, "" },
     { "eta", "Mat", 1, "" },
 };
-static const srmech_tool_param_t ts_params_520[] = {
+static const srmech_tool_param_t ts_params_523[] = {
     { "O", "Mat", 1, "" },
     { "psi", "Vec", 1, "" },
     { "eta", "Mat", 1, "" },
 };
-static const srmech_tool_param_t ts_params_521[] = {
+static const srmech_tool_param_t ts_params_524[] = {
     { "O", "Mat", 1, "" },
     { "eta", "Mat", 1, "" },
     { "atol", "float", 0, "" },
 };
-static const srmech_tool_param_t ts_params_522[] = {
+static const srmech_tool_param_t ts_params_525[] = {
     { "O", "Mat", 1, "" },
     { "atol", "float", 0, "" },
 };
-static const srmech_tool_param_t ts_params_523[] = {
+static const srmech_tool_param_t ts_params_526[] = {
     { "O", "Mat", 1, "" },
     { "eta", "Mat", 1, "" },
     { "atol", "float", 0, "" },
 };
-static const srmech_tool_param_t ts_params_529[] = {
+static const srmech_tool_param_t ts_params_532[] = {
     { "generators", "tuple[Mat, ...]", 1, "" },
     { "structure_constants", "list[list[list[float]]]", 1, "" },
 };
-static const srmech_tool_param_t ts_params_530[] = {
+static const srmech_tool_param_t ts_params_533[] = {
     { "generators", "tuple[Mat, ...]", 1, "" },
 };
-static const srmech_tool_param_t ts_params_531[] = {
+static const srmech_tool_param_t ts_params_534[] = {
     { "generators", "tuple[Mat, ...]", 1, "" },
 };
-static const srmech_tool_param_t ts_params_532[] = {
+static const srmech_tool_param_t ts_params_535[] = {
     { "A_components", "Vec", 1, "" },
     { "generators", "tuple[Mat, ...]", 1, "" },
 };
-static const srmech_tool_param_t ts_params_533[] = {
+static const srmech_tool_param_t ts_params_536[] = {
     { "A_components", "Vec", 1, "" },
     { "generators", "tuple[Mat, ...]", 1, "" },
     { "coupling", "float", 0, "default 1.0" },
 };
-static const srmech_tool_param_t ts_params_534[] = {
+static const srmech_tool_param_t ts_params_537[] = {
     { "A_segments", "Mat", 1, "(n_segments, n_gen)" },
     { "generators", "tuple[Mat, ...]", 1, "" },
     { "coupling", "float", 0, "" },
 };
-static const srmech_tool_param_t ts_params_535[] = {
+static const srmech_tool_param_t ts_params_538[] = {
     { "phi", "complex", 1, "" },
     { "mu_squared", "float", 1, "> 0" },
     { "lam", "float", 1, "> 0" },
 };
-static const srmech_tool_param_t ts_params_536[] = {
+static const srmech_tool_param_t ts_params_539[] = {
     { "mu_squared", "float", 1, "" },
     { "lam", "float", 1, "" },
 };
-static const srmech_tool_param_t ts_params_537[] = {
+static const srmech_tool_param_t ts_params_540[] = {
     { "g", "float", 1, "SU(2)_L coupling > 0" },
     { "g_prime", "float", 1, "U(1)_Y coupling" },
 };
-static const srmech_tool_param_t ts_params_538[] = {
-    { "g", "float", 1, "" },
-    { "vev", "float", 1, "" },
-};
-static const srmech_tool_param_t ts_params_539[] = {
-    { "g", "float", 1, "" },
-    { "g_prime", "float", 1, "" },
-    { "vev", "float", 1, "" },
-};
-static const srmech_tool_param_t ts_params_540[] = {
-    { "g", "float", 1, "" },
-    { "g_prime", "float", 1, "" },
-    { "vev", "float", 1, "" },
-};
 static const srmech_tool_param_t ts_params_541[] = {
     { "g", "float", 1, "" },
-    { "g_prime", "float", 1, "" },
     { "vev", "float", 1, "" },
 };
 static const srmech_tool_param_t ts_params_542[] = {
-    { "yukawa", "float", 1, "" },
+    { "g", "float", 1, "" },
+    { "g_prime", "float", 1, "" },
     { "vev", "float", 1, "" },
 };
 static const srmech_tool_param_t ts_params_543[] = {
+    { "g", "float", 1, "" },
+    { "g_prime", "float", 1, "" },
+    { "vev", "float", 1, "" },
+};
+static const srmech_tool_param_t ts_params_544[] = {
+    { "g", "float", 1, "" },
+    { "g_prime", "float", 1, "" },
+    { "vev", "float", 1, "" },
+};
+static const srmech_tool_param_t ts_params_545[] = {
+    { "yukawa", "float", 1, "" },
+    { "vev", "float", 1, "" },
+};
+static const srmech_tool_param_t ts_params_546[] = {
     { "theta_12", "float", 1, "" },
     { "theta_13", "float", 1, "" },
     { "theta_23", "float", 1, "" },
     { "delta_cp", "float", 0, "default 0" },
 };
-static const srmech_tool_param_t ts_params_544[] = {
+static const srmech_tool_param_t ts_params_547[] = {
     { "V", "Mat", 1, "" },
 };
-static const srmech_tool_param_t ts_params_547[] = {
-    { "a", "HV", 1, "8-vector octonion" },
-};
-static const srmech_tool_param_t ts_params_548[] = {
-    { "a", "HV", 1, "8-vector octonion" },
-};
-static const srmech_tool_param_t ts_params_549[] = {
-    { "x", "HV", 1, "8-vector" },
-};
 static const srmech_tool_param_t ts_params_550[] = {
-    { "x", "HV", 1, "8-vector" },
+    { "a", "HV", 1, "8-vector octonion" },
 };
 static const srmech_tool_param_t ts_params_551[] = {
+    { "a", "HV", 1, "8-vector octonion" },
+};
+static const srmech_tool_param_t ts_params_552[] = {
+    { "x", "HV", 1, "8-vector" },
+};
+static const srmech_tool_param_t ts_params_553[] = {
+    { "x", "HV", 1, "8-vector" },
+};
+static const srmech_tool_param_t ts_params_554[] = {
     { "theta", "float", 1, "rotation angle \316\270 (radians), finite" },
     { "mu", "str", 0, "axis \316\274\314\202: 'i'|'j'|'k' (= 'e1'|'e2'|'e3') | 'e4'..'e7' | 'ijk' | 'diagonal' (named, exact) or a pure-imaginary 4-/8-vector (normalised via the Class-N sqrt cascade); default 'i'" },
 };
-static const srmech_tool_param_t ts_params_552[] = {
+static const srmech_tool_param_t ts_params_555[] = {
     { "theta_num", "int", 1, "angle numerator p (radians p/q)" },
     { "theta_den", "int", 1, "angle denominator q (nonzero)" },
     { "num_terms", "int", 1, "Taylor terms N" },
     { "axis", "int", 0, "basis axis e_axis, 1..7; default 1" },
 };
-static const srmech_tool_param_t ts_params_553[] = {
+static const srmech_tool_param_t ts_params_556[] = {
     { "j", "int", 1, "frequency index (non-negative)" },
     { "k", "int", 1, "sample index (non-negative)" },
     { "n_points", "int", 1, "DFT length N, 1 \342\211\244 N < 2\302\263\302\262" },
     { "mu", "str", 0, "axis \316\274\314\202: 'i'|'j'|'k' (= 'e1'|'e2'|'e3') | 'e4'..'e7' | 'ijk' | 'diagonal', or a pure-imaginary 4-/8-vector; default 'i'" },
     { "sigma", "int", 0, "\342\210\2221 forward (default) | +1 inverse" },
 };
-static const srmech_tool_param_t ts_params_556[] = {
-    { "q", "HV", 1, "4-vector quaternion" },
-};
-static const srmech_tool_param_t ts_params_557[] = {
-    { "q", "HV", 1, "4-vector quaternion" },
-};
-static const srmech_tool_param_t ts_params_558[] = {
-    { "x", "HV", 1, "4-vector" },
-};
 static const srmech_tool_param_t ts_params_559[] = {
-    { "x", "HV", 1, "4-vector" },
+    { "q", "HV", 1, "4-vector quaternion" },
 };
 static const srmech_tool_param_t ts_params_560[] = {
+    { "q", "HV", 1, "4-vector quaternion" },
+};
+static const srmech_tool_param_t ts_params_561[] = {
+    { "x", "HV", 1, "4-vector" },
+};
+static const srmech_tool_param_t ts_params_562[] = {
+    { "x", "HV", 1, "4-vector" },
+};
+static const srmech_tool_param_t ts_params_563[] = {
     { "theta", "float", 1, "rotation angle \316\270 (radians), finite" },
     { "mu", "str", 0, "axis \316\274\314\202: 'i'|'j'|'k'|'ijk' (named, exact) or a pure-imaginary 4-vector (normalised via the Class-N sqrt cascade); default 'i'" },
 };
-static const srmech_tool_param_t ts_params_561[] = {
+static const srmech_tool_param_t ts_params_564[] = {
     { "q", "HV", 1, "4-vector quaternion (typically unit)" },
 };
-static const srmech_tool_param_t ts_params_562[] = {
+static const srmech_tool_param_t ts_params_565[] = {
     { "q0", "HV", 1, "start quaternion (typically unit)" },
     { "q1", "HV", 1, "end quaternion (typically unit)" },
     { "t", "float", 1, "interpolation parameter (0\342\206\222q0, 1\342\206\222q1); outside [0,1] extrapolates along the geodesic" },
 };
-static const srmech_tool_param_t ts_params_563[] = {
+static const srmech_tool_param_t ts_params_566[] = {
     { "theta_num", "int", 1, "angle numerator p (radians p/q)" },
     { "theta_den", "int", 1, "angle denominator q (nonzero)" },
     { "num_terms", "int", 1, "Taylor terms N" },
     { "axis", "int", 0, "basis axis: 1 (i) | 2 (j) | 3 (k); default 1" },
 };
-static const srmech_tool_param_t ts_params_564[] = {
+static const srmech_tool_param_t ts_params_567[] = {
     { "j", "int", 1, "frequency index (non-negative)" },
     { "k", "int", 1, "sample index (non-negative)" },
     { "n_points", "int", 1, "DFT length N, 1 \342\211\244 N < 2\302\263\302\262" },
     { "mu", "str", 0, "axis \316\274\314\202: 'i'|'j'|'k'|'ijk' or a pure-imaginary 4-vector; default 'i'" },
     { "sigma", "int", 0, "\342\210\2221 forward (default) | +1 inverse" },
 };
-static const srmech_tool_param_t ts_params_565[] = {
+static const srmech_tool_param_t ts_params_568[] = {
     { "edges", "list[tuple[int, int]]", 1, "a self-loop is a 1-cycle; a parallel edge a digon" },
     { "gains", "Optional[list[list[float]]]", 0, "per-edge UNIT quaternion 4-vector parallel to edges; None \342\206\222 identity (balanced); (u,v,g) \342\211\241 (v,u,conj(g))" },
     { "n", "Optional[int]", 0, "node count; inferred from edges when None" },
 };
-static const srmech_tool_param_t ts_params_570[] = {
+static const srmech_tool_param_t ts_params_573[] = {
     { "imaginary_unit", "int", 0, "fixed imaginary octonion unit 1..7 (default 1)" },
 };
-static const srmech_tool_param_t ts_params_571[] = {
+static const srmech_tool_param_t ts_params_574[] = {
     { "quaternion_index", "int", 0, "1-based Fano-line index 1..7 selecting H (default 1 = line (1,2,3))" },
 };
-static const srmech_tool_param_t ts_params_574[] = {
+static const srmech_tool_param_t ts_params_577[] = {
     { "frame", "str", 1, "8v/8s/8c frame label" },
 };
-static const srmech_tool_param_t ts_params_575[] = {
+static const srmech_tool_param_t ts_params_578[] = {
     { "x", "HV", 1, "8-vector" },
     { "from_frame", "str", 1, "source frame label" },
     { "to_frame", "str", 1, "target frame label" },
 };
-static const srmech_tool_param_t ts_params_576[] = {
+static const srmech_tool_param_t ts_params_579[] = {
     { "g_v", "Mat", 1, "8\303\2278 so(8) generator" },
     { "exact", "bool", 0, "return the exact-\342\204\232 companions as list[list[Q]] instead of the float64 Mat (default False)" },
 };
-static const srmech_tool_param_t ts_params_577[] = {
+static const srmech_tool_param_t ts_params_580[] = {
     { "g_v", "Mat", 1, "8\303\2278 generator" },
     { "g_s", "Mat", 1, "8\303\2278 8_s companion" },
     { "g_c", "Mat", 1, "8\303\2278 8_c companion" },
 };
-static const srmech_tool_param_t ts_params_581[] = {
+static const srmech_tool_param_t ts_params_584[] = {
     { "winding", "int", 1, "the integer accumulated in the cover" },
 };
-static const srmech_tool_param_t ts_params_582[] = {
+static const srmech_tool_param_t ts_params_585[] = {
     { "steps", "list[int]", 1, "per-step integer contributions, summed in the cover" },
     { "center_order", "int", 0, "order of the centre Z; 0 = the universal \342\204\244 cover (default)" },
 };
-static const srmech_tool_param_t ts_params_583[] = {
+static const srmech_tool_param_t ts_params_586[] = {
     { "shadow", "int", 1, "the centre residue the local object holds" },
     { "center_order", "int", 1, "order of the centre; 0 = the universal \342\204\244 cover" },
     { "window", "int", 1, "enumerate lifts of magnitude at most this" },
 };
-static const srmech_tool_param_t ts_params_584[] = {
+static const srmech_tool_param_t ts_params_587[] = {
     { "twist", "tuple[int, int]", 1, "Tw as an exact (num, den) integer pair" },
     { "writhe", "tuple[int, int]", 1, "Wr as an exact (num, den) integer pair" },
 };
-static const srmech_tool_param_t ts_params_591[] = {
+static const srmech_tool_param_t ts_params_594[] = {
     { "remove_on_exit", "bool", 0, "If True, the status file is unlinked when the with-block exits. Default False \342\200\224 leave the file for `srmech status` to auto-clean on next read." },
 };
-static const srmech_tool_param_t ts_params_593[] = {
+static const srmech_tool_param_t ts_params_596[] = {
     { "pid", "int", 1, "Process ID to look up." },
 };
-static const srmech_tool_param_t ts_params_595[] = {
+static const srmech_tool_param_t ts_params_598[] = {
     { "query", "str", 1, "The need, in natural words \342\200\224 not a name pattern. Use `resolve()` instead when the exact dotted name is already known." },
     { "k", "int", 0, "How many records to return (default 10, clamped to the corpus size). Rows that match nothing are omitted, so fewer than k records means the corpus genuinely had fewer matches \342\200\224 never padding." },
     { "scope", "str", 0, "'ops' (the verb registry), 'carriers' (the operand / noun registry) or 'all' (the union; default)." },
 };
-static const srmech_tool_param_t ts_params_598[] = {
+static const srmech_tool_param_t ts_params_601[] = {
     { "spec", "str", 1, "TOML chain spec: a [chain] table + [[stage]] array (one builder call per stage)." },
     { "input_value", "int | float | str | list | dict", 1, "Seed value fed to the first stage (a JSON-shaped value: number / string / list / dict). Passed to Chain.run unchanged." },
 };
-static const srmech_tool_param_t ts_params_600[] = {
+static const srmech_tool_param_t ts_params_603[] = {
     { "op_name", "str", 1, "the descriptor name ([cascade].name), e.g. 'magnitude' / 'quaternion_dft'." },
     { "inputs", "dict", 0, "the chain's @input.* bindings, e.g. {'x': -3.25} for magnitude." },
     { "variant", "str", 0, "which declared chain when the descriptor carries several (keyword-only); default = the single declared chain." },
 };
-static const srmech_tool_param_t ts_params_601[] = {
+static const srmech_tool_param_t ts_params_604[] = {
     { "source_keys", "list", 0, "restrict the catalog-chain half to these source keys; omit to auto-discover all registered sources." },
 };
-static const srmech_tool_param_t ts_params_603[] = {
+static const srmech_tool_param_t ts_params_606[] = {
     { "name", "str", 1, "the class name to describe (e.g. 'Genome')." },
 };
-static const srmech_tool_param_t ts_params_604[] = {
+static const srmech_tool_param_t ts_params_607[] = {
     { "name", "str", 1, "the class name (introspected if fields/methods omitted; else the emitted [class].name)." },
     { "fields", "dict", 0, "{field: type} declarations; omit (with methods) to introspect a registered class instead." },
     { "methods", "dict", 0, "{method: {op, binds, doc, appends|sets}} \342\200\224 methods as dotted cascade-op refs." },
     { "doc", "str", 0, "class docstring (overrides the introspected doc)." },
     { "kind", "str", 0, "class kind tag (overrides the introspected kind)." },
 };
-static const srmech_tool_param_t ts_params_605[] = {
+static const srmech_tool_param_t ts_params_608[] = {
     { "text", "str", 1, "the utterance / description body (its tokens are df-gated)" },
     { "D", "int", 1, "Klein-4 dimension (F1008 used 8192)" },
     { "df", "dict", 0, "token -> doc-frequency table (the aboutness-gate corpus stats); None disables the gate" },
@@ -3728,63 +3737,63 @@ static const srmech_tool_param_t ts_params_605[] = {
     { "func_frac", "float", 0, "gate threshold as a fraction of n_docs (default 0.35)" },
     { "token_mode", "str", 0, "'byteglyph' (default, structure-bearing) or 'address' (F1008 orthogonal dual)" },
 };
-static const srmech_tool_param_t ts_params_606[] = {
+static const srmech_tool_param_t ts_params_609[] = {
     { "op_name", "str", 1, "canonical op name; one of registered_ops()" },
     { "args", "sequence", 0, "the *args variadic: positional arguments forwarded verbatim to the routed implementation. Element types are the routed op's, not dispatch's, so this schema does not narrow them; an element with no wire form is unreachable over MCP even though the array is. Default () = no positional arguments" },
     { "path", "Optional[str]", 0, "keyword-only; force 'A' / 'B' / 'verify'. Default None = rule-based routing via resolve_path()" },
     { "D", "int", 0, "keyword-only; RBS-HDC bound-vector dimension forwarded to Path B implementations. Default 8192" },
 };
-static const srmech_tool_param_t ts_params_607[] = {
+static const srmech_tool_param_t ts_params_610[] = {
     { "substrate", "Optional[str]", 0, "substrate label, or None for substrate-agnostic. One of 'bci' / 'audio' / 'rf' / 'ephemeris'" },
     { "D", "int", 0, "keyword-only; bound-vector dimension for the cascade. Default 8192" },
 };
-static const srmech_tool_param_t ts_params_608[] = {
+static const srmech_tool_param_t ts_params_611[] = {
     { "ctx", "Optional[dict]", 0, "the CascadeContext to flush; None flushes the innermost active context" },
 };
-static const srmech_tool_param_t ts_params_610[] = {
+static const srmech_tool_param_t ts_params_613[] = {
     { "op_name", "str", 1, "canonical op name" },
     { "explicit_path", "Optional[str]", 0, "keyword-only; 'A' / 'B' / 'verify' \342\200\224 returned unchanged" },
     { "input_size", "Optional[int]", 0, "keyword-only; input-size hint (reserved for the learned threshold table)" },
     { "substrate", "Optional[str]", 0, "keyword-only; substrate hint overriding the active context" },
 };
-static const srmech_tool_param_t ts_params_612[] = {
+static const srmech_tool_param_t ts_params_615[] = {
     { "op_name", "str", 1, "canonical op name" },
     { "path", "str", 1, "'A' or 'B'" },
 };
-static const srmech_tool_param_t ts_params_613[] = {
+static const srmech_tool_param_t ts_params_616[] = {
     { "op_name", "str", 1, "canonical op name" },
 };
-static const srmech_tool_param_t ts_params_615[] = {
+static const srmech_tool_param_t ts_params_618[] = {
     { "R", "Mat", 1, "the M-by-M Hermitian sensor covariance matrix" },
     { "steering_vectors", "list[list[complex]]", 1, "K candidate steering vectors, each of length M \342\200\224 the directions to score" },
     { "n_sources", "int", 1, "how many sources to assume; the signal subspace takes this many eigenvectors and the remaining M - n_sources are the noise subspace. This IS the Class-K threshold, and it is required rather than inferred \342\200\224 guessing the source count from the eigenvalue gap is a separate decision the op declines to make silently" },
     { "D", "int", 0, "eigendecomposition working precision; default 8192" },
 };
-static const srmech_tool_param_t ts_params_616[] = {
+static const srmech_tool_param_t ts_params_619[] = {
     { "name", "str", 1, "the canonical name \342\200\224 the mint's whole identity; encoded UTF-8 before hashing" },
     { "D", "int", 0, "output dimension in BITS (keyword-only); default 8192, any multiple of 8 in [D_MIN, D_MAX]" },
 };
-static const srmech_tool_param_t ts_params_617[] = {
+static const srmech_tool_param_t ts_params_620[] = {
     { "signal", "list", 1, "real array-like, 1-D or 2-D" },
     { "dct_type", "int", 0, "2 for DCT-II (default; the codec standard) or 3 for DCT-III, its inverse" },
     { "axis", "int", 0, "axis to transform; default -1 (last). For 2-D input, -1 or 1 transforms each row, 0 transforms each column" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_618[] = {
+static const srmech_tool_param_t ts_params_621[] = {
     { "signal", "list", 1, "real or complex 1-D array-like" },
     { "frame_size", "int", 0, "samples per frame; default 256. This sets the time-frequency trade-off \342\200\224 longer frames buy frequency resolution and spend time resolution" },
     { "hop_size", "Optional[int]", 0, "samples advanced between frames; None means frame_size // 2 (50 percent overlap)" },
     { "window", "list[float]", 0, "per-sample taper of length frame_size; None means a Hann window" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_619[] = {
+static const srmech_tool_param_t ts_params_622[] = {
     { "signal", "list", 1, "real or complex 1-D array-like" },
     { "frame_size", "int", 0, "samples per frame; default 256" },
     { "hop_size", "Optional[int]", 0, "samples advanced between frames; None means frame_size // 2" },
     { "window", "list[float]", 0, "per-sample taper of length frame_size; None means Hann" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_620[] = {
+static const srmech_tool_param_t ts_params_623[] = {
     { "x", "list", 1, "first signal, 1-D array-like" },
     { "y", "list", 1, "second signal, 1-D array-like" },
     { "frame_size", "int", 0, "samples per frame; default 256" },
@@ -3792,103 +3801,103 @@ static const srmech_tool_param_t ts_params_620[] = {
     { "coherence", "bool", 0, "when True, also return the magnitude-squared coherence per bin alongside the cross spectrum" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_621[] = {
+static const srmech_tool_param_t ts_params_624[] = {
     { "signal", "list", 1, "real 1-D array-like" },
     { "n_tapers", "int", 0, "how many orthogonal tapers to average; default 4. More tapers means lower variance and wider effective bandwidth" },
     { "nw", "float", 0, "time-bandwidth product; default 4.0. This IS the resolution-versus-variance dial" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_622[] = {
+static const srmech_tool_param_t ts_params_625[] = {
     { "signal", "list", 1, "real 1-D array-like" },
     { "n", "Optional[int]", 0, "length of the transformed axis; None means the signal's own length" },
     { "axis", "int", 0, "axis to transform; default -1" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_623[] = {
+static const srmech_tool_param_t ts_params_626[] = {
     { "signal", "list", 1, "real 1-D array-like" },
     { "levels", "int", 0, "how many times to recurse on the approximation band; default 3" },
     { "wavelet", "str", 0, "wavelet family; default 'haar'" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_624[] = {
+static const srmech_tool_param_t ts_params_627[] = {
     { "signal", "list", 1, "input signal, 1-D array-like" },
     { "coefficients", "list", 1, "the filter taps \342\200\224 the impulse response itself" },
     { "mode", "str", 0, "'full' (default), 'same' or 'valid' \342\200\224 the convolution crop" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_625[] = {
+static const srmech_tool_param_t ts_params_628[] = {
     { "signal", "list", 1, "input signal, 1-D array-like" },
     { "b", "list", 1, "feedforward (numerator) coefficients" },
     { "a", "list", 1, "feedback (denominator) coefficients; a[0] normalises" },
     { "biquad_sections", "list[list[float]]", 0, "optional second-order sections, applied in cascade instead of the flat b / a pair" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_626[] = {
+static const srmech_tool_param_t ts_params_629[] = {
     { "signal", "list", 1, "input signal, 1-D array-like" },
     { "a", "float", 1, "the allpass coefficient; magnitude below 1 for stability" },
     { "b", "float", 0, "second coefficient for the order-2 form" },
     { "order", "int", 0, "1 (default) or 2" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_627[] = {
+static const srmech_tool_param_t ts_params_630[] = {
     { "signal", "list", 1, "the record to search, 1-D" },
     { "template", "list", 1, "the known shape to match" },
     { "mode", "str", 0, "'full' (default), 'same' or 'valid' \342\200\224 the correlation crop" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_628[] = {
+static const srmech_tool_param_t ts_params_631[] = {
     { "signal", "list", 1, "the noisy signal, 1-D" },
     { "noise_psd", "list", 1, "noise power spectral density per bin" },
     { "signal_psd", "list", 0, "signal power spectral density per bin; None means it is estimated from the input" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_629[] = {
+static const srmech_tool_param_t ts_params_632[] = {
     { "signal", "list", 1, "input signal, 1-D array-like" },
     { "threshold", "float", 0, "the decision boundary; default 0.0" },
     { "dead_band", "float", 0, "half-width of the zone about the threshold that maps to zero instead of to a sign; default 0.0 (no dead band)" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_630[] = {
+static const srmech_tool_param_t ts_params_633[] = {
     { "signal", "list", 1, "the node-domain state, length n" },
     { "laplacian", "list[list[float]]", 1, "the n-by-n Hermitian graph Laplacian" },
     { "t", "float", 0, "diffusion time; larger t means more smoothing. Default 1.0" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_631[] = {
+static const srmech_tool_param_t ts_params_634[] = {
     { "signal", "list", 1, "the noisy signal, 1-D" },
     { "noise_psd", "list", 1, "noise power spectral density per bin" },
     { "alpha", "float", 0, "over-subtraction factor; default 1.0" },
     { "beta", "float", 0, "spectral floor, as a fraction of the noise estimate; default 0.01. This is what a bin is clamped TO rather than being allowed to go negative" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_632[] = {
+static const srmech_tool_param_t ts_params_635[] = {
     { "data", "bytes", 1, "the payload to encode, or the encoded bitstream to decode" },
     { "decode", "bool", 0, "False (default) encodes; True decodes" },
     { "codes", "dict", 0, "the symbol-to-codeword table, required when decoding" },
     { "bit_length", "Optional[int]", 0, "exact bit count of the encoded stream, required when decoding so trailing pad bits are not mistaken for data" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_633[] = {
+static const srmech_tool_param_t ts_params_636[] = {
     { "data", "bytes", 1, "the payload to encode, or the code value to decode" },
     { "decode", "bool", 0, "False (default) encodes; True decodes" },
     { "freq", "dict", 0, "the symbol frequency table, required when decoding" },
     { "length", "Optional[int]", 0, "number of symbols to emit, required when decoding \342\200\224 the code value alone does not say where the message stops" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_634[] = {
+static const srmech_tool_param_t ts_params_637[] = {
     { "data", "bytes", 1, "the payload to encode, or the token stream to decode" },
     { "decode", "bool", 0, "False (default) encodes; True decodes" },
     { "window_size", "int", 0, "how far back a match may reach; default 4096" },
     { "lookahead_size", "int", 0, "longest match that may be emitted; default 18" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_635[] = {
+static const srmech_tool_param_t ts_params_638[] = {
     { "data", "bytes", 1, "the payload to encode, or the run stream to decode" },
     { "decode", "bool", 0, "False (default) encodes; True decodes" },
     { "max_run", "int", 0, "longest run a single pair may express; default 255. Longer runs are split across successive pairs" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_636[] = {
+static const srmech_tool_param_t ts_params_639[] = {
     { "image", "list[list[float]]", 1, "the image to encode, or the coefficient blocks to decode" },
     { "decode", "bool", 0, "False (default) encodes; True decodes" },
     { "quality", "int", 0, "1 to 100; default 50. Scales the quantisation table, so it sets how much is discarded" },
@@ -3896,25 +3905,25 @@ static const srmech_tool_param_t ts_params_636[] = {
     { "block_size", "int", 0, "tile edge in pixels; default 8" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_637[] = {
+static const srmech_tool_param_t ts_params_640[] = {
     { "vectors", "Sequence[bytes]", 1, "the binary hypervectors to bundle" },
     { "truncate_popcount", "Optional[int]", 0, "target number of set bits; None leaves the bundle at its natural density" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_638[] = {
+static const srmech_tool_param_t ts_params_641[] = {
     { "vectors", "list[list[float]]", 1, "the vectors to quantise, or the indices to reconstruct" },
     { "codebook", "list[list[float]]", 1, "the codeword table both directions index into" },
     { "decode", "bool", 0, "False (default) quantises to indices; True reconstructs from them" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_639[] = {
+static const srmech_tool_param_t ts_params_642[] = {
     { "symbols", "list", 1, "integer symbol indices to modulate, or complex samples to demodulate" },
     { "modulation", "str", 0, "'psk' (default) or 'qam'" },
     { "M", "int", 0, "constellation size; default 4. Square QAM requires M to be a perfect square" },
     { "demodulate", "bool", 0, "False (default) maps indices to constellation points; True maps received samples back to indices" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_640[] = {
+static const srmech_tool_param_t ts_params_643[] = {
     { "symbols", "list", 1, "integer symbol indices to modulate, or samples to demodulate" },
     { "frequencies", "list", 1, "the tone table \342\200\224 one frequency per symbol value" },
     { "samples_per_symbol", "int", 0, "window length per symbol; default 16" },
@@ -3922,7 +3931,7 @@ static const srmech_tool_param_t ts_params_640[] = {
     { "demodulate", "bool", 0, "False (default) modulates; True demodulates" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_641[] = {
+static const srmech_tool_param_t ts_params_644[] = {
     { "symbols", "list", 1, "constellation symbols to transmit, or received samples to demodulate" },
     { "n_subcarriers", "int", 0, "subcarriers per OFDM symbol; default 64" },
     { "cp_length", "int", 0, "cyclic-prefix length in samples; default 16. It must exceed the channel's delay spread for the circular-convolution argument to hold" },
@@ -3930,68 +3939,68 @@ static const srmech_tool_param_t ts_params_641[] = {
     { "channel", "list", 0, "per-subcarrier channel response; when supplied on the demodulate path, each subcarrier is equalised by it" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_642[] = {
+static const srmech_tool_param_t ts_params_645[] = {
     { "channel_matrix", "list[list[complex]]", 1, "the receive-by-transmit channel matrix" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_643[] = {
+static const srmech_tool_param_t ts_params_646[] = {
     { "observations", "list", 1, "the observation index sequence" },
     { "transition_log_prob", "list[list[float]]", 1, "state-to-state transition log probabilities" },
     { "emission_log_prob", "list[list[float]]", 1, "per-state observation emission log probabilities" },
     { "initial_log_prob", "list[float]", 1, "initial state distribution, in log probability" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_644[] = {
+static const srmech_tool_param_t ts_params_647[] = {
     { "observations", "list", 1, "the received sample sequence" },
     { "channel_taps", "list", 1, "the channel impulse response; its length sets the trellis memory and so the state count" },
     { "alphabet", "list", 1, "the transmit symbol alphabet" },
     { "initial_state", "list", 0, "known starting channel state; None means unconstrained" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_645[] = {
+static const srmech_tool_param_t ts_params_648[] = {
     { "signal", "list", 1, "input signal, 1-D array-like" },
     { "up", "int", 0, "interpolation factor; default 1" },
     { "down", "int", 0, "decimation factor; default 1" },
     { "filter_taps", "list[float]", 0, "the shared anti-imaging / anti-aliasing filter; None means a windowed-sinc design is generated" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_646[] = {
+static const srmech_tool_param_t ts_params_649[] = {
     { "signal", "list", 1, "input signal, 1-D array-like" },
     { "filter_taps", "list", 1, "the prototype filter to decompose" },
     { "L", "int", 0, "number of polyphase branches; default 2" },
     { "mode", "str", 0, "'decimation' (default) or 'interpolation'" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_647[] = {
+static const srmech_tool_param_t ts_params_650[] = {
     { "signal", "list", 1, "input signal, 1-D array-like" },
     { "mu", "float", 0, "fractional delay in samples, 0.0 to 1.0; default 0.0" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_648[] = {
+static const srmech_tool_param_t ts_params_651[] = {
     { "signal", "list", 1, "the sample values" },
     { "sample_indices", "list", 1, "the positions the samples were taken at" },
     { "target_indices", "list", 1, "the positions to reconstruct at" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_649[] = {
+static const srmech_tool_param_t ts_params_652[] = {
     { "array_signals", "list[list[float]]", 1, "one record per array element" },
     { "delays_samples", "list", 1, "per-element steering delay, in samples" },
     { "weights", "list", 0, "per-element shading weights; None means uniform. Shading trades main-lobe width for sidelobe suppression" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_650[] = {
+static const srmech_tool_param_t ts_params_653[] = {
     { "R", "Mat", 1, "the M-by-M Hermitian covariance matrix from a uniform linear array" },
     { "n_sources", "int", 1, "number of sources, i.e. the signal-subspace dimension. Required rather than inferred: reading the source count off the eigenvalue gap is a separate decision the op declines to make silently" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_651[] = {
+static const srmech_tool_param_t ts_params_654[] = {
     { "X", "Mat", 1, "the observation matrix, channels by samples" },
     { "n_components", "Optional[int]", 0, "how many sources to extract; None means as many as there are channels" },
     { "max_iter", "int", 0, "cap on joint-diagonalisation sweeps; default 100" },
     { "tol", "float", 0, "convergence tolerance on the sweep rotation; default 1e-06" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_652[] = {
+static const srmech_tool_param_t ts_params_655[] = {
     { "y", "list", 1, "the observation vector" },
     { "R_yy", "list[list[float]]", 1, "observation autocovariance" },
     { "R_xy", "list[list[float]]", 1, "cross-covariance between the quantity of interest and the observation" },
@@ -3999,7 +4008,7 @@ static const srmech_tool_param_t ts_params_652[] = {
     { "mean_y", "list", 0, "mean of y; None means zero" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_653[] = {
+static const srmech_tool_param_t ts_params_656[] = {
     { "y", "list", 1, "the observation vector, length m" },
     { "A", "list[list[float]]", 1, "the m-by-n observation matrix" },
     { "R_noise", "list[list[float]]", 1, "the m-by-m noise covariance" },
@@ -4007,93 +4016,93 @@ static const srmech_tool_param_t ts_params_653[] = {
     { "mean_prior", "list", 0, "prior mean of x; None means zero" },
     { "D", "int", 0, "Path B dimensionality, accepted for cross-path API consistency with the dual-path dispatcher; the Path A closed form does not use it" },
 };
-static const srmech_tool_param_t ts_params_654[] = {
+static const srmech_tool_param_t ts_params_657[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "non-empty sequence of partial-to-fundamental frequency RATIOS. Over the wire each is a bare int or an exact [num, den] pair; an in-process caller may also pass Q or Qalg (Qalg has no JSON form, so it is reachable in-process only). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices whose true value has NO exact carrier; declared by the constructor that produced them" },
 };
-static const srmech_tool_param_t ts_params_655[] = {
+static const srmech_tool_param_t ts_params_658[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "partial-to-fundamental frequency ratios. Over the wire each is a bare int or an exact [num, den] pair; Q and Qalg are additionally accepted in-process (Qalg has no JSON form). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices declared Tier 3 by their constructor" },
 };
-static const srmech_tool_param_t ts_params_656[] = {
+static const srmech_tool_param_t ts_params_659[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "partial-to-fundamental frequency ratios; over the wire each is a bare int or an exact [num, den] pair (Qalg in-process only). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices declared Tier 3 by their constructor" },
 };
-static const srmech_tool_param_t ts_params_658[] = {
+static const srmech_tool_param_t ts_params_661[] = {
     { "divisions", "int", 0, "steps per octave (>=1); default 12" },
     { "octave", "int", 0, "the integer octave ratio (>=2); default 2" },
     { "degrees", "Sequence[int]", 0, "which scale degrees to return; default 0..divisions inclusive" },
 };
-static const srmech_tool_param_t ts_params_659[] = {
+static const srmech_tool_param_t ts_params_662[] = {
     { "inharmonicity", "Q", 1, "the stiffness coefficient B >= 0, as Q, int or an (int, int) pair; must be EXACT (floats refused)" },
     { "n_partials", "int", 0, "how many partials, n = 1..n_partials (>=1); default 8" },
 };
-static const srmech_tool_param_t ts_params_660[] = {
+static const srmech_tool_param_t ts_params_663[] = {
     { "n_orders", "int", 0, "how many Bessel orders n = 0..n_orders-1 (>=1); default 3" },
     { "m_zeros", "int", 0, "how many zeros per order, m = 1..m_zeros (>=1); default 3" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point precision of the zeros; default 128" },
 };
-static const srmech_tool_param_t ts_params_661[] = {
+static const srmech_tool_param_t ts_params_664[] = {
     { "order", "int", 1, "the integer Bessel order k >= 0" },
     { "numerator", "int", 1, "the argument's numerator; the argument must be >= 0" },
     { "denominator", "int", 1, "the argument's denominator, > 0" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point scale in bits, [8, 4096]; default 256" },
 };
-static const srmech_tool_param_t ts_params_662[] = {
+static const srmech_tool_param_t ts_params_665[] = {
     { "order", "int", 1, "the integer Bessel order n >= 0" },
     { "index", "int", 1, "which positive zero, 1-based (1 = the first)" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point scale in bits; default 256" },
     { "newton_steps", "int", 0, "Newton refinements after the McMahon start, [1, 64]; default 8" },
 };
-static const srmech_tool_param_t ts_params_663[] = {
+static const srmech_tool_param_t ts_params_666[] = {
     { "num", "int | Sequence[int] | Q", 1, "the numerator, or the whole ratio as an exact [num, den] pair. float is REFUSED \342\200\224 a float has already lost the distinction this op exists to keep" },
     { "den", "int | Sequence[int] | Q", 0, "the denominator when num was a bare int; default 1" },
 };
-static const srmech_tool_param_t ts_params_664[] = {
+static const srmech_tool_param_t ts_params_667[] = {
     { "gen", "int | Sequence[int] | Q", 1, "the generator ratio, must exceed 1; exact [num, den] pair or int. float REFUSED" },
     { "n", "int", 1, "how many generators to stack; n >= 0. A negative chain is the reciprocal generator's positive chain \342\200\224 invert gen instead, so the read direction stays explicit" },
     { "period", "int | Sequence[int] | Q", 0, "the equivalence interval, must exceed 1; default 2 (the octave)" },
 };
-static const srmech_tool_param_t ts_params_665[] = {
+static const srmech_tool_param_t ts_params_668[] = {
     { "comma", "int | Sequence[int] | Q", 1, "the comma as an exact [num, den] pair, or a bare numerator when den is given. float REFUSED" },
     { "edo", "int", 1, "the equal division of the octave; edo >= 1" },
     { "den", "int | Sequence[int] | Q", 0, "the denominator when comma was a bare int" },
 };
-static const srmech_tool_param_t ts_params_666[] = {
+static const srmech_tool_param_t ts_params_669[] = {
     { "pcs", "Sequence[int]", 1, "pitch classes; reduced mod 12 and de-duplicated, so [0, 4, 7] and [12, 16, 7, 7] are the same input" },
 };
-static const srmech_tool_param_t ts_params_667[] = {
+static const srmech_tool_param_t ts_params_670[] = {
     { "pcs", "Sequence[int]", 1, "pitch classes; reduced mod 12 and de-duplicated" },
     { "convention", "str", 1, "'forte' or 'rahn'. REQUIRED \342\200\224 there is deliberately no default" },
 };
-static const srmech_tool_param_t ts_params_668[] = {
+static const srmech_tool_param_t ts_params_671[] = {
     { "pcs", "Sequence[int]", 1, "pitch classes; reduced mod 12 and de-duplicated" },
     { "convention", "str", 1, "'forte' or 'rahn'. REQUIRED \342\200\224 there is deliberately no default, because the two disagree on 6 of the set classes" },
 };
-static const srmech_tool_param_t ts_params_669[] = {
+static const srmech_tool_param_t ts_params_672[] = {
     { "species", "Sequence[str | dict[str,int]] | QMat", 1, "the reaction's species: a list of formula strings (\"H2O\") and/or {element: count} dicts (mixable), or a raw element x species QMat (rows = elements, columns = species)" },
     { "all_balances", "bool", 0, "when the kernel dimension is > 1, return every primitive basis vector instead of raising; default False" },
 };
-static const srmech_tool_param_t ts_params_670[] = {
+static const srmech_tool_param_t ts_params_673[] = {
     { "N", "QMat | Sequence[Sequence[int | Q]]", 1, "the stoichiometric matrix (rows = species, columns = reactions) as a QMat or a nested int/Q sequence" },
 };
-static const srmech_tool_param_t ts_params_671[] = {
+static const srmech_tool_param_t ts_params_674[] = {
     { "reactions", "Sequence[tuple[dict[str,int], dict[str,int]]]", 1, "an iterable of (reactant, product) pairs; each complex is an {species: coeff} dict ({\"A\": 2} for 2A), a bare species-name str (coeff 1), or the zero complex (\"\"/\"0\"/None for the empty complex in a synthesis/degradation step)" },
     { "with_components", "bool", 0, "return the full breakdown dict instead of the bare integer; default False" },
 };
-static const srmech_tool_param_t ts_params_672[] = {
+static const srmech_tool_param_t ts_params_675[] = {
     { "formula", "str", 1, "the formula string; element = [A-Z][a-z]*, count = a run of ASCII digits (default 1), groups nest with ( ... ) and an optional trailing count" },
 };
-static const srmech_tool_param_t ts_params_673[] = {
+static const srmech_tool_param_t ts_params_676[] = {
     { "framed", "bytes", 1, "Frame body (nonce[16] || ciphertext) \342\200\224 the unwrapped TLV payload." },
     { "dna", "bytes", 1, "32+ byte pre-shared Bio-TOTP secret. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode (same code path; deterministic ciphertext recoverable by anyone)." },
     { "window_ns", "int", 0, "Optional time-window override in nanoseconds (default 250_000_000 = 250 ms; env-var ``SRMECH_BUS_TOTP_WINDOW_NS`` honoured)." },
     { "time_ns", "int", 0, "Optional explicit wall-clock override (defaults to time.time_ns()). Useful for replaying historical captures." },
 };
-static const srmech_tool_param_t ts_params_674[] = {
+static const srmech_tool_param_t ts_params_677[] = {
     { "cleanup_dead", "bool", 0, "When True (default), registration files for endpoints with no live server are removed from disk as a side effect." },
 };
-static const srmech_tool_param_t ts_params_675[] = {
+static const srmech_tool_param_t ts_params_678[] = {
     { "name", "str", 1, "Endpoint name (matches the name passed to `srmech.bus.serve(name, ...)`)." },
 };
 
@@ -4618,308 +4627,314 @@ static const char *const ts_composes_425[] = {
 static const char *const ts_preserves_425[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
+static const char *const ts_composes_426[] = {
+    "srmech.amsc.format.sha256_bytes",
+};
+static const char *const ts_preserves_426[] = {
+    "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
+};
+static const char *const ts_composes_427[] = {
+    "srmech.amsc.format.sha256_bytes",
+};
+static const char *const ts_preserves_427[] = {
+    "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
+};
 static const char *const ts_composes_428[] = {
+    "srmech.amsc.format.sha256_bytes",
+};
+static const char *const ts_preserves_428[] = {
+    "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
+};
+static const char *const ts_composes_431[] = {
     "srmech.cascade.jordan_product",
-};
-static const char *const ts_reads_input_431[] = {
-    "algebra",
-};
-static const char *const ts_reads_input_432[] = {
-    "algebra",
-};
-static const char *const ts_reads_input_433[] = {
-    "algebra",
 };
 static const char *const ts_reads_input_434[] = {
     "algebra",
 };
-static const char *const ts_composes_439[] = {
+static const char *const ts_reads_input_435[] = {
+    "algebra",
+};
+static const char *const ts_reads_input_436[] = {
+    "algebra",
+};
+static const char *const ts_reads_input_437[] = {
+    "algebra",
+};
+static const char *const ts_composes_442[] = {
     "srmech.math.octonion.oct_mult",
 };
-static const char *const ts_composes_440[] = {
+static const char *const ts_composes_443[] = {
     "srmech.math.octonion.oct_mult",
-};
-static const char *const ts_composes_445[] = {
-    "srmech.cascade.cd_mult",
-};
-static const char *const ts_composes_446[] = {
-    "srmech.cascade.cd_mult",
-};
-static const char *const ts_composes_447[] = {
-    "srmech.cascade.left_mult_matrix",
 };
 static const char *const ts_composes_448[] = {
-    "srmech.cascade.left_mult_kernel",
+    "srmech.cascade.cd_mult",
 };
 static const char *const ts_composes_449[] = {
-    "srmech.cascade.left_mult_matrix",
+    "srmech.cascade.cd_mult",
 };
 static const char *const ts_composes_450[] = {
+    "srmech.cascade.left_mult_matrix",
+};
+static const char *const ts_composes_451[] = {
+    "srmech.cascade.left_mult_kernel",
+};
+static const char *const ts_composes_452[] = {
+    "srmech.cascade.left_mult_matrix",
+};
+static const char *const ts_composes_453[] = {
     "srmech.cascade.right_mult_matrix",
 };
-static const char *const ts_composes_454[] = {
+static const char *const ts_composes_457[] = {
     "srmech.cascade.cd_basis_product",
 };
-static const char *const ts_composes_455[] = {
-    "srmech.cascade.cd_basis_product",
-};
-static const char *const ts_composes_456[] = {
+static const char *const ts_composes_458[] = {
     "srmech.cascade.cd_basis_product",
 };
 static const char *const ts_composes_459[] = {
+    "srmech.cascade.cd_basis_product",
+};
+static const char *const ts_composes_462[] = {
     "srmech.cascade.hamming_encode",
 };
-static const char *const ts_composes_460[] = {
+static const char *const ts_composes_463[] = {
     "srmech.cascade.hamming_decode_correct",
 };
-static const char *const ts_composes_469[] = {
+static const char *const ts_composes_472[] = {
     "srmech.cascade.chiral_flip",
 };
-static const char *const ts_composes_470[] = {
+static const char *const ts_composes_473[] = {
     "srmech.cascade.reorient",
 };
-static const char *const ts_composes_472[] = {
+static const char *const ts_composes_475[] = {
     "srmech.cascade.pin_slot_at_zero",
 };
-static const char *const ts_composes_474[] = {
-    "srmech.math.laplacian.mat_matvec",
-};
-static const char *const ts_composes_475[] = {
-    "srmech.math.hdc.bind",
-};
-static const char *const ts_composes_476[] = {
-    "srmech.math.laplacian.mat_matvec",
-};
 static const char *const ts_composes_477[] = {
-    "srmech.math.hdc.similarity",
+    "srmech.math.laplacian.mat_matvec",
 };
 static const char *const ts_composes_478[] = {
+    "srmech.math.hdc.bind",
+};
+static const char *const ts_composes_479[] = {
+    "srmech.math.laplacian.mat_matvec",
+};
+static const char *const ts_composes_480[] = {
+    "srmech.math.hdc.similarity",
+};
+static const char *const ts_composes_481[] = {
     "srmech.math.rational.cexp",
 };
-static const char *const ts_composes_482[] = {
+static const char *const ts_composes_485[] = {
     "srmech.math.laplacian.mat_hermitian_eigendecompose",
 };
-static const char *const ts_composes_483[] = {
+static const char *const ts_composes_486[] = {
     "srmech.math.laplacian.mat_matmul",
 };
-static const char *const ts_composes_488[] = {
+static const char *const ts_composes_491[] = {
     "srmech.math.laplacian.mat_matmul",
 };
-static const char *const ts_composes_494[] = {
+static const char *const ts_composes_497[] = {
     "srmech.physics.qm.spin.pauli_matrices",
 };
-static const char *const ts_composes_496[] = {
+static const char *const ts_composes_499[] = {
     "srmech.math.laplacian.mat_hermitian_eigendecompose",
 };
-static const char *const ts_composes_502[] = {
+static const char *const ts_composes_505[] = {
     "srmech.math.laplacian.mat_hermitian_eigendecompose",
 };
-static const char *const ts_composes_503[] = {
+static const char *const ts_composes_506[] = {
     "srmech.math.rational.sqrt",
 };
-static const char *const ts_composes_509[] = {
-    "srmech.physics.qm.relativistic.gamma_5",
-};
-static const char *const ts_composes_510[] = {
+static const char *const ts_composes_512[] = {
     "srmech.physics.qm.relativistic.gamma_5",
 };
 static const char *const ts_composes_513[] = {
-    "srmech.math.rational.sqrt",
+    "srmech.physics.qm.relativistic.gamma_5",
 };
-static const char *const ts_composes_514[] = {
-    "srmech.physics.qm.relativistic.minkowski_metric",
+static const char *const ts_composes_516[] = {
+    "srmech.math.rational.sqrt",
 };
 static const char *const ts_composes_517[] = {
     "srmech.physics.qm.relativistic.minkowski_metric",
 };
-static const char *const ts_composes_524[] = {
-    "srmech.physics.qm.spin.pauli_matrices",
-};
-static const char *const ts_composes_526[] = {
-    "srmech.math.rational.sqrt",
+static const char *const ts_composes_520[] = {
+    "srmech.physics.qm.relativistic.minkowski_metric",
 };
 static const char *const ts_composes_527[] = {
-    "srmech.physics.qm.gauge.su3_gell_mann_matrices",
+    "srmech.physics.qm.spin.pauli_matrices",
 };
-static const char *const ts_composes_528[] = {
+static const char *const ts_composes_529[] = {
     "srmech.math.rational.sqrt",
 };
 static const char *const ts_composes_530[] = {
-    "srmech.math.laplacian.mat_matmul",
+    "srmech.physics.qm.gauge.su3_gell_mann_matrices",
 };
 static const char *const ts_composes_531[] = {
-    "srmech.physics.qm.gauge.casimir_operator",
-};
-static const char *const ts_composes_536[] = {
     "srmech.math.rational.sqrt",
 };
-static const char *const ts_composes_537[] = {
-    "srmech.math.rational.atan2",
+static const char *const ts_composes_533[] = {
+    "srmech.math.laplacian.mat_matmul",
+};
+static const char *const ts_composes_534[] = {
+    "srmech.physics.qm.gauge.casimir_operator",
 };
 static const char *const ts_composes_539[] = {
     "srmech.math.rational.sqrt",
 };
+static const char *const ts_composes_540[] = {
+    "srmech.math.rational.atan2",
+};
 static const char *const ts_composes_542[] = {
     "srmech.math.rational.sqrt",
 };
-static const char *const ts_composes_546[] = {
+static const char *const ts_composes_545[] = {
+    "srmech.math.rational.sqrt",
+};
+static const char *const ts_composes_549[] = {
     "srmech.amsc.format.sha256_bytes",
 };
-static const char *const ts_composes_555[] = {
+static const char *const ts_composes_558[] = {
     "srmech.amsc.format.sha256_bytes",
 };
-static const char *const ts_reads_input_565[] = {
+static const char *const ts_reads_input_568[] = {
     "algebra",
 };
-static const char *const ts_composes_571[] = {
+static const char *const ts_composes_574[] = {
     "srmech.math.laplacian.mat_hermitian_eigendecompose",
 };
-static const char *const ts_composes_572[] = {
+static const char *const ts_composes_575[] = {
     "srmech.math.laplacian.mat_matmul",
 };
-static const char *const ts_composes_574[] = {
+static const char *const ts_composes_577[] = {
     "srmech.math.cyclic.mod_add",
 };
-static const char *const ts_composes_579[] = {
+static const char *const ts_composes_582[] = {
     "srmech.physics.qm.octonion.octonion_mult_table",
 };
-static const char *const ts_preserves_579[] = {
+static const char *const ts_preserves_582[] = {
     "the four scalar triples close under componentwise product and are all involutions \342\200\224 a Klein four-group, checked not assumed",
     "each non-identity central element acts trivially on exactly one of {8v, 8s, 8c}",
 };
-static const char *const ts_composes_580[] = {
+static const char *const ts_composes_583[] = {
     "srmech.physics.qm.triality.spin8_center",
 };
-static const char *const ts_preserves_580[] = {
+static const char *const ts_preserves_583[] = {
     "the derived bijection intertwines BOTH shipped generator pairs \342\200\224 the order-3 cycle and the order-2 transposition",
     "the two order-2-for-order-3 controls return 0 and the identity-for-cycle control returns 6",
 };
-static const char *const ts_composes_581[] = {
+static const char *const ts_composes_584[] = {
     "srmech.cascade.magnitude",
     "srmech.math.cyclic.mod_add",
     "srmech.cascade.reorient",
 };
-static const char *const ts_preserves_581[] = {
+static const char *const ts_preserves_584[] = {
     "orientation-blind: center_parity(w) == center_parity(-w)",
 };
-static const char *const ts_frame_axis_581[] = {
+static const char *const ts_frame_axis_584[] = {
     "modulus",
 };
-static const char *const ts_composes_582[] = {
+static const char *const ts_composes_585[] = {
     "srmech.math.covering.center_parity",
 };
-static const char *const ts_preserves_582[] = {
+static const char *const ts_preserves_585[] = {
     "cover_lift is the exact integer sum regardless of center_order \342\200\224 the cover datum is never reduced away",
     "shadow_determines_lift is True iff center_order == 0",
 };
-static const char *const ts_composes_583[] = {
+static const char *const ts_composes_586[] = {
     "srmech.cascade.magnitude",
 };
-static const char *const ts_preserves_583[] = {
+static const char *const ts_preserves_586[] = {
     "determined is True iff the fibre has exactly one element",
 };
-static const char *const ts_frame_axis_583[] = {
+static const char *const ts_frame_axis_586[] = {
     "modulus",
 };
-static const char *const ts_composes_584[] = {
+static const char *const ts_composes_587[] = {
     "srmech.math.covering.center_parity",
 };
-static const char *const ts_preserves_584[] = {
+static const char *const ts_preserves_587[] = {
     "the exact rational sum is preserved even when non-integral \342\200\224 linking_number is None rather than rounded",
 };
-static const char *const ts_preserves_585[] = {
+static const char *const ts_preserves_588[] = {
     "every shipped_ops entry in a reached row is a live registered op path \342\200\224 a row cannot outlive the op it names",
 };
-static const char *const ts_composes_597[] = {
+static const char *const ts_composes_600[] = {
     "srmech.introspect.tool_schema.get_tool_schema",
 };
-static const char *const ts_composes_600[] = {
+static const char *const ts_composes_603[] = {
     "srmech.cascade.compose.run_chain",
 };
-static const char *const ts_composes_602[] = {
+static const char *const ts_composes_605[] = {
     "srmech.dsl.describe_class",
 };
-static const char *const ts_composes_604[] = {
+static const char *const ts_composes_607[] = {
     "srmech.dsl.describe_class",
 };
-static const char *const ts_composes_606[] = {
+static const char *const ts_composes_609[] = {
     "srmech.signal_processing.cascade_dispatcher.resolve_path",
     "srmech.signal_processing.path_registry.lookup",
 };
-static const char *const ts_preserves_606[] = {
+static const char *const ts_preserves_609[] = {
     "path= is honoured unconditionally \342\200\224 an explicit side is never overridden by the cascade hint or by the class default",
     "arguments are forwarded verbatim; D is injected only into implementations whose signature accepts it",
 };
-static const char *const ts_preserves_608[] = {
+static const char *const ts_preserves_611[] = {
     "idempotent: flushing an already-closed context does not re-run the flush",
 };
-static const char *const ts_preserves_610[] = {
+static const char *const ts_preserves_613[] = {
     "pure: resolve_path never runs the op and never mutates the registry or the cascade stack",
 };
-static const char *const ts_preserves_614[] = {
+static const char *const ts_preserves_617[] = {
     "an immutable snapshot \342\200\224 a later registration does not change a tuple already returned",
 };
-static const char *const ts_composes_615[] = {
+static const char *const ts_composes_618[] = {
     "srmech.math.laplacian.mat_hermitian_eigendecompose",
     "srmech.math.laplacian.mat_matmul",
 };
-static const char *const ts_preserves_615[] = {
+static const char *const ts_preserves_618[] = {
     "numpy-free and abs()-free: |z|**2 is computed as re**2 + im**2 through the native Mat carrier",
 };
-static const char *const ts_composes_616[] = {
+static const char *const ts_composes_619[] = {
     "srmech.amsc.format.sha256_raw",
 };
-static const char *const ts_composes_617[] = {
+static const char *const ts_composes_620[] = {
     "srmech.math.rational.cos",
     "srmech.math.laplacian.mat_matvec",
-};
-static const char *const ts_preserves_617[] = {
-    "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
-};
-static const char *const ts_composes_618[] = {
-    "srmech.cascade.spectral_cascades.fft",
-};
-static const char *const ts_preserves_618[] = {
-    "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
-};
-static const char *const ts_composes_619[] = {
-    "srmech.signal_processing.stft",
-};
-static const char *const ts_preserves_619[] = {
-    "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
-};
-static const char *const ts_composes_620[] = {
-    "srmech.cascade.spectral_cascades.fft",
 };
 static const char *const ts_preserves_620[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_621[] = {
-    "srmech.math.rational.sin",
-    "srmech.math.rational.sqrt",
     "srmech.cascade.spectral_cascades.fft",
 };
 static const char *const ts_preserves_621[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
+static const char *const ts_composes_622[] = {
+    "srmech.signal_processing.stft",
+};
 static const char *const ts_preserves_622[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_623[] = {
-    "srmech.math.rational.sqrt",
-    "srmech.math.laplacian.mat_matvec",
+    "srmech.cascade.spectral_cascades.fft",
 };
 static const char *const ts_preserves_623[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_624[] = {
-    "srmech.math.laplacian.mat_matvec",
+    "srmech.math.rational.sin",
+    "srmech.math.rational.sqrt",
+    "srmech.cascade.spectral_cascades.fft",
 };
 static const char *const ts_preserves_624[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_preserves_625[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
+};
+static const char *const ts_composes_626[] = {
+    "srmech.math.rational.sqrt",
+    "srmech.math.laplacian.mat_matvec",
 };
 static const char *const ts_preserves_626[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
@@ -4930,10 +4945,6 @@ static const char *const ts_composes_627[] = {
 static const char *const ts_preserves_627[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
-static const char *const ts_composes_628[] = {
-    "srmech.cascade.spectral_cascades.fft",
-    "srmech.cascade.spectral_cascades.ifft",
-};
 static const char *const ts_preserves_628[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
@@ -4941,18 +4952,13 @@ static const char *const ts_preserves_629[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_630[] = {
-    "srmech.math.laplacian.mat_hermitian_eigendecompose",
-    "srmech.math.rational.exp",
+    "srmech.math.laplacian.mat_matvec",
 };
 static const char *const ts_preserves_630[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_631[] = {
     "srmech.cascade.spectral_cascades.fft",
-    "srmech.math.rational.cos",
-    "srmech.math.rational.sin",
-    "srmech.math.rational.sqrt",
-    "srmech.math.rational.atan2",
     "srmech.cascade.spectral_cascades.ifft",
 };
 static const char *const ts_preserves_631[] = {
@@ -4960,76 +4966,80 @@ static const char *const ts_preserves_631[] = {
 };
 static const char *const ts_preserves_632[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
-    "lossless: decoding an encoded payload together with the side-table the encoder returned reproduces the input exactly",
+};
+static const char *const ts_composes_633[] = {
+    "srmech.math.laplacian.mat_hermitian_eigendecompose",
+    "srmech.math.rational.exp",
 };
 static const char *const ts_preserves_633[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
-    "lossless: decoding an encoded payload together with the side-table the encoder returned reproduces the input exactly",
+};
+static const char *const ts_composes_634[] = {
+    "srmech.cascade.spectral_cascades.fft",
+    "srmech.math.rational.cos",
+    "srmech.math.rational.sin",
+    "srmech.math.rational.sqrt",
+    "srmech.math.rational.atan2",
+    "srmech.cascade.spectral_cascades.ifft",
 };
 static const char *const ts_preserves_634[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
-    "lossless: decoding an encoded payload together with the side-table the encoder returned reproduces the input exactly",
 };
 static const char *const ts_preserves_635[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
     "lossless: decoding an encoded payload together with the side-table the encoder returned reproduces the input exactly",
 };
-static const char *const ts_composes_636[] = {
-    "srmech.signal_processing.dct",
-};
 static const char *const ts_preserves_636[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
-};
-static const char *const ts_composes_637[] = {
-    "srmech.math.hdc.bundle",
+    "lossless: decoding an encoded payload together with the side-table the encoder returned reproduces the input exactly",
 };
 static const char *const ts_preserves_637[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
+    "lossless: decoding an encoded payload together with the side-table the encoder returned reproduces the input exactly",
 };
 static const char *const ts_preserves_638[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
+    "lossless: decoding an encoded payload together with the side-table the encoder returned reproduces the input exactly",
 };
 static const char *const ts_composes_639[] = {
-    "srmech.math.rational.cos",
-    "srmech.math.rational.sin",
-    "srmech.math.rational.sqrt",
+    "srmech.signal_processing.dct",
 };
 static const char *const ts_preserves_639[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_640[] = {
-    "srmech.math.laplacian.mat_matvec",
+    "srmech.math.hdc.bundle",
 };
 static const char *const ts_preserves_640[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
-};
-static const char *const ts_composes_641[] = {
-    "srmech.cascade.spectral_cascades.ifft",
-    "srmech.cascade.spectral_cascades.fft",
-    "srmech.math.rational.hypot",
 };
 static const char *const ts_preserves_641[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_642[] = {
-    "srmech.math.laplacian.mat_svd",
+    "srmech.math.rational.cos",
+    "srmech.math.rational.sin",
+    "srmech.math.rational.sqrt",
 };
 static const char *const ts_preserves_642[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
+};
+static const char *const ts_composes_643[] = {
+    "srmech.math.laplacian.mat_matvec",
 };
 static const char *const ts_preserves_643[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_644[] = {
-    "srmech.math.rational.log",
-    "srmech.signal_processing.viterbi",
+    "srmech.cascade.spectral_cascades.ifft",
+    "srmech.cascade.spectral_cascades.fft",
+    "srmech.math.rational.hypot",
 };
 static const char *const ts_preserves_644[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_645[] = {
-    "srmech.math.rational.sin",
-    "srmech.math.rational.cos",
+    "srmech.math.laplacian.mat_svd",
 };
 static const char *const ts_preserves_645[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
@@ -5038,115 +5048,132 @@ static const char *const ts_preserves_646[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_647[] = {
-    "srmech.math.laplacian.mat_matvec",
+    "srmech.math.rational.log",
+    "srmech.signal_processing.viterbi",
 };
 static const char *const ts_preserves_647[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_648[] = {
-    "srmech.math.laplacian.mat_matvec",
+    "srmech.math.rational.sin",
+    "srmech.math.rational.cos",
 };
 static const char *const ts_preserves_648[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
-};
-static const char *const ts_composes_649[] = {
-    "srmech.math.laplacian.mat_matvec",
 };
 static const char *const ts_preserves_649[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_650[] = {
-    "srmech.math.laplacian.mat_hermitian_eigendecompose",
-    "srmech.math.laplacian.mat_lstsq",
-    "srmech.math.laplacian.mat_eigvals",
+    "srmech.math.laplacian.mat_matvec",
 };
 static const char *const ts_preserves_650[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_651[] = {
+    "srmech.math.laplacian.mat_matvec",
+};
+static const char *const ts_preserves_651[] = {
+    "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
+};
+static const char *const ts_composes_652[] = {
+    "srmech.math.laplacian.mat_matvec",
+};
+static const char *const ts_preserves_652[] = {
+    "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
+};
+static const char *const ts_composes_653[] = {
+    "srmech.math.laplacian.mat_hermitian_eigendecompose",
+    "srmech.math.laplacian.mat_lstsq",
+    "srmech.math.laplacian.mat_eigvals",
+};
+static const char *const ts_preserves_653[] = {
+    "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
+};
+static const char *const ts_composes_654[] = {
     "srmech.math.laplacian.mat_hermitian_eigendecompose",
     "srmech.math.rational.sqrt",
     "srmech.math.rational.atan2",
     "srmech.math.rational.cos",
     "srmech.math.rational.sin",
 };
-static const char *const ts_preserves_651[] = {
+static const char *const ts_preserves_654[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
-static const char *const ts_composes_652[] = {
+static const char *const ts_composes_655[] = {
     "srmech.math.laplacian.mat_solve",
 };
-static const char *const ts_preserves_652[] = {
+static const char *const ts_preserves_655[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
-static const char *const ts_composes_653[] = {
+static const char *const ts_composes_656[] = {
     "srmech.math.laplacian.mat_solve",
     "srmech.math.laplacian.mat_matmul",
 };
-static const char *const ts_preserves_653[] = {
+static const char *const ts_preserves_656[] = {
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
-static const char *const ts_composes_662[] = {
+static const char *const ts_composes_665[] = {
     "srmech.music.bessel_j_fixed",
 };
-static const char *const ts_composes_663[] = {
+static const char *const ts_composes_666[] = {
     "srmech.math.cyclic.gcd",
     "srmech.math.primes.factor",
 };
-static const char *const ts_preserves_663[] = {
+static const char *const ts_preserves_666[] = {
     "no silent precision loss \342\200\224 the ratio is reduced and factored exactly, and float input raises rather than being coerced",
 };
-static const char *const ts_composes_664[] = {
+static const char *const ts_composes_667[] = {
     "srmech.math.cyclic.gcd",
     "srmech.music.just_limit",
 };
-static const char *const ts_preserves_664[] = {
+static const char *const ts_preserves_667[] = {
     "derived, never tabulated: the comma is computed from the generator chain, so no named constant is stored anywhere in the op",
 };
-static const char *const ts_composes_665[] = {
+static const char *const ts_composes_668[] = {
     "srmech.music.just_limit",
 };
-static const char *const ts_preserves_665[] = {
+static const char *const ts_preserves_668[] = {
     "no logarithm and no tolerance: the patent val is decided by exact integer comparison, so the same input always yields the same val",
 };
-static const char *const ts_composes_666[] = {
+static const char *const ts_composes_669[] = {
     "srmech.cascade.cyclic_mod_add",
 };
-static const char *const ts_preserves_666[] = {
+static const char *const ts_preserves_669[] = {
     "input order and duplication are irrelevant: the vector depends only on the SET of pitch classes mod 12",
 };
-static const char *const ts_frame_axis_666[] = {
+static const char *const ts_frame_axis_669[] = {
     "modulus",
 };
-static const char *const ts_composes_667[] = {
+static const char *const ts_composes_670[] = {
     "srmech.cascade.cyclic_mod_add",
 };
-static const char *const ts_preserves_667[] = {
+static const char *const ts_preserves_670[] = {
     "a caller-facing requirement, not a default: the convention must be named on every call, and an unknown one raises",
 };
-static const char *const ts_frame_axis_667[] = {
+static const char *const ts_frame_axis_670[] = {
     "modulus",
 };
-static const char *const ts_composes_668[] = {
+static const char *const ts_composes_671[] = {
     "srmech.cascade.cyclic_mod_add",
     "srmech.music.normal_order",
 };
-static const char *const ts_preserves_668[] = {
+static const char *const ts_preserves_671[] = {
     "transposition- and inversion-invariant: every member of a set class returns the same prime form under a given convention",
 };
-static const char *const ts_frame_axis_668[] = {
+static const char *const ts_frame_axis_671[] = {
     "modulus",
 };
-static const char *const ts_composes_669[] = {
+static const char *const ts_composes_672[] = {
     "srmech.math.cyclic.primitive_integer_vector",
 };
-static const char *const ts_composes_670[] = {
+static const char *const ts_composes_673[] = {
     "srmech.math.cyclic.primitive_integer_vector",
 };
-static const char *const ts_composes_671[] = {
+static const char *const ts_composes_674[] = {
     "srmech.math.laplacian.dense_laplacian",
 };
-static const char *const ts_composes_675[] = {
+static const char *const ts_composes_678[] = {
     "srmech.bus.list_endpoints",
 };
 
@@ -13674,11 +13701,71 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 426 */
+        "srmech.math.groups.frobenius_schur_indicator",
+        "srmech",
+        "groups",
+        "The Frobenius\342\200\223Schur indicator of every irreducible character \342\200\224 Class K, the three-point pin at the reality phase boundary. nu = (1/|G|)\302\267\316\243 chi(g\302\262), computed as the class-weighted sum over the payload's square_class column gather (pure integer vector arithmetic \342\200\224 no cyclotomic multiplication), landing EXACTLY on +1 (real/orthogonal: symmetric invariant form, the \342\204\235 rung), 0 (complex: no invariant form \342\200\224 the character and its conjugate are a chirality PAIR, the Class-C datum), or -1 (quaternionic/symplectic: antisymmetric form, the \342\204\215 rung). The Class-K argument is argued in the docstring, counter included: the cascade is Class-I sums over the Class-I squaring map, but the indicator has NO payload beyond the three-state sign classification, so the pin readout IS the op \342\200\224 implemented as exact set membership, never a sign or magnitude call. In-op guards raise on non-rational sums, |G|-indivisibility (the corruption detector) and any lift outside the three-point pin; square_roots_of_identity = \316\243 nu\302\267d is returned so the Frobenius\342\200\223Schur count of g\302\262 = e solutions can be cross-read character-free off the Cayley table. \342\232\240\357\270\217 payload rows sort (degree, lex) \342\200\224 the trivial character is NOT at index 0 in general (C7\342\213\212C3 carries it at index 2); locate rows by CONTENT. Exact \342\204\244.",
+        ts_params_426, 1u,
+        "dict",
+        "{k, order, indicators (len-k tuple, payload row order, each exactly -1/0/+1), num_real, num_complex, num_quaternionic, square_roots_of_identity, table_sha256 (echoed), indicators_sha256}",
+        1,
+        NULL,
+        "{\"input\":{\"char_table\":\"character_table(cyclic_group(4)['cayley_table'])\"},\"output\":\"{'k': 4, 'order': 4, 'indicators': (1, 0, 0, 1), 'num_real': 2, 'num_complex': 2, 'num_quaternionic': 0, 'square_roots_of_identity': 2, 'table_sha256': '4c827dece6f9c00c...', 'indicators_sha256': '796ddde4c008abb2...'}\",\"why\":\"Q8 is the smallest group with a quaternionic character: the degree-2 row pins to -1 while the four linears pin to +1, and the Frobenius-Schur count of square roots of the identity (2 = 4\\u00b71 - 1\\u00b72) can be cross-read character-free off the Cayley table.\",\"worked\":\"from srmech.cascade import unit_loop\\nfrom srmech.math.groups import (character_table,\\n    frobenius_schur_indicator)\\nct = character_table(unit_loop(4)['cayley_table'])  # Q8\\nfs = frobenius_schur_indicator(ct)\\nfs['indicators']\\n# -> (1, 1, 1, 1, -1)\\nct['degrees']\\n# -> [1, 1, 1, 1, 2]    the -1 sits EXACTLY on the degree-2 row: quaternionic\\nfs['square_roots_of_identity']\\n# -> 2    = sum(nu*d): only e and -e square to the identity in Q8\\nfs['num_real'], fs['num_complex'], fs['num_quaternionic']\\n# -> (4, 0, 1)\\nfrobenius_schur_indicator({'k': 5})\\n# -> ValueError\\n\"}",
+        "{\"char_table\":\"{'order': 2, 'exponent': 2, 'zeta_order': 2, 'phi_e': (1, 1), 'degree': 1, 'k': 2, 'class_sizes': [1, 1], 'representatives': [0, 1], 'class_of': [0, 1], 'inverse_class': [0, 1], 'square_class': [0, 0], 'degrees': [1, 1], 'table': [[(1,), (-1,)], [(1,), (1,)]], 'class_algebra': [[[1, 0], [0, 1]], [[0, 1], [1, 0]]], 'table_sha256': '5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3258a09071d4efa3c0da2'}\"}",
+        "WHAT it computes: the Frobenius-Schur indicator nu = (1/|G|)\302\267\316\243 chi(g\302\262) of every irreducible character, off a character_table payload dict \342\200\224 the class-weighted sum over the shipped square_class column gather, pure integer vector arithmetic, landing EXACTLY on +1 (real/orthogonal \342\200\224 symmetric invariant bilinear form), 0 (complex \342\200\224 no invariant form; the character and its conjugate are a chirality pair), or -1 (quaternionic/symplectic \342\200\224 antisymmetric form). Class K: the three-state sign classification IS the whole answer, a three-point pin at the reality phase boundary, implemented as exact set membership. In-op guards raise on non-rational sums, |G|-indivisibility (the corruption detector) and any lift outside the pin. WHEN to reach for it: to ask which Hurwitz rung End_G(V) occupies \342\200\224 real, complex or quaternionic \342\200\224 without hand-rolling the squaring map over elements (the payload already carries square_class per CLASS, well defined since conjugation commutes with squaring). Do not scan for a symmetric invariant form by trial: nu answers it exactly. CAUTION: payload rows sort (degree, lex) \342\200\224 the trivial character is NOT at index 0 in general; locate rows by CONTENT. SIBLINGS: srmech.math.groups.character_table produces the operand payload; srmech.math.groups.fusion_multiplicities and central_idempotents are the other tier-3 readouts over the same payload; srmech.math.groups.conjugacy_classes ships the square_class map this op gathers over.",
+        ts_composes_426, 1u,
+        ts_preserves_426, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 427 */
+        "srmech.math.groups.fusion_multiplicities",
+        "srmech",
+        "groups",
+        "The full fusion tensor N_abc = <chi_a\302\267chi_b, chi_c> of a finite group \342\200\224 exact NON-NEGATIVE INTEGERS, Class L: projection of each pointwise character product onto the irrep eigenbasis of the class algebra, the same stratum slot character_table (the spectral decomposition) and irrep_dimensions (its readout) occupy. Internal stages named: Class I \342\200\224 the exact \342\204\244[\316\266_e] pointwise product; Class C \342\200\224 conjugation of chi_c as the shipped inverse_class column permutation (no Galois machinery); Class I \342\200\224 the class-weighted sum. The pointwise product is deliberately NOT claimed as a Class-M bind: an M-bind claim implies an unbind (character division), neither shipped nor measured. In-op guards raise on non-integrality, |G|-indivisibility (the corruption detector), negativity, and the dimension law \316\243_c N_abc\302\267d_c = d_a\302\267d_b for ALL pairs. Founding values the rc457 tests pin: S3 2\342\212\2272 = 1+1'+2; Q8 2\342\212\2272 = the four linears; C7\342\213\212C3 3\342\212\2273 = 3+2\302\2673\314\204 over \316\246\342\202\202\342\202\201. On an abelian table the tensor IS the dual group's multiplication. \342\232\240\357\270\217 payload rows sort (degree, lex) \342\200\224 the trivial character is NOT at index 0 in general; locate rows by CONTENT. Cost honest: O(k\342\201\264\302\267\317\206(e)\302\262) \342\200\224 the same small-order targets as character_table; a large exponent makes it SLOW, never wrong. Exact \342\204\244.",
+        ts_params_427, 1u,
+        "dict",
+        "{k, order, degrees (echoed), multiplicities (k \303\227 k \303\227 k nested int tuples, a-major), table_sha256 (echoed), multiplicities_sha256}",
+        1,
+        NULL,
+        "{\"input\":{\"char_table\":\"character_table(dihedral_group(3, 'rotation_first')['cayley_table'])\"},\"output\":\"{'k': 3, 'order': 6, 'degrees': [1, 1, 2], 'multiplicities': (((0, 1, 0), (1, 0, 0), (0, 0, 1)), ((1, 0, 0), (0, 1, 0), (0, 0, 1)), ((0, 0, 1), (0, 0, 1), (1, 1, 1))), 'table_sha256': '1b30ed4b570b8cb9...', 'multiplicities_sha256': '72fa0c9ccbd89f5a...'}\",\"why\":\"S3's whole fusion ring in one call: the reflection representation tensored with itself decomposes as trivial + sign + itself, and the dimension law \\u03a3 N\\u00b7d = d\\u00b7d is executed, not asserted.\",\"worked\":\"from srmech.cascade import dihedral_group\\nfrom srmech.math.groups import (character_table,\\n    fusion_multiplicities)\\nct = character_table(dihedral_group(3,\\n    'rotation_first')['cayley_table'])   # S3\\nfu = fusion_multiplicities(ct)\\ntwo = ct['degrees'].index(2)   # locate the row by CONTENT, never assume an index\\nfu['multiplicities'][two][two]\\n# -> (1, 1, 1)    2 (x) 2 = 1 + 1' + 2, every character once\\nsum(n * d for n, d in\\n    zip(fu['multiplicities'][two][two], ct['degrees']))\\n# -> 4    the dimension law: d_a * d_b = 2 * 2\\nfusion_multiplicities({'k': 3})\\n# -> ValueError\\n\"}",
+        "{\"char_table\":\"{'order': 2, 'exponent': 2, 'zeta_order': 2, 'phi_e': (1, 1), 'degree': 1, 'k': 2, 'class_sizes': [1, 1], 'representatives': [0, 1], 'class_of': [0, 1], 'inverse_class': [0, 1], 'square_class': [0, 0], 'degrees': [1, 1], 'table': [[(1,), (-1,)], [(1,), (1,)]], 'class_algebra': [[[1, 0], [0, 1]], [[0, 1], [1, 0]]], 'table_sha256': '5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3258a09071d4efa3c0da2'}\"}",
+        "WHAT it computes: the full fusion tensor N_abc = <chi_a\302\267chi_b, chi_c> \342\200\224 the multiplicity of irrep c inside the tensor product a \342\212\227 b \342\200\224 as exact non-negative integers, k \303\227 k \303\227 k nested tuples, off a character_table payload dict. Class L: projection of each pointwise character product onto the irrep eigenbasis of the class algebra. Conjugation is the shipped inverse_class column permutation (chi-bar(g) = chi(g-inverse)) \342\200\224 no Galois machinery; the pointwise product is the exact \342\204\244[\316\266_e] ring multiply. In-op guards raise on non-integrality, |G|-indivisibility (the corruption detector), negativity, and the dimension law \316\243_c N_abc\302\267d_c = d_a\302\267d_b over ALL pairs. WHEN to reach for it: to decompose a tensor product of irreps without hand-rolling character inner products in floating point \342\200\224 on an abelian table the tensor IS the dual group's multiplication (every product exactly one character), and on C7\342\213\212C3 it computes 3 \342\212\227 3 = 3 + 2\302\2673-bar exactly over \316\246\342\202\202\342\202\201, where a decimal route would be drowning in conjugate-pair roundoff. CAUTION: payload rows sort (degree, lex) \342\200\224 locate rows by CONTENT (degree + value vector), never by index. SIBLINGS: srmech.math.groups.character_table produces the operand payload; frobenius_schur_indicator and central_idempotents are the sibling tier-3 readouts; srmech.math.groups.irrep_dimensions when only the degree multiset is the question.",
+        ts_composes_427, 1u,
+        ts_preserves_427, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 428 */
+        "srmech.math.groups.central_idempotents",
+        "srmech",
+        "groups",
+        "The primitive central idempotents of the group algebra in the class-sum basis \342\200\224 Class L, the rank-1 spectral-projector family of the class algebra. THE NAME CARRIES A SCOPE RULING: two objects wear the name 'isotypic projector' \342\200\224 (a) these central idempotents e_chi = (d/|G|)\302\267\316\243 chi(g\342\201\273\302\271)\302\267g, needing ONLY characters, and (b) the projector onto an isotypic subspace of a caller's module, needing actual rho(g) matrices, which srmech does not carry (no representation object; the physics.qm matrices are fixed Lie generators, the CD left/right mult-matrices are algebra regular reps). This op ships (a) under the name of what it actually is: the elements ARE the isotypic projectors of the REGULAR module, and for any other module the caller evaluates rho(e_chi) = (d/|G|)\302\267\316\243 chi(g\342\201\273\302\271)\302\267rho(g). The coefficients d\302\267chi(g\342\201\273\302\271)/|G| are NOT algebraic integers \342\200\224 the stratum's first genuinely rational object \342\200\224 so they ship as integer NUMERATOR vectors over ONE explicit denominator = |G| (the deferred-division shape of exact_idft), never a decimal carrier; the Qalg lift stays the caller's two-line move exactly as character_table documents. In-op guard: the identity class is located payload-only (the unique column where every row equals its degree vector) and the column sums are checked against \316\243 e_chi = \316\264_e; per-idempotent e\302\267e = e is verified test-side by TWO independent routes (class-algebra structure constants; full group-algebra convolution) \342\200\224 a disagreement is a finding. \342\232\240\357\270\217 payload rows sort (degree, lex); locate rows by CONTENT. Exact \342\204\244 over one explicit denominator.",
+        ts_params_428, 1u,
+        "dict",
+        "{k, order, degrees (echoed), denominator (= order), numerators (k \303\227 k \303\227 \317\206(e) int tuples, irrep-major, class-minor), class_of (echoed \342\200\224 expands per-class to per-element), phi_e (echoed \342\200\224 the ring the vectors live in), table_sha256 (echoed), idempotents_sha256}",
+        1,
+        NULL,
+        "{\"input\":{\"char_table\":\"character_table(dihedral_group(3, 'rotation_first')['cayley_table'])\"},\"output\":\"{'k': 3, 'order': 6, 'degrees': [1, 1, 2], 'denominator': 6, 'numerators': (((1, 0), (1, 0), (-1, 0)), ((1, 0), (1, 0), (1, 0)), ((4, 0), (-2, 0), (0, 0))), 'class_of': [0, 1, 1, 2, 2, 2], 'phi_e': (1, -1, 1), 'table_sha256': '1b30ed4b570b8cb9...', 'idempotents_sha256': '83380db06331af10...'}\",\"why\":\"Q8's degree-2 central idempotent is \\u00bd\\u03b4_e \\u2212 \\u00bd\\u03b4\\u208b\\u2091 \\u2014 two numerator vectors over the one explicit denominator 8 \\u2014 and evaluating it in any representation of Q8 projects onto the quaternionic isotypic component.\",\"worked\":\"from srmech.cascade import unit_loop\\nfrom srmech.math.groups import (central_idempotents,\\n    character_table)\\nct = character_table(unit_loop(4)['cayley_table'])  # Q8\\nci = central_idempotents(ct)\\nci['denominator']\\n# -> 8    ONE explicit denominator = |G|; the coefficients are NOT algebraic integers\\ntwo = ct['degrees'].index(2)   # locate by CONTENT\\nci['numerators'][two]\\n# -> ((4, 0), (0, 0), (0, 0), (0, 0), (-4, 0))\\n# i.e. e_chi = (1/2)*delta_e - (1/2)*delta_(-e): the degree-2 isotypic projector\\nci['class_of']\\n# -> [0, 1, 2, 3, 4, 1, 2, 3]    expands per-class coefficients to per-element ones\\ncentral_idempotents({'order': 8})\\n# -> ValueError\\n\"}",
+        "{\"char_table\":\"{'order': 2, 'exponent': 2, 'zeta_order': 2, 'phi_e': (1, 1), 'degree': 1, 'k': 2, 'class_sizes': [1, 1], 'representatives': [0, 1], 'class_of': [0, 1], 'inverse_class': [0, 1], 'square_class': [0, 0], 'degrees': [1, 1], 'table': [[(1,), (-1,)], [(1,), (1,)]], 'class_algebra': [[[1, 0], [0, 1]], [[0, 1], [1, 0]]], 'table_sha256': '5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3258a09071d4efa3c0da2'}\"}",
+        "WHAT it computes: the primitive central idempotents e_chi = (d/|G|)\302\267\316\243 chi(g-inverse)\302\267g of the group algebra, in the class-sum basis, as integer NUMERATOR vectors over ONE explicit denominator = |G| (the deferred-division shape of exact_idft) \342\200\224 the rank-1 spectral-projector family of the class algebra, Class L. THE NAME CARRIES A SCOPE RULING: two objects wear the name 'isotypic projector' \342\200\224 (a) these central idempotents, needing only characters, and (b) the projector onto an isotypic subspace of a caller's module, needing actual rho(g) matrices, which srmech does not carry (no representation object). This op ships (a) under the name of what it actually is: the elements ARE the isotypic projectors of the REGULAR module, and for any other module the caller evaluates rho(e_chi) = (d/|G|)\302\267\316\243 chi(g-inverse)\302\267rho(g) \342\200\224 the element is universal, the matrix projector is its evaluation at a module srmech does not carry. WHEN to reach for it: to project onto an isotypic component or split a group algebra into blocks without hand-rolling d\302\267chi-bar/|G| coefficient tables \342\200\224 the in-op guard checks \316\243 e_chi = \316\264_e (column orthogonality) so a corrupted payload is refused, and e\302\267e = e is verified test-side by TWO independent routes (class-algebra structure constants; full group-algebra convolution). CAUTION: payload rows sort (degree, lex); the denominator is deliberately explicit \342\200\224 never divide early. SIBLINGS: srmech.math.groups.character_table produces the operand payload (and documents the Qalg lift when a caller wants actual division); frobenius_schur_indicator and fusion_multiplicities are the sibling tier-3 readouts; srmech.math.qalg.Qalg is the exact-division carrier the numerator/denominator pair lifts into.",
+        ts_composes_428, 1u,
+        ts_preserves_428, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 429 */
         "srmech.cascade.jordan_product",
         "srmech",
         "cascade",
         "The JORDAN PRODUCT A\342\210\230B = (A\302\267B + B\302\267A)/2 of two Albert-algebra elements A, B of J\342\202\203(\360\235\225\206) \342\200\224 the 3\303\2273 octonionic-Hermitian matrices (dim 27 = 3 real diagonal + 3 octonion off-diagonal) under the commutative, NON-associative product that makes them a Jordan algebra. Each element rides as a flat 27-vector [d\342\202\201,d\342\202\202,d\342\202\203] + x\342\202\201(8) + x\342\202\202(8) + x\342\202\203(8) in the Freudenthal layout (d\341\265\242 real, x\341\265\242 octonion, the off-diagonal Hermitian). A\342\210\230B is Hermitian regardless of octonion associativity, so it re-packs into the same 27-form. This is the product cayley_plane_point (idempotency) and cayley_plane_incidence (the trace form) build on. SIBLINGS: cayley_plane_point / cayley_plane_incidence read points and incidence over it; cd_mult is the octonion product it composes. Exact end to end \342\200\224 no float, no abs(). NO new C symbol \342\200\224 composition_of_c over the c_dispatched srmech_cd_mult / srmech_cd_qconjugate. Class M \342\210\230 K. SSoT: Springer & Veldkamp, *Octonions, Jordan Algebras and Exceptional Groups* (2000) ch. 5; Baez, arXiv:math/0105155 \302\2473. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_426, 2u,
+        ts_params_429, 2u,
         "Q",
         "the flat-27 exact-Q vector of A\342\210\230B (Hermitian, same layout)",
         1,
@@ -13693,12 +13780,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 427 */
+    { /* 430 */
         "srmech.cascade.cayley_plane_point",
         "srmech",
         "cascade",
         "A POINT of the octonion Cayley plane \360\235\225\206P\302\262 \342\200\224 the rank-1, trace-1 idempotent P = v\302\267v* / \342\237\250v,v\342\237\251 built from a Veronese vector v = (x\342\202\201,x\342\202\202,x\342\202\203) \342\210\210 \360\235\225\206\302\263. P projects onto the octonionic line [v]: diagonal (|x\342\202\201|\302\262,|x\342\202\202|\302\262,|x\342\202\203|\302\262)/\342\237\250v,v\342\237\251 (so tr P = 1 EXACTLY) and off-diagonal x\341\265\242\302\267x\314\204\342\261\274/\342\237\250v,v\342\237\251, returned as a flat-27 J\342\202\203(\360\235\225\206) element. A genuine point is a rank-1 idempotent (P\342\210\230P = P). BECAUSE \360\235\225\206 IS NON-ASSOCIATIVE, P\342\210\230P = P holds iff v's entries PAIRWISE ASSOCIATE (two of three real, or all in a common \342\204\215) \342\200\224 so the op returns idempotent_defect = the exact \342\237\250P\342\210\230P \342\210\222 P, \302\267\342\237\251 magnitude\302\262 and is_point = (defect == 0). MEASURED: (1,e\342\202\201,e\342\202\202) \342\206\222 0 (a point); (e\342\202\201,e\342\202\202,e\342\202\204) \342\206\222 4/27 \342\211\240 0 \342\200\224 the plane's non-Desarguesian nature, an instrument that can return otherwise. SIBLINGS: jordan_product is the product it checks over; cayley_plane_incidence pairs two points; octonion_hopf_base is the \360\235\225\206P\302\271\342\211\205S\342\201\270 base one rung below. Exact, no abs() (defect / inner are Class-K \342\237\250v,v\342\237\251). NO new C symbol \342\200\224 composition_of_c over cd_mult / cd_conjugate / cd_norm_sq. Class M \342\210\230 C \342\210\230 K. SSoT: Springer & Veldkamp (2000) ch. 5; Baez, arXiv:math/0105155 \302\2474.2. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_427, 3u,
+        ts_params_430, 3u,
         "dict",
         "{point (flat-27 J\342\202\203 element P), trace (Q, =1), inner (Q, \342\237\250v,v\342\237\251), idempotent_defect (Q, \342\237\250P\342\210\230P\342\210\222P,\302\267\342\237\251; 0 \342\237\272 genuine \360\235\225\206P\302\262 point), is_point (bool)}",
         1,
@@ -13713,12 +13800,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 428 */
+    { /* 431 */
         "srmech.cascade.cayley_plane_incidence",
         "srmech",
         "cascade",
         "The INCIDENCE pairing of two Cayley-plane elements \342\200\224 the Jordan TRACE FORM \342\237\250A,B\342\237\251 = Tr(A\342\210\230B) on J\342\202\203(\360\235\225\206). The Cayley plane is SELF-DUAL (a polarity swaps points and lines), so this one symmetric bilinear form reads both point\342\200\223point polarity and point\342\200\223line incidence: a point P and a line L (each a rank-1 idempotent) are INCIDENT iff Tr(P\342\210\230L) = 0 (Jordan-orthogonal). Because the trace is LINEAR it is associativity-BLIND, hence ALWAYS exact and well-defined \342\200\224 unlike the cross-product 'line through two points', which closes only on the Desarguesian (associating-coordinate) subplane. MEASURED on the coordinate triangle E\342\202\201,E\342\202\202,E\342\202\203 and the unit point U=[1,1,1]: Tr(E\341\265\242\342\210\230E\342\261\274) = \316\264\341\265\242\342\261\274 (a projective triangle) and Tr(E\341\265\242\342\210\230U) = 1/3; Tr(P\342\210\230P) = 1 for any point. SIBLINGS: cayley_plane_point builds the idempotents; jordan_product is the product it traces. Exact, no abs(). NO new C symbol \342\200\224 composition_of_c over jordan_product (hence cd_mult / cd_conjugate). Class M \342\210\230 K. SSoT: Springer & Veldkamp (2000) ch. 5 (the trace form + the polarity of \360\235\225\206P\302\262); Baez, arXiv:math/0105155 \302\2474.2. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_428, 2u,
+        ts_params_431, 2u,
         "Q",
         "the exact Q scalar Tr(A\342\210\230B) \342\200\224 0 \342\237\272 incident / Jordan-orthogonal",
         1,
@@ -13726,19 +13813,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"Tr(E1 o E2) = 0  (incident / orthogonal)\\nTr(E1 o U ) = 1/3\\nTr(E1 o E1) = 1  (a point: idempotent)\",\"why\":\"The Cayley plane is self-dual, so the single Jordan trace form Tr(A\\u2218B) reads both point-point polarity and point-line incidence: two elements are incident iff Tr(A\\u2218B)=0. On the coordinate triangle Tr(Ei\\u2218Ej)=\\u03b4ij (a projective triangle) and Tr(Ei\\u2218U)=1/3; because the trace is linear it is associativity-blind, hence always exact \\u2014 unlike the cross-product line construction.\",\"worked\":\"from srmech.cascade import cayley_plane_incidence, cayley_plane_point\\nE1 = cayley_plane_point([1,0,0,0,0,0,0,0], [0]*8, [0]*8)[\\\"point\\\"]\\nE2 = cayley_plane_point([0]*8, [1,0,0,0,0,0,0,0], [0]*8)[\\\"point\\\"]\\nU  = cayley_plane_point([1,0,0,0,0,0,0,0], [1,0,0,0,0,0,0,0], [1,0,0,0,0,0,0,0])[\\\"point\\\"]\\nprint(\\\"Tr(E1 o E2) =\\\", cayley_plane_incidence(E1, E2), \\\" (incident / orthogonal)\\\")\\nprint(\\\"Tr(E1 o U ) =\\\", cayley_plane_incidence(E1, U))\\nprint(\\\"Tr(E1 o E1) =\\\", cayley_plane_incidence(E1, E1), \\\" (a point: idempotent)\\\")\"}",
         NULL,
         "WHAT: the INCIDENCE pairing of two Cayley-plane elements \342\200\224 the Jordan trace form \342\237\250A,B\342\237\251=Tr(A\342\210\230B) on J\342\202\203(\360\235\225\206). The plane is SELF-DUAL (a polarity swaps points and lines), so this one symmetric bilinear form reads both point-point polarity and point-line incidence: a point P and a line L (each a rank-1 idempotent) are incident iff Tr(P\342\210\230L)=0 (Jordan-orthogonal). WHEN: reach for it as the incidence PRIMITIVE \342\200\224 it is ALWAYS exact and well-defined because the trace is linear, hence associativity-blind, unlike the cross-product 'line through two points', which closes only on the Desarguesian (associating-coordinate) subplane. MEASURED: Tr(Ei\342\210\230Ej)=\316\264ij, Tr(Ei\342\210\230U)=1/3, Tr(P\342\210\230P)=1. What you would wrongly hand-roll: the trace of a non-associative Jordan product. SIBLINGS: cayley_plane_point builds the idempotents; jordan_product is the product it traces. Exact, no abs(). NO new C symbol \342\200\224 composition_of_c over jordan_product.",
-        ts_composes_428, 1u,
+        ts_composes_431, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 429 */
+    { /* 432 */
         "srmech.cascade.octonion_hopf_base",
         "srmech",
         "cascade",
         "The octonionic Hopf base \360\235\225\206P\302\271 \342\211\205 S\342\201\270 \342\200\224 the direct carrier-native rung UP from octonion_frame_read's quaternionic \342\204\215P\302\271 \342\211\205 S\342\201\264. octonion_frame_read reads one octonion (q\342\202\200,q\342\202\201) \342\210\210 \342\204\215\302\262 onto the quaternionic Hopf base S\302\263\342\206\252S\342\201\267\342\206\240S\342\201\264; one rung above is the OCTONIONIC Hopf fibration S\342\201\267\342\206\252S\302\271\342\201\265\342\206\240S\342\201\270 with base \360\235\225\206P\302\271 \342\211\205 S\342\201\270 \342\200\224 the missing object between the frame-committed \342\204\215 base and the full plane \360\235\225\206P\302\262. Reads x = (a,b) \342\210\210 \360\235\225\206\302\262 (a 16-vector): base_O = 2\302\267a\302\267conj(b) (8 comps), base_R = |a|\302\262 \342\210\222 |b|\302\262 (the Class-K pin-slot diagonal, no abs()). LANDS ON S\342\201\270 exactly \342\200\224 |base_O|\302\262 + base_R\302\262 == norm_sq\302\262 (norm_sq = |a|\302\262+|b|\302\262 = |x|\302\262), bit-exact. Restricting x to \342\204\215\302\262 collapses base_O into \342\204\215 (its seam half vanishes), recovering the quaternionic base. \342\232\240\357\270\217 THE \302\2473.41 CEILING: unlike the quaternionic base, this one is NOT frame-free under the S\342\201\267 fiber \342\200\224 a seam-crossing unit-octonion right-multiply MOVES it (the reassociation fails at \360\235\225\206); reported via reduces_to_h / on_s8. FORM, not identity. SIBLINGS: octonion_frame_read is the \342\204\215P\302\271\342\211\205S\342\201\264 rung below; cayley_plane_point is the full \360\235\225\206P\302\262 above. Exact, no abs(). NO new C symbol \342\200\224 composition_of_c over cd_mult / cd_conjugate / cd_norm_sq. Class M \342\210\230 C \342\210\230 K. SSoT: Baez, arXiv:math/0105155 \302\2473.1 (the octonionic Hopf fibration S\342\201\267\342\206\252S\302\271\342\201\265\342\206\240S\342\201\270, \360\235\225\206P\302\271\342\211\205S\342\201\270); Springer & Veldkamp (2000) ch. 5. ATTESTATION FIX rc428 (`#T1126`): this said \302\2474.1\342\200\223\302\2474.2 through rc427 and was false at both endpoints \342\200\224 \302\2474.1 is G\342\202\202 and \302\2474.2 is F\342\202\204, and 'Hopf' occurs 0\303\227 in either; the fibration is set out in \302\2473.1 'Projective Lines'. Positive control on the same extraction: 'octonion' occurs 172\303\227 in that paper, so the zero is a measurement, not silence. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_429, 1u,
+        ts_params_432, 1u,
         "dict",
         "{a, b (the octonion halves), base_O (8 Q), base_R (Q), norm_sq (Q), base_norm_sq (Q), on_s8 (bool, the exact S\342\201\270 norm identity), reduces_to_h (bool)}",
         1,
@@ -13753,12 +13840,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 430 */
+    { /* 433 */
         "srmech.math.laplacian.generalized_ngon",
         "srmech",
         "laplacian",
         "VALIDATE + spectrally READ a generalized n-gon from its incidence structure \342\200\224 the bipartite incidence-graph girth / diameter / biregularity plus the Feit\342\200\223Higman spectral constraint (Class-L, guarded; \302\2473.41.7 Tier 3). A generalized n-gon is an incidence geometry (points, lines, flags) whose bipartite incidence graph has girth 2n, diameter n and is biregular of order (s,t); its incidence graph is distance-regular of diameter n, hence has exactly n+1 distinct adjacency eigenvalues \342\200\224 the checkable Feit\342\200\223Higman constraint. A READ of a SUPPLIED object: girth / diameter are BFS GRAPH metrics (never a drawing \342\200\224 no CAD / continuum); the spectrum routes through dense_adjacency + jacobi_eigvals. Supply example='fano' (n=3 THICK, Heawood graph, eigs {\302\2613,\302\261\342\210\2322}), example='doily' (GQ(2,2), n=4 THICK, Tutte\342\200\223Coxeter, eigs {\302\2613,\302\2612,0}), example='ordinary_k' (the THIN k-gon C_2k, any k\342\211\2452), or an explicit (n_points, lines). SCOPE: the THICK n=6 (split Cayley hexagon) / n=8 (Ree\342\200\223Tits octagon) built-ins are NOT provided \342\200\224 they need the Albert / char-2 Ree carriers \302\2473.41.7 declines; the THIN ordinary_6 / ordinary_8 are the carrier-free n=6/8 witnesses, and a SUPPLIED thick structure is classified all the same. SIBLINGS: dense_adjacency / jacobi_eigvals are the graph + spectrum it composes. NO new C symbol \342\200\224 composition_of_c. SSoT: Feit & Higman, *J. Algebra* 1 (1964) 114\342\200\223131 (the {2,3,4,6,8} theorem); Van Maldeghem, *Generalized Polygons* (1998); Tits & Weiss, *Moufang Polygons* (2002). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_430, 4u,
+        ts_params_433, 4u,
         "dict",
         "{n, n_points, n_lines, n_vertices, girth, diameter, point_degree, line_size, order_s, order_t, biregular, connected, thick, feit_higman_allowed, is_generalized_polygon, eigenvalues, distinct_eigenvalues, n_distinct_eigenvalues, spectral_consistent, example}",
         1,
@@ -13773,12 +13860,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 431 */
+    { /* 434 */
         "srmech.biology.q8.q8_mult",
         "srmech",
         "q8",
         "The Q\342\202\210 group product a\302\267b of two 3-bit bytes (q=(sign<<2)|coset; 0=+1,1=+i,2=+j,3=+k,4=\342\210\2221,\342\200\246,7=\342\210\222k). Non-abelian (q8_mult(1,2)=3 but q8_mult(2,1)=7); i\302\262=j\302\262=k\302\262=4 (\342\210\2221); associative over all 8\303\2278\303\2278. The sign is the Cayley\342\200\223Dickson cocycle (derived from cd_basis_product) xored with the two center bits \342\200\224 never an abs(). The abelian projection is exact: (a\302\267b)&3 == (a&3)^(b&3). Class M\342\210\230I. Same-rc C peer srmech_q8_mult (byte-exact).",
-        ts_params_431, 2u,
+        ts_params_434, 2u,
         "int",
         "the product a\302\267b as a Q\342\202\210 byte in [0, 8)",
         1,
@@ -13789,16 +13876,16 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
         "both",
-        ts_reads_input_431, 1u,
+        ts_reads_input_434, 1u,
         NULL,
         NULL, 0u,
     },
-    { /* 432 */
+    { /* 435 */
         "srmech.biology.q8.q8_conjugate",
         "srmech",
         "q8",
         "The Q\342\202\210 conjugate / group inverse: conj(a)=a for the center (coset 0, self-inverse), else a^4 (flip an imaginary coset's sign bit). q8_mult(a, q8_conjugate(a))==0 for every a. Class C (orientation; a plain sign-bit flip, no abs()). Same-rc C peer srmech_q8_conjugate (byte-exact).",
-        ts_params_432, 1u,
+        ts_params_435, 1u,
         "int",
         "conj(a) as a Q\342\202\210 byte in [0, 8)",
         1,
@@ -13809,16 +13896,16 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
         "both",
-        ts_reads_input_432, 1u,
+        ts_reads_input_435, 1u,
         NULL,
         NULL, 0u,
     },
-    { /* 433 */
+    { /* 436 */
         "srmech.biology.q8.q8_bind",
         "srmech",
         "q8",
         "Elementwise Q\342\202\210 bind out[i]=q8_mult(turn[i], one[i]) over two equal-length Q\342\202\210 byte buffers (the buffer form of q8_mult). Class M (group bind). Same-rc C peer srmech_q8_bind (documents the out-aliasing contract; byte-exact).",
-        ts_params_433, 2u,
+        ts_params_436, 2u,
         "bytes",
         "the elementwise product, length len(turn)",
         1,
@@ -13829,16 +13916,16 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
         "both",
-        ts_reads_input_433, 1u,
+        ts_reads_input_436, 1u,
         NULL,
         NULL, 0u,
     },
-    { /* 434 */
+    { /* 437 */
         "srmech.biology.q8.q8_project_v4",
         "srmech",
         "q8",
         "The abelian projection \317\200: Q\342\202\210 \342\206\222 V4 elementwise: out[i]=q[i]&3 (drop the center sign bit, keep the {1,i,j,k} coset). The exact F380/R21 homomorphism onto hdc.klein4's value algebra: \317\200(q8_bind(a,b)) == klein4_bind(\317\200 a, \317\200 b). Class I (abelian coset read). Same-rc C peer srmech_q8_project_v4 (byte-exact).",
-        ts_params_434, 1u,
+        ts_params_437, 1u,
         "bytes",
         "the V4 cosets, each in {0, 1, 2, 3}",
         1,
@@ -13849,16 +13936,16 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
         "index",
-        ts_reads_input_434, 1u,
+        ts_reads_input_437, 1u,
         NULL,
         NULL, 0u,
     },
-    { /* 435 */
+    { /* 438 */
         "srmech.biology.q8.q8_from_one",
         "srmech",
         "q8",
         "ONE-OCT \342\200\224 the One's Q\342\202\210 COUPLING projection (the Q\342\202\210 analogue of hdc.klein4_from_one). Mints the sectors=8 (OCT) coupling one of leaf dim D (bytes 0..7) so a Q\342\202\210 (substrate) genome can be MINTED + read through the normal genome API with NO hand-construction. Two DECLARED planes of the One's (\317\203, \316\270, terms, and \342\200\224 since rc438 \342\200\224 the winding triad when the One is WOUND): the V4 COSET plane (bits 0..1) IS klein4_from_one's output \342\200\224 so q8_project_v4(q8_from_one(one,D)) == klein4_from_one(one,D) EXACTLY (the F380/R21 backward-faithful bridge, by construction); the Z\342\202\202 SIGN plane (bit 2) is a domain-separated Class-A klein4_address of the same One (bit 0 per slot) \342\200\224 a declared function, so the coupling is a GENUINE non-abelian Q\342\202\210 one, not a degenerate all-positive one. The sign is a group \342\212\225-bit (Class-I parity), never an abs(). Class A (both planes) \342\210\230 Class C (sign) \342\210\230 Class M (byte interleave). Native+pure BY COMPOSITION of the C-peered srmech_klein4_from_one + srmech_klein4_address (a bare-C host mints by the same composition) \342\200\224 no dedicated C symbol of its own. BOTH planes carry the winding and had to move together: measured over w in [-4,4]^3 (729 windings, \317\203/\316\270/terms fixed) each returned 1 distinct value out of 729 through rc437 and 729/729 from rc438. It buys a COMMITMENT, not a READ \342\200\224 nothing lets a reader recover w from stored bytes.",
-        ts_params_435, 2u,
+        ts_params_438, 2u,
         "HV",
         "the OCT coupling one, sectors=8, uint8 in {0..7}",
         1,
@@ -13873,12 +13960,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 436 */
+    { /* 439 */
         "srmech.math.octonion.oct_mult",
         "srmech",
         "octonion",
         "The octonion Moufang-loop product a\302\267b of two 4-bit bytes (o=(sign<<3)|index; 0=+e\342\202\200,\342\200\246,7=+e\342\202\207,8=\342\210\222e\342\202\200,\342\200\246,15=\342\210\222e\342\202\207). The Cayley\342\200\223Dickson rung above q8_mult: NON-associative for \342\211\2453 independent units (the octonion associator), e_i\302\262=\342\210\2221 (byte 8) for i\342\211\2400. The sign is the cd_basis_product cocycle at dim 8 xored with the two center bits \342\200\224 never an abs(); the index lane is exact (a\302\267b)&7 == (a&7)^(b&7). Class M\342\210\230I. Same-rc C peer srmech_oct_mult (byte-exact).",
-        ts_params_436, 2u,
+        ts_params_439, 2u,
         "int",
         "the product a\302\267b as an octonion byte in [0, 16)",
         1,
@@ -13893,12 +13980,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 437 */
+    { /* 440 */
         "srmech.math.octonion.oct_conjugate",
         "srmech",
         "octonion",
         "The octonion conjugate / loop inverse: conj(a)=a for the real center (index 0, self-inverse), else a^8 (flip an imaginary unit's sign bit). oct_mult(a, oct_conjugate(a))==0 for every a (the Moufang inverse property). Class C (orientation; a plain sign-bit flip, no abs()). Same-rc C peer srmech_oct_conjugate (byte-exact).",
-        ts_params_437, 1u,
+        ts_params_440, 1u,
         "int",
         "conj(a) as an octonion byte in [0, 16)",
         1,
@@ -13913,12 +14000,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 438 */
+    { /* 441 */
         "srmech.math.octonion.oct_bind",
         "srmech",
         "octonion",
         "Elementwise octonion bind out[i]=oct_mult(turn[i], one[i]) over two equal-length octonion byte buffers (the buffer form of oct_mult). Class M (loop bind). Same-rc C peer srmech_oct_bind (documents the out-aliasing contract; byte-exact).",
-        ts_params_438, 2u,
+        ts_params_441, 2u,
         "bytes",
         "the elementwise product, length len(turn)",
         1,
@@ -13933,12 +14020,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 439 */
+    { /* 442 */
         "srmech.math.octonion.oct_torsor_act",
         "srmech",
         "octonion",
         "The RIGHT torsor action t <| g of the quaternion group H on a seam coset T = H\302\267e \342\200\224 literally the loop product oct_mult(t, g). A quaternion subalgebra H = {\302\261e\342\202\200..\302\261e\342\202\203} and its set-complement T = {\302\261e\342\202\204..\302\261e\342\202\207} (the coset H\302\267e for any seam unit e) make T a PRINCIPAL right torsor: right-multiplying a seam element t\342\210\210T by a group element g\342\210\210H lands back in T (the index lane (t&7)^(g&7) keeps bit 2 set) and the action is simply transitive (oct_torsor_div inverts it uniquely, orbit histogram {1: 1792} over the 28 seams). R_g equals L_{conj g} on T (1792/1792). The torsor is the 4-index coset (8 signed bytes), NOT the strict 3-index set (H-stable only 1008/1344). Class M\342\210\230I (the oct_mult peer). NO new C symbol: it rides the c_dispatched srmech_oct_mult (composition_of_c).",
-        ts_params_439, 2u,
+        ts_params_442, 2u,
         "int",
         "t <| g = oct_mult(t, g) as an octonion byte in [0, 16)",
         1,
@@ -13946,19 +14033,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"g\":1,\"t\":5},\"output\":\"act closes into T: True ( 64 pairs)\\nact == oct_mult   : True\\nR_g == L_conj(g)  : True\\ne5 <| e1 = 4 (a seam byte in T)\",\"why\":\"T = {+-e4..+-e7} is a PRINCIPAL right torsor for H = {+-e0..+-e3}: the action t <| g = oct_mult(t, g) stays inside T for all 64 (t, g) pairs, and the right action R_g equals the LEFT action by conj(g).\",\"worked\":\"from srmech.math.octonion import oct_torsor_act, oct_conjugate, oct_mult\\n\\n# H = the quaternion subalgebra {+-e0..+-e3}; T = its set-complement,\\n# the seam coset {+-e4..+-e7}. T is a PRINCIPAL right torsor for H.\\nH = [0, 1, 2, 3, 8, 9, 10, 11]\\nT = [4, 5, 6, 7, 12, 13, 14, 15]\\n\\n# the action t <| g keeps t inside T for every g in H (closure):\\nprint(\\\"act closes into T:\\\",\\n      all(oct_torsor_act(t, g) in T for t in T for g in H),\\n      \\\"(\\\", len(T) * len(H), \\\"pairs)\\\")\\n\\n# it IS oct_mult restricted to (t in T, g in H) -- no new product:\\nprint(\\\"act == oct_mult   :\\\",\\n      all(oct_torsor_act(t, g) == oct_mult(t, g) for t in T for g in H))\\n\\n# and the right action R_g equals the LEFT action by conj(g) on T:\\nprint(\\\"R_g == L_conj(g)  :\\\",\\n      all(oct_torsor_act(t, g) == oct_mult(oct_conjugate(g), t)\\n          for t in T for g in H))\\n\\n# a concrete step: +e5 acted on by +e1 stays in the seam:\\nprint(\\\"e5 <| e1 =\\\", oct_torsor_act(5, 1), \\\"(a seam byte in T)\\\")\"}",
         NULL,
         "WHAT \342\200\224 the RIGHT torsor action t <| g of the quaternion group H = {+-e0..+-e3} on the seam coset T = H.e = {+-e4..+-e7} (H's set-complement), which is LITERALLY oct_mult(t, g) (srmech/math/octonion.py). T carries no distinguished identity, yet H acts on it simply-transitively: closure holds because the index lane (t&7)^(g&7) keeps bit 2 set (g's index < 4, t's >= 4), so the product lands back in T -- measured 64/64 above and 1792/1792 over the 28 seams. Class M \342\210\230 I, no abs(); the c_dispatched srmech_oct_mult backs it, so NO new C symbol (composition_of_c). WHEN \342\200\224 reach for it to READ an oct_mult as a group action on a seam torsor: whenever a quaternion subalgebra acts on the octonion units it does NOT contain and you want the well-definedness (closure + R_g == L_{conj g}, 1792/1792) rather than a bare product. What you would otherwise wrongly hand-roll is oct_mult(t, g) with no check that t is a seam element and g a group element -- the torsor reading IS exactly that guarantee. SIBLINGS \342\200\224 oct_torsor_div (srmech/math/octonion.py) is the inverse, the unique g carrying t1 to t2; oct_mult (:139) is the product this is a named restriction of, so do not build a second product; oct_conjugate (:176) gives the L_{conj g} identity; q8_mult (srmech/biology/q8.py:133) is the group's own rung-below product. Do NOT reach for the strict 3-index seam set instead of this 4-index coset -- it is H-stable only 1008/1344 and manufactures a seam artifact.",
-        ts_composes_439, 1u,
+        ts_composes_442, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 440 */
+    { /* 443 */
         "srmech.math.octonion.oct_torsor_div",
         "srmech",
         "octonion",
         "The RIGHT torsor division: the UNIQUE group element g\342\210\210H with oct_torsor_act(t1, g) == t2, computed as oct_mult(t1^8, t2). Because the seam coset T = H\302\267e is a principal right torsor for the quaternion group H, every ordered pair (t1, t2) of seam elements has exactly one g\342\210\210H carrying t1 to t2 (1792/1792 solve, histogram {1: 1792}). By the Moufang left-inverse property that g is conj(t1)\302\267t2; on T every element is an IMAGINARY unit (idx = t1&7 \342\210\210 {4,5,6,7} \342\211\240 0, verified 224/224) so conj(t1) is the branch-free sign flip t1^8 \342\200\224 which is why the op is one Class-C XOR into the product (10 integer ops), not a branching oct_conjugate (11). The result lands in H ((t1&7)^(t2&7) clears bit 2). Class C\342\210\230M. NO new C symbol: it rides the c_dispatched srmech_oct_mult after one XOR (composition_of_c). Raises if idx(t1)==0.",
-        ts_params_440, 2u,
+        ts_params_443, 2u,
         "int",
         "the unique g\342\210\210H with oct_torsor_act(t1, g) == t2, as an octonion byte in [0, 16)",
         1,
@@ -13966,19 +14053,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"t1\":5,\"t2\":6},\"output\":\"div(e5, e6) = 3  in H: True  solves e5 <| g == e6: True\\nsimply transitive: True ( 64 pairs)\\nt^8 == conj(t) on T: True\",\"why\":\"Because T is a PRINCIPAL right torsor, every ordered (t1, t2) has EXACTLY one g in H with t1 <| g == t2 (64/64 unique here, 1792/1792 over the 28 seams); div returns it as oct_mult(t1^8, t2), and t1^8 IS conj(t1) on T because every seam byte has idx != 0.\",\"worked\":\"from srmech.math.octonion import oct_torsor_act, oct_torsor_div, oct_conjugate\\n\\nH = [0, 1, 2, 3, 8, 9, 10, 11]\\nT = [4, 5, 6, 7, 12, 13, 14, 15]\\n\\n# div returns the UNIQUE g in H carrying t1 to t2 under the action:\\nt1, t2 = 5, 6                       # +e5, +e6\\ng = oct_torsor_div(t1, t2)\\nprint(\\\"div(e5, e6) =\\\", g, \\\" in H:\\\", g in H,\\n      \\\" solves e5 <| g == e6:\\\", oct_torsor_act(t1, g) == t2)\\n\\n# simple transitivity: EXACTLY one solving g for every ordered (t1, t2):\\nprint(\\\"simply transitive:\\\",\\n      all(sum(1 for gg in H if oct_torsor_act(t1, gg) == t2) == 1\\n          for t1 in T for t2 in T),\\n      \\\"(\\\", len(T) * len(T), \\\"pairs)\\\")\\n\\n# the op's ^8 IS conj on T, because every seam byte has idx != 0:\\nprint(\\\"t^8 == conj(t) on T:\\\",\\n      all((t ^ 8) == oct_conjugate(t) for t in T))\\n\\n# the real center is refused (not a torsor element):\\noct_torsor_div(0, 5)                # -> ValueError\"}",
         NULL,
         "WHAT \342\200\224 the RIGHT torsor division: the UNIQUE group element g in H with oct_torsor_act(t1, g) == t2, returned as oct_mult(t1^8, t2) (srmech/math/octonion.py). Because the seam coset T = H.e is a principal right torsor for the quaternion group H, every ordered pair (t1, t2) of seam elements has exactly one solving g -- measured 64/64 unique above, 1792/1792 over the 28 seams, orbit histogram {1: 1792}. By the Moufang left-inverse property that g is conj(t1).t2; on T every element is an imaginary unit (idx = t1&7 in {4,5,6,7} != 0), so conj(t1) is the branch-free sign flip t1^8 -- which is why the op costs one Class-C XOR into the product (10 integer ops) instead of a branching oct_conjugate (11). Class C \342\210\230 M, no abs(); the c_dispatched srmech_oct_mult backs it, NO new C symbol (composition_of_c). WHEN \342\200\224 reach for it to INVERT a seam-torsor action: given where a seam element started and where it must land, recover the unique group turn. What you would otherwise wrongly hand-roll is oct_mult(oct_conjugate(t1), t2) -- correct, but a branch heavier, and it silently accepts the real center t1=e0 where conj != ^8; this op refuses idx(t1)==0 for exactly that reason. SIBLINGS \342\200\224 oct_torsor_act is the forward action it inverts, so do NOT re-solve by brute-force search over H; oct_mult (:139) is the product both compose; oct_conjugate (:176) is the branching inverse this deliberately does NOT call on the hot path. Do not read the ^8 as an abs() -- it is the Class-C sign bit, re-applied by XOR.",
-        ts_composes_440, 1u,
+        ts_composes_443, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 441 */
+    { /* 444 */
         "srmech.cascade.cd_promote",
         "srmech",
         "cascade",
         "Promote a Cayley\342\200\223Dickson element UP one-or-more rungs \342\204\235\342\206\252\342\204\202\342\206\252\342\204\215\342\206\252\360\235\225\206\342\206\252\360\235\225\212 by the trivial SUBALGEBRA EMBEDDING (#1248 / F1038): zero-pad the higher imaginary half, x \342\206\246 (x, 0). dim is the target power-of-two dimension (\342\211\245 the element's dim). TOTAL (a no-op when dim == the element's dim). This is the SAME embedding the qm.octonion/quaternion restriction tests exercise (a quaternion q\342\202\204 sits in \360\235\225\206 as q\342\202\204\342\212\2250\342\202\204 under the shared cd_basis_product cocycle \342\200\224 \342\204\215 is the top-4 of \360\235\225\206). The inverse of cd_project: cd_project(cd_promote(x, 2\302\267dim))==x EXACT. Pure carrier restructuring \342\206\222 non_compute. Exact-rational; no float; no abs(). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_441, 2u,
+        ts_params_444, 2u,
         "tuple",
         "the element zero-padded up to dim, a tuple of exact Q",
         1,
@@ -13993,12 +14080,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 442 */
+    { /* 445 */
         "srmech.cascade.cd_project",
         "srmech",
         "cascade",
         "Project a Cayley\342\200\223Dickson element DOWN one doubling (dim \342\206\222 dim/2) by REALIFYING IFF the higher (imaginary-doubling) half all vanish (#1248 / F1038) \342\200\224 the inverse of cd_promote. If the top half is zero, returns the bottom half (a complex (a,0) IS the real a); if a higher component is genuinely present, raises a coherency error NAMING that component (never a silent truncation \342\200\224 the rc104 lesson). A real (dim 1) element has no higher half \342\206\222 error. cd_project(cd_promote(x, 2\302\267d))==x EXACT. Pure carrier restructuring \342\206\222 non_compute. Exact-rational (the vanishing test is a Q!=0 Class-K comparison); no float; no abs(). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_442, 1u,
+        ts_params_445, 1u,
         "tuple",
         "the bottom half (the realified element), a tuple of exact Q; raises a NAMING coherency error if the higher half is non-zero",
         1,
@@ -14013,12 +14100,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 443 */
+    { /* 446 */
         "srmech.cascade.cd_zero_divisor_witness",
         "srmech",
         "cascade",
         "The FIRST basis-pair zero divisor of the Cayley\342\200\223Dickson algebra of dimension dim: x = e_i + e_j and y = e_k + s\302\267e_l, both nonzero, with x\302\267y = 0 \342\200\224 the dim-general successor of the removed hardwired sedenion witness (at dim 16 it returns the IDENTICAL e1+e10 / e4\342\210\222e15 payload). The executable form of '\302\247VII.6.23: zero divisors first appear at 16 and never heal'. None for dim \342\211\244 8 (division algebras provably have none). composition_of_c: [0] of the gf_rref support solve + the DETERMINED cd_basis_product sign criterion, no dedicated C symbol. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_443, 1u,
+        ts_params_446, 1u,
         "dict | None",
         "{'dim', 'x','y': Q tuples, 'x_form','y_form': 'e_i \302\261 e_j' strings, 'x_norm_sq','y_norm_sq': nonzero, 'product': all-zero, 'product_is_zero': True}; None at dim \342\211\244 8",
         1,
@@ -14033,12 +14120,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 444 */
+    { /* 447 */
         "srmech.cascade.cd_zero_divisor_witnesses",
         "srmech",
         "cascade",
         "The COMPLETE set of basis-pair zero-divisor witnesses of the Cayley\342\200\223Dickson algebra of dimension dim: every (i,j,k,l,s) with (e_i + e_j)\302\267(e_k + s\302\267e_l) = 0 (exactly 168 at dim 16). Solves the i\342\212\225j\342\212\225k\342\212\225l = 0 support system with the C-dispatched GF(2) gf_rref and reads the second-factor sign DETERMINED off cd_basis_product \342\200\224 O(dim\302\263), tractable to CD_MAX_DIM, NOT the exponential product sweep. Empty for dim \342\211\244 8 (division algebras). composition_of_c; no dedicated C symbol. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_444, 1u,
+        ts_params_447, 1u,
         "list",
         "the (i, j, k, l, s) witness tuples in deterministic (i, j, k, l) order; [] at dim \342\211\244 8",
         1,
@@ -14053,12 +14140,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 445 */
+    { /* 448 */
         "srmech.cascade.left_mult_matrix",
         "srmech",
         "cascade",
         "The n\303\227n exact-\342\204\232 matrix of the LEFT-regular map u \342\206\246 x\302\267u (column c is x\302\267e_c), row-major \342\200\224 the operator whose kernel, invertibility and inverse the rest of this family read. Contracting L(x) against y reproduces cd_mult(x, y) (measured 200/200 on random dim-8 pairs), and building a matrix column-by-column then contracting it is a genuinely different route from a triple loop over a tensor \342\200\224 so L(x)\302\267y versus table_product(table, x, y) is a real two-route check with ZERO duplicated code, which is why the `table` argument lives here. The contraction is written as an exact-\342\204\232 sum, never a matmul: this surface is numpy-free and every entry is an exact Q that no numpy dtype can hold without rounding. composition_of_c \342\200\224 each column is a C-dispatched cd_mult over a C-dispatched cd_basis. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_445, 2u,
+        ts_params_448, 2u,
         "list",
         "n rows of n exact Q \342\200\224 L(x), row-major",
         1,
@@ -14066,66 +14153,6 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"x\":\"e1, an octonion imaginary unit \\u2014 note the two operators AGREE on row 0 and still differ as matrices, which is why an eyeball check is not enough\"},\"output\":\"L(e1) row0 : [0, -1, 0, 0, 0, 0, 0, 0]\\nR(e1) row0 : [0, -1, 0, 0, 0, 0, 0, 0]\\nL == R     : False\\nL^T == R   : False\",\"why\":\"Row 0 of L(e1) and R(e1) is the same vector, which is exactly why an eyeball check is not enough: the two matrices still differ, and R is not L transposed either. That non-coincidence is what makes left- and right-division two different questions.\",\"worked\":\"# SUBJECT: e1, an octonion imaginary unit \\u2014 the smallest element for which\\n#   left and right multiplication are DIFFERENT linear maps.\\nfrom srmech.cascade import left_mult_matrix, right_mult_matrix, cd_mult\\nx = [0, 1, 0, 0, 0, 0, 0, 0]              # e1 in O\\nL = left_mult_matrix(x)\\n[int(v) for v in L[0]]          # -> [0, -1, 0, 0, 0, 0, 0, 0]\\nL == right_mult_matrix(x)       # -> False   NOT the same operator\\nLt = [[L[c][r] for c in range(8)] for r in range(8)]\\nLt == right_mult_matrix(x)      # -> False   and NOT its transpose either\\nleft_mult_matrix(x)             # -> the full 8x8 operator, exact Q entries\"}",
         NULL,
         "WHAT \342\200\224 the n x n exact-Q matrix of the LEFT-regular map u -> x*u, column c being x*e_c, row-major; it returns nested lists of exact Q, never floats. WHEN \342\200\224 reach for it whenever you want to treat multiply-by-x as an OPERATOR rather than as a product: to ask whether it is invertible, to take its kernel, or to solve against it. What you would otherwise wrongly hand-roll is a conjugate-and-scale shortcut, which is only valid while the algebra is alternative and fails silently at dim 16 and above. SIBLINGS \342\200\224 right_mult_matrix is the other regular representation and is NOT this one transposed (measured: R == L on 0/40 random elements at every dim 4..32, and R == L^T on 0/40 too); left_mult_kernel and left_mult_is_invertible are the decision ops built on this matrix, and cd_left_divide is the op that INVERTS it, so if what you want is a quotient reach for that rather than solving this by hand. The `table` argument exists so that contracting L(x) against y can be checked against table_product(table, x, y) with zero duplicated code \342\200\224 two genuinely different routes to the same product.",
-        ts_composes_445, 1u,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 446 */
-        "srmech.cascade.right_mult_matrix",
-        "srmech",
-        "cascade",
-        "The n\303\227n exact-\342\204\232 matrix of the RIGHT-regular map u \342\206\246 u\302\267x (column c is e_c\302\267x), row-major \342\200\224 the peer left_mult_matrix has had since rc160 and which NOTHING on the Cayley\342\200\223Dickson ladder held until rc437. Verified before building: octonion_right_mult and quaternion_right_mult (srmech.physics.qm.*) ship the same object at dims 8 and 4 ONLY over the fixed physics tables, and a grep for right_mult_matrix over srmech/ at rc436 returned zero definitions \342\200\224 so cd_right_divide had no operator to invert. \342\232\240\357\270\217 IT IS NOT L(x) TRANSPOSED AND NOT ITS CONJUGATE: measured, R(x) == L(x) on 0/40 random elements at every dim 4/8/16/32 and R(x) == L(x)\341\265\200 on 0/40 as well; they coincide only where the algebra commutes (dims 1\342\200\2232, 40/40). That non-coincidence IS the Class-C which-way content of division, and it is why cd_left_divide and cd_right_divide are two ops rather than one with a flag. Same composition_of_c shape as its left peer, and the same `table` argument. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_446, 2u,
-        "list",
-        "n rows of n exact Q \342\200\224 R(x), row-major",
-        1,
-        NULL,
-        "{\"input\":{\"x\":\"e1, the right-hand operand being fixed into an operator; it is then contracted against a generic octonion y to check R(x).y == y*x\"},\"output\":\"R(e1) row0 : [0, -1, 0, 0, 0, 0, 0, 0]\\nL == R     : False\\nL^T == R   : False\\nR(x).y == y*x : True\",\"why\":\"Building the matrix column-by-column and then contracting it is a genuinely different route from calling the product, so R(x).y == y*x is a real two-route check rather than a tautology \\u2014 and it holds while R is provably neither L nor L transposed.\",\"worked\":\"# SUBJECT: the operator NOTHING on the Cayley-Dickson ladder held before\\n#   rc437 \\u2014 u -> u*x. Contracting it must reproduce y*x, and it must NOT\\n#   coincide with the left operator.\\nfrom srmech.cascade import right_mult_matrix, left_mult_matrix, cd_mult\\nfrom srmech.math.q import Q\\nx = [0, 1, 0, 0, 0, 0, 0, 0]              # e1 in O\\nR = right_mult_matrix(x)\\n[int(v) for v in R[0]]          # -> [0, -1, 0, 0, 0, 0, 0, 0]\\nR == left_mult_matrix(x)        # -> False\\ny = [1, 0, 2, 0, 0, 3, 0, 0]\\ntuple(sum((R[r][c] * Q(y[c]) for c in range(8)), Q(0))\\n      for r in range(8)) == tuple(cd_mult(y, x))     # -> True\\nright_mult_matrix(x)            # -> the full 8x8 operator, exact Q entries\"}",
-        NULL,
-        "WHAT \342\200\224 the n x n exact-Q matrix of the RIGHT-regular map u -> u*x, column c being e_c*x, row-major; it returns nested lists of exact Q. WHEN \342\200\224 reach for it to ask a right-handed question about multiplication: right-invertibility, a right kernel, or a right quotient. Before rc437 there was nothing to reach for, which is the point of the entry: octonion_right_mult and quaternion_right_mult (srmech.physics.qm.*) ship the same object at dims 8 and 4 ONLY over the fixed physics tables, so a ladder-level right operator did not exist and the right-handed questions could not be posed at all. What you would otherwise wrongly hand-roll is left_mult_matrix transposed \342\200\224 measured, that is wrong on 40 of 40 random elements at every dim 4..32. SIBLINGS \342\200\224 left_mult_matrix is the left-regular twin and they agree only where the algebra commutes (dims 1-2); cd_right_divide is the op that INVERTS this one, and is what you want if the goal is a quotient rather than the operator itself; left_mult_kernel / left_mult_is_invertible answer the LEFT decision question and this op makes no claim that the two sides coincide.",
-        ts_composes_446, 1u,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 447 */
-        "srmech.cascade.left_mult_kernel",
-        "srmech",
-        "cascade",
-        "Exact-rational kernel basis of the map u \342\206\246 x\302\267u. NONEMPTY \342\237\272 x is a left zero divisor \342\237\272 multiply-by-x is non-injective \342\237\272 no inverse map exists \342\200\224 the 'no backward direction to point' of \302\247VII.6.23.4 (anything past and unobserved is lost). Empty for every nonzero element of a division algebra (\342\211\244\360\235\225\206). Class L (linear-algebra rank). rc352 (`#T997`): pass a structure-constant TABLE and this becomes a zero-divisor WITNESS on any algebra a table can express \342\200\224 split-\360\235\225\206 exhibits one at dim 8, where the shipped ladder has none. Witness half ONLY: zero divisors are measure-zero (left_mult_is_invertible returned True on 300/300 random dim-16 elements), so FINDING a candidate is a separate problem this op does not solve. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_447, 2u,
-        "list",
-        "kernel-basis vectors (Q tuples); empty if invertible",
-        1,
-        NULL,
-        "{\"input\":{\"1\":\"len(left_mult_kernel(ZD['x'])), left_mult_kernel(ZD['x'])[0]\",\"2\":\"left_mult_kernel([1,0,0,0,0,0,0,1])\",\"3\":\"len(left_mult_kernel([1,0,0,0,0,0,0,1], table=SPLIT8))\",\"4\":\"left_mult_kernel([1,0,0,0,0,0,0,1], table=SPLIT8)[0]\"},\"output\":{\"1\":\"(4, (Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(1, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(1, 1), Q(0, 1), Q(0, 1), Q(0, 1)))\",\"2\":\"[]\",\"3\":\"4\",\"4\":\"(Q(0, 1), Q(0, 1), Q(0, 1), Q(1, 1), Q(1, 1), Q(0, 1), Q(0, 1), Q(0, 1))\"},\"why\":\"Non-empty kernel = no backward direction: 4 basis vectors for the sedenion witness, empty for 1+e7 on \\ud835\\udd46, and 4 again for that same 1+e7 once the split-\\ud835\\udd46 table is named.\"}",
-        NULL,
-        "WHAT \342\200\224 the exact-rational kernel basis of the linear map u \342\206\246 x\302\267u. Non-empty \342\237\272 x is a left zero divisor \342\237\272 multiply-by-x is non-injective \342\237\272 no inverse map exists. Empty for every nonzero element of a division algebra (dims \342\211\244 8 on the definite ladder). WHEN \342\200\224 reach for it to EXHIBIT the failure, not just report it: the kernel vectors are the concrete u that x annihilates. Pass ``table=`` and it becomes a zero-divisor witness on any algebra a table can express \342\200\224 split-\360\235\225\206 exhibits a 4-dimensional kernel at dim 8, where the shipped ladder has none at all. What you would otherwise wrongly hand-roll is building L(x) as a matrix and calling a null-space routine; that is what this op IS, over exact \342\204\232, and its C route (``srmech_qmat_nullspace`` over the table-composed L(x)) is exact at any magnitude. WITNESS HALF ONLY \342\200\224 it answers 'is THIS x a zero divisor'. FINDING a candidate is a different problem it does not solve, and a random search will not: see ``cd_zero_divisor_witness`` for a constructed one. SIBLINGS \342\200\224 ``left_mult_is_invertible`` is the bool peer (cheaper: it can take a modular-rank fast path on the shipped ladder); ``cd_zero_divisor_witness`` supplies the x; ``is_division_algebra_dim`` is the dimension-level statement.",
-        ts_composes_447, 1u,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 448 */
-        "srmech.cascade.left_mult_is_invertible",
-        "srmech",
-        "cascade",
-        "True iff u \342\206\246 x\302\267u is a bijection (a backward direction exists). Always True for nonzero x at dims \342\211\244 8 ON THE DEFINITE LADDER; False for a zero divisor at dim \342\211\245 16 \342\200\224 the reversibility that ends at the Hurwitz wall. rc352 (`#T997`): hand it a SPLIT table and False appears at dim 2 already, which is the honest answer and the ladder's own wall is not it. With a table the rc12 modular-rank gate does not apply (it rebuilds the signed XOR-circulant from the shipped cocycle, so it is Cayley\342\200\223Dickson-specific by construction) and the op takes the exact-kernel route instead \342\200\224 NOT a degradation: srmech_qmat_nullspace over the srmech_algebra_table_product-composed L(x) is C the whole way down and exact at any magnitude, so a bare-C host answers identically (ADR-0009 \342\200\224 a different C route, not a decline). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_448, 2u,
-        "bool",
-        "True iff multiply-by-x has a (two-sided) inverse map",
-        1,
-        NULL,
-        "{\"input\":{\"1\":\"left_mult_is_invertible([1,0,0,0,0,0,0,1])\",\"2\":\"left_mult_is_invertible([1,0,0,0,0,0,0,1], table=SPLIT8)\",\"3\":\"left_mult_is_invertible(ZD['x'])\",\"4\":\"[(d, is_division_algebra_dim(d), cd_navmap_is_signed_permutation(d)) for d in (4, 8, 16, 32, 64)]\"},\"output\":{\"1\":\"True\",\"2\":\"False\",\"3\":\"False\",\"4\":\"[(4, True, True), (8, True, True), (16, False, True), (32, False, True), (64, False, True)]\"},\"why\":\"The reversibility gate, and the fourth call is the disambiguation: composition fails past dim 8 while addressing (signed-permutation navmaps) survives at 16, 32 and 64.\"}",
-        NULL,
-        "WHAT \342\200\224 True iff u \342\206\246 x\302\267u is a bijection, i.e. iff a backward direction exists. Always True for nonzero x at dims \342\211\244 8 ON THE DEFINITE LADDER; False for a zero divisor at dim \342\211\245 16. WHEN \342\200\224 reach for it as the reversibility GATE before doing something that must be undoable: composite-direction navigation, an unbind, a round trip. Hand it a SPLIT table and False appears at dim 2 already, which is the honest answer \342\200\224 the ladder's own wall is not the only wall. What you would otherwise wrongly hand-roll is a determinant or a rank of a hand-built L(x): with a table this op takes the exact kernel route (C the whole way down, exact at any magnitude), which is a different C route, not a decline. READ THE FOURTH CALL CAREFULLY \342\200\224 invertibility and ADDRESSABILITY are different properties with different boundaries. Composition dies at dim 16 while ``cd_navmap_is_signed_permutation`` stays True at 16, 32 and 64, because zero divisors are built from SUMS of basis elements and addressing is about a SINGLE basis pair. SIBLINGS \342\200\224 ``left_mult_kernel`` returns the witnessing vectors this op reduces to a bool; ``is_division_algebra_dim`` answers for a DIMENSION where this answers for an ELEMENT; ``SedenionRegister.is_navigable`` / ``CDRegister.is_navigable`` are this op wearing the register's clothes.",
         ts_composes_448, 1u,
         NULL, 0u,
         NULL,
@@ -14134,18 +14161,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 449 */
-        "srmech.cascade.cd_left_divide",
+        "srmech.cascade.right_mult_matrix",
         "srmech",
         "cascade",
-        "a \\ c \342\200\224 the unique q with a\302\267q = c on the Cayley\342\200\223Dickson ladder, exact over \342\204\232 at every rung, RAISING when a is a left zero divisor. Class C: left-vs-right IS the which-way choice, so this ships as two named ops (cd_right_divide is the other) and never as one op with a side= flag; the quasigroup literature makes the identical move, since defining a quasigroup equationally needs \\ and / as separate primitives. \360\237\224\264 IT IS NOT THE CONJUGATE CLOSED FORM, and the difference is a WRONG ANSWER rather than a slower one. The tempting conj(a)\302\267c/N(a) rests on conj(a)\302\267(a\302\267b) = b, which is FALSE as stated \342\200\224 the identity is conj(a)\302\267(a\302\267b) = N(a)\302\267b. Measured rc437: un-normalised it fails 40/40 on generic elements at EVERY dim 4/8/16/32 (a = (1,2,0,0,3,0,0,1) has N(a) = 15 and it returns 15\302\267b); normalised it is right at dims 2/4/8 (0/40 failures) and WRONG at dims 16 and 32 (40/40), because the step needs ALTERNATIVITY, which dies at \360\235\225\212. \342\232\240\357\270\217 It fails SILENTLY: on the shipped dim-16 zero-divisor witness x = e\342\202\201+e\342\202\201\342\202\200 (N(x) = 2 \342\211\240 0, left-kernel dim 4) the normalised form divides by a perfectly good norm and RETURNS a value that then fails x\302\267q == c. This op raises instead. \342\232\240\357\270\217 A probe of the form a = 1+e\341\265\242 CANNOT see any of it \342\200\224 those elements are near-unit and the normalised form scores 0 failures out of 992 at dim 32; any re-measurement must use GENERIC elements. THE ROUTE: solve L(a)\302\267q = c against left_mult_matrix with the exact-\342\204\232 QMat.solve \342\200\224 measured q == b on 20/20 random nonzero pairs at each of dims 2/4/8/16/32/64, and it refuses on the zero divisor rather than answering. composition_of_c over srmech_qmat_solve + the C-composed L(a) (srmech_cd_mult / srmech_cd_qbasis, all verified present in c/include/srmech.h at rc437): NO new C symbol, ABI stays 14. `table` names a DIFFERENT algebra, so split-\360\235\225\206 refuses at dim 8 where the ladder's own wall has not yet arrived. SSoT: Bruck, *A Survey of Binary Systems* (1958) \302\247I.1; Schafer (1966) ch. III. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_449, 3u,
-        "tuple",
-        "dim-tuple of exact Q \342\200\224 the unique q with a\302\267q = c; raises ValueError when a is a left zero divisor (or zero)",
+        "The n\303\227n exact-\342\204\232 matrix of the RIGHT-regular map u \342\206\246 u\302\267x (column c is e_c\302\267x), row-major \342\200\224 the peer left_mult_matrix has had since rc160 and which NOTHING on the Cayley\342\200\223Dickson ladder held until rc437. Verified before building: octonion_right_mult and quaternion_right_mult (srmech.physics.qm.*) ship the same object at dims 8 and 4 ONLY over the fixed physics tables, and a grep for right_mult_matrix over srmech/ at rc436 returned zero definitions \342\200\224 so cd_right_divide had no operator to invert. \342\232\240\357\270\217 IT IS NOT L(x) TRANSPOSED AND NOT ITS CONJUGATE: measured, R(x) == L(x) on 0/40 random elements at every dim 4/8/16/32 and R(x) == L(x)\341\265\200 on 0/40 as well; they coincide only where the algebra commutes (dims 1\342\200\2232, 40/40). That non-coincidence IS the Class-C which-way content of division, and it is why cd_left_divide and cd_right_divide are two ops rather than one with a flag. Same composition_of_c shape as its left peer, and the same `table` argument. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_449, 2u,
+        "list",
+        "n rows of n exact Q \342\200\224 R(x), row-major",
         1,
         NULL,
-        "{\"input\":{\"a\":\"a generic octonion divisor \\u2014 NOT near-unit, which is the only draw that discriminates; then the dim-16 witness e1+e10, whose norm is 2, so a norm check does not see the defect\",\"c\":\"the dividend a*b, so the answer is known to be b\"},\"output\":\"a\\\\(a*b)   : [0, 1, 1, 0, 0, 2, 0, 0]\\nb         : [0, 1, 1, 0, 0, 2, 0, 0]\\nleft op on the RIGHT question: [0, 0, -1, 0, 0, -2, 0, 0] != b\\nwitness   : e1 + e10  norm_sq = 2\\nREFUSED   : cd_left_divide: the divisor `a` is a left zero divisor (or zero) at dim 16 - the map u -> a*u\\nrival returns, x*q == c : False\",\"why\":\"The witness has a perfectly good NONZERO norm, so the closed form conj(a)*c/N(a) divides happily and RETURNS a value which then fails x*q == c. This op raises instead. That single case is the whole reason it solves an operator rather than scaling a conjugate.\",\"worked\":\"# SUBJECT: division on O, then the dim-16 zero divisor that breaks the\\n#   closed-form shortcut SILENTLY.\\nfrom srmech.cascade import (cd_left_divide, cd_right_divide, cd_mult,\\n                            cd_norm_sq, cd_zero_divisor_witness)\\na = [1, 2, 0, 0, 3, 0, 0, 1]; b = [0, 1, 1, 0, 0, 2, 0, 0]\\nc = [-2, 7, -1, 2, -4, 0, -4, 0]          # == cd_mult(a, b), written out\\n[int(v) for v in cd_left_divide(a, c)]    # -> [0, 1, 1, 0, 0, 2, 0, 0] == b\\n\\n# the RIGHT op does NOT answer the left question:\\n[int(v) for v in cd_right_divide(c, a)]   # -> [0, 0, -1, 0, 0, -2, 0, 0]\\n\\nw = cd_zero_divisor_witness(16); x = w['x']\\nw['x_form'], cd_norm_sq(x)      # -> ('e1 + e10', 2)   a NONZERO norm\\ncd_left_divide([1, 0, 0, 0, 0, 0, 0, 0], [0, 1, 1, 0, 0, 2, 0, 0])\\n                                # -> 1 \\\\ x == x, as exact Q\\ncd_left_divide(x, [1] * 16)     # -> ValueError: ... is a left zero divisor\"}",
+        "{\"input\":{\"x\":\"e1, the right-hand operand being fixed into an operator; it is then contracted against a generic octonion y to check R(x).y == y*x\"},\"output\":\"R(e1) row0 : [0, -1, 0, 0, 0, 0, 0, 0]\\nL == R     : False\\nL^T == R   : False\\nR(x).y == y*x : True\",\"why\":\"Building the matrix column-by-column and then contracting it is a genuinely different route from calling the product, so R(x).y == y*x is a real two-route check rather than a tautology \\u2014 and it holds while R is provably neither L nor L transposed.\",\"worked\":\"# SUBJECT: the operator NOTHING on the Cayley-Dickson ladder held before\\n#   rc437 \\u2014 u -> u*x. Contracting it must reproduce y*x, and it must NOT\\n#   coincide with the left operator.\\nfrom srmech.cascade import right_mult_matrix, left_mult_matrix, cd_mult\\nfrom srmech.math.q import Q\\nx = [0, 1, 0, 0, 0, 0, 0, 0]              # e1 in O\\nR = right_mult_matrix(x)\\n[int(v) for v in R[0]]          # -> [0, -1, 0, 0, 0, 0, 0, 0]\\nR == left_mult_matrix(x)        # -> False\\ny = [1, 0, 2, 0, 0, 3, 0, 0]\\ntuple(sum((R[r][c] * Q(y[c]) for c in range(8)), Q(0))\\n      for r in range(8)) == tuple(cd_mult(y, x))     # -> True\\nright_mult_matrix(x)            # -> the full 8x8 operator, exact Q entries\"}",
         NULL,
-        "WHAT \342\200\224 a \\ c, the unique q with a*q = c, computed exactly over Q at every Cayley-Dickson rung; it returns a tuple of exact Q, or RAISES ValueError when a is a left zero divisor. WHEN \342\200\224 reach for it any time you would otherwise write conj(a)*c/N(a). That shortcut is the thing to not hand-roll, and the reason is sharper than performance: the identity behind it is conj(a)*(a*b) = N(a)*b, not = b, and even normalised it needs ALTERNATIVITY, so it is right at dims 2/4/8 (0/40 failures measured) and wrong at 16 and 32 (40/40) \342\200\224 and on a zero divisor with nonzero norm it RETURNS a non-solution instead of failing. A probe built from a = 1 + e_i cannot see any of that (0 failures out of 992 at dim 32), so use generic elements if you re-measure. SIBLINGS \342\200\224 cd_right_divide is the Class-C mirror and is a DIFFERENT question, not a flag on this one: feeding this op's question to that one scores 0/40 at dims 4, 8 and 16. left_mult_is_invertible and left_mult_kernel answer the DECISION and the WITNESS versions of the same wall and are what to reach for when you want to know WHY a division failed; left_mult_matrix is the operator this op inverts. cd_mult is the forward direction.",
+        "WHAT \342\200\224 the n x n exact-Q matrix of the RIGHT-regular map u -> u*x, column c being e_c*x, row-major; it returns nested lists of exact Q. WHEN \342\200\224 reach for it to ask a right-handed question about multiplication: right-invertibility, a right kernel, or a right quotient. Before rc437 there was nothing to reach for, which is the point of the entry: octonion_right_mult and quaternion_right_mult (srmech.physics.qm.*) ship the same object at dims 8 and 4 ONLY over the fixed physics tables, so a ladder-level right operator did not exist and the right-handed questions could not be posed at all. What you would otherwise wrongly hand-roll is left_mult_matrix transposed \342\200\224 measured, that is wrong on 40 of 40 random elements at every dim 4..32. SIBLINGS \342\200\224 left_mult_matrix is the left-regular twin and they agree only where the algebra commutes (dims 1-2); cd_right_divide is the op that INVERTS this one, and is what you want if the goal is a quotient rather than the operator itself; left_mult_kernel / left_mult_is_invertible answer the LEFT decision question and this op makes no claim that the two sides coincide.",
         ts_composes_449, 1u,
         NULL, 0u,
         NULL,
@@ -14154,18 +14181,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 450 */
-        "srmech.cascade.cd_right_divide",
+        "srmech.cascade.left_mult_kernel",
         "srmech",
         "cascade",
-        "c / b \342\200\224 the unique q with q\302\267b = c on the Cayley\342\200\223Dickson ladder, exact over \342\204\232 at every rung, RAISING when b is a right zero divisor. The Class-C mirror of cd_left_divide and NOT obtainable from it: measured rc437, feeding this op the LEFT question \342\200\224 cd_right_divide(a\302\267b, a), asking whether it returns b \342\200\224 scores 0/40 at each of dims 4, 8 and 16, while its own question scores 20/20 there. The two can agree only where the algebra commutes (dims 1\342\200\2232). That is why the pair is two ops: a side= flag would hide a genuine difference of maps behind a default. It solves R(b)\302\267q = c against right_mult_matrix, which rc437 had to BUILD first \342\200\224 nothing on the CD ladder held the right-regular representation (octonion_right_mult / quaternion_right_mult are dim-8 / dim-4 physics-table ops, not ladder ops), which is the whole reason this half cost more than its twin. \342\232\240\357\270\217 Its refusal condition is the RIGHT zero-divisor one, a different predicate from left_mult_is_invertible; the op asks its own operator and claims no coincidence between them. Everything else \342\200\224 the exact-\342\204\232 solve, the `table` argument, the composition_of_c classification, NO new C symbol, ABI 14 \342\200\224 is identical to the left half. SSoT: Bruck, *A Survey of Binary Systems* (1958) \302\247I.1; Schafer (1966) ch. III. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_450, 3u,
-        "tuple",
-        "dim-tuple of exact Q \342\200\224 the unique q with q\302\267b = c; raises ValueError when b is a right zero divisor (or zero)",
+        "Exact-rational kernel basis of the map u \342\206\246 x\302\267u. NONEMPTY \342\237\272 x is a left zero divisor \342\237\272 multiply-by-x is non-injective \342\237\272 no inverse map exists \342\200\224 the 'no backward direction to point' of \302\247VII.6.23.4 (anything past and unobserved is lost). Empty for every nonzero element of a division algebra (\342\211\244\360\235\225\206). Class L (linear-algebra rank). rc352 (`#T997`): pass a structure-constant TABLE and this becomes a zero-divisor WITNESS on any algebra a table can express \342\200\224 split-\360\235\225\206 exhibits one at dim 8, where the shipped ladder has none. Witness half ONLY: zero divisors are measure-zero (left_mult_is_invertible returned True on 300/300 random dim-16 elements), so FINDING a candidate is a separate problem this op does not solve. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_450, 2u,
+        "list",
+        "kernel-basis vectors (Q tuples); empty if invertible",
         1,
         NULL,
-        "{\"input\":{\"b\":\"the RIGHT divisor\",\"c\":\"the dividend b*a \\u2014 note the operand order, which is the whole point; the same call is then fed a*b to show it answers the left question differently\"},\"output\":\"(b*a)/a   : [0, 1, 1, 0, 0, 2, 0, 0]\\nb         : [0, 1, 1, 0, 0, 2, 0, 0]\\nleft op on the RIGHT question: [0, 0, -1, 0, 0, -2, 0, 0] != b\\nwitness   : e1 + e10  norm_sq = 2\",\"why\":\"The two halves round-trip their OWN question 20/20 and answer each other's 0/40 from dim 4 up. That measured separation is why this is a second named op and not a side= flag on the first.\",\"worked\":\"# SUBJECT: the mirror question, and the proof it is a DIFFERENT one.\\nfrom srmech.cascade import (cd_right_divide, cd_left_divide, cd_mult,\\n                            cd_zero_divisor_witness)\\na = [1, 2, 0, 0, 3, 0, 0, 1]; b = [0, 1, 1, 0, 0, 2, 0, 0]\\nba = [-2, -5, 3, -2, 4, 4, 4, 0]          # == cd_mult(b, a), written out\\n[int(v) for v in cd_right_divide(ba, a)]\\n                                # -> [0, 1, 1, 0, 0, 2, 0, 0] == b\\n\\n# hand it the LEFT question and it is wrong, on purpose:\\n[int(v) for v in cd_right_divide(cd_mult(a, b), a)]\\n                                # -> [0, 0, -1, 0, 0, -2, 0, 0] != b\\n\\ny = cd_zero_divisor_witness(16)['y']\\ncd_right_divide([0, 1, 1, 0, 0, 2, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0])\\n                                # -> x / 1 == x, as exact Q\\ncd_right_divide([1] * 16, y)    # -> ValueError: ... is a right zero divisor\"}",
+        "{\"input\":{\"1\":\"len(left_mult_kernel(ZD['x'])), left_mult_kernel(ZD['x'])[0]\",\"2\":\"left_mult_kernel([1,0,0,0,0,0,0,1])\",\"3\":\"len(left_mult_kernel([1,0,0,0,0,0,0,1], table=SPLIT8))\",\"4\":\"left_mult_kernel([1,0,0,0,0,0,0,1], table=SPLIT8)[0]\"},\"output\":{\"1\":\"(4, (Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(1, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(1, 1), Q(0, 1), Q(0, 1), Q(0, 1)))\",\"2\":\"[]\",\"3\":\"4\",\"4\":\"(Q(0, 1), Q(0, 1), Q(0, 1), Q(1, 1), Q(1, 1), Q(0, 1), Q(0, 1), Q(0, 1))\"},\"why\":\"Non-empty kernel = no backward direction: 4 basis vectors for the sedenion witness, empty for 1+e7 on \\ud835\\udd46, and 4 again for that same 1+e7 once the split-\\ud835\\udd46 table is named.\"}",
         NULL,
-        "WHAT \342\200\224 c / b, the unique q with q*b = c, computed exactly over Q at every Cayley-Dickson rung; it returns a tuple of exact Q, or RAISES ValueError when b is a right zero divisor. WHEN \342\200\224 reach for it when the unknown sits on the LEFT of the product, which is a genuinely different situation from cd_left_divide's and not reachable by reordering arguments. What you would otherwise wrongly hand-roll is cd_left_divide with the operands swapped: measured, that answers this question correctly on 0 of 40 draws at each of dims 4, 8 and 16, and only coincides where the algebra commutes (dims 1-2). SIBLINGS \342\200\224 cd_left_divide is the Class-C mirror; right_mult_matrix is the operator this op inverts and had to be built for it, because nothing on the ladder held the right-regular representation (octonion_right_mult / quaternion_right_mult are dim-8 / dim-4 physics-table ops). left_mult_is_invertible answers the LEFT decision question and this op makes NO claim that the left and right zero-divisor predicates coincide \342\200\224 it asks its own operator. cd_mult is the forward direction.",
+        "WHAT \342\200\224 the exact-rational kernel basis of the linear map u \342\206\246 x\302\267u. Non-empty \342\237\272 x is a left zero divisor \342\237\272 multiply-by-x is non-injective \342\237\272 no inverse map exists. Empty for every nonzero element of a division algebra (dims \342\211\244 8 on the definite ladder). WHEN \342\200\224 reach for it to EXHIBIT the failure, not just report it: the kernel vectors are the concrete u that x annihilates. Pass ``table=`` and it becomes a zero-divisor witness on any algebra a table can express \342\200\224 split-\360\235\225\206 exhibits a 4-dimensional kernel at dim 8, where the shipped ladder has none at all. What you would otherwise wrongly hand-roll is building L(x) as a matrix and calling a null-space routine; that is what this op IS, over exact \342\204\232, and its C route (``srmech_qmat_nullspace`` over the table-composed L(x)) is exact at any magnitude. WITNESS HALF ONLY \342\200\224 it answers 'is THIS x a zero divisor'. FINDING a candidate is a different problem it does not solve, and a random search will not: see ``cd_zero_divisor_witness`` for a constructed one. SIBLINGS \342\200\224 ``left_mult_is_invertible`` is the bool peer (cheaper: it can take a modular-rank fast path on the shipped ladder); ``cd_zero_divisor_witness`` supplies the x; ``is_division_algebra_dim`` is the dimension-level statement.",
         ts_composes_450, 1u,
         NULL, 0u,
         NULL,
@@ -14174,11 +14201,71 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 451 */
+        "srmech.cascade.left_mult_is_invertible",
+        "srmech",
+        "cascade",
+        "True iff u \342\206\246 x\302\267u is a bijection (a backward direction exists). Always True for nonzero x at dims \342\211\244 8 ON THE DEFINITE LADDER; False for a zero divisor at dim \342\211\245 16 \342\200\224 the reversibility that ends at the Hurwitz wall. rc352 (`#T997`): hand it a SPLIT table and False appears at dim 2 already, which is the honest answer and the ladder's own wall is not it. With a table the rc12 modular-rank gate does not apply (it rebuilds the signed XOR-circulant from the shipped cocycle, so it is Cayley\342\200\223Dickson-specific by construction) and the op takes the exact-kernel route instead \342\200\224 NOT a degradation: srmech_qmat_nullspace over the srmech_algebra_table_product-composed L(x) is C the whole way down and exact at any magnitude, so a bare-C host answers identically (ADR-0009 \342\200\224 a different C route, not a decline). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_451, 2u,
+        "bool",
+        "True iff multiply-by-x has a (two-sided) inverse map",
+        1,
+        NULL,
+        "{\"input\":{\"1\":\"left_mult_is_invertible([1,0,0,0,0,0,0,1])\",\"2\":\"left_mult_is_invertible([1,0,0,0,0,0,0,1], table=SPLIT8)\",\"3\":\"left_mult_is_invertible(ZD['x'])\",\"4\":\"[(d, is_division_algebra_dim(d), cd_navmap_is_signed_permutation(d)) for d in (4, 8, 16, 32, 64)]\"},\"output\":{\"1\":\"True\",\"2\":\"False\",\"3\":\"False\",\"4\":\"[(4, True, True), (8, True, True), (16, False, True), (32, False, True), (64, False, True)]\"},\"why\":\"The reversibility gate, and the fourth call is the disambiguation: composition fails past dim 8 while addressing (signed-permutation navmaps) survives at 16, 32 and 64.\"}",
+        NULL,
+        "WHAT \342\200\224 True iff u \342\206\246 x\302\267u is a bijection, i.e. iff a backward direction exists. Always True for nonzero x at dims \342\211\244 8 ON THE DEFINITE LADDER; False for a zero divisor at dim \342\211\245 16. WHEN \342\200\224 reach for it as the reversibility GATE before doing something that must be undoable: composite-direction navigation, an unbind, a round trip. Hand it a SPLIT table and False appears at dim 2 already, which is the honest answer \342\200\224 the ladder's own wall is not the only wall. What you would otherwise wrongly hand-roll is a determinant or a rank of a hand-built L(x): with a table this op takes the exact kernel route (C the whole way down, exact at any magnitude), which is a different C route, not a decline. READ THE FOURTH CALL CAREFULLY \342\200\224 invertibility and ADDRESSABILITY are different properties with different boundaries. Composition dies at dim 16 while ``cd_navmap_is_signed_permutation`` stays True at 16, 32 and 64, because zero divisors are built from SUMS of basis elements and addressing is about a SINGLE basis pair. SIBLINGS \342\200\224 ``left_mult_kernel`` returns the witnessing vectors this op reduces to a bool; ``is_division_algebra_dim`` answers for a DIMENSION where this answers for an ELEMENT; ``SedenionRegister.is_navigable`` / ``CDRegister.is_navigable`` are this op wearing the register's clothes.",
+        ts_composes_451, 1u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 452 */
+        "srmech.cascade.cd_left_divide",
+        "srmech",
+        "cascade",
+        "a \\ c \342\200\224 the unique q with a\302\267q = c on the Cayley\342\200\223Dickson ladder, exact over \342\204\232 at every rung, RAISING when a is a left zero divisor. Class C: left-vs-right IS the which-way choice, so this ships as two named ops (cd_right_divide is the other) and never as one op with a side= flag; the quasigroup literature makes the identical move, since defining a quasigroup equationally needs \\ and / as separate primitives. \360\237\224\264 IT IS NOT THE CONJUGATE CLOSED FORM, and the difference is a WRONG ANSWER rather than a slower one. The tempting conj(a)\302\267c/N(a) rests on conj(a)\302\267(a\302\267b) = b, which is FALSE as stated \342\200\224 the identity is conj(a)\302\267(a\302\267b) = N(a)\302\267b. Measured rc437: un-normalised it fails 40/40 on generic elements at EVERY dim 4/8/16/32 (a = (1,2,0,0,3,0,0,1) has N(a) = 15 and it returns 15\302\267b); normalised it is right at dims 2/4/8 (0/40 failures) and WRONG at dims 16 and 32 (40/40), because the step needs ALTERNATIVITY, which dies at \360\235\225\212. \342\232\240\357\270\217 It fails SILENTLY: on the shipped dim-16 zero-divisor witness x = e\342\202\201+e\342\202\201\342\202\200 (N(x) = 2 \342\211\240 0, left-kernel dim 4) the normalised form divides by a perfectly good norm and RETURNS a value that then fails x\302\267q == c. This op raises instead. \342\232\240\357\270\217 A probe of the form a = 1+e\341\265\242 CANNOT see any of it \342\200\224 those elements are near-unit and the normalised form scores 0 failures out of 992 at dim 32; any re-measurement must use GENERIC elements. THE ROUTE: solve L(a)\302\267q = c against left_mult_matrix with the exact-\342\204\232 QMat.solve \342\200\224 measured q == b on 20/20 random nonzero pairs at each of dims 2/4/8/16/32/64, and it refuses on the zero divisor rather than answering. composition_of_c over srmech_qmat_solve + the C-composed L(a) (srmech_cd_mult / srmech_cd_qbasis, all verified present in c/include/srmech.h at rc437): NO new C symbol, ABI stays 14. `table` names a DIFFERENT algebra, so split-\360\235\225\206 refuses at dim 8 where the ladder's own wall has not yet arrived. SSoT: Bruck, *A Survey of Binary Systems* (1958) \302\247I.1; Schafer (1966) ch. III. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_452, 3u,
+        "tuple",
+        "dim-tuple of exact Q \342\200\224 the unique q with a\302\267q = c; raises ValueError when a is a left zero divisor (or zero)",
+        1,
+        NULL,
+        "{\"input\":{\"a\":\"a generic octonion divisor \\u2014 NOT near-unit, which is the only draw that discriminates; then the dim-16 witness e1+e10, whose norm is 2, so a norm check does not see the defect\",\"c\":\"the dividend a*b, so the answer is known to be b\"},\"output\":\"a\\\\(a*b)   : [0, 1, 1, 0, 0, 2, 0, 0]\\nb         : [0, 1, 1, 0, 0, 2, 0, 0]\\nleft op on the RIGHT question: [0, 0, -1, 0, 0, -2, 0, 0] != b\\nwitness   : e1 + e10  norm_sq = 2\\nREFUSED   : cd_left_divide: the divisor `a` is a left zero divisor (or zero) at dim 16 - the map u -> a*u\\nrival returns, x*q == c : False\",\"why\":\"The witness has a perfectly good NONZERO norm, so the closed form conj(a)*c/N(a) divides happily and RETURNS a value which then fails x*q == c. This op raises instead. That single case is the whole reason it solves an operator rather than scaling a conjugate.\",\"worked\":\"# SUBJECT: division on O, then the dim-16 zero divisor that breaks the\\n#   closed-form shortcut SILENTLY.\\nfrom srmech.cascade import (cd_left_divide, cd_right_divide, cd_mult,\\n                            cd_norm_sq, cd_zero_divisor_witness)\\na = [1, 2, 0, 0, 3, 0, 0, 1]; b = [0, 1, 1, 0, 0, 2, 0, 0]\\nc = [-2, 7, -1, 2, -4, 0, -4, 0]          # == cd_mult(a, b), written out\\n[int(v) for v in cd_left_divide(a, c)]    # -> [0, 1, 1, 0, 0, 2, 0, 0] == b\\n\\n# the RIGHT op does NOT answer the left question:\\n[int(v) for v in cd_right_divide(c, a)]   # -> [0, 0, -1, 0, 0, -2, 0, 0]\\n\\nw = cd_zero_divisor_witness(16); x = w['x']\\nw['x_form'], cd_norm_sq(x)      # -> ('e1 + e10', 2)   a NONZERO norm\\ncd_left_divide([1, 0, 0, 0, 0, 0, 0, 0], [0, 1, 1, 0, 0, 2, 0, 0])\\n                                # -> 1 \\\\ x == x, as exact Q\\ncd_left_divide(x, [1] * 16)     # -> ValueError: ... is a left zero divisor\"}",
+        NULL,
+        "WHAT \342\200\224 a \\ c, the unique q with a*q = c, computed exactly over Q at every Cayley-Dickson rung; it returns a tuple of exact Q, or RAISES ValueError when a is a left zero divisor. WHEN \342\200\224 reach for it any time you would otherwise write conj(a)*c/N(a). That shortcut is the thing to not hand-roll, and the reason is sharper than performance: the identity behind it is conj(a)*(a*b) = N(a)*b, not = b, and even normalised it needs ALTERNATIVITY, so it is right at dims 2/4/8 (0/40 failures measured) and wrong at 16 and 32 (40/40) \342\200\224 and on a zero divisor with nonzero norm it RETURNS a non-solution instead of failing. A probe built from a = 1 + e_i cannot see any of that (0 failures out of 992 at dim 32), so use generic elements if you re-measure. SIBLINGS \342\200\224 cd_right_divide is the Class-C mirror and is a DIFFERENT question, not a flag on this one: feeding this op's question to that one scores 0/40 at dims 4, 8 and 16. left_mult_is_invertible and left_mult_kernel answer the DECISION and the WITNESS versions of the same wall and are what to reach for when you want to know WHY a division failed; left_mult_matrix is the operator this op inverts. cd_mult is the forward direction.",
+        ts_composes_452, 1u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 453 */
+        "srmech.cascade.cd_right_divide",
+        "srmech",
+        "cascade",
+        "c / b \342\200\224 the unique q with q\302\267b = c on the Cayley\342\200\223Dickson ladder, exact over \342\204\232 at every rung, RAISING when b is a right zero divisor. The Class-C mirror of cd_left_divide and NOT obtainable from it: measured rc437, feeding this op the LEFT question \342\200\224 cd_right_divide(a\302\267b, a), asking whether it returns b \342\200\224 scores 0/40 at each of dims 4, 8 and 16, while its own question scores 20/20 there. The two can agree only where the algebra commutes (dims 1\342\200\2232). That is why the pair is two ops: a side= flag would hide a genuine difference of maps behind a default. It solves R(b)\302\267q = c against right_mult_matrix, which rc437 had to BUILD first \342\200\224 nothing on the CD ladder held the right-regular representation (octonion_right_mult / quaternion_right_mult are dim-8 / dim-4 physics-table ops, not ladder ops), which is the whole reason this half cost more than its twin. \342\232\240\357\270\217 Its refusal condition is the RIGHT zero-divisor one, a different predicate from left_mult_is_invertible; the op asks its own operator and claims no coincidence between them. Everything else \342\200\224 the exact-\342\204\232 solve, the `table` argument, the composition_of_c classification, NO new C symbol, ABI 14 \342\200\224 is identical to the left half. SSoT: Bruck, *A Survey of Binary Systems* (1958) \302\247I.1; Schafer (1966) ch. III. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_453, 3u,
+        "tuple",
+        "dim-tuple of exact Q \342\200\224 the unique q with q\302\267b = c; raises ValueError when b is a right zero divisor (or zero)",
+        1,
+        NULL,
+        "{\"input\":{\"b\":\"the RIGHT divisor\",\"c\":\"the dividend b*a \\u2014 note the operand order, which is the whole point; the same call is then fed a*b to show it answers the left question differently\"},\"output\":\"(b*a)/a   : [0, 1, 1, 0, 0, 2, 0, 0]\\nb         : [0, 1, 1, 0, 0, 2, 0, 0]\\nleft op on the RIGHT question: [0, 0, -1, 0, 0, -2, 0, 0] != b\\nwitness   : e1 + e10  norm_sq = 2\",\"why\":\"The two halves round-trip their OWN question 20/20 and answer each other's 0/40 from dim 4 up. That measured separation is why this is a second named op and not a side= flag on the first.\",\"worked\":\"# SUBJECT: the mirror question, and the proof it is a DIFFERENT one.\\nfrom srmech.cascade import (cd_right_divide, cd_left_divide, cd_mult,\\n                            cd_zero_divisor_witness)\\na = [1, 2, 0, 0, 3, 0, 0, 1]; b = [0, 1, 1, 0, 0, 2, 0, 0]\\nba = [-2, -5, 3, -2, 4, 4, 4, 0]          # == cd_mult(b, a), written out\\n[int(v) for v in cd_right_divide(ba, a)]\\n                                # -> [0, 1, 1, 0, 0, 2, 0, 0] == b\\n\\n# hand it the LEFT question and it is wrong, on purpose:\\n[int(v) for v in cd_right_divide(cd_mult(a, b), a)]\\n                                # -> [0, 0, -1, 0, 0, -2, 0, 0] != b\\n\\ny = cd_zero_divisor_witness(16)['y']\\ncd_right_divide([0, 1, 1, 0, 0, 2, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0])\\n                                # -> x / 1 == x, as exact Q\\ncd_right_divide([1] * 16, y)    # -> ValueError: ... is a right zero divisor\"}",
+        NULL,
+        "WHAT \342\200\224 c / b, the unique q with q*b = c, computed exactly over Q at every Cayley-Dickson rung; it returns a tuple of exact Q, or RAISES ValueError when b is a right zero divisor. WHEN \342\200\224 reach for it when the unknown sits on the LEFT of the product, which is a genuinely different situation from cd_left_divide's and not reachable by reordering arguments. What you would otherwise wrongly hand-roll is cd_left_divide with the operands swapped: measured, that answers this question correctly on 0 of 40 draws at each of dims 4, 8 and 16, and only coincides where the algebra commutes (dims 1-2). SIBLINGS \342\200\224 cd_left_divide is the Class-C mirror; right_mult_matrix is the operator this op inverts and had to be built for it, because nothing on the ladder held the right-regular representation (octonion_right_mult / quaternion_right_mult are dim-8 / dim-4 physics-table ops). left_mult_is_invertible answers the LEFT decision question and this op makes NO claim that the left and right zero-divisor predicates coincide \342\200\224 it asks its own operator. cd_mult is the forward direction.",
+        ts_composes_453, 1u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 454 */
         "srmech.cascade.is_division_algebra_dim",
         "srmech",
         "cascade",
         "True iff the dim-D Cayley\342\200\223Dickson algebra is a normed division algebra (Hurwitz 1898): the reversible interior is exactly dims 1, 2, 4, 8. The boundary between the simulable \342\211\244\360\235\225\206 substrate and the open exterior (\342\211\24516). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_451, 1u,
+        ts_params_454, 1u,
         "bool",
         "True for dim in {1,2,4,8}, else False",
         1,
@@ -14193,12 +14280,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 452 */
+    { /* 455 */
         "srmech.cascade.sedenion_register",
         "srmech",
         "cascade",
         "Construct a SedenionRegister \342\200\224 the sedenion (dim-16) ADDRESSABLE RBS-HDC instrument (UPSTREAM \302\24731; F465/F468). The sedenion box made into a named-register instrument: 16 slots e0..e15 \342\200\224 the octonion block e0..e7 is the \342\211\2447 REVERSIBLE working word (hypercomplex_couple, bit-exact \342\211\244\360\235\225\206), e8..e15 the EC/CARRY block (Hamming GF(2), \302\24730). HDC ops INSTEAD of ALU: random-access-by-name (hdc.bind + nearest-codebook clean = associative superposition, classical, no quantum cost). The genuinely-new surface is .navigate(j) \342\200\224 the address\342\206\224Cayley\342\200\223Dickson homomorphism (right-mult every slot-name by e_j so addressing respects e_i\302\267e_j=\302\261e_k, the cd_basis_product cocycle) \342\200\224 and .is_navigable(direction) the reversibility gate (left_mult_is_invertible): single-basis nav is always a signed permutation, composite-direction nav reversible ONLY \342\211\244\360\235\225\206 (the Hurwitz horizon). Pure composition of shipped primitives \342\200\224 no new algebra, no abs() (sign is Class C chiral_flip). The WHOLE instrument is numpy-free: storage + coupler route through mint_vector / the Class-M hdc cascades, and navigate/is_navigable/carry/correct are pure address-algebra. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_452, 2u,
+        ts_params_455, 2u,
         "SedenionRegister",
         "the instrument \342\200\224 .write/.read (addressable storage), .couple_working/.uncouple_working (\342\211\2447 reversible word), .carry/.correct (EC block), .navigate/.is_navigable (hyper-loop)",
         1,
@@ -14213,12 +14300,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 453 */
+    { /* 456 */
         "srmech.cascade.cd_register",
         "srmech",
         "cascade",
         "Construct a CDRegister \342\200\224 the GENERAL N-slot Cayley\342\200\223Dickson ADDRESSABLE RBS-HDC register (`#934`). The dim-16 sedenion_register generalised to any power-of-two dim in [1, 64]: dim named slots e0..e{dim-1}, with e0..e7 the octonion reversible working block at EVERY rung and the remainder the carry/EC block (more slots buy ADDRESS SPACE, never a longer reversible word \342\200\224 the Hurwitz cap stays 7). The slot bound is the ONLY generalisation: every sign and index rule is shared with the 16-slot register through cd_basis_product, so there is no second algebra. LEGITIMATE PAST THE HURWITZ WALL because addressing rides on the basis product being a SIGNED PERMUTATION (e_i\302\267e_j=\302\261e_k), while zero divisors are built from SUMS of basis elements \342\200\224 disjoint properties, so the boundary that breaks composition at dim\342\211\24516 (and ~95% of generic pairs at 32) leaves addressing intact (F1274/F1275). namespace= selects the address-mint namespace (default 'CD{dim}'); namespace='SEDENION' at dim=16 reproduces the shipped SedenionRegister BIT-EXACTLY at every D \342\200\224 the faithfulness gate. Capacity is D-bounded and MORE SLOTS NEED MORE D: a shortfall at fixed D is a capacity fact, not an algebra fact \342\200\224 sweep D. numpy-free; no abs() (sign is Class-K pin-slot \342\210\230 Class-C). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_453, 6u,
+        ts_params_456, 6u,
         "CDRegister",
         "the register \342\200\224 CORE: .write/.read (addressable storage), .element/.norm/.conjugate/.multiply/.add (per-rung carrier arithmetic over the slot-held signed-basis element \316\243 sign_i\302\267e_i \342\200\224 the method-form of cd_norm_sq/cd_conjugate/cd_mult/cd_add; `#948`), .navmap/.navigate (the address\342\206\224Cayley\342\200\223Dickson homomorphism), .is_navigable (reversibility gate), .working_block/.carry_block (the block split); OPT (opt-in): .couple_working/.uncouple_working (reversible word), .carry/.correct (EC block)",
         1,
@@ -14233,12 +14320,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 454 */
+    { /* 457 */
         "srmech.cascade.cd_navmap",
         "srmech",
         "cascade",
         "The signed pointer-advance permutation for right-multiply-by-e_j over dim slots: maps each slot i to (k, sign) where e_i\302\267e_j = sign\302\267e_k (the cd_basis_product cocycle). The general-rung form of SedenionRegister.navmap; at dim=16 bit-identical to it. ALWAYS a signed permutation \342\200\224 reversible at EVERY rung for a single basis direction, including past the Hurwitz wall (F1275). Integer-only; the JPL-clean C peer srmech_cd_navmap returns the identical map. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_454, 2u,
+        ts_params_457, 2u,
         "dict",
         "{i: (dest, sign)} over all dim slots; sign in {+1,-1}",
         1,
@@ -14246,19 +14333,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"len(cd_navmap(64, 63))\",\"2\":\"[cd_navmap(64, 63)[i] for i in (0, 21, 42, 63)]\",\"3\":\"sorted(v[0] for v in cd_navmap(64, 63).values()) == list(range(64))\",\"4\":\"sum(1 for v in cd_navmap(64, 63).values() if v[1] < 0)\",\"5\":\"cd_navmap(8, 1)\"},\"output\":{\"1\":\"64\",\"2\":\"[(63, 1), (42, -1), (21, 1), (0, -1)]\",\"3\":\"True\",\"4\":\"32\",\"5\":\"{0: (1, 1), 1: (0, -1), 2: (3, -1), 3: (2, 1), 4: (5, -1), 5: (4, 1), 6: (7, 1), 7: (6, -1)}\"},\"why\":\"One call gives the entire \\u00d7e_j route: at dim 64 with j = 63 it is the attested code's own Rumer involution, a bijection over all 64 codon slots, 32 of which carry a negative Class-C sign.\"}",
         NULL,
         "WHAT \342\200\224 the whole signed pointer-advance permutation for right-multiply-by-e_j over dim slots: slot i \342\206\246 (k, sign) where e_i\302\267e_j = sign\302\267e_k. Integer-only, with a JPL-clean C peer (``srmech_cd_navmap``) returning the identical map. WHEN \342\200\224 reach for it when you need the ROUTE for a whole register at once rather than one basis pair: a permutation table to apply, an audit of how many slots pick up a sign, an addressing plan. Grounded here on the attested Standard Genetic Code \342\200\224 64 codons at 6-bit addresses, and j = 63 is the Rumer direction, so this single map is the T\342\206\224G / C\342\206\224A involution over the entire code with a Class-C sign attached to each of the 64 moves (32 of them negative). What you would otherwise wrongly hand-roll is a loop over ``cd_basis_product(dim, i, j)`` \342\200\224 which is exactly what this is, already C-dispatched. SIBLINGS \342\200\224 ``cd_basis_product`` is one entry of this map; ``cd_navigate`` APPLIES it to occupied (slot, sign) records and composes the signs; ``cd_navmap_is_signed_permutation`` checks the bijection+sign-domain premise over every j; ``CDRegister.navmap`` / ``.navigate`` are the register-bound forms.",
-        ts_composes_454, 1u,
+        ts_composes_457, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 455 */
+    { /* 458 */
         "srmech.cascade.cd_navigate",
         "srmech",
         "cascade",
         "Route occupied (slot, sign) records through the \303\227e_j permutation at dim slots, composing the CLASS-C signs: out_signs[m] = signs[m]\302\267s where e_{slots[m]}\302\267e_j = s\302\267e_{out_slots[m]}. The numeric core of CDRegister.navigate (the key strings ride alongside in the caller); at dim=16 bit-identical to the sedenion navigate routing. Integer-only; the JPL-clean C peer srmech_cd_navigate returns the identical routing. No abs() \342\200\224 the sign is composed, never dropped. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_455, 4u,
+        ts_params_458, 4u,
         "tuple",
         "(out_slots, out_signs) \342\200\224 two lists, parallel to the input",
         1,
@@ -14266,19 +14353,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"cd_navigate(64, 63, [0, 21, 42, 63], [1, 1, 1, 1])\",\"2\":\"[codon(i) for i in (0, 21, 42, 63)]\",\"3\":\"[codon(i) for i in cd_navigate(64, 63, [0,21,42,63], [1,1,1,1])[0]]\",\"4\":\"cd_navigate(64, 63, *cd_navigate(64, 63, [0,21,42,63], [1,1,1,1]))\"},\"output\":{\"1\":\"([63, 42, 21, 0], [1, -1, 1, -1])\",\"2\":\"['TTT', 'CCC', 'AAA', 'GGG']\",\"3\":\"['GGG', 'AAA', 'CCC', 'TTT']\",\"4\":\"([0, 21, 42, 63], [-1, -1, -1, -1])\"},\"why\":\"Sparse occupancy in, routed occupancy out with signs composed: TTT/CCC/AAA/GGG map to GGG/AAA/CCC/TTT, and going round twice restores the slots while leaving every sign flipped.\"}",
         NULL,
         "WHAT \342\200\224 route occupied ``(slot, sign)`` records through the \303\227e_j permutation and COMPOSE the Class-C signs: ``out_signs[m] = signs[m] \302\267 s`` where ``e_{slots[m]}\302\267e_j = s\302\267e_{out_slots[m]}``. Integer-only, C peer ``srmech_cd_navigate``. No ``abs()`` \342\200\224 the sign is composed, never dropped. WHEN \342\200\224 reach for it to move a sparse occupancy, not a dense element: you have the few slots that are actually filled and you want them advanced with their orientation intact. This is the numeric core of ``CDRegister.navigate``; the key strings ride alongside in the caller. WHAT THE FOURTH CALL TEACHES \342\200\224 navigating twice by e63 returns every codon to its own slot and brings the WHOLE occupancy back with sign \342\210\2221, because e63\302\267e63 = \342\210\2221. Rumer is an order-2 involution on the INDEX lane and not on the sign lane; a hand-rolled index-only permutation would report an identity here and lose exactly that residue. SIBLINGS \342\200\224 ``cd_navmap`` is the map this applies (use it when you want the route itself); ``cd_basis_product`` is the per-pair atom; ``cascade.net_chirality`` reduces a sequence of orientations to one net sign but knows nothing about slots.",
-        ts_composes_455, 1u,
+        ts_composes_458, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 456 */
+    { /* 459 */
         "srmech.cascade.cd_navmap_is_signed_permutation",
         "srmech",
         "cascade",
         "THE STRUCTURAL INVARIANT ADDRESSING RIDES ON, checked rather than assumed (F1274/F1275): for EVERY direction j in [0, dim), is i\342\206\222(dest, sign) a bijection on [0, dim) with every sign in {+1,-1}? This is what makes an N-slot register legitimate past the Hurwitz boundary \342\200\224 composition fails at dim\342\211\24516 and for ~95% of generic pairs at 32, while addressing is untouched, because zero divisors are built from SUMS of basis elements and this property is about a SINGLE basis pair. SCOPE: verifies the bijection + sign-domain of the navmap AS COMPUTED BY the cd_basis_product cocycle; it does NOT independently re-derive e_i\302\267e_j from a full Cayley\342\200\223Dickson multiplication \342\200\224 that cross-path check (cocycle vs full cd_mult, 4096/4096 pairs at dim 64) is enforced in the Python test suite. The JPL-clean C peer srmech_cd_navmap_is_signed_permutation returns the identical bool, so a bare-C host can verify its own address layer before trusting it. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_456, 1u,
+        ts_params_459, 1u,
         "bool",
         "True iff the premise holds at this rung",
         1,
@@ -14286,19 +14373,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"[(d, cd_navmap_is_signed_permutation(d)) for d in (2, 4, 8, 16, 32, 64)]\",\"2\":\"[(d, is_division_algebra_dim(d)) for d in (2, 4, 8, 16, 32, 64)]\",\"3\":\"left_mult_is_invertible(ZD['x'])\",\"4\":\"sorted(v[0] for v in cd_navmap(32, 17).values()) == list(range(32))\"},\"output\":{\"1\":\"[(2, True), (4, True), (8, True), (16, True), (32, True), (64, True)]\",\"2\":\"[(2, True), (4, True), (8, True), (16, False), (32, False), (64, False)]\",\"3\":\"False\",\"4\":\"True\"},\"why\":\"Checked, not assumed: the addressing premise holds at 16, 32 and 64 \\u2014 exactly the rungs where is_division_algebra_dim is False and the sedenion witness has no inverse.\"}",
         NULL,
         "WHAT \342\200\224 THE STRUCTURAL INVARIANT ADDRESSING RIDES ON, checked rather than assumed: for EVERY direction j in [0, dim), is i \342\206\246 (dest, sign) a bijection on [0, dim) with every sign in {+1, \342\210\2221}? WHEN \342\200\224 reach for it before trusting an N-slot register past dim 8, and reach for it INSTEAD OF assuming that the Hurwitz wall bounds addressing. The first two calls are the whole point side by side: ``is_division_algebra_dim`` goes False at 16 while this stays True at 16, 32 and 64. Composition fails past the wall \342\200\224 for ~95% of generic pairs at dim 32 \342\200\224 and addressing is untouched, because zero divisors are built from SUMS of basis elements and this property is about a SINGLE basis pair. That is why ``cd_register(64)`` is legitimate. SCOPE \342\200\224 it verifies the bijection and sign-domain of the navmap AS COMPUTED BY the ``cd_basis_product`` cocycle. It does NOT independently re-derive e_i\302\267e_j from a full Cayley\342\200\223Dickson multiply; that cross-path check (cocycle vs ``cd_mult``, 4096/4096 pairs at dim 64) lives in the Python test suite. The C peer ``srmech_cd_navmap_is_signed_permutation`` returns the identical bool, so a bare-C host can verify its own address layer. SIBLINGS \342\200\224 ``cd_navmap`` is the map being checked; ``left_mult_is_invertible`` is the COMPOSITION-side gate that genuinely fails past 8; ``is_division_algebra_dim`` is the dimension-level statement of that other boundary.",
-        ts_composes_456, 1u,
+        ts_composes_459, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 457 */
+    { /* 460 */
         "srmech.cascade.cd_couple_working",
         "srmech",
         "cascade",
         "Bind \342\211\244 min(dim,8)\342\210\2221 real streams into one REVERSIBLE working word \342\200\224 THE canonical Class-M bind on the Cayley\342\200\223Dickson register (`#T938`). The dim-scaled generalisation of the sedenion's \342\211\2447 working word: the cap is min(dim,8)\342\210\2221, DERIVED from Hurwitz, never a hardcoded 7 \342\200\224 dim 2 couples 1 imaginary slot, dim 4 couples 3, dim 8/16/\342\200\246/256 couple 7 (the e0..e7 octonion subalgebra of every higher rung), dim 1 (\342\204\235) couples nothing (the degenerate base: empty in \342\206\222 empty out). Composes hypercomplex_couple (axis='diagonal', the F436 coupling axis; its octonion multiply dispatches to the standalone-C srmech_hypercomplex_couple_q61) \342\200\224 reversed exactly by cd_uncouple_working (T\314\204\302\267(T\302\267q)=\342\200\226T\342\200\226\302\262\302\267q, F437). At dim 16 bit-exact with the shipped SedenionRegister.couple_working. No abs() (the coupler's sign is Class-K \342\210\230 Class-C). Class M \342\210\230 C \342\210\230 N. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_457, 2u,
+        ts_params_460, 2u,
         "list[float]",
         "the coupled working word \342\200\224 a 4-component quaternion (\342\211\2443 streams) or 8-component octonion (4\342\200\2237 streams); [] if empty",
         1,
@@ -14313,12 +14400,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 458 */
+    { /* 461 */
         "srmech.cascade.cd_uncouple_working",
         "srmech",
         "cascade",
         "Recover the streams bound by cd_couple_working \342\200\224 the EXACT inverse (the Class-M unbind; `#T938`). Applies the conjugate twiddle (inverse=True) and drops the anchor slot, returning the carrier's imaginary components (7 for an octonion word, 3 for a quaternion word). Empty in \342\206\222 empty out (the dim-1 boundary). Recovery is exact to float round-off (the division-algebra identity T\314\204\302\267(T\302\267q)=\342\200\226T\342\200\226\302\262\302\267q, F437), matching the shipped register's tolerance. Composes hypercomplex_couple; no abs(). Class M \342\210\230 C \342\210\230 N. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_458, 1u,
+        ts_params_461, 1u,
         "list[float]",
         "the recovered streams (the carrier's imaginary slots); [] if empty",
         1,
@@ -14333,12 +14420,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 459 */
+    { /* 462 */
         "srmech.cascade.cd_carry",
         "srmech",
         "cascade",
         "Encode overflow bits (past the reversible working set) into a Hamming(2\342\201\277\342\210\2221) single-error-correcting GF(2) codeword \342\200\224 the EC/carry layer of the register (`#T938`). The EC axis is INDEPENDENT of the register's dim: the block size is set by n (parity-bit count; codeword 2\342\201\277\342\210\2221, data 2\342\201\277\342\210\2221\342\210\222n), NOT by the slot count. Composes hamming_encode (the srmech_hamming_encode C peer). Lean-ALU XOR-native (GF(2) add = parity = XOR); no float, no libm, no abs(). Class B \342\210\230 I \342\210\230 A. SSoT: Hamming (1950). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_459, 2u,
+        ts_params_462, 2u,
         "list[int]",
         "the 2\342\201\277\342\210\2221-bit codeword (0/1 list)",
         1,
@@ -14346,19 +14433,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"cd_carry([0, 1, 1, 1], n=3)\",\"2\":\"cd_correct(cd_carry([0, 1, 1, 1], n=3))\",\"3\":\"len(cd_carry([1]*11, n=4))\",\"4\":\"_err(lambda: cd_carry([0, 1, 1], n=3))[:96]\"},\"output\":{\"1\":\"[0, 0, 0, 1, 1, 1, 1]\",\"2\":\"{'data': [0, 1, 1, 1], 'error_position': 0, 'corrected_codeword': [0, 0, 0, 1, 1, 1, 1]}\",\"3\":\"15\",\"4\":\"'ValueError: Hamming(2^3-1=7, 4) needs exactly 4 data bits; got 3'\"},\"why\":\"Overflow past the \\u22647 working word becomes a Hamming codeword: the 4-bit dinucleotide root [0,1,1,1] = 'CG' encodes to 7 bits and decodes back, on an axis set by n and not by the register's dim.\"}",
         NULL,
         "WHAT \342\200\224 encode overflow bits (everything past the reversible working set) into a Hamming(2\342\201\277\342\210\2221) single-error-correcting GF(2) codeword. Lean-ALU XOR only: GF(2) add is parity is XOR \342\200\224 no float, no libm, no ``abs()``. WHEN \342\200\224 reach for it for whatever will not fit in the \342\211\2447-value working word. THE EC AXIS IS INDEPENDENT OF THE REGISTER'S dim: block size is set by n (codeword 2\342\201\277\342\210\2221, data 2\342\201\277\342\210\2221\342\210\222n), NOT by the slot count, so a dim-64 register and a dim-16 register carry identically. The example encodes a dinucleotide root of the attested genetic code \342\200\224 2 bases \303\227 2 bits = exactly Hamming(7,4)'s payload width \342\200\224 so a single-bit transcription error in the root is recoverable. SIBLINGS \342\200\224 ``cd_correct`` is the read; ``hamming_encode`` / ``hamming_syndrome`` / ``hamming_decode_correct`` are the same code as free primitives (this is ``hamming_encode`` with the register's default n=3, the octonion's own Fano plane), so do not implement a third Hamming; ``cd_couple_working`` is the OTHER, reversible layer \342\200\224 coupling is lossless and capped at 7, carrying is lossy-free but spends parity bits.",
-        ts_composes_459, 1u,
+        ts_composes_462, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 460 */
+    { /* 463 */
         "srmech.cascade.cd_correct",
         "srmech",
         "cascade",
         "Locate + correct a single-bit error in an EC-block codeword and recover the carried payload \342\200\224 the EC/carry layer's read (`#T938`). Single-error-correcting (minimum distance 3): a clean or single-error word recovers exactly. Composes hamming_decode_correct (the syndrome dispatches to srmech_hamming_syndrome). Lean-ALU XOR; no float, no libm, no abs() (the located bit is a Class-K GF(2) flip). Class B \342\210\230 I \342\210\230 A. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_460, 1u,
+        ts_params_463, 1u,
         "dict",
         "{'data': k corrected payload bits, 'error_position': int (0=clean), 'corrected_codeword': the repaired 2\342\201\277\342\210\2221-bit word}",
         1,
@@ -14366,19 +14453,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"cd_carry([0, 1, 1, 1], n=3)\",\"2\":\"cd_correct([0, 0, 0, 1, 1, 1, 1])\",\"3\":\"cd_correct([0, 0, 0, 1, 0, 1, 1])\",\"4\":\"cd_correct([1, 0, 0, 1, 1, 1, 1])\"},\"output\":{\"1\":\"[0, 0, 0, 1, 1, 1, 1]\",\"2\":\"{'data': [0, 1, 1, 1], 'error_position': 0, 'corrected_codeword': [0, 0, 0, 1, 1, 1, 1]}\",\"3\":\"{'data': [0, 1, 1, 1], 'error_position': 5, 'corrected_codeword': [0, 0, 0, 1, 1, 1, 1]}\",\"4\":\"{'data': [0, 1, 1, 1], 'error_position': 1, 'corrected_codeword': [0, 0, 0, 1, 1, 1, 1]}\"},\"why\":\"Clean, data-bit flip and parity-bit flip all recover the same 4-bit payload, with the 1-indexed error position reported rather than swallowed.\"}",
         NULL,
         "WHAT \342\200\224 locate and correct a single-bit error in an EC-block codeword and recover the carried payload: ``{'data', 'error_position' (1-indexed, 0 = clean), 'corrected_codeword'}``. WHEN \342\200\224 reach for it as the read half of ``cd_carry``. SINGLE-ERROR-CORRECTING, minimum distance 3 \342\200\224 a clean or single-error word recovers exactly, and the example shows all three cases: clean (position 0), a flipped DATA bit (position 5), a flipped PARITY bit (position 1). Both flips recover the same payload, which is the property that makes the code useful and the reason ``error_position`` is worth returning rather than swallowing. Two errors are OUT OF SCOPE and will mis-correct silently \342\200\224 that is the code's contract, not a defect. SIBLINGS \342\200\224 ``cd_carry`` is the encode; ``hamming_syndrome`` returns just the position, ``hamming_decode_correct`` is this op's free-function twin \342\200\224 the Hamming code ships once and is reached three ways, so do not add a fourth; ``cd_uncouple_working`` is the read of the OTHER layer (reversible, no parity, capped at 7).",
-        ts_composes_460, 1u,
+        ts_composes_463, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 461 */
+    { /* 464 */
         "srmech.cascade.signed_sum_squared",
         "srmech",
         "cascade",
         "Element-wise squared signed-sum across a stack of bit sources \342\200\224 the coupling-score composite (UPSTREAM \302\2471.2). Per position: s = \316\243_sources (2\302\267bit\342\210\2221) (Class K bipolar transform); out = s\302\262 (Class L signed-magnitude-square). Large where sources agree (coherent |\316\243|\342\211\210N), ~0 where they cancel \342\200\224 the coupling score. No abs(): the square carries the sign boundary. Operates on a stack of source arrays, not a single graph. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_461, 1u,
+        ts_params_464, 1u,
         "list[int]",
         "per-position squared signed-sum",
         1,
@@ -14393,12 +14480,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 462 */
+    { /* 465 */
         "srmech.cascade.top_k_by_score",
         "srmech",
         "cascade",
         "Indices of the k highest- (or lowest-) scoring items \342\200\224 the catalog selection composite (UPSTREAM \302\2471.3). Class E (sorted-key order) \342\210\230 Class K (sparse truncate to top/bottom k). Stable: ties keep ascending index order. The band-selection / weak-coupling-prune step (top-K bands by magnitude; bottom-K bits by coupling-square). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_462, 3u,
+        ts_params_465, 3u,
         "list[int]",
         "k indices, best-first",
         1,
@@ -14413,12 +14500,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 463 */
+    { /* 466 */
         "srmech.math.hdc.bundle_with_ties",
         "srmech",
         "hdc",
         "Bitwise majority across ANY number of BSC vectors, with the tie state surfaced (UPSTREAM rbs_nn Note 1). Unlike bundle (odd N only, no ties), accepts any N and returns (majority, ties): majority bit = 1 where strictly >half are set (tie\342\206\2220; for odd N equals bundle exactly); ties bit = 1 where the counts are exactly equal (even N only). A tie is a Class K event \342\200\224 the bundle accumulator crossing zero (the phase-boundary / derivative-sign-flip of MFO \302\247VII.6.12.1), surfaced without changing the binary-byte storage form. No abs(); counts only. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_463, 1u,
+        ts_params_466, 1u,
         "tuple",
         "(majority_bytes, ties_bytes) \342\200\224 each the input length",
         1,
@@ -14433,12 +14520,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 464 */
+    { /* 467 */
         "srmech.cascade.the_one",
         "srmech",
         "cascade",
         "The One \342\200\224 S(\317\203,\316\270), the single generator of the 1+3+7+3 = 14 substrate (#887). Builds the Hurwitz division-algebra ladder \342\250\201_{n=1}^{3} (\342\204\235\302\2671 \342\212\225 \317\203\302\267e^{\303\216_n\316\270}\302\267Im \360\235\224\270_n) (\360\235\224\270\342\202\201=\342\204\202, \360\235\224\270\342\202\202=\342\204\215, \360\235\224\270\342\202\203=\360\235\225\206) as one (\317\203,\316\270)-parameterised `One` of three Blocks tiling the A\342\200\223N partition: the imaginary dims 1/3/7 carry A / I,C,J / D,E,F,G,K,L,M, and the three \342\204\235\302\2671 reals are the +3 grammar B,H,N. e^{\303\216_n\316\270}=cos\316\270+\303\216_n sin\316\270 is the exact-rational Class-N epicycle (rational.{cos,sin}_series_truncate); \317\203 is Class K sign \342\210\230 Class C apply (never abs()); \342\250\201 over n is Class I. At n=1 (Im \342\204\202 one-dimensional) the seed coincides with the rotation axis so \316\270 is inert and only \317\203 survives.exact-rational; the opt-in One.to_matrix() float realisation is a numpy-free 14x14 Mat. No new primitive class. SSoT: Hurwitz (1898); the parallelizable-sphere ladder S\302\271,S\302\263,S\342\201\267.",
-        ts_params_464, 5u,
+        ts_params_467, 5u,
         "One",
         "structured generator: three Blocks tiling 1+3+7+3 = 14",
         1,
@@ -14453,12 +14540,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 465 */
+    { /* 468 */
         "srmech.cascade.winding_fold",
         "srmech",
         "cascade",
         "The 2\317\200 seam-fold as the DIVMOD it is: theta \342\206\222 (w, theta_res) with theta = 2\317\200\302\267w + theta_res, the quotient KEPT (the #741 mod-should-be-divmod audit, finding F-2). w = round(theta/2\317\200) (round-half-toward-+\342\210\236) is the METACYCLE winding \342\200\224 the whole 2\317\200 turns a bare float `theta % (2*pi)` throws away (the grading-collapse the audit hunts, and a precision hazard vs the exact fold); theta_res is the EPICYCLE residue (|theta_res| \342\211\244 \317\200). The op an external consumer folds an accumulated angle with (a Kuramoto phase, an Im(z)\302\267\316\273 from its own solve) \342\200\224 the SAME fold propagate/propagate_wound run at the seam (no forked 2\317\200 constant), exposed first-class. The winding feeds the One's metacycle dial directly (the_one(\317\203, \316\270_num, \316\270_den, w=(w,0,0)) \342\206\222 sigma_effective / spinor_sign / unwrapped_phase). Cascade: Class-I divmod (quotient retained) over the exact Class-N 2\317\200 (Machin-2\317\200 rational pure / Q61 2/\317\200 native); residue sign Class K/C, never abs(). Dispatches to the native srmech_winding_fold (rc207) inside its |theta| < 2^55 domain; the pure exact-rational Machin-2\317\200 divmod is the COMPLETE alternative at any finite float. Native == pure: w exact-integer equal; theta_res to the fold grids' common resolution. Complex input rejected (real-axis fold); non-finite rejected (finite-angle domain).",
-        ts_params_465, 1u,
+        ts_params_468, 1u,
         "tuple",
         "(w, theta_res) \342\200\224 w the whole-\342\204\244 metacycle winding (int), theta_res the folded epicycle residue (float, |theta_res| \342\211\244 \317\200); 2\317\200\302\267w + theta_res reconstructs theta on the fold grid",
         1,
@@ -14473,12 +14560,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 466 */
+    { /* 469 */
         "srmech.cascade.frame_carrier.frame_carrier",
         "srmech",
         "cascade",
         "The FRAME-CARRYING CARRIER: augment a 2\317\200-periodic truncated Taylor series (sin/cos_series_truncate) with its local beat-frame (sigma, winding) so cross-seam compares can parallel-transport it (rc238). The raw series truncates the argument p/q DIRECTLY (it does NOT fold), so sin at theta vs theta+2\317\200 drifts \342\200\224 exact WITHIN a beat (|x|\342\211\244\317\200, w=0) but NOT bit-exact across the 2\317\200 seam. This returns the (value, frame) pair \342\200\224 the rc125 recoverable-fold (lossy, exact_seed) analogue with the FRAME as the exact second leg: value = the raw local series (drifts across the seam); winding/residue/sigma = the exact frame (connection element) a compare transports. residue is the canonical in-beat representative (|r|\342\211\244\317\200, theta folded to w=0); transported = the seam-invariant value the compare aligns on. Cascade (composition_of_c, no new C symbol): the c_dispatched Class-N sin/cos series; the transport is the EXACT-rational 2\317\200 divmod over the Machin-2\317\200 anchor _EPH_TWO_PI (Class-I quotient- retained divmod over the exact Class-N 2\317\200; residue sign Class K/C, never abs()) \342\200\224 NOT winding_fold's float residue; reduction rides the c_dispatched Class-I rational reduce.",
-        ts_params_466, 5u,
+        ts_params_469, 5u,
         "dict",
         "{func, arg, sigma, winding, residue, num_terms, value, transported} \342\200\224 value the raw (drifting) leg, winding/residue/sigma the exact frame, transported the seam-invariant in-beat value; rationals are reduced (num, den) pairs",
         1,
@@ -14493,12 +14580,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 467 */
+    { /* 470 */
         "srmech.cascade.frame_carrier.frame_carrier_compare",
         "srmech",
         "cascade",
         "Cross-seam compare of two frame-carrying carriers: PARALLEL-TRANSPORT the frame, THEN compare, with the exact is_aligned certificate (rc238). Reports raw_equal (the UN-framed compare A.value==B.value \342\200\224 the 'sometimes not bit-exact across the seam' drift symptom) AND transported_equal (the FRAMED compare A.transported==B.transported \342\200\224 each argument exact-rational-folded to its canonical residue first: bit-exact across the seam where the raw compare only sometimes matched). aligned = True iff the transport lands in the value's winding-stabilizer (canonical residues EQUAL \342\200\224 a whole number of 2\317\200 turns apart, a zero residue_delta by its Class-K magnitude \342\200\224 AND chiralities match); aligned then PROVES the transported values are byte-identical (the rc236 is_flat / Stab shape one level up). When not aligned it carries the real residual (non-zero residue_delta holonomy or chirality mismatch) \342\200\224 so a genuinely different value is never falsely aligned (soundness). Cascade: composition_of_c over the c_dispatched series + the Class-K magnitude (real |x|, never abs()) + the exact-rational Machin-2\317\200 fold.",
-        ts_params_467, 8u,
+        ts_params_470, 8u,
         "dict",
         "{func, raw_equal, transported_equal, aligned, transport_turns, transport_magnitude, residue_delta, chirality_match} \342\200\224 the drift (raw_equal), the fix (transported_equal), the exact cert (aligned) + its residual (residue_delta)",
         1,
@@ -14513,12 +14600,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 468 */
+    { /* 471 */
         "srmech.cascade.chiral_flip",
         "srmech",
         "cascade",
         "Class C orientation reversal: reverse a sequence's traversal order (seq[::-1]). The value-level Class C operator; reversing a real signal is the FFT-level chirality operator (magnitude preserved, phase inverted). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_468, 1u,
+        ts_params_471, 1u,
         "sequence",
         "orientation-reversed sequence (type preserved)",
         1,
@@ -14533,12 +14620,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 469 */
+    { /* 472 */
         "srmech.cascade.chiral_dual",
         "srmech",
         "cascade",
         "Class C \342\210\230 op \342\210\230 Class C: run an operator in the opposite Class-C orientation. Conjugating any operator by chiral_flip yields its chiral dual \342\200\224 same spectral shape, inverted orientation (MFO \302\247VIII.31.11). Reduces to Class K -1 for the sign operators; identity for real-symmetric ops. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_469, 2u,
+        ts_params_472, 2u,
         "sequence",
         "chiral_flip(op(chiral_flip(x)))",
         1,
@@ -14546,19 +14633,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"op\":\"the elementwise base complement, then a first-difference, then a total\",\"x\":\"the Leu codon ['C','U','G'] and the Antikythera back-dial cycle lengths [19, 76, 223, 235]\"},\"output\":\"chiral_dual(complement, ['C','U','G']) = ['G', 'A', 'C']\\ncomplement(['C','U','G'])              = ['G', 'A', 'C']\\n  -> EQUAL: an elementwise map COMMUTES with Class C, so its chiral dual is itself\\nfirstdiff([19, 76, 223, 235])          = [57, 147, 12]\\nchiral_dual(firstdiff, [19,76,223,235])= [-57, -147, -12]\\n  -> same shape, negated: the orientation-INVERSE\\nchiral_dual(total, TRAIN) == total(TRAIN) -> True (order-blind body is a fixed point)\",\"why\":\"Three bodies, three different answers, and that is the whole point: an elementwise map is its own chiral dual, an order-sensitive difference comes back negated (the orientation-inverse), and an order-blind reduction is a fixed point \\u2014 so the dual DIAGNOSES how an operator depends on traversal direction.\",\"worked\":\"from srmech.cascade import chiral_dual, chiral_flip\\nCOMP = {'A': 'U', 'U': 'A', 'C': 'G', 'G': 'C'}\\ncomplement = lambda s: [COMP[b] for b in s]\\nfirstdiff  = lambda s: [s[i+1] - s[i] for i in range(len(s)-1)]\\ntotal      = lambda s: [sum(s)]\\ncodon = ['C', 'U', 'G']\\nTRAIN = [19, 76, 223, 235]         # Antikythera back-dial cycles\\nchiral_dual(complement, codon)     # -> ['G', 'A', 'C']\\ncomplement(codon)                  # -> ['G', 'A', 'C']  (equal!)\\nfirstdiff(TRAIN)                   # -> [57, 147, 12]\\nchiral_dual(firstdiff, TRAIN)      # -> [-57, -147, -12]\\nchiral_dual(total, TRAIN) == total(TRAIN)        # -> True\"}",
         NULL,
         "WHAT \342\200\224 the chiral-dual conjugation ``chiral_flip(op(chiral_flip(x)))``: run ``op`` in the opposite Class-C orientation. It is Class C composed with ``op`` and back, NOT a new primitive class. Empirically (MFO section VIII.31.11 (5b)/(5c)) it preserves an operator's spectral SHAPE and inverts its ORIENTATION: for rotation/fiber operators it is the orientation-inverse, for explicit sign/orientation operators it reduces to a bare Class-K -1, and for real-symmetric (Class-L) operators it is the identity. WHEN \342\200\224 reach for it to ASK whether an operator is chirality-sensitive at all, and to obtain the mirrored operator without writing a second implementation. The worked run is the test in three lines: elementwise maps are their own dual, first-difference negates, a sum is a fixed point. What you would otherwise wrongly hand-roll is the flip-run-flip sandwich itself, which is easy to write with one flip missing and then reads as a plain reversal. SIBLINGS you would otherwise re-derive: ``cascade.chiral_flip`` (``srmech/cascade/atoms.py:383``) is the bare Class-C atom this conjugates with; ``cascade.parallel_sector_dispatch`` (``parallel.py:334``) computes this op as its SECTOR 2 and asserts the equality in its ``independence`` certificate (``sector2_is_chiral_dual``), so if you want all four Klein-4 duals at once do NOT loop this op \342\200\224 call that one; ``cascade.net_chirality`` (``atoms.py:510``) answers the different question of net handedness; ``srmech.physics.qm.triality.triality_swap`` (``srmech/physics/qm/triality.py:398``) is the 28-dimensional so(8) realisation of the same Z2 involution.",
-        ts_composes_469, 1u,
+        ts_composes_472, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 470 */
+    { /* 473 */
         "srmech.cascade.net_chirality",
         "srmech",
         "cascade",
         "Class C net handedness of a cascade: product of per-op orientations in {-1,0,+1} via composed reorient (no abs-free sign multiply). Returns +1 (right), -1 (left), or 0 if any operator is orientation-neutral. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_470, 1u,
+        ts_params_473, 1u,
         "int",
         "net handedness in {-1, 0, +1}",
         1,
@@ -14566,19 +14653,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"orientations\":\"the per-mesh rotation senses of an Antikythera gear train, [-1,-1,-1,-1] / [-1,-1,-1] / [-1,0,-1,-1], and the signs of three sampled lunar equation-of-centre values\"},\"output\":\"net_chirality([-1, -1, -1, -1]) = 1   (4 meshes: output turns WITH input)\\nnet_chirality([-1, -1, -1])     = -1  (3 meshes: output turns AGAINST)\\nnet_chirality([1, -1, 1, 1])    = -1\\nnet_chirality([-1, 0, -1, -1])  = 0   (one disengaged mesh collapses it)\\nnet_chirality([])               = 1   (empty chain is the identity)\\neoc signs at M = 0.7 / 3.9 / 5.4  = [1, -1, -1] -> net_chirality = 1\",\"why\":\"A gear train inverts rotation once per external mesh, so the net handedness of the whole train is the parity of the mesh count \\u2014 four meshes give +1, three give -1 \\u2014 and a single orientation-neutral stage (a 0) collapses the whole product, which a plain product of signs would report as 0 without saying why.\",\"worked\":\"from srmech.cascade import net_chirality, pin_slot_at_zero\\nfrom srmech.math.kepler import equation_of_centre\\n# every EXTERNAL gear mesh reverses the sense of rotation\\nnet_chirality([-1, -1, -1, -1])      # -> 1\\nnet_chirality([-1, -1, -1])          # -> -1\\nnet_chirality([1, -1, 1, 1])         # -> -1\\nnet_chirality([-1, 0, -1, -1])       # -> 0   (a zero collapses it)\\nnet_chirality([])                    # -> 1\\nsigns = [pin_slot_at_zero(equation_of_centre(M, 0.0549))[0]\\n         for M in (0.7, 3.9, 5.4)]   # -> [1, -1, -1]\\nnet_chirality(signs)                 # -> 1\"}",
         NULL,
         "WHAT \342\200\224 the Class-C net handedness of a cascade: fold a sequence of per-step orientations in {-1, 0, +1} into ONE net orientation. Returns +1 (net even / right-handed), -1 (net odd / left-handed), or 0 as soon as any step is orientation-neutral, because a zero-crossing anywhere in the chain destroys net handedness. The empty chain is +1 (the identity). It is computed by FOLDING ``cascade.reorient``, not by an abs-free sign multiply, so the cascade-count matches the cascade-shape; native ``srmech_cascade_net_chirality_i8`` handles int8-range int lists and tuples. WHEN \342\200\224 reach for it whenever handedness is CONSERVED along a chain and you want the invariant rather than the intermediate signs: an Antikythera gear train (one sense reversal per external mesh), a chain of chirality-carrying operators, or the reduction of a column of ``pin_slot_at_zero`` orientations. Hand-rolling ``functools.reduce(operator.mul, signs)`` gets the arithmetic right and the SEMANTICS wrong \342\200\224 it does not short-circuit on 0 as a collapse, and it hides a Class-C reduction from the cascade record. SIBLINGS you would otherwise re-derive: ``cascade.pin_slot_at_zero`` (``srmech/cascade/atoms.py:120``) PRODUCES the orientations this consumes and ``cascade.reorient`` (``atoms.py:218``) is the per-step op it folds; ``cascade.chiral_flip`` / ``cascade.chiral_dual`` (``atoms.py:383`` / ``:417``) act on traversal ORDER rather than on a product of signs \342\200\224 a different question; ``cascade.parallel_sector_dispatch`` (``parallel.py:334``) already reports ``gamma5_net_chirality`` and ``omega7_net_chirality`` computed with this op, so do not recompute them from its sector results.",
-        ts_composes_470, 1u,
+        ts_composes_473, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 471 */
+    { /* 474 */
         "srmech.cascade.parallel_sector_dispatch",
         "srmech",
         "cascade",
         "PARALLELISE a cascade body instead of running it serially: fan one cascade `body` across its \342\211\2444 Klein-4 chirality sectors CONCURRENTLY (ThreadPoolExecutor, max_workers=4) \342\200\224 the F233 4-thread speedup. Reach for this when you have an independent cascade body to fan out, instead of getting locked into one thread per cascade cycle. HIGHER-ORDER COMBINATOR (a 1\342\206\222N fan-out, kind='combinator'): it takes a *body* op + data and returns N per-sector results, so it is NOT a plain value\342\206\222value DSL `op=` stage \342\200\224 in a chain, drive it via the `parallel` discriminator (`chain.parallel_sectors(body=\342\200\246, n_sectors=4)` in Python, or a `[[stage]]` with `parallel_body='\342\200\246'` in a TOML spec). COMPOSABLE (rc12): by default it returns the rich per-sector dict (a leaf) \342\200\224 pass `combine=` ('bundle'/'mean'/'sector0'/'concat' or a callable) to recombine the \342\211\2444 sectors into ONE value at result['combined'] so the dispatch is stream\342\206\222stream and CHAINS / NESTS (the DSL `parallel` stage recombines by default; `sectorize(body, combine=\342\200\246)` wraps a body as a nesting callable). Mechanism: each sector s = inv_T_s(body(T_s(x))) on its OWN sector-transformed input \342\200\224 0 cross-thread reads (the F233 4-way independence), so parallel == serial bit-for-bit. T_s composes the two commuting Class-C involutions: \316\263\342\202\205 = chiral_flip (reversal), i\317\211\342\202\207 = reorient(\302\267, orientation=-1) (per-element sign-flip); sector 2 (\316\263\342\202\205-only) == cascade.chiral_dual bit-exact (the F232 2-rung object). Z\342\202\204 quarter-turn dispatch slots [0,1,2,3] (cyclic-order-4 TIMING, distinct from the order-2\303\227order-2 Klein-4 IDENTITY). Hard-capped at 4 \342\200\224 Klein-4 has no order-4+ element; 8+ needs the order-3 triality (srmech.physics.qm.triality, F220), NOT done here. Usefulness collapse-lattice 4/2/2/1 (bi-axial\342\206\2224 distinct; i\317\211\342\202\207-sym\342\206\2222; \316\263\342\202\205-sym\342\206\2222; bi-sym\342\206\2221). No abs() (Class K magnitude / Class C net_chirality). The thread-count ladder IS the chirality-access ladder (1\342\206\2222\342\206\2224\342\206\222triality) is a framework-reading (framework_thread_ladder_reading), NOT a derived theorem. Composes ONLY C-parity'd cascade.atoms; C-orchestration parity tracked by issue #771. Class C/K. F233/R-RBS-LM-FINDING_233; F219; F220. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_471, 5u,
+        ts_params_474, 5u,
         "dict",
         "{sectors:{s:{label:(\316\263\342\202\205,i\317\211\342\202\207), result}}, combined (rc12: recombined value when combine= given, else None), z4_dispatch_slots:[0,1,2,3], independence (cross_sector_reads 0, parallel_equals_serial, sector2_is_chiral_dual), collapse_lattice (n_distinct/classes/label/useful 4/2/2/1), cap (sector_cap 4, beyond_4_needs triality), framework_thread_ladder_reading}",
         1,
@@ -14593,12 +14680,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 472 */
+    { /* 475 */
         "srmech.cascade.coupled.coupled_wave",
         "srmech",
         "cascade",
         "The coupled EM-quadrature DRIVE at phase theta \342\200\224 the full-chirality (E, B) pair instead of a collapsed 1-bit sign (W17 / F577 verb-flip fix). A flat sign(wave) gate flips hard at every zero-crossing (2/cycle); the coupled (E=sin, B=cos, 90\302\260 apart) rotates MONOTONICALLY \342\206\222 0 hard reversals, so a driven chiral/relational element (a verb) keeps a stable bearing. The four (sign E, sign B) quadrants ARE the four Klein-4 (\316\263\342\202\205, i\317\211\342\202\207) sectors. HANDEDNESS IS A SETTABLE CONVENTION, never hardcoded: left/right are both first-class (the endianness posture \342\200\224 the substrate privileges neither byte-order nor chirality); -handedness is a Class-K phase sign-flip theta\342\206\222-theta (no abs), and the chosen convention is echoed back STABLE (it does not flip with theta). Composition of calculus.{sin,cos} (C-dispatched) + Class-K pin_slot_at_zero \342\200\224 no new primitive class. F577/F552; #928 W17. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_472, 3u,
+        ts_params_475, 3u,
         "tuple",
         "(E, B, handedness, klein4_quadrant) \342\200\224 the quadrature legs (float, C-dispatched), the STABLE chosen handedness, and (sign E, sign B) the Klein-4 sector",
         1,
@@ -14606,19 +14693,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"components\":\"the default (sin, cos), then swapped to (cos, sin)\",\"handedness\":\"the default +1, then the mirrored -1\",\"theta\":\"one full turn sampled at 1-radian steps, t = 0..6 (2\\u03c0 \\u2248 6.283)\"},\"output\":\"coupled_wave(1.0) = (Q(485074996943862657, 576460752303423488), Q(622926147424044489, 1152921504606846976), 1, (1, 1)); the quadrant walk over t=0..6 is [(0, 1), (1, 1), (1, -1), (1, -1), (-1, -1), (-1, 1), (-1, 1)] \\u2014 4 quadrant advances and only 2 hard sign(E) reversals, against the bare sign(E) sequence [0, 1, 1, 1, -1, -1, -1]; handedness=-1 gives (Q(-485074996943862657, 576460752303423488), Q(622926147424044489, 1152921504606846976), -1, (-1, 1)) and the handedness echo is STABLE across theta ([-1, -1, -1, -1]); components=('cos','sin') swaps the legs: (Q(622926147424044489, 1152921504606846976), Q(485074996943862657, 576460752303423488), 1, (1, 1))\",\"why\":\"Over one turn the (E,B) pair advances through 4 Klein-4 quadrants while the collapsed sign(E) gate hard-reverses twice \\u2014 the measured reason a driven element keeps its bearing.\",\"worked\":\"# SUBJECT: one full turn at 1-radian steps (2pi ~ 6.283).\\nfrom srmech.cascade.coupled import coupled_wave\\n\\ncoupled_wave(1.0)\\n  # -> (Q(485074996943862657, 576460752303423488),\\n  #     Q(622926147424044489, 1152921504606846976), 1, (1, 1))\\nwalk = [coupled_wave(float(t)) for t in range(7)]\\n[w[3] for w in walk]            # -> [(0,1), (1,1), (1,-1), (1,-1),\\n                                #     (-1,-1), (-1,1), (-1,1)]\\nsigns = [w[3][0] for w in walk] # -> [0, 1, 1, 1, -1, -1, -1]  sign(E) alone\\nquads = [w[3] for w in walk]\\n# sign(E) CHANGES, and quadrant advances, counted. NB \\\"changes\\\", not\\n# \\\"reversals\\\": 0 -> 1 at t=0 is a change without a sign flip, which is why\\n# this is 2 and a strict a*b < 0 reversal count would be 1.\\n(sum(1 for a, b in zip(signs, signs[1:]) if a != b),\\n sum(1 for a, b in zip(quads, quads[1:]) if a != b))      # -> (2, 4)\\ncoupled_wave(1.0, handedness=-1)\\n  # -> (Q(-485074996943862657, 576460752303423488),\\n  #     Q(622926147424044489, 1152921504606846976), -1, (-1, 1))\\n[coupled_wave(float(t), handedness=-1)[2] for t in range(4)]\\n                                # -> [-1, -1, -1, -1]  echo is STABLE\\ncoupled_wave(1.0, components=('cos', 'sin'))  # legs swapped\"}",
         NULL,
         "WHAT \342\200\224 the coupled EM-quadrature drive at phase ``theta``. It returns ``(E, B, handedness, klein4_quadrant)``: the full-chirality rotation pair (default ``E = sin \316\270``, ``B = cos \316\270``, 90\302\260 apart) instead of a collapsed one-bit sign, plus the ``(sign E, sign B)`` Klein-4 sector, each sign taken via Class-K ``pin_slot_at_zero``. WHEN \342\200\224 reach for it wherever a driven element must keep a stable bearing. A flat ``sign(wave)`` gate reverses hard at every zero-crossing, twice per cycle; the coupled pair rotates monotonically. That is measured above rather than asserted: over one turn the quadrant advanced 4 times while the bare ``sign(E)`` sequence hard-reversed 2 times. HANDEDNESS IS A SETTABLE CONVENTION, never hardcoded \342\200\224 ``-handedness`` is applied as a Class-K phase sign-flip ``theta \342\206\222 -theta`` (no ``abs()``), and the chosen convention is echoed back STABLE, so it does not flip with theta. What you would otherwise wrongly hand-roll is ``(math.sin(t), math.cos(t))``: that gives floats, no quadrant, no handedness contract, and bypasses the C-dispatched exact-rational trig \342\200\224 note the E and B legs above are exact ``Q`` rationals, not float64. SIBLINGS \342\200\224 ``multiplex_streams`` (``srmech/cascade/coupled.py:130``) is the intended consumer: feed it coupled bearings so a verb stream cannot flip mid-clause. ``pin_slot_at_zero`` (``srmech.cascade.atoms``) is the Class-K atom this composes for each sign, and ``calculus.sin``/``cos`` supply the legs \342\200\224 this op adds no new primitive class, so do not look for one.",
-        ts_composes_472, 1u,
+        ts_composes_475, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 473 */
+    { /* 476 */
         "srmech.cascade.coupled.multiplex_streams",
         "srmech",
         "cascade",
         "Recombine N steering WAVES into one driver \342\200\224 the multiplex (W18 / F573-F577). A 'stream' is a per-step real-valued DRIVER WAVE (a steering signal that decides which content gets selected downstream), NOT tokens \342\200\224 the output is a single steering driver; emission (the fluency-ear + manifold gate) is a SEPARATE consumer. Ideally each stream is a coupled (E,B) wave from coupled_wave so it carries a stable bearing (W17+W18 compose). Per F577 the multi-stream is for correct sentence STRUCTURE (S-V-O clause-role assignment), not richness. Modes: 'roundrobin' (default; the validated-best t mod N multiplex \342\200\224 stream t%N drives step t), 'superpose' (real-field interference: elementwise SUM + renormalise by max magnitude \342\200\224 the weakest combiner, not hdc.bundle, which is a different layer), 'pickbest' (strongest-bearing wave each step via Class-K magnitude \342\200\224 a wave pick, distinct from a content-fluency pick). roles=('S','V','O') binds each stream to clause-slot k; the verb stream should be a coupled bearing so its which-way can't flip mid-clause; the role tag is stored via Class-M hdc.bind for unbindability. No new primitive class. F573/F577; #928 W18. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_473, 3u,
+        ts_params_476, 3u,
         "dict",
         "{driver (the single recombined steering wave), mode, n_streams, length, roles, role_bound (clause-slot tagging when roles given), layer}",
         1,
@@ -14633,12 +14720,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 474 */
+    { /* 477 */
         "srmech.spectral.decompose",
         "srmech",
         "spectral",
         "Project a node-domain substrate state onto the eigenbasis of a Hermitian Laplacian; return a SpectralHandle (substrate_descriptor_hash + encoded coefficients + content_sha + n_modes). Class chain: Class L (Hermitian eigendecomposition; Chung 1997) \342\210\230 Class A (SHA-256 content-addressing for cache + integrity). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_474, 3u,
+        ts_params_477, 3u,
         "SpectralHandle",
         "frozen dataclass",
         1,
@@ -14646,66 +14733,6 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"state, laplacian\":\"the 12-EDO pitch-class set as a graph \\u2014 the CIRCLE OF FIFTHS (pc -> pc+7 mod 12, a single 12-cycle since gcd(7,12)=1) \\u2014 with the C major triad {C,E,G} as the node-domain state\"},\"output\":\"SUBJECT: 12-EDO pitch classes, the CIRCLE OF FIFTHS graph (pc -> pc+7 mod 12)\\nedges = [(0, 5), (0, 7), (1, 6), (1, 8), (2, 7), (2, 9), (3, 8), (3, 10), (4, 9), (4, 11), (5, 10), (6, 11)]\\nC major {C,E,G} = [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0]\\ndecompose ->  SpectralHandle  n_modes 12  len(coefficients_bytes) 192\\nsubstrate_descriptor_hash = 1dc8e74bfb3181e9a7ddf7b03facd8034db9828782c2db5feec4d7e0ca493d0e\\ncontent_sha               = 6027e7a6c85c5252362700443bc1529224b33366ed551c9a068b848d5f343eb3\\ndeterministic (same state, same Laplacian): True\\nA minor {A,C,E} content_sha = f98eecc90c8698a679ff937aa3f2d6cc4f9d5f58421aaa57fbfb847bc8881e82\\ndifferent state -> different content_sha: True\\nSAME substrate -> SAME descriptor hash: True\\n|coeffs| = [0.866025404, 0.294674377, 0.731556887, 0.213642505, 0.347884387, 0.703961212, 0.581181508, 0.136156136, 0.693874273, 0.023407349, 0.21002451, 0.288675135]\",\"why\":\"Two hashes, two jobs: substrate_descriptor_hash is the SAME for both triads (same Laplacian) while content_sha differs \\u2014 so the eigenbasis cache is keyed by the substrate and the integrity check by the content.\",\"worked\":\"from srmech.spectral import decompose\\nfrom srmech.math.laplacian import dense_laplacian\\n\\nFIFTHS = sorted({(min(i, (i+7) % 12), max(i, (i+7) % 12)) for i in range(12)})\\nFIFTHS\\n# -> [(0,5),(0,7),(1,6),(1,8),(2,7),(2,9),(3,8),(3,10),(4,9),(4,11),(5,10),(6,11)]\\nL = dense_laplacian(12, FIFTHS, [1.0] * len(FIFTHS))\\n\\nCMAJ = [1.0 if i in (0, 4, 7) else 0.0 for i in range(12)]     # C major {C,E,G}\\nAMIN = [1.0 if i in (9, 0, 4) else 0.0 for i in range(12)]     # A minor {A,C,E}\\n\\nh = decompose(CMAJ, L)\\nh.n_modes, len(h.coefficients_bytes)        # -> (12, 192)   16 bytes per mode\\nh.substrate_descriptor_hash\\n# -> '1dc8e74bfb3181e9a7ddf7b03facd8034db9828782c2db5feec4d7e0ca493d0e'\\nh.content_sha\\n# -> '6027e7a6c85c5252362700443bc1529224b33366ed551c9a068b848d5f343eb3'\\ndecompose(CMAJ, L).content_sha == h.content_sha           # -> True\\n\\nh2 = decompose(AMIN, L)\\nh2.content_sha != h.content_sha                            # -> True\\nh2.substrate_descriptor_hash == h.substrate_descriptor_hash   # -> True\"}",
         NULL,
         "WHAT \342\200\224 project a node-domain substrate state onto the eigenbasis of a Hermitian Laplacian and return a ``SpectralHandle`` (``srmech/spectral/__init__.py:315``): ``substrate_descriptor_hash`` + the encoded coefficients + ``content_sha`` + ``n_modes``. Class L (Hermitian eigendecomposition, Chung 1997) composed with Class A (SHA-256 content addressing for the eigenbasis cache and for integrity). WHEN \342\200\224 reach for it as the FRONT of every spectral cascade in this package: nothing else in ``srmech.spectral`` accepts a raw state, so ``predict``, ``delta``, ``similarity`` and ``truncate_sparse`` all begin here. THE TWO HASHES DO DIFFERENT JOBS and confusing them is the trap: ``substrate_descriptor_hash`` keys the cached eigendecomposition and depends only on the Laplacian and the ``encoder_tag`` (so both triads above share it and the expensive eigensolve runs once), while ``content_sha`` is the integrity address of the coefficients and differs per state. Pass a DIFFERENT ``encoder_tag`` when two encoders share a Laplacian, or their handles will collide in the cache. What you would otherwise wrongly hand-roll is an eigendecomposition plus a matvec: it re-solves on every call, produces no content address, and ``recompose`` will not accept the result. SIBLINGS \342\200\224 ``recompose`` (``srmech/spectral/__init__.py:439``) is the inverse and needs the SAME Laplacian and tag; ``truncate_sparse`` (``:688``) and ``predict`` (``:541``) transform the handle in place in the spectral domain; ``delta`` (``:394``) and ``similarity`` (``:498``) act directly on the coefficient BYTES and never need the Laplacian at all. ``srmech.math.laplacian.mat_hermitian_eigendecompose`` is the primitive underneath \342\200\224 call it when you want the raw spectrum rather than a content-addressed handle.",
-        ts_composes_474, 1u,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 475 */
-        "srmech.spectral.delta",
-        "srmech",
-        "spectral",
-        "Bit-exact XOR delta of two coefficient byte vectors (SpectralHandle or raw bytes). Class M (HDC bind / XOR self-inverse) per Plate 1995 + Kanerva 2009; Spike #114 Option B (direct on encoded coefficient bytes). bind(a, bind(a, b)) = b. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_475, 2u,
-        "bytes",
-        "same length as inputs",
-        1,
-        NULL,
-        "{\"input\":{\"ref, current\":\"the C-major and A-minor handles on the circle of fifths, XOR-differenced on their coefficient bytes\"},\"output\":\"len(delta) = 192  popcount = 261 of 1536 bits\\ndelta(h, h) is all-zero: True\\nself-inverse: bind(h_bytes, delta) == the A-minor bytes -> True\\ncommutative: bind(delta, h2_bytes) == the C-major bytes -> True\\ndelta(h2, h) == delta(h, h2): True\",\"why\":\"All four Plate/Kanerva BSC identities hold at once on real spectral handles: self-inverse, commutative, zero on identical input, and symmetric in its arguments.\",\"worked\":\"from srmech.spectral import decompose, delta\\nfrom srmech.math.hdc import bind\\n\\nh  = decompose(CMAJ, L)          # C major {C,E,G}\\nh2 = decompose(AMIN, L)          # A minor {A,C,E}\\nd  = delta(h, h2)\\n\\nlen(d), sum(bin(b).count('1') for b in d)        # -> (192, 261)  of 1536 bits\\nset(delta(h, h)) == {0}                           # -> True   zero on identity\\nbind(h.coefficients_bytes, d) == h2.coefficients_bytes    # -> True  recover\\nbind(d, h2.coefficients_bytes) == h.coefficients_bytes    # -> True  commutes\\ndelta(h2, h) == d                                          # -> True  symmetric\"}",
-        NULL,
-        "WHAT \342\200\224 the bit-exact XOR delta of two coefficient byte vectors (``srmech/spectral/__init__.py:394``): Class M, the HDC bind / self-inverse XOR of Plate 1995 and Kanerva 2009, taken DIRECTLY on the encoded coefficient bytes rather than on decoded complex numbers. It accepts a ``SpectralHandle`` (using ``.coefficients_bytes``) or raw ``bytes``, and the four algebra identities hold exactly: ``delta(a, a)`` is all-zero, ``bind(ref, delta) = current``, ``bind(delta, current) = ref``, and it is symmetric in its arguments \342\200\224 all four measured above on real handles. WHEN \342\200\224 reach for it to STORE or TRANSMIT a change rather than a state: a spectral time series where successive frames are close, an append-only log of substrate updates, a diff you will re-apply with ``bind``. It is bit-exact and reversible, which is exactly what a float difference of two coefficient vectors is not. What you would otherwise wrongly hand-roll is subtracting the decoded complex coefficients: that is lossy, it is not self-inverse, and it cannot be re-applied to recover the original bytes. THE HONEST BOUND: the popcount is a HAMMING distance on an IEEE float encoding, so it measures byte-level divergence and not spectral distance \342\200\224 two nearly-identical states can differ in many low mantissa bits. SIBLINGS \342\200\224 ``similarity`` (``srmech/spectral/__init__.py:498``) is the NORMALISED read of the same popcount and is what you want for a comparison rather than a payload; ``prediction_error`` (``:620``) is this op plus a Class-K threshold gate, so ``prediction_error(p, o, threshold=0.0)`` IS ``delta(p, o)`` \342\200\224 do not write the gate yourself; ``srmech.math.hdc.bind`` is the primitive that re-applies the delta.",
-        ts_composes_475, 1u,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 476 */
-        "srmech.spectral.recompose",
-        "srmech",
-        "spectral",
-        "Reconstruct the node-domain state from a SpectralHandle via inverse projection ``V\302\267coeffs``. Class chain: Class L (inverse eigendecomposition; Chung 1997) \342\210\230 Class M (SHA-256 content integrity check on handle). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_476, 3u,
-        "list[complex]",
-        "(n_modes,) complex128",
-        1,
-        NULL,
-        "{\"input\":{\"handle, laplacian\":\"the C-major handle inverted back to the node domain, and a keep_k=3 truncated handle inverted for contrast\"},\"output\":\"recompose(decompose(C major)) real part = [1.0, -0.0, 0.0, 0.0, 1.0, -0.0, -0.0, 1.0, -0.0, -0.0, -0.0, 0.0]\\nmax |imaginary part| = 0.000e+00\\nmax round-trip error = 5.773e-15\\nbit-exact? NO -- it is a float eigenbasis round trip: False\\nrecompose(truncate_sparse(h, keep_k=3)) real = [0.647034, 0.075833, 0.266418, -0.089332, 0.709536, 0.278454, -0.147034, 0.424167, 0.233582, 0.589332, -0.209536, 0.221546]\",\"why\":\"The round trip recovers the triad to 5.77e-15 and is NOT bit-exact \\u2014 it is a float eigenbasis inversion \\u2014 while the truncated handle comes back as a smeared triad, which is what a lossy spectral store costs.\",\"worked\":\"from srmech.spectral import decompose, recompose, truncate_sparse\\n\\nh    = decompose(CMAJ, L)          # C major {C,E,G} on the circle of fifths\\nback = recompose(h, L)\\n\\n[round(z.real, 9) for z in back]\\n# -> [1.0, -0.0, 0.0, 0.0, 1.0, -0.0, -0.0, 1.0, -0.0, -0.0, -0.0, 0.0]\\nmax(z.imag if z.imag >= 0 else -z.imag for z in back)      # -> 0.0\\nmax((lambda t: t if t >= 0 else -t)(back[i].real - CMAJ[i])\\n    for i in range(12))                                     # -> 5.773e-15\\n[z.real for z in back] == CMAJ                              # -> False\\n\\n[round(z.real, 6) for z in recompose(truncate_sparse(h, keep_k=3), L)]\\n# -> [0.647034, 0.075833, 0.266418, -0.089332, 0.709536, 0.278454,\\n#     -0.147034, 0.424167, 0.233582, 0.589332, -0.209536, 0.221546]\"}",
-        NULL,
-        "WHAT \342\200\224 reconstruct the node-domain state from a ``SpectralHandle`` via the inverse projection ``state = V\302\267coeffs`` (``srmech/spectral/__init__.py:439``): Class L (inverse eigendecomposition, Chung 1997) composed with Class M (a SHA-256 content-integrity check on the handle). It returns ``list[complex]``, not a ``Vec`` \342\200\224 a real input comes back with an imaginary part, measured exactly ``0.0`` here but not guaranteed to be on a complex Laplacian. WHEN \342\200\224 reach for it to leave the spectral domain: after ``predict``, after ``truncate_sparse``, or simply to check that a handle still means what you think. TWO HONEST BOUNDS, both measured: the round trip is a FLOAT eigenbasis inversion, so it recovers the triad to ``5.773e-15`` and is NOT bit-exact \342\200\224 do not build an equality assertion on it \342\200\224 and it must be given the SAME Laplacian and ``encoder_tag`` the handle was made with, since the cached eigenbasis is looked up by the descriptor hash. What you would otherwise wrongly hand-roll is your own ``V\302\267coeffs``: besides re-solving the eigenproblem, it skips the content-integrity check that catches a handle whose bytes were edited in transit. SIBLINGS \342\200\224 ``decompose`` (``srmech/spectral/__init__.py:315``) is the forward peer; ``truncate_sparse`` (``:688``) is the op whose LOSS this makes visible, since the truncated triad comes back smeared across all twelve pitch classes; ``predict`` (``:541``) moves the handle before you invert it. ``delta`` (``:394``) and ``similarity`` (``:498``) compare handles WITHOUT recomposing \342\200\224 reach for those rather than inverting two handles to compare states in the node domain.",
-        ts_composes_476, 1u,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 477 */
-        "srmech.spectral.similarity",
-        "srmech",
-        "spectral",
-        "HDC similarity ``1 \342\210\222 2\302\267hamming(a, b) / D`` in [\342\210\2221, +1] as the EXACT Q rational (v0.9.0 F868). Class M per Kanerva 2009 \302\2473.2; direct on coefficient bytes. +1 = identical, 0 = orthogonal, \342\210\2221 = anti-correlated. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_477, 2u,
-        "Q",
-        "exact rational (D\342\210\2222\302\267hamming)/D in [-1, +1]",
-        1,
-        NULL,
-        "{\"input\":{\"a, b\":\"the C-major and A-minor handles, plus a handle against itself and against its own keep_k=3 truncation\"},\"output\":\"similarity(C major, A minor) = Q(169, 256)  float = 0.66015625  type Q\\nhand-check: D = 1536 bits, hamming = 261, (D - 2h)/D = Q(169, 256)\\nsimilarity(h, h) = Q(1, 1)\\nsimilarity(h, truncate_sparse(h, keep_k=3)) = Q(233, 384)\\nEXACT rational, not a float -- it collapses only via float(s)\",\"why\":\"It returns the EXACT rational Q(169, 256) \\u2014 hand-checkable as (1536 - 2*261)/1536 from the delta popcount \\u2014 not a float that has already lost the denominator.\",\"worked\":\"from srmech.spectral import decompose, delta, similarity, truncate_sparse\\n\\nh  = decompose(CMAJ, L)\\nh2 = decompose(AMIN, L)\\n\\ns = similarity(h, h2)\\ns, float(s), type(s).__name__       # -> (Q(169, 256), 0.66015625, 'Q')\\n\\n# hand-check against the delta popcount: (D - 2h)/D\\n8 * len(h.coefficients_bytes), sum(bin(b).count('1') for b in delta(h, h2))\\n# -> (1536, 261)      (1536 - 2*261) / 1536 = 1014/1536 = 169/256\\n\\nsimilarity(h, h)                              # -> Q(1, 1)\\nsimilarity(h, truncate_sparse(h, keep_k=3))   # -> Q(233, 384)\"}",
-        NULL,
-        "WHAT \342\200\224 the HDC similarity ``1 \342\210\222 2\302\267hamming(a, b)/D`` in ``[\342\210\2221, +1]``, returned as the EXACT ``Q`` rational (``srmech/spectral/__init__.py:498``; a re-export of ``srmech.math.hdc.similarity``). Class M per Kanerva 2009 \302\2473.2, taken directly on coefficient bytes: ``+1`` identical, ``0`` orthogonal, ``\342\210\2221`` anti-correlated. The rational is the point \342\200\224 ``Q(169, 256)`` above is hand-checkable from the delta popcount as ``(1536 \342\210\222 2\302\267261)/1536``, and it collapses to a decimal only when you ask via ``float(s)``. WHEN \342\200\224 reach for it to COMPARE two handles without recomposing either, and specifically when the comparison is load-bearing: the exact denominator carries the dimension ``D``, so a similarity computed on a 192-byte handle is distinguishable from one on a 96-byte handle, which a float silently forgets. What you would otherwise wrongly hand-roll is ``1 - 2*popcount/D`` in float, which is the same number with the provenance thrown away, or a cosine similarity on decoded coefficients, which is a different metric on a different object. THE HONEST BOUND, shared with ``delta``: this is a Hamming read on an IEEE float encoding, so it measures byte-level agreement rather than spectral distance \342\200\224 a truncated handle scoring ``Q(233, 384)`` against its own source is that effect, not a claim about how much energy the truncation kept. SIBLINGS \342\200\224 ``delta`` (``srmech/spectral/__init__.py:394``) is the un-normalised XOR whose popcount this reads, so do not compute both when you only need one; ``prediction_error`` (``:620``) is the gated form; ``srmech.math.hdc.similarity`` is the underlying op and this is a re-export, not a second implementation.",
         ts_composes_477, 1u,
         NULL, 0u,
         NULL,
@@ -14714,18 +14741,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 478 */
-        "srmech.spectral.predict",
+        "srmech.spectral.delta",
         "srmech",
         "spectral",
-        "Cascade-extrapolate a SpectralHandle forward ``steps`` substrate-natural ticks via per-mode complex-phase evolution ``exp(-i\302\267\316\273_k\302\267steps\302\267dt)`` on the eigenbasis. Class chain: Class C (cascade-extrapolate) \342\210\230 Class L (Hermitian Laplacian eigenstructure). Spike #113 + MS #14 rcN+2 anchor. Magnitudes preserved (unitary); phase evolves per eigenmode. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_478, 5u,
-        "SpectralHandle",
-        "phase-evolved coefficients",
+        "Bit-exact XOR delta of two coefficient byte vectors (SpectralHandle or raw bytes). Class M (HDC bind / XOR self-inverse) per Plate 1995 + Kanerva 2009; Spike #114 Option B (direct on encoded coefficient bytes). bind(a, bind(a, b)) = b. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_478, 2u,
+        "bytes",
+        "same length as inputs",
         1,
         NULL,
-        "{\"input\":{\"handle, laplacian, steps, dt\":\"the C-major handle advanced 0, 1 and 2 substrate ticks on the circle-of-fifths Laplacian\"},\"output\":\"steps=0 is the identity: True\\nsteps=1 content_sha = 3287263d1915325cce598792f2c183089c6a4449628ffd7b70235f0688ab4c1c\\nthe bytes MOVED: True\\nmagnitudes PRESERVED (unitary): max drift = 1.110e-16\\n|coeffs| before = [0.866025404, 0.294674377, 0.731556887, 0.213642505, 0.347884387, 0.703961212, 0.581181508, 0.136156136, 0.693874273, 0.023407349, 0.21002451, 0.288675135]\\n|coeffs| after  = [0.866025404, 0.294674377, 0.731556887, 0.213642505, 0.347884387, 0.703961212, 0.581181508, 0.136156136, 0.693874273, 0.023407349, 0.21002451, 0.288675135]\\nsemigroup: max component drift predict(2) vs predict(1) twice = 1.110e-16\\n  but NOT bit-identical: False\\nrecompose(predict(1)) real = [0.417086, -0.110003, 0.818076, -0.12516, -0.224573, 0.677487, 0.154074, 0.313997, -0.022071, 0.554, 0.030586, 0.5165]\",\"why\":\"Unitary in one line: every mode magnitude is preserved to 1.11e-16 while the bytes move \\u2014 and the semigroup holds to the same 1.11e-16 but NOT bit-exactly, so do not assert content_sha equality.\",\"worked\":\"from srmech.spectral import decompose, predict, recompose\\n\\nh = decompose(CMAJ, L)\\npredict(h, L, steps=0).content_sha == h.content_sha        # -> True  identity\\n\\np1 = predict(h, L, steps=1, dt=1.0)\\np1.content_sha\\n# -> '3287263d1915325cce598792f2c183089c6a4449628ffd7b70235f0688ab4c1c'\\np1.coefficients_bytes != h.coefficients_bytes               # -> True\\n\\n# magnitudes PRESERVED (the evolution is unitary), phases moved:\\n#   |coeffs| before and after both read\\n#   [0.866025404, 0.294674377, 0.731556887, 0.213642505, 0.347884387,\\n#    0.703961212, 0.581181508, 0.136156136, 0.693874273, 0.023407349,\\n#    0.21002451, 0.288675135]   -- max drift 1.110e-16\\n\\np2 = predict(h, L, steps=2)\\npp = predict(predict(h, L, steps=1), L, steps=1)\\np2.content_sha == pp.content_sha        # -> False   (max drift 1.110e-16)\\n\\n[round(z.real, 6) for z in recompose(p1, L)]\\n# -> [0.417086, -0.110003, 0.818076, -0.12516, -0.224573, 0.677487,\\n#     0.154074, 0.313997, -0.022071, 0.554, 0.030586, 0.5165]\"}",
+        "{\"input\":{\"ref, current\":\"the C-major and A-minor handles on the circle of fifths, XOR-differenced on their coefficient bytes\"},\"output\":\"len(delta) = 192  popcount = 261 of 1536 bits\\ndelta(h, h) is all-zero: True\\nself-inverse: bind(h_bytes, delta) == the A-minor bytes -> True\\ncommutative: bind(delta, h2_bytes) == the C-major bytes -> True\\ndelta(h2, h) == delta(h, h2): True\",\"why\":\"All four Plate/Kanerva BSC identities hold at once on real spectral handles: self-inverse, commutative, zero on identical input, and symmetric in its arguments.\",\"worked\":\"from srmech.spectral import decompose, delta\\nfrom srmech.math.hdc import bind\\n\\nh  = decompose(CMAJ, L)          # C major {C,E,G}\\nh2 = decompose(AMIN, L)          # A minor {A,C,E}\\nd  = delta(h, h2)\\n\\nlen(d), sum(bin(b).count('1') for b in d)        # -> (192, 261)  of 1536 bits\\nset(delta(h, h)) == {0}                           # -> True   zero on identity\\nbind(h.coefficients_bytes, d) == h2.coefficients_bytes    # -> True  recover\\nbind(d, h2.coefficients_bytes) == h.coefficients_bytes    # -> True  commutes\\ndelta(h2, h) == d                                          # -> True  symmetric\"}",
         NULL,
-        "WHAT \342\200\224 cascade-extrapolate a ``SpectralHandle`` ``steps`` substrate ticks forward by per-mode complex-phase evolution ``coeffs[k]\302\267exp(\342\210\222i\302\267\316\273_k\302\267steps\302\267dt)`` on the eigenbasis (``srmech/spectral/__init__.py:541``): Class C (cascade-extrapolate) composed with Class L (the Hermitian eigenstructure supplying ``\316\273_k``). It is the CLOSED FORM one-shot of a recurrent spectral predictor \342\200\224 there is no timestep loop, so any ``steps`` costs the same. WHEN \342\200\224 reach for it whenever a state must be advanced under a time-INDEPENDENT Hermitian generator and you want the prediction as a handle you can then compare against an observation. Two measured properties govern its use: the evolution is UNITARY, so every mode magnitude is preserved to ``1.11e-16`` while the bytes move (only the phase evolves), and ``steps = 0`` is the exact identity. THE ONE TRAP: the semigroup ``predict(2) == predict(1)\342\210\230predict(1)`` holds NUMERICALLY to ``1.11e-16`` but NOT bit-exactly, because two float rotations do not compose to the same bits as one double rotation \342\200\224 so compare magnitudes or use a tolerance, never ``content_sha``. What you would otherwise wrongly hand-roll is an RK4 or Euler stepper: it drifts in norm, needs a timestep, is slower, and cannot produce a content-addressed handle. SIBLINGS \342\200\224 ``prediction_error`` (``srmech/spectral/__init__.py:620``) is the intended consumer and closes the predictive-coding cascade; ``recompose`` (``:439``) takes the prediction back to the node domain; ``srmech.physics.qm.single_particle.tdse_evolve`` is the QM-layer peer of the same closed form on a state vector rather than on a handle \342\200\224 do not build a third evolver.",
+        "WHAT \342\200\224 the bit-exact XOR delta of two coefficient byte vectors (``srmech/spectral/__init__.py:394``): Class M, the HDC bind / self-inverse XOR of Plate 1995 and Kanerva 2009, taken DIRECTLY on the encoded coefficient bytes rather than on decoded complex numbers. It accepts a ``SpectralHandle`` (using ``.coefficients_bytes``) or raw ``bytes``, and the four algebra identities hold exactly: ``delta(a, a)`` is all-zero, ``bind(ref, delta) = current``, ``bind(delta, current) = ref``, and it is symmetric in its arguments \342\200\224 all four measured above on real handles. WHEN \342\200\224 reach for it to STORE or TRANSMIT a change rather than a state: a spectral time series where successive frames are close, an append-only log of substrate updates, a diff you will re-apply with ``bind``. It is bit-exact and reversible, which is exactly what a float difference of two coefficient vectors is not. What you would otherwise wrongly hand-roll is subtracting the decoded complex coefficients: that is lossy, it is not self-inverse, and it cannot be re-applied to recover the original bytes. THE HONEST BOUND: the popcount is a HAMMING distance on an IEEE float encoding, so it measures byte-level divergence and not spectral distance \342\200\224 two nearly-identical states can differ in many low mantissa bits. SIBLINGS \342\200\224 ``similarity`` (``srmech/spectral/__init__.py:498``) is the NORMALISED read of the same popcount and is what you want for a comparison rather than a payload; ``prediction_error`` (``:620``) is this op plus a Class-K threshold gate, so ``prediction_error(p, o, threshold=0.0)`` IS ``delta(p, o)`` \342\200\224 do not write the gate yourself; ``srmech.math.hdc.bind`` is the primitive that re-applies the delta.",
         ts_composes_478, 1u,
         NULL, 0u,
         NULL,
@@ -14734,11 +14761,71 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 479 */
+        "srmech.spectral.recompose",
+        "srmech",
+        "spectral",
+        "Reconstruct the node-domain state from a SpectralHandle via inverse projection ``V\302\267coeffs``. Class chain: Class L (inverse eigendecomposition; Chung 1997) \342\210\230 Class M (SHA-256 content integrity check on handle). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_479, 3u,
+        "list[complex]",
+        "(n_modes,) complex128",
+        1,
+        NULL,
+        "{\"input\":{\"handle, laplacian\":\"the C-major handle inverted back to the node domain, and a keep_k=3 truncated handle inverted for contrast\"},\"output\":\"recompose(decompose(C major)) real part = [1.0, -0.0, 0.0, 0.0, 1.0, -0.0, -0.0, 1.0, -0.0, -0.0, -0.0, 0.0]\\nmax |imaginary part| = 0.000e+00\\nmax round-trip error = 5.773e-15\\nbit-exact? NO -- it is a float eigenbasis round trip: False\\nrecompose(truncate_sparse(h, keep_k=3)) real = [0.647034, 0.075833, 0.266418, -0.089332, 0.709536, 0.278454, -0.147034, 0.424167, 0.233582, 0.589332, -0.209536, 0.221546]\",\"why\":\"The round trip recovers the triad to 5.77e-15 and is NOT bit-exact \\u2014 it is a float eigenbasis inversion \\u2014 while the truncated handle comes back as a smeared triad, which is what a lossy spectral store costs.\",\"worked\":\"from srmech.spectral import decompose, recompose, truncate_sparse\\n\\nh    = decompose(CMAJ, L)          # C major {C,E,G} on the circle of fifths\\nback = recompose(h, L)\\n\\n[round(z.real, 9) for z in back]\\n# -> [1.0, -0.0, 0.0, 0.0, 1.0, -0.0, -0.0, 1.0, -0.0, -0.0, -0.0, 0.0]\\nmax(z.imag if z.imag >= 0 else -z.imag for z in back)      # -> 0.0\\nmax((lambda t: t if t >= 0 else -t)(back[i].real - CMAJ[i])\\n    for i in range(12))                                     # -> 5.773e-15\\n[z.real for z in back] == CMAJ                              # -> False\\n\\n[round(z.real, 6) for z in recompose(truncate_sparse(h, keep_k=3), L)]\\n# -> [0.647034, 0.075833, 0.266418, -0.089332, 0.709536, 0.278454,\\n#     -0.147034, 0.424167, 0.233582, 0.589332, -0.209536, 0.221546]\"}",
+        NULL,
+        "WHAT \342\200\224 reconstruct the node-domain state from a ``SpectralHandle`` via the inverse projection ``state = V\302\267coeffs`` (``srmech/spectral/__init__.py:439``): Class L (inverse eigendecomposition, Chung 1997) composed with Class M (a SHA-256 content-integrity check on the handle). It returns ``list[complex]``, not a ``Vec`` \342\200\224 a real input comes back with an imaginary part, measured exactly ``0.0`` here but not guaranteed to be on a complex Laplacian. WHEN \342\200\224 reach for it to leave the spectral domain: after ``predict``, after ``truncate_sparse``, or simply to check that a handle still means what you think. TWO HONEST BOUNDS, both measured: the round trip is a FLOAT eigenbasis inversion, so it recovers the triad to ``5.773e-15`` and is NOT bit-exact \342\200\224 do not build an equality assertion on it \342\200\224 and it must be given the SAME Laplacian and ``encoder_tag`` the handle was made with, since the cached eigenbasis is looked up by the descriptor hash. What you would otherwise wrongly hand-roll is your own ``V\302\267coeffs``: besides re-solving the eigenproblem, it skips the content-integrity check that catches a handle whose bytes were edited in transit. SIBLINGS \342\200\224 ``decompose`` (``srmech/spectral/__init__.py:315``) is the forward peer; ``truncate_sparse`` (``:688``) is the op whose LOSS this makes visible, since the truncated triad comes back smeared across all twelve pitch classes; ``predict`` (``:541``) moves the handle before you invert it. ``delta`` (``:394``) and ``similarity`` (``:498``) compare handles WITHOUT recomposing \342\200\224 reach for those rather than inverting two handles to compare states in the node domain.",
+        ts_composes_479, 1u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 480 */
+        "srmech.spectral.similarity",
+        "srmech",
+        "spectral",
+        "HDC similarity ``1 \342\210\222 2\302\267hamming(a, b) / D`` in [\342\210\2221, +1] as the EXACT Q rational (v0.9.0 F868). Class M per Kanerva 2009 \302\2473.2; direct on coefficient bytes. +1 = identical, 0 = orthogonal, \342\210\2221 = anti-correlated. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_480, 2u,
+        "Q",
+        "exact rational (D\342\210\2222\302\267hamming)/D in [-1, +1]",
+        1,
+        NULL,
+        "{\"input\":{\"a, b\":\"the C-major and A-minor handles, plus a handle against itself and against its own keep_k=3 truncation\"},\"output\":\"similarity(C major, A minor) = Q(169, 256)  float = 0.66015625  type Q\\nhand-check: D = 1536 bits, hamming = 261, (D - 2h)/D = Q(169, 256)\\nsimilarity(h, h) = Q(1, 1)\\nsimilarity(h, truncate_sparse(h, keep_k=3)) = Q(233, 384)\\nEXACT rational, not a float -- it collapses only via float(s)\",\"why\":\"It returns the EXACT rational Q(169, 256) \\u2014 hand-checkable as (1536 - 2*261)/1536 from the delta popcount \\u2014 not a float that has already lost the denominator.\",\"worked\":\"from srmech.spectral import decompose, delta, similarity, truncate_sparse\\n\\nh  = decompose(CMAJ, L)\\nh2 = decompose(AMIN, L)\\n\\ns = similarity(h, h2)\\ns, float(s), type(s).__name__       # -> (Q(169, 256), 0.66015625, 'Q')\\n\\n# hand-check against the delta popcount: (D - 2h)/D\\n8 * len(h.coefficients_bytes), sum(bin(b).count('1') for b in delta(h, h2))\\n# -> (1536, 261)      (1536 - 2*261) / 1536 = 1014/1536 = 169/256\\n\\nsimilarity(h, h)                              # -> Q(1, 1)\\nsimilarity(h, truncate_sparse(h, keep_k=3))   # -> Q(233, 384)\"}",
+        NULL,
+        "WHAT \342\200\224 the HDC similarity ``1 \342\210\222 2\302\267hamming(a, b)/D`` in ``[\342\210\2221, +1]``, returned as the EXACT ``Q`` rational (``srmech/spectral/__init__.py:498``; a re-export of ``srmech.math.hdc.similarity``). Class M per Kanerva 2009 \302\2473.2, taken directly on coefficient bytes: ``+1`` identical, ``0`` orthogonal, ``\342\210\2221`` anti-correlated. The rational is the point \342\200\224 ``Q(169, 256)`` above is hand-checkable from the delta popcount as ``(1536 \342\210\222 2\302\267261)/1536``, and it collapses to a decimal only when you ask via ``float(s)``. WHEN \342\200\224 reach for it to COMPARE two handles without recomposing either, and specifically when the comparison is load-bearing: the exact denominator carries the dimension ``D``, so a similarity computed on a 192-byte handle is distinguishable from one on a 96-byte handle, which a float silently forgets. What you would otherwise wrongly hand-roll is ``1 - 2*popcount/D`` in float, which is the same number with the provenance thrown away, or a cosine similarity on decoded coefficients, which is a different metric on a different object. THE HONEST BOUND, shared with ``delta``: this is a Hamming read on an IEEE float encoding, so it measures byte-level agreement rather than spectral distance \342\200\224 a truncated handle scoring ``Q(233, 384)`` against its own source is that effect, not a claim about how much energy the truncation kept. SIBLINGS \342\200\224 ``delta`` (``srmech/spectral/__init__.py:394``) is the un-normalised XOR whose popcount this reads, so do not compute both when you only need one; ``prediction_error`` (``:620``) is the gated form; ``srmech.math.hdc.similarity`` is the underlying op and this is a re-export, not a second implementation.",
+        ts_composes_480, 1u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 481 */
+        "srmech.spectral.predict",
+        "srmech",
+        "spectral",
+        "Cascade-extrapolate a SpectralHandle forward ``steps`` substrate-natural ticks via per-mode complex-phase evolution ``exp(-i\302\267\316\273_k\302\267steps\302\267dt)`` on the eigenbasis. Class chain: Class C (cascade-extrapolate) \342\210\230 Class L (Hermitian Laplacian eigenstructure). Spike #113 + MS #14 rcN+2 anchor. Magnitudes preserved (unitary); phase evolves per eigenmode. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_481, 5u,
+        "SpectralHandle",
+        "phase-evolved coefficients",
+        1,
+        NULL,
+        "{\"input\":{\"handle, laplacian, steps, dt\":\"the C-major handle advanced 0, 1 and 2 substrate ticks on the circle-of-fifths Laplacian\"},\"output\":\"steps=0 is the identity: True\\nsteps=1 content_sha = 3287263d1915325cce598792f2c183089c6a4449628ffd7b70235f0688ab4c1c\\nthe bytes MOVED: True\\nmagnitudes PRESERVED (unitary): max drift = 1.110e-16\\n|coeffs| before = [0.866025404, 0.294674377, 0.731556887, 0.213642505, 0.347884387, 0.703961212, 0.581181508, 0.136156136, 0.693874273, 0.023407349, 0.21002451, 0.288675135]\\n|coeffs| after  = [0.866025404, 0.294674377, 0.731556887, 0.213642505, 0.347884387, 0.703961212, 0.581181508, 0.136156136, 0.693874273, 0.023407349, 0.21002451, 0.288675135]\\nsemigroup: max component drift predict(2) vs predict(1) twice = 1.110e-16\\n  but NOT bit-identical: False\\nrecompose(predict(1)) real = [0.417086, -0.110003, 0.818076, -0.12516, -0.224573, 0.677487, 0.154074, 0.313997, -0.022071, 0.554, 0.030586, 0.5165]\",\"why\":\"Unitary in one line: every mode magnitude is preserved to 1.11e-16 while the bytes move \\u2014 and the semigroup holds to the same 1.11e-16 but NOT bit-exactly, so do not assert content_sha equality.\",\"worked\":\"from srmech.spectral import decompose, predict, recompose\\n\\nh = decompose(CMAJ, L)\\npredict(h, L, steps=0).content_sha == h.content_sha        # -> True  identity\\n\\np1 = predict(h, L, steps=1, dt=1.0)\\np1.content_sha\\n# -> '3287263d1915325cce598792f2c183089c6a4449628ffd7b70235f0688ab4c1c'\\np1.coefficients_bytes != h.coefficients_bytes               # -> True\\n\\n# magnitudes PRESERVED (the evolution is unitary), phases moved:\\n#   |coeffs| before and after both read\\n#   [0.866025404, 0.294674377, 0.731556887, 0.213642505, 0.347884387,\\n#    0.703961212, 0.581181508, 0.136156136, 0.693874273, 0.023407349,\\n#    0.21002451, 0.288675135]   -- max drift 1.110e-16\\n\\np2 = predict(h, L, steps=2)\\npp = predict(predict(h, L, steps=1), L, steps=1)\\np2.content_sha == pp.content_sha        # -> False   (max drift 1.110e-16)\\n\\n[round(z.real, 6) for z in recompose(p1, L)]\\n# -> [0.417086, -0.110003, 0.818076, -0.12516, -0.224573, 0.677487,\\n#     0.154074, 0.313997, -0.022071, 0.554, 0.030586, 0.5165]\"}",
+        NULL,
+        "WHAT \342\200\224 cascade-extrapolate a ``SpectralHandle`` ``steps`` substrate ticks forward by per-mode complex-phase evolution ``coeffs[k]\302\267exp(\342\210\222i\302\267\316\273_k\302\267steps\302\267dt)`` on the eigenbasis (``srmech/spectral/__init__.py:541``): Class C (cascade-extrapolate) composed with Class L (the Hermitian eigenstructure supplying ``\316\273_k``). It is the CLOSED FORM one-shot of a recurrent spectral predictor \342\200\224 there is no timestep loop, so any ``steps`` costs the same. WHEN \342\200\224 reach for it whenever a state must be advanced under a time-INDEPENDENT Hermitian generator and you want the prediction as a handle you can then compare against an observation. Two measured properties govern its use: the evolution is UNITARY, so every mode magnitude is preserved to ``1.11e-16`` while the bytes move (only the phase evolves), and ``steps = 0`` is the exact identity. THE ONE TRAP: the semigroup ``predict(2) == predict(1)\342\210\230predict(1)`` holds NUMERICALLY to ``1.11e-16`` but NOT bit-exactly, because two float rotations do not compose to the same bits as one double rotation \342\200\224 so compare magnitudes or use a tolerance, never ``content_sha``. What you would otherwise wrongly hand-roll is an RK4 or Euler stepper: it drifts in norm, needs a timestep, is slower, and cannot produce a content-addressed handle. SIBLINGS \342\200\224 ``prediction_error`` (``srmech/spectral/__init__.py:620``) is the intended consumer and closes the predictive-coding cascade; ``recompose`` (``:439``) takes the prediction back to the node domain; ``srmech.physics.qm.single_particle.tdse_evolve`` is the QM-layer peer of the same closed form on a state vector rather than on a handle \342\200\224 do not build a third evolver.",
+        ts_composes_481, 1u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 482 */
         "srmech.spectral.prediction_error",
         "srmech",
         "spectral",
         "XOR delta between predicted and observed coefficient byte vectors; gate-by-threshold on popcount density. Class chain: Class M (HDC XOR-bind delta) \342\210\230 Class K (gate-by-threshold projection). ``threshold=0.0`` default (no gating; raw delta) per user decision 2026-05-18. When ``popcount(delta) / (8\302\267len) <= threshold``, returns all-zero bytes (prediction sufficient). Composes with :func:`predict` to close the predictive-coding cascade. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_479, 3u,
+        ts_params_482, 3u,
         "bytes",
         "delta or all-zeros if gated",
         1,
@@ -14753,12 +14840,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 480 */
+    { /* 483 */
         "srmech.spectral.truncate_sparse",
         "srmech",
         "spectral",
         "Sparse-truncate a SpectralHandle's coefficients: keep the top-``keep_k`` highest-magnitude modes OR every mode with ``|coeff| >= threshold``; zero the rest. Class K (magnitude-band sparse-truncate / threshold-gate) per Mallat 2008 \302\2479.2 (best k-term approximation) + Spike #117 anchor. Exactly one of ``keep_k`` / ``threshold`` must be supplied. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_480, 3u,
+        ts_params_483, 3u,
         "SpectralHandle",
         "truncated coefficients",
         1,
@@ -14773,12 +14860,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 481 */
+    { /* 484 */
         "srmech.physics.qm.single_particle.tdse_evolve",
         "srmech",
         "qm.single_particle",
         "Closed-form TDSE evolution \317\210(t) = V\302\267diag(exp(-i\316\273t))\302\267V^H \317\210(0) via Hermitian eigenbasis. Schr\303\266dinger (1926); Sakurai \302\2472.1.5.",
-        ts_params_481, 3u,
+        ts_params_484, 3u,
         "list[complex]",
         "(n,) complex",
         1,
@@ -14793,12 +14880,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 482 */
+    { /* 485 */
         "srmech.physics.qm.single_particle.tise_solve",
         "srmech",
         "qm.single_particle",
         "Time-Independent Schr\303\266dinger H \317\210_n = E_n \317\210_n. Schr\303\266dinger (1926); Sakurai \302\2472.1.3.",
-        ts_params_482, 1u,
+        ts_params_485, 1u,
         "tuple[Mat, Mat]",
         "(eigenvalues, eigenvectors)",
         1,
@@ -14806,19 +14893,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"[tise_solve(Hho)[0][k, 0] for k in range(6)]\",\"2\":\"[tise_solve(sz)[0][k, 0] for k in range(2)]\",\"3\":\"mat_norm(mat_matmul(tise_solve(Hho)[1].conj().T, tise_solve(Hho)[1]) - Mat.from_rows([[1.0+0j if i==j else 0j for j in range(6)] for i in range(6)], is_complex=True))\",\"4\":\"tise_solve(Hho)[0].shape, tise_solve(Hho)[1].shape\"},\"output\":{\"1\":\"[0.5, 1.5, 2.4999999999999996, 3.4999999999999996, 4.5, 5.500000000000001]\",\"2\":\"[-1.0, 1.0]\",\"3\":\"0.0\",\"4\":\"((6, 1), (6, 6))\"},\"setup\":\"from srmech.physics.qm.relativistic import *\\nfrom srmech.physics.qm.propagators import *\\nfrom srmech.physics.qm.potentials import *\\nfrom srmech.physics.qm.single_particle import *\\nfrom srmech.physics.qm.pseudo_hermitian import *\\nfrom srmech.physics.qm.spin import pauli_matrices\\nfrom srmech.math.mat import Mat\\nfrom srmech.math.laplacian import mat_matmul, mat_norm, mat_eigvals\\nimport srmech.math.rational as _srn\\nI4 = Mat.from_rows([[1.0+0j if i==j else 0j for j in range(4)]\\n                    for i in range(4)], is_complex=True)\\nI2 = Mat.from_rows([[1+0j, 0j], [0j, 1+0j]], is_complex=True)\\nsx, sy, sz = pauli_matrices()\\n# Bender-Boettcher PT-symmetric 2x2: [[r e^{i0}, s], [s, r e^{-i0}]],\\n# r=1, s=2, 0=pi/6 -> UNBROKEN (s^2 > r^2 sin^2 0) so the spectrum is real.\\nc30 = float(_srn.cos(0.5235987755982988))\\ns30 = float(_srn.sin(0.5235987755982988))\\nH_pt = Mat.from_rows([[c30+1j*s30, 2+0j], [2+0j, c30-1j*s30]], is_complex=True)\\nH_br = Mat.from_rows([[0+1j, 0.4+0j], [0.4+0j, 0-1j]], is_complex=True)  # BROKEN PT\\neta = construct_eta_from_eigendecomposition(H_pt)\\na, ad = harmonic_oscillator_ladder(6)\\nHho = harmonic_oscillator_hamiltonian(6)\\nrt2 = float(_srn.sqrt(0.5)); psi_x = [rt2+0j, rt2+0j]   # |+x>\\nm_mu = 0.1056584          # PDG muon mass / GeV\\nk_mu = [2.0, 0.0, 0.0, 1.0]   # deliberately OFF-shell\\n\",\"why\":\"the HO spectrum comes back as 0.5, 1.5, 2.5, ... and sigma_z as (-1, 1) ASCENDING, with the eigenvector matrix unitary to exactly 0.0. The (n,1) eigenvalue / (n,n) eigenvector shapes are the mat_hermitian_eigendecompose contract, because that is literally what this op is.\"}",
         NULL,
         "WHAT \342\200\224 the time-independent Schroedinger equation H psi_n = E_n psi_n (srmech/physics/qm/single_particle.py:106). It returns (eigvals, eigvecs) as an (n,1) REAL Mat of ASCENDING eigenvalues and an (n,n) COMPLEX unitary Mat whose COLUMNS are the orthonormal eigenvectors \342\200\224 call 4 reads those shapes back as ((6,1), (6,6)). WHEN \342\200\224 reach for it for bound states, spectra, or any Hermitian diagonalisation in the qm layer. The two things to know before using the output: eigenvalues come back ASCENDING (so the ground state is index 0, and sigma_z gives (-1, 1) not (1, -1)), and eigenvectors are COLUMNS, not rows \342\200\224 call 3 verifies V^H V = I at exactly 0.0. What you would otherwise wrongly hand-roll: a QR or Jacobi iteration, or reaching for a general eigensolver. Use mat_eigvals (srmech/math/laplacian.py:2476) only for NON-Hermitian input; for Hermitian H it is the wrong tool and does not give you the orthonormal basis. SIBLINGS \342\200\224 the honest statement is that this op IS srmech.math.laplacian.mat_hermitian_eigendecompose (:2070): the body is a one-line delegation at srmech/physics/qm/single_particle.py:126. It exists as a named physics-facing entry point, so do not hunt for a 'missing' eigensolver behind it and do not add one. The same primitive is what tdse_evolve (:98), heisenberg_evolve (:166), liouville_evolve (:252) and hydrogen_radial (srmech/physics/qm/potentials.py:123) all call \342\200\224 every spectral op in this layer shares it.",
-        ts_composes_482, 1u,
+        ts_composes_485, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 483 */
+    { /* 486 */
         "srmech.physics.qm.single_particle.commutator",
         "srmech",
         "qm.single_particle",
         "Operator commutator [A, B] = AB \342\210\222 BA. Sakurai \302\2471.4.",
-        ts_params_483, 2u,
+        ts_params_486, 2u,
         "Mat",
         "(n, n)",
         1,
@@ -14826,19 +14913,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"[[commutator(sx, sy)[i, j] for j in range(2)] for i in range(2)]\",\"2\":\"mat_norm(commutator(sx, sy) - 2j * sz)\",\"3\":\"mat_norm(commutator(sx, sx))\",\"4\":\"[commutator(a, ad)[i, i].real for i in range(6)]\",\"5\":\"mat_norm(commutator(Hho, Hho))\"},\"output\":{\"1\":\"[[2j, 0j], [0j, -2j]]\",\"2\":\"0.0\",\"3\":\"0.0\",\"4\":\"[1.0, 0.9999999999999996, 1.0, 1.0000000000000004, 1.0000000000000009, -5.000000000000001]\",\"5\":\"0.0\"},\"setup\":\"from srmech.physics.qm.relativistic import *\\nfrom srmech.physics.qm.propagators import *\\nfrom srmech.physics.qm.potentials import *\\nfrom srmech.physics.qm.single_particle import *\\nfrom srmech.physics.qm.pseudo_hermitian import *\\nfrom srmech.physics.qm.spin import pauli_matrices\\nfrom srmech.math.mat import Mat\\nfrom srmech.math.laplacian import mat_matmul, mat_norm, mat_eigvals\\nimport srmech.math.rational as _srn\\nI4 = Mat.from_rows([[1.0+0j if i==j else 0j for j in range(4)]\\n                    for i in range(4)], is_complex=True)\\nI2 = Mat.from_rows([[1+0j, 0j], [0j, 1+0j]], is_complex=True)\\nsx, sy, sz = pauli_matrices()\\n# Bender-Boettcher PT-symmetric 2x2: [[r e^{i0}, s], [s, r e^{-i0}]],\\n# r=1, s=2, 0=pi/6 -> UNBROKEN (s^2 > r^2 sin^2 0) so the spectrum is real.\\nc30 = float(_srn.cos(0.5235987755982988))\\ns30 = float(_srn.sin(0.5235987755982988))\\nH_pt = Mat.from_rows([[c30+1j*s30, 2+0j], [2+0j, c30-1j*s30]], is_complex=True)\\nH_br = Mat.from_rows([[0+1j, 0.4+0j], [0.4+0j, 0-1j]], is_complex=True)  # BROKEN PT\\neta = construct_eta_from_eigendecomposition(H_pt)\\na, ad = harmonic_oscillator_ladder(6)\\nHho = harmonic_oscillator_hamiltonian(6)\\nrt2 = float(_srn.sqrt(0.5)); psi_x = [rt2+0j, rt2+0j]   # |+x>\\nm_mu = 0.1056584          # PDG muon mass / GeV\\nk_mu = [2.0, 0.0, 0.0, 1.0]   # deliberately OFF-shell\\n\",\"why\":\"[sigma_x, sigma_y] = 2i sigma_z at exactly 0.0 residual -- the su(2) structure constant read directly -- and [A, A] = 0 exactly. The same op applied to the ladder pair exposes the Fock truncation as the -5.0 in the last diagonal slot.\"}",
         NULL,
         "WHAT \342\200\224 the operator commutator [A, B] = AB - BA for square same-shape Mat (srmech/physics/qm/single_particle.py:129), via the Class-L mat_matmul cascade. Small, but it is the algebraic primitive the whole quantum layer is phrased in. WHEN \342\200\224 reach for it to read a structure constant, test whether two observables are simultaneously measurable, or expose a truncation artifact. Call 1 gives [sigma_x, sigma_y] = 2i sigma_z at exactly 0.0 residual \342\200\224 the su(2) structure constant read straight off \342\200\224 and call 4 turns the same op on the Fock ladder to expose the -5.0 truncation defect in the top slot. What you would otherwise wrongly hand-roll: writing A@B - B@A inline with numpy, which this project does not use, or with hand-written triple loops. Both re-implement mat_matmul and neither picks up the native C dispatch. It also validates shape (square, matching) and raises rather than broadcasting silently, which an inline expression will not do. SIBLINGS \342\200\224 this is the qm-layer entry point for the operation; the matmul beneath it is srmech.math.laplacian.mat_matmul (srmech/math/laplacian.py:1743). For the ANTI-commutator {A, B} used in the Clifford algebra there is no separate op \342\200\224 clifford_residuals (srmech/physics/qm/relativistic.py:245) computes those internally and returns residuals, so use it rather than composing an anticommutator here. The Lie-algebra peers in the gauge sector are srmech.physics.qm.gauge.lie_algebra_residual and su2/su3_structure_constants, which certify a whole algebra rather than one pair.",
-        ts_composes_483, 1u,
+        ts_composes_486, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 484 */
+    { /* 487 */
         "srmech.physics.qm.single_particle.heisenberg_evolve",
         "srmech",
         "qm.single_particle",
         "Heisenberg-picture operator evolution A_H(t) = U\342\200\240(t) A U(t). Heisenberg (1925); Sakurai \302\2472.2.",
-        ts_params_484, 3u,
+        ts_params_487, 3u,
         "Mat",
         "(n, n) complex",
         1,
@@ -14853,12 +14940,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 485 */
+    { /* 488 */
         "srmech.physics.qm.single_particle.lattice_momentum",
         "srmech",
         "qm.single_particle",
         "Lattice momentum p\314\202 = -i \342\210\202_x via central-difference; Hermitian. Sakurai \302\2471.6; Wilson (1974).",
-        ts_params_485, 2u,
+        ts_params_488, 2u,
         "Mat",
         "(n, n) Hermitian complex",
         1,
@@ -14873,12 +14960,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 486 */
+    { /* 489 */
         "srmech.physics.qm.single_particle.clock_operator",
         "srmech",
         "qm.single_particle",
         "Weyl clock U = diag(\317\211^k), \317\211 = e^{2\317\200i/n} \342\200\224 the fenced position x\314\202 on a ring; unitary, U**n = I; U V = \317\211 V U. Schwinger (1960) PNAS 46, 570; Weyl (1931).",
-        ts_params_486, 1u,
+        ts_params_489, 1u,
         "Mat",
         "(n, n) diagonal unitary complex",
         1,
@@ -14893,12 +14980,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 487 */
+    { /* 490 */
         "srmech.physics.qm.single_particle.shift_operator",
         "srmech",
         "qm.single_particle",
         "Weyl shift V|k\342\237\251 = |k+1 mod n\342\237\251 \342\200\224 group-level momentum / one-site translation; unitary, V**n = I; U V = \317\211 V U. Schwinger (1960) PNAS 46, 570; Weyl (1931).",
-        ts_params_487, 1u,
+        ts_params_490, 1u,
         "Mat",
         "(n, n) cyclic-shift unitary complex",
         1,
@@ -14913,12 +15000,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 488 */
+    { /* 491 */
         "srmech.physics.qm.single_particle.density_matrix",
         "srmech",
         "qm.single_particle",
         "Pure-state density matrix \317\201 = |\317\210\342\237\251\342\237\250\317\210|. von Neumann (1932); Sakurai \302\2473.4.",
-        ts_params_488, 1u,
+        ts_params_491, 1u,
         "Mat",
         "(n, n) Hermitian PSD",
         1,
@@ -14926,19 +15013,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"[[density_matrix(psi_x)[i, j] for j in range(2)] for i in range(2)]\",\"2\":\"sum(density_matrix(psi_x)[i, i] for i in range(2)).real\",\"3\":\"mat_norm(mat_matmul(density_matrix(psi_x), density_matrix(psi_x)) - density_matrix(psi_x))\",\"4\":\"[[density_matrix([1+0j, 0j])[i, j] for j in range(2)] for i in range(2)]\",\"5\":\"mat_norm(density_matrix(psi_x).conj().T - density_matrix(psi_x))\"},\"output\":{\"1\":\"[[(0.4999999999999999+0j), (0.4999999999999999+0j)], [(0.4999999999999999+0j), (0.4999999999999999+0j)]]\",\"2\":\"0.9999999999999998\",\"3\":\"2.220446049250313e-16\",\"4\":\"[[(1+0j), 0j], [0j, 0j]]\",\"5\":\"0.0\"},\"setup\":\"from srmech.physics.qm.relativistic import *\\nfrom srmech.physics.qm.propagators import *\\nfrom srmech.physics.qm.potentials import *\\nfrom srmech.physics.qm.single_particle import *\\nfrom srmech.physics.qm.pseudo_hermitian import *\\nfrom srmech.physics.qm.spin import pauli_matrices\\nfrom srmech.math.mat import Mat\\nfrom srmech.math.laplacian import mat_matmul, mat_norm, mat_eigvals\\nimport srmech.math.rational as _srn\\nI4 = Mat.from_rows([[1.0+0j if i==j else 0j for j in range(4)]\\n                    for i in range(4)], is_complex=True)\\nI2 = Mat.from_rows([[1+0j, 0j], [0j, 1+0j]], is_complex=True)\\nsx, sy, sz = pauli_matrices()\\n# Bender-Boettcher PT-symmetric 2x2: [[r e^{i0}, s], [s, r e^{-i0}]],\\n# r=1, s=2, 0=pi/6 -> UNBROKEN (s^2 > r^2 sin^2 0) so the spectrum is real.\\nc30 = float(_srn.cos(0.5235987755982988))\\ns30 = float(_srn.sin(0.5235987755982988))\\nH_pt = Mat.from_rows([[c30+1j*s30, 2+0j], [2+0j, c30-1j*s30]], is_complex=True)\\nH_br = Mat.from_rows([[0+1j, 0.4+0j], [0.4+0j, 0-1j]], is_complex=True)  # BROKEN PT\\neta = construct_eta_from_eigendecomposition(H_pt)\\na, ad = harmonic_oscillator_ladder(6)\\nHho = harmonic_oscillator_hamiltonian(6)\\nrt2 = float(_srn.sqrt(0.5)); psi_x = [rt2+0j, rt2+0j]   # |+x>\\nm_mu = 0.1056584          # PDG muon mass / GeV\\nk_mu = [2.0, 0.0, 0.0, 1.0]   # deliberately OFF-shell\\n\",\"why\":\"|+x><+x| is the all-1/2 matrix, trace 1, Hermitian at exactly 0.0, and idempotent to 2.2e-16 -- rho**2 = rho is what PURE means, and it is the property a hand-rolled outer product with a conjugation slip silently loses.\"}",
         NULL,
         "WHAT \342\200\224 the pure-state density matrix rho = |psi><psi| (srmech/physics/qm/single_particle.py:205), formed as a column-times-row Class-L mat_matmul so the conjugation lands on the BRA. It returns an (n,n) Hermitian PSD Mat with trace <psi|psi>. WHEN \342\200\224 reach for it to move from a state vector to the density-operator formalism: before liouville_evolve, when taking an expectation as a trace, or when a subsystem will later be traced out. The worked calls confirm the properties that define purity \342\200\224 trace 1, Hermitian at exactly 0.0, and rho**2 = rho to 2.2e-16 (call 3). What you would otherwise wrongly hand-roll: the outer product with the conjugate on the wrong factor. outer(conj(psi), psi) is the TRANSPOSE of the right answer; for the real |+x> in call 1 it is indistinguishable, which is exactly why the bug survives \342\200\224 it only shows up once amplitudes are genuinely complex, and then it evolves backwards. Note the op does NOT normalise: trace equals <psi|psi>, so an unnormalised psi gives an unnormalised rho and no warning. SIBLINGS \342\200\224 liouville_evolve (:230) is the direct consumer and the two compose exactly: density_matrix(tdse_evolve(H, psi, t)) equals liouville_evolve(density_matrix(psi), H, t) to 3.9e-17. For expectation values do not build rho and trace by hand \342\200\224 srmech.physics.qm.pseudo_hermitian.expectation_eta (srmech/physics/qm/pseudo_hermitian.py:127) computes <psi|eta O|psi>/<psi|eta|psi> directly and reduces to the ordinary expectation at eta = I.",
-        ts_composes_488, 1u,
+        ts_composes_491, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 489 */
+    { /* 492 */
         "srmech.physics.qm.single_particle.liouville_evolve",
         "srmech",
         "qm.single_particle",
         "Liouville-von Neumann \317\201(t) = U(t) \317\201(0) U\342\200\240(t). von Neumann (1932); Sakurai \302\2473.4.2.",
-        ts_params_489, 3u,
+        ts_params_492, 3u,
         "Mat",
         "(n, n)",
         1,
@@ -14953,7 +15040,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 490 */
+    { /* 493 */
         "srmech.physics.qm.spin.pauli_matrices",
         "srmech",
         "qm.spin",
@@ -14973,7 +15060,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 491 */
+    { /* 494 */
         "srmech.physics.qm.spin.pauli_identity",
         "srmech",
         "qm.spin",
@@ -14993,7 +15080,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 492 */
+    { /* 495 */
         "srmech.physics.qm.spin.pauli_clifford_residuals",
         "srmech",
         "qm.spin",
@@ -15013,12 +15100,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 493 */
+    { /* 496 */
         "srmech.physics.qm.spin.pauli_spin_operator",
         "srmech",
         "qm.spin",
         "Spin-\302\275 projection S_n = (1/2) \317\203 \302\267 n\314\202 for arbitrary axis. Sakurai \302\2473.2 eq 3.2.51.",
-        ts_params_493, 1u,
+        ts_params_496, 1u,
         "Mat",
         "2\303\2272 Hermitian, eigenvalues \302\261\302\275",
         1,
@@ -15033,7 +15120,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 494 */
+    { /* 497 */
         "srmech.physics.qm.bell.chsh_pauli_combination",
         "srmech",
         "qm.bell",
@@ -15046,14 +15133,14 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"shape        (4, 4)\\nrows         [[1.0, 0.0, 0.0, 1.0], [0.0, -1.0, 1.0, 0.0], [0.0, 1.0, -1.0, 0.0], [1.0, 0.0, 0.0, 1.0]]\\nspectrum     [-2.0, 0.0, 0.0, 2.0]\\nnorm         2.0000000000000004  (classical CHSH bound)\\nsigma_x      [[0j, (1+0j)], [(1+0j), 0j]]\\nHermitian    True\\ninteger entries: True\",\"why\":\"Integer entries only, and the block decomposition shows in the spectrum: {\\u22122, 0, 0, +2}, so the norm is the classical Bell bound 2 with no irrational anywhere in the matrix.\",\"worked\":\"from srmech.physics.qm.bell import chsh_pauli_combination, operator_norm\\nfrom srmech.physics.qm.spin import pauli_matrices\\nfrom srmech.math.laplacian import mat_hermitian_eigendecompose\\n\\nM = chsh_pauli_combination()\\nprint(\\\"shape       \\\", M.shape)\\nprint(\\\"rows        \\\", [[complex(M[i, j]).real for j in range(4)]\\n                       for i in range(4)])\\nev, _ = mat_hermitian_eigendecompose(M)\\nprint(\\\"spectrum    \\\", [round(ev[i, 0], 12) for i in range(4)])\\nprint(\\\"norm        \\\", operator_norm(M), \\\" (classical CHSH bound)\\\")\\nsx, _sy, sz = pauli_matrices()\\nprint(\\\"sigma_x     \\\", [[complex(sx[i, j]) for j in range(2)]\\n                       for i in range(2)])\\nprint(\\\"Hermitian   \\\", all(M[i, j] == complex(M[j, i]).conjugate()\\n                          for i in range(4) for j in range(4)))\\nprint(\\\"integer entries:\\\", all(complex(M[i, j]).real\\n                              == int(complex(M[i, j]).real)\\n                              and complex(M[i, j]).imag == 0.0\\n                              for i in range(4) for j in range(4)))\"}",
         NULL,
         "WHAT \342\200\224 returns M = \317\203x\342\212\227\317\203x + \317\203z\342\212\227\317\203z as a 4x4 Hermitian complex ``Mat`` (``srmech/physics/qm/bell.py:181``). Every entry is an exact integer in {0, \302\2611} (confirmed in the run), so the native carrier add is byte-identical to the pure fallback. Closed-form spectrum {+2, 0, 0, \342\210\2222} from the block split into even-parity [[1,1],[1,1]] and odd-parity [[\342\210\2221,1],[1,\342\210\2221]]. WHEN \342\200\224 reach for it as the PRIMARY identity of the Bell arc: the norm is exactly 2, the classical bound, and because the eigenvalues are integers the residual against 2 is a pure measurement of the Class-L eigensolver's floor rather than of the physics. That makes it the right operator to regression-test the eigendecomposition with. The transcript shows the integer entries, the spectrum and the norm together. What you would otherwise wrongly hand-roll is a Kronecker product; use ``srmech.cascade.spectral_cascades.kron`` or this op, and note this module deliberately inlines a private Class-I mixed-radix ``_kron`` so the chsh ops compose only C-dispatched carrier ops. SIBLINGS \342\200\224 ``chsh_operator`` (``srmech/physics/qm/bell.py:209``) is exactly \342\210\2322 times this matrix, verified entrywise in that op's run \342\200\224 they are not two independent constructions; ``chsh_pauli_combination_norm`` is ``operator_norm`` of this; ``classical_chsh_bound`` is the constant it reproduces; ``srmech.physics.qm.spin.pauli_matrices`` supplies \317\203x and \317\203z.",
-        ts_composes_494, 1u,
+        ts_composes_497, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 495 */
+    { /* 498 */
         "srmech.physics.qm.bell.chsh_operator",
         "srmech",
         "qm.bell",
@@ -15073,12 +15160,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 496 */
+    { /* 499 */
         "srmech.physics.qm.bell.operator_norm",
         "srmech",
         "qm.bell",
         "Spectral norm max|\316\273_i| of a Hermitian matrix via Class L hermitian_eigendecompose. Golub & Van Loan \302\2478.5.",
-        ts_params_496, 1u,
+        ts_params_499, 1u,
         "float",
         "largest absolute eigenvalue",
         1,
@@ -15086,14 +15173,14 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"B_CHSH       2.8284271247461907\\nsx.sx+sz.sz  2.0000000000000004\\ngamma_5      1.0000000000000002\\nlist-of-rows 3.0\\nMat carrier  3.0\\ntakes max |lambda|, not max lambda: 5.0\\nzero matrix  0.0\\nnon-square -> operator_norm: H must be square\",\"why\":\"It is max |\\u03bb|, not max \\u03bb \\u2014 diag(1, \\u22125) returns 5.0 \\u2014 and it accepts a Mat, a list-of-rows or anything 2-D, routing through the numpy-free Class-L Hermitian eigendecomposition.\",\"worked\":\"from srmech.physics.qm.bell import (operator_norm, chsh_operator,\\n                            chsh_pauli_combination)\\nfrom srmech.physics.qm.relativistic import gamma_5\\nfrom srmech.math.mat import Mat\\n\\nprint(\\\"B_CHSH      \\\", operator_norm(chsh_operator()))\\nprint(\\\"sx.sx+sz.sz \\\", operator_norm(chsh_pauli_combination()))\\nprint(\\\"gamma_5     \\\", operator_norm(gamma_5()))            # involution -> 1\\nprint(\\\"list-of-rows\\\", operator_norm([[2.0, 0.0], [0.0, -3.0]]))\\nprint(\\\"Mat carrier \\\", operator_norm(\\n    Mat.from_rows([[2.0, 0.0], [0.0, -3.0]], is_complex=True)))\\nprint(\\\"takes max |lambda|, not max lambda:\\\",\\n      operator_norm([[1.0, 0.0], [0.0, -5.0]]))\\nprint(\\\"zero matrix \\\", operator_norm([[0.0, 0.0], [0.0, 0.0]]))\\ntry:\\n    operator_norm([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])\\nexcept ValueError as exc:\\n    print(\\\"non-square ->\\\", exc)\"}",
         NULL,
         "WHAT \342\200\224 returns the operator (spectral) norm of a HERMITIAN matrix, max_i |\316\273_i|, as a non-negative float (``srmech/physics/qm/bell.py:260``). Accepts a ``Mat`` or any list-of-rows; asserts squareness. Computed through the unconditionally numpy-free ``srmech.math.laplacian.mat_hermitian_eigendecompose`` (native Jacobi C path plus a pure fallback), and the max-modulus reduction is an explicit sign branch \342\200\224 Class-K pin-slot, never Python ``abs()``. WHEN \342\200\224 reach for it whenever you need \342\200\226H\342\200\226 for a Hermitian H: a Bell/CHSH bound, an operator-norm bound in a variational argument, a conditioning check. The transcript is deliberately about the trap \342\200\224 ``operator_norm`` on diag(1, \342\210\2225) returns 5.0, not 1.0, because it takes the largest MODULUS; and ``gamma_5`` returns 1.0 because it is an involution. What you would otherwise wrongly hand-roll is ``max(jacobi_eigvals(H))``, which silently returns the wrong answer on any operator with a large negative eigenvalue \342\200\224 which is every CHSH operator. HERMITIAN IS A PRECONDITION, not a check: on a non-Hermitian matrix the result is not the spectral norm. SIBLINGS \342\200\224 ``chsh_operator_norm`` and ``chsh_pauli_combination_norm`` are this op pre-applied to the two Bell operators; ``srmech.math.laplacian.mat_norm`` is the FROBENIUS/2-norm of the entries and is a different number entirely \342\200\224 do not substitute it; ``srmech.math.laplacian.mat_hermitian_eigendecompose`` is the primitive underneath if you want the whole spectrum rather than its largest modulus; ``srmech.cascade.magnitude`` is the Class-K scalar pin-slot this reduction is an instance of.",
-        ts_composes_496, 1u,
+        ts_composes_499, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 497 */
+    { /* 500 */
         "srmech.physics.qm.bell.chsh_pauli_combination_norm",
         "srmech",
         "qm.bell",
@@ -15113,7 +15200,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 498 */
+    { /* 501 */
         "srmech.physics.qm.bell.chsh_operator_norm",
         "srmech",
         "qm.bell",
@@ -15133,7 +15220,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 499 */
+    { /* 502 */
         "srmech.physics.qm.bell.tsirelson_bound",
         "srmech",
         "qm.bell",
@@ -15153,7 +15240,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 500 */
+    { /* 503 */
         "srmech.physics.qm.bell.classical_chsh_bound",
         "srmech",
         "qm.bell",
@@ -15173,12 +15260,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 501 */
+    { /* 504 */
         "srmech.physics.qm.bell.verify_chsh",
         "srmech",
         "qm.bell",
         "Bit-exact verification of both Bell-CHSH identities: \342\200\226\317\203_x\342\212\227\317\203_x + \317\203_z\342\212\227\317\203_z\342\200\226=2 and \342\200\226B_CHSH\342\200\226=2\342\210\2322. Framework's strongest identity-level attestation per Spike #128.1.",
-        ts_params_501, 1u,
+        ts_params_504, 1u,
         "tuple[bool, float, float]",
         "(verified, primary_residual, tsirelson_residual)",
         1,
@@ -15193,12 +15280,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 502 */
+    { /* 505 */
         "srmech.physics.qm.potentials.hydrogen_radial",
         "srmech",
         "qm.potentials",
         "Hydrogen-atom radial Schr\303\266dinger eigenstates via finite-difference. Bohr (1913); Sakurai \302\2473.7.",
-        ts_params_502, 3u,
+        ts_params_505, 3u,
         "tuple[list[float], list[float], Mat]",
         "(r, energies, eigenvectors)",
         1,
@@ -15206,19 +15293,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"[hydrogen_radial(n_grid=120, r_max=40.0)[1][n] for n in range(3)]\",\"2\":\"[-1.0 / (2.0 * n * n) for n in (1, 2, 3)]\",\"3\":\"[hydrogen_radial(n_grid=300, r_max=40.0)[1][n] for n in range(3)]\",\"4\":\"hydrogen_radial(n_grid=300, r_max=40.0, l_quantum=1)[1][0]\",\"5\":\"(len(hydrogen_radial(n_grid=120, r_max=40.0)[0]), hydrogen_radial(n_grid=120, r_max=40.0)[2].shape)\"},\"output\":{\"1\":\"[-0.4870387672532564, -0.12415770045252274, -0.05538654819785268]\",\"2\":\"[-0.5, -0.125, -0.05555555555555555]\",\"3\":\"[-0.4978117982236251, -0.12486233615038718, -0.055526999423338094]\",\"4\":\"-0.12504611343936514\",\"5\":\"(120, (120, 120))\"},\"setup\":\"from srmech.physics.qm.relativistic import *\\nfrom srmech.physics.qm.propagators import *\\nfrom srmech.physics.qm.potentials import *\\nfrom srmech.physics.qm.single_particle import *\\nfrom srmech.physics.qm.pseudo_hermitian import *\\nfrom srmech.physics.qm.spin import pauli_matrices\\nfrom srmech.math.mat import Mat\\nfrom srmech.math.laplacian import mat_matmul, mat_norm, mat_eigvals\\nimport srmech.math.rational as _srn\\nI4 = Mat.from_rows([[1.0+0j if i==j else 0j for j in range(4)]\\n                    for i in range(4)], is_complex=True)\\nI2 = Mat.from_rows([[1+0j, 0j], [0j, 1+0j]], is_complex=True)\\nsx, sy, sz = pauli_matrices()\\n# Bender-Boettcher PT-symmetric 2x2: [[r e^{i0}, s], [s, r e^{-i0}]],\\n# r=1, s=2, 0=pi/6 -> UNBROKEN (s^2 > r^2 sin^2 0) so the spectrum is real.\\nc30 = float(_srn.cos(0.5235987755982988))\\ns30 = float(_srn.sin(0.5235987755982988))\\nH_pt = Mat.from_rows([[c30+1j*s30, 2+0j], [2+0j, c30-1j*s30]], is_complex=True)\\nH_br = Mat.from_rows([[0+1j, 0.4+0j], [0.4+0j, 0-1j]], is_complex=True)  # BROKEN PT\\neta = construct_eta_from_eigendecomposition(H_pt)\\na, ad = harmonic_oscillator_ladder(6)\\nHho = harmonic_oscillator_hamiltonian(6)\\nrt2 = float(_srn.sqrt(0.5)); psi_x = [rt2+0j, rt2+0j]   # |+x>\\nm_mu = 0.1056584          # PDG muon mass / GeV\\nk_mu = [2.0, 0.0, 0.0, 1.0]   # deliberately OFF-shell\\n\",\"why\":\"the discretised radial equation reproduces the Rydberg series -1/(2n**2): at n_grid=120 the 1s sits at -0.4870 and at n_grid=300 at -0.4978, converging to -0.5 as O(dr**2). The l=1 2p state lands at -0.12504611 against an exact -0.125.\"}",
         NULL,
         "WHAT \342\200\224 the hydrogen radial Schroedinger problem for u(r) = r R(r), discretised on a uniform grid with the 3-point central-difference Laplacian and Dirichlet walls, then solved with the Class-L Hermitian eigendecomposition (srmech/physics/qm/potentials.py:61, eig at :123). It returns the triple (r, energies, eigenvectors): the grid, the ASCENDING eigenvalues, and the column-stacked REAL eigenvectors. In atomic units the low spectrum is the Rydberg series E_n = -1/(2 n**2). WHEN \342\200\224 reach for it as the worked bound-state example, or as a real Hermitian test matrix with a KNOWN closed-form spectrum. What you would otherwise wrongly hand-roll: the u = r R substitution (solving for R directly makes the origin singular) and the centrifugal term l(l+1)/(2 r**2), which is what makes l a parameter rather than a separate derivation. The honest limitation, visible in calls 1 and 3: this is a DISCRETISATION, so the 1s energy is -0.4870 at n_grid=120 and -0.4978 at n_grid=300 against an exact -0.5 \342\200\224 convergence is O(dr**2) and the 1s is worst because it is the most peaked at the origin. l=1 (call 4) lands at -0.12504611 against -0.125 precisely because the centrifugal barrier keeps u away from r = 0. Do not read the residual error as a bug. SIBLINGS \342\200\224 harmonic_oscillator_hamiltonian (:171) is the other shipped model potential and is EXACT rather than discretised, so prefer it when you want a clean spectrum. tise_solve (srmech/physics/qm/single_particle.py:106) is the general Hermitian solver this op specialises \342\200\224 do not call it on a Hamiltonian you built yourself when a shipped potential already exists.",
-        ts_composes_502, 1u,
+        ts_composes_505, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 503 */
+    { /* 506 */
         "srmech.physics.qm.potentials.harmonic_oscillator_ladder",
         "srmech",
         "qm.potentials",
         "Ladder operators (a, a\342\200\240) truncated at n_dim. Heisenberg (1925); Sakurai \302\2472.3.",
-        ts_params_503, 2u,
+        ts_params_506, 2u,
         "tuple[Mat, Mat]",
         "(a, a\342\200\240)",
         1,
@@ -15226,19 +15313,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"[harmonic_oscillator_ladder(6)[0][n - 1, n].real for n in range(1, 6)]\",\"2\":\"[float(_srn.sqrt(float(n))) for n in range(1, 6)]\",\"3\":\"[commutator(*harmonic_oscillator_ladder(6))[i, i].real for i in range(6)]\",\"4\":\"[commutator(*harmonic_oscillator_ladder(4))[i, i].real for i in range(4)]\",\"5\":\"mat_norm(harmonic_oscillator_ladder(6)[1] - harmonic_oscillator_ladder(6)[0].conj().T)\"},\"output\":{\"1\":\"[1.0, 1.414213562373095, 1.7320508075688772, 2.0, 2.23606797749979]\",\"2\":\"[1.0, 1.414213562373095, 1.7320508075688772, 2.0, 2.23606797749979]\",\"3\":\"[1.0, 0.9999999999999996, 1.0, 1.0000000000000004, 1.0000000000000009, -5.000000000000001]\",\"4\":\"[1.0, 0.9999999999999996, 1.0, -2.9999999999999996]\",\"5\":\"0.0\"},\"setup\":\"from srmech.physics.qm.relativistic import *\\nfrom srmech.physics.qm.propagators import *\\nfrom srmech.physics.qm.potentials import *\\nfrom srmech.physics.qm.single_particle import *\\nfrom srmech.physics.qm.pseudo_hermitian import *\\nfrom srmech.physics.qm.spin import pauli_matrices\\nfrom srmech.math.mat import Mat\\nfrom srmech.math.laplacian import mat_matmul, mat_norm, mat_eigvals\\nimport srmech.math.rational as _srn\\nI4 = Mat.from_rows([[1.0+0j if i==j else 0j for j in range(4)]\\n                    for i in range(4)], is_complex=True)\\nI2 = Mat.from_rows([[1+0j, 0j], [0j, 1+0j]], is_complex=True)\\nsx, sy, sz = pauli_matrices()\\n# Bender-Boettcher PT-symmetric 2x2: [[r e^{i0}, s], [s, r e^{-i0}]],\\n# r=1, s=2, 0=pi/6 -> UNBROKEN (s^2 > r^2 sin^2 0) so the spectrum is real.\\nc30 = float(_srn.cos(0.5235987755982988))\\ns30 = float(_srn.sin(0.5235987755982988))\\nH_pt = Mat.from_rows([[c30+1j*s30, 2+0j], [2+0j, c30-1j*s30]], is_complex=True)\\nH_br = Mat.from_rows([[0+1j, 0.4+0j], [0.4+0j, 0-1j]], is_complex=True)  # BROKEN PT\\neta = construct_eta_from_eigendecomposition(H_pt)\\na, ad = harmonic_oscillator_ladder(6)\\nHho = harmonic_oscillator_hamiltonian(6)\\nrt2 = float(_srn.sqrt(0.5)); psi_x = [rt2+0j, rt2+0j]   # |+x>\\nm_mu = 0.1056584          # PDG muon mass / GeV\\nk_mu = [2.0, 0.0, 0.0, 1.0]   # deliberately OFF-shell\\n\",\"why\":\"a's superdiagonal is exactly [1, sqrt2, sqrt3, 2, sqrt5], a_dagger is exactly a's conjugate transpose (0.0 residual), and [a, a_dagger] is the identity EXCEPT at the top Fock state, where truncation makes it -(n_dim-1): -5.0 at n_dim=6 and -3.0 at n_dim=4.\"}",
         NULL,
         "WHAT \342\200\224 the truncated Fock-space ladder pair (a, a_dagger) as n_dim x n_dim complex Mat (srmech/physics/qm/potentials.py:133), with a's superdiagonal exactly [1, sqrt2, sqrt3, ...] via the Class-N libm-free srmech.math.rational.sqrt, and a_dagger as its conjugate transpose (call 5, residual exactly 0.0). WHEN \342\200\224 reach for it for any Fock-space construction: number operator a_dagger a, Hamiltonians, coherent states, or Class-M binding over Fock states. The trap this entry exists to make unmissable is TRUNCATION, in call 3: [a, a_dagger] is the identity on every diagonal slot EXCEPT the last, where it is -(n_dim - 1) \342\200\224 measured -5.0 at n_dim=6 and -3.0 at n_dim=4. The parent docstring calls this 'O(n_dim^-1) at large indices', which understates it: the defect is maximal, not small, and it sits precisely at the top state. So never trust results that populate the highest Fock levels, and size n_dim well above the occupied band. What you would otherwise wrongly hand-roll: the sqrt(n) superdiagonal placement \342\200\224 off-by-one there (sqrt(n+1) on the wrong diagonal) yields an a that still looks plausible but breaks the commutator everywhere rather than only at the boundary. SIBLINGS \342\200\224 harmonic_oscillator_hamiltonian (:171) is built directly FROM this pair at :189, so do not assemble omega(a_dagger a + 1/2) yourself. The commutator check uses srmech.physics.qm.single_particle.commutator (srmech/physics/qm/single_particle.py:129) \342\200\224 that is the op for [A, B], not a hand-written A@B - B@A.",
-        ts_composes_503, 1u,
+        ts_composes_506, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 504 */
+    { /* 507 */
         "srmech.physics.qm.potentials.harmonic_oscillator_hamiltonian",
         "srmech",
         "qm.potentials",
         "Harmonic-oscillator Hamiltonian H = \342\204\217\317\211 (a\342\200\240a + 1/2). Sakurai \302\2472.3.",
-        ts_params_504, 2u,
+        ts_params_507, 2u,
         "Mat",
         "Hermitian (n_dim, n_dim)",
         1,
@@ -15253,7 +15340,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 505 */
+    { /* 508 */
         "srmech.physics.qm.relativistic.minkowski_metric",
         "srmech",
         "qm.relativistic",
@@ -15273,7 +15360,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 506 */
+    { /* 509 */
         "srmech.physics.qm.relativistic.gamma_matrices",
         "srmech",
         "qm.relativistic",
@@ -15293,7 +15380,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 507 */
+    { /* 510 */
         "srmech.physics.qm.relativistic.gamma_5",
         "srmech",
         "qm.relativistic",
@@ -15313,7 +15400,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 508 */
+    { /* 511 */
         "srmech.physics.qm.relativistic.clifford_residuals",
         "srmech",
         "qm.relativistic",
@@ -15333,7 +15420,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 509 */
+    { /* 512 */
         "srmech.physics.qm.relativistic.weyl_left_projector",
         "srmech",
         "qm.relativistic",
@@ -15346,14 +15433,14 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"[[weyl_left_projector()[i, j].real for j in range(4)] for i in range(4)]\",\"2\":\"mat_norm(mat_matmul(weyl_left_projector(), weyl_left_projector()) - weyl_left_projector())\",\"3\":\"mat_norm(mat_matmul(weyl_left_projector(), weyl_right_projector()))\",\"4\":\"mat_norm(weyl_left_projector() + weyl_right_projector() - I4)\",\"5\":\"mat_norm(mat_matmul(weyl_left_projector(), gamma_5()) + weyl_left_projector())\"},\"output\":{\"1\":\"[[0.5, 0.0, -0.5, 0.0], [0.0, 0.5, 0.0, -0.5], [-0.5, 0.0, 0.5, 0.0], [0.0, -0.5, 0.0, 0.5]]\",\"2\":\"0.0\",\"3\":\"0.0\",\"4\":\"0.0\",\"5\":\"0.0\"},\"setup\":\"from srmech.physics.qm.relativistic import *\\nfrom srmech.physics.qm.propagators import *\\nfrom srmech.physics.qm.potentials import *\\nfrom srmech.physics.qm.single_particle import *\\nfrom srmech.physics.qm.pseudo_hermitian import *\\nfrom srmech.physics.qm.spin import pauli_matrices\\nfrom srmech.math.mat import Mat\\nfrom srmech.math.laplacian import mat_matmul, mat_norm, mat_eigvals\\nimport srmech.math.rational as _srn\\nI4 = Mat.from_rows([[1.0+0j if i==j else 0j for j in range(4)]\\n                    for i in range(4)], is_complex=True)\\nI2 = Mat.from_rows([[1+0j, 0j], [0j, 1+0j]], is_complex=True)\\nsx, sy, sz = pauli_matrices()\\n# Bender-Boettcher PT-symmetric 2x2: [[r e^{i0}, s], [s, r e^{-i0}]],\\n# r=1, s=2, 0=pi/6 -> UNBROKEN (s^2 > r^2 sin^2 0) so the spectrum is real.\\nc30 = float(_srn.cos(0.5235987755982988))\\ns30 = float(_srn.sin(0.5235987755982988))\\nH_pt = Mat.from_rows([[c30+1j*s30, 2+0j], [2+0j, c30-1j*s30]], is_complex=True)\\nH_br = Mat.from_rows([[0+1j, 0.4+0j], [0.4+0j, 0-1j]], is_complex=True)  # BROKEN PT\\neta = construct_eta_from_eigendecomposition(H_pt)\\na, ad = harmonic_oscillator_ladder(6)\\nHho = harmonic_oscillator_hamiltonian(6)\\nrt2 = float(_srn.sqrt(0.5)); psi_x = [rt2+0j, rt2+0j]   # |+x>\\nm_mu = 0.1056584          # PDG muon mass / GeV\\nk_mu = [2.0, 0.0, 0.0, 1.0]   # deliberately OFF-shell\\n\",\"why\":\"P_L is idempotent, annihilates P_R, sums with P_R to the identity, and satisfies P_L gamma_5 = -P_L -- every one at exactly 0.0. This is the projector that makes only left-handed fermions couple to the W in the Standard Model.\"}",
         NULL,
         "WHAT \342\200\224 the left-chirality projector P_L = (I_4 - gamma_5)/2 (srmech/physics/qm/relativistic.py:281), which splits a 4-component Dirac spinor into its left-handed Weyl half. The worked calls verify the full projector algebra at exactly 0.0: P_L**2 = P_L, P_L P_R = 0, P_L + P_R = I_4, and the eigen-relation P_L gamma_5 = -P_L that fixes its handedness SIGN. WHEN \342\200\224 reach for it wherever the Standard Model's parity violation enters: only left-handed fermion fields couple to the W, so essentially every charged-current vertex carries a P_L. What you would otherwise wrongly hand-roll: (1 - gamma_5)/2 written against a Weyl-basis gamma_5, or \342\200\224 far more common \342\200\224 the wrong SIGN, since (I + gamma_5)/2 is a perfectly valid projector that simply projects the OTHER chirality and will not raise. Call 5 is the disambiguator: the left projector is the one satisfying P gamma_5 = -P. SIBLINGS \342\200\224 weyl_right_projector (:292) is the exact mirror and the two are NOT independent: P_R = I_4 - P_L, so build one and subtract. Both are derived from gamma_5 (:227), which is itself derived from gamma_matrices (:189) \342\200\224 do not re-derive the chain. For the abstract sign-carrying chirality primitives use the Class-C cascade atoms srmech.cascade.chiral_flip / net_chirality instead; these two are specifically the 4x4 SPINOR instances.",
-        ts_composes_509, 1u,
+        ts_composes_512, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 510 */
+    { /* 513 */
         "srmech.physics.qm.relativistic.weyl_right_projector",
         "srmech",
         "qm.relativistic",
@@ -15366,14 +15453,14 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"[[weyl_right_projector()[i, j].real for j in range(4)] for i in range(4)]\",\"2\":\"mat_norm(mat_matmul(weyl_right_projector(), weyl_right_projector()) - weyl_right_projector())\",\"3\":\"mat_norm(mat_matmul(weyl_right_projector(), gamma_5()) - weyl_right_projector())\",\"4\":\"mat_norm(weyl_right_projector() - (I4 - weyl_left_projector()))\",\"5\":\"sum(weyl_right_projector()[i, i].real for i in range(4))\"},\"output\":{\"1\":\"[[0.5, 0.0, 0.5, 0.0], [0.0, 0.5, 0.0, 0.5], [0.5, 0.0, 0.5, 0.0], [0.0, 0.5, 0.0, 0.5]]\",\"2\":\"0.0\",\"3\":\"0.0\",\"4\":\"0.0\",\"5\":\"2.0\"},\"setup\":\"from srmech.physics.qm.relativistic import *\\nfrom srmech.physics.qm.propagators import *\\nfrom srmech.physics.qm.potentials import *\\nfrom srmech.physics.qm.single_particle import *\\nfrom srmech.physics.qm.pseudo_hermitian import *\\nfrom srmech.physics.qm.spin import pauli_matrices\\nfrom srmech.math.mat import Mat\\nfrom srmech.math.laplacian import mat_matmul, mat_norm, mat_eigvals\\nimport srmech.math.rational as _srn\\nI4 = Mat.from_rows([[1.0+0j if i==j else 0j for j in range(4)]\\n                    for i in range(4)], is_complex=True)\\nI2 = Mat.from_rows([[1+0j, 0j], [0j, 1+0j]], is_complex=True)\\nsx, sy, sz = pauli_matrices()\\n# Bender-Boettcher PT-symmetric 2x2: [[r e^{i0}, s], [s, r e^{-i0}]],\\n# r=1, s=2, 0=pi/6 -> UNBROKEN (s^2 > r^2 sin^2 0) so the spectrum is real.\\nc30 = float(_srn.cos(0.5235987755982988))\\ns30 = float(_srn.sin(0.5235987755982988))\\nH_pt = Mat.from_rows([[c30+1j*s30, 2+0j], [2+0j, c30-1j*s30]], is_complex=True)\\nH_br = Mat.from_rows([[0+1j, 0.4+0j], [0.4+0j, 0-1j]], is_complex=True)  # BROKEN PT\\neta = construct_eta_from_eigendecomposition(H_pt)\\na, ad = harmonic_oscillator_ladder(6)\\nHho = harmonic_oscillator_hamiltonian(6)\\nrt2 = float(_srn.sqrt(0.5)); psi_x = [rt2+0j, rt2+0j]   # |+x>\\nm_mu = 0.1056584          # PDG muon mass / GeV\\nk_mu = [2.0, 0.0, 0.0, 1.0]   # deliberately OFF-shell\\n\",\"why\":\"P_R is idempotent, satisfies P_R gamma_5 = +P_R (opposite sign to P_L), equals I - P_L exactly, and has trace 2.0 -- the 2 of the 4 Dirac components that are right-handed.\"}",
         NULL,
         "WHAT \342\200\224 the right-chirality projector P_R = (I_4 + gamma_5)/2 (srmech/physics/qm/relativistic.py:292), the mirror of weyl_left_projector (:281). The worked calls confirm idempotence, the opposite-sign eigen-relation P_R gamma_5 = +P_R, the exact identity P_R = I_4 - P_L, and trace 2.0 \342\200\224 i.e. it projects onto exactly 2 of the 4 Dirac components. WHEN \342\200\224 reach for it for right-handed fields: neutral-current couplings, right-handed singlets, or to decompose a spinor as psi = P_L psi + P_R psi. The trap: P_L and P_R are interchangeable-looking and both are legitimate projectors, so a sign slip produces a physically WRONG but numerically well-formed answer that no assertion catches. The trace check (call 5) and the gamma_5 eigen-relation (call 3) are the two cheap disambiguators \342\200\224 the RIGHT projector is the one with P gamma_5 = +P. SIBLINGS \342\200\224 do not compute this independently of weyl_left_projector (:292 vs :281): call 4 shows the two are related by I_4 - P_L at exactly 0.0 residual, so one subtraction is the whole relationship, and P_L P_R = 0 is verified under the left projector's entry. Both descend from gamma_5 (:227) and gamma_matrices (:189). The complementary-pair idea (two idempotents summing to the identity) also appears in srmech.physics.qm.pseudo_hermitian's spectral machinery, but those are eta-dependent and are not interchangeable with these.",
-        ts_composes_510, 1u,
+        ts_composes_513, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 511 */
+    { /* 514 */
         "srmech.physics.qm.relativistic.charge_conjugation_matrix",
         "srmech",
         "qm.relativistic",
@@ -15393,12 +15480,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 512 */
+    { /* 515 */
         "srmech.physics.qm.relativistic.dirac_operator_momentum_space",
         "srmech",
         "qm.relativistic",
         "Dirac operator (\316\263^\316\274 k_\316\274 \342\210\222 m I_4) in momentum space. Dirac (1928); Peskin-Schroeder \302\2473.2.",
-        ts_params_512, 2u,
+        ts_params_515, 2u,
         "Mat",
         "4\303\2274 complex",
         1,
@@ -15413,12 +15500,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 513 */
+    { /* 516 */
         "srmech.physics.qm.relativistic.klein_gordon_dispersion",
         "srmech",
         "qm.relativistic",
         "Klein-Gordon dispersion E = +\342\210\232(|k|\302\262 + m\302\262). Klein/Gordon (1926); Peskin-Schroeder \302\2472.3.",
-        ts_params_513, 2u,
+        ts_params_516, 2u,
         "float",
         "positive on-shell energy",
         1,
@@ -15426,19 +15513,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"klein_gordon_dispersion([0.0, 0.0, 0.0], 91.1876)\",\"2\":\"klein_gordon_dispersion([0.0, 0.0, 1.0], m_mu)\",\"3\":\"klein_gordon_dispersion([3.0, 4.0, 0.0], 0.0)\",\"4\":\"klein_gordon_dispersion([0.0, 0.0, 1000.0], m_mu) - 1000.0\",\"5\":\"four_momentum_squared([klein_gordon_dispersion([0.0, 0.0, 1.0], m_mu), 0.0, 0.0, 1.0])\"},\"output\":{\"1\":\"91.1876\",\"2\":\"1.0055663565824782\",\"3\":\"5.0\",\"4\":\"5.581848654401256e-06\",\"5\":\"0.011163697490559565\"},\"setup\":\"from srmech.physics.qm.relativistic import *\\nfrom srmech.physics.qm.propagators import *\\nfrom srmech.physics.qm.potentials import *\\nfrom srmech.physics.qm.single_particle import *\\nfrom srmech.physics.qm.pseudo_hermitian import *\\nfrom srmech.physics.qm.spin import pauli_matrices\\nfrom srmech.math.mat import Mat\\nfrom srmech.math.laplacian import mat_matmul, mat_norm, mat_eigvals\\nimport srmech.math.rational as _srn\\nI4 = Mat.from_rows([[1.0+0j if i==j else 0j for j in range(4)]\\n                    for i in range(4)], is_complex=True)\\nI2 = Mat.from_rows([[1+0j, 0j], [0j, 1+0j]], is_complex=True)\\nsx, sy, sz = pauli_matrices()\\n# Bender-Boettcher PT-symmetric 2x2: [[r e^{i0}, s], [s, r e^{-i0}]],\\n# r=1, s=2, 0=pi/6 -> UNBROKEN (s^2 > r^2 sin^2 0) so the spectrum is real.\\nc30 = float(_srn.cos(0.5235987755982988))\\ns30 = float(_srn.sin(0.5235987755982988))\\nH_pt = Mat.from_rows([[c30+1j*s30, 2+0j], [2+0j, c30-1j*s30]], is_complex=True)\\nH_br = Mat.from_rows([[0+1j, 0.4+0j], [0.4+0j, 0-1j]], is_complex=True)  # BROKEN PT\\neta = construct_eta_from_eigendecomposition(H_pt)\\na, ad = harmonic_oscillator_ladder(6)\\nHho = harmonic_oscillator_hamiltonian(6)\\nrt2 = float(_srn.sqrt(0.5)); psi_x = [rt2+0j, rt2+0j]   # |+x>\\nm_mu = 0.1056584          # PDG muon mass / GeV\\nk_mu = [2.0, 0.0, 0.0, 1.0]   # deliberately OFF-shell\\n\",\"why\":\"a Z boson at rest returns its own mass, a massless 3-4-5 momentum returns 5.0 exactly, and an ultrarelativistic muon sits 5.58e-06 above |k| -- and feeding the result back through four_momentum_squared recovers m_mu**2, which is what 'on-shell' MEANS.\"}",
         NULL,
         "WHAT \342\200\224 the positive-frequency on-shell energy E = +sqrt(|k|**2 + m**2) (srmech/physics/qm/relativistic.py:344), the physical root of the relativistic dispersion E**2 = |k|**2 + m**2. It takes the SPATIAL 3-momentum (length 3, not 4) and uses the Class-N libm-free srmech.math.rational.sqrt, so it stays inside the numpy-free/ALU-closed-form discipline. It raises on a negative mass and on a wrong-length vector. WHEN \342\200\224 reach for it to put a particle on-shell before feeding a propagator or a Dirac operator: call 5 shows the round-trip, where four_momentum_squared of the assembled 4-momentum returns m_mu**2. What you would otherwise wrongly hand-roll: the NEGATIVE root. E**2 = |k|**2 + m**2 has two solutions and the antiparticle branch is the other one; this op deliberately returns only the positive-frequency solution, so if you need the negative branch you negate explicitly rather than expecting a sign choice here. Passing a 4-vector where a 3-vector is expected is the other common slip, and it raises rather than silently mis-computing. SIBLINGS \342\200\224 the natural partner is four_momentum_squared (:373), which is the INVARIANT this op solves for: dispersion goes 3-momentum + mass -> energy, and four_momentum_squared goes 4-momentum -> m**2. Both share minkowski_metric (:166). dirac_operator_momentum_space (:312) and the qm.propagators family are the usual consumers; do not re-derive sqrt(k**2+m**2) inline at each of those call sites.",
-        ts_composes_513, 1u,
+        ts_composes_516, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 514 */
+    { /* 517 */
         "srmech.physics.qm.relativistic.four_momentum_squared",
         "srmech",
         "qm.relativistic",
         "Lorentz-invariant k\302\262 = k_\316\274 k^\316\274 (mostly-minus convention).",
-        ts_params_514, 1u,
+        ts_params_517, 1u,
         "float",
         "may be negative for spacelike k",
         1,
@@ -15446,19 +15533,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"four_momentum_squared([91.1876, 0.0, 0.0, 0.0])\",\"2\":\"91.1876 ** 2\",\"3\":\"four_momentum_squared([1.0, 1.0, 0.0, 0.0])\",\"4\":\"four_momentum_squared([0.0, 1.0, 0.0, 0.0])\",\"5\":\"four_momentum_squared([klein_gordon_dispersion([0.0, 0.0, 1.0], m_mu), 0.0, 0.0, 1.0]) - m_mu * m_mu\"},\"output\":{\"1\":\"8315.178393760001\",\"2\":\"8315.178393760001\",\"3\":\"0.0\",\"4\":\"-1.0\",\"5\":\"-4.3368086899420177e-16\"},\"setup\":\"from srmech.physics.qm.relativistic import *\\nfrom srmech.physics.qm.propagators import *\\nfrom srmech.physics.qm.potentials import *\\nfrom srmech.physics.qm.single_particle import *\\nfrom srmech.physics.qm.pseudo_hermitian import *\\nfrom srmech.physics.qm.spin import pauli_matrices\\nfrom srmech.math.mat import Mat\\nfrom srmech.math.laplacian import mat_matmul, mat_norm, mat_eigvals\\nimport srmech.math.rational as _srn\\nI4 = Mat.from_rows([[1.0+0j if i==j else 0j for j in range(4)]\\n                    for i in range(4)], is_complex=True)\\nI2 = Mat.from_rows([[1+0j, 0j], [0j, 1+0j]], is_complex=True)\\nsx, sy, sz = pauli_matrices()\\n# Bender-Boettcher PT-symmetric 2x2: [[r e^{i0}, s], [s, r e^{-i0}]],\\n# r=1, s=2, 0=pi/6 -> UNBROKEN (s^2 > r^2 sin^2 0) so the spectrum is real.\\nc30 = float(_srn.cos(0.5235987755982988))\\ns30 = float(_srn.sin(0.5235987755982988))\\nH_pt = Mat.from_rows([[c30+1j*s30, 2+0j], [2+0j, c30-1j*s30]], is_complex=True)\\nH_br = Mat.from_rows([[0+1j, 0.4+0j], [0.4+0j, 0-1j]], is_complex=True)  # BROKEN PT\\neta = construct_eta_from_eigendecomposition(H_pt)\\na, ad = harmonic_oscillator_ladder(6)\\nHho = harmonic_oscillator_hamiltonian(6)\\nrt2 = float(_srn.sqrt(0.5)); psi_x = [rt2+0j, rt2+0j]   # |+x>\\nm_mu = 0.1056584          # PDG muon mass / GeV\\nk_mu = [2.0, 0.0, 0.0, 1.0]   # deliberately OFF-shell\\n\",\"why\":\"one contraction covers all three causal classes: timelike (+m_Z**2), lightlike (exactly 0.0) and spacelike (-1.0), and the on-shell round-trip through klein_gordon_dispersion closes to -4.3e-16. Sign convention is mostly-minus, so on-shell is +m**2.\"}",
         NULL,
         "WHAT \342\200\224 the Lorentz invariant k**2 = k_mu k^mu = k_0**2 - |k|**2 (srmech/physics/qm/relativistic.py:373), formed as the explicit bilinear k^T eta k against minkowski_metric (:166) in mostly-minus convention. On-shell it equals +m**2. The worked calls walk all three causal classes from one op: timelike (a Z boson at rest, exactly m_Z**2), lightlike (exactly 0.0) and spacelike (-1.0). WHEN \342\200\224 reach for it to test on-shell-ness, to form a propagator denominator, or to compute a Mandelstam invariant. What you would otherwise wrongly hand-roll: the SIGN CONVENTION. In mostly-plus you would write |k|**2 - k_0**2 and every subsequent k**2 - m**2 denominator flips, which silently moves poles rather than raising; and the common shortcut k_0**2 - k_1**2 - k_2**2 - k_3**2 typed inline diverges from the module convention the moment anything else changes. Route it through the metric instead. SIBLINGS \342\200\224 klein_gordon_dispersion (:344) is the inverse direction (3-momentum + mass -> energy); call 5 closes that loop to -4.3e-16. This op is consumed directly by feynman_fermion_propagator (srmech/physics/qm/propagators.py:151) and feynman_massive_vector_propagator (:258) to form their denominators, so do not compute k**2 yourself before calling them \342\200\224 they do it internally, and feynman_scalar_propagator (:86) is the one that asks for k_squared PRE-computed.",
-        ts_composes_514, 1u,
+        ts_composes_517, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 515 */
+    { /* 518 */
         "srmech.physics.qm.propagators.feynman_scalar_propagator",
         "srmech",
         "qm.propagators",
         "Scalar Feynman propagator G_F(k\302\262) = i / (k\302\262 \342\210\222 m\302\262 + i\316\265). Feynman (1949); Peskin-Schroeder \302\2474.2.",
-        ts_params_515, 3u,
+        ts_params_518, 3u,
         "complex",
         "",
         1,
@@ -15473,12 +15560,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 516 */
+    { /* 519 */
         "srmech.physics.qm.propagators.feynman_fermion_propagator",
         "srmech",
         "qm.propagators",
         "Fermion Feynman propagator S_F(k) = i(\316\263^\316\274 k_\316\274 + m) / (k\302\262 \342\210\222 m\302\262 + i\316\265). Peskin-Schroeder \302\2474.7.",
-        ts_params_516, 3u,
+        ts_params_519, 3u,
         "Mat",
         "4\303\2274 complex",
         1,
@@ -15493,12 +15580,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 517 */
+    { /* 520 */
         "srmech.physics.qm.propagators.feynman_photon_propagator",
         "srmech",
         "qm.propagators",
         "Photon Feynman propagator D^{\316\274\316\275}(k) = -i g^{\316\274\316\275}/k\302\262 (Feynman gauge); \316\276-gauge with explicit k. Peskin-Schroeder \302\2474.8.",
-        ts_params_517, 4u,
+        ts_params_520, 4u,
         "Mat",
         "4\303\2274 complex",
         1,
@@ -15506,19 +15593,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"1\":\"[[feynman_photon_propagator(100.0)[i, j] for j in range(4)] for i in range(4)]\",\"2\":\"mat_norm(feynman_photon_propagator(100.0, gauge_xi=0.0, k=[10.0, 0.0, 0.0, 0.0]) - feynman_photon_propagator(100.0))\",\"3\":\"mat_norm(feynman_photon_propagator(100.0, gauge_xi=1.0, k=[10.0, 0.0, 0.0, 0.0]) - feynman_photon_propagator(100.0))\",\"4\":\"[feynman_photon_propagator(100.0, gauge_xi=0.5, k=[10.0, 0.0, 0.0, 0.0])[i, i] for i in range(4)]\",\"5\":\"[feynman_photon_propagator(100.0, gauge_xi=1e-12, k=[10.0, 0.0, 0.0, 0.0])[i, i] for i in range(4)]\"},\"output\":{\"1\":\"[[-0.01j, -0j, -0j, -0j], [-0j, 0.01j, -0j, -0j], [-0j, -0j, 0.01j, -0j], [-0j, -0j, -0j, 0.01j]]\",\"2\":\"0.0\",\"3\":\"0.0\",\"4\":\"[-0.005j, 0.01j, 0.01j, 0.01j]\",\"5\":\"[-1.0000680839006293e-14j, 0.01j, 0.01j, 0.01j]\"},\"setup\":\"from srmech.physics.qm.relativistic import *\\nfrom srmech.physics.qm.propagators import *\\nfrom srmech.physics.qm.potentials import *\\nfrom srmech.physics.qm.single_particle import *\\nfrom srmech.physics.qm.pseudo_hermitian import *\\nfrom srmech.physics.qm.spin import pauli_matrices\\nfrom srmech.math.mat import Mat\\nfrom srmech.math.laplacian import mat_matmul, mat_norm, mat_eigvals\\nimport srmech.math.rational as _srn\\nI4 = Mat.from_rows([[1.0+0j if i==j else 0j for j in range(4)]\\n                    for i in range(4)], is_complex=True)\\nI2 = Mat.from_rows([[1+0j, 0j], [0j, 1+0j]], is_complex=True)\\nsx, sy, sz = pauli_matrices()\\n# Bender-Boettcher PT-symmetric 2x2: [[r e^{i0}, s], [s, r e^{-i0}]],\\n# r=1, s=2, 0=pi/6 -> UNBROKEN (s^2 > r^2 sin^2 0) so the spectrum is real.\\nc30 = float(_srn.cos(0.5235987755982988))\\ns30 = float(_srn.sin(0.5235987755982988))\\nH_pt = Mat.from_rows([[c30+1j*s30, 2+0j], [2+0j, c30-1j*s30]], is_complex=True)\\nH_br = Mat.from_rows([[0+1j, 0.4+0j], [0.4+0j, 0-1j]], is_complex=True)  # BROKEN PT\\neta = construct_eta_from_eigendecomposition(H_pt)\\na, ad = harmonic_oscillator_ladder(6)\\nHho = harmonic_oscillator_hamiltonian(6)\\nrt2 = float(_srn.sqrt(0.5)); psi_x = [rt2+0j, rt2+0j]   # |+x>\\nm_mu = 0.1056584          # PDG muon mass / GeV\\nk_mu = [2.0, 0.0, 0.0, 1.0]   # deliberately OFF-shell\\n\",\"why\":\"gauge_xi=0.0 and gauge_xi=1.0 both return the SAME Feynman-gauge matrix (residual 0.0), because 0.0 is a sentinel and the (1-xi) coefficient vanishes at 1.0. True Landau gauge is only approached as xi -> 0+, where D^00 falls to -1.0e-14 -- a trap worth seeing once.\"}",
         NULL,
         "WHAT \342\200\224 the massless gauge-boson propagator D^{mu nu}(k) as a 4x4 complex Mat (srmech/physics/qm/propagators.py:164). In Feynman gauge it is -i g^{mu nu}/(k**2 + i epsilon), built from minkowski_metric (:208); in a general covariant gauge it subtracts -i (1 - xi) k^mu k^nu / k**4. WHEN \342\200\224 reach for it for internal photon or gluon lines. The measured trap this entry exists to document: gauge_xi = 0.0 is a SENTINEL meaning 'Feynman gauge', NOT the Landau value. Calls 2 and 3 show gauge_xi = 0.0 and gauge_xi = 1.0 both returning the identical matrix (residual 0.0) \342\200\224 0.0 because the code short-circuits, 1.0 because the (1 - xi) coefficient genuinely vanishes. True Landau gauge is only approached as xi -> 0+, where D^00 falls to -1.0e-14 (call 5) instead of the -0.01j the sentinel returns. So passing xi = 0 expecting a transverse projector gives you the exact opposite, silently. Note also that a non-Feynman gauge needs the FULL 4-vector k passed as well; omit it and you fall back to Feynman gauge regardless of xi. SIBLINGS \342\200\224 feynman_massive_vector_propagator (:224) is the massive spin-1 peer and is NOT the xi -> limit of this one: it uses unitary gauge with a k^mu k^nu/m**2 term that has no massless counterpart. feynman_scalar_propagator (:86) and feynman_fermion_propagator (:121) complete the family. Do not hand-build -i g/k**2: g comes from minkowski_metric (srmech/physics/qm/relativistic.py:166) and its signature must match the rest of the module.",
-        ts_composes_517, 1u,
+        ts_composes_520, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 518 */
+    { /* 521 */
         "srmech.physics.qm.propagators.feynman_massive_vector_propagator",
         "srmech",
         "qm.propagators",
         "Massive vector propagator D^{\316\274\316\275}(k) = -i (g^{\316\274\316\275} \342\210\222 k^\316\274 k^\316\275/m\302\262) / (k\302\262 \342\210\222 m\302\262 + i\316\265). Peskin-Schroeder \302\24720.1.",
-        ts_params_518, 3u,
+        ts_params_521, 3u,
         "Mat",
         "4\303\2274 complex",
         1,
@@ -15533,12 +15620,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 519 */
+    { /* 522 */
         "srmech.physics.qm.pseudo_hermitian.inner_product_eta",
         "srmech",
         "qm.pseudo_hermitian",
         "\316\267-deformed inner product \342\237\250a|b\342\237\251_\316\267 = a^\342\200\240 \316\267 b. Mostafazadeh (2002).",
-        ts_params_519, 3u,
+        ts_params_522, 3u,
         "complex",
         "",
         1,
@@ -15553,12 +15640,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 520 */
+    { /* 523 */
         "srmech.physics.qm.pseudo_hermitian.expectation_eta",
         "srmech",
         "qm.pseudo_hermitian",
         "\316\267-expectation \342\237\250O\342\237\251_\316\267 = \342\237\250\317\210|\316\267 O|\317\210\342\237\251 / \342\237\250\317\210|\316\267|\317\210\342\237\251. Mostafazadeh (2002).",
-        ts_params_520, 3u,
+        ts_params_523, 3u,
         "complex",
         "",
         1,
@@ -15573,12 +15660,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 521 */
+    { /* 524 */
         "srmech.physics.qm.pseudo_hermitian.is_pseudo_hermitian",
         "srmech",
         "qm.pseudo_hermitian",
         "Check O\342\200\240 \316\267 = \316\267 O (\316\267-pseudo-Hermiticity). Mostafazadeh (2002).",
-        ts_params_521, 3u,
+        ts_params_524, 3u,
         "bool",
         "",
         1,
@@ -15593,12 +15680,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 522 */
+    { /* 525 */
         "srmech.physics.qm.pseudo_hermitian.construct_eta_from_eigendecomposition",
         "srmech",
         "qm.pseudo_hermitian",
         "Construct positive \316\267 = (V V\342\200\240)^{-1} from O's eigendecomposition so that O is \316\267-pseudo-Hermitian. Mostafazadeh (2002).",
-        ts_params_522, 2u,
+        ts_params_525, 2u,
         "Mat",
         "Hermitian \316\267",
         1,
@@ -15613,12 +15700,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 523 */
+    { /* 526 */
         "srmech.physics.qm.pseudo_hermitian.pseudo_hermitian_eigenvalues_real",
         "srmech",
         "qm.pseudo_hermitian",
         "Verify \316\267-pseudo-Hermitian O has real eigenvalues (Mostafazadeh theorem). Bender-Boettcher (1998); Mostafazadeh (2002).",
-        ts_params_523, 3u,
+        ts_params_526, 3u,
         "bool",
         "",
         1,
@@ -15633,7 +15720,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 524 */
+    { /* 527 */
         "srmech.physics.qm.gauge.su2_generators",
         "srmech",
         "qm.gauge",
@@ -15646,14 +15733,14 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{},\"output\":\"T3 = [[(0.5+0j), 0j], [0j, (-0.5+0j)]]\\nT3 == sigma_z/2 : True\\nweak-isospin eigenvalues of T3 (up/down of a left doublet): 0.5 -0.5\\nC_2(fundamental of SU(2)) = 0.75\",\"why\":\"These ARE the SU(2)_L weak-isospin generators: T3's eigenvalues are the +1/2 / -1/2 of a left-handed doublet and the Casimir comes back 0.75 = j(j+1) at j = 1/2.\",\"worked\":\"from srmech.physics.qm.gauge import su2_generators, casimir_eigenvalue\\nfrom srmech.physics.qm.spin import pauli_matrices\\nT1, T2, T3 = su2_generators()\\nsx, sy, sz = pauli_matrices()\\nprint('T3 =', T3.tolist())\\nprint('T3 == sigma_z/2 :', T3.tolist() ==\\n      [[0.5 * sz[i, j] for j in range(2)] for i in range(2)])\\nprint('weak-isospin eigenvalues of T3:', T3[0, 0].real, T3[1, 1].real)\\nprint('C_2(fundamental of SU(2)) =', casimir_eigenvalue((T1, T2, T3)))\"}",
         NULL,
         "WHAT: the three fundamental SU(2) generators T^a = sigma^a / 2 as 2x2 Hermitian traceless Mat, satisfying [T^a, T^b] = i eps^abc T^c and tr(T^a T^b) = delta^ab / 2. Built directly from the numpy-free srmech.physics.qm.spin.pauli_matrices() blocks - no coercion boundary. WHEN: SU(2)_L electroweak isospin, any spin-j = 1/2 rep, or as the smallest non-abelian test case for the holonomy ops below. Do NOT rebuild them by scaling Pauli matrices by hand: that spelling silently loses the exact complex entries and makes tr(T^a T^b) = delta^ab / 2 approximate. SIBLINGS you would otherwise re-derive: su2_structure_constants() is the matching eps^abc - always pass the PAIR to lie_algebra_residual(); su3_generators() is the colour peer (eight 3x3); casimir_eigenvalue(su2_generators()) gives 0.75 with no eigendecomposition; srmech.physics.qm.spin.pauli_matrices() is the same object unscaled (physics convention differs by the 1/2, so pick ONE and stay there); srmech.physics.qm.so8.quaternion_subalgebra_stabilizer() surfaces su(2) + su(2) as a Lie SUBALGEBRA of g2 - a different object with the same name.",
-        ts_composes_524, 1u,
+        ts_composes_527, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 525 */
+    { /* 528 */
         "srmech.physics.qm.gauge.su2_structure_constants",
         "srmech",
         "qm.gauge",
@@ -15673,7 +15760,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 526 */
+    { /* 529 */
         "srmech.physics.qm.gauge.su3_gell_mann_matrices",
         "srmech",
         "qm.gauge",
@@ -15686,14 +15773,14 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{},\"output\":\"n = 8  shape = (3, 3)\\nlambda_3 = [[(1+0j), 0j, 0j], [0j, (-1+0j), 0j], [0j, 0j, 0j]]\\nlambda_8 = [[(0.5773502691896258+0j), 0j, 0j], [0j, (0.5773502691896258+0j), 0j], [0j, 0j, (-1.1547005383792517+0j)]]\\ntr(l3 l3) = (2+0j)  tr(l3 l8) = 0j\",\"why\":\"The Gell-Mann normalisation tr(lambda^a lambda^b) = 2 delta^ab is verified in the same breath as the matrices are fetched - 2 on the diagonal, exactly 0j off it, including the 1/sqrt(3)-carrying lambda_8.\",\"worked\":\"from srmech.physics.qm.gauge import su3_gell_mann_matrices\\nfrom srmech.math.laplacian import mat_matmul\\nlam = su3_gell_mann_matrices()\\nprint('n =', len(lam), ' shape =', lam[0].shape)\\nprint('lambda_3 =', lam[2].tolist())\\nprint('lambda_8 =', lam[7].tolist())\\ntr = lambda m: sum(m[i, i] for i in range(3))\\nprint('tr(l3 l3) =', tr(mat_matmul(lam[2], lam[2])),\\n      ' tr(l3 l8) =', tr(mat_matmul(lam[2], lam[7])))\"}",
         NULL,
         "WHAT: the eight Gell-Mann matrices lambda^1..lambda^8 (Hermitian, traceless, 3x3) as complex Mat, normalised tr(lambda^a lambda^b) = 2 delta^ab. Seven are exact small-integer / +/-i matrices; lambda_8 carries the 1/sqrt(3) normaliser, obtained through the Class-N srmech.math.rational.sqrt cascade so the library stays libm-free. Native-dispatched to srmech_qm_gell_mann (byte-identical). WHEN: QCD colour structure, SU(3) flavour, or as the 8-generator stress case for the holonomy ops. Do NOT type the eight matrices out - the two places that go wrong by hand are the sign of the imaginary entries (this module pins them to complex(0.0, -1.0) so the real part is +0.0, not -0.0) and the lambda_8 normaliser. SIBLINGS you would otherwise re-derive: su3_generators() is exactly this tuple scaled by 1/2 - if you find yourself writing [0.5 * lam[k] for k in ...], call su3_generators() instead; su3_structure_constants() is the matching f^abc; casimir_operator/casimir_eigenvalue take the GENERATORS (the 1/2-scaled form), not these lambdas - passing lambdas gives 4x the Casimir. srmech.physics.qm.spin.pauli_matrices() is the SU(2) analogue one rank down.",
-        ts_composes_526, 1u,
+        ts_composes_529, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 527 */
+    { /* 530 */
         "srmech.physics.qm.gauge.su3_generators",
         "srmech",
         "qm.gauge",
@@ -15706,14 +15793,14 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{},\"output\":\"n = 8\\nT[2] == lambda_3/2 : True\\nT3 = T[2] diagonal (isospin of u,d,s): [0.5, -0.5, 0.0]\\nT8 = T[7] diagonal (hypercharge-like): [0.2886751345948129, 0.2886751345948129, -0.5773502691896258]\\nC_F = casimir_eigenvalue(su3_generators()) = 1.3333333333333333   (4/3 = 1.3333333333333333 )\",\"why\":\"The two Cartan generators read out as the physical colour charges (T3 = diag(1/2, -1/2, 0), T8 = diag(1,1,-2)/(2 sqrt 3)) and the fundamental Casimir is C_F = 4/3 to the last bit.\",\"worked\":\"from srmech.physics.qm.gauge import (su3_generators, su3_gell_mann_matrices,\\n                            casimir_eigenvalue)\\nT = su3_generators()\\nlam = su3_gell_mann_matrices()\\nprint('T[2] == lambda_3/2 :', T[2].tolist() ==\\n      [[0.5 * lam[2][i, j] for j in range(3)] for i in range(3)])\\nprint('T3 diagonal (isospin of u,d,s):',\\n      [T[2][i, i].real for i in range(3)])\\nprint('T8 diagonal (hypercharge-like):',\\n      [T[7][i, i].real for i in range(3)])\\nprint('C_F =', casimir_eigenvalue(T))\"}",
         NULL,
         "WHAT: the eight fundamental SU(3) generators T^a = lambda^a / 2 as 3x3 complex Hermitian Mat, obeying [T^a, T^b] = i f^abc T^c and tr(T^a T^b) = delta^ab / 2. T[2] and T[7] are the rank-2 Cartan pair. WHEN: QCD colour algebra - a quark triplet's charges, the adjoint gluon octet, the connection A = A^a T^a. This is the tuple every other gauge op in the family expects: lie_algebra_residual, casimir_*, gauge_connection_matrix, gauge_path_segment and wilson_loop_from_segments all take GENERATORS. SIBLINGS you would otherwise re-derive: su3_gell_mann_matrices() is the unscaled lambda tuple (differs by exactly the factor 2 - mixing the two is the single most common error, and it shows up as a Casimir of 16/3 instead of 4/3); su2_generators() is the isospin peer (three 2x2); casimir_eigenvalue(su3_generators()) is already 4/3, so do not compute sum_a T^a T^a and read a diagonal yourself; srmech.physics.qm.so8.an_embedding()['su3'] is a DIFFERENT su(3) - eight antisymmetric 8x8 real derivations inside g2 = Der(O), not the 3x3 fundamental - do not confuse the two surfaces.",
-        ts_composes_527, 1u,
+        ts_composes_530, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 528 */
+    { /* 531 */
         "srmech.physics.qm.gauge.su3_structure_constants",
         "srmech",
         "qm.gauge",
@@ -15726,19 +15813,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{},\"output\":\"f[0][1][2] = 1.0\\nf[3][4][7] = 0.8660254037844386  (= sqrt(3)/2)\\nf[5][6][7] = 0.8660254037844386\\nf[0][3][6] = 0.5  f[0][4][5] = -0.5\\nantisymmetry f[3][4][7] + f[4][3][7] = 0.0\\nlie_algebra_residual(su3_generators(), f) = 1.570092458683775e-16\",\"why\":\"f^458 = f^678 = 0.8660254037844386 is sqrt(3)/2 computed through the Class-N rational sqrt (not libm), total antisymmetry is exact, and the bracket closes at 1.57e-16.\",\"worked\":\"from srmech.physics.qm.gauge import (su3_structure_constants, su3_generators,\\n                            lie_algebra_residual)\\nf = su3_structure_constants()\\nprint('f[0][1][2] =', f[0][1][2])\\nprint('f[3][4][7] =', f[3][4][7], ' (= sqrt(3)/2)')\\nprint('f[5][6][7] =', f[5][6][7])\\nprint('f[0][3][6] =', f[0][3][6], ' f[0][4][5] =', f[0][4][5])\\nprint('antisymmetry f[3][4][7] + f[4][3][7] =',\\n      f[3][4][7] + f[4][3][7])\\nprint('lie_algebra_residual(su3_generators(), f) =',\\n      lie_algebra_residual(su3_generators(), f))\"}",
         NULL,
         "WHAT: the totally-antisymmetric SU(3) structure constants f^abc as a nested (8,8,8) Python list, in the Peskin-Schroeder / Schwartz convention: f^123 = 1; f^147 = f^246 = f^257 = f^345 = 1/2; f^156 = f^367 = -1/2; f^458 = f^678 = sqrt(3)/2; everything else filled by total antisymmetry. The sqrt(3) routes through the Class-N rational cascade on BOTH the pure and the native path (srmech_qm_su3_structure), so the two are byte-identical. WHEN: the gluon self-coupling vertex, the adjoint representation, the Jacobi identity, or the residual check. Do NOT hand-enter the nine seed values: the seeds use ZERO-BASED indices here (f[0][1][2] is the textbook f^123), and the off-by-one is the classic silent error. SIBLINGS: su2_structure_constants() is the (3,3,3) eps^abc peer; lie_algebra_residual(su3_generators(), f) is the only verification you need - it iterates all 64 (a,b) pairs for you; casimir_operator() takes generators, not these. Note the ~1.57e-16 floor, not 0.0: that is the sqrt(3)/2 entering float64, and it is the expected value - a 0.0 there would mean you fed the su(2) pair.",
-        ts_composes_528, 1u,
+        ts_composes_531, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 529 */
+    { /* 532 */
         "srmech.physics.qm.gauge.lie_algebra_residual",
         "srmech",
         "qm.gauge",
         "Max Frobenius violation of [T^a, T^b] = i f^{abc} T^c. Peskin-Schroeder \302\24715.1.",
-        ts_params_529, 2u,
+        ts_params_532, 2u,
         "float",
         "",
         1,
@@ -15753,12 +15840,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 530 */
+    { /* 533 */
         "srmech.physics.qm.gauge.casimir_operator",
         "srmech",
         "qm.gauge",
         "Quadratic Casimir C_2 = T^a T^a (sum). Peskin-Schroeder \302\24715.4.",
-        ts_params_530, 1u,
+        ts_params_533, 1u,
         "Mat",
         "= C_2(R) \302\267 I by Schur",
         1,
@@ -15766,19 +15853,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"generators\":\"su3_generators()\"},\"output\":\"SU(2) C_2 = [[(0.75+0j), 0j], [0j, (0.75+0j)]]\\nSU(3) C_2 diagonal = [(1.3333333333333333+0j), (1.3333333333333333+0j), (1.3333333333333335+0j)]\\nSU(3) C_2 off-diagonal [0,1] = 0j\\ncasimir_eigenvalue == trace/dim : 1.3333333333333333 1.3333333333333333\",\"why\":\"Schur's lemma made visible: the returned MATRIX is C_2(R) times the identity - 0.75 I for SU(2), 4/3 I for SU(3) with exactly 0j off the diagonal - which is why the scalar peer can just take trace/dim.\",\"worked\":\"from srmech.physics.qm.gauge import (su2_generators, su3_generators,\\n                            casimir_operator, casimir_eigenvalue)\\nC2_su2 = casimir_operator(su2_generators())\\nprint('SU(2) C_2 =', C2_su2.tolist())\\nC2_su3 = casimir_operator(su3_generators())\\nprint('SU(3) C_2 diagonal =', [C2_su3[i, i] for i in range(3)])\\nprint('SU(3) C_2 off-diagonal [0,1] =', C2_su3[0, 1])\\nprint('casimir_eigenvalue == trace/dim :',\\n      casimir_eigenvalue(su3_generators()),\\n      sum(C2_su3[i, i] for i in range(3)).real / 3)\"}",
         NULL,
         "WHAT: the quadratic Casimir C_2 = sum_a T^a T^a as a Mat in the SAME representation as the generators handed in. On an irreducible rep Schur's lemma forces it to be a scalar multiple of the identity, and the worked output shows that literally: the off-diagonal is 0j and the diagonal is constant to the last bit (1.3333333333333335 in the third slot is the float64 shadow of 4/3, not a defect). Raises ValueError on an empty generator tuple. WHEN: you need the OPERATOR - e.g. to add C_2 to a Hamiltonian, to check reducibility (a non-scalar result means the rep is reducible), or to inspect the identity structure. If you only want the NUMBER, use casimir_eigenvalue() - it is this op followed by trace/dim and saves you writing that reduction. SIBLINGS you would otherwise re-derive: casimir_eigenvalue(generators) IS trace(casimir_operator(g))/dim - do not recompute it; lie_algebra_residual() checks the BRACKET, this checks the CENTRE - they are different certificates; srmech.physics.qm.so8.quaternion_subalgebra_stabilizer()['killing_form'] is the KILLING form (tr ad_a ad_b, an n x n Gram matrix over the generator index), a different invariant from this rep-space product - do not substitute one for the other.",
-        ts_composes_530, 1u,
+        ts_composes_533, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 531 */
+    { /* 534 */
         "srmech.physics.qm.gauge.casimir_eigenvalue",
         "srmech",
         "qm.gauge",
         "Scalar Casimir eigenvalue C_2(R) for irreducible rep. Fundamental: 3/4 (SU(2)), 4/3 (SU(3)).",
-        ts_params_531, 1u,
+        ts_params_534, 1u,
         "float",
         "\342\211\245 0",
         1,
@@ -15786,19 +15873,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"generators\":\"su3_generators()\"},\"output\":\"SU(2) fundamental C_2 = 0.75  j(j+1) at j=1/2 = 0.75\\nSU(3) fundamental C_F = 1.3333333333333333  (N^2-1)/(2N) at N=3 = 1.3333333333333333\",\"why\":\"The two numbers every QCD/electroweak amplitude needs - C_2(1/2) = j(j+1) = 0.75 and C_F = (N^2-1)/(2N) = 4/3 - fall out of the generators with no eigendecomposition and no hardcoded constant.\",\"worked\":\"from srmech.physics.qm.gauge import (su2_generators, su3_generators,\\n                            casimir_eigenvalue)\\nc2 = casimir_eigenvalue(su2_generators())\\nc3 = casimir_eigenvalue(su3_generators())\\nprint('SU(2) fundamental C_2 =', c2, ' j(j+1) at j=1/2 =', 0.5 * 1.5)\\nprint('SU(3) fundamental C_F =', c3,\\n      ' (N^2-1)/(2N) at N=3 =', 8 / 6)\"}",
         NULL,
         "WHAT: the scalar C_2(R) for an irreducible representation, computed as trace(C_2)/dim(R) - valid precisely because Schur's lemma makes C_2 a multiple of the identity. Returns a real float. WHEN: colour factors in QCD (C_F = 4/3 for a quark line, and note that C_A = 3 for the adjoint would need the ADJOINT generators, not these), spin factors j(j+1), or as a cheap invariant that survives a basis rotation of the generators. Reach for it instead of eigendecomposing C_2 or hardcoding 4/3: hardcoding breaks the moment you hand it a different rep, and eigendecomposition is both slower and noisier. SIBLINGS you would otherwise re-derive: casimir_operator() is the matrix this reduces (call it only if you need the operator); srmech.math.laplacian.mat_eigvals / mat_hermitian_eigendecompose would give the same number the expensive way - do not route a Casimir through an eigensolver; lie_algebra_residual() is the independent bracket certificate, not a substitute. WARNING: pass GENERATORS (lambda/2), not su3_gell_mann_matrices() - the lambdas give 16/3.",
-        ts_composes_531, 1u,
+        ts_composes_534, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 532 */
+    { /* 535 */
         "srmech.physics.qm.gauge.gauge_connection_matrix",
         "srmech",
         "qm.gauge",
         "Lie-algebra connection A = A^a T^a (Hermitian).",
-        ts_params_532, 2u,
+        ts_params_535, 2u,
         "Mat",
         "",
         1,
@@ -15813,12 +15900,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 533 */
+    { /* 536 */
         "srmech.physics.qm.gauge.gauge_path_segment",
         "srmech",
         "qm.gauge",
         "Path-segment holonomy U = exp(i g A^a T^a) via Hermitian eigendecomp (no scipy). Wilson (1974); Peskin-Schroeder \302\24715.3.",
-        ts_params_533, 3u,
+        ts_params_536, 3u,
         "Mat",
         "unitary",
         1,
@@ -15833,12 +15920,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 534 */
+    { /* 537 */
         "srmech.physics.qm.gauge.wilson_loop_from_segments",
         "srmech",
         "qm.gauge",
         "Discrete Wilson loop U(C) = \342\210\217_k exp(i g A_k^a T^a) in path order. Wilson (1974).",
-        ts_params_534, 3u,
+        ts_params_537, 3u,
         "Mat",
         "unitary",
         1,
@@ -15853,12 +15940,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 535 */
+    { /* 538 */
         "srmech.physics.qm.sm.higgs_potential",
         "srmech",
         "qm.sm",
         "Mexican-hat V(\317\206) = -\316\274\302\262|\317\206|\302\262 + \316\273|\317\206|\342\201\264. Higgs (1964); Peskin-Schroeder \302\24720.1.",
-        ts_params_535, 3u,
+        ts_params_538, 3u,
         "float",
         "",
         1,
@@ -15873,12 +15960,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 536 */
+    { /* 539 */
         "srmech.physics.qm.sm.higgs_vev",
         "srmech",
         "qm.sm",
         "Higgs vacuum expectation value v = \342\210\232(\316\274\302\262/(2\316\273)). Peskin-Schroeder \302\24720.1.",
-        ts_params_536, 2u,
+        ts_params_539, 2u,
         "float",
         "> 0",
         1,
@@ -15886,19 +15973,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"lam\":\"0.129\",\"mu_squared\":\"15613.128\"},\"output\":\"higgs_vev(1.0, 0.25) = 1.414213562373095\\nhiggs_vev(4.0, 0.25) = 2.82842712474619  (mu^2 x4 -> v x2)\\nhiggs_vev(2*lam*v^2 = 15613.128, lam = 0.129) = 246.0\\n  -> M_W = g v / 2 = 79.95\",\"why\":\"It inverts cleanly: choosing lambda = 0.129 and mu^2 = 2 lambda v^2 returns exactly 246.0, which then drives M_W = 79.95 GeV - the one number the rest of the electroweak family hangs on.\",\"worked\":\"from srmech.physics.qm.sm import higgs_vev, w_boson_mass\\nprint('higgs_vev(1.0, 0.25) =', higgs_vev(1.0, 0.25))\\nprint('higgs_vev(4.0, 0.25) =', higgs_vev(4.0, 0.25))\\nlam = 0.129                       # pick lambda, solve for mu^2\\nmu_sq = 2.0 * lam * 246.0 ** 2    # so that v = 246 GeV\\nprint('higgs_vev(%s, %s) =' % (mu_sq, lam), higgs_vev(mu_sq, lam))\\nprint(' -> M_W = g v / 2 =',\\n      w_boson_mass(0.65, higgs_vev(mu_sq, lam)))\"}",
         NULL,
         "WHAT: the Higgs vacuum expectation value v = sqrt(mu^2 / (2 lambda)), the minimum of the mexican hat. The square root is the Class-N srmech.math.rational.sqrt cascade, so the library stays libm-free. Non-positive mu^2 or lambda raise ValueError. WHEN: converting Lagrangian parameters into the ONE scale every electroweak mass is proportional to. In practice you usually go the other way - v is measured (~246 GeV) and you solve for mu^2 given a lambda, exactly as the worked run does. Do NOT hardcode 246.0 in a cascade and call it derived: derive it here and let the provenance show. SIBLINGS you would otherwise re-derive: higgs_potential() is the function this minimises (do not run a numerical minimiser over it); w_boson_mass(g, vev) = g v / 2, z_boson_mass(g, g', vev) and fermion_mass_from_yukawa(y, vev) = y v / sqrt(2) are the three consumers - every SM mass in this module is 'a coupling times v'; electroweak_summary(g, g', vev) calls the boson pair for you. srmech.math.rational.sqrt is the primitive underneath - use THIS op when the quantity is a vev, not the bare sqrt.",
-        ts_composes_536, 1u,
+        ts_composes_539, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 537 */
+    { /* 540 */
         "srmech.physics.qm.sm.weak_mixing_angle",
         "srmech",
         "qm.sm",
         "Weinberg mixing angle \316\270_W = atan(g'/g). Weinberg (1967); Peskin-Schroeder \302\24720.2. Returns the angle in RADIANS (not sin\302\262\316\270_W, not degrees).",
-        ts_params_537, 2u,
+        ts_params_540, 2u,
         "float",
         "radians",
         1,
@@ -15906,19 +15993,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"g\":\"0.65\",\"g_prime\":\"0.357\"},\"output\":\"weak_mixing_angle(g=0.65, g_prime=0.357) = 0.5022524388574037 rad\\nsin^2(theta_W) = 0.23174694380751668    PDG on-shell ~ 0.231\\ntan(theta_W) = g_prime/g = 0.5492307692307692\\nweak_mixing_angle(1.0, 1.0) = 0.7853981633974483  (pi/4 - the g = g' equal-coupling point)\",\"why\":\"The returned value is the ANGLE IN RADIANS (0.5022...), not sin^2 theta_W - squaring its sine gives 0.23175, next to the PDG on-shell 0.231, which is the comparison people actually want.\",\"worked\":\"from srmech.physics.qm.sm import weak_mixing_angle\\nfrom srmech.math import rational as srn\\nth = weak_mixing_angle(0.65, 0.357)\\ns = float(srn.sin(th))\\nprint('weak_mixing_angle(g=0.65, g_prime=0.357) =', th, 'rad')\\nprint('sin^2(theta_W) =', s * s)\\nprint('tan(theta_W) = g_prime/g =', 0.357 / 0.65)\\nprint('weak_mixing_angle(1.0, 1.0) =', weak_mixing_angle(1.0, 1.0))\"}",
         NULL,
         "WHAT: the Weinberg / weak mixing angle theta_W = atan2(g', g) in RADIANS, via the Class-N srmech.math.rational.atan2 cascade (no libm). g <= 0 raises. WHEN: rotating (W^3, B) into (Z, photon), computing cos theta_W = M_W/M_Z, or comparing a coupling pair against the measured sin^2 theta_W. THE TRAP THIS OP EXISTS TO FLAG: literature quotes sin^2 theta_W ~ 0.231, and it is very easy to compare that against this return value (0.502) and conclude the op is broken. It is not - take sin() then square, as the worked run does. The docstring says so in the Returns section; the example shows the arithmetic. SIBLINGS you would otherwise re-derive: electroweak_summary(g, g', vev) already returns theta_W_rad, cos_theta_W AND sin_theta_W in one dict - if you need more than the bare angle, call that; weinberg_relation_residual() checks M_W = M_Z cos theta_W without you having to take the cosine; w_boson_mass / z_boson_mass give the masses whose ratio IS cos theta_W (0.8765 in the worked run of the mass ops). srmech.math.rational.atan2 is the primitive - reach for THIS when the angle is the weak mixing angle, so the provenance is legible.",
-        ts_composes_537, 1u,
+        ts_composes_540, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 538 */
+    { /* 541 */
         "srmech.physics.qm.sm.w_boson_mass",
         "srmech",
         "qm.sm",
         "W boson mass M_W = g v / 2. Peskin-Schroeder \302\24720.2.",
-        ts_params_538, 2u,
+        ts_params_541, 2u,
         "float",
         "> 0",
         1,
@@ -15933,12 +16020,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 539 */
+    { /* 542 */
         "srmech.physics.qm.sm.z_boson_mass",
         "srmech",
         "qm.sm",
         "Z boson mass M_Z = v \342\210\232(g\302\262 + g'\302\262) / 2. Peskin-Schroeder \302\24720.2.",
-        ts_params_539, 3u,
+        ts_params_542, 3u,
         "float",
         "> 0",
         1,
@@ -15946,19 +16033,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"g\":\"0.65\",\"g_prime\":\"0.357\",\"vev\":\"246.0\"},\"output\":\"z_boson_mass(0.65, 0.357, 246.0) = 91.21501203749304\\nM_Z cos(theta_W) = 79.95  vs M_W = 79.95\\nM_Z - M_W = 11.265012037493037 GeV\\nvev = 0 control -> ValueError: z_boson_mass: g, g_prime, vev must all be > 0; got g=0.65, g_prime=0.357, vev=0.0\",\"why\":\"M_Z cos theta_W reproduces M_W = 79.95 EXACTLY as printed - the tree-level Weinberg relation closing on its own, with a ~11.3 GeV Z-W splitting driven entirely by g'.\",\"worked\":\"from srmech.physics.qm.sm import z_boson_mass, w_boson_mass, weak_mixing_angle\\nfrom srmech.math import rational as srn\\nMZ = z_boson_mass(0.65, 0.357, 246.0)\\nMW = w_boson_mass(0.65, 246.0)\\nth = weak_mixing_angle(0.65, 0.357)\\nprint('z_boson_mass(0.65, 0.357, 246.0) =', MZ)\\nprint('M_Z cos(theta_W) =', MZ * float(srn.cos(th)), ' vs M_W =', MW)\\nprint('M_Z - M_W =', MZ - MW, 'GeV')\\nz_boson_mass(0.65, 0.357, 0.0)     # -> ValueError\"}",
         NULL,
         "WHAT: the tree-level Z mass M_Z = v sqrt(g^2 + g'^2) / 2. The square root is the Class-N rational.sqrt (libm-free). Any non-positive argument raises with all three values named in the message. WHEN: the second half of any electroweak mass calculation, the denominator of cos theta_W = M_W/M_Z, or the rho parameter M_W^2/(M_Z^2 cos^2 theta_W) which is 1 at tree level by construction. The g' -> 0 limit shown under w_boson_mass is the useful sanity check: with no hypercharge the Z degenerates onto the W. SIBLINGS you would otherwise re-derive: w_boson_mass(g, vev) is the partner; weak_mixing_angle(g, g') supplies the angle that relates them; weinberg_relation_residual(g, g', vev) does the whole M_W - M_Z cos theta_W comparison as one scalar - do not assemble it from these three ops; electroweak_summary(g, g', vev) bundles all of it. There is no photon-mass op because the photon stays massless by the residual U(1)_em symmetry - that is a structural fact, not a missing surface.",
-        ts_composes_539, 1u,
+        ts_composes_542, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 540 */
+    { /* 543 */
         "srmech.physics.qm.sm.weinberg_relation_residual",
         "srmech",
         "qm.sm",
         "Verify |M_W \342\210\222 M_Z cos \316\270_W| (tree-level identity). Peskin-Schroeder \302\24720.2.",
-        ts_params_540, 3u,
+        ts_params_543, 3u,
         "float",
         "~0",
         1,
@@ -15973,12 +16060,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 541 */
+    { /* 544 */
         "srmech.physics.qm.sm.electroweak_summary",
         "srmech",
         "qm.sm",
         "Bundle M_W, M_Z, \316\270_W, sin/cos, Weinberg residual in one dict.",
-        ts_params_541, 3u,
+        ts_params_544, 3u,
         "dict[str, float]",
         "",
         1,
@@ -15993,12 +16080,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 542 */
+    { /* 545 */
         "srmech.physics.qm.sm.fermion_mass_from_yukawa",
         "srmech",
         "qm.sm",
         "Fermion mass m_f = y_f v / \342\210\2322 from Yukawa coupling. Peskin-Schroeder \302\24720.2.",
-        ts_params_542, 2u,
+        ts_params_545, 2u,
         "float",
         "",
         1,
@@ -16006,19 +16093,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"vev\":\"246.0\",\"yukawa\":\"1.0\"},\"output\":\"y_t = 1.0 -> 173.9482681718907 GeV (top-scale)\\ny = 0.0102 -> 1.7742723353532852 GeV (tau-scale)\\ny = 2.9e-6 -> 0.000504449977698483 GeV (electron-scale)\\nratio m(y=1.0)/m(y=2.9e-6) = 344827.5862068966\",\"why\":\"y = 1 lands at 173.95 GeV - the top-quark scale - and the SAME linear map spans five and a half orders of magnitude down to the electron, which is the flavour hierarchy stated as one multiplication.\",\"worked\":\"from srmech.physics.qm.sm import fermion_mass_from_yukawa\\nprint('y = 1.0    ->', fermion_mass_from_yukawa(1.0, 246.0), 'GeV')\\nprint('y = 0.0102 ->', fermion_mass_from_yukawa(0.0102, 246.0), 'GeV')\\nprint('y = 2.9e-6 ->', fermion_mass_from_yukawa(2.9e-6, 246.0), 'GeV')\\nprint('mass ratio =', fermion_mass_from_yukawa(1.0, 246.0)\\n                     / fermion_mass_from_yukawa(2.9e-6, 246.0))\"}",
         NULL,
         "WHAT: the Dirac mass a Yukawa coupling produces after electroweak symmetry breaking, m_f = y_f v / sqrt(2). The sqrt(2) is the Class-N rational.sqrt cascade. vev <= 0 raises; y may be any real (a negative Yukawa is a phase convention, and the op does not police it). WHEN: converting a Lagrangian Yukawa into a physical fermion mass, or inverting to read a Yukawa off a measured mass (y = sqrt(2) m / v). The worked run is the flavour-hierarchy statement: the mechanism is one linear map, so the ~10^5 spread between generations is entirely in the couplings - the SM does not explain it, and this op makes that visible rather than hiding it. SIBLINGS you would otherwise re-derive: the NORMALISATION is the trap - w_boson_mass uses v/2 and this uses v/sqrt(2); they are different conventions for different fields and swapping them is a factor of 1/sqrt(2); higgs_vev() supplies the v; ckm_matrix() handles the FLAVOUR MIXING that the mass eigenbasis leaves over - masses come from here, mixing from there, and neither is derivable from the other in the SM.",
-        ts_composes_542, 1u,
+        ts_composes_545, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 543 */
+    { /* 546 */
         "srmech.physics.qm.sm.ckm_matrix",
         "srmech",
         "qm.sm",
         "CKM quark-mixing matrix (Chau-Keung parameterization). Cabibbo (1963); Kobayashi-Maskawa (1973); PDG \302\24712.1.",
-        ts_params_543, 4u,
+        ts_params_546, 4u,
         "Mat",
         "3\303\2273 unitary",
         1,
@@ -16033,12 +16120,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 544 */
+    { /* 547 */
         "srmech.physics.qm.sm.ckm_unitarity_residual",
         "srmech",
         "qm.sm",
         "Frobenius norm of V V\342\200\240 \342\210\222 I. PDG \302\24712.1.",
-        ts_params_544, 1u,
+        ts_params_547, 1u,
         "float",
         "~0",
         1,
@@ -16053,7 +16140,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 545 */
+    { /* 548 */
         "srmech.physics.qm.octonion.octonion_mult_table",
         "srmech",
         "qm.octonion",
@@ -16073,7 +16160,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 546 */
+    { /* 549 */
         "srmech.physics.qm.octonion.octonion_table_attestation",
         "srmech",
         "qm.octonion",
@@ -16086,19 +16173,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"schema       srmech://schema/octonion_structure_constants\\nconvention   cayley_dickson_from_H\\nfano_triples [[1, 2, 3], [1, 4, 5], [1, 6, 7], [2, 4, 6], [2, 5, 7], [3, 4, 7], [3, 5, 6]]\\nsha256       7f36461ef14af1b21702e53e3be90549b556772f7e1ffd31e386bf34a9e7ab5b\\nstable       True\\ndiffers from H: True\\nsource_doi   None url https://arxiv.org/abs/math/0105155\\nkeys         ['attestation', 'data', 'data_schema_id', 'mpr_version', 'rendering']\",\"why\":\"response_sha256 7f36461e\\u2026 is over the 512 int8 bytes of the table, is stable across calls, and is distinct from the quaternion table's hash \\u2014 the two conventions are separately content-addressed on purpose.\",\"worked\":\"from srmech.physics.qm.octonion import octonion_table_attestation\\nfrom srmech.physics.qm.quaternion import quaternion_table_attestation\\n\\na = octonion_table_attestation()\\nprint(\\\"schema      \\\", a[\\\"data_schema_id\\\"])\\nprint(\\\"convention  \\\", a[\\\"data\\\"][\\\"convention\\\"])\\nprint(\\\"fano_triples\\\", a[\\\"data\\\"][\\\"fano_triples\\\"])\\nprint(\\\"sha256      \\\", a[\\\"attestation\\\"][\\\"response_sha256\\\"])\\nprint(\\\"stable      \\\", a[\\\"attestation\\\"][\\\"response_sha256\\\"]\\n      == octonion_table_attestation()[\\\"attestation\\\"][\\\"response_sha256\\\"])\\nprint(\\\"differs from H:\\\", a[\\\"attestation\\\"][\\\"response_sha256\\\"]\\n      != quaternion_table_attestation()[\\\"attestation\\\"][\\\"response_sha256\\\"])\\nprint(\\\"source_doi  \\\", a[\\\"attestation\\\"][\\\"source_doi\\\"],\\n      \\\"url\\\", a[\\\"attestation\\\"][\\\"source_url\\\"])\\nprint(\\\"keys        \\\", sorted(a))\"}",
         NULL,
         "WHAT \342\200\224 returns a plain MPR v1 ``dict`` self-attesting srmech's \360\235\225\206 structure-constant convention (``srmech/physics/qm/octonion.py:233``): ``mpr_version`` / ``data`` (convention name, basis order, the 7 Fano triples) / ``data_schema_id`` / ``attestation`` / ``rendering``, with ``response_sha256`` = ``srmech.amsc.format.sha256_bytes`` over the table's 512 two's-complement int8 bytes. A self-attestation for a GENERATED constant: the convention IS the provenance. ``source_doi`` is ``None`` deliberately \342\200\224 Baez (2002) is open on arXiv, and a paywalled-only DOI is rejected as framework attestation. WHEN \342\200\224 reach for it whenever a downstream so(8)/triality/genome result depends on WHICH octonion sign convention produced it: pin the hash in a test, or ship it beside the number. The run shows the reproducibility property \342\200\224 the hash is identical across calls because ``retrieved_at`` is a fixed ISO string, not ``datetime.now()``. What you would otherwise wrongly hand-roll is your own ``hashlib.sha256`` over your own serialisation, which duplicates this AND breaks the route-through-``sha256_bytes`` discipline that lets native dispatch pick up transparently. SIBLINGS \342\200\224 ``srmech.physics.qm.quaternion.quaternion_table_attestation`` (``srmech/physics/qm/quaternion.py:192``) is the dim-4 twin with the same shape and citation, and the run confirms the hashes DIFFER; ``octonion_mult_table`` is the object attested; ``srmech.amsc.format.sha256_bytes`` is the Class-A primitive; ``srmech.amsc.format.validate_mpr_record`` does NOT apply \342\200\224 it targets fetched data with an on-disk TOML descriptor, which a generated constant has none of.",
-        ts_composes_546, 1u,
+        ts_composes_549, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 547 */
+    { /* 550 */
         "srmech.physics.qm.octonion.octonion_left_mult",
         "srmech",
         "qm.octonion",
         "Left-multiplication matrix L_a (x \342\206\222 a\302\267x) as 8\303\2278 real; L_{e_i} (i\342\211\2451) is antisymmetric \342\210\210 so(8). Class M (binding). Baez (2002) \302\2472.3-2.4.",
-        ts_params_547, 1u,
+        ts_params_550, 1u,
         "Mat",
         "8\303\2278 L_a",
         1,
@@ -16113,12 +16200,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 548 */
+    { /* 551 */
         "srmech.physics.qm.octonion.octonion_right_mult",
         "srmech",
         "qm.octonion",
         "Right-multiplication matrix R_a (x \342\206\222 x\302\267a) as 8\303\2278 real; R_{e_i} (i\342\211\2451) is antisymmetric \342\210\210 so(8). Class M (binding). Baez (2002) \302\2472.3-2.4.",
-        ts_params_548, 1u,
+        ts_params_551, 1u,
         "Mat",
         "8\303\2278 R_a",
         1,
@@ -16133,12 +16220,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 549 */
+    { /* 552 */
         "srmech.physics.qm.octonion.octonion_conjugate",
         "srmech",
         "qm.octonion",
         "Octonion conjugate conj(x) = (x_0, -x_1, \342\200\246, -x_7); flips the imaginary-axis signs. Class C (orientation). Baez (2002) \302\2472.1.",
-        ts_params_549, 1u,
+        ts_params_552, 1u,
         "list[float]",
         "8-vector",
         1,
@@ -16153,12 +16240,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 550 */
+    { /* 553 */
         "srmech.physics.qm.octonion.octonion_norm",
         "srmech",
         "qm.octonion",
         "Octonion norm \342\210\232(\316\243 x_i\302\262) via the scalar Class K pin-slot magnitude (cascade.magnitude) then sqrt \342\200\224 never abs(). Class K\342\210\230C. Baez (2002) \302\2472.1.",
-        ts_params_550, 1u,
+        ts_params_553, 1u,
         "float",
         "\342\211\245 0; Class K+C, never abs()",
         1,
@@ -16173,12 +16260,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 551 */
+    { /* 554 */
         "srmech.physics.qm.octonion.octonion_exp",
         "srmech",
         "qm.octonion",
         "The octonion Euler formula exp(\316\274\316\270) = cos \316\270\302\2671 + sin \316\270\302\267\316\274\314\202 for a UNIT pure imaginary \316\274\314\202 (\316\274\314\202\302\262=\342\210\2221) \342\200\224 the ODFT twiddle at the float64 boundary (the dim-8 quaternion_exp mirror). Lives in the commutative \342\204\235[\316\274\314\202] \342\211\205 \342\204\202; by Artin's theorem the 2-generator \342\237\250\316\274\314\202, x\342\237\251 associates, so the one-sided ODFT round-trip is exact despite \360\235\225\206 non-associativity. \342\200\226exp(\316\274\316\270)\342\200\226=1; exp(\316\274\316\270\342\202\201)exp(\316\274\316\270\342\202\202)=exp(\316\274(\316\270\342\202\201+\316\270\342\202\202)); exp(\316\2742\317\200/N)^N=1. Trig = the Q61 Class-N cascade projected once (no libm, no math.pi); exact tiers: octonion_exp_series_truncate (rational) / cascade.hypercomplex_exp k_axes=7 (Q61). Class N\342\210\230C\342\210\230M. Same-rc C peer srmech_octonion_exp (byte-exact).",
-        ts_params_551, 2u,
+        ts_params_554, 2u,
         "list[float]",
         "unit octonion [cos \316\270, sin \316\270\302\267\316\274\314\202\342\202\201, \342\200\246, sin \316\270\302\267\316\274\314\202\342\202\207]",
         1,
@@ -16193,12 +16280,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 552 */
+    { /* 555 */
         "srmech.physics.qm.octonion.octonion_exp_series_truncate",
         "srmech",
         "qm.octonion",
         "EXACT-rational exp(e_axis\302\267\316\270) for a RATIONAL angle \316\270=p/q \342\200\224 the series-truncate tier of the ODFT twiddle (the dim-8 quaternion_exp_series_truncate mirror). Composes the Class-N calculus series cos/sin_series_truncate (exact bignum (num,den) pairs) with an exactly-representable basis axis e_axis (axis \342\210\210 {1..7}). \317\200 is NOT rational: a 2\317\200jk/N angle enters only as a caller-chosen rational approximant (e.g. best_rational over the \317\200 cascade); the float64 projection is octonion_twiddle. Class N (bignum_reference oracle of the Q61/float paths).",
-        ts_params_552, 4u,
+        ts_params_555, 4u,
         "tuple",
         "8 exact (num, den) pairs: cos at slot 0, sin at slot axis, (0,1) elsewhere",
         1,
@@ -16213,12 +16300,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 553 */
+    { /* 556 */
         "srmech.physics.qm.octonion.octonion_twiddle",
         "srmech",
         "qm.octonion",
         "The ODFT twiddle factor exp(\317\203\302\267\316\274\302\2672\317\200jk/N) \342\200\224 the DFT-facing octonion_exp (the dim-8 quaternion_twiddle mirror). The index product is reduced in Z_N FIRST (Class I, exact), then \317\200 enters ONCE as the Class-N 4\302\267atan(1) cascade at the float64 boundary (never math.pi). \317\203=\342\210\2221 (default) = forward DFT (matches cascade.octonion_dft); \317\203=+1 = inverse. Twiddle closure: exp(\316\2742\317\200/N)^N = 1. Class I\342\210\230N\342\210\230C\342\210\230M. Same-rc C peer srmech_octonion_twiddle (byte-exact).",
-        ts_params_553, 5u,
+        ts_params_556, 5u,
         "list[float]",
         "the unit-octonion twiddle (8 components)",
         1,
@@ -16233,7 +16320,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 554 */
+    { /* 557 */
         "srmech.physics.qm.quaternion.quaternion_mult_table",
         "srmech",
         "qm.quaternion",
@@ -16253,7 +16340,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 555 */
+    { /* 558 */
         "srmech.physics.qm.quaternion.quaternion_table_attestation",
         "srmech",
         "qm.quaternion",
@@ -16266,19 +16353,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"schema       srmech://schema/quaternion_structure_constants\\nconvention   cayley_dickson_from_C [[1, 2, 3]]\\nsha256       343ba97bff50bec9d7444c5d43077769364fd5c945ca49ed3c704c6554bff56c\\nstable       True\\ndiffers from O: True\\nsource_doi   None url https://arxiv.org/abs/math/0105155\\ncite_as      Baez, J.C. (2002) The Octonions, Bull. Amer. Math. Soc. 39, 145-205 (arXiv:math/0105155), \\u00a71\",\"why\":\"The SHA-256 is over the table's 64 int8 bytes, is stable across calls (retrieved_at is a fixed string, never datetime.now()), and differs from the octonion one \\u2014 so the two conventions cannot be confused by hash.\",\"worked\":\"from srmech.physics.qm.quaternion import quaternion_table_attestation\\nfrom srmech.physics.qm.octonion import octonion_table_attestation\\n\\na = quaternion_table_attestation()\\nprint(\\\"schema      \\\", a[\\\"data_schema_id\\\"])\\nprint(\\\"convention  \\\", a[\\\"data\\\"][\\\"convention\\\"], a[\\\"data\\\"][\\\"oriented_triples\\\"])\\nprint(\\\"sha256      \\\", a[\\\"attestation\\\"][\\\"response_sha256\\\"])\\nprint(\\\"stable      \\\", a[\\\"attestation\\\"][\\\"response_sha256\\\"]\\n      == quaternion_table_attestation()[\\\"attestation\\\"][\\\"response_sha256\\\"])\\no = octonion_table_attestation()\\nprint(\\\"differs from O:\\\",\\n      a[\\\"attestation\\\"][\\\"response_sha256\\\"] != o[\\\"attestation\\\"][\\\"response_sha256\\\"])\\nprint(\\\"source_doi  \\\", a[\\\"attestation\\\"][\\\"source_doi\\\"],\\n      \\\"url\\\", a[\\\"attestation\\\"][\\\"source_url\\\"])\\nprint(\\\"cite_as     \\\", a[\\\"rendering\\\"][\\\"cite_as\\\"])\"}",
         NULL,
         "WHAT \342\200\224 returns a plain MPR v1 ``dict`` self-attesting srmech's \342\204\215 structure-constant convention (``srmech/physics/qm/quaternion.py:192``): ``mpr_version`` / ``data`` / ``data_schema_id`` / ``attestation`` / ``rendering``, with ``response_sha256`` = ``srmech.amsc.format.sha256_bytes`` over the table's 64 two's-complement int8 bytes. This is a self-attestation for a GENERATED constant, not a fetched datum \342\200\224 the convention IS the provenance. Note ``source_doi`` is ``None`` on purpose: Baez (2002) is open on arXiv and a paywalled-only DOI is rejected as framework attestation. WHEN \342\200\224 reach for it whenever a downstream result depends on WHICH quaternion sign convention was used: pin the hash in a test, or ship it next to a number so a reader can re-verify the algebra the number came from. The run shows the property that makes it usable \342\200\224 the hash is stable across calls, because ``retrieved_at`` is a fixed ISO string and not ``datetime.now()``, so an MCP surface is reproducible. What you would otherwise wrongly hand-roll is a ``hashlib.sha256`` over your own serialisation of the table, which both duplicates this and breaks the no-new-direct-``hashlib`` discipline. SIBLINGS \342\200\224 ``srmech.physics.qm.octonion.octonion_table_attestation`` (``srmech/physics/qm/octonion.py:233``) is the dim-8 twin with the same shape and the same Baez citation, and the run confirms the two hashes DIFFER, which is the whole point of content-addressing them separately; ``quaternion_mult_table`` is the object being attested; ``srmech.amsc.format.sha256_bytes`` is the Class-A primitive underneath (route new hashing through it so native dispatch is picked up); ``srmech.amsc.format.validate_mpr_record`` deliberately does NOT apply here \342\200\224 it targets fetched data with an on-disk TOML descriptor, and a generated-constant self-attestation has no descriptor file.",
-        ts_composes_555, 1u,
+        ts_composes_558, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 556 */
+    { /* 559 */
         "srmech.physics.qm.quaternion.quaternion_left_mult",
         "srmech",
         "qm.quaternion",
         "Left-multiplication matrix L_q (x \342\206\222 q\302\267x) as 4\303\2274 real; L_{e_i} (i\342\211\2451) is antisymmetric; L(pq)=L(p)L(q) and L(p)R(q)=R(q)L(p) (the \342\204\215 associativity witness). The basis-column sign structure IS the Klein-4 bridge (row index = i\342\212\225j; Q\342\202\210/{\302\2611}, F380). Class M (binding). Same-rc C peer srmech_quaternion_left_mult.",
-        ts_params_556, 1u,
+        ts_params_559, 1u,
         "Mat",
         "4\303\2274 L_q",
         1,
@@ -16293,12 +16380,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 557 */
+    { /* 560 */
         "srmech.physics.qm.quaternion.quaternion_right_mult",
         "srmech",
         "qm.quaternion",
         "Right-multiplication matrix R_q (x \342\206\222 x\302\267q) as 4\303\2274 real; the ANTI-homomorphism R(pq)=R(q)R(p) (\342\204\215 non-commutative \342\237\271 L_q \342\211\240 R_q \342\200\224 the genuinely distinct left/right QDFT forms stand on this). Class M (binding). Same-rc C peer srmech_quaternion_right_mult.",
-        ts_params_557, 1u,
+        ts_params_560, 1u,
         "Mat",
         "4\303\2274 R_q",
         1,
@@ -16313,12 +16400,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 558 */
+    { /* 561 */
         "srmech.physics.qm.quaternion.quaternion_conjugate",
         "srmech",
         "qm.quaternion",
         "Quaternion conjugate conj(x) = (x_0, -x_1, -x_2, -x_3); for a unit twiddle it is the inverse (conj(exp(\316\274\316\270)) = exp(\342\210\222\316\274\316\270) \342\200\224 the inverse-QDFT twiddle). Class C (orientation). Same-rc C peer srmech_quaternion_conjugate (byte-exact).",
-        ts_params_558, 1u,
+        ts_params_561, 1u,
         "list[float]",
         "4-vector",
         1,
@@ -16333,12 +16420,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 559 */
+    { /* 562 */
         "srmech.physics.qm.quaternion.quaternion_norm",
         "srmech",
         "qm.quaternion",
         "Quaternion norm \342\210\232(\316\243 x_i\302\262) via the scalar Class K pin-slot magnitude (cascade.magnitude) then sqrt \342\200\224 never abs(). Class K\342\210\230C.",
-        ts_params_559, 1u,
+        ts_params_562, 1u,
         "float",
         "\342\211\245 0; Class K+C, never abs()",
         1,
@@ -16353,12 +16440,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 560 */
+    { /* 563 */
         "srmech.physics.qm.quaternion.quaternion_exp",
         "srmech",
         "qm.quaternion",
         "The quaternion Euler formula exp(\316\274\316\270) = cos \316\270\302\2671 + sin \316\270\302\267\316\274\314\202 for a UNIT pure imaginary \316\274\314\202 (\316\274\314\202\302\262=\342\210\2221) \342\200\224 the QDFT twiddle at the float64 boundary. Lives in the commutative \342\204\235[\316\274\314\202] \342\211\205 \342\204\202 (why the one-sided QDFT inverts); \342\200\226exp(\316\274\316\270)\342\200\226=1; exp(\316\274\316\270\342\202\201)exp(\316\274\316\270\342\202\202)=exp(\316\274(\316\270\342\202\201+\316\270\342\202\202)); exp(\316\2742\317\200/N)^N=1. Trig = the Q61 Class-N cascade projected once (no libm, no math.pi); exact tiers: quaternion_exp_series_truncate (rational) / cascade.hypercomplex_exp (Q61). Class N\342\210\230C\342\210\230M. Same-rc C peer srmech_quaternion_exp (byte-exact).",
-        ts_params_560, 2u,
+        ts_params_563, 2u,
         "list[float]",
         "unit quaternion [cos \316\270, sin \316\270\302\267\316\274\314\202\342\202\201, sin \316\270\302\267\316\274\314\202\342\202\202, sin \316\270\302\267\316\274\314\202\342\202\203]",
         1,
@@ -16373,12 +16460,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 561 */
+    { /* 564 */
         "srmech.physics.qm.quaternion.quaternion_log",
         "srmech",
         "qm.quaternion",
         "The INVERSE of quaternion_exp \342\200\224 the unit-quaternion log map. For q=[w,v] returns the tangent [0, \316\270\302\267v\314\202] with \342\200\226v\342\200\226 the Class-K magnitude of v, \316\270=atan2(\342\200\226v\342\200\226,w)\342\210\210[0,\317\200] and v\314\202=v/\342\200\226v\342\200\226, so exp(log(q))==q for unit q (the tangent quaternion_slerp rides). The pure-real branch (\342\200\226v\342\200\226==0, q=\302\2611) is the Class-K pin-slot at zero: the zero tangent [0,0,0,0]. \342\200\226v\342\200\226 = the Class-N rational sqrt of a sum-of-squares (never abs()); \316\270 = the Class-N rational atan2 (Q61 atan cascade, quadrant in exact rational space, projected once \342\200\224 no libm). Class K\342\210\230N\342\210\230C. Same-rc C peer srmech_quaternion_log (byte-exact).",
-        ts_params_561, 1u,
+        ts_params_564, 1u,
         "list[float]",
         "pure-imaginary log [0, \316\270\302\267v\314\202\342\202\201, \316\270\302\267v\314\202\342\202\202, \316\270\302\267v\314\202\342\202\203]",
         1,
@@ -16393,12 +16480,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 562 */
+    { /* 565 */
         "srmech.physics.qm.quaternion.quaternion_slerp",
         "srmech",
         "qm.quaternion",
         "Shortest-arc geodesic interpolation on the unit-quaternion S\302\263 \342\200\224 slerp(q0,q1,t) = q0\302\267exp(t\302\267log(conj(q0)\302\267q1)). The exp/log form: r=conj(q0)\302\267q1 is the relative rotation, log(r)=\316\270\302\267\316\274\314\202 its tangent, t\302\267log(r) walks a fraction t, the left-mult by q0 carries it back to base. Endpoints slerp(\302\267,\302\267,0)=q0 and (for unit q0/q1) slerp(\302\267,\302\267,1)=q1; the log(r)=0 branch (q1=\302\261q0) is the Class-K pin-slot exp(0)=1 \342\206\222 q0. A pure composition of the shipped \342\204\215 ops: quaternion_conjugate (C) \342\210\230 the Cayley-Dickson Hamilton product (M) \342\210\230 quaternion_log (K\342\210\230N) \342\210\230 quaternion_exp (N\342\210\230C); no abs(), no libm. Same-rc C peer srmech_quaternion_slerp (byte-exact).",
-        ts_params_562, 3u,
+        ts_params_565, 3u,
         "list[float]",
         "the interpolated quaternion",
         1,
@@ -16413,12 +16500,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 563 */
+    { /* 566 */
         "srmech.physics.qm.quaternion.quaternion_exp_series_truncate",
         "srmech",
         "qm.quaternion",
         "EXACT-rational exp(e_axis\302\267\316\270) for a RATIONAL angle \316\270=p/q \342\200\224 the series-truncate tier of the twiddle (the exactness convention's exact form). Composes the Class-N calculus series cos/sin_series_truncate (exact bignum (num,den) pairs) with an exactly-representable basis axis e_axis (axis \342\210\210 {1,2,3} = i/j/k). \317\200 is NOT rational: a 2\317\200jk/N angle enters only as a caller-chosen rational approximant (e.g. best_rational over the \317\200 cascade); the float64 projection is quaternion_twiddle. Class N (bignum_reference oracle of the Q61/float paths).",
-        ts_params_563, 4u,
+        ts_params_566, 4u,
         "tuple",
         "4 exact (num, den) pairs: cos at slot 0, sin at slot axis, (0,1) elsewhere",
         1,
@@ -16433,12 +16520,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 564 */
+    { /* 567 */
         "srmech.physics.qm.quaternion.quaternion_twiddle",
         "srmech",
         "qm.quaternion",
         "The QDFT twiddle factor exp(\317\203\302\267\316\274\302\2672\317\200jk/N) \342\200\224 the DFT-facing quaternion_exp. The index product is reduced in Z_N FIRST (Class I, exact), then \317\200 enters ONCE as the Class-N 4\302\267atan(1) cascade at the float64 boundary (never math.pi). \317\203=\342\210\2221 (default) = forward DFT (matches cascade.quaternion_dft); \317\203=+1 = inverse. Twiddle closure: exp(\316\2742\317\200/N)^N = 1. Class I\342\210\230N\342\210\230C\342\210\230M. Same-rc C peer srmech_quaternion_twiddle (byte-exact).",
-        ts_params_564, 5u,
+        ts_params_567, 5u,
         "list[float]",
         "the unit-quaternion twiddle (4 components)",
         1,
@@ -16453,12 +16540,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 565 */
+    { /* 568 */
         "srmech.physics.qm.quaternion.quaternion_cycle_holonomy",
         "srmech",
         "qm.quaternion",
         "The NON-ABELIAN cycle holonomies of a quaternion gain graph (#T944 follow-on) \342\200\224 the k=2 discrete which-way / Lk-analog channel, the associative sibling of the abelian laplacian.cycle_holonomy. Edge gains are UNIT quaternions (Q\342\202\210 = {\302\2611,\302\261i,\302\261j,\302\261k} or a continuous re-gauge). Per fundamental cycle H = P_u\302\267g_uv\302\267conj(P_v) (ordered product; P_x = the tree-path root\342\206\222x product, reversed edge = conj). A node re-gauge g\342\206\222s_u\302\267g\302\267conj(s_v) telescopes to H\342\206\222s_root\302\267H\302\267conj(s_root), so the CONJUGACY CLASS is gauge-invariant. class_index = the SU(2) class from the scalar part w=Re(H): 0={1}(w\342\211\210+1), 1={\342\210\2221}(w\342\211\210\342\210\2221, the spinor/Lk half-twist), 2={\302\261i,\302\261j,\302\261k}(w\342\211\2100). MEASURED (the rc309 proof gate): the finer 5-class Q\342\202\210 split is invariant only under DISCRETE Q\342\202\210 re-gauge \342\200\224 continuous SU(2) merges the three axes, so only the scalar-part class is frame-free. center_parity = the {1}/{\342\210\2221} central sign. Native standalone-C srmech_quaternion_cycle_holonomy (caller-arena); else the byte-exact quaternion cascade. no abs(). Class M\342\210\230L\342\210\230C.",
-        ts_params_565, 3u,
+        ts_params_568, 3u,
         "dict",
         "{'n_cycles', 'class_index': list[int] (SU(2) class), 'center_parity': list[int] (+1/\342\210\2221/0), 'cycle_edges': list[(u,v)], 'holonomies': list[list[float]] (raw \342\204\215), 'balanced': bool}",
         1,
@@ -16469,11 +16556,11 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
         "both",
-        ts_reads_input_565, 1u,
+        ts_reads_input_568, 1u,
         NULL,
         NULL, 0u,
     },
-    { /* 566 */
+    { /* 569 */
         "srmech.physics.qm.hurwitz.hurwitz_planes",
         "srmech",
         "qm.hurwitz",
@@ -16493,7 +16580,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 567 */
+    { /* 570 */
         "srmech.physics.qm.so8.so8_adjoint_basis",
         "srmech",
         "qm.so8",
@@ -16513,7 +16600,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 568 */
+    { /* 571 */
         "srmech.physics.qm.so8.g2_subalgebra",
         "srmech",
         "qm.so8",
@@ -16533,7 +16620,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 569 */
+    { /* 572 */
         "srmech.physics.qm.so8.so7_subalgebra",
         "srmech",
         "qm.so8",
@@ -16553,12 +16640,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 570 */
+    { /* 573 */
         "srmech.physics.qm.so8.an_embedding",
         "srmech",
         "qm.so8",
         "The bit-exact su(3) \342\212\225 3 \342\212\225 3bar Lie decomposition of the 14 g2 = Der(O) generators (the su(3) adjoint 8 + the J-eigenspace fundamental 3 + antifundamental 3bar; the 7-dim octonion-vector branches 1+3+3bar over the same su(3)). su(3) = stabiliser {D : D\302\267e_K = 0}; the genuine fundamental is the +i eigenspace of the su(3)-invariant complex structure J (J\302\262=\342\210\222I); [su3,3]\342\212\2063 bit-exact. su(3) identified by the invariant certificate {dim 8, rank 2, simple} (Cartan A2), never abs(). bit-exact computed; A-N class names are a documented framework-reading label (NOT a derived theorem). Class C-L. Baez (2002) \302\2474.1 (g2 = Der O, dim 14).",
-        ts_params_570, 1u,
+        ts_params_573, 1u,
         "dict",
         "{su3:[8 8x8], complement:[6 8x8], complex_structure_J, triplet:[3], antitriplet:[3], weights:(6,2), decomposition, imaginary_unit, attestation}",
         1,
@@ -16573,12 +16660,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 571 */
+    { /* 574 */
         "srmech.physics.qm.so8.quaternion_subalgebra_stabilizer",
         "srmech",
         "qm.so8",
         "The bit-exact 6-dim so(4) = su(2) \342\212\225 su(2) subalgebra of g2 = Der(O) stabilising a quaternion subalgebra H \342\212\202 O (the \342\204\215-reading sibling of an_embedding). H = span(e0,e_a,e_b,e_c) for a Fano line; so(4) = {D in g2 : D\302\267span(H_imag) \342\212\206 span(H_imag)} (SVD nullspace, orthonormalised; dim 6). Certificate: Killing-form rank 6 (semisimple, Cartan), the two-triplet Killing spectrum (two eigenvalues \303\2273 = su(2) \342\212\225 su(2)), the two su(2) ideals via the self-dual / anti-self-dual split on H^\342\212\245 \342\211\205 R^4 ([su2_+,su2_-]=0, each closes), and \342\204\215-choice-invariance (spectrum bit-identical across the 7 Fano-line H). The su(2) \342\212\225 su(2) split is this op's own computation, NOT a cited theorem; never abs(). F215: this Lie SYMMETRY surface is distinct from the 6 cascade.atoms group-element ops (6=6 is coincidence; 0/6 atoms are Lie generators) \342\200\224 a framework-reading label, NOT a derived theorem. Class C-L. Baez (2002) \302\2474.1 (g2 = Der O, dim 14).",
-        ts_params_571, 1u,
+        ts_params_574, 1u,
         "dict",
         "{so4:[6 8x8], su2_plus:[3 8x8], su2_minus:[3 8x8], killing_form:(6,6), killing_rank:6, killing_spectrum:(6,), decomposition, quaternion_fano_line, quaternion_imaginary_units, attestation}",
         1,
@@ -16586,14 +16673,14 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"quaternion_index\":\"1\"},\"output\":\"fano line = (1, 2, 3)  H_imag = (1, 2, 3)\\ndims: so4 = 6  su2_plus = 3  su2_minus = 3\\nkilling_rank = 6\\nkilling_spectrum = [-4.0, -4.0, -4.0, -1.333333333, -1.333333333, -1.333333333]\\ndecomposition = {'so4_6': (3, 3)}\\nindex=3 fano line = (1, 6, 7)  spectrum = [-4.0, -4.0, -4.0, -1.333333333, -1.333333333, -1.333333333]\\nH-choice-invariant spectrum: True\\nindex=8 control -> ValueError: quaternion_subalgebra_stabilizer: quaternion_index must be in 1..7; got 8\",\"why\":\"The Killing spectrum is the fingerprint: two distinct eigenvalues with multiplicity 3 each (-4, -4, -4, -4/3, -4/3, -4/3) is su(2) + su(2) and nothing else - and it is bit-identical for a different quaternion subalgebra, proving the H-choice does not matter.\",\"worked\":\"from srmech.physics.qm.so8 import quaternion_subalgebra_stabilizer\\nd = quaternion_subalgebra_stabilizer()      # index 1 = line (1,2,3)\\nprint('fano line =', d['quaternion_fano_line'],\\n      ' H_imag =', d['quaternion_imaginary_units'])\\nprint('dims:', len(d['so4']), len(d['su2_plus']),\\n      len(d['su2_minus']))\\nprint('killing_rank =', d['killing_rank'])\\nprint('killing_spectrum =',\\n      [round(x, 9) for x in d['killing_spectrum']])\\nd3 = quaternion_subalgebra_stabilizer(quaternion_index=3)\\nprint('index=3 line =', d3['quaternion_fano_line'], ' spectrum =',\\n      [round(x, 9) for x in d3['killing_spectrum']])\\nquaternion_subalgebra_stabilizer(8)         # -> ValueError\"}",
         NULL,
         "WHAT: the 6-dimensional so(4) = su(2) + su(2) subalgebra of g2 = Der(O) that stabilises a quaternion subalgebra H = span(e_0, e_a, e_b, e_c) for one of the seven Fano lines. Returns the six so(4) generators, the two 3-dim su(2) ideals (the self-dual / anti-self-dual halves of the action on the 4-dim complement), the 6x6 Killing form, its rank 6 (the semisimplicity certificate, Cartan's criterion) and its spectrum, plus an MPR v1 self-attestation. The su(2)+su(2) split is COMPUTED here, not quoted. WHEN: you want the quaternionic reading of g2, an explicit so(4) inside so(8), or the 't Hooft self-dual / anti-self-dual decomposition as concrete matrices. The H-choice invariance shown in the worked run is the thing to check when you are worried a construction depends on an arbitrary basis choice - it does not. SIBLINGS you would otherwise re-derive: an_embedding() is the C-reading sibling (su(3) + 3 + 3bar from the SAME 14 g2 generators) - the two are different decompositions of one object, not alternatives; g2_subalgebra() is the input; srmech.physics.qm.gauge.su2_generators() is the unrelated 2x2 FUNDAMENTAL su(2), not these 8x8 derivations. The framework_so4_reading key is labelled 'framework-reading, not derived' and records that the numeric match between dim so(4) = 6 and the six cascade.atoms operators is a COINCIDENCE, not a correspondence.",
-        ts_composes_571, 1u,
+        ts_composes_574, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 572 */
+    { /* 575 */
         "srmech.physics.qm.triality.triality_automorphism",
         "srmech",
         "qm.triality",
@@ -16606,14 +16693,14 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{},\"output\":\"tau.shape = (28, 28)\\n||tau^3 - I|| = 0.0   (order 3)\\n||tau   - I|| = 6.48074069840786   (tau != I)\\n||tau^2 - I|| = 6.48074069840786   (tau^2 != I)\\ndim Fix(tau) = tr((I+tau+tau^2)/3) = 13.999999999999995   (= dim g2 = 14)\\ntau is NOT S_B: ||tau - S_B|| = 5.291502622129181\",\"why\":\"tau^3 - I is EXACTLY 0.0 (the companion solve is exact-rational, so there is no residual to tolerate) while tau and tau^2 are far from I - and the projector trace reads dim Fix(tau) = 14 with no eigendecomposition at all.\",\"worked\":\"from srmech.physics.qm.triality import triality_automorphism, triality_swap\\nfrom srmech.math.laplacian import mat_matmul, mat_norm\\ntau = triality_automorphism()\\nI = [[1.0 if i == j else 0.0 for j in range(28)] for i in range(28)]\\nt2 = mat_matmul(tau, tau); t3 = mat_matmul(t2, tau)\\nnrm = lambda M: mat_norm([M[i, j] - I[i][j]\\n                          for i in range(28) for j in range(28)])\\nprint('||tau^3 - I|| =', nrm(t3))\\nprint('||tau   - I|| =', nrm(tau))\\nprint('||tau^2 - I|| =', nrm(t2))\\nprint('dim Fix(tau) = tr((I+tau+tau^2)/3) =',\\n      sum((I[i][i] + tau[i, i] + t2[i, i]) / 3.0 for i in range(28)))\\nprint('tau is NOT S_B:', mat_norm(\\n    [tau[i, j] - triality_swap()[i, j]\\n     for i in range(28) for j in range(28)]))\"}",
         NULL,
         "WHAT: the 28x28 order-3 outer automorphism tau = S_B . S_C of Spin(8), expressed in the shared E_pq coordinate frame (the strict upper triangle in (p<q) order). tau^3 = I, tau != I, tau^2 != I, and Fix(tau) = g2 (dim 14) - the D4 --Z3--> G2 fold. The companion maps underneath are solved EXACTLY over Q, which is why the order-3 residual is 0.0 rather than ~1e-14 and why the result is bit-identical across platforms. WHEN: the genuine triality element is needed - the 8v/8s/8c rep-permutation, the Fix(tau) = g2 test, or as the order-3 generator that no composition of order-2 chirality operations can reach. THE TRAP: a naive 'tau = the A -> B companion map' gives an INVOLUTION with a 21-dim fixed space, which is the wrong answer; the order-3 element is the PRODUCT of the two companion involutions. The trace-of-projector idiom in the worked run - dim Fix = tr((I + tau + tau^2)/3) - is the cheap way to read a fixed-space dimension without an eigensolver, and it is worth copying. SIBLINGS you would otherwise re-derive: triality_swap() is S_B (order 2, Fix = so(7) dim 21); S_C = S_B . tau if you need it (the worked run under triality_swap shows this); triality_cycle() is the LABEL-level order-3 step on 8v/8s/8c; triality_companions() is the per-generator 8x8 solve this 28x28 matrix is assembled from; lean_isa_seventh_primitive() packages the order-3 certificate plus its attestation.",
-        ts_composes_572, 1u,
+        ts_composes_575, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 573 */
+    { /* 576 */
         "srmech.physics.qm.triality.triality_swap",
         "srmech",
         "qm.triality",
@@ -16633,12 +16720,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 574 */
+    { /* 577 */
         "srmech.physics.qm.triality.triality_cycle",
         "srmech",
         "qm.triality",
         "The next frame in the order-3 rep-permutation 8v \342\206\222 8s \342\206\222 8c \342\206\222 8v (Class-I mod-3 cyclic step via srmech.math.cyclic.mod_add). Raises on an unknown frame. Baez (2002) \302\2472.4.",
-        ts_params_574, 1u,
+        ts_params_577, 1u,
         "str",
         "next frame in 8v \342\206\222 8s \342\206\222 8c",
         1,
@@ -16646,19 +16733,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"frame\":\"'8v'\"},\"output\":\"8v -> s -> c -> v   (order-3 cycle closes)\\ntriality_cycle('v') = s   triality_cycle('8S') = c\\nunknown-frame control -> ValueError: unknown triality frame '8x'; expected one of 'v'/'s'/'c' or '8v'/'8s'/'8c'\",\"why\":\"Three applications return to 'v', so the LABEL cycle genuinely closes at order 3 - and both spellings ('v' and '8S', case- and prefix-insensitive) normalise to the same short canonical label.\",\"worked\":\"from srmech.physics.qm.triality import triality_cycle\\nf = '8v'\\nseq = []\\nfor _ in range(3):\\n    f = triality_cycle(f); seq.append(f)\\nprint('8v ->', ' -> '.join(seq))\\nprint(\\\"triality_cycle('v') =\\\", triality_cycle('v'),\\n      \\\" triality_cycle('8S') =\\\", triality_cycle('8S'))\\ntriality_cycle('8x')                      # -> ValueError\"}",
         NULL,
         "WHAT: the label-level order-3 rep-permutation 8v -> 8s -> 8c -> 8v. Accepts 'v'/'s'/'c' or '8v'/'8s'/'8c' in any case, returns the SHORT canonical label, and raises ValueError on anything else. The step itself is the Class-I cyclic primitive: the frame index advances via srmech.math.cyclic.mod_add(index, 1, 3) - not an ad-hoc dict. WHEN: bookkeeping which of the three inequivalent 8-dim irreps you are in, iterating over them, or normalising user-supplied frame strings. Cheap and pure - it touches none of the expensive so(8) machinery. SIBLINGS you would otherwise re-derive: triality_apply(x, from, to) is the VECTOR transport, and it is a genuinely different object - the label cycle closes at 3 but the vector transport composes per-step conjugations, so v->s->c->v does NOT return the input (see that op's example); triality_automorphism() is the 28x28 matrix realising the order-3 element on the so(8) adjoint - the label here is the shadow of that; srmech.math.cyclic.mod_add is the primitive underneath. Do not write your own {'v':'s','s':'c','c':'v'} dict - it will not accept the 8-prefixed spellings and will not raise on typos.",
-        ts_composes_574, 1u,
+        ts_composes_577, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 575 */
+    { /* 578 */
         "srmech.physics.qm.triality.triality_apply",
         "srmech",
         "qm.triality",
         "Carry an 8-vector between irrep frames per the cycle distance (Class I frame-transport \342\210\230 Class M companions). Raises on a wrong shape or unknown frame. Baez (2002) \302\2472.4; Cartan (1925).",
-        ts_params_575, 3u,
+        ts_params_578, 3u,
         "list[float]",
         "8-vector in to_frame",
         1,
@@ -16673,12 +16760,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 576 */
+    { /* 579 */
         "srmech.physics.qm.triality.triality_companions",
         "srmech",
         "qm.triality",
         "The (g_s, g_c) companions solving Cartan's relation g_v(x\302\267y) = g_s(x)\302\267y + x\302\267g_c(y) by deterministic least-squares; for a g2 derivation g_s = g_c = g_v. The solve is exact-rational over Q; exact=True returns that exact carrier (list[list[Q]]) instead of the float64 Mat, and keeps the OPERAND exact too. Class M. Baez (2002) \302\2472.4.",
-        ts_params_576, 2u,
+        ts_params_579, 2u,
         "tuple[Mat, ...] | tuple[list[list[Q]], ...]",
         "(g_s, g_c) companions",
         1,
@@ -16693,12 +16780,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 577 */
+    { /* 580 */
         "srmech.physics.qm.triality.triality_relation_residual",
         "srmech",
         "qm.triality",
         "Scalar Cartan-relation deviation \316\243_ij \342\200\226g_v(e_i\302\267e_j) \342\210\222 g_s(e_i)\302\267e_j \342\210\222 e_i\302\267g_c(e_j)\342\200\226 via the scalar Class K pin-slot magnitude (never abs()); 0 when correct. Class K\342\210\230C. Baez (2002) \302\2472.4.",
-        ts_params_577, 3u,
+        ts_params_580, 3u,
         "float",
         "0 when the Cartan relation holds",
         1,
@@ -16713,7 +16800,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 578 */
+    { /* 581 */
         "srmech.physics.qm.triality.lean_isa_seventh_primitive",
         "srmech",
         "qm.triality",
@@ -16733,7 +16820,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 579 */
+    { /* 582 */
         "srmech.physics.qm.triality.spin8_center",
         "srmech",
         "qm.triality",
@@ -16746,14 +16833,14 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{},\"output\":\"order 4; elements [(1, 1, 1), (1, -1, -1), (-1, 1, -1), (-1, -1, 1)]; is_klein_four True; rep_kernels {'v': (1, -1, -1), 's': (-1, 1, -1), 'c': (-1, -1, 1)}; algebra_centre_dim 0; triality_fixed_subgroup [(1, 1, 1)].\",\"why\":\"Each non-identity element has exactly ONE +1 coordinate, so it acts trivially on exactly one rep. That is what makes {3 involutions} <-> {3 reps} forced rather than chosen. Note algebra_centre_dim 0: the ALGEBRA centre is the zero object, and that is the correct answer, not a refutation.\",\"worked\":\"from srmech.physics.qm.triality import spin8_center\\n# SUBJECT: the global datum so(8) structurally cannot hold.\\nc = spin8_center()\\nc['order']                    # -> 4     a Klein four-group\\nc['elements'][1]              # -> (1, -1, -1)\\nc['rep_kernels']['v']         # -> (1, -1, -1)  kills 8v\\nc['rep_kernels']['s']         # -> (-1, 1, -1)  kills 8s\\nc['algebra_centre_dim']       # -> 0   CORRECT: so(8) is semisimple\\nc['triality_fixed_subgroup']  # -> [(1, 1, 1)]  trivial\\n\"}",
         NULL,
         "WHAT -- it returns ``Z(Spin(8))``, the Klein four-group, SOLVED off the octonion multiplication table: the four scalar triples ``(g_v, g_s, g_c)`` satisfying the group form of Cartan's relation ``g_v(x.y) = g_s(x).g_c(y)`` on all 64 octonion basis pairs, so the constraint ``eps_v = eps_s*eps_c`` is FOUND rather than imposed. Each non-identity element acts trivially on exactly one of {8v, 8s, 8c}, so the kernels ARE a labelling. WHEN -- reach for it when you need the global (pi_1) datum the Lie algebra cannot carry. The trap to know about first: computing the centre of the ALGEBRA returns the zero object and that is CORRECT -- so(8) is semisimple, and the same algebra belongs to Spin(8), SO(8) and PSO(8) alike, so it structurally cannot tell them apart. A run reporting \"the centre is zero\" has confirmed the setup, not refuted anything; this op returns that zero explicitly as ``algebra_centre_dim`` so the distinction is on the record. What you would otherwise wrongly hand-roll is an eigen-decomposition hunting for a central element in the 28-dim adjoint, which will correctly find nothing. SIBLINGS -- ``so8_adjoint_basis`` is the local object this complements; ``triality_rep_dictionary`` consumes the kernels to derive the V4 bridge; ``srmech.math.covering.covering_catalog`` lists this as the spin8 row. Do not re-derive the centre from ``triality_automorphism``: tau ACTS on the centre, it does not carry one.",
-        ts_composes_579, 1u,
-        ts_preserves_579, 2u,
+        ts_composes_582, 1u,
+        ts_preserves_582, 2u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 580 */
+    { /* 583 */
         "srmech.physics.qm.triality.triality_rep_dictionary",
         "srmech",
         "qm.triality",
@@ -16766,19 +16853,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{},\"output\":\"dictionary {'iomega7': 's', 'gamma5': 'c', 'cpt': 'v'}; residual_ambiguity 1 (prior_ambiguity 3); order3_only_survivors the 3 cyclic rotations; tau_label_action {'v': 's', 's': 'c', 'c': 'v'}; swap_label_action {'v': 's', 's': 'v', 'c': 'c'} so swap_fixes ['c']; controls {'order2_for_order3_v4_side': 0, 'order2_for_order3_so8_side': 0, 'identity_for_cycle': 6, 'behave': True}.\",\"why\":\"rc421 measured the residual ambiguity at 3 and could go no further: the centralizer of a 3-cycle in Sym(3) has order 3, so an order-3 generator alone CANNOT pin a bijection. The rep-kernel labelling supplies the second generator, and 3 collapses to 1.\",\"worked\":\"from srmech.physics.qm.triality import triality_rep_dictionary\\n# SUBJECT: the V4 <-> so(8) bridge, derived not chosen.\\nd = triality_rep_dictionary()\\nd['prior_ambiguity']       # -> 3    rc421's ceiling\\nd['residual_ambiguity']    # -> 1\\nd['dictionary']\\n  # -> {'iomega7': 's', 'gamma5': 'c', 'cpt': 'v'}\\nd['swap_fixes']            # -> ['c']   S_B fixes 8c\\nd['controls']['identity_for_cycle']         # -> 6\\nd['controls']['order2_for_order3_so8_side'] # -> 0\\n\"}",
         NULL,
         "WHAT -- it returns the canonical {iomega7, gamma5, CPT} <-> {8v, 8s, 8c} dictionary, derived from the Z(Spin(8)) rep-kernel anchor rather than chosen, together with the label actions of the shipped tau and S_B, the survivor census and three inline controls. The result is iomega7 <-> 8s, gamma5 <-> 8c, CPT <-> 8v. WHEN -- reach for it before writing any sentence that pairs a Klein-4 sector with a triality rep. rc421 measured this bridge NOT canonical as shipped, residual ambiguity 3, and the reason is arithmetic rather than carelessness: the centralizer of a 3-cycle in Sym(3) has order 3, so an order-3 generator ALONE cannot pin a bijection. What you would otherwise wrongly hand-roll is the \"obvious\" alignment iomega7<->8v, gamma5<->8s, CPT<->8c, which is NOT the derived one. Read the honest bound before quoting it: the dictionary is canonical RELATIVE TO the shipped generator pairing and the shipped V4 sector names -- a different order-2 gives a different dictionary -- so it is FORM, never object-identity. SIBLINGS -- ``spin8_center`` supplies the anchor; ``srmech.math.hdc.klein4_triality_cycle`` and ``triality_cycle`` are the two order-3 generators it intertwines; do not re-derive the correspondence from either docstring alone.",
-        ts_composes_580, 1u,
-        ts_preserves_580, 2u,
+        ts_composes_583, 1u,
+        ts_preserves_583, 2u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 581 */
+    { /* 584 */
         "srmech.math.covering.center_parity",
         "srmech",
         "covering",
         "The \342\204\244/2 central sign (\342\210\2221)^winding of an integer winding: \302\2611 \342\200\224 THE ONE BIT WHERE AN INTEGER LIVED. This is the single primitive that six shipped surfaces each re-derived by hand: One.spinor_sign's (\342\210\2221)^\316\243w, quaternion_cycle_holonomy's center_parity, cwf_consistency_mod2's lk_center_parity. One winding flips the sign, two restore it \342\200\224 the Spin\342\206\222SO double cover, equally \317\200\342\202\201(SO(3)) = \342\204\244/2. Class K (pin-slot magnitude, never abs()) \342\210\230 Class I (mod-2 via mod_add) \342\210\230 Class C (the \302\2611 orientation re-application). (\342\210\2221)^w = (\342\210\2221)^(\342\210\222w), so the parity is orientation-blind by construction and negative windings need no special case.",
-        ts_params_581, 1u,
+        ts_params_584, 1u,
         "int",
         "+1 when winding is even, \342\210\2221 when odd",
         1,
@@ -16786,19 +16873,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"winding\":-3},\"output\":\"-1 -- the winding is odd, so the spinor sign has flipped. center_parity(0) = 1, center_parity(1) = -1, center_parity(10) = 1: one winding flips, two restore.\",\"why\":\"This is the one bit that survives when an integer winding is read through a finite centre. Six shipped surfaces each re-derived it by hand before this op existed.\",\"worked\":\"from srmech.math.covering import center_parity\\n# SUBJECT: an integer winding read through Z(SU(2)) = {+-1}.\\ncenter_parity(0)      # -> 1    no winding\\ncenter_parity(1)      # -> -1   ONE winding flips the spinor\\ncenter_parity(-3)     # -> -1   orientation-blind: (-1)^w = (-1)^(-w)\\ncenter_parity(10)     # -> 1    two windings restore (4pi)\\n\"}",
         NULL,
         "WHAT -- it computes the Z/2 central sign ``(-1)^winding`` of an integer winding, returning ``+1`` for even and ``-1`` for odd. That is the monodromy of a loop through a centre of order 2: one full winding flips the spinor sign, two restore it -- the Spin -> SO double cover, equally ``pi_1(SO(3)) = Z/2``. WHEN -- reach for it whenever a quantity that really lives in a COVER is being read through a finite quotient, and you want the surviving datum named rather than improvised. What you would otherwise wrongly hand-roll is ``(-1) ** w`` or ``1 - 2 * (w % 2)``: both are correct arithmetic and both bypass the Class-K pin-slot / Class-C orientation composition the ``abs()`` ban exists to enforce, and neither says which covering the bit is the shadow OF. SIBLINGS -- do not re-derive it from ``srmech.cascade.one.One.spinor_sign`` (that is this same bit specialised to the winding triad) nor from ``srmech.physics.qm.quaternion.quaternion_cycle_holonomy``'s ``center_parity`` field nor from ``srmech.biology.genome.cwf_consistency_mod2``'s ``lk_center_parity``; those three are the instances, this is the primitive. ``center_lift`` is the accumulator that produces the winding in the first place, and ``lift_fibre`` is what tells you how much the bit threw away.",
-        ts_composes_581, 3u,
-        ts_preserves_581, 1u,
+        ts_composes_584, 3u,
+        ts_preserves_584, 1u,
         NULL,
         NULL, 0u,
         "fixed",
-        ts_frame_axis_581, 1u,
+        ts_frame_axis_584, 1u,
     },
-    { /* 582 */
+    { /* 585 */
         "srmech.math.covering.center_lift",
         "srmech",
         "covering",
         "Accumulate integer steps in the COVER and project to the centre \342\200\224 the op that KEEPS the integer where the shipped local object keeps only the residue. Task `#T1005` states the problem it answers: the genome accumulates in the FINITE GROUP where a helix accumulates in its UNIVERSAL COVER, so DNA's integer Lk has nowhere to live. Run this alongside a finite-group encoder and the integer survives: the loss is a statement about which accumulator was kept, not an unavoidable one. center_order=0 spells the universal cover (deck group \342\204\244) \342\200\224 nothing is reduced, and shadow_determines_lift is True exactly there, which is the honest report of when the projection loses nothing. Class I (mod-n projection) \342\210\230 Class K/C (the signed reduction; mod_add serves the unsigned domain, so a negative lift is a genuine pin-slot + reorientation, never an abs()).",
-        ts_params_582, 2u,
+        ts_params_585, 2u,
         "dict",
         "{'cover_lift': int, 'center_shadow': int, 'center_order': int, 'center_parity': \302\2611, 'shadow_determines_lift': bool}",
         1,
@@ -16806,19 +16893,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"center_order\":2,\"steps\":[1,1,1]},\"output\":\"{'cover_lift': 3, 'center_shadow': 1, 'center_order': 2, 'center_parity': -1, 'shadow_determines_lift': False}. The same steps with center_order=0 (the universal Z cover) give {'cover_lift': 3, 'center_shadow': 3, 'center_order': 0, 'center_parity': -1, 'shadow_determines_lift': True}.\",\"why\":\"The integer 3 survives in BOTH runs. Only the shadow differs -- which is the point: the loss is a statement about which accumulator was kept, not an unavoidable one.\",\"worked\":\"from srmech.math.covering import center_lift\\n# SUBJECT: three unit steps accumulated in a cover.\\nr = center_lift([1, 1, 1], 2)\\nr['cover_lift']               # -> 3    the INTEGER, kept\\nr['center_shadow']            # -> 1    all a Z/2 centre can hold\\nr['shadow_determines_lift']   # -> False\\nu = center_lift([1, 1, 1], 0)  # 0 = the universal Z cover\\nu['center_shadow']            # -> 3    nothing reduced\\nu['shadow_determines_lift']   # -> True\\n\"}",
         NULL,
         "WHAT -- it accumulates a sequence of integer steps in the COVER and returns both the integer lift and its image in the centre, plus the honest flag ``shadow_determines_lift`` (True exactly for the universal cover, ``center_order=0``, where the deck group is Z and nothing is reduced). WHEN -- reach for it when an encoder lives in a finite group but the quantity it is encoding does not. Task `#T1005` is precisely this case: the genome accumulates in the finite group where a helix accumulates in its universal cover, so DNA's integer Lk has nowhere to live. Run this alongside the finite-group encoder and the integer survives. What you would otherwise wrongly hand-roll is ``sum(steps) % n`` -- which discards the very datum worth keeping, and silently gets the sign wrong for negative lifts on an unsigned modular op. SIBLINGS -- do not re-implement the sign handling: ``srmech.math.cyclic.mod_add`` serves the unsigned domain, so a negative lift here is a genuine Class-K pin-slot plus Class-C reorientation on the cyclic carrier, never an ``abs()``. ``center_parity`` is the order-2 special case of the shadow; ``lift_fibre`` is the converse instrument (what the shadow does not determine); ``linking_number_cwf`` is the route to the same integer when you hold Tw and Wr instead of steps.",
-        ts_composes_582, 1u,
-        ts_preserves_582, 2u,
+        ts_composes_585, 1u,
+        ts_preserves_585, 2u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 583 */
+    { /* 586 */
         "srmech.math.covering.lift_fibre",
         "srmech",
         "covering",
         "The integer lifts a centre-shadow does NOT determine \342\200\224 the fibre over a shadow, a coset of center_order\302\267\342\204\244, ENUMERATED inside [\342\210\222window, window] rather than asserted. An instrument that cannot return otherwise is not a measurement, so 'information was lost' is made falsifiable here instead of being claimed in prose: for the universal cover (center_order=0) the same op returns a fibre of size 1 and determined=True, i.e. it CAN say nothing was lost, by the same code path that says something was. Class I (the coset walk) \342\210\230 Class E (enumeration). no abs().",
-        ts_params_583, 3u,
+        ts_params_586, 3u,
         "dict",
         "{'fibre': list[int], 'size': int, 'center_order': int, 'window': int, 'determined': bool}",
         1,
@@ -16826,19 +16913,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"center_order\":2,\"shadow\":1,\"window\":4},\"output\":\"{'fibre': [-3, -1, 1, 3], 'size': 4, 'center_order': 2, 'window': 4, 'determined': False} -- the four integers in [-4, 4] that one bit cannot separate. With center_order=0: lift_fibre(3, 0, 5) -> {'fibre': [3], 'size': 1, 'center_order': 0, 'window': 5, 'determined': True}.\",\"why\":\"The SAME code path returns determined=True when nothing was lost and determined=False when something was. An instrument that could only ever report loss would not be measuring it.\",\"worked\":\"from srmech.math.covering import lift_fibre\\n# SUBJECT: what a single centre-parity bit throws away.\\nf = lift_fibre(1, 2, 4)\\nf['fibre']        # -> [-3, -1, 1, 3]\\nf['determined']   # -> False   the bit does NOT pin the lift\\ng = lift_fibre(3, 0, 5)   # the universal Z cover\\ng['fibre']        # -> [3]\\ng['determined']   # -> True    nothing was lost\\n\"}",
         NULL,
         "WHAT -- it returns the integer lifts a centre-shadow does NOT determine: the fibre over a shadow is a coset of ``center_order*Z``, and this ENUMERATES it inside ``[-window, window]`` rather than asserting that information was lost. WHEN -- reach for it whenever you are about to write the sentence \"the finite group can only pin this mod n\" and want that sentence to be a measurement instead of a claim. The universal-cover case is the load-bearing half: with ``center_order=0`` the same call returns a fibre of size 1 and ``determined=True``, so the op demonstrably CAN come out the other way. What you would otherwise wrongly hand-roll is a prose comment in a docstring, which no test can contradict. SIBLINGS -- it is the converse of ``center_lift`` (that one keeps the lift, this one measures what keeping only the shadow costs) and the general form of the loss ``center_parity`` incurs at n=2. Do not reach for ``srmech.math.cyclic.mod_add`` directly to rebuild the coset walk; the signed reduction is already composed here.",
-        ts_composes_583, 1u,
-        ts_preserves_583, 1u,
+        ts_composes_586, 1u,
+        ts_preserves_586, 1u,
         NULL,
         NULL, 0u,
         "parametric",
-        ts_frame_axis_583, 1u,
+        ts_frame_axis_586, 1u,
     },
-    { /* 584 */
+    { /* 587 */
         "srmech.math.covering.linking_number_cwf",
         "srmech",
         "covering",
         "Lk = Tw + Wr \342\200\224 the INTEGER topological invariant recovered from two frame-relative rationals (C\304\203lug\304\203reanu\342\200\223White\342\200\223Fuller). The asymmetry this op measures is one the mod-2 shadow destroys: Tw and Wr each MOVE when the framing moves, while their sum does not. srmech already ships genome.cwf_consistency_mod2, which checks (Tw+Wr) \342\211\241 Lk mod 2 and returns lk_center_parity \342\200\224 the bit; this returns the integer, and CERTIFIES its integrality rather than assuming it (a non-integral sum reports is_integer False with the exact rational preserved, never rounded away). Inputs are exact (num, den) integer pairs \342\200\224 the Class-N contract, never floats. Class N (exact \342\204\232) \342\210\230 Class K (the integrality pin-slot). no stdlib fractions; no abs(). PROVENANCE (rc429, `#T1128`): the C\304\203lug\304\203reanu\342\200\223White\342\200\223Fuller name is used as the STANDARD NAME of Lk = Tw + Wr, and the verdict is DERIVED-AND-MEASURED, not cited \342\200\224 the op returns the exact rational sum and CERTIFIES integrality rather than assuming it, and tests/test_covering_layer_rc422.py calls it and asserts both branches. Of the canonical CWF sources Fuller 1971 is RETRIEVABLE and attested (PNAS 68(4):815-819, doi 10.1073/pnas.68.4.815; free-to-read at PMC389050 but NOT in the PMC Open Access Subset -- NCBI oa.fcgi returns idIsNotOpenAccess, so OA would be a LICENCE claim that fails while retrievability holds); Calugareanu 1959-61 (DML-CZ) and White 1969 (Edinburgh archive) are retrievable too -- a 2026-08-15 four-route sweep found all three on the first search, so there is no residual not-retrievable list; they are simply not yet content-addressed. Fuller is attested for BIBLIOGRAPHIC IDENTITY + RETRIEVABILITY via the author's institutional repository, never for content, so the relation still carries no content attestation and none is substituted unverified.",
-        ts_params_584, 2u,
+        ts_params_587, 2u,
         "dict",
         "{'lk': (num, den), 'is_integer': bool, 'linking_number': int | None, 'center_parity': \302\2611 | None, 'twist': (num, den), 'writhe': (num, den)}",
         1,
@@ -16846,14 +16933,14 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"twist\":[3,2],\"writhe\":[5,2]},\"output\":\"{'lk': (4, 1), 'is_integer': True, 'linking_number': 4, 'center_parity': 1, 'twist': (3, 2), 'writhe': (5, 2)} -- two half-integers summing to a topological integer. A non-integral sum is reported, never rounded: linking_number_cwf((7,3),(1,3)) -> {'lk': (8, 3), 'is_integer': False, 'linking_number': None, 'center_parity': None, ...}.\",\"why\":\"Tw = 3/2 and Wr = 5/2 are each frame-relative and each move when the framing moves; their sum 4 does not. That asymmetry IS the theorem, and the mod-2 shadow destroys it.\",\"worked\":\"from srmech.math.covering import linking_number_cwf\\n# SUBJECT: Calugareanu-White-Fuller, Lk = Tw + Wr.\\nr = linking_number_cwf((3, 2), (5, 2))   # exact (num, den) pairs\\nr['lk']              # -> (4, 1)\\nr['is_integer']      # -> True\\nr['linking_number']  # -> 4      the topological integer\\nr['center_parity']   # -> 1      the bit mod-2 encoders keep\\nb = linking_number_cwf((7, 3), (1, 3))\\nb['lk'], b['is_integer'], b['linking_number']\\n  # -> ((8, 3), False, None)   reported, not rounded\\n\"}",
         NULL,
         "WHAT -- it computes ``Lk = Tw + Wr`` in exact rationals and returns the integer linking number together with an integrality certificate: a non-integral sum comes back with ``is_integer`` False and ``linking_number`` None, the exact rational preserved rather than rounded away. WHEN -- reach for it when you hold twist and writhe and want the topological invariant they add up to. The asymmetry this op measures is: Tw and Wr are each FRAME-RELATIVE reals that move when the framing moves, while their sum does not -- which is exactly what a mod-2 shadow destroys. What you would otherwise wrongly hand-roll is a float sum plus ``round()``, which converts a failed integrality check into a plausible wrong answer, and which needs stdlib ``fractions`` to avoid -- a module this package bans. Inputs are ``(num, den)`` integer pairs, the Class-N contract, never floats. SIBLINGS -- ``srmech.biology.genome.cwf_consistency_mod2`` checks the same relation MOD 2 and returns ``lk_center_parity``; do not re-derive the integer from that bit, because the bit is what the integer was reduced to. ``srmech.biology.genome.discrete_writhe`` supplies Wr; ``center_parity`` is applied here to the recovered integer. PROVENANCE (rc429, `#T1128`) -- Calugareanu-White-Fuller is used as the STANDARD NAME of ``Lk = Tw + Wr``; the verdict is DERIVED-AND-MEASURED, not cited. This op returns the exact rational sum and CERTIFIES integrality rather than assuming it, and ``tests/test_covering_layer_rc422.py`` calls it and asserts both branches. The canonical CWF sources are paywalled-only or offline, so no attestation is claimed and none is substituted unverified. This prose read \"the theorem's whole content is\" through rc428 -- an appeal to what a NAMED THEOREM does as the warrant for this op's design, now narrowed to what the op itself measures.",
-        ts_composes_584, 1u,
-        ts_preserves_584, 1u,
+        ts_composes_587, 1u,
+        ts_preserves_587, 1u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 585 */
+    { /* 588 */
         "srmech.math.covering.covering_catalog",
         "srmech",
         "covering",
@@ -16867,13 +16954,13 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT -- it returns the census of which shipped coherencies the centre / covering layer REACHES and which it REJECTS, each with a reason and a named failing clause of a predicate stated before the candidates were scored: reached iff (i) a base object the shipped op computes in, (ii) a covering with NON-TRIVIAL centre Z, and (iii) an output that is the image of a Z-torsor-valued quantity. WHEN -- reach for it before assuming a given op has a hidden global datum. Two of the rejections are the useful ones: the S^3 fibre writhe of ``octonion_frame_read`` fails clause (ii) because ``pi_1(S^3) = 0`` -- a simply connected fibre carries no covering datum at all -- and ``g2 = Der(O)`` fails it on a MEASURED basis, the triality-fixed subgroup of Z(Spin(8)) being trivial. The rows are recomputed per call from ``spin8_center``, so the catalog is a computation, not a table. What you would otherwise wrongly hand-roll is a prose list in a notebook, which cannot be contradicted by a test. SIBLINGS -- ``spin8_center`` and ``triality_rep_dictionary`` are the derived spin8 row; ``center_lift`` / ``lift_fibre`` / ``center_parity`` are the ops the rows point at. Do not add a row without giving the predicate a chance to reject it.",
         NULL, 0u,
-        ts_preserves_585, 1u,
+        ts_preserves_588, 1u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 586 */
+    { /* 589 */
         "srmech.physics.qm.so9.so9_adjoint_basis",
         "srmech",
         "qm.so9",
@@ -16893,7 +16980,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 587 */
+    { /* 590 */
         "srmech.physics.qm.so9.spin9_gamma_matrices",
         "srmech",
         "qm.so9",
@@ -16913,7 +17000,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 588 */
+    { /* 591 */
         "srmech.physics.qm.so9.spin9_spinor_generators",
         "srmech",
         "qm.so9",
@@ -16933,7 +17020,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 589 */
+    { /* 592 */
         "srmech.physics.qm.so9.spin8_in_spin9_branching",
         "srmech",
         "qm.so9",
@@ -16953,7 +17040,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 590 */
+    { /* 593 */
         "srmech.physics.qm.so9.sedenion_holonomy_conjecture",
         "srmech",
         "qm.so9",
@@ -16973,12 +17060,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 591 */
+    { /* 594 */
         "srmech.introspect.publish",
         "srmech",
         "introspect",
         "Opt-in context manager that enables per-op event emission for `srmech status` / `srmech bus tap` consumers. Wrap your sweep in `with srmech.introspect.publish():` OR set `SRMECH_PUBLISH_STATUS=1` env-var before importing srmech to enable per-op events. Without this opt-in, all srmech operations are silent (no overhead). Designed for research sessions where you want to observe a long-running sweep from a second process via `srmech status` or via `srmech bus tap`. Events land in `~/.srmech/run-{pid}-{start_time_ns}.ndjson` (NDJSON, one MPR-shaped event per line). v0.4.6+ (out-of-band introspection); v0.5.0rc7 (catalog discoverability).",
-        ts_params_591, 1u,
+        ts_params_594, 1u,
         "contextmanager[_PublishHandle]",
         "Yields a handle exposing pid, start_time_ns, file_path of the active writer.",
         0,
@@ -16993,7 +17080,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 592 */
+    { /* 595 */
         "srmech.introspect.list",
         "srmech",
         "introspect",
@@ -17013,12 +17100,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 593 */
+    { /* 596 */
         "srmech.introspect.by_pid",
         "srmech",
         "introspect",
         "Look up the most-recent srmech run for one PID. PID-recycling defence: if two status files share the same PID because the OS reused it, the one with the larger `start_time_ns` wins (the more-recent run; the `start_time_ns` suffix in the filename defeats PID recycling). Returns `None` if no file matches, or on Pyodide / WASM (no filesystem). v0.5.0rc9 (MCP / catalog discoverability).",
-        ts_params_593, 1u,
+        ts_params_596, 1u,
         "Run | None",
         "Frozen dataclass with pid (int), start_time_ns (int), script_name (str), current_op (str), current_class (str), elapsed_ms (int), status ('running' | 'finished' | 'died'), event_count (int), file_path (pathlib.Path). `None` when no file matches the PID.",
         1,
@@ -17033,7 +17120,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 594 */
+    { /* 597 */
         "srmech.introspect.describe",
         "srmech",
         "introspect",
@@ -17053,12 +17140,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 595 */
+    { /* 598 */
         "srmech.introspect.search.search",
         "srmech",
         "introspect",
         "The need-shaped INDEX over the tool + carrier registries \342\200\224 the INVERSE of `srmech.introspect.describe`. `describe()` answers 'what is the shape'; this answers 'I want X', phrased in the words the need was felt in. Reach for it when you do NOT already know the name: `resolve()` matches whole dotted segments only, so `resolve('winding')` is None while this returns `srmech.cascade.winding_fold` first. Ranks the union of the verb registry and the carrier (noun) registry over ALL their authored prose \342\200\224 name, category, summary, explanation and every example sub-key \342\200\224 which is the half of the introspect surface no accessor read before rc411. Each record carries `why` (the field that matched, WITH the matched excerpt) and `reach` (the importable call form), so the answer is actionable without a second call, per ADR-0012. Exact-Q scoring end to end: the idf is `Q(N - df, df)`, never a float and never a log. Derived on demand and never persisted (ADR-0011); the sha256 corpus witness rides on the result's `.witness`.",
-        ts_params_595, 3u,
+        ts_params_598, 3u,
         "tuple[dict, ...]",
         "A SearchResult (a tuple subclass) of records, highest score first, each {'kind': 'op' | 'carrier', 'name': str, 'score': Q (exact rational, serialised over MCP as [num, den]), 'why': str (the matched field, then ': ', then the densest matching excerpt), 'reach': str (the importable call form)}. The tuple additionally carries `.witness` \342\200\224 the sha256 content-address of the frame corpus the ranking was derived from (ADR-0011).",
         1,
@@ -17073,7 +17160,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 596 */
+    { /* 599 */
         "srmech.introspect.tool_schema.get_tool_schema",
         "srmech",
         "introspect",
@@ -17093,7 +17180,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 597 */
+    { /* 600 */
         "srmech.introspect.tool_schema.tool_schema_view",
         "srmech",
         "introspect",
@@ -17106,19 +17193,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"sorted(v)              -> ['srmech_version', 'tool_schema_version', 'tools']\\nsorted(v['tools'][0])[:6]\\n  -> ['category', 'example', 'explanation', 'mcp_callable', 'name', 'owner']\\nlen(v['tools']) == len(get_tool_schema().tools) -> True   same registry\\nisinstance(json.dumps(v), str)                  -> True\\njson.dumps(get_tool_schema())                   -> TypeError\",\"why\":\"The last two lines are the whole reason this op exists as a peer rather than as a method: the dict round-trips through json.dumps and the live ToolSchema object raises TypeError, so picking the wrong one of the pair fails at the serialisation boundary rather than at the call.\",\"worked\":\"import json\\nfrom srmech.introspect.tool_schema import (\\n    get_tool_schema, tool_schema_view, warmup_all)\\n\\nwarmup_all()\\nv = tool_schema_view()\\nsorted(v)                  # -> ['srmech_version', 'tool_schema_version', 'tools']\\nsorted(v['tools'][0])[:6]\\n# -> ['category', 'example', 'explanation', 'mcp_callable', 'name', 'owner']\\nlen(v['tools']) == len(get_tool_schema().tools)   # -> True\\nisinstance(json.dumps(v), str)                    # -> True\\n# the live object is NOT serialisable \\u2014 that is the split:\\njson.dumps(get_tool_schema())                     # -> TypeError\"}",
         NULL,
         "WHAT \342\200\224 returns ``get_tool_schema()`` rendered as a JSON-serialisable dict: ``{\"srmech_version\", \"tool_schema_version\", \"tools\"}`` where each tool is a plain dict of its ToolEntry fields. WHEN \342\200\224 reach for THIS when the consumer is JSON: an MCP payload, a ``srmech --tool-schema`` CLI dump, an attestation body, anything crossing a wire or landing in a file. Reach for ``get_tool_schema`` instead when the consumer is Python and wants the live objects and their methods. The split is enforced by the serialiser rather than by convention \342\200\224 ``json.dumps`` on the live ``ToolSchema`` raises ``TypeError``, as the worked example shows. PERFORMANCE / PARITY NOTE worth knowing before you reach past it: when no profile tools are registered and the native library is loaded, the view is produced by the bare-C host op ``srmech_tool_schema_view`` and parsed back, VALUE-identical to the pure ``get_tool_schema().to_jsonable()`` (dict equality is order-insensitive; the native keys arrive in canonical sorted order). Any profile tool, a stale or absent library, or a non-OK C status falls back to the Python path, so the result is the same either way and the routing is not something a caller has to manage. What you would otherwise wrongly hand-roll is ``dataclasses.asdict`` over the schema \342\200\224 it walks the same fields but does not apply the tuple/bytes normalisation the wire needs, and it silently produces a payload the C peer would not agree with. SIBLINGS \342\200\224 ``get_tool_schema`` is the live-object half of this pair and ``ToolSchema.to_jsonable`` is the method form this wraps; ``srmech.introspect.describe`` is the at-a-glance shape rather than the full table, and ``srmech.introspect.search.search`` is the need-shaped index over the same corpus. Registered as a row only in rc411, for the same reason as its sibling: both are the registry's own front door and neither was findable in it.",
-        ts_composes_597, 1u,
+        ts_composes_600, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 598 */
+    { /* 601 */
         "srmech.dsl.run_toml_chain",
         "srmech",
         "dsl",
         "Compose AND run a cascade in ONE call: author an inline TOML chain spec, feed an input value, get the chain result. The declarative, one-shot face of the rc8 cascade DSL (the fluent `chain().then(...).loop(...)` builder is not tool-callable \342\200\224 a tool call can't chain methods). The `spec` is a TOML document with a `[chain]` table + `[[stage]]` array entries; each stage carries exactly one discriminator: `op` (then), `loop_n` + `sub_chain` (loop), `fold_init` + `fold_op` (fold), or `reduce_op` (reduce); any other key forwards as a cascade-op kwarg (e.g. `max_denominator`). Op names come from `srmech.dsl.list_catalog_ops` (the 21-op cascade catalog). Example spec: `[chain]\\nname='demo'\\n\\n[[stage]]\\nop='chiral_flip'`. Framework reading: the DSL composes Class M (cross-class bind) over the cascade catalog; each stage is one A\342\200\223N primitive-class instance, the chain is the composition. (v0.5.0rc12 \342\200\224 DSL surface voxel).",
-        ts_params_598, 2u,
+        ts_params_601, 2u,
         "Any",
         "Output of the final stage (an empty chain returns the input unchanged).",
         1,
@@ -17133,7 +17220,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 599 */
+    { /* 602 */
         "srmech.dsl.list_catalog_ops",
         "srmech",
         "dsl",
@@ -17153,12 +17240,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 600 */
+    { /* 603 */
         "srmech.dsl.run_cascade_chain",
         "srmech",
         "dsl",
         "Run a cascade-catalog descriptor's DECLARED chain (rc420, #T1114 \342\200\224 the catalog made executable). Every [cascade] descriptor now carries an ADR-0008 \302\2472 (schema v2) [[cascade.chain]] step list or an explicit leaf declaration; this parses the declared steps through srmech.cascade.compose and runs them on the given inputs. The shipped chains are proven BIT-identical to their shipped ops by the rc420 gate (91 proof cases incl. each descriptor's documented boundary cases), so this is the op's own cascade run declaratively \342\200\224 the op -> chain half of the word-problem bridge (ADR-0012 C6), callable. A parameter-dispatched op with float-order-distinct paths declares one chain per path: pass variant= (kuramoto_step: 'simple' | 'general'). Discover names + status via srmech.dsl.list_catalog_ops or describe()['cascade_catalog'].",
-        ts_params_600, 3u,
+        ts_params_603, 3u,
         "Any",
         "The declared chain's final-step output (bit-identical to the shipped op on the pure projection).",
         1,
@@ -17166,19 +17253,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"inputs\":\"{'a': 12, 'b': 18} \\u2014 the chain's @input.* bindings\",\"op_name\":\"'cyclic_gcd' \\u2014 any descriptor whose describe()['cascade_catalog']['status'] is executable\"},\"output\":\"run_cascade_chain('cyclic_gcd', {'a': 12, 'b': 18}) = 6; run_cascade_chain('magnitude', x=-3.25) = 3.25; run_cascade_chain('net_chirality', orientations=[1, -1, 0, -1]) = 0; kuramoto_step needs variant= ('simple' | 'general')\",\"why\":\"The catalog made callable: the descriptor's own declared step list runs through the schema-v2 engine, and the rc420 gate proves every shipped chain bit-identical to its shipped op \\u2014 so this is the op's cascade run declaratively, not a re-implementation.\",\"worked\":\"from srmech.dsl import run_cascade_chain\\nrun_cascade_chain('cyclic_gcd', {'a': 12, 'b': 18})\\n                                  # -> 6\\nrun_cascade_chain('magnitude', x=-3.25)\\n                                  # -> 3.25\\nrun_cascade_chain('net_chirality', orientations=[1, -1, 0, -1])\\n                                  # -> 0\\nrun_cascade_chain('kuramoto_step',\\n    {'theta': [0.1], 'omega': [0.4], 'coupling': 1.0, 'dt': 0.01},\\n    variant='simple')             # -> [0.10400000000000001]\\n\"}",
         NULL,
         "WHAT \342\200\224 run a cascade-catalog descriptor's DECLARED chain: it parses the descriptor's ``[[cascade.chain]]`` step list through the ADR-0008 \302\2472 engine (schema v2 \342\200\224 dotted op addressing, indexed map, fold, the @idx/@bind/@op reference forms) and executes it on the given ``@input.*`` bindings, returning the final step's output. WHEN \342\200\224 reach for it when you want the CASCADE a shipped op performs, as data \342\200\224 the op \342\206\222 chain half of the word-problem bridge ADR-0012 C6 measured as unenumerable through rc419: ``describe()['cascade_catalog']`` counts the catalog (its ``executable`` / ``leaf`` split), ``srmech.dsl.list_catalog_ops`` carries per-descriptor ``status``, and this runs the declared chain. Every shipped chain is proven BIT-identical to its shipped op by the rc420 gate (one proof case per boundary case each descriptor documents), so this is not a second implementation to drift \342\200\224 it is the same cascade, declared. A parameter-dispatched op with float-order-distinct paths declares one chain per path: pass ``variant=`` (``kuramoto_step``: ``'simple'`` / ``'general'``). SIBLING \342\200\224 ``srmech.dsl.run_toml_chain`` runs a USER-authored inline TOML chain over the DSL stage grammar; this one runs the SHIPPED descriptor's declared decomposition. A LEAF descriptor (``chiral_flip`` / ``pin_slot_at_zero`` / ``reorient``) has no chain to run and says so.",
-        ts_composes_600, 1u,
+        ts_composes_603, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 601 */
+    { /* 604 */
         "srmech.dsl.list_ops",
         "srmech",
         "dsl",
         "Unify the two op-discovery registries into ONE list (\302\24717 U3): BOTH the value-transform cascade ops (`list_catalog_ops`) AND the AMSC catalog-declared operator chains (`catalog.list_catalog_chains`), each record tagged a uniform `kind` (`stage` | `combinator` | `catalog-chain`) and `provenance` (`srmech` | `user` | `catalog:<source_key>`). Before this the DSL op list and the catalog-chain registry were disjoint \342\200\224 a kernel chain declared on a text-catalog was invisible to the DSL. `source_keys` restricts the catalog-chain half; omit to auto-discover every registered attested source. Framework reading: Class E (catalog enumeration) over both registries at once. (v0.7.5rc45 \342\200\224 \302\24717 U3 unified op-discovery.)",
-        ts_params_601, 1u,
+        ts_params_604, 1u,
         "list[dict]",
         "[{'name': str, 'class': str, 'purpose': str, 'kind': 'stage'|'combinator'|'catalog-chain', 'provenance': str}, ...] sorted by (kind, name).",
         1,
@@ -17193,7 +17280,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 602 */
+    { /* 605 */
         "srmech.dsl.list_class_surface",
         "srmech",
         "dsl",
@@ -17206,19 +17293,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"Genome | storage | fields ['chromosomes', 'coupling'] | n_methods 10 | srmech\\nHurwitz | generator | fields [] | n_methods 1 | srmech\\nOne | substrate | fields ['one'] | n_methods 8 | srmech\\nSedenionRegister | storage | fields ['D', 'codebook', 'slots'] | n_methods 11 | srmech\\n  Genome.add_chromosome ['appends']\\n  SedenionRegister.write ['mutates']\\n  SedenionRegister.read ['chain']\\n  SedenionRegister.navigate ['returns']\\nn distinct bound ops: 29\\ngenome ops: ['srmech.biology.genome.chromosome', 'srmech.biology.genome.encode_shape', 'srmech.biology.genome.genome', 'srmech.biology.genome.genome_append', 'srmech.biology.genome.genome_catalog']\",\"why\":\"Four declared classes arrive with their fields, method counts and provenance in one call \\u2014 and enumerating them surfaces all four state-routing markers (appends / mutates / chain / returns) without opening a single [class] TOML.\",\"worked\":\"from srmech.dsl import list_class_surface\\n\\nfor c in list_class_surface():\\n    print(c[\\\"name\\\"], \\\"|\\\", c[\\\"kind\\\"], \\\"| fields\\\", sorted(c[\\\"fields\\\"]),\\n          \\\"| n_methods\\\", len(c[\\\"methods\\\"]), \\\"|\\\", c[\\\"provenance\\\"])\\n\\n# The four state-routing markers, found by ENUMERATION rather than by\\n# opening four [class] TOML files -- this is why you use the list form.\\nfor c in list_class_surface():\\n    for m, spec in c[\\\"methods\\\"].items():\\n        marks = [k for k in (\\\"chain\\\", \\\"appends\\\", \\\"sets\\\", \\\"mutates\\\", \\\"returns\\\")\\n                 if k in spec]\\n        if marks:\\n            print(\\\" \\\", c[\\\"name\\\"] + \\\".\\\" + m, marks)\\n\\n# Every method is a bound cascade-op ref, so the surface tells you which\\n# A-N primitives a class is actually made of.\\nops = sorted({m.get(\\\"op\\\", \\\"\\\") for c in list_class_surface()\\n              for m in c[\\\"methods\\\"].values() if \\\"op\\\" in m})\\nprint(\\\"n distinct bound ops:\\\", len(ops))\\nprint(\\\"genome ops:\\\", [o for o in ops if \\\".genome.\\\" in o][:5])\"}",
         NULL,
         "WHAT \342\200\224 ``[describe_class(name) for name in list_classes()]``: every user-declared srmech CLASS as a JSON-able record (``name``, ``kind``, ``doc``, ``fields`` as ``{field: type}``, ``methods`` as ``{method: {op | chain, binds, doc, appends|sets|mutates|returns}}``, ``provenance``). The shipped seeds are ``Genome``, ``Hurwitz``, ``One`` and ``SedenionRegister``; bring-your-own classes from a ``register_class_dir`` / ``SRMECH_CLASS_PATH`` dir appear here too, tagged ``provenance='user'``. WHEN \342\200\224 reach for it as the class-side discovery step, the exact peer of ``list_catalog_ops`` on the op side: pick a class AND a method before constructing anything. The measured reason to use the LIST form rather than four ``describe_class`` calls is in the worked run \342\200\224 sweeping the surface is how you find the four state-routing markers and the 29 distinct cascade ops the declared classes actually bind, which is a question about the surface, not about any one class. What you would otherwise wrongly hand-roll is reading the ``[class]`` TOML files yourself; they are the SSoT, but this is the RESOLVED view and it already merges the shipped seeds with every registered user dir. SIBLINGS \342\200\224 ``describe_class(name)`` is this for ONE name with an identical record shape, so do not post-filter this list when you already know the name; ``generate_class_descriptor`` renders a record back OUT to ``[class]`` TOML; ``srmech.dsl.make_class(name)`` constructs the callable class and ``run_class_method`` invokes one method statelessly; ``list_catalog_ops`` is the op registry whose entries these methods BIND; ``srmech.introspect.describe()['classes']`` gives the same names plus each class's declaration ROUTE (``'toml'`` against ``'python'``), which this op does not carry.",
-        ts_composes_602, 1u,
+        ts_composes_605, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 603 */
+    { /* 606 */
         "srmech.dsl.describe_class",
         "srmech",
         "dsl",
         "Describe ONE user-declared srmech class by name \342\200\224 the focused companion to `srmech.dsl.list_class_surface`. Returns the JSON-able descriptor (name, kind, doc, fields, methods with each method's bound cascade op + binds + appends/sets, provenance) for the shipped seed `Genome` or any bring-your-own class. The shape srmech.dsl.make_class(name) constructs and srmech.dsl.run_class_method runs. Framework reading: Class F (descriptor render) over the [class] catalog. (v0.7.5rc41 \342\200\224 class-from-TOML surface; gh #962 Part 2).",
-        ts_params_603, 1u,
+        ts_params_606, 1u,
         "dict",
         "{'name', 'kind', 'doc', 'fields', 'methods', 'provenance'} \342\200\224 the full class descriptor.",
         1,
@@ -17233,12 +17320,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 604 */
+    { /* 607 */
         "srmech.dsl.generate_class_descriptor",
         "srmech",
         "dsl",
         "Render a [class] TOML descriptor string \342\200\224 the INVERSE of srmech.dsl.make_class (\302\24739). Two modes: (explicit) pass `fields` ({field: type}) + `methods` ({method: {op: dotted-cascade-op, binds: [...], doc, appends|sets}} \342\200\224 the describe_class method shape) and it renders straight from the components; (introspection) pass ONLY `name` of a registered class (e.g. 'Genome') and it recovers the descriptor via describe_class and re-emits it \342\200\224 a constructed class rendering its OWN [class] TOML back out. The emitted string is round-trippable: drop it in a register_class_dir dir and make_class constructs the identical class (docs re-emit single-line with escaped newlines, so a multi-line seed doc decodes back bit-identically). Closes the make_class loop the other direction. Framework reading: Class E (catalog enumeration) \342\210\230 Class F (descriptor render) \342\210\230 Class H (self-introspection) \342\200\224 no new primitive class. (v0.7.5rc49 \342\200\224 \302\24739 make_class inverse; gh #962 Part 2.)",
-        ts_params_604, 5u,
+        ts_params_607, 5u,
         "str",
         "A [class] TOML descriptor string (name/kind/doc + [class.field] + [class.method.*]) round-trippable through srmech.dsl.make_class.",
         1,
@@ -17246,19 +17333,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"# Generated by srmech.dsl.generate_class_descriptor (\\u00a739 \\u2014 the make_class\\n# inverse). A [class] descriptor: drop it in a register_class_dir /\\n# SRMECH_CLASS_PATH dir and srmech.dsl.make_class constructs the identical\\n# class \\u2014 fields + methods-as-cascade-op-refs, 100% declarative, zero Python.\\n\\n[class]\\nname = \\\"Genome\\\"\\nkind = \\\"storage\\\"\\ndoc = \\\"A telomere-partitioned genome of chromosomes (F711-F715). Hold coupling (the\\\\nshared i\\n...\\nn_lines: 64\\nfields round-trip: True\\ncap binds        : ['label'] == ['label']\\ndoc bit-identical: True\\n# Generated by srmech.dsl.generate_class_descriptor (\\u00a739 \\u2014 the make_class\\n# inverse). A [class] descriptor: drop it in a register_class_dir /\\n# SRMECH_CLASS_PATH dir and srmech.dsl.make_class constructs the identical\\n# class \\u2014 fields + methods-as-cascade-op-refs, 100% declarative, zero Python.\\n\\n[class]\\nname = \\\"MetonicDial\\\"\\nkind = \\\"storage\\\"\\ndoc = \\\"Antikythera Metonic dial: 235 synodic months per 19 tropical years.\\\"\\n\\n[class.field]\\nmonths = \\\"int\\\"\\n\\n[class.method.advance]\\nop = \\\"srmech.math.cyclic.mod_add\\\"\\nbinds = [\\\"months\\\", \\\"step\\\"]\\nsets = \\\"months\\\"\\ndoc = \\\"Step the dial, wrapping at 235.\\\"\",\"why\":\"Genome renders its own [class] TOML back out and the parse round-trips bit-identically \\u2014 fields, binds and the multi-line doc \\u2014 then the same call in explicit mode mints a brand-new MetonicDial class from components with nothing on disk.\",\"worked\":\"from srmech.dsl import generate_class_descriptor, describe_class\\n\\n# 1) INTROSPECTION mode -- the shipped Genome seed renders its own [class] TOML.\\ntoml_src = generate_class_descriptor(\\\"Genome\\\")\\nprint(toml_src[:430])\\nprint(\\\"...\\\")\\nprint(\\\"n_lines:\\\", len(toml_src.splitlines()))\\n\\n# 2) It round-trips: parse it back and the fields + one method's bind list\\n#    are bit-identical to what describe_class reported.\\ntry:\\n    import tomllib\\nexcept ModuleNotFoundError:\\n    import tomli as tomllib\\nback = tomllib.loads(toml_src)[\\\"class\\\"]\\ng = describe_class(\\\"Genome\\\")\\nprint(\\\"fields round-trip:\\\", back[\\\"field\\\"] == g[\\\"fields\\\"])\\nprint(\\\"cap binds        :\\\", back[\\\"method\\\"][\\\"cap\\\"][\\\"binds\\\"], \\\"==\\\",\\n      g[\\\"methods\\\"][\\\"cap\\\"][\\\"binds\\\"])\\nprint(\\\"doc bit-identical:\\\", back[\\\"doc\\\"] == g[\\\"doc\\\"])\\n\\n# 3) EXPLICIT mode -- author a NEW class from components without any file.\\n#    A Metonic counter over the Antikythera 19-year / 235-month relation.\\nspec = generate_class_descriptor(\\n    \\\"MetonicDial\\\",\\n    kind=\\\"storage\\\",\\n    doc=\\\"Antikythera Metonic dial: 235 synodic months per 19 tropical years.\\\",\\n    fields={\\\"months\\\": \\\"int\\\"},\\n    methods={\\\"advance\\\": {\\\"op\\\": \\\"srmech.math.cyclic.mod_add\\\",\\n                         \\\"binds\\\": [\\\"months\\\", \\\"step\\\"],\\n                         \\\"doc\\\": \\\"Step the dial, wrapping at 235.\\\",\\n                         \\\"sets\\\": \\\"months\\\"}},\\n)\\nprint(spec)\"}",
         NULL,
         "WHAT \342\200\224 render a ``[class]`` TOML descriptor STRING; the inverse of ``make_class``. Two modes, selected by whether ``fields`` / ``methods`` are supplied. INTROSPECTION mode (pass only ``name`` of a registered class) recovers the descriptor via ``describe_class`` and re-emits it \342\200\224 a constructed class rendering its own declaration back out, Class H at class scale. EXPLICIT mode (pass ``fields`` as ``{field: type}`` and/or ``methods`` in the ``describe_class`` method shape) renders straight from the components, with ``kind`` / ``doc`` defaulting to empty. The output is ROUND-TRIPPABLE: drop it in a ``register_class_dir`` / ``SRMECH_CLASS_PATH`` dir and ``make_class`` builds the identical class; docs re-emit as single-line basic strings with escaped newlines, so a multi-line seed doc decodes back bit-identically (measured in the worked run). WHEN \342\200\224 two distinct jobs. (1) AUTHORING: you want a new declarative class and would otherwise hand-write TOML and get the bare-key quoting, the ``[class.method.*]`` nesting or the ``binds`` array subtly wrong \342\200\224 this emits it correctly from a dict. (2) EXPORT / DIFF: you want the on-disk form of a class that is currently only registered, to vendor it, review it, or check that a user dir's descriptor still matches the shipped seed. What you would otherwise wrongly hand-roll is a TOML writer \342\200\224 srmech ships no TOML emitter for anything else, and the escaping rules here are not obvious. SIBLINGS \342\200\224 ``describe_class`` is the read this introspects through, and the source of the method shape ``methods=`` expects; ``srmech.dsl.make_class`` is the true inverse (TOML \342\206\222 class), which is what makes \"round-trippable\" a testable claim rather than a slogan; ``list_class_surface`` enumerates what INTROSPECTION mode can be pointed at; ``run_class_method`` runs the result once it is registered.",
-        ts_composes_604, 1u,
+        ts_composes_607, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 605 */
+    { /* 608 */
         "srmech.rbs_lm.encode_aboutness",
         "srmech",
         "rbs_lm",
         "Doc-frequency-GATED ABOUTNESS encoder \342\200\224 encode a natural utterance (or an op's name+summary) as ONE structure-bearing Klein-4 aboutness hypervector for grounding \"which srmech op does this?\" by klein4_similarity. The F1008 recipe (78% top-1 over the tool_schema, zero training) the plain encode_sentence_l3 lacks: (1) a doc-frequency aboutness GATE (down-weight tokens that appear catalog-wide \342\200\224 'matrix', 'of'), (2) NAME-weighting (an op's own name tokens count 3x + 2x bigram; F769 identity), (3) order-aware BIGRAMS (so (klein,4) != (klein,gordon); never a bag), plus letter-digit tokenization (klein4->klein 4). Tokens are minted via the STRUCTURE-BEARING klein4_encode_bytes (default token_mode='byteglyph'), NOT the high-diffusion word-hash address (F1260: a hash avalanche destroys morphology \342\200\224 a good ADDRESS but a bad REPRESENTATION), so cat/cats stays distinguishable from cat/dog. Pass df/n_docs from a corpus to enable the gate; name= for an op's identity tokens; None df for the single-word case. composition_of_c (klein4_encode_bytes -> bind/bundle);no abs().",
-        ts_params_605, 9u,
+        ts_params_608, 9u,
         "HV",
         "uint8 in {0,1,2,3}",
         1,
@@ -17273,12 +17360,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 606 */
+    { /* 609 */
         "srmech.signal_processing.cascade_dispatcher.dispatch",
         "srmech",
         "signal_processing",
         "THE signal-processing entry point: run one op by NAME, routing between its Path A (closed-form algebra over the 14 A-N primitives) and Path B (RBS-HDC bound vector at D=8192) implementations. Positional and keyword arguments are forwarded verbatim to the chosen implementation. path= forces a side ('A' / 'B'); omit it and resolve_path() decides \342\200\224 an active begin_cascade() context prefers Path B, otherwise the op's primary A-N class picks per DEFAULT_PATH_PER_CLASS (Class K rotation and Class M bind/bundle/permute default to B, the other twelve to A). Raises UnknownOperationError for a name the registry does not carry: dispatch is a PATH-ROUTER over the ops that HAVE two paths, not a name-resolver over every op in the package.",
-        ts_params_606, 4u,
+        ts_params_609, 4u,
         "int | float | str | list | dict",
         "whatever the routed implementation returns, unchanged",
         1,
@@ -17286,19 +17373,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"D\":8192,\"op_name\":\"fft\",\"path\":\"A\"},\"output\":\"[(10+0j), (-2+2j), (-2+0j), (-1.9999999999999998-2j)]\",\"why\":\"Four calls that show what dispatch IS. The same op runs by NAME with no import of the implementation; the positional and keyword forms are the same call because arguments are forwarded verbatim; path=PATH_A pins the side and returns bit-identical output to the auto-routed call, which is the evidence that routing chooses a SUBSTRATE and never an answer; and sign_quantise returns +/-1 rather than a spectrum, so the return type is the op's, not the dispatcher's. The last line is the honest boundary: 41 closed-form ops ship in srmech.signal_processing.closed_form_ops, and dispatch routes the THIRTEEN that have a registered path -- asking it for wavelet raises rather than silently importing something.\",\"worked\":\"from srmech.signal_processing import (\\n    dispatch, registered_ops, PATH_A)\\n\\nlen(registered_ops())\\n# -> 13            the ops dispatch can route (NOT all 41 closed-form ops)\\n\\n# By name. Nothing imports fft; the registry resolves it.\\ndispatch(\\\"fft\\\", signal=[1, 2, 3, 4])\\n# -> [(10+0j), (-2+2j), (-2+0j), (-1.9999999999999998-2j)]\\n\\n# Positional and keyword are the SAME call -- args are\\n# forwarded verbatim -- and pinning the side changes nothing\\n# about the value, which is the whole dual-path claim.\\ndispatch(\\\"fft\\\", [1, 2, 3, 4], path=PATH_A)\\n# -> [(10+0j), (-2+2j), (-2+0j), (-1.9999999999999998-2j)]\\n\\n# The return type is the OP's, never the dispatcher's.\\ndispatch(\\\"sign_quantise\\\", signal=[3.0, -1.5, 0.0, -0.25])\\n# -> [1, -1, 1, -1]\\ndispatch(\\\"rfft\\\", signal=[1.0, 2.0, 3.0, 4.0])\\n# -> [(10+0j), (-2+2j), (-2+0j)]   half spectrum, real input\\n\\n# An op with no registered path is refused, LOUDLY.\\ndispatch(\\\"wavelet\\\", signal=[1, 2, 3, 4])\\n# -> UnknownOperationError\\n\"}",
         NULL,
         "WHAT it computes: nothing itself -- it RESOLVES. dispatch(op_name, ...) looks the name up in srmech.signal_processing.path_registry, asks resolve_path() which side to run, and calls that implementation with the caller's arguments forwarded unchanged, returning whatever the op returns. The two sides are Path A (closed-form algebra composed from the 14 A-N primitives) and Path B (an RBS-HDC bound vector at D=8192). Routing picks a SUBSTRATE, never an answer: dispatch(\"fft\", x) and dispatch(\"fft\", x, path=PATH_A) return the same list. WHEN to reach for it: when the op name is data -- a cascade spec, a config row, a user string -- or when you want the substrate choice made for you. If you already know which op you want and only ever want Path A, importing it directly is clearer and one lookup cheaper: `from srmech.signal_processing.closed_form_ops.dct import op`. That direct-import form is also the ONLY way to reach the 28 closed-form ops that have a single path and therefore no router entry -- reaching for dispatch there gets you UnknownOperationError, which is the correct answer to a question about routing, not a bug. SIBLINGS: resolve_path answers \"which side WOULD it choose\" without running anything -- use it instead of a trial dispatch when you are only inspecting routing. has_path is the non-raising probe for whether a side exists at all; lookup returns the full OperationEntry including the literature citation and the A-N class tuple that routing reads; registered_ops enumerates what can be routed. begin_cascade wraps a sequence of dispatch calls so they all prefer Path B. Do not hand-roll a name->function dict in front of this: the lazy-loader indirection in path_registry is what keeps `import srmech.signal_processing` numpy-free, and a hand-built table defeats it by importing everything eagerly.",
-        ts_composes_606, 2u,
-        ts_preserves_606, 2u,
+        ts_composes_609, 2u,
+        ts_preserves_609, 2u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 607 */
+    { /* 610 */
         "srmech.signal_processing.cascade_dispatcher.begin_cascade",
         "srmech",
         "signal_processing",
         "Open a CASCADE CONTEXT \342\200\224 a with-block inside which dispatch() prefers Path B for every nested op, because Path B's encode cost amortises over cascade depth while Path A pays per call. Yields the live CascadeContext (substrate / depth / D / closed). Auto-flushes on normal exit AND on exception; nests, with the innermost context supplying the substrate hint. substrate must be None or one of ('bci', 'audio', 'rf', 'ephemeris').",
-        ts_params_607, 2u,
+        ts_params_610, 2u,
         "contextmanager[CascadeContext]",
         "yields the opened context; closed=True after exit",
         0,
@@ -17313,12 +17400,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 608 */
+    { /* 611 */
         "srmech.signal_processing.cascade_dispatcher.end_cascade",
         "srmech",
         "signal_processing",
         "Imperative-form cascade flush \342\200\224 the equivalent of leaving a begin_cascade() with-block, for callers that cannot structure their code around one. Flushes the given context, or the innermost active one when ctx is None, and removes it from the per-thread stack. A no-op when no cascade is active, so it is safe to call unconditionally. Prefer the context-manager form: it also flushes on exception, which a forgotten end_cascade() does not.",
-        ts_params_608, 1u,
+        ts_params_611, 1u,
         NULL,
         NULL,
         1,
@@ -17327,13 +17414,13 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT it computes: nothing -- it returns None. end_cascade(ctx) flushes a CascadeContext and removes it from the per-thread stack; with ctx=None it flushes the innermost active one, and with no cascade active at all it does nothing. Flushing is idempotent, so closing an already-closed context does not re-run the flush. WHEN to reach for it: only when your code cannot be structured around a with-block -- a callback pair, a class that opens a cascade in one method and closes it in another, a generator that yields across the region. Everywhere else, use begin_cascade as a context manager instead: the imperative form has one real hazard, which is that an exception between the open and the end_cascade() call leaves the context open and every later dispatch on that thread silently routing to Path B. Do not hand-roll the pop by reaching into the stack; that is what this op is. SIBLINGS: begin_cascade is the with-block form and the recommended one -- it calls the same flush on the way out, including on an exception. current_cascade tells you whether there is anything to end. It is unrelated to path_registry.clear_registry, which drops op REGISTRATIONS rather than cascade scope.",
         NULL, 0u,
-        ts_preserves_608, 1u,
+        ts_preserves_611, 1u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 609 */
+    { /* 612 */
         "srmech.signal_processing.cascade_dispatcher.current_cascade",
         "srmech",
         "signal_processing",
@@ -17353,12 +17440,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 610 */
+    { /* 613 */
         "srmech.signal_processing.cascade_dispatcher.resolve_path",
         "srmech",
         "signal_processing",
         "Answer 'which side would dispatch() choose for this op?' WITHOUT running it. Rules, in order: an explicit_path is honoured unconditionally; else an open begin_cascade() context returns 'B'; else the op's primary A-N class routes per DEFAULT_PATH_PER_CLASS; else 'A'. An unregistered op resolves to 'A' rather than raising \342\200\224 resolve_path reports routing INTENT, and only dispatch() asserts the op exists.",
-        ts_params_610, 4u,
+        ts_params_613, 4u,
         "str",
         "'A' / 'B' / 'verify'",
         1,
@@ -17367,13 +17454,13 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT it computes: the side dispatch WOULD run for one invocation, as the string 'A' / 'B' / 'verify', without running anything and without touching the registry or the cascade stack. The rules apply in order: an explicit_path is returned unchanged; an open begin_cascade context gives B; otherwise the op's first A-N class routes per DEFAULT_PATH_PER_CLASS (Class K rotation and Class M bind/bundle/permute default to B, the other twelve to A); otherwise A. WHEN to reach for it: to explain or test routing rather than to perform it -- asserting that a cascade context really does flip an op to Path B, or logging the substrate decision before a run. Read it as INTENT, not as a guarantee the call will succeed: it names a side from the class table and never checks that side is registered, so form_function_rotate resolves to A while only its Path B exists, and the default dispatch raises DispatchError. Combine it with has_path rather than hand-rolling the class-table lookup yourself, which would duplicate DEFAULT_PATH_PER_CLASS and drift from it. SIBLINGS: dispatch is resolve_path plus the actual call. has_path answers the complementary question -- does that side EXIST -- and is what turns this op's intent into a safe call. lookup gives you the classes tuple this reads. current_cascade shows the context that rule 2 fires on.",
         NULL, 0u,
-        ts_preserves_610, 1u,
+        ts_preserves_613, 1u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 611 */
+    { /* 614 */
         "srmech.signal_processing.cascade_dispatcher.is_dispatch_table_locked",
         "srmech",
         "signal_processing",
@@ -17393,12 +17480,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 612 */
+    { /* 615 */
         "srmech.signal_processing.path_registry.has_path",
         "srmech",
         "signal_processing",
         "Does op_name have an implementation registered on this side? The cheap, non-raising probe: unlike lookup() it returns False for an unregistered op instead of raising, so it is the right guard before dispatch(..., path=...). Triggers the lazy loader for ops registered deferred (the numpy-free import path), so a True answer means the implementation is now really loaded. path must be 'A' or 'B' \342\200\224 'verify' is a dispatcher mode, never a registered side, and raises ValueError here.",
-        ts_params_612, 2u,
+        ts_params_615, 2u,
         "bool",
         "True if that side is registered",
         1,
@@ -17413,12 +17500,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 613 */
+    { /* 616 */
         "srmech.signal_processing.path_registry.lookup",
         "srmech",
         "signal_processing",
         "Return the OperationEntry for op_name \342\200\224 its op_name, the Path A and Path B implementations (either may be None), the SSoT literature citation the op was built from, and the tuple of 14 A-N primitive classes it composes over. This is where the PROVENANCE lives: srmech's signal-processing ops each cite the paper they realise (fft cites Cooley & Tukey 1965), and the class tuple is what DEFAULT_PATH_PER_CLASS routes on. Raises UnknownOperationError for an unregistered name; use has_path() when you want a boolean instead.",
-        ts_params_613, 1u,
+        ts_params_616, 1u,
         "OperationEntry",
         "op_name / path_a / path_b / ssot_citation / classes",
         0,
@@ -17433,7 +17520,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 614 */
+    { /* 617 */
         "srmech.signal_processing.path_registry.registered_ops",
         "srmech",
         "signal_processing",
@@ -17447,66 +17534,6 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT it computes: a tuple of every op name the path registry knows -- eagerly-registered ones first in registration order, then any lazily-registrable ops not yet loaded. It is DECLARATIVE: a deferred op is named without forcing its import, which is what keeps `import srmech.signal_processing` numpy-free while still advertising the op honestly. The tuple is a snapshot, so a later registration does not mutate a value already returned. WHEN to reach for it: to enumerate what dispatch can route -- building a menu, validating a config that names ops, or asserting in a test that an op registered itself on import. Read it as the ROUTER's inventory and not as srmech's signal-processing catalogue: 41 closed-form ops ship under srmech.signal_processing.closed_form_ops, and most have exactly one implementation, so they need no router entry and are reached by direct import instead. Do not infer capability from membership here. SIBLINGS: has_path answers which SIDES a listed name actually has, and the two questions come apart -- only 8 of the 13 names are dual-path. lookup returns the full entry for one name and raises for an unknown one. dispatch consumes these names. The write half (register, register_lazy_loader, clear_registry) is deliberately unregistered as a tool: those mutate process-global state and have no value contract.",
         NULL, 0u,
-        ts_preserves_614, 1u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 615 */
-        "srmech.signal_processing.music_doa",
-        "srmech",
-        "signal_processing",
-        "MUSIC (MUltiple SIgnal Classification) \342\200\224 the subspace direction-of-arrival / frequency estimator of Schmidt (1979). Eigendecompose the sensor covariance R, split its eigenvectors into a signal subspace and a NOISE subspace, and score each candidate steering vector by how nearly ORTHOGONAL it is to that noise subspace; the pseudo-spectrum peaks where a source actually is. Resolution is not diffraction-limited, which is the whole reason the method displaced beamforming. IDENTITY: Class L (the correlation eigendecomposition that splits the two subspaces) composed with Class K (the subspace-partition threshold that picks which eigenvectors are noise) \342\200\224 a genuine pin-slot phase boundary, at the signal/noise rank cut. \342\232\240\357\270\217 THE NAME IS AN ACRONYM, NOT THE ART FORM: this is array signal processing and has nothing to do with the srmech.music package, which is acoustics and pitch relations. Through rc423 this module was literally named `music`, one dotted path from `srmech.music`; rc424 renamed it music_doa so the homograph cannot recur. SCOPE: educational signal-processing reference only \342\200\224 acoustic source-finding, civilian DOA estimation, frequency estimation. numpy-free (the eigendecomposition and the noise-subspace projection both route through the native Mat carrier), and no abs() \342\200\224 |z|**2 is re**2 + im**2.",
-        ts_params_615, 4u,
-        "list",
-        "the pseudo-spectrum as a list of float, one value per steering vector; peaks mark estimated arrival directions. These are RELATIVE scores, not powers \342\200\224 the peak LOCATIONS carry the estimate, the heights do not",
-        1,
-        NULL,
-        "{\"input\":{\"R\":\"<Mat 4x4 Hermitian covariance>\",\"n_sources\":1,\"steering_vectors\":[[1,1,1,1]]},\"output\":\"[0.25, 9.999999999999999e+29, 0.25, 0.25] -- the pseudo-spectrum peaks by ~30 orders of magnitude at index 1, the true source direction\",\"why\":\"A complete MUSIC run in one screen, numpy absent. The peak is not marginally higher -- it is ~30 orders of magnitude higher, because the true steering vector lies almost exactly IN the signal subspace and so is almost exactly orthogonal to the noise subspace the op projects onto. That is the whole mechanism, visible in one number.\",\"worked\":\"from srmech.math.mat import Mat\\nfrom srmech.signal_processing.closed_form_ops.music_doa import op\\n# a 4-sensor array, ONE source whose per-element phase\\n# step is exactly j (90 degrees), plus a little noise:\\na = [1 + 0j, 1j, -1 + 0j, -1j]\\nrows = [[a[i] * a[j].conjugate() + (0.01 if i == j else 0.0)\\n         for j in range(4)] for i in range(4)]\\nR = Mat.from_rows(rows, is_complex=True)\\n# four candidate directions: phase steps +1, +j, -1, -j\\ncands = [[1+0j, 1+0j, 1+0j, 1+0j],\\n         [1+0j, 1j, -1+0j, -1j],\\n         [1+0j, -1+0j, 1+0j, -1+0j],\\n         [1+0j, -1j, -1+0j, 1j]]\\nps = op(R, cands, n_sources=1)\\n[round(v, 6) for v in ps]\\n# -> [0.25, 1e+30, 0.25, 0.25]\\nmax(range(len(ps)), key=lambda i: ps[i])\\n# -> 1     the true direction, found\"}",
-        NULL,
-        "WHAT -- returns the MUSIC pseudo-spectrum: one score per candidate steering vector, peaking where a source actually is. It eigendecomposes the sensor covariance (Class L), splits the eigenvectors into a signal subspace of size ``n_sources`` and a noise subspace of the rest (Class K -- a genuine pin-slot at the signal/noise rank cut), and scores each candidate by the inverse of its projection onto the noise subspace. WHEN -- reach for it for acoustic source-finding, civilian direction-of-arrival estimation and frequency estimation, when you need to resolve sources closer together than a beamformer can. Its resolution is not diffraction-limited, which is why it displaced beamforming. Note that ``n_sources`` is REQUIRED rather than inferred: guessing the source count from the eigenvalue gap is a separate decision, and the op declines to make it silently. SIBLINGS -- ``esprit`` is the rotational-invariance peer that returns parameters directly instead of a spectrum to be searched; ``beamforming_fixed`` is the diffraction-limited baseline this improves on. And a naming caution rather than a sibling: ``srmech.music`` is a DIFFERENT package -- acoustics and pitch relations -- and has nothing to do with this op, whose name is the acronym MUltiple SIgnal Classification. Do not reach for one expecting the other.",
-        ts_composes_615, 2u,
-        ts_preserves_615, 1u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 616 */
-        "srmech.signal_processing.mint_vector",
-        "srmech",
-        "signal_processing",
-        "Class A (content-address) mint of a deterministic D-bit HDC vector from a NAME: counter-mode SHA-256 over the UTF-8 name (sha256_raw(name || u64_be(counter)), chained until D/8 bytes exist). Bit-exact reproducible from the name alone \342\200\224 no RNG state anywhere \342\200\224 so the same name mints the same vector on every host and the vector is shareable as namespace+spec; distinct names give near-orthogonal vectors. The atom under the RBS-HDC instrument's LoE token/role vectors (encode_loe_content composes one mint per token plus the two role mints). Native dispatch: the whole chain runs in srmech_mint_vector when the library is present, byte-identical pure-Python fallback otherwise. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_616, 2u,
-        "bytes",
-        "D/8 bytes of deterministic content \342\200\224 the packed hypervector",
-        1,
-        NULL,
-        "{\"output\":\"1024\\n'6ced4c75'\\nTrue\\n4054\\n32\",\"why\":\"The same name mints byte-identical content on a second call, and two distinct names land 4054 bits apart against the 4096 expected of independent 8192-bit vectors -- deterministic AND near-orthogonal, the two properties an HDC namespace needs at once.\",\"worked\":\"# Class A mint: a D-bit HDC vector addressed BY NAME. No RNG anywhere, so\\n# the vector is reproducible from the name alone on every host -- which is\\n# what makes a hypervector shareable as namespace+spec instead of as data.\\nfrom srmech.signal_processing import mint_vector\\n\\nv = mint_vector(\\\"LoE.token.example\\\")\\nlen(v)                                       # -> 1024   bytes = 8192 bits\\nv[:4].hex()                                  # -> '6ced4c75'\\n# DETERMINISM is the whole contract -- same name, same bytes, always:\\nmint_vector(\\\"LoE.token.example\\\") == v        # -> True\\n# ...and distinct names are near-orthogonal: for two independent 8192-bit\\n# vectors the expected Hamming distance is D/2 = 4096.\\nw = mint_vector(\\\"LoE.token.other\\\")\\nsum(bin(a ^ b).count(\\\"1\\\") for a, b in zip(v, w))     # -> 4054\\n# D is in BITS and is keyword-only:\\nlen(mint_vector(\\\"x\\\", D=256))                 # -> 32\"}",
-        "{\"name\":\"'LoE.token.example'\"}",
-        "WHAT \342\200\224 Class A mint: computes and RETURNS a deterministic D-bit HDC hypervector from a NAME, by counter-mode SHA-256 over the UTF-8 name (``sha256_raw(name || u64_be(counter))``, chained until D/8 bytes exist). There is no RNG state anywhere, so the same name mints the same bytes on every host and in every process, and distinct names are near-orthogonal \342\200\224 two 8192-bit mints land about D/2 = 4096 bits apart. WHEN \342\200\224 reach for it whenever a hypervector needs an IDENTITY rather than a value: LoE token and role vectors, codebook entries, any HDC namespace that has to agree across machines. Because the vector is reproducible from the name, it can be shared as ``namespace + spec`` instead of being shipped as data. WHAT YOU WOULD OTHERWISE WRONGLY HAND-ROLL: seeding a PRNG from a hash of the name and drawing D bits. That reintroduces generator state, ties the value to one library's stream, and is not reproducible across hosts \342\200\224 which defeats the only property the mint exists to provide. SIBLINGS \342\200\224 :func:`srmech.amsc.format.sha256_raw` is the digest primitive underneath; the ``klein4_*`` HDC ops in ``srmech.math.hdc`` bind, bundle and resolve the vectors this op mints, and ``encode_loe_content`` composes one mint per token plus the two role mints. Native dispatch runs the whole chain in ``srmech_mint_vector`` with a byte-identical pure fallback.",
-        ts_composes_616, 1u,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 617 */
-        "srmech.signal_processing.dct",
-        "srmech",
-        "signal_processing",
-        "Discrete cosine transform (DCT-II by default, DCT-III for the inverse) \342\200\224 the real-valued cousin of the DFT that JPEG and essentially every audio codec are built on. Its energy compaction is why: for a smooth signal almost all the coefficient mass lands in the first few bins, which is what makes truncation a compression scheme rather than damage. IDENTITY: Class L \342\200\224 the transform IS a matvec against a cosine basis, so it is a Laplacian-family spectral decomposition, not a distinct primitive. Matches scipy's unnormalised convention (norm=None): the result is 2 * (basis matvec).",
-        ts_params_617, 4u,
-        "list",
-        "real DCT coefficients along axis \342\200\224 list[float] for 1-D input, list[list[float]] for 2-D",
-        1,
-        NULL,
-        "{\"output\":\"The flat signal collapses into a single number: coefficient 0 is exactly 48.0 (= 2 * 8 * 3) and the other seven coefficients are zero to twelve decimal places. Feeding those coefficients back through dct_type=3 and dividing by 2N = 16 returns [3.0] * 8, the original signal. The ramp shows the same mechanism working on non-trivial data: coefficient 0 is 56.0, coefficient 1 is -25.769292, and those first two coefficients alone carry 0.9979 of the total coefficient energy -- the energy compaction that makes the DCT the transform of choice for block coding.\",\"why\":\"A constant vector is the one signal whose right answer is obvious by eye -- all of it belongs in the DC coefficient and none of it anywhere else -- so a single exact 48.0 next to seven zeros proves the cosine basis is orthogonal and correctly scaled, not merely that a number came back. The type-3 round trip then pins the 2N convention that catches most first-time users, and the ramp shows the same basis doing the job it is actually hired for.\",\"worked\":\"from srmech.signal_processing import dct\\n\\n# A constant signal is the zero-eigenvalue eigenvector of the chain-graph\\n# Laplacian whose eigenbasis IS the cosine basis, so DCT-II must put every\\n# bit of it in coefficient 0 and nothing anywhere else.\\nflat = [3.0] * 8\\ncoeffs = dct(flat)\\nprint(coeffs[0])                              # -> 48.0, i.e. 2 * 8 * 3\\nprint([round(v, 12) for v in coeffs[1:]])     # -> seven zeros\\nassert coeffs[0] == 48.0\\nassert all(round(v, 12) == 0.0 for v in coeffs[1:])\\n\\n# DCT-III is the inverse, in the norm=None scaling: it undoes DCT-II up\\n# to the factor 2N (here 16).\\nrestored = [round(v / 16.0, 9) for v in dct(coeffs, dct_type=3)]\\nprint(restored)                               # -> [3.0] * 8\\nassert restored == [3.0] * 8\\n\\n# Energy compaction: a smooth ramp collapses into the low coefficients.\\nramp = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]\\nc = dct(ramp)\\nhead = c[0] * c[0] + c[1] * c[1]\\nprint(round(head / sum(v * v for v in c), 4)) # -> 0.9979 of all energy\\nassert head / sum(v * v for v in c) > 0.99\\n\"}",
-        NULL,
-        "WHAT -- returns the DCT-II coefficients of a real 1-D or 2-D signal (dct_type=3 gives the inverse), in the norm=None scaling: the transform is exactly 2 x (cosine-basis matvec), so DCT-III undoes DCT-II up to a factor 2N. This is the Class L op: the cosine basis IS the eigenbasis of the chain-graph Laplacian, built entry by entry through the Class-N rational cosine cascade over the Archimedes pi cascade, then applied as one native-dispatched dense matvec. WHEN -- reach for it whenever you want energy compaction on a smooth or slowly varying real signal: block coding, feature extraction, or anywhere a purely real spectrum beats a complex one. For a 2-D input, axis=-1 or 1 transforms each row and axis=0 each column; more than two dimensions raises NotImplementedError. SIBLINGS -- the shipped jpeg op composes this exact dct rather than carrying its own cosine basis, so do not re-implement a DCT matrix for block coding. Use rfft when you need a complex spectrum that still carries phase, and wavelet when the interesting structure is localised in time rather than smooth across the whole block.",
-        ts_composes_617, 2u,
         ts_preserves_617, 1u,
         NULL,
         NULL, 0u,
@@ -17514,19 +17541,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 618 */
-        "srmech.signal_processing.stft",
+        "srmech.signal_processing.music_doa",
         "srmech",
         "signal_processing",
-        "Short-time Fourier transform \342\200\224 slice the signal into overlapping frames, window each, and transform it, so the spectrum becomes a function of TIME instead of a single average over the whole record. This is the standard answer to the fact that a plain FFT of a signal whose content changes tells you what frequencies were present but never WHEN. IDENTITY: Class C (the framing / hop orientation) composed with Class A (canonical frame ordering), Class I (the cyclic per-frame DFT) and Class K (the window taper as a pin-slot boundary at each frame edge).",
-        ts_params_618, 5u,
+        "MUSIC (MUltiple SIgnal Classification) \342\200\224 the subspace direction-of-arrival / frequency estimator of Schmidt (1979). Eigendecompose the sensor covariance R, split its eigenvectors into a signal subspace and a NOISE subspace, and score each candidate steering vector by how nearly ORTHOGONAL it is to that noise subspace; the pseudo-spectrum peaks where a source actually is. Resolution is not diffraction-limited, which is the whole reason the method displaced beamforming. IDENTITY: Class L (the correlation eigendecomposition that splits the two subspaces) composed with Class K (the subspace-partition threshold that picks which eigenvectors are noise) \342\200\224 a genuine pin-slot phase boundary, at the signal/noise rank cut. \342\232\240\357\270\217 THE NAME IS AN ACRONYM, NOT THE ART FORM: this is array signal processing and has nothing to do with the srmech.music package, which is acoustics and pitch relations. Through rc423 this module was literally named `music`, one dotted path from `srmech.music`; rc424 renamed it music_doa so the homograph cannot recur. SCOPE: educational signal-processing reference only \342\200\224 acoustic source-finding, civilian DOA estimation, frequency estimation. numpy-free (the eigendecomposition and the noise-subspace projection both route through the native Mat carrier), and no abs() \342\200\224 |z|**2 is re**2 + im**2.",
+        ts_params_618, 4u,
         "list",
-        "list of per-frame complex spectra \342\200\224 one inner list per frame, in time order",
+        "the pseudo-spectrum as a list of float, one value per steering vector; peaks mark estimated arrival directions. These are RELATIVE scores, not powers \342\200\224 the peak LOCATIONS carry the estimate, the heights do not",
         1,
         NULL,
-        "{\"output\":\"Two frames of eight bins each. Frame 0 covers the silent half of the record and every one of its eight bins is exactly 0j. Frame 1 covers the tone and is zero everywhere except bin 4 -- the Nyquist bin -- which holds exactly (8+0j), the sum of eight unit samples all brought into phase. The energy is pinned in both axes at once: one frame in time, one bin in frequency.\",\"why\":\"A burst that starts exactly on a frame boundary makes the framing visible: a plain transform of the whole record would report the tone but say nothing about when it arrived, whereas here the silent frame is bit-exactly zero and all the energy is in the second row. Choosing the Nyquist tone means the correct spectrum is a single integer, 8, in a single bin, so any leakage or off-by-one in the framing would be impossible to miss.\",\"worked\":\"from srmech.signal_processing import stft\\n\\n# Eight samples of silence, then eight samples of a Nyquist tone (+1, -1,\\n# ...). A rectangular window of ones keeps each frame's DFT exact on\\n# integer data, so the answer is readable without any tolerance.\\nsignal = [0.0] * 8 + [1.0, -1.0] * 4\\nframes = stft(signal, frame_size=8, hop_size=8, window=[1.0] * 8)\\n\\nprint(len(frames), len(frames[0]))       # -> 2 frames, 8 bins each\\nprint(all(v == 0j for v in frames[0]))   # -> True, the silent frame\\nprint(frames[1][4])                      # -> (8+0j), the Nyquist bin\\n\\nassert len(frames) == 2 and len(frames[0]) == 8\\nassert all(v == 0j for v in frames[0])\\nassert frames[1][4] == complex(8.0, 0.0)\\nassert all(round(v.real, 12) == 0.0 and round(v.imag, 12) == 0.0\\n           for k, v in enumerate(frames[1]) if k != 4)\\n\"}",
+        "{\"input\":{\"R\":\"<Mat 4x4 Hermitian covariance>\",\"n_sources\":1,\"steering_vectors\":[[1,1,1,1]]},\"output\":\"[0.25, 9.999999999999999e+29, 0.25, 0.25] -- the pseudo-spectrum peaks by ~30 orders of magnitude at index 1, the true source direction\",\"why\":\"A complete MUSIC run in one screen, numpy absent. The peak is not marginally higher -- it is ~30 orders of magnitude higher, because the true steering vector lies almost exactly IN the signal subspace and so is almost exactly orthogonal to the noise subspace the op projects onto. That is the whole mechanism, visible in one number.\",\"worked\":\"from srmech.math.mat import Mat\\nfrom srmech.signal_processing.closed_form_ops.music_doa import op\\n# a 4-sensor array, ONE source whose per-element phase\\n# step is exactly j (90 degrees), plus a little noise:\\na = [1 + 0j, 1j, -1 + 0j, -1j]\\nrows = [[a[i] * a[j].conjugate() + (0.01 if i == j else 0.0)\\n         for j in range(4)] for i in range(4)]\\nR = Mat.from_rows(rows, is_complex=True)\\n# four candidate directions: phase steps +1, +j, -1, -j\\ncands = [[1+0j, 1+0j, 1+0j, 1+0j],\\n         [1+0j, 1j, -1+0j, -1j],\\n         [1+0j, -1+0j, 1+0j, -1+0j],\\n         [1+0j, -1j, -1+0j, 1j]]\\nps = op(R, cands, n_sources=1)\\n[round(v, 6) for v in ps]\\n# -> [0.25, 1e+30, 0.25, 0.25]\\nmax(range(len(ps)), key=lambda i: ps[i])\\n# -> 1     the true direction, found\"}",
         NULL,
-        "WHAT -- returns the complex short-time Fourier transform as a list of n_frames rows, each row the FULL frame_size-point spectrum of one hop-overlapped, windowed frame. Defaults are frame_size=256, hop_size=frame_size//2, and a Hann window synthesised from the Class-N pi cascade; pass window= to override it, and a rectangular window of ones makes each frame's DFT exact on integer data. A signal shorter than one frame is zero-padded so you always get at least one row; a 2-D input raises ValueError. WHEN -- use it when where-in-time matters as much as which frequency: transients, onsets, chirps, anything whose spectrum moves across the record. SIBLINGS -- spectrogram is literally this op followed by an elementwise real-squared-plus-imag-squared fold, so do not write your own magnitude loop over these frames. cross_spectral is the two-signal Welch peer that averages segments instead of returning them, and rfft is the single-frame real-input half-spectrum peer to reach for when the signal is stationary and one transform is enough.",
-        ts_composes_618, 1u,
+        "WHAT -- returns the MUSIC pseudo-spectrum: one score per candidate steering vector, peaking where a source actually is. It eigendecomposes the sensor covariance (Class L), splits the eigenvectors into a signal subspace of size ``n_sources`` and a noise subspace of the rest (Class K -- a genuine pin-slot at the signal/noise rank cut), and scores each candidate by the inverse of its projection onto the noise subspace. WHEN -- reach for it for acoustic source-finding, civilian direction-of-arrival estimation and frequency estimation, when you need to resolve sources closer together than a beamformer can. Its resolution is not diffraction-limited, which is why it displaced beamforming. Note that ``n_sources`` is REQUIRED rather than inferred: guessing the source count from the eigenvalue gap is a separate decision, and the op declines to make it silently. SIBLINGS -- ``esprit`` is the rotational-invariance peer that returns parameters directly instead of a spectrum to be searched; ``beamforming_fixed`` is the diffraction-limited baseline this improves on. And a naming caution rather than a sibling: ``srmech.music`` is a DIFFERENT package -- acoustics and pitch relations -- and has nothing to do with this op, whose name is the acronym MUltiple SIgnal Classification. Do not reach for one expecting the other.",
+        ts_composes_618, 2u,
         ts_preserves_618, 1u,
         NULL,
         NULL, 0u,
@@ -17534,39 +17561,39 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 619 */
-        "srmech.signal_processing.spectrogram",
+        "srmech.signal_processing.mint_vector",
         "srmech",
         "signal_processing",
-        "Spectrogram \342\200\224 the STFT with the phase folded away, leaving the per-bin magnitude (or power) surface that is the standard visual reading of a time-varying spectrum. RELATION: this is literally stft followed by a magnitude fold, and it composes stft rather than re-deriving the framing; reach for stft when you need the phase back. IDENTITY: Class C / A / I / K, inherited from stft, with the magnitude fold as the Class-K step \342\200\224 computed as re**2 + im**2, never abs().",
-        ts_params_619, 5u,
-        "list",
-        "list of per-frame real magnitude spectra, in time order",
+        "Class A (content-address) mint of a deterministic D-bit HDC vector from a NAME: counter-mode SHA-256 over the UTF-8 name (sha256_raw(name || u64_be(counter)), chained until D/8 bytes exist). Bit-exact reproducible from the name alone \342\200\224 no RNG state anywhere \342\200\224 so the same name mints the same vector on every host and the vector is shareable as namespace+spec; distinct names give near-orthogonal vectors. The atom under the RBS-HDC instrument's LoE token/role vectors (encode_loe_content composes one mint per token plus the two role mints). Native dispatch: the whole chain runs in srmech_mint_vector when the library is present, byte-identical pure-Python fallback otherwise. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_619, 2u,
+        "bytes",
+        "D/8 bytes of deterministic content \342\200\224 the packed hypervector",
         1,
         NULL,
-        "{\"output\":\"A 2-by-8 grid of real, non-negative energies with exactly one hot cell per row, and the hot cell MOVES. Row 0 peaks at bin 0 (DC) with 64.0; row 1 peaks at bin 4 (Nyquist) with 64.0; every other cell in the grid is 0.0. The 64.0 is the magnitude fold made visible -- stft put (8+0j) in each hot bin, and 8 squared is 64.\",\"why\":\"Exactly two non-zero cells out of sixteen is the strongest statement a time-frequency plot can make, and the pair of indices (0 then 4) is the whole point of the op -- the same signal read at two different times gives two different spectra. The value 64.0 is not decorative either: it is 8 squared, which shows that the only thing spectrogram adds to stft is the magnitude fold, computed as real-squared plus imag-squared.\",\"worked\":\"from srmech.signal_processing import spectrogram\\n\\n# Eight samples of DC, then eight samples of a Nyquist tone. The signal\\n# changes frequency halfway through, so the bright cell must MOVE.\\nsignal = [1.0] * 8 + [1.0, -1.0] * 4\\ngrid = spectrogram(signal, frame_size=8, hop_size=8, window=[1.0] * 8)\\n\\nprint(len(grid), len(grid[0]))              # -> 2 frames, 8 bins each\\nprint(grid[0].index(max(grid[0])))          # -> 0, the DC bin\\nprint(grid[1].index(max(grid[1])))          # -> 4, the Nyquist bin\\nprint(grid[0][0], grid[1][4])               # -> 64.0 64.0, i.e. 8 squared\\n\\nassert grid[0].index(max(grid[0])) == 0\\nassert grid[1].index(max(grid[1])) == 4\\nassert grid[0][0] == 64.0 and grid[1][4] == 64.0\\n# The fold is real-squared + imag-squared, so nothing can be negative.\\nassert all(v >= 0.0 for row in grid for v in row)\\nassert sum(1 for row in grid for v in row if v != 0.0) == 2\\n\"}",
-        NULL,
-        "WHAT -- returns the time-frequency energy density, the squared magnitude of the STFT, as a list of n_frames rows of frame_size real non-negative values. It calls stft with the same frame_size, hop_size and window arguments and folds each complex bin with real-squared plus imag-squared, a Class K pin-slot magnitude rather than a Python abs(). WHEN -- reach for it when you want to see where energy sits in the time-frequency plane: onset detection, band-energy features, a heat map, a quick look at whether a record is stationary. Note that the fold discards phase, so the result cannot be inverted -- keep the stft output instead if you will need to resynthesise. SIBLINGS -- this IS stft plus that one fold, so do not hand-roll the squaring pass over stft output. multitaper is the variance-reduced single-block PSD to use when you want one well-behaved spectrum rather than a time series of them, and cross_spectral is the two-signal peer for when the question is how two channels relate rather than how one of them evolves.",
+        "{\"output\":\"1024\\n'6ced4c75'\\nTrue\\n4054\\n32\",\"why\":\"The same name mints byte-identical content on a second call, and two distinct names land 4054 bits apart against the 4096 expected of independent 8192-bit vectors -- deterministic AND near-orthogonal, the two properties an HDC namespace needs at once.\",\"worked\":\"# Class A mint: a D-bit HDC vector addressed BY NAME. No RNG anywhere, so\\n# the vector is reproducible from the name alone on every host -- which is\\n# what makes a hypervector shareable as namespace+spec instead of as data.\\nfrom srmech.signal_processing import mint_vector\\n\\nv = mint_vector(\\\"LoE.token.example\\\")\\nlen(v)                                       # -> 1024   bytes = 8192 bits\\nv[:4].hex()                                  # -> '6ced4c75'\\n# DETERMINISM is the whole contract -- same name, same bytes, always:\\nmint_vector(\\\"LoE.token.example\\\") == v        # -> True\\n# ...and distinct names are near-orthogonal: for two independent 8192-bit\\n# vectors the expected Hamming distance is D/2 = 4096.\\nw = mint_vector(\\\"LoE.token.other\\\")\\nsum(bin(a ^ b).count(\\\"1\\\") for a, b in zip(v, w))     # -> 4054\\n# D is in BITS and is keyword-only:\\nlen(mint_vector(\\\"x\\\", D=256))                 # -> 32\"}",
+        "{\"name\":\"'LoE.token.example'\"}",
+        "WHAT \342\200\224 Class A mint: computes and RETURNS a deterministic D-bit HDC hypervector from a NAME, by counter-mode SHA-256 over the UTF-8 name (``sha256_raw(name || u64_be(counter))``, chained until D/8 bytes exist). There is no RNG state anywhere, so the same name mints the same bytes on every host and in every process, and distinct names are near-orthogonal \342\200\224 two 8192-bit mints land about D/2 = 4096 bits apart. WHEN \342\200\224 reach for it whenever a hypervector needs an IDENTITY rather than a value: LoE token and role vectors, codebook entries, any HDC namespace that has to agree across machines. Because the vector is reproducible from the name, it can be shared as ``namespace + spec`` instead of being shipped as data. WHAT YOU WOULD OTHERWISE WRONGLY HAND-ROLL: seeding a PRNG from a hash of the name and drawing D bits. That reintroduces generator state, ties the value to one library's stream, and is not reproducible across hosts \342\200\224 which defeats the only property the mint exists to provide. SIBLINGS \342\200\224 :func:`srmech.amsc.format.sha256_raw` is the digest primitive underneath; the ``klein4_*`` HDC ops in ``srmech.math.hdc`` bind, bundle and resolve the vectors this op mints, and ``encode_loe_content`` composes one mint per token plus the two role mints. Native dispatch runs the whole chain in ``srmech_mint_vector`` with a byte-identical pure fallback.",
         ts_composes_619, 1u,
-        ts_preserves_619, 1u,
+        NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
     { /* 620 */
-        "srmech.signal_processing.cross_spectral",
+        "srmech.signal_processing.dct",
         "srmech",
         "signal_processing",
-        "Cross-spectral density between two signals, and optionally the magnitude-squared COHERENCE derived from it. The cross spectrum says how two records share power frequency by frequency; coherence normalises that by each signal's own power so the answer is a 0-to-1 number per bin rather than a scale-dependent one. IDENTITY: Class M (the per-bin bind of the two frame spectra) composed with Class A (canonical frame ordering). The |z|**2 terms are re**2 + im**2 and the coherence denominator carries an explicit epsilon floor, so there is neither an abs() nor a divide-by-zero.",
-        ts_params_620, 6u,
-        "tuple",
-        "a (frequencies, cross-spectrum) pair; with coherence=True the second element is the magnitude-squared coherence per bin",
+        "Discrete cosine transform (DCT-II by default, DCT-III for the inverse) \342\200\224 the real-valued cousin of the DFT that JPEG and essentially every audio codec are built on. Its energy compaction is why: for a smooth signal almost all the coefficient mass lands in the first few bins, which is what makes truncation a compression scheme rather than damage. IDENTITY: Class L \342\200\224 the transform IS a matvec against a cosine basis, so it is a Laplacian-family spectral decomposition, not a distinct primitive. Matches scipy's unnormalised convention (norm=None): the result is 2 * (basis matvec).",
+        ts_params_620, 4u,
+        "list",
+        "real DCT coefficients along axis \342\200\224 list[float] for 1-D input, list[list[float]] for 2-D",
         1,
         NULL,
-        "{\"output\":\"Eight frequency bins running 0.0, 0.125, ... , -0.5, ... , -0.125 in cycles per sample. Crossing the signal with itself gives an auto-spectrum whose imaginary part is exactly 0.0 in every bin and whose real part is strictly positive -- the definition of a power spectrum. Crossing it with a pure gain of 3 gives coherence 1.0 in all eight bins to twelve decimal places, even though the second signal is three times larger: coherence reports the linear relation, not the amplitude. Crossing it with an unrelated signal never reaches 0.75 in any bin, and its worst bin falls to 0.0.\",\"why\":\"Coherence of exactly 1.0 against a channel three times larger is the number that proves the estimator is measuring structure rather than size, and it is the property people most often assume without checking. The unrelated partner is the necessary negative control -- without it, a coherence of 1 would prove nothing, since single-segment coherence is identically 1 for any pair whatsoever. Three distinct segments make the Welch average real, and the auto-spectrum's exactly-zero imaginary part confirms the conjugate is on the correct factor.\",\"worked\":\"from srmech.signal_processing import cross_spectral\\n\\n# Three genuinely DIFFERENT 8-sample Welch segments, so the segment\\n# average is doing real work (identical segments make coherence 1 for\\n# trivial reasons).\\nx = ([0.0, 1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0]\\n     + [1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0]\\n     + [2.0, 2.0, -2.0, -2.0, 2.0, 2.0, -2.0, -2.0])\\n\\n# Crossed with itself, the CSD is the power spectrum: real and positive.\\nfreqs, auto = cross_spectral(x, x, frame_size=8, hop_size=8)\\nprint(len(freqs), freqs[0], freqs[4])          # -> 8 0.0 -0.5\\nassert all(v.imag == 0.0 and v.real > 0.0 for v in auto)\\n\\n# Coherence is GAIN-INVARIANT: tripling one channel changes nothing.\\n_, coh = cross_spectral(x, [3.0 * v for v in x],\\n                        frame_size=8, hop_size=8, coherence=True)\\nprint([round(v, 12) for v in coh])             # -> 1.0 in every bin\\nassert all(round(v, 12) == 1.0 for v in coh)\\n\\n# An unrelated partner does not survive the segment average.\\nz = ([1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0, -1.0]\\n     + [3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0]\\n     + [0.0, 5.0, 0.0, -5.0, 0.0, 5.0, 0.0, -5.0])\\n_, coh_z = cross_spectral(x, z, frame_size=8, hop_size=8, coherence=True)\\nprint(round(max(coh_z), 4))                    # -> 0.7399, well under 1\\nassert max(coh_z) < 0.75\\n\"}",
+        "{\"output\":\"The flat signal collapses into a single number: coefficient 0 is exactly 48.0 (= 2 * 8 * 3) and the other seven coefficients are zero to twelve decimal places. Feeding those coefficients back through dct_type=3 and dividing by 2N = 16 returns [3.0] * 8, the original signal. The ramp shows the same mechanism working on non-trivial data: coefficient 0 is 56.0, coefficient 1 is -25.769292, and those first two coefficients alone carry 0.9979 of the total coefficient energy -- the energy compaction that makes the DCT the transform of choice for block coding.\",\"why\":\"A constant vector is the one signal whose right answer is obvious by eye -- all of it belongs in the DC coefficient and none of it anywhere else -- so a single exact 48.0 next to seven zeros proves the cosine basis is orthogonal and correctly scaled, not merely that a number came back. The type-3 round trip then pins the 2N convention that catches most first-time users, and the ramp shows the same basis doing the job it is actually hired for.\",\"worked\":\"from srmech.signal_processing import dct\\n\\n# A constant signal is the zero-eigenvalue eigenvector of the chain-graph\\n# Laplacian whose eigenbasis IS the cosine basis, so DCT-II must put every\\n# bit of it in coefficient 0 and nothing anywhere else.\\nflat = [3.0] * 8\\ncoeffs = dct(flat)\\nprint(coeffs[0])                              # -> 48.0, i.e. 2 * 8 * 3\\nprint([round(v, 12) for v in coeffs[1:]])     # -> seven zeros\\nassert coeffs[0] == 48.0\\nassert all(round(v, 12) == 0.0 for v in coeffs[1:])\\n\\n# DCT-III is the inverse, in the norm=None scaling: it undoes DCT-II up\\n# to the factor 2N (here 16).\\nrestored = [round(v / 16.0, 9) for v in dct(coeffs, dct_type=3)]\\nprint(restored)                               # -> [3.0] * 8\\nassert restored == [3.0] * 8\\n\\n# Energy compaction: a smooth ramp collapses into the low coefficients.\\nramp = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]\\nc = dct(ramp)\\nhead = c[0] * c[0] + c[1] * c[1]\\nprint(round(head / sum(v * v for v in c), 4)) # -> 0.9979 of all energy\\nassert head / sum(v * v for v in c) > 0.99\\n\"}",
         NULL,
-        "WHAT -- returns a (freqs, S_xy) pair: Welch's cross spectral density between two equal-length real signals, computed by Hann-windowing each hop-overlapped segment, forming X times conj(Y) per bin, and averaging over segments. freqs comes from fftfreq, so it carries the negative half, and both lists are frame_size long. Pass coherence=True to get the normalised magnitude-squared coherence instead, floored at 1e-30 so an empty bin cannot divide by zero. Mismatched input lengths raise ValueError. WHEN -- use it when the question is how two channels relate: a shared drive, a transfer-function magnitude, a lag carried in the CSD phase, or how much of one signal is linearly predictable from the other. Coherence is gain-invariant, so it answers whether a linear relation exists without being fooled by amplitude. SIBLINGS -- it is the two-signal Welch peer of stft, which hands back the frames instead of averaging them, and of multitaper, which buys its variance reduction by averaging orthogonal tapers over one block rather than by averaging time segments. Do not build a coherence estimate by hand out of repeated rfft calls; the segment averaging is the entire content of the estimator.",
-        ts_composes_620, 1u,
+        "WHAT -- returns the DCT-II coefficients of a real 1-D or 2-D signal (dct_type=3 gives the inverse), in the norm=None scaling: the transform is exactly 2 x (cosine-basis matvec), so DCT-III undoes DCT-II up to a factor 2N. This is the Class L op: the cosine basis IS the eigenbasis of the chain-graph Laplacian, built entry by entry through the Class-N rational cosine cascade over the Archimedes pi cascade, then applied as one native-dispatched dense matvec. WHEN -- reach for it whenever you want energy compaction on a smooth or slowly varying real signal: block coding, feature extraction, or anywhere a purely real spectrum beats a complex one. For a 2-D input, axis=-1 or 1 transforms each row and axis=0 each column; more than two dimensions raises NotImplementedError. SIBLINGS -- the shipped jpeg op composes this exact dct rather than carrying its own cosine basis, so do not re-implement a DCT matrix for block coding. Use rfft when you need a complex spectrum that still carries phase, and wavelet when the interesting structure is localised in time rather than smooth across the whole block.",
+        ts_composes_620, 2u,
         ts_preserves_620, 1u,
         NULL,
         NULL, 0u,
@@ -17574,19 +17601,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 621 */
-        "srmech.signal_processing.multitaper",
+        "srmech.signal_processing.stft",
         "srmech",
         "signal_processing",
-        "Multitaper power spectral density \342\200\224 average the periodograms taken through several ORTHOGONAL tapers instead of one window. A single-window periodogram is an unbiased but inconsistent estimator: its variance does not fall as the record lengthens. Averaging over mutually orthogonal tapers buys near-independent looks at the same data, so the variance does fall, at a bandwidth cost set by nw. IDENTITY: Class L (the per-taper spectral decomposition) composed with Class M (the bundle average across tapers).",
-        ts_params_621, 4u,
-        "list[float]",
-        "the averaged power spectral density, one value per bin",
+        "Short-time Fourier transform \342\200\224 slice the signal into overlapping frames, window each, and transform it, so the spectrum becomes a function of TIME instead of a single average over the whole record. This is the standard answer to the fact that a plain FFT of a signal whose content changes tells you what frequencies were present but never WHEN. IDENTITY: Class C (the framing / hop orientation) composed with Class A (canonical frame ordering), Class I (the cyclic per-frame DFT) and Class K (the window taper as a pin-slot boundary at each frame edge).",
+        ts_params_621, 5u,
+        "list",
+        "list of per-frame complex spectra \342\200\224 one inner list per frame, in time order",
         1,
         NULL,
-        "{\"output\":\"A 32-point real PSD that peaks at bin 8 -- exactly where the tone was placed -- with a value of about 2.470. The floor at bin 0 is about 0.00067, so the peak stands roughly 3692 times above the background. Every value is non-negative, and the estimate is Hermitian-symmetric about bin 0 to nine decimal places (psd[k] equals psd[32-k] for all k), which is the signature of a real-valued input.\",\"why\":\"Placing the tone on an exact bin makes the correct peak location an integer that can be checked without tolerance, and the three-orders-of-magnitude gap between the peak and the floor shows the taper bank is genuinely concentrating rather than smearing. The Hermitian symmetry is the sharper test: it is a structural consequence of the input being real, it holds on both the DPSS and the numpy-free sinusoidal taper path, and it would break immediately if a taper or a conjugate were misapplied.\",\"worked\":\"from srmech.signal_processing import multitaper\\n\\n# cos(2*pi*8*i/32) is exactly [1, 0, -1, 0] repeated, so this is a pure\\n# tone parked on bin 8 of 32 with no rounding anywhere in the input.\\ntone = [1.0, 0.0, -1.0, 0.0] * 8\\npsd = multitaper(tone, n_tapers=3, nw=2.0)   # 3 <= 2*nw - 1, admissible\\n\\nprint(len(psd), psd.index(max(psd)))         # -> 32 8, the tone's bin\\nprint(round(psd[8] / psd[0]))                # -> ~3692 above the floor\\n\\nassert len(psd) == 32\\nassert psd.index(max(psd)) == 8\\nassert psd[8] > 100.0 * psd[0]\\n# A real input forces a Hermitian-symmetric power estimate...\\nassert all(round(psd[k], 9) == round(psd[32 - k], 9) for k in range(1, 16))\\n# ...and a sum of squared magnitudes can never go negative.\\nassert all(v >= 0.0 for v in psd)\\n\"}",
+        "{\"output\":\"Two frames of eight bins each. Frame 0 covers the silent half of the record and every one of its eight bins is exactly 0j. Frame 1 covers the tone and is zero everywhere except bin 4 -- the Nyquist bin -- which holds exactly (8+0j), the sum of eight unit samples all brought into phase. The energy is pinned in both axes at once: one frame in time, one bin in frequency.\",\"why\":\"A burst that starts exactly on a frame boundary makes the framing visible: a plain transform of the whole record would report the tone but say nothing about when it arrived, whereas here the silent frame is bit-exactly zero and all the energy is in the second row. Choosing the Nyquist tone means the correct spectrum is a single integer, 8, in a single bin, so any leakage or off-by-one in the framing would be impossible to miss.\",\"worked\":\"from srmech.signal_processing import stft\\n\\n# Eight samples of silence, then eight samples of a Nyquist tone (+1, -1,\\n# ...). A rectangular window of ones keeps each frame's DFT exact on\\n# integer data, so the answer is readable without any tolerance.\\nsignal = [0.0] * 8 + [1.0, -1.0] * 4\\nframes = stft(signal, frame_size=8, hop_size=8, window=[1.0] * 8)\\n\\nprint(len(frames), len(frames[0]))       # -> 2 frames, 8 bins each\\nprint(all(v == 0j for v in frames[0]))   # -> True, the silent frame\\nprint(frames[1][4])                      # -> (8+0j), the Nyquist bin\\n\\nassert len(frames) == 2 and len(frames[0]) == 8\\nassert all(v == 0j for v in frames[0])\\nassert frames[1][4] == complex(8.0, 0.0)\\nassert all(round(v.real, 12) == 0.0 and round(v.imag, 12) == 0.0\\n           for k, v in enumerate(frames[1]) if k != 4)\\n\"}",
         NULL,
-        "WHAT -- returns a real, non-negative power spectral density estimate of length len(signal), formed by tapering the signal with n_tapers near-orthogonal windows, taking each taper's periodogram as real-squared plus imag-squared, and averaging them. That is the Class L eigen-taper bank composed with the Class M bundle average. If scipy is importable the tapers are true DPSS / Slepian sequences; numpy-absent, which is the shipped default, it falls back to a sinusoidal taper bank built from the Class-N rational sine cascade and normalised by the rational square root. Keep n_tapers no larger than 2*nw - 1. WHEN -- reach for it when one block of data has to yield one trustworthy spectrum: averaging tapers buys a large drop in estimator variance at the price of a wider main lobe, which makes it the right tool for short, noisy, stationary records. SIBLINGS -- it is the variance-reduced peer of a single-window periodogram, so do not average a handful of hand-built Hann periodograms yourself. cross_spectral buys the same variance reduction by averaging time segments in Welch's method instead of averaging tapers, and spectrogram is what you want when the spectrum is supposed to change over the record rather than hold still.",
-        ts_composes_621, 3u,
+        "WHAT -- returns the complex short-time Fourier transform as a list of n_frames rows, each row the FULL frame_size-point spectrum of one hop-overlapped, windowed frame. Defaults are frame_size=256, hop_size=frame_size//2, and a Hann window synthesised from the Class-N pi cascade; pass window= to override it, and a rectangular window of ones makes each frame's DFT exact on integer data. A signal shorter than one frame is zero-padded so you always get at least one row; a 2-D input raises ValueError. WHEN -- use it when where-in-time matters as much as which frequency: transients, onsets, chirps, anything whose spectrum moves across the record. SIBLINGS -- spectrogram is literally this op followed by an elementwise real-squared-plus-imag-squared fold, so do not write your own magnitude loop over these frames. cross_spectral is the two-signal Welch peer that averages segments instead of returning them, and rfft is the single-frame real-input half-spectrum peer to reach for when the signal is stationary and one transform is enough.",
+        ts_composes_621, 1u,
         ts_preserves_621, 1u,
         NULL,
         NULL, 0u,
@@ -17594,11 +17621,71 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 622 */
+        "srmech.signal_processing.spectrogram",
+        "srmech",
+        "signal_processing",
+        "Spectrogram \342\200\224 the STFT with the phase folded away, leaving the per-bin magnitude (or power) surface that is the standard visual reading of a time-varying spectrum. RELATION: this is literally stft followed by a magnitude fold, and it composes stft rather than re-deriving the framing; reach for stft when you need the phase back. IDENTITY: Class C / A / I / K, inherited from stft, with the magnitude fold as the Class-K step \342\200\224 computed as re**2 + im**2, never abs().",
+        ts_params_622, 5u,
+        "list",
+        "list of per-frame real magnitude spectra, in time order",
+        1,
+        NULL,
+        "{\"output\":\"A 2-by-8 grid of real, non-negative energies with exactly one hot cell per row, and the hot cell MOVES. Row 0 peaks at bin 0 (DC) with 64.0; row 1 peaks at bin 4 (Nyquist) with 64.0; every other cell in the grid is 0.0. The 64.0 is the magnitude fold made visible -- stft put (8+0j) in each hot bin, and 8 squared is 64.\",\"why\":\"Exactly two non-zero cells out of sixteen is the strongest statement a time-frequency plot can make, and the pair of indices (0 then 4) is the whole point of the op -- the same signal read at two different times gives two different spectra. The value 64.0 is not decorative either: it is 8 squared, which shows that the only thing spectrogram adds to stft is the magnitude fold, computed as real-squared plus imag-squared.\",\"worked\":\"from srmech.signal_processing import spectrogram\\n\\n# Eight samples of DC, then eight samples of a Nyquist tone. The signal\\n# changes frequency halfway through, so the bright cell must MOVE.\\nsignal = [1.0] * 8 + [1.0, -1.0] * 4\\ngrid = spectrogram(signal, frame_size=8, hop_size=8, window=[1.0] * 8)\\n\\nprint(len(grid), len(grid[0]))              # -> 2 frames, 8 bins each\\nprint(grid[0].index(max(grid[0])))          # -> 0, the DC bin\\nprint(grid[1].index(max(grid[1])))          # -> 4, the Nyquist bin\\nprint(grid[0][0], grid[1][4])               # -> 64.0 64.0, i.e. 8 squared\\n\\nassert grid[0].index(max(grid[0])) == 0\\nassert grid[1].index(max(grid[1])) == 4\\nassert grid[0][0] == 64.0 and grid[1][4] == 64.0\\n# The fold is real-squared + imag-squared, so nothing can be negative.\\nassert all(v >= 0.0 for row in grid for v in row)\\nassert sum(1 for row in grid for v in row if v != 0.0) == 2\\n\"}",
+        NULL,
+        "WHAT -- returns the time-frequency energy density, the squared magnitude of the STFT, as a list of n_frames rows of frame_size real non-negative values. It calls stft with the same frame_size, hop_size and window arguments and folds each complex bin with real-squared plus imag-squared, a Class K pin-slot magnitude rather than a Python abs(). WHEN -- reach for it when you want to see where energy sits in the time-frequency plane: onset detection, band-energy features, a heat map, a quick look at whether a record is stationary. Note that the fold discards phase, so the result cannot be inverted -- keep the stft output instead if you will need to resynthesise. SIBLINGS -- this IS stft plus that one fold, so do not hand-roll the squaring pass over stft output. multitaper is the variance-reduced single-block PSD to use when you want one well-behaved spectrum rather than a time series of them, and cross_spectral is the two-signal peer for when the question is how two channels relate rather than how one of them evolves.",
+        ts_composes_622, 1u,
+        ts_preserves_622, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 623 */
+        "srmech.signal_processing.cross_spectral",
+        "srmech",
+        "signal_processing",
+        "Cross-spectral density between two signals, and optionally the magnitude-squared COHERENCE derived from it. The cross spectrum says how two records share power frequency by frequency; coherence normalises that by each signal's own power so the answer is a 0-to-1 number per bin rather than a scale-dependent one. IDENTITY: Class M (the per-bin bind of the two frame spectra) composed with Class A (canonical frame ordering). The |z|**2 terms are re**2 + im**2 and the coherence denominator carries an explicit epsilon floor, so there is neither an abs() nor a divide-by-zero.",
+        ts_params_623, 6u,
+        "tuple",
+        "a (frequencies, cross-spectrum) pair; with coherence=True the second element is the magnitude-squared coherence per bin",
+        1,
+        NULL,
+        "{\"output\":\"Eight frequency bins running 0.0, 0.125, ... , -0.5, ... , -0.125 in cycles per sample. Crossing the signal with itself gives an auto-spectrum whose imaginary part is exactly 0.0 in every bin and whose real part is strictly positive -- the definition of a power spectrum. Crossing it with a pure gain of 3 gives coherence 1.0 in all eight bins to twelve decimal places, even though the second signal is three times larger: coherence reports the linear relation, not the amplitude. Crossing it with an unrelated signal never reaches 0.75 in any bin, and its worst bin falls to 0.0.\",\"why\":\"Coherence of exactly 1.0 against a channel three times larger is the number that proves the estimator is measuring structure rather than size, and it is the property people most often assume without checking. The unrelated partner is the necessary negative control -- without it, a coherence of 1 would prove nothing, since single-segment coherence is identically 1 for any pair whatsoever. Three distinct segments make the Welch average real, and the auto-spectrum's exactly-zero imaginary part confirms the conjugate is on the correct factor.\",\"worked\":\"from srmech.signal_processing import cross_spectral\\n\\n# Three genuinely DIFFERENT 8-sample Welch segments, so the segment\\n# average is doing real work (identical segments make coherence 1 for\\n# trivial reasons).\\nx = ([0.0, 1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0]\\n     + [1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0]\\n     + [2.0, 2.0, -2.0, -2.0, 2.0, 2.0, -2.0, -2.0])\\n\\n# Crossed with itself, the CSD is the power spectrum: real and positive.\\nfreqs, auto = cross_spectral(x, x, frame_size=8, hop_size=8)\\nprint(len(freqs), freqs[0], freqs[4])          # -> 8 0.0 -0.5\\nassert all(v.imag == 0.0 and v.real > 0.0 for v in auto)\\n\\n# Coherence is GAIN-INVARIANT: tripling one channel changes nothing.\\n_, coh = cross_spectral(x, [3.0 * v for v in x],\\n                        frame_size=8, hop_size=8, coherence=True)\\nprint([round(v, 12) for v in coh])             # -> 1.0 in every bin\\nassert all(round(v, 12) == 1.0 for v in coh)\\n\\n# An unrelated partner does not survive the segment average.\\nz = ([1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0, -1.0]\\n     + [3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0]\\n     + [0.0, 5.0, 0.0, -5.0, 0.0, 5.0, 0.0, -5.0])\\n_, coh_z = cross_spectral(x, z, frame_size=8, hop_size=8, coherence=True)\\nprint(round(max(coh_z), 4))                    # -> 0.7399, well under 1\\nassert max(coh_z) < 0.75\\n\"}",
+        NULL,
+        "WHAT -- returns a (freqs, S_xy) pair: Welch's cross spectral density between two equal-length real signals, computed by Hann-windowing each hop-overlapped segment, forming X times conj(Y) per bin, and averaging over segments. freqs comes from fftfreq, so it carries the negative half, and both lists are frame_size long. Pass coherence=True to get the normalised magnitude-squared coherence instead, floored at 1e-30 so an empty bin cannot divide by zero. Mismatched input lengths raise ValueError. WHEN -- use it when the question is how two channels relate: a shared drive, a transfer-function magnitude, a lag carried in the CSD phase, or how much of one signal is linearly predictable from the other. Coherence is gain-invariant, so it answers whether a linear relation exists without being fooled by amplitude. SIBLINGS -- it is the two-signal Welch peer of stft, which hands back the frames instead of averaging them, and of multitaper, which buys its variance reduction by averaging orthogonal tapers over one block rather than by averaging time segments. Do not build a coherence estimate by hand out of repeated rfft calls; the segment averaging is the entire content of the estimator.",
+        ts_composes_623, 1u,
+        ts_preserves_623, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 624 */
+        "srmech.signal_processing.multitaper",
+        "srmech",
+        "signal_processing",
+        "Multitaper power spectral density \342\200\224 average the periodograms taken through several ORTHOGONAL tapers instead of one window. A single-window periodogram is an unbiased but inconsistent estimator: its variance does not fall as the record lengthens. Averaging over mutually orthogonal tapers buys near-independent looks at the same data, so the variance does fall, at a bandwidth cost set by nw. IDENTITY: Class L (the per-taper spectral decomposition) composed with Class M (the bundle average across tapers).",
+        ts_params_624, 4u,
+        "list[float]",
+        "the averaged power spectral density, one value per bin",
+        1,
+        NULL,
+        "{\"output\":\"A 32-point real PSD that peaks at bin 8 -- exactly where the tone was placed -- with a value of about 2.470. The floor at bin 0 is about 0.00067, so the peak stands roughly 3692 times above the background. Every value is non-negative, and the estimate is Hermitian-symmetric about bin 0 to nine decimal places (psd[k] equals psd[32-k] for all k), which is the signature of a real-valued input.\",\"why\":\"Placing the tone on an exact bin makes the correct peak location an integer that can be checked without tolerance, and the three-orders-of-magnitude gap between the peak and the floor shows the taper bank is genuinely concentrating rather than smearing. The Hermitian symmetry is the sharper test: it is a structural consequence of the input being real, it holds on both the DPSS and the numpy-free sinusoidal taper path, and it would break immediately if a taper or a conjugate were misapplied.\",\"worked\":\"from srmech.signal_processing import multitaper\\n\\n# cos(2*pi*8*i/32) is exactly [1, 0, -1, 0] repeated, so this is a pure\\n# tone parked on bin 8 of 32 with no rounding anywhere in the input.\\ntone = [1.0, 0.0, -1.0, 0.0] * 8\\npsd = multitaper(tone, n_tapers=3, nw=2.0)   # 3 <= 2*nw - 1, admissible\\n\\nprint(len(psd), psd.index(max(psd)))         # -> 32 8, the tone's bin\\nprint(round(psd[8] / psd[0]))                # -> ~3692 above the floor\\n\\nassert len(psd) == 32\\nassert psd.index(max(psd)) == 8\\nassert psd[8] > 100.0 * psd[0]\\n# A real input forces a Hermitian-symmetric power estimate...\\nassert all(round(psd[k], 9) == round(psd[32 - k], 9) for k in range(1, 16))\\n# ...and a sum of squared magnitudes can never go negative.\\nassert all(v >= 0.0 for v in psd)\\n\"}",
+        NULL,
+        "WHAT -- returns a real, non-negative power spectral density estimate of length len(signal), formed by tapering the signal with n_tapers near-orthogonal windows, taking each taper's periodogram as real-squared plus imag-squared, and averaging them. That is the Class L eigen-taper bank composed with the Class M bundle average. If scipy is importable the tapers are true DPSS / Slepian sequences; numpy-absent, which is the shipped default, it falls back to a sinusoidal taper bank built from the Class-N rational sine cascade and normalised by the rational square root. Keep n_tapers no larger than 2*nw - 1. WHEN -- reach for it when one block of data has to yield one trustworthy spectrum: averaging tapers buys a large drop in estimator variance at the price of a wider main lobe, which makes it the right tool for short, noisy, stationary records. SIBLINGS -- it is the variance-reduced peer of a single-window periodogram, so do not average a handful of hand-built Hann periodograms yourself. cross_spectral buys the same variance reduction by averaging time segments in Welch's method instead of averaging tapers, and spectrogram is what you want when the spectrum is supposed to change over the record rather than hold still.",
+        ts_composes_624, 3u,
+        ts_preserves_624, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 625 */
         "srmech.signal_processing.rfft",
         "srmech",
         "signal_processing",
         "Real-input FFT \342\200\224 the DFT of a real signal, returning only the non-redundant half of the spectrum. A real signal's spectrum is conjugate-symmetric, so the upper half carries no information the lower half does not; rfft declines to materialise it. For length n the output has n // 2 + 1 bins. IDENTITY: Class A (canonical sequence order) composed with Class I (the cyclic Z/N transform domain) and Class K (rotation as a pin-slot on the unit circle) \342\200\224 the same cascade the full complex transform runs, with the symmetry exploited rather than recomputed.",
-        ts_params_622, 4u,
+        ts_params_625, 4u,
         "list[complex]",
         "the non-redundant half spectrum \342\200\224 n // 2 + 1 complex coefficients",
         1,
@@ -17607,66 +17694,6 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT -- returns the non-redundant half spectrum of a real 1-D signal: bins 0 through n//2, so n//2 + 1 complex values rather than n. For real input the full DFT satisfies X[n-k] equal to conj(X[k]), so the discarded half is exactly recoverable, and this is half the compute and half the memory at identical algebra on the retained bins -- not an approximation. Complex input is refused with TypeError, matching NumPy; an n-D input or a non-default axis raises ValueError on the numpy-free path. WHEN -- use it as the default forward transform any time the data is real, which covers most measured signals. SIBLINGS -- it is the real-input specialisation of closed_form_ops.fft, so do not call the full complex transform on real data and slice the result yourself. stft is the framed peer for when the spectrum changes across the record, multitaper is the peer that returns a variance-reduced power estimate rather than complex coefficients, and dct is the choice when a purely real spectrum with strong energy compaction beats one that carries phase.",
         NULL, 0u,
-        ts_preserves_622, 1u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 623 */
-        "srmech.signal_processing.wavelet",
-        "srmech",
-        "signal_processing",
-        "Multi-level discrete wavelet transform (Haar by default) \342\200\224 recursively split the signal into a coarse APPROXIMATION and a DETAIL band, then split the approximation again. Unlike the Fourier family this localises in time as well as frequency, which is why a step edge shows up in a couple of detail coefficients here instead of smearing across every bin. IDENTITY: Class L (the filter-bank decomposition) composed with Class N (the exact rational / sqrt(2) orthonormal scaling that keeps the transform energy-preserving).",
-        ts_params_623, 4u,
-        "tuple",
-        "the coarsest approximation band followed by the detail bands, finest last",
-        1,
-        NULL,
-        "{\"output\":\"Detail bands of length 4, 2 and 1, returned coarsest-first. The level-1 detail (four values) and the level-2 detail (two values) are identically 0.0, because at those scales the signal is locally constant. The only non-zero detail is the single level-3 coefficient, 5.656854, which is 8 divided by the square root of 2 -- the step, reported at exactly the scale it spans and nowhere else. The approximation is the same 5.656854, and the total energy comes back as 64.0, matching the input's 4 squared times 4.\",\"why\":\"Six of the seven detail coefficients being exactly 0.0 is what makes the multi-scale claim checkable by eye: the step is an 8-sample-scale feature, so it has no business showing up at the 2- or 4-sample scale, and it does not. A global basis such as the DCT would spread the same step across every coefficient. The energy check is the independent oracle -- 64.0 in and 64.0 out confirms the 1/sqrt(2) normaliser is right and the transform is genuinely orthonormal, so nothing was lost or double-counted.\",\"worked\":\"from srmech.signal_processing import wavelet\\n\\n# One step, right in the middle of 8 samples. A Haar detail band answers\\n# 'did anything change at THIS scale?', so the finer levels must be zero.\\nstep = [4.0, 4.0, 4.0, 4.0, 0.0, 0.0, 0.0, 0.0]\\napprox, details = wavelet(step, levels=3)\\n\\nprint([len(d) for d in details])       # -> [1, 2, 4], coarsest first\\nprint(all(v == 0.0 for v in details[2]))  # -> True: level 1 sees no change\\nprint(all(v == 0.0 for v in details[1]))  # -> True: level 2 sees no change\\nprint(round(details[0][0], 6))         # -> 5.656854, the step itself\\n\\nassert [len(d) for d in details] == [1, 2, 4]\\nassert all(v == 0.0 for v in details[1] + details[2])\\nassert round(details[0][0], 6) == 5.656854\\n\\n# Haar is orthonormal, so the analysis conserves energy exactly.\\nenergy = sum(v * v for v in approx) + sum(v * v for d in details for v in d)\\nprint(round(energy, 9), sum(v * v for v in step))   # -> 64.0 64.0\\nassert round(energy, 9) == 64.0\\n\\n# Only the haar family ships; asking for another one says so plainly.\\nwavelet(step, levels=1, wavelet='db2')   # -> NotImplementedError\\n\"}",
-        NULL,
-        "WHAT -- returns an (approx, details) pair for a Haar discrete wavelet transform of a real 1-D signal. approx is the coarsest-scale approximation and details is the per-level detail list ordered coarsest first, so details[-1] is the finest level. Each level is one banded matvec through the orthonormal Haar analysis matrix, whose low band is the pairwise sum over the square root of 2 and whose high band is the pairwise difference over the same factor, with that normaliser coming from the Class-N rational square root and the factor-of-2 decimation baked into the row stride. Only the haar family ships; any other name raises NotImplementedError. WHEN -- reach for it when the interesting structure is localised: edges, steps, transients, bursts. A feature excites exactly the scales it spans and leaves the finer detail bands identically zero, which is precisely what a global basis cannot tell you. SIBLINGS -- dct and rfft are the global-basis peers that smear a step across every coefficient, so do not use them to localise an edge. spectrogram also resolves time against frequency, but on one fixed frame size rather than on a dyadic ladder of scales, so use wavelet when the features of interest live at several scales at once.",
-        ts_composes_623, 2u,
-        ts_preserves_623, 1u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 624 */
-        "srmech.signal_processing.fir",
-        "srmech",
-        "signal_processing",
-        "Finite impulse response filter \342\200\224 linear convolution of the signal with a coefficient table. FIR filters are unconditionally stable (there is no feedback path to run away) and can be made exactly linear-phase, which is why they are the default when phase distortion is unacceptable. IDENTITY: Class N (the rational coefficient table IS the impulse response) composed with Class C (the cyclic streaming that produces the output). When the native dense matmul is present the convolution runs as a Toeplitz matvec; otherwise the complete pure cascade computes the same values to round-off.",
-        ts_params_624, 4u,
-        "list",
-        "the filtered signal, cropped per mode",
-        1,
-        NULL,
-        "{\"output\":\"The 3-tap average turns the vertical step into [0.0, 1.0, 2.0, 3.0] -- a ramp exactly as many samples long as the filter has taps, ending at the full step height 3.0 because the taps sum to 1. Widening to 4 taps of 0.25 gives [0.75, 1.5, 2.25]: a longer, shallower ramp from the same edge.\",\"why\":\"The ramp is the mechanism made visible: a moving average cannot produce an edge sharper than its own support, so the step spreads over exactly as many samples as there are taps, and the arithmetic is exact in binary (1/3 times 3 is 1.0 to the last bit), so the run really does read 0, 1, 2, 3 rather than something near them.\",\"worked\":\"from srmech.signal_processing import fir\\n# the simplest FIR there is: a 3-tap moving average\\ntaps = [1.0 / 3, 1.0 / 3, 1.0 / 3]\\n# a clean step -- three samples at 0, then three at 3\\nstep = [0.0, 0.0, 0.0, 3.0, 3.0, 3.0]\\ny = fir(step, taps, mode=\\\"valid\\\")\\ny\\n# -> [0.0, 1.0, 2.0, 3.0]\\n# The vertical edge became a 3-sample ramp -- one sample per\\n# tap -- and it settles on 3.0, the true step height, because\\n# the taps sum to 1 (unity DC gain). Widen the window and the\\n# ramp widens with it, sample for sample:\\nfir(step, [0.25] * 4, mode=\\\"valid\\\")\\n# -> [0.75, 1.5, 2.25]\\n# 'valid' keeps only fully-overlapped positions, so the\\n# output shortens by one sample per extra tap:\\nlen(fir(step, taps, mode=\\\"valid\\\")), len(fir(step, taps, mode=\\\"same\\\")), len(fir(step, taps, mode=\\\"full\\\"))\\n# -> (4, 6, 8)\"}",
-        NULL,
-        "WHAT -- computes the linear convolution y[n] = sum_k b_k * x[n-k] and returns the filtered signal as a plain list, numpy-free. The tap table b is the Class-N rational half and the streaming over it is Class C. Internally the convolution is a Toeplitz matvec routed through the native dense complex matmul when libsrmech is loaded, and a complete pure-Python cascade otherwise; the two agree to a relative difference of 1e-9 rather than byte-for-byte, because the matmul accumulation may fuse a multiply-add on some platforms. mode picks the overlap policy: \"full\" (default, length n+m-1), \"same\" (length n) or \"valid\" (length n-m+1, fully-overlapped positions only). Complex input is accepted; a nested or empty input is rejected. WHEN -- reach for it whenever the filter is feed-forward only: smoothing, differencing, band-shaping, pulse shaping, or applying a correlation kernel you already hold as coefficients. A symmetric tap set gives exactly linear phase, which no recursive filter can offer, and there is no feedback path, so the filter is unconditionally stable whatever the taps are. SIBLINGS -- ``iir`` is the recursive peer: it buys an endless response from two or three coefficients, at the cost of linear phase and of stability being a property you now have to check. ``allpass`` is the unity-magnitude special case. ``multirate`` and ``polyphase`` are where an FIR belongs when the sample rate is changing too. Do not hand-roll the convolution double loop -- the hand-written version silently gives up the native Toeplitz path and the 1-D input contract that this op enforces.",
-        ts_composes_624, 1u,
-        ts_preserves_624, 1u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 625 */
-        "srmech.signal_processing.iir",
-        "srmech",
-        "signal_processing",
-        "Infinite impulse response filter \342\200\224 the recursive difference equation with feedforward taps b and feedback taps a, optionally as a cascade of biquad sections. An IIR reaches a given selectivity in far fewer coefficients than the equivalent FIR because the feedback path lets a short filter have a long memory; the price is that stability is now a property you must check, and that phase is not linear. Biquad sectioning is the standard defence against coefficient-quantisation trouble in high-order designs. IDENTITY: Class N (the rational coefficient tables) composed with Class C (the recursive streaming orientation).",
-        ts_params_625, 5u,
-        "list",
-        "the filtered signal, same length as the input",
-        1,
-        NULL,
-        "{\"output\":\"The impulse response comes back as [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125] -- exact successive halvings, produced by two coefficients rather than six taps. The step response climbs 1.0, 1.5, 1.75, 1.875 ... toward the DC gain 1/(1-0.5) = 2, halving the remaining gap each sample.\",\"why\":\"Powers of one half are recognisable at a glance and they are exact in binary, so there is nothing to squint at. The point the numbers make is the one that separates this op from ``fir``: six output samples of decay came out of two coefficients, and the tail never truly ends. The third call proves the biquad-cascade entry point is the same filter, not an approximation of it.\",\"worked\":\"from srmech.signal_processing import iir\\n# a one-pole leaky integrator:  y[n] = x[n] + 0.5*y[n-1]\\n# written as the rational b(z)/a(z) the op expects\\nb = [1.0]\\na = [1.0, -0.5]          # a[0] normalises; a[1] IS the pole\\nimpulse = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0]\\niir(impulse, b, a)\\n# -> [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125]\\n# Successive halvings, exactly: the response outlives the\\n# input forever, which is what the feedback bought. An FIR\\n# would need one tap per sample of that tail.\\niir([1.0] * 8, b, a)\\n# -> [1.0, 1.5, 1.75, 1.875, 1.9375, 1.96875, 1.984375,\\n#     1.9921875]\\n# The step response halves its remaining distance to the DC\\n# gain 1/(1 - 0.5) = 2.0 on every sample.\\n# The same filter written as a biquad section, b then a:\\niir(impulse, None, None,\\n    biquad_sections=[[1.0, 0.0, 0.0, 1.0, -0.5, 0.0]])\\n# -> [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125]\"}",
-        NULL,
-        "WHAT -- computes the recursive difference equation y[n] = sum_k b_k * x[n-k] - sum_k a_k * y[n-k] and returns the filtered signal as a plain list of floats. b over a is a Class-N rational in z; the cascade over it is Class C. a[0] normalises both coefficient vectors, and b and a are zero-padded to a common length so a short numerator cannot quietly drop feedback taps. Pass biquad_sections instead -- a list of six-element [b0, b1, b2, a0, a1, a2] rows -- to apply a cascade of second-order sections, which is how you should spell any filter of order above two; b and a are then ignored. This is the one genuinely sequential kernel in the filter family: each output reads outputs the loop is still producing, so it cannot be turned into a matmul or an FFT. It dispatches to the native lfilter when libsrmech is present and to a pure direct-form-II-transposed reference otherwise, agreeing within 1e-9 relative rather than byte-for-byte. WHEN -- reach for it when you want a long impulse response cheaply: resonators, integrators and leaky averagers, audio EQ built from the RBJ cookbook forms, DC blockers, and any sharp transition band you cannot afford in taps. SIBLINGS -- ``fir`` is the feed-forward peer and the one to prefer when linear phase matters or when stability must be structural rather than checked; ``allpass`` is the mirrored-coefficient special case, and you should call that op rather than hand-building the mirror here. Do not hand-write the recurrence: the padding rule and the a[0] normalisation are exactly where a hand-rolled lfilter goes subtly wrong.",
-        NULL, 0u,
         ts_preserves_625, 1u,
         NULL,
         NULL, 0u,
@@ -17674,19 +17701,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 626 */
-        "srmech.signal_processing.allpass",
+        "srmech.signal_processing.wavelet",
         "srmech",
         "signal_processing",
-        "Allpass filter \342\200\224 unity magnitude response at every frequency, with a frequency-dependent PHASE. It changes nothing about how much of each frequency is present and everything about when each arrives, which is exactly what you want for phase equalisation, fractional delay and reverberation structure. The magnitude-flat / phase-active split is the whole point and is easy to verify: transform before and after, and the per-bin magnitudes agree. IDENTITY: Class N \342\200\224 the coefficient IS a rational reflection coefficient, and the pole-zero mirror pair that produces unity magnitude is a rational-anchor construction.",
-        ts_params_626, 5u,
-        "list",
-        "the phase-shifted signal, magnitude untouched",
+        "Multi-level discrete wavelet transform (Haar by default) \342\200\224 recursively split the signal into a coarse APPROXIMATION and a DETAIL band, then split the approximation again. Unlike the Fourier family this localises in time as well as frequency, which is why a step edge shows up in a couple of detail coefficients here instead of smearing across every bin. IDENTITY: Class L (the filter-bank decomposition) composed with Class N (the exact rational / sqrt(2) orthonormal scaling that keeps the transform energy-preserving).",
+        ts_params_626, 4u,
+        "tuple",
+        "the coarsest approximation band followed by the detail bands, finest last",
         1,
         NULL,
-        "{\"output\":\"The impulse comes back spread across time as [0.5, 0.75, -0.375, 0.1875, -0.09375, ...] instead of a single 1.0 at sample 0 -- yet the sum of squares over the response is 1.0 to nine decimals, the same energy the impulse went in with. Every sample moved; nothing was gained or lost.\",\"why\":\"Unity magnitude response is an abstract claim until you watch it happen to one impulse. The response is visibly not the input, and its energy is nonetheless 1.0 to nine decimals -- so the filter did something, and that something cannot have been amplitude. That is the whole definition of an allpass, in two lines and no spectra.\",\"worked\":\"from srmech.signal_processing import allpass\\n# one unit impulse -- all its energy sits in sample 0\\nimpulse = [1.0] + [0.0] * 23\\nh = allpass(impulse, 0.5)        # first-order, coefficient a\\n[round(v, 6) for v in h[:5]]\\n# -> [0.5, 0.75, -0.375, 0.1875, -0.09375]\\n# The energy that arrived in ONE sample now spans many, with\\n# alternating sign -- that redistribution in time IS phase.\\n# The total is untouched -- read as a sum of squares, which\\n# is the Class-K way to ask for size:\\nround(sum(v * v for v in h), 9)\\n# -> 1.0\\n# a = 0 is the degenerate case: H(z) = 1/z, a pure one-sample\\n# delay, still unity magnitude and still all-phase.\\nallpass([1.0, 2.0, 3.0], 0.0)\\n# -> [0.0, 1.0, 2.0]\\n# Second order needs the b coefficient as well:\\nlen(allpass([1.0, 0.0, 0.0, 0.0], 0.5, b=0.25, order=2))\\n# -> 4\"}",
+        "{\"output\":\"Detail bands of length 4, 2 and 1, returned coarsest-first. The level-1 detail (four values) and the level-2 detail (two values) are identically 0.0, because at those scales the signal is locally constant. The only non-zero detail is the single level-3 coefficient, 5.656854, which is 8 divided by the square root of 2 -- the step, reported at exactly the scale it spans and nowhere else. The approximation is the same 5.656854, and the total energy comes back as 64.0, matching the input's 4 squared times 4.\",\"why\":\"Six of the seven detail coefficients being exactly 0.0 is what makes the multi-scale claim checkable by eye: the step is an 8-sample-scale feature, so it has no business showing up at the 2- or 4-sample scale, and it does not. A global basis such as the DCT would spread the same step across every coefficient. The energy check is the independent oracle -- 64.0 in and 64.0 out confirms the 1/sqrt(2) normaliser is right and the transform is genuinely orthonormal, so nothing was lost or double-counted.\",\"worked\":\"from srmech.signal_processing import wavelet\\n\\n# One step, right in the middle of 8 samples. A Haar detail band answers\\n# 'did anything change at THIS scale?', so the finer levels must be zero.\\nstep = [4.0, 4.0, 4.0, 4.0, 0.0, 0.0, 0.0, 0.0]\\napprox, details = wavelet(step, levels=3)\\n\\nprint([len(d) for d in details])       # -> [1, 2, 4], coarsest first\\nprint(all(v == 0.0 for v in details[2]))  # -> True: level 1 sees no change\\nprint(all(v == 0.0 for v in details[1]))  # -> True: level 2 sees no change\\nprint(round(details[0][0], 6))         # -> 5.656854, the step itself\\n\\nassert [len(d) for d in details] == [1, 2, 4]\\nassert all(v == 0.0 for v in details[1] + details[2])\\nassert round(details[0][0], 6) == 5.656854\\n\\n# Haar is orthonormal, so the analysis conserves energy exactly.\\nenergy = sum(v * v for v in approx) + sum(v * v for d in details for v in d)\\nprint(round(energy, 9), sum(v * v for v in step))   # -> 64.0 64.0\\nassert round(energy, 9) == 64.0\\n\\n# Only the haar family ships; asking for another one says so plainly.\\nwavelet(step, levels=1, wavelet='db2')   # -> NotImplementedError\\n\"}",
         NULL,
-        "WHAT -- returns the signal filtered by a first- or second-order allpass section: H(z) = (a + z^-1) / (1 + a z^-1) for order 1, and (a + b z^-1 + z^-2) / (1 + b z^-1 + a z^-2) for order 2, which needs the b coefficient too. The mirrored numerator and denominator ARE the Class-N rational identity that forces unity magnitude at every frequency, so the section changes phase and group delay only. The op builds the mirrored coefficient pair for you and runs the recursion through the native lfilter when libsrmech is loaded, falling back to a pure direct-form-I reference within 1e-9 relative. Output is a plain list of floats, same length as the input. WHEN -- reach for it for phase and delay shaping where the spectrum must be left alone: reverb and diffusion networks, fractional-delay and group-delay equalisation, phaser and notch topologies built from an allpass plus a direct path, and as the building block of the Regalia-Mitra-Vaidyanathan structures and of power-complementary filter banks. It is also the op to reach for when you want to test whether a downstream stage is phase-sensitive, since it perturbs phase and nothing else. SIBLINGS -- ``iir`` is the general recursive filter this is a constrained case of; call this op rather than hand-building the mirrored b and a pair yourself, because getting the mirror wrong loses the unity magnitude silently and the output still looks plausible. ``fir`` is the feed-forward peer, which can only approximate a given phase curve with many taps where one allpass section is exact.",
-        NULL, 0u,
+        "WHAT -- returns an (approx, details) pair for a Haar discrete wavelet transform of a real 1-D signal. approx is the coarsest-scale approximation and details is the per-level detail list ordered coarsest first, so details[-1] is the finest level. Each level is one banded matvec through the orthonormal Haar analysis matrix, whose low band is the pairwise sum over the square root of 2 and whose high band is the pairwise difference over the same factor, with that normaliser coming from the Class-N rational square root and the factor-of-2 decimation baked into the row stride. Only the haar family ships; any other name raises NotImplementedError. WHEN -- reach for it when the interesting structure is localised: edges, steps, transients, bursts. A feature excites exactly the scales it spans and leaves the finer detail bands identically zero, which is precisely what a global basis cannot tell you. SIBLINGS -- dct and rfft are the global-basis peers that smear a step across every coefficient, so do not use them to localise an edge. spectrogram also resolves time against frequency, but on one fixed frame size rather than on a dyadic ladder of scales, so use wavelet when the features of interest live at several scales at once.",
+        ts_composes_626, 2u,
         ts_preserves_626, 1u,
         NULL,
         NULL, 0u,
@@ -17694,18 +17721,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 627 */
-        "srmech.signal_processing.matched_filter",
+        "srmech.signal_processing.fir",
         "srmech",
         "signal_processing",
-        "Matched filter \342\200\224 correlate a signal against a known template. It is the provably optimal linear detector for a KNOWN shape in additive white noise, in the specific sense that it maximises output signal-to-noise ratio at the alignment instant; the output peaks where the template best matches. IDENTITY: Class A (content-addressing on the template) composed with Class C (the correlation lag orientation) and Class M (the bind of signal against template). SCOPE: educational signal-processing reference only \342\200\224 correlation detection, template matching in a recorded trace, and the textbook pulse-compression derivation.",
+        "Finite impulse response filter \342\200\224 linear convolution of the signal with a coefficient table. FIR filters are unconditionally stable (there is no feedback path to run away) and can be made exactly linear-phase, which is why they are the default when phase distortion is unacceptable. IDENTITY: Class N (the rational coefficient table IS the impulse response) composed with Class C (the cyclic streaming that produces the output). When the native dense matmul is present the convolution runs as a Toeplitz matvec; otherwise the complete pure cascade computes the same values to round-off.",
         ts_params_627, 4u,
         "list",
-        "the correlation output; its argmax is the best-match alignment",
+        "the filtered signal, cropped per mode",
         1,
         NULL,
-        "{\"output\":\"The correlation comes back as [1.0, -2.0, 3.0, -2.0, 1.0] and its largest entry sits at index 2 -- exactly the offset where the template was placed in the trace. The peak value 3.0 is the template's own energy (1+1+1), and the flanking -2.0 and 1.0 are the template's autocorrelation sidelobes, not noise.\",\"why\":\"Three numbers carry the whole idea. The peak lands on the true offset with no search and no threshold to tune; its height is not arbitrary but exactly the template energy, which is why it is the largest value the correlation can take; and the -2.0 beside it is the template arguing with a shifted copy of itself, which is what sidelobes are and why template design is a real subject.\",\"worked\":\"from srmech.signal_processing import matched_filter\\n# A teaching trace: a known 3-chip template sits at offset 2\\n# in a recorded sequence, everything else is silence.\\ntemplate = [1.0, -1.0, 1.0]\\ntrace = [0.0, 0.0, 1.0, -1.0, 1.0, 0.0, 0.0]\\nr = matched_filter(trace, template, mode=\\\"valid\\\")\\nr\\n# -> [1.0, -2.0, 3.0, -2.0, 1.0]\\nmax(range(len(r)), key=lambda i: r[i])\\n# -> 2      the offset the template really sits at\\n# The peak equals the template's own energy 1+1+1 = 3, so a\\n# correlation that reaches 3.0 is a perfect alignment and\\n# nothing can score higher. Slide the template one place and\\n# the peak slides with it -- the index IS the answer:\\nlater = [0.0] * 4 + template + [0.0] * 2\\ns = matched_filter(later, template, mode=\\\"valid\\\")\\nmax(range(len(s)), key=lambda i: s[i])\\n# -> 4\"}",
+        "{\"output\":\"The 3-tap average turns the vertical step into [0.0, 1.0, 2.0, 3.0] -- a ramp exactly as many samples long as the filter has taps, ending at the full step height 3.0 because the taps sum to 1. Widening to 4 taps of 0.25 gives [0.75, 1.5, 2.25]: a longer, shallower ramp from the same edge.\",\"why\":\"The ramp is the mechanism made visible: a moving average cannot produce an edge sharper than its own support, so the step spreads over exactly as many samples as there are taps, and the arithmetic is exact in binary (1/3 times 3 is 1.0 to the last bit), so the run really does read 0, 1, 2, 3 rather than something near them.\",\"worked\":\"from srmech.signal_processing import fir\\n# the simplest FIR there is: a 3-tap moving average\\ntaps = [1.0 / 3, 1.0 / 3, 1.0 / 3]\\n# a clean step -- three samples at 0, then three at 3\\nstep = [0.0, 0.0, 0.0, 3.0, 3.0, 3.0]\\ny = fir(step, taps, mode=\\\"valid\\\")\\ny\\n# -> [0.0, 1.0, 2.0, 3.0]\\n# The vertical edge became a 3-sample ramp -- one sample per\\n# tap -- and it settles on 3.0, the true step height, because\\n# the taps sum to 1 (unity DC gain). Widen the window and the\\n# ramp widens with it, sample for sample:\\nfir(step, [0.25] * 4, mode=\\\"valid\\\")\\n# -> [0.75, 1.5, 2.25]\\n# 'valid' keeps only fully-overlapped positions, so the\\n# output shortens by one sample per extra tap:\\nlen(fir(step, taps, mode=\\\"valid\\\")), len(fir(step, taps, mode=\\\"same\\\")), len(fir(step, taps, mode=\\\"full\\\"))\\n# -> (4, 6, 8)\"}",
         NULL,
-        "WHAT -- returns the cross-correlation of a signal against a template, as a plain list; the index of the largest-magnitude entry is the most likely alignment of the template within the signal. It is a Class-A content-addressing read of the template canonical form, composed with Class-C streaming over the signal and the Class-M bind that scores the overlap. Because correlation is convolution with the reversed, conjugated template, the op routes through the same Toeplitz matvec as ``fir`` -- native dense matmul when libsrmech is present, a complete pure cascade otherwise, agreeing to 1e-9 relative rather than byte-for-byte. Real or complex input; mode is \"full\" (default, length n+m-1), \"same\" or \"valid\". SCOPE -- this is an educational signal-processing reference, civilian only: correlation detection, template matching in a recorded trace, and pulse compression as a textbook illustration of why a long coded pulse can be resolved as sharply as a short one. It is not a targeting, tracking or capability-assessment surface and is not documented as one. WHEN -- reach for it when you know what you are looking for and want to know WHERE it is: locating a chirp or sync word in a recorded trace, aligning two copies of a waveform, timing a known pulse shape, or scoring a library of templates against one observation. It is the optimal linear detector for a known shape in white noise, which is why the textbook derivation ends here. SIBLINGS -- ``cross_spectral`` is the frequency-domain relative, giving cross-spectral density and coherence across windowed frames rather than one lag axis; ``wiener`` and ``lmmse`` estimate an unknown signal rather than locating a known one; ``viterbi`` and ``mlse`` take over when the question becomes which SEQUENCE of templates was sent. Do not hand-roll the lag loop -- the reversal-and-conjugation convention is exactly what a hand-written correlator gets backwards, and a mirrored answer still peaks, just in the wrong place.",
+        "WHAT -- computes the linear convolution y[n] = sum_k b_k * x[n-k] and returns the filtered signal as a plain list, numpy-free. The tap table b is the Class-N rational half and the streaming over it is Class C. Internally the convolution is a Toeplitz matvec routed through the native dense complex matmul when libsrmech is loaded, and a complete pure-Python cascade otherwise; the two agree to a relative difference of 1e-9 rather than byte-for-byte, because the matmul accumulation may fuse a multiply-add on some platforms. mode picks the overlap policy: \"full\" (default, length n+m-1), \"same\" (length n) or \"valid\" (length n-m+1, fully-overlapped positions only). Complex input is accepted; a nested or empty input is rejected. WHEN -- reach for it whenever the filter is feed-forward only: smoothing, differencing, band-shaping, pulse shaping, or applying a correlation kernel you already hold as coefficients. A symmetric tap set gives exactly linear phase, which no recursive filter can offer, and there is no feedback path, so the filter is unconditionally stable whatever the taps are. SIBLINGS -- ``iir`` is the recursive peer: it buys an endless response from two or three coefficients, at the cost of linear phase and of stability being a property you now have to check. ``allpass`` is the unity-magnitude special case. ``multirate`` and ``polyphase`` are where an FIR belongs when the sample rate is changing too. Do not hand-roll the convolution double loop -- the hand-written version silently gives up the native Toeplitz path and the 1-D input contract that this op enforces.",
         ts_composes_627, 1u,
         ts_preserves_627, 1u,
         NULL,
@@ -17714,19 +17741,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 628 */
-        "srmech.signal_processing.wiener",
+        "srmech.signal_processing.iir",
         "srmech",
         "signal_processing",
-        "Wiener filter \342\200\224 the minimum mean-square-error linear estimator, applied per frequency bin. It scales each bin by the ratio of signal power to total power, so bins where the signal dominates pass essentially untouched and bins that are mostly noise are attenuated toward zero. That per-bin shrinkage IS the whole filter, and it is why the answer depends entirely on the power spectra you supply. IDENTITY: Class L (the spectral decomposition the shrinkage acts in) composed with Class N (the rational gain per bin).",
-        ts_params_628, 4u,
+        "Infinite impulse response filter \342\200\224 the recursive difference equation with feedforward taps b and feedback taps a, optionally as a cascade of biquad sections. An IIR reaches a given selectivity in far fewer coefficients than the equivalent FIR because the feedback path lets a short filter have a long memory; the price is that stability is now a property you must check, and that phase is not linear. Biquad sectioning is the standard defence against coefficient-quantisation trouble in high-order designs. IDENTITY: Class N (the rational coefficient tables) composed with Class C (the recursive streaming orientation).",
+        ts_params_628, 5u,
         "list",
         "the filtered signal, same length as the input",
         1,
         NULL,
-        "{\"output\":\"The recovered signal is [0.75, 0.0, -0.75, 0.0, 0.75, 0.0, -0.75, 0.0]: the tone survives at exactly three-quarters amplitude -- the MMSE gain 12/(12+4) for a bin holding power 16 against a noise floor of 4 -- and the 0.25 offset is gone, the input summing to 2.0 while the output sums to 0.0.\",\"why\":\"0.75 is not a number you have to trust the op for -- you can derive it in your head from 16 and 4 and then read it off the output, so the rational gain S/(S+N) is visible as an arithmetic fact rather than a claim. The vanished offset is the same fact seen from the other side: a bin whose entire power is accounted for as noise gets a gain of essentially zero, and no threshold was ever chosen. The last call is the caution that belongs beside them: hand it a flat signal PSD and it obediently applies a flat 0.8 to everything, offset included. The estimator is exactly as good as the spectra it is given.\",\"worked\":\"from srmech.signal_processing import wiener\\n# One clean tone of period 4, sitting on a DC offset of 0.25.\\ntone = [1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0]\\nobs = [v + 0.25 for v in tone]\\n# A flat noise floor: power 4.0 in every one of the 8 bins.\\nnoise_psd = [4.0] * 8\\ny = wiener(obs, noise_psd)\\n[round(v, 6) for v in y]\\n# -> [0.75, 0.0, -0.75, 0.0, 0.75, 0.0, -0.75, 0.0]\\n# The tone bin carries power 16, so the estimated signal\\n# power is 16 - 4 = 12 and the gain is 12/(12+4) = 0.75 --\\n# the tone is kept, scaled by exactly three quarters. The DC\\n# bin carries power 4, all of which the noise model claims,\\n# so its gain collapses to ~0 and the offset disappears:\\nround(sum(obs), 6), round(sum(y), 6)\\n# -> (2.0, 0.0)\\n# Supply signal_psd yourself and you dictate the gain -- and\\n# own the consequences. A FLAT 16.0 asserts every bin is\\n# equally signal, so the gain is a uniform 16/(16+4) = 0.8\\n# and the DC offset is merely scaled, not removed:\\n[round(v, 6) for v in wiener(obs, noise_psd,\\n                             signal_psd=[16.0] * 8)][:4]\\n# -> [1.0, 0.2, -0.6, 0.2]\"}",
+        "{\"output\":\"The impulse response comes back as [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125] -- exact successive halvings, produced by two coefficients rather than six taps. The step response climbs 1.0, 1.5, 1.75, 1.875 ... toward the DC gain 1/(1-0.5) = 2, halving the remaining gap each sample.\",\"why\":\"Powers of one half are recognisable at a glance and they are exact in binary, so there is nothing to squint at. The point the numbers make is the one that separates this op from ``fir``: six output samples of decay came out of two coefficients, and the tail never truly ends. The third call proves the biquad-cascade entry point is the same filter, not an approximation of it.\",\"worked\":\"from srmech.signal_processing import iir\\n# a one-pole leaky integrator:  y[n] = x[n] + 0.5*y[n-1]\\n# written as the rational b(z)/a(z) the op expects\\nb = [1.0]\\na = [1.0, -0.5]          # a[0] normalises; a[1] IS the pole\\nimpulse = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0]\\niir(impulse, b, a)\\n# -> [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125]\\n# Successive halvings, exactly: the response outlives the\\n# input forever, which is what the feedback bought. An FIR\\n# would need one tap per sample of that tail.\\niir([1.0] * 8, b, a)\\n# -> [1.0, 1.5, 1.75, 1.875, 1.9375, 1.96875, 1.984375,\\n#     1.9921875]\\n# The step response halves its remaining distance to the DC\\n# gain 1/(1 - 0.5) = 2.0 on every sample.\\n# The same filter written as a biquad section, b then a:\\niir(impulse, None, None,\\n    biquad_sections=[[1.0, 0.0, 0.0, 1.0, -0.5, 0.0]])\\n# -> [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125]\"}",
         NULL,
-        "WHAT -- returns the block, offline, frequency-domain Wiener estimate of a clean signal given a noisy observation and a noise power spectral density of the same length, as a list of floats. It transforms the observation, forms the per-bin observed power as re*re + im*im (a substrate-native magnitude, never Python abs()), estimates the signal PSD as observed minus noise floored at a tiny epsilon unless you supply signal_psd yourself, applies the Class-N rational MMSE gain S_xx / (S_xx + S_nn) per bin, and transforms back, returning the real part. The Class-L half is the eigenbasis the transform provides; the transforms dispatch to the native FFT when libsrmech is loaded and to a pure cascade otherwise, agreeing within 1e-9 relative. WHEN -- reach for it when you have a whole block in hand rather than a stream, and when you can characterise the noise -- from a silent segment, a known sensor floor, or a separate measurement. It is the minimum-mean-square-error answer given those spectra, which is what makes it the reference point every other denoiser is compared against. Note that noise_psd is required and must match the signal length: the op will not invent a noise model for you. SIBLINGS -- ``spectral_subtraction`` does the same job with a different rule, subtracting in the magnitude domain instead of weighting in the power domain; on this entry's own example the two give 0.75 and 0.866 for the same tone and the same noise floor, which is the cleanest way to see that they are genuinely different estimators rather than spellings of one. ``lmmse`` is the covariance-domain linear estimator for when your prior is a covariance rather than a spectrum, and ``heat_kernel`` is the peer that denoises on a graph rather than a regular grid. Do not hand-roll the gain loop: the epsilon floors on both the estimated signal PSD and the denominator are what stop an empty bin turning into a division by zero.",
-        ts_composes_628, 2u,
+        "WHAT -- computes the recursive difference equation y[n] = sum_k b_k * x[n-k] - sum_k a_k * y[n-k] and returns the filtered signal as a plain list of floats. b over a is a Class-N rational in z; the cascade over it is Class C. a[0] normalises both coefficient vectors, and b and a are zero-padded to a common length so a short numerator cannot quietly drop feedback taps. Pass biquad_sections instead -- a list of six-element [b0, b1, b2, a0, a1, a2] rows -- to apply a cascade of second-order sections, which is how you should spell any filter of order above two; b and a are then ignored. This is the one genuinely sequential kernel in the filter family: each output reads outputs the loop is still producing, so it cannot be turned into a matmul or an FFT. It dispatches to the native lfilter when libsrmech is present and to a pure direct-form-II-transposed reference otherwise, agreeing within 1e-9 relative rather than byte-for-byte. WHEN -- reach for it when you want a long impulse response cheaply: resonators, integrators and leaky averagers, audio EQ built from the RBJ cookbook forms, DC blockers, and any sharp transition band you cannot afford in taps. SIBLINGS -- ``fir`` is the feed-forward peer and the one to prefer when linear phase matters or when stability must be structural rather than checked; ``allpass`` is the mirrored-coefficient special case, and you should call that op rather than hand-building the mirror here. Do not hand-write the recurrence: the padding rule and the a[0] normalisation are exactly where a hand-rolled lfilter goes subtly wrong.",
+        NULL, 0u,
         ts_preserves_628, 1u,
         NULL,
         NULL, 0u,
@@ -17734,18 +17761,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 629 */
-        "srmech.signal_processing.sign_quantise",
+        "srmech.signal_processing.allpass",
         "srmech",
         "signal_processing",
-        "Sign quantisation with an explicit DEAD BAND \342\200\224 map each sample to its orientation about a threshold, and map samples inside the dead band to zero rather than forcing them to a side. This is the canonical Class-K pin-slot op: the sign flip IS the phase boundary, and the dead band is the honest admission that near the boundary the orientation is not determined. A quantiser without a dead band has to invent an answer for the ambiguous case; this one declines to. IDENTITY: Class K, in its purest single-class form.",
-        ts_params_629, 4u,
+        "Allpass filter \342\200\224 unity magnitude response at every frequency, with a frequency-dependent PHASE. It changes nothing about how much of each frequency is present and everything about when each arrives, which is exactly what you want for phase equalisation, fractional delay and reverberation structure. The magnitude-flat / phase-active split is the whole point and is easy to verify: transform before and after, and the per-bin magnitudes agree. IDENTITY: Class N \342\200\224 the coefficient IS a rational reflection coefficient, and the pole-zero mirror pair that produces unity magnitude is a rational-anchor construction.",
+        ts_params_629, 5u,
         "list",
-        "the quantised signal \342\200\224 the orientation per sample, with zeros where the dead band swallowed the decision",
+        "the phase-shifted signal, magnitude untouched",
         1,
         NULL,
-        "{\"output\":\"With no dead-band every sample is forced onto a side: [-1, -1, 1, 1, 1, 1], so a sample of -0.2 and a sample of 1.4 carry the same confidence. Open a band of 0.25 and the answer becomes [-1, 0, 0, 0, 1, 1] -- the small values are declined rather than guessed at, while -0.9 and 1.4 keep their orientation exactly.\",\"why\":\"The same six samples read three ways show that the dead-band is a decision about evidence, not a cosmetic clean-up. Without it, -0.2 and -0.9 are indistinguishable in the output even though one is four times further from the boundary; with it, only -0.9 makes a claim. The third call rules out the natural misreading that the band lives at zero: move the threshold and the whole band moves.\",\"worked\":\"from srmech.signal_processing import sign_quantise\\nx = [-0.9, -0.2, 0.0, 0.05, 0.3, 1.4]\\n# No dead-band: every sample is forced onto a side, however\\n# little evidence it carries. Note 0.0 lands on +1, because\\n# with no band the threshold itself has to belong somewhere.\\nsign_quantise(x)\\n# -> [-1, -1, 1, 1, 1, 1]\\n# A dead-band of 0.25 around the threshold DECLINES to call\\n# anything within it -- those map to 0 -- while the samples\\n# outside keep their orientation untouched:\\nsign_quantise(x, dead_band=0.25)\\n# -> [-1, 0, 0, 0, 1, 1]\\n# -0.2 was swallowed by the band; -0.9 sailed through with\\n# its sign intact. The band is the acceptance zone, and its\\n# width is the only thing separating those two outcomes.\\n# The band travels WITH the threshold -- it is not pinned to\\n# zero. Here the boundary is 0.5, so the band is [0.25, 0.75]:\\nsign_quantise(x, threshold=0.5, dead_band=0.25)\\n# -> [-1, -1, -1, -1, 0, 1]\"}",
+        "{\"output\":\"The impulse comes back spread across time as [0.5, 0.75, -0.375, 0.1875, -0.09375, ...] instead of a single 1.0 at sample 0 -- yet the sum of squares over the response is 1.0 to nine decimals, the same energy the impulse went in with. Every sample moved; nothing was gained or lost.\",\"why\":\"Unity magnitude response is an abstract claim until you watch it happen to one impulse. The response is visibly not the input, and its energy is nonetheless 1.0 to nine decimals -- so the filter did something, and that something cannot have been amplitude. That is the whole definition of an allpass, in two lines and no spectra.\",\"worked\":\"from srmech.signal_processing import allpass\\n# one unit impulse -- all its energy sits in sample 0\\nimpulse = [1.0] + [0.0] * 23\\nh = allpass(impulse, 0.5)        # first-order, coefficient a\\n[round(v, 6) for v in h[:5]]\\n# -> [0.5, 0.75, -0.375, 0.1875, -0.09375]\\n# The energy that arrived in ONE sample now spans many, with\\n# alternating sign -- that redistribution in time IS phase.\\n# The total is untouched -- read as a sum of squares, which\\n# is the Class-K way to ask for size:\\nround(sum(v * v for v in h), 9)\\n# -> 1.0\\n# a = 0 is the degenerate case: H(z) = 1/z, a pure one-sample\\n# delay, still unity magnitude and still all-phase.\\nallpass([1.0, 2.0, 3.0], 0.0)\\n# -> [0.0, 1.0, 2.0]\\n# Second order needs the b coefficient as well:\\nlen(allpass([1.0, 0.0, 0.0, 0.0], 0.5, b=0.25, order=2))\\n# -> 4\"}",
         NULL,
-        "WHAT -- returns the sign projection of a real signal as a list of ints drawn from {-1, 0, +1}, one per input sample: +1 above threshold + dead_band, -1 below threshold - dead_band, and 0 inside the band. With the default dead_band of 0.0 the band closes and the output is two-valued, with the threshold itself mapping to +1. This IS the canonical Class-K pin-slot operation: the threshold is the phase boundary, and the projection is expressed as a comparison against that boundary rather than as an absolute value, which is why no abs() appears anywhere in the implementation. It dispatches to a byte-identical native kernel when libsrmech provides one and runs a pure loop otherwise -- this one is byte-identical, not merely within tolerance, because the output is integral. WHEN -- reach for it for one-bit quantisation and sign-based encoding, for hard thresholding in the Donoho-Johnstone sense, for extracting a chirality or which-way channel from a real-valued trace, and above all whenever a downstream stage must be allowed to say \"no call\". The dead-band is the reason to prefer it over a bare comparison: a sample sitting near the boundary carries almost no evidence, and forcing it to a side manufactures confidence the data does not support. SIBLINGS -- ``hdc_truncation`` is the Class-K peer that thresholds a bundled hypervector rather than a waveform; ``vector_quantisation`` is the many-level relative, replacing one boundary with a codebook; ``map_ml`` decides under an explicit prior where this one decides on position alone. Within the framework this op is also the discipline: sign handling belongs in a named Class-K pin-slot, so reach for ``sign_quantise`` instead of writing abs() or an inline comparison chain into a cascade, and the cascade count then matches the cascade shape being claimed.",
+        "WHAT -- returns the signal filtered by a first- or second-order allpass section: H(z) = (a + z^-1) / (1 + a z^-1) for order 1, and (a + b z^-1 + z^-2) / (1 + b z^-1 + a z^-2) for order 2, which needs the b coefficient too. The mirrored numerator and denominator ARE the Class-N rational identity that forces unity magnitude at every frequency, so the section changes phase and group delay only. The op builds the mirrored coefficient pair for you and runs the recursion through the native lfilter when libsrmech is loaded, falling back to a pure direct-form-I reference within 1e-9 relative. Output is a plain list of floats, same length as the input. WHEN -- reach for it for phase and delay shaping where the spectrum must be left alone: reverb and diffusion networks, fractional-delay and group-delay equalisation, phaser and notch topologies built from an allpass plus a direct path, and as the building block of the Regalia-Mitra-Vaidyanathan structures and of power-complementary filter banks. It is also the op to reach for when you want to test whether a downstream stage is phase-sensitive, since it perturbs phase and nothing else. SIBLINGS -- ``iir`` is the general recursive filter this is a constrained case of; call this op rather than hand-building the mirrored b and a pair yourself, because getting the mirror wrong loses the unity magnitude silently and the output still looks plausible. ``fir`` is the feed-forward peer, which can only approximate a given phase curve with many taps where one allpass section is exact.",
         NULL, 0u,
         ts_preserves_629, 1u,
         NULL,
@@ -17754,19 +17781,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 630 */
-        "srmech.signal_processing.heat_kernel",
+        "srmech.signal_processing.matched_filter",
         "srmech",
         "signal_processing",
-        "Heat-kernel diffusion on a graph \342\200\224 smooth a node-domain signal by running the heat equation on the graph for time t. In the Laplacian eigenbasis this is exactly multiplication by exp(-t*lambda), so high-frequency graph modes decay fastest and the signal relaxes toward its local average; t is the single dial from no smoothing to complete equilibration. IDENTITY: Class L \342\200\224 this is a graph spectral filter, and the eigendecomposition it is defined in is the Laplacian's own.",
+        "Matched filter \342\200\224 correlate a signal against a known template. It is the provably optimal linear detector for a KNOWN shape in additive white noise, in the specific sense that it maximises output signal-to-noise ratio at the alignment instant; the output peaks where the template best matches. IDENTITY: Class A (content-addressing on the template) composed with Class C (the correlation lag orientation) and Class M (the bind of signal against template). SCOPE: educational signal-processing reference only \342\200\224 correlation detection, template matching in a recorded trace, and the textbook pulse-compression derivation.",
         ts_params_630, 4u,
-        "list[complex]",
-        "the diffused node-domain state, same length as signal",
+        "list",
+        "the correlation output; its argmax is the best-match alignment",
         1,
         NULL,
-        "{\"output\":\"After a short diffusion the spike [0, 1, 0] becomes [0.086394, 0.827212, 0.086394] -- the middle node gave up mass to both neighbours equally, and the total is still 1.0 to nine decimals. Run the clock out to t=2 and it has nearly flattened to the mean, [0.3325, 0.335, 0.3325].\",\"why\":\"Two invariants make the number believable without checking any arithmetic. The neighbours receive exactly the same amount, which they must on a graph symmetric about the spike; and the total is conserved to nine decimals at every diffusion time, which is the eigenvalue-0 constant mode surviving exp(-t*0) = 1 while every other mode decays. Watching t=0.1 and t=2 side by side shows t is a dial between the identity and the mean.\",\"worked\":\"from srmech.math.laplacian import dense_laplacian\\nfrom srmech.signal_processing import heat_kernel\\n# A 3-node path graph:  0 -- 1 -- 2\\n# L = degree minus adjacency = [[1,-1,0],[-1,2,-1],[0,-1,1]]\\nL = dense_laplacian(3, [(0, 1), (1, 2)])\\nspike = [0.0, 1.0, 0.0]      # all the mass on the middle node\\nwarm = heat_kernel(spike, L, t=0.1)\\n[round(v.real, 6) for v in warm]\\n# -> [0.086394, 0.827212, 0.086394]\\n# The spike leaked to BOTH neighbours, equally, because the\\n# graph is symmetric about node 1 -- and nothing leaked out\\n# of the graph, because the constant vector is the zero\\n# eigenvector and exp(-t*0) = 1 leaves it untouched:\\nround(sum(v.real for v in warm), 9)\\n# -> 1.0\\n# Run the clock further and it flattens toward the mean 1/3:\\n[round(v.real, 4) for v in heat_kernel(spike, L, t=2.0)]\\n# -> [0.3325, 0.335, 0.3325]\\n# t = 0 is the identity: no time, no diffusion.\\n[round(v.real, 9) for v in heat_kernel(spike, L, t=0.0)] == spike\\n# -> True\"}",
+        "{\"output\":\"The correlation comes back as [1.0, -2.0, 3.0, -2.0, 1.0] and its largest entry sits at index 2 -- exactly the offset where the template was placed in the trace. The peak value 3.0 is the template's own energy (1+1+1), and the flanking -2.0 and 1.0 are the template's autocorrelation sidelobes, not noise.\",\"why\":\"Three numbers carry the whole idea. The peak lands on the true offset with no search and no threshold to tune; its height is not arbitrary but exactly the template energy, which is why it is the largest value the correlation can take; and the -2.0 beside it is the template arguing with a shifted copy of itself, which is what sidelobes are and why template design is a real subject.\",\"worked\":\"from srmech.signal_processing import matched_filter\\n# A teaching trace: a known 3-chip template sits at offset 2\\n# in a recorded sequence, everything else is silence.\\ntemplate = [1.0, -1.0, 1.0]\\ntrace = [0.0, 0.0, 1.0, -1.0, 1.0, 0.0, 0.0]\\nr = matched_filter(trace, template, mode=\\\"valid\\\")\\nr\\n# -> [1.0, -2.0, 3.0, -2.0, 1.0]\\nmax(range(len(r)), key=lambda i: r[i])\\n# -> 2      the offset the template really sits at\\n# The peak equals the template's own energy 1+1+1 = 3, so a\\n# correlation that reaches 3.0 is a perfect alignment and\\n# nothing can score higher. Slide the template one place and\\n# the peak slides with it -- the index IS the answer:\\nlater = [0.0] * 4 + template + [0.0] * 2\\ns = matched_filter(later, template, mode=\\\"valid\\\")\\nmax(range(len(s)), key=lambda i: s[i])\\n# -> 4\"}",
         NULL,
-        "WHAT -- computes graph heat-kernel diffusion, returning V diag(exp(-t*lambda)) V^H applied to the node-domain signal as a list of complex values, same length as the input. This is the Class-L operation in its purest form: it eigendecomposes the Hermitian Laplacian you pass in, applies the spectral filter exp(-t*lambda) through the Class-N rational exp cascade rather than libm, then projects and reconstructs. Large eigenvalues -- the rough, fast-oscillating modes -- are suppressed hardest, while the eigenvalue-0 constant mode is left exactly alone, which is why the total is conserved. t is the only knob: 0 is the identity and large t is the mean. WHEN -- reach for it when your samples live on a graph or mesh rather than on a regular time axis, and neighbouring nodes ought to agree: smoothing a field over a sensor network, denoising a signal on a point cloud, low-passing a mesh attribute, or building the diffusion scale of a spectral graph wavelet. Build the Laplacian with ``srmech.math.laplacian.dense_laplacian`` or its normalised and signed peers and pass it straight in; a square nested sequence or a Mat both work, and the length must match the signal. SIBLINGS -- ``wiener`` and ``spectral_subtraction`` are the peers that denoise on a regular grid through the Fourier basis, where this one denoises on an arbitrary graph through the Laplacian eigenbasis -- same shape of idea, different substrate. ``wavelet`` is the multi-scale relative when one diffusion time is not enough. Do not hand-build the matrix exponential from a series: this op takes the eigendecomposition route on purpose, so the filter is one closed-form evaluation per eigenvalue rather than a truncation whose error you would have to bound.",
-        ts_composes_630, 2u,
+        "WHAT -- returns the cross-correlation of a signal against a template, as a plain list; the index of the largest-magnitude entry is the most likely alignment of the template within the signal. It is a Class-A content-addressing read of the template canonical form, composed with Class-C streaming over the signal and the Class-M bind that scores the overlap. Because correlation is convolution with the reversed, conjugated template, the op routes through the same Toeplitz matvec as ``fir`` -- native dense matmul when libsrmech is present, a complete pure cascade otherwise, agreeing to 1e-9 relative rather than byte-for-byte. Real or complex input; mode is \"full\" (default, length n+m-1), \"same\" or \"valid\". SCOPE -- this is an educational signal-processing reference, civilian only: correlation detection, template matching in a recorded trace, and pulse compression as a textbook illustration of why a long coded pulse can be resolved as sharply as a short one. It is not a targeting, tracking or capability-assessment surface and is not documented as one. WHEN -- reach for it when you know what you are looking for and want to know WHERE it is: locating a chirp or sync word in a recorded trace, aligning two copies of a waveform, timing a known pulse shape, or scoring a library of templates against one observation. It is the optimal linear detector for a known shape in white noise, which is why the textbook derivation ends here. SIBLINGS -- ``cross_spectral`` is the frequency-domain relative, giving cross-spectral density and coherence across windowed frames rather than one lag axis; ``wiener`` and ``lmmse`` estimate an unknown signal rather than locating a known one; ``viterbi`` and ``mlse`` take over when the question becomes which SEQUENCE of templates was sent. Do not hand-roll the lag loop -- the reversal-and-conjugation convention is exactly what a hand-written correlator gets backwards, and a mirrored answer still peaks, just in the wrong place.",
+        ts_composes_630, 1u,
         ts_preserves_630, 1u,
         NULL,
         NULL, 0u,
@@ -17774,19 +17801,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 631 */
-        "srmech.signal_processing.spectral_subtraction",
+        "srmech.signal_processing.wiener",
         "srmech",
         "signal_processing",
-        "Spectral subtraction denoising \342\200\224 estimate the noise magnitude spectrum, subtract it bin by bin, and resynthesise using the ORIGINAL phase. The beta floor is not decoration: raw subtraction drives bins negative wherever the noise estimate overshoots, and clamping them to a floor rather than to zero is what keeps the residual from turning into isolated tonal artefacts. IDENTITY: Class L (the spectral domain the subtraction happens in) composed with Class N (the rational over-subtraction and floor coefficients).",
-        ts_params_631, 5u,
-        "list[float]",
-        "the denoised signal, same length as the input",
+        "Wiener filter \342\200\224 the minimum mean-square-error linear estimator, applied per frequency bin. It scales each bin by the ratio of signal power to total power, so bins where the signal dominates pass essentially untouched and bins that are mostly noise are attenuated toward zero. That per-bin shrinkage IS the whole filter, and it is why the answer depends entirely on the power spectra you supply. IDENTITY: Class L (the spectral decomposition the shrinkage acts in) composed with Class N (the rational gain per bin).",
+        ts_params_631, 4u,
+        "list",
+        "the filtered signal, same length as the input",
         1,
         NULL,
-        "{\"output\":\"With the floor switched off the tone comes back at 0.866025 amplitude -- sqrt(16-4)/sqrt(16), the magnitude-domain subtraction -- against wiener's 0.75 on the identical input. Handed a zero noise PSD the op returns the signal untouched, [1.0, 0.0, -1.0, 0.0, ...], which is the value oracle for the whole cascade.\",\"why\":\"Running this against the ``wiener`` entry's example is the point: identical tone, identical noise floor, and the two ops answer 0.866 and 0.75. Both are derivable by hand from 16 and 4 -- sqrt(12)/4 against 12/16 -- so the difference is visibly a choice of domain, not a numerical accident. The zero-noise pass-through then pins that the transform, the magnitude and the phase reconstruction all compose back to the identity.\",\"worked\":\"from srmech.signal_processing import spectral_subtraction\\n# The same setup wiener's example uses, on purpose: one tone\\n# of period 4, a DC offset of 0.25, flat noise power 4.0.\\ntone = [1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0]\\nobs = [v + 0.25 for v in tone]\\nnoise_psd = [4.0] * 8\\n# beta=0.0 switches the spectral floor OFF so the arithmetic\\n# is bare; the shipped default beta=0.01 keeps a little.\\ny = spectral_subtraction(obs, noise_psd, alpha=1.0, beta=0.0)\\n[round(v, 6) for v in y]\\n# -> [0.866025, 0.0, -0.866025, 0.0, 0.866025, 0.0,\\n#     -0.866025, 0.0]\\n# sqrt(16 - 4)/sqrt(16) = sqrt(12)/4 = 0.866... -- gain taken\\n# in the MAGNITUDE domain. wiener weights in the POWER domain\\n# and returns 0.75 for this same tone and same noise floor.\\n# With nothing to subtract, every bin passes through whole:\\n[round(v, 6) for v in spectral_subtraction(tone, [0.0] * 8)]\\n# -> [1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0]\\n# Over-subtract (alpha=2) and the tone is cut harder still:\\nround(spectral_subtraction(obs, noise_psd,\\n                           alpha=2.0, beta=0.0)[0], 6)\\n# -> 0.707107\"}",
+        "{\"output\":\"The recovered signal is [0.75, 0.0, -0.75, 0.0, 0.75, 0.0, -0.75, 0.0]: the tone survives at exactly three-quarters amplitude -- the MMSE gain 12/(12+4) for a bin holding power 16 against a noise floor of 4 -- and the 0.25 offset is gone, the input summing to 2.0 while the output sums to 0.0.\",\"why\":\"0.75 is not a number you have to trust the op for -- you can derive it in your head from 16 and 4 and then read it off the output, so the rational gain S/(S+N) is visible as an arithmetic fact rather than a claim. The vanished offset is the same fact seen from the other side: a bin whose entire power is accounted for as noise gets a gain of essentially zero, and no threshold was ever chosen. The last call is the caution that belongs beside them: hand it a flat signal PSD and it obediently applies a flat 0.8 to everything, offset included. The estimator is exactly as good as the spectra it is given.\",\"worked\":\"from srmech.signal_processing import wiener\\n# One clean tone of period 4, sitting on a DC offset of 0.25.\\ntone = [1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0]\\nobs = [v + 0.25 for v in tone]\\n# A flat noise floor: power 4.0 in every one of the 8 bins.\\nnoise_psd = [4.0] * 8\\ny = wiener(obs, noise_psd)\\n[round(v, 6) for v in y]\\n# -> [0.75, 0.0, -0.75, 0.0, 0.75, 0.0, -0.75, 0.0]\\n# The tone bin carries power 16, so the estimated signal\\n# power is 16 - 4 = 12 and the gain is 12/(12+4) = 0.75 --\\n# the tone is kept, scaled by exactly three quarters. The DC\\n# bin carries power 4, all of which the noise model claims,\\n# so its gain collapses to ~0 and the offset disappears:\\nround(sum(obs), 6), round(sum(y), 6)\\n# -> (2.0, 0.0)\\n# Supply signal_psd yourself and you dictate the gain -- and\\n# own the consequences. A FLAT 16.0 asserts every bin is\\n# equally signal, so the gain is a uniform 16/(16+4) = 0.8\\n# and the DC offset is merely scaled, not removed:\\n[round(v, 6) for v in wiener(obs, noise_psd,\\n                             signal_psd=[16.0] * 8)][:4]\\n# -> [1.0, 0.2, -0.6, 0.2]\"}",
         NULL,
-        "WHAT -- returns a denoised real signal by subtracting the noise PSD from the observed spectrum bin by bin and rebuilding the waveform with the ORIGINAL phase preserved. Per bin it forms the observed power as re*re + im*im -- a genuine Class-K pin-slot magnitude, never Python abs() on a complex bin -- takes the Class-N floor max(power - alpha*noise, beta*noise), recovers the new magnitude by rational sqrt and re-attaches the original phase through rational atan2, cos and sin, then transforms back and returns the real part. alpha is the over-subtraction factor (1.0 = strict subtraction) and beta is the spectral floor as a fraction of the noise PSD; beta defaults to 0.01 rather than 0 precisely because bins driven to exactly zero produce the warbling artefact known as musical noise. WHEN -- reach for it as the cheap, robust first pass at additive broadband noise when you have a noise-only segment to estimate the PSD from: speech enhancement, hiss and hum removal, cleaning a measurement trace before a downstream fit. It costs two transforms and no model fitting, which is why it is still the baseline decades on. SIBLINGS -- ``wiener`` is the sibling to compare against directly, and this entry's worked example deliberately reuses wiener's input so you can see 0.866 against 0.75: subtraction in the magnitude domain versus a rational weight in the power domain. Prefer wiener when you trust your PSDs and want the minimum-mean-square answer; prefer this when you want a knob (alpha) to trade residual noise against distortion by ear. ``lmmse`` is the covariance-domain estimator and ``heat_kernel`` is the graph-substrate peer. Do not hand-roll the phase step: reusing the observed phase is what makes the reconstruction sound right, and rebuilding a magnitude with a discarded or randomised phase is the classic way to produce a spectrally correct signal that is audibly wrong.",
-        ts_composes_631, 6u,
+        "WHAT -- returns the block, offline, frequency-domain Wiener estimate of a clean signal given a noisy observation and a noise power spectral density of the same length, as a list of floats. It transforms the observation, forms the per-bin observed power as re*re + im*im (a substrate-native magnitude, never Python abs()), estimates the signal PSD as observed minus noise floored at a tiny epsilon unless you supply signal_psd yourself, applies the Class-N rational MMSE gain S_xx / (S_xx + S_nn) per bin, and transforms back, returning the real part. The Class-L half is the eigenbasis the transform provides; the transforms dispatch to the native FFT when libsrmech is loaded and to a pure cascade otherwise, agreeing within 1e-9 relative. WHEN -- reach for it when you have a whole block in hand rather than a stream, and when you can characterise the noise -- from a silent segment, a known sensor floor, or a separate measurement. It is the minimum-mean-square-error answer given those spectra, which is what makes it the reference point every other denoiser is compared against. Note that noise_psd is required and must match the signal length: the op will not invent a noise model for you. SIBLINGS -- ``spectral_subtraction`` does the same job with a different rule, subtracting in the magnitude domain instead of weighting in the power domain; on this entry's own example the two give 0.75 and 0.866 for the same tone and the same noise floor, which is the cleanest way to see that they are genuinely different estimators rather than spellings of one. ``lmmse`` is the covariance-domain linear estimator for when your prior is a covariance rather than a spectrum, and ``heat_kernel`` is the peer that denoises on a graph rather than a regular grid. Do not hand-roll the gain loop: the epsilon floors on both the estimated signal PSD and the denominator are what stop an empty bin turning into a division by zero.",
+        ts_composes_631, 2u,
         ts_preserves_631, 1u,
         NULL,
         NULL, 0u,
@@ -17794,11 +17821,71 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 632 */
+        "srmech.signal_processing.sign_quantise",
+        "srmech",
+        "signal_processing",
+        "Sign quantisation with an explicit DEAD BAND \342\200\224 map each sample to its orientation about a threshold, and map samples inside the dead band to zero rather than forcing them to a side. This is the canonical Class-K pin-slot op: the sign flip IS the phase boundary, and the dead band is the honest admission that near the boundary the orientation is not determined. A quantiser without a dead band has to invent an answer for the ambiguous case; this one declines to. IDENTITY: Class K, in its purest single-class form.",
+        ts_params_632, 4u,
+        "list",
+        "the quantised signal \342\200\224 the orientation per sample, with zeros where the dead band swallowed the decision",
+        1,
+        NULL,
+        "{\"output\":\"With no dead-band every sample is forced onto a side: [-1, -1, 1, 1, 1, 1], so a sample of -0.2 and a sample of 1.4 carry the same confidence. Open a band of 0.25 and the answer becomes [-1, 0, 0, 0, 1, 1] -- the small values are declined rather than guessed at, while -0.9 and 1.4 keep their orientation exactly.\",\"why\":\"The same six samples read three ways show that the dead-band is a decision about evidence, not a cosmetic clean-up. Without it, -0.2 and -0.9 are indistinguishable in the output even though one is four times further from the boundary; with it, only -0.9 makes a claim. The third call rules out the natural misreading that the band lives at zero: move the threshold and the whole band moves.\",\"worked\":\"from srmech.signal_processing import sign_quantise\\nx = [-0.9, -0.2, 0.0, 0.05, 0.3, 1.4]\\n# No dead-band: every sample is forced onto a side, however\\n# little evidence it carries. Note 0.0 lands on +1, because\\n# with no band the threshold itself has to belong somewhere.\\nsign_quantise(x)\\n# -> [-1, -1, 1, 1, 1, 1]\\n# A dead-band of 0.25 around the threshold DECLINES to call\\n# anything within it -- those map to 0 -- while the samples\\n# outside keep their orientation untouched:\\nsign_quantise(x, dead_band=0.25)\\n# -> [-1, 0, 0, 0, 1, 1]\\n# -0.2 was swallowed by the band; -0.9 sailed through with\\n# its sign intact. The band is the acceptance zone, and its\\n# width is the only thing separating those two outcomes.\\n# The band travels WITH the threshold -- it is not pinned to\\n# zero. Here the boundary is 0.5, so the band is [0.25, 0.75]:\\nsign_quantise(x, threshold=0.5, dead_band=0.25)\\n# -> [-1, -1, -1, -1, 0, 1]\"}",
+        NULL,
+        "WHAT -- returns the sign projection of a real signal as a list of ints drawn from {-1, 0, +1}, one per input sample: +1 above threshold + dead_band, -1 below threshold - dead_band, and 0 inside the band. With the default dead_band of 0.0 the band closes and the output is two-valued, with the threshold itself mapping to +1. This IS the canonical Class-K pin-slot operation: the threshold is the phase boundary, and the projection is expressed as a comparison against that boundary rather than as an absolute value, which is why no abs() appears anywhere in the implementation. It dispatches to a byte-identical native kernel when libsrmech provides one and runs a pure loop otherwise -- this one is byte-identical, not merely within tolerance, because the output is integral. WHEN -- reach for it for one-bit quantisation and sign-based encoding, for hard thresholding in the Donoho-Johnstone sense, for extracting a chirality or which-way channel from a real-valued trace, and above all whenever a downstream stage must be allowed to say \"no call\". The dead-band is the reason to prefer it over a bare comparison: a sample sitting near the boundary carries almost no evidence, and forcing it to a side manufactures confidence the data does not support. SIBLINGS -- ``hdc_truncation`` is the Class-K peer that thresholds a bundled hypervector rather than a waveform; ``vector_quantisation`` is the many-level relative, replacing one boundary with a codebook; ``map_ml`` decides under an explicit prior where this one decides on position alone. Within the framework this op is also the discipline: sign handling belongs in a named Class-K pin-slot, so reach for ``sign_quantise`` instead of writing abs() or an inline comparison chain into a cascade, and the cascade count then matches the cascade shape being claimed.",
+        NULL, 0u,
+        ts_preserves_632, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 633 */
+        "srmech.signal_processing.heat_kernel",
+        "srmech",
+        "signal_processing",
+        "Heat-kernel diffusion on a graph \342\200\224 smooth a node-domain signal by running the heat equation on the graph for time t. In the Laplacian eigenbasis this is exactly multiplication by exp(-t*lambda), so high-frequency graph modes decay fastest and the signal relaxes toward its local average; t is the single dial from no smoothing to complete equilibration. IDENTITY: Class L \342\200\224 this is a graph spectral filter, and the eigendecomposition it is defined in is the Laplacian's own.",
+        ts_params_633, 4u,
+        "list[complex]",
+        "the diffused node-domain state, same length as signal",
+        1,
+        NULL,
+        "{\"output\":\"After a short diffusion the spike [0, 1, 0] becomes [0.086394, 0.827212, 0.086394] -- the middle node gave up mass to both neighbours equally, and the total is still 1.0 to nine decimals. Run the clock out to t=2 and it has nearly flattened to the mean, [0.3325, 0.335, 0.3325].\",\"why\":\"Two invariants make the number believable without checking any arithmetic. The neighbours receive exactly the same amount, which they must on a graph symmetric about the spike; and the total is conserved to nine decimals at every diffusion time, which is the eigenvalue-0 constant mode surviving exp(-t*0) = 1 while every other mode decays. Watching t=0.1 and t=2 side by side shows t is a dial between the identity and the mean.\",\"worked\":\"from srmech.math.laplacian import dense_laplacian\\nfrom srmech.signal_processing import heat_kernel\\n# A 3-node path graph:  0 -- 1 -- 2\\n# L = degree minus adjacency = [[1,-1,0],[-1,2,-1],[0,-1,1]]\\nL = dense_laplacian(3, [(0, 1), (1, 2)])\\nspike = [0.0, 1.0, 0.0]      # all the mass on the middle node\\nwarm = heat_kernel(spike, L, t=0.1)\\n[round(v.real, 6) for v in warm]\\n# -> [0.086394, 0.827212, 0.086394]\\n# The spike leaked to BOTH neighbours, equally, because the\\n# graph is symmetric about node 1 -- and nothing leaked out\\n# of the graph, because the constant vector is the zero\\n# eigenvector and exp(-t*0) = 1 leaves it untouched:\\nround(sum(v.real for v in warm), 9)\\n# -> 1.0\\n# Run the clock further and it flattens toward the mean 1/3:\\n[round(v.real, 4) for v in heat_kernel(spike, L, t=2.0)]\\n# -> [0.3325, 0.335, 0.3325]\\n# t = 0 is the identity: no time, no diffusion.\\n[round(v.real, 9) for v in heat_kernel(spike, L, t=0.0)] == spike\\n# -> True\"}",
+        NULL,
+        "WHAT -- computes graph heat-kernel diffusion, returning V diag(exp(-t*lambda)) V^H applied to the node-domain signal as a list of complex values, same length as the input. This is the Class-L operation in its purest form: it eigendecomposes the Hermitian Laplacian you pass in, applies the spectral filter exp(-t*lambda) through the Class-N rational exp cascade rather than libm, then projects and reconstructs. Large eigenvalues -- the rough, fast-oscillating modes -- are suppressed hardest, while the eigenvalue-0 constant mode is left exactly alone, which is why the total is conserved. t is the only knob: 0 is the identity and large t is the mean. WHEN -- reach for it when your samples live on a graph or mesh rather than on a regular time axis, and neighbouring nodes ought to agree: smoothing a field over a sensor network, denoising a signal on a point cloud, low-passing a mesh attribute, or building the diffusion scale of a spectral graph wavelet. Build the Laplacian with ``srmech.math.laplacian.dense_laplacian`` or its normalised and signed peers and pass it straight in; a square nested sequence or a Mat both work, and the length must match the signal. SIBLINGS -- ``wiener`` and ``spectral_subtraction`` are the peers that denoise on a regular grid through the Fourier basis, where this one denoises on an arbitrary graph through the Laplacian eigenbasis -- same shape of idea, different substrate. ``wavelet`` is the multi-scale relative when one diffusion time is not enough. Do not hand-build the matrix exponential from a series: this op takes the eigendecomposition route on purpose, so the filter is one closed-form evaluation per eigenvalue rather than a truncation whose error you would have to bound.",
+        ts_composes_633, 2u,
+        ts_preserves_633, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 634 */
+        "srmech.signal_processing.spectral_subtraction",
+        "srmech",
+        "signal_processing",
+        "Spectral subtraction denoising \342\200\224 estimate the noise magnitude spectrum, subtract it bin by bin, and resynthesise using the ORIGINAL phase. The beta floor is not decoration: raw subtraction drives bins negative wherever the noise estimate overshoots, and clamping them to a floor rather than to zero is what keeps the residual from turning into isolated tonal artefacts. IDENTITY: Class L (the spectral domain the subtraction happens in) composed with Class N (the rational over-subtraction and floor coefficients).",
+        ts_params_634, 5u,
+        "list[float]",
+        "the denoised signal, same length as the input",
+        1,
+        NULL,
+        "{\"output\":\"With the floor switched off the tone comes back at 0.866025 amplitude -- sqrt(16-4)/sqrt(16), the magnitude-domain subtraction -- against wiener's 0.75 on the identical input. Handed a zero noise PSD the op returns the signal untouched, [1.0, 0.0, -1.0, 0.0, ...], which is the value oracle for the whole cascade.\",\"why\":\"Running this against the ``wiener`` entry's example is the point: identical tone, identical noise floor, and the two ops answer 0.866 and 0.75. Both are derivable by hand from 16 and 4 -- sqrt(12)/4 against 12/16 -- so the difference is visibly a choice of domain, not a numerical accident. The zero-noise pass-through then pins that the transform, the magnitude and the phase reconstruction all compose back to the identity.\",\"worked\":\"from srmech.signal_processing import spectral_subtraction\\n# The same setup wiener's example uses, on purpose: one tone\\n# of period 4, a DC offset of 0.25, flat noise power 4.0.\\ntone = [1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0]\\nobs = [v + 0.25 for v in tone]\\nnoise_psd = [4.0] * 8\\n# beta=0.0 switches the spectral floor OFF so the arithmetic\\n# is bare; the shipped default beta=0.01 keeps a little.\\ny = spectral_subtraction(obs, noise_psd, alpha=1.0, beta=0.0)\\n[round(v, 6) for v in y]\\n# -> [0.866025, 0.0, -0.866025, 0.0, 0.866025, 0.0,\\n#     -0.866025, 0.0]\\n# sqrt(16 - 4)/sqrt(16) = sqrt(12)/4 = 0.866... -- gain taken\\n# in the MAGNITUDE domain. wiener weights in the POWER domain\\n# and returns 0.75 for this same tone and same noise floor.\\n# With nothing to subtract, every bin passes through whole:\\n[round(v, 6) for v in spectral_subtraction(tone, [0.0] * 8)]\\n# -> [1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0]\\n# Over-subtract (alpha=2) and the tone is cut harder still:\\nround(spectral_subtraction(obs, noise_psd,\\n                           alpha=2.0, beta=0.0)[0], 6)\\n# -> 0.707107\"}",
+        NULL,
+        "WHAT -- returns a denoised real signal by subtracting the noise PSD from the observed spectrum bin by bin and rebuilding the waveform with the ORIGINAL phase preserved. Per bin it forms the observed power as re*re + im*im -- a genuine Class-K pin-slot magnitude, never Python abs() on a complex bin -- takes the Class-N floor max(power - alpha*noise, beta*noise), recovers the new magnitude by rational sqrt and re-attaches the original phase through rational atan2, cos and sin, then transforms back and returns the real part. alpha is the over-subtraction factor (1.0 = strict subtraction) and beta is the spectral floor as a fraction of the noise PSD; beta defaults to 0.01 rather than 0 precisely because bins driven to exactly zero produce the warbling artefact known as musical noise. WHEN -- reach for it as the cheap, robust first pass at additive broadband noise when you have a noise-only segment to estimate the PSD from: speech enhancement, hiss and hum removal, cleaning a measurement trace before a downstream fit. It costs two transforms and no model fitting, which is why it is still the baseline decades on. SIBLINGS -- ``wiener`` is the sibling to compare against directly, and this entry's worked example deliberately reuses wiener's input so you can see 0.866 against 0.75: subtraction in the magnitude domain versus a rational weight in the power domain. Prefer wiener when you trust your PSDs and want the minimum-mean-square answer; prefer this when you want a knob (alpha) to trade residual noise against distortion by ear. ``lmmse`` is the covariance-domain estimator and ``heat_kernel`` is the graph-substrate peer. Do not hand-roll the phase step: reusing the observed phase is what makes the reconstruction sound right, and rebuilding a magnitude with a discarded or randomised phase is the classic way to produce a spectrally correct signal that is audibly wrong.",
+        ts_composes_634, 6u,
+        ts_preserves_634, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 635 */
         "srmech.signal_processing.huffman",
         "srmech",
         "signal_processing",
         "Huffman coding \342\200\224 the optimal PREFIX code for a known symbol distribution. Frequent symbols get short codewords, rare ones long, and no codeword is a prefix of another so the stream decodes unambiguously without separators. It is optimal among codes that assign a whole number of bits per symbol, which is also its limit: arithmetic_coding beats it precisely by dropping that integer-bits constraint. Lossless. IDENTITY: Class E (the catalog of symbol-to-codeword assignments) composed with Class B (the type-length-value framing of the packed bitstream).",
-        ts_params_632, 5u,
+        ts_params_635, 5u,
         "tuple",
         "when encoding, the packed bitstream together with the code table and bit length needed to decode it; when decoding, the recovered payload",
         1,
@@ -17807,18 +17894,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT -- builds a canonical Huffman prefix-code table from the byte frequencies of the input and returns (bit_string, codes), where bit_string is a string of '0'/'1' characters and codes maps each byte value to its codeword. With decode=True and that same codes table it returns the original bytes, bit-exactly: this op is LOSSLESS. Class E (sorted-key catalog lookup, symbol to code) composed with Class B (TLV byte-canonical framing of the coded stream). WHEN -- reach for it when a byte stream has a skewed symbol distribution and you want the shortest whole-bit code per symbol. It is precisely the entropy stage that the jpeg op deliberately leaves out, so pair the two when you want a full image codec. SIBLINGS -- arithmetic_coding attacks the same redundancy with an exact rational interval instead of whole-bit codewords, and wins where a symbol's ideal length is fractional; rle and lz77 remove structural redundancy (runs, repeated substrings) and normally run BEFORE this op, not instead of it. Do not hand-roll the tree build: the shipped one reproduces its native C twin's heap ordering byte-identically, so a re-implemented table will not decode streams the C path produced.",
         NULL, 0u,
-        ts_preserves_632, 2u,
+        ts_preserves_635, 2u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 633 */
+    { /* 636 */
         "srmech.signal_processing.arithmetic_coding",
         "srmech",
         "signal_processing",
         "Arithmetic coding \342\200\224 encode an entire message as a single number inside a subinterval of [0, 1), narrowed one symbol at a time in proportion to each symbol's probability. Because the interval narrows by a fraction rather than by whole bits, it reaches the entropy bound that Huffman's integer-bits-per-symbol constraint holds it away from \342\200\224 the difference matters most for skewed alphabets where a symbol deserves less than one bit. Lossless. IDENTITY: Class N \342\200\224 the cumulative-frequency interval arithmetic IS rational-anchor work, and the encoder is exact integer arithmetic scaled to avoid any floating interval.",
-        ts_params_633, 5u,
+        ts_params_636, 5u,
         "tuple",
         "when encoding, the code value with the frequency table and length needed to decode it; when decoding, the recovered payload",
         1,
@@ -17827,18 +17914,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT -- returns (lo, hi, freq): the exact rational interval [lo, hi) that the message narrows the unit interval down to, carried as srmech.math.q.Q values with no floating point anywhere. The interval width equals the product of the coded symbols' probabilities. With decode=True plus the same freq table and the symbol count it returns the original bytes: this op is LOSSLESS. Pure Class N -- rational interval narrowing is the entire operation. WHEN -- use it when the alphabet is skewed enough that whole-bit codewords waste a meaningful fraction of a bit per symbol, or when you want the code to be an exact rational you can carry through further Class-N algebra rather than an opaque bit string. SIBLINGS -- huffman is the whole-bit peer and the one to prefer when a self-delimiting stream matters, because an arithmetic code carries no end marker, which is why decode also demands length. Do not re-derive the cumulative frequency table by hand: the encoder and decoder must agree on the sorted-symbol ordering the op builds internally, and a hand-built table that orders symbols differently decodes to garbage.",
         NULL, 0u,
-        ts_preserves_633, 2u,
+        ts_preserves_636, 2u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 634 */
+    { /* 637 */
         "srmech.signal_processing.lz77",
         "srmech",
         "signal_processing",
         "LZ77 sliding-window compression \342\200\224 replace a repeated run with a back-reference (distance, length) into the window of already-emitted output. It needs no probability model at all: the redundancy it exploits is literal repetition, which is why it is the substrate under DEFLATE, gzip and PNG rather than a competitor to the entropy coders that usually run after it. Lossless. IDENTITY: Class A (content-addressing the window) composed with Class G (the byte-level longest-match search) and Class B (the framing of literals and back-references into one stream).",
-        ts_params_634, 5u,
+        ts_params_637, 5u,
         "list",
         "when encoding, the literal / back-reference token stream; when decoding, the recovered payload",
         1,
@@ -17847,18 +17934,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT -- returns a list of (offset, length, next_literal) tokens: offset and length name a back-reference into the already-emitted output, and next_literal is the byte that broke the match (None when the match ran to the end of the input). With decode=True it replays a token list back into bytes, exactly: this op is LOSSLESS. Class A (content addressing on pattern handles) composed with Class G (byte-pattern search in the sliding window) composed with Class B (TLV framing of the tokens). window_size and lookahead_size bound the search radius and the maximum match length. WHEN -- reach for it when the redundancy is repeated SUBSTRINGS rather than repeated single bytes or a skewed symbol histogram. SIBLINGS -- rle is the degenerate case, catching only runs of one byte, and is far cheaper when that is all the data has; huffman or arithmetic_coding are the entropy stage that normally runs after this one, on the token stream. Do not hand-roll the longest-match tie-break: the shipped scan matches its native C twin exactly (first window start, largest offset), and a re-implemented matcher can emit a different but equally valid token list that no longer compares byte-identical.",
         NULL, 0u,
-        ts_preserves_634, 2u,
+        ts_preserves_637, 2u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 635 */
+    { /* 638 */
         "srmech.signal_processing.rle",
         "srmech",
         "signal_processing",
         "Run-length encoding \342\200\224 collapse each maximal run of a repeated byte to a (count, value) pair. It is the simplest compressor that works and the easiest to reason about: it wins dramatically on run-heavy data such as masks, and it LOSES on data with no runs, where every singleton costs a count byte it did not previously need. Lossless. IDENTITY: Class B (the type-length-value framing of each run) composed with Class G (the byte-level run scan).",
-        ts_params_635, 4u,
+        ts_params_638, 4u,
         "list",
         "when encoding, the (count, value) run stream; when decoding, the recovered payload",
         1,
@@ -17867,18 +17954,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT -- computes the run-length encoding of a byte stream and returns a list of (symbol, count) tuples, one per maximal run, with any run longer than max_run split across consecutive records. With decode=True it replays such a list back into bytes, exactly: this op is LOSSLESS. Class B (TLV byte-canonical (symbol, count) records) composed with Class G (byte-pattern run detection). WHEN -- use it when the data genuinely contains long runs of one repeated byte -- bilevel scans, mask planes, sparse buffers, quantised coefficient blocks that are mostly zero. On run-free data it EXPANDS the stream to two records per byte, so measure before reaching for it. SIBLINGS -- lz77 generalises this to repeated substrings and subsumes it at higher cost; huffman and arithmetic_coding target a skewed symbol histogram instead and are the usual next stage over the emitted counts. Do not hand-write the run scan: the shipped one splits at max_run on exactly the same boundaries as its native C twin, and a re-implemented loop that lets counts overflow silently produces a different record stream.",
         NULL, 0u,
-        ts_preserves_635, 2u,
+        ts_preserves_638, 2u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 636 */
+    { /* 639 */
         "srmech.signal_processing.jpeg",
         "srmech",
         "signal_processing",
         "Baseline JPEG block transform coding \342\200\224 tile the image into blocks, DCT each, divide by a quantisation table and round. The quantisation step is where the loss lives and is the ONLY place it lives: the DCT itself is invertible, so the quality dial is entirely a statement about how coarsely the high-frequency coefficients are rounded. LOSSY \342\200\224 a round trip returns a near neighbour of the input, not the input. IDENTITY: Class L (the per-block DCT) composed with Class K (the quantisation threshold) and Class B (block framing). RELATION: composes dct rather than re-deriving the transform.",
-        ts_params_636, 6u,
+        ts_params_639, 6u,
         "tuple | list",
         "when encoding, the quantised coefficient blocks (a tuple); when decoding, the reconstructed image (a list). Declared bare `list` through rc430, which was wrong for the ENCODE path \342\200\224 and encode is the default (`decode=False`). Measured on both branches at the rc430 repair (`#T1127`).",
         1,
@@ -17886,67 +17973,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"One 8x8 block holding a smooth ramp encodes at quality=50 to a quantised block with just 6 non-zero coefficients out of 64 -- the DC term 504 plus five low-frequency neighbours; every remaining entry quantises to 0. That is the entire JPEG argument in one number: a smooth block has almost no high-frequency energy to keep. Decoding dequantises and runs the inverse DCT, and the worst pixel in the reconstruction is off by a squared deviation under 0.1, i.e. less than a third of one intensity level -- close, but NOT equal. The op is LOSSY and the assertion states that explicitly.\",\"why\":\"6 surviving coefficients out of 64 is a number you can sanity-check against the input: a linear ramp is band-limited, so the Wallace table's coarse high-frequency divisors round almost everything to zero. Measuring the worst squared pixel deviation -- rather than asserting a round trip -- is the honest test for a lossy codec, and back != img records that the loss is real.\",\"worked\":\"from srmech.signal_processing import jpeg\\n\\n# one 8x8 block, a smooth ramp: nearly all energy sits at low frequency\\nimg = [[float(8 * r + c) for c in range(8)] for r in range(8)]\\nblocks, shape, qt = jpeg(img, quality=50)\\nshape                            # -> (8, 8)\\nblock = blocks[0]\\nblock[0][0]                      # -> 504    the DC coefficient\\nkept = sum(1 for row in block for v in row if v != 0)\\nkept                             # -> 6      of 64 -- the rest are zero\\nassert block[0][0] == 504 and kept == 6\\n\\n# LOSSY: decode dequantises and inverts the DCT, but the zeroed\\n# coefficients are gone for good. Compare by SQUARED deviation --\\n# sign is a Class K pin-slot here, not an ALU magnitude call.\\nback = jpeg((blocks, shape, qt), decode=True)\\nworst = 0.0\\nfor r in range(8):\\n    for c in range(8):\\n        dev = back[r][c] - img[r][c]\\n        if dev * dev > worst:\\n            worst = dev * dev\\nassert worst < 0.1 and back != img\\nprint(kept, worst)\\n\"}",
         NULL,
         "WHAT -- computes the JPEG core algebra on a 2-D real image and returns (quantised_blocks, shape, quant_table): a block-wise DCT-II projection, then a Class-K round-half-even quantisation against the Wallace-scaled luminance table. With decode=True it takes that same triple back and returns a reconstructed 2-D image. This op is LOSSY -- quantisation discards coefficient magnitude, so the reconstruction is close but never byte-equal, and only the shape truncated to whole blocks survives. Class L (DCT eigenbasis projection) composed with Class K (threshold quantise) composed with Class B (TLV framing). No entropy coding is included. WHEN -- reach for it when the data is a smooth 2-D field and you can trade exactness for a sparse coefficient block; quality and quant_table set that trade. SIBLINGS -- it is built directly on srmech.signal_processing.dct, so use that instead when you want the transform without quantisation; huffman is the entropy stage this op deliberately omits, and belongs after it. Do not re-derive the DCT basis -- the shipped one is the byte-exact Class-N rational cosine cascade the native peer also consumes.",
-        ts_composes_636, 1u,
-        ts_preserves_636, 1u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 637 */
-        "srmech.signal_processing.hdc_truncation",
-        "srmech",
-        "signal_processing",
-        "Hyperdimensional bundle with popcount truncation \342\200\224 bundle a set of binary hypervectors into one, then optionally truncate to a target popcount. The bundle is the HDC superposition that keeps the composite similar to each of its members; the truncation is a deliberate sparsification that trades some of that similarity for a fixed weight. LOSSY by construction \342\200\224 a bundle does not retain its members separably. IDENTITY: Class M (the HDC bind / bundle) composed with Class K (the popcount threshold, a genuine pin-slot at the density cut).",
-        ts_params_637, 3u,
-        "bytes",
-        "the bundled (and optionally truncated) hypervector",
-        1,
-        NULL,
-        "{\"output\":\"Three 16-bit BSC vectors share a low nibble in each byte and each carries its own private high nibble. The Class-M majority bundle keeps exactly the shared bits and out-votes every private one: the result is [15, 15], popcount 8. Truncating to a popcount budget of 4 yields [15, 0] -- the first byte's four bits are kept and the second byte's four are dropped, because the Class-K sparse-truncate walks bytes in order, LSB-first inside each byte, and stops once the budget is spent. The op is LOSSY in both halves: majority discards the minority bits, truncation discards whatever the budget cannot hold, and there is no decode= flag to undo either.\",\"why\":\"The nibble layout makes the majority vote checkable without counting bits: every low-nibble bit is set in all three inputs and every high-nibble bit in exactly one, so [15, 15] is the only possible bundle. The truncation result then pins down the scan ORDER, which is the part the docstring's phrase 'by ordinal position' leaves implicit -- the budget is spent on the first byte before the second is looked at.\",\"worked\":\"from srmech.signal_processing import hdc_truncation\\n\\n# three vectors sharing a low nibble; each has a private high nibble\\nv1 = bytes([0x0F, 0x0F])\\nv2 = bytes([0x0F, 0xFF])\\nv3 = bytes([0xFF, 0x0F])\\n\\n# Class M majority: the shared bits survive, the private ones lose 1-2\\nbundled = hdc_truncation([v1, v2, v3])\\nlist(bundled)                    # -> [15, 15]\\nassert bundled == bytes([0x0F, 0x0F])\\n\\ndef popcount(vec):\\n    return sum(1 for byte in vec for i in range(8) if (byte >> i) & 1)\\n\\npopcount(bundled)                # -> 8\\n\\n# Class K sparse-truncate to a budget of 4 set bits, in byte order\\nthin = hdc_truncation([v1, v2, v3], truncate_popcount=4)\\nassert list(thin) == [0x0F, 0x00] and popcount(thin) == 4\\n\\n# LOSSY both ways -- no decode= exists, and v1/v2/v3 are unrecoverable\\nassert thin != bundled\\nprint(list(bundled), list(thin), popcount(thin))\\n\"}",
-        NULL,
-        "WHAT -- computes the Class-M HDC majority bundle of a sequence of equal-length BSC byte vectors and returns it, optionally after a Class-K sparse truncation that keeps only the first truncate_popcount set bits in byte order (LSB-first within each byte). With truncate_popcount left at None it returns the raw bundle. This op is LOSSY in both stages and has NO decode flag: the majority vote discards minority bits and the truncation discards everything past the budget, so the input vectors cannot be recovered from the output. WHEN -- use it to fold several hypervectors into one address while holding the result to a fixed density, which is what keeps downstream Hamming similarity comparable across bundles of different arity. SIBLINGS -- srmech.math.hdc.bundle is the Class-M half on its own, and is what to call when no density cap is wanted; srmech.signal_processing.sign_quantise is the Class-K threshold peer for real-valued rather than binary carriers. Do not hand-roll the bit walk: the truncation order is part of the contract here, and a re-implemented scan that walks MSB-first will keep a different bit set entirely.",
-        ts_composes_637, 1u,
-        ts_preserves_637, 1u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 638 */
-        "srmech.signal_processing.vector_quantisation",
-        "srmech",
-        "signal_processing",
-        "Vector quantisation \342\200\224 replace each input vector by the index of its nearest codebook entry, and reconstruct by looking the index back up. Quantising a whole vector at once beats quantising its components independently, because the codebook can put its entries where the data actually is rather than on a product grid. LOSSY: the round trip returns the codeword, not the input, and the gap is the quantisation error. IDENTITY: Class E (the codebook catalog lookup) composed with Class M (the nearest-neighbour bind) and Class B (index framing). Distances are squared, which is monotone in distance, so there is no sqrt and no abs().",
-        ts_params_638, 4u,
-        "list",
-        "when encoding, one codebook index per input vector; when decoding, the reconstructed codewords",
-        1,
-        NULL,
-        "{\"output\":\"Four 2-D input vectors, each planted near a different corner of a four-entry codebook, quantise to indices [0, 1, 2, 3] -- the nearest-neighbour assignment you would make by eye. Eight floats become four small integers. Decoding those indices returns the codebook rows themselves, NOT the inputs: [1.0, 1.0] comes back as [0.0, 0.0]. The total squared quantisation error is exactly 13.25 (2 + 5 + 4.25 + 2 across the four vectors), which the example asserts as an exact float equality because every term is a dyadic rational. That residue is the price of the compression, and it is why this op is LOSSY.\",\"why\":\"The codebook is the four corners of a square and each input sits unambiguously nearest one corner, so the index list is verifiable without computing a single distance. The exact 13.25 error total is the useful half: it makes the loss a measured number rather than an assertion, and it is exact in binary floating point, so the check needs no tolerance.\",\"worked\":\"from srmech.signal_processing import vector_quantisation\\n\\ncodebook = [[0.0, 0.0], [10.0, 0.0], [0.0, 10.0], [10.0, 10.0]]\\nvectors = [[1.0, 1.0], [9.0, 2.0], [0.5, 8.0], [11.0, 9.0]]\\n\\n# Class E codebook lookup by Class M nearest-neighbour: one index each\\nidx = vector_quantisation(vectors, codebook)\\nidx                              # -> [0, 1, 2, 3]\\nassert idx == [0, 1, 2, 3]       # 8 floats -> 4 two-bit indices\\n\\n# LOSSY: decode returns CODEBOOK rows, not the inputs\\nrec = vector_quantisation(idx, codebook, decode=True)\\nrec[0]                           # -> [0.0, 0.0]   was [1.0, 1.0]\\nassert rec == codebook and rec != vectors\\n\\n# squared error: no magnitude call -- sign stays a Class K pin-slot\\nsq = 0.0\\nfor want, got in zip(vectors, rec):\\n    for j in range(2):\\n        dev = want[j] - got[j]\\n        sq += dev * dev\\nassert sq == 13.25\\nprint(idx, rec[0], sq)\\n\"}",
-        NULL,
-        "WHAT -- computes, for each input vector, the index of the nearest codebook entry under squared Euclidean distance (ties resolve to the lowest index) and returns a list of ints, one per input vector. With decode=True it returns [codebook[i] for i in indices] as a list of rows. This op is LOSSY: decode reconstructs codebook entries, never the original vectors, and the residue is whatever distance separated them. Class E (codebook sorted-key lookup) composed with Class M (nearest- neighbour similarity) composed with Class B (TLV framing of the index stream). Numpy-free -- inputs coerce through tolist() and the argmin is a plain fold. WHEN -- reach for it when many vectors cluster around a small set of representatives and an index is an acceptable stand-in for the vector. SIBLINGS -- srmech.signal_processing.sign_quantise is the scalar Class-K peer for a one-dimensional threshold, and hdc_truncation is the binary carrier's density-capped analogue; huffman over the emitted index stream is the usual lossless follow-on. Do not hand-roll the argmin: the shipped fold accumulates left-to-right in a double with no sqrt, matching its native C twin's tie-break exactly.",
-        NULL, 0u,
-        ts_preserves_638, 1u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 639 */
-        "srmech.signal_processing.psk_qam",
-        "srmech",
-        "signal_processing",
-        "PSK / QAM constellation mapping and its nearest-neighbour demodulator. PSK places M points on a circle so every symbol carries equal energy and only phase distinguishes them; square QAM places them on a grid, buying a larger minimum distance at the same average power once M grows past 8, which is exactly why the high-rate modes of civilian standards are QAM rather than PSK. IDENTITY: Class I (the integer symbol indices) composed with Class K (the decision-region projection on the I-Q plane). The demodulator's decision is argmin of SQUARED distance, monotone in distance, so no sqrt and no abs(). SCOPE: educational signal-processing reference only \342\200\224 civilian baseband modulation, digital communications teaching material.",
-        ts_params_639, 5u,
-        "list",
-        "the constellation points when modulating, or the decoded integer symbol indices when demodulating",
-        1,
-        NULL,
-        "{\"output\":\"QPSK sends indices 0, 1, 2, 3 to exactly (1, 0), (0, 1), (-1, 0), (-0, -1) -- the four unit-circle quadrant points, with no residue, because the Class-N cos / sin cascade lands dead on the axes. Displacing every one of them by (0.12, -0.09) and demodulating returns [0, 1, 2, 3] unchanged. On the 16-QAM side the first four grid points are (-3, -3), (-1, -3), (1, -3), (3, -3) -- the bottom row of the square grid, Q outer and I inner -- and a received (0.9, -2.7) decides as index 2, the point (1, -3).\",\"why\":\"A full modulate-then-demodulate round trip in one screen, numpy absent. The constellation is not approximately on the axes -- it is exactly on them, which is what tells you the phases came from the substrate-native pi cascade and not from a float library. The recovery is the convincing part: the displacement (0.12, -0.09) has magnitude 0.15, about a fifth of the way from a constellation point to the nearest decision boundary, so getting [0, 1, 2, 3] back is the decision region doing its job rather than the arithmetic being noiseless. The 16-QAM half shows the other half of the mechanism: the same op, a different codebook, and a received point that is nowhere near a grid point still resolves to the one grid point it is closest to.\",\"worked\":\"from srmech.signal_processing import psk_qam\\n\\n# QPSK: the four symbol indices land on the four\\n# unit-circle quadrant points.\\npts = psk_qam([0, 1, 2, 3], modulation=\\\"psk\\\", M=4)\\n[(round(z.real, 6), round(z.imag, 6)) for z in pts]\\n# -> [(1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (-0.0, -1.0)]\\n\\n# push every point well off its ideal position, then\\n# ask the decision regions to place it again:\\nnoisy = [z + complex(0.12, -0.09) for z in pts]\\npsk_qam(noisy, modulation=\\\"psk\\\", M=4, demodulate=True)\\n# -> [0, 1, 2, 3]      every symbol recovered\\n\\n# the square 16-QAM grid, bottom row first (Q = -3):\\ngrid = psk_qam([0, 1, 2, 3], modulation=\\\"qam\\\", M=16)\\n[(g.real, g.imag) for g in grid]\\n# -> [(-3.0, -3.0), (-1.0, -3.0), (1.0, -3.0), (3.0, -3.0)]\\npsk_qam([complex(0.9, -2.7)], modulation=\\\"qam\\\", M=16,\\n        demodulate=True)\\n# -> [2]      nearest grid point is (1, -3)\"}",
-        NULL,
-        "WHAT -- maps integer symbol indices onto a PSK or QAM constellation, and with ``demodulate=True`` runs the same map backwards: it returns, for each received complex point, the index of the nearest constellation point. Modulation is a Class-I lookup into the cyclic alphabet Z/M; demodulation is the Class-K decision-region projection, decided on squared distance ``re*re + im*im`` so no square root and no sign test is needed. The M-PSK phases ``exp(2*pi*i*k/M)`` come from the Class-N rational cos / sin cascade over srmech's own pi, and the square M-QAM grid from Gray-coded levels, so the whole op runs with numpy absent. WHEN -- reach for it whenever you need the symbol-to-waveform layer of a baseband link, or a teaching constellation you can perturb and watch recover: QPSK and 16-QAM here are the same constellations a Wi-Fi or DSL modem uses. ``M`` must be a perfect square for QAM (the op raises rather than silently building a rectangular grid), and symbol indices must lie in [0, M). SCOPE -- educational signal-processing reference for civilian communications: baseband symbol mapping as taught in a digital-communications course, cited to Proakis and Salehi chapters 4.3 and 4.4, and that textbook register is the one the op is written in. SIBLINGS -- ``fsk`` is the frequency-axis peer (same alphabet, carried on tone choice instead of phase and amplitude); ``ofdm`` is the layer above, carrying constellation points like these on its subcarriers; ``mlse`` is the one to reach for instead when a channel gain has moved the whole constellation, because this op always scores against the ideal points. ``vector_quantisation`` is the general nearest-codeword form of the same Class-K search when the codebook is learned rather than fixed.",
-        ts_composes_639, 3u,
+        ts_composes_639, 1u,
         ts_preserves_639, 1u,
         NULL,
         NULL, 0u,
@@ -17954,18 +17981,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 640 */
-        "srmech.signal_processing.fsk",
+        "srmech.signal_processing.hdc_truncation",
         "srmech",
         "signal_processing",
-        "Frequency-shift keying modulation and non-coherent demodulation \342\200\224 send one of several tones per symbol, and decide by whichever tone correlates most strongly. Because the decision uses correlation MAGNITUDE it needs no carrier phase lock, which is the trade FSK makes: more bandwidth per bit than PSK, in exchange for a receiver that does not have to track phase. IDENTITY: Class N (the rational tone table) composed with Class I (the cyclic per-symbol sample window). The detector is argmax of |corr|**2, monotone in |corr|, so no sqrt and no abs(). SCOPE: educational signal-processing reference only \342\200\224 civilian digital communications teaching.",
-        ts_params_640, 6u,
-        "list",
-        "the modulated sample stream, or the decoded integer symbol indices",
+        "Hyperdimensional bundle with popcount truncation \342\200\224 bundle a set of binary hypervectors into one, then optionally truncate to a target popcount. The bundle is the HDC superposition that keeps the composite similar to each of its members; the truncation is a deliberate sparsification that trades some of that similarity for a fixed weight. LOSSY by construction \342\200\224 a bundle does not retain its members separably. IDENTITY: Class M (the HDC bind / bundle) composed with Class K (the popcount threshold, a genuine pin-slot at the density cut).",
+        ts_params_640, 3u,
+        "bytes",
+        "the bundled (and optionally truncated) hypervector",
         1,
         NULL,
-        "{\"output\":\"Four symbols at eight samples each give 32 baseband samples. Symbol 0 rides the DC tone and its eight samples are all exactly (1, 0); symbol 1 rides the quarter-rate tone and steps (1, 0), (0, 1), (-1, 0), (-0, -1) -- one quarter turn per sample. The correlator bank demodulates the stream back to [0, 1, 1, 0], and still returns [0, 1, 1, 0] after the whole waveform is multiplied by the constant phase 0.6 + 0.8j.\",\"why\":\"The two tones are visible as raw numbers rather than as a spectrum: eight identical samples for the DC tone, and a clean quarter turn per sample for the 0.25-cycle tone. Over an eight-sample window those two are exactly orthogonal, which is why the correlator bank separates them with no margin question at all. The second half is the part worth keeping: turning the entire waveform by 53 degrees would destroy a phase-based decision, and changes nothing here, because the op scores ``corr.real**2 + corr.imag**2`` -- a magnitude, so a constant phase divides out. That is the whole reason non-coherent FSK exists.\",\"worked\":\"from srmech.signal_processing import fsk\\n\\nfreqs = [0.0, 0.25]      # a DC tone and a quarter-rate tone\\ntx = fsk([0, 1, 1, 0], frequencies=freqs,\\n         samples_per_symbol=8, fs=1.0)\\nlen(tx)\\n# -> 32      four symbols, eight samples each\\n[(round(z.real, 6), round(z.imag, 6)) for z in tx[:4]]\\n# -> [(1.0, 0.0), (1.0, 0.0), (1.0, 0.0), (1.0, 0.0)]\\n[(round(z.real, 6), round(z.imag, 6)) for z in tx[8:12]]\\n# -> [(1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (-0.0, -1.0)]\\nfsk(tx, frequencies=freqs, samples_per_symbol=8, fs=1.0,\\n    demodulate=True)\\n# -> [0, 1, 1, 0]\\n\\n# a constant carrier-phase offset turns the whole waveform:\\nturned = [complex(0.6, 0.8) * z for z in tx]\\nfsk(turned, frequencies=freqs, samples_per_symbol=8,\\n    fs=1.0, demodulate=True)\\n# -> [0, 1, 1, 0]      unchanged -- the decision is on\\n#                      correlator magnitude, not phase\"}",
+        "{\"output\":\"Three 16-bit BSC vectors share a low nibble in each byte and each carries its own private high nibble. The Class-M majority bundle keeps exactly the shared bits and out-votes every private one: the result is [15, 15], popcount 8. Truncating to a popcount budget of 4 yields [15, 0] -- the first byte's four bits are kept and the second byte's four are dropped, because the Class-K sparse-truncate walks bytes in order, LSB-first inside each byte, and stops once the budget is spent. The op is LOSSY in both halves: majority discards the minority bits, truncation discards whatever the budget cannot hold, and there is no decode= flag to undo either.\",\"why\":\"The nibble layout makes the majority vote checkable without counting bits: every low-nibble bit is set in all three inputs and every high-nibble bit in exactly one, so [15, 15] is the only possible bundle. The truncation result then pins down the scan ORDER, which is the part the docstring's phrase 'by ordinal position' leaves implicit -- the budget is spent on the first byte before the second is looked at.\",\"worked\":\"from srmech.signal_processing import hdc_truncation\\n\\n# three vectors sharing a low nibble; each has a private high nibble\\nv1 = bytes([0x0F, 0x0F])\\nv2 = bytes([0x0F, 0xFF])\\nv3 = bytes([0xFF, 0x0F])\\n\\n# Class M majority: the shared bits survive, the private ones lose 1-2\\nbundled = hdc_truncation([v1, v2, v3])\\nlist(bundled)                    # -> [15, 15]\\nassert bundled == bytes([0x0F, 0x0F])\\n\\ndef popcount(vec):\\n    return sum(1 for byte in vec for i in range(8) if (byte >> i) & 1)\\n\\npopcount(bundled)                # -> 8\\n\\n# Class K sparse-truncate to a budget of 4 set bits, in byte order\\nthin = hdc_truncation([v1, v2, v3], truncate_popcount=4)\\nassert list(thin) == [0x0F, 0x00] and popcount(thin) == 4\\n\\n# LOSSY both ways -- no decode= exists, and v1/v2/v3 are unrecoverable\\nassert thin != bundled\\nprint(list(bundled), list(thin), popcount(thin))\\n\"}",
         NULL,
-        "WHAT -- modulates integer symbol indices into a complex baseband waveform by choosing one tone per symbol from ``frequencies``, and with ``demodulate=True`` returns the symbol indices again by running a correlator bank: it correlates each symbol-length window against all M candidate tones and takes the largest squared magnitude. Class N supplies the rational frequency choices, Class I the cyclic time base of ``samples_per_symbol`` samples, and the tone phases come from the same Class-N cos / sin cascade the rest of the modulation family uses, so it runs numpy-absent. The correlator bank is a matrix times a vector and is dispatched as one. WHEN -- reach for it when the link has to survive without a phase reference: the decision uses correlator magnitude, so an unknown constant carrier phase costs nothing. That is why it turns up in modem tones, radio telemetry, RFID and caller-ID signalling, and in the first modulation chapter of a communications course. Note the frequencies are yours to choose and are not checked for orthogonality -- non-orthogonal tones will demodulate poorly and the op will not warn you. SCOPE -- educational signal-processing reference for civilian communications: textbook baseband FSK cited to Proakis and Salehi chapter 4.5, the modulation in ordinary consumer and telemetry links. SIBLINGS -- ``psk_qam`` is the phase-and-amplitude peer, carrying the alphabet on constellation position instead of tone choice; ``matched_filter`` is the single-hypothesis form of the correlation this op runs M of at once, so build a bank from this op rather than hand-rolling a loop over it; and when the tone is unknown rather than drawn from a known list, ``esprit`` and ``music_doa`` are the frequency-estimation surfaces to use instead of widening the candidate set here.",
+        "WHAT -- computes the Class-M HDC majority bundle of a sequence of equal-length BSC byte vectors and returns it, optionally after a Class-K sparse truncation that keeps only the first truncate_popcount set bits in byte order (LSB-first within each byte). With truncate_popcount left at None it returns the raw bundle. This op is LOSSY in both stages and has NO decode flag: the majority vote discards minority bits and the truncation discards everything past the budget, so the input vectors cannot be recovered from the output. WHEN -- use it to fold several hypervectors into one address while holding the result to a fixed density, which is what keeps downstream Hamming similarity comparable across bundles of different arity. SIBLINGS -- srmech.math.hdc.bundle is the Class-M half on its own, and is what to call when no density cap is wanted; srmech.signal_processing.sign_quantise is the Class-K threshold peer for real-valued rather than binary carriers. Do not hand-roll the bit walk: the truncation order is part of the contract here, and a re-implemented scan that walks MSB-first will keep a different bit set entirely.",
         ts_composes_640, 1u,
         ts_preserves_640, 1u,
         NULL,
@@ -17974,19 +18001,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 641 */
-        "srmech.signal_processing.ofdm",
+        "srmech.signal_processing.vector_quantisation",
         "srmech",
         "signal_processing",
-        "Orthogonal frequency-division multiplexing \342\200\224 map symbols onto subcarriers, inverse-transform to time, and prepend a cyclic prefix. The prefix is the load-bearing trick: it turns the channel's linear convolution into a CIRCULAR one, which the transform diagonalises, so a multipath channel that would need a complicated equaliser collapses to one complex divide per subcarrier. That is the whole reason OFDM underpins Wi-Fi, DSL and LTE. IDENTITY: Class I (the cyclic prefix and subcarrier group) composed with Class L (the per-subcarrier eigenvalue handle the equaliser uses) and Class K (the guard interval as a time-domain projection). SCOPE: educational signal-processing reference only \342\200\224 civilian communications standards teaching.",
-        ts_params_641, 6u,
+        "Vector quantisation \342\200\224 replace each input vector by the index of its nearest codebook entry, and reconstruct by looking the index back up. Quantising a whole vector at once beats quantising its components independently, because the codebook can put its entries where the data actually is rather than on a product grid. LOSSY: the round trip returns the codeword, not the input, and the gap is the quantisation error. IDENTITY: Class E (the codebook catalog lookup) composed with Class M (the nearest-neighbour bind) and Class B (index framing). Distances are squared, which is monotone in distance, so there is no sqrt and no abs().",
+        ts_params_641, 4u,
         "list",
-        "the time-domain sample stream, or the recovered per-subcarrier symbols",
+        "when encoding, one codebook index per input vector; when decoding, the reconstructed codewords",
         1,
         NULL,
-        "{\"output\":\"One four-subcarrier OFDM symbol becomes six baseband samples, and the two prefix samples compare equal to the last two payload samples -- the cyclic prefix IS a copy of the block tail. Sent through the two-tap echo 1 + 0.5*z^-1 and demodulated with no channel argument, the subcarriers come back distorted as (1.5, 0), (0.5, 1), (-0.5, 0), (0.5, -1). Passing the channel's four-point spectrum H as ``channel=`` returns (1, 0), (-0, 1), (-1, 0), (0, -1) -- the transmitted symbols, exactly.\",\"why\":\"This is the entire argument for OFDM, at a size you can check by hand. The channel is applied the honest way -- an ordinary linear convolution across the sample stream, not a per-subcarrier multiply smuggled in -- and yet a single complex division per subcarrier undoes it exactly. That only works because the cyclic prefix made the linear convolution look circular over the payload window, which is why the ``tx[:2] == tx[4:6]`` line is in the example: it is the precondition, not decoration. The four values of H are hand-computable from ``1 + 0.5*exp(-2*pi*i*k/4)``, so nothing here is taken on trust, and the unequalised row is shown first so you can see the channel really did distort the symbols before the one-tap equaliser removed it.\",\"worked\":\"from srmech.signal_processing import ofdm\\n\\nX = [1 + 0j, 1j, -1 + 0j, -1j]     # one symbol, 4 subcarriers\\ntx = ofdm(X, n_subcarriers=4, cp_length=2)\\nlen(tx)\\n# -> 6      two cyclic-prefix samples, then four payload\\ntx[:2] == tx[4:6]\\n# -> True   the prefix is a copy of the block tail\\n\\n# a two-tap echo channel, as an ordinary linear convolution:\\nrx = [tx[n] + 0.5 * tx[n - 1] if n else tx[n]\\n      for n in range(len(tx))]\\n[(round(z.real, 6), round(z.imag, 6))\\n for z in ofdm(rx, n_subcarriers=4, cp_length=2,\\n               demodulate=True)[0]]\\n# -> [(1.5, 0.0), (0.5, 1.0), (-0.5, 0.0), (0.5, -1.0)]\\n\\n# H_k = 1 + 0.5 * exp(-2*pi*i*k/4), the echo's spectrum:\\nH = [1.5 + 0j, 1 - 0.5j, 0.5 + 0j, 1 + 0.5j]\\n[(round(z.real, 6), round(z.imag, 6))\\n for z in ofdm(rx, n_subcarriers=4, cp_length=2,\\n               demodulate=True, channel=H)[0]]\\n# -> [(1.0, 0.0), (-0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)]\"}",
+        "{\"output\":\"Four 2-D input vectors, each planted near a different corner of a four-entry codebook, quantise to indices [0, 1, 2, 3] -- the nearest-neighbour assignment you would make by eye. Eight floats become four small integers. Decoding those indices returns the codebook rows themselves, NOT the inputs: [1.0, 1.0] comes back as [0.0, 0.0]. The total squared quantisation error is exactly 13.25 (2 + 5 + 4.25 + 2 across the four vectors), which the example asserts as an exact float equality because every term is a dyadic rational. That residue is the price of the compression, and it is why this op is LOSSY.\",\"why\":\"The codebook is the four corners of a square and each input sits unambiguously nearest one corner, so the index list is verifiable without computing a single distance. The exact 13.25 error total is the useful half: it makes the loss a measured number rather than an assertion, and it is exact in binary floating point, so the check needs no tolerance.\",\"worked\":\"from srmech.signal_processing import vector_quantisation\\n\\ncodebook = [[0.0, 0.0], [10.0, 0.0], [0.0, 10.0], [10.0, 10.0]]\\nvectors = [[1.0, 1.0], [9.0, 2.0], [0.5, 8.0], [11.0, 9.0]]\\n\\n# Class E codebook lookup by Class M nearest-neighbour: one index each\\nidx = vector_quantisation(vectors, codebook)\\nidx                              # -> [0, 1, 2, 3]\\nassert idx == [0, 1, 2, 3]       # 8 floats -> 4 two-bit indices\\n\\n# LOSSY: decode returns CODEBOOK rows, not the inputs\\nrec = vector_quantisation(idx, codebook, decode=True)\\nrec[0]                           # -> [0.0, 0.0]   was [1.0, 1.0]\\nassert rec == codebook and rec != vectors\\n\\n# squared error: no magnitude call -- sign stays a Class K pin-slot\\nsq = 0.0\\nfor want, got in zip(vectors, rec):\\n    for j in range(2):\\n        dev = want[j] - got[j]\\n        sq += dev * dev\\nassert sq == 13.25\\nprint(idx, rec[0], sq)\\n\"}",
         NULL,
-        "WHAT -- modulates blocks of complex subcarrier symbols into a baseband sample stream by inverse-transforming each block of ``n_subcarriers`` and prepending a ``cp_length``-sample cyclic prefix copied from the block tail; with ``demodulate=True`` it discards each prefix, transforms back, and returns one row of subcarrier values per OFDM symbol. Passing ``channel=`` -- the channel response sampled at the subcarriers -- applies the one-tap zero-forcing equaliser, dividing each subcarrier by its own H value. That is Class I (the transform and the cyclic subcarrier group), Class L (the per-subcarrier eigenvalue handle the equaliser divides by) and Class K (the prefix as a guard interval, and the small-magnitude guard that declines to divide by a near-null subcarrier). WHEN -- reach for it whenever a channel smears symbols into each other and you would rather diagonalise the smearing than fight it: the prefix converts linear convolution into circular convolution, and circular convolution is a per-subcarrier multiply, so equalisation becomes one division instead of a filter design. Keep ``cp_length`` at least as long as the channel memory, or the diagonalisation is no longer exact. SCOPE -- educational signal-processing reference for civilian communications: this is the waveform inside Wi-Fi, DSL, digital audio and video broadcasting and 4G/5G downlinks, cited to Bingham, Cimini and Proakis and Salehi chapter 11.5. SIBLINGS -- ``psk_qam`` produces the subcarrier values this op carries, so compose the two rather than building a constellation inline; ``srmech.cascade.spectral_cascades.fft`` and ``.ifft`` are the transform pair underneath, and are the right surface if you want the transform without the framing. When noise matters more than the channel null does, ``lmmse`` and ``wiener`` are the statistically-weighted equalisers to use instead of this op's zero-forcing divide; ``mimo_svd`` is the spatial analogue -- same idea of diagonalising a channel, across antennas rather than across frequency.",
-        ts_composes_641, 3u,
+        "WHAT -- computes, for each input vector, the index of the nearest codebook entry under squared Euclidean distance (ties resolve to the lowest index) and returns a list of ints, one per input vector. With decode=True it returns [codebook[i] for i in indices] as a list of rows. This op is LOSSY: decode reconstructs codebook entries, never the original vectors, and the residue is whatever distance separated them. Class E (codebook sorted-key lookup) composed with Class M (nearest- neighbour similarity) composed with Class B (TLV framing of the index stream). Numpy-free -- inputs coerce through tolist() and the argmin is a plain fold. WHEN -- reach for it when many vectors cluster around a small set of representatives and an index is an acceptable stand-in for the vector. SIBLINGS -- srmech.signal_processing.sign_quantise is the scalar Class-K peer for a one-dimensional threshold, and hdc_truncation is the binary carrier's density-capped analogue; huffman over the emitted index stream is the usual lossless follow-on. Do not hand-roll the argmin: the shipped fold accumulates left-to-right in a double with no sqrt, matching its native C twin's tie-break exactly.",
+        NULL, 0u,
         ts_preserves_641, 1u,
         NULL,
         NULL, 0u,
@@ -17994,19 +18021,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 642 */
-        "srmech.signal_processing.mimo_svd",
+        "srmech.signal_processing.psk_qam",
         "srmech",
         "signal_processing",
-        "Singular value decomposition of a MIMO channel matrix \342\200\224 the factorisation that turns a coupled multi-antenna channel into a set of INDEPENDENT parallel scalar channels, one per non-zero singular value. The singular values are the gains of those channels and their count is the channel's rank, which is the honest ceiling on how many streams the channel can actually carry no matter how many antennas are present. IDENTITY: Class L \342\200\224 this is the eigen-decomposition family, applied to a rectangular operator. SCOPE: educational signal-processing reference only \342\200\224 civilian multi-antenna communications teaching material.",
-        ts_params_642, 2u,
-        "tuple",
-        "a (U, singular_values, V) triple; the singular values come back in descending order and their count is the rank",
+        "PSK / QAM constellation mapping and its nearest-neighbour demodulator. PSK places M points on a circle so every symbol carries equal energy and only phase distinguishes them; square QAM places them on a grid, buying a larger minimum distance at the same average power once M grows past 8, which is exactly why the high-rate modes of civilian standards are QAM rather than PSK. IDENTITY: Class I (the integer symbol indices) composed with Class K (the decision-region projection on the I-Q plane). The demodulator's decision is argmin of SQUARED distance, monotone in distance, so no sqrt and no abs(). SCOPE: educational signal-processing reference only \342\200\224 civilian baseband modulation, digital communications teaching material.",
+        ts_params_642, 5u,
+        "list",
+        "the constellation points when modulating, or the decoded integer symbol indices when demodulating",
         1,
         NULL,
-        "{\"output\":\"The channel [[1, 2], [2, 1]] has singular values exactly [3.0, 1.0] -- two parallel spatial streams with amplitude gains 3 and 1, that is nine to one in power, and they arrive in descending order. Rebuilding U diag(S) Vh returns [[1.0, 2.0], [2.0, 1.0]], the original channel. The rank-one channel [[1, 1], [1, 1]] gives [2.0, 0.0]: one usable stream, and a second direction with no gain at all.\",\"why\":\"The two channels were chosen so the answers are checkable without a reference implementation: [[1, 2], [2, 1]] is symmetric with eigenvalues 3 and -1, so its singular values must be 3 and 1, and they come back exactly. The reconstruction line is the real test -- it uses the returned U and Vh, so it fails if the vectors are mismatched, misordered or transposed, in a way that merely printing the singular values would not. The rank-one case makes the engineering meaning visible: a zero singular value is not a small number, it is a spatial stream that does not exist, and the descending order means the first entries of S are always the streams worth using.\",\"worked\":\"from srmech.signal_processing import mimo_svd\\n\\n# a 2x2 channel: each receive antenna hears both\\n# transmit antennas, so the streams interfere.\\nH = [[1 + 0j, 2 + 0j], [2 + 0j, 1 + 0j]]\\nU, S, Vh = mimo_svd(H)\\n[round(s, 9) for s in S]\\n# -> [3.0, 1.0]      two streams, amplitude gains 3 and 1\\n\\n# U diag(S) Vh has to rebuild H exactly:\\nrebuilt = [[sum(U[i][j] * S[j] * Vh[j][c] for j in range(2))\\n            for c in range(2)] for i in range(2)]\\n[[round(z.real, 9) for z in row] for row in rebuilt]\\n# -> [[1.0, 2.0], [2.0, 1.0]]\\n\\n# now a channel where both antennas hear the same thing:\\nU1, S1, Vh1 = mimo_svd([[1 + 0j, 1 + 0j], [1 + 0j, 1 + 0j]])\\n[round(s, 9) for s in S1]\\n# -> [2.0, 0.0]      one usable stream; the second has no gain\"}",
+        "{\"output\":\"QPSK sends indices 0, 1, 2, 3 to exactly (1, 0), (0, 1), (-1, 0), (-0, -1) -- the four unit-circle quadrant points, with no residue, because the Class-N cos / sin cascade lands dead on the axes. Displacing every one of them by (0.12, -0.09) and demodulating returns [0, 1, 2, 3] unchanged. On the 16-QAM side the first four grid points are (-3, -3), (-1, -3), (1, -3), (3, -3) -- the bottom row of the square grid, Q outer and I inner -- and a received (0.9, -2.7) decides as index 2, the point (1, -3).\",\"why\":\"A full modulate-then-demodulate round trip in one screen, numpy absent. The constellation is not approximately on the axes -- it is exactly on them, which is what tells you the phases came from the substrate-native pi cascade and not from a float library. The recovery is the convincing part: the displacement (0.12, -0.09) has magnitude 0.15, about a fifth of the way from a constellation point to the nearest decision boundary, so getting [0, 1, 2, 3] back is the decision region doing its job rather than the arithmetic being noiseless. The 16-QAM half shows the other half of the mechanism: the same op, a different codebook, and a received point that is nowhere near a grid point still resolves to the one grid point it is closest to.\",\"worked\":\"from srmech.signal_processing import psk_qam\\n\\n# QPSK: the four symbol indices land on the four\\n# unit-circle quadrant points.\\npts = psk_qam([0, 1, 2, 3], modulation=\\\"psk\\\", M=4)\\n[(round(z.real, 6), round(z.imag, 6)) for z in pts]\\n# -> [(1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (-0.0, -1.0)]\\n\\n# push every point well off its ideal position, then\\n# ask the decision regions to place it again:\\nnoisy = [z + complex(0.12, -0.09) for z in pts]\\npsk_qam(noisy, modulation=\\\"psk\\\", M=4, demodulate=True)\\n# -> [0, 1, 2, 3]      every symbol recovered\\n\\n# the square 16-QAM grid, bottom row first (Q = -3):\\ngrid = psk_qam([0, 1, 2, 3], modulation=\\\"qam\\\", M=16)\\n[(g.real, g.imag) for g in grid]\\n# -> [(-3.0, -3.0), (-1.0, -3.0), (1.0, -3.0), (3.0, -3.0)]\\npsk_qam([complex(0.9, -2.7)], modulation=\\\"qam\\\", M=16,\\n        demodulate=True)\\n# -> [2]      nearest grid point is (1, -3)\"}",
         NULL,
-        "WHAT -- returns the singular value decomposition ``(U, S, Vh)`` of a MIMO channel matrix H, so that ``H = U diag(S) Vh``, with S real, non-negative and in descending order. In multi-antenna terms Vh gives the transmit precoder and U the receive combiner that together turn one interfering channel into ``min(n_rx, n_tx)`` independent scalar channels whose amplitude gains are exactly the singular values. It is a Class-L operation throughout: the right singular vectors are eigenvectors of the Hermitian Gram matrix, the singular values are the square roots of its eigenvalues via the Class-N rational cascade, and the whole decomposition runs numpy-absent over the Mat carrier. WHEN -- reach for it to find how many parallel spatial streams a channel can actually carry and how strong each one is: count the singular values that are meaningfully above zero, and read their squares as the power gains you would allocate across. It is also the honest way to see a rank-deficient channel, where a stream you were counting on has gain zero. Accuracy note: the large singular values track a reference decomposition to about 1e-9, while values at or near the null carry a documented ~1e-7 caveat -- ample for a dominant-mode precoder, worth knowing if you are thresholding for numerical rank. SCOPE -- educational signal-processing reference for civilian communications: multi-antenna baseband processing of the kind in Wi-Fi and cellular textbooks, cited to Telatar 1999 and Golub and Van Loan chapter 8.6. SIBLINGS -- ``srmech.math.laplacian.mat_svd`` is the carrier-level decomposition this op wraps, and is the surface to use when the matrix is not a channel; ``lmmse`` is the linear receiver you would compare against when noise, not just channel geometry, sets the answer; ``music_doa``, ``esprit`` and ``ica_jade`` are the other subspace readers of the same kind of matrix. Do not re-derive the precoder from an eigendecomposition of the Gram matrix by hand -- that is precisely what this op already did, with the null block completed orthonormally.",
-        ts_composes_642, 1u,
+        "WHAT -- maps integer symbol indices onto a PSK or QAM constellation, and with ``demodulate=True`` runs the same map backwards: it returns, for each received complex point, the index of the nearest constellation point. Modulation is a Class-I lookup into the cyclic alphabet Z/M; demodulation is the Class-K decision-region projection, decided on squared distance ``re*re + im*im`` so no square root and no sign test is needed. The M-PSK phases ``exp(2*pi*i*k/M)`` come from the Class-N rational cos / sin cascade over srmech's own pi, and the square M-QAM grid from Gray-coded levels, so the whole op runs with numpy absent. WHEN -- reach for it whenever you need the symbol-to-waveform layer of a baseband link, or a teaching constellation you can perturb and watch recover: QPSK and 16-QAM here are the same constellations a Wi-Fi or DSL modem uses. ``M`` must be a perfect square for QAM (the op raises rather than silently building a rectangular grid), and symbol indices must lie in [0, M). SCOPE -- educational signal-processing reference for civilian communications: baseband symbol mapping as taught in a digital-communications course, cited to Proakis and Salehi chapters 4.3 and 4.4, and that textbook register is the one the op is written in. SIBLINGS -- ``fsk`` is the frequency-axis peer (same alphabet, carried on tone choice instead of phase and amplitude); ``ofdm`` is the layer above, carrying constellation points like these on its subcarriers; ``mlse`` is the one to reach for instead when a channel gain has moved the whole constellation, because this op always scores against the ideal points. ``vector_quantisation`` is the general nearest-codeword form of the same Class-K search when the codebook is learned rather than fixed.",
+        ts_composes_642, 3u,
         ts_preserves_642, 1u,
         NULL,
         NULL, 0u,
@@ -18014,11 +18041,71 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 643 */
+        "srmech.signal_processing.fsk",
+        "srmech",
+        "signal_processing",
+        "Frequency-shift keying modulation and non-coherent demodulation \342\200\224 send one of several tones per symbol, and decide by whichever tone correlates most strongly. Because the decision uses correlation MAGNITUDE it needs no carrier phase lock, which is the trade FSK makes: more bandwidth per bit than PSK, in exchange for a receiver that does not have to track phase. IDENTITY: Class N (the rational tone table) composed with Class I (the cyclic per-symbol sample window). The detector is argmax of |corr|**2, monotone in |corr|, so no sqrt and no abs(). SCOPE: educational signal-processing reference only \342\200\224 civilian digital communications teaching.",
+        ts_params_643, 6u,
+        "list",
+        "the modulated sample stream, or the decoded integer symbol indices",
+        1,
+        NULL,
+        "{\"output\":\"Four symbols at eight samples each give 32 baseband samples. Symbol 0 rides the DC tone and its eight samples are all exactly (1, 0); symbol 1 rides the quarter-rate tone and steps (1, 0), (0, 1), (-1, 0), (-0, -1) -- one quarter turn per sample. The correlator bank demodulates the stream back to [0, 1, 1, 0], and still returns [0, 1, 1, 0] after the whole waveform is multiplied by the constant phase 0.6 + 0.8j.\",\"why\":\"The two tones are visible as raw numbers rather than as a spectrum: eight identical samples for the DC tone, and a clean quarter turn per sample for the 0.25-cycle tone. Over an eight-sample window those two are exactly orthogonal, which is why the correlator bank separates them with no margin question at all. The second half is the part worth keeping: turning the entire waveform by 53 degrees would destroy a phase-based decision, and changes nothing here, because the op scores ``corr.real**2 + corr.imag**2`` -- a magnitude, so a constant phase divides out. That is the whole reason non-coherent FSK exists.\",\"worked\":\"from srmech.signal_processing import fsk\\n\\nfreqs = [0.0, 0.25]      # a DC tone and a quarter-rate tone\\ntx = fsk([0, 1, 1, 0], frequencies=freqs,\\n         samples_per_symbol=8, fs=1.0)\\nlen(tx)\\n# -> 32      four symbols, eight samples each\\n[(round(z.real, 6), round(z.imag, 6)) for z in tx[:4]]\\n# -> [(1.0, 0.0), (1.0, 0.0), (1.0, 0.0), (1.0, 0.0)]\\n[(round(z.real, 6), round(z.imag, 6)) for z in tx[8:12]]\\n# -> [(1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (-0.0, -1.0)]\\nfsk(tx, frequencies=freqs, samples_per_symbol=8, fs=1.0,\\n    demodulate=True)\\n# -> [0, 1, 1, 0]\\n\\n# a constant carrier-phase offset turns the whole waveform:\\nturned = [complex(0.6, 0.8) * z for z in tx]\\nfsk(turned, frequencies=freqs, samples_per_symbol=8,\\n    fs=1.0, demodulate=True)\\n# -> [0, 1, 1, 0]      unchanged -- the decision is on\\n#                      correlator magnitude, not phase\"}",
+        NULL,
+        "WHAT -- modulates integer symbol indices into a complex baseband waveform by choosing one tone per symbol from ``frequencies``, and with ``demodulate=True`` returns the symbol indices again by running a correlator bank: it correlates each symbol-length window against all M candidate tones and takes the largest squared magnitude. Class N supplies the rational frequency choices, Class I the cyclic time base of ``samples_per_symbol`` samples, and the tone phases come from the same Class-N cos / sin cascade the rest of the modulation family uses, so it runs numpy-absent. The correlator bank is a matrix times a vector and is dispatched as one. WHEN -- reach for it when the link has to survive without a phase reference: the decision uses correlator magnitude, so an unknown constant carrier phase costs nothing. That is why it turns up in modem tones, radio telemetry, RFID and caller-ID signalling, and in the first modulation chapter of a communications course. Note the frequencies are yours to choose and are not checked for orthogonality -- non-orthogonal tones will demodulate poorly and the op will not warn you. SCOPE -- educational signal-processing reference for civilian communications: textbook baseband FSK cited to Proakis and Salehi chapter 4.5, the modulation in ordinary consumer and telemetry links. SIBLINGS -- ``psk_qam`` is the phase-and-amplitude peer, carrying the alphabet on constellation position instead of tone choice; ``matched_filter`` is the single-hypothesis form of the correlation this op runs M of at once, so build a bank from this op rather than hand-rolling a loop over it; and when the tone is unknown rather than drawn from a known list, ``esprit`` and ``music_doa`` are the frequency-estimation surfaces to use instead of widening the candidate set here.",
+        ts_composes_643, 1u,
+        ts_preserves_643, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 644 */
+        "srmech.signal_processing.ofdm",
+        "srmech",
+        "signal_processing",
+        "Orthogonal frequency-division multiplexing \342\200\224 map symbols onto subcarriers, inverse-transform to time, and prepend a cyclic prefix. The prefix is the load-bearing trick: it turns the channel's linear convolution into a CIRCULAR one, which the transform diagonalises, so a multipath channel that would need a complicated equaliser collapses to one complex divide per subcarrier. That is the whole reason OFDM underpins Wi-Fi, DSL and LTE. IDENTITY: Class I (the cyclic prefix and subcarrier group) composed with Class L (the per-subcarrier eigenvalue handle the equaliser uses) and Class K (the guard interval as a time-domain projection). SCOPE: educational signal-processing reference only \342\200\224 civilian communications standards teaching.",
+        ts_params_644, 6u,
+        "list",
+        "the time-domain sample stream, or the recovered per-subcarrier symbols",
+        1,
+        NULL,
+        "{\"output\":\"One four-subcarrier OFDM symbol becomes six baseband samples, and the two prefix samples compare equal to the last two payload samples -- the cyclic prefix IS a copy of the block tail. Sent through the two-tap echo 1 + 0.5*z^-1 and demodulated with no channel argument, the subcarriers come back distorted as (1.5, 0), (0.5, 1), (-0.5, 0), (0.5, -1). Passing the channel's four-point spectrum H as ``channel=`` returns (1, 0), (-0, 1), (-1, 0), (0, -1) -- the transmitted symbols, exactly.\",\"why\":\"This is the entire argument for OFDM, at a size you can check by hand. The channel is applied the honest way -- an ordinary linear convolution across the sample stream, not a per-subcarrier multiply smuggled in -- and yet a single complex division per subcarrier undoes it exactly. That only works because the cyclic prefix made the linear convolution look circular over the payload window, which is why the ``tx[:2] == tx[4:6]`` line is in the example: it is the precondition, not decoration. The four values of H are hand-computable from ``1 + 0.5*exp(-2*pi*i*k/4)``, so nothing here is taken on trust, and the unequalised row is shown first so you can see the channel really did distort the symbols before the one-tap equaliser removed it.\",\"worked\":\"from srmech.signal_processing import ofdm\\n\\nX = [1 + 0j, 1j, -1 + 0j, -1j]     # one symbol, 4 subcarriers\\ntx = ofdm(X, n_subcarriers=4, cp_length=2)\\nlen(tx)\\n# -> 6      two cyclic-prefix samples, then four payload\\ntx[:2] == tx[4:6]\\n# -> True   the prefix is a copy of the block tail\\n\\n# a two-tap echo channel, as an ordinary linear convolution:\\nrx = [tx[n] + 0.5 * tx[n - 1] if n else tx[n]\\n      for n in range(len(tx))]\\n[(round(z.real, 6), round(z.imag, 6))\\n for z in ofdm(rx, n_subcarriers=4, cp_length=2,\\n               demodulate=True)[0]]\\n# -> [(1.5, 0.0), (0.5, 1.0), (-0.5, 0.0), (0.5, -1.0)]\\n\\n# H_k = 1 + 0.5 * exp(-2*pi*i*k/4), the echo's spectrum:\\nH = [1.5 + 0j, 1 - 0.5j, 0.5 + 0j, 1 + 0.5j]\\n[(round(z.real, 6), round(z.imag, 6))\\n for z in ofdm(rx, n_subcarriers=4, cp_length=2,\\n               demodulate=True, channel=H)[0]]\\n# -> [(1.0, 0.0), (-0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)]\"}",
+        NULL,
+        "WHAT -- modulates blocks of complex subcarrier symbols into a baseband sample stream by inverse-transforming each block of ``n_subcarriers`` and prepending a ``cp_length``-sample cyclic prefix copied from the block tail; with ``demodulate=True`` it discards each prefix, transforms back, and returns one row of subcarrier values per OFDM symbol. Passing ``channel=`` -- the channel response sampled at the subcarriers -- applies the one-tap zero-forcing equaliser, dividing each subcarrier by its own H value. That is Class I (the transform and the cyclic subcarrier group), Class L (the per-subcarrier eigenvalue handle the equaliser divides by) and Class K (the prefix as a guard interval, and the small-magnitude guard that declines to divide by a near-null subcarrier). WHEN -- reach for it whenever a channel smears symbols into each other and you would rather diagonalise the smearing than fight it: the prefix converts linear convolution into circular convolution, and circular convolution is a per-subcarrier multiply, so equalisation becomes one division instead of a filter design. Keep ``cp_length`` at least as long as the channel memory, or the diagonalisation is no longer exact. SCOPE -- educational signal-processing reference for civilian communications: this is the waveform inside Wi-Fi, DSL, digital audio and video broadcasting and 4G/5G downlinks, cited to Bingham, Cimini and Proakis and Salehi chapter 11.5. SIBLINGS -- ``psk_qam`` produces the subcarrier values this op carries, so compose the two rather than building a constellation inline; ``srmech.cascade.spectral_cascades.fft`` and ``.ifft`` are the transform pair underneath, and are the right surface if you want the transform without the framing. When noise matters more than the channel null does, ``lmmse`` and ``wiener`` are the statistically-weighted equalisers to use instead of this op's zero-forcing divide; ``mimo_svd`` is the spatial analogue -- same idea of diagonalising a channel, across antennas rather than across frequency.",
+        ts_composes_644, 3u,
+        ts_preserves_644, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 645 */
+        "srmech.signal_processing.mimo_svd",
+        "srmech",
+        "signal_processing",
+        "Singular value decomposition of a MIMO channel matrix \342\200\224 the factorisation that turns a coupled multi-antenna channel into a set of INDEPENDENT parallel scalar channels, one per non-zero singular value. The singular values are the gains of those channels and their count is the channel's rank, which is the honest ceiling on how many streams the channel can actually carry no matter how many antennas are present. IDENTITY: Class L \342\200\224 this is the eigen-decomposition family, applied to a rectangular operator. SCOPE: educational signal-processing reference only \342\200\224 civilian multi-antenna communications teaching material.",
+        ts_params_645, 2u,
+        "tuple",
+        "a (U, singular_values, V) triple; the singular values come back in descending order and their count is the rank",
+        1,
+        NULL,
+        "{\"output\":\"The channel [[1, 2], [2, 1]] has singular values exactly [3.0, 1.0] -- two parallel spatial streams with amplitude gains 3 and 1, that is nine to one in power, and they arrive in descending order. Rebuilding U diag(S) Vh returns [[1.0, 2.0], [2.0, 1.0]], the original channel. The rank-one channel [[1, 1], [1, 1]] gives [2.0, 0.0]: one usable stream, and a second direction with no gain at all.\",\"why\":\"The two channels were chosen so the answers are checkable without a reference implementation: [[1, 2], [2, 1]] is symmetric with eigenvalues 3 and -1, so its singular values must be 3 and 1, and they come back exactly. The reconstruction line is the real test -- it uses the returned U and Vh, so it fails if the vectors are mismatched, misordered or transposed, in a way that merely printing the singular values would not. The rank-one case makes the engineering meaning visible: a zero singular value is not a small number, it is a spatial stream that does not exist, and the descending order means the first entries of S are always the streams worth using.\",\"worked\":\"from srmech.signal_processing import mimo_svd\\n\\n# a 2x2 channel: each receive antenna hears both\\n# transmit antennas, so the streams interfere.\\nH = [[1 + 0j, 2 + 0j], [2 + 0j, 1 + 0j]]\\nU, S, Vh = mimo_svd(H)\\n[round(s, 9) for s in S]\\n# -> [3.0, 1.0]      two streams, amplitude gains 3 and 1\\n\\n# U diag(S) Vh has to rebuild H exactly:\\nrebuilt = [[sum(U[i][j] * S[j] * Vh[j][c] for j in range(2))\\n            for c in range(2)] for i in range(2)]\\n[[round(z.real, 9) for z in row] for row in rebuilt]\\n# -> [[1.0, 2.0], [2.0, 1.0]]\\n\\n# now a channel where both antennas hear the same thing:\\nU1, S1, Vh1 = mimo_svd([[1 + 0j, 1 + 0j], [1 + 0j, 1 + 0j]])\\n[round(s, 9) for s in S1]\\n# -> [2.0, 0.0]      one usable stream; the second has no gain\"}",
+        NULL,
+        "WHAT -- returns the singular value decomposition ``(U, S, Vh)`` of a MIMO channel matrix H, so that ``H = U diag(S) Vh``, with S real, non-negative and in descending order. In multi-antenna terms Vh gives the transmit precoder and U the receive combiner that together turn one interfering channel into ``min(n_rx, n_tx)`` independent scalar channels whose amplitude gains are exactly the singular values. It is a Class-L operation throughout: the right singular vectors are eigenvectors of the Hermitian Gram matrix, the singular values are the square roots of its eigenvalues via the Class-N rational cascade, and the whole decomposition runs numpy-absent over the Mat carrier. WHEN -- reach for it to find how many parallel spatial streams a channel can actually carry and how strong each one is: count the singular values that are meaningfully above zero, and read their squares as the power gains you would allocate across. It is also the honest way to see a rank-deficient channel, where a stream you were counting on has gain zero. Accuracy note: the large singular values track a reference decomposition to about 1e-9, while values at or near the null carry a documented ~1e-7 caveat -- ample for a dominant-mode precoder, worth knowing if you are thresholding for numerical rank. SCOPE -- educational signal-processing reference for civilian communications: multi-antenna baseband processing of the kind in Wi-Fi and cellular textbooks, cited to Telatar 1999 and Golub and Van Loan chapter 8.6. SIBLINGS -- ``srmech.math.laplacian.mat_svd`` is the carrier-level decomposition this op wraps, and is the surface to use when the matrix is not a channel; ``lmmse`` is the linear receiver you would compare against when noise, not just channel geometry, sets the answer; ``music_doa``, ``esprit`` and ``ica_jade`` are the other subspace readers of the same kind of matrix. Do not re-derive the precoder from an eigendecomposition of the Gram matrix by hand -- that is precisely what this op already did, with the null block completed orthonormally.",
+        ts_composes_645, 1u,
+        ts_preserves_645, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 646 */
         "srmech.signal_processing.viterbi",
         "srmech",
         "signal_processing",
         "Viterbi algorithm \342\200\224 the maximum-likelihood state sequence through a hidden Markov trellis, by dynamic programming. It finds the single best path exactly, in time linear in the sequence length, where enumerating paths would be exponential; the trick is that only the best surviving path into each state can ever matter downstream. Working in log probabilities turns the products into sums and keeps long sequences off the floor of the number range. IDENTITY: Class L (the trellis as a weighted graph) composed with Class K (the per-state survivor decision, a pin-slot at each merge).",
-        ts_params_643, 5u,
+        ts_params_646, 5u,
         "list",
         "the most likely state sequence, one state per observation",
         1,
@@ -18027,18 +18114,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT -- returns the single most likely state sequence given a sequence of observations, computed exactly rather than approximately: it is the log-domain Viterbi algorithm over an explicit trellis, taking the transition, emission and initial log-probability tables and returning one integer state per observation. Class L is the trellis itself -- nodes are (time, state) pairs and edges carry branch metrics -- and Class K is the pin-slot at each merge, keeping the single surviving predecessor. It runs in O(T * n_states^2) instead of the exponential cost of enumerating paths, and dispatches to a native kernel when one is present. WHEN -- reach for it whenever the thing you are estimating has memory and the per-sample answer is not the sequence answer: convolutional-code decoding, hidden Markov models in speech and gesture work, gene finding, part-of-speech tagging, and any place a per-sample argmax produces a physically impossible jumpy track. Inputs must already be in the log domain (the op adds, it does not multiply) and rows must be square and consistent, which it checks. SCOPE -- educational signal-processing reference for civilian communications and sequence modelling, cited to Viterbi 1967 and Forney 1973: it is the decoder in consumer modems, deep-space telemetry and mobile handsets, and the standard worked algorithm in an information theory course. SIBLINGS -- ``mlse`` is this same trellis search with the state defined as channel memory rather than encoder state, so use that instead of building an intersymbol trellis by hand here; ``map_ml`` is the estimator to reach for when the quantity is continuous and Gaussian rather than a discrete state path; ``huffman`` and ``arithmetic_coding`` share the dynamic-programming-over-a-table shape but answer a coding question, not an inference one.",
         NULL, 0u,
-        ts_preserves_643, 1u,
+        ts_preserves_646, 1u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 644 */
+    { /* 647 */
         "srmech.signal_processing.mlse",
         "srmech",
         "signal_processing",
         "Maximum-likelihood sequence estimation over an intersymbol-interference channel \342\200\224 Forney's equaliser. When a channel smears each symbol into its neighbours, deciding symbols one at a time is provably worse than deciding the whole SEQUENCE at once; MLSE builds the trellis whose states are the channel memory and searches it. RELATION: it composes viterbi rather than re-deriving the trellis search \342\200\224 the contribution here is the branch metric, not the dynamic program. IDENTITY: Class L (the trellis graph) composed with Class K (the survivor decision). Branch metrics use squared distance, so no sqrt and no abs(). SCOPE: educational signal-processing reference only \342\200\224 civilian digital communications teaching.",
-        ts_params_644, 5u,
+        ts_params_647, 5u,
         "list",
         "the maximum-likelihood transmitted symbol sequence",
         1,
@@ -18046,19 +18133,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"The QPSK constellation is turned about 53 degrees by the unit-magnitude channel gain 0.6 + 0.8j, so the first received points sit at (0.64, 0.77), (0.84, -0.63), (-0.76, 0.57). A channel-blind slicer returns [1, 0, 2, 3, 1, 2] -- every symbol wrong by exactly one constellation step, because 53 degrees is past the 45-degree decision boundary. mlse, given the same channel tap, returns [0, 3, 1, 2, 0, 1]: the sent sequence.\",\"why\":\"Two shipped ops are run on the identical received samples and disagree completely, so the example measures the difference rather than asserting it. The failure is not noise-driven and not marginal: 53 degrees is past the 45-degree QPSK boundary, so the channel-blind decision is wrong on every single symbol, in the same direction. The only thing mlse is given that the slicer is not is the channel tap, and that alone moves the reference points it compares against onto the received cloud. The added offset (0.04, -0.03) is there so the recovery cannot be dismissed as exact-arithmetic luck.\",\"worked\":\"from srmech.signal_processing import mlse, psk_qam\\n\\n# QPSK through a flat channel that turns the whole\\n# constellation by about 53 degrees (|h| = 1):\\nalphabet = [1 + 0j, 1j, -1 + 0j, -1j]\\nh = 0.6 + 0.8j\\nsent = [0, 3, 1, 2, 0, 1]\\nrx = [h * alphabet[i] + complex(0.04, -0.03) for i in sent]\\n[(round(z.real, 3), round(z.imag, 3)) for z in rx[:3]]\\n# -> [(0.64, 0.77), (0.84, -0.63), (-0.76, 0.57)]\\n\\n# a channel-blind slicer scores against the UNTURNED\\n# constellation, and lands one step off every time:\\npsk_qam(rx, modulation=\\\"psk\\\", M=4, demodulate=True)\\n# -> [1, 0, 2, 3, 1, 2]      every symbol wrong\\n\\n# mlse scores against h * alphabet instead:\\nmlse(rx, [h], alphabet)\\n# -> [0, 3, 1, 2, 0, 1]      the sent sequence, recovered\"}",
         NULL,
         "WHAT -- returns one alphabet index per received sample: the symbol sequence that best explains the observations through a known channel, scored by squared distance between what was received and what each candidate sequence would have produced. Given a single channel tap it is a minimum-distance decision against the channel-scaled alphabet -- the Class-K pin-slot argmin, taken on ``re*re + im*im`` so no square root and no sign test enter. Given more taps it builds an ``A**(L-1)``-state trellis over the channel memory, with branch metrics in the log domain from the Class-N rational log cascade, and hands that trellis to ``viterbi``. WHEN -- reach for it when you know the channel and the receiver would otherwise be deciding against the wrong reference points: a complex gain, a phase rotation or an amplitude scaling that a constellation slicer cannot see. It needs the channel taps as an argument -- it does not estimate them, and it will decode confidently against whatever taps you hand it. SCOPE -- educational signal-processing reference for civilian communications: textbook receiver-side equalisation cited to Forney 1972, the decision layer of an ordinary consumer modem or mobile handset baseband. SIBLINGS -- ``viterbi`` is the trellis engine underneath, and is the right surface when you want to define the states yourself rather than have them derived from channel memory; ``psk_qam`` with ``demodulate=True`` is the channel-blind slicer this op improves on, and is enough when the channel is flat and already corrected; ``lmmse`` and ``wiener`` are the linear equalisers to compare against when you would rather filter the channel out than search over sequences. One thing worth knowing about the multi-tap path, because it was wrong until recently: through rc424 the trellis held one state symbol too few and applied the cursor tap to the same symbol as the first memory tap, so on a channel whose energy sits in a later tap it returned a wrong sequence with no error signal. rc425 corrects it in both the pure and the native kernel -- the state now spans the whole tap window -- and the correction is gated by ``test_mlse_agrees_with_exhaustive_maximum_likelihood_rc425``, which checks the op against a brute-force search over every candidate sequence on nine channels including the post-cursor ones the old kernel failed. If you pinned a workaround against the old behaviour, drop it.",
-        ts_composes_644, 2u,
-        ts_preserves_644, 1u,
+        ts_composes_647, 2u,
+        ts_preserves_647, 1u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 645 */
+    { /* 648 */
         "srmech.signal_processing.multirate",
         "srmech",
         "signal_processing",
         "Rational resampling by up / down \342\200\224 insert zeros, filter, then discard samples, in that order. The order is not interchangeable: interpolating before decimating means the anti-imaging and anti-aliasing filters can be the SAME filter, run once at the higher rate, whereas the other order would alias away information before the filter could protect it. IDENTITY: Class N (the rational rate ratio itself) composed with Class C (the streaming orientation). RELATION: polyphase computes the same result with the multiply-by-zero work removed; reach for that one at scale.",
-        ts_params_645, 5u,
+        ts_params_648, 5u,
         "list[float]",
         "the resampled signal, at up / down times the input rate",
         1,
@@ -18066,19 +18153,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"The 1/1 call returns the input unchanged. The up=2 call returns [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 2.0] -- the four original samples sitting on the even indices and the three midpoints on the odd ones, with the final 2.0 being the interpolator running off the end of the signal. Decimating that result by 2 with a single unit tap returns the original [1.0, 2.0, 3.0, 4.0] exactly.\",\"why\":\"Up-sampling by 2 is supposed to leave the input samples untouched and invent only what sits between them, and the even-index slice shows exactly that: 1.0, 2.0, 3.0, 4.0 come back bit-for-bit while 1.5, 2.5, 3.5 appear in the gaps. The trailing 2.0 is not an error -- it is the interpolator averaging the last sample against the zero past the end of the signal, and seeing it is the point. The round trip back through down=2 closes the loop.\",\"worked\":\"from srmech.signal_processing import multirate\\nx = [1.0, 2.0, 3.0, 4.0]\\nmultirate(x, up=1, down=1)\\n# -> [1.0, 2.0, 3.0, 4.0]   1/1 short-circuits: no filter runs at all\\n# up by 2 with the triangular 3-tap interpolator, so the\\n# arithmetic is checkable by eye rather than smeared by\\n# the default 41-tap windowed sinc:\\ny = multirate(x, up=2, filter_taps=[0.25, 0.5, 0.25])\\ny\\n# -> [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 2.0]\\ny[0::2]\\n# -> [1.0, 2.0, 3.0, 4.0]   the originals, on the EVEN indices\\ny[1::2]\\n# -> [1.5, 2.5, 3.5, 2.0]   the midpoints; the last one runs off the end\\nmultirate(y, down=2, filter_taps=[1.0])\\n# -> [1.0, 2.0, 3.0, 4.0]   decimate straight back\\nmultirate(x, up=0)\\n# -> ValueError    up and down are counts, not offsets\"}",
         NULL,
         "WHAT -- returns the signal resampled by the exact rational ratio ``up/down``. It inserts ``up - 1`` zeros between samples, low-pass filters (a 41-tap Hamming-windowed sinc by default, or whatever ``filter_taps`` you pass), keeps every ``down``-th sample, and applies the ``up`` interpolation gain. ``up == down == 1`` short-circuits to a plain copy with no filtering. WHEN -- reach for it whenever one rate has to become another and the ratio is rational, which covers essentially every practical conversion. Be aware that the DEFAULT taps are a real filter with a real transition width: on a short signal the 41-tap impulse response dominates the output and the answer will not look like the input at all. That is the filter being honest, not a bug -- pass your own ``filter_taps`` when you want a result you can check by eye. SIBLINGS -- ``polyphase`` is this same conversion factored into ``L`` branches so that no multiply is ever spent on an inserted zero; ``farrow`` is the case where the shift is a fraction of a sample rather than a ratio of rates; ``sinc_interp`` is the ideal-band-limit reconstruction that also accepts non-uniform target times; ``fir`` is the plain convolution all four ride on. Do not hand-roll the insert-filter-decimate sequence around ``fir``: the interpolation gain and the \"same\"-mode centring are precisely the two steps that go quietly wrong.",
-        ts_composes_645, 2u,
-        ts_preserves_645, 1u,
+        ts_composes_648, 2u,
+        ts_preserves_648, 1u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 646 */
+    { /* 649 */
         "srmech.signal_processing.polyphase",
         "srmech",
         "signal_processing",
         "Polyphase decomposition for efficient decimation or interpolation \342\200\224 split the filter into L sub-filters so that no multiplication is ever performed against a sample that is about to be discarded, or against a zero that was just inserted. It computes exactly what the naive multirate chain computes and simply declines to do the wasted work, which is a factor-of-L saving. IDENTITY: Class L (the sub-filter bank structure) composed with Class N (the rational phase assignment). RELATION: same values as multirate, restructured.",
-        ts_params_646, 5u,
+        ts_params_649, 5u,
         "list",
         "the resampled signal",
         1,
@@ -18087,66 +18174,6 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT -- decomposes an FIR tap table into ``L`` phase branches ``E_k[n] = h[k + n*L]`` and applies them. In ``\"interpolation\"`` mode it filters the input through every branch and interleaves the results, which reproduces upsample-by-``L``-then-filter sample for sample without ever multiplying against an inserted zero; in ``\"decimation\"`` mode it filters the ``L`` strided phases of the input and accumulates. The companion ``decompose(taps, L)`` returns the branches on their own and is a pure integer reindex -- no arithmetic happens in it at all. WHEN -- reach for it when the filter is the cost and the rate change is large, since the branch form does the work of the full-rate filter at the LOW rate. Reach for ``decompose`` on its own when you want to inspect or store the branch tables, for instance to feed a filter bank. SIBLINGS -- ``multirate`` performs the same rational conversion in one call without exposing the branches, and is the one to use when you just want the resampled signal; ``fir`` is the single-rate filter each branch actually runs, and is what the worked example checks against; ``farrow`` and ``sinc_interp`` cover the fractional and non-uniform offsets that a fixed integer ``L`` cannot express. Do not hand-write the strided split and interleave around ``fir`` -- the branch indexing and the zero-pad to a multiple of ``L`` are where the off-by-one lives.",
         NULL, 0u,
-        ts_preserves_646, 1u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 647 */
-        "srmech.signal_processing.farrow",
-        "srmech",
-        "signal_processing",
-        "Farrow-structure fractional delay \342\200\224 resample at an arbitrary offset mu between existing samples, using a polynomial interpolator whose coefficients are FIXED and whose only run-time input is mu. That is the whole point of the structure: an arbitrary continuously-variable delay without redesigning or re-storing a filter per offset, which is what makes it the standard timing-recovery interpolator. IDENTITY: Class N \342\200\224 the polynomial coefficient table is a rational-anchor construction. RELATION: sinc_interp is the ideal-bandlimited peer, exact but not cheaply retunable.",
-        ts_params_647, 3u,
-        "list",
-        "the signal resampled at the fractional offset",
-        1,
-        NULL,
-        "{\"output\":\"At mu=0 the ramp comes back untouched: [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]. A constant 7.0 signal at mu=0.5 returns 7.0 across the interior, confirming unit DC gain. The ramp at mu=0.5 returns interior values 1.25, 2.25, 3.25 against inputs 1, 2, 3, and at mu=0.25 returns 1.125, 2.125, 3.125 -- a displacement of exactly mu/2 in both cases. mu=1.0 raises ValueError.\",\"why\":\"Two independent oracles in six lines. mu=0 collapsing the polynomial mixer to (0, 1, 0, 0) means the output must be the input with no arithmetic left over, and it is, to the last bit. The constant signal pins the DC gain at exactly 1, which is the property a badly normalised sub-filter bank breaks first. The two ramp lines then give the displacement a scale you can read: halving mu halves the offset, 0.25 to 0.125, so the mixer is behaving as a polynomial in mu rather than switching taps.\",\"worked\":\"from srmech.signal_processing import farrow\\nramp = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]\\nfarrow(ramp, mu=0.0)\\n# -> [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]   mu=0 is EXACT passthrough\\n# unit DC gain at every mu -- a constant stays constant\\n# (interior only; the ends see the zero pad):\\nfarrow([7.0] * 6, mu=0.5)[1:4]\\n# -> [7.0, 7.0, 7.0]\\n# on a ramp the interior is displaced by exactly mu/2:\\nfarrow(ramp, mu=0.5)[1:4]\\n# -> [1.25, 2.25, 3.25]     inputs were 1, 2, 3\\nfarrow(ramp, mu=0.25)[1:4]\\n# -> [1.125, 2.125, 3.125]  half the displacement\\nfarrow(ramp, mu=1.0)\\n# -> ValueError    mu lives in [0, 1); 1.0 is the next sample\"}",
-        NULL,
-        "WHAT -- returns the signal passed through a fixed 4-tap cubic sub-filter bank whose taps are blended by powers of ``mu``, the Farrow structure. For a fixed ``mu`` the four sub-filters collapse to ONE effective length-4 FIR, so the whole op is a single short correlation over a one-before / two-after zero-padded signal, and the output has the same length as the input. ``mu`` must lie in ``[0, 1)``. WHEN -- reach for it when the shift you need is a fraction of a sample and is allowed to CHANGE at runtime: the sub-filter table is constant, so retuning costs three multiplies rather than a filter redesign. Calibrate the displacement you get before trusting it: ``mu = 0`` is the exact-passthrough oracle, and on a ramp the measured interior displacement is ``mu/2``, so read ``mu`` as the mixer polynomial argument and measure the sample offset it buys you on a known input rather than assuming one sample per unit ``mu``. SIBLINGS -- ``multirate`` and ``polyphase`` handle shifts that are a rational ratio of rates, which is the other half of the resampling problem and NOT what this op is for; ``sinc_interp`` is the ideal-kernel answer to the same fractional-offset question and is more accurate but costs a full kernel matrix per call rather than four taps. Do not hand-roll the polynomial-in-mu mixer over ``fir``; the sub-filter table is a published constant and re-deriving it is how sign errors enter.",
-        ts_composes_647, 1u,
-        ts_preserves_647, 1u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 648 */
-        "srmech.signal_processing.sinc_interp",
-        "srmech",
-        "signal_processing",
-        "Whittaker-Shannon sinc interpolation \342\200\224 reconstruct a bandlimited signal at arbitrary target positions from its samples. This is the interpolation the sampling theorem names: for a genuinely bandlimited signal sampled above the Nyquist rate it is not an approximation but the exact reconstruction. Its cost is that every output touches every input, which is why cheaper interpolators exist at all. IDENTITY: Class L (the interpolation operator as a matvec against a sinc kernel matrix) composed with Class K (the removable singularity at zero offset, handled as an explicit boundary rather than by dividing). RELATION: farrow is the cheap retunable peer.",
-        ts_params_648, 4u,
-        "list",
-        "the reconstructed values, one per target index",
-        1,
-        NULL,
-        "{\"output\":\"Reconstructing at the sample times themselves returns [-0.0, 0.0, 1.0, 0.0, -0.0] -- the input impulse, with off-diagonal residuals around 4e-17 rather than exact zeros. Reconstructing the same impulse a half sample either side returns 0.636619772 twice, which is 2/pi, the textbook value of sinc(1/2). A scalar target of 1.5 returns a scalar -0.212206591, the first negative lobe.\",\"why\":\"The half-sample value is the convincing one: 0.636619772 is 2/pi to nine places, which is what Whittaker-Shannon reconstruction of a unit impulse MUST give, and it lands there with numpy absent and pi coming from the Class-N rational cascade rather than a float constant. The identity line is the other end of the same fact -- the kernel is exactly the identity on the sample grid, to within a 4e-17 residual, which is why the op is safe to call with targets that partly coincide with samples.\",\"worked\":\"from srmech.signal_processing import sinc_interp\\nts = [-2.0, -1.0, 0.0, 1.0, 2.0]\\nimpulse = [0.0, 0.0, 1.0, 0.0, 0.0]\\n# reconstructing AT the sample times: the kernel matrix is the\\n# identity, because sinc of a nonzero integer is zero\\n[round(v.real, 9) for v in sinc_interp(impulse, ts, ts)]\\n# -> [-0.0, 0.0, 1.0, 0.0, -0.0]\\n# a unit impulse reconstructs as the sinc function ITSELF:\\n[round(v.real, 9) for v in sinc_interp(impulse, ts, [-0.5, 0.5])]\\n# -> [0.636619772, 0.636619772]   = 2/pi, both sides\\nround(sinc_interp(impulse, ts, 1.5).real, 9)\\n# -> -0.212206591   a SCALAR target gives a scalar back\\nsinc_interp([1.0, 2.0], ts, [0.0])\\n# -> ValueError    signal and sample_indices must pair up\"}",
-        NULL,
-        "WHAT -- returns the Whittaker-Shannon band-limited reconstruction of a signal at arbitrary target times: it builds the kernel matrix ``S[q][s] = sinc((t_q - t_s)/T)``, where ``T`` is the median spacing of the supplied sample times, and returns ``S`` times the samples. Values come back COMPLEX (a list, or a bare scalar if you passed a scalar target), and the sample times may be non-uniform. WHEN -- reach for it when you need values between samples and the signal really is band-limited, and especially when the target times are irregular or do not share a rational relationship with the input grid -- that is the case neither a resampling ratio nor a fixed fractional delay can express. Reach for it too when you want the reference answer to check a cheaper interpolator against, since this is the ideal kernel with no truncation beyond the samples you supplied. SIBLINGS -- ``farrow`` answers the same fractional-offset question with four taps instead of a full kernel matrix, and is the one to use when the offset varies per sample; ``multirate`` and ``polyphase`` cover fixed rational rate changes far more cheaply. Do not hand-write the sinc sum: the removable singularity at zero is a Class-K branch here (it returns 1.0 with no division), and a naive sum divides by zero on every target time that coincides with a sample.",
-        ts_composes_648, 1u,
-        ts_preserves_648, 1u,
-        NULL,
-        NULL, 0u,
-        NULL,
-        NULL, 0u,
-    },
-    { /* 649 */
-        "srmech.signal_processing.beamforming_fixed",
-        "srmech",
-        "signal_processing",
-        "Fixed delay-and-sum beamforming \342\200\224 align the per-element records by their geometric delays and add. It is the simplest spatial filter there is and its resolution is DIFFRACTION-LIMITED, set by aperture over wavelength; that limit is the baseline the subspace methods were invented to beat. IDENTITY: Class L (the array combine as a matvec) composed with Class N (the rational delay and weight tables). SIBLINGS: music_doa and esprit resolve sources this cannot separate. SCOPE: educational signal-processing reference only \342\200\224 acoustic source-finding, civilian direction-of-arrival estimation, array-processing teaching material.",
-        ts_params_649, 4u,
-        "list",
-        "the single beamformed output record",
-        1,
-        NULL,
-        "{\"output\":\"Steered to the true arrival pattern the output is [3.0, 0.0, 0.0] -- the full impulse height recovered. Steered flat, the same three recordings give [1.0, 1.0, 1.0, 0.0, 0.0]: the same total energy spread over three samples at a third of the height. Replacing the default 1/n_mics weights with unit weights returns [9.0, 0.0, 0.0], the un-normalised coherent sum.\",\"why\":\"The contrast between the first two lines IS the beamformer. Same three recordings, same op, one number changed: aligned, three copies of a height-3 impulse reconstruct a height-3 impulse; misaligned, they reconstruct three height-1 impulses. Nothing was filtered and nothing was thresholded -- the only mechanism is which sample of each row got added to which. The unit-weight line separates the two things the weights do, namely normalisation and shading, by showing the sum before normalisation.\",\"worked\":\"from srmech.signal_processing import beamforming_fixed\\n# three microphones; the same impulse of height 3 arrives one\\n# sample later at each successive element:\\nmics = [[3.0, 0.0, 0.0, 0.0, 0.0],\\n        [0.0, 3.0, 0.0, 0.0, 0.0],\\n        [0.0, 0.0, 3.0, 0.0, 0.0]]\\n[v.real for v in beamforming_fixed(mics, delays_samples=[0, 1, 2])]\\n# -> [3.0, 0.0, 0.0]   aligned: the copies add coherently\\n[v.real for v in beamforming_fixed(mics, delays_samples=[0, 0, 0])]\\n# -> [1.0, 1.0, 1.0, 0.0, 0.0]   unaligned: a third each, smeared\\n[v.real for v in beamforming_fixed(mics, delays_samples=[0, 1, 2],\\n                                   weights=[1.0, 1.0, 1.0])]\\n# -> [9.0, 0.0, 0.0]   unit weights: the raw coherent sum\\nbeamforming_fixed(mics, delays_samples=[0, 1])\\n# -> ValueError    one delay per microphone, always\"}",
-        NULL,
-        "SCOPE -- educational signal-processing reference, civilian only: acoustic microphone arrays, speech enhancement, hearing aids, room acoustics and the textbook physics of array gain. It is not documented, and must not be used, for targeting, tracking or capability assessment. WHAT -- returns the delay-and-sum beamformer output for a microphone-array recording: it shifts each row by its integer ``delays_samples`` entry, scales by ``weights`` (default ``1/n_mics``, i.e. plain averaging) and sums, giving ``n_samples - max(delays)`` complex output samples. The whole thing is one matrix-vector product against the delay-aligned window matrix. WHEN -- reach for it as the baseline array processor and as the thing to explain array gain with: it is one integer index per element and no eigendecomposition, so it has nothing to converge and nothing to mis-rank. Its resolution is diffraction-limited by the array aperture, which is exactly the limitation the subspace methods were invented to get past. SIBLINGS -- ``music_doa`` is the subspace estimator that improves on this baseline and resolves sources closer together than the aperture allows; ``esprit`` is that estimator's rotational-invariance peer. Both take a covariance matrix rather than raw recordings, so they answer \"where are the sources\" where this op answers \"what does the array hear in one chosen direction\". Do not hand-roll the alignment loop: the output length shortens by the largest delay, and getting that wrong reads past the end of the shortest row.",
-        ts_composes_649, 1u,
         ts_preserves_649, 1u,
         NULL,
         NULL, 0u,
@@ -18154,19 +18181,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 650 */
-        "srmech.signal_processing.esprit",
+        "srmech.signal_processing.farrow",
         "srmech",
         "signal_processing",
-        "ESPRIT \342\200\224 subspace parameter estimation via rotational invariance. Where music_doa builds a pseudo-spectrum you then SEARCH for peaks, ESPRIT exploits the shift structure of a uniform linear array to return the parameters DIRECTLY as generalised eigenvalues, with no search grid and so no grid-resolution floor. IDENTITY: Class L (the covariance eigendecomposition that exposes the signal subspace) composed with Class K (the signal / noise rank cut, a genuine pin-slot phase boundary). SIBLINGS: music_doa is the search-based peer; beamforming_fixed is the diffraction-limited baseline both improve on. SCOPE: educational signal-processing reference only \342\200\224 acoustic source-finding, civilian direction-of-arrival and frequency estimation.",
+        "Farrow-structure fractional delay \342\200\224 resample at an arbitrary offset mu between existing samples, using a polynomial interpolator whose coefficients are FIXED and whose only run-time input is mu. That is the whole point of the structure: an arbitrary continuously-variable delay without redesigning or re-storing a filter per offset, which is what makes it the standard timing-recovery interpolator. IDENTITY: Class N \342\200\224 the polynomial coefficient table is a rational-anchor construction. RELATION: sinc_interp is the ideal-bandlimited peer, exact but not cheaply retunable.",
         ts_params_650, 3u,
-        "list[complex]",
-        "n_sources generalised eigenvalues; their angles carry the direction or frequency estimates",
+        "list",
+        "the signal resampled at the fractional offset",
         1,
         NULL,
-        "{\"output\":\"The op returns [0.9999999999999999j] for a single source whose per-element phase step is exactly j; rounded to nine places the real and imaginary parts are (0.0, 1.0). The recovered generalised eigenvalue IS the phase step, recovered as a parameter rather than as a peak in a searched spectrum. Asking for four sources on a four-element array raises ValueError.\",\"why\":\"The answer is a number you can check against the input by eye: the steering vector was built with a per-element step of j, and j is what comes back, to nine places, with no grid of candidate directions anywhere in the call. That is the rotational-invariance mechanism in one line -- the first three rows of the signal subspace and the last three differ by exactly the source phase step, so the least-squares operator relating them has that step as its eigenvalue. The 0.01 on the diagonal is sensor noise, and the estimate is unmoved by it.\",\"worked\":\"from srmech.math.mat import Mat\\nfrom srmech.signal_processing import esprit\\n# a 4-element uniform linear array, ONE source whose\\n# per-element phase step is exactly j (90 degrees),\\n# plus a little sensor noise on the diagonal:\\na = [1 + 0j, 1j, -1 + 0j, -1j]\\nrows = [[a[i] * a[j].conjugate() + (0.01 if i == j else 0.0)\\n         for j in range(4)] for i in range(4)]\\nR = Mat.from_rows(rows, is_complex=True)\\nz = esprit(R, n_sources=1)\\n(round(z[0].real, 9), round(z[0].imag, 9))\\n# -> (0.0, 1.0)     exactly +j, the source's phase step\\nlen(z)\\n# -> 1              one eigenvalue per requested source\\nesprit(R, n_sources=4)\\n# -> ValueError     n_sources must be smaller than M\"}",
+        "{\"output\":\"At mu=0 the ramp comes back untouched: [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]. A constant 7.0 signal at mu=0.5 returns 7.0 across the interior, confirming unit DC gain. The ramp at mu=0.5 returns interior values 1.25, 2.25, 3.25 against inputs 1, 2, 3, and at mu=0.25 returns 1.125, 2.125, 3.125 -- a displacement of exactly mu/2 in both cases. mu=1.0 raises ValueError.\",\"why\":\"Two independent oracles in six lines. mu=0 collapsing the polynomial mixer to (0, 1, 0, 0) means the output must be the input with no arithmetic left over, and it is, to the last bit. The constant signal pins the DC gain at exactly 1, which is the property a badly normalised sub-filter bank breaks first. The two ramp lines then give the displacement a scale you can read: halving mu halves the offset, 0.25 to 0.125, so the mixer is behaving as a polynomial in mu rather than switching taps.\",\"worked\":\"from srmech.signal_processing import farrow\\nramp = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]\\nfarrow(ramp, mu=0.0)\\n# -> [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]   mu=0 is EXACT passthrough\\n# unit DC gain at every mu -- a constant stays constant\\n# (interior only; the ends see the zero pad):\\nfarrow([7.0] * 6, mu=0.5)[1:4]\\n# -> [7.0, 7.0, 7.0]\\n# on a ramp the interior is displaced by exactly mu/2:\\nfarrow(ramp, mu=0.5)[1:4]\\n# -> [1.25, 2.25, 3.25]     inputs were 1, 2, 3\\nfarrow(ramp, mu=0.25)[1:4]\\n# -> [1.125, 2.125, 3.125]  half the displacement\\nfarrow(ramp, mu=1.0)\\n# -> ValueError    mu lives in [0, 1); 1.0 is the next sample\"}",
         NULL,
-        "SCOPE -- educational signal-processing reference, civilian only: acoustic source-finding, civilian direction-of-arrival estimation, sinusoid frequency estimation and the textbook physics of subspace methods. It is not documented, and must not be used, for targeting, tracking or capability assessment. WHAT -- returns the ``n_sources`` generalised eigenvalues that relate two shifted subarrays of a uniform linear array. It eigendecomposes the Hermitian covariance (Class L), keeps the ``n_sources`` largest eigenvectors as the signal subspace, solves the least-squares problem relating the first ``M-1`` rows to the last ``M-1``, and returns the eigenvalues of that operator (Class K). Each eigenvalue lies on the unit circle and its angle gives the direction. WHEN -- reach for it when you want the parameters themselves rather than a spectrum to search: there is no candidate grid, so there is no grid resolution to trade against cost, and the estimate is not quantised to whatever directions you happened to enumerate. It needs the shift structure of a uniform array, which is the price of that. ``n_sources`` is required and must be strictly smaller than ``M``. SIBLINGS -- ``music_doa`` is the pseudo-spectrum peer that scores candidate steering vectors instead of returning parameters, and is the one to use when the array is not uniformly spaced; ``beamforming_fixed`` is the diffraction-limited baseline both improve on. Do not re-derive the subarray least-squares step by hand -- ``mat_lstsq`` over the Mat carrier is what this rides, and it is the same solver the rest of the family uses.",
-        ts_composes_650, 3u,
+        "WHAT -- returns the signal passed through a fixed 4-tap cubic sub-filter bank whose taps are blended by powers of ``mu``, the Farrow structure. For a fixed ``mu`` the four sub-filters collapse to ONE effective length-4 FIR, so the whole op is a single short correlation over a one-before / two-after zero-padded signal, and the output has the same length as the input. ``mu`` must lie in ``[0, 1)``. WHEN -- reach for it when the shift you need is a fraction of a sample and is allowed to CHANGE at runtime: the sub-filter table is constant, so retuning costs three multiplies rather than a filter redesign. Calibrate the displacement you get before trusting it: ``mu = 0`` is the exact-passthrough oracle, and on a ramp the measured interior displacement is ``mu/2``, so read ``mu`` as the mixer polynomial argument and measure the sample offset it buys you on a known input rather than assuming one sample per unit ``mu``. SIBLINGS -- ``multirate`` and ``polyphase`` handle shifts that are a rational ratio of rates, which is the other half of the resampling problem and NOT what this op is for; ``sinc_interp`` is the ideal-kernel answer to the same fractional-offset question and is more accurate but costs a full kernel matrix per call rather than four taps. Do not hand-roll the polynomial-in-mu mixer over ``fir``; the sub-filter table is a published constant and re-deriving it is how sign errors enter.",
+        ts_composes_650, 1u,
         ts_preserves_650, 1u,
         NULL,
         NULL, 0u,
@@ -18174,19 +18201,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 651 */
-        "srmech.signal_processing.ica_jade",
+        "srmech.signal_processing.sinc_interp",
         "srmech",
         "signal_processing",
-        "JADE independent component analysis \342\200\224 separate a linear mixture into statistically independent sources by jointly diagonalising fourth-order cumulant matrices. Second-order methods can only decorrelate, which leaves an arbitrary rotation unresolved; the fourth-order statistics are exactly what pins that rotation down, which is why JADE can solve the blind source separation problem that whitening alone cannot. IDENTITY: Class L (the cumulant eigenstructure) composed with Class K (the Givens rotation sign / angle decisions). NOTE: the convergence guards deliberately use a local NaN-PROPAGATING magnitude rather than the shipped dead-band magnitude op \342\200\224 a NaN read as 0.0 would satisfy the tolerance test and report convergence on garbage, turning a loud failure into a silent wrong answer. That choice is adjudicated and intentional.",
-        ts_params_651, 5u,
-        "tuple",
-        "an (unmixing matrix, recovered sources) pair",
+        "Whittaker-Shannon sinc interpolation \342\200\224 reconstruct a bandlimited signal at arbitrary target positions from its samples. This is the interpolation the sampling theorem names: for a genuinely bandlimited signal sampled above the Nyquist rate it is not an approximation but the exact reconstruction. Its cost is that every output touches every input, which is why cheaper interpolators exist at all. IDENTITY: Class L (the interpolation operator as a matvec against a sinc kernel matrix) composed with Class K (the removable singularity at zero offset, handled as an explicit boundary rather than by dividing). RELATION: farrow is the cheap retunable peer.",
+        ts_params_651, 4u,
+        "list",
+        "the reconstructed values, one per target index",
         1,
         NULL,
-        "{\"output\":\"For an 8-sample, 2-channel mixture the op returns S with shape (8, 2) and W with shape (2, 2). The measured sample covariance of the recovered sources is exactly [[1.0, 0.0], [0.0, 1.0]] to twelve decimal places -- unit variance, zero cross-correlation. Asking for one component instead returns S of shape (8, 1) and W of shape (1, 2).\",\"why\":\"The covariance block is the checkable part and it is exact, not approximate: unit variance on the diagonal and a hard zero off it, to twelve places. That holds by construction rather than by convergence -- the whitening stage makes the working basis white and every Givens step is a rotation, which cannot un-whiten it -- so it is the right invariant to assert in your own tests. The ``n_components`` pair shows the other structural fact: the returned shapes, and therefore the retained subspace, are yours to choose.\",\"worked\":\"from srmech.signal_processing import ica_jade\\n# two deterministic, mutually uncorrelated sources:\\nsq  = [1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0]\\nspk = [0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, -2.0]\\n# mixed by [[2, 1], [1, 3]] into two observed channels:\\nX = [[2.0 * sq[t] + 1.0 * spk[t],\\n      1.0 * sq[t] + 3.0 * spk[t]] for t in range(8)]\\nS, W = ica_jade(X)\\n(S.shape, W.shape)\\n# -> ((8, 2), (2, 2))   sources (n_samples, k), unmixing (k, n_features)\\n# the whitening contract, measured on the OUTPUT:\\n[[round(sum(S[t, i] * S[t, j] for t in range(8)) / 8, 12)\\n  for j in range(2)] for i in range(2)]\\n# -> [[1.0, 0.0], [0.0, 1.0]]\\nS1, W1 = ica_jade(X, n_components=1)\\n(S1.shape, W1.shape)\\n# -> ((8, 1), (1, 2))   n_components truncates the retained subspace\\nica_jade([[1.0, 2.0], [3.0]])\\n# -> ValueError    every sample row needs the same feature count\"}",
+        "{\"output\":\"Reconstructing at the sample times themselves returns [-0.0, 0.0, 1.0, 0.0, -0.0] -- the input impulse, with off-diagonal residuals around 4e-17 rather than exact zeros. Reconstructing the same impulse a half sample either side returns 0.636619772 twice, which is 2/pi, the textbook value of sinc(1/2). A scalar target of 1.5 returns a scalar -0.212206591, the first negative lobe.\",\"why\":\"The half-sample value is the convincing one: 0.636619772 is 2/pi to nine places, which is what Whittaker-Shannon reconstruction of a unit impulse MUST give, and it lands there with numpy absent and pi coming from the Class-N rational cascade rather than a float constant. The identity line is the other end of the same fact -- the kernel is exactly the identity on the sample grid, to within a 4e-17 residual, which is why the op is safe to call with targets that partly coincide with samples.\",\"worked\":\"from srmech.signal_processing import sinc_interp\\nts = [-2.0, -1.0, 0.0, 1.0, 2.0]\\nimpulse = [0.0, 0.0, 1.0, 0.0, 0.0]\\n# reconstructing AT the sample times: the kernel matrix is the\\n# identity, because sinc of a nonzero integer is zero\\n[round(v.real, 9) for v in sinc_interp(impulse, ts, ts)]\\n# -> [-0.0, 0.0, 1.0, 0.0, -0.0]\\n# a unit impulse reconstructs as the sinc function ITSELF:\\n[round(v.real, 9) for v in sinc_interp(impulse, ts, [-0.5, 0.5])]\\n# -> [0.636619772, 0.636619772]   = 2/pi, both sides\\nround(sinc_interp(impulse, ts, 1.5).real, 9)\\n# -> -0.212206591   a SCALAR target gives a scalar back\\nsinc_interp([1.0, 2.0], ts, [0.0])\\n# -> ValueError    signal and sample_indices must pair up\"}",
         NULL,
-        "WHAT -- returns ``(S, W)`` for an ``(n_samples, n_features)`` observation matrix: ``S`` is the recovered sources ``(n_samples, k)`` and ``W`` the unmixing matrix ``(k, n_features)``, both as ``Mat``. It centres the columns, whitens by eigendecomposing the covariance (Class L), keeps the ``n_components`` largest directions, builds the fourth-order cumulant tensor of the whitened data and drives its slices toward joint diagonality with Givens rotations (Class K). ``S`` equals the centred ``X`` unmixed by ``W``, and its sample covariance is the identity exactly. WHEN -- reach for it for blind source separation, where you have mixtures and no mixing matrix. Two things to know before you trust an output. First, the recovered basis is fixed only up to permutation, sign and scale, so never assume a column order -- match components to what you expect rather than reading them positionally. Second, the sweep here is the SIMPLIFIED JADE reference of Cardoso and Souloumiac, so the whiteness of the output is guaranteed but the separation quality is data-dependent and worth verifying on your own signals. Note also that the convergence guards inside deliberately PROPAGATE NaN rather than mapping it to zero: a NaN in your data surfaces as a NaN you can see, instead of being read as a below-tolerance value and reported as converged. SIBLINGS -- ``mimo_svd`` factors a KNOWN mixing matrix and needs no independence assumption at all, so prefer it whenever the matrix is available; ``music_doa`` and ``esprit`` run the same Class-L covariance eigendecomposition but use it to split a signal subspace from a noise subspace rather than to rotate within one. Do not hand-roll the whitening in front of this op -- it whitens internally, and pre-whitening only makes the retained-subspace accounting ambiguous.",
-        ts_composes_651, 5u,
+        "WHAT -- returns the Whittaker-Shannon band-limited reconstruction of a signal at arbitrary target times: it builds the kernel matrix ``S[q][s] = sinc((t_q - t_s)/T)``, where ``T`` is the median spacing of the supplied sample times, and returns ``S`` times the samples. Values come back COMPLEX (a list, or a bare scalar if you passed a scalar target), and the sample times may be non-uniform. WHEN -- reach for it when you need values between samples and the signal really is band-limited, and especially when the target times are irregular or do not share a rational relationship with the input grid -- that is the case neither a resampling ratio nor a fixed fractional delay can express. Reach for it too when you want the reference answer to check a cheaper interpolator against, since this is the ideal kernel with no truncation beyond the samples you supplied. SIBLINGS -- ``farrow`` answers the same fractional-offset question with four taps instead of a full kernel matrix, and is the one to use when the offset varies per sample; ``multirate`` and ``polyphase`` cover fixed rational rate changes far more cheaply. Do not hand-write the sinc sum: the removable singularity at zero is a Class-K branch here (it returns 1.0 with no division), and a naive sum divides by zero on every target time that coincides with a sample.",
+        ts_composes_651, 1u,
         ts_preserves_651, 1u,
         NULL,
         NULL, 0u,
@@ -18194,18 +18221,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 652 */
-        "srmech.signal_processing.lmmse",
+        "srmech.signal_processing.beamforming_fixed",
         "srmech",
         "signal_processing",
-        "Linear minimum mean-square-error estimator \342\200\224 the best LINEAR estimate of x from y given their covariances. It is the workhorse Bayesian estimator precisely because it needs only second-order statistics: no distributional assumption is required for it to be the optimal linear rule, and when the variables happen to be jointly Gaussian it is optimal among ALL estimators, not just linear ones. IDENTITY: Class L (the covariance solve) composed with Class N (the rational gain). SIBLINGS: map_ml is the model-based peer that takes an observation matrix and noise covariance instead of the joint covariances.",
-        ts_params_652, 6u,
-        "list[float]",
-        "the LMMSE estimate of x",
+        "Fixed delay-and-sum beamforming \342\200\224 align the per-element records by their geometric delays and add. It is the simplest spatial filter there is and its resolution is DIFFRACTION-LIMITED, set by aperture over wavelength; that limit is the baseline the subspace methods were invented to beat. IDENTITY: Class L (the array combine as a matvec) composed with Class N (the rational delay and weight tables). SIBLINGS: music_doa and esprit resolve sources this cannot separate. SCOPE: educational signal-processing reference only \342\200\224 acoustic source-finding, civilian direction-of-arrival estimation, array-processing teaching material.",
+        ts_params_652, 4u,
+        "list",
+        "the single beamformed output record",
         1,
         NULL,
-        "{\"output\":\"With a unit-variance prior and two unit-variance noisy looks at the same scalar, the estimate is 2.666666666667 -- exactly 8/3, the sample average 4.0 shrunk toward the prior mean of 0. Widening the prior variance to 1e6 returns 3.999998, the plain average to six figures. Supplying mean_x=[10.0] and mean_y=[10.0, 10.0] returns exactly 6.0, the same shrinkage re-centred.\",\"why\":\"The two numbers bracket the estimator. 8/3 is the textbook answer for this model -- prior variance 1, two looks at noise variance 1, so the gain is 1/(1 + 1/2) and the average 4.0 shrinks to 8/3 -- and it comes out exact rather than close. Then pushing the prior variance to 1e6 walks the same call to 3.999998, i.e. the plain sample average, which is what LMMSE MUST collapse to when the prior stops carrying information. Seeing both from one op is the clearest statement of what the prior is buying.\",\"worked\":\"from srmech.signal_processing import lmmse\\n# one scalar x seen twice in unit-variance noise:\\n#   R_yy = var(x) * ones + var(v) * I ,  R_xy = var(x) * ones\\ny = [3.0, 5.0]\\nround(lmmse(y, [[2.0, 1.0], [1.0, 2.0]], [[1.0, 1.0]])[0], 12)\\n# -> 2.666666666667   = 8/3: the average 4.0, shrunk toward 0\\n# now widen the prior to 1e6 -- effectively flat:\\nb = 1.0e6\\nround(lmmse(y, [[b + 1.0, b], [b, b + 1.0]], [[b, b]])[0], 6)\\n# -> 3.999998         the plain average 4.0, to six figures\\n# a non-zero prior mean just re-centres the same shrinkage:\\nround(lmmse(y, [[2.0, 1.0], [1.0, 2.0]], [[1.0, 1.0]],\\n            mean_x=[10.0], mean_y=[10.0, 10.0])[0], 12)\\n# -> 6.0              10 + (-7 + -5)/3\\nlmmse(y, [[2.0, 1.0]], [[1.0, 1.0]])\\n# -> ValueError       R_yy must be square and match y\"}",
+        "{\"output\":\"Steered to the true arrival pattern the output is [3.0, 0.0, 0.0] -- the full impulse height recovered. Steered flat, the same three recordings give [1.0, 1.0, 1.0, 0.0, 0.0]: the same total energy spread over three samples at a third of the height. Replacing the default 1/n_mics weights with unit weights returns [9.0, 0.0, 0.0], the un-normalised coherent sum.\",\"why\":\"The contrast between the first two lines IS the beamformer. Same three recordings, same op, one number changed: aligned, three copies of a height-3 impulse reconstruct a height-3 impulse; misaligned, they reconstruct three height-1 impulses. Nothing was filtered and nothing was thresholded -- the only mechanism is which sample of each row got added to which. The unit-weight line separates the two things the weights do, namely normalisation and shading, by showing the sum before normalisation.\",\"worked\":\"from srmech.signal_processing import beamforming_fixed\\n# three microphones; the same impulse of height 3 arrives one\\n# sample later at each successive element:\\nmics = [[3.0, 0.0, 0.0, 0.0, 0.0],\\n        [0.0, 3.0, 0.0, 0.0, 0.0],\\n        [0.0, 0.0, 3.0, 0.0, 0.0]]\\n[v.real for v in beamforming_fixed(mics, delays_samples=[0, 1, 2])]\\n# -> [3.0, 0.0, 0.0]   aligned: the copies add coherently\\n[v.real for v in beamforming_fixed(mics, delays_samples=[0, 0, 0])]\\n# -> [1.0, 1.0, 1.0, 0.0, 0.0]   unaligned: a third each, smeared\\n[v.real for v in beamforming_fixed(mics, delays_samples=[0, 1, 2],\\n                                   weights=[1.0, 1.0, 1.0])]\\n# -> [9.0, 0.0, 0.0]   unit weights: the raw coherent sum\\nbeamforming_fixed(mics, delays_samples=[0, 1])\\n# -> ValueError    one delay per microphone, always\"}",
         NULL,
-        "WHAT -- returns the linear minimum-mean-square-error estimate ``x_hat = mean_x + R_xy R_yy^-1 (y - mean_y)``, the closed-form Wiener-Hopf solution. It needs only second-order statistics: the observation covariance ``R_yy`` and the signal-observation cross-covariance ``R_xy``, with both means defaulting to zero. The gain is obtained by a dense solve against ``R_yy`` rather than by forming an inverse. WHEN -- reach for it when you know the covariances and want the best LINEAR estimate, which is the usual situation in channel estimation, smoothing and sensor fusion. It is optimal among all estimators when everything is jointly Gaussian, and remains the best linear one otherwise, which is why it survives being wrong about the distribution. Watch the conditioning of ``R_yy``, because widening the prior makes it ill-conditioned: the 1e6 line in the worked example has a condition number around 2e6, and the 3.999998 it returns is the exact answer for a prior variance of 1e6, not a numerical wobble around 4.0. The estimate tends to the sample average as the prior flattens; the solve is what has to stay stable while it does. SIBLINGS -- ``map_ml`` solves the same linear-Gaussian problem from the FORWARD model ``y = A x + v`` instead of from covariances, and returns the identical number for the identical model, as its own worked example shows; ``wiener`` is the same MMSE criterion applied per frequency bin when the statistics are given as power spectra. Choose between them by which statistics you actually have. Do not invert ``R_yy`` yourself and multiply -- forming the inverse is both slower and less stable than the solve this op already performs.",
+        "SCOPE -- educational signal-processing reference, civilian only: acoustic microphone arrays, speech enhancement, hearing aids, room acoustics and the textbook physics of array gain. It is not documented, and must not be used, for targeting, tracking or capability assessment. WHAT -- returns the delay-and-sum beamformer output for a microphone-array recording: it shifts each row by its integer ``delays_samples`` entry, scales by ``weights`` (default ``1/n_mics``, i.e. plain averaging) and sums, giving ``n_samples - max(delays)`` complex output samples. The whole thing is one matrix-vector product against the delay-aligned window matrix. WHEN -- reach for it as the baseline array processor and as the thing to explain array gain with: it is one integer index per element and no eigendecomposition, so it has nothing to converge and nothing to mis-rank. Its resolution is diffraction-limited by the array aperture, which is exactly the limitation the subspace methods were invented to get past. SIBLINGS -- ``music_doa`` is the subspace estimator that improves on this baseline and resolves sources closer together than the aperture allows; ``esprit`` is that estimator's rotational-invariance peer. Both take a covariance matrix rather than raw recordings, so they answer \"where are the sources\" where this op answers \"what does the array hear in one chosen direction\". Do not hand-roll the alignment loop: the output length shortens by the largest delay, and getting that wrong reads past the end of the shortest row.",
         ts_composes_652, 1u,
         ts_preserves_652, 1u,
         NULL,
@@ -18214,19 +18241,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 653 */
-        "srmech.signal_processing.map_ml",
+        "srmech.signal_processing.esprit",
         "srmech",
         "signal_processing",
-        "MAP or ML estimation for the linear-Gaussian model y = A x + v. Supply a prior covariance and you get the maximum a posteriori estimate; omit it and the SAME code returns the maximum-likelihood estimate, because ML is exactly MAP under an infinitely flat prior. Having one op cover both makes that relationship visible instead of splitting it across two surfaces. IDENTITY: Class L (the normal-equations solve) composed with Class K (the prior-present / prior-absent branch, which is a genuine structural boundary rather than a default). SIBLINGS: lmmse is the covariance-form peer.",
-        ts_params_653, 6u,
-        "list[float]",
-        "the MAP or ML estimate of x",
+        "ESPRIT \342\200\224 subspace parameter estimation via rotational invariance. Where music_doa builds a pseudo-spectrum you then SEARCH for peaks, ESPRIT exploits the shift structure of a uniform linear array to return the parameters DIRECTLY as generalised eigenvalues, with no search grid and so no grid-resolution floor. IDENTITY: Class L (the covariance eigendecomposition that exposes the signal subspace) composed with Class K (the signal / noise rank cut, a genuine pin-slot phase boundary). SIBLINGS: music_doa is the search-based peer; beamforming_fixed is the diffraction-limited baseline both improve on. SCOPE: educational signal-processing reference only \342\200\224 acoustic source-finding, civilian direction-of-arrival and frequency estimation.",
+        ts_params_653, 3u,
+        "list[complex]",
+        "n_sources generalised eigenvalues; their angles carry the direction or frequency estimates",
         1,
         NULL,
-        "{\"output\":\"With no prior the estimator returns exactly [4.0], the ordinary least-squares average of the two observations. Adding a unit-variance Gaussian prior returns 2.666666666667, which is 8/3 -- the identical number srmech.signal_processing.lmmse gives for the same model. Widening the prior to 1e6 returns 3.999998, walking MAP back to the ML answer.\",\"why\":\"One call, one keyword, and the whole Bayesian dial is visible: 4.0 with no prior, 8/3 with a unit prior, back to 3.999998 as the prior goes flat. The middle number is the one worth pausing on -- 8/3 is exactly what srmech.signal_processing.lmmse returns for the same problem, which is the linear-Gaussian identity between MAP and LMMSE made checkable rather than asserted. The ML line is exact 4.0, not 3.9999, because with R_noise the identity the normal equations reduce to a plain average.\",\"worked\":\"from srmech.signal_processing import map_ml\\n# y = A x + v : one scalar x observed twice, unit-variance\\n# independent noise on each observation\\ny = [3.0, 5.0]\\nA = [[1.0], [1.0]]\\nRv = [[1.0, 0.0], [0.0, 1.0]]\\nmap_ml(y, A, Rv)\\n# -> [4.0]            no prior -> ML = least squares = the average\\nround(map_ml(y, A, Rv, R_prior=[[1.0]])[0], 12)\\n# -> 2.666666666667   unit prior -> MAP = 8/3\\nround(map_ml(y, A, Rv, R_prior=[[1.0e6]])[0], 6)\\n# -> 3.999998         a near-flat prior walks MAP back to ML\\nmap_ml(y, A, Rv, R_prior=[[1.0, 0.0], [0.0, 1.0]])\\n# -> ValueError       R_prior is (n, n) for the n COLUMNS of A\"}",
+        "{\"output\":\"The op returns [0.9999999999999999j] for a single source whose per-element phase step is exactly j; rounded to nine places the real and imaginary parts are (0.0, 1.0). The recovered generalised eigenvalue IS the phase step, recovered as a parameter rather than as a peak in a searched spectrum. Asking for four sources on a four-element array raises ValueError.\",\"why\":\"The answer is a number you can check against the input by eye: the steering vector was built with a per-element step of j, and j is what comes back, to nine places, with no grid of candidate directions anywhere in the call. That is the rotational-invariance mechanism in one line -- the first three rows of the signal subspace and the last three differ by exactly the source phase step, so the least-squares operator relating them has that step as its eigenvalue. The 0.01 on the diagonal is sensor noise, and the estimate is unmoved by it.\",\"worked\":\"from srmech.math.mat import Mat\\nfrom srmech.signal_processing import esprit\\n# a 4-element uniform linear array, ONE source whose\\n# per-element phase step is exactly j (90 degrees),\\n# plus a little sensor noise on the diagonal:\\na = [1 + 0j, 1j, -1 + 0j, -1j]\\nrows = [[a[i] * a[j].conjugate() + (0.01 if i == j else 0.0)\\n         for j in range(4)] for i in range(4)]\\nR = Mat.from_rows(rows, is_complex=True)\\nz = esprit(R, n_sources=1)\\n(round(z[0].real, 9), round(z[0].imag, 9))\\n# -> (0.0, 1.0)     exactly +j, the source's phase step\\nlen(z)\\n# -> 1              one eigenvalue per requested source\\nesprit(R, n_sources=4)\\n# -> ValueError     n_sources must be smaller than M\"}",
         NULL,
-        "WHAT -- returns the maximum-a-posteriori estimate for the linear-Gaussian model ``y = A x + v`` with ``v`` of covariance ``R_noise``, or the maximum-likelihood estimate when ``R_prior`` is omitted. With a prior it solves ``(A^T R_v^-1 A + R_x^-1) x = A^T R_v^-1 y + R_x^-1 mu``; without one it drops the prior precision and solves the weighted normal equations, which is generalised least squares. Every inverse is a dense solve over the Mat carrier, not an explicit inversion. WHEN -- reach for it when you have the forward model rather than the covariances: you know how the signal maps into the observations, you know the noise, and you may or may not have a prior. Omitting ``R_prior`` is a real modelling decision and not merely a default -- ML has no regularisation, so an ill-conditioned or rank-deficient ``A`` will show up as a failing or wildly over-confident solve, which is precisely what the prior term fixes. ``R_prior`` is ``(n, n)`` over the COLUMNS of ``A``, a shape that is easy to get backwards when ``A`` is not square. SIBLINGS -- ``lmmse`` solves the same linear-Gaussian problem from covariances instead of from a forward model and returns the identical estimate, so pick whichever statistics you actually hold; ``wiener`` is the per-frequency-bin form of the same MMSE criterion. Do not build the normal equations by hand and invert them: forming ``(A^T R_v^-1 A)^-1`` explicitly is the classic way to lose several digits that the solve this op uses keeps.",
-        ts_composes_653, 2u,
+        "SCOPE -- educational signal-processing reference, civilian only: acoustic source-finding, civilian direction-of-arrival estimation, sinusoid frequency estimation and the textbook physics of subspace methods. It is not documented, and must not be used, for targeting, tracking or capability assessment. WHAT -- returns the ``n_sources`` generalised eigenvalues that relate two shifted subarrays of a uniform linear array. It eigendecomposes the Hermitian covariance (Class L), keeps the ``n_sources`` largest eigenvectors as the signal subspace, solves the least-squares problem relating the first ``M-1`` rows to the last ``M-1``, and returns the eigenvalues of that operator (Class K). Each eigenvalue lies on the unit circle and its angle gives the direction. WHEN -- reach for it when you want the parameters themselves rather than a spectrum to search: there is no candidate grid, so there is no grid resolution to trade against cost, and the estimate is not quantised to whatever directions you happened to enumerate. It needs the shift structure of a uniform array, which is the price of that. ``n_sources`` is required and must be strictly smaller than ``M``. SIBLINGS -- ``music_doa`` is the pseudo-spectrum peer that scores candidate steering vectors instead of returning parameters, and is the one to use when the array is not uniformly spaced; ``beamforming_fixed`` is the diffraction-limited baseline both improve on. Do not re-derive the subarray least-squares step by hand -- ``mat_lstsq`` over the Mat carrier is what this rides, and it is the same solver the rest of the family uses.",
+        ts_composes_653, 3u,
         ts_preserves_653, 1u,
         NULL,
         NULL, 0u,
@@ -18234,11 +18261,71 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 654 */
+        "srmech.signal_processing.ica_jade",
+        "srmech",
+        "signal_processing",
+        "JADE independent component analysis \342\200\224 separate a linear mixture into statistically independent sources by jointly diagonalising fourth-order cumulant matrices. Second-order methods can only decorrelate, which leaves an arbitrary rotation unresolved; the fourth-order statistics are exactly what pins that rotation down, which is why JADE can solve the blind source separation problem that whitening alone cannot. IDENTITY: Class L (the cumulant eigenstructure) composed with Class K (the Givens rotation sign / angle decisions). NOTE: the convergence guards deliberately use a local NaN-PROPAGATING magnitude rather than the shipped dead-band magnitude op \342\200\224 a NaN read as 0.0 would satisfy the tolerance test and report convergence on garbage, turning a loud failure into a silent wrong answer. That choice is adjudicated and intentional.",
+        ts_params_654, 5u,
+        "tuple",
+        "an (unmixing matrix, recovered sources) pair",
+        1,
+        NULL,
+        "{\"output\":\"For an 8-sample, 2-channel mixture the op returns S with shape (8, 2) and W with shape (2, 2). The measured sample covariance of the recovered sources is exactly [[1.0, 0.0], [0.0, 1.0]] to twelve decimal places -- unit variance, zero cross-correlation. Asking for one component instead returns S of shape (8, 1) and W of shape (1, 2).\",\"why\":\"The covariance block is the checkable part and it is exact, not approximate: unit variance on the diagonal and a hard zero off it, to twelve places. That holds by construction rather than by convergence -- the whitening stage makes the working basis white and every Givens step is a rotation, which cannot un-whiten it -- so it is the right invariant to assert in your own tests. The ``n_components`` pair shows the other structural fact: the returned shapes, and therefore the retained subspace, are yours to choose.\",\"worked\":\"from srmech.signal_processing import ica_jade\\n# two deterministic, mutually uncorrelated sources:\\nsq  = [1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0]\\nspk = [0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, -2.0]\\n# mixed by [[2, 1], [1, 3]] into two observed channels:\\nX = [[2.0 * sq[t] + 1.0 * spk[t],\\n      1.0 * sq[t] + 3.0 * spk[t]] for t in range(8)]\\nS, W = ica_jade(X)\\n(S.shape, W.shape)\\n# -> ((8, 2), (2, 2))   sources (n_samples, k), unmixing (k, n_features)\\n# the whitening contract, measured on the OUTPUT:\\n[[round(sum(S[t, i] * S[t, j] for t in range(8)) / 8, 12)\\n  for j in range(2)] for i in range(2)]\\n# -> [[1.0, 0.0], [0.0, 1.0]]\\nS1, W1 = ica_jade(X, n_components=1)\\n(S1.shape, W1.shape)\\n# -> ((8, 1), (1, 2))   n_components truncates the retained subspace\\nica_jade([[1.0, 2.0], [3.0]])\\n# -> ValueError    every sample row needs the same feature count\"}",
+        NULL,
+        "WHAT -- returns ``(S, W)`` for an ``(n_samples, n_features)`` observation matrix: ``S`` is the recovered sources ``(n_samples, k)`` and ``W`` the unmixing matrix ``(k, n_features)``, both as ``Mat``. It centres the columns, whitens by eigendecomposing the covariance (Class L), keeps the ``n_components`` largest directions, builds the fourth-order cumulant tensor of the whitened data and drives its slices toward joint diagonality with Givens rotations (Class K). ``S`` equals the centred ``X`` unmixed by ``W``, and its sample covariance is the identity exactly. WHEN -- reach for it for blind source separation, where you have mixtures and no mixing matrix. Two things to know before you trust an output. First, the recovered basis is fixed only up to permutation, sign and scale, so never assume a column order -- match components to what you expect rather than reading them positionally. Second, the sweep here is the SIMPLIFIED JADE reference of Cardoso and Souloumiac, so the whiteness of the output is guaranteed but the separation quality is data-dependent and worth verifying on your own signals. Note also that the convergence guards inside deliberately PROPAGATE NaN rather than mapping it to zero: a NaN in your data surfaces as a NaN you can see, instead of being read as a below-tolerance value and reported as converged. SIBLINGS -- ``mimo_svd`` factors a KNOWN mixing matrix and needs no independence assumption at all, so prefer it whenever the matrix is available; ``music_doa`` and ``esprit`` run the same Class-L covariance eigendecomposition but use it to split a signal subspace from a noise subspace rather than to rotate within one. Do not hand-roll the whitening in front of this op -- it whitens internally, and pre-whitening only makes the retained-subspace accounting ambiguous.",
+        ts_composes_654, 5u,
+        ts_preserves_654, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 655 */
+        "srmech.signal_processing.lmmse",
+        "srmech",
+        "signal_processing",
+        "Linear minimum mean-square-error estimator \342\200\224 the best LINEAR estimate of x from y given their covariances. It is the workhorse Bayesian estimator precisely because it needs only second-order statistics: no distributional assumption is required for it to be the optimal linear rule, and when the variables happen to be jointly Gaussian it is optimal among ALL estimators, not just linear ones. IDENTITY: Class L (the covariance solve) composed with Class N (the rational gain). SIBLINGS: map_ml is the model-based peer that takes an observation matrix and noise covariance instead of the joint covariances.",
+        ts_params_655, 6u,
+        "list[float]",
+        "the LMMSE estimate of x",
+        1,
+        NULL,
+        "{\"output\":\"With a unit-variance prior and two unit-variance noisy looks at the same scalar, the estimate is 2.666666666667 -- exactly 8/3, the sample average 4.0 shrunk toward the prior mean of 0. Widening the prior variance to 1e6 returns 3.999998, the plain average to six figures. Supplying mean_x=[10.0] and mean_y=[10.0, 10.0] returns exactly 6.0, the same shrinkage re-centred.\",\"why\":\"The two numbers bracket the estimator. 8/3 is the textbook answer for this model -- prior variance 1, two looks at noise variance 1, so the gain is 1/(1 + 1/2) and the average 4.0 shrinks to 8/3 -- and it comes out exact rather than close. Then pushing the prior variance to 1e6 walks the same call to 3.999998, i.e. the plain sample average, which is what LMMSE MUST collapse to when the prior stops carrying information. Seeing both from one op is the clearest statement of what the prior is buying.\",\"worked\":\"from srmech.signal_processing import lmmse\\n# one scalar x seen twice in unit-variance noise:\\n#   R_yy = var(x) * ones + var(v) * I ,  R_xy = var(x) * ones\\ny = [3.0, 5.0]\\nround(lmmse(y, [[2.0, 1.0], [1.0, 2.0]], [[1.0, 1.0]])[0], 12)\\n# -> 2.666666666667   = 8/3: the average 4.0, shrunk toward 0\\n# now widen the prior to 1e6 -- effectively flat:\\nb = 1.0e6\\nround(lmmse(y, [[b + 1.0, b], [b, b + 1.0]], [[b, b]])[0], 6)\\n# -> 3.999998         the plain average 4.0, to six figures\\n# a non-zero prior mean just re-centres the same shrinkage:\\nround(lmmse(y, [[2.0, 1.0], [1.0, 2.0]], [[1.0, 1.0]],\\n            mean_x=[10.0], mean_y=[10.0, 10.0])[0], 12)\\n# -> 6.0              10 + (-7 + -5)/3\\nlmmse(y, [[2.0, 1.0]], [[1.0, 1.0]])\\n# -> ValueError       R_yy must be square and match y\"}",
+        NULL,
+        "WHAT -- returns the linear minimum-mean-square-error estimate ``x_hat = mean_x + R_xy R_yy^-1 (y - mean_y)``, the closed-form Wiener-Hopf solution. It needs only second-order statistics: the observation covariance ``R_yy`` and the signal-observation cross-covariance ``R_xy``, with both means defaulting to zero. The gain is obtained by a dense solve against ``R_yy`` rather than by forming an inverse. WHEN -- reach for it when you know the covariances and want the best LINEAR estimate, which is the usual situation in channel estimation, smoothing and sensor fusion. It is optimal among all estimators when everything is jointly Gaussian, and remains the best linear one otherwise, which is why it survives being wrong about the distribution. Watch the conditioning of ``R_yy``, because widening the prior makes it ill-conditioned: the 1e6 line in the worked example has a condition number around 2e6, and the 3.999998 it returns is the exact answer for a prior variance of 1e6, not a numerical wobble around 4.0. The estimate tends to the sample average as the prior flattens; the solve is what has to stay stable while it does. SIBLINGS -- ``map_ml`` solves the same linear-Gaussian problem from the FORWARD model ``y = A x + v`` instead of from covariances, and returns the identical number for the identical model, as its own worked example shows; ``wiener`` is the same MMSE criterion applied per frequency bin when the statistics are given as power spectra. Choose between them by which statistics you actually have. Do not invert ``R_yy`` yourself and multiply -- forming the inverse is both slower and less stable than the solve this op already performs.",
+        ts_composes_655, 1u,
+        ts_preserves_655, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 656 */
+        "srmech.signal_processing.map_ml",
+        "srmech",
+        "signal_processing",
+        "MAP or ML estimation for the linear-Gaussian model y = A x + v. Supply a prior covariance and you get the maximum a posteriori estimate; omit it and the SAME code returns the maximum-likelihood estimate, because ML is exactly MAP under an infinitely flat prior. Having one op cover both makes that relationship visible instead of splitting it across two surfaces. IDENTITY: Class L (the normal-equations solve) composed with Class K (the prior-present / prior-absent branch, which is a genuine structural boundary rather than a default). SIBLINGS: lmmse is the covariance-form peer.",
+        ts_params_656, 6u,
+        "list[float]",
+        "the MAP or ML estimate of x",
+        1,
+        NULL,
+        "{\"output\":\"With no prior the estimator returns exactly [4.0], the ordinary least-squares average of the two observations. Adding a unit-variance Gaussian prior returns 2.666666666667, which is 8/3 -- the identical number srmech.signal_processing.lmmse gives for the same model. Widening the prior to 1e6 returns 3.999998, walking MAP back to the ML answer.\",\"why\":\"One call, one keyword, and the whole Bayesian dial is visible: 4.0 with no prior, 8/3 with a unit prior, back to 3.999998 as the prior goes flat. The middle number is the one worth pausing on -- 8/3 is exactly what srmech.signal_processing.lmmse returns for the same problem, which is the linear-Gaussian identity between MAP and LMMSE made checkable rather than asserted. The ML line is exact 4.0, not 3.9999, because with R_noise the identity the normal equations reduce to a plain average.\",\"worked\":\"from srmech.signal_processing import map_ml\\n# y = A x + v : one scalar x observed twice, unit-variance\\n# independent noise on each observation\\ny = [3.0, 5.0]\\nA = [[1.0], [1.0]]\\nRv = [[1.0, 0.0], [0.0, 1.0]]\\nmap_ml(y, A, Rv)\\n# -> [4.0]            no prior -> ML = least squares = the average\\nround(map_ml(y, A, Rv, R_prior=[[1.0]])[0], 12)\\n# -> 2.666666666667   unit prior -> MAP = 8/3\\nround(map_ml(y, A, Rv, R_prior=[[1.0e6]])[0], 6)\\n# -> 3.999998         a near-flat prior walks MAP back to ML\\nmap_ml(y, A, Rv, R_prior=[[1.0, 0.0], [0.0, 1.0]])\\n# -> ValueError       R_prior is (n, n) for the n COLUMNS of A\"}",
+        NULL,
+        "WHAT -- returns the maximum-a-posteriori estimate for the linear-Gaussian model ``y = A x + v`` with ``v`` of covariance ``R_noise``, or the maximum-likelihood estimate when ``R_prior`` is omitted. With a prior it solves ``(A^T R_v^-1 A + R_x^-1) x = A^T R_v^-1 y + R_x^-1 mu``; without one it drops the prior precision and solves the weighted normal equations, which is generalised least squares. Every inverse is a dense solve over the Mat carrier, not an explicit inversion. WHEN -- reach for it when you have the forward model rather than the covariances: you know how the signal maps into the observations, you know the noise, and you may or may not have a prior. Omitting ``R_prior`` is a real modelling decision and not merely a default -- ML has no regularisation, so an ill-conditioned or rank-deficient ``A`` will show up as a failing or wildly over-confident solve, which is precisely what the prior term fixes. ``R_prior`` is ``(n, n)`` over the COLUMNS of ``A``, a shape that is easy to get backwards when ``A`` is not square. SIBLINGS -- ``lmmse`` solves the same linear-Gaussian problem from covariances instead of from a forward model and returns the identical estimate, so pick whichever statistics you actually hold; ``wiener`` is the per-frequency-bin form of the same MMSE criterion. Do not build the normal equations by hand and invert them: forming ``(A^T R_v^-1 A)^-1`` explicitly is the classic way to lose several digits that the solve this op uses keeps.",
+        ts_composes_656, 2u,
+        ts_preserves_656, 1u,
+        NULL,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 657 */
         "srmech.music.spectrum_tier",
         "srmech",
         "music",
         "TIER-TAG an acoustic spectrum \342\200\224 the honesty layer over any spectrum-carrying value. Tier 1 = exact RATIONAL carrier (Q/int). Tier 2 = exact ALGEBRAIC-IRRATIONAL carrier (Qalg; alpha**2 == 2 holds IN THE FIELD, so it is still exact and still decidable). Tier 3 = NO exact carrier exists \342\200\224 transcendence unresolved or known-absent \342\200\224 so any number present is a rational of DECLARED PRECISION only. The spectrum's tier is the WEAKEST of its partials'. Tiers 1 and 2 are INFERRED from the carrier; Tier 3 must be DECLARED via open_partials, because it cannot be inferred \342\200\224 a rational standing in for a transcendental is, as a carrier, just a rational, and only the constructor knows the provenance. That asymmetry IS the honesty layer. Precedent: fractal_spectrum already returns a spectrum_open string rather than a list because no finite exact carrier decides Julia-set membership. float ratios are REFUSED (every float IS a rational, so a float spectrum would be unconditionally Tier 1 and unconditionally commensurable \342\200\224 the exact silent harmonisation this layer exists to prevent). 'harmonic' here is the ACOUSTIC word, never the chirality order classify_harmonic uses. Exact-Q; no abs().",
-        ts_params_654, 2u,
+        ts_params_657, 2u,
         "dict",
         "{'tier': 1|2|3, 'tier_name': str, 'exact': bool, 'n_partials': int, 'per_partial': list of {index, carrier, tier, tier_name, field_degree, in_rationals (None = UNDECIDED at Tier 3)}, 'open_indices': tuple, 'open_reason': str|None}",
         1,
@@ -18253,12 +18340,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 655 */
+    { /* 658 */
         "srmech.music.commensurability_verdict",
         "srmech",
         "music",
         "Decide whether an acoustic spectrum is commensurable with its fundamental \342\200\224 a verdict that CAN return 'inharmonic'. The invariant is RATIONAL RANK / FIELD DEGREE, not a period: membership in the rationals inside Q[x]/(m) is field-theoretic (Q is the unique degree-1 subfield of Q(alpha)), so it survives any change of Q-basis and is a genuine invariant rather than a presentation count. Every ratio in Q => a common period exists ('harmonic'); any ratio provably outside Q => that partial shares no period with the fundamental at any multiple ('inharmonic'); any partial declared Tier 3 => 'open'. WHY THIS WAS NEEDED: Class-I gcd/lcm STRUCTURALLY cannot return 'inharmonic' \342\200\224 a finite set of rational ratios always has an lcm, so it always yields a finite period. And Class-N best_rational is worse than silent: it does not approximate an inharmonic spectrum, it CONVERTS it into a harmonic one, since every anchor p/q IS a finite period T0*q (measured: an irrational read at max_den 1e2/1e4/1e6 gives 22/7, 355/113, 2917129/928551). Raising max_den only buys a longer FALSE period, never a verdict. Verified: in Q[x]/(x**12 - 2), s**0 rational True, s**1..s**11 all False, s**12 True \342\200\224 12-tone equal temperament exactly represented AND provably incommensurable with the octave except AT the octave. TWO SENSES KEPT APART: 'verdict' answers *commensurable?*; 'integer_series' answers the classical acoustics question *are the ratios the plain integer series 1,2,3,...?*. A tuned bell (1/2, 1, 6/5, 3/2, 2) is called inharmonic by acousticians yet is exactly commensurable \342\200\224 harmonic with integer_series False. No threshold and no denominator ceiling is consulted anywhere in the decision. Exact-Q; no abs().",
-        ts_params_655, 2u,
+        ts_params_658, 2u,
         "dict",
         "{'verdict': 'harmonic'|'inharmonic'|'open', 'integer_series': bool, 'rational_rank': int, 'n_partials': int, 'field_degrees': tuple, 'incommensurable': tuple of indices provably outside Q, 'open_indices': tuple, 'tier': int, 'tier_name': str, 'period_multiplier': int|None (only when harmonic), 'class_i_note': str, 'class_n_warning': str}",
         1,
@@ -18273,12 +18360,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 656 */
+    { /* 659 */
         "srmech.music.common_period",
         "srmech",
         "music",
         "The common period of an acoustic spectrum as an integer multiple k of the fundamental period T0 \342\200\224 and the GUARD that makes silent harmonisation UNREACHABLE. Returns k (the Class-I lcm of the reduced ratio denominators, so a partial at p/q completes a whole number of cycles in k*T0 exactly when q divides k) when, and only when, commensurability_verdict says 'harmonic'. For an 'inharmonic' or 'open' spectrum it RAISES: there is no period to return, and handing back a best_rational anchor instead would silently convert the spectrum into a harmonic one. That conversion is the corruption this op exists to make impossible \342\200\224 the only way to obtain a period from this family is to have earned the verdict first. The raised message names the offending partial indices and why no period exists. Exact integer; no abs().",
-        ts_params_656, 2u,
+        ts_params_659, 2u,
         "int",
         "the period multiplier k (common period = k*T0); raises ValueError when the spectrum is inharmonic or open",
         1,
@@ -18293,7 +18380,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 657 */
+    { /* 660 */
         "srmech.music.bell_partials",
         "srmech",
         "music",
@@ -18313,12 +18400,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 658 */
+    { /* 661 */
         "srmech.music.equal_temperament_partials",
         "srmech",
         "music",
         "Equal temperament as EXACT algebraic numbers \342\200\224 TIER 2. Builds the number field Q[x]/(x**divisions - octave) and returns the requested scale degrees as exact Qalg powers of its generator s; the step ratio is the divisions-th root of the octave \342\200\224 irrational, and carried EXACTLY rather than approximated. This is the verified worked case for the whole family: in Q[x]/(x**12 - 2), s**0 is rational (1), s**1 through s**11 are ALL irrational, and s**12 is rational (2) \342\200\224 12-tone equal temperament exactly representable AND provably incommensurable with the octave except AT the octave, decided with no threshold and no denominator ceiling. REFUSES a reducible x**n - a (Lang, Algebra 3rd ed., VI sec. 9 Thm 9.1: irreducible iff a is not a p-th power for every prime p | n, the -4K**4 clause being unreachable for an integer a >= 2), because the quotient ring would not be a field and the rational-membership oracle would be meaningless. Composes the Qalg field algebra + Class-J prime factorisation. Exact-Q; no abs().",
-        ts_params_658, 3u,
+        ts_params_661, 3u,
         "dict",
         "{'ratios': tuple[Qalg,...], 'degrees': tuple, 'tier': 2, 'open_partials': (), 'minimal_polynomial': tuple[int,...] (low->high, monic), 'field_degree': int}",
         1,
@@ -18333,12 +18420,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 659 */
+    { /* 662 */
         "srmech.music.stiff_string_partials",
         "srmech",
         "music",
         "A stiff (piano) string's partials \342\200\224 TIER 2, exactly carriable TODAY. The textbook closed form is f_n = n*f0*sqrt(1 + B*n**2) (Fletcher & Rossing, The Physics of Musical Instruments, 2nd ed., Springer 1998, sec. 2.18 \342\200\224 bending stiffness sharpens each partial). With B RATIONAL the ratio to the fundamental is sqrt(rational): r_n = n*sqrt(1+B*n**2) = sqrt(n**2*(1+B*n**2)), a QUADRATIC SURD living exactly in Q[x]/(x**2 - r_n). No approximation anywhere \342\200\224 this whole family was ALREADY exactly carriable by the shipped Qalg; what was missing was the tier tag and a verdict that could read it. Each partial gets its own quadratic field (the radicands differ), which is correct and harmless: commensurability with the fundamental is a per-partial rational-membership question, field-theoretic in each field separately. BUILT-IN CONTROL: at B == 0 the radicand collapses to n**2, a perfect square, so every ratio degenerates to the integer n and the op returns Tier 1 with verdict 'harmonic' and integer_series True \342\200\224 the ideal flexible string, recovered exactly. A float B is REFUSED (it would make every radicand a float-rational and collapse the Tier-1/Tier-2 distinction). Exact-Q; no abs().",
-        ts_params_659, 2u,
+        ts_params_662, 2u,
         "dict",
         "{'ratios': tuple[Qalg|Q,...], 'orders': tuple, 'tier': 1|2, 'open_partials': (), 'inharmonicity': Q, 'radicands': tuple[Q,...], 'cite_as': str}",
         1,
@@ -18353,12 +18440,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 660 */
+    { /* 663 */
         "srmech.music.membrane_partials",
         "srmech",
         "music",
         "A circular membrane's partials \342\200\224 TIER 3, DECLARED OPEN. The modal frequencies of an ideal circular membrane are proportional to the Bessel zeros, so the ratio to the fundamental is j_{n,m}/j_{0,1} (Fletcher & Rossing, The Physics of Musical Instruments, 2nd ed., Springer 1998, sec. 3.2) \342\200\224 which is why a drum has no pitch the way a string does. EVERY partial is declared Tier 3, and NOTHING is asserted about why: the returned ratios are exact rationals OF DECLARED PRECISION from bessel_zero_fixed, are not claimed to be the true values, and the true values are not claimed to be transcendental, algebraic-irrational or rational. DLMF 10.21 was fetched and contains no transcendence statement; Siegel's theorem was never fetched. The honest position is that the field-theoretic status is UNRESOLVED, so the tier is declared open and every commensurability verdict over this spectrum returns 'open' \342\200\224 never 'harmonic', which is exactly what reading a best_rational anchor off these rationals would have produced. Pass open_partials straight through to spectrum_tier / commensurability_verdict. Exact-Q; no abs().",
-        ts_params_660, 3u,
+        ts_params_663, 3u,
         "dict",
         "{'ratios': tuple[Q,...], 'modes': tuple of (n,m), 'tier': 3, 'open_partials': tuple(all indices), 'scale_bits': int, 'declared_precision_only': True, 'transcendence_claim': 'NONE ...', 'cite_as': str}",
         1,
@@ -18373,12 +18460,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 661 */
+    { /* 664 */
         "srmech.music.bessel_j_fixed",
         "srmech",
         "music",
         "J_k(x) for integer order k >= 0 and rational x >= 0, as an exact rational on a DECLARED 2**-scale_bits fixed-point grid. The DLMF 10.2.2 / Watson (1922) sec. 3.1 ascending series J_k(x) = SUM_m (-1)**m (x/2)**(2m+k) / (m!(m+k)!), summed by the exact integer recurrence t_{m+1} = t_m*(x/2)**2/((m+1)(m+k+1)); the series alternates, so truncating when the running term underflows the scale bounds the truncation error BY that term. SIGN LIVES IN THE ORIENTATION, NOT THE DIVISOR: the running term is a NON-NEGATIVE magnitude and the alternation is an explicit Class-K sign-flip re-applied by Class-C reorient at the accumulation, so every shift and divide runs on a magnitude where C truncation and Python floor agree \342\200\224 which is what makes the C peer srmech_bessel_j_fixed_big bit-identical by construction (measured 168/168 across order x argument x scale). Negative x raises (the Class-K real-axis domain; use J_k(-x) = (-1)**k J_k(x)). The return is a rational OF DECLARED PRECISION and asserts nothing about the arithmetic nature of any Bessel value. Exact integer body; no float; no abs().",
-        ts_params_661, 4u,
+        ts_params_664, 4u,
         "tuple",
         "(num, den) with den == 2**scale_bits \342\200\224 the exact value at the declared precision",
         1,
@@ -18393,12 +18480,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 662 */
+    { /* 665 */
         "srmech.music.bessel_zero_fixed",
         "srmech",
         "music",
         "The index-th positive zero of J_order at a DECLARED precision. McMahon's asymptotic start (DLMF 10.21.19) beta = pi*(4*index + 2*order - 1)/4, j ~ beta - (4*order**2 - 1)/(8*beta), refined by exact-rational Newton on bessel_j_fixed with the derivative from DLMF 10.6.1 (J_k' = (J_{k-1} - J_{k+1})/2, J_0' = -J_1). Every iterate is snapped back onto the declared grid so the denominator stays bounded, and the sign handling in that snap is a Class-K split plus a Class-C re-application \342\200\224 never abs(), and never a negative floor-divide. THIS ASSERTS NOTHING ABOUT THE TRUE ZERO: it is a rational of declared precision. Whether Bessel zeros are transcendental or algebraic-irrational is OPEN in this project \342\200\224 DLMF 10.21 states nothing on it and Siegel's theorem was never fetched \342\200\224 so membrane_partials tags such a spectrum Tier 3 and every verdict over it returns 'open'. Pure orchestration over bessel_j_fixed (C-dispatched) and the C-backed pi cascade, so it adds NO new numerical kernel. Exact-Q; no abs().",
-        ts_params_662, 4u,
+        ts_params_665, 4u,
         "tuple",
         "(num, den) on the declared 2**-scale_bits grid; den is a power of two 2**k with k <= scale_bits, NOT unconditionally 2**scale_bits \342\200\224 the value is an exact Q and comes back REDUCED (measured: bessel_zero_fixed(0, 1, scale_bits=64) has den 2**61). bessel_j_fixed does always carry den == 2**scale_bits; this one does not",
         1,
@@ -18406,19 +18493,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"bessel_zero_fixed(0, 1, scale_bits=64) == (5545150200591220465, 2305843009213693952), whose denominator is 2**61 and NOT 2**64 (the exact Q reduced); J_0 at that value is exactly 0 on the 64-bit grid; j(0,1) < j(1,1) < j(0,2) at scale_bits=96 is True; index 0 -> ValueError('index must be an int >= 1 (1-based)')\",\"why\":\"The denominator line is worth reading twice: the return is an exact ``Q``, so it comes back REDUCED, and at 64 bits the reduction takes 2**64 down to 2**61. The grid is 2**-scale_bits; the returned denominator is a power of two no larger than that, not always equal to it. Interlacing holds, which is the structural check a per-zero residual cannot give.\",\"worked\":\"from srmech.math.q import Q\\nfrom srmech.music import bessel_zero_fixed, bessel_j_fixed\\nzero = bessel_zero_fixed(0, 1, scale_bits=64)\\nzero\\n# -> (5545150200591220465, 2305843009213693952)\\n(zero[1] == 1 << 61, zero[1] == 1 << 64)\\n# -> (True, False)    the Q reduced: a power of two, not always 2**scale_bits\\nQ(*bessel_j_fixed(0, zero[0], zero[1], scale_bits=64)) == Q(0, 1)\\n# -> True\\nzeros = {(n, m): Q(*bessel_zero_fixed(n, m, scale_bits=96))\\n         for n in range(2) for m in (1, 2)}\\nzeros[(0, 1)] < zeros[(1, 1)] < zeros[(0, 2)]\\n# -> True    (Watson 1922 sec. 15.22 interlacing)\\nbessel_zero_fixed(0, 0)  # -> ValueError\"}",
         NULL,
         "WHAT \342\200\224 returns the ``index``-th positive zero of ``J_order`` as an exact ``(num, den)`` rational at a declared fixed-point scale: McMahon's asymptotic start (DLMF 10.21.19) refined by exact-rational Newton on ``bessel_j_fixed``, with the derivative from DLMF 10.6.1 and every iterate snapped back onto the ``2**-scale_bits`` grid so the denominator stays bounded. The denominator is a power of two no larger than ``2**scale_bits`` \342\200\224 the value is an exact ``Q`` and therefore reduced, as the transcript measures. WHEN \342\200\224 use it when a Bessel zero is needed exactly-as-declared, and read the declaration as the whole of the claim. It asserts NOTHING about the true zero: whether Bessel zeros are transcendental or algebraic-irrational is OPEN in this project, DLMF 10.21 states nothing on it, and Siegel's theorem was never fetched. That is why ``spectrum_tier`` tags a membrane spectrum Tier 3 and a verdict over one returns 'open' rather than 'harmonic'. SIBLINGS \342\200\224 do not re-derive the zeros with a float Newton and do not reach for a table: there is no scipy in this tree and no other Bessel surface among the registered ops, and a float iterate would silently reintroduce the declared-precision confusion the tier layer exists to prevent. Verify with the two checks the transcript runs \342\200\224 the residual through ``bessel_j_fixed``, and Watson (1922) sec. 15.22 interlacing ``j(n,m) < j(n+1,m) < j(n,m+1)``, which a per-zero residual cannot see. ``membrane_partials`` is the acoustic consumer; ``srmech.physics.qm.bell`` is an unrelated CHSH surface despite the neighbouring name.",
-        ts_composes_662, 1u,
+        ts_composes_665, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 663 */
+    { /* 666 */
         "srmech.music.just_limit",
         "srmech",
         "music",
         "The p-LIMIT, prime support and MONZO of a just interval \342\200\224 the Class-J reading of a tuning ratio. p-limit tuning IS exactly the multiplicative subgroup of Q+ generated by the primes <= p, so 'what limit is this interval?' is literally 'what is the largest prime in its factorisation?': 3/2 is 3-limit, 5/4 is 5-limit, 7/4 is 7-limit. The MONZO is the exponent vector of that factorisation (3/2 -> {2: -1, 3: 1}), i.e. the interval's coordinates in the free abelian group on the primes \342\200\224 which is what makes comma arithmetic and temperament kernels exact INTEGER linear algebra rather than approximation. The odd limit drops the prime 2, because octave-equivalence is assumed in most tuning literature: 2/1 is 2-limit but 1-odd-limit. Class J (prime factorisation) over Class I (gcd reduce first) carried by Class N (exact Q). WHY IT MATTERS BEYOND TUNING: this op is the cheapest DEMONSTRATION of the `#T1014` Class-N corruption. best_rational does not approximate a musical interval, it REPLACES it with a different one you can hear \342\200\224 measured on the shipped op, 12-tone equal temperament's irrational major third comes back as exactly 5/4 at max_denominator 10 (a DIFFERENT, just interval, and the verdict silently flips to harmonic), then as 63/50 at 100 and 635/504 at 1000, where the p-limit has run away from 5 to 7 to 127. Same op, three incompatible answers, none of them the input. Exact-Q; no abs(); float is REFUSED at the door.",
-        ts_params_663, 2u,
+        ts_params_666, 2u,
         "dict",
         "{'ratio': str, 'num': int, 'den': int, 'primes': tuple, 'limit': int, 'odd_limit': int, 'monzo': dict mapping prime (as str) to a signed exponent}",
         1,
@@ -18426,19 +18513,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"den\":2,\"num\":3},\"output\":\"{'ratio': '3/2', 'num': 3, 'den': 2, 'primes': (2, 3), 'limit': 3, 'odd_limit': 3, 'monzo': {'2': -1, '3': 1}}\",\"why\":\"The first three calls are the op doing its job. The last three are the reason it is worth shipping: a comma is DEFINED by not being a unison, and best_rational at a low ceiling returns exactly a unison. That is not a rounding error, it is a different interval, and the p-limit collapsing 5 -> 1 is the same corruption read off a second field.\",\"worked\":\"from srmech.music import just_limit\\nfrom srmech.math.rational import best_rational\\njust_limit((3, 2))['limit']\\n# -> 3            the just fifth: 3-limit\\njust_limit((7, 4))['monzo']\\n# -> {'2': -2, '7': 1}    the septimal seventh IS 2**-2 * 7\\njust_limit((45, 32))\\n# -> limit 5, monzo {'2': -5, '3': 2, '5': 1}\\n# and now the #T1014 corruption, in two lines:\\njust_limit(81, 80)['limit']\\n# -> 5            the syntonic comma, a real 5-limit interval\\nbest_rational(81, 80, 10)\\n# -> (1, 1)       Class-N ERASES it to a unison\\njust_limit(best_rational(81, 80, 10))['limit']\\n# -> 1            and the limit collapses 5 -> 1\"}",
         NULL,
         "WHAT -- returns the p-limit, the prime support, the odd limit and the MONZO (the exponent vector of the prime factorisation) of a just interval. ``3/2`` is 3-limit with monzo ``{2: -1, 3: 1}``; the odd limit drops the prime 2 because octave-equivalence is assumed in most tuning literature, so ``2/1`` is 2-limit but 1-odd-limit. Class J asks the question, Class I reduces the ratio first, Class N carries it exactly. WHEN -- reach for it whenever you need to know what tuning system an interval belongs to, and ALWAYS before feeding a ratio to anything Class-N. The monzo is the load-bearing return value: it turns comma arithmetic and temperament kernels into exact integer linear algebra, which is what makes ``tempers_out`` decidable rather than approximate. What you would otherwise wrongly hand-roll is a float ``log`` of the ratio and a tolerance -- and a tolerance is precisely how 81/80 becomes 1/1. SIBLINGS -- ``comma_of_chain`` DERIVES the small residues whose limits you would then read here, and ``tempers_out`` consumes this op's monzo directly rather than re-factoring. Do not hand-write a prime-factorisation loop: ``srmech.math.primes.factor`` is C-dispatched and this op is the musical reading of it. And do not reach for ``srmech.music.commensurability_verdict`` here -- that answers a question about a SPECTRUM (do these partials share a period), not about a single interval.",
-        ts_composes_663, 2u,
-        ts_preserves_663, 1u,
+        ts_composes_666, 2u,
+        ts_preserves_666, 1u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 664 */
+    { /* 667 */
         "srmech.music.comma_of_chain",
         "srmech",
         "music",
         "DERIVE the comma of an n-step generator chain \342\200\224 never look it up. Stack the generator n times, fold the result back into [1, period) by whole periods, and what is left over IS the comma: the exact rational by which the chain FAILS to close. A table of five named constants would earn nothing; deriving the residue is the capability, and it answers for generators and periods no table lists. The two most-cited commas both fall out of this one op: gen 3/2, n 12, period 2 gives 531441/524288, the PYTHAGOREAN comma (twelve just fifths against seven octaves); gen 3/2, n 4, period 5 gives 81/80, the SYNTONIC comma (four just fifths against a just major third two octaves up). THE RESIDUE IS STRUCTURAL, NOT AN ERROR TERM: (3/2)**n == 2**m has no solution for n > 0 by unique factorisation, because the prime supports {3} and {2} are disjoint. The chain does not nearly close and does not close badly \342\200\224 it CANNOT close, and the comma is the exact measure of that impossibility. This is Class J deciding a question Class I cannot even pose: both modular reads DO close (a generator coprime to the modulus generates the whole cycle), and only the frequency lane sees the failure. Class N (exact Q) over Class J (the prime support that decides it). Period reduction is exact integer cross-multiplication \342\200\224 no logarithm, no float, no abs(); the signed count of periods removed is returned rather than discarded, because the orientation of the reduction is Class-C data. Exact-Q;",
-        ts_params_664, 3u,
+        ts_params_667, 3u,
         "dict",
         "{'comma': str, 'num': int, 'den': int, 'vanishes': bool (True only for the trivial 1/1), 'periods_removed': int (SIGNED), 'limit': int|None, 'monzo': dict|None, 'factorisation_unavailable': str|None, 'gen': str, 'n': int, 'period': str}. The comma is exact at EVERY n; only the Class-J enrichment (limit / monzo) is bounded, because factor binds the fixed-width srmech_factor and refuses an operand beyond 2**64 - 1. A long chain reaches that quickly \342\200\224 41 fifths already carries a 20-digit numerator \342\200\224 so limit and monzo come back None with a reason rather than the op destroying a correct comma",
         1,
@@ -18446,19 +18533,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"gen\":[3,2],\"n\":12,\"period\":[2,1]},\"output\":\"{'comma': '531441/524288', 'num': 531441, 'den': 524288, 'vanishes': False, 'periods_removed': 7, 'limit': 3, 'monzo': {'2': -19, '3': 12}, 'factorisation_unavailable': None, 'gen': '3/2', 'n': 12, 'period': '2/1'}\",\"why\":\"Four named commas out of one op and no table anywhere, plus the trivial case that actually vanishes so ``vanishes`` is shown to discriminate rather than being permanently False. The last pair is the honest bound: at n=41 the residue carries a 20-digit numerator, past what ``factor`` can take, so the p-limit is withheld with a reason -- while the comma itself, and the answer that actually matters (it still does not close), survive intact.\",\"worked\":\"from srmech.music import comma_of_chain\\ncomma_of_chain((3, 2), 12, (2, 1))['comma']\\n# -> '531441/524288'   the PYTHAGOREAN comma, derived\\ncomma_of_chain((3, 2), 12, (2, 1))['periods_removed']\\n# -> 7                 twelve fifths minus seven octaves\\ncomma_of_chain((3, 2), 4, (5, 1))['comma']\\n# -> '81/80'           the SYNTONIC comma, same op\\ncomma_of_chain((8, 7), 1, (9, 8))['comma']\\n# -> '64/63'           the septimal comma of Archytas\\ncomma_of_chain((2, 1), 1, (2, 1))['vanishes']\\n# -> True              the octave chain DOES close\\n# and the bound, reported rather than raised:\\ncomma_of_chain((3, 2), 41, (2, 1))['limit']\\n# -> None    41 fifths overflow the Class-J 2**64 surface\\ncomma_of_chain((3, 2), 41, (2, 1))['vanishes']\\n# -> False   but the COMMA is still exact, and still open\"}",
         NULL,
         "WHAT -- stacks ``gen`` ``n`` times, folds the product back into ``[1, period)`` by whole periods, and returns what is left over: the exact rational by which the chain fails to close, together with the SIGNED count of periods removed, its p-limit and its monzo. WHEN -- reach for it whenever you would otherwise look up a comma. A table of five constants earns nothing and goes stale; deriving the residue answers for generators and periods no table lists, and it makes the reason visible. The reason is worth stating plainly: ``(3/2)**n == 2**m`` has NO solution for ``n > 0``, because the prime supports ``{3}`` and ``{2}`` are disjoint. The chain does not nearly close and does not close badly -- it cannot close, and the comma measures that exactly. SIBLINGS -- ``just_limit`` is called internally and reports the limit and monzo of the residue, so do not re-factor the result; ``tempers_out`` then decides which equal temperaments make the residue vanish. Do not hand-roll this with ``best_rational`` as an intermediate step: a comma is a SMALL exact rational and a low denominator ceiling erases it to 1/1 instead of approximating it.",
-        ts_composes_664, 2u,
-        ts_preserves_664, 1u,
+        ts_composes_667, 2u,
+        ts_preserves_667, 1u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 665 */
+    { /* 668 */
         "srmech.music.tempers_out",
         "srmech",
         "music",
         "Does n-tone equal temperament TEMPER OUT this comma? A temperament tempers out a comma exactly when the comma maps to the UNISON under that temperament's val \342\200\224 i.e. when the comma's monzo lies in the KERNEL of the map sending each prime p to round(n*log2 p). THE LOGARITHM IS REMOVED, NOT APPROXIMATED: k == round(n*log2 p) if and only if 2**(2k-1) <= p**(2n) < 2**(2k+1), which is a comparison between two exact integers. So the val is DECIDED, not estimated \342\200\224 no log, no float, no tolerance, nothing rounded. THIS IS THE OP THAT EXPLAINS THE KEYBOARD. 12-EDO tempers out the syntonic comma 81/80, which is what makes it a meantone temperament and why a piano has one key for both D# and Eb; it also tempers out the Pythagorean comma 531441/524288, which is what closes the circle of fifths that the frequency lane leaves structurally OPEN. 5-EDO tempers out the syntonic comma too (it is in the meantone family) but NOT the Pythagorean one, so the two questions are genuinely independent. Class I (the integer val and its kernel) over Class N (the exact Q comma). Exact integer; no abs().",
-        ts_params_665, 3u,
+        ts_params_668, 3u,
         "dict",
         "{'tempers_out': bool, 'steps': int (the SIGNED number of EDO steps the comma maps to; zero exactly when tempered out), 'comma': str, 'edo': int, 'val': dict mapping each prime the comma uses to its patent-val step count, 'monzo': dict}",
         1,
@@ -18466,19 +18553,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"comma\":[81,80],\"edo\":12},\"output\":\"{'tempers_out': True, 'steps': 0, 'comma': '81/80', 'edo': 12, 'val': {'2': 12, '3': 19, '5': 28}, 'monzo': {'2': -4, '3': 4, '5': -1}}\",\"why\":\"The last three lines are the point: 5-EDO tempers out the syntonic comma but NOT the Pythagorean one, so the two questions are genuinely independent rather than two names for \\\"is this 12-EDO\\\". ``steps`` is returned beside the boolean because 1 step off and 40 steps off are different facts about a temperament.\",\"worked\":\"from srmech.music import tempers_out\\ntempers_out((81, 80), 12)['tempers_out']\\n# -> True     12-EDO is a MEANTONE temperament\\ntempers_out((81, 80), 12)['val']\\n# -> {'2': 12, '3': 19, '5': 28}   the patent val\\ntempers_out((531441, 524288), 12)['tempers_out']\\n# -> True     and it closes the circle of fifths\\ntempers_out((531441, 524288), 5)\\n# -> tempers_out False, steps 1   5-EDO does NOT\\ntempers_out((81, 80), 5)['tempers_out']\\n# -> True     but 5-EDO IS in the meantone family\\ntempers_out((81, 80), 22)['steps']\\n# -> 1        22-EDO is not\"}",
         NULL,
         "WHAT -- returns whether ``edo``-tone equal temperament maps this comma to the unison, i.e. whether the comma's monzo lies in the KERNEL of the val ``p -> round(edo*log2 p)``, together with the signed step count and the val itself. WHEN -- reach for it to ask why a keyboard is shaped the way it is. 12-EDO tempering out 81/80 is what makes it meantone and why one key serves both D# and Eb; 12-EDO tempering out 531441/524288 is what closes the circle of fifths that the frequency lane leaves structurally open. The implementation detail that matters to a caller: THE LOGARITHM IS REMOVED, NOT APPROXIMATED. ``k == round(n*log2 p)`` if and only if ``2**(2k-1) <= p**(2n) < 2**(2k+1)``, a comparison between two exact integers, so the val is decided and no tolerance is consulted anywhere. SIBLINGS -- it consumes ``just_limit``'s monzo directly, so do not factor the comma yourself first; ``comma_of_chain`` is where the commas worth asking about come from. Do not hand-roll the val with ``math.log2`` and ``round`` -- that reintroduces a float into a decision this op makes exactly, and stdlib ``math`` is banned in this package for exactly that reason.",
-        ts_composes_665, 1u,
-        ts_preserves_665, 1u,
+        ts_composes_668, 1u,
+        ts_preserves_668, 1u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 666 */
+    { /* 669 */
         "srmech.music.interval_vector",
         "srmech",
         "music",
         "The INTERVAL-CLASS VECTOR of a pitch-class set \342\200\224 how a set relates to ITSELF at every interval class. Entry i counts the unordered pairs separated by interval class i+1, for i in 0..5. The major triad [0, 4, 7] gives (0, 0, 1, 1, 1, 0) \342\200\224 one minor third, one major third, one fourth \342\200\224 and so does the minor triad [0, 3, 7], which is the first hint that this invariant is COARSE. IT IS NOT A COMPLETE INVARIANT, AND THE LOSS HAS A NAME. Measured over every set class of cardinality 2..10: 23 interval vectors are shared by MORE THAN ONE set class. Those are the Z-RELATED pairs \342\200\224 genuinely different objects with identical interval content, e.g. [0,1,3,7] and [0,1,4,6], both giving (1,1,1,1,1,1). So this op answers 'what intervals does this set contain?' and NOT 'which set class is this?'; for the latter use prime_form, and note that even prime_form separates a Z-pair only by the set class itself, never by interval content. Class I (the Z/12 group action, through the shipped modular add) over Class E (the catalog fold). The fold at the TRITONE is a Class-K pin-slot at the phase boundary, NOT an abs(): 6 is the unique self-inverse interval in Z/12 because 12 is even and the octave CAN be bisected \342\200\224 in Z/7 no step is self-inverse, because 7 is odd. Exact integer;",
-        ts_params_666, 1u,
+        ts_params_669, 1u,
         "tuple",
         "a 6-tuple of counts, one per interval class 1..6",
         1,
@@ -18486,19 +18573,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"pcs\":[0,4,7]},\"output\":\"(0, 0, 1, 1, 1, 0)\",\"why\":\"Two demonstrations of the SAME limitation at two strengths. Major and minor triads share a vector because one is the other inverted -- expected. The last pair is the real caveat: [0,1,3,7] and [0,1,4,6] are NOT related by transposition or inversion, they are different set classes, and the interval vector still cannot tell them apart. Measured over cardinalities 2..10, 23 vectors are shared by more than one set class.\",\"worked\":\"from srmech.music import interval_vector\\ninterval_vector([0, 4, 7])\\n# -> (0, 0, 1, 1, 1, 0)   major triad\\ninterval_vector([0, 3, 7])\\n# -> (0, 0, 1, 1, 1, 0)   minor triad -- THE SAME\\ninterval_vector([0, 2, 4, 5, 7, 9, 11])\\n# -> (2, 5, 4, 3, 6, 1)   the diatonic scale\\ninterval_vector([0, 2, 4, 6, 8, 10])\\n# -> (0, 6, 0, 6, 0, 3)   whole-tone: 3 ic's absent\\ninterval_vector([0, 1, 3, 7])\\n# -> (1, 1, 1, 1, 1, 1)\\ninterval_vector([0, 1, 4, 6])\\n# -> (1, 1, 1, 1, 1, 1)   a Z-RELATED pair\"}",
         NULL,
         "WHAT -- returns the interval-class vector: a 6-tuple whose entry ``i`` counts the unordered pairs of pitch classes separated by interval class ``i+1``. It describes how a set relates to ITSELF. WHEN -- reach for it to characterise a chord or scale by its interval content, e.g. to see at a glance that the whole-tone scale contains no semitones and no fourths. But reach for it knowing what it CANNOT do: it is a lossy invariant, and the loss has a name. Z-RELATED set classes share an interval vector while being genuinely different objects, so this op answers \"what intervals are in here?\" and never \"which set class is this?\". SIBLINGS -- ``prime_form`` answers the identity question, and it is the one to use for classification; note that even it separates a Z-pair only by the set class itself, never by interval content, so the two ops are complements rather than a weak and a strong version of one thing. Do not hand-roll the fold at the tritone with ``abs()``: 6 is the unique self-inverse interval in Z/12 and the fold there is a Class-K pin-slot at a real phase boundary, which ``abs()`` would flatten into an arithmetic accident.",
-        ts_composes_666, 1u,
-        ts_preserves_666, 1u,
+        ts_composes_669, 1u,
+        ts_preserves_669, 1u,
         NULL,
         NULL, 0u,
         "fixed",
-        ts_frame_axis_666, 1u,
+        ts_frame_axis_669, 1u,
     },
-    { /* 667 */
+    { /* 670 */
         "srmech.music.normal_order",
         "srmech",
         "music",
         "The NORMAL ORDER of a pitch-class set \342\200\224 the most compact rotation \342\200\224 with the convention REQUIRED, never defaulted. Both conventions first minimise the outer span; they break the tie differently, and that difference is the whole reason there is no default. 'forte' \342\200\224 Forte (1973) \342\200\224 packs FROM THE LEFT: after the span, compare the first interval, then the second, working outward. 'rahn' \342\200\224 Rahn (1980) \342\200\224 packs FROM THE RIGHT: after the span, compare the interval to the second-to-last, then the third-to-last, working inward from the end. Passing an unknown convention raises, and omitting it is a TypeError, because a silent default would pick a side in a live scholarly disagreement (see prime_form, where the divergence is enumerated). Returns the pitch classes in normal order and does NOT transpose them to 0 \342\200\224 that is prime_form's job, and keeping the two apart is what lets a caller see WHICH rotation was chosen. Class I (the Z/12 rotation) over Class E (the canonical-representative selection). Exact integer; no abs().",
-        ts_params_667, 2u,
+        ts_params_670, 2u,
         "tuple",
         "the pitch classes in normal order, NOT transposed to 0",
         1,
@@ -18506,19 +18593,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"convention\":\"forte\",\"pcs\":[0,1,3,7,8]},\"output\":\"(0, 1, 3, 7, 8)\",\"why\":\"The first pair shows the conventions agreeing, which is the common case and why the disagreement is easy to miss. The second pair is one of the six set classes where they do not, and the returned rotations are visibly different objects rather than different spellings. The last line shows the op refusing an unknown convention rather than quietly falling back to one.\",\"worked\":\"from srmech.music import normal_order\\nnormal_order([0, 4, 7], 'forte')\\n# -> (0, 4, 7)      the two conventions agree here\\nnormal_order([0, 4, 7], 'rahn')\\n# -> (0, 4, 7)\\nnormal_order([0, 1, 3, 7, 8], 'forte')\\n# -> (0, 1, 3, 7, 8)   set class 5-20, packed LEFT\\nnormal_order([0, 1, 3, 7, 8], 'rahn')\\n# -> (7, 8, 0, 1, 3)   the same set, packed RIGHT\\nnormal_order([0, 4, 7], 'straus')\\n# -> ValueError\"}",
         NULL,
         "WHAT -- returns the most compact rotation of a pitch-class set. Both conventions first minimise the outer span; ``\"forte\"`` then packs from the LEFT (compare the first interval, then the second, working outward) and ``\"rahn\"`` packs from the RIGHT (compare the interval to the second-to-last, working inward). The result is NOT transposed to 0. WHEN -- reach for it when you want to see WHICH rotation a convention chose, which is exactly the information ``prime_form`` throws away when it normalises to 0. It is also the honest place to start if you are checking an analysis against a textbook: knowing the rotation tells you immediately which convention that textbook uses. SIBLINGS -- ``prime_form`` is this op plus the inversion comparison and the transposition to 0; do not re-derive one from the other by hand, and do not build a \"default convention\" wrapper over either. There is no default here on purpose: the two conventions disagree on 6 of the 208 set classes (enumerated in ``prime_form``'s own explanation), so a default silently picks a side in a live scholarly disagreement and is wrong for whichever community it did not pick.",
-        ts_composes_667, 1u,
-        ts_preserves_667, 1u,
+        ts_composes_670, 1u,
+        ts_preserves_670, 1u,
         NULL,
         NULL, 0u,
         "fixed",
-        ts_frame_axis_667, 1u,
+        ts_frame_axis_670, 1u,
     },
-    { /* 668 */
+    { /* 671 */
         "srmech.music.prime_form",
         "srmech",
         "music",
         "The PRIME FORM of a pitch-class set \342\200\224 the canonical representative of its set class under Tn/TnI \342\200\224 with the convention REQUIRED, never defaulted. Take the normal order of the set and of its inversion, transpose each to start at 0, keep the smaller. That is the Class-E half: a catalog selection over the Class-I group orbit. THE CONVENTION IS NOT COSMETIC \342\200\224 IT IS A LIVE SCHOLARLY DISAGREEMENT, AND WE MEASURED IT. Enumerating every set class of cardinality 2..10 and comparing the two algorithms row by row, EXACTLY 6 DISAGREE: 5-20 (forte 01378 / rahn 01568), 6-Z29 (013689 / 023679), 6-31 (013589 / 014579), 7-Z18 (0123589 / 0145679), 7-20 (0124789 / 0125679), and 8-26 (0124579T / 013457 8T). NOTE 7-Z18. The figure most often quoted is FIVE, following Straus's Introduction to Post-Tonal Theory, which omits it; six is what the algorithms actually do, and what independent open set-class tables list. Our six is COMPUTED, not copied, and the suite pins all of them. An unnamed prime_form would silently answer as one community and be wrong for the other on exactly these six \342\200\224 hence no default, ever. Exact integer; no abs().",
-        ts_params_668, 2u,
+        ts_params_671, 2u,
         "tuple",
         "the prime form, starting at 0",
         1,
@@ -18526,19 +18613,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"convention\":\"rahn\",\"pcs\":[0,1,3,7,8]},\"output\":\"(0, 1, 5, 6, 8)\",\"why\":\"Major and minor triads collapsing to one prime form is the op working. The four lines after are why the convention argument is required: 5-20 and 7-Z18 come back as visibly different tuples depending on which of two published algorithms you asked for. 7-Z18 is included deliberately -- it is the one the most-quoted count of FIVE omits.\",\"worked\":\"from srmech.music import prime_form\\nprime_form([0, 4, 7], 'forte')\\n# -> (0, 3, 7)      major triad -> the 3-11 set class\\nprime_form([0, 3, 7], 'forte')\\n# -> (0, 3, 7)      minor triad -> the SAME class\\nprime_form([0, 2, 4, 5, 7, 9, 11], 'rahn')\\n# -> (0, 1, 3, 5, 6, 8, 10)   the diatonic scale\\n# the six set classes where the conventions DISAGREE:\\nprime_form([0, 1, 3, 7, 8], 'forte')\\n# -> (0, 1, 3, 7, 8)          5-20, Forte\\nprime_form([0, 1, 3, 7, 8], 'rahn')\\n# -> (0, 1, 5, 6, 8)          5-20, Rahn\\nprime_form([0, 1, 4, 5, 6, 7, 9], 'forte')\\n# -> (0, 1, 2, 3, 5, 8, 9)    7-Z18, Forte\\nprime_form([0, 1, 4, 5, 6, 7, 9], 'rahn')\\n# -> (0, 1, 4, 5, 6, 7, 9)    7-Z18, Rahn\"}",
         NULL,
         "WHAT -- returns the canonical representative of a set class under Tn/TnI: the smaller of the normal orders of the set and of its inversion, each transposed to start at 0. This is the Class-E catalog selection over the Class-I group orbit. WHEN -- reach for it to decide whether two chords are \"the same chord\" in the post-tonal sense, which is the question ``interval_vector`` cannot answer because Z-related classes share a vector. Reach for it having decided which convention you are working in, and record that decision: Forte (1973) and Rahn (1980) give different prime forms for exactly 6 set classes -- 5-20, 6-Z29, 6-31, 7-Z18, 7-20 and 8-26 -- and we measured that by enumerating every set class of cardinality 2..10 rather than by copying a list. Note 7-Z18 in particular: the figure usually quoted is FIVE, following Straus, which omits it. SIBLINGS -- ``normal_order`` is the first half of this op and is the one to call when you want to see the rotation before it is normalised; ``interval_vector`` is the lossy complement. Do not write a wrapper that defaults the convention, and do not hand-roll the inversion with a subtraction -- ``cyclic_mod_add`` is the shipped Class-I action and it is C-dispatched.",
-        ts_composes_668, 2u,
-        ts_preserves_668, 1u,
+        ts_composes_671, 2u,
+        ts_preserves_671, 1u,
         NULL,
         NULL, 0u,
         "fixed",
-        ts_frame_axis_668, 1u,
+        ts_frame_axis_671, 1u,
     },
-    { /* 669 */
+    { /* 672 */
         "srmech.chemistry.balance_reaction",
         "srmech",
         "chemistry",
         "Balance a chemical reaction -> signed primitive integer coefficients. A balanced reaction is a vector v in the kernel of the ELEMENT x SPECIES matrix A (element conservation A.v = 0); each exact-Q kernel column is reduced to the smallest integer vector on its ray by the rc378 primitive_integer_vector keystone, canonical sign = first nonzero entry positive. Read reactant vs product from the SIGN: a NEGATIVE coefficient is a product. ['H2','O2','H2O'] -> [2, 1, -2] (2 H2 + O2 -> 2 H2O). Accepts formula strings, {element: count} dicts, or a raw element x species QMat, interchangeably. Raises on an UNBALANCEABLE reaction (trivial kernel); an UNDERDETERMINED reaction (kernel dim > 1) raises unless all_balances=True, which returns every independent balance. Class L nullspace o Class I/K/C keystone; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_669, 2u,
+        ts_params_672, 2u,
         "list",
         "list[int] \342\200\224 the signed primitive coefficients (kernel dim 1, the usual case); or list[list[int]] (one primitive vector per independent balance) when all_balances=True",
         1,
@@ -18546,19 +18633,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"H2 + O2 -> H2O    : [2, 1, -2]\\npropane           : [1, 5, -3, -4]\\nethane (gcd)      : [2, 7, -4, -6]\\ndict input        : [2, 1, -2]\",\"why\":\"The signed stoichiometric coefficients fall straight out of the element-composition nullspace, first-nonzero pinned positive: 2 H2 + O2 -> 2 H2O (H2O negative = product), propane balances to [1,5,-3,-4], the ethane column needs the gcd stripped to reach the primitive [2,7,-4,-6], and formula strings and {element:count} dicts give the identical answer.\",\"worked\":\"from srmech.chemistry import balance_reaction\\n# Read reactant vs product from the SIGN: a negative coefficient is\\n# a product. Species may be formula strings or {element:count} dicts.\\nprint(\\\"H2 + O2 -> H2O    :\\\", balance_reaction([\\\"H2\\\", \\\"O2\\\", \\\"H2O\\\"]))\\nprint(\\\"propane           :\\\", balance_reaction([\\\"C3H8\\\", \\\"O2\\\", \\\"CO2\\\", \\\"H2O\\\"]))\\nprint(\\\"ethane (gcd)      :\\\", balance_reaction([\\\"C2H6\\\", \\\"O2\\\", \\\"CO2\\\", \\\"H2O\\\"]))\\nprint(\\\"dict input        :\\\", balance_reaction([{\\\"H\\\": 2}, {\\\"O\\\": 2}, {\\\"H\\\": 2, \\\"O\\\": 1}]))\"}",
         NULL,
         "WHAT - balances a chemical reaction and RETURNS the signed primitive integer coefficients. A balanced reaction is a vector v in the kernel of the ELEMENT x SPECIES matrix A (element conservation A.v = 0); each exact-Q kernel column is reduced to the smallest integer vector on its ray by the primitive_integer_vector keystone, first nonzero pinned positive. The SIGN carries direction - a negative coefficient is a product. Accepts formula strings, {element:count} dicts, or a raw element x species QMat interchangeably; exact-Q, numpy-free, no abs(). WHEN - reach for it to balance a reaction (combustion, redox, synthesis) from its species alone. An UNBALANCEABLE set (trivial kernel) raises; an UNDERDETERMINED set (kernel dim > 1) raises unless you pass all_balances=True to get every independent balance. SIBLINGS - it composes QMat.nullspace (the exact-Q kernel) with srmech.math.cyclic.primitive_integer_vector (the integer reduction), so do NOT hand-roll a float nullspace and round to integers - that is the exact mistake the keystone exists to prevent. conservation_laws is its transpose-in-role peer (SPECIES x REACTION, not element x species); parse_formula is the input tokenizer it calls on a formula string.",
-        ts_composes_669, 1u,
+        ts_composes_672, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 670 */
+    { /* 673 */
         "srmech.chemistry.conservation_laws",
         "srmech",
         "chemistry",
         "The conserved moieties of a reaction network \342\200\224 an integer basis of the LEFT-nullspace of the stoichiometric matrix N (every gamma with gamma^T N = 0: a combination of species whose total is invariant under every reaction, i.e. mass / charge / moiety conservation). Computed as N.T.nullspace() with each kernel column reduced by the primitive_integer_vector keystone. N is the SPECIES x REACTION matrix of a NETWORK (rows = species, columns = reactions; entry = net change) \342\200\224 the transpose-in-role of balance_reaction's element x species matrix. For Michaelis-Menten E + S <-> ES -> E + P this returns two laws (total enzyme E + ES, and a substrate-matter moiety). Class L left-nullspace o Class I keystone; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_670, 1u,
+        ts_params_673, 1u,
         "list",
         "list[list[int]] \342\200\224 one primitive integer conservation vector per left-nullspace basis element (length = number of species each); empty when N has full row rank (no conserved moiety)",
         1,
@@ -18566,19 +18653,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"laws: [[1, 0, 1, 0], [1, -1, 0, -1]]\\ngamma^T N = [0, 0, 0]\\ngamma^T N = [0, 0, 0]\",\"why\":\"Michaelis-Menten E + S <-> ES -> E + P returns two conserved moieties - total enzyme (E + ES) and a substrate-matter combination - and each returned gamma satisfies gamma^T N = 0 exactly, so the conservation is verified, not asserted.\",\"worked\":\"from srmech.chemistry import conservation_laws\\n# Michaelis-Menten E + S <-> ES -> E + P. N is SPECIES x REACTION\\n# (rows E, S, ES, P; columns R1, R2, R3; entry = net change).\\nN = [[-1, 1, 1], [-1, 1, 0], [1, -1, -1], [0, 0, 1]]\\nlaws = conservation_laws(N)\\nprint(\\\"laws:\\\", laws)\\nfor g in laws:\\n    print(\\\"gamma^T N =\\\", [sum(g[i] * N[i][j] for i in range(4)) for j in range(3)])\"}",
         NULL,
         "WHAT - COMPUTES the conserved moieties of a reaction network: an integer basis of the LEFT-nullspace of the stoichiometric matrix N (every gamma with gamma^T N = 0 - a combination of species whose total is invariant under every reaction, i.e. mass / charge / moiety conservation). It is N.T.nullspace() with each kernel column reduced by the primitive_integer_vector keystone; exact-Q, numpy-free, no abs(). WHEN - reach for it to find what a network keeps fixed: total enzyme, total phosphate, a charge balance. It RETURNS the empty list when N has full row rank (no conserved moiety). SIBLINGS - do NOT confuse its matrix with balance_reaction: N here is SPECIES x REACTION (rows = species, columns = reactions), the transpose-in-role of the ELEMENT x SPECIES matrix - conflating them is the #1 correctness trap this domain guards against. It shares the QMat.nullspace + primitive_integer_vector composition with balance_reaction, so do not re-derive denominator-clearing beside it; deficiency consumes the same stoichiometric N to compute rank(N) = s.",
-        ts_composes_670, 1u,
+        ts_composes_673, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 671 */
+    { /* 674 */
         "srmech.chemistry.deficiency",
         "srmech",
         "chemistry",
         "The Feinberg deficiency delta of a chemical reaction network: delta = n - l - s = rank(L_complex) - rank(N), where n = number of distinct complexes, l = number of linkage classes (connected components of the complex graph), and s = rank(N) = dimension of the stoichiometric subspace. delta is a NON-NEGATIVE integer fixed by network topology alone (independent of rate constants). rank(L_complex) = n - l is the exact rank of the combinatorial graph Laplacian of the complex graph (a graph Laplacian has rank = vertices - components); rank(N) is the Class-J QMat.rank. A -> B has delta 0; 2A -> A+B -> 2B -> 2A has delta 1. Definitional and stated self-contained; standard reference M. Feinberg, Foundations of Chemical Reaction Network Theory (Springer, Applied Mathematical Sciences 202, 2019) and the open-access Lectures on Chemical Reaction Networks (Univ. of Wisconsin MRC, 1979/1980). Class L Laplacian o Class J rank; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_671, 2u,
+        ts_params_674, 2u,
         "int",
         "the deficiency delta (default); or {'deficiency', 'n_complexes', 'n_linkage_classes', 'rank_stoichiometric'} when with_components=True",
         1,
@@ -18586,19 +18673,19 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"A <-> B     : {'deficiency': 0, 'n_complexes': 2, 'n_linkage_classes': 1, 'rank_stoichiometric': 1}\\n2A/A+B/2B   : {'deficiency': 1, 'n_complexes': 3, 'n_linkage_classes': 1, 'rank_stoichiometric': 1}\\ndelta only  : 1\",\"why\":\"The isomerization A <-> B has deficiency 0 (n=2, l=1, s=1) and the classic 2A -> A+B -> 2B -> 2A network has deficiency 1 (n=3, l=1, s=1); with_components exposes the n / l / s breakdown, and the bare call returns just the integer delta.\",\"worked\":\"from srmech.chemistry import deficiency\\n# delta = n - l - s = rank(L_complex) - rank(N): n distinct complexes,\\n# l linkage classes (components of the complex graph), s = rank(N).\\nprint(\\\"A <-> B     :\\\", deficiency([({\\\"A\\\": 1}, {\\\"B\\\": 1})], with_components=True))\\ntri = [({\\\"A\\\": 2}, {\\\"A\\\": 1, \\\"B\\\": 1}), ({\\\"A\\\": 1, \\\"B\\\": 1}, {\\\"B\\\": 2}), ({\\\"B\\\": 2}, {\\\"A\\\": 2})]\\nprint(\\\"2A/A+B/2B   :\\\", deficiency(tri, with_components=True))\\nprint(\\\"delta only  :\\\", deficiency(tri))\"}",
         NULL,
         "WHAT - COMPUTES the Feinberg deficiency delta = n - l - s = rank(L_complex) - rank(N) of a reaction network: n distinct complexes, l linkage classes (connected components of the complex graph), s = rank(N) = dimension of the stoichiometric subspace. delta is a non-negative integer fixed by network topology alone (independent of rate constants). rank(L_complex) = n - l is the exact rank of the combinatorial graph Laplacian of the complex graph; rank(N) is the Class-J QMat.rank. WHEN - reach for it to read a network structural invariant: the Feinberg deficiency-zero and deficiency-one theorems constrain the steady states of many mass-action networks from delta alone. Pass with_components=True for the n / l / s breakdown. Standard reference: M. Feinberg, Foundations of Chemical Reaction Network Theory (Springer AMS 202, 2019). SIBLINGS - it composes dense_laplacian (Class L) with QMat.rank (Class J); do NOT hand-roll a connected-components count for l - the graph Laplacian rank IS n - l, exactly. conservation_laws reads the same stoichiometric N from the other side (its left-nullspace), and rank(N) here is that matrix rank.",
-        ts_composes_671, 1u,
+        ts_composes_674, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 672 */
+    { /* 675 */
         "srmech.chemistry.parse_formula",
         "srmech",
         "chemistry",
         "Parse a chemical formula string into an {element: count} dict \342\200\224 the ergonomic input balance_reaction accepts. Handles multi-letter element symbols (\"Ca\", \"Cl\"), implicit and explicit ASCII-digit counts (\"O\" -> 1, \"O2\" -> 2), and arbitrarily NESTED parenthesised groups with a trailing multiplier (\"Ca3(PO4)2\" -> {Ca:3, P:2, O:8}; \"(OH)2\" -> {O:2, H:2}). DEFERS (raises, never silently mis-parses) hydrate dots, charges, and isotope/bracket syntax (out of `#T1050` scope). Class F/G (Render / byte-search): a bounded placeholder scan, the srmech_template_render family. Dispatches to the JPL-clean caller-arena C twin srmech_parse_formula (the pure-Python body is the byte-identical fallback and parity oracle); c_dispatched.",
-        ts_params_672, 1u,
+        ts_params_675, 1u,
         "dict",
         "{element: count} \342\200\224 element symbol -> total count; repeated occurrences accumulate",
         1,
@@ -18613,12 +18700,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 673 */
+    { /* 676 */
         "srmech.bus.decode_splice",
         "srmech",
         "bus",
         "Decode one frame of a UTLP Bio-TOTP bus channel (Claim 255 alignment) given the per-channel DNA secret. Pure function (no side effects); suitable for LLM / agent introspection of mid-stream traffic. Returns (plaintext, used_time_ns); the plaintext is the original JSON-encoded bus Event and the used_time_ns is the candidate time-bucket value that successfully decoded (the current bucket or \302\2611 bucket for clock-skew tolerance). Cipher: AES-128-CTR when ``pip install srmech[crypto]`` extra is installed (UTLP-exact path); HMAC-SHA-256 counter-mode keystream by default (stdlib-only, structurally equivalent for the defensive-scope threat model). Key derivation rolls every 250 ms (WINDOW_NS=250_000_000; configurable via ``SRMECH_BUS_TOTP_WINDOW_NS`` env var); the receiver tolerates \302\2611 window for clock skew. Frame layout: [nonce:16][ciphertext]; nonce = sender_id_u64 || channel_id_u32 || packet_seq_u32. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode. v0.5.0rc7 (Bio-TOTP wire format; UTLP Claim 255).",
-        ts_params_673, 4u,
+        ts_params_676, 4u,
         "tuple[bytes, int]",
         "(plaintext, used_time_ns) \342\200\224 JSON-encoded bus Event bytes, and the candidate time value that decoded successfully.",
         1,
@@ -18633,12 +18720,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 674 */
+    { /* 677 */
         "srmech.bus.list_endpoints",
         "srmech",
         "bus",
         "Enumerate currently-running srmech.bus endpoints owned by the current user by scanning the `~/.srmech/bus-*.sock` (POSIX) / `~/.srmech/bus-*.txt` (Windows) registry directory. Best-effort liveness check per endpoint (POSIX: UDS connect probe; Windows: TCP loopback connect or WaitNamedPipeW probe). Side effect (when `cleanup_dead=True`, the default): registration files for endpoints whose server is no longer accepting connections are removed from disk on read. Returns `[]` on Pyodide / WASM (no socket support). Sorted alphabetically by endpoint name. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_674, 1u,
+        ts_params_677, 1u,
         "list[Endpoint]",
         "Each Endpoint is a frozen dataclass: name (str), path (pathlib.Path), transport ('uds' POSIX / 'pipe' or 'tcp' Windows), alive (bool), pid (Optional[int], currently always None \342\200\224 reserved for a future rc that records owner PID in the registry file).",
         1,
@@ -18653,12 +18740,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 675 */
+    { /* 678 */
         "srmech.bus.by_name",
         "srmech",
         "bus",
         "Look up one srmech.bus endpoint by name. Same registry scan as `srmech.bus.list_endpoints` but returns just the matching record (or `None` if no endpoint of that name is registered for the current user). Does NOT auto-clean dead-endpoint registration files (the caller may want to inspect a dead endpoint's record). Returns `None` on Pyodide / WASM. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_675, 1u,
+        ts_params_678, 1u,
         "Endpoint | None",
         "Frozen dataclass with name (str), path (pathlib.Path), transport ('uds' / 'pipe' / 'tcp'), alive (bool), pid (Optional[int]). `None` when no matching endpoint is registered.",
         1,
@@ -18666,7 +18753,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"cosmos: cosmos | alive True | transport uds\\nunknown name: None\\nreply type/payload: f_dark {'payload': {'row': 0}, 'type': 'f_dark'}\\nreply sender: cosmos\\ndead record: antikythera | alive False | file bus-antikythera.sock\\nstill there: True\\nafter list_endpoints(): None\",\"why\":\"One named lookup feeds straight into connect(), and the same record survives repeated reads after its owner is SIGKILLed \\u2014 by_name never reaps, so a dead endpoint stays inspectable until list_endpoints() sweeps it.\",\"worked\":\"# --- bus_worker.py (runs as the SECOND process) -----------------------------------------------------\\n# \\\"\\\"\\\"A bus endpoint held open until the process is killed.\\\"\\\"\\\"\\n# import time\\n# from srmech.bus import serve\\n#\\n# def handler(event):\\n#     return {\\\"type\\\": \\\"ratio\\\", \\\"payload\\\": {\\\"metonic\\\": [235, 19]}}\\n#\\n# with serve(\\\"antikythera\\\", handler=handler):\\n#     time.sleep(300)\\n# --------------------------------------------------------------------\\nimport signal, subprocess, sys, time\\nfrom srmech.bus import serve, connect, by_name, list_endpoints\\n\\ndef cosmos(event):\\n    return {\\\"type\\\": \\\"f_dark\\\", \\\"payload\\\": {\\\"row\\\": 0}}\\n\\nw = subprocess.Popen([sys.executable, \\\"bus_worker.py\\\"])   # serves \\\"antikythera\\\"\\nwith serve(\\\"cosmos\\\", handler=cosmos):\\n    while by_name(\\\"antikythera\\\") is None:\\n        time.sleep(0.1)\\n    ep = by_name(\\\"cosmos\\\")\\n    print(\\\"cosmos:\\\", ep.name, \\\"| alive\\\", ep.alive, \\\"| transport\\\", ep.transport)\\n    print(\\\"unknown name:\\\", by_name(\\\"nucleosome\\\"))\\n\\n    # The record is enough to CONNECT -- discovery, then use.\\n    with connect(ep.name) as ch:\\n        r = ch.send({\\\"type\\\": \\\"ping\\\"})\\n        print(\\\"reply type/payload:\\\", r[\\\"type\\\"], r[\\\"payload\\\"])\\n        print(\\\"reply sender:\\\", r[\\\"attestation\\\"][\\\"sender_name\\\"])\\n\\n    # by_name does NOT reap: a dead endpoint's record stays inspectable.\\n    w.send_signal(signal.SIGKILL); w.wait(); time.sleep(0.5)\\n    d = by_name(\\\"antikythera\\\")\\n    print(\\\"dead record:\\\", d.name, \\\"| alive\\\", d.alive, \\\"| file\\\", d.path.name)\\n    print(\\\"still there:\\\", by_name(\\\"antikythera\\\") is not None)\\n    list_endpoints()                       # THIS is what reaps it\\n    print(\\\"after list_endpoints():\\\", by_name(\\\"antikythera\\\"))\"}",
         NULL,
         "WHAT \342\200\224 the same registry scan as ``list_endpoints``, returning just the ``Endpoint`` whose name matches, or ``None`` when nothing is registered under that name (also ``None`` on Pyodide / WASM). WHEN \342\200\224 you already know the endpoint's name and want its record: is it alive, what transport did it bind, where is its registration file. The deliberate difference from ``list_endpoints`` is that this call does NOT auto-clean dead registrations, which makes it the right tool for post-mortem inspection of an endpoint whose server has gone \342\200\224 the worked run reads a SIGKILLed endpoint's record twice and it only vanishes once ``list_endpoints()`` runs. What you would otherwise wrongly hand-roll is ``[e for e in list_endpoints() if e.name == n]``, which silently REAPS the very dead record you were trying to look at. SIBLINGS \342\200\224 ``list_endpoints`` is the enumerate form AND the reaper; ``connect(name)`` performs its own resolution, so ``by_name`` is for inspecting BEFORE or INSTEAD of connecting, never a required pre-step; ``srmech.introspect.by_pid`` is the identically-shaped single-record lookup on the OTHER ``~/.srmech`` registry (publishing runs, keyed by pid) and shares the same no-reap contract; ``decode_splice`` is what you use on the traffic once you are attached.",
-        ts_composes_675, 1u,
+        ts_composes_678, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,

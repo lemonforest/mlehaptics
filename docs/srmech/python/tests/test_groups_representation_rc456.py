@@ -526,14 +526,23 @@ def test_docstring_qalg_lift_executes_verbatim():
     again.  The rc456 repair pass measured the originally shipped spelling
     raising ``TypeError`` on every call (``Qalg``'s modulus is its FIRST
     positional), and it survived 56 green tests because no other gate
-    executes docstring code blocks."""
+    executes docstring code blocks.
+
+    The doc is normalized through ``inspect.cleandoc`` FIRST: CPython
+    3.13+ auto-dedents ``__doc__``, so the original fixed ``[ ]{8}``
+    indent match found 0 blocks there (the block sits at 4 spaces
+    post-dedent) — a latent red for the day the CI matrix passes 3.12,
+    measured on 3.14 by the rc457 repair pass.  After cleandoc the block
+    indent is 4 on EVERY version, so the extraction is
+    indentation-scheme-independent."""
+    import inspect
     import re
     import textwrap
 
     from srmech.math.qalg import Qalg
 
-    doc = character_table.__doc__
-    blocks = [b for b in re.findall(r"::\n\n((?:[ ]{8}.*\n)+)", doc)
+    doc = inspect.cleandoc(character_table.__doc__)
+    blocks = [b for b in re.findall(r"::\n\n((?:[ ]{4}.*\n)+)", doc)
               if "Qalg(" in b]
     assert len(blocks) == 1, "the docstring lost its Qalg code block"
     snippet = textwrap.dedent(blocks[0])

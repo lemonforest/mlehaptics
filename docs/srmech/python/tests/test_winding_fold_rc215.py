@@ -326,8 +326,8 @@ def test_registration_and_count():
     schema = get_tool_schema()
     names = {t.name for t in schema.tools}
     assert "srmech.cascade.winding_fold" in names
-    assert len(schema.tools) == 676
-    assert srmech.describe()["tools"]["total"] == 676
+    assert len(schema.tools) == 679
+    assert srmech.describe()["tools"]["total"] == 679
     assert "winding_fold" in cascade.__all__
     entry = schema.lookup("srmech.cascade.winding_fold")
     assert entry.category == "cascade"
