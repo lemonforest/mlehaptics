@@ -638,14 +638,27 @@ def test_intertwiner_dimension_two_routes():
 def test_intertwiner_basis_equivariance_executed_raw():
     """Every returned basis element re-checked against RAW matrix products
     over Q — the independent route a Kronecker-convention defect inside
-    the op could not survive."""
+    the op could not survive.  The (nat, reg) lane is the LOAD-BEARING
+    one (rc458 repair pass, adversarial finding): on the symmetric
+    (nat, nat) pair the commutant of a permutation rep is
+    transpose-closed, so a bijective de-vectorization re-indexing
+    (row-major read column-major at the op's kernel readout) still lands
+    inside the space and survives the raw check — MEASURED: that mutant
+    passed every shipped rc458 test while Hom(nat, reg) came back with
+    112 exact equivariance violations at unchanged dimension 3.  d1 ≠ d2
+    is what makes this raw product law a detector, so both pairs run and
+    both dimensions are pinned against vacuity."""
     nat = permutation_representation(S3, _nat_action())
-    iw = intertwiner_space(nat, nat)
-    for mat in iw["basis"]:
-        X = QMat.from_rows([[tuple(c) for c in row] for row in mat])
-        for g in range(6):
-            R = QMat.from_rows(nat["matrices"][g])
-            assert R.matmul(X) == X.matmul(R)
+    reg = permutation_representation(S3, S3)
+    for rep1, rep2, dim in ((nat, nat, 2), (nat, reg, 3)):
+        iw = intertwiner_space(rep1, rep2)
+        assert iw["dimension"] == dim
+        for mat in iw["basis"]:
+            X = QMat.from_rows([[tuple(c) for c in row] for row in mat])
+            for g in range(6):
+                R1 = QMat.from_rows(rep1["matrices"][g])
+                R2 = QMat.from_rows(rep2["matrices"][g])
+                assert R2.matmul(X) == X.matmul(R1)
 
 
 def test_intertwiner_schur_zero_is_a_classified_return():
