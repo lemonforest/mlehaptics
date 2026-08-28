@@ -16292,11 +16292,18 @@ def _register_signal_processing_tools() -> None:
                       "D/8 bytes of deterministic content — the packed "
                       "hypervector"),
             # rc456: the rc452 census measured this row at 0 edges against
-            # the then-666-op BY_NAME; re-measured by the SAME committed
-            # instrument at 676 it derives exactly ONE depth-1 edge — the
+            # BY_NAME as it then stood — before sha256_raw was registered;
+            # re-measured by the SAME committed instrument (the AST edge
+            # census in test_composes_population_rc423.py) against this
+            # rc's registry it derives exactly ONE depth-1 edge — the
             # pure path's `_sha256_raw` aliased import at
             # rbs_hdc_instrument.py:254 resolves to the (now-registered)
             # sha256_raw. A one-element tuple has one ordering; forced.
+            # (The two registry totals the census ran against are the
+            # historical record in that test file, not restated here:
+            # this comment ships in the wheel, and a total written into
+            # shipped source goes stale on the next op added — the
+            # test_owner_axis_rc410 gate.)
             composes=("srmech.amsc.format.sha256_raw",),
             smoke_test_hint={"name": "'LoE.token.example'"},
         )

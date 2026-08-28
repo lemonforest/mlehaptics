@@ -1142,10 +1142,12 @@ def character_table(cayley_table: Sequence[Sequence[int]]) -> Dict[str, Any]:
     partition every sibling op reads).
 
     **The algorithm** — the classical prime-field split-and-lift (commonly
-    attributed to J. D. Dixon, *Numer. Math.* 10 (1967) 446–450; that
-    venue is paywalled, so per the paywalled-DOI discipline NO attestation
-    is claimed for it and the derivation is carried inline instead — every
-    step below is checkable from first principles):
+    attributed to J. D. Dixon, 'High speed computation of group
+    characters', *Numer. Math.* 10 (1967) 446–450, DOI 10.1007/BF02162877
+    (Crossref); that venue is paywalled, so per the paywalled-DOI
+    discipline NO attestation is claimed for it and the derivation is
+    carried inline instead — every step below is checkable from first
+    principles):
 
     1. one :func:`conjugacy_classes` call (the class-data SSoT);
     2. the exponent ``e`` (element orders off the table, lcm via the
