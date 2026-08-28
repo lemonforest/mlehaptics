@@ -543,6 +543,204 @@ CURATED: Dict[str, Dict[str, Any]] = {
             'carrier if you need to do further polynomial algebra on the '
             'coefficients.'},
 
+    # ── rc457 — the representation stratum, tier 3 (the FINAL slice).
+    # Every output below is a REAL capture from the shipped implementation
+    # (numpy-absent); none is typed from memory. The `composes`
+    # declarations ride the ToolEntry registrations (forced-order
+    # singletons on the Class-A content address), NOT rows here.
+    'srmech.math.groups.frobenius_schur_indicator': {
+        'example': {
+            'input': {'char_table':
+                      "character_table(cyclic_group(4)['cayley_table'])"},
+            'output': "{'k': 4, 'order': 4, 'indicators': (1, 0, 0, 1), "
+                      "'num_real': 2, 'num_complex': 2, "
+                      "'num_quaternionic': 0, 'square_roots_of_identity': "
+                      "2, 'table_sha256': '4c827dece6f9c00c...', "
+                      "'indicators_sha256': '796ddde4c008abb2...'}",
+            'worked': "from srmech.cascade import unit_loop\n"
+                      "from srmech.math.groups import (character_table,\n"
+                      "    frobenius_schur_indicator)\n"
+                      "ct = character_table(unit_loop(4)['cayley_table'])"
+                      "  # Q8\n"
+                      "fs = frobenius_schur_indicator(ct)\n"
+                      "fs['indicators']\n"
+                      "# -> (1, 1, 1, 1, -1)\n"
+                      "ct['degrees']\n"
+                      "# -> [1, 1, 1, 1, 2]    the -1 sits EXACTLY on the "
+                      "degree-2 row: quaternionic\n"
+                      "fs['square_roots_of_identity']\n"
+                      "# -> 2    = sum(nu*d): only e and -e square to the "
+                      "identity in Q8\n"
+                      "fs['num_real'], fs['num_complex'], "
+                      "fs['num_quaternionic']\n"
+                      "# -> (4, 0, 1)\n"
+                      "frobenius_schur_indicator({'k': 5})\n"
+                      "# -> ValueError\n",
+            'why': 'Q8 is the smallest group with a quaternionic '
+                   'character: the degree-2 row pins to -1 while the four '
+                   'linears pin to +1, and the Frobenius-Schur count of '
+                   'square roots of the identity (2 = 4·1 - 1·2) can be '
+                   'cross-read character-free off the Cayley table.'},
+        'explanation':
+            'WHAT it computes: the Frobenius-Schur indicator nu = '
+            '(1/|G|)·Σ chi(g²) of every irreducible character, off a '
+            'character_table payload dict — the class-weighted sum over '
+            'the shipped square_class column gather, pure integer vector '
+            'arithmetic, landing EXACTLY on +1 (real/orthogonal — '
+            'symmetric invariant bilinear form), 0 (complex — no '
+            'invariant form; the character and its conjugate are a '
+            'chirality pair), or -1 (quaternionic/symplectic — '
+            'antisymmetric form). Class K: the three-state sign '
+            'classification IS the whole answer, a three-point pin at '
+            'the reality phase boundary, implemented as exact set '
+            'membership. In-op guards raise on non-rational sums, '
+            '|G|-indivisibility (the corruption detector) and any lift '
+            'outside the pin. '
+            'WHEN to reach for it: to ask which Hurwitz rung End_G(V) '
+            'occupies — real, complex or quaternionic — without '
+            'hand-rolling the squaring map over elements (the payload '
+            'already carries square_class per CLASS, well defined since '
+            'conjugation commutes with squaring). Do not scan for a '
+            'symmetric invariant form by trial: nu answers it exactly. '
+            'CAUTION: payload rows sort (degree, lex) — the trivial '
+            'character is NOT at index 0 in general; locate rows by '
+            'CONTENT. '
+            'SIBLINGS: srmech.math.groups.character_table produces the '
+            'operand payload; srmech.math.groups.fusion_multiplicities '
+            'and central_idempotents are the other tier-3 readouts over '
+            'the same payload; srmech.math.groups.conjugacy_classes '
+            'ships the square_class map this op gathers over.'},
+
+    'srmech.math.groups.fusion_multiplicities': {
+        'example': {
+            'input': {'char_table':
+                      "character_table(dihedral_group(3, "
+                      "'rotation_first')['cayley_table'])"},
+            'output': "{'k': 3, 'order': 6, 'degrees': [1, 1, 2], "
+                      "'multiplicities': (((0, 1, 0), (1, 0, 0), "
+                      "(0, 0, 1)), ((1, 0, 0), (0, 1, 0), (0, 0, 1)), "
+                      "((0, 0, 1), (0, 0, 1), (1, 1, 1))), "
+                      "'table_sha256': '1b30ed4b570b8cb9...', "
+                      "'multiplicities_sha256': '72fa0c9ccbd89f5a...'}",
+            'worked': "from srmech.cascade import dihedral_group\n"
+                      "from srmech.math.groups import (character_table,\n"
+                      "    fusion_multiplicities)\n"
+                      "ct = character_table(dihedral_group(3,\n"
+                      "    'rotation_first')['cayley_table'])   # S3\n"
+                      "fu = fusion_multiplicities(ct)\n"
+                      "two = ct['degrees'].index(2)   # locate the row by "
+                      "CONTENT, never assume an index\n"
+                      "fu['multiplicities'][two][two]\n"
+                      "# -> (1, 1, 1)    2 (x) 2 = 1 + 1' + 2, every "
+                      "character once\n"
+                      "sum(n * d for n, d in\n"
+                      "    zip(fu['multiplicities'][two][two], "
+                      "ct['degrees']))\n"
+                      "# -> 4    the dimension law: d_a * d_b = 2 * 2\n"
+                      "fusion_multiplicities({'k': 3})\n"
+                      "# -> ValueError\n",
+            'why': "S3's whole fusion ring in one call: the reflection "
+                   "representation tensored with itself decomposes as "
+                   "trivial + sign + itself, and the dimension law "
+                   "Σ N·d = d·d is executed, not asserted."},
+        'explanation':
+            'WHAT it computes: the full fusion tensor N_abc = '
+            '<chi_a·chi_b, chi_c> — the multiplicity of irrep c inside '
+            'the tensor product a ⊗ b — as exact non-negative integers, '
+            'k × k × k nested tuples, off a character_table payload '
+            'dict. Class L: projection of each pointwise character '
+            'product onto the irrep eigenbasis of the class algebra. '
+            'Conjugation is the shipped inverse_class column permutation '
+            '(chi-bar(g) = chi(g-inverse)) — no Galois machinery; the '
+            'pointwise product is the exact ℤ[ζ_e] ring multiply. In-op '
+            'guards raise on non-integrality, |G|-indivisibility (the '
+            'corruption detector), negativity, and the dimension law '
+            'Σ_c N_abc·d_c = d_a·d_b over ALL pairs. '
+            'WHEN to reach for it: to decompose a tensor product of '
+            'irreps without hand-rolling character inner products in '
+            'floating point — on an abelian table the tensor IS the dual '
+            "group's multiplication (every product exactly one "
+            'character), and on C7⋊C3 it computes 3 ⊗ 3 = 3 + 2·3-bar '
+            'exactly over Φ₂₁, where a decimal route would be drowning '
+            'in conjugate-pair roundoff. CAUTION: payload rows sort '
+            '(degree, lex) — locate rows by CONTENT (degree + value '
+            'vector), never by index. '
+            'SIBLINGS: srmech.math.groups.character_table produces the '
+            'operand payload; frobenius_schur_indicator and '
+            'central_idempotents are the sibling tier-3 readouts; '
+            'srmech.math.groups.irrep_dimensions when only the degree '
+            'multiset is the question.'},
+
+    'srmech.math.groups.central_idempotents': {
+        'example': {
+            'input': {'char_table':
+                      "character_table(dihedral_group(3, "
+                      "'rotation_first')['cayley_table'])"},
+            'output': "{'k': 3, 'order': 6, 'degrees': [1, 1, 2], "
+                      "'denominator': 6, 'numerators': (((1, 0), (1, 0), "
+                      "(-1, 0)), ((1, 0), (1, 0), (1, 0)), ((4, 0), "
+                      "(-2, 0), (0, 0))), 'class_of': [0, 1, 1, 2, 2, 2], "
+                      "'phi_e': (1, -1, 1), 'table_sha256': "
+                      "'1b30ed4b570b8cb9...', 'idempotents_sha256': "
+                      "'83380db06331af10...'}",
+            'worked': "from srmech.cascade import unit_loop\n"
+                      "from srmech.math.groups import (central_idempotents,"
+                      "\n    character_table)\n"
+                      "ct = character_table(unit_loop(4)['cayley_table'])"
+                      "  # Q8\n"
+                      "ci = central_idempotents(ct)\n"
+                      "ci['denominator']\n"
+                      "# -> 8    ONE explicit denominator = |G|; the "
+                      "coefficients are NOT algebraic integers\n"
+                      "two = ct['degrees'].index(2)   # locate by CONTENT\n"
+                      "ci['numerators'][two]\n"
+                      "# -> ((4, 0), (0, 0), (0, 0), (0, 0), (-4, 0))\n"
+                      "# i.e. e_chi = (1/2)*delta_e - (1/2)*delta_(-e): "
+                      "the degree-2 isotypic projector\n"
+                      "ci['class_of']\n"
+                      "# -> [0, 1, 2, 3, 4, 1, 2, 3]    expands per-class "
+                      "coefficients to per-element ones\n"
+                      "central_idempotents({'order': 8})\n"
+                      "# -> ValueError\n",
+            'why': "Q8's degree-2 central idempotent is ½δ_e − ½δ₋ₑ — "
+                   "two numerator vectors over the one explicit "
+                   "denominator 8 — and evaluating it in any "
+                   "representation of Q8 projects onto the quaternionic "
+                   "isotypic component."},
+        'explanation':
+            'WHAT it computes: the primitive central idempotents e_chi = '
+            '(d/|G|)·Σ chi(g-inverse)·g of the group algebra, in the '
+            'class-sum basis, as integer NUMERATOR vectors over ONE '
+            'explicit denominator = |G| (the deferred-division shape of '
+            'exact_idft) — the rank-1 spectral-projector family of the '
+            'class algebra, Class L. THE NAME CARRIES A SCOPE RULING: '
+            "two objects wear the name 'isotypic projector' — (a) these "
+            'central idempotents, needing only characters, and (b) the '
+            "projector onto an isotypic subspace of a caller's module, "
+            'needing actual rho(g) matrices, which srmech does not carry '
+            '(no representation object). This op ships (a) under the '
+            'name of what it actually is: the elements ARE the isotypic '
+            'projectors of the REGULAR module, and for any other module '
+            'the caller evaluates rho(e_chi) = (d/|G|)·Σ '
+            'chi(g-inverse)·rho(g) — the element is universal, the '
+            'matrix projector is its evaluation at a module srmech does '
+            'not carry. '
+            'WHEN to reach for it: to project onto an isotypic component '
+            'or split a group algebra into blocks without hand-rolling '
+            'd·chi-bar/|G| coefficient tables — the in-op guard checks '
+            'Σ e_chi = δ_e (column orthogonality) so a corrupted payload '
+            'is refused, and e·e = e is verified test-side by TWO '
+            'independent routes (class-algebra structure constants; full '
+            'group-algebra convolution). CAUTION: payload rows sort '
+            '(degree, lex); the denominator is deliberately explicit — '
+            'never divide early. '
+            'SIBLINGS: srmech.math.groups.character_table produces the '
+            'operand payload (and documents the Qalg lift when a caller '
+            'wants actual division); frobenius_schur_indicator and '
+            'fusion_multiplicities are the sibling tier-3 readouts; '
+            'srmech.math.qalg.Qalg is the exact-division carrier the '
+            'numerator/denominator pair lifts into.'},
+
     # ── rc419 (`#T1110`) — the signal_processing dispatcher + path-registry
     # read surface, registered at last. Every output below is a REAL WSL2
     # capture (numpy-absent, HAS_NATIVE True); none is typed from memory.

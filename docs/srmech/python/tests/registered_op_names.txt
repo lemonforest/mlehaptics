@@ -315,10 +315,13 @@ srmech.math.dispatch.match
 srmech.math.dispatch.mirror_pattern
 srmech.math.groups.abelianization
 srmech.math.groups.cayley_graph
+srmech.math.groups.central_idempotents
 srmech.math.groups.character_table
 srmech.math.groups.conjugacy_classes
 srmech.math.groups.cyclic_group
 srmech.math.groups.derived_subgroup
+srmech.math.groups.frobenius_schur_indicator
+srmech.math.groups.fusion_multiplicities
 srmech.math.groups.irrep_dimensions
 srmech.math.groups.quotient_group
 srmech.math.groups.semidirect_product
