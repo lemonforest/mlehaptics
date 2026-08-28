@@ -493,7 +493,7 @@ def test_table_sha_is_deterministic():
     assert a == b and len(a) == 64
 
 
-# ── 15. the executed form of the exact-arithmetic claim ──────────────────
+# ── 14. the executed form of the exact-arithmetic claim ──────────────────
 
 def test_no_alu_magnitude_and_no_float_in_the_source():
     """An ASSERTED algebraic property is not a MEASURED one: the module
@@ -514,3 +514,37 @@ def test_semidirect_tables_pass_the_census_oracle():
     for sd in (S3, D4, D7, F21, C21, S4):
         census = conjugacy_census(sd["cayley_table"])
         assert census["is_group"], sd["order"]
+
+
+# ── 15. the documented division-lift recipe, executed VERBATIM ───────────
+
+def test_docstring_qalg_lift_executes_verbatim():
+    """The module's ONLY documented division recipe (the header says "two
+    lines, shown in :func:`character_table`'s docstring", and both emitted
+    introspect surfaces point at it) is extracted from the LIVE docstring
+    and executed — not a copy, so the recipe cannot drift from the carrier
+    again.  The rc456 repair pass measured the originally shipped spelling
+    raising ``TypeError`` on every call (``Qalg``'s modulus is its FIRST
+    positional), and it survived 56 green tests because no other gate
+    executes docstring code blocks."""
+    import re
+    import textwrap
+
+    from srmech.math.qalg import Qalg
+
+    doc = character_table.__doc__
+    blocks = [b for b in re.findall(r"::\n\n((?:[ ]{8}.*\n)+)", doc)
+              if "Qalg(" in b]
+    assert len(blocks) == 1, "the docstring lost its Qalg code block"
+    snippet = textwrap.dedent(blocks[0])
+    namespace = {"character_table": character_table,
+                 "table": C3, "i": 1, "j": 1}
+    exec(compile(snippet, "<character_table docstring>", "exec"), namespace)
+    value = namespace["value"]
+    assert isinstance(value, Qalg)
+    # The lift landed in the right ring: the C3 cell (1,1) is zeta_3 —
+    # it cubes to one, and the DIVISION the recipe exists for executes.
+    assert value == Qalg(list(namespace["ct"]["phi_e"]),
+                         namespace["ct"]["table"][1][1])
+    assert (value * value * value) == value.one()
+    assert (value * value.inverse()) == value.one()

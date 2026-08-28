@@ -822,8 +822,8 @@ def cayley_graph(cayley_table: Sequence[Sequence[int]],
         ``{"n", "edges"`` (2-tuples — the shipped laplacian edge contract,
         so ``dense_laplacian`` / ``magnetic_laplacian`` eat the list
         directly), ``"edge_generator"`` (parallel to ``edges``),
-        ``"is_connected"`` (BFS from the identity — ``True`` iff the
-        generators generate G), ``"edges_sha256"}``.
+        ``"is_connected"`` (reachability from the identity — ``True`` iff
+        the generators generate G), ``"edges_sha256"}``.
 
     This surface is EXACT-ONLY: it does NOT return a ``Mat`` and does NOT
     compute spectra.  The Class-L float boundary stays where it already
@@ -951,8 +951,7 @@ def _abelian_rows(tbl: List[List[int]], n: int, e_idx: int, expo: int,
 def _dixon_rows(tbl: List[List[int]], n: int, e_idx: int, expo: int,
                 orders: List[int], cc: Dict[str, Any],
                 class_algebra: List[List[List[int]]],
-                phi: List[int],
-                zeta_pow: List[Tuple[int, ...]]
+                phi: List[int]
                 ) -> List[Tuple[int, List[Tuple[int, ...]]]]:
     """The prime-field split-and-lift for a NON-abelian table: common
     eigenvectors of the commuting class matrices over GF(p), degrees and
@@ -1132,7 +1131,7 @@ def character_table(cayley_table: Sequence[Sequence[int]]) -> Dict[str, Any]:
 
         from srmech.math.qalg import Qalg
         ct = character_table(table)
-        value = Qalg(ct["table"][i][j], m=list(ct["phi_e"]))
+        value = Qalg(list(ct["phi_e"]), ct["table"][i][j])
 
     Conjugation needs NO machinery: ``χ̄(g) = χ(g⁻¹)``, and the payload
     ships ``inverse_class`` — conjugation is a column permutation.
@@ -1222,7 +1221,6 @@ def character_table(cayley_table: Sequence[Sequence[int]]) -> Dict[str, Any]:
     phi_entry = cyclotomic_polynomial(expo)
     phi = list(phi_entry["coefficients"])
     deg = phi_entry["degree"]
-    zeta_pow = _zeta_power_table(phi, expo)
 
     class_algebra = [[[0] * k for _ in range(k)] for _ in range(k)]
     for l in range(k):
@@ -1232,10 +1230,11 @@ def character_table(cayley_table: Sequence[Sequence[int]]) -> Dict[str, Any]:
             class_algebra[class_of[x]][class_of[y]][l] += 1
 
     if k == n:
+        zeta_pow = _zeta_power_table(phi, expo)
         rows = _abelian_rows(tbl, n, e_idx, expo, reps, zeta_pow)
     else:
         rows = _dixon_rows(tbl, n, e_idx, expo, orders, cc,
-                           class_algebra, phi, zeta_pow)
+                           class_algebra, phi)
 
     rows.sort(key=lambda row: (row[0], tuple(row[1])))
     degrees = [row[0] for row in rows]
