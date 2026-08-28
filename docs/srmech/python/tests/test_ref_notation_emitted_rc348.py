@@ -803,6 +803,31 @@ SCAN_ROOTS = {
         "docs/srmech/python", "docs/srmech/c"),
     # THE WIDE ONE: rglobs the entire subtree to derive the `#TNNN` vocabulary.
     "tests/test_ref_notation_emitted_rc348.py": ("docs/srmech",),
+    # rc459: the SM-reproduction gate is strict-zero over every SHIPPED surface,
+    # and the only live instance of the claim it removes was a C source comment
+    # -- `c/src/srmech_laplacian.c`, which the Python package could never see.
+    # It must therefore read c/src and c/include as well as the package: the
+    # rc348 lesson, that a sweep stopping at Python leaves the surface with the
+    # most copies untouched. Both roots sit inside srmech-ci's own trigger.
+    "tests/test_no_sm_reproduction_claim_rc459.py": (
+        "docs/srmech/python", "docs/srmech/c"),
+    # rc459: the CITED-PATH gate holds every backticked `docs/`-rooted path in
+    # BOTH research notebooks to "resolves on disk, or says which branch it is
+    # on". Its two roots straddle subtrees -- `docs/srmech` for the srmech
+    # notebook (which sits at the subtree root, above python/ and c/) and
+    # `docs/antikythera-maths` for the MFO one. ⚠️ This said "where four of the
+    # five rc459 defects were"; measured by running that gate's predicate at
+    # `125f23f48` the split is the OTHER way -- 4 defects total, 3 in srmech
+    # and 1 in MFO. Corrected at rc459 review. Declaring the root is still
+    # required (the gate reads MFO on every run, defects or none), but the
+    # reason written down was false. The sister subtree is NOT in srmech-ci's
+    # trigger, so
+    # declaring it here is what forced srmech-ref-guard.yml to grow a
+    # `docs/antikythera-maths/**` path in the same change -- the rc452
+    # `#T1171` sequence exactly: the gate landed undeclared, this guard
+    # reddened, and declaring it is what made the trigger question get asked.
+    "tests/test_notebook_cited_paths_rc459.py": (
+        "docs/srmech", "docs/antikythera-maths"),
     # rc407 (`#T1076`): the ADR-0009 MCP parity gate reads the C source to
     # reassemble `srmech_mcp_instructions` and assert it is byte-identical to
     # the Python `MCP_INSTRUCTIONS`. Reaching into c/ is the POINT of that

@@ -1,5 +1,29 @@
 """Standard Model: electroweak unification, Higgs mechanism, Yukawa, CKM.
 
+WHAT THIS MODULE IS, AND WHAT IT IS NOT
+=======================================
+**IS: a calculator.** Every operation here is caller-parameterised algebra.
+It maps ``(g, g', v, y_f, theta_ij)`` to ``(M_W, M_Z, theta_W, m_f, V_CKM)``
+by the GWS / Higgs / Yukawa / CKM relations set out under **Convention**
+below. Hand it numbers, it returns numbers.
+
+**IS NOT: a derivation of the Standard Model.** It contains no selection
+rule. It does not know which particles exist, how many generations there
+are, or which representations they carry — it is HANDED that content by the
+caller, in whatever shape and count the caller chooses, and it computes just
+as willingly for a particle content that does not occur in nature. Nothing
+in this module constrains the spectrum; the spectrum is an INPUT. Framing
+prose that reads this module as evidence for a derived spectrum is reading
+something the module does not do.
+
+That gap is stated here because it is OPEN, not because it is scheduled.
+srmech ships no operation — in this module or any other — that derives which
+modes are occupied, and no forecast is made here about that changing. The
+record of what has and has not been measured on the question lives in the
+research notebooks in the SOURCE REPOSITORY (they are not part of the
+wheel): ``docs/antikythera-maths/mfo_spectral_research_notebook.md``,
+Part IV and Part X.
+
 Per ``[[feedback_science_is_ssot_not_project]]``: canonical SSoT for each
 operation is the SM literature. Numerical values (W/Z masses, mixing
 angles, fermion masses) are NOT hardcoded — this module ships the

@@ -37,6 +37,13 @@ on:
     branches: [main]
     paths:
       - "docs/srmech/**"
+      # rc459 — the cited-path gate below is strict-zero over BOTH research
+      # notebooks, and the MFO one lives in the sister subtree. Four of the five
+      # path defects it was written for were in that file, so without this
+      # trigger the gate would be armed and silent on exactly the commits that
+      # can introduce them — the rc359 shape this whole workflow exists to
+      # prevent. Still one ubuntu cell and no native build.
+      - "docs/antikythera-maths/**"
       # The guard reads this workflow's own trigger list (the meta-test below
       # checks scan-root ⊆ trigger-path), so both workflow files are inputs.
       - ".github/workflows/srmech-ref-guard.yml"
@@ -45,6 +52,7 @@ on:
     branches: [main]
     paths:
       - "docs/srmech/**"
+      - "docs/antikythera-maths/**"
       - ".github/workflows/srmech-ref-guard.yml"
       - ".github/workflows/srmech-ci.yml"
   workflow_dispatch: {}
@@ -121,3 +129,35 @@ jobs:
       - name: ABI prose currency gate (CLAUDE.md + c/README.md vs the macro)
         working-directory: docs/srmech/python
         run: python -m pytest tests/test_abi_prose_currency_rc449.py -q
+
+      # rc459 — FIFTH GUARD. The currency gate above asks whether the srmech
+      # notebook's CLAIMS are current; this one asks whether either notebook's
+      # cited PATHS exist. Different question, and it is the only step here that
+      # reads docs/antikythera-maths — which is why this workflow's trigger
+      # grew that path in the same change.
+      #
+      # ⚠️ Two things about this step were written wrong when it landed at
+      # `2bc732d0e`, and both are corrected here rather than left as comments
+      # that disagree with the file.
+      #
+      # (1) THE ORDINAL. It was labelled "FOURTH GUARD" and inserted ABOVE the
+      # rc449 step, which had been the fourth since rc449 and still says so —
+      # so the file carried two FOURTHs. This step is the fifth added, it now
+      # sits fifth, and the rc449 comment is untouched and still true.
+      #
+      # (2) THE CENSUS. It said "five cited `docs/`-rooted paths did not
+      # resolve (four RBS-LM artefacts ...)". Re-measured by running the gate's
+      # own predicate at `125f23f48`: FOUR did not resolve — three in the
+      # SRMECH notebook (`:844` an ADR renumbered out from under its citation,
+      # `:8017` and `:8030` RBS-LM artefacts) and ONE in MFO (`:6392`, the
+      # TRIALITY verdict). The srmech/MFO split was written the other way
+      # round. The trigger addition is still correct — this workflow reads MFO
+      # on every run, so the root must be declared whatever the defect count —
+      # but a CI change justified by an inverted census is one nobody can
+      # re-derive, and re-deriving it is the entire point of writing it down.
+      #
+      # No test in the tree read either notebook for path existence before
+      # this. Strict zero, not a ceiling. ~13s pure.
+      - name: Cited-path gate (a backticked docs/ path resolves, or says where)
+        working-directory: docs/srmech/python
+        run: python -m pytest tests/test_notebook_cited_paths_rc459.py -q
