@@ -1208,8 +1208,13 @@ def character_table(cayley_table: Sequence[Sequence[int]]) -> Dict[str, Any]:
         conjugacy_classes call), "degrees" (ascending), "table" (k × k of
         int tuples), "class_algebra" (the k × k × k structure constants),
         "table_sha256"}`` — every field is load-bearing for tier 3
-        (fusion multiplicities read ``class_algebra`` / ``inverse_class``;
-        the Frobenius–Schur indicator reads ``square_class``).
+        (fusion multiplicities read ``inverse_class`` / ``phi_e``; the
+        Frobenius–Schur indicator reads ``square_class``;
+        ``class_algebra`` no tier-3 op computes from — the shared payload
+        validator requires it present, and it is the operand of the
+        test-side idempotent oracle.  This line said fusion "read
+        ``class_algebra``" until the rc457 repair pass measured the
+        fusion body against it: 0 reads).
 
     Note:
         Exact integers end to end; no float; no ``abs``.
@@ -1372,6 +1377,12 @@ def _check_char_table_payload(op: str, ct: Mapping[str, Any]) -> None:
         raise ValueError(
             f"{op}: degree {deg} != len(phi_e) - 1 = "
             f"{len(ct['phi_e']) - 1} (carrier-width law)")
+    for i, coefficient in enumerate(ct["phi_e"]):
+        if not _plain_int(coefficient):
+            raise ValueError(
+                f"{op}: phi_e[{i}] carries a "
+                f"{type(coefficient).__name__} coefficient; the modulus "
+                f"is plain-int coefficients only (plain-int law)")
     for label in ("table", "degrees", "class_sizes", "inverse_class",
                   "square_class", "representatives", "class_algebra"):
         if len(ct[label]) != k:
@@ -1405,6 +1416,12 @@ def _check_char_table_payload(op: str, ct: Mapping[str, Any]) -> None:
         raise ValueError(
             f"{op}: class_sizes sum to {sum(ct['class_sizes'])} != order "
             f"= {ct['order']} (class-equation law)")
+    degree_square_sum = sum(d * d for d in ct["degrees"])
+    if degree_square_sum != ct["order"]:
+        raise ValueError(
+            f"{op}: sum of squared degrees = {degree_square_sum} != "
+            f"order = {ct['order']} - the degrees do not cohere with the "
+            f"group order (degree-square law)")
     for label in ("inverse_class", "square_class"):
         for i, value in enumerate(ct[label]):
             if not _plain_int(value) or not 0 <= value < k:
@@ -1415,6 +1432,11 @@ def _check_char_table_payload(op: str, ct: Mapping[str, Any]) -> None:
         raise ValueError(
             f"{op}: len(class_of) = {len(ct['class_of'])} != order = "
             f"{ct['order']} (element-count law)")
+    for g, value in enumerate(ct["class_of"]):
+        if not _plain_int(value) or not 0 <= value < k:
+            raise ValueError(
+                f"{op}: class_of[{g}] = {value!r} is not a class index "
+                f"in [0, {k}) (class-index law)")
 
 
 def _exact_div(op: str, numerator: int, denominator: int, what: str) -> int:

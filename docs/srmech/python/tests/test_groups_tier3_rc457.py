@@ -295,6 +295,69 @@ def test_payload_validation_names_the_law():
         frobenius_schur_indicator(bad)
 
 
+def test_phi_e_lane_rejects_contaminated_coefficients():
+    """The rc457 repair pass measured a contaminated ``phi_e`` riding
+    THROUGH validation (the lane had only a width check) and out of
+    ``fusion_multiplicities`` INSIDE the multiplicities tensor — values
+    equal to the clean run, carrier wrong, on F21 where the Φ₂₁ reduction
+    actually engages.  Every coefficient now passes the plain-int law:
+    bool exercises the ``not isinstance(bool)`` branch, str the
+    ``isinstance(int)`` branch — the branch EVERY non-int carrier takes,
+    float included (floats stay banned from this file; the probe-side
+    float repro is recorded in the CHANGELOG)."""
+    ct = _ct("F21", F21)
+    bad = dict(ct)
+    bad["phi_e"] = tuple(True if c == 1 else c for c in ct["phi_e"])
+    # the contamination is real, not vacuous (`in` would be fooled: 1 == True)
+    assert any(isinstance(c, bool) for c in bad["phi_e"])
+    for op in (frobenius_schur_indicator, fusion_multiplicities,
+               central_idempotents):
+        with pytest.raises(ValueError, match="plain-int law"):
+            op(bad)
+    bad = dict(ct)
+    bad["phi_e"] = ("1",) + tuple(ct["phi_e"][1:])
+    with pytest.raises(ValueError, match="plain-int law"):
+        fusion_multiplicities(bad)
+
+
+def test_class_of_lane_rejects_contamination_and_out_of_range():
+    """``class_of`` was length-checked only, and ``central_idempotents``
+    ECHOES it into its own payload — the rc457 repair pass measured a
+    contaminated ``class_of`` emitted verbatim.  Every entry now passes
+    the class-index law (a plain int in [0, k)), the same law the
+    ``inverse_class`` / ``square_class`` lanes already carried."""
+    ct = _ct("F21", F21)
+    for contaminant in ("0", True):
+        bad = dict(ct)
+        bad["class_of"] = [contaminant] + list(ct["class_of"][1:])
+        with pytest.raises(ValueError, match="class-index law"):
+            central_idempotents(bad)
+    bad = dict(ct)
+    bad["class_of"] = list(ct["class_of"][:-1]) + [ct["k"]]
+    with pytest.raises(ValueError, match="class-index law"):
+        frobenius_schur_indicator(bad)
+
+
+def test_fs_degrees_only_tamper_is_refused_not_miscounted():
+    """A ``degrees``-only tamper (table untouched) used to leave the FS
+    indicators RIGHT and ``square_roots_of_identity`` WRONG with no raise
+    — measured by the rc457 repair pass on S4: 11 against the true 10,
+    because the count is Σ ν_i·d_i off the payload's degrees, which no law
+    tied to the table.  The validator's degree-square law (Σ d² = |G|, the
+    identity ``character_table`` already enforces in-op on itself) now
+    refuses the payload identically in all three ops."""
+    ct = _ct("S4", S4)
+    assert frobenius_schur_indicator(ct)["square_roots_of_identity"] == 10
+    bad = dict(ct)
+    tampered = list(ct["degrees"])
+    tampered[0] = 2
+    bad["degrees"] = tampered
+    for op in (frobenius_schur_indicator, fusion_multiplicities,
+               central_idempotents):
+        with pytest.raises(ValueError, match="degree-square law"):
+            op(bad)
+
+
 # ── 3. fusion — pinned values, rows located by content ───────────────────
 
 def test_fusion_s3_two_tensor_two():
