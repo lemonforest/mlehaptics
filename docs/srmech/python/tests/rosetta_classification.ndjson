@@ -837,3 +837,13 @@
 {"exposed_as": "srmech.cascade.cd_left_divide", "defined_at": "srmech.cascade.cayley_dickson.cd_left_divide", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.cd_right_divide", "defined_at": "srmech.cascade.cayley_dickson.cd_right_divide", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.walsh_hadamard.walsh_hadamard_transform", "defined_at": "srmech.cascade.walsh_hadamard.walsh_hadamard_transform", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.math.groups.abelianization", "defined_at": "srmech.math.groups.abelianization", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.groups.cayley_graph", "defined_at": "srmech.math.groups.cayley_graph", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.groups.character_table", "defined_at": "srmech.math.groups.character_table", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.groups.conjugacy_classes", "defined_at": "srmech.math.groups.conjugacy_classes", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.groups.cyclic_group", "defined_at": "srmech.math.groups.cyclic_group", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.groups.derived_subgroup", "defined_at": "srmech.math.groups.derived_subgroup", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.groups.irrep_dimensions", "defined_at": "srmech.math.groups.irrep_dimensions", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.groups.quotient_group", "defined_at": "srmech.math.groups.quotient_group", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.groups.semidirect_product", "defined_at": "srmech.math.groups.semidirect_product", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.poly.cyclotomic_polynomial", "defined_at": "srmech.math.poly.cyclotomic_polynomial", "bucket": "composition_of_c"}

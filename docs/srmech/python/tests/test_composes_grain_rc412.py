@@ -542,6 +542,50 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.cascade.chiral_flip",
         "srmech.amsc.format.sha256_bytes",
     ),
+
+    # ── rc456 — the representation stratum (srmech.math.groups), authored
+    # WITH `composes` from birth (the rc424 discipline). Each order below is
+    # TRACED by reading the implementation end to end; branch-dependent
+    # calls are left undeclared per the rc437 regular-representation
+    # precedent ("the selected branch is left undeclared").
+
+    # The census guard runs FIRST (is_group or refuse), the commutator scan
+    # and closure follow, and sha256_bytes runs LAST on the finished sorted
+    # element set — nothing to content-address until the closure fixpoints.
+    "srmech.math.groups.derived_subgroup": (
+        "srmech.cascade.conjugacy_census",
+        "srmech.amsc.format.sha256_bytes",
+    ),
+    # Three stages, each consuming the previous one's output: the derived
+    # subgroup is the operand of the quotient, and the quotient's ORDER is
+    # what factor() splits into primes for the invariant-factor recovery.
+    # The p-adic counting after factor touches no further registered op.
+    "srmech.math.groups.abelianization": (
+        "srmech.math.groups.derived_subgroup",
+        "srmech.math.groups.quotient_group",
+        "srmech.math.primes.factor",
+    ),
+    # Guard first (census is_group or refuse), then the edge emission, then
+    # sha256_bytes once over the finished edge list — the reversal_law
+    # dataflow shape exactly.
+    "srmech.math.groups.cayley_graph": (
+        "srmech.cascade.conjugacy_census",
+        "srmech.amsc.format.sha256_bytes",
+    ),
+    # The four-stage backbone, IDENTICAL on both the abelian fast path and
+    # the Dixon path: conjugacy_classes is the class-data SSoT and runs
+    # first; the exponent lcm loop (gcd) runs on its output; Φ_e
+    # (cyclotomic_polynomial) is built from the exponent; sha256_bytes runs
+    # LAST over the finished sorted table. The Dixon-branch-only calls
+    # (is_prime / factor / mod_pow / mod_inv / gf_solve / gf_nullspace) are
+    # deliberately NOT declared — they run on one branch only, and a tuple
+    # cannot be true of both branches (the rc437 rule).
+    "srmech.math.groups.character_table": (
+        "srmech.math.groups.conjugacy_classes",
+        "srmech.math.cyclic.gcd",
+        "srmech.math.poly.cyclotomic_polynomial",
+        "srmech.amsc.format.sha256_bytes",
+    ),
 }
 
 

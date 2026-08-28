@@ -1130,7 +1130,13 @@ def test_s7_identifier_free_citation_ceiling() -> None:
         "80 modules carried this shape when the ceiling was seeded, and a "
         "measurement that cannot return non-zero is not a measurement.")
     assert len(residual) <= CEIL_S7_IDENTIFIER_FREE_CITATION, (
-        "S7 rose to %d identifier-free citations (ceiling %d). New: %s\n\n"
+        "S7 rose to %d identifier-free citations (ceiling %d).\n"
+        "Sample — the first 10 of the FULL path-sorted residual, NOT the "
+        "entries that entered (this label read 'New:' until the rc456 CI "
+        "repair, and it sent the responder to ten long-standing "
+        "apokatastasis rows while the one genuine entrant sat in "
+        "math/groups.py; diff _s7_residual() against the previous release "
+        "tip to locate what actually entered): %s\n\n"
         "⚠️ Lower this ONLY by verifying a source through "
         "tools/build_citation_manifest.py and carrying the identifier IT "
         "RETURNS. **Never type a DOI or an arXiv id from memory to drain this "

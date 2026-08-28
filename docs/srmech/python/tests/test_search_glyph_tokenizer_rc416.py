@@ -673,8 +673,33 @@ from srmech.math.text import fold_marks, glyph_stream
 #: The 666/29 split is UNCHANGED from rc452, which is the signal the rc445 note
 #: prescribes: this rc registers and removes no op, so a moved FRAME COUNT would
 #: have meant something other than prose changed. It did not move.
+#:
+#: rc456 (the representation stratum) — RE-PINNED, and the FRAME COUNT moves:
+#: 695 -> 705 (676 ops + 29 carriers). That is the rc452 reading again — the
+#: DECLARED change is ten registrations (nine srmech.math.groups ops +
+#: srmech.math.poly.cyclotomic_polynomial), so a frame count that had NOT
+#: moved would have been the failure. Measured LAST, after the final regen,
+#: per the rc454 rule above ("a pin taken mid-release is a measurement of a
+#: draft") — and this release DID have a mid-release draft moment of exactly
+#: the rc454 shape: a first regen was followed by a curated-row repair (a
+#: cayley_graph SIBLINGS citation naming the dead srmech.amsc.laplacian path
+#: where the live ops are srmech.math.laplacian.*), a second regen, and only
+#: then this measurement.
+#:
+#:   DETERMINISM — `regen_all.py --check` reported "all 6 generated files are
+#:   up to date" FIRST (58.8s, no `REFUSED:`), then `_build_frames("all")`
+#:   ran in THREE separate numpy-absent WSL2 processes. All three returned
+#:   the SAME digest and 705 frames each. The ADR-0011 witness contract
+#:   HOLDS.
+#:
+#:   CAUSATION — the op-frame population delta against
+#:   `tests/registered_op_names.txt` at the rc455 head (666 names) is exactly
+#:   the ten rc456 registrations; REMOVED = none; carriers stay 29. The
+#:   as-text prose delta beyond the ten new frames is the two rc452-drain
+#:   `composes` declarations (sha256_raw, mint_vector) riding their existing
+#:   frames.
 WITNESS_RC416 = (
-    "feb04b76bf0589797e415c228ab4222857db99369fb30aae442a7fefacf4e358")
+    "66de1afa2678e376dde83262aed789a2b76ea18f21cb653fbb60a9bb2ec2381e")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.
