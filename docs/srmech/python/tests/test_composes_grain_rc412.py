@@ -586,6 +586,28 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.math.poly.cyclotomic_polynomial",
         "srmech.amsc.format.sha256_bytes",
     ),
+
+    # ── rc458 — the representation stratum tier 4 (the rho stratum),
+    # authored WITH `composes` from birth. Each order below is TRACED by
+    # reading the implementation end to end.
+
+    # character_of runs FIRST (it validates BOTH payloads and produces
+    # the class-ordered character the contraction consumes), the m_i
+    # zeta-contraction is private arithmetic, and sha256_bytes runs LAST
+    # over the finished multiplicity vector.
+    "srmech.math.groups.decompose_representation": (
+        "srmech.math.groups.character_of",
+        "srmech.amsc.format.sha256_bytes",
+    ),
+    # decompose_representation runs FIRST (it validates both payloads
+    # through its own character_of composition and supplies the
+    # multiplicities the trace law checks against), the class-sum
+    # contraction is private arithmetic, and sha256_bytes runs LAST over
+    # the finished projector family.
+    "srmech.math.groups.isotypic_projector": (
+        "srmech.math.groups.decompose_representation",
+        "srmech.amsc.format.sha256_bytes",
+    ),
 }
 
 

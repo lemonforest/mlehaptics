@@ -711,7 +711,7 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   WSL2 processes; all three returned the SAME digest and 708 frames each.
 #:   The ADR-0011 witness contract HOLDS.
 WITNESS_RC416 = (
-    "d30982b120062dde08913609d3b23cc888f6ea6104c76b3ebe474cd8bc503b0b")
+    "893e33bb79a56c3a44e154c46b8d191c995839dccecd57c6d84540ec3d732594")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

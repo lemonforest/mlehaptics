@@ -215,7 +215,24 @@ CEIL_FRAME_UNADJUDICATED = {
     # one measurement, not a coordinate the op reads along any modulus/frame
     # axis; varying one corrupts the payload (the ops' own divisibility guards
     # raise on exactly that) rather than translating anything.
-    "NO_INT_INPUT": 163,    # nothing translatable along a frame axis
+    # rc458: 163 -> 170, seven of the eight tier-4 registrations, split
+    # exactly along the two established structural classes. MEASURED per op
+    # (fp.probe_from_ledger over the refreshed ledger):
+    # permutation_representation -> NO_INT_INPUT (its bound operands are a
+    # CAYLEY TABLE and an ACTION table — element indices and point images,
+    # the rc456 semidirect_product class); character_of /
+    # decompose_representation / isotypic_projector /
+    # tensor_product_representation / direct_sum_representation /
+    # intertwiner_space -> NO_INT_INPUT (the bound operands are whole REP /
+    # character_table PAYLOAD DICTS, the rc457 class — their integers are
+    # matrix entries, class indices and content-address echoes, payload
+    # naming structure, not a coordinate on any frame axis). The EIGHTH op,
+    # zeta_mul, needed NO raise: the probe drove its int-vector operands (73
+    # calls) and measured NOT_ADMISSIBLE — no frame translation, exactly the
+    # rc456 cyclic_group/quotient_group outcome — which is what shows the
+    # seven raises are about operand TYPE, not about the family being
+    # under-exampled.
+    "NO_INT_INPUT": 170,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
     "SLOW_SKIP": 15,        # measured-slow, skipped BY NAME with a number
     # rc430 repair (`#T1127`): ops whose parameter carries a documented domain
