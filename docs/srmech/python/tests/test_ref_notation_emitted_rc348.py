@@ -815,8 +815,13 @@ SCAN_ROOTS = {
     # BOTH research notebooks to "resolves on disk, or says which branch it is
     # on". Its two roots straddle subtrees -- `docs/srmech` for the srmech
     # notebook (which sits at the subtree root, above python/ and c/) and
-    # `docs/antikythera-maths` for the MFO one, where four of the five rc459
-    # defects were. The sister subtree is NOT in srmech-ci's trigger, so
+    # `docs/antikythera-maths` for the MFO one. ⚠️ This said "where four of the
+    # five rc459 defects were"; measured by running that gate's predicate at
+    # `125f23f48` the split is the OTHER way -- 4 defects total, 3 in srmech
+    # and 1 in MFO. Corrected at rc459 review. Declaring the root is still
+    # required (the gate reads MFO on every run, defects or none), but the
+    # reason written down was false. The sister subtree is NOT in srmech-ci's
+    # trigger, so
     # declaring it here is what forced srmech-ref-guard.yml to grow a
     # `docs/antikythera-maths/**` path in the same change -- the rc452
     # `#T1171` sequence exactly: the gate landed undeclared, this guard

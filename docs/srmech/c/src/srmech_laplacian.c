@@ -1,14 +1,22 @@
 /*
  * srmech_laplacian.c — Class L primitive: graph Laplacian.
  *
- * Task #217 Phase C1 second ship — four load-bearing graph-Laplacian
- * operations on dense row-major double matrices. Class L is the
- * structural workhorse of Spike #24 (instantiated at six of six bonus
- * substrates per the cumulative cross-substrate audit). What this file
- * ships is exactly that and nothing more: it CONSTRUCTS a Laplacian
- * from a caller's edge list and DIAGONALISES it. Which graph is built
- * is the caller's choice; what any resulting spectrum means is the
- * caller's claim, not this file's.
+ * Opened by Task #217 Phase C1 second ship with four graph-Laplacian
+ * operations on dense row-major double matrices. That is HISTORY, not
+ * an inventory — the TU has grown well past four exported symbols
+ * since. Class L is the structural workhorse of Spike #24
+ * (instantiated at six of six bonus substrates per the cumulative
+ * cross-substrate audit).
+ *
+ * ROLE: this file CONSTRUCTS a Laplacian from a caller's edge list and
+ * DIAGONALISES it, and carries the matrix and spectral machinery that
+ * construction needs or feeds. Read srmech.h for the authoritative
+ * export list — not this header; this paragraph orients, and
+ * deliberately claims no exhaustiveness. Which graph is built is the
+ * CALLER's choice; what any resulting spectrum MEANS is the caller's
+ * claim, not this file's. This header makes no claim about what any
+ * spectrum reproduces — one it used to make was retracted at rc459,
+ * and re-stating it better-calibrated is not the fix.
  *
  * Pi-free implementation per [[user_stance_pi_as_projection]]: this
  * Class L surface does NOT use pi anywhere. Cyclic-graph closed-form
@@ -18,7 +26,9 @@
  * graph-Laplacian construction + symmetric Jacobi eigendecomposition
  * via algebraic c/s computation (no trig calls).
  *
- * Public API:
+ * The Phase C1 four — the ORIGINAL surface, kept here because the
+ * conventions below are written against them. This is NOT the export
+ * list; srmech.h is, and it is longer:
  *   - srmech_graph_dense_adjacency      (build A from edge list)
  *   - srmech_graph_dense_laplacian      (L = D − A)
  *   - srmech_graph_normalized_laplacian (L_sym = I − D^(−1/2) A D^(−1/2))

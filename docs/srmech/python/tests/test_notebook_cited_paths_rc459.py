@@ -1,24 +1,38 @@
 """rc459 — A ``docs/``-ROOTED PATH IN A NOTEBOOK MUST RESOLVE, OR SAY WHERE IT LIVES.
 
-WHY THIS EXISTS — four artefacts cited as in-repo that are on a branch
-=====================================================================
+WHY THIS EXISTS — artefacts cited as in-repo that are on a branch
+=================================================================
 Both research notebooks cite files by path in backticked code spans, and a
-reader — human or agent — treats such a span as a working-tree path. Measured
-at rc459, four did not resolve:
+reader — human or agent — treats such a span as a working-tree path.
 
-* three RBS-LM artefacts (two generating scripts and one attestation) cited in
-  the MFO notebook's tensor-vs-CD backlinks and again in the srmech notebook;
-* one more RBS-LM verdict cited in the MFO notebook's triality section.
+MEASURED at ``125f23f48`` by running ``_unresolved`` below over both
+notebooks — **four** spans did not resolve, three of them in the SRMECH
+notebook and one in MFO:
 
-All four exist only on ``origin/research/rbs-lm-rolling-2``, the branch carried
-by the open PR gh #687, which stays open by maintainer ruling. Nothing in the
-prose said so, so each read as a file you could open.
+* ``srmech_research_notebook.md:8017`` — ``R-RBS-LM-ATTEST_furey_1611_09182.md``
+* ``srmech_research_notebook.md:8030`` — ``R-RBS-LM-TENSORVSCD_ladder_vs_tensor_product.py``
+* ``mfo_spectral_research_notebook.md:6392`` — ``R-RBS-LM-TRIALITY_F296_F304_verdict.md``
+* ``srmech_research_notebook.md:844`` — a renumbered ADR, below.
 
-A fifth was a different failure with the same symptom: the srmech notebook
+The three RBS-LM artefacts exist only on ``origin/research/rbs-lm-rolling-2``,
+the branch carried by the open PR gh #687, which stays open by maintainer
+ruling. Nothing in the prose said so, so each read as a file you could open.
+
+The fourth was a different failure with the same symptom: the srmech notebook
 cited ``docs/srmech/adr/0002-phase-1-operator-chain-schema.md``, which was
 RENUMBERED to ``0008-…`` on 2026-07-17 (the ADR records the move in its own
 header). The citation was correct when written and the file moved out from
 under it.
+
+⚠️ THIS DOCSTRING FIRST SAID "five ... four RBS-LM artefacts", and located
+three of them in "the MFO notebook's tensor-vs-CD backlinks". Both halves were
+wrong and the second was inverted: the MFO backlinks line cites those
+filenames **bare**, which the ``docs/``-prefix requirement below puts out of
+scope, and ``R-RBS-LM-FUREYALG_…py`` is never cited ``docs/``-rooted anywhere
+in the tree (``git grep`` at the base commit: zero). Corrected at rc459 review.
+A census written from memory rather than from the predicate is the same defect
+class this gate exists to catch, one level up — so the numbers above name the
+exact file and line they came from.
 
 WHAT IS DECIDABLE HERE, AND WHAT IS NOT
 =======================================
@@ -26,19 +40,34 @@ Decidable: *does this path exist on disk*. That is what this gate asserts, at
 **strict zero** — not a ceiling, because there is no legitimate residual of
 paths that neither resolve nor say where they live.
 
-NOT decidable, and deliberately out of scope: whether a path that resolves is
-the RIGHT path for the sentence around it. **Existence proves nothing;
-topicality decides**, and topicality is not mechanisable. The same line B5
-fixed also carries ``ADR-0002 §3 (parent)`` — which may mean the renumbered
-schema ADR or may mean ``0002-catalog-as-computation``. Only the file-existence
-half moved; the other half is left alone and said so, because a wrongly
-"corrected" reference is worse than an uncorrected one — it looks deliberate.
+NOT decidable BY THIS GATE, and deliberately out of scope: whether a path that
+resolves is the RIGHT path for the sentence around it. **Existence proves
+nothing; topicality decides**, and topicality is not mechanisable.
 
-Also out of scope by construction: **bare filenames with no directory**. 20 of
-those cite RBS-LM artefacts across the two notebooks (3 in srmech, 17 in MFO).
-The ``docs/``-prefix requirement cannot see them; resolving them needs a
+⚠️ But "not mechanisable" is not "unknowable", and rc459 conflated the two.
+This docstring first declared ``ADR-0002 §3 (parent)`` — on the same srmech
+notebook line B5 fixed — undecidable between the renumbered schema ADR and
+``0002-catalog-as-computation``. It is answered outright by the header of the
+very file that edit read: ``docs/srmech/adr/0008-…:14-15`` states **"Status of
+parent ADR: ADR-0002 (catalog-as-computation)"** and **"Relates to: ADR-0002 §3
+(the sketch this document formalises)"**. So the citation means
+``0002-catalog-as-computation`` and is correct as written. Reported as an open
+question at rc459 and closed at rc459 review; the gate's scope is unchanged,
+only the claim about what was knowable.
+
+Also out of scope by construction: **bare filenames with no directory**.
+Measured at THIS commit with ``grep -o '`R-RBS-LM-[A-Za-z0-9_.]*`'`` over both
+notebooks: **19 spans, 14 distinct filenames** (srmech 5 spans / 3 distinct;
+MFO 14 spans / 13 distinct). This said "20 ... 3 in srmech, 17 in MFO" with no
+predicate given, and an unstated predicate is why a count cannot be re-derived
+— which is the whole reason the command is written out here. The
+``docs/``-prefix requirement cannot see any of them; resolving them needs a
 repo-wide filename index and a per-file pass, which is a sweep and not a
 correction.
+
+⚠️ This count MOVES with ordinary prose edits and nothing gates it — rc459
+review's own srmech-notebook fix added one span. Treat it as a dated
+measurement, not a constant, and re-run the command rather than quoting it.
 
 THE EXEMPTION IS A QUALIFIER IN THE PROSE, NOT A PATH IN A LIST
 ==============================================================
@@ -99,14 +128,23 @@ _LINE_ANCHOR = re.compile(r":\d+(?:-\d+)?$")
 
 #: Prose that tells the reader the file is not in the working tree. Matched
 #: against the whole LINE, case-insensitively.
+#:
+#: ⚠️ ``renumbered`` sat in this tuple as a BARE ENGLISH WORD through rc459,
+#: which made it the weakest entry by a distance: any line using it in an
+#: unrelated sense exempted every span on that line. It moved to
+#: ``_QUALIFIER_PATTERNS`` below and now requires an attached ISO date — the
+#: form the one real site uses ("renumbered 2026-07-17 from ...") — so it has
+#: to point at a specific move rather than merely sound like one.
 _QUALIFIERS = (
     "origin/research/",
     "branch `research/",
     "not on `main`",
     "never committed",
     "never tracked in git",
-    "renumbered",
 )
+
+#: Qualifiers that need internal structure to count. See the note above.
+_QUALIFIER_PATTERNS = (re.compile(r"renumbered\s+\d{4}-\d{2}-\d{2}"),)
 
 
 def _spans(line: str) -> list[str]:
@@ -123,8 +161,24 @@ def _spans(line: str) -> list[str]:
 
 
 def _is_qualified(line: str) -> bool:
+    """⚠️ LINE-scoped, not SPAN-scoped, and that is a deliberate trade.
+
+    These notebooks put whole paragraphs on one physical line, and the real
+    qualifying sentences deliberately cover every filename around them ("read
+    every filename in this line as ``origin/research/…``"). Span-scoping would
+    go red on prose that is already doing the right thing.
+
+    The cost is a real hole, and
+    ``test_the_exemption_is_line_scoped_which_is_a_known_hole`` EXECUTES it
+    rather than leaving it as a comment: a line carrying one QUALIFIED
+    branch-only path and one GENUINELY DEAD path is exempt for both. Not
+    present in the tree today; not hypothetical either. If it ever bites, the
+    fix is to scope to the qualifying sentence, not to drop the exemption.
+    """
     low = line.lower()
-    return any(q in low for q in _QUALIFIERS)
+    if any(q in low for q in _QUALIFIERS):
+        return True
+    return any(rx.search(low) for rx in _QUALIFIER_PATTERNS)
 
 
 def _unresolved(path: Path) -> tuple[list[str], int]:
@@ -234,6 +288,54 @@ def test_a_line_anchor_is_stripped_and_the_file_is_what_resolves(
     """
     assert _spans(f"see `{cited}`") == [base]
     assert (_REPO_ROOT / base).exists(), f"{base} should resolve"
+
+
+def test_the_renumbered_qualifier_needs_a_date_attached() -> None:
+    """The weakest exemption, tightened — and both directions proved.
+
+    ``renumbered`` alone must NOT exempt (it is ordinary English and would
+    hand any line using it a free pass); ``renumbered <ISO date>`` must, since
+    that is the form the one real site writes.
+    """
+    dead = "docs/srmech/adr/0002-phase-1-operator-chain-schema.md"
+    loose = f"The clause list was renumbered last week; see `{dead}`."
+    assert _spans(loose) == [dead]
+    assert not _is_qualified(loose), (
+        "a bare 'renumbered' must not exempt — that was the rc459 behaviour"
+    )
+
+    real = (
+        f"Phase 1 schema doc (`docs/srmech/adr/0008-phase-1-operator-chain-"
+        f"schema.md`, renumbered 2026-07-17 from `{dead}`)."
+    )
+    assert _is_qualified(real), "the real qualifying form MUST still exempt"
+
+
+def test_the_exemption_is_line_scoped_which_is_a_known_hole() -> None:
+    """EXECUTES the documented limitation instead of only asserting it.
+
+    A comment saying "this is line-scoped" is prose. This is the measurement:
+    one qualified path and one dead path on the same line, and the dead one
+    goes unreported. If someone later makes the exemption span-scoped, this
+    test fails and points at the docstring that must change with it — which
+    is the outcome we want, not a silent behaviour swap.
+    """
+    branch_only = (
+        "docs/srmech/rbs_lm_research/R-RBS-LM-ATTEST_furey_1611_09182.md"
+    )
+    dead = "docs/srmech/adr/0002-phase-1-operator-chain-schema.md"
+    for tok in (branch_only, dead):
+        assert not (_REPO_ROOT / tok).exists(), f"{tok} now resolves"
+
+    mixed = (
+        f"See `origin/research/rbs-lm-rolling-2` for `{branch_only}`, and "
+        f"the schema at `{dead}`."
+    )
+    assert set(_spans(mixed)) == {branch_only, dead}
+    assert _is_qualified(mixed), "the origin/research/ token qualifies the line"
+    # …and therefore the genuinely dead second path is NOT reported. This
+    # assertion documents the hole; it is not an endorsement of it.
+    assert _is_qualified(mixed) and not (_REPO_ROOT / dead).exists()
 
 
 def test_a_resolving_path_is_not_flagged() -> None:

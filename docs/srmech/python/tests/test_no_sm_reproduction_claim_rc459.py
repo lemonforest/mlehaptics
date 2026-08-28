@@ -9,9 +9,24 @@ reproduction (bonus 10 SUCCESS at log-L2 = 0.614 dex)".
 Measured at rc459, before the fix: that was the **only** SM-reproduction claim
 on any shipped surface in the tree. The Python package grepped clean for every
 phrase in ``_BANNED`` below — zero hits — so the entire live claim was those
-two lines of C. The research record now types 0.614 as the instrument's
-GRANULARITY FLOOR, i.e. chance, and the SUCCESS framing fails an acceptance
-predicate four independent ways.
+two lines of C.
+
+⚠️ WHAT THE RECORD ACTUALLY SAYS, since a first draft of this docstring got it
+wrong. It does **not** type 0.614 as chance. The nearest text
+(``docs/srmech/notes/spike_24_bonus_xiii_1_cascade_sm_mass_search_2026-05-15.md:56``)
+argues the opposite — that the residual ~0.5–0.9 dex "reflect[s] the discrete
+combinatorial granularity of cyclic-group composition rather than a missing
+primitive class", i.e. that the machinery is structurally *sufficient*. The
+grounds for deleting the comment are narrower and do not need that claim: MFO
+§XIII.1 lists **three** measured reasons the fit cannot be read as identifying
+the substrate (overparameterised — ten fitted parameters against eight
+independent points; **no negative control**, so 0.614 has no scale to be good
+relative to; and siblings returning ``NO-RULE`` / ``TOO_MANY_PARTICLES``), and
+records that **no acceptance predicate was ever written down at all** — which
+is why ``SUCCESS`` and ``TOO_MANY_PARTICLES`` were both recordable about the
+same object in the same week. A claim with no acceptance predicate cannot be
+"failed" a countable number of ways; it is unadjudicated, and unadjudicated is
+not a thing to assert from C source.
 
 WHY IT IS A GATE RATHER THAN A ONE-TIME EDIT
 ============================================
@@ -114,6 +129,16 @@ _RC458_COMMENT = (
     " * substrates per the cumulative cross-substrate audit) and the\n"
     " * spectral substrate underpinning cascade-composition mass-spectrum\n"
     " * reproduction (bonus 10 SUCCESS at log-L2 = 0.614 dex).\n"
+)
+
+# What rc459 FIRST wrote in its place, at `2bc732d0e`. It cleared every
+# banned needle and was still false — see `_EXHAUSTIVENESS` below.
+_RC459_FIRST_ATTEMPT = (
+    " * substrates per the cumulative cross-substrate audit). What this file\n"
+    " * ships is exactly that and nothing more: it CONSTRUCTS a Laplacian\n"
+    " * from a caller's edge list and DIAGONALISES it. Which graph is built\n"
+    " * is the caller's choice; what any resulting spectrum means is the\n"
+    " * caller's claim, not this file's.\n"
 )
 
 # Leading comment furniture on a continuation line: C ``*``, Python ``#``, or
@@ -240,14 +265,16 @@ def test_the_laplacian_header_states_the_ops_actual_role() -> None:
     """The fix is a DELETION plus a role statement, not a rival claim.
 
     Guards the other failure mode: replacing "0.614 dex is a SUCCESS" with
-    "0.614 dex is at the granularity floor" would clear the gate above while
-    keeping a spectrum-interpretation claim in a C comment.
+    any recalibrated verdict on the same number — "at the granularity floor",
+    "consistent with chance" — would clear the gate above while keeping a
+    spectrum-interpretation claim in a C comment. The banned words below are
+    that shape, not an endorsement of any of them.
     """
     src = (_C_ROOT / "src" / "srmech_laplacian.c").read_text(
         encoding="utf-8", errors="replace"
     )
     header = _normalise(src[: src.index("*/")])
-    assert "diagonalises it" in header or "diagonalizes it" in header, (
+    assert "diagonalises" in header or "diagonalizes" in header, (
         "the header should say what the file DOES (construct + diagonalise)"
     )
     assert "caller" in header, (
@@ -258,3 +285,71 @@ def test_the_laplacian_header_states_the_ops_actual_role() -> None:
             f"{word!r} re-imports the retracted claim's subject into a C "
             "comment; the deletion is the fix, not a recalibration"
         )
+
+
+#: Phrases that assert this TU ships ONLY what the sentence around them
+#: names. Matched against the normalised, lowercased header.
+#:
+#: ⚠️ THIS IS NOT PEDANTRY, IT IS A MEASURED DEFECT. rc459's own first
+#: attempt at A1 replaced the retracted results claim with
+#: "What this file ships is exactly that and nothing more: it CONSTRUCTS a
+#: Laplacian from a caller's edge list and DIAGONALISES it." That cleared
+#: every check above and was FALSE: the TU defines **27 exported functions**
+#: (measured — every non-``static`` ``srmech_*`` definition at column 0 that
+#: ``c/include/srmech.h`` also declares; the 11 file-static helpers and the
+#: ``fiedler_rec_cb`` typedef are excluded, and a first pass that counted them
+#: said "39", which is why the predicate is written down),
+#: including ``srmech_dense_matmul_complex``,
+#: ``srmech_elementwise_transcendental``, ``srmech_graph_cycle_holonomy``,
+#: ``srmech_three_fold_bands``, ``srmech_genome_graph_partition`` and
+#: ``srmech_laplacian_fiedler_sparse`` (power iteration — it does not
+#: diagonalise anything). Retracting a results claim by writing a scope
+#: claim is still shipping a false statement, one category over.
+_EXHAUSTIVENESS = ("nothing more", "nothing else", "and no more", "only that")
+
+
+def test_the_laplacian_header_claims_no_exhaustiveness() -> None:
+    """A ROLE statement is allowed; an INVENTORY claim is not.
+
+    The header cannot enumerate this TU without going stale the next time a
+    symbol lands, and a stale inventory reads as a lie rather than as drift.
+    So it must not claim to be one.
+    """
+    src = (_C_ROOT / "src" / "srmech_laplacian.c").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    header = _normalise(src[: src.index("*/")])
+    for phrase in _EXHAUSTIVENESS:
+        assert phrase not in header, (
+            f"{phrase!r} claims the file ships only what the surrounding "
+            "sentence names. Measured: the TU defines 27 exported functions. "
+            "State the ROLE and point at srmech.h; do not bound the surface "
+            "from a comment that cannot track it"
+        )
+
+
+def test_the_exhaustiveness_witness_fires_on_the_text_it_replaced() -> None:
+    """MUTATION WITNESS for the check above, tied to real shipped text.
+
+    ``_RC459_FIRST_ATTEMPT`` is the string that was actually committed at
+    ``2bc732d0e`` and found false on review — not an invented sample.
+    """
+    hits = [p for p in _EXHAUSTIVENESS if p in _normalise(_RC459_FIRST_ATTEMPT)]
+    assert "nothing more" in hits, (
+        f"the replaced text must trip the exhaustiveness check; matched {hits}"
+    )
+
+
+def test_a_role_statement_without_an_inventory_claim_is_accepted() -> None:
+    """NEGATIVE CONTROL: the shape the header is supposed to have.
+
+    A check that rejects every possible header is not a check.
+    """
+    ok = (
+        " * ROLE: this file CONSTRUCTS a Laplacian from a caller's edge list\n"
+        " * and DIAGONALISES it. Read srmech.h for the authoritative export\n"
+        " * list; this paragraph orients and claims no exhaustiveness.\n"
+    )
+    flat = _normalise(ok)
+    assert not [p for p in _EXHAUSTIVENESS if p in flat]
+    assert "diagonalises" in flat and "caller" in flat
