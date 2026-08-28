@@ -362,6 +362,12 @@
 {"composes": ["srmech.math.cyclic.gcd"], "name": "srmech.math.cyclic.lcm", "tier": "SINGLE"}
 {"composes": ["srmech.math.cyclic.bigint_mul"], "name": "srmech.math.cyclic.mod_mul_wide", "tier": "SINGLE"}
 {"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.groups.central_idempotents", "tier": "SINGLE"}
+{"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.groups.character_of", "tier": "SINGLE"}
+{"composes": [], "name": "srmech.math.groups.zeta_mul", "tier": "LEAF"}
+{"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.groups.permutation_representation", "tier": "SINGLE"}
+{"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.groups.tensor_product_representation", "tier": "SINGLE"}
+{"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.groups.direct_sum_representation", "tier": "SINGLE"}
+{"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.groups.intertwiner_space", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.conjugacy_census"], "name": "srmech.math.groups.conjugacy_classes", "tier": "SINGLE"}
 {"composes": ["srmech.math.cyclic.mod_add"], "name": "srmech.math.groups.cyclic_group", "tier": "SINGLE"}
 {"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.groups.frobenius_schur_indicator", "tier": "SINGLE"}

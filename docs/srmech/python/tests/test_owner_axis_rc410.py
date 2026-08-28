@@ -181,14 +181,26 @@ def _restatement_lines(source: str, path: str, total: int) -> List[int]:
     ``_numeric_range_occurrences``. Both are deducted, and the strict-greater
     comparison is unchanged, so a line carrying one more occurrence than the
     two subtractions jointly account for still fails.
+
+    rc458 adds a THIRD subtraction, again by syntax and again because the
+    gate's own prediction came true a second time: the total landed on
+    **687**, which is the monorepo's research-integration PR — referenced as
+    ``#687`` in 26 shipped prose lines that restate nothing.  By this tree's
+    own ref-notation convention a ``#``-prefixed number IS a GitHub object
+    reference (that spelling is reserved for real GitHub issues/PRs), and a
+    COUNT restatement never wears the ``#`` prefix, so ``#<total>``
+    occurrences are deducted per line.  The bare-prose spelling ("687 ops",
+    ``n = 687``) still fails, from both sides of the meta-test.
     """
     pattern = re.compile(rf"\b{re.escape(str(total))}\b")
+    ghref = re.compile(rf"#{re.escape(str(total))}\b")
     covered = _table_element_lines(source, path, total)
     return [
         i
         for i, line in enumerate(source.splitlines(), start=1)
         if len(pattern.findall(line))
-        > covered.get(i, 0) + _numeric_range_occurrences(line, total)
+        > (covered.get(i, 0) + _numeric_range_occurrences(line, total)
+           + len(ghref.findall(line)))
     ]
 
 
@@ -564,6 +576,18 @@ def test_the_restatement_scan_still_bites() -> None:
             f"({src!r}) — it must deduct only the range occurrence itself"
         )
 
+    # rc458: the GitHub-ref axis must bite too. The subtraction is
+    # per-occurrence, so a line carrying a real `#<total>` PR reference AND
+    # a bare restatement still fails on the bare one.
+    must_find["extra occurrence on a github-ref line"] = (
+        f"# PR #{total} shipped {total} ops"
+    )
+    for label, src in list(must_find.items())[-1:]:
+        assert _restatement_lines(src, f"<{label}>", total) == [1], (
+            f"the rc458 github-ref subtraction over-fired on a {label} "
+            f"({src!r}) — it must deduct only the #-prefixed reference"
+        )
+
     must_not_find = {
         "tuple of ints": f"_PRIMES = (563, {total}, 571)",
         "list of ints": f"_T = [563, {total}, 571]",
@@ -582,6 +606,16 @@ def test_the_restatement_scan_still_bites() -> None:
         "citation page range (em-dash)": f'"""pp. 644—{total}."""',
         "range where the total STARTS it": f'"""pp. {total}–670."""',
         "spaced range": f'"""lines 644 – {total} of the table."""',
+        # rc458 — the second time the gate's own prediction came true: the
+        # total landed on the monorepo's PR number, referenced as #<total>
+        # in 26 shipped prose lines. A #-prefixed number is a GitHub object
+        # reference by the tree's ref-notation convention, never a count.
+        "github PR reference": (
+            f"# 0.9.0rc229 (#{total}): the V4-gain Laplacian builder"
+        ),
+        "github PR reference in a docstring": (
+            f'"""research subtree (PR #{total}); this is the surface."""'
+        ),
     }
     for label, src in must_not_find.items():
         assert _restatement_lines(src, f"<{label}>", total) == [], (

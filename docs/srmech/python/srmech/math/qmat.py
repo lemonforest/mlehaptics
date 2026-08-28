@@ -27,8 +27,11 @@ Why a carrier and not nested ``Q`` lists (mirrors the ``Q`` / ``Mat`` rationale)
   float tolerance) and keeps every intermediate attestable.
 
 Everything stays exact: ``+`` / ``−`` / ``−x`` / scalar ``*`` are entrywise over
-the Class-N ``Q`` arithmetic; ``@`` is the exact bilinear contraction; the
-headline linear algebra — :meth:`rref` / :meth:`rank` / :meth:`det` /
+the Class-N ``Q`` arithmetic; ``@`` is the exact bilinear contraction;
+:meth:`trace` / :meth:`kron` / ``**`` (rc458 — the representation-stratum
+carrier methods: exact diagonal sum, ROW-MAJOR Kronecker product, integer
+matrix power with the Class-K pin-slot at ``k == 0``) ride the same carrier;
+the headline linear algebra — :meth:`rref` / :meth:`rank` / :meth:`det` /
 :meth:`inverse` / :meth:`solve` / :meth:`nullspace` — is exact Gauss-Jordan over
 ℚ on a shared :func:`_rref_augmented` kernel (the same elimination as
 ``srmech.physics.qm.triality`` and ``matrix_cascades._qalg_rref``, but over plain ``Q``).
@@ -415,6 +418,89 @@ class QMat:
         rows = tuple(tuple(self._rows[i][j] for i in range(self.n_rows))
                      for j in range(self.n_cols))
         return QMat.__new__(QMat)._init_from(rows)
+
+    def trace(self) -> Q:
+        """The EXACT trace — the diagonal ``Q`` sum of a SQUARE ``QMat``
+        (``ValueError`` otherwise). The scalar the rc458 representation ops
+        read characters through (``srmech.math.groups.character_of``).
+
+        C-parity (ADR-0009, recorded): no ``srmech_qmat_trace`` symbol; the
+        sibling rref/det/solve/nullspace family is C-backed and this method is
+        not (a diagonal sum has no elimination to accelerate)."""
+        if self.n_rows != self.n_cols:
+            raise ValueError(
+                f"QMat.trace requires a square matrix; got {self.shape}")
+        acc = _Q_ZERO
+        for i in range(self.n_rows):
+            acc = acc + self._rows[i][i]
+        return acc
+
+    def kron(self, other: "QMat") -> "QMat":
+        """The EXACT Kronecker product ``self ⊗ other`` — ROW-MAJOR convention
+        pinned ONCE for the whole tree: ``out[r1·p + r2][c1·q + c2] =
+        self[r1][c1] · other[r2][c2]`` (``other`` is ``p × q``). The same pair
+        index ``(x1, x2) ↦ x1·d2 + x2`` that
+        ``srmech.math.groups.tensor_product_representation`` and
+        ``intertwiner_space`` use — one convention, stated once, executed by
+        the tests via ``(A⊗B)·(C⊗D) == (AC)⊗(BD)``.
+
+        C-parity (ADR-0009, recorded): no ``srmech_qmat_kron`` symbol; the
+        sibling rref/det/solve/nullspace family is C-backed and this method is
+        not."""
+        if not isinstance(other, QMat):
+            raise TypeError("QMat.kron requires another QMat")
+        out_rows: List[Tuple[Q, ...]] = []
+        for r1 in range(self.n_rows):
+            self_row = self._rows[r1]
+            for r2 in range(other.n_rows):
+                other_row = other._rows[r2]
+                row: List[Q] = []
+                for c1 in range(self.n_cols):
+                    a = self_row[c1]
+                    for c2 in range(other.n_cols):
+                        row.append(a * other_row[c2])
+                out_rows.append(tuple(row))
+        return QMat.__new__(QMat)._init_from(tuple(out_rows))
+
+    def __pow__(self, exponent: int) -> "QMat":
+        """The EXACT integer matrix power (square only): ``A**0`` is the
+        identity, ``A**k`` for ``k > 0`` is square-and-multiply over the exact
+        product, and ``A**-k`` is ``inverse()`` walked the same way — the
+        singular case raises through :meth:`inverse`'s own guard.
+
+        The sign branch is the **Class-K pin-slot at ``k == 0``** with
+        **Class-C re-application**: the exponent's orientation is read once at
+        the phase boundary, the magnitude walk is common to both sides, and a
+        negative orientation re-enters through the inverse — never an ALU
+        ``abs()``.
+
+        C-parity (ADR-0009, recorded): no ``srmech_qmat_pow`` symbol; the
+        sibling rref/det/solve/nullspace family is C-backed and this method is
+        not (its inner product/inverse steps dispatch through their own
+        carriers)."""
+        if not isinstance(exponent, int) or isinstance(exponent, bool):
+            raise TypeError(
+                f"QMat.__pow__ requires a plain int exponent; got "
+                f"{type(exponent).__name__}")
+        if self.n_rows != self.n_cols:
+            raise ValueError(
+                f"QMat.__pow__ requires a square matrix; got {self.shape}")
+        if exponent == 0:                     # the Class-K pin at the boundary
+            return QMat.identity(self.n_rows)
+        if exponent < 0:
+            base = self.inverse()             # Class-C re-entry through A⁻¹
+            magnitude = -exponent             # orientation re-applied
+        else:
+            base = self
+            magnitude = exponent
+        result = QMat.identity(self.n_rows)
+        while magnitude:
+            if magnitude & 1:
+                result = result.matmul(base)
+            magnitude >>= 1
+            if magnitude:
+                base = base.matmul(base)
+        return result
 
     @property
     def T(self) -> "QMat":
