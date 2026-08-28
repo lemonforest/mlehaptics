@@ -37,6 +37,13 @@ on:
     branches: [main]
     paths:
       - "docs/srmech/**"
+      # rc459 — the cited-path gate below is strict-zero over BOTH research
+      # notebooks, and the MFO one lives in the sister subtree. Four of the five
+      # path defects it was written for were in that file, so without this
+      # trigger the gate would be armed and silent on exactly the commits that
+      # can introduce them — the rc359 shape this whole workflow exists to
+      # prevent. Still one ubuntu cell and no native build.
+      - "docs/antikythera-maths/**"
       # The guard reads this workflow's own trigger list (the meta-test below
       # checks scan-root ⊆ trigger-path), so both workflow files are inputs.
       - ".github/workflows/srmech-ref-guard.yml"
@@ -45,6 +52,7 @@ on:
     branches: [main]
     paths:
       - "docs/srmech/**"
+      - "docs/antikythera-maths/**"
       - ".github/workflows/srmech-ref-guard.yml"
       - ".github/workflows/srmech-ci.yml"
   workflow_dispatch: {}
@@ -107,6 +115,19 @@ jobs:
       - name: Notebook currency gate (SSoT notebook vs the live surface)
         working-directory: docs/srmech/python
         run: python -m pytest tests/test_notebook_currency_rc420.py -q
+
+      # rc459 — FOURTH GUARD. The currency gate above asks whether the srmech
+      # notebook's CLAIMS are current; this one asks whether either notebook's
+      # cited PATHS exist. Different question, and it is the only step here that
+      # reads docs/antikythera-maths — which is why this workflow's trigger
+      # grew that path in the same change. Measured at rc459: five cited
+      # `docs/`-rooted paths did not resolve (four RBS-LM artefacts that live
+      # only on a research branch, one ADR renumbered out from under its
+      # citation), and no test in the tree read either notebook for path
+      # existence. Strict zero, not a ceiling. ~13s pure.
+      - name: Cited-path gate (a backticked docs/ path resolves, or says where)
+        working-directory: docs/srmech/python
+        run: python -m pytest tests/test_notebook_cited_paths_rc459.py -q
 
       # rc449 (`#T1158`) — FOURTH GUARD, and the same failure mode a fourth
       # time. `docs/srmech/CLAUDE.md` is the NARRATIVE ABI SSoT — the section

@@ -4,9 +4,11 @@
  * Task #217 Phase C1 second ship — four load-bearing graph-Laplacian
  * operations on dense row-major double matrices. Class L is the
  * structural workhorse of Spike #24 (instantiated at six of six bonus
- * substrates per the cumulative cross-substrate audit) and the
- * spectral substrate underpinning cascade-composition mass-spectrum
- * reproduction (bonus 10 SUCCESS at log-L2 = 0.614 dex).
+ * substrates per the cumulative cross-substrate audit). What this file
+ * ships is exactly that and nothing more: it CONSTRUCTS a Laplacian
+ * from a caller's edge list and DIAGONALISES it. Which graph is built
+ * is the caller's choice; what any resulting spectrum means is the
+ * caller's claim, not this file's.
  *
  * Pi-free implementation per [[user_stance_pi_as_projection]]: this
  * Class L surface does NOT use pi anywhere. Cyclic-graph closed-form

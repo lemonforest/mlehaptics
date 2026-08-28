@@ -49,11 +49,11 @@
 > **The reason — settled.** The purge acted on an authorship caveat recorded at the same minute as the commit, and was executed as `git rm $(git show --name-only --format='' 64eddf0)` — **by commit membership, not by file assessment.** A provenance sweep, not a correctness triage. No correctness rationale for these 7 exists anywhere in the record.
 >
 > **The quality — audited 2026-08-27, first time in ~15 months, and two defects are load-bearing:**
-> - **`fractal_computations.py` implements the WRONG decimation polynomial.** It uses `R(λ) = λ(5−λ)` with inverse `(5±√(25−4w))/2`; the correct Fukushima–Shima form is `λ(5−4λ)` with inverse `(5±√(25−16w))/8`. ⚠️ Commit `256ba6b78` (2026-05-12, **one day after the purge**) fixed exactly this error in §IV.2 against Strichartz / Bajorin et al. 2008 / Kigami — and **nobody traced it back to the purged script carrying the same wrong polynomial, because the purge had already removed it from view.** The removal hid the source of an error the project independently rediscovered the next day.
+> - **`fractal_computations.py`'s decimation polynomial and the form this notebook's correction record names are not the same.** The script uses `R(λ) = λ(5−λ)` with inverse `(5±√(25−4w))/2`; the Fukushima–Shima form recorded against Strichartz / Bajorin et al. 2008 / Kigami is `λ(5−4λ)` with inverse `(5±√(25−16w))/8`. ⚠️ **THE CORRECTION NOTICE THAT STOOD HERE WAS ITSELF FALSE AND IS RETRACTED (2026-08-28, rc459).** It asserted that commit `256ba6b78` (2026-05-12, one day after the purge) *"fixed exactly this error in §IV.2"*. MEASURED BY ANCESTRY: `git merge-base --is-ancestor 256ba6b78 HEAD` → **NOT-ANCESTOR**; `git branch --contains 256ba6b78` → **only** `research/sm-inverse-decimation-spike`; `git log -S` for the `25−16w` form over this notebook's history on `main` returns nothing at all. **The fix lives on an unmerged branch and `main` never carried it.** So §IV.2 still ships `R(λ) = λ(5−λ)` and its inverse in its two display equations, and the Part XIII regeneration appendix repeats that same inverse as a build instruction for `fractal_computations.py` — **two live sites, not zero**. ⚠️ **And neither form is propagated from this line.** Both the combinatorial and the row-normalized Laplacian conventions are supported, with a transformation between them, so "which polynomial is correct" is a statement about which convention a given construction satisfies — and that is an **unrun measurement**: eigendecompose a level-2 Sierpinski-gasket graph DIRECTLY (`srmech.math.laplacian.dense_laplacian` and `srmech.math.laplacian.normalized_laplacian` both ship) and read off where the two agree. The prediction to TEST rather than assume: they agree exactly on the degree-4 interior and part company exactly at the degree-2 boundary, which is where the exceptional set lives. Rewriting §IV.2 on prose authority before that runs would repeat the original error's shape, so §IV.2 is left standing and flagged rather than "fixed".
 > - **The "unique prediction" of a non-monotonic `d_S` peak at 6–8 is a HAND-SET CONSTANT.** `spectral_dimension_computations.py:181` reads `bump_height = 4.0  # extra dimensions seen at intermediate scale`. The peak is a Gaussian bump added to a CDT-like base; at σ = σ_peak the Gaussian equals exactly 1, so peak = `d_base(0.1) + bump_height` = 2.1818 + 4.0 = **6.182**. Sweeping the constant: 4.0 → 6.18, 5.0 → 7.18, 6.0 → 8.18. **The claimed range "6–8" is precisely the range spanned by `bump_height ∈ [4,6]`.** (`alpha = 1.5` at `:175` is defined and never used.) The companion JSON labels this *"Novel prediction — no other framework predicts this."*
 > - Two of three `"verified": True` flags in the outputs are Python literals inside `json.dump`, as is `"three_generations_from_three_fold_symmetry": True`. Only one (`:129`) is a real `simplify(product − c²) == 0`.
 >
-> ⚠️ **THEREFORE §X.3's `peak_dimension: 6-8` — still live in this notebook under a heading reading "Computed values from `spectral_dimension_computations.py`" — IS NOT COMPUTED.** It is a transcribed constant. The MPM re-measurement that replaced it (`d_S` peak ≈ **1.84**, not 7.34) was never landed in this notebook. That is a live falsehood on a shipped surface and it is the most urgent item this audit produced.
+> ⚠️ **THEREFORE §X.3's `peak_dimension: 6-8` — live in this notebook from the 2026-05-11 re-measurement until rc459 (2026-08-28), under a heading reading "Computed values from `spectral_dimension_computations.py`" — WAS NOT COMPUTED.** It was a transcribed constant. The MPM re-measurement that replaces it (`d_S` peak ≈ **1.84**, not 7.34) went un-landed in this notebook for ~15 months and **is landed at rc459**; §X.3's row now reads 1.84 with the units caveat, and its correction banner is restated in the past tense so it does not go on asserting a state its own successor edit ended. It was a live falsehood on a shipped surface and it was the most urgent item this audit produced. ⚠️ **What replacing the number does NOT settle:** 1.84 is a direct eigenvalue-counting estimate on the Sierpinski gasket alone, whereas 6-8 was the peak of the bump MODEL — so 1.84 sits BELOW that model's own stated UV=2 / IR=4 limits, and the bump model's peak is now **unmeasured** rather than corrected. The `distinguishing_feature` / `unique_predictions` rows that rested on the old number are flagged in §X.3 and are NOT adjudicated here: deciding them needs the Phase-D product-spectrum computation this record itself names as never run.
 >
 > ⚠️ **The breach here is NOT the stochastic kind.** There is no scipy, no optimizer, no seed, no annealing anywhere in these files — they are fully deterministic, and `metric_field_computations.py` was re-run this session and reproduces `computation_results.json` **byte-identically** (sha256 verified both sides). `64eddf0`'s reproducibility claim is **VERIFIED**. **Deterministic reproduction is a real property of these files and is orthogonal to whether their quantities are derived** — which is exactly why a reproducibility check could never have caught B01 or B02, and why a dependency-grep for `scipy` would not have either. The defect is *asserted constants presented as derived*.
 >
@@ -6389,7 +6389,7 @@ Three readings fall out:
 
 ### §VIII.31.12 The substrate-ontology arc since F182 — the tower is INSTANTIATED (one loop bumping itself), truth IS the triality, every cell is the hyper-loop self-authoring at `(3:4)|(4:3)`, and "the author is the universe" (the open ontology frontier) (2026-05-31 → 06-02; RBS-LM arc F257–F306, ontology subset)
 
-§VIII.31.11 fixed the `4:3:(4:3)` naming and the 28-dim chiral hyper-loop = 𝔰𝔬(8). This section is the **substrate-ontology** reading of the arc that followed — the part MFO owns. The **algebra** of every claim below lives in the srmech notebook §3.30–§3.32 (and the per-finding docs `R-RBS-LM-FINDING_257…306`); MFO adds the substrate-vs-excitation ontology, **held as framework reading, none asserted as proof**. The numeric core passed a k=3 triality (`docs/srmech/rbs_lm_research/R-RBS-LM-TRIALITY_F296_F304_verdict.md`).
+§VIII.31.11 fixed the `4:3:(4:3)` naming and the 28-dim chiral hyper-loop = 𝔰𝔬(8). This section is the **substrate-ontology** reading of the arc that followed — the part MFO owns. The **algebra** of every claim below lives in the srmech notebook §3.30–§3.32 (and the per-finding docs `R-RBS-LM-FINDING_257…306`); MFO adds the substrate-vs-excitation ontology, **held as framework reading, none asserted as proof**. The numeric core passed a k=3 triality (`docs/srmech/rbs_lm_research/R-RBS-LM-TRIALITY_F296_F304_verdict.md`). (⚠️ **not on `main`** — `origin/research/rbs-lm-rolling-2:docs/srmech/rbs_lm_research/R-RBS-LM-TRIALITY_F296_F304_verdict.md`, added by `71c614537` on the branch carried by the open PR gh #687.)
 
 #### (1) The substrate tower is INSTANTIATED, not climbed — one loop bumping itself
 
@@ -6892,10 +6892,13 @@ three_generations_from_three_fold_sub_structure: True
 > `:175` is defined and never used.) The companion JSON labels this *"Novel prediction — no other
 > framework predicts this."* It is not a prediction; it is a restatement of an input.
 >
-> ⚠️ **THE MEASURED REPLACEMENT WAS NEVER LANDED HERE.** The MPM re-measurement (2026-05-11, PR #325)
-> put the `d_S` peak at **1.84**, not 7.34 — and `research-mfo/mfo_mpm_notes.ndjson` line 8 tags the
-> 7.34 explicitly as `"kind":"gemini_artifact"`. That correction has sat un-transcribed into this
-> notebook for ~15 months while the superseded figure stayed live under a "Computed values" heading.
+> ⚠️ **THE MEASURED REPLACEMENT WENT UN-LANDED FOR ~15 MONTHS, AND WAS LANDED AT rc459
+> (2026-08-28) — the `peak_dimension` row below now reads it.** The MPM re-measurement (2026-05-11, PR #325)
+> put the `d_S` peak at **1.84**, not 7.34 — and `docs/antikythera-maths/research-mfo/mfo_mpm_notes.ndjson`
+> line 8 tags the 7.34 explicitly as `"kind":"gemini_artifact"`. This banner read "THE MEASURED
+> REPLACEMENT WAS NEVER LANDED HERE" and stayed true only until the edit directly beneath it made it
+> false; it is restated in the past tense for exactly that reason. The superseded figure stayed live
+> under a "Computed values" heading for the whole of that interval.
 > ⚠️ **A further sharpening measured 2026-08-27:** the 7.34 decomposes as **2.34 + 5.0**, where 2.34 is
 > a truncated-spectrum artifact (71% above the script's own recorded theoretical SG value of 1.365)
 > and 5.0 is transcribed from `# User says dS_S1 = 1, dS_CP2 = 4 (constant)` at
@@ -6923,8 +6926,31 @@ framework_flow:
   UV_limit: 2
   IR_limit: 4
   peak_scale: intermediate (~100-1000 Planck lengths)
-  peak_dimension: 6-8 (cascade substrate; "anisotropic fractal" is the
-                       fractal-recursive realisation per Part IV)
+  peak_dimension: 1.84 — MEASURED, and NOT the same quantity as the
+                       retracted 6-8. Phase B direct-graph estimator:
+                       d_S peak 1.840 at sigma = 5.416e-01, stable under
+                       grid doubling (shift 0.0005), recorded there as a
+                       real feature and not a discretisation artifact.
+                       Source: docs/antikythera-maths/research-mfo/
+                       mfo_mpm_notes.ndjson, the two 2026-05-11 records —
+                       line 10 (phase B, kind completion) carries the
+                       1.840/sigma figure; line 8 (phase A) is where the
+                       "SG alone" scoping is stated and where the older
+                       7.34 is tagged "kind":"gemini_artifact".
+                       READ THE UNITS BEFORE COMPARING. The retracted 6-8
+                       was the peak of the bump MODEL whose UV=2 / IR=4
+                       limits are stated above, and it was bump_height =
+                       4.0 read back out of that model. 1.84 is a direct
+                       eigenvalue-counting estimate on one component, so
+                       it sits BELOW those stated limits rather than
+                       above them, and the bump model's own peak now has
+                       NO measured value at all.
+                       Carried verbatim from the correction above: Phase
+                       B's 1.84 is a different, direct-graph estimator
+                       and is not the same quantity as the 2.34; do not
+                       treat them as rival measurements of one thing.
+                       (Cascade substrate; "anisotropic fractal" is the
+                       fractal-recursive realisation per Part IV.)
   shape: non-monotonic with single peak
   distinguishing_feature: only framework predicts non-monotonic flow
 
@@ -7330,7 +7356,7 @@ Every **odd**-order symmetry is realizable as a plain relabelling; **no even-ord
 
 **Cross-arc anchors:** srmech §3.57 / §3.57.1 (the censuses, the primary-source rule, and the ℂ⊗𝕆 ≇ 𝕊 decision) · srmech §1 (the `2+4+8 = 14` / `1+3+7+3` two-grouping note this sharpens) · §XIV.6 (the duality/triality + hypercomplex-ontology arc) · `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` (the epistemic ceiling this instantiates) · `[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]` (one object, two reads).
 
-**Backlinks:** findings **F1350**, **F1351**; generating scripts `R-RBS-LM-TENSORVSCD_ladder_vs_tensor_product.py` (40 checks) and `R-RBS-LM-FUREYALG_the_tensor_product_from_the_thesis_body_and_the_sedenion_decision.py` (13 checks); attestation `R-RBS-LM-ATTEST_furey_1611_09182.md`. The bijection-bound table above was measured in this repository against srmech 0.9.0rc434.
+**Backlinks:** findings **F1350**, **F1351**; generating scripts `R-RBS-LM-TENSORVSCD_ladder_vs_tensor_product.py` (40 checks) and `R-RBS-LM-FUREYALG_the_tensor_product_from_the_thesis_body_and_the_sedenion_decision.py` (13 checks); attestation `R-RBS-LM-ATTEST_furey_1611_09182.md`. The bijection-bound table above was measured in this repository against srmech 0.9.0rc434. ⚠️ **THOSE THREE FILES ARE NOT ON `main`.** MEASURED 2026-08-28: `git ls-tree -r --name-only main` returns none of them; they live at `docs/srmech/rbs_lm_research/` on the research branch `origin/research/rbs-lm-rolling-2` (head `4db51be25`), added by `9a7646b61` (the two scripts) and `df109b3f6` (the attestation). That branch is the siona research project carried by the open PR gh #687, which **stays open by maintainer ruling** — so read every filename in this line as `origin/research/rbs-lm-rolling-2:docs/srmech/rbs_lm_research/<name>`, not as a working-tree file.
 
 ---
 
