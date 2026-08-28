@@ -64,11 +64,12 @@ No ``math`` module; a future ``QiPoly`` would carry Gaussian-rational
 
 from __future__ import annotations
 
-from typing import List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
+from .primes import factor
 from .q import Q
 
-__all__ = ["Poly", "poly_from_coeffs"]
+__all__ = ["Poly", "cyclotomic_polynomial", "poly_from_coeffs"]
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
@@ -773,6 +774,105 @@ def _prose_int(value, *, where: str) -> int:
             f"contract; an exact rational enters via the in-process carrier "
             f"constructor, a float never enters); got {value!r}")
     return value
+
+
+# ── the CYCLOTOMIC polynomial Φ_n (rc456; Class J divisor-lattice arithmetic) ──
+#: Memo for :func:`cyclotomic_polynomial` — complete low→high coefficient
+#: tuples only, so a partial computation can never be observed.
+_CYCLOTOMIC_CACHE: "Dict[int, Tuple[int, ...]]" = {}
+
+
+def _int_poly_mul(a: "List[int]", b: "List[int]") -> "List[int]":
+    """Integer polynomial product, coefficients low→high (Class J)."""
+    out = [0] * (len(a) + len(b) - 1)
+    for i, ai in enumerate(a):
+        if ai:
+            for j, bj in enumerate(b):
+                out[i + j] += ai * bj
+    return out
+
+
+def _int_poly_exact_div(num: "List[int]", den: "List[int]") -> "List[int]":
+    """Exact integer polynomial division (``den`` a monic factor of
+    ``num``) — the divisor-lattice step ``Φ_n = (x^n − 1) / ∏_{d|n, d<n}
+    Φ_d`` rides on.  Exact by construction; no rational ever forms."""
+    work = list(num)
+    quotient = [0] * (len(work) - len(den) + 1)
+    for i in range(len(quotient) - 1, -1, -1):
+        c = work[i + len(den) - 1] // den[-1]
+        quotient[i] = c
+        if c:
+            for j, dj in enumerate(den):
+                work[i + j] -= c * dj
+    return quotient
+
+
+def cyclotomic_polynomial(n: int) -> dict:
+    """The ``n``-th cyclotomic polynomial ``Φ_n`` with EXACT integer
+    coefficients — Class J divisor-lattice arithmetic.
+
+    ``Φ_n = (x^n − 1) / ∏_{d|n, d<n} Φ_d``, computed by exact integer
+    polynomial division up the divisor lattice (divisors enumerated from
+    the c_dispatched :func:`srmech.math.primes.factor`), memoised per
+    ``n``.  Cyclotomic coefficients are integers, so no rational and no
+    float ever appears.
+
+    Args:
+        n: the index, ``>= 1`` (``ValueError`` below 1; ``TypeError`` for a
+            non-int).
+
+    Returns:
+        ``{"n", "coefficients"`` (monic, low→high, a tuple of ints),
+        ``"degree"`` (``= φ(n)``, the Euler totient)``}``.
+
+    **Why it is public.** ``srmech.math.groups.character_table`` needs
+    ``Φ_e`` to define its ``ℤ[ζ_e]`` value carrier, and the only general
+    ``Φ_N`` code in the tree was the PRIVATE
+    ``srmech.cascade.exact_dft._cyclotomic_reduction`` — a public op is
+    minted rather than a private cross-imported.  The two derivations are
+    pinned against each other for ``n ∈ 1..30`` by
+    ``tests/test_cyclotomic_polynomial_rc456.py``, so they cannot drift.
+
+    Worked anchors: ``Φ_12 = x⁴ − x² + 1`` → ``coefficients
+    (1, 0, -1, 0, 1)``, degree 4; ``Φ_1 = x − 1`` → ``(-1, 1)``, degree 1.
+
+    Note:
+        Exact integers; no ``abs``; no float.
+    """
+    if isinstance(n, bool) or not isinstance(n, int):
+        raise TypeError(
+            f"cyclotomic_polynomial: n must be int; got {type(n).__name__}")
+    if n < 1:
+        raise ValueError(f"cyclotomic_polynomial requires n >= 1; got {n}")
+    cached = _CYCLOTOMIC_CACHE.get(n)
+    if cached is None:
+        primes = factor(n)                    # Class J — the divisor lattice
+        divisors = [1]
+        for p, e in primes:
+            grown: "List[int]" = []
+            power = 1
+            for _ in range(e + 1):
+                grown.extend(d * power for d in divisors)
+                power *= p
+            divisors = grown
+        divisors.sort()
+        phis: "Dict[int, List[int]]" = {}
+        for d in divisors:
+            if d == 1:
+                phis[1] = [-1, 1]             # Φ_1 = x − 1
+                continue
+            xnm1 = [0] * (d + 1)              # x^d − 1
+            xnm1[0] = -1
+            xnm1[d] = 1
+            prod = [1]
+            for dd in divisors:
+                if dd < d and d % dd == 0:
+                    prod = _int_poly_mul(prod, phis[dd])
+            phis[d] = _int_poly_exact_div(xnm1, prod)
+        for d in divisors:
+            _CYCLOTOMIC_CACHE.setdefault(d, tuple(phis[d]))
+        cached = _CYCLOTOMIC_CACHE[n]
+    return {"n": n, "coefficients": cached, "degree": len(cached) - 1}
 
 
 def poly_from_coeffs(coeffs) -> Poly:

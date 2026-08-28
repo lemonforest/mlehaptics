@@ -2,6 +2,7 @@
 {"composes": [], "name": "srmech.amsc.catalog.list_catalog_chains", "tier": "LEAF"}
 {"composes": [], "name": "srmech.amsc.catalog.register_attested_root", "tier": "LEAF"}
 {"composes": [], "name": "srmech.amsc.descriptor.descriptor_hash", "tier": "LEAF"}
+{"composes": [], "name": "srmech.amsc.descriptor.render_template", "tier": "LEAF"}
 {"composes": [], "name": "srmech.amsc.format.read_ndjson", "tier": "LEAF"}
 {"composes": [], "name": "srmech.amsc.format.sha256_batch", "tier": "LEAF"}
 {"composes": [], "name": "srmech.amsc.format.sha256_bytes", "tier": "LEAF"}
@@ -271,6 +272,7 @@
 {"composes": [], "name": "srmech.signal_processing.viterbi", "tier": "LEAF"}
 {"composes": [], "name": "srmech.math.covering.covering_catalog", "tier": "REFUSED"}
 {"composes": ["srmech.amsc.catalog.get_attested_dataset"], "name": "srmech.amsc.catalog.run_catalog_chain", "tier": "SINGLE"}
+{"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.amsc.format.sha256_raw", "tier": "SINGLE"}
 {"composes": ["srmech.apokatastasis.ellbase.half_shift_response"], "name": "srmech.apokatastasis.ellbase.beat_relation_residue", "tier": "SINGLE"}
 {"composes": ["srmech.apokatastasis.q_zeilberger.q_zeilberger"], "name": "srmech.apokatastasis.q_wz_certificate.q_wz_certificate", "tier": "SINGLE"}
 {"composes": ["srmech.apokatastasis.zeilberger.zeilberger"], "name": "srmech.apokatastasis.wz_certificate.wz_certificate", "tier": "SINGLE"}
@@ -359,6 +361,11 @@
 {"composes": ["srmech.introspect.tool_schema.get_tool_schema"], "name": "srmech.introspect.tool_schema.tool_schema_view", "tier": "SINGLE"}
 {"composes": ["srmech.math.cyclic.gcd"], "name": "srmech.math.cyclic.lcm", "tier": "SINGLE"}
 {"composes": ["srmech.math.cyclic.bigint_mul"], "name": "srmech.math.cyclic.mod_mul_wide", "tier": "SINGLE"}
+{"composes": ["srmech.cascade.conjugacy_census"], "name": "srmech.math.groups.conjugacy_classes", "tier": "SINGLE"}
+{"composes": ["srmech.math.cyclic.mod_add"], "name": "srmech.math.groups.cyclic_group", "tier": "SINGLE"}
+{"composes": ["srmech.math.groups.character_table"], "name": "srmech.math.groups.irrep_dimensions", "tier": "SINGLE"}
+{"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.groups.quotient_group", "tier": "SINGLE"}
+{"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.groups.semidirect_product", "tier": "SINGLE"}
 {"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.hdc.klein4_address", "tier": "SINGLE"}
 {"composes": ["srmech.math.hdc.klein4_bundle"], "name": "srmech.math.hdc.klein4_chunk_bundle", "tier": "SINGLE"}
 {"composes": ["srmech.math.hdc.klein4_expand"], "name": "srmech.math.hdc.klein4_role", "tier": "SINGLE"}
@@ -387,6 +394,7 @@
 {"composes": ["srmech.math.modular_linalg.gf_rref"], "name": "srmech.math.modular_linalg.gf_nullspace", "tier": "SINGLE"}
 {"composes": ["srmech.math.octonion.oct_mult"], "name": "srmech.math.octonion.oct_torsor_act", "tier": "SINGLE"}
 {"composes": ["srmech.math.octonion.oct_mult"], "name": "srmech.math.octonion.oct_torsor_div", "tier": "SINGLE"}
+{"composes": ["srmech.math.primes.factor"], "name": "srmech.math.poly.cyclotomic_polynomial", "tier": "SINGLE"}
 {"composes": ["srmech.math.cyclic.gcd"], "name": "srmech.math.primes.cyclic_period", "tier": "SINGLE"}
 {"composes": ["srmech.math.primes.is_prime"], "name": "srmech.math.primes.next_prime", "tier": "SINGLE"}
 {"composes": ["srmech.math.rational.atan"], "name": "srmech.math.rational.atan2", "tier": "SINGLE"}
@@ -427,6 +435,7 @@
 {"composes": ["srmech.signal_processing.dct"], "name": "srmech.signal_processing.jpeg", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_solve"], "name": "srmech.signal_processing.lmmse", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_svd"], "name": "srmech.signal_processing.mimo_svd", "tier": "SINGLE"}
+{"composes": ["srmech.amsc.format.sha256_raw"], "name": "srmech.signal_processing.mint_vector", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_matvec"], "name": "srmech.signal_processing.sinc_interp", "tier": "SINGLE"}
 {"composes": ["srmech.signal_processing.stft"], "name": "srmech.signal_processing.spectrogram", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.spectral_cascades.fft"], "name": "srmech.signal_processing.stft", "tier": "SINGLE"}

@@ -203,8 +203,23 @@ _DECLARING: Dict[str, Tuple[str, ...]] = {
 # `bytes.fromhex(sha256_bytes(data))` and nothing else. It sits in the residual
 # only because no ledger tier was written for it in the same commit that
 # registered it — a drain for a later rc, not a bump to hide.
+#
+# ── rc456: 184 -> 181. The committed census re-ran over a registry of 676:
+#
+#     DECLARED  49   SINGLE 173   LEAF 272   REFUSED 1   RESIDUAL 181
+#     adjudicated 495 / 676        composes population 222 / 676
+#
+# The ten srmech.math.groups / poly.cyclotomic_polynomial ops registered this
+# rc all arrived adjudicated AT BIRTH (4 hand-traced ROSTER rows + 6 forced
+# singletons), so none passed through the residual. The −3 is the rc452 trio
+# draining exactly as that block above prescribed: render_template measured
+# LEAF, sha256_raw declared its forced singleton (the "drain for a later rc"),
+# and mint_vector — measured at 0 edges against the 666-op BY_NAME — derives
+# exactly ONE depth-1 edge now that sha256_raw is registered (the pure path's
+# `_sha256_raw` aliased import), so it tiers SINGLE and declares. The ceiling
+# comes DOWN in the same commit, per the sanctioned-drain rule.
 # ──────────────────────────────────────────────────────────────────────
-CEIL_UNADJUDICATED = 184
+CEIL_UNADJUDICATED = 181
 
 #: How far the residual may drain below the ceiling before the ceiling itself
 #: must come down. Small on purpose — a ratchet with slack ratchets nothing.

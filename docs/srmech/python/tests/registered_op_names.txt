@@ -313,6 +313,15 @@ srmech.math.cyclic.three_cycle
 srmech.math.dispatch.infer
 srmech.math.dispatch.match
 srmech.math.dispatch.mirror_pattern
+srmech.math.groups.abelianization
+srmech.math.groups.cayley_graph
+srmech.math.groups.character_table
+srmech.math.groups.conjugacy_classes
+srmech.math.groups.cyclic_group
+srmech.math.groups.derived_subgroup
+srmech.math.groups.irrep_dimensions
+srmech.math.groups.quotient_group
+srmech.math.groups.semidirect_product
 srmech.math.hdc.bind
 srmech.math.hdc.bundle
 srmech.math.hdc.bundle_with_ties
@@ -440,6 +449,7 @@ srmech.math.octonion.oct_conjugate
 srmech.math.octonion.oct_mult
 srmech.math.octonion.oct_torsor_act
 srmech.math.octonion.oct_torsor_div
+srmech.math.poly.cyclotomic_polynomial
 srmech.math.poly.poly_from_coeffs
 srmech.math.primes.cyclic_period
 srmech.math.primes.factor

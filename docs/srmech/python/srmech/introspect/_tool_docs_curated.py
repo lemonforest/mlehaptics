@@ -50,6 +50,499 @@ from __future__ import annotations
 from typing import Any, Dict
 
 CURATED: Dict[str, Dict[str, Any]] = {
+    # ── rc456 — the representation stratum, tiers 1–2 (srmech.math.groups
+    # + poly.cyclotomic_polynomial). Every output below is a REAL capture
+    # from the shipped implementation (numpy-absent); none is typed from
+    # memory. The `composes` declarations ride the ToolEntry registrations
+    # (rc427 precedent), NOT rows here.
+    'srmech.math.groups.cyclic_group': {
+        'example': {
+            'input': {'n': 3},
+            'output': "{'n': 3, 'order': 3, 'elements': [0, 1, 2], "
+                      "'cayley_table': [[0, 1, 2], [1, 2, 0], [2, 0, 1]], "
+                      "'identity': 0, 'inverses': [0, 2, 1]}",
+            'worked': "from srmech.math.groups import cyclic_group\n"
+                      "c3 = cyclic_group(3)\n"
+                      "c3['cayley_table']\n"
+                      "# -> [[0, 1, 2], [1, 2, 0], [2, 0, 1]]\n"
+                      "c3['inverses']\n"
+                      "# -> [0, 2, 1]     the additive inverses (n - i) mod n\n"
+                      "cyclic_group(0)\n"
+                      "# -> ValueError\n",
+            'why': 'The order-3 cycle as a value, not a shape — the table '
+                   'IS mod-3 addition, and the refusal on n=0 shows the '
+                   'domain guard fires rather than returning an empty shell.'},
+        'explanation':
+            'WHAT it computes: the cyclic group C_n as a Cayley table dict — '
+            'order, elements 0..n-1, the (i + j) mod n table (entries via the '
+            'c_dispatched srmech.math.cyclic.mod_add), the identity 0 and the '
+            'additive inverses. '
+            'WHEN to reach for it: whenever an op in srmech.math.groups needs '
+            'a cycle operand — before rc456 NO bare cycle of general order n '
+            'was reachable (unit_loop yields only power-of-two orders; '
+            'group_algebra_table raises on 3, 5, 12, 24), which made cyclic '
+            'character tables and every semidirect operand unreachable. Do '
+            'not hand-write a modular-addition table — this constructor is '
+            'the exact producer, and its dict shape (order / elements / '
+            'cayley_table / identity + inverses) is what every census and '
+            'every groups op eats. '
+            'SIBLINGS: srmech.math.groups.semidirect_product composes two of '
+            'these into the non-abelian coupling; '
+            'srmech.cascade.dihedral_group is the order-2n peer; '
+            'srmech.cascade.conjugacy_census and '
+            'srmech.math.groups.character_table both eat the table this '
+            'returns.'},
+
+    'srmech.math.groups.semidirect_product': {
+        'example': {
+            'input': {'n_table': [[0, 1, 2], [1, 2, 0], [2, 0, 1]],
+                      'h_table': [[0, 1], [1, 0]],
+                      'action': [[0, 1, 2], [0, 2, 1]]},
+            'output': "{'order': 6, 'elements': [[0, 0], [0, 1], [1, 0], "
+                      "[1, 1], [2, 0], [2, 1]], 'cayley_table': [[0, 1, 2, "
+                      "3, 4, 5], [1, 0, 5, 4, 3, 2], ...], 'identity': 0, "
+                      "'n_order': 3, 'h_order': 2, 'table_sha256': "
+                      "'4a546c696af57b80...'}",
+            'worked': "from srmech.math.groups import (cyclic_group,\n"
+                      "    semidirect_product, irrep_dimensions)\n"
+                      "c3 = cyclic_group(3)['cayley_table']\n"
+                      "c2 = cyclic_group(2)['cayley_table']\n"
+                      "# Cn : C2 by INVERSION is dihedral -- S3 here:\n"
+                      "s3 = semidirect_product(c3, c2, [[0, 1, 2], [0, 2, 1]])\n"
+                      "s3['order']\n"
+                      "# -> 6\n"
+                      "irrep_dimensions(s3['cayley_table'])['degrees']\n"
+                      "# -> [1, 1, 2]     non-abelian: a dim-2 irrep appears\n"
+                      "# The DIRECT product is the TRIVIAL action -- no "
+                      "separate op:\n"
+                      "c3x2 = semidirect_product(c3, c2, [[0, 1, 2], [0, 1, 2]])\n"
+                      "irrep_dimensions(c3x2['cayley_table'])['degrees']\n"
+                      "# -> [1, 1, 1, 1, 1, 1]     abelian: lines only\n"
+                      "# an action that is not an automorphism is refused:\n"
+                      "semidirect_product(cyclic_group(4)['cayley_table'],\n"
+                      "                   c2, [[0, 1, 2, 3], [0, 2, 1, 3]])\n"
+                      "# -> ValueError\n",
+            'why': 'The same two operand tables give an abelian group under '
+                   'the trivial action and a non-abelian one under inversion '
+                   '— the coupling, not the size, is what makes dimension '
+                   '> 1 pronounceable, which is the rc456 founding '
+                   'measurement.'},
+        'explanation':
+            'WHAT it computes: the semidirect product N ⋊ H as a Cayley '
+            'table, from the two operand tables and an action given as '
+            'permutation TABLES (one row per H element — a table, not a '
+            'callable, so it crosses JSON-RPC). Three conventions are '
+            'pinned in the docstring: idx(a,h) = a·|H|+h, the LEFT-action '
+            'product (a1,h1)·(a2,h2) = (n[a1][action[h1][a2]], h[h1][h2]), '
+            'and the homomorphism law. Validation raises naming the failing '
+            'law — operand group laws, bijection, automorphism, '
+            'homomorphism, identity-acts-trivially — and together those '
+            'laws entail associativity, so the validation IS the guard. '
+            'WHEN to reach for it: to build the non-abelian coupling of two '
+            'cycles rather than hand-rolling a table — C7⋊C3 (mult-by-2 '
+            'action) has degrees [1,1,1,3,3] where C7×C3 (trivial action) '
+            'has [1]*21; Cn⋊C2 by inversion reproduces dihedral_group '
+            'EXACTLY (table equality under σ(a·2+h) = h·n+a against the '
+            "'rotation_first' convention, executed by the rc456 tests). "
+            'SIBLINGS: srmech.math.groups.cyclic_group produces the '
+            'operands; srmech.cascade.dihedral_group is the special case '
+            'you should use when you only need D_n with labels; '
+            'conjugacy_census / character_table eat the table this returns.'},
+
+    'srmech.math.groups.conjugacy_classes': {
+        'example': {
+            'input': {'cayley_table': [[0, 1, 2, 3, 4, 5], [1, 0, 5, 4, 3, 2],
+                                       [2, 3, 4, 5, 0, 1], [3, 2, 1, 0, 5, 4],
+                                       [4, 5, 0, 1, 2, 3], [5, 4, 3, 2, 1, 0]]},
+            'output': "{'order': 6, 'k': 3, 'classes': [[0], [1, 3, 5], "
+                      "[2, 4]], 'class_of': [0, 1, 2, 1, 2, 1], "
+                      "'representatives': [0, 1, 2], 'class_sizes': "
+                      "[1, 3, 2], 'identity': 0, 'inverses': [0, 1, 4, 3, "
+                      "2, 5], 'inverse_class': [0, 1, 2], 'square_class': "
+                      "[0, 0, 2], ...}",
+            'worked': "from srmech.math.groups import (cyclic_group,\n"
+                      "    semidirect_product, conjugacy_classes)\n"
+                      "s3 = semidirect_product(cyclic_group(3)['cayley_table'],\n"
+                      "    cyclic_group(2)['cayley_table'], [[0, 1, 2], [0, 2, 1]])\n"
+                      "cc = conjugacy_classes(s3['cayley_table'])\n"
+                      "cc['k'], cc['class_sizes']\n"
+                      "# -> (3, [1, 3, 2])    identity | 3 reflections | 2 rotations\n"
+                      "cc['class_of']\n"
+                      "# -> [0, 1, 2, 1, 2, 1]\n"
+                      "cc['inverse_class'], cc['square_class']\n"
+                      "# -> ([0, 1, 2], [0, 0, 2])   conjugation + squaring "
+                      "as CLASS maps\n"
+                      "# a NON-group is refused, not answered:\n"
+                      "from srmech.cascade import unit_loop\n"
+                      "conjugacy_classes(unit_loop(8)['cayley_table'])\n"
+                      "# -> ValueError\n",
+            'why': 'The maps the census does not return — class_of, '
+                   'representatives, inverse_class, square_class — are '
+                   'exactly what character_table and the tier-3 indicator '
+                   'ops consume, and the M16 refusal shows the group-only '
+                   'contract is enforced rather than documented.'},
+        'explanation':
+            'WHAT it computes: the conjugacy-class maps of a finite GROUP — '
+            'the class partition (delegated VERBATIM to '
+            'srmech.cascade.conjugacy_census, one SSoT, never re-sorted), '
+            'plus class_of (element → class), representatives (min element '
+            'per class), class_sizes, inverses (an O(n²) table scan — a '
+            'scan, not a second union-find), inverse_class (the class of '
+            'rep⁻¹ — conjugation as a column permutation, which is what '
+            'makes χ̄(g) = χ(g⁻¹) computable with no Galois machinery) and '
+            'square_class (class of rep², the map the tier-3 '
+            'Frobenius–Schur indicator sums over). '
+            'WHEN to reach for it: whenever the operand IS a group and you '
+            'need the maps — this op REFUSES a non-group with ValueError. '
+            'SIBLINGS, the division of labour: '
+            'srmech.cascade.conjugacy_census is the guarded MAGMA '
+            'instrument — reach for IT when associativity is the question '
+            '(it reports both bracketings and the class-equation '
+            'disagreement instead of refusing); do not re-derive the '
+            'partition by hand from either op — the census order is the '
+            'pinned column order of srmech.math.groups.character_table.'},
+
+    'srmech.math.groups.derived_subgroup': {
+        'example': {
+            'input': {'cayley_table': [[0, 1, 2, 3, 4, 5], [1, 0, 5, 4, 3, 2],
+                                       [2, 3, 4, 5, 0, 1], [3, 2, 1, 0, 5, 4],
+                                       [4, 5, 0, 1, 2, 3], [5, 4, 3, 2, 1, 0]]},
+            'output': "{'order': 6, 'elements': [0, 2, 4], "
+                      "'subgroup_order': 3, 'index': 2, 'elements_sha256': "
+                      "'...'}",
+            'worked': "from srmech.math.groups import (cyclic_group,\n"
+                      "    semidirect_product, derived_subgroup)\n"
+                      "s3 = semidirect_product(cyclic_group(3)['cayley_table'],\n"
+                      "    cyclic_group(2)['cayley_table'], [[0, 1, 2], [0, 2, 1]])\n"
+                      "ds = derived_subgroup(s3['cayley_table'])\n"
+                      "ds['subgroup_order'], ds['elements'], ds['index']\n"
+                      "# -> (3, [0, 2, 4], 2)    [S3, S3] = the rotations\n"
+                      "derived_subgroup(cyclic_group(6)['cayley_table'])"
+                      "['subgroup_order']\n"
+                      "# -> 1                    abelian: [G, G] is trivial\n",
+            'why': 'The commutator subgroup of S3 is its rotation copy of '
+                   'C3 (index 2), and on an abelian carrier it collapses to '
+                   'the identity — the two poles of the invariant in one '
+                   'transcript.'},
+        'explanation':
+            'WHAT it computes: the derived (commutator) subgroup [G, G] — '
+            'bracket convention pinned as [g, h] = g⁻¹·h⁻¹·g·h — by '
+            'collecting every commutator off the table and closing under '
+            'the product to a fixpoint; returns the sorted element list, '
+            'its order, the index |G| / |[G,G]|, and a content address. '
+            'Requires a group (the guard is one conjugacy_census call, '
+            'reused rather than re-derived). '
+            'WHEN to reach for it: to measure HOW non-abelian a table is '
+            '([G,G] trivial ⇔ abelian; [G,G] = G ⇔ perfect), or to produce '
+            'the canonical normal operand for quotient_group — the number '
+            'of degree-1 character_table rows equals the index this op '
+            'returns, a cross-op identity the rc456 tests execute. Do not '
+            'hand-roll the commutator closure loop — the closure and the '
+            'guard are both here. '
+            'SIBLINGS: srmech.math.groups.abelianization is the composition '
+            'derived_subgroup → quotient_group and should be used when the '
+            'quotient is what you want; srmech.cascade.conjugacy_census '
+            'reports the commuting-pairs COUNT, which is a different '
+            'measurement of the same non-abelianness.'},
+
+    'srmech.math.groups.quotient_group': {
+        'example': {
+            'input': {'cayley_table': [[0, 1, 2, 3, 4, 5], [1, 0, 5, 4, 3, 2],
+                                       [2, 3, 4, 5, 0, 1], [3, 2, 1, 0, 5, 4],
+                                       [4, 5, 0, 1, 2, 3], [5, 4, 3, 2, 1, 0]],
+                      'normal_elements': [0, 2, 4]},
+            'output': "{'order': 2, 'cayley_table': [[0, 1], [1, 0]], "
+                      "'elements': [0, 1], 'coset_of': [0, 1, 0, 1, 0, 1], "
+                      "'identity': 0, 'inverses': [0, 1], "
+                      "'coset_partition_sha256': '...'}",
+            'worked': "from srmech.math.groups import (cyclic_group,\n"
+                      "    semidirect_product, quotient_group)\n"
+                      "s3 = semidirect_product(cyclic_group(3)['cayley_table'],\n"
+                      "    cyclic_group(2)['cayley_table'], [[0, 1, 2], [0, 2, 1]])\n"
+                      "q = quotient_group(s3['cayley_table'], [0, 2, 4])\n"
+                      "q['order'], q['cayley_table']\n"
+                      "# -> (2, [[0, 1], [1, 0]])   S3 / rotations = C2\n"
+                      "q['coset_of']\n"
+                      "# -> [0, 1, 0, 1, 0, 1]      rotation-vs-reflection parity\n"
+                      "# a subgroup that is NOT normal is refused:\n"
+                      "quotient_group(s3['cayley_table'], [0, 1])\n"
+                      "# -> ValueError\n",
+            'why': 'S3 mod its rotations is the two-element sign group, and '
+                   'S3 mod a reflection is refused as non-normal — the '
+                   'positive and the negative that make the op an '
+                   'instrument rather than a formula.'},
+        'explanation':
+            'WHAT it computes: the quotient group G / N as a Cayley table '
+            'over cosets, with coset_of (element → coset), coset '
+            'min-representatives, identity, inverses and a content address. '
+            'It validates that normal_elements is a subgroup (identity, '
+            'closed under product and inverse), that it is NORMAL (∀g: '
+            'g·n·g⁻¹ stays inside — else ValueError), and that the coset '
+            'product is WELL-DEFINED over all n² pairs — a '
+            'representative-dependent product is refused, never averaged, '
+            'which is also what catches a non-associative operand. '
+            'WHEN to reach for it: any time you would otherwise hand-roll '
+            'cosets — S3 / rotations above is the two-line version of a '
+            'page of bookkeeping; abelianization uses exactly this op '
+            'internally, so the public surface and the internal machinery '
+            'cannot drift apart. '
+            'SIBLINGS: srmech.math.groups.derived_subgroup produces the '
+            'canonical normal operand (its elements list feeds straight '
+            'in); srmech.math.groups.abelianization is the ready-made '
+            'composition of the two — reach for it instead of composing by '
+            'hand when G/[G,G] is what you want.'},
+
+    'srmech.math.groups.abelianization': {
+        'example': {
+            'input': {'cayley_table': [[0, 1, 2, 3, 4, 5], [1, 0, 5, 4, 3, 2],
+                                       [2, 3, 4, 5, 0, 1], [3, 2, 1, 0, 5, 4],
+                                       [4, 5, 0, 1, 2, 3], [5, 4, 3, 2, 1, 0]]},
+            'output': "{'invariant_factors': [2], 'order': 2, 'quotient': "
+                      "{...full quotient_group payload...}, 'projection': "
+                      "[0, 1, 0, 1, 0, 1]}",
+            'worked': "from srmech.math.groups import (cyclic_group,\n"
+                      "    semidirect_product, abelianization)\n"
+                      "c3 = cyclic_group(3)['cayley_table']\n"
+                      "c2 = cyclic_group(2)['cayley_table']\n"
+                      "s3 = semidirect_product(c3, c2, [[0, 1, 2], [0, 2, 1]])\n"
+                      "abelianization(s3['cayley_table'])['invariant_factors']\n"
+                      "# -> [2]        S3 abelianizes to the sign group\n"
+                      "c3x2 = semidirect_product(c3, c2, [[0, 1, 2], [0, 1, 2]])\n"
+                      "abelianization(c3x2['cayley_table'])['invariant_factors']\n"
+                      "# -> [6]        already abelian: the group itself, "
+                      "as C6\n"
+                      "from srmech.cascade import unit_loop\n"
+                      "abelianization(unit_loop(4)['cayley_table'])"
+                      "['invariant_factors']\n"
+                      "# -> [2, 2]     Q8 / {+-1} = the Klein four-group\n",
+            'why': 'Three carriers, three shapes of the same invariant: a '
+                   'quotient that forgets the rotation (S3), a group that '
+                   'was already abelian (C3×C2 = C6), and the Q8 → V4 '
+                   'collapse the covering layer reads — each an exact '
+                   'divisor chain, no floats anywhere.'},
+        'explanation':
+            'WHAT it computes: the abelianization G / [G, G] together with '
+            'its invariant factors d_1 | d_2 | … — the composition '
+            'derived_subgroup → quotient_group, then exact Class-J '
+            'counting: for each prime p | |Q| the solution counts c_k = '
+            '#{x : x^(p^k) = e} are read off the quotient table, the p-type '
+            'partition is recovered by exact integer p-adic logs (repeated '
+            'integer division — never a float log), and prime powers '
+            'interleave largest-with-largest into the divisibility chain. '
+            'Returns the factors, the quotient order, the FULL '
+            'quotient_group payload and the projection map. '
+            'WHEN to reach for it: to name the abelian shadow of a '
+            'non-abelian table exactly — [2] for S3, [2,2] for Q8 and D4, '
+            '[3] for C7⋊C3, [21] for C7×C3 — instead of re-deriving the '
+            'structure theorem by hand; the count of degree-1 rows in '
+            'character_table equals the product of these factors (the '
+            'linear characters ARE this quotient\'s characters). '
+            'SIBLINGS: srmech.math.groups.derived_subgroup and '
+            'quotient_group are its two stages, both public — compose them '
+            'yourself only when you need a quotient by something OTHER '
+            'than [G, G].'},
+
+    'srmech.math.groups.cayley_graph': {
+        'example': {
+            'input': {'cayley_table': [[0, 1, 2, 3], [1, 2, 3, 0],
+                                       [2, 3, 0, 1], [3, 0, 1, 2]],
+                      'generators': [1], 'convention': 'right'},
+            'output': "{'n': 4, 'edges': [(0, 1), (1, 2), (2, 3), (3, 0)], "
+                      "'edge_generator': [1, 1, 1, 1], 'is_connected': "
+                      "True, 'edges_sha256': '...'}",
+            'worked': "from srmech.math.groups import (cyclic_group,\n"
+                      "    semidirect_product, cayley_graph)\n"
+                      "c4 = cyclic_group(4)['cayley_table']\n"
+                      "g = cayley_graph(c4, [1], 'right')\n"
+                      "g['edges'], g['is_connected']\n"
+                      "# -> ([(0, 1), (1, 2), (2, 3), (3, 0)], True)\n"
+                      "s3 = semidirect_product(cyclic_group(3)['cayley_table'],\n"
+                      "    cyclic_group(2)['cayley_table'], [[0, 1, 2], [0, 2, 1]])\n"
+                      "# one rotation does NOT generate S3:\n"
+                      "cayley_graph(s3['cayley_table'], [2], 'right')"
+                      "['is_connected']\n"
+                      "# -> False\n"
+                      "# a rotation plus a reflection does:\n"
+                      "g2 = cayley_graph(s3['cayley_table'], [2, 1], 'right')\n"
+                      "g2['is_connected'], len(g2['edges'])\n"
+                      "# -> (True, 12)      all |G|*|gens| directed edges\n",
+            'why': 'The C4 cycle graph as exact 2-tuples ready for '
+                   'dense_laplacian, and connectivity doubling as a '
+                   '"do these generators generate G" instrument — the '
+                   'rotation-only False is the worked negative.'},
+        'explanation':
+            'WHAT it computes: the directed Cayley graph of a group under a '
+            'generating set — ALL |G|·|generators| directed edges in '
+            'element-major, generator-minor order (an involution emits both '
+            'orientations naturally; nothing is deduplicated), the parallel '
+            'edge_generator list, a BFS-from-identity is_connected flag '
+            '(True iff the generators generate G), and a content address. '
+            'The REQUIRED convention parameter pins which multiplication '
+            "makes the edges ('right': x → x·g; 'left': x → g·x) — "
+            'caller-must-say, because on a non-abelian group the two edge '
+            'sets genuinely differ. '
+            'WHEN to reach for it: to hand a group to the Class-L spectral '
+            'family — edges are 2-tuples, the shipped laplacian edge '
+            'contract, so dense_laplacian / magnetic_laplacian consume the '
+            'list directly — or to CHECK a generating set rather than '
+            'assert one. This surface is EXACT-ONLY: no Mat, no spectrum; '
+            'the float boundary stays in the laplacian consumers. '
+            'SIBLINGS: srmech.math.laplacian.dense_laplacian / '
+            'magnetic_laplacian are the spectral consumers; do not '
+            'hand-enumerate x·g edge lists — the emission order and the '
+            'both-orientations involution behaviour are pinned here.'},
+
+    'srmech.math.groups.character_table': {
+        'example': {
+            'input': {'cayley_table': [[0, 1, 2], [1, 2, 0], [2, 0, 1]]},
+            'output': "{'order': 3, 'exponent': 3, 'zeta_order': 3, "
+                      "'phi_e': (1, 1, 1), 'degree': 2, 'k': 3, 'degrees': "
+                      "[1, 1, 1], 'table': [[(1, 0), (-1, -1), (0, 1)], "
+                      "[(1, 0), (0, 1), (-1, -1)], [(1, 0), (1, 0), "
+                      "(1, 0)]], ...}",
+            'worked': "from srmech.math.groups import cyclic_group, character_table\n"
+                      "ct = character_table(cyclic_group(3)['cayley_table'])\n"
+                      "ct['degrees'], ct['exponent'], ct['phi_e']\n"
+                      "# -> ([1, 1, 1], 3, (1, 1, 1))    Phi_3 = 1 + x + x^2\n"
+                      "ct['table'][1]\n"
+                      "# -> [(1, 0), (0, 1), (-1, -1)]\n"
+                      "# (0, 1) IS zeta_3 and (-1, -1) IS zeta_3^2 = "
+                      "-1 - zeta_3:\n"
+                      "# the value carrier is honest about irrationality -- "
+                      "no float,\n"
+                      "# no rounding, an integer vector per value, chi(1) "
+                      "always (d, 0).\n"
+                      "ct['table'][2]\n"
+                      "# -> [(1, 0), (1, 0), (1, 0)]     the trivial character\n",
+            'why': 'C3 is the smallest table whose values are genuinely '
+                   'irrational, and the power-basis carrier states them '
+                   'exactly — the example that proves the carrier is '
+                   'honest, per the rc456 spec.'},
+        'explanation':
+            'WHAT it computes: the exact complex character table of a '
+            'finite group, every value an integer coordinate vector of '
+            'length φ(e) in the ζ_e power basis reduced mod Φ_e (e = the '
+            'group exponent; Φ_e from '
+            'srmech.math.poly.cyclotomic_polynomial). Character values are '
+            'algebraic INTEGERS, so no rational ever appears; χ(1) = d '
+            'ships as (d, 0, …, 0), and conjugation is the shipped '
+            'inverse_class column permutation (χ̄(g) = χ(g⁻¹)). Row order '
+            'is pinned (degree, then lexicographic tuple); columns are the '
+            'conjugacy_classes order VERBATIM. Abelian tables take the '
+            'direct ζ-power construction; non-abelian ones the classical '
+            'prime-field split-and-lift (split prime p = e·m + 1 with '
+            'p² > 4|G| — the exact-integer spelling of p > 2√|G|; common '
+            'eigenvectors of the class matrices over GF(p) via gf_solve / '
+            'gf_nullspace; exact root-of-unity-multiplicity lift, each '
+            'multiplicity bounds-checked into [0, d]). In-op guards: '
+            'Σd² = |G| and every d | |G|. '
+            'WHEN to reach for it: any time character data is the question '
+            '— do not reach for an external CAS; the founding gap was '
+            'srmech scoring 0/10 on this stratum and sympy having to be '
+            'imported. A caller wanting DIVISION lifts values into Qalg '
+            'over m = phi_e (two lines, shown in the docstring). '
+            'SIBLINGS: srmech.math.groups.irrep_dimensions is the '
+            'degrees-only readout (same SSoT, delegated); '
+            'conjugacy_classes supplies the class data and pinned column '
+            'order; the payload deliberately carries class_algebra, '
+            'inverse_class and square_class so the tier-3 fusion / '
+            'Frobenius–Schur ops compose onto it without re-deriving '
+            'anything.'},
+
+    'srmech.math.groups.irrep_dimensions': {
+        'example': {
+            'input': {'cayley_table': [[0, 1, 2, 3, 4, 5], [1, 0, 5, 4, 3, 2],
+                                       [2, 3, 4, 5, 0, 1], [3, 2, 1, 0, 5, 4],
+                                       [4, 5, 0, 1, 2, 3], [5, 4, 3, 2, 1, 0]]},
+            'output': "{'degrees': [1, 1, 2], 'k': 3, 'order': 6, "
+                      "'num_linear': 2, 'sum_of_squares': 6}",
+            'worked': "from srmech.math.groups import (cyclic_group,\n"
+                      "    semidirect_product, irrep_dimensions)\n"
+                      "c7 = cyclic_group(7)['cayley_table']\n"
+                      "c3 = cyclic_group(3)['cayley_table']\n"
+                      "# the DIRECT product (trivial action): abelian\n"
+                      "direct = semidirect_product(c7, c3,\n"
+                      "    [list(range(7))] * 3)\n"
+                      "irrep_dimensions(direct['cayley_table'])['degrees'] "
+                      "== [1] * 21\n"
+                      "# -> True\n"
+                      "# the SEMIDIRECT product (mult-by-2 action): NOT\n"
+                      "twisted = semidirect_product(c7, c3,\n"
+                      "    [[(a * pow(2, h, 7)) % 7 for a in range(7)]\n"
+                      "     for h in range(3)])\n"
+                      "irrep_dimensions(twisted['cayley_table'])['degrees']\n"
+                      "# -> [1, 1, 1, 3, 3]    same order 21: max dim 3\n",
+            'why': 'The rc456 founding measurement executed end to end: '
+                   'same order, same two cycles, and the coupling alone '
+                   'decides whether an irrep of dimension 3 exists — '
+                   '"products of cycles are abelian" was true of one '
+                   'product and false of the other.'},
+        'explanation':
+            'WHAT it computes: the irreducible-representation dimension '
+            'multiset (ascending), the class/irrep count k, num_linear '
+            '(the count of degree-1 rows — equal to the abelianization '
+            'order) and sum_of_squares (equal to |G| by the underlying '
+            "table's own guard, returned so a caller can see it). One "
+            "delegation, one SSoT: degrees IS character_table(table)"
+            "['degrees'], never re-derived, so the two ops cannot disagree. "
+            'WHEN to reach for it: when the degree multiset is the whole '
+            'question — "does this table carry an irrep of dim > 1?" — '
+            'without wanting the values; the shipped workflow error rc456 '
+            'exists to prevent (calling a semidirect product abelian '
+            'because its factors are cycles) is answered by this op in one '
+            'call, instead of hand-rolling a commuting-pairs argument that '
+            'silently assumes the direct product. '
+            'SIBLINGS: srmech.math.groups.character_table when you need '
+            'the VALUES (this op calls it and returns a strict subset); '
+            'srmech.math.groups.abelianization for num_linear as a group '
+            '(the linear characters are its quotient\'s); '
+            'srmech.cascade.conjugacy_census for the magma-safe k when the '
+            'operand might not be a group.'},
+
+    'srmech.math.poly.cyclotomic_polynomial': {
+        'example': {
+            'input': {'n': 12},
+            'output': "{'n': 12, 'coefficients': (1, 0, -1, 0, 1), "
+                      "'degree': 4}",
+            'worked': "from srmech.math.poly import cyclotomic_polynomial\n"
+                      "cyclotomic_polynomial(12)\n"
+                      "# -> {'n': 12, 'coefficients': (1, 0, -1, 0, 1), "
+                      "'degree': 4}\n"
+                      "# Phi_12 = x^4 - x^2 + 1, degree phi(12) = 4\n"
+                      "cyclotomic_polynomial(6)\n"
+                      "# -> {'n': 6, 'coefficients': (1, -1, 1), 'degree': 2}\n"
+                      "cyclotomic_polynomial(1)\n"
+                      "# -> {'n': 1, 'coefficients': (-1, 1), 'degree': 1}\n"
+                      "cyclotomic_polynomial(0)\n"
+                      "# -> ValueError\n",
+            'why': 'Three exact coefficient tuples a reader can check '
+                   'against the divisor identity x^n − 1 = ∏ Φ_d by hand, '
+                   'and the domain refusal — values, not shapes.'},
+        'explanation':
+            'WHAT it computes: the n-th cyclotomic polynomial Φ_n as a '
+            'monic low→high integer coefficient tuple with its degree φ(n) '
+            '— Class J divisor-lattice arithmetic, Φ_n = (x^n − 1) / '
+            '∏_{d|n, d<n} Φ_d by exact integer polynomial division '
+            '(divisors enumerated from the c_dispatched '
+            'srmech.math.primes.factor), memoised per n. Cyclotomic '
+            'coefficients are integers, so no rational and no float ever '
+            'appears. '
+            'WHEN to reach for it: whenever ℤ[ζ_n] arithmetic needs its '
+            'defining modulus — srmech.math.groups.character_table builds '
+            'its whole value carrier on this op — or when you would '
+            'otherwise hand-roll Φ_n from roots of unity in floating '
+            'point, which is exactly the substrate-dishonest move the '
+            'exact tree exists to avoid. '
+            'SIBLINGS: the PRIVATE srmech.cascade.exact_dft.'
+            '_cyclotomic_reduction derives the same ring for the exact-DFT '
+            'engine; rc456 deliberately left it in place (refactoring its '
+            'internals would have moved foreign composes-adjudication '
+            'tiers) and instead pinned the two derivations EQUAL for '
+            'n ∈ 1..30 in tests/test_cyclotomic_polynomial_rc456.py, so '
+            'they cannot drift. srmech.math.poly.Poly is the exact-ℚ '
+            'carrier if you need to do further polynomial algebra on the '
+            'coefficients.'},
+
     # ── rc419 (`#T1110`) — the signal_processing dispatcher + path-registry
     # read surface, registered at last. Every output below is a REAL WSL2
     # capture (numpy-absent, HAS_NATIVE True); none is typed from memory.

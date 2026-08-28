@@ -1018,6 +1018,11 @@ def _register_amsc_tools() -> None:
             ),
             returns=ToolReturn(type="bytes",
                                shape="the raw 32-byte SHA-256 digest"),
+            # rc456: the rc452 census note called this row "SINGLE-shaped,
+            # not residual-by-accident … a drain for a later rc". This is
+            # that rc: the body is bytes.fromhex(sha256_bytes(data)) and
+            # nothing else, so the one-element tuple is forced.
+            composes=("srmech.amsc.format.sha256_bytes",),
             smoke_test_hint={"data": "b'hello'"},
         ),
         ToolEntry(
@@ -7374,6 +7379,38 @@ def _register_primitive_class_tools() -> None:
             smoke_test_hint={"coeffs": "[0, 1]"},
         ),
         ToolEntry(
+            name="srmech.math.poly.cyclotomic_polynomial", owner="srmech",
+            category="poly",
+            summary="The n-th cyclotomic polynomial Φ_n with EXACT integer "
+                    "coefficients — Class J divisor-lattice arithmetic: "
+                    "Φ_n = (x^n − 1) / ∏_{d|n, d<n} Φ_d by exact integer "
+                    "polynomial division up the divisor lattice (divisors "
+                    "from the c_dispatched srmech.math.primes.factor), "
+                    "memoised per n. Cyclotomic coefficients are integers, "
+                    "so no rational and no float ever appears. WHY PUBLIC "
+                    "(rc456): srmech.math.groups.character_table needs Φ_e "
+                    "to define its ℤ[ζ_e] value carrier, and the only "
+                    "general-Φ_N code in the tree was the PRIVATE "
+                    "exact_dft._cyclotomic_reduction — a public op is minted "
+                    "rather than a private cross-imported; the two "
+                    "derivations are pinned EQUAL for n ∈ 1..30 by "
+                    "tests/test_cyclotomic_polynomial_rc456.py, so neither "
+                    "can drift. Worked anchors: Φ_12 = x⁴ − x² + 1 → "
+                    "coefficients (1, 0, -1, 0, 1), degree 4 = φ(12); "
+                    "Φ_1 = x − 1 → (-1, 1). SIBLINGS: do not re-derive Φ_n "
+                    "from roots of unity or floats — this op is the exact "
+                    "source; groups.character_table consumes it. Exact ℤ.",
+            parameters=(
+                P("n", "int", True, "the index, ≥ 1"),
+            ),
+            returns=R("dict", "{n, coefficients (monic, low→high, tuple of "
+                              "ints), degree (= φ(n))}"),
+            composes=("srmech.math.primes.factor",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"n": "12"},
+        ),
+        ToolEntry(
             name="srmech.math.qpoly.qpoly_from_coeffs", owner="srmech",
             category="qpoly",
             summary="PROSE-SIDE carrier constructor (#1239 / F1027 / "
@@ -11493,6 +11530,355 @@ def _register_primitive_class_tools() -> None:
             preserves=("numpy-free; no abs() — sign-handling stays Class-K "
                        "pin-slot + Class-C",),
             smoke_test_hint={"n": "3", "convention": "'reflection_first'"},
+        ),
+        # ────────────────────────────────────────────────────────────
+        # srmech.math.groups — the REPRESENTATION stratum, tiers 1–2
+        # (rc456). Constructors + group-only reads + exact ℤ[ζ_e]
+        # character tables. The founding measurement: C7×C3 (direct) is
+        # abelian with degrees [1]*21; C7⋊C3 (semidirect) is non-abelian
+        # with degrees [1,1,1,3,3] — same order, same two cycles. Class K
+        # acting BETWEEN two Class-I operands is the non-abelianiser.
+        # Tier 3 (fusion / isotypic / Frobenius–Schur) ships in a later
+        # rc, composing onto these payloads — no stubs here.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.math.groups.cyclic_group", owner="srmech",
+            category="groups",
+            summary="The cyclic group C_n as a Cayley table — the Class-I "
+                    "producer closing the reachability gap "
+                    "srmech.cascade.finite_group documents: unit_loop yields "
+                    "only power-of-two orders and group_algebra_table raises "
+                    "on 3, 5, 12, 24, so no bare cycle of general order n was "
+                    "reachable at all — which made order-n cyclic character "
+                    "tables (and every semidirect operand) unreachable. "
+                    "Returns the same dict shape dihedral_group hands back "
+                    "(order / elements / cayley_table / identity, plus "
+                    "inverses), so every census and every "
+                    "srmech.math.groups.* op eats it interchangeably. "
+                    "SIBLINGS: semidirect_product composes two of these; "
+                    "conjugacy_census / conjugacy_classes / character_table "
+                    "all eat the table it returns. Table entries are the "
+                    "c_dispatched srmech.math.cyclic.mod_add. Exact ℤ.",
+            parameters=(
+                P("n", "int", True, "the order, ≥ 1"),
+            ),
+            returns=R("dict", "{n, order, elements, cayley_table, identity, "
+                              "inverses}"),
+            composes=("srmech.math.cyclic.mod_add",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"n": "3"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.semidirect_product", owner="srmech",
+            category="groups",
+            summary="The semidirect product N ⋊ H from two Cayley tables and "
+                    "an action — the rc456 thesis op: Class K coupling "
+                    "BETWEEN two Class-I operands, the non-abelianiser the "
+                    "A–N alphabet already contained (earlier work used K as a "
+                    "sign INSIDE an op, never as the coupling between ops). "
+                    "Measured at order 21: the trivial action gives C7×C3, "
+                    "abelian, degrees [1]*21; the mult-by-2 action gives "
+                    "C7⋊C3, non-abelian, degrees [1,1,1,3,3]. Cn ⋊ C2 by the "
+                    "inversion action IS dihedral — exact table equality with "
+                    "dihedral_group(n, 'rotation_first') under the relabeling "
+                    "σ(a·2+h) = h·n+a, executed by the rc456 tests. THREE "
+                    "PINNED CONVENTIONS: element index idx(a,h) = a·|H|+h; "
+                    "product (a1,h1)·(a2,h2) = (n_table[a1][action[h1][a2]], "
+                    "h_table[h1][h2]) — a LEFT action; homomorphism law "
+                    "action[h_table[h1][h2]][a] == action[h1][action[h2][a]]. "
+                    "Validation raises ValueError NAMING the failing law "
+                    "(operand group laws, bijection, automorphism, "
+                    "homomorphism, identity-acts-trivially); together the "
+                    "laws entail associativity — the validation IS the guard. "
+                    "The action is a permutation TABLE, not a callable — a "
+                    "callable cannot cross JSON-RPC and these operands are "
+                    "the semantics. The DIRECT product is the trivial action; "
+                    "there is no separate op. Exact ℤ; Class-A "
+                    "content-addressed table.",
+            parameters=(
+                P("n_table", "list[list[int]]", True,
+                  "the Cayley table of N (a group; validated)"),
+                P("h_table", "list[list[int]]", True,
+                  "the Cayley table of H (a group; validated)"),
+                P("action", "list[list[int]]", True,
+                  "action[h] is a permutation table of range(|N|) giving "
+                  "φ_h — a table, not a callable, so it crosses JSON-RPC"),
+            ),
+            returns=R("dict", "{order, elements ([[a, h] …]), cayley_table, "
+                              "identity, inverses, n_order, h_order, "
+                              "table_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"n_table": "[[0, 1], [1, 0]]",
+                             "h_table": "[[0]]",
+                             "action": "[[0, 1]]"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.conjugacy_classes", owner="srmech",
+            category="groups",
+            summary="The conjugacy-class MAPS of a finite GROUP — the "
+                    "group-only peer of srmech.cascade.conjugacy_census, and "
+                    "the class-data SSoT character_table reads. DIVISION OF "
+                    "LABOUR: the census is the guarded magma instrument (it "
+                    "answers 'is this even a group, and what would classes "
+                    "mean if not' — both bracketings, the class-equation "
+                    "disagreement); THIS op is group-only — it delegates the "
+                    "partition to the census, REFUSES a non-group with "
+                    "ValueError (the non-associative M16 unit loop is the "
+                    "worked negative), and returns the maps the census does "
+                    "not: class_of (element → class), representatives (min "
+                    "element per class), inverse_class (class of rep⁻¹ — "
+                    "conjugation as a column permutation, which is what makes "
+                    "χ̄(g) = χ(g⁻¹) computable with no Galois machinery), "
+                    "square_class (class of rep², well defined since (hgh⁻¹)² "
+                    "= hg²h⁻¹ — the tier-3 Frobenius–Schur indicator is a "
+                    "weighted sum over exactly this), and inverses (an O(n²) "
+                    "table scan — a scan, not a second union-find). The class "
+                    "index order is the census's class_partition order "
+                    "VERBATIM — one SSoT, never re-sorted. Exact ℤ.",
+            parameters=(
+                P("cayley_table", "list[list[int]]", True,
+                  "the n × n table; must be a group or the op refuses — "
+                  "conjugacy_census is the instrument for magmas"),
+            ),
+            returns=R("dict", "{order, k, classes, class_of, "
+                              "representatives, class_sizes, identity, "
+                              "inverses, inverse_class, square_class, "
+                              "class_partition_sha256}"),
+            composes=("srmech.cascade.conjugacy_census",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"cayley_table": "[[0, 1], [1, 0]]"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.derived_subgroup", owner="srmech",
+            category="groups",
+            summary="The derived (commutator) subgroup [G, G] of a finite "
+                    "group — Class E closure over Class C witnesses. Bracket "
+                    "convention PINNED: [g, h] = g⁻¹·h⁻¹·g·h. Requires a "
+                    "group (the guard is one conjugacy_census call, reused "
+                    "rather than re-derived); collects every commutator off "
+                    "the table, closes under the product to a fixpoint, and "
+                    "content-addresses the sorted element set. [G, G] is "
+                    "trivial exactly on the abelian carriers (C6 → order 1) "
+                    "and in between it is what abelianization quotients by — "
+                    "the number of degree-1 character_table rows equals "
+                    "order // subgroup_order, a cross-op identity the rc456 "
+                    "tests execute. Worked anchors: S3 → order 3; Q8 → order "
+                    "2 = {identity, the unique order-2 element}; C7⋊C3 → "
+                    "order 7. SIBLINGS: abelianization composes this; "
+                    "quotient_group eats its elements list directly. "
+                    "Exact ℤ.",
+            parameters=(
+                P("cayley_table", "list[list[int]]", True,
+                  "the n × n group table (ValueError otherwise)"),
+            ),
+            returns=R("dict", "{order (of G), elements (sorted), "
+                              "subgroup_order, index, elements_sha256}"),
+            composes=("srmech.cascade.conjugacy_census",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"cayley_table": "[[0, 1], [1, 0]]"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.quotient_group", owner="srmech",
+            category="groups",
+            summary="The quotient group G / N as a Cayley table over cosets "
+                    "— Class E. Validates that normal_elements is a subgroup "
+                    "(identity present, closed under product and inverse — "
+                    "else ValueError 'not a subgroup') and NORMAL (∀g: "
+                    "g·n·g⁻¹ stays inside — else 'not normal', the "
+                    "S3-mod-⟨reflection⟩ negative the rc456 tests execute), "
+                    "then checks the coset product WELL-DEFINED over all n² "
+                    "pairs — a representative-dependent product is refused, "
+                    "never averaged, which is also the guard that catches a "
+                    "non-associative operand. Cosets are indexed by minimal "
+                    "element. Public rather than private machinery because "
+                    "abelianization needs the quotient internally regardless, "
+                    "and a public op removes the hole a reader would "
+                    "otherwise hand-roll (S3 / rotations → the order-2 "
+                    "table [[0,1],[1,0]]). SIBLINGS: derived_subgroup "
+                    "produces the canonical normal operand; abelianization "
+                    "is the composition of the two. Exact ℤ.",
+            parameters=(
+                P("cayley_table", "list[list[int]]", True,
+                  "the n × n table of G"),
+                P("normal_elements", "list[int]", True,
+                  "the element indices of the normal subgroup N"),
+            ),
+            returns=R("dict", "{order (=|G|/|N|), cayley_table (coset "
+                              "table), elements (coset min-reps), coset_of, "
+                              "identity, inverses, coset_partition_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"cayley_table": "[[0, 1], [1, 0]]",
+                             "normal_elements": "[0]"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.abelianization", owner="srmech",
+            category="groups",
+            summary="The abelianization G / [G, G] with its invariant "
+                    "factors — a Class-I result via a Class-E quotient, the "
+                    "splits by Class-J exact counting. Composition of shipped "
+                    "public ops: derived_subgroup → quotient_group → "
+                    "invariant factors, the last by exact p-adic counting off "
+                    "the quotient table (c_k = #{x : x^(p^k) = e}; the p-type "
+                    "partition λ satisfies c_k = p^(Σ min(λ_i, k)) and is "
+                    "recovered by repeated integer division — never a float "
+                    "log), prime powers interleaved largest-with-largest into "
+                    "the divisibility chain d_1 | d_2 | …. Worked anchors the "
+                    "rc456 tests execute: S3 → [2]; Q8 → [2,2]; C7⋊C3 → [3]; "
+                    "C7×C3 → [21]; D4 → [2,2]. The count of degree-1 "
+                    "character_table rows equals ∏ d_i — the linear "
+                    "characters ARE this quotient's characters. SIBLINGS: do "
+                    "not hand-roll the quotient — quotient_group is public; "
+                    "derived_subgroup supplies the normal operand. Exact ℤ.",
+            parameters=(
+                P("cayley_table", "list[list[int]]", True,
+                  "the n × n group table (ValueError otherwise)"),
+            ),
+            returns=R("dict", "{invariant_factors (ascending divisibility), "
+                              "order (of the quotient), quotient (full "
+                              "quotient_group payload), projection "
+                              "(element → coset)}"),
+            composes=("srmech.math.groups.derived_subgroup",
+                      "srmech.math.groups.quotient_group",
+                      "srmech.math.primes.factor"),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"cayley_table": "[[0, 1], [1, 0]]"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.cayley_graph", owner="srmech",
+            category="groups",
+            summary="The directed Cayley graph of a group under a generating "
+                    "set — Class L mints the graph object; the generator "
+                    "DIRECTION is the Class-C datum the required convention "
+                    "parameter pins ('right': edges (x, table[x][g]); 'left': "
+                    "(x, table[g][x]) — caller-must-say, the dihedral_group "
+                    "convention= precedent, because on a non-abelian group "
+                    "the two edge sets genuinely differ). Emits ALL "
+                    "|G|·|generators| directed edges in element-major, "
+                    "generator-minor order — an involution produces both "
+                    "orientations naturally, no special-casing, no dedup. "
+                    "Edges are 2-tuples, the shipped laplacian edge contract, "
+                    "so dense_laplacian / magnetic_laplacian eat the list "
+                    "directly — but THIS surface is EXACT-ONLY: it returns "
+                    "no Mat and computes no spectrum; the Class-L float "
+                    "boundary stays in the laplacian consumers. "
+                    "is_connected is BFS from the identity — True iff the "
+                    "generators generate G (S3 with a rotation only → False, "
+                    "the worked negative). Exact ℤ.",
+            parameters=(
+                P("cayley_table", "list[list[int]]", True,
+                  "the n × n group table (ValueError otherwise)"),
+                P("generators", "list[int]", True,
+                  "non-empty, in-range, duplicate-free element indices"),
+                P("convention", "str", True,
+                  "'right' or 'left' — which multiplication makes the "
+                  "edges; REQUIRED, caller-must-say"),
+            ),
+            returns=R("dict", "{n, edges (2-tuples — the laplacian edge "
+                              "contract), edge_generator (parallel), "
+                              "is_connected, edges_sha256}"),
+            composes=("srmech.cascade.conjugacy_census",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"cayley_table": "[[0, 1], [1, 0]]",
+                             "generators": "[1]",
+                             "convention": "'right'"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.character_table", owner="srmech",
+            category="groups",
+            summary="The EXACT complex character table of a finite group — "
+                    "Class L, the spectral decomposition of the class "
+                    "algebra, every value an exact integer vector in the "
+                    "cyclotomic ring ℤ[ζ_e] (e = the group exponent): length "
+                    "φ(e), the ζ_e power basis, reduced mod Φ_e. Character "
+                    "values are algebraic INTEGERS, so no rational ever "
+                    "appears; ALL values are vectors including the rational "
+                    "ones (χ(1) = d ships as (d, 0, …, 0)) — scalars and "
+                    "vectors are never mixed. Conjugation is the "
+                    "class-of-inverse column permutation (χ̄(g) = χ(g⁻¹) via "
+                    "the shipped inverse_class — no Galois machinery). Row "
+                    "order pinned (degree, then lexicographic value tuple); "
+                    "column order is the conjugacy_classes order VERBATIM. "
+                    "Abelian fast path (k == |G|): characters built directly "
+                    "as ζ_e-power products, pure Class I. Otherwise the "
+                    "classical prime-field split-and-lift (commonly "
+                    "attributed to Dixon 1967; that venue is paywalled so NO "
+                    "attestation is claimed — the derivation is carried "
+                    "inline in the docstring): split prime p = e·m + 1 with "
+                    "p² > 4|G| (the exact-integer spelling of p > 2√|G| — "
+                    "never a square root, never a float), common eigenvectors "
+                    "of the class matrices over GF(p) via gf_solve / "
+                    "gf_nullspace (c_dispatched gf_rref underneath), degrees "
+                    "from the orthogonality sum, then the exact "
+                    "root-of-unity-multiplicity lift into ℤ[ζ_e]. Cost "
+                    "honest: O(p·k⁴) worst case — small-order groups; a "
+                    "large exponent makes it SLOW, never wrong. In-op "
+                    "guards: Σd² = |G|, every d | |G|, every lifted "
+                    "multiplicity in [0, d]. The payload carries everything "
+                    "tier 3 needs (class_algebra structure constants, "
+                    "inverse_class, square_class, phi_e, content addresses). "
+                    "Founding example: C3 → degrees [1,1,1] with the "
+                    "genuinely irrational values χ(g) = ζ3 = (0,1), χ(g²) = "
+                    "(-1,-1). Exact ℤ end to end.",
+            parameters=(
+                P("cayley_table", "list[list[int]]", True,
+                  "the n × n group table (ValueError otherwise)"),
+            ),
+            returns=R("dict", "{order, exponent, zeta_order, phi_e (monic "
+                              "Φ_e low→high), degree (= φ(e)), k, "
+                              "class_sizes, representatives, class_of, "
+                              "inverse_class, square_class, degrees "
+                              "(ascending), table (k × k of int tuples), "
+                              "class_algebra (k × k × k ints), "
+                              "table_sha256}"),
+            composes=("srmech.math.groups.conjugacy_classes",
+                      "srmech.math.cyclic.gcd",
+                      "srmech.math.poly.cyclotomic_polynomial",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"cayley_table": "[[0, 1], [1, 0]]"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.irrep_dimensions", owner="srmech",
+            category="groups",
+            summary="The irreducible-representation dimension multiset of a "
+                    "finite group — the Class-L readout of character_table, "
+                    "and the direct instrument for the rc456 founding "
+                    "question: does this table carry an irrep of dim > 1, or "
+                    "only lines? One delegation, one SSoT — degrees here IS "
+                    "character_table(table)['degrees'], never re-derived, so "
+                    "the two ops cannot disagree. The founding measurement "
+                    "as data: C7×C3 (direct product) → [1]*21; C7⋊C3 "
+                    "(semidirect, mult-by-2) → [1,1,1,3,3] — same order 21, "
+                    "same two cycles; the COUPLING, not the size, decides "
+                    "whether dimension > 1 is pronounceable. num_linear "
+                    "equals the abelianization order (the linear characters "
+                    "are the quotient's); sum_of_squares equals the group "
+                    "order by the table's own guard, returned so a caller "
+                    "can see it. SIBLINGS: reach for character_table when "
+                    "you need the VALUES; this op when the degree multiset "
+                    "is the question. Exact ℤ.",
+            parameters=(
+                P("cayley_table", "list[list[int]]", True,
+                  "the n × n group table (ValueError otherwise)"),
+            ),
+            returns=R("dict", "{degrees (ascending), k, order, num_linear, "
+                              "sum_of_squares}"),
+            composes=("srmech.math.groups.character_table",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"cayley_table": "[[0, 1], [1, 0]]"},
         ),
         # rc399 (`#T1064` Tier 2/3): the octonion CAYLEY PLANE 𝕆P² (carrier-
         # native, one rung above octonion_frame_read's ℍP¹≅S⁴) + the guarded
@@ -15905,6 +16291,13 @@ def _register_signal_processing_tools() -> None:
             returns=R("bytes",
                       "D/8 bytes of deterministic content — the packed "
                       "hypervector"),
+            # rc456: the rc452 census measured this row at 0 edges against
+            # the then-666-op BY_NAME; re-measured by the SAME committed
+            # instrument at 676 it derives exactly ONE depth-1 edge — the
+            # pure path's `_sha256_raw` aliased import at
+            # rbs_hdc_instrument.py:254 resolves to the (now-registered)
+            # sha256_raw. A one-element tuple has one ordering; forced.
+            composes=("srmech.amsc.format.sha256_raw",),
             smoke_test_hint={"name": "'LoE.token.example'"},
         )
     )

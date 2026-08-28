@@ -189,7 +189,22 @@ CEIL_FRAME_UNADJUDICATED = {
     # being serialised, not a coordinate the op reads, so varying one moves
     # the rendered TEXT without there being any frame it moves along. A
     # renderer is a serialisation step; there is no frame for it.
-    "NO_INT_INPUT": 154,    # nothing translatable along a frame axis
+    # rc456: 154 -> 160, six of the ten representation-stratum registrations,
+    # and it is the `render_template` structural class SIX TIMES OVER, not a
+    # new excuse. MEASURED per op (fp.probe_from_ledger over the refreshed
+    # ledger): semidirect_product / conjugacy_classes / derived_subgroup /
+    # abelianization / character_table / irrep_dimensions -> NO_INT_INPUT.
+    # Each binds its arguments (the harvester records real calls), but the
+    # bound operand is a CAYLEY TABLE — list[list[int]] — whose integers are
+    # element INDICES, i.e. payload naming positions in a finite group, not a
+    # coordinate the op reads along any modulus/frame axis; varying one
+    # corrupts the group rather than translating anything. The OTHER four ops
+    # of the same rc did NOT need this raise (cyclic_group / quotient_group /
+    # cayley_graph / cyclotomic_polynomial measured NOT_ADMISSIBLE — the
+    # probe could drive their int/list inputs and measured no frame
+    # translation), which is what shows the raise is about the operand's
+    # type, not about the family being under-exampled.
+    "NO_INT_INPUT": 160,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
     "SLOW_SKIP": 15,        # measured-slow, skipped BY NAME with a number
     # rc430 repair (`#T1127`): ops whose parameter carries a documented domain
