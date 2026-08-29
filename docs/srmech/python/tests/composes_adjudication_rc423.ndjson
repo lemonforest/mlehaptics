@@ -438,6 +438,7 @@
 {"composes": ["srmech.math.laplacian.mat_hermitian_eigendecompose"], "name": "srmech.physics.qm.so8.quaternion_subalgebra_stabilizer", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_matmul"], "name": "srmech.physics.qm.triality.triality_automorphism", "tier": "SINGLE"}
 {"composes": ["srmech.math.cyclic.mod_add"], "name": "srmech.physics.qm.triality.triality_cycle", "tier": "SINGLE"}
+{"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.physics.qm.triality.triality_frame_action", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_matvec"], "name": "srmech.signal_processing.beamforming_fixed", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.spectral_cascades.fft"], "name": "srmech.signal_processing.cross_spectral", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_matvec"], "name": "srmech.signal_processing.fsk", "tier": "SINGLE"}

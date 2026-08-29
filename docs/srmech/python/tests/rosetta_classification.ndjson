@@ -861,3 +861,5 @@
 {"exposed_as": "srmech.math.groups.quotient_group", "defined_at": "srmech.math.groups.quotient_group", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.groups.semidirect_product", "defined_at": "srmech.math.groups.semidirect_product", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.poly.cyclotomic_polynomial", "defined_at": "srmech.math.poly.cyclotomic_polynomial", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.laplacian.cyclic_laplacian_spectrum", "defined_at": "srmech.math.laplacian.cyclic_laplacian_spectrum", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.physics.qm.triality.triality_frame_action", "defined_at": "srmech.physics.qm.triality.triality_frame_action", "bucket": "composition_of_c"}

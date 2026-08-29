@@ -115,6 +115,14 @@ RECYCLE_EVERY = 64
 SLOW_ALLOWLIST: Dict[str, Tuple[float, str]] = {
     "srmech.physics.qm.so8.an_embedding": (240.0, "22.5 s measured: g2 = Der(O) branching"),
     "srmech.physics.qm.so8.so7_subalgebra": (240.0, "31.3 s measured: so(7) branching"),
+    # rc461: the op itself is 5.2 ms. What is slow is the FIRST touch of the
+    # memoised `_companion_maps()` — 46.7 s measured cold (28 exact 128-unknown
+    # solves) — and which snippet pays it depends on worker recycling, not on
+    # this op. Listed rather than left to luck: the three so8 entries above it
+    # normally warm the cache, but `--only` on this name alone does not.
+    "srmech.physics.qm.triality.triality_frame_action":
+        (240.0, "46.7 s measured COLD: the first _companion_maps() build; "
+                "the op itself is 5.2 ms"),
     "srmech.math.laplacian.recover_check": (240.0, "106 s measured: dense recover"),
     "srmech.math.laplacian.recover_check_spectral": (300.0, "244 s measured"),
     "srmech.math.laplacian.recover_check_structural": (240.0, "33 s measured"),

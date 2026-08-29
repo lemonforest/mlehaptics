@@ -733,8 +733,33 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   WSL2 processes; all three returned the SAME digest and 719 frames each,
 #:   and `search("rank", k=1).witness` agreed with the direct build in every
 #:   one. The ADR-0011 witness contract HOLDS.
+#: rc461 re-pin — the corpus witness moved because the registry PROSE moved,
+#: the sanctioned cause a fifth release running: two new ToolEntry
+#: registrations (`triality_frame_action`, `cyclic_laplacian_spectrum`) plus
+#: their curated example / explanation rows.
+#:
+#:   MEASURED: `len(frames) == 721`, and the split is 692 ops + 29 carriers.
+#:   The DELTA is exactly the two new op frames, DERIVED and not eyeballed:
+#:   the registry moved 690 -> 692 (measured live), REMOVED = none (the
+#:   rosetta-completeness gate reported exactly two unclassified ADDITIONS and
+#:   no deletions, and the composes-population gate reported "Deleted: []" —
+#:   two independent instruments agreeing that nothing left the surface), and
+#:   carriers are UNMOVED at 29 (neither op mints a carrier TYPE; exact ℚ
+#:   leaves both as `int` pairs, which is the whole reason this rc adds no C
+#:   symbol and no ABI bump). The op-name SET witness next door passed on a
+#:   freshly rewritten manifest, which is the assertion that no RENAME hid
+#:   inside the same count.
+#:
+#:   Measured LAST, after the final regen (`regen_all.py --check` reported all
+#:   six generated files up to date), per the rc454 rule that a pin taken
+#:   mid-release is a measurement of a draft.
+#:
+#:   DETERMINISM — `_build_frames` ran in THREE separate numpy-absent WSL2
+#:   processes; all three returned the SAME digest and 721 / 692 / 29, and
+#:   `search("rank", k=1).witness` agreed with the direct build in every one.
+#:   The ADR-0011 witness contract HOLDS.
 WITNESS_RC416 = (
-    "8c5c167e9b40047854d27fc46ceabbe60b1ff7822710f1a8e111ad6ab75ef5f9")
+    "d83ce9508773a517cefb78596b3d3f6bde0febba23c4bd5e2aee18173469010e")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

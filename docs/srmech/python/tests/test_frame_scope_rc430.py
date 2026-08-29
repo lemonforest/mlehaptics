@@ -173,7 +173,31 @@ CEIL_FRAME_UNADJUDICATED = {
     # address). Its two sibling registrations in the same change did NOT need
     # this raise, which is what shows the raise is about this parameter's
     # type and not about the triple being under-exampled.
-    "NO_ARG": 277,          # no harvested argument binding at all
+    # rc461 (`#T1181`): 277 -> 278 for
+    # `srmech.physics.qm.triality.triality_frame_action`, and it is the rc442 /
+    # rc452 raise VERBATIM — the FOURTH instance of one established structural
+    # class, not a fourth excuse. The gate's own advice is "bind the op's
+    # arguments", and that is NOT AVAILABLE HERE: the op takes exactly ONE
+    # parameter, `automorphism`, whose type is `Mat`, and its worked example
+    # DOES call it four times with real matrices from `triality_automorphism()`
+    # and `triality_swap()`. MEASURED as `status: no_jsonable_arg,
+    # unserializable: ["automorphism"]` in tests/example_args_ledger.ndjson —
+    # so the binding is missing because a 28×28 `Mat` has no JSON encoding the
+    # harvester can record, exactly the wall `genome_groups` (HV sequence) and
+    # `sha256_raw` (bytes) sit behind, and not because the example is thin.
+    # `fp.classify` then assigns NO_ARG on `if not base`.
+    #
+    # And, as in all three prior raises, NO_ARG is the CORRECT verdict rather
+    # than a probe gap. The frame axis asks whether an op translates along a
+    # frame when an INTEGER INPUT is varied; `triality_frame_action` has no
+    # integer input at all — it consumes a 28×28 exact-ℚ operator and returns a
+    # PERMUTATION OF THREE LABELS, a discrete classification with no coordinate
+    # to translate. Its sibling registration in the same rc did NOT need this
+    # raise: `cyclic_laplacian_spectrum` binds `n` and `deep` and the harvester
+    # records them (`status: ok`, 18 recorded calls), which is what shows the
+    # raise is about this parameter's TYPE and not about the pair being
+    # under-exampled.
+    "NO_ARG": 278,          # no harvested argument binding at all
     # rc442 (local task T1150): 152 -> 153, `genome_group`. It DID drain out of NO_ARG
     # (it binds `label` and `dim`), and landed one tier along in the same structural
     # class: neither bound argument is an INTEGER the frame axis could translate —

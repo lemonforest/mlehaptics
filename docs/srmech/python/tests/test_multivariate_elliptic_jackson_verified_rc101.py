@@ -249,7 +249,7 @@ def test_tools_total_is_pinned():
     # a name that spells the value is falsified by the next bump and was —
     # 16 such tests were found tree-wide, one named for 367 asserting 663.
     # See test_pinned_names_carry_no_value_rc447.py.
-    assert introspect.describe()["tools"]["total"] == 690
+    assert introspect.describe()["tools"]["total"] == 692
 
 
 # ── (6) the "inform, don't LIMIT" RAM-cost approximation (rc103 finisher) ───────────────

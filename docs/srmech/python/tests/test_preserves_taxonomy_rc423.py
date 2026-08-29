@@ -189,6 +189,23 @@ CLASSIFIED: Dict[str, Tuple[str, ...]] = {
     # would drop the half the rc exists to guarantee.
     'numpy-free; exact ℤ; no abs() — sign-handling stays Class-K pin-slot + Class-C':
         ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
+    # rc461 — the ℚ peer of the ℤ string above, and again deliberately NOT a
+    # reword of it: the guarantee is exactness in the RATIONALS, which is a
+    # strictly weaker carrier claim than "never leaves ℤ" and must not borrow
+    # the stronger sentence. `cyclic_laplacian_spectrum` carries eigenvalue
+    # coordinates in ℚ[x]/Φ_n and only its RECONCILIATIONS (trace, Σλ², ∏λ)
+    # land back in ℤ, where they are executed guards that raise.
+    'numpy-free; exact ℚ; no abs() — sign-handling stays Class-K pin-slot + Class-C':
+        ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
+    # rc461 — `triality_frame_action`. A SEPARATE string, and the difference is
+    # the point rather than a stylistic one: this op's no-abs() clause is not
+    # "sign-handling is Class K", because the op takes no magnitude at all. It
+    # closes each weight set under ±, which is Class-C ORIENTATION — a set
+    # closure, where a magnitude would be a discard. Sharing the sibling
+    # sentence would assert a pin-slot the body never runs.
+    'numpy-free; exact ℚ; no abs() — the ± weight closure is Class-C '
+    'orientation, not a magnitude':
+        ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
     # ── the four LOSSLESS codecs registered at rc425 (`#T1112`):
     # huffman / arithmetic_coding / lz77 / rle. ONE sentence across four ops,
     # deliberately: keying the taxonomy by the whole string makes reuse the

@@ -637,6 +637,28 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.math.weight_lattice.dominant_weight",
         "srmech.amsc.format.sha256_bytes",
     ),
+
+    # ── rc461 — the exact cycle-Laplacian spectrum in ℚ(ζ_n).
+    # TRACED end to end: `_cyclic_spectrum_qalg` calls
+    # `cyclotomic_polynomial(n)` as its FIRST act — the field cannot be
+    # built before Φ_n exists, so the order is forced by data dependence
+    # and not by preference — then the power ladder, the eigenvalue list
+    # and every reconciliation run as private exact-ℚ arithmetic on
+    # `Qalg` (a CARRIER, not a registered op, so it declares no edge),
+    # and `sha256_bytes` runs LAST, twice, over the finished procedure
+    # bytes and the finished spectrum wire form.
+    # NOT declared, deliberately: `srmech.math.primes.factor` is a
+    # registered op and IS reached — but through `cyclotomic_polynomial`'s
+    # own body, at depth 2. Declaring it here would attribute a
+    # grandchild's edge to this op and double-count it against the row
+    # above, which already owns that call.
+    # `triality_frame_action` is NOT in this ROSTER: its body calls
+    # exactly ONE registered op (sha256_bytes), so its order is FORCED
+    # and the committed census adjudicates it in the rc423 SINGLE tier.
+    "srmech.math.laplacian.cyclic_laplacian_spectrum": (
+        "srmech.math.poly.cyclotomic_polynomial",
+        "srmech.amsc.format.sha256_bytes",
+    ),
 }
 
 

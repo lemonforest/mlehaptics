@@ -248,6 +248,9 @@ __all__ = [
     "spectral_spine",
     "relational_structure",
     "generalized_ngon",
+    "cyclic_laplacian_spectrum",
+    "MAX_CYCLIC_SPECTRUM_N",
+    "MAX_CYCLIC_SPECTRUM_DEEP_N",
 ]
 
 MAX_NATIVE_NODES: int = 256
@@ -7864,6 +7867,301 @@ def generalized_ngon(
     }
 
 
+# ──────────────────────────────────────────────────────────────────────
+# §3.41.8 — the EXACT cycle-graph Laplacian spectrum in ℚ(ζ_n)  (rc461)
+#
+# `generalized_ngon` above reads a supplied incidence structure through
+# `jacobi_eigvals`, i.e. through FLOAT. For the one graph family whose
+# spectrum has a closed algebraic form — the cycle C_n, whose Laplacian is
+# the circulant 2I − A diagonalised by the characters of ℤ/n — the float
+# read is a projection of an object the ALU can hold exactly. The op below
+# holds it: every eigenvalue is an element of ℚ[x]/Φ_n(x), the cyclotomic
+# field, carried by :class:`srmech.math.qalg.Qalg`. No float appears
+# anywhere in the body.
+#
+# MAX_CYCLIC_SPECTRUM_N / MAX_CYCLIC_SPECTRUM_DEEP_N are MEASURED bounds,
+# not round numbers — see the constants' own comments.
+# ──────────────────────────────────────────────────────────────────────
+
+#: Upper bound on ``n`` for :func:`cyclic_laplacian_spectrum`. Measured on the
+#: rc461 build host: the base path costs 0.63 s at ``n = 256`` and 1.27 s at
+#: ``n = 251`` (prime, so ``φ(n) = 250`` — prime ``n`` is the expensive case,
+#: because the field degree IS ``φ(n)``). 256 is also the module's existing
+#: :data:`MAX_NATIVE_NODES`, so the exact op and the native Jacobi path stop at
+#: the same place rather than at two different numbers.
+MAX_CYCLIC_SPECTRUM_N: int = 256
+
+#: Upper bound on ``n`` for the ``deep=True`` reconciliations. Measured over
+#: ``n = 1..64``: worst case 4.98 s at ``n = 61``, against 0.09 s for the base
+#: path at ``n = 59``. The gap is the running Kirchhoff PRODUCT: adding exact
+#: field elements keeps coefficients bounded, multiplying them does not, so the
+#: partial products of ``∏λ_k`` grow even though the answer is the small integer
+#: ``n²``. A left fold was measured against a balanced binary tree at
+#: ``n = 105`` — 11.4 s vs 20.4 s — so the fold is kept and the bound is on
+#: ``n``, not on the association order.
+MAX_CYCLIC_SPECTRUM_DEEP_N: int = 64
+
+
+def _cyclic_spectrum_qalg(n: int, m) -> "Tuple[List[Any], Any]":
+    """The power ladder ``[α⁰ … αⁿ]`` in ℚ[x]/(m) and the exact eigenvalues.
+
+    ``α = ζ_n`` satisfies ``αⁿ = 1`` because ``Φ_n | xⁿ − 1``, so the negative
+    powers a circulant needs are just ``α^{n−k}`` — no :meth:`Qalg.inverse`.
+    That is not a micro-optimisation: ``α^{-1}`` reduces to a DENSE coordinate
+    vector, so a ladder built from it costs a full ``O(φ²)`` convolution per
+    step, while multiplying by the SPARSE ``α`` costs ``O(φ)``. Measured at
+    ``n = 101``: 6.79 s the dense way, 0.32 s this way.
+
+    ``m`` is passed IN rather than fetched here so the caller's declared
+    ``composes`` edge to :func:`srmech.math.poly.cyclotomic_polynomial` is a
+    call in the op's own body — a declaration whose evidence sits one frame
+    down is a declaration a call-graph reader cannot check.
+    """
+    from .qalg import Qalg                             # exact ℚ(α) carrier
+
+    alpha = Qalg.alpha(m)
+    one = alpha.one()
+    powers = [one]
+    for _ in range(n):
+        powers.append(powers[-1] * alpha)
+    two = one + one
+    eigenvalues = [two - powers[k] - powers[(n - k) % n] for k in range(n)]
+    return eigenvalues, powers
+
+
+def _qalg_pairs(element) -> "Tuple[Tuple[int, int], ...]":
+    """An exact field element as a tuple of ``(numerator, denominator)`` int
+    pairs — the wire form. ``Qalg`` itself never crosses the registry boundary,
+    so this op introduces no new carrier TYPE and no discriminator widening."""
+    return tuple((c.numerator, c.denominator) for c in element.coords)
+
+
+def cyclic_laplacian_spectrum(n: int, deep: bool = False) -> Dict[str, Any]:
+    """The EXACT Laplacian spectrum of the cycle graph ``C_n``, as elements of
+    the cyclotomic field ℚ(ζ_n) — Class L ∘ Class I ∘ Class N (rc461).
+
+    The Laplacian of ``C_n`` is the circulant ``L = 2I − A``, and a circulant is
+    diagonalised by the characters of **ℤ/n** (Class I): the eigenvector for
+    ``k`` is ``(1, ζ^k, ζ^{2k}, …)`` and the eigenvalue is
+
+        ``λ_k = 2 − ζ^k − ζ^{−k}``,   ``ζ = ζ_n``,   ``k = 0 … n−1``.
+
+    Every ``λ_k`` therefore lives in ``ℚ[x]/Φ_n(x)``, and this op returns it
+    there — as exact ``(numerator, denominator)`` coordinate pairs against the
+    power basis ``1, α, …, α^{φ(n)−1}``. **The float spelling
+    ``2 − 2cos(2πk/n)`` is a PROJECTION of this object, not the object**; no
+    float is constructed anywhere in the body, and no embedding root is
+    attached, so nothing here can be read as a rotation the ALU did not do.
+
+    **What the payload RECONCILES.** Algebraic numbers summed and multiplied
+    over a whole ℤ/n orbit fall back into ℚ, and the op EXECUTES those falls
+    rather than asserting them — each is an in-op guard that raises:
+
+    * ``trace`` ``= Σ_k λ_k = 2n`` for ``n ≥ 2`` — the degree sum, ``2·|E|``.
+      ``n = 1`` is the one exception and it is NAMED, not tolerated: the
+      1-cycle's single edge is a SELF-LOOP, which lands on the degree and on
+      the diagonal of ``A`` in equal measure, so ``L = [0]`` and the trace is
+      ``0``. A guard that silently accepted both would be checking nothing.
+    * ``sum_of_squares`` ``= Σ_k λ_k² = 6n`` for ``n ≥ 3`` (``deep=True``).
+      ``n ∈ {1, 2}`` are the degenerate multigraph cases and are EXCLUDED from
+      the law by name, not by a silent tolerance: ``C_2`` is a doubled edge and
+      returns 16, not 12.
+    * ``kirchhoff_product`` ``= ∏_{k≥1} λ_k = n²`` (``deep=True``), hence
+      ``spanning_trees = n`` by the matrix-tree theorem — which is independently
+      obvious for a cycle (delete any one of the ``n`` edges), so the payload
+      carries an anchor whose value is known without this op.
+    * ``alpha_order_closes`` — ``αⁿ == 1`` in the field, checked, not assumed.
+    * ``chirality_paired`` — ``λ_k == λ_{n−k}``, the Class-C orientation
+      pairing: reversing the cycle's traversal is the ``k ↦ n−k`` involution and
+      the spectrum is fixed by it. Sign is never taken by ``abs()``.
+
+    **The crystallographic reading (MEASURED, not quoted).** ``all_rational`` is
+    ``True`` exactly when every ``λ_k`` lies in the prime field ℚ. Measured over
+    ``n = 1..30`` by executing this op: the set is ``{1, 2, 3, 4, 6}``, which is
+    exactly ``{n : φ(n) ≤ 2}``. The pentagon is the first failure — its
+    eigenvalues are ``(5 ± √5)/2`` — and that is the same arithmetic that keeps
+    5-fold symmetry out of a lattice. The op does not CITE the crystallographic
+    restriction; it returns the datum the restriction is about.
+
+    Args:
+        n: the cycle length, ``1 <= n <= 256``
+            (:data:`MAX_CYCLIC_SPECTRUM_N`). ``n = 1`` is the single self-loop-free
+            vertex (spectrum ``{0}``) and ``n = 2`` the doubled edge; both are
+            returned and both are flagged in ``degenerate``.
+        deep: also compute the two EXPENSIVE reconciliations
+            (``sum_of_squares``, ``kirchhoff_product`` / ``spanning_trees``).
+            Requires ``n <= 64`` (:data:`MAX_CYCLIC_SPECTRUM_DEEP_N`); the bound
+            and its measurement are on that constant.
+
+    Returns:
+        ``{'n', 'graph', 'minimal_polynomial', 'field_degree', 'eigenvalues',
+        'distinct', 'multiplicities', 'n_distinct', 'all_rational',
+        'rational_spectrum', 'trace', 'alpha_order_closes', 'chirality_paired',
+        'degenerate', 'sum_of_squares', 'kirchhoff_product', 'spanning_trees',
+        'deep', 'procedure_sha256', 'spectrum_sha256'}``. The three ``deep``
+        fields are ``None`` when ``deep`` is False — present and null, never
+        absent, so a consumer never has to ask whether the key exists.
+
+    Raises:
+        TypeError: if ``n`` is not an ``int`` (``bool`` excluded).
+        ValueError: if ``n`` is out of range, if ``deep`` is asked above
+            :data:`MAX_CYCLIC_SPECTRUM_DEEP_N`, or if any reconciliation fails.
+
+    Note:
+        Exact ℚ throughout; no float, no ``abs()``, no numpy. No C peer — the
+        exact cyclotomic carrier is Python-first under the ADR-0009
+        noted-disparity ruling, and no new carrier TYPE crosses the registry
+        boundary (the field elements leave as ``int`` pairs), so ABI is
+        unchanged.
+
+    Example:
+        >>> cyclic_laplacian_spectrum(6)["all_rational"]
+        True
+        >>> cyclic_laplacian_spectrum(5)["all_rational"]
+        False
+        >>> cyclic_laplacian_spectrum(6)["rational_spectrum"]
+        ((0, 1), (1, 1), (3, 1), (4, 1), (3, 1), (1, 1))
+    """
+    if isinstance(n, bool) or not isinstance(n, int):
+        raise TypeError(
+            "cyclic_laplacian_spectrum: n must be int; got "
+            f"{type(n).__name__}")
+    if n < 1 or n > MAX_CYCLIC_SPECTRUM_N:
+        raise ValueError(
+            f"cyclic_laplacian_spectrum: requires 1 <= n <= "
+            f"{MAX_CYCLIC_SPECTRUM_N}; got {n}")
+    deep = bool(deep)
+    if deep and n > MAX_CYCLIC_SPECTRUM_DEEP_N:
+        raise ValueError(
+            f"cyclic_laplacian_spectrum: deep=True requires n <= "
+            f"{MAX_CYCLIC_SPECTRUM_DEEP_N} (the exact Kirchhoff product's "
+            f"partial coefficients grow with the field degree); got n={n}. "
+            f"Call with deep=False for the base spectrum.")
+
+    # Function-local imports, deliberately: `srmech.math.laplacian` is imported
+    # by the carrier layer, and hoisting `poly` / `qalg` / `amsc.format` to
+    # module scope would put three subpackages on the import path of every
+    # `Mat` consumer for the sake of one op. Zero import-time cost, same call
+    # graph — and the two registered sub-ops this op declares are BOTH called
+    # from this body, where a reader and the composes-grain gate can see them.
+    # Both spelled ABSOLUTELY on purpose: `tests/composes_derive.py`'s
+    # `_local_aliases` resolves a function-body `ImportFrom` only when
+    # `level == 0`, so a relative `from .poly import ...` makes the declared
+    # `composes` edge invisible to the grain gate — measured, it went red on
+    # exactly that. A declaration a reader can check must import the way the
+    # reader's tool reads.
+    from srmech.math.poly import cyclotomic_polynomial  # Class J divisor lattice
+    from srmech.amsc.format import sha256_bytes         # Class A content address
+
+    phi = cyclotomic_polynomial(n)
+    eigenvalues, powers = _cyclic_spectrum_qalg(n, phi["coefficients"])
+    one = powers[0]
+
+    alpha_order_closes = bool(powers[n] == one)
+    if not alpha_order_closes:
+        raise ValueError(
+            f"cyclic_laplacian_spectrum: alpha^{n} != 1 in Q[x]/Phi_{n} — the "
+            f"cyclotomic minimal polynomial does not divide x^{n} - 1")
+
+    # Class C: the traversal-reversal involution k -> n-k. A pairing check, not
+    # a magnitude — no sign is discarded here and no abs() is reachable.
+    chirality_paired = all(eigenvalues[k] == eigenvalues[(n - k) % n]
+                           for k in range(n))
+    if not chirality_paired:
+        raise ValueError(
+            "cyclic_laplacian_spectrum: the spectrum is not fixed by the "
+            "traversal-reversal involution k -> n-k")
+
+    trace_elem = eigenvalues[0]
+    for elem in eigenvalues[1:]:
+        trace_elem = trace_elem + elem
+    # tr(L) = sum of degrees = 2·|E|, and C_n has n edges for n >= 2. n = 1 is
+    # the ONE exception and it is named, not tolerated: the 1-cycle's single
+    # edge is a SELF-LOOP, which contributes to the degree and to the diagonal
+    # of A in equal measure, so L = [0] and the trace is 0 rather than 2.
+    expected_trace = 0 if n == 1 else 2 * n
+    if not trace_elem.is_rational() or trace_elem.coords[0] != Q(expected_trace, 1):
+        raise ValueError(
+            f"cyclic_laplacian_spectrum: trace reconciliation failed — "
+            f"sum of eigenvalues is {trace_elem!r}, expected the integer "
+            f"{expected_trace}")
+    trace = int(trace_elem.coords[0].numerator)
+
+    all_rational = all(e.is_rational() for e in eigenvalues)
+    rational_spectrum = (
+        tuple((e.coords[0].numerator, e.coords[0].denominator)
+              for e in eigenvalues)
+        if all_rational else None)
+
+    wire = tuple(_qalg_pairs(e) for e in eigenvalues)
+    distinct: "List[Tuple[Tuple[int, int], ...]]" = []
+    multiplicities: "List[int]" = []
+    for coords in wire:
+        if coords in distinct:
+            multiplicities[distinct.index(coords)] += 1
+        else:
+            distinct.append(coords)
+            multiplicities.append(1)
+
+    sum_of_squares: Optional[int] = None
+    kirchhoff_product: Optional[int] = None
+    spanning_trees: Optional[int] = None
+    if deep:
+        sq = eigenvalues[0] * eigenvalues[0]
+        product = None
+        for elem in eigenvalues[1:]:
+            sq = sq + elem * elem
+            product = elem if product is None else product * elem
+        if not sq.is_rational():
+            raise ValueError(
+                f"cyclic_laplacian_spectrum: sum-of-squares did not fall back "
+                f"into Q; got {sq!r}")
+        sum_of_squares = int(sq.coords[0].numerator)
+        if n >= 3 and sq.coords[0] != Q(6 * n, 1):
+            raise ValueError(
+                f"cyclic_laplacian_spectrum: sum-of-squares reconciliation "
+                f"failed — got {sum_of_squares}, expected {6 * n}")
+        if product is not None:
+            if not product.is_rational():
+                raise ValueError(
+                    f"cyclic_laplacian_spectrum: the Kirchhoff product did not "
+                    f"fall back into Q; got {product!r}")
+            kirchhoff_product = int(product.coords[0].numerator)
+            if product.coords[0] != Q(n * n, 1):
+                raise ValueError(
+                    f"cyclic_laplacian_spectrum: Kirchhoff reconciliation "
+                    f"failed — prod_(k>=1) lambda_k is {kirchhoff_product}, "
+                    f"expected n^2 = {n * n}")
+            spanning_trees = kirchhoff_product // n
+
+    procedure = (
+        b"cyclic_laplacian_spectrum/1: L = 2I - A on C_n; lambda_k = "
+        b"2 - alpha^k - alpha^(n-k) in Q[x]/Phi_n; exact Q coords, no float")
+    spectrum_bytes = repr((n, tuple(phi["coefficients"]), wire)).encode("utf-8")
+    return {
+        "n": n,
+        "graph": f"C_{n}",
+        "minimal_polynomial": tuple(phi["coefficients"]),
+        "field_degree": int(phi["degree"]),
+        "eigenvalues": wire,
+        "distinct": tuple(distinct),
+        "multiplicities": tuple(multiplicities),
+        "n_distinct": len(distinct),
+        "all_rational": all_rational,
+        "rational_spectrum": rational_spectrum,
+        "trace": trace,
+        "alpha_order_closes": alpha_order_closes,
+        "chirality_paired": chirality_paired,
+        "degenerate": n < 3,
+        "sum_of_squares": sum_of_squares,
+        "kirchhoff_product": kirchhoff_product,
+        "spanning_trees": spanning_trees,
+        "deep": deep,
+        "procedure_sha256": sha256_bytes(procedure),
+        "spectrum_sha256": sha256_bytes(spectrum_bytes),
+    }
+
+
 # Registry of available Class L op names for the composition engine.
 # Order is documentary; consumers iterate by name not position.
 LAPLACIAN_OPS: Tuple[str, ...] = (
@@ -7915,4 +8213,5 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "schur_complement",
     "dirichlet_to_neumann",
     "generalized_ngon",
+    "cyclic_laplacian_spectrum",
 )

@@ -12960,6 +12960,78 @@ def _register_primitive_class_tools() -> None:
                               "n_distinct_eigenvalues, spectral_consistent, "
                               "example}"),
         ),
+        # rc461 — the EXACT peer of the entry above. generalized_ngon reads a
+        # supplied incidence graph through jacobi_eigvals, i.e. through FLOAT.
+        # The ordinary (thin) k-gon it ships as a built-in IS the cycle C_2k,
+        # and a cycle's Laplacian is a circulant: its spectrum has a closed
+        # ALGEBRAIC form the ALU can hold exactly. This op holds it.
+        ToolEntry(
+            name="srmech.math.laplacian.cyclic_laplacian_spectrum",
+            owner="srmech", category="laplacian",
+            summary="The EXACT Laplacian spectrum of the cycle graph C_n, as "
+                    "elements of the cyclotomic field ℚ(ζ_n) — Class L ∘ "
+                    "Class I ∘ Class N. L = 2I − A is a circulant, and a "
+                    "circulant is diagonalised by the characters of ℤ/n "
+                    "(Class I), so λ_k = 2 − ζ^k − ζ^(−k) lies in ℚ[x]/Φ_n(x) "
+                    "and is RETURNED there — exact (numerator, denominator) "
+                    "coordinate pairs against the power basis, never a float. "
+                    "The familiar 2 − 2cos(2πk/n) is a PROJECTION of this "
+                    "object; no float is constructed in the body and no "
+                    "embedding root is attached, so nothing here can be read "
+                    "as a rotation the ALU did not do. WHAT THE PAYLOAD "
+                    "RECONCILES, as executed guards that raise rather than "
+                    "asserted prose: Σλ_k = 2n always; and under deep=True, "
+                    "Σλ_k² = 6n for n ≥ 3 (n ∈ {1,2} are the degenerate "
+                    "multigraph cases, EXCLUDED by name — C_2 is a doubled "
+                    "edge and returns 16, not 12) and ∏_(k≥1) λ_k = n², hence "
+                    "spanning_trees = n by the matrix-tree theorem, an anchor "
+                    "whose value is independently obvious (delete any one of "
+                    "the n edges). Two structural guards run always: αⁿ == 1 "
+                    "in the field, checked not assumed; and λ_k == λ_(n−k), "
+                    "the Class-C traversal-reversal pairing — a pairing, not "
+                    "a magnitude, so no abs() is reachable. THE "
+                    "CRYSTALLOGRAPHIC READING, measured rather than quoted: "
+                    "all_rational is True exactly on n ∈ {1,2,3,4,6} over "
+                    "1..30, which is exactly {n : φ(n) ≤ 2}. The pentagon is "
+                    "the first failure, its eigenvalues (5 ± √5)/2 — the same "
+                    "arithmetic that keeps 5-fold symmetry out of a lattice. "
+                    "The op does not cite the restriction; it returns the "
+                    "datum the restriction is about. BOUNDS are MEASURED, not "
+                    "round: n ≤ 256 (0.63 s at 256; prime n is the expensive "
+                    "case because the field degree IS φ(n)) and deep requires "
+                    "n ≤ 64 (4.98 s at n=61 — adding exact field elements "
+                    "keeps coefficients bounded, multiplying them does not). "
+                    "SIBLING: generalized_ngon's example='ordinary_k' is the "
+                    "same graph C_2k read through float; the two spectra are "
+                    "the same object in two projections. C-parity (ADR-0009, "
+                    "recorded): no C peer; the exact cyclotomic carrier is "
+                    "Python-first under the noted-disparity ruling, and no "
+                    "new carrier TYPE crosses the boundary (field elements "
+                    "leave as int pairs), so ABI is unchanged.",
+            parameters=(
+                P("n", "int", True,
+                  "the cycle length, 1 <= n <= 256 (MAX_CYCLIC_SPECTRUM_N)"),
+                P("deep", "bool", False,
+                  "also compute the two EXPENSIVE reconciliations "
+                  "(sum_of_squares, kirchhoff_product / spanning_trees); "
+                  "requires n <= 64 (MAX_CYCLIC_SPECTRUM_DEEP_N)"),
+            ),
+            returns=R("dict", "{n, graph, minimal_polynomial (Φ_n, monic, "
+                              "low→high ints), field_degree (= φ(n)), "
+                              "eigenvalues (n coordinate tuples of (num, den) "
+                              "pairs), distinct, multiplicities, n_distinct, "
+                              "all_rational, rational_spectrum (or None), "
+                              "trace, alpha_order_closes, chirality_paired, "
+                              "degenerate, sum_of_squares, "
+                              "kirchhoff_product, spanning_trees (the three "
+                              "None unless deep), deep, procedure_sha256, "
+                              "spectrum_sha256}"),
+            composes=("srmech.math.poly.cyclotomic_polynomial",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; exact ℚ; no abs() — sign-handling "
+                       "stays Class-K pin-slot + Class-C",),
+            smoke_test_hint={"n": 6},
+        ),
         # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
         # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).
         # The cascade-faithful Q8-genome foundation (ADDITIVE; no genome wiring).
@@ -15417,6 +15489,74 @@ def _register_qm_tools() -> None:
                     "S3 = Out(Spin(8)). Class C. Baez (2002) §2.4.",
             parameters=(),
             returns=R("Mat", "28×28 Z2 involution"),
+        ),
+        # rc461 — the DERIVATION of what the two entries above DO to the three
+        # labels. Through rc460 that was a pair of hard-coded module dicts:
+        # correct, but definitional, justified by how the companion maps are
+        # built, with the only independent derivation living in a note script
+        # and a test — neither of which ships. triality_rep_dictionary emits
+        # tau_label_action into describe(), the MCP tool list and the
+        # compiled-in C registry, so a consumer read a claim no shipped op
+        # could re-derive. This op re-derives it, from the matrix alone.
+        ToolEntry(
+            name="srmech.physics.qm.triality.triality_frame_action",
+            owner="srmech", category="qm.triality",
+            summary="Which of 8v / 8s / 8c a 28×28 so(8) automorphism sends "
+                    "each frame to — MEASURED off the matrix, in exact ℚ. "
+                    "Class D (a pattern-match on a WEIGHT SET) ∘ Class C (the "
+                    "± orientation closure that makes the match blind to "
+                    "which end of a rotation plane is called positive — a "
+                    "closure, never an abs()). HOW, AND WHY IT IS CHEAP: the "
+                    "three 8-dim reps are separated by their weight systems. "
+                    "Restricted to the standard Cartan ⟨E01,E23,E45,E67⟩ the "
+                    "frame with Cartan block A_f carries weights ± the rows "
+                    "of A_f — 8v gets the integer {±e_j}, the two spinor "
+                    "frames get all-half-integer rows split by the PARITY of "
+                    "their minus signs, and that parity is READ off the "
+                    "shipped S_B / S_C (measured: 8s odd, 8c even), not "
+                    "chosen. The action is then the exact-ℚ set match "
+                    "{± rows of A_f·A_φ} == W_g. All three shipped maps "
+                    "PRESERVE that Cartan span exactly, every induced entry "
+                    "in {−1/2, 0, +1/2}, so the whole read is 4×4 rational "
+                    "arithmetic — measured 5.2 ms for both generators against "
+                    "~4.3 s for one exact companion solve. A map that does "
+                    "NOT preserve the span is REFUSED with a ValueError "
+                    "naming the escaping coordinate, never answered "
+                    "approximately. 4 × 8 = 32, THE RECONCILIATION: a frame "
+                    "is an 8-dimensional rep, and the datum that fixes which "
+                    "one it is has exactly 8 weights × 4 Cartan coordinates = "
+                    "32 exact rationals; the payload returns both halves so "
+                    "the reduction from 8 dimensions to 4 is inspectable "
+                    "rather than asserted, alongside the computed 24-element "
+                    "union of the three disjoint weight sets. IT CAN RETURN "
+                    "OTHERWISE: driven over the six elements of ⟨S_B,S_C⟩ ≅ "
+                    "S₃ it returns six DISTINCT permutations of {v,s,c} — "
+                    "every element of Sym(3), including the third "
+                    "transposition S_B·S_C·S_B (v fixed, s ↔ c) that no "
+                    "shipped constant names. Composition is contravariant: "
+                    "the measured action of S_B·S_C is π_(S_C) ∘ π_(S_B). "
+                    "SIBLINGS: triality_automorphism / triality_swap supply "
+                    "the matrices; triality_rep_dictionary consumes the same "
+                    "label actions. C-parity (ADR-0009, recorded): no C peer; "
+                    "Python-first under the noted-disparity ruling, no new "
+                    "carrier TYPE (ℚ leaves as int pairs), ABI unchanged. "
+                    "SSoT: Baez, *The Octonions*, Bull. AMS 39 (2002) "
+                    "145–205, arXiv:math/0105155 §2.4.",
+            parameters=(
+                P("automorphism", "Mat", True,
+                  "the 28×28 map in the shared E_pq frame — what "
+                  "triality_automorphism() / triality_swap() return"),
+            ),
+            returns=R("dict", "{frame_action, order (1/2/3), fixed_frames, "
+                              "moved_frames, is_identity, cartan_rank (4), "
+                              "weights_per_frame (8), weight_table_entries "
+                              "(32), distinct_weights (24), cartan_block "
+                              "(4×4 of (num, den)), frame_weights, "
+                              "spinor_parity (MEASURED), procedure_sha256, "
+                              "action_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; exact ℚ; no abs() — the ± weight closure "
+                       "is Class-C orientation, not a magnitude",),
         ),
         ToolEntry(
             name="srmech.physics.qm.triality.triality_cycle", owner="srmech",

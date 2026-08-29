@@ -270,7 +270,7 @@ def test_introspect_tools_total_matches_live():
     # rc410 (`#T1085`): filter by OWNER, not by name-prefix — see
     # tests/_profile_probe.py for why the prefix axis was the wrong question.
     shipped = list(get_tool_schema().by_owner("srmech"))
-    assert len(shipped) == 690
+    assert len(shipped) == 692
     names = {t.name for t in shipped}
     assert "srmech.apokatastasis.unary_theta.unary_theta" in names
     assert "srmech.apokatastasis.harmonic_maass.harmonic_maass" in names

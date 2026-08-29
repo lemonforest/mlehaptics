@@ -1124,13 +1124,17 @@ def lean_isa_seventh_primitive() -> dict:
 
 #: The label action of the shipped ``S_B`` (``triality_swap``) on {v, s, c}.
 #: S_B carries A to its 8s companion, so precomposition exchanges 8v and 8s and
-#: FIXES 8c. Independently confirmed by char-poly in the rc422 note.
+#: FIXES 8c. Independently confirmed by char-poly in the rc422 note, and — since
+#: rc461 — DERIVED by the shipped :func:`triality_frame_action`, which returns
+#: this dict from the 28×28 matrix without consulting this constant.
 _SWAP_LABEL_ACTION: Dict[str, str] = {"v": "s", "s": "v", "c": "c"}
 
 #: The label action of the shipped ``τ = S_B·S_C`` (``triality_automorphism``).
 #: Precomposition is contravariant, so the labels compose as π_{S_C} ∘ π_{S_B},
 #: giving the 3-cycle v → s → c → v — the SAME direction :func:`triality_cycle`
-#: documents, reached by a different route.
+#: documents, reached by a different route. Also derived by
+#: :func:`triality_frame_action` (rc461); the agreement of the two is a gate,
+#: not a comment.
 _TAU_LABEL_ACTION: Dict[str, str] = {"v": "s", "s": "c", "c": "v"}
 
 #: The V₄-carrier generators this bridge is pinned against, both SHIPPED and
@@ -1144,6 +1148,299 @@ _V4_RUNG: Dict[str, str] = {"gamma5": "gamma5", "iomega7": "cpt",
                             "cpt": "iomega7"}
 
 _V4_NONIDENTITY: Tuple[str, ...] = ("iomega7", "gamma5", "cpt")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# rc461 — the frame action, DERIVED (the constants above stop being the
+# only statement of what τ and S_B do to the three labels)
+#
+# The block comment above `spin8_center` splits this module's claims into
+# DERIVED / DEFINITIONAL / MEASURED-IN-A-NOTE, and it puts the two label
+# actions in the middle bucket: definitional, from how `_companion_maps`
+# builds them, with an independent char-poly confirmation living in
+# `docs/srmech/notes/v4_so8_bridge_derivation_rc422.py` and in
+# `tests/test_covering_layer_rc422.py`. Neither of those SHIPS. A caller of
+# `triality_rep_dictionary()` reads `tau_label_action` out of the payload
+# and has no shipped op that can re-derive it.
+#
+# `triality_frame_action` is that op, and it is cheap because of one
+# measured structural fact: the shipped 28×28 τ, S_B and S_C all PRESERVE
+# the standard Cartan span ⟨E01, E23, E45, E67⟩ EXACTLY, with every entry
+# of the induced 4×4 block in {−1/2, 0, +1/2}. So the whole label question
+# reduces to exact ℚ arithmetic on a 4×4 — measured at 5.2 ms for both
+# generators, against ~47 s for a cold `_companion_maps()` and ~4.3 s per
+# exact companion solve.
+#
+# THE RECONCILIATION THE OP CARRIES: 4 × 8 = 32. A frame's identity is an
+# 8-dimensional rep, but the datum that decides it is 8 weights × 4 Cartan
+# coordinates = 32 exact rationals. The 4-dimensional Cartan block IS the
+# 8-dimensional rep, losslessly, and the op returns both halves so the
+# reader does not have to take the reduction on trust.
+# ──────────────────────────────────────────────────────────────────────
+
+#: The four ``E_{pq}`` pairs spanning the standard Cartan subalgebra of so(8):
+#: the four commuting rotation planes. Rank 4 = the ``D4`` in ``D4``.
+_CARTAN_PAIRS: Tuple[Tuple[int, int], ...] = ((0, 1), (2, 3), (4, 5), (6, 7))
+
+#: ``4`` — ``dim h``, the number of Cartan coordinates a weight has.
+_CARTAN_RANK = len(_CARTAN_PAIRS)
+
+#: ``8`` — the number of weights in each of ``8v`` / ``8s`` / ``8c`` (``± one
+#: functional per Cartan direction``). MEASURED by the op, never assumed.
+_WEIGHTS_PER_FRAME = 2 * _CARTAN_RANK
+
+
+def _cartan_indices() -> Tuple[int, ...]:
+    """Positions of the four Cartan generators inside the 28-dim ``E_{pq}``
+    coordinate vector."""
+    pairs = _epq_pairs()
+    return tuple(pairs.index(pq) for pq in _CARTAN_PAIRS)
+
+
+def _cartan_block(rows: Sequence[Sequence[Q]], op: str) -> List[List[Q]]:
+    """The exact ``4×4`` action of a ``28×28`` map on the standard Cartan.
+
+    Raises ``ValueError`` naming the offending coordinate when the map moves a
+    Cartan generator OUT of the Cartan span — which is not a defect but a real
+    restriction of the instrument: an automorphism conjugated by a generic
+    inner element does not fix this particular Cartan, and reading its label
+    action needs the conjugation undone first."""
+    ci = _cartan_indices()
+    pairs = _epq_pairs()
+    for j in ci:
+        for r in range(_DIM_SO8):
+            if r not in ci and rows[r][j] != 0:
+                raise ValueError(
+                    f"{op}: the map does not preserve the standard Cartan span "
+                    f"— the image of E_{pairs[j]} has a nonzero E_{pairs[r]} "
+                    f"component ({rows[r][j]}). Conjugate the map into the "
+                    f"standard Cartan first; the frame action is read on h.")
+    return [[rows[r][c] for c in ci] for r in ci]
+
+
+def _weight_set(block: Sequence[Sequence[Q]]) -> frozenset:
+    """The weight SET of a frame whose Cartan block is ``block``.
+
+    On ``H = Σ h_j C_j`` the frame's operator is ``Σ_k (block·h)_k C_k``, whose
+    eigenvalues are ``± i·(block·h)_k``. So the weights ARE ``± the rows of
+    block``, as exact linear functionals of ``h``. The ``±`` closure is the
+    Class-C chirality step: a weight and its negative are the two orientations
+    of one rotation plane, and taking the set of both is what makes the
+    comparison orientation-blind without ever calling ``abs()``."""
+    out = set()
+    for row in block:
+        out.add(tuple((q.numerator, q.denominator) for q in row))
+        out.add(tuple(((-q).numerator, (-q).denominator) for q in row))
+    return frozenset(out)
+
+
+def _block_matmul(a: Sequence[Sequence[Q]],
+                  b: Sequence[Sequence[Q]]) -> List[List[Q]]:
+    """Exact ``4×4`` ℚ matrix product (the Cartan-block composition)."""
+    n = _CARTAN_RANK
+    return [[sum((a[i][k] * b[k][j] for k in range(n)), Q(0))
+             for j in range(n)] for i in range(n)]
+
+
+@functools.lru_cache(maxsize=None)
+def _frame_cartan_blocks() -> Dict[str, Tuple[Tuple[Q, ...], ...]]:
+    """The exact ``4×4`` Cartan block of each of the three frames, cached.
+
+    ``8v`` is the identity (the vector rep IS the ``E_{pq}`` frame the whole
+    engine is coordinatised in); ``8s`` / ``8c`` are the Cartan blocks of the
+    shipped ``S_B`` / ``S_C``, because those maps ARE the companion linear maps
+    — column ``col`` of ``S_B`` is the ``E_{pq}`` coords of the ``8s`` companion
+    of the ``col``-th generator, so ``ρ_s(A) = unvec(S_B·vec(A))`` identically.
+    (Measured: max deviation ``0.0`` against :func:`triality_companions` on a
+    two-plane probe.)"""
+    s_b, s_c = _companion_maps()
+    blocks: Dict[str, Tuple[Tuple[Q, ...], ...]] = {}
+    identity = [[Q(1) if i == j else Q(0) for j in range(_CARTAN_RANK)]
+                for i in range(_CARTAN_RANK)]
+    blocks["v"] = tuple(tuple(r) for r in identity)
+    for name, mat in (("s", s_b), ("c", s_c)):
+        rows = [[to_q(x) for x in row] for row in mat]
+        blocks[name] = tuple(
+            tuple(r) for r in _cartan_block(rows, f"triality frame {name}"))
+    return blocks
+
+
+def _as_28x28_exact(value, op: str) -> List[List[Q]]:
+    """Coerce ``value`` to a ``28×28`` nested ``list[list[Q]]``.
+
+    Accepts a :class:`Mat` (shape-checked), or any 2-D iterable whose entries
+    :func:`srmech.math.q.to_q` accepts — ``Q``, ``int``, an ``(num, den)`` pair
+    or a ``float`` (exact via ``as_integer_ratio``). The promotion is LOSSLESS
+    on every one of those spellings, which is the point: the shipped ``τ`` has
+    dyadic entries ``±1/2``, so a float input is carried exactly and the whole
+    read stays in ℚ."""
+    if isinstance(value, Mat):
+        if value.shape != (_DIM_SO8, _DIM_SO8):
+            raise ValueError(f"{op}: must be 28x28; got {value.shape}")
+        rows = value.tolist()
+    else:
+        rows = [list(r) for r in value]
+        if (len(rows) != _DIM_SO8
+                or any(len(r) != _DIM_SO8 for r in rows)):
+            shape = (len(rows), len(rows[0]) if rows else 0)
+            raise ValueError(f"{op}: must be 28x28; got {shape}")
+    return [[to_q(x) for x in r] for r in rows]
+
+
+def triality_frame_action(automorphism) -> dict:
+    """Which of ``8v`` / ``8s`` / ``8c`` a ``28×28`` so(8) automorphism sends
+    each frame to — MEASURED off the matrix, in exact ℚ (rc461).
+
+    Through rc460 the label action of the two shipped generators was a pair of
+    hard-coded dicts (``_TAU_LABEL_ACTION`` / ``_SWAP_LABEL_ACTION``), correct
+    but DEFINITIONAL: their justification was how :func:`triality_companions`
+    is built, and the only independent derivation lived in a note script and a
+    test. Neither ships. :func:`triality_rep_dictionary` emits
+    ``tau_label_action`` into ``describe()``, the MCP tool list and the
+    compiled-in C registry, so a consumer read a claim no shipped op could
+    re-derive. This op re-derives it, from the matrix alone.
+
+    **How, and why it is cheap.** The three 8-dim reps are separated by their
+    WEIGHT SYSTEMS. Restricted to the standard Cartan
+    ``h = ⟨E01, E23, E45, E67⟩``, the frame with Cartan block ``A_f`` carries
+    weights ``± the rows of A_f``: ``8v`` gets ``{±e_j}`` (integer), and the two
+    spinor frames get all-half-integer rows, split by the PARITY of their minus
+    signs. That parity is not a convention chosen here — it is READ off the
+    shipped ``S_B`` / ``S_C`` (measured: ``8s`` odd, ``8c`` even). The action of
+    ``φ`` is then the exact ℚ set-match ``{± rows of A_f·A_φ} == W_g``:
+    **Class D**, a pattern-match on a weight set, composed with **Class C**, the
+    ``±`` orientation closure that makes the match blind to which end of a
+    rotation plane is called positive (never ``abs()``).
+
+    The whole read is 4×4 exact-rational arithmetic — measured at 5.2 ms for
+    both shipped generators, against ~4.3 s for a single exact companion solve
+    — because all three shipped maps PRESERVE the standard Cartan span exactly,
+    with every induced entry in ``{−1/2, 0, +1/2}``. A map that does not is
+    REFUSED with a ``ValueError`` naming the escaping coordinate, rather than
+    answered approximately.
+
+    **4 × 8 = 32, the reconciliation.** A frame is an 8-dimensional rep, and
+    the datum that fixes which one it is has exactly ``8 × 4 = 32`` exact
+    rationals in it — 8 weights, each a functional on the rank-4 Cartan. The
+    payload returns both halves (``cartan_block``, 16 entries, and
+    ``frame_weights``, 32 per frame) so the reduction from 8 dimensions to 4 is
+    inspectable rather than asserted. The three frames' weight sets are
+    pairwise disjoint and their union has 24 elements — computed, not pinned.
+
+    **It can return otherwise.** Driven over the six elements of
+    ``⟨S_B, S_C⟩ ≅ S₃`` the op returns six DISTINCT permutations of
+    ``{v, s, c}`` — every element of ``Sym(3)``, including the third
+    transposition ``S_B·S_C·S_B`` (``v`` fixed, ``s ↔ c``) that no shipped
+    constant names. Composition is contravariant, as the module's own note
+    says: the measured action of ``S_B·S_C`` is ``π_{S_C} ∘ π_{S_B}``.
+
+    Args:
+        automorphism: the ``28×28`` map in the shared ``E_{pq}`` frame — a
+            :class:`~srmech.math.mat.Mat` (what :func:`triality_automorphism`
+            and :func:`triality_swap` return) or any 2-D iterable of exact-
+            rational-coercible entries.
+
+    Returns:
+        ``{'frame_action' ({'v'|'s'|'c': 'v'|'s'|'c'}), 'order' (1/2/3),
+        'fixed_frames', 'moved_frames', 'is_identity', 'cartan_rank' (4),
+        'weights_per_frame' (8), 'weight_table_entries' (32),
+        'distinct_weights' (24), 'cartan_block' (4×4 of (num, den)),
+        'frame_weights' ({frame: sorted 8-tuple of 4-tuples of (num, den)}),
+        'spinor_parity' ({'s', 'c'} -> 0/1, MEASURED), 'procedure_sha256',
+        'action_sha256'}``
+
+    Raises:
+        ValueError: if the input is not ``28×28``, if it moves a Cartan
+            generator out of the Cartan span, or if the transported weight set
+            of some frame matches no frame (which is what a non-automorphism
+            does — the classification is not forced to succeed).
+
+    Note:
+        Exact ℚ; no float in the decision path; no ``abs()``. Python-first with
+        no C peer under the ADR-0009 noted-disparity ruling — it composes
+        :func:`triality_swap` / :func:`triality_automorphism`, whose companion
+        solve already mirrors ``srmech_qmat_rref``. No new carrier TYPE crosses
+        the boundary (``Q`` leaves as ``int`` pairs), so ABI is unchanged.
+
+    Canonical SSoT: Baez, J.C. (2002) *The Octonions*, Bull. Amer. Math. Soc.
+    39, 145–205 (arXiv:math/0105155) §2.4 — ``Out(Spin(8)) = S3`` permuting
+    ``8v``/``8s``/``8c``, and the ``D4`` weight systems ``{±e_j}`` /
+    ``{(±½,±½,±½,±½)}`` split by sign parity.
+
+    Example:
+        >>> from srmech.physics.qm.triality import (
+        ...     triality_automorphism, triality_swap, triality_frame_action)
+        >>> triality_frame_action(triality_automorphism())["frame_action"]
+        {'v': 's', 's': 'c', 'c': 'v'}
+        >>> triality_frame_action(triality_swap())["order"]
+        2
+        >>> triality_frame_action(triality_swap())["fixed_frames"]
+        ('c',)
+    """
+    op = "triality_frame_action"
+    rows = _as_28x28_exact(automorphism, op)
+    block = _cartan_block(rows, op)
+
+    frames = _frame_cartan_blocks()
+    weight_sets = {f: _weight_set(frames[f]) for f in _FRAME_ORDER}
+
+    action: Dict[str, str] = {}
+    for frame in _FRAME_ORDER:
+        moved = _weight_set(_block_matmul(frames[frame], block))
+        hits = [g for g in _FRAME_ORDER if weight_sets[g] == moved]
+        if len(hits) != 1:
+            raise ValueError(
+                f"{op}: the transported weight system of 8{frame} matches "
+                f"{len(hits)} of the three frames, not exactly one — the input "
+                f"is not an automorphism of so(8) preserving this Cartan.")
+        action[frame] = hits[0]
+
+    # order of the induced permutation, by iteration (never a lookup table)
+    order = 1
+    current = dict(action)
+    identity = {f: f for f in _FRAME_ORDER}
+    while current != identity:
+        current = {f: action[current[f]] for f in _FRAME_ORDER}
+        order += 1
+        if order > len(_FRAME_ORDER) + 1:            # unreachable for Sym(3)
+            raise ValueError(f"{op}: the induced permutation has no finite "
+                             f"order within Sym(3) — impossible; report this.")
+
+    fixed = tuple(f for f in _FRAME_ORDER if action[f] == f)
+    frame_weights = {f: tuple(sorted(weight_sets[f])) for f in _FRAME_ORDER}
+    union = set()
+    for f in _FRAME_ORDER:
+        union |= weight_sets[f]
+
+    # Class C: which spinor frame carries the ODD-minus-sign half-integer
+    # weights. READ, not chosen — this is the bit that makes 8s ≠ 8c.
+    parity: Dict[str, int] = {}
+    for f in ("s", "c"):
+        counts = {sum(1 for num, den in w if num < 0) % 2
+                  for w in weight_sets[f]}
+        parity[f] = counts.pop() if len(counts) == 1 else -1
+
+    procedure = (
+        b"triality_frame_action/1: Cartan block of a 28x28 so(8) map; weights "
+        b"= +- rows; exact Q set-match against 8v/8s/8c weight systems")
+    return {
+        "frame_action": action,
+        "order": order,
+        "fixed_frames": fixed,
+        "moved_frames": tuple(f for f in _FRAME_ORDER if action[f] != f),
+        "is_identity": order == 1,
+        "cartan_rank": _CARTAN_RANK,
+        "weights_per_frame": len(weight_sets["v"]),
+        "weight_table_entries": len(weight_sets["v"]) * _CARTAN_RANK,
+        "distinct_weights": len(union),
+        "cartan_block": tuple(
+            tuple((q.numerator, q.denominator) for q in row) for row in block),
+        "frame_weights": frame_weights,
+        "spinor_parity": parity,
+        "procedure_sha256": _sha256_bytes(procedure),
+        "action_sha256": _sha256_bytes(
+            repr(sorted(action.items())).encode("utf-8")),
+    }
 
 
 def _octonion_product_int(x: Sequence[int], y: Sequence[int],
@@ -1374,6 +1671,7 @@ __all__ = [
     "triality_automorphism",
     "triality_companions",
     "triality_cycle",
+    "triality_frame_action",
     "triality_relation_residual",
     "triality_rep_dictionary",
     "triality_swap",

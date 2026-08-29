@@ -395,6 +395,7 @@ srmech.math.kepler.kepler_solve
 srmech.math.kepler.pin_slot
 srmech.math.laplacian.cotangent_weights
 srmech.math.laplacian.cycle_holonomy
+srmech.math.laplacian.cyclic_laplacian_spectrum
 srmech.math.laplacian.dense_adjacency
 srmech.math.laplacian.dense_laplacian
 srmech.math.laplacian.dense_solve
@@ -629,6 +630,7 @@ srmech.physics.qm.triality.triality_apply
 srmech.physics.qm.triality.triality_automorphism
 srmech.physics.qm.triality.triality_companions
 srmech.physics.qm.triality.triality_cycle
+srmech.physics.qm.triality.triality_frame_action
 srmech.physics.qm.triality.triality_relation_residual
 srmech.physics.qm.triality.triality_rep_dictionary
 srmech.physics.qm.triality.triality_swap

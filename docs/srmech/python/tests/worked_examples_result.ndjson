@@ -1,4 +1,4 @@
-{"n": 605, "native": false, "python": "3.10", "record": "meta", "verified_at": ""}
+{"n": 607, "native": false, "python": "3.10", "record": "meta", "verified_at": ""}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -344,6 +344,7 @@
 {"markers_fired": [{"exc": "ValueError", "line": 17}], "n_markers": 1, "name": "srmech.math.kepler.pin_slot", "problems": [], "src_sha256": "1d490c538e5f9814207a973f12bb713516f28b97ba2e9620597965cdf38c7d59", "statements": 15, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.cotangent_weights", "problems": [], "src_sha256": "774a504c4684a586938639d563b3d2b080efd6bd3d79bb432fcbeea785034e08", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.cycle_holonomy", "problems": [], "src_sha256": "ccbd652310168ca529a4f2f4637f43341c2173952b25d28ea157da9adc0b9671", "statements": 8, "status": "ok"}
+{"markers_fired": [{"exc": "ValueError", "line": 17}], "n_markers": 1, "name": "srmech.math.laplacian.cyclic_laplacian_spectrum", "problems": [], "src_sha256": "02632cacd0022397649192c8954b7317be4801ccf2df4bac937ae5ed48a42218", "statements": 10, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.dense_adjacency", "problems": [], "src_sha256": "53401e1dd26c1ee9cc54dd95da8031d10ef838eac8ffdb0f6c5fe55480192459", "statements": 10, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.dense_laplacian", "problems": [], "src_sha256": "c16bf10465c7e8aab37b6859424c7fddd1fe02a4743c829b48608f6252b8b377", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.dense_solve", "problems": [], "src_sha256": "807859767d3b736b8ad3fe1469fc4a6ef34218465bee374d972b6e1173336182", "statements": 13, "status": "ok"}
@@ -545,6 +546,7 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.triality.triality_automorphism", "problems": [], "src_sha256": "2c557ec598c58da31cc1e050d27870f6aa93b453aa0c2e9f03611112100cb272", "statements": 12, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 16}], "n_markers": 1, "name": "srmech.physics.qm.triality.triality_companions", "problems": [], "src_sha256": "961e5bcda3c3eef985a59c5292177c21230c9dc63ef768c17e445dc7ebca29f7", "statements": 12, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 9}], "n_markers": 1, "name": "srmech.physics.qm.triality.triality_cycle", "problems": [], "src_sha256": "25306ede9490d3d305f99575dfba938667aa07dd63fa1323cdf14bf28cb15d41", "statements": 7, "status": "ok"}
+{"markers_fired": [{"exc": "ValueError", "line": 19}], "n_markers": 1, "name": "srmech.physics.qm.triality.triality_frame_action", "problems": [], "src_sha256": "6ff56e7271227fc112f6aaf25d44387c102ad0df7009a9ddd4e79ded8b1ff371", "statements": 11, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.triality.triality_relation_residual", "problems": [], "src_sha256": "a2942354bbeee448bcc856b7151939ee46feeda3ddf5bc6ef0f75341a97df4e2", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.triality.triality_rep_dictionary", "problems": [], "src_sha256": "875dcacc232c63eb0fbeffe6ab492f5ae4ca5ac7c7aef189cd1b39d268bb9cdf", "statements": 8, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.triality.triality_swap", "problems": [], "src_sha256": "a51c46d8b55de0ba7b9f2164c93af78457ace51c3dc1a21c42f4a4b4596b5711", "statements": 11, "status": "ok"}
