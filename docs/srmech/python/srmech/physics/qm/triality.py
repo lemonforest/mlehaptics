@@ -1171,11 +1171,18 @@ _V4_NONIDENTITY: Tuple[str, ...] = ("iomega7", "gamma5", "cpt")
 # generators, against ~47 s for a cold `_companion_maps()` and ~4.3 s per
 # exact companion solve.
 #
-# THE RECONCILIATION THE OP CARRIES: 4 × 8 = 32. A frame's identity is an
+# WHY A 4×4 DECIDES AN 8-DIMENSIONAL REP: a frame's identity is an
 # 8-dimensional rep, but the datum that decides it is 8 weights × 4 Cartan
 # coordinates = 32 exact rationals. The 4-dimensional Cartan block IS the
 # 8-dimensional rep, losslessly, and the op returns both halves so the
 # reader does not have to take the reduction on trust.
+#
+# NOTE: that 32 is a TABLE SIZE — the entry count of one frame's weight
+# table. It is NOT the 32 monomial octonion automorphisms that fix the
+# `e1 -> e2 -> e3` line (those factor as 4 index permutations x 8 sign
+# patterns, and live in `octonion_mult_table`'s world, not the Cartan's).
+# The two objects share a numeral and nothing else; do not read either as
+# reconciling the other.
 # ──────────────────────────────────────────────────────────────────────
 
 #: The four ``E_{pq}`` pairs spanning the standard Cartan subalgebra of so(8):
@@ -1322,13 +1329,17 @@ def triality_frame_action(automorphism) -> dict:
     REFUSED with a ``ValueError`` naming the escaping coordinate, rather than
     answered approximately.
 
-    **4 × 8 = 32, the reconciliation.** A frame is an 8-dimensional rep, and
-    the datum that fixes which one it is has exactly ``8 × 4 = 32`` exact
-    rationals in it — 8 weights, each a functional on the rank-4 Cartan. The
-    payload returns both halves (``cartan_block``, 16 entries, and
+    **Why a 4×4 decides an 8-dimensional rep.** A frame is an 8-dimensional
+    rep, and the datum that fixes which one it is has exactly ``8 × 4 = 32``
+    exact rationals in it — 8 weights, each a functional on the rank-4 Cartan.
+    The payload returns both halves (``cartan_block``, 16 entries, and
     ``frame_weights``, 32 per frame) so the reduction from 8 dimensions to 4 is
     inspectable rather than asserted. The three frames' weight sets are
     pairwise disjoint and their union has 24 elements — computed, not pinned.
+    That ``32`` is a TABLE SIZE and reconciles nothing outside this op — in
+    particular it is unrelated to the 32 monomial octonion automorphisms
+    fixing the ``e1 → e2 → e3`` line, which factor as 4 index permutations ×
+    8 sign patterns. The two share a numeral and no structure.
 
     **It can return otherwise.** Driven over the six elements of
     ``⟨S_B, S_C⟩ ≅ S₃`` the op returns six DISTINCT permutations of
