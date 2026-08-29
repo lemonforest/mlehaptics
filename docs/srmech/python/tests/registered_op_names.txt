@@ -507,6 +507,9 @@ srmech.math.text.glyph_stream
 srmech.math.tlv.tlv_pack
 srmech.math.tlv.tlv_unpack
 srmech.math.tripoly.tripoly_from_coeffs
+srmech.math.weight_lattice.dominant_weight
+srmech.math.weight_lattice.tensor_product_multiplicities
+srmech.math.weight_lattice.weight_multiplicities
 srmech.music.bell_partials
 srmech.music.bessel_j_fixed
 srmech.music.bessel_zero_fixed

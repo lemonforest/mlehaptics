@@ -710,8 +710,31 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   DETERMINISM — `_build_frames("all")` ran in THREE separate numpy-absent
 #:   WSL2 processes; all three returned the SAME digest and 708 frames each.
 #:   The ADR-0011 witness contract HOLDS.
+#: rc460 re-pin — the corpus witness moved because the registry PROSE moved,
+#: the sanctioned cause again: three new ToolEntry registrations (the exact
+#: A2 weight-lattice triple, in the NEW module srmech.math.weight_lattice)
+#: plus their curated example/explanation rows.
+#:
+#:   MEASURED: `len(frames) == 719`. The DELTA is exactly the three new op
+#:   frames, and that is derived rather than eyeballed: the registry moved
+#:   687 -> 690 (measured live), REMOVED = none (the rosetta-completeness
+#:   gate reported exactly three unclassified ADDITIONS and no deletions,
+#:   and the composes-population gate reported "Deleted: []" — two
+#:   independent instruments agreeing that nothing left the surface), and
+#:   carriers are unmoved (the carrier-schema gate is green). The op-name
+#:   SET witness next door passed on a freshly rewritten manifest, which is
+#:   the assertion that no RENAME hid inside the same count.
+#:
+#:   Measured LAST, after the final regen (`regen_all.py --check` reported
+#:   "all 6 generated files are up to date", no `REFUSED:`), per the rc454
+#:   rule that a pin taken mid-release is a measurement of a draft.
+#:
+#:   DETERMINISM — `_build_frames("all")` ran in THREE separate numpy-absent
+#:   WSL2 processes; all three returned the SAME digest and 719 frames each,
+#:   and `search("rank", k=1).witness` agreed with the direct build in every
+#:   one. The ADR-0011 witness contract HOLDS.
 WITNESS_RC416 = (
-    "893e33bb79a56c3a44e154c46b8d191c995839dccecd57c6d84540ec3d732594")
+    "8c5c167e9b40047854d27fc46ceabbe60b1ff7822710f1a8e111ad6ab75ef5f9")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

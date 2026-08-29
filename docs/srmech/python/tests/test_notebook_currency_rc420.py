@@ -982,3 +982,63 @@ def test_live_at_abi_stamp_carries_the_LIVE_abi_not_just_a_fresh_rc_token():
         f"{claimed}; c/include/srmech.h defines {live}. Moving the rcNNN token "
         f"without re-reading the value is what shipped a false stamp at rc447 "
         f"— re-verify the NUMBER, not just the release it is stamped against.")
+
+
+# ── rc460: the SAME hole, on the OP TOTAL ─────────────────────────
+_LIVE_OP_TOTAL = re.compile(
+    r"Live at rc\d+: \*\*(\d+)\*\*, measured as "
+    r"`len\(get_tool_schema\(\)\.tools\)`")
+
+
+def test_live_at_op_total_stamp_carries_the_LIVE_total_not_just_a_token():
+    """§3.28.3's `Live at rcNNN: **N**, measured as len(...)` asserts a VALUE.
+
+    ⚠️ THIS IS THE rc449 ABI GATE'S TWIN, AND IT WAS MISSING FOR ELEVEN rcs.
+    rc447 shipped a false ABI stamp — fresh ``rcNNN`` token, stale number —
+    because :func:`test_live_at_rc_stamps_name_the_pinned_release` compares
+    stamp TOKENS only and never reads what the stamp certifies. rc449 closed
+    that **for the ABI value alone** (the gate directly above). The identical
+    hole stayed OPEN on the op total, which is a stamp of exactly the same
+    form sitting in the same ledger block one bullet away — measured at rc459
+    and closed here.
+
+    That it never fired is not evidence it was covered. §3.28's *"holds **N**
+    entries"* sentence IS value-gated
+    (:func:`test_registry_cardinal_matches_the_live_registry`), so the two
+    surfaces happened to move together by hand every time and the gap stayed
+    invisible. A gate that would go green on a stale number is not a gate,
+    however green it has been.
+
+    Basis note: the notebook sentence names ``len(get_tool_schema().tools)``
+    verbatim, so this resolves that exact expression rather than the
+    convenient neighbour ``describe()["tools"]["total"]`` — the same
+    discipline the registry-cardinal gate states for itself.
+    """
+    m = _LIVE_OP_TOTAL.search(_live_prose())
+    assert m, (
+        "the notebook's `Live at rcNNN: **N**, measured as "
+        "`len(get_tool_schema().tools)`` stamp is gone. It is the live "
+        "counterweight to the dated 'describe() tool total: 178' ledger "
+        "bullet it sits inside; losing it leaves that bullet uncontested.")
+    claimed, live = int(m.group(1)), _live_op_count()
+    assert claimed == live, (
+        f"the notebook's op-total currency stamp claims {claimed}; "
+        f"len(get_tool_schema().tools) is {live}. Moving the rcNNN token "
+        f"without re-reading the value is exactly what shipped a false ABI "
+        f"stamp at rc447 — re-verify the NUMBER, not just the release.")
+
+
+def test_the_two_op_total_surfaces_agree_with_each_other():
+    """§3.28's cardinal and §3.28.3's stamp must agree with EACH OTHER before
+    either is compared to the source — the rc418 README shape (the header said
+    ABI 10 while the bump sentence said 12 -> 13), applied to the op total."""
+    prose = _live_prose()
+    cardinal = _REGISTRY_CARDINAL.search(prose)
+    stamp = _LIVE_OP_TOTAL.search(prose)
+    assert cardinal and stamp, (
+        "the notebook no longer carries BOTH op-total surfaces; one of the "
+        "two this test compares has been rephrased away.")
+    assert int(cardinal.group(1)) == int(stamp.group(1)), (
+        f"§3.28 says the registry holds {cardinal.group(1)} entries while "
+        f"§3.28.3's stamp says {stamp.group(1)} — the notebook disagrees "
+        f"with itself about its own op total.")

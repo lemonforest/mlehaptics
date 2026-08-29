@@ -11827,6 +11827,14 @@ def _register_primitive_class_tools() -> None:
                     "multiplicity in [0, d]. The payload carries everything "
                     "tier 3 needs (class_algebra structure constants, "
                     "inverse_class, square_class, phi_e, content addresses). "
+                    "rc460 adds cayley_sha256 — the Class-A address of the "
+                    "OPERAND table, i.e. the GROUP BIND. table_sha256 "
+                    "addresses the character-matrix body and is not a group "
+                    "identity by construction (D4 and Q8 share a character "
+                    "matrix), so without this field a tier-4 rep and a "
+                    "character table from two DIFFERENT groups of equal "
+                    "order passed every shipped law: measured 60 pairs, 9 "
+                    "raised, 42 returned a different answer with NO signal. "
                     "Founding example: C3 → degrees [1,1,1] with the "
                     "genuinely irrational values χ(g) = ζ3 = (0,1), χ(g²) = "
                     "(-1,-1). Exact ℤ end to end.",
@@ -11840,7 +11848,8 @@ def _register_primitive_class_tools() -> None:
                               "inverse_class, square_class, degrees "
                               "(ascending), table (k × k of int tuples), "
                               "class_algebra (k × k × k ints), "
-                              "table_sha256}"),
+                              "table_sha256, cayley_sha256 (the rc460 "
+                              "group bind)}"),
             composes=("srmech.math.groups.conjugacy_classes",
                       "srmech.math.cyclic.gcd",
                       "srmech.math.poly.cyclotomic_polynomial",
@@ -11938,7 +11947,9 @@ def _register_primitive_class_tools() -> None:
                              "(1,)]], 'class_algebra': [[[1, 0], [0, 1]], "
                              "[[0, 1], [1, 0]]], 'table_sha256': "
                              "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
-                             "258a09071d4efa3c0da2'}"},
+                             "258a09071d4efa3c0da2', 'cayley_sha256': "
+                             "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca818"
+                             "5132169d3920a8eeae36'}"},
         ),
         ToolEntry(
             name="srmech.math.groups.fusion_multiplicities",
@@ -11991,7 +12002,9 @@ def _register_primitive_class_tools() -> None:
                              "(1,)]], 'class_algebra': [[[1, 0], [0, 1]], "
                              "[[0, 1], [1, 0]]], 'table_sha256': "
                              "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
-                             "258a09071d4efa3c0da2'}"},
+                             "258a09071d4efa3c0da2', 'cayley_sha256': "
+                             "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca818"
+                             "5132169d3920a8eeae36'}"},
         ),
         ToolEntry(
             name="srmech.math.groups.central_idempotents",
@@ -12054,7 +12067,9 @@ def _register_primitive_class_tools() -> None:
                              "(1,)]], 'class_algebra': [[[1, 0], [0, 1]], "
                              "[[0, 1], [1, 0]]], 'table_sha256': "
                              "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
-                             "258a09071d4efa3c0da2'}"},
+                             "258a09071d4efa3c0da2', 'cayley_sha256': "
+                             "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca818"
+                             "5132169d3920a8eeae36'}"},
         ),
         # rc458 — the representation stratum, tier 4: the rho stratum.
         # Tiers 1–3 stop at CHARACTERS; tier 4 is the REPRESENTATION
@@ -12185,14 +12200,22 @@ def _register_primitive_class_tools() -> None:
                     "class-partition fields of the char-table payload "
                     "(class_of / k / order / degrees / table for the "
                     "identity location) — the character VALUES are not "
-                    "consulted. Guards, each a raise: order law; "
+                    "consulted. Guards, each a raise: order law; GROUP-BIND "
+                    "law (rc460) — rep['cayley_sha256'] == "
+                    "char_table['cayley_sha256'], which "
+                    "decompose_representation and isotypic_projector "
+                    "inherit by composing this op; "
                     "integrality law (a rational trace of a true ℚ-rep is "
                     "an integer — eigenvalues are roots of unity; a "
                     "divmod remainder is corruption); CLASS-CONSTANCY law "
-                    "— equal trace across each class, which is also the "
-                    "honest SAME-GROUP mismatch DETECTOR (stated as such: "
-                    "a detector, not a proof — the two payloads share no "
-                    "Cayley bind); identity-trace law "
+                    "— equal trace across each class. ⚠️ Through rc459 "
+                    "class-constancy was documented as the SAME-GROUP "
+                    "mismatch detector, one that 'usually' fires: measured "
+                    "over a 60-pair census it fires on 15%, and the other "
+                    "42 pairs returned a different answer silently. It is a "
+                    "corruption detector for a payload that has already "
+                    "passed the group bind, and never was the same-group "
+                    "instrument; identity-trace law "
                     "(character[identity] == degree, the identity class "
                     "located payload-only via the hoisted "
                     "central_idempotents unique-column technique). The "
@@ -12234,7 +12257,9 @@ def _register_primitive_class_tools() -> None:
                     "(1,)]], 'class_algebra': [[[1, 0], [0, 1]], "
                     "[[0, 1], [1, 0]]], 'table_sha256': "
                     "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
-                    "258a09071d4efa3c0da2'}"},
+                    "258a09071d4efa3c0da2', 'cayley_sha256': "
+                    "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca818"
+                    "5132169d3920a8eeae36'}"},
         ),
         ToolEntry(
             name="srmech.math.groups.decompose_representation",
@@ -12300,7 +12325,9 @@ def _register_primitive_class_tools() -> None:
                     "(1,)]], 'class_algebra': [[[1, 0], [0, 1]], "
                     "[[0, 1], [1, 0]]], 'table_sha256': "
                     "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
-                    "258a09071d4efa3c0da2'}"},
+                    "258a09071d4efa3c0da2', 'cayley_sha256': "
+                    "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca818"
+                    "5132169d3920a8eeae36'}"},
         ),
         ToolEntry(
             name="srmech.math.groups.isotypic_projector",
@@ -12377,7 +12404,9 @@ def _register_primitive_class_tools() -> None:
                     "(1,)]], 'class_algebra': [[[1, 0], [0, 1]], "
                     "[[0, 1], [1, 0]]], 'table_sha256': "
                     "'5f30cf261f91323e62d1ff3c5361e1d63ad6b436d9d3"
-                    "258a09071d4efa3c0da2'}"},
+                    "258a09071d4efa3c0da2', 'cayley_sha256': "
+                    "'a2e0353d09d6778d39c84673c1eb7e51eeffb46ca818"
+                    "5132169d3920a8eeae36'}"},
         ),
         ToolEntry(
             name="srmech.math.groups.tensor_product_representation",
@@ -12559,6 +12588,179 @@ def _register_primitive_class_tools() -> None:
                         "169d3920a8eeae36', 'matrices_sha256': "
                         "'1247237b24cae0c6b3dc2e9148c1e9730abfb2379a53de91"
                         "5491e65b903521d7'}"},
+        ),
+        # rc460 — srmech.math.weight_lattice, a PEER of srmech.math.groups
+        # and not a part of it.  groups' instrument is a count off a Cayley
+        # table, indexed by ELEMENTS; this module's is a SIGNED count off a
+        # lattice, indexed by WEIGHTS.  Same class of nativity, different
+        # index — which is the rc's load-bearing correction: Lie fusion is
+        # NOT "a convolution of orbital measures against Haar, an integral".
+        # Racah–Speiser computes the same coefficients as a signed integer
+        # count, the same instrument CLASS as character_table's step-4
+        # a_ijl count "by integer counting off the table".  Carrier: plain
+        # int / tuple-of-int for labels, multiplicities and coordinates;
+        # QMat for the six integer 2×2 Weyl reflections.  NO new carrier
+        # TYPE, so no discriminator widening, no C symbol, ABI stays 24.
+        ToolEntry(
+            name="srmech.math.weight_lattice.dominant_weight",
+            owner="srmech", category="weight_lattice",
+            summary="The stored A2 label object — Class A, the "
+                    "content-address mint whose product IS the SSoT this "
+                    "stratum stores. Everything else in the module DERIVES "
+                    "from the label, and derivation is measurably SUBLINEAR "
+                    "in the object derived: (24,24) has dimension 15625 but "
+                    "only 313 dominant weights, so the procedural form is "
+                    "not merely acceptable, it is cheaper than the "
+                    "coordinate form. WHAT IT DOES NOT CLOSE, and why the "
+                    "payload carries a gauge block: the generator is the "
+                    "Cartan matrix ((2,-1),(-1,2)), which is INVARIANT "
+                    "under the diagram flip, so it cannot tell 3 from 3̄ — "
+                    "every invariant derived from it alone (dimension, "
+                    "multiplicity multiset, self-fusion shape) coincides "
+                    "for a label and its conjugate, and only the label "
+                    "ORDER separates them, a ℤ/2 Class-C chirality choice "
+                    "the generator does not make. Second, det(Cartan) = 3 = "
+                    "|P/Q| fixes the INDEX of the root lattice in the "
+                    "weight lattice but not WHICH of the two the global "
+                    "form uses (SU(3) vs PSU(3)). Third, the bilinear form "
+                    "is integral only after clearing 3, so the metric "
+                    "normalisation is a stored convention. So label_sha256 "
+                    "binds label AND gauge AND procedure_sha256 — a "
+                    "label-only address would collide across two rcs "
+                    "deriving under different conventions. Internal stages "
+                    "named: Class I (the ℤ/3 N-ality grading fusion "
+                    "conserves), Class N (the guarded /2 in "
+                    "(p+1)(q+1)(p+q+2)/2). C-parity (ADR-0009, recorded): "
+                    "no C peer; the weight-lattice stratum ships "
+                    "Python-first under the noted-disparity ruling. Exact "
+                    "ℤ; no float; no abs().",
+            parameters=(
+                P("p", "int", True, "the first Dynkin label, >= 0"),
+                P("q", "int", True, "the second Dynkin label, >= 0"),
+            ),
+            returns=R("dict", "{algebra ('A2'), label ((p, q)), dimension, "
+                              "conjugate ((q, p) — the Class-C chirality "
+                              "partner), n_ality ((p - q) % 3), cartan, "
+                              "gauge (chirality / global_form / "
+                              "metric_scale), procedure_sha256, "
+                              "label_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; exact ℤ; no abs() — sign-handling "
+                       "stays Class-K pin-slot + Class-C",),
+            smoke_test_hint={"p": 1, "q": 0},
+        ),
+        ToolEntry(
+            name="srmech.math.weight_lattice.weight_multiplicities",
+            owner="srmech", category="weight_lattice",
+            summary="The weight system of the A2 irrep V_(p,q) — Class E, "
+                    "the catalog enumeration, carried as DOMINANT "
+                    "REPRESENTATIVES with orbit sizes so the payload is "
+                    "O(dim^⅔) rather than O(dim). Multiplicities come from "
+                    "the Freudenthal recursion over a 3-SCALED Gram matrix, "
+                    "which keeps every intermediate an exact integer "
+                    "(the scale cancels because the recursion is a RATIO of "
+                    "two form values; measured over [0,11]²: 6135 "
+                    "divisions, 0 inexact). Orbit sizes are READ as the "
+                    "cardinality of the derived Weyl orbit, never asserted "
+                    "from a coordinate-vanishing rule. Internal stages "
+                    "named: Class C (Weyl reflection to the dominant "
+                    "representative — orientation, which-way), Class N (the "
+                    "guarded Freudenthal division). ⚠️ EXPLICIT NON-CLAIM: "
+                    "this op is NOT Class K. Freudenthal's recursion is "
+                    "sign-free; no phase boundary is crossed, and claiming "
+                    "K here would assert an instrument the op never runs. "
+                    "In-op guard, a raise: the dimension law Σ_ν "
+                    "m(ν)·|orbit(ν)| == dim(p,q). Worked example: (1,1) "
+                    "returns dominant ((0,0,2), (1,1,1)) with orbit_sizes "
+                    "(1, 6) — the adjoint's zero-weight multiplicity is 2, "
+                    "visible on the face of the payload, and that 2 is the "
+                    "RANK of su(3). C-parity (ADR-0009, recorded): no C "
+                    "peer; Python-first under the noted-disparity ruling. "
+                    "Exact ℤ; no float; no abs().",
+            parameters=(
+                P("p", "int", True, "the first Dynkin label, >= 0"),
+                P("q", "int", True, "the second Dynkin label, >= 0"),
+            ),
+            returns=R("dict", "{algebra, label, dimension, dominant (tuple "
+                              "of (a, b, multiplicity) triples, sorted), "
+                              "orbit_sizes (parallel to dominant), "
+                              "n_dominant, n_weights (the total WITH "
+                              "multiplicity), procedure_sha256, "
+                              "weights_sha256}"),
+            composes=("srmech.math.weight_lattice.dominant_weight",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; exact ℤ; no abs() — sign-handling "
+                       "stays Class-K pin-slot + Class-C",),
+            smoke_test_hint={"p": 1, "q": 1},
+        ),
+        ToolEntry(
+            name="srmech.math.weight_lattice."
+                 "tensor_product_multiplicities",
+            owner="srmech", category="weight_lattice",
+            summary="The A2 tensor-product multiplicities N_ab^c by "
+                    "Racah–Speiser — Class K, the ±1 ledger at the "
+                    "reflection walls, which is exactly where a sign count "
+                    "becomes a fusion coefficient. The instrument, stated "
+                    "as the count it is: take the weight system of V_b with "
+                    "multiplicities, translate every weight by a + ρ, "
+                    "DISCARD the translates landing on a reflection wall "
+                    "(they contribute exactly zero), fold the rest into the "
+                    "OPEN dominant chamber under the 6-element Weyl group "
+                    "carrying the element's ±1 determinant, and accumulate "
+                    "sign·m(ν) against w(μ) − ρ. There is no integral and "
+                    "no measure anywhere in that sentence — the "
+                    "'convolution of orbital measures against Haar' "
+                    "phrasing is the continuum shadow of this signed "
+                    "integer count. ⚠️ EXPLICIT NON-CLAIM: this op is NOT "
+                    "Class L. Its finite-group sibling "
+                    "srmech.math.groups.fusion_multiplicities is Class L "
+                    "BECAUSE it contracts against the class-algebra "
+                    "eigenbasis; this op builds no eigenbasis and projects "
+                    "onto nothing. ⚠️ ALL THREE positive roots are tested "
+                    "for the wall: A2 has three and only two are simple, "
+                    "and testing the two simple walls alone is a measured, "
+                    "WELL-FORMED WRONG ANSWER — translates such as (2,-2) "
+                    "survive, fold onto a wall and mint NON-DOMINANT "
+                    "labels, with no crash (170 failures over a 625-pair "
+                    "window; the shipped three-wall fold: 0). Internal "
+                    "stages named: Class C (reflection direction), Class I "
+                    "(translation by ρ; the mod-3 grading), Class E (orbit "
+                    "enumeration), Class N (the guards). In-op guards, each "
+                    "a raise: non-negativity after cancellation (a "
+                    "surviving negative is a BUG DETECTOR, never a result), "
+                    "strict dominance of every folded label, and the "
+                    "dimension law Σ_c N·d(c) == d(a)·d(b). Worked example: "
+                    "((1,0), (1,0)) returns ((0,1,1), (2,0,1)) with "
+                    "dim_check 9 — that is 3 ⊗ 3 = 3̄ ⊕ 6: the 3̄ at "
+                    "multiplicity one, exactly one degree-6 channel, and "
+                    "the spurious same-label channel at exactly zero. Cost "
+                    "honest: (12,9) ⊗ (10,10) — dims 1495 × 1331, 229 "
+                    "constituents — in hundredths of a second; a large "
+                    "label makes it SLOW, never wrong. C-parity (ADR-0009, "
+                    "recorded): no C peer; Python-first under the "
+                    "noted-disparity ruling. Exact ℤ; no float; no abs().",
+            parameters=(
+                P("a", "list[int]", True,
+                  "a dominant A2 label (p1, q1) — ValueError naming the "
+                  "failing law otherwise"),
+                P("b", "list[int]", True,
+                  "a dominant A2 label (p2, q2)"),
+            ),
+            returns=R("dict", "{algebra, a, b, constituents (tuple of "
+                              "(p, q, multiplicity) triples sorted by "
+                              "(dimension, label)), dim_a, dim_b, "
+                              "dim_check (= dim_a·dim_b), "
+                              "singlet_multiplicity, n_constituents, "
+                              "procedure_sha256, fusion_sha256}"),
+            composes=("srmech.math.weight_lattice.weight_multiplicities",
+                      "srmech.math.weight_lattice.dominant_weight",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; exact ℤ; no abs() — sign-handling "
+                       "stays Class-K pin-slot + Class-C",),
+            # JSON-native LISTS, not tuples: the schema round-trips through
+            # JSON (test_tool_schema_ops_c_rc185), and a tuple comes back a
+            # list — which is a real reconstruction mismatch, not cosmetic.
+            smoke_test_hint={"a": [1, 0], "b": [1, 0]},
         ),
         # rc399 (`#T1064` Tier 2/3): the octonion CAYLEY PLANE 𝕆P² (carrier-
         # native, one rung above octonion_frame_read's ℍP¹≅S⁴) + the guarded

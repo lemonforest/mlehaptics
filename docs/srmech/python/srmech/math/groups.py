@@ -1249,7 +1249,8 @@ def character_table(cayley_table: Sequence[Sequence[int]]) -> Dict[str, Any]:
         "inverse_class", "square_class" (verbatim from ONE
         conjugacy_classes call), "degrees" (ascending), "table" (k × k of
         int tuples), "class_algebra" (the k × k × k structure constants),
-        "table_sha256"}`` — every field is load-bearing for tier 3
+        "table_sha256", "cayley_sha256"}`` — every field is load-bearing
+        for tier 3
         (fusion multiplicities read ``inverse_class`` / ``phi_e``; the
         Frobenius–Schur indicator reads ``square_class``;
         ``class_algebra`` no tier-3 op computes from — the shared payload
@@ -1257,6 +1258,21 @@ def character_table(cayley_table: Sequence[Sequence[int]]) -> Dict[str, Any]:
         test-side idempotent oracle.  This line said fusion "read
         ``class_algebra``" until the rc457 repair pass measured the
         fusion body against it: 0 reads).
+
+    **``cayley_sha256`` is the GROUP BIND (rc460).**  ``table_sha256``
+    addresses the CHARACTER MATRIX body and is not a group identity by
+    construction; ``cayley_sha256`` is the Class-A content address of the
+    OPERAND Cayley table, the same address
+    :func:`permutation_representation` mints.  Its absence was a
+    replicated SILENT WRONG ANSWER: the regular character is ``(|G|, 0,
+    …, 0)`` for EVERY group, so a rep payload and a character table from
+    two DIFFERENT groups of equal order passed every shipped law.
+    Measured over 11 constructible groups, every ordered same-order pair
+    of regular / coset reps: 60 pairs, 9 raised, **42 returned a
+    different answer with no signal** (``decompose_representation(regular
+    rep of C21, character_table of F21)`` returned ``(1, 1, 1, 3, 3)`` —
+    C21 is ABELIAN, so a 3-dimensional constituent is impossible).  With
+    this field present the tier-4 consumers bind, and all 42 are caught.
 
     Note:
         Exact integers end to end; no float; no ``abs``.
@@ -1331,6 +1347,7 @@ def character_table(cayley_table: Sequence[Sequence[int]]) -> Dict[str, Any]:
         "table": table,
         "class_algebra": class_algebra,
         "table_sha256": sha256_bytes(body),
+        "cayley_sha256": sha256_bytes(_table_bytes(tbl)),
     }
 
 
@@ -1384,11 +1401,14 @@ def irrep_dimensions(cayley_table: Sequence[Sequence[int]]) -> Dict[str, Any]:
 
 #: The payload keys every tier-3 op requires — the exact field list
 #: :func:`character_table` returns (``zeta_order`` is a documented alias
-#: of ``exponent`` and is deliberately not required).
+#: of ``exponent`` and is deliberately not required).  ``cayley_sha256``
+#: joined the list at rc460: it is the GROUP BIND the tier-4 consumers
+#: compare against a rep payload's own address, and a key that is
+#: optional cannot be a bind.
 _CHAR_TABLE_KEYS = (
     "table", "degrees", "class_sizes", "class_of", "inverse_class",
     "square_class", "class_algebra", "phi_e", "degree", "k", "order",
-    "exponent", "representatives", "table_sha256",
+    "exponent", "representatives", "table_sha256", "cayley_sha256",
 )
 
 
@@ -1479,6 +1499,44 @@ def _check_char_table_payload(op: str, ct: Mapping[str, Any]) -> None:
             raise ValueError(
                 f"{op}: class_of[{g}] = {value!r} is not a class index "
                 f"in [0, {k}) (class-index law)")
+    for label in ("table_sha256", "cayley_sha256"):
+        value = ct[label]
+        if (not isinstance(value, str) or len(value) != 64
+                or not set(value) <= _SHA256_HEX):
+            raise ValueError(
+                f"{op}: {label} = {value!r} is not a 64-hex content "
+                f"address (content-address-shape law)")
+
+
+def _same_group_bind(op: str, rep: Mapping[str, Any],
+                     ct: Mapping[str, Any]) -> None:
+    """The GROUP BIND between a tier-4 rep payload and a tier-2 character
+    table (rc460): both carry the Class-A ``cayley_sha256`` of the SAME
+    operand Cayley table, so equality of the content address is the
+    executable form of "these two objects describe one group".
+
+    **Why a bind rather than a detector.**  Through rc459 the only
+    cross-object check was the class-constancy law inside
+    :func:`character_of`, and its docstring called that "a DETECTOR, not
+    a proof" while saying a mismatch "usually" breaks it.  Measured over
+    a 60-pair census: it fires on **15%**.  "Usually" was false in the
+    other direction — it usually does NOT fire, and 42 of the 60 pairs
+    returned a DIFFERENT answer with no raise and no warning.  The
+    payloads already carried both addresses side by side; nothing
+    compared them.  This does.
+
+    The strictness is correctness, not conservatism: a relabelled but
+    isomorphic table has different class indexing, so decomposing a rep
+    against it IS mathematically wrong.  ``table_sha256`` cannot serve —
+    it addresses the character-matrix body, which is not a group
+    identity by construction (D4 and Q8 share a character matrix)."""
+    if rep["cayley_sha256"] != ct["cayley_sha256"]:
+        raise ValueError(
+            f"{op}: the rep payload and the char_table carry different "
+            f"cayley_sha256 content addresses - a representation is "
+            f"decomposed only against the character table of ITS OWN "
+            f"group with the SAME element indexing (group-bind law; a "
+            f"guard that fires is evidence)")
 
 
 def _identity_class(op: str, ct: Mapping[str, Any]) -> int:
@@ -2316,13 +2374,22 @@ def character_of(rep: Mapping[str, Any],
       divmod-raise (the eigenvalues of ``rho(g)`` are roots of unity, so
       a rational trace of a true ℚ-rep is a rational algebraic integer,
       i.e. an integer; a remainder is corruption);
+    * **group-bind law** — ``rep["cayley_sha256"] ==
+      char_table["cayley_sha256"]``, the rc460 :func:`_same_group_bind`.
+      This is the law that makes "same group" a PROOF rather than a
+      hope, and :func:`decompose_representation` /
+      :func:`isotypic_projector` inherit it by composing this op (the
+      one place both operands are in hand, so a second copy could only
+      drift);
     * **class-constancy law** — the trace is equal across each conjugacy
-      class.  This is also the honest SAME-GROUP mismatch detector,
-      stated as such: a rep and a char table from different groups of
-      equal order usually break class-constancy, but not provably always
-      — it is a DETECTOR, not a proof (the payloads share no
-      Cayley-table bind; ``table_sha256`` addresses the character table,
-      not the group);
+      class.  ⚠️ This line said, through rc459, that a rep and a char
+      table from different groups of equal order "usually break
+      class-constancy … it is a DETECTOR, not a proof".  **Measured over
+      a 60-pair census: it fires on 15%.**  "Usually" was false in the
+      other direction, and the remaining 42 pairs returned a different
+      answer silently.  Class-constancy is a corruption detector for a
+      payload that has ALREADY passed the group bind — it was never the
+      same-group instrument, and the rc460 bind above is;
     * **identity-trace law** — ``character[identity_class] == degree``,
       the identity class located payload-only via the shared
       :func:`_identity_class` (the :func:`central_idempotents`
@@ -2348,6 +2415,12 @@ def character_of(rep: Mapping[str, Any],
         raise ValueError(
             f"character_of: rep order {rep['order']} != char_table order "
             f"{char_table['order']} (order law)")
+    # The escalation is deliberate: shape, then SIZE, then IDENTITY.  The
+    # bind subsumes the order law mathematically (different orders imply
+    # different tables imply different addresses), so putting it first
+    # would make the order law unreachable with real operands and leave
+    # the caller a coarser message for the coarser mistake.
+    _same_group_bind("character_of", rep, char_table)
     order = rep["order"]
     degree = rep["degree"]
     kind = rep["kind"]
@@ -2370,8 +2443,9 @@ def character_of(rep: Mapping[str, Any],
                 f"character_of: elements of class {j} carry unequal "
                 f"traces {character[j]} and {trace} - a character is a "
                 f"class function (class-constancy law; a guard that "
-                f"fires is evidence.  This is also the honest detector "
-                f"for a rep and a char_table from DIFFERENT groups)")
+                f"fires is evidence.  The DIFFERENT-groups case is "
+                f"caught upstream by the group-bind law, which this "
+                f"law was wrongly documented as detecting)")
     empty = [j for j, v in enumerate(character) if v is None]
     if empty:
         raise ValueError(
@@ -2429,7 +2503,11 @@ def decompose_representation(
     Args:
         rep: a tier-4 REP PAYLOAD dict, passed VERBATIM.
         char_table: a :func:`character_table` payload dict, passed
-            VERBATIM (both validated inside :func:`character_of`).
+            VERBATIM (both validated inside :func:`character_of`, which
+            is also where the rc460 :func:`_same_group_bind` fires — a
+            rep and a char table from two DIFFERENT groups of equal
+            order RAISE here, where through rc459 they returned a
+            different answer silently).
 
     Returns:
         ``{"k", "order", "degree", "multiplicities"`` (length-k tuple of
@@ -2554,7 +2632,8 @@ def isotypic_projector(rep: Mapping[str, Any],
         rep: a tier-4 REP PAYLOAD dict, passed VERBATIM.
         char_table: a :func:`character_table` payload dict, passed
             VERBATIM (both validated inside the internal
-            :func:`decompose_representation` composition).
+            :func:`decompose_representation` composition, which is also
+            where the rc460 :func:`_same_group_bind` reaches this op).
 
     Returns:
         ``{"k", "order", "degree", "degrees"`` (echoed),

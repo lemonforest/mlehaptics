@@ -955,7 +955,20 @@ def _triplet_from_eigenspace(
     over the complement frame) rebuild the 3 COMPLEX antisymmetric ``8x8``
     fundamental generators (the triplet); the ``-i`` eigenvectors rebuild
     the antitriplet (its conjugate). With this J-eigenspace fundamental,
-    ``[su3, triplet] ⊆ triplet`` is bit-exact (``~3e-14``).
+    ``[su3, triplet] ⊆ triplet`` closes to a measured residual of
+    ``~3e-14`` — a FLOAT tolerance, not exactness.
+
+    ⚠️ rc460: this line read "is bit-exact (``~3e-14``)" and those two
+    claims cannot both be true.  The word is OVERLOADED in this file: at
+    the provenance sites (``:1065``, ``:1245``, ``:1605``) "bit-exact"
+    means *this op's own computation, NOT a cited result* — a claim about
+    where the number came from, and TRUE.  Here it was attached to a float
+    residual, which makes it a NUMERIC claim, and false: ``3e-14`` is
+    roughly 135 ULP at unit scale.  The residual is stated and the word is
+    dropped; the whole surface is float end to end (see
+    :func:`an_embedding`), which is why
+    :mod:`srmech.math.weight_lattice` was built BESIDE it in exact ℤ
+    rather than on top of it.
     """
     eigenvalues, cols = _real_skew_eig(j)   # J real-antisymmetric → iS-Hermitian route
     n = len(j)
@@ -1193,14 +1206,24 @@ def an_embedding(imaginary_unit: int = 1) -> dict:
     WHY THE FUNDAMENTAL IS A J-EIGENSPACE (the load-bearing subtlety): a
     *real* 3-dim span of antisymmetric matrices CANNOT carry the su(3)
     fundamental — every real 3-subspace of the complement LEAKS at ``O(1)``
-    under ``[su3, ·]`` (never bit-exact). The fundamental is irreducibly
+    under ``[su3, ·]`` (leakage at ``O(1)``, not at a tolerance). The
+    fundamental is irreducibly
     COMPLEX; it lives as the
     ``+i`` eigenspace of the invariant ``J``. With this ``J``-eigenspace
-    ``3``, ``[su3, 3] ⊆ 3`` is bit-exact (``~3e-14``). The returned
+    ``3``, ``[su3, 3] ⊆ 3`` closes to ``~3e-14``. The returned
     ``complement`` is the GENUINE real su(3)-module (``[su3, complement] ⊆
     complement`` is ``~2e-15``); only the ``J``-eigenspace ``triplet`` /
-    ``antitriplet`` carry the irreducible ``3`` / ``3bar`` with the bit-exact
+    ``antitriplet`` carry the irreducible ``3`` / ``3bar`` with that
     ``[su3, 3] ⊆ 3`` closure.
+
+    ⚠️ rc460 — TWO NUMERIC "bit-exact" CLAIMS RETRACTED HERE (this
+    paragraph carried both). ``~3e-14`` and ``~2e-15`` are FLOAT
+    tolerances; nothing on this surface is bit-exact, and the two claims
+    could not both be true as written. The provenance sense of the word
+    (``:1245`` — "this op's own computation, NOT a cited result") is a
+    different claim, it is TRUE, and it is deliberately left standing. The
+    ``O(1)`` leakage statement above is a MAGNITUDE contrast and is
+    reworded so it no longer implies the alternative is exact.
 
     su(3) IDENTIFICATION (an honest INVARIANT certificate, NOT a raw-Casimir
     comparison): ``{dim 8, rank 2, simple}`` — where ``rank 2`` is the
@@ -1263,10 +1286,26 @@ def an_embedding(imaginary_unit: int = 1) -> dict:
           structure ``Mat`` (``J^2 = -I``).
         - ``triplet`` / ``antitriplet`` — lists of 3 COMPLEX ``8x8`` ``Mat``
           (the genuine fundamental / antifundamental; the ``J = +i / -i``
-          eigenspaces; ``[su3, triplet] ⊆ triplet`` is bit-exact via ``J``).
+          eigenspaces; ``[su3, triplet] ⊆ triplet`` closes to ``~3e-14``
+          via ``J`` — a float tolerance, see the rc460 note at
+          :func:`_j_eigenspaces`).
           ``antitriplet`` is the conjugate of ``triplet``.
         - ``weights`` — a ``(6, 2)`` nested ``list[list[float]]`` of the
           complement weights under the rank-2 Cartan (the ``+/-`` pairs).
+
+          ⚠️ **ORDERING HAZARD (rc460), previously undocumented.** The
+          zero-sum triples — the two weight systems of the ``3`` and the
+          ``3bar`` — are rows **{0, 3, 4}** and **{1, 2, 5}**, NOT
+          ``[:3]`` and ``[3:]``.  Measured: ``sum(weights[:3])`` is
+          ``(6.32, 1.59)``, nowhere near zero, so a consumer slicing the
+          first three rows gets a set that is **not any irrep's weight
+          system**.  Only the ``+/-`` pairing was previously asserted
+          anywhere, and it is ``[(0, 5), (1, 4), (2, 3)]`` — which does
+          NOT induce the triple split.  In the ``(w0, w2)`` basis these
+          six are integral to ``4.44e-16`` and equal the A2 weight system
+          of ``3 ⊕ 3bar``; the exact peer that computes it in ℤ with no
+          ordering hazard at all is
+          :func:`srmech.math.weight_lattice.weight_multiplicities`.
         - ``decomposition`` — ``{"adjoint_14": (8, 3, 3), "vector_7":
           (1, 3, 3)}`` (the ``g2`` and the octonion-vector branchings).
         - ``imaginary_unit`` — the ``K`` used.
@@ -1346,7 +1385,12 @@ def an_embedding(imaginary_unit: int = 1) -> dict:
 #      stabiliser's action on the 4-dim complement H^⊥ ≅ R^4 (the canonical
 #      so(4) = su(2)_+ ⊕ su(2)_- 't Hooft self-dual split). Each closes as
 #      su(2), the two commute ([A, B] = 0), each is a g2-ideal — all
-#      bit-exact (~1e-14).
+#      closing to a measured residual of ~1e-14.  (rc460: this read "all
+#      bit-exact (~1e-14)".  A float residual is a TOLERANCE, not
+#      exactness; the third numeric use of the overloaded word, retracted
+#      with its two siblings at :958 and :1199.  The PROVENANCE uses at
+#      :1065 / :1245 / :1605 mean "this op's own computation, NOT a cited
+#      result" and stay.)
 #
 # This voxel keeps the SYMMETRY surface (so(4) ⊂ g2, a Lie subalgebra)
 # visibly distinct from the OPERATOR surface (cascade.atoms.*, the 6
