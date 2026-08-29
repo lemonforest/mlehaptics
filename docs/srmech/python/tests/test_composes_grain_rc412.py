@@ -608,6 +608,35 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.math.groups.decompose_representation",
         "srmech.amsc.format.sha256_bytes",
     ),
+
+    # ── rc460 — the exact A2 weight-lattice stratum
+    # (srmech.math.weight_lattice), authored WITH `composes` from birth.
+    # Each order below is TRACED by reading the implementation end to end.
+    # `dominant_weight` is NOT here: its own body calls exactly ONE
+    # registered op (sha256_bytes), so its order is FORCED and it is
+    # adjudicated by the committed census instead — the rc423 SINGLE tier.
+
+    # dominant_weight runs FIRST and is the DIMENSION SSoT (the payload's
+    # dimension is never re-derived here — the irrep_dimensions delegation
+    # precedent, so the two ops cannot disagree); the Freudenthal recursion
+    # is private integer arithmetic; sha256_bytes runs LAST over the
+    # finished dominant/orbit table.
+    "srmech.math.weight_lattice.weight_multiplicities": (
+        "srmech.math.weight_lattice.dominant_weight",
+        "srmech.amsc.format.sha256_bytes",
+    ),
+    # weight_multiplicities runs FIRST — the fold consumes the weight
+    # system of the SECOND operand, so it must exist before the translate
+    # loop starts — then dominant_weight for the FIRST operand's dimension
+    # (the dimension law needs both), then the signed fold as private
+    # arithmetic, and sha256_bytes LAST over the finished constituent
+    # list. The private `_dimension` calls inside the sort key are NOT a
+    # registered-op edge and are deliberately not declared.
+    "srmech.math.weight_lattice.tensor_product_multiplicities": (
+        "srmech.math.weight_lattice.weight_multiplicities",
+        "srmech.math.weight_lattice.dominant_weight",
+        "srmech.amsc.format.sha256_bytes",
+    ),
 }
 
 

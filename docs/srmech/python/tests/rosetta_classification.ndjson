@@ -854,6 +854,9 @@
 {"exposed_as": "srmech.math.groups.derived_subgroup", "defined_at": "srmech.math.groups.derived_subgroup", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.groups.frobenius_schur_indicator", "defined_at": "srmech.math.groups.frobenius_schur_indicator", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.groups.fusion_multiplicities", "defined_at": "srmech.math.groups.fusion_multiplicities", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.weight_lattice.dominant_weight", "defined_at": "srmech.math.weight_lattice.dominant_weight", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.weight_lattice.tensor_product_multiplicities", "defined_at": "srmech.math.weight_lattice.tensor_product_multiplicities", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.weight_lattice.weight_multiplicities", "defined_at": "srmech.math.weight_lattice.weight_multiplicities", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.groups.irrep_dimensions", "defined_at": "srmech.math.groups.irrep_dimensions", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.groups.quotient_group", "defined_at": "srmech.math.groups.quotient_group", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.groups.semidirect_product", "defined_at": "srmech.math.groups.semidirect_product", "bucket": "composition_of_c"}

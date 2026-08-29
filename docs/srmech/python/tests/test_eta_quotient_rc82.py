@@ -241,7 +241,7 @@ def test_eta_quotient_is_a_carrier_no_tool_entry():
     # rc410 (`#T1085`): filter by OWNER, not by name-prefix — see
     # tests/_profile_probe.py for why the prefix axis was the wrong question.
     shipped = list(get_tool_schema().by_owner("srmech"))
-    assert len(shipped) == 687
+    assert len(shipped) == 690
     names = {t.name for t in shipped}
     # no eta_quotient ToolEntry leaked in
     assert not any("eta_quotient" in nm for nm in names)

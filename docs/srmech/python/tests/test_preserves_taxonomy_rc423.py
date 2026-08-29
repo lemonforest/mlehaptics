@@ -175,6 +175,20 @@ CLASSIFIED: Dict[str, Tuple[str, ...]] = {
         ('CROSS_CHECK',),
     'numpy-free; no abs() — sign-handling stays Class-K pin-slot + Class-C':
         ('IMPLEMENTATION_DISCIPLINE',),
+    # ── the rc460 srmech.math.weight_lattice triple. ONE sentence across
+    # three ops, the shared-TEXT discipline the codec note below states.
+    # It is deliberately NOT the sibling string above: the added "exact ℤ"
+    # clause is a SECOND guarantee of a different KIND, not a rewording.
+    # The weight-lattice stratum's whole carrier claim is that Racah–Speiser
+    # and Freudenthal stay in the integers end to end — the Gram matrix is
+    # carried 3-SCALED precisely so the recursion never leaves ℤ, and every
+    # division is a guarded `_exact_div` that RAISES on a remainder rather
+    # than rounding. That is EXACTNESS ("an exact integer is retained rather
+    # than reduced away or rounded"), and it is executable, where the
+    # numpy-free / no-abs() half is structural. Classifying it as one kind
+    # would drop the half the rc exists to guarantee.
+    'numpy-free; exact ℤ; no abs() — sign-handling stays Class-K pin-slot + Class-C':
+        ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
     # ── the four LOSSLESS codecs registered at rc425 (`#T1112`):
     # huffman / arithmetic_coding / lz77 / rle. ONE sentence across four ops,
     # deliberately: keying the taxonomy by the whole string makes reuse the

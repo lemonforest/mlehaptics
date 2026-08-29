@@ -887,9 +887,13 @@ CURATED: Dict[str, Dict[str, Any]] = {
             'WHEN to reach for it: the bridge from a rep object back to '
             'the tier-2/3 character stratum — its output feeds the same '
             'contractions fusion_multiplicities runs on table rows. '
-            'CAUTION: class-constancy is the honest SAME-GROUP mismatch '
-            'DETECTOR, stated as a detector, not a proof — the rep and '
-            'char-table payloads share no Cayley bind. '
+            'CAUTION: the SAME-GROUP question is answered by the rc460 '
+            'GROUP-BIND law — rep["cayley_sha256"] == '
+            'char_table["cayley_sha256"], a raise on mismatch, inherited '
+            'by decompose_representation and isotypic_projector. Through '
+            'rc459 this line said class-constancy was that detector and '
+            '"usually" fired; measured over a 60-pair census it fires on '
+            '15%, and 42 of the 60 returned a different answer silently. '
             'SIBLINGS: decompose_representation composes this op; '
             'character_table produces the partition operand; '
             'frobenius_schur_indicator / fusion_multiplicities are the '
@@ -9740,4 +9744,184 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                 'the left and right zero-divisor predicates coincide — it '
                 'asks its own operator. cd_mult is the forward direction.'},
 
+    # ── rc460 — srmech.math.weight_lattice, the exact A2
+    # weight-label stratum. Every transcript below is a REAL captured
+    # result, run against the shipped module.
+    'srmech.math.weight_lattice.dominant_weight': {
+        'example': {
+            'input': {'p': 1, 'q': 0},
+            'output': "{'algebra': 'A2', 'label': (1, 0), 'dimension': 3, "
+                      "'conjugate': (0, 1), 'n_ality': 1, 'cartan': "
+                      "((2, -1), (-1, 2)), 'gauge': {'chirality': "
+                      "'fundamental_first', 'global_form': 'SU(3)', "
+                      "'metric_scale': 3}, 'procedure_sha256': "
+                      "'dfdf5fa2acf90f23...', 'label_sha256': "
+                      "'0555061b582ffdb1...'}",
+            'worked': "from srmech.math.weight_lattice import "
+                      "dominant_weight\n"
+                      "dominant_weight(1, 0)['dimension']\n"
+                      "# -> 3      the fundamental\n"
+                      "dominant_weight(1, 1)['dimension']\n"
+                      "# -> 8      the adjoint, and it is self-conjugate\n"
+                      "dominant_weight(3, 0)['dimension']\n"
+                      "# -> 10\n"
+                      "dominant_weight(1, 0)['conjugate']\n"
+                      "# -> (0, 1)   the 3-bar: label order IS the "
+                      "chirality bit\n"
+                      "dominant_weight(1, 0)['n_ality']\n"
+                      "# -> 1      the Z/3 grading fusion conserves\n"
+                      "dominant_weight(1, 0)['gauge']\n"
+                      "# -> {'chirality': 'fundamental_first', "
+                      "'global_form': 'SU(3)', 'metric_scale': 3}\n"
+                      "dominant_weight(1, 0)['label_sha256'] == "
+                      "dominant_weight(0, 1)['label_sha256']\n"
+                      "# -> False    3 and 3-bar are separated by the "
+                      "ADDRESS, not by the generator\n",
+            'why': 'The generator cannot tell 3 from 3-bar — the Cartan '
+                   'matrix is invariant under the diagram flip, so both '
+                   'labels give dimension 3 and identical derived '
+                   'invariants. The transcript ends on the address, which '
+                   'is where the chirality bit actually lives.'},
+        'explanation':
+            'WHAT it computes: the stored A2 label object — dimension '
+            '(p+1)(q+1)(p+q+2)/2 with the /2 guarded, the conjugate label, '
+            'the Z/3 N-ality grading, the Cartan matrix, an explicit gauge '
+            'block, and two content addresses. Class A: the op exists to '
+            'MINT the address, and everything else in the module derives '
+            'from the label rather than storing coordinates — measured, '
+            'derivation is SUBLINEAR in the object derived ((24,24) has '
+            'dimension 15625 and only 313 dominant weights), so the '
+            'procedural form is cheaper than the coordinate form, not '
+            'merely acceptable. '
+            'WHEN to reach for it: whenever an su(3) / A2 irrep needs a '
+            'stable identity — a dimension, a conjugate, an N-ality, or an '
+            'address to store. What you would otherwise wrongly hand-roll '
+            'is the dimension formula with an unguarded /2, and worse, a '
+            'LABEL-ONLY hash: the Cartan matrix does not fix the chirality '
+            'bit (3 vs 3-bar), does not fix which lattice between root and '
+            'weight the global form uses (SU(3) vs PSU(3)), and is integral '
+            'only after clearing 3 — so a label-only address collides across '
+            'two rcs deriving under different conventions. label_sha256 '
+            'binds label AND gauge AND procedure_sha256 for exactly that '
+            'reason. '
+            'SIBLINGS: weight_multiplicities takes this op as its DIMENSION '
+            'SSoT and never re-derives it (the irrep_dimensions delegation '
+            'precedent, so the two cannot disagree); '
+            'tensor_product_multiplicities reads it for the dimension law. '
+            'On the finite-group side srmech.math.groups.irrep_dimensions is '
+            'the analogous readout, but it is indexed by Cayley-table '
+            'ELEMENTS where this stratum is indexed by lattice WEIGHTS.'},
+    'srmech.math.weight_lattice.weight_multiplicities': {
+        'example': {
+            'input': {'p': 1, 'q': 1},
+            'output': "dominant ((0, 0, 2), (1, 1, 1)), orbit_sizes (1, 6), "
+                      "dimension 8, n_weights 8",
+            'worked': "from srmech.math.weight_lattice import "
+                      "weight_multiplicities\n"
+                      "weight_multiplicities(1, 1)['dominant']\n"
+                      "# -> ((0, 0, 2), (1, 1, 1))   the adjoint: the ZERO "
+                      "weight at multiplicity 2\n"
+                      "weight_multiplicities(1, 1)['orbit_sizes']\n"
+                      "# -> (1, 6)                   1*2 + 6*1 == 8 == the "
+                      "dimension\n"
+                      "weight_multiplicities(3, 0)['dominant']\n"
+                      "# -> ((0, 0, 1), (1, 1, 1), (3, 0, 1))   the 10 is "
+                      "multiplicity-free\n"
+                      "weight_multiplicities(2, 2)['dominant']\n"
+                      "# -> ((0, 0, 3), (0, 3, 1), (1, 1, 2), (2, 2, 1), "
+                      "(3, 0, 1))\n"
+                      "weight_multiplicities(2, 2)['n_weights']\n"
+                      "# -> 27                       the dimension law, "
+                      "executed\n",
+            'why': "The adjoint's zero-weight multiplicity is 2 and 2 is the "
+                   'RANK of su(3) — readable straight off the payload face, '
+                   'which is why dominant representatives plus orbit sizes '
+                   'is the carried form rather than a flat weight list.'},
+        'explanation':
+            'WHAT it computes: the weight system of the A2 irrep V_(p,q), '
+            'carried as DOMINANT REPRESENTATIVES with their Weyl-orbit '
+            'sizes, so the payload is O(dim^2/3) rather than O(dim). '
+            'Multiplicities come from the Freudenthal recursion run over a '
+            '3-SCALED Gram matrix, which keeps every intermediate an exact '
+            'integer because the recursion is a RATIO of two form values and '
+            'the scale cancels (measured over [0,11]^2: 6135 divisions, 0 '
+            'inexact). Class E, the catalog enumeration; the Weyl reflection '
+            'to the dominant representative is the Class-C stage and the '
+            'guarded division is Class N. It is deliberately NOT Class K — '
+            "Freudenthal's recursion is sign-free, and claiming K would "
+            'assert a phase boundary this op never crosses. '
+            'WHEN to reach for it: when you need the actual weights of an '
+            'irrep — branching, a character evaluation, or the operand of a '
+            'tensor decomposition. What you would otherwise wrongly hand-roll '
+            'is the recursion in floating point, or orbit sizes from a '
+            'coordinate-vanishing rule; this op READS the orbit size as the '
+            'cardinality of the derived Weyl orbit instead, so a wrong rule '
+            'cannot agree by accident. '
+            'SIBLINGS: dominant_weight is the dimension SSoT it delegates to '
+            'and the in-op dimension law checks against; '
+            'tensor_product_multiplicities consumes this payload as the '
+            'operand it translates and folds. There is no finite-group '
+            'analogue — srmech.math.groups stops at characters, which are '
+            'class functions, where a weight system is indexed by the '
+            'lattice.'},
+    'srmech.math.weight_lattice.tensor_product_multiplicities': {
+        'example': {
+            'input': {'a': [1, 0], 'b': [1, 0]},
+            'output': "constituents ((0, 1, 1), (2, 0, 1)), dim_check 9, "
+                      "singlet_multiplicity 0",
+            'worked': "from srmech.math.weight_lattice import "
+                      "tensor_product_multiplicities\n"
+                      "tensor_product_multiplicities((1, 0), (1, 0))"
+                      "['constituents']\n"
+                      "# -> ((0, 1, 1), (2, 0, 1))   3 (x) 3 = 3bar (+) 6\n"
+                      "tensor_product_multiplicities((1, 0), (1, 0))"
+                      "['dim_check']\n"
+                      "# -> 9\n"
+                      "tensor_product_multiplicities((1, 0), (1, 0))"
+                      "['singlet_multiplicity']\n"
+                      "# -> 0      no singlet in 3 (x) 3\n"
+                      "tensor_product_multiplicities((1, 0), (0, 1))"
+                      "['constituents']\n"
+                      "# -> ((0, 0, 1), (1, 1, 1))   3 (x) 3bar = 1 (+) 8\n"
+                      "tensor_product_multiplicities((1, 1), (1, 1))"
+                      "['constituents']\n"
+                      "# -> ((0, 0, 1), (1, 1, 2), (0, 3, 1), (3, 0, 1), "
+                      "(2, 2, 1))\n"
+                      "#    8 (x) 8 = 1 + 8 + 8 + 10bar + 10 + 27, sorted "
+                      "by (dimension, label)\n",
+            'why': 'The two cells that separate a correct fold from a '
+                   'plausible one: 3 (x) 3 must give the 3-bar and exactly '
+                   'one 6 with the spurious same-label channel at exactly 0, '
+                   'while 3 (x) 3-bar must give the singlet. A transposed '
+                   'Weyl family makes those two cells IDENTICAL.'},
+        'explanation':
+            'WHAT it computes: the A2 tensor-product multiplicities N_ab^c '
+            'by Racah-Speiser — take the weight system of V_b with '
+            'multiplicities, translate every weight by a + rho, DISCARD the '
+            'translates landing on a reflection wall (they contribute exactly '
+            'zero), fold the rest into the OPEN dominant chamber under the '
+            "6-element Weyl group carrying the element's +-1 determinant, and "
+            'accumulate sign * m(nu). Class K: that +-1 ledger at the walls IS '
+            'the instrument, and it is exactly where a sign count becomes a '
+            'fusion coefficient. There is no integral and no measure anywhere '
+            'in the derivation — the "convolution of orbital measures against '
+            'Haar" phrasing is the continuum shadow of this signed integer '
+            'count. '
+            'WHEN to reach for it: any su(3) decomposition question — which '
+            'channels appear in a product, with what multiplicity, and '
+            'whether the singlet is among them (surfaced as its own field so '
+            'that is a payload read rather than a search). What you would '
+            'otherwise wrongly hand-roll: testing only the two SIMPLE walls. '
+            'A2 has THREE positive roots and only two are simple; omitting '
+            'the third leaks translates like (2,-2) that fold onto the '
+            'missing wall and mint NON-DOMINANT labels, with no crash — '
+            'measured at 170 failures over a 625-pair window against 0 for '
+            'the shipped fold. '
+            'SIBLINGS: srmech.math.groups.fusion_multiplicities is the '
+            'finite-group twin and is Class L BECAUSE it contracts against '
+            'the class-algebra eigenbasis; this op builds no eigenbasis and '
+            'projects onto nothing, so it is explicitly NOT Class L. '
+            'weight_multiplicities supplies the operand it folds; '
+            'dominant_weight supplies the dimensions its dimension law checks '
+            'against.'},
 }

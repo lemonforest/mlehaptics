@@ -117,6 +117,6 @@ def test_registry_size_is_unchanged_by_this_rc():
     from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()
-    assert len(get_tool_schema().tools) == 687
-    assert describe()["tools"]["total"] == 687
+    assert len(get_tool_schema().tools) == 690
+    assert describe()["tools"]["total"] == 690
     assert describe()["srmech_version"] == srmech.__version__
