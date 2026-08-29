@@ -82,7 +82,47 @@ CEIL_WORKED_EXAMPLE_FAILURES = {
     # snippets: 326 ok, 96 unexpected_raise, 4 needs_subprocess, 1 timeout
     # (``rbs_lm.encode_aboutness``), 0 syntax_error, 0 marker failures.
     "native": {"unexpected_raise": 96, "timeout": 1},
-    "pure": None,
+    # measured at rc460, CPython 3.10 / HAS_NATIVE False / numpy ABSENT, 605
+    # snippets: 504 ok, 96 unexpected_raise, 4 needs_subprocess, 1 timeout
+    # (``rbs_lm.encode_aboutness``), 0 syntax_error, 0 marker failures.
+    #
+    # ⚠️ SEEDED BECAUSE rc460 SILENTLY DISARMED THIS RATCHET, and a green
+    # board is exactly how that hid.  rc459's committed ledger carried
+    # ``"native": true`` and the ceiling below it was ENFORCED.  rc460
+    # regenerated the ledger in a native-absent worktree, the meta row flipped
+    # to ``"native": false``, the cell selector above swung to ``"pure"`` — and
+    # ``"pure"`` was ``None``, so the assertion stopped running and reported
+    # itself as one routine ``skipped``.  Nothing regressed numerically; the
+    # ratchet simply went inert while every number it guards stayed correct.
+    #
+    # These figures are NOT the native column copied across — that is the
+    # failure this block's own docstring names, and it would be undetectable
+    # here precisely because the two cells happen to agree on both classes.
+    # They are read off the rc460 ledger itself, which IS a run in this cell
+    # (its meta row records ``native: false``), i.e. the measurement the
+    # paragraph above asks for rather than a guess wearing its clothes.  That
+    # the two cells agree is not a coincidence: the residual is dominated by
+    # snippet defects that do not care about native dispatch (missing
+    # ``tomli``, cwd-relative attested-row reads, ``NameError`` on undefined
+    # names).
+    #
+    # ⚠️ BUT THE PURE FIGURE IS HOST-DEPENDENT, AND THE RATCHET IS RIGHT TO
+    # BE STRICT ABOUT IT.  Re-running the executor on a native-Windows host
+    # (CPython 3.14, numpy absent, HAS_NATIVE False) measured **97**, not 96 —
+    # and the single differing snippet is ``amsc.catalog.register_attested_root``,
+    # whose worked example hardcodes the WSL path
+    # ``/mnt/d/GitHub/mlehaptics/.../ephemerides-spectral/...`` for the SISTER
+    # package's attested root.  Where that path resolves the snippet succeeds;
+    # where it does not, ``get_attested_dataset`` returns a payload with no
+    # ``total`` key and line 18 dies on ``KeyError: 'total'``.
+    #
+    # So this ledger encodes one fact about the machine that generated it, and
+    # a regeneration elsewhere WILL read 97 and trip the ceiling.  That is the
+    # ratchet working, not breaking: the right response is to fix the snippet's
+    # absolute path (it is the only host-coupled one found), not to raise the
+    # number.  Recorded here because it is invisible from the committed
+    # artifact alone — the ledger reports a tally, never the host it needed.
+    "pure": {"unexpected_raise": 96, "timeout": 1},
 }
 
 
@@ -197,6 +237,39 @@ def test_unexpected_outcomes_are_at_or_below_the_ceiling() -> None:
             f"[{cell}] the ceiling is now too loose — lower "
             f"CEIL_WORKED_EXAMPLE_FAILURES in the SAME commit so the gain "
             f"cannot be given back:\n  " + "\n  ".join(under))
+
+
+def test_the_cell_the_committed_ledger_selects_is_actually_SEEDED() -> None:
+    """The ceiling above may not SKIP on the ledger this tree ships.
+
+    rc460 is why this exists.  Regenerating the ledger in a native-absent
+    worktree flipped its meta row from ``"native": true`` to ``false``, which
+    swung the cell selector from ``"native"`` to ``"pure"`` — and ``"pure"``
+    was ``None``, so the down-only ratchet stopped asserting and said so as a
+    single ``skipped``.  On a board that is otherwise green, one skip reads as
+    routine; it took a deliberate rc-over-rc comparison to notice that a gate
+    which had been ENFORCING at rc459 was inert at rc460, with every number it
+    guards unchanged.
+
+    The skip itself is the right behaviour for a genuinely unmeasured cell —
+    asserting a number nobody ran is the worse failure.  What was missing is
+    that NOBODY IS TOLD.  This test is the paired assertion: the skip stays
+    available as a seeding path, but it can no longer apply to the artifact
+    actually committed.  Regenerate in a new cell and the suite goes RED with
+    instructions, instead of quietly dropping a ratchet.
+    """
+    meta, _rows_ = _rows()
+    cell = "native" if meta.get("native") else "pure"
+    assert cell in CEIL_WORKED_EXAMPLE_FAILURES, (
+        f"the committed ledger selects cell {cell!r}, which has no entry in "
+        f"CEIL_WORKED_EXAMPLE_FAILURES at all")
+    assert CEIL_WORKED_EXAMPLE_FAILURES[cell] is not None, (
+        f"the committed ledger was generated in the {cell!r} cell "
+        f"(meta native={meta.get('native')!r}) and NO ceiling has been "
+        f"measured for it, so the down-only ratchet next door is SKIPPING on "
+        f"the artifact this tree actually ships. Seed it: run "
+        f"`python3 tools/run_worked_examples.py` in this cell and commit what "
+        f"it printed — do NOT copy the other cell's numbers.")
 
 
 def test_the_needs_subprocess_set_is_declared_not_silently_timed_out() -> None:

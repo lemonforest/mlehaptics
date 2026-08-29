@@ -217,8 +217,29 @@ def _coroot_pairing(op: str, weight: Sequence[int],
     """``<weight, root^vee> = 2·<weight, root> / <root, root>``, DERIVED
     from the stored Gram matrix rather than re-spelled as a coordinate
     read.  The metric scale cancels between numerator and denominator, so
-    the result is scale-free; the guarded division is what makes that a
-    measurement rather than an assertion."""
+    the result is scale-free.
+
+    ⚠️ **The guard here CANNOT FIRE on A2, and saying otherwise would be
+    claiming a measurement that no input can move.**  This docstring read
+    "the guarded division is what makes that a measurement rather than an
+    assertion"; measured over ``[-40, 40]^2`` x the three positive roots
+    (19683 pairs), the remainder is 0 every time and the residue SET is
+    ``{0}`` — not mostly-zero, identically zero.  The algebra says why:
+    with the shipped 3-scaled Gram ``((2,1),(1,2))`` and ``alpha_1 =
+    (2,-1)``, ``2<w, alpha_1> = 6·w[0]`` while ``<alpha_1, alpha_1> = 6``,
+    so the quotient IS the Dynkin coordinate ``w[0]`` — a polynomial
+    identity, and likewise ``w[1]`` and ``w[0]+w[1]`` for the other two
+    roots.  The division is exact BY CONSTRUCTION on this algebra.
+
+    The guard is still worth its line, but for the honest reason: it is a
+    CORRUPTION detector on the stored constants, and it is the check that
+    has to be live if the module is ever widened past A2, where
+    non-simply-laced roots make the division genuinely non-trivial.  Both
+    of those are MEASURED, not supposed — over ``[-8, 8]^2`` x the three
+    roots: shipped Gram **0** fires, a single mistyped Gram entry
+    (``((2,1),(1,3))`` or ``((3,1),(1,2))``) **494**, and a non-A2 root
+    ``(2,-3)`` **248**.  So the guard is live against the thing it can
+    actually catch, and vacuous about the arithmetic this rc performs."""
     return _exact_div(op, 2 * _bilinear(weight, root),
                       _bilinear(root, root),
                       f"the coroot pairing of {tuple(weight)} with "
@@ -677,6 +698,20 @@ def tensor_product_multiplicities(a: Sequence[int],
         "is the singlet present" question readable straight off the
         payload), ``"n_constituents"``, ``"procedure_sha256"``,
         ``"fusion_sha256"}``.
+
+    ⚠️ ``fusion_sha256`` addresses the **ANSWER, not the operation** — it
+    is minted over the ``constituents`` tuple ALONE.  It is deliberately a
+    WEAKER object than :func:`dominant_weight`'s ``label_sha256``, which
+    binds label AND gauge AND procedure; do not read the two as peers just
+    because they sit in sibling payloads.  Measured over the ``[0,3]^2``
+    window: 256 pairs mint **136** distinct addresses, so 120 pairs SHARE
+    one — and in every shared case the constituent tuple is identical (0
+    shares with a differing answer), which is the address behaving
+    correctly for what it addresses.  ``(0,0) (x) (0,1)`` and ``(0,1) (x)
+    (0,0)`` collide because fusion is commutative and the answer really is
+    the same object.  If you need to bind the operands, they are right
+    there in the payload as ``a`` and ``b``, and the convention under
+    which they were derived is in ``procedure_sha256``.
 
     In-op guards, each a raise: **non-negativity after cancellation** (a
     surviving negative is a BUG DETECTOR, never a result), **strict

@@ -42,8 +42,10 @@ green ones next to them then mean something.
 
 ⚠️ SANCTIONED HAND-ROLL, DECLARED RATHER THAN HIDDEN
 ====================================================
-Two things in this file are hand-rolled, which normally reads as a gap
-(`[[feedback_scratch_measurements_must_use_srmech_or_gaps_stay_invisible]]`):
+THREE things in this file are hand-rolled, which normally reads as a gap
+(`[[feedback_scratch_measurements_must_use_srmech_or_gaps_stay_invisible]]`).
+(This note said "two" and omitted the third; a declaration that is itself
+incomplete is the thing the discipline exists to prevent, so it is listed.)
 
 * the **Littlewood–Richardson enumerator** is hand-rolled BECAUSE its entire
   value is sharing no code with the fold it checks.  That is the declared
@@ -57,6 +59,19 @@ Two things in this file are hand-rolled, which normally reads as a gap
   group**.  That is a GENUINE gap, and it ships as the named open row
   :func:`test_the_psl2_constructor_gap_is_recorded_not_hidden` — ``psl2(q)``
   is the missing constructor.
+* :func:`_perturbed_fold` is a hand-rolled, PARAMETERISED copy of the
+  Racah–Speiser fold, and it exists for exactly one reason: the two mandated
+  red proofs below perturb the **Weyl family** and the **wall set**, and the
+  shipped op reads both from module constants, so it cannot be parameterised
+  on either.  Without this there is no way to execute the mandate at all —
+  the alternative is asserting the perturbations fail without running them,
+  which is the failure mode the red proofs exist to rule out.  It is not a
+  second implementation offered as evidence: it is bound to the shipped op by
+  :func:`test_the_harness_reproduces_the_shipped_op`, which requires exact
+  agreement UNPERTURBED, so a red result below is attributable to the
+  perturbation rather than to the harness.  Declared because it is textually
+  beyond the two above, and a hand-roll nobody listed is indistinguishable
+  from one nobody noticed.
 
 ⚠️ ROW LOCATION IS BY CONTENT, NEVER BY INDEX.  Character-table rows sort
 ``(degree, lex)``; the trivial character is NOT at index 0 in general.  Every
@@ -676,7 +691,19 @@ def test_ORACLE_the_LR_control_can_disagree():
 
 def test_ORACLE_weight_system_convolution_identity():
     """SECOND OPINION (b): ``m_{a⊗b} = Σ_ν N^ν · m_ν`` on the FULL weight
-    multiset — a different equation on a different object from the fold."""
+    multiset — a different equation on a different object from the fold.
+
+    ⚠️ SCOPED: this is a second EQUATION, **not** a code-disjoint control, and
+    the two are not the same kind of evidence.  :func:`_full_weight_system`
+    expands orbits through ``wl._weyl_orbit`` — the module's OWN Weyl code,
+    the same machinery the fold under test uses — so a fault in the Weyl
+    action could in principle move both sides of this identity together.  The
+    genuinely code-disjoint oracle in this file is the Littlewood–Richardson
+    count (#3 in the header), which shares nothing with the fold; that is the
+    one carrying the co-equal-dual-construction claim, and this one earns its
+    place as an independent LAW rather than an independent IMPLEMENTATION.
+    Recorded so the pair is not read as two controls of equal strength.
+    """
     disagreements = []
     for a, b in itertools.product(LABELS, repeat=2):
         wa, wb = _full_weight_system(a), _full_weight_system(b)
@@ -785,6 +812,16 @@ def test_ORACLE_the_psl27_CELL_reproduces_three_tensor_three(psl27):
     ``⟨χ³, 1⟩ = 1``.  Asserting P1 ∧ P2 as a CONJUNCTION is load-bearing:
     ``⟨χ³,1⟩ = 1`` alone is also true of the TRIVIAL row, so the predicate
     discriminates only as a conjunction.
+
+    ⚠️ DO NOT "SIMPLIFY" THIS INTO A PINNED VECTOR.  It is tempting to
+    replace the content lookups below with the literal ``N[a][a] ==
+    [0, 0, 1, 1, 0, 0]``, and that literal is only true of ONE of the two
+    rows.  Measured on this table: row 1 gives ``[0, 0, 1, 1, 0, 0]`` and
+    row 2 gives ``[0, 1, 0, 1, 0, 0]`` — both are the same STRUCTURE (the
+    other degree-3 once, one degree-6 once, self-channel zero) expressed at
+    different indices, because each row's ``3-bar`` is the OTHER row.  A
+    per-index literal would pass on row 1 and fail on row 2 while nothing
+    is wrong, which is precisely the by-index reading the header forbids.
     """
     ct, fusion = psl27["ct"], psl27["fusion"]
     degrees, trivial = ct["degrees"], _trivial_row(ct)
@@ -803,9 +840,17 @@ def test_ORACLE_the_psl27_CELL_reproduces_three_tensor_three(psl27):
         assert cube == 1, "<chi^3, 1>"
 
     lattice = _cell((1, 0), (1, 0))
-    dims = sorted(dominant_weight(p, q)["dimension"] * m
-                  for (p, q), m in lattice.items())
-    assert dims == [3, 6]
+    # REPEAT the dimension by multiplicity; do NOT scale it.  ``dim * mult``
+    # maps ``3bar + 2x3`` — i.e. ``{(0,1): 1, (1,0): 2}`` — onto the SAME
+    # ``[3, 6]`` this cell exists to be distinguished from, and that imposter
+    # also satisfies the ``3*3 = 9`` dimension law, so nothing else here would
+    # catch it.  Measured: the scaled form accepts it, the repeated form gives
+    # ``[3, 3, 3]`` and rejects it.  The two sibling helpers below (the degree
+    # multisets) already repeat rather than scale; this line was the outlier.
+    dims = []
+    for (p, q), m in lattice.items():
+        dims += [dominant_weight(p, q)["dimension"]] * m
+    assert sorted(dims) == [3, 6]
 
 
 def test_P2_ALONE_DOES_NOT_DISCRIMINATE(psl27):
@@ -1013,6 +1058,46 @@ def test_the_registry_carries_all_three_ops_under_their_own_category():
         assert entry.owner == "srmech"
         assert entry.category == "weight_lattice"
         assert "srmech.amsc.format.sha256_bytes" in entry.composes
+
+
+def test_EVERY_one_of_the_three_ops_carries_the_exact_Z_guarantee():
+    """Per-op, because the taxonomy next door cannot be per-op.
+
+    ``tests/test_preserves_taxonomy_rc423.py`` keys its classification by the
+    WHOLE invariant string, which is the right design for what it does — but it
+    therefore answers only "is this sentence shipped by SOMEBODY", never "does
+    THIS op still make this promise".  Both the rc460 string and its weaker
+    pre-rc460 sibling (``numpy-free; no abs() ...``, without the ``exact ℤ``
+    clause) are classified there, so the two are interchangeable as far as that
+    gate can see.
+
+    Measured on this tree: downgrading ALL THREE ops to the weaker sibling does
+    go red — the rc460 string becomes shipped by nobody and the dead-row check
+    catches it.  Downgrading exactly ONE does not: the string stays alive via
+    the other two, and the taxonomy plus the full weight-lattice suite report
+    **88 passed**.  So the guarantee the rc's own comment calls "the half the rc
+    exists to guarantee" could be dropped from ``dominant_weight`` alone and
+    every board stayed green.
+
+    This closes that: the clause is bound to each op individually, so a partial
+    downgrade fails and names the op that dropped it.
+    """
+    from srmech.introspect.tool_schema import get_tool_schema
+    rows = {e.name: e for e in get_tool_schema().tools
+            if e.name.startswith("srmech.math.weight_lattice.")}
+    assert len(rows) == 3, rows
+    missing = sorted(
+        name for name, entry in rows.items()
+        if not any("exact ℤ" in s for s in entry.preserves))
+    assert not missing, (
+        f"{len(missing)} of the 3 weight-lattice ops no longer declare the "
+        f"exact-ℤ guarantee in `preserves`: {missing}. The whole carrier claim "
+        f"of this stratum is that Racah–Speiser and Freudenthal stay in the "
+        f"integers end to end — the Gram matrix is carried 3-SCALED so the "
+        f"recursion never leaves ℤ, and every division is a guarded "
+        f"`_exact_div` that RAISES on a remainder. If an op genuinely stopped "
+        f"guaranteeing that, the DOCSTRING and the code must change too; do "
+        f"not quietly relax the string.")
 
 
 def test_the_class_NON_CLAIMS_are_stated_in_the_shipped_prose():

@@ -960,7 +960,8 @@ def _triplet_from_eigenspace(
 
     ⚠️ rc460: this line read "is bit-exact (``~3e-14``)" and those two
     claims cannot both be true.  The word is OVERLOADED in this file: at
-    the provenance sites (``:1065``, ``:1245``, ``:1605``) "bit-exact"
+    the provenance sites (:func:`_an_attestation`, :func:`an_embedding`,
+    :func:`_so4_attestation`) "bit-exact"
     means *this op's own computation, NOT a cited result* — a claim about
     where the number came from, and TRUE.  Here it was attached to a float
     residual, which makes it a NUMERIC claim, and false: ``3e-14`` is
@@ -1220,7 +1221,8 @@ def an_embedding(imaginary_unit: int = 1) -> dict:
     paragraph carried both). ``~3e-14`` and ``~2e-15`` are FLOAT
     tolerances; nothing on this surface is bit-exact, and the two claims
     could not both be true as written. The provenance sense of the word
-    (``:1245`` — "this op's own computation, NOT a cited result") is a
+    (below in this same docstring — "this op's own computation, NOT a
+    cited result") is a
     different claim, it is TRUE, and it is deliberately left standing. The
     ``O(1)`` leakage statement above is a MAGNITUDE contrast and is
     reworded so it no longer implies the alternative is exact.
@@ -1288,7 +1290,7 @@ def an_embedding(imaginary_unit: int = 1) -> dict:
           (the genuine fundamental / antifundamental; the ``J = +i / -i``
           eigenspaces; ``[su3, triplet] ⊆ triplet`` closes to ``~3e-14``
           via ``J`` — a float tolerance, see the rc460 note at
-          :func:`_j_eigenspaces`).
+          :func:`_triplet_from_eigenspace`).
           ``antitriplet`` is the conjugate of ``triplet``.
         - ``weights`` — a ``(6, 2)`` nested ``list[list[float]]`` of the
           complement weights under the rank-2 Cartan (the ``+/-`` pairs).
@@ -1388,8 +1390,9 @@ def an_embedding(imaginary_unit: int = 1) -> dict:
 #      closing to a measured residual of ~1e-14.  (rc460: this read "all
 #      bit-exact (~1e-14)".  A float residual is a TOLERANCE, not
 #      exactness; the third numeric use of the overloaded word, retracted
-#      with its two siblings at :958 and :1199.  The PROVENANCE uses at
-#      :1065 / :1245 / :1605 mean "this op's own computation, NOT a cited
+#      with its two siblings in _triplet_from_eigenspace and an_embedding.
+#      The PROVENANCE uses in _an_attestation / an_embedding /
+#      _so4_attestation mean "this op's own computation, NOT a cited
 #      result" and stay.)
 #
 # This voxel keeps the SYMMETRY surface (so(4) ⊂ g2, a Lie subalgebra)
