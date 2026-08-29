@@ -123,6 +123,28 @@ SLOW_ALLOWLIST: Dict[str, Tuple[float, str]] = {
     "srmech.physics.qm.triality.triality_frame_action":
         (240.0, "46.7 s measured COLD: the first _companion_maps() build; "
                 "the op itself is 5.2 ms"),
+    # rc461 review: the paragraph above is right, and it stopped one name too
+    # early. EVERY triality snippet that reaches `_companion_maps()` pays that
+    # cold build when it is the ONLY job in the run — and `--only <name>` is
+    # exactly what `tools/hooks/derived_ledger_freshness.py` prescribes when
+    # triality.py changes, on precisely these rows. MEASURED on this branch,
+    # one `--only` invocation per row, CPython 3.14 / native absent: these
+    # three took 16.0 s, 16.6 s and 16.0 s against DEFAULT_BUDGET = 15.0 and
+    # flipped `ok` -> `timeout`, while every other triality row finished under
+    # 4 s. Committing that ledger would have carried the `timeout` tally from
+    # 1 to 4 against a ceiling of 1 in
+    # `tests/test_worked_examples_execute_rc354.py` — a false red manufactured
+    # by the remediation the hook itself hands you. The snippets are not slow;
+    # the isolation is.
+    "srmech.physics.qm.triality.triality_automorphism":
+        (240.0, "16.0 s measured COLD under --only: the _companion_maps() "
+                "build, not the op"),
+    "srmech.physics.qm.triality.triality_swap":
+        (240.0, "16.6 s measured COLD under --only: the _companion_maps() "
+                "build, not the op"),
+    "srmech.physics.qm.triality.lean_isa_seventh_primitive":
+        (240.0, "16.0 s measured COLD under --only: the _companion_maps() "
+                "build, not the op"),
     "srmech.math.laplacian.recover_check": (240.0, "106 s measured: dense recover"),
     "srmech.math.laplacian.recover_check_spectral": (300.0, "244 s measured"),
     "srmech.math.laplacian.recover_check_structural": (240.0, "33 s measured"),

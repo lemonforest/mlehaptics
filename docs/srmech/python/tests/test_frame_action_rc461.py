@@ -54,6 +54,23 @@ this particular Cartan, and the op refuses it with a ``ValueError`` naming the
 escaping coordinate rather than answering approximately. That refusal is
 exercised below. It is a real restriction of the instrument, stated rather
 than hidden.
+
+**NAMED BLIND SPOT — the verdict is about ``h``, and only about ``h``.** The
+read touches the four Cartan COLUMNS and nothing else, so the other 24 are
+never inspected, and a map that is not an automorphism at all — but whose
+Cartan block is legitimate — is ANSWERED rather than refused. That is measured
+here rather than argued: zeroing every non-Cartan column of ``τ`` leaves 4 live
+columns out of 28, so the rank is at most 4 and the map is not invertible,
+hence provably not an automorphism of so(8); the op returns the 3-cycle at
+``order`` 3 all the same, because that is exactly what the surviving 4×4 does.
+
+No wrong number is produced — the payload is a true statement about the induced
+action on the Cartan — so this is a SCOPE limit and not a defect, and the fix
+is that the shipped docstring says so. Deciding automorphy would mean checking
+bracket-preservation over all ``C(28,2) = 378`` generator pairs: a different
+instrument, not a tightening of this one. The docstring's ``Warning:`` carries
+the disclosure and a test below asserts it is still there, so deleting the
+paragraph turns the suite red instead of quietly widening the claim.
 """
 
 from __future__ import annotations
@@ -71,6 +88,7 @@ from srmech.physics.qm.triality import (
     _cartan_block,
     _companion_maps,
     _frame_cartan_blocks,
+    _weight_set,
     triality_automorphism,
     triality_frame_action,
     triality_swap,
@@ -302,13 +320,97 @@ def test_a_wrong_shape_is_refused() -> None:
 
 
 def test_the_scaled_map_is_refused_because_a_weight_set_stops_matching() -> None:
-    """2·τ is not an automorphism of so(8); its transported weights are twice
-    the right size and match nothing. A classifier that normalised first would
-    accept it, and would then be reporting on an object it was not given."""
+    """2·τ's transported weights are twice the right size and match nothing, so
+    the induced action on ``h`` is not one of the six ``Out(Spin(8))`` induces
+    and the op refuses it. A classifier that normalised first would accept it,
+    and would then be reporting on an object it was not given.
+
+    The refusal is decided ON THE CARTAN BLOCK — which is why the message says
+    that, and not "the input is not an automorphism": the op cannot see 24 of
+    the 28 columns, as the blind-spot test below measures."""
     els = _group_elements()
     doubled = [[x + x for x in row] for row in els["tau = S_B S_C"]]
-    with pytest.raises(ValueError, match="not an automorphism"):
+    with pytest.raises(ValueError, match="not one of the six Out"):
         triality_frame_action(_embed(doubled))
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 4b. THE BLIND SPOT — measured, and disclosed where a consumer reads
+# ══════════════════════════════════════════════════════════════════════
+
+def test_a_non_automorphism_with_a_legitimate_cartan_block_is_answered() -> None:
+    """The instrument's scope limit, MEASURED rather than described.
+
+    Zero every non-Cartan column of τ. Four of 28 columns survive, so the rank
+    is at most 4 and the map is NOT invertible — hence provably not an
+    automorphism of so(8). The op answers it anyway, with the same 3-cycle and
+    the same Cartan block as the genuine τ, because the surviving 4×4 IS τ's
+    Cartan block.
+
+    This is not a wrong number and the assertion is not a complaint: what the
+    payload states is true of the induced action on ``h``. It is here so the
+    ``Raises:`` clause can never again say a non-automorphism is what makes
+    this op raise — three such inputs were constructed during the rc461 review
+    and every one of them was answered with confidence."""
+    pairs = _epq_pairs()
+    ci = {pairs.index(pq) for pq in _CARTAN_PAIRS}
+    rows = [r[:] for r in triality_automorphism().tolist()]
+    for j in range(_DIM_SO8):
+        if j not in ci:
+            for r in range(_DIM_SO8):
+                rows[r][j] = 0.0
+
+    live = [j for j in range(_DIM_SO8)
+            if any(rows[r][j] != 0 for r in range(_DIM_SO8))]
+    assert len(live) == _CARTAN_RANK == 4        # rank ≤ 4 < 28 ⇒ singular
+    assert sorted(live) == sorted(ci)
+
+    # Compared against the GENUINE τ, never against the shipped constant: the
+    # claim here is "the op cannot tell these two apart", which is a statement
+    # about the instrument, not about _TAU_LABEL_ACTION. Keeping the constant
+    # out also keeps the planted-mutation count in `ripple_gates.txt` honest.
+    got = triality_frame_action(rows)
+    genuine = triality_frame_action(triality_automorphism())
+    assert got["order"] == 3
+    assert got["frame_action"] == genuine["frame_action"]
+    assert got["cartan_block"] == genuine["cartan_block"]
+    assert got["action_sha256"] == genuine["action_sha256"]
+
+
+def test_a_degenerate_frame_block_is_refused_not_silently_undercounted(
+        monkeypatch) -> None:
+    """``_WEIGHTS_PER_FRAME`` is ``2 × rank`` BY DERIVATION and, until the
+    rc461 review, had no reader anywhere in the tree — a derived literal
+    shipping next to a measured ``len`` that nothing compared it to.
+
+    Reconciling two routes to the same 8 is only worth doing if they can
+    disagree, so make them: repeat a row in ``8c``'s Cartan block. The ±
+    closure collapses from 8 weights to 6, the three systems stop being able
+    to separate the frames, and the op must say so rather than return
+    ``weights_per_frame`` 6 and a confident permutation."""
+    import srmech.physics.qm.triality as T
+    real = T._frame_cartan_blocks()
+    block = [list(r) for r in real["c"]]
+    assert block[0] != block[1]                  # the mutation is a real one
+    block[1] = list(block[0])
+    bad = dict(real)
+    bad["c"] = tuple(tuple(r) for r in block)
+    assert len(_weight_set(bad["c"])) == 6       # 8 → 6, MEASURED
+
+    monkeypatch.setattr(T, "_frame_cartan_blocks", lambda: bad)
+    with pytest.raises(ValueError, match=r"has 6 weights, not 8"):
+        T.triality_frame_action(triality_automorphism())
+
+
+def test_the_blind_spot_is_named_in_the_shipped_docstring() -> None:
+    """A scope limit only a test knows about is not disclosed. The docstring
+    SHIPS — into the wheel, and through ``help()`` — so that is where it has to
+    be, and this asserts it is still there."""
+    doc = triality_frame_action.__doc__ or ""
+    assert "The verdict is about ``h``, and only about ``h``." in doc
+    assert "never a certificate that the input is an automorphism" in doc
+    assert "C(28,2) = 378" in doc
+    assert "NAMED BLIND SPOT" in (__doc__ or "")
 
 
 # ══════════════════════════════════════════════════════════════════════

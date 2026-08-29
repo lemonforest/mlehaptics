@@ -65,11 +65,17 @@ All notable changes to this package will be documented here. The format follows 
 
 | mutation | gate | result |
 |---|---|---|
-| flip `_TAU_LABEL_ACTION` to the inverse 3-cycle | `test_frame_action_rc461` | **1 failed**, 16 passed — the constant is bound to the derivation |
-| swap the `8s` / `8c` Cartan blocks in the derivation | `test_frame_action_rc461` | **3 failed**, 14 passed — including the parity re-derivation |
+| flip `_TAU_LABEL_ACTION` to the inverse 3-cycle | `test_frame_action_rc461` | **1 failed**, 19 passed — the constant is bound to the derivation |
+| swap the `8s` / `8c` Cartan blocks in the derivation | `test_frame_action_rc461` | **3 failed**, 17 passed — including the parity re-derivation |
 | `λ_k = 2 − α^k − α^k` (drop the negative power) | `test_cyclic_spectrum_rc461` | **20 failed**, 3 passed |
 | `feit_higman_allowed = True` unconditionally | `test_feit_higman_branches_rc461` | **3 failed**, 11 passed |
-| *(restored tree)* | all three | **54 passed** |
+| delete the docstring scope disclosure | `test_frame_action_rc461` | **1 failed**, 15 passed (`-x`) |
+| restore the over-claiming `ValueError` message | `test_frame_action_rc461` | **1 failed**, 13 passed (`-x`) |
+| reject a singular non-Cartan column (close the blind spot) | `test_frame_action_rc461` | **1 failed**, 14 passed (`-x`) |
+| delete the weights-per-frame reconciliation | `test_frame_action_rc461` | **1 failed**, 19 passed |
+| *(restored tree)* | all three | **57 passed** |
+
+The first two rows were re-measured after the review added three tests: the mutation still reds exactly **1** and exactly **3**, so the discrimination each one proves is unchanged and only the passing count moved.
 
 The feit-higman file also carries its two seeded controls in BOTH directions in-test: shrinking `_FEIT_HIGMAN_THICK_N` flips the thick Fano witness to False while leaving the thin arm untouched (proving the arms are separate code paths), and widening it to every n ≤ 20 leaves the acyclic witness False (proving the §1 result is genuinely the `n is None` arm).
 
@@ -81,12 +87,24 @@ The rc460 worked-example ledger was written at `ba95995ed` and the very next rc4
 
 74 count-pin lines across 67 test files (`== 690` → `== 692`, measured by `git grep -c`, and the sweep re-measured after); `EXPECTED_N` + the sha256-pinned op-name manifest + its digest, all three in one commit as that gate requires; the four generated artifacts via `tools/regen_all.py` (idempotence re-verified, second pass byte-identical); the worked-example and example-args ledgers; the rosetta classification ledger (2 rows, `composition_of_c`); the composes ROSTER (one HAND-TRACED two-op row) and the re-run census (one FORCED-ORDER singleton); the `preserves` taxonomy (two NEW strings, deliberately not sharing the rc460 ℤ sentence — one is a ℚ claim, strictly weaker, and the other's no-`abs()` clause is Class-C ORIENTATION rather than a Class-K pin the body never runs); the `srmech.amsc.` as-text ceiling 113 → 115 and TOTAL_AS_TEXT 204 → 206 (**decoded UNMOVED at 2** — the CITATION case); the decoded `srmech.math.` 344 → 345 and `srmech.physics.qm.` 163 → 164; README `690-entry` → `692-entry` and its `native_version` block; the notebook's four `Live at rc460` stamps and its two live cardinals. ⚠️ The notebook's `PR #690` and `F690` were left alone — a different quantity that coincidentally shares the digits, which is why the sweep ran BY SITE LIST and not by grep-replace.
 
-`tools/run_worked_examples.py`'s `SLOW_ALLOWLIST` gains `triality_frame_action` at 240 s with the measured reason: the op is 5.2 ms and the first touch of the memoised `_companion_maps()` is 46.7 s, and which snippet pays that depends on worker recycling rather than on this op.
+`tools/run_worked_examples.py`'s `SLOW_ALLOWLIST` gains `triality_frame_action` at 240 s with the measured reason: the op is 5.2 ms and the first touch of the memoised `_companion_maps()` is 46.7 s, and which snippet pays that depends on worker recycling rather than on this op. (The review found the same argument covers three more triality rows and adds them — see *Post-review corrections* below.)
 
 ### Deferred, with reasons
 
 - **`_TAU_LABEL_ACTION` / `_SWAP_LABEL_ACTION` are NOT replaced by a call to the new op.** Deriving them at import would put a 46.7 s companion build on the import path of `spin8_center` and `triality_rep_dictionary`. The constants stay; the agreement is a gate.
 - **No C peer for either op.** Python-first under the ADR-0009 noted-disparity ruling, recorded in both docstrings and both `ToolEntry` summaries. `triality_frame_action` composes maps whose companion solve already mirrors `srmech_qmat_rref`; `cyclic_laplacian_spectrum`'s carrier is the pure-Python exact `Qalg`, and giving it a C peer is a carrier-slice question, not an op-slice one.
+
+### Post-review corrections — three, all reproduced first
+
+**1. The `Raises:` clause claimed a refusal the op cannot perform.** It read *"if the transported weight set of some frame matches no frame (which is what a non-automorphism does)"*, and the runtime message said outright *"the input is not an automorphism of so(8) preserving this Cartan"*. Neither is decidable from what the op reads. `_cartan_block` inspects the four Cartan COLUMNS and nothing else, so the other 24 are never looked at. **Reproduced with three constructed non-automorphisms**, each answered `order` 3 with full confidence: a non-Cartan column scaled by 7, a non-Cartan column overwritten with garbage, and — the decisive one — **every non-Cartan column zeroed**, leaving 4 live columns out of 28, so rank ≤ 4, so not invertible, so provably not an automorphism of so(8).
+
+No wrong number is produced: what comes back is a true statement about the induced action on `h`. So the defect is a SCOPE claim, and a block-orthogonality check would not have caught it either — the map that survives is orthogonal on the block. Both statements are now precise, the docstring carries a `Warning:` naming the blind spot with that rank-≤4 witness, and **a test measures the blind spot and a second test asserts the disclosure is still in the shipped docstring**, so deleting the paragraph turns the suite red. Deciding automorphy would mean bracket-preservation over all `C(28,2) = 378` generator pairs — a different instrument, not a tightening of this one.
+
+**2. `_WEIGHTS_PER_FRAME` was a shipped constant with no reader anywhere in the tree.** `git grep` returns exactly one line, its own definition, and its comment claimed it was *"MEASURED by the op, never assumed"* — while the op measured `len(weight_sets["v"])` and never consulted it. A derived literal sitting beside a measured length that nothing compared it to. The op now **reconciles the two routes to 8 and raises on disagreement**, which is non-vacuous: a degenerate frame block (a repeated row, or a row equal to another's negative) collapses the ± closure below 8, and `weights_per_frame` would otherwise have reported the smaller number while the three weight systems quietly stopped being able to separate the frames. Proven red by monkeypatching `8c`'s block to repeat a row — 8 weights → 6, MEASURED in the test before the call.
+
+**3. The `SLOW_ALLOWLIST` note above stopped one name too early, and the ledger hook's own remediation was manufacturing a false red.** `tools/hooks/derived_ledger_freshness.py` prescribes `run_worked_examples.py --only <row>` when a module changes — which is exactly what a change to `triality.py` triggers, on the ten triality rows. MEASURED, one `--only` invocation per row, CPython 3.14 / native absent: `triality_automorphism` (16.0 s), `triality_swap` (16.6 s) and `lean_isa_seventh_primitive` (16.0 s) each blew `DEFAULT_BUDGET = 15.0` and flipped `ok` → `timeout`, while every other triality row finished under 4 s. **The snippets are not slow; the isolation is** — in a full run some earlier snippet warms the memoised `_companion_maps()`, and `--only` removes exactly that. Committing that ledger would have carried the `timeout` tally from 1 to 4 against a ceiling of **1** in `tests/test_worked_examples_execute_rc354.py`. All three are now allowlisted at 240 s with their measured numbers, as `tests/test_synth_args_provenance_rc430.py` already instructs in its own failure message. Re-measured afterwards: **all ten rows re-run by name, zero content change.**
+
+⚠️ **The ledger itself is therefore NOT committed here, and that is the rc461 addendum's residual reaching a second instance.** The ten rows are measured unmoved, so the only line that would move is the meta line — and writing it from this host stamps `python: "3.14"` over a ledger whose other 597 rows were produced under 3.10, plus a `verified_at` the previous writer could not populate. Trading a blank provenance field for a whole-ledger-shaped claim that is false for most rows is not an improvement, and choosing between them is the ruling the addendum asks for. Recorded rather than resolved.
 
 ## [0.9.0rc460] - the exact A2 weight-lattice stratum: Lie fusion is a SIGNED INTEGER COUNT, not an integral — and the group bind that closes a replicated silent wrong answer
 

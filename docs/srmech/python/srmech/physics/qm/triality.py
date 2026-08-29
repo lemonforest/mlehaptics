@@ -1186,7 +1186,10 @@ _CARTAN_PAIRS: Tuple[Tuple[int, int], ...] = ((0, 1), (2, 3), (4, 5), (6, 7))
 _CARTAN_RANK = len(_CARTAN_PAIRS)
 
 #: ``8`` — the number of weights in each of ``8v`` / ``8s`` / ``8c`` (``± one
-#: functional per Cartan direction``). MEASURED by the op, never assumed.
+#: functional per Cartan direction``). This is the DERIVED count, ``2 × rank``;
+#: :func:`triality_frame_action` reconciles it against the set it actually
+#: builds and raises on disagreement, so the two routes to 8 are checked
+#: against each other rather than one of them being trusted.
 _WEIGHTS_PER_FRAME = 2 * _CARTAN_RANK
 
 
@@ -1350,10 +1353,27 @@ def triality_frame_action(automorphism) -> dict:
         'action_sha256'}``
 
     Raises:
-        ValueError: if the input is not ``28×28``, if it moves a Cartan
-            generator out of the Cartan span, or if the transported weight set
-            of some frame matches no frame (which is what a non-automorphism
-            does — the classification is not forced to succeed).
+        ValueError: if the input is not ``28×28``; if it moves a Cartan
+            generator out of the Cartan span (the escaping coordinate is
+            named); or if the transported weight system of some frame matches
+            no frame — the action it induces on ``h`` is then not one of the
+            six ``Out(Spin(8))`` induces, so the classification is not forced
+            to succeed.
+
+    Warning:
+        **The verdict is about ``h``, and only about ``h``.** The read touches
+        the four Cartan columns and nothing else, so the remaining 24 are never
+        inspected and a NON-automorphism whose Cartan block is legitimate is
+        ANSWERED rather than refused. MEASURED: zero every non-Cartan column of
+        ``τ`` and 4 of 28 columns survive — rank ≤ 4, hence not invertible,
+        hence provably not an automorphism of so(8) — and this op still returns
+        the 3-cycle at ``order`` 3, because that is what the surviving 4×4
+        does. What comes back is a true statement about the induced action on
+        the Cartan, never a certificate that the input is an automorphism;
+        deciding THAT means bracket-preservation over all ``C(28,2) = 378``
+        generator pairs, which is a different instrument and not a tightening
+        of this one. Witnessed with that rank-≤4 input in
+        ``tests/test_frame_action_rc461.py``.
 
     Note:
         Exact ℚ; no float in the decision path; no ``abs()``. Python-first with
@@ -1384,6 +1404,22 @@ def triality_frame_action(automorphism) -> dict:
     frames = _frame_cartan_blocks()
     weight_sets = {f: _weight_set(frames[f]) for f in _FRAME_ORDER}
 
+    # `_WEIGHTS_PER_FRAME` is 2 × rank BY DERIVATION — ± one functional per
+    # Cartan direction — and until this reconciliation it had no reader
+    # anywhere in the tree, a derived literal shipping beside a measured `len`
+    # that nothing compared it to. It can disagree: a degenerate frame block
+    # (a repeated row, or a row equal to another's negative) collapses the ±
+    # closure below 8, and `weights_per_frame` would then report the smaller
+    # number without complaint while the three weight systems quietly stopped
+    # being able to separate the frames.
+    for frame in _FRAME_ORDER:
+        if len(weight_sets[frame]) != _WEIGHTS_PER_FRAME:
+            raise ValueError(
+                f"{op}: frame 8{frame} has {len(weight_sets[frame])} weights, "
+                f"not {_WEIGHTS_PER_FRAME} = 2 x {_CARTAN_RANK} — its Cartan "
+                f"block is degenerate, so the three weight systems cannot "
+                f"separate the frames.")
+
     action: Dict[str, str] = {}
     for frame in _FRAME_ORDER:
         moved = _weight_set(_block_matmul(frames[frame], block))
@@ -1391,8 +1427,12 @@ def triality_frame_action(automorphism) -> dict:
         if len(hits) != 1:
             raise ValueError(
                 f"{op}: the transported weight system of 8{frame} matches "
-                f"{len(hits)} of the three frames, not exactly one — the input "
-                f"is not an automorphism of so(8) preserving this Cartan.")
+                f"{len(hits)} of the three frames, not exactly one — the "
+                f"action this map induces on the standard Cartan is not one "
+                f"of the six Out(Spin(8)) induces. Decided on the 4x4 Cartan "
+                f"block ALONE, so this refusal is a statement about h and a "
+                f"pass is not a certificate of automorphy; see the "
+                f"docstring's scope warning.")
         action[frame] = hits[0]
 
     # order of the induced permutation, by iteration (never a lookup table)
