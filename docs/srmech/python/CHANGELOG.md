@@ -295,8 +295,12 @@ every target MISSING.
 #### Part 2 gates — hand-written, every predicate with a control that came back RED
 
 ⚠️ **Do NOT lean on `tests/test_preserves_taxonomy_rc423.py`**: it declares eight of ten property
-kinds EXECUTABLE and at `:371-377` executes NONE of them, so a declared property can be classified
-machine-checkable and never run. Every property claim here has a hand-written execution gate.
+kinds EXECUTABLE and its `test_the_population_is_stated` (at `:431` on this tip) executes NONE of
+them, so a declared property can be classified machine-checkable and never run. Every property
+claim here has a hand-written execution gate. (Cited by NAME, not by line alone — the `:371-377`
+form this rc first shipped was made stale by rc461's own later commits, which added 61 lines above
+that function. A line anchor into a file the same rc is still growing is a citation with a clock on
+it.)
 
 The negative controls, all executed: `2*S_B` fails the certificate **168/378** (a scale cannot
 survive a bracket that is quadratic on one side and linear on the other); `P^-1 S_B P` **161/378**
@@ -497,6 +501,190 @@ the affine stratum, not any one of these ops.
   needs a different monovariant (length reduction in the Coxeter complex, or a `W ⋉ κQ^∨`
   factorisation) and is genuine future work, not an omission.
 - **`verified_at` in the worked-example ledger** is still `""` (`#T1182`), untouched here.
+
+### 5. Part 3 — the adversarial-verification repair: one silent wrong answer, three shipped falsehoods, and five gates that could not fail
+
+Three independent read-only verifications and a standing-rule review were run against
+`e5a81d78d`. Registry stays **700**; **ABI stays 24**; **no C symbol added**. Every item below was
+REPRODUCED before it was fixed, and every fix carries a control that comes back negative.
+
+#### 5.1 `so8_bracket_certificate` green-lit the ZERO MATRIX — the one silent wrong answer
+
+`so8_bracket_certificate([[0]*28]*28)` returned `is_bracket_automorphism: True`, `failures: 0`, no
+exception. The 378-pair sweep decides `φ([X,Y]) = [φX, φY]`, which the zero map satisfies
+**vacuously** — that is a HOMOMORPHISM predicate wearing an AUTOMORPHISM name. It matters because
+this op is the one the other two ops' prose names as the guard to run FIRST: `triality_frame_action`'s
+Warning says *"run `so8_bracket_certificate` on it FIRST"*, and the shipped `ToolEntry`
+(`_tool_docs.py:649`) says *"before trusting ANY 28-dim map you did not build yourself"*. So the
+guard-of-record passed a zeroed buffer — the exact thing a failed solve hands you.
+
+Both siblings REFUSE the same input (`triality_frame_action` raises on the weight-system match,
+`g2_membership` raises on orthogonality), so this was an asymmetry inside one rc, not a house style.
+
+**Fixed at the root, not special-cased.** A bijective Lie homomorphism IS an automorphism, so the op
+now decides the named property directly: a new `_integer_rank` (fraction-free Bareiss over the SAME
+cleared integer columns the sweep already builds — Class-I integer arithmetic, pivot search tests
+`!= 0` as a Class-K pin at the zero boundary, no `abs()`, no float) and
+`is_bracket_automorphism = failures == 0 and is_invertible`. The payload gains
+`is_bracket_homomorphism`, `is_invertible` and `rank`, so the two failure MODES are distinguishable
+rather than conflated. **Nothing that was `True` became `False`:** τ and `S_B` are rank 28.
+
+MEASURED, with the controls: zeros → homomorphism True, rank 0, automorphism **False**; τ and `S_B`
+→ rank 28, True; `−I` and `2I` → 168/378 failures, rank 28 (invertible, bracket-broken); `S_B` with
+one column zeroed → rank < 28. Gate `test_g11_*` (4 tests) asserts both halves separately so the
+conjunction cannot be satisfied by weakening either.
+
+#### 5.2 `alcove_fold` shipped a MEASUREMENT that the op never produces
+
+The docstring reported *"measured over `[-30,30]^rank` at `k = 0..8`, the fold takes at most 40 steps
+against **bounds up to 962**"*. Re-executed over exactly that domain (34,038 folds, 2.8 s): max steps
+is **40 — correct** — but the max `step_bound` is **901**, and **962 never occurs anywhere in the
+swept domain** (top six distinct bounds: 786, 813, 814, 842, 871, 901). Both extremes are attained at
+the same corner, A2 `(-30,-30)` at level 0.
+
+It reached users through three surfaces: `weight_lattice.py:1758`, `introspect/tool_schema.py:12854`
+and the generated `c/src/srmech_tool_registry.c:14231` — so `describe()`, the MCP tool list and the
+**compiled-in C registry**, the same reach the ref-notation arc measured.
+
+**Why nothing caught it:** `test_g2_termination_measured_over_a_window` asserts
+`worst_steps < worst_bound`, a strict inequality that pins no VALUE. A wrong bound is invisible to it.
+Gate `test_g12_*` now pins both extremes AND the witness over the domain the prose names, and asserts
+`962 not in observed_bounds` — with a liveness control (the collector saw >100 distinct bounds and
+901 is in the set it collected).
+
+#### 5.3 `alcove_fold`'s worked example credited one mechanism where TWO are load-bearing
+
+The prose said *"That single step and that single sign are what turn the classical
+`1+8+8+10+10bar+27` into the level-2 `1+8`"*. Measured per constituent: the `10` and `10-bar` are
+removed by the **WALL test** (`on_wall=True`, `sign=0`, `steps=0`) — no step is taken and no sign is
+applied. The single signed step acts on `27` ALONE, folding it to `(1,1)` with sign `−1`, which
+cancels one of the two copies of `8`. Deleting the walls and stopping there leaves
+`{(0,0):1, (1,1):2, (2,2):1}`. Two different operations; the prose credited one. Corrected, and
+gated per-constituent (`test_g13_*`).
+
+#### 5.4 The E_pq/adjoint mismatch is not an "ordering"
+
+`so8.py` called it *"orders the same 28 so(8) directions DIFFERENTLY"* and *"this engine has two live
+orderings"*. MEASURED: the change of basis `P` has **3 or 4 nonzeros in every column and NOT ONE
+column with a single nonzero** — it is not a permutation and not even monomial, and `P⁻¹` carries
+denominator 6. The operational conclusion is not merely unaffected but STRENGTHENED (a non-monomial
+change of basis is a worse mismatch than a reordering), which is why this is graded low — but it is
+shipped prose the code contradicts. Corrected in both sites; gated by `test_g12_*` in the so8 file,
+with a real permutation matrix as the control that DOES read monomial.
+
+#### 5.5 Five gates that could not fail — coverage, not correctness
+
+Found by MUTATION TESTING (19 mutations applied to shipped source; 8 came back RED, 11 survived).
+Every ungated field was measured and is **currently correct**, so these are coverage holes:
+
+- **Seven Class-A digest/label fields** could be replaced with constant garbage while 23-143 tests
+  stayed green — in an rc whose stated deliverable is a content-address bind. The precedent gate
+  (`test_weight_lattice_rc460.py:1078`) sits 22 lines above the registry gate this rc DID enrol the
+  five affine ops in. Now gated on both sides: `test_g14_*` in each file.
+  ⚠️ MEASURED while writing it: `fusion_sha256` addresses the ANSWER, not the payload — `8 (x) 8`
+  and `3 (x) 3bar` at level 2 BOTH give `1 + 8` and correctly share a digest. So "distinguishing" is
+  asserted across operands with genuinely different answers, and the shared case is asserted too, as
+  the contract it is.
+- **`affine_modular_s_matrix["primaries"]`** could be REVERSED — breaking its correspondence with the
+  rows it labels — with zero failures, because the one shipped consumer re-reads an internal dict.
+  `test_g15_*` re-derives the correspondence from the shipped `integrable_weights` list, an
+  independent route.
+- **`so8.py` had no `no abs()` / `no float` discipline gate** while its three new ops DECLARE that
+  discipline in their `preserves` strings, and `test_preserves_taxonomy_rc423.py` classifies such
+  strings machine-checkable and **runs none of them**. `weight_lattice` has had the AST gate since
+  rc460. Now `test_g13_*`, scoped per-FUNCTION over the 17 functions this rc added — deliberately
+  NOT module-wide, because so8.py carries 19 pre-existing `float()` calls below the hunk and a
+  module-wide ban would be red on arrival or weakened into something that proves nothing.
+  ⚠️ This gate was RED on its first run for the exact reason CLAUDE.md records: so8.py contains the
+  prose *"`hashlib.sha256`"* inside an attestation docstring. A substring scan cannot tell a ban from
+  its own statement. Both discipline predicates are AST walks, where prose cannot reach.
+- **The frame-address test recomputed its own subject.** `test_g9_frame_address_is_deterministic…`
+  re-derives the address from the LIVE `_epq_pairs()` it imports, so reversing the pair order leaves
+  it PASSING — both sides move together. A content address whose test recomputes it is a tautology.
+  `EPQ_FRAME_ADDRESS` and `OCTONION_TABLE_SHA256` are now pinned as literals with a control that
+  perturbs each half.
+
+#### 5.6 A citation anchor made stale by this rc's own commits
+
+`:371-377` into `test_preserves_taxonomy_rc423.py` was correct at rc460 and was pushed off by 61
+lines added ABOVE it — 17 in `04f8b9d4c` and 44 in `e5a81d78d`, this rc's own commits. At the tip it
+lands inside a DIFFERENT test. All three sites (both gate files and `CHANGELOG.md:296`) now cite by
+NAME (`test_the_population_is_stated`) with the line as a secondary. **A line anchor into a file the
+same rc is still growing is a citation with a clock on it.** The substance was verified separately and
+still holds: 8 EXECUTABLE markers, and the population test executes none of them.
+
+#### 5.7 The affine layer's missing literature anchor
+
+`weight_lattice.py` named Kac-Walton / Kac-Peterson / Verlinde in prose that ships into `describe()`,
+the MCP tool list and the compiled C registry, with **zero** literature attestation — while its
+sibling `so8` build in the SAME rc attested all three of its ops. Now anchored to Fuchs, J. (1994)
+*Fusion rules in conformal field theory*, Fortschr. Phys. **42**, 1-48 (arXiv:hep-th/9306162),
+**verified BY QUERY** (returned title and author matched before it was written down). Open-access, no
+paywalled DOI. ⚠️ Scoped honestly: the citation covers the theorem STATEMENTS, not any constant —
+everything is derived in-module (marks from the highest root, `h_vee` cross-checked twice, the ring
+measured by gcd-reduction, the normalisation read off unitarity), so there is no numeric attestation
+to carry.
+
+#### 5.8 The worked-example ledger, re-run — and two more names the SLOW_ALLOWLIST was missing
+
+The pre-flight required re-running the ledger because both `so8.py` and `weight_lattice.py` moved.
+Doing it surfaced a defect in the HARNESS, found the same way as everything else here: by a red.
+
+A full clean re-run flipped `so8.epq_frame_address` and `so8.g2_membership` from `ok` to `timeout`
+with **identical `src_sha256`** — the snippets had not changed, and neither op touches anything this
+rc added. That carried the `timeout` tally 1 → 3 against a down-only CEIL of 1 in
+`tests/test_worked_examples_execute_rc354.py`. MEASURED with `--only --budget 240`, one invocation
+each, against a 2.5 s harness baseline (`--only srmech.math.cyclic.gcd`): **48.5 s and 46.1 s**, both
+`ok`. That is the cold `_companion_maps()` build — 46.7 s, already documented in the tool — and
+WHICH snippet pays it depends on `RECYCLE_EVERY` worker recycling rather than on the op.
+
+`SLOW_ALLOWLIST` in `tools/run_worked_examples.py` is the tool's own mechanism for exactly this, and
+its rc461 note already said the previous pass *"stopped one name too early"* — it stopped **two**
+too early, on the so8 side. Both are now listed with their measured numbers.
+
+⚠️ **The two rejected alternatives are the point.** Raising the gate's CEIL from 1 to 3, or raising
+`DEFAULT_BUDGET` globally, would each have produced a green — and both would have been buying one.
+The ceiling is a down-only ratchet on real failures and the budget is what makes `timeout` mean
+anything; a per-op recorded decision with a measured number attached is the only one of the three
+that leaves the instrument able to fail. Final: **`ok` 514, `timeout` 1** — back at the ceiling,
+earned.
+
+The re-run also corrected ONE row on its own merits: `amsc.format.read_ndjson` carried a NATIVE-path
+error detail (`srmech_ndjson_iter(...) failed: IO`) inside a ledger whose own meta says
+`native: false` — a stale record that `--only-stale` could never select, because its snippet text had
+not moved. It now reads the pure-path `FileNotFoundError` it actually produces. That is precisely the
+provenance staleness the pre-flight described, drained rather than described.
+
+#### Descoped in part 3, with reasons
+
+- **`fusion_sha256` cross-level collision** (`affine_fusion_multiplicities(alg, vac, vac, k)` returns
+  one digest for k=0..5). NOT a defect: the digest addresses the constituent list, the answers ARE
+  equal at those levels, and rc460's classical op has the same design. Asserted as contract, not
+  changed.
+- **`s_sha256` not covering `zeta_order`.** Raised as a hypothesis by one verification; ten
+  (algebra, level) cases produced ZERO collisions and no systematic search was run. Unreproduced —
+  recorded, not acted on.
+- **`#845` is topically wrong.** RE-VERIFIED here by query rather than taken on report: it resolves
+  to a MERGED PR titled *"srmech v0.7.0rc19: HAL constant-attestation discipline (MPR +
+  derive-and-assert) — MS#21 #813"*, while every in-tree comment beside it describes the exact-ℚ
+  carrier migration (*"exact-ℚ carrier (was Fraction)"*). MEASURED: **24 sites** under
+  `srmech/**.py`, not the ~8 first estimated. REAL, and NOT introduced here — `git log -S` dates it
+  to rc371 (`0e1528fd2`); this rc only appended `, to_q` to one such line. The correct target is
+  unknown, and CLAUDE.md is explicit that a wrongly-converted ref is worse than an unconverted one
+  *because it looks deliberate*, so 24 guessed rewrites is exactly the sweep that rule forbids. It
+  is reported, with its measured size, rather than guessed at.
+- **`verified_at` still `""`** (`#T1182`) — unchanged, as part 2 recorded. The ledger was re-run and
+  committed, so the row provenance is current; only the STAMP is still blank, for the reason
+  `#T1182` records (`_head_commit()` swallows a non-zero `git rev-parse`, and from WSL2 git cannot
+  resolve a session-worktree gitdir at all).
+- **The 2688-element ±G2 monomial census** asserted in `so8.py` prose is TRUE — executed in full
+  during verification — but remains UNGATED, because the shipped gate covers 66 elements and the
+  full sweep costs ~321 s. A regression outside those 66 would still go unnoticed. Recorded as a
+  live coverage gap rather than closed, since the honest options were a 321 s gate or a sampled one
+  that would look like a ratchet without being one.
+- **`triality_frame_action(P⁻¹ S_B P)` still returns the identity permutation.** Part 1 declined this
+  deliberately, documented it in a Warning and gated both halves. Not reopened here — whether an
+  address-plus-detector is the right closure for a live silent wrong answer is a maintainer call.
 
 ## [0.9.0rc460] - the exact A2 weight-lattice stratum: Lie fusion is a SIGNED INTEGER COUNT, not an integral — and the group bind that closes a replicated silent wrong answer
 

@@ -1929,7 +1929,9 @@ def quaternion_subalgebra_stabilizer(quaternion_index: int = 1) -> dict:
 #
 # `triality_automorphism()` returns the 28×28 τ = S_B·S_C **in the E_pq
 # frame**; `triality_swap()` returns S_B in the same frame.
-# `so8_adjoint_basis()` orders the same 28 so(8) directions DIFFERENTLY.
+# `so8_adjoint_basis()` spans the same 28 so(8) directions in a DIFFERENT
+# FRAME — not a reordering: the change of basis P has 3 or 4 nonzeros per
+# column and no column with a single nonzero (MEASURED, rc461).
 # Through rc460 NOTHING bound them, and the gap is not theoretical:
 #
 #   MEASURED — build Ad(g): X ↦ g X gᵀ in `so8_adjoint_basis()` coordinates
@@ -2109,6 +2111,49 @@ def _integer_columns(rows: List[List[Q]]) -> Tuple[List[List[int]], int]:
     return cols, den
 
 
+def _integer_rank(columns: Sequence[Sequence[int]]) -> int:
+    """Exact rank of a COLUMN-major integer matrix, by fraction-free
+    (Bareiss) elimination.
+
+    ⚠️ rc461 (`#T1181`) — this exists because the bracket sweep alone
+    decides ``φ`` is a HOMOMORPHISM, not an AUTOMORPHISM, and the two
+    differ on exactly one matrix. See
+    :func:`so8_bracket_certificate` for the measurement.
+
+    Class-I integer arithmetic end to end: the pivot search tests
+    ``!= 0``, which is a Class-K pin-slot predicate at the zero boundary
+    and NOT a magnitude, so no ``abs()`` appears and no float is
+    constructed. Bareiss keeps every intermediate an exact integer — the
+    ``//`` divisions are exact by the algorithm's own invariant, which
+    holds for negative entries too, so the floor is never reached for.
+    """
+    grid = [[columns[c][r] for c in range(len(columns))]
+            for r in range(len(columns[0]))]
+    n_rows = len(grid)
+    n_cols = len(grid[0]) if n_rows else 0
+    rank = 0
+    previous = 1
+    for col in range(n_cols):
+        pivot = None
+        for r in range(rank, n_rows):
+            if grid[r][col] != 0:
+                pivot = r
+                break
+        if pivot is None:
+            continue
+        grid[rank], grid[pivot] = grid[pivot], grid[rank]
+        head = grid[rank][col]
+        for r in range(rank + 1, n_rows):
+            factor = grid[r][col]
+            row_r = grid[r]
+            row_p = grid[rank]
+            for c in range(col, n_cols):
+                row_r[c] = (head * row_r[c] - factor * row_p[c]) // previous
+        previous = head
+        rank += 1
+    return rank
+
+
 def so8_bracket_certificate(operator) -> dict:
     """Is a ``28×28`` map a BRACKET automorphism of ``so(8)`` — all 378 pairs.
 
@@ -2122,10 +2167,16 @@ def so8_bracket_certificate(operator) -> dict:
     also, measured, a FRAME DETECTOR.
 
     **What it is FOR.** The 28 so(8) directions can be coordinatised more
-    than one way, and this engine has two live orderings: the shared
+    than one way, and this engine has two live FRAMES: the shared
     ``E_pq`` frame (:func:`epq_frame_address`) and the ``14 + 7 + 7``
-    partition of :func:`so8_adjoint_basis`. A matrix written in the wrong
-    one is still a perfectly good matrix, so no shape check can see it.
+    partition of :func:`so8_adjoint_basis`. ⚠️ They are NOT reorderings
+    of each other — MEASURED at rc461 (`#T1181`), the change of basis
+    ``P`` has 3 or 4 nonzeros in every column and NOT ONE column with a
+    single nonzero, so it is not monomial and ``P⁻¹`` carries denominator
+    6. Calling the mismatch an "ordering" would understate it: a
+    permutation would at least preserve which direction each coordinate
+    names, and this does not. A matrix written in the wrong frame is
+    still a perfectly good matrix, so no shape check can see it.
     MEASURED, with ``P`` the change of basis between the two:
 
     ====================================  ==========
@@ -2155,6 +2206,25 @@ def so8_bracket_certificate(operator) -> dict:
     ``E_qp = −E_pq`` re-orientation applied when a pair arrives reversed —
     a sign, never an ``abs()``).
 
+    ⚠️ **The bracket sweep alone decides HOMOMORPHISM, not AUTOMORPHISM,
+    and rc461 (`#T1181`) measured the one matrix where that gap bites.**
+    ``φ([X,Y]) = [φX, φY]`` is preserved vacuously by the ZERO map, so
+    through the first half of this rc ``so8_bracket_certificate`` on the
+    ``28×28`` zero matrix returned ``is_bracket_automorphism = True``
+    with ``0`` failures — a green light on a zeroed buffer, from the op
+    whose whole job is to be the guard the other two tell callers to run
+    FIRST. Because ``so(8)`` is simple a homomorphism's kernel is an
+    ideal, so ``Hom = Aut ∪ {0}`` and the false-positive set was exactly
+    that one matrix — narrow, and precisely the input a failed solve
+    hands you. The fix is not a special case for zero: a bijective Lie
+    homomorphism IS an automorphism, so the op now decides the named
+    property directly by carrying an EXACT INTEGER RANK
+    (:func:`_integer_rank`, fraction-free Bareiss over the same cleared
+    integer columns the sweep already built) and reporting BOTH halves.
+    ``is_bracket_automorphism`` is now ``failures == 0 and is_invertible``.
+    Nothing that was ``True`` before became ``False``: ``τ`` and ``S_B``
+    are rank 28.
+
     Args:
         operator: the ``28×28`` map in the shared ``E_pq`` frame — a
             :class:`~srmech.math.mat.Mat` or any 2-D iterable of
@@ -2162,7 +2232,9 @@ def so8_bracket_certificate(operator) -> dict:
             :func:`~srmech.physics.qm.triality.triality_frame_action`.
 
     Returns:
-        ``{'is_bracket_automorphism' (bool), 'failures' (0..378),
+        ``{'is_bracket_automorphism' (bool — the CONJUNCTION),
+        'is_bracket_homomorphism' (bool — the 378-pair sweep alone),
+        'is_invertible' (bool), 'rank' (0..28), 'failures' (0..378),
         'pairs_checked' (378), 'first_failure' ((i, j) or None),
         'denominator' (the cleared d), 'frame_sha256', 'operator_sha256'}``
 
@@ -2208,8 +2280,14 @@ def so8_bracket_certificate(operator) -> dict:
             if first is None:
                 first = (i, j)
 
+    rank = _integer_rank(cols)
+    invertible = rank == _DIM_SO8
+
     return {
-        "is_bracket_automorphism": failures == 0,
+        "is_bracket_automorphism": failures == 0 and invertible,
+        "is_bracket_homomorphism": failures == 0,
+        "is_invertible": invertible,
+        "rank": rank,
         "failures": failures,
         "pairs_checked": _N_BRACKET_PAIRS,
         "first_failure": first,

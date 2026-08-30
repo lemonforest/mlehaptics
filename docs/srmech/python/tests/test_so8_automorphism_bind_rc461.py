@@ -45,8 +45,11 @@ by FAULT INJECTION, because a guard never observed to fire is not an instrument.
 
 ⚠️ These are HAND-WRITTEN execution gates on purpose.
 ``tests/test_preserves_taxonomy_rc423.py`` declares eight of ten property kinds
-EXECUTABLE and at :371-377 executes NONE of them, so a declared property can be
-classified machine-checkable and never run. Nothing here leans on that taxonomy.
+EXECUTABLE and its ``test_the_population_is_stated`` (at :431 on this tip)
+executes NONE of them, so a declared property can be classified
+machine-checkable and never run. Nothing here leans on that taxonomy.
+(Cited by NAME, not by line alone: rc461's own commits added 61 lines above
+that function, and the earlier ``:371-377`` form went stale inside this rc.)
 
 NO NUMPY. Exact ``Q`` / ``int`` only; float appears nowhere in a decision path.
 """
@@ -54,6 +57,7 @@ NO NUMPY. Exact ``Q`` / ``int`` only; float appears nowhere in a decision path.
 from __future__ import annotations
 
 import itertools
+import textwrap
 
 import pytest
 
@@ -577,6 +581,56 @@ def test_g9_frame_address_is_deterministic_and_binds_both_halves():
                         + table_sha.encode("ascii") + b"\n") != addr
 
 
+#: The E_pq frame address, PINNED as a literal. See the test below for why
+#: a recomputation cannot stand in for this.
+EPQ_FRAME_ADDRESS = \
+    "d9b0a5eebf8713ceba247afe4e0967fd50e157b1dba8dfbc79f46b66e80a5867"
+
+#: The octonion multiplication-table digest the address binds.
+OCTONION_TABLE_SHA256 = \
+    "7f36461ef14af1b21702e53e3be90549b556772f7e1ffd31e386bf34a9e7ab5b"
+
+
+def test_g9_the_frame_address_is_pinned_as_a_literal():
+    """rc461 (`#T1181`) — the address must be pinned, not recomputed.
+
+    ⚠️ ``test_g9_frame_address_is_deterministic_and_binds_both_halves``
+    above re-derives the address from the LIVE ``_epq_pairs()`` it
+    imports, so if the pair order moved, both sides of its equality would
+    move together and it would stay green while the frame silently
+    changed underneath every shipped consumer. MEASURED: reversing
+    ``_epq_pairs()`` leaves that test PASSING.
+
+    A content address whose test recomputes it from the same source is
+    not an address, it is a tautology. These literals are the fixed
+    point. If a change here is deliberate, this pin is the one place that
+    has to be edited on purpose — which is exactly the property the
+    docstring claims when it says *"change either and the address
+    moves"*.
+    """
+    assert epq_frame_address() == EPQ_FRAME_ADDRESS
+    assert (octonion_table_attestation()["attestation"]["response_sha256"]
+            == OCTONION_TABLE_SHA256)
+
+    # Both halves are LIVE inputs, not stored constants: the table digest is
+    # computed from the built table, so this pin binds the table itself.
+    assert len(EPQ_FRAME_ADDRESS) == 64
+    assert len(OCTONION_TABLE_SHA256) == 64
+
+    # CONTROL: the pin can fail. Perturb either half and the address moves.
+    from srmech.amsc.format import sha256_bytes
+
+    def _address(pairs, table_sha):
+        body = b";".join(b"%d,%d" % (p, q) for (p, q) in pairs)
+        return sha256_bytes(b"srmech/so8/epq-frame/1\n" + body + b"\n"
+                            + table_sha.encode("ascii") + b"\n")
+
+    assert _address(PAIRS, OCTONION_TABLE_SHA256) == EPQ_FRAME_ADDRESS
+    assert _address(tuple(reversed(PAIRS)),
+                    OCTONION_TABLE_SHA256) != EPQ_FRAME_ADDRESS
+    assert _address(PAIRS, "0" * 64) != EPQ_FRAME_ADDRESS
+
+
 def test_g9_non_orthogonal_input_is_refused():
     """``Ad(g): X ↦ g X gᵀ`` preserves antisymmetry only on ``O(8)``, so the
     object this op decides about does not exist off it."""
@@ -624,3 +678,277 @@ def test_g10_adjoint_basis_entries_are_integers_carried_as_float():
     assert non_integer == 0
     assert max_magnitude == 4.0
     assert max_magnitude < 2 ** 53
+
+
+# ── G11 — the HOMOMORPHISM/AUTOMORPHISM gap, and the matrix that fell in ──
+
+def test_g11_the_zero_map_is_not_an_automorphism():
+    """rc461 (`#T1181`) — the bracket sweep ALONE is satisfied vacuously by
+    the zero map, and this is the gate that says so.
+
+    ``φ([X,Y]) = [φX, φY]`` holds trivially when ``φ = 0``: both sides are
+    zero on all 378 pairs. Through the first half of this rc that returned
+    ``is_bracket_automorphism = True`` with ``0`` failures — a green light
+    on a zeroed buffer, from the op the OTHER two ops' prose names as the
+    thing to run FIRST on any 28-dim map you did not build yourself.
+
+    The op now decides the property it is named for by also carrying an
+    exact integer RANK. Both halves are asserted separately here so a
+    future change cannot satisfy the conjunction by weakening either.
+    """
+    zeros = [[0] * N for _ in range(N)]
+    got = so8_bracket_certificate(zeros)
+    assert got["failures"] == 0                      # still a homomorphism …
+    assert got["is_bracket_homomorphism"] is True
+    assert got["rank"] == 0                          # … and singular …
+    assert got["is_invertible"] is False
+    assert got["is_bracket_automorphism"] is False   # … so NOT an automorphism
+
+
+def test_g11_control_the_shipped_generators_are_still_automorphisms():
+    """The POSITIVE control: the fix must not have bought its answer by
+    making the predicate unsatisfiable. Both shipped generators are rank 28
+    and still pass BOTH halves."""
+    for name, operator in (("tau", triality_automorphism()),
+                           ("S_B", triality_swap())):
+        got = so8_bracket_certificate(operator)
+        assert got["failures"] == 0, (name, got["failures"])
+        assert got["rank"] == N, (name, got["rank"])
+        assert got["is_invertible"] is True, name
+        assert got["is_bracket_automorphism"] is True, name
+
+
+def test_g11_rank_separates_singular_from_wrong_frame():
+    """Two DIFFERENT ways to fail must not be conflated. A wrong-frame map
+    is invertible and fails the BRACKET; a singular map can pass the bracket
+    and fails INVERTIBILITY. The certificate reports both, so the caller can
+    tell which happened."""
+    rows = _rows(triality_swap())
+
+    # Singular: S_B with one column zeroed.
+    holed = [list(row) for row in rows]
+    for r in range(N):
+        holed[r][0] = Q(0)
+    got = so8_bracket_certificate(holed)
+    assert got["is_invertible"] is False
+    assert got["rank"] < N
+    assert got["is_bracket_automorphism"] is False
+
+    # Invertible but bracket-broken: 2·S_B (the rc's own scaling control).
+    doubled = [[x * 2 for x in row] for row in rows]
+    scaled = so8_bracket_certificate(doubled)
+    assert scaled["is_invertible"] is True, scaled["rank"]
+    assert scaled["rank"] == N
+    assert scaled["failures"] == 168
+    assert scaled["is_bracket_automorphism"] is False
+    # The two failure MODES are distinguishable, which is the whole point.
+    assert got["failures"] != scaled["failures"]
+
+
+def test_g11_control_integer_rank_is_a_live_instrument():
+    """``_integer_rank`` must be able to return every answer it claims, or
+    it is not a measurement. Executed across the full range, not asserted."""
+    from srmech.physics.qm.so8 import _integer_rank
+
+    # Column-major identity → full rank.
+    ident = [[1 if i == j else 0 for i in range(4)] for j in range(4)]
+    assert _integer_rank(ident) == 4
+    # A repeated column drops it by exactly one.
+    assert _integer_rank([ident[0], ident[1], ident[2], list(ident[0])]) == 3
+    # All-zero → 0.
+    assert _integer_rank([[0] * 4 for _ in range(4)]) == 0
+    # Negative entries, and column 1 = -1/2 · column 0 — Bareiss must stay
+    # exact through the sign changes rather than floor a negative quotient.
+    tricky = [[2, -4, 6, 0], [-1, 2, -3, 0], [0, 1, 5, 7], [3, -3, 3, 3]]
+    assert _integer_rank(tricky) == 3
+
+
+# ── G12 — the E_pq frame is not a REORDERING of the adjoint frame ─────────
+
+def test_g12_the_change_of_basis_is_not_monomial():
+    """rc461 (`#T1181`) — the frame narrative called this an "ordering"
+    difference and "two live orderings". MEASURED, it is neither: ``P``
+    has 3 or 4 nonzeros in every column and NOT ONE column with a single
+    nonzero, so it is not a permutation and not even monomial.
+
+    This gate exists because the prose was corrected against it. A
+    permutation would preserve which direction each coordinate names;
+    this does not, which is why a wrong-frame matrix is unrecognisable
+    rather than merely mislabelled.
+    """
+    adj = so8_adjoint_basis()
+    columns = [[to_q(m.tolist()[p][q]) for (p, q) in PAIRS] for m in adj]
+
+    per_column = [sum(1 for x in col if x != 0) for col in columns]
+    assert len(per_column) == N
+    assert set(per_column) == {3, 4}, sorted(set(per_column))
+    assert per_column.count(3) == 14 and per_column.count(4) == 14
+    assert sum(1 for n in per_column if n == 1) == 0   # NOT monomial
+
+    # CONTROL: an actual permutation matrix DOES read as monomial, so the
+    # predicate above can come back the other way.
+    permuted = [[Q(1) if i == (j + 1) % N else Q(0) for i in range(N)]
+                for j in range(N)]
+    assert all(sum(1 for x in col if x != 0) == 1 for col in permuted)
+
+
+# ── G13 — the DISCIPLINE the ToolEntry declares, actually EXECUTED ────────
+
+#: Every function `so8.py` gained in rc461 (`#T1181`), by name. Scoped
+#: per-FUNCTION rather than per-module on purpose: `so8.py` carries 19
+#: pre-existing `float()` calls from earlier rcs, all BELOW this hunk, and a
+#: module-wide ban would either be red on arrival or would have to be
+#: weakened into something that proves nothing. A per-function AST walk is
+#: honest about what this rc is answerable for.
+RC461_SO8_FUNCTIONS = (
+    "epq_frame_address",
+    "_epq_bracket_coeffs",
+    "_bracket_table",
+    "_bracket_of_columns",
+    "_integer_columns",
+    "_integer_rank",
+    "so8_bracket_certificate",
+    "_exact_bytes",
+    "_gcd",
+    "_as_8x8_exact_orthogonal",
+    "_ad_epq_columns",
+    "_commutator_residual",
+    "_ad_center_residuals",
+    "_triality_generators_doubled",
+    "_octonion_multiplicativity_failures",
+    "_exact_det",
+    "g2_membership",
+)
+
+
+def test_g13_the_new_so8_ops_really_use_no_abs_and_no_float():
+    """The three new ops DECLARE ``no abs()`` / exact-carrier discipline in
+    their ``preserves`` strings. A declared property is not a measured one —
+    ``tests/test_preserves_taxonomy_rc423.py`` classifies such strings
+    machine-checkable and RUNS NONE OF THEM — so this executes it.
+
+    ``weight_lattice`` has had this gate since rc460; ``so8`` did not, which
+    is why a semantically neutral ``abs()`` could be introduced anywhere in
+    this hunk with nothing to catch it.
+    """
+    import ast
+    import inspect
+
+    from srmech.physics.qm import so8 as _so8
+
+    offences = []
+    for name in RC461_SO8_FUNCTIONS:
+        fn = getattr(_so8, name)
+        # textwrap.dedent, NOT inspect.cleandoc: cleandoc is a DOCSTRING
+        # normaliser and dedents only lines 2+, which turns a function body
+        # into an IndentationError.
+        tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                called = (getattr(node.func, "id", None)
+                          or getattr(node.func, "attr", None))
+                if called in ("abs", "float"):
+                    offences.append(f"{name}: {called}() line {node.lineno}")
+            if isinstance(node, ast.Constant) and isinstance(node.value, float):
+                offences.append(f"{name}: float literal {node.value!r} "
+                                f"line {node.lineno}")
+    assert not offences, (
+        "sign-handling is the explicit Class-K pin plus Class-C "
+        f"re-application, and values stay exact: {offences}")
+
+    # CONTROL: the walker CAN return otherwise. Without this, a green above
+    # would be consistent with a walker that never finds anything.
+    probe = ast.parse("def f(x):\n    return abs(x) + float(1) + 2.5\n")
+    probe_calls = [n for n in ast.walk(probe) if isinstance(n, ast.Call)]
+    probe_floats = [n for n in ast.walk(probe)
+                    if isinstance(n, ast.Constant)
+                    and isinstance(n.value, float)]
+    assert len(probe_calls) == 2 and len(probe_floats) == 1
+
+    # CONTROL 2: the roster is not empty and every name really resolved.
+    assert len(RC461_SO8_FUNCTIONS) == 17
+    for name in RC461_SO8_FUNCTIONS:
+        assert callable(getattr(_so8, name)), name
+
+
+def test_g13_the_new_so8_ops_route_hashing_through_sha256_bytes():
+    """No direct ``hashlib``: content-addressing is Class A through the one
+    shipped primitive, so native dispatch picks it up transparently.
+
+    ⚠️ AST, not substring — and this gate was RED on its first run for
+    exactly the reason CLAUDE.md records: ``so8.py`` contains the prose
+    *"``hashlib.sha256``"* inside an attestation docstring, describing the
+    ban. A substring scan cannot tell a ban from its own statement. A ban
+    on an IMPORT and a CALL is decidable from the syntax tree, where prose
+    cannot reach.
+    """
+    import ast
+    import inspect
+
+    from srmech.physics.qm import so8 as _so8
+
+    tree = ast.parse(inspect.getsource(_so8))
+    offences = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.split(".")[0] == "hashlib":
+                    offences.append(f"import hashlib line {node.lineno}")
+        if isinstance(node, ast.ImportFrom) and node.module:
+            if node.module.split(".")[0] == "hashlib":
+                offences.append(f"from hashlib line {node.lineno}")
+        if isinstance(node, ast.Call):
+            func = node.func
+            if (isinstance(func, ast.Attribute)
+                    and isinstance(func.value, ast.Name)
+                    and func.value.id == "hashlib"):
+                offences.append(f"hashlib.{func.attr}() line {node.lineno}")
+    assert not offences, f"route through sha256_bytes: {offences}"
+
+    # CONTROL: the walker can find all three forms when they are present.
+    probe = ast.parse("import hashlib\nfrom hashlib import sha256\n"
+                      "x = hashlib.sha256(b'')\n")
+    found = 0
+    for node in ast.walk(probe):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            found += 1
+        if isinstance(node, ast.Call):
+            found += 1
+    assert found == 3, found
+
+    assert "from srmech.amsc.format import sha256_bytes" in \
+        inspect.getsource(_so8)
+
+
+# ── G14 — the CONTENT ADDRESSES the new so8 ops ship ──────────────────────
+
+def test_g14_so8_content_addresses_are_stable_and_distinguishing():
+    """rc461 (`#T1181`) — Class-A digests are only worth shipping if they
+    are BOTH stable across calls and DIFFERENT for different subjects.
+    Neither half was gated for these ops: the fields could be replaced with
+    a constant and the suite stayed green.
+
+    ``weight_lattice`` has carried exactly this gate since rc460
+    (``test_content_addresses_are_stable_and_distinguishing``); this is its
+    ``so8`` peer.
+    """
+    tau, swap = triality_automorphism(), triality_swap()
+
+    a, b = so8_bracket_certificate(tau), so8_bracket_certificate(swap)
+    assert a["operator_sha256"] == so8_bracket_certificate(tau)["operator_sha256"]
+    assert len(a["operator_sha256"]) == 64
+    assert a["operator_sha256"] != b["operator_sha256"], "τ and S_B collide"
+
+    # The FRAME address is shared (both are read in the same frame) — that
+    # is a different field with a different contract, and it must NOT vary.
+    assert a["frame_sha256"] == b["frame_sha256"] == epq_frame_address()
+
+    ident = [[1 if i == j else 0 for j in range(8)] for i in range(8)]
+    flip = [[(-1 if i == 0 else 1) if i == j else 0 for j in range(8)]
+            for i in range(8)]
+    g_i, g_f = g2_membership(ident), g2_membership(flip)
+    assert g_i["operator_sha256"] == g2_membership(ident)["operator_sha256"]
+    assert g_i["operator_sha256"] != g_f["operator_sha256"]
+    assert g_i["frame_sha256"] == epq_frame_address()
+    assert (g_i["table_sha256"]
+            == octonion_table_attestation()["attestation"]["response_sha256"])

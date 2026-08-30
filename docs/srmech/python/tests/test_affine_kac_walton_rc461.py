@@ -2,9 +2,12 @@
 
 EVERY assertion here is HAND-WRITTEN and EXECUTED.  Nothing in this file
 leans on ``tests/test_preserves_taxonomy_rc423.py``: that gate declares
-eight of ten property kinds "executable" and at :371-377 executes NONE of
+eight of ten property kinds "executable" and its
+``test_the_population_is_stated`` (at :431 on this tip) executes NONE of
 them, so a property can be declared, classified machine-checkable, and
-never run.  A declared property is not a measured one.
+never run.  A declared property is not a measured one.  (Cited by NAME
+rather than by line alone — the earlier ``:371-377`` form was made stale
+by rc461's own commits, which added 61 lines above that function.)
 
 EVERY PREDICATE HERE CARRIES A CONTROL THAT COMES BACK NEGATIVE, and the
 control is executed rather than described.  An instrument that cannot
@@ -811,3 +814,200 @@ def test_g13_the_five_ops_are_registered_with_resolvable_composes():
     # the near-same name is a DIFFERENT object and both still ship.
     assert "srmech.math.groups.fusion_multiplicities" in names
     assert "srmech.math.weight_lattice.fusion_multiplicities" not in names
+
+
+# ── G12 — the TERMINATION-CERTIFICATE numbers the docstring MEASURES ──────
+
+def test_g12_the_measured_step_and_bound_extremes_are_pinned():
+    """rc461 (`#T1183`) — :func:`alcove_fold`'s docstring reports a
+    MEASUREMENT over ``[-30,30]^rank`` at ``k = 0..8``. Through this rc it
+    reported *"bounds up to 962"*, a value the shipped op NEVER PRODUCES
+    anywhere in that domain — the true ceiling is 901.
+
+    It survived because ``test_g2_termination_measured_over_a_window``
+    asserts only ``worst_steps < worst_bound``, a strict inequality that
+    pins no VALUE and so cannot see a wrong one. This gate pins both
+    extremes and the witness that attains them, over exactly the domain
+    the prose names, so the sentence and the code cannot drift apart
+    again.
+    """
+    observed_bounds = set()
+    worst_steps = (-1, None)
+    worst_bound = (-1, None)
+    folds = walls = 0
+    for algebra, rank in (("A1", 1), ("A2", 2)):
+        for level in range(0, 9):
+            span = range(-30, 31)
+            grid = ([(x,) for x in span] if rank == 1
+                    else [(x, y) for x in span for y in span])
+            for weight in grid:
+                got = alcove_fold(algebra, weight, level)
+                assert got["steps"] <= got["step_bound"]
+                observed_bounds.add(got["step_bound"])
+                if got["steps"] > worst_steps[0]:
+                    worst_steps = (got["steps"], (algebra, weight, level))
+                if got["step_bound"] > worst_bound[0]:
+                    worst_bound = (got["step_bound"], (algebra, weight, level))
+                walls, folds = ((walls + 1, folds) if got["on_wall"]
+                                else (walls, folds + 1))
+
+    assert folds + walls == 549 + 33489 == 34038
+    assert worst_steps[0] == 40, worst_steps
+    assert worst_bound[0] == 901, worst_bound
+    # Both extremes are attained at the SAME corner — the docstring says so.
+    assert worst_steps[1] == ("A2", (-30, -30), 0), worst_steps
+    assert worst_bound[1] == ("A2", (-30, -30), 0), worst_bound
+    # The number the prose used to carry is not merely un-hit, it is ABSENT.
+    assert 962 not in observed_bounds
+    # CONTROL: the collector is live — it saw many distinct bounds, and the
+    # one it pins IS in the set it collected.
+    assert len(observed_bounds) > 100, len(observed_bounds)
+    assert 901 in observed_bounds
+
+
+def test_g12_control_the_pinned_witness_is_reproducible_alone():
+    """The extremal witness, read directly — so a failure in the sweep
+    above is localisable without re-running 34,038 folds."""
+    got = alcove_fold("A2", (-30, -30), 0)
+    assert got["steps"] == 40
+    assert got["step_bound"] == 901
+    assert got["steps"] < got["step_bound"]
+
+
+# ── G13 — the WORKED EXAMPLE's causation, per constituent ─────────────────
+
+def test_g13_two_mechanisms_carry_8x8_down_to_the_level_2_answer():
+    """rc461 (`#T1183`) — the docstring credited *"that single step and
+    that single sign"* with turning ``1+8+8+10+10bar+27`` into ``1+8``.
+    MEASURED per constituent, TWO different mechanisms are load-bearing:
+    the ``10`` and ``10-bar`` are deleted by the WALL test having taken no
+    step and carrying no sign, and the single signed step acts on ``27``
+    alone. The prose is now corrected against this gate.
+    """
+    classical = tensor_product_multiplicities((1, 1), (1, 1))["constituents"]
+    assert classical == ((0, 0, 1), (1, 1, 2), (0, 3, 1), (3, 0, 1), (2, 2, 1))
+
+    walled, stepped, deletion_only = [], [], {}
+    for entry in classical:
+        weight, mult = tuple(entry[:-1]), entry[-1]
+        got = alcove_fold("A2", weight, 2)
+        if got["on_wall"]:
+            walled.append(weight)
+            assert got["sign"] == 0 and got["steps"] == 0, weight
+        else:
+            deletion_only[weight] = deletion_only.get(weight, 0) + mult
+            if got["steps"] > 0:
+                stepped.append((weight, got["folded"], got["sign"]))
+
+    # The 10 and the 10-bar die at the WALL — no step, no sign.
+    assert sorted(walled) == [(0, 3), (3, 0)]
+    # Exactly ONE constituent takes a signed step, and it is the 27.
+    assert stepped == [((2, 2), (1, 1), -1)], stepped
+    # CONTROL: deleting the walls and stopping there is NOT the answer.
+    assert deletion_only == {(0, 0): 1, (1, 1): 2, (2, 2): 1}
+    answer = affine_fusion_multiplicities("A2", (1, 1), (1, 1), 2)
+    assert answer["constituents"] == (((0, 0), 1), ((1, 1), 1))
+    assert dict((w, m) for w, m in answer["constituents"]) != deletion_only
+
+
+# ── G14 — the CONTENT ADDRESSES the five affine ops ship ──────────────────
+
+def test_g14_affine_content_addresses_are_stable_and_distinguishing():
+    """rc461 (`#T1183`) — the affine stratum was enrolled in the REGISTRY
+    gate next door but NOT in the content-address gate 22 lines above it
+    (``tests/test_weight_lattice_rc460.py``), so every Class-A digest these
+    five ops ship could be replaced with a constant and the suite stayed
+    green. This is the missing peer.
+
+    ⚠️ ``fusion_sha256`` addresses the ANSWER — the constituent list — and
+    not the payload, by design and in line with the rc460 classical op.
+    MEASURED while writing this gate: ``8 (x) 8`` and ``3 (x) 3bar`` at
+    level 2 BOTH give ``1 + 8``, so they share a digest, correctly. So
+    "distinguishing" here means *different answers get different
+    addresses*, and the operands below are chosen to have genuinely
+    different answers rather than assumed to.
+    """
+    # weights_sha256 — varies with (algebra, level).
+    assert (integrable_weights("A2", 1)["weights_sha256"]
+            == integrable_weights("A2", 1)["weights_sha256"])
+    assert (integrable_weights("A2", 1)["weights_sha256"]
+            != integrable_weights("A2", 2)["weights_sha256"])
+    assert (integrable_weights("A1", 1)["weights_sha256"]
+            != integrable_weights("A2", 1)["weights_sha256"])
+
+    # fusion_sha256 — varies with the ANSWER.
+    base = affine_fusion_multiplicities("A2", (1, 1), (1, 1), 2)
+    other = affine_fusion_multiplicities("A2", (1, 0), (1, 0), 2)
+    assert base["fusion_sha256"] == \
+        affine_fusion_multiplicities("A2", (1, 1), (1, 1), 2)["fusion_sha256"]
+    assert base["constituents"] != other["constituents"], "operands collide"
+    assert base["fusion_sha256"] != other["fusion_sha256"]
+    # …and EQUAL answers share an address, which is the contract, not a bug:
+    same = affine_fusion_multiplicities("A2", (1, 0), (0, 1), 2)
+    assert same["constituents"] == base["constituents"]     # both are 1 + 8
+    assert same["fusion_sha256"] == base["fusion_sha256"]
+
+    # s_sha256 — varies with (algebra, level).
+    s_a2_1 = affine_modular_s_matrix("A2", 1)["s_sha256"]
+    assert s_a2_1 == affine_modular_s_matrix("A2", 1)["s_sha256"]
+    assert s_a2_1 != affine_modular_s_matrix("A2", 2)["s_sha256"]
+    assert s_a2_1 != affine_modular_s_matrix("A1", 1)["s_sha256"]
+
+    # procedure_sha256 — a per-STRATUM address: identical ACROSS the ops of
+    # one algebra (they run the same procedure) and different BETWEEN them.
+    per_stratum = {
+        "A2": {integrable_weights("A2", 1)["procedure_sha256"],
+               alcove_fold("A2", (1, 1), 2)["procedure_sha256"],
+               affine_modular_s_matrix("A2", 1)["procedure_sha256"],
+               affine_fusion_multiplicities("A2", (0, 0), (0, 0),
+                                            1)["procedure_sha256"]},
+        "A1": {integrable_weights("A1", 1)["procedure_sha256"],
+               alcove_fold("A1", (1,), 2)["procedure_sha256"],
+               affine_modular_s_matrix("A1", 1)["procedure_sha256"]},
+    }
+    assert len(per_stratum["A2"]) == 1, per_stratum["A2"]
+    assert len(per_stratum["A1"]) == 1, per_stratum["A1"]
+    assert per_stratum["A1"] != per_stratum["A2"]
+
+    for digest in (s_a2_1, base["fusion_sha256"],
+                   next(iter(per_stratum["A2"]))):
+        assert len(digest) == 64 and int(digest, 16) >= 0
+
+
+# ── G15 — the S-matrix ROW LABELS really label the rows ───────────────────
+
+def test_g15_primaries_index_the_rows_they_label():
+    """``primaries[i]`` must name the primary that row ``i`` belongs to.
+    Nothing re-derived that correspondence and nothing checked it — the
+    tuple could be REVERSED and the suite stayed green, because the one
+    shipped consumer (:func:`verlinde_fusion_multiplicities`) re-reads an
+    internal dict rather than the public field.
+
+    Re-derived here from the SHIPPED weight list, which is an independent
+    route to the same ordering.
+    """
+    for algebra, level in (("A1", 3), ("A2", 2), ("D4", 1)):
+        got = affine_modular_s_matrix(algebra, level)
+        primaries = got["primaries"]
+        rows = got["numerator"]
+        assert len(primaries) == len(rows) == got["n_primaries"]
+        assert len(set(primaries)) == len(primaries), algebra
+
+        # INDEPENDENT ROUTE: the shipped integrable-weight list, same order.
+        weights = integrable_weights(algebra, level)["weights"]
+        assert tuple(primaries) == tuple(weights), (algebra, level)
+
+        # The vacuum is index 0 and owns row 0.
+        vacuum = tuple([0] * len(primaries[0]))
+        assert tuple(primaries[0]) == vacuum, (algebra, primaries[0])
+
+        # S is SYMMETRIC, so a row permutation that broke the labelling
+        # would also break this — asserted as the structural cross-check.
+        for i in range(len(rows)):
+            for j in range(len(rows)):
+                assert rows[i][j] == rows[j][i], (algebra, i, j)
+
+    # CONTROL: the equality above is not vacuous — a REVERSED label tuple
+    # genuinely disagrees with the shipped one, so the assertion has teeth.
+    got = affine_modular_s_matrix("A2", 2)
+    assert tuple(reversed(got["primaries"])) != tuple(got["primaries"])

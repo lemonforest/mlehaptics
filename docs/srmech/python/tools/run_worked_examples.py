@@ -115,6 +115,23 @@ RECYCLE_EVERY = 64
 SLOW_ALLOWLIST: Dict[str, Tuple[float, str]] = {
     "srmech.physics.qm.so8.an_embedding": (240.0, "22.5 s measured: g2 = Der(O) branching"),
     "srmech.physics.qm.so8.so7_subalgebra": (240.0, "31.3 s measured: so(7) branching"),
+    # rc461 part 3: the note below said the earlier pass "stopped one name too
+    # early", and it stopped TWO too early — these are the same cold
+    # `_companion_maps()` build, on the so8 side of the wall. MEASURED on this
+    # branch, one `--only --budget 240` invocation each, against a 2.5 s
+    # harness baseline (`--only srmech.math.cyclic.gcd`): 48.5 s and 46.1 s,
+    # both `ok`. At DEFAULT_BUDGET = 15.0 they flip to `timeout` and carry the
+    # tally 1 -> 3 against a CEIL of 1 — the same false red, from the same
+    # cause. Which snippet pays the build depends on RECYCLE_EVERY worker
+    # recycling rather than on the op, so whether these two go red is luck;
+    # listing them is what makes it not luck. The ops themselves are fast:
+    # epq_frame_address is a memoised sha256 over 28 pairs.
+    "srmech.physics.qm.so8.epq_frame_address":
+        (240.0, "48.5 s measured COLD: the first _companion_maps() build "
+                "reached through the snippet's triality import, not the op"),
+    "srmech.physics.qm.so8.g2_membership":
+        (240.0, "46.1 s measured COLD: the first _companion_maps() build; "
+                "the op itself is 146 ms"),
     # rc461: the op itself is 5.2 ms. What is slow is the FIRST touch of the
     # memoised `_companion_maps()` — 46.7 s measured cold (28 exact 128-unknown
     # solves) — and which snippet pays it depends on worker recycling, not on

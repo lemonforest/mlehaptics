@@ -82,6 +82,22 @@ addresses route through :func:`srmech.amsc.format.sha256_bytes`.
 C-parity (ADR-0009, recorded): this module has no C peer; the
 weight-lattice stratum ships Python-first under the noted-disparity
 ruling, the same sentence the representation stratum already carries.
+
+Canonical SSoT (affine stratum): Fuchs, J. (1994) *Fusion rules in
+conformal field theory*, Fortschr. Phys. **42**, 1-48
+(arXiv:hep-th/9306162) — the open-access review covering fusion rings,
+the Verlinde formula and the affine (Kac-Walton) fusion rules this
+module's affine ops implement.  ⚠️ **The named results are the SSoT for
+the STATEMENTS, not the source of any constant here.**  Everything this
+module computes is DERIVED in-module and labelled as such: the marks
+from the highest root, ``h_vee`` cross-checked twice, the cyclotomic
+ring measured by gcd-reduction rather than looked up, and the S-matrix
+normalisation read off unitarity.  Nothing is recalled from a table, so
+there is no numeric attestation to carry — which is why the citation
+scopes to the theorem names and stops there.  (rc461 `#T1183` — the
+affine layer shipped these three names into ``describe()``, the MCP
+tool list and the compiled C registry with no literature anchor at all,
+while its sibling ``so8`` build in the SAME rc attested every op.)
 """
 
 from __future__ import annotations
@@ -1754,8 +1770,14 @@ def alcove_fold(algebra: str, weight: Sequence[int],
     bounded below by ``kappa^2/(r+1)`` on the constraint simplex, so a
     step BOUND is computed BEFORE the loop and asserted against inside
     it.  The per-step law is checked on EVERY step, not once: measured
-    over ``[-30, 30]^rank`` at ``k = 0..8``, the fold takes at most 40
-    steps against bounds up to 962 and never approaches one.
+    over ``[-30, 30]^rank`` at ``k = 0..8`` (34,038 folds), the fold
+    takes at most 40 steps against bounds up to 901 and never approaches
+    one.  Both extremes are attained at the same corner, ``A2`` weight
+    ``(-30, -30)`` at level 0, and :func:`alcove_fold`'s gate PINS that
+    witness — through rc461 this sentence read *"bounds up to 962"*, a
+    number the shipped op never produces anywhere in the swept domain,
+    and no gate could see it because the sweep asserted only
+    ``steps < bound`` and never a bound VALUE.
 
     ⚠️ **A1 AND A2 ONLY, and the code enforces it.**  The quantum
     collapse needs every affine node adjacent to every other; D4's is a
@@ -1783,9 +1805,20 @@ def alcove_fold(algebra: str, weight: Sequence[int],
     Worked example: ``alcove_fold("A2", (2, 2), 2)`` folds the classical
     ``(2,2)`` constituent of ``8 (x) 8`` in ONE step to ``(1, 1)`` with
     sign ``-1``, and ``Q`` falls 19 -> 9, a drop of 10 that is exactly
-    ``quantum·a_0 = 10·(-1)``.  That single step and that single sign are
-    what turn the classical ``1 + 8 + 8 + 10 + 10-bar + 27`` into the
-    level-2 ``1 + 8``.
+    ``quantum·a_0 = 10·(-1)``.
+
+    ⚠️ **TWO mechanisms carry ``1 + 8 + 8 + 10 + 10-bar + 27`` down to
+    the level-2 ``1 + 8``, not one**, and per-constituent measurement is
+    what separates them — through rc461 this paragraph credited only the
+    step.  The ``10`` and ``10-bar`` are removed by the WALL TEST:
+    ``on_wall=True``, ``sign=0``, ``steps=0`` — no step is taken and no
+    sign is applied, they simply contribute zero.  The single signed step
+    acts on ``27`` ALONE, folding it onto ``(1,1)`` with sign ``-1``,
+    which cancels one of the two copies of ``8``.  Deleting the walls and
+    stopping there leaves ``{(0,0): 1, (1,1): 2, (2,2): 1}``; it is the
+    signed step that turns the remaining ``2`` into the ``1`` the affine
+    answer reports.  Both are load-bearing and they are different
+    operations.
 
     C-parity (ADR-0009, recorded): no C peer; Python-first under the
     noted-disparity ruling.
