@@ -197,7 +197,24 @@ CEIL_FRAME_UNADJUDICATED = {
     # records them (`status: ok`, 18 recorded calls), which is what shows the
     # raise is about this parameter's TYPE and not about the pair being
     # under-exampled.
-    "NO_ARG": 278,          # no harvested argument binding at all
+    # rc461 part 2 (`#T1181`): 278 -> 280, and the split across the two
+    # unadjudicated classes is the point rather than the total. THREE ops were
+    # registered; only TWO land here, and the third DRAINED. MEASURED per op
+    # over the refreshed ledger:
+    #   epq_frame_address        -> NO_ARG. It takes NO ARGUMENTS AT ALL, so
+    #     there is nothing for the harvester to bind and nothing for the frame
+    #     axis to translate. Undrainable by construction, not under-exampled.
+    #   so8_bracket_certificate  -> NO_ARG. Its worked example DOES call it
+    #     three times with real values, but the operand is a 28x28 `Mat`, which
+    #     the ledger records as `unserializable: ["operator"]` — the
+    #     `genome_group` / `render_template` structural class: bound, but not
+    #     JSON-able, so no binding reaches the probe.
+    #   g2_membership            -> NO_INT_INPUT (see the note below). It DID
+    #     drain out of NO_ARG: its example binds a plain 8x8 int matrix, the
+    #     harvester records `status: ok`, and the probe reaches it.
+    # That one of the three drained while two did not is what shows the raise
+    # is about the operand's TYPE, not about the family being under-exampled.
+    "NO_ARG": 280,          # no harvested argument binding at all
     # rc442 (local task T1150): 152 -> 153, `genome_group`. It DID drain out of NO_ARG
     # (it binds `label` and `dim`), and landed one tier along in the same structural
     # class: neither bound argument is an INTEGER the frame axis could translate —
@@ -256,7 +273,21 @@ CEIL_FRAME_UNADJUDICATED = {
     # rc456 cyclic_group/quotient_group outcome — which is what shows the
     # seven raises are about operand TYPE, not about the family being
     # under-exampled.
-    "NO_INT_INPUT": 170,    # nothing translatable along a frame axis
+    # rc461 part 2 (`#T1181`): 170 -> 171, exactly one op, and it is the
+    # rc456/rc457 structural class again. `g2_membership` DID drain out of
+    # NO_ARG — its worked example binds a plain 8x8 int matrix and the
+    # harvester records `status: ok` — and it lands here because the bound
+    # operand's integers are the matrix ENTRIES OF A GROUP ELEMENT, not a
+    # coordinate the op reads along any modulus/frame axis. Varying one breaks
+    # orthogonality and the op's own `g^T g == I` guard raises on exactly that,
+    # rather than translating anything.
+    # ⚠️ The first measurement of this raise said 172, and the extra +1 was NOT
+    # an op of this rc: it came from re-harvesting the example-args ledger in
+    # FULL, which flipped `srmech.math.rational.rational_div` out of
+    # NOT_ADMISSIBLE. Re-harvesting with `--only-stale` leaves every unchanged
+    # row byte-identical and the count is 171. See the longer note at
+    # CEIL_UNSYNTHESIZABLE_PARAMS in tests/test_synth_args_provenance_rc430.py.
+    "NO_INT_INPUT": 171,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
     "SLOW_SKIP": 15,        # measured-slow, skipped BY NAME with a number
     # rc430 repair (`#T1127`): ops whose parameter carries a documented domain

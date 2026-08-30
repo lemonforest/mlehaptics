@@ -863,3 +863,6 @@
 {"exposed_as": "srmech.math.poly.cyclotomic_polynomial", "defined_at": "srmech.math.poly.cyclotomic_polynomial", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.laplacian.cyclic_laplacian_spectrum", "defined_at": "srmech.math.laplacian.cyclic_laplacian_spectrum", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.triality.triality_frame_action", "defined_at": "srmech.physics.qm.triality.triality_frame_action", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.physics.qm.so8.epq_frame_address", "defined_at": "srmech.physics.qm.so8.epq_frame_address", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.physics.qm.so8.so8_bracket_certificate", "defined_at": "srmech.physics.qm.so8.so8_bracket_certificate", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.physics.qm.so8.g2_membership", "defined_at": "srmech.physics.qm.so8.g2_membership", "bucket": "composition_of_c"}

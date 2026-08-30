@@ -745,3 +745,4 @@ tests/test_cascade_catalog_prose_currency_rc454.py
 tests/test_frame_action_rc461.py
 tests/test_cyclic_spectrum_rc461.py
 tests/test_feit_higman_branches_rc461.py
+tests/test_so8_automorphism_bind_rc461.py

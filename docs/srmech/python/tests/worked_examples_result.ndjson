@@ -1,4 +1,4 @@
-{"n": 607, "native": false, "python": "3.10", "record": "meta", "verified_at": ""}
+{"n": 610, "native": false, "python": "3.10", "record": "meta", "verified_at": ""}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -527,10 +527,13 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.sm.weinberg_relation_residual", "problems": [], "src_sha256": "0dcc3ce247063facf2361c3799242a1e3745360df95d4ec9de31e6d4604d549e", "statements": 4, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 9}], "n_markers": 1, "name": "srmech.physics.qm.sm.z_boson_mass", "problems": [], "src_sha256": "8f51e37f51a502b0ff4cf76e397d982422ec768987ee06f9b2cc1c111f4c5b6e", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.so8.an_embedding", "problems": [], "src_sha256": "13b2c33183c15d4ef598c0666446b066e4851ef7cd146301ad9379502a15e21f", "statements": 9, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.so8.epq_frame_address", "problems": [], "src_sha256": "72c5d4190d14c13edc036e6c2b6580a95c42683a852b872c2e6b67e16122cc7d", "statements": 8, "status": "ok"}
+{"markers_fired": [{"exc": "ValueError", "line": 19}], "n_markers": 1, "name": "srmech.physics.qm.so8.g2_membership", "problems": [], "src_sha256": "c369af2da7ce246f3e70d4e4fbf2db03e27f99ccc3af6ca5f2f811e24318aa3b", "statements": 10, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.so8.g2_subalgebra", "problems": [], "src_sha256": "c15ea6ca18929deae4317544d965776e8c2b8eec58056d12c38cf56bcd2f982e", "statements": 8, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 13}], "n_markers": 1, "name": "srmech.physics.qm.so8.quaternion_subalgebra_stabilizer", "problems": [], "src_sha256": "5ca600b9a4c9a115137a52782be189cbce80363974d58b9a0ed5b67e3d9da94b", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.so8.so7_subalgebra", "problems": [], "src_sha256": "5cfa27fa2932055cc640e7d35c68fd81cc96a71e44d3896062b1f05f7aef291b", "statements": 12, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.so8.so8_adjoint_basis", "problems": [], "src_sha256": "381ed6a24ef384ebe96ca2a61d0bfead6ca7cf9fe09ec45f2b9e116a7a9a1db1", "statements": 11, "status": "ok"}
+{"markers_fired": [{"exc": "ValueError", "line": 15}], "n_markers": 1, "name": "srmech.physics.qm.so8.so8_bracket_certificate", "problems": [], "src_sha256": "faa809547ca6d85ab5eb3d864c7923bdbb0fd9291b6a8bfb0bd24efa80d55dbb", "statements": 10, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.so9.sedenion_holonomy_conjecture", "problems": [], "src_sha256": "3cf832f4154f55a948f5bbce3c4e84920b5a129bd04b6a1d2547e270c8547474", "statements": 6, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.so9.so9_adjoint_basis", "problems": [], "src_sha256": "84ec1a557a93ca73ed775f077c5cf846581f31e94c37941cefafb2aee6917596", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.so9.spin8_in_spin9_branching", "problems": [], "src_sha256": "55710a605f97ffa5db139008ef1cf7117c7a96520c1418db8d5d23fe2df63fd3", "statements": 5, "status": "ok"}

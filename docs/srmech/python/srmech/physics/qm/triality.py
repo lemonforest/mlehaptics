@@ -93,6 +93,7 @@ from srmech.physics.qm.so8 import (
     _epq_basis,
     _epq_coords,
     _epq_pairs,
+    epq_frame_address,
 )
 
 #: Frame labels for the three inequivalent 8-dim irreps, in cycle order.
@@ -1360,7 +1361,9 @@ def triality_frame_action(automorphism) -> dict:
         'weights_per_frame' (8), 'weight_table_entries' (32),
         'distinct_weights' (24), 'cartan_block' (4×4 of (num, den)),
         'frame_weights' ({frame: sorted 8-tuple of 4-tuples of (num, den)}),
-        'spinor_parity' ({'s', 'c'} -> 0/1, MEASURED), 'procedure_sha256',
+        'spinor_parity' ({'s', 'c'} -> 0/1, MEASURED), 'frame_sha256' (the
+        Class-A address of the E_pq frame this verdict is asserted in — see
+        the second Warning for what it is and is not), 'procedure_sha256',
         'action_sha256'}``
 
     Raises:
@@ -1385,6 +1388,40 @@ def triality_frame_action(automorphism) -> dict:
         generator pairs, which is a different instrument and not a tightening
         of this one. Witnessed with that rank-≤4 input in
         ``tests/test_frame_action_rc461.py``.
+
+    Warning:
+        **A WRONG-FRAME MATRIX IS ANSWERED, NOT REFUSED — and the wrong answer
+        is plausible.** ``frame_sha256`` in the payload names the frame this
+        op reads in (:func:`~srmech.physics.qm.so8.epq_frame_address`), but it
+        is a LABEL, not a check: it is computed from module constants, so the
+        same address comes back whatever you feed in. The engine has a second
+        live 28-dim ordering — the ``14 + 7 + 7`` partition of
+        :func:`~srmech.physics.qm.so8.so8_adjoint_basis` — and with ``P`` the
+        change of basis between them, MEASURED:
+
+        * ``triality_frame_action(P⁻¹ S_B P)`` returns
+          ``{'v': 'v', 's': 's', 'c': 'c'}``, ``order`` 1, ``is_identity``
+          True. The right answer for ``S_B`` is ``{'v': 's', 's': 'v',
+          'c': 'c'}``, ``order`` 2. No exception, no warning.
+        * ``P⁻¹ S_B P`` is invisible to every invariant this op inspects: it
+          is still an involution, still has trace 14, and still preserves the
+          standard Cartan span exactly.
+        * ``P⁻¹ τ P`` happens to RAISE on a Cartan escape — so exactly ONE of
+          the two shipped generators walks through, and the defect is
+          frame-dependent rather than uniform.
+
+        **If you did not build the input from** :func:`triality_automorphism`
+        **/** :func:`triality_swap` **or otherwise in the E_pq frame, run**
+        :func:`~srmech.physics.qm.so8.so8_bracket_certificate` **on it first.**
+        That op is the instrument the warning above names, it ships as of
+        rc461, and it SEES this: ``P⁻¹ S_B P`` fails 161 of 378 bracket pairs
+        and ``P⁻¹ τ P`` fails 214, against 0 for both generators read in their
+        own frame. Both halves are pinned in
+        ``tests/test_so8_automorphism_bind_rc461.py`` so neither can drift.
+        This op is NOT tightened into that certificate, deliberately: its
+        contract is a true statement about ``h``, the rank-≤4 witness above
+        depends on it staying that, and a caller who wants automorphy has a
+        shipped op to ask.
 
     Note:
         Exact ℚ; no float in the decision path; no ``abs()``. Python-first with
@@ -1488,6 +1525,13 @@ def triality_frame_action(automorphism) -> dict:
             tuple((q.numerator, q.denominator) for q in row) for row in block),
         "frame_weights": frame_weights,
         "spinor_parity": parity,
+        # rc461 (`#T1181`) — the frame BIND. This op is the tree's live
+        # public consumer of the shared E_pq frame, and through the first
+        # half of rc461 it emitted no statement of which frame it read in.
+        # Emitted, never accepted: a `frame=` parameter with exactly one
+        # producible value would be rc460's `field == 'Q'` defect wearing a
+        # hash. See the second Warning for why a label is not a check.
+        "frame_sha256": epq_frame_address(),
         "procedure_sha256": _sha256_bytes(procedure),
         "action_sha256": _sha256_bytes(
             repr(sorted(action.items())).encode("utf-8")),

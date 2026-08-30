@@ -611,10 +611,13 @@ srmech.physics.qm.sm.weak_mixing_angle
 srmech.physics.qm.sm.weinberg_relation_residual
 srmech.physics.qm.sm.z_boson_mass
 srmech.physics.qm.so8.an_embedding
+srmech.physics.qm.so8.epq_frame_address
+srmech.physics.qm.so8.g2_membership
 srmech.physics.qm.so8.g2_subalgebra
 srmech.physics.qm.so8.quaternion_subalgebra_stabilizer
 srmech.physics.qm.so8.so7_subalgebra
 srmech.physics.qm.so8.so8_adjoint_basis
+srmech.physics.qm.so8.so8_bracket_certificate
 srmech.physics.qm.so9.sedenion_holonomy_conjecture
 srmech.physics.qm.so9.so9_adjoint_basis
 srmech.physics.qm.so9.spin8_in_spin9_branching

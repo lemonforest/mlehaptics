@@ -83,6 +83,22 @@ from srmech.introspect.tool_schema import get_tool_schema, warmup_all  # noqa: E
 #: (op, param) pairs with no justified value. rc430: 59, all undeclared
 #: carrier types. Drains by adding a row to ``_synth_value_for_type``'s table
 #: or by making the op's worked example bind the parameter.
+# rc461 part 2 (`#T1181`) measured this at 52 and did NOT raise it. Recorded
+# because the first attempt DID raise it to 54, on a reason that turned out to
+# be false, and the correction is the useful part: the +2 was not this rc's ops
+# at all. It came from re-running `tools/run_example_args.py` in FULL, which
+# re-harvests every snippet in one process and flipped an unrelated row —
+# `srmech.math.rational.rational_div` went `ok` -> `no_jsonable_arg`, its two
+# `Q | tuple[int, int]` params arriving as `Q` objects where the committed
+# ledger had recorded them as `(19, 20)` / `(9991, 10000)` tuples, same
+# `src_sha256` and same 4 recorded calls. Re-running with `--only-stale`
+# instead harvests only the genuinely-new rows and leaves all 692 others
+# byte-identical, and the count returns to 52. THE LESSON, since the ledger's
+# own freshness clause only compares `src_sha256`: a full re-harvest is not a
+# no-op on unchanged rows, so use `--only-stale` unless you mean to re-measure
+# the whole surface. This rc's three ops contribute ZERO here — `Mat` already
+# has a `_synth_value_for_type` row, `g2_membership`'s operand is harvested
+# from its worked example, and `epq_frame_address` takes no parameters.
 CEIL_UNSYNTHESIZABLE_PARAMS = 52
 
 #: Advertised ops skipped entirely because at least one required param is

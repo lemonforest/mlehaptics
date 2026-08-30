@@ -19,7 +19,7 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
-## [0.9.0rc461] - the derivation pair: the label action that was only ever a constant, and the cycle spectrum that was only ever a float
+## [0.9.0rc461] - the derivation pair, and the frame nobody bound: the label action that was only ever a constant, the cycle spectrum that was only ever a float, and the 28 coordinates two modules ordered differently
 
 **What this rc is for.** Two ops, and they are the same move twice: each replaces a claim the tree ASSERTED with one it MEASURES. Registry **690 → 692**; **ABI stays 24**; **zero C symbols added** — neither op mints a carrier TYPE (exact ℚ leaves as `int` pairs), so nothing widens a discriminator set and nothing crosses the wire. Plus a third gate that adds no op at all and closes a shipped field with **zero** test coverage.
 
@@ -105,6 +105,218 @@ No wrong number is produced: what comes back is a true statement about the induc
 **3. The `SLOW_ALLOWLIST` note above stopped one name too early, and the ledger hook's own remediation was manufacturing a false red.** `tools/hooks/derived_ledger_freshness.py` prescribes `run_worked_examples.py --only <row>` when a module changes — which is exactly what a change to `triality.py` triggers, on the ten triality rows. MEASURED, one `--only` invocation per row, CPython 3.14 / native absent: `triality_automorphism` (16.0 s), `triality_swap` (16.6 s) and `lean_isa_seventh_primitive` (16.0 s) each blew `DEFAULT_BUDGET = 15.0` and flipped `ok` → `timeout`, while every other triality row finished under 4 s. **The snippets are not slow; the isolation is** — in a full run some earlier snippet warms the memoised `_companion_maps()`, and `--only` removes exactly that. Committing that ledger would have carried the `timeout` tally from 1 to 4 against a ceiling of **1** in `tests/test_worked_examples_execute_rc354.py`. All three are now allowlisted at 240 s with their measured numbers, as `tests/test_synth_args_provenance_rc430.py` already instructs in its own failure message. Re-measured afterwards: **all ten rows re-run by name, zero content change.**
 
 ⚠️ **The ledger itself is therefore NOT committed here, and that is the rc461 addendum's residual reaching a second instance.** The ten rows are measured unmoved, so the only line that would move is the meta line — and writing it from this host stamps `python: "3.14"` over a ledger whose other 597 rows were produced under 3.10, plus a `verified_at` the previous writer could not populate. Trading a blank provenance field for a whole-ledger-shaped claim that is false for most rows is not an improvement, and choosing between them is the ruling the addendum asks for. Recorded rather than resolved.
+
+### PART 2 (`#T1181`) — the automorphism side, and the frame bind
+
+**What part 2 is for.** Part 1 shipped `triality_frame_action`, the INDUCED-PERMUTATION reader,
+and it is correct and it keeps. What it did not do — because nothing in the tree did — is bind the
+COORDINATE FRAME its input is written in. `triality_automorphism()` returns the 28x28 tau and
+`triality_swap()` returns `S_B` **in the shared `E_pq` frame**; `so8_adjoint_basis()` orders the
+same 28 so(8) directions differently (`14 g2 + 7 L + 7 R`). **Nothing bound them.** Registry
+**692 -> 695**; **ABI stays 24**; **zero C symbols added** — no new carrier TYPE crosses any
+boundary (Q leaves as `int` pairs, a `str` leaves the address op).
+
+⚠️ **The gap is measured, not theoretical.** Build `Ad(g): X -> g X g^T` in `so8_adjoint_basis()`
+coordinates and test tau against it: tau appears to FAIL on **378 of 378** generator pairs and to
+fix **0 of the 14** dimensions of `g2` — while the mathematics is fine and only the frames
+disagree. For a genuine monomial G2 element whose `E_pq` commutator is EXACTLY ZERO,
+`[tau, P^-1 Ad P]` carries **176 of 784** nonzero entries. Well-formed, plausible, wrong; no
+exception, no warning. Same class as rc460's B1 (42 silent wrong answers from an unbound frame),
+and it takes the same fix: a **Class-A content address**.
+
+⚠️ **The FRAME RULING's premise was stale, and the correction is part of the ship.** The ruling was
+written on *"no public op in so8/triality accepts or emits 28-dim coordinates today"*. That is
+FALSE as of rc461 part 1: `triality_frame_action(automorphism)` takes a 28x28 in the `E_pq` frame
+and is in `triality.__all__`. The ruling's CONCLUSION survives and is strengthened — there is now a
+live public consumer of the unbound frame — but the premise sentence does not, and it is corrected
+in `so8.py`'s own block comment rather than carried forward.
+
+#### 4. `srmech.physics.qm.so8.epq_frame_address` — Class A
+
+The Class-A content address of the shared `E_pq` frame, covering **both** halves of what makes it
+that frame: the pair ORDER and the octonion multiplication TABLE the generators are built from
+(`octonion_table_attestation`'s `response_sha256`). Memoised; routed through
+`srmech.amsc.format.sha256_bytes`.
+
+**Pinned by DECLARATION plus an address, never a `frame=` parameter.** rc460's `field == 'Q'`
+ruling controls: a single-value pin no producer can vary MINTS A DIALECT. Exactly one 28-dim frame
+is mintable in this tree today, so a parameter would be that defect wearing a hash. The address is
+**emitted** by every op that consumes the frame and **accepted as an input by none**. The day a
+second-frame producer lands it brings its own address and the consumers gain the bind check in the
+SAME change.
+
+#### 5. `srmech.physics.qm.so8.so8_bracket_certificate` — Class D ∘ Class C
+
+`phi([X,Y]) == [phi X, phi Y]` over every one of the `C(28,2) = 378` unordered `E_pq` generator
+pairs, in **exact integer arithmetic**. tau and `S_B` have entries in `{0, +-1/2}`, so clearing
+denominators gives an integer `M = d*phi` with `d = 2`; the left side carries one factor of `phi`
+and the right side two, so the exact predicate is `d*M([X,Y]) == [MX, MY]` — integers both sides,
+no tolerance. Class C is the `E_qp = -E_pq` re-orientation applied when a pair arrives reversed: a
+sign, never an `abs()`.
+
+**This is the instrument `triality_frame_action`'s own scope warning names and declines to be** —
+*"deciding THAT means bracket-preservation over all C(28,2) = 378 generator pairs, which is a
+different instrument and not a tightening of this one"* — and, measured, **it is also the only
+shipped op that can SEE a wrong-frame matrix**: tau 0/378, `S_B` 0/378, `P^-1 S_B P` **161/378**,
+`P^-1 tau P` **214/378**. Cost **18.6 ms** warm against `triality_frame_action`'s 7.8 ms (2.4x, not
+the 34x the research phase estimated from a naive implementation).
+
+#### 6. `srmech.physics.qm.so8.g2_membership` — Class D ∘ Class K ∘ Class C ∘ Class A
+
+⚠️ **THE NAME IS THE RESULT OF A MEASUREMENT, NOT A PREFERENCE — this was the rc's single most
+important call.** The obvious name, `is_triality_fixed` over the two commutators alone, would be a
+**LIE**. `Ad(-I) = I_28` exactly, so `-I` commutes with everything; yet `-I` fails octonion
+multiplicativity on **64 of 64** basis pairs and is not an automorphism of O at all. And it is not
+one counterexample: over the **2688** monomial elements of `+-G2`, **all 2688** pass both
+commutators and exactly **1344** fail multiplicativity 64/64. The reason is structural — the
+commutators see `PSO(8) = SO(8)/{+-I}` and CANNOT separate `g` from `-g`. So the commutator verdict
+ships as **`fixed_mod_center`** and the words "in G2" are reserved for **`in_g2`**, decided by
+multiplicativity over the 64 octonion basis pairs, which IS the definition of `Aut(O) = G2`. The
+field that asserts membership is the field that measured it.
+
+⚠️ **`determinant` does not rescue the commutator reading**, and the gate says so out loud:
+`det(-g) = (-1)^8 det(g) = det(g)`, measured `+1` for all 32 monomial G2 elements **and** all 32 of
+their negatives.
+
+**BOTH residuals are computed and the impossible cell RAISES.** For a validated `g` in `SO(8)`,
+`[tau, Ad(g)] = 0` IMPLIES `[S_B, Ad(g)] = 0`: tau-centralising forces `[g]` into `PSO(8)^tau`,
+which (`gcd(3, |{+-I}|) = 1` killing the cohomology) is the image of `Spin(8)^tau = G2`, and `G2`
+lies inside `Spin(7) = Fix(S_B)`. The second condition is REDUNDANT, and it is computed anyway
+because **a redundant condition is a DETECTOR**. ⚠️ **Be precise about what it detects:** it is NOT
+input validation — neither impossible cell is reachable from any orthogonal input, measured **0**
+across the whole `+-G2` monomial set. It is a **theorem check on our OWN shipped tau / S_B**, firing
+if the companion solve ever regenerates one of them wrongly. The gate proves it can fire by **fault
+injection** at the private residual seam, because a guard never observed to fire is not an
+instrument.
+
+**The prediction the contract exists to answer, and it is FORCED rather than asserted.** An
+octonion automorphism realising `e1 -> e2 -> e3 -> e1` is **INNER** while tau is **OUTER** — the
+`S3` permuting `(i,j,k)` in `Q8` is NOT the `S3` permuting `(8v, 8s, 8c)`; it lives INSIDE
+`Fix(tau) = g2`. `induced_outer_class` returns that, derived from the two measured commutators: in
+`Out(Spin(8)) = S3` the centraliser of the 3-cycle is `A3` (order 3) and a transposition's has
+order 2, and the gate **executes** the intersection over all six elements of `Sym(3)` to find it
+trivial. Routing through `triality_frame_action` is not available — measured, it REFUSES `Ad(g)`
+for **32 of 32** monomial cycling elements on a genuine Cartan escape, and the gate executes that
+refusal too.
+
+#### The F1 call: `triality_frame_action` is NOT tightened into the certificate, deliberately
+
+The research phase recommended making `triality_frame_action` call the new certificate and RAISE.
+**Declined, and the reason is on the record rather than implied.** That op's shipped `Warning` is a
+deliberate, gated scope statement: the verdict is about `h` and only about `h`, *"a pass is not a
+certificate of automorphy"*, witnessed in `tests/test_frame_action_rc461.py` with a rank-<=4 input
+it deliberately ANSWERS. Making it raise would delete that boundary and its witness one commit
+after shipping them. And the returned value for `P^-1 S_B P` is **true within the declared scope** —
+that matrix genuinely induces the identity on the standard Cartan's weight systems. The wrongness
+lives entirely in a caller's belief about which frame the input was in, which is a FRAME defect, and
+the rc460 ruling for a frame defect is an address plus a detector.
+
+⚠️ **What `triality_frame_action` does gain, and what it plainly does not.** It emits
+`frame_sha256`, and a second `Warning` states in terms that this is a **LABEL, not a check** — it is
+computed from module constants, so the same address comes back whatever you feed in. The Warning
+carries the measured defect (`P^-1 S_B P` -> `{'v':'v','s':'s','c':'c'}`, `order` 1, no exception;
+still an involution, still trace 14, still Cartan-preserving; while `P^-1 tau P` happens to RAISE,
+so exactly one of the two shipped generators walks through) and names `so8_bracket_certificate` as
+the op to run first. Both sides are pinned in `tests/test_so8_automorphism_bind_rc461.py` so neither
+can drift.
+
+#### `so8_adjoint_basis`: the float carrier is the CONTRACT, and now it is MEASURED
+
+The 28 generators are every entry `float`-typed and **100% integer-valued**, max magnitude **4**.
+That is not a defect: `Mat` is by contract the float64 carrier and `QMat` is the exact one, and
+integers of magnitude 4 are exactly representable, far inside `2**53`. What had never been MEASURED
+is that claim itself, and `test_g10_adjoint_basis_entries_are_integers_carried_as_float` now
+measures it (28 matrices, 1792 entries, 0 non-integer). **Changing the return type to an exact
+carrier is OUT OF SCOPE for this rc and recorded as such**: a new TYPE widens a discriminator set
+and must close its projection gap in the SAME change, which is a carrier-slice arc rather than an
+op-slice one.
+
+#### C-side cost — the ADR-0009 gap, recorded verbatim
+
+> `so8.epq_frame_address` / `so8.so8_bracket_certificate` / `so8.g2_membership` ship **Python-first
+> with no C peer** under the ADR-0009 noted-disparity ruling, by the same argument rc461 part 1
+> recorded for `triality_frame_action`: they are written in, or compose, the `E_pq` frame that the
+> 28-unknown companion solve is written in, and that solve has **no C projection either**, so a C
+> peer for these three would have to bring the whole companion engine with it. **No new carrier
+> TYPE crosses the boundary** (Q leaves as `int` pairs; a `str` leaves the address op), so no
+> discriminator set widens and **ABI stays 24**. The recorded gap is the companion engine, not
+> these three ops.
+
+Measured against `CEIL_PYTHON_ONLY_DEBT = 0`: all three classify **`composition_of_c`**, the same
+bucket both rc461 part-1 ops landed in, so no C symbol is added and the debt ceiling holds.
+
+#### Part 2 ripple
+
+**75 count-pin lines across 68 test files** (`== 692` -> `== 695`; the sweep ran by SHAPE-matched
+predicate, not by bare grep-replace, and every one of the 75 was confirmed a registry total by
+reading its context). ⚠️ The count is **75/68**, not the 74/67 the brief carried — that was rc460's
+baseline; part 1 added `tests/test_frame_action_rc461.py`. One of the 75
+(`test_pinned_names_carry_no_value_rc447.py:7`) is a **docstring illustration**, not an executing
+assert, and is swept by convention.
+
+Also: `EXPECTED_N` 692 -> 695 with its per-op rationale, the sha256-pinned op-name manifest
+rewritten (695 rows) and `EXPECTED_NAME_SET_SHA256` re-pinned, all three in one commit as that gate
+requires; `tools/regen_all.py` (idempotence re-verified, second pass byte-identical); the
+worked-example and example-args ledgers; the rosetta classification ledger (3 rows,
+`composition_of_c`); three curated `example` + `explanation` entries clearing the multi-perspective
+bar with **captured** WSL2 output; the `srmech.amsc.` as-text ceiling **115 -> 118** and
+`TOTAL_AS_TEXT` **206 -> 209** (**decoded UNMOVED at 2** — the CITATION case, the three `composes`
+citations of `sha256_bytes`); the decoded `srmech.physics.qm.` **164 -> 166** (⚠️ **+2, not +3** —
+a decoded slot is earned per CARRIER-TYPED PARAM, and `epq_frame_address` takes no arguments);
+the corpus witness `WITNESS_RC416` (`len(frames)` **721 -> 724**, read off the
+build as `{'op': 695, 'carrier': 29}`, measured LAST after the final regen and confirmed identical
+across nine builds in three fresh interpreters); `CEIL_FRAME_UNADJUDICATED['NO_ARG']` **278 -> 280**
+and `['NO_INT_INPUT']` **170 -> 171**; README `692-entry` -> `695-entry`; the notebook's two live
+cardinals; and `tools/ripple_gates.txt` gains the new gate (111 targets, 0 missing).
+
+⚠️ **`CEIL_UNSYNTHESIZABLE_PARAMS` was raised 52 -> 54 and then PUT BACK, and the reason is worth
+more than the number.** The +2 was not this rc's ops at all. Re-running `tools/run_example_args.py`
+in FULL re-harvests every snippet in one process, and it flipped an unrelated row:
+`srmech.math.rational.rational_div` went `ok` -> `no_jsonable_arg`, its two `Q | tuple[int, int]`
+params arriving as `Q` objects where the committed ledger had `(19, 20)` / `(9991, 10000)` tuples —
+**same `src_sha256`, same four recorded calls**. Three more rows moved with it
+(`triality_companions` the opposite way, `genome_groups` 5 -> 7 calls, `cascade.pair` 1 -> 2).
+Re-running with **`--only-stale`** harvests only the genuinely-new rows, leaves all 692 others
+byte-identical, and every derived count returns to its true value. The first attribution — blaming
+the new ops' `Mat` params — was measured FALSE (`Mat` already has a `_synth_value_for_type` row) and
+is recorded at the pin rather than quietly deleted. **The ledger's own freshness clause only
+compares `src_sha256`, so a full re-harvest is not a no-op on unchanged rows.**
+
+⚠️ **The five citation gates read RED in this worktree and are GREEN.** The corpus zeroes to **0**
+modules under any path with `.claude` or `worktrees` as a component (`EXCLUDED_DIR_NAMES` matches
+ANY component), and this session's worktree is `.claude/worktrees/…`. Both directions executed:
+**266** modules from a copy at a non-excluded path versus **0** here, and all **88** tests across
+the five gates pass on that copy.
+
+⚠️ **`tools/ripple_gates.txt` is CRLF.** The appended line was written CRLF to match; a naive LF
+append leaves a mixed-ending file and a resolver that does not strip the carriage return reports
+every target MISSING.
+
+#### Part 2 gates — hand-written, every predicate with a control that came back RED
+
+⚠️ **Do NOT lean on `tests/test_preserves_taxonomy_rc423.py`**: it declares eight of ten property
+kinds EXECUTABLE and at `:371-377` executes NONE of them, so a declared property can be classified
+machine-checkable and never run. Every property claim here has a hand-written execution gate.
+
+The negative controls, all executed: `2*S_B` fails the certificate **168/378** (a scale cannot
+survive a bracket that is quadratic on one side and linear on the other); `P^-1 S_B P` **161/378**
+and `P^-1 tau P` **214/378** (the wrong-frame case); each `-g` of the 32 cycling elements passes
+BOTH commutators, fails multiplicativity **64/64** and reports `center_coset` `minus_G2`; the
+`e1 <-> e2, e3 -> -e3` control fails both commutators at **120/784** and multiplicativity **36/64**;
+the `diag(-1,1,...,1)` control fails both at **42/784** with multiplicativity **22/64**, and the
+gate executes the MECHANISM — `triality_frame_action` reports its induced action as the
+transposition `(s c)`, and two distinct transpositions in `S3` never commute. The dissonance guard
+is proved firable by fault injection in **both** impossible cells, with a no-injection control that
+returns cleanly.
+
+#### Part 2 — RECONCILIATION (a), carried and EXECUTED
+
+The 32 monomial automorphisms with index action `(123)` on the quaternion line factor as **4 index
+permutations x 8 sign patterns**, not one index permutation x 32 signs — derived in the gate from
+the Fano and sign conditions rather than pinned, with the four permutations enumerated. ⚠️ This 32
+is **unrelated** to `triality_frame_action`'s `32` weight-table entries (8 weights x 4 Cartan
+coordinates). They share a numeral and no structure; neither reconciles the other, and part 1's
+commit `869557740` already corrected prose that implied otherwise.
 
 ## [0.9.0rc460] - the exact A2 weight-lattice stratum: Lie fusion is a SIGNED INTEGER COUNT, not an integral — and the group bind that closes a replicated silent wrong answer
 

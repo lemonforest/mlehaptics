@@ -69,7 +69,7 @@ from __future__ import annotations
 import functools
 from typing import Dict, List, Sequence, Tuple
 
-from srmech.math.q import Q                   # #845: exact-ℚ carrier (was Fraction)
+from srmech.math.q import Q, to_q             # #845: exact-ℚ carrier (was Fraction)
 
 from srmech.math import rational as _srn
 
@@ -87,6 +87,7 @@ from srmech.physics.qm.octonion import (
     octonion_left_mult,
     octonion_mult_table,
     octonion_right_mult,
+    octonion_table_attestation,
 )
 
 #: Octonion / so(8)-acting dimension.
@@ -1923,10 +1924,650 @@ def quaternion_subalgebra_stabilizer(quaternion_index: int = 1) -> dict:
     }
 
 
+# ──────────────────────────────────────────────────────────────────────
+# rc461 (`#T1181`) — THE AUTOMORPHISM-SIDE CONTRACT, and the frame bind
+#
+# `triality_automorphism()` returns the 28×28 τ = S_B·S_C **in the E_pq
+# frame**; `triality_swap()` returns S_B in the same frame.
+# `so8_adjoint_basis()` orders the same 28 so(8) directions DIFFERENTLY.
+# Through rc460 NOTHING bound them, and the gap is not theoretical:
+#
+#   MEASURED — build Ad(g): X ↦ g X gᵀ in `so8_adjoint_basis()` coordinates
+#   and test τ against it, and τ appears to FAIL on 378 of 378 generator
+#   pairs and to fix 0 of the 14 dimensions of g2, while the mathematics is
+#   fine and only the frames disagree. For a genuine monomial G2 element
+#   whose E_pq commutator is EXACTLY ZERO, the adjoint-frame commutator
+#   [τ, P⁻¹ Ad P] carries 176 of 784 nonzero entries. Well-formed,
+#   plausible, wrong; no exception, no warning.
+#
+# THE FRAME IS PINNED BY DECLARATION PLUS A CLASS-A CONTENT ADDRESS
+# (:func:`epq_frame_address`), never by a ``frame=`` parameter. rc460's
+# ``field == 'Q'`` ruling controls: a single-value pin no producer can vary
+# MINTS A DIALECT. Exactly one 28-dim frame is mintable today, so a
+# parameter would be that defect wearing a hash. The discriminator set
+# widens the day a second-frame producer lands — in the same change.
+#
+# ⚠️ THE PREMISE THAT RULING WAS WRITTEN ON IS STALE, and the correction
+# matters more than the sentence: it read "no public op in so8/triality
+# accepts or emits 28-dim coordinates today". rc461's own
+# `triality_frame_action` takes a 28×28 in the E_pq frame and is in
+# `triality.__all__`, so there IS a live public consumer of the unbound
+# frame. The CONCLUSION survives and is strengthened; the premise does not.
+# ──────────────────────────────────────────────────────────────────────
+
+#: The Class-A framing tag whose bytes open the ``E_pq`` frame address. The
+#: trailing ``/1`` is the frame-serialisation VERSION: a second-frame
+#: producer does not re-spell this one, it mints its own tag.
+_EPQ_FRAME_TAG = b"srmech/so8/epq-frame/1"
+
+#: ``C(28, 2) = 378`` — the number of UNORDERED so(8) generator pairs a
+#: bracket certificate must check. DERIVED from ``_DIM_SO8`` below, never
+#: written as a literal, so the two can never disagree.
+_N_BRACKET_PAIRS = _DIM_SO8 * (_DIM_SO8 - 1) // 2
+
+#: ``28 × 28 = 784`` — the entry count of a commutator residual, i.e. the
+#: denominator every ``*_residual`` in :func:`g2_membership` is out of.
+_N_COMMUTATOR_ENTRIES = _DIM_SO8 * _DIM_SO8
+
+#: ``8 × 8 = 64`` — the octonion basis PAIRS a multiplicativity check runs
+#: over. ``Aut(O) = G2`` is decided on exactly these, and on nothing else.
+_N_OCTONION_PAIRS = _DIM * _DIM
+
+
+@functools.lru_cache(maxsize=None)
+def epq_frame_address() -> str:
+    """The Class-A content address of the shared ``E_pq`` 28-dim frame.
+
+    Every 28-dimensional object in this engine — the ``28×28`` ``τ`` and
+    ``S_B``, the ``E_pq`` coordinates of a ``g2`` generator, the ``Ad(g)``
+    built by :func:`g2_membership` — lives in ONE coordinate frame:
+    ``coords(M)[index(p, q)] = M[p, q]`` over the 28 pairs ``0 ≤ p < q ≤ 7``.
+    That frame was shared by CONVENTION and by a helper both sides happened
+    to call. This op gives it an ADDRESS, so a consumer can bind to it
+    instead of assuming it.
+
+    **The address covers both halves of what makes the frame what it is** —
+    the pair ORDER (which coordinate is which) and the octonion
+    multiplication TABLE the generators are built from
+    (:func:`~srmech.physics.qm.octonion.octonion_table_attestation`'s
+    ``response_sha256``). Change either and the address moves; a
+    28-dim datum stamped with a different address was computed somewhere
+    else and must not be compared entry-by-entry with one stamped here.
+
+    Class A (content-addressing), routed through
+    :func:`srmech.amsc.format.sha256_bytes` so native dispatch picks it up.
+
+    **Why this is an address and not a ``frame=`` parameter.** rc460 ruled
+    that a single-value pin no producer can vary MINTS A DIALECT. Exactly
+    one 28-dim frame is mintable in this tree today, so a parameter would
+    be that defect wearing a hash. The address is EMITTED by every op that
+    consumes the frame and accepted as an input by none of them. The day a
+    second-frame producer lands, it brings its own address and the
+    consuming ops gain the bind check in the SAME change.
+
+    Returns:
+        The 64-hex Class-A address of the ``E_pq`` frame.
+
+    Note:
+        Memoised — the bytes are a fixed function of the module's own
+        constants. Python-first with no C peer under the ADR-0009
+        noted-disparity ruling; no new carrier TYPE crosses the boundary
+        (a ``str`` leaves), so ABI is unchanged.
+
+    Canonical SSoT: Baez, J.C. (2002) *The Octonions*, Bull. Amer. Math.
+    Soc. 39, 145–205 (arXiv:math/0105155) §2.4 — the ``so(8)`` adjoint as
+    antisymmetric ``8×8`` matrices.
+
+    Example:
+        >>> from srmech.physics.qm.so8 import epq_frame_address
+        >>> len(epq_frame_address())
+        64
+    """
+    from srmech.physics.qm.octonion import octonion_table_attestation
+
+    pair_bytes = b";".join(b"%d,%d" % (p, q) for (p, q) in _epq_pairs())
+    table_sha = octonion_table_attestation()["attestation"]["response_sha256"]
+    payload = (_EPQ_FRAME_TAG + b"\n" + pair_bytes + b"\n"
+               + table_sha.encode("ascii") + b"\n")
+    return _sha256_bytes(payload)
+
+
+def _epq_bracket_coeffs(a: int, b: int, c: int, d: int) -> Dict[Tuple[int, int], int]:
+    """``[E_ab, E_cd]`` as ``{(p, q): integer coefficient}`` in the ``E_pq`` frame.
+
+    With ``E_pq = e_p e_qᵀ − e_q e_pᵀ`` the bracket closes on four Kronecker
+    terms, ``[E_ab, E_cd] = δ_bc E_ad − δ_bd E_ac − δ_ac E_bd + δ_ad E_bc``.
+    Every coefficient is an INTEGER — the so(8) structure constants are
+    integral — which is what lets the whole certificate run on the integer
+    ALU. ``E_qp = −E_pq`` is applied on the way in (Class C: re-orienting a
+    plane flips the sign, it does not take a magnitude).
+    """
+    out: Dict[Tuple[int, int], int] = {}
+
+    def _add(p: int, q: int, s: int) -> None:
+        if p == q:                                   # E_pp = 0
+            return
+        key, sign = ((p, q), s) if p < q else ((q, p), -s)
+        out[key] = out.get(key, 0) + sign
+
+    if b == c:
+        _add(a, d, 1)
+    if b == d:
+        _add(a, c, -1)
+    if a == c:
+        _add(b, d, -1)
+    if a == d:
+        _add(b, c, 1)
+    return {k: v for k, v in out.items() if v != 0}
+
+
+@functools.lru_cache(maxsize=None)
+def _bracket_table() -> Dict[Tuple[int, int], Dict[Tuple[int, int], int]]:
+    """``{(i, j): [E_i, E_j]}`` over all ``i < j``, integer-valued, memoised."""
+    pairs = _epq_pairs()
+    table: Dict[Tuple[int, int], Dict[Tuple[int, int], int]] = {}
+    for i, (a, b) in enumerate(pairs):
+        for j, (c, d) in enumerate(pairs):
+            if i < j:
+                table[(i, j)] = _epq_bracket_coeffs(a, b, c, d)
+    assert len(table) == _N_BRACKET_PAIRS, (
+        f"bracket table has {len(table)} pairs; expected {_N_BRACKET_PAIRS}")
+    return table
+
+
+def _bracket_of_columns(col_a: Sequence[int], col_b: Sequence[int],
+                        index: Dict[Tuple[int, int], int]) -> List[int]:
+    """``[u, v]`` for two 28-vectors expanded bilinearly over the ``E_pq`` frame."""
+    table = _bracket_table()
+    out = [0] * _DIM_SO8
+    for i, ui in enumerate(col_a):
+        if ui == 0:
+            continue
+        for j, vj in enumerate(col_b):
+            if vj == 0 or i == j:
+                continue
+            lo, hi, sign = (i, j, 1) if i < j else (j, i, -1)
+            for pq, cf in table[(lo, hi)].items():
+                out[index[pq]] += ui * vj * cf * sign
+    return out
+
+
+def _integer_columns(rows: List[List[Q]]) -> Tuple[List[List[int]], int]:
+    """Clear denominators: return ``(columns of d·φ as ints, d)``.
+
+    ``τ`` and ``S_B`` have entries in ``{0, ±1/2}`` — max denominator 2 — so
+    ``d = 2`` and the whole certificate below is integer arithmetic. This is
+    the ALU-all-the-way step: the exact carrier is ``Q`` on the way in, and
+    the working values are ``int``.
+    """
+    den = 1
+    for row in rows:
+        for x in row:
+            den = den * x.denominator // _gcd(den, x.denominator)
+    cols = [[int(rows[r][c] * den) for r in range(_DIM_SO8)]
+            for c in range(_DIM_SO8)]
+    return cols, den
+
+
+def so8_bracket_certificate(operator) -> dict:
+    """Is a ``28×28`` map a BRACKET automorphism of ``so(8)`` — all 378 pairs.
+
+    ``φ([X, Y]) = [φX, φY]`` checked over every one of the
+    ``C(28, 2) = 378`` unordered pairs of ``E_pq`` basis generators, in
+    EXACT INTEGER arithmetic. This is the instrument
+    :func:`~srmech.physics.qm.triality.triality_frame_action`'s own scope
+    warning names and declines to be — *"deciding THAT means
+    bracket-preservation over all C(28,2) = 378 generator pairs, which is a
+    different instrument and not a tightening of this one"* — and it is
+    also, measured, a FRAME DETECTOR.
+
+    **What it is FOR.** The 28 so(8) directions can be coordinatised more
+    than one way, and this engine has two live orderings: the shared
+    ``E_pq`` frame (:func:`epq_frame_address`) and the ``14 + 7 + 7``
+    partition of :func:`so8_adjoint_basis`. A matrix written in the wrong
+    one is still a perfectly good matrix, so no shape check can see it.
+    MEASURED, with ``P`` the change of basis between the two:
+
+    ====================================  ==========
+    map (read in the ``E_pq`` frame)      failures
+    ====================================  ==========
+    ``τ`` (:func:`triality_automorphism`)   0 / 378
+    ``S_B`` (:func:`triality_swap`)         0 / 378
+    ``P⁻¹ S_B P``                         161 / 378
+    ``P⁻¹ τ P``                           214 / 378
+    ====================================  ==========
+
+    That is what a wrong-frame matrix looks like to this op, and it is the
+    only shipped op that can see it: ``P⁻¹ S_B P`` is still an involution,
+    still has trace 14, and still preserves the standard Cartan span, so
+    ``triality_frame_action`` ANSWERS it — with the identity permutation,
+    where the right answer for ``S_B`` is ``v ↔ s``. Both halves of that
+    are pinned in ``tests/test_so8_automorphism_bind_rc461.py``.
+
+    **How it runs on the integer ALU.** ``τ`` and ``S_B`` have entries in
+    ``{0, ±1/2}``, so clearing denominators gives an integer ``M = d·φ``
+    with ``d = 2``. Linearity makes the left side one factor of ``φ`` and
+    the right side two, so the exact predicate is
+    ``d · M([X, Y]) == [MX, MY]`` — integers on both sides, no float in the
+    decision path and no tolerance.
+
+    Class D (a pattern-match over 378 bracket identities) ∘ Class C (the
+    ``E_qp = −E_pq`` re-orientation applied when a pair arrives reversed —
+    a sign, never an ``abs()``).
+
+    Args:
+        operator: the ``28×28`` map in the shared ``E_pq`` frame — a
+            :class:`~srmech.math.mat.Mat` or any 2-D iterable of
+            exact-rational-coercible entries. Same contract as
+            :func:`~srmech.physics.qm.triality.triality_frame_action`.
+
+    Returns:
+        ``{'is_bracket_automorphism' (bool), 'failures' (0..378),
+        'pairs_checked' (378), 'first_failure' ((i, j) or None),
+        'denominator' (the cleared d), 'frame_sha256', 'operator_sha256'}``
+
+    Raises:
+        ValueError: if the input is not ``28×28``.
+
+    Note:
+        Exact integers; no float; no ``abs()``. Python-first with no C peer
+        under the ADR-0009 noted-disparity ruling — it composes the same
+        ``E_pq`` frame the 28-unknown companion solve is written in, and
+        that solve has no C projection either, so a C peer here would have
+        to bring the whole companion engine with it. No new carrier TYPE
+        crosses the boundary, so ABI is unchanged.
+
+    Canonical SSoT: Baez, J.C. (2002) *The Octonions*, Bull. Amer. Math.
+    Soc. 39, 145–205 (arXiv:math/0105155) §2.4 — ``so(8)`` and its
+    automorphism group.
+
+    Example:
+        >>> from srmech.physics.qm.so8 import so8_bracket_certificate
+        >>> from srmech.physics.qm.triality import triality_swap
+        >>> so8_bracket_certificate(triality_swap())["failures"]
+        0
+    """
+    from srmech.physics.qm.triality import _as_28x28_exact
+
+    op = "so8_bracket_certificate"
+    rows = _as_28x28_exact(operator, op)
+    cols, den = _integer_columns(rows)
+    index = {pq: i for i, pq in enumerate(_epq_pairs())}
+
+    failures = 0
+    first: Tuple[int, int] = None
+    for (i, j), coeffs in _bracket_table().items():
+        lhs = [0] * _DIM_SO8
+        for pq, cf in coeffs.items():
+            src = cols[index[pq]]
+            for r in range(_DIM_SO8):
+                lhs[r] += cf * src[r]
+        rhs = _bracket_of_columns(cols[i], cols[j], index)
+        if [den * x for x in lhs] != rhs:
+            failures += 1
+            if first is None:
+                first = (i, j)
+
+    return {
+        "is_bracket_automorphism": failures == 0,
+        "failures": failures,
+        "pairs_checked": _N_BRACKET_PAIRS,
+        "first_failure": first,
+        "denominator": den,
+        "frame_sha256": epq_frame_address(),
+        "operator_sha256": _sha256_bytes(_exact_bytes(rows)),
+    }
+
+
+def _exact_bytes(rows: Sequence[Sequence[Q]]) -> bytes:
+    """Canonical row-major ``(num, den)`` serialisation of an exact matrix."""
+    return b";".join(
+        b",".join(b"%d/%d" % (x.numerator, x.denominator) for x in row)
+        for row in rows)
+
+
+def _gcd(a: int, b: int) -> int:
+    """Class-I integer gcd, routed through the shipped cyclic primitive."""
+    from srmech.math.cyclic import gcd as _cyclic_gcd
+
+    return _cyclic_gcd(a, b)
+
+
+def _as_8x8_exact_orthogonal(value, op: str) -> List[List[Q]]:
+    """Coerce to an exact ``8×8`` and REFUSE anything that is not orthogonal.
+
+    ``Ad(g): X ↦ g X gᵀ`` only maps antisymmetric matrices to antisymmetric
+    matrices when ``gᵀg = I``; for a non-orthogonal ``g`` the object this op
+    is about does not exist, so it raises rather than answering.
+    """
+    rows = [[to_q(x) for x in r] for r in value]
+    if len(rows) != _DIM or any(len(r) != _DIM for r in rows):
+        shape = (len(rows), len(rows[0]) if rows else 0)
+        raise ValueError(f"{op}: must be 8x8; got {shape}")
+    for i in range(_DIM):
+        for j in range(_DIM):
+            entry = sum((rows[k][i] * rows[k][j] for k in range(_DIM)), Q(0))
+            want = Q(1) if i == j else Q(0)
+            if entry != want:
+                raise ValueError(
+                    f"{op}: g is not orthogonal — (g^T g)[{i}][{j}] = {entry}, "
+                    f"expected {want}. Ad(g): X -> g X g^T does not preserve "
+                    f"antisymmetry off O(8), so the object this op decides "
+                    f"about does not exist for this input.")
+    return rows
+
+
+def _ad_epq_columns(g: Sequence[Sequence[Q]]) -> List[List[Q]]:
+    """``Ad(g): X ↦ g X gᵀ`` as 28 columns of ``E_pq`` coordinates.
+
+    ``(g E_pq gᵀ)[a][b] = g[a][p]·g[b][q] − g[a][q]·g[b][p]`` — read straight
+    off ``E_pq = e_p e_qᵀ − e_q e_pᵀ``, no matrix product needed.
+    """
+    pairs = _epq_pairs()
+    cols: List[List[Q]] = []
+    for (p, q) in pairs:
+        col = [Q(0)] * _DIM_SO8
+        for r, (a, b) in enumerate(pairs):
+            v = g[a][p] * g[b][q] - g[a][q] * g[b][p]
+            if v != 0:
+                col[r] = v
+        cols.append(col)
+    return cols
+
+
+def _commutator_residual(sparse_rows, cols: Sequence[Sequence[Q]]) -> int:
+    """Nonzero-entry count of ``[M, A]``, ``M`` sparse-by-row, ``A`` by column.
+
+    A COUNT, not a norm: the question is whether the commutator vanishes,
+    and counting the entries that do not is exact and needs no tolerance.
+    Zero is the only value that means "commutes"; every other value is a
+    witness the caller can localise. ``M·A`` is read off ``M``'s sparse rows
+    against ``A``'s columns; ``A·M`` off the same sparse rows, accumulating
+    each ``M[k][j]`` into column ``j``.
+    """
+    zero = Q(0)
+    # (M·A)[i][j] — M sparse by row, A by column.
+    ma = [[sum((v * cols[j][k] for k, v in sparse_rows[i]), zero)
+           for j in range(_DIM_SO8)] for i in range(_DIM_SO8)]
+    # (A·M)[i][j] = Σ_k A[i][k]·M[k][j]; walk M's sparse rows once.
+    am = [[zero] * _DIM_SO8 for _ in range(_DIM_SO8)]
+    for k in range(_DIM_SO8):
+        row_k = sparse_rows[k]
+        if not row_k:
+            continue
+        for i in range(_DIM_SO8):
+            a_ik = cols[k][i]
+            if a_ik == 0:
+                continue
+            target = am[i]
+            for j, v in row_k:
+                target[j] += a_ik * v
+    return sum(1 for i in range(_DIM_SO8) for j in range(_DIM_SO8)
+               if ma[i][j] != am[i][j])
+
+
+def _ad_center_residuals(cols: Sequence[Sequence[Q]]) -> Tuple[int, int]:
+    """``(τ residual, S_B residual)`` of ``Ad(g)`` — BOTH, always.
+
+    The seam the dissonance instrument in :func:`g2_membership` is armed
+    against: if the shipped companion solve ever regenerates ``τ`` or
+    ``S_B`` wrongly, the two residuals stop agreeing and the impossible
+    cell becomes reachable. Kept as one private helper so a gate can inject
+    a fault here and PROVE the guard fires.
+    """
+    tau, swap = _triality_generators_doubled()
+    return (_commutator_residual(tau, cols), _commutator_residual(swap, cols))
+
+
+@functools.lru_cache(maxsize=None)
+def _triality_generators_doubled():
+    """``(2·τ, 2·S_B)`` as exact integer-valued ``Q``, sparse-by-row, memoised.
+
+    Doubling is a nonzero scalar, so ``[2M, A] = 2[M, A]`` has the IDENTICAL
+    nonzero pattern; carrying the doubled generator keeps the residual on
+    the integer ALU whenever the operand is integral. Each row is stored as
+    ``((col, value), ...)`` because both generators are SPARSE — measured 4
+    nonzeros per row out of 28 — and the residual is the hot loop.
+    """
+    from srmech.physics.qm.triality import triality_automorphism, triality_swap
+
+    out = []
+    for mat in (triality_automorphism(), triality_swap()):
+        rows = [[2 * to_q(x) for x in row] for row in mat.tolist()]
+        out.append(tuple(tuple((c, v) for c, v in enumerate(row) if v != 0)
+                         for row in rows))
+    return tuple(out)
+
+
+def _octonion_multiplicativity_failures(g: Sequence[Sequence[Q]]) -> int:
+    """Count basis pairs where ``g(e_i · e_j) ≠ g(e_i) · g(e_j)`` (0..64).
+
+    ``Aut(O) = G2`` is decided by exactly this, and by nothing else — which
+    is why the field that asserts G2 membership is the field that measured
+    it, and why the commutator conditions do not get to use the word.
+    """
+    table = octonion_mult_table()
+    fails = 0
+    for i in range(_DIM):
+        g_i = [g[r][i] for r in range(_DIM)]
+        for j in range(_DIM):
+            g_j = [g[r][j] for r in range(_DIM)]
+            prod = table[i][j]
+            lhs = [sum((g[r][k] * prod[k] for k in range(_DIM)), Q(0))
+                   for r in range(_DIM)]
+            rhs = [Q(0)] * _DIM
+            for a in range(_DIM):
+                if g_i[a] == 0:
+                    continue
+                for b in range(_DIM):
+                    if g_j[b] == 0:
+                        continue
+                    coeff = g_i[a] * g_j[b]
+                    for k, c in enumerate(table[a][b]):
+                        if c:
+                            rhs[k] += coeff * c
+            if lhs != rhs:
+                fails += 1
+    return fails
+
+
+def _exact_det(rows: List[List[Q]]) -> Q:
+    """Exact ``ℚ`` determinant by fraction-free-enough Gaussian elimination."""
+    m = [list(r) for r in rows]
+    n = len(m)
+    det = Q(1)
+    for c in range(n):
+        piv = next((r for r in range(c, n) if m[r][c] != 0), None)
+        if piv is None:
+            return Q(0)
+        if piv != c:
+            m[c], m[piv] = m[piv], m[c]
+            det = -det                       # Class C: a row swap re-orients
+        det *= m[c][c]
+        inv = Q(1) / m[c][c]
+        m[c] = [x * inv for x in m[c]]
+        for r in range(c + 1, n):
+            if m[r][c] != 0:
+                f = m[r][c]
+                m[r] = [m[r][k] - f * m[c][k] for k in range(n)]
+    return det
+
+
+def g2_membership(matrix) -> dict:
+    """Is an ``8×8`` orthogonal ``g`` in ``G2 = Aut(O)`` — and does ``Ad(g)``
+    centralise the triality generators? BOTH, measured, in exact ``ℚ``.
+
+    **THE NAME IS THE RESULT OF A MEASUREMENT, NOT A PREFERENCE.** The
+    obvious name for this op — ``is_triality_fixed``, over the two
+    commutators ``[τ, Ad(g)]`` and ``[S_B, Ad(g)]`` — would be a LIE, and
+    the counterexample is not exotic. ``Ad(−I) = I₂₈`` exactly, so ``−I``
+    commutes with everything; yet ``−I`` fails octonion multiplicativity on
+    **64 of 64** basis pairs and is not an automorphism of ``O`` at all.
+    At scale it is worse than one counterexample: over the 2688 monomial
+    elements of ``±G2``, **all 2688** pass both commutators and exactly
+    **1344** — every ``−g`` for ``g`` monomial in ``G2`` — fail
+    multiplicativity 64/64. A commutator-only predicate spelling itself
+    "fixed" returns ``True`` on 1344 non-automorphisms.
+
+    The reason is structural, not a rounding accident: the commutators see
+    ``PSO(8) = SO(8)/{±I}`` and CANNOT separate ``g`` from ``−g``. So the
+    commutator verdict ships as ``fixed_mod_center`` — fixed **modulo the
+    centre** — and the word "in ``G2``" is reserved for ``in_g2``, which is
+    decided by multiplicativity over the 64 octonion basis pairs, which IS
+    the definition of ``Aut(O) = G2``. ``determinant`` does not rescue the
+    commutator reading either: ``det(−g) = (−1)⁸ det(g) = det(g)``, measured
+    ``+1`` for all 32 monomial G2 elements AND all 32 of their negatives.
+
+    **BOTH residuals are always computed, and the impossible cell RAISES.**
+    For a validated ``g ∈ SO(8)``, ``[τ, Ad(g)] = 0`` IMPLIES
+    ``[S_B, Ad(g)] = 0``: the chain is ``[τ, Ad(g)] = 0 ⇔ τ(g) = ±g ⇔
+    [g] ∈ PSO(8)^τ``; ``gcd(3, |{±I}|) = gcd(3, 2) = 1`` kills the relevant
+    cohomology, so ``PSO(8)^τ`` is the image of ``Spin(8)^τ = G2``; and
+    ``G2 ⊂ Spin(7) = Fix(S_B)``. So the second condition is REDUNDANT — and
+    it is computed anyway, because a redundant condition is a DETECTOR.
+    Two cells cannot occur and therefore RAISE:
+
+    * ``centralizes_tau`` and not ``centralizes_swap``;
+    * ``in_g2`` and not ``centralizes_tau``.
+
+    ⚠️ **Be precise about what that guard detects.** It is NOT input
+    validation — neither cell is reachable from any orthogonal input,
+    measured 0 across the whole ``±G2`` monomial set. It is a THEOREM CHECK
+    ON OUR OWN SHIPPED CONSTANTS: it fires if the companion solve behind
+    ``τ`` or ``S_B`` ever regenerates them wrongly. The gate proves it can
+    fire by injecting a fault into :func:`_ad_center_residuals`, because a
+    guard that has never been observed to fire is not an instrument.
+
+    **The prediction this op exists to be able to answer.** An octonion
+    automorphism realising ``e₁ → e₂ → e₃ → e₁`` is INNER — it fixes all
+    three 8-dim frames — while ``τ`` is OUTER. The ``S₃`` permuting
+    ``(i, j, k)`` in ``Q₈`` is NOT the ``S₃`` permuting ``(8v, 8s, 8c)``; it
+    lives INSIDE ``Fix(τ) = g2``. ``induced_outer_class`` returns that, and
+    it is FORCED by the two measured commutators rather than asserted: in
+    ``Out(Spin(8)) = S₃`` the centraliser of the 3-cycle is ``A₃`` and the
+    centraliser of a transposition has order 2, and those intersect
+    trivially — so centralising both ``τ`` and ``S_B`` leaves the identity
+    permutation as the only possibility. When the commutators do NOT both
+    vanish they do not force an answer, and the field is ``None`` rather
+    than a guess. (Routing this through ``triality_frame_action`` is not
+    available: measured, it REFUSES ``Ad(g)`` for 32 of the 32 monomial
+    ``e₁ → e₂ → e₃`` elements, on a genuine Cartan escape.)
+
+    Class D (the multiplicativity pattern-match) ∘ Class K (the pin-slot at
+    the ``±`` centre boundary that separates ``G2`` from ``−G2``) ∘ Class C
+    (re-applying that sign to name the coset) ∘ Class A (the frame and
+    operator content addresses).
+
+    Args:
+        matrix: an ``8×8`` orthogonal ``g`` in the OCTONION basis
+            ``e₀..e₇`` — NOT 28-dim coordinates. Any 2-D iterable of
+            exact-rational-coercible entries. The ``E_pq`` frame is
+            INTERNAL to this op and never crosses the API boundary, which
+            is the frame ruling honoured structurally: there is nothing to
+            parameterise and no dialect to mint.
+
+    Returns:
+        ``{'in_g2' (bool), 'multiplicativity_failures' (0..64),
+        'negated_multiplicativity_failures' (0..64), 'centralizes_tau',
+        'centralizes_swap', 'tau_residual' (0..784), 'swap_residual'
+        (0..784), 'fixed_mod_center' (bool), 'center_coset'
+        ('G2'|'minus_G2'|None), 'induced_outer_class' ('inner'|None),
+        'determinant' (exact int or (num, den)), 'octonion_pairs' (64),
+        'commutator_entries' (784), 'frame_sha256', 'table_sha256',
+        'operator_sha256'}``
+
+    Raises:
+        ValueError: if ``matrix`` is not ``8×8``; if ``gᵀg ≠ I`` exactly; or
+            if one of the two impossible cells above is reached.
+
+    Note:
+        Exact ``ℚ``; no float in the decision path; no ``abs()``.
+        Python-first with no C peer under the ADR-0009 noted-disparity
+        ruling — it composes ``triality_automorphism`` / ``triality_swap``,
+        whose 28-unknown companion solve has no C projection, so a C peer
+        would have to bring the whole companion engine with it. No new
+        carrier TYPE crosses the boundary (``ℚ`` leaves as ``int`` pairs),
+        so ABI is unchanged.
+
+    Canonical SSoT: Baez, J.C. (2002) *The Octonions*, Bull. Amer. Math.
+    Soc. 39, 145–205 (arXiv:math/0105155) §4.1 — ``G2 = Aut(O)``, and §2.4 —
+    ``Spin(7)`` as the ``S_B``-fixed subgroup, ``Out(Spin(8)) = S₃``.
+
+    Example:
+        >>> from srmech.physics.qm.so8 import g2_membership
+        >>> minus_i = [[-1 if i == j else 0 for j in range(8)] for i in range(8)]
+        >>> r = g2_membership(minus_i)
+        >>> (r["fixed_mod_center"], r["in_g2"], r["multiplicativity_failures"])
+        (True, False, 64)
+    """
+    op = "g2_membership"
+    rows = _as_8x8_exact_orthogonal(matrix, op)
+    negated = [[-x for x in row] for row in rows]
+
+    mult_fail = _octonion_multiplicativity_failures(rows)
+    mult_fail_neg = _octonion_multiplicativity_failures(negated)
+    in_g2 = mult_fail == 0
+
+    tau_residual, swap_residual = _ad_center_residuals(_ad_epq_columns(rows))
+    centralizes_tau = tau_residual == 0
+    centralizes_swap = swap_residual == 0
+
+    if centralizes_tau and not centralizes_swap:
+        raise ValueError(
+            f"{op}: DISSONANCE — [tau, Ad(g)] vanishes ({tau_residual}) while "
+            f"[S_B, Ad(g)] does not ({swap_residual}). This cell is impossible "
+            f"for orthogonal g: tau-centralising forces g into PSO(8)^tau = "
+            f"image of G2, and G2 lies inside Spin(7) = Fix(S_B). This is a "
+            f"theorem check on the SHIPPED tau / S_B, not input validation — "
+            f"the companion solve behind one of them has regenerated wrongly.")
+    if in_g2 and not centralizes_tau:
+        raise ValueError(
+            f"{op}: DISSONANCE — g is an octonion automorphism (0 of "
+            f"{_N_OCTONION_PAIRS} multiplicativity failures, so g is in G2) "
+            f"yet [tau, Ad(g)] has {tau_residual} nonzero entries. G2 = "
+            f"Fix(tau) at the group level, so this cell is impossible. This "
+            f"is a theorem check on the SHIPPED tau, not input validation.")
+
+    # Class K pin-slot at the ± centre boundary, then Class C to name which
+    # side: the commutators cannot tell g from −g, multiplicativity can.
+    if in_g2:
+        coset = "G2"
+    elif mult_fail_neg == 0:
+        coset = "minus_G2"
+    else:
+        coset = None
+
+    det = _exact_det(rows)
+    return {
+        "in_g2": in_g2,
+        "multiplicativity_failures": mult_fail,
+        "negated_multiplicativity_failures": mult_fail_neg,
+        "centralizes_tau": centralizes_tau,
+        "centralizes_swap": centralizes_swap,
+        "tau_residual": tau_residual,
+        "swap_residual": swap_residual,
+        "fixed_mod_center": centralizes_tau and centralizes_swap,
+        "center_coset": coset,
+        "induced_outer_class": (
+            "inner" if (centralizes_tau and centralizes_swap) else None),
+        "determinant": (det.numerator if det.denominator == 1
+                        else (det.numerator, det.denominator)),
+        "octonion_pairs": _N_OCTONION_PAIRS,
+        "commutator_entries": _N_COMMUTATOR_ENTRIES,
+        "frame_sha256": epq_frame_address(),
+        "table_sha256": octonion_table_attestation()[
+            "attestation"]["response_sha256"],
+        "operator_sha256": _sha256_bytes(_exact_bytes(rows)),
+    }
+
+
 __all__ = [
     "an_embedding",
+    "epq_frame_address",
+    "g2_membership",
     "g2_subalgebra",
     "quaternion_subalgebra_stabilizer",
     "so7_subalgebra",
     "so8_adjoint_basis",
+    "so8_bracket_certificate",
 ]

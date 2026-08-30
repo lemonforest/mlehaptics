@@ -758,8 +758,32 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   processes; all three returned the SAME digest and 721 / 692 / 29, and
 #:   `search("rank", k=1).witness` agreed with the direct build in every one.
 #:   The ADR-0011 witness contract HOLDS.
+#: rc461 PART 2 re-pin (`#T1181`) — the corpus witness moved again, and again
+#: for the sanctioned reason: the registry PROSE moved, three new ToolEntry
+#: registrations plus their curated example / explanation rows.
+#:
+#:   MEASURED: `len(frames) == 724`, and the split is 695 ops + 29 carriers,
+#:   read straight off the build as `{'op': 695, 'carrier': 29}` rather than
+#:   inferred. The DELTA is exactly the three new op frames, DERIVED and not
+#:   eyeballed: the registry moved 692 -> 695 (measured live), REMOVED = none
+#:   (the rosetta-completeness gate reported exactly three unclassified
+#:   ADDITIONS and no deletions), and carriers are UNMOVED at 29 — none of the
+#:   three mints a carrier TYPE (ℚ leaves as `int` pairs and a `str` leaves
+#:   `epq_frame_address`), which is the whole reason this part adds no C symbol
+#:   and no ABI bump. The op-name SET witness next door passed on a freshly
+#:   rewritten 695-row manifest, which is the assertion that no RENAME hid
+#:   inside the same count.
+#:
+#:   Measured LAST, after the final regen (`regen_all.py --check` reported all
+#:   six generated files up to date), per the rc454 rule that a pin taken
+#:   mid-release is a measurement of a draft.
+#:
+#:   DETERMINISM — three successive `_build_frames('all')` calls inside each of
+#:   THREE fresh numpy-absent WSL2 interpreters: all nine returned the SAME
+#:   digest, and `search("rank", k=1).witness` agreed with the direct build in
+#:   every one. The ADR-0011 witness contract HOLDS.
 WITNESS_RC416 = (
-    "d83ce9508773a517cefb78596b3d3f6bde0febba23c4bd5e2aee18173469010e")
+    "d51897307d663abee17ca432ac13680017484225b7388318384c9f36589ddecc")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

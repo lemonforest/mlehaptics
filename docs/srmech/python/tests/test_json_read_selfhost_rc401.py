@@ -428,7 +428,7 @@ def test_is_internal_not_a_registered_tool():
     """
     import srmech
 
-    assert srmech.describe()["tools"]["total"] == 692
+    assert srmech.describe()["tools"]["total"] == 695
     blob = json.dumps(srmech.describe())
     assert "_json" not in blob
     assert "json_loads_c" not in blob

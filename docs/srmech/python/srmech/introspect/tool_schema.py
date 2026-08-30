@@ -15411,6 +15411,171 @@ def _register_qm_tools() -> None:
             parameters=(),
             returns=R("tuple[Mat, ...]", "21 generators (antisym 8×8)"),
         ),
+        # rc461 (`#T1181`) — THE AUTOMORPHISM-SIDE CONTRACT + THE FRAME BIND.
+        # triality_automorphism / triality_swap return 28×28 maps in the
+        # shared E_pq frame; so8_adjoint_basis orders the SAME 28 directions
+        # differently, and through rc460 nothing bound them. Measured: τ read
+        # in the adjoint frame appears to fail 378 of 378 generator pairs and
+        # to fix 0 of the 14 g2 dimensions, while the mathematics is fine and
+        # only the frames disagree. rc460 B1's class, and it shipped the same
+        # fix: a Class-A content address.
+        ToolEntry(
+            name="srmech.physics.qm.so8.epq_frame_address", owner="srmech",
+            category="qm.so8",
+            summary="The Class-A content address of the shared E_pq 28-dim "
+                    "so(8) coordinate frame — coords(M)[index(p,q)] = M[p,q] "
+                    "over the 28 pairs 0 ≤ p < q ≤ 7. Class A. THE ADDRESS "
+                    "COVERS BOTH HALVES of what makes the frame what it is: "
+                    "the pair ORDER and the octonion multiplication TABLE the "
+                    "generators are built from (octonion_table_attestation's "
+                    "response_sha256). Change either and the address moves; a "
+                    "28-dim datum stamped with a different address was "
+                    "computed elsewhere and must not be compared entry-by-"
+                    "entry with one stamped here. WHY AN ADDRESS AND NOT A "
+                    "frame= PARAMETER: rc460 ruled that a single-value pin no "
+                    "producer can vary MINTS A DIALECT, and exactly one "
+                    "28-dim frame is mintable in this tree today, so a "
+                    "parameter would be that defect wearing a hash. The "
+                    "address is EMITTED by every op that consumes the frame "
+                    "and accepted as an input by none of them; the day a "
+                    "second-frame producer lands it brings its own address "
+                    "and the consumers gain the bind check in the SAME "
+                    "change. Memoised. SIBLINGS: so8_bracket_certificate and "
+                    "g2_membership stamp it; triality_frame_action stamps it "
+                    "too, and its docstring says plainly why a label is not a "
+                    "check. C-parity (ADR-0009, recorded): no C peer; "
+                    "Python-first under the noted-disparity ruling, no new "
+                    "carrier TYPE (a str leaves), ABI unchanged. SSoT: Baez, "
+                    "*The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155 §2.4.",
+            parameters=(),
+            returns=R("str", "64-hex Class-A address of the E_pq frame"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; deterministic — a fixed function of the "
+                       "pair order and the octonion table attestation",),
+        ),
+        ToolEntry(
+            name="srmech.physics.qm.so8.so8_bracket_certificate",
+            owner="srmech", category="qm.so8",
+            summary="Is a 28×28 map a BRACKET automorphism of so(8) — "
+                    "φ([X,Y]) = [φX, φY] over every one of the C(28,2) = 378 "
+                    "unordered E_pq generator pairs, in EXACT INTEGER "
+                    "arithmetic. Class D (a pattern-match over 378 bracket "
+                    "identities) ∘ Class C (the E_qp = −E_pq re-orientation "
+                    "applied when a pair arrives reversed — a sign, never an "
+                    "abs()). THIS IS THE INSTRUMENT triality_frame_action's "
+                    "own scope warning names and declines to be, and it is "
+                    "also a FRAME DETECTOR. Measured, with P the change of "
+                    "basis to the so8_adjoint_basis ordering: τ 0/378, S_B "
+                    "0/378, P⁻¹ S_B P 161/378, P⁻¹ τ P 214/378. That matters "
+                    "because P⁻¹ S_B P is invisible to every invariant "
+                    "triality_frame_action inspects — still an involution, "
+                    "still trace 14, still Cartan-preserving — so that op "
+                    "ANSWERS it with the identity permutation where the right "
+                    "answer for S_B is v ↔ s. HOW IT RUNS ON THE INTEGER ALU: "
+                    "τ and S_B have entries in {0, ±1/2}, so clearing "
+                    "denominators gives an integer M = d·φ with d = 2; "
+                    "linearity makes the left side one factor of φ and the "
+                    "right side two, so the exact predicate is "
+                    "d·M([X,Y]) == [MX, MY] — integers on both sides, no "
+                    "float in the decision path and no tolerance. Measured "
+                    "18.6 ms warm against 7.8 ms for triality_frame_action. "
+                    "C-parity (ADR-0009, recorded): no C peer; Python-first "
+                    "under the noted-disparity ruling — it is written in the "
+                    "same E_pq frame as the 28-unknown companion solve, which "
+                    "has no C projection either, so a C peer would have to "
+                    "bring the whole companion engine with it. No new carrier "
+                    "TYPE crosses the boundary, ABI unchanged. SSoT: Baez, "
+                    "*The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155 §2.4.",
+            parameters=(
+                P("operator", "Mat", True,
+                  "the 28×28 map in the shared E_pq frame — same contract as "
+                  "triality_frame_action"),
+            ),
+            returns=R("dict", "{is_bracket_automorphism, failures (0..378), "
+                              "pairs_checked (378), first_failure, "
+                              "denominator, frame_sha256, operator_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",
+                      "srmech.physics.qm.so8.epq_frame_address"),
+            preserves=("numpy-free; exact integers; no abs() — the E_qp = "
+                       "−E_pq step is Class-C re-orientation, not a magnitude",),
+        ),
+        ToolEntry(
+            name="srmech.physics.qm.so8.g2_membership", owner="srmech",
+            category="qm.so8",
+            summary="Is an 8×8 orthogonal g in G2 = Aut(O), and does Ad(g) "
+                    "centralise the triality generators τ and S_B? BOTH, "
+                    "measured, in exact ℚ. Class D (the multiplicativity "
+                    "pattern-match) ∘ Class K (the pin-slot at the ± centre "
+                    "boundary separating G2 from −G2) ∘ Class C (re-applying "
+                    "that sign to name the coset) ∘ Class A (the frame and "
+                    "operator addresses). THE NAME IS A MEASUREMENT, NOT A "
+                    "PREFERENCE: the obvious name is_triality_fixed, over the "
+                    "two commutators alone, would be a LIE. Ad(−I) = I₂₈ "
+                    "exactly so −I commutes with everything, yet −I fails "
+                    "octonion multiplicativity on 64 of 64 basis pairs and is "
+                    "not an automorphism at all — and at scale it is 1344 "
+                    "counterexamples, not one: over the 2688 monomial "
+                    "elements of ±G2, all 2688 pass both commutators and "
+                    "exactly 1344 fail multiplicativity 64/64. The reason is "
+                    "structural: the commutators see PSO(8) = SO(8)/{±I} and "
+                    "cannot separate g from −g. So the commutator verdict "
+                    "ships as fixed_mod_center and the word 'in G2' is "
+                    "reserved for in_g2, decided by multiplicativity, which "
+                    "IS the definition of Aut(O) = G2. determinant does not "
+                    "rescue it either: det(−g) = (−1)⁸det(g) = det(g), "
+                    "measured +1 for all 32 monomial G2 elements AND all 32 "
+                    "negatives. BOTH RESIDUALS ARE ALWAYS COMPUTED AND THE "
+                    "IMPOSSIBLE CELL RAISES: for orthogonal g, [τ,Ad(g)] = 0 "
+                    "implies [S_B,Ad(g)] = 0 (τ-centralising forces g into "
+                    "PSO(8)^τ = image of G2, and G2 ⊂ Spin(7) = Fix(S_B)), so "
+                    "the second condition is redundant — and computed anyway, "
+                    "because a redundant condition is a DETECTOR. It is NOT "
+                    "input validation: neither impossible cell is reachable "
+                    "from any orthogonal input, measured 0 across the whole "
+                    "±G2 monomial set. It is a theorem check on our OWN "
+                    "shipped τ / S_B, and the gate proves it can fire by "
+                    "fault injection. induced_outer_class returns 'inner' "
+                    "FORCED by the two measured commutators — in S₃ the "
+                    "centraliser of the 3-cycle is A₃ (order 3) and of a "
+                    "transposition has order 2, intersecting trivially — "
+                    "which is how the op answers the prediction that an "
+                    "automorphism realising e₁→e₂→e₃ is INNER while τ is "
+                    "OUTER. The E_pq frame is INTERNAL and never crosses this "
+                    "op's boundary, which is the frame ruling honoured "
+                    "structurally: nothing to parameterise, no dialect to "
+                    "mint. C-parity (ADR-0009, recorded): no C peer; "
+                    "Python-first under the noted-disparity ruling — it "
+                    "composes triality_automorphism / triality_swap, whose "
+                    "companion solve has no C projection. No new carrier TYPE "
+                    "(ℚ leaves as int pairs), ABI unchanged. SSoT: Baez, "
+                    "*The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155 §4.1 (G2 = Aut(O)) and §2.4 "
+                    "(Spin(7) = Fix(S_B), Out(Spin(8)) = S₃).",
+            parameters=(
+                P("matrix", "Mat", True,
+                  "an 8×8 orthogonal g in the OCTONION basis e₀..e₇ — NOT "
+                  "28-dim coordinates; g^T g = I is checked exactly and "
+                  "refused otherwise"),
+            ),
+            returns=R("dict", "{in_g2, multiplicativity_failures (0..64), "
+                              "negated_multiplicativity_failures, "
+                              "centralizes_tau, centralizes_swap, "
+                              "tau_residual (0..784), swap_residual, "
+                              "fixed_mod_center, center_coset "
+                              "('G2'|'minus_G2'|None), induced_outer_class "
+                              "('inner'|None), determinant, octonion_pairs "
+                              "(64), commutator_entries (784), frame_sha256, "
+                              "table_sha256, operator_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",
+                      "srmech.physics.qm.so8.epq_frame_address",
+                      "srmech.physics.qm.triality.triality_automorphism",
+                      "srmech.physics.qm.triality.triality_swap"),
+            preserves=("numpy-free; exact ℚ; no abs() — the ± centre "
+                       "separation is a Class-K pin-slot plus Class-C sign "
+                       "re-application, never a magnitude",),
+        ),
         ToolEntry(
             name="srmech.physics.qm.so8.an_embedding", owner="srmech",
             category="qm.so8",
@@ -15552,9 +15717,10 @@ def _register_qm_tools() -> None:
                               "weights_per_frame (8), weight_table_entries "
                               "(32), distinct_weights (24), cartan_block "
                               "(4×4 of (num, den)), frame_weights, "
-                              "spinor_parity (MEASURED), procedure_sha256, "
-                              "action_sha256}"),
-            composes=("srmech.amsc.format.sha256_bytes",),
+                              "spinor_parity (MEASURED), frame_sha256, "
+                              "procedure_sha256, action_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",
+                      "srmech.physics.qm.so8.epq_frame_address"),
             preserves=("numpy-free; exact ℚ; no abs() — the ± weight closure "
                        "is Class-C orientation, not a magnitude",),
         ),

@@ -3545,6 +3545,214 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
     "srmech.physics.qm.triality.triality_automorphism": {"composes": ["srmech.math.laplacian.mat_matmul"], "example": {"input": {}, "output": "tau.shape = (28, 28)\n||tau^3 - I|| = 0.0   (order 3)\n||tau   - I|| = 6.48074069840786   (tau != I)\n||tau^2 - I|| = 6.48074069840786   (tau^2 != I)\ndim Fix(tau) = tr((I+tau+tau^2)/3) = 13.999999999999995   (= dim g2 = 14)\ntau is NOT S_B: ||tau - S_B|| = 5.291502622129181", "why": "tau^3 - I is EXACTLY 0.0 (the companion solve is exact-rational, so there is no residual to tolerate) while tau and tau^2 are far from I - and the projector trace reads dim Fix(tau) = 14 with no eigendecomposition at all.", "worked": "from srmech.physics.qm.triality import triality_automorphism, triality_swap\nfrom srmech.math.laplacian import mat_matmul, mat_norm\ntau = triality_automorphism()\nI = [[1.0 if i == j else 0.0 for j in range(28)] for i in range(28)]\nt2 = mat_matmul(tau, tau); t3 = mat_matmul(t2, tau)\nnrm = lambda M: mat_norm([M[i, j] - I[i][j]\n                          for i in range(28) for j in range(28)])\nprint('||tau^3 - I|| =', nrm(t3))\nprint('||tau   - I|| =', nrm(tau))\nprint('||tau^2 - I|| =', nrm(t2))\nprint('dim Fix(tau) = tr((I+tau+tau^2)/3) =',\n      sum((I[i][i] + tau[i, i] + t2[i, i]) / 3.0 for i in range(28)))\nprint('tau is NOT S_B:', mat_norm(\n    [tau[i, j] - triality_swap()[i, j]\n     for i in range(28) for j in range(28)]))"}, "explanation": "WHAT: the 28x28 order-3 outer automorphism tau = S_B . S_C of Spin(8), expressed in the shared E_pq coordinate frame (the strict upper triangle in (p<q) order). tau^3 = I, tau != I, tau^2 != I, and Fix(tau) = g2 (dim 14) - the D4 --Z3--> G2 fold. The companion maps underneath are solved EXACTLY over Q, which is why the order-3 residual is 0.0 rather than ~1e-14 and why the result is bit-identical across platforms. WHEN: the genuine triality element is needed - the 8v/8s/8c rep-permutation, the Fix(tau) = g2 test, or as the order-3 generator that no composition of order-2 chirality operations can reach. THE TRAP: a naive 'tau = the A -> B companion map' gives an INVOLUTION with a 21-dim fixed space, which is the wrong answer; the order-3 element is the PRODUCT of the two companion involutions. The trace-of-projector idiom in the worked run - dim Fix = tr((I + tau + tau^2)/3) - is the cheap way to read a fixed-space dimension without an eigensolver, and it is worth copying. SIBLINGS you would otherwise re-derive: triality_swap() is S_B (order 2, Fix = so(7) dim 21); S_C = S_B . tau if you need it (the worked run under triality_swap shows this); triality_cycle() is the LABEL-level order-3 step on 8v/8s/8c; triality_companions() is the per-generator 8x8 solve this 28x28 matrix is assembled from; lean_isa_seventh_primitive() packages the order-3 certificate plus its attestation."},
     "srmech.physics.qm.triality.triality_companions": {"example": {"input": {"g_v": "so8_adjoint_basis()[14]  # L_{e_1}"}, "output": "g2 derivation: ||g_s - g_v|| = 0.0  ||g_c - g_v|| = 0.0  (derivations are triality-fixed)\nL_{e_1} coset: ||g_s - g_v|| = 2.82842712474619  ||g_c - g_v|| = 5.65685424949238  (moved by triality)\n  its companions still satisfy Cartan: residual = 0.0\nwrong-shape control -> ValueError: triality_companions: must be 8x8; got (2, 2)", "why": "The discriminator is exact: for a g2 derivation the companions come back IDENTICAL to the input (both residuals 0.0), for an L-type coset direction they are genuinely different (2.83 and 5.66) - and either way Cartan's relation closes at 0.0.", "worked": "from srmech.physics.qm.so8 import g2_subalgebra, so8_adjoint_basis\nfrom srmech.physics.qm.triality import (triality_companions,\n                               triality_relation_residual)\nfrom srmech.math.laplacian import mat_norm\nd = lambda A, B: mat_norm([A[i, j] - B[i, j]\n                           for i in range(8) for j in range(8)])\ng2 = g2_subalgebra()\ngs, gc = triality_companions(g2[0])\nprint('g2 derivation: ||g_s - g_v|| =', d(gs, g2[0]),\n      ' ||g_c - g_v|| =', d(gc, g2[0]))\nL1 = so8_adjoint_basis()[14]\nbs, bc = triality_companions(L1)\nprint('L_{e_1}: ||g_s - g_v|| =', d(bs, L1),\n      ' ||g_c - g_v|| =', d(bc, L1))\nprint('  Cartan residual =', triality_relation_residual(L1, bs, bc))\ntriality_companions([[1.0, 0.0], [0.0, 1.0]])    # -> ValueError"}, "explanation": "WHAT: solves Cartan's triality relation g_v(x . y) = g_s(x) . y + x . g_c(y) over all 64 octonion basis pairs for the companions (g_s, g_c) of a given 8x8 so(8) generator. 512 equations, 128 unknowns; the octonion structure constants are integers, so the normal equations are an INTEGER system solved EXACTLY over Q with free (gauge) columns pinned to zero - no float solve, no Tikhonov ridge, so the answer is bit-identical on every platform. WHEN: you want the 8s / 8c partners of a specific generator, or a concrete demonstration that derivations are exactly the triality-invariant directions. Each call is a full 128-unknown solve (seconds), so do not call it in a tight loop - if you want the whole map, use the 28x28 triality_automorphism() / triality_swap(), which are built once and memoised. SIBLINGS you would otherwise re-derive: triality_relation_residual() CHECKS a (g_v, g_s, g_c) triple - do not verify by hand; triality_swap() is the assembled S_B: A -> B map in E_pq coordinates. CAUTION: S_B applied to coords(A) is NOT the same as taking coords of this op's output, because the gauge-pinned particular solution can carry a symmetric part the antisymmetric E_pq coordinates discard - measured, and the reason so7_subalgebra's fixed-space check must be done in coordinates."},
     "srmech.physics.qm.triality.triality_cycle": {"composes": ["srmech.math.cyclic.mod_add"], "example": {"input": {"frame": "'8v'"}, "output": "8v -> s -> c -> v   (order-3 cycle closes)\ntriality_cycle('v') = s   triality_cycle('8S') = c\nunknown-frame control -> ValueError: unknown triality frame '8x'; expected one of 'v'/'s'/'c' or '8v'/'8s'/'8c'", "why": "Three applications return to 'v', so the LABEL cycle genuinely closes at order 3 - and both spellings ('v' and '8S', case- and prefix-insensitive) normalise to the same short canonical label.", "worked": "from srmech.physics.qm.triality import triality_cycle\nf = '8v'\nseq = []\nfor _ in range(3):\n    f = triality_cycle(f); seq.append(f)\nprint('8v ->', ' -> '.join(seq))\nprint(\"triality_cycle('v') =\", triality_cycle('v'),\n      \" triality_cycle('8S') =\", triality_cycle('8S'))\ntriality_cycle('8x')                      # -> ValueError"}, "explanation": "WHAT: the label-level order-3 rep-permutation 8v -> 8s -> 8c -> 8v. Accepts 'v'/'s'/'c' or '8v'/'8s'/'8c' in any case, returns the SHORT canonical label, and raises ValueError on anything else. The step itself is the Class-I cyclic primitive: the frame index advances via srmech.math.cyclic.mod_add(index, 1, 3) - not an ad-hoc dict. WHEN: bookkeeping which of the three inequivalent 8-dim irreps you are in, iterating over them, or normalising user-supplied frame strings. Cheap and pure - it touches none of the expensive so(8) machinery. SIBLINGS you would otherwise re-derive: triality_apply(x, from, to) is the VECTOR transport, and it is a genuinely different object - the label cycle closes at 3 but the vector transport composes per-step conjugations, so v->s->c->v does NOT return the input (see that op's example); triality_automorphism() is the 28x28 matrix realising the order-3 element on the so(8) adjoint - the label here is the shadow of that; srmech.math.cyclic.mod_add is the primitive underneath. Do not write your own {'v':'s','s':'c','c':'v'} dict - it will not accept the 8-prefixed spellings and will not raise on typos."},
+    'srmech.physics.qm.so8.epq_frame_address': {
+        'example': {
+            'output': (
+                "frame d9b0a5eebf8713ce ... 64\n"
+                "table 7f36461ef14af1b2 ...\n"
+                "stable True\n"
+                "stamped_by_frame_action True"
+            ),
+            'why': (
+                'The 28-dim coordinate frame every so(8) object in this engine '
+                'is written in stops being a convention two helpers happen to '
+                'share and becomes an ADDRESS a consumer can bind to. Both '
+                'halves that make it that frame are inside the digest — the '
+                'pair ORDER and the octonion multiplication TABLE — so a '
+                '28-dim datum computed somewhere else cannot silently be '
+                'compared entry-by-entry with one computed here.'
+            ),
+            'worked': (
+                'from srmech.physics.qm.so8 import epq_frame_address\n'
+                'from srmech.physics.qm.octonion import '
+                'octonion_table_attestation\n'
+                'addr = epq_frame_address()\n'
+                'print("frame", addr[:16], "...", len(addr))\n'
+                '# -> frame d9b0a5eebf8713ce ... 64\n'
+                'print("table", octonion_table_attestation()'
+                '["attestation"]["response_sha256"][:16], "...")\n'
+                '# -> the octonion table digest, one of the two halves\n'
+                'print("stable", epq_frame_address() == addr)\n'
+                '# -> stable True   memoised, a fixed function of the frame\n'
+                'from srmech.physics.qm.triality import (\n'
+                '    triality_frame_action, triality_swap)\n'
+                'print("stamped_by_frame_action",\n'
+                '      triality_frame_action(triality_swap())'
+                '["frame_sha256"] == addr)\n'
+                '# -> True   the consumer stamps the frame it read in\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: the Class-A content address of the shared E_pq '
+            '28-dim so(8) coordinate frame, coords(M)[index(p,q)] = M[p,q] '
+            'over the 28 pairs 0 <= p < q <= 7. The digest covers BOTH halves '
+            'of what makes it that frame — the pair ORDER and the octonion '
+            'multiplication TABLE the generators are built from — so changing '
+            'either moves the address. WHEN to reach for it: whenever you hand '
+            'a 28-dim so(8) object between producers, or store one. What you '
+            'would otherwise wrongly hand-roll is nothing at all — you would '
+            'simply ASSUME the frames agree, which is exactly the defect this '
+            'op exists to close: so8_adjoint_basis orders the same 28 '
+            'directions differently, and a matrix in the wrong ordering is '
+            'still a perfectly good matrix, so no shape check can see it. '
+            'MEASURED: tau read in the adjoint frame appears to fail 378 of '
+            '378 bracket pairs and to fix 0 of the 14 g2 dimensions while the '
+            'mathematics is fine and only the frames disagree. Note this is an '
+            'address, NOT a frame= parameter: a single-value pin no producer '
+            'can vary would MINT A DIALECT, so it is emitted by every consumer '
+            'and accepted as input by none. HOW it relates to its siblings: '
+            'so8_bracket_certificate and g2_membership stamp it into their '
+            'payloads, and triality_frame_action stamps it too — and that '
+            'op\'s docstring says plainly why a stamp is a LABEL and not a '
+            'CHECK. The op that actually decides whether a matrix is in this '
+            'frame is so8_bracket_certificate.'
+        ),
+    },
+    'srmech.physics.qm.so8.so8_bracket_certificate': {
+        'example': {
+            'output': (
+                "S_B True 0 / 378 den 2\n"
+                "tau True 0\n"
+                "2*S_B False 168 (0, 1)\n"
+                "shape control -> ValueError: so8_bracket_certificate: "
+                "must be 28x28; got (2, 2)"
+            ),
+            'why': (
+                'It decides bracket-preservation over ALL 378 generator pairs '
+                'in exact integer arithmetic, which is the certificate '
+                'triality_frame_action explicitly declines to be — and, '
+                'measured, it is also the only shipped op that can SEE a '
+                'wrong-frame matrix, because a matrix written in the '
+                'so8_adjoint_basis ordering is still an involution with the '
+                'right trace and still preserves the Cartan span.'
+            ),
+            'worked': (
+                'from srmech.physics.qm.so8 import so8_bracket_certificate\n'
+                'from srmech.physics.qm.triality import (\n'
+                '    triality_automorphism, triality_swap)\n'
+                'c = so8_bracket_certificate(triality_swap())\n'
+                'print("S_B", c["is_bracket_automorphism"], c["failures"],\n'
+                '      "/", c["pairs_checked"], "den", c["denominator"])\n'
+                '# -> S_B True 0 / 378 den 2   d = 2 because entries are '
+                '+-1/2\n'
+                'c2 = so8_bracket_certificate(triality_automorphism())\n'
+                'print("tau", c2["is_bracket_automorphism"], c2["failures"])\n'
+                '# -> tau True 0\n'
+                'doubled = [[2 * x for x in row] '
+                'for row in triality_swap().tolist()]\n'
+                'c3 = so8_bracket_certificate(doubled)\n'
+                'print("2*S_B", c3["is_bracket_automorphism"], c3["failures"],'
+                ' c3["first_failure"])\n'
+                '# -> 2*S_B False 168 (0, 1)   a SCALE cannot survive the '
+                'bracket\n'
+                'so8_bracket_certificate([[1, 0], [0, 1]])\n'
+                '# -> ValueError: must be 28x28; got (2, 2)\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: whether a 28x28 map is a BRACKET automorphism '
+            'of so(8) — phi([X,Y]) == [phi X, phi Y] over every one of the '
+            'C(28,2) = 378 unordered E_pq generator pairs — in exact INTEGER '
+            'arithmetic, plus the failure count and the first failing pair. '
+            'tau and S_B have entries in {0, +-1/2}, so clearing denominators '
+            'gives an integer M = d.phi with d = 2, and since the left side '
+            'carries one factor of phi and the right side two, the exact '
+            'predicate is d.M([X,Y]) == [MX, MY]: integers on both sides, no '
+            'tolerance anywhere. WHEN to reach for it: before trusting ANY '
+            '28-dim map you did not build yourself in the E_pq frame. What you '
+            'would otherwise wrongly hand-roll is a spot-check on a few pairs, '
+            'or a rank/trace/involution test — and measured, none of those can '
+            'see the failure that matters: P^-1 S_B P (the same map in the '
+            'so8_adjoint_basis ordering) is still an involution, still has '
+            'trace 14, and still preserves the standard Cartan span, so '
+            'triality_frame_action ANSWERS it with the identity permutation '
+            'where the right answer for S_B is v <-> s. This op fails it '
+            '161/378, and fails P^-1 tau P 214/378, against 0/378 for both '
+            'generators read in their own frame. HOW it relates to its '
+            'siblings: it is the instrument triality_frame_action\'s scope '
+            'warning names and declines to be, it stamps epq_frame_address, '
+            'and g2_membership is the 8x8 octonion-basis peer that decides G2 '
+            'membership rather than bracket preservation.'
+        ),
+    },
+    'srmech.physics.qm.so8.g2_membership': {
+        'example': {
+            'output': (
+                "-I  in_g2 False  mult 64 / 64\n"
+                "-I  fixed_mod_center True  tau_res 0  swap_res 0\n"
+                "-I  center_coset minus_G2  det 1  outer inner\n"
+                "I   in_g2 True  center_coset G2\n"
+                "ctl in_g2 False  mult 36  tau_res 120  swap_res 120  "
+                "coset None\n"
+                "orthogonality control -> ValueError: g2_membership: g is not "
+                "orthogonal — (g^T g)[0][0] = 4, expected 1"
+            ),
+            'why': (
+                'It shows in one call why the obvious name would be a LIE: '
+                '-I commutes with BOTH triality generators (Ad(-I) = I_28 '
+                'exactly) and is not an octonion automorphism at all, failing '
+                'multiplicativity 64/64 — and det cannot separate them either, '
+                'since (-1)^8 = 1. So the commutator verdict ships as '
+                'fixed_mod_center and in_g2 is decided by multiplicativity.'
+            ),
+            'worked': (
+                'from srmech.physics.qm.so8 import g2_membership\n'
+                'minus_i = [[-1 if i == j else 0 for j in range(8)]\n'
+                '           for i in range(8)]\n'
+                'r = g2_membership(minus_i)\n'
+                'print("-I  in_g2", r["in_g2"], " mult",\n'
+                '      r["multiplicativity_failures"], "/", '
+                'r["octonion_pairs"])\n'
+                '# -> -I  in_g2 False  mult 64 / 64\n'
+                'print("-I  fixed_mod_center", r["fixed_mod_center"],\n'
+                '      " tau_res", r["tau_residual"], " swap_res", '
+                'r["swap_residual"])\n'
+                '# -> True 0 0   BOTH commutators vanish: "fixed" would lie\n'
+                'print("-I  center_coset", r["center_coset"], " det", '
+                'r["determinant"],\n'
+                '      " outer", r["induced_outer_class"])\n'
+                '# -> minus_G2 1 inner   det does NOT separate G2 from -G2\n'
+                'ident = [[1 if i == j else 0 for j in range(8)] '
+                'for i in range(8)]\n'
+                'ri = g2_membership(ident)\n'
+                'print("I   in_g2", ri["in_g2"], " center_coset", '
+                'ri["center_coset"])\n'
+                '# -> I   in_g2 True  center_coset G2   the positive control\n'
+                'g2_membership([[2 if i == j else 0 for j in range(8)]\n'
+                '               for i in range(8)])\n'
+                '# -> ValueError: g is not orthogonal\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: whether an 8x8 orthogonal g (in the OCTONION '
+            'basis e0..e7, not 28-dim coordinates) lies in G2 = Aut(O), '
+            'decided by octonion multiplicativity over the 64 basis pairs; '
+            'and, separately, whether Ad(g): X -> g X g^T centralises the two '
+            'triality generators tau and S_B, reported as exact nonzero-entry '
+            'residuals out of 784. WHEN to reach for it: whenever you have a '
+            'candidate octonion automorphism or a candidate triality-fixed '
+            'element. What you would otherwise wrongly hand-roll is a '
+            'commutator test called "is triality fixed" — and that is measured '
+            'to be a LIE. Ad(-I) = I_28 exactly, so -I commutes with '
+            'everything while failing multiplicativity 64/64; at scale it is '
+            '1344 counterexamples, not one, because the commutators see '
+            'PSO(8) = SO(8)/{+-I} and cannot separate g from -g. det does not '
+            'rescue it either ((-1)^8 = 1). So the commutator verdict is '
+            'fixed_mod_center, the word G2 belongs to in_g2, and center_coset '
+            'names which side of the +-I boundary you landed on. BOTH '
+            'residuals are computed even though the second is redundant by '
+            'theorem, because a redundant condition is a DETECTOR: the '
+            'impossible cell RAISES as a check on the shipped tau / S_B, not '
+            'as input validation. induced_outer_class returns inner FORCED by '
+            'the two commutators, since in S3 the 3-cycle\'s centraliser and a '
+            'transposition\'s intersect trivially. HOW it relates to its '
+            'siblings: g2_subalgebra is the LIE-ALGEBRA object (the 14 '
+            'derivations) where this is the GROUP one; so8_bracket_certificate '
+            'is the 28-dim peer deciding bracket preservation; and '
+            'triality_frame_action cannot substitute — measured, it refuses '
+            'Ad(g) for 32 of 32 monomial cycling elements on a Cartan escape.'
+        ),
+    },
     'srmech.physics.qm.triality.triality_frame_action': {
         'example': {
             'output': (
