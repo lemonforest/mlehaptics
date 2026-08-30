@@ -12762,6 +12762,341 @@ def _register_primitive_class_tools() -> None:
             # list — which is a real reconstruction mismatch, not cosmetic.
             smoke_test_hint={"a": [1, 0], "b": [1, 0]},
         ),
+        # rc461 (`#T1183`) — the AFFINE / KAC-WALTON layer, the
+        # level-truncated peer of the classical stratum above.  A
+        # package-wide census returned ZERO across ten terms (affine
+        # Weyl, level, alcove, Kac-Walton, Verlinde, S-matrix, modular
+        # data, fusion ring, truncation, orbit Lie algebra); these five
+        # ops close it.  THE FRAMING: Racah-Speiser is a SIGNED INTEGER
+        # COUNT, not an integral — the Haar-convolution phrasing found
+        # in the literature is the continuum shadow of an exact integer
+        # operation, and the affine case adds exactly one reflection to
+        # it.  The infinite affine Weyl group is handled by an ITERATIVE
+        # fold with an exact integer termination certificate (the
+        # monovariant sum-of-squares, checked on EVERY step against a
+        # bound computed BEFORE the loop), never by enumeration.  Carrier:
+        # plain int / tuple-of-int on every wire; Fraction for the one
+        # import-time solve; QMat for determinants; Qalg over Phi_e for
+        # the one genuine field division.  Zeta values ship as the
+        # INTEGER coordinate vectors character_table already mints and
+        # zeta_mul already reads — NO new carrier TYPE, so no
+        # discriminator widens, no C symbol, ABI stays 24.
+        ToolEntry(
+            name="srmech.math.weight_lattice.integrable_weights",
+            owner="srmech", category="weight_lattice",
+            summary="The LEVEL-TRUNCATED dominant stratum — every weight "
+                    "with Σ_j mark_j·λ_j <= level, which is exactly the set "
+                    "of integrable highest weights of the affine algebra at "
+                    "that level, and the index set every other affine op is "
+                    "indexed BY. Class E, the catalog enumeration, with a "
+                    "Class-K stage (the level inequality IS a wall test) and "
+                    "Class A (the address). THE MARKS ARE DERIVED, never "
+                    "recalled: θ is located as the root of maximal height in "
+                    "the DERIVED root system, expanded over the simple roots "
+                    "in exact ℤ, and h^vee = 1 + Σ marks is cross-checked "
+                    "against the independent |Δ|/rank count that holds for a "
+                    "simply-laced algebra — a raise if they disagree. For D4 "
+                    "the marks come out (1,2,1,1), which is why level 1 has "
+                    "FOUR primaries and not five: the node with mark 2 cannot "
+                    "be excited. The payload also carries the centre P/Q as "
+                    "invariant factors, read off the Cartan matrix's Smith "
+                    "normal form with the divisibility chain asserted — for "
+                    "D4 that is (2,2), the Klein four-group and NOT the "
+                    "cyclic group of order 4, which is the fact the D4 "
+                    "acceptance test rests on and it is derived rather than "
+                    "recalled. C-parity (ADR-0009, recorded): no C peer; "
+                    "Python-first under the noted-disparity ruling. Exact ℤ; "
+                    "no float; no abs().",
+            parameters=(
+                P("algebra", "str", True,
+                  "one of 'A1', 'A2', 'D4' — ValueError naming the shipped "
+                  "set otherwise"),
+                P("level", "int", True, "a non-negative int"),
+            ),
+            returns=R("dict", "{algebra, level, kappa (= level + h_vee), "
+                              "rank, marks, h_vee, weights (tuple of label "
+                              "tuples, sorted), n_weights, "
+                              "centre_invariant_factors, procedure_sha256, "
+                              "weights_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; exact ℤ; no abs() — the one magnitude "
+                       "read is the named Class-K pin inside the Smith "
+                       "normal form",),
+            smoke_test_hint={"algebra": "D4", "level": 1},
+        ),
+        ToolEntry(
+            name="srmech.math.weight_lattice.alcove_fold",
+            owner="srmech", category="weight_lattice",
+            summary="The ITERATIVE SIGNED FOLD of a weight into the level-k "
+                    "alcove under the affine Weyl DOT action ŵ·ν = "
+                    "ŵ(ν+ρ) − ρ — Class K primary (the ±1 ledger at the "
+                    "affine wall), with Class C (which node, which "
+                    "direction) and Class N (the guards). WHY IT IS NOT THE "
+                    "CLASSICAL FOLD: that one ENUMERATES (_WEYL is a "
+                    "precomputed 6-tuple and _strictly_dominant_fold scans "
+                    "it), and the affine Weyl group Ŵ_k = W ⋉ κQ^vee is "
+                    "INFINITE, so enumeration cannot survive the widening — "
+                    "while an unbounded loop whose termination is an "
+                    "ASSUMPTION is exactly what the classical fold refuses "
+                    "to be. This is the third option: an iterative fold with "
+                    "an EXACT INTEGER TERMINATION CERTIFICATE. In affine "
+                    "labels every generator — the finite s_1..s_r AND the "
+                    "affine s_0 — collapses to ONE form, a_j → a_j − "
+                    "a_i·C^aff_ij, and the monovariant Q(a) = Σ a_j² falls "
+                    "by EXACTLY quantum·a_i per step (2κ for A2, 4κ for A1, "
+                    "both DERIVED from the affine Cartan). A step fires only "
+                    "when a_i < 0, so the drop is strictly negative and "
+                    "integer-quantised; Q >= κ²/(r+1) on the constraint "
+                    "simplex, so a step BOUND is computed BEFORE the loop "
+                    "and asserted against inside it. The per-step law is "
+                    "checked on EVERY step, not once. Measured over "
+                    "[−30,30]^rank at k = 0..8 (34,038 folds): at most 40 "
+                    "steps against bounds up to 901, both extremes at the "
+                    "A2 corner (−30,−30) level 0, never approaching one. "
+                    "⚠️ A1 AND A2 "
+                    "ONLY, and the MATHEMATICS enforces it rather than a "
+                    "hand-kept list: the quantum collapse needs every affine "
+                    "node adjacent to every other, D4's diagram is a star, "
+                    "and _monovariant_quantum RAISES on the failure of that "
+                    "identity. For D4 reach for "
+                    "verlinde_fusion_multiplicities, which runs no fold. "
+                    "C-parity (ADR-0009, recorded): no C peer; Python-first "
+                    "under the noted-disparity ruling. Exact ℤ; no float; no "
+                    "abs() — the sign is the Class-K reflection ledger, "
+                    "flipped once per step.",
+            parameters=(
+                P("algebra", "str", True,
+                  "'A1' or 'A2' — D4 raises with the TERMINATION reason"),
+                P("weight", "list[int]", True,
+                  "a rank-length Dynkin label; it does NOT have to be "
+                  "dominant or integrable — folding a weight that is "
+                  "neither IS the operation"),
+                P("level", "int", True, "a non-negative int"),
+            ),
+            returns=R("dict", "{algebra, level, kappa, weight, "
+                              "affine_labels, on_wall (a bool FIELD, not an "
+                              "inferred one), folded (the label, or None on "
+                              "a wall), sign (+1/−1/0, and 0 ONLY on a wall "
+                              "— a ledger entry, never a count), steps, "
+                              "step_bound, q_initial, q_final, "
+                              "monovariant_quantum, procedure_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; exact ℤ; no abs() — sign-handling stays "
+                       "Class-K pin-slot + Class-C",),
+            smoke_test_hint={"algebra": "A2", "weight": [2, 2], "level": 2},
+        ),
+        ToolEntry(
+            name="srmech.math.weight_lattice."
+                 "affine_fusion_multiplicities",
+            owner="srmech", category="weight_lattice",
+            summary="The LEVEL-TRUNCATED fusion multiplicities by "
+                    "KAC-WALTON — N^(k)_ab{}^c = Σ_ŵ det(ŵ)·N_ab^{ŵ·c} — as "
+                    "a SIGNED INTEGER COUNT. Class K primary, the ±1 ledger "
+                    "at the affine wall, with Class E (the classical "
+                    "operand's enumeration), Class C (fold direction) and "
+                    "Class N (the guards). The instrument, stated as the "
+                    "count it is: take the CLASSICAL constituents of V_a ⊗ "
+                    "V_b, fold each into the level-k alcove carrying its ±1 "
+                    "sign, drop the ones landing on a wall (they contribute "
+                    "exactly zero), accumulate. No integral, no measure, no "
+                    "float — it is the classical Racah-Speiser count with "
+                    "ONE extra reflection available, the affine s_0. ⚠️ NAME "
+                    "NOTE, not cosmetic: deliberately NOT called "
+                    "fusion_multiplicities, which is taken by "
+                    "srmech.math.groups.fusion_multiplicities, the "
+                    "FINITE-GROUP tensor N_abc = <χ_a·χ_b, χ_c> — Class L "
+                    "BECAUSE it contracts against the class-algebra "
+                    "eigenbasis. This op builds no eigenbasis and projects "
+                    "onto nothing, the same non-claim its classical parent "
+                    "carries. The two objects DO coincide at level 1 (a "
+                    "simply-laced level-1 fusion ring is the group ring of "
+                    "the centre — which is why the D4 acceptance test "
+                    "exists), but coincidence in one case is not identity. "
+                    "⚠️ NON-INTEGRABLE OPERANDS RAISE, and that guard is "
+                    "load-bearing: measured before it existed, of four "
+                    "non-integrable pairs two raised on the downstream "
+                    "non-negativity backstop and TWO RETURNED AN EMPTY "
+                    "CONSTITUENT SET SILENTLY. The backstop is not "
+                    "sufficient; the domain is checked up front. ⚠️ A1 and "
+                    "A2 only — it runs alcove_fold and inherits that op's "
+                    "termination scope exactly. C-parity (ADR-0009, "
+                    "recorded): no C peer; Python-first under the "
+                    "noted-disparity ruling. Exact ℤ; no float; no abs().",
+            parameters=(
+                P("algebra", "str", True,
+                  "'A1' or 'A2' — D4 raises with the TERMINATION reason"),
+                P("a", "list[int]", True,
+                  "a dominant label, integrable at level"),
+                P("b", "list[int]", True, "likewise"),
+                P("level", "int", True, "a non-negative int"),
+            ),
+            returns=R("dict", "{algebra, level, kappa, a, b, constituents "
+                              "(tuple of (label, multiplicity) pairs sorted "
+                              "by label), n_constituents, "
+                              "singlet_multiplicity, classical_constituents "
+                              "(the untruncated operand, so the truncation "
+                              "is visible on the payload face), "
+                              "n_truncated, route ('kac_walton'), "
+                              "procedure_sha256, fusion_sha256}"),
+            # rc461 part 3: RUNTIME-TRACED. The CLASSICAL fusion runs first
+            # (it produces the constituents the fold then acts on) and stamps
+            # its own digest on the way out, so sha256_bytes is entered
+            # BEFORE the first alcove_fold — an order no reading of this
+            # body's statement sequence produces.
+            composes=("srmech.math.weight_lattice."
+                      "tensor_product_multiplicities",
+                      "srmech.amsc.format.sha256_bytes",
+                      "srmech.math.weight_lattice.alcove_fold"),
+            preserves=("numpy-free; exact ℤ; no abs() — sign-handling stays "
+                       "Class-K pin-slot + Class-C",),
+            smoke_test_hint={"algebra": "A2", "a": [1, 1], "b": [1, 1],
+                             "level": 2},
+        ),
+        ToolEntry(
+            name="srmech.math.weight_lattice.affine_modular_s_matrix",
+            owner="srmech", category="weight_lattice",
+            summary="The KAC-PETERSON modular S-matrix of the level-k "
+                    "theory, EXACT over ℤ[ζ_e] — Class I primary (the "
+                    "cyclotomic ζ-power arithmetic, the ring zeta_mul is "
+                    "Class I for), with Class E (the finite Weyl "
+                    "enumeration), Class C (the ±1 determinant ledger) and "
+                    "Class A. S = c·A with A_λμ = Σ_{w∈W} "
+                    "det(w)·ζ^(−(w(λ+ρ), μ+ρ)) a FINITE sum over the "
+                    "ORDINARY Weyl group, so the termination question that "
+                    "binds alcove_fold never arises and this op carries D4. "
+                    "It ships A — an integer matrix over ℤ[ζ_e] — plus the "
+                    "integer n with |c|² = 1/n, rather than a float matrix, "
+                    "because every quantity in it is exact and a float "
+                    "rendering would be the continuum shadow of an integer "
+                    "object. ⚠️ EXPLICIT NON-CLAIM: NOT Class L. It performs "
+                    "no spectral decomposition and builds no eigenbasis; "
+                    "that S diagonalises the fusion algebra is a THEOREM "
+                    "ABOUT it, not an operation it runs. THREE THINGS ARE "
+                    "DERIVED THAT ARE USUALLY RECALLED: h^vee from the "
+                    "marks (cross-checked against |Δ|/rank); the RING — "
+                    "exponents start over κ·D² and the order is reduced by "
+                    "their gcd, so D4 level 1 lands in ℤ[ζ_14], NOT the "
+                    "ℤ[ζ_28] the raw scaling suggests and NOT the ℤ[ζ_7] a "
+                    "reading of κ alone suggests, because the spinor weights "
+                    "are half-integral and the measurement says so; and the "
+                    "NORMALISATION — A·A^† is COMPUTED and must be n·I, so "
+                    "|c|² = 1/n falls out of unitarity. Measured, n equals "
+                    "κ^rank·|P/Q| in every shipped case, but it is READ off "
+                    "the matrix rather than substituted from that formula, "
+                    "so the formula is a cross-check and not an input. "
+                    "Worked: D4 level 1 gives a rational numerator with "
+                    "every entry ±49 and n = 9604 = 98²; divide by 49 and "
+                    "the rows ARE the rows of character_table of the Klein "
+                    "four-group, bit-for-bit, once both sit in the same "
+                    "documented (degree, lexicographic) row order — ⚠️ and "
+                    "NOT without that sort, where the unique permutation "
+                    "between them is the row reversal (3,2,1,0). Cost "
+                    "honest: D4 level 1 is milliseconds, D4 level 2 is "
+                    "seconds; cached per (algebra, level). C-parity "
+                    "(ADR-0009, recorded): no C peer; Python-first under the "
+                    "noted-disparity ruling. Exact ℤ; no float; no abs().",
+            parameters=(
+                P("algebra", "str", True, "one of 'A1', 'A2', 'D4'"),
+                P("level", "int", True, "a non-negative int"),
+            ),
+            returns=R("dict", "{algebra, level, kappa, primaries, "
+                              "n_primaries, weyl_order, zeta_order, phi_e "
+                              "(the monic Φ_e every value is reduced "
+                              "against — the same field character_table "
+                              "ships), numerator (rows of ζ-coordinate "
+                              "tuples), scale_squared_denominator (the n "
+                              "with |c|² = 1/n), is_rational_numerator, "
+                              "rational_numerator (plain-int rows when the "
+                              "whole matrix is rational, else None), "
+                              "centre_invariant_factors, procedure_sha256, "
+                              "s_sha256}"),
+            # rc461 part 3: narrowed to the VERIFIABLE subset. The runtime
+            # trace enters gcd, then cyclotomic_polynomial, then zeta_mul,
+            # then the stamp — but all three of the first are reached only
+            # through the private `_s_matrix_core`, past the depth-3 static
+            # horizon, so the derived set here is `sha256_bytes` ALONE.
+            # Declaring the other three would assert edges clause 2 cannot
+            # check. One edge means the order is FORCED, so this row is
+            # adjudicated in the rc423 SINGLE tier rather than hand-traced
+            # into ROSTER.
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; exact ℤ[ζ_e] as integer coordinate "
+                       "vectors — the carrier character_table already mints "
+                       "and zeta_mul already reads; no float; no abs()",),
+            smoke_test_hint={"algebra": "D4", "level": 1},
+        ),
+        ToolEntry(
+            name="srmech.math.weight_lattice."
+                 "verlinde_fusion_multiplicities",
+            owner="srmech", category="weight_lattice",
+            summary="The SAME level-truncated fusion multiplicities as "
+                    "affine_fusion_multiplicities, reached by the VERLINDE "
+                    "route instead — N_ab^c = Σ_s S_as·S_bs·conj(S_cs)/S_0s, "
+                    "contracted EXACTLY in ℚ(ζ_e). Class I primary (the "
+                    "cyclotomic contraction), with Class N (the one genuine "
+                    "field division, guarded), Class E and Class A. WHY BOTH "
+                    "ROUTES SHIP: they are not two spellings of one op but "
+                    "two INSTRUMENTS with disjoint failure modes — "
+                    "Kac-Walton is an iterative integer reflection with a "
+                    "termination certificate that never leaves ℤ; Verlinde "
+                    "is a finite exponential sum over the ordinary Weyl "
+                    "group followed by division in a number field. A "
+                    "co-equal dual construction is a CONSISTENCY ORACLE: "
+                    "where they disagree, the disagreement is the finding. "
+                    "Measured across A1 levels 1-4 and A2 levels 1-3 — 199 "
+                    "operand pairs — they agree on every coefficient, zero "
+                    "mismatches. AND THE SCOPES DIFFER, which is the "
+                    "practical reason to have both: this route runs NO "
+                    "alcove fold, so the termination proof binding "
+                    "alcove_fold to A1/A2 does not apply and THIS OP CARRIES "
+                    "D4. At D4 level 1 it returns the group ring of the "
+                    "centre — every product a single primary at "
+                    "multiplicity one, every primary its own inverse — an "
+                    "independent confirmation that P/Q is the Klein "
+                    "four-group and not the cyclic group of order 4. "
+                    "EXACTNESS: |c|² cancels to a RATIONAL in the "
+                    "contraction (three factors of c up, one down, leaving "
+                    "c·conj(c)) and is read off the unitarity of A rather "
+                    "than substituted from a formula; the per-term division "
+                    "by A_0s is the one operation that genuinely needs a "
+                    "field and goes through Qalg over Φ_e, the two-line lift "
+                    "character_table documents. Every coefficient is checked "
+                    "RATIONAL with denominator 1 before return — a "
+                    "non-integer is a raise, never a rounded result. ⚠️ "
+                    "Slower than the Kac-Walton route by a wide margin. "
+                    "Reach for affine_fusion_multiplicities when you want "
+                    "the answer, for this one when you want it CHECKED, or "
+                    "when the algebra is D4. C-parity (ADR-0009, recorded): "
+                    "no C peer; Python-first under the noted-disparity "
+                    "ruling. Exact ℤ and exact ℚ(ζ_e); no float; no abs().",
+            parameters=(
+                P("algebra", "str", True, "one of 'A1', 'A2', 'D4'"),
+                P("a", "list[int]", True,
+                  "a dominant label, integrable at level"),
+                P("b", "list[int]", True, "likewise"),
+                P("level", "int", True, "a non-negative int"),
+            ),
+            returns=R("dict", "the affine_fusion_multiplicities payload "
+                              "shape — so the two routes are comparable "
+                              "field-for-field — with route reading "
+                              "'verlinde', plus zeta_order, "
+                              "scale_squared_denominator and n_primaries. "
+                              "There is no classical_constituents field: "
+                              "this route never computes one"),
+            # rc461 part 3: RUNTIME-TRACED, and the trace REMOVED an edge
+            # rather than reordering one. This op declared
+            # `affine_modular_s_matrix` and NEVER CALLS IT: the body reads
+            # the private `_s_matrix_core(...)` directly (weight_lattice.py
+            # :2238), so the public op is never entered. Declaring it
+            # attributed an edge this op does not take — the exact defect a
+            # RUNTIME trace exists to catch and a source reading cannot.
+            composes=("srmech.math.groups.zeta_mul",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; exact ℤ and exact ℚ(ζ_e) via Qalg; no "
+                       "float; no abs()",),
+            smoke_test_hint={"algebra": "D4", "a": [0, 0, 0, 1],
+                             "b": [0, 0, 1, 0], "level": 1},
+        ),
         # rc399 (`#T1064` Tier 2/3): the octonion CAYLEY PLANE 𝕆P² (carrier-
         # native, one rung above octonion_frame_read's ℍP¹≅S⁴) + the guarded
         # generalized-n-gon incidence-graph / Feit–Higman spectral read. §3.41.7
@@ -12959,6 +13294,78 @@ def _register_primitive_class_tools() -> None:
                               "eigenvalues, distinct_eigenvalues, "
                               "n_distinct_eigenvalues, spectral_consistent, "
                               "example}"),
+        ),
+        # rc461 — the EXACT peer of the entry above. generalized_ngon reads a
+        # supplied incidence graph through jacobi_eigvals, i.e. through FLOAT.
+        # The ordinary (thin) k-gon it ships as a built-in IS the cycle C_2k,
+        # and a cycle's Laplacian is a circulant: its spectrum has a closed
+        # ALGEBRAIC form the ALU can hold exactly. This op holds it.
+        ToolEntry(
+            name="srmech.math.laplacian.cyclic_laplacian_spectrum",
+            owner="srmech", category="laplacian",
+            summary="The EXACT Laplacian spectrum of the cycle graph C_n, as "
+                    "elements of the cyclotomic field ℚ(ζ_n) — Class L ∘ "
+                    "Class I ∘ Class N. L = 2I − A is a circulant, and a "
+                    "circulant is diagonalised by the characters of ℤ/n "
+                    "(Class I), so λ_k = 2 − ζ^k − ζ^(−k) lies in ℚ[x]/Φ_n(x) "
+                    "and is RETURNED there — exact (numerator, denominator) "
+                    "coordinate pairs against the power basis, never a float. "
+                    "The familiar 2 − 2cos(2πk/n) is a PROJECTION of this "
+                    "object; no float is constructed in the body and no "
+                    "embedding root is attached, so nothing here can be read "
+                    "as a rotation the ALU did not do. WHAT THE PAYLOAD "
+                    "RECONCILES, as executed guards that raise rather than "
+                    "asserted prose: Σλ_k = 2n always; and under deep=True, "
+                    "Σλ_k² = 6n for n ≥ 3 (n ∈ {1,2} are the degenerate "
+                    "multigraph cases, EXCLUDED by name — C_2 is a doubled "
+                    "edge and returns 16, not 12) and ∏_(k≥1) λ_k = n², hence "
+                    "spanning_trees = n by the matrix-tree theorem, an anchor "
+                    "whose value is independently obvious (delete any one of "
+                    "the n edges). Two structural guards run always: αⁿ == 1 "
+                    "in the field, checked not assumed; and λ_k == λ_(n−k), "
+                    "the Class-C traversal-reversal pairing — a pairing, not "
+                    "a magnitude, so no abs() is reachable. THE "
+                    "CRYSTALLOGRAPHIC READING, measured rather than quoted: "
+                    "all_rational is True exactly on n ∈ {1,2,3,4,6} over "
+                    "1..30, which is exactly {n : φ(n) ≤ 2}. The pentagon is "
+                    "the first failure, its eigenvalues (5 ± √5)/2 — the same "
+                    "arithmetic that keeps 5-fold symmetry out of a lattice. "
+                    "The op does not cite the restriction; it returns the "
+                    "datum the restriction is about. BOUNDS are MEASURED, not "
+                    "round: n ≤ 256 (0.63 s at 256; prime n is the expensive "
+                    "case because the field degree IS φ(n)) and deep requires "
+                    "n ≤ 64 (4.98 s at n=61 — adding exact field elements "
+                    "keeps coefficients bounded, multiplying them does not). "
+                    "SIBLING: generalized_ngon's example='ordinary_k' is the "
+                    "same graph C_2k read through float; the two spectra are "
+                    "the same object in two projections. C-parity (ADR-0009, "
+                    "recorded): no C peer; the exact cyclotomic carrier is "
+                    "Python-first under the noted-disparity ruling, and no "
+                    "new carrier TYPE crosses the boundary (field elements "
+                    "leave as int pairs), so ABI is unchanged.",
+            parameters=(
+                P("n", "int", True,
+                  "the cycle length, 1 <= n <= 256 (MAX_CYCLIC_SPECTRUM_N)"),
+                P("deep", "bool", False,
+                  "also compute the two EXPENSIVE reconciliations "
+                  "(sum_of_squares, kirchhoff_product / spanning_trees); "
+                  "requires n <= 64 (MAX_CYCLIC_SPECTRUM_DEEP_N)"),
+            ),
+            returns=R("dict", "{n, graph, minimal_polynomial (Φ_n, monic, "
+                              "low→high ints), field_degree (= φ(n)), "
+                              "eigenvalues (n coordinate tuples of (num, den) "
+                              "pairs), distinct, multiplicities, n_distinct, "
+                              "all_rational, rational_spectrum (or None), "
+                              "trace, alpha_order_closes, chirality_paired, "
+                              "degenerate, sum_of_squares, "
+                              "kirchhoff_product, spanning_trees (the three "
+                              "None unless deep), deep, procedure_sha256, "
+                              "spectrum_sha256}"),
+            composes=("srmech.math.poly.cyclotomic_polynomial",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; exact ℚ; no abs() — sign-handling "
+                       "stays Class-K pin-slot + Class-C",),
+            smoke_test_hint={"n": 6},
         ),
         # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
         # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).
@@ -15339,6 +15746,201 @@ def _register_qm_tools() -> None:
             parameters=(),
             returns=R("tuple[Mat, ...]", "21 generators (antisym 8×8)"),
         ),
+        # rc461 (`#T1181`) — THE AUTOMORPHISM-SIDE CONTRACT + THE FRAME BIND.
+        # triality_automorphism / triality_swap return 28×28 maps in the
+        # shared E_pq frame; so8_adjoint_basis orders the SAME 28 directions
+        # differently, and through rc460 nothing bound them. Measured: τ read
+        # in the adjoint frame appears to fail 378 of 378 generator pairs and
+        # to fix 0 of the 14 g2 dimensions, while the mathematics is fine and
+        # only the frames disagree. rc460 B1's class, and it shipped the same
+        # fix: a Class-A content address.
+        ToolEntry(
+            name="srmech.physics.qm.so8.epq_frame_address", owner="srmech",
+            category="qm.so8",
+            summary="The Class-A content address of the shared E_pq 28-dim "
+                    "so(8) coordinate frame — coords(M)[index(p,q)] = M[p,q] "
+                    "over the 28 pairs 0 ≤ p < q ≤ 7. Class A. THE ADDRESS "
+                    "COVERS BOTH HALVES of what makes the frame what it is: "
+                    "the pair ORDER and the octonion multiplication TABLE the "
+                    "generators are built from (octonion_table_attestation's "
+                    "response_sha256). Change either and the address moves; a "
+                    "28-dim datum stamped with a different address was "
+                    "computed elsewhere and must not be compared entry-by-"
+                    "entry with one stamped here. WHY AN ADDRESS AND NOT A "
+                    "frame= PARAMETER: rc460 ruled that a single-value pin no "
+                    "producer can vary MINTS A DIALECT, and exactly one "
+                    "28-dim frame is mintable in this tree today, so a "
+                    "parameter would be that defect wearing a hash. The "
+                    "address is EMITTED by every op that consumes the frame "
+                    "and accepted as an input by none of them; the day a "
+                    "second-frame producer lands it brings its own address "
+                    "and the consumers gain the bind check in the SAME "
+                    "change. Memoised. SIBLINGS: so8_bracket_certificate and "
+                    "g2_membership stamp it; triality_frame_action stamps it "
+                    "too, and its docstring says plainly why a label is not a "
+                    "check. C-parity (ADR-0009, recorded): no C peer; "
+                    "Python-first under the noted-disparity ruling, no new "
+                    "carrier TYPE (a str leaves), ABI unchanged. SSoT: Baez, "
+                    "*The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155 §2.4.",
+            parameters=(),
+            returns=R("str", "64-hex Class-A address of the E_pq frame"),
+            # rc461 part 3: the VERIFIABLE edge, which is not the one this row
+            # used to declare. The op calls BOTH `octonion_table_attestation`
+            # and `sha256_bytes`, but the sha256 call arrives through the
+            # module alias `_sha256_bytes`, which neither the depth-3 call
+            # graph nor any cascade descriptor chain resolves — so declaring
+            # it asserts an edge clause 2 cannot check, while the attestation
+            # edge it did NOT declare is the one the instrument derives.
+            # Criterion (4) is VERIFIABLE; one edge is forced-order, so the
+            # rc423 SINGLE tier adjudicates it and it is not in ROSTER.
+            composes=("srmech.physics.qm.octonion.octonion_table_attestation",),
+            preserves=("numpy-free; deterministic — a fixed function of the "
+                       "pair order and the octonion table attestation",),
+        ),
+        ToolEntry(
+            name="srmech.physics.qm.so8.so8_bracket_certificate",
+            owner="srmech", category="qm.so8",
+            summary="Is a 28×28 map a BRACKET automorphism of so(8) — "
+                    "φ([X,Y]) = [φX, φY] over every one of the C(28,2) = 378 "
+                    "unordered E_pq generator pairs, in EXACT INTEGER "
+                    "arithmetic. Class D (a pattern-match over 378 bracket "
+                    "identities) ∘ Class C (the E_qp = −E_pq re-orientation "
+                    "applied when a pair arrives reversed — a sign, never an "
+                    "abs()). THIS IS THE INSTRUMENT triality_frame_action's "
+                    "own scope warning names and declines to be, and it is "
+                    "also a FRAME DETECTOR. Measured, with P the change of "
+                    "basis to the so8_adjoint_basis ordering: τ 0/378, S_B "
+                    "0/378, P⁻¹ S_B P 161/378, P⁻¹ τ P 214/378. That matters "
+                    "because P⁻¹ S_B P is invisible to every invariant "
+                    "triality_frame_action inspects — still an involution, "
+                    "still trace 14, still Cartan-preserving — so that op "
+                    "ANSWERS it with the identity permutation where the right "
+                    "answer for S_B is v ↔ s. HOW IT RUNS ON THE INTEGER ALU: "
+                    "τ and S_B have entries in {0, ±1/2}, so clearing "
+                    "denominators gives an integer M = d·φ with d = 2; "
+                    "linearity makes the left side one factor of φ and the "
+                    "right side two, so the exact predicate is "
+                    "d·M([X,Y]) == [MX, MY] — integers on both sides, no "
+                    "float in the decision path and no tolerance. ⚠️ THE "
+                    "SWEEP ALONE DECIDES HOMOMORPHISM, NOT AUTOMORPHISM: the "
+                    "ZERO map satisfies all 378 identities vacuously, and "
+                    "through rc461 this op answered True on it. Because a "
+                    "bijective Lie homomorphism IS an automorphism, the op "
+                    "now also carries an EXACT INTEGER RANK (fraction-free "
+                    "Bareiss over the same cleared columns) and reports both "
+                    "halves; is_bracket_automorphism is the CONJUNCTION. τ "
+                    "and S_B are rank 28, so no previously-True answer "
+                    "changed. Measured "
+                    "18.6 ms warm against 7.8 ms for triality_frame_action. "
+                    "C-parity (ADR-0009, recorded): no C peer; Python-first "
+                    "under the noted-disparity ruling — it is written in the "
+                    "same E_pq frame as the 28-unknown companion solve, which "
+                    "has no C projection either, so a C peer would have to "
+                    "bring the whole companion engine with it. No new carrier "
+                    "TYPE crosses the boundary, ABI unchanged. SSoT: Baez, "
+                    "*The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155 §2.4.",
+            parameters=(
+                P("operator", "Mat", True,
+                  "the 28×28 map in the shared E_pq frame — same contract as "
+                  "triality_frame_action"),
+            ),
+            returns=R("dict", "{is_bracket_automorphism (the CONJUNCTION), "
+                              "is_bracket_homomorphism (the 378-pair sweep "
+                              "alone), is_invertible, rank (0..28), "
+                              "failures (0..378), "
+                              "pairs_checked (378), first_failure, "
+                              "denominator, frame_sha256, operator_sha256}"),
+            # rc461 part 3: RUNTIME-TRACED order, not read off the source.
+            # `epq_frame_address()` is evaluated BEFORE `sha256_bytes` in the
+            # return dict, so the declared order was reversed.
+            composes=("srmech.physics.qm.so8.epq_frame_address",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; exact integers; no abs() — the E_qp = "
+                       "−E_pq step is Class-C re-orientation, not a magnitude",),
+        ),
+        ToolEntry(
+            name="srmech.physics.qm.so8.g2_membership", owner="srmech",
+            category="qm.so8",
+            summary="Is an 8×8 orthogonal g in G2 = Aut(O), and does Ad(g) "
+                    "centralise the triality generators τ and S_B? BOTH, "
+                    "measured, in exact ℚ. Class D (the multiplicativity "
+                    "pattern-match) ∘ Class K (the pin-slot at the ± centre "
+                    "boundary separating G2 from −G2) ∘ Class C (re-applying "
+                    "that sign to name the coset) ∘ Class A (the frame and "
+                    "operator addresses). THE NAME IS A MEASUREMENT, NOT A "
+                    "PREFERENCE: the obvious name is_triality_fixed, over the "
+                    "two commutators alone, would be a LIE. Ad(−I) = I₂₈ "
+                    "exactly so −I commutes with everything, yet −I fails "
+                    "octonion multiplicativity on 64 of 64 basis pairs and is "
+                    "not an automorphism at all — and at scale it is 1344 "
+                    "counterexamples, not one: over the 2688 monomial "
+                    "elements of ±G2, all 2688 pass both commutators and "
+                    "exactly 1344 fail multiplicativity 64/64. The reason is "
+                    "structural: the commutators see PSO(8) = SO(8)/{±I} and "
+                    "cannot separate g from −g. So the commutator verdict "
+                    "ships as fixed_mod_center and the word 'in G2' is "
+                    "reserved for in_g2, decided by multiplicativity, which "
+                    "IS the definition of Aut(O) = G2. determinant does not "
+                    "rescue it either: det(−g) = (−1)⁸det(g) = det(g), "
+                    "measured +1 for all 32 monomial G2 elements AND all 32 "
+                    "negatives. BOTH RESIDUALS ARE ALWAYS COMPUTED AND THE "
+                    "IMPOSSIBLE CELL RAISES: for orthogonal g, [τ,Ad(g)] = 0 "
+                    "implies [S_B,Ad(g)] = 0 (τ-centralising forces g into "
+                    "PSO(8)^τ = image of G2, and G2 ⊂ Spin(7) = Fix(S_B)), so "
+                    "the second condition is redundant — and computed anyway, "
+                    "because a redundant condition is a DETECTOR. It is NOT "
+                    "input validation: neither impossible cell is reachable "
+                    "from any orthogonal input, measured 0 across the whole "
+                    "±G2 monomial set. It is a theorem check on our OWN "
+                    "shipped τ / S_B, and the gate proves it can fire by "
+                    "fault injection. induced_outer_class returns 'inner' "
+                    "FORCED by the two measured commutators — in S₃ the "
+                    "centraliser of the 3-cycle is A₃ (order 3) and of a "
+                    "transposition has order 2, intersecting trivially — "
+                    "which is how the op answers the prediction that an "
+                    "automorphism realising e₁→e₂→e₃ is INNER while τ is "
+                    "OUTER. The E_pq frame is INTERNAL and never crosses this "
+                    "op's boundary, which is the frame ruling honoured "
+                    "structurally: nothing to parameterise, no dialect to "
+                    "mint. C-parity (ADR-0009, recorded): no C peer; "
+                    "Python-first under the noted-disparity ruling — it "
+                    "composes triality_automorphism / triality_swap, whose "
+                    "companion solve has no C projection. No new carrier TYPE "
+                    "(ℚ leaves as int pairs), ABI unchanged. SSoT: Baez, "
+                    "*The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155 §4.1 (G2 = Aut(O)) and §2.4 "
+                    "(Spin(7) = Fix(S_B), Out(Spin(8)) = S₃).",
+            parameters=(
+                P("matrix", "Mat", True,
+                  "an 8×8 orthogonal g in the OCTONION basis e₀..e₇ — NOT "
+                  "28-dim coordinates; g^T g = I is checked exactly and "
+                  "refused otherwise"),
+            ),
+            returns=R("dict", "{in_g2, multiplicativity_failures (0..64), "
+                              "negated_multiplicativity_failures, "
+                              "centralizes_tau, centralizes_swap, "
+                              "tau_residual (0..784), swap_residual, "
+                              "fixed_mod_center, center_coset "
+                              "('G2'|'minus_G2'|None), induced_outer_class "
+                              "('inner'|None), determinant, octonion_pairs "
+                              "(64), commutator_entries (784), frame_sha256, "
+                              "table_sha256, operator_sha256}"),
+            # rc461 part 3: RUNTIME-TRACED, then narrowed to the VERIFIABLE
+            # subset per the ROSTER's criterion (4). The trace enters
+            # triality_automorphism and triality_swap FIRST, but both are
+            # reached through a FUNCTION-LOCAL import in
+            # `_triality_generators_doubled` (so8.py:2410) that the depth-3
+            # static call graph cannot resolve, so declaring them would
+            # assert an edge clause 2 cannot check. Declared is a SUBSET of
+            # derived, in traced order.
+            composes=("srmech.physics.qm.so8.epq_frame_address",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; exact ℚ; no abs() — the ± centre "
+                       "separation is a Class-K pin-slot plus Class-C sign "
+                       "re-application, never a magnitude",),
+        ),
         ToolEntry(
             name="srmech.physics.qm.so8.an_embedding", owner="srmech",
             category="qm.so8",
@@ -15417,6 +16019,76 @@ def _register_qm_tools() -> None:
                     "S3 = Out(Spin(8)). Class C. Baez (2002) §2.4.",
             parameters=(),
             returns=R("Mat", "28×28 Z2 involution"),
+        ),
+        # rc461 — the DERIVATION of what the two entries above DO to the three
+        # labels. Through rc460 that was a pair of hard-coded module dicts:
+        # correct, but definitional, justified by how the companion maps are
+        # built, with the only independent derivation living in a note script
+        # and a test — neither of which ships. triality_rep_dictionary emits
+        # tau_label_action into describe(), the MCP tool list and the
+        # compiled-in C registry, so a consumer read a claim no shipped op
+        # could re-derive. This op re-derives it, from the matrix alone.
+        ToolEntry(
+            name="srmech.physics.qm.triality.triality_frame_action",
+            owner="srmech", category="qm.triality",
+            summary="Which of 8v / 8s / 8c a 28×28 so(8) automorphism sends "
+                    "each frame to — MEASURED off the matrix, in exact ℚ. "
+                    "Class D (a pattern-match on a WEIGHT SET) ∘ Class C (the "
+                    "± orientation closure that makes the match blind to "
+                    "which end of a rotation plane is called positive — a "
+                    "closure, never an abs()). HOW, AND WHY IT IS CHEAP: the "
+                    "three 8-dim reps are separated by their weight systems. "
+                    "Restricted to the standard Cartan ⟨E01,E23,E45,E67⟩ the "
+                    "frame with Cartan block A_f carries weights ± the rows "
+                    "of A_f — 8v gets the integer {±e_j}, the two spinor "
+                    "frames get all-half-integer rows split by the PARITY of "
+                    "their minus signs, and that parity is READ off the "
+                    "shipped S_B / S_C (measured: 8s odd, 8c even), not "
+                    "chosen. The action is then the exact-ℚ set match "
+                    "{± rows of A_f·A_φ} == W_g. All three shipped maps "
+                    "PRESERVE that Cartan span exactly, every induced entry "
+                    "in {−1/2, 0, +1/2}, so the whole read is 4×4 rational "
+                    "arithmetic — measured 5.2 ms for both generators against "
+                    "~4.3 s for one exact companion solve. A map that does "
+                    "NOT preserve the span is REFUSED with a ValueError "
+                    "naming the escaping coordinate, never answered "
+                    "approximately. 4 × 8 = 32, THE RECONCILIATION: a frame "
+                    "is an 8-dimensional rep, and the datum that fixes which "
+                    "one it is has exactly 8 weights × 4 Cartan coordinates = "
+                    "32 exact rationals; the payload returns both halves so "
+                    "the reduction from 8 dimensions to 4 is inspectable "
+                    "rather than asserted, alongside the computed 24-element "
+                    "union of the three disjoint weight sets. IT CAN RETURN "
+                    "OTHERWISE: driven over the six elements of ⟨S_B,S_C⟩ ≅ "
+                    "S₃ it returns six DISTINCT permutations of {v,s,c} — "
+                    "every element of Sym(3), including the third "
+                    "transposition S_B·S_C·S_B (v fixed, s ↔ c) that no "
+                    "shipped constant names. Composition is contravariant: "
+                    "the measured action of S_B·S_C is π_(S_C) ∘ π_(S_B). "
+                    "SIBLINGS: triality_automorphism / triality_swap supply "
+                    "the matrices; triality_rep_dictionary consumes the same "
+                    "label actions. C-parity (ADR-0009, recorded): no C peer; "
+                    "Python-first under the noted-disparity ruling, no new "
+                    "carrier TYPE (ℚ leaves as int pairs), ABI unchanged. "
+                    "SSoT: Baez, *The Octonions*, Bull. AMS 39 (2002) "
+                    "145–205, arXiv:math/0105155 §2.4.",
+            parameters=(
+                P("automorphism", "Mat", True,
+                  "the 28×28 map in the shared E_pq frame — what "
+                  "triality_automorphism() / triality_swap() return"),
+            ),
+            returns=R("dict", "{frame_action, order (1/2/3), fixed_frames, "
+                              "moved_frames, is_identity, cartan_rank (4), "
+                              "weights_per_frame (8), weight_table_entries "
+                              "(32), distinct_weights (24), cartan_block "
+                              "(4×4 of (num, den)), frame_weights, "
+                              "spinor_parity (MEASURED), frame_sha256, "
+                              "procedure_sha256, action_sha256}"),
+            # rc461 part 3: RUNTIME-TRACED order (reversed from the reading).
+            composes=("srmech.physics.qm.so8.epq_frame_address",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; exact ℚ; no abs() — the ± weight closure "
+                       "is Class-C orientation, not a magnitude",),
         ),
         ToolEntry(
             name="srmech.physics.qm.triality.triality_cycle", owner="srmech",

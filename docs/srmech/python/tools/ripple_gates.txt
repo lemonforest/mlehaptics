@@ -712,3 +712,51 @@ tests/test_abi_prose_currency_rc449.py
 #    carve-out with its own tests. ~13 s, pure-Python apart from the optional
 #    native read.
 tests/test_cascade_catalog_prose_currency_rc454.py
+
+# -- rc461 (`#T1181`) — THE THREE GATES THAT JUDGE THIS RC ---------------------
+#    Listed HERE BY HAND for the reason the rc451 / rc452 / rc454 blocks above
+#    all give and all had to give again: the manifest meta-test has NO GROWTH
+#    OBLIGATION, nothing enumerates tests/*.py, and a gate absent from both
+#    FROZEN_KNOWN_GATES and this file is armed and silent. rc449 added three
+#    gates and listed zero; rc452 repeated it in the very release that wrote
+#    the warning. Four blocks in a row now say this, which is itself the
+#    finding: the omission is the default, so the listing has to be deliberate.
+#
+#    test_frame_action_rc461 is a RIPPLE gate in the strict sense — it binds a
+#    SHIPPED CONSTANT (`_TAU_LABEL_ACTION` / `_SWAP_LABEL_ACTION`, emitted into
+#    describe(), the MCP tool list and the compiled-in C registry through
+#    triality_rep_dictionary) to a DERIVATION, so any edit to either side moves
+#    it. Proven red BOTH ways by planted mutation: flipping the constant reds 1
+#    test, swapping the 8s/8c derivation reds 3. ~55 s (the cold
+#    `_companion_maps()` build dominates; the op itself is 5.2 ms).
+#
+#    test_cyclic_spectrum_rc461 holds the co-equal dual construction — the
+#    exact ℚ(ζ_n) spectrum against generalized_ngon's float Jacobi read of the
+#    SAME graph C_2k — plus the crystallographic set equality in both
+#    directions. Breaking the eigenvalue formula reds 20 of 23. ~15 s.
+#
+#    test_feit_higman_branches_rc461 closes a ZERO-COVERAGE shipped field:
+#    measured at rc460, `git grep -n feit_higman_allowed -- tests/` returned
+#    nothing, so the field was unasserted in EITHER branch while riding inside
+#    every wheel. It reaches the False arm with a constructed acyclic witness,
+#    separates the thin arm (n=5/7/9 ALLOWED because thin) from the thick one,
+#    and carries a NAMED BLIND SPOT for the arm no in-tree object can witness.
+#    Forcing the predicate True reds 3. ~13 s.
+tests/test_frame_action_rc461.py
+tests/test_cyclic_spectrum_rc461.py
+tests/test_feit_higman_branches_rc461.py
+tests/test_so8_automorphism_bind_rc461.py
+#
+# -- rc461 (`#T1183`) - THE AFFINE / KAC-WALTON ACCEPTANCE GATE ---------------
+#
+#    test_affine_kac_walton_rc461 is the FIVE acceptance tests plus a control
+#    for every one of them, hand-written and executed. It is a ripple gate in
+#    the strict sense: it pins the registry rows of five new ops AND the
+#    resolvability of their `composes` targets, so a registration that moves
+#    without it reds here. It also pins BOTH halves of acceptance test 4 -
+#    that sqrt(|Z|).S(D4_1) equals character_table of the centre after the
+#    documented row sort and does NOT equal it raw - so the false half cannot
+#    creep back into prose. Two guards are proved firable by fault injection
+#    at private seams (the monovariant law, and the step-bound backstop that
+#    is otherwise mathematically unreachable). ~25 s.
+tests/test_affine_kac_walton_rc461.py

@@ -189,6 +189,67 @@ CLASSIFIED: Dict[str, Tuple[str, ...]] = {
     # would drop the half the rc exists to guarantee.
     'numpy-free; exact ℤ; no abs() — sign-handling stays Class-K pin-slot + Class-C':
         ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
+    # rc461 — the ℚ peer of the ℤ string above, and again deliberately NOT a
+    # reword of it: the guarantee is exactness in the RATIONALS, which is a
+    # strictly weaker carrier claim than "never leaves ℤ" and must not borrow
+    # the stronger sentence. `cyclic_laplacian_spectrum` carries eigenvalue
+    # coordinates in ℚ[x]/Φ_n and only its RECONCILIATIONS (trace, Σλ², ∏λ)
+    # land back in ℤ, where they are executed guards that raise.
+    'numpy-free; exact ℚ; no abs() — sign-handling stays Class-K pin-slot + Class-C':
+        ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
+    # rc461 — `triality_frame_action`. A SEPARATE string, and the difference is
+    # the point rather than a stylistic one: this op's no-abs() clause is not
+    # "sign-handling is Class K", because the op takes no magnitude at all. It
+    # closes each weight set under ±, which is Class-C ORIENTATION — a set
+    # closure, where a magnitude would be a discard. Sharing the sibling
+    # sentence would assert a pin-slot the body never runs.
+    'numpy-free; exact ℚ; no abs() — the ± weight closure is Class-C '
+    'orientation, not a magnitude':
+        ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
+    # rc461 PART 2 (`#T1181`) — the so8 automorphism triad. ⚠️ These three
+    # were SHIPPED UNCLASSIFIED: this gate is in ripple_gates.txt and was red
+    # on the branch before part 3 touched anything, which is how they surfaced.
+    # Recorded rather than quietly folded in.
+    # No 'DETERMINISM' kind exists and one is NOT invented here: this table's
+    # own failure message says an unclassifiable string is evidence the string
+    # is vague, not evidence a kind is missing. "a fixed function of <these two
+    # things>" is a caller-facing promise about WHAT the address depends on,
+    # which is exactly DESIGN_CONTRACT; the numpy-free half is structural.
+    'numpy-free; deterministic — a fixed function of the pair order and the '
+    'octonion table attestation':
+        ('IMPLEMENTATION_DISCIPLINE', 'DESIGN_CONTRACT'),
+    'numpy-free; exact integers; no abs() — the E_qp = −E_pq step is '
+    'Class-C re-orientation, not a magnitude':
+        ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
+    'numpy-free; exact ℚ; no abs() — the ± centre separation is a '
+    'Class-K pin-slot plus Class-C sign re-application, never a magnitude':
+        ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
+    # rc461 PART 3 (`#T1183`) — the affine stratum. `alcove_fold` and
+    # `affine_fusion_multiplicities` REUSE the rc460 ℤ sentence verbatim,
+    # because their guarantee is identical to it and shared text is the cheap
+    # path this table is designed to reward. The three below are separate
+    # SENTENCES because they are separate CLAIMS, not rewordings.
+    #
+    # integrable_weights: the no-abs() clause names WHERE the one magnitude
+    # read lives (inside the Smith normal form), which the shared sentence
+    # cannot say and which is the only place in the op a sign is discarded.
+    'numpy-free; exact ℤ; no abs() — the one magnitude read is the named '
+    'Class-K pin inside the Smith normal form':
+        ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
+    # affine_modular_s_matrix: a CARRIER claim the ℤ sentence does not make —
+    # values leave as integer ζ-coordinate vectors over Φ_e, the shape
+    # character_table already mints and zeta_mul already reads. That is a
+    # statement about the WIRE, so it earns DESIGN_CONTRACT alongside the
+    # exactness half; reusing the plain ℤ sentence would drop it.
+    'numpy-free; exact ℤ[ζ_e] as integer coordinate vectors — the carrier '
+    'character_table already mints and zeta_mul already reads; no float; no abs()':
+        ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS', 'DESIGN_CONTRACT'),
+    # verlinde_fusion_multiplicities: the only op here that genuinely leaves ℤ
+    # mid-computation. Claiming the plain ℤ sentence would be FALSE — the
+    # contraction divides in ℚ(ζ_e) via Qalg and only the ANSWER is an
+    # integer, which the op checks with a raise rather than a rounding.
+    'numpy-free; exact ℤ and exact ℚ(ζ_e) via Qalg; no float; no abs()':
+        ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
     # ── the four LOSSLESS codecs registered at rc425 (`#T1112`):
     # huffman / arithmetic_coding / lz77 / rle. ONE sentence across four ops,
     # deliberately: keying the taxonomy by the whole string makes reuse the

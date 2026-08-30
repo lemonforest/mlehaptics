@@ -154,6 +154,30 @@ SLOW_SKIP: Dict[str, str] = {
     # microseconds — the two uses are separate and only one is expensive.
     "srmech.math.primes.is_prime": "Mersenne M61 on the pure trial-division path"
                                    " (rwe: 206 s)",
+    # rc461 part 3 (`#T1183`). BOTH are the an_embedding / so7_subalgebra
+    # class: real ops whose harvested base is D4, where the `level` sweep
+    # drives an object that grows quartically. |P_k| for D4 is 4 at level 1,
+    # 11 at level 2, 11011 at level 24 and 658711 at level 72, and the
+    # Kac-Peterson sum is |P_k|^2 x |W| = |P_k|^2 x 192 terms in Z[zeta_e].
+    # MEASURED with the real Driver at SCREEN=24: the s_matrix screen passed
+    # 90 s at call SIX (levels 1-6) and the verlinde screen at call TEN; both
+    # were still climbing. Their three siblings needed NO entry --
+    # integrable_weights screens in 0.25 s, alcove_fold in 0.00 s and
+    # affine_fusion_multiplicities in 0.02 s -- which is what shows this is
+    # about the Weyl-sum cost and not about the family being unprobeable.
+    # DRAINABLE, and recorded as such rather than left implicit: the base
+    # args come from the FIRST returning call in the worked example, so
+    # leading those examples with A1 instead of D4 would make the sweep
+    # cheap and retire both entries. That is not done here because the D4
+    # transcript IS the acceptance test -- it is the equality against
+    # character_table of the centre -- and demoting it to satisfy a probe
+    # would weaken the shipped documentation to move a census number.
+    "srmech.math.weight_lattice.affine_modular_s_matrix":
+        "D4 Kac-Peterson Weyl sum; the level sweep is |P_k|^2 x 192 terms"
+        " and |P_k| is quartic in level (>90 s measured at 6 calls)",
+    "srmech.math.weight_lattice.verlinde_fusion_multiplicities":
+        "builds the same D4 S-matrix and then contracts over every"
+        " primary (>90 s measured at 10 calls)",
 }
 
 

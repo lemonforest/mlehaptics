@@ -733,8 +733,112 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   WSL2 processes; all three returned the SAME digest and 719 frames each,
 #:   and `search("rank", k=1).witness` agreed with the direct build in every
 #:   one. The ADR-0011 witness contract HOLDS.
+#: rc461 re-pin — the corpus witness moved because the registry PROSE moved,
+#: the sanctioned cause a fifth release running: two new ToolEntry
+#: registrations (`triality_frame_action`, `cyclic_laplacian_spectrum`) plus
+#: their curated example / explanation rows.
+#:
+#:   MEASURED: `len(frames) == 721`, and the split is 692 ops + 29 carriers.
+#:   The DELTA is exactly the two new op frames, DERIVED and not eyeballed:
+#:   the registry moved 690 -> 692 (measured live), REMOVED = none (the
+#:   rosetta-completeness gate reported exactly two unclassified ADDITIONS and
+#:   no deletions, and the composes-population gate reported "Deleted: []" —
+#:   two independent instruments agreeing that nothing left the surface), and
+#:   carriers are UNMOVED at 29 (neither op mints a carrier TYPE; exact ℚ
+#:   leaves both as `int` pairs, which is the whole reason this rc adds no C
+#:   symbol and no ABI bump). The op-name SET witness next door passed on a
+#:   freshly rewritten manifest, which is the assertion that no RENAME hid
+#:   inside the same count.
+#:
+#:   Measured LAST, after the final regen (`regen_all.py --check` reported all
+#:   six generated files up to date), per the rc454 rule that a pin taken
+#:   mid-release is a measurement of a draft.
+#:
+#:   DETERMINISM — `_build_frames` ran in THREE separate numpy-absent WSL2
+#:   processes; all three returned the SAME digest and 721 / 692 / 29, and
+#:   `search("rank", k=1).witness` agreed with the direct build in every one.
+#:   The ADR-0011 witness contract HOLDS.
+#: rc461 PART 2 re-pin (`#T1181`) — the corpus witness moved again, and again
+#: for the sanctioned reason: the registry PROSE moved, three new ToolEntry
+#: registrations plus their curated example / explanation rows.
+#:
+#:   MEASURED: `len(frames) == 724`, and the split is 695 ops + 29 carriers,
+#:   read straight off the build as `{'op': 695, 'carrier': 29}` rather than
+#:   inferred. The DELTA is exactly the three new op frames, DERIVED and not
+#:   eyeballed: the registry moved 692 -> 695 (measured live), REMOVED = none
+#:   (the rosetta-completeness gate reported exactly three unclassified
+#:   ADDITIONS and no deletions), and carriers are UNMOVED at 29 — none of the
+#:   three mints a carrier TYPE (ℚ leaves as `int` pairs and a `str` leaves
+#:   `epq_frame_address`), which is the whole reason this part adds no C symbol
+#:   and no ABI bump. The op-name SET witness next door passed on a freshly
+#:   rewritten 695-row manifest, which is the assertion that no RENAME hid
+#:   inside the same count.
+#:
+#:   Measured LAST, after the final regen (`regen_all.py --check` reported all
+#:   six generated files up to date), per the rc454 rule that a pin taken
+#:   mid-release is a measurement of a draft.
+#:
+#:   DETERMINISM — three successive `_build_frames('all')` calls inside each of
+#:   THREE fresh numpy-absent WSL2 interpreters: all nine returned the SAME
+#:   digest, and `search("rank", k=1).witness` agreed with the direct build in
+#:   every one. The ADR-0011 witness contract HOLDS.
+#: rc461 PART 3 re-pin (`#T1183`) — moved again, same sanctioned reason: the
+#: registry PROSE moved, five new ToolEntry registrations plus their curated
+#: example / explanation rows (the AFFINE / KAC-WALTON layer).
+#:
+#:   MEASURED: `len(frames) == 729`, split 700 ops + 29 carriers, read off the
+#:   build as `len(_build_frames('ops')[0])` / `len(_build_frames('carriers')[0])`
+#:   rather than inferred, with the sum checked against the union. The DELTA is
+#:   exactly the five new op frames, DERIVED not eyeballed: the registry moved
+#:   695 -> 700 (measured live), REMOVED = none (the rosetta-completeness gate
+#:   named exactly five unclassified ADDITIONS and no deletions), and carriers
+#:   are UNMOVED at 29 — none of the five mints a carrier TYPE. The zeta values
+#:   ride the INTEGER coordinate vectors `character_table` already mints and
+#:   `zeta_mul` already reads, and ℚ leaves as `int` pairs, which is exactly
+#:   why this part adds no C symbol and no ABI bump. The op-name SET witness
+#:   next door passed on a freshly rewritten 700-row manifest, which is the
+#:   assertion that no RENAME hid inside the same count.
+#:
+#:   Measured LAST, after the final regen (`regen_all.py` reported all six
+#:   generated files current and idempotent across two passes), per the rc454
+#:   rule that a pin taken mid-release is a measurement of a draft.
+#:
+#:   DETERMINISM — three successive `_build_frames('all')` calls inside each of
+#:   THREE fresh numpy-absent WSL2 interpreters: all nine returned the SAME
+#:   digest, `len(frames)` was 729 and the split 700/29 in every one, and
+#:   `search("rank", k=1).witness` agreed with the direct build every time. The
+#:   ADR-0011 witness contract HOLDS.
+#: rc461 PART 3 re-pin (`#T1181`/`#T1183`) — moved again, and this time for the
+#: NARROWEST sanctioned reason: PROSE ONLY. No op was added, none renamed, none
+#: removed.
+#:
+#:   MEASURED, and the measurement is the whole argument: `len(frames)` is
+#:   UNMOVED at **729**, split 700 ops + 29 carriers, read off
+#:   `len(_build_frames('ops')[0])` / `len(_build_frames('carriers')[0])` rather
+#:   than inferred, with the sum checked against the union. An unmoved count
+#:   with a moved digest is exactly the signature of a text-only edit — and it
+#:   is what separates this re-pin from one that would be hiding a rename. The
+#:   op-name SET witness next door is UNTOUCHED on the same 700-row manifest,
+#:   which is the independent assertion that the NAMES did not move.
+#:
+#:   WHAT moved the text: `alcove_fold`'s ToolEntry summary (the corrected
+#:   termination measurement, 962 -> 901), `so8_bracket_certificate`'s summary
+#:   and `returns` (the homomorphism/automorphism split and its three new
+#:   payload fields), the module docstrings those two ops carry, and the SIX
+#:   corrected `composes` declarations (the runtime-traced call orders, plus
+#:   the two edges the trace REMOVED as unverifiable and the two it added).
+#:
+#:   Measured LAST, after `regen_all.py --check` reported all six generated
+#:   files up to date, per the rc454 rule that a pin taken mid-release is a
+#:   measurement of a draft.
+#:
+#:   DETERMINISM — three successive `_build_frames('all')` calls inside each of
+#:   THREE fresh numpy-absent WSL2 interpreters: all nine returned the SAME
+#:   digest, `len(frames)` was 729 and the split 700/29 in every one, the
+#:   recomputed blob hash agreed with the returned witness in every one, and
+#:   `search("rank", k=1).witness` agreed with the direct build every time.
 WITNESS_RC416 = (
-    "8c5c167e9b40047854d27fc46ceabbe60b1ff7822710f1a8e111ad6ab75ef5f9")
+    "401c0fdec037ce544dfe17381d64394aaedb99cda1205dad32c092bb835e1624")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

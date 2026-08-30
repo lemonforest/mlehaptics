@@ -395,6 +395,7 @@ srmech.math.kepler.kepler_solve
 srmech.math.kepler.pin_slot
 srmech.math.laplacian.cotangent_weights
 srmech.math.laplacian.cycle_holonomy
+srmech.math.laplacian.cyclic_laplacian_spectrum
 srmech.math.laplacian.dense_adjacency
 srmech.math.laplacian.dense_laplacian
 srmech.math.laplacian.dense_solve
@@ -507,8 +508,13 @@ srmech.math.text.glyph_stream
 srmech.math.tlv.tlv_pack
 srmech.math.tlv.tlv_unpack
 srmech.math.tripoly.tripoly_from_coeffs
+srmech.math.weight_lattice.affine_fusion_multiplicities
+srmech.math.weight_lattice.affine_modular_s_matrix
+srmech.math.weight_lattice.alcove_fold
 srmech.math.weight_lattice.dominant_weight
+srmech.math.weight_lattice.integrable_weights
 srmech.math.weight_lattice.tensor_product_multiplicities
+srmech.math.weight_lattice.verlinde_fusion_multiplicities
 srmech.math.weight_lattice.weight_multiplicities
 srmech.music.bell_partials
 srmech.music.bessel_j_fixed
@@ -610,10 +616,13 @@ srmech.physics.qm.sm.weak_mixing_angle
 srmech.physics.qm.sm.weinberg_relation_residual
 srmech.physics.qm.sm.z_boson_mass
 srmech.physics.qm.so8.an_embedding
+srmech.physics.qm.so8.epq_frame_address
+srmech.physics.qm.so8.g2_membership
 srmech.physics.qm.so8.g2_subalgebra
 srmech.physics.qm.so8.quaternion_subalgebra_stabilizer
 srmech.physics.qm.so8.so7_subalgebra
 srmech.physics.qm.so8.so8_adjoint_basis
+srmech.physics.qm.so8.so8_bracket_certificate
 srmech.physics.qm.so9.sedenion_holonomy_conjecture
 srmech.physics.qm.so9.so9_adjoint_basis
 srmech.physics.qm.so9.spin8_in_spin9_branching
@@ -629,6 +638,7 @@ srmech.physics.qm.triality.triality_apply
 srmech.physics.qm.triality.triality_automorphism
 srmech.physics.qm.triality.triality_companions
 srmech.physics.qm.triality.triality_cycle
+srmech.physics.qm.triality.triality_frame_action
 srmech.physics.qm.triality.triality_relation_residual
 srmech.physics.qm.triality.triality_rep_dictionary
 srmech.physics.qm.triality.triality_swap

@@ -173,7 +173,48 @@ CEIL_FRAME_UNADJUDICATED = {
     # address). Its two sibling registrations in the same change did NOT need
     # this raise, which is what shows the raise is about this parameter's
     # type and not about the triple being under-exampled.
-    "NO_ARG": 277,          # no harvested argument binding at all
+    # rc461 (`#T1181`): 277 -> 278 for
+    # `srmech.physics.qm.triality.triality_frame_action`, and it is the rc442 /
+    # rc452 raise VERBATIM — the FOURTH instance of one established structural
+    # class, not a fourth excuse. The gate's own advice is "bind the op's
+    # arguments", and that is NOT AVAILABLE HERE: the op takes exactly ONE
+    # parameter, `automorphism`, whose type is `Mat`, and its worked example
+    # DOES call it four times with real matrices from `triality_automorphism()`
+    # and `triality_swap()`. MEASURED as `status: no_jsonable_arg,
+    # unserializable: ["automorphism"]` in tests/example_args_ledger.ndjson —
+    # so the binding is missing because a 28×28 `Mat` has no JSON encoding the
+    # harvester can record, exactly the wall `genome_groups` (HV sequence) and
+    # `sha256_raw` (bytes) sit behind, and not because the example is thin.
+    # `fp.classify` then assigns NO_ARG on `if not base`.
+    #
+    # And, as in all three prior raises, NO_ARG is the CORRECT verdict rather
+    # than a probe gap. The frame axis asks whether an op translates along a
+    # frame when an INTEGER INPUT is varied; `triality_frame_action` has no
+    # integer input at all — it consumes a 28×28 exact-ℚ operator and returns a
+    # PERMUTATION OF THREE LABELS, a discrete classification with no coordinate
+    # to translate. Its sibling registration in the same rc did NOT need this
+    # raise: `cyclic_laplacian_spectrum` binds `n` and `deep` and the harvester
+    # records them (`status: ok`, 18 recorded calls), which is what shows the
+    # raise is about this parameter's TYPE and not about the pair being
+    # under-exampled.
+    # rc461 part 2 (`#T1181`): 278 -> 280, and the split across the two
+    # unadjudicated classes is the point rather than the total. THREE ops were
+    # registered; only TWO land here, and the third DRAINED. MEASURED per op
+    # over the refreshed ledger:
+    #   epq_frame_address        -> NO_ARG. It takes NO ARGUMENTS AT ALL, so
+    #     there is nothing for the harvester to bind and nothing for the frame
+    #     axis to translate. Undrainable by construction, not under-exampled.
+    #   so8_bracket_certificate  -> NO_ARG. Its worked example DOES call it
+    #     three times with real values, but the operand is a 28x28 `Mat`, which
+    #     the ledger records as `unserializable: ["operator"]` — the
+    #     `genome_group` / `render_template` structural class: bound, but not
+    #     JSON-able, so no binding reaches the probe.
+    #   g2_membership            -> NO_INT_INPUT (see the note below). It DID
+    #     drain out of NO_ARG: its example binds a plain 8x8 int matrix, the
+    #     harvester records `status: ok`, and the probe reaches it.
+    # That one of the three drained while two did not is what shows the raise
+    # is about the operand's TYPE, not about the family being under-exampled.
+    "NO_ARG": 280,          # no harvested argument binding at all
     # rc442 (local task T1150): 152 -> 153, `genome_group`. It DID drain out of NO_ARG
     # (it binds `label` and `dim`), and landed one tier along in the same structural
     # class: neither bound argument is an INTEGER the frame axis could translate —
@@ -232,9 +273,41 @@ CEIL_FRAME_UNADJUDICATED = {
     # rc456 cyclic_group/quotient_group outcome — which is what shows the
     # seven raises are about operand TYPE, not about the family being
     # under-exampled.
-    "NO_INT_INPUT": 170,    # nothing translatable along a frame axis
+    # rc461 part 2 (`#T1181`): 170 -> 171, exactly one op, and it is the
+    # rc456/rc457 structural class again. `g2_membership` DID drain out of
+    # NO_ARG — its worked example binds a plain 8x8 int matrix and the
+    # harvester records `status: ok` — and it lands here because the bound
+    # operand's integers are the matrix ENTRIES OF A GROUP ELEMENT, not a
+    # coordinate the op reads along any modulus/frame axis. Varying one breaks
+    # orthogonality and the op's own `g^T g == I` guard raises on exactly that,
+    # rather than translating anything.
+    # ⚠️ The first measurement of this raise said 172, and the extra +1 was NOT
+    # an op of this rc: it came from re-harvesting the example-args ledger in
+    # FULL, which flipped `srmech.math.rational.rational_div` out of
+    # NOT_ADMISSIBLE. Re-harvesting with `--only-stale` leaves every unchanged
+    # row byte-identical and the count is 171. See the longer note at
+    # CEIL_UNSYNTHESIZABLE_PARAMS in tests/test_synth_args_provenance_rc430.py.
+    "NO_INT_INPUT": 171,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
-    "SLOW_SKIP": 15,        # measured-slow, skipped BY NAME with a number
+    # rc461 part 3 (`#T1183`): 15 -> 17, and the split across the five new ops
+    # is the point rather than the total. FIVE ops were registered; only TWO
+    # land here and the other three are DRIVEN to a real verdict. MEASURED
+    # with the real Driver at SCREEN=24, per op:
+    #   affine_modular_s_matrix        -> >90 s at call SIX, still climbing.
+    #   verlinde_fusion_multiplicities -> >90 s at call TEN, still climbing.
+    #   integrable_weights             -> 0.25 s. NOT skipped.
+    #   alcove_fold                    -> 0.00 s. NOT skipped.
+    #   affine_fusion_multiplicities   -> 0.02 s. NOT skipped.
+    # The cause is the `level` sweep against a D4 base: |P_k| is 4 at level 1
+    # and 658711 at level 72, and the Kac-Peterson sum is |P_k|^2 x |W| terms.
+    # That three of the five screen in milliseconds is what shows the two
+    # entries are about the Weyl-sum cost, not about the family being
+    # unprobeable. ⚠️ One of the three only became cheap IN THIS DIFF:
+    # `integrable_weights` used to filter a (level+1)^rank BOX, which at D4
+    # level 72 is 73^4 = 28.4M tuples for a 658711-row answer. It now walks the
+    # simplex directly. The probe is what surfaced that, so a would-be third
+    # skip was drained by fixing the op rather than by naming it here.
+    "SLOW_SKIP": 17,        # measured-slow, skipped BY NAME with a number
     # rc430 repair (`#T1127`): ops whose parameter carries a documented domain
     # contract the sweep cannot honour (the three GF(p) ops need PRIME p). The
     # native peer asserts it and CI took SIGABRT; the pure body silently

@@ -236,7 +236,7 @@ def test_registration_ratchet():
     assert "oct_torsor_div" in OCT.__all__
     from srmech.introspect.tool_schema import tool_schema_view
     view = tool_schema_view()
-    assert len(view["tools"]) == 690
+    assert len(view["tools"]) == 700
     names = {t["name"] for t in view["tools"]}
     assert "srmech.math.octonion.oct_torsor_act" in names
     assert "srmech.math.octonion.oct_torsor_div" in names

@@ -2914,6 +2914,95 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
             "spectrum it composes. NO new C symbol — composition_of_c."
         ),
     },
+    'srmech.math.laplacian.cyclic_laplacian_spectrum': {
+        'example': {
+            'input': {'n': 6},
+            'output': (
+                "C_6 rational_spectrum ((0, 1), (1, 1), (3, 1), (4, 1), "
+                "(3, 1), (1, 1))\n"
+                "C_5 all_rational False   lambda_1 = ((3, 1), (0, 1), (1, 1), "
+                "(1, 1)) in Q[x]/Phi_5\n"
+                "Phi_5 (1, 1, 1, 1, 1)   multiplicities (1, 2, 2)\n"
+                "C_7 deep: trace 14  sum_of_squares 42  kirchhoff 49  "
+                "spanning_trees 7\n"
+                "all-rational n in 1..12 -> [1, 2, 3, 4, 6]\n"
+                "deep-bound control -> ValueError: deep=True requires n <= 64"
+            ),
+            'why': (
+                'C_6 lands entirely in Q and the pentagon does not — its '
+                'lambda_1 is the field element 3 + a^2 + a^3, i.e. '
+                '(5 - sqrt 5)/2, carried exactly rather than rounded. The '
+                'deep row is the reconciliation: three products and sums of '
+                'algebraic numbers fall back onto the integers 2n, 6n and '
+                'n^2, and n^2/n = 7 is the spanning-tree count you can check '
+                'by hand. The last line is the crystallographic restriction '
+                'arriving as a MEASUREMENT rather than a citation.'
+            ),
+            'worked': (
+                'from srmech.math.laplacian import cyclic_laplacian_spectrum\n'
+                "cyclic_laplacian_spectrum(6)['rational_spectrum']\n"
+                '# -> ((0, 1), (1, 1), (3, 1), (4, 1), (3, 1), (1, 1))   '
+                'C_6 is 0,1,3,4,3,1 EXACTLY\n'
+                "cyclic_laplacian_spectrum(5)['all_rational']\n"
+                '# -> False   the pentagon leaves Q\n'
+                "cyclic_laplacian_spectrum(5)['eigenvalues'][1]\n"
+                '# -> ((3, 1), (0, 1), (1, 1), (1, 1))   3 + a^2 + a^3, '
+                'i.e. (5 - sqrt 5)/2\n'
+                "cyclic_laplacian_spectrum(5)['minimal_polynomial']\n"
+                '# -> (1, 1, 1, 1, 1)   Phi_5 = x^4 + x^3 + x^2 + x + 1\n'
+                "cyclic_laplacian_spectrum(5)['multiplicities']\n"
+                '# -> (1, 2, 2)   lambda_k = lambda_(n-k), the Class-C '
+                'traversal pairing\n'
+                'd = cyclic_laplacian_spectrum(7, deep=True)\n'
+                "(d['trace'], d['sum_of_squares'], d['kirchhoff_product'], "
+                "d['spanning_trees'])\n"
+                '# -> (14, 42, 49, 7)   2n, 6n, n^2 — algebraic numbers '
+                'falling back into Z\n'
+                '[n for n in range(1, 13) if '
+                "cyclic_laplacian_spectrum(n)['all_rational']]\n"
+                '# -> [1, 2, 3, 4, 6]   exactly the n with phi(n) <= 2\n'
+                'cyclic_laplacian_spectrum(100, deep=True)\n'
+                '# -> ValueError\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: the EXACT Laplacian spectrum of the cycle '
+            'graph C_n, as elements of the cyclotomic field Q(zeta_n). '
+            'L = 2I - A is a circulant and a circulant is diagonalised by the '
+            'characters of Z/n (Class I), so lambda_k = 2 - zeta^k - '
+            'zeta^(-k) lives in Q[x]/Phi_n(x) and is RETURNED there, as exact '
+            '(numerator, denominator) coordinate pairs against the power '
+            'basis. No float is built anywhere in the body and no embedding '
+            'root is attached, so nothing here can be read as a rotation the '
+            'ALU did not do — the familiar 2 - 2cos(2 pi k/n) is a projection '
+            'of this object, not the object. '
+            'WHEN to reach for it: any time the cycle spectrum feeds further '
+            'exact work — a determinant, a spanning-tree count, a rationality '
+            'question — and rounding it first would decide the answer. What '
+            'you would otherwise wrongly hand-roll is 2 - 2*cos(2*pi*k/n) in '
+            'floats and then a tolerance to decide whether an eigenvalue is '
+            'rational; that tolerance IS the bug, because the pentagon and the '
+            'hexagon differ by an algebraic fact, not by 1e-12. The payload '
+            'EXECUTES its own reconciliations rather than asserting them: '
+            'sum lambda_k = 2n always (n = 1 is the self-loop exception and is '
+            'named, not tolerated), and under deep=True sum lambda_k^2 = 6n '
+            'for n >= 3 and prod_(k>=1) lambda_k = n^2, hence spanning_trees = '
+            'n. Each is a raise, not a comment. Bounds are MEASURED: n <= 256, '
+            'and deep needs n <= 64 because multiplying exact field elements '
+            'grows coefficients where adding them does not. '
+            'SIBLINGS: generalized_ngon(example="ordinary_k") is the SAME '
+            'graph C_2k read through dense_adjacency + jacobi_eigvals, i.e. '
+            'through float — the two are one object in two projections and '
+            'should agree under L = 2I - A, so use that one when you want the '
+            'incidence-geometry verdict and this one when you want the exact '
+            'numbers. dense_laplacian + jacobi_eigvals is the general-graph '
+            'route and is what to use for any graph that is NOT a cycle; '
+            'srmech.math.poly.cyclotomic_polynomial supplies Phi_n and is what '
+            'this composes; srmech.math.qalg.Qalg is the carrier the '
+            'eigenvalues live in if you want to keep computing in the field '
+            'rather than reading the wire form.'
+        ),
+    },
     "srmech.cascade.cd_cycle_holonomy": {"example": {"output": "dim  2  open (non-closing) triangles    0 / 8\ndim  4  open (non-closing) triangles    0 / 64\ndim  8  open (non-closing) triangles  168 / 512\nclosed: False  defect: [0, 0, 0, 0, 0, 0, 0, 2]\ndefect == associator: True", "why": "On associative rungs (ℝ/ℂ/ℍ) every basis triangle CLOSES — the loop-holonomy is bracketing-free, which is why the ℍ-only quaternion peer never has to choose. At 𝕆 the triangles fail to close on exactly the 168/512 non-associating triples, the k=3 turn-on. The defect it returns IS the associator of the three edge-gains — same k=3 content, holonomy framing.", "worked": "from srmech.cascade import cd_cycle_holonomy, cd_basis, associator\n\n# The 3-cycle loop-holonomy over CD edges. On associative rungs (R/C/H) every\n# triangle CLOSES (bracketing-free); at O the basis triangles fail to close on\n# exactly the non-associating triples - the k=3 turn-on.\nfor dim in (2, 4, 8):\n    b = [cd_basis(dim, i) for i in range(dim)]\n    open_ = sum(1 for i in range(dim) for j in range(dim) for k in range(dim)\n                if not cd_cycle_holonomy(b[i], b[j], b[k])[\"closed\"])\n    print(\"dim %2d  open (non-closing) triangles %4d / %d\" % (dim, open_, dim ** 3))\n\n# A concrete octonion triangle that does NOT close: 0 -> e1 -> e2 -> e4.\nh = cd_cycle_holonomy(cd_basis(8, 1), cd_basis(8, 2), cd_basis(8, 4))\nprint(\"closed:\", h[\"closed\"], \" defect:\", [int(q) for q in h[\"defect\"]])\n\n# the defect IS the associator - same k=3 content, holonomy framing.\nprint(\"defect == associator:\",\n      h[\"defect\"] == associator(cd_basis(8, 1), cd_basis(8, 2), cd_basis(8, 4)))"}, "explanation": "WHAT — the loop-holonomy walked around a 3-cycle of Cayley–Dickson edge-gains, returned as a dict {dim, holonomy_left=(x·y)·z, holonomy_right=x·(y·z), defect=left−right, closed}. closed is True iff the two bracketings agree, i.e. the triangle closes independently of how the walk is nested. table=None runs it on the definite ladder through cd_mult, table= on any algebra a structure tensor names through table_product. Exact end to end — no float, no epsilon, no abs(). WHEN — reach for it to read the k=3 turn-on as a HOLONOMY rather than a bare tuple: closed is a property of the RUNG, not the gains — every triangle closes on an associative rung, and at 𝕆 the basis triangles fail to close on exactly the non-associating triples (168/512 at 𝕆, 1848/4096 at 𝕊). It is the general-dim, any-rung generalisation of qm.quaternion.quaternion_cycle_holonomy, which lives at ℍ where the walk is bracketing-free. ⚠️ EPISTEMIC CEILING: it reads the FORM of the holonomy (the ordered walk + whether it closes), not an SU(2) conjugacy class — that read is special to unit quaternions and the general rung has no analogue. SIBLINGS — associator is the same k=3 defect as a bare trilinear tuple (this op's defect field == associator(x, y, z)); cd_commutator is the k=2 square-loop one rung below; quaternion_cycle_holonomy is the ℍ-only associative sibling with its conjugacy-class read; cd_mult and table_product are the products it composes, and walking the triangle both ways by hand is exactly what not to re-derive. No new C symbol was minted and none is owed: it is the composition of two already-c_dispatched products."},
     'srmech.cascade.defect_ladder': {'example': {'output': "H rung 2 nonzero {'commutator': True, 'associator': False, 'flexibility': False, 'left_alternator': False}\nH projected ['commutator']\nO rung 3 closed False projected ['associator', 'commutator']\nS associator [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]\nS admits @4 True", 'why': 'One call surfaces the whole ladder: at H only the commutator has fired (the projector keeps just it), at O the associator joins and the triangle no longer closes, and at S the alternativity failure shows up ONLY for the seam-crossing a=e1+e10 as [a,a,e4]=2*e15 -- the projector admitting rung 4 that a basis-only probe cannot see.', 'worked': 'from srmech.cascade import defect_ladder, cd_basis, cd_add\n\n# The whole property-loss LADDER + a per-rung PROJECTOR in one call. Each\n# loop-defect turns on one rung LATER: commutator at H, associator at O,\n# alternator at S. \'projected\' is the projector applied -- only the defects\n# a given rung can make nonzero.\n# H (dim 4, rung 2): only the commutator has fired.\nh = defect_ladder(cd_basis(4, 1), cd_basis(4, 2), cd_basis(4, 3))\nprint("H rung", h["rung"], "nonzero", h["nonzero"])\nprint("H projected", sorted(h["projected"]))\n# O (dim 8, rung 3): commutator AND associator fire; the triangle opens.\no = defect_ladder(cd_basis(8, 1), cd_basis(8, 2), cd_basis(8, 4))\nprint("O rung", o["rung"], "closed", o["holonomy_closed"], "projected", sorted(o["projected"]))\n# S (dim 16, rung 4): alternativity fails ONLY for a SEAM-CROSSING input --\n# a = e1 + e10, [a,a,e4] = 2*e15. A basis-only probe would miss it.\na = cd_add(cd_basis(16, 1), cd_basis(16, 10))\ns = defect_ladder(a, a, cd_basis(16, 4))\nprint("S associator", [int(q) for q in s["defects"]["associator"]])\nprint("S admits @4", s["rung_admits"]["alt_zero_div@4"])'}, 'explanation': "WHAT - the whole Cayley-Dickson property-loss ladder read in ONE call plus a per-rung PROJECTOR. It composes cd_commutator [x,y], associator [x,y,z], the left alternator [x,x,y] and the flexibility floor [x,y,x] over the SAME three inputs, plus the cd_cycle_holonomy closed-read, and returns dict(dim, rung, algebra, defects, nonzero, holonomy_closed, rung_admits, projected). The loss is RUNG-indexed, not arity-indexed: commutativity turns off at H (rung 2), associativity at O (rung 3), alternativity + the division property at S (rung 4); flexibility is the FLOOR that never turns on and total order (rung 1, C) is a metric fact carried only as an admits-flag. Exact end to end - no float, no abs(). WHEN - reach for it to get the FULL ladder AND the rung-meaningful subset in one shot instead of calling four defect ops and remembering which turns on where; 'projected' IS the projector applied. WARNING RUNG 4 IS NOT BASIS-VISIBLE: [e_i,e_i,e_j]=0 at S exactly as at O, so feed a SEAM-CROSSING input (a=e1+e10, x=y=a, z=e4) to see alternativity fail as [a,a,e4]=2*e15 - a basis-only probe reports S alternative, wrongly. The arity-4 'square-loop' holonomy is REFUTED (it turns on at O, inherited from the associator, not a fifth rung). WARNING EPISTEMIC CEILING - this k=3 is the arity-3 Cayley-Dickson associator; it is FORM, not identity, and must NOT be fused with the substrate B/H/N k=3 signature (different k=3's; the reading transfers the algorithm, never the constant). SIBLINGS - it is the CD instance of the cross-substrate 'declared-parallel-state (x) projector-excitation -> rung-meaningful subset' instrument (the QM Born-rule measurement, genome chromatin access, and the viola fingerboard bow are the domain peers in srmech notebook 3.29); associator / cd_commutator / cd_cycle_holonomy are the three ops it composes - call them directly when you want ONE defect, not the whole ladder. NO new C symbol was minted and none is owed: composition_of_c over already-c_dispatched products."},
     'srmech.cascade.octonion_frame_read': {'example': {'output': 'default frame 4 base (0, 1, 2, 3) seam (4, 5, 6, 7)\nbase_H [2, 36, 4, -2] base_R -7\nsphere |base_H|^2 + base_R^2 == norm_sq^2: True\nother frame base (0, 2, 4, 6) base_H [22, -24, -16, -2]\nreads differ: True | norm_sq shared: True\nfiber: base_H unchanged True | writhe changed True', 'why': 'MEASURED (rc421): O admits 28 well-posed frames -- 7 Fano lines (H subalgebras) x 4 valid splitting units each -- and all 28 reads of one octonion are DISTINCT, so a frame is the (line, l) PAIR, not the line. The default l=e4 read is unchanged. Across frames the quaternionic-Hopf base MOVES while norm_sq is shared (the frame-independent scale); within a frame the base is UNCHANGED under the S3 fiber -- the coherent note -- while the writhe q1 carries the fiber DOF.', 'worked': 'from srmech.cascade import octonion_frame_read, cd_norm_sq\nfrom srmech.cascade.cayley_dickson import cd_mult\nfrom srmech.math.q import Q\n\n# 28 well-posed frames: 7 Fano lines (H subalgebras) x 4 splitting units each.\n# The DEFAULT is unchanged -- the Cayley-Dickson seam l = e4 on {e0,e1,e2,e3}.\nx = [1, 2, -3, 1, 2, -1, 1, 4]\nr = octonion_frame_read(x)\nprint("default frame", r["frame"], "base", r["base"], "seam", r["seam"])\nprint("base_H", [int(q) for q in r["base_H"]], "base_R", int(r["base_R"]))\n# the base lies on the radius-norm_sq FOUR-SPHERE (exact-Q identity):\nprint("sphere |base_H|^2 + base_R^2 == norm_sq^2:",\n      cd_norm_sq(r["base_H"]) + r["base_R"] * r["base_R"]\n      == r["norm_sq"] * r["norm_sq"])\n# a DIFFERENT H subalgebra -- the Fano line (2,4,6), splitting unit e1:\ns = octonion_frame_read(x, frame=(2, 4, 6, 1))\nprint("other frame base", s["base"], "base_H", [int(q) for q in s["base_H"]])\nprint("reads differ:", s["base_H"] != r["base_H"],\n      "| norm_sq shared:", s["norm_sq"] == r["norm_sq"])\n# FRAME-FREE UNDER THE S3 FIBER: right-multiply BOTH halves by a UNIT quaternion\n# lambda = (1/2)(1,1,1,1) (|lambda|^2 = 1). The Hopf base is UNCHANGED (the\n# coherent note) while the writhe q1 CHANGES (it carries the fiber DOF).\nlam = (Q(1, 2), Q(1, 2), Q(1, 2), Q(1, 2))\nq0b, q1b = cd_mult(r["q0"], lam), cd_mult(r["q1"], lam)\nrb = octonion_frame_read(list(q0b) + list(q1b))\nprint("fiber: base_H unchanged", rb["base_H"] == r["base_H"],\n      "| writhe changed", rb["writhe"] != r["writhe"])'}, 'explanation': "WHAT: the FRAME-COMMITTED coherence read of an octonion. Section 3.41 measured 'no FRAME-FREE invariant' (F1301/F1302), but that is the R-SCALAR question asked of a rung whose coherence is H-shaped: MEASURED, {e0,e1,e2,e3} is a genuine H subalgebra of O and is FULLY coherent (0/64 basis-triple associators nonzero) while ALL 168 of O's nonzero associators (of 512) CROSS the doubling seam H*l = {e4..e7} (0 non-seam). So commit a splitting unit l, split O = H (+) H*l, and read the QUATERNIONIC HOPF FIBRATION S3 -> S7 -> S4: base_H = 2*q0*conj(q1) (H) and base_R = |q0|^2 - |q1|^2 (R) are the frame-free-UNDER-THE-FIBER Hopf base (the coherent note), lying on the radius-norm_sq four-sphere (|base_H|^2 + base_R^2 == norm_sq^2, exact); writhe = q1 is the S3 fiber generator (EQUIVARIANT -- it changes under the fiber, non-tautological); canonical_affine = q0*q1^-1 is the fiber-fixed HP1 coordinate. THE FRAME IS 28-VALUED, and the count was MEASURED, not assumed (rc421): O has SEVEN H subalgebras, one per Fano line, each closed under cd_mult with all 64 ordered base-triple associators vanishing, and each admits FOUR valid splitting units -- and all 7x4 = 28 reads of one generic octonion are DISTINCT, so the frame is the (line, l) PAIR. Through rc420 the op accepted only frame=4, arguing that e5/e6/e7 'are not independent seam generators'; measured against cd_mult the standard base admits FOUR valid l, so that conclusion was wrong even for its own line. Within a line the four l are related exactly: if e_l' = u*e_l for a signed base unit u then base_H' = base_H*u and canonical_affine' = canonical_affine*u (28/28 each -- a signed permutation of the four coordinates), while q0, base_R and norm_sq are l-INVARIANT. The split is DERIVED from cd_mult -- every seam unit satisfies e_m = s*e_sigma(m)*e_l, and that signed permutation is returned as seam_chart -- so no Fano convention is hard-coded. WHEN: reach for it to read what survives of O's coherence once a frame is committed, as an H-valued object rather than an R-scalar; pass an explicit (i,j,k,l) to ask whether a finding is a property of O or an artifact of the standard basis. WARNING EPISTEMIC CEILING: this does NOT contradict 3.41 -- the companion octonion_laplacian MEASURES that the O gain-Laplacian spectrum is NOT gauge-invariant (~0.1-0.5 vs H's ~1e-15); the coherence here is frame-free only UNDER THE FIBER, not under an arbitrary gauge. Do NOT confuse the 28 frames with oct_torsor_act's 28 seams, which DO collapse to 7 distinct (H,T) decompositions: that count is over the seam SET (T is always H's set-complement, shared by all four l of a line), whereas l fixes the seam half's IDENTIFICATION with H, x = q0 + q1*l. FORM, not identity -- the S3/S4 split is the FORM of O's frame-committed coherence, no claim that this S3 and any substrate's fiber are the same object. SIBLINGS: octonion_laplacian is the spectral companion that reads the ceiling; associator is the defect whose 168/168 seam-confinement this op rests on; cd_basis_product is the cocycle the 28 frames and every seam_chart sign are derived from. NO new C symbol: composition_of_c over c_dispatched cd_mult / cd_conjugate / cd_norm_sq."},
@@ -3456,6 +3545,309 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
     "srmech.physics.qm.triality.triality_automorphism": {"composes": ["srmech.math.laplacian.mat_matmul"], "example": {"input": {}, "output": "tau.shape = (28, 28)\n||tau^3 - I|| = 0.0   (order 3)\n||tau   - I|| = 6.48074069840786   (tau != I)\n||tau^2 - I|| = 6.48074069840786   (tau^2 != I)\ndim Fix(tau) = tr((I+tau+tau^2)/3) = 13.999999999999995   (= dim g2 = 14)\ntau is NOT S_B: ||tau - S_B|| = 5.291502622129181", "why": "tau^3 - I is EXACTLY 0.0 (the companion solve is exact-rational, so there is no residual to tolerate) while tau and tau^2 are far from I - and the projector trace reads dim Fix(tau) = 14 with no eigendecomposition at all.", "worked": "from srmech.physics.qm.triality import triality_automorphism, triality_swap\nfrom srmech.math.laplacian import mat_matmul, mat_norm\ntau = triality_automorphism()\nI = [[1.0 if i == j else 0.0 for j in range(28)] for i in range(28)]\nt2 = mat_matmul(tau, tau); t3 = mat_matmul(t2, tau)\nnrm = lambda M: mat_norm([M[i, j] - I[i][j]\n                          for i in range(28) for j in range(28)])\nprint('||tau^3 - I|| =', nrm(t3))\nprint('||tau   - I|| =', nrm(tau))\nprint('||tau^2 - I|| =', nrm(t2))\nprint('dim Fix(tau) = tr((I+tau+tau^2)/3) =',\n      sum((I[i][i] + tau[i, i] + t2[i, i]) / 3.0 for i in range(28)))\nprint('tau is NOT S_B:', mat_norm(\n    [tau[i, j] - triality_swap()[i, j]\n     for i in range(28) for j in range(28)]))"}, "explanation": "WHAT: the 28x28 order-3 outer automorphism tau = S_B . S_C of Spin(8), expressed in the shared E_pq coordinate frame (the strict upper triangle in (p<q) order). tau^3 = I, tau != I, tau^2 != I, and Fix(tau) = g2 (dim 14) - the D4 --Z3--> G2 fold. The companion maps underneath are solved EXACTLY over Q, which is why the order-3 residual is 0.0 rather than ~1e-14 and why the result is bit-identical across platforms. WHEN: the genuine triality element is needed - the 8v/8s/8c rep-permutation, the Fix(tau) = g2 test, or as the order-3 generator that no composition of order-2 chirality operations can reach. THE TRAP: a naive 'tau = the A -> B companion map' gives an INVOLUTION with a 21-dim fixed space, which is the wrong answer; the order-3 element is the PRODUCT of the two companion involutions. The trace-of-projector idiom in the worked run - dim Fix = tr((I + tau + tau^2)/3) - is the cheap way to read a fixed-space dimension without an eigensolver, and it is worth copying. SIBLINGS you would otherwise re-derive: triality_swap() is S_B (order 2, Fix = so(7) dim 21); S_C = S_B . tau if you need it (the worked run under triality_swap shows this); triality_cycle() is the LABEL-level order-3 step on 8v/8s/8c; triality_companions() is the per-generator 8x8 solve this 28x28 matrix is assembled from; lean_isa_seventh_primitive() packages the order-3 certificate plus its attestation."},
     "srmech.physics.qm.triality.triality_companions": {"example": {"input": {"g_v": "so8_adjoint_basis()[14]  # L_{e_1}"}, "output": "g2 derivation: ||g_s - g_v|| = 0.0  ||g_c - g_v|| = 0.0  (derivations are triality-fixed)\nL_{e_1} coset: ||g_s - g_v|| = 2.82842712474619  ||g_c - g_v|| = 5.65685424949238  (moved by triality)\n  its companions still satisfy Cartan: residual = 0.0\nwrong-shape control -> ValueError: triality_companions: must be 8x8; got (2, 2)", "why": "The discriminator is exact: for a g2 derivation the companions come back IDENTICAL to the input (both residuals 0.0), for an L-type coset direction they are genuinely different (2.83 and 5.66) - and either way Cartan's relation closes at 0.0.", "worked": "from srmech.physics.qm.so8 import g2_subalgebra, so8_adjoint_basis\nfrom srmech.physics.qm.triality import (triality_companions,\n                               triality_relation_residual)\nfrom srmech.math.laplacian import mat_norm\nd = lambda A, B: mat_norm([A[i, j] - B[i, j]\n                           for i in range(8) for j in range(8)])\ng2 = g2_subalgebra()\ngs, gc = triality_companions(g2[0])\nprint('g2 derivation: ||g_s - g_v|| =', d(gs, g2[0]),\n      ' ||g_c - g_v|| =', d(gc, g2[0]))\nL1 = so8_adjoint_basis()[14]\nbs, bc = triality_companions(L1)\nprint('L_{e_1}: ||g_s - g_v|| =', d(bs, L1),\n      ' ||g_c - g_v|| =', d(bc, L1))\nprint('  Cartan residual =', triality_relation_residual(L1, bs, bc))\ntriality_companions([[1.0, 0.0], [0.0, 1.0]])    # -> ValueError"}, "explanation": "WHAT: solves Cartan's triality relation g_v(x . y) = g_s(x) . y + x . g_c(y) over all 64 octonion basis pairs for the companions (g_s, g_c) of a given 8x8 so(8) generator. 512 equations, 128 unknowns; the octonion structure constants are integers, so the normal equations are an INTEGER system solved EXACTLY over Q with free (gauge) columns pinned to zero - no float solve, no Tikhonov ridge, so the answer is bit-identical on every platform. WHEN: you want the 8s / 8c partners of a specific generator, or a concrete demonstration that derivations are exactly the triality-invariant directions. Each call is a full 128-unknown solve (seconds), so do not call it in a tight loop - if you want the whole map, use the 28x28 triality_automorphism() / triality_swap(), which are built once and memoised. SIBLINGS you would otherwise re-derive: triality_relation_residual() CHECKS a (g_v, g_s, g_c) triple - do not verify by hand; triality_swap() is the assembled S_B: A -> B map in E_pq coordinates. CAUTION: S_B applied to coords(A) is NOT the same as taking coords of this op's output, because the gauge-pinned particular solution can carry a symmetric part the antisymmetric E_pq coordinates discard - measured, and the reason so7_subalgebra's fixed-space check must be done in coordinates."},
     "srmech.physics.qm.triality.triality_cycle": {"composes": ["srmech.math.cyclic.mod_add"], "example": {"input": {"frame": "'8v'"}, "output": "8v -> s -> c -> v   (order-3 cycle closes)\ntriality_cycle('v') = s   triality_cycle('8S') = c\nunknown-frame control -> ValueError: unknown triality frame '8x'; expected one of 'v'/'s'/'c' or '8v'/'8s'/'8c'", "why": "Three applications return to 'v', so the LABEL cycle genuinely closes at order 3 - and both spellings ('v' and '8S', case- and prefix-insensitive) normalise to the same short canonical label.", "worked": "from srmech.physics.qm.triality import triality_cycle\nf = '8v'\nseq = []\nfor _ in range(3):\n    f = triality_cycle(f); seq.append(f)\nprint('8v ->', ' -> '.join(seq))\nprint(\"triality_cycle('v') =\", triality_cycle('v'),\n      \" triality_cycle('8S') =\", triality_cycle('8S'))\ntriality_cycle('8x')                      # -> ValueError"}, "explanation": "WHAT: the label-level order-3 rep-permutation 8v -> 8s -> 8c -> 8v. Accepts 'v'/'s'/'c' or '8v'/'8s'/'8c' in any case, returns the SHORT canonical label, and raises ValueError on anything else. The step itself is the Class-I cyclic primitive: the frame index advances via srmech.math.cyclic.mod_add(index, 1, 3) - not an ad-hoc dict. WHEN: bookkeeping which of the three inequivalent 8-dim irreps you are in, iterating over them, or normalising user-supplied frame strings. Cheap and pure - it touches none of the expensive so(8) machinery. SIBLINGS you would otherwise re-derive: triality_apply(x, from, to) is the VECTOR transport, and it is a genuinely different object - the label cycle closes at 3 but the vector transport composes per-step conjugations, so v->s->c->v does NOT return the input (see that op's example); triality_automorphism() is the 28x28 matrix realising the order-3 element on the so(8) adjoint - the label here is the shadow of that; srmech.math.cyclic.mod_add is the primitive underneath. Do not write your own {'v':'s','s':'c','c':'v'} dict - it will not accept the 8-prefixed spellings and will not raise on typos."},
+    'srmech.physics.qm.so8.epq_frame_address': {
+        'example': {
+            'output': (
+                "frame d9b0a5eebf8713ce ... 64\n"
+                "table 7f36461ef14af1b2 ...\n"
+                "stable True\n"
+                "stamped_by_frame_action True"
+            ),
+            'why': (
+                'The 28-dim coordinate frame every so(8) object in this engine '
+                'is written in stops being a convention two helpers happen to '
+                'share and becomes an ADDRESS a consumer can bind to. Both '
+                'halves that make it that frame are inside the digest — the '
+                'pair ORDER and the octonion multiplication TABLE — so a '
+                '28-dim datum computed somewhere else cannot silently be '
+                'compared entry-by-entry with one computed here.'
+            ),
+            'worked': (
+                'from srmech.physics.qm.so8 import epq_frame_address\n'
+                'from srmech.physics.qm.octonion import '
+                'octonion_table_attestation\n'
+                'addr = epq_frame_address()\n'
+                'print("frame", addr[:16], "...", len(addr))\n'
+                '# -> frame d9b0a5eebf8713ce ... 64\n'
+                'print("table", octonion_table_attestation()'
+                '["attestation"]["response_sha256"][:16], "...")\n'
+                '# -> the octonion table digest, one of the two halves\n'
+                'print("stable", epq_frame_address() == addr)\n'
+                '# -> stable True   memoised, a fixed function of the frame\n'
+                'from srmech.physics.qm.triality import (\n'
+                '    triality_frame_action, triality_swap)\n'
+                'print("stamped_by_frame_action",\n'
+                '      triality_frame_action(triality_swap())'
+                '["frame_sha256"] == addr)\n'
+                '# -> True   the consumer stamps the frame it read in\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: the Class-A content address of the shared E_pq '
+            '28-dim so(8) coordinate frame, coords(M)[index(p,q)] = M[p,q] '
+            'over the 28 pairs 0 <= p < q <= 7. The digest covers BOTH halves '
+            'of what makes it that frame — the pair ORDER and the octonion '
+            'multiplication TABLE the generators are built from — so changing '
+            'either moves the address. WHEN to reach for it: whenever you hand '
+            'a 28-dim so(8) object between producers, or store one. What you '
+            'would otherwise wrongly hand-roll is nothing at all — you would '
+            'simply ASSUME the frames agree, which is exactly the defect this '
+            'op exists to close: so8_adjoint_basis orders the same 28 '
+            'directions differently, and a matrix in the wrong ordering is '
+            'still a perfectly good matrix, so no shape check can see it. '
+            'MEASURED: tau read in the adjoint frame appears to fail 378 of '
+            '378 bracket pairs and to fix 0 of the 14 g2 dimensions while the '
+            'mathematics is fine and only the frames disagree. Note this is an '
+            'address, NOT a frame= parameter: a single-value pin no producer '
+            'can vary would MINT A DIALECT, so it is emitted by every consumer '
+            'and accepted as input by none. HOW it relates to its siblings: '
+            'so8_bracket_certificate and g2_membership stamp it into their '
+            'payloads, and triality_frame_action stamps it too — and that '
+            'op\'s docstring says plainly why a stamp is a LABEL and not a '
+            'CHECK. The op that actually decides whether a matrix is in this '
+            'frame is so8_bracket_certificate.'
+        ),
+    },
+    'srmech.physics.qm.so8.so8_bracket_certificate': {
+        'example': {
+            'output': (
+                "S_B True 0 / 378 den 2\n"
+                "tau True 0\n"
+                "2*S_B False 168 (0, 1)\n"
+                "shape control -> ValueError: so8_bracket_certificate: "
+                "must be 28x28; got (2, 2)"
+            ),
+            'why': (
+                'It decides bracket-preservation over ALL 378 generator pairs '
+                'in exact integer arithmetic, which is the certificate '
+                'triality_frame_action explicitly declines to be — and, '
+                'measured, it is also the only shipped op that can SEE a '
+                'wrong-frame matrix, because a matrix written in the '
+                'so8_adjoint_basis ordering is still an involution with the '
+                'right trace and still preserves the Cartan span.'
+            ),
+            'worked': (
+                'from srmech.physics.qm.so8 import so8_bracket_certificate\n'
+                'from srmech.physics.qm.triality import (\n'
+                '    triality_automorphism, triality_swap)\n'
+                'c = so8_bracket_certificate(triality_swap())\n'
+                'print("S_B", c["is_bracket_automorphism"], c["failures"],\n'
+                '      "/", c["pairs_checked"], "den", c["denominator"])\n'
+                '# -> S_B True 0 / 378 den 2   d = 2 because entries are '
+                '+-1/2\n'
+                'c2 = so8_bracket_certificate(triality_automorphism())\n'
+                'print("tau", c2["is_bracket_automorphism"], c2["failures"])\n'
+                '# -> tau True 0\n'
+                'doubled = [[2 * x for x in row] '
+                'for row in triality_swap().tolist()]\n'
+                'c3 = so8_bracket_certificate(doubled)\n'
+                'print("2*S_B", c3["is_bracket_automorphism"], c3["failures"],'
+                ' c3["first_failure"])\n'
+                '# -> 2*S_B False 168 (0, 1)   a SCALE cannot survive the '
+                'bracket\n'
+                'so8_bracket_certificate([[1, 0], [0, 1]])\n'
+                '# -> ValueError: must be 28x28; got (2, 2)\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: whether a 28x28 map is a BRACKET automorphism '
+            'of so(8) — phi([X,Y]) == [phi X, phi Y] over every one of the '
+            'C(28,2) = 378 unordered E_pq generator pairs — in exact INTEGER '
+            'arithmetic, plus the failure count and the first failing pair. '
+            'tau and S_B have entries in {0, +-1/2}, so clearing denominators '
+            'gives an integer M = d.phi with d = 2, and since the left side '
+            'carries one factor of phi and the right side two, the exact '
+            'predicate is d.M([X,Y]) == [MX, MY]: integers on both sides, no '
+            'tolerance anywhere. WHEN to reach for it: before trusting ANY '
+            '28-dim map you did not build yourself in the E_pq frame. What you '
+            'would otherwise wrongly hand-roll is a spot-check on a few pairs, '
+            'or a rank/trace/involution test — and measured, none of those can '
+            'see the failure that matters: P^-1 S_B P (the same map in the '
+            'so8_adjoint_basis ordering) is still an involution, still has '
+            'trace 14, and still preserves the standard Cartan span, so '
+            'triality_frame_action ANSWERS it with the identity permutation '
+            'where the right answer for S_B is v <-> s. This op fails it '
+            '161/378, and fails P^-1 tau P 214/378, against 0/378 for both '
+            'generators read in their own frame. HOW it relates to its '
+            'siblings: it is the instrument triality_frame_action\'s scope '
+            'warning names and declines to be, it stamps epq_frame_address, '
+            'and g2_membership is the 8x8 octonion-basis peer that decides G2 '
+            'membership rather than bracket preservation.'
+        ),
+    },
+    'srmech.physics.qm.so8.g2_membership': {
+        'example': {
+            'output': (
+                "-I  in_g2 False  mult 64 / 64\n"
+                "-I  fixed_mod_center True  tau_res 0  swap_res 0\n"
+                "-I  center_coset minus_G2  det 1  outer inner\n"
+                "I   in_g2 True  center_coset G2\n"
+                "ctl in_g2 False  mult 36  tau_res 120  swap_res 120  "
+                "coset None\n"
+                "orthogonality control -> ValueError: g2_membership: g is not "
+                "orthogonal — (g^T g)[0][0] = 4, expected 1"
+            ),
+            'why': (
+                'It shows in one call why the obvious name would be a LIE: '
+                '-I commutes with BOTH triality generators (Ad(-I) = I_28 '
+                'exactly) and is not an octonion automorphism at all, failing '
+                'multiplicativity 64/64 — and det cannot separate them either, '
+                'since (-1)^8 = 1. So the commutator verdict ships as '
+                'fixed_mod_center and in_g2 is decided by multiplicativity.'
+            ),
+            'worked': (
+                'from srmech.physics.qm.so8 import g2_membership\n'
+                'minus_i = [[-1 if i == j else 0 for j in range(8)]\n'
+                '           for i in range(8)]\n'
+                'r = g2_membership(minus_i)\n'
+                'print("-I  in_g2", r["in_g2"], " mult",\n'
+                '      r["multiplicativity_failures"], "/", '
+                'r["octonion_pairs"])\n'
+                '# -> -I  in_g2 False  mult 64 / 64\n'
+                'print("-I  fixed_mod_center", r["fixed_mod_center"],\n'
+                '      " tau_res", r["tau_residual"], " swap_res", '
+                'r["swap_residual"])\n'
+                '# -> True 0 0   BOTH commutators vanish: "fixed" would lie\n'
+                'print("-I  center_coset", r["center_coset"], " det", '
+                'r["determinant"],\n'
+                '      " outer", r["induced_outer_class"])\n'
+                '# -> minus_G2 1 inner   det does NOT separate G2 from -G2\n'
+                'ident = [[1 if i == j else 0 for j in range(8)] '
+                'for i in range(8)]\n'
+                'ri = g2_membership(ident)\n'
+                'print("I   in_g2", ri["in_g2"], " center_coset", '
+                'ri["center_coset"])\n'
+                '# -> I   in_g2 True  center_coset G2   the positive control\n'
+                'g2_membership([[2 if i == j else 0 for j in range(8)]\n'
+                '               for i in range(8)])\n'
+                '# -> ValueError: g is not orthogonal\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: whether an 8x8 orthogonal g (in the OCTONION '
+            'basis e0..e7, not 28-dim coordinates) lies in G2 = Aut(O), '
+            'decided by octonion multiplicativity over the 64 basis pairs; '
+            'and, separately, whether Ad(g): X -> g X g^T centralises the two '
+            'triality generators tau and S_B, reported as exact nonzero-entry '
+            'residuals out of 784. WHEN to reach for it: whenever you have a '
+            'candidate octonion automorphism or a candidate triality-fixed '
+            'element. What you would otherwise wrongly hand-roll is a '
+            'commutator test called "is triality fixed" — and that is measured '
+            'to be a LIE. Ad(-I) = I_28 exactly, so -I commutes with '
+            'everything while failing multiplicativity 64/64; at scale it is '
+            '1344 counterexamples, not one, because the commutators see '
+            'PSO(8) = SO(8)/{+-I} and cannot separate g from -g. det does not '
+            'rescue it either ((-1)^8 = 1). So the commutator verdict is '
+            'fixed_mod_center, the word G2 belongs to in_g2, and center_coset '
+            'names which side of the +-I boundary you landed on. BOTH '
+            'residuals are computed even though the second is redundant by '
+            'theorem, because a redundant condition is a DETECTOR: the '
+            'impossible cell RAISES as a check on the shipped tau / S_B, not '
+            'as input validation. induced_outer_class returns inner FORCED by '
+            'the two commutators, since in S3 the 3-cycle\'s centraliser and a '
+            'transposition\'s intersect trivially. HOW it relates to its '
+            'siblings: g2_subalgebra is the LIE-ALGEBRA object (the 14 '
+            'derivations) where this is the GROUP one; so8_bracket_certificate '
+            'is the 28-dim peer deciding bracket preservation; and '
+            'triality_frame_action cannot substitute — measured, it refuses '
+            'Ad(g) for 32 of 32 monomial cycling elements on a Cartan escape.'
+        ),
+    },
+    'srmech.physics.qm.triality.triality_frame_action': {
+        'example': {
+            'output': (
+                "tau  frame_action {'v': 's', 's': 'c', 'c': 'v'}  order 3\n"
+                "S_B  frame_action {'v': 's', 's': 'v', 'c': 'c'}  "
+                "fixed ('c',)\n"
+                "spinor_parity {'s': 1, 'c': 0}   (8s ODD, 8c EVEN - MEASURED)\n"
+                "weight_table_entries 32 = 4 x 8   distinct_weights 24\n"
+                "cartan_block row 0 ((-1, 2), (-1, 2), (-1, 2), (1, 2))\n"
+                "wrong-shape control -> ValueError: triality_frame_action: "
+                "must be 28x28; got (27, 28)"
+            ),
+            'why': (
+                'The two label actions the module carried as HARD-CODED dicts '
+                'through rc460 come back out of the 28x28 matrices themselves, '
+                'in exact Q, with no constant consulted — and the spinor '
+                'parity that separates 8s from 8c is READ off the shipped '
+                'S_B / S_C rather than chosen, which is the bit that makes '
+                'the classification a measurement instead of a convention.'
+            ),
+            'worked': (
+                'from srmech.physics.qm.triality import (\n'
+                '    triality_automorphism, triality_swap, '
+                'triality_frame_action)\n'
+                'tau = triality_frame_action(triality_automorphism())\n'
+                "tau['frame_action']\n"
+                "# -> {'v': 's', 's': 'c', 'c': 'v'}   the 3-cycle, READ off "
+                'the matrix\n'
+                "tau['order']\n"
+                '# -> 3\n'
+                'swap = triality_frame_action(triality_swap())\n'
+                "swap['frame_action']\n"
+                "# -> {'v': 's', 's': 'v', 'c': 'c'}   a transposition\n"
+                "swap['fixed_frames']\n"
+                "# -> ('c',)   S_B FIXES 8c, which is what makes it the "
+                'Z2 half\n'
+                "tau['spinor_parity']\n"
+                "# -> {'s': 1, 'c': 0}   8s carries the ODD-sign half-integer "
+                'weights\n'
+                "tau['weight_table_entries'], tau['distinct_weights']\n"
+                '# -> (32, 24)   4 Cartan coords x 8 weights per frame; '
+                '24 distinct in all\n'
+                "tau['cartan_block'][0]\n"
+                '# -> ((-1, 2), (-1, 2), (-1, 2), (1, 2))   exact Q, every '
+                'entry +-1/2\n'
+                'triality_frame_action([[0.0] * 28] * 27)\n'
+                '# -> ValueError\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: which of 8v / 8s / 8c a 28x28 so(8) '
+            'automorphism sends each frame to, MEASURED off the matrix in '
+            'exact Q. The three 8-dimensional reps are separated by their '
+            'WEIGHT SYSTEMS; restricted to the standard Cartan '
+            '<E01,E23,E45,E67> the frame with Cartan block A_f carries weights '
+            '+- the rows of A_f, so the action is the exact-Q set match '
+            '{+- rows of A_f . A_phi} == W_g — Class D, a pattern-match on a '
+            'set, composed with Class C, the +- orientation closure (a '
+            'closure, never an abs()). It returns the permutation, its order, '
+            'the fixed frames, the 4x4 Cartan block as (num, den) pairs, all '
+            'three 8-element weight tables, and the spinor parity. '
+            'WHEN to reach for it: whenever you have a 28x28 element of '
+            'Out(Spin(8)) and need to know what it DOES to the three labels — '
+            'and specifically instead of reading tau_label_action out of '
+            'triality_rep_dictionary and trusting it. Through rc460 that field '
+            'was a hard-coded module dict whose only independent derivation '
+            'lived in a note script and a test, neither of which ships, while '
+            'the value itself was emitted into describe(), the MCP tool list '
+            'and the compiled-in C registry. What you would otherwise wrongly '
+            "hand-roll is a char-poly probe over all 28 generators' companion "
+            'solves — correct, and about four orders of magnitude slower: this '
+            'op is 5.2 ms because all three shipped maps preserve that Cartan '
+            'span exactly, with every induced entry in {-1/2, 0, +1/2}. A map '
+            'that does not preserve it is REFUSED with a ValueError naming the '
+            'escaping coordinate, never answered approximately. '
+            'THE RECONCILIATION, 4 x 8 = 32: a frame is an 8-dimensional rep, '
+            'and the datum that fixes which one it is has exactly 8 weights x '
+            '4 Cartan coordinates = 32 exact rationals in it. Both halves are '
+            'in the payload so the reduction from 8 dimensions to 4 is '
+            'inspectable rather than asserted, next to the computed 24-element '
+            'union of the three disjoint weight sets. It can return otherwise: '
+            'driven over the six elements of <S_B, S_C> = S3 it returns six '
+            'DISTINCT permutations, every element of Sym(3), including the '
+            'third transposition S_B.S_C.S_B (v fixed, s <-> c) that no '
+            'shipped constant names. '
+            'SIBLINGS: triality_automorphism() and triality_swap() supply the '
+            'matrices and are what you pass in; triality_cycle() is the LABEL '
+            'step and closes at order 3 by construction, so it can never '
+            'disagree with a matrix and is not a check on one; '
+            'triality_rep_dictionary() consumes the same label actions to '
+            'derive the V4 bridge — this op is what re-derives its inputs; '
+            'spin8_center() supplies the rep LABELLING (which central '
+            'involution kills which rep) that made the labels readable at all.'
+        ),
+    },
     "srmech.physics.qm.triality.triality_relation_residual": {"example": {"input": {"g_c": "bc", "g_s": "bs", "g_v": "so8_adjoint_basis()[14]"}, "output": "correct companions (a derivation, g_s = g_c = g_v): 0.0\ncorrect companions of L_{e_1}: 0.0\nWRONG: feed L_{e_1} its own copy as companions: 112.0\nWRONG: swap g_s and g_c of L_{e_1}: 96.0", "why": "It discriminates hard: 0.0 for a correct triple, 112.0 for the naive 'companions equal the generator' guess and 96.0 for merely swapping g_s with g_c - so a wrong companion pair cannot slip through as rounding.", "worked": "from srmech.physics.qm.so8 import g2_subalgebra, so8_adjoint_basis\nfrom srmech.physics.qm.triality import (triality_companions,\n                               triality_relation_residual)\nD = g2_subalgebra()[0]\nprint('derivation, g_s = g_c = g_v:',\n      triality_relation_residual(D, D, D))\nL1 = so8_adjoint_basis()[14]\nbs, bc = triality_companions(L1)\nprint('correct companions of L_{e_1}:',\n      triality_relation_residual(L1, bs, bc))\nprint('WRONG - feed L_{e_1} its own copy:',\n      triality_relation_residual(L1, L1, L1))\nprint('WRONG - swap g_s and g_c:',\n      triality_relation_residual(L1, bc, bs))"}, "explanation": "WHAT: the scalar deviation sum_ij ||g_v(e_i . e_j) - g_s(e_i) . e_j - e_i . g_c(e_j)|| over all 64 octonion basis pairs. 0.0 exactly when (g_s, g_c) are correct companions of g_v. The per-pair Euclidean norms are the Class-N mat_norm, and the scalar accumulator is reduced through the Class-K pin-slot magnitude - never Python abs(). Any argument that is not 8x8 raises. WHEN: verifying a companion pair you obtained some other way, showing that g2 derivations are triality-fixed (g_s = g_c = g_v gives 0.0), or as a regression check on the companion solver. The two WRONG rows in the worked run are the point: a residual op is only useful if it is large when the input is wrong, and this one is O(100) against a generator norm of ~4. SIBLINGS you would otherwise re-derive: triality_companions() PRODUCES the pair this checks; srmech.physics.qm.gauge.lie_algebra_residual() is the bracket peer, srmech.physics.qm.spin.pauli_clifford_residuals() and srmech.physics.qm.relativistic.clifford_residuals() the Clifford peers, and srmech.physics.qm.sm.ckm_unitarity_residual() the unitarity peer - all are 'one scalar certifies the relation' ops, so match the op to the relation rather than writing a new one."},
     "srmech.physics.qm.triality.triality_swap": {"example": {"input": {}, "output": "S_B.shape = (28, 28)\n||S_B^2 - I|| = 0.0   (order 2 - an involution)\ndim Fix(S_B) = tr((I+S_B)/2) = 21.0   (= dim so(7) = 21)\nS_C = S_B tau; ||S_C^2 - I|| = 0.0\ndim Fix(S_C) = tr((I+S_C)/2) = 21.0", "why": "S_B squares to the identity EXACTLY and its fixed space reads 21.0 on the nose - and recovering the SECOND involution as S_C = S_B tau shows the pair generates S3 = Out(Spin(8)).", "worked": "from srmech.physics.qm.triality import triality_swap, triality_automorphism\nfrom srmech.math.laplacian import mat_matmul, mat_norm\nS = triality_swap()\nI = [[1.0 if i == j else 0.0 for j in range(28)] for i in range(28)]\nS2 = mat_matmul(S, S)\nprint('||S_B^2 - I|| =', mat_norm(\n    [S2[i, j] - I[i][j] for i in range(28) for j in range(28)]))\nprint('dim Fix(S_B) = tr((I+S_B)/2) =',\n      sum((I[i][i] + S[i, i]) / 2.0 for i in range(28)))\nS_C = mat_matmul(S, triality_automorphism())   # tau = S_B S_C\nSC2 = mat_matmul(S_C, S_C)\nprint('||S_C^2 - I|| =', mat_norm(\n    [SC2[i, j] - I[i][j] for i in range(28) for j in range(28)]))\nprint('dim Fix(S_C) =',\n      sum((I[i][i] + S_C[i, i]) / 2.0 for i in range(28)))"}, "explanation": "WHAT: the 28x28 Z2 companion involution S_B in the shared E_pq frame. S_B^2 = I; Fix(S_B) = so(7), dim 21 - the D4 --Z2--> B3 Dynkin reflection. Together with the order-3 tau it generates S3 = Out(Spin(8)). Exact-rational underneath, so the involution residual is 0.0. WHEN: you need the CHIRALITY (Z2) half of triality rather than the order-3 cycle: the B3 fold, an so(7)-invariant projection, or the second involution S_C = S_B . tau, which the worked run recovers and checks. The (I + S)/2 trace idiom reads a Z2 fixed-space dimension the same cheap way (I + tau + tau^2)/3 reads the Z3 one. SIBLINGS you would otherwise re-derive: so7_subalgebra() already returns a BASIS of Fix(S_B) as 21 matrices - do not compute the nullspace of S_B - I yourself; triality_automorphism() is the order-3 PRODUCT, and using S_B alone where tau is meant gives Fix = 21 instead of 14, which is the single most common triality error; srmech.cascade.chiral_flip / net_chirality are the small Class-C chirality atoms - S_B is the 28-dim so(8) instance of the same idea, not a substitute for them."},
     "srmech.rbs_lm.encode_aboutness": {"example": {"input": {"D": "8192", "df": "the 57-op hdc doc-frequency table", "n_docs": "57", "text": "'flip the gamma5 chirality axis'"}, "output": "HV(8192, sectors=4); nearest registered op = srmech.math.hdc.klein4_chirality_flip_gamma5 at 0.6212 (chance 0.25)", "why": "grounding the live 57-op Class-M registry puts all four probe utterances at rank 1 with name-weighting (two of them would be rank 2 and 3 without it) — and the empty 'rank' result shows the limit: it searches the REGISTRY, not the tree.", "worked": "from srmech.math import hdc\nfrom srmech.introspect.tool_schema import get_tool_schema, warmup_all\nfrom srmech.rbs_lm import encode_aboutness\nfrom srmech.rbs_lm.grounding import _aboutness_tokens, _doc_frequencies\nwarmup_all(); D = 8192\ntools = [t for t in get_tool_schema().tools if t.category == 'hdc']   # 57 ops\ndocs = [_aboutness_tokens(t.name.split('.')[-1])\n        + _aboutness_tokens(t.summary) for t in tools]\ndf, n_docs = _doc_frequencies(docs)           # n_docs -> 57, gate at df >= 19\nsorted(df.items(), key=lambda kv: -kv[1])[:8]\n# -> [('the',47), ('4',36), ('klein',32), ('1',30), ('of',28), ('0',27),\n#     ('bind',19), ('2',19)]          exactly the catalog-wide glue\nidx = [(t.name, encode_aboutness(t.summary, D=D, df=df, n_docs=n_docs,\n                                 name=t.name.split('.')[-1])) for t in tools]\nq = encode_aboutness('flip the gamma5 chirality axis', D=D,\n                     df=df, n_docs=n_docs)    # name=None for a QUERY\nsorted(((float(hdc.klein4_similarity(q, v)), n) for n, v in idx),\n       reverse=True)[:3]\n# -> [(0.6212, 'srmech.math.hdc.klein4_chirality_flip_gamma5'),\n#     (0.4789, 'srmech.math.hdc.klein4_chirality_flip_omega7'),\n#     (0.4022, 'srmech.math.hdc.klein4_project_axis')]\n# four probes, name-weighted index vs an index built WITHOUT name= :\n#   'xor two hypervectors together'               -> hdc.bind        1 | 1\n#   'flip the gamma5 chirality axis'              -> flip_gamma5     1 | 2\n#   'the seven dimensional cross product'         -> hdc.cross7      1 | 3\n#   'hamming distance between two binary vectors' -> hdc.hamming     1 | 1\n# the ADDRESSED token backend is NOT structure-bearing -- same query:\n#   token_mode='address' -> top-3 all 0.2478/0.2454/0.2441 = the 0.25 floor\n# and the honest null: nothing registered matches 'rank'\n[t.name for t in get_tool_schema().tools if 'rank' in t.name.lower()]   # -> []"}, "explanation": "WHAT — one natural-language utterance (or an op's name + summary) becomes ONE Klein-4 'aboutness' hypervector, so 'which srmech op does this?' is a similarity argmax rather than a hand-built encoder. Three levers make it work and all three are exposed: a doc-frequency GATE (a token appearing in a large fraction of the catalog is function-word glue, not aboutness); NAME-WEIGHTING (an op's own name is its identity — 3x unigram + 2x bigram, and name tokens are NEVER gated); and ORDER-AWARE BIGRAMS (adjacency binds, so (klein,4) != (klein,gordon) on the shared unigram 'klein'). Plus letter-digit tokenization on both sides so a query spelling 'klein-4' aligns with the 'klein4' in an op name. WHEN — reach for it BEFORE writing an op you suspect might already exist. Encode the registry once, encode your intent, take the argmax. The default token_mode is 'byteglyph' (klein4_encode_bytes — STRUCTURE-BEARING, morphology survives); 'address' is the F1008 orthogonal dual and is NOT structure-bearing, so a query phrased in different words than the summary collapses to the 0.25 floor under it. HONEST LIMIT — it can only ground what is REGISTERED. srmech.math.qmat.QMat.rank ships (qmat.py:447, C peer srmech_qmat_rank) but is a METHOD, not a ToolEntry, so no aboutness query can surface it; 'exact rank of a matrix' returns hdc ops. Grounding is a registry search, not a source search — read a low top-1 score as 'ask again' or 'grep', never as 'it does not exist'. SIBLINGS — srmech.rbs_lm.grounding.ground_tool_schema is the one-call convenience over the WHOLE live registry built on this primitive (a helper, not a separate registered tool); klein4_encode_bytes / klein4_address are the two token backends; klein4_similarity does the scoring; klein4_bundle (via an odd-count pad that is a klein4_address atom) does the reduction. classification is composition_of_c — every composed leaf reaches C; the tokenizer and gate are Python selection glue."},
@@ -9924,4 +10316,341 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
             'weight_multiplicities supplies the operand it folds; '
             'dominant_weight supplies the dimensions its dimension law checks '
             'against.'},
+    # ── rc461 (`#T1183`) — the AFFINE / KAC-WALTON layer. Every
+    # transcript below is a REAL captured result, run against the
+    # shipped module on the branch that ships it.
+    'srmech.math.weight_lattice.integrable_weights': {
+        'example': {
+            'input': {'algebra': 'D4', 'level': 1},
+            'output': "weights ((0,0,0,0), (0,0,0,1), (0,0,1,0), (1,0,0,0)), "
+                      "n_weights 4, marks (1, 2, 1, 1), h_vee 6, "
+                      "centre_invariant_factors (2, 2)",
+            'worked': "from srmech.math.weight_lattice import "
+                      "integrable_weights\n"
+                      "integrable_weights('D4', 1)['marks']\n"
+                      "# -> (1, 2, 1, 1)   DERIVED from the highest root, "
+                      "not recalled\n"
+                      "integrable_weights('D4', 1)['h_vee']\n"
+                      "# -> 6   1 + sum(marks), cross-checked against "
+                      "|Delta|/rank\n"
+                      "integrable_weights('D4', 1)['weights']\n"
+                      "# -> ((0,0,0,0), (0,0,0,1), (0,0,1,0), (1,0,0,0))\n"
+                      "#    FOUR, not five: the mark-2 node cannot be "
+                      "excited at level 1\n"
+                      "integrable_weights('D4', 1)['centre_invariant_"
+                      "factors']\n"
+                      "# -> (2, 2)   P/Q by Smith normal form: the KLEIN "
+                      "four-group,\n"
+                      "#             not the cyclic group of order 4\n"
+                      "integrable_weights('A2', 2)['weights']\n"
+                      "# -> ((0,0), (0,1), (0,2), (1,0), (1,1), (2,0))   "
+                      "su(3)_2 has 6\n"
+                      "integrable_weights('A1', 5)['n_weights']\n"
+                      "# -> 6   su(2)_k has k+1 primaries\n",
+            'why': 'D4 is the case that shows the marks are load-bearing '
+                   'rather than decorative: level 1 has FOUR primaries and '
+                   'not five precisely because one node carries mark 2, and '
+                   'the count 4 is the order of the centre the payload '
+                   'reports independently as (2, 2).'},
+        'explanation':
+            'WHAT it computes: the level-truncated dominant stratum — every '
+            'weight with sum_j mark_j * lambda_j <= level, which is exactly '
+            'the set of integrable highest weights of the affine algebra at '
+            'that level, plus the derived marks, dual Coxeter number and the '
+            'centre P/Q as invariant factors. Class E, the catalog '
+            'enumeration; the level inequality is the Class-K wall test and '
+            'the address is Class A. '
+            'WHEN to reach for it: whenever you need the PRIMARIES of a '
+            'level-k theory — the legal operands of affine_fusion_'
+            'multiplicities, the rows and columns of affine_modular_s_matrix, '
+            'or simply the answer to "how many primaries does su(3)_2 have". '
+            'What you would otherwise wrongly hand-roll: the marks. Writing '
+            '(1,1,1,1) for D4 instead of the true (1,2,1,1) gives FIVE '
+            'level-1 primaries instead of four, and every downstream S-matrix '
+            'and fusion table built on it is then a well-formed wrong answer '
+            'with no crash. This op derives them from the root system '
+            'instead, and cross-checks h_vee against |Delta|/rank. '
+            'SIBLINGS: alcove_fold folds an arbitrary weight into this set; '
+            'affine_fusion_multiplicities and verlinde_fusion_multiplicities '
+            'both take their operands from it. On the classical side '
+            'dominant_weight is the untruncated label object.'},
+    'srmech.math.weight_lattice.alcove_fold': {
+        'example': {
+            'input': {'algebra': 'A2', 'weight': [2, 2], 'level': 2},
+            'output': "folded (1, 1), sign -1, steps 1, step_bound 2, "
+                      "q_initial 19, q_final 9, monovariant_quantum 10",
+            'worked': "from srmech.math.weight_lattice import alcove_fold\n"
+                      "alcove_fold('A2', (2, 2), 2)['folded']\n"
+                      "# -> (1, 1)    the 27 folds back onto the 8\n"
+                      "alcove_fold('A2', (2, 2), 2)['sign']\n"
+                      "# -> -1        and it arrives with a MINUS, which is "
+                      "what cancels\n"
+                      "alcove_fold('A2', (2, 2), 2)['q_initial'], "
+                      "alcove_fold('A2', (2, 2), 2)['q_final']\n"
+                      "# -> (19, 9)   the monovariant fell by 10 ...\n"
+                      "alcove_fold('A2', (2, 2), 2)['monovariant_quantum']\n"
+                      "# -> 10        ... which is EXACTLY quantum * a_0 = "
+                      "10 * (-1)\n"
+                      "alcove_fold('A2', (2, 2), 2)['step_bound']\n"
+                      "# -> 2         computed BEFORE the loop; 1 step was "
+                      "taken\n"
+                      "alcove_fold('A2', (0, 3), 2)['on_wall']\n"
+                      "# -> True      a wall weight: sign 0, folded None, "
+                      "contributes nothing\n"
+                      "alcove_fold('A1', (7,), 2)['monovariant_quantum']\n"
+                      "# -> 16        4*kappa for A1, against 2*kappa for "
+                      "A2 -- derived,\n"
+                      "#              which is why A1 is in the suite at all\n"
+                      "alcove_fold('D4', (0, 0, 0, 1), 1)\n"
+                      "# -> ValueError\n",
+            'why': 'The fold of (2,2) is the single step that turns the '
+                   'classical 8 (x) 8 into the level-2 answer: one '
+                   'reflection, one sign flip, and a monovariant drop of '
+                   'exactly quantum * a_0. The D4 line is the termination '
+                   'scope refusing an algebra it cannot prove it halts on, '
+                   'which is a different object from a slower fold.'},
+        'explanation':
+            'WHAT it computes: the iterative signed fold of a weight into '
+            'the level-k alcove under the affine Weyl dot action, returning '
+            'the folded label, its +-1 sign (0 exactly on a wall), and the '
+            "loop's own telemetry — steps taken, the bound computed before "
+            'the loop, and the monovariant before and after. Class K: the '
+            '+-1 ledger at the affine wall IS the instrument. '
+            'WHEN to reach for it: when you need to know WHERE a weight '
+            'lands at a given level and with what sign — the per-constituent '
+            'detail that affine_fusion_multiplicities accumulates away. It '
+            'is also the op to read when a fusion answer surprises you: each '
+            'classical constituent has exactly one fate (wall, fixed, or '
+            'folded-with-sign) and this op names it. '
+            'What you would otherwise wrongly hand-roll: the loop. The '
+            'affine Weyl group is INFINITE, so the enumerate-and-scan shape '
+            'of the classical fold cannot be reused, and the obvious '
+            'replacement — while some label is negative, reflect — is an '
+            'unbounded loop whose termination is an assumption. This op '
+            'carries an exact integer certificate instead: the monovariant '
+            'sum-of-squares falls by exactly quantum * a_i every step, the '
+            'law is checked on EVERY step rather than once, and the step '
+            'count is asserted against a bound computed before the loop. '
+            'SIBLINGS: affine_fusion_multiplicities is this op summed over '
+            "the classical constituents; integrable_weights is the set it "
+            'folds INTO; the classical _strictly_dominant_fold inside '
+            'tensor_product_multiplicities is the finite, enumerated '
+            'ancestor this op replaces.'},
+    'srmech.math.weight_lattice.affine_fusion_multiplicities': {
+        'example': {
+            'input': {'algebra': 'A2', 'a': [1, 1], 'b': [1, 1], 'level': 2},
+            'output': "constituents (((0,0), 1), ((1,1), 1)), n_truncated 3, "
+                      "singlet_multiplicity 1, route 'kac_walton'",
+            'worked': "from srmech.math.weight_lattice import "
+                      "affine_fusion_multiplicities as fuse\n"
+                      "fuse('A2', (1, 1), (1, 1), 2)['classical_"
+                      "constituents']\n"
+                      "# -> (((0,0),1), ((0,3),1), ((1,1),2), ((2,2),1), "
+                      "((3,0),1))\n"
+                      "#    the untruncated 8 (x) 8 = 1 + 8 + 8 + 10 + "
+                      "10bar + 27\n"
+                      "fuse('A2', (1, 1), (1, 1), 2)['constituents']\n"
+                      "# -> (((0,0),1), ((1,1),1))     at level 2 that is "
+                      "1 + 8\n"
+                      "#    10 and 10bar hit walls; 27 folds onto the 8 "
+                      "with sign -1\n"
+                      "#    and cancels one of its two copies\n"
+                      "fuse('A2', (1, 1), (1, 1), 40)['constituents']\n"
+                      "# -> the classical answer again: at high level the "
+                      "truncation is inert\n"
+                      "fuse('A1', (1,), (1,), 2)['constituents']\n"
+                      "# -> (((0,),1), ((2,),1))       Ising: sigma x sigma "
+                      "= 1 + epsilon\n"
+                      "fuse('A1', (2,), (2,), 2)['constituents']\n"
+                      "# -> (((0,),1),)                epsilon x epsilon = "
+                      "1\n"
+                      "fuse('A2', (1, 1), (1, 1), 1)\n"
+                      "# -> ValueError\n",
+            'why': 'The level-2 answer is not a subset of the classical one '
+                   '- it is a SIGNED sum, and the 27 arriving with a minus '
+                   'is what removes one of the two 8s. A truncation that '
+                   'only deleted terms would leave 1 + 8 + 8. The final line '
+                   'is the integrability guard: the adjoint has level 2, so '
+                   'it is not a legal operand at level 1, and that refusal '
+                   'is up front rather than a silent empty answer.'},
+        'explanation':
+            'WHAT it computes: the level-truncated fusion multiplicities by '
+            'Kac-Walton, N^(k)_ab^c = sum over the affine Weyl group of '
+            'det(w) * N_ab^{w . c}, as a signed integer count. Take the '
+            'classical constituents, fold each into the level-k alcove '
+            'carrying its +-1 sign, drop the wall cases, accumulate. Class '
+            'K. The payload carries the classical operand alongside the '
+            'answer so the truncation is visible on the payload face. '
+            'WHEN to reach for it: any WZW / affine-Lie fusion question at '
+            'finite level — which primaries appear in a product, with what '
+            'multiplicity, and whether the vacuum is among them. '
+            'What you would otherwise wrongly hand-roll: two things. First, '
+            'truncating by DELETION (keeping the classical constituents that '
+            'happen to be integrable) - that is not the Kac-Walton rule and '
+            'it gets 8 (x) 8 at level 2 wrong by an entire 8. Second, '
+            'feeding a non-integrable operand: measured before the guard '
+            'existed, of four such pairs two raised downstream and two '
+            'returned an EMPTY constituent set silently, so the domain is '
+            'checked up front instead. '
+            'SIBLINGS: verlinde_fusion_multiplicities computes the SAME '
+            'coefficients by a completely different instrument (an S-matrix '
+            'contraction in a number field) and carries D4 where this one '
+            'refuses - the two agree on 199 measured operand pairs, which is '
+            'what makes the pair a consistency oracle. alcove_fold is the '
+            'per-constituent detail. srmech.math.groups.fusion_multiplicities '
+            'is the FINITE-GROUP object of the same name and is a different '
+            'thing: Class L, an eigenbasis contraction.'},
+    'srmech.math.weight_lattice.affine_modular_s_matrix': {
+        'example': {
+            'input': {'algebra': 'D4', 'level': 1},
+            'output': "rational_numerator ((49,49,49,49), (49,49,-49,-49), "
+                      "(49,-49,49,-49), (49,-49,-49,49)), zeta_order 14, "
+                      "scale_squared_denominator 9604, weyl_order 192, "
+                      "centre_invariant_factors (2, 2)",
+            'worked': "from srmech.math.weight_lattice import "
+                      "affine_modular_s_matrix as smat\n"
+                      "from srmech.math.groups import (character_table, "
+                      "cyclic_group,\n"
+                      "                                semidirect_product)\n"
+                      "s = smat('D4', 1)\n"
+                      "s['zeta_order']\n"
+                      "# -> 14    MEASURED by gcd-reducing the exponents: "
+                      "not 28 (the raw\n"
+                      "#         scaling) and not 7 (a reading of kappa "
+                      "alone)\n"
+                      "s['rational_numerator']\n"
+                      "# -> every entry +-49\n"
+                      "s['scale_squared_denominator']\n"
+                      "# -> 9604   = 98^2, DERIVED from A A^dagger = n I, "
+                      "not substituted\n"
+                      "#           from kappa^rank * |P/Q| (which it "
+                      "equals, as a check)\n"
+                      "# the acceptance test: sqrt(|Z|) . S IS the centre's "
+                      "character table\n"
+                      "v4 = semidirect_product(cyclic_group(2)"
+                      "['cayley_table'],\n"
+                      "                        cyclic_group(2)"
+                      "['cayley_table'],\n"
+                      "                        [[0, 1], [0, 1]])"
+                      "['cayley_table']\n"
+                      "rows = tuple(tuple(c[0] for c in r)\n"
+                      "             for r in character_table(v4)['table'])\n"
+                      "a00 = s['rational_numerator'][0][0]\n"
+                      "mine = tuple(tuple(x // a00 for x in r)\n"
+                      "             for r in s['rational_numerator'])\n"
+                      "mine == rows\n"
+                      "# -> False   NOT bit-for-bit as ordered rows -- "
+                      "character_table\n"
+                      "#            SORTS its rows and this op orders by "
+                      "PRIMARY\n"
+                      "tuple(sorted(mine)) == tuple(sorted(rows))\n"
+                      "# -> True    bit-for-bit once both sit in the same "
+                      "documented order\n"
+                      "smat('A1', 2)['is_rational_numerator']\n"
+                      "# -> False   su(2)_2 lives in Z[zeta_8] and does NOT "
+                      "reduce to Z\n",
+            'why': 'D4 level 1 is the case where two independently shipped '
+                   'instruments meet: a Weyl sum over 192 elements in '
+                   'Z[zeta_14] and a finite-group character table over '
+                   'Z[zeta_2]. They agree exactly, and the transcript pins '
+                   'BOTH halves of that -- the raw comparison is False and '
+                   'the sorted one is True -- so a later claim of raw '
+                   'bit-for-bit equality cannot creep back in. The su(2)_2 '
+                   'line is the control: is_rational_numerator is not '
+                   'always True.'},
+        'explanation':
+            'WHAT it computes: the Kac-Peterson modular S-matrix of a '
+            'level-k affine theory, exactly. S = c * A with A_lm = sum over '
+            'the ORDINARY Weyl group of det(w) * zeta^(-(w(l+rho), m+rho)); '
+            'the op ships the integer matrix A over Z[zeta_e] together with '
+            'the integer n satisfying |c|^2 = 1/n, rather than a float '
+            'matrix. Class I, the cyclotomic zeta-power arithmetic. It is '
+            'explicitly NOT Class L: it runs no spectral decomposition, and '
+            'that S diagonalises the fusion algebra is a theorem about it '
+            'rather than an operation it performs. '
+            'WHEN to reach for it: modular data - S, the fusion ring via '
+            'Verlinde, quantum dimensions, or any question that needs the '
+            'EXACT entries rather than a numerical approximation. '
+            'What you would otherwise wrongly hand-roll: three things, all '
+            'usually recalled rather than derived. The dual Coxeter number '
+            '(here read off the marks of the derived highest root and '
+            'cross-checked against |Delta|/rank). The RING - assuming '
+            'Z[zeta_kappa] gives zeta_7 for D4 level 1, which cannot express '
+            'the half-integer pairings the spinor weights produce; the op '
+            'measures the order by gcd-reducing the exponents actually used '
+            'and lands on zeta_14. And the NORMALISATION - substituting '
+            '|c|^2 = 1/(kappa^rank |P/Q|) from memory instead of computing '
+            'A A^dagger and reading n off unitarity, which is what makes the '
+            'formula a cross-check here rather than an input. '
+            'SIBLINGS: verlinde_fusion_multiplicities is the consumer that '
+            'turns this into fusion coefficients; integrable_weights supplies '
+            'the primaries indexing it; srmech.math.groups.character_table is '
+            'the finite-group object it coincides with at level 1, and '
+            'zeta_mul is the ring multiply both of them are built on.'},
+    'srmech.math.weight_lattice.verlinde_fusion_multiplicities': {
+        'example': {
+            'input': {'algebra': 'D4', 'a': [0, 0, 0, 1], 'b': [0, 0, 1, 0],
+                      'level': 1},
+            'output': "constituents (((1,0,0,0), 1),), route 'verlinde', "
+                      "zeta_order 14, scale_squared_denominator 9604",
+            'worked': "from srmech.math.weight_lattice import (\n"
+                      "    verlinde_fusion_multiplicities as verlinde,\n"
+                      "    affine_fusion_multiplicities as fuse)\n"
+                      "# D4 -- an algebra the alcove fold REFUSES, because "
+                      "its affine\n"
+                      "# diagram is a star and the monovariant argument "
+                      "does not carry.\n"
+                      "# This route runs no fold, so it answers.\n"
+                      "verlinde('D4', (0,0,0,1), (0,0,1,0), 1)"
+                      "['constituents']\n"
+                      "# -> (((1,0,0,0), 1),)   spinor x conj-spinor = "
+                      "vector\n"
+                      "verlinde('D4', (0,0,0,1), (0,0,0,1), 1)"
+                      "['constituents']\n"
+                      "# -> (((0,0,0,0), 1),)   every primary is its own "
+                      "inverse:\n"
+                      "#                        the KLEIN four-group, not "
+                      "C4\n"
+                      "# and where both routes run, they agree:\n"
+                      "verlinde('A2', (1,1), (1,1), 2)['constituents'] == \\\n"
+                      "    fuse('A2', (1,1), (1,1), 2)['constituents']\n"
+                      "# -> True    an iterative integer fold and a "
+                      "cyclotomic field\n"
+                      "#            contraction, on the same coefficients\n"
+                      "fuse('D4', (0,0,0,1), (0,0,1,0), 1)\n"
+                      "# -> ValueError\n",
+            'why': 'The two routes share no machinery -- one is an '
+                   'iterative integer reflection with a termination '
+                   'certificate, the other a 192-term Weyl sum followed by '
+                   'division in a number field -- so their agreement is a '
+                   'real consistency oracle rather than a tautology. The '
+                   'final line shows the scope asymmetry that makes both '
+                   'worth shipping.'},
+        'explanation':
+            'WHAT it computes: the level-truncated fusion multiplicities by '
+            'the Verlinde formula, N_ab^c = sum_s S_as S_bs conj(S_cs) / '
+            'S_0s, contracted exactly in Q(zeta_e). Class I. Same '
+            'coefficients as affine_fusion_multiplicities, same payload '
+            'shape, completely different instrument. '
+            'WHEN to reach for it: when the algebra is D4 (the alcove fold '
+            'refuses it), or when you want a fusion answer CHECKED rather '
+            'than merely computed. For speed, prefer '
+            'affine_fusion_multiplicities - this route builds the whole '
+            'S-matrix and contracts over every primary for every output '
+            'label. '
+            'What you would otherwise wrongly hand-roll: the arithmetic. '
+            'Evaluating Verlinde in floating point and rounding to the '
+            'nearest integer is the standard shortcut and it is exactly the '
+            'continuum shadow this stratum exists to avoid; the coefficients '
+            'are integers, so the contraction is done in the exact field and '
+            'a non-integer result RAISES rather than rounding. The |c|^2 '
+            'that survives the contraction is rational (three factors of c '
+            'up, one down) and is read off the unitarity of the numerator '
+            'rather than substituted. '
+            'SIBLINGS: affine_modular_s_matrix supplies S (cached, so a '
+            'sweep over operand pairs builds it once); '
+            'affine_fusion_multiplicities is the co-equal dual construction '
+            'this one is checked against, agreeing on 199 measured operand '
+            'pairs; srmech.math.qalg.Qalg is the exact number-field carrier '
+            'the one genuine division rides.'},
 }

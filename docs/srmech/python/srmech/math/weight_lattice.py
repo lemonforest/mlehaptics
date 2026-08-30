@@ -82,18 +82,52 @@ addresses route through :func:`srmech.amsc.format.sha256_bytes`.
 C-parity (ADR-0009, recorded): this module has no C peer; the
 weight-lattice stratum ships Python-first under the noted-disparity
 ruling, the same sentence the representation stratum already carries.
+
+⚠️ ATTESTATION GAP, RECORDED AND STILL OPEN (rc461 part 3). This module
+names Kac-Walton / Kac-Peterson / Verlinde in prose that ships into
+``describe()``, the MCP tool list and the compiled C registry, with no
+literature anchor — while its sibling ``so8`` build in the SAME rc
+attests every op to a query-verified identifier. An anchor WAS located
+and verified by query, and the full reference with its identifier is
+recorded in **the rc461 part-3 CHANGELOG entry**, deliberately NOT here.
+Two shipped-prose ratchets bound this note from opposite sides and the
+CHANGELOG is the only place that satisfies both: a machine-readable
+identifier in PACKAGE prose enters the citation-manifest coverage
+corpus, which cannot be measured from a session worktree (the corpus
+scopes to zero there, a known false red); and naming the work WITHOUT
+its identifier is an identifier-free citation, which its own ceiling
+forbids. Either form would have been an unvalidatable claim, so the
+reference lives one file away and this note points at it. The
+mitigating fact is unchanged and is the reason
+this is a gap rather than a defect: NOTHING here is recalled from a
+table. The marks come from the highest root, ``h_vee`` is cross-checked
+twice, the cyclotomic ring is measured by gcd-reduction, and the
+S-matrix normalisation is read off unitarity — so there is no numeric
+attestation to carry, only theorem NAMES.
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Sequence, Tuple
+from srmech.math.q import Q
+from functools import lru_cache
+from itertools import product as _cartesian_product
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from srmech.amsc.format import sha256_bytes
+from srmech.math.cyclic import gcd
+from srmech.math.groups import zeta_mul
+from srmech.math.poly import cyclotomic_polynomial
+from srmech.math.qalg import Qalg
 from srmech.math.qmat import QMat
 
 __all__ = [
+    "affine_fusion_multiplicities",
+    "affine_modular_s_matrix",
+    "alcove_fold",
     "dominant_weight",
+    "integrable_weights",
     "tensor_product_multiplicities",
+    "verlinde_fusion_multiplicities",
     "weight_multiplicities",
 ]
 
@@ -150,8 +184,15 @@ A2_GAUGE_ITEMS: Tuple[Tuple[str, Any], ...] = (
     ("metric_scale", A2_METRIC_SCALE),
 )
 
-#: The algebra name every payload carries.  A2 is the only algebra this
-#: module ships; a rank-2 generalisation is deliberately NOT claimed.
+#: The algebra name the CLASSICAL payloads carry.  A2 is the only algebra
+#: the classical stratum above ships.
+#:
+#: ⚠️ **This comment read "A2 is the only algebra this module ships" until
+#: rc461 and is now false**: the affine stratum below ships A1, A2 and D4.
+#: The classical ops (:func:`dominant_weight`,
+#: :func:`weight_multiplicities`, :func:`tensor_product_multiplicities`)
+#: are still A2-only and still hard-code this name; the affine ops take an
+#: ``algebra`` argument and carry whichever name they were asked for.
 A2_NAME = "A2"
 
 
@@ -804,3 +845,1451 @@ def tensor_product_multiplicities(a: Sequence[int],
         "procedure_sha256": anchor_a["procedure_sha256"],
         "fusion_sha256": sha256_bytes(body),
     }
+
+
+# ══════════════════════════════════════════════════════════════════════
+# rc461 — THE AFFINE / KAC-WALTON STRATUM
+# ══════════════════════════════════════════════════════════════════════
+#
+# The classical stratum above answers "what does V_a (x) V_b contain".
+# This one answers the LEVEL-TRUNCATED question — what survives at level
+# k — and it is the same instrument class: a SIGNED INTEGER COUNT.
+#
+# WHY THE INFINITE GROUP IS NOT AN OBSTACLE
+# =========================================
+# W(A2) has six elements and ``_WEYL`` enumerates them.  The AFFINE Weyl
+# group W-hat_k = W (semidirect) kappa·Q^vee is INFINITE, so enumeration
+# cannot survive the widening.  What replaces it is an ITERATIVE fold
+# with an EXACT INTEGER TERMINATION CERTIFICATE:
+#
+#   * in affine Dynkin labels ``a = (a_0, a_1, ..., a_r)`` constrained by
+#     ``sum_j comark_j · a_j == kappa``, EVERY generator — the finite
+#     ``s_1 .. s_r`` and the affine ``s_0`` alike — collapses to ONE
+#     form, ``s_i: a_j -> a_j - C^aff_ij · a_i``;
+#   * the monovariant ``Q(a) = sum_j a_j^2`` falls by EXACTLY
+#     ``quantum · a_i`` on every step, where ``quantum`` is DERIVED from
+#     the affine Cartan matrix (``2·kappa`` for A2, ``4·kappa`` for A1);
+#   * a step fires only when ``a_i < 0``, so the drop is strictly
+#     negative AND integer-quantised at ``>= quantum`` per step;
+#   * ``Q >= kappa^2 / (r + 1)`` on the constraint simplex, so a step
+#     BOUND is computed BEFORE the loop and asserted against inside it.
+#
+# So termination is MEASURED, not assumed, and the per-step law is
+# checked on EVERY step rather than once.
+#
+# ⚠️ THE TERMINATION PROOF IS SCOPED TO A1 AND A2, AND THE CODE ENFORCES
+# THAT RATHER THAN TRUSTING IT.  The quantum collapse needs
+# ``sum_{j != i} a_j == kappa - a_i``, which holds only because the A1
+# and A2 affine diagrams have every node adjacent to every other.  For
+# ``A_n, n >= 3`` (and for D4) that fails and the step could RAISE ``Q``.
+# :func:`_monovariant_quantum` therefore RAISES on any algebra whose
+# affine Cartan does not satisfy the collapse identity — the fold refuses
+# D4 rather than looping on it.
+#
+# WHAT THE S-MATRIX ROUTE REACHES INSTEAD
+# =======================================
+# :func:`affine_modular_s_matrix` is a FINITE Weyl sum with no fold, so
+# the termination question never arises and it carries D4.  That is why
+# :func:`verlinde_fusion_multiplicities` answers for D4 where
+# :func:`affine_fusion_multiplicities` refuses: two genuinely different
+# instruments with two different scopes, each stated.
+#
+# THE ONLY STORED DATA IS A SIMPLE-ROOT REALISATION
+# =================================================
+# Cartan matrices, root systems, the highest root, the marks, the dual
+# Coxeter number, the fundamental weights, rho and the affine Cartan are
+# every one DERIVED from :data:`AFFINE_AMBIENT_ROOTS` at import.  Nothing
+# below is transcribed beside its derivation — the same discipline
+# :func:`_reflection_matrix` already applies to the six classical Weyl
+# matrices, and for the same measured reason.
+#
+# CARRIER: plain ``int`` and tuples of ``int`` everywhere on the wire;
+# ``Q`` (srmech's own exact rational, NOT ``fractions.Fraction`` — that is
+# a STRICT-ZERO banned engine here) for the ONE import-time solve (the
+# fundamental weights off the Cartan inverse), immediately re-integerised
+# against a stored denominator; ``QMat`` for exact determinants; ``Qalg`` over ``Phi_e``
+# for the ONE division that genuinely needs a field (the Verlinde
+# contraction).  NO new carrier TYPE crosses the boundary — the zeta
+# values ship as the integer coordinate vectors
+# :func:`srmech.math.groups.character_table` already mints and
+# :func:`srmech.math.groups.zeta_mul` already reads.
+#
+# C-parity (ADR-0009, recorded): no C peer, for the same reason the
+# classical stratum has none.
+
+#: The simple roots of each shipped algebra, in an integer AMBIENT basis
+#: with the standard inner product.  Every realisation here is
+#: simply-laced with ``(alpha, alpha) == 2``, which is what lets the
+#: reflection ``s_i(v) = v - (v, alpha_i)·alpha_i`` stay integral.
+#:
+#: This dict is the module's ONLY stored Lie data for the affine
+#: stratum.  Cartan matrices, marks, ``h^vee``, fundamental weights and
+#: the affine Cartan are all derived from it.
+AFFINE_AMBIENT_ROOTS: Dict[str, Tuple[Tuple[int, ...], ...]] = {
+    "A1": ((1, -1),),
+    "A2": ((1, -1, 0), (0, 1, -1)),
+    "D4": ((1, -1, 0, 0), (0, 1, -1, 0), (0, 0, 1, -1), (0, 0, 1, 1)),
+}
+
+#: The algebras the affine stratum ships, in payload order.
+AFFINE_ALGEBRAS: Tuple[str, ...] = ("A1", "A2", "D4")
+
+
+def _magnitude(value: int) -> int:
+    """The Class-K pin-slot magnitude of an exact integer — the sign
+    boundary read as a phase boundary, never an ALU ``abs()`` call.  The
+    Class-C re-application, where a caller needs one, is the explicit
+    ``-value`` at the use site."""
+    return value if value >= 0 else -value
+
+
+def _ambient_dot(x: Sequence[int], y: Sequence[int]) -> int:
+    """The standard inner product on the integer ambient basis."""
+    return sum(a * b for a, b in zip(x, y))
+
+
+def _rational_inverse(matrix: Sequence[Sequence[int]]
+                      ) -> List[List[Q]]:
+    """Exact Gauss-Jordan inverse of a small integer matrix over ``Q``.
+
+    Used at import for exactly one thing — solving ``(omega_j, alpha_i) =
+    delta_ij`` for the fundamental weights — and its output is
+    immediately re-integerised against a stored denominator, so no
+    rational carrier reaches any payload.  Raises if the matrix is
+    singular; a Cartan matrix never is.
+
+    ⚠️ rc461 part 3 — the carrier is :class:`srmech.math.q.Q`, NOT
+    ``fractions.Fraction``.  ``tests/test_selfhosting_import_ban.py``
+    makes ``fractions`` a STRICT-ZERO ``BANNED_ENGINE`` for this package
+    (ADR-0005 §2.1: srmech does its own math on its own carrier), and
+    this module was importing it — the ban caught a real violation, not
+    a style point.  ``Q`` is the native ``srmech_rational_*`` carrier and
+    is a drop-in here: construction from ``int``, true division, the
+    ``!= 0`` pivot test, and ``numerator`` / ``denominator`` on the way
+    back out to integers."""
+    size = len(matrix)
+    rows = [[Q(value) for value in row]
+            + [Q(1 if i == j else 0) for j in range(size)]
+            for i, row in enumerate(matrix)]
+    for column in range(size):
+        pivot = None
+        for index in range(column, size):
+            if rows[index][column] != 0:
+                pivot = index
+                break
+        if pivot is None:
+            raise ValueError(
+                f"weight_lattice: the Cartan matrix {matrix} is singular - "
+                f"a Cartan matrix of a semisimple algebra is not "
+                f"(invertibility law; a guard that fires is evidence)")
+        rows[column], rows[pivot] = rows[pivot], rows[column]
+        scale = rows[column][column]
+        rows[column] = [value / scale for value in rows[column]]
+        for index in range(size):
+            if index == column or rows[index][column] == 0:
+                continue
+            factor = rows[index][column]
+            rows[index] = [value - factor * other
+                           for value, other in zip(rows[index], rows[column])]
+    return [row[size:] for row in rows]
+
+
+def _ambient_root_system(roots: Sequence[Sequence[int]]
+                         ) -> Tuple[Tuple[int, ...], ...]:
+    """The FULL root system, by closure of the simple roots under the
+    simple reflections — enumerated, never counted from a formula, so the
+    dual Coxeter number derived from it is a read and not a recall."""
+    seen = {tuple(root) for root in roots}
+    frontier = list(seen)
+    while frontier:
+        current = frontier.pop()
+        for root in roots:
+            image = tuple(x - _ambient_dot(current, root) * y
+                          for x, y in zip(current, root))
+            if image not in seen:
+                seen.add(image)
+                frontier.append(image)
+    return tuple(sorted(seen))
+
+
+def _simple_root_coefficients(inverse: Sequence[Sequence[Q]],
+                              roots: Sequence[Sequence[int]],
+                              vector: Sequence[int]) -> Optional[Tuple[int, ...]]:
+    """The coefficients of ``vector`` in the SIMPLE-ROOT basis, as exact
+    integers, or ``None`` when any coefficient is negative.  Raises if a
+    coefficient is not an integer — a root always has integer expansion
+    coefficients, so a fraction here is a corrupted realisation."""
+    pairings = [_ambient_dot(vector, root) for root in roots]
+    coefficients = []
+    for index in range(len(roots)):
+        value = sum(inverse[index][k] * pairings[k] for k in range(len(roots)))
+        if value.denominator != 1:
+            raise ValueError(
+                f"weight_lattice: {tuple(vector)} has the non-integer "
+                f"simple-root coefficient {value} - a root expands over the "
+                f"simple roots in Z (root-lattice law; a guard that fires is "
+                f"evidence)")
+        coefficients.append(int(value))
+    if any(value < 0 for value in coefficients):
+        return None
+    return tuple(coefficients)
+
+
+def _smith_diagonal(matrix: Sequence[Sequence[int]]) -> Tuple[int, ...]:
+    """The Smith-normal-form diagonal of a square integer matrix, exact.
+
+    Applied to a Cartan matrix this IS the invariant-factor decomposition
+    of ``P / Q`` — the centre of the simply-connected group — which is
+    what makes the D4 acceptance test a DERIVATION rather than a recall
+    of "the centre of Spin(8) is the Klein four-group".  The divisibility
+    chain is asserted before return; a break in it means the elimination
+    is wrong, and a wrong SNF would silently name the wrong group."""
+    work = [list(row) for row in matrix]
+    rows, columns = len(work), len(work[0])
+    diagonal: List[int] = []
+    top = 0
+    while top < rows and top < columns:
+        pivot = None
+        for i in range(top, rows):
+            for j in range(top, columns):
+                if work[i][j] == 0:
+                    continue
+                if (pivot is None
+                        or _magnitude(work[i][j])
+                        < _magnitude(work[pivot[0]][pivot[1]])):
+                    pivot = (i, j)
+        if pivot is None:
+            break
+        work[top], work[pivot[0]] = work[pivot[0]], work[top]
+        for row in work:
+            row[top], row[pivot[1]] = row[pivot[1]], row[top]
+        busy = True
+        while busy:
+            busy = False
+            for i in range(top + 1, rows):
+                if work[i][top] == 0:
+                    continue
+                quotient = work[i][top] // work[top][top]
+                work[i] = [x - quotient * y
+                           for x, y in zip(work[i], work[top])]
+                if work[i][top] != 0:
+                    work[top], work[i] = work[i], work[top]
+                    busy = True
+            for j in range(top + 1, columns):
+                if work[top][j] == 0:
+                    continue
+                quotient = work[top][j] // work[top][top]
+                for row in work:
+                    row[j] -= quotient * row[top]
+                if work[top][j] != 0:
+                    for row in work:
+                        row[j], row[top] = row[top], row[j]
+                    busy = True
+        value = work[top][top]
+        diagonal.append(value if value > 0 else -value)
+        top += 1
+    # ── the divisibility REPAIR pass ──────────────────────────────────
+    # Elimination alone produces a diagonal, NOT the invariant factors:
+    # measured, ``((6, 0), (0, 4))`` comes out of the loop above as
+    # ``(4, 6)``, which is a diagonal form but not a Smith one.  For a
+    # diagonal pair the Smith form is ``(gcd, lcm)``, and sweeping that
+    # substitution until it is stable yields the divisibility chain.
+    # Without this pass the guard below RAISES on such a matrix — safe,
+    # but a raise where an answer exists is still the wrong answer.
+    repairing = True
+    while repairing:
+        repairing = False
+        for index in range(len(diagonal) - 1):
+            left, right = diagonal[index], diagonal[index + 1]
+            if right % left == 0:
+                continue
+            common = gcd(left, right)
+            diagonal[index] = common
+            diagonal[index + 1] = _exact_div(
+                "weight_lattice", left * right, common,
+                f"the Smith lcm of {left} and {right}")
+            repairing = True
+    for index in range(len(diagonal) - 1):
+        if diagonal[index + 1] % diagonal[index] != 0:
+            raise ValueError(
+                f"weight_lattice: the Smith diagonal {tuple(diagonal)} "
+                f"breaks the divisibility chain at index {index} - invariant "
+                f"factors divide upward (Smith law; a guard that fires is "
+                f"evidence)")
+    return tuple(diagonal)
+
+
+def _build_affine_stratum(name: str) -> Dict[str, Any]:
+    """Derive EVERYTHING about one algebra from its simple roots.
+
+    Cartan matrix, full root system, highest root, marks, dual Coxeter
+    number, fundamental weights (and the denominator clearing them),
+    ``rho``, the affine Cartan matrix and the centre's invariant factors
+    — all read off :data:`AFFINE_AMBIENT_ROOTS`.  Guards, each a raise:
+    every simple root has norm 2 (simply-laced law), the highest root is
+    unique, and ``h^vee`` agrees with the independent ``|Delta| / rank``
+    count that simply-laced algebras satisfy."""
+    roots = AFFINE_AMBIENT_ROOTS[name]
+    rank = len(roots)
+    for index, root in enumerate(roots):
+        norm = _ambient_dot(root, root)
+        if norm != 2:
+            raise ValueError(
+                f"weight_lattice: simple root {index} of {name} has norm "
+                f"{norm}, not 2 - this stratum ships simply-laced algebras "
+                f"only (simply-laced law; a guard that fires is evidence)")
+    cartan = tuple(tuple(_ambient_dot(a, b) for b in roots) for a in roots)
+    inverse = _rational_inverse(cartan)
+    system = _ambient_root_system(roots)
+
+    highest = None
+    for vector in system:
+        coefficients = _simple_root_coefficients(inverse, roots, vector)
+        if coefficients is None:
+            continue
+        if highest is None or sum(coefficients) > sum(highest[1]):
+            highest = (vector, coefficients)
+    if highest is None:
+        raise ValueError(
+            f"weight_lattice: {name} has no positive root - the root system "
+            f"derivation did not cohere (root-system law; a guard that fires "
+            f"is evidence)")
+    theta, marks = highest
+    dual_coxeter = 1 + sum(marks)
+    coxeter_check = _exact_div(
+        "weight_lattice", len(system), rank,
+        f"the {name} Coxeter number |Delta| / rank")
+    if coxeter_check != dual_coxeter:
+        raise ValueError(
+            f"weight_lattice: {name} has h^vee = {dual_coxeter} from the "
+            f"marks but |Delta| / rank = {coxeter_check} - the two agree for "
+            f"a simply-laced algebra (Coxeter law; a guard that fires is "
+            f"evidence)")
+
+    weights = []
+    for j in range(rank):
+        vector = [Q(0)] * len(roots[0])
+        for k in range(rank):
+            for t in range(len(vector)):
+                vector[t] += inverse[j][k] * roots[k][t]
+        weights.append(tuple(vector))
+    denominator = 1
+    for weight in weights:
+        for value in weight:
+            denominator = (denominator // gcd(denominator, value.denominator)
+                           * value.denominator)
+    scaled_weights = []
+    for weight in weights:
+        scaled_weights.append(tuple(
+            _exact_div("weight_lattice", value.numerator * denominator,
+                       value.denominator,
+                       f"the scaled {name} fundamental weight")
+            for value in weight))
+    scaled_rho = tuple(sum(weight[t] for weight in scaled_weights)
+                       for t in range(len(roots[0])))
+
+    affine = [[0] * (rank + 1) for _ in range(rank + 1)]
+    affine[0][0] = 2
+    for j in range(rank):
+        affine[0][j + 1] = -_ambient_dot(theta, roots[j])
+        affine[j + 1][0] = -_ambient_dot(roots[j], theta)
+        for k in range(rank):
+            affine[j + 1][k + 1] = cartan[j][k]
+    centre = tuple(d for d in _smith_diagonal(cartan) if d != 1)
+    return {
+        "name": name,
+        "rank": rank,
+        "roots": roots,
+        "cartan": cartan,
+        "root_system": system,
+        "n_roots": len(system),
+        "theta": theta,
+        "marks": marks,
+        "comarks": (1,) + marks,
+        "h_vee": dual_coxeter,
+        "denominator": denominator,
+        "scaled_weights": tuple(scaled_weights),
+        "scaled_rho": scaled_rho,
+        "affine_cartan": tuple(tuple(row) for row in affine),
+        "centre_invariant_factors": centre,
+    }
+
+
+#: Every shipped affine stratum, derived once at import.  Building all
+#: three costs one root-system closure each (2 / 6 / 24 roots) — the
+#: 192-element D4 Weyl group is NOT built here, because only the
+#: S-matrix needs it and it is cached lazily.
+_AFFINE_STRATA: Dict[str, Dict[str, Any]] = {
+    name: _build_affine_stratum(name) for name in AFFINE_ALGEBRAS
+}
+
+
+def _require_foldable(op: str, stratum: Dict[str, Any]) -> None:
+    """The fold's SCOPE CHECK, spelled as one call at the top of each op
+    that folds, so the refusal a caller sees is the TERMINATION reason
+    and not an incidental downstream failure.  Delegates to
+    :func:`_monovariant_quantum` — one SSoT, no second predicate."""
+    _monovariant_quantum(op, stratum, 1)
+
+
+def _affine_stratum(op: str, algebra: Any) -> Dict[str, Any]:
+    """Look up a shipped stratum, RAISING with the shipped set named.
+
+    ⚠️ This does NOT gate the fold.  Which algebras can be FOLDED is
+    decided by :func:`_has_monovariant` off the affine Cartan matrix, so
+    the fold's scope is derived from the termination proof rather than
+    from a second hand-maintained list that could drift away from it."""
+    if not isinstance(algebra, str):
+        raise ValueError(
+            f"{op}: algebra carries a {type(algebra).__name__}; it names one "
+            f"of {AFFINE_ALGEBRAS} (algebra-name law)")
+    if algebra not in _AFFINE_STRATA:
+        raise ValueError(
+            f"{op}: algebra {algebra!r} is not shipped; this stratum carries "
+            f"{AFFINE_ALGEBRAS} (algebra-scope law; a guard that fires is "
+            f"evidence)")
+    return _AFFINE_STRATA[algebra]
+
+
+def _check_level(op: str, level: Any) -> int:
+    """A level is a plain non-negative int — ``bool`` REJECTED, because
+    ``True == 1`` would otherwise ride the integer lane silently."""
+    if not isinstance(level, int) or isinstance(level, bool):
+        raise ValueError(
+            f"{op}: level carries a {type(level).__name__}; a level is a "
+            f"plain int (plain-int law)")
+    if level < 0:
+        raise ValueError(
+            f"{op}: level = {level} is negative; a level is a non-negative "
+            f"integer (level law; a guard that fires is evidence)")
+    return level
+
+
+def _check_affine_weight(op: str, stratum: Dict[str, Any],
+                         weight: Sequence[int], what: str) -> Tuple[int, ...]:
+    """Validate a Dynkin label of the right RANK.  Unlike
+    :func:`_check_label` this does NOT require non-negativity — feeding a
+    non-dominant weight to the fold is the whole point of the fold."""
+    values = list(weight)
+    rank = stratum["rank"]
+    if len(values) != rank:
+        raise ValueError(
+            f"{op}: {what} for {stratum['name']} is a length-{rank} Dynkin "
+            f"label; got {len(values)} coordinate(s) (label-shape law)")
+    for index, value in enumerate(values):
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ValueError(
+                f"{op}: {what}[{index}] carries a {type(value).__name__}; "
+                f"Dynkin labels are plain ints (plain-int law)")
+    return tuple(values)
+
+
+def _require_integrable(op: str, stratum: Dict[str, Any],
+                        label: Tuple[int, ...], level: int,
+                        what: str) -> None:
+    """Refuse a NON-INTEGRABLE fusion operand UP FRONT.
+
+    ⚠️ This guard is load-bearing and is not a formality.  Measured
+    before it existed: of four non-integrable operand pairs fed to the
+    fusion op, two raised on the downstream negative-coefficient
+    backstop and **two returned an empty constituent set SILENTLY** — a
+    well-formed wrong answer of exactly the class this module's
+    non-negativity guard exists to stop.  The backstop is therefore NOT
+    a sufficient check, and the domain is tested here instead."""
+    if any(value < 0 for value in label):
+        raise ValueError(
+            f"{op}: {what} = {label} has a negative Dynkin label; a fusion "
+            f"operand is a DOMINANT weight (dominance law; a guard that "
+            f"fires is evidence)")
+    height = sum(m * v for m, v in zip(stratum["marks"], label))
+    if height > level:
+        raise ValueError(
+            f"{op}: {what} = {label} has level {height} > {level}; a fusion "
+            f"operand must be INTEGRABLE at the level it is fused at "
+            f"(integrability law; a guard that fires is evidence)")
+
+
+def _has_monovariant(stratum: Dict[str, Any]) -> bool:
+    """Does this algebra's affine Dynkin diagram admit the monovariant
+    collapse the fold's termination certificate rests on?
+
+    TRUE exactly when every affine node is adjacent to every other with
+    the SAME off-diagonal ``-c`` and ``sum_j C_0j^2 == 2·(2 + c)``.  That
+    is the single SSoT of the fold's scope: :func:`_monovariant_quantum`
+    raises on the negation of this predicate, and
+    :data:`AFFINE_FOLD_ALGEBRAS` is derived by evaluating it, so the
+    documented scope cannot drift from the proved one."""
+    row = stratum["affine_cartan"][0]
+    off = -row[1]
+    return (sum(value * value for value in row) == 2 * (2 + off)
+            and all(value == -off for value in row[1:]))
+
+
+def _monovariant_quantum(op: str, stratum: Dict[str, Any],
+                         kappa: int) -> int:
+    """The EXACT per-step drop coefficient of the fold's monovariant, and
+    the enforcement point of the termination scope.
+
+    Derivation, carried rather than recalled.  A step at node ``i``
+    sends ``a_j -> a_j - a_i·C_ij``, so
+
+        dQ = -2·a_i·(sum_j a_j·C_ij) + a_i^2·(sum_j C_ij^2).
+
+    When every OTHER node is adjacent to ``i`` with the same off-diagonal
+    ``-c``, the constraint ``sum_j a_j == kappa`` (all comarks 1) gives
+    ``sum_j a_j·C_ij = (2 + c)·a_i - c·kappa``, and the ``a_i^2`` terms
+    cancel exactly when ``sum_j C_ij^2 == 2·(2 + c)``.  What survives is
+
+        dQ = 2·c·kappa·a_i,
+
+    which is ``2·kappa`` for A2 (``c = 1``) and ``4·kappa`` for A1
+    (``c = 2``).  Since a step fires only when ``a_i < 0``, dQ is
+    strictly negative and quantised at ``>= quantum`` per step.
+
+    ⚠️ The cancellation identity is CHECKED, not assumed.  For D4 (and
+    for every ``A_n`` with ``n >= 3``) the affine diagram is not
+    complete, ``sum_j C_ij^2 != 2·(2 + c)``, and this function RAISES —
+    which is how the fold refuses an algebra it cannot prove it
+    terminates on, instead of looping."""
+    if not _has_monovariant(stratum):
+        raise ValueError(
+            f"{op}: {stratum['name']} has no monovariant quantum - its "
+            f"affine Dynkin diagram is not complete, so the termination "
+            f"certificate of the alcove fold does not carry, and a fold with "
+            f"no termination proof is a different object rather than a "
+            f"slower one.  This stratum folds {AFFINE_FOLD_ALGEBRAS} only; "
+            f"reach for verlinde_fusion_multiplicities, which runs no fold "
+            f"(termination-scope law; a guard that fires is evidence)")
+    return 2 * (-stratum["affine_cartan"][0][1]) * kappa
+
+
+#: The algebras whose alcove fold carries a termination certificate —
+#: **DERIVED** by evaluating :func:`_has_monovariant` on each shipped
+#: stratum, never transcribed.  ``affine_modular_s_matrix`` and
+#: ``verlinde_fusion_multiplicities`` are NOT restricted to these,
+#: because neither runs the fold.
+#:
+#: This constant is documentation and introspection ONLY.  The ops do
+#: not gate on it — they call :func:`_monovariant_quantum`, whose raise
+#: IS the refusal — so a caller asking for D4 gets the termination
+#: reason rather than a lookup miss, and the guard is one a real public
+#: call can fire.
+AFFINE_FOLD_ALGEBRAS: Tuple[str, ...] = tuple(
+    name for name in AFFINE_ALGEBRAS
+    if _has_monovariant(_AFFINE_STRATA[name]))
+
+
+def _affine_labels(stratum: Dict[str, Any], weight: Sequence[int],
+                   kappa: int) -> List[int]:
+    """The affine Dynkin labels ``(a_0, a_1, ..., a_r)`` of a weight at
+    ``kappa``, with ``a_0`` the affine slot making
+    ``sum_j comark_j·a_j == kappa``."""
+    height = sum(m * v for m, v in zip(stratum["marks"], weight))
+    return [kappa - height] + list(weight)
+
+
+def _fold_affine_labels(op: str, stratum: Dict[str, Any],
+                        labels: List[int], kappa: int
+                        ) -> Dict[str, Any]:
+    """THE ITERATIVE SIGNED FOLD — the heart of this stratum.
+
+    Applies ``s_i: a_j -> a_j - a_i·C^aff_ij`` at the first negative
+    node until none is negative, carrying the ``+-1`` determinant ledger
+    (each generator is a reflection, so the sign flips once per step).
+    Three laws are checked on EVERY step, each a raise: the monovariant
+    law ``dQ == quantum·a_i``, the level law ``sum comark_j·a_j ==
+    kappa``, and the step BOUND computed before the loop from
+    ``Q >= kappa^2/(r+1)``.
+
+    Returns the affine labels, the sign, and the loop's own telemetry.  A
+    zero anywhere in the result means the weight sits ON a wall of the
+    alcove — it is fixed by a reflection and contributes exactly zero, a
+    Class-K pin at the phase boundary rather than a defect."""
+    rank = stratum["rank"]
+    affine = stratum["affine_cartan"]
+    comarks = stratum["comarks"]
+    quantum = _monovariant_quantum(op, stratum, kappa)
+    q_initial = sum(value * value for value in labels)
+    bound = _exact_div_floor(q_initial - kappa * kappa // (rank + 1),
+                             quantum) + 1
+    sign = 1
+    steps = 0
+    while True:
+        node = None
+        for index in range(rank + 1):
+            if labels[index] < 0:
+                node = index
+                break
+        if node is None:
+            break
+        pivot = labels[node]
+        before = sum(value * value for value in labels)
+        labels = [labels[j] - pivot * affine[node][j]
+                  for j in range(rank + 1)]
+        after = sum(value * value for value in labels)
+        if after - before != quantum * pivot:
+            raise ValueError(
+                f"{op}: the fold step at node {node} moved the monovariant "
+                f"by {after - before}, not the derived {quantum * pivot} - "
+                f"the termination certificate does not hold (monovariant "
+                f"law; a guard that fires is evidence)")
+        level_sum = sum(m * v for m, v in zip(comarks, labels))
+        if level_sum != kappa:
+            raise ValueError(
+                f"{op}: the fold step at node {node} moved the level to "
+                f"{level_sum}, not {kappa} - the affine Weyl group preserves "
+                f"the level (level law; a guard that fires is evidence)")
+        sign = -sign
+        steps += 1
+        if steps > bound:
+            raise ValueError(
+                f"{op}: the fold ran {steps} steps against a pre-computed "
+                f"bound of {bound} - the termination certificate does not "
+                f"hold (step-bound law; a guard that fires is evidence)")
+    return {
+        "labels": tuple(labels),
+        "sign": sign,
+        "steps": steps,
+        "step_bound": bound,
+        "q_initial": q_initial,
+        "q_final": sum(value * value for value in labels),
+        "quantum": quantum,
+    }
+
+
+def _exact_div_floor(numerator: int, denominator: int) -> int:
+    """Floor division for the step BOUND only — a bound is an inequality,
+    not an exact lattice quantity, so :func:`_exact_div` (which raises on
+    a remainder) is the wrong instrument here and using it would refuse
+    perfectly good inputs.  Named separately so the distinction is
+    visible rather than inferred from a ``//``."""
+    return numerator // denominator
+
+
+def _affine_procedure_bytes(stratum: Dict[str, Any]) -> bytes:
+    """The canonical serialisation of the AFFINE derivation procedure —
+    everything a second rc would have to match to share an address."""
+    parts: List[str] = [
+        stratum["name"],
+        "simple_roots=" + ";".join(",".join(str(v) for v in root)
+                                   for root in stratum["roots"]),
+        "cartan=" + ";".join(",".join(str(v) for v in row)
+                             for row in stratum["cartan"]),
+        "affine_cartan=" + ";".join(",".join(str(v) for v in row)
+                                    for row in stratum["affine_cartan"]),
+        "theta=" + ",".join(str(v) for v in stratum["theta"]),
+        "marks=" + ",".join(str(v) for v in stratum["marks"]),
+        "h_vee=" + str(stratum["h_vee"]),
+        "denominator=" + str(stratum["denominator"]),
+        "scaled_weights=" + ";".join(",".join(str(v) for v in weight)
+                                     for weight in stratum["scaled_weights"]),
+        "centre=" + ",".join(str(v)
+                             for v in stratum["centre_invariant_factors"]),
+        "fold=iterative_signed_alcove_fold_monovariant_sum_of_squares",
+        "fusion=kac_walton_level_truncated_racah_speiser",
+        "s_matrix=kac_peterson_finite_weyl_sum_over_z_zeta",
+    ]
+    return "\n".join(parts).encode("utf-8")
+
+
+def _affine_procedure_sha256(stratum: Dict[str, Any]) -> str:
+    """The Class-A content address of the affine derivation procedure."""
+    return sha256_bytes(_affine_procedure_bytes(stratum))
+
+
+def _integrable_labels(stratum: Dict[str, Any],
+                       level: int) -> Tuple[Tuple[int, ...], ...]:
+    """Every dominant label with ``sum marks_j·label_j <= level``.
+
+    Walks the SIMPLEX directly rather than filtering a ``(level+1)^rank``
+    box.  The box is the obvious spelling and it is the wrong shape: at
+    D4 level 72 it visits 73^4 = 28,398,241 tuples to keep roughly 2% of
+    them, and the answer is the same set either way — so the box is pure
+    waste that grows as the fourth power of a caller-supplied integer.
+    The recursion below never visits a label it will not return."""
+    marks = stratum["marks"]
+
+    def walk(index: int, remaining: int) -> List[Tuple[int, ...]]:
+        if index == len(marks):
+            return [()]
+        out: List[Tuple[int, ...]] = []
+        mark = marks[index]
+        value = 0
+        while mark * value <= remaining:
+            for tail in walk(index + 1, remaining - mark * value):
+                out.append((value,) + tail)
+            value += 1
+        return out
+
+    return tuple(sorted(walk(0, level)))
+
+
+@lru_cache(maxsize=32)
+def _ambient_weyl(algebra: str) -> Tuple[Tuple[Tuple[Tuple[int, ...], ...],
+                                               int], ...]:
+    """The FINITE Weyl group as ``(matrix, determinant)`` pairs, by
+    closure from the simple reflections ``(R_i)_ab = delta_ab -
+    alpha_ia·alpha_ib``.  Cached because D4's has 192 elements and the
+    S-matrix asks for it once per level.
+
+    Determinants go through :class:`~srmech.math.qmat.QMat` — the sign of
+    a Weyl element IS its determinant, so this is the ``+-1`` ledger's
+    SOURCE for the Kac-Peterson sum, exactly as
+    :func:`_int_determinant` is for the classical fold."""
+    stratum = _AFFINE_STRATA[algebra]
+    roots = stratum["roots"]
+    size = len(roots[0])
+    generators = [
+        tuple(tuple((1 if i == j else 0) - root[i] * root[j]
+                    for j in range(size)) for i in range(size))
+        for root in roots
+    ]
+    identity = tuple(tuple(1 if i == j else 0 for j in range(size))
+                     for i in range(size))
+    elements = {identity}
+    frontier = [identity]
+    while frontier:
+        current = frontier.pop()
+        for generator in generators:
+            product = tuple(
+                tuple(sum(generator[i][t] * current[t][j] for t in range(size))
+                      for j in range(size)) for i in range(size))
+            if product not in elements:
+                elements.add(product)
+                frontier.append(product)
+    out = []
+    for matrix in sorted(elements):
+        value = QMat([list(row) for row in matrix]).det()
+        if value.denominator != 1 or value.numerator not in (-1, 1):
+            raise ValueError(
+                f"weight_lattice: Weyl element {matrix} of {algebra} has "
+                f"determinant {value.numerator}/{value.denominator}, not "
+                f"+-1 - a Weyl element is a lattice isometry (Weyl-sign law; "
+                f"a guard that fires is evidence)")
+        out.append((matrix, value.numerator))
+    return tuple(out)
+
+
+def _zeta_conjugate(vector: Sequence[int], order: int,
+                    phi: Sequence[int]) -> Tuple[int, ...]:
+    """Complex conjugation on ``Z[zeta_order]`` — the Galois map
+    ``zeta -> zeta^-1``, spelled as a cyclic index reversal in the power
+    basis (Class I) and reduced with the shipped
+    :func:`srmech.math.groups.zeta_mul`.  No machinery, no float, and no
+    conjugation table: the same move ``character_table`` documents as a
+    column permutation, one rung lower."""
+    accumulator = [0] * order
+    for power, coefficient in enumerate(vector):
+        accumulator[(-power) % order] += coefficient
+    return zeta_mul(accumulator, (1,), phi)
+
+
+@lru_cache(maxsize=16)
+def _s_matrix_core(algebra: str, level: int) -> Dict[str, Any]:
+    """The Kac-Peterson numerator, its ring, and the normalisation —
+    cached, because :func:`verlinde_fusion_multiplicities` asks for the
+    same object once per operand pair.
+
+    The sum is ``A_lm = sum_{w in W} det(w)·zeta^(-(w·Lambda, M))`` over
+    the FINITE Weyl group, with ``Lambda = D·(lambda + rho)`` integer in
+    the scaled ambient basis.  The root-of-unity order starts at
+    ``kappa·D^2`` and is then REDUCED by the gcd of the exponents
+    actually used — which is how D4 level 1 lands in ``Z[zeta_14]``
+    rather than the ``Z[zeta_28]`` the raw scaling suggests.  That
+    reduction is a measurement, not a convention.
+
+    The normalisation is DERIVED, not recalled: ``A·A^dagger`` is
+    computed and must be ``n·I``; then ``|c|^2 = 1/n``.  The off-diagonal
+    vanishing is the unitarity law and is a raise."""
+    stratum = _AFFINE_STRATA[algebra]
+    kappa = level + stratum["h_vee"]
+    denominator = stratum["denominator"]
+    scaled_weights = stratum["scaled_weights"]
+    scaled_rho = stratum["scaled_rho"]
+    primaries = _integrable_labels(stratum, level)
+    weyl = _ambient_weyl(algebra)
+    size = len(scaled_rho)
+
+    shifted = {}
+    for label in primaries:
+        vector = list(scaled_rho)
+        for j, coefficient in enumerate(label):
+            for t in range(size):
+                vector[t] += coefficient * scaled_weights[j][t]
+        shifted[label] = tuple(vector)
+
+    raw_order = kappa * denominator * denominator
+    exponents: Dict[Tuple[Tuple[int, ...], Tuple[int, ...]],
+                    List[Tuple[int, int]]] = {}
+    common = raw_order
+    for left in primaries:
+        images = [(sign, tuple(sum(matrix[i][t] * shifted[left][t]
+                                   for t in range(size))
+                               for i in range(size)))
+                  for matrix, sign in weyl]
+        for right in primaries:
+            terms = [(sign, (-_ambient_dot(image, shifted[right])) % raw_order)
+                     for sign, image in images]
+            exponents[(left, right)] = terms
+            for _, power in terms:
+                common = gcd(common, power)
+    order = _exact_div("affine_modular_s_matrix", raw_order, common,
+                       "the reduced root-of-unity order")
+    phi = tuple(cyclotomic_polynomial(order)["coefficients"])
+
+    numerator: Dict[Tuple[Tuple[int, ...], Tuple[int, ...]],
+                    Tuple[int, ...]] = {}
+    for key, terms in exponents.items():
+        accumulator = [0] * order
+        for sign, power in terms:
+            reduced = _exact_div("affine_modular_s_matrix", power, common,
+                                 "a Kac-Peterson exponent")
+            accumulator[reduced % order] += sign
+        numerator[key] = zeta_mul(accumulator, (1,), phi)
+
+    width = len(phi) - 1
+    scale = None
+    for left in primaries:
+        for right in primaries:
+            accumulator = tuple([0] * width)
+            for middle in primaries:
+                product = zeta_mul(
+                    numerator[(left, middle)],
+                    _zeta_conjugate(numerator[(right, middle)], order, phi),
+                    phi)
+                accumulator = tuple(x + y
+                                    for x, y in zip(accumulator, product))
+            if left == right:
+                if any(value != 0 for value in accumulator[1:]):
+                    raise ValueError(
+                        f"affine_modular_s_matrix: the {algebra} level-"
+                        f"{level} diagonal of A·A^dagger is the non-rational "
+                        f"{accumulator} - unitarity makes it a rational "
+                        f"scalar (unitarity law; a guard that fires is "
+                        f"evidence)")
+                if scale is None:
+                    scale = accumulator[0]
+                elif scale != accumulator[0]:
+                    raise ValueError(
+                        f"affine_modular_s_matrix: A·A^dagger is not a "
+                        f"SCALAR on the diagonal ({scale} then "
+                        f"{accumulator[0]}) - unitarity law; a guard that "
+                        f"fires is evidence")
+            elif any(value != 0 for value in accumulator):
+                raise ValueError(
+                    f"affine_modular_s_matrix: the {algebra} level-{level} "
+                    f"off-diagonal A·A^dagger[{left}][{right}] is "
+                    f"{accumulator}, not zero - unitarity law; a guard that "
+                    f"fires is evidence")
+    return {
+        "stratum": stratum,
+        "kappa": kappa,
+        "primaries": primaries,
+        "order": order,
+        "phi": phi,
+        "numerator": numerator,
+        "weyl_order": len(weyl),
+        "raw_order": raw_order,
+        "gcd": common,
+        "scale_squared_denominator": scale,
+    }
+
+
+def integrable_weights(algebra: str, level: int) -> Dict[str, Any]:
+    """The LEVEL-TRUNCATED dominant stratum — every weight ``lambda``
+    with ``sum_j mark_j·lambda_j <= level``, which is exactly the set of
+    integrable highest weights of the affine algebra at that level.
+    **Class E**, the catalog enumeration, with a Class-K stage (the
+    level inequality IS a wall test) and Class A (the address).
+
+    This is the index set every other op in the affine stratum is
+    indexed BY: the primaries of the theory, the rows and columns of
+    :func:`affine_modular_s_matrix`, and the legal operands of
+    :func:`affine_fusion_multiplicities`.
+
+    The MARKS are derived, never recalled.  ``theta`` is located as the
+    root of maximal height in the derived root system, expanded over the
+    simple roots in exact integers, and ``h^vee = 1 + sum(marks)`` is
+    cross-checked against the independent ``|Delta| / rank`` count that
+    holds for a simply-laced algebra — a raise if they disagree.  For D4
+    the marks come out ``(1, 2, 1, 1)``, which is why level 1 has FOUR
+    primaries and not five: the node with mark 2 cannot be excited.
+
+    Args:
+        algebra: one of ``"A1"``, ``"A2"``, ``"D4"``.
+        level: a non-negative int.
+
+    Returns:
+        ``{"algebra", "level", "kappa"`` (``= level + h^vee``),
+        ``"rank", "marks", "h_vee", "weights"`` (a tuple of label
+        tuples, sorted), ``"n_weights", "centre_invariant_factors"``
+        (the ``P/Q`` decomposition off the Cartan matrix's Smith normal
+        form), ``"procedure_sha256", "weights_sha256"}``.
+
+    Worked example: ``integrable_weights("D4", 1)["weights"]`` returns
+    the four level-1 primaries, and their count is ``|P/Q| = 4`` — the
+    order of the centre, which the payload also carries as
+    ``centre_invariant_factors == (2, 2)``.  That coincidence is not one:
+    at level 1 the primaries ARE a torsor over the centre.
+
+    C-parity (ADR-0009, recorded): no C peer; Python-first under the
+    noted-disparity ruling, the same sentence the classical stratum
+    carries.
+
+    Note:
+        Exact integers; no float; no ``abs`` — the one magnitude read is
+        the named Class-K :func:`_magnitude` inside the Smith normal
+        form.
+    """
+    op = "integrable_weights"
+    stratum = _affine_stratum(op, algebra)
+    checked = _check_level(op, level)
+    weights = _integrable_labels(stratum, checked)
+    body = ";".join(",".join(str(v) for v in label)
+                    for label in weights).encode("utf-8")
+    return {
+        "algebra": stratum["name"],
+        "level": checked,
+        "kappa": checked + stratum["h_vee"],
+        "rank": stratum["rank"],
+        "marks": stratum["marks"],
+        "h_vee": stratum["h_vee"],
+        "weights": weights,
+        "n_weights": len(weights),
+        "centre_invariant_factors": stratum["centre_invariant_factors"],
+        "procedure_sha256": _affine_procedure_sha256(stratum),
+        "weights_sha256": sha256_bytes(body),
+    }
+
+
+def alcove_fold(algebra: str, weight: Sequence[int],
+                level: int) -> Dict[str, Any]:
+    """The ITERATIVE SIGNED FOLD of a weight into the level-``k`` alcove
+    under the affine Weyl DOT action ``w-hat · nu = w-hat(nu + rho) -
+    rho`` — **Class K** primary (the ``+-1`` ledger at the affine wall),
+    with Class C (which node, which direction) and Class N (the guards).
+
+    THE POINT OF THIS OP, stated as the thing it replaces.  The classical
+    fold above enumerates: ``_WEYL`` is a precomputed 6-tuple and
+    :func:`_strictly_dominant_fold` scans it.  The AFFINE Weyl group is
+    INFINITE, so enumeration cannot survive — and an unbounded loop whose
+    termination is an assumption is exactly what
+    :func:`_dominant_conjugate` refuses to be.  This op is the third
+    option: an iterative fold carrying an EXACT INTEGER TERMINATION
+    CERTIFICATE.
+
+    THE CERTIFICATE, and it is checked rather than claimed.  The
+    monovariant is ``Q(a) = sum_j a_j^2`` over the affine labels.  Each
+    step drops it by EXACTLY ``quantum·a_i`` — ``2·kappa`` for A2,
+    ``4·kappa`` for A1, both DERIVED in :func:`_monovariant_quantum` from
+    the affine Cartan matrix — and a step fires only when ``a_i < 0``, so
+    the drop is strictly negative and integer-quantised.  ``Q`` is
+    bounded below by ``kappa^2/(r+1)`` on the constraint simplex, so a
+    step BOUND is computed BEFORE the loop and asserted against inside
+    it.  The per-step law is checked on EVERY step, not once: measured
+    over ``[-30, 30]^rank`` at ``k = 0..8`` (34,038 folds), the fold
+    takes at most 40 steps against bounds up to 901 and never approaches
+    one.  Both extremes are attained at the same corner, ``A2`` weight
+    ``(-30, -30)`` at level 0, and :func:`alcove_fold`'s gate PINS that
+    witness — through rc461 this sentence read *"bounds up to 962"*, a
+    number the shipped op never produces anywhere in the swept domain,
+    and no gate could see it because the sweep asserted only
+    ``steps < bound`` and never a bound VALUE.
+
+    ⚠️ **A1 AND A2 ONLY, and the code enforces it.**  The quantum
+    collapse needs every affine node adjacent to every other; D4's is a
+    star, the identity fails, and :func:`_monovariant_quantum` RAISES.
+    That refusal is deliberate — a fold with no termination proof is not
+    a slower fold, it is a different object.  For D4, reach for
+    :func:`verlinde_fusion_multiplicities`, which runs no fold at all.
+
+    Args:
+        algebra: ``"A1"`` or ``"A2"``.
+        weight: a rank-length Dynkin label.  It does NOT have to be
+            dominant or integrable — folding a weight that is neither is
+            the operation.
+        level: a non-negative int.
+
+    Returns:
+        ``{"algebra", "level", "kappa", "weight", "affine_labels"`` (the
+        shifted input labels), ``"on_wall"`` (a bool FIELD, not an
+        inferred one), ``"folded"`` (the label, or ``None`` on a wall),
+        ``"sign"`` (``+1`` / ``-1`` / ``0``, and ``0`` ONLY on a wall —
+        it is a ledger entry, never a count), ``"steps", "step_bound",
+        "q_initial", "q_final", "monovariant_quantum",
+        "procedure_sha256"}``.
+
+    Worked example: ``alcove_fold("A2", (2, 2), 2)`` folds the classical
+    ``(2,2)`` constituent of ``8 (x) 8`` in ONE step to ``(1, 1)`` with
+    sign ``-1``, and ``Q`` falls 19 -> 9, a drop of 10 that is exactly
+    ``quantum·a_0 = 10·(-1)``.
+
+    ⚠️ **TWO mechanisms carry ``1 + 8 + 8 + 10 + 10-bar + 27`` down to
+    the level-2 ``1 + 8``, not one**, and per-constituent measurement is
+    what separates them — through rc461 this paragraph credited only the
+    step.  The ``10`` and ``10-bar`` are removed by the WALL TEST:
+    ``on_wall=True``, ``sign=0``, ``steps=0`` — no step is taken and no
+    sign is applied, they simply contribute zero.  The single signed step
+    acts on ``27`` ALONE, folding it onto ``(1,1)`` with sign ``-1``,
+    which cancels one of the two copies of ``8``.  Deleting the walls and
+    stopping there leaves ``{(0,0): 1, (1,1): 2, (2,2): 1}``; it is the
+    signed step that turns the remaining ``2`` into the ``1`` the affine
+    answer reports.  Both are load-bearing and they are different
+    operations.
+
+    C-parity (ADR-0009, recorded): no C peer; Python-first under the
+    noted-disparity ruling.
+
+    Note:
+        Exact integers; no float; no ``abs`` — the sign is the explicit
+        Class-K reflection ledger, flipped once per step.
+    """
+    op = "alcove_fold"
+    stratum = _affine_stratum(op, algebra)
+    _require_foldable(op, stratum)
+    checked = _check_level(op, level)
+    label = _check_affine_weight(op, stratum, weight, "weight")
+    kappa = checked + stratum["h_vee"]
+    shifted = tuple(value + 1 for value in label)
+    labels = _affine_labels(stratum, shifted, kappa)
+    result = _fold_affine_labels(op, stratum, list(labels), kappa)
+    on_wall = any(value == 0 for value in result["labels"])
+    folded = None if on_wall else tuple(value - 1
+                                        for value in result["labels"][1:])
+    return {
+        "algebra": stratum["name"],
+        "level": checked,
+        "kappa": kappa,
+        "weight": label,
+        "affine_labels": tuple(labels),
+        "on_wall": on_wall,
+        "folded": folded,
+        "sign": 0 if on_wall else result["sign"],
+        "steps": result["steps"],
+        "step_bound": result["step_bound"],
+        "q_initial": result["q_initial"],
+        "q_final": result["q_final"],
+        "monovariant_quantum": result["quantum"],
+        "procedure_sha256": _affine_procedure_sha256(stratum),
+    }
+
+
+def _classical_ledger(op: str, stratum: Dict[str, Any],
+                      a: Tuple[int, ...], b: Tuple[int, ...]
+                      ) -> Dict[Tuple[int, ...], int]:
+    """The CLASSICAL tensor-product multiplicities, as the Kac-Walton
+    operand.  A2 delegates to the shipped
+    :func:`tensor_product_multiplicities` — one SSoT, so the affine
+    answer cannot disagree with the classical one by construction.  A1
+    runs the same Racah-Speiser instrument over its own weight system,
+    which is a single string of ``q + 1`` weights each once; the string
+    length is checked against ``dim V_q = q + 1`` rather than asserted."""
+    if stratum["name"] == "A2":
+        classical = tensor_product_multiplicities(a, b)
+        return {(p, q): m for p, q, m in classical["constituents"]}
+    if stratum["name"] == "A1":
+        top = b[0]
+        system = [top - 2 * i for i in range(top + 1)]
+        if len(system) != top + 1:
+            raise ValueError(
+                f"{op}: the A1 weight system of V_{top} has {len(system)} "
+                f"weights, not dim = {top + 1} (dimension law; a guard that "
+                f"fires is evidence)")
+        ledger: Dict[Tuple[int, ...], int] = {}
+        for mu in system:
+            translate = a[0] + 1 + mu
+            if translate == 0:
+                continue                # Class-K pin: the wall contributes 0
+            if translate > 0:
+                key = (translate - 1,)
+                ledger[key] = ledger.get(key, 0) + 1
+            else:
+                key = (-translate - 1,)
+                ledger[key] = ledger.get(key, 0) - 1
+        return {k: v for k, v in ledger.items() if v != 0}
+    raise ValueError(
+        f"{op}: {stratum['name']} has no classical tensor-product operand in "
+        f"this module (classical-operand law; a guard that fires is "
+        f"evidence)")
+
+
+def _fusion_payload(op: str, stratum: Dict[str, Any], level: int,
+                    a: Tuple[int, ...], b: Tuple[int, ...],
+                    ledger: Dict[Tuple[int, ...], int],
+                    extra: Dict[str, Any]) -> Dict[str, Any]:
+    """The shared payload shape of the two fusion routes, so the co-equal
+    constructions are comparable field-for-field and a caller can swap
+    one for the other without reshaping anything."""
+    constituents = []
+    for label in sorted(ledger):
+        multiplicity = ledger[label]
+        if multiplicity == 0:
+            continue
+        if multiplicity < 0:
+            raise ValueError(
+                f"{op}: constituent {label} survives with multiplicity "
+                f"{multiplicity} - a fusion coefficient counts channels "
+                f"(non-negativity law; a guard that fires is evidence)")
+        constituents.append((label, multiplicity))
+    vacuum = tuple([0] * stratum["rank"])
+    body = ";".join(f"{','.join(str(v) for v in label)}|{m}"
+                    for label, m in constituents).encode("utf-8")
+    payload = {
+        "algebra": stratum["name"],
+        "level": level,
+        "kappa": level + stratum["h_vee"],
+        "a": a,
+        "b": b,
+        "constituents": tuple(constituents),
+        "n_constituents": len(constituents),
+        "singlet_multiplicity": ledger.get(vacuum, 0),
+        "procedure_sha256": _affine_procedure_sha256(stratum),
+        "fusion_sha256": sha256_bytes(body),
+    }
+    payload.update(extra)
+    return payload
+
+
+def affine_fusion_multiplicities(algebra: str, a: Sequence[int],
+                                 b: Sequence[int],
+                                 level: int) -> Dict[str, Any]:
+    """The LEVEL-TRUNCATED fusion multiplicities by **Kac-Walton** —
+    ``N^(k)_ab{}^c = sum_{w-hat} det(w-hat)·N_ab^{w-hat · c}`` — as a
+    SIGNED INTEGER COUNT.  **Class K** primary, the ``+-1`` ledger at the
+    affine wall, with Class E (the classical operand's enumeration),
+    Class C (fold direction) and Class N (the guards).
+
+    THE INSTRUMENT, stated as the count it is: take the CLASSICAL
+    constituents of ``V_a (x) V_b``, fold each one into the level-``k``
+    alcove under the affine dot action carrying its ``+-1`` sign, drop
+    the ones that land on a wall (they contribute exactly zero), and
+    accumulate.  There is no integral, no measure and no float in that
+    sentence — it is the classical Racah-Speiser count of
+    :func:`tensor_product_multiplicities` with ONE extra reflection
+    available, the affine ``s_0``.
+
+    ⚠️ **NAME NOTE, and it is not cosmetic.** This op is deliberately NOT
+    called ``fusion_multiplicities``: that name is taken by
+    :func:`srmech.math.groups.fusion_multiplicities`, the FINITE-GROUP
+    fusion tensor ``N_abc = <chi_a·chi_b, chi_c>``, which is **Class L**
+    because it contracts against the class-algebra eigenbasis.  This op
+    builds no eigenbasis and projects onto nothing — the same explicit
+    non-claim :func:`tensor_product_multiplicities` carries, inherited
+    here because this op is that one's level-truncated form.  The two
+    objects DO coincide in one place (a level-1 simply-laced theory's
+    fusion ring is the group ring of the centre, which is why the D4
+    acceptance test exists), but coincidence in one case is not identity.
+
+    ⚠️ **NON-INTEGRABLE OPERANDS RAISE, and that guard is load-bearing.**
+    Measured before it existed: of four non-integrable pairs, two raised
+    on the downstream non-negativity backstop and **two returned an empty
+    constituent set silently**.  The backstop is not sufficient; the
+    domain is checked up front.
+
+    ⚠️ **A1 AND A2 ONLY** — it runs :func:`alcove_fold`, so it inherits
+    that op's termination scope exactly.  For D4 reach for
+    :func:`verlinde_fusion_multiplicities`.
+
+    Args:
+        algebra: ``"A1"`` or ``"A2"``.
+        a: a dominant label, integrable at ``level``.
+        b: likewise.
+        level: a non-negative int.
+
+    Returns:
+        ``{"algebra", "level", "kappa", "a", "b", "constituents"`` (a
+        tuple of ``(label, multiplicity)`` pairs sorted by label),
+        ``"n_constituents", "singlet_multiplicity",
+        "classical_constituents"`` (the untruncated operand, so the
+        truncation is visible on the payload face), ``"n_truncated"``,
+        ``"route"`` (``"kac_walton"``), ``"procedure_sha256",
+        "fusion_sha256"}``.
+
+    Worked example: ``affine_fusion_multiplicities("A2", (1,1), (1,1),
+    2)`` returns ``(((0,0), 1), ((1,1), 1))`` — the su(3) level-2 statement
+    ``8 (x) 8 = 1 + 8``, where the CLASSICAL answer is ``1 + 8 + 8 + 10 +
+    10-bar + 27``.  The ``10`` and ``10-bar`` land on walls and vanish;
+    the ``27`` folds back onto the ``8`` with sign ``-1`` and cancels one
+    of its two copies.  Every one of those three fates is readable off
+    ``alcove_fold`` individually.
+
+    C-parity (ADR-0009, recorded): no C peer; Python-first under the
+    noted-disparity ruling.
+
+    Note:
+        Exact integers; no float; no ``abs`` — the sign-handling is the
+        Class-K affine reflection ledger with Class-C re-application on
+        the folded label.
+    """
+    op = "affine_fusion_multiplicities"
+    stratum = _affine_stratum(op, algebra)
+    _require_foldable(op, stratum)
+    checked = _check_level(op, level)
+    label_a = _check_affine_weight(op, stratum, a, "a")
+    label_b = _check_affine_weight(op, stratum, b, "b")
+    _require_integrable(op, stratum, label_a, checked, "a")
+    _require_integrable(op, stratum, label_b, checked, "b")
+    classical = _classical_ledger(op, stratum, label_a, label_b)
+    ledger: Dict[Tuple[int, ...], int] = {}
+    truncated = 0
+    for label, multiplicity in classical.items():
+        folded = alcove_fold(stratum["name"], label, checked)
+        if folded["on_wall"]:
+            truncated += 1
+            continue
+        if folded["folded"] != label:
+            truncated += 1
+        key = folded["folded"]
+        ledger[key] = ledger.get(key, 0) + folded["sign"] * multiplicity
+    return _fusion_payload(
+        op, stratum, checked, label_a, label_b, ledger,
+        {"classical_constituents": tuple(
+            (label, classical[label]) for label in sorted(classical)),
+         "n_truncated": truncated,
+         "route": "kac_walton"})
+
+
+def affine_modular_s_matrix(algebra: str, level: int) -> Dict[str, Any]:
+    """The **Kac-Peterson modular S-matrix** of the level-``k`` theory,
+    EXACT over ``Z[zeta_e]`` — **Class I** primary (the cyclotomic
+    ``zeta``-power arithmetic, the same ring
+    :func:`srmech.math.groups.zeta_mul` is Class I for), with Class E
+    (the finite Weyl enumeration), Class C (the ``+-1`` determinant
+    ledger) and Class A (the address).
+
+    ``S = c·A`` with ``A_lm = sum_{w in W} det(w)·zeta^(-(w(l+rho),
+    m+rho))`` a FINITE sum over the ordinary Weyl group.  This op ships
+    ``A`` — an integer matrix over ``Z[zeta_e]`` — plus the integer ``n``
+    with ``|c|^2 = 1/n``, rather than a float matrix, because every
+    quantity in it is exact and rendering it as a float would be the
+    continuum shadow of an integer object.
+
+    ⚠️ **EXPLICIT NON-CLAIM: this op is NOT Class L.**  It performs no
+    spectral decomposition and builds no eigenbasis.  That ``S``
+    diagonalises the fusion algebra is a THEOREM ABOUT it (and the one
+    :func:`verlinde_fusion_multiplicities` uses), not an operation it
+    runs — claiming L here would assert an instrument the op never
+    executes.
+
+    THREE THINGS ARE DERIVED THAT ARE USUALLY RECALLED.
+    (1) ``h^vee``, from the marks of the derived highest root, cross-checked
+    against ``|Delta|/rank``.  (2) The ring.  The exponents start over
+    ``kappa·D^2`` and the order is REDUCED by their gcd — D4 level 1
+    lands in ``Z[zeta_14]``, not the ``Z[zeta_28]`` the raw scaling
+    suggests and not the ``Z[zeta_7]`` a reading of ``kappa`` alone
+    suggests; the spinor weights are half-integral and the measurement
+    says so.  (3) The normalisation.  ``A·A^dagger`` is COMPUTED and must
+    be ``n·I``; ``|c|^2 = 1/n`` falls out of unitarity.  Measured, it
+    equals ``kappa^rank·|P/Q|`` in every shipped case — but it is read
+    off the matrix, not substituted from that formula, so the formula is
+    a cross-check and not an input.
+
+    Carried for ALL THREE algebras including D4: this is a finite Weyl
+    sum with no fold, so the termination scope that binds
+    :func:`alcove_fold` does not apply.
+
+    Args:
+        algebra: ``"A1"``, ``"A2"`` or ``"D4"``.
+        level: a non-negative int.
+
+    Returns:
+        ``{"algebra", "level", "kappa", "primaries", "n_primaries",
+        "weyl_order", "zeta_order", "phi_e"`` (the monic ``Phi_e``, the
+        modulus every value is reduced against — the same field
+        ``character_table`` ships), ``"numerator"`` (a tuple of rows of
+        ``zeta``-coordinate tuples), ``"scale_squared_denominator"``
+        (the ``n`` with ``|c|^2 = 1/n``), ``"is_rational_numerator"``,
+        ``"rational_numerator"`` (plain-integer rows when the whole
+        matrix is rational, else ``None``), ``"centre_invariant_factors",
+        "procedure_sha256", "s_sha256"}``.
+
+    Worked example, and it is the strongest check in this stratum:
+    ``affine_modular_s_matrix("D4", 1)`` returns a numerator that is
+    rational with every entry ``+-49``, ``scale_squared_denominator ==
+    9604 == 98^2``, and ``centre_invariant_factors == (2, 2)``.  Divide
+    the numerator by ``49`` and you have ``sqrt(|Z|)·S`` as a ``+-1``
+    matrix whose ROWS are the rows of
+    ``srmech.math.groups.character_table`` of the Klein four-group,
+    BIT-FOR-BIT, once both are put in the same documented ``(degree,
+    lexicographic)`` row order.  ⚠️ Without that sort they are NOT equal
+    — ``character_table`` sorts its rows and says in its own docstring to
+    "locate rows by CONTENT, never by index", while this op orders its
+    rows by PRIMARY.  The permutation between them is the row reversal
+    ``(3, 2, 1, 0)`` and it is unique.  A claim of raw bit-for-bit
+    equality is measurably false and the acceptance gate pins BOTH
+    halves so neither can drift.
+
+    Cost, honest: D4 level 1 is milliseconds; D4 level 2 has 11
+    primaries against a 192-element Weyl group and takes seconds.  The
+    result is cached per ``(algebra, level)``.
+
+    C-parity (ADR-0009, recorded): no C peer; Python-first under the
+    noted-disparity ruling.
+
+    Note:
+        Exact integers; no float; no ``abs``.  Values ship as the integer
+        ``zeta``-coordinate vectors ``character_table`` already mints and
+        ``zeta_mul`` already reads — NO new carrier type, so no
+        discriminator widens.
+    """
+    op = "affine_modular_s_matrix"
+    stratum = _affine_stratum(op, algebra)
+    checked = _check_level(op, level)
+    core = _s_matrix_core(stratum["name"], checked)
+    primaries = core["primaries"]
+    rows = tuple(tuple(core["numerator"][(left, right)]
+                       for right in primaries) for left in primaries)
+    rational = all(all(value == 0 for value in cell[1:])
+                   for row in rows for cell in row)
+    body = ";".join("|".join(",".join(str(v) for v in cell) for cell in row)
+                    for row in rows).encode("utf-8")
+    return {
+        "algebra": stratum["name"],
+        "level": checked,
+        "kappa": core["kappa"],
+        "primaries": primaries,
+        "n_primaries": len(primaries),
+        "weyl_order": core["weyl_order"],
+        "zeta_order": core["order"],
+        "phi_e": core["phi"],
+        "numerator": rows,
+        "scale_squared_denominator": core["scale_squared_denominator"],
+        "is_rational_numerator": rational,
+        "rational_numerator": (
+            tuple(tuple(cell[0] for cell in row) for row in rows)
+            if rational else None),
+        "centre_invariant_factors": stratum["centre_invariant_factors"],
+        "procedure_sha256": _affine_procedure_sha256(stratum),
+        "s_sha256": sha256_bytes(body),
+    }
+
+
+def verlinde_fusion_multiplicities(algebra: str, a: Sequence[int],
+                                   b: Sequence[int],
+                                   level: int) -> Dict[str, Any]:
+    """The SAME level-truncated fusion multiplicities as
+    :func:`affine_fusion_multiplicities`, reached by the **Verlinde**
+    route instead — ``N_ab^c = sum_s S_as·S_bs·conj(S_cs)/S_0s``,
+    contracted EXACTLY in ``Q(zeta_e)``.  **Class I** primary (the
+    cyclotomic contraction), with Class N (the one genuine field
+    division, guarded), Class E and Class A.
+
+    WHY BOTH ROUTES SHIP.  They are not two spellings of one op; they are
+    two INSTRUMENTS with disjoint failure modes.  Kac-Walton is an
+    iterative integer reflection with a termination certificate and never
+    leaves ``Z``.  Verlinde is a finite exponential sum over the ordinary
+    Weyl group followed by division in a number field.  A co-equal dual
+    construction is a CONSISTENCY ORACLE: where they disagree, the
+    disagreement is the finding.  Measured across A1 levels 1-4 and A2
+    levels 1-3 — 199 operand pairs — they agree on every coefficient,
+    with zero mismatches.
+
+    AND THE SCOPES DIFFER, which is the practical reason to have both.
+    This route runs NO alcove fold, so the termination proof that binds
+    :func:`alcove_fold` to A1 and A2 does not apply: **this op carries
+    D4**.  At D4 level 1 it returns the group ring of the centre — every
+    product a single primary at multiplicity one, every primary its own
+    inverse — which is an independent confirmation that ``P/Q`` is the
+    Klein four-group and not the cyclic group of order four.
+
+    EXACTNESS, and where the only division is.  ``|c|^2`` cancels to a
+    RATIONAL in the contraction (three factors of ``c`` up, one down,
+    leaving ``c·conj(c)``), and it is read off the unitarity of ``A``
+    rather than substituted from a formula.  The per-term division by
+    ``A_0s`` is the one operation that genuinely needs a field, and it
+    goes through :class:`~srmech.math.qalg.Qalg` over ``Phi_e`` — the
+    two-line lift :func:`srmech.math.groups.character_table` documents.
+    Every coefficient is then checked to be RATIONAL and to have
+    denominator 1 before it is returned; a non-integer here is a raise,
+    never a rounded result.
+
+    ⚠️ Slower than the Kac-Walton route by a wide margin — it builds the
+    whole S-matrix (cached) and contracts over every primary for every
+    output label.  Reach for :func:`affine_fusion_multiplicities` when
+    you want the answer and for this one when you want the answer
+    CHECKED, or when the algebra is D4.
+
+    Args:
+        algebra: ``"A1"``, ``"A2"`` or ``"D4"``.
+        a: a dominant label, integrable at ``level``.
+        b: likewise.
+        level: a non-negative int.
+
+    Returns:
+        The :func:`affine_fusion_multiplicities` payload shape — so the
+        two are comparable field-for-field — with ``"route"`` reading
+        ``"verlinde"``, plus ``"zeta_order"``,
+        ``"scale_squared_denominator"`` and ``"n_primaries"``.  There is
+        no ``classical_constituents`` field: this route never computes
+        one.
+
+    Worked example: ``verlinde_fusion_multiplicities("D4", (0,0,0,1),
+    (0,0,1,0), 1)["constituents"]`` returns ``(((1,0,0,0), 1),)`` — the
+    two spinors fuse to the vector, exactly the Klein-four group law, on
+    an algebra the alcove fold refuses.
+
+    C-parity (ADR-0009, recorded): no C peer; Python-first under the
+    noted-disparity ruling.
+
+    Note:
+        Exact integers and exact ``Q(zeta_e)``; no float; no ``abs``.
+    """
+    op = "verlinde_fusion_multiplicities"
+    stratum = _affine_stratum(op, algebra)
+    checked = _check_level(op, level)
+    label_a = _check_affine_weight(op, stratum, a, "a")
+    label_b = _check_affine_weight(op, stratum, b, "b")
+    _require_integrable(op, stratum, label_a, checked, "a")
+    _require_integrable(op, stratum, label_b, checked, "b")
+    core = _s_matrix_core(stratum["name"], checked)
+    primaries = core["primaries"]
+    modulus = list(core["phi"])
+    order = core["order"]
+    numerator = core["numerator"]
+    vacuum = tuple([0] * stratum["rank"])
+
+    inverse_vacuum = {}
+    for middle in primaries:
+        cell = numerator[(vacuum, middle)]
+        if not any(cell):
+            raise ValueError(
+                f"{op}: S_0[{middle}] is zero, so the Verlinde contraction "
+                f"would divide by zero - the vacuum row of a modular "
+                f"S-matrix has no zero (Verlinde law; a guard that fires is "
+                f"evidence)")
+        inverse_vacuum[middle] = Qalg(modulus, list(cell)).inverse()
+
+    partial = {}
+    for middle in primaries:
+        partial[middle] = (Qalg(modulus, list(numerator[(label_a, middle)]))
+                           * Qalg(modulus, list(numerator[(label_b, middle)]))
+                           * inverse_vacuum[middle])
+    scale = Qalg.rational(core["scale_squared_denominator"], modulus)
+    ledger: Dict[Tuple[int, ...], int] = {}
+    for target in primaries:
+        total = Qalg.rational(0, modulus)
+        for middle in primaries:
+            total = total + partial[middle] * Qalg(
+                modulus,
+                list(_zeta_conjugate(numerator[(target, middle)], order,
+                                     core["phi"])))
+        total = total / scale
+        if not total.is_rational():
+            raise ValueError(
+                f"{op}: the Verlinde coefficient at {target} is the "
+                f"non-rational {total} - a fusion coefficient is an integer "
+                f"(Verlinde-rationality law; a guard that fires is evidence)")
+        value = total.as_rational()
+        if value.denominator != 1:
+            raise ValueError(
+                f"{op}: the Verlinde coefficient at {target} is {value}, not "
+                f"an integer - a fusion coefficient counts channels "
+                f"(integrality law; a guard that fires is evidence)")
+        if value.numerator:
+            ledger[target] = int(value.numerator)
+    return _fusion_payload(
+        op, stratum, checked, label_a, label_b, ledger,
+        {"route": "verlinde",
+         "zeta_order": order,
+         "n_primaries": len(primaries),
+         "scale_squared_denominator": core["scale_squared_denominator"]})

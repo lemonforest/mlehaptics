@@ -19,6 +19,734 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc461] - the derivation pair, the frame nobody bound, and the fold that had to prove it stops: a label action that was only ever a constant, a cycle spectrum that was only ever a float, 28 coordinates two modules ordered differently, and an infinite Weyl group folded by an exact integer certificate
+
+**What this rc is for.** Two ops, and they are the same move twice: each replaces a claim the tree ASSERTED with one it MEASURES. Registry **690 → 692**; **ABI stays 24**; **zero C symbols added** — neither op mints a carrier TYPE (exact ℚ leaves as `int` pairs), so nothing widens a discriminator set and nothing crosses the wire. Plus a third gate that adds no op at all and closes a shipped field with **zero** test coverage.
+
+### 1. `srmech.physics.qm.triality.triality_frame_action` — Class D ∘ Class C
+
+**The gap, in the module's own words.** `triality.py` carries a block comment splitting its claims into DERIVED / DEFINITIONAL / MEASURED-IN-A-NOTE, and it files the two label actions under the middle heading: *"DEFINITIONAL, from how `_companion_maps` builds them"*, with the independent char-poly derivation living in `docs/srmech/notes/v4_so8_bridge_derivation_rc422.py` and in `tests/test_covering_layer_rc422.py`. **Neither of those ships.** `triality_rep_dictionary()` emits `tau_label_action` into `describe()`, the MCP tool list and the compiled-in C tool registry, so a consumer read a value whose only justification lived outside the wheel. Same reach the ref-notation arc measured; same reach the citation gates guard.
+
+**What the op does.** Given a 28×28 automorphism of so(8) in the shared `E_pq` frame, it returns which of `8v` / `8s` / `8c` each frame is sent to — **read off the matrix, in exact ℚ, with no constant consulted**. The three 8-dim reps are separated by their WEIGHT SYSTEMS: restricted to the standard Cartan `⟨E01,E23,E45,E67⟩` the frame with Cartan block `A_f` carries weights `± the rows of A_f`, so the action is the exact-ℚ set match `{± rows of A_f·A_φ} == W_g`. **Class D** is the pattern-match on a weight SET; **Class C** is the `±` orientation closure that makes the match blind to which end of a rotation plane is called positive — a closure, never an `abs()`.
+
+**Why it is cheap, and the measurement that makes it so.** All three shipped maps (τ, `S_B`, `S_C`) **PRESERVE the standard Cartan span exactly**, with every induced 4×4 entry in `{−1/2, 0, +1/2}`. So the whole read is 4×4 exact-rational arithmetic: **5.2 ms** for both generators, against **~4.3 s** for one exact companion solve and **46.7 s** for a cold `_companion_maps()`. A map that does NOT preserve the span is REFUSED with a `ValueError` naming the escaping coordinate — a real restriction of the instrument, stated rather than hidden.
+
+**The parity is READ, not chosen.** `8s` and `8c` are separated by the PARITY of the minus signs in their half-integer weight rows, and picking that convention to make the answer come out right would be fitting rather than measuring. It is instead derived from the shipped `S_B` / `S_C`: measured, **`8s` odd, `8c` even**, and the test re-derives it straight from `_companion_maps` so the payload field is checked against its source rather than against itself.
+
+**4 × 8 = 32, the reconciliation.** A frame is an 8-dimensional rep; the datum that fixes WHICH one has exactly 8 weights × 4 Cartan coordinates = **32 exact rationals**. The payload returns both halves (`cartan_block`, 16 entries; `frame_weights`, 32 per frame) so the reduction from 8 dimensions to 4 is inspectable rather than asserted, alongside the **computed** 24-element union of the three pairwise-disjoint weight sets.
+
+⚠️ **It can return otherwise, and that is measured.** Driven over the six elements of `⟨S_B, S_C⟩ ≅ S₃` the op returns **six DISTINCT** permutations of `{v,s,c}` — the whole of `Sym(3)`, including the third transposition `S_B·S_C·S_B` (`v` fixed, `s ↔ c`) that **no shipped constant names**, so a test comparing only against `_TAU_LABEL_ACTION` / `_SWAP_LABEL_ACTION` could not have seen it. Composition is contravariant, exactly as the module note says: the measured action of `S_B·S_C` is `π_{S_C} ∘ π_{S_B}`, and the covariant order is asserted to DIFFER so the check is not vacuous.
+
+### 2. `srmech.math.laplacian.cyclic_laplacian_spectrum` — Class L ∘ Class I ∘ Class N
+
+**The gap.** `generalized_ngon(example="ordinary_k")` already reads a cycle's spectrum — the thin ordinary k-gon's incidence graph IS `C_2k` — and routes it through `dense_adjacency` + `jacobi_eigvals`, i.e. through FLOAT. For this one graph family the float is a **projection of an object the ALU can hold exactly**: `L = 2I − A` is a circulant, circulants are diagonalised by the characters of **ℤ/n** (Class I), and `λ_k = 2 − ζ^k − ζ^{−k}` lives in `ℚ[x]/Φ_n(x)`. The op returns it there, as exact `(numerator, denominator)` coordinate pairs. **No float is constructed in the body and no embedding root is attached**, so `[[feedback_alu_all_the_way_fpu_last_mile]]` holds structurally rather than by inspection.
+
+**The reconciliations are EXECUTED guards that raise, not prose.** Sums and products of algebraic numbers over a whole ℤ/n orbit fall back into ℚ, and the op runs those falls: `Σλ_k = 2n`; under `deep=True`, `Σλ_k² = 6n` and `∏_{k≥1} λ_k = n²`, hence `spanning_trees = n` — an anchor whose value is independently obvious (delete any one of the `n` edges). Two structural guards run always: `αⁿ == 1` in the field, checked not assumed; and `λ_k == λ_{n−k}`, the **Class-C traversal-reversal pairing** — a pairing, not a magnitude, so no `abs()` is reachable.
+
+⚠️ **The degenerate cases are NAMED, never tolerated.** `n = 1` is a SELF-LOOP: it lands on the degree and on the diagonal of `A` in equal measure, so `L = [0]` and the trace is **0**, not 2. `C_2` is a DOUBLED EDGE: `Σλ² = 16`, not `6·2 = 12`. Both are excluded from their laws BY NAME rather than by a widened band, because a guard that accepted both would be checking nothing. This was found by the first run raising, not by inspection.
+
+**The crystallographic reading, MEASURED rather than cited.** `all_rational` is True exactly on `n ∈ {1,2,3,4,6}` over 1..30 — which is exactly `{n : φ(n) ≤ 2}`, re-derived in the test from `srmech.math.primes.factor` so neither side restates the other. The pentagon is the first failure, its eigenvalues `(5 ± √5)/2`. The op does not cite the crystallographic restriction; it returns the datum the restriction is about.
+
+**Bounds are MEASURED, not round.** `n ≤ 256` (0.63 s at 256; 1.27 s at the prime 251, because the field degree IS `φ(n)`), matching the module's existing `MAX_NATIVE_NODES` so the exact op and the native Jacobi path stop at the same place. `deep=True` needs `n ≤ 64` (4.98 s at n=61 against 0.09 s for the base path at n=59): adding exact field elements keeps coefficients bounded, multiplying them does not, so the running Kirchhoff product is the whole cost. A balanced binary tree was measured against the left fold at n=105 — **11.4 s vs 20.4 s** — so the fold is kept and the bound is on `n`, not on the association order. Separately, the power ladder uses `α^{n−k}` rather than `Qalg.inverse()`: `α^{-1}` reduces to a DENSE vector and costs a full `O(φ²)` convolution per step, so the sparse `α` route is **0.32 s vs 6.79 s at n = 101**.
+
+**The co-equal dual construction.** `generalized_ngon(example="ordinary_k")` and this op read the SAME graph by two independent routes — a float64 Jacobi eigensolve on a 2k-vertex adjacency matrix, and exact ℚ arithmetic in a cyclotomic field — related by `λ_L = 2 − λ_A`. Both are executed and compared for k = 2..7, with the projection running EXACT → float and never the reverse (reading the float back into ℚ would be a rotation the ALU did not do, which is the whole thing the op exists to avoid).
+
+### 3. The gate that adds no op: `feit_higman_allowed` had ZERO test coverage
+
+`generalized_ngon` has shipped a `feit_higman_allowed` field since rc399. **Measured at the rc460 head, predicate stated** — `git grep -n feit_higman_allowed -- tests/` — the field appears in **zero** test files. Not under-tested: *unasserted, in either branch*, while riding inside every wheel and reaching users through `describe()`, the MCP tool list and the compiled-in C registry. The op's own acceptance file exercises girth / diameter / biregularity / the spectral constraint and never reads this key.
+
+**The trap the coverage was hiding.** The predicate has TWO ARMS — `(n in {2,3,4,6,8}) if thick else (n is not None)` — and reading the field as "n ∈ {2,3,4,6,8}" is wrong for half its domain. A THIN structure at `n = 5` (the ordinary pentagon, `C_10`) is **ALLOWED**, because ordinary n-gons exist at every n; only the thick arm is constrained. A gate that only fed thick examples would report full coverage of a predicate whose thin arm it never entered.
+
+**Constructed witnesses, no external data.** The Petersen graph as the Kneser graph `K(5,2)` and its **bipartite double cover** (Desargues), both derived from 2-subsets of a 5-set, with every property MEASURED by `generalized_ngon`'s own BFS rather than quoted. Desargues is thick, biregular, connected, `n = 3` — so `feit_higman_allowed` is **True** — and is **NOT a generalized polygon at all** (diameter 5 ≠ 3). *Allowed is not is*: "not A" ≠ "B", on an object twenty vertices of derived combinatorics away from anyone who wants to check. The reachable False arm (`n is None`) is entered with a constructed acyclic incidence structure that is nonetheless CONNECTED, so the False verdict is provably acyclicity and not disconnection.
+
+⚠️ **NAMED BLIND SPOT, disclosed rather than papered over.** The other False arm — **thick with `n ∉ {2,3,4,6,8}`** — is not witnessed by any object in this tree and cannot be without external data: the smallest such object is a 70-vertex `(3,10)`-cage, a published construction rather than something derivable inside a test, and committing a recalled LCF sequence for one would be exactly the citation-hallucination class the AMSC discipline exists to prevent. The gap is written into the test file's docstring and a test ASSERTS that disclosure is still there, so deleting the paragraph turns the suite red rather than quietly widening the claim.
+
+### Proven red by planted mutation — all three gates, both directions where they have two
+
+| mutation | gate | result |
+|---|---|---|
+| flip `_TAU_LABEL_ACTION` to the inverse 3-cycle | `test_frame_action_rc461` | **1 failed**, 19 passed — the constant is bound to the derivation |
+| swap the `8s` / `8c` Cartan blocks in the derivation | `test_frame_action_rc461` | **3 failed**, 17 passed — including the parity re-derivation |
+| `λ_k = 2 − α^k − α^k` (drop the negative power) | `test_cyclic_spectrum_rc461` | **20 failed**, 3 passed |
+| `feit_higman_allowed = True` unconditionally | `test_feit_higman_branches_rc461` | **3 failed**, 11 passed |
+| delete the docstring scope disclosure | `test_frame_action_rc461` | **1 failed**, 15 passed (`-x`) |
+| restore the over-claiming `ValueError` message | `test_frame_action_rc461` | **1 failed**, 13 passed (`-x`) |
+| reject a singular non-Cartan column (close the blind spot) | `test_frame_action_rc461` | **1 failed**, 14 passed (`-x`) |
+| delete the weights-per-frame reconciliation | `test_frame_action_rc461` | **1 failed**, 19 passed |
+| *(restored tree)* | all three | **57 passed** |
+
+The first two rows were re-measured after the review added three tests: the mutation still reds exactly **1** and exactly **3**, so the discrimination each one proves is unchanged and only the passing count moved.
+
+The feit-higman file also carries its two seeded controls in BOTH directions in-test: shrinking `_FEIT_HIGMAN_THICK_N` flips the thick Fano witness to False while leaving the thin arm untouched (proving the arms are separate code paths), and widening it to every n ≤ 20 leaves the acyclic witness False (proving the §1 result is genuinely the `n is None` arm).
+
+### Pre-flight, and what it found
+
+The rc460 worked-example ledger was written at `ba95995ed` and the very next rc460 commit (`afa318d95`) changed `srmech/math/weight_lattice.py` and `srmech/physics/qm/so8.py`, so eight rows shipped inside rc460 unverified. ⚠️ `--only-stale` would NOT have selected them — it hashes snippet TEXT (`src_sha256`), which does not move when the implementation moves — so all eight were re-run BY NAME with explicit `--only`. **Result: zero content change.** The rows were unverified but not wrong; the staleness was in the provenance, not in the values. Recorded because a null that is not written down is indistinguishable from a step that was skipped.
+
+### Ripple
+
+74 count-pin lines across 67 test files (`== 690` → `== 692`, measured by `git grep -c`, and the sweep re-measured after); `EXPECTED_N` + the sha256-pinned op-name manifest + its digest, all three in one commit as that gate requires; the four generated artifacts via `tools/regen_all.py` (idempotence re-verified, second pass byte-identical); the worked-example and example-args ledgers; the rosetta classification ledger (2 rows, `composition_of_c`); the composes ROSTER (one HAND-TRACED two-op row) and the re-run census (one FORCED-ORDER singleton); the `preserves` taxonomy (two NEW strings, deliberately not sharing the rc460 ℤ sentence — one is a ℚ claim, strictly weaker, and the other's no-`abs()` clause is Class-C ORIENTATION rather than a Class-K pin the body never runs); the `srmech.amsc.` as-text ceiling 113 → 115 and TOTAL_AS_TEXT 204 → 206 (**decoded UNMOVED at 2** — the CITATION case); the decoded `srmech.math.` 344 → 345 and `srmech.physics.qm.` 163 → 164; README `690-entry` → `692-entry` and its `native_version` block; the notebook's four `Live at rc460` stamps and its two live cardinals. ⚠️ The notebook's `PR #690` and `F690` were left alone — a different quantity that coincidentally shares the digits, which is why the sweep ran BY SITE LIST and not by grep-replace.
+
+`tools/run_worked_examples.py`'s `SLOW_ALLOWLIST` gains `triality_frame_action` at 240 s with the measured reason: the op is 5.2 ms and the first touch of the memoised `_companion_maps()` is 46.7 s, and which snippet pays that depends on worker recycling rather than on this op. (The review found the same argument covers three more triality rows and adds them — see *Post-review corrections* below.)
+
+### Deferred, with reasons
+
+- **`_TAU_LABEL_ACTION` / `_SWAP_LABEL_ACTION` are NOT replaced by a call to the new op.** Deriving them at import would put a 46.7 s companion build on the import path of `spin8_center` and `triality_rep_dictionary`. The constants stay; the agreement is a gate.
+- **No C peer for either op.** Python-first under the ADR-0009 noted-disparity ruling, recorded in both docstrings and both `ToolEntry` summaries. `triality_frame_action` composes maps whose companion solve already mirrors `srmech_qmat_rref`; `cyclic_laplacian_spectrum`'s carrier is the pure-Python exact `Qalg`, and giving it a C peer is a carrier-slice question, not an op-slice one.
+
+### Post-review corrections — three, all reproduced first
+
+**1. The `Raises:` clause claimed a refusal the op cannot perform.** It read *"if the transported weight set of some frame matches no frame (which is what a non-automorphism does)"*, and the runtime message said outright *"the input is not an automorphism of so(8) preserving this Cartan"*. Neither is decidable from what the op reads. `_cartan_block` inspects the four Cartan COLUMNS and nothing else, so the other 24 are never looked at. **Reproduced with three constructed non-automorphisms**, each answered `order` 3 with full confidence: a non-Cartan column scaled by 7, a non-Cartan column overwritten with garbage, and — the decisive one — **every non-Cartan column zeroed**, leaving 4 live columns out of 28, so rank ≤ 4, so not invertible, so provably not an automorphism of so(8).
+
+No wrong number is produced: what comes back is a true statement about the induced action on `h`. So the defect is a SCOPE claim, and a block-orthogonality check would not have caught it either — the map that survives is orthogonal on the block. Both statements are now precise, the docstring carries a `Warning:` naming the blind spot with that rank-≤4 witness, and **a test measures the blind spot and a second test asserts the disclosure is still in the shipped docstring**, so deleting the paragraph turns the suite red. Deciding automorphy would mean bracket-preservation over all `C(28,2) = 378` generator pairs — a different instrument, not a tightening of this one.
+
+**2. `_WEIGHTS_PER_FRAME` was a shipped constant with no reader anywhere in the tree.** `git grep` returns exactly one line, its own definition, and its comment claimed it was *"MEASURED by the op, never assumed"* — while the op measured `len(weight_sets["v"])` and never consulted it. A derived literal sitting beside a measured length that nothing compared it to. The op now **reconciles the two routes to 8 and raises on disagreement**, which is non-vacuous: a degenerate frame block (a repeated row, or a row equal to another's negative) collapses the ± closure below 8, and `weights_per_frame` would otherwise have reported the smaller number while the three weight systems quietly stopped being able to separate the frames. Proven red by monkeypatching `8c`'s block to repeat a row — 8 weights → 6, MEASURED in the test before the call.
+
+**3. The `SLOW_ALLOWLIST` note above stopped one name too early, and the ledger hook's own remediation was manufacturing a false red.** `tools/hooks/derived_ledger_freshness.py` prescribes `run_worked_examples.py --only <row>` when a module changes — which is exactly what a change to `triality.py` triggers, on the ten triality rows. MEASURED, one `--only` invocation per row, CPython 3.14 / native absent: `triality_automorphism` (16.0 s), `triality_swap` (16.6 s) and `lean_isa_seventh_primitive` (16.0 s) each blew `DEFAULT_BUDGET = 15.0` and flipped `ok` → `timeout`, while every other triality row finished under 4 s. **The snippets are not slow; the isolation is** — in a full run some earlier snippet warms the memoised `_companion_maps()`, and `--only` removes exactly that. Committing that ledger would have carried the `timeout` tally from 1 to 4 against a ceiling of **1** in `tests/test_worked_examples_execute_rc354.py`. All three are now allowlisted at 240 s with their measured numbers, as `tests/test_synth_args_provenance_rc430.py` already instructs in its own failure message. Re-measured afterwards: **all ten rows re-run by name, zero content change.**
+
+⚠️ **The ledger itself is therefore NOT committed here, and that is the rc461 addendum's residual reaching a second instance.** The ten rows are measured unmoved, so the only line that would move is the meta line — and writing it from this host stamps `python: "3.14"` over a ledger whose other 597 rows were produced under 3.10, plus a `verified_at` the previous writer could not populate. Trading a blank provenance field for a whole-ledger-shaped claim that is false for most rows is not an improvement, and choosing between them is the ruling the addendum asks for. Recorded rather than resolved.
+
+### PART 2 (`#T1181`) — the automorphism side, and the frame bind
+
+**What part 2 is for.** Part 1 shipped `triality_frame_action`, the INDUCED-PERMUTATION reader,
+and it is correct and it keeps. What it did not do — because nothing in the tree did — is bind the
+COORDINATE FRAME its input is written in. `triality_automorphism()` returns the 28x28 tau and
+`triality_swap()` returns `S_B` **in the shared `E_pq` frame**; `so8_adjoint_basis()` orders the
+same 28 so(8) directions differently (`14 g2 + 7 L + 7 R`). **Nothing bound them.** Registry
+**692 -> 695**; **ABI stays 24**; **zero C symbols added** — no new carrier TYPE crosses any
+boundary (Q leaves as `int` pairs, a `str` leaves the address op).
+
+⚠️ **The gap is measured, not theoretical.** Build `Ad(g): X -> g X g^T` in `so8_adjoint_basis()`
+coordinates and test tau against it: tau appears to FAIL on **378 of 378** generator pairs and to
+fix **0 of the 14** dimensions of `g2` — while the mathematics is fine and only the frames
+disagree. For a genuine monomial G2 element whose `E_pq` commutator is EXACTLY ZERO,
+`[tau, P^-1 Ad P]` carries **176 of 784** nonzero entries. Well-formed, plausible, wrong; no
+exception, no warning. Same class as rc460's B1 (42 silent wrong answers from an unbound frame),
+and it takes the same fix: a **Class-A content address**.
+
+⚠️ **The FRAME RULING's premise was stale, and the correction is part of the ship.** The ruling was
+written on *"no public op in so8/triality accepts or emits 28-dim coordinates today"*. That is
+FALSE as of rc461 part 1: `triality_frame_action(automorphism)` takes a 28x28 in the `E_pq` frame
+and is in `triality.__all__`. The ruling's CONCLUSION survives and is strengthened — there is now a
+live public consumer of the unbound frame — but the premise sentence does not, and it is corrected
+in `so8.py`'s own block comment rather than carried forward.
+
+#### 4. `srmech.physics.qm.so8.epq_frame_address` — Class A
+
+The Class-A content address of the shared `E_pq` frame, covering **both** halves of what makes it
+that frame: the pair ORDER and the octonion multiplication TABLE the generators are built from
+(`octonion_table_attestation`'s `response_sha256`). Memoised; routed through
+`srmech.amsc.format.sha256_bytes`.
+
+**Pinned by DECLARATION plus an address, never a `frame=` parameter.** rc460's `field == 'Q'`
+ruling controls: a single-value pin no producer can vary MINTS A DIALECT. Exactly one 28-dim frame
+is mintable in this tree today, so a parameter would be that defect wearing a hash. The address is
+**emitted** by every op that consumes the frame and **accepted as an input by none**. The day a
+second-frame producer lands it brings its own address and the consumers gain the bind check in the
+SAME change.
+
+#### 5. `srmech.physics.qm.so8.so8_bracket_certificate` — Class D ∘ Class C
+
+`phi([X,Y]) == [phi X, phi Y]` over every one of the `C(28,2) = 378` unordered `E_pq` generator
+pairs, in **exact integer arithmetic**. tau and `S_B` have entries in `{0, +-1/2}`, so clearing
+denominators gives an integer `M = d*phi` with `d = 2`; the left side carries one factor of `phi`
+and the right side two, so the exact predicate is `d*M([X,Y]) == [MX, MY]` — integers both sides,
+no tolerance. Class C is the `E_qp = -E_pq` re-orientation applied when a pair arrives reversed: a
+sign, never an `abs()`.
+
+**This is the instrument `triality_frame_action`'s own scope warning names and declines to be** —
+*"deciding THAT means bracket-preservation over all C(28,2) = 378 generator pairs, which is a
+different instrument and not a tightening of this one"* — and, measured, **it is also the only
+shipped op that can SEE a wrong-frame matrix**: tau 0/378, `S_B` 0/378, `P^-1 S_B P` **161/378**,
+`P^-1 tau P` **214/378**. Cost **18.6 ms** warm against `triality_frame_action`'s 7.8 ms (2.4x, not
+the 34x the research phase estimated from a naive implementation).
+
+#### 6. `srmech.physics.qm.so8.g2_membership` — Class D ∘ Class K ∘ Class C ∘ Class A
+
+⚠️ **THE NAME IS THE RESULT OF A MEASUREMENT, NOT A PREFERENCE — this was the rc's single most
+important call.** The obvious name, `is_triality_fixed` over the two commutators alone, would be a
+**LIE**. `Ad(-I) = I_28` exactly, so `-I` commutes with everything; yet `-I` fails octonion
+multiplicativity on **64 of 64** basis pairs and is not an automorphism of O at all. And it is not
+one counterexample: over the **2688** monomial elements of `+-G2`, **all 2688** pass both
+commutators and exactly **1344** fail multiplicativity 64/64. The reason is structural — the
+commutators see `PSO(8) = SO(8)/{+-I}` and CANNOT separate `g` from `-g`. So the commutator verdict
+ships as **`fixed_mod_center`** and the words "in G2" are reserved for **`in_g2`**, decided by
+multiplicativity over the 64 octonion basis pairs, which IS the definition of `Aut(O) = G2`. The
+field that asserts membership is the field that measured it.
+
+⚠️ **`determinant` does not rescue the commutator reading**, and the gate says so out loud:
+`det(-g) = (-1)^8 det(g) = det(g)`, measured `+1` for all 32 monomial G2 elements **and** all 32 of
+their negatives.
+
+**BOTH residuals are computed and the impossible cell RAISES.** For a validated `g` in `SO(8)`,
+`[tau, Ad(g)] = 0` IMPLIES `[S_B, Ad(g)] = 0`: tau-centralising forces `[g]` into `PSO(8)^tau`,
+which (`gcd(3, |{+-I}|) = 1` killing the cohomology) is the image of `Spin(8)^tau = G2`, and `G2`
+lies inside `Spin(7) = Fix(S_B)`. The second condition is REDUNDANT, and it is computed anyway
+because **a redundant condition is a DETECTOR**. ⚠️ **Be precise about what it detects:** it is NOT
+input validation — neither impossible cell is reachable from any orthogonal input, measured **0**
+across the whole `+-G2` monomial set. It is a **theorem check on our OWN shipped tau / S_B**, firing
+if the companion solve ever regenerates one of them wrongly. The gate proves it can fire by **fault
+injection** at the private residual seam, because a guard never observed to fire is not an
+instrument.
+
+**The prediction the contract exists to answer, and it is FORCED rather than asserted.** An
+octonion automorphism realising `e1 -> e2 -> e3 -> e1` is **INNER** while tau is **OUTER** — the
+`S3` permuting `(i,j,k)` in `Q8` is NOT the `S3` permuting `(8v, 8s, 8c)`; it lives INSIDE
+`Fix(tau) = g2`. `induced_outer_class` returns that, derived from the two measured commutators: in
+`Out(Spin(8)) = S3` the centraliser of the 3-cycle is `A3` (order 3) and a transposition's has
+order 2, and the gate **executes** the intersection over all six elements of `Sym(3)` to find it
+trivial. Routing through `triality_frame_action` is not available — measured, it REFUSES `Ad(g)`
+for **32 of 32** monomial cycling elements on a genuine Cartan escape, and the gate executes that
+refusal too.
+
+#### The F1 call: `triality_frame_action` is NOT tightened into the certificate, deliberately
+
+The research phase recommended making `triality_frame_action` call the new certificate and RAISE.
+**Declined, and the reason is on the record rather than implied.** That op's shipped `Warning` is a
+deliberate, gated scope statement: the verdict is about `h` and only about `h`, *"a pass is not a
+certificate of automorphy"*, witnessed in `tests/test_frame_action_rc461.py` with a rank-<=4 input
+it deliberately ANSWERS. Making it raise would delete that boundary and its witness one commit
+after shipping them. And the returned value for `P^-1 S_B P` is **true within the declared scope** —
+that matrix genuinely induces the identity on the standard Cartan's weight systems. The wrongness
+lives entirely in a caller's belief about which frame the input was in, which is a FRAME defect, and
+the rc460 ruling for a frame defect is an address plus a detector.
+
+⚠️ **What `triality_frame_action` does gain, and what it plainly does not.** It emits
+`frame_sha256`, and a second `Warning` states in terms that this is a **LABEL, not a check** — it is
+computed from module constants, so the same address comes back whatever you feed in. The Warning
+carries the measured defect (`P^-1 S_B P` -> `{'v':'v','s':'s','c':'c'}`, `order` 1, no exception;
+still an involution, still trace 14, still Cartan-preserving; while `P^-1 tau P` happens to RAISE,
+so exactly one of the two shipped generators walks through) and names `so8_bracket_certificate` as
+the op to run first. Both sides are pinned in `tests/test_so8_automorphism_bind_rc461.py` so neither
+can drift.
+
+#### `so8_adjoint_basis`: the float carrier is the CONTRACT, and now it is MEASURED
+
+The 28 generators are every entry `float`-typed and **100% integer-valued**, max magnitude **4**.
+That is not a defect: `Mat` is by contract the float64 carrier and `QMat` is the exact one, and
+integers of magnitude 4 are exactly representable, far inside `2**53`. What had never been MEASURED
+is that claim itself, and `test_g10_adjoint_basis_entries_are_integers_carried_as_float` now
+measures it (28 matrices, 1792 entries, 0 non-integer). **Changing the return type to an exact
+carrier is OUT OF SCOPE for this rc and recorded as such**: a new TYPE widens a discriminator set
+and must close its projection gap in the SAME change, which is a carrier-slice arc rather than an
+op-slice one.
+
+#### C-side cost — the ADR-0009 gap, recorded verbatim
+
+> `so8.epq_frame_address` / `so8.so8_bracket_certificate` / `so8.g2_membership` ship **Python-first
+> with no C peer** under the ADR-0009 noted-disparity ruling, by the same argument rc461 part 1
+> recorded for `triality_frame_action`: they are written in, or compose, the `E_pq` frame that the
+> 28-unknown companion solve is written in, and that solve has **no C projection either**, so a C
+> peer for these three would have to bring the whole companion engine with it. **No new carrier
+> TYPE crosses the boundary** (Q leaves as `int` pairs; a `str` leaves the address op), so no
+> discriminator set widens and **ABI stays 24**. The recorded gap is the companion engine, not
+> these three ops.
+
+Measured against `CEIL_PYTHON_ONLY_DEBT = 0`: all three classify **`composition_of_c`**, the same
+bucket both rc461 part-1 ops landed in, so no C symbol is added and the debt ceiling holds.
+
+#### Part 2 ripple
+
+**75 count-pin lines across 68 test files** (`== 692` -> `== 695`; the sweep ran by SHAPE-matched
+predicate, not by bare grep-replace, and every one of the 75 was confirmed a registry total by
+reading its context). ⚠️ The count is **75/68**, not the 74/67 the brief carried — that was rc460's
+baseline; part 1 added `tests/test_frame_action_rc461.py`. One of the 75
+(`test_pinned_names_carry_no_value_rc447.py:7`) is a **docstring illustration**, not an executing
+assert, and is swept by convention.
+
+Also: `EXPECTED_N` 692 -> 695 with its per-op rationale, the sha256-pinned op-name manifest
+rewritten (695 rows) and `EXPECTED_NAME_SET_SHA256` re-pinned, all three in one commit as that gate
+requires; `tools/regen_all.py` (idempotence re-verified, second pass byte-identical); the
+worked-example and example-args ledgers; the rosetta classification ledger (3 rows,
+`composition_of_c`); three curated `example` + `explanation` entries clearing the multi-perspective
+bar with **captured** WSL2 output; the `srmech.amsc.` as-text ceiling **115 -> 118** and
+`TOTAL_AS_TEXT` **206 -> 209** (**decoded UNMOVED at 2** — the CITATION case, the three `composes`
+citations of `sha256_bytes`); the decoded `srmech.physics.qm.` **164 -> 166** (⚠️ **+2, not +3** —
+a decoded slot is earned per CARRIER-TYPED PARAM, and `epq_frame_address` takes no arguments);
+the corpus witness `WITNESS_RC416` (`len(frames)` **721 -> 724**, read off the
+build as `{'op': 695, 'carrier': 29}`, measured LAST after the final regen and confirmed identical
+across nine builds in three fresh interpreters); `CEIL_FRAME_UNADJUDICATED['NO_ARG']` **278 -> 280**
+and `['NO_INT_INPUT']` **170 -> 171**; README `692-entry` -> `695-entry`; the notebook's two live
+cardinals; and `tools/ripple_gates.txt` gains the new gate (111 targets, 0 missing).
+
+⚠️ **`CEIL_UNSYNTHESIZABLE_PARAMS` was raised 52 -> 54 and then PUT BACK, and the reason is worth
+more than the number.** The +2 was not this rc's ops at all. Re-running `tools/run_example_args.py`
+in FULL re-harvests every snippet in one process, and it flipped an unrelated row:
+`srmech.math.rational.rational_div` went `ok` -> `no_jsonable_arg`, its two `Q | tuple[int, int]`
+params arriving as `Q` objects where the committed ledger had `(19, 20)` / `(9991, 10000)` tuples —
+**same `src_sha256`, same four recorded calls**. Three more rows moved with it
+(`triality_companions` the opposite way, `genome_groups` 5 -> 7 calls, `cascade.pair` 1 -> 2).
+Re-running with **`--only-stale`** harvests only the genuinely-new rows, leaves all 692 others
+byte-identical, and every derived count returns to its true value. The first attribution — blaming
+the new ops' `Mat` params — was measured FALSE (`Mat` already has a `_synth_value_for_type` row) and
+is recorded at the pin rather than quietly deleted. **The ledger's own freshness clause only
+compares `src_sha256`, so a full re-harvest is not a no-op on unchanged rows.**
+
+⚠️ **The five citation gates read RED in this worktree and are GREEN.** The corpus zeroes to **0**
+modules under any path with `.claude` or `worktrees` as a component (`EXCLUDED_DIR_NAMES` matches
+ANY component), and this session's worktree is `.claude/worktrees/…`. Both directions executed:
+**266** modules from a copy at a non-excluded path versus **0** here, and all **88** tests across
+the five gates pass on that copy.
+
+⚠️ **`tools/ripple_gates.txt` is CRLF.** The appended line was written CRLF to match; a naive LF
+append leaves a mixed-ending file and a resolver that does not strip the carriage return reports
+every target MISSING.
+
+#### Part 2 gates — hand-written, every predicate with a control that came back RED
+
+⚠️ **Do NOT lean on `tests/test_preserves_taxonomy_rc423.py`**: it declares eight of ten property
+kinds EXECUTABLE and its `test_the_population_is_stated` (at `:431` on this tip) executes NONE of
+them, so a declared property can be classified machine-checkable and never run. Every property
+claim here has a hand-written execution gate. (Cited by NAME, not by line alone — the `:371-377`
+form this rc first shipped was made stale by rc461's own later commits, which added 61 lines above
+that function. A line anchor into a file the same rc is still growing is a citation with a clock on
+it.)
+
+The negative controls, all executed: `2*S_B` fails the certificate **168/378** (a scale cannot
+survive a bracket that is quadratic on one side and linear on the other); `P^-1 S_B P` **161/378**
+and `P^-1 tau P` **214/378** (the wrong-frame case); each `-g` of the 32 cycling elements passes
+BOTH commutators, fails multiplicativity **64/64** and reports `center_coset` `minus_G2`; the
+`e1 <-> e2, e3 -> -e3` control fails both commutators at **120/784** and multiplicativity **36/64**;
+the `diag(-1,1,...,1)` control fails both at **42/784** with multiplicativity **22/64**, and the
+gate executes the MECHANISM — `triality_frame_action` reports its induced action as the
+transposition `(s c)`, and two distinct transpositions in `S3` never commute. The dissonance guard
+is proved firable by fault injection in **both** impossible cells, with a no-injection control that
+returns cleanly.
+
+#### Part 2 — RECONCILIATION (a), carried and EXECUTED
+
+The 32 monomial automorphisms with index action `(123)` on the quaternion line factor as **4 index
+permutations x 8 sign patterns**, not one index permutation x 32 signs — derived in the gate from
+the Fano and sign conditions rather than pinned, with the four permutations enumerated. ⚠️ This 32
+is **unrelated** to `triality_frame_action`'s `32` weight-table entries (8 weights x 4 Cartan
+coordinates). They share a numeral and no structure; neither reconciles the other, and part 1's
+commit `869557740` already corrected prose that implied otherwise.
+
+
+### PART 3 (`#T1183`) — the AFFINE / KAC-WALTON layer, and the fold that had to prove it stops
+
+**What part 3 is for.** rc460 shipped the CLASSICAL A2 fold and called Lie fusion what it is — a
+signed integer count, not an integral. This part ships the **level-truncated** half of that
+sentence. A package-wide census returned **ZERO** across ten terms (affine Weyl · level · alcove ·
+Kac-Walton · Verlinde · S-matrix · modular data · fusion ring · truncation · orbit Lie algebra);
+five ops close it. Registry **695 → 700**; **ABI stays 24**; **zero C symbols added** — nothing
+mints a carrier TYPE, so no discriminator widens.
+
+**The framing that makes this small.** Racah–Speiser is the same instrument at level `k` as it is
+classically, with exactly ONE extra reflection available: the affine `s_0`. Everything else — the
+±1 ledger, the wall that contributes zero, the signed accumulation — is rc460's op unchanged.
+
+#### The infinite group, and why enumeration could not survive
+
+`W(A2)` has six elements and `_WEYL` enumerates them. `Ŵ_k = W ⋉ κQ^∨` is **INFINITE**, so the
+enumerate-and-scan shape cannot be reused — and the obvious replacement, *"while some label is
+negative, reflect"*, is an unbounded loop whose termination is an ASSUMPTION. That is precisely what
+`_dominant_conjugate` refuses to be, in its own docstring.
+
+**So the fold carries an EXACT INTEGER TERMINATION CERTIFICATE.** In affine Dynkin labels
+`a = (a_0 … a_r)` constrained by `Σ_j comark_j·a_j == κ`, every generator collapses to ONE form,
+`s_i: a_j → a_j − a_i·C^aff_ij`. The monovariant `Q(a) = Σ_j a_j²` then falls by **exactly**
+`quantum·a_i` per step, where `quantum` is DERIVED from the affine Cartan (`2κ` for A2, `4κ` for
+A1) rather than transcribed. A step fires only when `a_i < 0`, so the drop is strictly negative AND
+integer-quantised at `≥ quantum`; and `Q ≥ κ²/(r+1)` on the constraint simplex, so a step BOUND is
+computed **before** the loop and asserted against **inside** it. The per-step law is checked on
+EVERY step, not once. Measured over `[−12,12]^rank` at `k = 0..3`: worst case **well inside** the
+bound, which the gate asserts as a strict inequality rather than eyeballing.
+
+⚠️ **A1 AND A2 ONLY — and the MATHEMATICS enforces it, not a hand-kept list.** The collapse needs
+every affine node adjacent to every other; D4's diagram is a star and the identity fails.
+`_monovariant_quantum` RAISES on that, so a D4 caller gets the TERMINATION reason. `AFFINE_FOLD_ALGEBRAS`
+is **derived** by evaluating the same predicate, so the documented scope cannot drift from the
+proved one. An earlier draft gated on an allowlist instead — which made the termination guard
+**unfirable from public input**, an instrument that cannot return otherwise. Fixed before shipping.
+
+#### The five ops
+
+**`integrable_weights`** (Class E) — the primaries. Marks are DERIVED: `θ` is located as the root
+of maximal height in the derived root system and `h^∨ = 1 + Σ marks` is cross-checked against the
+independent `|Δ|/rank` count, a raise if they disagree. D4's marks come out `(1,2,1,1)`, which is
+why level 1 has **four** primaries and not five. The centre `P/Q` ships too, off the Cartan's Smith
+normal form: `(2,2)` for D4 — the Klein four-group, **derived, not recalled**.
+
+**`alcove_fold`** (Class K) — the iterative signed fold above, with its telemetry on the payload
+(`steps`, `step_bound`, `q_initial`, `q_final`, `monovariant_quantum`, and `on_wall` as a bool
+FIELD rather than an inferred one; `sign` is `0` **only** on a wall).
+
+**`affine_fusion_multiplicities`** (Class K) — Kac-Walton. ⚠️ **The name is the resolution of a
+real collision**: `srmech.math.groups.fusion_multiplicities` (`groups.py:1687`, verified at the
+branch tip) is the FINITE-GROUP tensor `N_abc = ⟨χ_a·χ_b, χ_c⟩`, **Class L** because it contracts
+against the class-algebra eigenbasis. This op builds no eigenbasis and projects onto nothing — the
+same explicit non-claim rc460 already paid to make. The two DO coincide at level 1 (a simply-laced
+level-1 fusion ring is the group ring of the centre, which is why the D4 acceptance test exists),
+but **coincidence in one case is not identity**, and reusing the bare name would erase a
+distinction the tree has already bought.
+
+**`affine_modular_s_matrix`** (Class I) — the Kac-Peterson S-matrix, exact over `ℤ[ζ_e]`. A FINITE
+Weyl sum with no fold, so it carries D4. Explicit non-claim: **NOT Class L** — it runs no spectral
+decomposition; that `S` diagonalises the fusion algebra is a theorem ABOUT it, not an operation it
+performs.
+
+**`verlinde_fusion_multiplicities`** (Class I) — the SAME coefficients by a disjoint instrument.
+
+#### Three things DERIVED that are usually recalled
+
+1. **`h^∨`.** From the marks, cross-checked against `|Δ|/rank`. D4's `6` is computed, not carried.
+2. **The ring.** Exponents start over `κ·D²` and the order is **reduced by their gcd**. D4 level 1
+   lands in `ℤ[ζ_14]` — not the `ℤ[ζ_28]` the raw scaling suggests, and **not the `ℤ[ζ_7]` a
+   reading of `κ` alone suggests**. The spinor weights are half-integral and the measurement says
+   so. (The carried research note had `ζ_7`; it is corrected here by measurement.)
+3. **The normalisation.** `A·A^†` is COMPUTED and must be `n·I`; `|c|² = 1/n` falls out of
+   unitarity. Measured, `n` equals `κ^rank·|P/Q|` in every shipped case — but it is READ off the
+   matrix, so that formula is a **cross-check** and not an input. Off-diagonal vanishing is a raise.
+
+#### The co-equal dual construction
+
+Kac-Walton is an iterative integer reflection that never leaves `ℤ`. Verlinde is a finite
+exponential sum over the ordinary Weyl group followed by division in a number field. They share no
+machinery. **Measured: 199 operand pairs across A1 levels 1–4 and A2 levels 1–3, ZERO mismatches.**
+And the scopes differ, which is the practical reason to ship both — Verlinde reaches **D4**, where
+the fold refuses, returning the Klein-four group ring (every product a single primary at
+multiplicity one, every primary its own inverse). That is a fourth, independent confirmation that
+`P/Q` is `V4` and not `C4`, by a route that never looks at the Smith normal form.
+
+#### The five acceptance tests, and the one whose headline claim was FALSE
+
+1. **su(2)_k** vs a truncated-CG rule derived in the gate — `k=1..6`, 139 cells, 0 mismatches.
+   Control: the UNtruncated rule disagrees.
+2. **su(3)_1 == Z3.** Control: ⚠️ the first control written was **swapping the two non-trivial
+   labels — an AUTOMORPHISM of Z3, so it could never have failed**, and it returned 0 mismatches.
+   Replaced with two that can: displacing the identity, and the same labels at level 2, where the
+   group law genuinely breaks.
+3. **su(3)_2, `8 ⊗ 8 = 1 + 8`**, against the SHIPPED classical op. The per-constituent fates are
+   executed individually: `10` and `10bar` hit walls, `27` folds back onto the `8` with sign `−1`
+   and cancels one of its two copies. Control: deletion-only truncation gives `1 + 8 + 8`.
+4. **`√|Z|·S(D4_1)` vs `character_table` of the centre.** ⚠️ **The carried claim "bit-for-bit" is
+   MEASURABLY FALSE and does not ship as written.** `character_table` sorts its rows by
+   `(degree, lex)` and says in its own docstring to *"locate rows by CONTENT, never by index"*;
+   this op orders its rows by PRIMARY. Raw, they **differ**. In the same documented order they are
+   bit-for-bit identical, and the permutation between them is the unique row reversal `(3,2,1,0)`.
+   The gate pins **BOTH halves** — the raw inequality as well as the sorted equality — so the false
+   half cannot creep back into prose. Corroborating detail the gate also executes: `S` is
+   symmetric, the sorted character table is not. Control: **C4**, the only other order-4 group,
+   fails — its table is not even a rational matrix (exponent 4, so `Φ_4 = x²+1`).
+5. **`A_00 = 49`, every entry `±49`.** Control: su(2)_2 is NOT rational (`ℤ[ζ_8]`), so
+   `is_rational_numerator` is not a constant `True`.
+
+Both sides of test 4 are SHIPPED instruments — a 192-term Weyl sum over `ℤ[ζ_14]` against a
+finite-group character table over `ℤ[ζ_2]` — which is what makes it the strongest of the five.
+
+#### The zeta ruling: **(a)**, and `#T1179` STAYS at rc462
+
+Gap 4 is **not** the first producer of the `ℚ(ζ_e)` rep-payload dialect, so widening that checker
+here would still ship something nothing mints. The evidence is executed in the gate, not asserted:
+these ops mint the **INTEGER coordinate-vector** form that `character_table` already produces and
+`zeta_mul` already consumes — the gate feeds our vectors straight into the shipped `zeta_mul` and
+checks the shape round-trips — while the REP payload (`kind` / `matrices` / `degree` / `field`) is a
+different object whose keys are asserted **absent** from every new payload. The one place a field is
+genuinely needed, the Verlinde division by `A_0s`, rides `Qalg` over `Φ_e` internally and leaves as
+plain integers.
+
+#### Guards that fire, including two proved by fault injection
+
+The monovariant law is proved live by corrupting the affine Cartan **below the public surface**
+(row 0 left intact so the stratum is still admitted and only the STEP is wrong), with a
+no-injection control that returns cleanly. The step-bound guard is a **BACKSTOP that is
+mathematically unreachable while the monovariant holds** — said plainly rather than dressed up —
+and is proved wired up by shrinking the bound at its own private seam.
+
+⚠️ **The non-integrable-operand guard is load-bearing and was added because the backstop was NOT
+sufficient.** Measured before it existed: of four non-integrable pairs, two raised on the downstream
+non-negativity check and **two returned an empty constituent set SILENTLY**.
+
+#### Two defects found by the gates and fixed rather than accommodated
+
+- **`_smith_diagonal` was not computing a Smith normal form.** Elimination alone returned `(4,6)`
+  for `((6,0),(0,4))` — a diagonal form, not the invariant factors `(2,12)`. The module's own
+  divisibility guard caught it (it raised rather than answering wrongly, so nothing shipped wrong),
+  and the fix is the missing `(gcd, lcm)` repair pass. The shipped Cartan matrices were unaffected;
+  a general one would have raised.
+- **`_integrable_labels` filtered a `(level+1)^rank` BOX** to find a simplex. At D4 level 72 that is
+  `73^4 = 28,398,241` tuples for a 658,711-row answer. It now walks the simplex directly. The frame
+  probe is what surfaced it, and fixing the op **drained a would-be third `SLOW_SKIP` entry**
+  instead of adding one.
+
+#### Ripple
+
+Registry **695 → 700**. 75 count-pin lines across 68 files swept (byte-precise, line endings
+preserved). `EXPECTED_N` 695 → 700; manifest rewritten to 700 rows; `EXPECTED_NAME_SET_SHA256` →
+`b9a7d24d…`. `WITNESS_RC416` → `6f4a5e09…`, with `len(frames)` 724 → **729** and the split read off
+the build as 700 ops + **29 carriers, UNMOVED** — which is the measurement behind "no new carrier
+TYPE". amsc as-text tool_registry 118 → 123 and `TOTAL_AS_TEXT` 209 → 214 (the five `composes`
+citations of `sha256_bytes`; decoded UNMOVED at 2). Decoded `math` 345 → 350. `SLOW_SKIP` 15 → 17,
+with the per-op measurements recorded at the pin. **`NO_ARG` and `NO_INT_INPUT` needed no raise** —
+an earlier reading that said otherwise was taken against a STALE example-args ledger and is
+recorded here as a measurement-order error rather than quietly dropped. Five Rosetta rows
+(`composition_of_c`), five example-args rows, five worked-example rows, plus the three rc460
+weight-lattice worked examples re-run BY NAME because the implementation moved under them.
+
+#### C-side cost (ADR-0009, RECORDED)
+
+`integrable_weights` / `alcove_fold` / `affine_fusion_multiplicities` /
+`affine_modular_s_matrix` / `verlinde_fusion_multiplicities` ship **Python-first with no C peer**
+under the ADR-0009 noted-disparity ruling, by the same argument rc460 recorded for the classical
+weight-lattice stratum: the carrier is plain `int` and tuples of `int`, with `QMat` for determinants
+and `Qalg` for the one field division, and **no new carrier TYPE crosses the boundary** (ℚ leaves as
+`int` pairs, ζ-values as integer coordinate vectors). All five classify `composition_of_c`, so
+`CEIL_PYTHON_ONLY_DEBT = 0` holds with no new C symbol and **ABI stays 24**. The recorded gap is
+the affine stratum, not any one of these ops.
+
+#### Descoped, with reasons
+
+- **The fold beyond rank 2.** The monovariant argument needs a complete affine diagram. Extending it
+  needs a different monovariant (length reduction in the Coxeter complex, or a `W ⋉ κQ^∨`
+  factorisation) and is genuine future work, not an omission.
+- **`verified_at` in the worked-example ledger** is still `""` (`#T1182`), untouched here.
+
+### 5. Part 3 — the adversarial-verification repair: one silent wrong answer, three shipped falsehoods, and five gates that could not fail
+
+Three independent read-only verifications and a standing-rule review were run against
+`e5a81d78d`. Registry stays **700**; **ABI stays 24**; **no C symbol added**. Every item below was
+REPRODUCED before it was fixed, and every fix carries a control that comes back negative.
+
+#### 5.1 `so8_bracket_certificate` green-lit the ZERO MATRIX — the one silent wrong answer
+
+`so8_bracket_certificate([[0]*28]*28)` returned `is_bracket_automorphism: True`, `failures: 0`, no
+exception. The 378-pair sweep decides `φ([X,Y]) = [φX, φY]`, which the zero map satisfies
+**vacuously** — that is a HOMOMORPHISM predicate wearing an AUTOMORPHISM name. It matters because
+this op is the one the other two ops' prose names as the guard to run FIRST: `triality_frame_action`'s
+Warning says *"run `so8_bracket_certificate` on it FIRST"*, and the shipped `ToolEntry`
+(`_tool_docs.py:649`) says *"before trusting ANY 28-dim map you did not build yourself"*. So the
+guard-of-record passed a zeroed buffer — the exact thing a failed solve hands you.
+
+Both siblings REFUSE the same input (`triality_frame_action` raises on the weight-system match,
+`g2_membership` raises on orthogonality), so this was an asymmetry inside one rc, not a house style.
+
+**Fixed at the root, not special-cased.** A bijective Lie homomorphism IS an automorphism, so the op
+now decides the named property directly: a new `_integer_rank` (fraction-free Bareiss over the SAME
+cleared integer columns the sweep already builds — Class-I integer arithmetic, pivot search tests
+`!= 0` as a Class-K pin at the zero boundary, no `abs()`, no float) and
+`is_bracket_automorphism = failures == 0 and is_invertible`. The payload gains
+`is_bracket_homomorphism`, `is_invertible` and `rank`, so the two failure MODES are distinguishable
+rather than conflated. **Nothing that was `True` became `False`:** τ and `S_B` are rank 28.
+
+MEASURED, with the controls: zeros → homomorphism True, rank 0, automorphism **False**; τ and `S_B`
+→ rank 28, True; `−I` and `2I` → 168/378 failures, rank 28 (invertible, bracket-broken); `S_B` with
+one column zeroed → rank < 28. Gate `test_g11_*` (4 tests) asserts both halves separately so the
+conjunction cannot be satisfied by weakening either.
+
+#### 5.2 `alcove_fold` shipped a MEASUREMENT that the op never produces
+
+The docstring reported *"measured over `[-30,30]^rank` at `k = 0..8`, the fold takes at most 40 steps
+against **bounds up to 962**"*. Re-executed over exactly that domain (34,038 folds, 2.8 s): max steps
+is **40 — correct** — but the max `step_bound` is **901**, and **962 never occurs anywhere in the
+swept domain** (top six distinct bounds: 786, 813, 814, 842, 871, 901). Both extremes are attained at
+the same corner, A2 `(-30,-30)` at level 0.
+
+It reached users through three surfaces: `weight_lattice.py:1758`, `introspect/tool_schema.py:12854`
+and the generated `c/src/srmech_tool_registry.c:14231` — so `describe()`, the MCP tool list and the
+**compiled-in C registry**, the same reach the ref-notation arc measured.
+
+**Why nothing caught it:** `test_g2_termination_measured_over_a_window` asserts
+`worst_steps < worst_bound`, a strict inequality that pins no VALUE. A wrong bound is invisible to it.
+Gate `test_g12_*` now pins both extremes AND the witness over the domain the prose names, and asserts
+`962 not in observed_bounds` — with a liveness control (the collector saw >100 distinct bounds and
+901 is in the set it collected).
+
+#### 5.3 `alcove_fold`'s worked example credited one mechanism where TWO are load-bearing
+
+The prose said *"That single step and that single sign are what turn the classical
+`1+8+8+10+10bar+27` into the level-2 `1+8`"*. Measured per constituent: the `10` and `10-bar` are
+removed by the **WALL test** (`on_wall=True`, `sign=0`, `steps=0`) — no step is taken and no sign is
+applied. The single signed step acts on `27` ALONE, folding it to `(1,1)` with sign `−1`, which
+cancels one of the two copies of `8`. Deleting the walls and stopping there leaves
+`{(0,0):1, (1,1):2, (2,2):1}`. Two different operations; the prose credited one. Corrected, and
+gated per-constituent (`test_g13_*`).
+
+#### 5.4 The E_pq/adjoint mismatch is not an "ordering"
+
+`so8.py` called it *"orders the same 28 so(8) directions DIFFERENTLY"* and *"this engine has two live
+orderings"*. MEASURED: the change of basis `P` has **3 or 4 nonzeros in every column and NOT ONE
+column with a single nonzero** — it is not a permutation and not even monomial, and `P⁻¹` carries
+denominator 6. The operational conclusion is not merely unaffected but STRENGTHENED (a non-monomial
+change of basis is a worse mismatch than a reordering), which is why this is graded low — but it is
+shipped prose the code contradicts. Corrected in both sites; gated by `test_g12_*` in the so8 file,
+with a real permutation matrix as the control that DOES read monomial.
+
+#### 5.5 Five gates that could not fail — coverage, not correctness
+
+Found by MUTATION TESTING (19 mutations applied to shipped source; 8 came back RED, 11 survived).
+Every ungated field was measured and is **currently correct**, so these are coverage holes:
+
+- **Seven Class-A digest/label fields** could be replaced with constant garbage while 23-143 tests
+  stayed green — in an rc whose stated deliverable is a content-address bind. The precedent gate
+  (`test_weight_lattice_rc460.py:1078`) sits 22 lines above the registry gate this rc DID enrol the
+  five affine ops in. Now gated on both sides: `test_g14_*` in each file.
+  ⚠️ MEASURED while writing it: `fusion_sha256` addresses the ANSWER, not the payload — `8 (x) 8`
+  and `3 (x) 3bar` at level 2 BOTH give `1 + 8` and correctly share a digest. So "distinguishing" is
+  asserted across operands with genuinely different answers, and the shared case is asserted too, as
+  the contract it is.
+- **`affine_modular_s_matrix["primaries"]`** could be REVERSED — breaking its correspondence with the
+  rows it labels — with zero failures, because the one shipped consumer re-reads an internal dict.
+  `test_g15_*` re-derives the correspondence from the shipped `integrable_weights` list, an
+  independent route.
+- **`so8.py` had no `no abs()` / `no float` discipline gate** while its three new ops DECLARE that
+  discipline in their `preserves` strings, and `test_preserves_taxonomy_rc423.py` classifies such
+  strings machine-checkable and **runs none of them**. `weight_lattice` has had the AST gate since
+  rc460. Now `test_g13_*`, scoped per-FUNCTION over the 17 functions this rc added — deliberately
+  NOT module-wide, because so8.py carries 19 pre-existing `float()` calls below the hunk and a
+  module-wide ban would be red on arrival or weakened into something that proves nothing.
+  ⚠️ This gate was RED on its first run for the exact reason CLAUDE.md records: so8.py contains the
+  prose *"`hashlib.sha256`"* inside an attestation docstring. A substring scan cannot tell a ban from
+  its own statement. Both discipline predicates are AST walks, where prose cannot reach.
+- **The frame-address test recomputed its own subject.** `test_g9_frame_address_is_deterministic…`
+  re-derives the address from the LIVE `_epq_pairs()` it imports, so reversing the pair order leaves
+  it PASSING — both sides move together. A content address whose test recomputes it is a tautology.
+  `EPQ_FRAME_ADDRESS` and `OCTONION_TABLE_SHA256` are now pinned as literals with a control that
+  perturbs each half.
+
+#### 5.6 A citation anchor made stale by this rc's own commits
+
+`:371-377` into `test_preserves_taxonomy_rc423.py` was correct at rc460 and was pushed off by 61
+lines added ABOVE it — 17 in `04f8b9d4c` and 44 in `e5a81d78d`, this rc's own commits. At the tip it
+lands inside a DIFFERENT test. All three sites (both gate files and `CHANGELOG.md:296`) now cite by
+NAME (`test_the_population_is_stated`) with the line as a secondary. **A line anchor into a file the
+same rc is still growing is a citation with a clock on it.** The substance was verified separately and
+still holds: 8 EXECUTABLE markers, and the population test executes none of them.
+
+#### 5.7 The affine layer's missing literature anchor — LOCATED, NOT SHIPPED
+
+`weight_lattice.py` names Kac-Walton / Kac-Peterson / Verlinde in prose that ships into `describe()`,
+the MCP tool list and the compiled C registry, with **zero** literature attestation — while its
+sibling `so8` build in the SAME rc attested all three of its ops. An anchor was found and **verified
+BY QUERY** (Fuchs, J. (1994) *Fusion rules in conformal field theory*, Fortschr. Phys. **42**, 1-48,
+arXiv:hep-th/9306162 — open access, returned title and author matched before it was written down).
+
+**It was then NOT shipped, and that is the honest outcome rather than the tidy one.** Adding a
+citation moves the citation-manifest coverage surface, and `tests/test_citation_manifest_rc428.py`
+CANNOT BE MEASURED from a session worktree — the corpus scopes to zero there, which is a recorded
+false red. The first push carried the citation and CI answered with
+`test_s4_manifest_coverage_ceiling_drains`, a gate I could see fail but could not see pass. Shipping a
+manifest edit that could not be validated would have been buying a green with an unmeasured change.
+The gap is now RECORDED IN THE MODULE with the located anchor written into the note, so the next pass
+starts from a verified identifier rather than re-doing the search. Mitigating and unchanged: nothing
+here is recalled from a table, so there is no numeric attestation to carry — only theorem NAMES.
+
+#### 5.7a The `composes` declarations were wrong on all six multi-edge rows
+
+Not on the finding list — found by CI, then by RUNTIME TRACE. Both new-op families declared `composes`
+tuples that had never been enrolled in the review ledger, so `test_composes_grain_rc412.py` and
+`test_composes_population_rc423.py` were RED at `e5a81d78d` before this part began. Enrolling them
+required tracing them, and the trace disagreed with the shipped declaration on **every one**.
+
+Method, per the rc425 precedent (ADR-0013 §292 records lexical first-call order measuring **0 of 2**
+against ground truth, which is why a reading is not admissible): each op EXECUTED with every candidate
+sub-op rebound to a recording wrapper in EVERY module namespace holding a reference — which catches
+function-local `from X import y`, since that is a getattr at call time — reading off order of FIRST
+ENTRY, with all memoised caches warmed OUTSIDE the trace so neither a cache hit could hide an edge nor
+a cold build invent one. Stable across repeated runs.
+
+- **Five were ORDER**, each written in the sequence a reader would guess. `so8_bracket_certificate`
+  and `triality_frame_action` were exactly REVERSED (the return dict evaluates `frame_sha256` above
+  `operator_sha256`). `affine_fusion_multiplicities` enters `sha256_bytes` BEFORE its first
+  `alcove_fold` — the classical fusion stamps its own digest on the way out — which no reading of a
+  body named for the fold produces. `affine_modular_s_matrix` ran gcd first, the reverse of its
+  declaration.
+- **One was a FALSE EDGE.** `verlinde_fusion_multiplicities` declared
+  `affine_modular_s_matrix` and **never enters it** — the body reads the private `_s_matrix_core`
+  directly. A source reading cannot find that; only running it can.
+- **Two more declarations were UNVERIFIABLE and one was simply absent.** ROSTER criterion (4) is
+  *declared ⊆ derived*, and the depth-3 static graph cannot resolve a function-local import
+  (`g2_membership` → both triality generators, via `so8.py:2410`) or a module alias
+  (`epq_frame_address` → `_sha256_bytes`). Those edges are real — the trace enters them — but
+  declaring what clause 2 cannot check is the same defect in the other direction, so each declaration
+  narrowed to its verifiable subset in traced order. `epq_frame_address` turned out to declare the one
+  edge nothing can verify while NOT declaring the one the instrument does derive
+  (`octonion_table_attestation`); it now declares the latter.
+- **Tier moves, both forced by the rules rather than chosen:** `triality_frame_action` LEFT the
+  forced-order SINGLE tier (part 1 gave it a second edge, and a row that grows one is no longer
+  forced-order); `affine_modular_s_matrix` and `epq_frame_address` ENTERED it (narrowing left them at
+  one verifiable edge). `alcove_fold` is hand-traced in ROSTER as a one-element row because the
+  census's SINGLE rule keys off depth-1 and its `sha256_bytes` call goes through a payload helper.
+
+Census re-run: 700 ops, DECLARED 60, SINGLE 184, LEAF 273, REFUSED 1, RESIDUAL **181** — the down-only
+ceiling moves DOWN by one from 182, and it moves for a reason, not by a re-tier.
+
+#### 5.7b `fractions` was a STRICT-ZERO banned engine, and this branch was importing it
+
+Also pre-existing at `e5a81d78d` and also caught by CI, not by the finding list.
+`tests/test_selfhosting_import_ban.py` makes `fractions` a `BANNED_ENGINE` at STRICT ZERO for this
+package (ADR-0005 §2.1: srmech does its own math on its own carrier), and part 2 had introduced
+`from fractions import Fraction` in `srmech/math/weight_lattice.py` **and** in its gate. Fixed at the
+root the ban itself prescribes: the import-time Cartan-inverse solve now runs on
+`srmech.math.q.Q`, the native `srmech_rational_*` carrier, which is a drop-in for every operation the
+solve uses (construction from `int`, true division, the `!= 0` pivot test, `numerator`/`denominator`
+on the way back to integers — each checked before the swap). The test-side leak guard was rewritten to
+match BY TYPE NAME rather than by `isinstance`, because importing `fractions` to name it is itself the
+violation — and the name form is strictly WIDER, since it now also catches srmech's own `Q`, `Qalg`
+and `QMat` leaking into a payload, which is the invariant the module comment actually claims. It
+carries a control that comes back both ways.
+
+#### 5.8 The worked-example ledger, re-run — and two more names the SLOW_ALLOWLIST was missing
+
+The pre-flight required re-running the ledger because both `so8.py` and `weight_lattice.py` moved.
+Doing it surfaced a defect in the HARNESS, found the same way as everything else here: by a red.
+
+A full clean re-run flipped `so8.epq_frame_address` and `so8.g2_membership` from `ok` to `timeout`
+with **identical `src_sha256`** — the snippets had not changed, and neither op touches anything this
+rc added. That carried the `timeout` tally 1 → 3 against a down-only CEIL of 1 in
+`tests/test_worked_examples_execute_rc354.py`. MEASURED with `--only --budget 240`, one invocation
+each, against a 2.5 s harness baseline (`--only srmech.math.cyclic.gcd`): **48.5 s and 46.1 s**, both
+`ok`. That is the cold `_companion_maps()` build — 46.7 s, already documented in the tool — and
+WHICH snippet pays it depends on `RECYCLE_EVERY` worker recycling rather than on the op.
+
+`SLOW_ALLOWLIST` in `tools/run_worked_examples.py` is the tool's own mechanism for exactly this, and
+its rc461 note already said the previous pass *"stopped one name too early"* — it stopped **two**
+too early, on the so8 side. Both are now listed with their measured numbers.
+
+⚠️ **The two rejected alternatives are the point.** Raising the gate's CEIL from 1 to 3, or raising
+`DEFAULT_BUDGET` globally, would each have produced a green — and both would have been buying one.
+The ceiling is a down-only ratchet on real failures and the budget is what makes `timeout` mean
+anything; a per-op recorded decision with a measured number attached is the only one of the three
+that leaves the instrument able to fail. Final: **`ok` 514, `timeout` 1** — back at the ceiling,
+earned.
+
+The re-run also corrected ONE row on its own merits: `amsc.format.read_ndjson` carried a NATIVE-path
+error detail (`srmech_ndjson_iter(...) failed: IO`) inside a ledger whose own meta says
+`native: false` — a stale record that `--only-stale` could never select, because its snippet text had
+not moved. It now reads the pure-path `FileNotFoundError` it actually produces. That is precisely the
+provenance staleness the pre-flight described, drained rather than described.
+
+#### Descoped in part 3, with reasons
+
+- **`fusion_sha256` cross-level collision** (`affine_fusion_multiplicities(alg, vac, vac, k)` returns
+  one digest for k=0..5). NOT a defect: the digest addresses the constituent list, the answers ARE
+  equal at those levels, and rc460's classical op has the same design. Asserted as contract, not
+  changed.
+- **`s_sha256` not covering `zeta_order`.** Raised as a hypothesis by one verification; ten
+  (algebra, level) cases produced ZERO collisions and no systematic search was run. Unreproduced —
+  recorded, not acted on.
+- **`#845` is topically wrong.** RE-VERIFIED here by query rather than taken on report: it resolves
+  to a MERGED PR titled *"srmech v0.7.0rc19: HAL constant-attestation discipline (MPR +
+  derive-and-assert) — MS#21 #813"*, while every in-tree comment beside it describes the exact-ℚ
+  carrier migration (*"exact-ℚ carrier (was Fraction)"*). MEASURED: **24 sites** under
+  `srmech/**.py`, not the ~8 first estimated. REAL, and NOT introduced here — `git log -S` dates it
+  to rc371 (`0e1528fd2`); this rc only appended `, to_q` to one such line. The correct target is
+  unknown, and CLAUDE.md is explicit that a wrongly-converted ref is worse than an unconverted one
+  *because it looks deliberate*, so 24 guessed rewrites is exactly the sweep that rule forbids. It
+  is reported, with its measured size, rather than guessed at.
+- **`verified_at` still `""`** (`#T1182`) — unchanged, as part 2 recorded. The ledger was re-run and
+  committed, so the row provenance is current; only the STAMP is still blank, for the reason
+  `#T1182` records (`_head_commit()` swallows a non-zero `git rev-parse`, and from WSL2 git cannot
+  resolve a session-worktree gitdir at all).
+- **The 2688-element ±G2 monomial census** asserted in `so8.py` prose is TRUE — executed in full
+  during verification — but remains UNGATED, because the shipped gate covers 66 elements and the
+  full sweep costs ~321 s. A regression outside those 66 would still go unnoticed. Recorded as a
+  live coverage gap rather than closed, since the honest options were a 321 s gate or a sampled one
+  that would look like a ratchet without being one.
+- **`triality_frame_action(P⁻¹ S_B P)` still returns the identity permutation.** Part 1 declined this
+  deliberately, documented it in a Warning and gated both halves. Not reopened here — whether an
+  address-plus-detector is the right closure for a live silent wrong answer is a maintainer call.
+
 ## [0.9.0rc460] - the exact A2 weight-lattice stratum: Lie fusion is a SIGNED INTEGER COUNT, not an integral — and the group bind that closes a replicated silent wrong answer
 
 **What this rc is for.** Two things, and the first is a correction of framing rather than of code. The tree's own gap-statement said the finite-group side is a **COUNTING** instrument off a Cayley table while "the Lie analogue is a convolution of orbital measures against Haar — an INTEGRAL", and asked for something "equally ALU-native but indexed by a LATTICE". **The first half is right and the second half was already the answer: the Lie side does not need an integral.** Racah–Speiser computes tensor-product multiplicities as a **signed integer count** — take a weight system, translate by `a + ρ`, signed-fold into the dominant chamber under the 6-element Weyl group, count with signs. That is the same instrument CLASS as `character_table`'s step-4 `a_ijl` count ("by integer counting off the table"), indexed by a lattice instead of by elements. "Convolution against Haar" is the **spacetime-shadow phrasing of an object that is bottom-up closed-form on the ALU**. Three ops in a new module ship that count. Second, `character_table` gains the **group bind** that closes B1, a replicated SILENT WRONG ANSWER. Registry **687 → 690**; **ABI stays 24**; **zero C symbols added** — no new carrier TYPE, so nothing widens a discriminator set and nothing crosses the wire.

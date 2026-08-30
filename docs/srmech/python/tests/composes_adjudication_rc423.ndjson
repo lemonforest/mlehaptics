@@ -409,7 +409,9 @@
 {"composes": ["srmech.math.rational.atan"], "name": "srmech.math.rational.atan2", "tier": "SINGLE"}
 {"composes": ["srmech.math.cyclic.gcd"], "name": "srmech.math.rational.exp_series_truncate", "tier": "SINGLE"}
 {"composes": ["srmech.math.rational.rational_div"], "name": "srmech.math.rational.relative_writhe", "tier": "SINGLE"}
+{"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.weight_lattice.affine_modular_s_matrix", "tier": "SINGLE"}
 {"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.weight_lattice.dominant_weight", "tier": "SINGLE"}
+{"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.weight_lattice.integrable_weights", "tier": "SINGLE"}
 {"composes": ["srmech.music.bessel_j_fixed"], "name": "srmech.music.bessel_zero_fixed", "tier": "SINGLE"}
 {"composes": ["srmech.physics.qm.spin.pauli_matrices"], "name": "srmech.physics.qm.bell.chsh_pauli_combination", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_hermitian_eigendecompose"], "name": "srmech.physics.qm.bell.operator_norm", "tier": "SINGLE"}
@@ -435,6 +437,7 @@
 {"composes": ["srmech.math.rational.sqrt"], "name": "srmech.physics.qm.sm.higgs_vev", "tier": "SINGLE"}
 {"composes": ["srmech.math.rational.atan2"], "name": "srmech.physics.qm.sm.weak_mixing_angle", "tier": "SINGLE"}
 {"composes": ["srmech.math.rational.sqrt"], "name": "srmech.physics.qm.sm.z_boson_mass", "tier": "SINGLE"}
+{"composes": ["srmech.physics.qm.octonion.octonion_table_attestation"], "name": "srmech.physics.qm.so8.epq_frame_address", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_hermitian_eigendecompose"], "name": "srmech.physics.qm.so8.quaternion_subalgebra_stabilizer", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_matmul"], "name": "srmech.physics.qm.triality.triality_automorphism", "tier": "SINGLE"}
 {"composes": ["srmech.math.cyclic.mod_add"], "name": "srmech.physics.qm.triality.triality_cycle", "tier": "SINGLE"}

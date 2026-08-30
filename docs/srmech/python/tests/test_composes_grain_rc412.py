@@ -637,6 +637,118 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.math.weight_lattice.dominant_weight",
         "srmech.amsc.format.sha256_bytes",
     ),
+
+    # ── rc461 — the exact cycle-Laplacian spectrum in ℚ(ζ_n).
+    # TRACED end to end: `_cyclic_spectrum_qalg` calls
+    # `cyclotomic_polynomial(n)` as its FIRST act — the field cannot be
+    # built before Φ_n exists, so the order is forced by data dependence
+    # and not by preference — then the power ladder, the eigenvalue list
+    # and every reconciliation run as private exact-ℚ arithmetic on
+    # `Qalg` (a CARRIER, not a registered op, so it declares no edge),
+    # and `sha256_bytes` runs LAST, twice, over the finished procedure
+    # bytes and the finished spectrum wire form.
+    # NOT declared, deliberately: `srmech.math.primes.factor` is a
+    # registered op and IS reached — but through `cyclotomic_polynomial`'s
+    # own body, at depth 2. Declaring it here would attribute a
+    # grandchild's edge to this op and double-count it against the row
+    # above, which already owns that call.
+    "srmech.math.laplacian.cyclic_laplacian_spectrum": (
+        "srmech.math.poly.cyclotomic_polynomial",
+        "srmech.amsc.format.sha256_bytes",
+    ),
+
+    # ──────────────────────────────────────────────────────────────────
+    # rc461 (`#T1181` / `#T1183`) — the six multi-edge rows of the frame-bind
+    # and affine/Kac-Walton registrations. EVERY tuple below is a RUNTIME
+    # TRACE, by the rc425 method: each op executed with every candidate
+    # sub-op rebound to a recording wrapper in EVERY module namespace holding
+    # a reference (which catches function-local `from X import y`), reading
+    # off order of FIRST ENTRY, with all memoised caches warmed OUTSIDE the
+    # trace so neither a cache hit could hide an edge nor a cold build invent
+    # one. Stable across repeated runs.
+    #
+    # ⚠️ THE TRACE DISAGREED WITH THE SHIPPED DECLARATION ON ALL SIX, which
+    # is why it was run rather than the source read. Five were ORDER — the
+    # declarations had been written in the sequence a reader would guess from
+    # the statement list, and ADR-0013 §292 already records lexical
+    # first-call order measuring 0 of 2 against ground truth. The sixth was
+    # not an ordering error at all: `verlinde_fusion_multiplicities` declared
+    # `affine_modular_s_matrix` and NEVER ENTERS IT (the body reads the
+    # private `_s_matrix_core` directly), so the declaration attributed an
+    # edge the op does not take. The tool_schema declarations were corrected
+    # to these traces in the same change; a source reading could not have
+    # found either class.
+    #
+    # `triality_frame_action` MOVED here from the rc423 SINGLE tier: part 1
+    # gave it a second call edge (`epq_frame_address`), and a row that grows
+    # a second edge is no longer forced-order, so it must be traced rather
+    # than re-derived. The comment that used to sit above
+    # `cyclic_laplacian_spectrum` saying it calls "exactly ONE registered op"
+    # was true when written and is now false; it is deleted rather than left.
+    # ──────────────────────────────────────────────────────────────────
+
+    # `epq_frame_address` is NOT in this ROSTER, and the reason is worth the
+    # line: it declared `sha256_bytes`, which NOTHING can verify — the call
+    # arrives through the module alias `_sha256_bytes` that neither the
+    # depth-3 graph nor a descriptor chain resolves — while the edge the
+    # instrument DOES derive, `octonion_table_attestation`, was not declared
+    # at all. Corrected to the verifiable one; that is a single edge, so the
+    # rc423 SINGLE tier adjudicates it.
+    #
+    # The frame address is stamped from the RETURN DICT, whose entries
+    # evaluate in source order — `frame_sha256` sits above `operator_sha256`,
+    # so `epq_frame_address` is entered before the operator digest. (Its own
+    # internal sha256 call is a grandchild edge and is not double-counted.)
+    "srmech.physics.qm.so8.so8_bracket_certificate": (
+        "srmech.physics.qm.so8.epq_frame_address",
+        "srmech.amsc.format.sha256_bytes",
+    ),
+    # The trace enters BOTH triality generators first — the centraliser test
+    # needs τ and S_B in hand before any verdict exists to stamp — but both
+    # arrive through a FUNCTION-LOCAL import in `_triality_generators_doubled`
+    # (so8.py:2410) that the depth-3 static graph cannot resolve. Criterion
+    # (4) is VERIFIABLE, so the declaration is the traced order restricted to
+    # the derivable set; the two generator edges are recorded here in prose
+    # rather than declared where clause 2 could not check them.
+    "srmech.physics.qm.so8.g2_membership": (
+        "srmech.physics.qm.so8.epq_frame_address",
+        "srmech.amsc.format.sha256_bytes",
+    ),
+    "srmech.physics.qm.triality.triality_frame_action": (
+        "srmech.physics.qm.so8.epq_frame_address",
+        "srmech.amsc.format.sha256_bytes",
+    ),
+    # ONE call edge, hand-traced rather than census-adjudicated. The census's
+    # SINGLE rule keys off `derived(name, depth=1)` — the op's OWN body — and
+    # `alcove_fold` reaches `sha256_bytes` through its payload helper, so
+    # depth-1 is empty and the mechanical rule tiers it RESIDUAL even though a
+    # one-element sequence has exactly one ordering. Traced and declared here,
+    # the same shape as `srmech.music.tempers_out` above.
+    "srmech.math.weight_lattice.alcove_fold": (
+        "srmech.amsc.format.sha256_bytes",
+    ),
+    # The CLASSICAL fusion runs first and stamps its own digest on the way
+    # out, so `sha256_bytes` is entered BEFORE the first `alcove_fold` — an
+    # order no reading of this body's statement sequence produces, since the
+    # fold is what the op is named for.
+    "srmech.math.weight_lattice.affine_fusion_multiplicities": (
+        "srmech.math.weight_lattice.tensor_product_multiplicities",
+        "srmech.amsc.format.sha256_bytes",
+        "srmech.math.weight_lattice.alcove_fold",
+    ),
+    # `affine_modular_s_matrix` is NOT in this ROSTER. Its runtime trace is
+    # gcd -> cyclotomic_polynomial -> zeta_mul -> sha256_bytes, but the first
+    # three are reached only through the private `_s_matrix_core`, past the
+    # depth-3 horizon, so the derivable set is `sha256_bytes` ALONE. One edge
+    # is forced-order, which puts it in the rc423 SINGLE tier by the same
+    # rule that moved `triality_frame_action` OUT of it.
+    #
+    # TWO edges, not three — see the ⚠️ above. `affine_modular_s_matrix` is
+    # not called; `_s_matrix_core` is.
+    "srmech.math.weight_lattice.verlinde_fusion_multiplicities": (
+        "srmech.math.groups.zeta_mul",
+        "srmech.amsc.format.sha256_bytes",
+    ),
 }
 
 

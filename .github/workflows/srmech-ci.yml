@@ -1267,7 +1267,29 @@ jobs:
     # this cell produced one INSIDE the same rc. Two observations do not fix
     # that. If this shard exceeds ~18:00 (= 27 ÷ 1.5, where the rule's headroom
     # is spent), re-derive rather than assume the trend flattened.
-    timeout-minutes: 27
+    #
+    # ⚠️ 27 → 60 (`#T1183`, rc461, maintainer-directed). THE CLAUSE ABOVE FIRED
+    # AND THE RULE CANNOT BE APPLIED. On run 33306817798 at `a69e9029c` shard 4/4
+    # was CANCELLED at 27m17s against the 27-minute ceiling, and shard 2/4 landed
+    # at 22:45 — both past the ~18:00 re-derive trigger. But the shard-4
+    # observation is CENSORED: the job was killed, so its true duration is
+    # unknown and `T = ceil(max) + max(ceil(0.5 × max), 10)` has no max to take.
+    # Deriving from 27:00 would derive from the ceiling itself, which measures
+    # the guard rather than the suite.
+    #
+    # **60 IS THEREFORE NOT THIS RULE'S OUTPUT AND MUST NOT BE CITED AS ONE.** It
+    # is a deliberately slack ceiling whose only job is to let the next run
+    # produce an UNCENSORED maximum. The derivation is OWED the moment one
+    # exists, and until then this number carries no headroom claim.
+    #
+    # AND THE CEILING IS PROBABLY THE WRONG LEVER. Measured the same run, equal
+    # -COUNT shards came in at 11:40 / 22:45 / 13:30 / >27:00 — a spread of at
+    # least 2.3x, censored, so truly wider. `--durations-path` is DELIBERATELY
+    # ABSENT below, so nothing balances by time and shard 1 idles ~15 minutes
+    # while shard 4 dies. Time-balancing the split would shrink the max instead
+    # of raising the roof over it. Tracked in `#T1183` with the partition-guard
+    # finding it arrived with.
+    timeout-minutes: 60
     env:
       # THIS SHARD'S SELECTION, DEFINED EXACTLY ONCE. The "record" step and the
       # run step below BOTH expand `$SHARD_SELECT`, which is what makes the
