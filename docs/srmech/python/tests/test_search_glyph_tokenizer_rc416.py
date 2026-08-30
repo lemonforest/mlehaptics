@@ -808,8 +808,37 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   digest, `len(frames)` was 729 and the split 700/29 in every one, and
 #:   `search("rank", k=1).witness` agreed with the direct build every time. The
 #:   ADR-0011 witness contract HOLDS.
+#: rc461 PART 3 re-pin (`#T1181`/`#T1183`) — moved again, and this time for the
+#: NARROWEST sanctioned reason: PROSE ONLY. No op was added, none renamed, none
+#: removed.
+#:
+#:   MEASURED, and the measurement is the whole argument: `len(frames)` is
+#:   UNMOVED at **729**, split 700 ops + 29 carriers, read off
+#:   `len(_build_frames('ops')[0])` / `len(_build_frames('carriers')[0])` rather
+#:   than inferred, with the sum checked against the union. An unmoved count
+#:   with a moved digest is exactly the signature of a text-only edit — and it
+#:   is what separates this re-pin from one that would be hiding a rename. The
+#:   op-name SET witness next door is UNTOUCHED on the same 700-row manifest,
+#:   which is the independent assertion that the NAMES did not move.
+#:
+#:   WHAT moved the text: `alcove_fold`'s ToolEntry summary (the corrected
+#:   termination measurement, 962 -> 901), `so8_bracket_certificate`'s summary
+#:   and `returns` (the homomorphism/automorphism split and its three new
+#:   payload fields), the module docstrings those two ops carry, and the SIX
+#:   corrected `composes` declarations (the runtime-traced call orders, plus
+#:   the two edges the trace REMOVED as unverifiable and the two it added).
+#:
+#:   Measured LAST, after `regen_all.py --check` reported all six generated
+#:   files up to date, per the rc454 rule that a pin taken mid-release is a
+#:   measurement of a draft.
+#:
+#:   DETERMINISM — three successive `_build_frames('all')` calls inside each of
+#:   THREE fresh numpy-absent WSL2 interpreters: all nine returned the SAME
+#:   digest, `len(frames)` was 729 and the split 700/29 in every one, the
+#:   recomputed blob hash agreed with the returned witness in every one, and
+#:   `search("rank", k=1).witness` agreed with the direct build every time.
 WITNESS_RC416 = (
-    "6f4a5e09f558e95d9c54538eefa029b9847a1de27bf70ba53516e6c805c94dff")
+    "401c0fdec037ce544dfe17381d64394aaedb99cda1205dad32c092bb835e1624")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

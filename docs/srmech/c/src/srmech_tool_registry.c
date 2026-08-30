@@ -4809,24 +4809,20 @@ static const char *const ts_preserves_441[] = {
     "numpy-free; exact \342\204\244; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_442[] = {
-    "srmech.math.weight_lattice.alcove_fold",
     "srmech.math.weight_lattice.tensor_product_multiplicities",
     "srmech.amsc.format.sha256_bytes",
+    "srmech.math.weight_lattice.alcove_fold",
 };
 static const char *const ts_preserves_442[] = {
     "numpy-free; exact \342\204\244; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
 static const char *const ts_composes_443[] = {
-    "srmech.math.groups.zeta_mul",
-    "srmech.math.poly.cyclotomic_polynomial",
-    "srmech.math.cyclic.gcd",
     "srmech.amsc.format.sha256_bytes",
 };
 static const char *const ts_preserves_443[] = {
     "numpy-free; exact \342\204\244[\316\266_e] as integer coordinate vectors \342\200\224 the carrier character_table already mints and zeta_mul already reads; no float; no abs()",
 };
 static const char *const ts_composes_444[] = {
-    "srmech.math.weight_lattice.affine_modular_s_matrix",
     "srmech.math.groups.zeta_mul",
     "srmech.amsc.format.sha256_bytes",
 };
@@ -4994,23 +4990,21 @@ static const char *const ts_reads_input_585[] = {
     "algebra",
 };
 static const char *const ts_composes_590[] = {
-    "srmech.amsc.format.sha256_bytes",
+    "srmech.physics.qm.octonion.octonion_table_attestation",
 };
 static const char *const ts_preserves_590[] = {
     "numpy-free; deterministic \342\200\224 a fixed function of the pair order and the octonion table attestation",
 };
 static const char *const ts_composes_591[] = {
-    "srmech.amsc.format.sha256_bytes",
     "srmech.physics.qm.so8.epq_frame_address",
+    "srmech.amsc.format.sha256_bytes",
 };
 static const char *const ts_preserves_591[] = {
     "numpy-free; exact integers; no abs() \342\200\224 the E_qp = \342\210\222E_pq step is Class-C re-orientation, not a magnitude",
 };
 static const char *const ts_composes_592[] = {
-    "srmech.amsc.format.sha256_bytes",
     "srmech.physics.qm.so8.epq_frame_address",
-    "srmech.physics.qm.triality.triality_automorphism",
-    "srmech.physics.qm.triality.triality_swap",
+    "srmech.amsc.format.sha256_bytes",
 };
 static const char *const ts_preserves_592[] = {
     "numpy-free; exact \342\204\232; no abs() \342\200\224 the \302\261 centre separation is a Class-K pin-slot plus Class-C sign re-application, never a magnitude",
@@ -5022,8 +5016,8 @@ static const char *const ts_composes_595[] = {
     "srmech.math.laplacian.mat_matmul",
 };
 static const char *const ts_composes_597[] = {
-    "srmech.amsc.format.sha256_bytes",
     "srmech.physics.qm.so8.epq_frame_address",
+    "srmech.amsc.format.sha256_bytes",
 };
 static const char *const ts_preserves_597[] = {
     "numpy-free; exact \342\204\232; no abs() \342\200\224 the \302\261 weight closure is Class-C orientation, not a magnitude",
@@ -14277,7 +14271,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"algebra\":\"D4\",\"level\":1},\"output\":\"rational_numerator ((49,49,49,49), (49,49,-49,-49), (49,-49,49,-49), (49,-49,-49,49)), zeta_order 14, scale_squared_denominator 9604, weyl_order 192, centre_invariant_factors (2, 2)\",\"why\":\"D4 level 1 is the case where two independently shipped instruments meet: a Weyl sum over 192 elements in Z[zeta_14] and a finite-group character table over Z[zeta_2]. They agree exactly, and the transcript pins BOTH halves of that -- the raw comparison is False and the sorted one is True -- so a later claim of raw bit-for-bit equality cannot creep back in. The su(2)_2 line is the control: is_rational_numerator is not always True.\",\"worked\":\"from srmech.math.weight_lattice import affine_modular_s_matrix as smat\\nfrom srmech.math.groups import (character_table, cyclic_group,\\n                                semidirect_product)\\ns = smat('D4', 1)\\ns['zeta_order']\\n# -> 14    MEASURED by gcd-reducing the exponents: not 28 (the raw\\n#         scaling) and not 7 (a reading of kappa alone)\\ns['rational_numerator']\\n# -> every entry +-49\\ns['scale_squared_denominator']\\n# -> 9604   = 98^2, DERIVED from A A^dagger = n I, not substituted\\n#           from kappa^rank * |P/Q| (which it equals, as a check)\\n# the acceptance test: sqrt(|Z|) . S IS the centre's character table\\nv4 = semidirect_product(cyclic_group(2)['cayley_table'],\\n                        cyclic_group(2)['cayley_table'],\\n                        [[0, 1], [0, 1]])['cayley_table']\\nrows = tuple(tuple(c[0] for c in r)\\n             for r in character_table(v4)['table'])\\na00 = s['rational_numerator'][0][0]\\nmine = tuple(tuple(x // a00 for x in r)\\n             for r in s['rational_numerator'])\\nmine == rows\\n# -> False   NOT bit-for-bit as ordered rows -- character_table\\n#            SORTS its rows and this op orders by PRIMARY\\ntuple(sorted(mine)) == tuple(sorted(rows))\\n# -> True    bit-for-bit once both sit in the same documented order\\nsmat('A1', 2)['is_rational_numerator']\\n# -> False   su(2)_2 lives in Z[zeta_8] and does NOT reduce to Z\\n\"}",
         "{\"algebra\":\"D4\",\"level\":1}",
         "WHAT it computes: the Kac-Peterson modular S-matrix of a level-k affine theory, exactly. S = c * A with A_lm = sum over the ORDINARY Weyl group of det(w) * zeta^(-(w(l+rho), m+rho)); the op ships the integer matrix A over Z[zeta_e] together with the integer n satisfying |c|^2 = 1/n, rather than a float matrix. Class I, the cyclotomic zeta-power arithmetic. It is explicitly NOT Class L: it runs no spectral decomposition, and that S diagonalises the fusion algebra is a theorem about it rather than an operation it performs. WHEN to reach for it: modular data - S, the fusion ring via Verlinde, quantum dimensions, or any question that needs the EXACT entries rather than a numerical approximation. What you would otherwise wrongly hand-roll: three things, all usually recalled rather than derived. The dual Coxeter number (here read off the marks of the derived highest root and cross-checked against |Delta|/rank). The RING - assuming Z[zeta_kappa] gives zeta_7 for D4 level 1, which cannot express the half-integer pairings the spinor weights produce; the op measures the order by gcd-reducing the exponents actually used and lands on zeta_14. And the NORMALISATION - substituting |c|^2 = 1/(kappa^rank |P/Q|) from memory instead of computing A A^dagger and reading n off unitarity, which is what makes the formula a cross-check here rather than an input. SIBLINGS: verlinde_fusion_multiplicities is the consumer that turns this into fusion coefficients; integrable_weights supplies the primaries indexing it; srmech.math.groups.character_table is the finite-group object it coincides with at level 1, and zeta_mul is the ring multiply both of them are built on.",
-        ts_composes_443, 4u,
+        ts_composes_443, 1u,
         ts_preserves_443, 1u,
         NULL,
         NULL, 0u,
@@ -14297,7 +14291,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":[0,0,0,1],\"algebra\":\"D4\",\"b\":[0,0,1,0],\"level\":1},\"output\":\"constituents (((1,0,0,0), 1),), route 'verlinde', zeta_order 14, scale_squared_denominator 9604\",\"why\":\"The two routes share no machinery -- one is an iterative integer reflection with a termination certificate, the other a 192-term Weyl sum followed by division in a number field -- so their agreement is a real consistency oracle rather than a tautology. The final line shows the scope asymmetry that makes both worth shipping.\",\"worked\":\"from srmech.math.weight_lattice import (\\n    verlinde_fusion_multiplicities as verlinde,\\n    affine_fusion_multiplicities as fuse)\\n# D4 -- an algebra the alcove fold REFUSES, because its affine\\n# diagram is a star and the monovariant argument does not carry.\\n# This route runs no fold, so it answers.\\nverlinde('D4', (0,0,0,1), (0,0,1,0), 1)['constituents']\\n# -> (((1,0,0,0), 1),)   spinor x conj-spinor = vector\\nverlinde('D4', (0,0,0,1), (0,0,0,1), 1)['constituents']\\n# -> (((0,0,0,0), 1),)   every primary is its own inverse:\\n#                        the KLEIN four-group, not C4\\n# and where both routes run, they agree:\\nverlinde('A2', (1,1), (1,1), 2)['constituents'] == \\\\\\n    fuse('A2', (1,1), (1,1), 2)['constituents']\\n# -> True    an iterative integer fold and a cyclotomic field\\n#            contraction, on the same coefficients\\nfuse('D4', (0,0,0,1), (0,0,1,0), 1)\\n# -> ValueError\\n\"}",
         "{\"a\":[0,0,0,1],\"algebra\":\"D4\",\"b\":[0,0,1,0],\"level\":1}",
         "WHAT it computes: the level-truncated fusion multiplicities by the Verlinde formula, N_ab^c = sum_s S_as S_bs conj(S_cs) / S_0s, contracted exactly in Q(zeta_e). Class I. Same coefficients as affine_fusion_multiplicities, same payload shape, completely different instrument. WHEN to reach for it: when the algebra is D4 (the alcove fold refuses it), or when you want a fusion answer CHECKED rather than merely computed. For speed, prefer affine_fusion_multiplicities - this route builds the whole S-matrix and contracts over every primary for every output label. What you would otherwise wrongly hand-roll: the arithmetic. Evaluating Verlinde in floating point and rounding to the nearest integer is the standard shortcut and it is exactly the continuum shadow this stratum exists to avoid; the coefficients are integers, so the contraction is done in the exact field and a non-integer result RAISES rather than rounding. The |c|^2 that survives the contraction is rational (three factors of c up, one down) and is read off the unitarity of the numerator rather than substituted. SIBLINGS: affine_modular_s_matrix supplies S (cached, so a sweep over operand pairs builds it once); affine_fusion_multiplicities is the co-equal dual construction this one is checked against, agreeing on 199 measured operand pairs; srmech.math.qalg.Qalg is the exact number-field carrier the one genuine division rides.",
-        ts_composes_444, 3u,
+        ts_composes_444, 2u,
         ts_preserves_444, 1u,
         NULL,
         NULL, 0u,
@@ -17257,7 +17251,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"-I  in_g2 False  mult 64 / 64\\n-I  fixed_mod_center True  tau_res 0  swap_res 0\\n-I  center_coset minus_G2  det 1  outer inner\\nI   in_g2 True  center_coset G2\\nctl in_g2 False  mult 36  tau_res 120  swap_res 120  coset None\\northogonality control -> ValueError: g2_membership: g is not orthogonal \\u2014 (g^T g)[0][0] = 4, expected 1\",\"why\":\"It shows in one call why the obvious name would be a LIE: -I commutes with BOTH triality generators (Ad(-I) = I_28 exactly) and is not an octonion automorphism at all, failing multiplicativity 64/64 \\u2014 and det cannot separate them either, since (-1)^8 = 1. So the commutator verdict ships as fixed_mod_center and in_g2 is decided by multiplicativity.\",\"worked\":\"from srmech.physics.qm.so8 import g2_membership\\nminus_i = [[-1 if i == j else 0 for j in range(8)]\\n           for i in range(8)]\\nr = g2_membership(minus_i)\\nprint(\\\"-I  in_g2\\\", r[\\\"in_g2\\\"], \\\" mult\\\",\\n      r[\\\"multiplicativity_failures\\\"], \\\"/\\\", r[\\\"octonion_pairs\\\"])\\n# -> -I  in_g2 False  mult 64 / 64\\nprint(\\\"-I  fixed_mod_center\\\", r[\\\"fixed_mod_center\\\"],\\n      \\\" tau_res\\\", r[\\\"tau_residual\\\"], \\\" swap_res\\\", r[\\\"swap_residual\\\"])\\n# -> True 0 0   BOTH commutators vanish: \\\"fixed\\\" would lie\\nprint(\\\"-I  center_coset\\\", r[\\\"center_coset\\\"], \\\" det\\\", r[\\\"determinant\\\"],\\n      \\\" outer\\\", r[\\\"induced_outer_class\\\"])\\n# -> minus_G2 1 inner   det does NOT separate G2 from -G2\\nident = [[1 if i == j else 0 for j in range(8)] for i in range(8)]\\nri = g2_membership(ident)\\nprint(\\\"I   in_g2\\\", ri[\\\"in_g2\\\"], \\\" center_coset\\\", ri[\\\"center_coset\\\"])\\n# -> I   in_g2 True  center_coset G2   the positive control\\ng2_membership([[2 if i == j else 0 for j in range(8)]\\n               for i in range(8)])\\n# -> ValueError: g is not orthogonal\\n\"}",
         NULL,
         "WHAT it computes: whether an 8x8 orthogonal g (in the OCTONION basis e0..e7, not 28-dim coordinates) lies in G2 = Aut(O), decided by octonion multiplicativity over the 64 basis pairs; and, separately, whether Ad(g): X -> g X g^T centralises the two triality generators tau and S_B, reported as exact nonzero-entry residuals out of 784. WHEN to reach for it: whenever you have a candidate octonion automorphism or a candidate triality-fixed element. What you would otherwise wrongly hand-roll is a commutator test called \"is triality fixed\" \342\200\224 and that is measured to be a LIE. Ad(-I) = I_28 exactly, so -I commutes with everything while failing multiplicativity 64/64; at scale it is 1344 counterexamples, not one, because the commutators see PSO(8) = SO(8)/{+-I} and cannot separate g from -g. det does not rescue it either ((-1)^8 = 1). So the commutator verdict is fixed_mod_center, the word G2 belongs to in_g2, and center_coset names which side of the +-I boundary you landed on. BOTH residuals are computed even though the second is redundant by theorem, because a redundant condition is a DETECTOR: the impossible cell RAISES as a check on the shipped tau / S_B, not as input validation. induced_outer_class returns inner FORCED by the two commutators, since in S3 the 3-cycle's centraliser and a transposition's intersect trivially. HOW it relates to its siblings: g2_subalgebra is the LIE-ALGEBRA object (the 14 derivations) where this is the GROUP one; so8_bracket_certificate is the 28-dim peer deciding bracket preservation; and triality_frame_action cannot substitute \342\200\224 measured, it refuses Ad(g) for 32 of 32 monomial cycling elements on a Cartan escape.",
-        ts_composes_592, 4u,
+        ts_composes_592, 2u,
         ts_preserves_592, 1u,
         NULL,
         NULL, 0u,

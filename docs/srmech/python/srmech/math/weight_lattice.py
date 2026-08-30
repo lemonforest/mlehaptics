@@ -83,26 +83,29 @@ C-parity (ADR-0009, recorded): this module has no C peer; the
 weight-lattice stratum ships Python-first under the noted-disparity
 ruling, the same sentence the representation stratum already carries.
 
-Canonical SSoT (affine stratum): Fuchs, J. (1994) *Fusion rules in
-conformal field theory*, Fortschr. Phys. **42**, 1-48
-(arXiv:hep-th/9306162) — the open-access review covering fusion rings,
-the Verlinde formula and the affine (Kac-Walton) fusion rules this
-module's affine ops implement.  ⚠️ **The named results are the SSoT for
-the STATEMENTS, not the source of any constant here.**  Everything this
-module computes is DERIVED in-module and labelled as such: the marks
-from the highest root, ``h_vee`` cross-checked twice, the cyclotomic
-ring measured by gcd-reduction rather than looked up, and the S-matrix
-normalisation read off unitarity.  Nothing is recalled from a table, so
-there is no numeric attestation to carry — which is why the citation
-scopes to the theorem names and stops there.  (rc461 `#T1183` — the
-affine layer shipped these three names into ``describe()``, the MCP
-tool list and the compiled C registry with no literature anchor at all,
-while its sibling ``so8`` build in the SAME rc attested every op.)
+⚠️ ATTESTATION GAP, RECORDED AND STILL OPEN (rc461 part 3). This module
+names Kac-Walton / Kac-Peterson / Verlinde in prose that ships into
+``describe()``, the MCP tool list and the compiled C registry, with no
+literature anchor — while its sibling ``so8`` build in the SAME rc
+attests every op to a query-verified arXiv ID. An anchor was located and
+verified BY QUERY (Fuchs, J. (1994) *Fusion rules in conformal field
+theory*, Fortschr. Phys. **42**, 1-48, arXiv:hep-th/9306162 — open
+access, title and author confirmed against the returned record) and then
+NOT shipped, because adding it moves the citation-manifest coverage
+surface and ``tests/test_citation_manifest_rc428.py`` cannot be measured
+from a session worktree (the corpus scopes to zero there, a known false
+red). Shipping a manifest edit that could not be validated would be
+worse than the gap. The mitigating fact is unchanged and is the reason
+this is a gap rather than a defect: NOTHING here is recalled from a
+table. The marks come from the highest root, ``h_vee`` is cross-checked
+twice, the cyclotomic ring is measured by gcd-reduction, and the
+S-matrix normalisation is read off unitarity — so there is no numeric
+attestation to carry, only theorem NAMES.
 """
 
 from __future__ import annotations
 
-from fractions import Fraction
+from srmech.math.q import Q
 from functools import lru_cache
 from itertools import product as _cartesian_product
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -898,9 +901,10 @@ def tensor_product_multiplicities(a: Sequence[int],
 # matrices, and for the same measured reason.
 #
 # CARRIER: plain ``int`` and tuples of ``int`` everywhere on the wire;
-# ``Fraction`` for the ONE import-time solve (the fundamental weights off
-# the Cartan inverse), immediately re-integerised against a stored
-# denominator; ``QMat`` for exact determinants; ``Qalg`` over ``Phi_e``
+# ``Q`` (srmech's own exact rational, NOT ``fractions.Fraction`` — that is
+# a STRICT-ZERO banned engine here) for the ONE import-time solve (the
+# fundamental weights off the Cartan inverse), immediately re-integerised
+# against a stored denominator; ``QMat`` for exact determinants; ``Qalg`` over ``Phi_e``
 # for the ONE division that genuinely needs a field (the Verlinde
 # contraction).  NO new carrier TYPE crosses the boundary — the zeta
 # values ship as the integer coordinate vectors
@@ -942,17 +946,27 @@ def _ambient_dot(x: Sequence[int], y: Sequence[int]) -> int:
 
 
 def _rational_inverse(matrix: Sequence[Sequence[int]]
-                      ) -> List[List[Fraction]]:
+                      ) -> List[List[Q]]:
     """Exact Gauss-Jordan inverse of a small integer matrix over ``Q``.
 
     Used at import for exactly one thing — solving ``(omega_j, alpha_i) =
     delta_ij`` for the fundamental weights — and its output is
     immediately re-integerised against a stored denominator, so no
-    ``Fraction`` reaches any payload.  Raises if the matrix is singular;
-    a Cartan matrix never is."""
+    rational carrier reaches any payload.  Raises if the matrix is
+    singular; a Cartan matrix never is.
+
+    ⚠️ rc461 part 3 — the carrier is :class:`srmech.math.q.Q`, NOT
+    ``fractions.Fraction``.  ``tests/test_selfhosting_import_ban.py``
+    makes ``fractions`` a STRICT-ZERO ``BANNED_ENGINE`` for this package
+    (ADR-0005 §2.1: srmech does its own math on its own carrier), and
+    this module was importing it — the ban caught a real violation, not
+    a style point.  ``Q`` is the native ``srmech_rational_*`` carrier and
+    is a drop-in here: construction from ``int``, true division, the
+    ``!= 0`` pivot test, and ``numerator`` / ``denominator`` on the way
+    back out to integers."""
     size = len(matrix)
-    rows = [[Fraction(value) for value in row]
-            + [Fraction(1 if i == j else 0) for j in range(size)]
+    rows = [[Q(value) for value in row]
+            + [Q(1 if i == j else 0) for j in range(size)]
             for i, row in enumerate(matrix)]
     for column in range(size):
         pivot = None
@@ -995,7 +1009,7 @@ def _ambient_root_system(roots: Sequence[Sequence[int]]
     return tuple(sorted(seen))
 
 
-def _simple_root_coefficients(inverse: Sequence[Sequence[Fraction]],
+def _simple_root_coefficients(inverse: Sequence[Sequence[Q]],
                               roots: Sequence[Sequence[int]],
                               vector: Sequence[int]) -> Optional[Tuple[int, ...]]:
     """The coefficients of ``vector`` in the SIMPLE-ROOT basis, as exact
@@ -1151,7 +1165,7 @@ def _build_affine_stratum(name: str) -> Dict[str, Any]:
 
     weights = []
     for j in range(rank):
-        vector = [Fraction(0)] * len(roots[0])
+        vector = [Q(0)] * len(roots[0])
         for k in range(rank):
             for t in range(len(vector)):
                 vector[t] += inverse[j][k] * roots[k][t]

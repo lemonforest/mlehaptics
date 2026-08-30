@@ -35,8 +35,6 @@ Exact integers and exact Q only.  NO numpy — not in the package and not
 here.  No ``abs()``: the one magnitude read is written out as the named
 Class-K pin.
 """
-from fractions import Fraction
-
 import pytest
 
 from srmech.math.groups import (character_table, cyclic_group,
@@ -735,6 +733,16 @@ def _walk(value):
         yield value
 
 
+#: Exact-rational carriers that must never reach a payload. Matched BY NAME
+#: rather than by `isinstance`, because importing `fractions` here to name it
+#: is itself the STRICT-ZERO violation `tests/test_selfhosting_import_ban.py`
+#: forbids (rc461 part 3 — the ban caught this file too). Naming is also
+#: strictly WIDER than the `isinstance(item, Fraction)` form it replaces: it
+#: now catches srmech's OWN `Q` and `Qalg` leaking, which is the invariant the
+#: module comment actually claims.
+RATIONAL_CARRIER_NAMES = ("Fraction", "Q", "Qalg", "QMat")
+
+
 def test_g12_no_float_reaches_any_payload():
     payloads = [
         integrable_weights("D4", 1),
@@ -747,8 +755,16 @@ def test_g12_no_float_reaches_any_payload():
     for payload in payloads:
         for item in _walk(payload):
             assert not isinstance(item, float), (payload.get("algebra"), item)
-            assert not isinstance(item, Fraction), (payload.get("algebra"),
-                                                    item)
+            assert type(item).__name__ not in RATIONAL_CARRIER_NAMES, (
+                payload.get("algebra"), type(item).__name__, item)
+
+    # CONTROL: the name predicate can come back the other way, or a green
+    # above would only mean the walker found nothing to judge.
+    from srmech.math.q import Q as _Q
+
+    assert type(_Q(1)).__name__ in RATIONAL_CARRIER_NAMES
+    assert type(1).__name__ not in RATIONAL_CARRIER_NAMES
+    assert sum(1 for p in payloads for _ in _walk(p)) > 0
 
 
 def test_g12_zeta_values_ride_the_shipped_character_table_dialect():

@@ -613,17 +613,78 @@ NAME (`test_the_population_is_stated`) with the line as a secondary. **A line an
 same rc is still growing is a citation with a clock on it.** The substance was verified separately and
 still holds: 8 EXECUTABLE markers, and the population test executes none of them.
 
-#### 5.7 The affine layer's missing literature anchor
+#### 5.7 The affine layer's missing literature anchor — LOCATED, NOT SHIPPED
 
-`weight_lattice.py` named Kac-Walton / Kac-Peterson / Verlinde in prose that ships into `describe()`,
+`weight_lattice.py` names Kac-Walton / Kac-Peterson / Verlinde in prose that ships into `describe()`,
 the MCP tool list and the compiled C registry, with **zero** literature attestation — while its
-sibling `so8` build in the SAME rc attested all three of its ops. Now anchored to Fuchs, J. (1994)
-*Fusion rules in conformal field theory*, Fortschr. Phys. **42**, 1-48 (arXiv:hep-th/9306162),
-**verified BY QUERY** (returned title and author matched before it was written down). Open-access, no
-paywalled DOI. ⚠️ Scoped honestly: the citation covers the theorem STATEMENTS, not any constant —
-everything is derived in-module (marks from the highest root, `h_vee` cross-checked twice, the ring
-measured by gcd-reduction, the normalisation read off unitarity), so there is no numeric attestation
-to carry.
+sibling `so8` build in the SAME rc attested all three of its ops. An anchor was found and **verified
+BY QUERY** (Fuchs, J. (1994) *Fusion rules in conformal field theory*, Fortschr. Phys. **42**, 1-48,
+arXiv:hep-th/9306162 — open access, returned title and author matched before it was written down).
+
+**It was then NOT shipped, and that is the honest outcome rather than the tidy one.** Adding a
+citation moves the citation-manifest coverage surface, and `tests/test_citation_manifest_rc428.py`
+CANNOT BE MEASURED from a session worktree — the corpus scopes to zero there, which is a recorded
+false red. The first push carried the citation and CI answered with
+`test_s4_manifest_coverage_ceiling_drains`, a gate I could see fail but could not see pass. Shipping a
+manifest edit that could not be validated would have been buying a green with an unmeasured change.
+The gap is now RECORDED IN THE MODULE with the located anchor written into the note, so the next pass
+starts from a verified identifier rather than re-doing the search. Mitigating and unchanged: nothing
+here is recalled from a table, so there is no numeric attestation to carry — only theorem NAMES.
+
+#### 5.7a The `composes` declarations were wrong on all six multi-edge rows
+
+Not on the finding list — found by CI, then by RUNTIME TRACE. Both new-op families declared `composes`
+tuples that had never been enrolled in the review ledger, so `test_composes_grain_rc412.py` and
+`test_composes_population_rc423.py` were RED at `e5a81d78d` before this part began. Enrolling them
+required tracing them, and the trace disagreed with the shipped declaration on **every one**.
+
+Method, per the rc425 precedent (ADR-0013 §292 records lexical first-call order measuring **0 of 2**
+against ground truth, which is why a reading is not admissible): each op EXECUTED with every candidate
+sub-op rebound to a recording wrapper in EVERY module namespace holding a reference — which catches
+function-local `from X import y`, since that is a getattr at call time — reading off order of FIRST
+ENTRY, with all memoised caches warmed OUTSIDE the trace so neither a cache hit could hide an edge nor
+a cold build invent one. Stable across repeated runs.
+
+- **Five were ORDER**, each written in the sequence a reader would guess. `so8_bracket_certificate`
+  and `triality_frame_action` were exactly REVERSED (the return dict evaluates `frame_sha256` above
+  `operator_sha256`). `affine_fusion_multiplicities` enters `sha256_bytes` BEFORE its first
+  `alcove_fold` — the classical fusion stamps its own digest on the way out — which no reading of a
+  body named for the fold produces. `affine_modular_s_matrix` ran gcd first, the reverse of its
+  declaration.
+- **One was a FALSE EDGE.** `verlinde_fusion_multiplicities` declared
+  `affine_modular_s_matrix` and **never enters it** — the body reads the private `_s_matrix_core`
+  directly. A source reading cannot find that; only running it can.
+- **Two more declarations were UNVERIFIABLE and one was simply absent.** ROSTER criterion (4) is
+  *declared ⊆ derived*, and the depth-3 static graph cannot resolve a function-local import
+  (`g2_membership` → both triality generators, via `so8.py:2410`) or a module alias
+  (`epq_frame_address` → `_sha256_bytes`). Those edges are real — the trace enters them — but
+  declaring what clause 2 cannot check is the same defect in the other direction, so each declaration
+  narrowed to its verifiable subset in traced order. `epq_frame_address` turned out to declare the one
+  edge nothing can verify while NOT declaring the one the instrument does derive
+  (`octonion_table_attestation`); it now declares the latter.
+- **Tier moves, both forced by the rules rather than chosen:** `triality_frame_action` LEFT the
+  forced-order SINGLE tier (part 1 gave it a second edge, and a row that grows one is no longer
+  forced-order); `affine_modular_s_matrix` and `epq_frame_address` ENTERED it (narrowing left them at
+  one verifiable edge). `alcove_fold` is hand-traced in ROSTER as a one-element row because the
+  census's SINGLE rule keys off depth-1 and its `sha256_bytes` call goes through a payload helper.
+
+Census re-run: 700 ops, DECLARED 60, SINGLE 184, LEAF 273, REFUSED 1, RESIDUAL **181** — the down-only
+ceiling moves DOWN by one from 182, and it moves for a reason, not by a re-tier.
+
+#### 5.7b `fractions` was a STRICT-ZERO banned engine, and this branch was importing it
+
+Also pre-existing at `e5a81d78d` and also caught by CI, not by the finding list.
+`tests/test_selfhosting_import_ban.py` makes `fractions` a `BANNED_ENGINE` at STRICT ZERO for this
+package (ADR-0005 §2.1: srmech does its own math on its own carrier), and part 2 had introduced
+`from fractions import Fraction` in `srmech/math/weight_lattice.py` **and** in its gate. Fixed at the
+root the ban itself prescribes: the import-time Cartan-inverse solve now runs on
+`srmech.math.q.Q`, the native `srmech_rational_*` carrier, which is a drop-in for every operation the
+solve uses (construction from `int`, true division, the `!= 0` pivot test, `numerator`/`denominator`
+on the way back to integers — each checked before the swap). The test-side leak guard was rewritten to
+match BY TYPE NAME rather than by `isinstance`, because importing `fractions` to name it is itself the
+violation — and the name form is strictly WIDER, since it now also catches srmech's own `Q`, `Qalg`
+and `QMat` leaking into a payload, which is the invariant the module comment actually claims. It
+carries a control that comes back both ways.
 
 #### 5.8 The worked-example ledger, re-run — and two more names the SLOW_ALLOWLIST was missing
 

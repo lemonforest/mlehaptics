@@ -12938,10 +12938,15 @@ def _register_primitive_class_tools() -> None:
                               "is visible on the payload face), "
                               "n_truncated, route ('kac_walton'), "
                               "procedure_sha256, fusion_sha256}"),
-            composes=("srmech.math.weight_lattice.alcove_fold",
-                      "srmech.math.weight_lattice."
+            # rc461 part 3: RUNTIME-TRACED. The CLASSICAL fusion runs first
+            # (it produces the constituents the fold then acts on) and stamps
+            # its own digest on the way out, so sha256_bytes is entered
+            # BEFORE the first alcove_fold — an order no reading of this
+            # body's statement sequence produces.
+            composes=("srmech.math.weight_lattice."
                       "tensor_product_multiplicities",
-                      "srmech.amsc.format.sha256_bytes"),
+                      "srmech.amsc.format.sha256_bytes",
+                      "srmech.math.weight_lattice.alcove_fold"),
             preserves=("numpy-free; exact ℤ; no abs() — sign-handling stays "
                        "Class-K pin-slot + Class-C",),
             smoke_test_hint={"algebra": "A2", "a": [1, 1], "b": [1, 1],
@@ -13005,10 +13010,16 @@ def _register_primitive_class_tools() -> None:
                               "whole matrix is rational, else None), "
                               "centre_invariant_factors, procedure_sha256, "
                               "s_sha256}"),
-            composes=("srmech.math.groups.zeta_mul",
-                      "srmech.math.poly.cyclotomic_polynomial",
-                      "srmech.math.cyclic.gcd",
-                      "srmech.amsc.format.sha256_bytes"),
+            # rc461 part 3: narrowed to the VERIFIABLE subset. The runtime
+            # trace enters gcd, then cyclotomic_polynomial, then zeta_mul,
+            # then the stamp — but all three of the first are reached only
+            # through the private `_s_matrix_core`, past the depth-3 static
+            # horizon, so the derived set here is `sha256_bytes` ALONE.
+            # Declaring the other three would assert edges clause 2 cannot
+            # check. One edge means the order is FORCED, so this row is
+            # adjudicated in the rc423 SINGLE tier rather than hand-traced
+            # into ROSTER.
+            composes=("srmech.amsc.format.sha256_bytes",),
             preserves=("numpy-free; exact ℤ[ζ_e] as integer coordinate "
                        "vectors — the carrier character_table already mints "
                        "and zeta_mul already reads; no float; no abs()",),
@@ -13072,8 +13083,14 @@ def _register_primitive_class_tools() -> None:
                               "scale_squared_denominator and n_primaries. "
                               "There is no classical_constituents field: "
                               "this route never computes one"),
-            composes=("srmech.math.weight_lattice.affine_modular_s_matrix",
-                      "srmech.math.groups.zeta_mul",
+            # rc461 part 3: RUNTIME-TRACED, and the trace REMOVED an edge
+            # rather than reordering one. This op declared
+            # `affine_modular_s_matrix` and NEVER CALLS IT: the body reads
+            # the private `_s_matrix_core(...)` directly (weight_lattice.py
+            # :2238), so the public op is never entered. Declaring it
+            # attributed an edge this op does not take — the exact defect a
+            # RUNTIME trace exists to catch and a source reading cannot.
+            composes=("srmech.math.groups.zeta_mul",
                       "srmech.amsc.format.sha256_bytes"),
             preserves=("numpy-free; exact ℤ and exact ℚ(ζ_e) via Qalg; no "
                        "float; no abs()",),
@@ -15768,7 +15785,16 @@ def _register_qm_tools() -> None:
                     "arXiv:math/0105155 §2.4.",
             parameters=(),
             returns=R("str", "64-hex Class-A address of the E_pq frame"),
-            composes=("srmech.amsc.format.sha256_bytes",),
+            # rc461 part 3: the VERIFIABLE edge, which is not the one this row
+            # used to declare. The op calls BOTH `octonion_table_attestation`
+            # and `sha256_bytes`, but the sha256 call arrives through the
+            # module alias `_sha256_bytes`, which neither the depth-3 call
+            # graph nor any cascade descriptor chain resolves — so declaring
+            # it asserts an edge clause 2 cannot check, while the attestation
+            # edge it did NOT declare is the one the instrument derives.
+            # Criterion (4) is VERIFIABLE; one edge is forced-order, so the
+            # rc423 SINGLE tier adjudicates it and it is not in ROSTER.
+            composes=("srmech.physics.qm.octonion.octonion_table_attestation",),
             preserves=("numpy-free; deterministic — a fixed function of the "
                        "pair order and the octonion table attestation",),
         ),
@@ -15826,8 +15852,11 @@ def _register_qm_tools() -> None:
                               "failures (0..378), "
                               "pairs_checked (378), first_failure, "
                               "denominator, frame_sha256, operator_sha256}"),
-            composes=("srmech.amsc.format.sha256_bytes",
-                      "srmech.physics.qm.so8.epq_frame_address"),
+            # rc461 part 3: RUNTIME-TRACED order, not read off the source.
+            # `epq_frame_address()` is evaluated BEFORE `sha256_bytes` in the
+            # return dict, so the declared order was reversed.
+            composes=("srmech.physics.qm.so8.epq_frame_address",
+                      "srmech.amsc.format.sha256_bytes"),
             preserves=("numpy-free; exact integers; no abs() — the E_qp = "
                        "−E_pq step is Class-C re-orientation, not a magnitude",),
         ),
@@ -15898,10 +15927,16 @@ def _register_qm_tools() -> None:
                               "('inner'|None), determinant, octonion_pairs "
                               "(64), commutator_entries (784), frame_sha256, "
                               "table_sha256, operator_sha256}"),
-            composes=("srmech.amsc.format.sha256_bytes",
-                      "srmech.physics.qm.so8.epq_frame_address",
-                      "srmech.physics.qm.triality.triality_automorphism",
-                      "srmech.physics.qm.triality.triality_swap"),
+            # rc461 part 3: RUNTIME-TRACED, then narrowed to the VERIFIABLE
+            # subset per the ROSTER's criterion (4). The trace enters
+            # triality_automorphism and triality_swap FIRST, but both are
+            # reached through a FUNCTION-LOCAL import in
+            # `_triality_generators_doubled` (so8.py:2410) that the depth-3
+            # static call graph cannot resolve, so declaring them would
+            # assert an edge clause 2 cannot check. Declared is a SUBSET of
+            # derived, in traced order.
+            composes=("srmech.physics.qm.so8.epq_frame_address",
+                      "srmech.amsc.format.sha256_bytes"),
             preserves=("numpy-free; exact ℚ; no abs() — the ± centre "
                        "separation is a Class-K pin-slot plus Class-C sign "
                        "re-application, never a magnitude",),
@@ -16049,8 +16084,9 @@ def _register_qm_tools() -> None:
                               "(4×4 of (num, den)), frame_weights, "
                               "spinor_parity (MEASURED), frame_sha256, "
                               "procedure_sha256, action_sha256}"),
-            composes=("srmech.amsc.format.sha256_bytes",
-                      "srmech.physics.qm.so8.epq_frame_address"),
+            # rc461 part 3: RUNTIME-TRACED order (reversed from the reading).
+            composes=("srmech.physics.qm.so8.epq_frame_address",
+                      "srmech.amsc.format.sha256_bytes"),
             preserves=("numpy-free; exact ℚ; no abs() — the ± weight closure "
                        "is Class-C orientation, not a magnitude",),
         ),
