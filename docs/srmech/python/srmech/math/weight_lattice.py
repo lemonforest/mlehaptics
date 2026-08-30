@@ -87,15 +87,16 @@ ruling, the same sentence the representation stratum already carries.
 names Kac-Walton / Kac-Peterson / Verlinde in prose that ships into
 ``describe()``, the MCP tool list and the compiled C registry, with no
 literature anchor — while its sibling ``so8`` build in the SAME rc
-attests every op to a query-verified arXiv ID. An anchor was located and
-verified BY QUERY (Fuchs, J. (1994) *Fusion rules in conformal field
-theory*, Fortschr. Phys. **42**, 1-48, arXiv:hep-th/9306162 — open
-access, title and author confirmed against the returned record) and then
-NOT shipped, because adding it moves the citation-manifest coverage
-surface and ``tests/test_citation_manifest_rc428.py`` cannot be measured
-from a session worktree (the corpus scopes to zero there, a known false
-red). Shipping a manifest edit that could not be validated would be
-worse than the gap. The mitigating fact is unchanged and is the reason
+attests every op to a query-verified identifier. An anchor WAS located
+and verified by query — Fuchs (1994), *Fusion rules in conformal field
+theory*, Fortschr. Phys. 42, 1-48, an open-access review — and then NOT
+shipped. Its identifier is deliberately recorded in the rc461 CHANGELOG
+entry rather than here, because a machine-readable identifier in PACKAGE
+prose enters the citation-manifest coverage corpus, and
+``tests/test_citation_manifest_rc428.py`` cannot be measured from a
+session worktree (the corpus scopes to zero there, a known false red) —
+so shipping one would mean shipping a coverage claim that could not be
+validated. The mitigating fact is unchanged and is the reason
 this is a gap rather than a defect: NOTHING here is recalled from a
 table. The marks come from the highest root, ``h_vee`` is cross-checked
 twice, the cyclotomic ring is measured by gcd-reduction, and the
