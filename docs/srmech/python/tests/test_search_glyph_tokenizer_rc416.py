@@ -782,8 +782,34 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   THREE fresh numpy-absent WSL2 interpreters: all nine returned the SAME
 #:   digest, and `search("rank", k=1).witness` agreed with the direct build in
 #:   every one. The ADR-0011 witness contract HOLDS.
+#: rc461 PART 3 re-pin (`#T1183`) — moved again, same sanctioned reason: the
+#: registry PROSE moved, five new ToolEntry registrations plus their curated
+#: example / explanation rows (the AFFINE / KAC-WALTON layer).
+#:
+#:   MEASURED: `len(frames) == 729`, split 700 ops + 29 carriers, read off the
+#:   build as `len(_build_frames('ops')[0])` / `len(_build_frames('carriers')[0])`
+#:   rather than inferred, with the sum checked against the union. The DELTA is
+#:   exactly the five new op frames, DERIVED not eyeballed: the registry moved
+#:   695 -> 700 (measured live), REMOVED = none (the rosetta-completeness gate
+#:   named exactly five unclassified ADDITIONS and no deletions), and carriers
+#:   are UNMOVED at 29 — none of the five mints a carrier TYPE. The zeta values
+#:   ride the INTEGER coordinate vectors `character_table` already mints and
+#:   `zeta_mul` already reads, and ℚ leaves as `int` pairs, which is exactly
+#:   why this part adds no C symbol and no ABI bump. The op-name SET witness
+#:   next door passed on a freshly rewritten 700-row manifest, which is the
+#:   assertion that no RENAME hid inside the same count.
+#:
+#:   Measured LAST, after the final regen (`regen_all.py` reported all six
+#:   generated files current and idempotent across two passes), per the rc454
+#:   rule that a pin taken mid-release is a measurement of a draft.
+#:
+#:   DETERMINISM — three successive `_build_frames('all')` calls inside each of
+#:   THREE fresh numpy-absent WSL2 interpreters: all nine returned the SAME
+#:   digest, `len(frames)` was 729 and the split 700/29 in every one, and
+#:   `search("rank", k=1).witness` agreed with the direct build every time. The
+#:   ADR-0011 witness contract HOLDS.
 WITNESS_RC416 = (
-    "d51897307d663abee17ca432ac13680017484225b7388318384c9f36589ddecc")
+    "6f4a5e09f558e95d9c54538eefa029b9847a1de27bf70ba53516e6c805c94dff")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

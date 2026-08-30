@@ -19,7 +19,7 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
-## [0.9.0rc461] - the derivation pair, and the frame nobody bound: the label action that was only ever a constant, the cycle spectrum that was only ever a float, and the 28 coordinates two modules ordered differently
+## [0.9.0rc461] - the derivation pair, the frame nobody bound, and the fold that had to prove it stops: a label action that was only ever a constant, a cycle spectrum that was only ever a float, 28 coordinates two modules ordered differently, and an infinite Weyl group folded by an exact integer certificate
 
 **What this rc is for.** Two ops, and they are the same move twice: each replaces a claim the tree ASSERTED with one it MEASURES. Registry **690 → 692**; **ABI stays 24**; **zero C symbols added** — neither op mints a carrier TYPE (exact ℚ leaves as `int` pairs), so nothing widens a discriminator set and nothing crosses the wire. Plus a third gate that adds no op at all and closes a shipped field with **zero** test coverage.
 
@@ -317,6 +317,186 @@ the Fano and sign conditions rather than pinned, with the four permutations enum
 is **unrelated** to `triality_frame_action`'s `32` weight-table entries (8 weights x 4 Cartan
 coordinates). They share a numeral and no structure; neither reconciles the other, and part 1's
 commit `869557740` already corrected prose that implied otherwise.
+
+
+### PART 3 (`#T1183`) — the AFFINE / KAC-WALTON layer, and the fold that had to prove it stops
+
+**What part 3 is for.** rc460 shipped the CLASSICAL A2 fold and called Lie fusion what it is — a
+signed integer count, not an integral. This part ships the **level-truncated** half of that
+sentence. A package-wide census returned **ZERO** across ten terms (affine Weyl · level · alcove ·
+Kac-Walton · Verlinde · S-matrix · modular data · fusion ring · truncation · orbit Lie algebra);
+five ops close it. Registry **695 → 700**; **ABI stays 24**; **zero C symbols added** — nothing
+mints a carrier TYPE, so no discriminator widens.
+
+**The framing that makes this small.** Racah–Speiser is the same instrument at level `k` as it is
+classically, with exactly ONE extra reflection available: the affine `s_0`. Everything else — the
+±1 ledger, the wall that contributes zero, the signed accumulation — is rc460's op unchanged.
+
+#### The infinite group, and why enumeration could not survive
+
+`W(A2)` has six elements and `_WEYL` enumerates them. `Ŵ_k = W ⋉ κQ^∨` is **INFINITE**, so the
+enumerate-and-scan shape cannot be reused — and the obvious replacement, *"while some label is
+negative, reflect"*, is an unbounded loop whose termination is an ASSUMPTION. That is precisely what
+`_dominant_conjugate` refuses to be, in its own docstring.
+
+**So the fold carries an EXACT INTEGER TERMINATION CERTIFICATE.** In affine Dynkin labels
+`a = (a_0 … a_r)` constrained by `Σ_j comark_j·a_j == κ`, every generator collapses to ONE form,
+`s_i: a_j → a_j − a_i·C^aff_ij`. The monovariant `Q(a) = Σ_j a_j²` then falls by **exactly**
+`quantum·a_i` per step, where `quantum` is DERIVED from the affine Cartan (`2κ` for A2, `4κ` for
+A1) rather than transcribed. A step fires only when `a_i < 0`, so the drop is strictly negative AND
+integer-quantised at `≥ quantum`; and `Q ≥ κ²/(r+1)` on the constraint simplex, so a step BOUND is
+computed **before** the loop and asserted against **inside** it. The per-step law is checked on
+EVERY step, not once. Measured over `[−12,12]^rank` at `k = 0..3`: worst case **well inside** the
+bound, which the gate asserts as a strict inequality rather than eyeballing.
+
+⚠️ **A1 AND A2 ONLY — and the MATHEMATICS enforces it, not a hand-kept list.** The collapse needs
+every affine node adjacent to every other; D4's diagram is a star and the identity fails.
+`_monovariant_quantum` RAISES on that, so a D4 caller gets the TERMINATION reason. `AFFINE_FOLD_ALGEBRAS`
+is **derived** by evaluating the same predicate, so the documented scope cannot drift from the
+proved one. An earlier draft gated on an allowlist instead — which made the termination guard
+**unfirable from public input**, an instrument that cannot return otherwise. Fixed before shipping.
+
+#### The five ops
+
+**`integrable_weights`** (Class E) — the primaries. Marks are DERIVED: `θ` is located as the root
+of maximal height in the derived root system and `h^∨ = 1 + Σ marks` is cross-checked against the
+independent `|Δ|/rank` count, a raise if they disagree. D4's marks come out `(1,2,1,1)`, which is
+why level 1 has **four** primaries and not five. The centre `P/Q` ships too, off the Cartan's Smith
+normal form: `(2,2)` for D4 — the Klein four-group, **derived, not recalled**.
+
+**`alcove_fold`** (Class K) — the iterative signed fold above, with its telemetry on the payload
+(`steps`, `step_bound`, `q_initial`, `q_final`, `monovariant_quantum`, and `on_wall` as a bool
+FIELD rather than an inferred one; `sign` is `0` **only** on a wall).
+
+**`affine_fusion_multiplicities`** (Class K) — Kac-Walton. ⚠️ **The name is the resolution of a
+real collision**: `srmech.math.groups.fusion_multiplicities` (`groups.py:1687`, verified at the
+branch tip) is the FINITE-GROUP tensor `N_abc = ⟨χ_a·χ_b, χ_c⟩`, **Class L** because it contracts
+against the class-algebra eigenbasis. This op builds no eigenbasis and projects onto nothing — the
+same explicit non-claim rc460 already paid to make. The two DO coincide at level 1 (a simply-laced
+level-1 fusion ring is the group ring of the centre, which is why the D4 acceptance test exists),
+but **coincidence in one case is not identity**, and reusing the bare name would erase a
+distinction the tree has already bought.
+
+**`affine_modular_s_matrix`** (Class I) — the Kac-Peterson S-matrix, exact over `ℤ[ζ_e]`. A FINITE
+Weyl sum with no fold, so it carries D4. Explicit non-claim: **NOT Class L** — it runs no spectral
+decomposition; that `S` diagonalises the fusion algebra is a theorem ABOUT it, not an operation it
+performs.
+
+**`verlinde_fusion_multiplicities`** (Class I) — the SAME coefficients by a disjoint instrument.
+
+#### Three things DERIVED that are usually recalled
+
+1. **`h^∨`.** From the marks, cross-checked against `|Δ|/rank`. D4's `6` is computed, not carried.
+2. **The ring.** Exponents start over `κ·D²` and the order is **reduced by their gcd**. D4 level 1
+   lands in `ℤ[ζ_14]` — not the `ℤ[ζ_28]` the raw scaling suggests, and **not the `ℤ[ζ_7]` a
+   reading of `κ` alone suggests**. The spinor weights are half-integral and the measurement says
+   so. (The carried research note had `ζ_7`; it is corrected here by measurement.)
+3. **The normalisation.** `A·A^†` is COMPUTED and must be `n·I`; `|c|² = 1/n` falls out of
+   unitarity. Measured, `n` equals `κ^rank·|P/Q|` in every shipped case — but it is READ off the
+   matrix, so that formula is a **cross-check** and not an input. Off-diagonal vanishing is a raise.
+
+#### The co-equal dual construction
+
+Kac-Walton is an iterative integer reflection that never leaves `ℤ`. Verlinde is a finite
+exponential sum over the ordinary Weyl group followed by division in a number field. They share no
+machinery. **Measured: 199 operand pairs across A1 levels 1–4 and A2 levels 1–3, ZERO mismatches.**
+And the scopes differ, which is the practical reason to ship both — Verlinde reaches **D4**, where
+the fold refuses, returning the Klein-four group ring (every product a single primary at
+multiplicity one, every primary its own inverse). That is a fourth, independent confirmation that
+`P/Q` is `V4` and not `C4`, by a route that never looks at the Smith normal form.
+
+#### The five acceptance tests, and the one whose headline claim was FALSE
+
+1. **su(2)_k** vs a truncated-CG rule derived in the gate — `k=1..6`, 139 cells, 0 mismatches.
+   Control: the UNtruncated rule disagrees.
+2. **su(3)_1 == Z3.** Control: ⚠️ the first control written was **swapping the two non-trivial
+   labels — an AUTOMORPHISM of Z3, so it could never have failed**, and it returned 0 mismatches.
+   Replaced with two that can: displacing the identity, and the same labels at level 2, where the
+   group law genuinely breaks.
+3. **su(3)_2, `8 ⊗ 8 = 1 + 8`**, against the SHIPPED classical op. The per-constituent fates are
+   executed individually: `10` and `10bar` hit walls, `27` folds back onto the `8` with sign `−1`
+   and cancels one of its two copies. Control: deletion-only truncation gives `1 + 8 + 8`.
+4. **`√|Z|·S(D4_1)` vs `character_table` of the centre.** ⚠️ **The carried claim "bit-for-bit" is
+   MEASURABLY FALSE and does not ship as written.** `character_table` sorts its rows by
+   `(degree, lex)` and says in its own docstring to *"locate rows by CONTENT, never by index"*;
+   this op orders its rows by PRIMARY. Raw, they **differ**. In the same documented order they are
+   bit-for-bit identical, and the permutation between them is the unique row reversal `(3,2,1,0)`.
+   The gate pins **BOTH halves** — the raw inequality as well as the sorted equality — so the false
+   half cannot creep back into prose. Corroborating detail the gate also executes: `S` is
+   symmetric, the sorted character table is not. Control: **C4**, the only other order-4 group,
+   fails — its table is not even a rational matrix (exponent 4, so `Φ_4 = x²+1`).
+5. **`A_00 = 49`, every entry `±49`.** Control: su(2)_2 is NOT rational (`ℤ[ζ_8]`), so
+   `is_rational_numerator` is not a constant `True`.
+
+Both sides of test 4 are SHIPPED instruments — a 192-term Weyl sum over `ℤ[ζ_14]` against a
+finite-group character table over `ℤ[ζ_2]` — which is what makes it the strongest of the five.
+
+#### The zeta ruling: **(a)**, and `#T1179` STAYS at rc462
+
+Gap 4 is **not** the first producer of the `ℚ(ζ_e)` rep-payload dialect, so widening that checker
+here would still ship something nothing mints. The evidence is executed in the gate, not asserted:
+these ops mint the **INTEGER coordinate-vector** form that `character_table` already produces and
+`zeta_mul` already consumes — the gate feeds our vectors straight into the shipped `zeta_mul` and
+checks the shape round-trips — while the REP payload (`kind` / `matrices` / `degree` / `field`) is a
+different object whose keys are asserted **absent** from every new payload. The one place a field is
+genuinely needed, the Verlinde division by `A_0s`, rides `Qalg` over `Φ_e` internally and leaves as
+plain integers.
+
+#### Guards that fire, including two proved by fault injection
+
+The monovariant law is proved live by corrupting the affine Cartan **below the public surface**
+(row 0 left intact so the stratum is still admitted and only the STEP is wrong), with a
+no-injection control that returns cleanly. The step-bound guard is a **BACKSTOP that is
+mathematically unreachable while the monovariant holds** — said plainly rather than dressed up —
+and is proved wired up by shrinking the bound at its own private seam.
+
+⚠️ **The non-integrable-operand guard is load-bearing and was added because the backstop was NOT
+sufficient.** Measured before it existed: of four non-integrable pairs, two raised on the downstream
+non-negativity check and **two returned an empty constituent set SILENTLY**.
+
+#### Two defects found by the gates and fixed rather than accommodated
+
+- **`_smith_diagonal` was not computing a Smith normal form.** Elimination alone returned `(4,6)`
+  for `((6,0),(0,4))` — a diagonal form, not the invariant factors `(2,12)`. The module's own
+  divisibility guard caught it (it raised rather than answering wrongly, so nothing shipped wrong),
+  and the fix is the missing `(gcd, lcm)` repair pass. The shipped Cartan matrices were unaffected;
+  a general one would have raised.
+- **`_integrable_labels` filtered a `(level+1)^rank` BOX** to find a simplex. At D4 level 72 that is
+  `73^4 = 28,398,241` tuples for a 658,711-row answer. It now walks the simplex directly. The frame
+  probe is what surfaced it, and fixing the op **drained a would-be third `SLOW_SKIP` entry**
+  instead of adding one.
+
+#### Ripple
+
+Registry **695 → 700**. 75 count-pin lines across 68 files swept (byte-precise, line endings
+preserved). `EXPECTED_N` 695 → 700; manifest rewritten to 700 rows; `EXPECTED_NAME_SET_SHA256` →
+`b9a7d24d…`. `WITNESS_RC416` → `6f4a5e09…`, with `len(frames)` 724 → **729** and the split read off
+the build as 700 ops + **29 carriers, UNMOVED** — which is the measurement behind "no new carrier
+TYPE". amsc as-text tool_registry 118 → 123 and `TOTAL_AS_TEXT` 209 → 214 (the five `composes`
+citations of `sha256_bytes`; decoded UNMOVED at 2). Decoded `math` 345 → 350. `SLOW_SKIP` 15 → 17,
+with the per-op measurements recorded at the pin. **`NO_ARG` and `NO_INT_INPUT` needed no raise** —
+an earlier reading that said otherwise was taken against a STALE example-args ledger and is
+recorded here as a measurement-order error rather than quietly dropped. Five Rosetta rows
+(`composition_of_c`), five example-args rows, five worked-example rows, plus the three rc460
+weight-lattice worked examples re-run BY NAME because the implementation moved under them.
+
+#### C-side cost (ADR-0009, RECORDED)
+
+`integrable_weights` / `alcove_fold` / `affine_fusion_multiplicities` /
+`affine_modular_s_matrix` / `verlinde_fusion_multiplicities` ship **Python-first with no C peer**
+under the ADR-0009 noted-disparity ruling, by the same argument rc460 recorded for the classical
+weight-lattice stratum: the carrier is plain `int` and tuples of `int`, with `QMat` for determinants
+and `Qalg` for the one field division, and **no new carrier TYPE crosses the boundary** (ℚ leaves as
+`int` pairs, ζ-values as integer coordinate vectors). All five classify `composition_of_c`, so
+`CEIL_PYTHON_ONLY_DEBT = 0` holds with no new C symbol and **ABI stays 24**. The recorded gap is
+the affine stratum, not any one of these ops.
+
+#### Descoped, with reasons
+
+- **The fold beyond rank 2.** The monovariant argument needs a complete affine diagram. Extending it
+  needs a different monovariant (length reduction in the Coxeter complex, or a `W ⋉ κQ^∨`
+  factorisation) and is genuine future work, not an omission.
+- **`verified_at` in the worked-example ledger** is still `""` (`#T1182`), untouched here.
 
 ## [0.9.0rc460] - the exact A2 weight-lattice stratum: Lie fusion is a SIGNED INTEGER COUNT, not an integral — and the group bind that closes a replicated silent wrong answer
 

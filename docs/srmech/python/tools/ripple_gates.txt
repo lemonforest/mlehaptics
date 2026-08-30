@@ -746,3 +746,17 @@ tests/test_frame_action_rc461.py
 tests/test_cyclic_spectrum_rc461.py
 tests/test_feit_higman_branches_rc461.py
 tests/test_so8_automorphism_bind_rc461.py
+#
+# -- rc461 (`#T1183`) - THE AFFINE / KAC-WALTON ACCEPTANCE GATE ---------------
+#
+#    test_affine_kac_walton_rc461 is the FIVE acceptance tests plus a control
+#    for every one of them, hand-written and executed. It is a ripple gate in
+#    the strict sense: it pins the registry rows of five new ops AND the
+#    resolvability of their `composes` targets, so a registration that moves
+#    without it reds here. It also pins BOTH halves of acceptance test 4 -
+#    that sqrt(|Z|).S(D4_1) equals character_table of the centre after the
+#    documented row sort and does NOT equal it raw - so the false half cannot
+#    creep back into prose. Two guards are proved firable by fault injection
+#    at private seams (the monovariant law, and the step-bound backstop that
+#    is otherwise mathematically unreachable). ~25 s.
+tests/test_affine_kac_walton_rc461.py

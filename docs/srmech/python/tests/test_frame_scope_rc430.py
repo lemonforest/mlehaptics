@@ -289,7 +289,25 @@ CEIL_FRAME_UNADJUDICATED = {
     # CEIL_UNSYNTHESIZABLE_PARAMS in tests/test_synth_args_provenance_rc430.py.
     "NO_INT_INPUT": 171,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
-    "SLOW_SKIP": 15,        # measured-slow, skipped BY NAME with a number
+    # rc461 part 3 (`#T1183`): 15 -> 17, and the split across the five new ops
+    # is the point rather than the total. FIVE ops were registered; only TWO
+    # land here and the other three are DRIVEN to a real verdict. MEASURED
+    # with the real Driver at SCREEN=24, per op:
+    #   affine_modular_s_matrix        -> >90 s at call SIX, still climbing.
+    #   verlinde_fusion_multiplicities -> >90 s at call TEN, still climbing.
+    #   integrable_weights             -> 0.25 s. NOT skipped.
+    #   alcove_fold                    -> 0.00 s. NOT skipped.
+    #   affine_fusion_multiplicities   -> 0.02 s. NOT skipped.
+    # The cause is the `level` sweep against a D4 base: |P_k| is 4 at level 1
+    # and 658711 at level 72, and the Kac-Peterson sum is |P_k|^2 x |W| terms.
+    # That three of the five screen in milliseconds is what shows the two
+    # entries are about the Weyl-sum cost, not about the family being
+    # unprobeable. ⚠️ One of the three only became cheap IN THIS DIFF:
+    # `integrable_weights` used to filter a (level+1)^rank BOX, which at D4
+    # level 72 is 73^4 = 28.4M tuples for a 658711-row answer. It now walks the
+    # simplex directly. The probe is what surfaced that, so a would-be third
+    # skip was drained by fixing the op rather than by naming it here.
+    "SLOW_SKIP": 17,        # measured-slow, skipped BY NAME with a number
     # rc430 repair (`#T1127`): ops whose parameter carries a documented domain
     # contract the sweep cannot honour (the three GF(p) ops need PRIME p). The
     # native peer asserts it and CI took SIGABRT; the pure body silently

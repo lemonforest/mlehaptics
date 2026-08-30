@@ -1016,11 +1016,50 @@ def test_every_returned_value_is_an_exact_int():
 
 def test_the_module_uses_no_abs_and_no_float():
     """Source-level discipline: sign-handling is the explicit Class-K Weyl
-    determinant ledger, never an ALU magnitude call."""
+    determinant ledger, never an ALU magnitude call.
+
+    ⚠️ rc461 (`#T1183`) — the predicate is now an AST walk, because the
+    substring form it replaced was FALSE-POSITIVE ON ITS OWN SUBJECT.
+    ``"abs(" not in source`` reads the whole module INCLUDING docstrings,
+    so a docstring that says *"never an ALU ``abs()`` call"* — prose
+    stating the very ban this test enforces — turned the gate red.  That
+    is the exact failure CLAUDE.md records for the ref-notation sweep:
+    *any mechanical check MUST exempt code spans*.  A ban on a CALL is
+    decidable from the syntax tree and prose cannot reach it, so the
+    check below is strictly STRONGER than the string form as well as
+    honest: `abs` reached through `builtins.abs` or a rebound name would
+    have slipped past a substring scan and is caught here.
+    """
+    import ast
     import inspect
+
+    tree = ast.parse(inspect.getsource(wl))
+    calls = []
+    floats = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            func = node.func
+            name = getattr(func, "id", None) or getattr(func, "attr", None)
+            if name in ("abs", "float"):
+                calls.append(f"{name}() at line {node.lineno}")
+        if isinstance(node, ast.Constant) and isinstance(node.value, float):
+            floats.append(f"float literal {node.value!r} at line {node.lineno}")
+    assert not calls, (
+        f"abs()/float() are banned in this module — sign-handling is the "
+        f"explicit Class-K pin plus Class-C re-application, and values stay "
+        f"exact: {calls}")
+    assert not floats, floats
+
+    # CONTROL: the walker can return otherwise, so a green above is a
+    # measurement rather than a walker that finds nothing anywhere.
+    probe = ast.parse("def f(x):\n    return abs(x) + float(1) + 2.5\n")
+    probe_calls = [n for n in ast.walk(probe) if isinstance(n, ast.Call)]
+    probe_floats = [n for n in ast.walk(probe)
+                    if isinstance(n, ast.Constant)
+                    and isinstance(n.value, float)]
+    assert len(probe_calls) == 2 and len(probe_floats) == 1
+
     source = inspect.getsource(wl)
-    assert "abs(" not in source, "abs() is banned — Class K + Class C"
-    assert "float(" not in source
     assert "hashlib" not in source, "route through sha256_bytes"
     assert "import math" not in source
 
@@ -1046,14 +1085,32 @@ def test_content_addresses_are_stable_and_distinguishing():
             != tensor_product_multiplicities((1, 0), (0, 1))["fusion_sha256"])
 
 
+#: The CLASSICAL A2 stratum this gate was written for (rc460).
+RC460_OPS = {
+    "srmech.math.weight_lattice.dominant_weight",
+    "srmech.math.weight_lattice.weight_multiplicities",
+    "srmech.math.weight_lattice.tensor_product_multiplicities",
+}
+
+#: The AFFINE stratum rc461 (`#T1183`) added to the SAME module. Listed
+#: here so this gate stays an exact SET assertion rather than being
+#: relaxed to a `>=`: a rename or a deletion on either stratum still
+#: fails, which is the property the rc460 form had and the reason not to
+#: swap it for a subset check just because the module grew.
+RC461_AFFINE_OPS = {
+    "srmech.math.weight_lattice.integrable_weights",
+    "srmech.math.weight_lattice.alcove_fold",
+    "srmech.math.weight_lattice.affine_fusion_multiplicities",
+    "srmech.math.weight_lattice.affine_modular_s_matrix",
+    "srmech.math.weight_lattice.verlinde_fusion_multiplicities",
+}
+
+
 def test_the_registry_carries_all_three_ops_under_their_own_category():
     from srmech.introspect.tool_schema import get_tool_schema
     rows = {e.name: e for e in get_tool_schema().tools
             if e.name.startswith("srmech.math.weight_lattice.")}
-    assert set(rows) == {
-        "srmech.math.weight_lattice.dominant_weight",
-        "srmech.math.weight_lattice.weight_multiplicities",
-        "srmech.math.weight_lattice.tensor_product_multiplicities"}
+    assert set(rows) == RC460_OPS | RC461_AFFINE_OPS
     for entry in rows.values():
         assert entry.owner == "srmech"
         assert entry.category == "weight_lattice"
@@ -1085,12 +1142,17 @@ def test_EVERY_one_of_the_three_ops_carries_the_exact_Z_guarantee():
     from srmech.introspect.tool_schema import get_tool_schema
     rows = {e.name: e for e in get_tool_schema().tools
             if e.name.startswith("srmech.math.weight_lattice.")}
-    assert len(rows) == 3, rows
+    # rc461 (`#T1183`): the module grew from 3 ops to 8, and the per-op
+    # binding this test exists for now covers all eight. The count is
+    # DERIVED from the two named strata rather than restated, so adding a
+    # third stratum without listing it fails here too.
+    assert set(rows) == RC460_OPS | RC461_AFFINE_OPS, sorted(rows)
+    assert len(rows) == 8, rows
     missing = sorted(
         name for name, entry in rows.items()
         if not any("exact ℤ" in s for s in entry.preserves))
     assert not missing, (
-        f"{len(missing)} of the 3 weight-lattice ops no longer declare the "
+        f"{len(missing)} of the {len(rows)} weight-lattice ops no longer declare the "
         f"exact-ℤ guarantee in `preserves`: {missing}. The whole carrier claim "
         f"of this stratum is that Racah–Speiser and Freudenthal stay in the "
         f"integers end to end — the Gram matrix is carried 3-SCALED so the "

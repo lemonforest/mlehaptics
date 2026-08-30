@@ -12762,6 +12762,322 @@ def _register_primitive_class_tools() -> None:
             # list — which is a real reconstruction mismatch, not cosmetic.
             smoke_test_hint={"a": [1, 0], "b": [1, 0]},
         ),
+        # rc461 (`#T1183`) — the AFFINE / KAC-WALTON layer, the
+        # level-truncated peer of the classical stratum above.  A
+        # package-wide census returned ZERO across ten terms (affine
+        # Weyl, level, alcove, Kac-Walton, Verlinde, S-matrix, modular
+        # data, fusion ring, truncation, orbit Lie algebra); these five
+        # ops close it.  THE FRAMING: Racah-Speiser is a SIGNED INTEGER
+        # COUNT, not an integral — the Haar-convolution phrasing found
+        # in the literature is the continuum shadow of an exact integer
+        # operation, and the affine case adds exactly one reflection to
+        # it.  The infinite affine Weyl group is handled by an ITERATIVE
+        # fold with an exact integer termination certificate (the
+        # monovariant sum-of-squares, checked on EVERY step against a
+        # bound computed BEFORE the loop), never by enumeration.  Carrier:
+        # plain int / tuple-of-int on every wire; Fraction for the one
+        # import-time solve; QMat for determinants; Qalg over Phi_e for
+        # the one genuine field division.  Zeta values ship as the
+        # INTEGER coordinate vectors character_table already mints and
+        # zeta_mul already reads — NO new carrier TYPE, so no
+        # discriminator widens, no C symbol, ABI stays 24.
+        ToolEntry(
+            name="srmech.math.weight_lattice.integrable_weights",
+            owner="srmech", category="weight_lattice",
+            summary="The LEVEL-TRUNCATED dominant stratum — every weight "
+                    "with Σ_j mark_j·λ_j <= level, which is exactly the set "
+                    "of integrable highest weights of the affine algebra at "
+                    "that level, and the index set every other affine op is "
+                    "indexed BY. Class E, the catalog enumeration, with a "
+                    "Class-K stage (the level inequality IS a wall test) and "
+                    "Class A (the address). THE MARKS ARE DERIVED, never "
+                    "recalled: θ is located as the root of maximal height in "
+                    "the DERIVED root system, expanded over the simple roots "
+                    "in exact ℤ, and h^vee = 1 + Σ marks is cross-checked "
+                    "against the independent |Δ|/rank count that holds for a "
+                    "simply-laced algebra — a raise if they disagree. For D4 "
+                    "the marks come out (1,2,1,1), which is why level 1 has "
+                    "FOUR primaries and not five: the node with mark 2 cannot "
+                    "be excited. The payload also carries the centre P/Q as "
+                    "invariant factors, read off the Cartan matrix's Smith "
+                    "normal form with the divisibility chain asserted — for "
+                    "D4 that is (2,2), the Klein four-group and NOT the "
+                    "cyclic group of order 4, which is the fact the D4 "
+                    "acceptance test rests on and it is derived rather than "
+                    "recalled. C-parity (ADR-0009, recorded): no C peer; "
+                    "Python-first under the noted-disparity ruling. Exact ℤ; "
+                    "no float; no abs().",
+            parameters=(
+                P("algebra", "str", True,
+                  "one of 'A1', 'A2', 'D4' — ValueError naming the shipped "
+                  "set otherwise"),
+                P("level", "int", True, "a non-negative int"),
+            ),
+            returns=R("dict", "{algebra, level, kappa (= level + h_vee), "
+                              "rank, marks, h_vee, weights (tuple of label "
+                              "tuples, sorted), n_weights, "
+                              "centre_invariant_factors, procedure_sha256, "
+                              "weights_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; exact ℤ; no abs() — the one magnitude "
+                       "read is the named Class-K pin inside the Smith "
+                       "normal form",),
+            smoke_test_hint={"algebra": "D4", "level": 1},
+        ),
+        ToolEntry(
+            name="srmech.math.weight_lattice.alcove_fold",
+            owner="srmech", category="weight_lattice",
+            summary="The ITERATIVE SIGNED FOLD of a weight into the level-k "
+                    "alcove under the affine Weyl DOT action ŵ·ν = "
+                    "ŵ(ν+ρ) − ρ — Class K primary (the ±1 ledger at the "
+                    "affine wall), with Class C (which node, which "
+                    "direction) and Class N (the guards). WHY IT IS NOT THE "
+                    "CLASSICAL FOLD: that one ENUMERATES (_WEYL is a "
+                    "precomputed 6-tuple and _strictly_dominant_fold scans "
+                    "it), and the affine Weyl group Ŵ_k = W ⋉ κQ^vee is "
+                    "INFINITE, so enumeration cannot survive the widening — "
+                    "while an unbounded loop whose termination is an "
+                    "ASSUMPTION is exactly what the classical fold refuses "
+                    "to be. This is the third option: an iterative fold with "
+                    "an EXACT INTEGER TERMINATION CERTIFICATE. In affine "
+                    "labels every generator — the finite s_1..s_r AND the "
+                    "affine s_0 — collapses to ONE form, a_j → a_j − "
+                    "a_i·C^aff_ij, and the monovariant Q(a) = Σ a_j² falls "
+                    "by EXACTLY quantum·a_i per step (2κ for A2, 4κ for A1, "
+                    "both DERIVED from the affine Cartan). A step fires only "
+                    "when a_i < 0, so the drop is strictly negative and "
+                    "integer-quantised; Q >= κ²/(r+1) on the constraint "
+                    "simplex, so a step BOUND is computed BEFORE the loop "
+                    "and asserted against inside it. The per-step law is "
+                    "checked on EVERY step, not once. Measured over "
+                    "[−30,30]^rank at k = 0..8: at most 40 steps against "
+                    "bounds up to 962, never approaching one. ⚠️ A1 AND A2 "
+                    "ONLY, and the MATHEMATICS enforces it rather than a "
+                    "hand-kept list: the quantum collapse needs every affine "
+                    "node adjacent to every other, D4's diagram is a star, "
+                    "and _monovariant_quantum RAISES on the failure of that "
+                    "identity. For D4 reach for "
+                    "verlinde_fusion_multiplicities, which runs no fold. "
+                    "C-parity (ADR-0009, recorded): no C peer; Python-first "
+                    "under the noted-disparity ruling. Exact ℤ; no float; no "
+                    "abs() — the sign is the Class-K reflection ledger, "
+                    "flipped once per step.",
+            parameters=(
+                P("algebra", "str", True,
+                  "'A1' or 'A2' — D4 raises with the TERMINATION reason"),
+                P("weight", "list[int]", True,
+                  "a rank-length Dynkin label; it does NOT have to be "
+                  "dominant or integrable — folding a weight that is "
+                  "neither IS the operation"),
+                P("level", "int", True, "a non-negative int"),
+            ),
+            returns=R("dict", "{algebra, level, kappa, weight, "
+                              "affine_labels, on_wall (a bool FIELD, not an "
+                              "inferred one), folded (the label, or None on "
+                              "a wall), sign (+1/−1/0, and 0 ONLY on a wall "
+                              "— a ledger entry, never a count), steps, "
+                              "step_bound, q_initial, q_final, "
+                              "monovariant_quantum, procedure_sha256}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; exact ℤ; no abs() — sign-handling stays "
+                       "Class-K pin-slot + Class-C",),
+            smoke_test_hint={"algebra": "A2", "weight": [2, 2], "level": 2},
+        ),
+        ToolEntry(
+            name="srmech.math.weight_lattice."
+                 "affine_fusion_multiplicities",
+            owner="srmech", category="weight_lattice",
+            summary="The LEVEL-TRUNCATED fusion multiplicities by "
+                    "KAC-WALTON — N^(k)_ab{}^c = Σ_ŵ det(ŵ)·N_ab^{ŵ·c} — as "
+                    "a SIGNED INTEGER COUNT. Class K primary, the ±1 ledger "
+                    "at the affine wall, with Class E (the classical "
+                    "operand's enumeration), Class C (fold direction) and "
+                    "Class N (the guards). The instrument, stated as the "
+                    "count it is: take the CLASSICAL constituents of V_a ⊗ "
+                    "V_b, fold each into the level-k alcove carrying its ±1 "
+                    "sign, drop the ones landing on a wall (they contribute "
+                    "exactly zero), accumulate. No integral, no measure, no "
+                    "float — it is the classical Racah-Speiser count with "
+                    "ONE extra reflection available, the affine s_0. ⚠️ NAME "
+                    "NOTE, not cosmetic: deliberately NOT called "
+                    "fusion_multiplicities, which is taken by "
+                    "srmech.math.groups.fusion_multiplicities, the "
+                    "FINITE-GROUP tensor N_abc = <χ_a·χ_b, χ_c> — Class L "
+                    "BECAUSE it contracts against the class-algebra "
+                    "eigenbasis. This op builds no eigenbasis and projects "
+                    "onto nothing, the same non-claim its classical parent "
+                    "carries. The two objects DO coincide at level 1 (a "
+                    "simply-laced level-1 fusion ring is the group ring of "
+                    "the centre — which is why the D4 acceptance test "
+                    "exists), but coincidence in one case is not identity. "
+                    "⚠️ NON-INTEGRABLE OPERANDS RAISE, and that guard is "
+                    "load-bearing: measured before it existed, of four "
+                    "non-integrable pairs two raised on the downstream "
+                    "non-negativity backstop and TWO RETURNED AN EMPTY "
+                    "CONSTITUENT SET SILENTLY. The backstop is not "
+                    "sufficient; the domain is checked up front. ⚠️ A1 and "
+                    "A2 only — it runs alcove_fold and inherits that op's "
+                    "termination scope exactly. C-parity (ADR-0009, "
+                    "recorded): no C peer; Python-first under the "
+                    "noted-disparity ruling. Exact ℤ; no float; no abs().",
+            parameters=(
+                P("algebra", "str", True,
+                  "'A1' or 'A2' — D4 raises with the TERMINATION reason"),
+                P("a", "list[int]", True,
+                  "a dominant label, integrable at level"),
+                P("b", "list[int]", True, "likewise"),
+                P("level", "int", True, "a non-negative int"),
+            ),
+            returns=R("dict", "{algebra, level, kappa, a, b, constituents "
+                              "(tuple of (label, multiplicity) pairs sorted "
+                              "by label), n_constituents, "
+                              "singlet_multiplicity, classical_constituents "
+                              "(the untruncated operand, so the truncation "
+                              "is visible on the payload face), "
+                              "n_truncated, route ('kac_walton'), "
+                              "procedure_sha256, fusion_sha256}"),
+            composes=("srmech.math.weight_lattice.alcove_fold",
+                      "srmech.math.weight_lattice."
+                      "tensor_product_multiplicities",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; exact ℤ; no abs() — sign-handling stays "
+                       "Class-K pin-slot + Class-C",),
+            smoke_test_hint={"algebra": "A2", "a": [1, 1], "b": [1, 1],
+                             "level": 2},
+        ),
+        ToolEntry(
+            name="srmech.math.weight_lattice.affine_modular_s_matrix",
+            owner="srmech", category="weight_lattice",
+            summary="The KAC-PETERSON modular S-matrix of the level-k "
+                    "theory, EXACT over ℤ[ζ_e] — Class I primary (the "
+                    "cyclotomic ζ-power arithmetic, the ring zeta_mul is "
+                    "Class I for), with Class E (the finite Weyl "
+                    "enumeration), Class C (the ±1 determinant ledger) and "
+                    "Class A. S = c·A with A_λμ = Σ_{w∈W} "
+                    "det(w)·ζ^(−(w(λ+ρ), μ+ρ)) a FINITE sum over the "
+                    "ORDINARY Weyl group, so the termination question that "
+                    "binds alcove_fold never arises and this op carries D4. "
+                    "It ships A — an integer matrix over ℤ[ζ_e] — plus the "
+                    "integer n with |c|² = 1/n, rather than a float matrix, "
+                    "because every quantity in it is exact and a float "
+                    "rendering would be the continuum shadow of an integer "
+                    "object. ⚠️ EXPLICIT NON-CLAIM: NOT Class L. It performs "
+                    "no spectral decomposition and builds no eigenbasis; "
+                    "that S diagonalises the fusion algebra is a THEOREM "
+                    "ABOUT it, not an operation it runs. THREE THINGS ARE "
+                    "DERIVED THAT ARE USUALLY RECALLED: h^vee from the "
+                    "marks (cross-checked against |Δ|/rank); the RING — "
+                    "exponents start over κ·D² and the order is reduced by "
+                    "their gcd, so D4 level 1 lands in ℤ[ζ_14], NOT the "
+                    "ℤ[ζ_28] the raw scaling suggests and NOT the ℤ[ζ_7] a "
+                    "reading of κ alone suggests, because the spinor weights "
+                    "are half-integral and the measurement says so; and the "
+                    "NORMALISATION — A·A^† is COMPUTED and must be n·I, so "
+                    "|c|² = 1/n falls out of unitarity. Measured, n equals "
+                    "κ^rank·|P/Q| in every shipped case, but it is READ off "
+                    "the matrix rather than substituted from that formula, "
+                    "so the formula is a cross-check and not an input. "
+                    "Worked: D4 level 1 gives a rational numerator with "
+                    "every entry ±49 and n = 9604 = 98²; divide by 49 and "
+                    "the rows ARE the rows of character_table of the Klein "
+                    "four-group, bit-for-bit, once both sit in the same "
+                    "documented (degree, lexicographic) row order — ⚠️ and "
+                    "NOT without that sort, where the unique permutation "
+                    "between them is the row reversal (3,2,1,0). Cost "
+                    "honest: D4 level 1 is milliseconds, D4 level 2 is "
+                    "seconds; cached per (algebra, level). C-parity "
+                    "(ADR-0009, recorded): no C peer; Python-first under the "
+                    "noted-disparity ruling. Exact ℤ; no float; no abs().",
+            parameters=(
+                P("algebra", "str", True, "one of 'A1', 'A2', 'D4'"),
+                P("level", "int", True, "a non-negative int"),
+            ),
+            returns=R("dict", "{algebra, level, kappa, primaries, "
+                              "n_primaries, weyl_order, zeta_order, phi_e "
+                              "(the monic Φ_e every value is reduced "
+                              "against — the same field character_table "
+                              "ships), numerator (rows of ζ-coordinate "
+                              "tuples), scale_squared_denominator (the n "
+                              "with |c|² = 1/n), is_rational_numerator, "
+                              "rational_numerator (plain-int rows when the "
+                              "whole matrix is rational, else None), "
+                              "centre_invariant_factors, procedure_sha256, "
+                              "s_sha256}"),
+            composes=("srmech.math.groups.zeta_mul",
+                      "srmech.math.poly.cyclotomic_polynomial",
+                      "srmech.math.cyclic.gcd",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; exact ℤ[ζ_e] as integer coordinate "
+                       "vectors — the carrier character_table already mints "
+                       "and zeta_mul already reads; no float; no abs()",),
+            smoke_test_hint={"algebra": "D4", "level": 1},
+        ),
+        ToolEntry(
+            name="srmech.math.weight_lattice."
+                 "verlinde_fusion_multiplicities",
+            owner="srmech", category="weight_lattice",
+            summary="The SAME level-truncated fusion multiplicities as "
+                    "affine_fusion_multiplicities, reached by the VERLINDE "
+                    "route instead — N_ab^c = Σ_s S_as·S_bs·conj(S_cs)/S_0s, "
+                    "contracted EXACTLY in ℚ(ζ_e). Class I primary (the "
+                    "cyclotomic contraction), with Class N (the one genuine "
+                    "field division, guarded), Class E and Class A. WHY BOTH "
+                    "ROUTES SHIP: they are not two spellings of one op but "
+                    "two INSTRUMENTS with disjoint failure modes — "
+                    "Kac-Walton is an iterative integer reflection with a "
+                    "termination certificate that never leaves ℤ; Verlinde "
+                    "is a finite exponential sum over the ordinary Weyl "
+                    "group followed by division in a number field. A "
+                    "co-equal dual construction is a CONSISTENCY ORACLE: "
+                    "where they disagree, the disagreement is the finding. "
+                    "Measured across A1 levels 1-4 and A2 levels 1-3 — 199 "
+                    "operand pairs — they agree on every coefficient, zero "
+                    "mismatches. AND THE SCOPES DIFFER, which is the "
+                    "practical reason to have both: this route runs NO "
+                    "alcove fold, so the termination proof binding "
+                    "alcove_fold to A1/A2 does not apply and THIS OP CARRIES "
+                    "D4. At D4 level 1 it returns the group ring of the "
+                    "centre — every product a single primary at "
+                    "multiplicity one, every primary its own inverse — an "
+                    "independent confirmation that P/Q is the Klein "
+                    "four-group and not the cyclic group of order 4. "
+                    "EXACTNESS: |c|² cancels to a RATIONAL in the "
+                    "contraction (three factors of c up, one down, leaving "
+                    "c·conj(c)) and is read off the unitarity of A rather "
+                    "than substituted from a formula; the per-term division "
+                    "by A_0s is the one operation that genuinely needs a "
+                    "field and goes through Qalg over Φ_e, the two-line lift "
+                    "character_table documents. Every coefficient is checked "
+                    "RATIONAL with denominator 1 before return — a "
+                    "non-integer is a raise, never a rounded result. ⚠️ "
+                    "Slower than the Kac-Walton route by a wide margin. "
+                    "Reach for affine_fusion_multiplicities when you want "
+                    "the answer, for this one when you want it CHECKED, or "
+                    "when the algebra is D4. C-parity (ADR-0009, recorded): "
+                    "no C peer; Python-first under the noted-disparity "
+                    "ruling. Exact ℤ and exact ℚ(ζ_e); no float; no abs().",
+            parameters=(
+                P("algebra", "str", True, "one of 'A1', 'A2', 'D4'"),
+                P("a", "list[int]", True,
+                  "a dominant label, integrable at level"),
+                P("b", "list[int]", True, "likewise"),
+                P("level", "int", True, "a non-negative int"),
+            ),
+            returns=R("dict", "the affine_fusion_multiplicities payload "
+                              "shape — so the two routes are comparable "
+                              "field-for-field — with route reading "
+                              "'verlinde', plus zeta_order, "
+                              "scale_squared_denominator and n_primaries. "
+                              "There is no classical_constituents field: "
+                              "this route never computes one"),
+            composes=("srmech.math.weight_lattice.affine_modular_s_matrix",
+                      "srmech.math.groups.zeta_mul",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; exact ℤ and exact ℚ(ζ_e) via Qalg; no "
+                       "float; no abs()",),
+            smoke_test_hint={"algebra": "D4", "a": [0, 0, 0, 1],
+                             "b": [0, 0, 1, 0], "level": 1},
+        ),
         # rc399 (`#T1064` Tier 2/3): the octonion CAYLEY PLANE 𝕆P² (carrier-
         # native, one rung above octonion_frame_read's ℍP¹≅S⁴) + the guarded
         # generalized-n-gon incidence-graph / Feit–Higman spectral read. §3.41.7

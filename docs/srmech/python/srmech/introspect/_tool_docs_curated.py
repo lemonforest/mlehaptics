@@ -10316,4 +10316,341 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
             'weight_multiplicities supplies the operand it folds; '
             'dominant_weight supplies the dimensions its dimension law checks '
             'against.'},
+    # ── rc461 (`#T1183`) — the AFFINE / KAC-WALTON layer. Every
+    # transcript below is a REAL captured result, run against the
+    # shipped module on the branch that ships it.
+    'srmech.math.weight_lattice.integrable_weights': {
+        'example': {
+            'input': {'algebra': 'D4', 'level': 1},
+            'output': "weights ((0,0,0,0), (0,0,0,1), (0,0,1,0), (1,0,0,0)), "
+                      "n_weights 4, marks (1, 2, 1, 1), h_vee 6, "
+                      "centre_invariant_factors (2, 2)",
+            'worked': "from srmech.math.weight_lattice import "
+                      "integrable_weights\n"
+                      "integrable_weights('D4', 1)['marks']\n"
+                      "# -> (1, 2, 1, 1)   DERIVED from the highest root, "
+                      "not recalled\n"
+                      "integrable_weights('D4', 1)['h_vee']\n"
+                      "# -> 6   1 + sum(marks), cross-checked against "
+                      "|Delta|/rank\n"
+                      "integrable_weights('D4', 1)['weights']\n"
+                      "# -> ((0,0,0,0), (0,0,0,1), (0,0,1,0), (1,0,0,0))\n"
+                      "#    FOUR, not five: the mark-2 node cannot be "
+                      "excited at level 1\n"
+                      "integrable_weights('D4', 1)['centre_invariant_"
+                      "factors']\n"
+                      "# -> (2, 2)   P/Q by Smith normal form: the KLEIN "
+                      "four-group,\n"
+                      "#             not the cyclic group of order 4\n"
+                      "integrable_weights('A2', 2)['weights']\n"
+                      "# -> ((0,0), (0,1), (0,2), (1,0), (1,1), (2,0))   "
+                      "su(3)_2 has 6\n"
+                      "integrable_weights('A1', 5)['n_weights']\n"
+                      "# -> 6   su(2)_k has k+1 primaries\n",
+            'why': 'D4 is the case that shows the marks are load-bearing '
+                   'rather than decorative: level 1 has FOUR primaries and '
+                   'not five precisely because one node carries mark 2, and '
+                   'the count 4 is the order of the centre the payload '
+                   'reports independently as (2, 2).'},
+        'explanation':
+            'WHAT it computes: the level-truncated dominant stratum — every '
+            'weight with sum_j mark_j * lambda_j <= level, which is exactly '
+            'the set of integrable highest weights of the affine algebra at '
+            'that level, plus the derived marks, dual Coxeter number and the '
+            'centre P/Q as invariant factors. Class E, the catalog '
+            'enumeration; the level inequality is the Class-K wall test and '
+            'the address is Class A. '
+            'WHEN to reach for it: whenever you need the PRIMARIES of a '
+            'level-k theory — the legal operands of affine_fusion_'
+            'multiplicities, the rows and columns of affine_modular_s_matrix, '
+            'or simply the answer to "how many primaries does su(3)_2 have". '
+            'What you would otherwise wrongly hand-roll: the marks. Writing '
+            '(1,1,1,1) for D4 instead of the true (1,2,1,1) gives FIVE '
+            'level-1 primaries instead of four, and every downstream S-matrix '
+            'and fusion table built on it is then a well-formed wrong answer '
+            'with no crash. This op derives them from the root system '
+            'instead, and cross-checks h_vee against |Delta|/rank. '
+            'SIBLINGS: alcove_fold folds an arbitrary weight into this set; '
+            'affine_fusion_multiplicities and verlinde_fusion_multiplicities '
+            'both take their operands from it. On the classical side '
+            'dominant_weight is the untruncated label object.'},
+    'srmech.math.weight_lattice.alcove_fold': {
+        'example': {
+            'input': {'algebra': 'A2', 'weight': [2, 2], 'level': 2},
+            'output': "folded (1, 1), sign -1, steps 1, step_bound 2, "
+                      "q_initial 19, q_final 9, monovariant_quantum 10",
+            'worked': "from srmech.math.weight_lattice import alcove_fold\n"
+                      "alcove_fold('A2', (2, 2), 2)['folded']\n"
+                      "# -> (1, 1)    the 27 folds back onto the 8\n"
+                      "alcove_fold('A2', (2, 2), 2)['sign']\n"
+                      "# -> -1        and it arrives with a MINUS, which is "
+                      "what cancels\n"
+                      "alcove_fold('A2', (2, 2), 2)['q_initial'], "
+                      "alcove_fold('A2', (2, 2), 2)['q_final']\n"
+                      "# -> (19, 9)   the monovariant fell by 10 ...\n"
+                      "alcove_fold('A2', (2, 2), 2)['monovariant_quantum']\n"
+                      "# -> 10        ... which is EXACTLY quantum * a_0 = "
+                      "10 * (-1)\n"
+                      "alcove_fold('A2', (2, 2), 2)['step_bound']\n"
+                      "# -> 2         computed BEFORE the loop; 1 step was "
+                      "taken\n"
+                      "alcove_fold('A2', (0, 3), 2)['on_wall']\n"
+                      "# -> True      a wall weight: sign 0, folded None, "
+                      "contributes nothing\n"
+                      "alcove_fold('A1', (7,), 2)['monovariant_quantum']\n"
+                      "# -> 16        4*kappa for A1, against 2*kappa for "
+                      "A2 -- derived,\n"
+                      "#              which is why A1 is in the suite at all\n"
+                      "alcove_fold('D4', (0, 0, 0, 1), 1)\n"
+                      "# -> ValueError\n",
+            'why': 'The fold of (2,2) is the single step that turns the '
+                   'classical 8 (x) 8 into the level-2 answer: one '
+                   'reflection, one sign flip, and a monovariant drop of '
+                   'exactly quantum * a_0. The D4 line is the termination '
+                   'scope refusing an algebra it cannot prove it halts on, '
+                   'which is a different object from a slower fold.'},
+        'explanation':
+            'WHAT it computes: the iterative signed fold of a weight into '
+            'the level-k alcove under the affine Weyl dot action, returning '
+            'the folded label, its +-1 sign (0 exactly on a wall), and the '
+            "loop's own telemetry — steps taken, the bound computed before "
+            'the loop, and the monovariant before and after. Class K: the '
+            '+-1 ledger at the affine wall IS the instrument. '
+            'WHEN to reach for it: when you need to know WHERE a weight '
+            'lands at a given level and with what sign — the per-constituent '
+            'detail that affine_fusion_multiplicities accumulates away. It '
+            'is also the op to read when a fusion answer surprises you: each '
+            'classical constituent has exactly one fate (wall, fixed, or '
+            'folded-with-sign) and this op names it. '
+            'What you would otherwise wrongly hand-roll: the loop. The '
+            'affine Weyl group is INFINITE, so the enumerate-and-scan shape '
+            'of the classical fold cannot be reused, and the obvious '
+            'replacement — while some label is negative, reflect — is an '
+            'unbounded loop whose termination is an assumption. This op '
+            'carries an exact integer certificate instead: the monovariant '
+            'sum-of-squares falls by exactly quantum * a_i every step, the '
+            'law is checked on EVERY step rather than once, and the step '
+            'count is asserted against a bound computed before the loop. '
+            'SIBLINGS: affine_fusion_multiplicities is this op summed over '
+            "the classical constituents; integrable_weights is the set it "
+            'folds INTO; the classical _strictly_dominant_fold inside '
+            'tensor_product_multiplicities is the finite, enumerated '
+            'ancestor this op replaces.'},
+    'srmech.math.weight_lattice.affine_fusion_multiplicities': {
+        'example': {
+            'input': {'algebra': 'A2', 'a': [1, 1], 'b': [1, 1], 'level': 2},
+            'output': "constituents (((0,0), 1), ((1,1), 1)), n_truncated 3, "
+                      "singlet_multiplicity 1, route 'kac_walton'",
+            'worked': "from srmech.math.weight_lattice import "
+                      "affine_fusion_multiplicities as fuse\n"
+                      "fuse('A2', (1, 1), (1, 1), 2)['classical_"
+                      "constituents']\n"
+                      "# -> (((0,0),1), ((0,3),1), ((1,1),2), ((2,2),1), "
+                      "((3,0),1))\n"
+                      "#    the untruncated 8 (x) 8 = 1 + 8 + 8 + 10 + "
+                      "10bar + 27\n"
+                      "fuse('A2', (1, 1), (1, 1), 2)['constituents']\n"
+                      "# -> (((0,0),1), ((1,1),1))     at level 2 that is "
+                      "1 + 8\n"
+                      "#    10 and 10bar hit walls; 27 folds onto the 8 "
+                      "with sign -1\n"
+                      "#    and cancels one of its two copies\n"
+                      "fuse('A2', (1, 1), (1, 1), 40)['constituents']\n"
+                      "# -> the classical answer again: at high level the "
+                      "truncation is inert\n"
+                      "fuse('A1', (1,), (1,), 2)['constituents']\n"
+                      "# -> (((0,),1), ((2,),1))       Ising: sigma x sigma "
+                      "= 1 + epsilon\n"
+                      "fuse('A1', (2,), (2,), 2)['constituents']\n"
+                      "# -> (((0,),1),)                epsilon x epsilon = "
+                      "1\n"
+                      "fuse('A2', (1, 1), (1, 1), 1)\n"
+                      "# -> ValueError\n",
+            'why': 'The level-2 answer is not a subset of the classical one '
+                   '- it is a SIGNED sum, and the 27 arriving with a minus '
+                   'is what removes one of the two 8s. A truncation that '
+                   'only deleted terms would leave 1 + 8 + 8. The final line '
+                   'is the integrability guard: the adjoint has level 2, so '
+                   'it is not a legal operand at level 1, and that refusal '
+                   'is up front rather than a silent empty answer.'},
+        'explanation':
+            'WHAT it computes: the level-truncated fusion multiplicities by '
+            'Kac-Walton, N^(k)_ab^c = sum over the affine Weyl group of '
+            'det(w) * N_ab^{w . c}, as a signed integer count. Take the '
+            'classical constituents, fold each into the level-k alcove '
+            'carrying its +-1 sign, drop the wall cases, accumulate. Class '
+            'K. The payload carries the classical operand alongside the '
+            'answer so the truncation is visible on the payload face. '
+            'WHEN to reach for it: any WZW / affine-Lie fusion question at '
+            'finite level — which primaries appear in a product, with what '
+            'multiplicity, and whether the vacuum is among them. '
+            'What you would otherwise wrongly hand-roll: two things. First, '
+            'truncating by DELETION (keeping the classical constituents that '
+            'happen to be integrable) - that is not the Kac-Walton rule and '
+            'it gets 8 (x) 8 at level 2 wrong by an entire 8. Second, '
+            'feeding a non-integrable operand: measured before the guard '
+            'existed, of four such pairs two raised downstream and two '
+            'returned an EMPTY constituent set silently, so the domain is '
+            'checked up front instead. '
+            'SIBLINGS: verlinde_fusion_multiplicities computes the SAME '
+            'coefficients by a completely different instrument (an S-matrix '
+            'contraction in a number field) and carries D4 where this one '
+            'refuses - the two agree on 199 measured operand pairs, which is '
+            'what makes the pair a consistency oracle. alcove_fold is the '
+            'per-constituent detail. srmech.math.groups.fusion_multiplicities '
+            'is the FINITE-GROUP object of the same name and is a different '
+            'thing: Class L, an eigenbasis contraction.'},
+    'srmech.math.weight_lattice.affine_modular_s_matrix': {
+        'example': {
+            'input': {'algebra': 'D4', 'level': 1},
+            'output': "rational_numerator ((49,49,49,49), (49,49,-49,-49), "
+                      "(49,-49,49,-49), (49,-49,-49,49)), zeta_order 14, "
+                      "scale_squared_denominator 9604, weyl_order 192, "
+                      "centre_invariant_factors (2, 2)",
+            'worked': "from srmech.math.weight_lattice import "
+                      "affine_modular_s_matrix as smat\n"
+                      "from srmech.math.groups import (character_table, "
+                      "cyclic_group,\n"
+                      "                                semidirect_product)\n"
+                      "s = smat('D4', 1)\n"
+                      "s['zeta_order']\n"
+                      "# -> 14    MEASURED by gcd-reducing the exponents: "
+                      "not 28 (the raw\n"
+                      "#         scaling) and not 7 (a reading of kappa "
+                      "alone)\n"
+                      "s['rational_numerator']\n"
+                      "# -> every entry +-49\n"
+                      "s['scale_squared_denominator']\n"
+                      "# -> 9604   = 98^2, DERIVED from A A^dagger = n I, "
+                      "not substituted\n"
+                      "#           from kappa^rank * |P/Q| (which it "
+                      "equals, as a check)\n"
+                      "# the acceptance test: sqrt(|Z|) . S IS the centre's "
+                      "character table\n"
+                      "v4 = semidirect_product(cyclic_group(2)"
+                      "['cayley_table'],\n"
+                      "                        cyclic_group(2)"
+                      "['cayley_table'],\n"
+                      "                        [[0, 1], [0, 1]])"
+                      "['cayley_table']\n"
+                      "rows = tuple(tuple(c[0] for c in r)\n"
+                      "             for r in character_table(v4)['table'])\n"
+                      "a00 = s['rational_numerator'][0][0]\n"
+                      "mine = tuple(tuple(x // a00 for x in r)\n"
+                      "             for r in s['rational_numerator'])\n"
+                      "mine == rows\n"
+                      "# -> False   NOT bit-for-bit as ordered rows -- "
+                      "character_table\n"
+                      "#            SORTS its rows and this op orders by "
+                      "PRIMARY\n"
+                      "tuple(sorted(mine)) == tuple(sorted(rows))\n"
+                      "# -> True    bit-for-bit once both sit in the same "
+                      "documented order\n"
+                      "smat('A1', 2)['is_rational_numerator']\n"
+                      "# -> False   su(2)_2 lives in Z[zeta_8] and does NOT "
+                      "reduce to Z\n",
+            'why': 'D4 level 1 is the case where two independently shipped '
+                   'instruments meet: a Weyl sum over 192 elements in '
+                   'Z[zeta_14] and a finite-group character table over '
+                   'Z[zeta_2]. They agree exactly, and the transcript pins '
+                   'BOTH halves of that -- the raw comparison is False and '
+                   'the sorted one is True -- so a later claim of raw '
+                   'bit-for-bit equality cannot creep back in. The su(2)_2 '
+                   'line is the control: is_rational_numerator is not '
+                   'always True.'},
+        'explanation':
+            'WHAT it computes: the Kac-Peterson modular S-matrix of a '
+            'level-k affine theory, exactly. S = c * A with A_lm = sum over '
+            'the ORDINARY Weyl group of det(w) * zeta^(-(w(l+rho), m+rho)); '
+            'the op ships the integer matrix A over Z[zeta_e] together with '
+            'the integer n satisfying |c|^2 = 1/n, rather than a float '
+            'matrix. Class I, the cyclotomic zeta-power arithmetic. It is '
+            'explicitly NOT Class L: it runs no spectral decomposition, and '
+            'that S diagonalises the fusion algebra is a theorem about it '
+            'rather than an operation it performs. '
+            'WHEN to reach for it: modular data - S, the fusion ring via '
+            'Verlinde, quantum dimensions, or any question that needs the '
+            'EXACT entries rather than a numerical approximation. '
+            'What you would otherwise wrongly hand-roll: three things, all '
+            'usually recalled rather than derived. The dual Coxeter number '
+            '(here read off the marks of the derived highest root and '
+            'cross-checked against |Delta|/rank). The RING - assuming '
+            'Z[zeta_kappa] gives zeta_7 for D4 level 1, which cannot express '
+            'the half-integer pairings the spinor weights produce; the op '
+            'measures the order by gcd-reducing the exponents actually used '
+            'and lands on zeta_14. And the NORMALISATION - substituting '
+            '|c|^2 = 1/(kappa^rank |P/Q|) from memory instead of computing '
+            'A A^dagger and reading n off unitarity, which is what makes the '
+            'formula a cross-check here rather than an input. '
+            'SIBLINGS: verlinde_fusion_multiplicities is the consumer that '
+            'turns this into fusion coefficients; integrable_weights supplies '
+            'the primaries indexing it; srmech.math.groups.character_table is '
+            'the finite-group object it coincides with at level 1, and '
+            'zeta_mul is the ring multiply both of them are built on.'},
+    'srmech.math.weight_lattice.verlinde_fusion_multiplicities': {
+        'example': {
+            'input': {'algebra': 'D4', 'a': [0, 0, 0, 1], 'b': [0, 0, 1, 0],
+                      'level': 1},
+            'output': "constituents (((1,0,0,0), 1),), route 'verlinde', "
+                      "zeta_order 14, scale_squared_denominator 9604",
+            'worked': "from srmech.math.weight_lattice import (\n"
+                      "    verlinde_fusion_multiplicities as verlinde,\n"
+                      "    affine_fusion_multiplicities as fuse)\n"
+                      "# D4 -- an algebra the alcove fold REFUSES, because "
+                      "its affine\n"
+                      "# diagram is a star and the monovariant argument "
+                      "does not carry.\n"
+                      "# This route runs no fold, so it answers.\n"
+                      "verlinde('D4', (0,0,0,1), (0,0,1,0), 1)"
+                      "['constituents']\n"
+                      "# -> (((1,0,0,0), 1),)   spinor x conj-spinor = "
+                      "vector\n"
+                      "verlinde('D4', (0,0,0,1), (0,0,0,1), 1)"
+                      "['constituents']\n"
+                      "# -> (((0,0,0,0), 1),)   every primary is its own "
+                      "inverse:\n"
+                      "#                        the KLEIN four-group, not "
+                      "C4\n"
+                      "# and where both routes run, they agree:\n"
+                      "verlinde('A2', (1,1), (1,1), 2)['constituents'] == \\\n"
+                      "    fuse('A2', (1,1), (1,1), 2)['constituents']\n"
+                      "# -> True    an iterative integer fold and a "
+                      "cyclotomic field\n"
+                      "#            contraction, on the same coefficients\n"
+                      "fuse('D4', (0,0,0,1), (0,0,1,0), 1)\n"
+                      "# -> ValueError\n",
+            'why': 'The two routes share no machinery -- one is an '
+                   'iterative integer reflection with a termination '
+                   'certificate, the other a 192-term Weyl sum followed by '
+                   'division in a number field -- so their agreement is a '
+                   'real consistency oracle rather than a tautology. The '
+                   'final line shows the scope asymmetry that makes both '
+                   'worth shipping.'},
+        'explanation':
+            'WHAT it computes: the level-truncated fusion multiplicities by '
+            'the Verlinde formula, N_ab^c = sum_s S_as S_bs conj(S_cs) / '
+            'S_0s, contracted exactly in Q(zeta_e). Class I. Same '
+            'coefficients as affine_fusion_multiplicities, same payload '
+            'shape, completely different instrument. '
+            'WHEN to reach for it: when the algebra is D4 (the alcove fold '
+            'refuses it), or when you want a fusion answer CHECKED rather '
+            'than merely computed. For speed, prefer '
+            'affine_fusion_multiplicities - this route builds the whole '
+            'S-matrix and contracts over every primary for every output '
+            'label. '
+            'What you would otherwise wrongly hand-roll: the arithmetic. '
+            'Evaluating Verlinde in floating point and rounding to the '
+            'nearest integer is the standard shortcut and it is exactly the '
+            'continuum shadow this stratum exists to avoid; the coefficients '
+            'are integers, so the contraction is done in the exact field and '
+            'a non-integer result RAISES rather than rounding. The |c|^2 '
+            'that survives the contraction is rational (three factors of c '
+            'up, one down) and is read off the unitarity of the numerator '
+            'rather than substituted. '
+            'SIBLINGS: affine_modular_s_matrix supplies S (cached, so a '
+            'sweep over operand pairs builds it once); '
+            'affine_fusion_multiplicities is the co-equal dual construction '
+            'this one is checked against, agreeing on 199 measured operand '
+            'pairs; srmech.math.qalg.Qalg is the exact number-field carrier '
+            'the one genuine division rides.'},
 }
