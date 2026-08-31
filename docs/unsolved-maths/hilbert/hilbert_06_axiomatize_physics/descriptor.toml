@@ -12,7 +12,7 @@ wightman_garding_1964 = "Wightman AS, Garding L (1964). Fields as operator-value
 haag_kastler_1964    = "Haag R, Kastler D (1964). An algebraic approach to quantum field theory. J. Math. Phys. 5:848-861."
 atiyah_1988          = "Atiyah MF (1988). Topological quantum field theories. Publ. Math. IHES 68:175-186. Open access."
 mfo_notebook         = "MFO research notebook (this repository, docs/antikythera-maths/mfo_spectral_research_notebook.md) — Parts VII.2-VII.7 substrate-vs-excitation ontology + 11D structure."
-spike_58_chain       = "Spike #58 chain (this repository) — SM gauge group via Class M o I o C o K o L; SU(3) x SU(2) x U(1) derivation."
+spike_58_chain       = "Spike #58 chain (this repository) — SM gauge group via Class M o I o C o K o L; SU(3) x SU(2) x U(1) READING, not a derivation (2026-08-27 artifact audit, docs/antikythera-maths/mfo_spectral_research_notebook.md:4862-4868: Spike #58.G has no artifact; Spike #58.P sin^2 theta_W = 1/4 is bit-exact but substrate-independent)."
 
 [fetch]
 adapter      = "literature_curated"

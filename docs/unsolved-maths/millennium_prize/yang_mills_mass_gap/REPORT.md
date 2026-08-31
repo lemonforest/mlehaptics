@@ -21,13 +21,15 @@ For any compact simple gauge group G (e.g. SU(2), SU(3), SU(N)), prove that quan
 ## 3. Framework reading — Spike #58 chain continuity
 
 Per the existing framework work (Spike #58 chain, MFO §VII.4.1):
-- SM gauge group SU(3) × SU(2) × U(1) **derived** from cascade A ∘ M ∘ I ∘ C ∘ K ∘ L (Spike #58.G).
+- SM gauge group SU(3) × SU(2) × U(1) **read** against cascade A ∘ M ∘ I ∘ C ∘ K ∘ L (Spike #58.G) — reading only; the 2026-08-27 artifact audit retracts "derived" here, `.G` having no artifact at all.
 - SU(2)_L emerges from quaternion subalgebra ℍ ⊂ 𝕆 (Spike #58.H).
 - U(1)_Y emerges from 1D_t × 1D_circle Class I × Class C (Spike #58.I).
-- sin²θ_W = 1/4 **bit-exact** in Cℓ(6, ℂ) (Spike #58.P).
+- sin²θ_W = 1/4 **bit-exact** in Cℓ(6, ℂ) (Spike #58.P) — the computation stands; the substrate inference is retired, the trace ratio depending only on the SM rep assignment and so being substrate-independent.
 - Smooth-G₂ Dirac index on Class C orientation (Spike #58.O).
 
-The framework treats the SM gauge sector as a confirmed_bit_exact cascade in the Hilbert 6 (axiomatize-physics) audit. Yang-Mills mass gap is the **partial** coverage entry — open at the constructive-proof level but cascade-anchored.
+⚠️ **Artifact audit (2026-08-27) — `docs/antikythera-maths/mfo_spectral_research_notebook.md:4862-4868`.** Of the twelve Spike #58 sub-spikes, only `.N` and `.P` have any committed artifact; `B/F/G/H/I/J/K/L/M/O` have no code, no NDJSON and no note. The bullets above that cite `.G`, `.H`, `.I` and `.O` are readings recorded in prose, not derivations, and must not be cited as though they were.
+
+The Hilbert 6 (axiomatize-physics) audit carried the SM gauge sector as a `confirmed_bit_exact` cascade. **That status does not survive the 2026-08-27 artifact audit and is retracted here**: the gauge-group claim (`.G`) has no artifact at all, and the one bit-exact artifact in the arc (`.P`, sin²θ_W = 1/4) is substrate-independent by its own script's admission, so it cannot be evidence for the substrate. The SM gauge sector is a **reading**, not a confirmed cascade. Yang-Mills mass gap is the **partial** coverage entry — open at the constructive-proof level but cascade-anchored.
 
 Per `[[project_a_n_operators_are_harmonic_objects_themselves]]`: the mass gap IS a Class K asymptotic-DoF pin-slot at zero of the gauge-field mass spectrum. The Hurwitz heptadic candidate predicts small-denominator rational anchors at SU(N) gauge groups specifically when N exhibits the heptadic 7-anchor.
 
@@ -110,7 +112,7 @@ The large-N limit oscillates between Class N anchors 43/13 ≈ 3.31 and 33/10 = 
 Per `[[feedback_no_lineage_claims_in_notebook]]`: the framework does NOT claim to solve the Yang-Mills mass-gap problem. It demonstrates:
 1. The mass gap IS a Class K asymptotic-DoF pin-slot at zero (structural decomposition coherent).
 2. The Hurwitz heptadic anchor (per the harmonic-objects claim) leaves a small-denominator-rational fingerprint at the gauge-theory substrate.
-3. The Spike #58 chain that derives SM gauge group from cascade composition extends naturally to the mass-gap question — gap value is a cascade-perfect-math output of the cascade decomposition.
+3. The Spike #58 chain that **reads** the SM gauge group against cascade composition extends naturally to the mass-gap question — gap value is a cascade-perfect-math output of the cascade decomposition. (Reading only: the 2026-08-27 artifact audit at `docs/antikythera-maths/mfo_spectral_research_notebook.md:4862-4868` retracts "derives" for `.G`, which has no artifact.)
 
 This **closes the Hilbert 6 partial coverage** on Yang-Mills (per partition 6 of PR #677): YM was listed as "partial — Wightman QFT 4D interacting open"; now annotated with **bit-exact small-denominator anchors at lattice-QCD data**.
 
@@ -149,7 +151,7 @@ python docs/unsolved-maths/millennium_prize/yang_mills_mass_gap/generate_catalog
 - Project memories engaged:
   - **`[[project_a_n_operators_are_harmonic_objects_themselves]]`** — Hurwitz heptadic anchor empirically present at SU(7) gauge group + 7/5 glueball-ratio universal at N ≥ 4
   - `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` — 11D substrate ladder; 7/5 = heptad-over-spatial-projection
-  - Spike #58 chain (`#58`, `#58.G`, `#58.H`, `#58.I`, `#58.O`, `#58.P`) — SM gauge group derivation; bit-exact sin²θ_W = 1/4
+  - Spike #58 chain (`#58`, `#58.G`, `#58.H`, `#58.I`, `#58.O`, `#58.P`) — SM gauge group **reading** (not a derivation: the 2026-08-27 artifact audit at `docs/antikythera-maths/mfo_spectral_research_notebook.md:4862-4868` records that `.G` has no artifact at all); sin²θ_W = 1/4 bit-exact from `.P`, whose own script concedes the trace ratio is substrate-independent
   - `[[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]]` — recursive-Hopf depth + Hurwitz 1+3+7 ladder
 - Sister Millennium dispatches under this PR:
   - `#4` P vs NP (partition 7 — already shipped; cross-discipline fingerprint signature established)

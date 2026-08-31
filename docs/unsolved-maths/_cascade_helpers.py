@@ -61,8 +61,8 @@ removed by the future srmech promotion.
 
 from typing import Tuple
 
-from srmech.amsc.cyclic import gcd as _srmech_gcd
-from srmech.amsc.rational import best_rational as _srmech_best_rational
+from srmech.math.cyclic import gcd as _srmech_gcd
+from srmech.math.rational import best_rational as _srmech_best_rational
 
 
 # ---------- Class K pin-slot at zero (sign-strip) ----------

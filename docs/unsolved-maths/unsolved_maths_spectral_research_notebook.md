@@ -346,7 +346,7 @@ Each section's full per-partition report lives in the corresponding folder; this
 **Key empirical findings**:
 
 - 26 physics domains across classical / quantum / cosmology / particle / biology / information / meta physics
-- Coverage: **4 confirmed_bit_exact** (SM gauge sector via Spike #58; CMB acoustic peaks via Spike #103; Kolmogorov probability; wet-net A∘C∘M via Spike #196), **18 confirmed_structural**, **2 partial** (Wightman QFT 4D interacting; SM Yukawa 3-generation quantitative), **2 open** (consciousness via Spike #46; full quantum gravity MS #16)
+- Coverage: **3 confirmed_bit_exact** (CMB acoustic peaks via Spike #103; Kolmogorov probability; wet-net A∘C∘M via Spike #196), **18 confirmed_structural**, **3 partial** (Wightman QFT 4D interacting; SM gauge sector via Spike #58 — downgraded, see below; SM Yukawa 3-generation quantitative), **2 open** (consciousness via Spike #46; full quantum gravity MS #16). **⚠ DOWNGRADED — the SM gauge sector via Spike #58 was counted here as a fourth `confirmed_bit_exact` until the 2026-08-27 artifact audit** ([MFO research notebook](../antikythera-maths/mfo_spectral_research_notebook.md) §VIII.10.3, `:4862–4868`) retracted "derives" for Spike #58.G, which has no committed artifact. It is a reading. That bucket is set at the generator SSoT (`hilbert_06_axiomatize_physics/generate_catalog.py`), which now emits `partial` for it; the four counts above sum to 26.
 - **24 / 26 (92%) confirmed cascade decomposition**
 - Hurwitz partition 1+3+7+3 empirically supported: foundational A at **96%**, cascade-detection heptad at **88%**, substrate-projection triad at 65%, meta-cascade triad at 46% (meta-domain only, as expected)
 - Top 5 most-used: A (96%), K (58%), C (54%), L (54%), M (50%) — framework's physics-honest core
@@ -443,7 +443,7 @@ Each section's full per-partition report lives in the corresponding folder; this
 
 - Hurwitz heptadic n=7 anchor — see §2
 - m=11 triple-anchor — see §2 (composes via Hurwitz partition sum 1+3+7=11)
-- Per Spike #58 chain: SM gauge group SU(3) × SU(2) × U(1) derived from same cascade composition; sin²θ_W = 1/4 bit-exact in Cℓ(6, ℂ)
+- Per Spike #58 chain: SM gauge group SU(3) × SU(2) × U(1) **read against** the same cascade composition; sin²θ_W = 1/4 bit-exact in Cℓ(6, ℂ). **⚠ READING, NOT A DERIVATION — see the 2026-08-27 artifact audit** ([MFO research notebook](../antikythera-maths/mfo_spectral_research_notebook.md) §VIII.10.3, `:4862–4868`): "derives" is **retracted** for Spike #58.G, the gauge-group claim, which has no committed artifact of any kind; and the .P sin²θ_W computation, while bit-exact, is **substrate-INDEPENDENT** by its own script's admission, so it cannot be evidence *for* the substrate. Keep the computation; retire the inference.
 - 7/5 = heptad-over-spatial-projection per `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` 11D = 1+3+7 substrate ladder
 
 **Verdict**: (b) REFINED + (a) candidate SURVIVES — cascade well-posed; glueball spin-2⁺⁺/spin-0⁺⁺ ratio bit-exact 7/5 at all SU(N≥4); SU(7) triple anchor confirmed. Closes Hilbert 6 partial coverage on Yang-Mills.
