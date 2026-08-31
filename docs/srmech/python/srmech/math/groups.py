@@ -92,6 +92,39 @@ isotypic) keep the tier-2 value carrier: integer numerator vectors in the
 ``ζ_e`` power basis over ONE explicit denominator, division never performed
 (the ``central_idempotents`` deferred-division shape).
 
+TIER 4, THE ζ DIALECT (rc462, `#T1179`)
+=======================================
+Through rc461 a rep payload could only be exact-ℚ, and the tier-2 character
+table could not be reached by a rep whose entries were not rational — which
+excluded exactly the interesting reps: the ones whose Frobenius–Schur
+indicator is ``0`` or ``-1``.  ``kind == "cyclotomic"`` is the ``ℚ(ζ_e)``
+widening, and it ships WITH ITS FIRST PRODUCER because a checker widened
+alone mints a dialect no producer can write and no consumer can read.
+
+* the CELL is a length-``φ(e)`` tuple of canonical ``(num, den)`` plain-int
+  pairs — coordinates in the ``ζ_e`` power basis low→high, the SAME
+  convention :func:`zeta_mul` and the character table already use;
+* the PAYLOAD gains ``e`` and ``phi_e``, and ``field`` becomes
+  ``"Q(zeta_<e>)"``; the two are COUPLED in both directions so the dialect
+  cannot be half-declared;
+* the CONTENT ADDRESS takes a third serializer branch with a ``zeta{e}``
+  prefix.  Not a widened general branch: a third branch leaves both
+  existing branches untaken, so no shipped ℚ digest can move *by
+  construction*, and the prefix separates ``φ(3) == φ(4) == φ(6) == 2``
+  rings that would otherwise share a body;
+* :func:`induced_representation` is the producer (monomial ``Ind_H^G`` of a
+  linear character) and :func:`zeta_conjugate` is the ``Gal(ℚ(ζ_e)/ℚ)``
+  action on it;
+* FOUR consumers read the dialect — the trace path, :func:`character_of`,
+  :func:`decompose_representation`, :func:`isotypic_projector` — and THREE
+  REFUSE it with a named law: :func:`tensor_product_representation` and
+  :func:`direct_sum_representation` (dialect law) and
+  :func:`intertwiner_space` (carrier law: its engine is
+  :meth:`srmech.math.qmat.QMat.nullspace`, exact-ℚ only, and no exact
+  ``ℚ(ζ_e)``-matrix carrier ships anywhere in :mod:`srmech.math`).  A
+  refusal that NAMES its law is a complete state; a consumer that crashes
+  on what the checker admits is the dialect defect relocated.
+
 Exact arithmetic ONLY: no float, no ``abs`` — the sign-handling sites are
 :func:`_small_lift` (the named Class-K pin-slot at the ``p/2`` phase
 boundary with Class-C re-application) and :func:`_pair_magnitude` (the
@@ -124,6 +157,7 @@ __all__ = [
     "direct_sum_representation",
     "frobenius_schur_indicator",
     "fusion_multiplicities",
+    "induced_representation",
     "intertwiner_space",
     "irrep_dimensions",
     "isotypic_projector",
@@ -131,6 +165,7 @@ __all__ = [
     "quotient_group",
     "semidirect_product",
     "tensor_product_representation",
+    "zeta_conjugate",
     "zeta_mul",
 ]
 
@@ -1914,9 +1949,27 @@ def central_idempotents(char_table: Mapping[str, Any]) -> Dict[str, Any]:
 
 #: The payload keys every rep-eating tier-4 op requires.  ``action`` is
 #: additionally required when ``kind == "permutation"`` (and is what the
-#: matrix-action coherence law reads against).
+#: matrix-action coherence law reads against); ``e`` / ``phi_e`` are
+#: additionally required when ``kind == "cyclotomic"`` (rc462 — they name
+#: the RING, and a ring a payload does not name is a ring nothing can
+#: domain-separate).
 _REP_KEYS = ("order", "degree", "field", "kind", "matrices",
              "cayley_sha256", "matrices_sha256")
+
+#: The extra keys the ζ dialect requires on top of :data:`_REP_KEYS`.
+_CYCLOTOMIC_REP_KEYS = ("e", "phi_e")
+
+#: The ℚ(ζ_e) field spelling, parameterised by the conductor.  ONE
+#: spelling per ring — the coupling law makes ``field`` and ``kind``
+#: mutually determined, so a payload cannot say ``Q`` in one place and
+#: ``cyclotomic`` in another.
+_ZETA_FIELD_PREFIX = "Q(zeta_"
+
+
+def _zeta_field(e: int) -> str:
+    """The canonical ``field`` spelling of ``ℚ(ζ_e)``."""
+    return f"{_ZETA_FIELD_PREFIX}{e})"
+
 
 _SHA256_HEX = frozenset("0123456789abcdef")
 
@@ -1949,20 +2002,84 @@ def _canonical_pair(num: int, den: int) -> Tuple[int, int]:
     return (num, den)
 
 
-def _rep_matrices_bytes(kind: str, matrices) -> bytes:
+def _rep_matrices_bytes(kind: str, matrices, e: Optional[int] = None) -> bytes:
     """Canonical bytes of a rep's matrix family for the Class-A content
     address: elements blank-line-joined, rows newline-joined, cells
-    comma-joined; a general-kind cell is spelled ``num/den``.  The
-    validator's canonical-pair law is what makes two spellings of one rep
-    ONE hash — canonicality is load-bearing, not cosmetic."""
+    comma-joined; a general-kind cell is spelled ``num/den``; a
+    cyclotomic-kind cell is its ``φ(e)`` coordinates ``;``-joined, each
+    spelled ``num/den``, and the WHOLE body carries a ``zeta{e}\\n``
+    prefix.  The validator's canonical-pair law is what makes two
+    spellings of one rep ONE hash — canonicality is load-bearing, not
+    cosmetic.
+
+    **Why a THIRD branch and not a widened general branch** (rc462).  The
+    ζ dialect had two acceptance requirements that read as contradictory:
+    *no shipped ℚ digest may move*, and *no ℚ/ζ body may collide*.  Both
+    horns are properties of designs that EDIT the general branch — a
+    shape-detected unification leaves ``b'3/4'`` as the body of both a ℚ
+    cell ``(3, 4)`` and a ``φ(e) == 1`` ζ cell ``((3, 4),)``, while every
+    by-construction separator moves the ℚ bodies.  A third branch keyed on
+    ``kind`` leaves BOTH existing branches untaken, so the ℚ bytes are
+    unmoved *by construction*, and the ``zeta{e}`` prefix separates the
+    domains unconditionally — including the cross-conductor case, where
+    ``φ(3) == φ(4) == φ(6) == 2`` makes the bodies alone coincide.
+
+    ``e`` is REQUIRED on the cyclotomic branch and is refused when absent
+    rather than defaulted: a serialization that silently dropped its
+    conductor would content-address two different rings to one digest.
+    The ℚ branches never take it, which is why the four ℚ-only call sites
+    do not thread it."""
     if kind == "permutation":
         return "\n\n".join(
             "\n".join(",".join(str(v) for v in row) for row in mat)
             for mat in matrices).encode("utf-8")
+    if kind == "cyclotomic":
+        if not _plain_int(e):
+            raise ValueError(
+                f"_rep_matrices_bytes: a cyclotomic serialization needs "
+                f"its conductor e as a plain int, not {e!r} - the domain "
+                f"prefix IS the ring separation (domain-separation law)")
+        body = "\n\n".join(
+            "\n".join(
+                ",".join(
+                    ";".join(f"{coordinate[0]}/{coordinate[1]}"
+                             for coordinate in cell)
+                    for cell in row)
+                for row in mat)
+            for mat in matrices)
+        return f"zeta{e}\n{body}".encode("utf-8")
     return "\n\n".join(
         "\n".join(",".join(f"{cell[0]}/{cell[1]}" for cell in row)
                   for row in mat)
         for mat in matrices).encode("utf-8")
+
+
+def _check_canonical_pair(op: str, where: str, cell: Any) -> None:
+    """The CANONICAL-PAIR law, hoisted at rc462 so it has ONE spelling.
+    A general-kind matrix ENTRY and a cyclotomic-kind entry's per-``ζ``
+    COORDINATE are the same object — a 2-pair of plain ints, ``den >= 1``,
+    ``gcd == 1``, zero as ``0/1`` — and a second copy of the law would
+    drift.  ``where`` is the caller's index path, so the message names the
+    failing cell exactly as it did before the hoist."""
+    if not isinstance(cell, (tuple, list)) or len(cell) != 2:
+        raise ValueError(
+            f"{op}: {where} = {cell!r} is not a (num, den) pair "
+            f"(canonical-pair law)")
+    num, den = cell
+    if not _plain_int(num) or not _plain_int(den):
+        raise ValueError(
+            f"{op}: {where} carries a non-plain-int coordinate "
+            f"({type(num).__name__}, {type(den).__name__}) "
+            f"(canonical-pair law)")
+    if den < 1:
+        raise ValueError(
+            f"{op}: {where} = ({num}, {den}) has den < 1; the sign lives "
+            f"on the numerator (canonical-pair law)")
+    if gcd(_pair_magnitude(num), den) != 1 or (num == 0 and den != 1):
+        raise ValueError(
+            f"{op}: {where} = ({num}, {den}) is not reduced - a content-"
+            f"addressed carrier needs ONE spelling per value "
+            f"(canonical-pair law)")
 
 
 def _check_rep_payload(op: str, rep: Mapping[str, Any]) -> None:
@@ -1983,14 +2100,39 @@ def _check_rep_payload(op: str, rep: Mapping[str, Any]) -> None:
     laws (the :func:`_exact_div` shape — a guard that fires is evidence).
 
     Laws, in checking order: payload-key, payload-scalar, field, kind,
-    shape (element-count / rectangularity), then per kind — permutation:
-    action shape, plain-int, bijection, matrix-entry (0/1 — which with the
-    bijection law IS one-1-per-row-and-column), matrix-action coherence;
-    general: canonical-pair (a 2-pair of plain ints, ``den >= 1``,
-    ``gcd == 1`` — bool REJECTED on every integer lane) — and LAST the
-    content-address law (``matrices_sha256`` recomputed over the canonical
-    serialization must match; ``cayley_sha256`` is shape-checked only,
-    since the table is not in the payload)."""
+    coupling, ring (cyclotomic only), shape (element-count /
+    rectangularity), then per kind — permutation: action shape, plain-int,
+    bijection, matrix-entry (0/1 — which with the bijection law IS
+    one-1-per-row-and-column), matrix-action coherence; general:
+    canonical-pair (a 2-pair of plain ints, ``den >= 1``, ``gcd == 1`` —
+    bool REJECTED on every integer lane); cyclotomic: ring-width (a cell
+    is a length-``φ(e)`` tuple of coordinates) then the SAME canonical-pair
+    law per coordinate — and LAST the content-address law
+    (``matrices_sha256`` recomputed over the canonical serialization must
+    match; ``cayley_sha256`` is shape-checked only, since the table is not
+    in the payload).
+
+    **The ζ dialect (rc462, `#T1179`).**  ``kind == "cyclotomic"`` admits a
+    rep over ``ℚ(ζ_e)``: a cell is a length-``φ(e)`` tuple of canonical
+    ``(num, den)`` plain-int pairs — coordinates in the ``ζ_e`` power
+    basis, low→high, the SAME convention :func:`zeta_mul` and the tier-2
+    character table already use — and the payload additionally carries
+    ``e`` (the conductor) and ``phi_e`` (the monic ``Φ_e`` coefficients).
+    Three laws couple the dialect so it cannot be half-declared:
+
+    * **coupling law** — ``kind == "cyclotomic"`` iff ``field`` is a
+      ``Q(zeta_N)`` spelling, BOTH directions.  A payload saying ``field:
+      'Q'`` with ``kind: 'cyclotomic'`` (or the reverse) is refused;
+    * **ring law** — ``e`` is a plain int ``>= 3`` (``ℚ(ζ₁) = ℚ(ζ₂) = ℚ``,
+      which the general kind already spells, so a conductor of 1 or 2 is a
+      ℚ payload wearing the ζ dialect), ``field == f"Q(zeta_{e})"``, and
+      ``phi_e`` is a MONIC plain-int modulus of degree ``φ(e) >= 2``.  The
+      IDENTITY of ``phi_e`` (that it really is ``Φ_e``) is checked at the
+      producer — :func:`induced_representation` derives it from
+      :func:`srmech.math.poly.cyclotomic_polynomial` — and at every
+      consumer by the compatible-ring law, so this validator stays free of
+      the branch-only compose edge (the :func:`_exact_trace` precedent);
+    * **ring-width law** — every cell is exactly ``φ(e)`` coordinates."""
     missing = [key for key in _REP_KEYS if key not in rep]
     if missing:
         raise ValueError(
@@ -2002,15 +2144,57 @@ def _check_rep_payload(op: str, rep: Mapping[str, Any]) -> None:
             raise ValueError(
                 f"{op}: {label} must be a positive plain int, not "
                 f"{rep[label]!r} (payload-scalar law)")
-    if rep["field"] != "Q":
+    field = rep["field"]
+    zeta_field = (isinstance(field, str)
+                  and field.startswith(_ZETA_FIELD_PREFIX)
+                  and field.endswith(")")
+                  and field[len(_ZETA_FIELD_PREFIX):-1].isdigit())
+    if field != "Q" and not zeta_field:
         raise ValueError(
-            f"{op}: field must be 'Q', not {rep['field']!r} - tier 4 reps "
-            f"are exact-rational (field law)")
+            f"{op}: field must be 'Q' or a 'Q(zeta_N)' spelling, not "
+            f"{field!r} - tier 4 reps are exact-rational or exact "
+            f"cyclotomic (field law)")
     kind = rep["kind"]
-    if kind not in ("permutation", "general"):
+    if kind not in ("permutation", "general", "cyclotomic"):
         raise ValueError(
-            f"{op}: kind must be 'permutation' or 'general', not "
-            f"{kind!r} (kind law)")
+            f"{op}: kind must be 'permutation', 'general' or "
+            f"'cyclotomic', not {kind!r} (kind law)")
+    if (kind == "cyclotomic") != zeta_field:
+        raise ValueError(
+            f"{op}: kind {kind!r} and field {field!r} do not couple - the "
+            f"cyclotomic kind carries a 'Q(zeta_N)' field and no other "
+            f"kind may (coupling law)")
+    zeta_width = 0
+    if kind == "cyclotomic":
+        missing_ring = [key for key in _CYCLOTOMIC_REP_KEYS if key not in rep]
+        if missing_ring:
+            raise ValueError(
+                f"{op}: a cyclotomic payload is missing {missing_ring} - "
+                f"the ζ dialect names its RING (payload-key law)")
+        e = rep["e"]
+        if not _plain_int(e) or e < 3:
+            raise ValueError(
+                f"{op}: e must be a plain int >= 3, not {e!r} - "
+                f"Q(zeta_1) = Q(zeta_2) = Q, which the general kind "
+                f"already spells (ring law)")
+        if field != _zeta_field(e):
+            raise ValueError(
+                f"{op}: field {field!r} != {_zeta_field(e)!r} for e = {e} "
+                f"- one spelling per ring (ring law)")
+        phi_e = rep["phi_e"]
+        for i, coefficient in enumerate(phi_e):
+            if not _plain_int(coefficient):
+                raise ValueError(
+                    f"{op}: phi_e[{i}] carries a "
+                    f"{type(coefficient).__name__} coefficient; the "
+                    f"modulus is plain-int coefficients only "
+                    f"(plain-int law)")
+        zeta_width = len(phi_e) - 1
+        if zeta_width < 2 or phi_e[-1] != 1:
+            raise ValueError(
+                f"{op}: phi_e must be a MONIC modulus of degree "
+                f"phi(e) >= 2; got degree {zeta_width} with leading "
+                f"coefficient {phi_e[-1] if phi_e else None!r} (ring law)")
     order = rep["order"]
     degree = rep["degree"]
     matrices = rep["matrices"]
@@ -2068,34 +2252,26 @@ def _check_rep_payload(op: str, rep: Mapping[str, Any]) -> None:
                             f"action[{g}][{c}] = {arow[c]} - the pinned "
                             f"convention is matrices[g][action[g][j]][j] "
                             f"== 1 (matrix-action coherence law)")
+    elif kind == "general":
+        for g, mat in enumerate(matrices):
+            for r, row in enumerate(mat):
+                for c, cell in enumerate(row):
+                    _check_canonical_pair(
+                        op, f"matrices[{g}][{r}][{c}]", cell)
     else:
         for g, mat in enumerate(matrices):
             for r, row in enumerate(mat):
                 for c, cell in enumerate(row):
                     if (not isinstance(cell, (tuple, list))
-                            or len(cell) != 2):
+                            or len(cell) != zeta_width):
                         raise ValueError(
                             f"{op}: matrices[{g}][{r}][{c}] = {cell!r} is "
-                            f"not a (num, den) pair (canonical-pair law)")
-                    num, den = cell
-                    if not _plain_int(num) or not _plain_int(den):
-                        raise ValueError(
-                            f"{op}: matrices[{g}][{r}][{c}] carries a "
-                            f"non-plain-int coordinate "
-                            f"({type(num).__name__}, {type(den).__name__}"
-                            f") (canonical-pair law)")
-                    if den < 1:
-                        raise ValueError(
-                            f"{op}: matrices[{g}][{r}][{c}] = "
-                            f"({num}, {den}) has den < 1; the sign lives "
-                            f"on the numerator (canonical-pair law)")
-                    if gcd(_pair_magnitude(num), den) != 1 or (
-                            num == 0 and den != 1):
-                        raise ValueError(
-                            f"{op}: matrices[{g}][{r}][{c}] = "
-                            f"({num}, {den}) is not reduced - a content-"
-                            f"addressed carrier needs ONE spelling per "
-                            f"value (canonical-pair law)")
+                            f"not a length-{zeta_width} tuple of zeta_"
+                            f"{rep['e']} power-basis coordinates "
+                            f"(ring-width law)")
+                    for t, coordinate in enumerate(cell):
+                        _check_canonical_pair(
+                            op, f"matrices[{g}][{r}][{c}][{t}]", coordinate)
     for label in ("cayley_sha256", "matrices_sha256"):
         value = rep[label]
         if (not isinstance(value, str) or len(value) != 64
@@ -2103,7 +2279,8 @@ def _check_rep_payload(op: str, rep: Mapping[str, Any]) -> None:
             raise ValueError(
                 f"{op}: {label} = {value!r} is not a 64-hex content "
                 f"address (content-address-shape law)")
-    recomputed = sha256_bytes(_rep_matrices_bytes(kind, matrices))
+    recomputed = sha256_bytes(
+        _rep_matrices_bytes(kind, matrices, rep.get("e")))
     if recomputed != rep["matrices_sha256"]:
         raise ValueError(
             f"{op}: matrices_sha256 does not match the canonical "
@@ -2315,6 +2492,51 @@ def permutation_representation(
     }
 
 
+def _exact_zeta_trace(op: str, g: int, mat, degree: int,
+                      width: int) -> Tuple[int, ...]:
+    """The exact ``ℤ[ζ_e]`` trace of one CYCLOTOMIC rep matrix (rc462):
+    the diagonal summed COORDINATE-WISE over exact rationals, each
+    coordinate then forced onto the integer lane by the same divmod-raise
+    the ℚ branch uses.
+
+    The integrality law generalises for a stated reason, not by analogy:
+    ``ℤ[ζ_e]`` IS the ring of integers of ``ℚ(ζ_e)``, so an algebraic
+    integer of that field has INTEGER power-basis coordinates.  The trace
+    of a finite-group rep is a sum of roots of unity, hence an algebraic
+    integer, hence integer-coordinate — and a nonzero remainder on ANY
+    coordinate is corruption exactly as it is over ℚ.
+
+    Kept as a SEPARATE function rather than a widening of
+    :func:`_exact_trace`: merging them would put the ℚ path's
+    divmod-raise behind a branch, and that raise is a live corruption
+    detector on the shipped rational lane."""
+    numerators = [0] * width
+    denominators = [1] * width
+    for i in range(degree):
+        cell = mat[i][i]
+        for t in range(width):
+            num, den = cell[t]
+            numerators[t] = numerators[t] * den + num * denominators[t]
+            denominators[t] = denominators[t] * den
+            shrink = gcd(_pair_magnitude(numerators[t]), denominators[t])
+            if shrink > 1:
+                numerators[t] //= shrink
+                denominators[t] //= shrink
+    out: List[int] = []
+    for t in range(width):
+        quotient, remainder = divmod(numerators[t], denominators[t])
+        if remainder != 0:
+            raise ValueError(
+                f"{op}: trace of matrices[{g}] carries the non-integer "
+                f"zeta coordinate {numerators[t]}/{denominators[t]} at "
+                f"index {t} - the trace of a finite-group rep is a sum of "
+                f"roots of unity, so it is an algebraic integer and "
+                f"Z[zeta_e] is the ring of integers of Q(zeta_e) "
+                f"(integrality law; a guard that fires is evidence)")
+        out.append(quotient)
+    return tuple(out)
+
+
 def _exact_trace(op: str, g: int, kind: str, mat, degree: int) -> int:
     """The exact integer trace of one rep matrix: a diagonal 0/1 count
     for a permutation kind; an exact rational diagonal sum for a general
@@ -2323,7 +2545,10 @@ def _exact_trace(op: str, g: int, kind: str, mat, degree: int) -> int:
     rational trace is an integer; a remainder is corruption).  Private so
     the Class-I ``gcd`` reduction stays a helper edge — it runs on the
     general-kind branch only, and a composes tuple cannot be true of both
-    branches (the rc437 regular-representation precedent)."""
+    branches (the rc437 regular-representation precedent).
+
+    The CYCLOTOMIC lane has its own :func:`_exact_zeta_trace` — see there
+    for why it is not folded in."""
     if kind == "permutation":
         return sum(mat[i][i] for i in range(degree))
     t_num, t_den = 0, 1
@@ -2395,12 +2620,42 @@ def character_of(rep: Mapping[str, Any],
       :func:`_identity_class` (the :func:`central_idempotents`
       unique-column technique, hoisted at this rc).
 
+    **The ζ lane (rc462).**  A ``kind == "cyclotomic"`` rep's trace is a
+    ``ℤ[ζ_e]`` VECTOR, not a scalar, so on that lane ``character`` is a
+    length-k tuple of length-``φ(e)`` integer tuples — the SAME carrier
+    :func:`character_table` already stores its own values in, which is
+    why no new output type appears anywhere.  Two extra facts hold there:
+    the **compatible-ring law** (``rep["phi_e"] == char_table["phi_e"]``
+    — the group bind proves ONE GROUP and says nothing about the ring,
+    and ``φ(3) == φ(4) == φ(6) == 2`` makes a width check no separation
+    at all), and the integrality law reading per COORDINATE via
+    :func:`_exact_zeta_trace`.  ``kind`` is echoed precisely so a consumer
+    can tell the two lanes apart without re-deriving them.
+
+    ⚠️ **The compatible-ring law is an EQUALITY, and that is a SCOPE
+    BOUNDARY rather than a claim about the mathematics.**  A rep over a
+    proper SUBFIELD of the table's ring is perfectly well-formed:
+    ``F21 = C7⋊C3`` has exponent 21, so its character table lives over
+    ``ℚ(ζ₂₁)`` while ``Ind_{C7}^{F21}`` of a faithful ``C7`` character
+    lives over ``ℚ(ζ₇)``, and ``ζ₇ = ζ₂₁³`` embeds the one in the other.
+    This rc REFUSES that pairing instead of performing the embedding —
+    re-expanding ``ℤ[ζ₇]`` coordinates in the ``ζ₂₁`` power basis is new
+    machinery, and a width-only check would happily multiply mod the WRONG
+    modulus and answer silently (``φ(7) == 6 != 12 == φ(21)`` catches this
+    ONE case, but ``φ(3) == φ(4) == φ(6)`` shows width is no separation in
+    general).  So the readable stratum is exactly the reps whose conductor
+    IS the group exponent; the refusal names its law and is MEASURED on
+    F21 in ``tests/test_groups_zeta_dialect_rc462.py``, and lifting it is
+    a later rc's work rather than an oversight.
+
     Returns:
-        ``{"k", "order", "degree", "kind", "character"`` (length-k tuple
-        of plain ints, CLASS-ordered — the ``ℤ[ζ_e]`` lift of an integer
-        ``t`` is ``(t, 0, …, 0)`` and is done by consumers internally),
-        ``"cayley_sha256"`` (echoed from the rep), ``"table_sha256"``
-        (echoed from the char table), ``"character_sha256"}``.
+        ``{"k", "order", "degree", "kind", "character"`` (length-k tuple,
+        CLASS-ordered: plain ints on the ℚ lanes — the ``ℤ[ζ_e]`` lift of
+        an integer ``t`` is ``(t, 0, …, 0)`` and is done by consumers
+        internally — or length-``φ(e)`` integer tuples on the cyclotomic
+        lane), ``"cayley_sha256"`` (echoed from the rep),
+        ``"table_sha256"`` (echoed from the char table),
+        ``"character_sha256"}``.
 
     C-parity (ADR-0009, recorded): this op has no C peer; the
     representation stratum ships Python-first under the noted-disparity
@@ -2428,12 +2683,33 @@ def character_of(rep: Mapping[str, Any],
     k = char_table["k"]
     class_of = char_table["class_of"]
 
-    traces: List[int] = []
-    for g in range(order):
-        traces.append(
-            _exact_trace("character_of", g, kind, matrices[g], degree))
+    width = 0
+    if kind == "cyclotomic":
+        # The COMPATIBLE-RING law (rc462).  The group bind proves the two
+        # payloads describe one group; it says nothing about the ring.
+        # A rep over Q(zeta_4) contracted against a table over Q(zeta_6)
+        # would multiply length-2 vectors mod two DIFFERENT moduli and
+        # answer silently — the phi_e vectors are the same LENGTH there,
+        # since phi(3) == phi(4) == phi(6) == 2.
+        if tuple(rep["phi_e"]) != tuple(char_table["phi_e"]):
+            raise ValueError(
+                f"character_of: the rep is over the modulus "
+                f"{tuple(rep['phi_e'])} and the char_table over "
+                f"{tuple(char_table['phi_e'])} - a cyclotomic rep is read "
+                f"only against the character table of its OWN ring "
+                f"(compatible-ring law; a guard that fires is evidence)")
+        width = len(char_table["phi_e"]) - 1
 
-    character: List[Optional[int]] = [None] * k
+    traces: List[Any] = []
+    for g in range(order):
+        if kind == "cyclotomic":
+            traces.append(_exact_zeta_trace(
+                "character_of", g, matrices[g], degree, width))
+        else:
+            traces.append(
+                _exact_trace("character_of", g, kind, matrices[g], degree))
+
+    character: List[Any] = [None] * k
     for g, trace in enumerate(traces):
         j = class_of[g]
         if character[j] is None:
@@ -2455,13 +2731,25 @@ def character_of(rep: Mapping[str, Any],
     values = [v for v in character if v is not None]
 
     identity = _identity_class("character_of", char_table)
-    if values[identity] != degree:
+    want_identity: Any = degree
+    if kind == "cyclotomic":
+        want_identity = (degree,) + (0,) * (width - 1)
+    if values[identity] != want_identity:
         raise ValueError(
             f"character_of: character at the identity class is "
-            f"{values[identity]}, expected the degree {degree} "
+            f"{values[identity]}, expected the degree {want_identity} "
             f"(identity-trace law; a guard that fires is evidence)")
 
-    body = ",".join(str(v) for v in values).encode("utf-8")
+    if kind == "cyclotomic":
+        # Domain-separated exactly as _rep_matrices_bytes is: a ζ-vector
+        # character and a rational one must not share a content address,
+        # and str() on a tuple would emit Python repr with spaces.
+        body = ("zeta{0}\n{1}".format(
+            rep["e"],
+            ";".join(",".join(str(c) for c in vec) for vec in values))
+        ).encode("utf-8")
+    else:
+        body = ",".join(str(v) for v in values).encode("utf-8")
     return {
         "k": k,
         "order": order,
@@ -2537,15 +2825,33 @@ def decompose_representation(
     degrees = char_table["degrees"]
     character = chi["character"]
 
+    zeta_lane = chi["kind"] == "cyclotomic"
+    phi = list(char_table["phi_e"])
+
     multiplicities: List[int] = []
     for i in range(k):
         acc = [0] * deg
-        for j in range(k):
-            weight = sizes[j] * character[j]
-            if weight:
-                cell = table[i][invc[j]]
-                for t in range(deg):
-                    acc[t] += weight * cell[t]
+        if zeta_lane:
+            # The character is a ζ-VECTOR, so the contraction is a RING
+            # product, not a scalar scale.  ⚠️ The scalar spelling below
+            # is not merely wrong here, it is SILENTLY wrong:
+            # ``sizes[j] * character[j]`` on a tuple REPEATS the tuple,
+            # raises nothing, and dies two lines later on a shape that no
+            # longer names its cause.
+            for j in range(k):
+                value = character[j]
+                if any(value):
+                    product = _zeta_mul(value, table[i][invc[j]], phi)
+                    size = sizes[j]
+                    for t in range(deg):
+                        acc[t] += size * product[t]
+        else:
+            for j in range(k):
+                weight = sizes[j] * character[j]
+                if weight:
+                    cell = table[i][invc[j]]
+                    for t in range(deg):
+                        acc[t] += weight * cell[t]
         if any(acc[1:]):
             raise ValueError(
                 f"decompose_representation: <chi, chi_{i}> keeps nonzero "
@@ -2605,10 +2911,19 @@ def isotypic_projector(rep: Mapping[str, Any],
     **The deferred-division carrier** (the :func:`central_idempotents`
     precedent): integer ζ-vector NUMERATORS over ONE explicit
     ``denominator`` — ``|G|`` for a permutation kind; ``|G| · L`` for a
-    general kind, ``L`` = lcm of every entry denominator (each entry
-    numerator scaled by ``L / den`` — DERIVED per entry, not asserted).
-    Division is never performed; the caller lifts into
-    :class:`srmech.math.qalg.Qalg` when a rational is wanted.
+    general or cyclotomic kind, ``L`` = lcm of every entry denominator
+    (each entry numerator scaled by ``L / den`` — DERIVED per entry, not
+    asserted; on the cyclotomic lane the lcm runs over every ζ
+    COORDINATE denominator).  Division is never performed; the caller
+    lifts into :class:`srmech.math.qalg.Qalg` when a rational is wanted.
+
+    **The ζ lane (rc462).**  The output carrier does not move: the
+    projectors were ALREADY ζ-vectors, because ``chi_i(g⁻¹)`` always was.
+    What changes is one multiplication — a cyclotomic entry is itself a
+    ζ-vector, so ``chi_i(j⁻¹) · S_j`` becomes a RING product through the
+    same ``_zeta_mul`` kernel :func:`zeta_mul` promotes, where the ℚ lanes
+    scale a vector by an integer.  Both guards below are unchanged in
+    statement and both execute on the new lane.
 
     In-op guards (cheap, ``O(k·d²·φ(e))``), each a raise:
 
@@ -2668,10 +2983,12 @@ def isotypic_projector(rep: Mapping[str, Any],
     matrices = rep["matrices"]
     multiplicities = decomposition["multiplicities"]
 
+    zeta_lane = kind == "cyclotomic"
+    phi = list(char_table["phi_e"])
     if kind == "permutation":
         scale_lcm = 1
         scaled = matrices
-    else:
+    elif kind == "general":
         scale_lcm = 1
         for mat in matrices:
             for row in mat:
@@ -2681,17 +2998,46 @@ def isotypic_projector(rep: Mapping[str, Any],
                     scale_lcm = scale_lcm // shrink * den
         scaled = [[[cell[0] * (scale_lcm // cell[1]) for cell in row]
                    for row in mat] for mat in matrices]
+    else:
+        scale_lcm = 1
+        for mat in matrices:
+            for row in mat:
+                for cell in row:
+                    for coordinate in cell:
+                        den = coordinate[1]
+                        shrink = gcd(scale_lcm, den)
+                        scale_lcm = scale_lcm // shrink * den
+        scaled = [[[tuple(coordinate[0] * (scale_lcm // coordinate[1])
+                          for coordinate in cell) for cell in row]
+                   for row in mat] for mat in matrices]
     denominator = order * scale_lcm
 
-    class_sums = [[[0] * d for _ in range(d)] for _ in range(k)]
-    for g in range(order):
-        target = class_sums[class_of[g]]
-        source = scaled[g]
-        for r in range(d):
-            target_row = target[r]
-            source_row = source[r]
-            for c in range(d):
-                target_row[c] += source_row[c]
+    if zeta_lane:
+        zeta_sums = [[[[0] * deg for _ in range(d)] for _ in range(d)]
+                     for _ in range(k)]
+        for g in range(order):
+            target = zeta_sums[class_of[g]]
+            source = scaled[g]
+            for r in range(d):
+                target_row = target[r]
+                source_row = source[r]
+                for c in range(d):
+                    cell_out = target_row[c]
+                    cell_in = source_row[c]
+                    for t in range(deg):
+                        cell_out[t] += cell_in[t]
+        class_sums = []
+    else:
+        zeta_sums = []
+        class_sums = [[[0] * d for _ in range(d)] for _ in range(k)]
+        for g in range(order):
+            target = class_sums[class_of[g]]
+            source = scaled[g]
+            for r in range(d):
+                target_row = target[r]
+                source_row = source[r]
+                for c in range(d):
+                    target_row[c] += source_row[c]
 
     projectors: List[Tuple[Tuple[Tuple[int, ...], ...], ...]] = []
     for i in range(k):
@@ -2702,12 +3048,20 @@ def isotypic_projector(rep: Mapping[str, Any],
             row_out: List[Tuple[int, ...]] = []
             for c in range(d):
                 acc = [0] * deg
-                for j in range(k):
-                    s = class_sums[j][r][c]
-                    if s:
-                        vec = chi_inv[j]
-                        for t in range(deg):
-                            acc[t] += s * vec[t]
+                if zeta_lane:
+                    for j in range(k):
+                        s_vec = zeta_sums[j][r][c]
+                        if any(s_vec):
+                            product = _zeta_mul(s_vec, chi_inv[j], phi)
+                            for t in range(deg):
+                                acc[t] += product[t]
+                else:
+                    for j in range(k):
+                        s = class_sums[j][r][c]
+                        if s:
+                            vec = chi_inv[j]
+                            for t in range(deg):
+                                acc[t] += s * vec[t]
                 row_out.append(tuple(d_i * x for x in acc))
             rows_out.append(tuple(row_out))
         projectors.append(tuple(rows_out))
@@ -2773,6 +3127,39 @@ def _entry_pair(kind: str, cell) -> Tuple[int, int]:
     if kind == "permutation":
         return (cell, 1)
     return (cell[0], cell[1])
+
+
+def _refuse_zeta_dialect(op: str, law: str, verb: str, *operands) -> None:
+    """The DIALECT / CARRIER law (rc462): a named refusal of the ζ dialect
+    by the three tier-4 consumers this rc does not widen.  ``law`` is the
+    name the raise ends with — ⊗ / ⊕ refuse on the DIALECT (the dialect is
+    unbuilt), :func:`intertwiner_space` on the CARRIER (no exact
+    ``ℚ(ζ_e)``-matrix carrier exists to build it on), and the two are
+    different facts.
+
+    **Why a refusal is a complete state and not a gap.**  Each of these
+    ops would need real new mathematics — a ζ-ring product per entry for
+    ⊗ / ⊕, and for :func:`intertwiner_space` an exact ``ℚ(ζ_e)``-matrix
+    nullspace, which NO carrier in :mod:`srmech.math` provides (the engine
+    is :meth:`srmech.math.qmat.QMat.nullspace`, exact-ℚ only).  Silently
+    ℚ-restricting the operand would not be a smaller answer, it would be
+    a WRONG one: ``dim Hom`` over ``ℚ(ζ_e)`` and over ``ℚ`` differ by a
+    factor of ``φ(e)`` on exactly the reps the widening admits.
+
+    **Why it must fire HERE and not earlier.**  The refusal is placed
+    AFTER :func:`_check_rep_payload`, so the payload it refuses is one the
+    validator ACCEPTS — an instrument that could only ever be reached by
+    an already-invalid operand is not a measurement.
+
+    It is also the reason :func:`_same_group_guard` needs no dialect
+    clause of its own: a ℚ payload and a ζ payload OF THE SAME GROUP carry
+    EQUAL ``cayley_sha256``, so the same-group law passes a mixed pair
+    happily; this law is what stops it."""
+    for label, operand in operands:
+        if operand["kind"] == "cyclotomic":
+            raise ValueError(
+                f"{op}: {label} is a cyclotomic-dialect payload over "
+                f"{operand['field']}; {verb} ({law})")
 
 
 def _same_group_guard(op: str, rep1: Mapping[str, Any],
@@ -2841,6 +3228,12 @@ def tensor_product_representation(
     """
     _check_rep_payload("tensor_product_representation", rep1)
     _check_rep_payload("tensor_product_representation", rep2)
+    _refuse_zeta_dialect(
+        "tensor_product_representation", "dialect law",
+        "⊗ ships for the exact-ℚ dialect only - the Kronecker entry "
+        "product over Q(zeta_e) is a RING multiply per cell, deliberately "
+        "deferred to its own rc rather than half-built here",
+        ("rep1", rep1), ("rep2", rep2))
     _same_group_guard("tensor_product_representation", rep1, rep2)
     order = rep1["order"]
     d1 = rep1["degree"]
@@ -2938,6 +3331,12 @@ def direct_sum_representation(
     """
     _check_rep_payload("direct_sum_representation", rep1)
     _check_rep_payload("direct_sum_representation", rep2)
+    _refuse_zeta_dialect(
+        "direct_sum_representation", "dialect law",
+        "⊕ ships for the exact-ℚ dialect only - a block-diagonal sum over "
+        "Q(zeta_e) needs the ζ zero cell and the ζ entry lift, "
+        "deliberately deferred to its own rc rather than half-built here",
+        ("rep1", rep1), ("rep2", rep2))
     _same_group_guard("direct_sum_representation", rep1, rep2)
     order = rep1["order"]
     d1 = rep1["degree"]
@@ -3053,6 +3452,14 @@ def intertwiner_space(rep1: Mapping[str, Any],
     """
     _check_rep_payload("intertwiner_space", rep1)
     _check_rep_payload("intertwiner_space", rep2)
+    _refuse_zeta_dialect(
+        "intertwiner_space", "carrier law",
+        "the Schur kernel is QMat.nullspace, an exact-ℚ Gauss-Jordan, and "
+        "NO exact Q(zeta_e)-matrix carrier ships anywhere in srmech.math - "
+        "restricting the operand to its rational part would change "
+        "dim Hom by a factor of phi(e), so this op REFUSES rather than "
+        "answering a different question",
+        ("rep1", rep1), ("rep2", rep2))
     _same_group_guard("intertwiner_space", rep1, rep2)
     order = rep1["order"]
     d1 = rep1["degree"]
@@ -3092,3 +3499,434 @@ def intertwiner_space(rep1: Mapping[str, Any],
         "cayley_sha256": rep1["cayley_sha256"],
         "basis_sha256": sha256_bytes(body),
     }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# tier 4, the ζ dialect (rc462, `#T1179`) — the widening ships WITH ITS
+# FIRST PRODUCER.  A checker widened alone mints a dialect no producer
+# can write and no consumer can read; induced_representation is the
+# producer (monomial Ind_H^G of a linear character, the smallest
+# construction that forces every component of the package: cell grammar,
+# ring keys, domain-separated serializer, ζ-vector trace, ring-product
+# contraction) and zeta_conjugate is the Galois action on it.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _subgroup_scan(op: str, tbl: List[List[int]], subgroup: Sequence[int],
+                   e_idx: int, inv: List[int]) -> List[int]:
+    """Validate ``subgroup`` as a genuine subgroup of the table, returning
+    its ASCENDING element list.  Each failure a ``ValueError`` naming the
+    law: plain-int indices in range, no repeats, the identity present,
+    closed under the product, closed under inverses."""
+    n = len(tbl)
+    seen: List[int] = []
+    for i, h in enumerate(subgroup):
+        if not _plain_int(h) or not 0 <= h < n:
+            raise ValueError(
+                f"{op}: subgroup[{i}] = {h!r} is not an element index in "
+                f"[0, {n}) (subgroup law)")
+        if h in seen:
+            raise ValueError(
+                f"{op}: subgroup lists element {h} twice - a subgroup is "
+                f"a SET (subgroup law)")
+        seen.append(h)
+    if not seen:
+        raise ValueError(
+            f"{op}: subgroup is empty; every subgroup contains the "
+            f"identity (subgroup law)")
+    if e_idx not in seen:
+        raise ValueError(
+            f"{op}: subgroup {sorted(seen)} does not contain the identity "
+            f"{e_idx} (subgroup law)")
+    members = set(seen)
+    for a in seen:
+        if inv[a] not in members:
+            raise ValueError(
+                f"{op}: subgroup is not closed under inverses - {a} is in "
+                f"it and {inv[a]} is not (subgroup law)")
+        for b in seen:
+            if tbl[a][b] not in members:
+                raise ValueError(
+                    f"{op}: subgroup is not closed - {a}*{b} = "
+                    f"{tbl[a][b]} is outside it (subgroup law)")
+    return sorted(seen)
+
+
+def induced_representation(cayley_table: Sequence[Sequence[int]],
+                           subgroup: Sequence[int],
+                           character: Sequence[Sequence[int]],
+                           e: int) -> Dict[str, Any]:
+    """The induced representation ``Ind_H^G χ`` of a LINEAR character of a
+    subgroup — **Class L** (mints the operator family, the
+    :func:`permutation_representation` verb) over Class-I coset
+    arithmetic, and THE FIRST PRODUCER of the ``ℚ(ζ_e)`` rep dialect
+    (rc462, `#T1179`).
+
+    Every rep the tier-4 stratum could mint before this op was defined
+    over ℚ, so the whole ζ half of the payload grammar had no writer.
+    Induction is the smallest construction that forces all of it: the
+    matrices are MONOMIAL over ``ℤ[ζ_e]``, so a single op exercises the
+    cell grammar, the ring keys, the domain-separated content address,
+    the ζ-vector trace and the ring-product contraction at once.
+
+    **The construction.**  With ``t_1, …, t_m`` the left-coset
+    representatives of ``H`` in ``G`` (``m = [G:H]``, each coset's
+    SMALLEST element index, cosets ordered by that element — a
+    deterministic choice, since a content address cannot depend on an
+    iteration order)::
+
+        rho(g)[i][j] = chi(t_i⁻¹ · g · t_j)   if  t_i⁻¹ · g · t_j ∈ H
+                     = 0                       otherwise
+
+    Exactly one ``i`` is nonzero per column ``j`` (``g·t_j`` lies in ONE
+    coset), which is the pinned tier-4 convention ``matrices[g] · e_j =
+    <unit> · e_{sigma_g(j)}`` — and for the TRIVIAL character it reduces
+    EXACTLY to :func:`permutation_representation` on the coset set, a
+    claim the tests execute rather than assert.
+
+    **The homomorphism law, executed at construction.**  ``rho`` is
+    stored internally as its monomial data ``(sigma_g, c_g)`` and the law
+    ``rho(g)·rho(h) == rho(g·h)`` is checked over ALL ``|G|²`` pairs on
+    that data — ``sigma_g(sigma_h(j))`` with value ``c_g[sigma_h(j)] ·
+    c_h[j]`` in ``ℤ[ζ_e]``.  That is the matrix law and not a proxy for
+    it, because the matrices are BUILT from exactly this data (one
+    nonzero per column, at ``sigma_g(j)``, of value ``c_g[j]``); doing it
+    monomially costs ``O(|G|²·m)`` ring products where the dense form
+    costs ``O(|G|²·m³)``.  The tests re-execute the DENSE matrix products
+    independently on both shipped witnesses.
+
+    Args:
+        cayley_table: the ``n × n`` group table (validated as a group —
+            two-sided identity, unique two-sided inverses, associative;
+            ``ValueError`` naming the operand-group law otherwise).
+        subgroup: the element indices of ``H`` — a table-indexed SET,
+            validated closed under the product and under inverses and to
+            contain the identity (subgroup law).  ``H = G`` is legal and
+            gives ``Ind_G^G χ == χ`` at degree 1.
+        character: ``character[i]`` is ``χ`` at ``sorted(subgroup)[i]``,
+            a length-``φ(e)`` plain-int vector in the ``ζ_e`` power basis
+            low→high — the SAME carrier :func:`zeta_mul` and
+            :func:`character_table` use.  A linear character's values are
+            roots of unity, hence algebraic integers, hence integer
+            coordinates; the op refuses anything else (plain-int law) and
+            executes ``χ(a·b) == χ(a)·χ(b)`` over all of ``H × H``
+            (character-homomorphism law) plus ``χ(1) == 1`` (unital law).
+        e: the conductor, a plain int ``>= 3``.  ``ℚ(ζ₁) = ℚ(ζ₂) = ℚ``,
+            which the ``general`` kind already spells, so a smaller
+            conductor is refused (cyclotomic-conductor law) rather than
+            silently minting a ℚ rep wearing the ζ dialect.  ``Φ_e``
+            comes from :func:`srmech.math.poly.cyclotomic_polynomial`,
+            never from the caller — the modulus is DERIVED here, which is
+            what lets every consumer trust ``phi_e`` after one equality
+            check.
+
+    Returns:
+        A full REP PAYLOAD dict in the ζ dialect — ``{"order", "degree"``
+        (= the index ``m``), ``"field": "Q(zeta_<e>)", "kind":
+        "cyclotomic", "e", "phi_e", "matrices"`` (m × m of length-``φ(e)``
+        coordinate tuples of canonical ``(num, den)`` pairs),
+        ``"subgroup"`` (echoed, ascending), ``"coset_representatives"``,
+        ``"cayley_sha256", "matrices_sha256"}`` — and it is RE-VALIDATED
+        by :func:`_check_rep_payload` before return (never trusted by
+        construction, the ⊗/⊕ precedent).  It eats in
+        :func:`character_of` / :func:`decompose_representation` /
+        :func:`isotypic_projector`; :func:`tensor_product_representation`
+        / :func:`direct_sum_representation` / :func:`intertwiner_space`
+        REFUSE it with a named law in this rc.
+
+    ⚠️ **Scope, stated where a caller meets it.**  The op will happily
+    mint a rep whose conductor is SMALLER than the group exponent — e.g.
+    ``Ind_{C7}^{F21}`` over ``ℚ(ζ₇)`` when ``F21`` has exponent 21 — and
+    that rep is well-formed and passes the validator, but
+    :func:`character_of` and its two composites REFUSE it under the
+    compatible-ring law, because this rc does not embed ``ℤ[ζ₇]`` into the
+    ``ζ₂₁`` power basis.  Choose ``e`` = the group exponent if the rep is
+    to be read; the refusal is named and measured, not silent.
+
+    Cost honest: ``O(|G|²·m)`` ring products for the homomorphism law and
+    ``O(|H|²)`` for the character law — the same small-order stratum
+    contract every sibling carries; a large order makes it SLOW, never
+    wrong.
+
+    C-parity (ADR-0009, recorded): this op has no C peer; the
+    representation stratum ships Python-first under the noted-disparity
+    ruling, and the ζ cells cross as plain-int tuples so no carrier TYPE
+    reaches the wire and the ABI does not move.
+
+    Note:
+        Exact integers end to end; no float; no ``abs``.
+    """
+    tbl = _check_table("induced_representation", cayley_table)
+    n = len(tbl)
+    e_idx = _identity_of(tbl)
+    if e_idx is None:
+        raise ValueError(
+            "induced_representation: cayley_table has no two-sided "
+            "identity (operand-group law)")
+    inv = _inverse_scan(tbl, e_idx)
+    if inv is None:
+        raise ValueError(
+            "induced_representation: cayley_table lacks unique two-sided "
+            "inverses (operand-group law)")
+    _check_associative("induced_representation", "cayley_table", tbl)
+
+    if not _plain_int(e) or e < 3:
+        raise ValueError(
+            f"induced_representation: e must be a plain int >= 3, not "
+            f"{e!r} - Q(zeta_1) = Q(zeta_2) = Q, which the general kind "
+            f"already spells (cyclotomic-conductor law)")
+    phi_entry = cyclotomic_polynomial(e)
+    phi = list(phi_entry["coefficients"])
+    width = phi_entry["degree"]
+
+    members = _subgroup_scan(
+        "induced_representation", tbl, subgroup, e_idx, inv)
+    if len(character) != len(members):
+        raise ValueError(
+            f"induced_representation: character has {len(character)} "
+            f"values for |H| = {len(members)} elements - one value per "
+            f"subgroup element, in ASCENDING element order "
+            f"(element-count law)")
+    chi: Dict[int, Tuple[int, ...]] = {}
+    for i, h in enumerate(members):
+        value = character[i]
+        if len(value) != width:
+            raise ValueError(
+                f"induced_representation: character[{i}] has length "
+                f"{len(value)}, expected phi({e}) = {width} "
+                f"(carrier-width law)")
+        for t, coordinate in enumerate(value):
+            if not _plain_int(coordinate):
+                raise ValueError(
+                    f"induced_representation: character[{i}][{t}] carries "
+                    f"a {type(coordinate).__name__} coordinate; a linear "
+                    f"character's values are roots of unity, so the "
+                    f"carrier is plain-int zeta vectors (plain-int law)")
+        chi[h] = tuple(value)
+    one = (1,) + (0,) * (width - 1)
+    if chi[e_idx] != one:
+        raise ValueError(
+            f"induced_representation: chi at the identity is "
+            f"{chi[e_idx]}, expected {one} - a character of a group sends "
+            f"1 to 1 (unital law; a guard that fires is evidence)")
+    for a in members:
+        for b in members:
+            if _zeta_mul(chi[a], chi[b], phi) != chi[tbl[a][b]]:
+                raise ValueError(
+                    f"induced_representation: chi({a})·chi({b}) != "
+                    f"chi({a}*{b} = {tbl[a][b]}) in Z[zeta_{e}] - the "
+                    f"operand is a LINEAR CHARACTER of H "
+                    f"(character-homomorphism law; a guard that fires is "
+                    f"evidence)")
+
+    member_set = set(members)
+    reps: List[int] = []
+    covered: set = set()
+    for x in range(n):
+        if x in covered:
+            continue
+        reps.append(x)
+        for h in members:
+            covered.add(tbl[x][h])
+    degree = len(reps)
+
+    sigma: List[List[int]] = []
+    values: List[List[Tuple[int, ...]]] = []
+    for g in range(n):
+        perm: List[int] = []
+        val: List[Tuple[int, ...]] = []
+        for j in range(degree):
+            landed = tbl[g][reps[j]]
+            target = -1
+            for i in range(degree):
+                probe = tbl[inv[reps[i]]][landed]
+                if probe in member_set:
+                    target = i
+                    val.append(chi[probe])
+                    break
+            if target < 0:
+                raise ValueError(
+                    f"induced_representation: g = {g} sends coset "
+                    f"representative {reps[j]} outside every coset - the "
+                    f"coset system does not cover G (coset-cover law; a "
+                    f"guard that fires is evidence)")
+            perm.append(target)
+        sigma.append(perm)
+        values.append(val)
+
+    for g in range(n):
+        for h in range(n):
+            composed = tbl[g][h]
+            for j in range(degree):
+                mid = sigma[h][j]
+                if sigma[g][mid] != sigma[composed][j]:
+                    raise ValueError(
+                        f"induced_representation: the monomial "
+                        f"permutations fail sigma_{g}(sigma_{h}({j})) == "
+                        f"sigma_{{{g}*{h}}}({j}) (homomorphism law; a "
+                        f"guard that fires is evidence)")
+                if _zeta_mul(values[g][mid], values[h][j],
+                             phi) != values[composed][j]:
+                    raise ValueError(
+                        f"induced_representation: the monomial values "
+                        f"fail c_{g}[sigma_{h}({j})]·c_{h}[{j}] == "
+                        f"c_{{{g}*{h}}}[{j}] in Z[zeta_{e}] "
+                        f"(homomorphism law; a guard that fires is "
+                        f"evidence)")
+
+    zero_cell = ((0, 1),) * width
+    matrices: List[List[List[Tuple[Tuple[int, int], ...]]]] = []
+    for g in range(n):
+        mat = [[zero_cell] * degree for _ in range(degree)]
+        for j in range(degree):
+            mat[sigma[g][j]][j] = tuple(
+                _canonical_pair(coordinate, 1)
+                for coordinate in values[g][j])
+        matrices.append([list(row) for row in mat])
+
+    out: Dict[str, Any] = {
+        "order": n,
+        "degree": degree,
+        "field": _zeta_field(e),
+        "kind": "cyclotomic",
+        "e": e,
+        "phi_e": tuple(phi),
+        "matrices": matrices,
+        "subgroup": members,
+        "coset_representatives": reps,
+        "cayley_sha256": sha256_bytes(_table_bytes(tbl)),
+        "matrices_sha256": sha256_bytes(
+            _rep_matrices_bytes("cyclotomic", matrices, e)),
+    }
+    _check_rep_payload("induced_representation", out)
+    return out
+
+
+def zeta_conjugate(rep: Mapping[str, Any], t: int) -> Dict[str, Any]:
+    """The Galois conjugate ``σ_t(rho)`` of a cyclotomic representation —
+    **Class C** (cascade-orientation / chirality: the
+    :func:`frobenius_schur_indicator` docstring already names a character
+    and its conjugate "a chirality PAIR, the Class-C datum"; this op is
+    the operator-level form of that pairing).
+
+    ``Gal(ℚ(ζ_e)/ℚ) ≅ (ℤ/e)^×`` acts by ``σ_t: ζ_e ↦ ζ_e^t``, and it acts
+    on a REP by acting on every matrix entry.  Concretely, coordinate by
+    coordinate::
+
+        σ_t( Σ_j (n_j / d_j) · ζ^j )  =  Σ_j (n_j / d_j) · ζ^{j·t mod e}
+
+    with each ``ζ^{j·t mod e}`` re-expanded in the power basis
+    ``{1, ζ, …, ζ^{φ(e)−1}}`` — so the output is a rep over the SAME ring
+    and eats everywhere its operand does.  The re-expansion table is
+    built from ``Φ_e``, which is re-derived here from
+    :func:`srmech.math.poly.cyclotomic_polynomial` and compared with the
+    payload's own ``phi_e``: the checker's ring law can only see that
+    ``phi_e`` is a monic modulus of the right degree, and this op is the
+    one place the modulus's IDENTITY is load-bearing (a wrong ``Φ`` would
+    give a wrong power table and a wrong, silent answer).
+
+    **What it is for.**  For ``e = 4`` this is complex conjugation, and
+    ``σ_3`` is the involution that exchanges a conjugate PAIR of complex
+    irreps — the smallest executable form of "it swaps ``3`` and ``3̄``",
+    since no shipped group has a conjugate pair of 3-dimensional irreps
+    over ``ℚ(ζ₄)``.  Two identities the tests execute:
+    ``zeta_conjugate(zeta_conjugate(rho, t), t) == rho`` whenever
+    ``t² ≡ 1 (mod e)``, and the COMMUTING SQUARE ``zeta_conjugate(Ind χ,
+    t) == Ind(σ_t ∘ χ)`` — conjugating the induced rep and inducing the
+    conjugated character are the same object, compared by content
+    address.
+
+    Args:
+        rep: a CYCLOTOMIC tier-4 REP PAYLOAD dict, passed VERBATIM.  A
+            permutation- or general-kind payload is REFUSED (dialect law)
+            rather than returned unchanged: the Galois action on ℚ is the
+            identity, and an op that can only ever answer "the same thing
+            back" is not a measurement.
+        t: the Galois exponent, a plain int with ``gcd(t mod e, e) == 1``
+            (Galois law).  It is reduced mod ``e``; ``t`` and ``t + e``
+            name one automorphism.
+
+    Returns:
+        A full REP PAYLOAD dict over the same ring, degree and group —
+        ``{"order", "degree", "field", "kind": "cyclotomic", "e",
+        "phi_e", "matrices", "cayley_sha256"`` (echoed — a Galois twist
+        does not change the GROUP), ``"matrices_sha256"}`` — RE-VALIDATED
+        by :func:`_check_rep_payload` before return.
+
+    C-parity (ADR-0009, recorded): this op has no C peer; the
+    representation stratum ships Python-first under the noted-disparity
+    ruling.
+
+    Note:
+        Exact integers / canonical pairs; no float; no ``abs`` — the sign
+        read is :func:`_canonical_pair`'s Class-K pin-slot at zero.
+    """
+    _check_rep_payload("zeta_conjugate", rep)
+    if rep["kind"] != "cyclotomic":
+        raise ValueError(
+            f"zeta_conjugate: the operand is a {rep['kind']!r}-kind "
+            f"payload over {rep['field']!r}; Gal(Q/Q) is trivial, so a "
+            f"rational rep has no Galois twist to take and this op "
+            f"REFUSES rather than handing back its operand (dialect law)")
+    e = rep["e"]
+    phi = list(rep["phi_e"])
+    width = len(phi) - 1
+    derived = cyclotomic_polynomial(e)
+    if tuple(derived["coefficients"]) != tuple(phi):
+        raise ValueError(
+            f"zeta_conjugate: the payload carries the modulus "
+            f"{tuple(phi)} where Phi_{e} is "
+            f"{tuple(derived['coefficients'])} - the power table this op "
+            f"builds is only correct for the TRUE cyclotomic modulus "
+            f"(cyclotomic-modulus law; a guard that fires is evidence)")
+    if not _plain_int(t):
+        raise ValueError(
+            f"zeta_conjugate: t must be a plain int, not {t!r} "
+            f"(Galois law)")
+    exponent = t % e
+    if gcd(exponent, e) != 1:
+        raise ValueError(
+            f"zeta_conjugate: t = {t} reduces to {exponent} mod {e}, "
+            f"which is not a unit - Gal(Q(zeta_{e})/Q) is (Z/{e})^*, so "
+            f"only exponents coprime to {e} name an automorphism "
+            f"(Galois law)")
+    powers = _zeta_power_table(phi, e)
+
+    matrices: List[List[List[Tuple[Tuple[int, int], ...]]]] = []
+    for mat in rep["matrices"]:
+        rows_out = []
+        for row in mat:
+            row_out = []
+            for cell in row:
+                common = 1
+                for coordinate in cell:
+                    den = coordinate[1]
+                    shrink = gcd(common, den)
+                    common = common // shrink * den
+                acc = [0] * width
+                for j, coordinate in enumerate(cell):
+                    num = coordinate[0]
+                    if num:
+                        scaled = num * (common // coordinate[1])
+                        image = powers[(j * exponent) % e]
+                        for c in range(width):
+                            acc[c] += scaled * image[c]
+                row_out.append(tuple(
+                    _canonical_pair(acc[c], common) for c in range(width)))
+            rows_out.append(row_out)
+        matrices.append(rows_out)
+
+    out: Dict[str, Any] = {
+        "order": rep["order"],
+        "degree": rep["degree"],
+        "field": rep["field"],
+        "kind": "cyclotomic",
+        "e": e,
+        "phi_e": tuple(phi),
+        "matrices": matrices,
+        "cayley_sha256": rep["cayley_sha256"],
+        "matrices_sha256": sha256_bytes(
+            _rep_matrices_bytes("cyclotomic", matrices, e)),
+    }
+    _check_rep_payload("zeta_conjugate", out)
+    return out

@@ -12589,6 +12589,191 @@ def _register_primitive_class_tools() -> None:
                         "'1247237b24cae0c6b3dc2e9148c1e9730abfb2379a53de91"
                         "5491e65b903521d7'}"},
         ),
+        # rc462 (`#T1179`) — TIER 4's ζ DIALECT.  The rep payload widens
+        # from exact-ℚ to ℚ(ζ_e) (kind "cyclotomic": a cell is a
+        # length-φ(e) tuple of canonical (num, den) pairs; the payload
+        # gains e / phi_e; the content address takes a THIRD serializer
+        # branch with a zeta{e} prefix, so no shipped ℚ digest can move by
+        # construction).  The widening ships WITH ITS FIRST PRODUCER —
+        # induced_representation — because a checker widened alone mints a
+        # dialect nothing can write and nothing can read; zeta_conjugate is
+        # the Gal(ℚ(ζ_e)/ℚ) action on it.  FOUR consumers read the dialect
+        # (the trace path, character_of, decompose_representation,
+        # isotypic_projector); THREE refuse it with a NAMED law
+        # (tensor_product / direct_sum on the dialect law, intertwiner_space
+        # on the carrier law — its engine is QMat.nullspace, exact-ℚ only).
+        # No new C symbol; the ζ cells cross as plain-int tuples, so no
+        # carrier TYPE reaches the wire and ABI stays 24.
+        ToolEntry(
+            name="srmech.math.groups.induced_representation",
+            owner="srmech", category="groups",
+            summary="The induced representation Ind_H^G χ of a LINEAR "
+                    "character of a subgroup — Class L (mints the operator "
+                    "family, the permutation_representation verb) over "
+                    "Class-I coset arithmetic, and THE FIRST PRODUCER of "
+                    "the Q(zeta_e) rep dialect. Every rep tier 4 could "
+                    "mint before this op was defined over ℚ, so the ζ half "
+                    "of the payload grammar had no writer at all; "
+                    "induction is the smallest construction that forces "
+                    "ALL of it, because the matrices are MONOMIAL over "
+                    "Z[zeta_e] — one op exercises the cell grammar, the "
+                    "ring keys, the domain-separated content address, the "
+                    "ζ-vector trace and the ring-product contraction. "
+                    "CONSTRUCTION: with t_1..t_m the left-coset "
+                    "representatives (each coset's SMALLEST element index, "
+                    "cosets ordered by it — deterministic, because a "
+                    "content address cannot depend on an iteration order), "
+                    "rho(g)[i][j] = chi(t_i⁻¹·g·t_j) when that lands in H "
+                    "and 0 otherwise; exactly one nonzero per column, "
+                    "which IS the pinned tier-4 convention. For the "
+                    "TRIVIAL character it reduces EXACTLY to "
+                    "permutation_representation on the coset set — a claim "
+                    "the tests execute, not assert. THE HOMOMORPHISM LAW "
+                    "IS EXECUTED at construction over ALL |G|² pairs, on "
+                    "the monomial data the matrices are BUILT from "
+                    "(sigma_g(sigma_h(j)) with value c_g[sigma_h(j)]·"
+                    "c_h[j] in Z[zeta_e]) — the matrix law itself, at "
+                    "O(|G|²·m) ring products instead of the dense form's "
+                    "O(|G|²·m³); the tests re-execute the DENSE products "
+                    "independently on both shipped witnesses. Guards, each "
+                    "a raise NAMING its law: operand-group, subgroup "
+                    "(closed under product and inverses, contains the "
+                    "identity, a SET), cyclotomic-conductor (e >= 3 — "
+                    "Q(zeta_1) = Q(zeta_2) = Q, which the general kind "
+                    "already spells), element-count, carrier-width, "
+                    "plain-int (a linear character's values are roots of "
+                    "unity, so the carrier is integer ζ vectors — bool and "
+                    "Q/Qalg REJECTED), unital (chi(1) == 1), "
+                    "character-homomorphism over all of H×H, coset-cover. "
+                    "Φ_e is DERIVED here from cyclotomic_polynomial, never "
+                    "taken from the caller, which is what lets every "
+                    "consumer trust phi_e after one equality check. The "
+                    "output payload is RE-VALIDATED by the shared "
+                    "rep-payload validator before return (never trusted by "
+                    "construction, the ⊗/⊕ precedent). H = G is legal and "
+                    "gives Ind_G^G χ == χ at degree 1 — the smallest "
+                    "witness whose CHARACTER is a ζ-vector rather than a "
+                    "rational. ⚠️ SCOPE: e may legally be SMALLER than the "
+                    "group exponent (Ind from C7 into F21 over Q(zeta_7), "
+                    "where F21 has exponent 21) and such a rep is "
+                    "well-formed and passes the validator — but "
+                    "character_of and its two composites REFUSE it under "
+                    "the compatible-ring law, because this rc does not "
+                    "embed Z[zeta_7] into the zeta_21 power basis. Choose "
+                    "e = the group exponent if the rep is to be READ; the "
+                    "refusal is named and measured, never silent. "
+                    "C-parity (ADR-0009, recorded): no C peer; "
+                    "Python-first under the noted-disparity ruling, and "
+                    "the ζ cells cross as plain-int tuples so no carrier "
+                    "TYPE reaches the wire. Exact ℤ.",
+            parameters=(
+                P("cayley_table", "list[list[int]]", True,
+                  "the n × n group table (ValueError naming the "
+                  "operand-group law otherwise)"),
+                P("subgroup", "list[int]", True,
+                  "the element indices of H — a table-indexed SET, "
+                  "validated closed under the product and under inverses "
+                  "and to contain the identity (subgroup law)"),
+                P("character", "list[list[int]]", True,
+                  "character[i] is chi at sorted(subgroup)[i], a "
+                  "length-phi(e) plain-int vector in the zeta_e power "
+                  "basis low→high — the same carrier zeta_mul and "
+                  "character_table use"),
+                P("e", "int", True,
+                  "the conductor, a plain int >= 3; Phi_e is derived "
+                  "in-op from cyclotomic_polynomial"),
+            ),
+            returns=R("dict", "a full rep payload dict in the zeta dialect — "
+                              "{order, degree (= the index [G:H]), field "
+                              "'Q(zeta_<e>)', kind 'cyclotomic', e, phi_e, "
+                              "matrices (m × m of length-phi(e) coordinate "
+                              "tuples of canonical (num, den) pairs), "
+                              "subgroup (echoed, ascending), "
+                              "coset_representatives, cayley_sha256, "
+                              "matrices_sha256}"),
+            composes=("srmech.math.poly.cyclotomic_polynomial",
+                      "srmech.math.cyclic.gcd",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={
+                "cayley_table": "[[0, 1, 2], [1, 2, 0], [2, 0, 1]]",
+                "subgroup": "[0, 1, 2]",
+                "character": "[[1, 0], [0, 1], [-1, -1]]",
+                "e": "3"},
+        ),
+        ToolEntry(
+            name="srmech.math.groups.zeta_conjugate", owner="srmech",
+            category="groups",
+            summary="The Galois conjugate sigma_t(rho) of a CYCLOTOMIC "
+                    "representation — Class C (cascade-orientation / "
+                    "chirality: frobenius_schur_indicator already names a "
+                    "character and its conjugate 'a chirality PAIR, the "
+                    "Class-C datum'; this op is the operator-level form of "
+                    "that pairing). Gal(Q(zeta_e)/Q) is (Z/e)^*, acting by "
+                    "sigma_t: zeta_e -> zeta_e^t, and it acts on a REP by "
+                    "acting on every matrix entry coordinate-wise: "
+                    "sigma_t(sum_j (n_j/d_j)·zeta^j) = sum_j "
+                    "(n_j/d_j)·zeta^{j·t mod e}, each image re-expanded in "
+                    "the power basis, so the output is a rep over the SAME "
+                    "ring and eats everywhere its operand does. The "
+                    "re-expansion table is built from Phi_e, re-derived "
+                    "here from cyclotomic_polynomial and compared with the "
+                    "payload's own phi_e — the rep validator can only see "
+                    "that phi_e is a monic modulus of the right degree, "
+                    "and this is the one op where the modulus's IDENTITY "
+                    "is load-bearing (a wrong Phi gives a wrong power "
+                    "table and a wrong, SILENT answer). For e = 4 this is "
+                    "complex conjugation and sigma_3 is the involution "
+                    "that exchanges a conjugate PAIR of complex irreps — "
+                    "the smallest EXECUTABLE form of 'it swaps 3 and 3-bar', "
+                    "since no shipped group has a conjugate pair of "
+                    "3-dimensional irreps over Q(zeta_4). Two identities "
+                    "the tests execute: the involution "
+                    "zeta_conjugate(zeta_conjugate(rho, t), t) == rho when "
+                    "t² == 1 mod e, and the COMMUTING SQUARE "
+                    "zeta_conjugate(Ind chi, t) == Ind(sigma_t . chi), "
+                    "compared by content address. A permutation- or "
+                    "general-kind payload is REFUSED (dialect law) rather "
+                    "than returned unchanged: Gal(Q/Q) is trivial, and an "
+                    "op that can only ever answer 'the same thing back' is "
+                    "not a measurement. Guards, each a raise: dialect, "
+                    "cyclotomic-modulus, and Galois (t reduced mod e must "
+                    "be a UNIT). Output RE-VALIDATED by the shared "
+                    "rep-payload validator before return. C-parity "
+                    "(ADR-0009, recorded): no C peer; Python-first under "
+                    "the noted-disparity ruling. Exact ℤ / canonical "
+                    "pairs.",
+            parameters=(
+                P("rep", "dict", True,
+                  "a CYCLOTOMIC tier-4 rep payload dict, passed VERBATIM "
+                  "(a ℚ payload is refused by the dialect law)"),
+                P("t", "int", True,
+                  "the Galois exponent; reduced mod e, and gcd(t mod e, "
+                  "e) must be 1 (Galois law)"),
+            ),
+            returns=R("dict", "a full rep payload dict over the same ring, "
+                              "degree and group — {order, degree, field, "
+                              "kind 'cyclotomic', e, phi_e, matrices, "
+                              "cayley_sha256 (echoed — a Galois twist does "
+                              "not change the GROUP), matrices_sha256}"),
+            composes=("srmech.math.poly.cyclotomic_polynomial",
+                      "srmech.math.cyclic.gcd",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            # The operand is DERIVED from the shipped producer rather than
+            # inlined as a payload literal.  A literal would have to carry
+            # a matrices_sha256 with no producer behind it — a content
+            # address nothing can re-derive, which is the defect class
+            # this whole rc is about.
+            smoke_test_hint={
+                "rep": "__import__('srmech.math.groups', fromlist=['g'])"
+                       ".induced_representation("
+                       "[[0, 1, 2], [1, 2, 0], [2, 0, 1]], [0, 1, 2], "
+                       "[(1, 0), (0, 1), (-1, -1)], 3)",
+                "t": "2"},
+        ),
         # rc460 — srmech.math.weight_lattice, a PEER of srmech.math.groups
         # and not a part of it.  groups' instrument is a count off a Cayley
         # table, indexed by ELEMENTS; this module's is a SIGNED count off a

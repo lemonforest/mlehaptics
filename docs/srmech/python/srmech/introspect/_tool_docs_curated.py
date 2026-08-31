@@ -1198,6 +1198,161 @@ CURATED: Dict[str, Dict[str, Any]] = {
             '(srmech.math.qmat); tensor/direct_sum build the operands '
             'it measures.'},
 
+    # ── rc462 (`#T1179`) — the Q(zeta_e) rep dialect: its PRODUCER and
+    # its Galois action. Every output below is a REAL WSL2 capture
+    # (numpy-absent, HAS_NATIVE True); none is typed from memory.
+    'srmech.math.groups.induced_representation': {
+        'example': {
+            'input': {'cayley_table': "unit_loop(4)['cayley_table']",
+                      'subgroup': [0, 1, 4, 5],
+                      'character': [[1, 0], [0, 1], [-1, 0], [0, -1]],
+                      'e': 4},
+            'output': "(2, 'Q(zeta_4)', 'cyclotomic', [0, 2])",
+            'worked': "from srmech.cascade import unit_loop\n"
+                      "from srmech.math.groups import (character_of,\n"
+                      "    character_table, decompose_representation,\n"
+                      "    induced_representation)\n"
+                      "Q8 = unit_loop(4)['cayley_table']      # the "
+                      "quaternion group\n"
+                      "CHI = [(1, 0), (0, 1), (-1, 0), (0, -1)]   "
+                      "# chi(i^k) = zeta_4^k on <i> = [0, 1, 4, 5]\n"
+                      "rho = induced_representation(Q8, [0, 1, 4, 5], "
+                      "CHI, 4)\n"
+                      "rho['degree'], rho['field'], rho['kind'], "
+                      "rho['coset_representatives']\n"
+                      "# -> (2, 'Q(zeta_4)', 'cyclotomic', [0, 2])\n"
+                      "rho['matrices'][1]        # rho(i), MONOMIAL over "
+                      "Z[zeta_4]\n"
+                      "# -> [[((0, 1), (1, 1)), ((0, 1), (0, 1))], "
+                      "[((0, 1), (0, 1)), ((0, 1), (-1, 1))]]\n"
+                      "ct = character_table(Q8)\n"
+                      "character_of(rho, ct)['character']\n"
+                      "# -> ((2, 0), (0, 0), (0, 0), (0, 0), (-2, 0))    "
+                      "the degree-2 row of the SHIPPED table\n"
+                      "decompose_representation(rho, ct)"
+                      "['multiplicities']\n"
+                      "# -> (0, 0, 0, 0, 1)    irreducible, and it is the "
+                      "row whose Frobenius-Schur indicator is -1\n"
+                      "induced_representation(Q8, [0, 1, 2], CHI[:3], 4)\n"
+                      "# -> ValueError: induced_representation: subgroup "
+                      "is not closed under inverses - 1 is in it and 5 is "
+                      "not (subgroup law)\n",
+            'why': "The rep that could not be spelled before this rc: Q8's "
+                   'degree-2 irreducible has Frobenius-Schur indicator -1, '
+                   'so it is QUATERNIONIC and not realizable over R, hence '
+                   'not over Q — the exact-Q rep payload could never hold '
+                   'it. Induced from a faithful character of <i> it is '
+                   'monomial over Z[zeta_4], and its character comes back '
+                   'RATIONAL and equal to the shipped table row.'},
+        'explanation':
+            'WHAT it computes: Ind_H^G chi, the representation of G '
+            'induced from a LINEAR character of a subgroup H — monomial '
+            'matrices over Z[zeta_e] indexed by the left cosets, '
+            'rho(g)[i][j] = chi(t_i^-1 · g · t_j) when that lands in H '
+            'and 0 otherwise, with the coset representatives chosen '
+            'deterministically (each coset\'s smallest element index) '
+            'because a content address cannot depend on an iteration '
+            'order. It is Class L — the same verb '
+            'permutation_representation carries — and for the TRIVIAL '
+            'character it reduces exactly to permutation_representation '
+            'on the coset set. '
+            'WHEN to reach for it: whenever the rep you need is not '
+            'realizable over Q — the complex-type (indicator 0) and '
+            'quaternionic-type (indicator -1) rows that '
+            'frobenius_schur_indicator flags are precisely the ones the '
+            'exact-Q payload cannot hold, and this is the op that mints '
+            'them. It is also the FIRST producer of the Q(zeta_e) rep '
+            'dialect, so a checker-only widening has something to read. '
+            'CAUTION on the conductor: e may legally be smaller than the '
+            'group exponent, and such a rep is well-formed but is REFUSED '
+            'by character_of under the compatible-ring law (Ind from C7 '
+            'into F21 lives over Q(zeta_7) while F21 has exponent 21, and '
+            'this rc does not embed one ring in the other). Pick e = the '
+            'group exponent if the rep is to be read back. '
+            'WHAT YOU WOULD OTHERWISE WRONGLY HAND-ROLL: the induced '
+            'matrices from a coset table plus a hand-multiplied root of '
+            'unity — which floats the root, loses exactness, and skips '
+            'the homomorphism law this op EXECUTES over all |G|^2 pairs. '
+            'SIBLINGS: permutation_representation is the Q-dialect '
+            'producer (and the trivial-character special case of this '
+            'op); zeta_conjugate is the Gal(Q(zeta_e)/Q) action on the '
+            'payload this mints; character_of / '
+            'decompose_representation / isotypic_projector are the three '
+            'consumers that READ the dialect, while '
+            'tensor_product_representation, direct_sum_representation '
+            'and intertwiner_space REFUSE it with a named law; '
+            'zeta_mul is the ring the entries multiply in.'},
+    'srmech.math.groups.zeta_conjugate': {
+        'example': {
+            'input': {'rep': "induced_representation(C4, [0,1,2,3], CHI, 4)",
+                      't': 3},
+            'output': "((1, 0), (0, -1), (-1, 0), (0, 1))",
+            'worked': "from srmech.math.groups import (character_of,\n"
+                      "    character_table, cyclic_group,\n"
+                      "    decompose_representation, "
+                      "induced_representation,\n"
+                      "    zeta_conjugate)\n"
+                      "C4 = cyclic_group(4)['cayley_table']\n"
+                      "CHI = [(1, 0), (0, 1), (-1, 0), (0, -1)]   "
+                      "# the faithful character of C4\n"
+                      "rho = induced_representation(C4, [0, 1, 2, 3], "
+                      "CHI, 4)      # H = G, degree 1\n"
+                      "ct = character_table(C4)\n"
+                      "character_of(rho, ct)['character']\n"
+                      "# -> ((1, 0), (0, 1), (-1, 0), (0, -1))    "
+                      "1, i, -1, -i as zeta VECTORS\n"
+                      "sigma = zeta_conjugate(rho, 3)\n"
+                      "character_of(sigma, ct)['character']\n"
+                      "# -> ((1, 0), (0, -1), (-1, 0), (0, 1))    "
+                      "the complex conjugate\n"
+                      "(decompose_representation(rho, ct)"
+                      "['multiplicities'],\n"
+                      " decompose_representation(sigma, ct)"
+                      "['multiplicities'])\n"
+                      "# -> ((0, 0, 1, 0), (0, 1, 0, 0))    the "
+                      "conjugate PAIR of irreps, swapped\n"
+                      "zeta_conjugate(sigma, 3)['matrices_sha256'] == "
+                      "rho['matrices_sha256']\n"
+                      "# -> True    sigma_3 is an involution: 3*3 = 1 "
+                      "mod 4\n"
+                      "zeta_conjugate(rho, 2)\n"
+                      "# -> ValueError: zeta_conjugate: t = 2 reduces to "
+                      "2 mod 4, which is not a unit\n",
+            'why': 'The conjugate-pair swap, executed rather than '
+                   'asserted: the two Frobenius-Schur indicator-0 rows of '
+                   "C4's character table are exchanged by sigma_3, the "
+                   'content address proves the involution, and a '
+                   'non-unit exponent is refused because it names no '
+                   'automorphism.'},
+        'explanation':
+            'WHAT it computes: the Galois conjugate sigma_t(rho) of a '
+            'CYCLOTOMIC rep payload — Gal(Q(zeta_e)/Q) = (Z/e)^* acting '
+            'by zeta_e -> zeta_e^t, applied to every matrix entry '
+            'coordinate by coordinate and re-expanded in the zeta power '
+            'basis, so the output is a rep over the same ring, same '
+            'group and same degree. Class C: the '
+            'frobenius_schur_indicator docstring already calls a '
+            'character and its conjugate "a chirality PAIR, the Class-C '
+            'datum", and this is the operator-level form of that pairing. '
+            'WHEN to reach for it: to move between the two halves of a '
+            'complex-type (indicator 0) conjugate pair, or to check that '
+            'a construction commutes with the Galois action — '
+            'zeta_conjugate(Ind chi, t) == Ind(sigma_t . chi) is a '
+            'commuting square the tests execute by content address. '
+            'WHAT YOU WOULD OTHERWISE WRONGLY HAND-ROLL: negating the '
+            'imaginary coordinate. That is correct ONLY for e = 4; for '
+            'any other conductor the power basis is not closed under '
+            'sign-flip and the answer is silently wrong. A ' 'Q- or '
+            'permutation-kind payload is REFUSED rather than returned '
+            'unchanged, because an op that can only ever hand back its '
+            'operand is not a measurement. '
+            'SIBLINGS: induced_representation mints the payloads this '
+            'acts on; frobenius_schur_indicator says WHICH rows have a '
+            'conjugate partner (indicator 0) and which are their own '
+            '(+1 / -1); character_table ships inverse_class, which is '
+            'the CHARACTER-level conjugation this op is the rep-level '
+            'peer of; zeta_mul is the ring underneath.'},
+
     # ── rc419 (`#T1110`) — the signal_processing dispatcher + path-registry
     # read surface, registered at last. Every output below is a REAL WSL2
     # capture (numpy-absent, HAS_NATIVE True); none is typed from memory.

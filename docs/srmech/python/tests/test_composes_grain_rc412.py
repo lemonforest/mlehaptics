@@ -749,6 +749,45 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.math.groups.zeta_mul",
         "srmech.amsc.format.sha256_bytes",
     ),
+    # ── rc462 (`#T1179`) — the two ζ-dialect rows, traced by reading each
+    # body end to end.
+    #
+    # BOTH declare `gcd`, and their tier-4 SIBLINGS deliberately do not.
+    # That asymmetry is the point, not an inconsistency: `character_of` and
+    # `tensor_product_representation` reach `gcd` only through a
+    # BRANCH — `_exact_trace`'s general arm and `_entry_pair`'s general arm
+    # — and `_exact_trace`'s own docstring states the rule ("a composes
+    # tuple cannot be true of both branches", the rc437 precedent). These
+    # two ops have ONE lane each, so the edge is unconditional and belongs
+    # in the tuple.
+    #
+    # `induced_representation`: `cyclotomic_polynomial(e)` is entered first
+    # (Φ_e is DERIVED in-op, never taken from the caller — that is what lets
+    # the consumers trust `phi_e` after one equality check); then `gcd`,
+    # through `_canonical_pair` while the monomial cells are lifted — a
+    # depth-2 edge, the `alcove_fold` shape; then `sha256_bytes` on the two
+    # content addresses in the return dict.
+    "srmech.math.groups.induced_representation": (
+        "srmech.math.poly.cyclotomic_polynomial",
+        "srmech.math.cyclic.gcd",
+        "srmech.amsc.format.sha256_bytes",
+    ),
+    # `zeta_conjugate`: same three, same order, and the order is the OP'S
+    # OWN. ⚠️ Its RUNTIME trace opens earlier than this tuple says, because
+    # the first statement is `_check_rep_payload`, which enters `gcd` (the
+    # canonical-pair law) and then `sha256_bytes` (the content-address law)
+    # before this body reaches its own first call. Those are grandchild
+    # edges of a SHARED validator, and every tier-4 row already reads them
+    # that way — `tensor_product_representation` opens with the identical
+    # two validator calls and declares `sha256_bytes` alone. Declared here:
+    # `cyclotomic_polynomial` (Φ_e re-derived, because the power table this
+    # op builds is only correct for the TRUE modulus), then `gcd` at the
+    # Galois law `gcd(t mod e, e) == 1`, then `sha256_bytes`.
+    "srmech.math.groups.zeta_conjugate": (
+        "srmech.math.poly.cyclotomic_polynomial",
+        "srmech.math.cyclic.gcd",
+        "srmech.amsc.format.sha256_bytes",
+    ),
 }
 
 

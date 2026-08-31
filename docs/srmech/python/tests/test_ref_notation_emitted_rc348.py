@@ -828,6 +828,22 @@ SCAN_ROOTS = {
     # reddened, and declaring it is what made the trigger question get asked.
     "tests/test_notebook_cited_paths_rc459.py": (
         "docs/srmech", "docs/antikythera-maths"),
+    # rc462 (`#T1179`): the ℚ rep-payload HASH-STABILITY pin gate scans every
+    # SHIPPED surface for an orphaned `matrices_sha256`, and the surface with
+    # the most copies of the digest it protects is `c/src/srmech_tool_registry.c`
+    # — nine full C2-regular digests compiled in, served to a bare-C host with
+    # no interpreter. Scanning only python/ would leave the widening free to
+    # move a hash that had already shipped in the wheel, which is the one
+    # irreversible defect the gate exists for. A fixture copy of the C registry
+    # would be a copy of the claim under test (the rc447/rc450/rc440 argument).
+    #
+    # ⚠️ Declared LATE, and that is the rc452 `#T1171` sequence a third time:
+    # the gate landed in this same rc WITHOUT this entry and reddened
+    # `test_no_test_reaches_out_of_tree_without_declaring_it` — the
+    # undeclared-reach guard doing exactly its job on the very next gate to
+    # reach. Both roots sit inside srmech-ci's own trigger.
+    "tests/test_rep_hash_stability_rc462.py": (
+        "docs/srmech/python", "docs/srmech/c"),
     # rc407 (`#T1076`): the ADR-0009 MCP parity gate reads the C source to
     # reassemble `srmech_mcp_instructions` and assert it is byte-identical to
     # the Python `MCP_INSTRUCTIONS`. Reaching into c/ is the POINT of that
