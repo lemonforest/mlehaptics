@@ -59,9 +59,24 @@ static int cd_levels(int dim)
  * which reproduces srmech_cd_basis_product bit-for-bit.
  *
  * The gamma touches EXACTLY ONE branch: the (ph, qh) == (1, 1) cross term,
- * where conj(b2) contributes +1 at ql == 0 and -1 otherwise. gamma == -1 flips
- * the sign exactly when ql == 0; gamma == +1 flips it exactly when ql != 0.
- * Class-K sign composition throughout — no abs, no magnitude. */
+ * whose first component is gamma * conj(b2) * a2. conj contributes +1 at
+ * ql == 0 and -1 otherwise, so the coefficient this level composes in is
+ * exactly gamma at ql == 0 and -gamma otherwise — a MULTIPLICATION by the
+ * parameter, not a decision about it. Class-K sign composition throughout —
+ * no abs, no magnitude.
+ *
+ * rc462 (`#T1179`): this was written as a two-arm branch on (gamma < 0), a
+ * dichotomy standing in for a parameter with three values in its natural
+ * domain. gamma == 0 fails (gamma < 0) and took the +1 arm, so the gamma == 0
+ * table came back bit-identical to the SPLIT table (MEASURED at dims 2, 4, 8
+ * and on the mixed (0, -1) vector, in the Python peer where it is reachable).
+ * It was LATENT, never live — cd_check_gammas below refuses gamma == 0 at the
+ * only two call sites — but the validator was doing correctness work while
+ * presenting as input hygiene. The multiplicative form cannot alias: it IS the
+ * coefficient, so gamma == 0 vanishes the cross term and yields sign 0 (the
+ * degenerate/dual-number rung), absorbing across levels. On +-1 it is a no-op,
+ * VERIFIED over 127 gamma vectors / 299593 cells at dims 1..64, 0 mismatches.
+ * The public contract did NOT open: see the sign assert at the tail. */
 static srmech_status_t cd_gamma_basis(int dim, const int *gammas, int i, int j,
                                       int *out_index, int *out_sign)
 {
@@ -92,16 +107,23 @@ static srmech_status_t cd_gamma_basis(int dim, const int *gammas, int i, int j,
             if (ql != 0) { sign = -sign; }   /* conj(b1) sign-flip (Class K) */
         } else {                             /* (gamma b2* a2) — first, swap */
             top = 0; p = ql; q = pl;
-            if (gamma < 0) {
-                if (ql == 0) { sign = -sign; }   /* definite: flip at ql == 0 */
-            } else {
-                if (ql != 0) { sign = -sign; }   /* SPLIT: flip otherwise     */
-            }
+            /* The coefficient gamma*conj(b2) contributes, verbatim: gamma at
+             * ql == 0, -gamma otherwise. Class-K sign composition (a multiply,
+             * not an abs). */
+            sign = sign * ((ql == 0) ? gamma : -gamma);
         }
         if (top != 0) { index += m; }
         cur = m;
     }
     assert(index >= 0 && index < dim);
+    /* TRIPWIRE, not a redundant restatement (rc462, `#T1179`). The kernel above
+     * is correct at gamma == 0 and yields sign 0 there; this assert says that
+     * value is UNREACHABLE, because cd_check_gammas still admits only +-1 at
+     * both call sites. Open that contract and this fires first, in a debug
+     * build, at the one place that then needs revisiting: srmech_algebra_table
+     * writes exactly one coefficient per (i, j) cell and calls the table
+     * MONOMIAL, and a zero sign makes that cell all-zero. Do not relax this
+     * assert without deciding what the table means at a degenerate rung. */
     assert(sign == 1 || sign == -1);
     *out_index = index;
     *out_sign = sign;
@@ -132,7 +154,12 @@ srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
 }
 
 /* Validate a gammas vector against `dim`: NULL means the definite ladder, and
- * a non-NULL vector must carry exactly log2(dim) entries, each +1 or -1. */
+ * a non-NULL vector must carry exactly log2(dim) entries, each +1 or -1.
+ *
+ * This is the PUBLIC CONTRACT, not input hygiene (rc462, `#T1179`). The kernel
+ * above is defined at gamma == 0 — the degenerate rung — and this function is
+ * what keeps that rung out of srmech_algebra_table. Peer of the Python
+ * cayley_dickson._normalise_gammas, which refuses the same value. */
 static srmech_status_t cd_check_gammas(int dim, const int *gammas,
                                        size_t n_gammas)
 {
