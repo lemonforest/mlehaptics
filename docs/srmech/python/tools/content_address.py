@@ -113,10 +113,20 @@ _N = "pinned"
 _PROC_WHY = ("addresses the op's own RULE — constant across inputs by "
              "contract, so a 'distinguishing' assertion here would be false")
 _OPERAND_WHY = "addresses the Cayley table the op was HANDED, not its answer"
+_TABLE_WHY = ("addresses the CHARACTER TABLE the op was HANDED — the rc460 "
+              "bind, carried through so a tier-3/4 readout stays attached to "
+              "the table it read, not to its own result")
+_REP_CAYLEY_WHY = ("addresses the group table the OPERAND rep was built "
+                   "over, reached through the rep payload rather than "
+                   "recomputed — it is an input two levels down, not an "
+                   "answer")
 
 #: (op dotted name, dotted field path in the payload) -> Decl.
 #: MEASURED at rc462 by driving every ``ok`` row of the example-args ledger and
-#: walking the returned payload for ``*_sha256`` leaves: 29 ops, 55 pairs.
+#: walking the returned payload for ``*_sha256`` leaves. 29 ops / 55 pairs when
+#: this table was seeded; **37 ops / 75 pairs** after the same rc's ledger regen
+#: repaired six tier-3/4 rows whose stale args had made their ops RAISE, which
+#: is why the drain could not see the sixteen addresses they emit.
 DECLARATIONS: Dict[Tuple[str, str], Decl] = {
     # ── AMSC ──────────────────────────────────────────────────────────────
     ("srmech.amsc.catalog.get_attested_dataset",
@@ -161,17 +171,67 @@ DECLARATIONS: Dict[Tuple[str, str], Decl] = {
     ("srmech.math.groups.abelianization",
      "quotient.coset_partition_sha256"): Decl(_A, ""),
     ("srmech.math.groups.cayley_graph", "edges_sha256"): Decl(_A, ""),
+    # ── tier 3 / tier 4 readouts over the character-table payload. These
+    # were INVISIBLE to the drain until rc462's ledger regen: their example-
+    # args rows predated rc460's `cayley_sha256` bind, so the harvested args
+    # made every one of them RAISE, and `emitted_over_drivable` skips an op
+    # that raises. Sixteen shipped content addresses no gate could see, found
+    # by fixing the ledger rather than by looking for them.
+    ("srmech.math.groups.central_idempotents",
+     "idempotents_sha256"): Decl(_A, ""),
+    ("srmech.math.groups.central_idempotents",
+     "table_sha256"): Decl(_O, _TABLE_WHY),
+    ("srmech.math.groups.character_of",
+     "cayley_sha256"): Decl(_O, _REP_CAYLEY_WHY),
+    ("srmech.math.groups.character_of", "character_sha256"): Decl(_A, ""),
+    ("srmech.math.groups.character_of",
+     "table_sha256"): Decl(_O, _TABLE_WHY),
     ("srmech.math.groups.character_table", "cayley_sha256"): Decl(_O, _OPERAND_WHY),
     ("srmech.math.groups.character_table", "table_sha256"): Decl(_A, ""),
     ("srmech.math.groups.conjugacy_classes",
      "class_partition_sha256"): Decl(_A, ""),
+    ("srmech.math.groups.decompose_representation",
+     "cayley_sha256"): Decl(_O, _REP_CAYLEY_WHY),
+    ("srmech.math.groups.decompose_representation",
+     "multiplicities_sha256"): Decl(_A, ""),
+    ("srmech.math.groups.decompose_representation",
+     "table_sha256"): Decl(_O, _TABLE_WHY),
     ("srmech.math.groups.derived_subgroup", "elements_sha256"): Decl(_A, ""),
+    ("srmech.math.groups.frobenius_schur_indicator",
+     "indicators_sha256"): Decl(_A, ""),
+    ("srmech.math.groups.frobenius_schur_indicator",
+     "table_sha256"): Decl(_O, _TABLE_WHY),
+    ("srmech.math.groups.fusion_multiplicities",
+     "multiplicities_sha256"): Decl(_A, ""),
+    ("srmech.math.groups.fusion_multiplicities",
+     "table_sha256"): Decl(_O, _TABLE_WHY),
+    ("srmech.math.groups.isotypic_projector",
+     "cayley_sha256"): Decl(_O, _REP_CAYLEY_WHY),
+    ("srmech.math.groups.isotypic_projector",
+     "matrices_sha256"): Decl(
+        _O, "THE COUNTEREXAMPLE THAT MAKES DECLARING NECESSARY: on this op "
+            "matrices_sha256 is `rep['matrices_sha256']` VERBATIM — it "
+            "addresses the rep it PROJECTS, not the projectors it returns "
+            "(those are projectors_sha256). The identically-named field is "
+            "an ANSWER on three sibling ops. No name-match can tell them "
+            "apart"),
+    ("srmech.math.groups.isotypic_projector",
+     "projectors_sha256"): Decl(_A, ""),
+    ("srmech.math.groups.isotypic_projector",
+     "table_sha256"): Decl(_O, _TABLE_WHY),
     ("srmech.math.groups.direct_sum_representation",
      "cayley_sha256"): Decl(_O, _OPERAND_WHY),
     ("srmech.math.groups.direct_sum_representation",
      "matrices_sha256"): Decl(
         _A, "addresses the NEW matrices — the reason a name-match cannot "
             "infer 'echo' from a shared field name"),
+    ("srmech.math.groups.induced_representation",
+     "cayley_sha256"): Decl(_O, _OPERAND_WHY),
+    ("srmech.math.groups.induced_representation",
+     "matrices_sha256"): Decl(
+        _A, "addresses the INDUCED monomial matrices over Z[zeta_e], which "
+            "the ZETA serializer branch spells — the first non-Q body any "
+            "shipped op mints"),
     ("srmech.math.groups.intertwiner_space", "basis_sha256"): Decl(_A, ""),
     ("srmech.math.groups.intertwiner_space",
      "cayley_sha256"): Decl(_O, _OPERAND_WHY),
@@ -187,6 +247,18 @@ DECLARATIONS: Dict[Tuple[str, str], Decl] = {
     ("srmech.math.groups.tensor_product_representation",
      "matrices_sha256"): Decl(
         _A, "addresses the NEW matrices, as for direct_sum"),
+    ("srmech.math.groups.zeta_conjugate",
+     "cayley_sha256"): Decl(
+        _O, "addresses the group table the OPERAND rep was built over, and "
+            "is echoed VERBATIM because a Galois twist does not change the "
+            "GROUP — NOT kind 'echo', which requires a fixed named source "
+            "and forbids movement; this one moves when the rep does"),
+    ("srmech.math.groups.zeta_conjugate",
+     "matrices_sha256"): Decl(
+        _A, "addresses the TWISTED matrices. The PAIR is the witness: this "
+            "one moves under sigma_t while cayley_sha256 beside it does "
+            "not, which is the whole content of 'same group, conjugate "
+            "rep'"),
 
     # ── laplacian / weight lattice ────────────────────────────────────────
     ("srmech.math.laplacian.cyclic_laplacian_spectrum",
@@ -258,20 +330,49 @@ def corpus() -> Dict[str, Any]:
 
     A literal table here would be a COPY of the object under test, which is
     the failure mode the whole module exists to remove. Measured reach of the
-    two perturbation styles over the 55 declared pairs: a scalar-only bump
-    (``n + 1``, flip a bool) moves **10**; adding real group tables moves
-    **29**; the typed operands below (rep payloads, an 8×8 orthogonal, a
-    provenance chain) take the movable set to its full extent.
+    two perturbation styles **when this corpus was seeded, over 55 declared
+    pairs**: a scalar-only bump (``n + 1``, flip a bool) moved **10**; adding
+    real group tables moved **29**; the typed operands below (rep payloads, an
+    8×8 orthogonal, a provenance chain) took the movable set to its full
+    extent. Those two figures are DATED, not live — the same rc took the
+    declaration to 75 pairs, and the pairs it added are the tier-3/4 readouts
+    and the ζ dialect, both of which take a CHARACTER-TABLE or REP PAYLOAD
+    operand that no scalar bump can construct. So the structural claim is the
+    one that carries: a generic perturbation cannot reach a typed operand,
+    which is why every entry below is declared per op.
     """
     global _CORPUS
     if _CORPUS is None:
         from srmech.cascade import dihedral_group, unit_loop
-        from srmech.math.groups import cyclic_group, permutation_representation
+        from srmech.math.groups import (character_table, cyclic_group,
+                                        induced_representation,
+                                        permutation_representation)
         c = {f"C{n}": cyclic_group(n)["cayley_table"] for n in (2, 3, 4, 5)}
         c["D4"] = dihedral_group(4, "rotation_first")["cayley_table"]
         c["Q8"] = unit_loop(4)["cayley_table"]
         c["C4_REGULAR"] = permutation_representation(c["C4"], c["C4"])
         c["I8"] = [[1 if i == j else 0 for j in range(8)] for i in range(8)]
+        # The ζ dialect's operands, rc462. The faithful C4 character is READ
+        # off the shipped character table — the row whose value at the
+        # generator is ζ_4 itself — never written down here, for the same
+        # reason no Cayley table is: a literal would be a copy of the object
+        # under test. It is UNIQUE, and the assertion says so.
+        chi4 = [row for row in character_table(c["C4"])["table"]
+                if tuple(row[1]) == (0, 1)]
+        assert len(chi4) == 1, chi4
+        c["CHI_C4"] = list(chi4[0])
+        # <i> inside Q8, WALKED from the table rather than typed: the powers
+        # of element 1. The character above indexes by ASCENDING element, so
+        # the walk must come out ascending for chi(i^k) = zeta_4^k to be the
+        # value at position k — asserted, not assumed.
+        powers, x = [], 0
+        for _ in range(4):
+            powers.append(x)
+            x = c["Q8"][x][1]
+        assert powers == sorted(powers) and len(set(powers)) == 4, powers
+        c["H_Q8"] = powers
+        c["Q8_ZETA"] = induced_representation(c["Q8"], powers, c["CHI_C4"], 4)
+        c["CT_C4"] = character_table(c["C4"])
         _CORPUS = c
     return _CORPUS
 
@@ -298,9 +399,29 @@ def alternate_args(op: str) -> Optional[Dict[str, Any]]:
         "srmech.math.groups.cayley_graph": {"cayley_table": c["Q8"]},
         "srmech.math.groups.character_table": {"cayley_table": c["Q8"]},
         "srmech.math.groups.conjugacy_classes": {"cayley_table": c["Q8"]},
+        # The tier-3/4 readouts. The char_table-only ops move by handing a
+        # DIFFERENT group's table; the rep-taking ones must move BOTH, or
+        # the same-group bind rc460 added refuses the mixed pair — which is
+        # the bind doing its job, not a perturbation failure.
+        "srmech.math.groups.central_idempotents": {"char_table": c["CT_C4"]},
+        "srmech.math.groups.character_of": {
+            "char_table": c["CT_C4"], "rep": c["C4_REGULAR"]},
+        "srmech.math.groups.decompose_representation": {
+            "char_table": c["CT_C4"], "rep": c["C4_REGULAR"]},
+        "srmech.math.groups.frobenius_schur_indicator": {
+            "char_table": c["CT_C4"]},
+        "srmech.math.groups.fusion_multiplicities": {"char_table": c["CT_C4"]},
+        "srmech.math.groups.isotypic_projector": {
+            "char_table": c["CT_C4"], "rep": c["C4_REGULAR"]},
         "srmech.math.groups.derived_subgroup": {"cayley_table": c["Q8"]},
         "srmech.math.groups.direct_sum_representation": {
             "rep1": c["C4_REGULAR"], "rep2": c["C4_REGULAR"]},
+        # rc462, the ζ pair. The base ledger row induces from Q8, so the
+        # perturbation must be a DIFFERENT group or cayley_sha256 cannot
+        # move; C4 with H = G is the smallest such operand.
+        "srmech.math.groups.induced_representation": {
+            "cayley_table": c["C4"], "subgroup": sorted(range(4)),
+            "character": c["CHI_C4"], "e": 4},
         "srmech.math.groups.intertwiner_space": {
             "rep1": c["C4_REGULAR"], "rep2": c["C4_REGULAR"]},
         "srmech.math.groups.permutation_representation": {
@@ -327,6 +448,10 @@ def alternate_args(op: str) -> Optional[Dict[str, Any]]:
         "srmech.physics.qm.so8.g2_membership": {"matrix": c["I8"]},
         "srmech.physics.qm.so8.quaternion_subalgebra_stabilizer": {
             "quaternion_index": 2},
+        # The base row twists the C4 rep; the perturbation hands it the Q8
+        # one over the SAME conductor, so t = 3 stays a unit and the only
+        # thing that changed is the operand.
+        "srmech.math.groups.zeta_conjugate": {"rep": c["Q8_ZETA"]},
     }
     return table.get(op)
 

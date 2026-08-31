@@ -33,36 +33,54 @@ be CONSTANT across inputs; a distinguishing assertion on one asserts the
 opposite of its contract. See ``tools/content_address.py`` for the vocabulary
 and the Phase-2 (ToolEntry) deferral with its measured ripple.
 
-MEASURED at rc462, all on the numpy-absent cell:
+MEASURED at rc462, all on the numpy-absent cell — the WRITTEN column is
+this gate's first run, the RIPPLE column is the same rc after the
+example-args ledger was regenerated:
 
-===========================================  =====
-declared ops                                    29
-declared (op, field) pairs                      55
-  answer / operand / procedure / echo / pinned  36 / 6 / 9 / 2 / 2
-emitted-but-undeclared                           0
-declared-but-no-longer-emitted                   0
-ops promising a digest in ``returns`` prose     39
-  of those, undeclared (the drain's residual)   19
-same-named cross-op pairs                       61
-  echoing verbatim / correctly differing      15 / 46
-===========================================  =====
+===========================================  =======  =======
+                                             written   ripple
+declared ops                                      29       37
+declared (op, field) pairs                        55       75
+  answer                                          36       44
+  operand                                          6       18
+  procedure                                        9        9
+  echo                                             2        2
+  pinned                                           2        2
+emitted-but-undeclared                             0        0
+declared-but-no-longer-emitted                     0        0
+ops promising a digest in ``returns`` prose       39       39
+  of those, undeclared (the drain's residual)     19       11
+same-named cross-op pairs                         61      142
+  echoing verbatim                                15       34
+  correctly differing                             46      108
+===========================================  =======  =======
 
-That last row is the executable argument for DECLARING rather than inferring
-by name-match: ``cayley_sha256`` is verbatim-shared by four ops handed the
-same table, while ``matrices_sha256`` correctly differs across all three ops
-that emit it, because it addresses the NEW matrices.
+That last block is the executable argument for DECLARING rather than
+inferring by name-match: ``cayley_sha256`` is verbatim-shared by the ops
+handed the same table, while ``matrices_sha256`` is an ANSWER on three ops
+and an OPERAND on a fourth — ``isotypic_projector`` echoes
+``rep['matrices_sha256']`` verbatim and returns its own answer under
+``projectors_sha256``. No name-match can tell those apart.
 
-⚠️ **EXPECTED, AND IT IS THE DRAIN WORKING, NOT A BUG.** ``emitted_over_drivable``
-reads ``tests/example_args_ledger.ndjson`` live. rc462's own ledger regen adds
-this rc's new ζ-dialect ops (``induced_representation``, ``zeta_conjugate``,
-and the widened ``character_of`` / ``decompose_representation`` /
-``isotypic_projector``) to the drivable set — up to eight of the nineteen
-lexical residuals below. When that lands, ``test_no_drivable_op_emits_an_
-undeclared_content_address`` goes RED until each new pair is declared, and
-``CEIL_UNDECLARED_LEXICAL`` must be LOWERED in the same commit. That is
-exactly the property this file exists for: a new op is covered by DECLARING
-it, not by remembering to hand-write a ``test_g14``. Resolve it by adding
-``Decl``s, never by widening a skip.
+⚠️ **THE RIPPLE COLUMN IS THE DRAIN WORKING, AND IT PREDICTED ITSELF.**
+``emitted_over_drivable`` reads ``tests/example_args_ledger.ndjson`` live,
+and this paragraph previously forecast that rc462's own ledger regen would
+add the new ζ-dialect ops and take "up to eight of the nineteen lexical
+residuals". EIGHT is what it took, and it found more besides.
+
+The six tier-3/4 readouts — ``central_idempotents`` / ``character_of`` /
+``decompose_representation`` / ``frobenius_schur_indicator`` /
+``fusion_multiplicities`` / ``isotypic_projector`` — emit **sixteen**
+content addresses between them, and NOT ONE was visible to this gate when it
+was written. Their ledger rows predated rc460's ``cayley_sha256`` bind, so
+the harvested args made every one of those ops RAISE, and
+``emitted_over_drivable`` skips an op that raises. Sixteen shipped Class-A
+fields that no instrument in the tree could see, surfaced by repairing a
+ledger rather than by anyone going to look for them. That is the whole
+difference between a drain and a ratchet.
+
+The resolution is always the same: add a ``Decl`` naming the KIND and lower
+``CEIL_UNDECLARED_LEXICAL`` in the same commit. Never widen a skip.
 
 No numpy. No ``hashlib``. No ``abs()`` — all three checked by AST walk, not
 substring, because a substring scan cannot tell a ban from its own statement.
@@ -86,16 +104,20 @@ import content_address as ca  # noqa: E402
 from srmech.amsc.format import sha256_bytes  # noqa: E402
 
 # ── FLOORS. A strict-zero sweep over an EMPTY set passes; these stop that.
-MIN_DECLARED_OPS = 29
-MIN_DECLARED_PAIRS = 55
+MIN_DECLARED_OPS = 37
+MIN_DECLARED_PAIRS = 75
 
 #: DOWN-ONLY CEILING on the residual the drain has not reached: ops whose
 #: emitted ``returns`` prose promises a content address but which the
 #: example-args ledger cannot drive, so the strict-zero clause above cannot
 #: see them. Same shape as `tests/test_ref_notation_emitted_rc348.py` — strict
 #: zero on the decidable class, a draining ceiling on the rest. It may only
-#: go DOWN. MEASURED 19 at rc462.
-CEIL_UNDECLARED_LEXICAL = 19
+#: go DOWN. MEASURED 19 when this gate was written, and 11 by the end of
+#: the SAME rc: the ripple stage's ledger regen repaired six tier-3/4 rows
+#: whose stale args made their ops RAISE, and an op that raises emits
+#: nothing, so the drain could suddenly SEE them. Eight ops left this
+#: residual in one step, without anyone writing a gate for any of them.
+CEIL_UNDECLARED_LEXICAL = 11
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -480,9 +502,9 @@ def test_a_shared_field_name_does_not_mean_a_shared_address():
                 same += 1
             else:
                 differ += 1
-    assert same + differ == 61, (same, differ)
-    assert same == 15, same
-    assert differ == 46, differ
+    assert same + differ == 142, (same, differ)
+    assert same == 34, same
+    assert differ == 108, differ
     assert same > 0 and differ > 0, "the split must have BOTH halves"
 
 

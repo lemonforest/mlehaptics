@@ -287,7 +287,45 @@ CEIL_FRAME_UNADJUDICATED = {
     # NOT_ADMISSIBLE. Re-harvesting with `--only-stale` leaves every unchanged
     # row byte-identical and the count is 171. See the longer note at
     # CEIL_UNSYNTHESIZABLE_PARAMS in tests/test_synth_args_provenance_rc430.py.
-    "NO_INT_INPUT": 171,    # nothing translatable along a frame axis
+    # rc462 (`#T1179`, the ripple stage): 171 -> 172, and the raise comes with
+    # the drain that makes it a net GAIN rather than a loss. MEASURED by
+    # censusing the same tree twice, once against the committed ledger and once
+    # against the full re-harvest, so every move below is attributed:
+    #
+    #     induced_representation   NO_ARG         -> NOT_ADMISSIBLE
+    #     zeta_conjugate           NO_ARG         -> NOT_ADMISSIBLE
+    #     triality_companions      NO_ARG         -> NO_INT_INPUT
+    #     rational_div             NOT_ADMISSIBLE -> NO_ARG
+    #
+    # NO_ARG 282 -> 280, NO_INT_INPUT 171 -> 172. THE GATE WAS ALREADY RED AT
+    # THIS RC'S HEAD and this stage is what turned it green: rc462 registered
+    # two ops without an example-args row for either, so both landed in NO_ARG
+    # and pushed it to 282 against its ceiling of 280. Regenerating the ledger
+    # is what bound them, and a bound op gets a real verdict.
+    #
+    # The +1 here is `srmech.physics.qm.triality.triality_companions`, and it
+    # is `genome_group` / `render_template` VERBATIM — an op that DRAINED OUT
+    # of NO_ARG and landed one tier along in the same structural class, not a
+    # new excuse. It is strictly MORE information than the row it replaces:
+    # NO_ARG says the probe could not reach the op at all, NO_INT_INPUT says
+    # the probe reached it and MEASURED that it has no integer input to
+    # translate. Structurally correct too — the op returns the so(8) companion
+    # maps for a fixed frame and takes no coordinate at all.
+    #
+    # `rational_div`'s move is the one genuine loss, and it is a FOSSIL being
+    # corrected rather than a regression: its committed row recorded `(19, 20)`
+    # / `(9991, 10000)` TUPLES, and the op's snippet has not passed tuples
+    # since the Class-N precision migration made `rational_add` return `Q`.
+    # rc461 met the same flip and chose `--only-stale` to preserve the row.
+    # ⚠️ THAT ADVICE IS WITHDRAWN HERE, WITH THE MEASUREMENT THAT WITHDRAWS IT:
+    # `--only-stale` keys on the snippet-text hash, so it also preserved six
+    # tier-3/4 rows whose args predated rc460's `cayley_sha256` bind and now
+    # make their ops RAISE — and an op that raises emits nothing, so SIXTEEN
+    # shipped content addresses stayed invisible to
+    # tests/test_content_address_class_rc462.py for a whole release. Keeping a
+    # ceiling at 171 by declining to re-measure is the instrument-blind class,
+    # not a saving.
+    "NO_INT_INPUT": 172,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
     # rc461 part 3 (`#T1183`): 15 -> 17, and the split across the five new ops
     # is the point rather than the total. FIVE ops were registered; only TWO
