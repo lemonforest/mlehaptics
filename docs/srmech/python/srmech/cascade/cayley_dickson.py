@@ -42,7 +42,7 @@ What it attests (each a bit-exact, exact-rational witness):
   lost") — exact-rational, no float, no ``abs()``.
 
 **Exact-rational, numpy-free.** Every component is a :class:`srmech.math.q.Q`
-(#845: srmech's C-native exact-rational carrier, not stdlib ``fractions``);
+(`#T845`: srmech's C-native exact-rational carrier, not stdlib ``fractions``);
 the construction needs only ``+``, ``−``, ``×`` and the Class-K sign-flip (never
 ``abs()`` — sign is the Class-K pin-slot per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``). The integer
@@ -96,7 +96,7 @@ from srmech.math.cyclic import (              # Class-I cyclic (native); NOT std
     gcd as _gcd,
     mod_add as _mod_add,                      # (i+j) mod n — the group-ring lane
 )
-from srmech.math.q import Q, to_q            # #845: the CD element carrier is Q
+from srmech.math.q import Q, to_q          # `#T845`: the CD element carrier is Q
 from srmech.math.modular_linalg import gf_rref  # Class-I GF(2) solve — the zero-
 #                                          divisor support system (rc395, `#T1000`)
 from srmech.math.qmat import QMat             # rc437 (`#T1142`): the exact-ℚ solve
@@ -264,7 +264,7 @@ def _is_pow2(n: int) -> bool:
 
 def _coerce_frac(x: Any) -> Q:
     """Coerce one scalar to an exact :class:`~srmech.math.q.Q` — the CD element
-    carrier (#845: srmech's C-native exact rational, not stdlib ``fractions``).
+    carrier (`#T845`: srmech's C-native exact rational, not stdlib ``fractions``).
     A ``Q`` passes through unchanged; every other exact-rational scalar (``int`` /
     ``float`` / a stdlib ``fractions.Fraction`` / another ``as_integer_ratio``-able
     carrier / a ``(num, den)`` pair) rides :func:`srmech.math.q.to_q`, so the

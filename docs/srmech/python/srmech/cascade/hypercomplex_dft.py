@@ -138,7 +138,7 @@ _BRACKETINGS = ("left_associated", "right_associated")
 # byte-exact reproducible by a C-only host (`srmech_hypercomplex_couple_q61`) —
 # no float boundary except the final projection. Closes the rc12
 # sed_couple/sed_uncouple transitive-ratchet allowlist.
-from srmech.math.q import Q                               # #845: exact float→ℚ boundary
+from srmech.math.q import Q                          # `#T845`: exact float→ℚ boundary
 from srmech.math.rational import _q61_fxmul               # Q61 fixed-point multiply
 from .cayley_dickson import cd_basis_product as _cd_basis
 # (`_q61_int` is the module-local Q-int projector defined above.)

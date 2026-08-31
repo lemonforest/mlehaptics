@@ -69,12 +69,12 @@ from __future__ import annotations
 import functools
 from typing import Dict, List, Sequence, Tuple
 
-from srmech.math.q import Q, to_q             # #845: exact-ℚ carrier (was Fraction)
+from srmech.math.q import Q, to_q           # `#T845`: exact-ℚ carrier (was Fraction)
 
 from srmech.math import rational as _srn
 
 from srmech.cascade import magnitude as _magnitude
-from srmech.cascade import best_rational_signed as _brs  # #845: signed float→ℚ snap
+from srmech.cascade import best_rational_signed as _brs  # `#T845`: signed float→ℚ
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat
 from srmech.math.laplacian import (
@@ -288,7 +288,7 @@ def _rank_exact(columns: Sequence[Sequence[Number]]) -> int:
     n_rows = len(columns[0])
     # Build the (n_rows, n_cols) rational matrix (columns → rows of Aᵀ form is
     # unnecessary; rank(A) == rank of the row-reduced (n_rows, n_cols) matrix).
-    # #845: each coord snapped to denominator ≤ 10^12 — the old
+    # `#T845`: each coord snapped to denominator ≤ 10^12 — the old
     # ``Fraction(x).limit_denominator(10**12)`` via the SIGNED Class-K∘N∘C cascade
     # ``best_rational_signed`` (strips the sign at the Class-K pin-slot, best-
     # rationals the non-negative magnitude, reapplies the sign). Handles the

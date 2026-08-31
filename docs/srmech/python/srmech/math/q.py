@@ -132,7 +132,7 @@ def _as_pair(value):
             and value[1] != 0):
         return (value[0], value[1])
     # Any other exact-rational carrier — a stdlib ``fractions.Fraction`` or another
-    # ``numbers.Rational`` (#845: srmech ops now return ``Q``, so a caller's stray
+    # ``numbers.Rational`` (`#T845`: srmech ops now return ``Q``, so a caller's stray
     # ``Fraction`` must still compare/combine with a ``Q`` — ``Q * Fraction`` and
     # ``Fraction * Q`` both route here). ``Q`` / ``int`` are handled above; a
     # ``float`` is not a ``Rational`` (it took its own exact-ratio branch).
@@ -635,7 +635,7 @@ numbers.Rational.register(Q)
 
 def to_q(value) -> "Q":
     """Coerce ``value`` to an exact :class:`Q` — the single-argument drop-in for
-    ``fractions.Fraction(value)`` inside srmech's OWN exact-rational math (#845
+    ``fractions.Fraction(value)`` inside srmech's OWN exact-rational math (`#T845`
     self-hosting: srmech carries its rationals in the C-native ``Q`` carrier, not
     stdlib ``fractions``). Accepts exactly what a one-arg ``Fraction(...)`` accepts
     and srmech speaks natively:

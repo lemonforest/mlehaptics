@@ -549,7 +549,7 @@ def _coerce_scalar(value) -> "Q | None":
     # Any other exact-rational carrier (a stdlib ``fractions.Fraction``, a
     # ``decimal.Decimal``, another registered ``numbers.Rational``) via the
     # numeric ``as_integer_ratio`` protocol — no ``fractions`` import needed
-    # (#845). ``float`` is already rejected above.
+    # (`#T845`). ``float`` is already rejected above.
     pair = getattr(value, "as_pair", None) or getattr(value, "as_integer_ratio", None)
     if pair is not None:
         try:

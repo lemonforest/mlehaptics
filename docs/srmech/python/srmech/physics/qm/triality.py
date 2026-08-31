@@ -76,7 +76,7 @@ from __future__ import annotations
 import functools
 from typing import Dict, List, Sequence, Tuple
 
-from srmech.math.q import Q, to_q              # #845: exact-ℚ solver carrier
+from srmech.math.q import Q, to_q             # `#T845`: exact-ℚ solver carrier
 
 from srmech.math import rational as _srn
 

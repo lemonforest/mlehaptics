@@ -847,11 +847,11 @@ def separate_frame_curvature(a, b):
 # rational bisection (Class N anchors → the algebraic asymptote) → one FPU lift —
 # the eigenvalues come out exact-to-arbitrary-precision and well-conditioned.
 
-from srmech.math.q import Q, to_q  # noqa: E402  (#845: exact-ℚ carrier, was Fraction)
+from srmech.math.q import Q, to_q  # noqa: E402  (`#T845`: exact-ℚ, was Fraction)
 
 
 def _FR(num, den=1):
-    """The exact-ℚ carrier factory (srmech :class:`~srmech.math.q.Q`; #845 — was
+    """The exact-ℚ carrier factory (srmech :class:`~srmech.math.q.Q`; `#T845` — was
     ``fractions.Fraction`` aliased ``_FR``). Kept as the module's rational factory
     so the root-isolation ``_FR(...)`` call-sites are unchanged: one-arg coerces an
     int / float / ``Fraction`` / ``Q`` via :func:`~srmech.math.q.to_q` (``_FR(coeff)``

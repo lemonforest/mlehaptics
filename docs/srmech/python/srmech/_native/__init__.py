@@ -9381,7 +9381,7 @@ def sturm_isolate_c(cp, bits):
     ``_isolate_real_roots`` oracle). BYTE-IDENTICAL to that oracle: the same monic
     factors, the same Sturm chain, the same deterministic subdivision -> the same
     reduced-``Fraction`` endpoints."""
-    from srmech.math.q import Q as _Fr  # #845: exact-ℚ interval carrier (was Fraction)
+    from srmech.math.q import Q as _Fr  # `#T845`: exact-ℚ interval (was Fraction)
     if not has_native_sturm_isolate():
         return None
     n = len(cp) - 1
@@ -9439,7 +9439,7 @@ def complex_isolate_c(cp, bits):
     pure ``_isolate_complex_roots_upper`` oracle). STRUCTURALLY-IDENTICAL to that
     oracle: the same box subdivision, the same argument-principle counts, the same
     refined-center Fractions."""
-    from srmech.math.q import Q as _Fr  # #845: exact-ℚ interval carrier (was Fraction)
+    from srmech.math.q import Q as _Fr  # `#T845`: exact-ℚ interval (was Fraction)
     if not has_native_complex_isolate():
         return None
     n = len(cp) - 1
