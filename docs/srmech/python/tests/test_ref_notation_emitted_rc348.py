@@ -782,6 +782,24 @@ SCAN_ROOTS = {
     # the reason `docs/srmech/c` has to be declared rather than inferred.
     "tests/test_cascade_catalog_prose_currency_rc454.py": (
         "docs/srmech/python", "docs/srmech/c"),
+    # rc462 (`#T1179`): the γ = 0 kernel gate reads
+    # `c/src/srmech_cayley_dickson.c` and the `c/test/*.c` census, and it has no
+    # choice. The Cayley–Dickson cocycle ships as TWO projections that must move
+    # together; the C one is a `static` function (`cd_gamma_basis`), and ZERO
+    # files in `c/test/` `#include` a `../src/*.c`, so the C tests LINK the
+    # library and cannot see it. That census is itself one of the gate's
+    # assertions — it is the executable reason rc462 fixed the γ = 0 arm instead
+    # of making it raise there, since a C-side refusal would be a permanently
+    # unreachable branch. Python-side is checked by AST, but the C half has no
+    # AST to walk, so the source is read with `test_jpl_audit._mask_c_literals`
+    # applied first: this rc's own comments quote the removed spelling verbatim,
+    # and a raw substring scan cannot tell a ban from its own statement.
+    #
+    # Landed WITHOUT this entry first and reddened
+    # `test_no_test_reaches_out_of_tree_without_declaring_it` — the same guard,
+    # doing the same job, on the next gate to reach. `docs/srmech/**` watches it.
+    "tests/test_gamma_zero_kernel_rc462.py": (
+        "docs/srmech/python", "docs/srmech/c"),
     # rc450 (`#T1160`): the BLOCKED-agreement gate reads two committed NDJSON
     # artifacts under notes/ — the rc445 gate matrix and the gh #1653 gap
     # ledger — and asserts the ratchet's BLOCKED table agrees with both. It has
