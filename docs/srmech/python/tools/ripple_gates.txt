@@ -9,6 +9,18 @@
 # The meta-test tests/test_ripple_manifest_covers_known_gates.py guarantees this
 # list cannot silently drop a known family.
 #
+# LINE ENDINGS -- MEASURED at rc462, because the standing instruction to
+# 'append in CRLF' is a WORKING-TREE statement and reads as a repository one.
+# The committed blob is LF-only and always has been: 0 CR at 5d22efbcc, at
+# rc461 tip and after the rc462 append. The CRLF a Windows checkout sees is
+# produced by core.autocrlf=true and normalised back on commit. So: edit and
+# commit this file from the SAME checkout you read it in. Writing literal CR
+# bytes here and committing from a POSIX checkout with autocrlf=false would
+# put CR into the blob for the first time and give the file mixed endings
+# depending on who wrote each line. tools/ripple_check.py strips CR when
+# resolving targets, so a mixed file still RUNS -- which is exactly why the
+# damage would be silent.
+#
 # EXCLUDED on purpose (documented in RIPPLE_GATES.md):
 #   test_mcp.py as a WHOLE FILE -- it spins a real socket SSE server + subprocess
 #     round-trips that hang a fast runner (measured: >90s, no clean exit). But
