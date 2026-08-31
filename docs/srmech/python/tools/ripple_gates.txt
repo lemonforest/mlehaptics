@@ -760,3 +760,62 @@ tests/test_so8_automorphism_bind_rc461.py
 #    at private seams (the monovariant law, and the step-bound backstop that
 #    is otherwise mathematically unreachable). ~25 s.
 tests/test_affine_kac_walton_rc461.py
+#
+# -- rc462 (`#T1179`) - THE ZETA WIDENING, ITS PRODUCER, AND ITS GATES --------
+#
+#    test_rep_hash_stability_rc462 is the pin that made the widening safe to
+#    attempt: 25 fixtures DERIVED from the shipped constructors, with every
+#    existing Q-payload matrices_sha256 carried as a literal BEFORE
+#    _rep_matrices_bytes was touched. A moved Q hash is silent, wheel-borne and
+#    irreversible, so this file is what converts the rc's riskiest edit into a
+#    red/green fact. ~11 s.
+#
+#    test_groups_zeta_dialect_rc462 pins the Q(zeta_e) cell grammar, its
+#    producer and the four widened consumers - and the three refusals, each
+#    with a NAMED law and proved REACHABLE with a payload that passes the
+#    checker first. It is a ripple gate in the strict sense: it pins the
+#    registry rows of two new ops.
+#
+#    test_gamma_zero_kernel_rc462 reaches the PRIVATE Cayley-Dickson cocycle,
+#    because the +-1 validator makes a public-API test pass VACUOUSLY here. It
+#    holds 127 gamma vectors / 299593 cells unmoved on the shipped domain, 39/39
+#    patterns against an independent recursion (the pre-rc462 spelling scores
+#    14/39), and the TRIPWIRE that gamma=0 is still refused at all four public
+#    entries - so an rc that opened the contract cannot land quietly. ~16 s.
+#
+#    test_g2_certificate_rc462 closes rc461's named coverage gap without the
+#    census that breaches the 30-minute CI ceiling in three cells: 1344 calls
+#    collapse to 10 because the monomial locus is AGL(3,2), proved by
+#    orbit-stabiliser over all 168 fibres plus a two-generator BFS closure that
+#    equals the enumeration as a SET. The enumeration itself stays in-tree as an
+#    env-gated oracle. ~88 s cold, ~17 s alongside test_so8_automorphism_bind.
+#
+#    test_content_address_class_rc462 is the CLASS gate that replaces the
+#    hand-written test_g14 ratchet: 29 ops / 55 (op, field) pairs declared in
+#    tools/content_address.py, strict-zero in BOTH directions against what the
+#    ops actually emit when driven from the example-args ledger, five kinds each
+#    executed by a NAMED function, seven planted-defect arms, and a lexical scan
+#    over emitted `returns` prose for what the drive cannot reach. It reds on a
+#    new undeclared content-address field - which is the point. ~124 s.
+tests/test_rep_hash_stability_rc462.py
+tests/test_groups_zeta_dialect_rc462.py
+tests/test_gamma_zero_kernel_rc462.py
+tests/test_g2_certificate_rc462.py
+tests/test_content_address_class_rc462.py
+#
+# -- rc462 - SIX REGISTRATION-SENSITIVE GATES THAT WERE NEVER LISTED ----------
+#
+#    MEASURED at rc462: 46 tests/ files match rc4[4-9][0-9] and 20 were absent
+#    from this manifest - 15 of them predating this rc. These six are the
+#    registration-sensitive subset, and three of them (representation / tier3 /
+#    rho) gate exactly the rep-payload surface rc462 edits, so an unlisted
+#    resolver would have skipped the gates most likely to catch this rc.
+#    The remaining nine absentees are a standalone sweep, deliberately outside
+#    an rc. Cost of the six, measured together on the numpy-absent cell:
+#    253 passed in 140.58 s.
+tests/test_exact_return_carrier_rc444.py
+tests/test_pinned_names_carry_no_value_rc447.py
+tests/test_groups_representation_rc456.py
+tests/test_groups_tier3_rc457.py
+tests/test_groups_rho_rc458.py
+tests/test_weight_lattice_rc460.py
