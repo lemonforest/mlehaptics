@@ -80,6 +80,16 @@ The gate goes red on demand: a planted R1-only demoter is rejected in-process, i
 
 `test_exact_return_carrier_rc444.py`'s `exact=` census scanned only `(laplacian, triality)`, so `einsum` could not have appeared in it **even if it had declared `exact=`**. The scan now covers the cascade modules.
 
+### 7. Three things this rc asserted from reasoning and had to correct against a run
+
+Worth recording, because the rc is *about* the difference between a claim and a measurement — and it caught itself three times.
+
+* **`lstsq_exact` quoted a float result that does not occur on this tree.** Both surfaces said `[1.28e-15, 0.9999999999999997]`. Re-measured: the overdetermined witness gives `[7.691850745534256e-16, 0.9999999999999999]`, and the ill-conditioned square gives `[0.5, 0.5]` — the float route can no longer tell the two columns apart and splits the answer evenly between them. Wrong shape *and* wrong numbers. The same sweep found that float `lstsq`'s "honest to round-off" contract has a **hard-failure** regime as well as an inaccurate one: some near-singular operands raise `ZeroDivisionError` from the zero-pivot guard.
+* **`sin_2pi_over_n` over-attributed its `composes`.** It declared `cyclotomic_polynomial`; the derivation says its one call edge is `srmech.math.cyclic.gcd` — it reaches the cyclotomic polynomial only through `lcm(n, 4)` and a private reduction helper. `composes` is a claim-is-TRUE contract, not a statement of intent, and the population gate refused it.
+* **`fir` / `matched_filter` read as CLEAN under a pure-Python measurement.** They demote only on the native path, so the first run — taken before a library had been built into this worktree — reported the opposite of the truth. The instrument, not the op, was what that run measured.
+
+**And one gap that does NOT close with the registrations, recorded rather than left silent (ADR-0009).** The six `qmat_*` ops make the exact-ℚ linear algebra *reachable*; they do not make it *claimed*. `gen_c_claims` attributes a symbol by walking bytecode, and `QMat.from_rows(rows).det()` names `det`, not `srmech_qmat_det` — the walk cannot reach through a class attribute to a bound method. So `srmech_qmat_rank` / `_det` / `_inverse` / `_solve` are still claimed by nobody, exactly as `srmech_svd_f64` was until this rc. Measured, not assumed: `_nullspace` / `_rref` / `_entry_cap` / `_ws_bound` ARE claimed, through an op that names them directly. Closing it is a change to the generator's resolution rule, not to these wrappers.
+
 ### 6. The graph builders gain an exact rung, and the module becomes self-consistent
 
 `jacobi_eigvals(dense_laplacian(...), exact=True)` **raised** through rc462: the exact Class-L route demands `int` / `Fraction` / `Q` entries and the module's own canonical Laplacian builder could only produce floats, so the exact spectrum was reachable only by hand-building the matrix. `dense_adjacency` / `dense_laplacian` / `signed_laplacian` gain `exact=True` returning `list[list[Q]]`; the composition now runs. `dense_adjacency`'s demotion was the transpose-shaped one — a single integer weight, **no arithmetic performed on it**, changed on the way in.
