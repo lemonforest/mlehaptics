@@ -44,13 +44,40 @@ on mismatch). ``Qalg`` is NOT registered with ``numbers.Complex`` /
 (the rc10/rc11 ``Fraction``-protocol trap), so ``Qalg`` stays a standalone exact
 carrier with just the dunders documented here. No ``math`` module, no
 ``float`` in the algebra (only at the terminal projection).
+
+**Cyclotomic trigonometry (v0.9.0rc463, `#T1188`).** The module also ships the
+two named constructors :func:`cos_2pi_over_n` and :func:`sin_2pi_over_n`, which
+return ``cos(2π/n)`` and ``sin(2π/n)`` as EXACT ``Qalg`` elements over a
+cyclotomic minimal polynomial ``Φ`` — no float, no series truncation, no
+``math`` module. They are the bottom-up carrier-native answer to the
+``math.cos(2*pi/n)`` shortcut: the value is not approximated and then
+rationalised, it is CONSTRUCTED in the field where it already lives.
 """
 
 from __future__ import annotations
 
+from .cyclic import gcd as _gcd
+from .poly import cyclotomic_polynomial
 from .q import Q
 
-__all__ = ["Qalg"]
+__all__ = [
+    "MAX_CYCLOTOMIC_INDEX",
+    "Qalg",
+    "cos_2pi_over_n",
+    "sin_2pi_over_n",
+]
+
+#: The measured index cap shared by :func:`cos_2pi_over_n` and
+#: :func:`sin_2pi_over_n`. The cost of both ops is set by the DEGREE of the
+#: field they build (``φ`` of the cyclotomic index), and exact ``Q``
+#: multiplication in a degree-``d`` field is ``O(d²)`` rational operations.
+#: Measured on this tree at the cap: ``cos_2pi_over_n`` worst case ``n = 255``
+#: at 0.06 s; ``sin_2pi_over_n`` worst case ``n = 251`` (field ``Φ_1004``,
+#: degree 500) at 1.20 s. One index above the cap, ``n = 257``, already puts
+#: ``sin`` in a degree-512 field at 1.64 s, and ``n = 509`` at 6.40 s. The cap
+#: matches the sibling ``srmech.math.laplacian.cyclic_laplacian_spectrum``,
+#: which bounds the SAME ℚ(ζ_n) carrier at the same 256 for the same reason.
+MAX_CYCLOTOMIC_INDEX = 256
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
@@ -525,3 +552,176 @@ class Qalg:
             raise ValueError(
                 f"Qalg.to_float: value has a nonzero imaginary part ({z!r})")
         return z.real
+
+
+# ── cyclotomic trigonometry (rc463, `#T1188`) ────────────────────────────────
+def _validated_index(n, where: str) -> int:
+    """The shared Class-J index guard for the cyclotomic trig constructors.
+
+    ``n`` must be a plain ``int`` (``bool`` is refused — ``True`` is not the
+    index 1), at least 1, and at most :data:`MAX_CYCLOTOMIC_INDEX`. Returns
+    ``n`` so the caller can use the guard inline."""
+    if isinstance(n, bool) or not isinstance(n, int):
+        raise TypeError(
+            f"{where}: n must be a plain int (the cyclotomic index); "
+            f"got {type(n).__name__}")
+    if n < 1:
+        raise ValueError(f"{where} requires n >= 1; got {n}")
+    if n > MAX_CYCLOTOMIC_INDEX:
+        raise ValueError(
+            f"{where} requires n <= {MAX_CYCLOTOMIC_INDEX} "
+            f"(the measured field-degree cap); got {n}")
+    return n
+
+
+def _cyclotomic_m(index: int):
+    """The monic ℤ[x] minimal polynomial ``Φ_index`` as the ASCENDING int tuple
+    ``Qalg`` wants for its ``m`` — Class J, the divisor-lattice construction in
+    :func:`srmech.math.poly.cyclotomic_polynomial`."""
+    return tuple(cyclotomic_polynomial(index)["coefficients"])
+
+
+def cos_2pi_over_n(n: int) -> "Qalg":
+    """``cos(2π/n)`` as an EXACT :class:`Qalg` element of ℚ(ζ_n) = ℚ[x]/(Φ_n).
+
+    The returned element IS the cosine — no float, no series, no rational
+    approximation. With ``α = ζ_n`` the class of ``x`` in ℚ[x]/(Φ_n),
+
+        ``cos(2π/n) = (ζ + ζ⁻¹) / 2``  and  ``ζ⁻¹ = ζ^(n−1)``,
+
+    so the whole construction is one power, one add and one exact halving in
+    the ``Q`` coordinate ring. The minimal polynomial of the returned element
+    is ``Φ_n`` and its ``.coords`` are ``φ(n)`` exact ``Q`` in the ``α`` power
+    basis, ASCENDING.
+
+    **Cascade composition.** Class J (the cyclotomic divisor lattice that
+    builds ``Φ_n``) ∘ Class N (the exact rational coordinates the value is
+    carried in) ∘ Class C (the ζ rotation — ``ζ`` and ``ζ⁻¹`` are the two
+    chiralities of the same turn, and the cosine is their symmetric part).
+    No ``abs`` anywhere: the ``−1/2`` coordinates below are ordinary field
+    coordinates, not a stripped sign.
+
+    Args:
+        n: the cyclotomic index, ``1 <= n <= MAX_CYCLOTOMIC_INDEX`` (256).
+            ``TypeError`` for a non-``int`` (``bool`` included);
+            ``ValueError`` outside the range.
+
+    Returns:
+        ``Qalg`` over ``m = Φ_n``, with ``root=None`` — no embedding is
+        attached, because computing ``e^(2πi/n)`` would need exactly the FPU
+        transcendental this op exists to avoid. Attach one yourself with
+        ``.with_root(...)`` when you want the terminal projection.
+
+    Worked anchors::
+
+        cos_2pi_over_n(8)
+        # -> Qalg((1, 0, 0, 0, 1), (Q(0, 1), Q(1, 2), Q(0, 1), Q(-1, 2)))
+        #    i.e. (ζ₈ − ζ₈³)/2 = √2/2, over Φ₈ = x⁴ + 1
+        cos_2pi_over_n(3).as_rational()
+        # -> Q(-1, 2)
+        cos_2pi_over_n(5).is_rational()
+        # -> False
+
+    **The rationality verdict is decidable, and it is Niven's theorem.**
+    ``cos_2pi_over_n(n).is_rational()`` is ``True`` for exactly
+    ``n ∈ {1, 2, 3, 4, 6}`` — measured over ``n = 1..24``, not asserted — which
+    is precisely the classical statement that the only rational cosines of
+    rational multiples of ``2π`` are ``0, ±1/2, ±1``. A float cosine plus a
+    tolerance cannot return that verdict; this element can.
+
+    See also:
+        :func:`sin_2pi_over_n` — the sine peer. Read its field note first: it
+        does NOT return over ``Φ_n`` unless ``4 | n``.
+
+    Note:
+        Exact ``Q`` throughout; no ``abs``; no ``math``; no float.
+    """
+    _validated_index(n, "cos_2pi_over_n")
+    zeta = Qalg.alpha(_cyclotomic_m(n))
+    # Class C: the +turn and the −turn of the same rotation. ζ⁻¹ = ζ^(n−1)
+    # because ζⁿ = 1; at n = 1 that is ζ⁰ = 1, which is also ζ itself.
+    return (zeta + zeta ** (n - 1)) * Q(1, 2)
+
+
+def sin_2pi_over_n(n: int) -> "Qalg":
+    """``sin(2π/n)`` as an EXACT :class:`Qalg` element of ℚ(ζ_N), **where
+    N = lcm(n, 4)** — the returned value is the sine ITSELF, not ``i·sin``.
+
+    ⚠️ **Read the field.** The sine of ``2π/n`` is generally NOT an element of
+    ℚ(ζ_n). ``sin(2π/n) = (ζ − ζ⁻¹)/(2i)``, and ``i ∈ ℚ(ζ_n)`` only when
+    ``4 | n``; when it is absent, ``(ζ − ζ⁻¹)/2`` lies in ℚ(ζ_n) but the sine
+    does not (if ``x`` and ``x/i`` were both in a field ``K`` then ``i`` would
+    be too). So this op works over ``N = lcm(n, 4)``, the cyclotomic index that
+    carries ``ζ_n`` AND ``i = ζ_4`` at once. With ``ω = ζ_N``::
+
+        ζ_n = ω^(N/n),   i = ω^(N/4),   sin(2π/n) = (ω^(N/n) − ω^(−N/n)) / (2i)
+
+    Every factor is inside ℚ(ζ_N), so the ``1/i`` is DIVIDED OUT rather than
+    carried, and what comes back is the real number ``sin(2π/n)``: its minimal
+    polynomial is ``Φ_N``, its ``.coords`` are ``φ(N)`` exact ``Q``. The
+    alternative — returning ``(ζ − ζ⁻¹)/2 = i·sin(2π/n)`` over ``Φ_n``, which
+    is cheaper for ``4 ∤ n`` — was measured and REJECTED: a function named
+    ``sin`` must not answer ``i·sin``, and the saving is at most one factor of
+    two in the field degree (``φ(lcm(n, 4)) = 2·φ(n)`` when ``4 ∤ n``, and
+    ``= φ(n)`` when ``4 | n``).
+
+    **This op never refuses on constructibility.** ``sin(2π/n)`` is an
+    algebraic number in a cyclotomic field for EVERY ``n >= 1``, so there is no
+    "n that admits it" and no n that does not. The only refusals are the shared
+    index guard's: type, ``n < 1``, and the degree cap.
+
+    **Composing with the cosine.** :func:`cos_2pi_over_n` returns over ``Φ_n``.
+    The two fields COINCIDE exactly when ``4 | n``, and there
+    ``cos_2pi_over_n(n)**2 + sin_2pi_over_n(n)**2 == 1`` composes directly.
+    When ``4 ∤ n`` they are different fields and ``Qalg``'s ``_same_field``
+    guard will (correctly) raise on a mixed binary op — lift the cosine into
+    ℚ(ζ_N) yourself as ``(ω^(N/n) + ω^(−N/n))/2`` first. Measured: the
+    Pythagorean identity then holds exactly for every ``n`` tested.
+
+    **Cascade composition.** Class J (the divisor lattice building ``Φ_N``, and
+    the ``lcm`` that chooses ``N``) ∘ Class N (the exact rational coordinates)
+    ∘ Class C (the ζ rotation — the sine is the ANTI-symmetric part of the two
+    chiralities, which is why the ``1/i`` appears at all). No ``abs``.
+
+    Args:
+        n: the cyclotomic index, ``1 <= n <= MAX_CYCLOTOMIC_INDEX`` (256).
+            ``TypeError`` for a non-``int`` (``bool`` included);
+            ``ValueError`` outside the range.
+
+    Returns:
+        ``Qalg`` over ``m = Φ_{lcm(n, 4)}``, with ``root=None`` (see
+        :func:`cos_2pi_over_n` on why no embedding is attached).
+
+    Worked anchors::
+
+        sin_2pi_over_n(8)
+        # -> Qalg((1, 0, 0, 0, 1), (Q(0, 1), Q(1, 2), Q(0, 1), Q(-1, 2)))
+        #    lcm(8, 4) = 8, so this shares Φ₈ with the cosine — and at n = 8
+        #    the two values coincide: sin(π/4) = cos(π/4) = √2/2.
+        sin_2pi_over_n(12).as_rational()
+        # -> Q(1, 2)     sin(π/6) = 1/2, over Φ₁₂
+        sin_2pi_over_n(5).degree
+        # -> 8           lcm(5, 4) = 20, φ(20) = 8
+
+    **The rationality verdict, measured over ``n = 1..24``:**
+    ``sin_2pi_over_n(n).is_rational()`` is ``True`` for exactly
+    ``n ∈ {1, 2, 4, 12}`` — the sine values ``0, 0, 1, 1/2``. Note this is a
+    DIFFERENT set from the cosine's ``{1, 2, 3, 4, 6}``; ``n = 12`` is rational
+    for the sine and irrational for the cosine (``√3/2``), and ``n = 3`` and
+    ``n = 6`` are the other way round.
+
+    Note:
+        Exact ``Q`` throughout; no ``abs``; no ``math``; no float.
+    """
+    _validated_index(n, "sin_2pi_over_n")
+    # Class J: N = lcm(n, 4), the smallest index whose field carries BOTH the
+    # n-th root of unity and i. gcd is the shipped Class-I op.
+    index = 4 * n // _gcd(n, 4)
+    omega = Qalg.alpha(_cyclotomic_m(index))
+    zeta = omega ** (index // n)                    # ζ_n  (exponent ∈ {1,2,4})
+    imag_unit = omega ** (index // 4)               # i = ζ_4
+    # Class C: (ζ − ζ⁻¹) is the anti-symmetric part of the two chiralities;
+    # dividing by i turns that imaginary quantity into the real sine, inside
+    # the field. inverse() IS ζ^(N−k) here — the cheaper spelling of the same
+    # element (verified equal for every n tested).
+    return (zeta - zeta.inverse()) * imag_unit.inverse() * Q(1, 2)

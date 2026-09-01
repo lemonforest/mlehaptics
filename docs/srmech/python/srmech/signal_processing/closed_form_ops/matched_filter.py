@@ -60,21 +60,37 @@ def op(signal, template, *, mode: str = "full", D: int = 8192):
     list
         Cross-correlation array; the index of the maximum-magnitude entry
         is the most-likely template alignment. Numpy-free (#564).
+
+    Notes
+    -----
+    **Accuracy (rc463, `#T1188`).** An all-integer / Gaussian-integer
+    ``signal`` AND ``template`` take the EXACT integer cascade and the result is
+    the true cross-correlation at any magnitude. **Float** input is genuinely
+    continuous and rides the c_dispatched Toeplitz matvec, accurate **to
+    round-off** (~1 ULP per accumulated term), NOT byte-exact.
+
+    Through rc462 the routing was decided by ``HAS_NATIVE`` alone, so the same
+    integer input returned the exact value on a pure host and a float64-rounded
+    one on a native host — a value divergence between two projections the
+    project holds to be co-equal.
     """
     # composition_of_c (rc149 / B4b): the cross-correlation sum_n a[n+k]·conj(v[n])
     # IS a full convolution of the signal with the reversed-conjugated template,
-    # so when the native dense-matmul is present it routes through
-    # _dsp.correlate_matmul → a Toeplitz matvec through the c_dispatched
-    # srmech_dense_matmul_complex; otherwise the complete numpy-free pure
-    # _dsp.correlate cascade. Both coerce to 1-D lists (ValueError on nested/2-D
-    # / empty input) and return a list; the matmul path is within-tol (not
-    # byte-identical).
+    # so a FLOAT correlation routes through _dsp.correlate_matmul → a Toeplitz
+    # matvec through the c_dispatched srmech_dense_matmul_complex; INTEGER input
+    # takes the exact pure _dsp.correlate cascade on BOTH projections (rc463 —
+    # see _dsp.exact_integer_operands for the measured divergence). Both coerce
+    # to 1-D lists (ValueError on nested/2-D / empty input) and return a list;
+    # the matmul path is within-tol (not byte-identical).
     from srmech import _native
 
+    a_lst = _dsp._as_1d_list(signal, "signal")
+    v_lst = _dsp._as_1d_list(template, "template")
     if (
         _native.HAS_NATIVE
         and _native.LIB is not None
         and hasattr(_native.LIB, "srmech_dense_matmul_complex")
+        and not _dsp.exact_integer_operands(a_lst, v_lst)
     ):
         return _dsp.correlate_matmul(signal, template, mode=mode)
     return _dsp.correlate(signal, template, mode=mode)

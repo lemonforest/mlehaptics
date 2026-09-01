@@ -19,6 +19,74 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc463] - a transpose that changed the value, an exact eigensolver no instrument could see, 39 C symbols claimed by nobody, and the ratchet that asks whether an op declares its INEXACTNESS
+
+**What this rc is for.** `einsum` returned well-formed, plausible, **wrong** numbers for 118 releases, and the reason it survived is not that nobody looked — rc344 audited this exact family and cleared it in as many words. It used a different predicate. Registry **702 → 720**; **ABI stays 24**; **zero C symbols added or removed**. Around the fix: the exact eigensolver made visible, an exact-ℚ linear-algebra surface the tool schema already pointed readers at, three exact peers that needed a name rather than an algorithm, exact cyclotomic trigonometry, an exact SVD, and a four-layer gate whose third layer is the one rc344 lacked.
+
+---
+
+### 1. The correctness fix — `einsum` was a CARRIER defect, and it was TWO paths
+
+`srmech.cascade.matrix_cascades.einsum` accepted exact operands through its own declared entry (`*operands` carries no annotation at all) and routed every one of them through `array('d')`. The sharpest witness carries no arithmetic whatsoever:
+
+```
+einsum("ij->ji", [[2**53 + 1]])
+  rc462:  9007199254740992.0       # a TRANSPOSE that changed the value
+  rc463:  Q(9007199254740993, 1)
+```
+
+**It was not one path, it was two, and this widened the fix.** The rc155 `mat_matmul` fast route demoted, and the *general* index-iteration fallback demoted **independently** — `acc = 0j` at `matrix_cascades.py:562`, `term = complex(1.0, 0.0)` below it. Swapping only the fast path would have left `'ii->'`, `'ij->ji'` and every ≥3-operand contraction still wrong. Both are fixed; all six call shapes are pinned per PATH in the new gate.
+
+**The rc131 carrier-format law gains its exact rung.** All-exact operands (`int` / `Q` / `fractions.Fraction` / `QMat`) run the whole contraction on the exact-ℚ carrier: rank-2 → `QMat`, rank-0 → `Q`, rank-1 and rank-3+ → a `list` of `Q`, because **no exact carrier exists at those ranks** (`Vec` IS `array('d')`) — the same honest fallback rank-3+ already took on the float rung. Float/complex operands are genuinely continuous, keep the `Mat` carrier, and now carry an explicit **to round-off (~1 ULP per accumulated term)** declaration. `_nd_to_lists` also learned `QMat.to_lists`, so the exact path is reachable *from* the carrier it returns.
+
+**No keyword.** `einsum` takes the exact-**carrier** meaning of `exact=`, applied automatically, following the `kron` rc344 precedent — because an opt-in would have left the wrong answer as the default, and the defect *was* that the default was wrong. (`exact=` ships with two meanings in this package: an exact **carrier** — `dense_solve`, `schur_complement`, `dirichlet_to_neumann` — and an exact **route with a declared terminal float lift** — `jacobi_eigvals`. The second was unavailable here: no irrational step forces a lift.)
+
+**"Value-faithful to the NumPy einsum" is RETIRED, not restated.** It shipped on four surfaces (`tool_schema.py`, `_tool_docs.py`, `_tool_docs_curated.py`, and the compiled-in `srmech_tool_registry.c`), reaching users through `describe()`, the MCP tool list and a bare-C host — and it appeals to an oracle **this package cannot run by policy**. Whether numpy would return the exact integer is unmeasured and stays unmeasured.
+
+`separate_frame_curvature` had the same defect *and* a shipped claim that it did not: its docstring asserted bit-exactness on "exactly-float-representable entry" matrices. The governing quantity is the **products**, not the entries — `[[3]]` and `[[3002399751580331]]` have entries float64 holds exactly and a product it does not — so `is_flat`, a published boolean, was derived from a curvature that had already lost its low bit. Exact operands now take `QMat` throughout and `is_flat` is a theorem about the true commutator.
+
+**`fir` / `matched_filter` were a VALUE DIVERGENCE BETWEEN THE TWO PROJECTIONS**, which is worse than a demotion and was found only because the gate ran against a freshly built library. Routing was decided by `HAS_NATIVE` alone: integer input got the exact pure cascade on a pure host and a float64-rounded answer on a native one. Same op, same input, two values, no signal which you had. Integer input now takes the exact cascade on **both** projections.
+
+### 2. The exact eigensolver was invisible, and so was the exact-ℚ linear algebra (+18 tools)
+
+Seven public names in `matrix_cascades.__all__` carried **no `ToolEntry`** — `eigvec_exact`, `eigvec_exact_float`, `factor_integer_poly`, `eig_exact`, `jordan_chains_exact`, `jordan_form_exact`, `separate_frame_curvature`. Several already had C peers in `C_CLAIMS`. The registered `eigvals_exact` entry points readers *at* that family; the family was not in `describe()`, the MCP tool list or the compiled C registry.
+
+**A live wheel falsehood, corrected.** Inside the registered `eigvals_exact` explanation, `_tool_docs_curated.py` told readers exact eigenvectors are `QMat.nullspace(A - lambda*I)` and **"do not build a separate exact-eigenvector op."** Both halves fail for an irrational eigenvalue: `QMat` holds ℚ only, so `A − λI` is not constructible (measured: that route returns `[]`), and the op it forbade had shipped two functions away as `eigvec_exact`. There is a second-order trap in it too — `eigvals_exact` returns **floats**, so a reader following the sentence has no `Qalg` in hand at all; `eig_exact` is the bridge.
+
+**Six `qmat_*` flat ops.** Four shipped entries told readers "RANK / DET / INVERSE / RREF / SOLVE / NULLSPACE … ship on `srmech.math.qmat.QMat`". They do — and **no `QMat` method was a registered tool**, so the registry pointed at a surface it did not expose. They ship as flat functions, not method-shaped entries: measured, **zero of 702** registered names carried a class-method-shaped dotted name, and the invoke path resolves a name against JSON arguments, which cannot carry a receiver. The genome two-layer pattern is the shape that works.
+
+### 3. Exact peers that needed a NAME, not an algorithm
+
+* **`lstsq_exact`** — the exact answer was already computable from shipped parts (`A.T.matmul(A).solve(A.T.matmul(b))` returns the true `[0, 1]` where float `lstsq` returns `[1.28e-15, 0.9999999999999997]`) and was therefore invisible. A float operand is refused by name, not lifted.
+* **`gram_schmidt_exact`** — a **normalised** exact QR is impossible over ℚ (the Householder norm is a square root). The un-normalised object was already exact and already shipping, as the *private* `matrix_cascades._lll_gso`, run on every `lll_reduce` call and reachable only by reading the LLL engine. Promoted verbatim; `_lll_gso` is REMOVED, both call sites rewired. This is explicitly not a rational QR.
+* **`singular_values_exact`** — per-σ exact SVD from four shipped ops: `char_poly(AᵀA)` → the `x → x²` coefficient interleave (σ = √λ means `m_σ(x) = m_λ(x²)`, so **no resultant is needed for a square root**) → `factor_integer_poly`, which is **mandatory** because the substitution can be reducible (measured: `x⁴ − 3x² + 1 = (x² − x − 1)(x² + x − 1)`) → a `Qalg` per irreducible. Per σ, everything lives in ONE field — σ, `σ² = λ` and the right singular vector — which is why the vector comes back exact. **The mixed-σ bound is DECLARED**: distinct irreducible factors put σ's in different fields, a combined `Σ`/`U`/`Vᵀ` needs a compositum, and this op never returns one, so there is no path on which it silently works only when the factors coincide.
+* **`cos_2pi_over_n` / `sin_2pi_over_n`** — exact `Qalg` cyclotomic trigonometry. `cos` lives over `Φ_n`; `sin` lives over **`Φ_lcm(n,4)`**, the field carrying `ζ_n` *and* `i`, so the `1/i` divides out and the returned value is the sine itself rather than `i·sin` behind a disclaimer. `is_rational()` is `True` for exactly `{1,2,3,4,6}` (cos — Niven's theorem arriving as a measurement) and `{1,2,4,12}` (sin).
+
+### 4. Understated parity — 39 C symbols claimed by nobody
+
+`srmech_svd_f64` is declared, defined, ctypes-bound and **called** by `laplacian.mat_svd`, and no entry in `C_CLAIMS` named it. Mechanism: `gen_c_claims.py` harvested only the ledger's `c_dispatched` bucket, and `mat_svd` is classified `composition_of_c` because it *also* composes other C ops. So `svd` read as Python-only while it was C-dispatched — the ledger **understated** parity, the reverse of the direction it was built to watch. Measured across the whole `composition_of_c` bucket: **39** header symbols were in that state, not one. The harvest now covers both buckets; the `UNVERIFIABLE_CLAIMS` ceiling is untouched and keeps meaning exactly what it meant.
+
+### 5. `tests/test_silent_carrier_demotion_rc463.py` — the ratchet
+
+> An op is a **silent carrier demotion** when it accepts an exact operand through its own declared entry, routes it through a float carrier so a derived quantity's significand is truncated to 53 bits, returns the rounded value with no exception/warning/status, publishes **no accuracy declaration a caller could read before calling**, and a carrier that would have computed the same quantity exactly already ships.
+
+**Why rc344 missed it.** rc344 tested `P_claim` — *does the op CLAIM exactness while riding float?* — and wrote, correctly, "it returns a `Mat`, so it never claimed byte-identity." That is **R1 reasoning**: a return-*type* declaration names the container, not the value. The predicate above tests `P_value`, of which `P_claim` is a strict subset.
+
+Four layers. **L0** a vacuity guard (`significand_bits > 53` **and** `float(exact) != exact`) with a negative control — an 806-bit magnitude with a 6-bit significand is rejected, so this measures significand *width*, not operand *scale*. **L1** strict-zero exactness enumerated **per PATH, not per op**, using `_eq_exact` lifted verbatim from `test_residue_c_rc155.py:45`. **L2** a down-only `CEIL_SILENT_DEMOTION = 6` over the residual, so the fix ships unblocked and the rest drains. **L3** the honesty gate — an op that demotes must *declare* it (R3: an accuracy phrase or an `exact=` opt-in), or it is a strict-zero violation rather than a legal ceiling row. **L4** strict-zero on an unqualified "value-faithful to NumPy" claim.
+
+The gate goes red on demand: a planted R1-only demoter is rejected in-process, in CI, with nothing committed. It also **states its blind spots in prose** — a missing manifest row is invisible; there is no branch-coverage oracle; it is one-directional (it cannot catch an op that is exact while its contract calls itself approximate); it measures through Python only; L3's vocabulary is a keyword list whose delegation-follow exists because `matrix_cascades.svd` is documented at its delegate; and bit/byte carriers admit no witness by construction. Four gates in this tree have shipped blind to their own subject; this one is not the fifth.
+
+**Why no existing gate could have caught `einsum`.** Exactly three tests call it; all three draw operands from `random.gauss(0, 1)` and compare through `complex()` at ~1e-9. The largest integer significand in any einsum fixture in the tree was **zero** — and adding an integer fixture alone would still not have caught it, because both hand-written oracles seed `0j` and would have rounded identically. Sharpest of all: `test_residue_c_rc155.py:251` compares einsum with `abs(complex(g) - complex(w)) <= 1e-9`, **170 lines below `_eq_exact` in the same file**, whose docstring condemns exactly that comparison — and `_eq_exact` was applied to `kron` and never to `einsum`.
+
+`test_exact_return_carrier_rc444.py`'s `exact=` census scanned only `(laplacian, triality)`, so `einsum` could not have appeared in it **even if it had declared `exact=`**. The scan now covers the cascade modules.
+
+### 6. The graph builders gain an exact rung, and the module becomes self-consistent
+
+`jacobi_eigvals(dense_laplacian(...), exact=True)` **raised** through rc462: the exact Class-L route demands `int` / `Fraction` / `Q` entries and the module's own canonical Laplacian builder could only produce floats, so the exact spectrum was reachable only by hand-building the matrix. `dense_adjacency` / `dense_laplacian` / `signed_laplacian` gain `exact=True` returning `list[list[Q]]`; the composition now runs. `dense_adjacency`'s demotion was the transpose-shaped one — a single integer weight, **no arithmetic performed on it**, changed on the way in.
+
+`mat_dot` / `mat_outer` / `mat_matvec` are declared rather than fixed, and remain the `CEIL_SILENT_DEMOTION` residual. `mat_dot`'s docstring and `ToolEntry` carried **no precision language of any kind** — the only op in its family for which that was true — while accepting a plain integer list.
+
+
 ## [0.9.0rc462] - the ℚ(ζₑ) rep dialect shipped with the producer that can mint it, a hash-stability gate written before the serializer was allowed to move, a parameter that was read as a decision in both projections, and 1344 calls collapsed to 10 because the locus is AGL(3,2)
 
 **What this rc is for.** rc460 deferred the ℚ(ζₑ) rep-payload widening for a stated reason: *a checker widened alone mints a dialect no producer can write and no consumer can read*. This rc lands the widening **and its first producer as one package**. Registry **700 → 702**; **ABI stays 24**; **zero C symbols added or removed** — the ζ cells cross as plain-int tuples, so no carrier TYPE reaches the wire and no discriminator widens. Around it: the gate that makes the widening safe, a latent kernel defect closed in both projections, a class-wide content-address drain, a 188×-cheaper ±G2 gate, and twenty-four live false hyperlinks removed from shipped source.

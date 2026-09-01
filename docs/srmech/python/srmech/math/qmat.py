@@ -48,7 +48,11 @@ from typing import List, Sequence, Tuple
 
 from .q import Q
 
-__all__ = ["QMat"]
+__all__ = ["QMat",
+           # rc463 (`#T1188`) — the registered flat projection of the exact-ℚ
+           # linear algebra the tool schema already pointed readers at.
+           "qmat_rank", "qmat_det", "qmat_inverse", "qmat_rref", "qmat_solve",
+           "qmat_nullspace"]
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
@@ -1158,6 +1162,61 @@ def _reconstruct_matrix(good_residues, good_moduli, n_rows, n_cols,
     rows = tuple(tuple(cells[r * n_cols + c] for c in range(n_cols))
                  for r in range(n_rows))
     return rows
+
+
+# ── rc463 (`#T1188`) — the REGISTERED projection of the exact-ℚ linear algebra ──
+# THE GAP THIS CLOSES. Four shipped ``ToolEntry`` texts tell a reader, in
+# capitals, that "RANK / DET / INVERSE / RREF / SOLVE / NULLSPACE ARE NOT MISSING
+# FROM THIS FAMILY: they ship on ... srmech.math.qmat.QMat". They do. But **no
+# QMat method was a registered tool** and ``C_CLAIMS`` held no ``srmech_qmat_*``
+# entry, so none of it was reachable through ``describe()``, the MCP tool list or
+# the compiled-in C registry — the registry pointed at a surface it did not
+# itself expose. A reader following that sentence through the introspection API
+# found nothing there.
+#
+# WHY FLAT FUNCTIONS AND NOT METHOD-SHAPED ToolEntry NAMES. Measured at rc462:
+# ZERO of 702 registered tools carry a class-method-shaped dotted name, and the
+# invoke path resolves a name to a callable with JSON arguments — a bound method
+# needs a RECEIVER that JSON cannot carry. Minting the first method-shaped entry
+# would have been an architecture change wearing a registration change. The
+# two-layer pattern this codebase already sanctions is the genome one: ship each
+# method as a flat op, then bind it. These are that layer. They add no
+# mathematics; every one is the method, called.
+def qmat_rank(rows, *, method: str = "auto") -> int:
+    """EXACT rank of a rational matrix over ℚ — :meth:`QMat.rank`, registered."""
+    return QMat.from_rows(rows).rank(method=method)
+
+
+def qmat_det(rows, *, method: str = "auto") -> Q:
+    """EXACT determinant of a square rational matrix — :meth:`QMat.det`,
+    registered. Returns a :class:`~srmech.math.q.Q`, never a float."""
+    return QMat.from_rows(rows).det(method=method)
+
+
+def qmat_inverse(rows, *, method: str = "auto") -> List[List[Q]]:
+    """EXACT inverse of a square non-singular rational matrix —
+    :meth:`QMat.inverse`, registered. Rows of exact ``Q``; raises on a singular
+    matrix rather than returning a rounded pseudo-inverse."""
+    return QMat.from_rows(rows).inverse(method=method).to_lists()
+
+
+def qmat_rref(rows) -> List[List[Q]]:
+    """EXACT reduced row-echelon form over ℚ — :meth:`QMat.rref`, registered."""
+    return QMat.from_rows(rows).rref().to_lists()
+
+
+def qmat_solve(rows, b, *, method: str = "auto") -> List[List[Q]]:
+    """EXACT solution of ``A·x = b`` over ℚ — :meth:`QMat.solve`, registered.
+    ``b`` is a flat column or a nested RHS block. Rows of exact ``Q``; a
+    singular or inconsistent system RAISES rather than rounding."""
+    return QMat.from_rows(rows).solve(b, method=method).to_lists()
+
+
+def qmat_nullspace(rows, *, method: str = "auto") -> List[List[List[Q]]]:
+    """EXACT basis of ``ker(A)`` over ℚ — :meth:`QMat.nullspace`, registered.
+    A list of column vectors, each a list of one-entry rows of exact ``Q``;
+    empty iff ``A`` has full column rank."""
+    return [c.to_lists() for c in QMat.from_rows(rows).nullspace(method=method)]
 
 
 def _as_column_block(b, n: int) -> "QMat":

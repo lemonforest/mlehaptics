@@ -438,6 +438,105 @@ def _dense_laplacian_py(
     return L
 
 
+def _exact_weight(w):
+    """rc463 (`#T1188`): a weight's EXACT ℚ value, or a NAMED refusal.
+
+    This is the exact peer of the ``float(w)`` at
+    :func:`_validate_edges_weights_py`, which is the single line at which a
+    54-bit-significand weight lost its low bit **with no arithmetic performed on
+    it at all** — ``dense_adjacency(2, [(0,1)], [2**53+1])[0][1]`` returned
+    ``9007199254740992.0``. A float weight is refused here rather than lifted:
+    the caller who wrote a float already chose the rounded frame.
+    """
+    if isinstance(w, bool):
+        return Q(int(w), 1)
+    if isinstance(w, int):
+        return Q(w, 1)
+    if isinstance(w, Q):
+        return w
+    num = getattr(w, "numerator", None)
+    den = getattr(w, "denominator", None)
+    if isinstance(num, int) and isinstance(den, int) and not isinstance(w, float):
+        return Q(num, den)
+    raise TypeError(
+        "exact=True requires EXACT weights (int / Q / fractions.Fraction); got "
+        f"{type(w).__name__} {w!r}. A float weight is already in a rounded "
+        "frame — drop exact=True for that carrier.")
+
+
+def _validate_edges_weights_exact(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable] = None,
+):
+    """The EXACT-ℚ peer of :func:`_validate_edges_weights_py` — byte-identical
+    validation, weights on the ``Q`` carrier. rc463 (`#T1188`)."""
+    if not isinstance(n, int) or n < 0:
+        raise ValueError(f"n must be non-negative int; got {n!r}")
+    if n > 0xFFFF_FFFF:
+        raise ValueError(f"n exceeds uint32 range; got {n}")
+    edge_list = [tuple(e) for e in edges]
+    for i, (uu, vv) in enumerate(edge_list):
+        if not (0 <= uu < n and 0 <= vv < n):
+            raise ValueError(f"edge {i} = ({uu}, {vv}) outside node range [0, {n})")
+    if weights is None:
+        w_list = [Q(1, 1)] * len(edge_list)
+    else:
+        w_list = [_exact_weight(w) for w in weights]
+        if len(w_list) != len(edge_list):
+            raise ValueError(
+                f"weights length {len(w_list)} != n_edges {len(edge_list)}"
+            )
+    return edge_list, w_list
+
+
+def _dense_adjacency_exact(n, edges, weights):
+    """rc463: :func:`_dense_adjacency_py` on the exact ℚ carrier."""
+    edge_list, w_list = _validate_edges_weights_exact(n, edges, weights)
+    zero = Q(0, 1)
+    A = [[zero] * n for _ in range(n)]
+    for (u, v), w in zip(edge_list, w_list):
+        A[u][v] = A[u][v] + w
+        A[v][u] = A[v][u] + w
+    return A
+
+
+def _dense_laplacian_exact(n, edges, weights):
+    """rc463: :func:`_dense_laplacian_py` on the exact ℚ carrier."""
+    A = _dense_adjacency_exact(n, edges, weights)
+    zero = Q(0, 1)
+    L = [[zero] * n for _ in range(n)]
+    for r in range(n):
+        deg = zero
+        for c in range(n):
+            if c == r:
+                continue
+            deg = deg + A[r][c]
+            L[r][c] = -A[r][c]
+        L[r][r] = deg
+    return L
+
+
+def _signed_laplacian_exact(n, edges, weights):
+    """rc463: :func:`signed_laplacian` on the exact ℚ carrier. The signed degree
+    keeps the EXPLICIT Class-K pin-slot + Class-C reorientation of the float
+    body (``a if a >= 0 else -a``) — never an ALU ``abs()``."""
+    A = _dense_adjacency_exact(n, edges, weights)
+    zero = Q(0, 1)
+    L = [[zero] * n for _ in range(n)]
+    deg = [zero] * n
+    for r in range(n):
+        for c in range(n):
+            if c == r:
+                continue
+            a = A[r][c]
+            deg[r] = deg[r] + (a if a >= zero else -a)
+            L[r][c] = -a
+    for r in range(n):
+        L[r][r] = deg[r]
+    return L
+
+
 def _normalized_laplacian_py(
     n: int,
     edges: Iterable[Tuple[int, int]],
@@ -603,6 +702,8 @@ def dense_adjacency(
     n: int,
     edges: Iterable[Tuple[int, int]],
     weights: Optional[Iterable[float]] = None,
+    *,
+    exact: bool = False,
 ) -> "Mat":
     """Build the dense ``n×n`` adjacency matrix from an undirected edge
     list.
@@ -614,7 +715,23 @@ def dense_adjacency(
     + ``m[i, j]`` + a native C interleaved-buffer wire form), NOT a bare
     ``list[list[float]]`` — the native list-marshal path when ``HAS_NATIVE`` and
     ``n ≤ 256``, else srmech's own pure-Python build.
+
+    **Accuracy (rc463, `#T1188`).** The default carrier is ``Mat``, i.e.
+    ``array('d')``: an integer weight wider than 53 significand bits is stored
+    **to float64 round-off** and comes back changed, with no arithmetic
+    performed on it — measured, ``dense_adjacency(2, [(0,1)], [2**53+1])[0][1]``
+    was ``9007199254740992.0``. That is stated here rather than left for a
+    caller to discover, because a return-TYPE declaration ("returns a ``Mat``")
+    names the container, not the value.
+
+    ``exact=True`` takes the EXACT-ℚ route instead and returns
+    ``list[list[Q]]`` — the carrier :func:`jacobi_eigvals` demands under its own
+    ``exact=True``. Through rc462 the module's exact Class-L spectrum could NOT
+    be fed by the module's own canonical builder; that is what this keyword
+    closes. A float weight is REFUSED by name under ``exact=True``.
     """
+    if exact:
+        return _dense_adjacency_exact(n, edges, weights)
     if _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native list-marshal
         el, wl = _validate_edges_weights_py(n, edges, weights)
         m = _build_matrix_native_listmarshal("srmech_graph_dense_adjacency", n, el, wl)
@@ -627,6 +744,8 @@ def dense_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
     weights: Optional[Iterable[float]] = None,
+    *,
+    exact: bool = False,
 ) -> "Mat":
     """Combinatorial graph Laplacian ``L = D − A``.
 
@@ -636,7 +755,23 @@ def dense_laplacian(
 
     Numpy-free (rc129): returns a real :class:`~srmech.math.mat.Mat` (``.shape``
     + ``m[i, j]`` + a native C wire form), NOT a bare ``list[list[float]]``.
+
+    **Accuracy (rc463, `#T1188`).** The default carrier is ``Mat`` =
+    ``array('d')``, so a degree or weight wider than 53 significand bits is
+    stored **to float64 round-off** — measured, node 0's degree came back
+    ``9007199254740992.0`` for a weight of ``2**53 + 1``.
+
+    ``exact=True`` returns ``list[list[Q]]`` on the exact ℚ carrier. **This is
+    the keyword that makes the module self-consistent:** through rc462
+    ``jacobi_eigvals(dense_laplacian(...), exact=True)`` RAISED, because
+    ``jacobi_eigvals(exact=True)`` demands ``int`` / ``Fraction`` / ``Q``
+    entries and this builder — the module's own canonical Laplacian
+    constructor — could only produce floats. The exact Class-L spectrum was
+    reachable only by hand-building the matrix. It no longer is. A float weight
+    is REFUSED by name under ``exact=True``.
     """
+    if exact:
+        return _dense_laplacian_exact(n, edges, weights)
     if _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native list-marshal
         el, wl = _validate_edges_weights_py(n, edges, weights)
         m = _build_matrix_native_listmarshal("srmech_graph_dense_laplacian", n, el, wl)
@@ -3018,6 +3153,19 @@ def mat_dot(a, b):
     wanting the Hermitian form pass ``a.conj()`` explicitly). Pure-Python
     reduction over the flattened scalars.
 
+    **Accuracy (rc463, `#T1188`) — an R3 declaration this op did not have.** The
+    accumulator is ``float`` / ``complex``, so every product and partial sum is
+    correct only **to round-off (~1 ULP per accumulated term)**. It is NOT the
+    exact inner product: measured, ``mat_dot([3], [3002399751580331])`` returns
+    ``9007199254740992.0`` where the true value is ``2**53 + 1``. This op
+    ACCEPTS a plain integer list, so nothing in its signature warned a caller —
+    and through rc462 its docstring and its registered ``ToolEntry`` carried no
+    precision language of ANY kind, the only op in its family for which that was
+    true. **The exact peer ships**: use
+    :meth:`srmech.math.qmat.QMat.matmul` on a ``1×n`` by ``n×1`` pair, or
+    :func:`srmech.cascade.matrix_cascades.einsum` with ``'i,i->'`` on exact
+    operands, either of which returns the true value at any magnitude.
+
     Canonical SSoT: Golub & Van Loan §1.1 (textbook inner product)."""
     if _operand_is_complex(a) or _operand_is_complex(b):
         total = 0j
@@ -3036,6 +3184,14 @@ def mat_matvec(m, v) -> "Vec":
     :func:`mat_matmul` over a column :class:`Mat` (native zero-copy when present,
     else a pure-Python triple loop). v0.7.6 carrier consolidation: unifies the
     rc129 ``dense_matvec_real`` / ``dense_matvec_complex`` pair.
+
+    **Accuracy (rc463, `#T1188`).** ``Mat`` / ``Vec`` ARE ``array('d')``, so the
+    products and partial sums are correct **to round-off (~1 ULP per
+    accumulated term)** — NOT exact. Measured, ``mat_matvec([[3]],
+    [3002399751580331])`` returns ``9007199254740992.0`` for a true
+    ``2**53 + 1``. **The exact peer ships**:
+    :func:`srmech.cascade.matrix_cascades.einsum` with ``'ij,j->i'`` on exact
+    operands, or :meth:`srmech.math.qmat.QMat.matmul` against a column.
 
     Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix-vector product)."""
     M_rows = _rows(m)
@@ -3073,6 +3229,13 @@ def mat_outer(a, b) -> "Mat":
     ``aᵢ bⱼ`` (NO conjugation — like NumPy ``outer``; callers wanting
     ``|ψ⟩⟨ψ|`` pass ``b = ψ.conj()``). v0.7.6 carrier consolidation: unifies the
     rc129 ``dense_outer_real`` / ``dense_outer_complex`` pair.
+
+    **Accuracy (rc463, `#T1188`).** The ``Mat`` return IS ``array('d')``, so
+    every entry ``aᵢbⱼ`` is stored **to round-off (~1 ULP)** — NOT exact.
+    Measured, ``mat_outer([3], [3002399751580331])[0, 0]`` returns
+    ``9007199254740992.0`` for a true ``2**53 + 1``. **The exact peer ships**:
+    :func:`srmech.cascade.matrix_cascades.einsum` with ``'i,j->ij'`` on exact
+    operands returns a :class:`~srmech.math.qmat.QMat` at any magnitude.
 
     Canonical SSoT: Golub & Van Loan §1.1 (rank-1 outer product)."""
     a_list = _vec(a)
@@ -3479,6 +3642,8 @@ def signed_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
     weights: Optional[Iterable[float]] = None,
+    *,
+    exact: bool = False,
 ) -> "Mat":
     """Signed graph Laplacian ``L = D̄ − A`` (real-symmetric, PSD).
 
@@ -3496,7 +3661,16 @@ def signed_laplacian(
     ``.shape`` + ``m[i, j]``, NOT a bare ``list[list[float]]``); pair with
     :func:`symmetric_eigendecompose` or :func:`fiedler_vector` for the
     signed navigation embedding.
+
+    **Accuracy (rc463, `#T1188`).** The default carrier is ``Mat`` =
+    ``array('d')``, so a weight or signed degree wider than 53 significand bits
+    is stored **to float64 round-off**. ``exact=True`` returns
+    ``list[list[Q]]`` on the exact ℚ carrier — feedable to
+    :func:`jacobi_eigvals` under ITS ``exact=True`` — and REFUSES a float weight
+    by name. The Class-K magnitude branch is identical on both rungs.
     """
+    if exact:
+        return _signed_laplacian_exact(n, edges, weights)
     _validate_edges_weights_py(n, edges, weights)  # validate (raises on bad input)
     A = _dense_adjacency_py(n, edges, weights)  # symmetric, signed (list[list])
     L = [[0.0] * n for _ in range(n)]

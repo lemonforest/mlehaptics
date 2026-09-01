@@ -77,11 +77,20 @@ def test_manifest_matches_a_fresh_extraction():
         "the unverifiable-claim set drifted — rerun tools/gen_c_claims.py"
     )
     # Every extracted token that is NOT declared in srmech.h is filtered out of
-    # the manifest. Exactly one such token exists (a tempfile prefix); a NEW one
-    # is worth a look, because a typo'd dispatch symbol can never resolve and
-    # would pure-path forever in total silence.
+    # the manifest. A NEW one is worth a look, because a typo'd dispatch symbol
+    # can never resolve and would pure-path forever in total silence.
+    #
+    # rc463 (`#T1188`): three rows joined the ONE that was here, and none of
+    # them is new code — they are the ``composition_of_c`` bucket becoming
+    # visible for the first time, because the harvest used to read only
+    # ``c_dispatched``. All four are the same benign shape, a temp-file / label
+    # PREFIX string that happens to start with ``srmech_``: it is not a symbol,
+    # it is correctly filtered, and the filter is what this assertion watches.
     assert off_header == {
         "srmech.biology.coupling.resonant_spectrum_sparse": ["srmech_kext_"],
+        "srmech.biology.genome.genome_from_graph": ["srmech_fromgraph_"],
+        "srmech.biology.genome.genome_partition": ["srmech_cut_"],
+        "srmech.math.laplacian.recursive_cut": ["srmech_cut_"],
     }, f"unexpected non-header srmech_* token(s): {off_header}"
 
 
@@ -246,20 +255,53 @@ def test_unverifiable_claims_ratchet_down_only():
 
 
 def test_unverifiable_and_checked_partition_the_ledger():
-    """checked + unverifiable == every c_dispatched op. No op is simply dropped.
+    """Every ``c_dispatched`` op is checked or named unverifiable — no op is
+    simply dropped. Without this, an op could vanish from BOTH sets and the
+    ceiling would still pass: coverage loss disguised as coverage.
 
-    Without this, an op could vanish from BOTH sets and the ceiling would still
-    pass — coverage loss disguised as coverage."""
+    ⚠️ **rc463 (`#T1188`) widened the manifest, and the assertion had to change
+    SHAPE, not just value.** Through rc462 this read ``covered ==
+    c_dispatched``, an equality that quietly forbade the manifest from claiming
+    anything else — and that is exactly what was wrong. ``composition_of_c`` ops
+    can name a C symbol DIRECTLY (``laplacian.mat_svd`` calls
+    ``srmech_svd_f64``), and because the harvest skipped that bucket, **39
+    header symbols were declared, defined, bound, called, and claimed by
+    nobody**. The ledger UNDERSTATED parity — the reverse of the direction it
+    was built to watch. So the relation is now: every ``c_dispatched`` op is
+    covered (unchanged), and anything EXTRA in ``C_CLAIMS`` must be a
+    ``composition_of_c`` op (a bounded widening, not an open door).
+    """
     import json
 
     ledger = _PY_ROOT / "tests" / "rosetta_classification.ndjson"
     rows = [json.loads(x) for x in
             ledger.read_text(encoding="utf-8").splitlines() if x.strip()]
     c_dispatched = {r["defined_at"] for r in rows if r["bucket"] == "c_dispatched"}
+    composition = {r["defined_at"] for r in rows
+                   if r["bucket"] == "composition_of_c"}
 
     covered = set(C_CLAIMS) | set(UNVERIFIABLE_CLAIMS)
-    assert covered == c_dispatched, (
-        "the claim manifest and the ledger disagree on the c_dispatched set; "
-        f"ledger-only={sorted(c_dispatched - covered)}, "
-        f"manifest-only={sorted(covered - c_dispatched)}"
+    assert c_dispatched - covered == set(), (
+        "the claim manifest lost a c_dispatched op; "
+        f"ledger-only={sorted(c_dispatched - covered)}"
     )
+    extra = covered - c_dispatched
+    assert extra <= composition, (
+        "C_CLAIMS names ops in NEITHER ledger bucket: "
+        f"{sorted(extra - composition)}"
+    )
+
+
+def test_the_svd_symbol_is_claimed_by_somebody():
+    """The rc463 regression, pinned by name.
+
+    ``srmech_svd_f64`` was declared, defined, ctypes-bound and CALLED while no
+    entry in ``C_CLAIMS`` named it, because the harvest read only one of the two
+    ledger buckets. A count would not have caught this — the number was
+    self-consistently wrong — so the specific symbol is pinned."""
+    claimed = set()
+    for syms in C_CLAIMS.values():
+        claimed |= set(syms)
+    assert "srmech_svd_f64" in claimed, (
+        "srmech_svd_f64 is reached by laplacian.mat_svd but claimed by no op; "
+        "the claim ledger is understating C parity again")

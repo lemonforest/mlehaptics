@@ -1595,8 +1595,15 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("n", "int", True, "number of nodes"),
                         P("edges", "list[tuple[int, int]]", True),
                         P("weights", "Optional[list[float]]", False,
-                          "None ⇒ unit weights")),
-            returns=R("Mat", "n × n dense matrix — Mat, the array('d') row-major 2-D carrier"),
+                          "None ⇒ unit weights"),
+                        P("exact", "bool", False,
+                          "keyword-only; rc463 — True returns list[list[Q]] on the exact-ℚ carrier "
+                          "(the entries jacobi_eigvals(exact=True) demands, which this builder could "
+                          "not previously produce) and REFUSES a float weight by name. Default False "
+                          "returns the Mat = array('d') carrier, where a weight wider than 53 "
+                          "significand bits is stored to float64 round-off — measured, a weight of "
+                          "2**53+1 came back as 9007199254740992.0 with NO arithmetic performed on it.")),
+            returns=R("Mat | list", "n × n dense matrix — Mat (array('d')) by default, or exact rows of Q with exact=True"),
         ),
         # §40 (rc50): the text→graph stage primitives — the K1 chain's missing
         # front, in srmech.math.text (ingestion module; laplacian stays purely
@@ -1753,8 +1760,15 @@ def _register_primitive_class_tools() -> None:
             # unchanged.
             parameters=(P("n", "int", True),
                         P("edges", "list[tuple[int, int]]", True),
-                        P("weights", "Optional[list[float]]", False)),
-            returns=R("Mat", "n × n symmetric matrix — Mat, the array('d') row-major 2-D carrier"),
+                        P("weights", "Optional[list[float]]", False),
+                        P("exact", "bool", False,
+                          "keyword-only; rc463 — True returns list[list[Q]] on the exact-ℚ carrier. "
+                          "THIS IS THE KEYWORD THAT MAKES THE MODULE SELF-CONSISTENT: through rc462 "
+                          "jacobi_eigvals(dense_laplacian(...), exact=True) RAISED, because the exact "
+                          "Class-L route demands int/Fraction/Q entries and this — the module's own "
+                          "canonical Laplacian builder — could only produce floats. Default False "
+                          "returns the Mat = array('d') carrier, accurate to float64 round-off.")),
+            returns=R("Mat | list", "n × n symmetric matrix — Mat (array('d')) by default, or exact rows of Q with exact=True"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.normalized_laplacian", owner="srmech",
@@ -1829,8 +1843,13 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("n", "int", True),
                         P("edges", "list[tuple[int, int]]", True),
                         P("weights", "Optional[list[float]]", False,
-                          "may be negative")),
-            returns=R("Mat", "n × n real-symmetric PSD signed Laplacian — Mat, array('d') row-major"),
+                          "may be negative"),
+                        P("exact", "bool", False,
+                          "keyword-only; rc463 — True returns list[list[Q]] on the exact-ℚ carrier "
+                          "(feedable to jacobi_eigvals under ITS exact=True) and REFUSES a float "
+                          "weight by name. The Class-K magnitude branch is identical on both rungs. "
+                          "Default False returns the Mat = array('d') carrier, to float64 round-off.")),
+            returns=R("Mat | list", "n × n real-symmetric PSD signed Laplacian — Mat (array('d')) by default, or exact rows of Q with exact=True"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.magnetic_laplacian", owner="srmech",
@@ -3767,10 +3786,10 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.einsum", owner="srmech", category="cascade",
-            summary="Einstein-summation tensor contraction via the general index-iteration definition: Class B/D (the subscript spec is a typed index-pattern) + Class I (iterate over free + summed index tuples) + Class M (sum-of-products bundle). Handles any subscript string (matmul ij,jk->ik / trace ii-> / transpose ij->ji / dot i,i-> / outer i,j->ij / arbitrary contraction), implicit output supported. Value-faithful to the NumPy einsum.",
+            summary="Einstein-summation tensor contraction via the general index-iteration definition: Class B/D (the subscript spec is a typed index-pattern) + Class I (iterate over free + summed index tuples) + Class M (sum-of-products bundle). Handles any subscript string (matmul ij,jk->ik / trace ii-> / transpose ij->ji / dot i,i-> / outer i,j->ij / arbitrary contraction), implicit output supported. TWO CARRIER RUNGS (rc463): all-EXACT operands (int / Q / Fraction / QMat) run the whole contraction on the exact-ℚ QMat carrier and return the EXACT contraction at any magnitude — rank-2 as a QMat, rank-0 as a Q, rank-1 / rank-3+ as a list of Q (no exact carrier exists at those ranks). FLOAT / complex operands are genuinely continuous: they ride the Mat carrier and every entry is accurate to round-off (~1 ULP per accumulated term), NOT exact. Through rc462 EVERY input rode array('d') on BOTH the matmul fast path and the general fallback, so an exact operand came back silently rounded to 53 significand bits — einsum('ij->ji', [[2**53+1]]) is a TRANSPOSE that changed the value. The prior summary claimed value-faithfulness to the NumPy einsum; that clause is RETIRED rather than re-stated, because numpy is absent from this package by policy and a contract nothing here can check is not a measurement.",
             parameters=(P("subscripts", "str", True, "einsum subscript string, e.g. 'ij,jk->ik'"),
-                        P("operands", "tuple[Mat, ...]", False, "the input arrays (variadic)")),
-            returns=R("Mat | Vec | complex | float | list", "the contracted tensor"),
+                        P("operands", "tuple[Mat, ...]", False, "the input arrays (variadic); all-exact operands select the exact-ℚ rung")),
+            returns=R("QMat | Mat | Vec | Q | complex | float | list", "the contracted tensor — the exact carrier for exact operands, the float carrier otherwise"),
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.eigvals", owner="srmech", category="cascade",
@@ -3793,6 +3812,83 @@ def _register_primitive_class_tools() -> None:
                         P("return_intervals", "bool", False, "keyword-only; return exact (lo, hi) rational intervals instead of floats (real-only path); default False"),
                         P("include_complex", "bool", False, "also isolate+return the complex eigenvalues (default: real only)")),
             returns=R("list", "real eigenvalues ascending with multiplicity (floats, or (lo, hi) exact-ℚ intervals); with include_complex=True, all n eigenvalues (reals as float then certified complex)"),
+        ),
+        # ── rc463 (`#T1188`) — THE EXACT EIGENSOLVER, WHICH WAS INVISIBLE ────
+        # Seven public names in matrix_cascades.__all__ carried NO ToolEntry, so
+        # the whole exact eigensolver — the op family the registered
+        # eigvals_exact entry points readers AT — could not be seen through
+        # describe(), the MCP tool list or the compiled-in C registry. Several
+        # already had C peers in C_CLAIMS. Registration, not new mathematics.
+        ToolEntry(
+            name="srmech.cascade.matrix_cascades.eigvec_exact", owner="srmech", category="cascade",
+            summary="EXACT eigenvector(s) of an integer/rational matrix for an eigenvalue λ — the null space of A − λI taken over the NUMBER FIELD ℚ(λ) = Qalg, not over ℚ. This is the op that makes an IRRATIONAL eigenvalue tractable: on the rational-only QMat carrier A − λI is not even constructible for irrational λ (its nullspace route returns []), because λ has no representation there. λ arrives as a Qalg carrying its own exact irreducible minimal polynomial — get one from eig_exact, whose value_qalg field is exactly this input; eigvals_exact returns FLOATS and is therefore NOT the bridge. Returns exact Qalg components: a single vector, or a list of vectors when the geometric multiplicity exceeds 1. Class L (the eigenspace) ∘ Class I (the ordered exact elimination) ∘ Class N (the exact ℚ coordinates in the power basis).",
+            parameters=(P("a", "Mat", True, "(n, n) integer/rational square matrix"),
+                        P("lam", "Qalg", True, "the eigenvalue as an exact Qalg over its irreducible minimal polynomial")),
+            returns=R("list", "the exact eigenvector as Qalg components, or a list of them when geometric multiplicity > 1"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.matrix_cascades.eigvec_exact_float", owner="srmech", category="cascade",
+            summary="Float read-out of eigvec_exact — the ONE terminal projection (rotation-last). The eigenvector is computed EXACTLY over ℚ(λ) and only the final components are lifted to float/complex, so the conditioning of the exact null-space solve never touches the FPU. Accurate to the Qalg embedding's own precision at the read-out step, and NOT byte-exact by construction — that is the whole point of naming the projection instead of hiding it. Use eigvec_exact when you need to stay in the field.",
+            parameters=(P("a", "Mat", True, "(n, n) integer/rational square matrix"),
+                        P("lam", "Qalg", True, "the eigenvalue as an exact Qalg")),
+            returns=R("list", "the eigenvector components as float/complex — the single terminal projection"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.matrix_cascades.factor_integer_poly", owner="srmech", category="cascade",
+            summary="Factor an integer polynomial into its IRREDUCIBLE factors over ℚ (Zassenhaus: square-free decomposition, Hensel lifting from a well-chosen prime, then recombination). Coefficients are LOW→HIGH (coeffs[0] is the constant term) both in and out — note char_poly emits HIGH→LOW, so its output must be reversed before it is handed here. Returns [(factor_coeffs, multiplicity), ...], each factor primitive, irreducible and positive-leading. Exact integer arithmetic throughout, no float. This is the step that makes the exact eigensolver and the exact SVD honest: the naive x→x² substitution in singular_values_exact can be REDUCIBLE (measured: x⁴ − 3x² + 1 = (x² − x − 1)(x² + x − 1)), so a Qalg built without factoring first would not be a field. Native peers srmech_factor_integer_poly / srmech_factor_squarefree_primitive. Class J (the prime-field Hensel lift) ∘ Class N ∘ Class I.",
+            parameters=(P("coeffs", "list", True, "integer polynomial coefficients LOW→HIGH (coeffs[0] = constant term)"),),
+            returns=R("list", "[(factor_coeffs low→high, multiplicity), ...] — primitive irreducible factors over ℚ"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.matrix_cascades.eig_exact", owner="srmech", category="cascade",
+            summary="Turnkey EXACT eigensolver — a matrix to ALL its exact eigenpairs. Chains char_poly (exact integer) → Yun square-free → factor_integer_poly (the irreducible factors, each with its algebraic multiplicity) → root isolation (Sturm for the reals, the argument-principle box subdivision for the complex ones) → a Qalg per root over its own irreducible substrate → eigvec_exact for the exact eigenvectors → jordan_chains_exact for the complete generalized basis. Returns one dict per DISTINCT eigenvalue carrying min_poly, algebraic and geometric multiplicity, defective, jordan_blocks and generalized_vectors. project=True (default) adds the terminal float/complex projections; project=False keeps value_qalg / vectors_qalg EXACT — and that is the entry point for eigvec_exact, which needs a Qalg and cannot use eigvals_exact's floats. Self-validating: Σ algebraic multiplicity == n and the generalized basis is n-many, or it raises. Class L ∘ Class J ∘ Class N ∘ Class K.",
+            parameters=(P("a", "Mat", True, "(n, n) integer/rational square matrix"),
+                        P("bits", "int", False, "keyword-only; root-isolation refinement precision (default 64)"),
+                        P("project", "bool", False, "keyword-only; True (default) adds terminal float projections, False keeps the exact Qalg objects")),
+            returns=R("list", "one dict per distinct eigenvalue: min_poly, multiplicities, jordan_blocks, generalized_vectors, and either value/vector (projected) or value_qalg/vectors_qalg (exact)"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.matrix_cascades.jordan_chains_exact", owner="srmech", category="cascade",
+            summary="EXACT Jordan chains (generalized eigenvectors) of an integer/rational matrix for an eigenvalue λ — the COMPLETE generalized eigenspace over ℚ(λ) = Qalg, which is what closes the eigensolver for DEFECTIVE matrices where the geometric multiplicity falls short of the algebraic one. Returns (chains, block_sizes): each chain is bottom→top with a genuine geometric eigenvector at the bottom, and the block sizes sum to the algebraic multiplicity (all 1s means diagonalizable at this λ). Exact Qalg components throughout — no float, so a defective matrix is DIAGNOSED rather than smeared into a nearly-diagonalizable one by round-off. Class L ∘ Class I ∘ Class N.",
+            parameters=(P("a", "Mat", True, "(n, n) integer/rational square matrix"),
+                        P("lam", "Qalg", True, "the eigenvalue as an exact Qalg over its irreducible minimal polynomial")),
+            returns=R("tuple", "(chains, block_sizes): chains of exact Qalg vectors bottom→top, and the Jordan block sizes"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.matrix_cascades.jordan_form_exact", owner="srmech", category="cascade",
+            summary="The canonical EXACT Jordan canonical form of an integer/rational matrix — A = P·J·P⁻¹ with J the Jordan form, built from the exact machinery end to end (char_poly → factor_integer_poly → Qalg roots → jordan_chains_exact assembled into P). Returns {blocks, P, J}. Because every step stays exact, the BLOCK STRUCTURE is a theorem about A rather than a threshold decision: the Jordan form is famously discontinuous in the entries, so a float route cannot decide it at all. project=True (default) hands back the terminal float/complex projection; project=False keeps the exact objects. Self-validating (A·P == P·J). Class L ∘ Class J ∘ Class N ∘ Class I.",
+            parameters=(P("a", "Mat", True, "(n, n) integer/rational square matrix"),
+                        P("bits", "int", False, "keyword-only; root-isolation refinement precision (default 64)"),
+                        P("project", "bool", False, "keyword-only; True (default) projects P/J to float, False keeps them exact")),
+            returns=R("dict", "{blocks, P, J} — the Jordan block sizes, the similarity matrix and the Jordan form"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.matrix_cascades.separate_frame_curvature", owner="srmech", category="cascade",
+            summary="Separate a two-operator product A·B into its FIXED-FRAME (metric) part ½(A·B + B·A) — the symmetric anticommutator, what both orderings AGREE on — and its CURVATURE / RESPONSION residue ½(A·B − B·A), the antisymmetric commutator = the holonomy the frame picks up per beat. This IS the Clifford / geometric-algebra split of a product into metric ⊕ wedge, exposed as one op with an exact vanishing certificate: is_flat is True iff the curvature carrier is LITERALLY the zero matrix (every entry's Class-K magnitude exactly zero — never an ALU abs()). TWO CARRIER RUNGS (rc463): EXACT operands (int / Q / Fraction / QMat) run the whole decomposition on the exact-ℚ QMat carrier, so is_flat is a theorem about the TRUE commutator; FLOAT operands keep the Mat carrier and are accurate to round-off, where is_flat is a statement about the computed carrier. Through rc462 the docstring claimed bit-exactness on 'exactly-float-representable entries', but the governing quantity is the PRODUCTS, not the entries: [[3]] and [[3002399751580331]] have representable entries and a product of 2⁵³+1 that float64 does not hold. Class M ∘ Class K ∘ Class N.",
+            parameters=(P("a", "Mat", True, "(n, n) square operator; exact entries select the exact-ℚ rung"),
+                        P("b", "Mat", True, "(n, n) square operator of the SAME shape")),
+            returns=R("dict", "{fixed_frame, curvature, is_flat} — QMat on the exact rung, Mat on the float rung"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.matrix_cascades.lstsq_exact", owner="srmech", category="cascade",
+            summary="EXACT least-squares solution of A x ≈ b over ℚ — the normal equations (AᵀA) x = Aᵀ b solved on the exact-ℚ QMat carrier, no float anywhere. The float lstsq is honest about itself (it declares 'to round-off'), but on an EXACT operand it answers a question nobody asked: measured, it returns [1.28e-15, 0.9999999999999997] where the true solution is [0, 1]. rc463 (`#T1188`) is a PROMOTION, not a new algorithm — the answer was already computable from shipped parts and was therefore invisible; what this adds is a name, a contract, a refusal and a registration. A float entry is REFUSED by name rather than silently lifted, because a float operand is already in a rounded frame. Rank deficiency surfaces as the QMat.solve singularity refusal, loudly, never as a rounded pseudo-answer. Returns list[Q] for a 1-D b (no exact 1-D carrier ships), QMat for a 2-D one. Class M ∘ Class I ∘ Class N.",
+            parameters=(P("a", "Mat", True, "(m, n) coefficient matrix with m >= n, EXACT entries (int / Q / Fraction / QMat)"),
+                        P("b", "Mat | Vec", True, "(m,) or (m, k) exact right-hand side(s)")),
+            returns=R("QMat | list", "the exact least-squares solution: list[Q] for a 1-D b, QMat for a 2-D one"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.matrix_cascades.gram_schmidt_exact", owner="srmech", category="cascade",
+            summary="EXACT-ℚ UN-NORMALISED Gram-Schmidt orthogonalisation of an integer basis — the exact peer of qr, and the one that CAN exist over ℚ. Returns (mu, B): mu[i][j] (j < i) is the exact Q coefficient ⟨b_i, b*_j⟩/‖b*_j‖², and B[i] is the exact SQUARED norm ‖b*_i‖². Together they determine the orthogonal family exactly without ever forming a square root — which is precisely why a NORMALISED exact QR is impossible here: the Householder normalisation needs √(xᵀx), an algebraic irrational, so ℚ is the wrong field and no Qalg-valued QR ships. This op is explicitly NOT a rational QR. Through rc462 it shipped as the PRIVATE _lll_gso, reachable only by reading the LLL engine, so the exact orthogonalisation the package already performed on every lll_reduce call was invisible to describe(), the MCP tool list and the C registry. rc463 promotes it verbatim — the mathematics is unchanged, which is the point. Class L ∘ Class N ∘ Class I. No float, no abs(), no square root.",
+            parameters=(P("basis", "list", True, "m integer (or exact-ℚ) row-vectors of common length n, linearly independent"),),
+            returns=R("tuple", "(mu, B): the exact Q GSO coefficients and the exact squared norms ‖b*_i‖²"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.matrix_cascades.singular_values_exact", owner="srmech", category="cascade",
+            summary="EXACT singular values of an integer matrix — each one a Qalg in ITS OWN number field ℚ(σ), with its exact right singular vector in the SAME field. A composition of shipped ops, not a new algorithm and not a new type: char_poly(AᵀA) → reverse to low→high → the x→x² coefficient INTERLEAVE (σ = √λ means m_σ(x) = m_λ(x²), so NO resultant is needed for a square root) → factor_integer_poly (MANDATORY: the substitution can be REDUCIBLE — measured, x⁴ − 3x² + 1 = (x² − x − 1)(x² + x − 1)) → Qalg over each irreducible at its isolated root. Only the NON-NEGATIVE real roots are singular values; that selection is a Class-K pin-slot on the root's sign boundary composed with a Class-C orientation read, never an ALU abs(). THE SCOPE LINE, stated rather than discovered: per σ everything lives in ONE field, which is why the right vector comes back exact — but a matrix whose char-poly factors into DISTINCT irreducibles puts its σ's in DIFFERENT fields, and a single exact Σ/U/Vᵀ across them needs a COMPOSITUM that srmech.math.poly cannot build today (it ships Poly.resultant but no primitive_element / minimal_polynomial / bivariate resultant). So this op ships the per-σ decomposition and never returns a combined U Σ Vᵀ — there is no path on which it silently works only when the factors happen to coincide. Class L ∘ Class M ∘ Class J ∘ Class N ∘ Class K.",
+            parameters=(P("a", "Mat", True, "(m, n) INTEGER matrix, any shape; a float entry is REFUSED by name"),
+                        P("bits", "int", False, "keyword-only; root-isolation refinement precision (default 64)"),
+                        P("project", "bool", False, "keyword-only; True (default) adds the terminal float projection 'value'")),
+            returns=R("list", "one dict per distinct σ, descending: {sigma_qalg, min_poly, multiplicity, right_vector_qalg, value}"),
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.lll_reduce", owner="srmech", category="cascade",
@@ -7409,6 +7505,146 @@ def _register_primitive_class_tools() -> None:
             preserves=("numpy-free; no abs() — sign-handling stays Class-K "
                        "pin-slot + Class-C",),
             smoke_test_hint={"n": "12"},
+        ),
+        # ── rc463 (`#T1188`) — EXACT cyclotomic trigonometry over Φ_n ────────
+        ToolEntry(
+            name="srmech.math.qalg.cos_2pi_over_n", owner="srmech",
+            category="qalg",
+            summary="cos(2π/n) EXACTLY, as an element of the number field "
+                    "ℚ(ζ_n) = ℚ[x]/Φ_n — (ζ + ζ⁻¹)/2 reduced against the "
+                    "cyclotomic polynomial. NO float, NO series truncation, NO "
+                    "rational approximation: the returned Qalg IS the cosine, "
+                    "carrying its own exact minimal polynomial. Class J (the "
+                    "cyclotomic divisor lattice) ∘ Class N (the exact ℚ "
+                    "coordinates) ∘ Class C (the ζ rotation). is_rational() is "
+                    "True for exactly n in {1, 2, 3, 4, 6} — Niven's theorem "
+                    "arriving as a measurement rather than an assumption.",
+            parameters=(P("n", "int", True,
+                          "cyclotomic index, 1 <= n <= 256; TypeError for a "
+                          "non-int (bool included), ValueError outside the range"),),
+            returns=R("Qalg", "cos(2π/n) exactly: m = Φ_n (ascending int "
+                              "tuple), coords = φ(n) exact Q in the α power basis"),
+            composes=("srmech.math.poly.cyclotomic_polynomial",),
+            smoke_test_hint={"n": "8"},
+        ),
+        ToolEntry(
+            name="srmech.math.qalg.sin_2pi_over_n", owner="srmech",
+            category="qalg",
+            summary="sin(2π/n) EXACTLY, as an element of ℚ(ζ_N) with "
+                    "N = lcm(n, 4) — the field that carries ζ_n AND i at once, "
+                    "so the 1/i in (ζ − ζ⁻¹)/(2i) is divided out and the "
+                    "returned value is the SINE ITSELF, not i·sin. NOTE the "
+                    "field is Φ_lcm(n,4), NOT Φ_n unless 4 | n: for 4 ∤ n this "
+                    "op and cos_2pi_over_n return over DIFFERENT fields and "
+                    "Qalg correctly refuses a mixed binary op between them. "
+                    "Degree cost is exactly one factor of two (φ(lcm(n,4)) = "
+                    "2·φ(n) when 4 ∤ n). is_rational() is True for exactly n in "
+                    "{1, 2, 4, 12}. Class J ∘ Class N ∘ Class C.",
+            parameters=(P("n", "int", True,
+                          "cyclotomic index, 1 <= n <= 256; TypeError for a "
+                          "non-int (bool included), ValueError outside the range"),),
+            returns=R("Qalg", "sin(2π/n) exactly over Φ_lcm(n,4); coords = "
+                              "φ(lcm(n,4)) exact Q in the α power basis"),
+            composes=("srmech.math.poly.cyclotomic_polynomial",),
+            smoke_test_hint={"n": "12"},
+        ),
+        # ── rc463 (`#T1188`) — the exact-ℚ linear algebra, REGISTERED ────────
+        # Four shipped ToolEntry texts told readers "RANK / DET / INVERSE /
+        # RREF / SOLVE / NULLSPACE ... ship on srmech.math.qmat.QMat". They did.
+        # None of them was a registered tool, and C_CLAIMS held no srmech_qmat_*
+        # entry — so the registry pointed at a surface it did not expose.
+        ToolEntry(
+            name="srmech.math.qmat.qmat_rank", owner="srmech", category="qmat",
+            summary="EXACT rank of a rational matrix over ℚ — the RREF pivot "
+                    "count on the exact-ℚ QMat carrier, arbitrary-precision, no "
+                    "float anywhere, so a matrix that is numerically "
+                    "rank-deficient-looking but algebraically full rank is "
+                    "reported correctly. method selects the path: 'auto' "
+                    "(default; CRT for a large system, dense for a small one), "
+                    "'dense', or 'crt' — byte-identical results. Native peer "
+                    "srmech_qmat_rank. Class L (the spectral/rank content) ∘ "
+                    "Class I (the ordered elimination) ∘ Class N (exact ℚ).",
+            parameters=(P("rows", "QMat | Sequence[Sequence[int | Q]]", True,
+                          "the matrix as exact rows (int / Q / (num,den) / Fraction); a float is REFUSED"),
+                        P("method", "str", False, "keyword-only; 'auto' (default), 'dense', or 'crt'")),
+            returns=R("int", "the exact rank"),
+            smoke_test_hint={"rows": "[[1, 2], [2, 4]]"},
+        ),
+        ToolEntry(
+            name="srmech.math.qmat.qmat_det", owner="srmech", category="qmat",
+            summary="EXACT determinant of a square rational matrix — returns a "
+                    "Q (num, den), never a float, so 'is the determinant zero' "
+                    "is a THEOREM rather than a tolerance question. method: "
+                    "'auto' (default), 'dense', or 'crt' (multi-modular, "
+                    "bounded memory, byte-identical). Native peer "
+                    "srmech_qmat_det. Class L ∘ Class I ∘ Class N.",
+            parameters=(P("rows", "QMat | Sequence[Sequence[int | Q]]", True,
+                          "the square matrix as exact rows; a float is REFUSED"),
+                        P("method", "str", False, "keyword-only; 'auto' (default), 'dense', or 'crt'")),
+            returns=R("Q", "the exact determinant"),
+            smoke_test_hint={"rows": "[[1, 2], [3, 4]]"},
+        ),
+        ToolEntry(
+            name="srmech.math.qmat.qmat_inverse", owner="srmech", category="qmat",
+            summary="EXACT inverse of a square non-singular rational matrix — "
+                    "rows of exact Q. A singular matrix RAISES rather than "
+                    "returning a rounded pseudo-inverse, which is the whole "
+                    "point of staying on the exact carrier. method: 'auto' "
+                    "(default), 'dense', or 'crt'. Native peer "
+                    "srmech_qmat_inverse. Class L ∘ Class I ∘ Class N.",
+            parameters=(P("rows", "QMat | Sequence[Sequence[int | Q]]", True,
+                          "the square matrix as exact rows; a float is REFUSED"),
+                        P("method", "str", False, "keyword-only; 'auto' (default), 'dense', or 'crt'")),
+            returns=R("list", "the exact inverse as rows of Q"),
+            smoke_test_hint={"rows": "[[1, 2], [3, 4]]"},
+        ),
+        ToolEntry(
+            name="srmech.math.qmat.qmat_rref", owner="srmech", category="qmat",
+            summary="EXACT reduced row-echelon form over ℚ — rows of exact Q, "
+                    "arbitrary-precision, no pivoting heuristic needed because "
+                    "no entry can round to zero. Native peer srmech_qmat_rref. "
+                    "Class I (the ordered elimination) ∘ Class N (exact ℚ).",
+            parameters=(P("rows", "QMat | Sequence[Sequence[int | Q]]", True,
+                          "the matrix as exact rows; a float is REFUSED"),),
+            returns=R("list", "the exact RREF as rows of Q"),
+            smoke_test_hint={"rows": "[[1, 2], [2, 4]]"},
+        ),
+        ToolEntry(
+            name="srmech.math.qmat.qmat_solve", owner="srmech", category="qmat",
+            summary="EXACT solution of A·x = b over ℚ — exact [A | b] "
+                    "Gauss-Jordan on the QMat carrier, bigint, no float. A "
+                    "singular or inconsistent system RAISES; it never returns a "
+                    "least-squares-shaped approximation in disguise (for the "
+                    "overdetermined exact case use "
+                    "cascade.matrix_cascades.lstsq_exact). method: 'auto' "
+                    "(default), 'dense', or 'crt'. Native peer "
+                    "srmech_qmat_solve. Class I ∘ Class N.",
+            parameters=(P("rows", "QMat | Sequence[Sequence[int | Q]]", True,
+                          "the square coefficient matrix as exact rows"),
+                        P("b", "QMat | Sequence[Sequence[int | Q]]", True,
+                          "the RHS: a flat exact column or a nested RHS block"),
+                        P("method", "str", False, "keyword-only; 'auto' (default), 'dense', or 'crt'")),
+            returns=R("list", "the exact solution x as rows of Q"),
+            smoke_test_hint={"rows": "[[2, 0], [0, 3]]", "b": "[4, 9]"},
+        ),
+        ToolEntry(
+            name="srmech.math.qmat.qmat_nullspace", owner="srmech", category="qmat",
+            summary="EXACT basis of ker(A) over ℚ — a list of column vectors "
+                    "(each a list of one-entry rows of exact Q), one per free "
+                    "column of the RREF, empty iff A has full column rank. "
+                    "Exact, so the kernel DIMENSION is a theorem, not a "
+                    "singular-value threshold. NOTE for the eigenproblem: this "
+                    "is the right tool for a RATIONAL eigenvalue, where A − λI "
+                    "stays inside ℚ; for an IRRATIONAL one A − λI is not "
+                    "constructible on this carrier at all and the op you want is "
+                    "cascade.matrix_cascades.eigvec_exact, which works over "
+                    "ℚ(λ) = Qalg. method: 'auto' (default), 'dense', or 'crt'. "
+                    "Native peer srmech_qmat_nullspace. Class L ∘ Class I ∘ Class N.",
+            parameters=(P("rows", "QMat | Sequence[Sequence[int | Q]]", True,
+                          "the matrix as exact rows; a float is REFUSED"),
+                        P("method", "str", False, "keyword-only; 'auto' (default), 'dense', or 'crt'")),
+            returns=R("list", "the exact kernel basis: a list of column vectors of Q"),
+            smoke_test_hint={"rows": "[[1, 2], [2, 4]]"},
         ),
         ToolEntry(
             name="srmech.math.qpoly.qpoly_from_coeffs", owner="srmech",

@@ -56,18 +56,38 @@ def op(signal, coefficients, *, mode: str = "full", D: int = 8192):
     -------
     list
         Filtered output (length per ``mode``); numpy-free (#564).
+
+    Notes
+    -----
+    **Accuracy (rc463, `#T1188`).** An all-integer / Gaussian-integer
+    ``signal`` AND ``coefficients`` take the EXACT integer cascade and the
+    result is the true convolution at any magnitude. **Float** input is
+    genuinely continuous and rides the c_dispatched Toeplitz matvec, where each
+    output is accurate **to round-off** (the matmul accumulation may FMA-fuse
+    ~1 ULP), NOT byte-exact.
+
+    Through rc462 the routing was decided by ``HAS_NATIVE`` alone, so integer
+    input got the exact pure cascade on a pure host and a **float64-rounded**
+    answer on a native one: measured, ``fir([3, 0], [3002399751580331])[0]``
+    returned ``9007199254740993`` without the library and
+    ``9007199254740992.0`` with it. Two co-equal projections, one input, two
+    values — and no signal which you had.
     """
-    # composition_of_c (rc149 / B4b): when the native dense-matmul is present the
-    # convolution is a Toeplitz matvec through the c_dispatched
-    # srmech_dense_matmul_complex; otherwise the complete numpy-free pure
-    # cascade. Both coerce to 1-D lists (ValueError on nested/2-D / empty input)
-    # and return a list; the matmul path is within-tol (not byte-identical).
+    # composition_of_c (rc149 / B4b): a FLOAT convolution is a Toeplitz matvec
+    # through the c_dispatched srmech_dense_matmul_complex when the native lib
+    # is present; INTEGER input takes the exact pure cascade on BOTH projections
+    # (rc463 — see _dsp.exact_integer_operands for the measured divergence).
+    # Both coerce to 1-D lists (ValueError on nested/2-D / empty input) and
+    # return a list; the matmul path is within-tol (not byte-identical).
     from srmech import _native
 
+    a_lst = _dsp._as_1d_list(signal, "signal")
+    b_lst = _dsp._as_1d_list(coefficients, "coefficients")
     if (
         _native.HAS_NATIVE
         and _native.LIB is not None
         and hasattr(_native.LIB, "srmech_dense_matmul_complex")
+        and not _dsp.exact_integer_operands(a_lst, b_lst)
     ):
         return _dsp.convolve_matmul(signal, coefficients, mode=mode)
     return _dsp.convolve(signal, coefficients, mode=mode)

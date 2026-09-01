@@ -9,10 +9,14 @@ ARCHITECTURAL ROLE (user direction 2026-05-23):
   > this is foundational cascade operations for a whole host of things because
   > of scale invariance that does apply to every single discipline.
 
-This file is the PRECURSOR of a future srmech foundational-cascade-operations
+This file is the PRECURSOR of a srmech foundational-cascade-operations
 catalog -- a peer to:
-  - srmech.amsc.cosmos.asymptotic_calculus  (Spike #234)
-  - srmech.amsc.cosmos.trigonometry         (planned per [[user_stance_loe_asymptotes_are_ring_valued]])
+  - srmech.asymptotic_calculus  (Spike #234)
+  - srmech.trigonometry         (per [[user_stance_loe_asymptotes_are_ring_valued]])
+
+(Both paths verified live by import 2026-09-01. They were written here as
+srmech.amsc.cosmos.* -- a spelling ADR-0010 retired; `import srmech.amsc.cosmos`
+raises ModuleNotFoundError today.)
 
 The discipline that justifies this catalog: per the framework's scale-invariance
 canon, the A-N class operators are substrate-universal vocabulary that applies
@@ -36,10 +40,22 @@ DISCIPLINE per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]:
   > python math module does it differently. these are actually items that need
   > to live in srmech eventually, and fit inside catalog configuration text files.
 
-When each helper here graduates into srmech (e.g. as
-srmech.amsc.cascade.pin_slot_at_zero), the local import in cascade scripts
-becomes a srmech import without changing call sites. Same for the future
-catalog-config-driven runner:
+EVERY helper defined below has now graduated into srmech, and each was measured
+value-identical to its local twin on 2026-09-01 (rc463):
+
+  class_k_pin_slot_at_zero -> srmech.cascade.atoms.pin_slot_at_zero
+  class_c_reorient         -> srmech.cascade.atoms.reorient
+  magnitude                -> srmech.cascade.atoms.magnitude
+  best_rat_signed          -> srmech.cascade.composites.best_rational_signed
+  cyclic_gcd               -> srmech.cascade.composites.cyclic_gcd
+
+The local definitions are kept because the 61 cascade scripts that import them
+call them by these names. The swap is drop-in on all but ONE signature:
+srmech's `reorient(value, *, orientation)` is keyword-only and takes its
+arguments in the opposite order to the local `class_c_reorient(orientation,
+value)`. (This paragraph named a future `srmech.amsc.cascade.pin_slot_at_zero`
+until rc463 -- a path ADR-0010 retired, describing a graduation that had
+already happened.) Same for the catalog-config-driven runner:
 
     [cascade]
     classes = ["A", "L", "K", "N", "M"]
@@ -99,7 +115,7 @@ def class_c_reorient(orientation: int, value):
 def best_rat_signed(x: float, max_d: int = 100, fine: int = 1_000_000) -> Tuple[int, int]:
     """Class K pin-slot at zero -> Class N best-rational -> Class C reorient.
 
-    srmech.amsc.rational.best_rational requires (num: int >= 0, denom: int > 0,
+    srmech.math.rational.best_rational requires (num: int >= 0, denom: int > 0,
     max_denominator: int) and returns the integer rational pair. This wrapper
     handles the float -> integer-pair conversion via fine-scaling, and keeps the
     sign external as a Class K + Class C composition (not Python abs()).
@@ -130,47 +146,93 @@ def magnitude(x: float) -> float:
 # ---------- Class I cyclic GCD (delegates to srmech) ----------
 
 def cyclic_gcd(a: int, b: int) -> int:
-    """Class I cyclic GCD. Delegates to srmech.amsc.cyclic.gcd."""
+    """Class I cyclic GCD. Delegates to srmech.math.cyclic.gcd."""
     return _srmech_gcd(a, b)
 
 
-# ---------- Notes on transcendental shortcuts that DO NOT yet have srmech replacements ----------
+# ---------- Promotion ledger: what has LANDED in srmech, and what has not ----------
 #
-# The following Python math-module operations are used in cascade scripts:
+# MEASURED 2026-09-01 on this tree (srmech rc463, `#T1188`) by IMPORTING each
+# path, not by reading prose. This block previously listed seven "candidate
+# promotions" as uniformly pending and spelled every one of them under
+# srmech.amsc.* -- a namespace ADR-0010 retired. All three module paths it
+# named are gone: `srmech.amsc.trig`, `srmech.amsc.transcendentals` and
+# `srmech.amsc.cascade` each raise ModuleNotFoundError today. Five of the seven
+# candidates had in fact shipped, under different names, in different modules,
+# with different signatures.
 #
-#   math.cos(2*pi/n), math.sin(2*pi/n)
-#   math.log(p), math.sqrt(N)
-#   math.pi, math.ceil(x)
-#   numpy.mean(xs), numpy.std(xs)
+# The Python math-module operations still reached for by the 61 cascade scripts
+# under docs/unsolved-maths/ that import this file (measured file counts):
 #
-# Per the cascade-honesty discipline, these are CANDIDATE PROMOTIONS to srmech:
+#   math.cos(2*pi/n), math.sin(2*pi/n), math.pi  -- 1 script
+#                       (hilbert/hilbert_12_kronecker_jugendtraum)
+#   math.log(p)                                  -- 9 scripts
+#   math.sqrt(N)                                 -- 3 scripts
+#   math.ceil(x)                                 -- 1 script
+#   numpy.mean(xs) / numpy.std(xs)               -- 8 scripts
 #
-#   1. srmech.amsc.trig.cos_2pi_over_n(n: int, max_d: int) -> (int, int)
-#      Exact for constructible n (cyclotomic polynomial root); Class N rational
-#      approximation otherwise.
+# LANDED -- five of the seven, with their REAL homes and REAL signatures:
 #
-#   2. srmech.amsc.trig.sin_2pi_over_n(n: int, max_d: int) -> (int, int)
-#      Companion to cos_2pi_over_n.
+#   1. srmech.math.qalg.cos_2pi_over_n(n: int) -> Qalg                  [rc463]
+#      EXACT cos(2*pi/n) as an element of Q(zeta_n) = Q[x]/Phi_n. Class J (the
+#      cyclotomic divisor lattice) o Class N (the exact rational coordinates)
+#      o Class C (the zeta rotation). This block's old entry promised
+#      `(n, max_d) -> (int, int)`, "exact for constructible n, Class N rational
+#      approximation otherwise". BOTH halves of that were wrong: the shipped op
+#      takes NO max_d and never approximates, because cos(2*pi/n) is an
+#      algebraic number for EVERY n -- there is no non-constructible fallback
+#      case to have. Bounded 1 <= n <= 256 (a measured field-degree cap, not a
+#      constructibility condition).
 #
-#   3. srmech.amsc.transcendentals.log_class_n(num: int, denom: int, max_d: int)
-#      Class N best-rational approximation of log(num/denom).
+#   2. srmech.math.qalg.sin_2pi_over_n(n: int) -> Qalg                  [rc463]
+#      EXACT sin(2*pi/n) -- but over Phi_lcm(n,4), NOT Phi_n. i = zeta_4 is
+#      absent from Q(zeta_n) unless 4 | n, and without i the 1/i in
+#      (zeta - zeta^-1)/(2i) cannot be divided out, so the sine simply does not
+#      live in Q(zeta_n). Read the op's field note before composing it with
+#      cos_2pi_over_n: the two share a field exactly when 4 | n, and Qalg
+#      refuses a cross-field binary op otherwise.
 #
-#   4. srmech.amsc.transcendentals.sqrt_class_n(num: int, denom: int, max_d: int)
-#      Class N best-rational approximation of sqrt(num/denom).
+#   3. srmech.math.rational.log(x, *, precision=None) -> Q
+#      Exact-Q natural log. The old entry named a dead
+#      `srmech.amsc.transcendentals.log_class_n(num, denom, max_d)`.
 #
-#   5. srmech.amsc.cascade.reduce_sum(xs: List[T]) -> T
-#      Finite-sum reduction (replaces numpy.mean's sum part).
+#   4. srmech.math.rational.sqrt(x, *, precision=None) -> Q
+#      Exact-Q square root. Old entry: dead `...transcendentals.sqrt_class_n`.
 #
-#   6. srmech.amsc.cascade.reduce_count(xs: List[T]) -> int
-#      Finite count.
+#   5. srmech.cascade.composites.compensated_sum(values) -> float
+#      Class M Kahan-Babuska-Neumaier compensated summation -- the reduce-sum
+#      role the old `srmech.amsc.cascade.reduce_sum` entry described.
 #
-#   7. srmech.amsc.cascade.ceil_at_integer_boundary(x: float) -> int
-#      Class K pin-slot at integer-boundary (replaces math.ceil).
+# DISSOLVED -- not pending, and deliberately never to be minted:
 #
-# Until these land in srmech, the cascade scripts continue to use math.cos / sin
-# / log / sqrt / numpy.mean as TRANSCENDENTAL SHORTCUTS, followed immediately by
-# Class N best_rat_signed() to convert the irrational into its small-denominator
-# rational anchor. The cascade-honesty contract: a math.cos / math.sin / math.log
+#   6. reduce_count(xs) -> int.  DISSOLVED per dissolve-before-promote
+#      ([[feedback_no_privileged_primitive_classes]]). A finite count IS
+#      `len(xs)`: it reads a length the object already carries and executes no
+#      cascade step whatsoever. Minting it would add an op with zero cascade
+#      content and make the vocabulary read one op wider than the algebra
+#      actually is -- the precise failure the dissolve-first discipline exists
+#      to prevent. So numpy.mean(xs) is `compensated_sum(xs) / len(xs)`: one
+#      shipped op and a builtin, not two ops.
+#
+# STILL PENDING -- one of the seven:
+#
+#   7. A ceiling at the integer boundary. No public op ships it, but the exact
+#      carrier already answers the question: srmech.math.q.Q.__ceil__ returns an
+#      int from an exact Q with no float and no math module (Q(7,2) -> 4,
+#      Q(-7,2) -> -3). What is missing is only a NAMED Class-K op over it.
+#
+# What THIS FILE does, measured: nothing transcendental at all. There are zero
+# `math.*` and zero `numpy.*` calls anywhere in this module outside these
+# comments, and zero `abs()` calls -- the three mentions of abs() above are
+# prose saying not to use it. The paragraph that used to close this block
+# described "the cascade scripts continue to use math.cos / sin / log / sqrt /
+# numpy.mean as TRANSCENDENTAL SHORTCUTS ... until these land in srmech" as the
+# standing practice. They have landed. For cos, sin, log and sqrt an EXACT
+# srmech answer now exists, so a transcendental shortcut is no longer the
+# honest first move for any of them; where a consumer script still reaches for
+# math.* (counts above) that is a MIGRATION BACKLOG, not a sanctioned pattern.
+# The cascade-honesty contract still binds the un-migrated remainder: a math.*
 # call MUST be followed by Class N best-rational in the same cascade-step, so
-# that the cascade is finite-cyclical-algebra-honest end-to-end at the record
-# level even if the intermediate floating-point value is irrational.
+# the record is finite-cyclical-algebra-honest end-to-end even where the
+# intermediate float is irrational. The point is that for four of these
+# operations you can now skip the float entirely.

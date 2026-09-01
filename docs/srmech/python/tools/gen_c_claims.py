@@ -194,6 +194,8 @@ def extract():
     rows = [json.loads(line) for line in
             _LEDGER.read_text(encoding="utf-8").splitlines() if line.strip()]
     c_dispatched = sorted(r["defined_at"] for r in rows if r["bucket"] == "c_dispatched")
+    composition = sorted(r["defined_at"] for r in rows
+                         if r["bucket"] == "composition_of_c")
 
     claims = {}
     unverifiable = []
@@ -212,6 +214,36 @@ def extract():
             claims[key] = tuple(declared)
         else:
             unverifiable.append(key)
+
+    # rc463 (`#T1188`) — the UNDERSTATED-PARITY half, which is the reverse of the
+    # direction this ledger was built to watch.
+    #
+    # Through rc462 the harvest read ONLY the ``c_dispatched`` bucket, so a
+    # symbol reached from a ``composition_of_c`` op was claimed by nobody at
+    # all. The canonical case is ``srmech_svd_f64``: DECLARED in srmech.h,
+    # DEFINED in c/src/srmech_svd_qr.c, ctypes-BOUND in _native/__init__.py, and
+    # actually CALLED by ``laplacian.mat_svd`` — which the ledger classifies
+    # ``composition_of_c`` because it also composes other C ops. So ``svd`` read
+    # as Python-only while it was C-dispatched. **Measured at rc463: 39 header
+    # symbols were in exactly that state** (``srmech_svd_f64``, its ws_bound
+    # peer, and 37 genome symbols), not the one the defect was found through.
+    #
+    # These ops are added to ``claims`` ONLY. They are never added to
+    # ``unverifiable``: a composition that names no direct symbol is not a blind
+    # spot, it is the DEFINITION of its bucket — so the unverifiable ceiling
+    # keeps meaning exactly what it meant, a ``c_dispatched`` op whose symbol
+    # the static walk could not attribute.
+    for key in composition:
+        fn = _resolve(key)
+        if fn is None:
+            continue
+        syms = _symbols_for(fn, native_mod)
+        declared = sorted(s for s in syms if s in header)
+        stray = sorted(s for s in syms if s not in header)
+        if stray:
+            off_header.setdefault(key, stray)
+        if declared:
+            claims[key] = tuple(declared)
     return claims, tuple(sorted(unverifiable)), off_header
 
 
