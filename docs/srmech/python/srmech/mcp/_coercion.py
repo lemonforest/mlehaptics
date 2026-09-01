@@ -1124,6 +1124,59 @@ def _to_species(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_qalg(value: Any, *, param: str = "") -> Any:
+    """The ``lam`` eigenvalue of ``eigvec_exact`` / ``eigvec_exact_float`` /
+    ``jordan_chains_exact`` (rc463, `#T1188`).
+
+    An algebraic number as an element of ℚ[x]/(m). A live
+    :class:`~srmech.math.qalg.Qalg` passes through (in-process). Over JSON it
+    rides as a mapping ``{"m": [int, ...], "coords": [[num, den], ...],
+    "root": <float|[re, im]|null>}`` — ``m`` monic ℤ[x] and ``coords`` in the α
+    power basis, both **ascending**, which is the same low→high convention
+    ``factor_integer_poly`` and ``cyclotomic_polynomial`` already speak.
+
+    ⚠️ **The ``root`` field is not decoration and is not optional in practice.**
+    An irreducible ``m`` of degree d has d roots and they are DIFFERENT numbers;
+    ``root`` is the embedding that says which one this element is. Dropping it
+    silently would make ``eigvec_exact`` return the eigenvector of a different
+    conjugate — a well-formed wrong answer, the failure class this rc exists to
+    close — so a mapping with no ``root`` builds a ``Qalg`` with ``root=None``
+    and the op's own projection then refuses rather than guessing.
+
+    A refusal is a NAMED one: this handler's content is mostly the refusal,
+    because the alternative to raising here is dispatching an eigenvalue that
+    is not the eigenvalue.
+    """
+    from srmech.math.q import Q         # exact-ℚ carrier; lazy
+    from srmech.math.qalg import Qalg
+    if isinstance(value, Qalg):
+        return value
+    if not isinstance(value, dict):
+        raise TypeError(
+            f"{param or 'lam'}: a Qalg must arrive as a live Qalg or as a "
+            f"mapping {{'m': [int,...], 'coords': [[num,den],...], 'root': ...}}; "
+            f"got {type(value).__name__}")
+    if "m" not in value or "coords" not in value:
+        raise ValueError(
+            f"{param or 'lam'}: a Qalg mapping needs both 'm' (the monic ℤ[x] "
+            f"minimal polynomial, ascending) and 'coords' (the α power-basis "
+            f"coordinates, ascending); got keys {sorted(value)}")
+    m = tuple(int(c) for c in value["m"])
+    coords = []
+    for c in value["coords"]:
+        if (isinstance(c, (list, tuple)) and len(c) == 2
+                and isinstance(c[0], int) and not isinstance(c[0], bool)
+                and isinstance(c[1], int) and not isinstance(c[1], bool)
+                and c[1] != 0):
+            coords.append(Q(int(c[0]), int(c[1])))
+        else:
+            coords.append(c)
+    root = value.get("root")
+    if isinstance(root, (list, tuple)) and len(root) == 2:
+        root = complex(float(root[0]), float(root[1]))
+    return Qalg(m, coords, root=root)
+
+
 def _to_qmat_rows(value: Any, *, param: str = "") -> Any:
     """``srmech.chemistry.conservation_laws`` ``N`` (v0.9.0rc379).
 
@@ -1248,6 +1301,11 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # live QMat passes through (in-process only). See srmech/chemistry/.
     "Sequence[str | dict[str,int]] | QMat": _to_species,        # balance_reaction species
     "QMat | Sequence[Sequence[int | Q]]": _to_qmat_rows,        # conservation_laws N
+    # 0.9.0rc463 (`#T1188`): the exact eigensolver's eigenvalue operand. A NEW
+    # declared param TYPE widens this discriminator set in the SAME change that
+    # registers the ops — the whole exact-eigensolver family was public in
+    # __all__ with no ToolEntry, so this type had never reached the wire.
+    "Qalg": _to_qalg,                                           # eigvec_exact lam
     "Sequence[tuple[dict[str,int], dict[str,int]]]": _to_reactions,  # deficiency reactions
     # 0.9.0rc452 (`#T1166`): the Class-F render step's substitution namespace
     # (srmech.amsc.descriptor.render_template `context`). NOT `_identity`: a
