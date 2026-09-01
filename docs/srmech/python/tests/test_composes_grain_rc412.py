@@ -199,6 +199,64 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.cascade.associator",
         "srmech.amsc.format.sha256_bytes",
     ),
+    # ── rc463 (`#T1188`) — the exact-eigensolver family, TRACED ───────
+    # These five are RESIDUAL by the census rule (two or more call edges, or
+    # zero at depth 1 with real ones deeper), so the order is a human act and
+    # is traced here rather than inferred. All five orders are forced by DATA
+    # DEPENDENCE, not by style: each stage consumes the previous stage's
+    # output, so none is re-orderable without changing what is computed.
+    #
+    # eig_exact: char_poly(a) produces the exact integer coefficients;
+    # factor_integer_poly consumes them (reversed to low->high) and yields the
+    # irreducibles; only then, per isolated root, eigvec_exact takes the Qalg
+    # and jordan_chains_exact completes the generalized basis. eigvec_exact
+    # strictly precedes jordan_chains_exact — the geometric basis is read
+    # before the chains that extend it.
+    "srmech.cascade.matrix_cascades.eig_exact": (
+        "srmech.cascade.matrix_cascades.char_poly",
+        "srmech.cascade.matrix_cascades.factor_integer_poly",
+        "srmech.cascade.matrix_cascades.eigvec_exact",
+        "srmech.cascade.matrix_cascades.jordan_chains_exact",
+    ),
+    # jordan_form_exact: the same chain MINUS eigvec_exact — it assembles P
+    # from the Jordan chains directly, so it never calls the geometric-basis
+    # op on its own account.
+    "srmech.cascade.matrix_cascades.jordan_form_exact": (
+        "srmech.cascade.matrix_cascades.char_poly",
+        "srmech.cascade.matrix_cascades.factor_integer_poly",
+        "srmech.cascade.matrix_cascades.jordan_chains_exact",
+    ),
+    # singular_values_exact: char_poly of the Gram matrix AᵀA, then
+    # factor_integer_poly TWICE (once on the char-poly in λ, once on the
+    # x->x² interleave in σ, which can be reducible), then eigvec_exact for
+    # the right singular vector at λ = σ². The declaration carries
+    # factor_integer_poly ONCE: it names the ops composed, and the repeat is
+    # the same op at two stages of one chain, not a second edge.
+    "srmech.cascade.matrix_cascades.singular_values_exact": (
+        "srmech.cascade.matrix_cascades.char_poly",
+        "srmech.cascade.matrix_cascades.factor_integer_poly",
+        "srmech.cascade.matrix_cascades.eigvec_exact",
+    ),
+    # factor_integer_poly: ZERO edges at depth 1 and real ones deeper, which
+    # is why the mechanical SINGLE rule cannot tier it. The Zassenhaus order
+    # is the algorithm's own: the square-free decomposition consumes `gcd`,
+    # prime selection then consumes `is_prime`, and the van Hoeij knapsack
+    # recombination runs `lll_reduce` LAST, on the lifted factors.
+    "srmech.cascade.matrix_cascades.factor_integer_poly": (
+        "srmech.math.cyclic.gcd",
+        "srmech.math.primes.is_prime",
+        "srmech.cascade.matrix_cascades.lll_reduce",
+    ),
+    # cos_2pi_over_n: also zero at depth 1 — it reaches
+    # cyclotomic_polynomial through a private reduction helper, so the edge is
+    # real at depth 2 and the op genuinely composes it. A one-element tuple
+    # carries no order claim at all, which is the whole content here.
+    # (sin_2pi_over_n reaches it at depth 1 and is tiered SINGLE by the
+    # census, so it is deliberately NOT duplicated into this hand-traced
+    # roster.)
+    "srmech.math.qalg.cos_2pi_over_n": (
+        "srmech.math.poly.cyclotomic_polynomial",
+    ),
     # ── rc412 ─────────────────────────────────────────────────────────
     # Class K pin-slot -> Class N anchor -> Class C re-orient. The op's own
     # docstring names the cascade; the native branch returns a finished

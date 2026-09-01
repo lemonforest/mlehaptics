@@ -94,7 +94,11 @@
 {"composes": [], "name": "srmech.cascade.kuramoto_inv_n", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.kuramoto_out_simple", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.matrix_cascades.char_poly", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.matrix_cascades.eigvec_exact", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.matrix_cascades.gram_schmidt_exact", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.matrix_cascades.jordan_chains_exact", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.matrix_cascades.lll_reduce", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.matrix_cascades.lstsq_exact", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.pair", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.phase_coherent_peak", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.pin_slot_at_zero", "tier": "LEAF"}
@@ -202,6 +206,12 @@
 {"composes": [], "name": "srmech.math.primes.factor", "tier": "LEAF"}
 {"composes": [], "name": "srmech.math.primes.is_prime", "tier": "LEAF"}
 {"composes": [], "name": "srmech.math.qbipoly.qbipoly_from_coeffs", "tier": "LEAF"}
+{"composes": [], "name": "srmech.math.qmat.qmat_det", "tier": "LEAF"}
+{"composes": [], "name": "srmech.math.qmat.qmat_inverse", "tier": "LEAF"}
+{"composes": [], "name": "srmech.math.qmat.qmat_nullspace", "tier": "LEAF"}
+{"composes": [], "name": "srmech.math.qmat.qmat_rank", "tier": "LEAF"}
+{"composes": [], "name": "srmech.math.qmat.qmat_rref", "tier": "LEAF"}
+{"composes": [], "name": "srmech.math.qmat.qmat_solve", "tier": "LEAF"}
 {"composes": [], "name": "srmech.math.qpoly.qpoly_from_coeffs", "tier": "LEAF"}
 {"composes": [], "name": "srmech.math.rational.best_rational", "tier": "LEAF"}
 {"composes": [], "name": "srmech.math.rational.continued_fraction", "tier": "LEAF"}
@@ -342,7 +352,9 @@
 {"composes": ["srmech.cascade.pin_slot_at_zero"], "name": "srmech.cascade.magnitude", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_eigvals"], "name": "srmech.cascade.matrix_cascades.eigvals", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.matrix_cascades.char_poly"], "name": "srmech.cascade.matrix_cascades.eigvals_exact", "tier": "SINGLE"}
+{"composes": ["srmech.cascade.matrix_cascades.eigvec_exact"], "name": "srmech.cascade.matrix_cascades.eigvec_exact_float", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_lstsq"], "name": "srmech.cascade.matrix_cascades.lstsq", "tier": "SINGLE"}
+{"composes": ["srmech.math.laplacian.mat_matmul"], "name": "srmech.cascade.matrix_cascades.separate_frame_curvature", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_svd"], "name": "srmech.cascade.matrix_cascades.svd", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.reorient"], "name": "srmech.cascade.net_chirality", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.reorient"], "name": "srmech.cascade.orientation_compose", "tier": "SINGLE"}
@@ -406,6 +418,7 @@
 {"composes": ["srmech.math.primes.factor"], "name": "srmech.math.poly.cyclotomic_polynomial", "tier": "SINGLE"}
 {"composes": ["srmech.math.cyclic.gcd"], "name": "srmech.math.primes.cyclic_period", "tier": "SINGLE"}
 {"composes": ["srmech.math.primes.is_prime"], "name": "srmech.math.primes.next_prime", "tier": "SINGLE"}
+{"composes": ["srmech.math.cyclic.gcd"], "name": "srmech.math.qalg.sin_2pi_over_n", "tier": "SINGLE"}
 {"composes": ["srmech.math.rational.atan"], "name": "srmech.math.rational.atan2", "tier": "SINGLE"}
 {"composes": ["srmech.math.cyclic.gcd"], "name": "srmech.math.rational.exp_series_truncate", "tier": "SINGLE"}
 {"composes": ["srmech.math.rational.rational_div"], "name": "srmech.math.rational.relative_writhe", "tier": "SINGLE"}

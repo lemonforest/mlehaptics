@@ -4418,6 +4418,33 @@ static const char *const ts_composes_144[] = {
 static const char *const ts_composes_146[] = {
     "srmech.cascade.matrix_cascades.char_poly",
 };
+static const char *const ts_composes_148[] = {
+    "srmech.cascade.matrix_cascades.eigvec_exact",
+};
+static const char *const ts_composes_149[] = {
+    "srmech.math.cyclic.gcd",
+    "srmech.math.primes.is_prime",
+    "srmech.cascade.matrix_cascades.lll_reduce",
+};
+static const char *const ts_composes_150[] = {
+    "srmech.cascade.matrix_cascades.char_poly",
+    "srmech.cascade.matrix_cascades.factor_integer_poly",
+    "srmech.cascade.matrix_cascades.eigvec_exact",
+    "srmech.cascade.matrix_cascades.jordan_chains_exact",
+};
+static const char *const ts_composes_152[] = {
+    "srmech.cascade.matrix_cascades.char_poly",
+    "srmech.cascade.matrix_cascades.factor_integer_poly",
+    "srmech.cascade.matrix_cascades.jordan_chains_exact",
+};
+static const char *const ts_composes_153[] = {
+    "srmech.math.laplacian.mat_matmul",
+};
+static const char *const ts_composes_156[] = {
+    "srmech.cascade.matrix_cascades.char_poly",
+    "srmech.cascade.matrix_cascades.factor_integer_poly",
+    "srmech.cascade.matrix_cascades.eigvec_exact",
+};
 static const char *const ts_composes_162[] = {
     "srmech.math.hdc.klein4_bind",
 };
@@ -4610,7 +4637,7 @@ static const char *const ts_composes_313[] = {
     "srmech.math.poly.cyclotomic_polynomial",
 };
 static const char *const ts_composes_314[] = {
-    "srmech.math.poly.cyclotomic_polynomial",
+    "srmech.math.cyclic.gcd",
 };
 static const char *const ts_composes_333[] = {
     "srmech.amsc.format.sha256_bytes",
@@ -8477,7 +8504,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":[[1,1],[1,0]],\"lam\":\"eig_exact(a, project=False)[1]['value_qalg']\"},\"output\":\"[1.618033988749895, 1.0]\",\"why\":\"The same eigenvector twice: once as coordinates in Q(lam), once as two doubles. Nothing between the two lines is a float, which is what rotation-last means -- the FPU is touched at the read-out and nowhere earlier.\",\"worked\":\"from srmech.cascade.matrix_cascades import (eig_exact,\\n    eigvec_exact, eigvec_exact_float)\\nA = [[1, 1], [1, 0]]\\nlam = eig_exact(A, project=False)[1]['value_qalg']\\neigvec_exact(A, lam)          # the EXACT body\\n# -> [Qalg((-1, -1, 1), (Q(0, 1), Q(1, 1))),\\n#     Qalg((-1, -1, 1), (Q(1, 1), Q(0, 1)))]\\neigvec_exact_float(A, lam)    # the ONE projection\\n# -> [1.618033988749895, 1.0]\\nlam.root\\n# -> 1.618033988749895    the embedding it projects through\\n\"}",
         NULL,
         "WHAT it returns: the float / complex read-out of eigvec_exact -- the ONE terminal projection (rotation-last). The eigenvector is computed EXACTLY over Q(lam) and only the final components are lifted to the FPU, so the conditioning of the exact null-space solve never reaches a float. lam must carry an embedding root or the op raises, rather than inventing one. WHEN to use it: at the boundary where an exact eigenvector has to leave the field -- a plot, a downstream float solver, a report. It is accurate to the Qalg embedding at the read-out step and NOT byte-exact by construction; naming the projection instead of hiding it is the entire point of shipping it as a separate op. SIBLINGS: eigvec_exact is the exact body -- use it when you need to stay in the field. Do not hand-roll a float eigenvector solve from eigvals_exact plus a float elimination: that puts the rounding BEFORE the algebra instead of after it, which is the ordering this op exists to invert. eig_exact(project=True) already carries a projected vector per eigenvalue if the whole spectrum is wanted at once.",
-        NULL, 0u,
+        ts_composes_148, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
@@ -8497,7 +8524,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"coeffs\":[1,0,-3,0,1]},\"output\":\"[((-1, -1, 1), 1), ((-1, 1, 1), 1)]\",\"why\":\"Three readings of the same op: the reducible substitution that forces the factor step, the HIGH->LOW / LOW->HIGH orientation trap at the char_poly seam, and an irreducible answer -- so the transcript cannot be read as \\\"it always splits\\\".\",\"worked\":\"from srmech.cascade.matrix_cascades import (char_poly,\\n    factor_integer_poly)\\n# the witness that makes this step MANDATORY inside\\n# singular_values_exact -- the x -> x^2 substitution is\\n# REDUCIBLE, so a Qalg over it would not be a field:\\nfactor_integer_poly([1, 0, -3, 0, 1])   # x^4 - 3x^2 + 1\\n# -> [((-1, -1, 1), 1), ((-1, 1, 1), 1)]\\n#    (x^2 - x - 1)(x^2 + x - 1)\\ncp = char_poly([[1, 1], [0, 1]])\\ncp\\n# -> [1, -2, 1]     char_poly emits HIGH->LOW\\nfactor_integer_poly(list(reversed(cp)))  # reverse FIRST\\n# -> [((-1, 1), 2)]   (x - 1)^2: one root, multiplicity 2\\nfactor_integer_poly([-3, 0, 1])\\n# -> [((-3, 0, 1), 1)]   x^2 - 3 irreducible: no sqrt(3) in Q\\n\"}",
         NULL,
         "WHAT it computes: the IRREDUCIBLE factors over Q of an integer polynomial, by Zassenhaus -- square-free decomposition, Hensel lifting from a well-chosen prime, then recombination -- returning [(factor_coeffs, multiplicity), ...] with every factor primitive and positive-leading. Exact integer arithmetic throughout, no float. Coefficients are LOW->HIGH both in and out (coeffs[0] is the constant term), and char_poly emits HIGH->LOW, so its output must be REVERSED before it is handed here -- that seam is the one place this op is routinely mis-called. WHEN to reach for it: any time a polynomial has to become a FIELD. It is mandatory inside singular_values_exact, because the x -> x^2 substitution can be reducible -- measured, x^4 - 3x^2 + 1 = (x^2 - x - 1)(x^2 + x - 1) -- and a Qalg built over a reducible modulus is a ring with zero divisors, so the exact elimination hits a non-invertible pivot instead of an answer. SIBLINGS: char_poly is the usual producer; eig_exact and singular_values_exact both call this internally, so do not re-implement a rational-root scan in front of them; srmech.math.qalg.Qalg is the field each factor mints; lll_reduce is the exact lattice engine a future van Hoeij recombination would use to supersede the Zassenhaus subset search here.",
-        NULL, 0u,
+        ts_composes_149, 3u,
         NULL, 0u,
         NULL,
         NULL, 0u,
@@ -8517,7 +8544,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":[[2,1],[0,2]],\"project\":false},\"output\":\"(2, 1, True) with jordan_blocks [2] and value_qalg Qalg((-2, 1), (Q(2, 1),))\",\"why\":\"A defective matrix is the case that separates this from a float eigensolver: algebraic 2 against geometric 1 is a counted fact here, not a threshold. The last line shows the two output modes are the same computation with and without the terminal projection.\",\"worked\":\"from srmech.cascade.matrix_cascades import (eig_exact,\\n    eigvec_exact)\\nD = [[2, 1], [0, 2]]   # defective: 1 eigenvalue, 1 vector\\nd = eig_exact(D, project=False)[0]\\n(d['algebraic_multiplicity'], d['geometric_multiplicity'],\\n d['defective'])\\n# -> (2, 1, True)\\nd['jordan_blocks']\\n# -> [2]\\nlam = d['value_qalg']    # THE bridge to the exact ops\\nlam\\n# -> Qalg((-2, 1), (Q(2, 1),))\\neigvec_exact(D, lam)\\n# -> [Qalg((-2, 1), (Q(1, 1),)), Qalg((-2, 1), (Q(0, 1),))]\\neig_exact([[1, 1], [1, 0]])[1]['value']   # project=True\\n# -> (1.618033988749895+0j)\\n\"}",
         NULL,
         "WHAT it computes: ALL exact eigenpairs of an integer / rational matrix, turnkey. It chains char_poly (exact integer) -> Yun square-free -> factor_integer_poly -> root isolation (Sturm for the reals, argument-principle box subdivision for the complex ones) -> a Qalg per root over its own irreducible substrate -> eigvec_exact -> jordan_chains_exact, and returns one dict per DISTINCT eigenvalue carrying min_poly, algebraic and geometric multiplicity, defective, jordan_blocks and generalized_vectors. It is self-validating: the algebraic multiplicities must sum to n and the generalized basis must be n-many, or it raises. WHEN to reach for it: as the entry point to everything else exact. project=True (default) adds the terminal float projections; project=False keeps value_qalg / vectors_qalg EXACT, and that is the only supported way to obtain the Qalg that eigvec_exact, jordan_chains_exact and jordan_form_exact consume. SIBLINGS: eigvals_exact is the float-valued read-out and is NOT a substitute -- its output cannot be fed back into the exact ops. Do not compose char_poly plus a hand-written root finder to get here; the isolation, the factorisation and the multiplicity bookkeeping are exactly what this op already performs. jordan_form_exact assembles the same chains into P and J.",
-        NULL, 0u,
+        ts_composes_150, 4u,
         NULL, 0u,
         NULL,
         NULL, 0u,
@@ -8557,7 +8584,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":[[2,1,0],[0,2,0],[0,0,2]]},\"output\":\"blocks [((2+0j), 2), ((2+0j), 1)]; J [[(2+0j), (1+0j), 0j], [0j, (2+0j), 0j], [0j, 0j, (2+0j)]]\",\"why\":\"The last two calls differ in a single entry and return different block structures. The Jordan form is discontinuous in the entries, so no float route can decide between them -- the transcript is the demonstration that the decision is being made, not estimated.\",\"worked\":\"from srmech.cascade.matrix_cascades import jordan_form_exact\\nA = [[2, 1, 0], [0, 2, 0], [0, 0, 2]]\\njordan_form_exact(A)['blocks']\\n# -> [((2+0j), 2), ((2+0j), 1)]   one 2-block, one 1-block\\njordan_form_exact(A)['J']\\n# -> [[(2+0j), (1+0j), 0j],\\n#     [0j, (2+0j), 0j],\\n#     [0j, 0j, (2+0j)]]\\njordan_form_exact([[2, 1], [0, 2]])['blocks']\\n# -> [((2+0j), 2)]        ONE block of size 2\\njordan_form_exact([[2, 1], [0, 3]])['blocks']\\n# -> [((2+0j), 1), ((3+0j), 1)]   diagonalizable\\n\"}",
         NULL,
         "WHAT it computes: the canonical EXACT Jordan form of an integer / rational matrix -- A = P.J.P^-1 -- built end to end from the exact machinery (char_poly -> factor_integer_poly -> Qalg roots -> jordan_chains_exact assembled into P), returned as {blocks, P, J}. It is self-validating: A.P == P.J or it raises. project=True (default) hands back the terminal float / complex projection, project=False keeps the exact Qalg objects. WHEN to reach for it: whenever the BLOCK STRUCTURE is the answer you want -- similarity classification, nilpotency, the minimal polynomial degree, or the exponential of a defective operator. Because every step stays exact, that structure is a theorem about A rather than a threshold decision: the Jordan form is famously discontinuous in the entries, so a float route cannot decide it at all, and any float implementation is really answering a nearby question about a nearby matrix. SIBLINGS: eig_exact reports the same jordan_blocks per eigenvalue without assembling P; jordan_chains_exact is the per-eigenvalue engine underneath, so do not re-implement the chain assembly to build P by hand; svd and eigvals are the float peers and are the wrong instrument for this question, not merely a less accurate one.",
-        NULL, 0u,
+        ts_composes_152, 3u,
         NULL, 0u,
         NULL,
         NULL, 0u,
@@ -8577,7 +8604,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":[[3]],\"b\":[[3002399751580331]]},\"output\":\"fixed_frame [[Q(9007199254740993, 1)]], curvature [[Q(0, 1)]], is_flat True\",\"why\":\"The 1x1 pair is the witness that retired the rc462 claim: both entries are exactly float-representable and the answer still differs by one bit between the rungs, because the governing quantity is the PRODUCT. The 2x2 pair is the control -- is_flat is not always True.\",\"worked\":\"from srmech.cascade.matrix_cascades import separate_frame_curvature\\n# EXACT rung -- int operands, so the whole split runs on QMat:\\nr = separate_frame_curvature([[3]], [[3002399751580331]])\\nr['fixed_frame'].to_lists()\\n# -> [[Q(9007199254740993, 1)]]     2**53 + 1, held exactly\\nr['is_flat']\\n# -> True\\n# FLOAT rung -- the SAME numbers. Both ENTRIES are exactly\\n# representable; their PRODUCT is not:\\nseparate_frame_curvature([[3.0]], [[3002399751580331.0]]\\n    )['fixed_frame'].tolist()\\n# -> [[9007199254740992.0]]         the low bit is gone\\n# a non-commuting pair, on the exact rung:\\nr2 = separate_frame_curvature([[0, 1], [0, 0]],\\n                              [[0, 0], [1, 0]])\\nr2['curvature'].to_lists()\\n# -> [[Q(1, 2), Q(0, 1)], [Q(0, 1), Q(-1, 2)]]\\nr2['is_flat']\\n# -> False\\n\"}",
         NULL,
         "WHAT it computes: the split of a two-operator product A.B into its FIXED-FRAME (metric) part, the halved anticommutator (A.B + B.A)/2 -- what both orderings AGREE on -- and its CURVATURE / RESPONSION residue, the halved commutator (A.B - B.A)/2, the holonomy the frame picks up per beat. This IS the Clifford / geometric-algebra split of a product into metric and wedge, shipped as one op with a vanishing certificate: is_flat is True iff the curvature carrier is LITERALLY the zero matrix, every entry Class-K magnitude exactly zero, never an ALU abs(). WHEN to reach for it: when the question is whether two operators commute, and you want that answered rather than estimated. There are TWO carrier rungs. EXACT operands (int / Q / Fraction / QMat) run the whole decomposition on the exact-Q QMat carrier, so is_flat is a theorem about the TRUE commutator; FLOAT operands keep the Mat carrier, where the entries are accurate to round-off and is_flat speaks only about the computed carrier. Through rc462 the op claimed bit-exactness on \"exactly-float-representable entries\", which was false -- the governing quantity is the PRODUCTS, and [[3]] times [[3002399751580331]] is 2**53 + 1. SIBLINGS: srmech.physics.qm.single_particle.commutator is the bare commutator this halves, so do not hand-build the decomposition from it plus a transpose-free symmetriser -- the new object here is the pair plus the certificate; srmech.math.qmat.QMat is the exact carrier the exact rung runs on, and handing this op exact operands is the supported way to reach it.",
-        NULL, 0u,
+        ts_composes_153, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
@@ -8637,7 +8664,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":[[1,1],[0,1]]},\"output\":\"[((-1, -1, 1), 1, 1.618033988749895), ((-1, 1, 1), 1, 0.6180339887498949)]\",\"why\":\"This 2x2 IS the reducible witness: the x -> x^2 substitution on x^2 - 3x + 1 gives x^4 - 3x^2 + 1, which splits. The two sigmas therefore live over different irreducibles -- which is exactly the case where no single exact U Sigma V^T exists, and the transcript shows it happening on the smallest possible example.\",\"worked\":\"from srmech.cascade.matrix_cascades import (\\n    singular_values_exact, char_poly, factor_integer_poly)\\nA = [[1, 1], [0, 1]]\\n[(d['min_poly'], d['multiplicity'], d['value'])\\n for d in singular_values_exact(A)]\\n# -> [((-1, -1, 1), 1, 1.618033988749895),\\n#     ((-1, 1, 1), 1, 0.6180339887498949)]\\n# the two sigmas sit in DIFFERENT fields. Here is why:\\nchar_poly([[1, 1], [1, 2]])       # A^T A, HIGH->LOW\\n# -> [1, -3, 1]\\nfactor_integer_poly([1, 0, -3, 0, 1])  # x -> x^2, low->high\\n# -> [((-1, -1, 1), 1), ((-1, 1, 1), 1)]\\nsingular_values_exact(A)[0]['right_vector_qalg']\\n# -> [Qalg((-1, -1, 1), (Q(-1, 1), Q(1, 1))),\\n#     Qalg((-1, -1, 1), (Q(1, 1), Q(0, 1)))]\\n\"}",
         NULL,
         "WHAT it computes: the exact singular values of an INTEGER matrix, each a Qalg in ITS OWN number field Q(sigma), with its exact right singular vector in the SAME field. It is a composition of shipped ops, not a new algorithm: char_poly(A^T A) -> reverse to low->high -> the x -> x^2 coefficient interleave (sigma = sqrt of lambda means m_sigma(x) = m_lambda(x^2), so no resultant is needed for a square root) -> factor_integer_poly -> Qalg over each irreducible at its isolated root. Only the non-negative real roots are singular values, and that selection is a Class-K pin-slot on the sign boundary composed with a Class-C orientation read, never an ALU abs(). WHEN to reach for it: when a single sigma has to be exact -- a condition number as an algebraic number, an exact rank-one truncation, a spectral-norm bound that must be provable. THE SCOPE LINE, stated rather than discovered: per sigma everything lives in ONE field, which is why the right vector comes back exact, but a matrix whose polynomial factors into DISTINCT irreducibles puts its sigmas in DIFFERENT fields, and a combined exact Sigma / U / V^T across them needs a COMPOSITUM that srmech.math.poly cannot build today -- it ships Poly.resultant but no primitive_element, no minimal_polynomial and no bivariate resultant. So this op ships the per-sigma decomposition and never returns a combined factorisation; there is no path on which it silently works only when the factors happen to coincide. SIBLINGS: svd is the float peer and returns the combined factorisation this deliberately does not; factor_integer_poly is the mandatory step in the middle, so do not skip it and build a Qalg on the raw substituted polynomial; eig_exact is the eigenvalue-side twin.",
-        NULL, 0u,
+        ts_composes_156, 3u,
         NULL, 0u,
         NULL,
         NULL, 0u,

@@ -3832,12 +3832,20 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("a", "Mat", True, "(n, n) integer/rational square matrix"),
                         P("lam", "Qalg", True, "the eigenvalue as an exact Qalg")),
             returns=R("list", "the eigenvector components as float/complex — the single terminal projection"),
+            composes=(
+                "srmech.cascade.matrix_cascades.eigvec_exact",
+            ),
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.factor_integer_poly", owner="srmech", category="cascade",
             summary="Factor an integer polynomial into its IRREDUCIBLE factors over ℚ (Zassenhaus: square-free decomposition, Hensel lifting from a well-chosen prime, then recombination). Coefficients are LOW→HIGH (coeffs[0] is the constant term) both in and out — note char_poly emits HIGH→LOW, so its output must be reversed before it is handed here. Returns [(factor_coeffs, multiplicity), ...], each factor primitive, irreducible and positive-leading. Exact integer arithmetic throughout, no float. This is the step that makes the exact eigensolver and the exact SVD honest: the naive x→x² substitution in singular_values_exact can be REDUCIBLE (measured: x⁴ − 3x² + 1 = (x² − x − 1)(x² + x − 1)), so a Qalg built without factoring first would not be a field. Native peers srmech_factor_integer_poly / srmech_factor_squarefree_primitive. Class J (the prime-field Hensel lift) ∘ Class N ∘ Class I.",
             parameters=(P("coeffs", "list", True, "integer polynomial coefficients LOW→HIGH (coeffs[0] = constant term)"),),
             returns=R("list", "[(factor_coeffs low→high, multiplicity), ...] — primitive irreducible factors over ℚ"),
+            composes=(
+                "srmech.math.cyclic.gcd",
+                "srmech.math.primes.is_prime",
+                "srmech.cascade.matrix_cascades.lll_reduce",
+            ),
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.eig_exact", owner="srmech", category="cascade",
@@ -3846,6 +3854,12 @@ def _register_primitive_class_tools() -> None:
                         P("bits", "int", False, "keyword-only; root-isolation refinement precision (default 64)"),
                         P("project", "bool", False, "keyword-only; True (default) adds terminal float projections, False keeps the exact Qalg objects")),
             returns=R("list", "one dict per distinct eigenvalue: min_poly, multiplicities, jordan_blocks, generalized_vectors, and either value/vector (projected) or value_qalg/vectors_qalg (exact)"),
+            composes=(
+                "srmech.cascade.matrix_cascades.char_poly",
+                "srmech.cascade.matrix_cascades.factor_integer_poly",
+                "srmech.cascade.matrix_cascades.eigvec_exact",
+                "srmech.cascade.matrix_cascades.jordan_chains_exact",
+            ),
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.jordan_chains_exact", owner="srmech", category="cascade",
@@ -3861,6 +3875,11 @@ def _register_primitive_class_tools() -> None:
                         P("bits", "int", False, "keyword-only; root-isolation refinement precision (default 64)"),
                         P("project", "bool", False, "keyword-only; True (default) projects P/J to float, False keeps them exact")),
             returns=R("dict", "{blocks, P, J} — the Jordan block sizes, the similarity matrix and the Jordan form"),
+            composes=(
+                "srmech.cascade.matrix_cascades.char_poly",
+                "srmech.cascade.matrix_cascades.factor_integer_poly",
+                "srmech.cascade.matrix_cascades.jordan_chains_exact",
+            ),
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.separate_frame_curvature", owner="srmech", category="cascade",
@@ -3868,6 +3887,9 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("a", "Mat", True, "(n, n) square operator; exact entries select the exact-ℚ rung"),
                         P("b", "Mat", True, "(n, n) square operator of the SAME shape")),
             returns=R("dict", "{fixed_frame, curvature, is_flat} — QMat on the exact rung, Mat on the float rung"),
+            composes=(
+                "srmech.math.laplacian.mat_matmul",
+            ),
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.lstsq_exact", owner="srmech", category="cascade",
@@ -3889,6 +3911,11 @@ def _register_primitive_class_tools() -> None:
                         P("bits", "int", False, "keyword-only; root-isolation refinement precision (default 64)"),
                         P("project", "bool", False, "keyword-only; True (default) adds the terminal float projection 'value'")),
             returns=R("list", "one dict per distinct σ, descending: {sigma_qalg, min_poly, multiplicity, right_vector_qalg, value}"),
+            composes=(
+                "srmech.cascade.matrix_cascades.char_poly",
+                "srmech.cascade.matrix_cascades.factor_integer_poly",
+                "srmech.cascade.matrix_cascades.eigvec_exact",
+            ),
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.lll_reduce", owner="srmech", category="cascade",
@@ -7545,7 +7572,7 @@ def _register_primitive_class_tools() -> None:
                           "non-int (bool included), ValueError outside the range"),),
             returns=R("Qalg", "sin(2π/n) exactly over Φ_lcm(n,4); coords = "
                               "φ(lcm(n,4)) exact Q in the α power basis"),
-            composes=("srmech.math.poly.cyclotomic_polynomial",),
+            composes=("srmech.math.cyclic.gcd",),
             smoke_test_hint={"n": "12"},
         ),
         # ── rc463 (`#T1188`) — the exact-ℚ linear algebra, REGISTERED ────────
