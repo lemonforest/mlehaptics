@@ -1182,6 +1182,19 @@ def _reconstruct_matrix(good_residues, good_moduli, n_rows, n_cols,
 # two-layer pattern this codebase already sanctions is the genome one: ship each
 # method as a flat op, then bind it. These are that layer. They add no
 # mathematics; every one is the method, called.
+#
+# ⚠️ **A REMAINING GAP, RECORDED RATHER THAN LEFT SILENT (ADR-0009).** These
+# ops close the *registration* half of the defect — the surface is now reachable
+# through `describe()`, the MCP tool list and the compiled C registry. They do
+# NOT close the *claim* half. `tools/gen_c_claims.py` attributes a C symbol by
+# walking an op's BYTECODE, and a bound-method call (`QMat.from_rows(rows).det()`)
+# names `det`, not `srmech_qmat_det` — the walk has no way to reach through the
+# class attribute. So `srmech_qmat_rank` / `_det` / `_inverse` / `_solve` remain
+# claimed by nobody even now, exactly as `srmech_svd_f64` was until this rc.
+# Measured, not assumed: `srmech_qmat_nullspace` / `_rref` / `_entry_cap` /
+# `_ws_bound` ARE claimed, through a different op that names them directly.
+# Closing it needs the harvest to follow a method receiver, which is a change to
+# the generator's resolution rule and not to these wrappers.
 def qmat_rank(rows, *, method: str = "auto") -> int:
     """EXACT rank of a rational matrix over ℚ — :meth:`QMat.rank`, registered."""
     return QMat.from_rows(rows).rank(method=method)

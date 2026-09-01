@@ -873,3 +873,14 @@
 {"exposed_as": "srmech.physics.qm.so8.epq_frame_address", "defined_at": "srmech.physics.qm.so8.epq_frame_address", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.so8.so8_bracket_certificate", "defined_at": "srmech.physics.qm.so8.so8_bracket_certificate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.so8.g2_membership", "defined_at": "srmech.physics.qm.so8.g2_membership", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.matrix_cascades.lstsq_exact", "defined_at": "srmech.cascade.matrix_cascades.lstsq_exact", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.matrix_cascades.gram_schmidt_exact", "defined_at": "srmech.cascade.matrix_cascades.gram_schmidt_exact", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.matrix_cascades.singular_values_exact", "defined_at": "srmech.cascade.matrix_cascades.singular_values_exact", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.qmat.qmat_rank", "defined_at": "srmech.math.qmat.qmat_rank", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.qmat.qmat_det", "defined_at": "srmech.math.qmat.qmat_det", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.qmat.qmat_inverse", "defined_at": "srmech.math.qmat.qmat_inverse", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.qmat.qmat_rref", "defined_at": "srmech.math.qmat.qmat_rref", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.qmat.qmat_solve", "defined_at": "srmech.math.qmat.qmat_solve", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.qmat.qmat_nullspace", "defined_at": "srmech.math.qmat.qmat_nullspace", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.qalg.cos_2pi_over_n", "defined_at": "srmech.math.qalg.cos_2pi_over_n", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.qalg.sin_2pi_over_n", "defined_at": "srmech.math.qalg.sin_2pi_over_n", "bucket": "composition_of_c"}
