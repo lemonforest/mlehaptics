@@ -8576,7 +8576,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"separate_frame_curvature(a=<Mat>, b=<Mat>) -> dict\"}",
         NULL,
-        "Separate a two-operator product ``A\302\267B`` into its FIXED-FRAME (metric) part and its CURVATURE / RESPONSION (holonomy) residue \342\200\224 the connection/curvature decomposition applied as an op (#834; user directive \"rearrange those equations to separate the curvature from the FIXED FRAME\").",
+        "Separate a two-operator product ``A\302\267B`` into its FIXED-FRAME (metric) part and its CURVATURE / RESPONSION (holonomy) residue \342\200\224 the connection/curvature decomposition applied as an op (`#T834`; user directive \"rearrange those equations to separate the curvature from the FIXED FRAME\").",
         NULL, 0u,
         NULL, 0u,
         NULL,

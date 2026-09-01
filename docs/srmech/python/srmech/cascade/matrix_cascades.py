@@ -970,7 +970,7 @@ def char_poly(a) -> List:
 def separate_frame_curvature(a, b):
     """Separate a two-operator product ``A·B`` into its FIXED-FRAME (metric) part
     and its CURVATURE / RESPONSION (holonomy) residue — the connection/curvature
-    decomposition applied as an op (#834; user directive "rearrange those
+    decomposition applied as an op (`#T834`; user directive "rearrange those
     equations to separate the curvature from the FIXED FRAME").
 
     The framework thread ``op / operand / responsion ≅ field / excitation /
