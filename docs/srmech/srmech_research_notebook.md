@@ -2383,7 +2383,9 @@ Future spike scope: substrates worth Hopf-ladder bit-exact testing are 11D-ambie
 |---:|---|---|---|
 | 0 | trivial (no Class M) | pure Class I substrate (cyclic ℤ/n) | SL(2,ℤ) presentation S, T relations; rank-0 cyclic substrate |
 | 1 | abelian variant | XOR over F_2^D; comm + assoc | RBS-HDC-LoE D=8192; U(1) gauge; CS-U(1); j-invariant q-coefficient layer |
-| N≥2 | non-abelian variant | Lie bracket; anti-comm + Jacobi | BFSS (N=2,3,4); SU(2)_L per Spike #58.H; SU(3) QCD per #58.G; SL(2,ℤ) matrix-action layer; CS-SU(N) |
+| N≥2 | non-abelian variant | Lie bracket; anti-comm + Jacobi | BFSS (N=2,3,4); SU(2)_L per Spike #58.H (reading); SU(3) QCD per #58.G (reading) — see marker below; SL(2,ℤ) matrix-action layer; CS-SU(N) |
+
+⚠️ **The two Spike #58 attributions in the N≥2 row are READINGS, not derivations.** Per the 2026-08-27 MFO artifact audit (`docs/antikythera-maths/mfo_spectral_research_notebook.md:4862-4868`, §VIII.10.3), both `.H` and `.G` are in the no-artifact set — no code, no NDJSON, no note — and `.G` ("SM gauge group SU(3)×SU(2)×U(1)") is singled out there as the strongest claim with the least behind it. The rank-N ladder statement itself is unaffected: what the row records is *where each variant has been read*, and the two SM entries are prose readings rather than computed attestations.
 
 The rank-N integer ladder IS the variant dial. Variant choice is integer-rank-indexed, not binary. Refines (does not contradict) the binary abelian/non-abelian distinction — both readings are simultaneously canonical at framework level.
 
@@ -4167,9 +4169,11 @@ The Chinese suanpan's per-rod bead count (5 lower + 2 upper = 7 total) matches t
 
 **The framework's existing gauge math via ℍ ⊂ 𝕆 quaternion subalgebra (Spike #58.H) remains canonical and unchallenged by the suanpan resonance.** The suanpan offers NO alternative mathematical way to do gauge math; the count-level "7" is coincidence at small-integer scale (counting structures across substrates tend to converge on small integers 1, 2, 3, 5, 7, 12 that also appear in substrate-physics for independent algebraic reasons), not deliberate Hopf encoding.
 
+⚠️ **Artifact-audit marker (2026-08-27) — "canonical" here means the framework's canonical READING, not a derivation.** The 2026-08-27 MFO artifact audit (`docs/antikythera-maths/mfo_spectral_research_notebook.md:4862-4868`, §VIII.10.3) retracts "derives" for ten of the twelve Spike #58 sub-spikes, **including `.H`**: `.H` has no committed code, no NDJSON and no note — it is a reading recorded in prose. That does not disturb the F-1 disposition above, which only needs the suanpan's 5+2 to be a different KIND of structure from `(4+3)D_g`; but nothing in this section should be cited as though `SU(2)_L` had been derived here.
+
 Catalog-side framing for any future reader: the suanpan's 5+2 = 7 partition is **structurally efficient at the decimal-counting substrate** for what it does (carry-deferred arithmetic), and the count "7" recurs in the framework's gauge substrate for entirely independent algebraic reasons. The recurrence is worth a brief catalog flag (so that a future reader holding a suanpan and counting 7 beads per rod is not led to conclude that suanpan designers "knew" about quaternionic Hopf bundles — they didn't, and the framework does not need them to have) but is NOT promoted to pedagogical entry-point for the Hopf-bundle-dimensional-ladder chapter. Per `[[feedback_no_lineage_claims_in_notebook]]` + `[[user_stance_identity_not_implementation_discipline]]`: numerical-only count-level resonance, with explicit disclaimer; framework's `(4+3)D_g` partition stands on its Hurwitz / ℍ ⊂ 𝕆 derivation alone.
 
-**Status**: F-1 disposition CONDUCTOR-RESOLVED 2026-05-21. Recorded in catalog as cautious-flag with disclaimer. The framework's gauge math via Spike #58.H ℍ ⊂ 𝕆 quaternion subalgebra remains the canonical mathematical formulation; the suanpan offers no alternative.
+**Status**: F-1 disposition CONDUCTOR-RESOLVED 2026-05-21. Recorded in catalog as cautious-flag with disclaimer. The framework's gauge math via Spike #58.H ℍ ⊂ 𝕆 quaternion subalgebra remains the canonical framework **reading** (not a derivation — see the audit marker at §3.20.7 above); the suanpan offers no alternative.
 
 ### §3.20.8 Distributed-Class-C extension — abacus extends F-1 diagnostic to physical-counting-board substrate
 
@@ -4244,7 +4248,7 @@ This 7-step sequence is the chapter-strength scaffolding for the substrate-vs-pr
 - **Spike #193** (RNA cascade across 5 RNA substrates; §3.11.2) — multi-substrate cascade-match peer; substrate-dependent vs substrate-universal class distinction applied
 - **Spike #196** (wet-net A∘C∘M cortical; §3.11.4) — cross-substrate cascade-match peer; cascade-length preservation across substrate-timescales
 - **Spike #128 / #138** (cross-substrate cascade-match foundation; quantum 4-qubit cluster-state) — cross-substrate methodology anchor
-- **Spike #58.H** (SU(2)_L from S³ Hopf fiber via ℍ ⊂ 𝕆 quaternion subalgebra) — framework's canonical gauge math derivation referenced as contrast to suanpan 5+2 per §3.20.7 disposition
+- **Spike #58.H** (SU(2)_L from S³ Hopf fiber via ℍ ⊂ 𝕆 quaternion subalgebra) — framework's canonical gauge math **reading** referenced as contrast to suanpan 5+2 per §3.20.7 disposition. ⚠️ *This line read "derivation" until the 2026-08-27 MFO artifact audit; "derives" is retracted for #58.H, which has no committed code, NDJSON or note — see `docs/antikythera-maths/mfo_spectral_research_notebook.md:4862-4868` (§VIII.10.3).*
 - **Spike #66** (CKM/PMNS Class N rational-substrate signature) — Class N rational-lattice canonical anchor referenced for abacus rod-count ratios
 
 **Feedback / discipline anchors**:

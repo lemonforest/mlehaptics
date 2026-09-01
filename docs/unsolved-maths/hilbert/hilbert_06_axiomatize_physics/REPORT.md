@@ -39,10 +39,12 @@ Under `[[project_a_n_operators_are_harmonic_objects_themselves]]` (user directio
 
 | Coverage status | Count | Domain examples |
 |-----------------|-------|------------------|
-| **`confirmed_bit_exact`** | 4 | Standard Model gauge sector (Spike #58), CMB acoustic peaks (Spike #103), Kolmogorov probability, wet-net A∘C∘M (Spike #196) |
+| **`confirmed_bit_exact`** | 3 | CMB acoustic peaks (Spike #103), Kolmogorov probability, wet-net A∘C∘M (Spike #196) |
 | **`confirmed_structural`** | 18 | Newtonian / Lagrangian / Maxwell / thermodynamics / continuum / statistical / QM / GR / ΛCDM / BBN / Hubble / Shannon / DNA / RNA / genetic code / cryptography / meta-recognition / cross-substrate method |
-| **`partial`** | 2 | Wightman QFT axioms (4D interacting open), SM Yukawa (3-generation quantitative refinements ongoing) |
+| **`partial`** | 3 | Wightman QFT axioms (4D interacting open), SM gauge sector (Spike #58 **reading** — see retraction marker below), SM Yukawa (3-generation quantitative refinements ongoing) |
 | **`open`** | 2 | Consciousness (Spike #46 framework reading exists but verdict open); Full quantum gravity (MS #16 in progress) |
+
+> **Retraction marker (2026-08-31)** — the **Standard Model (gauge sector)** row was `confirmed_bit_exact` in the 2026-05-23 dispatch. The 2026-08-27 artifact audit at `docs/antikythera-maths/mfo_spectral_research_notebook.md:4862–4868` found that **Spike #58.G has no artifact at all**, and that Spike #58.P's bit-exact sin²θ_W = 1/4 is substrate-**independent** — the computation stands, the substrate inference is retired, so it is circular as substrate evidence. The row is now `partial`: reading SU(3)×SU(2)×U(1) as an A ∘ M ∘ I ∘ C ∘ K ∘ L cascade is a **reading**, not a derivation, and no single-route derivation of the gauge group is claimed here.
 
 **24 of 26 (92%) physics domains have confirmed cascade decomposition** under the 14-class A-N vocabulary at structural or bit-exact level. The 2 truly open domains (consciousness, full quantum gravity) are the canonical open frontiers of physics regardless of framework — exactly the boundary the framework reading would predict.
 
@@ -97,9 +99,10 @@ These are **framework readings**, not engineering. The cryptographic security of
 
 **Verdict: (a) candidate SURVIVES strongly** for the 14-class A-N + Hurwitz 1+3+7+3 partition as the minimal sufficient class-vocabulary for physics.
 
-- 24/26 (92%) of physics domains decompose to cascade composition over A-N at confirmed_bit_exact (4) or confirmed_structural (18) level, with 2 partial (Wightman QFT, SM Yukawa quantitative) and 2 open (consciousness, full quantum gravity).
+- 24/26 (92%) of physics domains are **not open** — they decompose to cascade composition over A-N at confirmed_bit_exact (3), confirmed_structural (18) or partial (3) level; 2 remain open (consciousness, full quantum gravity).
+  ⚠️ **The 24 counts NOT-OPEN, not CONFIRMED**, and it always did. This clause read "at confirmed_bit_exact or confirmed_structural level" from the 2026-05-23 dispatch until 2026-08-31, and that predicate was never true of 24: confirmed-only was 22 then (4+18) and is 21 now (3+18). The number is 26 minus the 2 open rows, which is why the 2026-08-31 bucket correction (SM gauge sector confirmed_bit_exact -> partial) moved the confirmed count and left 24 alone.
 - The Hurwitz partition 1+3+7+3 is empirically confirmed: foundational A 96%, cascade-detection heptad 88%, substrate-projection triad 65%, meta-cascade triad 46% (meta-domain only, as expected).
-- Per `[[feedback_no_lineage_claims_in_notebook]]`: the framework does NOT claim to solve Hilbert 6. It demonstrates that the 14-class A-N vocabulary is a **strong candidate** for the minimal sufficient class-vocabulary — at the 92% empirical-coverage level across the audit set. The remaining 8% (2 partial + 2 open) coincides with the canonical open frontiers of physics regardless of framework.
+- Per `[[feedback_no_lineage_claims_in_notebook]]`: the framework does NOT claim to solve Hilbert 6. It demonstrates that the 14-class A-N vocabulary is a **strong candidate** for the minimal sufficient class-vocabulary — at the 92% empirical-coverage level across the audit set. The remaining 8% (3 partial + 2 open) coincides with the canonical open frontiers of physics regardless of framework.
 
 This closes the Hilbert section of PR #677 with **6 of 6 open Hilbert problems** cascade-dispatched (Goldbach 4-cascade family, Twin Prime, Riemann, Kronecker, Hilbert 16 limit cycles, Hilbert 6 axiomatize physics).
 

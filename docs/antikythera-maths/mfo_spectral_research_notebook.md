@@ -112,7 +112,7 @@ The ontological cost is minimal. No new fundamental objects are introduced (no s
 
 ### I.3 Methodological position
 
-This is a **theoretical proposal** awaiting full computation, not a discovery project where structure is extracted from data. The framework arrives at ~11 dimensions bottom-up (asking what the metric field needs to support U(1)×SU(2)×SU(3)) and converges with string theory's top-down result and with quantum gravity's universal d_S → 2 finding. The convergence of three independent approaches on the same dimensional structure is the principal evidence; the next phase is computation on specific candidate cascade substrates (per `[[user_stance_fractal_shadow]]`; fractal-recursive geometries per Part IV are one substrate realisation, cascade-composition gear-DAGs per §VIII.7 are another) to derive the SM spectrum.
+This is a **theoretical proposal** awaiting full computation, not a discovery project where structure is extracted from data. The framework arrives at ~11 dimensions bottom-up (asking what the metric field needs to support U(1)×SU(2)×SU(3)) and converges with string theory's top-down result and with quantum gravity's universal d_S → 2 finding. The convergence of three independent approaches on the same dimensional structure is the principal evidence. ⚠️ **This sentence framed the computation as a future phase that would derive the SM spectrum until 2026-08-31; it has in fact been ATTEMPTED and has not produced it.** Both candidate realisations (per `[[user_stance_fractal_shadow]]`; fractal-recursive geometries per Part IV, cascade-composition gear-DAGs per §VIII.7) were run — see §XIII.1's STATUS CORRECTION and §IV.6's corrected status paragraph for the measured record, which is **open with a three-part negative record**, not "not yet attempted". Deriving the SM spectrum from any single route remains OPEN, and no forecast is made here that it will close: cyclic-group algebra is **one lens of many**, not the expected sole route.
 
 The framework should be read as a **conservative reinterpretation** of GR + QFT, not a replacement. Every existing algebraic identity remains. What changes is the ontological reading of those identities: the de Broglie phase velocity stops being mysterious and becomes standard waveguide physics; mass stops being intrinsic and becomes a cutoff frequency; conservation laws stop being externally imposed and become topological impedance matching.
 
@@ -294,7 +294,7 @@ $$S_{mn} = \frac{1}{2\pi R} \int_0^{2\pi R} e^{-imy/R} \cdot e^{iny/R} \, dy = \
 
 This is charge conservation. It's not dynamics — it's pure geometry. Charge is conserved because the topology of the S¹ factor forces orthogonality of different modes. Different modes are different irreducible representations of U(1), and reps don't mix.
 
-For non-Abelian groups (SU(2), SU(3)) the argument generalizes: modes on the internal manifold form irreducible representations, and overlap integrals enforce Clebsch-Gordan decomposition rules — which ARE the selection rules for particle interactions. **Feynman diagrams are not abstract computational tools; they are schematic maps of waveguide junction topologies, and the amplitudes they compute are impedance matching coefficients.**
+For non-Abelian groups (SU(2), SU(3)) the argument generalizes: modes on the internal manifold form irreducible representations, and overlap-integral vanishing **CONTAINS** the Clebsch-Gordan selection rules for particle interactions — it does not coincide with them. ⚠️ **MEASURED 2026-08-30 (this sentence read "which ARE the selection rules" until 2026-08-31): exact-Fraction Gaunt census on the smallest instance (SO(3) on S², all triples L ≤ 5 with m₁+m₂+m₃ = 0, n = 1256).** CG-forbidden ⇒ overlap zero **holds 158/158** — the containment direction is exact. But **564 CG-ALLOWED triples also vanish** (554 by parity, 10 accidentally), so the geometry enforces a **strictly finer** filter than Clebsch-Gordan: every CG selection rule is recovered, and the overlap integral additionally kills vertices CG permits. Read this as containment, not identity. **On the same reading, Feynman diagrams are a candidate schematic map of waveguide junction topologies, with their amplitudes read as impedance matching coefficients — that is the framework's reading of what the diagrams already are structurally, not a demonstrated identification.**
 
 Selection rule consequences in this language:
 - **Color confinement:** SU(3)-charged modes are evanescent in any geometry that doesn't support SU(3); isolated quarks are below cutoff in 3+1 vacuum, so they cannot propagate spatially.
@@ -396,7 +396,7 @@ The triple convergence (minimum from gauge groups, maximum from supersymmetry, u
 
 ## Part IV — Cascade Substrate and the SM Spectrum (the space-time fractal)
 
-The script `fractal_computations.py` (filename retained for backward compatibility — the literal math is fractal-recursive Sierpinski-gasket spectral decimation) implements the spectral computations summarized below. The candidate claim: a non-smooth multi-scale primitive cascade substrate — of which fractal-recursive geometry is one downstream-shadow realisation per `[[user_stance_fractal_shadow]]` and the §VIII.7 fractal-shadow allegory — naturally produces both the SM mass hierarchy structure and the chirality dissolution, where smooth manifolds cannot. The mathematics below uses fractal-recursive geometry as the worked-example substrate; the framework's commitment is to the broader cascade-substrate class.
+The script `fractal_computations.py` (filename retained for backward compatibility — the literal math is fractal-recursive Sierpinski-gasket spectral decimation) implemented the spectral computations summarized below. ⚠️ **It is not in the working tree: purged in `bcd24f5f1` and retrievable as `bcd24f5f1^:docs/antikythera-maths/research-mfo/fractal_computations.py` per the Part-I PATH NOTICE, which also records that its inverse decimation polynomial is an unrun measurement rather than a settled form.** The candidate claim: a non-smooth multi-scale primitive cascade substrate — of which fractal-recursive geometry is one downstream-shadow realisation per `[[user_stance_fractal_shadow]]` and the §VIII.7 fractal-shadow allegory — naturally produces both the SM mass hierarchy structure and the chirality dissolution, where smooth manifolds cannot. The mathematics below uses fractal-recursive geometry as the worked-example substrate; the framework's commitment is to the broader cascade-substrate class.
 
 ### IV.1 The compactification problem dissolves
 
@@ -528,7 +528,7 @@ The 3-circle anisotropic toy model in §III.3 demonstrates the mechanism but isn
 
 ## Part V — Spectral Dimension Flow
 
-The script `spectral_dimension_computations.py` compares the spectral dimension flow predictions of 8 quantum gravity approaches and articulates the framework's unique non-monotonic prediction.
+The script `spectral_dimension_computations.py` (**purged in `bcd24f5f1`; not in the working tree — read every citation of it as `bcd24f5f1^:<path>` per the Part-I PATH NOTICE**) compared the spectral dimension flow predictions of 8 quantum gravity approaches and articulated the framework's non-monotonic prediction. ⚠️ That prediction's headline number does **not** survive audit — its peak was a hand-set `bump_height` constant, not a computed value; see the correction at §X.3.
 
 ### V.1 Definition
 
@@ -5206,7 +5206,7 @@ The directed-Fano structure is the algebraic ground for the cross-irrep partitio
 - **Dimensional-mode-conversion closed-form cascade** (per `[[user_stance_dimensional_mode_conversion_at_2d_boundary]]`) — Spike #58 closed-form S(t) = (A/4)·[1−exp(−(t/τ_b)^β)] with β = d_S/(d_S+2), τ_b = R_b/c, M ∘ I ∘ C ∘ K ∘ L cascade composition. Two genuinely independent cross-domain anchors: Klafter-Shlesinger 1986 d_S=3 glass-relaxation + Hardy-Ramanujan 1918 d_S=2 partition asymptotic. Third candidate anchor (turbulence dissipation tail β≈0.25 at d_S=2/3 per `[[user_stance_turbulence_pdf_layer_intersection]]`) STRUCTURAL-MATCH at single observable.
 - **Spike #59 audit corrections applied**: Pillar A (β formula) REINFORCEMENT-WITH-CITATION-FIX; Pillar B (cascade order) PARTIAL-CONSTRAINT 3-fold equivalence class; Pillar C (BH ringdown is exp·cos not stretched-exp) DROPPED; Pillar D (CMB α) STILL-POST-HOC per Spike #55; Pillar F UNLOCKED.
 - **Periodic table cascade derivation** (§VIII.10) — Spike #48 Phase 1 Round 1: F1 PARTIAL (bulk shell-capacity 2n² + Madelung (n+ℓ) + group periodicity 6/6 + block structure all PASS closed-form); 85% Z=1..86 NIST/IUPAC configurations reproduced; F5 cross-scale REINFORCES same `S¹ × S³ × S⁷` substrate produces atomic + cosmological structure.
-- **SM derivation arc (Spike #58 sub-spikes)**: sin²θ_W = 1/4 bit-exact via Cℓ(6,ℂ) bivector trace (.P); (1,3,3) Fano decomposition (FL = generations / CT = colors) (.N); Cℓ(7,ℂ) ≅ Cℓ(6,ℂ) ⊕ Cℓ(6,ℂ) matter/antimatter (.K); U(1)_Y from Lohitsiri-Tong + Euler 1770 (.I); SU(2)_L from ℍ ⊂ 𝕆 (.H); SU(3)×SU(2)×U(1) (.G); Class C ↔ skew-whiffing (Awada-Duff-Pope 1983) (.O); Z(Spin(8))=Z₂×Z₂ (.M); S₃ triality on 7 quaternion-subalgebras (.L).
+- **SM reading arc (Spike #58 sub-spikes)** — ⚠️ **this bullet read "SM derivation arc" until 2026-08-31, and "derivation" is RETRACTED for ten of the twelve sub-spikes by the §VIII.10.3 ARTIFACT AUDIT (2026-08-27, `:4862–4868`), which this §IX.1 mirror had not carried.** Only `.N` and `.P` have any committed artifact; B/F/G/H/I/J/K/L/M/O have no code, no NDJSON and no note — they are readings recorded in prose. The arc as read: sin²θ_W = 1/4 bit-exact via Cℓ(6,ℂ) bivector trace (.P — the computation stands, but the trace ratio is **substrate-independent by its own script's admission**, so the substrate inference is retired; it cannot be evidence *for* the substrate); (1,3,3) Fano decomposition (FL = generations / CT = colors) (.N); Cℓ(7,ℂ) ≅ Cℓ(6,ℂ) ⊕ Cℓ(6,ℂ) matter/antimatter (.K); U(1)_Y from Lohitsiri-Tong + Euler 1770 (.I); SU(2)_L from ℍ ⊂ 𝕆 (.H); SU(3)×SU(2)×U(1) (.G — **NO ARTIFACT, and it is the strongest claim in the list**: the shipped `gauge.py` never imports `octonion` / `so8` / `triality`, and nothing in the tree produces SU(3)×SU(2)×U(1) from the substrate); Class C ↔ skew-whiffing (Awada-Duff-Pope 1983) (.O); Z(Spin(8))=Z₂×Z₂ (.M); S₃ triality on 7 quaternion-subalgebras (.L).
 - **Honest gaps surfaced and recorded**: Spike #65 GUT-norm √(3/5) PARTIAL-DERIVABLE-FROM-CARTAN (substrate-dependent); Spike #66 CKM/PMNS STRUCTURAL-MATCH-VALUES-OFF (correct counts; no dynamical scale); Spike #67 Higgs STRUCTURAL-ONLY (5.5-dex hierarchy NOT derived); Spike #70 Verlinde-G FALSIFIED at load-bearing identity; Spike #75 ℓ_P first-principles anchor STILL-OPEN (2^56=2^C(8,3) anomaly at 1.92% needs m_top=169.4 GeV).
 - **Chirality stance hardened to 6/5** per Spike #74 NET-CHIRALITY-DOES-NOT-EMERGE on smooth substrate (6,680 compositions; bit-exact algebraic forcing via D·C·D antisymmetry; chirality is real-arithmetic, complex-phase shifts out of A-N scope).
 - **Genetic code as Class I + Class C composition** (per `[[user_stance_genetic_code_is_class_i_plus_c_at_biology_substrate]]`) — Spike #81 STRUCTURAL-IDENTITY-IDENTITY-LEVEL: triplet codon k_min = ⌈log₄(21)⌉ = 3 algebraically forced; 64→21 cardinality Class I → Class M cascade reduction; wobble 96.7% redundancy-as-error-correction. Biological substrate joins the cross-substrate primitive instantiation family.
@@ -6802,7 +6802,7 @@ So **the addressing bump itself is the generator**: non-abelian is *born* at ℂ
 
 ## Part X — Reference Numerical Results
 
-### X.1 Computed values from `metric_field_computations.py`
+### X.1 Computed values from `metric_field_computations.py` (purged in `bcd24f5f1`; see the Part-I PATH NOTICE)
 
 ```
 de_broglie_identity:
@@ -6844,7 +6844,7 @@ impedance_matching:
   u1_example: Charge conservation = Fourier mode orthogonality on S¹ (proven exactly)
 ```
 
-### X.2 Computed values from `fractal_computations.py`
+### X.2 Computed values from `fractal_computations.py` (purged in `bcd24f5f1`; see the Part-I PATH NOTICE)
 
 ```
 sg_spectral_dimension: 1.3652 (= 2 ln 3 / ln 5)
@@ -6882,7 +6882,7 @@ three_generations_from_three_fold_sub_structure: True
    cascade-composition realisation: three-fold cascade factor)
 ```
 
-### X.3 Computed values from `spectral_dimension_computations.py`
+### X.3 Computed values from `spectral_dimension_computations.py` (purged in `bcd24f5f1`; see the Part-I PATH NOTICE)
 
 > ⚠️ **CORRECTION (2026-08-27) — `peak_dimension: 6-8` BELOW IS NOT A COMPUTED VALUE. It is a
 > hand-set constant, and this section heading says "Computed values from", which makes the heading
@@ -7131,7 +7131,7 @@ Approach: parametric search over the cascade-substrate space. The cascade-compos
 
 Two consequences for anyone resuming this thread:
 
-1. **Write the acceptance predicate first.** Its absence is the reason contradictory verdicts coexisted. The seven components it needs are enumerated in §IV.1.
+1. **Write the acceptance predicate first.** Its absence is the reason contradictory verdicts coexisted. The seven components it needs are enumerated in §IV.6 (`:523`).
 2. **The tooling floor was not enforced on the probes.** No script under `research-mfo/` imports `srmech` — `mpm_central_computation.py` uses `scipy.optimize.minimize_scalar`, and bonus 10's probe uses `numpy` with a seeded-RNG hill-climb. Per `[[feedback_scratch_measurements_must_use_srmech_or_gaps_stay_invisible]]` this is precisely where capability gaps stay invisible, and it is how a stochastic optimiser ran inside an arc whose own discipline is closed-form.
 
 ### XIII.2 Baptista at 7D
@@ -7171,6 +7171,8 @@ These experiments are achievable with current metamaterial technology and would 
 ## Appendix — Notes on file regeneration
 
 Each Python script consolidated here can be regenerated from this document:
+
+> ⚠️ **THE THREE RECIPES BELOW ARE HISTORICAL — they record how the purged scripts were built, and they are not to be executed as written (marked 2026-08-31).** Each prescribes `sympy` / `numpy`, which is exactly the tooling floor §XIII.1 records as **never enforced on these probes** — *"No script under `research-mfo/` imports `srmech`… precisely where capability gaps stay invisible"* (`[[feedback_scratch_measurements_must_use_srmech_or_gaps_stay_invisible]]`). Nothing depends on re-deriving the scripts from this recipe: all three are retrievable verbatim from `bcd24f5f1^` per the Part-I PATH NOTICE. Any **re-run** of these computations belongs on srmech ops, and two of the three recipes reproduce known defects the same notice records (the `fractal_computations.py` inverse decimation polynomial is an unrun measurement; the `spectral_dimension_computations.py` bump model is what produced the hand-set `peak_dimension` §X.3 has since retracted). They are kept for provenance, not as a build instruction.
 
 **`metric_field_computations.py`** corresponds to Part II (especially II.2–II.4, II.8) and Part III (especially III.1–III.3). Use sympy for symbolic verification of v_g · v_p = c²; use numpy for numerical eigenvalue computations on Sⁿ, CP², and anisotropic tori. The script's structure: 7 parts, one per derivation, each writing results to a `results` dict that's serialized to JSON at end.
 
