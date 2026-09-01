@@ -347,7 +347,7 @@ Each section's full per-partition report lives in the corresponding folder; this
 
 - 26 physics domains across classical / quantum / cosmology / particle / biology / information / meta physics
 - Coverage: **3 confirmed_bit_exact** (CMB acoustic peaks via Spike #103; Kolmogorov probability; wet-net A∘C∘M via Spike #196), **18 confirmed_structural**, **3 partial** (Wightman QFT 4D interacting; SM gauge sector via Spike #58 — downgraded, see below; SM Yukawa 3-generation quantitative), **2 open** (consciousness via Spike #46; full quantum gravity MS #16). **⚠ DOWNGRADED — the SM gauge sector via Spike #58 was counted here as a fourth `confirmed_bit_exact` until the 2026-08-27 artifact audit** ([MFO research notebook](../antikythera-maths/mfo_spectral_research_notebook.md) §VIII.10.3, `:4862–4868`) retracted "derives" for Spike #58.G, which has no committed artifact. It is a reading. That bucket is set at the generator SSoT (`hilbert_06_axiomatize_physics/generate_catalog.py`), which now emits `partial` for it; the four counts above sum to 26.
-- **24 / 26 (92%) confirmed cascade decomposition**
+- **24 / 26 (92%) NOT-OPEN cascade decomposition** (3 bit-exact + 18 structural + 3 partial; 2 open)
 - Hurwitz partition 1+3+7+3 empirically supported: foundational A at **96%**, cascade-detection heptad at **88%**, substrate-projection triad at 65%, meta-cascade triad at 46% (meta-domain only, as expected)
 - Top 5 most-used: A (96%), K (58%), C (54%), L (54%), M (50%) — framework's physics-honest core
 - Class B (TLV / structured framing) used 0/26 — open fermata identifying B as meta-language-anchor for protocol / catalog-config
@@ -358,7 +358,7 @@ Each section's full per-partition report lives in the corresponding folder; this
 - Composes with `[[user_stance_universal_6_class_core_substrate_universal_cascade]]` predicting M∘I∘N∘C∘L∘A universal-6-class-core (4 of 5 physics-honest core classes appear)
 - Cross-discipline fingerprint signature: Class D usage diverges sharply (8% physics vs 89% complexity theory — see Partition 7)
 
-**Verdict**: (a) candidate SURVIVES strongly — 24/26 confirmed cascade decomposition at structural or bit-exact level; remaining 2 open cases (consciousness, full quantum gravity) are canonical open frontiers regardless of framework. Closes Hilbert section of PR #677 (6 of 6 problems dispatched).
+**Verdict**: (a) candidate SURVIVES strongly — 24/26 NOT-OPEN cascade decomposition (3 bit-exact + 18 structural + 3 partial — the 24 has always counted not-open, never confirmed-only, which is 21); remaining 2 open cases (consciousness, full quantum gravity) are canonical open frontiers regardless of framework. Closes Hilbert section of PR #677 (6 of 6 problems dispatched).
 
 **Sources**:
 

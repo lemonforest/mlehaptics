@@ -99,7 +99,8 @@ These are **framework readings**, not engineering. The cryptographic security of
 
 **Verdict: (a) candidate SURVIVES strongly** for the 14-class A-N + Hurwitz 1+3+7+3 partition as the minimal sufficient class-vocabulary for physics.
 
-- 24/26 (92%) of physics domains decompose to cascade composition over A-N at confirmed_bit_exact (3) or confirmed_structural (18) level, with 3 partial (Wightman QFT, SM gauge sector, SM Yukawa quantitative) and 2 open (consciousness, full quantum gravity).
+- 24/26 (92%) of physics domains are **not open** — they decompose to cascade composition over A-N at confirmed_bit_exact (3), confirmed_structural (18) or partial (3) level; 2 remain open (consciousness, full quantum gravity).
+  ⚠️ **The 24 counts NOT-OPEN, not CONFIRMED**, and it always did. This clause read "at confirmed_bit_exact or confirmed_structural level" from the 2026-05-23 dispatch until 2026-08-31, and that predicate was never true of 24: confirmed-only was 22 then (4+18) and is 21 now (3+18). The number is 26 minus the 2 open rows, which is why the 2026-08-31 bucket correction (SM gauge sector confirmed_bit_exact -> partial) moved the confirmed count and left 24 alone.
 - The Hurwitz partition 1+3+7+3 is empirically confirmed: foundational A 96%, cascade-detection heptad 88%, substrate-projection triad 65%, meta-cascade triad 46% (meta-domain only, as expected).
 - Per `[[feedback_no_lineage_claims_in_notebook]]`: the framework does NOT claim to solve Hilbert 6. It demonstrates that the 14-class A-N vocabulary is a **strong candidate** for the minimal sufficient class-vocabulary — at the 92% empirical-coverage level across the audit set. The remaining 8% (3 partial + 2 open) coincides with the canonical open frontiers of physics regardless of framework.
 
