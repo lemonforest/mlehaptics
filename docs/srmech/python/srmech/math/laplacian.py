@@ -1218,7 +1218,7 @@ def _solve_exact(A: List[list], B: List[list]) -> List[List[Q]]:
     elimination in srmech's own exact-ℚ carrier :class:`~srmech.math.q.Q` (the
     Class-N exact-rational primitive; division here is exact, never a float
     reciprocal — F392). *This line said ``fractions.Fraction`` until rc444
-    (`#T1152`); #845 moved the carrier to* ``Q`` *and the prose did not follow.
+    (`#T1152`); `#T845` moved the carrier to* ``Q`` *and the prose did not follow.
     Measured by execution: the returned leaves are* ``srmech.math.q.Q`` *and*
     ``isinstance(leaf, fractions.Fraction)`` *is* ``False``. *A ``Fraction``
     INPUT is still accepted — ``to_q`` coerces it — which is why the stale claim
@@ -1294,7 +1294,7 @@ def dense_solve(A, B, *, exact: bool = False):
     ``list[Q]`` for a vector RHS) — the exact path keeps the rational
     leaves. (Until rc444 this sentence said the solve was in
     :class:`fractions.Fraction` while the same sentence promised a ``Q`` return;
-    #845 moved the carrier and only half the prose followed. Measured:
+    `#T845` moved the carrier and only half the prose followed. Measured:
     ``isinstance(dense_solve(A, B, exact=True)[0][0], fractions.Fraction)`` is
     ``False``, ``isinstance(..., Q)`` is ``True``.)
 
@@ -4532,7 +4532,7 @@ def klein4_relational_structure(
 
 
 def _to_fraction(c) -> Q:
-    """Coerce a charge (turns) to an exact :class:`~srmech.math.q.Q` (#845: the
+    """Coerce a charge (turns) to an exact :class:`~srmech.math.q.Q` (`#T845`: the
     exact-ℚ carrier, was ``fractions.Fraction``). Accepts an ``int`` / a
     ``numbers.Rational`` carrier (a srmech ``Q``, a stdlib ``fractions.Fraction``)
     exactly; a ``float`` is projected to denominator ≤ 10¹² via the Class-N

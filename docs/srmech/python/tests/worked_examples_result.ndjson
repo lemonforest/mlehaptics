@@ -1,4 +1,4 @@
-{"n": 615, "native": false, "python": "3.10", "record": "meta", "verified_at": ""}
+{"n": 617, "native": false, "python": "3.14", "record": "meta", "verified_at": "cf458b2f0724ca4b0bde1ac0576bdf247a8108db"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -274,6 +274,7 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.groups.direct_sum_representation", "problems": [], "src_sha256": "7bfede848d15bd33bf94e64fd5c716afa216b4356944485f9da9aab73d37110f", "statements": 12, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 14}], "n_markers": 1, "name": "srmech.math.groups.frobenius_schur_indicator", "problems": [], "src_sha256": "38c753ad2fc0a49fc3c8e63e4af5b2a5e430890efaa3a961205b695604128fed", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 13}], "n_markers": 1, "name": "srmech.math.groups.fusion_multiplicities", "problems": [], "src_sha256": "7aa377f428c794286f4ac7c59d209329f2785fedc93194d5f4a43f9a24b4e14c", "statements": 8, "status": "ok"}
+{"markers_fired": [{"exc": "ValueError", "line": 17}], "n_markers": 1, "name": "srmech.math.groups.induced_representation", "problems": [], "src_sha256": "f936b57b655d5a1c90e2ad5679b55f494f9142f070f28a5a4f223af93cba0595", "statements": 11, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.groups.intertwiner_space", "problems": [], "src_sha256": "0c8dc5724a548df6d5bfddbf5df2440e22d04b8cd7f1eb72fbe06fee51829678", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.groups.irrep_dimensions", "problems": [], "src_sha256": "da712ca60d810d55b8d7c53e515d569063c3264fef5ec8631baa2784c6b6f45f", "statements": 7, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.groups.isotypic_projector", "problems": [], "src_sha256": "0dac85f78a3dc2cbb718508b210e6343ea589a51975ee29a9b52d9b9d2621ac9", "statements": 12, "status": "ok"}
@@ -281,6 +282,7 @@
 {"markers_fired": [{"exc": "ValueError", "line": 11}], "n_markers": 1, "name": "srmech.math.groups.quotient_group", "problems": [], "src_sha256": "2f1c07ece6ab6d0cd1d6d70b39d645d690266a687a401049a8943e9faba4737a", "statements": 6, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 17}], "n_markers": 1, "name": "srmech.math.groups.semidirect_product", "problems": [], "src_sha256": "b7194b42b678eaeb81f4d6db3c87e84f4556359e62518bb751aca54f886fffe3", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.groups.tensor_product_representation", "problems": [], "src_sha256": "837172906f1ea8261ec50636f6d0c87acb3c6e125487a9e86c193c77d65b42fd", "statements": 10, "status": "ok"}
+{"markers_fired": [{"exc": "ValueError", "line": 19}], "n_markers": 1, "name": "srmech.math.groups.zeta_conjugate", "problems": [], "src_sha256": "b7dc7f268f7ab4028c0dfc958896a3c01bc709d78239ead750a6cbbcd9ec26aa", "statements": 11, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 9}], "n_markers": 1, "name": "srmech.math.groups.zeta_mul", "problems": [], "src_sha256": "1c0ed39a66183eb4f6e25b51839871cf308a97be69ff98fb641280ce35cec72d", "statements": 6, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.hdc.bind", "problems": [], "src_sha256": "6f99e878bd551f4924b0feba124a9ed4b5ed2e44286ce349f8f2e2831a3e149d", "statements": 15, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 21}], "n_markers": 1, "name": "srmech.math.hdc.bundle", "problems": [], "src_sha256": "8f681e814868125e9d4debb8b5e723983b7c25c6919caccf36fed594609c3578", "statements": 15, "status": "ok"}

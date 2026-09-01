@@ -163,7 +163,27 @@ SLOW_ALLOWLIST: Dict[str, Tuple[float, str]] = {
         (240.0, "16.0 s measured COLD under --only: the _companion_maps() "
                 "build, not the op"),
     "srmech.math.laplacian.recover_check": (240.0, "106 s measured: dense recover"),
-    "srmech.math.laplacian.recover_check_spectral": (300.0, "244 s measured"),
+    # rc462: raised 300.0 -> 600.0. The recorded 244 s was a WARM number and
+    # this row now flips `ok` -> `timeout` under the isolation the hook itself
+    # prescribes. MEASURED on this branch, CPython 3.14 / native absent: the
+    # snippet BODY is 225.0 s executed directly with the registry already
+    # imported, but the `--only` worker imports srmech cold first and the run
+    # hits the 300.0 cap. Same shape as the five so8/triality entries above —
+    # the snippet is not slow, the isolation is — and it is a THIRD instance,
+    # so the pattern is now the rule rather than the exception on this file.
+    "srmech.math.laplacian.recover_check_spectral":
+        (600.0, "225.0 s measured for the snippet body; >300 s under --only "
+                "once the worker's cold srmech import is included"),
+    # rc462: NOT previously listed, and it needed to be. MEASURED: 13.0 s for
+    # the snippet body against DEFAULT_BUDGET = 15.0, but 19.5 s under `--only`
+    # — the ~6 s gap is the worker's cold import, so a row that is comfortably
+    # inside the budget in a full pass falls outside it in isolation. It is the
+    # `#845` comment edits on laplacian.py that made the hook prescribe
+    # `--only` here, which is how a row that had never been isolated got
+    # isolated for the first time. Listing it is what stops that being luck.
+    "srmech.math.laplacian.relational_structure":
+        (240.0, "19.5 s measured under --only; 13.0 s for the snippet body "
+                "alone, against DEFAULT_BUDGET = 15.0"),
     "srmech.math.laplacian.recover_check_structural": (240.0, "33 s measured"),
     "srmech.math.laplacian.three_fold_eigvec_groups": (240.0, "dense eigvec pass"),
     "srmech.math.primes.is_prime": (300.0, "206 s on the PURE trial-division "

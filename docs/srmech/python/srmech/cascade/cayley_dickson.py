@@ -42,7 +42,7 @@ What it attests (each a bit-exact, exact-rational witness):
   lost") — exact-rational, no float, no ``abs()``.
 
 **Exact-rational, numpy-free.** Every component is a :class:`srmech.math.q.Q`
-(#845: srmech's C-native exact-rational carrier, not stdlib ``fractions``);
+(`#T845`: srmech's C-native exact-rational carrier, not stdlib ``fractions``);
 the construction needs only ``+``, ``−``, ``×`` and the Class-K sign-flip (never
 ``abs()`` — sign is the Class-K pin-slot per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``). The integer
@@ -96,7 +96,7 @@ from srmech.math.cyclic import (              # Class-I cyclic (native); NOT std
     gcd as _gcd,
     mod_add as _mod_add,                      # (i+j) mod n — the group-ring lane
 )
-from srmech.math.q import Q, to_q            # #845: the CD element carrier is Q
+from srmech.math.q import Q, to_q          # `#T845`: the CD element carrier is Q
 from srmech.math.modular_linalg import gf_rref  # Class-I GF(2) solve — the zero-
 #                                          divisor support system (rc395, `#T1000`)
 from srmech.math.qmat import QMat             # rc437 (`#T1142`): the exact-ℚ solve
@@ -264,7 +264,7 @@ def _is_pow2(n: int) -> bool:
 
 def _coerce_frac(x: Any) -> Q:
     """Coerce one scalar to an exact :class:`~srmech.math.q.Q` — the CD element
-    carrier (#845: srmech's C-native exact rational, not stdlib ``fractions``).
+    carrier (`#T845`: srmech's C-native exact rational, not stdlib ``fractions``).
     A ``Q`` passes through unchanged; every other exact-rational scalar (``int`` /
     ``float`` / a stdlib ``fractions.Fraction`` / another ``as_integer_ratio``-able
     carrier / a ``(num, den)`` pair) rides :func:`srmech.math.q.to_q`, so the
@@ -428,12 +428,23 @@ def cd_norm_sq(a: Sequence[Any], gammas: Any = None) -> Q:
     a = _as_elem(a)
     if gammas is not None:
         g = _normalise_gammas(len(a), gammas)
-        if any(v > 0 for v in g):
-            # A SPLIT twist: the coordinate sum is the wrong function here, so
-            # read the norm through the algebra's own cocycle instead. The
-            # DEFINITE case falls through to the fast path below — proven
-            # identical, not assumed (the γ = −1 diagonal is +1 at e₀ and −1
-            # elsewhere, which is exactly Σ x_i² after the conjugation sign).
+        if any(v != -1 for v in g):
+            # NOT the definite ladder: the coordinate sum is the wrong function
+            # here, so read the norm through the algebra's own cocycle instead.
+            # The DEFINITE case (γ = −1 at every rung) falls through to the fast
+            # path below — proven identical, not assumed (the γ = −1 diagonal is
+            # +1 at e₀ and −1 elsewhere, which is exactly Σ x_i² after the
+            # conjugation sign).
+            #
+            # rc462 (`#T1179`): this predicate was ``any(v > 0 for v in g)``,
+            # which names the SPLIT twists rather than the non-definite ones.
+            # The two sets coincide only while γ ∈ {+1, −1}. It is the same
+            # dichotomy-for-a-trichotomy defect as the cocycle's own branch, and
+            # it is the one that would have SURVIVED that fix: with the kernel
+            # correct at zero, γ = 0 says N(e₁) = 0 (the cocycle sign is 0)
+            # while ``any(v > 0)`` routes it to Σ x_i² = 1. LATENT today —
+            # _normalise_gammas above refuses γ = 0 — but stating the law the
+            # fast path actually needs ("all γ are −1") is what keeps it latent.
             s = Q(0)
             for i, x in enumerate(a):
                 conj_i = x if i == 0 else -x       # Class-K sign-flip; no abs()
@@ -658,6 +669,13 @@ def _normalise_gammas(dim: int, gammas: Any) -> Tuple[int, ...]:
     ``(-1,) * log2(dim)``. A supplied vector is in **LADDER order**:
     ``gammas[0]`` is the ℝ→ℂ doubling, ``gammas[1]`` is ℂ→ℍ, and so on — the
     order the rungs are named in, not the order the recursion meets them.
+
+    **This is the PUBLIC CONTRACT, not input hygiene** (rc462, `#T1179`).
+    :func:`_gamma_basis_product` is *defined* at γ = 0 — the degenerate rung,
+    where the cross term vanishes and ``e₁·e₁ = 0`` — and this function is the
+    only thing that keeps that rung out of :func:`algebra_table`,
+    :func:`cd_norm_sq` and everything downstream of them. Peer of the C
+    ``cd_check_gammas``, which refuses the same value at the same two sites.
     """
     if not _is_pow2(dim) or dim > CD_MAX_DIM:
         raise ValueError(f"dim must be a power of two ≤ {CD_MAX_DIM}; got {dim}")
@@ -685,10 +703,36 @@ def _gamma_basis_product(dim: int, gammas: Tuple[int, ...],
     engine behind :func:`algebra_table`, and the generalisation of
     :func:`cd_basis_product` (which is this with γ = −1 at every level).
 
-    γ touches EXACTLY ONE branch: the ``(ph, qh) == (1, 1)`` cross term, where
-    ``conj(b2)`` contributes ``+1`` at ``ql == 0`` and ``−1`` otherwise. γ = −1
-    flips the sign exactly when ``ql == 0``; γ = +1 flips it exactly when it
-    does not. Class-K sign composition throughout — never ``abs()``.
+    γ touches EXACTLY ONE branch: the ``(ph, qh) == (1, 1)`` cross term, whose
+    first component is ``γ·conj(b2)·a2``. ``conj`` contributes ``+1`` at
+    ``ql == 0`` and ``−1`` otherwise, so the coefficient this level composes in
+    is exactly ``γ`` at ``ql == 0`` and ``−γ`` otherwise — a MULTIPLICATION by
+    the parameter, not a decision about it. Class-K sign composition throughout
+    — never ``abs()``.
+
+    **Why the multiplicative form, and what it fixed (rc462, `#T1179`).** Until
+    rc462 this line read ``if (ql == 0) if gamma < 0 else (ql != 0): sign =
+    -sign`` — a *dichotomy* standing in for a parameter with three values in its
+    natural domain. γ = 0 fails ``gamma < 0``, so it fell through the ``else``
+    and was computed as γ = +1: MEASURED, the γ = 0 table came back
+    **bit-identical to the SPLIT table** at dims 2, 4 and 8 and on the mixed
+    ``(0, −1)`` vector. Nothing was ever wrong on the shipped surface —
+    :func:`_normalise_gammas` refuses γ = 0 at every public entry, so the arm
+    was LATENT, never live — but the validator was doing correctness work while
+    presenting as input hygiene, and the next change to this module is exactly
+    "open γ = 0". The form above cannot alias, because it is the coefficient
+    itself: at γ = 0 the cross term VANISHES and the sign is ``0``, which is the
+    dual-number/degenerate rung (``e₁·e₁ = 0`` at dim 2), and it is absorbing so
+    a zero at any level survives to the result. On ±1 it is a no-op — VERIFIED
+    over 127 γ vectors / 299 593 cells at dims 1–64, 0 mismatches.
+
+    **The public contract did NOT open.** :func:`_normalise_gammas` (and its C
+    peer ``cd_check_gammas``) still refuse γ = 0, so ``sign == 0`` is
+    unreachable from :func:`algebra_table`, :func:`cd_norm_sq` or any other
+    public callable — the C peer's ``assert(sign == 1 || sign == -1)`` is the
+    tripwire that says so, and it fires the moment that contract is opened
+    without revisiting the table's monomial claim. rc462 makes the kernel
+    honest at zero; it does not make zero reachable.
     """
     sign = 1
     index = 0
@@ -711,8 +755,9 @@ def _gamma_basis_product(dim: int, gammas: Tuple[int, ...],
                 sign = -sign
         else:                                   # (γ b2* a2) in first — swap
             top, p, q = 0, ql, pl
-            if (ql == 0) if gamma < 0 else (ql != 0):
-                sign = -sign
+            # The coefficient γ·conj(b2) contributes, verbatim: γ at ql == 0,
+            # −γ otherwise. Class-K sign composition (a multiply, not an abs).
+            sign = sign * (gamma if ql == 0 else -gamma)
         if top:
             index += m
         cur = m

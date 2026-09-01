@@ -2062,6 +2062,18 @@ def _synth_value_for_type(type_string: str) -> Any:
         # in-domain (B >= 0), so the op returns a genuine Tier-2 spectrum rather
         # than a tolerated domain error.
         "Q": [1, 1000],
+        # rc462 (`#T1179`) the UNION spelling, which is a different table key
+        # from either half: `srmech.math.rational.rational_div`'s `a` / `b`
+        # declare `Q | tuple[int, int]`, and the rows for `Q` and for
+        # `tuple[int, int]` beside it do not answer for it. It went
+        # unsynthesizable only when a FULL example-args re-harvest measured
+        # what that op's snippet now passes — `rational_add` returns a `Q`
+        # since the Class-N precision migration, so the two args arrive as `Q`
+        # objects and the tier-1 ledger route stops supplying them. Value is
+        # the `Q` row's, which is a proper nonzero rational: it is a valid
+        # divisor, so the op returns an answer rather than a tolerated domain
+        # error.
+        "Q | tuple[int, int]": [1, 1000],
         # rc362 the acoustic-spectrum wire form (music.spectrum_tier /
         # commensurability_verdict / common_period `partials`): the Fletcher &
         # Rossing tuned-bell profile — hum 1/2, prime 1, tierce 6/5, quint 3/2,

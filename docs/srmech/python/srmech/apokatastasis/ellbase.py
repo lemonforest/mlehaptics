@@ -85,7 +85,7 @@ def _coerce_q(value) -> "Q | None":
             and value[1] != 0):
         return Q(value[0], value[1])
     # any other exact-rational carrier (a stdlib fractions.Fraction, a Decimal,
-    # another numbers.Rational) via the as_integer_ratio protocol — #845, no
+    # another numbers.Rational) via the as_integer_ratio protocol — `#T845`, no
     # fractions import; float is already rejected above.
     pair = getattr(value, "as_pair", None) or getattr(value, "as_integer_ratio", None)
     if pair is not None:

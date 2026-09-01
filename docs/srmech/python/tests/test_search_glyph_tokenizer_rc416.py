@@ -838,7 +838,11 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   recomputed blob hash agreed with the returned witness in every one, and
 #:   `search("rank", k=1).witness` agreed with the direct build every time.
 WITNESS_RC416 = (
-    "401c0fdec037ce544dfe17381d64394aaedb99cda1205dad32c092bb835e1624")
+    "c34e8e854128a6266ad57e428cf5295c3ae6d2eec75fe52d0984daf8bfca31a6")
+#: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
+#: op corpus, so registering induced_representation + zeta_conjugate moves it by
+#: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.
+#: was: 401c0fdec037ce544dfe17381d64394aaedb99cda1205dad32c092bb835e1624
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

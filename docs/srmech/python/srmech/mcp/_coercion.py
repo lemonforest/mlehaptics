@@ -721,7 +721,7 @@ def _seq_charge(value: Any, *, param: str = "") -> List[Any]:
     A charge is an exact ``int`` / ``Q`` (turns) or a ``float`` (projected to a
     rational by the op). JSON has no rational, so an exact rational charge rides as a
     ``[num, den]`` 2-int-list — matched to :func:`serialise_native`'s outbound
-    ``Q -> [num, den]`` — and is rebuilt into a ``Q`` here (#845: srmech's exact-ℚ
+    ``Q -> [num, den]`` — and is rebuilt into a ``Q`` here (`#T845`: srmech's exact-ℚ
     carrier, was ``fractions.Fraction``); a bare JSON int / float passes through (the
     op's ``_to_fraction`` accepts both). ``None`` is handled by
     :func:`coerce_param`'s null-passthrough (the all-zero / balanced default)."""
@@ -2016,7 +2016,7 @@ def serialise_native(value: Any) -> Any:
     if isinstance(value, complex):
         return [value.real, value.imag]
     # Q -> [num, den] (rc231; cycle_holonomy returns list[Q] cycle holonomies in
-    # [0, 1)). #845: srmech's exact-ℚ carrier (was fractions.Fraction). An exact
+    # [0, 1)). `#T845`: srmech's exact-ℚ carrier (was fractions.Fraction). An exact
     # rational rides as an integer [num, den] pair — the inverse of the inbound
     # _seq_charge [num, den] -> Q, so a charge graph's holonomies round-trip exactly
     # (never a lossy float, never a bare repr string). Keyed by TYPE, unambiguous

@@ -99,7 +99,7 @@ from __future__ import annotations
 import json
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from srmech.math.q import Q  # #845: exact-ℚ carrier (was fractions.Fraction)
+from srmech.math.q import Q  # `#T845`: exact-ℚ carrier (was fractions.Fraction)
 
 from ..amsc.format import sha256_bytes
 from srmech import _json as _srmech_json
@@ -187,7 +187,7 @@ def _canon(value: Any) -> Tuple[Any, bool]:
         )
     # srmech Q — and any exact-rational scalar with int numerator/denominator
     # accessors (a stdlib fractions.Fraction rides this SAME duck-typed branch,
-    # #845) — duck-typed AFTER int/float so builtins take their branch.
+    # `#T845`) — duck-typed AFTER int/float so builtins take their branch.
     if (
         hasattr(value, "numerator") and hasattr(value, "denominator")
         and isinstance(getattr(value, "numerator"), int)
@@ -648,7 +648,7 @@ def _reduced_point(inputs: Dict[str, Any]) -> str:
     """The reduced, sign-normalised exact rational point ``p/q`` a series /
     best_rational op is anchored at — the NAMED part of its family target.
     ``Q`` reduces and normalises the sign (den > 0), so ``sin(2/2)`` and
-    ``sin(1/1)`` name ONE target (#845: was ``fractions.Fraction``)."""
+    ``sin(1/1)`` name ONE target (`#T845`: was ``fractions.Fraction``)."""
     fr = Q(int(inputs["numerator"]), int(inputs["denominator"]))
     return f"{fr.numerator}/{fr.denominator}"
 

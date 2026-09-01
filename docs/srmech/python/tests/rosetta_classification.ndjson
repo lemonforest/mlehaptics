@@ -848,6 +848,8 @@
 {"exposed_as": "srmech.math.groups.tensor_product_representation", "defined_at": "srmech.math.groups.tensor_product_representation", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.groups.direct_sum_representation", "defined_at": "srmech.math.groups.direct_sum_representation", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.groups.intertwiner_space", "defined_at": "srmech.math.groups.intertwiner_space", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.groups.induced_representation", "defined_at": "srmech.math.groups.induced_representation", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.groups.zeta_conjugate", "defined_at": "srmech.math.groups.zeta_conjugate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.groups.character_table", "defined_at": "srmech.math.groups.character_table", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.groups.conjugacy_classes", "defined_at": "srmech.math.groups.conjugacy_classes", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.groups.cyclic_group", "defined_at": "srmech.math.groups.cyclic_group", "bucket": "composition_of_c"}

@@ -19,6 +19,205 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc462] - the ℚ(ζₑ) rep dialect shipped with the producer that can mint it, a hash-stability gate written before the serializer was allowed to move, a parameter that was read as a decision in both projections, and 1344 calls collapsed to 10 because the locus is AGL(3,2)
+
+**What this rc is for.** rc460 deferred the ℚ(ζₑ) rep-payload widening for a stated reason: *a checker widened alone mints a dialect no producer can write and no consumer can read*. This rc lands the widening **and its first producer as one package**. Registry **700 → 702**; **ABI stays 24**; **zero C symbols added or removed** — the ζ cells cross as plain-int tuples, so no carrier TYPE reaches the wire and no discriminator widens. Around it: the gate that makes the widening safe, a latent kernel defect closed in both projections, a class-wide content-address drain, a 188×-cheaper ±G2 gate, and twenty-four live false hyperlinks removed from shipped source.
+
+---
+
+### 1. The core — `srmech.math.groups`: `kind == "cyclotomic"`, and the two ops that write and twist it
+
+**The dialect.** A rep payload may now be defined over ℚ(ζₑ). A cell is a length-φ(e) tuple of canonical `(num, den)` plain-int pairs — coordinates in the ζₑ power basis, low→high, **the same integer carrier `zeta_mul` and `character_table` already speak**, so no new type appears anywhere in the tree. The payload gains `e` and `phi_e`; `field` becomes `"Q(zeta_<e>)"`, and `field`/`kind` are **coupled in both directions** so the dialect cannot be half-declared. `e ≤ 2` is refused by name: ℚ(ζ₁) = ℚ(ζ₂) = ℚ, which the `general` kind already spells, so admitting it would mint a ℚ rep wearing the ζ dialect.
+
+**The serializer takes a THIRD branch, keyed on `kind`, and this is the load-bearing design decision.** Two acceptance requirements read as contradictory — *no shipped ℚ digest may move* and *no ℚ/ζ body may collide* — and both horns belong to designs that EDIT the general branch. A third branch leaves **both existing branches untaken**, so every shipped ℚ `matrices_sha256` is unmoved **by construction** rather than by re-measurement, and a `zeta{e}` prefix separates the rings that share a body without it (φ(3) = φ(4) = φ(6) = 2). Measured: the un-prefixed spelling collides on **exactly 3** pairs, so the collision gate can fire rather than passing vacuously.
+
+**`induced_representation` — Class L over Class-I coset arithmetic.** Ind_H^G of a linear character, **monomial over ℤ[ζₑ]**: the smallest construction that forces the whole new grammar at once — the cell alphabet, the ring keys, the domain-separated content address, the ζ-vector trace and the ring-product contraction. The homomorphism law ρ(g)ρ(h) = ρ(gh) is **executed over all |G|² pairs** on the monomial data the matrices are built from — O(|G|²·m) ring products where the dense form costs O(|G|²·m³) — and the tests re-execute the DENSE products independently. For the trivial character it reduces **exactly** to `permutation_representation` on the coset set, executed on three fixtures rather than asserted.
+
+⚠️ **NOT the exact `an_embedding` the brief named, and the reason is factual rather than editorial.** Measured: `an_embedding()` returns **zero of the seven `_REP_KEYS`** — no finite group, no `order`, no Cayley table, no element indexing. Making it fit would mean **fabricating a Cayley table**, i.e. forging an attestation field, which is the exact class rc460's `character_table` bind exists to prevent; and shipping it as "the producer" would leave the checker producer-less, the condition the deferral was for. `CHANGELOG.md:818` (the widening) and `:819` (the exact `an_embedding` deferral) were always **two adjacent bullets, never one package**. An exact `an_embedding` remains its own arc.
+
+**Both witnesses ship, because neither covers the other's path.** Q8 induced from ⟨i⟩ is the ζ-MATRIX path carrying a RATIONAL character (Frobenius–Schur −1 ⇒ quaternionic ⇒ not ℝ-realizable ⇒ not ℚ-realizable — precisely the rep the old payload could never hold). C4 induced from itself is the ζ-VECTOR CHARACTER path (its two indicator-0 rows are the conjugate pair the Galois action swaps). A third, C3 × C3, decomposes into THREE constituents, which neither irreducible headline case can show.
+
+**`zeta_conjugate` — Class C ∘ Class I.** Gal(ℚ(ζₑ)/ℚ) = (ℤ/e)\* acting on the payload. The conjugate-pair swap, the involution `σ_t ∘ σ_t = id` when t² ≡ 1 (mod e), and the commuting square `zeta_conjugate(Ind χ, t) == Ind(σ_t ∘ χ)`, all compared **by content address**. It re-derives Φₑ from `cyclotomic_polynomial` and compares, rather than trusting the operand: the validator can only see that `phi_e` is a monic modulus of the right degree, and this is the one op where the modulus's **identity** decides the answer. A ℚ-kind payload is **refused** under the dialect law rather than handed back unchanged — Gal(ℚ/ℚ) is trivial, and an op that can only ever answer "the same thing back" is not a measurement.
+
+⚠️ *"Swaps 3 ↔ 3̄" is not executable at e = 4* — no shipped group has a conjugate pair of 3-dimensional irreps over ℚ(ζ₄). The degree-1 C4 swap is the executable form, and that is what ships.
+
+**Four consumers read the dialect, three REFUSE with a named law.** Read: the ζ trace path (`_exact_zeta_trace`, kept **separate** so the ℚ branch's divmod-raise stays byte-identical — its integrality law is a theorem only over ℚ, and merging the branches would delete a live corruption detector on the ℚ path), `character_of`, `decompose_representation`, `isotypic_projector`.
+
+⚠️ **`decompose_representation` needed a real branch, not a widening.** `sizes[j] * character[j]` on a ζ-vector **repeats the tuple** — raises nothing, produces the wrong object, and dies two lines later on a shape that no longer names its cause. The test executes that trap so the branch cannot be "simplified" away by a later reader.
+
+Refuse: `tensor_product_representation` / `direct_sum_representation` (dialect law — a scope cut, stated rather than hidden, reversible at no cost to anything shipped here) and `intertwiner_space` (carrier law — its engine is `QMat.nullspace`, exact-ℚ only, and **no exact ℚ(ζₑ)-matrix carrier ships anywhere in `srmech.math`**; silently ℚ-restricting would change dim Hom by φ(e)). **Every refusal fires AFTER the validator**, so the payload it refuses is one the checker ACCEPTS — proved reachable, not merely written. It is also why `_same_group_guard` needs no dialect clause: measured, a ℚ payload and a ζ payload of the same group carry **equal** `cayley_sha256`, so the same-group law passes a mixed pair and only the dialect law stops it.
+
+**The scope boundary, named rather than hidden.** The compatible-ring law is an EQUALITY, and a rep over a proper SUBFIELD of the table's ring is well-formed: F21 has exponent 21, so its table is over ℚ(ζ₂₁) while Ind_{C7}^{F21} is over ℚ(ζ₇), and ζ₇ = ζ₂₁³ embeds one in the other. This rc **refuses** that pairing rather than performing the embedding — a width-only check would multiply mod the WRONG modulus and answer silently. The refusal is measured on F21, so a later rc that lifts it has a red to turn green.
+
+**Measurements.** 7200 ζ products across 8 conductors against an independent `Qalg` engine — **0 mismatches, 0 non-integral**. 21 ℚ + ζ fixtures, 210 pairs: digests equal **exactly** when bodies are. Q8 64/64 dense homomorphism, character equal to the shipped degree-2 row **computed from the same table** (never a hard-coded tuple — the class ORDER is derived from the operand table, so a literal pinned from one construction reds under another and reads as a real failure); C4 16/16. `isotypic_projector` on the ζ lane: idempotent 5/5, orthogonal 20/20, equivariant 40/40 by a second route through the ring kernel.
+
+---
+
+### 2. The gate written FIRST, because the one irreversible defect here is a silently moved ℚ hash
+
+`tests/test_rep_hash_stability_rc462.py` — **35 tests, 25 ℚ payload digests pinned as literals plus the canonical BYTES for 14 short bodies, 10.6 s** — landed **before `_rep_matrices_bytes` was touched at all**. A digest pin says *that* it moved; a bytes pin says *how*; the pair separates a serializer move from a `sha256_bytes` native-dispatch divergence, and `sha256_bytes(PINNED_BODIES[k]) == PINNED_DIGESTS[k]` never touches the serializer.
+
+All 25 fixtures are **DERIVED from the shipped constructors**, never inlined. Three of the pinned digests SHIP — the C2 regular digest appears nine times in full in `tool_schema.py` and nine times in the compiled `srmech_tool_registry.c` — and **zero test files asserted any of them** before this gate.
+
+**Why first, and not after.** `tests/example_args_ledger.ndjson` carries `matrices_sha256` values but is **regenerated**, so a moved ℚ hash would silently rewrite it green. A pin gate that arrives after the serializer is a post-hoc rationalisation of whatever was built. The gate stayed green through the entire widening and **no pin literal was edited**.
+
+Proof it can fail: three planted-defect controls, executed and reverted. ⚠️ The transpose control must run on **S3 natural** (which contains 3-cycles) — on the symmetric C2 fixture a per-element transpose does **not** move the digest, measured False, and a control that cannot fire is not a control.
+
+---
+
+### 3. `srmech.cascade.cayley_dickson` / `c/src/srmech_cayley_dickson.c` — the parameter that was read as a decision, in both projections
+
+`_gamma_basis_product`'s (ph, qh) == (1, 1) branch read
+
+```
+if (ql == 0) if gamma < 0 else (ql != 0):  sign = -sign
+```
+
+— a **dichotomy standing in for a parameter with three values in its natural domain**. γ = 0 fails `gamma < 0`, fell through the `else`, and was computed as γ = +1. **Measured at the rc461 head: the γ = 0 table came back BIT-IDENTICAL to the SPLIT table** at dims 2, 4 and 8, and on the mixed (0, −1) vector. The C peer carried the same shape.
+
+A second defect sat behind it and **would have survived that fix**: `cd_norm_sq` routed on `any(v > 0 for v in g)`, which names the SPLIT twists rather than the non-definite ones. Those two sets coincide only while γ is ±1. With the kernel correct at zero, the cocycle says N(e₁) = 0 while that predicate routes γ = 0 to the Σxᵢ² fast path and answers 1.
+
+⚠️ **Both were LATENT, never live, and this rc does not open them.** All four public entries refused γ = 0 before and still do: `algebra_table(2,(0,))`, `algebra_table(4,(0,-1))`, `cd_norm_sq([1,2],(0,))` and `_normalise_gammas(2,(0,))` all raise `ValueError`. *(The brief recorded `TypeError` for `cd_norm_sq`; it is `ValueError`, the same `_normalise_gammas` message — the refusal is UNIFORM across both entry points, which strengthens the latent reading rather than weakening it.)* What was wrong is that **the validator was doing load-bearing CORRECTNESS work while presenting as input hygiene**, and the next change to this module is exactly "open γ = 0".
+
+**The scope question answered from the code: (i) make the arm correct, not (ii) raise at the private layer.** The multiplicative form `sign * (gamma if ql == 0 else -gamma)` IS the coefficient γ·conj(b₂) contributes — it cannot alias, and it has one branch FEWER than the line it replaces, so there is no correctness-versus-cost trade to make. A C-side raise would be **provably dead**: `cd_gamma_basis` is `static`, both call sites pre-validate, and **zero files in `c/test/` `#include` a `../src/*.c`** — the C tests link the library, so a static is invisible to them, and the branch would be a dead instrumentation seam. The "raise" half of (iii) already ships untouched (`_normalise_gammas` / `cd_check_gammas`), so rc462 gates **both** facts and the validator is no longer the only thing standing there.
+
+**Measured, all executed.** ±1 domain unmoved: **127 γ vectors / 299 593 cells at dims 1–64, 0 mismatches** against the pre-rc462 spelling; **63 ±1 vectors / 0 routing-predicate disagreements**. Correct at zero: **39/39** γ patterns over {−1, 0, +1} at dims 2/4/8 against an **independent dense recursion** written from the defining formula — the pre-rc462 spelling scores exactly **14/39** (the all-±1 patterns), which is the gate's vacuity control. γ = 0 at dim 2 is the dual-number table (e₁·e₁ = 0); the zero sign is absorbing across rungs. C peer after rebuild: 63 ±1 vectors and 5461 definite cells, **0 divergences**; `srmech_algebra_table(2,[0])` still returns `SRMECH_ERR_BAD_INPUT`; pedantic `-Werror` build clean.
+
+⚠️ **The gate reaches the PRIVATE path, because a public-API test passes vacuously here** — the validator makes the defect unconstructible, and a gate written that way joins the instrument-blind family (`#T1136` / `#T1138` / `#T1182` / `#T1183`). `tests/test_gamma_zero_kernel_rc462.py`: 26 tests, 16 s; planted-defect control executed and reverted (restoring both old spellings reds 7 of the 26).
+
+The C tripwire `assert(sign == 1 || sign == -1)` **stays strict** and gains a comment naming what it is for: the kernel can now produce 0, and that assert is what says the value is unreachable. Open `cd_check_gammas` without revisiting it and a debug build aborts in `srmech_algebra_table`, which writes one coefficient per cell and calls the table MONOMIAL — a claim a zero sign breaks.
+
+---
+
+### 4. `tools/content_address.py` — content addresses are covered by DECLARING them, not by remembering
+
+rc461's 19-mutation adversarial pass measured that srmech's Class-A payload digests were **ungated by default**: a field could be replaced with a constant and the suite stayed green. The instance holes were then closed one at a time, by hand, as `test_g14_*` gates in whichever file happened to ship the op. **Eleven such gates exist, rc109 → rc461.** That is a ratchet; it covers what somebody remembered. This is the **drain**.
+
+Every content-address field is declared per (op, field path), and `tests/test_content_address_class_rc462.py` checks the declaration **strict-zero in BOTH directions** against what the ops actually emit when driven from the example-args ledger. An op that starts emitting a digest is RED until declared; a declaration whose field stopped being emitted is RED too.
+
+```
+                                             written   ripple
+declared ops                                      29       37
+declared (op, field) pairs                        55       75
+  answer / operand / procedure / echo / pinned  36/6/9/2/2  44/18/9/2/2
+emitted-but-undeclared                             0        0
+declared-but-no-longer-emitted                     0        0
+ops promising a digest in `returns` prose         39       39
+  of those, undeclared (the draining residual)    19       11
+same-named cross-op pairs                         61      142
+  echoing verbatim / correctly differing       15 / 46   34 / 108
+```
+
+**The two columns are the same rc**, and the gap between them is this rc's
+sharpest finding — see §8. The gate's docstring, written at the left column,
+forecast that the ripple stage's ledger regen would drain "up to eight of the
+nineteen lexical residuals". Eight is what drained, and it found more besides.
+
+**Two instruments, and they are not redundant.** Driving finds fields the emitted prose never names (`reversal_law_census`, `anti_automorphism_witnesses`, `abelianization`, `direct_sum_representation`, `tensor_product_representation`). The lexical scan finds fields the prose PROMISES that the ledger cannot drive — `triality_frame_action` promises `action_` / `frame_` / `procedure_sha256` and has no drivable row, so only the scan sees it.
+
+**The five kinds are five different contracts**, derived from the eleven existing gates rather than invented, and reading all five as "stable and distinguishing" is what made three of them vacuous: `answer` (addresses the op's own result — stable, and MOVES with the answer), `operand` (addresses an INPUT, so it is EQUAL across two ops handed the same one, which a name-match cannot know), `procedure` (addresses the RULE — **CONSTANT** across inputs, so a "distinguishing" assertion here asserts the opposite of its contract), `echo` (repeats a named surface verbatim, checked against the SOURCE), `pinned` (a shipped attestation constant). Each kind is executed by a **named** function and the binding is asserted mechanically — the clause that stops it becoming a second aspirational taxonomy.
+
+**Why declaring beats name-matching, measured not argued:** of 142 same-named cross-op pairs, **34 echo verbatim and 108 correctly differ**. The decisive single case is `isotypic_projector.matrices_sha256`, which is `rep['matrices_sha256']` **verbatim** — it addresses the rep the op PROJECTS, while its own answer ships under `projectors_sha256`. The identically-named field is an ANSWER on three sibling ops. No name-match can tell those apart.
+
+Seven planted-defect arms, all executed and all RED under the fault. Floors (≥37 ops, ≥75 pairs) so a strict-zero sweep over an empty set cannot pass; `procedure` verdicts additionally assert the ANSWER moved under the same perturbation, or the constancy proved nothing; the one `EMPTY_OK` member is declared **with its reason**. Bans by **AST walk, never substring** — no numpy, no `hashlib`, no `abs()` — with a control proving the scanner fires on a planted file.
+
+**Phase 1 of 2, with the deferral measured.** The natural home is a `content_address_fields` key on each `ToolEntry`, and that stays the target. It is deferred because the precedent commit for adding a ToolEntry field moved `srmech.h` +40 and `srmech_tool_registry.c` +1375, added a 173-line key-set pin, **and moved `tool_schema_sha256`** — the wrong ripple to stack on an rc whose core is a hash-serializer widening that must not move a shipped ℚ hash. Nothing here is discarded by Phase 2: the executors take `(op, path, decl)` and do not care where `decl` came from.
+
+---
+
+### 5. `tests/test_g2_certificate_rc462.py` — 1344 calls collapsed to 10, because the locus is AGL(3,2)
+
+rc461 shipped `g2_membership`'s 2688-element ±G2 sentence with a gate covering 66 elements and recorded the rest as a live coverage gap. Closing it by enumeration was authorised **subject to a duration rule**, which had two obligations. Both were answered by measurement.
+
+**Obligation 1 — the real cost, and the cell it lands in.** A warm `g2_membership` call is 0.269 s, and the op already returns `negated_multiplicativity_failures` in the SAME call — so a "2688-element census" was always a **1344-call** census; half of it was never work. 1344 × 0.269 = **361 s**, on top of a ~73 s one-off cold start for the τ / S_B companion solve (`lru_cache`d, so per PROCESS, not per call — a distinction none of the prior cost figures made). Per-job maxima from the Actions API over five successful runs, against the 30-minute ceiling:
+
+```
+ubuntu-latest  py3.10      27:07  ->  33:08   OVER
+windows-latest py3.12      25:11  ->  31:12   OVER
+ubuntu-latest  py3.12      24:43  ->  30:44   OVER
+asserts-live shard 4/4     23:22  ->  29:23   under, ~0 headroom
+fallback shard 5/6         14:09  ->  20:10   under
+```
+
+**THREE cells breach**, not the two predicted — and `--dist loadfile` puts a whole file on ONE worker, so it cannot be parallelised away. The enumeration does not land as a live gate.
+
+**Obligation 2 — does a different mathematical shape do the same job cheaper? Yes, and it is also the better one.** The monomial locus is a GROUP of order **1344 = 8 · 168 = 2³(2³−1)(2³−2)(2³−4) = |AGL(3,2)|**. Measured: 168 Fano-preserving index permutations, each carrying exactly 8 admissible sign patterns — the (ℤ/2)³ kernel — with |fibre| == 8 checked for **all** 168, not sampled. ±G2 monomial = 2 · 1344 = 2688.
+
+Five theorems collapse 1344 calls to **10**, each executed with its law named in the assertion message: **L1** Aut(𝕆) is a group; **L2** Ad is a homomorphism and the centralisers are subgroups; **L3** Ad(−g) = Ad(g) because Ad factors through PSO(8) — the claim `tool_schema.py` already makes; **L4** for h = −g, h(x)h(y) = g(x)g(y) = g(xy) = −h(xy), so h fails EVERY pair, making *"exactly 1344 fail 64/64"* a **theorem** rather than a measurement; **L5** det(−g) = det(g) in dim 8. C3 proves the enumerated locus IS ⟨g_a, g_b⟩ by BFS closure and SET equality; C2 proves the enumeration complete by orbit–stabiliser.
+
+Three fault injections, all measured to fire: one generator alone closes to 2 and 3, not 1344; the locus built without the sign law has 21504 = 168·128 elements, 16× too many; an off-locus signed permutation reads `in_g2` False.
+
+⚠️ **A measured correction to the certificate's own cost.** ~2.0 s is the WARM figure. Cold — what a fresh CI worker pays — the same 10 calls cost 76 s. Honest, both measured: **standalone 88.1 s** (14 passed, 1 skipped), **marginal 17.4 s** when sharing a process with `tests/test_so8_automorphism_bind_rc461.py`, which pays the cold solve anyway. Worst case puts the busiest cell at **28:35** — under the ceiling on its own terms rather than by hoping the files co-locate.
+
+⚠️ **A measured correction to the ±G2 homomorphism spelling.** `_ad_epq_columns` stores Ad(g) COLUMN-wise, so read as `A[i][j]` the identity that HOLDS is `A(g·h) == A(h)·A(g)`, and `A(g·h) == A(g)·A(h)` is FALSE — measured both ways. That is the storage convention, not a broken homomorphism. Both spellings are asserted, plus the transposed reading, so a future reader cannot mistake the convention for a defect or "fix" the working one.
+
+**The enumeration stays in-tree as a falsifier**, env-gated and SKIPPED by default (`SRMECH_RUN_G2_CENSUS=1`, following the in-tree `SRMECH_RUN_AZ_HEAVY` precedent). Deliberately **not** a `slow` marker: a skipped test is still COLLECTED, but a `-m "not slow"` deselection would break the shard-partition invariant that two dedicated CI jobs exist to protect. The variable is set in no CI job.
+
+**Why the certificate is the better gate and not merely the cheaper one:** the enumeration's own construction predicate — the Fano index condition plus the sign cocycle — **IS** the octonion-multiplicativity check restated, so sweeping the set re-derives how it was built. The certificate binds the SHIPPED OP to the group structure, which is the only non-redundant content in the claim.
+
+---
+
+### 6. `srmech.physics.qm.triality.triality_frame_action` — the address-plus-detector closure was half-emitted
+
+Found while evaluating whether rc461's F1 ruling needed overturning. **It did not** — re-executed at tip: `triality_frame_action(P⁻¹ S_B P)` returns `{'v':'v','s':'s','c':'c'}`, order 1, no exception; `so8_bracket_certificate` on the same matrix fails 161/378; the zero-matrix repair holds; all three pins pass. Raising would delete the rank-≤4 witness shipped in the same rc. **Stays recorded and closed.**
+
+**But the evaluation surfaced a separate defect.** The link between the two ops was **one-directional**: `so8_bracket_certificate`'s emitted blob names `triality_frame_action` and the identity-permutation answer it gives to `P⁻¹ S_B P`; the reverse blob (7314 chars) contained **zero** occurrences of `bracket_certificate`, `so8_bracket`, `P⁻¹` or `wrong-frame`. The detector knew about the defect; the defective op did not point at the detector. Worse, the one refusal statement the `frame_action` surface DID emit — the span-escaping map — read as that surface's **complete** refusal contract while a second, silent failure mode existed beside it. The gate that should have caught it asserts `__doc__`, and a docstring reaches **none** of the three surfaces that reach users (`describe()`, the MCP tool list, the compiled-in C registry).
+
+Per *"Introspect IS the API contract; incomplete is as bad as false"*, the emitted summary now states outright that **the answer is a LABEL, not a check**, names `so8_bracket_certificate` as the detector with its measured 161/378, and says to run it first when the operand's provenance is unknown.
+
+---
+
+### 7. `#T845` — twenty-four live false links to a PR about something else
+
+Every bare `#845` under `srmech/**/*.py` is the LOCAL TASK — the rc263 stdlib-`fractions` purge to srmech's own C-native exact-ℚ `Q` carrier. Bare, it autolinks. Measured what it autolinks **to**: `gh #845` → PR *"srmech v0.7.0rc19: HAL constant-attestation discipline (MPR + derive-and-assert)"*, MERGED — nothing to do with the carrier. **Twenty-four of these were live in package source, and this prose SHIPS in the wheel.**
+
+Decidable, and the tree had already decided it: `CHANGELOG.md:7048` spells the task `#T845` and adjudicates six of these hand-written sites as "all unambiguously the local task". **Per-site, never batched** — all 24 lines were read with surrounding context before editing; all 24 describe the `Q` carrier or the `fractions` purge; not one refers to a GitHub object. The 5 CHANGELOG occurrences are deliberately out of scope, and `CHANGELOG.md:7048`'s own quoted `#845` is block-quoted evidence.
+
+Measured after: **0 bare `#845`** remain under `srmech/**/*.py`, 24 `` `#T845` `` present, no line past 88 columns, and **zero** of the 24 sites appear in any generated artifact — so no regen and no count pin moved for this slice.
+
+---
+
+### 8. The ripple, and the corrections it produced
+
+**Count pins: 75 lines across 68 test files**, swept on the predicate `== 700` and only that predicate — a bare `700` is NOT the predicate (the tree carries "400-700 nm" and "~700 years" in prose). `EXPECTED_N` is invisible to that predicate (a bare assignment, not a comparison) and moved separately, in the SAME commit as `tests/registered_op_names.txt` (702 lines) and `EXPECTED_NAME_SET_SHA256` (`c7bee0a1f7c3ddeae93d9079aba160a7c8f6fdd04e7737e01ba5ccf11fb4b2cf`), because a manifest and a digest that move in different commits leave one commit where the witness lies. Live-vs-manifest diff: exactly the two new names, **zero removals**.
+
+⚠️ **Correction: the build plan predicted FOUR generated files move on `tools.total`; THREE did.** `srmech/introspect/_tool_docs.py`, `c/src/srmech_tool_registry.c` and `c/src/srmech_carrier_registry.c` moved. **`c/src/srmech_responsion_registry.c` did NOT** — it bakes responsion ROWS, and two op additions that declare no responsion contribute none. `gen_c_claims` and `gen_class_registry` were unchanged, as predicted. Idempotence verified two ways: the tool's own second pass (*"all 6 outputs byte-identical"*, 200.4 s) and an independent `--check` afterwards (*"all 6 generated files are up to date"*, 88.0 s).
+
+⚠️ **Correction: `permutation_representation`'s emitted `field: 'Q'` prose does NOT widen.** The plan listed `tool_schema.py:12176` and `_tool_docs.py:355` as sites that must widen with the dialect. Measured at the code: `permutation_representation` hard-codes `"field": "Q"` and can never mint a ζ payload, so that prose is correct as it stands and widening it would have made it false.
+
+**Rosetta ledger** 873 → 875 rows, `composition_of_c` like every sibling; both new ops declare `gcd` where their tier-4 siblings deliberately do not, because those reach it only through a BRANCH and these have one lane each.
+
+**`tools/ripple_gates.txt`** 762 → 833 lines (+59 gate entries, +12 lines of note). Eleven gate entries: the five rc462 gates plus six registration-sensitive absentees. Measured: 46 `tests/` files match `rc4[4-9][0-9]` and 20 were absent, 15 of them predating this rc; three of the six added gate exactly the rep-payload surface this rc edits. The remaining nine stay a standalone sweep, outside an rc. Cost of the six, measured together: 253 passed in 140.58 s — the plan carried 70.85 s, which does not reproduce on this cell.
+
+⚠️ **The CRLF instruction for `ripple_gates.txt` is a fact about the WORKING TREE, not about the repository.** Measured across three revisions: `git cat-file -p <rev>:tools/ripple_gates.txt` returns **0 CR bytes** at every one. The blob is LF-only and always has been; what a Windows checkout sees is `core.autocrlf=true` on checkout and normalisation straight back on commit. Following "append in CRLF" literally from a WSL2 checkout (where git has `autocrlf=false`) would put CR into the blob for the FIRST time and leave the file with mixed endings — and `tools/ripple_check.py` strips CR when resolving targets, so a mixed file still RUNS. The rule that actually protects the file is now recorded in it: **edit and commit from the SAME checkout you read it in.**
+
+**Ledgers, and the sixteen content addresses no instrument could see.** `tests/worked_examples_result.ndjson` 615 → **617** rows, re-run BY NAME from the Windows host whose environment the ledger's own meta records (`python 3.14 / native false`) — running it from the WSL2 build cell would flip that claim as a side effect of verifying unrelated rows. Tally `{ok: 516, unexpected_raise: 96, needs_subprocess: 4, timeout: 1}`: the two FAILURE classes the ceiling bounds are **unmoved**, so `CEIL_WORKED_EXAMPLE_FAILURES` needed no edit.
+
+`tests/example_args_ledger.ndjson` regenerated in **FULL**, 702 rows, meta `srmech_version 0.9.0rc462`. **The instrument is reproducible, measured rather than assumed:** two full harvests back to back (3m27s, 3m29s) gave a byte-identical meta row and **701 of 702 rows byte-identical**. The one exception is `srmech.bus.decode_splice`, whose snippet passes `time.time_ns()` — it banks a WALL CLOCK reading and cannot be stable by construction. So the honest statement is not *"seven rows do not reproduce"* but *"one row is irreproducible, and it is irreproducible because it records a clock"*.
+
+⚠️ **What the full harvest found, and none of it was reachable any other way.** Eighteen rows moved against the committed ledger. **Six** are the tier-3/4 readouts — `central_idempotents` / `character_of` / `decompose_representation` / `frobenius_schur_indicator` / `fusion_multiplicities` / `isotypic_projector` — whose recorded args predated rc460's `cayley_sha256` bind and now make their ops **RAISE**. `emitted_over_drivable` skips an op that raises. Those six emit **sixteen content addresses** between them and **not one was visible** to the class gate written one commit earlier. Sixteen shipped Class-A fields with no instrument on them, surfaced by repairing a ledger rather than by anyone going to look for them. That is the whole difference between a drain and a ratchet.
+
+⚠️ **A recommendation withdrawn, with the measurement that withdraws it.** `--only-stale` keys on the SNIPPET-TEXT hash, which does not move when an implementation moves — the blind spot the freshness hook exists for. rc461 met one flipped row (`rational_div` `ok` → `no_jsonable_arg`) and chose `--only-stale` to preserve it, recording *"use `--only-stale` unless you mean to re-measure the whole surface"*. That row is a **fossil**: it records `(19, 20)` / `(9991, 10000)` tuples, and the snippet has not passed tuples since the Class-N migration made `rational_add` return `Q`. Preserving it also preserved the six broken rows above, and with them the sixteen invisible addresses, for a whole release. **Declining to re-measure in order to keep a ceiling low is the instrument-blind class**, not a saving.
+
+**Two down-only ceilings moved, and the direction of each is stated.** `CEIL_UNSYNTHESIZABLE_PARAMS` was **not raised**: it went 52 → 54 on `rational_div`'s two `Q | tuple[int, int]` params and was **drained back to 52** by the fix the gate's own message names — the union spelling is a different table key from either half, and `_synth_value_for_type` had rows for `Q` and for `tuple[int, int]` but none for the union. One row; headroom now 0. `CEIL_FRAME_UNADJUDICATED['NO_INT_INPUT']` **171 → 172**, raised with the census that justifies it, attributed by running the same census against each ledger: `induced_representation` and `zeta_conjugate` NO_ARG → NOT_ADMISSIBLE, `triality_companions` NO_ARG → NO_INT_INPUT, `rational_div` NOT_ADMISSIBLE → NO_ARG. NO_ARG **282 → 280**.
+
+⚠️ **That gate was ALREADY RED at this rc's head**, and executed to show it: with the committed ledger it fails *"NO_ARG rose to 282, above 280"*, because rc462 registered two ops and neither had a row. The ledger regen is what turned it green. The +1 is `triality_companions`, which DRAINED OUT of NO_ARG and landed one tier along — the established `genome_group` / `render_template` structural class — and NO_INT_INPUT is strictly MORE information than the row it replaces: NO_ARG means the probe never reached the op, NO_INT_INPUT means it reached it and measured that there is no integer to translate.
+
+Two `SLOW_ALLOWLIST` entries were corrected earlier in the rc with numbers attached, never by raising a global timeout: `relational_structure` **newly listed at 240.0 s** (19.5 s under `--only`, 13.0 s for the body, against a 15.0 s default) and `recover_check_spectral` **raised 300.0 → 600.0** (the recorded "244 s measured" was a WARM number; the body is 225.0 s and the run hits 300 s once the cold import is counted). Both are the documented pattern — *the snippets are not slow; the isolation is* — for the third time on this file, so it is the rule now rather than the exception. Operational fact worth recording: **`--budget` does NOT override `SLOW_ALLOWLIST`**; an entry wins over the flag.
+
+---
+
+### 9. Deferred, each with its reason
+
+- **Exact `an_embedding` over ℚ(i) = ℚ(ζ₄)** — its own arc. It cannot mint a rep payload (zero of seven `_REP_KEYS`), so it is a different construction rather than a smaller version of this one.
+- **ζ support in `tensor_product_representation` / `direct_sum_representation`** — dialect law, refused with the law named. The wrong shrink would have been dropping a producer witness, which re-opens the producer-less lane.
+- **ζ support in `intertwiner_space`** — carrier law. It needs an exact ℚ(ζₑ)-matrix carrier, which does not exist anywhere in `srmech.math`; this is a carrier arc, not a consumer edit.
+- **Class-gate Phase 2 (the `content_address_fields` ToolEntry field + its C mirror)** — measured ripple: `srmech.h` +40, `srmech_tool_registry.c` +1375, a new 173-line key-set pin, and a moved `tool_schema_sha256`. Wrong ripple to stack on a serializer widening whose whole safety argument is that no shipped ℚ hash moved.
+- **The nine remaining ripple-gate absentees** — a standalone sweep, outside an rc.
+- **The 2688-element ±G2 enumeration as a live gate** — three CI cells breach the 30-minute ceiling. Ships as an env-gated skipped oracle instead, so the certificate stays falsifiable.
+
+**No numpy. No `hashlib`. No `abs()`. No new C symbol; ABI stays 24.**
+
 ## [0.9.0rc461] - the derivation pair, the frame nobody bound, and the fold that had to prove it stops: a label action that was only ever a constant, a cycle spectrum that was only ever a float, 28 coordinates two modules ordered differently, and an infinite Weyl group folded by an exact integer certificate
 
 **What this rc is for.** Two ops, and they are the same move twice: each replaces a claim the tree ASSERTED with one it MEASURES. Registry **690 → 692**; **ABI stays 24**; **zero C symbols added** — neither op mints a carrier TYPE (exact ℚ leaves as `int` pairs), so nothing widens a discriminator set and nothing crosses the wire. Plus a third gate that adds no op at all and closes a shipped field with **zero** test coverage.
