@@ -434,10 +434,21 @@ def lstsq_exact(a, b):
     """EXACT least-squares solution of ``A x ≈ b`` over ℚ — **no float anywhere**.
 
     The float :func:`lstsq` is honest about what it is (it declares "to
-    round-off"), but on an EXACT operand it answers a question nobody asked: for
-    ``A = [[1,1],[1,1.0000000000000002]]``-shaped conditioning the float route
-    returns ``[1.28e-15, 0.9999999999999997]`` where the true answer is
-    ``[0, 1]``. rc463 (`#T1188`) promotes the exact answer to a NAMED, registered
+    round-off"), but on an EXACT operand it answers a question nobody asked.
+    Two measured witnesses on this tree, both against a true ``[0, 1]``::
+
+        lstsq([[1,1],[1,1],[1,2]], [1,1,2])          # overdetermined, exact-rank
+        -> [7.691850745534256e-16, 0.9999999999999999]
+        lstsq([[1,1],[1,1.0000000000000002]], [1, 1.0000000000000002])
+        -> [0.5, 0.5]                                # ill-conditioned square
+
+    The second is the sharper one: the float route can no longer tell the two
+    columns apart at all and splits the answer evenly between them. (An earlier
+    draft of this paragraph quoted ``[1.28e-15, 0.9999999999999997]`` against
+    the *second* input. Neither half survived measurement — wrong shape AND
+    wrong numbers — so both witnesses above were re-run before being written,
+    which is the discipline this whole rc is about.)
+    rc463 (`#T1188`) promotes the exact answer to a NAMED, registered
     op, because it was already computable from shipped parts and therefore
     invisible: the normal equations ``(AᵀA) x = Aᵀ b`` solved on the exact-ℚ
     :class:`~srmech.math.qmat.QMat` carrier via :meth:`~srmech.math.qmat.QMat.solve`.
