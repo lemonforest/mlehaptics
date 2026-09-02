@@ -853,8 +853,8 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   this rc's prose. Reproduced from the committed rc463 sources during the fix
 #:   pass, which is what makes it a MEASUREMENT and not an inference.
 #:
-#:   MOVE 2 (the rc463 fix pass) `17a43674…` -> the value below. ATTRIBUTED
-#:   FRAME BY FRAME rather than assumed: a pristine copy of `srmech/` with every
+#:   MOVE 2 (the rc463 fix pass) `17a43674…` -> `24a0858e…`. ATTRIBUTED FRAME BY
+#:   FRAME rather than assumed: a pristine copy of `srmech/` with every
 #:   fix-pass-modified module restored from `HEAD` was built alongside the live
 #:   tree and the per-frame digests differenced. **0 frames added, 0 removed, 8
 #:   changed**, and every one is a direct consequence of a text/declaration edit
@@ -870,11 +870,24 @@ from srmech.math.text import fold_marks, glyph_stream
 #:       ones the ops actually accept. `lstsq_exact` and `singular_values_exact`
 #:       correctly LEAVE the `Mat` consumer list and JOIN `QMat`'s;
 #:       `separate_frame_curvature` is on both, which is what a two-rung op is.
-#:   Ops whose only edit was a parameter description or type therefore did NOT
-#:   move their own op frame — the blob carries the summary, not the param
-#:   prose — which is itself a check that the diff is the one described.
+#:   Ops whose only edit was a parameter description or type did NOT move their
+#:   own op frame — the blob carries the summary and the worked EXAMPLE, not the
+#:   per-parameter prose — which is itself a check that the diff is the one
+#:   described.
 #:
-#:   DETERMINISM, measured before either re-pin was accepted: six fresh
+#:   MOVE 3 `24a0858e…` -> the value below, and it is one frame: `lstsq_exact`
+#:   again. `tests/test_frame_scope_rc430.py` had `NO_ARG` at 281 over a
+#:   down-only ceiling of 280, and the marginal op was `lstsq_exact`, harvested
+#:   as `no_jsonable_arg` with `unserializable: ["a", "b"]`. The cause was
+#:   ORDER, not thinness: `example_args.harvest_op` keeps the FIRST returning
+#:   call, and this op's worked snippet led with the `Fraction` witness, which
+#:   JSON cannot carry — while the snippet's own all-integer call two lines
+#:   below binds cleanly. Moving that call to the front DRAINS the census
+#:   (`NO_ARG` 281 -> 280, `ok` 437 -> 438) with the ceiling untouched, which is
+#:   the gate's own stated remedy and is why this is not the fourth structural
+#:   raise. Differenced the same way: **0 added, 0 removed, 1 changed**.
+#:
+#:   DETERMINISM, measured before each re-pin was accepted: six fresh
 #:   numpy-absent WSL2 interpreters — three plain and three under distinct
 #:   `PYTHONHASHSEED` values — all returned the SAME digest with the same
 #:   749 = 720 + 29 split. The value is also identical on the NATIVE and PURE
@@ -887,7 +900,7 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   taken mid-release is a measurement of a draft.
 #: was: c34e8e854128a6266ad57e428cf5295c3ae6d2eec75fe52d0984daf8bfca31a6 (rc462)
 WITNESS_RC416 = (
-    "24a0858e0b4b2f14ff67a95a4fca846fd236e4c7cf9232c4647b92dfad6c678b")
+    "f1f521af99cbcf3a3b404a11e521052e08d26577ccf0cc04c5f356816138f5cd")
 #: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
 #: op corpus, so registering induced_representation + zeta_conjugate moves it by
 #: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.

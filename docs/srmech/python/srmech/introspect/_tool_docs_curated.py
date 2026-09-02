@@ -11185,6 +11185,13 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
             'worked': "from fractions import Fraction\n"
                       "from srmech.cascade.matrix_cascades import (lstsq,\n"
                       "    lstsq_exact)\n"
+                      "lstsq_exact([[1, 1], [1, 2], [1, 3]], [1, 2, 3])\n"
+                      "# -> [Q(0, 1), Q(1, 1)]   overdetermined, exact fit.\n"
+                      "# This call is FIRST on purpose: example_args harvests\n"
+                      "# the first RETURNING call, and plain ints are the only\n"
+                      "# binding here that JSON can carry -- leading with the\n"
+                      "# Fraction call left the op unbindable (NO_ARG) in the\n"
+                      "# frame census, which is a drain, not a ceiling raise.\n"
                       "e = 1.0000000000000002          # 1 + 2**-52\n"
                       "lstsq([[1.0, 1.0], [1.0, e]], [1.0, e]).tolist()\n"
                       "# -> [0.5, 0.5]   on the NATIVE QR engine.\n"
@@ -11196,8 +11203,6 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                       "q = Fraction(2**52 + 1, 2**52)\n"
                       "lstsq_exact([[1, 1], [1, q]], [1, q])\n"
                       "# -> [Q(0, 1), Q(1, 1)]\n"
-                      "lstsq_exact([[1, 1], [1, 2], [1, 3]], [1, 2, 3])\n"
-                      "# -> [Q(0, 1), Q(1, 1)]     overdetermined, exact fit\n"
                       "lstsq_exact([[1.0, 1.0], [1.0, e]], [1.0, e])\n"
                       "# -> TypeError    a float operand is REFUSED by name\n",
             'why': 'The right-hand side is literally the second column, so '

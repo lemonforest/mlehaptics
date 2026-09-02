@@ -259,6 +259,37 @@ _ENCODING_HINT: Dict[str, str] = {
         "nested JSON array of integer lists (rows / coefficient cells)"
     ),
     "Sequence[bytes]": "array of base64-encoded byte strings",
+    # 0.9.0rc408 (`#T1078`): the host-side operands. Both publish JSON-schema
+    # "null" (see _TYPE_LEXICON) — this is the prose half, telling a consumer
+    # WHY the only legal wire value is absence and what to do instead.
+    "host_callable": (
+        "a HOST-SIDE callable, supplied by the calling process. It cannot "
+        "cross a process boundary in any encoding — there is no name to "
+        "resolve and no serialised form — so over MCP / JSON-RPC the only "
+        "legal value is null (absent), and the op then runs with the callback "
+        "disabled, which is its default. In-process Python callers pass a real "
+        "function; each parameter's own summary gives the exact signature"
+    ),
+    "host_rng": (
+        "a HOST-SIDE random generator (``random.Random``, or a numpy "
+        "``Generator``), supplied by the calling process. Generator STATE has "
+        "no JSON form, so over MCP / JSON-RPC the only legal value is null "
+        "(absent) — pass the integer ``seed`` parameter instead, which is "
+        "advertised alongside it and gives a reproducible stream"
+    ),
+    # 0.9.0rc362: the exact-ℚ carrier + the acoustic-spectrum sequence over it.
+    "Q": (
+        "[numerator, denominator] as exact integers, or a bare integer; never "
+        "a float (an exact rational is required)"
+    ),
+    "Sequence[int | Q | Qalg]": (
+        "array of frequency ratios, each a bare integer or an exact "
+        "[numerator, denominator] pair; never a float. The Qalg arm of the "
+        "declared type (the exact algebraic-irrational carrier) has no JSON "
+        "form and is reachable IN-PROCESS ONLY — over the wire, build a Tier-2 "
+        "spectrum with equal_temperament_partials / stiff_string_partials and "
+        "pass its result on directly"
+    ),
     # 0.9.0rc463 fix pass: the exact-ℚ matrix operands + the algebraic
     # eigenvalue. Deliberately ASCII-only: every one of these strings is
     # mirrored BYTE-FOR-BYTE into MCP_ENCODING_HINT in
@@ -277,6 +308,7 @@ _ENCODING_HINT: Dict[str, str] = {
     "Qalg": (
         "JSON object {\"m\": [int, ...], \"coords\": [[num, den], ...], \"root\": <float | [re, im]>} -- the monic Z[x] minimal polynomial and the power-basis coordinates, both ASCENDING, plus the embedding that says WHICH root of m this element is. Omitting root builds a Qalg the op's own projection then refuses, rather than guessing a conjugate"
     ),
+    # legacy numpy-free wire-form keys (no param advertises them now).
     "np.ndarray": (
         "nested JSON array, row-major; complex elements as [re, im]"
     ),

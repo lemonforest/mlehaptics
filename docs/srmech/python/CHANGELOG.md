@@ -229,6 +229,24 @@ numpy-absent interpreters (three of them under distinct `PYTHONHASHSEED`s)
 returned the same digest, and the native and pure projections agree, so the
 corpus is a function of the committed sources and not of a build artifact.
 
+**Two frame-census ceilings, and the difference between them is the whole
+point.** `tests/test_frame_scope_rc430.py` went red on **both** after the
+registrations. `NO_ARG` was at **281** over 280 and the marginal op was
+`lstsq_exact`, harvested `no_jsonable_arg` with `unserializable: ["a", "b"]` —
+and the cause was **ORDER, not thinness**: `example_args.harvest_op` keeps the
+FIRST returning call, and the snippet led with a `Fraction` witness JSON cannot
+carry, two lines above its own all-integer call. Moving that call to the front
+**drains** it (`NO_ARG` 281 → 280, `ok` 437 → 438) with the ceiling untouched —
+the gate's own stated remedy. `NO_INT_INPUT` was at **182** over 172, ten of the
+eighteen, and there the drain does not exist: measured per op, every one binds a
+NESTED int matrix or a string, `is_frame_coordinate` admits only a scalar `int`
+or a FLAT int sequence, and translating a matrix entry would be asking a
+different question under this name — a matrix is an OPERATOR, not a coordinate.
+That ceiling is raised to 182 with the measurement per op recorded beside it, the
+same structural class rc436 / rc442 / rc452 / rc456 each recorded. One drained,
+one raised, and the reason is stated for each rather than the pair being treated
+alike.
+
 **One residual, named rather than fixed.** `singular_values_exact` decides the
 non-negative-root selection on `float(root.real)` and orders the result by
 `.to_float()`, inside an op whose name promises exact. It is **LATENT, not live**
