@@ -1205,6 +1205,68 @@ def _to_qmat_rows(value: Any, *, param: str = "") -> Any:
     return rows
 
 
+def _to_qmat_rows_or_column(value: Any, *, param: str = "") -> Any:
+    """``qmat_solve`` ``b`` and ``lstsq_exact`` ``b`` (rc463 fix pass).
+
+    The same exact right-hand side as :func:`_to_qmat_rows`, plus the arm the
+    ops have always accepted and the declared type did not name: a **flat
+    exact COLUMN**. ``qmat_solve``'s own shipped ``smoke_test_hint`` is
+    ``{'rows': '[[2, 0], [0, 3]]', 'b': '[4, 9]'}`` and it FAILED through
+    ``invoke_tool`` with ``TypeError: 'int' object is not iterable`` while
+    working in direct Python, because ``_to_qmat_rows`` iterates ``b`` as
+    rows-of-rows. The op was never the problem; the declared token was.
+
+    ⚠️ **The flat arm is int-only over JSON, and that is a NAMED limit rather
+    than a guess.** A flat column of exact rationals rides as
+    ``[[num, den], [num, den], ...]``, which is shape-indistinguishable from a
+    2-column RHS BLOCK — the ops cannot tell them apart either, and neither
+    can this coercer. So a nested value is always read as ROWS, and a rational
+    column must be sent in its unambiguous ``(m, 1)`` nested form, which every
+    consumer of this type already accepts. Guessing by leaf shape would make
+    the answer depend on the VALUES, which is the class of defect this rc is
+    about.
+    """
+    from srmech.math.qmat import QMat   # exact-ℚ matrix carrier; lazy
+    if isinstance(value, QMat):
+        return value
+    if (isinstance(value, (list, tuple)) and value
+            and not isinstance(value[0], (list, tuple))):
+        return list(value)                       # the flat exact column
+    return _to_qmat_rows(value, param=param)
+
+
+def _to_exact_or_float_rows(value: Any, *, param: str = "") -> Any:
+    """``separate_frame_curvature`` ``a`` / ``b`` (rc463 fix pass).
+
+    The op has TWO CARRIER RUNGS and its ``ToolEntry`` says so — exact
+    operands run on ``QMat`` and make ``is_flat`` a theorem about the true
+    commutator; float operands stay on ``Mat``. Declaring the param as ``Mat``
+    made the advertised exact rung **unreachable through the wire**: ``_to_mat``
+    builds a float64 ``Mat`` from any nested list, so an integer operand sent
+    over MCP arrived as floats and silently took the float rung. Measured
+    before the fix: ``invoke_tool(..., {'a': [[0,1],[1,0]], 'b': [[1,0],[0,-1]]})``
+    returned ``Mat`` carriers for a pair of exact Pauli matrices.
+
+    This coercer therefore does the ONE thing the dual rung needs: it preserves
+    the leaves' EXACTNESS rather than choosing a carrier. A live ``Mat`` /
+    ``QMat`` passes through; a nested sequence keeps ``int`` as ``int`` and
+    ``float`` as ``float``, and rebuilds a ``[num, den]`` leaf to ``Q`` — so
+    the op's own ``_exact_nd`` admission gate, not the transport, decides the
+    rung. That is the same division of labour ``_to_vec`` states: the coercer
+    produces the honest minimal structure and the op's acceptance builds the
+    final carrier.
+    """
+    from srmech.math.mat import Mat     # float64 dense carrier; lazy
+    from srmech.math.qmat import QMat   # exact-ℚ carrier; lazy
+    if isinstance(value, (Mat, QMat)):
+        return value
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of rows for param {param or '<rows>'!r}; "
+            f"got {type(value).__name__}")
+    return _to_qmat_rows(value, param=param)
+
+
 def _to_reactions(value: Any, *, param: str = "") -> Any:
     """``srmech.chemistry.deficiency`` ``reactions`` (v0.9.0rc379).
 
@@ -1301,6 +1363,16 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # live QMat passes through (in-process only). See srmech/chemistry/.
     "Sequence[str | dict[str,int]] | QMat": _to_species,        # balance_reaction species
     "QMat | Sequence[Sequence[int | Q]]": _to_qmat_rows,        # conservation_laws N
+    # 0.9.0rc463 fix pass: the two arms the exact ops accept and their
+    # declared types did not name. Three of rc463's eighteen new entries were
+    # NOT INVOCABLE THROUGH THE WIRE because of it -- `lstsq_exact` and
+    # `singular_values_exact` declared the FLOAT carrier `Mat` on operands they
+    # REFUSE BY NAME when float, so wire coercion manufactured precisely what
+    # the op rejects; and `qmat_solve`'s own shipped smoke_test_hint raised
+    # through `invoke_tool` while working in direct Python. See the two
+    # handlers for the measured witnesses.
+    "QMat | Sequence[Sequence[int | Q]] | Sequence[int | Q]": _to_qmat_rows_or_column,   # qmat_solve b / lstsq_exact b
+    "Mat | QMat | Sequence[Sequence[int | Q]]": _to_exact_or_float_rows,          # separate_frame_curvature a / b
     # 0.9.0rc463 (`#T1188`): the exact eigensolver's eigenvalue operand. A NEW
     # declared param TYPE widens this discriminator set in the SAME change that
     # registers the ops — the whole exact-eigensolver family was public in

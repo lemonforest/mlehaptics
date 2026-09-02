@@ -837,8 +837,57 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   digest, `len(frames)` was 729 and the split 700/29 in every one, the
 #:   recomputed blob hash agreed with the returned witness in every one, and
 #:   `search("rank", k=1).witness` agreed with the direct build every time.
+#: rc463 (`#T1188`) re-pin — TWO moves, both ATTRIBUTED rather than assumed.
+#:
+#:   The re-pin rule this file states is "if a prose edit caused it, re-pin; if
+#:   nothing was edited, the frame build is non-deterministic". rc463 moved the
+#:   witness twice, so both halves were measured before either was accepted.
+#:
+#:   COUNTS: `len(frames)` is **749**, split **720 ops + 29 carriers**, read off
+#:   `len(_build_frames('ops')[0])` / `len(_build_frames('carriers')[0])` and
+#:   checked against the union. 720 is `EXPECTED_N` — the eighteen registrations
+#:   rc463 added (702 -> 720). Carriers UNMOVED at 29: this rc mints no carrier
+#:   TYPE.
+#:
+#:   MOVE 1 (rc463 proper) `c34e8e85…` -> `17a43674…`: the +18 registrations plus
+#:   this rc's prose. Reproduced from the committed rc463 sources during the fix
+#:   pass, which is what makes it a MEASUREMENT and not an inference.
+#:
+#:   MOVE 2 (the rc463 fix pass) `17a43674…` -> the value below. ATTRIBUTED
+#:   FRAME BY FRAME rather than assumed: a pristine copy of `srmech/` with every
+#:   fix-pass-modified module restored from `HEAD` was built alongside the live
+#:   tree and the per-frame digests differenced. **0 frames added, 0 removed, 8
+#:   changed**, and every one is a direct consequence of a text/declaration edit
+#:   already in this rc's diff:
+#:     * `lstsq_exact`, `singular_values_exact`, `jordan_form_exact` — the three
+#:       ToolEntry SUMMARIES the fix pass rewrote (the lstsq two-engine
+#:       projection, the mixed-σ absent-not-refused wording, and the
+#:       integer-valued operand correction);
+#:     * `Mat`, `QMat`, `Q`, `Vec`, `int` — five CARRIER frames, whose consumer /
+#:       producer lists are DERIVED from the declared parameter type tokens, and
+#:       the fix pass replaced the dishonest `Mat` tokens on `lstsq_exact`,
+#:       `singular_values_exact` and `separate_frame_curvature` with the exact
+#:       ones the ops actually accept. `lstsq_exact` and `singular_values_exact`
+#:       correctly LEAVE the `Mat` consumer list and JOIN `QMat`'s;
+#:       `separate_frame_curvature` is on both, which is what a two-rung op is.
+#:   Ops whose only edit was a parameter description or type therefore did NOT
+#:   move their own op frame — the blob carries the summary, not the param
+#:   prose — which is itself a check that the diff is the one described.
+#:
+#:   DETERMINISM, measured before either re-pin was accepted: six fresh
+#:   numpy-absent WSL2 interpreters — three plain and three under distinct
+#:   `PYTHONHASHSEED` values — all returned the SAME digest with the same
+#:   749 = 720 + 29 split. The value is also identical on the NATIVE and PURE
+#:   projections (measured with the freshly built `libsrmech.so` present and
+#:   with it absent), so the corpus is a function of the committed sources and
+#:   not of a build artifact. The ADR-0011 witness contract HOLDS.
+#:
+#:   Measured LAST, after `regen_all.py` reported all six generated files
+#:   written and idempotent across two passes, per the rc454 rule that a pin
+#:   taken mid-release is a measurement of a draft.
+#: was: c34e8e854128a6266ad57e428cf5295c3ae6d2eec75fe52d0984daf8bfca31a6 (rc462)
 WITNESS_RC416 = (
-    "c34e8e854128a6266ad57e428cf5295c3ae6d2eec75fe52d0984daf8bfca31a6")
+    "24a0858e0b4b2f14ff67a95a4fca846fd236e4c7cf9232c4647b92dfad6c678b")
 #: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
 #: op corpus, so registering induced_representation + zeta_conjugate moves it by
 #: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.

@@ -435,19 +435,30 @@ def lstsq_exact(a, b):
 
     The float :func:`lstsq` is honest about what it is (it declares "to
     round-off"), but on an EXACT operand it answers a question nobody asked.
-    Two measured witnesses on this tree, both against a true ``[0, 1]``::
 
-        lstsq([[1,1],[1,1],[1,2]], [1,1,2])          # overdetermined, exact-rank
-        -> [7.691850745534256e-16, 0.9999999999999999]
-        lstsq([[1,1],[1,1.0000000000000002]], [1, 1.0000000000000002])
-        -> [0.5, 0.5]                                # ill-conditioned square
+    ⚠️ **A float number quoted for ``lstsq`` is meaningless without naming the
+    PROJECTION, because ``lstsq`` is a TWO-ENGINE op** (its own docstring says
+    so): real input on a native host takes the QR engine ``srmech_qr_f64``;
+    complex input, a rank-deficient ``R``, or a host with no library falls
+    back to the pure normal-equations :func:`srmech.math.laplacian.mat_lstsq`.
+    Both witnesses below were MEASURED on this tree at rc463, on BOTH engines,
+    against a true ``[0, 1]``::
 
-    The second is the sharper one: the float route can no longer tell the two
-    columns apart at all and splits the answer evenly between them. (An earlier
-    draft of this paragraph quoted ``[1.28e-15, 0.9999999999999997]`` against
-    the *second* input. Neither half survived measurement — wrong shape AND
-    wrong numbers — so both witnesses above were re-run before being written,
-    which is the discipline this whole rc is about.)
+                                                 native QR      pure normal-eq
+        lstsq([[1,1],[1,1],[1,2]], [1,1,2])      7.69e-16,      0.0, 1.0
+                                                 0.99999999999
+        lstsq([[1,1],[1,1+2**-52]], [1,1+2**-52])      0.5, 0.5      0.0, 1.0
+
+    The exact values on the QR side are ``[7.691850745534256e-16,
+    0.9999999999999999]`` and ``[0.5, 0.5]``; on the pure side both are
+    ``[0.0, 1.0]``, i.e. exactly right. **The DIVERGENCE is the argument, and
+    it is stronger than either number alone**: the same op, the same input,
+    two values, and nothing in the return tells you which projection you had.
+    That is the same defect class this rc found in ``fir`` / ``matched_filter``
+    — recorded here because the first draft of this very paragraph committed
+    it, quoting ``[0.5, 0.5]`` as though it were a property of ``lstsq``
+    rather than of one of its two engines. (An earlier draft quoted
+    ``[1.28e-15, 0.9999999999999997]``, which occurs on NEITHER engine.)
     rc463 (`#T1188`) promotes the exact answer to a NAMED, registered
     op, because it was already computable from shipped parts and therefore
     invisible: the normal equations ``(AᵀA) x = Aᵀ b`` solved on the exact-ℚ
@@ -3695,6 +3706,19 @@ def lll_reduce(basis, delta=(3, 4)):
 def eig_exact(a, *, bits: int = 64, project: bool = True):
     """Turnkey EXACT eigensolver — a matrix → ALL its exact eigenpairs (rc-F).
 
+    ⚠️ **``a`` must be INTEGER-VALUED** (the entries may ride as ``int`` / ``Q`` /
+    ``fractions.Fraction``, but each must equal an integer). Measured at the
+    rc463 fix pass: ``eig_exact([[Fraction(1,2), 0], [0, 1]])`` raises
+    ``TypeError: int() argument … not 'complex'`` from inside
+    :func:`factor_integer_poly`, because the chain starts at :func:`char_poly`,
+    whose own contract says a non-integer matrix falls back to a FLOAT
+    Faddeev–LeVerrier, and the factoring step cannot take complex coefficients.
+    :func:`eigvec_exact`, :func:`eigvec_exact_float` and
+    :func:`jordan_chains_exact` DO accept a genuinely rational matrix — they
+    take ``λ`` directly and never route through ``char_poly`` — which is why
+    the limit is stated per op instead of once for the family. The prose here
+    said "integer/rational" until it was executed.
+
     Chains the rotation-last exact machinery into one call:
     ``char_poly(a)`` → Yun square-free → :func:`factor_integer_poly` (the
     IRREDUCIBLE factors ``m_i``, each carrying its algebraic multiplicity) → for
@@ -4001,8 +4025,15 @@ def _roots_of_irreducible(m_low: List[int], bits: int) -> List:
 
 # ── Part 3 — the complete-eigensolver CAPSTONE: matrix → exact Jordan form ────────
 def jordan_form_exact(a, *, bits: int = 64, project: bool = True):
-    """The canonical exact JORDAN CANONICAL FORM of an integer/rational matrix —
-    every square matrix → ``A = P·J·P⁻¹`` with ``J`` the Jordan form (rc27, rc-G).
+    """The canonical exact JORDAN CANONICAL FORM of an INTEGER-VALUED matrix —
+    every such square matrix → ``A = P·J·P⁻¹`` with ``J`` the Jordan form
+    (rc27, rc-G).
+
+    ⚠️ Inherits :func:`eig_exact`'s operand limit exactly, for the same measured
+    reason: the chain starts at :func:`char_poly`, which declares a float
+    fallback for a non-integer matrix, so a genuinely non-integral rational
+    raises rather than being solved. This line said "integer/rational" until the
+    rc463 fix pass ran it.
 
     The complete-eigensolver capstone: chains :func:`eig_exact` (char-poly →
     irreducible factors → exact roots → :func:`jordan_chains_exact` for every
@@ -4257,10 +4288,16 @@ def singular_values_exact(a, *, bits: int = 64, project: bool = True):
     ``srmech.math.poly`` ships ``Poly.resultant`` (the univariate subresultant
     PRS) but no ``primitive_element`` / ``minimal_polynomial`` / bivariate
     resultant, so the compositum is not buildable from shipped parts today.
-    **This op therefore ships the per-σ decomposition and refuses to pretend
-    otherwise** — it never returns a combined ``U Σ Vᵀ``, so there is no path on
-    which it silently works only when the factors happen to coincide. The
-    compositum is a NAMED RESIDUAL, not a hidden precondition.
+    **This op therefore ships the per-σ decomposition and nothing else.** ⚠️ Read
+    that as a statement about the op's SHAPE, not about a runtime guard: the
+    combined ``U Σ Vᵀ`` is **ABSENT, not REFUSED**. No code path builds one, and
+    equally none RAISES on a mixed-σ operand — there is nothing for such a guard
+    to stand in front of. (The two refusals this op really does raise are the
+    float-entry and non-2-D ones named below; a caller who expected a third,
+    announcing "your matrix needs a compositum", will not get one, and the
+    reason is that every matrix gets the same per-σ answer.) That is precisely
+    why there is no path on which it silently works only when the factors happen
+    to coincide. The compositum is a NAMED RESIDUAL, not a hidden precondition.
 
     ``a`` must be an INTEGER matrix (``m × n``, any shape); a float is refused by
     name. ``bits`` is the root-isolation refinement precision.

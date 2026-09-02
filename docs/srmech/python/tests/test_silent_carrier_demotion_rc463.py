@@ -248,8 +248,21 @@ def _l1_rows():
          lambda: _first_leaf(_sp_fir([3, 0], [3002399751580331])), P),
         ("signal_processing.matched_filter[int]",
          lambda: _first_leaf(_sp_mf([3, 0], [3002399751580331])), P),
-        ("composites.top_k_by_score[int]",
-         lambda: _composites.top_k_by_score([P, 2 ** 53], 1)[0], 0),
+        # ⚠️ `composites.top_k_by_score[int]` WAS a row here and is REMOVED
+        # rather than repaired, because no witness for it can fail. Measured
+        # at the source: the whole body is
+        #     order = sorted(range(n), key=lambda i: sc[i], reverse=largest)
+        #     return order[:k]
+        # — it performs NO numeric conversion and NO arithmetic, so there is
+        # no carrier to demote; the caller's own objects are compared to each
+        # other and their indices are returned. The shipped row asserted
+        # `top_k_by_score([2**53+1, 2**53], 1)[0] == 0`, which holds whether
+        # the scores round or not (a stable sort keeps index 0 on a tie), and
+        # its oracle 0 was ALSO the one value Layer 0's vacuity guard skipped.
+        # An instrument that cannot return otherwise is not a measurement.
+        # This matches the rc462 census, which flagged the op and then
+        # RETRACTED the flag; the retraction is the finding, and the way to
+        # record it is to not carry a row that pretends to re-check it.
     ]
 
 
@@ -267,9 +280,15 @@ def _sp_mf(sig, template):
                          ids=[r[0] for r in _l1_rows()])
 def test_layer1_exact_in_exact_out(label, call, want) -> None:
     """STRICT ZERO. Every row here MUST return the exact value."""
-    if want != 0:                       # the top_k index oracle is an ordinal
-        assert _discriminating(want if want > 0 else -want), (
-            f"Layer-0 rejected the witness for {label}: it could not have failed")
+    # UNCONDITIONAL since rc463's fix pass. It used to read `if want != 0:`,
+    # exempting exactly one row whose oracle was an ORDINAL rather than a
+    # value — and that row was the one row the guard therefore could not
+    # check, which is precisely where a vacuous row hides. The row is gone,
+    # every oracle is now a discriminating VALUE, and the guard is total. The
+    # `-want` arm is the Class-K sign pin-slot (char_poly's oracle is -P),
+    # written as an explicit branch and never as an ALU `abs()`.
+    assert _discriminating(want if want > 0 else -want), (
+        f"Layer-0 rejected the witness for {label}: it could not have failed")
     got = call()
     assert _eq_exact(got, want), (
         f"SILENT CARRIER DEMOTION at {label}: got {got!r}, exact value is "
@@ -467,6 +486,36 @@ def _numpy_faithfulness_claims():
     return out
 
 
+# ⚠️ The exemption vocabulary has TWO halves and both are load-bearing.
+# An accuracy qualifier BOUNDS a live claim. A retraction marker means the
+# sentence is *documenting* a claim rather than making one — the same carve-out
+# `CLAUDE.md` records for the ref-notation guard, where a bad ref quoted inside
+# a code span is legitimate. Without it this gate flags the very prose that
+# retires the claim, which is a false positive that would push an author toward
+# deleting the explanation instead of the claim.
+_RETRACTION = ("retired", "retracted", "corrected", "no longer", "was false",
+               "not bit-identical")
+
+
+def _claim_is_qualified(sentence: str) -> bool:
+    """Does this NumPy-faithfulness sentence BOUND itself, or retract itself?
+
+    ⚠️ **The bare token ``"exact"`` used to be in this list and is REMOVED.**
+    It let a claim buy exemption by making a BIGGER one: the sentence
+    ``"Value-faithful to the NumPy einsum, and bit-exact."`` contains
+    ``exact`` as a substring, so the gate passed it — while it asserts
+    BIT-IDENTITY to an oracle this package cannot run by policy, which is
+    strictly more than the clause the gate exists to police. An exemption must
+    be a BOUND (``to round-off``, ``~1 ULP``, ``accurate to ...``) or a
+    RETRACTION; a stronger unrunnable assertion is neither.
+    ``test_layer4_a_stronger_claim_cannot_buy_exemption`` is the witness, and
+    it is why this predicate is a named function rather than an inline
+    comprehension: a gate's own escape hatch needs a test that can reach it.
+    """
+    low = sentence.lower()
+    return any(v in low for v in _R3_VOCABULARY + _RETRACTION)
+
+
 def test_layer4_every_numpy_faithfulness_claim_is_qualified() -> None:
     """STRICT ZERO on an unqualified appeal to an unrunnable oracle.
 
@@ -475,25 +524,36 @@ def test_layer4_every_numpy_faithfulness_claim_is_qualified() -> None:
     the compiled-in C registry, on four generated surfaces at once, while the op
     it described silently rounded every exact operand it was handed.
     """
-    # ⚠️ The exemption vocabulary has TWO halves and both are load-bearing.
-    # An accuracy qualifier BOUNDS a live claim. A retraction marker means the
-    # sentence is *documenting* a claim rather than making one — the same
-    # carve-out `CLAUDE.md` records for the ref-notation guard, where a bad ref
-    # quoted inside a code span is legitimate. Without it this gate flags the
-    # very prose that retires the claim, which is a false positive that would
-    # push an author toward deleting the explanation instead of the claim.
-    _RETRACTION = ("retired", "retracted", "corrected", "no longer", "was false",
-                   "not bit-identical")
-    bad = []
-    for name, sentence in _numpy_faithfulness_claims():
-        low = sentence.lower()
-        if not any(v in low for v in _R3_VOCABULARY + _RETRACTION + ("exact",)):
-            bad.append((name, sentence))
+    bad = [(n, s) for n, s in _numpy_faithfulness_claims()
+           if not _claim_is_qualified(s)]
     assert bad == [], (
         "unqualified 'value-faithful to NumPy' claims: "
         + "; ".join(f"{n}: {s!r}" for n, s in bad)
         + ". numpy is absent BY POLICY, so this clause appeals to an oracle "
           "the package cannot run. Bound it in the same sentence or retire it.")
+
+
+def test_layer4_a_stronger_claim_cannot_buy_exemption() -> None:
+    """The planted defect for Layer 4's OWN exemption list.
+
+    Through the first rc463 build the list held the bare token ``"exact"``, so
+    the first string below — a claim STRONGER than the one being policed, and
+    unrunnable for the same reason — exempted itself. The gate is only a gate
+    if the escape hatch is smaller than the claim.
+    """
+    assert not _claim_is_qualified(
+        "Value-faithful to the NumPy einsum, and bit-exact."), (
+        "a STRONGER unrunnable claim bought exemption from the claim gate; "
+        "the exemption vocabulary has drifted back to accepting the bare "
+        "token 'exact'")
+    assert not _claim_is_qualified(
+        "Value-faithful to the NumPy einsum on the exact-ℚ carrier."), (
+        "naming a CARRIER is not an accuracy BOUND on the claim")
+    # and the two legitimate halves still exempt.
+    assert _claim_is_qualified(
+        "Value-faithful to the NumPy einsum, to round-off.")
+    assert _claim_is_qualified(
+        "value-faithfulness to the NumPy einsum; that clause is RETIRED.")
 
 
 def test_layer4_is_not_vacuous() -> None:

@@ -2074,6 +2074,43 @@ def _synth_value_for_type(type_string: str) -> Any:
         # divisor, so the op returns an answer rather than a tolerated domain
         # error.
         "Q | tuple[int, int]": [1, 1000],
+        # rc463 fix pass — the exact-ℚ matrix operand family. rc463 registered
+        # eighteen new ToolEntries and TEN of their required parameters had no
+        # row here, pushing the unsynthesizable residual 52 -> 62. The ceiling
+        # is DOWN-ONLY and raising it is exactly the move the gate exists to
+        # prevent, so the rows are added instead; measured after, the residual
+        # is back at 52 and the skipped-op count back at 34, both AT their
+        # ceilings rather than under a raised one.
+        #
+        # A 2x2 diagonal integer matrix, which is the intersection of what all
+        # eight consumers need: SQUARE (qmat_det / _inverse / _rref / _solve),
+        # NONSINGULAR (qmat_inverse, qmat_solve, and lstsq_exact's AᵀA),
+        # m >= n (lstsq_exact), and INTEGER (singular_values_exact refuses a
+        # float by name). Every one of them returns a real answer on it rather
+        # than a tolerated domain error.
+        "QMat | Sequence[Sequence[int | Q]]": [[2, 0], [0, 3]],
+        # The right-hand side of the same two solvers, as the FLAT exact column
+        # the ops accept — length 2, matching the matrix above, so qmat_solve
+        # returns [[2], [3]] and lstsq_exact an exact list[Q]. This is the arm
+        # `qmat_solve`'s own shipped smoke_test_hint uses and could not reach
+        # through the wire before the fix pass.
+        "QMat | Sequence[Sequence[int | Q]] | Sequence[int | Q]": [4, 9],
+        # separate_frame_curvature's dual-rung operand. INTEGER leaves on
+        # purpose: they select the exact-ℚ QMat rung, which is the rung the
+        # entry advertises and the one the wire could not reach while the
+        # param was declared `Mat`. The 2x2 identity commutes with itself, so
+        # the op returns is_flat True rather than raising.
+        "Mat | QMat | Sequence[Sequence[int | Q]]": [[1, 0], [0, 1]],
+        # The exact eigensolver's algebraic eigenvalue (eigvec_exact /
+        # eigvec_exact_float / jordan_chains_exact `lam`), in the canonical
+        # JSON mapping _to_qalg reads: λ = 1 as an element of ℚ[x]/(x − 1),
+        # with m and coords ASCENDING and `root` present — a Qalg built
+        # WITHOUT root is refused by the op's own projection rather than
+        # silently naming a different conjugate, so omitting it here would
+        # synthesise an argument that cannot be used. λ = 1 is a genuine
+        # eigenvalue of the 2x2 identity these three ops get for `a`, so each
+        # returns a real eigenvector rather than an empty domain answer.
+        "Qalg": {"m": [-1, 1], "coords": [[1, 1]], "root": 1.0},
         # rc362 the acoustic-spectrum wire form (music.spectrum_tier /
         # commensurability_verdict / common_period `partials`): the Fletcher &
         # Rossing tuned-bell profile — hum 1/2, prime 1, tierce 6/5, quint 3/2,

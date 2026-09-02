@@ -57,9 +57,9 @@ Seven public names in `matrix_cascades.__all__` carried **no `ToolEntry`** — `
 
 ### 3. Exact peers that needed a NAME, not an algorithm
 
-* **`lstsq_exact`** — the exact answer was already computable from shipped parts (`A.T.matmul(A).solve(A.T.matmul(b))` returns the true `[0, 1]` where float `lstsq` returns `[1.28e-15, 0.9999999999999997]`) and was therefore invisible. A float operand is refused by name, not lifted.
+* **`lstsq_exact`** — the exact answer was already computable from shipped parts (`A.T.matmul(A).solve(A.T.matmul(b))` returns the true `[0, 1]`) and was therefore invisible. A float operand is refused by name, not lifted. **No float number is quoted in this bullet, deliberately**: `lstsq` is a TWO-ENGINE op and its answer depends on which projection is running, so a bare number here would be the very defect §7 records. §7 names both engines and both values. (This bullet quoted `[1.28e-15, 0.9999999999999997]` until the rc463 fix pass; that pair occurs on neither engine, and it stood here uncorrected 27 lines above its own retraction.)
 * **`gram_schmidt_exact`** — a **normalised** exact QR is impossible over ℚ (the Householder norm is a square root). The un-normalised object was already exact and already shipping, as the *private* `matrix_cascades._lll_gso`, run on every `lll_reduce` call and reachable only by reading the LLL engine. Promoted verbatim; `_lll_gso` is REMOVED, both call sites rewired. This is explicitly not a rational QR.
-* **`singular_values_exact`** — per-σ exact SVD from four shipped ops: `char_poly(AᵀA)` → the `x → x²` coefficient interleave (σ = √λ means `m_σ(x) = m_λ(x²)`, so **no resultant is needed for a square root**) → `factor_integer_poly`, which is **mandatory** because the substitution can be reducible (measured: `x⁴ − 3x² + 1 = (x² − x − 1)(x² + x − 1)`) → a `Qalg` per irreducible. Per σ, everything lives in ONE field — σ, `σ² = λ` and the right singular vector — which is why the vector comes back exact. **The mixed-σ bound is DECLARED**: distinct irreducible factors put σ's in different fields, a combined `Σ`/`U`/`Vᵀ` needs a compositum, and this op never returns one, so there is no path on which it silently works only when the factors coincide.
+* **`singular_values_exact`** — per-σ exact SVD from four shipped ops: `char_poly(AᵀA)` → the `x → x²` coefficient interleave (σ = √λ means `m_σ(x) = m_λ(x²)`, so **no resultant is needed for a square root**) → `factor_integer_poly`, which is **mandatory** because the substitution can be reducible (measured: `x⁴ − 3x² + 1 = (x² − x − 1)(x² + x − 1)`) → a `Qalg` per irreducible. Per σ, everything lives in ONE field — σ, `σ² = λ` and the right singular vector — which is why the vector comes back exact. **The mixed-σ bound is DECLARED**: distinct irreducible factors put σ's in different fields, a combined `Σ`/`U`/`Vᵀ` needs a compositum, and this op never returns one, so there is no path on which it silently works only when the factors coincide. Read *declared* precisely — the combined object is **ABSENT, not REFUSED**: no code path builds one and equally none raises on a mixed-σ operand, because there is nothing for such a guard to stand in front of. The shipped surfaces were reworded in the rc463 fix pass to say that rather than "refuses to pretend otherwise", which a reader could take for an exception path that does not exist. (The narrow truth about the machinery, also on the shipped surfaces: `srmech.math.poly` *does* ship `Poly.resultant`; what it lacks is a `primitive_element` / `minimal_polynomial` / bivariate-resultant entry point.)
 * **`cos_2pi_over_n` / `sin_2pi_over_n`** — exact `Qalg` cyclotomic trigonometry. `cos` lives over `Φ_n`; `sin` lives over **`Φ_lcm(n,4)`**, the field carrying `ζ_n` *and* `i`, so the `1/i` divides out and the returned value is the sine itself rather than `i·sin` behind a disclaimer. `is_rational()` is `True` for exactly `{1,2,3,4,6}` (cos — Niven's theorem arriving as a measurement) and `{1,2,4,12}` (sin).
 
 ### 4. Understated parity — 39 C symbols claimed by nobody
@@ -84,7 +84,14 @@ The gate goes red on demand: a planted R1-only demoter is rejected in-process, i
 
 Worth recording, because the rc is *about* the difference between a claim and a measurement — and it caught itself three times.
 
-* **`lstsq_exact` quoted a float result that does not occur on this tree.** Both surfaces said `[1.28e-15, 0.9999999999999997]`. Re-measured: the overdetermined witness gives `[7.691850745534256e-16, 0.9999999999999999]`, and the ill-conditioned square gives `[0.5, 0.5]` — the float route can no longer tell the two columns apart and splits the answer evenly between them. Wrong shape *and* wrong numbers. The same sweep found that float `lstsq`'s "honest to round-off" contract has a **hard-failure** regime as well as an inaccurate one: some near-singular operands raise `ZeroDivisionError` from the zero-pivot guard.
+* **`lstsq_exact` quoted a float result that does not occur on this tree — and then the replacement occurred on only ONE of its two projections.** Both surfaces originally said `[1.28e-15, 0.9999999999999997]`, which occurs on neither engine. But **`lstsq` is a TWO-ENGINE op** — its own docstring says so: real input on a native host takes the QR engine (`srmech_qr_f64`), while complex input, a rank-deficient `R`, or a host with no library falls back to the pure normal-equations `mat_lstsq` — and the corrected numbers were measured on one engine without naming it. Both engines, both witnesses, against a true `[0, 1]`:
+
+  | witness | native QR (`srmech_qr_f64`) | pure normal-equations (`mat_lstsq`) |
+  | --- | --- | --- |
+  | `lstsq([[1,1],[1,1],[1,2]], [1,1,2])` | `[7.691850745534256e-16, 0.9999999999999999]` | `[0.0, 1.0]` |
+  | `lstsq([[1,1],[1,1+2**-52]], [1,1+2**-52])` | `[0.5, 0.5]` | `[0.0, 1.0]` |
+
+  So on the pure projection the paragraph's illustration of float `lstsq` being wrong is an example of it being **right**, and the shipped surfaces now say which engine each number belongs to. **The DIVERGENCE is the better argument anyway** — same op, same input, two values, and nothing in the return says which projection you had — which is *exactly* the `fir` / `matched_filter` defect class this rc discovered, recurring inside the prose written to prevent it. The same sweep found that float `lstsq`'s "honest to round-off" contract has a **hard-failure** regime as well as an inaccurate one: some near-singular operands raise `ZeroDivisionError` from the zero-pivot guard.
 * **`sin_2pi_over_n` over-attributed its `composes`.** It declared `cyclotomic_polynomial`; the derivation says its one call edge is `srmech.math.cyclic.gcd` — it reaches the cyclotomic polynomial only through `lcm(n, 4)` and a private reduction helper. `composes` is a claim-is-TRUE contract, not a statement of intent, and the population gate refused it.
 * **`fir` / `matched_filter` read as CLEAN under a pure-Python measurement.** They demote only on the native path, so the first run — taken before a library had been built into this worktree — reported the opposite of the truth. The instrument, not the op, was what that run measured.
 
@@ -95,6 +102,141 @@ Worth recording, because the rc is *about* the difference between a claim and a 
 `jacobi_eigvals(dense_laplacian(...), exact=True)` **raised** through rc462: the exact Class-L route demands `int` / `Fraction` / `Q` entries and the module's own canonical Laplacian builder could only produce floats, so the exact spectrum was reachable only by hand-building the matrix. `dense_adjacency` / `dense_laplacian` / `signed_laplacian` gain `exact=True` returning `list[list[Q]]`; the composition now runs. `dense_adjacency`'s demotion was the transpose-shaped one — a single integer weight, **no arithmetic performed on it**, changed on the way in.
 
 `mat_dot` / `mat_outer` / `mat_matvec` are declared rather than fixed, and remain the `CEIL_SILENT_DEMOTION` residual. `mat_dot`'s docstring and `ToolEntry` carried **no precision language of any kind** — the only op in its family for which that was true — while accepting a plain integer list.
+
+
+### 8. The FIX PASS — four CI failures and four adversarial findings, all landed here
+
+An adversarial read of this branch plus a CI run found eight things wrong with
+the rc **after** §7 was written. They are recorded in the same entry rather than
+deferred, because §7's whole subject is the gap between a claim and a run.
+
+**`separate_frame_curvature`'s `is_flat` did not merely LOSE PRECISION — it
+FLIPPED, and nothing witnessed that.** The rc236 suite compared curvature
+VALUES, which cannot see this defect: on the float carrier the curvature is not
+*imprecise*, it is **exactly the zero matrix**, and the published boolean follows
+correctly from it. `A = diag(2⁵³, 2⁵³+1)`, `B = σx` do not commute — `[A, B] =
+[[0, −1], [1, 0]]` — but every entry of `A·B` and `B·A` is `2⁵³` or `2⁵³+1`,
+float64 rounds the second to the first, the two products become identical, and
+rc462 published `is_flat True` for a genuinely non-commuting pair. Measured on
+both rungs; the exact rung returns `[[0, −½], [½, 0]]` and `False`. The witness
+and its float-rung negative control now ship. The rest of that file follows the
+`QMat` carrier (`to_lists()`, `QMat.zeros`) rather than being given a `tolist`
+alias — the carrier changed, so the callers changed.
+
+**Three of the eighteen new entries were NOT INVOCABLE THROUGH THE WIRE, and a
+fourth silently answered on the wrong rung.** The Tier-0 defect class,
+reproduced inside Tier-0's own fix. `lstsq_exact` and `singular_values_exact`
+declared the **float carrier `Mat`** on operands their own summaries say are
+**REFUSED by name** when float — so inbound coercion manufactured precisely what
+the op rejects, and both raised `TypeError` on plain integer input.
+`qmat_solve`'s **own shipped `smoke_test_hint`** raised `'int' object is not
+iterable` through `invoke_tool` while working in direct Python, because its `b`
+named only the rows-of-rows arm. And `separate_frame_curvature` — whose entry
+advertises two carrier rungs — could reach **only** the float one from MCP, with
+no error at all: measured, exact Pauli matrices came back as `Mat`. All four are
+fixed by declaring the **honest** token (`QMat | Sequence[Sequence[int | Q]]`,
+that plus the flat-column arm, and `Mat | QMat | Sequence[Sequence[int | Q]]`
+for the two-rung op), never by widening an op. Two new coercers ship with them,
+and the JSON-schema lexicon + wire-hint rows in **both projections** — until
+this pass every one of these types published schema `"string"` for a parameter
+that must be an array. The carrier back-index is now honest as a side effect:
+`lstsq_exact` / `singular_values_exact` LEAVE `Mat`'s consumer list and JOIN
+`QMat`'s, and `separate_frame_curvature` is correctly on both.
+
+**Nothing measured wire-invocability, which is why nothing caught it.**
+`tests/test_wire_invocability_rc463.py` drives all eighteen through
+`invoke_tool`, re-runs every shipped `smoke_test_hint` through the same
+transport, pins `separate_frame_curvature`'s exact rung *and* its float rung,
+and carries a planted defect that runs the failure forward: the same wire value
+through the OLD token and the NEW one, only the old one refusing.
+
+**The synth-args residual drained back under its ceiling instead of the ceiling
+being raised to meet it.** Ten required parameters of the new entries had no
+`_synth_value_for_type` row, pushing the count `52 → 62`. Four rows were added —
+the exact rows operand, the flat exact column, the dual-rung operand and the
+`Qalg` eigenvalue — and it is back at **52** with skipped ops back at **34**,
+both AT their down-only ceilings and neither ceiling touched. The example-args
+ledger was re-frozen with `--only-stale` (19 harvested, 701 reused byte-identical),
+per the rc461 lesson that a full re-harvest is not a no-op on unchanged rows.
+
+**The CHANGELOG's own `lstsq` numbers did not reproduce — including in its own
+correction note.** `:60` still stated the retracted pair `[1.28e-15,
+0.9999999999999997]`, uncorrected, 27 lines above the note that retracts it. And
+the *replacement* numbers named no PROJECTION for an op the tree knows has two
+engines. Measured on both:
+
+| witness | native QR (`srmech_qr_f64`) | pure normal-equations (`mat_lstsq`) |
+| --- | --- | --- |
+| `lstsq([[1,1],[1,1],[1,2]], [1,1,2])` | `[7.691850745534256e-16, 0.9999999999999999]` | `[0.0, 1.0]` |
+| `lstsq([[1,1],[1,1+2**-52]], [1,1+2**-52])` | `[0.5, 0.5]` | `[0.0, 1.0]` |
+
+On the pure projection the prose's illustration of float `lstsq` being *wrong*
+is an example of it being **right** — the same `fir` / `matched_filter` defect
+class this rc discovered, recurring in the prose written to prevent it. Every
+surface now names the engine, and the DIVERGENCE is stated as the argument,
+because it is stronger than either number: same op, same input, two values, and
+nothing in the return says which projection you had.
+
+**A vacuous ratchet row, removed rather than repaired.** The
+`composites.top_k_by_score` row in Layer 1 returned `0` whether the carrier was
+exact or demoted — the op's entire body is `sorted(range(n), key=…)[:k]`, which
+performs no numeric conversion and no arithmetic, so there is nothing to demote.
+Its oracle `0` was also the one value Layer 0's vacuity guard skipped, so the
+only unguarded row was the only unfalsifiable one. The row is gone, every
+remaining oracle is a discriminating value, and **the guard is now
+unconditional**. This agrees with the rc462 census, which flagged the op and
+then RETRACTED the flag.
+
+**Layer 4's exemption list let a STRONGER claim buy exemption.** It held the
+bare token `"exact"`, so `"Value-faithful to the NumPy einsum, and bit-exact."`
+exempted itself — by asserting *bit-identity* to an oracle the package cannot
+run by policy, which is strictly more than the clause being policed. An
+exemption must be a BOUND or a RETRACTION; the bare token is gone, the predicate
+is a named function, and a planted test asserts that both the stronger claim and
+a mere carrier mention now fail to qualify.
+
+**Two more prose corrections, both measured.** (1) `singular_values_exact`'s
+mixed-σ line read "refuses to pretend otherwise", which a reader can take for an
+exception path: the combined `U Σ Vᵀ` is **ABSENT, not REFUSED** — no code path
+builds one and none raises about one — and the surfaces now say so. (2)
+`eig_exact` and `jordan_form_exact` claimed "integer/rational square matrix" and
+are **integer-VALUED only**: measured, `eig_exact([[Fraction(1,2), 0], [0, 1]])`
+raises an opaque `TypeError` from inside `factor_integer_poly`, because the
+chain begins at `char_poly`, whose own contract declares a float fallback for a
+non-integer matrix. `eigvec_exact` / `eigvec_exact_float` /
+`jordan_chains_exact` **do** accept a rational matrix — they take λ directly and
+never route through `char_poly` — so the limit is now stated per op instead of
+claimed for the family.
+
+**And one number that never existed.** A build report for this rc claimed the
+exact butterfly was "bit-identical (784/784)". 784 is not divisible by 12 and no
+product over the relevant axes yields it. Searched across the whole tree: it
+reached **no shipped artifact** — the only `784`s in the package are
+`g2_membership`'s genuine 28² residual counts, which are correct and unrelated.
+The shipped figure is the 72 spectrum comparisons the gate actually runs. It is
+recorded here because an uncorrected number in a report is how one gets into
+prose next time.
+
+**The corpus witness moved twice, and both moves are ATTRIBUTED rather than
+assumed.** `tests/test_search_glyph_tokenizer_rc416.py` says the rule: re-pin for
+a prose edit, but a move with no edit is non-determinism and a different, more
+serious finding. A pristine copy of `srmech/` with every fix-pass-modified module
+restored from `HEAD` was built beside the live tree and the per-frame digests
+differenced: **0 frames added, 0 removed, 8 changed** — three op frames whose
+ToolEntry SUMMARIES were rewritten, and five carrier frames whose consumer lists
+are DERIVED from the parameter type tokens this pass corrected. Six fresh
+numpy-absent interpreters (three of them under distinct `PYTHONHASHSEED`s)
+returned the same digest, and the native and pure projections agree, so the
+corpus is a function of the committed sources and not of a build artifact.
+
+**One residual, named rather than fixed.** `singular_values_exact` decides the
+non-negative-root selection on `float(root.real)` and orders the result by
+`.to_float()`, inside an op whose name promises exact. It is **LATENT, not live**
+— root separation makes the float sign and order correct for every height below
+2⁶³, and there is no wrong-answer witness — but the exact brackets it would need
+already ship (`_isolate_real_roots` returns `Q` brackets, and `lo > 0` decides
+the pin-slot with no float and no `abs`). Recorded here so the next rc inherits a
+named residual and not a discovery.
 
 
 ## [0.9.0rc462] - the ℚ(ζₑ) rep dialect shipped with the producer that can mint it, a hash-stability gate written before the serializer was allowed to move, a parameter that was read as a decision in both projections, and 1344 calls collapsed to 10 because the locus is AGL(3,2)

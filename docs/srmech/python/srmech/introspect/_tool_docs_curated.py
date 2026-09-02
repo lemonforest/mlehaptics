@@ -11187,9 +11187,12 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                       "    lstsq_exact)\n"
                       "e = 1.0000000000000002          # 1 + 2**-52\n"
                       "lstsq([[1.0, 1.0], [1.0, e]], [1.0, e]).tolist()\n"
-                      "# -> [0.5, 0.5]\n"
+                      "# -> [0.5, 0.5]   on the NATIVE QR engine.\n"
+                      "# lstsq has TWO engines and this value is one of\n"
+                      "# them: the pure normal-equations fallback (no\n"
+                      "# library) returns [0.0, 1.0] for this same call.\n"
                       "# b IS the second column, so the answer is [0, 1] and\n"
-                      "# nothing else. The same number, exactly:\n"
+                      "# nothing else, on every projection. Exactly:\n"
                       "q = Fraction(2**52 + 1, 2**52)\n"
                       "lstsq_exact([[1, 1], [1, q]], [1, q])\n"
                       "# -> [Q(0, 1), Q(1, 1)]\n"
@@ -11199,9 +11202,12 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                       "# -> TypeError    a float operand is REFUSED by name\n",
             'why': 'The right-hand side is literally the second column, so '
                    '[0, 1] is not an approximation of the answer -- it is the '
-                   'answer. The float route splits it evenly between two '
-                   'columns it can no longer tell apart, and reports no '
-                   'trouble.'},
+                   'answer. On the native QR engine the float route splits it '
+                   'evenly between two columns it can no longer tell apart, '
+                   'and reports no trouble; on the pure normal-equations engine '
+                   'it happens to land on [0.0, 1.0]. Same op, same input, two '
+                   'values, no signal which you have -- which is the reason to '
+                   'ask the exact question instead.'},
         'explanation':
             'WHAT it computes: the exact least-squares solution of A x ~ b '
             'over Q -- the normal equations (A^T A) x = A^T b solved on the '
@@ -11212,10 +11218,15 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
             'WHEN to reach for it: whenever the operand is exact and the '
             'question is what the fit IS, not what it rounds to. The float '
             'lstsq is honest about itself -- it declares "to round-off" -- but '
-            'on an exact operand it answers a question nobody asked: measured, '
-            'on A = [[1, 1], [1, 1.0000000000000002]] with b equal to the '
-            'second column it returns [0.5, 0.5] where the true solution is '
-            '[0, 1]. Rank deficiency surfaces here as the QMat.solve '
+            'on an exact operand it answers a question nobody asked, and WHICH '
+            'answer depends on the projection, because lstsq is a TWO-ENGINE op '
+            '(native QR vs the pure normal-equations fallback). Measured on this '
+            'tree at rc463, on A = [[1, 1], [1, 1.0000000000000002]] with b equal '
+            'to the second column: the QR engine returns [0.5, 0.5] where the true '
+            'solution is [0, 1], while the pure engine returns [0.0, 1.0]. The '
+            'divergence is the point -- same op, same input, two values, and the '
+            'return does not say which projection you had. Rank deficiency '
+            'surfaces here as the QMat.solve '
             'singularity refusal, loudly, never as a rounded pseudo-answer. '
             'SIBLINGS: this is a PROMOTION, not a new algorithm -- nothing '
             'here is cleverer than A.T.matmul(A).solve(A.T.matmul(b)), so do '
