@@ -325,7 +325,41 @@ CEIL_FRAME_UNADJUDICATED = {
     # tests/test_content_address_class_rc462.py for a whole release. Keeping a
     # ceiling at 171 by declining to re-measure is the instrument-blind class,
     # not a saving.
-    "NO_INT_INPUT": 172,    # nothing translatable along a frame axis
+    # rc463 (`#T1188`, the fix pass): 172 -> 182, TEN of this rc's eighteen
+    # registrations, and it is the `render_template` / rc456 structural class
+    # ten times over rather than a new excuse. ⚠️ The raise is stated with the
+    # measurement that FORCES it, and with the drain that was taken instead
+    # wherever one existed — the NO_ARG ceiling next door was NOT raised in this
+    # same rc: `lstsq_exact` was over it at 281, and the cause was the ORDER of
+    # its worked snippet (`harvest_op` keeps the FIRST returning call, and the
+    # snippet led with a `Fraction` witness JSON cannot carry), so moving its
+    # all-integer call to the front drained 281 -> 280 with the ceiling
+    # untouched. That is the difference: NO_ARG had a drain and took it; this
+    # class has none.
+    #
+    # MEASURED per op (`fp.probe_from_ledger` over the refreshed ledger, with
+    # the harvested binding printed): eigvec_exact / eigvec_exact_float /
+    # jordan_chains_exact (`a` binds a nested int matrix, `lam` is a `Qalg`),
+    # separate_frame_curvature (`a`, `b` both nested int matrices),
+    # gram_schmidt_exact (`basis`, a list of int row-vectors), and qmat_rank /
+    # _det / _inverse / _rref / _nullspace (`rows` nested, `method` a string).
+    # `fp.is_frame_coordinate` admits a scalar `int` or a FLAT int sequence;
+    # every one of these ten reports ZERO frame-coordinate keys, so
+    # `Driver.coordinates()` is empty and `classify` assigns NO_INT_INPUT on
+    # exactly `if not coords`.
+    #
+    # And, as in every prior raise of this class, NO_INT_INPUT is the CORRECT
+    # verdict rather than a probe gap. The frame axis asks whether an op
+    # TRANSLATES along a frame when an integer input is varied — a modular
+    # coordinate shift. A matrix is an OPERATOR, not a coordinate: perturbing
+    # one of its entries changes which operator you asked about, so a probe
+    # that translated nested sequences would be measuring a different question
+    # and reporting the answer under this name. Draining these ten therefore
+    # requires weakening the instrument, which is the one move this file exists
+    # to refuse. The other eight of the eighteen ARE driven to a real verdict
+    # (five NOT_ADMISSIBLE, one drained to NOT_ADMISSIBLE from NO_ARG), which is
+    # what shows the ten are a property of their operands and not of the rc.
+    "NO_INT_INPUT": 182,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
     # rc461 part 3 (`#T1183`): 15 -> 17, and the split across the five new ops
     # is the point rather than the total. FIVE ops were registered; only TWO

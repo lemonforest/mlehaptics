@@ -111,6 +111,17 @@ _TYPE_LEXICON: Dict[str, str] = {
     # schema to "string" and tells a client the opposite of what it must send.
     "Q": "array",
     "Sequence[int | Q | Qalg]": "array",
+    # 0.9.0rc463 fix pass: the exact-ℚ matrix operand family. Without these
+    # rows every one of them published JSON-schema "string" for a parameter
+    # that must be an ARRAY — the schema-layer form of the same defect the
+    # coercer-layer rows close. `QMat | Sequence[...]` has shipped since
+    # rc379 (conservation_laws) with no row at all. Mirrored in
+    # c/src/srmech_tool_schema.c in this same change; that table is
+    # HAND-MAINTAINED and nothing syncs it for you.
+    "QMat | Sequence[Sequence[int | Q]]": "array",
+    "QMat | Sequence[Sequence[int | Q]] | Sequence[int | Q]": "array",
+    "Mat | QMat | Sequence[Sequence[int | Q]]": "array",
+    "Qalg": "object",
     # 0.9.0rc363: the C2 (ADR-0012 §3.1) type-honesty widenings keep the JSON-schema
     # token their pre-widening spelling advertised, so no client sees a narrower
     # schema than before. Both params are NUMBERS on the wire; the exact-ℚ arm
@@ -278,6 +289,24 @@ _ENCODING_HINT: Dict[str, str] = {
         "form and is reachable IN-PROCESS ONLY — over the wire, build a Tier-2 "
         "spectrum with equal_temperament_partials / stiff_string_partials and "
         "pass its result on directly"
+    ),
+    # 0.9.0rc463 fix pass: the exact-ℚ matrix operands + the algebraic
+    # eigenvalue. Deliberately ASCII-only: every one of these strings is
+    # mirrored BYTE-FOR-BYTE into MCP_ENCODING_HINT in
+    # c/src/srmech_tool_schema.c, and the native / pure MCP-def parity gate
+    # compares the emitted JSON, so a stray glyph is a divergence with no
+    # upside in a wire hint.
+    "QMat | Sequence[Sequence[int | Q]]": (
+        "nested JSON array of rows, row-major; each entry a bare integer or an exact [numerator, denominator] pair -- never a float"
+    ),
+    "QMat | Sequence[Sequence[int | Q]] | Sequence[int | Q]": (
+        "nested JSON array of rows (an (m, k) block) OR a flat JSON array of integers (an (m,) column); each entry exact -- never a float. A RATIONAL column must use the nested (m, 1) form, because [[a, b], [c, d]] is read as a 2-column block and not as a column of two rationals"
+    ),
+    "Mat | QMat | Sequence[Sequence[int | Q]]": (
+        "nested JSON array of rows, row-major. The LEAVES select the carrier: integers / [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one"
+    ),
+    "Qalg": (
+        "JSON object {\"m\": [int, ...], \"coords\": [[num, den], ...], \"root\": <float | [re, im]>} -- the monic Z[x] minimal polynomial and the power-basis coordinates, both ASCENDING, plus the embedding that says WHICH root of m this element is. Omitting root builds a Qalg the op's own projection then refuses, rather than guessing a conjugate"
     ),
     # legacy numpy-free wire-form keys (no param advertises them now).
     "np.ndarray": (

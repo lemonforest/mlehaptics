@@ -102,6 +102,37 @@ def _crop_correlate(full, na, nv, mode):
     raise ValueError("mode must be one of 'full', 'same', 'valid'")
 
 
+def exact_integer_operands(a, b) -> bool:
+    """rc463 (`#T1188`): True iff BOTH operands are all-integer / Gaussian-integer.
+
+    The admission gate for the exact convolution route, and the reason it
+    exists is a **value divergence between the two co-equal projections**. The
+    ``convolve_matmul`` / ``correlate_matmul`` route is a Toeplitz matvec
+    through ``srmech_dense_matmul_complex`` over ``array('d')``, so an integer
+    product wider than 53 significand bits is silently rounded there —
+    measured, ``fir([3, 0], [3002399751580331])[0]`` returned
+    ``9007199254740992.0`` with the native library loaded and the exact
+    ``9007199254740993`` without it. Same op, same input, two answers, and the
+    one you got depended on whether a ``.so`` happened to be present.
+
+    So integer input now takes the pure cascade on BOTH projections — the same
+    routing ``spectral_cascades.kron`` and ``fft`` already use, for the same
+    reason: *don't use floats for bit-exact math.* Float input is genuinely
+    continuous and keeps the c_dispatched Toeplitz matvec, which is what that
+    route is for.
+    """
+    for seq in (a, b):
+        for v in seq:
+            vr = v.real if hasattr(v, "real") else v
+            vi = v.imag if hasattr(v, "imag") else 0
+            try:
+                if int(vr) != vr or int(vi) != vi:
+                    return False
+            except (TypeError, ValueError):
+                return False
+    return True
+
+
 def convolve(a, b, mode: str = "full"):
     """Discrete linear convolution — numpy-free Class I ∘ Class M cascade.
 

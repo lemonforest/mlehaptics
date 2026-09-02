@@ -561,11 +561,21 @@ def test_the_exact_population_is_the_four_precedents_plus_this_one() -> None:
     """
     import inspect
 
+    from srmech.cascade import composites as _composites
+    from srmech.cascade import matrix_cascades as _mc
+    from srmech.cascade import spectral_cascades as _sc
     from srmech.math import laplacian
     from srmech.physics.qm import triality as _tri
 
+    # ⚠️ rc463 (`#T1188`) WIDENED THIS SCAN, and the narrowness was load-bearing.
+    # Through rc462 it iterated only ``(laplacian, _tri)``, so
+    # ``srmech.cascade.matrix_cascades`` was never looked at — meaning ``einsum``
+    # could not have appeared in this census EVEN IF it had declared ``exact=``.
+    # A census that structurally cannot see the module under audit is not a
+    # census of the package; it is a census of two modules wearing the package's
+    # name. The cascade modules are now scanned too.
     declaring = []
-    for mod in (laplacian, _tri):
+    for mod in (laplacian, _tri, _mc, _sc, _composites):
         for name in dir(mod):
             if name.startswith("_"):
                 continue
@@ -580,12 +590,25 @@ def test_the_exact_population_is_the_four_precedents_plus_this_one() -> None:
             if p is not None and p.kind is inspect.Parameter.KEYWORD_ONLY:
                 declaring.append(f"{mod.__name__}.{name}")
     assert sorted(declaring) == [
+        # rc463 (`#T1188`) added three: the graph BUILDERS gained the exact rung
+        # that lets the module's own exact Class-L spectrum be fed by the
+        # module's own canonical constructor. Through rc462
+        # ``jacobi_eigvals(dense_laplacian(...), exact=True)`` RAISED.
+        "srmech.math.laplacian.dense_adjacency",
+        "srmech.math.laplacian.dense_laplacian",
         "srmech.math.laplacian.dense_solve",
         "srmech.math.laplacian.dirichlet_to_neumann",
         "srmech.math.laplacian.jacobi_eigvals",
         "srmech.math.laplacian.schur_complement",
+        "srmech.math.laplacian.signed_laplacian",
         "srmech.physics.qm.triality.triality_companions",
     ], f"the exact= population moved: {sorted(declaring)}"
+    # ⚠️ ``einsum`` is DELIBERATELY ABSENT and that is the rc463 decision, not an
+    # oversight. It takes the exact-CARRIER meaning AUTOMATICALLY — exact
+    # operands in, exact carrier out, no keyword — following the ``kron`` rc344
+    # precedent, because an opt-in would have left the WRONG ANSWER as the
+    # default and the defect was that the default was wrong.
+    assert "srmech.cascade.matrix_cascades.einsum" not in declaring
 
 
 def test_the_carrier_selector_census_figure_is_re_measured() -> None:
@@ -607,12 +630,12 @@ def test_the_carrier_selector_census_figure_is_re_measured() -> None:
         for s in names & selectors:
             per[s] += 1
             ops.add(tool.name)
-    assert per["exact"] == 5, (
-        f"exact= is on {per['exact']} registry entries, expected 5 (the four "
-        f"precedents + triality_companions)")
-    assert len(ops) == 58, (
-        f"{len(ops)} ops carry a carrier/regime selector, expected 58 "
-        f"(57 at rc443 + triality_companions). Per-selector: {per}. If this "
+    assert per["exact"] == 8, (
+        f"exact= is on {per['exact']} registry entries, expected 8 (the four "
+        f"precedents + triality_companions + the three rc463 graph builders)")
+    assert len(ops) == 61, (
+        f"{len(ops)} ops carry a carrier/regime selector, expected 61 "
+        f"(58 at rc444 + the three rc463 graph builders). Per-selector: {per}. If this "
         f"moved for a good reason, update the CHANGELOG figure in the SAME "
         f"change — do not just re-pin the number here.")
 

@@ -66,13 +66,16 @@ from srmech.math.laplacian import (
     mat_matmul as _mat_matmul,  # rc155: route the 2-operand contraction through C
     mat_svd as _mat_svd,
 )
+from srmech.math.qmat import QMat as _QMat  # rc463: the EXACT-ℚ 2-D carrier
 from srmech.math.rational import hypot as _rhypot
 from srmech.math.rational import sqrt as _rsqrt
 
 __all__ = ["qr", "svd", "lstsq", "einsum", "eigvals", "char_poly", "eigvals_exact",
            "eigvec_exact", "eigvec_exact_float", "factor_integer_poly", "lll_reduce",
            "eig_exact", "jordan_chains_exact", "jordan_form_exact",
-           "separate_frame_curvature"]
+           "separate_frame_curvature",
+           # rc463 (`#T1188`) — the exact-ℚ / exact-ℚ(α) rung of this family.
+           "lstsq_exact", "gram_schmidt_exact", "singular_values_exact"]
 
 
 def _modulus(z: complex) -> float:
@@ -410,13 +413,163 @@ def lstsq(a, b):
     return _Mat.from_rows(rows_out, is_complex=not real_out)
 
 
-def _einsum_pair_via_matmul(labelsA, A, labelsB, B, outspec, sizes):
+def _exact_rows_or_raise(m, op: str, arg: str):
+    """A 2-D array-like → exact-ℚ nested rows, or a NAMED refusal. rc463."""
+    rows = _nd_to_lists(m)
+    if not isinstance(rows, list) or not rows or not isinstance(rows[0], list):
+        raise ValueError(f"{op}: {arg} must be a 2-D matrix (rows of entries)")
+    if any(len(r) != len(rows[0]) for r in rows):
+        raise ValueError(f"{op}: {arg} rows are ragged")
+    q = _exact_nd(rows)
+    if q is None:
+        raise TypeError(
+            f"{op}: {arg} must be EXACT (int / Q / fractions.Fraction / QMat). A "
+            "float operand is ALREADY in a rounded frame, so its exact "
+            "least-squares solution is not the well-posed question — use the "
+            "float peer for that carrier, never a silent lift.")
+    return q
+
+
+def lstsq_exact(a, b):
+    """EXACT least-squares solution of ``A x ≈ b`` over ℚ — **no float anywhere**.
+
+    The float :func:`lstsq` is honest about what it is (it declares "to
+    round-off"), but on an EXACT operand it answers a question nobody asked.
+
+    ⚠️ **A float number quoted for ``lstsq`` is meaningless without naming the
+    PROJECTION, because ``lstsq`` is a TWO-ENGINE op** (its own docstring says
+    so): real input on a native host takes the QR engine ``srmech_qr_f64``;
+    complex input, a rank-deficient ``R``, or a host with no library falls
+    back to the pure normal-equations :func:`srmech.math.laplacian.mat_lstsq`.
+    Both witnesses below were MEASURED on this tree at rc463, on BOTH engines,
+    against a true ``[0, 1]``::
+
+                                                 native QR      pure normal-eq
+        lstsq([[1,1],[1,1],[1,2]], [1,1,2])      7.69e-16,      0.0, 1.0
+                                                 0.99999999999
+        lstsq([[1,1],[1,1+2**-52]], [1,1+2**-52])      0.5, 0.5      0.0, 1.0
+
+    The exact values on the QR side are ``[7.691850745534256e-16,
+    0.9999999999999999]`` and ``[0.5, 0.5]``; on the pure side both are
+    ``[0.0, 1.0]``, i.e. exactly right. **The DIVERGENCE is the argument, and
+    it is stronger than either number alone**: the same op, the same input,
+    two values, and nothing in the return tells you which projection you had.
+    That is the same defect class this rc found in ``fir`` / ``matched_filter``
+    — recorded here because the first draft of this very paragraph committed
+    it, quoting ``[0.5, 0.5]`` as though it were a property of ``lstsq``
+    rather than of one of its two engines. (An earlier draft quoted
+    ``[1.28e-15, 0.9999999999999997]``, which occurs on NEITHER engine.)
+    rc463 (`#T1188`) promotes the exact answer to a NAMED, registered
+    op, because it was already computable from shipped parts and therefore
+    invisible: the normal equations ``(AᵀA) x = Aᵀ b`` solved on the exact-ℚ
+    :class:`~srmech.math.qmat.QMat` carrier via :meth:`~srmech.math.qmat.QMat.solve`.
+
+    This is a PROMOTION, not a new algorithm. Nothing here is more clever than
+    ``A.T.matmul(A).solve(A.T.matmul(b))``; what it adds is a name, a contract, a
+    refusal, and a registration — so the exact route is reachable by a reader who
+    does not already know it exists.
+
+    ``a`` is an ``(m, n)`` matrix with ``m >= n`` and full column rank; ``b`` is
+    a length-``m`` vector or an ``(m, k)`` stack. Every entry of both must be
+    EXACT (``int`` / :class:`~srmech.math.q.Q` / ``fractions.Fraction`` /
+    :class:`~srmech.math.qmat.QMat`); a float is REFUSED by name rather than
+    silently lifted, because a float operand is already in a rounded frame.
+
+    Returns the exact rung of the rc131 carrier-format law: a 1-D ``b`` → a
+    ``list`` of exact :class:`~srmech.math.q.Q` (no exact 1-D carrier ships), a
+    2-D ``b`` → a :class:`~srmech.math.qmat.QMat`.
+
+    **Class M** (the two Gram products ``AᵀA`` / ``Aᵀb``) ∘ **Class I** (the
+    ordered exact elimination inside ``QMat.solve``) ∘ **Class N** (the exact ℚ
+    coefficients throughout). Rank-deficiency surfaces as the ``QMat.solve``
+    singularity refusal — loudly, never as a rounded pseudo-answer.
+
+    :raises TypeError: if any entry of ``a`` / ``b`` is a float or complex.
+    :raises ValueError: if the shapes are ragged / incompatible, if ``m < n``,
+        or if ``AᵀA`` is singular (rank-deficient ``A``).
+    """
+    A_rows = _exact_rows_or_raise(a, "lstsq_exact", "a")
+    m, n = len(A_rows), len(A_rows[0])
+    if m < n:
+        raise ValueError(
+            f"lstsq_exact: underdetermined system (m={m} < n={n}); the exact "
+            "minimum-norm solution needs a pseudo-inverse this op does not ship")
+    raw = _nd_to_lists(b)
+    b_is_1d = isinstance(raw, list) and raw and not isinstance(raw[0], list)
+    b_rows = [[v] for v in raw] if b_is_1d else raw
+    B_rows = _exact_rows_or_raise(b_rows, "lstsq_exact", "b")
+    if len(B_rows) != m:
+        raise ValueError(
+            f"lstsq_exact: b has {len(B_rows)} rows but a has {m}")
+    A = _QMat.from_rows(A_rows)
+    At = A.transpose()
+    x = At.matmul(A).solve(At.matmul(_QMat.from_rows(B_rows)))
+    if b_is_1d:
+        return [x[i, 0] for i in range(x.n_rows)]
+    return x
+
+
+def _exact_leaf(v):
+    """The leaf's EXACT ℚ value as a :class:`~srmech.math.q.Q`, or ``None`` when
+    the leaf is a ``float`` / ``complex`` (a genuinely continuous operand).
+
+    rc463 (`#T1188`). The admission test for the exact einsum route, and it is
+    deliberately a *type* test, not a value test: ``2.0`` is a float the caller
+    elected, so it stays on the float carrier even though it happens to be
+    integral. ``int`` / ``Q`` / any ``numerator``-``denominator`` pair
+    (``fractions.Fraction`` and peers) is exact; nothing else is.
+    """
+    if isinstance(v, bool):
+        return Q(int(v), 1)
+    if isinstance(v, int):
+        return Q(v, 1)
+    if isinstance(v, Q):
+        return v
+    num = getattr(v, "numerator", None)
+    den = getattr(v, "denominator", None)
+    if isinstance(num, int) and isinstance(den, int) and not isinstance(v, float):
+        return Q(num, den)
+    return None
+
+
+def _exact_nd(op):
+    """A nested-list map of ``op`` onto exact ``Q`` leaves — or ``None`` the
+    moment ANY leaf is inexact. rc463 (`#T1188`): the whole-operand admission
+    gate, so a single float anywhere sends the entire contraction down the float
+    path (mixing carriers mid-contraction is the defect, not the cure)."""
+    if isinstance(op, (list, tuple)):
+        out = []
+        for e in op:
+            m = _exact_nd(e)
+            if m is None:
+                return None
+            out.append(m)
+        return out
+    return _exact_leaf(op)
+
+
+def _nd_zeros_q(shape: Tuple[int, ...]):
+    """The exact-ℚ peer of :func:`_nd_zeros` — a nested-list zero tensor whose
+    leaves are ``Q(0, 1)`` (rank-0 → a bare ``Q(0, 1)``). rc463."""
+    if not shape:
+        return Q(0, 1)
+    return [_nd_zeros_q(shape[1:]) for _ in range(shape[0])]
+
+
+def _einsum_pair_via_matmul(labelsA, A, labelsB, B, outspec, sizes, *,
+                            exact: bool = False):
     """rc155: the TWO-operand contraction ``einsum(labelsA,labelsB->outspec)``
     re-expressed as a single dense matmul through the c_dispatched
     :func:`srmech.math.laplacian.mat_matmul` (``srmech_dense_matmul_complex``),
     or ``None`` when the spec is not a clean pairwise contraction (a diagonal /
     single-operand sum / batch index → the caller falls back to the general
     index-iteration).
+
+    rc463 (`#T1188`): with ``exact=True`` the SAME gather/re-index runs the
+    contraction on :meth:`srmech.math.qmat.QMat.matmul` (the exact-ℚ carrier,
+    native-dispatched ``srmech_qmat_matmul``) instead of the ``array('d')``
+    ``Mat``. The gather and the output re-index are pure index permutations and
+    are carrier-agnostic; only the bundle changes rung.
 
     A clean contraction separates the labels into ``free_A`` (once, only in A),
     ``free_B`` (once, only in B) and ``contracted`` (twice, in BOTH, absent from
@@ -463,12 +616,15 @@ def _einsum_pair_via_matmul(labelsA, A, labelsB, B, outspec, sizes):
            for fa in fa_list]
     M_B = [[_gather(B, posB, contracted, ct, free_B, fb) for fb in fb_list]
            for ct in ct_list]
-    Cm = _mat_matmul(_Mat.from_rows(M_A, is_complex=is_cx),
-                     _Mat.from_rows(M_B, is_complex=is_cx)).tolist()
+    if exact:
+        Cm = _QMat.from_rows(M_A).matmul(_QMat.from_rows(M_B)).to_lists()
+    else:
+        Cm = _mat_matmul(_Mat.from_rows(M_A, is_complex=is_cx),
+                         _Mat.from_rows(M_B, is_complex=is_cx)).tolist()
     fa_index = {combo: i for i, combo in enumerate(fa_list)}
     fb_index = {combo: i for i, combo in enumerate(fb_list)}
     out_shape = tuple(sizes[lab] for lab in outspec)
-    out = _nd_zeros(out_shape)
+    out = _nd_zeros_q(out_shape) if exact else _nd_zeros(out_shape)
     for out_idx in (itertools.product(*[range(sizes[l]) for l in outspec]) or [()]):
         vmap = dict(zip(outspec, out_idx))
         a = fa_index[tuple(vmap[l] for l in free_A)]
@@ -500,11 +656,48 @@ def einsum(subscripts: str, *operands):
     definition, whose Class-M multiply-accumulate is primitive glue (the
     ``mat_dot`` reduction precedent) reaching no non-standalone leaf.
 
-    Returns the numpy-free carrier matching the result rank (rc131): a 2-D result
-    is a :class:`~srmech.math.mat.Mat`, a 1-D result is a
-    :class:`~srmech.math.vec.Vec`, a rank-0 result is a plain ``float`` /
-    ``complex`` scalar; a genuine rank-3+ tensor stays a nested ``list`` (no
-    higher-rank carrier exists). A Mat/Vec IS a C dense buffer; a list is not.
+    **rc463 (`#T1188`) — the EXACT-ℚ rung, and the defect it closes.** When
+    EVERY leaf of EVERY operand is exact (``int`` / :class:`~srmech.math.q.Q` /
+    ``fractions.Fraction`` / a :class:`~srmech.math.qmat.QMat`), the whole
+    contraction runs on the exact-ℚ carrier and the result is the TRUE
+    contraction at any magnitude — the clean two-operand contraction through
+    :meth:`srmech.math.qmat.QMat.matmul`, everything else through an exact ``Q``
+    multiply-accumulate. Through rc462 this op routed EVERY input through
+    ``array('d')`` on BOTH branches (the rc155 matmul fast path AND the general
+    ``_accumulate`` fallback, which seeded ``acc = 0j``), so an exact operand
+    came back silently rounded to 53 significand bits. It was not an arithmetic
+    defect but a CARRIER defect, and the sharpest witness carries no arithmetic
+    at all::
+
+        einsum("ij->ji", [[2**53 + 1]])   # a TRANSPOSE that changed the value
+        # rc462: 9007199254740992.0      # rc463: Q(9007199254740993, 1)
+
+    This is the same fix ``spectral_cascades.kron`` took at rc344, on the same
+    witness, for the same reason: *don't use floats for bit-exact math.*
+
+    Return contract — the rc131 carrier-format law, now with its EXACT rung:
+
+    ============  =====================  ============================
+    result rank   float / complex input  EXACT input (rc463)
+    ============  =====================  ============================
+    0             ``float`` / ``complex``  :class:`~srmech.math.q.Q`
+    1             :class:`~srmech.math.vec.Vec`  ``list[Q]``
+    2             :class:`~srmech.math.mat.Mat`  :class:`~srmech.math.qmat.QMat`
+    3+            nested ``list``          nested ``list`` of ``Q``
+    ============  =====================  ============================
+
+    ``Mat`` / ``Vec`` ARE ``array('d')`` C dense buffers and cannot hold an
+    exact value wider than 53 significand bits; ``QMat`` is the exact-ℚ 2-D
+    carrier and refuses a float outright. Rank 1 and rank 3+ have no exact
+    carrier in the package, so they stay nested ``list``\\ s of ``Q`` — the same
+    "no carrier exists" fallback rank-3+ already took.
+
+    **Accuracy on the FLOAT path (an R3 declaration, not a type declaration).**
+    A ``float`` / ``complex`` operand is a genuinely continuous one: the
+    contraction accumulates in ``complex`` / ``array('d')``, so every returned
+    entry is correct **to round-off (~1 ULP per accumulated term)** and is NOT
+    the exact contraction. Elect the exact carrier by handing this op exact
+    operands; there is no keyword, exactly as there is none on ``kron``.
     """
     ops = [_nd_to_lists(o) for o in operands]
     inspec, arrow, outspec = subscripts.replace(" ", "").partition("->")
@@ -533,11 +726,25 @@ def einsum(subscripts: str, *operands):
     summed = [lab for lab in sizes if lab not in outspec]
     out_shape = tuple(sizes[lab] for lab in outspec)
     any_cx = any(_input_is_complex(o) for o in operands)
-    # rc155: route a clean 2-operand contraction through the C matmul.
+    # rc463 (`#T1188`): the EXACT-ℚ admission gate. A single float / complex leaf
+    # ANYWHERE sends the WHOLE contraction down the float path — mixing carriers
+    # mid-contraction is the defect, not the cure.
+    ops_q = None
+    if not any_cx:
+        probe = [_exact_nd(o) for o in ops]
+        if all(p is not None for p in probe):
+            ops_q = probe
+    free_ranges = [range(sizes[lab]) for lab in outspec]
+    sum_ranges = [range(sizes[lab]) for lab in summed]
+    # rc155: route a clean 2-operand contraction through the C matmul (rc463: or,
+    # for exact operands, through the exact-ℚ QMat.matmul — the SAME gather).
     if len(ops) == 2:
-        fast = _einsum_pair_via_matmul(in_labels[0], ops[0], in_labels[1], ops[1],
-                                       outspec, sizes)
+        src = ops_q if ops_q is not None else ops
+        fast = _einsum_pair_via_matmul(in_labels[0], src[0], in_labels[1], src[1],
+                                       outspec, sizes, exact=ops_q is not None)
         if fast is not None:
+            if ops_q is not None:                     # rc463 exact-ℚ carrier rung
+                return _einsum_exact_carrier(fast, out_shape)
             if not out_shape:                         # rank-0 scalar
                 sc = complex(fast)
                 return sc.real if (not any_cx and _all_imag_zero(sc)) else sc
@@ -549,9 +756,31 @@ def einsum(subscripts: str, *operands):
             if rank == 2:
                 return _Mat.from_rows(res, is_complex=not real_fast)
             return res
+    if ops_q is not None:
+        # rc463: the GENERAL index-iteration definition on the EXACT-ℚ carrier.
+        # The rc462 body seeded ``acc = 0j`` / ``term = complex(1.0, 0.0)`` HERE,
+        # independently of the fast path above — so 'ii->' (trace), 'ij->ji'
+        # (transpose) and every >=3-operand contraction demoted even after the
+        # matmul route was swapped. Both paths, or neither.
+        def _accumulate_exact(free_idx):
+            index_map = dict(zip(outspec, free_idx))
+            acc = Q(0, 1)
+            for sum_idx in itertools.product(*sum_ranges):  # Class I: summed
+                index_map.update(zip(summed, sum_idx))
+                term = Q(1, 1)
+                for labels, op in zip(in_labels, ops_q):
+                    term = term * _nd_get(
+                        op, tuple(index_map[lab] for lab in labels))  # Class M
+                acc = acc + term
+            return acc
+
+        if not out_shape:                             # rank-0 (trace / dot)
+            return _accumulate_exact(())
+        q_out = _nd_zeros_q(out_shape)
+        for free_idx in itertools.product(*free_ranges):    # Class I: free
+            _nd_set(q_out, free_idx, _accumulate_exact(free_idx))
+        return _einsum_exact_carrier(q_out, out_shape)
     out = _nd_zeros(out_shape)
-    free_ranges = [range(sizes[lab]) for lab in outspec]
-    sum_ranges = [range(sizes[lab]) for lab in summed]
 
     def _accumulate(free_idx):
         index_map = dict(zip(outspec, free_idx))
@@ -580,9 +809,31 @@ def einsum(subscripts: str, *operands):
     return result
 
 
+def _einsum_exact_carrier(result, out_shape):
+    """rc463 (`#T1188`): the EXACT rung of the rc131 carrier-format law.
+
+    rank-0 → the bare :class:`~srmech.math.q.Q`; rank-2 → the exact-ℚ
+    :class:`~srmech.math.qmat.QMat`; rank-1 and rank-3+ stay a nested ``list``
+    of ``Q``, because **no exact carrier exists at those ranks** (``Vec`` is
+    ``array('d')``, and rank-3+ has no carrier on either rung). That is the same
+    honest fallback the float path already takes at rank-3+, not a new one.
+    """
+    if len(out_shape) == 2:
+        return _QMat.from_rows(result)
+    return result
+
+
 # ── nested-list N-D tensor helpers for einsum (numpy-free) ─────────────────────
 def _nd_to_lists(o):
-    """An array-like (ndarray / nested list / scalar) → nested ``list``s."""
+    """An array-like (QMat / ndarray / nested list / scalar) → nested ``list``s.
+
+    rc463: ``QMat`` spells its unwrap ``to_lists`` (not ``tolist``), so an exact
+    operand handed in on the exact carrier used to arrive as an opaque leaf and
+    fail the shape probe. It now unwraps to its exact ``Q`` rows, which is what
+    makes ``einsum`` reachable FROM the carrier its exact path returns.
+    """
+    if hasattr(o, "to_lists"):
+        return o.to_lists()
     if hasattr(o, "tolist"):
         return o.tolist()
     if isinstance(o, (list, tuple)):
@@ -741,7 +992,7 @@ def char_poly(a) -> List:
 def separate_frame_curvature(a, b):
     """Separate a two-operator product ``A·B`` into its FIXED-FRAME (metric) part
     and its CURVATURE / RESPONSION (holonomy) residue — the connection/curvature
-    decomposition applied as an op (#834; user directive "rearrange those
+    decomposition applied as an op (`#T834`; user directive "rearrange those
     equations to separate the curvature from the FIXED FRAME").
 
     The framework thread ``op / operand / responsion ≅ field / excitation /
@@ -770,21 +1021,37 @@ def separate_frame_curvature(a, b):
          "curvature":   Mat,   # ½(A·B − B·A) — the holonomy / responsion residue
          "is_flat":     bool}  # curvature is EXACTLY the zero carrier ⇔ [A,B]=0
 
-    ``is_flat`` is the EXACT (byte-sound) flatness certificate: every stored double
-    of the curvature carrier has **Class-K magnitude** (:func:`srmech.cascade.
+    ``is_flat`` is the EXACT (byte-sound) flatness certificate: every entry of the
+    curvature carrier has **Class-K magnitude** (:func:`srmech.cascade.
     atoms.magnitude`, real ``|x|`` — never an ALU ``abs()``, and — unlike a squared
-    Frobenius norm — with no underflow-to-zero hazard) exactly ``0.0``. So
+    Frobenius norm — with no underflow-to-zero hazard) exactly zero. So
     ``is_flat is True`` is a THEOREM about the computed curvature carrier: it is
-    LITERALLY the zero matrix. On the exactly-float-representable entry regime —
-    integer / half-integer / dyadic-rational / Gaussian-integer matrices, i.e. the
-    quantum-operator regime this decomposition is FOR (Pauli σ, Dirac γ, integer
-    Hamiltonians, the Klein-4 sector operators) — the c_dispatched
-    :func:`mat_matmul` is bit-exact, so the computed curvature IS the true
-    ``½[A,B]``, ``is_flat`` is the true flatness, and ``fixed_frame + curvature``
-    reconstructs ``A·B`` byte-for-byte. (This is exactly the regime where
-    ``single_particle.commutator`` is itself byte-exact native==pure; a
-    genuinely-irrational-valued float pairing is already in a rounded frame — its
-    exact "do these commute" question is only well-posed on the exact carrier.)
+    LITERALLY the zero matrix.
+
+    **rc463 (`#T1188`) — the exact rung, and the claim it repairs.** When BOTH
+    operands are exact (``int`` / :class:`~srmech.math.q.Q` /
+    ``fractions.Fraction`` / :class:`~srmech.math.qmat.QMat`) the two products,
+    the symmetric/antisymmetric assembly and the ``½`` scale all run on the
+    exact-ℚ :class:`~srmech.math.qmat.QMat` carrier, and ``fixed_frame`` /
+    ``curvature`` come back as ``QMat``. Through rc462 this paragraph asserted
+    that on the "exactly-float-representable entry regime — integer /
+    half-integer / dyadic-rational / Gaussian-integer matrices" the ``mat_matmul``
+    route is bit-exact and therefore ``is_flat`` is the true flatness. **The
+    entries being representable is not the governing quantity — the PRODUCTS
+    are.** ``A = [[3]]``, ``B = [[3002399751580331]]`` has integer entries a
+    float64 holds exactly and a product ``2⁵³+1`` it does not, so the old route
+    returned ``9007199254740992.0`` and derived ``is_flat`` from a curvature that
+    had already lost its low bit. The claim is now true because the op was fixed,
+    not because the claim was weakened — the same repair, on the same witness,
+    that ``spectral_cascades.kron`` took at rc344.
+
+    A **float / complex** operand is a genuinely continuous one: it keeps the
+    ``Mat`` route, and there the entries are accurate **to round-off** and
+    ``is_flat`` is a statement about the COMPUTED carrier, not about the
+    idealised ``[A,B]``. (A genuinely-irrational-valued float pairing is already
+    in a rounded frame — its exact "do these commute" question is only well-posed
+    on the exact carrier, which is now reachable by handing this op exact
+    operands.)
 
     Args:
         a, b: two square operators of the SAME shape — a :class:`~srmech.math.mat.
@@ -811,6 +1078,29 @@ def separate_frame_curvature(a, b):
     ``[[user_stance_bit_exact_is_local_flatness_of_connection_seams_are_holonomy]]``.
     """
     from .atoms import magnitude as _magnitude
+
+    # rc463 (`#T1188`): the EXACT-ℚ rung. Both operands exact → the whole
+    # decomposition rides QMat and the flatness certificate is a theorem about
+    # the TRUE commutator, not about a 53-bit-truncated shadow of it.
+    a_q = _exact_nd(_nd_to_lists(a))
+    b_q = _exact_nd(_nd_to_lists(b))
+    if a_q is not None and b_q is not None:
+        Aq, Bq = _QMat.from_rows(a_q), _QMat.from_rows(b_q)
+        if Aq.shape != Bq.shape or Aq.n_rows != Aq.n_cols:
+            raise ValueError(
+                "separate_frame_curvature: A and B must be square and the same "
+                f"shape; got {Aq.shape} vs {Bq.shape}")
+        abq, baq = Aq.matmul(Bq), Bq.matmul(Aq)
+        half = Q(1, 2)
+        fixed_q = _QMat.from_rows(
+            [[(abq[i, j] + baq[i, j]) * half for j in range(Aq.n_cols)]
+             for i in range(Aq.n_rows)])
+        curv_q = _QMat.from_rows(
+            [[(abq[i, j] - baq[i, j]) * half for j in range(Aq.n_cols)]
+             for i in range(Aq.n_rows)])
+        flat = all(curv_q[i, j] == Q(0, 1)
+                   for i in range(Aq.n_rows) for j in range(Aq.n_cols))
+        return {"fixed_frame": fixed_q, "curvature": curv_q, "is_flat": flat}
 
     A = a if isinstance(a, _Mat) else _Mat.from_rows(
         a.tolist() if hasattr(a, "tolist") else a)
@@ -2799,7 +3089,7 @@ def _van_hoeij_recombine(f: List[int], lifted: List[List[int]], prime: int,
         return None
 
     # exact GSO cutoff: keep V_1..V_r, r minimal with ‖V*_k‖² > M² for all k > r
-    _mu, gso_b = _lll_gso(red, n + s, n + s)
+    _mu, gso_b = _gso_core(red, n + s, n + s)
     r = n + s
     while r >= 1:
         bq = gso_b[r - 1]
@@ -3138,12 +3428,64 @@ def _lll_round_q(num: int, den: int) -> int:
     return (2 * num + den) // (2 * den)
 
 
-def _lll_gso(b: List[List[int]], m: int, n: int):
-    """Exact-ℚ Gram–Schmidt of the integer basis ``b`` (``m`` rows × ``n`` cols)
-    via the Gram-matrix recurrence: returns ``(mu, B)`` with ``mu[i][j]`` the
-    exact ℚ (:class:`~srmech.math.q.Q`) GSO coefficient (``j < i``) and ``B[i]``
-    the exact squared norm ``‖b*_i‖²`` (``Q``). Raises ``ValueError`` on a linearly dependent
-    (degenerate) basis (``B[j] == 0`` → the GSO coefficient is undefined)."""
+def gram_schmidt_exact(basis):
+    """EXACT-ℚ **un-normalised** Gram–Schmidt orthogonalisation of an integer
+    basis — the exact peer of :func:`qr`, and the one that CAN exist over ℚ.
+
+    Returns ``(mu, B)``: ``mu[i][j]`` (for ``j < i``) is the exact
+    :class:`~srmech.math.q.Q` GSO coefficient ``⟨b_i, b*_j⟩ / ‖b*_j‖²``, and
+    ``B[i]`` is the exact **squared** norm ``‖b*_i‖²`` (also a ``Q``). Together
+    they determine the orthogonal family ``b*_i = b_i − Σ_{j<i} mu[i][j]·b*_j``
+    exactly, without ever forming a square root.
+
+    **Why this, and not a rational QR** (rc463, `#T1188`). A *normalised* exact
+    QR is IMPOSSIBLE over ℚ: the Householder / Gram–Schmidt normalisation needs
+    ``‖x‖ = √(xᵀx)``, and the square root of a rational is in general an
+    algebraic irrational — so ``Q`` is the wrong field and no ``Qalg``-valued QR
+    ships. What DOES exist exactly is precisely this object: the un-normalised
+    GSO, whose coefficients and squared norms are rational by construction.
+    Through rc462 it shipped as the PRIVATE ``_lll_gso``, reachable only by
+    reading the LLL engine — so the exact orthogonalisation the package already
+    performed was invisible to :func:`~srmech.introspect.describe`, the MCP tool
+    list and the C registry. This rc promotes it verbatim; **nothing about the
+    mathematics changed**, and that is the point — it is a promotion, not a new
+    algorithm, and it is explicitly NOT a rational QR.
+
+    ``basis`` is ``m`` integer (or exact-ℚ) row-vectors of common length ``n``,
+    linearly independent. This is the orthogonalisation :func:`lll_reduce` runs
+    on every call.
+
+    **Class L** (the lattice / Gram spectral content) ∘ **Class N** (the exact ℚ
+    coefficients) ∘ **Class I** (the ordered row recurrence). No float, no
+    ``abs()``, no square root.
+
+    :raises ValueError: on a ragged basis, an empty basis, or a linearly
+        dependent (degenerate) one — ``‖b*_j‖² = 0`` makes the GSO coefficient
+        undefined, and that is refused loudly rather than divided by. The public
+        entry checks EVERY squared norm, including the last: the recurrence
+        itself only ever divides by ``B[j]`` for ``j < i``, so a basis whose
+        FINAL vector is dependent would otherwise come back carrying a silent
+        ``B[m-1] == 0`` that no later step reads.
+    """
+    b = [list(r) for r in basis]
+    if not b or not isinstance(b[0], list):
+        raise ValueError("gram_schmidt_exact: basis must be a sequence of rows")
+    n = len(b[0])
+    if any(len(r) != n for r in b):
+        raise ValueError("gram_schmidt_exact: basis rows are ragged")
+    mu, B = _gso_core(b, len(b), n)
+    for i, bi in enumerate(B):
+        if bi == 0:
+            raise ValueError(
+                "gram_schmidt_exact: linearly dependent (degenerate) basis — the "
+                f"Gram-Schmidt norm ‖b*_{i}‖² vanished; the orthogonalisation "
+                "requires an independent basis")
+    return mu, B
+
+
+def _gso_core(b: List[List[int]], m: int, n: int):
+    """The bare Gram-matrix GSO recurrence behind :func:`gram_schmidt_exact` —
+    no revalidation, for the LLL inner loop that has already checked its basis."""
     mu = [[_FR(0)] * m for _ in range(m)]
     B = [_FR(0)] * m
     for i in range(m):
@@ -3245,7 +3587,7 @@ def _lll_reduce_pure(basis, delta):
         return [list(b[0])]
 
     delta_fr = _FR(dn, dd)
-    mu, B = _lll_gso(b, m, n)                              # the ONE full GSO
+    mu, B = _gso_core(b, m, n)                             # the ONE full GSO
 
     def _red(k, l):
         muk = mu[k][l]
@@ -3363,6 +3705,19 @@ def lll_reduce(basis, delta=(3, 4)):
 # ── Part 2 — turnkey exact eigensolver: matrix → all exact eigenpairs ────────────
 def eig_exact(a, *, bits: int = 64, project: bool = True):
     """Turnkey EXACT eigensolver — a matrix → ALL its exact eigenpairs (rc-F).
+
+    ⚠️ **``a`` must be INTEGER-VALUED** (the entries may ride as ``int`` / ``Q`` /
+    ``fractions.Fraction``, but each must equal an integer). Measured at the
+    rc463 fix pass: ``eig_exact([[Fraction(1,2), 0], [0, 1]])`` raises
+    ``TypeError: int() argument … not 'complex'`` from inside
+    :func:`factor_integer_poly`, because the chain starts at :func:`char_poly`,
+    whose own contract says a non-integer matrix falls back to a FLOAT
+    Faddeev–LeVerrier, and the factoring step cannot take complex coefficients.
+    :func:`eigvec_exact`, :func:`eigvec_exact_float` and
+    :func:`jordan_chains_exact` DO accept a genuinely rational matrix — they
+    take ``λ`` directly and never route through ``char_poly`` — which is why
+    the limit is stated per op instead of once for the family. The prose here
+    said "integer/rational" until it was executed.
 
     Chains the rotation-last exact machinery into one call:
     ``char_poly(a)`` → Yun square-free → :func:`factor_integer_poly` (the
@@ -3670,8 +4025,15 @@ def _roots_of_irreducible(m_low: List[int], bits: int) -> List:
 
 # ── Part 3 — the complete-eigensolver CAPSTONE: matrix → exact Jordan form ────────
 def jordan_form_exact(a, *, bits: int = 64, project: bool = True):
-    """The canonical exact JORDAN CANONICAL FORM of an integer/rational matrix —
-    every square matrix → ``A = P·J·P⁻¹`` with ``J`` the Jordan form (rc27, rc-G).
+    """The canonical exact JORDAN CANONICAL FORM of an INTEGER-VALUED matrix —
+    every such square matrix → ``A = P·J·P⁻¹`` with ``J`` the Jordan form
+    (rc27, rc-G).
+
+    ⚠️ Inherits :func:`eig_exact`'s operand limit exactly, for the same measured
+    reason: the chain starts at :func:`char_poly`, which declares a float
+    fallback for a non-integer matrix, so a genuinely non-integral rational
+    raises rather than being solved. This line said "integer/rational" until the
+    rc463 fix pass ran it.
 
     The complete-eigensolver capstone: chains :func:`eig_exact` (char-poly →
     irreducible factors → exact roots → :func:`jordan_chains_exact` for every
@@ -3875,3 +4237,129 @@ def _P_cols_to_matrix(cols, n):
     """Assemble a list of COLUMN vectors (each length ``n``) into the row-major
     matrix ``P`` with those columns: ``P[i][c] = cols[c][i]``."""
     return [[cols[c][i] for c in range(len(cols))] for i in range(n)]
+
+
+# ── Part 3 — the EXACT SVD: per-σ, each in its own number field ℚ(σ) ────────────
+def singular_values_exact(a, *, bits: int = 64, project: bool = True):
+    """EXACT singular values of an integer matrix — each one a
+    :class:`~srmech.math.qalg.Qalg` in **its own** number field ℚ(σ).
+
+    The float :func:`svd` squares the condition number (it goes through the Gram
+    matrix) and declares itself accurate "to round-off". rc463 (`#T1188`) adds the
+    exact algebraic substrate underneath it, and — as with :func:`lstsq_exact` —
+    it is a COMPOSITION OF SHIPPED OPS, not a new algorithm and not a new type::
+
+        char_poly(AᵀA)          exact integer coefficients            (Class L∘M∘K)
+          → reverse to low→high, then the x → x² INTERLEAVE            (Class I)
+          → factor_integer_poly  MANDATORY: the substitution can be REDUCIBLE
+          → Qalg over each irreducible, embedded at its isolated root  (Class N∘C)
+
+    ``σ = √λ``, so ``m_σ(x) = m_λ(x²)`` — a pure coefficient interleave, and **no
+    resultant is needed for a square root**. The factoring step is not optional:
+    measured, ``x⁴ − 3x² + 1 = (x² − x − 1)(x² + x − 1)``, so the naive
+    substitution hands back a REDUCIBLE polynomial, and a ``Qalg`` built on it
+    would not be a field at all.
+
+    Only the NON-NEGATIVE real roots are singular values. That selection is a
+    **Class-K pin-slot** on the isolated root's sign boundary composed with a
+    **Class-C** orientation read — never an ALU ``abs()``.
+
+    Returns a ``list[dict]``, ordered by DESCENDING singular value (the SVD
+    convention), one entry per distinct σ::
+
+        {"sigma_qalg": Qalg,          # σ itself, exact, in ℚ[x]/(min_poly)
+         "min_poly": tuple[int],      # σ's exact irreducible minimal polynomial (low→high)
+         "multiplicity": int,         # the algebraic multiplicity of λ = σ²
+         "right_vector_qalg": list[Qalg],   # the exact right singular vector v, SAME field
+         "value": float}              # the single terminal projection (project=True only)
+
+    For a DEGENERATE σ (geometric multiplicity > 1) ``right_vector_qalg`` is the
+    FIRST null-space basis vector — the same contract :func:`eig_exact` states
+    for its ``vector`` field; the full exact basis is reachable through
+    :func:`eigvec_exact` on ``AᵀA`` at ``σ²``.
+
+    ⚠️ **THE SCOPE LINE, stated rather than discovered mid-use.** ``Qalg`` refuses
+    binary ops across different ``m`` (measured: *"Qalg binary op requires equal
+    m"*). Per-σ, everything above lives in ONE field — σ, ``σ² = λ``, and the
+    right singular vector all share ``min_poly``, which is exactly why ``v`` can
+    come back exact. But a matrix whose characteristic polynomial factors into
+    DISTINCT irreducibles puts its σ's in **different fields**, and assembling a
+    single exact ``Σ`` / ``U`` / ``Vᵀ`` across them needs a **compositum**.
+    ``srmech.math.poly`` ships ``Poly.resultant`` (the univariate subresultant
+    PRS) but no ``primitive_element`` / ``minimal_polynomial`` / bivariate
+    resultant, so the compositum is not buildable from shipped parts today.
+    **This op therefore ships the per-σ decomposition and nothing else.** ⚠️ Read
+    that as a statement about the op's SHAPE, not about a runtime guard: the
+    combined ``U Σ Vᵀ`` is **ABSENT, not REFUSED**. No code path builds one, and
+    equally none RAISES on a mixed-σ operand — there is nothing for such a guard
+    to stand in front of. (The two refusals this op really does raise are the
+    float-entry and non-2-D ones named below; a caller who expected a third,
+    announcing "your matrix needs a compositum", will not get one, and the
+    reason is that every matrix gets the same per-σ answer.) That is precisely
+    why there is no path on which it silently works only when the factors happen
+    to coincide. The compositum is a NAMED RESIDUAL, not a hidden precondition.
+
+    ``a`` must be an INTEGER matrix (``m × n``, any shape); a float is refused by
+    name. ``bits`` is the root-isolation refinement precision.
+
+    :raises TypeError: if any entry of ``a`` is a float / complex / non-integer.
+    :raises ValueError: if ``a`` is not a 2-D matrix or is ragged.
+    """
+    from srmech.math.qalg import Qalg
+
+    rows = _nd_to_lists(a)
+    if not isinstance(rows, list) or not rows or not isinstance(rows[0], list):
+        raise ValueError("singular_values_exact: a must be a 2-D matrix")
+    n_cols = len(rows[0])
+    if any(len(r) != n_cols for r in rows):
+        raise ValueError("singular_values_exact: a rows are ragged")
+    A: List[List[int]] = []
+    for r in rows:
+        row: List[int] = []
+        for v in r:
+            leaf = _exact_leaf(v)
+            if leaf is None or leaf.denominator != 1:
+                raise TypeError(
+                    "singular_values_exact: a must be an INTEGER matrix (the exact "
+                    "char-poly cascade is an integer one). A float entry is already "
+                    "in a rounded frame; use svd for that carrier.")
+            row.append(int(leaf.numerator))
+        A.append(row)
+    # G = AᵀA — the exact integer Gram matrix (Class M), the PSD operator whose
+    # eigenvalues are σ². Plain-int accumulate: no carrier can round it.
+    G = [[sum(A[k][i] * A[k][j] for k in range(len(A))) for j in range(n_cols)]
+         for i in range(n_cols)]
+    cp_low = list(reversed(char_poly(G)))            # char_poly is high→low
+    out: List[dict] = []
+    for (f_tuple, alg_mult) in factor_integer_poly(cp_low):
+        # λ → x²: the coefficient INTERLEAVE m_σ(x) = m_λ(x²). Class I.
+        interleaved: List[int] = []
+        for c in f_tuple:
+            interleaved.append(int(c))
+            interleaved.append(0)
+        interleaved.pop()                            # drop the trailing pad
+        for (h_tuple, _sub_mult) in factor_integer_poly(interleaved):
+            h_int = tuple(int(c) for c in h_tuple)
+            for root in _roots_of_irreducible(list(h_int), bits):
+                if isinstance(root, complex) and root.imag != 0:
+                    continue                         # σ is real by construction
+                rv = float(root.real if hasattr(root, "real") else root)
+                # Class-K pin-slot at zero on the isolated root, then a Class-C
+                # orientation read: keep the NON-NEGATIVE branch. Never abs().
+                if rv < 0.0:
+                    continue
+                sigma = Qalg.alpha(h_int, root=root)
+                lam = sigma * sigma                  # λ = σ², in the SAME field
+                vec = eigvec_exact(G, lam)
+                first = vec[0] if (vec and isinstance(vec[0], list)) else vec
+                entry = {
+                    "sigma_qalg": sigma,
+                    "min_poly": h_int,
+                    "multiplicity": alg_mult,
+                    "right_vector_qalg": list(first),
+                }
+                if project:
+                    entry["value"] = sigma.to_float()
+                out.append(entry)
+    out.sort(key=lambda e: e["sigma_qalg"].to_float(), reverse=True)
+    return out

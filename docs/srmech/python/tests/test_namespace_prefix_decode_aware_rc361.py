@@ -903,8 +903,22 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # +1 decoded; the same rc moved srmech.amsc as-text by +2 (the two
     # composes citations) - BOTH channels moving, differently, in one rc, for
     # the fourth consecutive registration round.
-    assert math == 352, (
-        f"expected 352 srmech.math op references inside the DECODED channel "
+    # rc463 (`#T1188`) - 352 -> 361, the rc456 category a FIFTH time, and the
+    # split is again the informative half. This rc registers EIGHTEEN ops but
+    # only EIGHT are under `srmech.math.` at all: the six `qmat_*` (each takes
+    # `rows` on the QMat | Sequence[Sequence[int | Q]] carrier plus a `method`
+    # str, and `qmat_solve` names that carrier TWICE - `rows` AND `b` - which is
+    # the ninth reference and the reason the delta is +9 across eight ops), and
+    # the two `srmech.math.qalg` trig ops (each `n: int`). The TEN
+    # `srmech.cascade.matrix_cascades` registrations are not under `srmech.math.`
+    # and cannot contribute here however they are typed - the same structural
+    # split rc461 recorded, at ten times the scale.
+    assert math == 361, (
+        f"expected 361 srmech.math op references inside the DECODED channel "
+        f"(352 at rc461 part 3 + rc463 +9: the six qmat_* ops at one carrier "
+        f"back-index ref each EXCEPT qmat_solve, which names the exact-row "
+        f"carrier twice (rows AND b) for two, plus the two qalg trig ops at "
+        f"one int ref each) "
         f"(rc372 octonion 16 + rc373 A-N primitives 298 + rc374 carriers 6 + rc384 "
         f"octonion_laplacian 3 + rc388 oct_torsor_act/div 4 + rc399 generalized_ngon "
         f"1 + rc408 mat_eigvals max_sweeps:int 1 + rc420 scale_round_half_even "
@@ -1046,8 +1060,16 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # over 27 registrations: the count is per (op, carrier), so "one row per new
     # op" is the wrong prior and reading 5 here would have been a guess.
     cascade = joined.count("srmech.cascade.")
-    assert cascade == 164, (
-        f"expected 164 srmech.cascade op references inside the DECODED channel "
+    # rc463 (`#T1188`) - 164 -> 175. The counterpart of the +9 on the
+    # `srmech.math.` pin above, and the two together are the whole eighteen:
+    # the TEN `srmech.cascade.matrix_cascades` registrations land 11 carrier
+    # back-index rows (each names the `Mat`/`list` operand carrier once, and
+    # `lstsq_exact` names one twice - `a` AND `b`), while the eight
+    # `srmech.math.*` ops contribute nothing here. Same registration round,
+    # both channels moving, by different amounts, for the fifth consecutive
+    # time - which is the property this pin exists to hold.
+    assert cascade == 175, (
+        f"expected 175 srmech.cascade op references inside the DECODED channel "
         f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
         f"rc384's octonion_frame_read + rc386's cd_three_form + rc387's flip_pair / "
         f"group_algebra_table + rc395's cd_zero_divisor_witness / _witnesses + rc398's "

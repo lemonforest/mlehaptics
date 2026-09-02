@@ -324,6 +324,24 @@ def _matches_token(raw: Any, token: str):
     if token.startswith("Poly"):
         from srmech.math.poly import Poly
         return isinstance(raw, Poly)
+    # rc463 -- `Qalg` (the algebraic-number carrier) and `QMat` (the exact-Q
+    # matrix carrier) MUST be checked BEFORE the bare "Q" scalar arm, for
+    # exactly the reason QPoly / QBiPoly already are: `"Qalg".startswith("Q")`
+    # is True, so the prefix arm routes them to `isinstance(raw, Q)` -- False
+    # for both, since neither subclasses Q. That mis-route made the honesty
+    # gate fail with `advertised='Qalg' :: OBSERVED 'Qalg' does not match
+    # advertised` -- a message printing two IDENTICAL strings, because it
+    # renders the observed __name__ rather than the token it actually tested
+    # against. `Qalg` was LIVE (cos_2pi_over_n / sin_2pi_over_n return one);
+    # `QMat` was LATENT -- its two ops raise a tolerated domain error on synth
+    # args, so their return type is never observed and the identical mis-route
+    # never fired. Both fixed here; only one had a witness.
+    if token.startswith("Qalg"):
+        from srmech.math.qalg import Qalg
+        return isinstance(raw, Qalg)
+    if token.startswith("QMat"):
+        from srmech.math.qmat import QMat
+        return isinstance(raw, QMat)
     if token.startswith("Q"):
         return isinstance(raw, Q)
     if token.startswith("array"):

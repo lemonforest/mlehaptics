@@ -448,14 +448,11 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
     # ── srmech.cascade.compose ──
     'srmech.cascade.compose.greedy_bipartite_alignment': OPEN_REGISTRATION,
     # ── srmech.cascade.matrix_cascades ──
-    'srmech.cascade.matrix_cascades.eig_exact': OPEN_REGISTRATION,
-    'srmech.cascade.matrix_cascades.eigvec_exact': OPEN_REGISTRATION,
-    'srmech.cascade.matrix_cascades.eigvec_exact_float': OPEN_REGISTRATION,
-    'srmech.cascade.matrix_cascades.factor_integer_poly': OPEN_REGISTRATION,
-    'srmech.cascade.matrix_cascades.jordan_chains_exact': OPEN_REGISTRATION,
-    'srmech.cascade.matrix_cascades.jordan_form_exact': OPEN_REGISTRATION,
-    'srmech.cascade.matrix_cascades.separate_frame_curvature':
-        OPEN_REGISTRATION,
+    # rc463 (`#T1188`): SEVEN rows DELETED here — the entire exact eigensolver
+    # earned real ToolEntry rows. They had sat as OPEN_REGISTRATION while four
+    # OTHER shipped entries pointed readers AT this family, so describe(), the
+    # MCP tool list and the compiled C registry could not see the ops the
+    # registry itself was recommending.
     # ── srmech.cascade.one ──
     'srmech.cascade.one.one_dim': OPEN_REGISTRATION,
     'srmech.cascade.one.one_flat_rational': OPEN_REGISTRATION,
@@ -654,7 +651,14 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
 #: and the C run loop's key-set validator refuses BY DESIGN to dispatch an op
 #: with no ToolEntry — registration is the mechanism that releases those
 #: chains, and three allowlist rows are DELETED with it.
-CEIL_REGISTRY_GAPS = 164
+#:
+#: **164 -> 157 at rc463 (`#T1188`), a discharge.** The seven
+#: ``matrix_cascades`` exact-eigensolver rows are DELETED: the whole
+#: family gained real ``ToolEntry`` rows in the same change. The gap was
+#: not academic — four shipped ``ToolEntry`` texts direct readers to
+#: exactly these ops, so the registry was recommending a surface it did
+#: not itself expose.
+CEIL_REGISTRY_GAPS = 157
 
 #: DOWN-ONLY sub-ceiling on the DEBT bucket specifically. The other four codes
 #: are stated design positions; this one is *"nobody decided"*, and it is the
@@ -669,7 +673,9 @@ CEIL_REGISTRY_GAPS = 164
 #: registered (the declared klein4_from_one / encode_loe_content chains name
 #: them and the C key-set validator refuses an unregistered op). A real
 #: discharge, not a re-label.
-CEIL_OPEN_REGISTRATION = 104
+#: **104 -> 97 at rc463 (`#T1188`).** The seven exact-eigensolver rows are
+#: DISCHARGED, not re-labelled: each earned a real ``ToolEntry``.
+CEIL_OPEN_REGISTRATION = 97
 
 #: ⚠️ DOWN-ONLY, and the OTHER half of the partition (rc419, `#T1110`). Rows
 #: here name public callables whose module declares NO ``__all__`` — the class

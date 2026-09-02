@@ -13,11 +13,17 @@ of the 14 A-N class operations. This module ships them as **pure-Python
   A direct ``O(N²)`` transform — value-faithful to ``NumPy fft`` to
   round-off.
 - :func:`fft` / :func:`ifft` — the **radix-2 Cooley–Tukey** butterfly: the SAME
-  value as :func:`dft`, but ``O(N log N)`` when ``N`` is a power of two, by
-  adding **Class J** (the radix ``N = 2·(N/2)`` factorization) + **Class K**
-  (the butterfly recursion depth) on top of the DFT cascade. For non-power-of-2
-  ``N`` it falls back to :func:`dft`, so it is a drop-in for ``NumPy fft``
-  at ANY length.
+  value as :func:`dft`, and ``O(N log N)`` at power-of-two ``N`` **on the float
+  carrier**, by adding **Class J** (the radix ``N = 2·(N/2)`` factorization) +
+  **Class K** (the butterfly recursion depth) on top of the DFT cascade. For
+  non-power-of-2 ``N`` it falls back to :func:`dft`, so it is a drop-in for
+  ``NumPy fft`` at ANY length. The ``O(N log N)`` was written unqualified until
+  `#T1188` and is true of the float route only — an integer signal never reaches
+  :func:`_radix2`, because both entry points hand it to the exact
+  cyclotomic-integer engine first, whose output is ``N²`` integers rather than
+  ``N`` complex scalars and is therefore Θ(N²) by output size. See
+  :func:`fft` for the four routes, and
+  :func:`srmech.cascade.exact_dft._radix2_ring_op_count` for the measurement.
 - :func:`kron` — the Kronecker product ``(A⊗B)`` = **Class I** (the mixed-radix
   index ``i·p+k``) ∘ **Class M** (the element products).
 """
@@ -69,10 +75,19 @@ def dft(x: Sequence[complex], *, inverse: bool = False) -> List[complex]:
     ``inverse=True``). Pure-Python; substrate-native replacement for
     ``NumPy fft`` / ``ifft`` on a 1-D sequence. ``O(N²)``.
 
-    For an all-integer / Gaussian-integer power-of-two signal this runs the
-    **exact-until-rotation** cyclotomic-integer engine (``ℤ[ζ_N]`` integer math,
-    one FPU lift — *don't use floats for bit-exact math*); float signals (already
-    continuous) and non-power-of-two lengths run the float ``cexp`` path.
+    For an all-integer / Gaussian-integer signal at **any** length ``N ≥ 2`` this
+    runs the **exact-until-rotation** cyclotomic-integer engine (``ℤ[ζ_N]``
+    integer math, one FPU lift — *don't use floats for bit-exact math*):
+    power-of-two ``N`` takes the negacyclic radix-2 split, every other ``N`` the
+    general ``Φ_N`` reduction over the length-``φ(N)`` power basis. Only
+    genuinely floating-point signals (already continuous) and ``N < 2`` run the
+    float ``cexp`` path, and only that path is the ``O(N²)`` above.
+
+    ⚠️ This paragraph read *"power-of-two signal … non-power-of-two lengths run
+    the float ``cexp`` path"* until `#T1188`. The general-``N`` exact path has
+    shipped since v0.7.5rc30, so an integer signal of length 6 had been taking
+    the exact engine for many releases while this text sent the reader to the
+    float one.
     """
     x = list(x)
     if len(x) == 0:
@@ -137,16 +152,42 @@ def fft(x: Sequence[complex], *, inverse: bool = False) -> List[complex]:
     """Fast Fourier transform — the radix-2 Cooley–Tukey butterfly.
 
     Bit-for-bit the same MATHEMATICS as :func:`dft` (and value-faithful to
-    ``NumPy fft`` / ``ifft`` to round-off), but ``O(N log N)`` when ``N``
-    is a power of two, via the radix-2 split. For every other ``N`` this falls
-    back to the direct ``O(N²)`` :func:`dft`, so :func:`fft` is a drop-in for
-    ``NumPy fft`` at ANY length. The fast path adds **Class J** (the radix
-    ``N = 2·(N/2)`` factorization) + **Class K** (the butterfly recursion
-    depth) on top of the rc36 DFT cascade.
+    ``NumPy fft`` / ``ifft`` to round-off), and a drop-in for ``NumPy fft`` at
+    ANY length.
 
-    An all-integer / Gaussian-integer power-of-two signal takes the
-    **exact-until-rotation** cyclotomic-integer engine (``ℤ[ζ_N]`` integer math,
-    one FPU lift), so ``fft`` and ``dft`` agree bit-for-bit on integer input.
+    **Which complexity you get depends on the CARRIER, not only the length.**
+    This docstring opened ``"O(N log N)" when N is a power of two`` unqualified
+    until `#T1188`; that is true of the float route and of no other. The four
+    routes, in the order :func:`fft` actually tries them:
+
+    1. **integer / Gaussian-integer, ``N`` a power of two** — the
+       **exact-until-rotation** cyclotomic engine
+       (:func:`~srmech.cascade.exact_dft._exact_transform`): the negacyclic
+       radix-2 split on ``ℤ[ζ_N]`` — integer add/subtract, no ``cexp`` — then a
+       single FPU lift. **Θ(N²), NOT ``O(N log N)``**: the exact spectrum is
+       ``N`` ring elements of dimension ``N/2``, i.e. ``N²`` integers, so Θ(N²)
+       is the OUTPUT SIZE and no Cooley–Tukey split can beat it. The split does
+       reach that floor exactly — ``N²`` integer additions, one per output
+       coefficient (:func:`~srmech.cascade.exact_dft._radix2_ring_op_count`).
+    2. **integer / Gaussian-integer, any other ``N``** — the same
+       exact-until-rotation engine, via the general ``Φ_N`` reduction over the
+       length-``φ(N)`` power basis. ``O(N²·φ(N))``; no butterfly, because there
+       the twiddles are dense ring elements rather than sign-flips.
+    3. **float, ``N`` a power of two** — the float radix-2 Cooley–Tukey
+       butterfly :func:`_radix2`, or the native ``srmech_fft_c128`` twin.
+       **``O(N log N)`` — the only route that is.** Its output is ``N`` complex
+       scalars, so its floor is Θ(N) and the split genuinely bites. This is the
+       path that adds **Class J** (the radix ``N = 2·(N/2)`` factorization) +
+       **Class K** (the butterfly recursion depth) on top of the rc36 DFT
+       cascade.
+    4. **float, any other ``N``** — the direct ``O(N²)`` :func:`dft`, or the
+       native Bluestein chirp-z twin.
+
+    Routes 1 and 2 are *why* ``fft`` and ``dft`` agree bit-for-bit on integer
+    input: both hand the signal to ``_exact_transform`` before either butterfly,
+    so on an integer signal they are not merely equal-valued — they run the same
+    code. "Exact-until-rotation" is literal: every coefficient is an exact
+    ``ℤ[ζ_N]`` integer and the first and only float appears in the lift.
     """
     x = list(x)
     n = len(x)
