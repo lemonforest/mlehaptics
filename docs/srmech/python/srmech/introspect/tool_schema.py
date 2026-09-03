@@ -14868,8 +14868,10 @@ def _register_primitive_class_tools() -> None:
                     "rung operand is reported as the dim mismatch it is rather than "
                     "as a length fault out of cd_mult." + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("other", "CDRegister | CatalogClass | dict", True,
-                  "the other operand — CDRegister / CatalogClass / state dict"),
+                P("other", "CDRegister | dict", True,
+                  "the other operand — a live CDRegister, the CatalogClass DSL "
+                  "projection of one, or a bare {'dim':…, 'slots':…} state dict "
+                  "(the only form that rides a wire)"),
                 P("dim", "int", True, "THIS register's dim; the operand must match it"),
                 P("verb", "str", False,
                   "keyword-only; 'multiply' or 'add', so a raised message names the "

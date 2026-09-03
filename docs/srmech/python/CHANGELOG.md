@@ -439,6 +439,49 @@ fix is a corpus edit. Re-pinned only after attribution: against a
 **0 added, 0 removed, exactly 1 changed — `CDRegister`**, the carrier whose
 declaration was corrected.
 
+### 16h. The honesty fix had to be honest on THREE channels, not one
+
+Declaring `cdr_element_of`'s `other` as `CDRegister | CatalogClass | dict` (§16g)
+satisfied the C2 honesty gate and **broke two others**, because a declared type
+string is read by three instruments that ask different questions:
+
+* **`test_carrier_schema_rc205.py`** — every identifier in a type string must be
+  a registered carrier or an explicitly justified non-carrier. `CatalogClass` is
+  neither.
+* **`test_mcp.py::test_all_param_types_json_coercible`** — the exact type string
+  must have a handler in `_PARAM_COERCERS`, or **the op becomes uncallable over
+  MCP**. Trading a declaration defect for an uncallable tool is not a fix.
+
+Settled at `CDRegister | dict`, which is the honest spelling rather than the
+convenient one: `CDRegister` is the carrier (what the honesty gate asks for),
+`dict` is the only form that can ride a wire, and **`CatalogClass` is the DSL
+WRAPPER, not a carrier at all** — the carrier it wraps is the one named. The
+prose in the parameter summary still spells all three accepted forms for a human
+reader. A `_identity` coercer was added in the rc363 type-honesty block, matching
+the `QMat` arm beside it: over a wire the operand can only arrive as its state
+dict, which the adapter already rebuilds; a live register passes through
+in-process.
+
+### 16i. Sixteen ADR citations, shifted by an edit made in this same pass
+
+Adding the v25 note paragraph to `srmech.h` (§16b) moved every line after it by
+**exactly 15** — measured, not assumed: `} srmech_tool_param_t;` 6037 → 6052 and
+`} srmech_tool_entry_t;` 6125 → 6140. `test_adr_citation_integrity_rc415.py`
+caught three of them (V3 token-evidence rose 7 → 10).
+
+⚠️ **The failing three were not the whole population.** The gate checks token
+evidence at a citation, so it only fires where the drift lands a *named token*
+outside its window; ADRs carry **sixteen** `srmech.h:NNNN` citations, and all
+sixteen had moved. Isolated by reverting `srmech.h` alone (gate passed → the
+edit was the sole cause), then each citation was independently confirmed to
+resolve to **byte-identical content at OLD+15** before anything was rewritten.
+All sixteen shifted, including a bare `` `:6255` `` continuation citation that no
+file-wide pattern could safely match and which was moved by exact text.
+
+Fixing only the three the gate named would have left thirteen citations pointing
+15 lines off, correct-looking and wrong — the same stale-reference class this rc
+spent §21b and §16f closing.
+
 ### 17. `SedenionRegister` is REMOVED
 
 The module, its `[class]` TOML, its carrier row, its `ToolEntry`, its curated

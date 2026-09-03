@@ -3519,7 +3519,7 @@ static const srmech_tool_param_t ts_params_511[] = {
     { "dim", "int", 1, "algebra dimension \342\200\224 a power of two in [1, 256]" },
 };
 static const srmech_tool_param_t ts_params_512[] = {
-    { "other", "CDRegister | CatalogClass | dict", 1, "the other operand \342\200\224 CDRegister / CatalogClass / state dict" },
+    { "other", "CDRegister | dict", 1, "the other operand \342\200\224 a live CDRegister, the CatalogClass DSL projection of one, or a bare {'dim':\342\200\246, 'slots':\342\200\246} state dict (the only form that rides a wire)" },
     { "dim", "int", 1, "THIS register's dim; the operand must match it" },
     { "verb", "str", 0, "keyword-only; 'multiply' or 'add', so a raised message names the operation the caller asked for. Default 'multiply'" },
 };
