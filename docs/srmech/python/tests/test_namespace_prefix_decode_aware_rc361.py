@@ -1084,7 +1084,14 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # `srmech.math.*` ops contribute nothing here. Same registration round,
     # both channels moving, by different amounts, for the fifth consecutive
     # time - which is the property this pin exists to hold.
-    # rc464 (`#T1188`) - 175 -> 192, and the +17 over FOURTEEN registrations is
+    # rc464 (`#T1188`) - 175 -> 191 NET, and the arithmetic is two-sided: +17
+    # over FOURTEEN registrations, then -1 for the 16-slot register's
+    # constructor row (the one sed_* entry with a carrier back-index ref), so
+    # net +16. The header said "175 -> 192" until rc464 closed, quoting the
+    # un-netted half while the shipped assert below reads 191 -- the
+    # reconciliation existed only inside the failure message, which a reader
+    # consulting the comment never sees. Its sibling pin in this same file
+    # narrates both halves in the header; this one now does too. The +17 is
     # measured per op rather than inferred, exactly as rc420's +45 over 27 was.
     # Differenced against a `git archive 05202a8aa` extraction of the whole
     # docs/srmech subtree (a python-only extraction does NOT reproduce this

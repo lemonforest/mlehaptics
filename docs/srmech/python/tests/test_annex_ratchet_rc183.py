@@ -157,11 +157,23 @@ _ANNEX_DELTA = {"composes_c": 20, "host_glue": 1, "dev_tooling": 3}
 # rc464 (`#T1188`) — a correction to the rc297 note carried in the trailing
 # comment below, left in place because it IS the record of what rc297 believed.
 # TWO of its clauses were wrong, and they were wrong in opposite directions.
-#   (a) "CEIL_WIRE_GLUE_GAPS stays 10". That constant is not 10 and was not 10
-#       when this was written: the live pin is CEIL_WIRE_GLUE_GAPS = 0 at
+#   (a) "CEIL_WIRE_GLUE_GAPS stays 10". That constant is NOW 0, not 10: the
+#       live pin is CEIL_WIRE_GLUE_GAPS = 0 at
 #       tests/test_rosetta_transitive_standalone.py:460 with an EMPTY
-#       _KNOWN_GLUE_GAPS, asserted == 0 by rc333:294 and rc334:238. The "10" is
-#       rc297-era history repeated verbatim here, in rc183, and in rc170.
+#       _KNOWN_GLUE_GAPS, asserted == 0 by rc333:294 and rc334:238. It has been
+#       repeated verbatim here, in rc183 and in rc170 ever since, which is what
+#       makes it stale NOW.
+#       ⚠️ rc464 SECOND CORRECTION, to this correction. It first read "is not 10
+#       and WAS NOT 10 WHEN THIS WAS WRITTEN", which is false and was measured
+#       so: `git log -S "CEIL_WIRE_GLUE_GAPS stays 10"` names 1694b9217 (rc297)
+#       as the commit that added the clause, and
+#       `git show 1694b9217:tests/test_rosetta_transitive_standalone.py` line
+#       437 reads `CEIL_WIRE_GLUE_GAPS = 10`. The value was 11 at rc281, 10 at
+#       rc297, and first reached 0 at rc334 (9fc0a68be). So rc297 recorded a
+#       TRUE measurement that later went stale, and the correction accused it of
+#       a falsehood it did not commit -- inside a block this file calls a
+#       measurement log. The rc170 copy of the same correction never carried the
+#       false half. Dating a claim you are calling stale is the whole job here.
 #   (b) "the family has real C peers reachable through dispatch glue
 #       (srmech_cd_navmap / srmech_cd_navigate /
 #       srmech_cd_navmap_is_signed_permutation), so this is composition, not a

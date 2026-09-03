@@ -40,6 +40,7 @@ import pytest
 
 from srmech import _native
 from srmech.amsc.format import sha256_bytes
+from srmech.cascade import CD_DENSE_MAX_DIM, hamming_encode
 from srmech.cascade.cd_register import CDRegister
 from srmech.dsl import make_class
 from srmech.dsl._class_catalog import CLASS_CATALOG_DIR, CatalogClass
@@ -266,13 +267,65 @@ def test_opt_layer_methods_defer_when_the_gate_is_shut():
 
 
 def test_is_navigable_dispatches_up_to_the_dense_cap():
-    reg = _reg16()
-    one_hot = [0] * 16
-    one_hot[1] = 1
-    ok, got = _run_toml("is_navigable", _wire(reg), {"direction": one_hot})
-    assert ok, "is_navigable must DISPATCH at dim 16 (inside the dense cap)"
-    exp_result, _ = _pure(reg, "is_navigable", {"direction": one_hot})
-    assert got["result"] == exp_result is True
+    """Every power-of-two rung UP TO AND INCLUDING the cap, which is the whole
+    point of the name.
+
+    ⚠️ THIS TEST PROBED ONLY dim 16 UNTIL rc464 CLOSED IT. It was named for a
+    cap of 64 and never passed a direction longer than 16, so it could not see
+    that the engine was in fact declining from THIRTY-THREE elements up --
+    ``mc_parse_map`` carved the JSON parser a hand-rolled ``8 * len + 4096``
+    workspace against a measured need of ~28x, and an OVERFLOW there is
+    indistinguishable from a declared defer at the call boundary. Its sibling
+    below asserts the dim-256 defer and attributes it to the dense kernel, which
+    is correct; between the two, a boundary of 64 was certified by probing 16 and
+    256 and nothing in between. The cap itself is the one value that had to be
+    exercised, and it is now the loop's last entry.
+    """
+    for dim in (2, 4, 8, 16, 32, CD_DENSE_MAX_DIM):
+        reg = CDRegister(dim, D=256)
+        reg.write(0, "alpha")
+        one_hot = [0] * dim
+        one_hot[1] = 1
+        ok, got = _run_toml("is_navigable", _wire(reg), {"direction": one_hot})
+        assert ok, (
+            f"is_navigable must DISPATCH at dim {dim} — at or below "
+            f"SRMECH_CD_DENSE_MAX_DIM = {CD_DENSE_MAX_DIM}, where the "
+            f"dense kernel answers. A defer here is the make_class arena "
+            f"under-carving the JSON parse, NOT a capability boundary."
+        )
+        exp_result, _ = _pure(reg, "is_navigable", {"direction": one_hot})
+        assert got["result"] == exp_result is True
+
+
+def test_hamming_methods_dispatch_past_the_32_element_wall():
+    """``correct`` and ``carry`` take LISTS, and the arena cliff was on length.
+
+    The same ``8 * len + 4096`` carve deferred every bind list past 32 compact
+    elements, so these two silently fell back to pure at codeword length 63 and
+    at 57 data bits — against a declared ``MC_HAMMING_MAX`` of 65535. Both
+    lengths straddle the old wall, so this fails if the carve regresses.
+    """
+    reg = CDRegister(16, D=256, error_correction=True)
+    for n in (5, 6, 7):                      # codewords 31, 63, 127
+        data = [(i % 2) for i in range((1 << n) - 1 - n)]
+        codeword = list(hamming_encode(data, n))
+
+        ok, got = _run_toml("carry", _wire(reg),
+                            {"overflow_bits": data, "n": n})
+        assert ok, (
+            f"carry must DISPATCH at {len(data)} data bits (n={n}); a defer is "
+            f"the JSON-parse arena, not MC_HAMMING_MAX = 65535"
+        )
+        assert got["result"] == codeword
+
+        flipped = list(codeword)
+        flipped[0] ^= 1                      # one Class-K pin-slot sign-flip
+        ok, got = _run_toml("correct", _wire(reg), {"codeword": flipped})
+        assert ok, (
+            f"correct must DISPATCH at codeword length {len(flipped)} (n={n})"
+        )
+        exp_result, _ = _pure(reg, "correct", {"codeword": flipped})
+        assert got["result"] == exp_result
 
 
 # ── the DECLARED defers — each asserted, with its reason on the test ─────────

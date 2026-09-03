@@ -287,6 +287,46 @@ def test_cd_navmap_is_signed_permutation_c_matches_the_pure_oracle(dim):
     assert _native.cd_navmap_is_signed_permutation_c(dim) is True
 
 
+@pytest.mark.parametrize("dim", (0, 3, 96, 100, 255, 512, 1024))
+def test_the_three_c_wrappers_DECLINE_outside_the_cd_domain(dim):
+    """⚠️ THE DIRECTION THE GUARD WAS WRONG IN FOR 165 rcs, and it had no test.
+
+    ``cd_navmap_c`` / ``cd_navigate_c`` / ``cd_navmap_is_signed_permutation_c``
+    each carried ``dim > 64 -> return None`` from rc298 (which raised
+    ``CD_MAX_DIM`` to 256) through rc463, in front of C peers that accept 256 —
+    so the wrappers declined a domain the library served. rc464 respelled the
+    predicate to ``dim > CD_MAX_DIM``.
+
+    The WIDENING half is now gated: ``C_RUNGS`` / ``C_NAV_RUNGS`` carry the
+    agreement tests above to 128 and 256, and they would fail comparing ``None``
+    to a dict. The DECLINE half was uninstrumented — every call site in
+    ``tests/`` asserted an answer, none asserted a refusal. TOGETHER the two
+    halves pin the domain boundary at exactly ``CD_MAX_DIM``: in-domain rungs
+    must answer and agree with pure, out-of-domain inputs must decline.
+
+    A non-power-of-two and an over-cap dim are BOTH outside the domain: the
+    Cayley–Dickson tower is defined only at powers of two, and ``CD_MAX_DIM`` is
+    the top rung the C peer builds.
+
+    ⚠️ WHAT THIS CANNOT DISTINGUISH, stated because the first draft of this
+    docstring claimed otherwise and was wrong. It does NOT prove the PYTHON
+    predicate is what declined. MEASURED by direct ctypes against the built
+    library: ``srmech_cd_navmap`` returns ``SRMECH_ERR_BAD_INPUT`` (2) for all
+    seven of these dims on its own, so deleting the wrapper guard entirely would
+    still produce ``None`` here and this test would still pass. What it pins is
+    the CONTRACT — out of domain yields ``None``, never a raise, never a partial
+    map — not the mechanism that enforces it. Distinguishing the two needs a
+    probe of the wrapper's call count, which is not what this file measures.
+    """
+    assert dim > CD_MAX_DIM or dim == 0 or (dim & (dim - 1)) != 0, (
+        f"dim {dim} is a legal in-domain rung — it belongs in C_RUNGS, not in "
+        f"the decline set"
+    )
+    assert _native.cd_navmap_c(dim, 1) is None
+    assert _native.cd_navigate_c(dim, 1, [0], [1]) is None
+    assert _native.cd_navmap_is_signed_permutation_c(dim) is None
+
+
 # ──────────────────────────────────────────────────────────────────────
 # The register itself, at rungs the sedenion one cannot reach
 # ──────────────────────────────────────────────────────────────────────

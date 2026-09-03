@@ -601,7 +601,22 @@ extern "C" {
  *      stated bound (srmech_toml_parse_arena_bytes) instead of a hand-rolled
  *      32x heuristic, so the envelope is LARGER — which is the v10 / v12 / v23 /
  *      v24 wire-sizing shape and would have bumped on its own. It rides this
- *      one. The mixed-version pairing is benign in the direction that matters:
+ *      one.
+ *
+ *      ⚠️ THE SAME FUNCTION GREW A SECOND TIME BEFORE THIS RC SHIPPED, for the
+ *      same reason one layer down, and it also rides this bump. mc_parse_map
+ *      carved the JSON parser a hand-rolled `8u * len + 4096u` workspace
+ *      against a MEASURED need of ~28 bytes per JSON byte, so a bind list past
+ *      THIRTY-TWO compact elements OVERFLOWED and the engine DEFERRED with no
+ *      other symptom — CDRegister.is_navigable at dim 64 (inside
+ *      SRMECH_CD_DENSE_MAX_DIM, where the dense kernel answers), `correct` at
+ *      codeword length 63, `carry` at 57 data bits against a declared
+ *      MC_HAMMING_MAX of 65535. The carve now uses the 160x + 64 KiB bound
+ *      srmech_carrier_marshal.c states for the same parser, and
+ *      srmech_make_class_run_arena_bytes budgets the two carves (fields + args)
+ *      as their own term. Strictly LARGER again, same wire-sizing shape, same
+ *      benign mixed-version direction: an old smaller figure handed to a v25
+ *      library meets the carve guard and DEFERS, which is what it did anyway. The mixed-version pairing is benign in the direction that matters:
  *      an old (smaller) cached figure handed to a v25 library meets the carve
  *      guard and DEFERS, which is what the old library did anyway.
  *
@@ -14049,7 +14064,7 @@ srmech_status_t srmech_mat_matmul_c128(const srmech_mat_t *a,
  * the Cayley-Dickson rungs float/complex/quaternion/octonion/sedenion,
  * Mat/Vec/HV, the exact scalars int/Fraction/Q, the elliptic
  * EllMonomial/EllRatio/ThetaSum, the weight-axis UnaryTheta/MockQSeries/
- * HarmonicMaass, and the HDC objects One/SedenionRegister) with, per
+ * HarmonicMaass, and the HDC objects One/CDRegister) with, per
  * carrier: a one-line human-readable description, its promote/project
  * ladder + rung (NULL/0 off-ladder), its shift variables, the rc339 (`#T967`)
  * CAPABILITY block, and the DERIVED ops back-index (which registered tools

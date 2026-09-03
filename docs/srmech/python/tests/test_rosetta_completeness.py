@@ -1375,11 +1375,14 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     #                    everything past the reversibility horizon. Both are
     #                    range arithmetic over a single int; there is no kernel.
     # Exactly the shape of the cd_register CONSTRUCTOR row above, which these
-    # three sit beside, and of the sed_slots row above them — with one honest
-    # difference worth recording: sed_slots dispatches to a real C peer
-    # (srmech_sed_slots) and is zero-REACH only because the ledger walk cannot
-    # see through the native shim, whereas cdr_slots has no C peer to reach. The
-    # compute in this family is in the other eleven rows.
+    # three sit beside. ⚠️ This comment also cited "the sed_slots row above
+    # them" until rc464 closed: that row and its C peer (srmech_sed_slots) were
+    # removed later in the SAME rc that wrote the sentence, so it named a row
+    # that is no longer in this file. The contrast it drew is kept because it is
+    # still the useful one, now stated as history: sed_slots DID dispatch to a
+    # real C peer and was zero-REACH only because the ledger walk cannot see
+    # through a native shim, whereas cdr_slots has no C peer to reach at all.
+    # The compute in this family is in the other eleven rows.
     "srmech.cascade.cd_register.cdr_carry_block",
     "srmech.cascade.cd_register.cdr_slots",
     "srmech.cascade.cd_register.cdr_working_block",

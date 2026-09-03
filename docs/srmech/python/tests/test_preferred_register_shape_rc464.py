@@ -18,11 +18,15 @@ WHAT IS MEASURED
    reader reaches through ``help()`` — with the SUBSUMING SPELLING, because
    "prefer CDRegister" without ``namespace=`` and the two OPT flags is advice
    that silently changes behaviour at dim 16.
-3. EVERY OTHER REGISTER-RETURNING ENTRY POINTS AT IT. While the 16-slot register
-   still ships, its summary and its carrier description must name
-   ``cd_register`` — a reader who lands on the special case must be told where
-   the general one is. When that entry is removed this set is empty, and clause
-   1's equality is what carries the claim.
+3. EVERY OTHER REGISTER-RETURNING ENTRY POINTS AT IT — a reader who lands on a
+   special case must be told where the general one is, in the summary AND in the
+   carrier description. ⚠️ THIS POPULATION IS EMPTY AS OF rc464, because the
+   16-slot register was removed in the same arc, so the guard is DORMANT: there
+   is no second register-returning entry to check. It is kept as a forward guard
+   and made to prove itself against a SYNTHETIC pair, because a loop over an
+   empty set passes whether or not its body is correct — the shape that let
+   clause 3 read green while asserting nothing at all. Clause 1's equality is
+   what would report a second register quietly reappearing.
 4. THE CARRIER ONTOLOGY AGREES. ``carrier_schema()`` exposes carrier descriptions
    on a different path from ToolEntry summaries; both are read by consumers, so
    both are checked rather than one standing in for the other.
@@ -124,22 +128,69 @@ def test_the_python_docstrings_carry_the_same_preference():
         "the module docstring omits the subsuming spelling")
 
 
+def _steer_offenders(named_summaries, carriers):
+    """The clause-3 check, as a FUNCTION over an explicit population.
+
+    Extracted so the rule can be exercised against a synthetic pair while the
+    real population is empty. Returns the list of failures; empty means clean.
+    """
+    bad = []
+    for name, summary, carrier_name in named_summaries:
+        if not _steers_to_preferred(summary):
+            bad.append(f"{name} summary does not steer to {PREFERRED}")
+        desc = carriers.get(carrier_name, {}).get("description", "")
+        if not _steers_to_preferred(desc):
+            bad.append(f"{carrier_name} carrier description does not steer")
+    return bad
+
+
 def test_every_other_register_surface_points_at_the_preferred_one():
-    """A reader who lands on a special case must be told where the general shape
-    is — in the tool summary AND in the carrier description, which are read by
-    different consumers."""
+    """⚠️ DORMANT BY CONSTRUCTION, and the dormancy is asserted rather than
+    accidental.
+
+    The 16-slot register was the only other register-returning entry and this rc
+    removed it, so ``others`` is empty and the loop that used to carry this
+    clause now runs ZERO times — it passed while asserting nothing. The rule is
+    therefore extracted into :func:`_steer_offenders` and exercised below against
+    a synthetic pair, so that the day a second register-returning entry lands,
+    the check it meets is one that has been proved to work.
+    """
     entries = _register_entries()
     others = {name: e for name, e in entries.items() if name != PREFERRED}
-    assert len(others) == len(REGISTER_RETURNING) - 1
+    assert not others, (
+        f"a second register-returning surface appeared: {sorted(others)}. The "
+        f"clause-3 guard below is no longer dormant — feed the real population "
+        f"through _steer_offenders() here instead of asserting emptiness."
+    )
+    # The rule still applies to the real population when there IS one.
     carriers = carrier_schema()
-    for name, entry in others.items():
-        assert _steers_to_preferred(entry.summary), (
-            f"{name} does not steer a reader to {PREFERRED} — a special case "
-            f"that does not name the general shape is a fork in the docs")
-        carrier_name = entry.returns.type
-        assert _steers_to_preferred(carriers[carrier_name]["description"]), (
-            f"the {carrier_name} carrier description does not steer to the "
-            f"preferred register carrier")
+    real = [(n, e.summary, e.returns.type) for n, e in others.items()]
+    assert _steer_offenders(real, carriers) == []
+
+
+def test_the_clause_three_rule_actually_catches_a_non_steering_surface():
+    """The loop body clause 3 relies on, executed — against a constructed pair.
+
+    Without this, ``_steer_offenders`` is dead code reached by no test, and the
+    dormant guard above would be certifying a rule nothing had ever run.
+    """
+    carriers = {
+        "GoodCarrier": {"description": "PREFER cd_register — it is THE register "
+                                       "carrier and subsumes this one."},
+        "BadCarrier": {"description": "A 16-slot register carrier."},
+    }
+    steering = ("srmech.cascade.other_register",
+                "PREFER cd_register(16, ...) — it is the general shape.",
+                "GoodCarrier")
+    not_steering = ("srmech.cascade.other_register",
+                    "Construct a register. Related: cd_register, cd_navmap.",
+                    "BadCarrier")
+
+    assert _steer_offenders([steering], carriers) == []
+    offences = _steer_offenders([not_steering], carriers)
+    assert len(offences) == 2, offences
+    assert any("summary" in o for o in offences)
+    assert any("carrier description" in o for o in offences)
 
 
 def test_the_preferred_carrier_description_says_it_is_the_register_carrier():

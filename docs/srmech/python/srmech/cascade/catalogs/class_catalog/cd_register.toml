@@ -40,8 +40,8 @@
 # DECLARATIVE STATE = seven fields. dim (the rung) / D (the HV width) /
 # namespace (the address-mint namespace) / codebook (key -> minted vec) / slots
 # (slot -> (key, sign)) / coupling + error_correction (the two OPT-layer gates).
-# The private _minter / _addr_cache caches are DROPPED exactly as the 16-slot
-# descriptor drops them — minting is deterministic from (name, D), so the
+# The private _minter / _addr_cache caches are DROPPED, as the removed 16-slot
+# descriptor also dropped them — minting is deterministic from (name, D), so the
 # declarative form recomputes; the cache was a perf-only memo.
 #
 # SCALAR DEFAULTS. The [class] contract has no scalar field default (a
@@ -49,8 +49,8 @@
 # alone arrives at the adapters with D / namespace / both flags = None. The
 # adapters resolve them at USE time to DEFAULT_D / f"CD{dim}" / False — the SAME
 # rule CDRegister.__init__ applies, spelled once in _cdr_defaults so the two
-# projections cannot drift. Passing D= explicitly is still preferred, and is
-# what the 16-slot descriptor's own example does.
+# projections cannot drift. Passing D= explicitly is still preferred, and every
+# worked example below does it.
 #
 # THE OPT LAYERS ARE GATED HERE TOO. couple_working / uncouple_working / carry /
 # correct bind `coupling` / `error_correction` from the fields and raise the

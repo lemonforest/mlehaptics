@@ -285,6 +285,118 @@ it. An occupied slot with an empty codebook is fully wire-expressible — the
 codebook is a deterministic memo of `mint("VAL:" + key)` — so the C peer deferred
 on a state the pure peer answers.
 
+### 16b. The SAME defect, one function below — and this one was IN-DOMAIN
+
+§16 fixed the TOML scratch and stopped. `mc_parse_map`, the next function in the
+file, carved the **JSON** parser `8 * len + 4096`. Measured against
+`srmech_json_parse` with a compact `{"direction":[1,0,...]}`: it needs **~28
+bytes of workspace per JSON byte** — 3,184 B at 31 B of JSON, 17,072 B at 527 B —
+so 8x overflowed **from thirty-three list elements up**. Bisected: last OK
+`n = 32`, first failing `n = 33`.
+
+Same silent shape as §16, but the consequence is sharper, because this one
+declined **inside the declared domain**:
+
+| method | declared limit | actually dispatched to | after |
+|---|---|---|---|
+| `is_navigable` | `SRMECH_CD_DENSE_MAX_DIM` = 64 | dim **32** | **64** |
+| `correct` | `MC_HAMMING_MAX` = 65535 | codeword **31** | **127** measured |
+| `carry` | `MC_HAMMING_MAX` = 65535 | **26** data bits | **120** measured |
+
+So the engine declined `is_navigable` at dim 64 — a size the dense kernel
+answers, verified by direct ctypes — and three shipped places named the dense cap
+as the reason, one of them **compiled into the library** as the `[class]`
+descriptor's own `doc`. ⚠️ **Those three were not edited.** The prose stated the
+honest contract; the code did not meet it, so the code was fixed and the prose
+became true. 128 and 256 still defer, now for the reason actually given.
+
+Fixed with the bound the tree already had: **`160 * len + 65536`**, the figure
+`srmech_carrier_marshal.c` states for this same parser against
+`sizeof(srmech_json_value_t) <= 128u` — ~5.7x the measured need, and not a fresh
+guess. `srmech_make_class_run_arena_bytes` budgets the two carves (fields + args)
+as their own term; strictly larger again, riding the same v25 bump, recorded in
+`srmech.h`.
+
+**Gated, and the gate was proved to fail.**
+`test_is_navigable_dispatches_up_to_the_dense_cap` was **named for a cap of 64
+and only ever probed dim 16** — it could not have caught this. It now walks every
+power-of-two rung up to and including the cap, and a new
+`test_hamming_methods_dispatch_past_the_32_element_wall` straddles the old wall
+at 57 and 120 data bits. With the carve reverted and the library rebuilt, **both
+fail**; restored, both pass and every result matches the pure oracle.
+
+### 16c. `cd_correct` lost the whole-op C route that `sed_correct` had
+
+Subsuming the 16-slot register moved `correct` onto `cd_correct`, which called
+only the pure `hamming_decode_correct`. `sed_correct` had probed
+`srmech_hamming_decode_correct` — locate + correct + extract in ONE C call —
+since rc199. The symbol is **still exported**, and its two ctypes wrappers still
+worked, with **zero callers anywhere in the tree**: a functional, unreachable
+export, which is the dead-surface shape this rc removed three other symbols to
+avoid. Rosetta read `composition_of_c` throughout, because the syndrome
+underneath is genuinely C, so nothing gated the loss.
+
+Restored at the same layer `sed_correct` held it. Verified **exhaustively** for
+n = 2, 3, 4 over every data word and every single-bit error position plus the
+no-error case, and sampled at n = 5, 6, 7: **34,104 comparisons, 0 mismatches**
+against the pure oracle. A codeword whose length is not 2ⁿ−1 returns `None` from
+the wrapper and falls through to pure, so the `ValueError` text still comes from
+one place. `_c_claims.py` regains the claimant — ops 307 → 308, claimed symbols 403 →
+404 (rc463 shipped 310 / 406).
+
+### 16d. Two ABI pin locals shipped RED — the third occurrence of one mechanism
+
+`test_bus.py` holds its ABI pin as a local and interpolates it into the failure
+message (rc449, deliberately: the message cannot then disagree with the assert).
+That moves the literal off the assert line, where a `*_ABI_VERSION == <n>` sweep
+cannot see it, so a **grep-target comment** sits above each one naming the value.
+
+The 24 → 25 bump updated **both comments and neither local**, and both tests
+failed. §18 below lists this file as a site the bump swept — it did, and it
+edited the targets instead of the values. rc452 and rc455 did the same thing;
+this is the **third**. A grep target is a message to a human reader, and all
+three bumps were driven by a script that read it, did exactly what it said, and
+stopped.
+
+The first failure message also still credited the bump to rc455's arena change
+("23 → 24"); it now names the removal that actually caused it.
+
+**The remedy is no longer prose.** `tests/test_abi_pin_sites_agree_rc464.py`
+parses both spellings out of `tests/` — the comment form via `tokenize` (so this
+gate's own docstring examples are excluded *structurally*, not by exempting its
+file) and the local form via `ast` (any int bound to a name matching `/abi/i`) —
+and compares each to the live `EXPECTED_ABI_VERSION`. That value is an `int` with
+or without a library, so **the gate runs on the pure path**. Measured tree-wide:
+3 comments, 2 locals, and the 2 locals were exactly the stale ones — no
+population to grandfather, so it is **strict-zero, not a ceiling**. It carries a
+negative control and a planted-defect replay, because a scan that matched nothing
+would read green.
+
+### 16e. A correction that was itself false
+
+The rc464 note correcting rc297's ledger entry claimed `CEIL_WIRE_GLUE_GAPS`
+"is not 10 **and was not 10 when this was written**". Measured: `git log -S` names
+**1694b9217 (rc297)** as the commit that added the clause, and that same commit's
+`test_rosetta_transitive_standalone.py:437` reads `CEIL_WIRE_GLUE_GAPS = 10`. The
+value was 11 at rc281, 10 at rc297, and first reached 0 at rc334. **rc297
+recorded a true measurement that later went stale**, and the correction accused
+it of a falsehood it did not commit — inside a block the file calls a measurement
+log. The third copy of the same correction (`test_non_compute_ratchet_rc170.py`)
+never carried the false half. Fixed in both copies; the present-tense half (the
+live pin is 0) was always right and stands.
+
+### 16f. Three statements this rc made false, in two shipped files
+
+* `srmech.h` still told a bare-C reader the carrier registry exposes
+  `One/SedenionRegister`. **Both twins** — `tool_schema.py` and the generated
+  `srmech_tool_registry.c` — say `One/CDRegister`, and the registry itself went
+  29 → 28 carriers with zero `SedenionRegister` rows in this same rc. The header
+  was the one copy missed.
+* `cd_register.toml` referred twice, in the present tense, to what "the 16-slot
+  descriptor" does — a file this rc **deleted**. Two statements, one file. That file ships byte-for-byte
+  inside `srmech_class_registry.c`, which is precisely the ground §21b used to
+  justify fixing the sibling `doc` field; the comment block was not swept then.
+
 ### 17. `SedenionRegister` is REMOVED
 
 The module, its `[class]` TOML, its carrier row, its `ToolEntry`, its curated

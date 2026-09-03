@@ -2198,7 +2198,14 @@ size_t srmech_make_class_run_arena_bytes(size_t toml_len, size_t fields_len,
      * workspace is now the parser's OWN stated bound, added as its own term
      * rather than folded into the 128x multiplier -- a descriptor big enough to
      * exceed the old hand-rolled 32x heuristic DEFERRED every method of its
-     * class with no other symptom. rc335 (#948/#887): ALSO budget the One.flat()/
+     * class with no other symptom. The SAME defect had a second instance one
+     * function below, found while closing rc464: mc_parse_map carved the JSON
+     * parser's workspace at a hand-rolled `8u * len + 4096u` against a MEASURED
+     * need of ~28x, so any bind list past 32 elements DEFERRED. That carve now
+     * uses the 160x + 64 KiB bound srmech_carrier_marshal.c states for the same
+     * parser, and the two carves (fields + args) are budgeted here as their own
+     * `131072 + 160x` term rather than being left to the 128x mval multiplier,
+     * which never covered them. rc335 (#948/#887): ALSO budget the One.flat()/
      * One.scalar() bignum-emit thunks — the srmech_the_one / srmech_one_scalar
      * workspace (28 flat carriers + the series scratch; scalar's is the larger,
      * with 8x accumulation headroom) + the 28 decimal-render buffers. int64 theta
@@ -2213,6 +2220,7 @@ size_t srmech_make_class_run_arena_bytes(size_t toml_len, size_t fields_len,
     assert(one_ws > 0u);
     assert(toml_ws > toml_len);
     return base + one_ws + 65536u + toml_ws
+           + 131072u + 160u * (fields_len + args_len)
            + 128u * (toml_len + fields_len + args_len);
 }
 
@@ -2225,7 +2233,25 @@ static int mc_parse_map(const char *json, size_t len, srmech_marshal_arena_t *a,
     assert(a != NULL && out != NULL);
     assert(a->cur <= a->end);
     if (json == NULL || len == 0u) { *out = mc_new(a, SRMECH_MVAL_DICT); return *out != NULL; }
-    jws_len = 8u * len + 4096u;
+    /* rc464 (`#T1188`): 160x + 64 KiB, the bound srmech_carrier_marshal.c uses
+     * for THIS SAME parser, replacing a hand-rolled `8u * len + 4096u`.
+     *
+     * ⚠️ THAT HEURISTIC WAS A SILENT IN-DOMAIN CLIFF, not a tight fit. Measured
+     * against srmech_json_parse: a compact `{"direction":[1,0,...]}` needs
+     * ~28 bytes of workspace per JSON byte (3184 B at 31 B of JSON, 17072 B at
+     * 527 B), so 8x overflowed from THIRTY-THREE list elements up -- 33, 48, 64,
+     * 128 and 256 all OVERFLOWED while 32 fitted. The carve failing returns 0,
+     * which is the engine's DEFER, so every method taking a list longer than 32
+     * fell back to pure with no symptom: is_navigable DEFERRED at dim 64 even
+     * though SRMECH_CD_DENSE_MAX_DIM is 64 and the dense kernel answers there,
+     * `correct` at codeword length 63, `carry` at 57 data bits against a
+     * declared MC_HAMMING_MAX of 65535. The engine's own comments blamed the
+     * dense cap, which was true only above 64 and never the reason below it.
+     *
+     * 160x is ~5.7x the measured need, and it is not a fresh guess: it is the
+     * figure srmech_carrier_marshal_arena_bytes already asserts against
+     * `sizeof(srmech_json_value_t) <= 128u` for the same call. */
+    jws_len = 160u * len + 65536u;
     jws = mc_carve(a, jws_len);
     if (jws == NULL) { return 0; }
     if (srmech_json_parse(json, len, jws, jws_len, &jroot) != SRMECH_OK) { return 0; }

@@ -214,7 +214,21 @@ CEIL_FRAME_UNADJUDICATED = {
     #     harvester records `status: ok`, and the probe reaches it.
     # That one of the three drained while two did not is what shows the raise
     # is about the operand's TYPE, not about the family being under-exampled.
-    "NO_ARG": 280,          # no harvested argument binding at all
+    # rc464 (`#T1188`) DRAIN, 280 -> 279, and it is a REMOVAL rather than a
+    # discharge — the same distinction this rc recorded when it lowered
+    # CEIL_REGISTRY_GAPS 157 -> 145 and CEIL_OPEN_REGISTRATION 97 -> 85. The op
+    # that left is `srmech.cascade.sedenion_register`, whose rc463 ledger row was
+    # `{"status": "no_worked_snippet", "n_calls": 0}` -- classified NO_ARG by
+    # frame_probe's `if not base`. Removing the 16-slot register removed it; the
+    # census population moved 720 -> 733 (+14 cdr_* registrations, -1 this
+    # factory) and NONE of the fourteen landed in NO_ARG, so the measured count
+    # fell to 279 while the ceiling stayed at 280.
+    # ⚠️ CAUGHT LATE, and worth naming: this rc raised NO_INT_INPUT and drained
+    # BASE_RAISES in the same edit, and left the one bucket that moved for
+    # neither reason untouched. A ceiling carrying a slot the tree can no longer
+    # justify is a free pass for the next rc, which is the shape this file
+    # exists to refuse.
+    "NO_ARG": 279,          # no harvested argument binding at all
     # rc442 (local task T1150): 152 -> 153, `genome_group`. It DID drain out of NO_ARG
     # (it binds `label` and `dim`), and landed one tier along in the same structural
     # class: neither bound argument is an INTEGER the frame axis could translate —

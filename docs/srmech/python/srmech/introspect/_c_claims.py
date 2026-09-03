@@ -345,6 +345,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_bigint_from_dec',
         'srmech_bigint_to_dec',
     ),
+    'srmech.cascade.cd_register.cd_correct': ('srmech_hamming_decode_correct',),
     'srmech.cascade.cd_register.cd_navigate': ('srmech_cd_navigate',),
     'srmech.cascade.cd_register.cd_navmap': ('srmech_cd_navmap',),
     'srmech.cascade.cd_register.cd_navmap_is_signed_permutation': ('srmech_cd_navmap_is_signed_permutation',),

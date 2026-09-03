@@ -382,10 +382,29 @@ def cd_correct(codeword: Sequence[int]) -> Dict[str, Any]:
     """Locate + correct a single-bit error in an EC-block codeword and recover the
     carried payload — the EC/carry layer's read (rc301, `#T938`).
 
-    Composes :func:`~srmech.cascade.hamming_decode_correct` (the syndrome
-    dispatches to ``srmech_hamming_syndrome``). Returns
-    ``{"data", "error_position", "corrected_codeword"}``. Single-error-correcting
-    (minimum distance 3). Lean-ALU XOR; no float, no ``abs()``."""
+    Dispatches to the ``srmech_hamming_decode_correct`` C peer when HAS_NATIVE —
+    the whole locate + correct + extract in ONE C call. The pure
+    :func:`~srmech.cascade.hamming_decode_correct` (whose syndrome dispatches to
+    ``srmech_hamming_syndrome``) is the fallback AND the parity oracle, and it is
+    what raises the exact ``ValueError`` for a codeword whose length is not
+    2ⁿ−1 — the native wrapper returns ``None`` for that input rather than
+    guessing, so the error text comes from one place either way.
+
+    ⚠️ rc464 (`#T1188`): this probe is NOT new behaviour, it is RESTORED. The
+    16-slot register's ``sed_correct`` carried it from rc199, and subsuming that
+    op into this one dropped it — leaving ``srmech_hamming_decode_correct``
+    exported with a live ctypes wrapper and ZERO Python claimants, which is the
+    dead-exported-surface shape this rc removed three other symbols to avoid.
+    Rosetta kept reading ``composition_of_c`` throughout, because the syndrome
+    call underneath is genuinely C, so nothing gated the loss of the whole-op
+    route.
+
+    Returns ``{"data", "error_position", "corrected_codeword"}``.
+    Single-error-correcting (minimum distance 3). Lean-ALU XOR; no float, no
+    ``abs()``."""
+    native = _native.hamming_decode_correct_c(codeword)
+    if native is not None:
+        return native
     return hamming_decode_correct(codeword)
 
 
