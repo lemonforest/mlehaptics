@@ -317,34 +317,17 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # rc207 C peer ``srmech_winding_fold`` (``c_dispatched`` in the Rosetta
     # ledger).
     "srmech.cascade.one.winding_fold",
-    # cascade.sedenion_register.sed_* (v0.7.5rc140, #564 / PR #687 §31 /
-    # [[feedback_prefer_config_driven_toml_classes]]) — the flat cascade-op
-    # adapter layer that the packaged ``sedenion_register.toml`` ([class]
-    # SedenionRegister) binds its methods to (the genome two-layer pattern: each
-    # adapter rehydrates a transient register from the declarative D/codebook/slots
-    # fields + delegates to the existing method, no logic duplication). Each takes
-    # structured ``slots``/``codebook``/``D`` args → no MCP coercer, reachable ONLY
-    # via the make_class class surface, NOT the MCP tool list — exempt exactly like
-    # the ``one.one_*`` accessors above.
-    "srmech.cascade.sedenion_register.sed_write",
-    "srmech.cascade.sedenion_register.sed_materialize",
-    "srmech.cascade.sedenion_register.sed_read_unbind",
-    "srmech.cascade.sedenion_register.sed_clean",
-    "srmech.cascade.sedenion_register.sed_slots",
-    "srmech.cascade.sedenion_register.sed_couple_working",
-    "srmech.cascade.sedenion_register.sed_uncouple_working",
-    "srmech.cascade.sedenion_register.sed_carry",
-    "srmech.cascade.sedenion_register.sed_correct",
-    "srmech.cascade.sedenion_register.sed_navmap",
-    "srmech.cascade.sedenion_register.sed_navigate",
-    "srmech.cascade.sedenion_register.sed_is_navigable",
     # cascade.cd_register.* (v0.9.0rc297, `#934`) — the GENERAL N-slot
     # Cayley–Dickson register. The discoverable surface is registered under
     # STABLE flat names ``srmech.cascade.{cd_register,cd_navmap,cd_navigate,
     # cd_navmap_is_signed_permutation}`` (which ARE registered); the
     # submodule-dotted names below are the SAME objects re-exported flat —
-    # exempt exactly like the cayley_dickson.* re-exports below and the
-    # sedenion_register.* ones above.
+    # exempt exactly like the cayley_dickson.* re-exports below. (The twelve
+    # ``sed_*`` rows and the ``sedenion_register`` re-export that stood here
+    # until rc464 (`#T1188`) left with the 16-slot register itself; the fourteen
+    # ``cdr_*`` adapters that replace them are NOT exempt — each ships a real
+    # ``ToolEntry``, which is why the registry ceilings came DOWN rather than
+    # this exemption list going up.)
     "srmech.cascade.cd_register.cd_register",
     "srmech.cascade.cd_register.cd_navmap",
     "srmech.cascade.cd_register.cd_navigate",
@@ -408,13 +391,6 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.cascade.cayley_dickson.closure",
     "srmech.cascade.cayley_dickson.left_orbit",
     "srmech.cascade.cayley_dickson.min_generating_set",
-    # cascade.sedenion_register.* — the sedenion-addressable RBS-HDC instrument
-    # (v0.7.4rc1 / #687 §31 / F465 / F468). The factory is registered under the
-    # STABLE flat name ``srmech.cascade.sedenion_register`` (which IS
-    # registered); the submodule-dotted name is the same object re-exported flat.
-    # ``SedenionRegister`` is a class (not coverage-walked). Exempt exactly like
-    # the cayley_dickson re-exports above.
-    "srmech.cascade.sedenion_register.sedenion_register",
     # matrix_cascades.eigvec_exact / eigvec_exact_float (v0.9.0rc23 — rc-D exact
     # eigenvectors). These RETURN ``Qalg`` components (the exact ℚ(α) number-field
     # carrier), which is NOT MCP-serializable — exactly like the ``Qalg`` carrier

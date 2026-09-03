@@ -7968,7 +7968,7 @@ def _register_primitive_class_tools() -> None:
                     "Mat/Vec/HV, the exact scalars int/Fraction/Q, the "
                     "elliptic EllMonomial/EllRatio/ThetaSum, the "
                     "weight-axis UnaryTheta/MockQSeries/HarmonicMaass, and "
-                    "the HDC objects One/SedenionRegister) returns {'name', "
+                    "the HDC objects One/CDRegister) returns {'name', "
                     "a one-line human-readable 'description' (what it is, "
                     "its variable semantics, when to use it), 'ladder', "
                     "'rung', 'variables', 'ops': {'consumes', 'produces'}} "
@@ -14350,63 +14350,33 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("bool", "True for dim in {1,2,4,8}, else False"),
         ),
-        # Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM
-        # §31 of PR #687; F465 + F468). Registered under the STABLE flat factory
-        # name ``srmech.cascade.sedenion_register``; the submodule-dotted
-        # ``cascade.sedenion_register.sedenion_register`` is the same object
-        # re-exported flat (exempt in test_tool_schema_coverage). The class
-        # SedenionRegister is not a module-level function (not coverage-walked).
-        ToolEntry(
-            name="srmech.cascade.sedenion_register", owner="srmech",
-            category="cascade",
-            summary="Construct a SedenionRegister — the sedenion (dim-16) ADDRESSABLE "
-                    "RBS-HDC instrument (UPSTREAM §31; F465/F468). The sedenion box "
-                    "made into a named-register instrument: 16 slots e0..e15 — the "
-                    "octonion block e0..e7 is the ≤7 REVERSIBLE working word "
-                    "(hypercomplex_couple, bit-exact ≤𝕆), e8..e15 the EC/CARRY block "
-                    "(Hamming GF(2), §30). HDC ops INSTEAD of ALU: random-access-by-name "
-                    "(hdc.bind + nearest-codebook clean = associative superposition, "
-                    "classical, no quantum cost). The genuinely-new surface is "
-                    ".navigate(j) — the address↔Cayley–Dickson homomorphism (right-mult "
-                    "every slot-name by e_j so addressing respects e_i·e_j=±e_k, the "
-                    "cd_basis_product cocycle) — and .is_navigable(direction) the "
-                    "reversibility gate (left_mult_is_invertible): single-basis nav is "
-                    "always a signed permutation, composite-direction nav reversible "
-                    "ONLY ≤𝕆 (the Hurwitz horizon). Pure composition of shipped "
-                    "primitives — no new algebra, no abs() (sign is Class C chiral_flip). "
-                    "The WHOLE instrument is numpy-free: storage + coupler route "
-                    "through mint_vector / the Class-M hdc cascades, and "
-                    "navigate/is_navigable/carry/correct are pure address-algebra."
-                    + PUBLISH_OPT_IN_NOTE,
-            parameters=(
-                P("D", "int", False, "hypervector width in bits (default 8192; the RBS-HDC dimension)"),
-                P("codebook", "dict", False, "optional preset {name: bytes} value-vectors for read cleanup"),
-            ),
-            returns=R("SedenionRegister",
-                      "the instrument — .write/.read (addressable storage), "
-                      ".couple_working/.uncouple_working (≤7 reversible word), "
-                      ".carry/.correct (EC block), .navigate/.is_navigable (hyper-loop)"),
-        ),
-        # The GENERAL N-slot Cayley–Dickson register (v0.9.0rc297; `#934`) — the
-        # 16-slot instrument above generalised to any power-of-two dim in
-        # [1, CD_MAX_DIM]. Registered under STABLE flat names; the submodule-dotted
-        # ``cascade.cd_register.*`` are the same objects re-exported flat (exempt in
-        # test_tool_schema_coverage). The class CDRegister is not a module-level
-        # function (not coverage-walked). SedenionRegister deliberately REMAINS an
-        # independent class, not an n=16 alias — it is the oracle the general
-        # register's faithfulness is gated against.
+        # THE addressable register (v0.9.0rc297; `#934`. rc464 `#T1188`: the
+        # ONLY register entry — the 16-slot SedenionRegister it subsumes was
+        # REMOVED, and its spelling here is cd_register(16, namespace='SEDENION',
+        # coupling=True, error_correction=True)). Any power-of-two dim in
+        # [1, CD_MAX_DIM]. Registered under
+        # STABLE flat names; the submodule-dotted ``cascade.cd_register.*`` are the
+        # same objects re-exported flat (exempt in test_tool_schema_coverage). The
+        # class CDRegister is not a module-level function (not coverage-walked).
+        # Faithfulness at dim 16 is gated against the 16-slot register's RECORDED
+        # behaviour (tests/sedenion_register_golden_rc464.ndjson, digest-pinned),
+        # not against a live peer that could drift with its subject.
         ToolEntry(
             name="srmech.cascade.cd_register", owner="srmech",
             category="cascade",
-            summary="Construct a CDRegister — the GENERAL N-slot Cayley–Dickson "
-                    "ADDRESSABLE RBS-HDC register (`#934`). The dim-16 "
-                    "sedenion_register generalised to any power-of-two dim in "
-                    "[1, 64]: dim named slots e0..e{dim-1}, with e0..e7 the octonion "
+            summary="Construct a CDRegister — THE addressable RBS-HDC register "
+                    "srmech ships (`#934`; PREFERRED shape since rc464). Reach for "
+                    "this whenever you want an addressable register: the slot count "
+                    "is a PARAMETER, so one object serves every rung and the dim-16 "
+                    "register REMOVED in rc464 is the spelling cd_register(16, "
+                    "namespace='SEDENION', coupling=True, error_correction=True) "
+                    "rather than a second class. Any power-of-two dim in "
+                    "[1, 256]: dim named slots e0..e{dim-1}, with e0..e7 the octonion "
                     "reversible working block at EVERY rung and the remainder the "
                     "carry/EC block (more slots buy ADDRESS SPACE, never a longer "
                     "reversible word — the Hurwitz cap stays 7). The slot bound is the "
                     "ONLY generalisation: every sign and index rule is shared with the "
-                    "16-slot register through cd_basis_product, so there is no second "
+                    "16-slot special case through cd_basis_product, so there is no second "
                     "algebra. LEGITIMATE PAST THE HURWITZ WALL because addressing rides "
                     "on the basis product being a SIGNED PERMUTATION (e_i·e_j=±e_k), "
                     "while zero divisors are built from SUMS of basis elements — "
@@ -14414,13 +14384,17 @@ def _register_primitive_class_tools() -> None:
                     "dim≥16 (and ~95% of generic pairs at 32) leaves addressing intact "
                     "(F1274/F1275). namespace= selects the address-mint namespace "
                     "(default 'CD{dim}'); namespace='SEDENION' at dim=16 reproduces the "
-                    "shipped SedenionRegister BIT-EXACTLY at every D — the faithfulness "
-                    "gate. Capacity is D-bounded and MORE SLOTS NEED MORE D: a shortfall "
+                    "16-slot register REMOVED in rc464 BIT-EXACTLY at every D "
+                    "(coupling=True, error_correction=True complete the "
+                    "spelling — that register's OPT layers were unconditional) "
+                    "— the faithfulness gate, held against its RECORDED "
+                    "behaviour rather than a live peer. "
+                    "Capacity is D-bounded and MORE SLOTS NEED MORE D: a shortfall "
                     "at fixed D is a capacity fact, not an algebra fact — sweep D. "
                     "numpy-free; no abs() (sign is Class-K pin-slot ∘ Class-C)."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("dim", "int", True, "slot count — a Cayley–Dickson algebra dimension; a power of two in [1, 64] (8 𝕆 / 16 𝕊 / 32 𝕋 / 64)"),
+                P("dim", "int", True, "slot count — a Cayley–Dickson algebra dimension; a power of two in [1, 256] (8 𝕆 / 16 𝕊 / 32 𝕋 / 64 / 128 / 256)"),
                 P("D", "int", False, "hypervector width in bits (default 8192; the RBS-HDC dimension)"),
                 P("codebook", "dict", False, "optional preset {name: bytes} value-vectors for read cleanup"),
                 P("namespace", "Optional[str]", False, "address-mint namespace (default 'CD{dim}'); 'SEDENION' at dim=16 reproduces the shipped register bit-exactly"),
@@ -14444,13 +14418,13 @@ def _register_primitive_class_tools() -> None:
             summary="The signed pointer-advance permutation for right-multiply-by-e_j "
                     "over dim slots: maps each slot i to (k, sign) where e_i·e_j = "
                     "sign·e_k (the cd_basis_product cocycle). The general-rung form of "
-                    "SedenionRegister.navmap; at dim=16 bit-identical to it. ALWAYS a "
+                    "the removed 16-slot register's navmap; bit-identical at dim=16. ALWAYS a "
                     "signed permutation — reversible at EVERY rung for a single basis "
                     "direction, including past the Hurwitz wall (F1275). Integer-only; "
                     "the JPL-clean C peer srmech_cd_navmap returns the identical map."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("dim", "int", True, "algebra dimension — a power of two in [1, 64]"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
                 P("j", "int", True, "navigation basis direction in [0, dim)"),
             ),
             returns=R("dict", "{i: (dest, sign)} over all dim slots; sign in {+1,-1}"),
@@ -14462,12 +14436,12 @@ def _register_primitive_class_tools() -> None:
                     "at dim slots, composing the CLASS-C signs: out_signs[m] = "
                     "signs[m]·s where e_{slots[m]}·e_j = s·e_{out_slots[m]}. The numeric "
                     "core of CDRegister.navigate (the key strings ride alongside in the "
-                    "caller); at dim=16 bit-identical to the sedenion navigate routing. "
+                    "caller); at dim=16 bit-identical to the removed 16-slot routing. "
                     "Integer-only; the JPL-clean C peer srmech_cd_navigate returns the "
                     "identical routing. No abs() — the sign is composed, never dropped."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("dim", "int", True, "algebra dimension — a power of two in [1, 64]"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
                 P("j", "int", True, "navigation basis direction in [0, dim)"),
                 P("slots", "Sequence[int]", True, "occupied slot indices, each in [0, dim)"),
                 P("signs", "Sequence[int]", True, "the Class-C sign of each record, each in {+1,-1}"),
@@ -14494,13 +14468,13 @@ def _register_primitive_class_tools() -> None:
                     "layer before trusting it."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("dim", "int", True, "algebra dimension — a power of two in [1, 64]"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
             ),
             returns=R("bool", "True iff the premise holds at this rung"),
         ),
         # The two OPTIONAL layers of the general N-slot register as pure functions
         # (v0.9.0rc301; `#T938`) — the reversible working word (couple/uncouple) +
-        # the Hamming EC block (carry/correct), ported from SedenionRegister onto
+        # the Hamming EC block (carry/correct), ported from the 16-slot register onto
         # CDRegister as its dim-scaled generalisation. Registered under STABLE flat
         # names ``srmech.cascade.cd_{couple_working,uncouple_working,carry,
         # correct}``; the submodule-dotted ``cascade.cd_register.*`` are the same
@@ -14525,7 +14499,7 @@ def _register_primitive_class_tools() -> None:
                     "octonion multiply dispatches to the standalone-C "
                     "srmech_hypercomplex_couple_q61) — reversed exactly by "
                     "cd_uncouple_working (T̄·(T·q)=‖T‖²·q, F437). At dim 16 bit-exact "
-                    "with the shipped SedenionRegister.couple_working. No abs() (the "
+                    "with the removed 16-slot register's couple_working. No abs() (the "
                     "coupler's sign is Class-K ∘ Class-C). Class M ∘ C ∘ N."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
@@ -14598,6 +14572,345 @@ def _register_primitive_class_tools() -> None:
             returns=R("dict",
                       "{'data': k corrected payload bits, 'error_position': int "
                       "(0=clean), 'corrected_codeword': the repaired 2ⁿ−1-bit word}"),
+        ),
+        # ── the [class] CDRegister binding surface (v0.9.0rc464; `#T1188`) ──
+        # The fourteen class-shaped flat adapters the packaged
+        # ``cd_register.toml`` binds its methods to (the genome / 16-slot
+        # two-layer pattern: each rehydrates a transient CDRegister from the
+        # declarative field-state and delegates to the existing method, so the
+        # declarative class is byte-identical to the Python class with no logic
+        # duplication).
+        #
+        # THEY ARE REGISTERED, NOT ALLOWLISTED, and that is a decision rather
+        # than a default. Their 16-slot predecessors (``sed_*``) sit in the
+        # registry-completeness allowlist as OPEN_REGISTRATION rows, and copying
+        # that would have been the cheap move — but ``CEIL_OPEN_REGISTRATION``
+        # is DOWN-ONLY and equality-asserted, so fourteen more allowlist rows
+        # cannot land. The alternative, keeping them off ``__all__``, is worse
+        # than it looks: it is exactly the blind spot rc407 recorded, a shipped
+        # descriptor naming ops no census can see. So they are registered, with
+        # the full ripple that costs.
+        #
+        # Every one takes structured ``slots`` / ``codebook`` state, so the
+        # practical reach is the make_class class surface rather than a hand
+        # call. They are ``mcp_callable`` anyway, and that is MEASURED rather
+        # than assumed: all fourteen answer through ``invoke_tool`` when the
+        # state is passed in its WIRE form — a slot map crosses JSON and the
+        # ``srmech_mval_t`` DICT as STR keys with LIST pairs (which
+        # ``_cdr_rehydrate`` normalises), and a codebook crosses EMPTY because
+        # the register mints value vectors on demand, so an empty codebook with
+        # an occupied slot map is a fully wire-expressible NON-EMPTY register.
+        # A codebook that already HOLDS minted vectors cannot cross — those are
+        # raw bytes — which is a limit of JSON, not of these entries.
+        # ``tests/test_wire_invocability_rc464.py`` drives every one that way.
+        ToolEntry(
+            name="srmech.cascade.cdr_write", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.write — store content name `key` at slot "
+                    "e{slot} with a Class-C sign, returning the ``mutates`` "
+                    "contract's (return_value, {field: new}) pair so the caller "
+                    "replaces `slots` + `codebook` in place. Minting the value vec "
+                    "grows the codebook; the slot-map records the assignment. "
+                    "Class M ∘ C." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("slot", "int", True, "target slot index, in [0, dim)"),
+                P("key", "str", True, "the content NAME stored at that slot"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
+                P("D", "Optional[int]", True,
+                  "hypervector width in bits; None resolves to the 8192 default"),
+                P("namespace", "Optional[str]", True,
+                  "address-mint namespace; None resolves to f'CD{dim}'"),
+                P("codebook", "dict", True, "{name: bytes} value-vectors (may be empty)"),
+                P("slots", "dict", True, "the current {slot: (key, sign)} assignment"),
+                P("sign", "int", False, "keyword-only Class-C sign in {+1,-1}; default +1"),
+            ),
+            returns=R("sequence",
+                      "(None, {'slots': …, 'codebook': …}) — the mutates pair"),
+            smoke_test_hint={"slot": "0", "key": "'alpha'", "dim": "4",
+                             "D": "256", "namespace": "None",
+                             "codebook": "{}", "slots": "{}"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_materialize", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.materialize — the associative superposition "
+                    "bytes, bundle_k bind(ADDR[k], value_k) over the occupied slots "
+                    "(Class M). Raises on an empty register. Capacity is D-bounded "
+                    "and MORE SLOTS NEED MORE D: a shortfall at a D adequate for a "
+                    "lower rung is a capacity fact, not an algebra fact."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
+                P("D", "Optional[int]", True,
+                  "hypervector width in bits; None resolves to the 8192 default"),
+                P("namespace", "Optional[str]", True,
+                  "address-mint namespace; None resolves to f'CD{dim}'"),
+                P("codebook", "dict", True, "{name: bytes} value-vectors (may be empty)"),
+                P("slots", "dict", True, "the {slot: (key, sign)} assignment"),
+            ),
+            returns=R("bytes", "the D-bit associative bundle, D/8 bytes"),
+            smoke_test_hint={"dim": "4", "D": "256", "namespace": "None",
+                             "codebook": "{}", "slots": "{0: ('alpha', 1)}"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_read_unbind", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.read CHAIN stage 1 — unbind slot e{slot}'s "
+                    "minted address from the materialised bundle, yielding the NOISY "
+                    "vector stage 2 cleans. None on an empty register (the read "
+                    "short-circuit stage 2 turns into (None, +1)). The visible "
+                    "intermediate of a 2-stage cascade, not a private step."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("slot", "int", True, "slot to unbind, in [0, dim)"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
+                P("D", "Optional[int]", True,
+                  "hypervector width in bits; None resolves to the 8192 default"),
+                P("namespace", "Optional[str]", True,
+                  "address-mint namespace; None resolves to f'CD{dim}'"),
+                P("codebook", "dict", True, "{name: bytes} value-vectors"),
+                P("slots", "dict", True, "the {slot: (key, sign)} assignment"),
+            ),
+            # rc464 stage 3: `bytes` -> `bytes | None`. The summary already said
+            # "None when the register is empty", so the TYPE and the PROSE
+            # beside it disagreed — and the empty register is not an edge case
+            # here, it is the read short-circuit the 2-stage chain is built on
+            # (stage 2 turns that None into `(None, +1)`). Caught by
+            # test_mcp.py::test_advertised_tool_invocable, which synthesises an
+            # empty codebook / empty slots and compares the OBSERVED type to the
+            # advertised one; the `dict | None` / `list | None` entries above are
+            # the precedent for the spelling.
+            returns=R("bytes | None",
+                      "the noisy unbound vector; None when the register is empty"),
+            # The codebook is built by an actual cdr_write rather than typed
+            # as a literal: a value-vector is a minted 32-byte HV and a
+            # hand-copied one would be a fabricated output with extra
+            # steps. An EMPTY codebook here would exercise only the
+            # short-circuit and document None as the answer.
+            smoke_test_hint={"slot": "0", "dim": "4", "D": "256",
+                             "namespace": "None",
+                             "codebook": ("__import__('srmech').cascade.cdr_write(0, 'alpha', 4, 256, None, {}, {})[1]['codebook']"),
+                             "slots": "{0: ('alpha', 1)}"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_clean", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.read CHAIN stage 2 — nearest-codebook clean "
+                    "of a noisy unbound vector into (key, sign). (None, +1) when the "
+                    "noisy vector is absent. Class-K magnitude by an explicit "
+                    "pin-slot sign-branch, never abs(); the winning polarity rides "
+                    "separately as the Class-C sign." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("noisy", "bytes", True,
+                  "the stage-1 unbound vector, or None for the empty-register case"),
+                P("codebook", "dict", True,
+                  "{name: bytes} value-vectors to clean against ('__pad__' skipped)"),
+            ),
+            returns=R("sequence", "(key, sign) — the recovered name + its Class-C sign"),
+            # Both arguments come from REAL upstream calls — the codebook from
+            # a cdr_write, the noisy vector from the stage-1 cdr_read_unbind
+            # that actually precedes this stage. That is what makes the
+            # captured output the CHAIN's answer rather than a stub's.
+            smoke_test_hint={
+                "noisy": ("__import__('srmech').cascade.cdr_read_unbind("
+                          "0, 4, 256, None, __import__('srmech').cascade.cdr_write(0, 'alpha', 4, 256, None, {}, {})[1]['codebook'], "
+                          "{0: ('alpha', 1)})"),
+                "codebook": ("__import__('srmech').cascade.cdr_write(0, 'alpha', 4, 256, None, {}, {})[1]['codebook']"),
+            },
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_slots", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.slots — a copy of the {slot: (key, sign)} "
+                    "assignment, with the STR-keyed wire form normalised back to int "
+                    "keys. A pure reshape: it does NOT validate the slot domain, "
+                    "because the method it mirrors does not either."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("slots", "dict", True,
+                  "the {slot: (key, sign)} assignment, int- or str-keyed"),
+            ),
+            returns=R("dict", "{int slot: (key, sign)} — a copy, int-keyed"),
+            smoke_test_hint={"slots": "{'0': ('alpha', 1), '3': ('beta', -1)}"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_working_block", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.working_block — e0..e7, the octonion "
+                    "reversible working block, truncated when dim < 8. The Hurwitz "
+                    "cap is 7 imaginary slots at EVERY rung: going to 32 / 64 / 256 "
+                    "slots buys ADDRESS SPACE, never a longer reversible word."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
+            ),
+            returns=R("sequence", "the working-block slot indices, ascending"),
+            smoke_test_hint={"dim": "16"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_carry_block", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.carry_block — e8..e{dim-1}, everything past "
+                    "the reversibility horizon; the block the Hamming GF(2) EC half "
+                    "rides over. Empty at dim <= 8." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
+            ),
+            returns=R("sequence", "the carry-block slot indices, ascending"),
+            smoke_test_hint={"dim": "16"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_couple_working", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.couple_working — OPT layer 1, GATED on the "
+                    "register's `coupling` flag. Bind <= min(dim, 8) − 1 values into "
+                    "one reversible working word (the canonical Class-M bind), "
+                    "reading the dim-scaled cap and never a hardcoded 7. RAISES "
+                    "ValueError on a register built for pure addressing — the gate "
+                    "is the point, not an accident." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("vals", "list[float]", True,
+                  "the streams to bind; at most min(dim, 8) − 1 of them"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
+                P("coupling", "bool", True,
+                  "the register's OPT-layer-1 gate; False/None RAISES"),
+            ),
+            returns=R("list[float]", "the reversible working word"),
+            smoke_test_hint={"vals": "[1.5, -2.25, 3.0]", "dim": "16",
+                             "coupling": "True"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_uncouple_working", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.uncouple_working — OPT layer 1, GATED on "
+                    "`coupling`. The exact inverse of cdr_couple_working: recover the "
+                    "bound streams bit-exactly (Class-M unbind). RAISES ValueError on "
+                    "a register built for pure addressing." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("word", "list[float]", True, "a reversible working word"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
+                P("coupling", "bool", True,
+                  "the register's OPT-layer-1 gate; False/None RAISES"),
+            ),
+            returns=R("list[float]", "the recovered streams"),
+            smoke_test_hint={
+                "word": ("__import__('srmech').cascade.cdr_couple_working("
+                         "[1.5, -2.25, 3.0], 16, True)"),
+                "dim": "16", "coupling": "True"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_carry", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.carry — OPT layer 2, GATED on the register's "
+                    "`error_correction` flag. Hamming(2ⁿ−1)-encode overflow bits into "
+                    "the EC block. `n` is an axis INDEPENDENT of dim and rides as a "
+                    "pass-through kwarg (default 3), not a bind — a bind would make it "
+                    "mandatory. RAISES ValueError on a register built for pure "
+                    "addressing." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("overflow_bits", "list[int]", True, "the payload bits (0/1)"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
+                P("error_correction", "bool", True,
+                  "the register's OPT-layer-2 gate; False/None RAISES"),
+                P("n", "int", False,
+                  "keyword-only Hamming order — a 2ⁿ−1-bit codeword; default 3"),
+            ),
+            returns=R("list[int]", "the 2ⁿ−1-bit codeword (0/1 list)"),
+            smoke_test_hint={"overflow_bits": "[1, 0, 1, 1]", "dim": "16",
+                             "error_correction": "True"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_correct", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.correct — OPT layer 2, GATED on "
+                    "`error_correction`. Locate + correct a single-bit error in an "
+                    "EC-block codeword and recover the carried payload "
+                    "(single-error-correcting, minimum distance 3). RAISES ValueError "
+                    "on a register built for pure addressing." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("codeword", "list[int]", True, "a 2ⁿ−1-bit codeword (0/1 list)"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
+                P("error_correction", "bool", True,
+                  "the register's OPT-layer-2 gate; False/None RAISES"),
+            ),
+            returns=R("dict",
+                      "{'data': the corrected payload bits, 'error_position': int "
+                      "(0=clean), 'corrected_codeword': the repaired word}"),
+            smoke_test_hint={"codeword": "[1, 1, 1, 0, 0, 1, 1]", "dim": "16",
+                             "error_correction": "True"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_element", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.element — the slot-held Cayley–Dickson "
+                    "element as a length-dim exact-Q tuple: v[i] = Q(sign_i) at "
+                    "occupied slots, Q(0) elsewhere. The accessor the carrier chains "
+                    "(norm / conjugate / multiply / add) read; the register's KEY "
+                    "strings are orthogonal to it, only (index, sign) enters the "
+                    "carrier. Exact ℚ, never float." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("slots", "dict", True, "the {slot: (key, sign)} assignment"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
+            ),
+            returns=R("sequence", "a length-dim tuple of exact Q coefficients"),
+            smoke_test_hint={"slots": "{0: ('alpha', 1), 3: ('beta', -1)}",
+                             "dim": "4"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_element_of", owner="srmech",
+            category="cascade",
+            summary="[class] the OTHER operand's slot-held element, for the symmetric "
+                    "carrier chains multiply / add. The [class] contract resolves a "
+                    "bind from a call kwarg or a field and nothing else, so a "
+                    "same-class operand arrives opaque and this is what reads it — a "
+                    "CDRegister, a CatalogClass, or a bare {'dim':…, 'slots':…} state "
+                    "dict. Enforces equal rungs AHEAD of the algebra, so an unequal-"
+                    "rung operand is reported as the dim mismatch it is rather than "
+                    "as a length fault out of cd_mult." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("other", "CDRegister | dict", True,
+                  "the other operand — a live CDRegister, the CatalogClass DSL "
+                  "projection of one, or a bare {'dim':…, 'slots':…} state dict "
+                  "(the only form that rides a wire)"),
+                P("dim", "int", True, "THIS register's dim; the operand must match it"),
+                P("verb", "str", False,
+                  "keyword-only; 'multiply' or 'add', so a raised message names the "
+                  "operation the caller asked for. Default 'multiply'"),
+            ),
+            returns=R("sequence", "a length-dim tuple of exact Q coefficients"),
+            smoke_test_hint={
+                "other": "{'dim': 4, 'slots': {1: ('beta', -1)}}", "dim": "4"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.cdr_navigate", owner="srmech",
+            category="cascade",
+            summary="[class] CDRegister.navigate (returns=\"self\") — walk the "
+                    "hyper-loop: right-multiply every slot NAME by e_j (the "
+                    "address↔Cayley–Dickson homomorphism) into the NEW register's "
+                    "full SEVEN-field state-dict. `self` is untouched and the codebook "
+                    "is copied, not aliased. All seven fields are emitted because the "
+                    "contract builds a FRESH instance from exactly this dict and an "
+                    "omitted field would silently reset to the type default."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("j", "int", True, "navigation basis direction, in [0, dim)"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
+                P("D", "Optional[int]", True,
+                  "hypervector width in bits; None resolves to the 8192 default"),
+                P("namespace", "Optional[str]", True,
+                  "address-mint namespace; None resolves to f'CD{dim}'"),
+                P("codebook", "dict", True, "{name: bytes} value-vectors"),
+                P("slots", "dict", True, "the {slot: (key, sign)} assignment"),
+                P("coupling", "bool", True, "OPT-layer-1 gate, carried through"),
+                P("error_correction", "bool", True,
+                  "OPT-layer-2 gate, carried through"),
+            ),
+            returns=R("dict",
+                      "the new register's {dim, D, namespace, codebook, slots, "
+                      "coupling, error_correction}"),
+            smoke_test_hint={"j": "1", "dim": "4", "D": "256", "namespace": "None",
+                             "codebook": "{}", "slots": "{0: ('alpha', 1)}",
+                             "coupling": "False", "error_correction": "False"},
         ),
         # Three RBS-LM UPSTREAM_NOTES candidate-additions (v0.7.4rc2; PR #687
         # §1.2 / §1.3 / rbs_nn Note 1) — pure compositions, no new primitive class.
@@ -17067,7 +17380,7 @@ def _register_introspect_tools() -> None:
             # justify. Every other candidate examined DISSOLVED into an encoder
             # or a handle: the exact-algebra carriers were un-ENCODED rather than
             # un-callable (the $srmech_carrier envelope), CDRegister /
-            # SedenionRegister ride the $srmech_handle envelope, and
+            # CDRegister rides the $srmech_handle envelope, and
             # run_chain / resolve_chain were a MISSING COERCER
             # (_coercion._to_chain_spec) — see the rc414 CHANGELOG entry, which
             # records the run_chain rejection explicitly so a later reader does

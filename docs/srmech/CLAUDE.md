@@ -296,7 +296,7 @@ docs/srmech/
     │   │   └── adapters/              ← html / json / csv / netcdf / geotiff / literature_curated
     │   ├── cascade/                    ← ADR-0010's FIRST new top-level namespace (rc364)
     │   │   └── catalogs/               ← the built-in descriptor catalogs, moved out of amsc/_research/
-    │   │       ├── class_catalog/      ←  4 [class] TOML descriptors, loaded by srmech.dsl.make_class
+    │   │       ├── class_catalog/      ←  5 [class] TOML descriptors, loaded by srmech.dsl.make_class
     │   │       ├── cascade_catalog/    ← 21 [cascade] TOML descriptors, loaded by srmech.dsl
     │   │       ├── alias_catalog/      ←  2 alias descriptors ([[alias]] + [genome.type_aliases]); NEW rc364
     │   │       └── worked_instances/   ←  1 worked-instance descriptor
@@ -329,8 +329,39 @@ third state), and `srmech.dsl.run_cascade_chain` runs a declared chain.
 This prose is no longer the only statement of how many there are — the
 live count is the SSoT and this sentence defers to it. The `[class]`
 catalog next door was always counted
-(`describe()["classes"]["toml_total"] == 4`); the asymmetry C6 named is
+(`describe()["classes"]["toml_total"]`, **4 at rc464** — CDRegister converted,
+and it was the last hand-coded domain class, so the `"python"` declaration route
+is now EMPTY; `tests/test_domain_classes_rc298.py` asserts that WITH ITS REASON
+so a future hand-coded class re-populating it is reported rather than passing
+unremarked. It is 4 and not 5 because the same rc REMOVED `SedenionRegister`,
+which was itself `[class]`-declared: one descriptor in, one out); the asymmetry
+C6 named is
 gone on this front (the `[[alias]]` layer's axis is still open).
+
+**The addressable register: there is only `CDRegister`** (rc464, `#T1188`). It
+is THE register shape — the slot count is a constructor parameter, so one object
+serves every rung from ℝ to 256 slots, and the 16-slot `SedenionRegister` it
+subsumed was REMOVED in the same rc; that register is now the spelling
+`cd_register(16, namespace="SEDENION", coupling=True, error_correction=True)`
+rather than a second class. All three parts of that
+spelling are load-bearing: `namespace` IS the address-mint name (a measurable
+read-collision difference at starved `D`), and the 16-slot register's coupling /
+EC layers were UNCONDITIONAL where `CDRegister` gates them. The equivalence is
+not a claim: 1157 records of the 16-slot register's behaviour — every probe,
+every routed slot, every coupler word, and the materialised bundle's SHA-256 at
+three widths — are recorded in `tests/sedenion_register_golden_rc464.ndjson`
+(digest-pinned in `tests/_golden_sedenion.py`) and gated in
+`tests/test_cd_register_golden_rc464.py`. The preference itself is a gate, not a
+sentence: `tests/test_preferred_register_shape_rc464.py` pins the
+register-returning tool set as an EQUALITY — one entry since the removal, so a
+second register reappearing is reported rather than merely unpreferred — and
+requires the steer to appear in the shipped summary, the docstrings, the
+generated `_tool_docs.py` and the compiled-in C tool registry. So THIS paragraph
+going stale is reported elsewhere, which is not true of most of this file.
+A bare-C host reaches the register the same way: `cd_register.toml` is a
+`[class]` descriptor and `srmech_make_class.c`'s vtable dispatches its methods
+dim- and namespace-generally, byte-identically to the pure `CatalogClass` at
+dim 16 AND dim 256 (`tests/test_cd_register_engine_c_rc464.py`, both exports).
 
 **Discipline — PREFER config-driven `[class]` TOML over hand-coded
 domain classes** (`[[feedback_prefer_config_driven_toml_classes]]`,
@@ -343,12 +374,38 @@ under `srmech/cascade/catalogs/class_catalog/`; the seeds are
 `srmech.bus`, the `adapters/`, and the `srmech.physics.qm.*` physics
 op-families STAY hand-coded Python. **Conversion follows the genome
 two-layer pattern** — ship each method as a flat cascade op, then
-bind it in the TOML; the `make_class` contract is one-op-per-method
-+ a single `appends`/`sets` field, so dict/multi-field-state classes
-(e.g. `SedenionRegister`) need a contract extension first, while
-immutable accessor-shaped classes (e.g. `One`) are cleaner first
-targets. Prove every conversion with a DSL-class-vs-Python
-equivalence test.
+bind it in the TOML.
+
+⚠️ **This paragraph said the contract is "one-op-per-method + a single
+`appends`/`sets` field, so dict/multi-field-state classes (e.g.
+`SedenionRegister`) need a contract extension first" until rc464
+(`#T1188`) — and that was already FALSE when it was written.** rc137
+shipped dict fields + `mutates`; rc139 shipped `chain` +
+`returns="self"`; rc140 had ALREADY converted `SedenionRegister` using
+exactly those. The sentence then propagated: it is what rc297 cited to
+record CDRegister's conversion as "decided, not defaulted", and rc464
+converted that seven-field class with **zero** further extension. This
+file is explicitly NOT hygiene-gated, which is how a false statement
+about a shipped contract survived ~330 rcs and steered a build decision.
+
+The LIVE contract: one `op` **or** a multi-stage `chain` per method,
+with at most one of `appends` / `sets` / `mutates` (a field-name list;
+the op returns `(value, {field: new})`) / `returns="self"` (the op
+returns the new instance's FULL field-dict and a fresh instance is
+built from it). What a rich domain class costs is **adapters, not
+extensions**. Two live gotchas that ARE real: a scalar field has **no
+default** (`str`/`int`/`bool` arrive `None`, so the adapters resolve
+defaults at USE time, identically to the Python constructor), and a
+gated method must **bind its gate flag from a field** — binding the
+ungated free op instead makes the declarative class silently not raise
+where the Python class does, which is a behaviour fork wearing the name
+"conversion".
+
+Prove every conversion with a DSL-class-vs-Python equivalence test —
+`tests/test_cd_register_class_catalog_rc464.py`, over all EIGHTEEN
+methods at dim 16 AND dim 256. It is the only such proof left: the
+rc140 three-field model was `SedenionRegister`'s, and rc464 removed
+that class once `CDRegister` subsumed it.
 
 ---
 
@@ -659,8 +716,8 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **24** (`SRMECH_ABI_VERSION = 24` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 24` in
+C ABI version is currently **25** (`SRMECH_ABI_VERSION = 25` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 25` in
 *(this line said 12 until rc420, 13 until rc425, 14 until rc438, 15 until
 rc439, 16 until rc442, 17 until rc449 and — the point — **17 through the whole of
 rc447 AND rc448**, so it was two bumps behind by the time rc449 read it: a SIXTH
@@ -713,6 +770,7 @@ WRITER-RESERVE contract move** of the v10/v12 shape — no signature changed, bu
 `srmech_chain_run_arena_bytes` began returning a LARGER envelope, because the
 value-descriptor writer's reserve was derived from the INPUT length while it
 bounds the OUTPUT tree.
+The v25 bump is rc464's (`#T1188`) and it is the fourth of the REMOVAL kind (v7 / v8 / v11 before it), the plainest shape there is. Three exported symbols go — `srmech_sedenion_navmap`, `srmech_sedenion_navigate` and `srmech_sed_slots` — with the 16-slot `SedenionRegister` they were the Rosetta peer of. They are SUBSUMED, not dropped: `srmech_cd_navmap` / `srmech_cd_navigate` take the rung as a parameter and this header has documented them as bit-identical at dim 16 since rc298, and `srmech_sed_slots` was a validate-and-copy its one caller now does inline. A removed export produces no symptom other than a version mismatch, so by standing policy it always bumps. The `SRMECH_SEDENION_NUM_SLOTS` macro goes with them and contributes nothing — macros are not exported symbols. `srmech_sedenion_is_navigable` STAYS: it is the general DENSE kernel for every rung up to `SRMECH_CD_DENSE_MAX_DIM`, dispatched live by `left_mult_is_invertible`, and only its NAME was ever sedenion-specific. rc464 also changes what one existing function returns — `srmech_make_class_run_arena_bytes` now budgets the TOML parser's own stated bound instead of a hand-rolled `32 * toml_len` heuristic, so the envelope is LARGER — which is the v10 / v12 / v23 / v24 wire-sizing shape and would have bumped on its own; it rides this one. `SRMECH_GENOME_FORMAT_VERSION` stays 20.
 **The v24 bump is rc455's, and it is that same writer-reserve move on the
 SIBLING function.** `srmech_dsl_chain_run_arena_bytes` now returns a **smaller**
 envelope — by exactly `32768 + 16*(chain_len + input_len)` — because the DSL

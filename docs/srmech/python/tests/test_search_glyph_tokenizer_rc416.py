@@ -843,7 +843,8 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   nothing was edited, the frame build is non-deterministic". rc463 moved the
 #:   witness twice, so both halves were measured before either was accepted.
 #:
-#:   COUNTS: `len(frames)` is **749**, split **720 ops + 29 carriers**, read off
+#:   COUNTS (as measured at rc463; see the rc464 block below for the current
+#:   split): `len(frames)` was **749**, split **720 ops + 29 carriers**, read off
 #:   `len(_build_frames('ops')[0])` / `len(_build_frames('carriers')[0])` and
 #:   checked against the union. 720 is `EXPECTED_N` — the eighteen registrations
 #:   rc463 added (702 -> 720). Carriers UNMOVED at 29: this rc mints no carrier
@@ -899,8 +900,130 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   written and idempotent across two passes, per the rc454 rule that a pin
 #:   taken mid-release is a measurement of a draft.
 #: was: c34e8e854128a6266ad57e428cf5295c3ae6d2eec75fe52d0984daf8bfca31a6 (rc462)
+#:
+#: rc464 (`#T1188`) re-pin — ATTRIBUTED FRAME BY FRAME, per this file's own rule,
+#: and the attribution caught a MISS as well as confirming the expected move.
+#:
+#:   COUNTS: `len(frames)` is **763**, split **734 ops + 29 carriers**, read off
+#:   `len(_build_frames('ops')[0])` / `len(_build_frames('carriers')[0])` and
+#:   checked against the union. 734 is `EXPECTED_N` — the fourteen cdr_*
+#:   registrations rc464 added (720 -> 734). Carriers UNMOVED at 29: this rc
+#:   mints no carrier TYPE.
+#:
+#:   METHOD: a pristine `docs/srmech` was extracted with `git archive` at TWO
+#:   refs — `05202a8aa` (rc463 tip) and `54d2dbf21` (this rc's first commit) —
+#:   and the per-frame digests differenced against the live tree, rather than
+#:   the move being assumed from the diff. NOTE FOR THE NEXT RE-PIN: extracting
+#:   only `docs/srmech/python` is NOT enough to reproduce a witness. Measured:
+#:   a python-only extraction of rc463 tip returned `04bc0852…`, not the pinned
+#:   `f1f521af…`, because the corpus reads generated C-side material too. Archive
+#:   `docs/srmech` whole.
+#:
+#:   MOVE 1 `f1f521af…` -> `5bf91348…`, and it is ONE frame: `cd_register`,
+#:   changed. rc464's first commit repointed sixteen shipped `[1, 64]` sites to
+#:   the real `CD_MAX_DIM` of 256, four of them inside `cd_*` ToolEntry summaries
+#:   and parameter descriptions, and the `cd_register` blob carries its summary.
+#:   That commit did NOT re-pin this witness — the miss was found by running this
+#:   gate here rather than in CI, which is the whole reason a corpus digest is
+#:   cheaper than a review.
+#:
+#:   MOVE 2 `5bf91348…` -> `e728909c…`: **+14 added, 0 removed, 2 changed**.
+#:   The fourteen added are exactly the `srmech.cascade.cdr_*` adapters the
+#:   packaged `cd_register.toml` [class] descriptor binds its methods to. The two
+#:   CHANGED are the `float` and `int` CARRIER frames, and that is a consequence
+#:   rather than a coincidence: a carrier frame's consumer / producer lists are
+#:   DERIVED from declared parameter type tokens, and the new entries declare
+#:   `int` (dim / slot / j / n) and `list[float]` (the coupler's streams), so both
+#:   carriers legitimately gain consumers. Nothing else moved — in particular the
+#:   `cd_*` free-function frames are untouched, which is the check that the +14
+#:   are additions and not a rename of the family they sit beside.
+#:
+#:   MOVE 3 `e728909c…` -> the value below, and it is the rc454 rule earning its
+#:   keep INSIDE one rc rather than across two. `e728909c` was measured after a
+#:   clean `regen_all.py`, and it was still a measurement of a draft: the
+#:   fourteen ops then gained their WORKED snippets, and a frame blob carries
+#:   the worked example, so all fourteen op frames moved again. Differenced the
+#:   same way against `05202a8aa`: **+14 added, 0 removed, 3 changed** — the
+#:   `float` and `int` carrier frames and `cd_register`, i.e. the union of what
+#:   moves 1 and 2 each did, with the fourteen additions in their final form.
+#:   The lesson is narrower than "re-measure last": a pin whose corpus includes
+#:   EXAMPLES cannot be taken until the examples are final, and a worked snippet
+#:   is authored after the entry it documents.
+#:
+#:   Measured LAST, after `regen_all.py` reported all six generated files written
+#:   and idempotent across two passes, per the rc454 rule that a pin taken
+#:   mid-release is a measurement of a draft.
+#:
+#:   MOVE 4 `dfa8cfa9…` -> `b213cf4f…`: **0 added, 0 removed, 4 changed**,
+#:   and the four are the whole of rc464's preferred-shape rewording — the
+#:   `srmech.cascade.cd_register` and `srmech.cascade.sedenion_register` OP
+#:   frames (ToolEntry summary + curated explanation) and the `CDRegister` /
+#:   `SedenionRegister` CARRIER frames (their `carrier_schema` descriptions).
+#:   Counts UNMOVED at 763 = 734 ops + 29 carriers: this move registers nothing
+#:   and mints no carrier, so a count change here would have meant something
+#:   other than a reword happened. Differenced the same way as moves 1-3, by
+#:   `git archive`-ing `docs/srmech` WHOLE at `eaee799a7` and building both
+#:   corpora — and the extracted rc464-stage-1 tree reproduced `dfa8cfa9…`
+#:   exactly, which is what makes the four-frame attribution a measurement
+#:   rather than a reading of the diff.
+#:
+#:   MOVE 5 `b213cf4f…` -> the value below, the rc464 REMOVAL half: **0 added,
+#:   2 removed, 12 changed**, counts 763 -> 761 (733 ops + 28 carriers).
+#:   Attributed frame by frame against a `git archive` of `3d404205d`, which
+#:   reproduced `b213cf4f…` exactly.
+#:
+#:     REMOVED (2) — `op:srmech.cascade.sedenion_register` and
+#:     `carrier:SedenionRegister`, the 16-slot register's whole searchable
+#:     presence. This is the FIRST move on this pin with a removal in it, which
+#:     is why the counts move at all.
+#:
+#:     CHANGED (12), and none of them is a reword for its own sake:
+#:       * `carrier:CDRegister`, `carrier:sedenion` — descriptions that named
+#:         the removed class.
+#:       * `carrier:int` — DERIVED, and the one worth reading twice: a carrier
+#:         frame carries the back-index of ops that consume or produce it, and
+#:         the removed factory declared an `int` `D` parameter. Nothing about
+#:         `int` was edited; its frame moved because an op left. A frame set
+#:         that did NOT move here would have meant the back-index is not
+#:         actually derived.
+#:       * `op:srmech.cascade.cd_navmap` / `cd_navigate` / `cd_couple_working` /
+#:         `cd_register` — summaries that pointed at the 16-slot peer.
+#:       * `op:srmech.cascade.left_mult_is_invertible` — its curated SIBLINGS
+#:         line named `SedenionRegister.is_navigable`.
+#:       * `op:srmech.dsl.describe_class` / `list_class_surface` /
+#:         `srmech.introspect.carrier_schema.carrier_schema` /
+#:         `srmech.introspect.describe` — the four curated example TRANSCRIPTS
+#:         that printed the removed class. Re-EXECUTED rather than hand-edited.
+#:
+#:   Measured LAST, after `regen_all.py` reported all six generated files
+#:   idempotent across two passes, per the rc454 rule that a pin taken mid-rc is
+#:   a measurement of a draft.
+#: was: f1f521af99cbcf3a3b404a11e521052e08d26577ccf0cc04c5f356816138f5cd (rc463)
+#: was: dfa8cfa99710c81f1be406d32e0ec42a15dcfb8c699d893e3c02f302540236f1 (rc464 stage 1)
+#: was: b213cf4fc311e5ae06beee96061d9b919653e921bcf749a5312765b1053e341d (rc464 stage 2)
+#:
+#: rc464 CLOSING PASS — re-pinned a FOURTH time inside this one rc, and the
+#: attribution is why that is acceptable rather than a habit. CI (not the local
+#: subsets) reported `cdr_element_of` accepting a `CDRegister`, naming it in its
+#: own coercion raise text, and DECLARING `int` —
+#: `test_declared_type_honesty_rc363.py`'s C2 clause, strict-zero. The parameter
+#: type was corrected from `object` to `CDRegister | CatalogClass | dict`, which
+#: is a CORPUS edit: the carrier frame aggregates the ops that declare it.
+#:
+#:   MEASURED, frame by frame, against a `git archive 195c2c4f0` extraction of
+#:   the whole docs/srmech subtree: frames 761 -> 761, **0 added, 0 removed,
+#:   exactly 1 CHANGED — `CDRegister`**, the carrier whose declaration was
+#:   fixed. A witness re-pin is only honest when the delta is attributable to
+#:   the edit that caused it; this one is, to a single frame.
+#:
+#:   Taken AFTER `regen_all.py` reported all six generated files idempotent
+#:   across two passes, per the rc454 rule that a pin taken mid-rc measures a
+#:   draft — and after the last corpus-touching edit of this rc, per the stage-2
+#:   lesson that a pin whose corpus includes examples cannot be taken until the
+#:   examples are final.
+#: was: 9add5607e7cd594594f14f8767543fe25f75a807c04a9d4a8135c3ac8c0f579c (rc464 stage 3)
 WITNESS_RC416 = (
-    "f1f521af99cbcf3a3b404a11e521052e08d26577ccf0cc04c5f356816138f5cd")
+    "54fd35fa99df3812ceea67c54c039201c5f92fe284a523cb462bc1923de3e809")
 #: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
 #: op corpus, so registering induced_representation + zeta_conjugate moves it by
 #: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.

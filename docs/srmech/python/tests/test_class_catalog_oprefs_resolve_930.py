@@ -41,7 +41,7 @@ _CATALOG_DIR = (
 
 def _collect_oprefs(node) -> list[str]:
     """Every ``op = "..."`` string anywhere in a descriptor (methods may nest
-    op-refs in lists — the SedenionRegister `is_navigable` chain does)."""
+    op-refs in lists — the CDRegister `norm` / `multiply` chains do)."""
     out: list[str] = []
     if isinstance(node, dict):
         for key, val in node.items():

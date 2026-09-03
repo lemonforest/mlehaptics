@@ -1017,7 +1017,7 @@ def test_native_bus_symbols_present():
     from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    # ABI-PIN: NATIVE_ABI_VERSION == 24
+    # ABI-PIN: NATIVE_ABI_VERSION == 25
     # ⚠️ rc455: the local below is the SAME grep-invisible site the note that
     # follows describes. It was found by hand this time, not by the
     # `ABI_VERSION == 23` sweep, which matched only the comment above.
@@ -1030,12 +1030,14 @@ def test_native_bus_symbols_present():
     # a SECOND one, of a different kind - indirection through a local, introduced
     # by the previous fix. Keeping a comment that spells NAME == LITERAL restores
     # what the interpolation took away, without giving back the drift it prevents.
-    want_abi = 24
+    want_abi = 25
     assert _native.NATIVE_ABI_VERSION == want_abi, (
-        f"ABI {want_abi} expected (rc455 re-derived "
-        f"srmech_dsl_chain_run_arena_bytes' writer reserve from the OUTPUT "
-        f"value instead of input_len - the v10/v12 wire-sizing shape, "
-        f"23 -> {want_abi}); got {_native.NATIVE_ABI_VERSION}"
+        f"ABI {want_abi} expected (rc464 REMOVED three exported symbols - "
+        f"srmech_sedenion_navmap, srmech_sedenion_navigate and "
+        f"srmech_sed_slots - with the 16-slot register they were the Rosetta "
+        f"peer of; a removed export has no symptom but a version mismatch, "
+        f"so it always bumps, 24 -> {want_abi}); got "
+        f"{_native.NATIVE_ABI_VERSION}"
     )
     for sym in (
         "srmech_bus_serve",
@@ -1093,8 +1095,21 @@ def test_abi_version_is_pinned():
     # a mechanism designed for a human reader, driven by a script. Both
     # functions FAILED on the next run, which is the assert being the
     # measurement rather than the comment. Fixed together.
-    # ABI-PIN: EXPECTED_ABI_VERSION == 24   (grep target - see the note above)
-    want_abi = 24
+    #
+    # ⚠️ rc464 (`#T1188`): 24 -> 25, the three removed sedenion C exports. THIS
+    # IS THE THIRD OCCURRENCE, and it is the same half-edit a THIRD time: the
+    # rc464 bump edited both GREP-TARGET comments in this file to 25 and left
+    # both `want_abi` locals at 24, so both functions shipped RED. The
+    # CHANGELOG even names this file as a site the bump swept -- it swept the
+    # targets, not the values. Two rounds of prose telling the next reader
+    # exactly what to check did not stop it, because the reader was a sweep.
+    # So the remedy this time is NOT a third paragraph: it is
+    # test_abi_pin_sites_agree_rc464.py, which parses both spellings (the
+    # `ABI-PIN:` comment AND any int-valued local whose name matches /abi/)
+    # out of tests/ and compares each to the live EXPECTED_ABI_VERSION. The
+    # grep target stays for the human; the gate is now what catches the script.
+    # ABI-PIN: EXPECTED_ABI_VERSION == 25   (grep target - see the note above)
+    want_abi = 25
     assert _native.EXPECTED_ABI_VERSION == want_abi, (
         f"EXPECTED_ABI_VERSION should be {want_abi}; got "
         f"{_native.EXPECTED_ABI_VERSION}"

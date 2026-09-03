@@ -1361,6 +1361,17 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # int/[num,den] stoichiometric rows, and (reactant, product) complex-dict
     # pairs; the coercers rebuild the exact-Q leaves and the pair tuples, and a
     # live QMat passes through (in-process only). See srmech/chemistry/.
+    # rc464 (`#T1188`): cdr_element_of's `other`, the [class] register's
+    # symmetric operand. Declared `object` until the C2 honesty gate caught it —
+    # the op ACCEPTS a CDRegister and NAMES CDRegister in its own raise text,
+    # so withholding it from `.type` was the exact rc363 defect. Passes through:
+    # over a wire the operand can only arrive as its `{"dim":…, "slots":…}`
+    # state dict, which the adapter already rebuilds; a live CDRegister (or the
+    # CatalogClass DSL projection of one) passes through in-process, the same
+    # shape as the QMat arm above. CatalogClass is deliberately NOT in the type
+    # string: it is the DSL WRAPPER, not a carrier, and the carrier it wraps is
+    # the one named here.
+    "CDRegister | dict": _identity,
     "Sequence[str | dict[str,int]] | QMat": _to_species,        # balance_reaction species
     "QMat | Sequence[Sequence[int | Q]]": _to_qmat_rows,        # conservation_laws N
     # 0.9.0rc463 fix pass: the two arms the exact ops accept and their
@@ -2022,7 +2033,6 @@ _CARRIER_WIRE: Dict[str, Any] = {
 #: tools from uncallable to ``handle_pending: 0``.
 _HANDLE_SHAPED_CARRIERS: Dict[str, str] = {
     "CDRegister": "cd-register",
-    "SedenionRegister": "sedenion-register",
 }
 
 

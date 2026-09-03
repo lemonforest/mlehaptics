@@ -77,6 +77,18 @@
 {"composes": [], "name": "srmech.cascade.cd_promote", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.cd_register", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.cd_uncouple_working", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.cdr_carry", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.cdr_carry_block", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.cdr_correct", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.cdr_couple_working", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.cdr_element", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.cdr_materialize", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.cdr_navigate", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.cdr_read_unbind", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.cdr_slots", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.cdr_uncouple_working", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.cdr_working_block", "tier": "LEAF"}
+{"composes": [], "name": "srmech.cascade.cdr_write", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.chiral_flip", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.compensated_sum", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.compose.parse_chain_spec", "tier": "LEAF"}
@@ -103,7 +115,6 @@
 {"composes": [], "name": "srmech.cascade.phase_coherent_peak", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.pin_slot_at_zero", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.reorient", "tier": "LEAF"}
-{"composes": [], "name": "srmech.cascade.sedenion_register", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.seq_get", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.seq_len", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.signed_sum_squared", "tier": "LEAF"}
@@ -327,6 +338,8 @@
 {"composes": ["srmech.cascade.cd_basis_product"], "name": "srmech.cascade.cd_navmap", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.cd_basis_product"], "name": "srmech.cascade.cd_navmap_is_signed_permutation", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.right_mult_matrix"], "name": "srmech.cascade.cd_right_divide", "tier": "SINGLE"}
+{"composes": ["srmech.cascade.chiral_flip"], "name": "srmech.cascade.cdr_clean", "tier": "SINGLE"}
+{"composes": ["srmech.cascade.cdr_element"], "name": "srmech.cascade.cdr_element_of", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.chiral_flip"], "name": "srmech.cascade.chiral_dual", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.compose.parse_chain_spec"], "name": "srmech.cascade.compose.parse_catalog_chains", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.compose.resolve_chain"], "name": "srmech.cascade.compose.run_chain", "tier": "SINGLE"}

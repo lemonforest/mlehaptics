@@ -6,7 +6,7 @@ graph. So a ``composition_of_c`` op (which claims "standalone-C-ready: I only
 compose ops that each reach C") could silently reach a ``bignum_reference`` /
 ``python_only_debt`` leaf and the ratchet wouldn't notice. That blind spot
 is exactly how ``sed_is_navigable`` shipped mislabeled (it reached the
-pure-Python ``left_mult_is_invertible``); see the rc12 SedenionRegister fix.
+pure-Python ``left_mult_is_invertible``); see the rc12 register fix.
 
 This ratchet closes the blind spot: for every ``composition_of_c`` op it walks
 the TRANSITIVE callee graph (through methods + private helpers) and asserts the
@@ -232,7 +232,7 @@ def _direct_callees(fn):
             out.append(obj)
     # method calls: an attribute name in co_names that is a method of a class
     # referenced in the same scope (covers the `_rehydrate(...).method()` /
-    # `SedenionRegister().method()` adapter pattern).
+    # `CDRegister(dim).method()` adapter pattern).
     for cls in classes:
         for name in names:
             meth = getattr(cls, name, None)

@@ -286,6 +286,18 @@ _EXPECTED_SPLIT = {
     # empty slot-map and codebook); all compute is in the methods, which route
     # to those three c_dispatched rows — which is why it also carries a
     # justified entry in COMPOSES_C_ZERO_REACH_PINNED.
+    # rc464 (`#T1188`) CORRECTION to the two rc297 clauses immediately above,
+    # left in place because they record what rc297 believed. (a) the constant is
+    # not 10: CEIL_WIRE_GLUE_GAPS = 0, tests/test_rosetta_transitive_standalone
+    # .py:460, empty _KNOWN_GLUE_GAPS, asserted == 0 by rc333/rc334. (b) "real C
+    # peers reachable through dispatch glue" was TRUE at rc297 (cap 64) and
+    # FALSE from rc298 (cap 256) to rc463, because cd_navmap_c / cd_navigate_c /
+    # cd_navmap_is_signed_permutation_c each returned None above dim 64 in front
+    # of C peers that accept 256. rc464 respelled the three predicates; the
+    # sentence is true again. Neither ceiling moves — and the wire-glue ratchet
+    # could not have caught this anyway: it scans for `srmech_*` NAMES in
+    # dispatcher source, and a domain guard that names the symbol and then
+    # declines it is invisible to a name scan by construction.
     # rc308 (#944): +1 composes_c — laplacian.hypercomplex_perspectives (the
     # quaternion_laplacian / magnetic_laplacian eigenvector channel reader; a
     # pure STRUCTURAL split of an already-decomposed carrier — it computes
@@ -375,11 +387,25 @@ _EXPECTED_SPLIT = {
     # read these frames back". The rc217 precedent (mis-classified composes_c
     # kernels that earned C peers and moved to c_dispatched) is the shape.
     # composes_c 140 -> 139; non_compute total 214 -> 213.
-    "composes_c": 139,
+    # rc464 (`#T1188`) REMOVAL half: 142 -> 140. The two non_compute rows of
+    # the 16-slot register CDRegister subsumes -- its CONSTRUCTOR and sed_slots
+    # -- leave with the class. Nothing is reclassified; the bucket simply has
+    # two fewer members.
+    "composes_c": 140,
     "host_glue": 21,
+    # rc464 (`#T1188`): +3 composes_c -- the three ACCESSORS among the
+    # fourteen cdr_* [class]-binding adapters (cdr_slots, a STR-to-int key
+    # reshape with no bounds test to dispatch; cdr_working_block /
+    # cdr_carry_block, the two halves of a range PARTITION of [0, dim)).
+    # All three are zero-REACH and carry their justification in
+    # COMPOSES_C_ZERO_REACH_PINNED. The OTHER ELEVEN adapters in the same
+    # family are composition_of_c because they reach the C mint / bind /
+    # bundle / similarity / hamming / cd_navigate kernels, which is what
+    # makes this a three-accessor move rather than a family classified
+    # wholesale. composes_c 139 -> 142; total 213 -> 216.
     "dev_tooling": 53,
 }
-_TOTAL_NON_COMPUTE = 213          # rc441 (local task T1141): 214 -> 213, srmech.math.tlv.tlv_unpack earned its C peer srmech_tlv_unpack and LEFT non_compute for c_dispatched (see the split note above)  # rc420 (local task T1114): 213 -> 214, dsl.run_cascade_chain (composes_c; see the split note in the annex files)  # rc411 (`#T1086`): 212 -> 213, the introspect INDEX `srmech.introspect.search.search` (composes_c; see the split note above)  # rc407 (`#T1076`): 213 -> 212, srmech.introspect dropped the private `_maybe_auto_publish` from __all__ (see the split note above)  # rc364 (ADR-0010 first execution slice): 210 -> 213, the three srmech.dsl alias-catalog rows (resolve_alias_descriptor -> host_glue; list_alias_descriptors + register_alias_dir -> dev_tooling; see the split note above)  # rc325 (§𝕆-FIBER/v18): 205 -> 208, genome.genome_octonion_associator + genome_add_octonion_fiber + genome_read_octonion_fiber (rc322 §Q8-FIBER/v17: 203 -> 205, genome.genome_add_fiber + genome_read_fiber; rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16)  # rc345 (task T964): 208 -> 209, genome.genome_content
+_TOTAL_NON_COMPUTE = 214  # rc464 (`#T1188`) REMOVAL half: -2 composes_c (the two non_compute rows of the 16-slot register that CDRegister subsumes -- its CONSTRUCTOR and sed_slots, the STR-to-int slot reshape whose cdr_slots peer is already pinned above. Both leave with the class; nothing is reclassified) 142 -> 140, total 216 -> 214            # rc464 (`#T1188`): +3 composes_c (the three ACCESSORS among the fourteen cdr_* [class]-binding adapters -- cdr_slots, a STR-to-int key reshape with no bounds test to dispatch; cdr_working_block / cdr_carry_block, the two halves of a range PARTITION of [0, dim). All three are zero-REACH and pinned as such in COMPOSES_C_ZERO_REACH_PINNED with their justification. The other ELEVEN adapters in the same family are composition_of_c, because they reach the C mint / bind / bundle / similarity / hamming / cd_navigate kernels -- this is a POPULATION pin moving by three accessors, not a family classified wholesale) 139 -> 142, total 213 -> 216  # rc441 (local task T1141): 214 -> 213, srmech.math.tlv.tlv_unpack earned its C peer srmech_tlv_unpack and LEFT non_compute for c_dispatched (see the split note above)  # rc420 (local task T1114): 213 -> 214, dsl.run_cascade_chain (composes_c; see the split note in the annex files)  # rc411 (`#T1086`): 212 -> 213, the introspect INDEX `srmech.introspect.search.search` (composes_c; see the split note above)  # rc407 (`#T1076`): 213 -> 212, srmech.introspect dropped the private `_maybe_auto_publish` from __all__ (see the split note above)  # rc364 (ADR-0010 first execution slice): 210 -> 213, the three srmech.dsl alias-catalog rows (resolve_alias_descriptor -> host_glue; list_alias_descriptors + register_alias_dir -> dev_tooling; see the split note above)  # rc325 (§𝕆-FIBER/v18): 205 -> 208, genome.genome_octonion_associator + genome_add_octonion_fiber + genome_read_octonion_fiber (rc322 §Q8-FIBER/v17: 203 -> 205, genome.genome_add_fiber + genome_read_fiber; rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16)  # rc345 (task T964): 208 -> 209, genome.genome_content
 
 
 def _rows():

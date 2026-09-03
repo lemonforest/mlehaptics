@@ -373,7 +373,7 @@ def test_new_ops_registered_and_total_matches_live():
     names = [t.name for t in get_tool_schema().tools]
     assert "srmech.biology.genome.genome_partition" in names
     assert "srmech.biology.genome.genome_from_graph" in names
-    assert len(names) == 720
+    assert len(names) == 733
     assert "genome_partition" in G.__all__
     assert "genome_from_graph" in G.__all__
 

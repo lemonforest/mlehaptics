@@ -220,7 +220,7 @@ def test_registration_ratchet():
     assert "group_algebra_table" in C.__all__
     from srmech.introspect.tool_schema import tool_schema_view
     view = tool_schema_view()
-    assert len(view["tools"]) == 720
+    assert len(view["tools"]) == 733
     names = {t["name"] for t in view["tools"]}
     assert "srmech.cascade.flip_pair" in names
     assert "srmech.cascade.group_algebra_table" in names

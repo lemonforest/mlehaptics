@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE "rc463"
-#define SRMECH_VERSION "0.9.0rc463"
+#define SRMECH_VERSION_PRE "rc464"
+#define SRMECH_VERSION "0.9.0rc464"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -580,8 +580,49 @@ extern "C" {
  *      "it is the same wire-sizing contract" is, and it is the same one.
  *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
+ *
+ * v25 — v0.9.0rc464 (`#T1188`): REMOVED three exported symbols —
+ *      srmech_sedenion_navmap, srmech_sedenion_navigate and srmech_sed_slots —
+ *      with the 16-slot SedenionRegister they were the Rosetta peer of. They are
+ *      SUBSUMED rather than dropped: srmech_cd_navmap / srmech_cd_navigate take
+ *      the rung as a parameter and this header already documented them as
+ *      bit-identical at dim 16 (now attested against that register's RECORDED
+ *      behaviour, since the live oracle is gone), and srmech_sed_slots was a
+ *      validate-and-copy its single caller now does inline. By the standing rule
+ *      at the top of this header a removed export produces NO symptom other than
+ *      a version mismatch, so it ALWAYS bumps: 24 -> 25. The
+ *      SRMECH_SEDENION_NUM_SLOTS macro goes with them and contributes nothing
+ *      (macros are not exported symbols).
+ *
+ *      NOTHING ELSE IN THIS RELEASE WOULD HAVE BUMPED. The rc464 make_class
+ *      vtable work adds no exported symbol and changes no signature. It DOES
+ *      change what one existing function RETURNS —
+ *      srmech_make_class_run_arena_bytes now budgets the TOML parser's own
+ *      stated bound (srmech_toml_parse_arena_bytes) instead of a hand-rolled
+ *      32x heuristic, so the envelope is LARGER — which is the v10 / v12 / v23 /
+ *      v24 wire-sizing shape and would have bumped on its own. It rides this
+ *      one.
+ *
+ *      ⚠️ THE SAME FUNCTION GREW A SECOND TIME BEFORE THIS RC SHIPPED, for the
+ *      same reason one layer down, and it also rides this bump. mc_parse_map
+ *      carved the JSON parser a hand-rolled `8u * len + 4096u` workspace
+ *      against a MEASURED need of ~28 bytes per JSON byte, so a bind list past
+ *      THIRTY-TWO compact elements OVERFLOWED and the engine DEFERRED with no
+ *      other symptom — CDRegister.is_navigable at dim 64 (inside
+ *      SRMECH_CD_DENSE_MAX_DIM, where the dense kernel answers), `correct` at
+ *      codeword length 63, `carry` at 57 data bits against a declared
+ *      MC_HAMMING_MAX of 65535. The carve now uses the 160x + 64 KiB bound
+ *      srmech_carrier_marshal.c states for the same parser, and
+ *      srmech_make_class_run_arena_bytes budgets the two carves (fields + args)
+ *      as their own term. Strictly LARGER again, same wire-sizing shape, same
+ *      benign mixed-version direction: an old smaller figure handed to a v25
+ *      library meets the carve guard and DEFERS, which is what it did anyway. The mixed-version pairing is benign in the direction that matters:
+ *      an old (smaller) cached figure handed to a v25 library meets the carve
+ *      guard and DEFERS, which is what the old library did anyway.
+ *
+ *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  */
-#define SRMECH_ABI_VERSION 24
+#define SRMECH_ABI_VERSION 25
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -5609,39 +5650,33 @@ srmech_status_t srmech_qi_quadrant(const int64_t a[4], int *out_quadrant);
 srmech_status_t srmech_qi_norm_sq(const int64_t a[4], int64_t out[2]);
 
 /* ------------------------------------------------------------------
- * Sedenion-addressable hyper-loop ADDRESS LAYER (UPSTREAM §31 / F465 +
- * F468; Python srmech.cascade.sedenion_register). The navigation +
- * reversibility-gate ops a C-only host needs to run "Siona's address
- * layer." The carry/correct EC half is the §30 srmech_hamming_* family.
- * Rosetta peer of SedenionRegister.{navmap,navigate,is_navigable},
- * attested by tests/test_cascade_sedenion_parity.py.
+ * The DENSE reversibility gate (UPSTREAM §31 / F465 + F468).
+ *
+ * rc464 (`#T1188`) REMOVED the three 16-slot exports that stood here —
+ * srmech_sedenion_navmap, srmech_sedenion_navigate and srmech_sed_slots —
+ * together with the SRMECH_SEDENION_NUM_SLOTS macro and the Python class they
+ * were the Rosetta peer of. They are SUBSUMED, not dropped: srmech_cd_navmap
+ * and srmech_cd_navigate below take the rung as a parameter and were already
+ * documented as bit-identical to them at dim 16, and the `slots` accessor's
+ * validate-and-copy is ten lines inside the one caller that wanted it. The
+ * removal bumps SRMECH_ABI_VERSION 24 -> 25 by the standing rule at the top of
+ * this header: a removed export produces NO symptom other than a version
+ * mismatch, so it always bumps.
+ *
+ * srmech_sedenion_is_navigable STAYS and is the reason this section does. It
+ * is not sedenion-specific at all — it is the general DENSE kernel for every
+ * rung up to SRMECH_CD_DENSE_MAX_DIM, dispatched live by
+ * cayley_dickson.left_mult_is_invertible. The name is now a misnomer; renaming
+ * it would be a second removal inside the same bump, re-touching its claim row,
+ * its binding and two ctypes tests for no capability change, so it keeps the
+ * name it shipped under and this paragraph says why.
  *
  * NO BIGNUM: is_navigable decides invertibility of the signed
  * XOR-circulant L(x)[r][c] = sign(r^c,c) * x_{r^c} by MODULAR rank over
  * word-size primes (every product < 2^62, no multi-precision limb), made
  * certain for the singular verdict by exceeding the Hadamard determinant
  * bound. See srmech_sedenion.c.
- *
- * ABI-additive: new symbols + a macro, so SRMECH_ABI_VERSION stays 3.
  * ------------------------------------------------------------------ */
-
-/* The sedenion address space is 16 named slots e0..e15. */
-#define SRMECH_SEDENION_NUM_SLOTS 16
-
-/* The signed pointer-advance permutation for right-multiply-by-e_j: for each
- * slot i in [0,16), out_dest[i] = k and out_sign[i] = s where e_i * e_j =
- * s * e_k. out_dest / out_sign are caller arrays of length 16. j in [0,16).
- * Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (j out of range). */
-srmech_status_t srmech_sedenion_navmap(int j, int *out_dest, int *out_sign);
-
-/* Route `count` occupied (slot, sign) records through the ×e_j permutation,
- * composing the Class-C signs: out_slots[m] = k, out_signs[m] = in_signs[m]*s
- * where e_{in_slots[m]} * e_j = s * e_k. in_signs entries must be +1/-1 and
- * in_slots in [0,16). count == 0 is a no-op. Errors: SRMECH_ERR_NULL_ARG;
- * SRMECH_ERR_BAD_INPUT (j / slot out of range, or sign not +-1). */
-srmech_status_t srmech_sedenion_navigate(int j, const int *in_slots,
-                                         const int *in_signs, size_t count,
-                                         int *out_slots, int *out_signs);
 
 /* Reversibility gate: is left-multiplication by `direction` (an integer
  * vector of power-of-two length n in [1, SRMECH_CD_DENSE_MAX_DIM]) a bijection?
@@ -5660,24 +5695,11 @@ srmech_status_t srmech_sedenion_navigate(int j, const int *in_slots,
 srmech_status_t srmech_sedenion_is_navigable(const int64_t *direction,
                                              size_t n, int *out_invertible);
 
-/* rc199 (make_class → C, leaf-batch 5/8; #887): the `slots` accessor's
- * canonical numeric reshape. Validate + copy the register's occupied
- * (slot, sign) skeleton — slot in [0,16), sign in {+1,-1} — into
- * out_slots / out_signs (the make_class `slots` leaf's numeric core; the
- * key strings pass through in the Python caller, and the slot int-keys
- * ride the srmech_mval_t DICT as STR "0".."15" one layer up). count == 0
- * is a no-op. Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (slot out
- * of range or sign not +-1 -> the Python caller runs the un-validated pure
- * reshape; inform-don't-limit). ABI-additive: a new symbol, no callback
- * typedef, so SRMECH_ABI_VERSION stays 4. See srmech_sedenion.c. */
-srmech_status_t srmech_sed_slots(const int *in_slots, const int *in_signs,
-                                 size_t count, int *out_slots, int *out_signs);
-
 /* ------------------------------------------------------------------
- * rc297 (#934): the GENERAL N-slot Cayley-Dickson address layer — the same
- * navigation surface as the srmech_sedenion_* peers above, generalised from
- * the hard-coded 16 slots to any power-of-two dim in [1, SRMECH_CD_MAX_DIM].
- * The Python peer is srmech.cascade.cd_register (CDRegister).
+ * rc297 (#934): the GENERAL N-slot Cayley-Dickson address layer — since rc464
+ * (`#T1188`) the ONLY one, the 16-slot peers it subsumed having been removed.
+ * Any power-of-two dim in [1, SRMECH_CD_MAX_DIM]. The Python peer is
+ * srmech.cascade.cd_register (CDRegister).
  *
  * WHY THIS IS SOUND ABOVE THE HURWITZ WALL (F1274 / F1275). Addressing does
  * not need the division property; it needs only that a basis product be a
@@ -5687,8 +5709,9 @@ srmech_status_t srmech_sed_slots(const int *in_slots, const int *in_signs,
  * properties are disjoint. srmech_cd_navmap_is_signed_permutation makes that
  * premise checkable at runtime instead of assumed.
  *
- * The slot bound is the ONLY generalisation: every sign and index rule is
- * shared verbatim with the 16-slot peers through srmech_cd_basis_product.
+ * The slot bound is the ONLY generalisation: every sign and index rule comes
+ * from srmech_cd_basis_product, which is where the removed 16-slot peers got
+ * theirs too.
  * Nothing here scales quadratically in dim, so this layer imposes no new
  * ceiling on SRMECH_CD_MAX_DIM.
  *
@@ -5701,15 +5724,17 @@ srmech_status_t srmech_sed_slots(const int *in_slots, const int *in_signs,
  * slots: for each slot i in [0,dim), out_dest[i] = k and out_sign[i] = s where
  * e_i * e_j = s * e_k. out_dest / out_sign are caller arrays of length >= dim.
  * dim is a power of two in [1, SRMECH_CD_MAX_DIM]; j in [0,dim). At dim == 16
- * this is bit-identical to srmech_sedenion_navmap. Errors:
+ * this reproduces the removed srmech_sedenion_navmap bit-for-bit, attested by
+ * the rc464 golden fixture. Errors:
  * SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (bad dim, or j out of range). */
 srmech_status_t srmech_cd_navmap(int dim, int j, int *out_dest, int *out_sign);
 
 /* Route `count` occupied (slot, sign) records through the x e_j permutation at
  * `dim` slots, composing the Class-C signs: out_slots[m] = k and out_signs[m] =
  * in_signs[m] * s where e_{in_slots[m]} * e_j = s * e_k. in_signs entries must
- * be +1/-1 and in_slots in [0,dim). count == 0 is a no-op. At dim == 16 this is
- * bit-identical to srmech_sedenion_navigate. Errors: SRMECH_ERR_NULL_ARG;
+ * be +1/-1 and in_slots in [0,dim). count == 0 is a no-op. At dim == 16 this
+ * reproduces the removed srmech_sedenion_navigate bit-for-bit, attested by the
+ * rc464 golden fixture. Errors: SRMECH_ERR_NULL_ARG;
  * SRMECH_ERR_BAD_INPUT (bad dim, j / slot out of range, or sign not +-1). */
 srmech_status_t srmech_cd_navigate(int dim, int j, const int *in_slots,
                                    const int *in_signs, size_t count,
@@ -14039,7 +14064,7 @@ srmech_status_t srmech_mat_matmul_c128(const srmech_mat_t *a,
  * the Cayley-Dickson rungs float/complex/quaternion/octonion/sedenion,
  * Mat/Vec/HV, the exact scalars int/Fraction/Q, the elliptic
  * EllMonomial/EllRatio/ThetaSum, the weight-axis UnaryTheta/MockQSeries/
- * HarmonicMaass, and the HDC objects One/SedenionRegister) with, per
+ * HarmonicMaass, and the HDC objects One/CDRegister) with, per
  * carrier: a one-line human-readable description, its promote/project
  * ladder + rung (NULL/0 off-ladder), its shift variables, the rc339 (`#T967`)
  * CAPABILITY block, and the DERIVED ops back-index (which registered tools

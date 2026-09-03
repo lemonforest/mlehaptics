@@ -50,7 +50,7 @@ blesses:
   ``'numerator/denominator'`` does the same on ``best_rational``, the very op
   ``CLAUDE.md`` flags as the int-pair trap. **These 21 are unambiguous defects
   under the tree's own documented contract** and are the drain-first target.
-* ``numeric_call_index`` (87) — keys ``"1".."6"``, one per call in a
+* ``numeric_call_index`` (86) — keys ``"1".."6"``, one per call in a
   multi-call transcript. Internally disciplined: see STRICT ZERO 2 below.
 * ``all_prose_labels`` (70) — free prose (``"Antikythera dials"``). A different
   field wearing the ``input`` name.
@@ -106,7 +106,13 @@ CEIL_EXAMPLE_INPUT_KEY_MISMATCH: Dict[str, int] = {
     # drains one row from this bucket, so the ceiling is lowered in the same commit.
     "zero_param_with_keys": 10,
     "all_prose_labels": 70,
-    "numeric_call_index": 87,
+    # rc464 (`#T1188`): 87 -> 86, the SAME shape as the rc395 drain above. The
+    # removed srmech.cascade.sedenion_register carried a numbered {"1"..} example
+    # input -- MEASURED against the rc463 curated file, where it is one of 94
+    # numeric-input ops -- so its removal drains one row from this bucket. The
+    # ceiling was rc463's number and rc464 never touched this file, which is how
+    # it went into CI one above the true count.
+    "numeric_call_index": 86,
 }
 
 #: The literal a zero-parameter op writes instead of leaving ``input`` out.
@@ -201,7 +207,7 @@ def test_example_input_never_mixes_call_index_with_parameter_names() -> None:
     Measured 0 on the rc354 tree and held at 0 here. A blend is the one shape
     from which no consumer can recover the author's intent: ``{"1": ..., "u":
     ...}`` gives an MCP client no way to tell whether ``"u"`` is a parameter
-    or a second call it forgot to number. The 87-row ``numeric_call_index``
+    or a second call it forgot to number. The 86-row ``numeric_call_index``
     ceiling below tolerates the pure form precisely because this test forbids
     the ambiguous one.
     """

@@ -223,7 +223,7 @@ def test_eisenstein_is_a_carrier_no_tool_entry():
     # rc410 (`#T1085`): filter by OWNER, not by name-prefix — see
     # tests/_profile_probe.py for why the prefix axis was the wrong question.
     shipped = list(get_tool_schema().by_owner("srmech"))
-    assert len(shipped) == 720
+    assert len(shipped) == 733
     names = {t.name for t in shipped}
     assert not any("eisenstein" in nm for nm in names)
 

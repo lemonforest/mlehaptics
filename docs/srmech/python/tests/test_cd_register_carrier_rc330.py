@@ -31,9 +31,11 @@ Landmines (both asserted):
   1. At dim 16 the carrier ``.multiply()`` is ``cd_mult`` (a WELL-DEFINED
      sedenion product, ``0`` on a zero-divisor pair), NEVER ``couple_working``
      (the ≤7 octonion coupler, which RAISES on the sedenion's 15 slots).
-  2. ``CDRegister(16, namespace="SEDENION")`` stays bit-faithful to
-     ``SedenionRegister()`` on read / slots — the new methods add no per-instance
-     state, so the rc297 oracle equivalence is untouched.
+  2. ``CDRegister(16, namespace="SEDENION")`` stays bit-faithful on read / slots
+     to the 16-slot register it subsumes — the new methods add no per-instance
+     state, so the faithfulness gate is untouched. rc464: measured against that
+     register's RECORD (``sedenion_register_golden_rc464.ndjson``) rather than
+     against a live peer.
 
 numpy-free (imports only srmech + stdlib); no ``abs()`` (the cascade-honesty AST
 scan in ``test_cd_register_rc297.py`` covers the whole module, these methods
@@ -46,7 +48,8 @@ import pytest
 from srmech.math.q import Q
 from srmech.cascade import cayley_dickson as cd
 from srmech.cascade.cd_register import CDRegister, cd_couple_working
-from srmech.cascade.sedenion_register import SedenionRegister
+
+from tests._golden_sedenion import int_keyed, load_golden
 
 # The rungs the carrier surface is proven exact on (2 ℂ / 4 ℍ / 8 𝕆 / 16 𝕊).
 CARRIER_RUNGS = (2, 4, 8, 16)
@@ -228,24 +231,29 @@ def test_dim16_couple_working_raises_on_the_sedenion_slots():
 
 
 # ──────────────────────────────────────────────────────────────────────
-# §E  LANDMINE 2 — the SEDENION oracle equivalence is untouched by the surface
+# §E  LANDMINE 2 — the RECORDED oracle equivalence is untouched by the surface
 # ──────────────────────────────────────────────────────────────────────
 
-def test_sedenion_oracle_equivalence_preserved():
-    """CDRegister(16, namespace="SEDENION") still matches SedenionRegister() on
-    read / slots — the rc330 methods are pure reads over slots() that add NO
-    per-instance state, so the rc297 faithfulness gate holds. The carrier surface
-    reads the SAME slot map the oracle exposes."""
-    cdr = CDRegister(dim=16, namespace="SEDENION", D=512)
-    sed = SedenionRegister(D=512)
-    occ = {0: 1, 1: -1, 5: 1, 9: 1, 12: -1}
+def test_recorded_oracle_equivalence_preserved():
+    """CDRegister(16, namespace="SEDENION") still reproduces the RECORDED 16-slot
+    register on read / slots — the rc330 methods are pure reads over slots() that
+    add NO per-instance state, so the faithfulness gate holds. The carrier
+    surface reads the SAME slot map.
+
+    rc464: the oracle is ``tests/sedenion_register_golden_rc464.ndjson`` (its
+    ``reads`` record — D=512 and the same five signed slots this test always
+    used) rather than a live ``SedenionRegister``. The landmine guarded is
+    unchanged, that adding the carrier surface silently perturbed storage; it is
+    now guarded against bytes that cannot drift with the subject."""
+    rec = load_golden()["reads"][0]
+    occ = int_keyed(rec["occupancy"])
+    cdr = CDRegister(dim=16, namespace="SEDENION", D=rec["D"])
     for s, sign in occ.items():
         cdr.write(s, f"v{s}", sign=sign)
-        sed.write(s, f"v{s}", sign=sign)
 
-    # bit-exact read on every slot + identical slot maps (the oracle gate)
-    assert all(cdr.read(s) == sed.read(s) for s in range(16))
-    assert cdr.slots() == sed.slots()
+    # bit-exact read on every slot + the identical slot map (the oracle gate)
+    assert {str(s): list(cdr.read(s)) for s in range(16)} == rec["reads"]
+    assert {str(s): [k, g] for s, (k, g) in sorted(cdr.slots().items())} == rec["slots"]
 
     # the carrier surface reads that SAME slot map — element / norm are a pure
     # read over slots(); norm == #occupied (each coeff ±1)

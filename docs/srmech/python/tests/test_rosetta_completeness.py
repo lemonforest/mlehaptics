@@ -888,7 +888,7 @@ CEIL_BIGNUM_REFERENCE = 0
 # rc201b (make_class -> C, engine 2/2): the DSL [class] OBJECT-MODEL engine
 # srmech_make_class_run now RUNS the object model across ALL route types in C --
 # the plain / returns="self" spine (rc201) PLUS the heavy-carrier leaves + the
-# mutates / appends / chain state-route machinery (rc201b): SedenionRegister
+# mutates / appends / chain state-route machinery (rc201b): the register's
 # write(mutates) / materialize / read(chain) / carry / correct + Genome
 # add_chromosome(appends) / recall / assemble / partition, each BYTE-IDENTICAL to
 # the pure CatalogClass (composing srmech_mint_vector + srmech_hdc_* + srmech_genome_*
@@ -1347,7 +1347,11 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     # c_dispatched cd_navmap / cd_navigate / cd_navmap_is_signed_permutation rows
     # (real C peers: srmech_cd_navmap, srmech_cd_navigate,
     # srmech_cd_navmap_is_signed_permutation). Exactly the shape of the
-    # sedenion_register row below, which it generalises.
+    # 16-slot sedenion_register row that stood below it until rc464 (`#T1188`),
+    # which it generalises -- and which it has now outlived: that register and
+    # its sed_slots peer were REMOVED, so their two rows leave this allowlist
+    # with them. Nothing was reclassified to make room; the rows simply have no
+    # subject any more.
     "srmech.cascade.cd_register.cd_register",
     "srmech.cascade.composites.top_k_by_score",
     "srmech.cascade.one.one_dim",
@@ -1356,8 +1360,32 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.cascade.one.one_imag_dims",
     "srmech.cascade.one.one_partition",
     "srmech.cascade.one.one_plane_counts",
-    "srmech.cascade.sedenion_register.sed_slots",
-    "srmech.cascade.sedenion_register.sedenion_register",
+    # The three ACCESSORS among the fourteen cdr_* [class]-binding adapters
+    # (v0.9.0rc464, `#T1188`). The question this pin exists to force was asked of
+    # each, and eleven of the fourteen answered it the other way — they reach the
+    # C mint / bind / bundle / similarity / hamming / cd_navigate kernels and are
+    # classified composition_of_c, so this is a THREE-row justification and not a
+    # family-wide shrug.
+    #   cdr_slots      — a pure reshape: normalise the STR-keyed wire form back to
+    #                    int keys and copy. It deliberately does NOT validate the
+    #                    slot domain, because the method it mirrors does not, so
+    #                    there is not even a bounds test to dispatch.
+    #   cdr_working_block / cdr_carry_block — the two halves of a PARTITION of
+    #                    [0, dim) into the octonion reversible block e0..e7 and
+    #                    everything past the reversibility horizon. Both are
+    #                    range arithmetic over a single int; there is no kernel.
+    # Exactly the shape of the cd_register CONSTRUCTOR row above, which these
+    # three sit beside. ⚠️ This comment also cited "the sed_slots row above
+    # them" until rc464 closed: that row and its C peer (srmech_sed_slots) were
+    # removed later in the SAME rc that wrote the sentence, so it named a row
+    # that is no longer in this file. The contrast it drew is kept because it is
+    # still the useful one, now stated as history: sed_slots DID dispatch to a
+    # real C peer and was zero-REACH only because the ledger walk cannot see
+    # through a native shim, whereas cdr_slots has no C peer to reach at all.
+    # The compute in this family is in the other eleven rows.
+    "srmech.cascade.cd_register.cdr_carry_block",
+    "srmech.cascade.cd_register.cdr_slots",
+    "srmech.cascade.cd_register.cdr_working_block",
     "srmech.amsc.catalog.list_registered_roots",
     "srmech.amsc.catalog.use_local_kernel",
     "srmech.cascade.compose.parse_chain_spec",

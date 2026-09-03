@@ -12,7 +12,10 @@ construct + invoke + wrap LOGIC runs standalone).
 
 This proves, across the three engine-covered shipped classes:
   One (plain op):         dim / imag_dims / partition / plane_counts / grammar_slots
-  SedenionRegister:       navmap / slots / is_navigable / navigate (returns=self)
+  CDRegister:             its whole surface, in
+                          tests/test_cd_register_engine_c_rc464.py (rc464,
+                          `#T1188`) -- the 16-slot register it replaces was
+                          proved here and its coverage moved with it
                           + write(mutates) / materialize / read(chain) / carry / correct
   Genome:                 add_chromosome(appends) / recall / assemble / partition
 
@@ -31,7 +34,6 @@ import pytest
 
 from srmech import _native
 from srmech.cascade.one import the_one
-from srmech.cascade.sedenion_register import SedenionRegister
 from srmech.dsl import make_class, run_class_method
 
 pytestmark = pytest.mark.skipif(
@@ -72,7 +74,7 @@ def test_class_descriptor_lookup_resolves_in_c():
     if not hasattr(lib, "srmech_class_descriptor_lookup"):
         pytest.skip("descriptor lookup not bound")
     n = ctypes.c_size_t(0)
-    for name in ("One", "Genome", "Hurwitz", "SedenionRegister"):
+    for name in ("One", "Genome", "Hurwitz", "CDRegister"):
         got = lib.srmech_class_descriptor_lookup(name.encode(), ctypes.byref(n))
         assert got is not None and n.value > 0, f"{name} must resolve in C"
         assert got.startswith(b"#") or b"[class]" in got  # the descriptor text
@@ -185,7 +187,7 @@ def test_every_dotted_op_ref_baked_into_c_still_resolves():
         # and invents refs like `srmech.biology.genome.` that never existed.
         # The prefix tracks where ADR-0010 moved the class-descriptor op refs:
         # the amsc-era ops now live under ``srmech.cascade.*`` (rc364/rc377 —
-        # One / SedenionRegister / Hurwitz bind cascade ops) and
+        # One / CDRegister / Hurwitz bind cascade ops) and
         # ``srmech.biology.*`` (rc375 — Genome). Was ``srmech\.amsc\.`` before
         # the arc drained amsc; keeping it would make this scan go blind.
         refs.update(_re.findall(
@@ -242,124 +244,6 @@ def test_one_partition_theta_variants():
         assert dispatched
         assert got == {"class": "One", "method": "partition",
                        "result": [1, 3, 7, 3], "fields": {"one": oj}}
-
-
-# ── SedenionRegister field-state carriers ──────────────────────────────────────
-
-def _sed_pyfields(reg):
-    return {"D": reg.D, "codebook": dict(reg.codebook), "slots": dict(reg._slots)}
-
-
-def _sed_jsonfields(reg):
-    """The JSON-native field-state a bare-C host threads."""
-    return {
-        "D": reg.D,
-        "codebook": {k: base64.b64encode(v).decode("ascii")
-                     for k, v in reg.codebook.items()},
-        "slots": {str(k): [v[0], v[1]] for k, v in reg._slots.items()},
-    }
-
-
-def _make_reg():
-    r = SedenionRegister(D=256)
-    r.write(0, "alpha")
-    r.write(3, "beta", sign=-1)
-    r.write(6, "gamma")
-    return r
-
-
-def _sed_expect(method, args):
-    """The pure run_class_method oracle (the whole 4-key dict, JSON-normalised)."""
-    return _norm(run_class_method("SedenionRegister", method,
-                                  fields=_sed_pyfields(_make_reg()), args=args))
-
-
-@pytest.mark.parametrize("method,args", [
-    ("navmap", {"j": 0}), ("navmap", {"j": 7}), ("navmap", {"j": 15}),
-    ("slots", {}),
-])
-def test_sed_plain_reads_match_pure(method, args):
-    dispatched, got = _run_c("SedenionRegister", method,
-                             _sed_jsonfields(_make_reg()), args)
-    assert dispatched, f"sed.{method} should dispatch in C"
-    assert got == _sed_expect(method, args)
-    assert got["class"] == "SedenionRegister" and got["method"] == method
-
-
-def test_sed_is_navigable_matches_pure():
-    one_hot = [0, 1] + [0] * 14                     # e1 — always navigable
-    args = {"direction": one_hot}
-    dispatched, got = _run_c("SedenionRegister", "is_navigable",
-                             _sed_jsonfields(_make_reg()), args)
-    assert dispatched
-    assert got == _sed_expect("is_navigable", args)
-    assert got["result"] is True
-
-
-@pytest.mark.parametrize("j", [1, 2, 7])
-def test_sed_navigate_returns_self_matches_pure(j):
-    args = {"j": j}
-    dispatched, got = _run_c("SedenionRegister", "navigate",
-                             _sed_jsonfields(_make_reg()), args)
-    assert dispatched
-    assert got == _sed_expect("navigate", args)
-    # returns='self': result is the NEW register's state; self (fields) untouched
-    assert got["fields"] == _sed_jsonfields(_make_reg())
-    assert got["result"]["codebook"] == _sed_jsonfields(_make_reg())["codebook"]
-
-
-@pytest.mark.parametrize("slot,key,extra", [
-    (1, "x", {}),
-    (2, "delta", {"sign": 1}),
-    (5, "eps", {"sign": -1}),
-    (0, "alpha", {}),                               # overwrite an existing slot
-    (3, "gamma", {}),                               # re-key to an existing key
-])
-def test_sed_write_mutates_matches_pure(slot, key, extra):
-    args = {"slot": slot, "key": key}
-    args.update(extra)
-    dispatched, got = _run_c("SedenionRegister", "write",
-                             _sed_jsonfields(_make_reg()), args)
-    assert dispatched, "sed.write must dispatch (mutates route)"
-    assert got == _sed_expect("write", args)
-    assert got["result"] is None
-    assert set(got["fields"]) == {"D", "codebook", "slots"}
-
-
-def test_sed_materialize_matches_pure():
-    dispatched, got = _run_c("SedenionRegister", "materialize",
-                             _sed_jsonfields(_make_reg()), {})
-    assert dispatched
-    assert got == _sed_expect("materialize", {})
-
-
-@pytest.mark.parametrize("slot", [0, 3, 6, 1, 2, 7, 15])
-def test_sed_read_chain_matches_pure(slot):
-    args = {"slot": slot}
-    dispatched, got = _run_c("SedenionRegister", "read",
-                             _sed_jsonfields(_make_reg()), args)
-    assert dispatched, "sed.read must dispatch (chain route)"
-    assert got == _sed_expect("read", args)
-
-
-@pytest.mark.parametrize("bits", [[1, 0, 1, 1], [0, 0, 0, 0], [1, 1, 1, 1]])
-def test_sed_carry_matches_pure(bits):
-    args = {"overflow_bits": bits}
-    dispatched, got = _run_c("SedenionRegister", "carry",
-                             _sed_jsonfields(_make_reg()), args)
-    assert dispatched
-    assert got == _sed_expect("carry", args)
-
-
-@pytest.mark.parametrize("codeword", [
-    [1, 0, 1, 0, 1, 0, 1], [0, 1, 1, 0, 0, 1, 1], [0, 0, 0, 0, 0, 0, 0],
-])
-def test_sed_correct_matches_pure(codeword):
-    args = {"codeword": codeword}
-    dispatched, got = _run_c("SedenionRegister", "correct",
-                             _sed_jsonfields(_make_reg()), args)
-    assert dispatched
-    assert got == _sed_expect("correct", args)
 
 
 # ── Genome field-state carriers ────────────────────────────────────────────────
@@ -455,15 +339,19 @@ def test_unknown_method_defers():
 
 
 def test_engine_deferred_leaves_defer():
-    """A leaf the mval carrier cannot emit byte-identically DEFERS — exactly as
-    make_class_run defers it. (rc331 dispatched One.matrix; rc335 dispatched
-    One.flat + One.scalar via SRMECH_MVAL_BIGINT — so the remaining One-adjacent
-    engine defer is the sed float couple/uncouple working word.)"""
-    for method, args in [("couple_working", {"vals": [1.0, 2.0]}),
-                         ("uncouple_working", {"octonion": [1.0, 2.0]})]:
-        dispatched, _ = _run_c("SedenionRegister", method,
-                               _sed_jsonfields(_make_reg()), args)
-        assert not dispatched, f"sed.{method} must DEFER (float working word)"
+    """A leaf the engine cannot emit byte-identically DEFERS through the NAME
+    export exactly as it does through the descriptor export. rc331 dispatched
+    One.matrix and rc335 dispatched One.flat + One.scalar via SRMECH_MVAL_BIGINT,
+    so the One-adjacent engine defer that remains is Hurwitz.generate — a LIVE
+    One object, not JSON, which no carrier can emit at all.
+
+    rc464 (`#T1188`) moved the REGISTER defers (the float working word,
+    is_navigable past the dense cap, the exact-Q carrier chains, an over-long
+    address namespace) to tests/test_cd_register_engine_c_rc464.py, where each
+    is asserted WITH the pure peer's answer beside it — which is what makes a
+    defer inform-don't-limit rather than a gap."""
+    dispatched, _ = _run_c("Hurwitz", "generate", {"n": 1}, {})
+    assert not dispatched, "Hurwitz.generate must DEFER (a live One, not JSON)"
 
 
 # ── rc335 (#948/#887): One.flat + One.scalar DISPATCH byte-identically ─────────

@@ -8,8 +8,10 @@ Three things are pinned here, each of which a plausible future cleanup breaks.
    ``srmech.mcp``.
 
 2. **The ``inspect.ismodule`` inner fallback is LIVE.** It reads as dead code —
-   the original comment justified it with ``srmech.cascade.sedenion_register``,
-   a case that has since stopped needing it, and a sweep over the ToolEntry
+   the original comment justified it with the 16-slot register's module/factory
+   collision — a case that stopped needing it, and that rc464 removed outright
+   (``srmech.cascade.cd_register`` is the same collision and also does not need
+   it) — and a sweep over the ToolEntry
    registry never fires it. Both observations are true and the conclusion
    "therefore remove it" is wrong: two shipped names resolve *only* through
    that branch. This test is the evidence, so the claim cannot be re-made

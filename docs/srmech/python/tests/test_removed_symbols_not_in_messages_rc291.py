@@ -69,6 +69,32 @@ REMOVED: Dict[str, Tuple[str, str]] = {
     # rather than replaced: an unreproducible draw does not belong in the
     # public surface. A caller who wants one draws their own bytes.
     "klein4_random": ("rc292", "klein4_encode_bytes"),
+    # rc464 (`#T1188`) — the 16-slot SedenionRegister, subsumed by the
+    # dim-general CDRegister. ⚠️ THIS RC REMOVED SEVENTEEN PUBLIC NAMES AND
+    # ADDED NO ROWS UNTIL THE CLOSING PASS, which is the checklist step this
+    # file's docstring calls executable. Measured when the rows were finally
+    # added: ZERO live offences — no `raise` or `warnings.warn` under srmech/
+    # named any of the seventeen — so the ledger was never the thing that was
+    # wrong. What was missing is the ARMING: for the whole rc, nothing would
+    # have caught a message pointing at one of these.
+    "SedenionRegister": ("rc464", "CDRegister"),
+    "sedenion_register": ("rc464", 'cd_register(16, namespace="SEDENION", '
+                                   "coupling=True, error_correction=True)"),
+    "NUM_SLOTS": ("rc464", "the CDRegister `dim` constructor parameter"),
+    "OCT_BLOCK": ("rc464", "CD_WORKING_BLOCK / the register's working_block()"),
+    "EC_BLOCK": ("rc464", "the register's carry_block()"),
+    "sed_write": ("rc464", "cd_write"),
+    "sed_materialize": ("rc464", "cd_materialize"),
+    "sed_read_unbind": ("rc464", "cd_read_unbind"),
+    "sed_clean": ("rc464", "cd_clean"),
+    "sed_slots": ("rc464", "cd_slots"),
+    "sed_couple_working": ("rc464", "cd_couple_working"),
+    "sed_uncouple_working": ("rc464", "cd_uncouple_working"),
+    "sed_carry": ("rc464", "cd_carry"),
+    "sed_correct": ("rc464", "cd_correct"),
+    "sed_navmap": ("rc464", "cd_navmap"),
+    "sed_navigate": ("rc464", "cd_navigate"),
+    "sed_is_navigable": ("rc464", "cd_is_navigable"),
 }
 
 
@@ -139,6 +165,7 @@ def test_the_ledger_does_not_go_stale():
     reintroduced, and the test above starts forbidding correct advice about
     a symbol that exists. The ledger has to stay honest to stay useful.
     """
+    import srmech.cascade as cascade
     import srmech.math.hdc as hdc
     import srmech.math.laplacian as laplacian
     import srmech.math.text as text
@@ -146,9 +173,13 @@ def test_the_ledger_does_not_go_stale():
     # Every module a ledger row can name must be checked here, or the row is
     # recorded but never validated. rc292 added ``hdc`` for exactly that
     # reason — the klein4_random row would otherwise have been unverifiable.
+    # rc464 added ``cascade`` for the same reason: all seventeen of its rows
+    # name former ``srmech.cascade`` exports, and without this import they would
+    # have been recorded but unchecked — a ledger entry that cannot go stale
+    # because nothing reads it.
+    _mods = (text, laplacian, hdc, cascade)
     still_present = [
-        name for name in REMOVED
-        if hasattr(text, name) or hasattr(laplacian, name) or hasattr(hdc, name)
+        name for name in REMOVED if any(hasattr(m, name) for m in _mods)
     ]
     assert not still_present, (
         f"ledger claims these were removed, but they exist: {still_present}. "

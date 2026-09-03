@@ -126,7 +126,6 @@ srmech.cascade.qdft_resolve_mu
 srmech.cascade.qdft_summand
 srmech.cascade.reorient
 srmech.cascade.reversal_law_census
-srmech.cascade.sedenion_register
 srmech.cascade.seq_get
 srmech.cascade.seq_len
 srmech.cascade.spectral_cascades.dft

@@ -154,11 +154,11 @@ def test_the_row_determines_the_word_for_only_three_carriers():
     """
     gap = _domain_word_gap()
     assert gap["verdict"].startswith("NOT DERIVABLE")
-    assert gap["of"] == 29
+    assert gap["of"] == 28
     assert gap["determined_unambiguous"] == 4
     assert gap["unambiguous"] == ["Mat", "QMat", "octonion", "quaternion"]
     assert gap["word_returned_but_qualified"] == [
-        "CDRegister", "HV", "SedenionRegister", "sedenion"]
+        "CDRegister", "HV", "sedenion"]
     assert len(gap["by_verdict"]["undecidable"]) == 13
     # rc362: pinned because this is the bucket Qalg MOVED, and it was the one
     # bucket with no assertion — so the registration changed a published

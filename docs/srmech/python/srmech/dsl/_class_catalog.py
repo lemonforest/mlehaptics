@@ -344,7 +344,7 @@ class CatalogClass:
     def _apply_returns(self, mname: str, returns: Any, result: Any) -> Any:
         """Self-returning method: the op/chain returns the NEW instance's full
         ``{field: value}`` state-dict, and this constructs a FRESH instance of the
-        same class from it (the SedenionRegister ``navigate`` shape — a method that
+        same class from it (the CDRegister ``navigate`` shape — a method that
         yields a new register rather than mutating in place). ``self`` is NOT
         touched. ``returns`` currently supports only the literal ``"self"``."""
         if returns != "self":

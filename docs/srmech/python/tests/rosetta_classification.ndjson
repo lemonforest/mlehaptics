@@ -263,19 +263,6 @@
 {"exposed_as": "srmech.signal_processing.verify_rotation_class_n_cycle_order", "defined_at": "srmech.signal_processing.form_function_rotation.verify_rotation_class_n_cycle_order", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.attestation_audit", "defined_at": "srmech.amsc.catalog.attestation_audit", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.cascade.is_division_algebra_dim", "defined_at": "srmech.cascade.cayley_dickson.is_division_algebra_dim", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.cascade.sedenion_register", "defined_at": "srmech.cascade.sedenion_register.sedenion_register", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.cascade.sedenion_register.sed_write", "defined_at": "srmech.cascade.sedenion_register.sed_write", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.cascade.sedenion_register.sed_materialize", "defined_at": "srmech.cascade.sedenion_register.sed_materialize", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.cascade.sedenion_register.sed_read_unbind", "defined_at": "srmech.cascade.sedenion_register.sed_read_unbind", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.cascade.sedenion_register.sed_clean", "defined_at": "srmech.cascade.sedenion_register.sed_clean", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.cascade.sedenion_register.sed_slots", "defined_at": "srmech.cascade.sedenion_register.sed_slots", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.cascade.sedenion_register.sed_couple_working", "defined_at": "srmech.cascade.sedenion_register.sed_couple_working", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.cascade.sedenion_register.sed_uncouple_working", "defined_at": "srmech.cascade.sedenion_register.sed_uncouple_working", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.cascade.sedenion_register.sed_carry", "defined_at": "srmech.cascade.sedenion_register.sed_carry", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.cascade.sedenion_register.sed_correct", "defined_at": "srmech.cascade.sedenion_register.sed_correct", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.cascade.sedenion_register.sed_navmap", "defined_at": "srmech.cascade.sedenion_register.sed_navmap", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.cascade.sedenion_register.sed_navigate", "defined_at": "srmech.cascade.sedenion_register.sed_navigate", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.cascade.sedenion_register.sed_is_navigable", "defined_at": "srmech.cascade.sedenion_register.sed_is_navigable", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.top_k_by_score", "defined_at": "srmech.cascade.composites.top_k_by_score", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.catalog.list_catalog_chains", "defined_at": "srmech.amsc.catalog.list_catalog_chains", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.catalog.run_catalog_chain", "defined_at": "srmech.amsc.catalog.run_catalog_chain", "bucket": "non_compute", "non_compute_kind": "composes_c"}
@@ -748,6 +735,20 @@
 {"exposed_as": "srmech.cascade.cd_uncouple_working", "defined_at": "srmech.cascade.cd_register.cd_uncouple_working", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.cd_carry", "defined_at": "srmech.cascade.cd_register.cd_carry", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.cd_correct", "defined_at": "srmech.cascade.cd_register.cd_correct", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cdr_write", "defined_at": "srmech.cascade.cd_register.cdr_write", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cdr_materialize", "defined_at": "srmech.cascade.cd_register.cdr_materialize", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cdr_read_unbind", "defined_at": "srmech.cascade.cd_register.cdr_read_unbind", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cdr_clean", "defined_at": "srmech.cascade.cd_register.cdr_clean", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cdr_couple_working", "defined_at": "srmech.cascade.cd_register.cdr_couple_working", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cdr_uncouple_working", "defined_at": "srmech.cascade.cd_register.cdr_uncouple_working", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cdr_carry", "defined_at": "srmech.cascade.cd_register.cdr_carry", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cdr_correct", "defined_at": "srmech.cascade.cd_register.cdr_correct", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cdr_element", "defined_at": "srmech.cascade.cd_register.cdr_element", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cdr_element_of", "defined_at": "srmech.cascade.cd_register.cdr_element_of", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cdr_navigate", "defined_at": "srmech.cascade.cd_register.cdr_navigate", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cdr_slots", "defined_at": "srmech.cascade.cd_register.cdr_slots", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.cascade.cdr_working_block", "defined_at": "srmech.cascade.cd_register.cdr_working_block", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.cascade.cdr_carry_block", "defined_at": "srmech.cascade.cd_register.cdr_carry_block", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.biology.q8.q8_mult", "defined_at": "srmech.biology.q8.q8_mult", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.biology.q8.q8_conjugate", "defined_at": "srmech.biology.q8.q8_conjugate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.biology.q8.q8_bind", "defined_at": "srmech.biology.q8.q8_bind", "bucket": "c_dispatched"}

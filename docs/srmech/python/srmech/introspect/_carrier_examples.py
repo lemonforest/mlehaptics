@@ -26,7 +26,6 @@ CARRIER_EXAMPLES: Dict[str, Dict[str, Any]] = {
     "QMat": {"construct": "QMat([[Q(2), Q(0), Q(2)], [Q(0), Q(2), Q(1)]])", "yields": "QMat(2x3, exact-rational)"},
     "QPoly": {"construct": "QPoly([Poly([Q(1)]), Poly([Q(1)])], x_low=0)", "yields": "QPoly(x_low=0, x_high=1, q_degree=0, exact ℚ[q])"},
     "Qalg": {"construct": "Qalg.alpha([-2, 0, 1])  # a root of x**2 - 2, carried EXACTLY", "yields": "Qalg(degree=2, coords=(Q(0, 1), Q(1, 1)), m=x**2-2); (α*α).as_rational() == Q(2, 1) and α.is_rational() is False"},
-    "SedenionRegister": {"construct": "sedenion_register(D=256)"},
     "Theta": {"construct": "Theta(EllMonomial(Q(1), {'x': 1}))", "yields": "Theta(EllMonomial(1·x^1); p)"},
     "ThetaBracketSum": {"construct": "ThetaBracketSum({(('u', 1),): Q(1)})", "yields": "ThetaBracketSum(1 term(s))"},
     "ThetaSum": {"construct": "ThetaSum(terms=[(Q(1), EllMonomial(Q(1), {}), [])])", "yields": "ThetaSum(1 term(s), den=0θ)"},

@@ -54,9 +54,9 @@ collisions exist in the tree, and for 24 of them the parent attribute is the
 module. Two are reachable in a bare ``import srmech`` interpreter and resolve
 ONLY via this fallback — ``srmech.apokatastasis.zeilberger`` and
 ``srmech.introspect.search``; both raise without it. (The
-``srmech.cascade.sedenion_register`` case cited in the original comment is
-NOT one of them — ``srmech/cascade/__init__.py``'s ``from .sedenion_register
-import sedenion_register`` rebinds the package attribute back to the function,
+``srmech.cascade.cd_register`` case cited in the original comment is
+NOT one of them — ``srmech/cascade/__init__.py``'s ``from .cd_register
+import cd_register`` rebinds the package attribute back to the function,
 so that name resolves without the fallback. The fallback was justified by an
 example that had since stopped needing it, which is how it came to look dead.)
 ``tests/test_resolve_dotted_callable_rc413.py`` pins both survivors. (That

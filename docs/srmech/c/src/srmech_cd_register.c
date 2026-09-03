@@ -39,8 +39,10 @@
  * via srmech_cd_basis_product — there is no second algebra here.
  *
  * NO MALLOC: the only scratch is a bounded seen[] of SRMECH_CD_MAX_DIM ints
- * (256 B) on the stack. Nothing here scales quadratically in dim, so this file
- * imposes no new ceiling on SRMECH_CD_MAX_DIM.
+ * (1024 B at the rc298 cap of 256 -- this line said "(256 B)" from rc297, when
+ * the cap WAS 64 and the arithmetic held, and stayed unrevised through the
+ * rc298 raise; corrected rc464). Nothing here scales quadratically in dim, so
+ * this file imposes no new ceiling on SRMECH_CD_MAX_DIM.
  *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto/recursion): OK — bounded loops only
