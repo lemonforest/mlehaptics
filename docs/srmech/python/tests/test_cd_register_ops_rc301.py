@@ -14,8 +14,11 @@ The contract this suite enforces is the committed design note
   * the coupling cap is DERIVED (``min(dim, 8) − 1``), never a hardcoded 7 — it
     scales down below 8 and pins at 7 from 8 up (the octonion sub-block; Hurwitz);
   * dim 1 (ℝ) is the degenerate empty-coupling base — it behaves, not crashes;
-  * at dim 16 the four ops are BIT-EXACT with the shipped ``SedenionRegister``
-    (the oracle, which stays an independent class — the rc297 pattern).
+  * at dim 16 the four ops are BIT-EXACT with the register srmech shipped before
+    ``CDRegister`` subsumed it. rc464 moved that comparison to the RECORDED
+    oracle — ``test_cd_register_golden_rc464.py`` replays the same coupler words
+    (as ``float.hex()``, so bit-identity not tolerance) and every single-bit
+    Hamming correction against ``sedenion_register_golden_rc464.ndjson``.
 
 The graded universal-addressing proof (§E, M/N/L) demonstrates the three consumer
 mappings concretely and writes its measurements to
@@ -37,12 +40,11 @@ from srmech import cascade
 from srmech.cascade import (
     cd_couple_working, cd_uncouple_working, cd_carry, cd_correct,
 )
-from srmech.cascade.sedenion_register import SedenionRegister
 from srmech.cascade.cayley_dickson import CD_MAX_DIM
 
 # Every rung srmech builds tables for. dim 1 (ℝ) is the empty-coupling boundary.
 RUNGS = (1, 2, 4, 8, 16, 32, 64, 128, 256)
-_TOL = 1e-9                    # the shipped SedenionRegister's own roundtrip band
+_TOL = 1e-9                    # the coupler's own roundtrip band, inherited
 
 
 def _full_word(cap: int):
@@ -159,53 +161,44 @@ def test_ec_axis_is_independent_of_dim():
 
 
 # ──────────────────────────────────────────────────────────────────────
-# §C  Oracle parity — bit-exact against the SHIPPED SedenionRegister (rc297 pattern)
+# §C  Oracle parity — bit-exact against the RECORDED 16-slot register (rc464).
+#     The four value-ops at dim 16 are gated in
+#     test_cd_register_golden_rc464.py against
+#     tests/sedenion_register_golden_rc464.ndjson, which is why the three tests
+#     that lived here (couple/uncouple, carry/correct, and the
+#     oracle-independence assertion) are not duplicated: the oracle they named is
+#     no longer a live class, and re-running a comparison against a peer that is
+#     being removed would gate nothing after the removal.
 # ──────────────────────────────────────────────────────────────────────
 
-def test_dim16_couple_is_bit_exact_with_the_shipped_sedenion_register():
-    """The faithfulness gate: ``CDRegister(dim=16, coupling=True).couple_working``
-    reproduces the shipped ``SedenionRegister`` byte-for-byte (not a tolerance —
-    identical floats), because both delegate to the same ``hypercomplex_couple``
-    and at dim 16 the cap coincides at 7."""
-    cd = cascade.cd_register(16, coupling=True)
-    sed = SedenionRegister()
+def test_the_dim16_value_ops_are_delegations_not_reimplementations():
+    """What the two deleted oracle-parity tests were really asserting: at dim 16
+    the METHOD form and the FLAT form are the same computation, so the recorded
+    comparison in ``test_cd_register_golden_rc464.py`` covers both spellings.
+
+    Bit-exactness against the 16-slot register is gated there, against its
+    record. What can still be checked HERE without that class is the property
+    that made the two agree in the first place: neither method re-implements
+    anything — ``couple_working`` is ``cd_couple_working`` and ``carry`` is
+    ``cd_carry``, with the OPT gate in front."""
+    cd = cascade.cd_register(16, coupling=True, error_correction=True)
     for vals in ([1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0],
                  [0.3, -0.7, 0.1],
                  [0.5],
                  [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]):
-        cw_cd, cw_sed = cd.couple_working(vals), sed.couple_working(vals)
-        assert cw_cd == cw_sed, f"couple diverged on {vals}"
-        assert cd.uncouple_working(cw_cd) == sed.uncouple_working(cw_sed), (
-            f"uncouple diverged on {vals}")
-
-
-def test_dim16_carry_correct_is_bit_exact_with_the_shipped_sedenion_register():
-    """The EC ops reproduce the oracle exactly, including the corrected codeword
-    and the located position, for clean and single-error words."""
-    cd = cascade.cd_register(16, error_correction=True)
-    sed = SedenionRegister()
+        word = cd.couple_working(vals)
+        assert word == cd_couple_working(vals, 16), f"couple diverged on {vals}"
+        assert cd.uncouple_working(word) == cd_uncouple_working(word)
     for n in (3, 4):
         big = (1 << n) - 1
         data = [(i * 3) & 1 for i in range(big - n)]
-        enc_cd, enc_sed = cd.carry(data, n=n), sed.carry(data, n=n)
-        assert enc_cd == enc_sed, f"carry diverged at n={n}"
+        enc = cd.carry(data, n=n)
+        assert enc == cd_carry(data, n=n), f"carry diverged at n={n}"
         for pos in range(big):
-            bad = list(enc_cd)
+            bad = list(enc)
             bad[pos] ^= 1
-            assert cd.correct(bad) == sed.correct(bad), (
+            assert cd.correct(bad) == cd_correct(bad), (
                 f"correct diverged at n={n}, pos {pos}")
-
-
-def test_sedenion_register_stays_an_independent_oracle():
-    """``SedenionRegister`` MUST NOT be collapsed into a dim-16 ``CDRegister``
-    alias in this rc — the parity gate above depends on it being the independent
-    reference (the rc297 discipline, re-asserted for the value-ops)."""
-    assert cascade.SedenionRegister is not cascade.CDRegister
-    import inspect
-    src = inspect.getsource(cascade.SedenionRegister)
-    assert "CDRegister" not in src, (
-        "SedenionRegister now references CDRegister — the oracle is no longer "
-        "independent and the parity gate is circular")
 
 
 # ──────────────────────────────────────────────────────────────────────

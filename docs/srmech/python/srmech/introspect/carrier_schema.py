@@ -545,7 +545,9 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "slots, an octonion reversible working word, a Hamming EC/carry "
             "block, and a CD-respecting navigate — produced by "
             "cascade.sedenion_register, driven via the sed_* class "
-            "surface."),
+            "surface. PREFER the CDRegister carrier (rc464): "
+            "cd_register(16, namespace='SEDENION', coupling=True, "
+            "error_correction=True) is this register byte-for-byte."),
         "ladder": None, "rung": None, "variables": [],
     },
     "CDRegister": {
@@ -556,12 +558,12 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "minted hypervectors, the octonion block e0..e7 as the reversible "
             "working set at every rung and the remainder as the carry/EC "
             "block, plus a CD-respecting navigate whose slot routing is the "
-            "signed permutation e_i·e_j = ±e_k. Carries the SAME operand as "
-            "SedenionRegister with the slot bound as a parameter rather than "
-            "a constant — SedenionRegister is its n=16 special case, retained "
-            "as the independent oracle the general form is gated against "
-            "(namespace='SEDENION' at dim 16 reproduces it bit-exactly). "
-            "Produced by cascade.cd_register."),
+            "signed permutation e_i·e_j = ±e_k. THE register carrier (rc464): "
+            "the slot bound is a parameter rather than a constant, so the "
+            "16-slot SedenionRegister is its n=16 special case — "
+            "namespace='SEDENION' at dim 16 reproduces it bit-exactly, gated "
+            "against that register's recorded behaviour rather than a live "
+            "peer. Produced by cascade.cd_register."),
         "ladder": None, "rung": None, "variables": [],
     },
 }

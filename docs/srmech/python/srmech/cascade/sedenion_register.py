@@ -1,5 +1,19 @@
 """Sedenion-addressable hyper-loop RBS-HDC instrument (UPSTREAM §31; F465 + F468).
 
+**PREFER** :class:`~srmech.cascade.cd_register.CDRegister` (rc464). It is the
+register shape srmech ships: the slot count is a constructor parameter, and this
+class is its ``dim=16`` special case, reachable exactly as::
+
+    CDRegister(16, namespace="SEDENION", coupling=True, error_correction=True)
+
+``namespace`` is the address-mint name and therefore load-bearing; the two flags
+are, because the OPT layers below are unconditional here and gated there. The
+equivalence is not a claim — every read, every routed slot, every coupler word and
+the materialised bundle's SHA-256 are recorded in
+``tests/sedenion_register_golden_rc464.ndjson`` and gated in
+``tests/test_cd_register_golden_rc464.py``. There is no method here that
+``CDRegister`` lacks.
+
 The **sedenion shaped box made into an RBS-HDC instrument.** The user's CS
 reframing (2026-06-06): *addressable* = a larger NAMED structure that contains
 the pieces you are working with — exactly as bit-exact binary coding does. So the
@@ -102,6 +116,10 @@ class SedenionRegister:
     """A sedenion (dim-16) addressable RBS-HDC instrument — 16 named slots, an
     octonion reversible working word, a Hamming EC/carry block, and a
     CD-respecting ``navigate``. Composes shipped v0.7.3 primitives; no new algebra.
+
+    **Prefer** ``CDRegister(16, namespace="SEDENION", coupling=True,
+    error_correction=True)`` — the same instrument at the same rung, byte-for-byte
+    (rc464), on the register shape that is not pinned to one slot count.
 
     Storage is content-keyed: :meth:`write` records ``slot → (key, sign)`` and
     materialises the associative bundle on demand; :meth:`read` unbinds by the
@@ -269,7 +287,10 @@ class SedenionRegister:
 def sedenion_register(D: int = DEFAULT_D,
                       codebook: Optional[Dict[str, bytes]] = None) -> SedenionRegister:
     """Construct a :class:`SedenionRegister` — the sedenion-addressable RBS-HDC
-    instrument (UPSTREAM §31; F465 + F468). 16 named slots ``e0..e15``: the
+    instrument (UPSTREAM §31; F465 + F468). **Prefer** ``cd_register(16,
+    namespace="SEDENION", coupling=True, error_correction=True)``, which is this
+    instrument byte-for-byte on the general register shape (rc464). 16 named
+    slots ``e0..e15``: the
     octonion block ``e0..e7`` is the reversible working set, ``e8..e15`` the
     EC/carry block. Composes shipped v0.7.3 primitives; no new algebra. The
     genuinely-new surface is :meth:`SedenionRegister.navigate` (the address↔CD

@@ -5,22 +5,35 @@ to 16 slots), so research needing 32 slots had to write its own and correctly
 flagged that as a confound. This suite is the reason the in-tree general register
 removes the confound rather than merely relocating it.
 
-THE FAITHFULNESS GATE, and why it is stricter than the one that was asked for.
-The brief's gate was "reproduce the shipped SedenionRegister at dim 16, 120/120
-exact at D>=1024". That is passed here — but it is *not* the gate this suite
-enforces, because it cannot explain the known low-D divergence (the out-of-tree
-research register read 119/120 at D=256 where the shipped one read 116/120, with a
-different collision pattern). A general implementation that matches only once
-capacity is adequate has an unexplained difference in its minting or addressing.
+THE FAITHFULNESS GATE MOVED TO ``test_cd_register_golden_rc464.py``, and this
+docstring records why, because the move is the interesting part.
 
-So the gate here is: ``CDRegister(dim=16, namespace="SEDENION")`` must be
-**bit-exact** against the shipped class — same key AND same sign on every probe —
-at **every** D including the starved regime where both fall short of 120/120. It
-is, which localises the entire divergence to one variable: the address-name mint.
-``test_low_d_divergence_is_entirely_the_address_name_mint`` then shows the
-divergence is name-noise and not a property of either register, by demonstrating
-that the ordering REVERSES with D and that the shipped namespace sits inside the
-spread of arbitrary names.
+The brief's gate was "reproduce the shipped SedenionRegister at dim 16, 120/120
+exact at D>=1024". That was never the gate this suite enforced, because it cannot
+explain the known low-D divergence (the out-of-tree research register read 119/120
+at D=256 where the shipped one read 116/120, with a different collision pattern).
+A general implementation that matches only once capacity is adequate has an
+unexplained difference in its minting or addressing. The gate was, and remains:
+``CDRegister(dim=16, namespace="SEDENION")`` must be **bit-exact** — same key AND
+same sign on every probe — at **every** D including the starved regime where both
+fall short of 120/120.
+
+What rc464 changed is the ORACLE, not the gate. It was the live
+``SedenionRegister``; it is now that class's RECORDED output
+(``tests/sedenion_register_golden_rc464.ndjson``, digest-pinned), because rc464
+makes CDRegister the register shape and removes the 16-slot class. This suite
+carried a test whose entire job was to FORBID that — asserting through
+``inspect.getsource`` that the oracle does not mention the subject — and it was
+right to: an oracle that delegates to its subject shares its failure modes. So
+the guarantee MOVED rather than being deleted, from code independence to data
+provenance, which is the stronger form of the same claim (recorded output cannot
+acquire the subject's failure modes because it is not running).
+
+What stays here is everything that never needed the 16-slot class.
+``test_low_d_divergence_is_entirely_the_address_name_mint`` shows the divergence
+is name-noise and not a property of either register, by demonstrating that the
+ordering REVERSES with D and that the shipped namespace sits inside the spread of
+arbitrary names.
 
 THE STRUCTURAL INVARIANT (F1274 / F1275) is enforced, not assumed: addressing
 survives past the Hurwitz boundary precisely because basis products are a signed
@@ -45,9 +58,10 @@ from srmech.cascade.cayley_dickson import CD_MAX_DIM
 
 # NOTE: ``srmech.cascade.cd_register`` names BOTH the module and the factory
 # function, and the cascade __init__ re-export shadows the module attribute — so
-# ``from srmech.cascade import cd_register`` yields the FUNCTION. This is the
-# established shipped pattern (``sedenion_register`` is identical), so it is
-# followed rather than broken here; the module object is fetched explicitly.
+# ``from srmech.cascade import cd_register`` yields the FUNCTION. That is the
+# established shipped convention ("module X re-exports callable X"; the dotted
+# resolver prefers the callable — ``tests/test_cd_register_resolves.py``), so it
+# is followed rather than broken here; the module object is fetched explicitly.
 cd_register_mod = importlib.import_module("srmech.cascade.cd_register")
 
 # Powers of two srmech builds tables for. 1 and 2 are degenerate (no imaginary
@@ -102,44 +116,11 @@ def _probe_roundtrip(make, keys, directions):
 
 
 # ──────────────────────────────────────────────────────────────────────
-# THE FAITHFULNESS GATE — against the SHIPPED class, never a reimplementation
+# THE ADDRESS-MINT MECHANISM — what the faithfulness gate localised the entire
+# low-D divergence TO. The gate itself is now
+# test_cd_register_golden_rc464.py::test_the_nine_d_bit_exact_gate_against_the_record
+# (same nine D, same 120 probes; the oracle recorded rather than live).
 # ──────────────────────────────────────────────────────────────────────
-
-@pytest.mark.parametrize("D", [256, 288, 320, 352, 384, 448, 512, 1024, 4096])
-def test_general_register_is_bit_exact_with_the_shipped_sedenion_register(D):
-    """``CDRegister(16, namespace="SEDENION")`` reproduces the SHIPPED
-    ``SedenionRegister`` byte-for-byte — same recovered key AND same Class-C sign
-    on every probe — at EVERY D, including the capacity-starved regime where both
-    fall short of 120/120.
-
-    This is the whole reason to bring the register in-tree. It is deliberately
-    stronger than "agrees at adequate D": matching only where capacity hides the
-    difference would leave the minting unverified exactly where it is exposed.
-    """
-    keys = NAMES[:8]
-    dirs = list(range(1, 16))
-    shipped = _probe_roundtrip(lambda: cascade.sedenion_register(D=D), keys, dirs)
-    general = _probe_roundtrip(
-        lambda: cascade.cd_register(16, D=D, namespace="SEDENION"), keys, dirs)
-    assert len(shipped) == 120
-    assert [(k, s) for k, s, _ in general] == [(k, s) for k, s, _ in shipped], (
-        f"the general register diverges from the shipped oracle at D={D} — "
-        f"faithfulness is NOT established and no dim-32 number may count"
-    )
-
-
-def test_shipped_register_reaches_120_of_120_and_so_does_the_general_one():
-    """The brief's stated gate, kept explicit: 120/120 exact at D >= 1024 — for
-    the shipped class AND for the general register at dim 16."""
-    keys = NAMES[:8]
-    dirs = list(range(1, 16))
-    for D in (1024, 4096):
-        shipped = _probe_roundtrip(lambda: cascade.sedenion_register(D=D), keys, dirs)
-        general = _probe_roundtrip(
-            lambda: cascade.cd_register(16, D=D, namespace="SEDENION"), keys, dirs)
-        assert sum(h for _, _, h in shipped) == 120, f"shipped fell short at D={D}"
-        assert sum(h for _, _, h in general) == 120, f"general fell short at D={D}"
-
 
 def test_low_d_divergence_is_entirely_the_address_name_mint():
     """EXPLAIN the known low-D discrepancy rather than smoothing it over.
@@ -166,6 +147,9 @@ def test_low_d_divergence_is_entirely_the_address_name_mint():
             lambda: cascade.cd_register(16, D=D, namespace=ns), keys, dirs))
 
     # (1) the two namespaces genuinely differ at a starved D ...
+    assert hits(256, "SEDENION") == 116, (
+        "the starved-capacity score this whole explanation is about moved — it is "
+        "116/120, recorded in tests/sedenion_register_golden_rc464.ndjson")
     assert hits(256, "CD16") != hits(256, "SEDENION")
     # (2) ... and the ordering REVERSES, which kills "one register is easier".
     assert hits(256, "CD16") > hits(256, "SEDENION")
@@ -190,20 +174,6 @@ def test_shipped_namespace_is_inside_the_spread_of_arbitrary_names():
         ok = sum(h for _, _, h in _probe_roundtrip(
             lambda: cascade.cd_register(16, D=4096, namespace=ns), keys, dirs))
         assert ok == 120, f"namespace {ns!r} failed at adequate D — not name-noise"
-
-
-def test_sedenion_register_is_still_an_independent_class_not_an_alias():
-    """``SedenionRegister`` MUST stay the independent oracle through this rc.
-    Collapsing it into a thin n=16 ``CDRegister`` alias in the same release that
-    introduces the general register would destroy the reference the gate above
-    depends on."""
-    assert cascade.SedenionRegister is not cascade.CDRegister
-    assert not issubclass(cascade.SedenionRegister, cascade.CDRegister)
-    assert not issubclass(cascade.CDRegister, cascade.SedenionRegister)
-    src = inspect.getsource(cascade.SedenionRegister)
-    assert "CDRegister" not in src, (
-        "SedenionRegister now delegates to CDRegister — it is no longer an "
-        "independent oracle and the rc297 faithfulness gate is circular")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -273,15 +243,10 @@ def test_signed_permutation_holds_where_composition_fails():
 
 
 # ──────────────────────────────────────────────────────────────────────
-# The general ops agree with the 16-slot peers, and with their C peers
+# The general ops agree with their C PEERS, at every rung the register reaches
+# (the dim-16 agreement with the recorded 16-slot answers is gated in
+# test_cd_register_golden_rc464.py, against the record rather than a peer)
 # ──────────────────────────────────────────────────────────────────────
-
-@pytest.mark.parametrize("j", list(range(16)))
-def test_general_navmap_reduces_to_the_sedenion_navmap_at_dim_16(j):
-    """The general layer is a GENERALISATION, not a second algebra: at dim 16 it
-    must be bit-identical to the shipped 16-slot navmap."""
-    assert cascade.cd_navmap(16, j) == cascade.sedenion_register().navmap(j)
-
 
 @pytest.mark.parametrize("dim", C_NAV_RUNGS)
 def test_cd_navmap_c_matches_the_pure_oracle(dim):
@@ -320,17 +285,6 @@ def test_cd_navmap_is_signed_permutation_c_matches_the_pure_oracle(dim):
     if not _native.has_native_cd_navmap_is_signed_permutation():
         pytest.skip("no native library loaded")
     assert _native.cd_navmap_is_signed_permutation_c(dim) is True
-
-
-def test_c_peers_agree_with_the_sedenion_c_peers_at_dim_16():
-    """The new C symbols must not fork the 16-slot behaviour they generalise."""
-    if not (_native.has_native_cd_navmap() and _native.has_native_cd_navigate()):
-        pytest.skip("no native library loaded")
-    for j in range(16):
-        assert _native.cd_navmap_c(16, j) == _native.sedenion_navmap_c(j)
-        slots, signs = list(range(16)), [1, -1] * 8
-        assert (_native.cd_navigate_c(16, j, slots, signs)
-                == _native.sedenion_navigate_c(j, slots, signs))
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -417,12 +371,6 @@ def test_navigate_carries_dim_D_namespace_and_COPIES_the_codebook():
     assert moved.codebook["alpha"] is r.codebook["alpha"]   # vectors ARE shared
     r.write(1, "beta")
     assert "beta" not in moved.codebook              # the copy does not track
-
-    # the shipped oracle behaves identically — this is inherited, not new
-    s = cascade.sedenion_register(D=1024)
-    s.write(0, "alpha")
-    s_moved = s.navigate(1)
-    assert s_moved.codebook is not s.codebook
 
 
 def test_is_navigable_gate_single_basis_versus_zero_divisor():

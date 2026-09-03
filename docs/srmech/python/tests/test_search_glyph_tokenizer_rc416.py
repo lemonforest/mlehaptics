@@ -953,9 +953,23 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   Measured LAST, after `regen_all.py` reported all six generated files written
 #:   and idempotent across two passes, per the rc454 rule that a pin taken
 #:   mid-release is a measurement of a draft.
+#:
+#:   MOVE 4 `dfa8cfa9…` -> the value below: **0 added, 0 removed, 4 changed**,
+#:   and the four are the whole of rc464's preferred-shape rewording — the
+#:   `srmech.cascade.cd_register` and `srmech.cascade.sedenion_register` OP
+#:   frames (ToolEntry summary + curated explanation) and the `CDRegister` /
+#:   `SedenionRegister` CARRIER frames (their `carrier_schema` descriptions).
+#:   Counts UNMOVED at 763 = 734 ops + 29 carriers: this move registers nothing
+#:   and mints no carrier, so a count change here would have meant something
+#:   other than a reword happened. Differenced the same way as moves 1-3, by
+#:   `git archive`-ing `docs/srmech` WHOLE at `eaee799a7` and building both
+#:   corpora — and the extracted rc464-stage-1 tree reproduced `dfa8cfa9…`
+#:   exactly, which is what makes the four-frame attribution a measurement
+#:   rather than a reading of the diff.
 #: was: f1f521af99cbcf3a3b404a11e521052e08d26577ccf0cc04c5f356816138f5cd (rc463)
+#: was: dfa8cfa99710c81f1be406d32e0ec42a15dcfb8c699d893e3c02f302540236f1 (rc464 stage 1)
 WITNESS_RC416 = (
-    "dfa8cfa99710c81f1be406d32e0ec42a15dcfb8c699d893e3c02f302540236f1")
+    "b213cf4fc311e5ae06beee96061d9b919653e921bcf749a5312765b1053e341d")
 #: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
 #: op corpus, so registering induced_representation + zeta_conjugate moves it by
 #: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.

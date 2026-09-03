@@ -306,6 +306,9 @@ from .cayley_plane import (
 # storage, the ≤7 reversible coupler working word, the Hamming carry, and the
 # address↔Cayley–Dickson `navigate` homomorphism + `is_navigable` gate (the
 # genuinely-new piece). Pure composition of shipped primitives — no new algebra.
+# rc464: PREFER `CDRegister` below — `cd_register(16, namespace="SEDENION",
+# coupling=True, error_correction=True)` is this instrument byte-for-byte, gated
+# against its record in tests/sedenion_register_golden_rc464.ndjson.
 from .sedenion_register import (
     SedenionRegister,
     sedenion_register,
@@ -316,13 +319,13 @@ from .sedenion_register import (
 )
 
 # ── The GENERAL N-slot Cayley–Dickson register (rc297; `#934`) ─────────
-# The 16-slot instrument above generalised to any power-of-two dim in
-# [1, CD_MAX_DIM]. The slot bound is the ONLY generalisation — every sign and
-# index rule is shared through `cd_basis_product`, so there is no second
-# algebra. `SedenionRegister` remains the independent oracle the general
-# register's faithfulness is gated against (`CDRegister(16, namespace=
-# "SEDENION")` reproduces it bit-exactly at every D); it is deliberately NOT
-# collapsed into an n=16 alias.
+# THE register shape (rc464: preferred). The 16-slot instrument above with the
+# slot count as a PARAMETER — any power of two in [1, CD_MAX_DIM]. The slot
+# bound is the ONLY generalisation: every sign and index rule is shared through
+# `cd_basis_product`, so there is no second algebra. Faithfulness at dim 16 is
+# gated against the 16-slot register's RECORDED behaviour rather than a live
+# peer (rc464: `tests/sedenion_register_golden_rc464.ndjson`, digest-pinned) —
+# an oracle that could drift with its subject was never the guarantee wanted.
 from .cd_register import (
     CDRegister,
     cd_register,

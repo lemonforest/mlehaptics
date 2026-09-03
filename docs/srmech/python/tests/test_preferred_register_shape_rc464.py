@@ -1,0 +1,184 @@
+"""rc464 (`#T1188`) — CDRegister is the PREFERRED register shape, as a gate.
+
+"Prefer X" is the kind of statement that lives in prose, goes stale silently, and
+is then quoted years later by a reader who had no way to know. srmech has already
+paid for exactly that: the sentence "the make_class contract is one-op-per-method
+plus a single appends/sets field" sat in three ungated files for ~330 rcs after
+it stopped being true and steered a build decision (rc464 CHANGELOG). So the
+preference is measured here rather than asserted in a docstring alone.
+
+WHAT IS MEASURED
+
+1. WHICH SURFACES HAND BACK A REGISTER, pinned as an EQUALITY over the shipped
+   tool schema. That is the set a reader chooses from, so it is the set the
+   preference has to be about. An equality (rather than a subset check) means a
+   new register-shaped entry cannot appear unremarked, and the entry that leaves
+   when the 16-slot class is removed cannot leave unremarked either.
+2. THE PREFERRED ENTRY SAYS SO, in the shipped summary AND in the docstrings a
+   reader reaches through ``help()`` — with the SUBSUMING SPELLING, because
+   "prefer CDRegister" without ``namespace=`` and the two OPT flags is advice
+   that silently changes behaviour at dim 16.
+3. EVERY OTHER REGISTER-RETURNING ENTRY POINTS AT IT. While the 16-slot register
+   still ships, its summary and its carrier description must name
+   ``cd_register`` — a reader who lands on the special case must be told where
+   the general one is. When that entry is removed this set is empty, and clause
+   1's equality is what carries the claim.
+4. THE CARRIER ONTOLOGY AGREES. ``carrier_schema()`` exposes carrier descriptions
+   on a different path from ToolEntry summaries; both are read by consumers, so
+   both are checked rather than one standing in for the other.
+5. THE PROSE ACTUALLY SHIPS. The steer is asserted in the two GENERATED
+   artifacts a consumer reads without ever importing the module — the wheel's
+   ``_tool_docs.py`` explanation and the compiled-in C tool registry — because
+   prose that is only in a Python docstring is not what an MCP client or a
+   bare-C host sees.
+
+The negative control at the end proves the steering predicate can fail: a
+summary that merely MENTIONS the register does not pass it.
+"""
+
+from __future__ import annotations
+
+import inspect
+from pathlib import Path
+
+import pytest
+
+from srmech import cascade
+from srmech.introspect.tool_schema import get_tool_schema
+from srmech.introspect.carrier_schema import carrier_schema
+
+#: The op that constructs the preferred shape.
+PREFERRED = "srmech.cascade.cd_register"
+
+#: Every registered op whose declared return type is a register carrier, pinned
+#: as an equality. rc464 ships two: the preferred general shape and the dim-16
+#: special case it subsumes, which the same arc removes.
+REGISTER_RETURNING = {
+    "srmech.cascade.cd_register",
+    "srmech.cascade.sedenion_register",
+}
+
+#: The spelling that makes "prefer CDRegister" a behaviour-preserving swap at
+#: dim 16. Without the namespace the address mint differs (a measurable
+#: read-collision difference at starved D); without the flags the two OPT layers
+#: raise where the 16-slot register returned. Quote style varies by surface
+#: (Python docstrings use ", ToolEntry summaries use '), so the check is
+#: quote-insensitive — see :func:`_says_the_subsuming_spelling`.
+SUBSUMING_SPELLING_TOKENS = ("namespace=SEDENION", "coupling=True",
+                             "error_correction=True")
+
+
+def _says_the_subsuming_spelling(text: str) -> bool:
+    flat = text.replace("'", "").replace('"', "").replace("``", "")
+    return all(tok in flat for tok in SUBSUMING_SPELLING_TOKENS)
+
+
+def _register_entries():
+    return {t.name: t for t in get_tool_schema().tools
+            if t.returns is not None and t.returns.type.endswith("Register")}
+
+
+def _steers_to_preferred(text: str) -> bool:
+    """Does this prose actually send a reader to the preferred shape?
+
+    Naming ``cd_register`` is not enough — every register entry mentions it in
+    passing. The test is that the prose says to PREFER it."""
+    return ("cd_register" in text or "CDRegister" in text) and "PREFER" in text.upper()
+
+
+def test_the_register_returning_surface_is_exactly_what_is_pinned():
+    """The set a reader chooses a register from. An equality, so that a new
+    register-shaped entry — or the removal of the dim-16 one — is reported."""
+    assert set(_register_entries()) == REGISTER_RETURNING
+    assert PREFERRED in REGISTER_RETURNING
+
+
+def test_the_preferred_entry_declares_itself_preferred_with_the_full_spelling():
+    """The shipped ToolEntry summary — what an MCP client, ``describe()`` and the
+    compiled-in C tool registry all read."""
+    entry = _register_entries()[PREFERRED]
+    summary = entry.summary
+    assert "PREFERRED" in summary, (
+        "the preferred register entry does not say it is preferred, so nothing "
+        "a consumer reads distinguishes it from the special case")
+    assert "cd_register(16" in summary and _says_the_subsuming_spelling(summary), (
+        "the summary recommends the general register without the spelling that "
+        "makes the swap behaviour-preserving at dim 16 — namespace= decides the "
+        "address mint and the two flags gate the value-operations")
+
+
+def test_the_python_docstrings_carry_the_same_preference():
+    """A reader at ``help(cascade.CDRegister)`` must get the same steer as a
+    reader of the tool schema; they are different paths to the same decision."""
+    cls_doc = inspect.getdoc(cascade.CDRegister) or ""
+    factory_doc = inspect.getdoc(cascade.cd_register) or ""
+    module_doc = inspect.getdoc(
+        __import__("srmech.cascade.cd_register", fromlist=["_"])) or ""
+    for label, doc in (("CDRegister", cls_doc),
+                       ("cd_register()", factory_doc),
+                       ("cd_register module", module_doc)):
+        assert "preferred" in doc.lower(), (
+            f"{label} does not present itself as the preferred register shape")
+    assert _says_the_subsuming_spelling(module_doc), (
+        "the module docstring omits the subsuming spelling")
+
+
+def test_every_other_register_surface_points_at_the_preferred_one():
+    """A reader who lands on a special case must be told where the general shape
+    is — in the tool summary AND in the carrier description, which are read by
+    different consumers."""
+    entries = _register_entries()
+    others = {name: e for name, e in entries.items() if name != PREFERRED}
+    assert len(others) == len(REGISTER_RETURNING) - 1
+    carriers = carrier_schema()
+    for name, entry in others.items():
+        assert _steers_to_preferred(entry.summary), (
+            f"{name} does not steer a reader to {PREFERRED} — a special case "
+            f"that does not name the general shape is a fork in the docs")
+        carrier_name = entry.returns.type
+        assert _steers_to_preferred(carriers[carrier_name]["description"]), (
+            f"the {carrier_name} carrier description does not steer to the "
+            f"preferred register carrier")
+
+
+def test_the_preferred_carrier_description_says_it_is_the_register_carrier():
+    cdr = carrier_schema()["CDRegister"]["description"]
+    assert "THE register carrier" in cdr, (
+        "the carrier ontology does not mark CDRegister as the register carrier")
+
+
+def test_the_steering_predicate_can_fail():
+    """A guard that cannot fail is not a guard. Mentioning the preferred register
+    is NOT steering to it; every register entry does that in passing."""
+    assert not _steers_to_preferred(
+        "Construct a 16-slot register. Related: cd_register, cd_navmap.")
+    assert not _steers_to_preferred("PREFER the other one.")
+    assert _steers_to_preferred("PREFER cd_register(16, ...) — it is this "
+                                "instrument byte-for-byte.")
+
+
+def test_the_preference_ships_in_the_generated_artifacts():
+    """The steer has to reach a consumer who never imports the module.
+
+    Two surfaces carry the shipped prose and neither is a docstring: the wheel's
+    generated ``_tool_docs.py`` (what ``TOOL_DOCS`` serves) and the compiled-in
+    C tool registry (what a bare-C host reads). The tree's ref-notation
+    discipline measured 15 false links shipping inside published wheels through
+    exactly these two files (2026-07-27), which is why they are checked directly
+    rather than trusted to follow the source."""
+    from srmech.introspect._tool_docs import TOOL_DOCS
+    doc = TOOL_DOCS[PREFERRED]["explanation"]
+    assert "PREFERRED" in doc, (
+        "the shipped explanation does not mark the preferred register shape")
+    assert _says_the_subsuming_spelling(doc)
+
+    registry_c = (Path(__file__).resolve().parents[2]
+                  / "c" / "src" / "srmech_tool_registry.c")
+    if not registry_c.exists():             # source checkout only
+        pytest.skip("C tool registry source not present in this layout")
+    text = registry_c.read_text(encoding="utf-8")
+    assert "PREFERRED shape since rc464" in text, (
+        "the compiled-in C tool registry does not carry the preference — a "
+        "bare-C host reading its own registry would not be told")
+    assert "PREFER srmech.cascade.cd_register" in text, (
+        "the C registry's dim-16 entry does not steer to the preferred shape")

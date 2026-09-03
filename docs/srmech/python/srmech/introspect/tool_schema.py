@@ -14356,6 +14356,8 @@ def _register_primitive_class_tools() -> None:
         # ``cascade.sedenion_register.sedenion_register`` is the same object
         # re-exported flat (exempt in test_tool_schema_coverage). The class
         # SedenionRegister is not a module-level function (not coverage-walked).
+        # rc464: `srmech.cascade.cd_register` below is the PREFERRED register
+        # entry — this one is its dim-16 special case, and the summary says so.
         ToolEntry(
             name="srmech.cascade.sedenion_register", owner="srmech",
             category="cascade",
@@ -14376,7 +14378,14 @@ def _register_primitive_class_tools() -> None:
                     "primitives — no new algebra, no abs() (sign is Class C chiral_flip). "
                     "The WHOLE instrument is numpy-free: storage + coupler route "
                     "through mint_vector / the Class-M hdc cascades, and "
-                    "navigate/is_navigable/carry/correct are pure address-algebra."
+                    "navigate/is_navigable/carry/correct are pure address-algebra. "
+                    "PREFER srmech.cascade.cd_register (rc464): it is THE register "
+                    "shape, with the slot count as a parameter, and cd_register(16, "
+                    "namespace='SEDENION', coupling=True, error_correction=True) is "
+                    "THIS instrument byte-for-byte — every read, every routed slot, "
+                    "every coupler word and the materialised bundle's SHA-256, gated "
+                    "against a recorded fixture. There is no method here that "
+                    "CDRegister lacks."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("D", "int", False, "hypervector width in bits (default 8192; the RBS-HDC dimension)"),
@@ -14387,20 +14396,25 @@ def _register_primitive_class_tools() -> None:
                       ".couple_working/.uncouple_working (≤7 reversible word), "
                       ".carry/.correct (EC block), .navigate/.is_navigable (hyper-loop)"),
         ),
-        # The GENERAL N-slot Cayley–Dickson register (v0.9.0rc297; `#934`) — the
-        # 16-slot instrument above generalised to any power-of-two dim in
-        # [1, CD_MAX_DIM]. Registered under STABLE flat names; the submodule-dotted
-        # ``cascade.cd_register.*`` are the same objects re-exported flat (exempt in
-        # test_tool_schema_coverage). The class CDRegister is not a module-level
-        # function (not coverage-walked). SedenionRegister deliberately REMAINS an
-        # independent class, not an n=16 alias — it is the oracle the general
-        # register's faithfulness is gated against.
+        # THE addressable register (v0.9.0rc297; `#934`. rc464: the PREFERRED
+        # register entry) — the 16-slot instrument above with the slot count as a
+        # PARAMETER, any power-of-two dim in [1, CD_MAX_DIM]. Registered under
+        # STABLE flat names; the submodule-dotted ``cascade.cd_register.*`` are the
+        # same objects re-exported flat (exempt in test_tool_schema_coverage). The
+        # class CDRegister is not a module-level function (not coverage-walked).
+        # Faithfulness at dim 16 is gated against the 16-slot register's RECORDED
+        # behaviour (tests/sedenion_register_golden_rc464.ndjson, digest-pinned),
+        # not against a live peer that could drift with its subject.
         ToolEntry(
             name="srmech.cascade.cd_register", owner="srmech",
             category="cascade",
-            summary="Construct a CDRegister — the GENERAL N-slot Cayley–Dickson "
-                    "ADDRESSABLE RBS-HDC register (`#934`). The dim-16 "
-                    "sedenion_register generalised to any power-of-two dim in "
+            summary="Construct a CDRegister — THE addressable RBS-HDC register "
+                    "srmech ships (`#934`; PREFERRED shape since rc464). Reach for "
+                    "this whenever you want an addressable register: the slot count "
+                    "is a PARAMETER, so one object serves every rung and the dim-16 "
+                    "sedenion_register is the spelling cd_register(16, "
+                    "namespace='SEDENION', coupling=True, error_correction=True) "
+                    "rather than a second class. Any power-of-two dim in "
                     "[1, 256]: dim named slots e0..e{dim-1}, with e0..e7 the octonion "
                     "reversible working block at EVERY rung and the remainder the "
                     "carry/EC block (more slots buy ADDRESS SPACE, never a longer "
@@ -14414,8 +14428,10 @@ def _register_primitive_class_tools() -> None:
                     "dim≥16 (and ~95% of generic pairs at 32) leaves addressing intact "
                     "(F1274/F1275). namespace= selects the address-mint namespace "
                     "(default 'CD{dim}'); namespace='SEDENION' at dim=16 reproduces the "
-                    "shipped SedenionRegister BIT-EXACTLY at every D — the faithfulness "
-                    "gate. Capacity is D-bounded and MORE SLOTS NEED MORE D: a shortfall "
+                    "16-slot sedenion register BIT-EXACTLY at every D — the "
+                    "faithfulness gate, held against that register's RECORDED "
+                    "behaviour rather than a live peer. "
+                    "Capacity is D-bounded and MORE SLOTS NEED MORE D: a shortfall "
                     "at fixed D is a capacity fact, not an algebra fact — sweep D. "
                     "numpy-free; no abs() (sign is Class-K pin-slot ∘ Class-C)."
                     + PUBLISH_OPT_IN_NOTE,

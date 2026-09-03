@@ -336,6 +336,25 @@ REASON so a future hand-coded class re-populating it is reported rather than
 passing unremarked); the asymmetry C6 named is
 gone on this front (the `[[alias]]` layer's axis is still open).
 
+**The addressable register: reach for `CDRegister`** (rc464, `#T1188`). It is
+THE register shape — the slot count is a constructor parameter, so one object
+serves every rung from ℝ to 256 slots, and the 16-slot `SedenionRegister` is the
+spelling `cd_register(16, namespace="SEDENION", coupling=True,
+error_correction=True)` rather than a second class. All three parts of that
+spelling are load-bearing: `namespace` IS the address-mint name (a measurable
+read-collision difference at starved `D`), and the 16-slot register's coupling /
+EC layers were UNCONDITIONAL where `CDRegister` gates them. The equivalence is
+not a claim: 1157 records of the 16-slot register's behaviour — every probe,
+every routed slot, every coupler word, and the materialised bundle's SHA-256 at
+three widths — are recorded in `tests/sedenion_register_golden_rc464.ndjson`
+(digest-pinned in `tests/_golden_sedenion.py`) and gated in
+`tests/test_cd_register_golden_rc464.py`. The preference itself is a gate, not a
+sentence: `tests/test_preferred_register_shape_rc464.py` pins the
+register-returning tool set as an equality and requires the steer to appear in
+the shipped summary, the docstrings, the generated `_tool_docs.py` and the
+compiled-in C tool registry — so THIS paragraph going stale is reported
+elsewhere, which is not true of most of this file.
+
 **Discipline — PREFER config-driven `[class]` TOML over hand-coded
 domain classes** (`[[feedback_prefer_config_driven_toml_classes]]`,
 user direction 2026-06-13). When a domain object is a

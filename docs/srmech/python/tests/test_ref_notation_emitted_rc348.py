@@ -823,6 +823,22 @@ SCAN_ROOTS = {
     # citation-contradiction one above.
     "tests/test_one_preimage_contract_rc440.py": (
         "docs/srmech/python", "docs/srmech/c"),
+    # rc464 (`#T1188`): the PREFERRED-register-shape gate reads
+    # `c/src/srmech_tool_registry.c` because the preference it pins is a
+    # statement made to CONSUMERS, and the two consumers that never import the
+    # module are the wheel's generated `_tool_docs.py` and the compiled-in C
+    # registry a bare-C host reads. Asserting the steer only in the Python
+    # ToolEntry would gate the source of the prose and not the surfaces it
+    # ships on — which is the rc348 lesson in one sentence, since the sweep that
+    # stopped at source left 15 false links live in the wheel. Same reasoning as
+    # the one-preimage and citation-contradiction gates above.
+    #
+    # Landed WITHOUT this entry first and reddened
+    # `test_no_test_reaches_out_of_tree_without_declaring_it` — the third gate in
+    # a row to be caught by it (rc452, rc462, now this). The guard is doing
+    # exactly its job; `docs/srmech/**` watches the path.
+    "tests/test_preferred_register_shape_rc464.py": (
+        "docs/srmech/python", "docs/srmech/c"),
     # THE WIDE ONE: rglobs the entire subtree to derive the `#TNNN` vocabulary.
     "tests/test_ref_notation_emitted_rc348.py": ("docs/srmech",),
     # rc459: the SM-reproduction gate is strict-zero over every SHIPPED surface,

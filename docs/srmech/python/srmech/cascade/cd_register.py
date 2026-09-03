@@ -1,10 +1,21 @@
-"""The GENERAL N-slot Cayley–Dickson addressable RBS-HDC register (rc297; `#934`).
+"""THE addressable RBS-HDC register srmech ships (rc297; `#934`. rc464: preferred).
 
-srmech shipped exactly one addressable register — :class:`~srmech.cascade.
-sedenion_register.SedenionRegister`, hard-wired to the sedenion's 16 slots. Research
-that needed 32 slots therefore had to write its own, and correctly flagged that as a
-confound: *"a register I wrote could just be easier."* This module removes the
-confound by bringing the general register in-tree.
+**Reach for :class:`CDRegister` whenever you want an addressable register.** It is
+the register shape — ``dim`` is a constructor parameter, so one object serves every
+rung from ℝ to 256 slots, and the 16-slot sedenion instrument is the spelling
+``CDRegister(16, namespace="SEDENION", coupling=True, error_correction=True)``
+rather than a second class. That subsumption is not asserted: it is gated
+byte-for-byte in ``tests/test_cd_register_golden_rc464.py`` against 1157 recorded
+outcomes of the class it replaced (``tests/sedenion_register_golden_rc464.ndjson``),
+including the materialised bundle's SHA-256 at three widths.
+
+How it got here. srmech shipped exactly one addressable register — hard-wired to
+the sedenion's 16 slots. Research that needed 32 slots therefore had to write its
+own, and correctly flagged that as a confound: *"a register I wrote could just be
+easier."* rc297 removed the confound by bringing the general register in-tree;
+rc464 makes it the PREFERRED shape and moves the dim-16 faithfulness gate off
+the live 16-slot class onto a digest-pinned recording of it, so the oracle can
+no longer drift with the subject it grades.
 
 **The slot count is the ONLY thing that generalises.** Every sign rule, every index
 rule, the minter, the bind/bundle/similarity storage, the odd-N pad, the Class-C
@@ -81,10 +92,10 @@ A register's minted addresses are content-derived from a **name**:
 ``mint_vector(f"{namespace}:e{slot}", D=D)``. Different namespaces mint different
 address hypervectors, which at capacity-starved ``D`` produce different crosstalk —
 and therefore different read-collision patterns. This is not a nuisance; it is the
-mechanism, and exposing ``namespace`` is what lets the general register **reproduce
-the shipped one bit-exactly**::
+mechanism, and exposing ``namespace`` is what lets this register **reproduce the
+16-slot instrument bit-exactly** rather than merely resemble it::
 
-    CDRegister(dim=16, namespace="SEDENION")   ==   SedenionRegister()
+    CDRegister(dim=16, namespace="SEDENION")   ==   the 16-slot register, byte-for-byte
 
 byte-for-byte on every read, at **every** ``D`` including the starved regime where
 both fall short of 120/120. That is a strictly stronger gate than "agrees once
@@ -378,19 +389,23 @@ def cd_correct(codeword: Sequence[int]) -> Dict[str, Any]:
 
 
 class CDRegister:
-    """A general **N-slot** Cayley–Dickson addressable RBS-HDC register — the
-    :class:`~srmech.cascade.sedenion_register.SedenionRegister` generalised
-    from 16 slots to ``dim`` slots (any power of two in ``[1, CD_MAX_DIM]``).
+    """**THE** addressable RBS-HDC register (rc464: the preferred shape) — an
+    **N-slot** Cayley–Dickson register over ``dim`` slots, any power of two in
+    ``[1, CD_MAX_DIM]``. The slot count is a CONSTRUCTOR PARAMETER, so there is
+    one register object for every rung instead of one class per rung.
 
-    Storage is content-keyed exactly as in the 16-slot register: :meth:`write`
-    records ``slot → (key, sign)`` and materialises the associative bundle on
-    demand; :meth:`read` unbinds by the slot's address and cleans against the
-    codebook.
+    Storage is content-keyed: :meth:`write` records ``slot → (key, sign)`` and
+    materialises the associative bundle on demand; :meth:`read` unbinds by the
+    slot's address and cleans against the codebook.
 
     ``namespace`` selects the address-mint namespace (default ``f"CD{dim}"``).
-    Setting ``namespace="SEDENION"`` at ``dim=16`` reproduces the shipped
-    :class:`SedenionRegister` **bit-exactly at every** ``D`` — that is the
-    faithfulness gate this class is held to, and it is why the parameter exists.
+    Setting ``namespace="SEDENION"`` at ``dim=16`` reproduces the 16-slot
+    sedenion instrument srmech shipped before this class **bit-exactly at every**
+    ``D`` — that is the faithfulness gate this class is held to (against that
+    register's RECORD, ``tests/sedenion_register_golden_rc464.ndjson``), and it
+    is why the parameter exists. The full subsuming spelling adds the two OPT
+    layers, which the 16-slot class carried unconditionally:
+    ``CDRegister(16, namespace="SEDENION", coupling=True, error_correction=True)``.
 
     Three layers (rc301, `#T938`): the CORE **addressing** layer is always on and
     content-AGNOSTIC — ``navmap`` is a pure function of ``dim``, storage holds
@@ -719,11 +734,11 @@ def cd_register(dim: int, D: int = DEFAULT_D,
                 namespace: Optional[str] = None,
                 coupling: bool = False,
                 error_correction: bool = False) -> CDRegister:
-    """Construct a :class:`CDRegister` — the **general N-slot** Cayley–Dickson
-    addressable RBS-HDC register (rc297; `#934`). ``dim`` named slots
-    ``e0..e{dim-1}`` for any power of two in ``[1, CD_MAX_DIM]``; ``e0..e7`` is the
-    octonion reversible working block at every rung and the remainder is the
-    carry/EC block.
+    """Construct a :class:`CDRegister` — **the** addressable RBS-HDC register
+    (rc297; `#934`. rc464: the preferred shape, and the only one). ``dim`` named
+    slots ``e0..e{dim-1}`` for any power of two in ``[1, CD_MAX_DIM]``; ``e0..e7``
+    is the octonion reversible working block at every rung and the remainder is
+    the carry/EC block.
 
     The CORE **addressing** layer (``write`` / ``read`` / ``navmap`` / ``navigate``
     / ``is_navigable``) is always on and content-agnostic. The two OPTIONAL layers
@@ -733,11 +748,12 @@ def cd_register(dim: int, D: int = DEFAULT_D,
     (``carry`` / ``correct``, a separate axis from ``dim``). A bare register is a
     pure signed-pointer addressing object.
 
-    Generalises the 16-slot
-    :func:`~srmech.cascade.sedenion_register.sedenion_register` — the slot
-    bound is the only difference; every sign and index rule is shared through
-    :func:`cd_basis_product`. ``namespace="SEDENION"`` at ``dim=16`` reproduces the
-    shipped register bit-exactly at every ``D`` (the faithfulness gate).
+    Subsumes the 16-slot sedenion instrument srmech shipped before it — the slot
+    bound was the only difference; every sign and index rule is shared through
+    :func:`cd_basis_product`. ``cd_register(16, namespace="SEDENION",
+    coupling=True, error_correction=True)`` reproduces that register bit-exactly
+    at every ``D``, gated against its record in
+    ``tests/sedenion_register_golden_rc464.ndjson``.
 
     Legitimate past the Hurwitz wall because addressing rides on the basis product
     being a signed permutation, which zero divisors (built from *sums* of basis

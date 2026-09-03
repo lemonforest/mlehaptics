@@ -848,3 +848,11 @@ tests/test_weight_lattice_rc460.py
 #    49 passed in 13.98 s.
 tests/test_cd_register_class_catalog_rc464.py
 tests/test_wire_invocability_rc464.py
+# rc464 stage 2 (`#T1188`): the PREFERRED-register-shape gate. It reads the
+# shipped ToolEntry summaries, the carrier descriptions AND the two generated
+# artifacts (_tool_docs.py + srmech_tool_registry.c), and it pins the set of
+# register-returning ops as an EQUALITY -- so any rc that edits a register
+# ToolEntry, adds a register-shaped return type, or regenerates without
+# re-running the docs pipeline lands here. That is precisely the edit this
+# manifest exists for. 7 tests, ~10 s, pure.
+tests/test_preferred_register_shape_rc464.py
