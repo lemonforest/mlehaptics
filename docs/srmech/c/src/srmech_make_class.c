@@ -10,7 +10,7 @@
  *
  * The rc194-200 arc made all 31 make_class LEAF ops C-realizable (One:
  * srmech_the_one/one_scalar/one_matrix + the 5 inline constants; genome:
- * srmech_genome_* ; sedenion: srmech_sedenion_* + sed_slots + hamming + the HDC
+ * srmech_genome_* ; the register: srmech_cd_navmap/navigate + hamming + the HDC
  * storage leaves over srmech_mint_vector + srmech_hdc_*). rc201 builds the
  * ORCHESTRATION on top: the descriptor->field-state->dispatch->route ENGINE that
  * a bare-C host uses to RUN the object model, with a leaf VTABLE that returns
@@ -43,23 +43,74 @@
  *       — the 5 INLINE-CONSTANT accessors (the `one` bind is w-invariant substrate
  *         structure, so the constant carriers 14 / (1,3,7) / (1,3,7,3) / (0,1,3)
  *         / ('B','H','N') are emitted with NO leaf call).
- *   SedenionRegister (plain op):
- *     navmap  -> srmech_sedenion_navmap (the 16-slot signed permutation DICT)
- *     slots   -> srmech_sed_slots       (the occupied (slot,sign) reshape DICT)
+ *   CDRegister (plain op):
+ *     navmap  -> srmech_cd_navmap (the dim-slot signed permutation DICT)
+ *     slots   -> the wire-key reshape DICT (validate-free, as the method is)
  *     is_navigable -> srmech_sedenion_is_navigable (the reversibility bool)
- *   SedenionRegister (returns="self"):
- *     navigate -> srmech_sedenion_navigate (route every slot name by x e_j -> a
- *       NEW register's {D, codebook, slots} field-state DICT; the returns="self"
- *       route builds a fresh instance, self untouched).
+ *   CDRegister (returns="self"):
+ *     navigate -> srmech_cd_navigate (route every slot name by x e_j -> a
+ *       NEW register's SEVEN-field state DICT; the returns="self" route builds a
+ *       fresh instance, self untouched).
  *
  * rc201b HEAVY BATCH (byte-identical to the pure CatalogClass; composes the
- * shipped C leaves): SedenionRegister write (mutates slots+codebook: srmech_mint_
+ * shipped C leaves): the register's write (mutates slots+codebook: srmech_mint_
  * vector), materialize (bundle_k bind(ADDR[k], value_k): srmech_hdc_bind/bundle,
  * chiral_flip=byte-reverse), read (the 2-stage chain: unbind -> nearest-codebook
  * clean by the EXACT integer |D-2*hamming| argmax; NO float), carry/correct
  * (srmech_hamming_encode/decode_correct); Genome add_chromosome (appends:
  * srmech_genome_chromosome), recall/assemble/partition (srmech_genome_recall/
  * genome/partition, the partition dict dedup/labels-order semantics replicated).
+ *
+ * ================================================================
+ * rc464 (`#T1188`) — THE REGISTER THUNKS BECOME dim- AND namespace-GENERAL.
+ * ================================================================
+ *
+ * The whole register leaf family was written against a SIXTEEN-slot register
+ * with a hard-coded "SEDENION:e" address namespace. rc464 replaces it with the
+ * GENERAL CDRegister, which subsumes it: the same thunks, parameterised by the
+ * two things that were constants.
+ *
+ *   dim        — every slot array is MC_CDR_SLOTS (= SRMECH_CD_MAX_DIM = 256)
+ *                wide; srmech_cd_navmap / srmech_cd_navigate take the rung.
+ *   namespace  — mc_ns_name resolves the STR field, or "CD{dim}" when it is
+ *                absent, so the address mint is a register PARAMETER. At dim 16
+ *                with namespace="SEDENION" the emit is byte-identical to what
+ *                the 16-slot thunks produced, which is the whole subsumption
+ *                claim and is asserted at that spelling.
+ *
+ * The sharper of the two walls was NOT the slot count: every slot-key and
+ * address-name emitter was a TWO-DIGIT itoa (four separate ones), so slots
+ * 100..255 — which only exist at dim 128/256 — would have silently DEFERRED or
+ * tripped an assert. mc_slot_key is now the ONE emitter every site calls, so
+ * the set cannot half-migrate.
+ *
+ * Nothing in the ENGINE knew 16 and nothing in it knows 256: dim is an ordinary
+ * field bind. The engine did, however, carry a hand-rolled `32 * toml_len`
+ * TOML-parse workspace that held for every descriptor through rc463 and failed
+ * on the first larger one — see mc_run_from_toml.
+ *
+ * DECLARED DEFERS for the register, in full (rc103 inform-don't-limit; each is
+ * a DECISION recorded here, not a discovered limit):
+ *   couple_working / uncouple_working — the float working word. The reason on
+ *     record ("the mval carrier cannot emit it byte-identically") is STALE:
+ *     rc331 emits a within-tol float MAT and rc335 emits bignums. It is
+ *     deferred by SCOPE; the Q61-exact coupler srmech_hypercomplex_couple_q61
+ *     and the rc331 float emit make it dissolvable, and that is a named
+ *     follow-up rather than scope creep inside an ABI-moving rc.
+ *   is_navigable above SRMECH_CD_DENSE_MAX_DIM (64) — the dense kernel's
+ *     quadratic buffer. IN PROCESS the answer is C-computed at every rung (the
+ *     exact-rational nullspace dispatches to srmech_qmat_nullspace); only the
+ *     bare-C ENGINE composition over that kernel is owed.
+ *   norm / conjugate / multiply / add — the four exact-Q carrier CHAINS. Their
+ *     first stage (element) DISPATCHES; their terminal ops are the bigint
+ *     kernels srmech_cd_qnorm_sq / _qconjugate / srmech_cd_mult / _qadd, which
+ *     need the intermediate Q-vector to round-trip through the BIGINT carrier.
+ *     That plumbing is a named follow-up. These never had an engine peer on the
+ *     16-slot register (which has no carrier-arithmetic surface at all), so
+ *     this defers nothing that previously dispatched.
+ *   a namespace longer than MC_CDR_ADDR_MAX can hold — a DECLARED defer, never
+ *     a truncation: a truncated namespace mints a DIFFERENT address and would
+ *     return wrong content silently.
  *
  * rc331 (#948 Thread B) wired One.matrix (the correctly-rounded cos/sin -> MAT
  * carrier); rc335 (#948/#887) wired One.flat + One.scalar via a new
@@ -69,9 +120,9 @@
  * DISPATCHES — the One [class] is FULLY C-hosted.
  *
  * DEFER (rc103 inform-don't-limit — what the mval carrier still CANNOT emit
- * byte-identically): Hurwitz.generate (a live One object, not JSON); the sed
- * couple/uncouple working word (float); the genome disk quartet save/load/catalog/
- * append (host-FS) + shape/cap. A method whose op is not in the vtable (or whose
+ * byte-identically): Hurwitz.generate (a live One object, not JSON); the
+ * register's declared defers listed in the rc464 block above; the genome disk
+ * quartet save/load/catalog/append (host-FS) + shape/cap. A method whose op is not in the vtable (or whose
  * leaf/route the engine cannot represent) sets *out_kind = SRMECH_MAKE_CLASS_DEFER
  * and the caller runs the COMPLETE pure CatalogClass (never a wrong answer). A user
  * (register_class_dir) class DEFERS the same way (no host op-resolver callback).
@@ -102,15 +153,20 @@
 /* A [class] descriptor has a small, bounded method/field/bind surface. */
 #define MC_MAX_FIELDS 16
 #define MC_MAX_BINDS  8
-#define MC_SED_SLOTS  16
+/* rc464 (`#T1188`): the register bound is the GENERAL Cayley-Dickson rung cap,
+ * not 16. Every slot array, slot-key emitter and address buffer below is sized
+ * from this one macro, so a dim-128/256 register cannot half-migrate. */
+#define MC_CDR_SLOTS  SRMECH_CD_MAX_DIM
 #define MC_ONE_DIM    14u  /* One.DIM = 2+4+8; the 14x14 = 196-cell G(sigma,theta) */
 
 /* rc201b heavy-vtable bounds (all caller-arena; JPL Rule 2 loop over-bounds). */
-#define MC_MAX_PARTS   (MC_SED_SLOTS + 1)  /* ≤16 slot binds + 1 __pad__ vector   */
+#define MC_MAX_PARTS   (MC_CDR_SLOTS + 1)  /* <=dim slot parts + __pad__  */
 #define MC_MAX_SCOPE   8                   /* chain stages / per-method as= names  */
 #define MC_MAX_LEAVES  4096                /* genome kernel leaf-block count       */
 #define MC_MAX_KERNELS 256                 /* genome assemble kernel count         */
-#define MC_ADDR_MAX    24                  /* "SEDENION:e15" + NUL headroom        */
+#define MC_CDR_ADDR_MAX 64                 /* "{namespace}:e255" + NUL     */
+#define MC_CDR_DEFAULT_D 8192              /* cd_register.DEFAULT_D             */
+#define MC_CDR_WORKING   8                 /* cd_register.WORKING_BLOCK_DIM     */
 #define MC_HAMMING_MAX 65535               /* 2^16 - 1 codeword ceiling (Hamming)  */
 
 /* ------------------------------------------------------------------
@@ -385,7 +441,106 @@ static int mc_arg_i64(const srmech_mval_t *v, int64_t *out)
     return 1;
 }
 
-/* A slots DICT {STR "0".."15" -> [key_str, sign_int]} -> parallel arrays, in
+/* The ONE slot-key / index emitter: itoa(slot) for slot in [0, MC_CDR_SLOTS),
+ * into `kb` (>= 4 bytes), NUL-terminated; returns the digit count.
+ *
+ * rc464 (`#T1188`): before this there were FOUR separate two-digit emitters
+ * (navmap's kb[4] with no >=100 guard, mc_build_slots and mc_slots_set each
+ * returning NULL at m >= 100, and mc_addr_name asserting slot < 100). Slots
+ * 100..255 exist at dim 128/256, so a half-migrated set of emitters would
+ * silently DEFER or assert on exactly the rungs the general register adds.
+ * One helper, used by every site, is the only shape that cannot half-migrate. */
+static uint32_t mc_slot_key(char *kb, int slot)
+{
+    uint32_t p = 0u;
+    assert(kb != NULL);
+    assert(slot >= 0 && slot < MC_CDR_SLOTS);
+    if (slot >= 100) { kb[p++] = (char)('0' + slot / 100); }
+    if (slot >= 10)  { kb[p++] = (char)('0' + (slot / 10) % 10); }
+    kb[p++] = (char)('0' + slot % 10);
+    kb[p] = '\0';
+    return p;
+}
+
+/* Emit the address-mint NAMESPACE into `nm` (>= MC_CDR_ADDR_MAX): the STR
+ * `ns` carrier verbatim, or the "CD{dim}" default when it is NONE/absent --
+ * the SAME rule the pure _cdr_defaults applies. Returns the length, or 0
+ * (DEFER) when it plus the ":e{slot}" tail cannot fit. A namespace long enough
+ * to overflow the buffer is a DECLARED defer, not a truncation: a truncated
+ * namespace would mint a DIFFERENT address and silently return wrong content. */
+static uint32_t mc_ns_name(char *nm, const srmech_mval_t *ns, int dim)
+{
+    uint32_t p = 0u;
+    assert(nm != NULL);
+    assert(dim >= 1 && dim <= MC_CDR_SLOTS);
+    if (ns != NULL && ns->kind == SRMECH_MVAL_STR) {
+        if (ns->slen + 6u > (uint32_t)MC_CDR_ADDR_MAX) { return 0u; }
+        memcpy(nm, ns->s, ns->slen);
+        return ns->slen;
+    }
+    if (ns != NULL && ns->kind != SRMECH_MVAL_NONE) { return 0u; }
+    nm[p++] = 'C'; nm[p++] = 'D';
+    if (dim >= 100) { nm[p++] = (char)('0' + dim / 100); }
+    if (dim >= 10)  { nm[p++] = (char)('0' + (dim / 10) % 10); }
+    nm[p++] = (char)('0' + dim % 10);
+    return p;
+}
+
+/* Build the mint name "{namespace}:e{slot}" into `nm` (>= MC_CDR_ADDR_MAX);
+ * returns the length, or 0 (DEFER). slot in [0, MC_CDR_SLOTS). */
+static uint32_t mc_addr_name(char *nm, const srmech_mval_t *ns, int dim, int slot)
+{
+    uint32_t p;
+    assert(nm != NULL);
+    assert(slot >= 0 && slot < MC_CDR_SLOTS);
+    p = mc_ns_name(nm, ns, dim);
+    if (p == 0u) { return 0u; }
+    nm[p++] = ':'; nm[p++] = 'e';
+    p += mc_slot_key(nm + p, slot);
+    return p;
+}
+
+/* dim must be a power of two in [1, MC_CDR_SLOTS] -- exactly the domain the
+ * pure _check_dim enforces. An out-of-domain dim RAISES on the pure side, so
+ * the honest C answer is DEFER (0), never a substituted rung. */
+static int mc_dim_ok(int64_t dim)
+{
+    assert(MC_CDR_SLOTS == SRMECH_CD_MAX_DIM);       /* the library cap, not a copy */
+    assert((MC_CDR_SLOTS & (MC_CDR_SLOTS - 1)) == 0);
+    return (dim >= 1 && dim <= (int64_t)MC_CDR_SLOTS
+            && (dim & (dim - 1)) == 0) ? 1 : 0;
+}
+
+/* The declarative `D` field -> the minting width. An INT passes through; a
+ * NONE/absent field resolves to MC_CDR_DEFAULT_D -- the SAME rule the pure
+ * _cdr_defaults applies, so a class constructed with dim= alone mints the same
+ * vectors in both projections. 0 (DEFER) for any other carrier. */
+static int mc_arg_d(const srmech_mval_t *v, int64_t *out)
+{
+    assert(out != NULL);
+    assert(MC_CDR_DEFAULT_D > 0 && (MC_CDR_DEFAULT_D % 8) == 0);
+    if (v == NULL || v->kind == SRMECH_MVAL_NONE) {
+        *out = (int64_t)MC_CDR_DEFAULT_D; return 1;
+    }
+    if (v->kind != SRMECH_MVAL_INT) { return 0; }
+    *out = v->i;
+    return 1;
+}
+
+/* A declarative bool field's truth: BOOL as itself, INT as nonzero, NONE/absent
+ * as FALSE (bool(None) on the pure side). The two OPT-layer gates read this. */
+static int mc_arg_truth(const srmech_mval_t *v)
+{
+    assert(SRMECH_MVAL_BOOL != SRMECH_MVAL_NONE);
+    assert(SRMECH_MVAL_BOOL != SRMECH_MVAL_INT);
+    if (v == NULL) { return 0; }
+    if (v->kind == SRMECH_MVAL_BOOL || v->kind == SRMECH_MVAL_INT) {
+        return (v->i != 0) ? 1 : 0;
+    }
+    return 0;
+}
+
+/* A slots DICT {STR "0".."255" -> [key_str, sign_int]} -> parallel arrays, in
  * the DICT's stored order (order-preserving, as CatalogClass keeps it). Returns
  * 0 (defer) on a malformed entry. keys_out receives the STR value carriers. */
 static int mc_read_slots(const srmech_mval_t *slots, int *slot_out, int *sign_out,
@@ -396,7 +551,7 @@ static int mc_read_slots(const srmech_mval_t *slots, int *slot_out, int *sign_ou
     assert(slots == NULL || slots->keys != NULL || slots->n == 0u);
     if (slots == NULL || slots->kind != SRMECH_MVAL_DICT) { return 0; }
     n = slots->n;
-    if (n > MC_SED_SLOTS) { return 0; }
+    if (n > MC_CDR_SLOTS) { return 0; }
     for (i = 0u; i < n; i++) {
         const srmech_mval_t *k = slots->keys[i], *pair = slots->items[i];
         char kb[8]; long sv;
@@ -428,15 +583,14 @@ static srmech_mval_t *mc_build_slots(srmech_marshal_arena_t *a, const int *slots
     d = mc_dict(a, count);
     if (d == NULL) { return NULL; }
     for (i = 0u; i < count; i++) {
-        char kb[8]; int m = slots[i], p = 0; srmech_mval_t *pair;
-        if (m < 0 || m >= 100) { return NULL; }
-        if (m >= 10) { kb[p++] = (char)('0' + m / 10); }
-        kb[p++] = (char)('0' + m % 10); kb[p] = '\0';
+        char kb[8]; int m = slots[i]; uint32_t p; srmech_mval_t *pair;
+        if (m < 0 || m >= MC_CDR_SLOTS) { return NULL; }
+        p = mc_slot_key(kb, m);
         pair = mc_list(a, 2u, 1);
         if (pair == NULL || keys[i] == NULL) { return NULL; }
         pair->items[0] = (srmech_mval_t *)keys[i];
         pair->items[1] = mc_int(a, signs[i]);
-        d->keys[i] = mc_str_copy(a, kb, (uint32_t)p);
+        d->keys[i] = mc_str_copy(a, kb, p);
         d->items[i] = pair;
         if (d->keys[i] == NULL || pair->items[1] == NULL) { return NULL; }
     }
@@ -449,7 +603,7 @@ static void mc_sort_by_slot(const int *slots, uint32_t count, uint32_t *order)
 {
     uint32_t i, j, key;
     assert(slots != NULL && order != NULL);
-    assert(count <= (uint32_t)MC_SED_SLOTS);
+    assert(count <= (uint32_t)MC_CDR_SLOTS);
     for (i = 0u; i < count; i++) { order[i] = i; }
     for (i = 1u; i < count; i++) {
         key = order[i]; j = i;
@@ -719,45 +873,57 @@ static srmech_mval_t *mc_to_scalar(srmech_marshal_arena_t *a,
     return lst;
 }
 
-/* sed navmap -> {STR "0".."15" -> [dest, sign]} for x e_j. */
-static srmech_mval_t *mc_sed_navmap(srmech_marshal_arena_t *a, int64_t j)
+/* cdr navmap -> {STR "0".."{dim-1}" -> [dest, sign]} for x e_j at `dim` slots.
+ * srmech_cd_navmap is the dim-general peer of the 16-slot srmech_sedenion_navmap
+ * it replaces, and is bit-identical to it at dim == 16 (srmech.h). */
+static srmech_mval_t *mc_cdr_navmap(srmech_marshal_arena_t *a, int64_t dim,
+                                    int64_t j)
 {
-    int dest[MC_SED_SLOTS], sign[MC_SED_SLOTS]; uint32_t i;
+    int dest[MC_CDR_SLOTS], sign[MC_CDR_SLOTS]; uint32_t i, n;
     srmech_mval_t *d;
     assert(a != NULL);
     assert(a->cur <= a->end);
-    if (j < 0 || j >= MC_SED_SLOTS) { return NULL; }
-    if (srmech_sedenion_navmap((int)j, dest, sign) != SRMECH_OK) { return NULL; }
-    d = mc_dict(a, MC_SED_SLOTS);
+    if (!mc_dim_ok(dim) || j < 0 || j >= dim) { return NULL; }
+    if (srmech_cd_navmap((int)dim, (int)j, dest, sign) != SRMECH_OK) { return NULL; }
+    n = (uint32_t)dim;
+    d = mc_dict(a, n);
     if (d == NULL) { return NULL; }
-    for (i = 0u; i < MC_SED_SLOTS; i++) {
-        char kb[4]; int p = 0, m = (int)i; srmech_mval_t *pr;
-        if (m >= 10) { kb[p++] = (char)('0' + m / 10); }
-        kb[p++] = (char)('0' + m % 10); kb[p] = '\0';
-        pr = mc_pair(a, dest[i], sign[i]);
-        d->keys[i] = mc_str_copy(a, kb, (uint32_t)p);
+    for (i = 0u; i < n; i++) {
+        char kb[8]; uint32_t p = mc_slot_key(kb, (int)i);
+        srmech_mval_t *pr = mc_pair(a, dest[i], sign[i]);
+        d->keys[i] = mc_str_copy(a, kb, p);
         d->items[i] = pr;
         if (pr == NULL || d->keys[i] == NULL) { return NULL; }
     }
     return d;
 }
 
-/* sed slots -> the (slot,sign) reshape DICT via srmech_sed_slots, in input
- * order (mirrors sed_slots: list(d.items()) order). */
-static srmech_mval_t *mc_sed_slots(srmech_marshal_arena_t *a,
+/* cdr slots -> the slot map with its wire STR keys normalised back to ints, in
+ * input order (mirrors cdr_slots: dict(slots).items() order). A pure reshape --
+ * it does NOT validate the slot domain, because CDRegister.slots() does not
+ * either, and the contract here is byte-identity with THAT method. */
+static srmech_mval_t *mc_cdr_slots(srmech_marshal_arena_t *a,
                                    const srmech_mval_t *slots)
 {
-    int in_s[MC_SED_SLOTS], in_g[MC_SED_SLOTS], out_s[MC_SED_SLOTS], out_g[MC_SED_SLOTS];
-    const srmech_mval_t *keys[MC_SED_SLOTS]; uint32_t count = 0u;
+    int in_s[MC_CDR_SLOTS], in_g[MC_CDR_SLOTS];
+    const srmech_mval_t *keys[MC_CDR_SLOTS]; uint32_t count = 0u;
     assert(a != NULL);
     assert(a->cur <= a->end);
     if (!mc_read_slots(slots, in_s, in_g, keys, &count)) { return NULL; }
-    if (srmech_sed_slots(in_s, in_g, count, out_s, out_g) != SRMECH_OK) { return NULL; }
-    return mc_build_slots(a, out_s, out_g, keys, count);
+    return mc_build_slots(a, in_s, in_g, keys, count);
 }
 
-/* sed is_navigable -> bool over an int direction vector (power-of-two length). */
-static srmech_mval_t *mc_sed_is_navigable(srmech_marshal_arena_t *a,
+/* cdr is_navigable -> bool over an int direction vector (power-of-two length).
+ *
+ * DECLARED DEFER above SRMECH_CD_DENSE_MAX_DIM (64): the dense kernel
+ * srmech_sedenion_is_navigable is the library's one QUADRATIC buffer and
+ * declines past that cap by contract, so a dim-128/256 engine call returns NULL
+ * and the pure CatalogClass answers -- which itself dispatches the exact-
+ * rational nullspace to srmech_qmat_nullspace, so the answer is C-computed at
+ * every rung IN PROCESS. What is missing at 128/256 is only the bare-C ENGINE
+ * composition over srmech_qmat_nullspace; that is a named rc464 follow-up,
+ * with its arena size and wall-clock unmeasured. */
+static srmech_mval_t *mc_cdr_is_navigable(srmech_marshal_arena_t *a,
                                           const srmech_mval_t *dir)
 {
     /* rc298 (`#933`): sized by the DENSE cap — this buffer feeds
@@ -776,47 +942,167 @@ static srmech_mval_t *mc_sed_is_navigable(srmech_marshal_arena_t *a,
     return mc_bool(a, inv);
 }
 
-/* sed navigate (returns="self") -> a NEW register's {D, codebook, slots} field-
- * state DICT: route every slot name by x e_j (sorted-input order, mirroring
- * SedenionRegister.navigate). D + codebook pass through unchanged. */
-static srmech_mval_t *mc_sed_navigate(srmech_marshal_arena_t *a, int64_t j,
-                                      const srmech_mval_t *dfield,
-                                      const srmech_mval_t *codebook,
-                                      const srmech_mval_t *slots)
+/* Route the occupied slots by x e_j at `dim` slots, in SORTED-input order
+ * (CDRegister.navigate walks sorted(self._slots.items())), and emit the routed
+ * slot DICT. Split out of mc_cdr_navigate so both stay under the 60-line rule. */
+static srmech_mval_t *mc_cdr_route(srmech_marshal_arena_t *a, int64_t dim,
+                                   int64_t j, const srmech_mval_t *slots)
 {
-    int in_s[MC_SED_SLOTS], in_g[MC_SED_SLOTS], os[MC_SED_SLOTS], og[MC_SED_SLOTS];
-    int ss[MC_SED_SLOTS], sg[MC_SED_SLOTS];
-    const srmech_mval_t *keys[MC_SED_SLOTS], *sk[MC_SED_SLOTS];
-    uint32_t count = 0u, i, order[MC_SED_SLOTS]; srmech_mval_t *out, *routed;
+    int in_s[MC_CDR_SLOTS], in_g[MC_CDR_SLOTS], os[MC_CDR_SLOTS], og[MC_CDR_SLOTS];
+    int ss[MC_CDR_SLOTS], sg[MC_CDR_SLOTS];
+    const srmech_mval_t *keys[MC_CDR_SLOTS], *sk[MC_CDR_SLOTS];
+    uint32_t count = 0u, i, order[MC_CDR_SLOTS];
     assert(a != NULL);
     assert(a->cur <= a->end);
-    if (j < 0 || j >= MC_SED_SLOTS) { return NULL; }
+    if (!mc_dim_ok(dim) || j < 0 || j >= dim) { return NULL; }
     if (!mc_read_slots(slots, in_s, in_g, keys, &count)) { return NULL; }
     mc_sort_by_slot(in_s, count, order);
     for (i = 0u; i < count; i++) { ss[i] = in_s[order[i]]; sg[i] = in_g[order[i]];
         sk[i] = keys[order[i]]; }
-    if (srmech_sedenion_navigate((int)j, ss, sg, count, os, og) != SRMECH_OK) { return NULL; }
-    routed = mc_build_slots(a, os, og, sk, count);
-    out = mc_dict(a, 3u);
-    if (out == NULL || routed == NULL) { return NULL; }
-    out->keys[0] = mc_str_copy(a, "D", 1u); out->items[0] = (srmech_mval_t *)dfield;
-    out->keys[1] = mc_str_copy(a, "codebook", 8u); out->items[1] = (srmech_mval_t *)codebook;
-    out->keys[2] = mc_str_copy(a, "slots", 5u); out->items[2] = routed;
-    if (out->keys[0] == NULL || out->keys[1] == NULL || out->keys[2] == NULL) { return NULL; }
+    if (srmech_cd_navigate((int)dim, (int)j, ss, sg, count, os, og) != SRMECH_OK) {
+        return NULL;
+    }
+    return mc_build_slots(a, os, og, sk, count);
+}
+
+/* cdr navigate (returns="self") -> the NEW register's FULL SEVEN-field state
+ * DICT, in the descriptor's declared field order (dim / D / namespace /
+ * codebook / slots / coupling / error_correction) -- which is the order
+ * CatalogClass.__init__ rebuilds a fresh instance's fields in, so the emit is
+ * byte-identical to _norm(new_inst.fields).
+ *
+ * ALL SEVEN are emitted, not just the ones that move: returns="self" builds a
+ * FRESH instance and an omitted field would RESET to the contract default
+ * (NONE for every scalar here), silently dropping the rung, the width, the
+ * address namespace and both OPT gates off the routed register. D and namespace
+ * are emitted RESOLVED (the pure adapter emits out.D / out.namespace, which the
+ * constructor already defaulted), so a register constructed with dim= alone
+ * navigates to the same state in both projections.
+ *
+ * Eight binds against MC_MAX_BINDS = 8 -- exactly at the cap, with zero
+ * headroom. An over-cap method DEFERS silently, so the engine test asserts
+ * DISPATCH for this method specifically; that assertion IS the headroom guard. */
+static srmech_mval_t *mc_cdr_navigate(srmech_marshal_arena_t *a, int64_t j,
+                                      int64_t dim, const srmech_mval_t *dfield,
+                                      const srmech_mval_t *nsfield,
+                                      const srmech_mval_t *codebook,
+                                      const srmech_mval_t *slots,
+                                      const srmech_mval_t *cpl,
+                                      const srmech_mval_t *ecf)
+{
+    char nsb[MC_CDR_ADDR_MAX]; uint32_t nl, i; int64_t D;
+    srmech_mval_t *out, *routed;
+    assert(a != NULL);
+    assert(a->cur <= a->end);
+    if (!mc_dim_ok(dim) || !mc_arg_d(dfield, &D)) { return NULL; }
+    nl = mc_ns_name(nsb, nsfield, (int)dim);
+    routed = mc_cdr_route(a, dim, j, slots);
+    out = mc_dict(a, 7u);
+    if (nl == 0u || routed == NULL || out == NULL) { return NULL; }
+    out->keys[0] = mc_str_copy(a, "dim", 3u);
+    out->items[0] = mc_int(a, dim);
+    out->keys[1] = mc_str_copy(a, "D", 1u);
+    out->items[1] = mc_int(a, D);
+    out->keys[2] = mc_str_copy(a, "namespace", 9u);
+    out->items[2] = mc_str_copy(a, nsb, nl);
+    out->keys[3] = mc_str_copy(a, "codebook", 8u);
+    out->items[3] = (srmech_mval_t *)codebook;
+    out->keys[4] = mc_str_copy(a, "slots", 5u);
+    out->items[4] = routed;
+    out->keys[5] = mc_str_copy(a, "coupling", 8u);
+    out->items[5] = mc_bool(a, mc_arg_truth(cpl));
+    out->keys[6] = mc_str_copy(a, "error_correction", 16u);
+    out->items[6] = mc_bool(a, mc_arg_truth(ecf));
+    for (i = 0u; i < 7u; i++) {
+        if (out->keys[i] == NULL || out->items[i] == NULL) { return NULL; }
+    }
     return out;
 }
 
+/* cdr working_block (kind 0: e0..e{min(8,dim)-1}) / carry_block (kind 1:
+ * e8..e{dim-1}) -- the block structure as a LIST of slot indices. The Hurwitz
+ * cap is 7 imaginary slots at EVERY rung, so the working block never grows. */
+static srmech_mval_t *mc_cdr_block(srmech_marshal_arena_t *a, int64_t dim,
+                                   int kind)
+{
+    int64_t lo, hi; uint32_t i, n; srmech_mval_t *lst;
+    assert(a != NULL);
+    assert(kind == 0 || kind == 1);
+    if (!mc_dim_ok(dim)) { return NULL; }
+    lo = (kind == 0) ? 0 : (int64_t)MC_CDR_WORKING;
+    hi = (kind == 0)
+        ? ((dim < (int64_t)MC_CDR_WORKING) ? dim : (int64_t)MC_CDR_WORKING)
+        : dim;
+    n = (hi > lo) ? (uint32_t)(hi - lo) : 0u;
+    lst = mc_list(a, n, 1);
+    if (lst == NULL) { return NULL; }
+    for (i = 0u; i < n; i++) {
+        lst->items[i] = mc_int(a, lo + (int64_t)i);
+        if (lst->items[i] == NULL) { return NULL; }
+    }
+    return lst;
+}
+
+/* cdr element -> the slot-held Cayley-Dickson element as a length-dim exact-Q
+ * LIST: [sign_i, 1] at an occupied slot, [0, 1] elsewhere. Coefficients are in
+ * {-1, 0, +1} with unit denominators, so the (num, den) pairs the pure
+ * serialise_native(Q) emits are plain INTs -- no bignum carrier needed. */
+static srmech_mval_t *mc_cdr_element(srmech_marshal_arena_t *a,
+                                     const srmech_mval_t *slots, int64_t dim)
+{
+    int in_s[MC_CDR_SLOTS], in_g[MC_CDR_SLOTS], coeff[MC_CDR_SLOTS];
+    const srmech_mval_t *keys[MC_CDR_SLOTS];
+    uint32_t count = 0u, i, n; srmech_mval_t *lst;
+    assert(a != NULL);
+    assert(a->cur <= a->end);
+    if (!mc_dim_ok(dim)) { return NULL; }
+    if (!mc_read_slots(slots, in_s, in_g, keys, &count)) { return NULL; }
+    n = (uint32_t)dim;
+    for (i = 0u; i < n; i++) { coeff[i] = 0; }
+    for (i = 0u; i < count; i++) {
+        if (in_s[i] < 0 || (int64_t)in_s[i] >= dim) { return NULL; }
+        coeff[in_s[i]] = in_g[i];
+    }
+    lst = mc_list(a, n, 1);
+    if (lst == NULL) { return NULL; }
+    for (i = 0u; i < n; i++) {
+        lst->items[i] = mc_pair(a, coeff[i], 1);
+        if (lst->items[i] == NULL) { return NULL; }
+    }
+    return lst;
+}
+
+/* The OTHER operand's element, for the symmetric carrier chains. The [class]
+ * contract resolves a bind from a call kwarg or a field and nothing else, so a
+ * same-class operand arrives as an opaque carrier -- off the wire that is a
+ * {"dim": ..., "slots": ...} state DICT. An unequal rung RAISES on the pure
+ * side (a product between rungs is not a defined operation), so C DEFERS. */
+static srmech_mval_t *mc_cdr_element_of(srmech_marshal_arena_t *a,
+                                        const srmech_mval_t *other, int64_t dim)
+{
+    const srmech_mval_t *od, *os; int64_t other_dim;
+    assert(a != NULL);
+    assert(a->cur <= a->end);
+    if (other == NULL || other->kind != SRMECH_MVAL_DICT) { return NULL; }
+    od = mc_dict_get(other, "dim");
+    os = mc_dict_get(other, "slots");
+    if (!mc_arg_i64(od, &other_dim) || other_dim != dim) { return NULL; }
+    return mc_cdr_element(a, os, dim);
+}
+
 /* ==================================================================
- * rc201b heavy-carrier leaves — the sedenion HDC-storage batch (write /
+ * rc201b heavy-carrier leaves — the register HDC-storage batch (write /
  * materialize / read-chain / carry / correct) + the genome byte/HV batch
  * (chromosome / recall / genome / partition). Every leaf returns a LIVE mval
  * whose canonical-JSON serialisation is BYTE-IDENTICAL to the pure CatalogClass
  * (the srmech_mint_vector + srmech_hdc_* + srmech_genome_* + srmech_hamming_*
  * C peers compose here). The One bignum leaves (flat/scalar exact rationals
  * exceed the int64 mval carrier) + One matrix (float within-tol) + the float
- * couple/uncouple + host-FS save/load DEFER — the mval carrier can't emit them
- * byte-identically, so pure runs them (rc103 inform-don't-limit; see the
- * DEFER note in the file header + tests/test_make_class_engine_c_rc201.py).
+ * couple/uncouple + host-FS save/load DEFER. rc464 (`#T1188`) corrected the
+ * REASON on the float couple/uncouple pair: it is deferred by SCOPE, not by an
+ * unemittable carrier (rc331 emits a within-tol float MAT, rc335 emits
+ * bignums). See the rc464 block in the file header for the full declared-defer
+ * list + tests/test_cd_register_engine_c_rc464.py.
  * ================================================================== */
 
 /* Raw bytes of a carrier: a BYTES node passes through; a base64 STR node is
@@ -879,13 +1165,13 @@ static srmech_mval_t *mc_mint(srmech_marshal_arena_t *a, const char *name,
 /* The value vector for (key, sign): codebook[key] decoded, chiral-flipped
  * (Class C = seq[::-1] byte-reverse; never abs()) when sign < 0. NULL on a
  * missing key / width mismatch / arena exhaustion. */
-static srmech_mval_t *mc_sed_value_bytes(srmech_marshal_arena_t *a,
+static srmech_mval_t *mc_cdr_value_bytes(srmech_marshal_arena_t *a,
                                          const srmech_mval_t *codebook,
                                          const srmech_mval_t *key, int sign,
                                          uint32_t nbytes)
 {
     const srmech_mval_t *cv; const unsigned char *raw; uint32_t rl, i;
-    unsigned char *buf; char kb[128];
+    unsigned char *buf; char kb[128], vn[160]; srmech_mval_t *minted;
     assert(a != NULL);
     assert(nbytes > 0u);
     if (key == NULL || key->kind != SRMECH_MVAL_STR || key->slen >= sizeof(kb)) {
@@ -893,6 +1179,22 @@ static srmech_mval_t *mc_sed_value_bytes(srmech_marshal_arena_t *a,
     }
     memcpy(kb, key->s, key->slen); kb[key->slen] = '\0';
     cv = mc_dict_get(codebook, kb);
+    if (cv == NULL) {
+        /* rc464 (`#T1188`): MINT the missing value vector, exactly as the pure
+         * _value_vec does. An occupied slot whose key is absent from the
+         * codebook is a fully wire-expressible register (the codebook is a
+         * deterministic memo of mint("VAL:"+key), so it may legitimately cross
+         * EMPTY), and the pure class mints on demand there. Returning NULL
+         * instead made the C peer DEFER on a state the pure peer ANSWERS --
+         * the shape that reads as "no C peer" when what is missing is one mint.
+         * The mint is NOT recorded back: materialize / read_unbind do not grow
+         * the codebook on the pure side either (the register they mint into is
+         * transient), so recording it would be a state fork, not a fix. */
+        memcpy(vn, "VAL:", 4u); memcpy(vn + 4, key->s, key->slen);
+        minted = mc_mint(a, vn, 4u + key->slen, nbytes);
+        if (minted == NULL) { return NULL; }
+        cv = minted;
+    }
     if (!mc_raw_bytes(a, cv, &raw, &rl) || rl != nbytes) { return NULL; }
     buf = mc_carve(a, nbytes);
     if (buf == NULL) { return NULL; }
@@ -901,57 +1203,49 @@ static srmech_mval_t *mc_sed_value_bytes(srmech_marshal_arena_t *a,
     return mc_bytes_new(a, buf, nbytes);
 }
 
-/* Build the mint name "SEDENION:e{slot}" into `nm` (>= MC_ADDR_MAX); returns
- * the length. slot in [0, 100). */
-static uint32_t mc_addr_name(char *nm, int slot)
-{
-    uint32_t p;
-    assert(nm != NULL);
-    assert(slot >= 0 && slot < 100);
-    memcpy(nm, "SEDENION:e", 10u); p = 10u;
-    if (slot >= 10) { nm[p++] = (char)('0' + slot / 10); }
-    nm[p++] = (char)('0' + slot % 10);
-    return p;
-}
-
-/* One materialise part: bind(mint("SEDENION:e{slot}"), value_vec(key,sign)) ->
+/* One materialise part: bind(mint("{ns}:e{slot}"), value_vec(key,sign)) ->
  * a fresh nbytes buffer, or NULL (defer). */
-static const unsigned char *mc_sed_part(srmech_marshal_arena_t *a, int slot,
+static const unsigned char *mc_cdr_part(srmech_marshal_arena_t *a,
+                                        const srmech_mval_t *ns, int dim, int slot,
                                         const srmech_mval_t *codebook,
                                         const srmech_mval_t *key, int sign,
                                         uint32_t nbytes)
 {
-    char nm[MC_ADDR_MAX]; uint32_t p; srmech_mval_t *addr, *val; unsigned char *out;
+    char nm[MC_CDR_ADDR_MAX]; uint32_t p; srmech_mval_t *addr, *val;
+    unsigned char *out;
     assert(a != NULL);
     assert(nbytes > 0u);
-    p = mc_addr_name(nm, slot);
+    p = mc_addr_name(nm, ns, dim, slot);
+    if (p == 0u) { return NULL; }
     addr = mc_mint(a, nm, p, nbytes);
-    val = mc_sed_value_bytes(a, codebook, key, sign, nbytes);
+    val = mc_cdr_value_bytes(a, codebook, key, sign, nbytes);
     out = mc_carve(a, nbytes);
     if (addr == NULL || val == NULL || out == NULL) { return NULL; }
     if (srmech_hdc_bind(addr->b, val->b, nbytes, out) != SRMECH_OK) { return NULL; }
     return out;
 }
 
-/* sed materialize: bundle_k bind(ADDR[k], value_k) over the sorted slots (a
+/* cdr materialize: bundle_k bind(ADDR[k], value_k) over the sorted slots (a
  * __pad__ mint padding an even count to odd). Returns the superposition BYTES,
  * or NULL (an empty register -> pure raises; defer). */
-static srmech_mval_t *mc_sed_materialize(srmech_marshal_arena_t *a,
-                                         const srmech_mval_t *slots,
-                                         const srmech_mval_t *codebook, int64_t D)
+static srmech_mval_t *mc_cdr_materialize(srmech_marshal_arena_t *a, int64_t dim,
+                                         int64_t D, const srmech_mval_t *ns,
+                                         const srmech_mval_t *codebook,
+                                         const srmech_mval_t *slots)
 {
-    int sl[MC_SED_SLOTS], sg[MC_SED_SLOTS]; const srmech_mval_t *keys[MC_SED_SLOTS];
-    uint32_t count = 0u, order[MC_SED_SLOTS], i, nbytes, np = 0u;
+    int sl[MC_CDR_SLOTS], sg[MC_CDR_SLOTS]; const srmech_mval_t *keys[MC_CDR_SLOTS];
+    uint32_t count = 0u, order[MC_CDR_SLOTS], i, nbytes, np = 0u;
     const unsigned char *parts[MC_MAX_PARTS]; unsigned char *out; srmech_mval_t *pad;
     assert(a != NULL);
     assert(a->cur <= a->end);
-    if (D <= 0 || (D % 8) != 0) { return NULL; }
+    if (!mc_dim_ok(dim) || D <= 0 || (D % 8) != 0) { return NULL; }
     nbytes = (uint32_t)(D / 8);
     if (!mc_read_slots(slots, sl, sg, keys, &count) || count == 0u) { return NULL; }
     mc_sort_by_slot(sl, count, order);
     for (i = 0u; i < count; i++) {
-        parts[np] = mc_sed_part(a, sl[order[i]], codebook, keys[order[i]],
-                                sg[order[i]], nbytes);
+        if (sl[order[i]] < 0 || (int64_t)sl[order[i]] >= dim) { return NULL; }
+        parts[np] = mc_cdr_part(a, ns, (int)dim, sl[order[i]], codebook,
+                                keys[order[i]], sg[order[i]], nbytes);
         if (parts[np] == NULL) { return NULL; }
         np++;
     }
@@ -1003,16 +1297,15 @@ static srmech_mval_t *mc_slots_set(srmech_marshal_arena_t *a,
                                    const srmech_mval_t *slots, int slot,
                                    const srmech_mval_t *key, int sign)
 {
-    uint32_t n, i; int p = 0, m = slot, found = -1; char kb[8];
+    uint32_t n, i, p; int m = slot, found = -1; char kb[8];
     srmech_mval_t *nd, *pair;
     assert(a != NULL);
     assert(key != NULL);
-    if (m < 0 || m >= 100) { return NULL; }
-    if (m >= 10) { kb[p++] = (char)('0' + m / 10); }
-    kb[p++] = (char)('0' + m % 10);
+    if (m < 0 || m >= MC_CDR_SLOTS) { return NULL; }
+    p = mc_slot_key(kb, m);
     n = (slots != NULL && slots->kind == SRMECH_MVAL_DICT) ? slots->n : 0u;
     for (i = 0u; i < n; i++) { const srmech_mval_t *k = slots->keys[i];
-        if (k != NULL && k->kind == SRMECH_MVAL_STR && k->slen == (uint32_t)p
+        if (k != NULL && k->kind == SRMECH_MVAL_STR && k->slen == p
             && memcmp(k->s, kb, (size_t)p) == 0) { found = (int)i; break; } }
     nd = mc_dict(a, (found >= 0) ? n : n + 1u);
     pair = mc_list(a, 2u, 0);
@@ -1021,25 +1314,26 @@ static srmech_mval_t *mc_slots_set(srmech_marshal_arena_t *a,
     if (pair->items[0] == NULL || pair->items[1] == NULL) { return NULL; }
     for (i = 0u; i < n; i++) { nd->keys[i] = slots->keys[i]; nd->items[i] = slots->items[i]; }
     if (found >= 0) { nd->items[found] = pair; }
-    else { nd->keys[n] = mc_str_copy(a, kb, (uint32_t)p); nd->items[n] = pair;
+    else { nd->keys[n] = mc_str_copy(a, kb, p); nd->items[n] = pair;
         if (nd->keys[n] == NULL) { return NULL; } }
     return nd;
 }
 
-/* sed write (mutates=["slots","codebook"]): returns the (None, {"slots":…,
+/* cdr write (mutates=["slots","codebook"]): returns the (None, {"slots":…,
  * "codebook":…}) 2-LIST the mutates route applies. `sign` is the leftover call
  * kwarg (default +1, normalised to ±1). */
-static srmech_mval_t *mc_sed_write(srmech_marshal_arena_t *a,
+static srmech_mval_t *mc_cdr_write(srmech_marshal_arena_t *a,
                                    const srmech_mval_t *args, int slot,
-                                   const srmech_mval_t *key,
-                                   const srmech_mval_t *slots,
-                                   const srmech_mval_t *codebook, int64_t D)
+                                   const srmech_mval_t *key, int64_t dim,
+                                   int64_t D, const srmech_mval_t *codebook,
+                                   const srmech_mval_t *slots)
 {
     const srmech_mval_t *sv; int sign = 1; int64_t sraw; uint32_t nbytes;
     srmech_mval_t *ncb, *nsl, *upd, *tuple, *none;
     assert(a != NULL);
     assert(a->cur <= a->end);
-    if (D <= 0 || (D % 8) != 0 || slot < 0 || slot >= MC_SED_SLOTS) { return NULL; }
+    if (!mc_dim_ok(dim) || D <= 0 || (D % 8) != 0) { return NULL; }
+    if (slot < 0 || (int64_t)slot >= dim) { return NULL; }
     nbytes = (uint32_t)(D / 8);
     sv = mc_dict_get(args, "sign");
     if (sv != NULL) { if (!mc_arg_i64(sv, &sraw)) { return NULL; }
@@ -1057,23 +1351,28 @@ static srmech_mval_t *mc_sed_write(srmech_marshal_arena_t *a,
     return tuple;
 }
 
-/* sed read CHAIN stage 1 (sed_read_unbind): NONE if the register is empty, else
- * bind(mint("SEDENION:e{slot}"), materialize()) — the noisy vector. */
-static srmech_mval_t *mc_sed_read_unbind(srmech_marshal_arena_t *a, int slot,
-                                         const srmech_mval_t *slots,
-                                         const srmech_mval_t *codebook, int64_t D)
+/* cdr read CHAIN stage 1 (cdr_read_unbind): NONE if the register is empty, else
+ * bind(mint("{ns}:e{slot}"), materialize()) — the noisy vector. */
+static srmech_mval_t *mc_cdr_read_unbind(srmech_marshal_arena_t *a, int slot,
+                                         int64_t dim, int64_t D,
+                                         const srmech_mval_t *ns,
+                                         const srmech_mval_t *codebook,
+                                         const srmech_mval_t *slots)
 {
-    srmech_mval_t *mat, *addr; unsigned char *out; char nm[MC_ADDR_MAX]; uint32_t p, nbytes;
+    srmech_mval_t *mat, *addr; unsigned char *out; char nm[MC_CDR_ADDR_MAX];
+    uint32_t p, nbytes;
     assert(a != NULL);
     assert(a->cur <= a->end);
-    if (D <= 0 || (D % 8) != 0 || slot < 0 || slot >= MC_SED_SLOTS) { return NULL; }
+    if (!mc_dim_ok(dim) || D <= 0 || (D % 8) != 0) { return NULL; }
+    if (slot < 0 || (int64_t)slot >= dim) { return NULL; }
     nbytes = (uint32_t)(D / 8);
     if (codebook == NULL || codebook->kind != SRMECH_MVAL_DICT || codebook->n == 0u
         || slots == NULL || slots->kind != SRMECH_MVAL_DICT || slots->n == 0u) {
         return mc_new(a, SRMECH_MVAL_NONE);
     }
-    mat = mc_sed_materialize(a, slots, codebook, D);
-    p = mc_addr_name(nm, slot);
+    mat = mc_cdr_materialize(a, dim, D, ns, codebook, slots);
+    p = mc_addr_name(nm, ns, (int)dim, slot);
+    if (p == 0u) { return NULL; }
     addr = mc_mint(a, nm, p, nbytes);
     out = mc_carve(a, nbytes);
     if (mat == NULL || addr == NULL || out == NULL) { return NULL; }
@@ -1084,7 +1383,7 @@ static srmech_mval_t *mc_sed_read_unbind(srmech_marshal_arena_t *a, int slot,
 /* Integer chirality magnitude |D_bits - 2*hamming(noisy, cand)| — the EXACT
  * peer of |similarity| = |1 - 2h/D| (same denom D_bits, so the argmax order is
  * identical without any float). */
-static int64_t mc_sed_mag(const unsigned char *noisy, const unsigned char *cand,
+static int64_t mc_cdr_mag(const unsigned char *noisy, const unsigned char *cand,
                           uint32_t nbytes)
 {
     uint32_t h; int64_t d2h;
@@ -1095,10 +1394,10 @@ static int64_t mc_sed_mag(const unsigned char *noisy, const unsigned char *cand,
     return (d2h >= 0) ? d2h : -d2h;      /* Class-K pin-slot magnitude; no abs() */
 }
 
-/* sed read CHAIN stage 2 (sed_clean): nearest-codebook clean of `noisy` ->
+/* cdr read CHAIN stage 2 (cdr_clean): nearest-codebook clean of `noisy` ->
  * (key, sign). (None, +1) when noisy is NONE (empty register). The argmax
  * replays the pure pos-then-neg tie rule (>= for +, > for −) exactly. */
-static srmech_mval_t *mc_sed_clean(srmech_marshal_arena_t *a,
+static srmech_mval_t *mc_cdr_clean(srmech_marshal_arena_t *a,
                                    const srmech_mval_t *noisy,
                                    const srmech_mval_t *codebook)
 {
@@ -1121,12 +1420,12 @@ static srmech_mval_t *mc_sed_clean(srmech_marshal_arena_t *a,
         if (k == NULL || k->kind != SRMECH_MVAL_STR) { return NULL; }
         if (k->slen == 7u && memcmp(k->s, "__pad__", 7u) == 0) { continue; }
         if (!mc_raw_bytes(a, codebook->items[i], &vb, &vl) || vl != nbytes) { return NULL; }
-        mp = mc_sed_mag(nb, vb, nbytes);
+        mp = mc_cdr_mag(nb, vb, nbytes);
         if (mp >= best_mag) { best_key = k; best_sign = 1; best_mag = mp; }
         rev = mc_carve(a, nbytes);
         if (rev == NULL) { return NULL; }
         for (j = 0u; j < nbytes; j++) { rev[j] = vb[nbytes - 1u - j]; }
-        mn = mc_sed_mag(nb, rev, nbytes);
+        mn = mc_cdr_mag(nb, rev, nbytes);
         if (mn > best_mag) { best_key = k; best_sign = -1; best_mag = mn; }
     }
     ks = (best_key != NULL) ? mc_str_copy(a, best_key->s, best_key->slen)
@@ -1184,9 +1483,9 @@ static int mc_hamming_n(uint32_t len)
     return 0;
 }
 
-/* sed carry: srmech_hamming_encode(overflow_bits, k, n) -> the 2^n-1-bit
+/* cdr carry: srmech_hamming_encode(overflow_bits, k, n) -> the 2^n-1-bit
  * codeword LIST. n is the leftover call kwarg (default 3). */
-static srmech_mval_t *mc_sed_carry(srmech_marshal_arena_t *a,
+static srmech_mval_t *mc_cdr_carry(srmech_marshal_arena_t *a,
                                    const srmech_mval_t *args,
                                    const srmech_mval_t *bits)
 {
@@ -1203,9 +1502,9 @@ static srmech_mval_t *mc_sed_carry(srmech_marshal_arena_t *a,
     return mc_bits_list(a, code, code_len);
 }
 
-/* sed correct: srmech_hamming_decode_correct -> {"data", "error_position",
+/* cdr correct: srmech_hamming_decode_correct -> {"data", "error_position",
  * "corrected_codeword"} (the pure dict shape). */
-static srmech_mval_t *mc_sed_correct(srmech_marshal_arena_t *a,
+static srmech_mval_t *mc_cdr_correct(srmech_marshal_arena_t *a,
                                      const srmech_mval_t *codeword)
 {
     uint8_t code[512], data[512]; uint32_t len = 0u, i; int pos = 0, n;
@@ -1450,45 +1749,96 @@ static srmech_mval_t *mc_genome_partition(srmech_marshal_arena_t *a,
     return d;
 }
 
-/* Sedenion leaf sub-dispatch — `suf` is the op suffix after "…sed_". */
-static srmech_mval_t *mc_vtable_sed(srmech_marshal_arena_t *a, const char *suf,
+/* CDRegister ADDRESSING + carrier arms — `suf` is the op suffix after
+ * "srmech.cascade.cd_register.cdr_". Split from the storage arms so each stays
+ * inside the JPL 60-line rule; a strcmp CHAIN rather than a function-pointer
+ * table because Rule 9 caps function-pointer declarator sites at a DOWN-ONLY
+ * ceiling, and a table would raise it for no capability. */
+static srmech_mval_t *mc_vtable_cdr_addr(srmech_marshal_arena_t *a, const char *suf,
+                                         const srmech_mval_t **binds, uint32_t nb)
+{
+    int64_t dim, j;
+    assert(a != NULL && suf != NULL);
+    assert(binds != NULL || nb == 0u);
+    if (strcmp(suf, "slots") == 0) {
+        return (nb == 1u) ? mc_cdr_slots(a, binds[0]) : NULL;
+    }
+    if (strcmp(suf, "working_block") == 0) {
+        return (nb == 1u && mc_arg_i64(binds[0], &dim))
+            ? mc_cdr_block(a, dim, 0) : NULL;
+    }
+    if (strcmp(suf, "carry_block") == 0) {
+        return (nb == 1u && mc_arg_i64(binds[0], &dim))
+            ? mc_cdr_block(a, dim, 1) : NULL;
+    }
+    if (strcmp(suf, "element") == 0) {
+        return (nb == 2u && mc_arg_i64(binds[1], &dim))
+            ? mc_cdr_element(a, binds[0], dim) : NULL;
+    }
+    if (strcmp(suf, "element_of") == 0) {
+        return (nb == 2u && mc_arg_i64(binds[1], &dim))
+            ? mc_cdr_element_of(a, binds[0], dim) : NULL;
+    }
+    if (strcmp(suf, "navigate") == 0) {
+        return (nb == 8u && mc_arg_i64(binds[0], &j) && mc_arg_i64(binds[1], &dim))
+            ? mc_cdr_navigate(a, j, dim, binds[2], binds[3], binds[4], binds[5],
+                              binds[6], binds[7]) : NULL;
+    }
+    return NULL;
+}
+
+/* CDRegister STORAGE + OPT-layer arms. The two OPT-layer methods read their
+ * gate from the bound field and return NULL when it is false: the pure class
+ * RAISES on a bare register, and C cannot raise, so DEFER is the only honest
+ * answer (rc103 inform-don't-limit). Binding them to the ungated free ops
+ * instead would make the declarative class silently not raise — a behaviour
+ * fork wearing the name "conversion". */
+static srmech_mval_t *mc_vtable_cdr_store(srmech_marshal_arena_t *a, const char *suf,
+                                          const srmech_mval_t **binds, uint32_t nb,
+                                          const srmech_mval_t *args)
+{
+    int64_t dim, D, slot;
+    assert(a != NULL && suf != NULL);
+    assert(binds != NULL || nb == 0u);
+    if (strcmp(suf, "write") == 0) {
+        if (nb != 7u || !mc_arg_i64(binds[0], &slot) || !mc_arg_i64(binds[2], &dim)
+            || !mc_arg_d(binds[3], &D)) { return NULL; }
+        return mc_cdr_write(a, args, (int)slot, binds[1], dim, D, binds[5], binds[6]);
+    }
+    if (strcmp(suf, "materialize") == 0) {
+        return (nb == 5u && mc_arg_i64(binds[0], &dim) && mc_arg_d(binds[1], &D))
+            ? mc_cdr_materialize(a, dim, D, binds[2], binds[3], binds[4]) : NULL;
+    }
+    if (strcmp(suf, "read_unbind") == 0) {
+        if (nb != 6u || !mc_arg_i64(binds[0], &slot) || !mc_arg_i64(binds[1], &dim)
+            || !mc_arg_d(binds[2], &D)) { return NULL; }
+        return mc_cdr_read_unbind(a, (int)slot, dim, D, binds[3], binds[4], binds[5]);
+    }
+    if (strcmp(suf, "clean") == 0) {
+        return (nb == 2u) ? mc_cdr_clean(a, binds[0], binds[1]) : NULL;
+    }
+    if (strcmp(suf, "carry") == 0) {
+        return (nb == 3u && mc_arg_i64(binds[1], &dim) && mc_dim_ok(dim)
+                && mc_arg_truth(binds[2])) ? mc_cdr_carry(a, args, binds[0]) : NULL;
+    }
+    if (strcmp(suf, "correct") == 0) {
+        return (nb == 3u && mc_arg_i64(binds[1], &dim) && mc_dim_ok(dim)
+                && mc_arg_truth(binds[2])) ? mc_cdr_correct(a, binds[0]) : NULL;
+    }
+    return NULL;
+}
+
+/* CDRegister leaf sub-dispatch. couple_working / uncouple_working have NO arm
+ * and fall through to NULL — the standing DECLARED DEFER (see the file header). */
+static srmech_mval_t *mc_vtable_cdr(srmech_marshal_arena_t *a, const char *suf,
                                     const srmech_mval_t **binds, uint32_t nb,
                                     const srmech_mval_t *args)
 {
-    int64_t j, D, slot;
+    srmech_mval_t *v;
     assert(a != NULL && suf != NULL);
     assert(binds != NULL || nb == 0u);
-    if (strcmp(suf, "navmap") == 0) {
-        return (nb == 1u && mc_arg_i64(binds[0], &j)) ? mc_sed_navmap(a, j) : NULL;
-    }
-    if (strcmp(suf, "slots") == 0) { return (nb == 1u) ? mc_sed_slots(a, binds[0]) : NULL; }
-    if (strcmp(suf, "is_navigable") == 0) {
-        return (nb == 1u) ? mc_sed_is_navigable(a, binds[0]) : NULL;
-    }
-    if (strcmp(suf, "navigate") == 0) {
-        return (nb == 4u && mc_arg_i64(binds[0], &j))
-            ? mc_sed_navigate(a, j, binds[1], binds[2], binds[3]) : NULL;
-    }
-    if (strcmp(suf, "write") == 0) {
-        if (nb != 5u || !mc_arg_i64(binds[0], &slot) || !mc_arg_i64(binds[4], &D)) {
-            return NULL;
-        }
-        return mc_sed_write(a, args, (int)slot, binds[1], binds[2], binds[3], D);
-    }
-    if (strcmp(suf, "materialize") == 0) {
-        return (nb == 3u && mc_arg_i64(binds[2], &D))
-            ? mc_sed_materialize(a, binds[0], binds[1], D) : NULL;
-    }
-    if (strcmp(suf, "read_unbind") == 0) {
-        return (nb == 4u && mc_arg_i64(binds[0], &slot) && mc_arg_i64(binds[3], &D))
-            ? mc_sed_read_unbind(a, (int)slot, binds[1], binds[2], D) : NULL;
-    }
-    if (strcmp(suf, "clean") == 0) {
-        return (nb == 2u) ? mc_sed_clean(a, binds[0], binds[1]) : NULL;
-    }
-    if (strcmp(suf, "carry") == 0) { return (nb == 1u) ? mc_sed_carry(a, args, binds[0]) : NULL; }
-    if (strcmp(suf, "correct") == 0) { return (nb == 1u) ? mc_sed_correct(a, binds[0]) : NULL; }
-    return NULL;
+    v = mc_vtable_cdr_addr(a, suf, binds, nb);
+    return (v != NULL) ? v : mc_vtable_cdr_store(a, suf, binds, nb, args);
 }
 
 /* Genome leaf sub-dispatch — `suf` is the op suffix after "srmech.biology.genome.". */
@@ -1533,8 +1883,16 @@ static srmech_mval_t *mc_vtable_call(srmech_marshal_arena_t *a, const char *op,
     if (strncmp(op, "srmech.cascade.one.one_", 23) == 0) {
         return mc_one_const(a, op);
     }
-    if (strncmp(op, "srmech.cascade.sedenion_register.sed_", 37) == 0) {
-        return mc_vtable_sed(a, op + 37, binds, nb, args);
+    if (strcmp(op, "srmech.cascade.cd_navmap") == 0) {
+        int64_t dim, j;                            /* CDRegister.navmap binds (dim, j) */
+        return (nb == 2u && mc_arg_i64(binds[0], &dim) && mc_arg_i64(binds[1], &j))
+            ? mc_cdr_navmap(a, dim, j) : NULL;
+    }
+    if (strcmp(op, "srmech.cascade.cayley_dickson.left_mult_is_invertible") == 0) {
+        return (nb == 1u) ? mc_cdr_is_navigable(a, binds[0]) : NULL;
+    }
+    if (strncmp(op, "srmech.cascade.cd_register.cdr_", 31) == 0) {
+        return mc_vtable_cdr(a, op + 31, binds, nb, args);
     }
     if (strncmp(op, "srmech.biology.genome.", 22) == 0) {
         return mc_vtable_genome(a, op + 22, binds, nb, args);
@@ -1836,7 +2194,11 @@ size_t srmech_make_class_run_arena_bytes(size_t toml_len, size_t fields_len,
      * the rebuilt route state), generously over-allocated plus a fixed floor.
      * rc331 (#948): the floor also budgets the srmech_one_matrix workspace the
      * One.matrix() thunk carves here (~0.34 MiB at num_terms=50) so it dispatches
-     * rather than OVERFLOW-defers. rc335 (#948/#887): ALSO budget the One.flat()/
+     * rather than OVERFLOW-defers. rc464 (`#T1188`): the descriptor-parse
+     * workspace is now the parser's OWN stated bound, added as its own term
+     * rather than folded into the 128x multiplier -- a descriptor big enough to
+     * exceed the old hand-rolled 32x heuristic DEFERRED every method of its
+     * class with no other symptom. rc335 (#948/#887): ALSO budget the One.flat()/
      * One.scalar() bignum-emit thunks — the srmech_the_one / srmech_one_scalar
      * workspace (28 flat carriers + the series scratch; scalar's is the larger,
      * with 8x accumulation headroom) + the 28 decimal-render buffers. int64 theta
@@ -1845,10 +2207,13 @@ size_t srmech_make_class_run_arena_bytes(size_t toml_len, size_t fields_len,
      * thunk's arena, plus a decimal-buffer margin. */
     size_t base = 131072u;
     size_t one_ws = srmech_one_scalar_ws_bound(2u, 2u, 50u);
+    size_t toml_ws = srmech_toml_parse_arena_bytes(toml_len);
     assert(base > 0u);
     assert(base >= 131072u);
     assert(one_ws > 0u);
-    return base + one_ws + 65536u + 128u * (toml_len + fields_len + args_len);
+    assert(toml_ws > toml_len);
+    return base + one_ws + 65536u + toml_ws
+           + 128u * (toml_len + fields_len + args_len);
 }
 
 /* Parse `json`[0..len) into an mval DICT (or NONE for empty). Returns 0 on a
@@ -1884,7 +2249,15 @@ static int mc_run_from_toml(srmech_marshal_arena_t *a,
     srmech_mval_t *fields, *args, *state; unsigned char *tws; size_t tws_len;
     assert(a != NULL && class_toml != NULL && method != NULL);
     assert(res != NULL && out_fields != NULL);
-    tws_len = 32u * toml_len + 8192u;
+    /* rc464 (`#T1188`): the PROVEN parse bound, not a hand-rolled 32x heuristic.
+     * The old `32 * toml_len + 8192` happened to hold for every descriptor
+     * shipped through rc463 (the largest was 5,510 B) and SILENTLY FAILED on
+     * the first bigger one: srmech_toml_parse returned OVERFLOW, mc_run_from_toml
+     * returned 0, and EVERY method of that class DEFERRED with no other symptom
+     * -- an engine that reports "this class has no C peer" when what it actually
+     * ran out of was scratch. srmech_toml_parse_arena_bytes is the bound the
+     * parser's own author states is safe (256 * src_len + 65536). */
+    tws_len = srmech_toml_parse_arena_bytes(toml_len);
     tws = mc_carve(a, tws_len);
     if (tws == NULL) { return 0; }
     if (srmech_toml_parse(class_toml, toml_len, tws, tws_len, &root) != SRMECH_OK) {

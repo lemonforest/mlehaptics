@@ -4,14 +4,16 @@ srmech_make_class_run (bound as srmech._native.make_class_run_c) is the C
 peer of the compute half of srmech.dsl._class_catalog.CatalogClass. rc201 proved
 the plain + returns="self" spine; rc201b wires the HEAVY leaves + the remaining
 state-route machinery and proves each method dispatches BYTE-IDENTICAL to the
-pure CatalogClass object model, across the two rich classes:
+pure CatalogClass object model.
 
-  SedenionRegister:
-    write        -> mutates=["slots","codebook"]  (mint VAL:key + slot record)
-    materialize  -> plain BYTES  (bundle_k bind(ADDR[k], value_k) over sorted slots)
-    read         -> a 2-stage CHAIN (unbind -> nearest-codebook clean -> (key, sign))
-    carry        -> plain LIST[int]  (Hamming(2ⁿ−1) encode)
-    correct      -> plain DICT       (Hamming decode + correct)
+rc464 (`#T1188`) MOVED the register half. The five heavy REGISTER routes this
+module wired (write/mutates, materialize, the 2-stage read chain, carry,
+correct) were proved against the 16-slot register; that class is gone and the
+GENERAL CDRegister replaces it, so those routes are now proved in
+tests/test_cd_register_engine_c_rc464.py at dim 16 AND dim 256 over both
+exports -- including the empty-register read short-circuit and the recorded
+bytes of the register that was removed. What stays here is the Genome half:
+
   Genome:
     add_chromosome -> appends="chromosomes"  (CHROM cap + coupled leaves)
     recall / assemble / partition -> plain reads (leaf/dict recovery)
@@ -19,8 +21,8 @@ pure CatalogClass object model, across the two rich classes:
 Every wired leaf composes the shipped C peers (srmech_mint_vector + srmech_hdc_*
 + srmech_genome_* + srmech_hamming_*); its canonical-JSON emission is byte-
 identical to the pure make_class. The One bignum leaves (exact rationals overflow
-the int64 mval carrier) + the float couple/uncouple + the host-FS save/load STILL
-defer — see test_make_class_engine_c_rc201.py::test_heavy_leaves_defer_to_pure.
+the int64 mval carrier) + the host-FS save/load STILL defer; the register's own
+declared defers are asserted in the rc464 module.
 
 numpy-free (stdlib json + base64 + srmech) per
 [[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]].
@@ -33,7 +35,6 @@ import json
 import pytest
 
 from srmech import _native
-from srmech.cascade.sedenion_register import SedenionRegister
 from srmech.dsl import make_class
 from srmech.dsl._class_catalog import CLASS_CATALOG_DIR
 
@@ -42,7 +43,6 @@ pytestmark = pytest.mark.skipif(
     reason="make_class engine C peer not built",
 )
 
-_SED_TOML = (CLASS_CATALOG_DIR / "sedenion_register.toml").read_text(encoding="utf-8")
 _GEN_TOML = (CLASS_CATALOG_DIR / "genome.toml").read_text(encoding="utf-8")
 
 
@@ -66,105 +66,6 @@ def _norm(x):
 def _run_c(toml, method, fields, args):
     dispatched, text = _native.make_class_run_c(toml, method, fields, args)
     return dispatched, (json.loads(text) if text is not None else None)
-
-
-# ── SedenionRegister field-state carriers ──────────────────────────────────
-
-def _sed_pyfields(reg):
-    return {"D": reg.D, "codebook": dict(reg.codebook), "slots": dict(reg._slots)}
-
-
-def _sed_jsonfields(reg):
-    """The JSON-native field-state a bare-C host threads."""
-    return {
-        "D": reg.D,
-        "codebook": {k: base64.b64encode(v).decode("ascii")
-                     for k, v in reg.codebook.items()},
-        "slots": {str(k): [v[0], v[1]] for k, v in reg._slots.items()},
-    }
-
-
-def _make_reg():
-    r = SedenionRegister(D=256)
-    r.write(0, "alpha")
-    r.write(3, "beta", sign=-1)
-    r.write(6, "gamma")
-    return r
-
-
-def _sed_expect(method, args):
-    """The pure make_class oracle: run the method, capture (result, post-fields)."""
-    inst = make_class("SedenionRegister")(**_sed_pyfields(_make_reg()))
-    result = getattr(inst, method)(**args)
-    return {"result": _norm(result), "fields": _norm(inst.fields)}
-
-
-# ── sed write (mutates route) ──────────────────────────────────────────────
-
-@pytest.mark.parametrize("slot,key,extra", [
-    (1, "x", {}),
-    (2, "delta", {"sign": 1}),
-    (5, "eps", {"sign": -1}),
-    (0, "alpha", {}),               # overwrite an existing slot (key already minted)
-    (3, "gamma", {}),               # re-key an existing slot to an existing key
-])
-def test_sed_write_mutates_matches_pure(slot, key, extra):
-    args = {"slot": slot, "key": key}
-    args.update(extra)
-    dispatched, got = _run_c(_SED_TOML, "write", _sed_jsonfields(_make_reg()), args)
-    assert dispatched, "sed.write must dispatch (mutates route)"
-    assert got == _sed_expect("write", args)
-    # the mutates route returns None + replaces the slots + codebook fields
-    assert got["result"] is None
-    assert set(got["fields"]) == {"D", "codebook", "slots"}
-
-
-# ── sed materialize (plain BYTES) ──────────────────────────────────────────
-
-def test_sed_materialize_matches_pure():
-    dispatched, got = _run_c(_SED_TOML, "materialize", _sed_jsonfields(_make_reg()), {})
-    assert dispatched
-    assert got == _sed_expect("materialize", {})
-
-
-# ── sed read (the 2-stage CHAIN) ───────────────────────────────────────────
-
-@pytest.mark.parametrize("slot", [0, 3, 6, 1, 2, 7, 15])
-def test_sed_read_chain_matches_pure(slot):
-    dispatched, got = _run_c(_SED_TOML, "read", _sed_jsonfields(_make_reg()), {"slot": slot})
-    assert dispatched, "sed.read must dispatch (the chain route)"
-    assert got == _sed_expect("read", {"slot": slot})
-
-
-def test_sed_read_empty_register_matches_pure():
-    empty = make_class("SedenionRegister")(D=256, codebook={}, slots={})
-    exp = {"result": _norm(empty.read(slot=0)), "fields": _norm(empty.fields)}
-    dispatched, got = _run_c(_SED_TOML, "read",
-                             {"D": 256, "codebook": {}, "slots": {}}, {"slot": 0})
-    assert dispatched
-    assert got == exp
-    assert got["result"] == [None, 1]
-
-
-# ── sed carry / correct (Hamming) ──────────────────────────────────────────
-
-@pytest.mark.parametrize("bits", [[1, 0, 1, 1], [0, 0, 0, 0], [1, 1, 1, 1], [0, 1, 0, 1]])
-def test_sed_carry_matches_pure(bits):
-    dispatched, got = _run_c(_SED_TOML, "carry", _sed_jsonfields(_make_reg()),
-                             {"overflow_bits": bits})
-    assert dispatched
-    assert got == _sed_expect("carry", {"overflow_bits": bits})
-
-
-@pytest.mark.parametrize("codeword", [
-    [1, 0, 1, 0, 1, 0, 1], [0, 1, 1, 0, 0, 1, 1], [1, 1, 1, 1, 1, 1, 1],
-    [0, 0, 0, 0, 0, 0, 0],
-])
-def test_sed_correct_matches_pure(codeword):
-    dispatched, got = _run_c(_SED_TOML, "correct", _sed_jsonfields(_make_reg()),
-                             {"codeword": codeword})
-    assert dispatched
-    assert got == _sed_expect("correct", {"codeword": codeword})
 
 
 # ── Genome field-state carriers ────────────────────────────────────────────
