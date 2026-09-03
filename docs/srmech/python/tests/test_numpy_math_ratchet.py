@@ -529,8 +529,9 @@ def test_numpy_math_total_is_down_only():
 # scientific tier (numpy on call)" at all. Measured at rc406, FOUR ToolEntry
 # summaries promised a numpy code path — `dense_laplacian` ("numpy fallback
 # otherwise"), `dense_solve` and `schur_complement` ("on the scientific tier" /
-# "NumPy solve float realization"), and `sedenion_register` ("Storage + coupler
-# are the scientific tier (numpy on call)") — in a package with ZERO numpy
+# "NumPy solve float realization"), and the 16-slot register rc464 removed
+# ("Storage + coupler are the scientific tier (numpy on call)") — in a package
+# with ZERO numpy
 # imports, where the `scientific = ["numpy"]` extra itself is GONE
 # (`pyproject.toml`: "there is no numpy tier"). All four shipped in the wheel
 # and byte-mirrored into `srmech_tool_registry.c`.

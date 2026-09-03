@@ -856,3 +856,13 @@ tests/test_wire_invocability_rc464.py
 # re-running the docs pipeline lands here. That is precisely the edit this
 # manifest exists for. 7 tests, ~10 s, pure.
 tests/test_preferred_register_shape_rc464.py
+# rc464 stage 3 (`#T1188`): the bare-C make_class ENGINE gate for the register.
+# It resolves cd_register.toml through BOTH exports -- the descriptor-text one
+# and the NAME-resolved one, which reads the COMPILED-IN srmech_class_registry.c
+# -- so any rc that edits the descriptor, the class catalog, or the generated
+# class registry without regenerating and rebuilding lands here rather than in
+# CI. It also holds the only comparison of the C engine's emit against the
+# RECORDED bytes of the register rc464 removed, which is the one claim nothing
+# else in the tree can make. 75 tests, ~31 s, native-only (skips cleanly
+# without the library).
+tests/test_cd_register_engine_c_rc464.py

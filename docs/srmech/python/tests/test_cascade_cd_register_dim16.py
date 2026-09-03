@@ -27,7 +27,8 @@ working word (``hypercomplex_couple``) route through cascades, so every test her
 RUNS with numpy NOT installed.
 
 No builtin ``abs()``: the roundtrip band is measured with an explicit Class-K
-pin-slot branch, the form ``tests/test_sedenion_addr_c_rc199.py`` established.
+pin-slot branch, the form the rc199 address suite established before rc464
+removed it with the 16-slot register it drove.
 """
 from fractions import Fraction
 

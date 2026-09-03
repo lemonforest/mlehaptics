@@ -23,15 +23,19 @@
 #       oracle becomes a RECORDED fixture: recorded output cannot acquire the
 #       subject's failure modes, because it is not running.
 #
-#       STATED PRECISELY FOR rc464: that fixture is NOT recorded yet. Both
-#       classes are live here, so the residual circularity the objection names
-#       is real in this rc -- narrower than rc297 supposed, because the
-#       equivalence proof (tests/test_cd_register_class_catalog_rc464.py)
-#       compares the TOML projection against the hand-coded PYTHON CDRegister
-#       and never against SedenionRegister at all, so the engine the two
-#       registers now share is not on that comparison's path. What is still
-#       shared is the rc297 dim-16 faithfulness sweep, and that is exactly the
-#       oracle the fixture replaces.
+#       SETTLED WITHIN rc464. This comment was written mid-rc, when the
+#       fixture was not yet recorded and both classes were still live; that
+#       state is gone. tests/sedenion_register_golden_rc464.ndjson now holds
+#       1157 digest-pinned records of what the 16-slot register actually did,
+#       recorded from its own source before deletion, and the rc297 dim-16
+#       faithfulness sweep reads THEM rather than a live oracle. The 16-slot
+#       class is removed. So objection (2) is discharged rather than narrowed:
+#       nothing on the faithfulness path is running the shared engine, because
+#       the oracle side is not running at all. The equivalence proof
+#       (tests/test_cd_register_class_catalog_rc464.py) remains what it was --
+#       TOML projection against the hand-coded PYTHON CDRegister -- and is a
+#       separate claim from faithfulness, which is why the two never shared a
+#       comparison path even while both classes existed.
 #
 # DECLARATIVE STATE = seven fields. dim (the rung) / D (the HV width) /
 # namespace (the address-mint namespace) / codebook (key -> minted vec) / slots
@@ -77,7 +81,7 @@
 [class]
 name = "CDRegister"
 kind = "storage"
-doc = "The GENERAL N-slot Cayley–Dickson addressable RBS-HDC register — `dim` named slots e0..e{dim-1} for any power of two in [1, 256], with e0..e7 the octonion reversible working block at EVERY rung and the remainder the carry/EC block. More slots buy ADDRESS SPACE, never a longer reversible word: the Hurwitz cap stays 7. The CORE addressing layer (write / read / slots / navmap / navigate / is_navigable) and the CORE carrier-arithmetic layer (element / norm / conjugate / multiply / add, exact-Q, delegated to the C-backed cayley_dickson ops) are always on; coupling=True and error_correction=True open the two OPT layers, and a bare register RAISES on them. Construct with dim= (D / namespace / the two flags default to 8192 / f\"CD{dim}\" / False). At dim=16 with namespace=\"SEDENION\", coupling=True and error_correction=True this reproduces the shipped 16-slot register byte-for-byte at every D — the faithfulness gate, and the reason the namespace parameter exists at all. As of rc464 that gate is still attested against the LIVE SedenionRegister (tests/test_cd_register_rc297.py); replacing that oracle with a recorded fixture is what makes the two-registers-one-engine circularity objection moot, and it is the change that lets the 16-slot class be removed. Legitimate past the Hurwitz wall because addressing rides on the basis product being a SIGNED PERMUTATION, which zero divisors — built from SUMS of basis elements — do not touch. Prefer this declarative [class] TOML over hand-coding the domain class; the methods bind to the flat cascade-op adapters in srmech.cascade.cd_register."
+doc = "The GENERAL N-slot Cayley–Dickson addressable RBS-HDC register — `dim` named slots e0..e{dim-1} for any power of two in [1, 256], with e0..e7 the octonion reversible working block at EVERY rung and the remainder the carry/EC block. More slots buy ADDRESS SPACE, never a longer reversible word: the Hurwitz cap stays 7. The CORE addressing layer (write / read / slots / navmap / navigate / is_navigable) and the CORE carrier-arithmetic layer (element / norm / conjugate / multiply / add, exact-Q, delegated to the C-backed cayley_dickson ops) are always on; coupling=True and error_correction=True open the two OPT layers, and a bare register RAISES on them. Construct with dim= (D / namespace / the two flags default to 8192 / f\"CD{dim}\" / False). At dim=16 with namespace=\"SEDENION\", coupling=True and error_correction=True this reproduces the shipped 16-slot register byte-for-byte at every D — the faithfulness gate, and the reason the namespace parameter exists at all. rc464 attests that gate against a RECORDED fixture rather than a live oracle (tests/sedenion_register_golden_rc464.ndjson, 1157 digest-pinned records captured from the 16-slot register's own source before deletion, replayed by tests/test_cd_register_rc297.py), and removes the 16-slot class: recorded output cannot acquire this class's failure modes, because it is not running. Legitimate past the Hurwitz wall because addressing rides on the basis product being a SIGNED PERMUTATION, which zero divisors — built from SUMS of basis elements — do not touch. Prefer this declarative [class] TOML over hand-coding the domain class; the methods bind to the flat cascade-op adapters in srmech.cascade.cd_register."
 
 [class.field]
 dim = "int"

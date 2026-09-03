@@ -437,8 +437,7 @@ def test_the_unbounded_carriers_are_the_ones_with_no_dimensional_wall():
         assert expected in unbounded, (
             f"{expected} has no dimensional wall and must publish max_dim None")
     # The registers and the CD rungs DO have one.
-    for bounded in ("quaternion", "octonion", "sedenion",
-                    "SedenionRegister", "CDRegister"):
+    for bounded in ("quaternion", "octonion", "sedenion", "CDRegister"):
         assert _CAPABILITY[bounded]["max_dim"] is not None, (
             f"{bounded} admits a bounded dim range and must publish it")
 

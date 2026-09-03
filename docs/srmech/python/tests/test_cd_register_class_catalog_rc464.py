@@ -5,8 +5,10 @@ THE STANDING REQUIREMENT THIS SATISFIES
 The monorepo memory's config-driven-TOML discipline
 (``[[feedback_prefer_config_driven_toml_classes]]``) ends with a clause that is
 not optional: *"Prove every conversion with a DSL-class-vs-Python equivalence
-test."* ``tests/test_sedenion_register_class_catalog_rc140.py`` is that proof
-for the 16-slot register; this file is it for the general N-slot one.
+test."* The rc140 module was that proof for the 16-slot
+register; rc464 removed that register, so this file is the only one left —
+which is why it covers all EIGHTEEN methods rather than the eleven its
+predecessor had, and both rungs rather than one.
 
 WHAT WAS RETRACTED TO GET HERE, STATED SO THE REVERSAL IS LEGIBLE
 =================================================================

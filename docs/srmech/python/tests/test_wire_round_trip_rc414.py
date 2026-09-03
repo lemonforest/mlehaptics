@@ -51,7 +51,7 @@ carrier srmech ships:
     ``EQUAL`` / ``NOT_EQUAL`` / ``UNKNOWN``. ``UNKNOWN`` is recorded as its own
     bucket rather than being forced into a binary, because an honest decline is
     not a failure (`[[feedback_an_instrument_that_cannot_return_otherwise...]]`).
-  * ``CDRegister`` / ``SedenionRegister`` are handle-shaped: they cross by
+  * ``CDRegister`` is handle-shaped: it crosses by
     REFERENCE, so the round-trip claim is IDENTITY (``resolve(env) is orig``),
     which is a strictly stronger check than value equality would have been.
 
@@ -91,7 +91,7 @@ FLOOR_REGISTERED_OPS = 550
 #: The carrier registry is a fixed, reviewed set, so this one IS an equality —
 #: a carrier appearing or disappearing is exactly the event the gate must not
 #: miss.
-EXPECTED_CARRIERS = 29
+EXPECTED_CARRIERS = 28
 
 #: Ops whose DECLARED return type has no inbound coercer at all. A round-trip
 #: claim over these is UNDEFINED, not true — the value comes back unchanged
@@ -191,7 +191,7 @@ def _example_namespace() -> dict:
         HarmonicMaass, MockQSeries, UnaryTheta,
     )
     from srmech.apokatastasis.riemann_theta_multisum import ThetaBracketSum
-    from srmech.cascade import cd_register, sedenion_register, the_one
+    from srmech.cascade import cd_register, the_one
     from srmech.math import hdc as _hdc
     from srmech.math import laplacian as _lap
     from srmech.math.carrier_ladder import BiPoly, QBiPoly, QPoly
@@ -211,7 +211,7 @@ def _example_namespace() -> dict:
         ThetaSum=ThetaSum, ThetaBracketSum=ThetaBracketSum, Theta=Theta,
         CarrierSpectrum=CarrierSpectrum, MockQSeries=MockQSeries,
         UnaryTheta=UnaryTheta, HarmonicMaass=HarmonicMaass, the_one=the_one,
-        sedenion_register=sedenion_register, cd_register=cd_register,
+        cd_register=cd_register,
         dense_laplacian=_lap.dense_laplacian,
         jacobi_eigvals=_lap.jacobi_eigvals,
         fiedler_vector=_lap.fiedler_vector, hdc=_hdc,
@@ -434,7 +434,7 @@ def test_the_silent_corruption_regressions() -> None:
     never be absorbable.
     """
     from srmech.apokatastasis.ellbase import EllMonomial
-    from srmech.cascade import sedenion_register, the_one
+    from srmech.cascade import cd_register, the_one
     from srmech.math.q import Q
 
     # (1) the_one DROPPED the winding triad. rc408 made `w` a declared param,
@@ -454,10 +454,14 @@ def test_the_silent_corruption_regressions() -> None:
     with pytest.raises(ValueError, match="not a symbol name"):
         coerce_param("EllMonomial(1·q^2)", "EllMonomial")
 
-    # (3) sedenion_register emitted a NON-DETERMINISTIC payload: the class has
+    # (3) the register emitted a NON-DETERMINISTIC payload: the class had
     #     no __repr__, so the default one carried a memory address and two
-    #     identical calls produced different bytes.
-    a, b = sedenion_register(), sedenion_register()
+    #     identical calls produced different bytes. rc464 removed the 16-slot
+    #     register this was found on; the defect was never specific to it (it
+    #     is a property of any handle-shaped carrier without a __repr__), so
+    #     the regression is re-pointed at the register that survives rather
+    #     than deleted with the one it was found on.
+    a, b = cd_register(16), cd_register(16)
     assert "object at 0x" not in serialise_result(a), (
         "the register still crosses as a default repr carrying an address")
     assert serialise_result(a) == serialise_result(a), (

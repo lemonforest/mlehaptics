@@ -16,8 +16,9 @@ baseline files below; the per-class C surfaces added since
 `srmech_platform.c`, `srmech_json.c`, `srmech_genome.c` — the PAL, rc4,
 the OS sibling of the `srmech_simd.c` HAL, plus the §41 genome-persistence
 JSON mirror and the §41 genome-persistence disk surface itself;
-`srmech_sedenion.c` and `srmech_cd_register.c` — the 16-slot and the
-general N-slot Cayley–Dickson address layers, the latter added in
+`srmech_sedenion.c` and `srmech_cd_register.c` — the DENSE reversibility
+gate and the general N-slot Cayley–Dickson address layer (rc464 `#T1188`
+removed the 16-slot half of the first), the latter added in
 v0.9.0rc297 (`#934`) with no Rule-5 exemption: its one predicate helper
 `cdr_dim_ok` asserts the CAP's own shape rather than being exempted,
 so a future `SRMECH_CD_MAX_DIM` change that broke the power-of-two

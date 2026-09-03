@@ -53,8 +53,10 @@ The two newest v0.6.0 C files:
 
 ### ABI
 
-C ABI version is **24** (`SRMECH_ABI_VERSION 24` in
-`c/include/srmech.h`). The v24 bump is rc455's, and it is the SECOND instance of
+C ABI version is **25** (`SRMECH_ABI_VERSION 25` in
+`c/include/srmech.h`). The v25 bump is rc464's (`#T1188`) and it is the fourth of the REMOVAL kind (v7 / v8 / v11 before it), the plainest shape there is. Three exported symbols go — `srmech_sedenion_navmap`, `srmech_sedenion_navigate` and `srmech_sed_slots` — with the 16-slot `SedenionRegister` they were the Rosetta peer of. They are SUBSUMED, not dropped: `srmech_cd_navmap` / `srmech_cd_navigate` take the rung as a parameter and this header has documented them as bit-identical at dim 16 since rc298, and `srmech_sed_slots` was a validate-and-copy its one caller now does inline. A removed export produces no symptom other than a version mismatch, so by standing policy it always bumps. The `SRMECH_SEDENION_NUM_SLOTS` macro goes with them and contributes nothing — macros are not exported symbols. `srmech_sedenion_is_navigable` STAYS: it is the general DENSE kernel for every rung up to `SRMECH_CD_DENSE_MAX_DIM`, dispatched live by `left_mult_is_invertible`, and only its NAME was ever sedenion-specific. rc464 also changes what one existing function returns — `srmech_make_class_run_arena_bytes` now budgets the TOML parser's own stated bound instead of a hand-rolled `32 * toml_len` heuristic, so the envelope is LARGER — which is the v10 / v12 / v23 / v24 wire-sizing shape and would have bumped on its own; it rides this one. `SRMECH_GENOME_FORMAT_VERSION` stays 20.
+
+The v24 bump before it is rc455's, and it is the SECOND instance of
 a shape this header already recorded one function over. `srmech_dsl_chain_run`'s
 writer reserve was derived from the INPUT length while it bounds the OUTPUT
 tree, so `srmech_dsl_chain_run_arena_bytes` now returns a **smaller** envelope —

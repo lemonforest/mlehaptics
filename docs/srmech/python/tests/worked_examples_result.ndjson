@@ -1,4 +1,4 @@
-{"n": 649, "native": true, "python": "3.10", "record": "meta", "verified_at": "9ca4027d9b3097ff5b70ed935df216b9fb72d2d3"}
+{"n": 649, "native": true, "python": "3.10", "record": "meta", "verified_at": "296f6a61af0350b25e8481a1c23baa7927e13889"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -237,7 +237,7 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.chemistry.conservation_laws", "problems": [], "src_sha256": "4964470b80ec3716a1d6934cf62e1322c7e28aae13dafd1903680d84c588fd17", "statements": 5, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.chemistry.deficiency", "problems": [], "src_sha256": "a4067598a497d0a74ac947b043167ecab508dd673f65190a25d80ddf5d58c805", "statements": 5, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.chemistry.parse_formula", "problems": [], "src_sha256": "39c723b5da9e5fc1f5c3c1b2055e8b226ac2ec87f6590919fd47da742f4cb0ec", "statements": 5, "status": "ok"}
-{"markers_fired": [], "n_markers": 0, "name": "srmech.dsl.describe_class", "problems": [], "src_sha256": "534892904f7b00e67231e1dc72c42507e2b0a9da8f691c5fa8fe0dd1db61d079", "statements": 15, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.dsl.describe_class", "problems": [], "src_sha256": "0ce9f8a75ff23295aec67f8ca73c2602736c6354a564b033b1350fb4694f2b43", "statements": 15, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.dsl.generate_class_descriptor", "problems": [], "src_sha256": "6e79ee19ea3069a1f06a5e4d88ffffc2812e85b3998a87ceb1aa4c59e0123315", "statements": 13, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.dsl.list_catalog_ops", "problems": [], "src_sha256": "c271db04916eced64866c4a60954e49ee402cd2814baef24857f53327b08eb65", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.dsl.list_class_surface", "problems": [], "src_sha256": "978d512e1d0b24b544132787026af8d7ec81bed0b2ee2a57a6f8304f97798227", "statements": 6, "status": "ok"}
@@ -245,7 +245,7 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.dsl.run_cascade_chain", "problems": [], "src_sha256": "b5dd465d5d2d261c6eec80ebcd5424c5a0ef805d671b006bbd590e1361a7d39a", "statements": 5, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.dsl.run_toml_chain", "problems": [], "src_sha256": "5194936bffdfd2d2adc80dd6fd2fd1d15b4bb8afa5e5718b9eb8fcb17102ea05", "statements": 10, "status": "ok"}
 {"markers_fired": [], "name": "srmech.introspect.by_pid", "problems": [], "src_sha256": "c0cfac231901ac92e2207af5e1416383c1916431c63670fb2aaf2b7cac174fb9", "statements": 0, "status": "needs_subprocess"}
-{"markers_fired": [], "n_markers": 0, "name": "srmech.introspect.carrier_schema.carrier_schema", "problems": [], "src_sha256": "1b72cc8408cecdb1db1e02489164b5af1ea5d7aafb8e1a37ac36d1e2c4cadf35", "statements": 13, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.introspect.carrier_schema.carrier_schema", "problems": [], "src_sha256": "0075acce80374022e6b6f99aa14b522ce553697809ab55a14bc124126fe66ba6", "statements": 13, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.introspect.describe", "problems": [], "src_sha256": "3e8f1bac74a3221077915210af07bc7f02b75a67c4c923c5db8d82a6383725bb", "statements": 14, "status": "ok"}
 {"markers_fired": [], "name": "srmech.introspect.list", "problems": [], "src_sha256": "f4b44f64b1c76eb8ae8edcec2dccec9a1d9a613c8a350d9eb0338f3d45404fe4", "statements": 0, "status": "needs_subprocess"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.introspect.naming.lookup", "problems": [{"detail": "[Errno 2] No such file or directory: 'srmech/amsc/attested/genetic_code/row.ndjson'", "expected": null, "got": "FileNotFoundError", "kind": "unexpected_raise", "line": 6}], "src_sha256": "26febd28225ed0a8e0eb472d68f8f32203c23c10c364decb529d4223fd83aa06", "statements": 1, "status": "unexpected_raise"}

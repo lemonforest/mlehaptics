@@ -466,19 +466,6 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
     'srmech.cascade.one.winding_tower': OPEN_REGISTRATION,
     # ── srmech.cascade.parallel ──
     'srmech.cascade.parallel.sectorize': OPEN_REGISTRATION,
-    # ── srmech.cascade.sedenion_register ──
-    'srmech.cascade.sedenion_register.sed_carry': OPEN_REGISTRATION,
-    'srmech.cascade.sedenion_register.sed_clean': OPEN_REGISTRATION,
-    'srmech.cascade.sedenion_register.sed_correct': OPEN_REGISTRATION,
-    'srmech.cascade.sedenion_register.sed_couple_working': OPEN_REGISTRATION,
-    'srmech.cascade.sedenion_register.sed_is_navigable': OPEN_REGISTRATION,
-    'srmech.cascade.sedenion_register.sed_materialize': OPEN_REGISTRATION,
-    'srmech.cascade.sedenion_register.sed_navigate': OPEN_REGISTRATION,
-    'srmech.cascade.sedenion_register.sed_navmap': OPEN_REGISTRATION,
-    'srmech.cascade.sedenion_register.sed_read_unbind': OPEN_REGISTRATION,
-    'srmech.cascade.sedenion_register.sed_slots': OPEN_REGISTRATION,
-    'srmech.cascade.sedenion_register.sed_uncouple_working': OPEN_REGISTRATION,
-    'srmech.cascade.sedenion_register.sed_write': OPEN_REGISTRATION,
     # ── srmech.cli ──
     # rc419: 'srmech.cli.main' RE-HOMED to _UNDECLARED_SURFACE_GAPS as
     # 'srmech.cli.main.main' (the srmech.cli.main MODULE declares no __all__).
@@ -658,7 +645,17 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
 #: not academic — four shipped ``ToolEntry`` texts direct readers to
 #: exactly these ops, so the registry was recommending a surface it did
 #: not itself expose.
-CEIL_REGISTRY_GAPS = 157
+#: **157 -> 145 at rc464 (`#T1188`), a REMOVAL rather than a discharge.** The
+#: twelve ``sed_*`` rows go with the 16-slot ``SedenionRegister`` that
+#: ``CDRegister`` subsumes. That is a weaker kind of drain than rc463's and
+#: this note says so: nothing became visible to ``describe()`` that was not
+#: before, the population simply has twelve fewer members. The peers that
+#: replace them — the fourteen ``cdr_*`` [class]-binding adapters — did NOT
+#: join this allowlist, because they each ship a real ``ToolEntry``; had they
+#: been hidden here instead, the ceiling would have gone UP by two and the
+#: registry would have carried a shipped descriptor naming ops no census can
+#: see. That is the shape this ceiling exists to make visible.
+CEIL_REGISTRY_GAPS = 145
 
 #: DOWN-ONLY sub-ceiling on the DEBT bucket specifically. The other four codes
 #: are stated design positions; this one is *"nobody decided"*, and it is the
@@ -675,7 +672,11 @@ CEIL_REGISTRY_GAPS = 157
 #: discharge, not a re-label.
 #: **104 -> 97 at rc463 (`#T1188`).** The seven exact-eigensolver rows are
 #: DISCHARGED, not re-labelled: each earned a real ``ToolEntry``.
-CEIL_OPEN_REGISTRATION = 97
+#: **97 -> 85 at rc464 (`#T1188`).** The twelve ``sed_*`` rows leave with the
+#: register they belonged to — a removal, not a discharge (see the note on
+#: ``CEIL_REGISTRY_GAPS``). The fourteen adapters that replace them are
+#: registered, so this bucket takes none of them back.
+CEIL_OPEN_REGISTRATION = 85
 
 #: ⚠️ DOWN-ONLY, and the OTHER half of the partition (rc419, `#T1110`). Rows
 #: here name public callables whose module declares NO ``__all__`` — the class

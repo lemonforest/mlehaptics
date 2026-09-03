@@ -347,7 +347,7 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "A sedenion as a length-16 float sequence (e0..e15 basis) — "
             "rung 16 (S) of the Cayley–Dickson ladder, PAST Hurwitz (zero "
             "divisors appear — the open-exterior boundary): the "
-            "SedenionRegister's address space and the cd_* boundary "
+            "register's dim-16 address space and the cd_* boundary "
             "demonstrator operand."),
         "ladder": "cayley_dickson", "rung": 16, "variables": [],
     },
@@ -539,17 +539,6 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "by cascade.the_one, read by the one_* accessors / to_scalar."),
         "ladder": None, "rung": None, "variables": [],
     },
-    "SedenionRegister": {
-        "description": (
-            "Sedenion (dim-16) addressable RBS-HDC register: 16 named "
-            "slots, an octonion reversible working word, a Hamming EC/carry "
-            "block, and a CD-respecting navigate — produced by "
-            "cascade.sedenion_register, driven via the sed_* class "
-            "surface. PREFER the CDRegister carrier (rc464): "
-            "cd_register(16, namespace='SEDENION', coupling=True, "
-            "error_correction=True) is this register byte-for-byte."),
-        "ladder": None, "rung": None, "variables": [],
-    },
     "CDRegister": {
         "description": (
             "General N-slot addressable RBS-HDC register over a "
@@ -560,10 +549,11 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "block, plus a CD-respecting navigate whose slot routing is the "
             "signed permutation e_i·e_j = ±e_k. THE register carrier (rc464): "
             "the slot bound is a parameter rather than a constant, so the "
-            "16-slot SedenionRegister is its n=16 special case — "
-            "namespace='SEDENION' at dim 16 reproduces it bit-exactly, gated "
-            "against that register's recorded behaviour rather than a live "
-            "peer. Produced by cascade.cd_register."),
+            "16-slot register REMOVED in rc464 is its n=16 special case — "
+            "cd_register(16, namespace='SEDENION', coupling=True, "
+            "error_correction=True) reproduces it bit-exactly, gated against "
+            "that register's recorded behaviour rather than a live peer. "
+            "Produced by cascade.cd_register."),
         "ladder": None, "rung": None, "variables": [],
     },
 }
@@ -793,10 +783,10 @@ _CAPABILITY: Dict[str, Dict[str, Any]] = {
     # through ×e_j. At dim 16 the ambient algebra is 𝕊, which is why the
     # register's REVERSIBLE working set is the octonion block e₀..e₇ and the
     # remainder is carry/EC: the design already encodes this ceiling, and rc339
-    # makes introspection say so.
-    "SedenionRegister": _cap("cd_navigate (S, dim 16)", _CAP_ZERO_DIVISORS,
-                             _CAP_ABELIAN_ONLY, False,
-                             max_dim=16, bounded_by="definition"),
+    # makes introspection say so. rc464 (`#T1188`) removed the fixed-dim-16 row
+    # that sat here; the CDRegister row below states the worst case over the
+    # WHOLE dim range, which already covers dim 16 and does not pretend the
+    # bound is a definition when it is a rung.
     # Worst case over every dim in [1, CD_MAX_DIM] — NOT the dim-4 best case.
     # This row is the direct answer to the rc339 defect: a caller who read
     # cd_max_dim 256 and reached for a turn gets told here that at the dims this

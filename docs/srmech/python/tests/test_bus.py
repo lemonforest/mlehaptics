@@ -1017,7 +1017,7 @@ def test_native_bus_symbols_present():
     from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    # ABI-PIN: NATIVE_ABI_VERSION == 24
+    # ABI-PIN: NATIVE_ABI_VERSION == 25
     # ⚠️ rc455: the local below is the SAME grep-invisible site the note that
     # follows describes. It was found by hand this time, not by the
     # `ABI_VERSION == 23` sweep, which matched only the comment above.
@@ -1093,7 +1093,7 @@ def test_abi_version_is_pinned():
     # a mechanism designed for a human reader, driven by a script. Both
     # functions FAILED on the next run, which is the assert being the
     # measurement rather than the comment. Fixed together.
-    # ABI-PIN: EXPECTED_ABI_VERSION == 24   (grep target - see the note above)
+    # ABI-PIN: EXPECTED_ABI_VERSION == 25   (grep target - see the note above)
     want_abi = 24
     assert _native.EXPECTED_ABI_VERSION == want_abi, (
         f"EXPECTED_ABI_VERSION should be {want_abi}; got "

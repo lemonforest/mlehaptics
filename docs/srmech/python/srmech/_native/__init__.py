@@ -267,7 +267,7 @@ from typing import Optional
 #        figure into a v24 library: over-provisioned, correct. New (smaller)
 #        figure into a v23 library: the old tail-slice guard answers a correct
 #        SRMECH_ERR_OVERFLOW. Neither computes and lies.
-EXPECTED_ABI_VERSION: int = 24
+EXPECTED_ABI_VERSION: int = 25
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -2548,26 +2548,6 @@ def _bind(lib: ctypes.CDLL) -> None:
     # Sedenion address layer (v0.9.0rc12; UPSTREAM §31 / F465+F468) — the
     # navigation + reversibility gate a C-only host needs for "Siona's address
     # layer." hasattr-guarded so a stale lib (pre-rc12) keeps the rest.
-    #   int srmech_sedenion_navmap(int j, int *out_dest, int *out_sign)
-    if hasattr(lib, "srmech_sedenion_navmap"):
-        lib.srmech_sedenion_navmap.argtypes = [
-            ctypes.c_int,                       # j (basis direction)
-            ctypes.POINTER(ctypes.c_int),       # out_dest[16]
-            ctypes.POINTER(ctypes.c_int),       # out_sign[16]
-        ]
-        lib.srmech_sedenion_navmap.restype = ctypes.c_int
-    #   int srmech_sedenion_navigate(int j, const int *in_slots,
-    #       const int *in_signs, size_t count, int *out_slots, int *out_signs)
-    if hasattr(lib, "srmech_sedenion_navigate"):
-        lib.srmech_sedenion_navigate.argtypes = [
-            ctypes.c_int,                       # j
-            ctypes.POINTER(ctypes.c_int),       # in_slots
-            ctypes.POINTER(ctypes.c_int),       # in_signs (+1/-1)
-            ctypes.c_size_t,                    # count
-            ctypes.POINTER(ctypes.c_int),       # out_slots
-            ctypes.POINTER(ctypes.c_int),       # out_signs
-        ]
-        lib.srmech_sedenion_navigate.restype = ctypes.c_int
     #   int srmech_sedenion_is_navigable(const int64_t *direction, size_t n,
     #                                    int *out_invertible)  (modular rank)
     if hasattr(lib, "srmech_sedenion_is_navigable"):
@@ -2577,27 +2557,13 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_int),       # out_invertible (0/1)
         ]
         lib.srmech_sedenion_is_navigable.restype = ctypes.c_int
-    # rc199 (make_class → C, leaf-batch 5/8; #887): the sed_slots accessor's
-    # canonical numeric reshape (validate+copy the (slot, sign) skeleton).
-    #   int srmech_sed_slots(const int *in_slots, const int *in_signs,
-    #                        size_t count, int *out_slots, int *out_signs)
-    if hasattr(lib, "srmech_sed_slots"):
-        lib.srmech_sed_slots.argtypes = [
-            ctypes.POINTER(ctypes.c_int),       # in_slots
-            ctypes.POINTER(ctypes.c_int),       # in_signs (+1/-1)
-            ctypes.c_size_t,                    # count
-            ctypes.POINTER(ctypes.c_int),       # out_slots
-            ctypes.POINTER(ctypes.c_int),       # out_signs
-        ]
-        lib.srmech_sed_slots.restype = ctypes.c_int
-
     # rc297 (`#934`) — the GENERAL N-slot Cayley-Dickson address layer, the
-    # dim-parameterised peer of the three sedenion entries above. These three
-    # went UNDECLARED from rc297 to rc463: the wrappers wrap every argument in
-    # ctypes.c_int by hand at the call site, so the calls were correct, but the
-    # asymmetry with their own 16-slot peers meant the next caller had no
-    # signature to lean on. Declared at rc464 in the same pass that respelled
-    # the wrappers' stale `dim > 64` domain predicate.
+    # dim-parameterised peer of the three 16-slot entries rc464 (`#T1188`)
+    # removed. These three went UNDECLARED from rc297 to rc463: the wrappers
+    # wrap every argument in ctypes.c_int by hand at the call site, so the calls
+    # were correct, but the asymmetry with their own 16-slot peers meant the
+    # next caller had no signature to lean on. Declared at rc464 in the same
+    # pass that respelled the wrappers' stale `dim > 64` domain predicate.
     #   int srmech_cd_navmap(int dim, int j, int *out_dest, int *out_sign)
     if hasattr(lib, "srmech_cd_navmap"):
         lib.srmech_cd_navmap.argtypes = [
@@ -18777,72 +18743,16 @@ def hypercomplex_couple_q61_c(streams8, mu8, eff: float, form_is_left: bool):
     return [out[i] for i in range(8)]
 
 
-# ── rc199 (make_class → C, leaf-batch 5/8; #887): the sedenion ADDRESS-ALGEBRA
-#    leaf peers. Thin marshalling over the shipped srmech_sedenion_* /
-#    srmech_hamming_* kernels + the one new srmech_sed_slots reshape, so the
-#    rc201 leaf-vtable dispatches each sedenion_register.sed_* address leaf to a
-#    single C symbol. Each returns None when the symbol is absent OR the input
-#    is out of the C domain — the Python caller then runs the exact pure path
-#    (the parity oracle; inform-don't-limit). The slot int-keys ride the
-#    srmech_mval_t DICT as STR "0".."15" one layer up; the caller int()s them
-#    before these helpers (the C sees plain int arrays). ──
-
-def has_native_sedenion_navmap() -> bool:
-    """True iff the rc12 srmech_sedenion_navmap C peer is loaded + bound."""
-    return bool(HAS_NATIVE and LIB is not None
-                and hasattr(LIB, "srmech_sedenion_navmap"))
-
-
-def sedenion_navmap_c(j: int):
-    """Native srmech_sedenion_navmap → ``{i: (dest, sign)}`` over the 16 slots
-    (``e_i·e_j = sign·e_{dest}``), or None when absent / ``j`` outside [0,16).
-    Byte-identical to ``SedenionRegister.navmap`` (a signed permutation)."""
-    if not has_native_sedenion_navmap():
-        return None
-    if not (0 <= j < 16):
-        return None
-    dest = (ctypes.c_int * 16)()
-    sign = (ctypes.c_int * 16)()
-    rc = LIB.srmech_sedenion_navmap(ctypes.c_int(j), dest, sign)
-    if rc != SRMECH_OK:
-        return None
-    return {i: (int(dest[i]), int(sign[i])) for i in range(16)}
-
-
-def has_native_sedenion_navigate() -> bool:
-    """True iff the rc12 srmech_sedenion_navigate C peer is loaded + bound."""
-    return bool(HAS_NATIVE and LIB is not None
-                and hasattr(LIB, "srmech_sedenion_navigate"))
-
-
-def sedenion_navigate_c(j: int, in_slots, in_signs):
-    """Native srmech_sedenion_navigate → ``(out_slots, out_signs)`` routing the
-    occupied (slot, sign) records through ×e_j (composing the Class-C signs), or
-    None when absent / ``j`` outside [0,16) / a record is out of domain. Byte-
-    identical to ``SedenionRegister.navigate`` slot routing."""
-    if not has_native_sedenion_navigate():
-        return None
-    if not (0 <= j < 16):
-        return None
-    cnt = len(in_slots)
-    for s, g in zip(in_slots, in_signs):
-        if not (0 <= s < 16) or g not in (1, -1):
-            return None
-    isl = (ctypes.c_int * cnt)(*in_slots)
-    isg = (ctypes.c_int * cnt)(*in_signs)
-    osl = (ctypes.c_int * cnt)()
-    osg = (ctypes.c_int * cnt)()
-    rc = LIB.srmech_sedenion_navigate(
-        ctypes.c_int(j), isl, isg, ctypes.c_size_t(cnt), osl, osg)
-    if rc != SRMECH_OK:
-        return None
-    return ([int(osl[m]) for m in range(cnt)], [int(osg[m]) for m in range(cnt)])
-
-
-# ── rc297 (`#934`): the GENERAL N-slot Cayley–Dickson address layer. The same
-#    navigation surface as the sedenion_* peers above, generalised from the
-#    hard-coded 16 slots to any power-of-two dim in [1, CD_MAX_DIM]. Python peer:
-#    srmech.cascade.cd_register. ──
+# ── rc297 (`#934`): the GENERAL N-slot Cayley–Dickson address layer — since
+#    rc464 (`#T1188`) the ONLY one. Any power-of-two dim in [1, CD_MAX_DIM].
+#    The 16-slot sedenion_navmap_c / sedenion_navigate_c / sed_slots_c wrappers
+#    that stood here were removed with their C symbols and the SedenionRegister
+#    they served; these take the rung as a parameter and reproduce them
+#    bit-for-bit at dim 16. Each returns None when the symbol is absent OR the
+#    input is out of the C domain — the Python caller then runs the exact pure
+#    path (inform-don't-limit). The slot int-keys ride the srmech_mval_t DICT as
+#    STR "0".."255" one layer up; the caller int()s them before these helpers.
+#    Python peer: srmech.cascade.cd_register. ──
 
 def has_native_cd_navmap() -> bool:
     """True iff the rc297 srmech_cd_navmap C peer is loaded + bound."""
@@ -18854,7 +18764,7 @@ def cd_navmap_c(dim: int, j: int):
     """Native srmech_cd_navmap → ``{i: (dest, sign)}`` over ``dim`` slots
     (``e_i·e_j = sign·e_{dest}``), or None when absent / dim is not a power of two
     in [1, 256] / ``j`` outside [0, dim). Byte-identical to the pure
-    ``cd_navmap`` cocycle loop, and at dim == 16 to ``sedenion_navmap_c``.
+    ``cd_navmap`` cocycle loop.
 
     rc464: the domain predicate said ``dim > 64`` from rc297 to rc463, while
     ``srmech_cd_navmap``'s own ``cdr_dim_ok`` has admitted every power of two up
@@ -18891,8 +18801,7 @@ def cd_navigate_c(dim: int, j: int, in_slots, in_signs):
     """Native srmech_cd_navigate → ``(out_slots, out_signs)`` routing the occupied
     (slot, sign) records through ×e_j at ``dim`` slots (composing the Class-C
     signs), or None when absent / dim bad / ``j`` outside [0, dim) / a record is
-    out of domain. Byte-identical to the pure ``cd_navigate`` loop, and at
-    dim == 16 to ``sedenion_navigate_c``.
+    out of domain. Byte-identical to the pure ``cd_navigate`` loop.
 
     ``dim`` is a power of two in [1, 256] — rc464 respelled a ``dim > 64``
     predicate that had declined the working C peer at 128 and 256 since rc298;
@@ -18987,34 +18896,6 @@ def hamming_decode_correct_c(codeword):
         corrected[pos - 1] ^= 1        # the single located Class-K sign-flip
     return {"data": [int(b) for b in out_data], "error_position": pos,
             "corrected_codeword": corrected}
-
-
-def has_native_sed_slots() -> bool:
-    """True iff the rc199 srmech_sed_slots C peer is loaded + bound."""
-    return bool(HAS_NATIVE and LIB is not None
-                and hasattr(LIB, "srmech_sed_slots"))
-
-
-def sed_slots_c(in_slots, in_signs):
-    """Native srmech_sed_slots → ``(out_slots, out_signs)``: the canonical
-    validated reshape of the register's slot skeleton (slot in [0,16), sign in
-    {±1}), or None when absent / any record is out of that domain (the Python
-    caller then runs the un-validated pure reshape). Byte-identical to the
-    numeric core of ``sed_slots`` for every real register state."""
-    if not has_native_sed_slots():
-        return None
-    cnt = len(in_slots)
-    for s, g in zip(in_slots, in_signs):
-        if not (0 <= s < 16) or g not in (1, -1):
-            return None
-    isl = (ctypes.c_int * cnt)(*in_slots)
-    isg = (ctypes.c_int * cnt)(*in_signs)
-    osl = (ctypes.c_int * cnt)()
-    osg = (ctypes.c_int * cnt)()
-    rc = LIB.srmech_sed_slots(isl, isg, ctypes.c_size_t(cnt), osl, osg)
-    if rc != SRMECH_OK:
-        return None
-    return ([int(osl[m]) for m in range(cnt)], [int(osg[m]) for m in range(cnt)])
 
 
 def has_native_mint_vector() -> bool:

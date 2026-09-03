@@ -115,7 +115,6 @@
 {"composes": [], "name": "srmech.cascade.phase_coherent_peak", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.pin_slot_at_zero", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.reorient", "tier": "LEAF"}
-{"composes": [], "name": "srmech.cascade.sedenion_register", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.seq_get", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.seq_len", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.signed_sum_squared", "tier": "LEAF"}

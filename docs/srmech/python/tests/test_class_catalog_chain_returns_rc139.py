@@ -1,7 +1,7 @@
 """v0.7.5rc139 — make_class contract extension #2: ``chain`` + ``returns="self"``.
 
 The last two method-routing primitives a rich domain object needs (the
-SedenionRegister-class blockers per [[feedback_prefer_config_driven_toml_classes]]):
+register-class blockers per [[feedback_prefer_config_driven_toml_classes]]):
 
 - **``chain``** — a method declared as a VISIBLE multi-op pipeline: a list of
   ``{op, binds, as}`` stages (instead of a single ``op``). Each stage's ``binds``

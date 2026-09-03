@@ -351,7 +351,7 @@ _FRACTIONS_ALLOWANCES: Mapping[str, str] = {
     # would INTRODUCE an error, not fix one.
     "tests/test_cascade_cayley_dickson_parity.py": _ORACLE,
     "tests/test_cascade_reorient_parity.py": _INTERCHANGE,
-    "tests/test_cascade_sedenion_parity.py": _ORACLE,
+    "tests/test_cd_register_dense_gate_c.py": _ORACLE,
     "tests/test_cascade_cd_register_dim16.py": _INTERCHANGE,
     "tests/test_classn_precision_wave2_rc320.py": _ORACLE,
     "tests/test_crt_reconstruct_rc45.py": _ORACLE,

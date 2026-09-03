@@ -55,7 +55,7 @@ The imperative cascade **modules** (rc377, the FINAL ADR-0010 slice — the form
 intrinsics), ``composites`` (the iterative algorithms over the atoms — Euclid's
 ``cyclic_gcd``, the Class K∘N∘C ``best_rational_signed``), ``parallel``,
 ``coupled``, ``hypercomplex_dft``, ``hamming``, ``one`` (the S(σ,θ) 1+3+7+3 = 14
-generator), ``cayley_dickson``, ``sedenion_register``, ``cd_register``,
+generator), ``cayley_dickson``, ``cd_register``,
 ``exact_dft``, ``spectral_cascades``, ``matrix_cascades``, ``frame_carrier``.
 The ADR-0002 chain ENGINE ``compose`` (``run_chain`` / ``parse_chain_spec``)
 also lives here and is UNRELATED to ``composites`` — see rule 1 above.
@@ -105,9 +105,9 @@ from . import parallel
 # retained as deprecated-for-one-release aliases.
 #
 # ⚠️ ORDERING IS LOAD-BEARING: the ``atoms`` re-exports (``chiral_flip`` /
-# ``hypercomplex_couple`` / ``magnitude``) MUST precede the ``cd_register`` /
-# ``sedenion_register`` imports below — those modules do ``from . import
-# chiral_flip`` (etc.) at import time and need the name already bound here.
+# ``hypercomplex_couple`` / ``magnitude``) MUST precede the ``cd_register``
+# import below — that module does ``from . import chiral_flip`` (etc.) at
+# import time and needs the name already bound here.
 from .atoms import (
     pin_slot_at_zero,
     reorient,
@@ -300,33 +300,26 @@ from .cayley_plane import (
     cayley_plane_incidence,
     octonion_hopf_base,
 )
-# Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31 of
-# PR #687; F465 + F468). The sedenion box made into an addressable instrument:
-# 16 named slots (octonion working block e0..e7 + EC/carry block e8..e15), HDC
-# storage, the ≤7 reversible coupler working word, the Hamming carry, and the
-# address↔Cayley–Dickson `navigate` homomorphism + `is_navigable` gate (the
-# genuinely-new piece). Pure composition of shipped primitives — no new algebra.
-# rc464: PREFER `CDRegister` below — `cd_register(16, namespace="SEDENION",
-# coupling=True, error_correction=True)` is this instrument byte-for-byte, gated
-# against its record in tests/sedenion_register_golden_rc464.ndjson.
-from .sedenion_register import (
-    SedenionRegister,
-    sedenion_register,
-    NUM_SLOTS,
-    OCT_BLOCK,
-    EC_BLOCK,
-    WORKING_WORD_CAP,
-)
-
-# ── The GENERAL N-slot Cayley–Dickson register (rc297; `#934`) ─────────
-# THE register shape (rc464: preferred). The 16-slot instrument above with the
-# slot count as a PARAMETER — any power of two in [1, CD_MAX_DIM]. The slot
-# bound is the ONLY generalisation: every sign and index rule is shared through
-# `cd_basis_product`, so there is no second algebra. Faithfulness at dim 16 is
-# gated against the 16-slot register's RECORDED behaviour rather than a live
-# peer (rc464: `tests/sedenion_register_golden_rc464.ndjson`, digest-pinned) —
-# an oracle that could drift with its subject was never the guarantee wanted.
+# ── THE addressable hyper-loop RBS-HDC register (rc297 `#934`; rc464 `#T1188`) ──
+# The Cayley–Dickson-addressable instrument: `dim` named slots e0..e{dim-1} for
+# any power of two in [1, CD_MAX_DIM], the octonion working block e0..e7 at
+# EVERY rung, the Hamming EC/carry block above it, HDC storage, the ≤7 reversible
+# coupler working word, and the address↔Cayley–Dickson `navigate` homomorphism +
+# `is_navigable` gate. Pure composition of shipped primitives — no new algebra;
+# the slot count is the ONLY generalisation, since every sign and index rule is
+# shared through `cd_basis_product`.
+#
+# rc464 REMOVED the 16-slot `SedenionRegister` this subsumes (v0.7.4rc1;
+# UPSTREAM §31 of PR #687; F465 + F468). Its spelling here is
+# `cd_register(16, namespace="SEDENION", coupling=True, error_correction=True)`
+# — all three arguments load-bearing: the namespace IS the address-mint name,
+# and the 16-slot register's coupling / EC layers were UNCONDITIONAL where this
+# one gates them. Faithfulness at that spelling is gated against the removed
+# register's RECORDED behaviour (`tests/sedenion_register_golden_rc464.ndjson`,
+# digest-pinned) rather than a live peer — an oracle that could drift with its
+# subject was never the guarantee wanted.
 from .cd_register import (
+    WORKING_WORD_CAP,
     CDRegister,
     cd_register,
     cd_navmap,
@@ -574,14 +567,8 @@ __all__ = [
     "cayley_plane_point",
     "cayley_plane_incidence",
     "octonion_hopf_base",
-    # Sedenion-addressable RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31; F465/F468)
-    "SedenionRegister",
-    "sedenion_register",
-    "NUM_SLOTS",
-    "OCT_BLOCK",
-    "EC_BLOCK",
+    # THE N-slot Cayley–Dickson register (v0.9.0rc297 `#934`; rc464 `#T1188`)
     "WORKING_WORD_CAP",
-    # General N-slot Cayley–Dickson register (v0.9.0rc297; `#934`)
     "CDRegister",
     "cd_register",
     "cd_navmap",

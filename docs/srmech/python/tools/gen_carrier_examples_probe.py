@@ -34,7 +34,7 @@ from srmech.apokatastasis.harmonic_maass import MockQSeries, UnaryTheta, Harmoni
 from srmech.math.qmat import QMat  # noqa: E402  (rc379: the exact-ℚ matrix carrier)
 from srmech.math import laplacian as _lap  # noqa: E402
 from srmech.math import hdc as _hdc  # noqa: E402
-from srmech.cascade import the_one, sedenion_register, cd_register  # noqa: E402
+from srmech.cascade import the_one, cd_register  # noqa: E402
 
 _NS = dict(globals())
 _NS.update(dict(array=array, Fraction=Fraction, Q=Q, Poly=Poly, BiPoly=BiPoly,
@@ -45,7 +45,7 @@ _NS.update(dict(array=array, Fraction=Fraction, Q=Q, Poly=Poly, BiPoly=BiPoly,
                 Theta=Theta, CarrierSpectrum=CarrierSpectrum,
                 MockQSeries=MockQSeries, UnaryTheta=UnaryTheta,
                 HarmonicMaass=HarmonicMaass, the_one=the_one,
-                sedenion_register=sedenion_register, cd_register=cd_register,
+                cd_register=cd_register,
                 dense_laplacian=_lap.dense_laplacian,
                 jacobi_eigvals=_lap.jacobi_eigvals,
                 fiedler_vector=_lap.fiedler_vector, hdc=_hdc))
@@ -81,11 +81,9 @@ _CONSTRUCT = {
     "One": "the_one(1, 1, 4, w=(1, 0, 1))",
     "ThetaSum": "ThetaSum(terms=[(Q(1), EllMonomial(Q(1), {}), [])])",
     "ThetaBracketSum": "ThetaBracketSum({(('u', 1),): Q(1)})",
-    "SedenionRegister": "sedenion_register(D=256)",
     # dim 32 DELIBERATELY, not 16: the whole point of CDRegister is that the slot
-    # count is a PARAMETER, and an example at n=16 would document it as a sedenion
-    # register with extra steps — the reader would learn nothing the
-    # SedenionRegister row above does not already say. 32 is also the live
+    # count is a PARAMETER, and an example at n=16 would document it as the
+    # 16-slot register rc464 removed, with extra steps. 32 is also the live
     # research need (𝕋, where composition fails for most generic pairs while
     # addressing is intact), and it is well inside CD_MAX_DIM=64.
     "CDRegister": "cd_register(32, D=256)",

@@ -265,7 +265,6 @@ srmech.cascade.quaternion_dft
 srmech.cascade.reorient
 srmech.cascade.reversal_law_census
 srmech.cascade.right_mult_matrix
-srmech.cascade.sedenion_register
 srmech.cascade.seq_get
 srmech.cascade.seq_len
 srmech.cascade.signed_sum_squared

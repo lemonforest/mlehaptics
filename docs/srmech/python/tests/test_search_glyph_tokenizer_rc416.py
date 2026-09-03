@@ -954,7 +954,7 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   and idempotent across two passes, per the rc454 rule that a pin taken
 #:   mid-release is a measurement of a draft.
 #:
-#:   MOVE 4 `dfa8cfa9…` -> the value below: **0 added, 0 removed, 4 changed**,
+#:   MOVE 4 `dfa8cfa9…` -> `b213cf4f…`: **0 added, 0 removed, 4 changed**,
 #:   and the four are the whole of rc464's preferred-shape rewording — the
 #:   `srmech.cascade.cd_register` and `srmech.cascade.sedenion_register` OP
 #:   frames (ToolEntry summary + curated explanation) and the `CDRegister` /
@@ -966,10 +966,43 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   corpora — and the extracted rc464-stage-1 tree reproduced `dfa8cfa9…`
 #:   exactly, which is what makes the four-frame attribution a measurement
 #:   rather than a reading of the diff.
+#:
+#:   MOVE 5 `b213cf4f…` -> the value below, the rc464 REMOVAL half: **0 added,
+#:   2 removed, 12 changed**, counts 763 -> 761 (733 ops + 28 carriers).
+#:   Attributed frame by frame against a `git archive` of `3d404205d`, which
+#:   reproduced `b213cf4f…` exactly.
+#:
+#:     REMOVED (2) — `op:srmech.cascade.sedenion_register` and
+#:     `carrier:SedenionRegister`, the 16-slot register's whole searchable
+#:     presence. This is the FIRST move on this pin with a removal in it, which
+#:     is why the counts move at all.
+#:
+#:     CHANGED (12), and none of them is a reword for its own sake:
+#:       * `carrier:CDRegister`, `carrier:sedenion` — descriptions that named
+#:         the removed class.
+#:       * `carrier:int` — DERIVED, and the one worth reading twice: a carrier
+#:         frame carries the back-index of ops that consume or produce it, and
+#:         the removed factory declared an `int` `D` parameter. Nothing about
+#:         `int` was edited; its frame moved because an op left. A frame set
+#:         that did NOT move here would have meant the back-index is not
+#:         actually derived.
+#:       * `op:srmech.cascade.cd_navmap` / `cd_navigate` / `cd_couple_working` /
+#:         `cd_register` — summaries that pointed at the 16-slot peer.
+#:       * `op:srmech.cascade.left_mult_is_invertible` — its curated SIBLINGS
+#:         line named `SedenionRegister.is_navigable`.
+#:       * `op:srmech.dsl.describe_class` / `list_class_surface` /
+#:         `srmech.introspect.carrier_schema.carrier_schema` /
+#:         `srmech.introspect.describe` — the four curated example TRANSCRIPTS
+#:         that printed the removed class. Re-EXECUTED rather than hand-edited.
+#:
+#:   Measured LAST, after `regen_all.py` reported all six generated files
+#:   idempotent across two passes, per the rc454 rule that a pin taken mid-rc is
+#:   a measurement of a draft.
 #: was: f1f521af99cbcf3a3b404a11e521052e08d26577ccf0cc04c5f356816138f5cd (rc463)
 #: was: dfa8cfa99710c81f1be406d32e0ec42a15dcfb8c699d893e3c02f302540236f1 (rc464 stage 1)
+#: was: b213cf4fc311e5ae06beee96061d9b919653e921bcf749a5312765b1053e341d (rc464 stage 2)
 WITNESS_RC416 = (
-    "b213cf4fc311e5ae06beee96061d9b919653e921bcf749a5312765b1053e341d")
+    "9add5607e7cd594594f14f8767543fe25f75a807c04a9d4a8135c3ac8c0f579c")
 #: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
 #: op corpus, so registering induced_representation + zeta_conjugate moves it by
 #: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.

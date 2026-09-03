@@ -593,17 +593,19 @@ def test_the_decoder_can_still_see_something() -> None:
     hex literals, a renamed array). Pin the SHAPE, not a ref count.
     """
     blobs = _decoded_blobs(_SR_ROOT / "c/src/srmech_class_registry.c")
-    # rc464 (`#T1188`): 4 -> 5. cd_register.toml joined the class catalog when
-    # CDRegister — the last hand-coded domain class — converted to a [class]
-    # declaration. The generator globs the catalog, so the table grows with it.
-    assert len(blobs) == 5, (
-        f"expected 5 embedded [class] descriptors, decoded {len(blobs)} - the "
+    # rc464 (`#T1188`): 4 -> 5 -> 4, inside the one rc. cd_register.toml joined
+    # the class catalog when CDRegister — the last hand-coded domain class —
+    # converted to a [class] declaration, and sedenion_register.toml LEFT it
+    # when the 16-slot register CDRegister subsumes was removed. The generator
+    # globs the catalog, so the table tracks it in both directions; one
+    # descriptor replaced another and the count returns to where it started.
+    assert len(blobs) == 4, (
+        f"expected 4 embedded [class] descriptors, decoded {len(blobs)} - the "
         "byte-array extraction has stopped matching the generator's output, "
         "so every decoded-payload assertion below is now vacuous."
     )
     names = {n for n, _ in blobs}
-    assert names == {"cls_desc_0", "cls_desc_1", "cls_desc_2", "cls_desc_3",
-                     "cls_desc_4"}
+    assert names == {"cls_desc_0", "cls_desc_1", "cls_desc_2", "cls_desc_3"}
     joined = "\n".join(t for _, t in blobs)
     assert "[class]" in joined and "Genome" in joined, (
         "the decoded blobs no longer look like TOML [class] descriptors"

@@ -2022,7 +2022,6 @@ _CARRIER_WIRE: Dict[str, Any] = {
 #: tools from uncallable to ``handle_pending: 0``.
 _HANDLE_SHAPED_CARRIERS: Dict[str, str] = {
     "CDRegister": "cd-register",
-    "SedenionRegister": "sedenion-register",
 }
 
 

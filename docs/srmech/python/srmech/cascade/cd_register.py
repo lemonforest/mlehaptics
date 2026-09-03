@@ -207,8 +207,9 @@ def cd_navmap(dim: int, j: int) -> Dict[int, Tuple[int, int]]:
     ``dim`` slots: maps each slot ``i`` to ``(k, sign)`` where ``e_i·e_j =
     sign·e_k`` (the :func:`cd_basis_product` cocycle).
 
-    The general-rung form of :meth:`SedenionRegister.navmap`; at ``dim=16`` it is
-    bit-identical to it. Always a signed permutation — reversible at **every**
+    The general-rung form of the removed 16-slot register's ``navmap``; at
+    ``dim=16`` it is bit-identical to its RECORD
+    (``tests/sedenion_register_golden_rc464.ndjson``). Always a signed permutation — reversible at **every**
     rung for a single basis direction, including past the Hurwitz wall (F1275).
 
     Dispatches to the ``srmech_cd_navmap`` C peer when ``HAS_NATIVE``; the pure
@@ -300,8 +301,8 @@ def cd_navmap_is_signed_permutation(dim: int) -> bool:
 
 
 # ── the OPT layers as pure functions: reversible coupling + Hamming EC ─────────
-# These are the dim-scaled generalisations of the four SedenionRegister value-
-# operations, mirroring how cd_navmap(dim, j) generalises the 16-slot navmap.
+# These are the dim-scaled generalisations of the four value-operations the
+# removed 16-slot register carried, mirroring how cd_navmap(dim, j) generalises the 16-slot navmap.
 # They compose the already-C-backed hypercomplex_couple / hamming primitives — no
 # new algebra, no new C symbol (composition_of_c, exactly like the sed_* peers).
 
@@ -309,7 +310,7 @@ def cd_couple_working(vals: Sequence[float], dim: int = WORKING_BLOCK_DIM) -> Li
     """Bind ``≤ min(dim, 8) − 1`` real streams into one reversible working word —
     the canonical Class-M **bind** on the Cayley–Dickson register (rc301, `#T938`).
 
-    The dim-scaled generalisation of :meth:`SedenionRegister.couple_working`: the
+    The dim-scaled generalisation of the removed 16-slot register's ``couple_working``: the
     cap is read from :func:`_working_cap` (``min(dim, 8) − 1``), never a hardcoded
     7. dim 2 couples 1 imaginary slot, dim 4 couples 3, dim 8/16/…/256 couple 7
     (the octonion sub-block; Hurwitz). dim 1 (ℝ) couples nothing — the degenerate
@@ -501,7 +502,8 @@ class CDRegister:
         3, dim 8/16/…/256 couple 7, dim 1 couples nothing. Requires ``coupling=True``.
 
         Delegates to :func:`cd_couple_working` — at dim 16 this is bit-exact with
-        the shipped :meth:`SedenionRegister.couple_working` (the faithfulness gate)."""
+        the removed 16-slot register's ``couple_working`` as RECORDED in
+        ``tests/sedenion_register_golden_rc464.ndjson`` (the faithfulness gate)."""
         self._require_coupling()
         return cd_couple_working(vals, self.dim)
 
@@ -576,9 +578,9 @@ class CDRegister:
             # Class-K magnitude — the explicit pin-slot sign-branch, never
             # ``abs()`` (``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
             # Deliberately the INLINE branch rather than cascade.magnitude: the
-            # faithfulness gate is bit-identity with the shipped SedenionRegister,
-            # and magnitude() carries a NaN→0.0 dead-band that the shipped
-            # register's branch does not. Unreachable for a byte-vector
+            # faithfulness gate is bit-identity with the removed 16-slot
+            # register's RECORDED branch, and magnitude() carries a NaN→0.0
+            # dead-band that that branch did not. Unreachable for a byte-vector
             # similarity, but the gate is bit-identity, not
             # identity-in-practice. The winning polarity rides separately as
             # ``best_sign`` (Class C).
@@ -694,9 +696,9 @@ class CDRegister:
         The codebook is **copied, not aliased** — the constructor takes
         ``dict(codebook)``, so the minted value-vectors (immutable ``bytes``) are
         shared but later writes to the parent do NOT appear in the child. The
-        shipped :class:`SedenionRegister` behaves identically; its docstring's
-        "shares the codebook" is imprecise about the mapping and is corrected
-        alongside this one.
+        removed 16-slot register behaved identically; its docstring's "shares
+        the codebook" was imprecise about the mapping, and this one is the
+        corrected wording that outlived it.
 
         ``navigate(j).navigate(j)`` is the global ``−1``
         (``e_j² = −1``), recoverable as a Class-C sign — the **involution**, which
@@ -776,7 +778,7 @@ def cd_register(dim: int, D: int = DEFAULT_D,
 # a ``[class]`` method binds. The adapters below ARE class-shaped: each
 # rehydrates a transient :class:`CDRegister` from the declarative fields and
 # calls the existing method, so the TOML class is byte-identical to the Python
-# class with no logic duplication (the genome / SedenionRegister two-layer
+# class with no logic duplication (the genome / 16-slot-register two-layer
 # pattern). A single ``cd_`` prefix would make the C vtable's ``strncmp`` branch
 # match both families, which is why the two carry different prefixes rather
 # than the same one at different arities.

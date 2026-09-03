@@ -31,6 +31,19 @@ Two things this module deliberately does NOT do:
 * It does not regenerate. A missing or edited fixture is a hard failure, never a
   silent re-record.
 
+THE ONE-WINDOW CHECK, AND WHERE ITS RESULT LIVES. A companion module
+(``test_sedenion_golden_provenance_rc464.py``) replayed the recorded protocol
+against the LIVE ``SedenionRegister`` — the one measurement nothing downstream
+can make, because everything downstream compares the SUBJECT to the record and
+the oracle is gone. It was deleted with the class, as its own docstring
+instructed. Its last run was not the one that happened to be in the branch: the
+tree at ``3d404205d`` was extracted with ``git archive`` and the module run
+against it immediately before the deletion — **11 passed in 3.92 s**, on the
+PURE path (the extracted shim expects ABI 24 and the built library is 25, so it
+declined), while the fixture header records ``has_native: true`` at generation.
+So the replay agreed with the recording across the native/pure split as well,
+which is more than the module was written to prove.
+
 LINE ENDINGS. The digest is over the fixture's CRLF-NORMALISED bytes, not the
 bytes on disk. This repository checks out with ``core.autocrlf=true``, so a file
 committed with LF arrives on a Windows working tree with CRLF — and a raw

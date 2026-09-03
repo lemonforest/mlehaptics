@@ -117,7 +117,7 @@ def _pure(ch, inp):
 def test_toml_bridge_symbols_bound_and_abi_5():
     assert hasattr(_native.LIB, "srmech_dsl_toml_chain_to_json")
     assert hasattr(_native.LIB, "srmech_dsl_toml_chain_to_json_arena_bytes")
-    assert _native.NATIVE_ABI_VERSION == 24
+    assert _native.NATIVE_ABI_VERSION == 25
 
 
 def test_no_combinator_defer_pin_present():

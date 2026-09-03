@@ -87,8 +87,9 @@ def test_declaration_route_is_a_field_not_an_admission_criterion():
     # rc464 (`#T1188`) — this used to also assert `"python" in
     # d["routes"].values()`, with the comment "otherwise this test proves
     # nothing". That was a fair worry and the wrong instrument. CDRegister was
-    # the ONLY python-routed domain class (One / Genome / Hurwitz /
-    # SedenionRegister are all TOML; Block is a NON_DOMAIN_RECORD), so its
+    # the ONLY python-routed domain class (One / Genome / Hurwitz are all
+    # TOML, as was the 16-slot SedenionRegister rc464 also removed; Block is a
+    # NON_DOMAIN_RECORD), so its
     # conversion empties the python route and the assertion fails BY
     # CONSTRUCTION — no honest change to the package can satisfy it.
     #
@@ -158,12 +159,12 @@ def test_non_domain_records_are_real_exports_with_reasons():
 
 
 def test_toml_declaration_wins_the_route_for_dual_declared_classes():
-    """``One``, ``SedenionRegister`` and (since rc464) ``CDRegister`` are BOTH
-    TOML-declared and real Python classes. The TOML descriptor is the
+    """``One`` and (since rc464) ``CDRegister`` are BOTH TOML-declared and real
+    Python classes. The TOML descriptor is the
     declaration, so it must win — otherwise ``toml_total`` would undercount and
     ``describe_class`` coverage would look broken."""
     routes = list_domain_classes()
-    for name in ("One", "SedenionRegister", "CDRegister"):
+    for name in ("One", "CDRegister"):
         assert isinstance(getattr(cascade, name, None), type)
         assert routes[name] == "toml"
 
@@ -201,7 +202,7 @@ def test_the_hdc_domain_classes_are_carriers_too():
     CDRegister has been a registered carrier since rc297. That is what made the
     under-reporting visible."""
     carriers = set(describe()["carriers"]["capabilities"])
-    for name in ("One", "SedenionRegister", "CDRegister"):
+    for name in ("One", "CDRegister"):
         assert name in carriers
 
 

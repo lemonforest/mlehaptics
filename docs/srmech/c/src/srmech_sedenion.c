@@ -1,23 +1,24 @@
 /*
- * srmech_sedenion.c — the sedenion-addressable hyper-loop address layer in C.
+ * srmech_sedenion.c — the DENSE reversibility gate in C.
  *
- * Standalone-complete C peer of the SedenionRegister "address algebra"
- * (UPSTREAM §31 / F465 + F468; Python srmech.cascade.sedenion_register):
- * the navigation + reversibility-gate operations a C-only host (no Python)
- * needs to run "Siona's address layer."
+ *   - srmech_sedenion_is_navigable : is left-multiply by `direction` a
+ *                                 bijection? (the C peer of
+ *                                 cayley_dickson.left_mult_is_invertible).
  *
- *   - srmech_sedenion_navmap    : the signed pointer-advance permutation for
- *                                 right-multiply-by-e_j over the 16 slots
- *                                 (mirror of SedenionRegister.navmap).
- *   - srmech_sedenion_navigate  : route a set of occupied (slot, sign) records
- *                                 through that permutation, composing the
- *                                 Class-C signs (mirror of .navigate).
- *   - srmech_sedenion_is_navigable : the reversibility gate — is left-multiply
- *                                 by `direction` a bijection? (mirror of
- *                                 .is_navigable / left_mult_is_invertible).
+ * rc464 (`#T1188`) removed the other three exports this file shipped —
+ * srmech_sedenion_navmap, srmech_sedenion_navigate and srmech_sed_slots —
+ * with the 16-slot SedenionRegister they were the peer of. srmech_cd_navmap /
+ * srmech_cd_navigate in srmech_cd_register.c take the rung as a parameter and
+ * reproduce them bit-for-bit at dim 16, so the removal is a subsumption, not a
+ * capability loss. It bumps SRMECH_ABI_VERSION 24 -> 25 (a removed export has
+ * no other symptom).
  *
- * The carry/correct EC half is ALREADY in C: SedenionRegister.carry/correct
- * delegate to srmech_hamming_encode / srmech_hamming_decode_correct (§30).
+ * WHAT SURVIVES IS NOT SEDENION-SPECIFIC. is_navigable is the general dense
+ * kernel for EVERY rung up to SRMECH_CD_DENSE_MAX_DIM — the file name and the
+ * symbol name are now misnomers, kept because renaming an exported symbol is a
+ * second removal inside the same bump and buys no capability. The Python
+ * dispatcher above it (cayley_dickson.left_mult_is_invertible) has always been
+ * dim-general; only the name was ever 16.
  *
  * NO BIGNUM (user directive). is_navigable decides invertibility of the
  * n x n integer matrix L(x)[r][c] = sign(r^c, c) * x_{r^c} (a signed
@@ -32,7 +33,7 @@
  * input magnitude (introspected per call); the table is the architectural
  * ceiling, and inputs beyond it return SRMECH_ERR_BAD_INPUT (no silent wrong
  * answer). Bit-exact (on the bool) with the Python Fraction-nullspace oracle,
- * attested by tests/test_cascade_sedenion_parity.py.
+ * attested by tests/test_cd_register_dense_gate_c.py.
  *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto/recursion): OK — bounded loops only
@@ -149,89 +150,6 @@ static int sed_modular_rank(int64_t *a, int n, int64_t p)
         rank++;
     }
     return rank;
-}
-
-srmech_status_t srmech_sedenion_navmap(int j, int *out_dest, int *out_sign)
-{
-    assert(out_dest != NULL);
-    assert(out_sign != NULL);
-    if (out_dest == NULL || out_sign == NULL) {
-        return SRMECH_ERR_NULL_ARG;
-    }
-    if (j < 0 || j >= SRMECH_SEDENION_NUM_SLOTS) {
-        return SRMECH_ERR_BAD_INPUT;
-    }
-    for (int i = 0; i < SRMECH_SEDENION_NUM_SLOTS; i++) {
-        int idx = 0;
-        int sign = 1;
-        srmech_status_t st = srmech_cd_basis_product(
-            SRMECH_SEDENION_NUM_SLOTS, i, j, &idx, &sign);
-        if (st != SRMECH_OK) { return st; }
-        out_dest[i] = idx;
-        out_sign[i] = sign;
-    }
-    return SRMECH_OK;
-}
-
-srmech_status_t srmech_sedenion_navigate(int j,
-                                         const int *in_slots,
-                                         const int *in_signs,
-                                         size_t count,
-                                         int *out_slots,
-                                         int *out_signs)
-{
-    assert(out_slots != NULL && out_signs != NULL);
-    assert(in_slots != NULL || count == 0);
-    if (out_slots == NULL || out_signs == NULL ||
-        (in_slots == NULL && count > 0) || (in_signs == NULL && count > 0)) {
-        return SRMECH_ERR_NULL_ARG;
-    }
-    if (j < 0 || j >= SRMECH_SEDENION_NUM_SLOTS) {
-        return SRMECH_ERR_BAD_INPUT;
-    }
-    for (size_t m = 0; m < count; m++) {
-        int s_in = in_slots[m];
-        int sgn = in_signs[m];
-        if (s_in < 0 || s_in >= SRMECH_SEDENION_NUM_SLOTS ||
-            (sgn != 1 && sgn != -1)) {
-            return SRMECH_ERR_BAD_INPUT;
-        }
-        int idx = 0;
-        int sign = 1;
-        srmech_status_t st = srmech_cd_basis_product(
-            SRMECH_SEDENION_NUM_SLOTS, s_in, j, &idx, &sign);
-        if (st != SRMECH_OK) { return st; }
-        out_slots[m] = idx;
-        out_signs[m] = sgn * sign;          /* compose the Class-C signs */
-    }
-    return SRMECH_OK;
-}
-
-/* rc199 (make_class → C, leaf-batch 5/8): the `slots` accessor's canonical
- * numeric reshape — validate + copy the register's occupied (slot, sign)
- * skeleton (slot in [0,16), sign in {+1,-1}). The key strings pass through in
- * the Python caller (a bare-C host holds them alongside). A record outside the
- * domain returns SRMECH_ERR_BAD_INPUT and the Python caller runs the
- * un-validated pure reshape (inform-don't-limit). count == 0 is a no-op. */
-srmech_status_t srmech_sed_slots(const int *in_slots, const int *in_signs,
-                                 size_t count, int *out_slots, int *out_signs)
-{
-    if (out_slots == NULL || out_signs == NULL ||
-        (count != 0u && (in_slots == NULL || in_signs == NULL))) {
-        return SRMECH_ERR_NULL_ARG;
-    }
-    assert(out_slots != NULL && out_signs != NULL);
-    assert(count == 0u || (in_slots != NULL && in_signs != NULL));
-    for (size_t m = 0; m < count; m++) {
-        int s = in_slots[m];
-        int g = in_signs[m];
-        if (s < 0 || s >= SRMECH_SEDENION_NUM_SLOTS || (g != 1 && g != -1)) {
-            return SRMECH_ERR_BAD_INPUT;
-        }
-        out_slots[m] = s;
-        out_signs[m] = g;
-    }
-    return SRMECH_OK;
 }
 
 srmech_status_t srmech_sedenion_is_navigable(const int64_t *direction,

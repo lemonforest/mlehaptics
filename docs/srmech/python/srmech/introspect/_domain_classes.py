@@ -23,7 +23,7 @@ to fix, so the set is derived from two live sources:
   * public classes in ``srmech.cascade.__all__``  -> route ``"python"``
 
 ``srmech.cascade`` is the domain-object surface: ``One``,
-``SedenionRegister`` and ``CDRegister`` all live there, and any future domain
+and ``CDRegister`` all live there, and any future domain
 class lands there too. So a new domain class appears in ``describe()``
 AUTOMATICALLY. The only maintenance burden is the reverse direction — a value
 RECORD exported alongside them must be named in ``NON_DOMAIN_RECORDS`` below,
@@ -92,7 +92,7 @@ def list_domain_classes() -> Dict[str, str]:
             if not isinstance(getattr(_cascade, name, None), type):
                 continue
             # A TOML-declared class also has a Python class object (One /
-            # SedenionRegister). The TOML descriptor is the DECLARATION, so it
+            # CDRegister). The TOML descriptor is the DECLARATION, so it
             # wins the route; don't downgrade it here.
             routes.setdefault(name, "python")
     except Exception:  # pragma: no cover — cascade surface optional

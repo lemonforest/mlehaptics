@@ -7968,7 +7968,7 @@ def _register_primitive_class_tools() -> None:
                     "Mat/Vec/HV, the exact scalars int/Fraction/Q, the "
                     "elliptic EllMonomial/EllRatio/ThetaSum, the "
                     "weight-axis UnaryTheta/MockQSeries/HarmonicMaass, and "
-                    "the HDC objects One/SedenionRegister) returns {'name', "
+                    "the HDC objects One/CDRegister) returns {'name', "
                     "a one-line human-readable 'description' (what it is, "
                     "its variable semantics, when to use it), 'ladder', "
                     "'rung', 'variables', 'ops': {'consumes', 'produces'}} "
@@ -14350,55 +14350,11 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("bool", "True for dim in {1,2,4,8}, else False"),
         ),
-        # Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM
-        # §31 of PR #687; F465 + F468). Registered under the STABLE flat factory
-        # name ``srmech.cascade.sedenion_register``; the submodule-dotted
-        # ``cascade.sedenion_register.sedenion_register`` is the same object
-        # re-exported flat (exempt in test_tool_schema_coverage). The class
-        # SedenionRegister is not a module-level function (not coverage-walked).
-        # rc464: `srmech.cascade.cd_register` below is the PREFERRED register
-        # entry — this one is its dim-16 special case, and the summary says so.
-        ToolEntry(
-            name="srmech.cascade.sedenion_register", owner="srmech",
-            category="cascade",
-            summary="Construct a SedenionRegister — the sedenion (dim-16) ADDRESSABLE "
-                    "RBS-HDC instrument (UPSTREAM §31; F465/F468). The sedenion box "
-                    "made into a named-register instrument: 16 slots e0..e15 — the "
-                    "octonion block e0..e7 is the ≤7 REVERSIBLE working word "
-                    "(hypercomplex_couple, bit-exact ≤𝕆), e8..e15 the EC/CARRY block "
-                    "(Hamming GF(2), §30). HDC ops INSTEAD of ALU: random-access-by-name "
-                    "(hdc.bind + nearest-codebook clean = associative superposition, "
-                    "classical, no quantum cost). The genuinely-new surface is "
-                    ".navigate(j) — the address↔Cayley–Dickson homomorphism (right-mult "
-                    "every slot-name by e_j so addressing respects e_i·e_j=±e_k, the "
-                    "cd_basis_product cocycle) — and .is_navigable(direction) the "
-                    "reversibility gate (left_mult_is_invertible): single-basis nav is "
-                    "always a signed permutation, composite-direction nav reversible "
-                    "ONLY ≤𝕆 (the Hurwitz horizon). Pure composition of shipped "
-                    "primitives — no new algebra, no abs() (sign is Class C chiral_flip). "
-                    "The WHOLE instrument is numpy-free: storage + coupler route "
-                    "through mint_vector / the Class-M hdc cascades, and "
-                    "navigate/is_navigable/carry/correct are pure address-algebra. "
-                    "PREFER srmech.cascade.cd_register (rc464): it is THE register "
-                    "shape, with the slot count as a parameter, and cd_register(16, "
-                    "namespace='SEDENION', coupling=True, error_correction=True) is "
-                    "THIS instrument byte-for-byte — every read, every routed slot, "
-                    "every coupler word and the materialised bundle's SHA-256, gated "
-                    "against a recorded fixture. There is no method here that "
-                    "CDRegister lacks."
-                    + PUBLISH_OPT_IN_NOTE,
-            parameters=(
-                P("D", "int", False, "hypervector width in bits (default 8192; the RBS-HDC dimension)"),
-                P("codebook", "dict", False, "optional preset {name: bytes} value-vectors for read cleanup"),
-            ),
-            returns=R("SedenionRegister",
-                      "the instrument — .write/.read (addressable storage), "
-                      ".couple_working/.uncouple_working (≤7 reversible word), "
-                      ".carry/.correct (EC block), .navigate/.is_navigable (hyper-loop)"),
-        ),
-        # THE addressable register (v0.9.0rc297; `#934`. rc464: the PREFERRED
-        # register entry) — the 16-slot instrument above with the slot count as a
-        # PARAMETER, any power-of-two dim in [1, CD_MAX_DIM]. Registered under
+        # THE addressable register (v0.9.0rc297; `#934`. rc464 `#T1188`: the
+        # ONLY register entry — the 16-slot SedenionRegister it subsumes was
+        # REMOVED, and its spelling here is cd_register(16, namespace='SEDENION',
+        # coupling=True, error_correction=True)). Any power-of-two dim in
+        # [1, CD_MAX_DIM]. Registered under
         # STABLE flat names; the submodule-dotted ``cascade.cd_register.*`` are the
         # same objects re-exported flat (exempt in test_tool_schema_coverage). The
         # class CDRegister is not a module-level function (not coverage-walked).
@@ -14412,7 +14368,7 @@ def _register_primitive_class_tools() -> None:
                     "srmech ships (`#934`; PREFERRED shape since rc464). Reach for "
                     "this whenever you want an addressable register: the slot count "
                     "is a PARAMETER, so one object serves every rung and the dim-16 "
-                    "sedenion_register is the spelling cd_register(16, "
+                    "register REMOVED in rc464 is the spelling cd_register(16, "
                     "namespace='SEDENION', coupling=True, error_correction=True) "
                     "rather than a second class. Any power-of-two dim in "
                     "[1, 256]: dim named slots e0..e{dim-1}, with e0..e7 the octonion "
@@ -14420,7 +14376,7 @@ def _register_primitive_class_tools() -> None:
                     "carry/EC block (more slots buy ADDRESS SPACE, never a longer "
                     "reversible word — the Hurwitz cap stays 7). The slot bound is the "
                     "ONLY generalisation: every sign and index rule is shared with the "
-                    "16-slot register through cd_basis_product, so there is no second "
+                    "16-slot special case through cd_basis_product, so there is no second "
                     "algebra. LEGITIMATE PAST THE HURWITZ WALL because addressing rides "
                     "on the basis product being a SIGNED PERMUTATION (e_i·e_j=±e_k), "
                     "while zero divisors are built from SUMS of basis elements — "
@@ -14428,8 +14384,10 @@ def _register_primitive_class_tools() -> None:
                     "dim≥16 (and ~95% of generic pairs at 32) leaves addressing intact "
                     "(F1274/F1275). namespace= selects the address-mint namespace "
                     "(default 'CD{dim}'); namespace='SEDENION' at dim=16 reproduces the "
-                    "16-slot sedenion register BIT-EXACTLY at every D — the "
-                    "faithfulness gate, held against that register's RECORDED "
+                    "16-slot register REMOVED in rc464 BIT-EXACTLY at every D "
+                    "(coupling=True, error_correction=True complete the "
+                    "spelling — that register's OPT layers were unconditional) "
+                    "— the faithfulness gate, held against its RECORDED "
                     "behaviour rather than a live peer. "
                     "Capacity is D-bounded and MORE SLOTS NEED MORE D: a shortfall "
                     "at fixed D is a capacity fact, not an algebra fact — sweep D. "
@@ -14460,7 +14418,7 @@ def _register_primitive_class_tools() -> None:
             summary="The signed pointer-advance permutation for right-multiply-by-e_j "
                     "over dim slots: maps each slot i to (k, sign) where e_i·e_j = "
                     "sign·e_k (the cd_basis_product cocycle). The general-rung form of "
-                    "SedenionRegister.navmap; at dim=16 bit-identical to it. ALWAYS a "
+                    "the removed 16-slot register's navmap; bit-identical at dim=16. ALWAYS a "
                     "signed permutation — reversible at EVERY rung for a single basis "
                     "direction, including past the Hurwitz wall (F1275). Integer-only; "
                     "the JPL-clean C peer srmech_cd_navmap returns the identical map."
@@ -14478,7 +14436,7 @@ def _register_primitive_class_tools() -> None:
                     "at dim slots, composing the CLASS-C signs: out_signs[m] = "
                     "signs[m]·s where e_{slots[m]}·e_j = s·e_{out_slots[m]}. The numeric "
                     "core of CDRegister.navigate (the key strings ride alongside in the "
-                    "caller); at dim=16 bit-identical to the sedenion navigate routing. "
+                    "caller); at dim=16 bit-identical to the removed 16-slot routing. "
                     "Integer-only; the JPL-clean C peer srmech_cd_navigate returns the "
                     "identical routing. No abs() — the sign is composed, never dropped."
                     + PUBLISH_OPT_IN_NOTE,
@@ -14516,7 +14474,7 @@ def _register_primitive_class_tools() -> None:
         ),
         # The two OPTIONAL layers of the general N-slot register as pure functions
         # (v0.9.0rc301; `#T938`) — the reversible working word (couple/uncouple) +
-        # the Hamming EC block (carry/correct), ported from SedenionRegister onto
+        # the Hamming EC block (carry/correct), ported from the 16-slot register onto
         # CDRegister as its dim-scaled generalisation. Registered under STABLE flat
         # names ``srmech.cascade.cd_{couple_working,uncouple_working,carry,
         # correct}``; the submodule-dotted ``cascade.cd_register.*`` are the same
@@ -14541,7 +14499,7 @@ def _register_primitive_class_tools() -> None:
                     "octonion multiply dispatches to the standalone-C "
                     "srmech_hypercomplex_couple_q61) — reversed exactly by "
                     "cd_uncouple_working (T̄·(T·q)=‖T‖²·q, F437). At dim 16 bit-exact "
-                    "with the shipped SedenionRegister.couple_working. No abs() (the "
+                    "with the removed 16-slot register's couple_working. No abs() (the "
                     "coupler's sign is Class-K ∘ Class-C). Class M ∘ C ∘ N."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
@@ -14713,7 +14671,16 @@ def _register_primitive_class_tools() -> None:
                 P("codebook", "dict", True, "{name: bytes} value-vectors"),
                 P("slots", "dict", True, "the {slot: (key, sign)} assignment"),
             ),
-            returns=R("bytes",
+            # rc464 stage 3: `bytes` -> `bytes | None`. The summary already said
+            # "None when the register is empty", so the TYPE and the PROSE
+            # beside it disagreed — and the empty register is not an edge case
+            # here, it is the read short-circuit the 2-stage chain is built on
+            # (stage 2 turns that None into `(None, +1)`). Caught by
+            # test_mcp.py::test_advertised_tool_invocable, which synthesises an
+            # empty codebook / empty slots and compares the OBSERVED type to the
+            # advertised one; the `dict | None` / `list | None` entries above are
+            # the precedent for the spelling.
+            returns=R("bytes | None",
                       "the noisy unbound vector; None when the register is empty"),
             # The codebook is built by an actual cdr_write rather than typed
             # as a literal: a value-vector is a minted 32-byte HV and a
@@ -17411,7 +17378,7 @@ def _register_introspect_tools() -> None:
             # justify. Every other candidate examined DISSOLVED into an encoder
             # or a handle: the exact-algebra carriers were un-ENCODED rather than
             # un-callable (the $srmech_carrier envelope), CDRegister /
-            # SedenionRegister ride the $srmech_handle envelope, and
+            # CDRegister rides the $srmech_handle envelope, and
             # run_chain / resolve_chain were a MISSING COERCER
             # (_coercion._to_chain_spec) — see the rc414 CHANGELOG entry, which
             # records the run_chain rejection explicitly so a later reader does

@@ -1,18 +1,23 @@
-"""Sedenion HDC-STORAGE leaves + the mint_vector foundation — pure-vs-native
-parity (v0.9.0rc200).
+"""Register HDC-STORAGE leaves + the mint_vector foundation — pure-vs-native
+agreement (v0.9.0rc200; re-pointed at the general register in rc464 `#T1188`).
 
 make_class → C, leaf-batch 6/8 (#887), the heaviest batch: the ONE new
 foundational C symbol ``srmech_mint_vector`` (the deterministic RBS-HDC minter,
 byte-for-byte mirror of Python ``mint_vector`` — SHA-256(name ‖ u64_be(counter))
-chained, truncated to D/8 bytes) lets the 4 HDC-STORAGE ``sed_*`` leaves compose
-in C:
+chained, truncated to D/8 bytes) lets the 4 HDC-STORAGE leaves compose in C:
 
-    sed_write         → mint (srmech_mint_vector) the key's vec + record the slot
-    sed_materialize   → bundle (srmech_hdc_bundle) the slot vectors; "__pad__" for
+    cdr_write         → mint (srmech_mint_vector) the key's vec + record the slot
+    cdr_materialize   → bundle (srmech_hdc_bundle) the slot vectors; "__pad__" for
                         even-N; raises on empty
-    sed_read_unbind   → bind-unbind (srmech_hdc_bind) the slot from materialize
-    sed_clean         → nearest-codebook argmax over srmech_hdc_similarity, skip
+    cdr_read_unbind   → bind-unbind (srmech_hdc_bind) the slot from materialize
+    cdr_clean         → nearest-codebook argmax over srmech_hdc_similarity, skip
                         "__pad__", Class-K magnitude tie-break (never abs())
+
+rc464 removed the 16-slot ``SedenionRegister`` these leaves were written for and
+re-pointed them at ``CDRegister``, which subsumes it — the register here is
+``cd_register(16, namespace="SEDENION", coupling=True, error_correction=True)``,
+that class's exact spelling. The mint FOUNDATION below is register-independent
+and is unchanged; it is the half of this module that was never about 16 slots.
 
 The EXACT foundation (``mint_vector``) is native == pure BYTE-IDENTICAL. The 4
 leaves compose it + the C hdc bind/bundle/similarity, so their read/clean parity
@@ -28,9 +33,9 @@ from pathlib import Path
 from srmech import _native
 from srmech.signal_processing import mint_vector
 from srmech.signal_processing._paths import D_MIN
-from srmech.cascade.sedenion_register import (
-    SedenionRegister,
-    sed_write, sed_materialize, sed_read_unbind, sed_clean,
+from srmech.cascade.cd_register import (
+    CDRegister,
+    cdr_write, cdr_materialize, cdr_read_unbind, cdr_clean,
 )
 
 
@@ -119,7 +124,8 @@ def test_mint_vector_c_wrapper_direct():
 # ── the 4 STORAGE leaves: native == pure DETERMINISTIC-SAME-DECISION ──────────
 
 def _register():
-    r = SedenionRegister()
+    r = CDRegister(16, namespace="SEDENION", coupling=True,
+                   error_correction=True)
     r.write(0, "alpha")
     r.write(3, "beta", sign=-1)
     r.write(10, "gamma")
@@ -127,12 +133,12 @@ def _register():
     return r
 
 
-def test_sed_write_native_equals_pure():
+def test_register_write_native_equals_pure():
     r = _register()
     slots, codebook = r.slots(), r.codebook
-    native = sed_write(5, "epsilon", slots, codebook, r.D)
+    native = cdr_write(5, "epsilon", r.dim, r.D, r.namespace, codebook, slots)
     with force_pure():
-        pure = sed_write(5, "epsilon", slots, codebook, r.D)
+        pure = cdr_write(5, "epsilon", r.dim, r.D, r.namespace, codebook, slots)
     # (None, {slots, codebook}) — the mutate route; byte-identical minted vec
     assert native[0] is None and pure[0] is None
     assert native[1]["slots"] == pure[1]["slots"]
@@ -142,60 +148,61 @@ def test_sed_write_native_equals_pure():
     assert native[1]["codebook"]["epsilon"] == mint_vector("VAL:epsilon", D=r.D)
 
 
-def test_sed_materialize_native_equals_pure():
+def test_register_materialize_native_equals_pure():
     r = _register()
-    native = sed_materialize(r.slots(), r.codebook, r.D)
+    native = cdr_materialize(r.dim, r.D, r.namespace, r.codebook, r.slots())
     with force_pure():
-        pure = sed_materialize(r.slots(), r.codebook, r.D)
+        pure = cdr_materialize(r.dim, r.D, r.namespace, r.codebook, r.slots())
     assert native == pure               # bundle over minted vecs is deterministic
     assert len(native) == r.D // 8
 
 
-def test_sed_materialize_even_n_pads_and_empty_raises():
+def test_register_materialize_even_n_pads_and_empty_raises():
     # even N (4 slots) triggers the "__pad__" odd-N tie-break mint
     r = _register()
     assert len(r.slots()) % 2 == 0
-    materialised = sed_materialize(r.slots(), r.codebook, r.D)
+    materialised = cdr_materialize(r.dim, r.D, r.namespace, r.codebook, r.slots())
     assert len(materialised) == r.D // 8
     # empty register raises (mirrored exactly)
     import pytest
     with pytest.raises(ValueError):
-        sed_materialize({}, {}, r.D)
+        cdr_materialize(r.dim, r.D, r.namespace, {}, {})
 
 
-def test_sed_read_unbind_then_clean_recovers_each_slot():
-    """The read CHAIN (sed_read_unbind → sed_clean) recovers the written
+def test_register_read_unbind_then_clean_recovers_each_slot():
+    """The read CHAIN (cdr_read_unbind -> cdr_clean) recovers the written
     (key, sign) at every occupied slot — native and pure make the SAME decision."""
     r = _register()
     slots, codebook = r.slots(), r.codebook
     for slot, (key, sign) in slots.items():
-        noisy = sed_read_unbind(slot, slots, codebook, r.D)
+        noisy = cdr_read_unbind(slot, r.dim, r.D, r.namespace, codebook, slots)
         with force_pure():
-            noisy_pure = sed_read_unbind(slot, slots, codebook, r.D)
+            noisy_pure = cdr_read_unbind(slot, r.dim, r.D, r.namespace, codebook, slots)
         assert noisy == noisy_pure                      # bind-unbind is exact
-        got_key, got_sign = sed_clean(noisy, codebook)
+        got_key, got_sign = cdr_clean(noisy, codebook)
         with force_pure():
-            got_key_p, got_sign_p = sed_clean(noisy, codebook)
+            got_key_p, got_sign_p = cdr_clean(noisy, codebook)
         assert (got_key, got_sign) == (got_key_p, got_sign_p)   # same decision
         assert (got_key, got_sign) == (key, sign)               # recovers write
 
 
-def test_sed_read_unbind_empty_register_is_none():
-    assert sed_read_unbind(0, {}, {}, 8192) is None
-    assert sed_clean(None, {}) == (None, 1)
+def test_register_read_unbind_empty_register_is_none():
+    assert cdr_read_unbind(0, 16, 8192, 'SEDENION', {}, {}) is None
+    assert cdr_clean(None, {}) == (None, 1)
 
 
-def test_sed_clean_skips_pad_and_ties_toward_lowest():
-    """sed_clean skips the "__pad__" sentinel and keeps the Class-K magnitude
+def test_register_clean_skips_pad_and_ties_toward_lowest():
+    """cdr_clean skips the "__pad__" sentinel and keeps the Class-K magnitude
     tie-break (>= for +sense, > for -sense); an empty/pad-only codebook yields
     the (None, +1) short-circuit."""
-    assert sed_clean(b"\x00" * 1024, {"__pad__": b"\x00" * 1024}) == (None, 1)
+    assert cdr_clean(b"\x00" * 1024, {"__pad__": b"\x00" * 1024}) == (None, 1)
 
 
 # ── round-trip through the class surface (write -> read recovers the key) ──────
 
-def test_sedenion_register_write_read_round_trip():
-    r = SedenionRegister()
+def test_register_write_read_round_trip():
+    r = CDRegister(16, namespace="SEDENION", coupling=True,
+                   error_correction=True)
     writes = {2: ("apple", 1), 6: ("banana", -1), 9: ("cherry", 1),
               14: ("date", -1), 1: ("elder", 1)}
     for slot, (key, sign) in writes.items():
@@ -213,8 +220,8 @@ def test_storage_leaves_ledger_classification():
                   / "rosetta_classification.ndjson").read_text(
                       encoding="utf-8").splitlines() if l.strip()
     }
-    base = "srmech.cascade.sedenion_register."
-    for leaf in ("sed_write", "sed_materialize", "sed_read_unbind", "sed_clean"):
+    base = "srmech.cascade.cd_register."
+    for leaf in ("cdr_write", "cdr_materialize", "cdr_read_unbind", "cdr_clean"):
         assert rows[base + leaf]["bucket"] == "composition_of_c"
     # the foundation earned its dedicated C peer -> c_dispatched
     assert rows["srmech.signal_processing.rbs_hdc_instrument.mint_vector"][

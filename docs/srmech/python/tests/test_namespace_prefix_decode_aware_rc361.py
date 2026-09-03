@@ -674,16 +674,24 @@ def test_the_decoder_sees_what_a_text_grep_cannot() -> None:
     # 100% invisible to a text grep here (every [class] descriptor is a decimal
     # byte array) yet it decodes to a real population.
     #
-    # rc464 (`#T1188`): 28 -> 55, and the CAUSE is a fifth descriptor rather
-    # than a drift. cd_register.toml joined the class catalog (CDRegister was
-    # the last hand-coded domain class; it is now [class]-declared), and it is a
-    # SEVEN-field / 18-method descriptor — the largest in the catalog — so it
-    # contributes both its own op refs and its prose. The blob count below moves
-    # 4 -> 5 in the same change, which is what distinguishes "a descriptor was
-    # added" from "the decoder started seeing something else".
-    assert joined.count("srmech.cascade.") == 55, (
+    # rc464 (`#T1188`), FIRST HALF: 28 -> 55, and the CAUSE was a fifth
+    # descriptor rather than a drift. cd_register.toml joined the class catalog
+    # (CDRegister was the last hand-coded domain class; it is now
+    # [class]-declared), and it is a SEVEN-field / 18-method descriptor -- the
+    # largest in the catalog -- so it contributes both its own op refs and its
+    # prose.
+    #
+    # rc464, SECOND HALF: 55 -> 40, the SAME kind of event running the other
+    # way. sedenion_register.toml LEFT the catalog with the 16-slot class
+    # CDRegister subsumes, taking its twelve sed_* op refs and its prose with
+    # it. The blob count below moves 4 -> 5 -> 4 across the one rc, which is
+    # what distinguishes "one descriptor replaced another" from "the decoder
+    # started seeing something else". The net +12 over rc463's 28 is the SIZE
+    # difference between the two descriptors, not a leak: the new one binds
+    # eighteen methods where the old one bound eleven.
+    assert joined.count("srmech.cascade.") == 40, (
         f"decoded {joined.count('srmech.cascade.')} srmech.cascade. hits in the "
-        f"class registry, expected 55 (rc377: the [class] One / SedenionRegister "
+        f"class registry, expected 40 (rc377: the [class] One / register "
         f"op refs moved amsc->cascade — this is where the class registry's "
         f"decode-only population now lives). If this is 0, THE DECODER HAS STOPPED OBSERVING and "
         f"every assertion in this file is now vacuous — check whether the "
@@ -691,10 +699,10 @@ def test_the_decoder_sees_what_a_text_grep_cannot() -> None:
         f"array, a different declaration).")
 
     # non-vacuity of the extraction itself: pin the SHAPE, as rc348 does
-    assert len(blobs) == 5, (
-        f"expected 5 embedded [class] descriptors, decoded {len(blobs)}")
+    assert len(blobs) == 4, (
+        f"expected 4 embedded [class] descriptors, decoded {len(blobs)}")
     assert {n for n, _ in blobs} == {
-        "cls_desc_0", "cls_desc_1", "cls_desc_2", "cls_desc_3", "cls_desc_4"}
+        "cls_desc_0", "cls_desc_1", "cls_desc_2", "cls_desc_3"}
 
     # (b) a name that ONLY the decoder can see
     witness = "srmech.cascade.one.one_matrix"
@@ -1093,8 +1101,8 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # because `list[float]` is named on BOTH the parameter and the return, on
     # top of the `int` dim - the per-(op, carrier) multiplicity this pin exists
     # to keep honest, and why "one row per new op" would have been a guess.
-    assert cascade == 192, (
-        f"expected 192 srmech.cascade op references inside the DECODED channel "
+    assert cascade == 191, (
+        f"expected 191 srmech.cascade op references inside the DECODED channel "
         f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
         f"rc384's octonion_frame_read + rc386's cd_three_form + rc387's flip_pair / "
         f"group_algebra_table + rc395's cd_zero_divisor_witness / _witnesses + rc398's "
@@ -1102,7 +1110,7 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
         f"division / regular-representation / Walsh-Hadamard slice), found "
         f"{cascade}. The rc377 amsc->cascade move "
         f"conserved 95 (amsc 97 -> 2); rc380 grew it by 2, rc383 by 1, rc384 by 1, "
-        f"rc386 by 1, rc387 by 2, rc395 by 2, rc398 by 5; rc420 (local task T1114) by 45 — the 27 cascade leaf-inventory registrations (12 leaves + 7 composites + 8 DFT leaves) land 45 consumes/produces rows in the carrier back-index; rc427 (local task T1130) by 5; the rc430 repair (local task T1127) SHRANK it by 2, the first decrease — kuramoto_sin_term / kuramoto_gen_term stopped advertising the emitted `float` carrier once their returns were corrected to the un-emitted `Q`. rc464 (`#T1188`) by 17 over the 14 cdr_* registrations, per-op attribution in the comment above. If this is not 192, re-measure.")
+        f"rc386 by 1, rc387 by 2, rc395 by 2, rc398 by 5; rc420 (local task T1114) by 45 — the 27 cascade leaf-inventory registrations (12 leaves + 7 composites + 8 DFT leaves) land 45 consumes/produces rows in the carrier back-index; rc427 (local task T1130) by 5; the rc430 repair (local task T1127) SHRANK it by 2, the first decrease — kuramoto_sin_term / kuramoto_gen_term stopped advertising the emitted `float` carrier once their returns were corrected to the un-emitted `Q`. rc464 (`#T1188`) by 17 over the 14 cdr_* registrations (per-op attribution in the comment above) and then by -1 for the 16-slot register's constructor row -- the ONE sed_* entry with a carrier back-index ref, the twelve flat adapters never having been registered. Net +16. If this is not 191, re-measure.")
     # rc381 (`#T1052`) — THE srmech.physics.qm RECEIVING SIDE, pinned like biology
     # / cascade. UNLIKE every drain above, this move did NOT come out of the amsc
     # population — the qm subpackage was never under amsc. It is a whole-subpackage

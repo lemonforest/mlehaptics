@@ -51,11 +51,12 @@ from srmech.introspect.carrier_schema import carrier_schema
 PREFERRED = "srmech.cascade.cd_register"
 
 #: Every registered op whose declared return type is a register carrier, pinned
-#: as an equality. rc464 ships two: the preferred general shape and the dim-16
-#: special case it subsumes, which the same arc removes.
+#: as an EQUALITY. rc464 ships exactly one: the 16-slot special case it subsumes
+#: was removed in the same arc, so "prefer this one" is no longer a steer between
+#: two live options — it is the only option, and the equality is what would
+#: report a second register quietly reappearing.
 REGISTER_RETURNING = {
     "srmech.cascade.cd_register",
-    "srmech.cascade.sedenion_register",
 }
 
 #: The spelling that makes "prefer CDRegister" a behaviour-preserving swap at
@@ -180,5 +181,19 @@ def test_the_preference_ships_in_the_generated_artifacts():
     assert "PREFERRED shape since rc464" in text, (
         "the compiled-in C tool registry does not carry the preference — a "
         "bare-C host reading its own registry would not be told")
-    assert "PREFER srmech.cascade.cd_register" in text, (
-        "the C registry's dim-16 entry does not steer to the preferred shape")
+    # Through rc464 stage 2 this also asserted that the 16-slot entry's baked
+    # summary carried "PREFER srmech.cascade.cd_register" — the steer FROM the
+    # special case TO the general one. That entry is removed in this same rc, so
+    # the assertion would now be vacuous-true against a string nobody writes.
+    # What replaces it is the fact the removal actually established: the C
+    # registry carries exactly ONE register-returning entry, so there is nothing
+    # left to steer FROM. A second one reappearing is what this must catch.
+    baked = [n for n in REGISTER_RETURNING if n in text]
+    assert baked == [PREFERRED], (
+        f"the C tool registry bakes {baked} as register-returning entries; the "
+        f"preference is only meaningful over the set REGISTER_RETURNING pins, "
+        f"and after rc464 that set is exactly {{{PREFERRED!r}}}")
+    assert "srmech.cascade.sedenion_register" not in text, (
+        "the compiled-in C tool registry still names the 16-slot register that "
+        "rc464 removed — a bare-C host would be told to reach for an entry the "
+        "table no longer holds")

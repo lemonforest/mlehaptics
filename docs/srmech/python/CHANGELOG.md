@@ -19,9 +19,9 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
-## [0.9.0rc464] - three guards that declined a C peer which had accepted 256 since rc298, a conversion refused on a contract clause that was already false, and a faithfulness oracle whose own test forbade the subsumption it was gating
+## [0.9.0rc464] - three guards that declined a C peer which had accepted 256 since rc298, a conversion refused on a contract clause that was already false, a faithfulness oracle whose own test forbade the subsumption it was gating, and a 32x scratch heuristic that made a whole class look like it had no C peer
 
-**What this rc is for.** Registry **720 → 734**; **ABI stays 24**; **zero C symbols added or removed**. Three threads. FIRST: `srmech_cd_navmap`, `srmech_cd_navigate` and `srmech_cd_navmap_is_signed_permutation` have accepted every power-of-two dim up to `SRMECH_CD_MAX_DIM = 256` since rc298. Their three Python wrappers returned `None` above 64 anyway — before any `LIB` call — so at dim 128 and 256 the shipped surface silently ran the pure cocycle loop while the ratchet justification on record said the family had "real C peers reachable through dispatch glue". That justification was **false above dim 64 from rc298 to rc463**, and no instrument could say so: the rc297 sweep of that family stops at 64, and the rc298 evidence that "the C peer verifies the new rungs" calls the symbol through **raw ctypes**, bypassing the very wrappers that declined it. SECOND: `CDRegister` — the last hand-coded domain class in the tree — becomes a config-driven `[class]` TOML, which is what the standing direction asks for and what rc297 recorded as *"decided, not defaulted"* against. One of rc297's two stated grounds was **already false when it was written**; the other was real and dissolves under the same change that records a fixture. Sections 6–8. THIRD: that fixture is now recorded, `CDRegister` is the PREFERRED register shape on every surface a consumer reads, and the test surface migrates onto it — the faithfulness gate moving from CODE INDEPENDENCE (a test asserting through `inspect.getsource` that the oracle does not mention the subject) to DATA PROVENANCE (1157 digest-pinned records of what the oracle actually did), which is the stronger form of the same claim because recorded output cannot acquire the subject's failure modes: it is not running. Sections 11–14.
+**What this rc is for.** Registry **720 → 733**; **ABI 24 → 25** (a REMOVAL bump); **three C symbols removed, none added**; carriers **29 → 28**; the `[class]` catalog stays at **4**, with a different fourth member. Four threads. FIRST: `srmech_cd_navmap`, `srmech_cd_navigate` and `srmech_cd_navmap_is_signed_permutation` have accepted every power-of-two dim up to `SRMECH_CD_MAX_DIM = 256` since rc298. Their three Python wrappers returned `None` above 64 anyway — before any `LIB` call — so at dim 128 and 256 the shipped surface silently ran the pure cocycle loop while the ratchet justification on record said the family had "real C peers reachable through dispatch glue". That justification was **false above dim 64 from rc298 to rc463**, and no instrument could say so: the rc297 sweep of that family stops at 64, and the rc298 evidence that "the C peer verifies the new rungs" calls the symbol through **raw ctypes**, bypassing the very wrappers that declined it. SECOND: `CDRegister` — the last hand-coded domain class in the tree — becomes a config-driven `[class]` TOML, which is what the standing direction asks for and what rc297 recorded as *"decided, not defaulted"* against. One of rc297's two stated grounds was **already false when it was written**; the other was real and dissolves under the same change that records a fixture. Sections 6–8. THIRD: that fixture is now recorded, `CDRegister` is the PREFERRED register shape on every surface a consumer reads, and the test surface migrates onto it — the faithfulness gate moving from CODE INDEPENDENCE (a test asserting through `inspect.getsource` that the oracle does not mention the subject) to DATA PROVENANCE (1157 digest-pinned records of what the oracle actually did), which is the stronger form of the same claim because recorded output cannot acquire the subject's failure modes: it is not running. Sections 11–14. FOURTH — and it is what makes the other three land rather than sit as half a change: the bare-C `make_class` engine gains a dim- and namespace-general register vtable, the 16-slot `SedenionRegister` is REMOVED entirely, and the three C exports that served it go with it. Sections 15–21. Along the way the engine turned out to carry a hand-rolled `32 * toml_len` TOML-parse scratch heuristic that held for every descriptor shipped through rc463 and failed silently on the first bigger one — §16 — and running the DOCUMENTED curated-docs refresh command wrote a Python module that raised `NameError` on import, §20.
 
 ### 1. The three guards — EXECUTED evidence first, then the removal
 
@@ -212,6 +212,319 @@ Migrated:
 **`describe()` does not enumerate tool names or summaries** — it returns counts, categories and the registry pointer (`json.dumps(describe())` contains `"srmech.cascade.cd_register"` **0** times). So "the preference is reachable through `describe()`" is not a measurable claim, and the preference gate asserts the surfaces that DO carry the prose into a consumer's hands: the tool schema, the generated `_tool_docs.py`, and the compiled-in C registry.
 
 **The undeclared-reach guard caught the new gate, and it is the third in a row.** Because the preference gate reads `c/src/srmech_tool_registry.c`, it reaches above `docs/srmech/python/` — and `test_ref_notation_emitted_rc348.py::test_no_test_reaches_out_of_tree_without_declaring_it` requires every such reach to be DECLARED in `SCAN_ROOTS`, so that the sibling meta-test can check CI actually watches the path. It was the ONLY failure in the 2705-test ripple sweep (`1 failed, 2702 passed, 2 skipped in 2374 s`), and the fix is the declaration plus the reason for it, not a narrowing of the gate. rc452 and rc462 were caught by the same guard on the same kind of edit; a third instance is the guard working, not a coincidence — reading a shipped C artifact from a Python test is now a common enough shape that the declaration is part of authoring one. `tests/test_preferred_register_shape_rc464.py` also joins `tools/ripple_gates.txt`, for the reason that manifest exists: it reads the ToolEntry summaries and both generated artifacts, so any rc editing a register entry moves it.
+
+### 15. The register vtable — the owed peer, and the gate the removal stands on
+
+Through rc463 the bare-C `make_class` engine could run exactly ONE register: a
+sixteen-slot one with `SEDENION:e` compiled in as a string literal. `CDRegister`
+had a `[class]` descriptor as of §6 and no thunks, so **every one of its methods
+returned `(False, None)`** — an honest DEFER, and the whole reason §13 could not
+re-point eight test files. That is the peer rc297 recorded as owed and rc298
+restated, and it is the gate the removal has to clear: taking the 16-slot
+register out without it would strip the only register a bare-C host can run.
+
+The thunks are now parameterised by the two things that were constants. `dim`
+comes off `srmech_cd_navmap` / `srmech_cd_navigate` — the dim-general peers that
+have existed since rc298 and that §1 measured at 128 and 256 — and `namespace`
+resolves from the field, or to `CD{dim}` when absent, by the same rule
+`_cdr_defaults` applies on the pure side.
+
+**The sharper wall was not the slot count.** Four separate two-digit `itoa`
+emitters were spread through `srmech_make_class.c`: navmap's `kb[4]` with no
+`>= 100` guard, `mc_build_slots` and `mc_slots_set` each returning `NULL` at
+`m >= 100`, and `mc_addr_name` asserting `slot < 100` around a literal
+`"SEDENION:e"`. Slots 100..255 exist only at dim 128/256, so a half-migrated set
+would have deferred or asserted **exactly there and nowhere else**. One
+`mc_slot_key` now serves every site, and the dim-256 cases occupy
+`{0, 7, 99, 100, 128, 255}` so a regression to two digits is caught by content
+rather than by a count.
+
+MEASURED, EXECUTED (`docs/srmech/notes/_rc464_probe_engine.py`, WSL2, numpy
+absent, ABI 25): **0 mismatches** across the subsumption core at dim 16 AND dim
+256 — `slots`, `working_block`, `carry_block`, `element`, `materialize`, `read`
+at every occupied slot, `write`, `navmap` and `navigate` at four directions
+each, `carry`, `correct`, `is_navigable`. `tests/test_cd_register_engine_c_rc464.py`
+(75 cases) drives BOTH exports, because a bare-C host reaches the class through
+`srmech_run_class_method` — the NAME-resolved one — and that is also what proves
+the descriptor baked into `srmech_class_registry.c` is this descriptor.
+
+**The declared DEFERs, each asserted WITH the pure peer's answer beside it** —
+which is what makes a defer inform-don't-limit rather than a gap:
+
+| method | why it defers | is it a capability gap? |
+|---|---|---|
+| `couple_working` / `uncouple_working` | the float working word | **No** — and the REASON on record was stale. It said "the mval carrier cannot emit it byte-identically"; rc331 emits a within-tol float `MAT` and rc335 emits bignums. Restated as a SCOPE defer, with `srmech_hypercomplex_couple_q61` named as what dissolves it |
+| `is_navigable` above dim 64 | the dense kernel's quadratic buffer | **No** — in process the exact-rational nullspace already dispatches to `srmech_qmat_nullspace` at every rung. What is owed is the bare-C ENGINE composition over that kernel, whose arena size and wall-clock are **unmeasured** |
+| `norm` / `conjugate` / `multiply` / `add` | their terminal ops are the exact-Q bigint kernels | **No regression** — the 16-slot register had no carrier-arithmetic surface at all, so these never dispatched. Their first stage (`element`) DOES dispatch |
+| a namespace past `MC_CDR_ADDR_MAX` | the address buffer | Deliberate: it DEFERS rather than truncates, because a truncated namespace mints a DIFFERENT address and returns wrong content **in silence**. Both sides of the edge (58 chars dispatches, 59 defers) are asserted |
+
+### 16. The engine's TOML scratch was a hand-rolled heuristic, and it failed silently
+
+`mc_run_from_toml` carved its parse workspace as `32 * toml_len + 8192`. The
+parser states its own safe bound — `srmech_toml_parse_arena_bytes` =
+`256 * src_len + 65536`, **eight times larger** — and has since rc391. The
+heuristic held for every descriptor shipped through rc463 because the largest
+was **5,510 bytes**; `cd_register.toml` is **14,356**.
+
+Over that line `srmech_toml_parse` returned `OVERFLOW`, `mc_run_from_toml`
+returned 0, and **every method of the class deferred with no other symptom** —
+an engine reporting *"this class has no C peer"* when what it ran out of was
+scratch. It is a silent-wrong-DIAGNOSIS class rather than a wrong answer, which
+is exactly why nothing caught it: from outside, a defer and an unwired leaf are
+the same observation. Found by bisection (removing `doc = ` lines one at a time
+changed nothing; removing all of them fixed it, and the last four crossed the
+line cumulatively — a SIZE threshold, not a bad character). Fixed by carving the
+stated bound and budgeting it as its own term in
+`srmech_make_class_run_arena_bytes`, which is itself the v10/v12/v23/v24
+wire-sizing shape and would have bumped ABI on its own; it rides the removal
+bump instead.
+
+A second, smaller one closed in the same pass: `mc_cdr_value_bytes` returned
+`NULL` for a key absent from the codebook, where the pure `_value_vec` **mints**
+it. An occupied slot with an empty codebook is fully wire-expressible — the
+codebook is a deterministic memo of `mint("VAL:" + key)` — so the C peer deferred
+on a state the pure peer answers.
+
+### 17. `SedenionRegister` is REMOVED
+
+The module, its `[class]` TOML, its carrier row, its `ToolEntry`, its curated
+docs row, its twelve `sed_*` adapters and its thirteen ledger rows. What
+replaces it is not a shim or an alias: it is a SPELLING —
+
+    cd_register(16, namespace="SEDENION", coupling=True, error_correction=True)
+
+and all three arguments are load-bearing. `namespace` IS the address-mint name
+(§12 measured the read-collision difference at starved `D`), and the 16-slot
+register's coupling / EC layers were UNCONDITIONAL where `CDRegister` gates them.
+`WORKING_WORD_CAP` was imported into `srmech.cascade` FROM the deleted module and
+is re-pointed at `cd_register`, which defines the same 7.
+
+**What the removal is NOT.** It is not a discharge. The twelve `sed_*` rows that
+leave `test_registry_completeness_rc416`'s `OPEN_REGISTRATION` allowlist —
+`CEIL_REGISTRY_GAPS` **157 → 145**, `CEIL_OPEN_REGISTRATION` **97 → 85** — did
+not become visible to `describe()`; the population simply has twelve fewer
+members, and the ceiling notes now say so. The fourteen `cdr_*` adapters that
+replace them took NONE of that allowlist back, because each ships a real
+`ToolEntry` — had they been hidden there instead, the ceiling would have gone UP
+by two and the registry would carry a shipped descriptor naming ops no census can
+see. That is the shape those ceilings exist to make visible.
+
+Ledger: the two non_compute rows (the constructor and `sed_slots`) leave with the
+class — `composes_c` **142 → 140**, `_TOTAL_NON_COMPUTE` **216 → 214** in all
+three ratchet files. Nothing was reclassified to make room. Registry
+**734 → 733**: ONE row, not thirteen, because the twelve `sed_*` adapters never
+had `ToolEntry`s at all.
+
+### 18. ABI 24 → 25 — a removal bump, the fourth of its kind
+
+`srmech_sedenion_navmap`, `srmech_sedenion_navigate` and `srmech_sed_slots` are
+gone, with the `SRMECH_SEDENION_NUM_SLOTS` macro (macros are not exported
+symbols and contribute nothing to the bump). By the standing rule at the top of
+`srmech.h`, **a removed export produces NO symptom other than a version
+mismatch**, so it always bumps — v7, v8 and v11 are the precedents, and v11
+removed `srmech_cd_zero_divisor_witness` for the identical *"subsumed by the
+dim-general op"* reason.
+
+`srmech_sedenion_is_navigable` **STAYS**, and it is why that header section
+still exists. It is not sedenion-specific at all: it is the general DENSE kernel
+for every rung up to `SRMECH_CD_DENSE_MAX_DIM = 64`, dispatched live by
+`cayley_dickson.left_mult_is_invertible`. Only its NAME was ever 16. Renaming it
+would be a second removal inside the same bump — re-touching its claim row, its
+ctypes binding and two tests — for no capability change, so it keeps the name it
+shipped under and the header says why in place of pretending otherwise.
+
+Lockstep: `srmech.h` + a v25 history entry, `_native/__init__.py`, **25 literal
+pins across 19 test files** (including `test_introspect.py`'s
+`status["expected_abi"]`, a spelling a `*_ABI_VERSION` grep misses, and the two
+`ABI-PIN` grep-target comments in `test_bus.py`), `docs/srmech/CLAUDE.md`,
+`c/README.md`, `python/README.md` (the header claim, the bump narrative and the
+worked `native_status()` block), and `c/JPL_AUDIT.md`.
+
+### 19. The dense gate's test is renamed to what it tests, and BOUNDED honestly
+
+`test_cascade_sedenion_parity.py` gated three symbols; two of them are gone and
+their coverage moved to `test_cd_register_rc297.py`, which runs it at **seven**
+rungs rather than one. The survivor's half becomes
+`tests/test_cd_register_dense_gate_c.py` — the only place the modular-rank bool
+is checked against the exact Fraction-nullspace oracle, which is the whole
+attestation for that kernel, and the header now names that file.
+
+It also grew: the old file swept dim 16 only. The new one is EXHAUSTIVE at
+2/4/8/16 and **SAMPLED** at 32/64, and the sampling is declared in a named
+constant with its cost rather than hidden inside a parametrize. The oracle is
+`O(dim^3)` per case against an `O(dim^2)` case count, so exhaustive-to-64 is
+`O(dim^5)`: the first attempt was killed after ~5 minutes without finishing.
+Measured after bounding: **70 s** for the module, 44 s of it dim 64. A sampled
+gate that reads as exhaustive is the worse failure — it reports full coverage of
+a boundary it never reached — so `SAMPLED_RUNGS` / `SAMPLE_PAIRS` say what was
+and was not swept, the sample is a fixed stride rather than random (a gate whose
+case set moves between runs cannot be bisected), and every basis unit is still
+covered exhaustively at every rung because that is the class the addressing
+premise rides on.
+
+### 20. Running the DOCUMENTED refresh command shipped a module that would not import
+
+`tools/gen_curated_probe.py` emitted `_tool_docs_curated.py` with
+`json.dumps(..., sort_keys=True, ensure_ascii=False)`. JSON spells `True` /
+`False` / `None` as `true` / `false` / `null`; that file is **imported as
+Python**. The bug was latent from the day it was written and became live the
+moment a curated row carried a boolean — rc463 added `"project": False` to the
+`eig_exact` example, and the first re-emit after it produced
+
+    NameError: name 'false' is not defined
+
+at import of `srmech.introspect._tool_docs_curated`. Found by running the
+command the module's own docstring tells you to run.
+
+Fixed at the root with a `_py_literal` emitter: scalars as Python, strings still
+through `json.dumps(..., ensure_ascii=False)` so every row without a boolean
+emits byte-for-byte what it did before. A regex over the emitted text could not
+have fixed it — a curated `explanation` may legitimately contain the word
+"false" inside a string. `bool` is tested BEFORE `int` because
+`isinstance(True, int)` is True in Python, and getting that order wrong
+reintroduces the defect as a silent `1` / `0` instead of a loud `NameError`.
+
+**And four curated example TRANSCRIPTS named the removed class.**
+`describe_class`, `list_class_surface`, `carrier_schema` and `describe` are
+hand-curated rows that `gen_curated_probe` PRESERVES rather than probes, so
+nothing would have caught them going false. All four were RE-EXECUTED against
+the live tree rather than hand-patched, because the point of the block is that
+every example is a real result. The `describe` one carried an explicit
+*"⚠️ DATED CAPTURE, rc352 — no gate re-executes it"* warning and would have been
+defensible left alone; it was re-run anyway, because a stale COUNT is a dated
+reading while a stale CLASS NAME is an instruction a reader can follow into an
+error, and those are different failures.
+
+### 20b. The one-window provenance module, and the run it was deleted on
+
+`tests/test_sedenion_golden_provenance_rc464.py` (§11) existed for exactly one
+window: the one in which `CDRegister` had taken over and the class the fixture
+was recorded from was still importable. It replayed the recorded protocol
+against the LIVE class — the one measurement nothing downstream can make,
+because everything downstream compares the SUBJECT to the record and the oracle
+is going away. Its own first line said it is deleted with the class, and it is.
+
+It was NOT deleted on the strength of the branch run that happened to precede
+it. `docs/srmech` was `git archive`d at `3d404205d` and the module run against
+that extracted tree immediately before the deletion commit: **11 passed in
+3.92 s**. That run also bought something it was not written to buy — it went
+down the PURE path (the extracted shim expects ABI 24 and the built library is
+25, so it declined), while the fixture's header records `has_native: true` at
+generation. So the replay agreed with the recording across the native/pure split
+as well as across the code/data one.
+
+The result is recorded in `tests/_golden_sedenion.py`, where the fixture's
+readers will find it, rather than only here — a deleted test's last verdict is
+worth exactly as much as the odds of someone finding it.
+
+### 21. What this rc did NOT do, and why
+
+* **`is_navigable` above 64 in the bare-C engine.** Composable over
+  `srmech_qmat_nullspace`; its arena size and wall-clock are **unmeasured**, and
+  the engine's `ws` sizing was never designed for a 256×256 exact matrix. Named
+  as the first follow-up, with the composition route stated in the thunk's own
+  comment.
+* **The float couple/uncouple defer.** Dissolvable via
+  `srmech_hypercomplex_couple_q61` plus the rc331 float emit. Doing it inside an
+  ABI-moving rc is scope creep; the stale REASON was corrected here, which is the
+  half that was actually wrong.
+* **The four exact-Q carrier chains through the engine.** They need the
+  intermediate Q-vector to round-trip through the `BIGINT` carrier. Their first
+  stage dispatches; nothing regressed, since the removed register had no
+  carrier-arithmetic surface.
+* **Renaming `srmech_sedenion_is_navigable` / `srmech_sedenion.c`.** Free
+  ABI-wise inside this bump and still declined — see §18.
+* **The 22 pre-existing curated-copy divergences** measured in §14. Deciding
+  which side of each is right is a per-row judgement, and doing it under cover of
+  a removal rc would bury it.
+* **`E2` (`returns="self"` merging over `self._fields`).** `navigate` sits at
+  EXACTLY `MC_MAX_BINDS = 8` — seven fields plus `j` — with zero headroom. Legal
+  today, and the engine test's `dispatched` assertion is the only thing standing
+  between that and a silent defer if an eighth state field is ever added. E2 is a
+  contract change in both projections; recorded as a follow-up rather than taken.
+
+
+### 21b. Prose this rc wrote, and this rc then made false
+
+The `[class]` descriptor and the adapter docstrings were written while the
+16-slot register was still live, and §17 removed it underneath them. Eight
+statements went stale INSIDE the rc that wrote them:
+
+* `catalogs/class_catalog/cd_register.toml` — the descriptor's `doc` field said
+  *"As of rc464 that gate is still attested against the LIVE SedenionRegister …
+  and it is the change that lets the 16-slot class be removed."* Both clauses
+  describe a state this rc left: the gate reads the recorded fixture, and the
+  removal happened. **This field is not a comment — it is baked byte-for-byte
+  into `c/src/srmech_class_registry.c` and is what a bare-C host reads when it
+  asks the class what it is.** It now names the fixture and its record count.
+* The same file's design comment carried *"STATED PRECISELY FOR rc464: that
+  fixture is NOT recorded yet. Both classes are live here."* Rewritten to say
+  objection (2) is **discharged**, not narrowed — nothing on the faithfulness
+  path runs the shared engine, because the oracle side is not running at all.
+* Six `cd_register.py` docstrings referenced `:meth:`SedenionRegister.navmap``,
+  `:meth:`SedenionRegister.couple_working`` and `:class:`SedenionRegister`` —
+  Sphinx roles pointing at a class that no longer exists, in the present tense
+  ("the shipped SedenionRegister"). They now name the removed register in the
+  past tense and point at the record that outlived it.
+
+Recorded rather than quietly fixed because the failure mode is specific and
+recurring: **prose written early in a multi-stage rc is not re-read at the end**,
+and the one surface where it mattered here crosses the C wire. The catch was a
+residual-reference sweep after the deletion, not a gate — no test asserts that a
+`:meth:` role resolves, which is the honest reason this class of staleness keeps
+surviving. It also confirms the rule the root `CLAUDE.md` states: fix falsehoods
+by SURFACE latency, and shipped text in the CURRENT rc is the shortest latency
+there is.
+
+
+### 22. Every pin the removal moved, measured rather than inferred
+
+| pin | rc463 | rc464 stage 1–2 | rc464 final | what moved it |
+|---|---|---|---|---|
+| `describe()["tools"]["total"]` | 720 | 734 | **733** | +14 `cdr_*` adapters, −1 the 16-slot factory (75 sites / 68 files) |
+| `describe()["carriers"]["total"]` | 29 | 29 | **28** | the `SedenionRegister` carrier row |
+| `[class]` catalog | 4 | 5 | **4** | `cd_register.toml` in, `sedenion_register.toml` out |
+| `SRMECH_ABI_VERSION` | 24 | 24 | **25** | three exported symbols removed |
+| `_FULL_SPLIT["composes_c"]` | 139 | 142 | **140** | +3 accessors, −2 rows leaving with the class |
+| `_TOTAL_NON_COMPUTE` | 213 | 216 | **214** | the same two rows |
+| `CEIL_REGISTRY_GAPS` | 157 | 157 | **145** | twelve `sed_*` allowlist rows |
+| `CEIL_OPEN_REGISTRATION` | 97 | 97 | **85** | the same twelve |
+| `EXPECTED_CARRIERS` (wire round-trip) | 29 | 29 | **28** | one carrier |
+| `gap["of"]` (domain-word census) | 29 | 29 | **28** | one carrier |
+| class-registry DECODED `srmech.cascade.` refs | 28 | 55 | **40** | one descriptor replaced by a bigger one, then the old one left |
+| baked `[class]` descriptor blobs | 4 | 5 | **4** | ditto |
+| carrier back-index DECODED `srmech.cascade.` refs | 175 | 192 | **191** | −1: the factory's `int D` parameter left the `int` carrier's back-index |
+| `WITNESS_RC416` (search corpus) | `f1f521af…` | `b213cf4f…` | **`9add5607…`** | see below |
+
+**The corpus witness's move is attributed frame by frame, not read off the
+diff.** `docs/srmech` was `git archive`d WHOLE at `3d404205d` and both corpora
+built; the extracted tree reproduced `b213cf4f…` exactly, which is what makes
+the attribution a measurement. **0 added, 2 removed, 12 changed**, 763 → 761
+(733 ops + 28 carriers).
+
+The two removals are the 16-slot register's whole searchable presence. ELEVEN of
+the twelve changes are prose or executed transcripts that named it. The twelfth
+is the one worth reading twice: `carrier:int` moved, and nothing about `int` was
+edited. A carrier frame
+carries the back-index of ops that consume or produce it, and the removed
+factory declared an `int` `D` parameter — so a frame set that did NOT move here
+would have meant the back-index is not actually derived.
+
+**Four ungated prose surfaces corrected in the same pass, because nothing else
+would have.** The notebook's two currency stamps (op total 734 → 733, ABI 24 →
+25) are gated by `test_notebook_currency_rc420` and were caught by it; the three
+that are NOT gated were found by reading: `docs/srmech/CLAUDE.md`'s
+`toml_total` claim (5 → 4 — it is 4 and not 5 because one descriptor replaced
+another inside the one rc), that file's register paragraph, and the root
+`CLAUDE.md`'s conversion-proof line, which named the rc140 model this rc deletes.
+`docs/srmech/CLAUDE.md` states outright that it is not hygiene-gated, which is
+precisely why the stale contract sentence §6 retracts survived ~330 rcs there.
+
+**One count that did NOT move, and it is the point of a partition:** `_TOTAL_NON_COMPUTE`
+minus `composes_c` — `host_glue` 21 and `dev_tooling` 53 are both untouched.
+Nothing was reclassified to absorb the removal; two rows left, and the arithmetic
+says exactly that.
+
 
 ## [0.9.0rc463] - a transpose that changed the value, an exact eigensolver no instrument could see, 39 C symbols claimed by nobody, and the ratchet that asks whether an op declares its INEXACTNESS
 

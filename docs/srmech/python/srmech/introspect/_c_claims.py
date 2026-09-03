@@ -10,7 +10,7 @@ Why the check matters: every native dispatch site is gated on
 the pure-Python path — correct answers, but the ``c_dispatched`` claim is FALSE
 and, before rc300, nothing said so. ABI matching does not cover this: the header
 adds symbols ABI-additively ("new symbols only, so SRMECH_ABI_VERSION stays N"),
-so a stale-but-ABI-24 library is a REACHABLE state with a correct pure
+so a stale-but-ABI-25 library is a REACHABLE state with a correct pure
 fallback and a silently false classification.
 
 Consumed by :func:`srmech._native.c_claim_report` and surfaced as
@@ -441,9 +441,6 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     ),
     'srmech.cascade.one.winding_fold': ('srmech_winding_fold',),
     'srmech.cascade.one.winding_tower': ('srmech_winding_tower',),
-    'srmech.cascade.sedenion_register.sed_correct': ('srmech_hamming_decode_correct',),
-    'srmech.cascade.sedenion_register.sed_navigate': ('srmech_sedenion_navigate',),
-    'srmech.cascade.sedenion_register.sed_navmap': ('srmech_sedenion_navmap',),
     'srmech.cascade.spectral_cascades.dft': (
         'srmech_fft_c128',
         'srmech_fft_c128_ws_bound',

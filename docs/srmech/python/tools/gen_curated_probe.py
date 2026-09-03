@@ -17,6 +17,7 @@ present on disk is never dropped.
 from __future__ import annotations
 import io
 import sys
+import json
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 
@@ -184,7 +185,7 @@ def _worked_ns():
         cd_navmap_is_signed_permutation, cd_norm_sq, cd_project, cd_promote,
         cd_register, cd_uncouple_working, hypercomplex_couple,
         hypercomplex_exp, inertia_signature, is_division_algebra_dim,
-        left_mult_is_invertible, left_mult_kernel, sedenion_register,
+        left_mult_is_invertible, left_mult_kernel,
         cd_zero_divisor_witness, table_product, the_one,
     )
     from srmech.physics.qm.octonion import octonion_mult_table
@@ -570,7 +571,7 @@ WORKED = [
      "SIBLINGS — ``left_mult_kernel`` returns the witnessing vectors this "
      "op reduces to a bool; ``is_division_algebra_dim`` answers for a "
      "DIMENSION where this answers for an ELEMENT; "
-     "``SedenionRegister.is_navigable`` / ``CDRegister.is_navigable`` are "
+     "``CDRegister.is_navigable`` is "
      "this op wearing the register's clothes.",
      "The reversibility gate, and the fourth call is the disambiguation: "
      "composition fails past dim 8 while addressing (signed-permutation "
@@ -724,13 +725,15 @@ WORKED = [
      "divisors are built from SUMS and break composition, not addressing. "
      "Capacity is D-bounded: a shortfall at fixed D is a capacity fact, not "
      "an algebra fact — sweep D. "
-     "SIBLINGS — there is no second register class to choose between: the "
-     "dim-16 sedenion instrument is ``cd_register(16, "
+     "SIBLINGS — there is no second register class to choose between, and "
+     "since rc464 there is not even a second class to remove: the dim-16 "
+     "instrument srmech used to ship separately is ``cd_register(16, "
      "namespace='SEDENION', coupling=True, error_correction=True)``, "
-     "reproduced BIT-EXACTLY (call 5) while the default 'CD16' namespace "
-     "is not — that difference is the faithfulness gate, not a bug, and it "
-     "is held against the 16-slot register's RECORDED behaviour rather "
-     "than a live peer that could drift with its subject. "
+     "whose materialised bundle matches that register's RECORDED digest "
+     "(call 5) while the default 'CD16' namespace does not — that "
+     "difference is the faithfulness gate, not a bug, and it is held "
+     "against a recording rather than a live peer that could drift with "
+     "its subject. "
      "``.element/.norm/.conjugate/.multiply`` are the method forms of "
      "``cd_mult`` / ``cd_norm_sq`` / ``cd_conjugate`` over the held signed "
      "element; ``.couple_working`` / ``.carry`` are the two OPT-IN layers "
@@ -738,41 +741,8 @@ WORKED = [
      "``cd_couple_working`` / ``cd_carry``.",
      "A 64-slot register addressing the attested genetic code one codon per "
      "slot: navigate(63) is Rumer over the whole occupancy, and at dim 16 "
-     "namespace='SEDENION' is byte-identical to the shipped "
-     "sedenion_register while the default namespace is not."),
-
-    ("srmech.cascade.sedenion_register", [
-        ("1", "_sed1.slots()"),
-        ("2", "_sed1.navigate(4).slots()"),
-        ("3", "_sed1.is_navigable([0,0,0,0,1] + [0]*11)"),
-        ("4", "_sed1.is_navigable(ZD['x'])"),
-        ("5", "_sed_faithful()"),
-    ],
-     "WHAT — the dim-16 sedenion addressable RBS-HDC instrument: 16 slots "
-     "e0..e15, with e0..e7 the ≤7-value REVERSIBLE working word "
-     "(bit-exact ≤ 𝕆) and e8..e15 the Hamming EC/carry block. "
-     "WHEN — PREFER ``cd_register(16, namespace='SEDENION', coupling=True, "
-     "error_correction=True)``, at this rung and at every other. It is "
-     "THIS instrument byte-for-byte (call 5 — byte-identical "
-     "materialisation), on the register shape whose slot count is a "
-     "parameter, and there is no method here that it lacks. The "
-     "equivalence is gated against a recorded fixture, so it is a "
-     "measurement rather than a claim. "
-     "THE GENUINELY-NEW SURFACE IS NAVIGATION, and calls 3–4 are the whole "
-     "story: navigating by a SINGLE basis direction always works (signed "
-     "permutation, every rung), while navigating by the COMPOSITE direction "
-     "e1 + e10 — which is exactly ``cd_zero_divisor_witness(16)['x']`` "
-     "— is refused, because that direction has no inverse. The Hurwitz "
-     "horizon shows up as a navigability answer, not as a crash. "
-     "SIBLINGS — ``cd_register(16, namespace='SEDENION')`` is the "
-     "bit-exact general-register form; ``cd_navmap`` / ``cd_navigate`` are "
-     "the free-function numeric core of ``.navigate``; "
-     "``left_mult_is_invertible`` is what ``.is_navigable`` consults; "
-     "``cd_couple_working`` / ``cd_carry`` are the free-function forms of "
-     "``.couple_working`` / ``.carry``.",
-     "Single-basis navigation always works; navigating by the zero-divisor "
-     "direction e1+e10 is refused — and the general cd_register at dim 16 "
-     "with namespace='SEDENION' materialises byte-identically to this."),
+     "namespace='SEDENION' reproduces the register rc464 removed, digest "
+     "for digest, while the default namespace does not."),
 
     # ── the two optional layers ───────────────────────────────────────
     ("srmech.cascade.cd_couple_working", [
@@ -1028,21 +998,31 @@ def probe_worked(rows=None):
     for slot, key in ((0, "TTT"), (21, "CCC"), (42, "AAA")):
         reg1.write(slot, key)
     ns["_reg1"] = reg1
-    sed1 = ns["sedenion_register"](D=8192)
-    sed1.write(1, "e1")
-    sed1.write(10, "e10")
-    ns["_sed1"] = sed1
-
     def _sed_faithful():
-        """Materialised-byte comparison of the three registers at dim 16."""
-        same = ns["cd_register"](16, D=8192, namespace="SEDENION")
-        other = ns["cd_register"](16, D=8192)
-        for r in (same, other):
-            r.write(1, "e1")
-            r.write(10, "e10")
-        ref = sed1.materialize()
-        return {"namespace='SEDENION'": same.materialize() == ref,
-                "namespace default 'CD16'": other.materialize() == ref}
+        """Is the dim-16 spelling still the register rc464 removed?
+
+        The 16-slot ``SedenionRegister`` is gone, so this cannot compare against
+        a live peer — and it should not: an oracle that ships alongside its
+        subject can drift with it. It compares against that register's RECORDED
+        materialised bundle instead, whose SHA-256 is one row of
+        ``tests/sedenion_register_golden_rc464.ndjson`` (the ``rc140`` fixture at
+        D=8192, digest-pinned there). The literal below is that row's digest,
+        quoted here so this shipped example carries its own provenance and stays
+        checkable after the class it attests is gone.
+        """
+        from srmech.amsc.format import sha256_bytes as _sha
+        RECORDED = ("947a0308df8a7cc9ee39b1cd755713ee"
+                    "f77629465ed18457f423a07ef8f4c3c2")
+        out = {}
+        for label, ns_arg in (("namespace='SEDENION'", "SEDENION"),
+                              ("namespace default 'CD16'", None)):
+            r = ns["cd_register"](16, D=8192, namespace=ns_arg,
+                                  coupling=True, error_correction=True)
+            r.write(0, "alpha")
+            r.write(3, "beta", sign=-1)
+            r.write(9, "gamma")
+            out[label] = _sha(r.materialize()) == RECORDED
+        return out
 
     ns["_sed_faithful"] = _sed_faithful
 
@@ -1078,6 +1058,42 @@ def merge_curated(existing, probed):
     for name, entry in probed.items():
         merged.setdefault(name, {}).update(entry)
     return merged
+
+
+def _py_literal(v):
+    """Emit ``v`` as a PYTHON literal.
+
+    This used ``json.dumps`` through rc463 and was wrong in exactly one way,
+    which stayed latent until a curated row carried a BOOLEAN: JSON spells
+    ``True`` / ``False`` / ``None`` as ``true`` / ``false`` / ``null``, and this
+    generator writes a file that is IMPORTED AS PYTHON — so the module raised
+    ``NameError: name 'false' is not defined`` the first time such a row was
+    re-emitted. rc464 (`#T1188`) hit it by running the documented refresh
+    command after rc463 added ``"project": False`` to the ``eig_exact`` example.
+
+    A regex over the emitted text cannot fix this: a curated ``explanation``
+    may legitimately contain the word "false" inside a string. The scalars are
+    therefore emitted as Python and the STRINGS still go through
+    ``json.dumps(..., ensure_ascii=False)``, so every row that carries no
+    boolean emits byte-for-byte what it did before.
+
+    ``bool`` is checked BEFORE ``int`` on purpose — ``isinstance(True, int)``
+    is True in Python, and getting that order wrong reintroduces the bug as a
+    ``1`` / ``0`` instead of a ``NameError``, which is the silent version.
+    """
+    if isinstance(v, str):
+        return json.dumps(v, ensure_ascii=False)
+    if isinstance(v, bool) or v is None:
+        return repr(v)
+    if isinstance(v, (int, float)):
+        return repr(v)
+    if isinstance(v, dict):
+        return "{" + ", ".join(
+            f"{json.dumps(k, ensure_ascii=False)}: {_py_literal(x)}"
+            for k, x in sorted(v.items())) + "}"
+    if isinstance(v, (list, tuple)):
+        return "[" + ", ".join(_py_literal(x) for x in v) + "]"
+    return json.dumps(v, ensure_ascii=False)
 
 
 def main():
@@ -1129,8 +1145,7 @@ def main():
              "from typing import Any, Dict", "",
              "CURATED: Dict[str, Dict[str, Any]] = {"]
     for name in sorted(merged):
-        lines.append(f"    {json.dumps(name)}: "
-                     f"{json.dumps(merged[name], sort_keys=True, ensure_ascii=False)},")
+        lines.append(f"    {json.dumps(name)}: {_py_literal(merged[name])},")
     lines.append("}")
     lines.append("")
     dest = Path(__file__).resolve().parent.parent / "srmech" / "introspect" / "_tool_docs_curated.py"

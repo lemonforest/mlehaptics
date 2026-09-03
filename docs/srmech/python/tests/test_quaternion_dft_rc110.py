@@ -326,7 +326,7 @@ def test_tools_total_is_pinned():
     # 16 such tests were found tree-wide, one named for 367 asserting 663.
     # See test_pinned_names_carry_no_value_rc447.py.
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 734
+    assert introspect.describe()["tools"]["total"] == 733
 
 
 def test_rosetta_bucket_is_c_dispatched():
