@@ -19,6 +19,51 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc464] - three guards that declined a C peer which had accepted 256 since rc298, sixteen shipped sites still saying the range is [1, 64], and a triality claim no importer made
+
+**What this rc is for.** `srmech_cd_navmap`, `srmech_cd_navigate` and `srmech_cd_navmap_is_signed_permutation` have accepted every power-of-two dim up to `SRMECH_CD_MAX_DIM = 256` since rc298. Their three Python wrappers returned `None` above 64 anyway — before any `LIB` call — so at dim 128 and 256 the shipped surface silently ran the pure cocycle loop while the ratchet justification on record said the family had "real C peers reachable through dispatch glue". That justification was **false above dim 64 from rc298 to rc463**, and no instrument could say so: the rc297 sweep of that family stops at 64, and the rc298 evidence that "the C peer verifies the new rungs" calls the symbol through **raw ctypes**, bypassing the very wrappers that declined it.
+
+### 1. The three guards — EXECUTED evidence first, then the removal
+
+Before touching the predicates, the C contract was measured rather than read. Raw `ctypes` against a freshly built `libsrmech.so` (ABI 24, `HAS_NATIVE True`, numpy absent), comparing every returned row to the pure `cascade.cd_basis_product` oracle:
+
+| op | dim | j | rc | rows compared | mismatches |
+|----|-----|---|----|---------------|-----------|
+| `srmech_cd_navmap` | 128 | 0, 1, 127 | `SRMECH_OK` | 128 each | **0** |
+| `srmech_cd_navmap` | 256 | 0, 1, 127, 255 | `SRMECH_OK` | 256 each | **0** |
+| `srmech_cd_navigate` | 128 | 0, 1, 127 | `SRMECH_OK` | 4 each | **0** |
+| `srmech_cd_navigate` | 256 | 0, 1, 127, 255 | `SRMECH_OK` | 4 each | **0** |
+| `srmech_cd_navmap_is_signed_permutation` | 128 | — | `SRMECH_OK` → `True` | 16,384 cocycle calls | **1.281 ms** |
+| `srmech_cd_navmap_is_signed_permutation` | 256 | — | `SRMECH_OK` → `True` | 65,536 cocycle calls | **5.212 ms** |
+
+In the same run, `cd_navmap_c(128, 1)`, `cd_navigate_c(256, 1, [0], [1])` and `cd_navmap_is_signed_permutation_c(256)` all returned `None`. That is the defect in one screen: the peer answers correctly and in milliseconds, and the wrapper in front of it declines.
+
+The fix is a respell, not a deletion of the predicate: `dim > 64` becomes `dim > 256` at `srmech/_native/__init__.py:18823`, `:18849`, `:18884`. **Dropping the predicate entirely and letting C's `SRMECH_ERR_BAD_INPUT` fall through to `None` was considered and rejected** — that is the overloaded-`None` shape the rc431 native-contract census exists to police, where "native declined" and "input was bad" become the same answer. The literal `256` is used rather than an import of `CD_MAX_DIM`, because `_native` imports nothing from `srmech` (measured: zero `from srmech` / `from ..` statements) while `cascade/cayley_dickson.py:105` imports `_native` — the import would be a cycle. The literal is already pinned to the header by `tests/test_cd_rungs_rc298.py:79-92`, which is what makes it safe to spell twice.
+
+The three `srmech_cd_*` symbols also had **no `argtypes` / `restype` declared** in the binder, where their sedenion peers do (`:2551-2592`); the call sites wrapped every argument in `ctypes.c_int` by hand, so it worked, but the asymmetry is closed here rather than left as a trap for the next caller.
+
+`tests/test_cd_register_rc297.py` gains `C_RUNGS = (4, 8, 16, 32, 64, 128, 256)` for the three C-peer agreement tests only. The `O(dim⁴)` cross-path check is deliberately **not** extended — rc298 measured ~2.8 min at 128 and ~32 min at 256 and covers those rungs by sample.
+
+### 2. `CEIL_WIRE_GLUE_GAPS` is 0, not 10 — and the instrument cannot see this defect
+
+The brief asked whether `CEIL_WIRE_GLUE_GAPS = 10` was understated. It is not 10. The live constant is **0** (`tests/test_rosetta_transitive_standalone.py:460`, with an empty `_KNOWN_GLUE_GAPS`, asserted `== 0` by `rc333:294` and `rc334:238`). The "10" is rc297-era prose repeated in three comments (`test_annex_ratchet_rc177.py:179`, `rc183:157`, `test_non_compute_ratchet_rc170.py:280-281`), and those comments are annotated here rather than silently corrected. No ceiling moves — and the reason is worth stating, because it is a limit of the instrument rather than a lucky zero: that ratchet's scope is genome/plasmid + recursive-cut, and its reachability check is an **AST scan for `srmech_*` names in dispatcher source**. A guard that names the right symbol and then declines it on a **domain** predicate is invisible to a name scan by construction. Removing the guards is the only move that keeps the 0 honest.
+
+### 3. The rc431 verdict was right about the shape and wrong about the reason
+
+The rc431 native-contract census adjudicated all three guards `BENIGN_CAPABILITY` with the reason *"None means native declines, pure is COMPLETE"*. The shape is benign; the reason is false above 64, because C is complete to 256 and the Python predicate is what declines. Three `kind: "readjudication"` records are **appended** to `docs/srmech/notes/_p1_native_contract_divergence_rc431.ndjson` — appended, never edited: the existing rows are a historical measurement, and their `line` fields (18617/18643/18678) are themselves evidence of ~200 lines of drift since.
+
+### 4. Sixteen stale `[1, 64]` sites — and three that are correct
+
+`CD_MAX_DIM` has been 256 since rc298; sixteen non-Newton sites still said `[1, 64]`, nine of them riding in the wheel and six compiled into `srmech_tool_registry.c`. All sixteen are repointed, including `tools/gen_curated_probe.py:710` — a source string that is **not** in `regen_all`'s graph (only `tools/codegen_manifest.py:263` names the generator), so it is hand-edited and would otherwise have stayed stale after a full regen.
+
+**Three `[1, 64]` hits are Newton-step bounds and are left exactly as written** — `tool_schema.py:19979`, the row it generates at `srmech_tool_registry.c:4222`, and the error message at `srmech/music/_bessel.py:254` whose live guard is `newton_steps < 1 or newton_steps > 64`. The brief said two; there are three. A mechanical sweep of this pattern breaks all three.
+
+Two more half-stale sites in the same area: `cd_register.py`'s `_check_dim` printed the range as `[1, 256]` while listing rungs that stop at 64, and `srmech_cd_register.c`'s header called `seen[]` "(256 B)" when it has been `SRMECH_CD_MAX_DIM` **ints** — 1024 B — since rc298. `_native/__init__.py:2576`'s "n (power of two <= 64)" is **correct** (it is the `SRMECH_CD_DENSE_MAX_DIM` quadratic-buffer cap) and is untouched.
+
+### 5. `so8.py` — a stale claim about who imports what
+
+`so8.py:489` said `_derivation` is "Internal helper (reused by `srmech.physics.qm.triality`)". Measured: `triality.py:89-97` imports seven names from `so8`, all E_pq frame helpers, and calls no `so8.<fn>(`; nothing outside `so8.py` references `_derivation` at all (the two `so9.py` hits are the dict key `block_mixer_is_derivation`). The helper is consumed only by `_all_derivations` immediately below it. The `Fix(τ) = g₂` statements at `:14-15` and `:524-526` are theorems and are left alone.
+
 ## [0.9.0rc463] - a transpose that changed the value, an exact eigensolver no instrument could see, 39 C symbols claimed by nobody, and the ratchet that asks whether an op declares its INEXACTNESS
 
 **What this rc is for.** `einsum` returned well-formed, plausible, **wrong** numbers for 118 releases, and the reason it survived is not that nobody looked — rc344 audited this exact family and cleared it in as many words. It used a different predicate. Registry **702 → 720**; **ABI stays 24**; **zero C symbols added or removed**. Around the fix: the exact eigensolver made visible, an exact-ℚ linear-algebra surface the tool schema already pointed readers at, three exact peers that needed a name rather than an algorithm, exact cyclotomic trigonometry, an exact SVD, and a four-layer gate whose third layer is the one rc344 lacked.

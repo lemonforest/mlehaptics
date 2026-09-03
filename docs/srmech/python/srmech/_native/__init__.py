@@ -2591,6 +2591,43 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_sed_slots.restype = ctypes.c_int
 
+    # rc297 (`#934`) — the GENERAL N-slot Cayley-Dickson address layer, the
+    # dim-parameterised peer of the three sedenion entries above. These three
+    # went UNDECLARED from rc297 to rc463: the wrappers wrap every argument in
+    # ctypes.c_int by hand at the call site, so the calls were correct, but the
+    # asymmetry with their own 16-slot peers meant the next caller had no
+    # signature to lean on. Declared at rc464 in the same pass that respelled
+    # the wrappers' stale `dim > 64` domain predicate.
+    #   int srmech_cd_navmap(int dim, int j, int *out_dest, int *out_sign)
+    if hasattr(lib, "srmech_cd_navmap"):
+        lib.srmech_cd_navmap.argtypes = [
+            ctypes.c_int,                       # dim (power of two <= 256)
+            ctypes.c_int,                       # j (basis direction)
+            ctypes.POINTER(ctypes.c_int),       # out_dest[dim]
+            ctypes.POINTER(ctypes.c_int),       # out_sign[dim]
+        ]
+        lib.srmech_cd_navmap.restype = ctypes.c_int
+    #   int srmech_cd_navigate(int dim, int j, const int *in_slots,
+    #       const int *in_signs, size_t count, int *out_slots, int *out_signs)
+    if hasattr(lib, "srmech_cd_navigate"):
+        lib.srmech_cd_navigate.argtypes = [
+            ctypes.c_int,                       # dim
+            ctypes.c_int,                       # j
+            ctypes.POINTER(ctypes.c_int),       # in_slots
+            ctypes.POINTER(ctypes.c_int),       # in_signs (+1/-1)
+            ctypes.c_size_t,                    # count
+            ctypes.POINTER(ctypes.c_int),       # out_slots
+            ctypes.POINTER(ctypes.c_int),       # out_signs
+        ]
+        lib.srmech_cd_navigate.restype = ctypes.c_int
+    #   int srmech_cd_navmap_is_signed_permutation(int dim, int *out_ok)
+    if hasattr(lib, "srmech_cd_navmap_is_signed_permutation"):
+        lib.srmech_cd_navmap_is_signed_permutation.argtypes = [
+            ctypes.c_int,                       # dim
+            ctypes.POINTER(ctypes.c_int),       # out_ok (0/1)
+        ]
+        lib.srmech_cd_navmap_is_signed_permutation.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class J — prime-factorisation / period (Task #217 Phase C1 rc3).
     # ------------------------------------------------------------------
@@ -18816,11 +18853,23 @@ def has_native_cd_navmap() -> bool:
 def cd_navmap_c(dim: int, j: int):
     """Native srmech_cd_navmap → ``{i: (dest, sign)}`` over ``dim`` slots
     (``e_i·e_j = sign·e_{dest}``), or None when absent / dim is not a power of two
-    in [1, 64] / ``j`` outside [0, dim). Byte-identical to the pure
-    ``cd_navmap`` cocycle loop, and at dim == 16 to ``sedenion_navmap_c``."""
+    in [1, 256] / ``j`` outside [0, dim). Byte-identical to the pure
+    ``cd_navmap`` cocycle loop, and at dim == 16 to ``sedenion_navmap_c``.
+
+    rc464: the domain predicate said ``dim > 64`` from rc297 to rc463, while
+    ``srmech_cd_navmap``'s own ``cdr_dim_ok`` has admitted every power of two up
+    to ``SRMECH_CD_MAX_DIM`` (256) since rc298 — so at dim 128 and 256 this
+    wrapper declined a peer that answers correctly, and the pure loop ran with
+    no signal. MEASURED at rc464 through raw ctypes against the pure
+    ``cd_basis_product`` oracle: dim 128 and 256, j in {0, 1, 127, 255}, ZERO
+    mismatches. The bound is spelled as the literal 256 rather than imported
+    from ``cascade.cd_register.CD_MAX_DIM`` because this module imports nothing
+    from ``srmech`` and ``cascade.cayley_dickson`` imports THIS module — the
+    import would be a cycle; ``tests/test_cd_rungs_rc298.py`` pins the literal
+    against the C header so the two spellings cannot drift apart."""
     if not has_native_cd_navmap():
         return None
-    if dim < 1 or dim > 64 or (dim & (dim - 1)) != 0:
+    if dim < 1 or dim > 256 or (dim & (dim - 1)) != 0:
         return None
     if not (0 <= j < dim):
         return None
@@ -18843,10 +18892,14 @@ def cd_navigate_c(dim: int, j: int, in_slots, in_signs):
     (slot, sign) records through ×e_j at ``dim`` slots (composing the Class-C
     signs), or None when absent / dim bad / ``j`` outside [0, dim) / a record is
     out of domain. Byte-identical to the pure ``cd_navigate`` loop, and at
-    dim == 16 to ``sedenion_navigate_c``."""
+    dim == 16 to ``sedenion_navigate_c``.
+
+    ``dim`` is a power of two in [1, 256] — rc464 respelled a ``dim > 64``
+    predicate that had declined the working C peer at 128 and 256 since rc298;
+    see ``cd_navmap_c`` above for the measurement."""
     if not has_native_cd_navigate():
         return None
-    if dim < 1 or dim > 64 or (dim & (dim - 1)) != 0:
+    if dim < 1 or dim > 256 or (dim & (dim - 1)) != 0:
         return None
     if not (0 <= j < dim):
         return None
@@ -18877,11 +18930,17 @@ def has_native_cd_navmap_is_signed_permutation() -> bool:
 def cd_navmap_is_signed_permutation_c(dim: int):
     """Native srmech_cd_navmap_is_signed_permutation → ``True``/``False`` — is the
     navmap a bijection on [0, dim) with every sign in {+1,-1} for EVERY direction
-    ``j``? — or None when absent / dim is not a power of two in [1, 64].
-    Bit-identical (on the bool) to the pure oracle."""
+    ``j``? — or None when absent / dim is not a power of two in [1, 256].
+    Bit-identical (on the bool) to the pure oracle.
+
+    rc464 respelled a ``dim > 64`` predicate that had declined the working C
+    peer at 128 and 256 since rc298. MEASURED at rc464: the C peer answers
+    ``True`` at dim 128 in 1.281 ms (16,384 cocycle calls) and at dim 256 in
+    5.212 ms (65,536), where the pure oracle walks the same product loop in
+    Python."""
     if not has_native_cd_navmap_is_signed_permutation():
         return None
-    if dim < 1 or dim > 64 or (dim & (dim - 1)) != 0:
+    if dim < 1 or dim > 256 or (dim & (dim - 1)) != 0:
         return None
     out_ok = ctypes.c_int(-1)
     rc = LIB.srmech_cd_navmap_is_signed_permutation(

@@ -169,7 +169,8 @@ def _check_dim(dim: int) -> int:
     if type(dim) is not int or not _is_pow2(dim) or dim > CD_MAX_DIM:
         raise ValueError(
             f"dim must be a power of two in [1, {CD_MAX_DIM}] (a Cayley–Dickson "
-            f"algebra dimension: 1 ℝ / 2 ℂ / 4 ℍ / 8 𝕆 / 16 𝕊 / 32 𝕋 / 64); "
+            f"algebra dimension: 1 ℝ / 2 ℂ / 4 ℍ / 8 𝕆 / 16 𝕊 / 32 𝕋 / 64 / "
+            f"128 / 256); "
             f"got {dim!r}"
         )
     return dim

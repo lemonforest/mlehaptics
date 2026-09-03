@@ -286,6 +286,18 @@ _EXPECTED_SPLIT = {
     # empty slot-map and codebook); all compute is in the methods, which route
     # to those three c_dispatched rows — which is why it also carries a
     # justified entry in COMPOSES_C_ZERO_REACH_PINNED.
+    # rc464 (`#T1188`) CORRECTION to the two rc297 clauses immediately above,
+    # left in place because they record what rc297 believed. (a) the constant is
+    # not 10: CEIL_WIRE_GLUE_GAPS = 0, tests/test_rosetta_transitive_standalone
+    # .py:460, empty _KNOWN_GLUE_GAPS, asserted == 0 by rc333/rc334. (b) "real C
+    # peers reachable through dispatch glue" was TRUE at rc297 (cap 64) and
+    # FALSE from rc298 (cap 256) to rc463, because cd_navmap_c / cd_navigate_c /
+    # cd_navmap_is_signed_permutation_c each returned None above dim 64 in front
+    # of C peers that accept 256. rc464 respelled the three predicates; the
+    # sentence is true again. Neither ceiling moves — and the wire-glue ratchet
+    # could not have caught this anyway: it scans for `srmech_*` NAMES in
+    # dispatcher source, and a domain guard that names the symbol and then
+    # declines it is invisible to a name scan by construction.
     # rc308 (#944): +1 composes_c — laplacian.hypercomplex_perspectives (the
     # quaternion_laplacian / magnetic_laplacian eigenvector channel reader; a
     # pure STRUCTURAL split of an already-decomposed carrier — it computes

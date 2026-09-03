@@ -55,6 +55,23 @@ cd_register_mod = importlib.import_module("srmech.cascade.cd_register")
 RUNGS = (1, 2, 4, 8, 16, 32, 64)
 NAV_RUNGS = (4, 8, 16, 32, 64)
 
+# rc464: the C-PEER agreement rungs, which are NOT the same set. RUNGS /
+# NAV_RUNGS bound the O(dim^4) cross-path checks below and deliberately stop at
+# 64 (rc298 measured ~2.8 min at 128 and ~32 min at 256 for those, and covers
+# the upper rungs by sample instead). The three C-vs-pure agreement tests are
+# O(dim^2) and cost well under a second at 256 -- measured 0.188 s for the full
+# 65,536-call pure sweep -- so there is no reason for them to stop where the
+# expensive ones do. They stopped anyway, because `cd_navmap_c` /
+# `cd_navigate_c` / `cd_navmap_is_signed_permutation_c` each carried a
+# `dim > 64 -> return None` domain guard while the C peers behind them have
+# accepted every power of two up to SRMECH_CD_MAX_DIM = 256 since rc298. With
+# the guards respelled, THESE are the rungs that actually measure the claim
+# "real C peers reachable through dispatch glue" at the rungs the register
+# reaches -- a claim that was false above 64 from rc298 to rc463 with no
+# instrument able to say so.
+C_RUNGS = RUNGS + (128, 256)
+C_NAV_RUNGS = NAV_RUNGS + (128, 256)
+
 NAMES = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta",
          "iota", "kappa", "lambda", "mu", "nu", "xi", "omicron", "pi",
          "rho", "sigma", "tau", "upsilon", "phi", "chi", "psi", "omega",
@@ -266,7 +283,7 @@ def test_general_navmap_reduces_to_the_sedenion_navmap_at_dim_16(j):
     assert cascade.cd_navmap(16, j) == cascade.sedenion_register().navmap(j)
 
 
-@pytest.mark.parametrize("dim", NAV_RUNGS)
+@pytest.mark.parametrize("dim", C_NAV_RUNGS)
 def test_cd_navmap_c_matches_the_pure_oracle(dim):
     """C/Python parity for ``srmech_cd_navmap`` over every direction."""
     if not _native.has_native_cd_navmap():
@@ -278,7 +295,7 @@ def test_cd_navmap_c_matches_the_pure_oracle(dim):
         assert native == pure
 
 
-@pytest.mark.parametrize("dim", NAV_RUNGS)
+@pytest.mark.parametrize("dim", C_NAV_RUNGS)
 def test_cd_navigate_c_matches_the_pure_oracle(dim):
     """C/Python parity for ``srmech_cd_navigate``, including the Class-C sign
     composition on negatively-signed records."""
@@ -297,7 +314,7 @@ def test_cd_navigate_c_matches_the_pure_oracle(dim):
         assert native == (exp_slots, exp_signs)
 
 
-@pytest.mark.parametrize("dim", RUNGS)
+@pytest.mark.parametrize("dim", C_RUNGS)
 def test_cd_navmap_is_signed_permutation_c_matches_the_pure_oracle(dim):
     """C/Python parity on the invariant bool."""
     if not _native.has_native_cd_navmap_is_signed_permutation():

@@ -707,7 +707,7 @@ WORKED = [
     ],
      "WHAT — the GENERAL N-slot Cayley–Dickson addressable RBS-HDC "
      "register: ``dim`` named slots e0..e{dim−1} for any power of two in "
-     "[1, 64], with e0..e7 the octonion reversible working block at EVERY "
+     "[1, 256], with e0..e7 the octonion reversible working block at EVERY "
      "rung and the remainder the carry/EC block. More slots buy ADDRESS "
      "SPACE, never a longer reversible word — the Hurwitz cap stays 7. "
      "WHEN — reach for it when a named-slot store must respect an algebra: "

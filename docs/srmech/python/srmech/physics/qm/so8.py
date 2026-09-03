@@ -486,7 +486,16 @@ def _derivation(a: List[float], b: List[float]) -> List[List[float]]:
     ``D_{a,b} = [L_a, L_b] + [R_a, R_b] + [L_a, R_b]`` (Schafer 1966). Each
     ``D_{a,b}`` is antisymmetric and obeys the Leibniz rule
     ``D(xy) = D(x) y + x D(y)``, so it lies in ``g2 = Der(O) subset so(8)``.
-    Internal helper (reused by :mod:`srmech.physics.qm.triality`).
+    Internal helper — consumed ONLY by :func:`_all_derivations` immediately
+    below, which is the sole caller in the tree. rc464 corrected a claim
+    this docstring carried from rc123: it said the helper was "reused by
+    :mod:`srmech.physics.qm.triality`", and that module imports SEVEN names
+    from here — ``_DIM``, ``_DIM_G2``, ``_DIM_SO8``, ``_epq_basis``,
+    ``_epq_coords``, ``_epq_pairs``, ``epq_frame_address`` — all E_pq frame
+    helpers, and calls no ``so8.<fn>(`` at all. Nothing outside this module
+    references ``_derivation`` (the two ``so9`` hits are the dict key
+    ``block_mixer_is_derivation``, a different object). The Fix(tau) = g2
+    statements elsewhere in this module are theorems and are untouched.
 
     rc123 (numpy-free): ``octonion_{left,right}_mult`` return a :class:`Mat`;
     consume their rows directly via ``.tolist()`` (no numpy bridge).

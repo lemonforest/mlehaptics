@@ -14401,7 +14401,7 @@ def _register_primitive_class_tools() -> None:
             summary="Construct a CDRegister — the GENERAL N-slot Cayley–Dickson "
                     "ADDRESSABLE RBS-HDC register (`#934`). The dim-16 "
                     "sedenion_register generalised to any power-of-two dim in "
-                    "[1, 64]: dim named slots e0..e{dim-1}, with e0..e7 the octonion "
+                    "[1, 256]: dim named slots e0..e{dim-1}, with e0..e7 the octonion "
                     "reversible working block at EVERY rung and the remainder the "
                     "carry/EC block (more slots buy ADDRESS SPACE, never a longer "
                     "reversible word — the Hurwitz cap stays 7). The slot bound is the "
@@ -14420,7 +14420,7 @@ def _register_primitive_class_tools() -> None:
                     "numpy-free; no abs() (sign is Class-K pin-slot ∘ Class-C)."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("dim", "int", True, "slot count — a Cayley–Dickson algebra dimension; a power of two in [1, 64] (8 𝕆 / 16 𝕊 / 32 𝕋 / 64)"),
+                P("dim", "int", True, "slot count — a Cayley–Dickson algebra dimension; a power of two in [1, 256] (8 𝕆 / 16 𝕊 / 32 𝕋 / 64 / 128 / 256)"),
                 P("D", "int", False, "hypervector width in bits (default 8192; the RBS-HDC dimension)"),
                 P("codebook", "dict", False, "optional preset {name: bytes} value-vectors for read cleanup"),
                 P("namespace", "Optional[str]", False, "address-mint namespace (default 'CD{dim}'); 'SEDENION' at dim=16 reproduces the shipped register bit-exactly"),
@@ -14450,7 +14450,7 @@ def _register_primitive_class_tools() -> None:
                     "the JPL-clean C peer srmech_cd_navmap returns the identical map."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("dim", "int", True, "algebra dimension — a power of two in [1, 64]"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
                 P("j", "int", True, "navigation basis direction in [0, dim)"),
             ),
             returns=R("dict", "{i: (dest, sign)} over all dim slots; sign in {+1,-1}"),
@@ -14467,7 +14467,7 @@ def _register_primitive_class_tools() -> None:
                     "identical routing. No abs() — the sign is composed, never dropped."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("dim", "int", True, "algebra dimension — a power of two in [1, 64]"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
                 P("j", "int", True, "navigation basis direction in [0, dim)"),
                 P("slots", "Sequence[int]", True, "occupied slot indices, each in [0, dim)"),
                 P("signs", "Sequence[int]", True, "the Class-C sign of each record, each in {+1,-1}"),
@@ -14494,7 +14494,7 @@ def _register_primitive_class_tools() -> None:
                     "layer before trusting it."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("dim", "int", True, "algebra dimension — a power of two in [1, 64]"),
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
             ),
             returns=R("bool", "True iff the premise holds at this rung"),
         ),
