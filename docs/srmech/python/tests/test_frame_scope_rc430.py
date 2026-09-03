@@ -359,7 +359,38 @@ CEIL_FRAME_UNADJUDICATED = {
     # to refuse. The other eight of the eighteen ARE driven to a real verdict
     # (five NOT_ADMISSIBLE, one drained to NOT_ADMISSIBLE from NO_ARG), which is
     # what shows the ten are a property of their operands and not of the rc.
-    "NO_INT_INPUT": 182,    # nothing translatable along a frame axis
+    # rc464 (`#T1188`): 182 -> 184, and the SPLIT across the fourteen new ops is
+    # the whole justification. Fourteen cdr_* [class]-binding adapters were
+    # registered; TWELVE are driven to a real verdict (all NOT_ADMISSIBLE) and
+    # exactly TWO land here — so this is a property of two operands, not of the
+    # rc, and it is stated with the arithmetic that shows it.
+    #
+    # MEASURED per op, and by the strongest available predicate — not "the
+    # probe could not reach it" but "the op HAS NO INTEGER PARAMETER AT ALL",
+    # which is readable off the signature without running anything:
+    #   cdr_slots(slots)           — one parameter, a {slot: (key, sign)} map.
+    #   cdr_clean(noisy, codebook) — two parameters, a bytes vector and a
+    #                                {name: bytes} codebook.
+    # The integers INSIDE those maps are slot INDICES and Class-C signs, i.e.
+    # payload naming positions and orientations in a stored assignment, not a
+    # coordinate the op reads along any modulus or frame. Varying one does not
+    # translate the answer; it names a different slot or flips a stored sign.
+    # This is exactly the `render_template` structural class the rc456 / rc457 /
+    # rc461 raises recorded — the operand is a container whose ints are content.
+    #
+    # WHY THIS IS A RAISE AND NOT A DRAIN, stated because the gate's own advice
+    # is to drain first and that advice WAS followed here for four sibling ops.
+    # rc464's first harvest put cdr_element / cdr_materialize / cdr_navigate /
+    # cdr_read_unbind in BASE_RAISES (56 -> 60), because each op's leading
+    # worked call passed a minted bytes codebook that JSON cannot carry, so the
+    # probe rebuilt a call with the argument missing. Those four WERE drained,
+    # by reordering each row so its first RETURNING call is JSON-carryable —
+    # including cdr_materialize, whose non-empty register is spelled in the
+    # STR-keyed / LIST-paired WIRE form for exactly this reason. BASE_RAISES is
+    # back at 56 and all four measure NOT_ADMISSIBLE. The same move is not
+    # available to these two: no ordering of any example can give an op an
+    # integer parameter it does not have.
+    "NO_INT_INPUT": 184,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
     # rc461 part 3 (`#T1183`): 15 -> 17, and the split across the five new ops
     # is the point rather than the total. FIVE ops were registered; only TWO

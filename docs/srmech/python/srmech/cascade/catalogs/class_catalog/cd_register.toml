@@ -1,0 +1,193 @@
+# The CDRegister — the GENERAL N-slot Cayley–Dickson addressable RBS-HDC
+# register (srmech.cascade.cd_register, rc297 `#934` / rc301 `#T938` / rc330
+# `#948`) declared DECLARATIVELY as a config-driven [class] over the shipped
+# cascade. rc464 (`#T1188`).
+#
+# WHY THIS EXISTS NOW, AND WHY IT DID NOT AT rc297. The rc297 CHANGELOG records
+# "Hand-coded Python + C, NOT a make_class TOML — decided, not defaulted", on
+# two stated grounds, and rc298 restated it. BOTH have since been measured
+# false or dissolved:
+#
+#   (1) "the make_class contract is HARD at 5 fields / one-op-per-method plus a
+#       single appends/sets field". That sentence was ALREADY false when it was
+#       written. rc137 shipped dict fields + `mutates`; rc139 shipped `chain` +
+#       returns="self"; rc140 had ALREADY converted the 16-slot register using
+#       exactly those extensions. CDRegister's seven fields need ZERO further
+#       contract extension — verified against srmech/dsl/_class_catalog.py
+#       :169-177 (scalar fields default to None), :266-276 (binds), :296-342
+#       (chain), :344-367 (returns="self"), :369-409 (mutates).
+#   (2) "routing both registers through the same machinery would make the
+#       dim-16 faithfulness comparison partly circular, because oracle and
+#       subject would share failure modes." That is a real objection while the
+#       oracle is a LIVE SedenionRegister, and it dissolves the moment the
+#       oracle becomes a RECORDED fixture: recorded output cannot acquire the
+#       subject's failure modes, because it is not running.
+#
+#       STATED PRECISELY FOR rc464: that fixture is NOT recorded yet. Both
+#       classes are live here, so the residual circularity the objection names
+#       is real in this rc -- narrower than rc297 supposed, because the
+#       equivalence proof (tests/test_cd_register_class_catalog_rc464.py)
+#       compares the TOML projection against the hand-coded PYTHON CDRegister
+#       and never against SedenionRegister at all, so the engine the two
+#       registers now share is not on that comparison's path. What is still
+#       shared is the rc297 dim-16 faithfulness sweep, and that is exactly the
+#       oracle the fixture replaces.
+#
+# DECLARATIVE STATE = seven fields. dim (the rung) / D (the HV width) /
+# namespace (the address-mint namespace) / codebook (key -> minted vec) / slots
+# (slot -> (key, sign)) / coupling + error_correction (the two OPT-layer gates).
+# The private _minter / _addr_cache caches are DROPPED exactly as the 16-slot
+# descriptor drops them — minting is deterministic from (name, D), so the
+# declarative form recomputes; the cache was a perf-only memo.
+#
+# SCALAR DEFAULTS. The [class] contract has no scalar field default (a
+# non-list*/dict* type string yields None), so a class constructed with dim=
+# alone arrives at the adapters with D / namespace / both flags = None. The
+# adapters resolve them at USE time to DEFAULT_D / f"CD{dim}" / False — the SAME
+# rule CDRegister.__init__ applies, spelled once in _cdr_defaults so the two
+# projections cannot drift. Passing D= explicitly is still preferred, and is
+# what the 16-slot descriptor's own example does.
+#
+# THE OPT LAYERS ARE GATED HERE TOO. couple_working / uncouple_working / carry /
+# correct bind `coupling` / `error_correction` from the fields and raise the
+# register's own ValueError on a bare register. Binding them straight to the
+# ungated free ops cd_couple_working / cd_carry / ... would have been shorter
+# and WRONG: the declarative class would silently not raise where the Python
+# class does, which is a behaviour fork wearing the name "conversion".
+#
+# is_navigable ABOVE dim 64. In-process the exact-rational nullspace route
+# dispatches to C (srmech_qmat_nullspace) the whole way down, so the answer is
+# C-computed at every rung. The bare-C make_class ENGINE is the surface with the
+# bound: its dense kernel srmech_sedenion_is_navigable declines above
+# SRMECH_CD_DENSE_MAX_DIM = 64 (the library's one quadratic buffer), so an
+# engine call at 128 / 256 DEFERS to pure rather than answering. That is a
+# declared defer, not a wrong answer.
+#
+#   from srmech.dsl import make_class
+#   R = make_class("CDRegister")(dim=16, D=8192, namespace="SEDENION",
+#                                coupling=True, error_correction=True)
+#   R.write(slot=0, key="alpha")            # mutates slots + codebook in place
+#   R.write(slot=3, key="beta", sign=-1)
+#   R.read(slot=0)          # ("alpha", 1) -- the 2-stage unbind -> clean CHAIN
+#   R.materialize()         # the associative-superposition bytes
+#   R2 = R.navigate(j=1)    # returns="self": a NEW register (R untouched)
+#   R.norm()                # the exact-Q squared norm of the slot-held element
+#   R.multiply(other=R2)    # the exact-Q Cayley-Dickson product
+
+[class]
+name = "CDRegister"
+kind = "storage"
+doc = "The GENERAL N-slot Cayley–Dickson addressable RBS-HDC register — `dim` named slots e0..e{dim-1} for any power of two in [1, 256], with e0..e7 the octonion reversible working block at EVERY rung and the remainder the carry/EC block. More slots buy ADDRESS SPACE, never a longer reversible word: the Hurwitz cap stays 7. The CORE addressing layer (write / read / slots / navmap / navigate / is_navigable) and the CORE carrier-arithmetic layer (element / norm / conjugate / multiply / add, exact-Q, delegated to the C-backed cayley_dickson ops) are always on; coupling=True and error_correction=True open the two OPT layers, and a bare register RAISES on them. Construct with dim= (D / namespace / the two flags default to 8192 / f\"CD{dim}\" / False). At dim=16 with namespace=\"SEDENION\", coupling=True and error_correction=True this reproduces the shipped 16-slot register byte-for-byte at every D — the faithfulness gate, and the reason the namespace parameter exists at all. As of rc464 that gate is still attested against the LIVE SedenionRegister (tests/test_cd_register_rc297.py); replacing that oracle with a recorded fixture is what makes the two-registers-one-engine circularity objection moot, and it is the change that lets the 16-slot class be removed. Legitimate past the Hurwitz wall because addressing rides on the basis product being a SIGNED PERMUTATION, which zero divisors — built from SUMS of basis elements — do not touch. Prefer this declarative [class] TOML over hand-coding the domain class; the methods bind to the flat cascade-op adapters in srmech.cascade.cd_register."
+
+[class.field]
+dim = "int"
+D = "int"
+namespace = "str"
+codebook = "dict"
+slots = "dict"
+coupling = "bool"
+error_correction = "bool"
+
+[class.method.write]
+op = "srmech.cascade.cd_register.cdr_write"
+binds = ["slot", "key", "dim", "D", "namespace", "codebook", "slots"]
+mutates = ["slots", "codebook"]
+doc = "Store content name `key` at slot e{slot} with a Class-C `sign` (in {+1,-1}); minting the value vec grows the codebook, the slot-map records the assignment. Mutates `slots` + `codebook` in place."
+
+[class.method.materialize]
+op = "srmech.cascade.cd_register.cdr_materialize"
+binds = ["dim", "D", "namespace", "codebook", "slots"]
+doc = "The associative superposition bytes — bundle_k bind(ADDR[k], value_k) (Class-M; raises if the register is empty). Capacity is D-bounded and MORE SLOTS NEED MORE D: a shortfall at a D adequate for a lower rung is a capacity fact, not an algebra fact."
+
+[class.method.read]
+chain = [
+  { op = "srmech.cascade.cd_register.cdr_read_unbind", binds = ["slot", "dim", "D", "namespace", "codebook", "slots"], as = "noisy" },
+  { op = "srmech.cascade.cd_register.cdr_clean", binds = ["noisy", "codebook"] },
+]
+doc = "Recover (key, sign) at slot e{slot} — a VISIBLE 2-stage cascade: stage 1 unbinds the slot's address from the bundle into the noisy vector; stage 2 nearest-codebook cleans it (Class-K magnitude by explicit sign-branch, never abs(); the winning polarity rides separately as the Class-C sign). ((None, +1) if the register is empty.)"
+
+[class.method.slots]
+op = "srmech.cascade.cd_register.cdr_slots"
+binds = ["slots"]
+doc = "A copy of the current slot -> (key, sign) assignment, with the STR-keyed wire form normalised back to int keys."
+
+[class.method.working_block]
+op = "srmech.cascade.cd_register.cdr_working_block"
+binds = ["dim"]
+doc = "e0..e7 — the octonion reversible working block, truncated when dim < 8. The Hurwitz cap is 7 imaginary slots at EVERY rung."
+
+[class.method.carry_block]
+op = "srmech.cascade.cd_register.cdr_carry_block"
+binds = ["dim"]
+doc = "e8..e{dim-1} — everything past the reversibility horizon, the block the Hamming GF(2) EC half rides over."
+
+[class.method.couple_working]
+op = "srmech.cascade.cd_register.cdr_couple_working"
+binds = ["vals", "dim", "coupling"]
+doc = "OPT layer 1 (requires coupling=True): bind <= min(dim, 8) - 1 values into one reversible working word — the canonical Class-M bind. Reads the dim-scaled cap, never a hardcoded 7. RAISES on a register constructed for pure addressing."
+
+[class.method.uncouple_working]
+op = "srmech.cascade.cd_register.cdr_uncouple_working"
+binds = ["word", "dim", "coupling"]
+doc = "OPT layer 1 (requires coupling=True): the exact inverse of couple_working — recover the streams bit-exactly (Class-M unbind)."
+
+[class.method.carry]
+op = "srmech.cascade.cd_register.cdr_carry"
+binds = ["overflow_bits", "dim", "error_correction"]
+doc = "OPT layer 2 (requires error_correction=True): Hamming(2^n - 1)-encode overflow bits into the EC block. `n` is an axis INDEPENDENT of dim and rides as a pass-through call kwarg (default 3), not a bind — a bind would make it mandatory."
+
+[class.method.correct]
+op = "srmech.cascade.cd_register.cdr_correct"
+binds = ["codeword", "dim", "error_correction"]
+doc = "OPT layer 2 (requires error_correction=True): locate + correct a single-bit error in an EC-block codeword and recover the carried payload."
+
+[class.method.element]
+op = "srmech.cascade.cd_register.cdr_element"
+binds = ["slots", "dim"]
+doc = "The slot-held Cayley–Dickson element as a length-dim exact-Q tuple: v[i] = Q(sign_i) at occupied slots, Q(0) elsewhere. The register's KEY strings are orthogonal to it — only (index, sign) enters the carrier."
+
+[class.method.norm]
+chain = [
+  { op = "srmech.cascade.cd_register.cdr_element", binds = ["slots", "dim"], as = "x" },
+  { op = "srmech.cascade.cayley_dickson.cd_norm_sq", binds = ["x"] },
+]
+doc = "The squared norm N(x) = sum x_i^2 of the slot-held element, as an exact-Q scalar. Since every occupied coefficient is +-1 this equals the number of occupied slots. SCOPE: the register addresses the DEFINITE Cayley–Dickson ladder — its navmap is cd_basis_product's cocycle with no gamma parameter — so sum x_i^2 IS Re(x*conj(x)) here; it is not the norm of a split twist."
+
+[class.method.conjugate]
+chain = [
+  { op = "srmech.cascade.cd_register.cdr_element", binds = ["slots", "dim"], as = "x" },
+  { op = "srmech.cascade.cayley_dickson.cd_conjugate", binds = ["x"] },
+]
+doc = "The Cayley–Dickson conjugate of the slot-held element as an exact-Q tuple (negate the imaginary part; Class-K sign-flip, no abs())."
+
+[class.method.multiply]
+chain = [
+  { op = "srmech.cascade.cd_register.cdr_element", binds = ["slots", "dim"], as = "x" },
+  { op = "srmech.cascade.cd_register.cdr_element_of", binds = ["other", "dim"], verb = "multiply", as = "y" },
+  { op = "srmech.cascade.cayley_dickson.cd_mult", binds = ["x", "y"] },
+]
+doc = "The Cayley–Dickson product x*y of this register's slot-held element with `other`'s, as a raw exact-Q tuple (Class-M bind after Class-C after Class-K; no abs()). `other` is another CDRegister of the same dim (symmetric operands). Returns a Q-tuple, NOT a register: the product of two signed-basis sums is GENERALLY NOT signed-basis, so it cannot round-trip into a coefficient-free slot register. Past the Hurwitz wall this is still a well-defined product — at dim 16 a zero-divisor pair, both nonzero, multiplies to the all-zero element."
+
+[class.method.add]
+chain = [
+  { op = "srmech.cascade.cd_register.cdr_element", binds = ["slots", "dim"], as = "x" },
+  { op = "srmech.cascade.cd_register.cdr_element_of", binds = ["other", "dim"], verb = "add", as = "y" },
+  { op = "srmech.cascade.cayley_dickson.cd_add", binds = ["x", "y"] },
+]
+doc = "The component-wise sum x + y of this register's slot-held element with `other`'s, as an exact-Q tuple. Returned as a Q-tuple because co-occupied slots sum to +-2 / 0, off the signed-basis set a register can round-trip."
+
+[class.method.navmap]
+op = "srmech.cascade.cd_navmap"
+binds = ["dim", "j"]
+doc = "The signed pointer-advance permutation for right-multiply-by-e_j — maps slot i -> (k, sign) where e_i*e_j = sign*e_k (the cd_basis_product cocycle). ALWAYS a signed permutation, at every rung including past the Hurwitz wall; that is the property addressing rides on. Bound DIRECTLY to the shipped general-rung op — it already takes (dim, j) and needs no class-shaped adapter."
+
+[class.method.navigate]
+op = "srmech.cascade.cd_register.cdr_navigate"
+binds = ["j", "dim", "D", "namespace", "codebook", "slots", "coupling", "error_correction"]
+returns = "self"
+doc = "Walk the hyper-loop — right-multiply every slot name by e_j (the address <-> Cayley–Dickson homomorphism) into a NEW register with the routed assignment, carrying the same dim / D / namespace / codebook / both OPT flags. `self` is untouched; the codebook is COPIED, not aliased. navigate(j).navigate(j) is the global -1 (e_j^2 = -1), recoverable as a Class-C sign — an involution that needs no norm and is therefore rung-independent. All seven fields are emitted because returns=\"self\" builds a FRESH instance and an omitted field would reset to the contract default."
+
+[class.method.is_navigable]
+op = "srmech.cascade.cayley_dickson.left_mult_is_invertible"
+binds = ["direction"]
+doc = "True iff navigation along `direction` is reversible (left-multiplication by it is invertible). A single basis e_j — a length-dim one-hot — is always navigable at EVERY rung; a COMPOSITE direction is navigable only <= O, since a zero-divisor direction is not. Bound DIRECTLY to the shipped predicate: the register adds nothing to it. In-process the exact-rational nullspace route dispatches to srmech_qmat_nullspace at every rung; the bare-C make_class ENGINE declines above SRMECH_CD_DENSE_MAX_DIM = 64 and DEFERS to pure there."

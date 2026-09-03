@@ -11,10 +11,36 @@ a FIELD instead of an admission criterion, so the next hand-coded domain class
 cannot go missing for the same reason. These tests pin that property, not the
 current membership.
 
-NOT converting CDRegister to TOML is deliberate and rc297's reasoning stands:
-routing both registers through the same machinery would make the dim-16
-faithfulness comparison partly circular, because oracle and subject would share
-failure modes.
+rc464 (`#T1188`) — THAT DEFERRAL IS RETRACTED, and the paragraph it replaces is
+kept here in full so the reversal is legible rather than silent. It read:
+
+    NOT converting CDRegister to TOML is deliberate and rc297's reasoning
+    stands: routing both registers through the same machinery would make the
+    dim-16 faithfulness comparison partly circular, because oracle and subject
+    would share failure modes.
+
+Two things were wrong with it, in opposite ways.
+
+FIRST, the OTHER half of rc297's stated reasoning — "the make_class contract is
+one-op-per-method plus a single appends/sets field, so a multi-field register is
+HARD" — was already false when it was written. rc137 shipped dict fields +
+``mutates``; rc139 shipped ``chain`` + ``returns="self"``; rc140 had ALREADY
+converted the 16-slot register using exactly those. CDRegister's seven fields
+need ZERO contract extension.
+
+SECOND, the circularity objection was REAL, and it is the reason the conversion
+waited rather than the reason it should never happen. It holds only while the
+faithfulness oracle is a LIVE peer class: two live classes sharing one dispatch
+engine share its failure modes. It dissolves the moment the oracle becomes a
+RECORDED fixture, because recorded output cannot acquire the subject's failure
+modes — it is not running. So the conversion is unblocked by the same change
+that records the fixture, and this docstring says so where the deferral was
+recorded.
+
+The consequence for THIS file: ``CDRegister`` was the only ``"python"``-routed
+domain class, so the route flips to ``"toml"`` and the "both routes are
+populated" assertion below can no longer hold. It is REWRITTEN, not lowered —
+see :func:`test_declaration_route_is_a_field_not_an_admission_criterion`.
 """
 
 from __future__ import annotations
@@ -42,7 +68,11 @@ def test_cdregister_is_reported_as_a_class():
     assert "CDRegister" in d["names"], (
         f"CDRegister is a shipped public class, a registered carrier and has C "
         f"peers, but describe() lists {d['names']}")
-    assert d["routes"]["CDRegister"] == "python"
+    # rc464: "toml" since the conversion. The ROUTE is not the point of this
+    # test — the MEMBERSHIP is (`#936`'s literal symptom was CDRegister being
+    # absent from d["names"]). The route is pinned anyway so a silent flip in
+    # either direction is reported.
+    assert d["routes"]["CDRegister"] == "toml"
 
 
 def test_declaration_route_is_a_field_not_an_admission_criterion():
@@ -52,9 +82,32 @@ def test_declaration_route_is_a_field_not_an_admission_criterion():
     d = describe()["classes"]
     assert set(d["routes"]) == set(d["names"])
     assert set(d["routes"].values()) <= {"toml", "python"}
-    # Both routes are actually populated — otherwise this test proves nothing.
     assert "toml" in d["routes"].values()
-    assert "python" in d["routes"].values()
+
+    # rc464 (`#T1188`) — this used to also assert `"python" in
+    # d["routes"].values()`, with the comment "otherwise this test proves
+    # nothing". That was a fair worry and the wrong instrument. CDRegister was
+    # the ONLY python-routed domain class (One / Genome / Hurwitz /
+    # SedenionRegister are all TOML; Block is a NON_DOMAIN_RECORD), so its
+    # conversion empties the python route and the assertion fails BY
+    # CONSTRUCTION — no honest change to the package can satisfy it.
+    #
+    # It is replaced rather than deleted, because the property it was reaching
+    # for is real and is still checkable: the route must be a FIELD that the
+    # enumeration carries for every class, not an admission criterion that
+    # decides who appears. So assert exactly that — every name routed, every
+    # route in the vocabulary, and the toml-routed SET equal to the TOML catalog
+    # — plus the python route's emptiness AS A MEASURED FACT with its reason, so
+    # that a future hand-coded domain class re-populating it is reported here
+    # rather than passing unremarked.
+    python_routed = sorted(n for n, r in d["routes"].items() if r == "python")
+    assert python_routed == [], (
+        f"the python route is expected to be EMPTY at rc464 — the last "
+        f"hand-coded domain class (CDRegister) converted to a [class] TOML — "
+        f"but it holds {python_routed}. If that is a NEW hand-coded domain "
+        f"class, this assertion has done its job: it is reported the day it "
+        f"ships, exactly as `#936` intended. Record it here with its reason "
+        f"rather than deleting the check.")
 
 
 def test_toml_only_count_is_its_own_key_not_a_narrowed_classes():
@@ -105,12 +158,12 @@ def test_non_domain_records_are_real_exports_with_reasons():
 
 
 def test_toml_declaration_wins_the_route_for_dual_declared_classes():
-    """``One`` and ``SedenionRegister`` are BOTH TOML-declared and real Python
-    classes. The TOML descriptor is the declaration, so it must win — otherwise
-    ``toml_total`` would undercount and ``describe_class`` coverage would look
-    broken."""
+    """``One``, ``SedenionRegister`` and (since rc464) ``CDRegister`` are BOTH
+    TOML-declared and real Python classes. The TOML descriptor is the
+    declaration, so it must win — otherwise ``toml_total`` would undercount and
+    ``describe_class`` coverage would look broken."""
     routes = list_domain_classes()
-    for name in ("One", "SedenionRegister"):
+    for name in ("One", "SedenionRegister", "CDRegister"):
         assert isinstance(getattr(cascade, name, None), type)
         assert routes[name] == "toml"
 

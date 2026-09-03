@@ -274,7 +274,7 @@ def test_describe_total_is_pinned():
     # 16 such tests were found tree-wide, one named for 367 asserting 663.
     # See test_pinned_names_carry_no_value_rc447.py.
     import srmech
-    assert srmech.describe()["tools"]["total"] == 720
+    assert srmech.describe()["tools"]["total"] == 734
 
 
 def test_registered_in_tool_schema():

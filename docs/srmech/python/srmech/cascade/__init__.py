@@ -334,6 +334,24 @@ from .cd_register import (
     cd_carry,
     cd_correct,
     WORKING_BLOCK_DIM,
+    # rc464 (`#T1188`) -- the flat class-shaped adapters the packaged
+    # cd_register.toml [class] binds its methods to. Re-exported flat
+    # so the registered names are srmech.cascade.cdr_*, matching how
+    # every other cascade op is discovered.
+    cdr_write,
+    cdr_materialize,
+    cdr_read_unbind,
+    cdr_clean,
+    cdr_slots,
+    cdr_working_block,
+    cdr_carry_block,
+    cdr_couple_working,
+    cdr_uncouple_working,
+    cdr_carry,
+    cdr_correct,
+    cdr_element,
+    cdr_element_of,
+    cdr_navigate,
 )
 
 # ── Class-L DSL re-export: schur_complement / Dirichlet-to-Neumann ─────
@@ -572,6 +590,21 @@ __all__ = [
     "cd_carry",
     "cd_correct",
     "WORKING_BLOCK_DIM",
+    # the [class] CDRegister binding surface (v0.9.0rc464; `#T1188`)
+    "cdr_write",
+    "cdr_materialize",
+    "cdr_read_unbind",
+    "cdr_clean",
+    "cdr_slots",
+    "cdr_working_block",
+    "cdr_carry_block",
+    "cdr_couple_working",
+    "cdr_uncouple_working",
+    "cdr_carry",
+    "cdr_correct",
+    "cdr_element",
+    "cdr_element_of",
+    "cdr_navigate",
     # back-compat aliases
     "class_k_pin_slot_at_zero",
     "class_c_reorient",

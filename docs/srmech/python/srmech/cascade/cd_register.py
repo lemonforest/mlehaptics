@@ -747,6 +747,282 @@ def cd_register(dim: int, D: int = DEFAULT_D,
                       coupling=coupling, error_correction=error_correction)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Flat cascade-op adapters — the make_class two-layer binding surface for
+# ``cd_register.toml`` (the ``[class] CDRegister``; rc464, `#T1188` /
+# [[feedback_prefer_config_driven_toml_classes]]).
+#
+# WHY THESE EXIST AND WHY THE PREFIX IS ``cdr_``. The module already exports
+# eight FREE FUNCTIONS spelled ``cd_*`` (``cd_navmap`` / ``cd_navigate`` /
+# ``cd_navmap_is_signed_permutation`` / the four OPT-layer ops / the
+# ``cd_register`` constructor). Those are the general-rung cascade ops; they are
+# NOT class-shaped — none of them takes or returns the declarative field-state
+# a ``[class]`` method binds. The adapters below ARE class-shaped: each
+# rehydrates a transient :class:`CDRegister` from the declarative fields and
+# calls the existing method, so the TOML class is byte-identical to the Python
+# class with no logic duplication (the genome / SedenionRegister two-layer
+# pattern). A single ``cd_`` prefix would make the C vtable's ``strncmp`` branch
+# match both families, which is why the two carry different prefixes rather
+# than the same one at different arities.
+#
+# DECLARATIVE STATE = the seven fields ``dim`` / ``D`` / ``namespace`` /
+# ``codebook`` / ``slots`` / ``coupling`` / ``error_correction``. The private
+# ``_minter`` / ``_addr_cache`` caches are DROPPED exactly as the 16-slot
+# descriptor drops them: minting is deterministic from ``(name, D)``, so the
+# declarative form recomputes and the cache was a perf-only memo.
+#
+# DEFAULTS ARE APPLIED AT USE TIME, NOT AT DECLARATION. The ``[class]`` contract
+# has no scalar field default — ``_field_default`` yields ``None`` for any type
+# string that is not ``list*`` / ``dict*`` — so a class constructed with
+# ``dim=`` alone arrives here with ``D=None``, ``namespace=None`` and both flags
+# ``None``. :func:`_cdr_defaults` resolves them to ``DEFAULT_D`` / ``f"CD{dim}"``
+# / ``False`` — the SAME rule the Python constructor applies, spelled once here
+# so the two projections cannot drift. The FIELD itself passes through
+# unchanged; only the USE is defaulted, so a round-tripped instance still
+# reports the state it was constructed with.
+#
+# GATING IS PRESERVED, WHICH IS WHY THE FLAGS ARE BOUND. ``couple_working`` /
+# ``uncouple_working`` / ``carry`` / ``correct`` are the two OPT layers, and the
+# Python class RAISES on a bare register. The four existing free ops
+# (``cd_couple_working`` etc.) are UNGATED pure functions by design, so binding
+# the TOML methods straight to them would make the declarative class silently
+# not raise where the Python class does — a behaviour fork wearing the name
+# "conversion". The adapters below therefore bind ``coupling`` /
+# ``error_correction`` from the fields and let the class's own ``_require_*``
+# gate fire.
+#
+# THEY ARE REGISTERED, not allowlisted. Their 16-slot predecessors (``sed_*``)
+# sit in the registry-completeness allowlist as OPEN_REGISTRATION rows on the
+# stated ground that they are "reachable ONLY via the make_class class surface";
+# copying that here was arithmetically unavailable (``CEIL_OPEN_REGISTRATION``
+# is down-only and equality-asserted), and hiding them from ``__all__`` instead
+# is the blind spot rc407 recorded — a shipped descriptor naming ops no census
+# can see.
+#
+# The inherited "not wire-reachable" claim was also MEASURED rather than
+# repeated, and it does not hold for this family: all fourteen answer through
+# ``invoke_tool`` when the state is passed in its WIRE form — a slot map crosses
+# JSON and the ``srmech_mval_t`` DICT as STR keys with LIST pairs, which is
+# exactly what :func:`_cdr_rehydrate` normalises, and a codebook can cross EMPTY
+# because the register mints value vectors on demand. So an empty codebook with
+# an occupied slot map is a fully wire-expressible NON-EMPTY register.
+# ``tests/test_wire_invocability_rc464.py`` drives every one of them that way
+# and compares each answer against the same call made directly.
+# ──────────────────────────────────────────────────────────────────────
+
+def _cdr_defaults(dim, D, namespace, coupling, error_correction):
+    """Resolve the declarative field values to constructor arguments — the ONE
+    place the scalar defaults live for the TOML projection.
+
+    ``dim`` is required (there is no sensible default rung). ``D`` →
+    ``DEFAULT_D``, ``namespace`` → ``f"CD{dim}"``, and both OPT flags →
+    ``False``, mirroring :meth:`CDRegister.__init__` exactly."""
+    d = _check_dim(int(dim))
+    return (
+        d,
+        DEFAULT_D if D is None else int(D),
+        f"CD{d}" if namespace is None else str(namespace),
+        bool(coupling),
+        bool(error_correction),
+    )
+
+
+def _cdr_rehydrate(dim, D=None, namespace=None, codebook=None, slots=None,
+                   coupling=None, error_correction=None) -> "CDRegister":
+    """Build a transient :class:`CDRegister` from the declarative fields.
+
+    Slot int-keys ride the ``srmech_mval_t`` DICT as STR ``"0".."255"`` one
+    layer up (and a TOML table's keys are strings by construction), so
+    ``int(k)`` normalises them here before anything numeric sees them."""
+    d, dd, ns, cp, ec = _cdr_defaults(dim, D, namespace, coupling,
+                                      error_correction)
+    r = CDRegister(dim=d, D=dd, codebook=dict(codebook or {}), namespace=ns,
+                   coupling=cp, error_correction=ec)
+    r._slots = {int(k): (str(v[0]), int(v[1]))
+                for k, v in dict(slots or {}).items()}
+    return r
+
+
+def cdr_write(slot, key, dim, D, namespace, codebook, slots, *, sign: int = 1):
+    """``write`` (mutates): store content name ``key`` at slot ``e{slot}`` with a
+    Class-C ``sign``. Returns ``(None, {"slots": ..., "codebook": ...})`` —
+    minting the value vec grows the codebook, the slot-map records the
+    assignment."""
+    r = _cdr_rehydrate(dim, D, namespace, codebook, slots)
+    r.write(slot, key, sign=sign)
+    return (None, {"slots": dict(r._slots), "codebook": dict(r.codebook)})
+
+
+def cdr_materialize(dim, D, namespace, codebook, slots):
+    """``materialize``: the associative superposition bytes — ``bundle_k
+    bind(ADDR[k], value_k)`` (Class-M; raises if the register is empty)."""
+    return _cdr_rehydrate(dim, D, namespace, codebook, slots).materialize()
+
+
+def cdr_read_unbind(slot, dim, D, namespace, codebook, slots):
+    """``read`` CHAIN stage 1: unbind slot ``e{slot}``'s address from the bundle
+    → the noisy vector (``None`` if the register is empty — the read
+    short-circuit, which stage 2 turns into ``(None, +1)``)."""
+    r = _cdr_rehydrate(dim, D, namespace, codebook, slots)
+    r._check_slot(slot)
+    if not r.codebook or not r._slots:
+        return None
+    bind, _, _ = _lazy_hdc()
+    return bind(r._addr(slot), r.materialize())
+
+
+def cdr_clean(noisy, codebook):
+    """``read`` CHAIN stage 2: nearest-codebook clean → ``(key, sign)``.
+    ``(None, +1)`` when ``noisy`` is absent (empty register).
+
+    Class-K magnitude via an explicit pin-slot sign-branch, never ``abs()``; the
+    winning polarity rides separately as the Class-C ``sign``. The branch is
+    written INLINE rather than through ``cascade.magnitude`` for the same reason
+    :meth:`CDRegister.read` writes it inline — ``magnitude()`` carries a NaN→0.0
+    dead-band the register's branch does not, and the gate here is bit-identity,
+    not identity-in-practice."""
+    if noisy is None:
+        return (None, 1)
+    _, _, similarity = _lazy_hdc()
+    best_key, best_sign, best_mag = None, 1, -1.0
+    for key, vec in dict(codebook or {}).items():
+        if key == "__pad__":
+            continue
+        s_pos = similarity(noisy, vec)
+        s_neg = similarity(noisy, chiral_flip(vec))
+        mag_pos = s_pos if s_pos >= 0.0 else -s_pos
+        mag_neg = s_neg if s_neg >= 0.0 else -s_neg
+        if mag_pos >= best_mag:
+            best_key, best_sign, best_mag = key, 1, mag_pos
+        if mag_neg > best_mag:
+            best_key, best_sign, best_mag = key, -1, mag_neg
+    return (best_key, best_sign)
+
+
+def cdr_slots(slots):
+    """``slots``: a copy of the ``slot → (key, sign)`` assignment, with the
+    STR-keyed wire form normalised back to int keys. A pure reshape — it does
+    NOT validate the slot domain, because :meth:`CDRegister.slots` does not
+    either, and the contract here is byte-identity with that method rather than
+    with a stricter one."""
+    return {int(k): (str(v[0]), int(v[1]))
+            for k, v in dict(slots or {}).items()}
+
+
+def cdr_working_block(dim):
+    """``working_block``: ``e0..e7`` — the octonion reversible working block,
+    truncated when ``dim < 8``. The Hurwitz cap is 7 imaginary slots at EVERY
+    rung; more slots buy address space, never a longer reversible word."""
+    return _cdr_rehydrate(dim).working_block()
+
+
+def cdr_carry_block(dim):
+    """``carry_block``: ``e8..e{dim-1}`` — everything past the reversibility
+    horizon, the block the Hamming EC half rides over."""
+    return _cdr_rehydrate(dim).carry_block()
+
+
+def cdr_couple_working(vals, dim, coupling):
+    """``couple_working`` (GATED on ``coupling``): bind ``<= min(dim, 8) - 1``
+    values into one reversible working word — the canonical Class-M bind. Raises
+    the register's own ``ValueError`` when the class was constructed for pure
+    addressing (``coupling`` false / absent)."""
+    return _cdr_rehydrate(dim, coupling=coupling).couple_working(vals)
+
+
+def cdr_uncouple_working(word, dim, coupling):
+    """``uncouple_working`` (GATED on ``coupling``): the exact inverse of
+    :func:`cdr_couple_working` — recover the streams (Class-M unbind)."""
+    return _cdr_rehydrate(dim, coupling=coupling).uncouple_working(word)
+
+
+def cdr_carry(overflow_bits, dim, error_correction, *, n: int = 3):
+    """``carry`` (GATED on ``error_correction``): Hamming(2^n - 1)-encode
+    overflow bits into the EC block. ``n`` is an axis INDEPENDENT of ``dim`` and
+    rides as a pass-through call kwarg, not a bind — a bind would make it
+    mandatory."""
+    return _cdr_rehydrate(dim, error_correction=error_correction).carry(
+        overflow_bits, n=n)
+
+
+def cdr_correct(codeword, dim, error_correction):
+    """``correct`` (GATED on ``error_correction``): locate + correct a single-bit
+    error in an EC codeword and recover the payload."""
+    return _cdr_rehydrate(
+        dim, error_correction=error_correction).correct(codeword)
+
+
+def cdr_element(slots, dim):
+    """``element``: the slot-held Cayley–Dickson element as a length-``dim``
+    exact-``Q`` tuple — ``v[i] = Q(sign_i)`` at occupied slots, ``Q(0)``
+    elsewhere. The accessor the carrier chains read; the register's KEY strings
+    are orthogonal to it, only ``(index, sign)`` enters the carrier."""
+    return _cdr_rehydrate(dim, slots=slots).element()
+
+
+def cdr_element_of(other, dim, *, verb: str = "multiply"):
+    """The OTHER operand's slot-held element, for the symmetric carrier chains
+    (``multiply`` / ``add``).
+
+    The ``[class]`` contract resolves a bind from a call kwarg or a field and
+    nothing else — there is no dotted operand-field resolution — so a same-class
+    operand arrives as an opaque kwarg and this adapter is what reads it.
+    Accepts a :class:`CDRegister`, a ``CatalogClass`` declaring the same fields,
+    or a bare ``{"dim": ..., "slots": ...}`` state dict off the wire.
+
+    ``verb`` is a STATIC stage kwarg supplied by the descriptor so the raised
+    messages match :meth:`CDRegister.multiply` / :meth:`CDRegister.add`
+    word-for-word; the dim check lives here, ahead of ``cd_mult`` / ``cd_add``,
+    for the same reason it lives in those methods — an unequal-rung product is
+    not a defined operation, and letting the length mismatch surface out of the
+    algebra would report it as a different fault."""
+    if isinstance(other, CDRegister):
+        other_dim, other_slots = other.dim, other.slots()
+    else:
+        fields = getattr(other, "fields", None)
+        if fields is None and isinstance(other, dict):
+            fields = other
+        if not isinstance(fields, dict) or "dim" not in fields:
+            raise TypeError(
+                f"{verb} expects another CDRegister (symmetric operands); "
+                f"got {type(other).__name__}")
+        other_dim, other_slots = fields["dim"], fields.get("slots")
+    if int(other_dim) != int(dim):
+        raise ValueError(
+            f"dim mismatch: {int(dim)} vs {int(other_dim)} — carrier {verb} is "
+            f"defined only between equal-rung elements")
+    return cdr_element(other_slots, other_dim)
+
+
+def cdr_navigate(j, dim, D, namespace, codebook, slots, coupling,
+                 error_correction):
+    """``navigate`` (returns="self"): walk the hyper-loop — right-multiply every
+    slot name by ``e_j`` (the address <-> Cayley–Dickson homomorphism) → the NEW
+    register's full seven-field state-dict. ``self`` is untouched.
+
+    ALL SEVEN fields are emitted, not just the ones that move.
+    ``_apply_returns`` constructs a FRESH instance from exactly this dict, and
+    any field omitted from it resets to the contract's default — ``None`` for
+    every scalar here — so a navigate that returned only ``{slots}`` would
+    silently drop ``dim`` / ``D`` / ``namespace`` and both OPT flags off the
+    routed register. That is also why this method sits at eight binds against
+    ``MC_MAX_BINDS = 8`` in the C engine: seven fields plus ``j``, exactly at
+    the cap, which the engine test asserts by requiring DISPATCH (an over-cap
+    method silently DEFERS)."""
+    r = _cdr_rehydrate(dim, D, namespace, codebook, slots, coupling,
+                       error_correction)
+    out = r.navigate(j)
+    return {
+        "dim": out.dim,
+        "D": out.D,
+        "namespace": out.namespace,
+        "codebook": dict(out.codebook),
+        "slots": dict(out._slots),
+        "coupling": out._coupling,
+        "error_correction": out._error_correction,
+    }
+
+
 __all__ = [
     "DEFAULT_D",
     "WORKING_WORD_CAP",
@@ -760,4 +1036,19 @@ __all__ = [
     "cd_uncouple_working",
     "cd_carry",
     "cd_correct",
+    # flat cascade-op adapters -- the cd_register.toml [class] binding surface
+    "cdr_write",
+    "cdr_materialize",
+    "cdr_read_unbind",
+    "cdr_clean",
+    "cdr_slots",
+    "cdr_working_block",
+    "cdr_carry_block",
+    "cdr_couple_working",
+    "cdr_uncouple_working",
+    "cdr_carry",
+    "cdr_correct",
+    "cdr_element",
+    "cdr_element_of",
+    "cdr_navigate",
 ]

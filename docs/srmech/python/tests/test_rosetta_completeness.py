@@ -1358,6 +1358,29 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.cascade.one.one_plane_counts",
     "srmech.cascade.sedenion_register.sed_slots",
     "srmech.cascade.sedenion_register.sedenion_register",
+    # The three ACCESSORS among the fourteen cdr_* [class]-binding adapters
+    # (v0.9.0rc464, `#T1188`). The question this pin exists to force was asked of
+    # each, and eleven of the fourteen answered it the other way — they reach the
+    # C mint / bind / bundle / similarity / hamming / cd_navigate kernels and are
+    # classified composition_of_c, so this is a THREE-row justification and not a
+    # family-wide shrug.
+    #   cdr_slots      — a pure reshape: normalise the STR-keyed wire form back to
+    #                    int keys and copy. It deliberately does NOT validate the
+    #                    slot domain, because the method it mirrors does not, so
+    #                    there is not even a bounds test to dispatch.
+    #   cdr_working_block / cdr_carry_block — the two halves of a PARTITION of
+    #                    [0, dim) into the octonion reversible block e0..e7 and
+    #                    everything past the reversibility horizon. Both are
+    #                    range arithmetic over a single int; there is no kernel.
+    # Exactly the shape of the cd_register CONSTRUCTOR row above, which these
+    # three sit beside, and of the sed_slots row above them — with one honest
+    # difference worth recording: sed_slots dispatches to a real C peer
+    # (srmech_sed_slots) and is zero-REACH only because the ledger walk cannot
+    # see through the native shim, whereas cdr_slots has no C peer to reach. The
+    # compute in this family is in the other eleven rows.
+    "srmech.cascade.cd_register.cdr_carry_block",
+    "srmech.cascade.cd_register.cdr_slots",
+    "srmech.cascade.cd_register.cdr_working_block",
     "srmech.amsc.catalog.list_registered_roots",
     "srmech.amsc.catalog.use_local_kernel",
     "srmech.cascade.compose.parse_chain_spec",

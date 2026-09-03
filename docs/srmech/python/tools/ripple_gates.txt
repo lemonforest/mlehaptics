@@ -831,3 +831,20 @@ tests/test_groups_representation_rc456.py
 tests/test_groups_tier3_rc457.py
 tests/test_groups_rho_rc458.py
 tests/test_weight_lattice_rc460.py
+#
+# -- rc464 - the [class] CDRegister binding surface ---------------------------
+#
+#    Both files gate REGISTRATION-SENSITIVE surfaces that rc464 minted, so they
+#    belong on the fast set by the same rule the rc462 block above states. The
+#    conversion proof is the DSL-class-vs-Python equivalence test the
+#    config-driven-TOML discipline requires (18 methods, dim 16 AND dim 256 so
+#    a two-digit slot-key assumption cannot hide, both OPT gates, the
+#    scalar-default rule); the invocability gate drives all fourteen new
+#    ToolEntries through invoke_tool in their WIRE form. That second one is
+#    rc463's own finding applied to rc464's registrations: rc463 registered
+#    eighteen entries with nothing driving them through the transport, and
+#    three of the eighteen were not callable at all.
+#    Cost of the two, measured together on the numpy-absent cell:
+#    49 passed in 13.98 s.
+tests/test_cd_register_class_catalog_rc464.py
+tests/test_wire_invocability_rc464.py
