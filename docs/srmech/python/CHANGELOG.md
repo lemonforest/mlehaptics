@@ -397,6 +397,48 @@ live pin is 0) was always right and stands.
   inside `srmech_class_registry.c`, which is precisely the ground §21b used to
   justify fixing the sibling `doc` field; the comment block was not swept then.
 
+### 16g. Five more CI failures the local subsets never ran
+
+⚠️ **The verification pass reported the two `test_bus.py` ABI blockers and
+stopped; CI had failed on SEVEN tests.** The other five were invisible to every
+local run in this rc because each stage ran a targeted subset — measured, the
+suite collects **17,023 tests** and the largest stage run covered ~16%. This is
+the standing rule working exactly as written (*local gates run alone, CI is
+authoritative*), and it is worth recording that a verification verdict of
+"2 BLOCKERs" was itself a subset measurement.
+
+**`test_declared_type_honesty_rc363.py` (3 tests) — a real declaration
+falsehood.** `cdr_element_of` accepts a `CDRegister`, names `CDRegister` in its
+own coercion raise text, and declared its `other` parameter as `object` — so the
+declared carrier tokens were `['int']` (from `dim`) and the C2 clause, which is
+strict-zero, caught it. This is not a ceiling artefact: the op's declaration
+disagreed with its behaviour. Fixed by declaring what it takes —
+`CDRegister | CatalogClass | dict`.
+
+**`test_synth_args_provenance_rc430.py` — the worked-example ledger went stale**
+for `srmech.dsl.describe_class` and
+`srmech.introspect.carrier_schema.carrier_schema`, whose transcripts print the
+class catalog and the carrier list — both of which this rc changed. Refreshed
+with `run_example_args.py --only-stale`: **2 harvested, 731 reused**. (Contrast
+§20b, where `--only-stale` was the WRONG tool because the snippet text had not
+moved; here the `src_sha256` genuinely differs, which is exactly what it keys
+on.)
+
+**`test_tool_example_input_schema_rc355.py` — a ceiling one above the truth.**
+`numeric_call_index` measured 86 against a CEIL of 87, and the gate's own message
+says to lower it. The ceiling was **rc463's number and this rc never touched the
+file**: the removed `srmech.cascade.sedenion_register` carried a numbered
+`{"1"..}` example input — MEASURED against the rc463 curated file, where it is
+one of 94 numeric-input ops — so its removal drained a row that nothing lowered.
+Exactly the rc395 precedent recorded three lines above it. Drained 87 → 86, with
+the two prose copies of the count moved with it.
+
+**The corpus witness moved a FOURTH time in this rc**, because the parameter-type
+fix is a corpus edit. Re-pinned only after attribution: against a
+`git archive 195c2c4f0` extraction of the whole subtree, frames 761 → 761,
+**0 added, 0 removed, exactly 1 changed — `CDRegister`**, the carrier whose
+declaration was corrected.
+
 ### 17. `SedenionRegister` is REMOVED
 
 The module, its `[class]` TOML, its carrier row, its `ToolEntry`, its curated

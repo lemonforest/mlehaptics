@@ -1001,8 +1001,29 @@ from srmech.math.text import fold_marks, glyph_stream
 #: was: f1f521af99cbcf3a3b404a11e521052e08d26577ccf0cc04c5f356816138f5cd (rc463)
 #: was: dfa8cfa99710c81f1be406d32e0ec42a15dcfb8c699d893e3c02f302540236f1 (rc464 stage 1)
 #: was: b213cf4fc311e5ae06beee96061d9b919653e921bcf749a5312765b1053e341d (rc464 stage 2)
+#:
+#: rc464 CLOSING PASS — re-pinned a FOURTH time inside this one rc, and the
+#: attribution is why that is acceptable rather than a habit. CI (not the local
+#: subsets) reported `cdr_element_of` accepting a `CDRegister`, naming it in its
+#: own coercion raise text, and DECLARING `int` —
+#: `test_declared_type_honesty_rc363.py`'s C2 clause, strict-zero. The parameter
+#: type was corrected from `object` to `CDRegister | CatalogClass | dict`, which
+#: is a CORPUS edit: the carrier frame aggregates the ops that declare it.
+#:
+#:   MEASURED, frame by frame, against a `git archive 195c2c4f0` extraction of
+#:   the whole docs/srmech subtree: frames 761 -> 761, **0 added, 0 removed,
+#:   exactly 1 CHANGED — `CDRegister`**, the carrier whose declaration was
+#:   fixed. A witness re-pin is only honest when the delta is attributable to
+#:   the edit that caused it; this one is, to a single frame.
+#:
+#:   Taken AFTER `regen_all.py` reported all six generated files idempotent
+#:   across two passes, per the rc454 rule that a pin taken mid-rc measures a
+#:   draft — and after the last corpus-touching edit of this rc, per the stage-2
+#:   lesson that a pin whose corpus includes examples cannot be taken until the
+#:   examples are final.
+#: was: 9add5607e7cd594594f14f8767543fe25f75a807c04a9d4a8135c3ac8c0f579c (rc464 stage 3)
 WITNESS_RC416 = (
-    "9add5607e7cd594594f14f8767543fe25f75a807c04a9d4a8135c3ac8c0f579c")
+    "54fd35fa99df3812ceea67c54c039201c5f92fe284a523cb462bc1923de3e809")
 #: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
 #: op corpus, so registering induced_representation + zeta_conjugate moves it by
 #: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.

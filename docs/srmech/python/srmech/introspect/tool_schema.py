@@ -14868,7 +14868,7 @@ def _register_primitive_class_tools() -> None:
                     "rung operand is reported as the dim mismatch it is rather than "
                     "as a length fault out of cd_mult." + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("other", "object", True,
+                P("other", "CDRegister | CatalogClass | dict", True,
                   "the other operand — CDRegister / CatalogClass / state dict"),
                 P("dim", "int", True, "THIS register's dim; the operand must match it"),
                 P("verb", "str", False,
