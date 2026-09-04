@@ -310,9 +310,32 @@ CONTRACT_SKIP: Dict[str, str] = {
 #: does in microseconds. The rows come back the moment either the pure path
 #: gets cheaper or the probe learns to bound a call by WORK rather than by
 #: wall clock.
+#: ⚠️ **AND TWO ROWS THAT ARE SKIPPED IN BOTH CELLS, because on Windows there
+#: is no cutoff at all.** :func:`call_bounded` enforces :data:`CALL_TIMEOUT`
+#: through ``signal.SIGALRM``, and ``hasattr(signal, "SIGALRM")`` is **False on
+#: Windows** — so on that platform a call that exceeds the cutoff simply runs.
+#: ``alcove_fold::weight`` and ``equal_temperament_partials::degrees`` are the
+#: only two rows measured PAST the cutoff on both cells (20.0s / 21.4s native,
+#: 21.5s / 22.2s pure), and on ``windows-latest`` they are therefore UNBOUNDED.
+#: MEASURED: that cell reached 99% of the suite at 30.8 minutes and was killed
+#: by its own ``timeout-minutes: 41`` eleven minutes later, having finished
+#: nothing more. A cutoff that one platform cannot enforce is not a cutoff, so
+#: these two are named DATA in every cell rather than a race in one of them.
 SLOW_SKIP: Dict[str, Dict[str, str]] = {
-    "native": {},
+    "native": {
+        "srmech.math.weight_lattice.alcove_fold":
+            "measured 20.0s past a 20s CALL_TIMEOUT, and CALL_TIMEOUT is "
+            "UNENFORCEABLE on Windows (no signal.SIGALRM), where the row is "
+            "therefore unbounded. frame_probe.SLOW_SKIP names this family too",
+        "srmech.music.equal_temperament_partials":
+            "measured 21.4s past a 20s CALL_TIMEOUT; same Windows "
+            "unenforceability as alcove_fold above",
+    },
     "pure": {
+        "srmech.math.weight_lattice.alcove_fold":
+            "measured 21.5s past a 20s CALL_TIMEOUT; unbounded on Windows",
+        "srmech.music.equal_temperament_partials":
+            "measured 22.2s past a 20s CALL_TIMEOUT; unbounded on Windows",
         "srmech.math.laplacian.recover_check":
             "pure cost 53-56s per row against a 20s CALL_TIMEOUT; measured "
             "unstable (DEMOTED <-> EXACT) across two consecutive censuses. "

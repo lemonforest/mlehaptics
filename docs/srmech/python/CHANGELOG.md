@@ -320,6 +320,10 @@ It is a `CONTRACT_SKIP`, not a budget, and for the reason the three weight-latti
 
 Effect on both censuses: `CALL_TIMED_OUT` 6 → 2, `CONTRACT_SKIP` 10 → 14, and **nothing else moves** — `DEMOTED` 120/117, undeclared 70/67 and decided 219/219 are unchanged in both cells, so no ceiling moves in either column. The census also runs ~3 minutes faster.
 
+**8n. And `windows-latest` has no cutoff at all, which is why it timed out at 99%.** `call_bounded` enforces `CALL_TIMEOUT` through `signal.SIGALRM`, and `hasattr(signal, "SIGALRM")` is **False on Windows** — so on that platform a call that exceeds the cutoff simply runs. MEASURED: after §8m the windows cell reached **99% of the suite at 30.8 minutes** and was killed by its own `timeout-minutes: 41` eleven minutes later, having finished nothing more.
+
+Exactly two rows are measured past the cutoff in both cells — `weight_lattice.alcove_fold::weight` (20.0s native / 21.5s pure) and `music.equal_temperament_partials::degrees` (21.4s / 22.2s) — and on Windows they are unbounded. **A cutoff one platform cannot enforce is not a cutoff**, so both ops join `SLOW_SKIP` in EVERY cell, named as data rather than left as a race on one platform. `CALL_TIMED_OUT` 2 → 0; `SLOW_SKIP` 0 → 2 native and 6 → 8 pure; `DEMOTED` 120/117, undeclared 70/67 and decided 219/219 all unchanged again, so still no ceiling moves. The gate now runs in **66s**, down from 363s when this pass started.
+
 **ABI stays 25.** No C symbol is added, removed or re-signatured. `c/src/srmech_tool_schema.c` gains one row in each of two hand-maintained string tables (a new declared type string mapping to `"array"`, plus its encoding hint); every existing string answers exactly as before, so no wire contract moves. `SRMECH_GENOME_FORMAT_VERSION` stays 20. Registry stays **733**.
 
 ## [0.9.0rc464] - three guards that declined a C peer which had accepted 256 since rc298, a conversion refused on a contract clause that was already false, a faithfulness oracle whose own test forbade the subsumption it was gating, and a 32x scratch heuristic that made a whole class look like it had no C peer
