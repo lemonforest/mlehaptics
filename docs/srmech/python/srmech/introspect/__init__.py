@@ -1008,7 +1008,7 @@ def describe() -> Dict[str, Any]:
     FACTORS, and the halves behave differently (measured over
     ``cd_basis_product``)::
 
-        dim | index == a XOR b | negative signs (C(d,2)) | SIGN COCYCLE assoc
+        dim | index == a XOR b | negative signs (C(d,2)) | SIGN 2-COCHAIN δε=0
           2 |       4/4        |        1  (1)           |     8/8      100%
           4 |      16/16       |        6  (6)           |    64/64     100%
           8 |      64/64       |       28  (28)          |   344/512     67%

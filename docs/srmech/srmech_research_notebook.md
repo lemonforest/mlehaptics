@@ -8037,6 +8037,164 @@ Rebuilt in srmech from that stated rule — an element is `a + i·b` with `i` **
 
 ---
 
+## §3.58 The bracketing defect is a CURVATURE and the ordering defect a TORSION — and the sign is a COCHAIN, not a class (2026-09-03; `#T1188`; NAMING + ATTRIBUTION, shipped v0.9.0rc465)
+
+Two vocabulary corrections that had been carried in shipped prose for many rcs.
+Both are **naming and attribution only**. No measurement changed, no result is
+new, and nothing here is claimed as an extension of anyone's work: each is a
+case of the tree having computed the right object and called it by a name that
+belongs to a different object.
+
+### §3.58.1 D4 — the associator is a curvature; the commutator is a torsion
+
+`cascade.cd_cycle_holonomy` returns three things: two ordered products walked
+around a directed triangle, and their difference. Through rc464 the docstring
+called the DIFFERENCE "the k=3 loop defect made a holonomy". A holonomy is a
+transport around a closed path — which is exactly what the two ordered products
+are, and exactly what their difference is not. The difference is a **density
+evaluated on the ordered triple**.
+
+The correct family names are a theorem for the geodesic loop of an affine
+connection, and the tree had no citation for them at all. **Kuusk & Paal,
+*Geodesic multiplication as a tool for classical and quantum gravity*,
+arXiv:0803.1241 §3** derives, for the local geodesic loop, that the deviation
+from commutativity is twice the torsion and the deviation from associativity is
+the curvature less the covariant derivative of the torsion — attributing the
+computation to **Akivis** (*Sibirski Mat. J.* **19** (1978), 243–253) and the
+geodesic-loop construction to that paper's reference [1], **Kikkawa**
+(*Journ. Hiroshima Univ.* Ser. A-1 Math. **28** (1964), 199–207). So the arity-2
+ordering deviation and the arity-3 bracketing deviation are not two sizes of one
+thing; they are different KINDS of object.
+
+The "square-loop" picture the tree already used for `cd_commutator` turns out to
+be the *right* one and is kept: **Hehl & Obukhov, *Élie Cartan's torsion in
+geometry and in field theory, an essay*, arXiv:0711.1535 §1** states that a
+non-vanishing torsion breaks infinitesimal parallelograms and a *closure
+failure* emerges, and its §4 records that in a continuized crystal the
+dislocation DENSITY and the torsion are the same object, shown isomorphic to
+the Cartan circuit by **Kondo** (1952), **Bilby et al.** and Kröner.
+
+⚠️ **EPISTEMIC CEILING.** The Cayley–Dickson carrier is not a geodesic loop and
+not an affine connection, and no claim is made that it is
+(`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`: the FORM,
+never the identity). What transfers is the vocabulary for *what kind of object
+each arity yields*. `plaquette` is deliberately NOT adopted for any of these —
+that word is spoken for by the lattice-gauge Wilson loop, which
+`physics.qm.gauge.wilson_loop_from_segments` already uses in its own correct
+sense, and the tree's existing use there is right.
+
+**A NULL, recorded as one.** A sweep for the affine-connection sense of
+"torsion" across `srmech/`, `c/`, `tests/` and this notebook found **zero**
+occurrences — the tree never called an associator a torsion. There was no false
+statement to retract on this axis; the defect was an ABSENCE of naming plus one
+misnamed object (`defect` as a holonomy), and the fix is additive.
+
+**An adjacent factual error, found while editing the same paragraph.**
+`defect_ladder` said the refuted arity-4 "square-loop" divergence turns on at 𝕆
+"with the same 1848/4096 count as the associator". Two censuses share the
+denominator 4096 and the sentence fused them. RE-MEASURED at rc465 through
+`cascade.cd_mult`:
+
+| census | ordered tuples | 𝕆 (dim 8) | 𝕊 (dim 16) |
+|---|---|---|---|
+| arity-4 bracketing divergence | dim⁴ | **2520 / 4096** | — |
+| associator support (arity 3) | dim³ | 168 / 512 | **1848 / 4096** |
+
+0/256 at ℍ for arity-4; associator support 0/8, 0/64, 168/512, 1848/4096,
+15960/32768 across ℝ→𝕋. The rc383 provenance NDJSON
+(`notes/defect_ladder_rc383.ndjson`, the `arity4_square_loop_refutation` rows)
+carried **2520** correctly all along — only the prose drifted, and it drifted in
+the load-bearing direction, because "the same count as the associator" was the
+half of the sentence doing the inheritance argument. ⚠️ 2520/4096 *also* names
+the bicharacter's non-bimultiplicativity count at 𝕊; that is a digit collision
+between unrelated censuses and a cross-reference between them would be a
+numerology error, exactly as `octonion_associator_support` already warns for 168.
+
+### §3.58.2 D5 — the class is zero; the COCHAIN'S VALUES are what turn on
+
+Shipped prose said the Cayley–Dickson sign ε is "cohomological, not a
+relabelling", and called ε "the sign cocycle" while, in the same paragraph,
+reporting that it "stops being associative" at 𝕆. Those two statements
+contradict each other: for this object `δε = 0` **is** associativity of the sign
+lane, so a sign lane that stops associating is a cochain that stops being a
+cocycle.
+
+What is MEASURED, and is unchanged:
+
+* `δt = ε` is inconsistent at EVERY rung — `rank([A|b]) = rank(A) + 1`, with
+  `nullity(A) = log2(dim)`. So ε is **not a 2-coboundary** anywhere. That is the
+  whole content of "not a relabelling", and it survives intact.
+* `δε = 0` at ℝ/ℂ/ℍ but `δε ≠ 0` from 𝕆 up — 168 failing triples at 𝕆, 1848 at
+  𝕊 (`notes/lane1_epsilon_placement_2026-07-29.ndjson`, committed 2026-07-29).
+
+Therefore: at ℝ/ℂ/ℍ, ε is a cocycle and not a coboundary, so `[ε] ≠ 0` in H² is
+a genuine cohomology class (a non-split central extension). From 𝕆 up ε is not a
+cocycle at all, so `[ε] ∈ H²` is **undefined**, and the complete gauge invariant
+is ε's class in `C²/B²` — a cochain modulo coboundaries, which is not a
+cohomology class.
+
+One rung up the situation is even plainer, and the source says so itself:
+**Albuquerque & Majid, *Quasialgebra Structure of the Octonions*,
+arXiv:math/9802116 §1** — *"for the octonions, the cocycle is a coboundary and
+can be identified as the result of twisting k(G) by a 2-cochain F"*. Since
+φ = δε is a coboundary BY CONSTRUCTION, `[φ] = 0` in H³ at **every** rung. There
+is no nonzero obstruction class anywhere in this tower. What turns on at 𝕆 and
+degrades at 𝕊 is the COCHAIN'S VALUES.
+
+⚠️ **THE COUNTER-CORRECTION, which matters more than the correction.** "The
+class is zero" does **not** mean "there is no frame-independent content", and
+over-shooting into that reading would delete measured results. All of the
+following are gauge-invariant and all of them stand:
+
+* the rank pair and `nullity(A) = log2(dim)` (encoding-invariant);
+* the **associator support ladder 0 / 0 / 168 / 1848 / 15960** (ℝ/ℂ/ℍ→ over
+  ordered basis triples — re-measured at rc465);
+* the **diagonal** `q(x) = ε(x, x)`, which **separates definite 𝕆 from all
+  seven split forms**;
+* the **commutation form** `R(x, y) = ε(x, y) + ε(y, x)`, which is
+  gauge-invariant but does **NOT** separate 𝕆 from split-𝕆 — all eight share it.
+
+The corrected sentence is: **there is frame-independent content; it is not a
+cohomology class.**
+
+⚠️ A residual left standing deliberately: the noun "sign cocycle" still appears
+at roughly a dozen sites where the sentence makes no cohomological CLAIM (e.g.
+"the sign cocycle is degenerate in the split algebra"). Those are loose but not
+false, and a mechanical rename across prose nobody re-read is how a correction
+becomes a new defect. The sites that ASSERTED the cocycle property or the class
+were corrected; the bare mentions were not, and that is a scope decision, not an
+oversight.
+
+**Attestation.** All four sources were verified FROM THE DOCUMENT and the two
+cited in shipped wheel prose are in the claim manifest
+(`srmech/amsc/attested/literature_claims/row.ndjson`, built by
+`tools/build_citation_manifest.py`, both backends, with positive / negative /
+multi-spelling controls). The manifest's own negative controls make the
+citations mutually exclusive by measurement: arXiv:0803.1241 reads **0** for
+"octonion" and "cohomology"; arXiv:math/9802116 reads **0** for "torsion",
+"curvature" and "holonomy"; arXiv:0711.1535 reads **0** for "octonion",
+"associator" and "cocycle" — so neither half can be cited for the other's claim.
+⚠️ **Regge & Williams, *Discrete structures in gravity*, arXiv:gr-qc/0012035**
+(read pp.1–2 directly; the deficit angle is the concentrated curvature on a
+codimension-2 hinge) is verified-from-document but is **NOT** in the claim
+manifest: its e-print resolves to exactly ONE addressable section label, so the
+manifest's section-keyed contract cannot represent it and declaring
+`section_attribution: EXACT` for it would be false. It is cited here and nowhere
+in the wheel. Recorded as a measured instrument limit rather than a gap.
+
+**Provenance.** `srmech/cascade/cayley_dickson.py` (`cd_cycle_holonomy`,
+`cd_commutator`, `defect_ladder`) · `srmech/math/modular_linalg.py` ·
+`srmech/cascade/cd_register.py` · `srmech/introspect/tool_schema.py` ·
+`notes/defect_ladder_rc383.ndjson` · `notes/lane1_epsilon_placement_2026-07-29.ndjson` ·
+`notes/lane_c_twist_naming_2026-07-29.ndjson` ·
+`notes/lane2_hv_grading_vs_cd_sign_2026-07-29.ndjson` (rc465 correction row appended).
+
+**Cross-references.** §3.57 (the ladder-vs-tensor distinction this shares a
+carrier with) · CLAUDE.md §1 (the A–N vocabulary discipline) · → extended by
+nothing yet.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
