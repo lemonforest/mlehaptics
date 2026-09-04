@@ -328,7 +328,7 @@ Exactly two rows are measured past the cutoff in both cells — `weight_lattice.
 
 ### 9. A census is not a gate — the three mitigations above are retired, and CI stops paying for the derivation
 
-⚠️ **§8l, §8m and §8n are three consecutive commits fighting one symptom, and none of them asked whether the thing belonged where it was.** `8be4a95ce` answered "the census gate is red in every pure shard" with a SECOND per-cell pinned artefact. `83aa9b74f` answered "one op allocated 7.1 GiB inside the census" with a skip. `08d80a037` answered "`windows-latest` has no cutoff, so it timed out at 99%" with two more skips. Each is a MITIGATION: **green bought by teaching a census which ops to avoid.** The residue was two committed artefacts, a `SLOW_SKIP` roster of 19 rows, and this gate at 852 lines — for a corrective rc that added no capability and roughly **ten minutes** of CI.
+⚠️ **§8l, §8m and §8n are three consecutive commits fighting one symptom, and none of them asked whether the thing belonged where it was.** `8be4a95ce` answered "the census gate is red in every pure shard" with a SECOND per-cell pinned artefact. `83aa9b74f` answered "one op allocated 7.1 GiB inside the census" with a skip. `08d80a037` answered "`windows-latest` has no cutoff, so it timed out at 99%" with two more skips. Each is a MITIGATION: **green bought by teaching a census which ops to avoid.** The residue was two committed artefacts, a `SLOW_SKIP` roster of four ops (six entries across the two cells, retiring 2 measured rows in native and 8 in pure), and this gate at 852 lines — for a corrective rc that added no capability and roughly **ten minutes** of CI.
 
 **THE ROOT CAUSE, in one line.** `tests/test_silent_carrier_demotion_rc463.py` called `_dp.census()` — the entire registry-wide derivation, 703 rows over 427 ops — **on every CI run, in every cell**, and then diffed it against a host-specific pin. Two things were wrong and the second is worse:
 
@@ -339,7 +339,7 @@ Exactly two rows are measured past the cutoff in both cells — `weight_lattice.
 
 | cell | before | after | note |
 |---|---|---|---|
-| native (`HAS_` + `NATIVE` true) | **66.18 s**, 43 tests | **8.02 s**, 45 tests | 0.37 s setup + every test call ≤ 0.04 s; the rest is `import srmech` |
+| native (`libsrmech` dispatching) | **66.18 s**, 43 tests | **8.02 s**, 45 tests | 0.37 s setup + every test call ≤ 0.04 s; the rest is `import srmech` |
 | pure | **153.80 s**, 43 tests | **7.21 s**, 45 tests | same shape |
 
 **And in the `--forked` cell it was paid ONCE PER TEST.** `asserts-live` runs `pytest -n auto --forked`, one fork per test. `pytest-forked` forks a child for each test's run phase, so the module-level `_LIVE_CACHE` a child populates is invisible to the parent and to the next child: **15 census-consuming tests each re-derived the whole census.** 15 x 61.6 s = **~15 minutes of census in one cell**, which `-n auto` runs across workers, so the observed wall cost is smaller: `asserts-live shard 4/4` 31 m on the `main` baseline (`a6d9700da`) -> **43 m** at `08d80a037`, +12 m. That is now zero.

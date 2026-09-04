@@ -397,7 +397,8 @@ def test_layer1_exact_in_exact_out(label, call, want) -> None:
 #
 # Every one of those is a MITIGATION. Green was bought by teaching a census
 # which ops to avoid, and the residue was two committed artefacts, a `SLOW_SKIP`
-# roster of 19 rows, and this file at 852 lines. Worse than the cost: the
+# roster of four ops (six entries across the two cells, retiring 2 measured rows
+# in native and 8 in pure), and this file at 852 lines. Worse than the cost: the
 # EXPECTED VALUE was per-cell, so the pin measured the HOST rather than the
 # code — the same defect class this project keeps finding in its own
 # instruments, arrived at from the inside.
