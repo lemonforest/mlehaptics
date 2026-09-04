@@ -863,10 +863,10 @@ def census(rows: Optional[Dict[str, Any]] = None, *,
     return recs
 
 
-def by_verdict(recs, cel=""):
+def by_verdict(recs: Sequence[Dict[str, Any]], cel: str = "") -> Dict[str, int]:
     """Verdict histogram. ``cel`` selects a MANIFEST column; "" reads a flat
     cell census (what :func:`census` returns)."""
-    out = {}
+    out: Dict[str, int] = {}
     for r in recs:
         col = r.get(cel) if cel else r
         if col:
