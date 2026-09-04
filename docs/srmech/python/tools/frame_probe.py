@@ -1,11 +1,19 @@
 """rc430 (`#T1127`) — the FRAME instrument: is an op's frame an INPUT or WELDED IN?
 
 ONE INSTRUMENT, TWO CONSUMERS. ``tests/test_frame_scope_rc430.py`` is the
-ratchet; ``docs/srmech/notes/_frame_scope_census_rc430.py`` is the census that
-writes the NDJSON. They import the same functions, so the shipped declaration
-and the published measurement cannot drift apart by being separately
-hand-rolled — which is the failure mode a test that re-implements its own
-subject always eventually has.
+ratchet; ``tools/frame_scope_census.py`` is the census that writes the NDJSON.
+They import the same functions, so the shipped declaration and the published
+measurement cannot drift apart by being separately hand-rolled — which is the
+failure mode a test that re-implements its own subject always eventually has.
+
+⚠️ AND THAT IS NOT ENOUGH, measured at rc465 (`#T1188`). A shared import
+guarantees agreement WHEN BOTH RUN. The census file was last regenerated at
+rc430 and sat at ``NO_INT_INPUT: 152`` while the gate's ceiling for that one
+class was raised NINE times to 184 — every raise justified from an ad-hoc
+per-op probe recorded in a comment, none from a published measurement. The
+artefact now lives at ``tests/frame_scope_census.ndjson`` and the gate compares
+its ``meta.by_verdict`` to the live census in the same process, so a stale
+census is a red test rather than a quiet document.
 
 WHAT IS BEING MEASURED
 ----------------------
@@ -178,6 +186,30 @@ SLOW_SKIP: Dict[str, str] = {
     "srmech.math.weight_lattice.verlinde_fusion_multiplicities":
         "builds the same D4 S-matrix and then contracts over every"
         " primary (>90 s measured at 10 calls)",
+    # rc465 (`#T1188`). THE ONE UPWARD MOVE IN THIS RC, and it is a
+    # CONSEQUENCE of the nested-leaf widening rather than a concession: both
+    # ops were previously NO_INT_INPUT — unreachable, uncounted as slow because
+    # they were never driven at all — and become reachable the moment a
+    # matrix-shaped operand counts as a coordinate. Each carries the number the
+    # skip is FOR, and each carries the verdict it reaches when it IS driven,
+    # so this class is not hiding an admissible op behind a wall clock:
+    #   g2_membership        -> NOT_ADMISSIBLE in  50.9 s (MEASURED, full
+    #                           classify(); one base call is 48.7 s and the
+    #                           perturbed matrix is non-orthogonal, so its own
+    #                           guard raises at d=1 and the sequence is
+    #                           not-total).
+    #   relational_structure -> NOT_ADMISSIBLE in 258.7 s (MEASURED, full
+    #                           classify(); ~10 s per call over the screen).
+    # DRAINABLE the same way every other entry here is: a smaller base object in
+    # the worked example. Not done in rc465 because the shipped examples are the
+    # acceptance transcripts for these ops.
+    "srmech.physics.qm.so8.g2_membership":
+        "8x8 exact-orthogonal G2 membership; 48.7 s per call, 50.9 s for the"
+        " whole classify() (rc465 measured; reaches NOT_ADMISSIBLE)",
+    "srmech.math.laplacian.relational_structure":
+        "dense relational structure over the harvested edge matrix; ~10 s per"
+        " call, 258.7 s for the whole classify() (rc465 measured; reaches"
+        " NOT_ADMISSIBLE)",
 }
 
 
@@ -189,9 +221,44 @@ def is_int_seq(v: Any) -> bool:
     return isinstance(v, list) and len(v) > 0 and all(is_int(x) for x in v)
 
 
+def is_nested_int_seq(v: Any) -> bool:
+    """A RECTANGULAR list of non-empty int rows — a matrix-shaped operand."""
+    return (isinstance(v, list) and len(v) > 0
+            and all(is_int_seq(row) for row in v))
+
+
 def is_frame_coordinate(v: Any) -> bool:
-    """A value that can be TRANSLATED along a frame axis."""
-    return is_int(v) or is_int_seq(v)
+    """A value that can be TRANSLATED along a frame axis.
+
+    rc465 (`#T1188`) admits ONE more nesting level, and the reason is that the
+    depth cut was never a semantic boundary. Through rc464 this stopped at a
+    FLAT int sequence, and the standing justification for stopping there was
+    that "a matrix is an OPERATOR, not a coordinate — perturbing an entry asks
+    a different question". That is a per-op SEMANTIC claim being asserted from
+    a nesting-DEPTH test, and the same objection applies one level up: element
+    ``[0]`` of a flat int vector is content just as often (``zeta_mul`` takes
+    ``Z[zeta]`` COEFFICIENTS and rc458 drove it to NOT_ADMISSIBLE in 73 calls;
+    ``interval_vector`` takes pitch classes and is translated BY DESIGN). The
+    probe already perturbs those and reports the honest answer. Refusing to
+    perturb ``[0][0]`` was a wall at depth 2, not a rule.
+
+    And within one shape the semantics differ anyway: ``list[list[int]]`` is a
+    Cayley table (element LABELS) in ``conjugacy_classes``, literal geometric
+    COORDINATES in ``cotangent_weights(positions)``, vertex labels in
+    ``edges``, an operator over Q in ``qmat_*``, and an array of RESIDUES MOD p
+    in ``gf_rref(rows, p)``. The shape cannot decide which; only the measurement
+    can, and the measurement was being refused.
+
+    MEASURED at rc465 over the 26 ops this widening makes reachable: 24 drive
+    to a verdict in under 0.2 s each and **every one is NOT_ADMISSIBLE** — zero
+    false ``ADMISSIBLE``, so the feared "asking a different question under this
+    name" produced no frame declarations at all. The two that are expensive are
+    named in :data:`SLOW_SKIP` with their measured seconds. Ops whose own guard
+    rejects the perturbed matrix (a Cayley table, an orthogonal ``g``) go
+    not-total and ``sequence`` returns ``None``, which is the correct verdict
+    for a group op rather than a corruption of it.
+    """
+    return is_int(v) or is_int_seq(v) or is_nested_int_seq(v)
 
 
 def translate(v: Any, d: int) -> Any:
@@ -203,10 +270,92 @@ def translate(v: Any, d: int) -> Any:
     a reason that has nothing to do with the frame. Translating one element
     tests the frame; translating all of them tests transposition invariance
     and would report ``interval_vector`` as degenerate.
+
+    A NESTED sequence moves exactly one LEAF — element ``[0][0]`` — for the
+    same reason, one level down (rc465, `#T1188`).
     """
     if is_int(v):
         return v + d
-    return [v[0] + d] + list(v[1:])
+    if is_int_seq(v):
+        return [v[0] + d] + list(v[1:])
+    return [[v[0][0] + d] + list(v[0][1:])] + [list(row) for row in v[1:]]
+
+
+#: Parameter types the registry spells for an integer-valued parameter. Used to
+#: separate "this op HAS an integer input the probe could not see" from "this op
+#: has no integer input at all" — two facts rc464 counted as one.
+_INT_TYPE_SPELLINGS = frozenset({
+    "int", "Optional[int]", "int | None", "None | int",
+})
+
+
+def declared_int_params(name: str) -> Tuple[str, ...]:
+    """The op's OWN declaration of which parameters take an integer.
+
+    Read from the tool schema rather than from the signature, because the
+    signature is not a reliable source here: ``eulerian_circuit(edges,
+    start=None)`` carries no annotation at all while its ``ToolEntry`` declares
+    ``start: Optional[int]``. The declaration is the SSoT for the type; the
+    signature is the SSoT for the default.
+    """
+    from srmech.introspect.tool_schema import get_tool_schema
+    entry = get_tool_schema().lookup(name)
+    if entry is None:
+        return ()
+    return tuple(p.name for p in (entry.parameters or [])
+                 if (p.type or "").strip() in _INT_TYPE_SPELLINGS)
+
+
+def binding_gap(fn, base: Dict[str, Any]) -> Tuple[str, ...]:
+    """Names the harvested binding is MISSING, or ``()`` when it is complete.
+
+    Two ways a binding can be incomplete, and both were being reported as "this
+    op has no integer input" through rc464:
+
+    * a REQUIRED parameter is absent — ``inspect.signature(fn).bind(**base)``
+      raises ``TypeError``. Measured at rc465: **55 of the 184** ops in that
+      bucket. Python binds before the body runs, so ``Driver.raw({})`` would
+      have raised identically; they were never drivable, and the ordering
+      (coordinate test at :430, first call at :434) is what hid it.
+    * a VAR_POSITIONAL the harvest dropped. ``signature.bind`` cannot see this
+      — ``*operands`` accepts zero arguments — but the op's own guard does:
+      ``einsum`` says "2 operand specs but 0 operands" and ``klein4_bundle``
+      says "requires at least one vector". Both are ops whose harvested call
+      has NO OPERANDS, which is the same fact as the first bullet wearing a
+      different signature shape.
+    """
+    import inspect
+    try:
+        sig = inspect.signature(fn)
+    except (TypeError, ValueError):          # builtins without a signature
+        return ()
+    try:
+        sig.bind(**base)
+    except TypeError:
+        missing = tuple(
+            p.name for p in sig.parameters.values()
+            if p.default is inspect.Parameter.empty
+            and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
+            and p.name not in base)
+        return missing or ("<unbindable>",)
+    return tuple(f"*{p.name}" for p in sig.parameters.values()
+                 if p.kind is p.VAR_POSITIONAL and not base.get(p.name))
+
+
+def sentinel_int_params(name: str, base: Dict[str, Any]) -> Tuple[str, ...]:
+    """Int-typed parameters the harvested binding carries as ``None``.
+
+    The op DECLARES an integer parameter; its default is a sentinel meaning
+    "resolve me at use time"; so the harvested binding — which is the worked
+    example's first returning call with defaults applied — carries ``None``
+    where the integer would be. That is neither an example defect (the
+    parameter is ``required=False`` on every one of the 13 measured at rc465,
+    so omitting it is what a worked example SHOULD do) nor an op defect. It is
+    a fact about the instrument's reach, and rc465 gives it its own name
+    instead of filing it under "no integer input at all".
+    """
+    return tuple(p for p in declared_int_params(name)
+                 if p in base and base[p] is None)
 
 
 def okey(x: Any) -> str:
@@ -409,9 +558,41 @@ def classify(name: str, base: Dict[str, Any], fn) -> Dict[str, Any]:
     """The predicate. Returns a record with ``verdict`` and ``findings``.
 
     ``verdict`` is one of: ``ADMISSIBLE`` · ``NOT_ADMISSIBLE`` · ``NO_ARG`` ·
-    ``NO_INT_INPUT`` · ``BASE_RAISES``. The last three are the residual
-    classes the ratchet holds under a down-only ceiling — they are counted and
+    ``UNBOUND_REQUIRED`` · ``SENTINEL_INT_DEFAULT`` · ``NO_INT_INPUT`` ·
+    ``BASE_RAISES``, plus the two by-name skips. The residual classes are
     named, never quietly dropped.
+
+    rc465 (`#T1188`) SPLIT THE RESIDUAL, because ``NO_INT_INPUT`` had been
+    carrying three different facts under one name and one number. It rose nine
+    times in twenty-one days — 152 (rc430) 153 154 160 163 170 171 172 182 184
+    (rc464) — and never once drained. Every raise carried a measured per-op
+    justification and every one was honest about the LABEL; what none of them
+    could say is what the label MEANT, because the bucket was decided at
+    ``if not coords`` BEFORE the first call, so membership was a property of
+    the harvested BINDING and not a measurement of the op. Partitioned at
+    rc465 (executed, ledger-only, reproducing the live 184 exactly):
+
+      55  the binding does not BIND — a required parameter is absent, so the
+          probe never reached the op's body. Now ``UNBOUND_REQUIRED``. Seven of
+          the ops the ceiling comments cite as "MEASURED to have no integer
+          input" are in here, including five of the twelve behind the rc463 and
+          rc464 raises (``eigvec_exact``, ``eigvec_exact_float``,
+          ``jordan_chains_exact``, ``qmat_rank``, ``cdr_clean``).
+       2  the binding drops a VAR_POSITIONAL the op requires — same fact, a
+          signature shape ``bind()`` cannot see. Also ``UNBOUND_REQUIRED``.
+      13  the op DECLARES an int parameter whose default is a sentinel, so the
+          harvested binding carries ``None`` where the integer would be. Now
+          ``SENTINEL_INT_DEFAULT``.
+      26  the binding carries a matrix-shaped int operand the depth-2 wall
+          refused to translate. 24 now drive to a real verdict (all
+          NOT_ADMISSIBLE); 2 are measured-slow and named in ``SLOW_SKIP``.
+      88  genuinely no integer anywhere in the binding. Still ``NO_INT_INPUT``,
+          and now held to that STATEMENT rather than to a number.
+
+    The order below is load-bearing: reachability is decided BEFORE the
+    coordinate test, because "the probe could not call this op" and "this op
+    has no frame coordinate" are different answers and only one of them is
+    about the op.
     """
     rec: Dict[str, Any] = {"op": name, "verdict": "", "findings": []}
     if name in CONTRACT_SKIP:
@@ -425,10 +606,20 @@ def classify(name: str, base: Dict[str, Any], fn) -> Dict[str, Any]:
     if not base:
         rec["verdict"] = "NO_ARG"
         return rec
+    gap = binding_gap(fn, base)
+    if gap:
+        rec["verdict"] = "UNBOUND_REQUIRED"
+        rec["missing"] = list(gap)
+        return rec
     drv = Driver(name, base, fn)
     coords = drv.coordinates()
     if not coords:
-        rec["verdict"] = "NO_INT_INPUT"
+        sentinels = sentinel_int_params(name, base)
+        if sentinels:
+            rec["verdict"] = "SENTINEL_INT_DEFAULT"
+            rec["sentinel_params"] = list(sentinels)
+        else:
+            rec["verdict"] = "NO_INT_INPUT"
         return rec
     try:
         drv.raw({})

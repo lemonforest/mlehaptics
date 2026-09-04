@@ -1418,6 +1418,17 @@ def describe() -> Dict[str, Any]:
                 "roster for exactly that reason while its own delegating alias "
                 "srmech.cascade.cyclic_gcd was present. Repaired at the rc430 "
                 "repair; the ONE-ARGUMENT-SET bound itself remains"),
+            "operand_not_translatable": (
+                "the probe translates an integer COORDINATE: a scalar, one "
+                "element of a flat int sequence, or (since rc465) one leaf of "
+                "a rectangular nested int list. An operand whose integers live "
+                "inside a MAPPING — a character table, a rep payload, a "
+                "codebook, a slot map — carries no such coordinate, so the op "
+                "is reported NO_INT_INPUT and its frame stays unmeasured. That "
+                "is an instrument limitation stated as data, not a finding "
+                "about the op. It is what remains of the class whose count "
+                "rose nine times and drained none before rc465 replaced the "
+                "count with a per-op predicate"),
         },
         "ops": _frame_ops,
     }

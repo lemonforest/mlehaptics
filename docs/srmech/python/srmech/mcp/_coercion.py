@@ -2026,11 +2026,18 @@ _CARRIER_WIRE: Dict[str, Any] = {
 #: Carriers that are HANDLE-shaped, not value-shaped: each holds a ``D``-wide
 #: hypervector store and exposes MUTATING methods (``write`` / ``carry`` /
 #: ``couple_working`` / ``navigate``), so "the value" is not what a consumer
-#: wants back — the LIVE object is. Both inherit object identity
+#: wants back — the LIVE object is. ``CDRegister`` inherits object identity
 #: (``CDRegister.__eq__ is object.__eq__``), which makes a by-value form
-#: un-gateable as well as wrong. They ride the rc16 ``$srmech_handle``
+#: un-gateable as well as wrong. It rides the rc16 ``$srmech_handle``
 #: envelope instead — the same mechanism that took the 7 ``srmech.spectral.*``
 #: tools from uncallable to ``handle_pending: 0``.
+#:
+#: ONE ROW SINCE rc464. The plural ("Both … They") was written when the
+#: 16-slot register had a row here and outlived it by a release. rc465 pins
+#: the register rows of this map as an EQUALITY
+#: (``tests/test_preferred_register_shape_rc464.py``, channel P4): a second
+#: register class needs a row HERE to cross the wire, and until rc465 no
+#: test read this map at all.
 _HANDLE_SHAPED_CARRIERS: Dict[str, str] = {
     "CDRegister": "cd-register",
 }

@@ -19,6 +19,96 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc465] - a gate whose loop body never ran, and a down-only ceiling that had gone up nine times because it was measuring the harvest instead of the op
+
+**What this rc is for (stage 1 of 3).** Two instruments in this tree were reporting on themselves and getting it wrong. The first — written in rc464, last week — asserts that `CDRegister` is the preferred register shape, and **its entire loop body never executed**, so both of its assertions were unreachable in both directions. The second is the frame ratchet's `NO_INT_INPUT` ceiling, which moved **nine times in twenty-one days and never once down** — 152 → 153 → 154 → 160 → 163 → 170 → 171 → 172 → 182 → 184 — with a measured per-op justification behind every raise. Both justifications were honest and both were about the wrong object. Registry stays **733**; ABI stays **25**; carriers stay **28**; the `[class]` catalog stays at **4**.
+
+### 1. The preferred-register gate could not fail, and the second reason is worse than the first
+
+`tests/test_preferred_register_shape_rc464.py::test_every_other_register_surface_points_at_the_preferred_one` was shipped with an acknowledged dormancy: the 16-slot register had just been removed, so the population it iterated was empty. What the acknowledgement did not say is that **the check was dead in the non-empty world too**. Traced with `sys.settrace` over the rc464 file on the rc464 tree — lines executed: `[82, 83, 137, 138, 144, 158, 159, 160, 166, 167, 168]`. Line 138 is the `for` header and 144 is `return bad`; **lines 139-143, the two `if not _steers_to_preferred` checks, never ran**. Two causes:
+
+1. **One channel, one predicate.** `_register_entries()` kept ToolEntries whose `returns.type.endswith("Register")`. Exactly one of 733 entries declares such a return, so `others` was empty.
+2. **`assert not others` sat ABOVE the steer call.** So on the day a second register-returning entry lands, the test fails at the emptiness line and the steer check is *still* never reached. Not dormant — dead in both worlds.
+
+And the population definition was itself wrong. **A register does not have to declare a `*Register` return type to be one.** Executed: a `SedenionRegister` `[class]` TOML — the exact channel the 16-slot register shipped through from rc140 to rc464 — cloned from `cd_register.toml` with only `name` changed, registered through a scratch class dir, constructs and reads correctly (`read(0) -> ('alpha', 1)`), appears in `dsl.list_classes()` and `describe()['classes']`, and **all 8 tests in that file and all 15 in `test_domain_classes_rc298.py` stayed green.**
+
+**The rewrite: six channels, two predicates, and the loop now runs 20 times.**
+
+| channel | what it catches that nothing else does | live |
+|---|---|---|
+| **P1** tool schema, by THREE predicates — return type names a register carrier, a PARAMETER type does (`cdr_element_of` takes `"CDRegister \| dict"`, which `endswith` missed), or the entry is bound as a method/chain step of a register-shaped `[class]` | a register surface that never returns one | 20 ops, pinned as an equality |
+| **P2** the class catalog, register-shaped by NAME **or** by covering the verbs `{write, read, navigate}` | the rc140 TOML channel — nothing else sees it | `{CDRegister}` |
+| **P3** `carrier_schema()` keys | the carrier ontology, a different consumer path | `{CDRegister}` |
+| **P4** the MCP wire handle-kind map | a second register needs a row here to cross the wire — **no test read this map before rc465** | `{CDRegister}` |
+| **P5** the five generated artifacts | a consumer who never imports the module | tokens ⊆ `{CDRegister}` + one pinned historical mention |
+| **P6** shipped ToolEntry / carrier prose | a summary offering another register as a live alternative while the types stay clean | `{CDRegister}` |
+
+Predicate **A** — every surface the preferred register OWNS must NAME it — iterates **20 times on the shipped tree**, which is the body rc464's never reached. Predicate **B** — a register surface NOT owned by the preferred shape must steer to it — runs on whatever the same derivation produced, **with no emptiness assertion above it**, and the equality pins live in other test functions so they cannot pre-empt it.
+
+**Four mutations, planted, verified red at the named assertion, reverted.**
+
+| mutation | rc465 | rc464 |
+|---|---|---|
+| **M1** an in-memory second `*Register`-returning entry with a non-steering summary | RED at **predicate B** (and at P1, P6) | failed at the emptiness assert; the steer was never reached |
+| **M2** a `SedenionRegister` `[class]` TOML through a user class dir | RED at **P2** | **all 8 tests GREEN** |
+| **M3** a second row in `_HANDLE_SHAPED_CARRIERS` | RED at **P4** | GREEN — nothing read the map |
+| **M4** a `cdr_*` summary offering the 16-slot register as a live alternative | RED at **P6** | GREEN |
+
+Negative control: 15 tests green on the shipped tree, before and after every revert.
+
+**Stale prose the rc464 work left behind, corrected in place.** `srmech/mcp/_coercion.py` said *"Both inherit object identity … They ride the rc16 envelope"* over a **one-row** map — a plural that outlived the 16-slot register by a release. `c/src/srmech_make_class.c` described that register in the present tense (*"which has no carrier-arithmetic surface at all"*) one rc after removing it. And rc464's own §12 above says the file has **7 tests** (it merged with 8), that the pinned set has **"Two rows today"** (it has one — the removal in that same rc is what emptied clause 3's population), and describes clause 3 as a live check across *"two different consumer paths"*. All four carry a bracketed rc465 correction.
+
+### 2. `NO_INT_INPUT` was not a verdict about ops. The ceiling is REMOVED, not raised.
+
+`tools/frame_probe.py::classify` decided this class at `if not coords`, **which sits above the first `Driver.raw({})` call**. So membership was a property of the harvested BINDING and never a measurement of the op — reproducible at rc465 **from the ledger alone with no op executed**, giving the live 184 exactly. Every raise since rc430 was justified from an ad-hoc per-op probe recorded in a comment; each was honest about the *label* and none could say what the label *meant*.
+
+**The partition, executed. 55 + 2 + 13 + 26 + 88 = 184.**
+
+| n | cause | new verdict |
+|---|---|---|
+| **55** | `inspect.signature(fn).bind(**base)` **raises** — a required parameter is absent from the harvested base. Python binds before the body runs, so `raw({})` would have raised identically. The probe never reached these ops. | `UNBOUND_REQUIRED` |
+| **2** | a VAR_POSITIONAL the harvest dropped, which `bind()` cannot see because `*args` accepts zero — `einsum` says *"2 operand specs but 0 operands"*, `klein4_bundle` says *"requires at least one vector"* | `UNBOUND_REQUIRED` |
+| **13** | the op DECLARES an int parameter whose default is a sentinel `None` | `SENTINEL_INT_DEFAULT` |
+| **26** | a matrix-shaped int operand the depth-2 wall refused to translate | 24 DRIVEN, 2 `SLOW_SKIP` |
+| **88** | genuinely no integer anywhere in the binding | `NO_INT_INPUT`, held to that statement |
+
+⚠️ **Seven ops the ceiling comments call "MEASURED" are in the first group**, including five of the twelve behind the rc463 and rc464 raises: `eigvec_exact` / `eigvec_exact_float` / `jordan_chains_exact` (`lam` missing), `qmat_rank` (`rows` missing), `cdr_clean` (`codebook` missing), plus `triality_companions` — rc462 wrote *"the probe reached it and MEASURED that it has no integer input"* while `g_v` was missing — and `genome_group`, where rc442 wrote *"it binds `label` and `dim`"* and the ledger binds `dim: None`. Those sentences were true of the bucket and false of the op. The enabling condition is in the harvester: `tools/example_args.py` stamps a PARTIAL binding `status: "ok"`, so a consumer reading only `args` cannot tell a complete binding from a truncated one.
+
+**`BASE_RAISES` 56 → 3.** The largest single correction in that file's history, and it is a **drain of 53**, not a raise. It was never 56 ops whose binding "does not execute": 53 of them could not BIND, so the `TypeError` came from Python's argument binder before the body ran. What is left is the 3 whose complete binding really is rejected by the op itself.
+
+**The answer to the question the ceiling posed.** *Is `NO_INT_INPUT` the correct verdict for a matrix-valued op?* **No.** The standing justification — *"a matrix is an OPERATOR, not a coordinate; perturbing an entry asks a different question"* — is a per-op SEMANTIC claim asserted from a nesting-DEPTH test, and the same objection defeats it one level up: the probe already perturbs element `[0]` of flat int vectors whose ints are content (`zeta_mul` takes `Z[ζ]` coefficients; rc458 drove it to `NOT_ADMISSIBLE` in 73 calls) and reports the honest answer. Within the one shape `list[list[int]]` this tree holds a Cayley table, literal positions in `cotangent_weights`, vertex labels in `edges`, an operator over Q in `qmat_*`, and residues mod *p* in `gf_rref`. The shape cannot decide which; only the measurement can, and the measurement was being refused. `translate()` now moves the first LEAF. **MEASURED over the 26 ops this reaches: 24 drive to a verdict in under 0.2 s each and every one is `NOT_ADMISSIBLE` — zero false `ADMISSIBLE`.** Ops whose own guard rejects the perturbed matrix go not-total, which is the right answer for a group op.
+
+**And the 13 sentinel-default ops were NOT drained by editing their examples.** Measured: `required=False` on **every one**, so omitting an optional parameter is what a worked example *should* do. Editing 13 shipped examples to bind `precision=20` would have moved a census number by changing published documentation. Instead the class is named — and measured, so it is not a mystery: binding a witness value drives all 13 and **every one reaches `NOT_ADMISSIBLE`**. The class conceals no admissible op.
+
+**Why a count could never have worked here, whatever the per-item justifications said.** Membership is (registry size) × (share of ops whose harvested binding carries no scalar int or flat int list). Both factors only grow — every string-, float-, matrix- or dict-valued op registered lands here at birth. A down-only ceiling on the absolute count of such a class is a counter with a reason-comment attached; it can only ever be raised. `CEIL_FRAME_UNADJUDICATED["NO_INT_INPUT"]` is therefore **deleted**, and the three classes are held to the STATEMENT that makes each true, per op — the form `CONTRACT_SKIP` has always used. That gate needs no number, cannot be moved by registering more string-valued ops, and **can fail**.
+
+**The census, live:**
+
+| verdict | rc464 | rc465 |
+|---|---|---|
+| `ADMISSIBLE` | 20 | **21** |
+| `NOT_ADMISSIBLE` | 138 | **197** |
+| `NO_ARG` | 279 | 279 |
+| `UNBOUND_REQUIRED` | — | **110** |
+| `SENTINEL_INT_DEFAULT` | — | **13** |
+| `NO_INT_INPUT` | 184 | **88** |
+| `BASE_RAISES` | 56 | **3** |
+| `SLOW_SKIP` | 17 | **19** |
+| `CONTRACT_SKIP` | 3 | 3 |
+
+Ops actually DRIVEN: **158 → 218**, and the floor rises 130 → 218 with it. A floor is the half of the gate that no relabelling can satisfy.
+
+**The one upward move, declared.** `SLOW_SKIP` 17 → 19. It is a consequence of the widening rather than a concession: `g2_membership` and `relational_structure` were previously `NO_INT_INPUT` — never driven, so never counted as slow — and became reachable the moment a matrix-shaped operand counts as a coordinate. Each entry carries its measured seconds (**50.9 s** and **258.7 s** for the whole `classify()`) **and the verdict it reaches when driven** (both `NOT_ADMISSIBLE`), so this class is not hiding an admissible op behind a wall clock.
+
+**Three more guards, each proven red.**
+
+* **A known-verdict guard.** Through rc464 the ceiling loop iterated the dict's keys, so a verdict spelled anything else was *silently uncounted* — renaming or adding a class would have dropped its whole population out of every ceiling at once and read as a drain. This rc adds three verdict names, so it is exactly the change that would have fallen through the hole. Mutation: rename one op's verdict to `MYSTERY` → **RED**, *"the census emitted verdict(s) ['MYSTERY'] that no ceiling and no reason-held class covers"*.
+* **The reason-held residual gate.** Mutation: restore the rc464 ordering by filing five partial bindings as `NO_INT_INPUT` → **RED** with 7 named offences (*"the harvested binding is INCOMPLETE — the probe never reached this op"*, *"while its own declaration types \['lam'\] as integer(s)"*).
+* **The census is an artefact, and it is now gated.** `tools/frame_probe.py` promised that gate and census *"cannot drift apart by being separately hand-rolled"*. **They drifted anyway, by a route sharing an import does not cover: nobody re-ran the census.** The committed file sat at the rc430 numbers (`NO_INT_INPUT: 152`, 655 records) through all nine raises. It moves from `docs/srmech/notes/_frame_scope_census_rc430.ndjson` to `tests/frame_scope_census.ndjson` (733 records, in the sdist), its generator from `notes/` to `tools/frame_scope_census.py`, and the gate now compares `meta.by_verdict` to the live census in the same process. Mutation: roll the artefact back to `"NO_INT_INPUT": 184` → **RED**, *"the committed census is STALE"*.
+
+**A fourth blind spot ships as data.** `describe()["frames"]["cannot_express"]` gains `operand_not_translatable`: an operand whose integers live inside a MAPPING — a character table, a rep payload, a codebook, a slot map — carries no coordinate at any nesting depth. That is what the removed count was mostly counting, and it is now an instrument limitation stated as data rather than a number that could only go up.
+
+
 ## [0.9.0rc464] - three guards that declined a C peer which had accepted 256 since rc298, a conversion refused on a contract clause that was already false, a faithfulness oracle whose own test forbade the subsumption it was gating, and a 32x scratch heuristic that made a whole class look like it had no C peer
 
 **What this rc is for.** Registry **720 → 733**; **ABI 24 → 25** (a REMOVAL bump); **three C symbols removed, none added**; carriers **29 → 28**; the `[class]` catalog stays at **4**, with a different fourth member. Four threads. FIRST: `srmech_cd_navmap`, `srmech_cd_navigate` and `srmech_cd_navmap_is_signed_permutation` have accepted every power-of-two dim up to `SRMECH_CD_MAX_DIM = 256` since rc298. Their three Python wrappers returned `None` above 64 anyway — before any `LIB` call — so at dim 128 and 256 the shipped surface silently ran the pure cocycle loop while the ratchet justification on record said the family had "real C peers reachable through dispatch glue". That justification was **false above dim 64 from rc298 to rc463**, and no instrument could say so: the rc297 sweep of that family stops at 64, and the rc298 evidence that "the C peer verifies the new rungs" calls the symbol through **raw ctypes**, bypassing the very wrappers that declined it. SECOND: `CDRegister` — the last hand-coded domain class in the tree — becomes a config-driven `[class]` TOML, which is what the standing direction asks for and what rc297 recorded as *"decided, not defaulted"* against. One of rc297's two stated grounds was **already false when it was written**; the other was real and dissolves under the same change that records a fixture. Sections 6–8. THIRD: that fixture is now recorded, `CDRegister` is the PREFERRED register shape on every surface a consumer reads, and the test surface migrates onto it — the faithfulness gate moving from CODE INDEPENDENCE (a test asserting through `inspect.getsource` that the oracle does not mention the subject) to DATA PROVENANCE (1157 digest-pinned records of what the oracle actually did), which is the stronger form of the same claim because recorded output cannot acquire the subject's failure modes: it is not running. Sections 11–14. FOURTH — and it is what makes the other three land rather than sit as half a change: the bare-C `make_class` engine gains a dim- and namespace-general register vtable, the 16-slot `SedenionRegister` is REMOVED entirely, and the three C exports that served it go with it. Sections 15–21. Along the way the engine turned out to carry a hand-rolled `32 * toml_len` TOML-parse scratch heuristic that held for every descriptor shipped through rc463 and failed silently on the first bigger one — §16 — and running the DOCUMENTED curated-docs refresh command wrote a Python module that raised `NameError` on import, §20.
@@ -173,11 +263,11 @@ Executed on the rebuilt library: **67 tests, 21.09 s** across the two golden mod
 
 "Prefer X" is exactly the kind of statement that goes stale in prose and is then quoted years later by a reader with no way to know — this rc already had to correct one such sentence that steered a build decision ~330 rcs after it stopped being true (§6). So the preference is measured.
 
-`tests/test_preferred_register_shape_rc464.py` (7 tests) pins:
+`tests/test_preferred_register_shape_rc464.py` (7 tests — **8 as merged; and ⚠️ rc465 CORRECTION: the third clause below was VACUOUS. Its loop body never executed, so both of its assertions were unreachable. rc465 rewrites the module to 15 tests over six channels; see the rc465 entry**) pins:
 
-* **the set of registered ops that hand back a register**, as an EQUALITY over `returns.type` — that is the set a reader chooses from, so it is the set the preference has to be about. Two rows today; the removal of the dim-16 one cannot pass unremarked, and a new register-shaped entry cannot appear unremarked either;
+* **the set of registered ops that hand back a register**, as an EQUALITY over `returns.type` — that is the set a reader chooses from, so it is the set the preference has to be about. ~~Two rows today~~ **ONE row — the dim-16 entry was removed in this same rc, which is exactly what emptied clause 3's population (rc465 correction)**; a new register-shaped entry cannot appear unremarked. **rc465 also found the predicate too narrow: a register need not declare a `*Register` return type to BE one, and a `[class]` TOML — the channel the 16-slot register itself shipped through from rc140 — passed every test in this file unremarked;**
 * that the preferred entry SAYS SO in the shipped `ToolEntry` summary, in the class / factory / module docstrings a `help()` reader reaches, **and in the two GENERATED artifacts a consumer reads without importing anything** — the wheel's `_tool_docs.py` explanation and the compiled-in `srmech_tool_registry.c`. rc464's own §on ref-notation records that 15 false links once shipped through exactly those files, so they are checked directly rather than trusted to follow the source;
-* that every OTHER register-returning surface points at it, in the tool summary AND in the carrier description — two different consumer paths, neither standing in for the other;
+* that every OTHER register-returning surface points at it, in the tool summary AND in the carrier description — two different consumer paths, neither standing in for the other. **⚠️ rc465 CORRECTION: this clause measured nothing. The population was empty, so the loop ran zero times; and an `assert not others` sat ABOVE the steer call, so in the world where the population is NON-empty the test fails at the emptiness line and the steer is still never reached — dead in both worlds, not dormant. Traced with `sys.settrace` at rc465: lines 139-143 never execute.**;
 * with a negative control proving the steering predicate can fail: MENTIONING `cd_register` is not steering to it, since every register entry does that in passing.
 
 The shipped prose also makes a claim that is a MEASUREMENT rather than a slogan — *"there is no method here that CDRegister lacks"*. Executed: `dir()` over both classes gives **11 public methods on the 16-slot register, 0 of them missing from CDRegister, and 7 extra there** (`add` / `carry_block` / `conjugate` / `element` / `multiply` / `norm` / `working_block`). A preference that asked a reader to give something up would be a different statement.
