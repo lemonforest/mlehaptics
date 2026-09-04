@@ -303,6 +303,23 @@ So the artefact is now **per cell** — `demotion_census_rc465.ndjson` and `demo
 
 **And the pure cell was not reproducible either, which is a second finding.** Two consecutive pure censuses on an unchanged tree: run 1 differed from the committed artefact in **0** rows, run 2 in exactly **2** — `laplacian.recover_check::weights` and `recover_check_spectral::weights`, both `DEMOTED → EXACT`, at 56.0s and 61.2s. Their pure cost sits at the 20s `CALL_TIMEOUT` boundary (one row, `recover_check_spectral::edges`, measures **526s**), so machine load decided the verdict. They are skipped by name in the PURE cell only, through a new `demotion_probe.SLOW_SKIP` keyed by cell — `frame_probe`'s discipline, made per-cell because the cost is. The native cell measures the same two rows in **0.154s / 0.159s** and is stable across three runs, so skipping them there would delete real signal to fix another cell's problem, and the native column of that roster is empty. Both cells now read **43 passed**.
 
+**8m. One op allocated 7.1 GiB inside the census and killed the CI runner, and that is what every exit-143 job on this branch was.** Four jobs — `ubuntu-latest • py3.10`, `ubuntu-latest • py3.12`, `fallback shard 6/6`, `asserts-live shard 4/4` — ended in *"The runner has received a shutdown signal"* and exit 143 in EVERY run on this branch, at ~5 minutes into the pytest step, including a 5-job re-run far under the plan's concurrency cap. Their logs carry **zero `F` markers** and their `always()` artifact steps read `skipped`, which is what a LOST RUNNER looks like and what a failing test does not. `fail-fast: false` is set on every matrix here and no competing run existed, so neither of the two obvious explanations held.
+
+MEASURED with a per-op peak-RSS profile over the whole census (WSL2 py3.10):
+
+```
+peak RSS 7342 MiB (start 35 MiB)
+  +7256.8 MiB -> 7342.4 MiB   srmech.signal_processing.mlse
+  +  17.4 MiB ->   81.4 MiB   cascade.matrix_cascades.singular_values_exact
+  +  12.1 MiB ->   59.9 MiB   cascade.matrix_cascades.eigvals_exact
+```
+
+**One op is 7.1 GiB of a 7.3 GiB peak; the next largest is 17 MiB.** A GitHub-hosted Linux runner has ~7 GiB, so the census reached `mlse` about five minutes in and took the machine with it. The gate rc465 added to catch silent demotions was killing the cells that run it.
+
+It is a `CONTRACT_SKIP`, not a budget, and for the reason the three weight-lattice rows beside it already give: `mlse`'s `n_states` means `A**L` (the rc425 v14 ABI bump), so the Viterbi trellis is EXPONENTIAL in the operand. A `2**53` witness in `alphabet` / `channel_taps` / `initial_state` / `observations` does not ask the same question at a bigger magnitude — it asks for a trellis the op cannot build, exactly as a `2**53` Dynkin coordinate asks for an unbounded Weyl orbit. The witness is not a value carrier here. A memory or wall-clock cutoff would have reported the MACHINE; this reports the CONTRACT.
+
+Effect on both censuses: `CALL_TIMED_OUT` 6 → 2, `CONTRACT_SKIP` 10 → 14, and **nothing else moves** — `DEMOTED` 120/117, undeclared 70/67 and decided 219/219 are unchanged in both cells, so no ceiling moves in either column. The census also runs ~3 minutes faster.
+
 **ABI stays 25.** No C symbol is added, removed or re-signatured. `c/src/srmech_tool_schema.c` gains one row in each of two hand-maintained string tables (a new declared type string mapping to `"array"`, plus its encoding hint); every existing string answers exactly as before, so no wire contract moves. `SRMECH_GENOME_FORMAT_VERSION` stays 20. Registry stays **733**.
 
 ## [0.9.0rc464] - three guards that declined a C peer which had accepted 256 since rc298, a conversion refused on a contract clause that was already false, a faithfulness oracle whose own test forbade the subsumption it was gating, and a 32x scratch heuristic that made a whole class look like it had no C peer

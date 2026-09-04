@@ -243,6 +243,39 @@ CONTRACT_SKIP: Dict[str, str] = {
         "same weight-label contract as tensor_product_multiplicities",
     "srmech.math.weight_lattice.verlinde_fusion_multiplicities":
         "same weight-label contract; frame_probe.SLOW_SKIP names it too",
+    # ⚠️ rc465-fix (`#T1188`) — THE OP THAT WAS KILLING CI RUNNERS, and the
+    # reason is the same one the three weight-lattice rows above give.
+    #
+    # MEASURED (per-op peak-RSS profile over the whole census, WSL2 py3.10):
+    #
+    #     peak RSS 7342 MiB (start 35 MiB)
+    #       +7256.8 MiB -> 7342.4 MiB   srmech.signal_processing.mlse
+    #       +  17.4 MiB ->   81.4 MiB   cascade.matrix_cascades.singular_values_exact
+    #       +  12.1 MiB ->   59.9 MiB   cascade.matrix_cascades.eigvals_exact
+    #
+    # One op accounts for 7.1 GiB of a 7.3 GiB peak; the next largest is 17 MiB.
+    # A GitHub-hosted Linux runner has ~7 GiB, so the census reached `mlse`
+    # about five minutes in and the RUNNER died — reported as
+    # "The runner has received a shutdown signal" and exit 143, with no pytest
+    # failure line, on `ubuntu-latest` py3.10 and py3.12, `fallback shard 6/6`
+    # and `asserts-live shard 4/4`, in EVERY run on this branch, including a
+    # 5-job re-run far under the concurrency cap. Those four jobs' logs carry
+    # ZERO `F` markers and their `always()` artifact steps are `skipped`, which
+    # is what a lost runner looks like and what a failing test does not.
+    #
+    # WHY IT IS A CONTRACT SKIP AND NOT A BUDGET: `mlse`'s `n_states` means
+    # `A**L` (the rc425 v14 ABI bump), so the Viterbi trellis is EXPONENTIAL in
+    # the operand. Substituting `2**53` into `alphabet` / `channel_taps` /
+    # `initial_state` / `observations` does not ask the same question at a
+    # bigger magnitude — it asks for a trellis the op cannot build, exactly as
+    # a `2**53` Dynkin coordinate asks for an unbounded Weyl orbit. The witness
+    # is not a value carrier here. A wall-clock or memory cutoff would report
+    # the machine; this reports the CONTRACT.
+    "srmech.signal_processing.mlse":
+        "n_states is A**L, so the trellis is EXPONENTIAL in the operand: a "
+        "2**53 witness asks for a state space the op cannot build, not the "
+        "same question at a bigger magnitude. MEASURED +7.1 GiB peak RSS in "
+        "one op, which killed the CI runner outright",
 }
 
 #: Ops skipped by NAME **in one cell only**, because their per-call cost THERE
