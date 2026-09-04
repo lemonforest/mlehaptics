@@ -352,12 +352,24 @@ every routed slot, every coupler word, and the materialised bundle's SHA-256 at
 three widths — are recorded in `tests/sedenion_register_golden_rc464.ndjson`
 (digest-pinned in `tests/_golden_sedenion.py`) and gated in
 `tests/test_cd_register_golden_rc464.py`. The preference itself is a gate, not a
-sentence: `tests/test_preferred_register_shape_rc464.py` pins the
-register-returning tool set as an EQUALITY — one entry since the removal, so a
-second register reappearing is reported rather than merely unpreferred — and
-requires the steer to appear in the shipped summary, the docstrings, the
-generated `_tool_docs.py` and the compiled-in C tool registry. So THIS paragraph
-going stale is reported elsewhere, which is not true of most of this file.
+sentence: `tests/test_preferred_register_shape_rc464.py` pins the register
+surface as an EQUALITY over SIX channels and requires the steer to appear in the
+shipped summary, the docstrings, the generated `_tool_docs.py` and the
+compiled-in C tool registry. So THIS paragraph going stale is reported
+elsewhere, which is not true of most of this file.
+⚠️ **rc465 correction, because the previous sentence was the whole defect.**
+Through rc464 that gate read ONE channel — ToolEntries whose `returns.type`
+ends `Register` — and its clause-3 loop body NEVER EXECUTED (traced: lines
+139-143 unreached), with an emptiness assertion above the call so the check was
+unreachable in the non-empty world too. Worse, the population was the wrong one:
+a `SedenionRegister` `[class]` TOML — **the exact channel the 16-slot register
+shipped through from rc140** — registers, constructs and reads while passing
+every test in that file, MEASURED at rc465. The gate now derives its population
+from the tool schema (return types, PARAMETER types, and `[class]` method
+bindings), the class catalog (by name OR by the verbs `{write, read,
+navigate}`), `carrier_schema()`, the MCP wire handle-kind map, the five
+generated artifacts and the shipped registry prose — and its owned-surface loop
+runs 20 times rather than zero.
 A bare-C host reaches the register the same way: `cd_register.toml` is a
 `[class]` descriptor and `srmech_make_class.c`'s vtable dispatches its methods
 dim- and namespace-generally, byte-identically to the pure `CatalogClass` at

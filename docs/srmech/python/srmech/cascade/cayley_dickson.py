@@ -182,7 +182,7 @@ CD_COMPOSE_MAX_DIM = 8
 #: an XOR on the INDEX and a COCYCLE on the SIGN, measured over
 #: :func:`cd_basis_product`::
 #:
-#:     dim | index == a XOR b | negative signs (C(d,2)) | SIGN COCYCLE assoc
+#:     dim | index == a XOR b | negative signs (C(d,2)) | SIGN 2-COCHAIN δε=0
 #:       2 |       4/4        |        1  (1)           |     8/8      100%
 #:       4 |      16/16       |        6  (6)           |    64/64     100%
 #:       8 |      64/64       |       28  (28)          |   344/512     67%
@@ -192,7 +192,7 @@ CD_COMPOSE_MAX_DIM = 8
 #: The index lane is exact at EVERY rung; the SIGN is what stops being
 #: associative, abruptly, at dim 8. **Addressing is unbounded because XOR is
 #: associative at every dim forever; turns and composition break because the
-#: SIGN COCYCLE stops being associative.** That is why rc298 (`#T933`) could
+#: SIGN 2-COCHAIN stops satisfying the cocycle condition.** That is why rc298 (`#T933`) could
 #: lift :data:`CD_MAX_DIM` 64 → 256 by DECOUPLING the caps — the wall was never
 #: in the addressing. (``index == XOR`` is close to DEFINITIONAL for a CD basis,
 #: so that column is a CHECK, not a discovery; the READING it supports — a free
@@ -1359,6 +1359,26 @@ def cd_commutator(x: Sequence[Any], y: Sequence[Any],
     definite ladder; it is the named home for computing those counts, not a mover
     of them.
 
+    ⚠️ **NAMING (rc465, `#T1188`)** — naming and attribution only, no novelty.
+    This is the **TORSION-type** member of the ladder, as :func:`associator` is
+    the curvature-type one. On the geodesic loop of an affine connection that
+    is a theorem (Kuusk & Paal, arXiv:0803.1241 §3 — the deviation from
+    commutativity is twice the torsion, attributed there to Akivis 1978).
+    The "square-loop" picture this docstring already used is the RIGHT one for
+    it and is kept, because that is precisely the geometry of a torsion
+    (Hehl & Obukhov, arXiv:0711.1535 §1 — a non-vanishing torsion breaks
+    infinitesimal parallelograms, and a closure failure emerges; §4 — in a
+    continuized crystal the dislocation density and the torsion are the same
+    object, shown isomorphic to the Cartan circuit by Kondo and by Bilby et
+    al.).
+
+    ⚠️ The CD carrier is not an affine connection and none of that is
+    claimed for it; what
+    transfers is the VOCABULARY — the arity-2 ordering deviation is a
+    torsion-type object and the arity-3 bracketing deviation is a
+    curvature-type one, so the two really are different KINDS and not two
+    sizes of one thing.
+
     Args:
         x, y: equal-length elements. With ``table=None`` the length must be a
             power of two ``≤ CD_MAX_DIM`` (the definite ladder, via
@@ -1425,9 +1445,13 @@ def cd_cycle_holonomy(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
     the algebra is ASSOCIATIVE (ℝ / ℂ / ℍ) that walk is a single well-defined
     value — the loop CLOSES independently of how the three edges are bracketed —
     so the quaternion peer, which lives at ℍ, never has to choose. Past the
-    Hurwitz wall at 𝕆 it does: the two bracketings of the same walk disagree, and
-    that disagreement IS the holonomy the triangle now carries. So this op walks
-    the loop BOTH ways and returns the pair plus their defect::
+    Hurwitz wall at 𝕆 it does: the two bracketings of the same walk disagree,
+    and that disagreement is what the triangle now carries BESIDE its two
+    transports — a CURVATURE-type density on the ordered triple, not a third
+    holonomy (see the ⚠️ NAMING note below; through rc464 this sentence read
+    "that disagreement IS the holonomy the triangle now carries", which is the
+    exact misnaming that note exists to remove). So this op walks the loop BOTH
+    ways and returns the pair plus their defect::
 
         holonomy_left  = (x·y)·z     the left-nested walk around the triangle
         holonomy_right = x·(y·z)     the right-nested walk
@@ -1437,9 +1461,33 @@ def cd_cycle_holonomy(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
     ``closed`` is the turn-on read, and it is a property of the RUNG, not of the
     particular gains: on an associative rung EVERY triangle closes, and at 𝕆 the
     basis triangles fail to close on exactly the non-associating triples
-    (168 / 512 at 𝕆, 1848 / 4096 at 𝕊). This is the k=3 loop defect made a
-    holonomy; :func:`associator` is the same defect as a bare trilinear tuple,
-    :func:`cd_commutator` is the k=2 square-loop one rung below.
+    (168 / 512 at 𝕆, 1848 / 4096 at 𝕊). :func:`associator` is the same defect
+    as a bare trilinear tuple, :func:`cd_commutator` is the k=2 one rung below.
+
+    ⚠️ **NAMING — ``defect`` IS NOT A HOLONOMY, and the two returned products
+    ARE** (rc465, `#T1188`; naming and attribution only, nothing novel).
+    ``holonomy_left`` and ``holonomy_right`` are transports: each is an ordered
+    product walked around the triangle back to base, which is what the word
+    means. ``defect`` is their DIFFERENCE — a density evaluated on the ordered
+    TRIPLE ``(x, y, z)``, of the CURVATURE type, not a transport of anything.
+    Through rc464 this docstring called that difference "the k=3 loop defect
+    made a holonomy", which named the right family and the wrong object.
+
+    The naming is not a preference. For the geodesic loop of an affine
+    connection it is a theorem (Kuusk & Paal, arXiv:0803.1241 §3 — the
+    deviation from commutativity is twice the torsion, and the deviation from
+    associativity is the curvature less the covariant derivative of the
+    torsion, a result attributed there to Akivis 1978); the geodesic-loop
+    construction the theorem is about is that paper's reference [1],
+    Kikkawa 1964. So on that carrier the arity-3
+    bracketing deviation IS a curvature and the arity-2 ordering deviation IS a
+    torsion. ⚠️ The CD carrier is **not** a geodesic loop and no claim is made
+    that it is — what transfers here is the VOCABULARY for what kind of object
+    each arity yields (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`:
+    the FORM, never the identity). ``plaquette`` is deliberately not used for
+    any of these; that word is already spoken for by the lattice-gauge Wilson
+    loop, which :func:`srmech.physics.qm.gauge.wilson_loop_from_segments` uses
+    in its own correct sense.
 
     ⚠️ EPISTEMIC CEILING (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`):
     this reads the FORM of a 3-cycle holonomy over the CD carrier — the ordered
@@ -1698,10 +1746,29 @@ def defect_ladder(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
     loss is the cleaner NAME for this rung than "alternativity"; the two arrive
     together at the same seam.
 
-    **Arity-4 was REFUTED.** A conjectured arity-4 "square-loop" holonomy does
-    NOT open a fifth, arity-indexed rung: it turns on at 𝕆 (rung 3) with the
-    same 1848/4096 count as the associator and is INHERITED from it, not a new
-    property. The ladder is rung-indexed; there is no arity-4 rung.
+    **Arity-4 was REFUTED.** A conjectured arity-4 "square-loop" divergence
+    does NOT open a fifth, arity-indexed rung: it turns on at 𝕆 (rung 3), one
+    rung EARLIER than a new property would, and is INHERITED from the arity-3
+    associator (a 4-tuple's five bracketings disagree ⟺ some sub-triple
+    non-associates). The ladder is rung-indexed; there is no arity-4 rung.
+
+    ⚠️ **The count in this paragraph was WRONG from rc383 to rc464, and it was
+    wrong by collision** (corrected rc465, `#T1188`). It read "the same
+    1848/4096 count as the associator". Two different censuses share the
+    denominator 4096 and the sentence fused them: the arity-4 divergence at
+    𝕆 is **2520 / 4096** over ordered basis 4-tuples (8⁴), while 1848 / 4096
+    is the ASSOCIATOR at 𝕊 over ordered basis triples (16³). Different arity,
+    different rung, different object — and "the same count as the associator"
+    was the load-bearing half of the claim, so the error read as evidence for
+    the inheritance it was meant to support. RE-MEASURED at rc465 through
+    :func:`cd_mult`: arity-4 divergence 0/256 at ℍ and **2520/4096** at 𝕆;
+    associator support 0/8, 0/64, 168/512, 1848/4096, 15960/32768. The rc383
+    provenance record (``docs/srmech/notes/defect_ladder_rc383.ndjson``, the
+    ``arity4_square_loop_refutation`` rows) carried 2520 correctly all along —
+    only the prose drifted. ⚠️ 2520/4096 ALSO names the bicharacter's
+    non-bimultiplicativity count at 𝕊; that is a digit collision between two
+    unrelated censuses and a cross-reference between them would be a numerology
+    error, exactly as :func:`octonion_associator_support` warns for 168.
 
     ⚠️ EPISTEMIC CEILING — FORM, not identity
     (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`). The

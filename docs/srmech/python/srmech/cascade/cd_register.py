@@ -59,7 +59,25 @@ basis pair, columns ``t(0..dim-1)``::
 
 ``rank([A|b]) = rank(A) + 1`` at EVERY rung: the system is inconsistent
 everywhere, so no such ``t`` exists at any dim. The sign is therefore an
-irreducible COHOMOLOGICAL datum, not a representational one.
+IRREDUCIBLE datum, not a representational one.
+
+⚠️ **It read "an irreducible COHOMOLOGICAL datum" through rc464; corrected
+rc465 (`#T1188`), and the measurement above is untouched.** What is measured is
+that ε is not a COBOUNDARY at any rung, which is exactly what "no such ``t``
+exists" says. Being cohomological additionally requires ε to be a COCYCLE, and
+it is one only at ℝ/ℂ/ℍ: the committed census has ``δε ≠ 0`` from 𝕆 up (168
+failing triples at 𝕆, 1848 at 𝕊). So above the Hurwitz wall the invariant is
+ε's class in ``C²/B²`` — a cochain modulo coboundaries — and not a class in
+``H²``. Nor is there a nonzero obstruction class one rung up: the associator
+sign φ = δε is a coboundary BY CONSTRUCTION, so ``[φ] = 0`` in ``H³`` at every
+rung, which the source states outright (Albuquerque & Majid, arXiv:math/9802116
+§1 — for the octonions the cocycle is a coboundary, identified as the twisting
+of a group algebra by a 2-cochain). What turns on at 𝕆 and degrades at 𝕊 is the
+COCHAIN'S VALUES, not a class. ⚠️ That is a correction of NAMING and must not be
+read as "nothing is frame-independent": the rank pair, ``nullity = log2(dim)``,
+the associator support ladder (0, 0, 168, 1848, 15960) and the diagonal
+``q(x) = ε(x, x)`` are all measured and all invariant. There IS frame-independent
+content; it is not a cohomology class.
 
 Two encoding notes, because the raw ranks are not self-describing and a
 half-quoted table is not reproducible:

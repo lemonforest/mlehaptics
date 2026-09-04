@@ -1502,7 +1502,33 @@ def _cwf_compute_native(edge_list, gains, nn, embedding, closed):
     ``srmech_genome_cwf_consistency_mod2`` (it orchestrates the holonomy +
     writhe C ops). Returns the same 6-tuple as :func:`_cwf_compute_pure`, or
     ``None`` on a missing symbol / unmarshalable gain; raises on a BAD_INPUT
-    status (not one cycle / degenerate strand)."""
+    status (not one cycle / degenerate strand).
+
+    ⚠️ **The gain COUNT is part of the marshalling contract** (rc465, `#T1188`).
+    The C peer reads ``gains[4*k]`` for every ``k < n_edges``
+    (``c/src/srmech_winding.c`` — ``srmech_cwf_gain_sign`` in the Tw loop, and
+    ``srmech_quaternion_cycle_holonomy`` beneath it), so a ``gains`` sequence
+    SHORTER than ``edge_list`` made this function hand the library a buffer it
+    reads past the end of. Measured at rc465: 4 gains against 20 edges returned
+    ``(0, None, 0, (0, 1), 0, None)`` from the native route while
+    :func:`_cwf_compute_pure` REFUSED the same call with
+    ``quaternion_cycle_holonomy: gains length 4 != n_edges 20`` — an
+    out-of-bounds read wearing the shape of an answer, and a native/pure parity
+    break. Because the answer came out of whatever the allocator had left
+    beyond the buffer, it was **not even stable within one process**: the
+    rc465 demotion census read this op ``INSENSITIVE`` or ``RAISED`` depending
+    on registry order, which is what made the census gate in
+    ``tests/test_silent_carrier_demotion_rc463.py`` flaky. *(That gate named a
+    specific test here until later in the same rc, when the census stopped
+    being re-derived in CI at all and the test was deleted with the
+    re-derivation — a dead name in shipped prose, so the reference is to the
+    file, which is stable.)*
+
+    The length is checked HERE rather than raised here, so there stays exactly
+    one owner of the error text: a mismatch returns ``None`` and the pure path
+    raises the documented ``ValueError`` (``quaternion_cycle_holonomy`` already
+    carries that check at ``srmech/physics/qm/quaternion.py:1265``).
+    """
     import ctypes
     if not _native.has_native_genome_cwf_consistency_mod2():
         return None
@@ -1512,8 +1538,11 @@ def _cwf_compute_native(edge_list, gains, nn, embedding, closed):
     if gains is None:
         gp = None
     else:
+        gain_rows = list(gains)
+        if len(gain_rows) != n_edges:
+            return None                          # let the pure path REFUSE it
         flat = []
-        for g in gains:
+        for g in gain_rows:
             gg = list(g)
             if len(gg) != 4:
                 return None                      # let the pure path coerce

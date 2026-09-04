@@ -131,6 +131,13 @@ _TYPE_LEXICON: Dict[str, str] = {
     # rarer arm and telling a schema-obedient client the wrong thing.
     "float | Q": "number",     # harmonics.classify_chirality_harmonic
     "number | Q": "number",    # coupling.fold_spectrum
+    # rc465-fix (`#T1188`): the srmech.physics.qm coordinate-vector union. An
+    # ARRAY on the wire exactly as bare `HV` is — each element a bare number or
+    # the [num, den] pair `serialise_native` already emits — so the widening
+    # costs a schema-obedient client nothing. Mirrored in
+    # c/src/srmech_tool_schema.c in this same change; that table is
+    # HAND-MAINTAINED and nothing syncs it for you.
+    "HV | Sequence[int | Q]": "array",
     "Mapping[bytes, bytes]": "object",
     "dict": "object",
     "Optional[dict]": "object",
@@ -238,6 +245,10 @@ _ENCODING_HINT: Dict[str, str] = {
     ),
     "Vec": "flat JSON array (length-n); complex elements as [re, im]",
     "HV": "flat JSON array of integers (the hypervector elements)",
+    "HV | Sequence[int | Q]": (
+        "flat JSON array of components. The LEAVES select the carrier: bare "
+        "integers or [numerator, denominator] pairs take the EXACT-Q rung, "
+        "floats take the float64 one"),
     "Optional[Vec]": (
         "flat JSON array (length-n) or null; complex elements as [re, im]"
     ),

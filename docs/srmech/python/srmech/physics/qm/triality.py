@@ -86,6 +86,11 @@ from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.physics.qm.octonion import octonion_mult_table
+# rc465 (`#T1188`): ONE definition of the exact-operand admission gate
+# for the rung-8 family — this module is already downstream of
+# `qm.octonion`, so re-deriving the predicate here would be a second
+# copy of a load-bearing type test, not an independence.
+from srmech.physics.qm.octonion import _exact_octonion, _operand_leaves
 from srmech.physics.qm.so8 import (
     _DIM,
     _DIM_G2,
@@ -645,7 +650,8 @@ def _cycle_distance(from_canonical: str, to_canonical: str) -> int:
     return _mod_add(dst, 3 - src, 3)
 
 
-def triality_apply(x: Sequence[float], from_frame: str, to_frame: str) -> List[float]:
+def triality_apply(x: Sequence[int | Q | Tuple[int, int] | float], from_frame: str,
+                   to_frame: str) -> List[float] | List[Q]:
     """Carry an 8-vector ``x`` between irrep frames per the cycle distance.
 
     The frame-transport map: the order-3 ``8_v -> 8_s -> 8_c`` cycle acts on
@@ -660,23 +666,43 @@ def triality_apply(x: Sequence[float], from_frame: str, to_frame: str) -> List[f
     Class I + Class M (cyclic frame-transport composed with the companion
     binders).
 
-    rc123: ``x`` is coerced to a plain ``list[float]``; the result
-    is a ``list[float]`` (was an ndarray).
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc465, `#T1188`). The
+    transport is ``steps`` conjugations and nothing else — pure Class-C sign
+    flips, ZERO arithmetic — so an exact operand costs nothing to carry
+    exactly and returns ``list[Q]``. One float component anywhere routes the
+    whole call through the float coercion below. No ``exact=`` keyword.
+
+    ⚠️ **Through rc464 the "exact bookkeeping" below was not exact.** The body
+    opened with ``[float(v) for v in x]``, so
+    ``triality_apply([2**53+1, …], 'v', 'v')`` — the IDENTITY transport, zero
+    steps, zero operations — returned ``9007199254740992.0``. It escaped
+    rc463's silent-demotion gate on its signature-declared ``Sequence[float]``
+    (R2 shielding), and it had **no test anywhere in the tree** to catch it:
+    ``tests/test_octonion_exact_carrier_rc465.py`` is its first.
+
+    rc123: the float route coerces ``x`` to a plain ``list[float]`` and returns
+    a ``list[float]``, **accurate to round-off** (each component truncated to a
+    53-bit significand on entry).
 
     Canonical SSoT: Baez (2002) §2.4; Cartan (1925).
 
     Args:
-        x: An 8-vector in ``from_frame``.
+        x: An 8-vector in ``from_frame``; exact (``int`` / ``Q`` /
+            ``(num, den)``) or ``float``.
         from_frame: Source frame label.
         to_frame: Target frame label.
 
     Returns:
-        The 8-vector re-expressed in ``to_frame`` as a ``list[float]``.
+        The 8-vector re-expressed in ``to_frame``: ``list[Q]`` for an exact
+        operand, ``list[float]`` for a float one.
 
     Raises:
-        ValueError: if ``x`` is not shape ``(8,)`` or a frame is unknown.
+        ValueError: if ``x`` is not shape ``(8,)`` or a frame is unknown
+            (on EITHER carrier).
     """
-    out = [float(v) for v in x]
+    leaves = _operand_leaves(x, "triality_apply", "x")
+    exact = _exact_octonion(leaves)
+    out = exact if exact is not None else [float(v) for v in leaves]
     if len(out) != _DIM:
         raise ValueError(
             f"triality_apply: x must be an 8-vector; got length {len(out)}"

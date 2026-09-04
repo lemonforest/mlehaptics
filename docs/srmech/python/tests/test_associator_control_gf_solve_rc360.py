@@ -478,7 +478,7 @@ def _gcd_int(a: int, b: int) -> int:
 
 
 def _cocycle_system(dim: int, drop_e0_column: bool = True):
-    """``δt = ε`` over GF(2): is the Cayley–Dickson sign cocycle a coboundary?
+    """``δt = ε`` over GF(2): is the Cayley–Dickson sign 2-cochain a coboundary?
 
     ``(δt)(i, j) = t(i) + t(j) + t(i⊕j)`` must equal ``ε(i, j)``, where
     ``e_i·e_j = (−1)**ε(i,j) e_{i⊕j}``.

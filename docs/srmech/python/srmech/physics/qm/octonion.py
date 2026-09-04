@@ -80,7 +80,18 @@ from srmech.math.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
 from typing import List, Sequence, Tuple
 
 from srmech import _native  # rc122: numpy-free native loop-op dispatch
+from srmech.cascade import cd_conjugate as _cd_conjugate
+from srmech.cascade import cd_norm_sq as _cd_norm_sq
+from srmech.cascade import left_mult_matrix as _left_mult_matrix
 from srmech.cascade import magnitude as _magnitude
+from srmech.cascade import right_mult_matrix as _right_mult_matrix
+# rc465 (`#T1188`): the exact-operand ADMISSION predicate is IMPORTED, not
+# re-derived. It has exactly ONE definition in this tree — rc463 wrote it for
+# einsum — and a second hand-rolled copy of a load-bearing type test is how two
+# surfaces come to disagree about what "exact" means.
+from srmech.cascade.matrix_cascades import _exact_leaf
+from srmech.math.q import Q  # rc465: the exact-ℚ scalar carrier
+from srmech.math.qmat import QMat  # rc465: the exact-ℚ 8×8 L_a / R_a carrier
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat  # rc122: numpy-free 2-D carrier for L_a / R_a
 
@@ -295,16 +306,104 @@ def _as_octonion(v: Sequence[float], op: str) -> List[float]:
 
     Accepts any 1-D sequence (list / tuple / ndarray); a 2-D / wrong-length
     input raises the same ``ValueError`` the prior numpy ``asarray(...).shape``
-    check produced. ``Mat`` is rejected here (these ops take a vector, not a
-    matrix)."""
-    if isinstance(v, Mat):
-        raise ValueError(f"{op}: a must be an 8-vector; got a Mat {v.shape}")
+    check produced. The ``Mat`` refusal lives one level up, in
+    :func:`_operand_leaves`, which is the single admission point every op on
+    this surface passes through — see the ⚠️ there for why the guard cannot sit
+    here."""
     try:
         out = [float(c) for c in v]
     except TypeError as exc:  # 0-D scalar / non-iterable
         raise ValueError(f"{op}: a must be an 8-vector; got {v!r}") from exc
     if len(out) != _DIM:
         raise ValueError(f"{op}: a must be an 8-vector; got length {len(out)}")
+    return out
+
+
+def _operand_leaves(v, op: str, noun: str = "a"):
+    """Materialise a 1-D operand ONCE so the exactness read cannot consume it,
+    and REFUSE a ``Mat`` here — this is the single admission point.
+
+    ⚠️ **The refusal moved here in rc465-fix (`#T1188`), and the reason is that
+    a pass-through IS an admission.** As first shipped this read
+    ``if isinstance(v, Mat): return v`` and left the rejection to
+    :func:`_as_octonion` further down. Behaviourally that raised the same
+    ``ValueError`` — but ``tests/coercion_boundary.py`` derives what an op
+    ACCEPTS from its ``isinstance`` guards, and its documented rule is that a
+    guard whose body does not raise is an ACCEPTANCE. So the shipped registry
+    measured ``octonion_left_mult`` / ``_right_mult`` / ``_conjugate`` /
+    ``_norm`` (and, through the shared helper,
+    ``srmech.physics.qm.triality.triality_apply``) as ACCEPTING ``Mat`` while
+    declaring only ``HV``, and ``tests/test_declared_type_honesty_rc363.py``
+    went red at ``CEIL_WIDE_UNDECLARED_OPS = 0``. The instrument was right
+    about the source; the source was wrong about the boundary.
+
+    Raising here makes the guard a REFUSAL in both readings, and it fixes a
+    second defect in the same move: ``triality_apply`` does not call
+    :func:`_as_octonion` at all, so a ``Mat`` operand reached its
+    ``[float(v) for v in leaves]`` and escaped as a bare ``TypeError``
+    (measured: ``float() argument must be a string or a real number, not
+    'list'``) against a docstring that documents ``ValueError``.
+    """
+    if isinstance(v, Mat):
+        raise ValueError(
+            f"{op}: {noun} must be an 8-vector; got a Mat {v.shape}")
+    try:
+        return list(v)
+    except TypeError:
+        return v
+
+
+def _exact_component(c):
+    """The EXACT-ℚ reading of ONE operand component, or ``None``.
+
+    rc465-fix (`#T1188`) — :func:`~srmech.cascade.matrix_cascades._exact_leaf`
+    plus the ``(num, den)`` PAIR, because the pair is what this surface's own
+    shipped prose, its declared wire type ``HV | Sequence[int | Q]`` and its MCP
+    encoding hint all promise, and it was the one spelling of the three that
+    did not work. Measured before the fix:
+    ``octonion_conjugate([(7, 3), 0, 0, 0, 0, 0, 0, 0])`` raised
+    ``a must be an 8-vector`` — the operand IS an 8-vector; the rejected thing
+    was the component type, so the message named the wrong contract too.
+
+    ``(num, den)`` means a 2-element integer pair everywhere else in this
+    package (:func:`srmech.math.q.to_q`, ``QMat.from_rows``,
+    ``srmech/apokatastasis/modular_forms_ring.py`` spells it out), so this
+    reading is the package's, not a new one. rc463's shared ``_exact_leaf`` is
+    deliberately NOT changed: its contract is the einsum admission gate and a
+    2-tuple there is a SHAPE, not a scalar.
+    """
+    if isinstance(c, (tuple, list)) and len(c) == 2             and isinstance(c[0], int) and not isinstance(c[0], bool)             and isinstance(c[1], int) and not isinstance(c[1], bool)             and c[1] != 0:
+        return Q(int(c[0]), int(c[1]))
+    return _exact_leaf(c)
+
+
+def _exact_octonion(v):
+    """The EXACT-ℚ reading of an 8-vector operand, or ``None``.
+
+    rc465 (`#T1188`) — **the whole-operand admission gate**, over the imported
+    rc463 scalar predicate :func:`~srmech.cascade.matrix_cascades._exact_leaf`
+    (a TYPE test: ``2.0`` is a float the caller ELECTED and stays on the float
+    carrier even though it happens to be integral). ONE float component
+    anywhere sends the entire call down the float route, because mixing
+    carriers mid-computation is the defect rather than the cure — the rc463
+    ``_exact_nd`` rule, applied at dim 8.
+
+    ⚠️ **The length check is NOT here, and that is deliberate.** A wrong-length
+    operand returns ``None`` and falls through to :func:`_as_octonion`, which
+    raises the documented ``ValueError`` — so the arity contract is
+    CARRIER-INDEPENDENT and an 8-vector rule cannot be quietly relaxed for
+    exact callers. ``tests/test_declared_raises_execution_rc434.py`` drives the
+    float half of that and ``tests/test_octonion_exact_carrier_rc465.py`` the
+    exact half.
+    """
+    if not isinstance(v, list) or len(v) != _DIM:
+        return None
+    out = []
+    for c in v:
+        q = _exact_component(c)
+        if q is None:
+            return None
+        out.append(q)
     return out
 
 
@@ -335,7 +434,7 @@ def _try_native_loop_op(symbol: str, a: List[float]) -> List[List[float]]:
     return [[float(c_out[k * _DIM + j]) for j in range(_DIM)] for k in range(_DIM)]
 
 
-def octonion_left_mult(a: Sequence[float]) -> Mat:
+def octonion_left_mult(a: Sequence[int | Q | Tuple[int, int] | float]) -> Mat | QMat:
     """Left-multiplication matrix ``L_a`` (``x -> a * x``) as an ``8x8`` real ``Mat``.
 
     Column ``j`` is ``a * e_j``; ``L_a[k, j] = sum_i a_i C[i, j, k]``. For an
@@ -348,21 +447,56 @@ def octonion_left_mult(a: Sequence[float]) -> Mat:
     Canonical SSoT: Baez (2002) §2.3-2.4 (left/right multiplication and the
     bimodule structure underlying triality).
 
-    rc122 (numpy-free): dispatches to the C-backed ``srmech_loop_left_op_f64``
-    (native when present; bit-identical numpy-free table fallback otherwise) and
-    returns a real ``Mat`` (was an ndarray). ``L_a[k][j] = sum_i a_i C[i][j][k]``
-    is bit-identical to the per-basis binds ``loop_left_op`` column-stacks (same
-    Cayley-Dickson-from-H convention).
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc465, `#T1188`). An operand
+    whose every component is exact (``int`` / ``Q`` / a
+    ``numerator``-``denominator`` pair) returns an exact-ℚ ``QMat``, computed
+    through :func:`srmech.cascade.left_mult_matrix` — the C-composed
+    ``srmech_cd_mult`` / ``srmech_cd_qbasis`` route. **Float is the caller's own
+    request**: one float component anywhere sends the whole call down the f64
+    route below, and ``QMat.to_mat()`` projects an exact result on demand. There
+    is no ``exact=`` keyword, exactly as there is none on ``einsum`` / ``kron``
+    — the operand already says which carrier was asked for.
+
+    ⚠️ **Through rc464 this rounded silently.** It coerced with
+    ``[float(c) for c in v]`` at the entry, before any arithmetic, so
+    ``octonion_left_mult([2**53+1, 0, …])[0, 0]`` returned
+    ``9007199254740992.0`` — off by one, with no exception, no warning, no
+    status and no accuracy statement, while
+    :func:`srmech.cascade.left_mult_matrix` computed the same object exactly one
+    import away. It escaped rc463's silent-demotion gate on exactly ONE
+    conjunct — a signature-declared ``Sequence[float]`` — which is R2
+    shielding: a type annotation standing in for an accuracy contract, on the
+    rung rc463's own honesty ladder rates "WEAK, nothing enforces it".
+
+    **The two routes are the SAME matrix**, and that is measured rather than
+    asserted: ``tests/test_octonion_exact_carrier_rc465.py`` drives the 8 basis
+    vectors and 12 random integer 8-vectors through this module's table and
+    through ``cascade.left_mult_matrix`` — 0 mismatches. That is also the first
+    execution of the convention claim below, which had been prose since rc122
+    and is now load-bearing.
+
+    rc122 (numpy-free): the FLOAT route dispatches to the C-backed
+    ``srmech_loop_left_op_f64`` (native when present; bit-identical numpy-free
+    table fallback otherwise) and returns a real ``Mat``, **accurate to
+    round-off** — every component is truncated to a 53-bit significand on entry.
+    ``L_a[k][j] = sum_i a_i C[i][j][k]`` is bit-identical to the per-basis binds
+    ``loop_left_op`` column-stacks (same Cayley-Dickson-from-H convention).
 
     Args:
-        a: An 8-vector octonion (real components ``(a_0, ..., a_7)``).
+        a: An 8-vector octonion (components ``(a_0, ..., a_7)``); exact
+            (``int`` / ``Q`` / ``(num, den)``) or ``float``.
 
     Returns:
-        ``8x8`` real ``Mat`` ``L_a``.
+        ``8x8`` exact-ℚ ``QMat`` ``L_a`` for an exact operand; ``8x8`` real
+        ``Mat`` for a float one.
 
     Raises:
-        ValueError: if ``a`` is not an 8-vector.
+        ValueError: if ``a`` is not an 8-vector (on EITHER carrier).
     """
+    a = _operand_leaves(a, "octonion_left_mult")
+    exact = _exact_octonion(a)
+    if exact is not None:
+        return QMat.from_rows(_left_mult_matrix(exact))
     a = _as_octonion(a, "octonion_left_mult")
     native = _try_native_loop_op("srmech_loop_left_op_f64", a)
     if native is not None:
@@ -373,7 +507,7 @@ def octonion_left_mult(a: Sequence[float]) -> Mat:
     return Mat.from_rows(rows, is_complex=False)
 
 
-def octonion_right_mult(a: Sequence[float]) -> Mat:
+def octonion_right_mult(a: Sequence[int | Q | Tuple[int, int] | float]) -> Mat | QMat:
     """Right-multiplication matrix ``R_a`` (``x -> x * a``) as an ``8x8`` real ``Mat``.
 
     Column ``j`` is ``e_j * a``; ``R_a[k, j] = sum_i a_i C[j, i, k]``. For an
@@ -384,19 +518,34 @@ def octonion_right_mult(a: Sequence[float]) -> Mat:
 
     Canonical SSoT: Baez (2002) §2.3-2.4.
 
-    rc122 (numpy-free): dispatches to the C-backed ``srmech_loop_right_op_f64``
-    (native when present; bit-identical numpy-free table fallback otherwise) and
-    returns a real ``Mat`` (was an ndarray). ``R_a[k][j] = sum_i a_i C[j][i][k]``.
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc465, `#T1188`) — the
+    :func:`octonion_left_mult` rule verbatim, one hand over. An exact operand
+    returns an exact-ℚ ``QMat`` via :func:`srmech.cascade.right_mult_matrix`;
+    one float component anywhere routes the whole call to the f64 peer below;
+    ``QMat.to_mat()`` is the on-demand projection. Measured equal on both routes
+    over the 8 basis vectors and 12 random integer 8-vectors.
+
+    rc122 (numpy-free): the FLOAT route dispatches to the C-backed
+    ``srmech_loop_right_op_f64`` (native when present; bit-identical numpy-free
+    table fallback otherwise) and returns a real ``Mat``, **accurate to
+    round-off** — every component is truncated to a 53-bit significand on entry.
+    ``R_a[k][j] = sum_i a_i C[j][i][k]``.
 
     Args:
-        a: An 8-vector octonion.
+        a: An 8-vector octonion; exact (``int`` / ``Q`` / ``(num, den)``) or
+            ``float``.
 
     Returns:
-        ``8x8`` real ``Mat`` ``R_a``.
+        ``8x8`` exact-ℚ ``QMat`` ``R_a`` for an exact operand; ``8x8`` real
+        ``Mat`` for a float one.
 
     Raises:
-        ValueError: if ``a`` is not an 8-vector.
+        ValueError: if ``a`` is not an 8-vector (on EITHER carrier).
     """
+    a = _operand_leaves(a, "octonion_right_mult")
+    exact = _exact_octonion(a)
+    if exact is not None:
+        return QMat.from_rows(_right_mult_matrix(exact))
     a = _as_octonion(a, "octonion_right_mult")
     native = _try_native_loop_op("srmech_loop_right_op_f64", a)
     if native is not None:
@@ -407,7 +556,7 @@ def octonion_right_mult(a: Sequence[float]) -> Mat:
     return Mat.from_rows(rows, is_complex=False)
 
 
-def octonion_conjugate(x: Sequence[float]) -> List[float]:
+def octonion_conjugate(x: Sequence[int | Q | Tuple[int, int] | float]) -> List[float] | List[Q]:
     """Octonion conjugate ``conj(x) = (x_0, -x_1, ..., -x_7)``.
 
     Flips the sign of the seven imaginary axes (the scalar axis is fixed).
@@ -415,24 +564,44 @@ def octonion_conjugate(x: Sequence[float]) -> List[float]:
 
     Canonical SSoT: Baez (2002) §2.1 (conjugation and the norm form).
 
-    rc122: the Class-C imaginary-axis sign flip is a plain list
-    comprehension (``-x_i`` for ``i >= 1``; no ``abs()``); returns a
-    ``list[float]`` (was an ndarray).
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc465, `#T1188`). An exact
+    operand returns ``list[Q]`` through :func:`srmech.cascade.cd_conjugate` —
+    the exact-ℚ C peer ``srmech_cd_qconjugate``, one import away since rc159. A
+    float operand keeps the float route. No ``exact=`` keyword: the operand says
+    which carrier was asked for.
+
+    ⚠️ **Through rc464 a sign flip changed the value.** This op performs NO
+    arithmetic at all — it negates seven components — and
+    ``octonion_conjugate([2**53+1, 0, …])[0]`` still came back
+    ``9007199254740992.0``, because ``[float(c) for c in v]`` ran at the entry.
+    That is the ``einsum("ij->ji")`` witness in a different module: the cleanest
+    possible demonstration that the defect is the CARRIER, not the algorithm.
+
+    rc122: the Class-C imaginary-axis sign flip is a plain list comprehension
+    (``-x_i`` for ``i >= 1``; no ``abs()``) on **both** routes. The float route
+    returns ``list[float]`` and is **accurate to round-off** — its components
+    are truncated to a 53-bit significand on entry.
 
     Args:
-        x: An 8-vector octonion.
+        x: An 8-vector octonion; exact (``int`` / ``Q`` / ``(num, den)``) or
+            ``float``.
 
     Returns:
-        The 8-vector conjugate as a ``list[float]``.
+        The 8-vector conjugate: ``list[Q]`` for an exact operand,
+        ``list[float]`` for a float one.
 
     Raises:
-        ValueError: if ``x`` is not an 8-vector.
+        ValueError: if ``x`` is not an 8-vector (on EITHER carrier).
     """
+    x = _operand_leaves(x, "octonion_conjugate")
+    exact = _exact_octonion(x)
+    if exact is not None:
+        return list(_cd_conjugate(exact))
     x = _as_octonion(x, "octonion_conjugate")
     return [x[0]] + [-x[i] for i in range(1, _DIM)]
 
 
-def octonion_norm(x: Sequence[float]) -> float:
+def octonion_norm(x: Sequence[int | Q | Tuple[int, int] | float]) -> float | Q:
     """Octonion norm ``sqrt(sum x_i^2)`` (Class K + Class C; never abs()).
 
     The norm form of the composition algebra. The sum-of-squares is reduced
@@ -464,15 +633,54 @@ def octonion_norm(x: Sequence[float]) -> float:
 
     Canonical SSoT: Baez (2002) §2.1 (``N(x) = x conj(x)``, the norm form).
 
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc465, `#T1188`) — and here
+    the honest statement differs from its three siblings, because a square root
+    is not a rational function. An exact operand takes the exact route: ``Σ xᵢ²``
+    through :func:`srmech.cascade.cd_norm_sq` (the C peer
+    ``srmech_cd_qnorm_sq``), the Class-K pin-slot magnitude, then the Class-N
+    :func:`srmech.math.rational.sqrt`, returning a ``Q``. The radicand is exact
+    and the root is EXACT WHEN IT LANDS ON THE CLASS-N DYADIC GRID — an integer
+    root, or one whose reduced denominator is a power of two. MEASURED:
+    ``sqrt(Q(25, 1)) == 5``, ``sqrt(Q(9, 16)) == 3/4``, ``sqrt(Q(1, 4)) == 1/2``;
+    but ``sqrt(Q(25, 49))`` is ``25734855013545691/36028797018963968``, **not**
+    ``5/7``. A RATIONAL root with an odd denominator does not land on the nose,
+    so ``|Q(1, 3)| != Q(1, 3)``. Off the grid the ``Q`` is that root **accurate
+    to** ``2**-54`` relative, which is a bound the caller can read here BEFORE
+    calling — the whole difference between this and what rc464 shipped. A float operand keeps the float route and its terminal float lift.
+
+    In rc463's vocabulary the other three ops are an exact CARRIER and this one
+    is an exact ROUTE with a declared bound. Both senses of "exact" live in this
+    package; conflating them is how a silent demotion becomes a quieter one
+    rather than a fixed one.
+
+    ⚠️ **Through rc464 this rounded the operand before it was squared**, so
+    ``octonion_norm([2**53+1, 0, …])`` returned ``9007199254740992.0`` for a
+    vector whose norm is exactly ``9007199254740993``.
+
+    rc122 (numpy-free): the float route's sum-of-squares is a pure-Python
+    ``sum`` over the coerced ``list[float]`` (no numpy reduction), **accurate to
+    round-off**.
+
     Args:
-        x: An 8-vector octonion.
+        x: An 8-vector octonion; exact (``int`` / ``Q`` / ``(num, den)``) or
+            ``float``.
 
     Returns:
-        The non-negative Euclidean norm.
+        The non-negative Euclidean norm: an exact-ℚ ``Q`` for an exact operand
+        (exact on the Class-N dyadic grid — an integer root or a power-of-two
+        denominator; otherwise that root to ``2**-54`` relative), a ``float``
+        for a float one.
 
     Raises:
-        ValueError: if ``x`` is not an 8-vector.
+        ValueError: if ``x`` is not an 8-vector (on EITHER carrier).
     """
+    x = _operand_leaves(x, "octonion_norm")
+    exact = _exact_octonion(x)
+    if exact is not None:
+        # The SAME three-step cascade as the float route below, on the exact
+        # carrier: the Class-K pin-slot (magnitude is type-preserving over Q
+        # since rc362) then the Class-N root. Never abs().
+        return _rsqrt(_magnitude(_cd_norm_sq(exact)))
     x = _as_octonion(x, "octonion_norm")
     # Reduce to a SCALAR float first (cascade.magnitude raises on a sequence),
     # then the Class K pin-slot magnitude, then the square root. No abs().

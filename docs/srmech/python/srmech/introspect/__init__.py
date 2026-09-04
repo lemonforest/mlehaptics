@@ -1008,7 +1008,7 @@ def describe() -> Dict[str, Any]:
     FACTORS, and the halves behave differently (measured over
     ``cd_basis_product``)::
 
-        dim | index == a XOR b | negative signs (C(d,2)) | SIGN COCYCLE assoc
+        dim | index == a XOR b | negative signs (C(d,2)) | SIGN 2-COCHAIN δε=0
           2 |       4/4        |        1  (1)           |     8/8      100%
           4 |      16/16       |        6  (6)           |    64/64     100%
           8 |      64/64       |       28  (28)          |   344/512     67%
@@ -1018,7 +1018,10 @@ def describe() -> Dict[str, Any]:
     The INDEX lane is exact at every rung; the SIGN is what stops being
     associative, abruptly, at dim 8. **Addressing is unbounded because XOR is
     associative at every dim forever; turns and composition break because the
-    SIGN COCYCLE stops being associative** — which is also why rc298 (`#T933`)
+    SIGN 2-COCHAIN stops satisfying the cocycle condition** (δε = 0 IS
+    associativity of the sign lane for this object, so ε is a 2-cocycle only on
+    the associative rungs and a 2-cochain in general — rc465-fix, `#T1188`)
+    — which is also why rc298 (`#T933`)
     could lift ``CD_MAX_DIM`` 64 → 256 by DECOUPLING the caps. (``index == XOR``
     is close to definitional for a CD basis, so that column is a CHECK; the
     READING — a free index and a load-bearing sign — is what it supports.)
@@ -1418,6 +1421,17 @@ def describe() -> Dict[str, Any]:
                 "roster for exactly that reason while its own delegating alias "
                 "srmech.cascade.cyclic_gcd was present. Repaired at the rc430 "
                 "repair; the ONE-ARGUMENT-SET bound itself remains"),
+            "operand_not_translatable": (
+                "the probe translates an integer COORDINATE: a scalar, one "
+                "element of a flat int sequence, or (since rc465) one leaf of "
+                "a rectangular nested int list. An operand whose integers live "
+                "inside a MAPPING — a character table, a rep payload, a "
+                "codebook, a slot map — carries no such coordinate, so the op "
+                "is reported NO_INT_INPUT and its frame stays unmeasured. That "
+                "is an instrument limitation stated as data, not a finding "
+                "about the op. It is what remains of the class whose count "
+                "rose nine times and drained none before rc465 replaced the "
+                "count with a per-op predicate"),
         },
         "ops": _frame_ops,
     }

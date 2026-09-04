@@ -904,6 +904,158 @@ SOURCES = {
             "interpolation", "determinant", "Frenkel-Turaev",
         ],
     },
+    # ── rc465 (`#T1188`) — the D4 vocabulary source ──────────────────────
+    # Added because rc465 puts an affine-connection NAMING claim into shipped
+    # docstrings (the associator is a curvature-type density on triples; the
+    # commutator is a torsion-type object), and a naming claim carried in the
+    # wheel is exactly as attestable as a numeric one. Cited ONLY for that
+    # naming, at §3, where the paper derives it.
+    #
+    # ⚠️ THE NEGATIVE CONTROLS ARE THE POINT HERE. "octonion" and "cohomology"
+    # both read ZERO in this document (measured, both backends). They are the
+    # two terms a careless citer would attribute to a paper about
+    # non-associative loop algebra, and they are exactly what this source must
+    # NEVER be cited for. The D5 half of rc465 cites arXiv:math/9802116 for the
+    # cohomological statement instead, and that source in turn reads ZERO for
+    # "torsion" and "curvature". The two are kept strictly disjoint.
+    "arxiv:0803.1241": {
+        "cite_as": "Kuusk, P. and Paal, E. (2008), 'Geodesic multiplication "
+                   "as a tool for classical and quantum gravity', "
+                   "arXiv:0803.1241; first published Trans. Tallinn Tech. "
+                   "Univ. 733 (1992), 33-42",
+        "source_kind": "arxiv_eprint",
+        "version": "v1",
+        "published": "2008-03-08",
+        "pdf_url": "https://arxiv.org/pdf/0803.1241v1",
+        "eprint_url": "https://arxiv.org/e-print/0803.1241v1",
+        "tex_main": "geo_arxiv.tex",
+        # ASCII and pervasive (32 occurrences, both backends agree).
+        "positive_control": "geodesic",
+        "negative_controls": ["octonion", "cohomology", "Antikythera",
+                              "zygomatic", "qwertzuiop"],
+        # A REAL encoding trap for this document: 11 occurrences spelled 7
+        # en-dash + 4 ASCII hyphen, both backends agreeing at 11. Under the
+        # latin-1 misdecode the seven en-dashed spellings vanish and the count
+        # collapses to 4, which is below the floor and aborts the build —
+        # while the ASCII positive control sails through untouched. That is
+        # precisely the signature require_controls_usable exists to catch.
+        "multi_spelling_control": ("non-associative", 11),
+        # MEASURED 21392 chars / 5 addressable labels (§1-§4 + BIBLIOGRAPHY).
+        # ⚠️ The ~10%-below convention used for the two large sources does not
+        # transfer to a 6-page paper: 10% of 5 labels is half a label. The
+        # section floor is therefore set ONE below measured — enough to stay
+        # non-vacuous against ordinary markup drift, and still hard against
+        # the failure it exists for, since a short read resolves 0 or 1.
+        "expect_min_chars": 19000,
+        "expect_min_sections": 4,
+        "watchlist": [
+            "torsion", "curvature", "associator", "commutator", "Akivis",
+            "Kikkawa", "geodesic", "quasigroup", "affine connection",
+            "Moufang", "Mal'tsev", "associativity", "alternative",
+            # Recorded so the REFUTED verdicts ship as data: this source is
+            # not about octonions and says nothing cohomological.
+            "octonion", "cohomology", "deficit angle",
+        ],
+    },
+    # ── rc465 (`#T1188`) — the D5 cochain-not-class source ───────────────
+    # The tree has cited this paper's result since rc404 — but only in
+    # docs/srmech/notes/, never in the wheel, and never through this manifest.
+    # rc465 puts the statement into shipped prose, so it gets attested.
+    # The sentence being cited is in §1: "for the octonions, the cocycle is a
+    # coboundary and can be identified as the result of twisting k(G) by a
+    # 2-cochain F". Hence "coboundary" and "2-cochain" are on the watchlist and
+    # both are MEASURED PRESENT in §1.
+    "arxiv:math/9802116": {
+        "cite_as": "Albuquerque, H. and Majid, S. (1998), 'Quasialgebra "
+                   "Structure of the Octonions', arXiv:math/9802116; "
+                   "J. Algebra 220 (1999) 188-224",
+        "source_kind": "arxiv_eprint",
+        "version": "v1",
+        "published": "1998-02-25",
+        "pdf_url": "https://arxiv.org/pdf/math/9802116",
+        "eprint_url": "https://arxiv.org/e-print/math/9802116",
+        "tex_main": "9802116.tex",
+        "positive_control": "octonion",
+        "negative_controls": ["torsion", "curvature", "Akivis",
+                              "Antikythera", "zygomatic", "qwertzuiop"],
+        # ⚠️ A DELIBERATELY WEAKER CONTROL THAN BAEZ'S, AND SAYING SO IS THE
+        # HONEST MOVE. This document carries 378 ASCII hyphens and only FIVE
+        # en-dashes in total, so it contains no en-dash-dense term; a latin-1
+        # misdecode would barely move any count here. The floor is set at 14,
+        # the MEASURED MINIMUM across backends (tex 16, gs 14) — all 30 were
+        # read and every one is a real occurrence; the two the rendering lacks
+        # are LaTeX-source spellings that do not survive typesetting, which is
+        # the "LaTeX and rendered text are genuinely different strings" case
+        # this guard's own docstring names. For THIS source the encoding trap
+        # is caught mainly by the U+FFFD tell and the two sha256 anchors, not
+        # by this control. Stated rather than papered over.
+        "multi_spelling_control": ("Cayley-Dickson", 14),
+        # MEASURED 78878 chars / 7 addressable labels; floors ~10% below.
+        "expect_min_chars": 70000,
+        "expect_min_sections": 6,
+        "watchlist": [
+            "coboundary", "2-cochain", "cocycle", "3-cocycle", "octonion",
+            "quasialgebra", "Cayley-Dickson", "cohomology", "twisting",
+            "gauge equivalence", "Drinfeld", "associativity",
+            "nonassociative", "quasi-Hopf", "group algebra",
+            # REFUTED verdicts, shipped as data: this source carries no
+            # affine-connection vocabulary at all, which is why the D4 half of
+            # rc465 cites arXiv:0803.1241 and not this one.
+            "torsion", "curvature", "holonomy",
+        ],
+    },
+    # ── rc465 (`#T1188`) — the torsion-as-closure-failure source ─────────
+    # Cited by cascade.cd_commutator for WHAT KIND OF OBJECT the arity-2
+    # ordering deviation is. Two locators, two separate claims (axis A3):
+    # §1 for "a non-vanishing torsion breaks infinitesimal parallelograms and a
+    # closure failure emerges" (eq. 2), and §4 for the dislocation-density
+    # identity and its Kondo / Bilby attribution.
+    #
+    # ⚠️ A MEASURED EXTRACTION LIMIT, RECORDED RATHER THAN WORKED AROUND.
+    # "Kröner" — a name §4 credits alongside Kondo and Bilby — reads ZERO on
+    # BOTH backends, because the LaTeX spells it with an accent macro and the
+    # rendering carries a combining diaeresis. That is an EXTRACTION artifact,
+    # not an absence, so the term is deliberately NOT on the watchlist below:
+    # a REFUTED row for it would be a false negative with an attestation
+    # attached, which is worse than no row. The shipped docstring therefore
+    # names Kondo and Bilby, whose spellings ARE machine-checkable, and leaves
+    # the third name to this comment.
+    "arxiv:0711.1535": {
+        "cite_as": "Hehl, F.W. and Obukhov, Y.N. (2007), Élie Cartan’s "
+                   "torsion in geometry and in field theory, an essay, "
+                   "arXiv:0711.1535; Annales de la Fondation Louis de Broglie "
+                   "32 (2007) 157-194",
+        "source_kind": "arxiv_eprint",
+        "version": "v1",
+        "published": "2007-11-09",
+        "pdf_url": "https://arxiv.org/pdf/0711.1535v1",
+        "eprint_url": "https://arxiv.org/e-print/0711.1535v1",
+        "tex_main": "deBroglie10arXiv.tex",
+        "positive_control": "torsion",
+        # Every one of these reads ZERO here, which is the property that keeps
+        # the rc465 sources DISJOINT: this paper carries no octonion, no
+        # associator and no cocycle, so it can never be cited for the D5 half,
+        # exactly as arXiv:math/9802116 reads zero for "torsion" and can never
+        # be cited for this half.
+        "negative_controls": ["octonion", "associator", "cocycle", "Akivis",
+                              "Antikythera", "zygomatic", "qwertzuiop"],
+        # 13 = 11 ASCII hyphen + 2 en-dash, both backends agreeing. A latin-1
+        # misdecode drops the two en-dashed spellings to 11 < 13 and aborts,
+        # while the ASCII positive control "torsion" survives untouched.
+        "multi_spelling_control": ("Einstein-Cartan", 13),
+        # MEASURED 92805 chars / 11 addressable labels; floors ~10% below.
+        "expect_min_chars": 83000,
+        "expect_min_sections": 10,
+        "watchlist": [
+            "torsion", "curvature", "closure failure", "parallelogram",
+            "dislocation density", "Cartan circuit", "Kondo", "Bilby",
+            "Burgers vector", "Cosserat", "contortion", "teleparallel",
+            "Einstein-Cartan", "Riemann-Cartan",
+            # REFUTED verdicts shipped as data — the disjointness above,
+            # recorded rather than asserted.
+            "octonion", "associator", "cocycle", "Akivis",
+        ],
+    },
 }
 
 

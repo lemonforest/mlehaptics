@@ -106,8 +106,9 @@
  *     kernels srmech_cd_qnorm_sq / _qconjugate / srmech_cd_mult / _qadd, which
  *     need the intermediate Q-vector to round-trip through the BIGINT carrier.
  *     That plumbing is a named follow-up. These never had an engine peer on the
- *     16-slot register (which has no carrier-arithmetic surface at all), so
- *     this defers nothing that previously dispatched.
+ *     16-slot register (which HAD no carrier-arithmetic surface at all, and
+ *     which this same rc removed), so this defers nothing that previously
+ *     dispatched. [rc465: tense corrected — the class is gone, not present.]
  *   a namespace longer than MC_CDR_ADDR_MAX can hold — a DECLARED defer, never
  *     a truncation: a truncated namespace mints a DIFFERENT address and would
  *     return wrong content silently.

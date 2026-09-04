@@ -45,6 +45,26 @@ python3 tools/regen_all.py                        # rebuild every generated file
 python3 tools/run_worked_examples.py --only-stale # refresh the executed-example ledger
 ```
 
+⚠️ **A THIRD step, when the op you registered takes a sequence-shaped parameter**
+(rc465, `#T1188`). `tests/demotion_census.ndjson` is a committed MEASUREMENT of
+which registered parameters round an exact operand, and its staleness guard is a
+hash of the registry's `(op name, parameter types, return type)` triples — so
+registering, removing or re-signaturing ANY op makes
+`tests/test_silent_carrier_demotion_rc463.py` red by construction, with the
+regeneration command in the failure message. It is deliberately **not** in
+`--regen`: unlike the two above it is a real measurement of the library's
+numeric behaviour, it must be run **once per CI cell**, and the pure cell takes
+~15 minutes. Run it in each cell you can reach and commit the merged manifest:
+
+```
+python3 tools/demotion_probe.py                   # native cell (libsrmech present)
+# then, with srmech/_native/libsrmech.so moved aside:
+python3 tools/demotion_probe.py                   # pure cell; merges the OTHER column
+```
+
+The tool refuses to merge a column measured against a different registry
+signature, so the two halves cannot come from two different trees.
+
 `ripple_check.py --regen` runs both, in order, and then runs the gates -- one
 command for the whole "regen, then verify" story:
 

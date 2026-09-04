@@ -19,6 +19,437 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc465] - a gate whose loop body never ran, a down-only ceiling that had gone up nine times because it was measuring the harvest instead of the op, and nine ops that rounded an exact operand behind a type annotation while a gate for exactly that read the annotation
+
+**What this rc is for.** Two instruments in this tree were reporting on themselves and getting it wrong. The first — written in rc464, last week — asserts that `CDRegister` is the preferred register shape, and **its entire loop body never executed**, so both of its assertions were unreachable in both directions. The second is the frame ratchet's `NO_INT_INPUT` ceiling, which moved **nine times in twenty-one days and never once down** — 152 → 153 → 154 → 160 → 163 → 170 → 171 → 172 → 182 → 184 — with a measured per-op justification behind every raise. Both justifications were honest and both were about the wrong object. The third is rc463's silent-carrier-demotion gate, whose ADMISSION conjunct was decided by the SIGNATURE — so nine ops that round an exact ℚ operand were outside it **by construction**, shielded by the `Sequence[float]` annotation that gate's own honesty ladder rates "WEAK, nothing enforces it". Its six hand-written rows turn out to have been a sample of **101 demoting ops**. Registry stays **733**; ABI stays **25**; carriers stay **28**; the `[class]` catalog stays at **4**.
+
+### 1. The preferred-register gate could not fail, and the second reason is worse than the first
+
+`tests/test_preferred_register_shape_rc464.py::test_every_other_register_surface_points_at_the_preferred_one` was shipped with an acknowledged dormancy: the 16-slot register had just been removed, so the population it iterated was empty. What the acknowledgement did not say is that **the check was dead in the non-empty world too**. Traced with `sys.settrace` over the rc464 file on the rc464 tree — lines executed: `[82, 83, 137, 138, 144, 158, 159, 160, 166, 167, 168]`. Line 138 is the `for` header and 144 is `return bad`; **lines 139-143, the two `if not _steers_to_preferred` checks, never ran**. Two causes:
+
+1. **One channel, one predicate.** `_register_entries()` kept ToolEntries whose `returns.type.endswith("Register")`. Exactly one of 733 entries declares such a return, so `others` was empty.
+2. **`assert not others` sat ABOVE the steer call.** So on the day a second register-returning entry lands, the test fails at the emptiness line and the steer check is *still* never reached. Not dormant — dead in both worlds.
+
+And the population definition was itself wrong. **A register does not have to declare a `*Register` return type to be one.** Executed: a `SedenionRegister` `[class]` TOML — the exact channel the 16-slot register shipped through from rc140 to rc464 — cloned from `cd_register.toml` with only `name` changed, registered through a scratch class dir, constructs and reads correctly (`read(0) -> ('alpha', 1)`), appears in `dsl.list_classes()` and `describe()['classes']`, and **all 8 tests in that file and all 15 in `test_domain_classes_rc298.py` stayed green.**
+
+**The rewrite: six channels, two predicates, and the loop now runs 20 times.**
+
+| channel | what it catches that nothing else does | live |
+|---|---|---|
+| **P1** tool schema, by THREE predicates — return type names a register carrier, a PARAMETER type does (`cdr_element_of` takes `"CDRegister \| dict"`, which `endswith` missed), or the entry is bound as a method/chain step of a register-shaped `[class]` | a register surface that never returns one | 20 ops, pinned as an equality |
+| **P2** the class catalog, register-shaped by NAME **or** by covering the verbs `{write, read, navigate}` | the rc140 TOML channel — nothing else sees it | `{CDRegister}` |
+| **P3** `carrier_schema()` keys | the carrier ontology, a different consumer path | `{CDRegister}` |
+| **P4** the MCP wire handle-kind map | a second register needs a row here to cross the wire — **no test read this map before rc465** | `{CDRegister}` |
+| **P5** the five generated artifacts | a consumer who never imports the module | tokens ⊆ `{CDRegister}` + one pinned historical mention |
+| **P6** shipped ToolEntry / carrier prose | a summary offering another register as a live alternative while the types stay clean | `{CDRegister}` |
+
+Predicate **A** — every surface the preferred register OWNS must NAME it — iterates **20 times on the shipped tree**, which is the body rc464's never reached. Predicate **B** — a register surface NOT owned by the preferred shape must steer to it — runs on whatever the same derivation produced, **with no emptiness assertion above it**, and the equality pins live in other test functions so they cannot pre-empt it.
+
+**Four mutations, planted, verified red at the named assertion, reverted.**
+
+| mutation | rc465 | rc464 |
+|---|---|---|
+| **M1** an in-memory second `*Register`-returning entry with a non-steering summary | RED at **predicate B** (and at P1, P6) | failed at the emptiness assert; the steer was never reached |
+| **M2** a `SedenionRegister` `[class]` TOML through a user class dir | RED at **P2** | **all 8 tests GREEN** |
+| **M3** a second row in `_HANDLE_SHAPED_CARRIERS` | RED at **P4** | GREEN — nothing read the map |
+| **M4** a `cdr_*` summary offering the 16-slot register as a live alternative | RED at **P6** | GREEN |
+
+Negative control: 15 tests green on the shipped tree, before and after every revert.
+
+**Stale prose the rc464 work left behind, corrected in place.** `srmech/mcp/_coercion.py` said *"Both inherit object identity … They ride the rc16 envelope"* over a **one-row** map — a plural that outlived the 16-slot register by a release. `c/src/srmech_make_class.c` described that register in the present tense (*"which has no carrier-arithmetic surface at all"*) one rc after removing it. And rc464's own §12 above says the file has **7 tests** (it merged with 8), that the pinned set has **"Two rows today"** (it has one — the removal in that same rc is what emptied clause 3's population), and describes clause 3 as a live check across *"two different consumer paths"*. All four carry a bracketed rc465 correction.
+
+### 2. `NO_INT_INPUT` was not a verdict about ops. The ceiling is REMOVED, not raised.
+
+`tools/frame_probe.py::classify` decided this class at `if not coords`, **which sits above the first `Driver.raw({})` call**. So membership was a property of the harvested BINDING and never a measurement of the op — reproducible at rc465 **from the ledger alone with no op executed**, giving the live 184 exactly. Every raise since rc430 was justified from an ad-hoc per-op probe recorded in a comment; each was honest about the *label* and none could say what the label *meant*.
+
+**The partition, executed. 55 + 2 + 13 + 26 + 88 = 184.**
+
+| n | cause | new verdict |
+|---|---|---|
+| **55** | `inspect.signature(fn).bind(**base)` **raises** — a required parameter is absent from the harvested base. Python binds before the body runs, so `raw({})` would have raised identically. The probe never reached these ops. | `UNBOUND_REQUIRED` |
+| **2** | a VAR_POSITIONAL the harvest dropped, which `bind()` cannot see because `*args` accepts zero — `einsum` says *"2 operand specs but 0 operands"*, `klein4_bundle` says *"requires at least one vector"* | `UNBOUND_REQUIRED` |
+| **13** | the op DECLARES an int parameter whose default is a sentinel `None` | `SENTINEL_INT_DEFAULT` |
+| **26** | a matrix-shaped int operand the depth-2 wall refused to translate | 24 DRIVEN, 2 `SLOW_SKIP` |
+| **88** | genuinely no integer anywhere in the binding | `NO_INT_INPUT`, held to that statement |
+
+⚠️ **Seven ops the ceiling comments call "MEASURED" are in the first group**, including five of the twelve behind the rc463 and rc464 raises: `eigvec_exact` / `eigvec_exact_float` / `jordan_chains_exact` (`lam` missing), `qmat_rank` (`rows` missing), `cdr_clean` (`codebook` missing), plus `triality_companions` — rc462 wrote *"the probe reached it and MEASURED that it has no integer input"* while `g_v` was missing — and `genome_group`, where rc442 wrote *"it binds `label` and `dim`"* and the ledger binds `dim: None`. Those sentences were true of the bucket and false of the op. The enabling condition is in the harvester: `tools/example_args.py` stamps a PARTIAL binding `status: "ok"`, so a consumer reading only `args` cannot tell a complete binding from a truncated one.
+
+**`BASE_RAISES` 56 → 3.** The largest single correction in that file's history, and it is a **drain of 53**, not a raise. It was never 56 ops whose binding "does not execute": 53 of them could not BIND, so the `TypeError` came from Python's argument binder before the body ran. What is left is the 3 whose complete binding really is rejected by the op itself.
+
+**The answer to the question the ceiling posed.** *Is `NO_INT_INPUT` the correct verdict for a matrix-valued op?* **No.** The standing justification — *"a matrix is an OPERATOR, not a coordinate; perturbing an entry asks a different question"* — is a per-op SEMANTIC claim asserted from a nesting-DEPTH test, and the same objection defeats it one level up: the probe already perturbs element `[0]` of flat int vectors whose ints are content (`zeta_mul` takes `Z[ζ]` coefficients; rc458 drove it to `NOT_ADMISSIBLE` in 73 calls) and reports the honest answer. Within the one shape `list[list[int]]` this tree holds a Cayley table, literal positions in `cotangent_weights`, vertex labels in `edges`, an operator over Q in `qmat_*`, and residues mod *p* in `gf_rref`. The shape cannot decide which; only the measurement can, and the measurement was being refused. `translate()` now moves the first LEAF. **MEASURED over the 26 ops this reaches: 24 drive to a verdict in under 0.2 s each and every one is `NOT_ADMISSIBLE` — zero false `ADMISSIBLE`.** Ops whose own guard rejects the perturbed matrix go not-total, which is the right answer for a group op.
+
+**And the 13 sentinel-default ops were NOT drained by editing their examples.** Measured: `required=False` on **every one**, so omitting an optional parameter is what a worked example *should* do. Editing 13 shipped examples to bind `precision=20` would have moved a census number by changing published documentation. Instead the class is named — and measured, so it is not a mystery: binding a witness value drives all 13 and **every one reaches `NOT_ADMISSIBLE`**. The class conceals no admissible op.
+
+**Why a count could never have worked here, whatever the per-item justifications said.** Membership is (registry size) × (share of ops whose harvested binding carries no scalar int or flat int list). Both factors only grow — every string-, float-, matrix- or dict-valued op registered lands here at birth. A down-only ceiling on the absolute count of such a class is a counter with a reason-comment attached; it can only ever be raised. `CEIL_FRAME_UNADJUDICATED["NO_INT_INPUT"]` is therefore **deleted**, and the three classes are held to the STATEMENT that makes each true, per op — the form `CONTRACT_SKIP` has always used. That gate needs no number, cannot be moved by registering more string-valued ops, and **can fail**.
+
+**The census, live:**
+
+| verdict | rc464 | rc465 |
+|---|---|---|
+| `ADMISSIBLE` | 20 | **21** |
+| `NOT_ADMISSIBLE` | 138 | **197** |
+| `NO_ARG` | 279 | 279 |
+| `UNBOUND_REQUIRED` | — | **110** |
+| `SENTINEL_INT_DEFAULT` | — | **13** |
+| `NO_INT_INPUT` | 184 | **88** |
+| `BASE_RAISES` | 56 | **3** |
+| `SLOW_SKIP` | 17 | **19** |
+| `CONTRACT_SKIP` | 3 | 3 |
+
+Ops actually DRIVEN: **158 → 218**, and the floor rises 130 → 218 with it. A floor is the half of the gate that no relabelling can satisfy.
+
+**The one upward move, declared.** `SLOW_SKIP` 17 → 19. It is a consequence of the widening rather than a concession: `g2_membership` and `relational_structure` were previously `NO_INT_INPUT` — never driven, so never counted as slow — and became reachable the moment a matrix-shaped operand counts as a coordinate. Each entry carries its measured seconds (**50.9 s** and **258.7 s** for the whole `classify()`) **and the verdict it reaches when driven** (both `NOT_ADMISSIBLE`), so this class is not hiding an admissible op behind a wall clock.
+
+**Three more guards, each proven red.**
+
+* **A known-verdict guard.** Through rc464 the ceiling loop iterated the dict's keys, so a verdict spelled anything else was *silently uncounted* — renaming or adding a class would have dropped its whole population out of every ceiling at once and read as a drain. This rc adds three verdict names, so it is exactly the change that would have fallen through the hole. Mutation: rename one op's verdict to `MYSTERY` → **RED**, *"the census emitted verdict(s) ['MYSTERY'] that no ceiling and no reason-held class covers"*.
+* **The reason-held residual gate.** Mutation: restore the rc464 ordering by filing five partial bindings as `NO_INT_INPUT` → **RED** with 7 named offences (*"the harvested binding is INCOMPLETE — the probe never reached this op"*, *"while its own declaration types \['lam'\] as integer(s)"*).
+* **The census is an artefact, and it is now gated.** `tools/frame_probe.py` promised that gate and census *"cannot drift apart by being separately hand-rolled"*. **They drifted anyway, by a route sharing an import does not cover: nobody re-ran the census.** The committed file sat at the rc430 numbers (`NO_INT_INPUT: 152`, 655 records) through all nine raises. It moves from `docs/srmech/notes/_frame_scope_census_rc430.ndjson` to `tests/frame_scope_census.ndjson` (733 records, in the sdist), its generator from `notes/` to `tools/frame_scope_census.py`, and the gate now compares `meta.by_verdict` to the live census in the same process. Mutation: roll the artefact back to `"NO_INT_INPUT": 184` → **RED**, *"the committed census is STALE"*.
+
+**A fourth blind spot ships as data.** `describe()["frames"]["cannot_express"]` gains `operand_not_translatable`: an operand whose integers live inside a MAPPING — a character table, a rep payload, a codebook, a slot map — carries no coordinate at any nesting depth. That is what the removed count was mostly counting, and it is now an instrument limitation stated as data rather than a number that could only go up.
+
+
+### 4. Nine ops rounded an exact operand for 340-odd releases, shielded by a type annotation
+
+`srmech.physics.qm.octonion`'s `octonion_left_mult` / `octonion_right_mult` / `octonion_conjugate` / `octonion_norm`, `qm.triality.triality_apply`, and the identical four one rung down in `qm.quaternion` all opened with `[float(c) for c in v]` **at the entry, before any arithmetic**, and returned the rounded value with no exception, no warning, no status and no accuracy statement — while a carrier computing the same object exactly ships one import away. Measured on the rc464 tree with `x = [2**53+1, 0, …]`, and again with the audit's own `2**59+24` witness (float64's spacing at `2**59` is 64, so it lands 24 low on every one of the nine):
+
+| op | rc464 returned | exact |
+|---|---|---|
+| `octonion_left_mult(x)[0, 0]` | `9007199254740992.0` | `9007199254740993` |
+| `octonion_right_mult(x)[0, 0]` | `9007199254740992.0` | `9007199254740993` |
+| `octonion_conjugate(x)[0]` | `9007199254740992.0` | `9007199254740993` |
+| `octonion_norm(x)` | `9007199254740992.0` | `9007199254740993` |
+| `triality_apply(x, 'v', 'v')[0]` | `9007199254740992.0` | `9007199254740993` |
+
+`octonion_conjugate` is the sharpest of them: **the op performs no arithmetic at all** — it negates seven components — and changed the value it was handed. That is rc463's `einsum("ij->ji")` witness in a different module, and it is the cleanest available demonstration that the defect is the CARRIER, not the algorithm. `triality_apply` is the second sharpest: the failing call above is the IDENTITY transport, zero steps, zero operations.
+
+**Why rc463's gate could not see any of it: R2 shielding.** That gate states five conjuncts, and its ADMISSION conjunct read *"decided by the SIGNATURE, not by what Python happens to accept"*. All nine ops declare `Sequence[float]`, so they were outside the class **by construction**, however exact the operand actually handed over — and rc463's own honesty ladder rates a float parameter ANNOTATION at rung **R2, "WEAK … nothing enforces it"**. A type annotation was standing in for an accuracy contract and the gate was reading the annotation. ADMISSION is now decided by MEASUREMENT.
+
+**The fix is operand-typed dispatch, and there is no new keyword.** rc463 established that `exact=` already means two different things in this package (an exact CARRIER vs an exact ROUTE with a declared float lift); a third sense on a third surface is not a fix. So the rule is `einsum`'s and `kron`'s, verbatim: every component exact (`int` / `Q` / a `(num, den)` pair) rides the exact carrier; **one** float component anywhere sends the whole call down the f64 route; `QMat.to_mat()` is the projection on request. The admission predicate is *imported* from its single definition (`matrix_cascades._exact_leaf`) rather than re-derived — a second hand-rolled copy of a load-bearing type test is how two surfaces come to disagree about what "exact" means.
+
+| op | exact route | float route (unchanged) |
+|---|---|---|
+| `octonion_left_mult` / `right_mult` | `QMat` via `cascade.left_mult_matrix` (C-composed `srmech_cd_mult` / `srmech_cd_qbasis`) | `Mat` via `srmech_loop_{left,right}_op_f64` |
+| `octonion_conjugate` | `list[Q]` via `cascade.cd_conjugate` (`srmech_cd_qconjugate`) | `list[float]` |
+| `octonion_norm` | `Q` — `cascade.cd_norm_sq` (`srmech_cd_qnorm_sq`) ∘ Class-K pin-slot ∘ Class-N `rational.sqrt` | `float` terminal lift |
+| `triality_apply` | `list[Q]` (pure Class-C sign flips; zero arithmetic, zero cost) | `list[float]` |
+| the quaternion four | the same four at rung 4 | `srmech_quaternion_*` |
+
+`*_norm` is the one op where rc463's two senses of "exact" actually bite, and it is stated rather than smoothed over: the radicand is exact, and the Class-N root is exact whenever the root is rational, otherwise carrying a **declared `2**-54` relative bound**. That is an exact ROUTE, its docstring says so in the R3 vocabulary, and trading a silent demotion for a quieter one would have been the easy version of this change.
+
+**The convention differential had never been executed.** `octonion_left_mult`'s docstring has asserted since rc122 that its table is the same Cayley–Dickson-from-ℍ convention as the per-basis binds — prose, unmeasured, and the moment the exact route goes through `cascade.left_mult_matrix` it becomes load-bearing. Driven at both rungs over the basis vectors plus 12 random integer vectors: **0 mismatches at dim 8 and dim 4**, on both left and right. No `table=` argument was needed; the claim was true and is now measured.
+
+**Callers rewritten in the same change, no shims.** `so9._lmat` built an INTEGER basis vector and then did `[[int(round(x)) for x in row] for row in octonion_left_mult(e_i).tolist()]` — with an exact carrier that `.tolist()` raises, and the `round()` had already become a lie about where the integers came from (they are integers, exactly). It reads `.to_lists()` and `int(q)`. `so8._derivation` / `_build_so8_adjoint` are untouched and stay on the float route: their `_eye(8)` yields `1.0`/`0.0`, which is exactly what whole-operand admission is for. Two fixtures that fed integer vectors now make the float request **explicitly** (`test_octonion_frame_read_rc384.py`'s `_unit8` / `_unit4`, and `octonion_laplacian`'s worked snippet — caught by re-running the worked-example ledger, which is the only thing that would have caught it).
+
+**Nine ops, 54 new tests** (`tests/test_octonion_exact_carrier_rc465.py`), including `triality_apply`'s **first tests in the tree** — it had none, anywhere, which is a fair part of why it demoted unnoticed for 340 releases. One measured observation ships with them and is pinned rather than adjudicated: the `v → s → c → v` round trip applies three conjugations, and `conj² = id`, so it returns `conj(x)` and **not** `x`. That is what the code does; whether the `8_v → 8_s → 8_c` transport *should* is an algebra question outside this rc's carrier scope, and the op's own docstring already hedges it.
+
+`describe()["tools"]["total"]` stays **733** — no op added or removed. `SRMECH_ABI_VERSION` stays **25**: no C symbol is added, removed or re-signatured, the exact route composes kernels exported since rc159/rc160, and `srmech_loop_{left,right}_op_f64` stay exactly where they are (still the float route, still claimed by `hdc.loop_left_op` / `loop_right_op`, still consumed inside the C tree). `_c_claims.py` regenerates **unchanged**, which is the honest outcome: the bytecode walk follows same-module helpers and `*_c` shims, and a composition over `cascade.cd_conjugate` is invisible to it. The Rosetta bucket `composition_of_c` was already on these rows and only now becomes TRUE for `conjugate` / `norm` / `triality_apply`, which composed nothing C before.
+
+### 5. The detector that could not see them, and the population it found
+
+rc463's manifest was **six hand-written rows in one test file**, all six in `srmech.math.laplacian`, with `CEIL_SILENT_DEMOTION` pinned to `len(_DEMOTION_MANIFEST)` so it could not move without a human editing the list. Its own module docstring named the hole — *"a missing MANIFEST row is invisible … it has no oracle telling it a row is absent"* — and its Layer 3 resolved delegates as `getattr(_la, name)`, hard-wired to one module, so it was **structurally incapable of reading the contract of any op outside the module its six rows came from**.
+
+`tools/demotion_probe.py` replaces it: one instrument, two consumers, the `frame_probe` pattern. It enumerates every **sequence-shaped REGISTRY parameter** (the registry, never the signature — the signature is what did the shielding), builds a binding from the harvested ledger / `smoke_test_hint` / int-filled synthesised shapes, and decides by a **differential oracle** that needs no per-op exact value, which is what makes it auto-populating:
+
+    P = 2**53 + 1   F = 2**53   G = 2**53 + 2
+    out(P) == out(F)  and  out(G) != out(F)   ->  DEMOTED
+    out(P) != out(F)                          ->  EXACT
+    all three equal                           ->  a classified NULL
+
+**What it found, before any fix — the number the plan did not expect:**
+
+| | rc463 knew | rc465 measured |
+|---|---|---|
+| rows probed | — | **703** over 427 ops |
+| DEMOTED | 6 | **127** over 101 ops |
+| of which UNDECLARED | 0 | **77** over **64 ops** |
+
+Six was not a residual. It was a sample. The undeclared 77 sat in `signal_processing` (21), `math.laplacian` (17), `math.hdc` (16), `cascade` (9), `physics.qm` (7) and seven singletons.
+
+**The residual is bounded two ways, and the roster is the stronger one.** rc465 cannot fix or declare 57 ops in one release, so `CEIL_UNDECLARED_DEMOTION = 70` is new debt and is labelled as such — but a bare count lets a NEW demoter in whenever an unrelated one drains, so the *identity* of every undeclared row is pinned as an equality against the committed census. An addition is red at a lower count. The drain path is named per family in the gate itself (an R3 accuracy sentence for the genuinely-float DSP and dense-carrier ops; the shipping `cascade.cd_*` exact peers for `hdc` and `cascade`), and the nine ops this rc fixed are held at **strict zero**, outside the ceiling, forever.
+
+**Corrections the measurement forced on rc463's own disclosure.** Blind spot 6 asserted that the `hdc` family "admits no 53-bit-significand witness BY CONSTRUCTION". Measured false: sixteen `hdc` rows take float sequences and round the witness (`loop_conj`, `loop_conj_hd`, `loop_inv`, `loop_inv_hd`, `loop_bind`, `loop_left_op`, `loop_right_op`, `loop_associator`, `cross7`, `g2_three_form`). Their absence from the manifest was not a domain fact; it was blind spot 1 wearing a domain fact's clothes. The R3 vocabulary also had two copies — in the gate and in the probe — which is the same defect in miniature as the manifest, and now has one.
+
+**Every null is classified, and one of them had to be split.** `INSENSITIVE` claims the leaf never reached the output. `octonion_norm` answered identically for P, F **and** G — not because the leaf is unread but because a truncated Class-N `sqrt` is coarser than one float64 step at `2**53` — so a two-way verdict would have filed a real demoter under a false statement. One extra coarse call splits it into `UNRESOLVED_AT_WITNESS`. Coverage is data too: `RAISED` (304) and `NO_SHAPE` (52) are bindings the probe could not build, each emitted with its reason, never silently skipped.
+
+**Six mutations, each red at the named assertion, negative control green:**
+
+| planted | expected | got |
+|---|---|---|
+| a FIXED op demotes again, undeclared | strict-zero on the nine | **RED** *"octonion_conjugate is demoting again with no accuracy declaration"* |
+| a NEW undeclared demoter (`kron`) | roster identity **and** ceiling | **RED** ×2 (*"1 NEW undeclared carrier demotion(s)"*; *"71 … ceiling is 70"*) |
+| a row silently leaves the class | census currency **and** drain branch | **RED** *"GOOD NEWS, ACTION REQUIRED: 1 row(s) left … lower to 69"* |
+| the ORACLE stops finding `mat_dot` | rc463 positive control | **RED** *"was a hand-verified rc463 demoter and the probe now reads EXACT — the ORACLE moved, not the op"* |
+| the probe narrows back to a sample | non-vacuity floors | **RED** *"only 40 rows probed"* |
+| an R1-only planted demoter | the oracle itself | **DEMOTED**, and `declaration_hits` returns `[]` |
+
+The probe's own weight is stated rather than hidden: three ops in `math.weight_lattice` are skipped **by name with the reason**, because substituting a `2**53`-scale Dynkin *label* asks for a Weyl orbit of that size — a contract statement, not a wall clock, and it was found the way such things are found, by a census run that never terminated.
+
+**Post-fix: 127 → 120 demoting rows, 77 → 70 undeclared, 64 → 57 ops**, and all nine target ops now measure `EXACT` under the same instrument that measured them rounding.
+
+### 6. The associator is a CURVATURE and the commutator a TORSION — a theorem the tree had never cited
+
+`cascade.cd_cycle_holonomy` returns two ordered products walked around a directed triangle and their DIFFERENCE. Through rc464 the docstring called the difference *"the k=3 loop defect made a holonomy"*. A holonomy is a transport around a closed path — which is precisely what the two products are and precisely what their difference is not: the difference is a **density on the ordered triple**. Right family, wrong object, on a surface that reaches users through `describe()`, the MCP tool list and the compiled-in C registry.
+
+The correct family names are not a preference. For the geodesic loop of an affine connection they are a **theorem**, and the tree had **no citation for them at all** — measured: `Kuusk`, `Akivis`, `Kikkawa`, `Regge`, `Hehl`, `deficit angle`, `defect density` and `Wess-Zumino` returned **0 hits** across `srmech/`, `c/`, `tests/` and the notebook.
+
+| object | what it is | source, verified from the document |
+|---|---|---|
+| arity-2 ordering deviation (`cd_commutator`) | a **TORSION** | Kuusk & Paal, [arXiv:0803.1241](https://arxiv.org/abs/0803.1241) §3 eq. (3.4): `C = 2S` |
+| arity-3 bracketing deviation (`associator`, `cd_cycle_holonomy.defect`) | a **CURVATURE** (less ∇·torsion) | *ibid.* eq. (3.5): `A = R − ∇S` |
+| the two ordered products | **transports** — holonomies proper | — |
+
+Kuusk & Paal attribute the computation to **Akivis** (*Sibirski Mat. J.* **19** (1978), 243–253, their ref. [3]) and the geodesic-loop construction to **Kikkawa** (*Journ. Hiroshima Univ.* Ser. A-1 Math. **28** (1964), 199–207, ref. [1]).
+
+**The "square-loop" picture the tree already used for `cd_commutator` turns out to be the RIGHT one**, and is kept rather than replaced: Hehl & Obukhov, [arXiv:0711.1535](https://arxiv.org/abs/0711.1535) §1 eq. (2) — a non-vanishing torsion *"breaks infinitesimal parallelograms"* and a *closure failure* emerges; their §4 records that in a continuized crystal the dislocation DENSITY equals the torsion, shown isomorphic to the Cartan circuit by **Kondo** (1952), **Bilby et al.** and Kröner.
+
+⚠️ **EPISTEMIC CEILING, and it is the whole of the claim.** The CD carrier is not a geodesic loop and not an affine connection; no claim is made that it is. What transfers is the VOCABULARY for what kind of object each arity yields — FORM, never identity. **Nothing here is novel and nothing is claimed as an extension of anyone's work.** `plaquette` is deliberately NOT adopted: that word is spoken for by the lattice-gauge Wilson loop, and `physics.qm.gauge.wilson_loop_from_segments` already uses it correctly.
+
+**The citations are gated, not asserted.** Both e-prints are now in the claim manifest (`srmech/amsc/attested/literature_claims/row.ndjson`, 34 → **89 rows**, 2 → **5 sources**), built by `tools/build_citation_manifest.py` from the e-print bytes through both extraction backends with positive / negative / multi-spelling controls. `CEIL_S4_UNATTESTED_SOURCES` stays **22** — a new wheel citation of an unattested source would have raised it.
+
+**The gate caught a false citation in this very rc, which is the point of having it.** The first draft attributed the geodesic-loop construction to "Kikkawa 1964" *inside* the §3 claim scope. `Kikkawa` occurs in that paper exactly **once, in the bibliography** — 0 times in §3 — and `test_s1_no_shipped_citation_claims_a_term_its_section_lacks` went RED naming the term, the section and the count. Rewritten to carry the attribution outside the claim scope. A second draft used the nouns *"the commutator is 2·torsion and the associator is curvature − ∇torsion"* under a §3 locator: **both nouns live in §4**, and the gate flags both. The shipped wording says "the deviation from commutativity / from associativity", which is what §3 actually contains.
+
+**The manifest's negative controls make the two halves of this rc mutually exclusive BY MEASUREMENT**, which is stronger than being careful: arXiv:0803.1241 reads **0** for `octonion` and **0** for `cohomology`; arXiv:math/9802116 reads **0** for `torsion`, `curvature` and `holonomy`; arXiv:0711.1535 reads **0** for `octonion`, `associator` and `cocycle`. Neither source can be cited for the other's claim without the gate firing.
+
+**An adjacent factual error, found while editing the same paragraph — and it was wrong in the load-bearing direction.** `defect_ladder` said the refuted arity-4 divergence turns on at 𝕆 *"with the same 1848/4096 count as the associator"*. Two censuses share the denominator **4096** and the sentence fused them. RE-MEASURED at rc465 through `cascade.cd_mult`:
+
+| census | tuples | ℍ | 𝕆 | 𝕊 | 𝕋 |
+|---|---|---|---|---|---|
+| arity-4 bracketing divergence | dim⁴ | 0 / 256 | **2520 / 4096** | — | — |
+| associator support (arity 3) | dim³ | 0 / 64 | 168 / 512 | **1848 / 4096** | 15960 / 32768 |
+
+1848/4096 is the ASSOCIATOR AT 𝕊 (16³); the arity-4 count at 𝕆 is 2520/4096 (8⁴). *"The same count as the associator"* was the half of the sentence carrying the inheritance argument, so the error read as evidence for the claim it was attached to. The rc383 provenance NDJSON carried **2520** correctly all along — only the prose drifted, for 82 releases. ⚠️ 2520/4096 also names the bicharacter's non-bimultiplicativity count at 𝕊; that is a **digit collision** between unrelated censuses and is recorded as one, exactly as `octonion_associator_support` already warns for 168.
+
+**C-side edits are comments only.** `srmech_genome_fiber_holonomy` / `_octonion_holonomy` fold an ordered product along an OPEN strand — a path-ordered transport, a holonomy once the strand closes. The comments now say so; the **exported names are unchanged on purpose**, because renaming an export is a REMOVAL and would bump the ABI for a comment. Also corrected: `srmech.h` named `srmech_genome_octonion_associator` as though it were a C export — **no such symbol exists** in the header or in `c/src`; the order-blind read ships only in Python.
+
+### 7. The class is ZERO at every rung — the sign is a COCHAIN, and the counter-correction matters more than the correction
+
+Shipped prose said the Cayley–Dickson sign ε is *"cohomological, not a relabelling"* and called ε *"the sign cocycle"* while, in the same paragraph, reporting that it *"stops being associative"* at 𝕆. **Those two statements contradict each other**: for this object `δε = 0` **is** associativity of the sign lane, so a sign lane that stops associating is a cochain that has stopped being a cocycle. The self-contradiction shipped at four replicated sites, including `srmech.h` and two generated registries. *[§8i correction: **five**, and two of the four were only half-corrected in this rc's first pass.]*
+
+What is MEASURED, and is entirely unchanged:
+
+* `δt = ε` is inconsistent at EVERY rung — `rank([A|b]) = rank(A) + 1`, `nullity(A) = log2(dim)`. So ε is **not a 2-coboundary** anywhere. That is the whole content of "not a relabelling" and it stands.
+* `δε = 0` at ℝ/ℂ/ℍ but `δε ≠ 0` from 𝕆 up — **168** failing triples at 𝕆, **1848** at 𝕊 (`notes/lane1_epsilon_placement_2026-07-29.ndjson`, committed 2026-07-29 — the tree measured this thirty-six days before its own prose contradicted it).
+
+So at ℝ/ℂ/ℍ, `[ε] ≠ 0` in H² is a genuine cohomology class (a non-split central extension). **From 𝕆 up ε is not a cocycle, so `[ε] ∈ H²` is UNDEFINED** and the complete gauge invariant is ε's class in `C²/B²` — a cochain modulo coboundaries, which is not a cohomology class.
+
+One rung up it is plainer still, and the source says it outright: Albuquerque & Majid, [arXiv:math/9802116](https://arxiv.org/abs/math/9802116) §1 — *"for the octonions, the cocycle is a coboundary and can be identified as the result of twisting k(G) by a 2-cochain F"*. Since φ = δε is a coboundary BY CONSTRUCTION, **`[φ] = 0` in H³ at every rung**. There is no nonzero obstruction class anywhere in this tower; what turns on at 𝕆 and degrades at 𝕊 is the **cochain's VALUES**.
+
+⚠️ **THE COUNTER-CORRECTION — over-shooting here would DELETE measured results.** "The class is zero" does **not** mean "there is no frame-independent content". Every one of these is gauge-invariant, measured, and untouched:
+
+| invariant | value | note |
+|---|---|---|
+| rank pair / `nullity = log2(dim)` | encoding-invariant | the `+1` still carries the conclusion |
+| **associator support ladder** | **0 / 0 / 168 / 1848 / 15960** | re-measured at rc465 through `cd_mult` |
+| **diagonal** `q(x) = ε(x, x)` | gauge-invariant | **separates definite 𝕆 from all seven split forms** |
+| **commutation form** `R(x, y) = ε(x,y) + ε(y,x)` | gauge-invariant | does **NOT** separate 𝕆 from split-𝕆 — all eight share it |
+
+The corrected sentence is: **there is frame-independent content; it is not a cohomology class.**
+
+**Corrected in place**, with the measurement left alone at every site: `math/modular_linalg.py` (module header + `gf_solve`), `cascade/cd_register.py`, the `gf_solve` / `gf_nullspace` ToolEntries, both curated doc entries, the replicated `SIGN COCYCLE assoc` table headers (`cayley_dickson.py`, `introspect/__init__.py`, `carrier_schema.py`, `c/include/srmech.h`) — now `SIGN 2-COCHAIN δε=0`, every number unchanged; *[§8i correction: this said FOUR replicated copies and there are **five** — the fifth is `tests/test_carrier_ceiling_rc343.py`, the file that gates the claim — and at two of the four the header was corrected while the contradicting sentence below it was left standing]* — and `tests/test_associator_control_gf_solve_rc360.py`. Three **historical** CHANGELOG entries (rc359, rc383, and the rc360 §-entry) carry a bracketed `[rc465 correction: …]` rather than a silent rewrite: those lines are inside the PyPI long-description slice, so leaving them false was not an option and rewriting history was not either. A dated correction row is **appended** (never edited) to `notes/lane2_hv_grading_vs_cd_sign_2026-07-29.ndjson`, whose measured rows called the dim-8 residual "the COHOMOLOGY CLASS" — 40 → 41 rows, all 40 measurements untouched.
+
+⚠️ **A residual left standing DELIBERATELY.** The noun "sign cocycle" still appears at roughly a dozen sites where the sentence makes no cohomological CLAIM (*"the sign cocycle is degenerate in the split algebra"*). Those are loose but not false. A mechanical rename across prose nobody re-read is how a correction becomes a new defect — the same lesson the `#T974` / `#T986` ref-notation sweeps recorded. Sites that ASSERTED the cocycle property or the class were corrected; bare mentions were not. That is a scope decision, stated, not an oversight.
+
+**Attestation, and one source deliberately NOT in the manifest.** All four sources were verified FROM THE DOCUMENT and vendored to `hoodoos/` with their SHA-256 recorded — the vendored bytes hash **identically** to the `source_pdf_sha256` the manifest attested, which is a real cross-check rather than a restatement. **Regge & Williams, [arXiv:gr-qc/0012035](https://arxiv.org/abs/gr-qc/0012035)** (the deficit angle as concentrated curvature on a codimension-2 hinge; read pp. 1–2 directly) is verified-from-document but is **NOT** in the claim manifest: its e-print resolves to exactly **ONE** addressable section label, so the manifest's section-keyed contract cannot represent it and declaring `section_attribution: EXACT` would be a false declaration. It is cited in the notebook and **nowhere in the wheel**. Recorded as a measured instrument limit, not a gap. One further limit recorded rather than worked around: **"Kröner"** reads **0** on both backends in arXiv:0711.1535 — a LaTeX accent macro, an EXTRACTION artifact and not an absence — so the term is deliberately absent from that source's watchlist (a REFUTED row would be a false negative with an attestation attached) and the shipped docstring names only Kondo and Bilby, whose spellings are machine-checkable.
+
+Notebook **§3.58** carries both corrections with per-source attested / verified-only status.
+
+### 8. The closing pass — three regressions this rc caused, and the one it inherited
+
+Written after review of the rc465 branch. Every claim below is EXECUTED under WSL2 python3 3.10.12, native present, ABI 25 == 25, numpy absent, unless it says source-read.
+
+**8a. `cwf_consistency_mod2` read 64 doubles past the end of a 16-double buffer, and that is why this rc's own census gate was flaky.** `test_layer2_the_committed_census_matches_the_live_one` compares the committed `tests/demotion_census_rc465.ndjson` against a LIVE census run. On the unchanged tree it went red twice and green once, on one row: `srmech.biology.genome.cwf_consistency_mod2::gains`, committed `INSENSITIVE` and live `RAISED`. Isolated: six identical probe calls in ONE process returned two distinct outcomes, and the row's verdict depended on how many registry ops had run before it. The cause is neither the probe nor chance. `_cwf_compute_native` marshalled `len(gains)` quaternions into a ctypes buffer and then told the C peer `n_edges`; `srmech_genome_cwf_consistency_mod2` reads `gains[4*k]` for every `k < n_edges` (`c/src/srmech_winding.c`, the Tw sign loop and `srmech_quaternion_cycle_holonomy` beneath it). MEASURED, 4 gains against 20 edges:
+
+| route | result |
+|---|---|
+| `_cwf_compute_pure` | `ValueError: quaternion_cycle_holonomy: gains length 4 != n_edges 20` |
+| `_cwf_compute_native` | `(0, None, 0, (0, 1), 0, None)` |
+
+An out-of-bounds read wearing the shape of an answer, a native/pure parity break, and — because the answer came from whatever the allocator had left beyond the buffer — not stable within one process. `quaternion_cycle_holonomy` has carried that length check since it shipped (`srmech/physics/qm/quaternion.py:1265`); the whole-op wrapper never applied it. The check is now made in `_cwf_compute_native` and a mismatch returns `None`, so the PURE path raises the documented error and there stays exactly one owner of the text. Determinism re-measured: 8/8 identical, and two independent full censuses now agree with the committed artefact.
+
+**8b. The census verdict was also a function of the wall clock, and is not any more.** `PARAM_BUDGET = 6.0` seconds of cumulative time per `(op, parameter)` decided whether the remaining candidate shapes were tried, and that constant's own comment named the hazard it then implemented — *"a bare wall-clock cutoff makes a verdict depend on the machine"* — under a gate that asserts the whole verdict HISTOGRAM. MEASURED: all six `BUDGET_EXHAUSTED` rows exhausted after **exactly one shape and one call**, and that call had itself hit `CALL_TIMEOUT` (`alcove_fold.weight` 20.4 s / 1 call; `equal_temperament_partials.degrees` 59.7 s / 1; the four `mlse` params 33.6-58.5 s / 1 each). Nothing was ever retired because ordinary calls had accumulated. So the rule is now the one that was actually operating — **a call that TIMES OUT abandons the remaining shapes** — recorded as `CALL_TIMED_OUT`. Same six rows, no accumulating clock in the decision.
+
+**8c. `CEIL_DEMOTION_UNREACHED` did not exist.** `tools/demotion_probe.py`'s required disclosure named it as the ratchet bounding the instrument's own reach. Repo-wide grep over `*.py` / `*.md` / `*.c` / `*.h`: **one** occurrence, the sentence itself. A named ratchet with no definition and no assertion is the "gate that cannot fail" shape this whole rc is about. Defined and asserted at **52** (`NO_SHAPE` rows). The LARGER unreached class, `RAISED` at 305 of 703, is deliberately left unratcheted and says so: a `RAISED` row is a real refusal by a real op against a synthesised binding, so driving it down is a question about `synthesize`, not about the library.
+
+**8d. Two strict-zero gates that rc464 was green on, and the D3 fix broke.** Both reproduced locally, both red in CI.
+
+* `test_declared_type_honesty_rc363.py` — `CEIL_WIDE_UNDECLARED_OPS` is **0**; the tree measured **10**. Two independent causes, and only one was about the declaration. (i) The ops genuinely ACCEPT a `Q` now and declared only `HV`, so the type is widened to `HV | Sequence[int | Q]`, with the coercer `_to_exact_or_float_vector` in `srmech.mcp._coercion`, lexicon + encoding-hint rows in `srmech.mcp._tools`, and the hand-maintained mirror in `c/src/srmech_tool_schema.c`. (ii) They were ALSO measured as accepting `Mat`, which they refuse. `_operand_leaves` had `if isinstance(v, Mat): return v` and left the rejection to `_as_octonion` further down — behaviourally identical, but `tests/coercion_boundary.py` documents that a guard whose body does not raise is an ACCEPTANCE. **A pass-through IS an admission**, so the refusal moved to the single admission point. That fixed a second defect for free: `triality_apply` never calls `_as_octonion` at all, so a `Mat` operand escaped as a bare `TypeError` against a docstring documenting `ValueError`.
+* `test_composes_population_rc423.py` — six rows adjudicated LEAF now reach exactly one registered op each (`cascade.cd_conjugate` / `left_mult_matrix` / `right_mult_matrix`). They are seeded and re-tiered SINGLE; the census artefact under `docs/srmech/notes/` was re-run, which `tools/regen_all.py --check` cannot do for you — that is why regen was clean while a second instrument in the same tree was red. Tiers move LEAF 294 → 288, SINGLE 190 → 196; `CEIL_UNADJUDICATED` stays **181**.
+
+**8e. The R2 shield was still on, and rc465 had made it provably false.** The nine ops kept `Sequence[float]` annotations while returning `QMat` / `list[Q]` / `Q` for an exact operand. The DETECTOR stopped reading the annotation; the annotation itself was left. Now `Sequence[int | Q | Tuple[int, int] | float]`, with the true return union beside it.
+
+**8f. `(num, den)` was the one promised spelling that raised.** Every one of these ops documents its exact operand as `int` / `Q` / `(num, den)`, and the new wire type and MCP hint both say `[num, den]` — but `_exact_leaf` implements "an object exposing `.numerator` / `.denominator`", so a literal 2-tuple was rejected, with a message naming the VECTOR LENGTH rather than the component type (`octonion_conjugate: a must be an 8-vector; got [(7, 3), 0, ...]` — the operand IS an 8-vector). A local `_exact_component` promotes the pair, which is what `(num, den)` means everywhere else in this package (`srmech.math.q.to_q`, `QMat.from_rows`). rc463's shared `_exact_leaf` is deliberately unchanged: its contract is the einsum admission gate, where a 2-tuple is a SHAPE.
+
+**8g. The norm's exactness claim was over-stated, and its test could not see it.** rc465 shipped *"the root is EXACT WHENEVER IT IS RATIONAL (a perfect square lands on the nose)"* on `octonion_norm` / `quaternion_norm`, in their ToolEntry `returns` and compiled into `srmech_tool_registry.c`. It is false for a rational root with an ODD denominator, because `rational.sqrt` roots onto a DYADIC grid: `sqrt(Q(25, 49))` is `25734855013545691/36028797018963968`, not `5/7`, so `|Q(1, 3)| != Q(1, 3)`. The claim is narrowed to the dyadic one at all four surfaces and PINNED — the new test drives `Q` operands with denominator `!= 1`, of which the shipped rc465 test file contained none. The `2**-54` fallback bound was always correct and is unchanged.
+
+**8h. The shipped `explanation` contradicted the `returns` field beside it.** All ten ops' curated prose still asserted the float-only contract on `describe()`, the MCP tool list and the compiled-in C registry — `octonion_left_mult` additionally claiming it "dispatches to the C-backed `srmech_loop_left_op_f64`" when the exact route composes `srmech_cd_mult` / `srmech_cd_qbasis`, and classifying this module as "the FLOAT COORDINATE carrier". Corrected, with the `QMat.to_lists()` / `Mat.tolist()` accessor difference named, because that is what a caller's first migration attempt hits. `quaternion_slerp` gets the opposite statement, which is also the honest one: it is transcendental, it ACCEPTS an exact operand and FLOATS it, and it says so rather than implying a carry-through it cannot do.
+
+**8i. D4 and D5 were each incomplete on their own surface.** `cd_cycle_holonomy`'s docstring and ToolEntry still said *"the two bracketings disagree and THAT is the holonomy"* about twenty lines above the ⚠️ NAMING note that exists to remove exactly that sentence — on all three shipped channels. Corrected. And the D5 sweep counted **four** replicated copies of the CD sign table; there are **five**. The fifth is `tests/test_carrier_ceiling_rc343.py` — the file that gates the claim. Two of the four also had the header corrected and the contradicting sentence below it left standing (`introspect/carrier_schema.py`, `introspect/__init__.py`): *"THE SIGN COCYCLE stops being associative"* under a header now reading `SIGN 2-COCHAIN δε = 0`, which is the self-contradiction §7 says it removed. All five now say the same thing, and the counter-correction is untouched everywhere.
+
+**8j. Seventy `path:line` citations rc465 itself broke.** Moving these ops moved their `def` lines and the shipped tool docs kept citing the old ones — `octonion_conjugate` pointed into the middle of `octonion_left_mult`'s docstring. Seventy citations re-pointed, every one NAME-verified in both the rc464 blob and the current file. ⚠️ **Bounded on purpose, and the residual is larger than the fix**: this was done only for the three `qm` modules rc465 edited. A tree-wide audit finds stale citations in modules rc465 never touched (`bell.py`, `potentials.py`, `single_particle.py`, `spectral/__init__.py`, …), several off by one against the `def` line, which suggests more than one convention is in play. Nothing in the tree measures line currency in wheel prose. Left as a named, measured residual rather than mechanically swept — a wrongly-converted citation looks deliberate.
+
+**8k. Currency.** The four notebook `Live at rc464:` stamps and the README's worked `native_status()` capture were re-verified and moved to rc465 (registry **733**, `describe()["tools"]["total"]` **733**, cascade catalog `total=21, executable=18, leaf=3, c_runnable=18`, ABI **25**, `native_version '0.9.0rc465'`). The five-file version SSOT was already correct; these are a sixth and a seventh site the SSOT list does not name.
+
+**8l. The census gate was red in every PURE CI shard, and the artefact it compared against did not know which cell it came from.** rc465 shipped ONE census file, taken with the C peers dispatching, and asserted it against a live census in whatever cell the gate ran in. MEASURED by running the whole suite locally with `srmech/_native/libsrmech.so` moved aside and `SRMECH_EXPECT_PURE=1`: **3 failed, 13413 passed** — and all three failures were this gate's currency, roster and ceiling assertions. That is the F the fallback shards had been carrying at 89% with the summary cut off by a cancellation, so it had never been named.
+
+The verdicts are read off VALUES, so the two cells genuinely disagree; a pure census is not a stale copy of the native one:
+
+| cell | DEMOTED | undeclared | INSENSITIVE | RAISED | EXACT | SLOW_SKIP |
+|---|---|---|---|---|---|---|
+| native | 120 | 70 | 76 | 305 | 99 | 0 |
+| pure | 117 | 67 | 71 | 305 | 102 | 6 |
+
+*[§9 correction: both artefacts are GONE. Per-cell was the mitigation; the resolution was to take the census out of CI entirely and make the cells' disagreement a NAMED FINDING in one manifest. See §9.]* So the artefact was then made **per cell** — `demotion_census_rc465.ndjson` and `demotion_census_rc465_pure.ndjson` — the meta carries `native`, `load_census` REFUSES a cell swap by name rather than reporting it as staleness (the exact defect stage 1 hit on the worked-example ledger, arriving from the other side), and both ceilings become per-cell dicts. It is the same fact `tests/test_worked_examples_execute_rc354.py` already records for its own ledger — *"a number measured in one cell must never be pinned against the other"* — except that this gate asserts a full histogram and a roster IDENTITY, so the whole artefact has to be per cell rather than just the ceiling.
+
+**And the pure cell was not reproducible either, which is a second finding.** Two consecutive pure censuses on an unchanged tree: run 1 differed from the committed artefact in **0** rows, run 2 in exactly **2** — `laplacian.recover_check::weights` and `recover_check_spectral::weights`, both `DEMOTED → EXACT`, at 56.0s and 61.2s. Their pure cost sits at the 20s `CALL_TIMEOUT` boundary (one row, `recover_check_spectral::edges`, measures **526s**), so machine load decided the verdict. They are skipped by name in the PURE cell only, through a new `demotion_probe.SLOW_SKIP` keyed by cell — `frame_probe`'s discipline, made per-cell because the cost is. The native cell measures the same two rows in **0.154s / 0.159s** and is stable across three runs, so skipping them there would delete real signal to fix another cell's problem, and the native column of that roster is empty. Both cells now read **43 passed**.
+
+**8m. One op allocated 7.1 GiB inside the census and killed the CI runner, and that is what every exit-143 job on this branch was.** Four jobs — `ubuntu-latest • py3.10`, `ubuntu-latest • py3.12`, `fallback shard 6/6`, `asserts-live shard 4/4` — ended in *"The runner has received a shutdown signal"* and exit 143 in EVERY run on this branch, at ~5 minutes into the pytest step, including a 5-job re-run far under the plan's concurrency cap. Their logs carry **zero `F` markers** and their `always()` artifact steps read `skipped`, which is what a LOST RUNNER looks like and what a failing test does not. `fail-fast: false` is set on every matrix here and no competing run existed, so neither of the two obvious explanations held.
+
+MEASURED with a per-op peak-RSS profile over the whole census (WSL2 py3.10):
+
+```
+peak RSS 7342 MiB (start 35 MiB)
+  +7256.8 MiB -> 7342.4 MiB   srmech.signal_processing.mlse
+  +  17.4 MiB ->   81.4 MiB   cascade.matrix_cascades.singular_values_exact
+  +  12.1 MiB ->   59.9 MiB   cascade.matrix_cascades.eigvals_exact
+```
+
+**One op is 7.1 GiB of a 7.3 GiB peak; the next largest is 17 MiB.** A GitHub-hosted Linux runner has ~7 GiB, so the census reached `mlse` about five minutes in and took the machine with it. The gate rc465 added to catch silent demotions was killing the cells that run it.
+
+It is a `CONTRACT_SKIP`, not a budget, and for the reason the three weight-lattice rows beside it already give: `mlse`'s `n_states` means `A**L` (the rc425 v14 ABI bump), so the Viterbi trellis is EXPONENTIAL in the operand. A `2**53` witness in `alphabet` / `channel_taps` / `initial_state` / `observations` does not ask the same question at a bigger magnitude — it asks for a trellis the op cannot build, exactly as a `2**53` Dynkin coordinate asks for an unbounded Weyl orbit. The witness is not a value carrier here. A memory or wall-clock cutoff would have reported the MACHINE; this reports the CONTRACT.
+
+Effect on both censuses: `CALL_TIMED_OUT` 6 → 2, `CONTRACT_SKIP` 10 → 14, and **nothing else moves** — `DEMOTED` 120/117, undeclared 70/67 and decided 219/219 are unchanged in both cells, so no ceiling moves in either column. The census also runs ~3 minutes faster.
+
+**8n. And `windows-latest` has no cutoff at all, which is why it timed out at 99%.** `call_bounded` enforces `CALL_TIMEOUT` through `signal.SIGALRM`, and `hasattr(signal, "SIGALRM")` is **False on Windows** — so on that platform a call that exceeds the cutoff simply runs. MEASURED: after §8m the windows cell reached **99% of the suite at 30.8 minutes** and was killed by its own `timeout-minutes: 41` eleven minutes later, having finished nothing more.
+
+Exactly two rows are measured past the cutoff in both cells — `weight_lattice.alcove_fold::weight` (20.0s native / 21.5s pure) and `music.equal_temperament_partials::degrees` (21.4s / 22.2s) — and on Windows they are unbounded. **A cutoff one platform cannot enforce is not a cutoff**, so both ops join `SLOW_SKIP` in EVERY cell, named as data rather than left as a race on one platform. *[§9 correction: `SLOW_SKIP` is GONE. Both ops belong in `CONTRACT_SKIP` for a reason about the OP — their operand is an INDEX, and the cost is linear in its VALUE — which is the reason a Windows cutoff was standing in for. See §9.]* `CALL_TIMED_OUT` 2 → 0; `SLOW_SKIP` 0 → 2 native and 6 → 8 pure; `DEMOTED` 120/117, undeclared 70/67 and decided 219/219 all unchanged again, so still no ceiling moves. The gate now runs in **66s**, down from 363s when this pass started.
+
+**ABI stays 25.** No C symbol is added, removed or re-signatured. `c/src/srmech_tool_schema.c` gains one row in each of two hand-maintained string tables (a new declared type string mapping to `"array"`, plus its encoding hint); every existing string answers exactly as before, so no wire contract moves. `SRMECH_GENOME_FORMAT_VERSION` stays 20. Registry stays **733**.
+
+### 9. A census is not a gate — the three mitigations above are retired, and CI stops paying for the derivation
+
+⚠️ **§8l, §8m and §8n are three consecutive commits fighting one symptom, and none of them asked whether the thing belonged where it was.** `8be4a95ce` answered "the census gate is red in every pure shard" with a SECOND per-cell pinned artefact. `83aa9b74f` answered "one op allocated 7.1 GiB inside the census" with a skip. `08d80a037` answered "`windows-latest` has no cutoff, so it timed out at 99%" with two more skips. Each is a MITIGATION: **green bought by teaching a census which ops to avoid.** The residue was two committed artefacts, a `SLOW_SKIP` roster of four ops (six entries across the two cells, retiring 2 measured rows in native and 8 in pure), and this gate at 852 lines — for a corrective rc that added no capability and roughly **ten minutes** of CI.
+
+**THE ROOT CAUSE, in one line.** `tests/test_silent_carrier_demotion_rc463.py` called `_dp.census()` — the entire registry-wide derivation, 703 rows over 427 ops — **on every CI run, in every cell**, and then diffed it against a host-specific pin. Two things were wrong and the second is worse:
+
+1. **Deriving the population is expensive; checking the invariant is not.** A census belongs in a deliberate tool run.
+2. ⚠️ **The expected value depended on which CI cell it ran in.** A pin that differs native-vs-pure is measuring the HOST, not the code — the same defect class this project keeps finding in its own instruments, arrived at from the inside.
+
+**What the derivation actually cost, MEASURED per cell** (WSL2 py3.10, numpy absent, this file alone):
+
+| cell | before | after | note |
+|---|---|---|---|
+| native (`libsrmech` dispatching) | **66.18 s**, 43 tests | **8.02 s**, 45 tests | 0.37 s setup + every test call ≤ 0.04 s; the rest is `import srmech` |
+| pure | **153.80 s**, 43 tests | **7.21 s**, 45 tests | same shape |
+
+**And in the `--forked` cell it was paid ONCE PER TEST.** `asserts-live` runs `pytest -n auto --forked`, one fork per test. `pytest-forked` forks a child for each test's run phase, so the module-level `_LIVE_CACHE` a child populates is invisible to the parent and to the next child: **15 census-consuming tests each re-derived the whole census.** 15 x 61.6 s = **~15 minutes of census in one cell**, which `-n auto` runs across workers, so the observed wall cost is smaller: `asserts-live shard 4/4` 31 m on the `main` baseline (`a6d9700da`) -> **43 m** at `08d80a037`, +12 m. That is now zero.
+
+**THE SHAPE, modelled on the precedent the tree already has.** `tools/run_worked_examples.py` -> `tests/worked_examples_result.ndjson` is expensive derived state produced by a deliberate tool run, committed, and READ by its gate. The census now works the same way:
+
+```
+python3 tools/demotion_probe.py        # run ONCE PER CELL; it merges the cell it is run in
+```
+
+* **ONE manifest, `tests/demotion_census.ndjson`**, carrying BOTH cells as columns on each row. `demotion_census_rc465.ndjson` and `demotion_census_rc465_pure.ndjson` are deleted; there is no legacy path and no alias.
+* **The tool merges a COLUMN, never a file.** It rewrites only the cell it is run in and carries the other forward untouched — the rc460 worked-example-ledger defect (`--only-stale` "stamps the CURRENT cell's `native` flag onto rows merged from another cell") repaired rather than repeated. It also **REFUSES** to merge when the other column's recorded registry signature is not this tree's, so two halves of one manifest cannot come from two different trees.
+* `seconds` is deliberately **not** committed. It is a property of the host; a manifest carrying it would churn on every regeneration and make any digest over it host-dependent. The tool prints the slowest rows instead.
+
+**THE LOAD-BEARING ASSERTION IS UNCHANGED AND IS NOW STRONGER.** `CEIL_UNDECLARED_DEMOTION_BY_CELL` is **removed, not raised** — replaced by `EXPECTED_UNDECLARED_ROSTER_SHA256`, one digest over BOTH columns' `DEMOTED and UNDECLARED` rosters, asserted in FULL in EVERY cell. A `<= CEIL` lets a NEW undeclared demoter in whenever an unrelated one drains in the same change; an identity forbids that in both directions. It is the two-edit discipline `tests/test_op_name_set_witness_rc361.py` established: the roster on disk, the digest in source, and `EXPECTED_UNDECLARED_N` beside it only so the failure message can say "70 -> 71".
+
+**⚠️ THE STALENESS GUARD, WITH ITS BLIND SPOT DECLARED IN THE FILE.** A gate that only reads a committed file goes stale silently. The guard costs no execution: hash the `(op name, parameter types, return type)` triple over the whole registry (through `srmech.amsc.format.sha256_bytes`, never a direct `hashlib` call) and compare it to the digest the manifest recorded. That moves when an op is ADDED, REMOVED or RE-SIGNATURED — which is exactly what decides demotion-candidacy — and `test_the_staleness_guard_is_not_vacuous` proves all three directions in process against a mutated copy of the live signature lines.
+
+**It does NOT catch an implementation change that alters carrier behaviour behind an unchanged signature** — the very class this file exists to find. That sentence is in the module docstring, at the constant, and in the test's own docstring, because **the tree has already paid for the identical blind spot once and wrote it down**: `run_worked_examples.py --only-stale` keys on the snippet-TEXT hash, *"which does not move when an implementation moves — the blind spot the freshness hook exists for"*, and *"that blind spot is exactly how the ℚ-flip defect shipped"*. The consequence is stated rather than implied: **an rc that changes a numeric carrier must re-run the probe, and no digest will remind it to.** What still EXECUTES against the shipped carriers on every CI run is Layer 1 — strict-zero exactness, enumerated per PATH — and it is unchanged. The gate is added to `tools/ripple_gates.txt` and the regeneration step to `tests/RIPPLE_GATES.md`, because registering an op now reds it BY CONSTRUCTION.
+
+**THE NATIVE-vs-PURE DIVERGENCE IS A NAMED FINDING, NOT A SECOND PIN.** The two cells genuinely disagree; absorbing that into two artefacts is what made it invisible. It is now a row property (`divergent`), a `meta.divergent` list, and a pinned identity `_DIVERGENT` in the gate — **14 rows, every one named**, so a new divergence is RED. rc463 rates this class WORSE than a plain demotion, and the sharpest row shows why:
+
+| row | native | pure |
+|---|---|---|
+| **`signal_processing.iir::a`** | **DEMOTED** | **EXACT** |
+| `laplacian.recover_check::charges` | INSENSITIVE | DEMOTED |
+| `laplacian.recover_check_spectral::charges` | INSENSITIVE | DEMOTED |
+| `laplacian.klein4_gain_laplacian::gains` | EXACT | RAISED |
+| `biology.coupling.resonant_spectrum_sparse::edges_or_path` | EXACT | RAISED |
+| `modular_linalg.crt_combine::moduli` | RAISED | EXACT |
+| `hdc.bundle::vectors` / `hdc.bundle_with_ties::vectors` | RAISED | EXACT |
+| `signal_processing.hdc_truncation::vectors` | RAISED | EXACT |
+| `hdc.klein4_bundle_resolve::acc` | RAISED | INSENSITIVE |
+| `laplacian.klein4_relational_structure::gains` | INSENSITIVE | RAISED |
+| `laplacian.heat_trace::L` / `heat_trace::t` | INSENSITIVE | RAISED |
+| `cascade.matrix_cascades.lstsq::a` | INEXACT_BASE | RAISED |
+
+`iir::a` is the `fir` / `matched_filter` shape exactly, and it is **CONFIRMED BY HAND rather than taken from the probe** — a claim the instrument produced deserves a second instrument. `iir(signal=[1,0,0,0,0,0], b=[1], a=[w]*8)`, same tree, one cell apart:
+
+| `a` | native | pure |
+|---|---|---|
+| `2**53 + 1` | `1.1102230246251565e-16` | `1.1102230246251564e-16` |
+| `2**53` | `1.1102230246251565e-16` | `1.1102230246251565e-16` |
+| `2**53 + 2` | `1.1102230246251563e-16` | `1.1102230246251563e-16` |
+
+The native column answers `2**53+1` and `2**53` **identically** — the exact operand was collapsed — while the pure column separates them by one ULP. The third row is the vacuity guard: both cells move for `2**53+2`, so the instrument could have said otherwise. The `RAISED` pairs are the same fact wearing the instrument's clothes — one projection REFUSES a binding the other accepts. Naming them is the resolution; two pins was the mitigation.
+
+**`SLOW_SKIP` IS DELETED — and each of its six rows was re-asked one question: is the reason about the OP or about the MACHINE?**
+
+* **Four rows are about the machine, so they are MEASURED now, in both cells.** `laplacian.recover_check` and `recover_check_spectral` ANSWER; they just cost 53-584 s on the pure path against 0.15-8.4 s in native. They cost the pure census ~13 extra minutes and cost CI nothing, because CI does not run it. `pure` DEMOTED 117 -> **121**, undeclared 67 -> **71**, decided 219 -> **223**: four rows of real signal that the skip had deleted.
+* **Two rows are about the OP, so they move to `CONTRACT_SKIP`** — where the reason survives a machine change, next to `mlse` and the three weight-lattice rows. `08d80a037` skipped them because a 20 s cutoff Windows cannot enforce is not a cutoff (true, and about the machine). MEASURED by scanning the operand instead of asserting about it:
+
+```
+alcove_fold("A1", [w], level=1)          w = 1 .. 4096   0.00 s
+                                         w = 2**20       1.06 s
+                                         w = 2**30       NO ANSWER > 30 s
+                                         w = 2**53+1     NO ANSWER > 60 s
+equal_temperament_partials(degrees=[d])  d = 1 .. 4096   0.00 s
+                                         d = 2**20       ValueError: "Exceeds the
+                                                         limit (4300) for integer
+                                                         string conversion"
+                                         d = 2**53+1     NO ANSWER > 60 s
+```
+
+Both costs are **linear in the operand's VALUE**, because in both ops the operand is an INDEX and not a value carrier. `weight` is documented "a rank-length **Dynkin label**" and the affine Weyl fold takes one reflection step per unit of it, so a `2**53` coordinate asks for ~`2**53` steps — the identical unbounded-orbit fact the three weight-lattice `CONTRACT_SKIP` rows beside it already record, and those predate the CI panic entirely. `degrees` is documented "which **scale degrees** to return" and the exact ratio is `octave**(degree/divisions)`, so degree `2**20` already exceeds CPython's 4300-digit integer conversion limit and `2**53` names a number with ~10^15 bits. Neither is "the same question at a bigger magnitude", which is the test `mlse`'s own note states.
+
+**`mlse` KEEPS its skip, and this says so out loud rather than keeping it silently.** It arrived as a mitigation (§8m) and every other skip from that panic is gone, but its reason is about the op — `n_states` is `A**L`, so the trellis is exponential in the operand — and that holds on a workstation with 128 GiB as squarely as on a 7 GiB runner. It is recorded AS DATA, a `CONTRACT_SKIP` verdict with its reason attached in every manifest row, not as a silence. `CONTRACT_SKIP` 14 -> **16** in both cells is the two label-operand ops joining it.
+
+**`CALL_TIMEOUT` 20 -> 900 s, and that is the opposite of widening a tolerance.** At 20 s it DECIDED verdicts: §8l measured two rows flipping `DEMOTED <-> EXACT` between consecutive pure censuses on an unchanged tree, because a call inside each sometimes crossed the cutoff and sometimes did not. The cutoff existed at 20 s because the census ran inside CI. Out of CI, it is set clear of every call that can still reach it — the slowest surviving row is `recover_check_spectral::edges` at **584 s** — so it bounds a HANG (`tensor_product_multiplicities` hung indefinitely in the first census run) and adjudicates nothing. `CALL_TIMED_OUT` and `SLOW_SKIP` are both **0** in both cells.
+
+**The reproducibility that argument predicts is MEASURED, not assumed.** A second independent pure measurement of exactly the rows §8l recorded as unstable, diffed against the committed column:
+
+| row | run 2 | committed | seconds, run 1 -> run 2 |
+|---|---|---|---|
+| `recover_check::weights` | DEMOTED | DEMOTED | 57.8 -> 60.1 |
+| `recover_check::charges` | DEMOTED | DEMOTED | 15.2 -> 16.1 |
+| `recover_check_spectral::edges` | INSENSITIVE | INSENSITIVE | 584.1 -> 591.8 |
+| `recover_check_spectral::weights` | DEMOTED | DEMOTED | 157.6 -> 200.0 |
+| `recover_check_spectral::charges` | DEMOTED | DEMOTED | 22.2 -> 25.5 |
+
+**Rows differing: 0.** The wall clock moved by up to 27% between the two runs and no verdict moved with it, which is the whole claim: at 20 s the cutoff sat inside that spread and adjudicated; at 900 s it does not.
+
+**And the manifest as a FILE is idempotent — which is how one remaining piece of host-dependence was found.** A full native re-measurement into a copy of the committed artefact reproduced all 703 rows **byte-identically** and differed in exactly one field: `meta.measured_at.native.census_seconds`, 74.2 -> 66.6. That is the host's clock, sitting in a committed file. It reads no gate, but it means a re-measurement that changes NOTHING can never diff empty — destroying the one signal a maintainer actually reads off `git diff tests/demotion_census.ndjson` — and it is the same host-dependence this rc removed from the rows, left behind in the meta. **Removed.** The elapsed time is printed by the tool, which is where a human wanting it looks. Re-verified after: `cmp` reports the regenerated manifest **byte-identical** to the committed one.
+
+**MEASURED, the whole manifest.** 703 rows over 427 ops, registry signature `dba6fa94101f`, both columns from one tree:
+
+| cell | census | DEMOTED | undeclared | EXACT | INSENSITIVE | RAISED | NO_SHAPE | CONTRACT_SKIP |
+|---|---|---|---|---|---|---|---|---|
+| native | 74.2 s | 120 | **70** | 99 | 76 | 305 | 52 | 16 |
+| pure | 986.5 s | 121 | **71** | 102 | 72 | 306 | 52 | 16 |
+
+`CEIL_DEMOTION_UNREACHED` holds at **52** in both columns and is now asserted over BOTH in EVERY cell, which is the difference between recording a per-cell fact and pinning a host.
+
+**THE STRICT-ZERO GATE STILL FAILS UNDER MUTATION — four plants, each red on the gate that owns it, all reverted:**
+
+| plant | result |
+|---|---|
+| an undeclared-demoter row REMOVED from the manifest (`biology.coupling.resonant_spectrum::L`) | RED — `test_layer3_the_undeclared_roster_matches_its_pinned_digest` |
+| a row flipped EXACT -> DEMOTED with no `declares` (`cascade.cayley_plane_point::x1`) | RED — the same gate |
+| the pure column's recorded registry signature moved by one hex digit | RED — `test_the_manifest_is_fresh_against_the_registry_signature` |
+| a NEW native-vs-pure divergence planted (EXACT / INSENSITIVE) | RED — `test_the_native_pure_divergence_is_a_named_finding` |
+
+Green before, green after revert, in both cells: **45 passed**.
+
+**The worked-example ledger, re-verified for the module this rc's own docstring fix touched — a NULL, written down.** `tools/hooks/derived_ledger_freshness.py` blocked the stop: editing ONE docstring in `srmech/biology/genome.py` made **71 of 649** ledger rows unverified, because that hook's predicate is *"the module that defines the op changed since the ledger was written"* — deliberately NOT the snippet-text hash, which is what `--only-stale` keys on and which "does not move when the implementation moves". That is the same blind spot this section writes into the census gate's prose, so the hook firing here is the tree being consistent with itself. All 71 were re-executed by explicit `--only` selector in the NATIVE cell (the ledger records `native: true`; a pure-cell re-run would relabel the whole file — the rc460 defect).
+
+**Result: zero content change.** Every one of the 71 statuses is identical — 25 `ok` and 46 `unexpected_raise` before and after — the tallies hold at the enforced ceilings (`unexpected_raise` **96**, `timeout` **1**), and the only changed byte in the whole file is `meta.verified_at`, `74479c6e7` → `4c5985097`. The rows were unverified, not wrong: the staleness was in the provenance, not the values. Recorded because a null that is not written down is indistinguishable from a step that was skipped.
+
+**ABI stays 25. Registry stays 733.** No C symbol, no signature, no wire contract, no generated artifact (`regen_all.py --check`: all 6 up to date) and no shipped op behaviour moves — this is placement, not surface.
+
 ## [0.9.0rc464] - three guards that declined a C peer which had accepted 256 since rc298, a conversion refused on a contract clause that was already false, a faithfulness oracle whose own test forbade the subsumption it was gating, and a 32x scratch heuristic that made a whole class look like it had no C peer
 
 **What this rc is for.** Registry **720 → 733**; **ABI 24 → 25** (a REMOVAL bump); **three C symbols removed, none added**; carriers **29 → 28**; the `[class]` catalog stays at **4**, with a different fourth member. Four threads. FIRST: `srmech_cd_navmap`, `srmech_cd_navigate` and `srmech_cd_navmap_is_signed_permutation` have accepted every power-of-two dim up to `SRMECH_CD_MAX_DIM = 256` since rc298. Their three Python wrappers returned `None` above 64 anyway — before any `LIB` call — so at dim 128 and 256 the shipped surface silently ran the pure cocycle loop while the ratchet justification on record said the family had "real C peers reachable through dispatch glue". That justification was **false above dim 64 from rc298 to rc463**, and no instrument could say so: the rc297 sweep of that family stops at 64, and the rc298 evidence that "the C peer verifies the new rungs" calls the symbol through **raw ctypes**, bypassing the very wrappers that declined it. SECOND: `CDRegister` — the last hand-coded domain class in the tree — becomes a config-driven `[class]` TOML, which is what the standing direction asks for and what rc297 recorded as *"decided, not defaulted"* against. One of rc297's two stated grounds was **already false when it was written**; the other was real and dissolves under the same change that records a fixture. Sections 6–8. THIRD: that fixture is now recorded, `CDRegister` is the PREFERRED register shape on every surface a consumer reads, and the test surface migrates onto it — the faithfulness gate moving from CODE INDEPENDENCE (a test asserting through `inspect.getsource` that the oracle does not mention the subject) to DATA PROVENANCE (1157 digest-pinned records of what the oracle actually did), which is the stronger form of the same claim because recorded output cannot acquire the subject's failure modes: it is not running. Sections 11–14. FOURTH — and it is what makes the other three land rather than sit as half a change: the bare-C `make_class` engine gains a dim- and namespace-general register vtable, the 16-slot `SedenionRegister` is REMOVED entirely, and the three C exports that served it go with it. Sections 15–21. Along the way the engine turned out to carry a hand-rolled `32 * toml_len` TOML-parse scratch heuristic that held for every descriptor shipped through rc463 and failed silently on the first bigger one — §16 — and running the DOCUMENTED curated-docs refresh command wrote a Python module that raised `NameError` on import, §20.
@@ -173,11 +604,11 @@ Executed on the rebuilt library: **67 tests, 21.09 s** across the two golden mod
 
 "Prefer X" is exactly the kind of statement that goes stale in prose and is then quoted years later by a reader with no way to know — this rc already had to correct one such sentence that steered a build decision ~330 rcs after it stopped being true (§6). So the preference is measured.
 
-`tests/test_preferred_register_shape_rc464.py` (7 tests) pins:
+`tests/test_preferred_register_shape_rc464.py` (7 tests — **8 as merged; and ⚠️ rc465 CORRECTION: the third clause below was VACUOUS. Its loop body never executed, so both of its assertions were unreachable. rc465 rewrites the module to 15 tests over six channels; see the rc465 entry**) pins:
 
-* **the set of registered ops that hand back a register**, as an EQUALITY over `returns.type` — that is the set a reader chooses from, so it is the set the preference has to be about. Two rows today; the removal of the dim-16 one cannot pass unremarked, and a new register-shaped entry cannot appear unremarked either;
+* **the set of registered ops that hand back a register**, as an EQUALITY over `returns.type` — that is the set a reader chooses from, so it is the set the preference has to be about. ~~Two rows today~~ **ONE row — the dim-16 entry was removed in this same rc, which is exactly what emptied clause 3's population (rc465 correction)**; a new register-shaped entry cannot appear unremarked. **rc465 also found the predicate too narrow: a register need not declare a `*Register` return type to BE one, and a `[class]` TOML — the channel the 16-slot register itself shipped through from rc140 — passed every test in this file unremarked;**
 * that the preferred entry SAYS SO in the shipped `ToolEntry` summary, in the class / factory / module docstrings a `help()` reader reaches, **and in the two GENERATED artifacts a consumer reads without importing anything** — the wheel's `_tool_docs.py` explanation and the compiled-in `srmech_tool_registry.c`. rc464's own §on ref-notation records that 15 false links once shipped through exactly those files, so they are checked directly rather than trusted to follow the source;
-* that every OTHER register-returning surface points at it, in the tool summary AND in the carrier description — two different consumer paths, neither standing in for the other;
+* that every OTHER register-returning surface points at it, in the tool summary AND in the carrier description — two different consumer paths, neither standing in for the other. **⚠️ rc465 CORRECTION: this clause measured nothing. The population was empty, so the loop ran zero times; and an `assert not others` sat ABOVE the steer call, so in the world where the population is NON-empty the test fails at the emptiness line and the steer is still never reached — dead in both worlds, not dormant. Traced with `sys.settrace` at rc465: lines 139-143 never execute.**;
 * with a negative control proving the steering predicate can fail: MENTIONING `cd_register` is not steering to it, since every register entry does that in passing.
 
 The shipped prose also makes a claim that is a MEASUREMENT rather than a slogan — *"there is no method here that CDRegister lacks"*. Executed: `dir()` over both classes gives **11 public methods on the 16-slot register, 0 of them missing from CDRegister, and 7 extra there** (`add` / `carry_block` / `conjugate` / `element` / `multiply` / `norm` / `working_block`). A preference that asked a reader to give something up would be a different statement.
@@ -6986,7 +7417,7 @@ Equality is **per-carrier**, because `==` is not the identity operator for every
 **THE CAYLEY–DICKSON PROPERTY-LOSS LADDER, READ IN ONE PASS + A PER-RUNG PROJECTOR — `srmech.cascade.defect_ladder`, `#T1054`.** rc380 shipped the k=2 commutator and the k=3 3-cycle holonomy as the bottom two rungs of a loop-defect ladder. rc383 ships the op that reads the WHOLE ladder over the same three inputs and applies a **per-rung projector** — returning only the loop-defects that are structurally meaningful at the operands' rung. The property loss is **RUNG-indexed, not arity-indexed**. Exact-ℚ, numpy-free, no `abs()`; a pure composition of the already-C-backed `associator` / `cd_commutator` / `cd_cycle_holonomy`, so **no new C symbol** and `SRMECH_ABI_VERSION` stays **10**.
 
 - **`srmech.cascade.defect_ladder(x, y, z, table=None)`** (Class M ∘ C ∘ K, `composition_of_c`) → `dict(dim, rung, algebra, defects, nonzero, holonomy_closed, rung_admits, projected)`. The four defect tuples come back in ONE call — `commutator` `[x,y]`, `associator` `[x,y,z]`, `left_alternator` `[x,x,y]`, `flexibility` `[x,y,x]` — with `rung_admits` the STRUCTURAL projector mask and `projected` the view that keeps only the rung-admitted defects. The ladder: TOTAL ORDER lost at ℂ (rung 1, a metric fact / admits-flag), COMMUTATIVITY at ℍ (rung 2), ASSOCIATIVITY at 𝕆 (rung 3), ALTERNATIVITY + ZERO-DIVISORS at 𝕊 (rung 4); FLEXIBILITY `[x,y,x]≡0` is the FLOOR that never turns on.
-- **⚠️ Rung 4 is NOT basis-visible — the 𝕊 seam crux.** Over the ordered basis `[e_i,e_i,e_j]=0` at 𝕊 exactly as at 𝕆, so a basis-only probe FALSELY reports 𝕊 alternative. The failure needs a DOUBLING-SEAM-CROSSING input `a = e1+e10`: then `[a,a,e4]=2·e15 ≠ 0` and `(e1+e10)(e4−e15)=0` (a zero divisor). Zero-divisor / composition-loss is the cleaner NAME for rung 4 than "alternativity". The conjectured arity-4 "square-loop" holonomy is **REFUTED** as a fifth rung (it turns on at 𝕆, 1848/4096, inherited from the associator).
+- **⚠️ Rung 4 is NOT basis-visible — the 𝕊 seam crux.** Over the ordered basis `[e_i,e_i,e_j]=0` at 𝕊 exactly as at 𝕆, so a basis-only probe FALSELY reports 𝕊 alternative. The failure needs a DOUBLING-SEAM-CROSSING input `a = e1+e10`: then `[a,a,e4]=2·e15 ≠ 0` and `(e1+e10)(e4−e15)=0` (a zero divisor). Zero-divisor / composition-loss is the cleaner NAME for rung 4 than "alternativity". The conjectured arity-4 "square-loop" holonomy is **REFUTED** as a fifth rung (it turns on at 𝕆, inherited from the associator). *[rc465 correction: the count printed here was **1848/4096**, which is the ASSOCIATOR at 𝕊 (16³). The arity-4 divergence at 𝕆 is **2520/4096** (8⁴) — re-measured through `cd_mult` at rc465; the rc383 provenance NDJSON carried 2520 correctly and only the prose drifted. Two censuses sharing the denominator 4096 were fused.]*
 - **The general INSTRUMENT, MEASURED across three distinct substrates.** `defect_ladder` is the CD instance of a *declared-parallel-state ⊗ projector-excitation → rung-meaningful-subset* form. The same form is measured in three other domains (all real srmech ops): **QM measurement** — `(3/5)|0⟩+(4/5)|1⟩` under projector `P=|e⟩⟨e|` gives Born probabilities 9/25 and 16/25 (exact-ℚ via `QMat`); **genome chromatin** — one strand declares all genes, and a chromatin gate under two `cell_state`s expresses `{geneA}` (accessible 1/1) vs `{geneB}` (accessible 0/1); **music** — the viola 4×5 fingerboard lattice with the bow as projector, inter-string fifths offset `+4 mod 7` (`gcd=1` → ℤ/7) / `+7 mod 12` (`gcd=1` → ℤ/12). ⚠️ EPISTEMIC CEILING: FORM, not identity — this transfers the ALGORITHM, never the constant; the CD k=3 (arity-3 associator) MUST NOT be fused with the substrate B/H/N k=3 (different k=3's).
 - **Notebook SSoT amendment — §3.29.3 gains the full ladder + the projector instrument.** The rung-indexed ladder table (property → turn-on rung → basis-visible? → shipped op), FLEXIBILITY as the floor, arity-4 REFUTED, the three cross-substrate domain instances, and a RESEARCH-NOTE subsection capturing the open provocations — the fingerboard twist⊕writhe / does `Lk=Tw+Wr` apply (`#T1058`); the ℝ-rung=one-atomic-note vs C/H/O/S=note-compositions conjecture; cube-basis many-at-once orchestration via the projector (`#T1059`, links `#T1011`) — each marked OPEN.
 - **Computational provenance.** `notes/defect_ladder_rc383.py` → `notes/defect_ladder_rc383.ndjson` reproduces every load-bearing number THROUGH the op: the censuses (commutator 6/42/210, associator 0/168/1848), the 𝕊 seam witness (`[a,a,e4]=2·e15`, the zero divisor, and the basis-only left-alternator all-zero that shows rung 4 is not basis-visible), and the three domain-example numbers. Differential gate: `tests/test_defect_ladder_rc383.py`.
@@ -7759,7 +8190,7 @@ The differentials are genuinely different algorithms, not the subject recomputed
 | eliminating `t(e₀)` | 0/1 | 1/2 | 4/5 | 11/12 | 26/27 | 57/58 |
 | `nullity(A)` | 1 | 2 | 3 | 4 | 5 | 6 |
 
-Eliminating the variable drops the redundant row along with the column, which is why both ranks shift by exactly one. **The invariant worth quoting is `nullity(A) = log2(dim)`** — the homogeneous solutions are precisely the GF(2)-linear functionals, giving `rank(A) = dim − log2(dim)` in closed form, and the test now pins that identity too. `consistent` is `False` at every rung either way, and the `+1` defect that carries the conclusion (the CD sign is cohomological, not a relabelling) is invariant under both encodings. Also corrected: `gf_nullspace`'s curated prose called that kernel *"the exact gauge freedom the sign cocycle carries"* — the system is inconsistent, so it has no solution to be free in.
+Eliminating the variable drops the redundant row along with the column, which is why both ranks shift by exactly one. **The invariant worth quoting is `nullity(A) = log2(dim)`** — the homogeneous solutions are precisely the GF(2)-linear functionals, giving `rank(A) = dim − log2(dim)` in closed form, and the test now pins that identity too. `consistent` is `False` at every rung either way, and the `+1` defect that carries the conclusion (the CD sign is irreducible, not a relabelling) is invariant under both encodings. *[rc465 correction: this read "cohomological", which over-types the measurement. What is measured is that ε is not a COBOUNDARY at any rung; being cohomological also requires ε to be a COCYCLE, and `δε ≠ 0` from 𝕆 up (168 failing triples at 𝕆, 1848 at 𝕊), so above the Hurwitz wall the invariant lives in `C²/B²`, not `H²`. Every number is unchanged.]* Also corrected: `gf_nullspace`'s curated prose called that kernel *"the exact gauge freedom the sign cocycle carries"* — the system is inconsistent, so it has no solution to be free in.
 
 ### What the recovery had to fix
 
@@ -7834,7 +8265,7 @@ Additive symbols → **ABI stays 10**.
 
 ### (5) `#T1026` — six sites that each stated half a fact
 
-`cd_register.py` documented the index/sign split; `hdc.py` documented that `bind` is XOR and is commutative / associative / self-inverse. Neither said why those are the **same** fact. Joined, with the consequence stated: `e_i·e_j = ±e_k` pins `k = i ⊕ j` for free but does **not** pin the `±`, and solving `δt = ε` over GF(2) through the shipped `gf_rref` shows `rank([A|b]) = rank(A) + 1` at **every** rung — inconsistent everywhere, so no relabelling `t` can absorb the sign. It is **cohomological**, not representational. `bind` is the coboundary-free shadow of the same product; `cd_navmap` returns `(k, sign)` per slot precisely because the sign cannot be derived from the labels. Back-referenced from `modular_linalg.py`.
+`cd_register.py` documented the index/sign split; `hdc.py` documented that `bind` is XOR and is commutative / associative / self-inverse. Neither said why those are the **same** fact. Joined, with the consequence stated: `e_i·e_j = ±e_k` pins `k = i ⊕ j` for free but does **not** pin the `±`, and solving `δt = ε` over GF(2) through the shipped `gf_rref` shows `rank([A|b]) = rank(A) + 1` at **every** rung — inconsistent everywhere, so no relabelling `t` can absorb the sign. It is **irreducible**, not representational. *[rc465 correction: "cohomological" here over-types it — see the rc465 entry; ε is a 2-cocycle only at ℝ/ℂ/ℍ, so from 𝕆 up the invariant is a class in `C²/B²` rather than in `H²`. The inconsistency result quoted above is unchanged.]* `bind` is the coboundary-free shadow of the same product; `cd_navmap` returns `(k, sign)` per slot precisely because the sign cannot be derived from the labels. Back-referenced from `modular_linalg.py`.
 
 ⚠️ **The prepared "gauge" framing was WRONG and was corrected before shipping.** The rc359 research supplied two rank tables and said the numbers reproduce *"only under the pinned convention `t(e₀) = 0`"*. Re-derived through `gf_rref`: **`t(e₀) = 0` is a THEOREM of the system, not a gauge choice.** `e₀·e₀ = +e₀`, so the `(i,j) = (0,0)` row **is** literally `t(e₀) = 0`; adding it as an extra constraint changes no rank (measured). What actually separates the two tables is a **matrix encoding** choice — keeping the `t(e₀)` column (1/2, 2/3, 5/6, 12/13, 27/28, 58/59) versus eliminating the variable and dropping column 0 (0/1, 1/2, 4/5, 11/12, 26/27, 57/58), which removes that redundant row along with it. The docs ship the natural encoding **and** the invariant behind both: `nullity(A) = log₂(dim)` exactly, because the homogeneous solutions are precisely the GF(2)-**linear functionals**, giving `rank(A) = dim − log₂(dim)` in closed form. The `+1` defect that carries the conclusion is unchanged either way.
 

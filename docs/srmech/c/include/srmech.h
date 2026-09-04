@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE "rc464"
-#define SRMECH_VERSION "0.9.0rc464"
+#define SRMECH_VERSION_PRE "rc465"
+#define SRMECH_VERSION "0.9.0rc465"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5461,7 +5461,7 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  * on the INDEX and a COCYCLE on the SIGN, and the halves behave differently
  * (measured over srmech_cd_basis_product):
  *
- *     dim | index == a XOR b | negative signs (C(d,2)) | SIGN COCYCLE assoc
+ *     dim | index == a XOR b | negative signs (C(d,2)) | SIGN 2-COCHAIN de=0
  *       2 |       4/4        |        1  (1)           |     8/8      100%
  *       4 |      16/16       |        6  (6)           |    64/64     100%
  *       8 |      64/64       |       28  (28)          |   344/512     67%
@@ -5470,8 +5470,12 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  *
  * The index lane is exact at EVERY rung; the SIGN is what stops being
  * associative, abruptly, at dim 8. So addressing is unbounded because XOR is
- * associative forever, and turns/composition break because the sign cocycle is
- * not — which is also why rc298 could lift SRMECH_CD_MAX_DIM 64 -> 256 by
+ * associative forever, and turns/composition break because the sign 2-cochain
+ * stops satisfying the cocycle condition (rc465 naming: the last column
+ * measures d(epsilon) == 0, which holds at R/C/H and FAILS from O up, so
+ * epsilon is a 2-COCYCLE only on the associative rungs and is a 2-COCHAIN in
+ * general; every number in the table is unchanged) — which is also why rc298
+ * could lift SRMECH_CD_MAX_DIM 64 -> 256 by
  * DECOUPLING the caps. (`index == XOR` is close to definitional for a CD
  * basis, so that column is a CHECK; the READING it supports — a free index
  * and a load-bearing sign — is the part that is not.)
@@ -13770,8 +13774,12 @@ srmech_status_t srmech_oct_bind(const uint8_t *turn, const uint8_t *one,
                                 uint32_t n, uint8_t *out);
 
 /* §Q8-FIBER/v17 (rc322, F-HOLO-MISLOCATED) — the strand's TOPOLOGY / FIBER
- * channel: the ORDERED (order-carried) accumulated Q8 holonomy of the coupled
- * turns along a strand. `turns` is a flat n_turns x leaf_dim buffer of Q8 bytes
+ * channel: the ORDERED (order-carried) accumulated Q8 transport of the coupled
+ * turns along a strand. NAMING (rc465): this is a PATH-ORDERED TRANSPORT along
+ * an open strand — a holonomy proper once the strand closes. The exported
+ * symbol name keeps "holonomy" deliberately: renaming an export is a REMOVAL
+ * and would bump SRMECH_ABI_VERSION for a comment, so the correction is stated
+ * here rather than spent on the ABI. `turns` is a flat n_turns x leaf_dim buffer of Q8 bytes
  * (row t = the t-th stored/coupled data turn, one Q8 element per slot); `out` is
  * leaf_dim Q8 bytes. Per slot s, out[s] = q8_mult(...q8_mult(q8_mult(0, turns[0]
  * [s]), turns[1][s])..., turns[n_turns-1][s]) — the ordered left-to-right fold
@@ -13808,8 +13816,11 @@ srmech_status_t srmech_genome_octonion_holonomy(const uint8_t *turns,
                                                 uint8_t *out);
 
 /* THE ORDER-CARRYING OCTONION ASSOCIATIVITY READ — split_defect (rc390). The
- * ORDER-carrying complement of srmech_genome_octonion_associator (order-BLIND:
- * L-vs-R fold, permutation-invariant). For a `word` of n octonion basis letters
+ * ORDER-carrying complement of the PYTHON-only genome_octonion_associator
+ * (order-BLIND: L-vs-R fold, permutation-invariant). NAMING (rc465): that name
+ * is written here as though it were a C export and it is NOT — no
+ * srmech_genome_octonion_associator symbol exists in this header or in c/src;
+ * the order-blind read ships only as srmech.biology.genome's Python op. For a `word` of n octonion basis letters
  * (each byte < 16) and a split index k (0 < k < n), it reads the sign bit of the
  * fully-LEFT fold of the whole word against the sign bit of (fold(word[:k]) .
  * fold(word[k:])) — the SAME letters, RE-BRACKETED at k:

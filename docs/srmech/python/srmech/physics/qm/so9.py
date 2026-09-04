@@ -275,9 +275,16 @@ def _lmat(i: int) -> List[List[int]]:
     nested list (entries in ``{−1, 0, +1}``; ``L_{e_0} = I``). Built from the
     attested :func:`srmech.physics.qm.octonion.octonion_left_mult` — the SAME
     Cayley-Dickson-from-H convention the whole so(8) engine uses.
+
+    rc465 (`#T1188`): ``e_i`` is an INTEGER basis vector, so the op now answers
+    on its exact carrier — a ``QMat`` of exact ``Q``. The ``int(round(x))``
+    this line used to carry was a float-repair that had become a LIE about
+    where the integers came from: they are integers, exactly, and rounding them
+    could only ever hide a defect. ``.to_lists()`` is ``QMat``'s accessor
+    (``.tolist()`` is ``Mat``'s), and ``int(q)`` is exact on an integral ``Q``.
     """
     e_i = [1 if k == i else 0 for k in range(_DIM8)]
-    return [[int(round(x)) for x in row] for row in octonion_left_mult(e_i).tolist()]
+    return [[int(q) for q in row] for row in octonion_left_mult(e_i).to_lists()]
 
 
 @functools.lru_cache(maxsize=1)

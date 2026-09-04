@@ -866,3 +866,14 @@ tests/test_preferred_register_shape_rc464.py
 # else in the tree can make. 75 tests, ~31 s, native-only (skips cleanly
 # without the library).
 tests/test_cd_register_engine_c_rc464.py
+# rc465 (`#T1188`): the SILENT-CARRIER-DEMOTION gate. It belongs on the fast set
+# for a reason none of the entries above have: its committed manifest
+# (tests/demotion_census.ndjson) is stale-guarded by a hash of the REGISTRY's
+# (op name, parameter types, return type) triples, so REGISTERING OR
+# RE-SIGNATURING AN OP MAKES IT RED BY CONSTRUCTION. That is the intended
+# behaviour -- a new op is a new demotion candidate and the census has not seen
+# it -- and the remedy is the regen preamble in RIPPLE_GATES.md, not an edit
+# here. Before rc465 this gate re-derived the whole census on every CI run and
+# cost 66 s native / 154 s pure per job; it now reads a file. 24 tests, ~0.5 s
+# plus one srmech import, pure.
+tests/test_silent_carrier_demotion_rc463.py

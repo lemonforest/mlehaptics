@@ -46,10 +46,34 @@ sedenion zero-divisor support condition ``i ⊕ j = k ⊕ l`` as an affine GF(2)
 system through this op — a combinatorial construction where sampling cannot
 work, zero divisors being measure-zero in 𝕊.
 
-The same op decides the CD sign cocycle itself: ``δt = ε`` is inconsistent at
+The same op decides the CD sign 2-cochain itself: ``δt = ε`` is inconsistent at
 every rung (``rank([A|b]) = rank(A) + 1``, with ``nullity(A) = log2(dim)`` — the
-GF(2)-linear functionals), which is what makes the sign cohomological rather
-than a relabelling — see ``cascade/cd_register.py``.
+GF(2)-linear functionals), which is what makes the sign IRREDUCIBLE rather than
+a relabelling — see ``cascade/cd_register.py``.
+
+⚠️ **NAMING, corrected rc465 (`#T1188`).** That sentence read "which is what
+makes the sign cohomological" through rc464, and "cohomological" over-types the
+measurement from 𝕆 up. The MEASUREMENT is untouched and is what matters: no
+per-index ``t`` exists at ANY rung, so ε is not a 2-COBOUNDARY anywhere. What
+does not hold everywhere is ε being a 2-COCYCLE. The tree's own committed
+census (``docs/srmech/notes/lane1_epsilon_placement_2026-07-29.ndjson``) has
+``δε = 0`` at ℝ/ℂ/ℍ and ``δε ≠ 0`` from 𝕆 up — 168 failing triples at 𝕆, 1848
+at 𝕊 — and ``δε == 0`` is EXACTLY associativity of the sign lane, which is the
+same fact the ``cascade.cayley_dickson`` table reports as ``344/512``. So:
+
+* at ℝ/ℂ/ℍ, ε IS a cocycle and is not a coboundary, so ``[ε] ≠ 0`` in H² is a
+  genuine cohomology class (a non-split central extension);
+* from 𝕆 up ε is NOT a cocycle, so ``[ε] ∈ H²`` is not defined at all. The
+  invariant is ε's class in ``C²/B²`` — a COCHAIN modulo coboundaries, which is
+  a gauge class and not a cohomology class.
+
+⚠️ And the counter-correction, because the easy over-shoot is worse than the
+error: **"not a cohomology class" does NOT mean "no frame-independent
+content".** The rank pair and ``nullity(A) = log2(dim)`` are encoding-invariant
+and measured; so are the associator support ladder (0, 0, 168, 1848, 15960 over
+ordered basis triples at ℝ→𝕋), the diagonal ``q(x) = ε(x, x)`` and the
+commutation form ``R(x, y) = ε(x, y) + ε(y, x)``. There IS frame-independent
+content here; it is simply not a cohomology class.
 
 C peer: ``srmech_gf_rref`` (``c/src/srmech_modular_linalg.c``) — an in-place
 int64/uint64 GF(p) RREF, caller-arena (no malloc), JPL-clean. :func:`gf_rref`
@@ -302,13 +326,13 @@ def gf_solve(A, b, p: int) -> Dict[str, object]:
     returning ``rank(A)`` keeps the number comparable between the two cases.
 
     **The nullspace is returned even when the system is inconsistent.** That is
-    deliberate: an inconsistent system still has a kernel, and the cohomology
-    reads that motivate this op (a coboundary equation ``δt = ε`` that is
-    inconsistent at every Cayley–Dickson rung) need the rank pair AND the
-    kernel dimension from the same call.
+    deliberate: an inconsistent system still has a kernel, and the reads that
+    motivate this op (a coboundary equation ``δt = ε`` that is inconsistent at
+    every Cayley–Dickson rung) need the rank pair AND the kernel dimension from
+    the same call.
 
     **Worked regression fixture — STATE THE MATRIX ENCODING.** For the CD sign
-    cocycle ``δt = ε`` over GF(2), ``consistent`` is ``False`` at every rung and
+    2-cochain ``δt = ε`` over GF(2), ``consistent`` is ``False`` at every rung and
     ``rank(A) / rank([A|b])`` runs::
 
         dim                          2     4     8    16     32     64
@@ -328,8 +352,13 @@ def gf_solve(A, b, p: int) -> Dict[str, object]:
     solutions are precisely the GF(2)-LINEAR functionals, so
     ``rank(A) = dim - log2(dim)`` in closed form and the rank pair is the
     frame-relative shadow of it. The ``+1`` defect that carries the conclusion
-    (the cocycle is not a coboundary — the CD sign is cohomological, not a
+    (ε is not a coboundary at any rung — the CD sign is irreducible, not a
     relabelling) is invariant under both encodings.
+
+    ⚠️ **Not "cohomological"** (rc465, `#T1188`): ε is a 2-cocycle only at
+    ℝ/ℂ/ℍ; from 𝕆 up ``δε ≠ 0`` (168 / 1848 failing triples) so ``[ε] ∈ H²`` is
+    undefined there and the invariant lives in ``C²/B²``. The measurement above
+    is unchanged — see this module's header for the full statement.
 
     Class I over the ``c_dispatched`` :func:`gf_rref` (the augmented matrix is
     eliminated ONCE — ``rank(A)`` is the count of pivots landing left of the

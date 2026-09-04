@@ -205,8 +205,14 @@ def _spec_dev(s1, s2):
 
 
 def _unit8(v):
-    n = octonion_norm(v)
-    return [c / n for c in v]
+    # rc465 (`#T1188`): the float request is now EXPLICIT. These fixtures are
+    # written as integer vectors, and since the qm ops carry an exact operand
+    # exactly, `octonion_norm` would answer with a `Q` and every downstream
+    # `.tolist()` here would meet a `QMat`. This module measures a FLOAT frame
+    # read, so it asks for floats rather than being handed them by default.
+    fv = [float(c) for c in v]
+    n = octonion_norm(fv)
+    return [c / n for c in fv]
 
 
 def _o(a, b):
@@ -215,8 +221,9 @@ def _o(a, b):
 
 
 def _unit4(v):
-    n = quaternion_norm(v)
-    return [c / n for c in v]
+    fv = [float(c) for c in v]           # rc465: the float request, explicit
+    n = quaternion_norm(fv)
+    return [c / n for c in fv]
 
 
 def _q(a, b):

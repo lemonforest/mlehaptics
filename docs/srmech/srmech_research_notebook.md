@@ -814,7 +814,7 @@ Per `[[feedback_science_is_ssot_not_project]]`, srmech v0.4.0 ships a canonical 
 | `srmech.qm.gauge` | SU(2)/SU(3) Gell-Mann generators, structure constants, Casimirs, Wilson loops | Class M (Lie-algebra binding) + Class L (matrix exponential) + Class C (path-ordered iteration) | Yang-Mills (1954); Gell-Mann (1962); Wilson (1974); Peskin-Schroeder §§15-17 |
 | `srmech.qm.sm` | Higgs vev, weak mixing angle, W/Z masses, Weinberg relation, Yukawa, CKM | Class K (continuous projection of vev → mass relations) + Class M (CKM unitary mixing) | Glashow (1961); Weinberg (1967); Salam (1968); Higgs (1964); Cabibbo (1963); Kobayashi-Maskawa (1973); Peskin-Schroeder Chs 20-21 |
 
-`srmech.amsc.tool_schema` registers ~87 entries covering every public callable across `srmech.amsc.*` (14-class primitives) + `srmech.qm.*` (operations layer) for LLM-friendly introspection. *(**As-of-v0.4.0**, and dated rather than bumped like its sibling rows. Live at rc464: the registry is at **`srmech.introspect.tool_schema.get_tool_schema`** and holds **733** entries — `len(get_tool_schema().tools)`, equal to `describe()["tools"]["total"]`, re-verified live at the stamp move. Read the live value, never a literal; see the §3.28.3 ledger bullet, which carries the same correction for the same reason.)* Coverage ratchet test (`tests/test_tool_schema_coverage.py`) walks `srmech` via `pkgutil` + `inspect` and asserts each public function has a registered entry.
+`srmech.amsc.tool_schema` registers ~87 entries covering every public callable across `srmech.amsc.*` (14-class primitives) + `srmech.qm.*` (operations layer) for LLM-friendly introspection. *(**As-of-v0.4.0**, and dated rather than bumped like its sibling rows. Live at rc465: the registry is at **`srmech.introspect.tool_schema.get_tool_schema`** and holds **733** entries — `len(get_tool_schema().tools)`, equal to `describe()["tools"]["total"]`, re-verified live at the stamp move. Read the live value, never a literal; see the §3.28.3 ledger bullet, which carries the same correction for the same reason.)* Coverage ratchet test (`tests/test_tool_schema_coverage.py`) walks `srmech` via `pkgutil` + `inspect` and asserts each public function has a registered entry.
 
 **Stoichiometry hope (Phase 8) → resolved (Phase 9).** Phase 8 hoped that stoichiometry's integer-ratio algebra + reaction-network hypergraph structure + Feinberg deficiency theorem might surface a *genuinely new* primitive class. Phase 9's full investigation found instead that stoichiometry's algebra theory IS the existing primitive vocabulary instantiated at the chemistry-dynamics substrate. Every well-posed stoichiometric / mass-action / deficiency / detailed-balance / vibrational construct examined reduces to an existing class or composition. The vocabulary keeps tightening; this is consistent with `[[user_stance_string_theory_instrument_first]]` — the project's instrument keeps describing what's there using existing primitives; new dimensions are not being invented.
 
@@ -5452,7 +5452,7 @@ The v0.6.0 line splits and completes the cascade surface and closes the remainin
 - **`sha256_bytes` docs (#738); reentrant C core (#772)** — the native library made re-entrant (no mutable global state) so the parallel dispatch is safe.
 - **Klein-4 four-sector `parallel_sector_dispatch`** — the F233 "1 cascade = 4 independent Klein-4 chirality sectors" reading, shipped Python-first (#778, rc6) then C-parity'd (`srmech_cascade_parallel_sector_dispatch` + the `srmech_cascade_body_f64` callback typedef, #771, rc7), then **slowdown-fixed (rc8)**: the rc7 shim was serial-by-design and the rc6 Python double-computed per call — both removed, so a GIL-releasing body now genuinely overlaps (~4×) instead of running 2.6–7.7× slower. The four sectors are `inv_T_s(body(T_s(x)))` with `T_s = γ₅^a ∘ iω₇^b` (two commuting Class-C involutions); cap-at-4 per F220 (past 4 needs the order-3 triality, not Klein-4). No `abs()` — sign is Class K magnitude + Class C net_chirality.
 - **rc9 — native `kuramoto_step`** (`srmech_cascade_kuramoto_step_f64`): closes a **known-broken parity gap** (the dispatch-clock / coupled-oscillator Euler step the research arc hand-rolled in Python, F141 / F231 / R-95 / F234, had no `srmech_*` primitive). Honest cascade shape **I∘sin∘Σ∘C** — a composition of existing class operations (cyclic phase + libm-sin coupling + sum-reduce + Class-C Euler add), NOT a new privileged primitive; parity to libm-trig tolerance, same coupling-sum index order both sides. This is the `[[feedback_no_ship_known_broken_gold_is_law]]` discipline in action: a C/Python parity gap is a known-broken item and routes through an rc, not a deferred issue.
-- **rc10 — release-prep doc-hygiene.** The two v0.6.0 cascade ops get their **cascade-catalog TOML descriptors** (`parallel_sector_dispatch.toml`, `kuramoto_step.toml`) → the `srmech.dsl` catalog is now **10 descriptors** (8 lean-ISA atoms/composites + 2); the PyPI README, the subtree `CLAUDE.md`, the C `README.md` / `JPL_AUDIT.md`, and this section are all brought current with the shipped state. No runtime change. *(The "10" is **as-of-rc10** and STAYS — a per-rc ledger entry is dated, never silently bumped. **Live at rc464: 21 descriptors** (re-verified: `total=21, executable=18, leaf=3`, `c_runnable=18`), and the catalog is now **executable** rather than prose — `describe()["cascade_catalog"]` reports `total=21, executable=18, leaf=3`: 18 descriptors declare an ADR-0008 schema-v2 chain, 3 declare an explicit leaf, and there is no third state (`tests/test_cascade_catalog_executable_rc420.py`). *(This clause read `== {"total": 21, "executable": 18, "leaf": 3}` until rc453. That equality was true when written and is now FALSE — the payload has since grown `c_runnable` (**18** at rc453, the field whose absence was filed as a gap at rc446 and which now exists), a per-descriptor `status` map, and the `run` / `enumerate` entry points. The three figures are still exactly right; it is the `==` that over-claimed, so the sentence names the fields it checks instead of asserting the whole dict.)* The live `describe()` reading is the SSoT for the number; this line is history. Cf. the same correction in the subtree `docs/srmech/CLAUDE.md`. See §3.49.)*
+- **rc10 — release-prep doc-hygiene.** The two v0.6.0 cascade ops get their **cascade-catalog TOML descriptors** (`parallel_sector_dispatch.toml`, `kuramoto_step.toml`) → the `srmech.dsl` catalog is now **10 descriptors** (8 lean-ISA atoms/composites + 2); the PyPI README, the subtree `CLAUDE.md`, the C `README.md` / `JPL_AUDIT.md`, and this section are all brought current with the shipped state. No runtime change. *(The "10" is **as-of-rc10** and STAYS — a per-rc ledger entry is dated, never silently bumped. **Live at rc465: 21 descriptors** (re-verified: `total=21, executable=18, leaf=3`, `c_runnable=18`), and the catalog is now **executable** rather than prose — `describe()["cascade_catalog"]` reports `total=21, executable=18, leaf=3`: 18 descriptors declare an ADR-0008 schema-v2 chain, 3 declare an explicit leaf, and there is no third state (`tests/test_cascade_catalog_executable_rc420.py`). *(This clause read `== {"total": 21, "executable": 18, "leaf": 3}` until rc453. That equality was true when written and is now FALSE — the payload has since grown `c_runnable` (**18** at rc453, the field whose absence was filed as a gap at rc446 and which now exists), a per-descriptor `status` map, and the `run` / `enumerate` entry points. The three figures are still exactly right; it is the `==` that over-claimed, so the sentence names the fields it checks instead of asserting the whole dict.)* The live `describe()` reading is the SSoT for the number; this line is history. Cf. the same correction in the subtree `docs/srmech/CLAUDE.md`. See §3.49.)*
 - **rc11 — the DSL `parallel` discriminator + cascade-op `kind` classification (this voxel).** A pre-gold introspection audit found `parallel_sector_dispatch` — a **1→N higher-order fan-out combinator** (takes a *body* op + data, returns N per-sector results) — had leaked into the plain-`op` catalog, so the DSL advertised it as a `chain().then(op=…)` stage where it structurally cannot fit (its first arg is the *body*, not the piped value). rc11 reconciles it the way loop/fold/reduce already are — as **its own chain special form** — rather than force-fitting it as a plain op: a new **`parallel` discriminator** (`chain.parallel_sectors(body, n_sectors=4)` / `[[stage]] parallel_body='…'`) fans the piped value through `body` across the ≤4 Klein-4 sectors (the F233 4-thread speedup) and yields the ordered list of per-sector results. Cascade ops now carry a `[cascade].kind` (`"stage"` default / `"combinator"`); `parallel_sector_dispatch` is `kind="combinator"`, surfaced in `list_catalog_ops` / `srmech dsl ops` (a `[combinator]` tag) / the tool-schema, and using it as a plain `op=` raises a **guided error** pointing at the `parallel` discriminator. This is the substrate-self-recognition discipline turned on the package's OWN op-surface: an op is advertised under the contract it actually satisfies (a 1→N combinator is a control-flow special form, not a 1→1 stage — the same distinction the DSL already drew for loop/fold/reduce). No new ToolEntry (`describe()` stays 178); ABI unchanged at 3.
 - **rc14 — the generalised Kuramoto-Sakaguchi step (this voxel; §11.1 forward-ask).** The §11.1 ask: extend `kuramoto_step` past the plain all-to-all mean-field. **The first C-touching rc of the §11 arc** — and the first to exercise the co-equal-parity discipline (`[[feedback_c_python_co_equal_parity_not_callback]]`) on a feature whose op already HAS a C peer: adding the matrix-step in Python only would leave the Python op carrying a step the C can't run, so it ships in BOTH substrates at once. `kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01, adjacency=None, alpha=0.0, pin_anchor=None, pin_strength=1.0)` computes `dθ_i = ω_i + Σ_j A_ij·sin(θ_j − θ_i − α) [ + p_i·sin(ψ_i − θ_i) ]`: `adjacency` is a row-major n×n coupling matrix (`A[i][j]` weights j's influence on i; **non-symmetric → directed/one-way coupling**, a graph Laplacian → graph-structured coupling; `None` → all-to-all uniform `K/n`); `alpha` is the Sakaguchi phase frustration; `pin_anchor`+`pin_strength` are per-oscillator pinning anchors ψ / strengths p. With all three at defaults the step is **byte-for-byte the original**. The CO-EQUAL C peer **`srmech_cascade_kuramoto_step_general_f64`** (new symbol in `srmech_kuramoto.c`; additive → **ABI stays 3**; JPL-clean ≤60-line/≥2-assert/no-malloc/no-goto/reentrant; NULL adjacency → uniform, NULL pin → none; **NEVER a Python callback** — the C path runs C bodies) computes the identical step, differential-tested vs the Python fallback to libm-trig tolerance. **No `abs()`** — sin coupling (Class I/J) + Σ-reduce + Class-C Euler add + the Sakaguchi α (Class-C phase offset) + the Class-C/M pinning anchor; honest composition, not a new privileged primitive. The kuramoto ToolEntry gains 4 params; no new entry (`describe()` stays 178). JPL audit ratchet stays at 0.
 - **rc13 — the klein4_* HDC ops get a `sectors=`/`parallel=`/`mode=` flag (this voxel; §11.3 forward-ask).** Now that rc12 made the four-sector dispatch composable, the §11.3 forward-ask for an optional sectors flag on the Klein-4 HDC ops lands. `klein4_bind` (= (F₂)²-XOR), `klein4_bundle` (= per-bit majority), `klein4_similarity` (= mean-equality) each gain `sectors=` (1..4, **default-ON when `os.cpu_count() >= 4`**) / `parallel=` (bool alias) / `mode=`. TWO modes: `mode="chunk"` (default) is **data-parallel** — split the D-length vector(s) into ≤4 contiguous position-slices, run the op per slice on a thread, concat; **BIT-IDENTICAL** to serial. `mode="chirality"` is the **F233 4-sector dispatch** — and the substrate-faithful refinement is that it uses klein4's OWN involution sector-flips (γ₅ = XOR 2 / iω₇ = XOR 1 / CPT = XOR 3), NOT the signed-real `cascade.atoms` transforms (negating a uint8 {0,1,2,3} chirality-sector value is meaningless), with `klein4_bundle` recombine (similarity recombines via **sector-0** = value-transparent). All defaults are value-preserving, so default-on changes only the EXECUTION path, never the result. **Co-equal-parity** (`[[feedback_c_python_co_equal_parity_not_callback]]`): this is self-contained Python orchestration over the pure-Python/numpy klein4 ops — it does NOT route through the C peer; a standalone-C klein4 sector dispatch (C dispatch running C bodies, never a Python callback) is the tracked follow-up. No `abs()`. The 3 klein4 ToolEntries gain `sectors`/`parallel`/`mode` params; no new entry (`describe()` stays 178); ABI unchanged at 3; pure-Python.
@@ -5460,8 +5460,8 @@ The v0.6.0 line splits and completes the cascade surface and closes the remainin
 
 ### §3.28.3 Discipline ledger + cross-references
 
-- **`describe()` tool total: 178** — **as-of-the-v0.6.0-line, and it STAYS at 178 here** (the rc9 `kuramoto_step` ToolEntry added the +1 over the rc8 count of 177). It is dated rather than bumped for one reason, stated so the next reader does not "fix" it: **this whole ledger is v0.6.0-scoped**, and four sibling bullets a few lines above say `describe()` *stays* 178 through rc11–rc14 while §3.29.4 records **179** at the v0.6.0 graduation. Rewriting one number in a block of six would leave the block self-contradicting. *(Live at rc464: **733**, measured as `len(get_tool_schema().tools)` — introspection lives at `srmech.introspect.tool_schema.get_tool_schema`, and `describe()["tools"]["total"]` reads the same value; several sibling docs still name the pre-ADR-0010 `srmech.amsc.tool_schema`.)* The instruction was always right and is restated with force: **read `describe()` rather than hard-coding — the count grows per voxel.**
-- **ABI version: 3** throughout the v0.6.0 line (every voxel is an additive C symbol; the v3 bump was at v0.5.0rc2 for the `srmech_bus_*` callback ABI) — **dated, not bumped**, for the same reason as the bullet above: the clause "throughout the v0.6.0 line" scopes it in its own words, and a sibling bullet at §3.29.4 records ABI 3 at the graduation. *(Live at rc464: **`SRMECH_ABI_VERSION` is 25**, `c/include/srmech.h` — moved at rc464 by a REMOVAL: `srmech_sedenion_navmap` / `srmech_sedenion_navigate` / `srmech_sed_slots` go with the 16-slot register `CDRegister` subsumes, and a removed export has no symptom other than a version mismatch, so by standing policy it always bumps; rc462 adds no C symbol and changes no wire — its ℚ(ζₑ) rep cells cross as plain-int tuples, so no carrier TYPE reaches the boundary, and its γ=0 kernel edit is a rewrite of an existing static's branch predicate with no signature, status or acceptance-class change. The v3 → v24 progression — new callback typedefs, two symbol REMOVALS, four wire-contract reinterpretations (rc425's is `srmech_mlse`'s `n_states`, which meant A^(L-1) and now means A^L; rc439's v16 is `srmech_genome_centromere_of`, which returned SRMECH_OK on a strand carrying two or more centromere caps and now REFUSES it), and three ORDINARY-kind bumps where an existing exported signature changed shape (v9's caller-arena params, v13's attestation channel, and rc438's v15: `srmech_klein4_from_one` gained the One's winding triad). rc442's v17 is a fifth wire-contract reinterpretation and the first bump since rc326 to move `SRMECH_GENOME_FORMAT_VERSION` with it (19 → 20); rc449's v19 is the key-set refusal on both chain interpreters, and **rc452's v21 is a NEW shape — the first on this wire driven by a silent wrong value rather than a raise, and the first that adds no kind letter at all**: `cr_op_reorient` gains a `CR_RATIONAL` arm, so the Class-C op ANSWERS an exact rational (emitting the long-declared `q`) where it used to return `SRMECH_ERR_NOT_IMPL`, and the Python reader rebuilds that `q` as `srmech.math.q.Q` instead of a `(num, den)` tuple — so an rc452 library against rc451 Python returns a well-formed 2-tuple and no error at all. **rc452 then bumped a SECOND time, v21 → v22**, widening that same `srmech_chain_run` output-kind vocabulary by `b` (a bytes result, payload lowercase hex) and `x` (a matrix result, which is what let `schur_complement` cross the wire at all) — v18's shape again, where a stale reader meets a kind it has no branch for and RAISES mid-run, so the bump turns that into a clean load-refusal. **rc452 then bumped a THIRD time, v22 → v23** — this paragraph stopped at v22 until rc453 re-verified it, while the macro beside it already read 23. v23 adds `m` (a mapping) and `o` (a boolean), landed with `parallel_sector_dispatch`: the last executable cascade chain the C projection could not run, and the only one whose value is a dict. Neither kind is cosmetic, and in each case the reason is **Python's rather than C's**. `True == 1` in Python, so spelling a bool as `i` would deliver a right VALUE of the wrong TYPE — the silent-wrong-value class v21 bumped for — and the op returns nine bools per dispatch. `m` is deliberately NOT a JSON object: its payload is a FLAT array of alternating typed key/value descriptors, because that op's `sectors` map is INT-KEYED and the two projections' canonical writers order int keys differently (`json.dumps` sorts the key OBJECTS then coerces; `srmech_json_write_ws` sorts the already-stringified keys BYTEWISE), so an object payload would be byte-divergent on exactly this dict. v23 also carries a writer-reserve contract move of the v10/v12 shape — no signature changed, but an existing parameter's meaning did: `srmech_chain_run_arena_bytes` now returns a LARGER envelope, because the value-descriptor writer's reserve was derived from the INPUT length while it bounds the OUTPUT tree. **rc455's v24 is that same writer-reserve move on the SIBLING function** and the first bump on this wire that adds nothing at all — no kind letter, no symbol, no signature: `srmech_dsl_chain_run_arena_bytes` now returns a SMALLER envelope (by exactly `32768 + 16*(chain_len + input_len)`) because the DSL runner's builder / emit-scratch / write-scratch reserves are carved forward from the value actually produced instead of sliced off the tail at a size derived from `input_len`. Measured: the old share bought ~4 builder bytes per input byte against a required ~6.4, so `.then('chiral_flip')` stopped running in C above 165 int elements and answered from pure with no signal. It bumps on v23's own stated ground — "it is the same wire-sizing contract, so it rides this bump rather than going unrecorded" — the second instance of a recorded shape cannot be the silent one. Before it, **rc451's v20 is v18's shape a second time on the SAME wire** — `srmech_chain_run`'s output value-descriptor kind set gains `{"k":"t"}` (a TUPLE, which `best_rational_signed`'s declared `tuple[int, int]` return had no way to cross as) and its `l` payload key moves `"items"` → `"v"`, unifying the spelling with the DSL chain wire: `genome_cap_kind` learned the two §GROUP/v20 nesting markers, so a body carrying them parses where it used to be `SRMECH_ERR_BAD_INPUT`. All of it is recorded in `python/CHANGELOG.md` and the subtree `docs/srmech/CLAUDE.md` "ABI compatibility" section, **which is the SSoT for it, and it is CITED here, never inlined**, per the admission rule that per-rc engineering records stay in the CHANGELOG.)*
+- **`describe()` tool total: 178** — **as-of-the-v0.6.0-line, and it STAYS at 178 here** (the rc9 `kuramoto_step` ToolEntry added the +1 over the rc8 count of 177). It is dated rather than bumped for one reason, stated so the next reader does not "fix" it: **this whole ledger is v0.6.0-scoped**, and four sibling bullets a few lines above say `describe()` *stays* 178 through rc11–rc14 while §3.29.4 records **179** at the v0.6.0 graduation. Rewriting one number in a block of six would leave the block self-contradicting. *(Live at rc465: **733**, measured as `len(get_tool_schema().tools)` — introspection lives at `srmech.introspect.tool_schema.get_tool_schema`, and `describe()["tools"]["total"]` reads the same value; several sibling docs still name the pre-ADR-0010 `srmech.amsc.tool_schema`.)* The instruction was always right and is restated with force: **read `describe()` rather than hard-coding — the count grows per voxel.**
+- **ABI version: 3** throughout the v0.6.0 line (every voxel is an additive C symbol; the v3 bump was at v0.5.0rc2 for the `srmech_bus_*` callback ABI) — **dated, not bumped**, for the same reason as the bullet above: the clause "throughout the v0.6.0 line" scopes it in its own words, and a sibling bullet at §3.29.4 records ABI 3 at the graduation. *(Live at rc465: **`SRMECH_ABI_VERSION` is 25**, `c/include/srmech.h` — moved at rc464 by a REMOVAL: `srmech_sedenion_navmap` / `srmech_sedenion_navigate` / `srmech_sed_slots` go with the 16-slot register `CDRegister` subsumes, and a removed export has no symptom other than a version mismatch, so by standing policy it always bumps; rc462 adds no C symbol and changes no wire — its ℚ(ζₑ) rep cells cross as plain-int tuples, so no carrier TYPE reaches the boundary, and its γ=0 kernel edit is a rewrite of an existing static's branch predicate with no signature, status or acceptance-class change. The v3 → v24 progression — new callback typedefs, two symbol REMOVALS, four wire-contract reinterpretations (rc425's is `srmech_mlse`'s `n_states`, which meant A^(L-1) and now means A^L; rc439's v16 is `srmech_genome_centromere_of`, which returned SRMECH_OK on a strand carrying two or more centromere caps and now REFUSES it), and three ORDINARY-kind bumps where an existing exported signature changed shape (v9's caller-arena params, v13's attestation channel, and rc438's v15: `srmech_klein4_from_one` gained the One's winding triad). rc442's v17 is a fifth wire-contract reinterpretation and the first bump since rc326 to move `SRMECH_GENOME_FORMAT_VERSION` with it (19 → 20); rc449's v19 is the key-set refusal on both chain interpreters, and **rc452's v21 is a NEW shape — the first on this wire driven by a silent wrong value rather than a raise, and the first that adds no kind letter at all**: `cr_op_reorient` gains a `CR_RATIONAL` arm, so the Class-C op ANSWERS an exact rational (emitting the long-declared `q`) where it used to return `SRMECH_ERR_NOT_IMPL`, and the Python reader rebuilds that `q` as `srmech.math.q.Q` instead of a `(num, den)` tuple — so an rc452 library against rc451 Python returns a well-formed 2-tuple and no error at all. **rc452 then bumped a SECOND time, v21 → v22**, widening that same `srmech_chain_run` output-kind vocabulary by `b` (a bytes result, payload lowercase hex) and `x` (a matrix result, which is what let `schur_complement` cross the wire at all) — v18's shape again, where a stale reader meets a kind it has no branch for and RAISES mid-run, so the bump turns that into a clean load-refusal. **rc452 then bumped a THIRD time, v22 → v23** — this paragraph stopped at v22 until rc453 re-verified it, while the macro beside it already read 23. v23 adds `m` (a mapping) and `o` (a boolean), landed with `parallel_sector_dispatch`: the last executable cascade chain the C projection could not run, and the only one whose value is a dict. Neither kind is cosmetic, and in each case the reason is **Python's rather than C's**. `True == 1` in Python, so spelling a bool as `i` would deliver a right VALUE of the wrong TYPE — the silent-wrong-value class v21 bumped for — and the op returns nine bools per dispatch. `m` is deliberately NOT a JSON object: its payload is a FLAT array of alternating typed key/value descriptors, because that op's `sectors` map is INT-KEYED and the two projections' canonical writers order int keys differently (`json.dumps` sorts the key OBJECTS then coerces; `srmech_json_write_ws` sorts the already-stringified keys BYTEWISE), so an object payload would be byte-divergent on exactly this dict. v23 also carries a writer-reserve contract move of the v10/v12 shape — no signature changed, but an existing parameter's meaning did: `srmech_chain_run_arena_bytes` now returns a LARGER envelope, because the value-descriptor writer's reserve was derived from the INPUT length while it bounds the OUTPUT tree. **rc455's v24 is that same writer-reserve move on the SIBLING function** and the first bump on this wire that adds nothing at all — no kind letter, no symbol, no signature: `srmech_dsl_chain_run_arena_bytes` now returns a SMALLER envelope (by exactly `32768 + 16*(chain_len + input_len)`) because the DSL runner's builder / emit-scratch / write-scratch reserves are carved forward from the value actually produced instead of sliced off the tail at a size derived from `input_len`. Measured: the old share bought ~4 builder bytes per input byte against a required ~6.4, so `.then('chiral_flip')` stopped running in C above 165 int elements and answered from pure with no signal. It bumps on v23's own stated ground — "it is the same wire-sizing contract, so it rides this bump rather than going unrecorded" — the second instance of a recorded shape cannot be the silent one. Before it, **rc451's v20 is v18's shape a second time on the SAME wire** — `srmech_chain_run`'s output value-descriptor kind set gains `{"k":"t"}` (a TUPLE, which `best_rational_signed`'s declared `tuple[int, int]` return had no way to cross as) and its `l` payload key moves `"items"` → `"v"`, unifying the spelling with the DSL chain wire: `genome_cap_kind` learned the two §GROUP/v20 nesting markers, so a body carrying them parses where it used to be `SRMECH_ERR_BAD_INPUT`. All of it is recorded in `python/CHANGELOG.md` and the subtree `docs/srmech/CLAUDE.md` "ABI compatibility" section, **which is the SSoT for it, and it is CITED here, never inlined**, per the admission rule that per-rc engineering records stay in the CHANGELOG.)*
 - **Release routing:** every voxel ships as `vX.Y.ZrcN` to TestPyPI first; the clean (non-rc) tag only graduates a state already verified-green on TestPyPI (`[[feedback_always_rc_first_for_downstream_publishes]]` + `[[feedback_no_ship_known_broken_gold_is_law]]`). The clean **v0.6.0** graduation — the deliberate human-gated call — **shipped to production PyPI on 2026-06-01** (the rc16→rc21 arc; see §3.29.4).
 - **Cross-references:** §3.27 (the 28-dim chiral hyper-loop = 𝔰𝔬(8) the so8/triality voxels make callable); MFO §VIII.31.11; `python/CHANGELOG.md` (the authoritative per-rc record); the cascade-honesty discipline `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` (no `abs()` in any cascade op).
 
@@ -7897,7 +7897,7 @@ An op that reduces modulo something works in a **frame**. The question worth pub
 
 `describe()` gained a thirteenth top-level key, **`frames`**, derived from the tool schema rather than kept as a second list. *(§3.49.6's sentence about `cascade_catalog` now reads "grew a twelfth top-level key" rather than "gained": it is a DATED record of what rc420 added, and the live-total claim belongs on the current sentence, which is this one.)*
 
-**Provenance.** `notes/_frame_scope_census_rc430.{py,ndjson}` (655 op records + the instrument-revision trail, so the five defects above can be judged rather than trusted) · `notes/_s1_guard_extraction_rc430.{py,ndjson}` · `notes/_s2_census_precondition_rc430.{py,ndjson}` · `notes/rc430_deferral_T1127_param_domain.md`. Instrument: `python/tools/frame_probe.py`, shared by the census and the gate so they cannot disagree by being separately hand-rolled. Gates: `tests/test_frame_scope_rc430.py`, `tests/test_synth_args_provenance_rc430.py`. **Status:** MEASURED, shipped v0.9.0rc430.
+**Provenance.** `python/tools/frame_scope_census.py` + `python/tests/frame_scope_census.ndjson` (733 op records + the instrument-revision trail, so the defects above can be judged rather than trusted; rc465 moved both out of `notes/` and GATED the artefact against the live census, after the committed file sat at the rc430 numbers through nine raises of one ceiling — 655 records and `notes/_frame_scope_census_rc430.{py,ndjson}` were the rc430 spelling) · `notes/_s1_guard_extraction_rc430.{py,ndjson}` · `notes/_s2_census_precondition_rc430.{py,ndjson}` · `notes/rc430_deferral_T1127_param_domain.md`. Instrument: `python/tools/frame_probe.py`, shared by the census and the gate so they cannot disagree by being separately hand-rolled. Gates: `tests/test_frame_scope_rc430.py`, `tests/test_synth_args_provenance_rc430.py`. **Status:** MEASURED, shipped v0.9.0rc430.
 
 **Cross-references.** §3.46.9 (index lane vs sign lane — the axis `frame_scope` is orthogonal to, asserted in the gate) · §3.49.6 (`describe()`'s twelfth key) · §3.52 (the two-lane reading; `just_limit` and the comma ops live there). Memory: `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`, `[[feedback_ungated_surfaces_trickle_gated_surfaces_race_to_100]]`, `[[feedback_a_guard_that_fires_is_evidence_not_an_obstacle]]`, `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`, `[[feedback_scratch_measurements_must_use_srmech_or_gaps_stay_invisible]]`.
 
@@ -8034,6 +8034,177 @@ Rebuilt in srmech from that stated rule — an element is `a + i·b` with `i` **
 **Provenance.** `docs/srmech/rbs_lm_research/R-RBS-LM-TENSORVSCD_ladder_vs_tensor_product.py` (40 checks) · `R-RBS-LM-FUREYALG_the_tensor_product_from_the_thesis_body_and_the_sedenion_decision.py` (13 checks) · findings **F1350**, **F1351**; supersedes F1349 §4's first NOT-ESTABLISHED bullet. ⚠️ **THOSE TWO FILES ARE NOT ON `main`, NOR IS THE `R-RBS-LM-ATTEST_furey_1611_09182.md` ATTESTATION THEY REST ON.** MEASURED 2026-08-28: `git ls-tree -r --name-only main` returns none of the three; they live at `docs/srmech/rbs_lm_research/` on the research branch `origin/research/rbs-lm-rolling-2` (head `4db51be25`), added by `9a7646b61` (TENSORVSCD, with F1350), `50d524f7d` (FUREYALG, with F1351) and `df109b3f6` (the attestation). ⚠️ *This sentence said "THOSE THREE FILES" while naming two, and credited `9a7646b61` with "the two scripts" when `git show --diff-filter=A` measures it adding one. Both corrected at rc459 review.* That branch is the siona research project carried by the open PR gh #687, which **stays open by maintainer ruling** — so read every filename in this line as `origin/research/rbs-lm-rolling-2:docs/srmech/rbs_lm_research/<name>`, not as a working-tree file.
 
 **Cross-references.** §1 (the `2+4+8 = 14` / `1+3+7+3` two-grouping note this sharpens) · §3.51 (centre / covering — the same "a local object cannot hold the global datum" shape) · CLAUDE.md §2's `(frame, lane)` adoption (F1338) · → extended by nothing yet.
+
+---
+
+## §3.58 The bracketing defect is a CURVATURE and the ordering defect a TORSION — and the sign is a COCHAIN, not a class (2026-09-03; `#T1188`; NAMING + ATTRIBUTION, shipped v0.9.0rc465)
+
+Two vocabulary corrections that had been carried in shipped prose for many rcs.
+Both are **naming and attribution only**. No measurement changed, no result is
+new, and nothing here is claimed as an extension of anyone's work: each is a
+case of the tree having computed the right object and called it by a name that
+belongs to a different object.
+
+### §3.58.1 D4 — the associator is a curvature; the commutator is a torsion
+
+`cascade.cd_cycle_holonomy` returns three things: two ordered products walked
+around a directed triangle, and their difference. Through rc464 the docstring
+called the DIFFERENCE "the k=3 loop defect made a holonomy". A holonomy is a
+transport around a closed path — which is exactly what the two ordered products
+are, and exactly what their difference is not. The difference is a **density
+evaluated on the ordered triple**.
+
+The correct family names are a theorem for the geodesic loop of an affine
+connection, and the tree had no citation for them at all. **Kuusk & Paal,
+*Geodesic multiplication as a tool for classical and quantum gravity*,
+arXiv:0803.1241 §3** derives, for the local geodesic loop, that the deviation
+from commutativity is twice the torsion and the deviation from associativity is
+the curvature less the covariant derivative of the torsion — attributing the
+computation to **Akivis** (*Sibirski Mat. J.* **19** (1978), 243–253) and the
+geodesic-loop construction to that paper's reference [1], **Kikkawa**
+(*Journ. Hiroshima Univ.* Ser. A-1 Math. **28** (1964), 199–207). So the arity-2
+ordering deviation and the arity-3 bracketing deviation are not two sizes of one
+thing; they are different KINDS of object.
+
+The "square-loop" picture the tree already used for `cd_commutator` turns out to
+be the *right* one and is kept: **Hehl & Obukhov, *Élie Cartan's torsion in
+geometry and in field theory, an essay*, arXiv:0711.1535 §1** states that a
+non-vanishing torsion breaks infinitesimal parallelograms and a *closure
+failure* emerges, and its §4 records that in a continuized crystal the
+dislocation DENSITY and the torsion are the same object, shown isomorphic to
+the Cartan circuit by **Kondo** (1952), **Bilby et al.** and Kröner.
+
+⚠️ **EPISTEMIC CEILING.** The Cayley–Dickson carrier is not a geodesic loop and
+not an affine connection, and no claim is made that it is
+(`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`: the FORM,
+never the identity). What transfers is the vocabulary for *what kind of object
+each arity yields*. `plaquette` is deliberately NOT adopted for any of these —
+that word is spoken for by the lattice-gauge Wilson loop, which
+`physics.qm.gauge.wilson_loop_from_segments` already uses in its own correct
+sense, and the tree's existing use there is right.
+
+**A NULL, recorded as one.** A sweep for the affine-connection sense of
+"torsion" across `srmech/`, `c/`, `tests/` and this notebook found **zero**
+occurrences — the tree never called an associator a torsion. There was no false
+statement to retract on this axis; the defect was an ABSENCE of naming plus one
+misnamed object (`defect` as a holonomy), and the fix is additive.
+
+**An adjacent factual error, found while editing the same paragraph.**
+`defect_ladder` said the refuted arity-4 "square-loop" divergence turns on at 𝕆
+"with the same 1848/4096 count as the associator". Two censuses share the
+denominator 4096 and the sentence fused them. RE-MEASURED at rc465 through
+`cascade.cd_mult`:
+
+| census | ordered tuples | 𝕆 (dim 8) | 𝕊 (dim 16) |
+|---|---|---|---|
+| arity-4 bracketing divergence | dim⁴ | **2520 / 4096** | — |
+| associator support (arity 3) | dim³ | 168 / 512 | **1848 / 4096** |
+
+0/256 at ℍ for arity-4; associator support 0/8, 0/64, 168/512, 1848/4096,
+15960/32768 across ℝ→𝕋. The rc383 provenance NDJSON
+(`notes/defect_ladder_rc383.ndjson`, the `arity4_square_loop_refutation` rows)
+carried **2520** correctly all along — only the prose drifted, and it drifted in
+the load-bearing direction, because "the same count as the associator" was the
+half of the sentence doing the inheritance argument. ⚠️ 2520/4096 *also* names
+the bicharacter's non-bimultiplicativity count at 𝕊; that is a digit collision
+between unrelated censuses and a cross-reference between them would be a
+numerology error, exactly as `octonion_associator_support` already warns for 168.
+
+### §3.58.2 D5 — the class is zero; the COCHAIN'S VALUES are what turn on
+
+Shipped prose said the Cayley–Dickson sign ε is "cohomological, not a
+relabelling", and called ε "the sign cocycle" while, in the same paragraph,
+reporting that it "stops being associative" at 𝕆. Those two statements
+contradict each other: for this object `δε = 0` **is** associativity of the sign
+lane, so a sign lane that stops associating is a cochain that stops being a
+cocycle.
+
+What is MEASURED, and is unchanged:
+
+* `δt = ε` is inconsistent at EVERY rung — `rank([A|b]) = rank(A) + 1`, with
+  `nullity(A) = log2(dim)`. So ε is **not a 2-coboundary** anywhere. That is the
+  whole content of "not a relabelling", and it survives intact.
+* `δε = 0` at ℝ/ℂ/ℍ but `δε ≠ 0` from 𝕆 up — 168 failing triples at 𝕆, 1848 at
+  𝕊 (`notes/lane1_epsilon_placement_2026-07-29.ndjson`, committed 2026-07-29).
+
+Therefore: at ℝ/ℂ/ℍ, ε is a cocycle and not a coboundary, so `[ε] ≠ 0` in H² is
+a genuine cohomology class (a non-split central extension). From 𝕆 up ε is not a
+cocycle at all, so `[ε] ∈ H²` is **undefined**, and the complete gauge invariant
+is ε's class in `C²/B²` — a cochain modulo coboundaries, which is not a
+cohomology class.
+
+One rung up the situation is even plainer, and the source says so itself:
+**Albuquerque & Majid, *Quasialgebra Structure of the Octonions*,
+arXiv:math/9802116 §1** — *"for the octonions, the cocycle is a coboundary and
+can be identified as the result of twisting k(G) by a 2-cochain F"*. Since
+φ = δε is a coboundary BY CONSTRUCTION, `[φ] = 0` in H³ at **every** rung. There
+is no nonzero obstruction class anywhere in this tower. What turns on at 𝕆 and
+degrades at 𝕊 is the COCHAIN'S VALUES.
+
+⚠️ **THE COUNTER-CORRECTION, which matters more than the correction.** "The
+class is zero" does **not** mean "there is no frame-independent content", and
+over-shooting into that reading would delete measured results. All of the
+following are gauge-invariant and all of them stand:
+
+* the rank pair and `nullity(A) = log2(dim)` (encoding-invariant);
+* the **associator support ladder 0 / 0 / 168 / 1848 / 15960** (ℝ/ℂ/ℍ→ over
+  ordered basis triples — re-measured at rc465);
+* the **diagonal** `q(x) = ε(x, x)`, which **separates definite 𝕆 from all
+  seven split forms**;
+* the **commutation form** `R(x, y) = ε(x, y) + ε(y, x)`, which is
+  gauge-invariant but does **NOT** separate 𝕆 from split-𝕆 — all eight share it.
+
+The corrected sentence is: **there is frame-independent content; it is not a
+cohomology class.**
+
+⚠️ A residual left standing deliberately: the noun "sign cocycle" still appears
+at roughly a dozen sites where the sentence makes no cohomological CLAIM (e.g.
+"the sign cocycle is degenerate in the split algebra"). Those are loose but not
+false, and a mechanical rename across prose nobody re-read is how a correction
+becomes a new defect. The sites that ASSERTED the cocycle property or the class
+were corrected; the bare mentions were not, and that is a scope decision, not an
+oversight.
+
+⚠️ **The replication census behind that sweep was off by one, and two of the
+four it did count were only half-corrected** (rc465 closing pass, `#T1188`).
+There are **FIVE** copies of the CD sign table, not four: the fifth is
+`tests/test_carrier_ceiling_rc343.py`, the file that GATES this claim. And at
+`introspect/carrier_schema.py` and `introspect/__init__.py` the table HEADER was
+changed to `SIGN 2-COCHAIN δε = 0` while the sentence two paragraphs below it
+still read *"THE SIGN COCYCLE stops being associative"* — the same
+self-contradiction this section exists to remove, now sitting beside its own
+correction, on `describe.__doc__` and `carrier_schema.__doc__`. Both sentences
+make exactly the cohomological claim the residual clause above excludes, so they
+were not covered by it. All five copies now say the same thing; every number and
+every gauge-invariant above is untouched.
+
+**Attestation.** All four sources were verified FROM THE DOCUMENT and the two
+cited in shipped wheel prose are in the claim manifest
+(`srmech/amsc/attested/literature_claims/row.ndjson`, built by
+`tools/build_citation_manifest.py`, both backends, with positive / negative /
+multi-spelling controls). The manifest's own negative controls make the
+citations mutually exclusive by measurement: arXiv:0803.1241 reads **0** for
+"octonion" and "cohomology"; arXiv:math/9802116 reads **0** for "torsion",
+"curvature" and "holonomy"; arXiv:0711.1535 reads **0** for "octonion",
+"associator" and "cocycle" — so neither half can be cited for the other's claim.
+⚠️ **Regge & Williams, *Discrete structures in gravity*, arXiv:gr-qc/0012035**
+(read pp.1–2 directly; the deficit angle is the concentrated curvature on a
+codimension-2 hinge) is verified-from-document but is **NOT** in the claim
+manifest: its e-print resolves to exactly ONE addressable section label, so the
+manifest's section-keyed contract cannot represent it and declaring
+`section_attribution: EXACT` for it would be false. It is cited here and nowhere
+in the wheel. Recorded as a measured instrument limit rather than a gap.
+
+**Provenance.** `srmech/cascade/cayley_dickson.py` (`cd_cycle_holonomy`,
+`cd_commutator`, `defect_ladder`) · `srmech/math/modular_linalg.py` ·
+`srmech/cascade/cd_register.py` · `srmech/introspect/tool_schema.py` ·
+`notes/defect_ladder_rc383.ndjson` · `notes/lane1_epsilon_placement_2026-07-29.ndjson` ·
+`notes/lane_c_twist_naming_2026-07-29.ndjson` ·
+`notes/lane2_hv_grading_vs_cd_sign_2026-07-29.ndjson` (rc465 correction row appended).
+
+**Cross-references.** §3.57 (the ladder-vs-tensor distinction this shares a
+carrier with) · CLAUDE.md §1 (the A–N vocabulary discipline) · → extended by
+nothing yet.
 
 ---
 

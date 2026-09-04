@@ -1781,7 +1781,10 @@ static srmech_status_t genome_pack_chromatin(unsigned char chromatin_type,
  * out[s] = q8_mult(...q8_mult(0, turns[0][s])..., turns[n_turns-1][s]). Because Q8
  * is non-abelian, REORDERING the turns changes the fold — the fiber/gauge (the
  * accumulated Lk) the winding-invariant per-turn store cannot carry. Writes `out`
- * (leaf_dim Q8 bytes) directly; no scratch, no malloc. See the header doc + Python
+ * (leaf_dim Q8 bytes) directly; no scratch, no malloc. NAMING (rc465): an OPEN
+ * strand makes this a PATH-ORDERED TRANSPORT; it is a holonomy once the strand
+ * closes. The export name is unchanged on purpose - renaming an export is a
+ * removal and bumps the ABI. See the header doc + Python
  * genome.genome_fiber_holonomy (the parity oracle). Class-M q8-bind fold; no abs(). */
 srmech_status_t srmech_genome_fiber_holonomy(const uint8_t *turns,
                                              uint32_t n_turns,
@@ -1808,8 +1811,11 @@ srmech_status_t srmech_genome_fiber_holonomy(const uint8_t *turns,
  * Folds the ORDERED per-slot octonion product of the coupled turns along the strand:
  * out[s] = oct_mult(...oct_mult(0, turns[0][s])..., turns[n_turns-1][s]). Because 𝕆 is
  * non-commutative (and non-associative), REORDERING the turns changes the fold — the
- * fiber the winding-invariant per-turn store cannot carry. Writes `out` (leaf_dim
- * octonion bytes) directly; no scratch, no malloc. REUSES srmech_oct_mult (NOT a
+ * fiber the winding-invariant per-turn store cannot carry. NAMING (rc465): as for
+ * the Q8 peer, an open strand makes this a path-ordered TRANSPORT rather than a
+ * holonomy; the export name is kept to avoid an ABI bump for a comment. Writes
+ * `out` (leaf_dim octonion bytes) directly; no scratch, no malloc.
+ * REUSES srmech_oct_mult (NOT a
  * reimplemented product). See the header doc + Python genome.genome_octonion_holonomy
  * (the parity oracle). Class-M oct-bind fold; no abs(). */
 srmech_status_t srmech_genome_octonion_holonomy(const uint8_t *turns,

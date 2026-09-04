@@ -9,8 +9,18 @@ THE CLASS PREDICATE, stated once, here, as the gate's own definition:
     a caller could read before calling**, and a carrier that would have computed
     the same quantity exactly already ships.
 
-Five conjuncts: ADMISSION (decided by the SIGNATURE, not by what Python happens
-to accept) ∘ DEMOTION ∘ SILENCE ∘ NO-R3-DECLARATION ∘ EXACT-PEER-SHIPS.
+Five conjuncts: ADMISSION ∘ DEMOTION ∘ SILENCE ∘ NO-R3-DECLARATION ∘
+EXACT-PEER-SHIPS.
+
+⚠️ **ADMISSION used to read "decided by the SIGNATURE, not by what Python
+happens to accept", and that clause was the defect** (rc465, `#T1188`). A
+signature is a DECLARATION; deciding membership by it means an op that declares
+``Sequence[float]`` is outside the class however exact the operand it is
+actually handed — which is precisely rung **R2** of the honesty ladder below,
+the rung this file rates "WEAK … nothing enforces it". Nine ops across
+``qm.octonion`` / ``qm.quaternion`` / ``qm.triality`` rounded an exact ℚ operand
+for 340-odd releases behind that one annotation. ADMISSION is now decided by
+MEASUREMENT: the operand is handed over and the answer is compared.
 
 ⚠️ **WHY THIS SHIPPED FOR 118 RELEASES.** rc344 ran a sibling audit on the SAME
 family and cleared ``einsum`` in as many words: *"it returns a ``Mat``, so it
@@ -49,10 +59,27 @@ that the returned value is not the exact one?
 have shipped blind to their own subject (`#T1136`, `#T1138`, `#T1182`, and the
 ``srmech_svd_f64`` claim gap this rc closes). This one states its blind spots:
 
- 1. **A missing MANIFEST row is invisible.** The gate asserts over the rows it
-    HAS. It has no oracle telling it a row is absent, so every registered tool
-    not enumerated below is outside it, silently. That is the same shape as a
-    checker verifying one side of a relation.
+ 1. ~~**A missing MANIFEST row is invisible.**~~ **CLOSED at rc465 (`#T1188`),
+    and closing it is how the size of the hole became known.** The manifest is
+    now MEASURED by ``tools/demotion_probe.py`` over every sequence-shaped
+    REGISTRY parameter — 703 rows, 427 ops — instead of enumerated by hand. On
+    the rc464 surface it found **127 demoting rows over 101 ops, 77 of them
+    UNDECLARED over 64 ops**, against the six rows this file carried. Six was
+    not a residual, it was a sample, and this bullet is what said so first.
+    What remains open is COVERAGE, which the probe states as data rather than
+    silence: 305 ``RAISED`` / 52 ``NO_SHAPE`` rows are bindings it could not
+    build, each emitted with its reason. rc465-fix (`#T1188`) puts a ratchet
+    under the second of those two numbers —
+    :data:`CEIL_DEMOTION_UNREACHED` —
+    because ``tools/demotion_probe.py``'s own disclosure named that constant as
+    the thing bounding its reach and **the constant did not exist anywhere in
+    the repo**: a named ratchet with no definition and no assertion, which is
+    the "gate that cannot fail" shape this file exists to remove. The LARGER
+    unreached class is ``RAISED`` (305 of 703, 43%), and it is deliberately NOT
+    ratcheted: a ``RAISED`` row is a real refusal by a real op against a
+    synthesised binding, so driving that number down is a question about the
+    SHAPE SYNTHESISER, not about the tree, and a down-only ceiling on it would
+    ratchet the instrument rather than the library.
  2. **No branch-coverage oracle.** Layer 1 enumerates paths somebody THOUGHT
     OF. ``einsum`` needed six shapes to reach both of its branches and the
     census that found five of them missed the sixth; nothing here proves a
@@ -65,28 +92,62 @@ have shipped blind to their own subject (`#T1136`, `#T1138`, `#T1182`, and the
     the Python path does not share is invisible here.
  5. **Layer 3's vocabulary is a KEYWORD LIST.** Prose declaring inexactness in
     words outside the list reads as undeclared (a false positive — see
-    ``_declaration_hits``'s one-level delegation follow, which exists because
+    ``declaration_hits``'s one-level delegation follow, which exists because
     ``matrix_cascades.svd`` is documented at its delegate); a keyword in an
     unrelated sentence reads as declared (a false negative). Do NOT "simplify"
     the delegation follow — it was added because running the gate without it
     red-flagged a correctly-documented op.
- 6. **Bit / byte carriers are structurally OUT OF REACH.** 57 ``hdc`` tools and
-    the byte-domain DSP codecs admit no 53-bit-significand witness BY
-    CONSTRUCTION (``bundle(vectors: Sequence[bytes]) -> bytes``;
-    ``rle`` refuses a 54-bit symbol outright). Their absence from the manifest
-    is a DOMAIN fact — but the gate cannot distinguish "no witness
-    constructible" from "nobody wrote one", and it does not pretend to.
+
+    ⚠️ **And through rc464 it resolved that delegate as ``getattr(_la, name)``**
+    — hard-wired to ``srmech.math.laplacian``. So Layer 3 was not merely
+    keyword-limited: it was structurally incapable of reading the contract of
+    any op outside the one module its six hand-rows came from, which is a large
+    part of why the class looked like six. rc465 resolves in ``fn.__globals__``.
+ 6. **Bit / byte carriers are structurally OUT OF REACH** — TRUE of the byte
+    codecs, and **MEASURED FALSE of ``hdc`` at rc465**. ``bundle(vectors:
+    Sequence[bytes]) -> bytes`` genuinely admits no 53-bit-significand witness,
+    and ``rle`` refuses a 54-bit symbol outright. But this bullet generalised
+    that to "57 ``hdc`` tools", and sixteen ``hdc`` rows take FLOAT sequences
+    and round the witness: ``loop_conj``, ``loop_conj_hd``, ``loop_inv``,
+    ``loop_inv_hd``, ``loop_bind``, ``loop_left_op``, ``loop_right_op``,
+    ``loop_associator``, ``cross7``, ``g2_three_form``. Their absence from the
+    rc463 manifest was not a domain fact; it was the same blind spot as
+    bullet 1. The gate could not distinguish "no witness constructible" from
+    "nobody wrote one" — and this bullet is what that inability sounded like
+    when it was written down.
  7. **It cannot see the ``preserves`` field**, because that field is empty
     ``()`` on every op in this family INCLUDING exact ``kron``. A gate leaning
     on it would be vacuous.
+ 8. ⚠️ **THE POPULATION IS READ FROM A COMMITTED MANIFEST, AND ONLY HALF OF
+    ITS STALENESS IS GUARDED.** Layers 2-3 no longer re-derive the census —
+    that is a deliberate tool run now, for the reasons the Layer-2 header
+    gives — so nothing re-measures the tree on its own. The guard is a hash of
+    the registry's ``(op name, parameter types, return type)`` triples, which
+    moves when an op is added, removed or re-signatured. **It does not move
+    when an implementation changes carrier behaviour behind an unchanged
+    signature**, which is precisely the class this file exists to find. The
+    tree has paid for the identical blind spot once already — the worked-
+    example ledger's ``--only-stale`` hashes snippet TEXT, *"and that blind
+    spot is exactly how the ℚ-flip defect shipped"* — so it is written here in
+    prose rather than left to be rediscovered. What still EXECUTES on every CI
+    run is Layer 1: strict-zero exactness against the shipped carriers,
+    enumerated per PATH.
 
 numpy-free. No ``abs()`` — ``significand_bits`` uses a Class-K pin-slot branch.
 No stdlib ``fractions``.
 """
 
-import inspect
+import sys
+from pathlib import Path
 
 import pytest
+
+# rc465 (`#T1188`): the probe is the SHARED instrument (tools/demotion_probe.py),
+# imported the way tests/test_frame_scope_rc430.py imports tools/frame_probe.py —
+# so this gate and the committed census cannot be separately hand-rolled.
+_TOOLS = Path(__file__).resolve().parents[1] / "tools"
+if str(_TOOLS) not in sys.path:
+    sys.path.insert(0, str(_TOOLS))
 
 from srmech.cascade import composites as _composites
 from srmech.cascade import matrix_cascades as _mc
@@ -297,170 +358,543 @@ def test_layer1_exact_in_exact_out(label, call, want) -> None:
         f"tolerance and do not add the row to CEIL_SILENT_DEMOTION.")
 
 
-# ── LAYER 2 — the down-only CEIL over the pre-existing residual ───────────────
-#: Ops that still route an exact operand through a float carrier. **DOWN ONLY.**
-#: Seeded at the rc463 measured value. Fixing an op must LOWER this number;
-#: nothing may raise it. Every row here is ALSO required to pass Layer 3 — a
-#: demotion that declares nothing is a strict-zero violation, not a legal row.
+# ── LAYERS 2 & 3 — the COMMITTED census manifest, and the honesty gate over it ─
+# rc465 (`#T1188`) — WHAT CHANGED, AND WHY IT HAD TO. TWICE.
+#
+# **First change.** Through rc464 this section was ``_DEMOTION_MANIFEST``: SIX
+# hand-written rows, all six in ``srmech.math.laplacian``, with
+# ``CEIL_SILENT_DEMOTION = 6`` pinned to ``len(_DEMOTION_MANIFEST)`` so the
+# ceiling could not move without a human editing the list. Blind spot 1 above
+# named the hole in as many words — *"a missing MANIFEST row is invisible"* —
+# and the ADMISSION conjunct made it worse: membership was decided **by the
+# SIGNATURE**, so an op declaring ``Sequence[float]`` was excluded BY
+# CONSTRUCTION however exact the operand it was actually handed. That is R2
+# shielding, on the rung this file's own ladder rates "WEAK … nothing enforces
+# it". A type annotation was standing in for an accuracy contract, and the gate
+# was reading the annotation.
+#
+# The population is now MEASURED by ``tools/demotion_probe.py`` over every
+# sequence-shaped REGISTRY parameter. What it found on the rc464 surface:
+#
+#     rows probed                   703   (over 427 ops)
+#     DEMOTED                       127   (over 101 ops)
+#       of which UNDECLARED          77   (over  64 ops)   <- rc463 knew 6
+#
+# Six was not a residual. It was a sample.
+#
+# ⚠️ **Second change, and it is a PLACEMENT change: a census is not a gate.**
+# The first cut called ``_dp.census()`` from this file — re-deriving the entire
+# registry-wide population on every CI run, in every cell — and then diffed the
+# result against a host-specific pin. Three consecutive commits fought the
+# symptoms of that without asking whether the derivation belonged here:
+#
+#   8be4a95ce  red in every PURE shard, "the artefact did not know which cell
+#              it came from"        -> a SECOND per-cell pinned artefact
+#   83aa9b74f  `mlse` allocated 7.1 GiB inside the census and killed the runner
+#                                   -> a skip
+#   08d80a037  windows-latest has no SIGALRM, so the job timed out at 99%
+#                                   -> two more skips
+#
+# Every one of those is a MITIGATION. Green was bought by teaching a census
+# which ops to avoid, and the residue was two committed artefacts, a `SLOW_SKIP`
+# roster of four ops (six entries across the two cells, retiring 2 measured rows
+# in native and 8 in pure), and this file at 852 lines. Worse than the cost: the
+# EXPECTED VALUE was per-cell, so the pin measured the HOST rather than the
+# code — the same defect class this project keeps finding in its own
+# instruments, arrived at from the inside.
+#
+# Deriving the population is expensive. Checking the invariant is not. So the
+# census is now a DELIBERATE TOOL RUN producing ONE committed manifest —
+# modelled on `tools/run_worked_examples.py` -> `tests/worked_examples_result.
+# ndjson`, the tree's existing precedent for expensive derived state, down to
+# the "regenerate with this exact command" message — and this file READS it.
+#
+#     python3 tools/demotion_probe.py        # in the cell you want to re-measure
+#
+# MEASURED, the whole point of the change: this file cost **66.18 s (native) /
+# 153.80 s (pure)** per CI job and now costs **8.02 s / 7.21 s**, of which every
+# test call is <= 0.04 s and the rest is `import srmech`. In the `--forked`
+# asserts-live cell it cost the derivation ONCE PER TEST — `pytest-forked` gives
+# each test a fresh child, so the module-level cache never survived and 15
+# census-consuming tests each paid it in full: ~15 minutes of census, observed
+# as +12 m of wall clock on `asserts-live shard 4/4` against the `main`
+# baseline. It is now a file read, identically in every cell.
+#
+# ⚠️ **AND THE TWO PER-CELL ARTEFACTS BECOME ONE — WITHOUT LOSING THE FINDING.**
+# The native and pure cells genuinely disagree, and absorbing that into two pins
+# is what made it invisible. It is now a NAMED FINDING with its op list, pinned
+# in `_DIVERGENT` below and recorded in `meta.divergent`. An op whose answer
+# depends on whether `libsrmech` loaded is the `fir` / `matched_filter` class
+# rc463 already rated WORSE than a plain demotion: it is two ops wearing one
+# name.
+
+import demotion_probe as _dp   # tools/ is on sys.path via the header import
+from srmech.amsc.format import sha256_bytes
+
+MANIFEST = Path(__file__).resolve().parent / "demotion_census.ndjson"
+
+#: ⚠️ **THE STALENESS GUARD, AND ITS BLIND SPOT — READ BOTH HALVES.**
 #:
-#: rc463: 6. All six are ``srmech.math.laplacian`` carrier / builder ops. The
-#: rc462 census counted TEN; four left the class in this rc — ``einsum`` and
-#: ``separate_frame_curvature`` were FIXED (they now return exact carriers on
-#: exact operands), and ``signal_processing.fir`` / ``matched_filter`` were
-#: **never in it**: re-measured here, both return the exact Python ``int``
-#: ``9007199254740993`` on the census's own witness, so those two rows were a
-#: mis-measurement and are recorded as such rather than quietly dropped.
-CEIL_SILENT_DEMOTION = 6
+#: A gate that only reads a committed file goes stale silently: someone adds a
+#: demoting op, nobody re-runs the probe, and the manifest never learns. That is
+#: the "checker that verifies one side of a relation" failure this tree has hit
+#: repeatedly, so the guard is here and it costs no execution — hash the
+#: ``(op name, parameter types, return type)`` triple over the whole registry
+#: (:func:`demotion_probe.registry_signature`) and compare it to the hash the
+#: manifest recorded when it was measured. That digest moves when an op is
+#: ADDED, REMOVED or RE-SIGNATURED, which is exactly what determines
+#: demotion-CANDIDACY: the probe picks parameters by their REGISTRY type, binds
+#: them from the signature, and files the answer under the return carrier.
+#:
+#: ⚠️ **IT DOES NOT CATCH AN IMPLEMENTATION CHANGE THAT ALTERS CARRIER
+#: BEHAVIOUR WITHOUT CHANGING THE SIGNATURE** — which is the very class this
+#: file exists to find. Change `einsum`'s accumulator from `0` to `0j` and this
+#: digest does not move; the manifest keeps saying EXACT and the gate keeps
+#: saying green.
+#:
+#: This is written out rather than left implied because **the tree has already
+#: paid for the identical blind spot once**, and said so: the worked-example
+#: ledger's own note records that ``--only-stale`` *"keys on the SNIPPET-TEXT
+#: hash, which does not move when an implementation moves — the blind spot the
+#: freshness hook exists for"*, and *"that blind spot is exactly how the ℚ-flip
+#: defect shipped"*. The mitigation there — re-run BY NAME with explicit
+#: ``--only`` whenever the implementation moved — is the mitigation here:
+#: **an rc that changes a numeric carrier must re-run the probe, and no digest
+#: will remind it to.** The Layer-1 strict-zero rows below are what actually
+#: EXECUTE against the shipped carriers on every CI run; they are the live half
+#: of this file and they did not move.
+_STALENESS_BLIND_SPOT = (
+    "the registry signature does not move when an implementation changes "
+    "carrier behaviour behind an unchanged signature")
 
-#: (label, callable, exact_oracle, the op object Layer 3 reads)
-_DEMOTION_MANIFEST = [
-    ("laplacian.mat_dot",
-     lambda: _la.mat_dot([3], [3002399751580331]), P, "mat_dot"),
-    ("laplacian.mat_outer",
-     lambda: _first_leaf(_la.mat_outer([3], [3002399751580331])), P, "mat_outer"),
-    ("laplacian.mat_matvec",
-     lambda: _first_leaf(_la.mat_matvec([[3]], [3002399751580331])), P,
-     "mat_matvec"),
-    ("laplacian.dense_adjacency[default float rung]",
-     lambda: _la.dense_adjacency(2, [(0, 1)], [P])[0][1], P, "dense_adjacency"),
-    ("laplacian.dense_laplacian[default float rung]",
-     lambda: _la.dense_laplacian(2, [(0, 1)], [P])[0][0], P, "dense_laplacian"),
-    ("laplacian.signed_laplacian[default float rung]",
-     lambda: _la.signed_laplacian(2, [(0, 1)], [P])[0][0], P, "signed_laplacian"),
-]
+#: sha256 over the NORMALISED undeclared roster, BOTH columns, one digest:
+#: ``"<cell>\t<op>::<param>"`` lines, sorted, newline-joined with a trailing
+#: newline, UTF-8. Normalised rather than raw file bytes for the reason
+#: ``tests/test_op_name_set_witness_rc361.py`` gives about its own manifest —
+#: a CRLF checkout must not make the digest disagree between the Windows and
+#: Linux cells.
+#:
+#: This REPLACES ``CEIL_UNDECLARED_DEMOTION_BY_CELL``, and it is strictly
+#: stronger than the ceiling it replaces. A bare ``<= CEIL`` lets a NEW
+#: undeclared demoter in whenever an unrelated one drains in the same change;
+#: an IDENTITY forbids that in both directions, so a drain and a regression
+#: cannot cancel. It is also the two-edit discipline rc361 established: the
+#: roster is pinned on disk, the digest is pinned in source, and a careless
+#: single-file regeneration cannot pass.
+#:
+#: Both columns ride ONE digest deliberately. The cells disagree, and a
+#: per-cell constant asserted only in its own cell is how the previous cut
+#: ended up measuring the host: this one is asserted in FULL in EVERY cell.
+EXPECTED_UNDECLARED_ROSTER_SHA256 = (
+    "7834607ae6812928a12dd914f41bfc4d86c6447313f4b05889f47ab880cc255f")
 
+#: Pinned only so the failure message can say "70 -> 71" instead of dumping
+#: every key; the ROSTER above is the actual contract. Same relationship
+#: ``EXPECTED_N`` has to ``EXPECTED_NAME_SET_SHA256`` in rc361.
+EXPECTED_UNDECLARED_N = {"native": 70, "pure": 71}
 
-def _measured_demoters():
-    """The manifest rows that ACTUALLY demote right now, re-measured."""
-    out = []
-    for label, call, want, opname in _DEMOTION_MANIFEST:
-        assert _discriminating(want), f"Layer-0 rejected the witness for {label}"
-        if not _eq_exact(call(), want):
-            out.append((label, opname))
-    return out
+#: Down-only. ``NO_SHAPE`` rows — parameters the probe could not build ANY
+#: candidate binding for, so no carrier verdict was ever reachable. This is the
+#: constant ``tools/demotion_probe.py``'s required-disclosure bullet 1 names as
+#: "the honest statement of the instrument's reach", and through rc465 it
+#: existed ONLY in that sentence: repo-wide grep found exactly one occurrence,
+#: the disclosure itself. A named ratchet with no definition and no assertion is
+#: the "gate that cannot fail" shape.
+#:
+#: Lowering it needs nothing; raising it means the probe reaches LESS than it
+#: did, which is a regression in the INSTRUMENT and needs saying out loud.
+#: Keyed by cell because the two columns are separate measurements — but
+#: asserted over BOTH columns in EVERY cell, which is the difference between
+#: recording a per-cell fact and pinning a host.
+CEIL_DEMOTION_UNREACHED = {"native": 52, "pure": 52}
 
+#: ⚠️ **THE NAMED FINDING** (`#T1188`). Rows whose verdict DEPENDS ON WHETHER
+#: ``libsrmech`` LOADED. rc463 rates this class worse than a plain demotion —
+#: an op whose answer is decided by which projection happens to be dispatching
+#: is two ops wearing one name — and `08d80a037` absorbed it into a second
+#: pinned artefact, which is precisely how it stopped being a finding.
+#:
+#: Pinned by IDENTITY, with each op named, so a NEW divergence is RED. Draining
+#: one means making the two projections agree, or declaring the disagreement on
+#: the op; it does not mean editing this set to match.
+#: MEASURED at rc465 on one tree, both cells, registry signature dba6fa94101f.
+#: Each entry is a real op whose ANSWER — or whose refusal — is decided by
+#: which projection was loaded. ``iir::a`` is the sharpest: the C path ROUNDS
+#: an exact operand that the pure path carries exactly, which is the
+#: ``fir`` / ``matched_filter`` shape rc463 names. The ``RAISED`` pairs are the
+#: same fact wearing the instrument's clothes — one projection REFUSES a
+#: binding the other accepts, which is still two behaviours under one name.
+_DIVERGENT: "frozenset[str]" = frozenset({
+    # the C path rounds an exact operand the pure path keeps exact
+    "srmech.signal_processing.iir::a",                        # DEMOTED / EXACT
+    # one projection reaches a carrier verdict the other never gets to
+    "srmech.math.laplacian.recover_check::charges",           # INSENSITIVE / DEMOTED
+    "srmech.math.laplacian.recover_check_spectral::charges",  # INSENSITIVE / DEMOTED
+    "srmech.math.laplacian.klein4_gain_laplacian::gains",     # EXACT / RAISED
+    "srmech.biology.coupling.resonant_spectrum_sparse::edges_or_path",  # EXACT / RAISED
+    "srmech.math.modular_linalg.crt_combine::moduli",         # RAISED / EXACT
+    "srmech.math.hdc.bundle::vectors",                        # RAISED / EXACT
+    "srmech.math.hdc.bundle_with_ties::vectors",              # RAISED / EXACT
+    "srmech.signal_processing.hdc_truncation::vectors",       # RAISED / EXACT
+    "srmech.math.hdc.klein4_bundle_resolve::acc",             # RAISED / INSENSITIVE
+    "srmech.math.laplacian.klein4_relational_structure::gains",  # INSENSITIVE / RAISED
+    "srmech.math.laplacian.heat_trace::L",                    # INSENSITIVE / RAISED
+    "srmech.math.laplacian.heat_trace::t",                    # INSENSITIVE / RAISED
+    "srmech.cascade.matrix_cascades.lstsq::a",                # INEXACT_BASE / RAISED
+})
 
-def test_layer2_demotion_ceiling_is_down_only() -> None:
-    """The residual DRAINS; it never grows.
+#: The ops rc465 FIXED. Strict zero, forever: these carry an exact operand
+#: exactly, so a row for any of them in the undeclared roster is a regression,
+#: not a debt. Named rather than derived from a module prefix, because a module
+#: prefix would silently absorb a NEW op of the same family.
+_FIXED_IN_RC465 = frozenset({
+    "srmech.physics.qm.octonion.octonion_left_mult",
+    "srmech.physics.qm.octonion.octonion_right_mult",
+    "srmech.physics.qm.octonion.octonion_conjugate",
+    "srmech.physics.qm.octonion.octonion_norm",
+    "srmech.physics.qm.quaternion.quaternion_left_mult",
+    "srmech.physics.qm.quaternion.quaternion_right_mult",
+    "srmech.physics.qm.quaternion.quaternion_conjugate",
+    "srmech.physics.qm.quaternion.quaternion_norm",
+    "srmech.physics.qm.triality.triality_apply",
+})
 
-    This is what lets an rc ship one carrier fix without being blocked by every
-    op that has not been fixed yet — and what stops a new op joining the class
-    unnoticed even if it is honestly documented.
-    """
-    live = _measured_demoters()
-    assert len(live) <= CEIL_SILENT_DEMOTION, (
-        f"{len(live)} silent carrier demotions, ceiling is "
-        f"{CEIL_SILENT_DEMOTION}. New: {[n for n, _ in live]}. This ratchet is "
-        f"DOWN-ONLY — fix the carrier, do not raise the ceiling.")
-    if len(live) < CEIL_SILENT_DEMOTION:
-        pytest.fail(
-            f"GOOD NEWS, ACTION REQUIRED: only {len(live)} of "
-            f"{CEIL_SILENT_DEMOTION} manifest rows still demote "
-            f"({[n for n, _ in live]}). Lower CEIL_SILENT_DEMOTION to "
-            f"{len(live)} in the SAME change, so the drain is recorded.")
-
-
-def test_layer2_the_manifest_is_not_empty() -> None:
-    """A CEIL over an empty manifest would be a green that measures nothing."""
-    assert len(_DEMOTION_MANIFEST) == CEIL_SILENT_DEMOTION
-
-
-# ── LAYER 3 — the HONESTY gate (the clause rc344's audit did not have) ────────
-#: R3 vocabulary. A closed keyword list — see blind spot 5 in the module
-#: docstring. Do NOT simplify it.
-_R3_VOCABULARY = (
-    "ulp", "to round-off", "round-off", "tolerance", "float64", "approximate",
-    "terminal float lift", "accurate to", "~1e-",
+#: The rc463 hand-written six, kept as the probe's POSITIVE CONTROL rather than
+#: as the population. If the instrument cannot re-find the rows a human found by
+#: reading code, it is not measuring — the ``test_layer0`` question asked of the
+#: instrument instead of the witness.
+_RC463_SIX = (
+    ("srmech.math.laplacian.mat_dot", "a"),
+    ("srmech.math.laplacian.mat_outer", "a"),
+    ("srmech.math.laplacian.mat_matvec", "m"),
+    ("srmech.math.laplacian.dense_adjacency", "weights"),
+    ("srmech.math.laplacian.dense_laplacian", "weights"),
+    ("srmech.math.laplacian.signed_laplacian", "weights"),
 )
 
+_REGEN = ("PYTHONPATH=$PWD python3 tools/demotion_probe.py   "
+          "# run it ONCE PER CELL; it merges the cell it is run in")
 
-def _declaration_hits(fn):
-    """Every R3 marker reachable from ``fn``'s own contract surface.
+_CACHE: dict = {}
 
-    Reads the docstring, the signature (an ``exact=`` opt-in IS an R3
-    declaration), and — one level deep — the docstring of a delegate the body
-    names. ⚠️ **The delegation follow is not optional.**
-    ``matrix_cascades.svd`` reads UNDECLARED at the wrapper while its delegate
-    ``laplacian.mat_svd`` carries a full accuracy contract; without this the
-    gate red-flags a correctly-documented op. Found by running the gate, not by
-    reasoning about it.
+
+def _manifest():
+    """``(meta, rows)`` — read once per session; it is a file read, not a run."""
+    if "m" not in _CACHE:
+        assert MANIFEST.exists(), (
+            f"{MANIFEST.name} is missing. It is a MEASUREMENT, not a generated "
+            f"artifact, so nothing regenerates it for you:\n    {_REGEN}")
+        _CACHE["m"] = _dp.load_manifest(MANIFEST)
+    return _CACHE["m"]
+
+
+def _cells():
+    return _manifest()[0]["cells_measured"]
+
+
+def _roster_body(rows) -> bytes:
+    lines = sorted(f"{c}\t{k}" for c in _cells()
+                   for k in _dp.undeclared_keys(rows, c))
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+# ── the manifest's own currency ───────────────────────────────────────────────
+
+def test_the_manifest_carries_both_cells() -> None:
+    """One artefact, two columns — the shape that replaced two artefacts.
+
+    A half-measured manifest is not a smaller measurement, it is a file whose
+    every per-cell assertion below silently narrows to one cell. That is the
+    rc460 ledger defect (a ratchet that went inert and reported itself as one
+    routine ``skipped``) and it is refused by name here rather than skipped.
     """
-    doc = (inspect.getdoc(fn) or "").lower()
-    hits = [d for d in _R3_VOCABULARY if d in doc]
-    try:
-        if "exact" in inspect.signature(fn).parameters:
-            hits.append("exact= opt-in")
-    except (TypeError, ValueError):
-        pass
-    if not hits:
-        code = getattr(fn, "__code__", None)
-        for name in (code.co_names if code is not None else ()):
-            delegate = getattr(_la, name, None)
-            if delegate is None or delegate is fn or not callable(delegate):
-                continue
-            ddoc = (inspect.getdoc(delegate) or "").lower()
-            hits += [f"{d} (via {name})" for d in _R3_VOCABULARY if d in ddoc]
-            if hits:
-                break
-    return hits
+    meta, rows = _manifest()
+    assert meta["cells_measured"] == ["native", "pure"], (
+        f"the manifest carries only {meta['cells_measured']}. Re-measure the "
+        f"missing cell — move srmech/_native/libsrmech.so aside for `pure`, "
+        f"build it for `native` — and run:\n    {_REGEN}")
+    both = [r for r in rows if r.get("native") and r.get("pure")]
+    assert len(both) >= 600, (
+        f"only {len(both)} of {len(rows)} rows carry BOTH columns; the two "
+        f"halves were measured against different reaches")
 
 
-@pytest.mark.parametrize("label,opname",
-                         [(r[0], r[3]) for r in _DEMOTION_MANIFEST],
-                         ids=[r[0] for r in _DEMOTION_MANIFEST])
-def test_layer3_every_demoter_declares_that_it_demotes(label, opname) -> None:
-    """STRICT ZERO. An op that demotes must SAY SO before it is called.
+def test_the_manifest_is_fresh_against_the_registry_signature() -> None:
+    """THE STALENESS GUARD. Costs no execution; declares its own blind spot.
 
-    This is the layer that makes "fixed" and "honestly declared" both acceptable
-    outcomes, and it is precisely the question rc344 did not ask.
+    Every cell's column records the registry signature it was measured against.
+    A drift means an op was added, removed or re-signatured since — i.e. the
+    demotion-candidate population moved — and the manifest has not been told.
+
+    ⚠️ It cannot see an implementation change behind an unchanged signature.
+    See ``_STALENESS_BLIND_SPOT`` above for why that limit is written down
+    rather than left for a future reader to discover the way the worked-example
+    ledger's ℚ-flip was discovered.
     """
-    fn = getattr(_la, opname)
-    hits = _declaration_hits(fn)
-    assert hits, (
-        f"{label} routes an exact operand through a float carrier and publishes "
-        f"NO accuracy declaration. A return-TYPE statement ('returns a Mat') is "
-        f"rung R1 and is NOT sufficient — it names the container, not the value. "
-        f"Either fix the carrier or add an R3 declaration (an accuracy phrase, "
-        f"or an exact= opt-in).")
+    meta, _ = _manifest()
+    live = _dp.registry_signature()
+    stale = {c: s for c, s in meta["registry_signature_sha256"].items()
+             if s != live}
+    assert not stale, (
+        f"the census manifest is STALE against the registry: {sorted(stale)} "
+        f"measured {[s[:12] for s in stale.values()]} and this tree is "
+        f"{live[:12]}. An op was added, removed or re-signatured, so the "
+        f"demotion-candidate population moved. Re-measure IN EACH STALE "
+        f"CELL:\n    {_REGEN}\n"
+        f"Do NOT repoint the digest by hand — it lives in the manifest the "
+        f"tool writes.")
 
 
-def test_layer3_can_return_otherwise() -> None:
-    """NON-VACUITY, executable in CI, with no repo mutation committed.
+def test_the_staleness_guard_is_not_vacuous() -> None:
+    """The guard must MOVE for each of the three changes it claims to catch.
 
-    A gate that cannot go red is not a measurement. Rather than describing a
-    mutation, this plants one in-process: a function that demotes exactly as the
-    real ones do, and whose docstring makes only an R1 (return-type) claim.
-    Layer 3 must reject it. If this ever passes, ``_declaration_hits`` has
-    become permissive and the whole layer is decorative.
+    Asserted in process over a MUTATED COPY of the live signature lines, so
+    nothing shipped is touched: an op added, an op removed, an op
+    re-signatured. Plus the guard and its own witness agreeing, because a
+    digest computed over a different list than the one this test mutates would
+    make the other three assertions vacuous.
+
+    ⚠️ **The converse is NOT asserted, and cannot be from here.** "It does not
+    move when an implementation changes behind an unchanged signature" is the
+    declared blind spot (see ``_STALENESS_BLIND_SPOT``), and a body change has
+    no representation in a list of signature strings — there is nothing to
+    mutate. Saying so is the point: a docstring claiming both halves while
+    testing one is the shape this whole file exists to remove.
     """
-    def r1_only(a, b):
-        """Returns a float."""            # R1: the container, not the value.
-        return float(a) * float(b)
+    def digest(lines):
+        return sha256_bytes(("\n".join(sorted(lines)) + "\n").encode("utf-8"))
 
-    def r3_declared(a, b):
-        """Returns a float, accurate to round-off (~1 ULP)."""
-        return float(a) * float(b)
-
-    assert not _eq_exact(r1_only(3, 3002399751580331), P), (
-        "the planted demoter stopped demoting — the mutation is no longer a "
-        "witness and this non-vacuity proof is vacuous")
-    assert _declaration_hits(r1_only) == [], (
-        "Layer 3 accepted an R1-only contract; the ladder has collapsed and "
-        "the gate would now pass the exact defect rc344 shipped")
-    assert _declaration_hits(r3_declared), (
-        "Layer 3 rejected a genuine R3 declaration — it is now a false-positive "
-        "machine, which is how a gate gets narrowed away")
+    base = _dp.registry_signature_lines()
+    assert digest(base) == _dp.registry_signature(), (
+        "registry_signature() is not the digest of registry_signature_lines(); "
+        "the guard and its own witness have come apart")
+    assert digest(base + ["srmech.planted.new_op|v:Sequence[float]|Mat"]) \
+        != digest(base), "an ADDED op does not move the signature"
+    assert digest(base[1:]) != digest(base), \
+        "a REMOVED op does not move the signature"
+    resigned = [base[0].replace("|", "|extra:Sequence[int],", 1)] + base[1:]
+    assert digest(resigned) != digest(base), \
+        "a RE-SIGNATURED op does not move the signature"
 
 
-def test_layer3_does_not_false_positive_on_a_delegating_wrapper() -> None:
-    """The delegation follow, pinned. ``matrix_cascades.svd`` is documented at
-    its delegate ``laplacian.mat_svd``; a Layer-3 that did not follow one level
-    would call a correctly-documented op undeclared."""
+# ── LAYER 2 — the population, read off the manifest ───────────────────────────
+
+def test_layer2_the_probe_refinds_the_rc463_hand_written_six() -> None:
+    """POSITIVE CONTROL. An auto-populating instrument that misses what a human
+    already found by reading the code is not an upgrade on the human."""
+    _meta, rows = _manifest()
+    by_key = {_dp.key(r): r for r in rows}
+    for op, param in _RC463_SIX:
+        r = by_key.get(f"{op}::{param}")
+        assert r is not None, f"the probe did not reach {op}.{param} at all"
+        for c in _cells():
+            assert r[c]["verdict"] == "DEMOTED", (
+                f"{op}.{param} was a hand-verified rc463 demoter and the {c} "
+                f"column now reads {r[c]['verdict']} — the ORACLE moved, not "
+                f"the op")
+            assert r[c].get("declares"), (
+                f"{op}.{param} lost its R3 declaration in the {c} column; "
+                f"rc463 required all six to carry one")
+
+
+def test_layer2_the_population_is_not_a_sample() -> None:
+    """NON-VACUITY, in the direction this gate actually failed in.
+
+    rc463's ceiling was ``len(_DEMOTION_MANIFEST)``, so it was green over
+    whatever list happened to be there. These floors are what stop the
+    replacement quietly shrinking back into a sample.
+    """
+    _meta, rows = _manifest()
+    assert len(rows) >= 600, f"only {len(rows)} rows in the manifest"
+    assert len({r["op"] for r in rows}) >= 400
+    for c in _cells():
+        decided = [r for r in rows
+                   if r.get(c) and r[c]["verdict"] in ("DEMOTED", "EXACT")]
+        assert len(decided) >= 180, (
+            f"[{c}] only {len(decided)} rows reached a carrier verdict; the "
+            f"probe has narrowed and the roster below is measuring less than "
+            f"it says")
+        assert len(_dp.demoters(rows, c)) > len(_dp.undeclared(rows, c)), (
+            f"[{c}] every measured demoter is undeclared — either Layer 3's "
+            f"vocabulary stopped matching anything, or the delegate follow "
+            f"broke")
+
+
+def test_layer2_the_unreached_population_is_ratcheted_down_only() -> None:
+    """The probe's REACH, as a ratchet rather than as a sentence.
+
+    ``NO_SHAPE`` is the honest count of parameters the instrument could not
+    address at all. Bounded here so the population cannot grow while the gate
+    stays green — the failure mode a coverage number carried only in prose has
+    no defence against. **Both columns are asserted in every cell**, which is
+    what makes this a fact about the tree rather than about the host.
+    """
+    _meta, rows = _manifest()
+    for c in _cells():
+        n = len([r for r in rows
+                 if r.get(c) and r[c]["verdict"] == "NO_SHAPE"])
+        ceil = CEIL_DEMOTION_UNREACHED[c]
+        assert n <= ceil, (
+            f"[{c}] {n} rows are NO_SHAPE (the probe could build no binding at "
+            f"all), ceiling is {ceil}. This ratchet is DOWN-ONLY: the "
+            f"instrument reaching LESS than it did is a regression in the "
+            f"instrument. Widen `synthesize` rather than the ceiling; each row "
+            f"carries its own `reason`.")
+        assert n == ceil, (
+            f"GOOD NEWS, ACTION REQUIRED: only {n} of {ceil} rows are "
+            f"unreachable in the {c} column. Lower "
+            f"CEIL_DEMOTION_UNREACHED[{c!r}] to {n} in the SAME change.")
+
+
+# ── LAYER 3 — the honesty gate, as a pinned ROSTER ────────────────────────────
+
+def test_layer3_the_undeclared_roster_matches_its_pinned_digest() -> None:
+    """STRICT IDENTITY over the residual — the half a count cannot do.
+
+    A bare ``<= CEIL`` lets a NEW undeclared demoter in whenever an unrelated
+    one drains in the same change. The roster forbids that: membership is
+    pinned, so an addition is red even at a lower count, and a drain is red
+    until it is RECORDED. Both directions fail; neither can be paid for with
+    the other.
+    """
+    _meta, rows = _manifest()
+    got = {c: _dp.undeclared_keys(rows, c) for c in _cells()}
+    digest = sha256_bytes(_roster_body(rows))
+    counts = {c: len(v) for c, v in got.items()}
+    if digest != EXPECTED_UNDECLARED_ROSTER_SHA256:
+        delta = []
+        for c in _cells():
+            want_n = EXPECTED_UNDECLARED_N.get(c)
+            delta.append(f"{c}: {counts[c]} (pinned {want_n})")
+        sample = {c: v[:6] for c, v in got.items()}
+        raise AssertionError(
+            "the UNDECLARED carrier-demotion roster moved.\n"
+            f"  digest   {digest}\n"
+            f"  pinned   {EXPECTED_UNDECLARED_ROSTER_SHA256}\n"
+            f"  counts   {'; '.join(delta)}\n"
+            f"  sample   {sample}\n"
+            "WHICH rows moved is in `git diff tests/demotion_census.ndjson` "
+            "— the meta row carries the full roster under `undeclared`, one "
+            "key per cell, so the added and removed keys read straight off "
+            "the diff. This gate cannot compute them: it holds a digest, not "
+            "a previous roster, and holding the roster twice is the "
+            "hand-written manifest rc465 removed.\n"
+            "If a row was ADDED: fix the carrier (an exact peer ships for most "
+            "of this surface) or publish an R3 accuracy statement — do not add "
+            "the row to the manifest and move on. If a row DRAINED: good news, "
+            "action required — re-pin EXPECTED_UNDECLARED_ROSTER_SHA256 and "
+            "EXPECTED_UNDECLARED_N to the values above in the SAME change, so "
+            "the gain cannot be given back.")
+    assert counts == EXPECTED_UNDECLARED_N, (
+        f"the roster digest matches but the counts do not: {counts} vs "
+        f"{EXPECTED_UNDECLARED_N}. One of the two pins was edited alone.")
+
+
+@pytest.mark.parametrize("op", sorted(_FIXED_IN_RC465))
+def test_layer3_the_rc465_fixed_family_is_strict_zero(op) -> None:
+    """The nine R2-shielded ops rc465 repaired can never re-enter the roster.
+
+    They are not under any ceiling and never will be: each carries an exact
+    operand on an exact carrier end to end, with float as the caller's own
+    explicit request. A row here is a REGRESSION.
+    """
+    _meta, rows = _manifest()
+    bad = sorted(f"{c}:{_dp.key(r)}" for c in _cells()
+                 for r in _dp.undeclared(rows, c) if r["op"] == op)
+    assert not bad, (
+        f"{op} is demoting again with no accuracy declaration: {bad}. rc465 "
+        f"gave it an exact carrier; see tests/test_octonion_exact_carrier_rc465.py")
+
+
+def test_the_native_pure_divergence_is_a_named_finding() -> None:
+    """⚠️ AN OP WHOSE ANSWER DEPENDS ON WHETHER ``libsrmech`` LOADED.
+
+    rc463 rates this WORSE than a plain demotion: it is two ops wearing one
+    name, and no caller can predict which one they get. `08d80a037` responded
+    to it by pinning two per-cell artefacts, which made the CI board green and
+    the finding invisible — the mitigation this rc replaces. Here the set is
+    pinned by IDENTITY, every member named, so a NEW divergence is RED and a
+    resolved one has to be recorded.
+    """
+    _meta, rows = _manifest()
+    got = frozenset(_dp.key(r) for r in _dp.divergent(rows))
+    new = sorted(got - _DIVERGENT)
+    gone = sorted(_DIVERGENT - got)
+    detail = {_dp.key(r): f"native={r['native']['verdict']} "
+                          f"pure={r['pure']['verdict']}"
+              for r in _dp.divergent(rows) if _dp.key(r) in set(new)}
+    assert not new, (
+        f"{len(new)} op(s) now answer DIFFERENTLY depending on whether "
+        f"libsrmech loaded: {detail}. Make the two projections agree, or "
+        f"declare the disagreement on the op — do not add the row to "
+        f"_DIVERGENT and move on.")
+    assert not gone, (
+        f"GOOD NEWS, ACTION REQUIRED: {len(gone)} row(s) no longer diverge "
+        f"between the cells ({gone}). Remove them from _DIVERGENT in the SAME "
+        f"change, so the gain is recorded rather than absorbed.")
+
+
+# ── the INSTRUMENT's own non-vacuity — in process, nothing committed ──────────
+
+def test_layer3_the_probe_can_return_both_verdicts() -> None:
+    """NON-VACUITY of the ORACLE itself, planted in-process, nothing committed.
+
+    An instrument that cannot say DEMOTED is decorative; one that cannot say
+    EXACT flags the whole registry and gets switched off. Both directions are
+    exercised here on functions written for the purpose, so the proof does not
+    depend on any shipped op keeping its current carrier — and it is the one
+    part of Layers 2-3 that still EXECUTES the probe, because it is the one
+    part that costs microseconds.
+    """
+    def demotes(v):
+        """Returns a float."""                      # R1 only — not a declaration
+        return [float(c) for c in v]
+
+    def stays_exact(v):
+        return [c for c in v]
+
+    def ignores(v):
+        return 7
+
+    d = _dp.probe_param(demotes, {"v": [1, 1]}, "planted.demotes", "v", "list")
+    assert d["verdict"] == "DEMOTED", d
+    assert _dp.declaration_hits(demotes) == [], (
+        "an R1-only contract read as declared; the honesty ladder has collapsed")
+
+    e = _dp.probe_param(stays_exact, {"v": [1, 1]}, "planted.exact", "v", "list")
+    assert e["verdict"] == "EXACT", e
+
+    i = _dp.probe_param(ignores, {"v": [1, 1]}, "planted.ignores", "v", "list")
+    assert i["verdict"] in ("INSENSITIVE", "UNRESOLVED_AT_WITNESS"), i
+
+
+def test_layer3_the_delegate_follow_reaches_outside_laplacian() -> None:
+    """The single change that made Layer 3 addressable at all.
+
+    rc463 resolved a delegate as ``getattr(_la, name)`` — hard-wired to
+    ``srmech.math.laplacian`` — so it could not read the contract of any op
+    outside the module its six hand-rows came from. The probe resolves in
+    ``fn.__globals__``. Both halves are pinned: the historical false-positive
+    it was added for still passes, and an op in another module is now reachable.
+    """
     for fn in (_la.mat_norm, _la.mat_svd, _la.jacobi_eigvals,
                _composites.compensated_sum, _mc.lstsq):
-        assert _declaration_hits(fn), (
+        assert _dp.declaration_hits(fn), (
             f"{fn.__name__} carries a real accuracy contract but Layer 3 read "
             f"it as undeclared")
+
+    def outside(v):
+        """Delegates to a documented helper."""
+        return _documented_helper(v)
+
+    assert _dp.declaration_hits(outside), (
+        "the delegate follow no longer resolves in fn.__globals__, so Layer 3 "
+        "is confined to one module again")
+
+
+def _documented_helper(v):
+    """Returns a float, accurate to round-off (~1 ULP)."""
+    return float(v[0])
 
 
 # ── LAYER 4 — the CLAIM gate ──────────────────────────────────────────────────
@@ -493,6 +927,12 @@ def _numpy_faithfulness_claims():
 # a code span is legitimate. Without it this gate flags the very prose that
 # retires the claim, which is a false positive that would push an author toward
 # deleting the explanation instead of the claim.
+#: rc465: the R3 vocabulary now has ONE definition, in the probe, and Layer 4
+#: reads it from there. It was duplicated here and in the probe for exactly as
+#: long as it took to notice — which is the same defect in miniature as the
+#: manifest this rc replaced.
+_R3_VOCABULARY = _dp.R3_VOCABULARY
+
 _RETRACTION = ("retired", "retracted", "corrected", "no longer", "was false",
                "not bit-identical")
 

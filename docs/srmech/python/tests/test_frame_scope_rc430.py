@@ -51,7 +51,9 @@ No float, no numpy, no ``fractions``, no ``abs()`` — a sign is a Class-K
 pin-slot read composed with Class C.
 
 Instrument: ``tools/frame_probe.py``. Census + NDJSON:
-``docs/srmech/notes/_frame_scope_census_rc430.py``.
+``docs/srmech/python/tools/frame_scope_census.py`` (rc465 moved it there
+from ``docs/srmech/notes/`` and gated its artefact — see
+:func:`test_the_committed_frame_census_matches_the_live_one`).
 """
 
 from __future__ import annotations
@@ -67,6 +69,7 @@ import pytest
 PKG_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PKG_ROOT / "tools"))
 
+import srmech                  # noqa: E402
 import example_args as ea      # noqa: E402
 import frame_probe as fp       # noqa: E402
 
@@ -121,6 +124,17 @@ REVIEWED_ROSTER: Dict[str, Tuple[str, Tuple[str, ...]]] = {
 #: Ops the driver cannot reach, by class, held DOWN-ONLY. An undrivable op is
 #: not a pass — it is an unadjudicated one, and a ceiling is what stops the
 #: unadjudicated class from quietly becoming the whole registry.
+#: Residual classes held to a STATED REASON rather than to a number
+#: (rc465, `#T1188`). CONTRACT_SKIP has always been held this way; these three
+#: join it because a count over them could only ever be raised — see the long
+#: note inside CEIL_FRAME_UNADJUDICATED where the NO_INT_INPUT ceiling used to
+#: be. Membership here is asserted by
+#: :func:`test_the_unreachable_classes_are_held_to_their_stated_reason`, and
+#: the known-verdict guard requires every emitted verdict to be covered by
+#: this set or by a ceiling.
+REASON_HELD_CLASSES = ("UNBOUND_REQUIRED", "SENTINEL_INT_DEFAULT",
+                       "NO_INT_INPUT")
+
 CEIL_FRAME_UNADJUDICATED = {
     # rc436 (local task T1141): 274 -> 275 for
     # `srmech.cascade.octonion_associator_support`. The gate's own advice is
@@ -229,183 +243,100 @@ CEIL_FRAME_UNADJUDICATED = {
     # justify is a free pass for the next rc, which is the shape this file
     # exists to refuse.
     "NO_ARG": 279,          # no harvested argument binding at all
-    # rc442 (local task T1150): 152 -> 153, `genome_group`. It DID drain out of NO_ARG
-    # (it binds `label` and `dim`), and landed one tier along in the same structural
-    # class: neither bound argument is an INTEGER the frame axis could translate —
-    # `label` is a string and `dim` is a block WIDTH, not a coordinate. A group is a
-    # container mark; there is no frame for it to move along.
-    # rc452 (gh #1653, the registry-ripple phase): 153 -> 154,
-    # `srmech.amsc.descriptor.render_template`. It DID drain out of NO_ARG --
-    # its worked example binds both parameters and the harvester records them
-    # (`status: ok`, four recorded calls) -- and it landed one tier along in
-    # the same structural class as `genome_group`: neither bound argument is
-    # an INTEGER the frame axis could translate. `template` is a string and
-    # `context` is a Mapping; the integers INSIDE that mapping are payload
-    # being serialised, not a coordinate the op reads, so varying one moves
-    # the rendered TEXT without there being any frame it moves along. A
-    # renderer is a serialisation step; there is no frame for it.
-    # rc456: 154 -> 160, six of the ten representation-stratum registrations,
-    # and it is the `render_template` structural class SIX TIMES OVER, not a
-    # new excuse. MEASURED per op (fp.probe_from_ledger over the refreshed
-    # ledger): semidirect_product / conjugacy_classes / derived_subgroup /
-    # abelianization / character_table / irrep_dimensions -> NO_INT_INPUT.
-    # Each binds its arguments (the harvester records real calls), but the
-    # bound operand is a CAYLEY TABLE — list[list[int]] — whose integers are
-    # element INDICES, i.e. payload naming positions in a finite group, not a
-    # coordinate the op reads along any modulus/frame axis; varying one
-    # corrupts the group rather than translating anything. The OTHER four ops
-    # of the same rc did NOT need this raise (cyclic_group / quotient_group /
-    # cayley_graph / cyclotomic_polynomial measured NOT_ADMISSIBLE — the
-    # probe could drive their int/list inputs and measured no frame
-    # translation), which is what shows the raise is about the operand's
-    # type, not about the family being under-exampled.
-    # rc457: 160 -> 163, the three tier-3 registrations, and it is the rc456
-    # structural class a SEVENTH, EIGHTH and NINTH time. MEASURED per op
-    # (fp.probe_from_ledger over the refreshed ledger):
-    # frobenius_schur_indicator / fusion_multiplicities / central_idempotents
-    # -> NO_INT_INPUT. Each binds its one argument (the harvester records the
-    # worked example's real calls), but the bound operand is the whole
-    # character_table PAYLOAD DICT, whose integers are class indices, character
-    # coordinates and content-address echoes — payload naming structure inside
-    # one measurement, not a coordinate the op reads along any modulus/frame
-    # axis; varying one corrupts the payload (the ops' own divisibility guards
-    # raise on exactly that) rather than translating anything.
-    # rc458: 163 -> 170, seven of the eight tier-4 registrations, split
-    # exactly along the two established structural classes. MEASURED per op
-    # (fp.probe_from_ledger over the refreshed ledger):
-    # permutation_representation -> NO_INT_INPUT (its bound operands are a
-    # CAYLEY TABLE and an ACTION table — element indices and point images,
-    # the rc456 semidirect_product class); character_of /
-    # decompose_representation / isotypic_projector /
-    # tensor_product_representation / direct_sum_representation /
-    # intertwiner_space -> NO_INT_INPUT (the bound operands are whole REP /
-    # character_table PAYLOAD DICTS, the rc457 class — their integers are
-    # matrix entries, class indices and content-address echoes, payload
-    # naming structure, not a coordinate on any frame axis). The EIGHTH op,
-    # zeta_mul, needed NO raise: the probe drove its int-vector operands (73
-    # calls) and measured NOT_ADMISSIBLE — no frame translation, exactly the
-    # rc456 cyclic_group/quotient_group outcome — which is what shows the
-    # seven raises are about operand TYPE, not about the family being
-    # under-exampled.
-    # rc461 part 2 (`#T1181`): 170 -> 171, exactly one op, and it is the
-    # rc456/rc457 structural class again. `g2_membership` DID drain out of
-    # NO_ARG — its worked example binds a plain 8x8 int matrix and the
-    # harvester records `status: ok` — and it lands here because the bound
-    # operand's integers are the matrix ENTRIES OF A GROUP ELEMENT, not a
-    # coordinate the op reads along any modulus/frame axis. Varying one breaks
-    # orthogonality and the op's own `g^T g == I` guard raises on exactly that,
-    # rather than translating anything.
-    # ⚠️ The first measurement of this raise said 172, and the extra +1 was NOT
-    # an op of this rc: it came from re-harvesting the example-args ledger in
-    # FULL, which flipped `srmech.math.rational.rational_div` out of
-    # NOT_ADMISSIBLE. Re-harvesting with `--only-stale` leaves every unchanged
-    # row byte-identical and the count is 171. See the longer note at
-    # CEIL_UNSYNTHESIZABLE_PARAMS in tests/test_synth_args_provenance_rc430.py.
-    # rc462 (`#T1179`, the ripple stage): 171 -> 172, and the raise comes with
-    # the drain that makes it a net GAIN rather than a loss. MEASURED by
-    # censusing the same tree twice, once against the committed ledger and once
-    # against the full re-harvest, so every move below is attributed:
+    # ══════════════════════════════════════════════════════════════════
+    # rc465 (`#T1188`): THE NO_INT_INPUT CEILING IS GONE. Not raised, not
+    # lowered — REMOVED, because it was measuring the wrong thing.
     #
-    #     induced_representation   NO_ARG         -> NOT_ADMISSIBLE
-    #     zeta_conjugate           NO_ARG         -> NOT_ADMISSIBLE
-    #     triality_companions      NO_ARG         -> NO_INT_INPUT
-    #     rational_div             NOT_ADMISSIBLE -> NO_ARG
+    # It moved NINE times in twenty-one days and never once down:
+    #   152 (rc430) 153 (rc442) 154 (rc452) 160 (rc456) 163 (rc457)
+    #   170 (rc458) 171 (rc461) 172 (rc462) 182 (rc463) 184 (rc464)
+    # Every one of those raises carried a measured per-op justification, and
+    # every one was honest about the LABEL. What none of them could state is
+    # what the label MEANT, because `classify` decided this class at
+    # `if not coords`, which sits ABOVE the first `Driver.raw({})` call. So
+    # membership was a property of the harvested BINDING and never a
+    # measurement of the op — reproducible, at rc465, from the ledger alone
+    # with no op executed at all, giving the live 184 exactly.
     #
-    # NO_ARG 282 -> 280, NO_INT_INPUT 171 -> 172. THE GATE WAS ALREADY RED AT
-    # THIS RC'S HEAD and this stage is what turned it green: rc462 registered
-    # two ops without an example-args row for either, so both landed in NO_ARG
-    # and pushed it to 282 against its ceiling of 280. Regenerating the ledger
-    # is what bound them, and a bound op gets a real verdict.
+    # PARTITIONED BY CAUSE (rc465, executed; 55 + 2 + 13 + 26 + 88 = 184):
     #
-    # The +1 here is `srmech.physics.qm.triality.triality_companions`, and it
-    # is `genome_group` / `render_template` VERBATIM — an op that DRAINED OUT
-    # of NO_ARG and landed one tier along in the same structural class, not a
-    # new excuse. It is strictly MORE information than the row it replaces:
-    # NO_ARG says the probe could not reach the op at all, NO_INT_INPUT says
-    # the probe reached it and MEASURED that it has no integer input to
-    # translate. Structurally correct too — the op returns the so(8) companion
-    # maps for a fixed frame and takes no coordinate at all.
+    #   57  THE PROBE NEVER REACHED THE OP. 55 cannot even bind —
+    #       `inspect.signature(fn).bind(**base)` raises TypeError because a
+    #       REQUIRED parameter is absent from the harvested base (the harvester
+    #       stamps a partial binding `status: ok`, so a consumer reading only
+    #       `args` cannot tell a complete binding from a truncated one). 2 more
+    #       drop a VAR_POSITIONAL the op requires — `einsum` says "2 operand
+    #       specs but 0 operands", `klein4_bundle` says "requires at least one
+    #       vector" — which `bind()` cannot see because `*args` accepts zero.
+    #       Python binds before the body runs, so `raw({})` would have raised
+    #       identically; the ORDER is the whole defect. These are now
+    #       UNBOUND_REQUIRED and the record NAMES the missing parameters.
     #
-    # `rational_div`'s move is the one genuine loss, and it is a FOSSIL being
-    # corrected rather than a regression: its committed row recorded `(19, 20)`
-    # / `(9991, 10000)` TUPLES, and the op's snippet has not passed tuples
-    # since the Class-N precision migration made `rational_add` return `Q`.
-    # rc461 met the same flip and chose `--only-stale` to preserve the row.
-    # ⚠️ THAT ADVICE IS WITHDRAWN HERE, WITH THE MEASUREMENT THAT WITHDRAWS IT:
-    # `--only-stale` keys on the snippet-text hash, so it also preserved six
-    # tier-3/4 rows whose args predated rc460's `cayley_sha256` bind and now
-    # make their ops RAISE — and an op that raises emits nothing, so SIXTEEN
-    # shipped content addresses stayed invisible to
-    # tests/test_content_address_class_rc462.py for a whole release. Keeping a
-    # ceiling at 171 by declining to re-measure is the instrument-blind class,
-    # not a saving.
-    # rc463 (`#T1188`, the fix pass): 172 -> 182, TEN of this rc's eighteen
-    # registrations, and it is the `render_template` / rc456 structural class
-    # ten times over rather than a new excuse. ⚠️ The raise is stated with the
-    # measurement that FORCES it, and with the drain that was taken instead
-    # wherever one existed — the NO_ARG ceiling next door was NOT raised in this
-    # same rc: `lstsq_exact` was over it at 281, and the cause was the ORDER of
-    # its worked snippet (`harvest_op` keeps the FIRST returning call, and the
-    # snippet led with a `Fraction` witness JSON cannot carry), so moving its
-    # all-integer call to the front drained 281 -> 280 with the ceiling
-    # untouched. That is the difference: NO_ARG had a drain and took it; this
-    # class has none.
+    #       ⚠️ SEVEN OPS THE COMMENTS ABOVE CALLED "MEASURED" ARE IN HERE,
+    #       including five of the twelve behind the rc463 and rc464 raises:
+    #       eigvec_exact / eigvec_exact_float / jordan_chains_exact (`lam`
+    #       missing), qmat_rank (`rows` missing), cdr_clean (`codebook`
+    #       missing), plus triality_companions (`g_v` missing — rc462 wrote
+    #       "the probe reached it and MEASURED that it has no integer input")
+    #       and genome_group (`units` missing — rc442 wrote "it binds label and
+    #       dim"; the ledger binds `dim: None`). Those sentences were true of
+    #       the BUCKET and false of the OP.
     #
-    # MEASURED per op (`fp.probe_from_ledger` over the refreshed ledger, with
-    # the harvested binding printed): eigvec_exact / eigvec_exact_float /
-    # jordan_chains_exact (`a` binds a nested int matrix, `lam` is a `Qalg`),
-    # separate_frame_curvature (`a`, `b` both nested int matrices),
-    # gram_schmidt_exact (`basis`, a list of int row-vectors), and qmat_rank /
-    # _det / _inverse / _rref / _nullspace (`rows` nested, `method` a string).
-    # `fp.is_frame_coordinate` admits a scalar `int` or a FLAT int sequence;
-    # every one of these ten reports ZERO frame-coordinate keys, so
-    # `Driver.coordinates()` is empty and `classify` assigns NO_INT_INPUT on
-    # exactly `if not coords`.
+    #   13  SENTINEL_INT_DEFAULT. The op DECLARES an int parameter whose
+    #       default is `None`, so the harvested binding carries `None` where the
+    #       integer would be. This is NOT an example defect: measured
+    #       `required=False` on every one of the 13, so omitting an optional
+    #       parameter is what a worked example SHOULD do. Editing 13 shipped
+    #       examples to bind `precision=20` would have moved this number by
+    #       changing published documentation, which is doctoring the input to a
+    #       measurement. Instead the class is named — and MEASURED, so it is not
+    #       a mystery: binding a witness value drives all 13, and every one
+    #       reaches NOT_ADMISSIBLE. The class conceals no admissible op.
     #
-    # And, as in every prior raise of this class, NO_INT_INPUT is the CORRECT
-    # verdict rather than a probe gap. The frame axis asks whether an op
-    # TRANSLATES along a frame when an integer input is varied — a modular
-    # coordinate shift. A matrix is an OPERATOR, not a coordinate: perturbing
-    # one of its entries changes which operator you asked about, so a probe
-    # that translated nested sequences would be measuring a different question
-    # and reporting the answer under this name. Draining these ten therefore
-    # requires weakening the instrument, which is the one move this file exists
-    # to refuse. The other eight of the eighteen ARE driven to a real verdict
-    # (five NOT_ADMISSIBLE, one drained to NOT_ADMISSIBLE from NO_ARG), which is
-    # what shows the ten are a property of their operands and not of the rc.
-    # rc464 (`#T1188`): 182 -> 184, and the SPLIT across the fourteen new ops is
-    # the whole justification. Fourteen cdr_* [class]-binding adapters were
-    # registered; TWELVE are driven to a real verdict (all NOT_ADMISSIBLE) and
-    # exactly TWO land here — so this is a property of two operands, not of the
-    # rc, and it is stated with the arithmetic that shows it.
+    #   26  A MATRIX-SHAPED INT OPERAND the depth-2 wall refused to translate.
+    #       The standing justification — "a matrix is an OPERATOR, not a
+    #       coordinate; perturbing an entry asks a different question" — is a
+    #       per-op SEMANTIC claim asserted from a nesting-DEPTH test, and the
+    #       same objection applies one level up: the probe already perturbs
+    #       element [0] of flat int vectors whose ints are content (zeta_mul's
+    #       Z[zeta] coefficients, rc458, driven to NOT_ADMISSIBLE in 73 calls)
+    #       and reports the honest answer. Within the ONE shape list[list[int]]
+    #       the tree holds a Cayley table, literal positions in
+    #       cotangent_weights, vertex labels in edges, an operator over Q in
+    #       qmat_*, and residues mod p in gf_rref — the shape cannot decide
+    #       which, only the measurement can, and the measurement was refused.
+    #       MEASURED at rc465 with translate() moving the first LEAF: 24 of the
+    #       26 drive to a verdict in under 0.2 s and EVERY ONE IS
+    #       NOT_ADMISSIBLE. Zero false ADMISSIBLE — the feared "measuring a
+    #       different question and reporting it under this name" produced no
+    #       frame declarations at all. Ops whose own guard rejects the perturbed
+    #       matrix go not-total, which is the right answer for a group op. The
+    #       other 2 are measured-slow and named in fp.SLOW_SKIP WITH the verdict
+    #       they reach, so that class hides nothing either.
     #
-    # MEASURED per op, and by the strongest available predicate — not "the
-    # probe could not reach it" but "the op HAS NO INTEGER PARAMETER AT ALL",
-    # which is readable off the signature without running anything:
-    #   cdr_slots(slots)           — one parameter, a {slot: (key, sign)} map.
-    #   cdr_clean(noisy, codebook) — two parameters, a bytes vector and a
-    #                                {name: bytes} codebook.
-    # The integers INSIDE those maps are slot INDICES and Class-C signs, i.e.
-    # payload naming positions and orientations in a stored assignment, not a
-    # coordinate the op reads along any modulus or frame. Varying one does not
-    # translate the answer; it names a different slot or flips a stored sign.
-    # This is exactly the `render_template` structural class the rc456 / rc457 /
-    # rc461 raises recorded — the operand is a container whose ints are content.
+    #   88  genuinely no integer anywhere in the harvested binding. STILL
+    #       NO_INT_INPUT — and now held to that STATEMENT, per op, by
+    #       test_the_unreachable_classes_are_held_to_their_stated_reason below.
     #
-    # WHY THIS IS A RAISE AND NOT A DRAIN, stated because the gate's own advice
-    # is to drain first and that advice WAS followed here for four sibling ops.
-    # rc464's first harvest put cdr_element / cdr_materialize / cdr_navigate /
-    # cdr_read_unbind in BASE_RAISES (56 -> 60), because each op's leading
-    # worked call passed a minted bytes codebook that JSON cannot carry, so the
-    # probe rebuilt a call with the argument missing. Those four WERE drained,
-    # by reordering each row so its first RETURNING call is JSON-carryable —
-    # including cdr_materialize, whose non-empty register is spelled in the
-    # STR-keyed / LIST-paired WIRE form for exactly this reason. BASE_RAISES is
-    # back at 56 and all four measure NOT_ADMISSIBLE. The same move is not
-    # available to these two: no ordering of any example can give an op an
-    # integer parameter it does not have.
-    "NO_INT_INPUT": 184,    # nothing translatable along a frame axis
-    "BASE_RAISES": 56,      # harvested binding does not execute
+    # WHY A COUNT COULD NOT WORK HERE, WHATEVER THE PER-ITEM JUSTIFICATIONS
+    # SAID. Membership in this class is (registry size) x (share of ops whose
+    # harvested binding carries no scalar int or flat int list). BOTH factors
+    # only grow: every string-, float-, matrix- or dict-valued op registered
+    # lands here at birth. A down-only ceiling on the ABSOLUTE COUNT of such a
+    # class is a counter with a reason-comment attached, not a ratchet — it can
+    # only ever be raised, and this file already names that failure mode next
+    # door ("a ratchet with slack ratchets nothing"). The replacement is the
+    # form CONTRACT_SKIP has always used: a per-op predicate that can FAIL,
+    # needs no number, and cannot be moved by registering more string ops.
+    # ══════════════════════════════════════════════════════════════════
+    "BASE_RAISES": 3,       # harvested binding EXECUTES and raises
+    # rc465 (`#T1188`): 56 -> 3, a DRAIN of 53 and the largest single
+    # correction in this file's history. It was never 56 ops whose
+    # binding "does not execute": 53 of them could not BIND, so the
+    # TypeError came from Python's argument binder before the body ran.
+    # They are UNBOUND_REQUIRED now, which says the true thing — the
+    # probe never reached the op — and what is left is the 3 ops whose
+    # complete binding really is rejected by the op itself.
     # rc461 part 3 (`#T1183`): 15 -> 17, and the split across the five new ops
     # is the point rather than the total. FIVE ops were registered; only TWO
     # land here and the other three are DRIVEN to a real verdict. MEASURED
@@ -424,7 +355,20 @@ CEIL_FRAME_UNADJUDICATED = {
     # level 72 is 73^4 = 28.4M tuples for a 658711-row answer. It now walks the
     # simplex directly. The probe is what surfaced that, so a would-be third
     # skip was drained by fixing the op rather than by naming it here.
-    "SLOW_SKIP": 17,        # measured-slow, skipped BY NAME with a number
+    # rc465 (`#T1188`): 17 -> 19, and it is THE ONE UPWARD MOVE IN THIS RC.
+    # It is a CONSEQUENCE of the nested-leaf widening rather than a
+    # concession: g2_membership and relational_structure were previously
+    # NO_INT_INPUT — never driven, so never counted as slow — and became
+    # reachable the moment a matrix-shaped operand counts as a coordinate.
+    # Each entry carries its MEASURED seconds (50.9 s and 258.7 s for the
+    # whole classify()) AND the verdict it reaches when driven (both
+    # NOT_ADMISSIBLE), so the skip is not hiding an admissible op behind a
+    # wall clock. Net across the two classes: 184 + 17 = 201 unadjudicated
+    # rows become 88 + 13 + 110 + 19 = 230 — but 110 of those are ops that
+    # were ALREADY unadjudicated under two other labels (57 from
+    # NO_INT_INPUT, 53 from BASE_RAISES), so the real movement is 26 ops
+    # DRAINED into a real verdict and nothing newly hidden.
+    "SLOW_SKIP": 19,        # measured-slow, skipped BY NAME with a number
     # rc430 repair (`#T1127`): ops whose parameter carries a documented domain
     # contract the sweep cannot honour (the three GF(p) ops need PRIME p). The
     # native peer asserts it and CI took SIGABRT; the pure body silently
@@ -662,6 +606,12 @@ def test_the_generator_clause_is_narrow_and_says_so() -> None:
     # that reason. A payload that names two of three blind spots reads as a
     # complete list of them.
     assert "base_argument_dependence" in cannot
+    # rc465 (`#T1188`) — the FOURTH, and it is what the removed NO_INT_INPUT
+    # ceiling was mostly counting: an operand whose integers live inside a
+    # MAPPING has no coordinate to translate, at any nesting depth. Published
+    # as a limitation of the instrument rather than left implicit in a number.
+    assert "operand_not_translatable" in cannot
+    assert len(cannot) == 4, sorted(cannot)
 
 
 def test_the_generator_axis_population_is_EMPTY_not_absent() -> None:
@@ -731,6 +681,22 @@ def test_unadjudicated_ops_are_counted_under_a_down_only_ceiling() -> None:
         counts[rec["verdict"]] = counts.get(rec["verdict"], 0) + 1
     print(f"\n[rc430] frame census verdicts: {json.dumps(counts, sort_keys=True)}")
 
+    # KNOWN-VERDICT GUARD (rc465, `#T1188`). Every verdict string the census
+    # can emit must be one this file KNOWS about — either an adjudicated
+    # outcome or a class held below. Without it the ceiling loop iterates over
+    # the dict's keys and a verdict spelled anything else is silently
+    # uncounted: renaming a class, or adding one, would drop its whole
+    # population out of every ceiling at once and read as a drain. This rc adds
+    # THREE verdict names, so it is exactly the change that would have fallen
+    # through the hole, which is why the guard lands in the same diff.
+    HELD = set(CEIL_FRAME_UNADJUDICATED) | set(REASON_HELD_CLASSES)
+    unknown = sorted(set(counts) - {"ADMISSIBLE", "NOT_ADMISSIBLE"} - HELD)
+    assert not unknown, (
+        f"the census emitted verdict(s) {unknown} that no ceiling and no "
+        f"reason-held class covers, so their population is counted by nothing. "
+        f"Give the class a ceiling or a stated reason; do not leave it "
+        f"unnamed.")
+
     for cls, ceil in CEIL_FRAME_UNADJUDICATED.items():
         got = counts.get(cls, 0)
         assert got <= ceil, (
@@ -755,11 +721,191 @@ def test_unadjudicated_ops_are_counted_under_a_down_only_ceiling() -> None:
             f"its own declaration mentions one: {declared_text!r}. Either the "
             f"skip is wrong or the declaration is.")
 
+    # rc465 (`#T1188`): 130 -> 218. Floors go UP, and this one goes up by 88
+    # because the nested-leaf widening drove 24 previously-unreachable ops and
+    # the reclassification stopped 53 binding failures from being counted as
+    # executions that raised. A floor is the half of this gate that cannot be
+    # satisfied by relabelling: whatever names the residual classes carry, the
+    # instrument has to have actually DRIVEN this many ops.
     reached = counts.get("ADMISSIBLE", 0) + counts.get("NOT_ADMISSIBLE", 0)
-    assert reached >= 130, (
+    assert reached >= 218, (
         f"only {reached} ops were actually DRIVEN. §4 compares two sets the "
         f"instrument can see; if it can see almost nothing, both are empty and "
         f"agree for the wrong reason.")
+
+
+def test_the_unreachable_classes_are_held_to_their_stated_reason() -> None:
+    """rc465 (`#T1188`) — what REPLACES the NO_INT_INPUT ceiling.
+
+    A count over this family could only ever be raised: membership is
+    (registry size) x (share of ops whose harvested binding carries no scalar
+    int or flat int list), and both factors only grow. So the three classes are
+    held to the STATEMENT that makes each of them true, per op, in the form
+    ``CONTRACT_SKIP`` has always used. This gate needs no number, cannot be
+    moved by registering more string-valued ops, and CAN FAIL — a partial
+    binding filed as "no integer input", or an op with a live int parameter
+    filed as having none, is a red here.
+    """
+    census = _census()
+    rows = ea.load_ledger()
+    by_verdict: Dict[str, List[str]] = {}
+    for name, rec in census.items():
+        by_verdict.setdefault(rec["verdict"], []).append(name)
+
+    # NON-VACUITY. Each class must be non-empty, or the loops below pass by
+    # iterating zero times — the exact shape rc465 had to repair in the
+    # register gate next door.
+    for cls in REASON_HELD_CLASSES:
+        assert by_verdict.get(cls), (
+            f"{cls} is EMPTY, so its loop below asserts nothing. If the class "
+            f"really is drained, remove it from REASON_HELD_CLASSES and say so "
+            f"— do not leave a guard that passes by having nothing to check.")
+
+    schema = get_tool_schema()
+    offences: List[str] = []
+
+    # 1. UNBOUND_REQUIRED — the probe never reached the op, and the record
+    #    NAMES what was missing. A member whose binding is actually complete
+    #    is a misfile.
+    for name in by_verdict.get("UNBOUND_REQUIRED", []):
+        base = dict((rows.get(name) or {}).get("args") or {})
+        fn = ea.resolve(name)[2]
+        gap = fp.binding_gap(fn, base)
+        if not gap:
+            offences.append(f"{name}: UNBOUND_REQUIRED but the binding is "
+                            f"complete")
+        if not census[name].get("missing"):
+            offences.append(f"{name}: UNBOUND_REQUIRED without naming the "
+                            f"missing parameter(s)")
+
+    # 2. SENTINEL_INT_DEFAULT — the op DECLARES an int parameter, the base
+    #    carries None for it, and the binding is otherwise complete.
+    for name in by_verdict.get("SENTINEL_INT_DEFAULT", []):
+        base = dict((rows.get(name) or {}).get("args") or {})
+        fn = ea.resolve(name)[2]
+        if fp.binding_gap(fn, base):
+            offences.append(f"{name}: filed as a sentinel default, but the "
+                            f"binding is INCOMPLETE — that is "
+                            f"UNBOUND_REQUIRED")
+        sentinels = fp.sentinel_int_params(name, base)
+        if not sentinels:
+            offences.append(f"{name}: SENTINEL_INT_DEFAULT but its own "
+                            f"declaration names no int-typed parameter bound "
+                            f"to None")
+        for p in sentinels:
+            if base.get(p) is not None:
+                offences.append(f"{name}.{p}: bound to {base[p]!r}, not a "
+                                f"sentinel")
+
+    # 3. NO_INT_INPUT — the strongest statement, and now the only thing this
+    #    name is allowed to mean: the binding is COMPLETE, the op's own
+    #    declaration names NO int-typed parameter at all, and nothing in the
+    #    base is translatable under the (rc465-widened) coordinate predicate.
+    for name in by_verdict.get("NO_INT_INPUT", []):
+        base = dict((rows.get(name) or {}).get("args") or {})
+        fn = ea.resolve(name)[2]
+        if fp.binding_gap(fn, base):
+            offences.append(f"{name}: NO_INT_INPUT but the harvested binding "
+                            f"is INCOMPLETE — the probe never reached this op")
+        declared_ints = fp.declared_int_params(name)
+        if declared_ints:
+            offences.append(f"{name}: NO_INT_INPUT while its own declaration "
+                            f"types {list(declared_ints)} as integer(s)")
+        movable = [k for k, v in base.items() if fp.is_frame_coordinate(v)]
+        if movable:
+            offences.append(f"{name}: NO_INT_INPUT while {movable} IS "
+                            f"translatable")
+        if schema.lookup(name) is None:
+            offences.append(f"{name}: not a registered op")
+
+    assert not offences, (
+        f"{len(offences)} residual-class member(s) do not satisfy the statement "
+        f"their class is held to:\n  " + "\n  ".join(offences[:25])
+        + "\n\nThis replaced a NUMBER that had gone up nine times and down "
+          "none. Fix the classification or fix the op's binding; there is no "
+          "ceiling here to raise.")
+
+
+def test_the_reason_held_gate_can_fail() -> None:
+    """The negative control for the gate above.
+
+    Three synthetic misfiles, one per class, each rejected by the predicate
+    that is supposed to reject it. Without this the gate is a rule nothing has
+    ever run against a wrong answer.
+    """
+    def two(a, b):                      # a REQUIRED parameter, `b`
+        return a
+
+    # UNBOUND_REQUIRED's predicate: an incomplete binding IS detected...
+    assert fp.binding_gap(two, {"a": 1}) == ("b",)
+    # ...and a complete one is not.
+    assert fp.binding_gap(two, {"a": 1, "b": 2}) == ()
+
+    def starred(*operands, mode="chunk"):
+        return operands
+
+    assert fp.binding_gap(starred, {"mode": "chunk"}) == ("*operands",)
+
+    # NO_INT_INPUT's predicate: a translatable operand is detected at BOTH
+    # depths, which is what rc465 widened.
+    assert fp.is_frame_coordinate(7)
+    assert fp.is_frame_coordinate([7, 8])
+    assert fp.is_frame_coordinate([[7, 8], [9, 10]])
+    assert not fp.is_frame_coordinate("7")
+    assert not fp.is_frame_coordinate([[7.0, 8.0]])
+    assert not fp.is_frame_coordinate({"a": 7})
+    # and the nested translate moves exactly ONE leaf
+    assert fp.translate([[7, 8], [9, 10]], 3) == [[10, 8], [9, 10]]
+
+    # SENTINEL_INT_DEFAULT's predicate: an op with NO int-typed declared
+    # parameter cannot be filed there, whatever its base looks like.
+    assert fp.sentinel_int_params("srmech.does.not.exist", {"x": None}) == ()
+
+
+def test_the_committed_frame_census_matches_the_live_one() -> None:
+    """rc465 (`#T1188`) — the census is an ARTEFACT, and it is now GATED.
+
+    ``tools/frame_probe.py`` promises that the gate and the census "cannot
+    drift apart by being separately hand-rolled". They drifted anyway, by a
+    route sharing an import does not cover: **nobody re-ran the census.** The
+    committed file sat at the rc430 numbers (``NO_INT_INPUT: 152``) while this
+    file's ceiling for that one class was raised nine times, each raise
+    justified from an ad-hoc probe recorded in a comment rather than from a
+    published measurement. A shared import guarantees agreement WHEN BOTH RUN.
+
+    So the artefact's ``meta.by_verdict`` is compared to the live census in the
+    same process. Regenerate with::
+
+        PYTHONPATH=docs/srmech/python python3 \
+            docs/srmech/python/tools/frame_scope_census.py
+    """
+    path = Path(__file__).resolve().parent / "frame_scope_census.ndjson"
+    assert path.exists(), (
+        f"the frame census artefact is missing at {path}. It is not optional: "
+        f"it is the published half of this measurement.")
+    meta = None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        row = json.loads(line)
+        if row.get("record") == "meta":
+            meta = row
+            break
+    assert meta is not None, "census artefact carries no meta record"
+
+    census = _census()
+    live: Dict[str, int] = {}
+    for rec in census.values():
+        live[rec["verdict"]] = live.get(rec["verdict"], 0) + 1
+    assert meta["by_verdict"] == dict(sorted(live.items())), (
+        f"the committed census is STALE.\n  committed: "
+        f"{json.dumps(meta['by_verdict'], sort_keys=True)}\n  live:      "
+        f"{json.dumps(live, sort_keys=True)}\nRe-run "
+        f"tools/frame_scope_census.py. This is the drift that let a ceiling "
+        f"move nine times against a file nobody refreshed.")
+    assert meta["registry_total"] == len(census)
+    assert meta["srmech_version"] == srmech.__version__, (
+        f"census recorded at {meta['srmech_version']}, tree is at "
+        f"{srmech.__version__}")
+    assert sorted(meta["slow_skipped"]) == sorted(fp.SLOW_SKIP)
 
 
 # ══════════════════════════════════════════════════════════════════════

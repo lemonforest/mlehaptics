@@ -1156,19 +1156,44 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # earning one slot each; epq_frame_address takes NO arguments at all and so
     # earns none. 164 -> 166. NEW-op growth, not a move; the amsc pins move in
     # the same rc for a DIFFERENT reason (the `composes` citation, as-text only).
+    #
+    # rc465 (`#T1188`) — 166 -> 176, and it is the FIRST move here driven by a
+    # DECLARATION widening rather than by a new op or a rename. No physics.qm op
+    # was added or removed; ten existing ones stopped withholding a carrier they
+    # already accepted. `test_declared_type_honesty_rc363` measured them at
+    # `accepts ['Q'], declares ['HV']` against a strict-zero CEIL, so their
+    # declared param type became `HV | Sequence[int | Q]` — and a declared type
+    # that NAMES a registered carrier earns that (op, carrier) row in the
+    # back-index. Differenced against a `git show 74479c6e7` extraction of
+    # `c/src/srmech_carrier_registry.c` and re-decoded through this file's own
+    # `decoded_blobs`, the ten added rows are EXACTLY +1 apiece:
+    #   octonion_left_mult / _right_mult / _conjugate / _norm        2 -> 3
+    #   quaternion_left_mult / _right_mult / _conjugate / _norm      2 -> 3
+    #   quaternion_slerp                                             3 -> 4
+    #   triality_apply                                               2 -> 3
+    # `quaternion_slerp` gains ONE despite having TWO widened params, which is
+    # the same per-(op, carrier) multiplicity rule the rc464 coupler note above
+    # records from the other side: the row is keyed by carrier, not by param.
+    # All ten land in `Q.ops.consumes` (measured: `carrier_schema()['Q']['ops']
+    # ['consumes']` holds exactly these ten physics.qm names and no others), and
+    # `srmech.qm.` stays 0. This is DECLARATION growth, not population growth —
+    # the third distinguishable cause this pin has now seen, after the rc381
+    # rename and the rc385/rc396/rc461 op adds — and no amsc pin moves.
     physics_qm = joined.count("srmech.physics.qm.")
-    assert physics_qm == 166, (
-        f"expected 166 srmech.physics.qm op references inside the DECODED channel "
+    assert physics_qm == 176, (
+        f"expected 176 srmech.physics.qm op references inside the DECODED channel "
         f"(the rc381 qm-subpackage rename's carrier back-index — octonion / "
         f"quaternion / so8 / triality / gauge / sm op names — plus rc385's "
         f"quaternion_log (+2) / quaternion_slerp (+3), rc396's clock_operator "
         f"(+2) / shift_operator (+2), rc461's triality_frame_action (+1, its "
-        f"one Mat param) and rc461 part 2's so8_bracket_certificate (+1) / "
+        f"one Mat param), rc461 part 2's so8_bracket_certificate (+1) / "
         f"g2_membership (+1) — epq_frame_address takes no arguments and so "
-        f"earns no slot), found {physics_qm}. "
-        f"srmech.qm. fell to 0 by exactly the original 154; if this is not 166 the "
-        f"population is not conserved — re-measure. (This is a physics.qm add, not "
-        f"an amsc drain, so no amsc pin moves.)")
+        f"earns no slot — and rc465's DECLARATION widening (+10, one row apiece "
+        f"for the ten qm ops whose declared param type stopped withholding the "
+        f"`Q` they already accepted; no op was added), found {physics_qm}. "
+        f"srmech.qm. fell to 0 by exactly the original 154; if this is not 176 the "
+        f"population is not conserved — re-measure. (This is a physics.qm "
+        f"declaration widening, not an amsc drain, so no amsc pin moves.)")
     assert joined.count("srmech.qm.") == 0, (
         f"the OLD srmech.qm. prefix still has "
         f"{joined.count('srmech.qm.')} decoded references — the rc381 rename left "
