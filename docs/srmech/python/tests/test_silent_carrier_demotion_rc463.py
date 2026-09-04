@@ -645,10 +645,20 @@ def test_the_manifest_is_fresh_against_the_registry_signature() -> None:
 
 
 def test_the_staleness_guard_is_not_vacuous() -> None:
-    """The guard must MOVE for the changes it claims to catch, and it must not
-    move for a change it does not claim to catch. Both halves are asserted, in
-    process, over a mutated copy of the live signature lines — nothing shipped
-    is touched.
+    """The guard must MOVE for each of the three changes it claims to catch.
+
+    Asserted in process over a MUTATED COPY of the live signature lines, so
+    nothing shipped is touched: an op added, an op removed, an op
+    re-signatured. Plus the guard and its own witness agreeing, because a
+    digest computed over a different list than the one this test mutates would
+    make the other three assertions vacuous.
+
+    ⚠️ **The converse is NOT asserted, and cannot be from here.** "It does not
+    move when an implementation changes behind an unchanged signature" is the
+    declared blind spot (see ``_STALENESS_BLIND_SPOT``), and a body change has
+    no representation in a list of signature strings — there is nothing to
+    mutate. Saying so is the point: a docstring claiming both halves while
+    testing one is the shape this whole file exists to remove.
     """
     def digest(lines):
         return sha256_bytes(("\n".join(sorted(lines)) + "\n").encode("utf-8"))
@@ -762,6 +772,12 @@ def test_layer3_the_undeclared_roster_matches_its_pinned_digest() -> None:
             f"  pinned   {EXPECTED_UNDECLARED_ROSTER_SHA256}\n"
             f"  counts   {'; '.join(delta)}\n"
             f"  sample   {sample}\n"
+            "WHICH rows moved is in `git diff tests/demotion_census.ndjson` "
+            "— the meta row carries the full roster under `undeclared`, one "
+            "key per cell, so the added and removed keys read straight off "
+            "the diff. This gate cannot compute them: it holds a digest, not "
+            "a previous roster, and holding the roster twice is the "
+            "hand-written manifest rc465 removed.\n"
             "If a row was ADDED: fix the carrier (an exact peer ships for most "
             "of this surface) or publish an R3 accuracy statement — do not add "
             "the row to the manifest and move on. If a row DRAINED: good news, "
