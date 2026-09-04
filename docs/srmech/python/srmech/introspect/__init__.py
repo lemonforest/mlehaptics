@@ -1018,7 +1018,10 @@ def describe() -> Dict[str, Any]:
     The INDEX lane is exact at every rung; the SIGN is what stops being
     associative, abruptly, at dim 8. **Addressing is unbounded because XOR is
     associative at every dim forever; turns and composition break because the
-    SIGN COCYCLE stops being associative** — which is also why rc298 (`#T933`)
+    SIGN 2-COCHAIN stops satisfying the cocycle condition** (δε = 0 IS
+    associativity of the sign lane for this object, so ε is a 2-cocycle only on
+    the associative rungs and a 2-cochain in general — rc465-fix, `#T1188`)
+    — which is also why rc298 (`#T933`)
     could lift ``CD_MAX_DIM`` 64 → 256 by DECOUPLING the caps. (``index == XOR``
     is close to definitional for a CD basis, so that column is a CHECK; the
     READING — a free index and a load-bearing sign — is what it supports.)

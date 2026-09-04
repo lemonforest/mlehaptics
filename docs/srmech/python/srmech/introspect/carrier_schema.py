@@ -135,12 +135,17 @@ differently::
      32 |    1024/1024     |      496  (496)         | 16808/32768    51%
 
 The INDEX lane is ``e_i·e_j → e_{i XOR j}``, exact at every rung with no
-exceptions. The SIGN is a cocycle over it, and the sign is what stops being
+exceptions. The SIGN is a 2-COCHAIN over it, and the sign is what stops being
 associative — abruptly, at dim 8. Every doubling adds one index bit and extends
-the sign cocycle; ℝ is value-with-no-index, ℂ is value plus the first index bit.
+the sign cochain; ℝ is value-with-no-index, ℂ is value plus the first index bit.
+(ε is a 2-COCYCLE — δε = 0 — only on the associative rungs, and a 2-cochain in
+general; for this object δε = 0 IS associativity of the sign lane, so "the
+cocycle stops being associative" was a sentence that contradicted its own
+table header. rc465-fix, `#T1188`; naming only, no measurement moves.)
 
 So: **addressing is unbounded because XOR is associative at every dim forever;
-turns and composition break because THE SIGN COCYCLE stops being associative.**
+turns and composition break because THE SIGN 2-COCHAIN STOPS SATISFYING THE
+COCYCLE CONDITION.**
 The wall was never in the addressing — which is also why rc298 (`#T933`) could
 lift ``CD_MAX_DIM`` 64 → 256 by DECOUPLING the caps, and why ``Mat`` (whose sign
 handling is trivial) turns at any dim. "Bounded by the sign cocycle, not by the

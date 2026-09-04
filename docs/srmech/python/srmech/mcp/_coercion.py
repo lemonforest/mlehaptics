@@ -1235,6 +1235,48 @@ def _to_qmat_rows_or_column(value: Any, *, param: str = "") -> Any:
     return _to_qmat_rows(value, param=param)
 
 
+def _to_exact_or_float_vector(value: Any, *, param: str = "") -> Any:
+    """The ℍ / 𝕆 coordinate vectors of ``srmech.physics.qm`` (rc465-fix,
+    `#T1188`) — the FLAT peer of :func:`_to_exact_or_float_rows`.
+
+    ``octonion_left_mult`` / ``_right_mult`` / ``_conjugate`` / ``_norm``, their
+    four ``quaternion`` peers, ``quaternion_slerp`` and ``triality_apply`` grew
+    a second carrier rung in rc465: an operand whose every component is exact
+    (``int`` / ``Q`` / a ``[num, den]`` pair) returns an exact-ℚ ``QMat`` /
+    ``list[Q]``, and one float component anywhere elects the float64 route.
+    Their declared type stayed ``HV``, whose coercer :func:`_to_hv` is the
+    hypervector one — so over the wire the exact rung was advertised in the
+    ``returns`` prose and unreachable in practice, the same shape rc463
+    measured on ``lstsq_exact`` and ``singular_values_exact``.
+
+    Like every coercer in this table it produces the honest minimal structure
+    and lets the OP's own admission gate (``_exact_octonion`` /
+    ``_exact_quaternion``) pick the rung: a live ``HV`` passes through, a
+    ``[num, den]`` leaf is rebuilt as a ``Q``, an ``int`` stays an ``int`` and
+    a ``float`` stays a ``float``. Nothing here decides a carrier.
+
+    ⚠️ A ``Mat`` is NOT accepted and is not made acceptable here — these ops
+    take a vector and refuse a matrix by name
+    (``srmech/physics/qm/octonion.py`` ``_operand_leaves``).
+    """
+    from srmech.math.hv import HV     # numpy-free hypervector carrier; lazy
+    from srmech.math.q import Q       # exact-ℚ carrier; lazy
+    if isinstance(value, HV):
+        return value
+    if not isinstance(value, (list, tuple)):
+        return value
+    out = []
+    for x in value:
+        if (isinstance(x, (list, tuple)) and len(x) == 2
+                and isinstance(x[0], int) and not isinstance(x[0], bool)
+                and isinstance(x[1], int) and not isinstance(x[1], bool)
+                and x[1] != 0):
+            out.append(Q(int(x[0]), int(x[1])))
+        else:
+            out.append(x)
+    return out
+
+
 def _to_exact_or_float_rows(value: Any, *, param: str = "") -> Any:
     """``separate_frame_curvature`` ``a`` / ``b`` (rc463 fix pass).
 
@@ -1384,6 +1426,13 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # handlers for the measured witnesses.
     "QMat | Sequence[Sequence[int | Q]] | Sequence[int | Q]": _to_qmat_rows_or_column,   # qmat_solve b / lstsq_exact b
     "Mat | QMat | Sequence[Sequence[int | Q]]": _to_exact_or_float_rows,          # separate_frame_curvature a / b
+    # rc465-fix (`#T1188`): the ten srmech.physics.qm coordinate-vector params
+    # whose ops grew an exact-ℚ rung in rc465 while their declared type stayed
+    # the float-shaped `HV`. `test_declared_type_honesty_rc363.py` measured
+    # them at CEIL_WIDE_UNDECLARED_OPS = 0 -> 10; this is the widening half of
+    # that fix. Same division of labour as the rows above: the coercer keeps
+    # the leaves' EXACTNESS and the op's own admission gate picks the rung.
+    "HV | Sequence[int | Q]": _to_exact_or_float_vector,
     # 0.9.0rc463 (`#T1188`): the exact eigensolver's eigenvalue operand. A NEW
     # declared param TYPE widens this discriminator set in the SAME change that
     # registers the ops — the whole exact-eigensolver family was public in

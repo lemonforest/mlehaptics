@@ -93,6 +93,7 @@ from srmech.cascade import right_mult_matrix as _right_mult_matrix
 # and keeping the arity local is deliberate: this module must not acquire a
 # dependency on the rung ABOVE it just to read its own operand.
 from srmech.cascade.matrix_cascades import _exact_leaf
+from srmech.math.q import Q  # rc465: the exact-ℚ scalar carrier
 from srmech.math.qmat import QMat  # rc465: the exact-ℚ 4×4 L_q / R_q carrier
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat
@@ -271,19 +272,54 @@ def _as_quaternion(v: Sequence[float], op: str) -> List[float]:
     return out
 
 
-def _operand_leaves(v):
-    """Materialise a 1-D operand ONCE so the exactness read cannot consume it.
+def _operand_leaves(v, op: str):
+    """Materialise a 1-D operand ONCE so the exactness read cannot consume it,
+    and REFUSE a ``Mat`` here.
 
-    A ``Mat`` is passed through untouched — :func:`_as_quaternion` owns that
-    rejection and its message — as is anything not iterable, so the single
-    error path stays single.
+    ⚠️ **A pass-through IS an admission** (rc465-fix, `#T1188`). As first
+    shipped this returned a ``Mat`` untouched and left the rejection to
+    :func:`_as_quaternion`; the behaviour was identical, but
+    ``tests/coercion_boundary.py`` reads an ``isinstance`` guard whose body
+    does not raise as an ACCEPTANCE, so the four ℍ ops (and, transitively
+    through :func:`quaternion_conjugate`, :func:`quaternion_slerp`) measured as
+    accepting ``Mat`` while declaring only ``HV``. See the octonion peer
+    :func:`srmech.physics.qm.octonion._operand_leaves` for the full account.
+
+    :func:`_as_quaternion` KEEPS its own ``Mat`` refusal: it is still called
+    directly by :func:`quaternion_log`, :func:`quaternion_slerp` and
+    :func:`quaternion_cycle_holonomy`, which do not pass through here, so that
+    guard is live rather than dead.
     """
     if isinstance(v, Mat):
-        return v
+        raise ValueError(f"{op}: q must be a 4-vector; got a Mat {v.shape}")
     try:
         return list(v)
     except TypeError:
         return v
+
+
+def _exact_component(c):
+    """The EXACT-ℚ reading of ONE operand component, or ``None``.
+
+    rc465-fix (`#T1188`) — :func:`~srmech.cascade.matrix_cascades._exact_leaf`
+    plus the ``(num, den)`` PAIR, because the pair is what this surface's own
+    shipped prose, its declared wire type ``HV | Sequence[int | Q]`` and its MCP
+    encoding hint all promise, and it was the one spelling of the three that
+    did not work. Measured before the fix:
+    ``octonion_conjugate([(7, 3), 0, 0, 0, 0, 0, 0, 0])`` raised
+    ``a must be an 8-vector`` — the operand IS an 8-vector; the rejected thing
+    was the component type, so the message named the wrong contract too.
+
+    ``(num, den)`` means a 2-element integer pair everywhere else in this
+    package (:func:`srmech.math.q.to_q`, ``QMat.from_rows``,
+    ``srmech/apokatastasis/modular_forms_ring.py`` spells it out), so this
+    reading is the package's, not a new one. rc463's shared ``_exact_leaf`` is
+    deliberately NOT changed: its contract is the einsum admission gate and a
+    2-tuple there is a SHAPE, not a scalar.
+    """
+    if isinstance(c, (tuple, list)) and len(c) == 2             and isinstance(c[0], int) and not isinstance(c[0], bool)             and isinstance(c[1], int) and not isinstance(c[1], bool)             and c[1] != 0:
+        return Q(int(c[0]), int(c[1]))
+    return _exact_leaf(c)
 
 
 def _exact_quaternion(v):
@@ -304,7 +340,7 @@ def _exact_quaternion(v):
         return None
     out = []
     for c in v:
-        q = _exact_leaf(c)
+        q = _exact_component(c)
         if q is None:
             return None
         out.append(q)
@@ -363,7 +399,7 @@ def _try_native_mult(symbol: str, q: List[float]) -> List[List[float]]:
     return [[float(c_out[i * _DIM + k]) for k in range(_DIM)] for i in range(_DIM)]
 
 
-def quaternion_left_mult(q: Sequence[float]) -> Mat:
+def quaternion_left_mult(q: Sequence[int | Q | Tuple[int, int] | float]) -> Mat | QMat:
     """Left-multiplication matrix ``L_q`` (``x → q·x``) as a ``4×4`` real ``Mat``.
 
     Column ``j`` is ``q * e_j``; ``L_q[k, j] = sum_i q_i C[i][j][k]``. For an
@@ -404,7 +440,7 @@ def quaternion_left_mult(q: Sequence[float]) -> Mat:
     Raises:
         ValueError: if ``q`` is not a 4-vector (on EITHER carrier).
     """
-    q = _operand_leaves(q)
+    q = _operand_leaves(q, "quaternion_left_mult")
     exact = _exact_quaternion(q)
     if exact is not None:
         return QMat.from_rows(_left_mult_matrix(exact))
@@ -418,7 +454,7 @@ def quaternion_left_mult(q: Sequence[float]) -> Mat:
     return Mat.from_rows(rows, is_complex=False)
 
 
-def quaternion_right_mult(q: Sequence[float]) -> Mat:
+def quaternion_right_mult(q: Sequence[int | Q | Tuple[int, int] | float]) -> Mat | QMat:
     """Right-multiplication matrix ``R_q`` (``x → x·q``) as a ``4×4`` real ``Mat``.
 
     Column ``j`` is ``e_j * q``; ``R_q[k, j] = sum_i q_i C[j][i][k]``. Right
@@ -450,7 +486,7 @@ def quaternion_right_mult(q: Sequence[float]) -> Mat:
     Raises:
         ValueError: if ``q`` is not a 4-vector (on EITHER carrier).
     """
-    q = _operand_leaves(q)
+    q = _operand_leaves(q, "quaternion_right_mult")
     exact = _exact_quaternion(q)
     if exact is not None:
         return QMat.from_rows(_right_mult_matrix(exact))
@@ -481,7 +517,7 @@ def _try_native_conjugate(x: List[float]) -> List[float]:
     return [float(c_out[i]) for i in range(_DIM)]
 
 
-def quaternion_conjugate(x: Sequence[float]) -> List[float]:
+def quaternion_conjugate(x: Sequence[int | Q | Tuple[int, int] | float]) -> List[float] | List[Q]:
     """Quaternion conjugate ``conj(x) = (x_0, -x_1, -x_2, -x_3)``.
 
     Flips the sign of the three imaginary axes (the scalar axis is fixed).
@@ -509,7 +545,7 @@ def quaternion_conjugate(x: Sequence[float]) -> List[float]:
     Raises:
         ValueError: if ``x`` is not a 4-vector (on EITHER carrier).
     """
-    x = _operand_leaves(x)
+    x = _operand_leaves(x, "quaternion_conjugate")
     exact = _exact_quaternion(x)
     if exact is not None:
         return list(_cd_conjugate(exact))
@@ -520,7 +556,7 @@ def quaternion_conjugate(x: Sequence[float]) -> List[float]:
     return [x[0]] + [-x[i] for i in range(1, _DIM)]
 
 
-def quaternion_norm(x: Sequence[float]) -> float:
+def quaternion_norm(x: Sequence[int | Q | Tuple[int, int] | float]) -> float | Q:
     """Quaternion norm ``sqrt(sum x_i²)`` (Class K + Class C; never ``abs()``).
 
     The norm form of the composition algebra (``N(x) = x·conj(x)``).
@@ -546,10 +582,14 @@ def quaternion_norm(x: Sequence[float]) -> float:
     square root is not a rational function. An exact operand takes ``Σ xᵢ²``
     through :func:`srmech.cascade.cd_norm_sq` (the C peer
     ``srmech_cd_qnorm_sq``), the Class-K pin-slot magnitude, then the Class-N
-    :func:`srmech.math.rational.sqrt`, and returns a ``Q``: EXACT whenever the
-    root is rational, otherwise **accurate to** the Class-N grid, ``2**-54``
-    relative. A float operand keeps the float route and its terminal float lift,
-    **accurate to round-off**.
+    :func:`srmech.math.rational.sqrt`, and returns a ``Q``: EXACT when the root
+    lands on the Class-N DYADIC grid — an integer root, or one whose reduced
+    denominator is a power of two — and **accurate to** ``2**-54`` relative
+    otherwise. A rational root with an odd denominator does NOT land on the
+    nose (measured: ``sqrt(Q(25, 49))`` is not ``5/7``), so this is a narrower
+    claim than "exact whenever the root is rational", which is what rc465 first
+    shipped here and in the sibling at rung 8. A float operand keeps the float
+    route and its terminal float lift, **accurate to round-off**.
 
     Args:
         x: A 4-vector quaternion; exact (``int`` / ``Q`` / ``(num, den)``) or
@@ -557,12 +597,14 @@ def quaternion_norm(x: Sequence[float]) -> float:
 
     Returns:
         The non-negative Euclidean norm: an exact-ℚ ``Q`` for an exact operand
-        (rational-exact, else at the Class-N grid), a ``float`` for a float one.
+        (exact on the Class-N dyadic grid — an integer root or a power-of-two
+        denominator; otherwise that root to ``2**-54`` relative), a ``float``
+        for a float one.
 
     Raises:
         ValueError: if ``x`` is not a 4-vector (on EITHER carrier).
     """
-    x = _operand_leaves(x)
+    x = _operand_leaves(x, "quaternion_norm")
     exact = _exact_quaternion(x)
     if exact is not None:
         # The SAME cascade as the float route, on the exact carrier: Class-K
@@ -770,7 +812,7 @@ def _try_native_slerp(q0: List[float], q1: List[float], t: float) -> List[float]
     return [float(c_out[i]) for i in range(_DIM)]
 
 
-def quaternion_slerp(q0: Sequence[float], q1: Sequence[float],
+def quaternion_slerp(q0: Sequence[int | Q | Tuple[int, int] | float], q1: Sequence[int | Q | Tuple[int, int] | float],
                      t: float) -> List[float]:
     """Shortest-arc geodesic interpolation on the unit-quaternion S³ —
     ``slerp(q0, q1, t) = q0 · exp(t · log(conj(q0)·q1))``.

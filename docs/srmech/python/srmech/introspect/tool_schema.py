@@ -10939,7 +10939,9 @@ def _register_primitive_class_tools() -> None:
                     "holonomy is the ordered product walked back to base. Where "
                     "the algebra ASSOCIATES (ℝ/ℂ/ℍ) that walk is one value — the "
                     "loop CLOSES regardless of bracketing; past the Hurwitz wall "
-                    "at 𝕆 the two bracketings disagree and THAT is the holonomy. "
+                    "at 𝕆 the two bracketings disagree, and that disagreement is "
+                    "what the triangle carries BESIDE its two transports — a "
+                    "density on the ordered triple, not a third holonomy. "
                     "So it walks both ways: holonomy_left=(x·y)·z, "
                     "holonomy_right=x·(y·z), defect=left−right (= associator(x,y,z)), "
                     "closed=(defect==0). closed is a RUNG property, not a "
@@ -16155,7 +16157,7 @@ def _register_qm_tools() -> None:
             summary="Left-multiplication matrix L_a (x → a·x) as 8×8 real; "
                     "L_{e_i} (i≥1) is antisymmetric ∈ so(8). Class M "
                     "(binding). Baez (2002) §2.3-2.4.",
-            parameters=(P("a", "HV", True, "8-vector octonion"),),
+            parameters=(P("a", "HV | Sequence[int | Q]", True, "8-vector octonion; INTEGER / exact-ℚ entries (int / Q / (num, den)) select the exact-ℚ rung, a float component anywhere the float64 one"),),
             returns=R("Mat | QMat",
                       "8×8 L_a — the OPERAND picks the carrier (rc465): an "
                       "exact 8-vector (int / Q / (num, den)) returns an "
@@ -16169,7 +16171,7 @@ def _register_qm_tools() -> None:
             summary="Right-multiplication matrix R_a (x → x·a) as 8×8 real; "
                     "R_{e_i} (i≥1) is antisymmetric ∈ so(8). Class M "
                     "(binding). Baez (2002) §2.3-2.4.",
-            parameters=(P("a", "HV", True, "8-vector octonion"),),
+            parameters=(P("a", "HV | Sequence[int | Q]", True, "8-vector octonion; INTEGER / exact-ℚ entries (int / Q / (num, den)) select the exact-ℚ rung, a float component anywhere the float64 one"),),
             returns=R("Mat | QMat",
                       "8×8 R_a — the OPERAND picks the carrier (rc465): exact "
                       "in returns an exact-ℚ QMat via "
@@ -16182,7 +16184,7 @@ def _register_qm_tools() -> None:
             summary="Octonion conjugate conj(x) = (x_0, -x_1, …, -x_7); flips "
                     "the imaginary-axis signs. Class C (orientation). "
                     "Baez (2002) §2.1.",
-            parameters=(P("x", "HV", True, "8-vector"),),
+            parameters=(P("x", "HV | Sequence[int | Q]", True, "8-vector; INTEGER / exact-ℚ entries (int / Q / (num, den)) select the exact-ℚ rung, a float component anywhere the float64 one"),),
             returns=R("list[float] | list[Q]",
                       "the 8-vector conjugate — the OPERAND picks the carrier "
                       "(rc465): exact in returns list[Q] via "
@@ -16196,13 +16198,15 @@ def _register_qm_tools() -> None:
             summary="Octonion norm √(Σ x_i²) via the scalar Class K pin-slot "
                     "magnitude (cascade.magnitude) then sqrt — never abs(). "
                     "Class K∘C. Baez (2002) §2.1.",
-            parameters=(P("x", "HV", True, "8-vector"),),
+            parameters=(P("x", "HV | Sequence[int | Q]", True, "8-vector; INTEGER / exact-ℚ entries (int / Q / (num, den)) select the exact-ℚ rung, a float component anywhere the float64 one"),),
             returns=R("float | Q",
                       "≥ 0; Class K+C, never abs(). The OPERAND picks the "
-                      "route (rc465): exact in gives an exact-ℚ Q — exact "
-                      "whenever the root is rational, else accurate to the "
-                      "Class-N 2**-54 grid; a float component anywhere gives "
-                      "the float64 terminal lift."),
+                      "route (rc465): exact in gives an exact-ℚ Q — exact on "
+                      "the Class-N DYADIC grid (integer root, or a power-of-two "
+                      "denominator), else that root to 2**-54 relative; an odd "
+                      "denominator does NOT land on the nose (√(25/49) is not "
+                      "5/7); a float component anywhere gives the float64 "
+                      "terminal lift."),
         ),
         # The rc111 ODFT twiddle family (#1234 Item 1c, re-raise of #863) —
         # the dim-8 mirror of the rc109 qm.quaternion foundation. Same-rc C
@@ -16317,7 +16321,7 @@ def _register_qm_tools() -> None:
                     "basis-column sign structure IS the Klein-4 bridge (row "
                     "index = i⊕j; Q₈/{±1}, F380). Class M (binding). Same-rc "
                     "C peer srmech_quaternion_left_mult.",
-            parameters=(P("q", "HV", True, "4-vector quaternion"),),
+            parameters=(P("q", "HV | Sequence[int | Q]", True, "4-vector quaternion; INTEGER / exact-ℚ entries (int / Q / (num, den)) select the exact-ℚ rung, a float component anywhere the float64 one"),),
             returns=R("Mat | QMat",
                       "4×4 L_q — the OPERAND picks the carrier (rc465): an "
                       "exact 4-vector (int / Q / (num, den)) returns an "
@@ -16333,7 +16337,7 @@ def _register_qm_tools() -> None:
                     "⟹ L_q ≠ R_q — the genuinely distinct left/right QDFT "
                     "forms stand on this). Class M (binding). Same-rc C peer "
                     "srmech_quaternion_right_mult.",
-            parameters=(P("q", "HV", True, "4-vector quaternion"),),
+            parameters=(P("q", "HV | Sequence[int | Q]", True, "4-vector quaternion; INTEGER / exact-ℚ entries (int / Q / (num, den)) select the exact-ℚ rung, a float component anywhere the float64 one"),),
             returns=R("Mat | QMat",
                       "4×4 R_q — the OPERAND picks the carrier (rc465): exact "
                       "in returns an exact-ℚ QMat via "
@@ -16348,7 +16352,7 @@ def _register_qm_tools() -> None:
                     "exp(−μθ) — the inverse-QDFT twiddle). Class C "
                     "(orientation). Same-rc C peer srmech_quaternion_conjugate "
                     "(byte-exact).",
-            parameters=(P("x", "HV", True, "4-vector"),),
+            parameters=(P("x", "HV | Sequence[int | Q]", True, "4-vector; INTEGER / exact-ℚ entries (int / Q / (num, den)) select the exact-ℚ rung, a float component anywhere the float64 one"),),
             returns=R("list[float] | list[Q]",
                       "the 4-vector conjugate — the OPERAND picks the carrier "
                       "(rc465): exact in returns list[Q] via "
@@ -16361,13 +16365,15 @@ def _register_qm_tools() -> None:
             summary="Quaternion norm √(Σ x_i²) via the scalar Class K pin-slot "
                     "magnitude (cascade.magnitude) then sqrt — never abs(). "
                     "Class K∘C.",
-            parameters=(P("x", "HV", True, "4-vector"),),
+            parameters=(P("x", "HV | Sequence[int | Q]", True, "4-vector; INTEGER / exact-ℚ entries (int / Q / (num, den)) select the exact-ℚ rung, a float component anywhere the float64 one"),),
             returns=R("float | Q",
                       "≥ 0; Class K+C, never abs(). The OPERAND picks the "
-                      "route (rc465): exact in gives an exact-ℚ Q — exact "
-                      "whenever the root is rational, else accurate to the "
-                      "Class-N 2**-54 grid; a float component anywhere gives "
-                      "the float64 terminal lift."),
+                      "route (rc465): exact in gives an exact-ℚ Q — exact on "
+                      "the Class-N DYADIC grid (integer root, or a power-of-two "
+                      "denominator), else that root to 2**-54 relative; an odd "
+                      "denominator does NOT land on the nose (√(25/49) is not "
+                      "5/7); a float component anywhere gives the float64 "
+                      "terminal lift."),
         ),
         ToolEntry(
             name="srmech.physics.qm.quaternion.quaternion_exp", owner="srmech",
@@ -16423,8 +16429,8 @@ def _register_qm_tools() -> None:
                     "no abs(), no libm. Same-rc C peer srmech_quaternion_slerp "
                     "(byte-exact).",
             parameters=(
-                P("q0", "HV", True, "start quaternion (typically unit)"),
-                P("q1", "HV", True, "end quaternion (typically unit)"),
+                P("q0", "HV | Sequence[int | Q]", True, "start quaternion (typically unit); exact entries (int / Q / (num, den)) are accepted and FLOATED — slerp is transcendental and returns list[float]"),
+                P("q1", "HV | Sequence[int | Q]", True, "end quaternion (typically unit); exact entries (int / Q / (num, den)) are accepted and FLOATED — slerp is transcendental and returns list[float]"),
                 P("t", "float", True,
                   "interpolation parameter (0→q0, 1→q1); outside [0,1] "
                   "extrapolates along the geodesic"),
@@ -16949,7 +16955,7 @@ def _register_qm_tools() -> None:
                     "distance (Class I frame-transport ∘ Class M companions). "
                     "Raises on a wrong shape or unknown frame. "
                     "Baez (2002) §2.4; Cartan (1925).",
-            parameters=(P("x", "HV", True, "8-vector"),
+            parameters=(P("x", "HV | Sequence[int | Q]", True, "8-vector; INTEGER / exact-ℚ entries (int / Q / (num, den)) select the exact-ℚ rung, a float component anywhere the float64 one"),
                         P("from_frame", "str", True, "source frame label"),
                         P("to_frame", "str", True, "target frame label")),
             returns=R("list[float] | list[Q]",

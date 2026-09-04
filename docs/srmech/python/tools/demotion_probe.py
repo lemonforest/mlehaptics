@@ -56,7 +56,15 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
  1. **Coverage is bounded by argument reach.** An op the probe cannot build a
     binding for is emitted as ``NO_SHAPE`` and counted, never skipped silently.
     That count is the honest statement of the instrument's reach and it is what
-    ``CEIL_DEMOTION_UNREACHED`` ratchets down.
+    ``CEIL_DEMOTION_UNREACHED`` ratchets down —
+    ``tests/test_silent_carrier_demotion_rc463.py``, where that constant is
+    DEFINED and ASSERTED. It was not, through rc465: this sentence named a
+    ratchet that existed nowhere else in the repo, so the instrument's own
+    reach was the one number in this file with no gate under it (rc465-fix,
+    `#T1188`). The larger unreached class is ``RAISED`` — a real refusal by a
+    real op against a synthesised binding — and it is deliberately left
+    unratcheted, because driving it down is a question about
+    :func:`synthesize`, not about the library.
  2. **One parameter at a time.** A demotion that needs two exact operands
     simultaneously is out of reach.
  3. **Bounded leaf positions** (:data:`MAX_LEAVES`). A demotion visible only at
@@ -137,18 +145,35 @@ SQUARE_DIMS = (2, 3, 4, 8, 1)
 #: as well: a cutoff that can be outrun is not a cutoff.
 CALL_TIMEOUT = 20
 
-#: Per-(op, parameter) wall-clock budget, seconds. Once a row has spent this
-#: much, the remaining candidate SHAPES are abandoned and the row is recorded
-#: ``BUDGET_EXHAUSTED`` with the seconds attached — a named residual class, not
-#: a silent skip and not a verdict about the op.
+#: ⚠️ **rc465 (`#T1188`) — the shape budget is a CALL-TIMEOUT rule, not a
+#: cumulative wall clock, because a verdict must be a function of the TREE.**
 #:
-#: The number is a RECORDED DECISION, the discipline ``frame_probe.SLOW_SKIP``
-#: already applies: a bare wall-clock cutoff makes a verdict depend on the
-#: machine, so an op could be adjudicated on a fast runner and unadjudicated on
-#: a slow one, silently changing what the ratchet requires. Here the budget
-#: bounds only how many SHAPES are tried, never whether a reached verdict is
-#: believed — a row that answers on shape 0 is unaffected by it.
-PARAM_BUDGET = 6.0
+#: rc465 shipped this as ``PARAM_BUDGET = 6.0`` seconds of cumulative time per
+#: ``(op, parameter)``: once a row had spent that, the remaining candidate
+#: SHAPES were abandoned and the row was recorded ``BUDGET_EXHAUSTED``. Its own
+#: comment named the hazard it then implemented — *"a bare wall-clock cutoff
+#: makes a verdict depend on the machine, so an op could be adjudicated on a
+#: fast runner and unadjudicated on a slow one"* — and
+#: ``test_layer2_the_committed_census_matches_the_live_one`` asserts the whole
+#: verdict HISTOGRAM, so any such flip is a red CI run on an unchanged tree.
+#:
+#: MEASURED before the change (WSL2 py3.10, native present): every one of the
+#: six ``BUDGET_EXHAUSTED`` rows exhausted after **exactly one candidate shape
+#: and one call**, and that call had itself hit :data:`CALL_TIMEOUT` —
+#: ``alcove_fold.weight`` 20.4s/1 call, ``equal_temperament_partials.degrees``
+#: 59.7s/1 call, the four ``mlse`` params 33.6–58.5s/1 call each. Nothing was
+#: ever abandoned because ORDINARY calls had accumulated; the accumulation
+#: clause only added machine dependence.
+#:
+#: So the rule is now the one the measurement showed was actually operating:
+#: **a call that TIMES OUT abandons the remaining shapes**, recorded as
+#: ``CALL_TIMED_OUT``. The same six rows are recorded, on this cell and on a
+#: slower one, and a row that answers in milliseconds can no longer be retired
+#: by the clock. A timeout still involves a wall clock — :data:`CALL_TIMEOUT`
+#: is unavoidable, or the census hangs (see the weight-lattice CONTRACT_SKIPs)
+#: — but 20s against a typical 5ms call is a ~4000x margin, where 6s of
+#: accumulation was not a margin at all.
+TIMEOUT_MARKER = "TIMEOUT>"
 
 #: Ops skipped by NAME with the reason attached — the same discipline as
 #: ``frame_probe.CONTRACT_SKIP``: a probe must not violate a contract the op
@@ -509,15 +534,16 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
     last_err: Optional[str] = None
     saw_leafless = False
     null_seen: Optional[str] = None
-    started = time.time()
+    timed_out = 0
     for si, raw_shape in enumerate(shapes):
-        if time.time() - started > PARAM_BUDGET:
-            rec["verdict"] = null_seen or "BUDGET_EXHAUSTED"
+        if timed_out:
+            rec["verdict"] = null_seen or "CALL_TIMED_OUT"
             rec["reason"] = (
-                f"{PARAM_BUDGET}s budget spent over {si} candidate shapes; "
-                f"the remaining shapes were not tried"
+                f"a call exceeded {CALL_TIMEOUT}s on candidate shape "
+                f"{timed_out - 1}; the remaining shapes were not tried"
                 if null_seen is None else
-                f"{PARAM_BUDGET}s budget spent; recorded the null already reached")
+                f"a call exceeded {CALL_TIMEOUT}s; recorded the null already "
+                f"reached")
             return rec
         shape, sclean = exactify(raw_shape)
         paths = list(leaf_paths(shape))[:MAX_LEAVES]
@@ -533,6 +559,8 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
                 ok, val = call_bounded(fn, kw)
                 if not ok:
                     failed = val
+                    if isinstance(val, str) and val.startswith(TIMEOUT_MARKER):
+                        timed_out = si + 1
                     break
                 outs[tag] = canon(val)
             if failed is not None:
@@ -558,6 +586,15 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
             rec["shape"] = ("harvested" if raw_shape is base.get(pname)
                             else f"synth[{si}]")
             return rec
+        if timed_out:
+            continue                     # decided at the top of the next pass
+    if timed_out:
+        rec["verdict"] = null_seen or "CALL_TIMED_OUT"
+        rec["reason"] = (
+            f"a call exceeded {CALL_TIMEOUT}s on the last candidate shape"
+            if null_seen is None else
+            f"a call exceeded {CALL_TIMEOUT}s; recorded the null already reached")
+        return rec
     if null_seen is not None:
         rec["verdict"] = null_seen
         rec["reason"] = (

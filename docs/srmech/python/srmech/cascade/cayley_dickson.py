@@ -1445,9 +1445,13 @@ def cd_cycle_holonomy(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
     the algebra is ASSOCIATIVE (ℝ / ℂ / ℍ) that walk is a single well-defined
     value — the loop CLOSES independently of how the three edges are bracketed —
     so the quaternion peer, which lives at ℍ, never has to choose. Past the
-    Hurwitz wall at 𝕆 it does: the two bracketings of the same walk disagree, and
-    that disagreement IS the holonomy the triangle now carries. So this op walks
-    the loop BOTH ways and returns the pair plus their defect::
+    Hurwitz wall at 𝕆 it does: the two bracketings of the same walk disagree,
+    and that disagreement is what the triangle now carries BESIDE its two
+    transports — a CURVATURE-type density on the ordered triple, not a third
+    holonomy (see the ⚠️ NAMING note below; through rc464 this sentence read
+    "that disagreement IS the holonomy the triangle now carries", which is the
+    exact misnaming that note exists to remove). So this op walks the loop BOTH
+    ways and returns the pair plus their defect::
 
         holonomy_left  = (x·y)·z     the left-nested walk around the triangle
         holonomy_right = x·(y·z)     the right-nested walk

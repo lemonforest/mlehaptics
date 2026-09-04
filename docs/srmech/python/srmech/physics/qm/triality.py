@@ -650,7 +650,8 @@ def _cycle_distance(from_canonical: str, to_canonical: str) -> int:
     return _mod_add(dst, 3 - src, 3)
 
 
-def triality_apply(x: Sequence[float], from_frame: str, to_frame: str) -> List[float]:
+def triality_apply(x: Sequence[int | Q | Tuple[int, int] | float], from_frame: str,
+                   to_frame: str) -> List[float] | List[Q]:
     """Carry an 8-vector ``x`` between irrep frames per the cycle distance.
 
     The frame-transport map: the order-3 ``8_v -> 8_s -> 8_c`` cycle acts on
@@ -699,7 +700,7 @@ def triality_apply(x: Sequence[float], from_frame: str, to_frame: str) -> List[f
         ValueError: if ``x`` is not shape ``(8,)`` or a frame is unknown
             (on EITHER carrier).
     """
-    leaves = _operand_leaves(x)
+    leaves = _operand_leaves(x, "triality_apply", "x")
     exact = _exact_octonion(leaves)
     out = exact if exact is not None else [float(v) for v in leaves]
     if len(out) != _DIM:

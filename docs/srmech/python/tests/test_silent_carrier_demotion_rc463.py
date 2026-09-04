@@ -67,8 +67,18 @@ have shipped blind to their own subject (`#T1136`, `#T1138`, `#T1182`, and the
     UNDECLARED over 64 ops**, against the six rows this file carried. Six was
     not a residual, it was a sample, and this bullet is what said so first.
     What remains open is COVERAGE, which the probe states as data rather than
-    silence: 304 ``RAISED`` / 52 ``NO_SHAPE`` rows are bindings it could not
-    build, each emitted with its reason.
+    silence: 305 ``RAISED`` / 52 ``NO_SHAPE`` rows are bindings it could not
+    build, each emitted with its reason. rc465-fix (`#T1188`) puts a ratchet
+    under the second of those two numbers — :data:`CEIL_DEMOTION_UNREACHED` —
+    because ``tools/demotion_probe.py``'s own disclosure named that constant as
+    the thing bounding its reach and **the constant did not exist anywhere in
+    the repo**: a named ratchet with no definition and no assertion, which is
+    the "gate that cannot fail" shape this file exists to remove. The LARGER
+    unreached class is ``RAISED`` (305 of 703, 43%), and it is deliberately NOT
+    ratcheted: a ``RAISED`` row is a real refusal by a real op against a
+    synthesised binding, so driving that number down is a question about the
+    SHAPE SYNTHESISER, not about the tree, and a down-only ceiling on it would
+    ratchet the instrument rather than the library.
  2. **No branch-coverage oracle.** Layer 1 enumerates paths somebody THOUGHT
     OF. ``einsum`` needed six shapes to reach both of its branches and the
     census that found five of them missed the sixth; nothing here proves a
@@ -403,6 +413,17 @@ import demotion_probe as _dp   # tools/ is on sys.path via the header import
 #: change**; nothing may raise it.
 CEIL_UNDECLARED_DEMOTION = 70
 
+#: Down-only. ``NO_SHAPE`` rows — parameters the probe could not build ANY
+#: candidate binding for, so no carrier verdict was ever reachable. This is the
+#: constant ``tools/demotion_probe.py``'s required-disclosure bullet 1 names as
+#: "the honest statement of the instrument's reach ... what
+#: ``CEIL_DEMOTION_UNREACHED`` ratchets down", and through rc465 it existed
+#: ONLY in that sentence: repo-wide grep found exactly one occurrence, the
+#: disclosure itself. Defined and asserted here (rc465-fix, `#T1188`).
+#: Lowering it needs nothing; raising it means the probe reaches LESS than it
+#: did, which is a regression in the instrument and needs saying out loud.
+CEIL_DEMOTION_UNREACHED = 52
+
 #: The ops rc465 FIXED. Strict zero, forever: these carry an exact operand
 #: exactly, so a row for any of them in the undeclared roster is a regression,
 #: not a debt. Named rather than derived from a module prefix, because a module
@@ -523,6 +544,29 @@ def test_layer3_the_undeclared_roster_is_exactly_what_is_committed() -> None:
         f"class ({gone}). Regenerate tests/demotion_census_rc465.ndjson and "
         f"LOWER CEIL_UNDECLARED_DEMOTION to {len(got)} in the SAME change, so "
         f"the drain is recorded rather than absorbed.")
+
+
+def test_layer2_the_unreached_population_is_ratcheted_down_only() -> None:
+    """The probe's REACH, as a ratchet rather than as a sentence.
+
+    ``NO_SHAPE`` is the honest count of parameters the instrument could not
+    address at all. It is bounded here so the population cannot grow while the
+    gate stays green — the failure mode a coverage number carried only in prose
+    has no defence against.
+    """
+    rows = _live_census()
+    unreached = [r for r in rows if r["verdict"] == "NO_SHAPE"]
+    assert len(unreached) <= CEIL_DEMOTION_UNREACHED, (
+        f"{len(unreached)} rows are NO_SHAPE (the probe could build no binding "
+        f"at all), ceiling is {CEIL_DEMOTION_UNREACHED}. This ratchet is "
+        f"DOWN-ONLY: the instrument reaching LESS than it did is a regression "
+        f"in the instrument. Widen `synthesize` rather than the ceiling; each "
+        f"row carries its own `reason`.")
+    if len(unreached) < CEIL_DEMOTION_UNREACHED:
+        pytest.fail(
+            f"GOOD NEWS, ACTION REQUIRED: only {len(unreached)} of "
+            f"{CEIL_DEMOTION_UNREACHED} rows are unreachable. Lower "
+            f"CEIL_DEMOTION_UNREACHED to {len(unreached)} in the SAME change.")
 
 
 def test_layer3_the_undeclared_ceiling_is_down_only() -> None:

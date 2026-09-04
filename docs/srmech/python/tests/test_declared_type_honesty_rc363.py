@@ -258,7 +258,14 @@ def test_every_widened_type_string_has_an_mcp_coercer() -> None:
 
     for type_string in ("QPoly | Poly", "QPoly | QBiPoly",
                         "EllRatio | EllMonomial | Theta",
-                        "float | Q", "number | Q"):
+                        "float | Q", "number | Q",
+                        # rc465-fix (`#T1188`): the ten srmech.physics.qm
+                        # coordinate-vector params. rc465 gave those ops an
+                        # exact-ℚ rung and left the declared type at the
+                        # float-shaped `HV`, which took this file from 0 to 10
+                        # on the WIDE channel. Named here so a revert of the
+                        # widening without its coercer fails with the reason.
+                        "HV | Sequence[int | Q]"):
         assert has_coercer(type_string), (
             f"the rc363 C2 widening {type_string!r} has no entry in "
             f"srmech.mcp._coercion._PARAM_COERCERS")

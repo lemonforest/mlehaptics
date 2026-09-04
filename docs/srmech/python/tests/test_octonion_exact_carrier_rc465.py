@@ -285,6 +285,79 @@ def test_the_norm_radicand_is_the_cd_norm_form(op, dim) -> None:
             < Q(1, 2 ** 50) * radicand * radicand + Q(1, 2 ** 50)
 
 
+def test_the_norm_exactness_claim_is_the_DYADIC_one_not_the_rational_one() -> None:
+    """rc465-fix (`#T1188`). The shipped claim was "EXACT WHENEVER IT IS
+    RATIONAL (a perfect square lands on the nose)" — measured FALSE for 6 of 10
+    rational perfect squares, and nothing in this file drove a ``Q`` with a
+    denominator ``!= 1``, which is why it survived.
+
+    ``rational.sqrt`` roots onto a DYADIC grid, so the root is exact iff its
+    reduced denominator is a power of two. An odd denominator misses, and the
+    sharpest instance is that the norm of a single positive rational component
+    is not that component."""
+    # ON the grid: exact, on the nose.
+    for dim, op in ((8, octonion_norm), (4, quaternion_norm)):
+        for v, want in (([3, 4], Q(5, 1)),
+                        ([Q(3, 2), Q(4, 2)], Q(5, 2)),
+                        ([Q(3, 4), Q(4, 4)], Q(5, 4)),
+                        ([Q(1, 4)], Q(1, 4))):
+            vec = [Q(c, 1) if isinstance(c, int) else c for c in v]
+            vec = vec + [0] * (dim - len(vec))
+            got = op(vec)
+            assert got == want, f"{op.__name__}({v}) = {got}, want {want}"
+    # OFF the grid: NOT on the nose, and inside the declared 2**-54 band.
+    for dim, op in ((8, octonion_norm), (4, quaternion_norm)):
+        v = [Q(3, 7), Q(4, 7)] + [0] * (dim - 2)
+        got = op(v)
+        assert got != Q(5, 7), (
+            f"{op.__name__} landed a 5/7 root on the nose — if the Class-N "
+            f"sqrt grid became rational-exact, say so in the docstring")
+        d = got - Q(5, 7)
+        assert d * d < Q(1, 2 ** 100), f"{op.__name__} outside the declared band"
+    # The one-component identity a caller would most reasonably assume.
+    assert octonion_norm([Q(1, 3)] + [0] * 7) != Q(1, 3)
+    assert octonion_norm([Q(1, 4)] + [0] * 7) == Q(1, 4)
+
+
+def test_the_num_den_pair_spelling_the_docstrings_promise_is_accepted() -> None:
+    """rc465-fix (`#T1188`). Every one of these ops documents its exact operand
+    as ``int`` / ``Q`` / ``(num, den)``, its declared wire type says
+    ``Sequence[int | Q]`` and its MCP hint says ``[num, den]`` — and the literal
+    2-tuple was the one spelling of the three that raised, with a message that
+    named the VECTOR LENGTH rather than the component type."""
+    assert octonion_conjugate([(7, 3)] + [0] * 7)[0] == Q(7, 3)
+    assert quaternion_conjugate([(7, 3), 0, 0, 0])[0] == Q(7, 3)
+    assert triality_apply([(7, 3)] + [0] * 7, "v", "v")[0] == Q(7, 3)
+    assert isinstance(octonion_left_mult([(1, 2)] + [0] * 7), QMat)
+    # A `numerator`/`denominator` object also lands (the rc463 `_exact_leaf`
+    # rule). `fractions` is a BANNED engine in this tree, so the witness is a
+    # minimal stand-in rather than a `Fraction` import.
+
+    class _Ratio:
+        numerator, denominator = 7, 3
+
+    assert octonion_conjugate([_Ratio()] + [0] * 7)[0] == Q(7, 3)
+
+
+def test_a_Mat_operand_is_REFUSED_by_name_on_every_op_including_triality() -> None:
+    """rc465-fix (`#T1188`). The refusal moved into ``_operand_leaves`` so the
+    source reads as a REFUSAL rather than a pass-through admission (which is
+    what ``tests/test_declared_type_honesty_rc363.py`` measured as
+    ``accepts ['Mat']``). ``triality_apply`` never reached ``_as_octonion`` at
+    all, so it escaped as a bare ``TypeError`` against a docstring documenting
+    ``ValueError``."""
+    m8 = Mat.from_rows([[0.0] * 8 for _ in range(8)], is_complex=False)
+    m4 = Mat.from_rows([[0.0] * 4 for _ in range(4)], is_complex=False)
+    for op, m in ((octonion_left_mult, m8), (octonion_right_mult, m8),
+                  (octonion_conjugate, m8), (octonion_norm, m8),
+                  (quaternion_left_mult, m4), (quaternion_right_mult, m4),
+                  (quaternion_conjugate, m4), (quaternion_norm, m4)):
+        with pytest.raises(ValueError, match="got a Mat"):
+            op(m)
+    with pytest.raises(ValueError, match="got a Mat"):
+        triality_apply(m8, "v", "s")
+
+
 # ── (4) triality_apply — its FIRST tests ─────────────────────────────────────
 # Zero tests referenced this op before rc465, in the whole tree. Nothing would
 # have caught a regression in it, which is a fair part of why it demoted for

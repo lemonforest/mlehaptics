@@ -35,7 +35,7 @@ THE REPLACEMENT WITH ACTUAL CONTENT — the index/sign split
 The Cayley-Dickson product FACTORS, and the halves behave completely
 differently. MEASURED over the shipped ``cd_basis_product``::
 
-    dim | index == a XOR b | negative signs (C(d,2)) | SIGN COCYCLE associative
+    dim | index == a XOR b | negative signs (C(d,2)) | SIGN 2-COCHAIN δε = 0
       2 |       4/4        |        1  (1)           |     8/8       100%
       4 |      16/16       |        6  (6)           |    64/64      100%
       8 |      64/64       |       28  (28)          |   344/512      67%
@@ -43,10 +43,14 @@ differently. MEASURED over the shipped ``cd_basis_product``::
      32 |    1024/1024     |      496  (496)         | 16808/32768    51%
 
 The INDEX lane is XOR, exact at every rung with no exceptions. The SIGN is a
-cocycle over it, and the SIGN is what stops being associative — abruptly, at
+2-COCHAIN over it, and the SIGN is what stops being associative — abruptly, at
 dim 8. So **addressing is unbounded because XOR is associative at every dim
-forever; turns and composition break because THE SIGN COCYCLE stops being
-associative.** The wall was never in the addressing, which is also why rc298
+forever; turns and composition break because THE SIGN 2-COCHAIN STOPS SATISFYING
+THE COCYCLE CONDITION.** (δε = 0 IS associativity of the sign lane for this
+object, so ε is a 2-cocycle only on the associative rungs and a 2-cochain in
+general. rc465-fix, `#T1188`: this was the FIFTH copy of the replicated table —
+the rc465 sweep counted four, and the census that missed one was the census in
+the file that gates the claim.) The wall was never in the addressing, which is also why rc298
 (`#T933`) could lift ``CD_MAX_DIM`` 64 -> 256 by DECOUPLING the caps.
 
 *Honest label:* ``index == XOR`` is close to DEFINITIONAL for a Cayley-Dickson
