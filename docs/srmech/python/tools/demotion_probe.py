@@ -1060,10 +1060,18 @@ def merge_cell(path: Optional[Path] = None, *, progress: bool = True
     sigs = dict(prev_sigs)
     sigs[me] = sig
     measured = dict(prev_meta.get("measured_at") or {})
+    # ⚠️ NO WALL CLOCK HERE. `census_seconds` was in this dict until it was
+    # MEASURED: a native re-run on an unchanged tree reproduced all 703 rows
+    # byte-identically and differed in exactly one field, this one (74.2 ->
+    # 66.6). A committed artefact carrying the host's clock can never diff
+    # empty on a no-op re-measurement, which destroys the one signal a
+    # maintainer actually reads off `git diff` — and it is the same
+    # host-dependence this rc removed from the ROWS, left behind in the meta.
+    # The elapsed time is PRINTED below, which is where a human wanting it
+    # looks; nothing reads it back.
     measured[me] = {
         "srmech_version": srmech.__version__,
         "python": f"{sys.version_info.major}.{sys.version_info.minor}",
-        "census_seconds": elapsed,
     }
     cells_present = [c for c in CELLS if any(r.get(c) for r in rows)]
     meta = {

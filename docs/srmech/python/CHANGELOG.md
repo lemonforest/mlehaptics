@@ -422,6 +422,8 @@ Both costs are **linear in the operand's VALUE**, because in both ops the operan
 
 **Rows differing: 0.** The wall clock moved by up to 27% between the two runs and no verdict moved with it, which is the whole claim: at 20 s the cutoff sat inside that spread and adjudicated; at 900 s it does not.
 
+**And the manifest as a FILE is idempotent — which is how one remaining piece of host-dependence was found.** A full native re-measurement into a copy of the committed artefact reproduced all 703 rows **byte-identically** and differed in exactly one field: `meta.measured_at.native.census_seconds`, 74.2 -> 66.6. That is the host's clock, sitting in a committed file. It reads no gate, but it means a re-measurement that changes NOTHING can never diff empty — destroying the one signal a maintainer actually reads off `git diff tests/demotion_census.ndjson` — and it is the same host-dependence this rc removed from the rows, left behind in the meta. **Removed.** The elapsed time is printed by the tool, which is where a human wanting it looks. Re-verified after: `cmp` reports the regenerated manifest **byte-identical** to the committed one.
+
 **MEASURED, the whole manifest.** 703 rows over 427 ops, registry signature `dba6fa94101f`, both columns from one tree:
 
 | cell | census | DEMOTED | undeclared | EXACT | INSENSITIVE | RAISED | NO_SHAPE | CONTRACT_SKIP |
