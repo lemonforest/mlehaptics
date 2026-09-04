@@ -1,4 +1,4 @@
-{"n": 649, "native": true, "python": "3.10", "record": "meta", "verified_at": "b2c484eeff2ffbe1e06aeee0b9651c738c751c8a"}
+{"n": 649, "native": true, "python": "3.10", "record": "meta", "verified_at": "041b3c67fe76b355aa02ffe4fc4f116af5e740bd"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -407,7 +407,7 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.mat_svd", "problems": [], "src_sha256": "3fca92985cc360133120273ec33df6a90ee8d6329c92aed1492b5e5f4a8b02c9", "statements": 11, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.normalized_cut_bisect", "problems": [], "src_sha256": "bd2c6b8fdb02c32ac3ad4f63b18b9a59b926739f365d6ef565125fe3b1e0b4df", "statements": 13, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.normalized_laplacian", "problems": [], "src_sha256": "b5456bad8a92c54651b2ae63e67cce71386f3f0db2020c1f520aa22fcadb0f9d", "statements": 8, "status": "ok"}
-{"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.octonion_laplacian", "problems": [], "src_sha256": "3873cfdc4f0ab323b937b4e8ae243afcf38609589bea774a9e1e21b811074e88", "statements": 22, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.octonion_laplacian", "problems": [], "src_sha256": "2d8c8c513e990475ff058e566b0e1b56dc76c309bcdd39e8e26224d7a66c62b3", "statements": 22, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.order_fingerprint", "problems": [], "src_sha256": "b4a0388c1fa15d0fd9160c2bd0b179a21a09a0339e063273aa1e61565208b4fb", "statements": 14, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.propagate", "problems": [], "src_sha256": "5d9b5bb232835ab825a0a44f93a0c55c0e389780f749ec13c260811974603b0f", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.laplacian.propagate_sparse", "problems": [], "src_sha256": "7e7e8a0ede117a572f05054fd5ff54f033c6ac7f76a57e58aa833450cb0fb02b", "statements": 11, "status": "ok"}

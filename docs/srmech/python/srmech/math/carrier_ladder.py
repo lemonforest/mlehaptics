@@ -294,6 +294,15 @@ def qpoly_project(p: Any) -> Any:
 _MAT = {"ladder": None, "type": "Mat"}
 _FLOAT = {"ladder": None, "type": "float"}
 _SCALARS = {"ladder": None, "type": "scalars"}
+#: rc465 (`#T1188`) — the OPERAND-TYPED pair. The ``qm.octonion`` /
+#: ``qm.quaternion`` L/R binders and norms answer on the carrier their operand
+#: arrived in: an exact 8- or 4-vector returns an exact-ℚ ``QMat`` / ``Q``, a
+#: float one the ``Mat`` / ``float``. A contract naming only the float half
+#: would be FALSE for half the live calls, which is a rung below an
+#: uninformative one — so both are named, float first (the union spelling
+#: precedent already in ``tool_schema``).
+_MAT_OR_QMAT = {"ladder": None, "type": "Mat | QMat"}
+_FLOAT_OR_Q = {"ladder": None, "type": "float | Q"}
 
 
 def _cd(rung: Any) -> Dict[str, Any]:
@@ -318,13 +327,13 @@ _OP_CONTRACTS: Dict[str, Dict[str, Any]] = {
         "consumes": _cd(8), "produces": _cd(8)},
     "octonion_norm": {
         "tool": "srmech.physics.qm.octonion.octonion_norm",
-        "consumes": _cd(8), "produces": _FLOAT},
+        "consumes": _cd(8), "produces": _FLOAT_OR_Q},
     "octonion_left_mult": {
         "tool": "srmech.physics.qm.octonion.octonion_left_mult",
-        "consumes": _cd(8), "produces": _MAT},
+        "consumes": _cd(8), "produces": _MAT_OR_QMAT},
     "octonion_right_mult": {
         "tool": "srmech.physics.qm.octonion.octonion_right_mult",
-        "consumes": _cd(8), "produces": _MAT},
+        "consumes": _cd(8), "produces": _MAT_OR_QMAT},
     "octonion_exp": {
         "tool": "srmech.physics.qm.octonion.octonion_exp",
         "consumes": _SCALARS, "produces": _cd(8)},
@@ -340,13 +349,13 @@ _OP_CONTRACTS: Dict[str, Dict[str, Any]] = {
         "consumes": _cd(4), "produces": _cd(4)},
     "quaternion_norm": {
         "tool": "srmech.physics.qm.quaternion.quaternion_norm",
-        "consumes": _cd(4), "produces": _FLOAT},
+        "consumes": _cd(4), "produces": _FLOAT_OR_Q},
     "quaternion_left_mult": {
         "tool": "srmech.physics.qm.quaternion.quaternion_left_mult",
-        "consumes": _cd(4), "produces": _MAT},
+        "consumes": _cd(4), "produces": _MAT_OR_QMAT},
     "quaternion_right_mult": {
         "tool": "srmech.physics.qm.quaternion.quaternion_right_mult",
-        "consumes": _cd(4), "produces": _MAT},
+        "consumes": _cd(4), "produces": _MAT_OR_QMAT},
     "quaternion_exp": {
         "tool": "srmech.physics.qm.quaternion.quaternion_exp",
         "consumes": _SCALARS, "produces": _cd(4)},

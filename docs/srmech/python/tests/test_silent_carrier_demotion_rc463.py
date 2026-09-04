@@ -9,8 +9,18 @@ THE CLASS PREDICATE, stated once, here, as the gate's own definition:
     a caller could read before calling**, and a carrier that would have computed
     the same quantity exactly already ships.
 
-Five conjuncts: ADMISSION (decided by the SIGNATURE, not by what Python happens
-to accept) ∘ DEMOTION ∘ SILENCE ∘ NO-R3-DECLARATION ∘ EXACT-PEER-SHIPS.
+Five conjuncts: ADMISSION ∘ DEMOTION ∘ SILENCE ∘ NO-R3-DECLARATION ∘
+EXACT-PEER-SHIPS.
+
+⚠️ **ADMISSION used to read "decided by the SIGNATURE, not by what Python
+happens to accept", and that clause was the defect** (rc465, `#T1188`). A
+signature is a DECLARATION; deciding membership by it means an op that declares
+``Sequence[float]`` is outside the class however exact the operand it is
+actually handed — which is precisely rung **R2** of the honesty ladder below,
+the rung this file rates "WEAK … nothing enforces it". Nine ops across
+``qm.octonion`` / ``qm.quaternion`` / ``qm.triality`` rounded an exact ℚ operand
+for 340-odd releases behind that one annotation. ADMISSION is now decided by
+MEASUREMENT: the operand is handed over and the answer is compared.
 
 ⚠️ **WHY THIS SHIPPED FOR 118 RELEASES.** rc344 ran a sibling audit on the SAME
 family and cleared ``einsum`` in as many words: *"it returns a ``Mat``, so it
@@ -49,10 +59,16 @@ that the returned value is not the exact one?
 have shipped blind to their own subject (`#T1136`, `#T1138`, `#T1182`, and the
 ``srmech_svd_f64`` claim gap this rc closes). This one states its blind spots:
 
- 1. **A missing MANIFEST row is invisible.** The gate asserts over the rows it
-    HAS. It has no oracle telling it a row is absent, so every registered tool
-    not enumerated below is outside it, silently. That is the same shape as a
-    checker verifying one side of a relation.
+ 1. ~~**A missing MANIFEST row is invisible.**~~ **CLOSED at rc465 (`#T1188`),
+    and closing it is how the size of the hole became known.** The manifest is
+    now MEASURED by ``tools/demotion_probe.py`` over every sequence-shaped
+    REGISTRY parameter — 703 rows, 427 ops — instead of enumerated by hand. On
+    the rc464 surface it found **127 demoting rows over 101 ops, 77 of them
+    UNDECLARED over 64 ops**, against the six rows this file carried. Six was
+    not a residual, it was a sample, and this bullet is what said so first.
+    What remains open is COVERAGE, which the probe states as data rather than
+    silence: 304 ``RAISED`` / 52 ``NO_SHAPE`` rows are bindings it could not
+    build, each emitted with its reason.
  2. **No branch-coverage oracle.** Layer 1 enumerates paths somebody THOUGHT
     OF. ``einsum`` needed six shapes to reach both of its branches and the
     census that found five of them missed the sixth; nothing here proves a
@@ -65,17 +81,29 @@ have shipped blind to their own subject (`#T1136`, `#T1138`, `#T1182`, and the
     the Python path does not share is invisible here.
  5. **Layer 3's vocabulary is a KEYWORD LIST.** Prose declaring inexactness in
     words outside the list reads as undeclared (a false positive — see
-    ``_declaration_hits``'s one-level delegation follow, which exists because
+    ``declaration_hits``'s one-level delegation follow, which exists because
     ``matrix_cascades.svd`` is documented at its delegate); a keyword in an
     unrelated sentence reads as declared (a false negative). Do NOT "simplify"
     the delegation follow — it was added because running the gate without it
     red-flagged a correctly-documented op.
- 6. **Bit / byte carriers are structurally OUT OF REACH.** 57 ``hdc`` tools and
-    the byte-domain DSP codecs admit no 53-bit-significand witness BY
-    CONSTRUCTION (``bundle(vectors: Sequence[bytes]) -> bytes``;
-    ``rle`` refuses a 54-bit symbol outright). Their absence from the manifest
-    is a DOMAIN fact — but the gate cannot distinguish "no witness
-    constructible" from "nobody wrote one", and it does not pretend to.
+
+    ⚠️ **And through rc464 it resolved that delegate as ``getattr(_la, name)``**
+    — hard-wired to ``srmech.math.laplacian``. So Layer 3 was not merely
+    keyword-limited: it was structurally incapable of reading the contract of
+    any op outside the one module its six hand-rows came from, which is a large
+    part of why the class looked like six. rc465 resolves in ``fn.__globals__``.
+ 6. **Bit / byte carriers are structurally OUT OF REACH** — TRUE of the byte
+    codecs, and **MEASURED FALSE of ``hdc`` at rc465**. ``bundle(vectors:
+    Sequence[bytes]) -> bytes`` genuinely admits no 53-bit-significand witness,
+    and ``rle`` refuses a 54-bit symbol outright. But this bullet generalised
+    that to "57 ``hdc`` tools", and sixteen ``hdc`` rows take FLOAT sequences
+    and round the witness: ``loop_conj``, ``loop_conj_hd``, ``loop_inv``,
+    ``loop_inv_hd``, ``loop_bind``, ``loop_left_op``, ``loop_right_op``,
+    ``loop_associator``, ``cross7``, ``g2_three_form``. Their absence from the
+    rc463 manifest was not a domain fact; it was the same blind spot as
+    bullet 1. The gate could not distinguish "no witness constructible" from
+    "nobody wrote one" — and this bullet is what that inability sounded like
+    when it was written down.
  7. **It cannot see the ``preserves`` field**, because that field is empty
     ``()`` on every op in this family INCLUDING exact ``kron``. A gate leaning
     on it would be vacuous.
@@ -85,8 +113,17 @@ No stdlib ``fractions``.
 """
 
 import inspect
+import sys
+from pathlib import Path
 
 import pytest
+
+# rc465 (`#T1188`): the probe is the SHARED instrument (tools/demotion_probe.py),
+# imported the way tests/test_frame_scope_rc430.py imports tools/frame_probe.py —
+# so this gate and the committed census cannot be separately hand-rolled.
+_TOOLS = Path(__file__).resolve().parents[1] / "tools"
+if str(_TOOLS) not in sys.path:
+    sys.path.insert(0, str(_TOOLS))
 
 from srmech.cascade import composites as _composites
 from srmech.cascade import matrix_cascades as _mc
@@ -297,170 +334,281 @@ def test_layer1_exact_in_exact_out(label, call, want) -> None:
         f"tolerance and do not add the row to CEIL_SILENT_DEMOTION.")
 
 
-# ── LAYER 2 — the down-only CEIL over the pre-existing residual ───────────────
-#: Ops that still route an exact operand through a float carrier. **DOWN ONLY.**
-#: Seeded at the rc463 measured value. Fixing an op must LOWER this number;
-#: nothing may raise it. Every row here is ALSO required to pass Layer 3 — a
-#: demotion that declares nothing is a strict-zero violation, not a legal row.
-#:
-#: rc463: 6. All six are ``srmech.math.laplacian`` carrier / builder ops. The
-#: rc462 census counted TEN; four left the class in this rc — ``einsum`` and
-#: ``separate_frame_curvature`` were FIXED (they now return exact carriers on
-#: exact operands), and ``signal_processing.fir`` / ``matched_filter`` were
-#: **never in it**: re-measured here, both return the exact Python ``int``
-#: ``9007199254740993`` on the census's own witness, so those two rows were a
-#: mis-measurement and are recorded as such rather than quietly dropped.
-CEIL_SILENT_DEMOTION = 6
+# ── LAYERS 2 & 3 — the AUTO-POPULATED census, and the honesty gate over it ────
+# rc465 (`#T1188`) — WHAT CHANGED, AND WHY IT HAD TO.
+#
+# Through rc464 this section was ``_DEMOTION_MANIFEST``: SIX hand-written rows,
+# all six in ``srmech.math.laplacian``, with ``CEIL_SILENT_DEMOTION = 6`` pinned
+# to ``len(_DEMOTION_MANIFEST)`` so the ceiling could not move without a human
+# editing the list. Blind spot 1 above named the hole in as many words — *"a
+# missing MANIFEST row is invisible"* — and the ADMISSION conjunct made it
+# worse than that: membership was decided **by the SIGNATURE**, so an op
+# declaring ``Sequence[float]`` was excluded BY CONSTRUCTION however exact the
+# operand it was actually handed. That is R2 shielding, on the rung this file's
+# own ladder rates "WEAK … nothing enforces it". A type annotation was standing
+# in for an accuracy contract, and the gate was reading the annotation.
+#
+# The population is now MEASURED by ``tools/demotion_probe.py`` over every
+# sequence-shaped REGISTRY parameter — one instrument, two consumers, the
+# ``frame_probe`` discipline. What it found on the rc464 surface:
+#
+#     rows probed                   703   (over 427 ops)
+#     DEMOTED                       127   (over 101 ops)
+#       of which UNDECLARED          77   (over  64 ops)   <- rc463 knew 6
+#
+# Six was not a residual. It was a sample.
+#
+# ⚠️ **THE CEILING BELOW IS NEW DEBT, AND IT IS NOT A RETREAT TO A COUNTER.**
+# rc463's six rows were all DECLARED — they passed Layer 3 — so its strict-zero
+# on undeclared demotion was true of the rows it had. rc465 cannot fix or
+# declare 57 ops in one release, so the residual is bounded two ways at once,
+# and the roster is the stronger of the two:
+#
+#   * ``_undeclared_keys`` is pinned as an EQUALITY against the committed
+#     census. A new undeclared demoter is RED even if another drained in the
+#     same rc, so the ceiling cannot be paid for with unrelated progress —
+#     which is exactly the failure mode a bare count has.
+#   * ``CEIL_UNDECLARED_DEMOTION`` is the visible down-only integer, and it
+#     drains: an rc that fixes an op must LOWER it in the same change.
+#
+# THE DRAIN PATH, PER FAMILY, measured (rows, post-fix):
+#
+#   21  srmech.signal_processing     the DSP float pipeline. Drain = a declared
+#                                    accuracy sentence per op; these are
+#                                    genuinely float-carrier ops and the honest
+#                                    outcome is R3, not an exact route.
+#   17  srmech.math.laplacian        the dense float carrier. Six ops already
+#                                    declare (they are the rc463 manifest); the
+#                                    rest drain the same way, and several have
+#                                    an ``exact=`` peer already shipping.
+#   16  srmech.math.hdc              the loop family. Drain = an R3 sentence
+#                                    naming the exact peers ``cascade.cd_mult``
+#                                    / ``cd_conjugate``, which ship.
+#    9  srmech.cascade               the couple/uncouple + qdft summand family.
+#                                    ``cd_uncouple_working`` already declares;
+#                                    its siblings copy that sentence.
+#    7  the singles (biology.coupling, cascade.coupled, physics.qm.bell,
+#       pseudo_hermitian, quaternion_log, relativistic, single_particle)
+#
+# What rc465 DID drain, by fixing the carrier rather than declaring it: the
+# nine R2-shielded ops of ``qm.octonion`` / ``qm.quaternion`` / ``qm.triality``
+# (77 -> 70 rows, 64 -> 57 ops). They are held at STRICT ZERO below and can
+# never re-enter the roster.
 
-#: (label, callable, exact_oracle, the op object Layer 3 reads)
-_DEMOTION_MANIFEST = [
-    ("laplacian.mat_dot",
-     lambda: _la.mat_dot([3], [3002399751580331]), P, "mat_dot"),
-    ("laplacian.mat_outer",
-     lambda: _first_leaf(_la.mat_outer([3], [3002399751580331])), P, "mat_outer"),
-    ("laplacian.mat_matvec",
-     lambda: _first_leaf(_la.mat_matvec([[3]], [3002399751580331])), P,
-     "mat_matvec"),
-    ("laplacian.dense_adjacency[default float rung]",
-     lambda: _la.dense_adjacency(2, [(0, 1)], [P])[0][1], P, "dense_adjacency"),
-    ("laplacian.dense_laplacian[default float rung]",
-     lambda: _la.dense_laplacian(2, [(0, 1)], [P])[0][0], P, "dense_laplacian"),
-    ("laplacian.signed_laplacian[default float rung]",
-     lambda: _la.signed_laplacian(2, [(0, 1)], [P])[0][0], P, "signed_laplacian"),
-]
+import demotion_probe as _dp   # tools/ is on sys.path via the header import
 
+#: Down-only. The number of (op, parameter) rows that ROUND an exact operand
+#: and publish no R3 accuracy declaration. Seeded at the rc465 post-fix
+#: measurement. **Fixing or declaring an op must LOWER this in the same
+#: change**; nothing may raise it.
+CEIL_UNDECLARED_DEMOTION = 70
 
-def _measured_demoters():
-    """The manifest rows that ACTUALLY demote right now, re-measured."""
-    out = []
-    for label, call, want, opname in _DEMOTION_MANIFEST:
-        assert _discriminating(want), f"Layer-0 rejected the witness for {label}"
-        if not _eq_exact(call(), want):
-            out.append((label, opname))
-    return out
+#: The ops rc465 FIXED. Strict zero, forever: these carry an exact operand
+#: exactly, so a row for any of them in the undeclared roster is a regression,
+#: not a debt. Named rather than derived from a module prefix, because a module
+#: prefix would silently absorb a NEW op of the same family.
+_FIXED_IN_RC465 = frozenset({
+    "srmech.physics.qm.octonion.octonion_left_mult",
+    "srmech.physics.qm.octonion.octonion_right_mult",
+    "srmech.physics.qm.octonion.octonion_conjugate",
+    "srmech.physics.qm.octonion.octonion_norm",
+    "srmech.physics.qm.quaternion.quaternion_left_mult",
+    "srmech.physics.qm.quaternion.quaternion_right_mult",
+    "srmech.physics.qm.quaternion.quaternion_conjugate",
+    "srmech.physics.qm.quaternion.quaternion_norm",
+    "srmech.physics.qm.triality.triality_apply",
+})
 
-
-def test_layer2_demotion_ceiling_is_down_only() -> None:
-    """The residual DRAINS; it never grows.
-
-    This is what lets an rc ship one carrier fix without being blocked by every
-    op that has not been fixed yet — and what stops a new op joining the class
-    unnoticed even if it is honestly documented.
-    """
-    live = _measured_demoters()
-    assert len(live) <= CEIL_SILENT_DEMOTION, (
-        f"{len(live)} silent carrier demotions, ceiling is "
-        f"{CEIL_SILENT_DEMOTION}. New: {[n for n, _ in live]}. This ratchet is "
-        f"DOWN-ONLY — fix the carrier, do not raise the ceiling.")
-    if len(live) < CEIL_SILENT_DEMOTION:
-        pytest.fail(
-            f"GOOD NEWS, ACTION REQUIRED: only {len(live)} of "
-            f"{CEIL_SILENT_DEMOTION} manifest rows still demote "
-            f"({[n for n, _ in live]}). Lower CEIL_SILENT_DEMOTION to "
-            f"{len(live)} in the SAME change, so the drain is recorded.")
-
-
-def test_layer2_the_manifest_is_not_empty() -> None:
-    """A CEIL over an empty manifest would be a green that measures nothing."""
-    assert len(_DEMOTION_MANIFEST) == CEIL_SILENT_DEMOTION
-
-
-# ── LAYER 3 — the HONESTY gate (the clause rc344's audit did not have) ────────
-#: R3 vocabulary. A closed keyword list — see blind spot 5 in the module
-#: docstring. Do NOT simplify it.
-_R3_VOCABULARY = (
-    "ulp", "to round-off", "round-off", "tolerance", "float64", "approximate",
-    "terminal float lift", "accurate to", "~1e-",
+#: The rc463 hand-written six, kept as the probe's POSITIVE CONTROL rather than
+#: as the population. If the instrument cannot re-find the rows a human found by
+#: reading code, it is not measuring — the ``test_layer0`` question asked of the
+#: instrument instead of the witness.
+_RC463_SIX = (
+    ("srmech.math.laplacian.mat_dot", "a"),
+    ("srmech.math.laplacian.mat_outer", "a"),
+    ("srmech.math.laplacian.mat_matvec", "m"),
+    ("srmech.math.laplacian.dense_adjacency", "weights"),
+    ("srmech.math.laplacian.dense_laplacian", "weights"),
+    ("srmech.math.laplacian.signed_laplacian", "weights"),
 )
 
+_LIVE_CACHE = {}
 
-def _declaration_hits(fn):
-    """Every R3 marker reachable from ``fn``'s own contract surface.
 
-    Reads the docstring, the signature (an ``exact=`` opt-in IS an R3
-    declaration), and — one level deep — the docstring of a delegate the body
-    names. ⚠️ **The delegation follow is not optional.**
-    ``matrix_cascades.svd`` reads UNDECLARED at the wrapper while its delegate
-    ``laplacian.mat_svd`` carries a full accuracy contract; without this the
-    gate red-flags a correctly-documented op. Found by running the gate, not by
-    reasoning about it.
+def _live_census():
+    """The live census, run ONCE per session (it is a ~5 minute measurement)."""
+    if "rows" not in _LIVE_CACHE:
+        _LIVE_CACHE["rows"] = _dp.census()
+    return _LIVE_CACHE["rows"]
+
+
+def _key(row):
+    return f"{row['op']}::{row['param']}"
+
+
+def _undeclared_keys(rows):
+    return frozenset(_key(r) for r in _dp.undeclared(rows))
+
+
+def test_layer2_the_committed_census_matches_the_live_one() -> None:
+    """The artefact cannot go stale while the gate stays green.
+
+    This is the lesson rc465's D2 half paid for elsewhere in the same release:
+    ``tools/frame_probe.py`` promised that its gate and its census "cannot
+    drift apart by being separately hand-rolled", and they drifted anyway —
+    by the census simply never being re-run while the ceiling moved nine times.
+    A shared import is not enough; the committed measurement has to be
+    COMPARED.
     """
-    doc = (inspect.getdoc(fn) or "").lower()
-    hits = [d for d in _R3_VOCABULARY if d in doc]
-    try:
-        if "exact" in inspect.signature(fn).parameters:
-            hits.append("exact= opt-in")
-    except (TypeError, ValueError):
-        pass
-    if not hits:
-        code = getattr(fn, "__code__", None)
-        for name in (code.co_names if code is not None else ()):
-            delegate = getattr(_la, name, None)
-            if delegate is None or delegate is fn or not callable(delegate):
-                continue
-            ddoc = (inspect.getdoc(delegate) or "").lower()
-            hits += [f"{d} (via {name})" for d in _R3_VOCABULARY if d in ddoc]
-            if hits:
-                break
-    return hits
+    meta, _ = _dp.load_census()
+    live = _dp.by_verdict(_live_census())
+    assert meta["by_verdict"] == live, (
+        "tests/demotion_census_rc465.ndjson is stale — regenerate with "
+        "`python3 tools/demotion_probe.py` and commit it in the same change.\n"
+        f"  committed: {meta['by_verdict']}\n  live:      {live}")
 
 
-@pytest.mark.parametrize("label,opname",
-                         [(r[0], r[3]) for r in _DEMOTION_MANIFEST],
-                         ids=[r[0] for r in _DEMOTION_MANIFEST])
-def test_layer3_every_demoter_declares_that_it_demotes(label, opname) -> None:
-    """STRICT ZERO. An op that demotes must SAY SO before it is called.
+def test_layer2_the_probe_refinds_the_rc463_hand_written_six() -> None:
+    """POSITIVE CONTROL. An auto-populating instrument that misses what a human
+    already found by reading the code is not an upgrade on the human."""
+    rows = {(_key(r)): r for r in _live_census()}
+    for op, param in _RC463_SIX:
+        r = rows.get(f"{op}::{param}")
+        assert r is not None, f"the probe did not reach {op}.{param} at all"
+        assert r["verdict"] == "DEMOTED", (
+            f"{op}.{param} was a hand-verified rc463 demoter and the probe now "
+            f"reads {r['verdict']} — the ORACLE moved, not the op")
+        assert r.get("declares"), (
+            f"{op}.{param} lost its R3 declaration; rc463 required all six to "
+            f"carry one")
 
-    This is the layer that makes "fixed" and "honestly declared" both acceptable
-    outcomes, and it is precisely the question rc344 did not ask.
+
+def test_layer2_the_population_is_not_a_sample() -> None:
+    """NON-VACUITY, in the direction this gate actually failed in.
+
+    rc463's ceiling was ``len(_DEMOTION_MANIFEST)``, so it was green over
+    whatever list happened to be there. These floors are what stop the
+    replacement quietly shrinking back into a sample.
     """
-    fn = getattr(_la, opname)
-    hits = _declaration_hits(fn)
-    assert hits, (
-        f"{label} routes an exact operand through a float carrier and publishes "
-        f"NO accuracy declaration. A return-TYPE statement ('returns a Mat') is "
-        f"rung R1 and is NOT sufficient — it names the container, not the value. "
-        f"Either fix the carrier or add an R3 declaration (an accuracy phrase, "
-        f"or an exact= opt-in).")
+    rows = _live_census()
+    assert len(rows) >= 600, f"only {len(rows)} rows probed"
+    assert len({r["op"] for r in rows}) >= 400
+    decided = [r for r in rows if r["verdict"] in ("DEMOTED", "EXACT")]
+    assert len(decided) >= 180, (
+        f"only {len(decided)} rows reached a carrier verdict; the probe has "
+        f"narrowed and the roster below is measuring less than it says")
+    assert len(_dp.demoters(rows)) > len(_dp.undeclared(rows)), (
+        "every measured demoter is undeclared — either Layer 3's vocabulary "
+        "stopped matching anything, or the delegate follow broke")
 
 
-def test_layer3_can_return_otherwise() -> None:
-    """NON-VACUITY, executable in CI, with no repo mutation committed.
+def test_layer3_the_undeclared_roster_is_exactly_what_is_committed() -> None:
+    """STRICT IDENTITY over the residual — the half a count cannot do.
 
-    A gate that cannot go red is not a measurement. Rather than describing a
-    mutation, this plants one in-process: a function that demotes exactly as the
-    real ones do, and whose docstring makes only an R1 (return-type) claim.
-    Layer 3 must reject it. If this ever passes, ``_declaration_hits`` has
-    become permissive and the whole layer is decorative.
+    A bare ``<= CEIL`` lets a NEW undeclared demoter in whenever an unrelated
+    one drains in the same change. The roster forbids that: membership is
+    pinned, so an addition is red even at a lower count.
     """
-    def r1_only(a, b):
-        """Returns a float."""            # R1: the container, not the value.
-        return float(a) * float(b)
-
-    def r3_declared(a, b):
-        """Returns a float, accurate to round-off (~1 ULP)."""
-        return float(a) * float(b)
-
-    assert not _eq_exact(r1_only(3, 3002399751580331), P), (
-        "the planted demoter stopped demoting — the mutation is no longer a "
-        "witness and this non-vacuity proof is vacuous")
-    assert _declaration_hits(r1_only) == [], (
-        "Layer 3 accepted an R1-only contract; the ladder has collapsed and "
-        "the gate would now pass the exact defect rc344 shipped")
-    assert _declaration_hits(r3_declared), (
-        "Layer 3 rejected a genuine R3 declaration — it is now a false-positive "
-        "machine, which is how a gate gets narrowed away")
+    _, committed = _dp.load_census()
+    want = _undeclared_keys(committed)
+    got = _undeclared_keys(_live_census())
+    new = sorted(got - want)
+    gone = sorted(want - got)
+    assert not new, (
+        f"{len(new)} NEW undeclared carrier demotion(s): {new}. Fix the carrier "
+        f"(an exact peer ships for most of this surface) or publish an R3 "
+        f"accuracy statement — do not add the row to the census and move on.")
+    assert not gone, (
+        f"GOOD NEWS, ACTION REQUIRED: {len(gone)} row(s) left the undeclared "
+        f"class ({gone}). Regenerate tests/demotion_census_rc465.ndjson and "
+        f"LOWER CEIL_UNDECLARED_DEMOTION to {len(got)} in the SAME change, so "
+        f"the drain is recorded rather than absorbed.")
 
 
-def test_layer3_does_not_false_positive_on_a_delegating_wrapper() -> None:
-    """The delegation follow, pinned. ``matrix_cascades.svd`` is documented at
-    its delegate ``laplacian.mat_svd``; a Layer-3 that did not follow one level
-    would call a correctly-documented op undeclared."""
+def test_layer3_the_undeclared_ceiling_is_down_only() -> None:
+    """The visible ratchet. Down only; a raise is not a legal edit."""
+    live = _dp.undeclared(_live_census())
+    assert len(live) <= CEIL_UNDECLARED_DEMOTION, (
+        f"{len(live)} undeclared carrier demotions, ceiling is "
+        f"{CEIL_UNDECLARED_DEMOTION}. This ratchet is DOWN-ONLY.")
+    if len(live) < CEIL_UNDECLARED_DEMOTION:
+        pytest.fail(
+            f"GOOD NEWS, ACTION REQUIRED: only {len(live)} of "
+            f"{CEIL_UNDECLARED_DEMOTION}. Lower CEIL_UNDECLARED_DEMOTION to "
+            f"{len(live)} in the SAME change.")
+
+
+@pytest.mark.parametrize("op", sorted(_FIXED_IN_RC465))
+def test_layer3_the_rc465_fixed_family_is_strict_zero(op) -> None:
+    """The nine R2-shielded ops rc465 repaired can never re-enter the roster.
+
+    They are not under the ceiling and never will be: each carries an exact
+    operand on an exact carrier end to end, with float as the caller's own
+    explicit request. A row here is a REGRESSION.
+    """
+    bad = [_key(r) for r in _dp.undeclared(_live_census()) if r["op"] == op]
+    assert not bad, (
+        f"{op} is demoting again with no accuracy declaration: {bad}. rc465 "
+        f"gave it an exact carrier; see tests/test_octonion_exact_carrier_rc465.py")
+
+
+def test_layer3_the_probe_can_return_both_verdicts() -> None:
+    """NON-VACUITY of the ORACLE itself, planted in-process, nothing committed.
+
+    An instrument that cannot say DEMOTED is decorative; one that cannot say
+    EXACT flags the whole registry and gets switched off. Both directions are
+    exercised here on functions written for the purpose, so the proof does not
+    depend on any shipped op keeping its current carrier.
+    """
+    def demotes(v):
+        """Returns a float."""                      # R1 only — not a declaration
+        return [float(c) for c in v]
+
+    def stays_exact(v):
+        return [c for c in v]
+
+    def ignores(v):
+        return 7
+
+    d = _dp.probe_param(demotes, {"v": [1, 1]}, "planted.demotes", "v", "list")
+    assert d["verdict"] == "DEMOTED", d
+    assert _dp.declaration_hits(demotes) == [], (
+        "an R1-only contract read as declared; the honesty ladder has collapsed")
+
+    e = _dp.probe_param(stays_exact, {"v": [1, 1]}, "planted.exact", "v", "list")
+    assert e["verdict"] == "EXACT", e
+
+    i = _dp.probe_param(ignores, {"v": [1, 1]}, "planted.ignores", "v", "list")
+    assert i["verdict"] in ("INSENSITIVE", "UNRESOLVED_AT_WITNESS"), i
+
+
+def test_layer3_the_delegate_follow_reaches_outside_laplacian() -> None:
+    """The single change that made Layer 3 addressable at all.
+
+    rc463 resolved a delegate as ``getattr(_la, name)`` — hard-wired to
+    ``srmech.math.laplacian`` — so it could not read the contract of any op
+    outside the module its six hand-rows came from. The probe resolves in
+    ``fn.__globals__``. Both halves are pinned: the historical false-positive
+    it was added for still passes, and an op in another module is now reachable.
+    """
     for fn in (_la.mat_norm, _la.mat_svd, _la.jacobi_eigvals,
                _composites.compensated_sum, _mc.lstsq):
-        assert _declaration_hits(fn), (
+        assert _dp.declaration_hits(fn), (
             f"{fn.__name__} carries a real accuracy contract but Layer 3 read "
             f"it as undeclared")
+
+    def outside(v):
+        """Delegates to a documented helper."""
+        return _documented_helper(v)
+
+    assert _dp.declaration_hits(outside), (
+        "the delegate follow no longer resolves in fn.__globals__, so Layer 3 "
+        "is confined to one module again")
+
+
+def _documented_helper(v):
+    """Returns a float, accurate to round-off (~1 ULP)."""
+    return float(v[0])
 
 
 # ── LAYER 4 — the CLAIM gate ──────────────────────────────────────────────────
@@ -493,6 +641,12 @@ def _numpy_faithfulness_claims():
 # a code span is legitimate. Without it this gate flags the very prose that
 # retires the claim, which is a false positive that would push an author toward
 # deleting the explanation instead of the claim.
+#: rc465: the R3 vocabulary now has ONE definition, in the probe, and Layer 4
+#: reads it from there. It was duplicated here and in the probe for exactly as
+#: long as it took to notice — which is the same defect in miniature as the
+#: manifest this rc replaced.
+_R3_VOCABULARY = _dp.R3_VOCABULARY
+
 _RETRACTION = ("retired", "retracted", "corrected", "no longer", "was false",
                "not bit-identical")
 

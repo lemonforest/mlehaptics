@@ -16123,7 +16123,12 @@ def _register_qm_tools() -> None:
                     "L_{e_i} (i≥1) is antisymmetric ∈ so(8). Class M "
                     "(binding). Baez (2002) §2.3-2.4.",
             parameters=(P("a", "HV", True, "8-vector octonion"),),
-            returns=R("Mat", "8×8 L_a"),
+            returns=R("Mat | QMat",
+                      "8×8 L_a — the OPERAND picks the carrier (rc465): an "
+                      "exact 8-vector (int / Q / (num, den)) returns an "
+                      "exact-ℚ QMat via cascade.left_mult_matrix; one float "
+                      "component anywhere returns the f64 Mat, accurate to "
+                      "round-off. QMat.to_mat() projects on request."),
         ),
         ToolEntry(
             name="srmech.physics.qm.octonion.octonion_right_mult", owner="srmech",
@@ -16132,7 +16137,11 @@ def _register_qm_tools() -> None:
                     "R_{e_i} (i≥1) is antisymmetric ∈ so(8). Class M "
                     "(binding). Baez (2002) §2.3-2.4.",
             parameters=(P("a", "HV", True, "8-vector octonion"),),
-            returns=R("Mat", "8×8 R_a"),
+            returns=R("Mat | QMat",
+                      "8×8 R_a — the OPERAND picks the carrier (rc465): exact "
+                      "in returns an exact-ℚ QMat via "
+                      "cascade.right_mult_matrix; a float component anywhere "
+                      "returns the f64 Mat, accurate to round-off."),
         ),
         ToolEntry(
             name="srmech.physics.qm.octonion.octonion_conjugate", owner="srmech",
@@ -16141,7 +16150,12 @@ def _register_qm_tools() -> None:
                     "the imaginary-axis signs. Class C (orientation). "
                     "Baez (2002) §2.1.",
             parameters=(P("x", "HV", True, "8-vector"),),
-            returns=R("list[float]", "8-vector"),
+            returns=R("list[float] | list[Q]",
+                      "the 8-vector conjugate — the OPERAND picks the carrier "
+                      "(rc465): exact in returns list[Q] via "
+                      "cascade.cd_conjugate (C peer srmech_cd_qconjugate); a "
+                      "float component anywhere returns list[float], accurate "
+                      "to round-off."),
         ),
         ToolEntry(
             name="srmech.physics.qm.octonion.octonion_norm", owner="srmech",
@@ -16150,7 +16164,12 @@ def _register_qm_tools() -> None:
                     "magnitude (cascade.magnitude) then sqrt — never abs(). "
                     "Class K∘C. Baez (2002) §2.1.",
             parameters=(P("x", "HV", True, "8-vector"),),
-            returns=R("float", "≥ 0; Class K+C, never abs()"),
+            returns=R("float | Q",
+                      "≥ 0; Class K+C, never abs(). The OPERAND picks the "
+                      "route (rc465): exact in gives an exact-ℚ Q — exact "
+                      "whenever the root is rational, else accurate to the "
+                      "Class-N 2**-54 grid; a float component anywhere gives "
+                      "the float64 terminal lift."),
         ),
         # The rc111 ODFT twiddle family (#1234 Item 1c, re-raise of #863) —
         # the dim-8 mirror of the rc109 qm.quaternion foundation. Same-rc C
@@ -16266,7 +16285,12 @@ def _register_qm_tools() -> None:
                     "index = i⊕j; Q₈/{±1}, F380). Class M (binding). Same-rc "
                     "C peer srmech_quaternion_left_mult.",
             parameters=(P("q", "HV", True, "4-vector quaternion"),),
-            returns=R("Mat", "4×4 L_q"),
+            returns=R("Mat | QMat",
+                      "4×4 L_q — the OPERAND picks the carrier (rc465): an "
+                      "exact 4-vector (int / Q / (num, den)) returns an "
+                      "exact-ℚ QMat via cascade.left_mult_matrix; one float "
+                      "component anywhere returns the f64 Mat, accurate to "
+                      "round-off. QMat.to_mat() projects on request."),
         ),
         ToolEntry(
             name="srmech.physics.qm.quaternion.quaternion_right_mult", owner="srmech",
@@ -16277,7 +16301,11 @@ def _register_qm_tools() -> None:
                     "forms stand on this). Class M (binding). Same-rc C peer "
                     "srmech_quaternion_right_mult.",
             parameters=(P("q", "HV", True, "4-vector quaternion"),),
-            returns=R("Mat", "4×4 R_q"),
+            returns=R("Mat | QMat",
+                      "4×4 R_q — the OPERAND picks the carrier (rc465): exact "
+                      "in returns an exact-ℚ QMat via "
+                      "cascade.right_mult_matrix; a float component anywhere "
+                      "returns the f64 Mat, accurate to round-off."),
         ),
         ToolEntry(
             name="srmech.physics.qm.quaternion.quaternion_conjugate", owner="srmech",
@@ -16288,7 +16316,11 @@ def _register_qm_tools() -> None:
                     "(orientation). Same-rc C peer srmech_quaternion_conjugate "
                     "(byte-exact).",
             parameters=(P("x", "HV", True, "4-vector"),),
-            returns=R("list[float]", "4-vector"),
+            returns=R("list[float] | list[Q]",
+                      "the 4-vector conjugate — the OPERAND picks the carrier "
+                      "(rc465): exact in returns list[Q] via "
+                      "cascade.cd_conjugate; a float component anywhere "
+                      "returns list[float], accurate to round-off."),
         ),
         ToolEntry(
             name="srmech.physics.qm.quaternion.quaternion_norm", owner="srmech",
@@ -16297,7 +16329,12 @@ def _register_qm_tools() -> None:
                     "magnitude (cascade.magnitude) then sqrt — never abs(). "
                     "Class K∘C.",
             parameters=(P("x", "HV", True, "4-vector"),),
-            returns=R("float", "≥ 0; Class K+C, never abs()"),
+            returns=R("float | Q",
+                      "≥ 0; Class K+C, never abs(). The OPERAND picks the "
+                      "route (rc465): exact in gives an exact-ℚ Q — exact "
+                      "whenever the root is rational, else accurate to the "
+                      "Class-N 2**-54 grid; a float component anywhere gives "
+                      "the float64 terminal lift."),
         ),
         ToolEntry(
             name="srmech.physics.qm.quaternion.quaternion_exp", owner="srmech",
@@ -16882,7 +16919,12 @@ def _register_qm_tools() -> None:
             parameters=(P("x", "HV", True, "8-vector"),
                         P("from_frame", "str", True, "source frame label"),
                         P("to_frame", "str", True, "target frame label")),
-            returns=R("list[float]", "8-vector in to_frame"),
+            returns=R("list[float] | list[Q]",
+                      "the 8-vector in to_frame — the OPERAND picks the "
+                      "carrier (rc465): the transport is Class-C sign flips "
+                      "and NO arithmetic, so an exact 8-vector is carried "
+                      "exactly as list[Q]; a float component anywhere returns "
+                      "list[float], accurate to round-off."),
         ),
         ToolEntry(
             name="srmech.physics.qm.triality.triality_companions", owner="srmech",

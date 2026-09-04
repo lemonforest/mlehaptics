@@ -82,7 +82,18 @@ import functools
 from typing import List, Sequence, Tuple
 
 from srmech import _native
+from srmech.cascade import cd_conjugate as _cd_conjugate
+from srmech.cascade import cd_norm_sq as _cd_norm_sq
+from srmech.cascade import left_mult_matrix as _left_mult_matrix
 from srmech.cascade import magnitude as _magnitude
+from srmech.cascade import right_mult_matrix as _right_mult_matrix
+# rc465 (`#T1188`): the exact-operand ADMISSION predicate is IMPORTED from its
+# single definition (rc463 wrote it for einsum). Only the dim-4 ARITY wrapper is
+# local — the same shape `qm.octonion` carries at dim 8. Sharing the judgement
+# and keeping the arity local is deliberate: this module must not acquire a
+# dependency on the rung ABOVE it just to read its own operand.
+from srmech.cascade.matrix_cascades import _exact_leaf
+from srmech.math.qmat import QMat  # rc465: the exact-ℚ 4×4 L_q / R_q carrier
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat
 from srmech.math.rational import atan as _ratan
@@ -260,6 +271,46 @@ def _as_quaternion(v: Sequence[float], op: str) -> List[float]:
     return out
 
 
+def _operand_leaves(v):
+    """Materialise a 1-D operand ONCE so the exactness read cannot consume it.
+
+    A ``Mat`` is passed through untouched — :func:`_as_quaternion` owns that
+    rejection and its message — as is anything not iterable, so the single
+    error path stays single.
+    """
+    if isinstance(v, Mat):
+        return v
+    try:
+        return list(v)
+    except TypeError:
+        return v
+
+
+def _exact_quaternion(v):
+    """The EXACT-ℚ reading of a 4-vector operand, or ``None``.
+
+    rc465 (`#T1188`) — the dim-4 peer of
+    :func:`srmech.physics.qm.octonion._exact_octonion`: a **whole-operand**
+    admission gate over the imported rc463 scalar predicate
+    :func:`~srmech.cascade.matrix_cascades._exact_leaf`. ONE float component
+    anywhere sends the entire call down the float route, because mixing
+    carriers mid-computation is the defect rather than the cure.
+
+    The LENGTH check is deliberately absent — a wrong-length operand returns
+    ``None`` and falls through to :func:`_as_quaternion`, which raises the
+    documented ``ValueError``, so the arity contract is CARRIER-INDEPENDENT.
+    """
+    if not isinstance(v, list) or len(v) != _DIM:
+        return None
+    out = []
+    for c in v:
+        q = _exact_leaf(c)
+        if q is None:
+            return None
+        out.append(q)
+    return out
+
+
 def _resolve_mu4(mu, op: str) -> List[float]:
     """Resolve ``mu`` to a UNIT pure-imaginary 4-vector ``μ̂`` (``μ̂[0] == 0``,
     ``‖μ̂‖ = 1`` ⟹ ``μ̂² = −1``) — resolved exactly ONCE per public call so the
@@ -323,18 +374,40 @@ def quaternion_left_mult(q: Sequence[float]) -> Mat:
     basis columns is the F380 bridge: the unique nonzero of column ``j`` in
     ``L_{e_i}`` sits at row ``i ⊕ j`` (``Q₈/{±1}`` = the Klein-4 XOR table).
 
-    Class M (Clifford / HDC binding). Dispatches to the same-rc C peer
-    ``srmech_quaternion_left_mult`` (byte-exact table fallback otherwise).
+    Class M (Clifford / HDC binding).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc465, `#T1188`) — the same
+    rule :func:`srmech.physics.qm.octonion.octonion_left_mult` carries at rung 8,
+    and this op had the identical defect: ``_as_quaternion`` coerced with
+    ``[float(c) for c in v]`` at the entry, so
+    ``quaternion_left_mult([2**53+1, 0, 0, 0])[0, 0]`` returned
+    ``9007199254740992.0``. An exact operand (``int`` / ``Q`` /
+    ``(num, den)``) now returns an exact-ℚ ``QMat`` through
+    :func:`srmech.cascade.left_mult_matrix`; one float component anywhere routes
+    the whole call to the C peer below; ``QMat.to_mat()`` projects on demand.
+    Measured equal on both routes over the 4 basis vectors and 12 random integer
+    4-vectors.
+
+    The FLOAT route dispatches to the same-rc C peer
+    ``srmech_quaternion_left_mult`` (byte-exact table fallback otherwise) and is
+    **accurate to round-off** — every component is truncated to a 53-bit
+    significand on entry.
 
     Args:
-        q: A 4-vector quaternion (real components ``(q_0, q_1, q_2, q_3)``).
+        q: A 4-vector quaternion (components ``(q_0, q_1, q_2, q_3)``); exact
+            (``int`` / ``Q`` / ``(num, den)``) or ``float``.
 
     Returns:
-        ``4×4`` real ``Mat`` ``L_q``.
+        ``4×4`` exact-ℚ ``QMat`` ``L_q`` for an exact operand; ``4×4`` real
+        ``Mat`` for a float one.
 
     Raises:
-        ValueError: if ``q`` is not a 4-vector.
+        ValueError: if ``q`` is not a 4-vector (on EITHER carrier).
     """
+    q = _operand_leaves(q)
+    exact = _exact_quaternion(q)
+    if exact is not None:
+        return QMat.from_rows(_left_mult_matrix(exact))
     q = _as_quaternion(q, "quaternion_left_mult")
     native = _try_native_mult("srmech_quaternion_left_mult", q)
     if native is not None:
@@ -353,18 +426,34 @@ def quaternion_right_mult(q: Sequence[float]) -> Mat:
     non-commutative, so ``L_q ≠ R_q`` for a generic ``q``; the genuinely
     distinct left/right QDFT forms stand on exactly this).
 
-    Class M (Clifford / HDC binding). Dispatches to the same-rc C peer
-    ``srmech_quaternion_right_mult`` (byte-exact table fallback otherwise).
+    Class M (Clifford / HDC binding).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc465, `#T1188`) — the
+    :func:`quaternion_left_mult` rule verbatim. An exact operand returns an
+    exact-ℚ ``QMat`` via :func:`srmech.cascade.right_mult_matrix`; one float
+    component anywhere routes the whole call to the C peer below;
+    ``QMat.to_mat()`` projects on demand.
+
+    The FLOAT route dispatches to the same-rc C peer
+    ``srmech_quaternion_right_mult`` (byte-exact table fallback otherwise) and
+    is **accurate to round-off** — every component is truncated to a 53-bit
+    significand on entry.
 
     Args:
-        q: A 4-vector quaternion.
+        q: A 4-vector quaternion; exact (``int`` / ``Q`` / ``(num, den)``) or
+            ``float``.
 
     Returns:
-        ``4×4`` real ``Mat`` ``R_q``.
+        ``4×4`` exact-ℚ ``QMat`` ``R_q`` for an exact operand; ``4×4`` real
+        ``Mat`` for a float one.
 
     Raises:
-        ValueError: if ``q`` is not a 4-vector.
+        ValueError: if ``q`` is not a 4-vector (on EITHER carrier).
     """
+    q = _operand_leaves(q)
+    exact = _exact_quaternion(q)
+    if exact is not None:
+        return QMat.from_rows(_right_mult_matrix(exact))
     q = _as_quaternion(q, "quaternion_right_mult")
     native = _try_native_mult("srmech_quaternion_right_mult", q)
     if native is not None:
@@ -402,15 +491,28 @@ def quaternion_conjugate(x: Sequence[float]) -> List[float]:
     Dispatches to the same-rc C peer ``srmech_quaternion_conjugate`` (byte-exact
     pure fallback otherwise).
 
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc465, `#T1188`). An exact
+    operand returns ``list[Q]`` through :func:`srmech.cascade.cd_conjugate` (the
+    exact-ℚ C peer ``srmech_cd_qconjugate``); a float operand keeps the C peer
+    below and is **accurate to round-off**. Through rc464 this sign flip — an
+    op that performs no arithmetic at all — returned ``9007199254740992.0`` for
+    ``[2**53+1, 0, 0, 0]``.
+
     Args:
-        x: A 4-vector quaternion.
+        x: A 4-vector quaternion; exact (``int`` / ``Q`` / ``(num, den)``) or
+            ``float``.
 
     Returns:
-        The 4-vector conjugate as a ``list[float]``.
+        The 4-vector conjugate: ``list[Q]`` for an exact operand,
+        ``list[float]`` for a float one.
 
     Raises:
-        ValueError: if ``x`` is not a 4-vector.
+        ValueError: if ``x`` is not a 4-vector (on EITHER carrier).
     """
+    x = _operand_leaves(x)
+    exact = _exact_quaternion(x)
+    if exact is not None:
+        return list(_cd_conjugate(exact))
     x = _as_quaternion(x, "quaternion_conjugate")
     native = _try_native_conjugate(x)
     if native is not None:
@@ -439,15 +541,34 @@ def quaternion_norm(x: Sequence[float]) -> float:
     :func:`srmech.math.rational.sqrt`. Mirrors
     :func:`srmech.physics.qm.octonion.octonion_norm` at dim 4.
 
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc465, `#T1188`) — and as at
+    rung 8, this op is an exact ROUTE rather than an exact CARRIER, because a
+    square root is not a rational function. An exact operand takes ``Σ xᵢ²``
+    through :func:`srmech.cascade.cd_norm_sq` (the C peer
+    ``srmech_cd_qnorm_sq``), the Class-K pin-slot magnitude, then the Class-N
+    :func:`srmech.math.rational.sqrt`, and returns a ``Q``: EXACT whenever the
+    root is rational, otherwise **accurate to** the Class-N grid, ``2**-54``
+    relative. A float operand keeps the float route and its terminal float lift,
+    **accurate to round-off**.
+
     Args:
-        x: A 4-vector quaternion.
+        x: A 4-vector quaternion; exact (``int`` / ``Q`` / ``(num, den)``) or
+            ``float``.
 
     Returns:
-        The non-negative Euclidean norm.
+        The non-negative Euclidean norm: an exact-ℚ ``Q`` for an exact operand
+        (rational-exact, else at the Class-N grid), a ``float`` for a float one.
 
     Raises:
-        ValueError: if ``x`` is not a 4-vector.
+        ValueError: if ``x`` is not a 4-vector (on EITHER carrier).
     """
+    x = _operand_leaves(x)
+    exact = _exact_quaternion(x)
+    if exact is not None:
+        # The SAME cascade as the float route, on the exact carrier: Class-K
+        # pin-slot (magnitude is type-preserving over Q since rc362) then the
+        # Class-N root. Never abs().
+        return _rsqrt(_magnitude(_cd_norm_sq(exact)))
     x = _as_quaternion(x, "quaternion_norm")
     sum_sq = sum(xi * xi for xi in x)
     return float(_rsqrt(_magnitude(sum_sq)))

@@ -19,9 +19,9 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
-## [0.9.0rc465] - a gate whose loop body never ran, and a down-only ceiling that had gone up nine times because it was measuring the harvest instead of the op
+## [0.9.0rc465] - a gate whose loop body never ran, a down-only ceiling that had gone up nine times because it was measuring the harvest instead of the op, and nine ops that rounded an exact operand behind a type annotation while a gate for exactly that read the annotation
 
-**What this rc is for (stage 1 of 3).** Two instruments in this tree were reporting on themselves and getting it wrong. The first — written in rc464, last week — asserts that `CDRegister` is the preferred register shape, and **its entire loop body never executed**, so both of its assertions were unreachable in both directions. The second is the frame ratchet's `NO_INT_INPUT` ceiling, which moved **nine times in twenty-one days and never once down** — 152 → 153 → 154 → 160 → 163 → 170 → 171 → 172 → 182 → 184 — with a measured per-op justification behind every raise. Both justifications were honest and both were about the wrong object. Registry stays **733**; ABI stays **25**; carriers stay **28**; the `[class]` catalog stays at **4**.
+**What this rc is for.** Two instruments in this tree were reporting on themselves and getting it wrong. The first — written in rc464, last week — asserts that `CDRegister` is the preferred register shape, and **its entire loop body never executed**, so both of its assertions were unreachable in both directions. The second is the frame ratchet's `NO_INT_INPUT` ceiling, which moved **nine times in twenty-one days and never once down** — 152 → 153 → 154 → 160 → 163 → 170 → 171 → 172 → 182 → 184 — with a measured per-op justification behind every raise. Both justifications were honest and both were about the wrong object. The third is rc463's silent-carrier-demotion gate, whose ADMISSION conjunct was decided by the SIGNATURE — so nine ops that round an exact ℚ operand were outside it **by construction**, shielded by the `Sequence[float]` annotation that gate's own honesty ladder rates "WEAK, nothing enforces it". Its six hand-written rows turn out to have been a sample of **101 demoting ops**. Registry stays **733**; ABI stays **25**; carriers stay **28**; the `[class]` catalog stays at **4**.
 
 ### 1. The preferred-register gate could not fail, and the second reason is worse than the first
 
@@ -108,6 +108,84 @@ Ops actually DRIVEN: **158 → 218**, and the floor rises 130 → 218 with it. A
 
 **A fourth blind spot ships as data.** `describe()["frames"]["cannot_express"]` gains `operand_not_translatable`: an operand whose integers live inside a MAPPING — a character table, a rep payload, a codebook, a slot map — carries no coordinate at any nesting depth. That is what the removed count was mostly counting, and it is now an instrument limitation stated as data rather than a number that could only go up.
 
+
+### 4. Nine ops rounded an exact operand for 340-odd releases, shielded by a type annotation
+
+`srmech.physics.qm.octonion`'s `octonion_left_mult` / `octonion_right_mult` / `octonion_conjugate` / `octonion_norm`, `qm.triality.triality_apply`, and the identical four one rung down in `qm.quaternion` all opened with `[float(c) for c in v]` **at the entry, before any arithmetic**, and returned the rounded value with no exception, no warning, no status and no accuracy statement — while a carrier computing the same object exactly ships one import away. Measured on the rc464 tree with `x = [2**53+1, 0, …]`, and again with the audit's own `2**59+24` witness (float64's spacing at `2**59` is 64, so it lands 24 low on every one of the nine):
+
+| op | rc464 returned | exact |
+|---|---|---|
+| `octonion_left_mult(x)[0, 0]` | `9007199254740992.0` | `9007199254740993` |
+| `octonion_right_mult(x)[0, 0]` | `9007199254740992.0` | `9007199254740993` |
+| `octonion_conjugate(x)[0]` | `9007199254740992.0` | `9007199254740993` |
+| `octonion_norm(x)` | `9007199254740992.0` | `9007199254740993` |
+| `triality_apply(x, 'v', 'v')[0]` | `9007199254740992.0` | `9007199254740993` |
+
+`octonion_conjugate` is the sharpest of them: **the op performs no arithmetic at all** — it negates seven components — and changed the value it was handed. That is rc463's `einsum("ij->ji")` witness in a different module, and it is the cleanest available demonstration that the defect is the CARRIER, not the algorithm. `triality_apply` is the second sharpest: the failing call above is the IDENTITY transport, zero steps, zero operations.
+
+**Why rc463's gate could not see any of it: R2 shielding.** That gate states five conjuncts, and its ADMISSION conjunct read *"decided by the SIGNATURE, not by what Python happens to accept"*. All nine ops declare `Sequence[float]`, so they were outside the class **by construction**, however exact the operand actually handed over — and rc463's own honesty ladder rates a float parameter ANNOTATION at rung **R2, "WEAK … nothing enforces it"**. A type annotation was standing in for an accuracy contract and the gate was reading the annotation. ADMISSION is now decided by MEASUREMENT.
+
+**The fix is operand-typed dispatch, and there is no new keyword.** rc463 established that `exact=` already means two different things in this package (an exact CARRIER vs an exact ROUTE with a declared float lift); a third sense on a third surface is not a fix. So the rule is `einsum`'s and `kron`'s, verbatim: every component exact (`int` / `Q` / a `(num, den)` pair) rides the exact carrier; **one** float component anywhere sends the whole call down the f64 route; `QMat.to_mat()` is the projection on request. The admission predicate is *imported* from its single definition (`matrix_cascades._exact_leaf`) rather than re-derived — a second hand-rolled copy of a load-bearing type test is how two surfaces come to disagree about what "exact" means.
+
+| op | exact route | float route (unchanged) |
+|---|---|---|
+| `octonion_left_mult` / `right_mult` | `QMat` via `cascade.left_mult_matrix` (C-composed `srmech_cd_mult` / `srmech_cd_qbasis`) | `Mat` via `srmech_loop_{left,right}_op_f64` |
+| `octonion_conjugate` | `list[Q]` via `cascade.cd_conjugate` (`srmech_cd_qconjugate`) | `list[float]` |
+| `octonion_norm` | `Q` — `cascade.cd_norm_sq` (`srmech_cd_qnorm_sq`) ∘ Class-K pin-slot ∘ Class-N `rational.sqrt` | `float` terminal lift |
+| `triality_apply` | `list[Q]` (pure Class-C sign flips; zero arithmetic, zero cost) | `list[float]` |
+| the quaternion four | the same four at rung 4 | `srmech_quaternion_*` |
+
+`*_norm` is the one op where rc463's two senses of "exact" actually bite, and it is stated rather than smoothed over: the radicand is exact, and the Class-N root is exact whenever the root is rational, otherwise carrying a **declared `2**-54` relative bound**. That is an exact ROUTE, its docstring says so in the R3 vocabulary, and trading a silent demotion for a quieter one would have been the easy version of this change.
+
+**The convention differential had never been executed.** `octonion_left_mult`'s docstring has asserted since rc122 that its table is the same Cayley–Dickson-from-ℍ convention as the per-basis binds — prose, unmeasured, and the moment the exact route goes through `cascade.left_mult_matrix` it becomes load-bearing. Driven at both rungs over the basis vectors plus 12 random integer vectors: **0 mismatches at dim 8 and dim 4**, on both left and right. No `table=` argument was needed; the claim was true and is now measured.
+
+**Callers rewritten in the same change, no shims.** `so9._lmat` built an INTEGER basis vector and then did `[[int(round(x)) for x in row] for row in octonion_left_mult(e_i).tolist()]` — with an exact carrier that `.tolist()` raises, and the `round()` had already become a lie about where the integers came from (they are integers, exactly). It reads `.to_lists()` and `int(q)`. `so8._derivation` / `_build_so8_adjoint` are untouched and stay on the float route: their `_eye(8)` yields `1.0`/`0.0`, which is exactly what whole-operand admission is for. Two fixtures that fed integer vectors now make the float request **explicitly** (`test_octonion_frame_read_rc384.py`'s `_unit8` / `_unit4`, and `octonion_laplacian`'s worked snippet — caught by re-running the worked-example ledger, which is the only thing that would have caught it).
+
+**Nine ops, 54 new tests** (`tests/test_octonion_exact_carrier_rc465.py`), including `triality_apply`'s **first tests in the tree** — it had none, anywhere, which is a fair part of why it demoted unnoticed for 340 releases. One measured observation ships with them and is pinned rather than adjudicated: the `v → s → c → v` round trip applies three conjugations, and `conj² = id`, so it returns `conj(x)` and **not** `x`. That is what the code does; whether the `8_v → 8_s → 8_c` transport *should* is an algebra question outside this rc's carrier scope, and the op's own docstring already hedges it.
+
+`describe()["tools"]["total"]` stays **733** — no op added or removed. `SRMECH_ABI_VERSION` stays **25**: no C symbol is added, removed or re-signatured, the exact route composes kernels exported since rc159/rc160, and `srmech_loop_{left,right}_op_f64` stay exactly where they are (still the float route, still claimed by `hdc.loop_left_op` / `loop_right_op`, still consumed inside the C tree). `_c_claims.py` regenerates **unchanged**, which is the honest outcome: the bytecode walk follows same-module helpers and `*_c` shims, and a composition over `cascade.cd_conjugate` is invisible to it. The Rosetta bucket `composition_of_c` was already on these rows and only now becomes TRUE for `conjugate` / `norm` / `triality_apply`, which composed nothing C before.
+
+### 5. The detector that could not see them, and the population it found
+
+rc463's manifest was **six hand-written rows in one test file**, all six in `srmech.math.laplacian`, with `CEIL_SILENT_DEMOTION` pinned to `len(_DEMOTION_MANIFEST)` so it could not move without a human editing the list. Its own module docstring named the hole — *"a missing MANIFEST row is invisible … it has no oracle telling it a row is absent"* — and its Layer 3 resolved delegates as `getattr(_la, name)`, hard-wired to one module, so it was **structurally incapable of reading the contract of any op outside the module its six rows came from**.
+
+`tools/demotion_probe.py` replaces it: one instrument, two consumers, the `frame_probe` pattern. It enumerates every **sequence-shaped REGISTRY parameter** (the registry, never the signature — the signature is what did the shielding), builds a binding from the harvested ledger / `smoke_test_hint` / int-filled synthesised shapes, and decides by a **differential oracle** that needs no per-op exact value, which is what makes it auto-populating:
+
+    P = 2**53 + 1   F = 2**53   G = 2**53 + 2
+    out(P) == out(F)  and  out(G) != out(F)   ->  DEMOTED
+    out(P) != out(F)                          ->  EXACT
+    all three equal                           ->  a classified NULL
+
+**What it found, before any fix — the number the plan did not expect:**
+
+| | rc463 knew | rc465 measured |
+|---|---|---|
+| rows probed | — | **703** over 427 ops |
+| DEMOTED | 6 | **127** over 101 ops |
+| of which UNDECLARED | 0 | **77** over **64 ops** |
+
+Six was not a residual. It was a sample. The undeclared 77 sat in `signal_processing` (21), `math.laplacian` (17), `math.hdc` (16), `cascade` (9), `physics.qm` (7) and seven singletons.
+
+**The residual is bounded two ways, and the roster is the stronger one.** rc465 cannot fix or declare 57 ops in one release, so `CEIL_UNDECLARED_DEMOTION = 70` is new debt and is labelled as such — but a bare count lets a NEW demoter in whenever an unrelated one drains, so the *identity* of every undeclared row is pinned as an equality against the committed census. An addition is red at a lower count. The drain path is named per family in the gate itself (an R3 accuracy sentence for the genuinely-float DSP and dense-carrier ops; the shipping `cascade.cd_*` exact peers for `hdc` and `cascade`), and the nine ops this rc fixed are held at **strict zero**, outside the ceiling, forever.
+
+**Corrections the measurement forced on rc463's own disclosure.** Blind spot 6 asserted that the `hdc` family "admits no 53-bit-significand witness BY CONSTRUCTION". Measured false: sixteen `hdc` rows take float sequences and round the witness (`loop_conj`, `loop_conj_hd`, `loop_inv`, `loop_inv_hd`, `loop_bind`, `loop_left_op`, `loop_right_op`, `loop_associator`, `cross7`, `g2_three_form`). Their absence from the manifest was not a domain fact; it was blind spot 1 wearing a domain fact's clothes. The R3 vocabulary also had two copies — in the gate and in the probe — which is the same defect in miniature as the manifest, and now has one.
+
+**Every null is classified, and one of them had to be split.** `INSENSITIVE` claims the leaf never reached the output. `octonion_norm` answered identically for P, F **and** G — not because the leaf is unread but because a truncated Class-N `sqrt` is coarser than one float64 step at `2**53` — so a two-way verdict would have filed a real demoter under a false statement. One extra coarse call splits it into `UNRESOLVED_AT_WITNESS`. Coverage is data too: `RAISED` (304) and `NO_SHAPE` (52) are bindings the probe could not build, each emitted with its reason, never silently skipped.
+
+**Six mutations, each red at the named assertion, negative control green:**
+
+| planted | expected | got |
+|---|---|---|
+| a FIXED op demotes again, undeclared | strict-zero on the nine | **RED** *"octonion_conjugate is demoting again with no accuracy declaration"* |
+| a NEW undeclared demoter (`kron`) | roster identity **and** ceiling | **RED** ×2 (*"1 NEW undeclared carrier demotion(s)"*; *"71 … ceiling is 70"*) |
+| a row silently leaves the class | census currency **and** drain branch | **RED** *"GOOD NEWS, ACTION REQUIRED: 1 row(s) left … lower to 69"* |
+| the ORACLE stops finding `mat_dot` | rc463 positive control | **RED** *"was a hand-verified rc463 demoter and the probe now reads EXACT — the ORACLE moved, not the op"* |
+| the probe narrows back to a sample | non-vacuity floors | **RED** *"only 40 rows probed"* |
+| an R1-only planted demoter | the oracle itself | **DEMOTED**, and `declaration_hits` returns `[]` |
+
+The probe's own weight is stated rather than hidden: three ops in `math.weight_lattice` are skipped **by name with the reason**, because substituting a `2**53`-scale Dynkin *label* asks for a Weyl orbit of that size — a contract statement, not a wall clock, and it was found the way such things are found, by a census run that never terminated.
+
+**Post-fix: 127 → 120 demoting rows, 77 → 70 undeclared, 64 → 57 ops**, and all nine target ops now measure `EXACT` under the same instrument that measured them rounding.
 
 ## [0.9.0rc464] - three guards that declined a C peer which had accepted 256 since rc298, a conversion refused on a contract clause that was already false, a faithfulness oracle whose own test forbade the subsumption it was gating, and a 32x scratch heuristic that made a whole class look like it had no C peer
 

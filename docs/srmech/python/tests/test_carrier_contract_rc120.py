@@ -243,7 +243,13 @@ def test_producers_declare_the_rung_they_emit():
     assert ops["bipoly_from_coeffs"]["produces"] == {"ladder": "variable", "rung": 2}
     assert ops["tripoly_from_coeffs"]["produces"] == {"ladder": "variable", "rung": 3}
     assert ops["qbipoly_from_coeffs"]["produces"] == {"ladder": "variable_q", "rung": 2}
-    assert ops["octonion_left_mult"]["produces"] == {"ladder": None, "type": "Mat"}
+    # rc465 (`#T1188`): the L/R binders are OPERAND-TYPED — an exact 8-vector
+    # returns an exact-ℚ QMat, a float one the f64 Mat. A contract naming only
+    # "Mat" was true of one of the two live carriers and false of the other,
+    # which is worse than uninformative for a driver chaining the output.
+    assert ops["octonion_left_mult"]["produces"] == {
+        "ladder": None, "type": "Mat | QMat"}
+    assert ops["octonion_norm"]["produces"] == {"ladder": None, "type": "float | Q"}
 
 
 # ── (4) REGISTRATION — reachable via the registry; tools.total unchanged ──────
