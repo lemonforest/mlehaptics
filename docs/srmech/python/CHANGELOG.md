@@ -444,7 +444,11 @@ Both costs are **linear in the operand's VALUE**, because in both ops the operan
 
 Green before, green after revert, in both cells: **45 passed**.
 
-**ABI stays 25. Registry stays 733.** No C symbol, no signature, no wire contract, no generated artifact and no shipped op behaviour moves — this is placement, not surface.
+**The worked-example ledger, re-verified for the module this rc's own docstring fix touched — a NULL, written down.** `tools/hooks/derived_ledger_freshness.py` blocked the stop: editing ONE docstring in `srmech/biology/genome.py` made **71 of 649** ledger rows unverified, because that hook's predicate is *"the module that defines the op changed since the ledger was written"* — deliberately NOT the snippet-text hash, which is what `--only-stale` keys on and which "does not move when the implementation moves". That is the same blind spot this section writes into the census gate's prose, so the hook firing here is the tree being consistent with itself. All 71 were re-executed by explicit `--only` selector in the NATIVE cell (the ledger records `native: true`; a pure-cell re-run would relabel the whole file — the rc460 defect).
+
+**Result: zero content change.** Every one of the 71 statuses is identical — 25 `ok` and 46 `unexpected_raise` before and after — the tallies hold at the enforced ceilings (`unexpected_raise` **96**, `timeout` **1**), and the only changed byte in the whole file is `meta.verified_at`, `74479c6e7` → `4c5985097`. The rows were unverified, not wrong: the staleness was in the provenance, not the values. Recorded because a null that is not written down is indistinguishable from a step that was skipped.
+
+**ABI stays 25. Registry stays 733.** No C symbol, no signature, no wire contract, no generated artifact (`regen_all.py --check`: all 6 up to date) and no shipped op behaviour moves — this is placement, not surface.
 
 ## [0.9.0rc464] - three guards that declined a C peer which had accepted 256 since rc298, a conversion refused on a contract clause that was already false, a faithfulness oracle whose own test forbade the subsumption it was gating, and a 32x scratch heuristic that made a whole class look like it had no C peer
 
