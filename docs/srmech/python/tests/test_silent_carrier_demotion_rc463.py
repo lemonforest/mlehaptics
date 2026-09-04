@@ -410,11 +410,14 @@ def test_layer1_exact_in_exact_out(label, call, want) -> None:
 #
 #     python3 tools/demotion_probe.py        # in the cell you want to re-measure
 #
-# MEASURED, the whole point of the change: this file cost **66.2 s (native) /
-# 153.8 s (pure)** per CI job, and in the ``--forked`` asserts-live cell it cost
-# that ONCE PER TEST — `pytest-forked` gives each test a fresh child, so the
-# module-level cache never survived and 15 census-consuming tests each paid the
-# full derivation. It now costs milliseconds, identically in every cell.
+# MEASURED, the whole point of the change: this file cost **66.18 s (native) /
+# 153.80 s (pure)** per CI job and now costs **8.02 s / 7.21 s**, of which every
+# test call is <= 0.04 s and the rest is `import srmech`. In the `--forked`
+# asserts-live cell it cost the derivation ONCE PER TEST — `pytest-forked` gives
+# each test a fresh child, so the module-level cache never survived and 15
+# census-consuming tests each paid it in full: ~15 minutes of census, observed
+# as +12 m of wall clock on `asserts-live shard 4/4` against the `main`
+# baseline. It is now a file read, identically in every cell.
 #
 # ⚠️ **AND THE TWO PER-CELL ARTEFACTS BECOME ONE — WITHOUT LOSING THE FINDING.**
 # The native and pure cells genuinely disagree, and absorbing that into two pins

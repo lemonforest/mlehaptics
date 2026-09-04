@@ -24,10 +24,14 @@ avoid. Worse, the expected value was per-cell, so the pin measured the HOST
 rather than the code — the same defect class this project keeps finding in its
 own instruments. The resolution is placement. The census is now a tool run a
 human starts on purpose; the gate reads a committed file and checks a predicate
-in milliseconds, identically in every cell. **Measured: 66.2 s (native) /
-153.8 s (pure) of gate time per CI job became 0.5 s, and the ``--forked``
-asserts-live cell — which re-ran the whole census once per test because
-``pytest-forked`` gives each test a fresh child — dropped ~15 minutes.**
+in milliseconds, identically in every cell. **MEASURED: the gate cost
+66.18 s (native) / 153.80 s (pure) per CI job and now costs 8.02 s / 7.21 s, of
+which every test call is <= 0.04 s and the rest is ``import srmech``. In the
+``--forked`` asserts-live cell it was paid ONCE PER TEST — ``pytest-forked``
+gives each test a fresh child, so the module cache never survived and 15
+census-consuming tests each re-derived it: ~15 minutes of census, observed as
++12 m of wall clock on ``asserts-live shard 4/4`` against the ``main``
+baseline.**
 
 The two per-cell artefacts consolidate to one. The native-vs-pure disagreement
 does NOT disappear by being merged: it becomes a **named finding with its op

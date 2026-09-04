@@ -342,7 +342,7 @@ Exactly two rows are measured past the cutoff in both cells — `weight_lattice.
 | native (`HAS_` + `NATIVE` true) | **66.18 s**, 43 tests | **8.02 s**, 45 tests | 0.37 s setup + every test call ≤ 0.04 s; the rest is `import srmech` |
 | pure | **153.80 s**, 43 tests | **7.21 s**, 45 tests | same shape |
 
-**And in the `--forked` cell it was paid ONCE PER TEST.** `asserts-live` runs `pytest -n auto --forked`, one fork per test. `pytest-forked` forks a child for each test's run phase, so the module-level `_LIVE_CACHE` a child populates is invisible to the parent and to the next child: **15 census-consuming tests each re-derived the whole census.** 15 x 61.6 s = **~15 minutes** in one cell, which is the +12 min that job carried against the `main` baseline (`asserts-live shard 4/4` 31 m -> 43 m at `08d80a037`). That is now zero.
+**And in the `--forked` cell it was paid ONCE PER TEST.** `asserts-live` runs `pytest -n auto --forked`, one fork per test. `pytest-forked` forks a child for each test's run phase, so the module-level `_LIVE_CACHE` a child populates is invisible to the parent and to the next child: **15 census-consuming tests each re-derived the whole census.** 15 x 61.6 s = **~15 minutes of census in one cell**, which `-n auto` runs across workers, so the observed wall cost is smaller: `asserts-live shard 4/4` 31 m on the `main` baseline (`a6d9700da`) -> **43 m** at `08d80a037`, +12 m. That is now zero.
 
 **THE SHAPE, modelled on the precedent the tree already has.** `tools/run_worked_examples.py` -> `tests/worked_examples_result.ndjson` is expensive derived state produced by a deliberate tool run, committed, and READ by its gate. The census now works the same way:
 
