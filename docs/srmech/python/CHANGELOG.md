@@ -377,7 +377,15 @@ python3 tools/demotion_probe.py        # run ONCE PER CELL; it merges the cell i
 | `laplacian.heat_trace::L` / `heat_trace::t` | INSENSITIVE | RAISED |
 | `cascade.matrix_cascades.lstsq::a` | INEXACT_BASE | RAISED |
 
-`iir::a` is the `fir` / `matched_filter` shape exactly: the C path ROUNDS an exact operand the pure path carries exactly. The `RAISED` pairs are the same fact wearing the instrument's clothes — one projection REFUSES a binding the other accepts. Naming them is the resolution; two pins was the mitigation.
+`iir::a` is the `fir` / `matched_filter` shape exactly, and it is **CONFIRMED BY HAND rather than taken from the probe** — a claim the instrument produced deserves a second instrument. `iir(signal=[1,0,0,0,0,0], b=[1], a=[w]*8)`, same tree, one cell apart:
+
+| `a` | native | pure |
+|---|---|---|
+| `2**53 + 1` | `1.1102230246251565e-16` | `1.1102230246251564e-16` |
+| `2**53` | `1.1102230246251565e-16` | `1.1102230246251565e-16` |
+| `2**53 + 2` | `1.1102230246251563e-16` | `1.1102230246251563e-16` |
+
+The native column answers `2**53+1` and `2**53` **identically** — the exact operand was collapsed — while the pure column separates them by one ULP. The third row is the vacuity guard: both cells move for `2**53+2`, so the instrument could have said otherwise. The `RAISED` pairs are the same fact wearing the instrument's clothes — one projection REFUSES a binding the other accepts. Naming them is the resolution; two pins was the mitigation.
 
 **`SLOW_SKIP` IS DELETED — and each of its six rows was re-asked one question: is the reason about the OP or about the MACHINE?**
 
