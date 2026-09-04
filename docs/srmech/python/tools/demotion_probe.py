@@ -56,9 +56,9 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
  1. **Coverage is bounded by argument reach.** An op the probe cannot build a
     binding for is emitted as ``NO_SHAPE`` and counted, never skipped silently.
     That count is the honest statement of the instrument's reach and it is what
-    ``CEIL_DEMOTION_UNREACHED`` ratchets down —
+    ``CEIL_DEMOTION_UNREACHED_BY_CELL`` ratchets down —
     ``tests/test_silent_carrier_demotion_rc463.py``, where that constant is
-    DEFINED and ASSERTED. It was not, through rc465: this sentence named a
+    DEFINED and ASSERTED, per CI cell. It was not, through rc465: this sentence named a
     ratchet that existed nowhere else in the repo, so the instrument's own
     reach was the one number in this file with no gate under it (rc465-fix,
     `#T1188`). The larger unreached class is ``RAISED`` — a real refusal by a
@@ -104,6 +104,49 @@ if str(_TOOLS) not in sys.path:
 import example_args as ea  # noqa: E402
 
 PY_ROOT = _TOOLS.parent
+
+
+def is_native() -> bool:
+    """Is a `libsrmech` actually dispatching in THIS process?
+
+    rc465-fix (`#T1188`). The verdicts below are read off VALUES the ops
+    return, so a census taken with the C peers dispatching is a different
+    measurement from one taken without them — not a stale copy of it.
+    """
+    try:
+        from srmech import _native
+        return bool(getattr(_native, "HAS_NATIVE", False))
+    except Exception:                        # noqa: BLE001 — absent is "pure"
+        return False
+
+
+def census_path(native: Optional[bool] = None) -> Path:
+    """The census artefact for a CELL.
+
+    ⚠️ **There are two, and that is the whole point** (rc465-fix, `#T1188`).
+    The first cut shipped ONE file, taken with native present, and asserted it
+    against a live census in whatever cell the gate happened to run in. Every
+    pure CI shard was therefore red on an unchanged tree — MEASURED locally by
+    running the full suite with ``srmech/_native/libsrmech.so`` moved aside and
+    ``SRMECH_EXPECT_PURE=1``: 3 failed, 13413 passed, and all three failures
+    were this file's currency, roster and ceiling assertions.
+
+    It is the same per-cell fact ``tests/test_worked_examples_execute_rc354.py``
+    already records for its ledger — *"a number measured in one cell must never
+    be pinned against the other"* — arrived at from the other direction: there
+    the ceiling is a per-cell dict, here the whole artefact is per cell, because
+    this gate asserts a full histogram and a roster IDENTITY rather than a
+    count.
+    """
+    n = is_native() if native is None else native
+    name = "demotion_census_rc465.ndjson" if n \
+        else "demotion_census_rc465_pure.ndjson"
+    return PY_ROOT / "tests" / name
+
+
+#: The NATIVE-cell artefact. Kept as a module constant because it is the one a
+#: reader means when they say "the census"; :func:`census_path` is what code
+#: should call.
 CENSUS = PY_ROOT / "tests" / "demotion_census_rc465.ndjson"
 
 #: ``2**53 + 1`` — the smallest positive integer float64 cannot represent.
@@ -200,6 +243,52 @@ CONTRACT_SKIP: Dict[str, str] = {
         "same weight-label contract as tensor_product_multiplicities",
     "srmech.math.weight_lattice.verlinde_fusion_multiplicities":
         "same weight-label contract; frame_probe.SLOW_SKIP names it too",
+}
+
+#: Ops skipped by NAME **in one cell only**, because their per-call cost THERE
+#: sits at the :data:`CALL_TIMEOUT` boundary and the verdict therefore stops
+#: being a function of the tree. Same discipline as ``frame_probe.SLOW_SKIP``,
+#: made PER CELL because the cost is (rc465-fix, `#T1188`).
+#:
+#: MEASURED, same tree, same commit, `seconds` straight off the two censuses:
+#:
+#:   ==========================  ========  ========
+#:   row                          native    pure
+#:   ==========================  ========  ========
+#:   recover_check::weights          0.154    53.1
+#:   recover_check_spectral::w.      0.159    59.1
+#:   recover_check::charges          6.615    16.6
+#:   recover_check_spectral::ch.     6.652    23.4
+#:   recover_check_spectral::ed.     4.686   526.5
+#:   ==========================  ========  ========
+#:
+#: The instability is measured, not feared. Two consecutive pure censuses on an
+#: unchanged tree: run 1 differed from the committed artefact in **0** rows,
+#: run 2 in exactly **2** — ``recover_check::weights`` and
+#: ``recover_check_spectral::weights``, both ``DEMOTED -> EXACT``, at 56.0s and
+#: 61.2s. A call inside each sometimes crosses the 20s cutoff and sometimes
+#: does not, so the verdict is decided by machine load. The NATIVE cell measures
+#: the same two rows in 0.15s and is stable across three runs, so skipping them
+#: there would delete real signal to fix someone else's problem — which is why
+#: this roster is keyed by cell and the native column is EMPTY.
+#:
+#: Drain path, stated rather than implied: these are pure-Python Laplacian
+#: recovery checks whose cost is dominated by a dense eigen-solve the C peer
+#: does in microseconds. The rows come back the moment either the pure path
+#: gets cheaper or the probe learns to bound a call by WORK rather than by
+#: wall clock.
+SLOW_SKIP: Dict[str, Dict[str, str]] = {
+    "native": {},
+    "pure": {
+        "srmech.math.laplacian.recover_check":
+            "pure cost 53-56s per row against a 20s CALL_TIMEOUT; measured "
+            "unstable (DEMOTED <-> EXACT) across two consecutive censuses. "
+            "0.154s and stable in the native cell, where it is NOT skipped.",
+        "srmech.math.laplacian.recover_check_spectral":
+            "pure cost 59-526s per row against a 20s CALL_TIMEOUT; measured "
+            "unstable (DEMOTED <-> EXACT) across two consecutive censuses. "
+            "0.159s and stable in the native cell, where it is NOT skipped.",
+    },
 }
 
 _IDENT = re.compile(r"[A-Za-z_][A-Za-z_0-9]*")
@@ -622,6 +711,11 @@ def probe_op(entry, rows: Dict[str, Any]) -> List[Dict[str, Any]]:
         return [{"op": entry.name, "param": p.name, "type": p.type,
                  "verdict": "CONTRACT_SKIP", "reason": CONTRACT_SKIP[entry.name],
                  "base_source": "none", "seconds": 0.0} for p in params]
+    slow = SLOW_SKIP["native" if is_native() else "pure"]
+    if entry.name in slow:
+        return [{"op": entry.name, "param": p.name, "type": p.type,
+                 "verdict": "SLOW_SKIP", "reason": slow[entry.name],
+                 "base_source": "none", "seconds": 0.0} for p in params]
     res = ea.resolve(entry.name)
     if res is None:
         return [{"op": entry.name, "param": p.name, "type": p.type,
@@ -703,7 +797,14 @@ def undeclared(recs: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 def load_census(path: Optional[Path] = None
                 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
-    p = path or CENSUS
+    """The census artefact for THIS cell, plus a loud refusal on a cell swap.
+
+    The ``native`` meta field is compared to the live cell rather than trusted:
+    a census read in the wrong cell is the exact defect this pair of files
+    exists to remove, and it would otherwise present as an ordinary stale-
+    artefact failure with a misleading remedy.
+    """
+    p = path or census_path()
     meta: Dict[str, Any] = {}
     recs: List[Dict[str, Any]] = []
     with p.open("r", encoding="utf-8") as fh:
@@ -716,6 +817,13 @@ def load_census(path: Optional[Path] = None
                 meta.update(obj)
             else:
                 recs.append(obj)
+    if path is None and "native" in meta and meta["native"] != is_native():
+        raise AssertionError(
+            f"{p.name} was recorded with native={meta['native']} and this "
+            f"process has native={is_native()}. That is a CELL SWAP, not a "
+            f"stale artefact: regenerate the census for the cell you are in "
+            f"(`PYTHONPATH=$PWD python3 tools/demotion_probe.py`) and commit "
+            f"it as the file for that cell.")
     return meta, recs
 
 
@@ -726,12 +834,13 @@ def write_census(path: Optional[Path] = None) -> Dict[str, Any]:
         "record": "meta",
         "srmech_version": srmech.__version__,
         "python": f"{sys.version_info.major}.{sys.version_info.minor}",
+        "native": is_native(),
         "n_rows": len(recs),
         "n_ops": len({r["op"] for r in recs}),
         "by_verdict": by_verdict(recs),
         "witness": {"P": str(P), "F": str(F), "G": str(G)},
     }
-    p = path or CENSUS
+    p = path or census_path()
     with p.open("w", encoding="utf-8", newline="\n") as fh:
         fh.write(json.dumps(meta, sort_keys=True) + "\n")
         for r in sorted(recs, key=lambda r: (r["op"], r["param"])):

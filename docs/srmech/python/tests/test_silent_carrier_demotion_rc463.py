@@ -69,7 +69,8 @@ have shipped blind to their own subject (`#T1136`, `#T1138`, `#T1182`, and the
     What remains open is COVERAGE, which the probe states as data rather than
     silence: 305 ``RAISED`` / 52 ``NO_SHAPE`` rows are bindings it could not
     build, each emitted with its reason. rc465-fix (`#T1188`) puts a ratchet
-    under the second of those two numbers — :data:`CEIL_DEMOTION_UNREACHED` —
+    under the second of those two numbers —
+    :data:`CEIL_DEMOTION_UNREACHED_BY_CELL` —
     because ``tools/demotion_probe.py``'s own disclosure named that constant as
     the thing bounding its reach and **the constant did not exist anywhere in
     the repo**: a named ratchet with no definition and no assertion, which is
@@ -378,7 +379,8 @@ def test_layer1_exact_in_exact_out(label, call, want) -> None:
 #     census. A new undeclared demoter is RED even if another drained in the
 #     same rc, so the ceiling cannot be paid for with unrelated progress —
 #     which is exactly the failure mode a bare count has.
-#   * ``CEIL_UNDECLARED_DEMOTION`` is the visible down-only integer, and it
+#   * ``CEIL_UNDECLARED_DEMOTION_BY_CELL`` is the visible down-only integer
+#     (one per CI cell — see its own note), and it
 #     drains: an rc that fixes an op must LOWER it in the same change.
 #
 # THE DRAIN PATH, PER FAMILY, measured (rows, post-fix):
@@ -411,7 +413,39 @@ import demotion_probe as _dp   # tools/ is on sys.path via the header import
 #: and publish no R3 accuracy declaration. Seeded at the rc465 post-fix
 #: measurement. **Fixing or declaring an op must LOWER this in the same
 #: change**; nothing may raise it.
-CEIL_UNDECLARED_DEMOTION = 70
+#: ⚠️ **PER CELL, because the verdict is read off a VALUE** (rc465-fix,
+#: `#T1188`). This gate's first cut carried ONE number and one census artefact,
+#: both taken with the C peers dispatching, and asserted them in whatever cell
+#: the gate happened to run in. MEASURED locally by running the whole suite
+#: with ``srmech/_native/libsrmech.so`` moved aside and ``SRMECH_EXPECT_PURE=1``
+#: — *3 failed, 13413 passed*, and all three failures were this file's
+#: currency, roster and ceiling assertions. Every pure CI shard was red on an
+#: unchanged tree, which is the shape ``tests/test_worked_examples_execute_
+#: rc354.py`` already records for its own ledger: *"a number measured in one
+#: cell must never be pinned against the other."*
+#:
+#: The two cells genuinely disagree, and the disagreement is small and
+#: explicable rather than noise. MEASURED, same tree, same commit:
+#:
+#:   ============  =======  ====  ===========  ======  =====  =========
+#:   cell          DEMOTED  und.  INSENSITIVE  RAISED  EXACT  SLOW_SKIP
+#:   ============  =======  ====  ===========  ======  =====  =========
+#:   native            120    70           76     305     99          0
+#:   pure              117    67           71     305    102          6
+#:   ============  =======  ====  ===========  ======  =====  =========
+#:
+#: The pure column's six ``SLOW_SKIP`` rows are ``laplacian.recover_check`` and
+#: ``recover_check_spectral``, whose PURE cost (53-526s per row) sits at the
+#: 20s ``CALL_TIMEOUT`` boundary and whose verdicts were measured FLIPPING
+#: across two consecutive censuses on an unchanged tree. They are skipped in
+#: that cell ONLY: the native cell measures the same rows in 0.15s and is
+#: stable, so skipping them there would delete real signal to fix someone
+#: else's problem. See ``demotion_probe.SLOW_SKIP`` for the per-row seconds.
+#:
+#: Both ceilings stay DOWN-ONLY within their own cell — a raise in either
+#: column is a regression there, and a number from one column may never be
+#: copied into the other.
+CEIL_UNDECLARED_DEMOTION_BY_CELL = {"native": 70, "pure": 67}
 
 #: Down-only. ``NO_SHAPE`` rows — parameters the probe could not build ANY
 #: candidate binding for, so no carrier verdict was ever reachable. This is the
@@ -422,7 +456,18 @@ CEIL_UNDECLARED_DEMOTION = 70
 #: disclosure itself. Defined and asserted here (rc465-fix, `#T1188`).
 #: Lowering it needs nothing; raising it means the probe reaches LESS than it
 #: did, which is a regression in the instrument and needs saying out loud.
-CEIL_DEMOTION_UNREACHED = 52
+#: Per cell for the same reason as the ceiling above, even though the two cells
+#: happen to agree here: ``NO_SHAPE`` is decided by whether a BINDING could be
+#: built, which does not depend on native dispatch — and recording that they
+#: agree is a measurement, where copying one column into the other would be a
+#: guess wearing its clothes.
+CEIL_DEMOTION_UNREACHED_BY_CELL = {"native": 52, "pure": 52}
+
+
+def _cell() -> str:
+    """``"native"`` or ``"pure"`` — which cell this process is."""
+    return "native" if _dp.is_native() else "pure"
+
 
 #: The ops rc465 FIXED. Strict zero, forever: these carry an exact operand
 #: exactly, so a row for any of them in the undeclared roster is a regression,
@@ -484,9 +529,14 @@ def test_layer2_the_committed_census_matches_the_live_one() -> None:
     meta, _ = _dp.load_census()
     live = _dp.by_verdict(_live_census())
     assert meta["by_verdict"] == live, (
-        "tests/demotion_census_rc465.ndjson is stale — regenerate with "
-        "`python3 tools/demotion_probe.py` and commit it in the same change.\n"
+        f"{_dp.census_path().name} is stale — regenerate with "
+        f"`PYTHONPATH=$PWD python3 tools/demotion_probe.py` IN THIS CELL "
+        f"({_cell()}) and commit it in the same change. There are two "
+        f"artefacts and they are not copies of each other.\n"
         f"  committed: {meta['by_verdict']}\n  live:      {live}")
+    assert meta.get("native") is _dp.is_native(), (
+        f"the census artefact records native={meta.get('native')} and this "
+        f"process is {_cell()} — a CELL SWAP, not staleness.")
 
 
 def test_layer2_the_probe_refinds_the_rc463_hand_written_six() -> None:
@@ -542,7 +592,8 @@ def test_layer3_the_undeclared_roster_is_exactly_what_is_committed() -> None:
     assert not gone, (
         f"GOOD NEWS, ACTION REQUIRED: {len(gone)} row(s) left the undeclared "
         f"class ({gone}). Regenerate tests/demotion_census_rc465.ndjson and "
-        f"LOWER CEIL_UNDECLARED_DEMOTION to {len(got)} in the SAME change, so "
+        f"LOWER CEIL_UNDECLARED_DEMOTION_BY_CELL[{_cell()!r}] to {len(got)} "
+        f"in the SAME change, so "
         f"the drain is recorded rather than absorbed.")
 
 
@@ -556,30 +607,34 @@ def test_layer2_the_unreached_population_is_ratcheted_down_only() -> None:
     """
     rows = _live_census()
     unreached = [r for r in rows if r["verdict"] == "NO_SHAPE"]
-    assert len(unreached) <= CEIL_DEMOTION_UNREACHED, (
+    ceil = CEIL_DEMOTION_UNREACHED_BY_CELL[_cell()]
+    assert len(unreached) <= ceil, (
         f"{len(unreached)} rows are NO_SHAPE (the probe could build no binding "
-        f"at all), ceiling is {CEIL_DEMOTION_UNREACHED}. This ratchet is "
+        f"at all), ceiling is {ceil} in the {_cell()} cell. This ratchet is "
         f"DOWN-ONLY: the instrument reaching LESS than it did is a regression "
         f"in the instrument. Widen `synthesize` rather than the ceiling; each "
         f"row carries its own `reason`.")
-    if len(unreached) < CEIL_DEMOTION_UNREACHED:
+    if len(unreached) < ceil:
         pytest.fail(
-            f"GOOD NEWS, ACTION REQUIRED: only {len(unreached)} of "
-            f"{CEIL_DEMOTION_UNREACHED} rows are unreachable. Lower "
-            f"CEIL_DEMOTION_UNREACHED to {len(unreached)} in the SAME change.")
+            f"GOOD NEWS, ACTION REQUIRED: only {len(unreached)} of {ceil} rows "
+            f"are unreachable in the {_cell()} cell. Lower "
+            f"CEIL_DEMOTION_UNREACHED_BY_CELL[{_cell()!r}] to {len(unreached)} "
+            f"in the SAME change — and do NOT touch the other cell's column.")
 
 
 def test_layer3_the_undeclared_ceiling_is_down_only() -> None:
     """The visible ratchet. Down only; a raise is not a legal edit."""
     live = _dp.undeclared(_live_census())
-    assert len(live) <= CEIL_UNDECLARED_DEMOTION, (
-        f"{len(live)} undeclared carrier demotions, ceiling is "
-        f"{CEIL_UNDECLARED_DEMOTION}. This ratchet is DOWN-ONLY.")
-    if len(live) < CEIL_UNDECLARED_DEMOTION:
+    ceil = CEIL_UNDECLARED_DEMOTION_BY_CELL[_cell()]
+    assert len(live) <= ceil, (
+        f"{len(live)} undeclared carrier demotions in the {_cell()} cell, "
+        f"ceiling is {ceil}. This ratchet is DOWN-ONLY, per cell.")
+    if len(live) < ceil:
         pytest.fail(
-            f"GOOD NEWS, ACTION REQUIRED: only {len(live)} of "
-            f"{CEIL_UNDECLARED_DEMOTION}. Lower CEIL_UNDECLARED_DEMOTION to "
-            f"{len(live)} in the SAME change.")
+            f"GOOD NEWS, ACTION REQUIRED: only {len(live)} of {ceil} in the "
+            f"{_cell()} cell. Lower CEIL_UNDECLARED_DEMOTION_BY_CELL"
+            f"[{_cell()!r}] to {len(live)} in the SAME change — and do NOT "
+            f"copy the number into the other cell's column.")
 
 
 @pytest.mark.parametrize("op", sorted(_FIXED_IN_RC465))

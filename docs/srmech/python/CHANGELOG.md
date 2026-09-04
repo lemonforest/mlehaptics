@@ -290,6 +290,19 @@ An out-of-bounds read wearing the shape of an answer, a native/pure parity break
 
 **8k. Currency.** The four notebook `Live at rc464:` stamps and the README's worked `native_status()` capture were re-verified and moved to rc465 (registry **733**, `describe()["tools"]["total"]` **733**, cascade catalog `total=21, executable=18, leaf=3, c_runnable=18`, ABI **25**, `native_version '0.9.0rc465'`). The five-file version SSOT was already correct; these are a sixth and a seventh site the SSOT list does not name.
 
+**8l. The census gate was red in every PURE CI shard, and the artefact it compared against did not know which cell it came from.** rc465 shipped ONE census file, taken with the C peers dispatching, and asserted it against a live census in whatever cell the gate ran in. MEASURED by running the whole suite locally with `srmech/_native/libsrmech.so` moved aside and `SRMECH_EXPECT_PURE=1`: **3 failed, 13413 passed** — and all three failures were this gate's currency, roster and ceiling assertions. That is the F the fallback shards had been carrying at 89% with the summary cut off by a cancellation, so it had never been named.
+
+The verdicts are read off VALUES, so the two cells genuinely disagree; a pure census is not a stale copy of the native one:
+
+| cell | DEMOTED | undeclared | INSENSITIVE | RAISED | EXACT | SLOW_SKIP |
+|---|---|---|---|---|---|---|
+| native | 120 | 70 | 76 | 305 | 99 | 0 |
+| pure | 117 | 67 | 71 | 305 | 102 | 6 |
+
+So the artefact is now **per cell** — `demotion_census_rc465.ndjson` and `demotion_census_rc465_pure.ndjson` — the meta carries `native`, `load_census` REFUSES a cell swap by name rather than reporting it as staleness (the exact defect stage 1 hit on the worked-example ledger, arriving from the other side), and both ceilings become per-cell dicts. It is the same fact `tests/test_worked_examples_execute_rc354.py` already records for its own ledger — *"a number measured in one cell must never be pinned against the other"* — except that this gate asserts a full histogram and a roster IDENTITY, so the whole artefact has to be per cell rather than just the ceiling.
+
+**And the pure cell was not reproducible either, which is a second finding.** Two consecutive pure censuses on an unchanged tree: run 1 differed from the committed artefact in **0** rows, run 2 in exactly **2** — `laplacian.recover_check::weights` and `recover_check_spectral::weights`, both `DEMOTED → EXACT`, at 56.0s and 61.2s. Their pure cost sits at the 20s `CALL_TIMEOUT` boundary (one row, `recover_check_spectral::edges`, measures **526s**), so machine load decided the verdict. They are skipped by name in the PURE cell only, through a new `demotion_probe.SLOW_SKIP` keyed by cell — `frame_probe`'s discipline, made per-cell because the cost is. The native cell measures the same two rows in **0.154s / 0.159s** and is stable across three runs, so skipping them there would delete real signal to fix another cell's problem, and the native column of that roster is empty. Both cells now read **43 passed**.
+
 **ABI stays 25.** No C symbol is added, removed or re-signatured. `c/src/srmech_tool_schema.c` gains one row in each of two hand-maintained string tables (a new declared type string mapping to `"array"`, plus its encoding hint); every existing string answers exactly as before, so no wire contract moves. `SRMECH_GENOME_FORMAT_VERSION` stays 20. Registry stays **733**.
 
 ## [0.9.0rc464] - three guards that declined a C peer which had accepted 256 since rc298, a conversion refused on a contract clause that was already false, a faithfulness oracle whose own test forbade the subsumption it was gating, and a 32x scratch heuristic that made a whole class look like it had no C peer
