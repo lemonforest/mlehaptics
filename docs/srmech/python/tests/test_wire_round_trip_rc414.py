@@ -129,7 +129,22 @@ EXPECTED_CARRIERS = 28
 #: at the row itself, which is a STRONGER claim than this counter makes.
 #: The number falls again when a ``$srmech_scope`` / handle grammar exists that
 #: can carry a scope honestly — the same exit condition ``publish`` is waiting on.
-CEIL_RETURN_TYPES_WITHOUT_COERCER = 134
+#:
+#: **134 -> 133 at rc465 (`#T1188`) — a LOWERING, and the interesting half is
+#: that it passed through a raise first.** rc465 gave nine ``srmech.physics.qm``
+#: ops a second carrier rung, so their declared returns became ``Mat | QMat``
+#: (4 ops) and ``list[float] | list[Q]`` (3 ops) — new strings, no coercer, and
+#: this counter went 134 -> 140. That is precisely the regression this ceiling
+#: exists to report, and the remedy it names was available: both strings ARE
+#: coercible, because a ``QMat`` rides as nested ``[num, den]`` leaves and a
+#: ``Mat`` as floats, which is the discrimination
+#: ``_to_exact_or_float_rows`` / ``_to_exact_or_float_vector`` already make.
+#: Landing those two coercers took the count to 133 — one BELOW the pre-rc465
+#: figure, because ``triality_apply``'s old bare ``list[float]`` return had no
+#: coercer either and its widened union now does. Contrast the three rc419 rows
+#: the paragraph above defends: those have no wire form at ALL, so a coercer for
+#: them would be theatre. These seven had one and were simply not given it.
+CEIL_RETURN_TYPES_WITHOUT_COERCER = 133
 
 #: Carriers, constructed from their own shipped example expressions, that do
 #: NOT survive a wire round-trip. Counted over the EVALUABLE subset.

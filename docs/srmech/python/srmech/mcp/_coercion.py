@@ -1433,6 +1433,17 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # that fix. Same division of labour as the rows above: the coercer keeps
     # the leaves' EXACTNESS and the op's own admission gate picks the rung.
     "HV | Sequence[int | Q]": _to_exact_or_float_vector,
+    # rc465-fix (`#T1188`): the RETURN strings of the same nine ops. rc465 gave
+    # them a second carrier rung and `test_wire_round_trip_rc414`'s down-only
+    # `CEIL_RETURN_TYPES_WITHOUT_COERCER` went 134 -> 140, because a declared
+    # return with no inbound coercer is a value a consumer cannot send BACK.
+    # These two are genuinely coercible — a QMat rides as nested/flat [num, den]
+    # leaves and a Mat as floats, which is exactly the discrimination the two
+    # handlers below already make — so the gate's own remedy applies: land the
+    # coercer, do not raise the ceiling. (Contrast the three rc419 rows the
+    # ceiling comment defends, whose returns have NO wire form at all.)
+    "Mat | QMat": _to_exact_or_float_rows,
+    "list[float] | list[Q]": _to_exact_or_float_vector,
     # 0.9.0rc463 (`#T1188`): the exact eigensolver's eigenvalue operand. A NEW
     # declared param TYPE widens this discriminator set in the SAME change that
     # registers the ops — the whole exact-eigensolver family was public in

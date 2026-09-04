@@ -2133,6 +2133,15 @@ def _synth_value_for_type(type_string: str) -> Any:
         #           dominant klein4 / octonion families).
         "Vec": vec,
         "HV": [0, 1, 2, 3, 0, 1, 2, 3],
+        # rc465-fix (`#T1188`): the widened qm coordinate-vector union. The
+        # SAME value as the `HV` row above, deliberately — the union's first arm
+        # IS `HV`, and the widening changed what the ops ACCEPT, not what a
+        # minimal valid argument looks like. Without this row `quaternion_slerp`
+        # `q1` (the one param of the ten with no harvested value) fell through to
+        # UNSYNTHESIZABLE and `test_synth_args_provenance_rc430` went 52 -> 53
+        # over its down-only ceiling — a type-table gap reported as a coverage
+        # regression, which is exactly what that ceiling is for.
+        "HV | Sequence[int | Q]": [0, 1, 2, 3, 0, 1, 2, 3],
         "Optional[Vec]": vec,
         "Optional[HV]": [0, 1, 2, 3, 0, 1, 2, 3],
         "Mat | Vec": mat2,   # the 2-D arm satisfies the most ops; 1-D is tolerated
