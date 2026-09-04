@@ -1022,8 +1022,39 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   lesson that a pin whose corpus includes examples cannot be taken until the
 #:   examples are final.
 #: was: 9add5607e7cd594594f14f8767543fe25f75a807c04a9d4a8135c3ac8c0f579c (rc464 stage 3)
+#: rc465 CLOSING PASS (`#T1188`) — re-pinned, and the delta is attributable to
+#: a named edit frame by frame, which is what makes a re-pin honest rather than
+#: habitual. MEASURED against a `git archive 74479c6e7` extraction of the whole
+#: docs/srmech subtree, with the SAME `_build_frames("all")`:
+#:
+#:   frames 761 -> 761, **0 added, 0 removed, exactly 28 CHANGED.**
+#:
+#:   TWO are CARRIER frames — `Q` and `int` — and they moved for the same single
+#:   cause: ten `srmech.physics.qm` ops had their declared parameter type widened
+#:   from `HV` to `HV | Sequence[int | Q]`, so both carriers' `ops.consumes`
+#:   back-index gained those ten names. That widening is what took
+#:   `test_declared_type_honesty_rc363`'s WIDE channel from a measured 10 back to
+#:   its strict-zero CEIL, and it is the same edit the rc361 decoded-channel pin
+#:   records as 166 -> 176 from the other side.
+#:
+#:   TWENTY-SIX are OP frames, every one of them a prose edit this pass made:
+#:   `cd_cycle_holonomy` (the D4 sentence that still called the bracketing defect
+#:   a holonomy, ~20 lines above the NAMING note that removes it); the nine
+#:   dual-carrier ops plus `quaternion_slerp` (return-type prose that contradicted
+#:   the `returns` field beside it, the corrected DYADIC exactness claim on both
+#:   norms, and the moved `path:line` citations); and the remaining
+#:   octonion / quaternion / q8 / oct_* / hurwitz_planes entries, which share the
+#:   replicated "THE THREE CARRIERS OF THE SAME ALGEBRA" paragraph whose
+#:   "FLOAT COORDINATE carrier" classification stopped being true of this module.
+#:
+#:   Taken AFTER `regen_all.py` reported all six generated files idempotent across
+#:   two passes, and after the last corpus-touching edit of this pass — the rc454
+#:   rule that a pin taken mid-rc measures a draft, and the rc464 stage-2 lesson
+#:   that a pin whose corpus includes examples cannot be taken until the examples
+#:   are final.
+#: was: 54fd35fa99df3812ceea67c54c039201c5f92fe284a523cb462bc1923de3e809 (rc465 stage 3)
 WITNESS_RC416 = (
-    "54fd35fa99df3812ceea67c54c039201c5f92fe284a523cb462bc1923de3e809")
+    "f8eb0f75db276bcede50cebd0e6e9b996864ef71332b61b417a25553de20718a")
 #: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
 #: op corpus, so registering induced_representation + zeta_conjugate moves it by
 #: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.

@@ -247,7 +247,7 @@ _ENCODING_HINT: Dict[str, str] = {
     "HV": "flat JSON array of integers (the hypervector elements)",
     "HV | Sequence[int | Q]": (
         "flat JSON array of components. The LEAVES select the carrier: bare "
-        "integers or [numerator, denominator] pairs take the EXACT-ℚ rung, "
+        "integers or [numerator, denominator] pairs take the EXACT-Q rung, "
         "floats take the float64 one"),
     "Optional[Vec]": (
         "flat JSON array (length-n) or null; complex elements as [re, im]"
