@@ -299,7 +299,7 @@ The verdicts are read off VALUES, so the two cells genuinely disagree; a pure ce
 | native | 120 | 70 | 76 | 305 | 99 | 0 |
 | pure | 117 | 67 | 71 | 305 | 102 | 6 |
 
-So the artefact is now **per cell** — `demotion_census_rc465.ndjson` and `demotion_census_rc465_pure.ndjson` — the meta carries `native`, `load_census` REFUSES a cell swap by name rather than reporting it as staleness (the exact defect stage 1 hit on the worked-example ledger, arriving from the other side), and both ceilings become per-cell dicts. It is the same fact `tests/test_worked_examples_execute_rc354.py` already records for its own ledger — *"a number measured in one cell must never be pinned against the other"* — except that this gate asserts a full histogram and a roster IDENTITY, so the whole artefact has to be per cell rather than just the ceiling.
+*[§9 correction: both artefacts are GONE. Per-cell was the mitigation; the resolution was to take the census out of CI entirely and make the cells' disagreement a NAMED FINDING in one manifest. See §9.]* So the artefact was then made **per cell** — `demotion_census_rc465.ndjson` and `demotion_census_rc465_pure.ndjson` — the meta carries `native`, `load_census` REFUSES a cell swap by name rather than reporting it as staleness (the exact defect stage 1 hit on the worked-example ledger, arriving from the other side), and both ceilings become per-cell dicts. It is the same fact `tests/test_worked_examples_execute_rc354.py` already records for its own ledger — *"a number measured in one cell must never be pinned against the other"* — except that this gate asserts a full histogram and a roster IDENTITY, so the whole artefact has to be per cell rather than just the ceiling.
 
 **And the pure cell was not reproducible either, which is a second finding.** Two consecutive pure censuses on an unchanged tree: run 1 differed from the committed artefact in **0** rows, run 2 in exactly **2** — `laplacian.recover_check::weights` and `recover_check_spectral::weights`, both `DEMOTED → EXACT`, at 56.0s and 61.2s. Their pure cost sits at the 20s `CALL_TIMEOUT` boundary (one row, `recover_check_spectral::edges`, measures **526s**), so machine load decided the verdict. They are skipped by name in the PURE cell only, through a new `demotion_probe.SLOW_SKIP` keyed by cell — `frame_probe`'s discipline, made per-cell because the cost is. The native cell measures the same two rows in **0.154s / 0.159s** and is stable across three runs, so skipping them there would delete real signal to fix another cell's problem, and the native column of that roster is empty. Both cells now read **43 passed**.
 
@@ -322,9 +322,119 @@ Effect on both censuses: `CALL_TIMED_OUT` 6 → 2, `CONTRACT_SKIP` 10 → 14, an
 
 **8n. And `windows-latest` has no cutoff at all, which is why it timed out at 99%.** `call_bounded` enforces `CALL_TIMEOUT` through `signal.SIGALRM`, and `hasattr(signal, "SIGALRM")` is **False on Windows** — so on that platform a call that exceeds the cutoff simply runs. MEASURED: after §8m the windows cell reached **99% of the suite at 30.8 minutes** and was killed by its own `timeout-minutes: 41` eleven minutes later, having finished nothing more.
 
-Exactly two rows are measured past the cutoff in both cells — `weight_lattice.alcove_fold::weight` (20.0s native / 21.5s pure) and `music.equal_temperament_partials::degrees` (21.4s / 22.2s) — and on Windows they are unbounded. **A cutoff one platform cannot enforce is not a cutoff**, so both ops join `SLOW_SKIP` in EVERY cell, named as data rather than left as a race on one platform. `CALL_TIMED_OUT` 2 → 0; `SLOW_SKIP` 0 → 2 native and 6 → 8 pure; `DEMOTED` 120/117, undeclared 70/67 and decided 219/219 all unchanged again, so still no ceiling moves. The gate now runs in **66s**, down from 363s when this pass started.
+Exactly two rows are measured past the cutoff in both cells — `weight_lattice.alcove_fold::weight` (20.0s native / 21.5s pure) and `music.equal_temperament_partials::degrees` (21.4s / 22.2s) — and on Windows they are unbounded. **A cutoff one platform cannot enforce is not a cutoff**, so both ops join `SLOW_SKIP` in EVERY cell, named as data rather than left as a race on one platform. *[§9 correction: `SLOW_SKIP` is GONE. Both ops belong in `CONTRACT_SKIP` for a reason about the OP — their operand is an INDEX, and the cost is linear in its VALUE — which is the reason a Windows cutoff was standing in for. See §9.]* `CALL_TIMED_OUT` 2 → 0; `SLOW_SKIP` 0 → 2 native and 6 → 8 pure; `DEMOTED` 120/117, undeclared 70/67 and decided 219/219 all unchanged again, so still no ceiling moves. The gate now runs in **66s**, down from 363s when this pass started.
 
 **ABI stays 25.** No C symbol is added, removed or re-signatured. `c/src/srmech_tool_schema.c` gains one row in each of two hand-maintained string tables (a new declared type string mapping to `"array"`, plus its encoding hint); every existing string answers exactly as before, so no wire contract moves. `SRMECH_GENOME_FORMAT_VERSION` stays 20. Registry stays **733**.
+
+### 9. A census is not a gate — the three mitigations above are retired, and CI stops paying for the derivation
+
+⚠️ **§8l, §8m and §8n are three consecutive commits fighting one symptom, and none of them asked whether the thing belonged where it was.** `8be4a95ce` answered "the census gate is red in every pure shard" with a SECOND per-cell pinned artefact. `83aa9b74f` answered "one op allocated 7.1 GiB inside the census" with a skip. `08d80a037` answered "`windows-latest` has no cutoff, so it timed out at 99%" with two more skips. Each is a MITIGATION: **green bought by teaching a census which ops to avoid.** The residue was two committed artefacts, a `SLOW_SKIP` roster of 19 rows, and this gate at 852 lines — for a corrective rc that added no capability and roughly **ten minutes** of CI.
+
+**THE ROOT CAUSE, in one line.** `tests/test_silent_carrier_demotion_rc463.py` called `_dp.census()` — the entire registry-wide derivation, 703 rows over 427 ops — **on every CI run, in every cell**, and then diffed it against a host-specific pin. Two things were wrong and the second is worse:
+
+1. **Deriving the population is expensive; checking the invariant is not.** A census belongs in a deliberate tool run.
+2. ⚠️ **The expected value depended on which CI cell it ran in.** A pin that differs native-vs-pure is measuring the HOST, not the code — the same defect class this project keeps finding in its own instruments, arrived at from the inside.
+
+**What the derivation actually cost, MEASURED per cell** (WSL2 py3.10, numpy absent, this file alone):
+
+| cell | before | after | note |
+|---|---|---|---|
+| native (`HAS_` + `NATIVE` true) | **66.18 s**, 43 tests | **8.02 s**, 45 tests | 0.37 s setup + every test call ≤ 0.04 s; the rest is `import srmech` |
+| pure | **153.80 s**, 43 tests | **7.21 s**, 45 tests | same shape |
+
+**And in the `--forked` cell it was paid ONCE PER TEST.** `asserts-live` runs `pytest -n auto --forked`, one fork per test. `pytest-forked` forks a child for each test's run phase, so the module-level `_LIVE_CACHE` a child populates is invisible to the parent and to the next child: **15 census-consuming tests each re-derived the whole census.** 15 x 61.6 s = **~15 minutes** in one cell, which is the +12 min that job carried against the `main` baseline (`asserts-live shard 4/4` 31 m -> 43 m at `08d80a037`). That is now zero.
+
+**THE SHAPE, modelled on the precedent the tree already has.** `tools/run_worked_examples.py` -> `tests/worked_examples_result.ndjson` is expensive derived state produced by a deliberate tool run, committed, and READ by its gate. The census now works the same way:
+
+```
+python3 tools/demotion_probe.py        # run ONCE PER CELL; it merges the cell it is run in
+```
+
+* **ONE manifest, `tests/demotion_census.ndjson`**, carrying BOTH cells as columns on each row. `demotion_census_rc465.ndjson` and `demotion_census_rc465_pure.ndjson` are deleted; there is no legacy path and no alias.
+* **The tool merges a COLUMN, never a file.** It rewrites only the cell it is run in and carries the other forward untouched — the rc460 worked-example-ledger defect (`--only-stale` "stamps the CURRENT cell's `native` flag onto rows merged from another cell") repaired rather than repeated. It also **REFUSES** to merge when the other column's recorded registry signature is not this tree's, so two halves of one manifest cannot come from two different trees.
+* `seconds` is deliberately **not** committed. It is a property of the host; a manifest carrying it would churn on every regeneration and make any digest over it host-dependent. The tool prints the slowest rows instead.
+
+**THE LOAD-BEARING ASSERTION IS UNCHANGED AND IS NOW STRONGER.** `CEIL_UNDECLARED_DEMOTION_BY_CELL` is **removed, not raised** — replaced by `EXPECTED_UNDECLARED_ROSTER_SHA256`, one digest over BOTH columns' `DEMOTED and UNDECLARED` rosters, asserted in FULL in EVERY cell. A `<= CEIL` lets a NEW undeclared demoter in whenever an unrelated one drains in the same change; an identity forbids that in both directions. It is the two-edit discipline `tests/test_op_name_set_witness_rc361.py` established: the roster on disk, the digest in source, and `EXPECTED_UNDECLARED_N` beside it only so the failure message can say "70 -> 71".
+
+**⚠️ THE STALENESS GUARD, WITH ITS BLIND SPOT DECLARED IN THE FILE.** A gate that only reads a committed file goes stale silently. The guard costs no execution: hash the `(op name, parameter types, return type)` triple over the whole registry (through `srmech.amsc.format.sha256_bytes`, never a direct `hashlib` call) and compare it to the digest the manifest recorded. That moves when an op is ADDED, REMOVED or RE-SIGNATURED — which is exactly what decides demotion-candidacy — and `test_the_staleness_guard_is_not_vacuous` proves all three directions in process against a mutated copy of the live signature lines.
+
+**It does NOT catch an implementation change that alters carrier behaviour behind an unchanged signature** — the very class this file exists to find. That sentence is in the module docstring, at the constant, and in the test's own docstring, because **the tree has already paid for the identical blind spot once and wrote it down**: `run_worked_examples.py --only-stale` keys on the snippet-TEXT hash, *"which does not move when an implementation moves — the blind spot the freshness hook exists for"*, and *"that blind spot is exactly how the ℚ-flip defect shipped"*. The consequence is stated rather than implied: **an rc that changes a numeric carrier must re-run the probe, and no digest will remind it to.** What still EXECUTES against the shipped carriers on every CI run is Layer 1 — strict-zero exactness, enumerated per PATH — and it is unchanged. The gate is added to `tools/ripple_gates.txt` and the regeneration step to `tests/RIPPLE_GATES.md`, because registering an op now reds it BY CONSTRUCTION.
+
+**THE NATIVE-vs-PURE DIVERGENCE IS A NAMED FINDING, NOT A SECOND PIN.** The two cells genuinely disagree; absorbing that into two artefacts is what made it invisible. It is now a row property (`divergent`), a `meta.divergent` list, and a pinned identity `_DIVERGENT` in the gate — **14 rows, every one named**, so a new divergence is RED. rc463 rates this class WORSE than a plain demotion, and the sharpest row shows why:
+
+| row | native | pure |
+|---|---|---|
+| **`signal_processing.iir::a`** | **DEMOTED** | **EXACT** |
+| `laplacian.recover_check::charges` | INSENSITIVE | DEMOTED |
+| `laplacian.recover_check_spectral::charges` | INSENSITIVE | DEMOTED |
+| `laplacian.klein4_gain_laplacian::gains` | EXACT | RAISED |
+| `biology.coupling.resonant_spectrum_sparse::edges_or_path` | EXACT | RAISED |
+| `modular_linalg.crt_combine::moduli` | RAISED | EXACT |
+| `hdc.bundle::vectors` / `hdc.bundle_with_ties::vectors` | RAISED | EXACT |
+| `signal_processing.hdc_truncation::vectors` | RAISED | EXACT |
+| `hdc.klein4_bundle_resolve::acc` | RAISED | INSENSITIVE |
+| `laplacian.klein4_relational_structure::gains` | INSENSITIVE | RAISED |
+| `laplacian.heat_trace::L` / `heat_trace::t` | INSENSITIVE | RAISED |
+| `cascade.matrix_cascades.lstsq::a` | INEXACT_BASE | RAISED |
+
+`iir::a` is the `fir` / `matched_filter` shape exactly: the C path ROUNDS an exact operand the pure path carries exactly. The `RAISED` pairs are the same fact wearing the instrument's clothes — one projection REFUSES a binding the other accepts. Naming them is the resolution; two pins was the mitigation.
+
+**`SLOW_SKIP` IS DELETED — and each of its six rows was re-asked one question: is the reason about the OP or about the MACHINE?**
+
+* **Four rows are about the machine, so they are MEASURED now, in both cells.** `laplacian.recover_check` and `recover_check_spectral` ANSWER; they just cost 53-584 s on the pure path against 0.15-8.4 s in native. They cost the pure census ~13 extra minutes and cost CI nothing, because CI does not run it. `pure` DEMOTED 117 -> **121**, undeclared 67 -> **71**, decided 219 -> **223**: four rows of real signal that the skip had deleted.
+* **Two rows are about the OP, so they move to `CONTRACT_SKIP`** — where the reason survives a machine change, next to `mlse` and the three weight-lattice rows. `08d80a037` skipped them because a 20 s cutoff Windows cannot enforce is not a cutoff (true, and about the machine). MEASURED by scanning the operand instead of asserting about it:
+
+```
+alcove_fold("A1", [w], level=1)          w = 1 .. 4096   0.00 s
+                                         w = 2**20       1.06 s
+                                         w = 2**30       NO ANSWER > 30 s
+                                         w = 2**53+1     NO ANSWER > 60 s
+equal_temperament_partials(degrees=[d])  d = 1 .. 4096   0.00 s
+                                         d = 2**20       ValueError: "Exceeds the
+                                                         limit (4300) for integer
+                                                         string conversion"
+                                         d = 2**53+1     NO ANSWER > 60 s
+```
+
+Both costs are **linear in the operand's VALUE**, because in both ops the operand is an INDEX and not a value carrier. `weight` is documented "a rank-length **Dynkin label**" and the affine Weyl fold takes one reflection step per unit of it, so a `2**53` coordinate asks for ~`2**53` steps — the identical unbounded-orbit fact the three weight-lattice `CONTRACT_SKIP` rows beside it already record, and those predate the CI panic entirely. `degrees` is documented "which **scale degrees** to return" and the exact ratio is `octave**(degree/divisions)`, so degree `2**20` already exceeds CPython's 4300-digit integer conversion limit and `2**53` names a number with ~10^15 bits. Neither is "the same question at a bigger magnitude", which is the test `mlse`'s own note states.
+
+**`mlse` KEEPS its skip, and this says so out loud rather than keeping it silently.** It arrived as a mitigation (§8m) and every other skip from that panic is gone, but its reason is about the op — `n_states` is `A**L`, so the trellis is exponential in the operand — and that holds on a workstation with 128 GiB as squarely as on a 7 GiB runner. It is recorded AS DATA, a `CONTRACT_SKIP` verdict with its reason attached in every manifest row, not as a silence. `CONTRACT_SKIP` 14 -> **16** in both cells is the two label-operand ops joining it.
+
+**`CALL_TIMEOUT` 20 -> 900 s, and that is the opposite of widening a tolerance.** At 20 s it DECIDED verdicts: §8l measured two rows flipping `DEMOTED <-> EXACT` between consecutive pure censuses on an unchanged tree, because a call inside each sometimes crossed the cutoff and sometimes did not. The cutoff existed at 20 s because the census ran inside CI. Out of CI, it is set clear of every call that can still reach it — the slowest surviving row is `recover_check_spectral::edges` at **584 s** — so it bounds a HANG (`tensor_product_multiplicities` hung indefinitely in the first census run) and adjudicates nothing. `CALL_TIMED_OUT` and `SLOW_SKIP` are both **0** in both cells.
+
+**The reproducibility that argument predicts is MEASURED, not assumed.** A second independent pure measurement of exactly the rows §8l recorded as unstable, diffed against the committed column:
+
+| row | run 2 | committed | seconds, run 1 -> run 2 |
+|---|---|---|---|
+| `recover_check::weights` | DEMOTED | DEMOTED | 57.8 -> 60.1 |
+| `recover_check::charges` | DEMOTED | DEMOTED | 15.2 -> 16.1 |
+| `recover_check_spectral::edges` | INSENSITIVE | INSENSITIVE | 584.1 -> 591.8 |
+| `recover_check_spectral::weights` | DEMOTED | DEMOTED | 157.6 -> 200.0 |
+| `recover_check_spectral::charges` | DEMOTED | DEMOTED | 22.2 -> 25.5 |
+
+**Rows differing: 0.** The wall clock moved by up to 27% between the two runs and no verdict moved with it, which is the whole claim: at 20 s the cutoff sat inside that spread and adjudicated; at 900 s it does not.
+
+**MEASURED, the whole manifest.** 703 rows over 427 ops, registry signature `dba6fa94101f`, both columns from one tree:
+
+| cell | census | DEMOTED | undeclared | EXACT | INSENSITIVE | RAISED | NO_SHAPE | CONTRACT_SKIP |
+|---|---|---|---|---|---|---|---|---|
+| native | 74.2 s | 120 | **70** | 99 | 76 | 305 | 52 | 16 |
+| pure | 986.5 s | 121 | **71** | 102 | 72 | 306 | 52 | 16 |
+
+`CEIL_DEMOTION_UNREACHED` holds at **52** in both columns and is now asserted over BOTH in EVERY cell, which is the difference between recording a per-cell fact and pinning a host.
+
+**THE STRICT-ZERO GATE STILL FAILS UNDER MUTATION — four plants, each red on the gate that owns it, all reverted:**
+
+| plant | result |
+|---|---|
+| an undeclared-demoter row REMOVED from the manifest (`biology.coupling.resonant_spectrum::L`) | RED — `test_layer3_the_undeclared_roster_matches_its_pinned_digest` |
+| a row flipped EXACT -> DEMOTED with no `declares` (`cascade.cayley_plane_point::x1`) | RED — the same gate |
+| the pure column's recorded registry signature moved by one hex digit | RED — `test_the_manifest_is_fresh_against_the_registry_signature` |
+| a NEW native-vs-pure divergence planted (EXACT / INSENSITIVE) | RED — `test_the_native_pure_divergence_is_a_named_finding` |
+
+Green before, green after revert, in both cells: **45 passed**.
+
+**ABI stays 25. Registry stays 733.** No C symbol, no signature, no wire contract, no generated artifact and no shipped op behaviour moves — this is placement, not surface.
 
 ## [0.9.0rc464] - three guards that declined a C peer which had accepted 256 since rc298, a conversion refused on a contract clause that was already false, a faithfulness oracle whose own test forbade the subsumption it was gating, and a 32x scratch heuristic that made a whole class look like it had no C peer
 

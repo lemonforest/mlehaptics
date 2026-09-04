@@ -1,10 +1,41 @@
-"""rc465 (`#T1188`) — the SILENT-CARRIER-DEMOTION probe: one instrument, two consumers.
+"""rc465 (`#T1188`) — the SILENT-CARRIER-DEMOTION probe: a DELIBERATE TOOL RUN.
 
-``tests/test_silent_carrier_demotion_rc463.py`` is the ratchet; :func:`census`
-writes ``tests/demotion_census_rc465.ndjson``. Both import the functions below,
-so the shipped declaration and the published measurement cannot drift apart by
-being separately hand-rolled — the same discipline ``tools/frame_probe.py``
-carries, and for the same reason.
+``tests/test_silent_carrier_demotion_rc463.py`` is the ratchet; :func:`merge_cell`
+writes ``tests/demotion_census.ndjson``, ONE committed manifest carrying BOTH CI
+cells' columns. The gate READS that manifest; it does not re-derive it.
+
+⚠️ **A CENSUS IS NOT A GATE, AND rc465 SPENT THREE COMMITS LEARNING IT**
+------------------------------------------------------------------------
+Through ``08d80a037`` the gate called :func:`census` — the whole
+registry-wide derivation — on every CI run, in every cell, and then diffed it
+against a host-specific pin. Deriving the population is expensive; checking the
+invariant is not. Three consecutive commits fought the same symptom without
+asking whether the derivation belonged where it was:
+
+  * ``8be4a95ce`` — red in every PURE shard, "the artefact did not know which
+    cell it came from" -> a SECOND per-cell pinned artefact.
+  * ``83aa9b74f`` — ``mlse`` allocated **7.1 GiB** inside the census and killed
+    the runner -> a skip.
+  * ``08d80a037`` — ``windows-latest`` has no ``SIGALRM``, so its calls were
+    unbounded and the job timed out at 99% -> two more skips.
+
+Each of those is a MITIGATION: green bought by teaching a census which ops to
+avoid. Worse, the expected value was per-cell, so the pin measured the HOST
+rather than the code — the same defect class this project keeps finding in its
+own instruments. The resolution is placement. The census is now a tool run a
+human starts on purpose; the gate reads a committed file and checks a predicate
+in milliseconds, identically in every cell. **Measured: 66.2 s (native) /
+153.8 s (pure) of gate time per CI job became 0.5 s, and the ``--forked``
+asserts-live cell — which re-ran the whole census once per test because
+``pytest-forked`` gives each test a fresh child — dropped ~15 minutes.**
+
+The two per-cell artefacts consolidate to one. The native-vs-pure disagreement
+does NOT disappear by being merged: it becomes a **named finding with its op
+list** (``divergent`` rows, and ``meta.divergent`` naming every one), pinned in
+the gate. An op whose answer depends on whether ``libsrmech`` loaded is the
+``fir`` / ``matched_filter`` class rc463 already rated WORSE than a plain
+demotion. Surfacing it is the resolution; absorbing it into two pins was the
+mitigation.
 
 WHY THIS EXISTS
 ---------------
@@ -56,14 +87,14 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
  1. **Coverage is bounded by argument reach.** An op the probe cannot build a
     binding for is emitted as ``NO_SHAPE`` and counted, never skipped silently.
     That count is the honest statement of the instrument's reach and it is what
-    ``CEIL_DEMOTION_UNREACHED_BY_CELL`` ratchets down —
+    ``CEIL_DEMOTION_UNREACHED`` ratchets down —
     ``tests/test_silent_carrier_demotion_rc463.py``, where that constant is
-    DEFINED and ASSERTED, per CI cell. It was not, through rc465: this sentence named a
-    ratchet that existed nowhere else in the repo, so the instrument's own
-    reach was the one number in this file with no gate under it (rc465-fix,
-    `#T1188`). The larger unreached class is ``RAISED`` — a real refusal by a
-    real op against a synthesised binding — and it is deliberately left
-    unratcheted, because driving it down is a question about
+    DEFINED and ASSERTED, over BOTH cells' columns in every cell. It was not,
+    through rc465: this sentence named a ratchet that existed nowhere else in
+    the repo, so the instrument's own reach was the one number in this file
+    with no gate under it (`#T1188`). The larger unreached class is ``RAISED``
+    — a real refusal by a real op against a synthesised binding — and it is
+    deliberately left unratcheted, because driving it down is a question about
     :func:`synthesize`, not about the library.
  2. **One parameter at a time.** A demotion that needs two exact operands
     simultaneously is out of reach.
@@ -76,7 +107,20 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     ``getattr(_la, name)`` and so could not address an op outside
     ``srmech.math.laplacian`` at all, which is why its Layer 3 was structurally
     confined to the module its six hand-rows came from.
- 6. **Byte / bit carriers admit no witness.** They surface as ``NO_SHAPE`` with
+ 6. **THE MANIFEST GOES STALE SILENTLY, and only one HALF of that is guarded.**
+    The gate no longer re-derives the census, so nothing re-measures the tree
+    on its own. :func:`registry_signature` is the cheap half: hashing
+    ``(op name, parameter types, return type)`` over the whole registry costs
+    milliseconds and moves whenever an op is ADDED, REMOVED or RE-SIGNATURED,
+    which is what decides demotion-CANDIDACY. **It does NOT move when an
+    implementation changes carrier behaviour behind an unchanged signature** —
+    the very class this probe exists to find. That is stated here and again in
+    the gate, because the tree has already paid for the identical blind spot
+    once: ``tools/run_worked_examples.py``'s ``--only-stale`` keys on the
+    snippet-TEXT hash, which does not move when the implementation moves, "and
+    that blind spot is exactly how the ℚ-flip defect shipped". A guard whose
+    limit is unwritten is a guard people believe.
+ 7. **Byte / bit carriers admit no witness.** They surface as ``NO_SHAPE`` with
     the reason stated, which is a DOMAIN fact recorded as data. rc463 asserted
     this of the whole ``hdc`` family; rc465 measured it false — ``loop_conj``,
     ``loop_bind``, ``loop_inv``, ``loop_left_op`` and ``loop_right_op`` take
@@ -120,34 +164,23 @@ def is_native() -> bool:
         return False
 
 
-def census_path(native: Optional[bool] = None) -> Path:
-    """The census artefact for a CELL.
-
-    ⚠️ **There are two, and that is the whole point** (rc465-fix, `#T1188`).
-    The first cut shipped ONE file, taken with native present, and asserted it
-    against a live census in whatever cell the gate happened to run in. Every
-    pure CI shard was therefore red on an unchanged tree — MEASURED locally by
-    running the full suite with ``srmech/_native/libsrmech.so`` moved aside and
-    ``SRMECH_EXPECT_PURE=1``: 3 failed, 13413 passed, and all three failures
-    were this file's currency, roster and ceiling assertions.
-
-    It is the same per-cell fact ``tests/test_worked_examples_execute_rc354.py``
-    already records for its ledger — *"a number measured in one cell must never
-    be pinned against the other"* — arrived at from the other direction: there
-    the ceiling is a per-cell dict, here the whole artefact is per cell, because
-    this gate asserts a full histogram and a roster IDENTITY rather than a
-    count.
-    """
-    n = is_native() if native is None else native
-    name = "demotion_census_rc465.ndjson" if n \
-        else "demotion_census_rc465_pure.ndjson"
-    return PY_ROOT / "tests" / name
+def cell() -> str:
+    """``"native"`` or ``"pure"`` — which CI cell this process is."""
+    return "native" if is_native() else "pure"
 
 
-#: The NATIVE-cell artefact. Kept as a module constant because it is the one a
-#: reader means when they say "the census"; :func:`census_path` is what code
-#: should call.
-CENSUS = PY_ROOT / "tests" / "demotion_census_rc465.ndjson"
+#: The two column names the manifest carries, in report order.
+CELLS = ("native", "pure")
+
+#: **THE** manifest. One file, both columns, host-independent to read.
+#:
+#: ⚠️ There were TWO through ``08d80a037`` — ``demotion_census_rc465.ndjson``
+#: and ``..._pure.ndjson`` — because the gate re-derived the census live and
+#: had to compare it against something taken in the same cell. That is the
+#: mitigation this rc removes: with the derivation out of CI there is nothing
+#: to compare per-cell, so the disagreement between the cells becomes DATA in
+#: one file instead of a second pin.
+CENSUS = PY_ROOT / "tests" / "demotion_census.ndjson"
 
 #: ``2**53 + 1`` — the smallest positive integer float64 cannot represent.
 #: Significand 54 bits. The SAME value rc344 pinned for ``kron`` and rc463 for
@@ -179,43 +212,48 @@ FLAT_DIMS = (8, 4, 3, 2, 16, 1)
 #: Square shapes for a matrix-shaped parameter.
 SQUARE_DIMS = (2, 3, 4, 8, 1)
 
-#: Per-call wall-clock cutoff, seconds. A call that exceeds it is recorded
-#: ``RAISED`` with ``TIMEOUT`` and the number — never silently dropped.
+#: Per-call wall-clock cutoff, seconds — a HANG GUARD for the instrument, not
+#: a verdict-shaping cutoff. A call that exceeds it is recorded
+#: ``CALL_TIMED_OUT`` with the number, never silently dropped.
 #:
-#: ⚠️ ``signal.SIGALRM`` fires between BYTECODES. A single long call inside the
-#: native library does not return to the interpreter, so the alarm lands when
-#: it finishes, not when it expires. That is why the per-op budget below exists
-#: as well: a cutoff that can be outrun is not a cutoff.
-CALL_TIMEOUT = 20
+#: ⚠️ **20 through ``08d80a037``, and at 20 it DECIDED verdicts.** Two rows
+#: measured 20.0-22.2 s straddling it and flipped between consecutive censuses
+#: on an unchanged tree — a verdict that is a function of the MACHINE. The
+#: repair shipped then was to skip both ops (see :data:`CONTRACT_SKIP`, where
+#: they now sit for a reason about the OP), and to skip four more in the pure
+#: cell whose only fault was costing 53-526 s there against 0.15 s in native.
+#: All of that existed because the census ran inside CI, where a slow row is a
+#: job that dies and ``windows-latest`` cannot enforce a ``SIGALRM`` cutoff at
+#: all.
+#:
+#: With the census OUT of CI that argument dissolves. A deliberate tool run may
+#: take as long as the tree takes, so the cutoff is set clear of every call that
+#: can still reach it instead of through the middle of two. MEASURED, slowest
+#: rows now that the two label-operand ops are contract-skipped (a row is 3-4
+#: calls):
+#:
+#:     pure    ``recover_check_spectral::edges``        526.5 s
+#:             ``recover_check_spectral::weights``       59.1 s
+#:             ``recover_check::weights``                53.1 s
+#:     native  the same three                        0.15-6.7 s
+#:
+#: Those four rows are now MEASURED rather than skipped, in both cells, and the
+#: ~13 extra minutes are paid by whoever chose to run the instrument. 900 s
+#: against a 592 s worst row bounds a HANG and adjudicates nothing.
+#:
+#: REPRODUCIBILITY, measured rather than argued: a second independent pure pass
+#: over exactly those five rows differed from the committed column in **0**
+#: verdicts, while their wall clocks moved by up to 27% (157.6 -> 200.0 s on
+#: ``recover_check_spectral::weights``). At 20 s the cutoff sat INSIDE that
+#: spread and adjudicated; at 900 s it does not.
+#:
+#: It is still needed: ``tensor_product_multiplicities`` hung indefinitely in
+#: the first census run, and a probe that can hang has no honest verdict to
+#: publish. ``signal.SIGALRM`` fires between BYTECODES and does not exist on
+#: Windows — neither fact bounds anything the tree depends on any more, because
+#: this is a tool a human runs and can interrupt, not a job with a timeout.
+CALL_TIMEOUT = 900
 
-#: ⚠️ **rc465 (`#T1188`) — the shape budget is a CALL-TIMEOUT rule, not a
-#: cumulative wall clock, because a verdict must be a function of the TREE.**
-#:
-#: rc465 shipped this as ``PARAM_BUDGET = 6.0`` seconds of cumulative time per
-#: ``(op, parameter)``: once a row had spent that, the remaining candidate
-#: SHAPES were abandoned and the row was recorded ``BUDGET_EXHAUSTED``. Its own
-#: comment named the hazard it then implemented — *"a bare wall-clock cutoff
-#: makes a verdict depend on the machine, so an op could be adjudicated on a
-#: fast runner and unadjudicated on a slow one"* — and
-#: ``test_layer2_the_committed_census_matches_the_live_one`` asserts the whole
-#: verdict HISTOGRAM, so any such flip is a red CI run on an unchanged tree.
-#:
-#: MEASURED before the change (WSL2 py3.10, native present): every one of the
-#: six ``BUDGET_EXHAUSTED`` rows exhausted after **exactly one candidate shape
-#: and one call**, and that call had itself hit :data:`CALL_TIMEOUT` —
-#: ``alcove_fold.weight`` 20.4s/1 call, ``equal_temperament_partials.degrees``
-#: 59.7s/1 call, the four ``mlse`` params 33.6–58.5s/1 call each. Nothing was
-#: ever abandoned because ORDINARY calls had accumulated; the accumulation
-#: clause only added machine dependence.
-#:
-#: So the rule is now the one the measurement showed was actually operating:
-#: **a call that TIMES OUT abandons the remaining shapes**, recorded as
-#: ``CALL_TIMED_OUT``. The same six rows are recorded, on this cell and on a
-#: slower one, and a row that answers in milliseconds can no longer be retired
-#: by the clock. A timeout still involves a wall clock — :data:`CALL_TIMEOUT`
-#: is unavoidable, or the census hangs (see the weight-lattice CONTRACT_SKIPs)
-#: — but 20s against a typical 5ms call is a ~4000x margin, where 6s of
-#: accumulation was not a margin at all.
 TIMEOUT_MARKER = "TIMEOUT>"
 
 #: Ops skipped by NAME with the reason attached — the same discipline as
@@ -243,109 +281,102 @@ CONTRACT_SKIP: Dict[str, str] = {
         "same weight-label contract as tensor_product_multiplicities",
     "srmech.math.weight_lattice.verlinde_fusion_multiplicities":
         "same weight-label contract; frame_probe.SLOW_SKIP names it too",
-    # ⚠️ rc465-fix (`#T1188`) — THE OP THAT WAS KILLING CI RUNNERS, and the
-    # reason is the same one the three weight-lattice rows above give.
+    # ⚠️ rc465-fix (`#T1188`) — TWO ROWS THAT ``08d80a037`` PUT IN ``SLOW_SKIP``
+    # FOR A WINDOWS-TIMEOUT REASON, AND THAT BELONG HERE FOR THE OP'S OWN.
     #
-    # MEASURED (per-op peak-RSS profile over the whole census, WSL2 py3.10):
+    # That commit skipped them because a 20 s cutoff `windows-latest` cannot
+    # enforce is not a cutoff — true, and about the MACHINE. The question this
+    # rc asks of every skip is whether the reason survives the census leaving
+    # CI. MEASURED (WSL2 py3.10, native), scanning the operand rather than
+    # asserting about it:
     #
-    #     peak RSS 7342 MiB (start 35 MiB)
-    #       +7256.8 MiB -> 7342.4 MiB   srmech.signal_processing.mlse
-    #       +  17.4 MiB ->   81.4 MiB   cascade.matrix_cascades.singular_values_exact
-    #       +  12.1 MiB ->   59.9 MiB   cascade.matrix_cascades.eigvals_exact
+    #   alcove_fold("A1", [w], level=1)          w = 1 .. 4096   0.00 s
+    #                                            w = 2**20       1.06 s
+    #                                            w = 2**30       NO ANSWER >30 s
+    #                                            w = 2**53+1     NO ANSWER >60 s
+    #   equal_temperament_partials(degrees=[d])  d = 1 .. 4096   0.00 s
+    #                                            d = 2**20       ValueError:
+    #                                              "Exceeds the limit (4300) for
+    #                                               integer string conversion"
+    #                                            d = 2**53+1     NO ANSWER >60 s
     #
-    # One op accounts for 7.1 GiB of a 7.3 GiB peak; the next largest is 17 MiB.
-    # A GitHub-hosted Linux runner has ~7 GiB, so the census reached `mlse`
-    # about five minutes in and the RUNNER died — reported as
-    # "The runner has received a shutdown signal" and exit 143, with no pytest
-    # failure line, on `ubuntu-latest` py3.10 and py3.12, `fallback shard 6/6`
-    # and `asserts-live shard 4/4`, in EVERY run on this branch, including a
-    # 5-job re-run far under the concurrency cap. Those four jobs' logs carry
-    # ZERO `F` markers and their `always()` artifact steps are `skipped`, which
-    # is what a lost runner looks like and what a failing test does not.
+    # Both costs are LINEAR IN THE OPERAND'S VALUE, because in both ops the
+    # operand is an INDEX and not a value carrier. `weight` is documented "a
+    # rank-length DYNKIN LABEL", and the affine Weyl fold takes one reflection
+    # step per unit of the label, so a 2**53 coordinate asks for ~2**53 steps —
+    # the identical unbounded-orbit fact the three weight-lattice rows below
+    # already record, and those predate the CI panic entirely. `degrees` is
+    # documented "which SCALE DEGREES to return", and the exact ratio is
+    # `octave**(degree/divisions)`, so degree 2**20 already exceeds CPython's
+    # 4300-digit integer conversion limit; at 2**53 the number has ~10**15 bits.
     #
-    # WHY IT IS A CONTRACT SKIP AND NOT A BUDGET: `mlse`'s `n_states` means
-    # `A**L` (the rc425 v14 ABI bump), so the Viterbi trellis is EXPONENTIAL in
-    # the operand. Substituting `2**53` into `alphabet` / `channel_taps` /
-    # `initial_state` / `observations` does not ask the same question at a
-    # bigger magnitude — it asks for a trellis the op cannot build, exactly as
-    # a `2**53` Dynkin coordinate asks for an unbounded Weyl orbit. The witness
-    # is not a value carrier here. A wall-clock or memory cutoff would report
-    # the machine; this reports the CONTRACT.
+    # Neither is "the same question at a bigger magnitude", which is the test
+    # the mlse note below states. That reason holds on any machine, so these
+    # stay skipped and the WINDOWS reason is retired as the wrong one.
+    "srmech.math.weight_lattice.alcove_fold":
+        "a Dynkin LABEL, not a value carrier: the affine Weyl fold takes one "
+        "reflection step per unit of the coordinate, so cost is LINEAR IN THE "
+        "OPERAND VALUE. MEASURED 0.00s at 4096, 1.06s at 2**20, no answer in "
+        "30s at 2**30. frame_probe.SLOW_SKIP names this family too",
+    "srmech.music.equal_temperament_partials":
+        "a scale-degree INDEX, not a value carrier: the exact ratio is "
+        "octave**(degree/divisions), so the operand sizes the NUMBER rather "
+        "than the question. MEASURED, degree 2**20 already raises \"Exceeds "
+        "the limit (4300) for integer string conversion\"; at 2**53 the value "
+        "has ~10**15 bits",
+    # ⚠️ **THE ONE SKIP THAT SURVIVED THE rc465 CENSUS-PLACEMENT FIX, and it
+    # survives on its own merits rather than on CI's** (`#T1188`).
+    #
+    # It ARRIVED as a mitigation — `83aa9b74f`, "one op allocated 7.1 GiB
+    # inside the census and killed the CI runner" — and every other skip added
+    # in that panic is deleted, because "the census is expensive in CI" stopped
+    # being a reason the moment the census left CI. This one is kept, and the
+    # test is whether the reason is about the OP or about the MACHINE:
+    #
+    #   `mlse`'s `n_states` means `A**L` (the rc425 v14 ABI bump), so the
+    #   Viterbi trellis is EXPONENTIAL in the operand. Substituting `2**53`
+    #   into `alphabet` / `channel_taps` / `initial_state` / `observations`
+    #   does not ask the same question at a bigger magnitude — it asks for a
+    #   trellis the op cannot build, exactly as a `2**53` Dynkin coordinate
+    #   asks for an unbounded Weyl orbit in the three weight-lattice rows
+    #   above, which predate the CI panic entirely. The witness is not a value
+    #   carrier here.
+    #
+    # That reason holds on a workstation with 128 GiB as squarely as on a
+    # 7 GiB runner, so it stays. It is recorded AS DATA — a `CONTRACT_SKIP`
+    # verdict with this reason attached in every manifest row — not as a
+    # silence. MEASURED per-op peak-RSS profile over the whole census (WSL2
+    # py3.10): +7256.8 MiB for `mlse` against +17.4 MiB for the next largest
+    # op, `singular_values_exact`.
     "srmech.signal_processing.mlse":
         "n_states is A**L, so the trellis is EXPONENTIAL in the operand: a "
         "2**53 witness asks for a state space the op cannot build, not the "
-        "same question at a bigger magnitude. MEASURED +7.1 GiB peak RSS in "
-        "one op, which killed the CI runner outright",
+        "same question at a bigger magnitude. MEASURED +7.1 GiB peak RSS, "
+        "against +17.4 MiB for the next largest op in the census",
 }
 
-#: Ops skipped by NAME **in one cell only**, because their per-call cost THERE
-#: sits at the :data:`CALL_TIMEOUT` boundary and the verdict therefore stops
-#: being a function of the tree. Same discipline as ``frame_probe.SLOW_SKIP``,
-#: made PER CELL because the cost is (rc465-fix, `#T1188`).
-#:
-#: MEASURED, same tree, same commit, `seconds` straight off the two censuses:
-#:
-#:   ==========================  ========  ========
-#:   row                          native    pure
-#:   ==========================  ========  ========
-#:   recover_check::weights          0.154    53.1
-#:   recover_check_spectral::w.      0.159    59.1
-#:   recover_check::charges          6.615    16.6
-#:   recover_check_spectral::ch.     6.652    23.4
-#:   recover_check_spectral::ed.     4.686   526.5
-#:   ==========================  ========  ========
-#:
-#: The instability is measured, not feared. Two consecutive pure censuses on an
-#: unchanged tree: run 1 differed from the committed artefact in **0** rows,
-#: run 2 in exactly **2** — ``recover_check::weights`` and
-#: ``recover_check_spectral::weights``, both ``DEMOTED -> EXACT``, at 56.0s and
-#: 61.2s. A call inside each sometimes crosses the 20s cutoff and sometimes
-#: does not, so the verdict is decided by machine load. The NATIVE cell measures
-#: the same two rows in 0.15s and is stable across three runs, so skipping them
-#: there would delete real signal to fix someone else's problem — which is why
-#: this roster is keyed by cell and the native column is EMPTY.
-#:
-#: Drain path, stated rather than implied: these are pure-Python Laplacian
-#: recovery checks whose cost is dominated by a dense eigen-solve the C peer
-#: does in microseconds. The rows come back the moment either the pure path
-#: gets cheaper or the probe learns to bound a call by WORK rather than by
-#: wall clock.
-#: ⚠️ **AND TWO ROWS THAT ARE SKIPPED IN BOTH CELLS, because on Windows there
-#: is no cutoff at all.** :func:`call_bounded` enforces :data:`CALL_TIMEOUT`
-#: through ``signal.SIGALRM``, and ``hasattr(signal, "SIGALRM")`` is **False on
-#: Windows** — so on that platform a call that exceeds the cutoff simply runs.
-#: ``alcove_fold::weight`` and ``equal_temperament_partials::degrees`` are the
-#: only two rows measured PAST the cutoff on both cells (20.0s / 21.4s native,
-#: 21.5s / 22.2s pure), and on ``windows-latest`` they are therefore UNBOUNDED.
-#: MEASURED: that cell reached 99% of the suite at 30.8 minutes and was killed
-#: by its own ``timeout-minutes: 41`` eleven minutes later, having finished
-#: nothing more. A cutoff that one platform cannot enforce is not a cutoff, so
-#: these two are named DATA in every cell rather than a race in one of them.
-SLOW_SKIP: Dict[str, Dict[str, str]] = {
-    "native": {
-        "srmech.math.weight_lattice.alcove_fold":
-            "measured 20.0s past a 20s CALL_TIMEOUT, and CALL_TIMEOUT is "
-            "UNENFORCEABLE on Windows (no signal.SIGALRM), where the row is "
-            "therefore unbounded. frame_probe.SLOW_SKIP names this family too",
-        "srmech.music.equal_temperament_partials":
-            "measured 21.4s past a 20s CALL_TIMEOUT; same Windows "
-            "unenforceability as alcove_fold above",
-    },
-    "pure": {
-        "srmech.math.weight_lattice.alcove_fold":
-            "measured 21.5s past a 20s CALL_TIMEOUT; unbounded on Windows",
-        "srmech.music.equal_temperament_partials":
-            "measured 22.2s past a 20s CALL_TIMEOUT; unbounded on Windows",
-        "srmech.math.laplacian.recover_check":
-            "pure cost 53-56s per row against a 20s CALL_TIMEOUT; measured "
-            "unstable (DEMOTED <-> EXACT) across two consecutive censuses. "
-            "0.154s and stable in the native cell, where it is NOT skipped.",
-        "srmech.math.laplacian.recover_check_spectral":
-            "pure cost 59-526s per row against a 20s CALL_TIMEOUT; measured "
-            "unstable (DEMOTED <-> EXACT) across two consecutive censuses. "
-            "0.159s and stable in the native cell, where it is NOT skipped.",
-    },
-}
+# ⚠️ **THERE IS NO ``SLOW_SKIP`` HERE, AND ITS DELETION IS THE POINT**
+# (`#T1188`). ``08d80a037`` shipped one — a per-cell roster of ops the census
+# was told to avoid — holding ``alcove_fold`` and ``equal_temperament_partials``
+# in BOTH cells (20.0-22.2 s rows against a 20 s cutoff that ``windows-latest``
+# cannot enforce at all) and ``recover_check`` / ``recover_check_spectral`` in
+# the pure cell (53-526 s rows whose verdicts were measured FLIPPING between
+# consecutive censuses). Both rosters existed for one reason: the census was
+# being re-derived inside CI, where a slow row is a job that dies.
+#
+# A deliberate tool run has no such constraint, so each of the six was re-asked
+# the only question that matters — is the reason about the OP or about the
+# MACHINE? The four ``recover_check`` rows are about the machine: they ANSWER,
+# they just cost 53-526 s on the pure path against 0.15 s in native, so they are
+# MEASURED now in both cells, ``CALL_TIMEOUT`` is set clear of them, and the
+# ~11 extra minutes are paid by whoever chose to run the instrument. The other
+# two are about the op — ``alcove_fold`` and ``equal_temperament_partials`` take
+# an INDEX where the probe substitutes a VALUE, measured linear in the operand
+# — so they move to :data:`CONTRACT_SKIP` and are recorded there with the scan
+# that shows it. That is where a genuinely unadjudicable row belongs, next to
+# ``mlse`` and the three weight-lattice rows. A roster keyed by how fast the
+# machine is measures the machine.
+
 
 _IDENT = re.compile(r"[A-Za-z_][A-Za-z_0-9]*")
 
@@ -767,11 +798,6 @@ def probe_op(entry, rows: Dict[str, Any]) -> List[Dict[str, Any]]:
         return [{"op": entry.name, "param": p.name, "type": p.type,
                  "verdict": "CONTRACT_SKIP", "reason": CONTRACT_SKIP[entry.name],
                  "base_source": "none", "seconds": 0.0} for p in params]
-    slow = SLOW_SKIP["native" if is_native() else "pure"]
-    if entry.name in slow:
-        return [{"op": entry.name, "param": p.name, "type": p.type,
-                 "verdict": "SLOW_SKIP", "reason": slow[entry.name],
-                 "base_source": "none", "seconds": 0.0} for p in params]
     res = ea.resolve(entry.name)
     if res is None:
         return [{"op": entry.name, "param": p.name, "type": p.type,
@@ -833,34 +859,108 @@ def census(rows: Optional[Dict[str, Any]] = None, *,
     return recs
 
 
-def by_verdict(recs: Sequence[Dict[str, Any]]) -> Dict[str, int]:
-    out: Dict[str, int] = {}
+def by_verdict(recs, cel=""):
+    """Verdict histogram. ``cel`` selects a MANIFEST column; "" reads a flat
+    cell census (what :func:`census` returns)."""
+    out = {}
     for r in recs:
-        out[r["verdict"]] = out.get(r["verdict"], 0) + 1
+        col = r.get(cel) if cel else r
+        if col:
+            out[col["verdict"]] = out.get(col["verdict"], 0) + 1
     return dict(sorted(out.items()))
 
 
-def demoters(recs: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """DEMOTED rows, sorted — the auto-populated manifest."""
-    return sorted((r for r in recs if r["verdict"] == "DEMOTED"),
+def key(row: Dict[str, Any]) -> str:
+    """``op::param`` — the row identity, in every consumer."""
+    return f"{row['op']}::{row['param']}"
+
+
+# -- the REGISTRY SIGNATURE: the whole staleness guard -------------------------
+def registry_signature_lines() -> List[str]:
+    """``name|pname:ptype,...|returntype`` for every registered op, sorted.
+
+    The triple is chosen because it is exactly what decides DEMOTION-CANDIDACY:
+    :func:`probe_op` selects parameters by their REGISTRY type, builds a binding
+    from the signature, and files the answer under the return carrier. An op
+    added, removed or re-signatured moves this string; nothing else about the
+    tree does — and that limit is the guard's declared blind spot, written out
+    in ``tests/test_silent_carrier_demotion_rc463.py`` rather than left implied.
+    """
+    from srmech.introspect.tool_schema import get_tool_schema
+    out: List[str] = []
+    for e in get_tool_schema().tools:
+        params = ",".join(f"{q.name}:{q.type or ''}"
+                          for q in (e.parameters or ()))
+        rt = getattr(getattr(e, "returns", None), "type", "") or ""
+        out.append(f"{e.name}|{params}|{rt}")
+    return sorted(out)
+
+
+def registry_signature() -> str:
+    """sha256 over the NORMALISED signature lines.
+
+    Normalised (newline-joined with a trailing newline, UTF-8) rather than raw
+    file bytes, for the reason ``tests/test_op_name_set_witness_rc361.py`` gives
+    about its own manifest: a CRLF checkout must not make the digest disagree
+    between the Windows and Linux CI cells, or a platform artifact wears a
+    rename's clothes.
+
+    Routed through ``srmech.amsc.format.sha256_bytes`` — never a direct
+    ``hashlib`` call — so native dispatch picks it up transparently.
+    """
+    from srmech.amsc.format import sha256_bytes
+    body = ("\n".join(registry_signature_lines()) + "\n").encode("utf-8")
+    return sha256_bytes(body)
+
+
+# -- manifest readers ---------------------------------------------------------
+def demoters(recs: Sequence[Dict[str, Any]], cel: str = ""
+             ) -> List[Dict[str, Any]]:
+    """DEMOTED rows, sorted. ``cel`` selects a MANIFEST column; "" reads flat."""
+    def v(r):
+        return (r.get(cel) or {}).get("verdict") if cel else r.get("verdict")
+    return sorted((r for r in recs if v(r) == "DEMOTED"),
                   key=lambda r: (r["op"], r["param"]))
 
 
-def undeclared(recs: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def undeclared(recs: Sequence[Dict[str, Any]], cel: str = ""
+               ) -> List[Dict[str, Any]]:
     """DEMOTED rows publishing NO R3 accuracy declaration — the strict-zero set."""
-    return [r for r in demoters(recs) if not r.get("declares")]
+    return [r for r in demoters(recs, cel)
+            if not ((r.get(cel) or {}) if cel else r).get("declares")]
 
 
-def load_census(path: Optional[Path] = None
-                ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
-    """The census artefact for THIS cell, plus a loud refusal on a cell swap.
+def undeclared_keys(recs: Sequence[Dict[str, Any]], cel: str) -> List[str]:
+    return sorted(key(r) for r in undeclared(recs, cel))
 
-    The ``native`` meta field is compared to the live cell rather than trusted:
-    a census read in the wrong cell is the exact defect this pair of files
-    exists to remove, and it would otherwise present as an ordinary stale-
-    artefact failure with a misleading remedy.
+
+def divergent(recs: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """THE NAMED FINDING: rows whose verdict depends on whether `libsrmech` loaded.
+
+    rc463 already rates this class WORSE than a plain demotion — an op whose
+    ANSWER is decided by which projection happens to be dispatching is not
+    merely inexact, it is two ops wearing one name. Through ``08d80a037`` the
+    disagreement was ABSORBED into two per-cell pinned artefacts, which is
+    exactly how it stopped being visible. Here it is a first-class row property
+    and every member is named in ``meta.divergent``.
     """
-    p = path or census_path()
+    out = []
+    for r in recs:
+        n, u = r.get("native"), r.get("pure")
+        if n and u and n["verdict"] != u["verdict"]:
+            out.append(r)
+    return sorted(out, key=lambda r: (r["op"], r["param"]))
+
+
+def load_manifest(path: Optional[Path] = None
+                  ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    """``(meta, rows)`` from the ONE committed manifest.
+
+    There is no cell-swap check here and nothing to stale-check against a live
+    run: this file is read identically in every CI cell, which is the whole
+    reason it replaced the two per-cell artefacts.
+    """
+    p = path or CENSUS
     meta: Dict[str, Any] = {}
     recs: List[Dict[str, Any]] = []
     with p.open("r", encoding="utf-8") as fh:
@@ -873,36 +973,129 @@ def load_census(path: Optional[Path] = None
                 meta.update(obj)
             else:
                 recs.append(obj)
-    if path is None and "native" in meta and meta["native"] != is_native():
-        raise AssertionError(
-            f"{p.name} was recorded with native={meta['native']} and this "
-            f"process has native={is_native()}. That is a CELL SWAP, not a "
-            f"stale artefact: regenerate the census for the cell you are in "
-            f"(`PYTHONPATH=$PWD python3 tools/demotion_probe.py`) and commit "
-            f"it as the file for that cell.")
     return meta, recs
 
 
-def write_census(path: Optional[Path] = None) -> Dict[str, Any]:
+# -- the tool run -------------------------------------------------------------
+#: Row fields that belong to the (op, parameter) itself rather than to a cell.
+_SHARED = ("op", "param", "type", "base_source")
+#: Per-cell fields. ``seconds`` is DELIBERATELY not among them: it is a property
+#: of the HOST, and a committed artefact carrying it would churn on every
+#: regeneration and make any digest over the file host-dependent — the defect
+#: this rc removed at the level of the whole artefact. The tool PRINTS the
+#: slowest rows instead, which is where that number is actually useful.
+_CELL_FIELDS = ("verdict", "reason", "leaf", "shape", "declares")
+
+
+def merge_cell(path: Optional[Path] = None, *, progress: bool = True
+               ) -> Dict[str, Any]:
+    """Measure THIS cell and merge its column into the committed manifest.
+
+    The other cell's column is carried forward UNTOUCHED — which is the rc460
+    worked-example-ledger defect (its own CHANGELOG entry: ``--only-stale``
+    "stamps the CURRENT cell's ``native`` flag onto rows merged from another
+    cell") repaired rather than repeated: nothing here relabels a measurement it
+    did not take.
+
+    ⚠️ It REFUSES to carry forward a column measured against a DIFFERENT
+    registry signature. Two halves of one manifest measured on two different
+    trees is a file that is internally consistent and jointly false, and the
+    gate reading it could not tell.
+    """
     import srmech
-    recs = census(progress=True)
-    meta = {
-        "record": "meta",
+    p = path or CENSUS
+    me = cell()
+    sig = registry_signature()
+
+    prev_meta: Dict[str, Any] = {}
+    prev_rows: Dict[str, Dict[str, Any]] = {}
+    if p.exists():
+        prev_meta, prv = load_manifest(p)
+        prev_rows = {key(r): r for r in prv}
+    other = [c for c in CELLS if c != me][0]
+    prev_sigs = dict(prev_meta.get("registry_signature_sha256") or {})
+    if other in prev_sigs and prev_sigs[other] != sig:
+        raise SystemExit(
+            f"REFUSING to merge: the committed {other!r} column was measured "
+            f"against registry signature {prev_sigs[other][:12]} and this tree "
+            f"is {sig[:12]}. Re-measure {other!r} on THIS tree "
+            f"(`PYTHONPATH=$PWD python3 tools/demotion_probe.py` in that cell) "
+            f"or delete {p.name} and measure both.")
+
+    t0 = time.time()
+    recs = census(progress=progress)
+    elapsed = round(time.time() - t0, 1)
+
+    merged: Dict[str, Dict[str, Any]] = {}
+    for r in recs:
+        k = key(r)
+        row = dict(prev_rows.get(k) or {})
+        for f in _SHARED:
+            if r.get(f) is not None:
+                row[f] = r[f]
+        row[me] = {f: r[f] for f in _CELL_FIELDS if r.get(f) is not None}
+        merged[k] = row
+    # Rows the OTHER cell measured that this one no longer reaches at all are
+    # KEPT with this cell's column dropped, so a shrinking reach is visible as a
+    # half-populated row rather than as a silent deletion.
+    for k, row in prev_rows.items():
+        if k not in merged:
+            keep = dict(row)
+            keep.pop(me, None)
+            if keep.get(other):
+                merged[k] = keep
+
+    rows = [merged[k] for k in sorted(merged)]
+    for r in rows:
+        n, u = r.get("native"), r.get("pure")
+        if n and u and n["verdict"] != u["verdict"]:
+            r["divergent"] = True
+        else:
+            r.pop("divergent", None)
+
+    sigs = dict(prev_sigs)
+    sigs[me] = sig
+    measured = dict(prev_meta.get("measured_at") or {})
+    measured[me] = {
         "srmech_version": srmech.__version__,
         "python": f"{sys.version_info.major}.{sys.version_info.minor}",
-        "native": is_native(),
-        "n_rows": len(recs),
-        "n_ops": len({r["op"] for r in recs}),
-        "by_verdict": by_verdict(recs),
+        "census_seconds": elapsed,
+    }
+    cells_present = [c for c in CELLS if any(r.get(c) for r in rows)]
+    meta = {
+        "record": "meta",
+        "cells_measured": cells_present,
+        "registry_signature_sha256": sigs,
+        "measured_at": measured,
+        "n_rows": len(rows),
+        "n_ops": len({r["op"] for r in rows}),
+        "by_verdict": {c: by_verdict(rows, c) for c in cells_present},
+        "undeclared": {c: undeclared_keys(rows, c) for c in cells_present},
+        "divergent": [f"{key(r)} native={r['native']['verdict']} "
+                      f"pure={r['pure']['verdict']}" for r in divergent(rows)],
         "witness": {"P": str(P), "F": str(F), "G": str(G)},
     }
-    p = path or census_path()
     with p.open("w", encoding="utf-8", newline="\n") as fh:
         fh.write(json.dumps(meta, sort_keys=True) + "\n")
-        for r in sorted(recs, key=lambda r: (r["op"], r["param"])):
+        for r in rows:
             fh.write(json.dumps(r, sort_keys=True) + "\n")
+
+    slow = sorted(((r.get("seconds") or 0.0), key(r)) for r in recs)[-8:]
+    print(f"\n[{me}] census {elapsed}s over {len(recs)} rows; manifest now "
+          f"{len(rows)} rows / {meta['n_ops']} ops; "
+          f"cells {meta['cells_measured']}", file=sys.stderr)
+    print("slowest rows this cell:", file=sys.stderr)
+    for sec, k in reversed(slow):
+        print(f"  {sec:8.1f}s  {k}", file=sys.stderr)
+    if meta["divergent"]:
+        print(f"NATIVE-vs-PURE DIVERGENCE ({len(meta['divergent'])} rows):",
+              file=sys.stderr)
+        for d in meta["divergent"]:
+            print(f"  {d}", file=sys.stderr)
     return meta
 
 
 if __name__ == "__main__":                                # pragma: no cover
-    print(json.dumps(write_census(), indent=2, sort_keys=True))
+    m = merge_cell()
+    print(json.dumps({k: v for k, v in m.items() if k != "undeclared"},
+                     indent=2, sort_keys=True))
