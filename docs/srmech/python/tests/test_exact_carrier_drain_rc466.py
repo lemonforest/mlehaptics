@@ -796,6 +796,165 @@ def test_every_keyword_builder_declares_exact_in_the_registry(name) -> None:
     assert "Q" in (ps["exact"].summary or ""), name
 
 
+# -- rc467 (`#T1188`): the POPULATION gate that replaced an instance list -----
+#
+# rc466 shipped `_KEYWORD_BUILDERS` - five NAMED ops - as the registry half of
+# the exact-carrier drain. An instance list can only fail on the instances
+# somebody thought to write down, and the five it named were the five that were
+# already fine. Asked of the whole REGISTRY instead, the same question found
+# five more, and four of them were worse than the one the dossier had named:
+#
+#   hermitian_eigendecompose::H   RAISED its own exactness refusal (wire-dead)
+#   dense_solve::A                returned Q(1, 2**53)  - direct: Q(1, 2**53+1)
+#   schur_complement::L           returned Q(2**53 - 1) - direct: Q(2**53)
+#   dirichlet_to_neumann::L       returned Q(2**53 - 1) - direct: Q(2**53)
+#   triality_companions::g_v      returned Q(9007199254740999, 8) - direct: an
+#                                 INTEGER, 1125899906842625
+#
+# A raise is a defect the caller can see. Those four are SILENT WRONG ANSWERS
+# WEARING THE EXACT CARRIER: the wire rounded the operand to float64, the op
+# then computed exactly on the rounded number, and the caller got back a `Q` -
+# the carrier whose whole meaning is "this is exact" - holding a value that is
+# not the answer to the question asked.
+#
+# The gate below asks the population question, so a NEW `exact=`-bearing op
+# that declares a rounding operand is red on the day it lands.
+
+
+def _exact_leaves(o):
+    """Every scalar leaf of a coerced operand, containers unwrapped."""
+    if hasattr(o, "tolist"):
+        o = o.tolist()
+    if isinstance(o, (list, tuple)):
+        for x in o:
+            yield from _exact_leaves(x)
+    else:
+        yield o
+
+
+def _carries(o, target: int) -> bool:
+    """True iff ``target`` survived coercion somewhere in ``o``, EXACTLY."""
+    from fractions import Fraction
+    for v in _exact_leaves(o):
+        try:
+            if Fraction(v) == target:
+                return True
+        except (TypeError, ValueError):
+            r = getattr(v, "as_rational", None)
+            if r is not None and r() == target:
+                return True
+    return False
+
+
+def test_no_exact_bearing_op_declares_an_operand_that_rounds_over_the_wire() -> None:
+    """rc467 (`#T1188`) - the POPULATION gate. STRICT ZERO.
+
+    For every registry entry carrying an ``exact`` parameter, every array-shaped
+    operand it declares must carry ``2**53 + 1`` through ``coerce_param``
+    INTACT. A bare ``Mat`` does not - it is float64 - so the wire hands the
+    exact route a rounded operand and the route answers exactly, about the
+    wrong matrix.
+
+    This asks about OPERAND SURVIVAL, not return exactness. An op may
+    legitimately return a float (that is what a DECLARED demotion is); none may
+    legitimately be handed a number its caller did not send."""
+    from srmech.introspect.tool_schema import get_tool_schema
+    from srmech.mcp._coercion import coerce_param, has_coercer
+
+    target = 2 ** 53 + 1
+    witnesses = ([[target, 0], [0, 1]], [target, 1])
+    population = [e for e in get_tool_schema().tools
+                  if any(p.name == "exact" for p in e.parameters)]
+    # The instrument can return otherwise: the population is non-empty, and it
+    # is strictly bigger than the five-name list rc466 shipped.
+    assert len(population) > len(_KEYWORD_BUILDERS), len(population)
+
+    rounding = []
+    for entry in population:
+        for prm in entry.parameters:
+            if prm.name == "exact" or not has_coercer(prm.type):
+                continue
+            for w in witnesses:
+                try:
+                    got = coerce_param(w, prm.type)
+                except Exception:
+                    continue          # this operand does not take this shape
+                if not _carries(got, target):
+                    rounding.append("%s::%s (%s)" % (entry.name, prm.name, prm.type))
+                break
+
+    assert rounding == [], (
+        "these exact=-bearing ops declare an operand that ROUNDS over the "
+        "wire, so exact=True computes on a number the caller did not send: "
+        + "; ".join(sorted(rounding)))
+
+
+def test_the_widened_operands_cross_the_wire_and_agree_with_the_direct_call() -> None:
+    """rc467 (`#T1188`) - the EXECUTED half. Each widened operand is not merely
+    DECLARED wider: it round-trips over the wire and AGREES with the direct
+    call. Every wire value asserted below was wrong before this rc."""
+    from srmech.mcp import invoke_tool
+    from srmech.math import laplacian as _L
+    from srmech.physics.qm import triality as _T
+
+    # (a) the four eigen-family routes that RAISED their own exactness refusal
+    vals = invoke_tool("srmech.math.laplacian.jacobi_eigvals",
+                       {"matrix": [[P, 0], [0, 1]], "exact": True})
+    assert [v.as_rational() for v in vals] == [Q(1), Q(P)], vals
+    lam, _V = invoke_tool("srmech.math.laplacian.symmetric_eigendecompose",
+                          {"L": [[P, 0], [0, 1]], "exact": True})
+    assert lam[1].as_rational() == Q(P), lam
+    fied = invoke_tool("srmech.math.laplacian.fiedler_vector",
+                       {"matrix": [[P, 0], [0, 1]], "exact": True})
+    assert all(type(x).__name__ == "Qalg" for x in fied), fied
+    grp = invoke_tool("srmech.math.laplacian.three_fold_eigvec_groups",
+                      {"L": [[P, 0], [0, 1]], "exact": True})
+    assert set(grp) == {"low", "mid", "high"}, sorted(grp)
+
+    # (b) the four that answered exactly, about the WRONG matrix
+    Lm = [[P, -1], [-1, 1]]
+    assert (invoke_tool("srmech.math.laplacian.schur_complement",
+                        {"L": Lm, "boundary_idx": [0], "exact": True})
+            == _L.schur_complement(Lm, [0], exact=True))
+    assert (invoke_tool("srmech.math.laplacian.dirichlet_to_neumann",
+                        {"L": Lm, "boundary_idx": [0], "exact": True})
+            == _L.dirichlet_to_neumann(Lm, [0], exact=True))
+    assert (invoke_tool("srmech.math.laplacian.dense_solve",
+                        {"A": [[P, 0], [0, 1]], "B": [1, 1], "exact": True})
+            == _L.dense_solve([[P, 0], [0, 1]], [1, 1], exact=True))
+    g8 = [[P if i == j == 0 else (1 if i == j else 0) for j in range(8)]
+          for i in range(8)]
+    assert (invoke_tool("srmech.physics.qm.triality.triality_companions",
+                        {"g_v": g8, "exact": True})[0][0][0]
+            == _T.triality_companions(g8, exact=True)[0][0][0] == Q(2 ** 50 + 1))
+
+
+def test_the_exact_jacobi_route_no_longer_lifts_to_float() -> None:
+    """rc467 (`#T1188`) - the SEVENTH residual. jacobi_eigvals(exact=True) ended
+    in a terminal float lift that destroyed the exactness the keyword exists to
+    supply, while its sibling fiedler_vector had returned list[Qalg] since
+    rc466. An op whose sibling ships the exact return is not float by nature,
+    so it was FIXED, not declared."""
+    from srmech.math.laplacian import jacobi_eigvals, fiedler_vector
+
+    vals = jacobi_eigvals([[P, 0], [0, 1]], exact=True)
+    assert [type(v).__name__ for v in vals] == ["Qalg", "Qalg"], vals
+    assert vals[1].as_rational() == Q(P), vals[1]      # was 9007199254740992.0
+
+    # an IRRATIONAL spectrum comes back as the algebraic number, not a float:
+    # x^3 - 10x^2 + 28x - 22 is irreducible over Q (the docstring's own witness).
+    irr = jacobi_eigvals([[2, 1, 1], [1, 3, 1], [1, 1, 5]], exact=True)
+    assert all(v.as_rational() is None for v in irr), irr
+    assert {v.m for v in irr} == {(-22, 28, -10, 1)}, [v.m for v in irr]
+
+    # the sibling agrees on carrier, which is the argument that decided it
+    sib = fiedler_vector([[P, 0], [0, 1]], exact=True)
+    assert type(sib[0]).__name__ == type(irr[0]).__name__ == "Qalg"
+
+    # and the DEFAULT float route is untouched
+    assert type(jacobi_eigvals([[2.0, 1.0], [1.0, 2.0]])).__name__ == "Vec"
+
+
 def test_every_widened_param_type_has_a_coercer_and_a_lexicon_row() -> None:
     from srmech.mcp._coercion import has_coercer
     from srmech.mcp._tools import _TYPE_LEXICON, _ENCODING_HINT

@@ -2628,8 +2628,8 @@ def _register_primitive_class_tools() -> None:
                     "second-smallest eigenvalue (λ₂) of a Laplacian. "
                     "Dispatches real→symmetric_eigendecompose, "
                     "complex→hermitian_eigendecompose (both native).",
-            parameters=(P("matrix", "Mat", True,
-                          "n × n real-symmetric or complex-Hermitian Laplacian"),
+            parameters=(P("matrix", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
+                          "n × n real-symmetric or complex-Hermitian Laplacian. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` RAISED its own exactness refusal on every operand a caller could actually send."),
                         P("exact", "bool", False,
                           "rc466 review fix: the λ₂ column of "
                           "hermitian_eigendecompose(matrix, exact=True) — a "
@@ -2823,13 +2823,25 @@ def _register_primitive_class_tools() -> None:
                     "c/s computation. Native C dispatch at any n (the kernel "
                     "rotates in place, so the bound is the caller's RAM, not a "
                     "compiled cap); pure-Python Jacobi cascade otherwise.",
-            parameters=(P("matrix", "Mat", True, "n × n symmetric"),
+            parameters=(P("matrix", "Mat | QMat | Sequence[Sequence[int | Q]]", True, "n × n symmetric. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` RAISED its own exactness refusal on every operand a caller could actually send."),
                         P("max_sweeps", "int", False, "default 100"),
                         P("tolerance", "float", False),
                         P("exact", "bool", False,
-                          "exact eigvals_exact route for integer/rational "
-                          "symmetric input (default float-Jacobi)")),
-            returns=R("Vec", "n eigenvalues ascending — Vec, the array('d') 1-D carrier"),
+                          "rc467 (`#T1188`): route to the exact symmetric "
+                          "eigensolve for an exact (int / Q / Fraction) "
+                          "symmetric operand and RETURN the eigenvalues exact "
+                          "— a list of n Qalg, each over its own irreducible "
+                          "minimal polynomial, never a float. Until rc466 this "
+                          "route ended in a terminal float lift that destroyed "
+                          "what the keyword was asked for: [[2**53+1, 0], "
+                          "[0, 1]] came back 9007199254740992.0, off by one, "
+                          "for a spectrum of two exact integers. The default "
+                          "float-Jacobi path is UNCHANGED")),
+            returns=R("Vec | list[Qalg]",
+                      "n eigenvalues ascending with multiplicity — a Vec (the "
+                      "array('d') 1-D carrier) on the default float-Jacobi "
+                      "route, and a list of n exact Qalg under exact=True "
+                      "(rc467, `#T1188`), matching the sibling fiedler_vector"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.spectral_block_dispatch", owner="srmech",
@@ -2868,8 +2880,8 @@ def _register_primitive_class_tools() -> None:
                     "realization rides the numpy-free "
                     "Mat engine; exact-rational Q solve (Class-N exact-ℚ core, "
                     "exact=True).",
-            parameters=(P("A", "Mat", True,
-                          "n × n coefficient matrix; nested JSON list over MCP"),
+            parameters=(P("A", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
+                          "n × n coefficient matrix; nested JSON list over MCP. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` then computed EXACTLY on a ROUNDED operand and returned a wrong answer wearing the exact carrier."),
                         P("B", "Mat | Vec", True,
                           "right-hand side: n × w matrix or length-n vector"),
                         P("exact", "bool", False,
@@ -2889,7 +2901,7 @@ def _register_primitive_class_tools() -> None:
                     "the operator|operand FUSION op). Exact-rational Q "
                     "solve (Class-N core, exact=True); the float realization "
                     "rides the numpy-free Mat engine (dense_solve -> mat_solve).",
-            parameters=(P("L", "Mat", True,
+            parameters=(P("L", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
                           "n × n SPD operator (a graph Laplacian); nested JSON "
                           "list over MCP"),
                         P("boundary_idx", "list[int]", True,
@@ -2905,7 +2917,7 @@ def _register_primitive_class_tools() -> None:
             summary="Alias for schur_complement — the discrete "
                     "Dirichlet-to-Neumann map: boundary values ⟹ the boundary "
                     "normal-derivative of their harmonic interior extension.",
-            parameters=(P("L", "Mat", True,
+            parameters=(P("L", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
                           "n × n SPD operator (a graph Laplacian); nested JSON "
                           "list over MCP"),
                         P("boundary_idx", "list[int]", True,
@@ -2930,8 +2942,8 @@ def _register_primitive_class_tools() -> None:
                     "complex-Jacobi cascade (there is no NumPy in the call "
                     "graph — the package imports numpy nowhere). Sakurai "
                     "§2.1.5; Golub & Van Loan §8.5.",
-            parameters=(P("H", "Mat", True,
-                          "n × n complex Hermitian matrix"),
+            parameters=(P("H", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
+                          "n × n complex Hermitian matrix. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` RAISED its own exactness refusal on every operand a caller could actually send."),
                         P("exact", "bool", False,
                           "rc466 review fix: an exact REAL operand (int / Q / "
                           "Fraction, or Qi with zero imaginary part) takes "
@@ -2955,8 +2967,8 @@ def _register_primitive_class_tools() -> None:
                     "hermitian_eigendecompose: guarantees real float64 "
                     "eigvals AND eigvecs (no ComplexWarning for a real "
                     "Laplacian). Golub & Van Loan §8.3.",
-            parameters=(P("L", "Mat", True,
-                          "n × n real symmetric matrix"),
+            parameters=(P("L", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
+                          "n × n real symmetric matrix. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` RAISED its own exactness refusal on every operand a caller could actually send."),
                         P("exact", "bool", False, "rc466 review fix: route to the exact eigensolver (eig_exact — exact char-poly, irreducible factors, Sturm-isolated roots, exact null space over Q(λ)); the operand must be exact (int / Q / Fraction entries) and symmetric, a float entry is REFUSED by name. Opt-in: polynomial-factoring cost class, not Jacobi's")),
             returns=R("tuple[Vec, Mat] | tuple[list, list]",
                       "(eigvals_ascending Vec, V_orthogonal real Mat); with "
@@ -3347,7 +3359,7 @@ def _register_primitive_class_tools() -> None:
             category="laplacian",
             summary="Harmonic-3 three-fold spectral reading (F150): partition the "
                     "eigenvectors of a real-symmetric Laplacian into low/mid/high.",
-            parameters=(P("L", "Mat", True, "real-symmetric matrix"),
+            parameters=(P("L", "Mat | QMat | Sequence[Sequence[int | Q]]", True, "real-symmetric matrix. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` RAISED its own exactness refusal on every operand a caller could actually send."),
                         P("exact", "bool", False,
                           "rc466 review fix: the bands are column slices of "
                           "symmetric_eigendecompose(L, exact=True)'s exact "
@@ -17083,7 +17095,7 @@ def _register_qm_tools() -> None:
                     "that exact carrier (list[list[Q]]) instead of the float64 "
                     "Mat, and keeps the OPERAND exact too. "
                     "Class M. Baez (2002) §2.4.",
-            parameters=(P("g_v", "Mat", True, "8×8 so(8) generator"),
+            parameters=(P("g_v", "Mat | QMat | Sequence[Sequence[int | Q]]", True, "8×8 so(8) generator. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` then computed EXACTLY on a ROUNDED operand and returned a wrong answer wearing the exact carrier."),
                         P("exact", "bool", False,
                           "return the exact-ℚ companions as list[list[Q]] "
                           "instead of the float64 Mat (default False)")),

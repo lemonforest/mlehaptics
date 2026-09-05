@@ -672,22 +672,45 @@ def test_the_carrier_selector_census_figure_is_re_measured() -> None:
         f"change — do not just re-pin the number here.")
 
 
-def test_jacobi_eigvals_exact_returns_a_FLOAT_vec_not_a_Q_carrier() -> None:
-    """The one precedent that means something DIFFERENT by ``exact=``.
+def test_the_two_exact_readings_have_CONVERGED_rc467() -> None:
+    """rc467 (`#T1188`) - this test used to pin the OPPOSITE.
 
-    Pinned because the difference is easy to mis-cite: ``jacobi_eigvals``
-    validates its input as exact and keeps the ARITHMETIC exact, then performs a
-    single terminal float lift, so the return contract is unchanged (``Vec`` of
-    floats). The three Class-L solves instead hand back the ``Q`` carrier. Both
-    readings are legitimate; ``triality_companions`` follows the Class-L one
-    because its result is a MATRIX with an exact carrier that ships.
-    """
-    from srmech.math.laplacian import jacobi_eigvals
+    Until rc466 it was named ``..._returns_a_FLOAT_vec_not_a_Q_carrier`` and
+    read ``jacobi_eigvals``'s terminal float lift as the second of "two
+    legitimate readings" of ``exact=``: keep the ARITHMETIC exact, then lift.
+    Its own failure message named the condition for revisiting that -
+    *"if this became Q the two exact= readings have converged and the docstrings
+    describing them must be revisited"* - and rc467 is that day. The instrument
+    was built to be able to return otherwise, and it did.
+
+    What decided it was not taste. The lift DESTROYED the answer it was asked
+    for: ``jacobi_eigvals([[2**53+1, 0], [0, 1]], exact=True)`` returned
+    ``9007199254740992.0``, off by one, for a spectrum of two exact integers.
+    And the sibling in the same family and the same rc466 sweep,
+    ``fiedler_vector``, already declared ``Vec | list[Qalg]`` and returned
+    exact. An op whose sibling ships the exact return is not float by nature.
+
+    So there is now ONE reading of ``exact=`` on this family: the exact operand
+    goes in and the exact carrier comes out. ``Qalg`` rather than ``Q`` because
+    an eigenvalue need not be rational - the algebraic number is carried over
+    its own irreducible minimal polynomial rather than rounded to the nearest
+    float."""
+    from srmech.math.laplacian import jacobi_eigvals, fiedler_vector
     from srmech.math.vec import Vec
 
     ev = jacobi_eigvals([[2, 0], [0, 3]], exact=True)
-    assert isinstance(ev, Vec)
-    assert type(ev[0]) is float, (
-        f"jacobi_eigvals(exact=True) leaf is {type(ev[0]).__name__}; if this "
-        f"became Q the two exact= readings have converged and the docstrings "
-        f"describing them must be revisited")
+    assert not isinstance(ev, Vec), type(ev).__name__
+    assert [type(x).__name__ for x in ev] == ["Qalg", "Qalg"], ev
+    assert [x.as_rational() for x in ev] == [Q(2), Q(3)], ev
+
+    # the defect that decided it, measured rather than recalled
+    big = jacobi_eigvals([[2 ** 53 + 1, 0], [0, 1]], exact=True)
+    assert big[1].as_rational() == Q(2 ** 53 + 1), big[1]
+
+    # the sibling this converged ONTO
+    sib = fiedler_vector([[2 ** 53 + 1, 0], [0, 1]], exact=True)
+    assert type(sib[0]).__name__ == "Qalg", sib
+
+    # and the DEFAULT float route is untouched - this is a widening of the
+    # keyword's contract, never a change to the path nobody opted into
+    assert isinstance(jacobi_eigvals([[2.0, 0.0], [0.0, 3.0]]), Vec)

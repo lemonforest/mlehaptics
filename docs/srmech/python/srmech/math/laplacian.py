@@ -1460,10 +1460,20 @@ def _jacobi_eigvals_exact(matrix) -> "Vec":
 
     Validates ``matrix`` is SQUARE, **exact** (every entry an ``int`` /
     :class:`fractions.Fraction` / srmech ``Q``), and SYMMETRIC, then routes to
-    the exact-substrate cascade :func:`srmech.cascade.matrix_cascades.eigvals_exact`
-    (lazily imported here to avoid any circular-import risk). Returns the
-    ascending eigenvalues **with multiplicity** as a 1-D :class:`Vec` — the same
-    return contract as the float-Jacobi path.
+    the exact-substrate eigensolve :func:`_symmetric_eig_exact`. Returns the
+    ascending eigenvalues **with multiplicity** as a ``list`` of
+    :class:`~srmech.math.qalg.Qalg` — each over its OWN irreducible minimal
+    polynomial, so an irrational eigenvalue is carried as the algebraic number
+    it is rather than rounded to the float nearest it.
+
+    ⚠️ **The return carrier DIFFERS from the float path's** (rc467, `#T1188`).
+    Until rc466 this route ended ``Vec.from_sequence(eigs)`` — a terminal float
+    lift that destroyed the very exactness the keyword was asked for:
+    ``jacobi_eigvals([[2**53+1, 0], [0, 1]], exact=True)`` returned
+    ``9007199254740992.0``, off by one, for an operand whose eigenvalues are two
+    exact integers. The sibling :func:`fiedler_vector` has declared
+    ``Vec | list[Qalg]`` and returned exact since rc466; an op whose sibling
+    ships the exact return is not float by nature.
 
     Raises :class:`ValueError` on a non-square / float-bearing / non-symmetric
     input: exact eigenvalues are only achievable for an integer/rational
@@ -1496,10 +1506,11 @@ def _jacobi_eigvals_exact(matrix) -> "Vec":
                     "matrix can have complex eigenvalues that the real-root "
                     "eigvals_exact returns incompletely."
                 )
-    # Lazy import (avoid a circular-import risk at module load).
-    from srmech.cascade.matrix_cascades import eigvals_exact
-    eigs = eigvals_exact(rows)  # ascending, with multiplicity (real spectrum)
-    return Vec.from_sequence(eigs, is_complex=False)
+    # rc467 (`#T1188`): the values come back as Qalg and STAY Qalg. The route
+    # is _symmetric_eig_exact — the same one fiedler_vector(exact=True) already
+    # takes, which is why the sibling already declares `Vec | list[Qalg]`.
+    values, _V = _symmetric_eig_exact(rows, "jacobi_eigvals")
+    return values
 
 
 def jacobi_eigvals(
@@ -1508,7 +1519,7 @@ def jacobi_eigvals(
     tolerance: float = 1e-12,
     *,
     exact: bool = False,
-) -> "Vec":
+) -> "Vec | list":
     """Symmetric Jacobi eigendecomposition.
 
     Returns the sorted (ascending) eigenvalues of a real symmetric matrix.
@@ -1552,10 +1563,15 @@ def jacobi_eigvals(
       can have complex eigenvalues that the real-root ``eigvals_exact``
       returns incompletely.) The spectrum then stays exact — char-poly
       Faddeev–LeVerrier → Yun square-free → Sturm isolation → ``Q``
-      bisection — until the single terminal float lift (the rotation-last
-      "exact-substrate-achievable" case). The return is the same contract as
-      the float path: a 1-D :class:`~srmech.math.vec.Vec` of ``n`` ascending
-      eigenvalues, **with multiplicity**.
+      bisection — and, since rc467 (`#T1188`), it STAYS exact: the return is a
+      ``list`` of ``n`` ascending :class:`~srmech.math.qalg.Qalg` eigenvalues
+      **with multiplicity**, each over its own irreducible minimal polynomial.
+      ⚠️ That is a DIFFERENT carrier from the float path's
+      :class:`~srmech.math.vec.Vec`, and deliberately so — the terminal float
+      lift this route used to end with rounded the exact answer away
+      (``[[2**53+1, 0], [0, 1]]`` came back ``9007199254740992.0``), which is
+      the whole defect the keyword exists to avoid. The sibling
+      :func:`fiedler_vector` has returned ``list[Qalg]`` since rc466.
 
     Why the exact route exists — float-Jacobi cannot terminate exactly, even at n = 3
     ------------------------------------------------------------------------------
@@ -1575,7 +1591,8 @@ def jacobi_eigvals(
     implementation shortcut, and ``exact=True`` is the route that does not
     pretend otherwise: it leaves the rotation basis entirely for the exact
     substrate (Faddeev–LeVerrier → Yun → Sturm → ``Q`` bisection) and stays
-    exact until the single terminal float lift.
+    exact all the way to the caller (rc467, `#T1188` — there is no longer a
+    terminal float lift; see the return-carrier warning above).
 
     ⚠️ **NON-CLAIM: this is not Abel–Ruffini.** The obstruction above is about
     SQUARE-ROOT TOWERS, not solvability by radicals, and it bites at ``n = 3``

@@ -1454,7 +1454,7 @@ static const srmech_tool_param_t ts_params_58[] = {
     { "kind", "str", 0, "'propagator' (default; e^{\342\210\222zL}\302\267u0, delegates to propagate) or 'resolvent' ((zI\342\210\222L)^{\342\210\2221}\302\267u0, the Laplace-dual Green's function; keyword-only)" },
 };
 static const srmech_tool_param_t ts_params_59[] = {
-    { "matrix", "Mat", 1, "n \303\227 n real-symmetric or complex-Hermitian Laplacian" },
+    { "matrix", "Mat | QMat | Sequence[Sequence[int | Q]]", 1, "n \303\227 n real-symmetric or complex-Hermitian Laplacian. \342\232\240\357\270\217 WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire \342\200\224 `exact=True` RAISED its own exactness refusal on every operand a caller could actually send." },
     { "exact", "bool", 0, "rc466 review fix: the \316\273\342\202\202 column of hermitian_eigendecompose(matrix, exact=True) \342\200\224 a list of n Qalg, the exact null-space vector of A \342\210\222 \316\273\342\202\202I over Q(\316\273\342\202\202), unnormalised; exact real symmetric operand required (a Qi with imaginary part is refused by name)" },
 };
 static const srmech_tool_param_t ts_params_60[] = {
@@ -1491,10 +1491,10 @@ static const srmech_tool_param_t ts_params_64[] = {
     { "progress", "host_callable", 0, "keyword-only; the \302\247101 / ABI-v6 per-call progress HEARTBEAT + graceful-abort tick \342\200\224 an IN-PROCESS host callable, never an MCP wire value (its type publishes JSON-schema 'null', so the only legal wire value is absent). Called as progress(ev) with ONE dict {struct_size, phase, done, total}; here it fires once per QUEUE STEP with phase=PARTITIONING, done = the sum of the FINALIZED tome sizes (exact + monotone; == n once the queue empties) and total = n, plus a terminal done == n heartbeat whose return is ignored. A TRUTHY return CANCELS cleanly: every still-pending node-set is promoted to a coarse UNCUT tome, so the result still partitions ALL n nodes \342\200\224 a valid (coarser) partition with status='cancelled', never a torn one. done/total are EXACT integer cardinalities (Class-N): the library never divides and never accumulates a float, so a percentage is the observer's own done/total, not something reported. The tick fires INLINE on the encode thread (zero concurrency, MCU-safe, no RTOS). NOT the v5 srmech_progress_cb_t process-global dispatch OBSERVER (void return, no cancel channel). Default None = disabled." },
 };
 static const srmech_tool_param_t ts_params_65[] = {
-    { "matrix", "Mat", 1, "n \303\227 n symmetric" },
+    { "matrix", "Mat | QMat | Sequence[Sequence[int | Q]]", 1, "n \303\227 n symmetric. \342\232\240\357\270\217 WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire \342\200\224 `exact=True` RAISED its own exactness refusal on every operand a caller could actually send." },
     { "max_sweeps", "int", 0, "default 100" },
     { "tolerance", "float", 0, "" },
-    { "exact", "bool", 0, "exact eigvals_exact route for integer/rational symmetric input (default float-Jacobi)" },
+    { "exact", "bool", 0, "rc467 (`#T1188`): route to the exact symmetric eigensolve for an exact (int / Q / Fraction) symmetric operand and RETURN the eigenvalues exact \342\200\224 a list of n Qalg, each over its own irreducible minimal polynomial, never a float. Until rc466 this route ended in a terminal float lift that destroyed what the keyword was asked for: [[2**53+1, 0], [0, 1]] came back 9007199254740992.0, off by one, for a spectrum of two exact integers. The default float-Jacobi path is UNCHANGED" },
 };
 static const srmech_tool_param_t ts_params_66[] = {
     { "blocks", "list", 1, "1..4 symmetric matrices, each n \342\211\244 256" },
@@ -1503,26 +1503,26 @@ static const srmech_tool_param_t ts_params_66[] = {
     { "combine", "bool", 0, "also return merged-sorted spectrum" },
 };
 static const srmech_tool_param_t ts_params_67[] = {
-    { "A", "Mat", 1, "n \303\227 n coefficient matrix; nested JSON list over MCP" },
+    { "A", "Mat | QMat | Sequence[Sequence[int | Q]]", 1, "n \303\227 n coefficient matrix; nested JSON list over MCP. \342\232\240\357\270\217 WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire \342\200\224 `exact=True` then computed EXACTLY on a ROUNDED operand and returned a wrong answer wearing the exact carrier." },
     { "B", "Mat | Vec", 1, "right-hand side: n \303\227 w matrix or length-n vector" },
     { "exact", "bool", 0, "force the exact-\342\204\232 Q solve (default False)" },
 };
 static const srmech_tool_param_t ts_params_68[] = {
-    { "L", "Mat", 1, "n \303\227 n SPD operator (a graph Laplacian); nested JSON list over MCP" },
+    { "L", "Mat | QMat | Sequence[Sequence[int | Q]]", 1, "n \303\227 n SPD operator (a graph Laplacian); nested JSON list over MCP" },
     { "boundary_idx", "list[int]", 1, "boundary node indices \342\210\202 (1 \342\211\244 |\342\210\202| \342\211\244 n)" },
     { "exact", "bool", 0, "force the exact-\342\204\232 Q solve (default False)" },
 };
 static const srmech_tool_param_t ts_params_69[] = {
-    { "L", "Mat", 1, "n \303\227 n SPD operator (a graph Laplacian); nested JSON list over MCP" },
+    { "L", "Mat | QMat | Sequence[Sequence[int | Q]]", 1, "n \303\227 n SPD operator (a graph Laplacian); nested JSON list over MCP" },
     { "boundary_idx", "list[int]", 1, "boundary node indices \342\210\202 (1 \342\211\244 |\342\210\202| \342\211\244 n)" },
     { "exact", "bool", 0, "force the exact-\342\204\232 Q solve (default False)" },
 };
 static const srmech_tool_param_t ts_params_70[] = {
-    { "H", "Mat", 1, "n \303\227 n complex Hermitian matrix" },
+    { "H", "Mat | QMat | Sequence[Sequence[int | Q]]", 1, "n \303\227 n complex Hermitian matrix. \342\232\240\357\270\217 WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire \342\200\224 `exact=True` RAISED its own exactness refusal on every operand a caller could actually send." },
     { "exact", "bool", 0, "rc466 review fix: an exact REAL operand (int / Q / Fraction, or Qi with zero imaginary part) takes symmetric_eigendecompose's exact route; a Qi entry with non-zero imaginary part is REFUSED by name (no shipped exact eigenvector carrier over Q(\316\273, i)); a float entry is refused, never rounded" },
 };
 static const srmech_tool_param_t ts_params_71[] = {
-    { "L", "Mat", 1, "n \303\227 n real symmetric matrix" },
+    { "L", "Mat | QMat | Sequence[Sequence[int | Q]]", 1, "n \303\227 n real symmetric matrix. \342\232\240\357\270\217 WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire \342\200\224 `exact=True` RAISED its own exactness refusal on every operand a caller could actually send." },
     { "exact", "bool", 0, "rc466 review fix: route to the exact eigensolver (eig_exact \342\200\224 exact char-poly, irreducible factors, Sturm-isolated roots, exact null space over Q(\316\273)); the operand must be exact (int / Q / Fraction entries) and symmetric, a float entry is REFUSED by name. Opt-in: polynomial-factoring cost class, not Jacobi's" },
 };
 static const srmech_tool_param_t ts_params_72[] = {
@@ -1632,7 +1632,7 @@ static const srmech_tool_param_t ts_params_100[] = {
     { "value", "int", 1, "any non-negative int; read mod 3" },
 };
 static const srmech_tool_param_t ts_params_101[] = {
-    { "L", "Mat", 1, "real-symmetric matrix" },
+    { "L", "Mat | QMat | Sequence[Sequence[int | Q]]", 1, "real-symmetric matrix. \342\232\240\357\270\217 WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire \342\200\224 `exact=True` RAISED its own exactness refusal on every operand a caller could actually send." },
     { "exact", "bool", 0, "rc466 review fix: the bands are column slices of symmetric_eigendecompose(L, exact=True)'s exact eigenvector matrix (each an (n, k) nested list of Qalg); exact symmetric operand required" },
 };
 static const srmech_tool_param_t ts_params_102[] = {
@@ -3921,7 +3921,7 @@ static const srmech_tool_param_t ts_params_632[] = {
     { "to_frame", "str", 1, "target frame label" },
 };
 static const srmech_tool_param_t ts_params_633[] = {
-    { "g_v", "Mat", 1, "8\303\2278 so(8) generator" },
+    { "g_v", "Mat | QMat | Sequence[Sequence[int | Q]]", 1, "8\303\2278 so(8) generator. \342\232\240\357\270\217 WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire \342\200\224 `exact=True` then computed EXACTLY on a ROUNDED operand and returned a wrong answer wearing the exact carrier." },
     { "exact", "bool", 0, "return the exact-\342\204\232 companions as list[list[Q]] instead of the float64 Mat (default False)" },
 };
 static const srmech_tool_param_t ts_params_634[] = {
@@ -6955,8 +6955,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "laplacian",
         "Symmetric Jacobi eigendecomposition; pi-free closed-form c/s computation. Native C dispatch at any n (the kernel rotates in place, so the bound is the caller's RAM, not a compiled cap); pure-Python Jacobi cascade otherwise.",
         ts_params_65, 4u,
-        "Vec",
-        "n eigenvalues ascending \342\200\224 Vec, the array('d') 1-D carrier",
+        "Vec | list[Qalg]",
+        "n eigenvalues ascending with multiplicity \342\200\224 a Vec (the array('d') 1-D carrier) on the default float-Jacobi route, and a list of n exact Qalg under exact=True (rc467, `#T1188`), matching the sibling fiedler_vector",
         1,
         NULL,
         "{\"output\":\"AA == FFLLSSSSYY**CC*W ...  (64 chars, '*' = stop)\\nsingle-substitution codon spectrum: Counter({8.0: 27, 12.0: 27, 4.0: 9, 0.0: 1})\\nclosed form for the Hamming graph H(3,4): lambda=4k, mult C(3,k)*3^k = [(0, 1), (4, 9), (8, 27), (12, 27)]\\nsynonymous-only zero modes (= connected components): 22\",\"why\":\"The 64-codon single-substitution graph is exactly the Hamming graph H(3,4), so its Laplacian spectrum must be lambda=4k with multiplicity C(3,k)*3^k - a closed form the eigensolver reproduces, making this example self-falsifying.\",\"worked\":\"from srmech.biology.genome import codon_read\\n# The attested Standard Genetic Code, read back through the shipped op:\\nB    = \\\"TCAG\\\"                                   # attested base_order\\nCOD  = [B[i//16] + B[i//4 % 4] + B[i % 4] for i in range(64)]  # 16*b0+4*b1+b2\\nAA   = codon_read([b for i in range(64) for b in (i//16, i//4 % 4, i % 4)])\\nONE  = [(i, j) for i in range(64) for j in range(i+1, 64)\\n        if sum(a != b for a, b in zip(COD[i], COD[j])) == 1]   # 288 substitutions\\nSYN  = [(i, j) for (i, j) in ONE if AA[i] == AA[j]]            # synonymous only\\nCHAIN = [(i, i+1) for i in range(63)]           # the backbone: codons in table order\\n\\nfrom srmech.math.laplacian import dense_laplacian, jacobi_eigvals\\nfrom collections import Counter\\nprint(\\\"AA ==\\\", AA[:16], \\\"...  (64 chars, '*' = stop)\\\")\\nev = jacobi_eigvals(dense_laplacian(64, ONE))\\nprint(\\\"single-substitution codon spectrum:\\\", Counter(round(x, 9) for x in ev.tolist()))\\nprint(\\\"closed form for the Hamming graph H(3,4): lambda=4k, mult C(3,k)*3^k =\\\",\\n      [(4*k, (1,3,3,1)[k] * 3**k) for k in range(4)])\\nprint(\\\"synonymous-only zero modes (= connected components):\\\",\\n      sum(1 for x in jacobi_eigvals(dense_laplacian(64, SYN)).tolist() if abs(x) < 1e-9))\"}",
