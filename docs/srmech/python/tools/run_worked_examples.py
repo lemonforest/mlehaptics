@@ -162,6 +162,23 @@ SLOW_ALLOWLIST: Dict[str, Tuple[float, str]] = {
     "srmech.physics.qm.triality.lean_isa_seventh_primitive":
         (240.0, "16.0 s measured COLD under --only: the _companion_maps() "
                 "build, not the op"),
+    # rc466 (`#T1188`): the FOURTH instance, found by the freshness hook's own
+    # by-name remediation after the seventy-row drain touched 33 modules.
+    # This snippet's FIRST line is `so8_bracket_certificate(triality_swap())`,
+    # so it pays the cold `_companion_maps()` build whenever it is the first
+    # job in its worker — which `--only` makes certain and which the 475-row
+    # by-module re-run also produced (`ok` at rc465 was a WARM reading: an
+    # earlier snippet in the same worker had paid the build). MEASURED on
+    # this branch, WSL2 CPython 3.10: `triality_swap()` cold is 87.5 s with
+    # the native lib loaded and 50.8 s with it off (the native-on excess is
+    # `_try_c_two_rationals` on bignum operands, pre-existing: 53.1 s cold at
+    # the ledger's base commit 73c089d8a in a pure-cell worktree — this rc
+    # changed nothing in that path); the three 378-pair sweeps the snippet
+    # then runs are ~7 s together and every marker fires. Same cause, same
+    # ruling: listed with its number rather than left to worker-recycling luck.
+    "srmech.physics.qm.so8.so8_bracket_certificate":
+        (240.0, "87.5 s measured COLD (native on; 50.8 s native off): the first "
+                "_companion_maps() build behind triality_swap(), not the sweep"),
     "srmech.math.laplacian.recover_check": (240.0, "106 s measured: dense recover"),
     # rc462: raised 300.0 -> 600.0. The recorded 244 s was a WARM number and
     # this row now flips `ok` -> `timeout` under the isolation the hook itself
