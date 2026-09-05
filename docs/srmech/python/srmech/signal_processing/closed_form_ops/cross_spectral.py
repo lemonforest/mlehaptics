@@ -103,9 +103,25 @@ def op(
     tuple
         ``(freqs, S_xy_or_coherence)`` as two ``list``s of length
         ``frame_size``.
+
+    **Accuracy (rc466, `#T1188`).** Welch CSD and coherence are float64
+    estimates: every segment is Hann-windowed (a float64 window — the Class-N
+    cosine cascade collapsed to float), transformed, and the per-bin
+    cross-product ``X·conj(Y)`` and the segment average are accumulated in
+    float, **accurate to round-off** (~1 ULP per operation), never exact.
+    ``x`` and ``y`` are used AS GIVEN — through rc465 both were projected to
+    float64 at the entry (``float(v)``) before any arithmetic. Integer records
+    shorter than ``frame_size`` take ONE zero-padded segment whose transform is
+    exact-until-rotation (:func:`srmech.cascade.spectral_cascades.fft`), but
+    the cross-product is formed from that transform's single terminal float
+    lift and is not exact: ``op([2**53+1, 0, 0], [1, 0, 0], frame_size=4)``
+    and the same call at ``2**53`` return the same CSD. The windowed path has
+    no exact carrier at any shipped surface — ``cos(2πn/(N−1))`` is
+    cyclotomic (``Qalg.cos_2pi_over_n`` holds it) but no shipped DFT admits a
+    ``Qalg``-valued frame.
     """
-    xs = [float(v) for v in x]
-    ys = [float(v) for v in y]
+    xs = list(x)                            # rc466: as given — the carrier is the operand's
+    ys = list(y)
     if len(xs) != len(ys):
         raise ValueError(
             f"cross_spectral expects matching shapes; got {len(xs)} vs {len(ys)}"
@@ -115,8 +131,8 @@ def op(
     n = len(xs)
     if n < frame_size:
         # Single zero-padded segment.
-        xx = [0.0] * frame_size
-        yy = [0.0] * frame_size
+        xx = [0] * frame_size               # rc466: an exact zero pad
+        yy = [0] * frame_size
         for k in range(n):
             xx[k] = xs[k]
             yy[k] = ys[k]

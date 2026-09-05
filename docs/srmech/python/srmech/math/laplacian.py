@@ -111,14 +111,18 @@ import struct  # §52 Part 2: pack/unpack the on-disk edge records for the out-o
 from array import array  # §564: numpy-free 2-D Mat carrier buffer (interleaved-complex)
 from srmech._ownedfs import owned_scratch_dir as _owned_scratch_dir  # `#T1132`
 from srmech.math.q import Q, to_q  # §26: exact-rational interior solve (Class-N), no float
+from srmech.math.q import exact_scalar as _exact_scalar, exact_vector as _exact_vector  # rc466 (`#T1188`): the ONE exact reader
+from srmech.math.qi import Qi, exact_complex_vector as _exact_complex_vector  # rc466: the exact Gaussian-rational carrier
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from srmech.math.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
+from srmech.math.rational import _integer_sqrt as _isqrt  # rc466 review fix: the perfect-square test
 from srmech.math.rational import hypot as _rhypot  # Class-N |z| magnitude, not libm
 from srmech.math.rational import exp as _rexp  # Class-N exp cascade, not libm
 from srmech.math.rational import cos as _rcos  # Class-N cos cascade, not libm
 from srmech.math.rational import sin as _rsin  # Class-N sin cascade, not libm
 from srmech.math.rational import log as _rlog  # Class-N log cascade, not libm
+from srmech.math.rational import Q61_TRIG_RANGE as _Q61_TRIG_RANGE  # rc466: one bound, imported
 from srmech.math.rational import atan2 as _ratan2  # Class-N atan2 cascade, not libm
 from srmech.math.rational import complex_exp as _rcomplex_exp  # Class-N e^z, not libm
 from srmech.math.rational import exp_series_truncate as _exp_series  # rc136 EPH: Class-N exp
@@ -270,7 +274,7 @@ MAX_NATIVE_NODES: int = 256
 MAX_NATIVE_HERMITIAN_NODES: int = 2048
 
 
-def three_fold_eigvec_groups(L) -> dict:
+def three_fold_eigvec_groups(L, *, exact: bool = False) -> dict:
     """Harmonic-3 three-fold spectral reading of a real-symmetric Laplacian
     (F150): partition the ``n`` eigenvectors (ascending eigenvalue) into three
     contiguous LOW / MID / HIGH bands. Class L is harmonic-3 (chiral rotation /
@@ -289,10 +293,58 @@ def three_fold_eigvec_groups(L) -> dict:
     Jacobi eigenbasis is non-unique): native == pure agree on the band SIZES
     (exact) and the per-band SPAN, not element-wise — the rc146 so7 / rc152
     ``casimir_eigenvalue`` invariant precedent. No new C symbol.
+
+    **Accuracy (rc466, `#T1188`; exact route at the rc466 review fix).**
+    Default route: the three bands are column slices of
+    :func:`symmetric_eigendecompose`'s eigenvector matrix: ``L`` is projected to
+    float64 at the entry and every column is Jacobi-iterated **to round-off**
+    (~1 ULP·n), never exact; only the band SIZES are exact. The census witness
+    that demoted this row (``[[1, 2**53+1], [0, 1]]``, the probe's leaf-``[0,1]``
+    perturbation of the identity) is NON-symmetric and outside the precondition,
+    and the native and pure Jacobi return DIFFERENT vectors for it; the entry
+    projection is real regardless — the eigenvalue witness of the same entry
+    shows it. ``exact=True`` (keyword-only): the bands are the same column
+    slices of ``symmetric_eigendecompose(L, exact=True)``'s exact eigenvector
+    matrix — each band an ``(n, k)`` nested ``list`` of
+    :class:`~srmech.math.qalg.Qalg` (``band[i][j]``), the columns unnormalised
+    null-space vectors over their own eigenvalue's field, in the exact
+    ascending eigenvalue order; the band sizes are the same integer glue. A
+    float / non-symmetric operand is refused by name there.
     """
+    if exact:
+        _vals, V_exact = symmetric_eigendecompose(L, exact=True)
+        n = len(V_exact)
+        n_low, n_mid, n_high = _three_fold_band_sizes(n)
+
+        def _band_exact(c_lo: int, c_hi: int) -> list:
+            return [[V_exact[i][c] for c in range(c_lo, c_hi)] for i in range(n)]
+        return {
+            "low": _band_exact(0, n_low),
+            "mid": _band_exact(n_low, n_low + n_mid),
+            "high": _band_exact(n_low + n_mid, n),
+        }
     _eigvals, V = symmetric_eigendecompose(L)  # V real Mat, columns = eigenvectors
     n_rows = V.n_rows
     n = V.n_cols  # number of eigenvector COLUMNS
+    n_low, n_mid, n_high = _three_fold_band_sizes(n)
+    # Slice COLUMNS of V (real Mat) into the three contiguous bands → real Mats.
+    def _band(c_lo: int, c_hi: int) -> "Mat":
+        return Mat.from_rows(
+            [[V[i, c] for c in range(c_lo, c_hi)] for i in range(n_rows)],
+            is_complex=False,
+        )
+    return {
+        "low": _band(0, n_low),
+        "mid": _band(n_low, n_low + n_mid),
+        "high": _band(n_low + n_mid, n),
+    }
+
+
+def _three_fold_band_sizes(n: int) -> Tuple[int, int, int]:
+    """The ``(n_low, n_mid, n_high)`` split of ``n`` eigenvector columns —
+    ``srmech_three_fold_bands`` when native, else the same integer rule
+    (``|low| <= |mid| <= |high|``). Factored out at the rc466 review fix so the
+    exact route of :func:`three_fold_eigvec_groups` shares the one band rule."""
     if (
         _native.HAS_NATIVE
         and _native.LIB is not None
@@ -320,17 +372,7 @@ def three_fold_eigvec_groups(L) -> dict:
         n_mid = base + (1 if rem >= 2 else 0)
         n_high = n - n_low - n_mid
     assert n_low + n_mid + n_high == n
-    # Slice COLUMNS of V (real Mat) into the three contiguous bands → real Mats.
-    def _band(c_lo: int, c_hi: int) -> "Mat":
-        return Mat.from_rows(
-            [[V[i, c] for c in range(c_lo, c_hi)] for i in range(n_rows)],
-            is_complex=False,
-        )
-    return {
-        "low": _band(0, n_low),
-        "mid": _band(n_low, n_low + n_mid),
-        "high": _band(n_low + n_mid, n),
-    }
+    return n_low, n_mid, n_high
 
 
 def _can_dispatch_native(n: int) -> bool:
@@ -438,8 +480,10 @@ def _dense_laplacian_py(
     return L
 
 
-def _exact_weight(w):
+def _exact_weight(w, noun: str = "weights"):
     """rc463 (`#T1188`): a weight's EXACT ℚ value, or a NAMED refusal.
+    rc466: ``noun`` names the operand in the refusal (``masses`` / ``charges``
+    / ``q`` share this reader under their builders' ``exact=True``).
 
     This is the exact peer of the ``float(w)`` at
     :func:`_validate_edges_weights_py`, which is the single line at which a
@@ -459,8 +503,8 @@ def _exact_weight(w):
     if isinstance(num, int) and isinstance(den, int) and not isinstance(w, float):
         return Q(num, den)
     raise TypeError(
-        "exact=True requires EXACT weights (int / Q / fractions.Fraction); got "
-        f"{type(w).__name__} {w!r}. A float weight is already in a rounded "
+        f"exact=True requires EXACT {noun} (int / Q / fractions.Fraction); got "
+        f"{type(w).__name__} {w!r}. A float is already in a rounded "
         "frame — drop exact=True for that carrier.")
 
 
@@ -534,6 +578,227 @@ def _signed_laplacian_exact(n, edges, weights):
             L[r][c] = -a
     for r in range(n):
         L[r][r] = deg[r]
+    return L
+
+
+def _exact_root_or_grid(q: Q) -> Q:
+    """``sqrt(q)`` EXACT when ``q`` is a perfect rational square, else the
+    Class-N dyadic-grid root of :func:`srmech.math.rational.sqrt`.
+
+    rc466 review fix (`#T1188`): the two exact builders below said *"exact
+    whenever the product is a perfect rational square"*, and that was FALSE —
+    ``rational.sqrt`` has no perfect-square path and roots on the ``2**-54``
+    dyadic grid, so ``sqrt(Q(1, 9))`` measured ``24019198012642645 / 2**56``,
+    not ``1/3`` (an INTEGER perfect square was already exact, which is why the
+    K4 Layer-1 row never saw it). The test is the Class-N integer sqrt of the
+    numerator and of the denominator, each squared back — no float."""
+    num, den = q.numerator, q.denominator
+    if num >= 0:
+        rn = _isqrt(num)
+        rd = _isqrt(den)
+        if rn * rn == num and rd * rd == den:
+            return Q(rn, rd)
+    return _rsqrt(q)
+
+
+def _normalized_laplacian_exact(n, edges, weights):
+    """rc466 (`#T1188`): :func:`normalized_laplacian` on the exact ℚ carrier.
+    The degrees are exact; each off-diagonal is ``−A[r][c] / sqrt(d_r·d_c)``
+    with ONE Class-N root of the exact PRODUCT (:func:`_exact_root_or_grid`) —
+    exact whenever ``d_r·d_c`` is a perfect rational square (every regular
+    graph, every unit-degree pair; TRUE since the rc466 review fix, see the
+    helper), else the root sits on the Class-N dyadic grid, ``2**-54``
+    relative (the rc465 ``octonion_norm`` shape). The two-root form
+    ``s_r·s_c`` is NOT used: it is off-grid even on a 3-regular graph, where
+    the product form is exact."""
+    A = _dense_adjacency_exact(n, edges, weights)
+    zero = Q(0, 1)
+    one = Q(1, 1)
+    deg = []
+    for r in range(n):
+        d = zero
+        for c in range(n):
+            if c != r:
+                d = d + A[r][c]
+        deg.append(d)
+    L = [[zero] * n for _ in range(n)]
+    for r in range(n):
+        for c in range(n):
+            if r == c:
+                L[r][r] = one if deg[r] > zero else zero
+            elif deg[r] > zero and deg[c] > zero:
+                L[r][c] = -A[r][c] / _exact_root_or_grid(deg[r] * deg[c])
+    return L
+
+
+def _mass_normalized_laplacian_exact(n, el, wl, ml, kind_code: int):
+    """rc466 (`#T1188`): :func:`mass_normalized_laplacian` on the exact ℚ
+    carrier. ``kind='rw'`` is FULLY rational (``L[r][c] / m_r``); ``'symmetric'``
+    takes ONE Class-N root of the exact product ``m_r·m_c`` per entry — exact on
+    a perfect rational square (every diagonal entry, every regular graph, every
+    perfect-square mass; TRUE since the rc466 review fix —
+    :func:`_exact_root_or_grid`), else the dyadic grid at ``2**-54`` relative. A mass
+    ``m_i <= 0`` scales its row/column to exactly 0 (the float body's pin-slot)."""
+    L = _dense_laplacian_exact(n, el, wl)
+    zero = Q(0, 1)
+    m = [L[i][i] for i in range(n)] if ml is None else list(ml)
+    for r in range(n):
+        for c in range(n):
+            if kind_code == 1:                      # random-walk: L[r][c] / m_r
+                L[r][c] = (L[r][c] / m[r]) if m[r] > zero else zero
+            elif m[r] > zero and m[c] > zero:       # symmetric: / sqrt(m_r m_c)
+                L[r][c] = L[r][c] / _exact_root_or_grid(m[r] * m[c])
+            else:
+                L[r][c] = zero
+    return L
+
+
+def _directed_adjacency_exact(n, el, wl):
+    """rc466 (`#T1188`): :func:`_directed_adjacency` on the exact ℚ carrier."""
+    zero = Q(0, 1)
+    W = [[zero] * n for _ in range(n)]
+    for (u, v), w in zip(el, wl):
+        W[int(u)][int(v)] = W[int(u)][int(v)] + w
+    return W
+
+
+_GAUSSIAN_UNIT_PHASES = ((1, 0), (0, 1), (-1, 0), (0, -1))   # i**k, k = 0..3
+
+
+def _exact_unit_phase(turns: Q, where: str) -> Qi:
+    """``e^{2πi·turns}`` as an exact :class:`~srmech.math.qi.Qi` — defined when
+    the reduced turn has denominator 1, 2 or 4 (the Gaussian-rational roots of
+    unity ``i**k``). rc466 (`#T1188`): any other rational turn is a root of
+    unity the ``Qi`` carrier cannot hold; it is REFUSED by name, pointing at the
+    carrier that can (``Qalg`` over ``Φ_N`` via
+    :func:`srmech.math.qalg.cos_2pi_over_n`), rather than rounded."""
+    tr = turns % 1
+    den = tr.denominator
+    if den not in (1, 2, 4):
+        raise ValueError(
+            f"{where}: exact=True carries phases on the Gaussian-rational Qi "
+            f"carrier, whose roots of unity are i**k (turn denominators 1, 2, 4); "
+            f"got a turn of {tr} (denominator {den}). That phase is a root of "
+            f"unity in Q(zeta_{den}) — the Qalg carrier over Phi_{den} "
+            f"(srmech.math.qalg.cos_2pi_over_n / sin_2pi_over_n) holds it; no "
+            f"Laplacian over Qalg ships yet, so it is refused rather than rounded.")
+    k = int(tr * 4) % 4
+    re, im = _GAUSSIAN_UNIT_PHASES[k]
+    return Qi(Q(re, 1), Q(im, 1))
+
+
+def _magnetic_laplacian_exact(n, el, wl, q, cl):
+    """rc466 (`#T1188`): :func:`magnetic_laplacian` on the exact Gaussian-rational
+    carrier — ``list[list[Qi]]`` — for the scalar-``q`` mode (``cl is None``)
+    and the per-edge ``charges`` mode. Same construction as the two float
+    bodies, every accumulation order kept; the phase is the exact ``i**k``
+    (see :func:`_exact_unit_phase`)."""
+    zero = Q(0, 1)
+    half = Q(1, 2)
+    L = [[Qi(zero, zero) for _ in range(n)] for _ in range(n)]
+    deg = [zero] * n
+    if cl is None:
+        W = _directed_adjacency_exact(n, el, wl)
+        A_s = [[half * (W[r][c] + W[c][r]) for c in range(n)] for r in range(n)]
+        for r in range(n):
+            for c in range(n):
+                deg[r] = deg[r] + A_s[r][c]
+                if c == r:
+                    continue
+                phase = _exact_unit_phase(q * (W[r][c] - W[c][r]),
+                                          "magnetic_laplacian")
+                L[r][c] = -(A_s[r][c] * phase)
+    else:
+        for (u, v), w, ch in zip(el, wl, cl):
+            u = int(u)
+            v = int(v)
+            hw = half * w
+            deg[u] = deg[u] + hw
+            deg[v] = deg[v] + hw
+            if u == v:
+                continue
+            ph = _exact_unit_phase(ch, "magnetic_laplacian")
+            L[u][v] = L[u][v] + (-(hw * ph))
+            L[v][u] = L[v][u] + (-(hw * ph.conjugate()))
+    for r in range(n):
+        L[r][r] = Qi(deg[r], zero)
+    return L
+
+
+def _resolve_quaternion_gains_exact(el, gains):
+    """rc466 (`#T1188`): the exact twin of :func:`_resolve_quaternion_gains`.
+    ``None`` → the identity gain ``(1, 0, 0, 0)``; a supplied gain must be an
+    exact 4-vector (``int`` / ``Q`` / ``(num, den)``) whose norm form
+    ``N(g) = Σ gᵢ²`` is EXACTLY 1 — no normalisation runs on the exact route
+    (``g/‖g‖`` needs a root the carrier cannot hold in general). Anything else
+    is REFUSED by name."""
+    from srmech.cascade.cayley_dickson import cd_norm_sq as _cd_norm_sq
+    one = Q(1, 1)
+    zero = Q(0, 1)
+    if gains is None:
+        return [[one, zero, zero, zero] for _ in el]
+    gl = list(gains)
+    if len(gl) != len(el):
+        raise ValueError(f"gains length {len(gl)} != n_edges {len(el)}")
+    out = []
+    for k, g in enumerate(gl):
+        gq = _exact_vector(g)
+        if gq is None:
+            raise TypeError(
+                f"exact=True requires EXACT gains (4-vectors of int / Q / "
+                f"(num, den)); gain {k} = {g!r} has a float component. A float "
+                f"gain is already in a rounded frame — drop exact=True.")
+        if len(gq) != _QUATERNION_DIM:
+            raise ValueError(
+                f"gain {k} must be a 4-vector quaternion; got length {len(gq)}")
+        nrm = _cd_norm_sq(gq)
+        if nrm == 0:
+            raise ValueError(f"gain {k} must be a non-zero quaternion")
+        if nrm != 1:
+            raise ValueError(
+                f"exact=True requires UNIT gains on the nose (N(g) = Σ g_i² == 1); "
+                f"gain {k} = {g!r} has N(g) = {nrm}. Normalising it needs "
+                f"sqrt(N(g)), which the exact carrier holds only for a perfect "
+                f"square — supply a unit gain (e.g. (3/5, 4/5, 0, 0)) or drop "
+                f"exact=True for the float route.")
+        out.append(gq)
+    return out
+
+
+def _quaternion_laplacian_blocks_exact(n, el, wl, gl):
+    """rc466 (`#T1188`): :func:`_quaternion_laplacian_blocks` on the exact ℚ
+    carrier — ``L(g)`` is :func:`srmech.cascade.left_mult_matrix` (the rc465
+    exact route of ``quaternion_left_mult``, measured equal to the physics
+    table), ``conj`` is :func:`srmech.cascade.cd_conjugate`; same accumulation
+    order as the float body."""
+    from srmech.cascade.cayley_dickson import (
+        cd_conjugate as _cd_conjugate, left_mult_matrix as _left_mult_matrix)
+    d = _QUATERNION_DIM
+    dim = d * n
+    zero = Q(0, 1)
+    half = Q(1, 2)
+    L = [[zero] * dim for _ in range(dim)]
+    deg = [zero] * n
+    for (u, v), w, g in zip(el, wl, gl):
+        u = int(u)
+        v = int(v)
+        hw = half * w
+        deg[u] = deg[u] + hw
+        deg[v] = deg[v] + hw
+        if u == v:
+            continue
+        lg = _left_mult_matrix(g)
+        lgc = _left_mult_matrix(_cd_conjugate(g))
+        bu = d * u
+        bv = d * v
+        for a in range(d):
+            for b in range(d):
+                L[bu + a][bv + b] = L[bu + a][bv + b] - hw * lg[a][b]
+                L[bv + a][bu + b] = L[bv + a][bu + b] - hw * lgc[a][b]
+    for r in range(n):
+        base = d * r
+        for a in range(d):
+            L[base + a][base + a] = L[base + a][base + a] + deg[r]
     return L
 
 
@@ -783,8 +1048,10 @@ def dense_laplacian(
 def normalized_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
-    weights: Optional[Iterable[float]] = None,
-) -> "Mat":
+    weights: Optional[Iterable] = None,
+    *,
+    exact: bool = False,
+) -> "Mat | List[List[Q]]":
     """Symmetric normalised Laplacian ``L_sym = I − D^(−1/2) A D^(−1/2)``.
 
     Isolated vertices (degree 0) have diagonal entry 0 by convention
@@ -792,7 +1059,25 @@ def normalized_laplacian(
 
     Numpy-free (rc129): returns a real :class:`~srmech.math.mat.Mat` (``.shape``
     + ``m[i, j]`` + a native C wire form), NOT a bare ``list[list[float]]``.
+
+    **Accuracy (rc466, `#T1188`).** The default carrier is ``Mat`` =
+    ``array('d')``: a weight wider than 53 significand bits is projected
+    **to float64 round-off** at the entry, before any arithmetic (the line the
+    rc463 siblings ``dense_adjacency`` / ``dense_laplacian`` were fixed for),
+    and every entry is then a float64 quantity **accurate to round-off**.
+    ``exact=True`` returns ``list[list[Q]]``: the degrees are exact; each
+    off-diagonal ``−A[r][c]/sqrt(d_r·d_c)`` takes ONE Class-N
+    root of the exact PRODUCT — EXACT whenever ``d_r·d_c`` is a perfect
+    rational square (every regular graph; a Class-N integer sqrt of numerator
+    and denominator decides it — TRUE since the rc466 review fix, before which
+    ``rational.sqrt`` put ``sqrt(1/9)`` on the dyadic grid and this sentence was
+    false for every non-dyadic rational square), otherwise on the Class-N
+    dyadic grid, **accurate to** ``2**-54`` relative (the ``octonion_norm``
+    shape: an exact ROUTE with one declared bound). A float weight is REFUSED
+    by name under ``exact=True``.
     """
+    if exact:
+        return _normalized_laplacian_exact(n, edges, weights)
     if _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native list-marshal
         el, wl = _validate_edges_weights_py(n, edges, weights)
         m = _build_matrix_native_listmarshal(
@@ -888,11 +1173,12 @@ def _mass_normalized_laplacian_native(
 def mass_normalized_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
-    weights: Optional[Iterable[float]] = None,
-    masses: Optional[Iterable[float]] = None,
+    weights: Optional[Iterable] = None,
+    masses: Optional[Iterable] = None,
     *,
     kind: str = "symmetric",
-) -> "Mat":
+    exact: bool = False,
+) -> "Mat | List[List[Q]]":
     """Mass-normalized (Laplace–Beltrami α-family) Laplacian.
 
     Builds the weighted combinatorial Laplacian ``L = D − W`` and normalizes it
@@ -930,12 +1216,33 @@ def mass_normalized_laplacian(
 
     Returns an ``n×n`` real :class:`~srmech.math.mat.Mat` (``.shape`` +
     ``m[i, j]``, NOT a bare ``list[list[float]]``).
+
+    **Accuracy (rc466, `#T1188`).** The default carrier is ``Mat`` =
+    ``array('d')``: weights and masses are projected **to float64 round-off**
+    at the entry (a 54-bit-significand weight loses its low bit before any
+    arithmetic) and every entry is then **accurate to round-off**.
+    ``exact=True`` returns ``list[list[Q]]``. ``kind='rw'`` is then FULLY
+    rational — ``L[r][c] / m_r`` on the exact carrier, no approximation
+    anywhere. ``kind='symmetric'`` takes ONE Class-N
+    :func:`srmech.math.rational.sqrt` of the exact product ``m_r·m_c`` per
+    entry: EXACT on a perfect rational square (every diagonal entry, every
+    regular graph, every perfect-square mass), otherwise on the Class-N dyadic
+    grid, **accurate to** ``2**-54`` relative. Float weights or masses are
+    REFUSED by name under ``exact=True``.
     """
     kind_code = _MASS_NORM_KINDS.get(kind)
     if kind_code is None:
         raise ValueError(
             f"kind must be 'symmetric' or 'rw'; got {kind!r}"
         )
+    if exact:
+        el_x, wl_x = _validate_edges_weights_exact(n, edges, weights)
+        ml_x = None
+        if masses is not None:
+            ml_x = [_exact_weight(x, "masses") for x in masses]
+            if len(ml_x) != n:
+                raise ValueError(f"masses length {len(ml_x)} != n {n}")
+        return _mass_normalized_laplacian_exact(n, el_x, wl_x, ml_x, kind_code)
     el, wl = _validate_edges_weights_py(n, edges, weights)
     ml: Optional[List[float]] = None
     if masses is not None:
@@ -1667,7 +1974,7 @@ def dirichlet_to_neumann(L, boundary_idx: Sequence[int], *, exact: bool = False)
 # (:func:`mat_hermitian_eigendecompose`) and return plain Python lists.
 
 
-def hermitian_eigendecompose(H):
+def hermitian_eigendecompose(H, *, exact: bool = False):
     """Hermitian eigendecomposition: ``H = V · diag(eigvals) · V^H``.
 
     Parameters
@@ -1692,8 +1999,43 @@ def hermitian_eigendecompose(H):
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed.,
     Johns Hopkins, 2013) §8.5 (Hermitian eigendecomposition via
     unitary Jacobi rotations).
+
+    **Accuracy (rc466, `#T1188`; exact route at the rc466 review fix).**
+    Default route (``exact=False``): ``H`` is projected onto the ``Mat`` float64
+    carrier at the entry (``complex(v)`` per entry), so an exact entry wider
+    than 53 significand bits is rounded before the first rotation runs —
+    ``hermitian_eigendecompose([[2**53+1, 0], [0, 0]])`` returns the eigenvalue
+    ``9007199254740992.0``. Eigenvalues and eigenvectors are then a
+    cyclic-Jacobi ITERATIVE approximation (the pure cascade stops at an
+    off-diagonal norm of ``1e-12``), **accurate to round-off** (~1 ULP·n),
+    never exact: a rotation basis is a tower of square roots and cannot reach
+    an irreducible-cubic eigenvalue (:func:`jacobi_eigvals` proves it at
+    n = 3), and the ``Vec`` / ``Mat`` return carriers are ``array('d')`` by
+    contract.
+
+    ``exact=True`` (keyword-only): an exact REAL operand — ``int`` / ``Q`` /
+    :class:`fractions.Fraction` entries, or ``Qi`` entries whose imaginary part
+    is zero — is a symmetric matrix and takes :func:`symmetric_eigendecompose`'s
+    exact route: the same ``(list[Qalg], list[list[Qalg]])`` objects, real (the
+    float route's complex ``Mat`` is not mirrored — the eigenvectors of a
+    real Hermitian matrix are real). A genuinely Gaussian-rational Hermitian
+    operand (a ``Qi`` entry with non-zero imaginary part) is REFUSED by name:
+    its eigenVALUES are reachable exactly through the real ``2n×2n`` embedding
+    ``[[Re, −Im], [Im, Re]]`` and ``eigvals_exact`` (each with doubled
+    multiplicity — :func:`srmech.physics.qm.bell.operator_norm` rides it), but
+    its eigenVECTORS live over ``ℚ(λ, i)``, a compositum no shipped carrier
+    holds, and this op returns eigenpairs or nothing. A float / complex entry
+    is refused the same way, never rounded. The Stage-2 sentence that stood
+    here declared this op instead, on the ground that wiring the exact cascade
+    behind this name would be "two algorithms of different cost class wearing
+    one name" — the ruling ``jacobi_eigvals`` in this module already contradicts
+    behind the same keyword; withdrawn at the review.
     """
     rows = _as_rows(H)
+    if exact:
+        return _symmetric_eig_exact(
+            _hermitian_exact_real_rows(rows, "hermitian_eigendecompose"),
+            "hermitian_eigendecompose")
     n = len(rows)
     if n == 0:
         return (Vec(array("d"), 0), Mat(array("d"), 0, 0, is_complex=True))
@@ -1703,6 +2045,97 @@ def hermitian_eigendecompose(H):
         [float(evals_mat[i, 0]) for i in range(evals_mat.n_rows)], is_complex=False
     )
     return eigvals, V_mat
+
+
+def _symmetric_eig_exact(rows, where: str, *, bits: int = 64):
+    """The EXACT symmetric eigendecomposition (rc466 review fix, `#T1188`) —
+    the ``exact=True`` route shared by :func:`symmetric_eigendecompose`,
+    :func:`hermitian_eigendecompose` (real-exact operand),
+    :func:`fiedler_vector`, :func:`three_fold_eigvec_groups` and
+    :func:`klein4_relational_structure`.
+
+    Validates ``rows`` SQUARE, **exact** (every entry ``int`` /
+    :class:`fractions.Fraction` / ``Q`` — a float or complex entry is REFUSED by
+    name, never rounded) and SYMMETRIC, then runs
+    :func:`srmech.cascade.matrix_cascades.eig_exact` (``project=False``) and
+    expands each distinct eigenvalue by its multiplicity. Returns
+    ``(values, V)``: ``values`` a ``list`` of ``n`` :class:`~srmech.math.qalg.Qalg``
+    eigenvalues ascending WITH multiplicity — the order is ``eig_exact``'s
+    exact one (Sturm-isolating intervals refined until they separate), never
+    the float embedding's — and ``V`` an ``n×n`` nested ``list`` of ``Qalg``
+    (``V[i][j]``) whose COLUMNS are the exact eigenvectors, each a null-space
+    basis vector of ``A − λI`` over its own eigenvalue's field, UNNORMALISED.
+    A symmetric matrix is diagonalisable, so geometric == algebraic multiplicity
+    is asserted (a violation is an upstream bug, not an input error)."""
+    n = len(rows)
+    if n == 0 or any(len(r) != n for r in rows):
+        raise ValueError(
+            f"{where}(exact=True) requires a square n×n matrix; "
+            f"got row lengths {[len(r) for r in rows]} for n={n}")
+    for i in range(n):
+        for j in range(n):
+            if not _is_exact_scalar(rows[i][j]):
+                raise ValueError(
+                    f"{where}(exact=True) requires every entry to be EXACT "
+                    "(int / fractions.Fraction / srmech Q) — never a "
+                    f"float/complex; entry [{i}][{j}] = {rows[i][j]!r} is "
+                    f"{type(rows[i][j]).__name__}. An exact eigendecomposition is "
+                    "only achievable on an exact substrate; the default route "
+                    "(exact=False) is the float Jacobi, declared to round-off.")
+    for i in range(n):
+        for j in range(i + 1, n):
+            if rows[i][j] != rows[j][i]:
+                raise ValueError(
+                    f"{where}(exact=True) requires a SYMMETRIC matrix "
+                    f"(a[i][j] == a[j][i]); entry [{i}][{j}] = {rows[i][j]!r} "
+                    f"!= [{j}][{i}] = {rows[j][i]!r}.")
+    from srmech.cascade.matrix_cascades import eig_exact
+    values: list = []
+    columns: list = []
+    for e in eig_exact(rows, bits=bits, project=False):
+        basis = e["vectors_qalg"]
+        if e["defective"] or len(basis) != e["algebraic_multiplicity"]:
+            raise ValueError(
+                f"{where}(exact=True): eigenvalue {e['value_qalg']!r} has "
+                f"geometric multiplicity {len(basis)} != algebraic "
+                f"{e['algebraic_multiplicity']} on a SYMMETRIC operand — "
+                "eig_exact inconsistency (upstream bug)")
+        for vec in basis:
+            values.append(e["value_qalg"])
+            columns.append(list(vec))
+    V = [[columns[c][i] for c in range(n)] for i in range(n)]
+    return values, V
+
+
+def _hermitian_exact_real_rows(rows, where: str):
+    """The exact REAL rows of a Hermitian operand for the ``exact=True`` route
+    (rc466 review fix, `#T1188`): ``int`` / ``Q`` / ``Fraction`` entries as
+    given, a ``Qi`` with zero imaginary part as its real ``Q``. A ``Qi`` with a
+    NON-zero imaginary part is REFUSED by name — the exact eigenvectors of a
+    Gaussian-rational Hermitian matrix live over ``ℚ(λ, i)``, a compositum no
+    shipped carrier holds (its eigenvalues alone are reachable through the real
+    ``2n×2n`` embedding, which :func:`srmech.physics.qm.bell.operator_norm`
+    rides). A float / complex entry is refused by the symmetric validator."""
+    out = []
+    for i, r in enumerate(rows):
+        row = []
+        for j, v in enumerate(r):
+            if isinstance(v, Qi):
+                if v.imag != 0:
+                    raise ValueError(
+                        f"{where}(exact=True): entry [{i}][{j}] = {v!r} is a "
+                        "Gaussian rational with non-zero imaginary part; the exact "
+                        "eigenVECTORS of a Q(i)-Hermitian matrix live over Q(λ, i), "
+                        "a compositum no shipped carrier holds. Its eigenVALUES are "
+                        "reachable exactly through the real 2n×2n embedding "
+                        "[[Re, -Im], [Im, Re]] and srmech.cascade.matrix_cascades."
+                        "eigvals_exact (each with doubled multiplicity); the default "
+                        "route (exact=False) is the float Jacobi, declared to round-off.")
+                row.append(v.real)
+            else:
+                row.append(v)
+        out.append(row)
+    return out
 
 
 def _canonicalize_eigenvector_signs(V):
@@ -1827,7 +2260,9 @@ def _pin_eigenvector_phases(V):
 
 def symmetric_eigendecompose(
     L,
-) -> Tuple["Vec", "Mat"]:
+    *,
+    exact: bool = False,
+) -> "Tuple[Vec, Mat] | Tuple[list, list]":
     """Real-symmetric eigendecomposition: ``L = V · diag(eigvals) · Vᵀ``.
 
     Real-input specialisation of :func:`hermitian_eigendecompose`.
@@ -1866,8 +2301,55 @@ def symmetric_eigendecompose(
     projection is exact. Eigenvalues come out ascending as a ``Vec``. Correctness is
     pinned by eigenvalues + reconstruction + orthonormality (the eigenvector sign /
     degenerate-subspace basis is non-unique), not element-wise parity.
+
+    **Accuracy (rc466, `#T1188`; exact route at the rc466 review fix).**
+    Default route (``exact=False``): ``L`` is projected to float64 at the entry
+    (``float(v)`` per entry), so an exact entry wider than 53 significand bits
+    loses its low bit before the first rotation —
+    ``symmetric_eigendecompose([[2**53+1, 0], [0, 0]])`` returns the eigenvalue
+    ``9007199254740992.0``. The eigenpairs are the cyclic-Jacobi iterative
+    approximation of :func:`hermitian_eigendecompose`, **accurate to round-off**
+    (~1 ULP·n), never exact; eigenvectors are defined only up to sign (pinned by
+    the Class-K pivot rule) and, on a degenerate spectrum, up to the basis of
+    the eigenspace.
+
+    ``exact=True`` (keyword-only — the :func:`jacobi_eigvals` precedent in this
+    module). The operand must be SQUARE, EXACT (every entry ``int`` /
+    :class:`fractions.Fraction` / ``Q``; a float or complex entry is REFUSED by
+    name, never rounded) and SYMMETRIC. The route is
+    :func:`srmech.cascade.matrix_cascades.eig_exact` — exact integer char-poly →
+    irreducible factors → Sturm-isolated roots → the null space of ``A − λI``
+    over ``ℚ(λ)`` — and it returns the EXACT objects, not a lift: ``(eigvals,
+    V)`` with ``eigvals`` a ``list`` of ``n`` :class:`~srmech.math.qalg.Qalg`
+    eigenvalues ascending WITH multiplicity (the order is decided EXACTLY, by
+    Sturm-isolating intervals refined until they separate — never by the float
+    embedding, which ties past ``2**53``: ``[[2**60+2, 0], [0, 2**60+1]]`` is
+    ``[2**60+1, 2**60+2]`` here and was the reverse from ``eig_exact`` before
+    the fix), and ``V`` an ``n×n`` nested ``list`` of ``Qalg`` (``V[i][j]``, the
+    ``Mat | list`` shape of the rc463 builders) whose COLUMNS are the exact
+    eigenvectors, each over its own eigenvalue's field. Strict-zero witness:
+    ``symmetric_eigendecompose([[2**53+1, 0], [0, 0]], exact=True)[0][1] ==
+    2**53+1``; off the diagonal, ``[[2**53+1, 1], [1, 0]]`` has largest
+    eigenvalue ``9007199254740994.0`` here against ``9007199254740992.0`` on
+    the default route (the rounded operand has a different spectrum).
+    Three things this route does NOT do, stated so nobody reads them in: the
+    columns are a null-space basis, UNNORMALISED (a unit column needs
+    ``sqrt(‖v‖²)``, a further quadratic extension with no shipped carrier) and,
+    inside a degenerate eigenspace, not orthogonal; a rational operand is
+    pre-scaled to an integer one (``eig_exact``'s ``denominator_scale``), so the
+    minimal polynomial each ``Qalg`` carries is that of ``c·λ``; and ``float()``
+    of an exact eigenvector coordinate is a Horner evaluation at a float root
+    that CANCELS at wide scale — read the coordinates, or take the eigenvalue's
+    own ``to_float()`` (its isolated root). Cost class: polynomial factoring plus exact
+    elimination per eigenvalue — measured 0.7 s on the 12-cycle Laplacian
+    against microseconds for Jacobi — which is why it is opt-in and the float
+    Jacobi stays the default. The Stage-2 sentence that stood here declared
+    this op instead; withdrawn at the review (see
+    :func:`hermitian_eigendecompose`).
     """
     rows = _as_rows(L)
+    if exact:
+        return _symmetric_eig_exact(rows, "symmetric_eigendecompose")
     real_rows = [[float(v.real) if isinstance(v, complex) else float(v) for v in r]
                  for r in rows]
     n = len(real_rows)
@@ -3331,7 +3813,19 @@ def elementwise_multiply_complex(a, b):
     equal-length operands). Preserves input rank: a :class:`Mat` / 2-D ``a`` →
     a complex :class:`~srmech.math.mat.Mat` out; a :class:`Vec` / 1-D flat ``a``
     → a complex :class:`~srmech.math.vec.Vec` out (rc129 — NOT a bare
-    ``list[complex]``). The shape is read off ``a``."""
+    ``list[complex]``). The shape is read off ``a``.
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). When
+    EVERY leaf of both operands is exact — ``int`` / ``Q`` / ``(num, den)`` /
+    :class:`~srmech.math.qi.Qi` — the products are the exact Gaussian-rational
+    :meth:`Qi.__mul__` (C peer ``qi_mul_c``) and the result is ``list[Qi]`` for
+    a flat ``a`` or ``list[list[Qi]]`` for a nested one (the shipped
+    ``left_mult_matrix -> List[List[Q]]`` precedent: no exact complex MATRIX
+    carrier ships yet). A ``Mat`` / ``Vec`` operand, or one float / complex leaf
+    anywhere, keeps the float route — ``complex(ai) * complex(bi)`` on the
+    ``Mat`` / ``Vec`` carrier, **accurate to round-off** (through rc465 that was
+    the only route, so ``elementwise_multiply_complex([2**53+1], [1])[0]``
+    returned ``9007199254740992+0j``)."""
     a_mat = _ew_is_matrix(a)
     shape = _ew_mat_shape(a) if a_mat else None
     a_list = _flatten_scalars(a) if a_mat else _vec(a)
@@ -3341,6 +3835,14 @@ def elementwise_multiply_complex(a, b):
             f"elementwise_multiply_complex: length mismatch "
             f"{len(a_list)} vs {len(b_list)}"
         )
+    a_exact = _exact_complex_vector(a_list)
+    b_exact = _exact_complex_vector(b_list) if a_exact is not None else None
+    if a_exact is not None and b_exact is not None:
+        prods = [x * y for x, y in zip(a_exact, b_exact)]
+        if a_mat:
+            n_rows, n_cols = shape
+            return [prods[r * n_cols:(r + 1) * n_cols] for r in range(n_rows)]
+        return prods
     flat = [complex(ai) * complex(bi) for ai, bi in zip(a_list, b_list)]
     return _ew_pack(flat, matrix=a_mat, shape=shape, is_complex=True)
 
@@ -3370,6 +3872,36 @@ def _real_transcendental_native(flat_real: list, op_id: int):
     if rc == _native.SRMECH_OK:
         return True, [out[i] for i in range(n)], rc
     return True, None, rc
+
+
+def _q61_trig_range_refuse(flat_real: list, op_name: str) -> None:
+    """Refuse ``cos`` / ``sin`` / ``exp_i`` arguments the Q61 octant reduction
+    cannot reduce, BEFORE either projection runs (rc466, `#T1188`).
+
+    The pure cascade (:func:`srmech.math.rational.cos` → ``_q61_reduce``) raises
+    ``ValueError("cos: |x| too large for the Q61 octant reduction; got …")`` at
+    ``|x| >= 2**55``, and the scalar C peers ``srmech_cos_q61`` / ``srmech_sin_q61``
+    return status 2 for the same argument (the bound is
+    :data:`srmech.math.rational.Q61_TRIG_RANGE`, imported — not a second copy).
+    The ARRAY kernel ``srmech_elementwise_transcendental``
+    (``c/src/srmech_laplacian.c``) calls
+    ``srmech_cos`` / ``srmech_sin`` per element and DISCARDS the status —
+    ``(void)srmech_cos(x, &out[i])`` — so through rc465 the native projection
+    returned ``0.0`` for such an element, silently, where the pure projection
+    refused: MEASURED ``elementwise_transcendental([5.659390201622752e+16],
+    "cos")`` → ``0.0`` native / ``ValueError`` pure. A silent wrong value is the
+    top defect class; this guard makes the refusal carrier-independent (same
+    exception, same text, both cells) at the dispatch boundary. The C kernel's
+    status discard is the root and is named as a C follow-up (its fix is a
+    per-element status return — an ABI-visible change class). The magnitude is
+    a Class-K pin-slot branch, not ``abs()``.
+    """
+    label = "cos" if op_name == "exp_i" else op_name
+    for x in flat_real:
+        m = x if x >= 0.0 else -x
+        if m >= _Q61_TRIG_RANGE:
+            raise ValueError(
+                f"{label}: |x| too large for the Q61 octant reduction; got {x}")
 
 
 def _real_transcendental_loop(flat_real: list, op_name: str) -> list:
@@ -3459,6 +3991,26 @@ def elementwise_transcendental(arr, op_name: str):
     no-native / complex paths run the Class-N rational cascades per element.
 
     Canonical SSoT: ANSI C99 §7.12 libm.
+
+    **Accuracy (rc466, `#T1188`).** Every element is projected to float64 at
+    the entry (``float(x)``): an exact argument wider than 53 significand bits
+    loses its low bit BEFORE the cascade runs — ``cos`` of ``2**53+1`` and of
+    ``2**53`` return the same float. Each result is the Class-N Q61
+    fixed-point cascade (61 fractional bits; ``exp`` via Cody–Waite ln2
+    reduction; ``log`` requires ``x > 0``) returned to float64 round-off
+    (~1 ULP) — never exact, because ``exp`` / ``cos`` / ``sin`` / ``log`` of a
+    non-zero rational is transcendental, so no carrier holds the value; the
+    exact-ARGUMENT series (``rational.cos_series_truncate(numerator,
+    denominator, num_terms)`` and kin) are the truncated-series reference
+    contract, not an exact peer. ``cos`` / ``sin`` / ``exp_i`` REFUSE
+    ``|x| >= 2**55`` with ``ValueError`` (the Q61 octant reduction's range) in
+    BOTH projections since rc466: through rc465 only the pure cascade refused,
+    while the native array kernel ``srmech_elementwise_transcendental`` discards
+    the per-element status and returned ``0.0`` for such an element —
+    measured ``elementwise_transcendental([5.659390201622752e+16], "cos")``
+    → ``0.0`` native / ``ValueError`` pure — a silent wrong value, now refused
+    at the dispatch boundary (:func:`_q61_trig_range_refuse`); the C kernel's
+    status discard is named as a C follow-up.
     """
     is_mat = _ew_is_matrix(arr)
     shape = _ew_mat_shape(arr) if is_mat else None
@@ -3468,6 +4020,7 @@ def elementwise_transcendental(arr, op_name: str):
         n = len(real_flat)
         if n == 0:
             return _ew_pack([], matrix=is_mat, shape=shape, is_complex=True)
+        _q61_trig_range_refuse(real_flat, op_name)      # rc466: both cells refuse
         ok_c, cos_out, _ = _real_transcendental_native(
             real_flat, _native.SRMECH_TRANS_COS
         )
@@ -3493,6 +4046,8 @@ def elementwise_transcendental(arr, op_name: str):
     n = len(real_flat)
     if n == 0:
         return _ew_pack([], matrix=is_mat, shape=shape, is_complex=False)
+    if op_name in ("cos", "sin"):
+        _q61_trig_range_refuse(real_flat, op_name)      # rc466: both cells refuse
     op_id = _TRANS_OP_IDS[op_name]
     ok, out, rc = _real_transcendental_native(real_flat, op_id)
     if ok:
@@ -3831,11 +4386,12 @@ def _magnetic_laplacian_native(
 def magnetic_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
-    weights: Optional[Iterable[float]] = None,
+    weights: Optional[Iterable] = None,
     *,
-    q: float = _MAGNETIC_Q_UNSET,  # type: ignore[assignment]  # sentinel; 0.25 when unset
-    charges: Optional[Iterable[float]] = None,
-) -> "Mat":
+    q=_MAGNETIC_Q_UNSET,  # sentinel; 0.25 (= Q(1, 4) under exact=True) when unset
+    charges: Optional[Iterable] = None,
+    exact: bool = False,
+) -> "Mat | List[List[Qi]]":
     """Magnetic (Hermitian) Laplacian of a **directed** graph.
 
     Direction is encoded as a complex phase so the result stays
@@ -3911,7 +4467,40 @@ def magnetic_laplacian(
     no-native alternative). Returns an ``n×n`` Hermitian complex
     :class:`~srmech.math.mat.Mat` (``.shape`` + ``m[i, j]``, NOT a bare
     ``list[list[complex]]``).
+
+    **Accuracy (rc466, `#T1188`).** The default carrier is ``Mat`` =
+    interleaved ``array('d')``: weights and charges are projected **to float64
+    round-off** at the entry (``magnetic_laplacian(2, [(0,1)], [2**53+1],
+    q=0)[0,0]`` returned ``4503599627370496+0j`` for an exact
+    ``9007199254740993/2``) and each phase is the Class-N Q61 trig cascade,
+    **accurate to round-off**. ``exact=True`` returns ``list[list[Qi]]`` on the
+    exact Gaussian-rational carrier :class:`~srmech.math.qi.Qi`: the degrees and
+    magnitudes are exact ``Q`` and each phase is the exact root of unity
+    ``i**k`` — which is EVERY phase whose turn (``q·(W−Wᵀ)`` in the scalar mode,
+    the per-edge charge in ``charges`` mode) has a reduced denominator of 1, 2
+    or 4: the default ``q = 1/4``, ``q = 0``, ``q = 1/2``, and the F1006
+    dual-sense ``±q`` at a quarter turn. Any other rational turn is a root of
+    unity the ``Qi`` carrier cannot hold and is REFUSED by name (the message
+    names the ``Qalg`` carrier over ``Φ_N`` that can), never rounded; a float
+    weight / charge / ``q`` is refused by name too.
     """
+    if exact:
+        el_x, wl_x = _validate_edges_weights_exact(n, edges, weights)
+        if charges is not None:
+            if q is not _MAGNETIC_Q_UNSET:
+                raise ValueError(
+                    "q and charges are mutually exclusive: per-edge charges carry "
+                    "the phase themselves, so a scalar q has no role — pass one "
+                    "or the other"
+                )
+            cl_x = [_exact_weight(c, "charges") for c in charges]
+            if len(cl_x) != len(el_x):
+                raise ValueError(
+                    f"charges length {len(cl_x)} != n_edges {len(el_x)}"
+                )
+            return _magnetic_laplacian_exact(n, el_x, wl_x, None, cl_x)
+        q_x = Q(1, 4) if q is _MAGNETIC_Q_UNSET else _exact_weight(q, "q")
+        return _magnetic_laplacian_exact(n, el_x, wl_x, q_x, None)
     if charges is not None:
         if q is not _MAGNETIC_Q_UNSET:
             raise ValueError(
@@ -4073,10 +4662,11 @@ def _quaternion_laplacian_blocks(
 def quaternion_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
-    weights: Optional[Iterable[float]] = None,
+    weights: Optional[Iterable] = None,
     *,
-    gains: Optional[Iterable[Sequence[float]]] = None,
-) -> "Mat":
+    gains: Optional[Iterable[Sequence]] = None,
+    exact: bool = False,
+) -> "Mat | List[List[Q]]":
     """Quaternion (ℍ) gain Laplacian of a graph — the ASSOCIATIVE dim-4 rung of
     :func:`magnetic_laplacian` (the ℂ dim-2 complex-unit-gain Laplacian).
 
@@ -4135,7 +4725,25 @@ def quaternion_laplacian(
     Raises:
         ValueError: bad ``n`` / out-of-range endpoint / weights-length mismatch
             / gains-length mismatch / a non-4-vector or zero-norm gain.
+
+    **Accuracy (rc466, `#T1188`).** The default carrier is ``Mat`` =
+    ``array('d')``: weights and gains are projected **to float64 round-off** at
+    the entry (``quaternion_laplacian(2, [(0,1)], [2**53+1])[0,0]`` returned
+    ``4503599627370496.0`` for an exact ``9007199254740993/2``) and every block
+    is then **accurate to round-off**. ``exact=True`` returns the ``4n×4n``
+    ``list[list[Q]]`` on the exact ℚ carrier — ``L(g)`` is
+    :func:`srmech.cascade.left_mult_matrix` (the rc465 exact route of
+    ``quaternion_left_mult``) and the conjugate :func:`srmech.cascade.cd_conjugate`,
+    so every entry is EXACT. On that route a supplied gain must be an exact
+    4-vector whose norm form ``Σ gᵢ²`` is 1 on the nose (the identity default
+    is; ``(3/5, 4/5, 0, 0)`` is); no normalisation runs, because ``g/‖g‖``
+    needs a root the carrier holds only for a perfect square — a non-unit or
+    float gain, and a float weight, are REFUSED by name.
     """
+    if exact:
+        el_x, wl_x = _validate_edges_weights_exact(n, edges, weights)
+        gl_x = _resolve_quaternion_gains_exact(el_x, gains)
+        return _quaternion_laplacian_blocks_exact(n, el_x, wl_x, gl_x)
     el, wl = _validate_edges_weights_py(n, edges, weights)
     gl = _resolve_quaternion_gains(el, gains)
     rows = _quaternion_laplacian_blocks(n, el, wl, gl)
@@ -4565,9 +5173,11 @@ def _klein4_gain_laplacian_py(n, el, wl, gl):
 def klein4_gain_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
-    weights: Optional[Iterable[float]] = None,
+    weights: Optional[Iterable] = None,
     gains: Optional[Iterable] = None,
-) -> Dict[str, "Mat"]:
+    *,
+    exact: bool = False,
+) -> "Dict[str, Mat] | Dict[str, List[List[Q]]]":
     """The V₄-gain (Klein-4-sector) Laplacian — the EVEN-channel fuller partner
     of :func:`magnetic_laplacian` (gh#687).
 
@@ -4623,7 +5233,25 @@ def klein4_gain_laplacian(
     four sectors in one call) when ``HAS_NATIVE``; else four
     :func:`signed_laplacian` builds on the χ-transformed weights (byte-identical
     — integer sign × the same weights). No ``abs()``.
+
+    **Accuracy (rc466, `#T1188`).** The default carrier is ``Mat`` =
+    ``array('d')``: a weight wider than 53 significand bits is projected **to
+    float64 round-off** at the entry, before any arithmetic, and every sector
+    entry is then **accurate to round-off**. ``exact=True`` returns the four
+    sectors as ``list[list[Q]]`` — each is :func:`signed_laplacian` under ITS
+    ``exact=True`` on the χ-transformed weights (``χ ∈ {+1, −1}`` is an integer,
+    so the transform is exact) — feedable to :func:`jacobi_eigvals` under its
+    ``exact=True``. A float weight is REFUSED by name under ``exact=True``.
     """
+    if exact:
+        el_x, wl_x = _validate_edges_weights_exact(n, edges, weights)
+        gl_x = _normalize_gains_py(gains, len(el_x))
+        out = {}
+        for k in range(4):
+            a, b = k >> 1, k & 1
+            w_sec = [_klein4_char_sign(a, b, g) * w for g, w in zip(gl_x, wl_x)]
+            out[_KLEIN4_SECTORS[k]] = signed_laplacian(n, el_x, w_sec, exact=True)
+        return out
     el, wl = _validate_edges_weights_py(n, edges, weights)
     gl = _normalize_gains_py(gains, len(el))
     rows = _klein4_gain_laplacian_native(n, el, wl, gl)
@@ -4641,6 +5269,7 @@ def klein4_relational_structure(
     gains: Optional[Iterable] = None,
     *,
     n: Optional[int] = None,
+    exact: bool = False,
 ) -> dict:
     """The joint EVEN-channel read-out of a V₄-gain relational graph (gh#687) —
     per-sector spectral tensions + the Class-K sector-asymmetry meter.
@@ -4678,9 +5307,39 @@ def klein4_relational_structure(
     -------
     dict
         The per-sector tensions / coherences + the mixed-sector asymmetry.
+
+    **Accuracy (rc466, `#T1188`; exact route at the rc466 review fix).**
+    Default route: ``weights`` are projected to float64 at the entry;
+    ``tension`` / ``coherence`` are the Jacobi solver's λ_min / λ₂ per sector,
+    **accurate to round-off** (~1 ULP·n) — a balanced sector reads ``~1e-16``,
+    not exactly 0 — and ``sector_asymmetry`` inherits that bound. Observation
+    recorded with the census: on the 12-node census graph with one weight at
+    ``2**53+1`` the native and pure Jacobi converge to DIFFERENT coherences for
+    the SAME operand (``0.409`` vs ``0.052`` on ``chi00``) — a ``2**53``-scale
+    mixed matrix is where two float Jacobi implementations stop agreeing; both
+    cells round the operand, so the row is DEMOTED in both and this is not a
+    divergence of verdict.
+
+    ``exact=True`` (keyword-only): the four sectors come from
+    ``klein4_gain_laplacian(..., exact=True)`` (exact ``Q`` rows; a float weight
+    refused by name) and each is read with ``symmetric_eigendecompose(sector,
+    exact=True)``, so ``tension`` / ``coherence`` are :class:`~srmech.math.qalg.Qalg`
+    — a balanced sector's tension IS ``0`` (``== 0`` holds), and λ_min / λ₂ are
+    the exact ascending order's. ``sector_asymmetry`` is then a certified
+    ENCLOSURE ``(lo, hi)`` of exact ``Q``: when both mixed-sector tensions are
+    rational the enclosure is degenerate — ``lo == hi == |t₁₀ − t₀₁|`` exactly,
+    the Class-K sign branch on ``Q`` — and otherwise the two tensions live in
+    different number fields whose difference has no shipped carrier (the
+    ``resonant_spectrum`` compositum gap), so it is bounded by their Sturm
+    isolating intervals (``eigvals_exact(..., return_intervals=True)``, width
+    ``< 2**-64`` each): ``[lo, hi]`` contains the true magnitude, and an
+    enclosure straddling 0 comes back as ``(0, max)``. Cost is the exact
+    eigensolver's, four times (see :func:`symmetric_eigendecompose`).
     """
     edge_list = [tuple(e) for e in edges]
     nn = _infer_n_from_edges(edge_list) if n is None else int(n)
+    if exact:
+        return _klein4_relational_structure_exact(edge_list, weights, gains, nn)
     if nn == 0:
         zero = {s: 0.0 for s in _KLEIN4_SECTORS}
         return {"sectors": _KLEIN4_SECTORS, "tension": dict(zero),
@@ -4697,6 +5356,52 @@ def klein4_relational_structure(
     # (4:3)|(3:4) sector-occupancy diagnostic (a sign-branch, NOT abs()).
     d = tension["chi10"] - tension["chi01"]
     asym = d if d >= 0.0 else -d
+    return {
+        "sectors": _KLEIN4_SECTORS,
+        "tension": tension,
+        "coherence": coherence,
+        "sector_asymmetry": asym,
+    }
+
+
+def _klein4_relational_structure_exact(edge_list, weights, gains, nn: int) -> dict:
+    """The ``exact=True`` route of :func:`klein4_relational_structure` (rc466
+    review fix, `#T1188`): exact sectors, exact ``Qalg`` λ_min / λ₂, and a
+    certified ``(lo, hi)`` enclosure of the mixed-sector asymmetry."""
+    from srmech.math.qalg import Qalg
+    from srmech.cascade.matrix_cascades import eigvals_exact
+
+    def _q0() -> "Qalg":
+        return Qalg.rational(Q(0, 1), (0, 1), root=0.0)
+    zero = Q(0, 1)
+    if nn == 0:
+        return {"sectors": _KLEIN4_SECTORS,
+                "tension": {s: _q0() for s in _KLEIN4_SECTORS},
+                "coherence": {s: _q0() for s in _KLEIN4_SECTORS},
+                "sector_asymmetry": (zero, zero)}
+    sectors = klein4_gain_laplacian(nn, edge_list, weights, gains, exact=True)
+    tension: Dict[str, "Qalg"] = {}
+    coherence: Dict[str, "Qalg"] = {}
+    for s in _KLEIN4_SECTORS:
+        vals, _V = _symmetric_eig_exact(sectors[s], "klein4_relational_structure")
+        tension[s] = vals[0]                                   # λ_min (frustration)
+        coherence[s] = vals[1] if nn >= 2 else _q0()           # λ₂ (connectivity)
+    r10 = tension["chi10"].as_rational()
+    r01 = tension["chi01"].as_rational()
+    if r10 is not None and r01 is not None:
+        d = r10 - r01
+        d = d if d >= zero else -d                # Class-K sign branch, never abs()
+        asym = (d, d)
+    else:
+        lo10, hi10 = eigvals_exact(sectors["chi10"], return_intervals=True)[0]
+        lo01, hi01 = eigvals_exact(sectors["chi01"], return_intervals=True)[0]
+        d_lo, d_hi = lo10 - hi01, hi10 - lo01     # t10 − t01 ∈ [d_lo, d_hi]
+        if d_lo >= zero:
+            asym = (d_lo, d_hi)
+        elif d_hi <= zero:
+            asym = (-d_hi, -d_lo)
+        else:
+            asym = (zero, max(-d_lo, d_hi))
     return {
         "sectors": _KLEIN4_SECTORS,
         "tension": tension,
@@ -5191,7 +5896,24 @@ def recover_check(vocab_size, edges, weights, charges=None):
     faculties need ``vocab_size <= 256`` — use :func:`recover_check_structural`
     / :func:`recover_check_spectral` at corpus scale (F1227). Faithful port of
     R-RBS-LM-RECOVERCHECK. Returns ``{ok, op, operand, responsion,
-    curvature:{directed, n_cycles, holonomy_nonzero, verdict}, diagnostics}``."""
+    curvature:{directed, n_cycles, holonomy_nonzero, verdict}, diagnostics}``.
+
+    **Accuracy (rc466, `#T1188`).** ``weights`` and ``charges`` are projected to
+    float64 at the entry; ``op`` and ``responsion`` are decided on the float64
+    carrier — the spectrum to Jacobi round-off (~1 ULP·n) against a ``1e-9``
+    PSD **tolerance** and a ``1e-9`` zero-mode snap, the propagator ``e^{−zL}``
+    through the Class-N cascade — and every ``diagnostics`` value is rounded to
+    6 decimals. Only ``curvature`` (:func:`cycle_holonomy` on ``Q``) is exact.
+    The verdict is a threshold test (the rc444 ruling): an exact input does not
+    make it an exact computation, and an exact spectrum feeding a ``1e-9``
+    tolerance would move no verdict. A charge pattern that drives the
+    propagator's phase to ``|x| >= 2**55`` is reported through
+    ``diagnostics["responsion_error"]`` — :func:`srmech.math.rational.cos`'s
+    Q61 range refusal, ONE exception text in both cells since rc466. Through
+    rc465 the native scalar peer refused with a message that did not name the
+    argument while the pure cascade's did, so the ``::charges`` census row read
+    INSENSITIVE native / DEMOTED pure on nothing but that text; the refusal
+    now precedes dispatch (:data:`srmech.math.rational.Q61_TRIG_RANGE`)."""
     edges = [tuple(e) for e in edges]
     diag = {}
     operand = (len(edges) > 0 and len(edges) == len(weights)
@@ -5255,7 +5977,22 @@ def recover_check_spectral(vocab_size, edges, weights, charges=None, *,
     that block — so the dense n×n eigendecompose stays within the native n<=256
     wall at ANY corpus vocab. The F1227 bounded-spectral peer of
     :func:`recover_check_structural` (#1390 item 4). Returns ``{op, responsion,
-    dim, diagnostics}``."""
+    dim, diagnostics}``.
+
+    **Accuracy (rc466, `#T1188`).** As :func:`recover_check`, on the bounded
+    principal submatrix: ``weights`` and ``charges`` are projected to float64
+    at the entry; ``op`` and ``responsion`` are decided on the float64 carrier
+    — the spectrum to Jacobi round-off (~1 ULP·n) against a ``1e-9`` PSD
+    **tolerance** and a ``1e-9`` zero-mode snap, the propagator ``e^{−zL}``
+    through the Class-N cascade — and every ``diagnostics`` value is rounded to
+    6 decimals. The verdict is a threshold test; an exact input does not make
+    it an exact computation. A charge pattern that drives the propagator's
+    phase to ``|x| >= 2**55`` is reported through
+    ``diagnostics["responsion_error"]`` — :func:`srmech.math.rational.cos`'s
+    Q61 range refusal, ONE exception text in both cells since rc466 (through
+    rc465 the native scalar peer's message did not name the argument while the
+    pure cascade's did, which is all that made the ``::charges`` census row
+    read INSENSITIVE native / DEMOTED pure)."""
     edges = [tuple(e) for e in edges]
     dim = min(vocab_size, max_dim)
     sub_e, sub_w, sub_c = [], [], []
@@ -5511,6 +6248,22 @@ def ground_state_flux_response(
         ValueError: ``n < 1``, a bad edge/weight/charge (the
             :func:`magnetic_laplacian` contracts), a charges-length mismatch,
             or an empty / non-finite ``fluxes``.
+
+    **Accuracy (rc466, `#T1188`).** An EXACT flux (``int`` / ``Q`` /
+    ``fractions.Fraction``) with an exact charge pattern (``charges=None`` — the
+    uniform ``1/n_edges`` — or all-exact ``charges``) is reduced ``mod 1`` per
+    edge on the exact ``Q`` carrier BEFORE its single terminal float lift:
+    ``e^{2πi·c}`` is periodic in integer turns, so ``Φ·charges[k] mod 1`` is the
+    same phase exactly, and the 54-bit flux ``Q(2**53+1, 2)`` (an exact half
+    turn) now reads ``λ_min(1/2)`` rather than the ``0.4889`` a rounded phase
+    gave through rc465. A float flux, or a float in the pattern, is used as
+    given (the float route). The RETURN is ``λ_min`` from the Hermitian Jacobi
+    solver on either route — a float **accurate to round-off** (~1 ULP·n):
+    the zero-flux ground state reads ~1e-16, not exactly 0.
+
+    Through rc465 a scalar ``Q`` flux was read as the two-flux SEQUENCE
+    ``(num, den)`` (``Q`` iterates as its pair) and returned a length-2 ``Vec``;
+    a scalar is now any ``int`` / ``float`` / exact rational scalar.
     """
     if not isinstance(n, int) or n < 1:
         raise ValueError(
@@ -5518,31 +6271,53 @@ def ground_state_flux_response(
             f"graph has no ground state); got {n!r}")
     el, wl = _validate_edges_weights_py(n, edges, weights)
     n_edges = len(el)
+    pattern_exact = None
     if charges is not None:
-        pattern = [float(c) for c in charges]
-        if len(pattern) != n_edges:
+        charge_list = list(charges)
+        if len(charge_list) != n_edges:
             raise ValueError(
-                f"ground_state_flux_response: charges length {len(pattern)} "
+                f"ground_state_flux_response: charges length {len(charge_list)} "
                 f"!= n_edges {n_edges}")
+        pattern = [float(c) for c in charge_list]
+        pattern_exact = _exact_vector(charge_list)
     else:
         # The uniform default: total holonomy around a single cycle = Φ turns.
         pattern = [1.0 / n_edges] * n_edges if n_edges else []
-    scalar_f = isinstance(fluxes, (int, float)) and not isinstance(fluxes, bool)
-    flux_list = [float(fluxes)] if scalar_f else [float(x) for x in fluxes]
-    if not flux_list:
+        pattern_exact = [Q(1, n_edges)] * n_edges if n_edges else []
+    scalar_f = (not isinstance(fluxes, bool)) and (
+        isinstance(fluxes, (int, float))
+        or _exact_scalar(fluxes, pair=False) is not None)
+    flux_items = [fluxes] if scalar_f else list(fluxes)
+    if not flux_items:
         raise ValueError(
             "ground_state_flux_response: fluxes must be a scalar or a "
             "NON-EMPTY sequence")
-    for fv in flux_list:
-        if not _finite_real(fv):
+    flux_list = []
+    reduced = []              # per flux: the exact reduced per-edge charges, or None
+    for fv in flux_items:
+        fq = _exact_scalar(fv, pair=False)
+        if fq is not None and pattern_exact is not None:
+            reduced.append([(fq * p) % 1 for p in pattern_exact])
+            flux_list.append(float(fq))
+            continue
+        ff = float(fv)
+        if not _finite_real(ff):
             raise ValueError(
                 f"ground_state_flux_response: every flux must be a finite "
                 f"real; got {fv!r}")
-    out = _ground_state_flux_response_native(n, el, wl, pattern, flux_list)
+        reduced.append(None)
+        flux_list.append(ff)
+    if all(r is None for r in reduced):
+        out = _ground_state_flux_response_native(n, el, wl, pattern, flux_list)
+    else:
+        out = None
     if out is None:
         out = []
-        for phi in flux_list:
-            scaled = [phi * p for p in pattern]
+        for phi, red in zip(flux_list, reduced):
+            if red is not None:
+                scaled = [float(c) for c in red]     # the reduced phase's lift
+            else:
+                scaled = [phi * p for p in pattern]
             Lm = magnetic_laplacian(n, el, wl, charges=scaled)
             eigvals, _V = hermitian_eigendecompose(Lm)
             out.append(float(eigvals[0]))
@@ -6708,7 +7483,7 @@ def propagate_sparse(
     return Vec.from_sequence(harvest, is_complex=True)
 
 
-def fiedler_vector(matrix) -> "Vec":
+def fiedler_vector(matrix, *, exact: bool = False) -> "Vec | list":
     """The Fiedler navigation embedding — eigenvector of ``λ₂``.
 
     Returns the eigenvector of the **second-smallest** eigenvalue of a
@@ -6724,11 +7499,30 @@ def fiedler_vector(matrix) -> "Vec":
     ``complex`` carrier for a Hermitian input, ``float`` for a real one), NOT a
     bare ``list``. For ``n < 2`` there is no second eigenvector; raises
     ``ValueError``.
+
+    **Accuracy (rc466, `#T1188`; exact route at the rc466 review fix).**
+    Default route: ``matrix`` is projected to float64 (or complex float64) at
+    the entry; the returned λ₂ column is the Jacobi solver's, **accurate to
+    round-off** (~1 ULP·n), never exact, and defined only up to sign / phase.
+    The census demoted this row on the probe's NON-symmetric witness
+    ``[[1, 2**53+1], [0, 1]]`` (outside the precondition — native and pure
+    return different vectors for it); on the in-contract diagonal witness the
+    column is a basis vector for any entry. ``exact=True`` (keyword-only): the
+    λ₂ column of ``hermitian_eigendecompose(matrix, exact=True)`` — a ``list``
+    of ``n`` :class:`~srmech.math.qalg.Qalg`, the exact null-space vector of
+    ``A − λ₂I`` over ``ℚ(λ₂)``, UNNORMALISED and sign-free (an exact object has
+    no pivot convention to pin), with λ₂ chosen by the exact ascending order.
+    A float, non-symmetric or ``Qi``-with-imaginary-part operand is refused by
+    name there (the Gaussian-rational Hermitian case has no shipped exact
+    eigenvector carrier — see :func:`hermitian_eigendecompose`).
     """
     rows = _as_rows(matrix)
     n = len(rows)
     if n < 2:
         raise ValueError("fiedler_vector requires n >= 2")
+    if exact:
+        _vals, V_exact = hermitian_eigendecompose(rows, exact=True)
+        return [V_exact[i][1] for i in range(n)]
     if _has_complex(rows):
         _eigvals, V = hermitian_eigendecompose(rows)  # V complex Mat
         is_cx = True
@@ -7111,6 +7905,17 @@ def fiedler_sparse(
     Vec
         The sign-bearing Fiedler vector (numpy-free 1-D carrier, ``.shape ==
         (n,)``). For ``n < 2`` the zero vector (no cut).
+
+    **Accuracy (rc466, `#T1188`).** ``weights`` are projected to float64 at the
+    entry (a weight wider than 53 significand bits loses its low bit before the
+    first matvec). The returned vector is a deflated POWER-ITERATION estimate —
+    rescaled by its max magnitude each step and stopped at sign-stability (5
+    identical sign partitions after a 20-iteration warm-up, ``max_iters`` cap)
+    — **accurate to that stopping rule, NOT to round-off**; only the SIGN
+    pattern (the normalized-cut bisection) is the contract, and it is
+    bit-identical native / pure. There is no exact peer for the iterative
+    O(edges) route; the exact Fiedler vector of a rational Laplacian is the
+    dense ``eigvec_exact`` cascade (a different algorithm and cost class).
     """
     edge_list, w_list = _validate_edges_weights_py(n, edges, weights)
     if _native.has_native_fiedler_sparse() and n >= 2:

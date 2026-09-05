@@ -53,6 +53,16 @@ def op(spectrum, *, n: Optional[int] = None, axis: int = -1, D: int = 8192):
         Path B dimensionality (retained for cross-path API consistency; not
         used by the Path A closed-form numpy backend).
 
+    Accuracy (rc466, `#T1188`)
+    --------------------------
+    An integer / Gaussian-integer signal rides the cascade's exact-until-rotation
+    route (every coefficient an exact ``ℤ[ζ_N]`` integer) and the returned
+    ``complex`` bins are its single **terminal float lift** — exact wherever the
+    bin is float-representable, **accurate to round-off** (~1 ULP) otherwise.
+    A float signal is transformed on the float64 carrier, **accurate to
+    round-off**. Through rc465 the carrier rounded the operand at its entry
+    (``[complex(x) for x in seq]``) BEFORE the exact engine ran.
+
     Returns
     -------
     numpy.ndarray

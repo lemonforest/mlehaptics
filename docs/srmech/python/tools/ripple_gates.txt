@@ -877,3 +877,9 @@ tests/test_cd_register_engine_c_rc464.py
 # cost 66 s native / 154 s pure per job; it now reads a file. 24 tests, ~0.5 s
 # plus one srmech import, pure.
 tests/test_silent_carrier_demotion_rc463.py
+
+# rc466 review fix (`#T1188`) -- the carrier-count pin the Qi registration
+# moved (28 -> 29) while this list never ran the file: CI went red in both
+# cells on a ripple this gate reported green. A carrier registration is a
+# dispatch-surface change, so the live-count pin rides here from now on.
+tests/test_unit_label_and_domain_word_rc354.py

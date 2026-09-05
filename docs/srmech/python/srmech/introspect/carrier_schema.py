@@ -398,6 +398,24 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "entirely by whether a partial arrives as Q or as Qalg."),
         "ladder": None, "rung": None, "variables": ["α"],
     },
+    "Qi": {
+        "description": (
+            "srmech's exact GAUSSIAN-RATIONAL complex scalar — two exact Q "
+            "(re, im), i.e. Qalg over x²+1 with the embedding fixed, collapsing "
+            "to the builtin complex only via complex(z). It is the exact peer "
+            "of the float complex the Hermitian / magnetic surface carries: "
+            "since v0.9.0rc466 (`#T1188`) it is the return carrier of "
+            "elementwise_multiply_complex, inner_product_eta, density_matrix "
+            "(a Gaussian-exact ψ) and magnetic_laplacian(exact=True) at the "
+            "turn denominators 1 / 2 / 4, and an accepted operand leaf wherever "
+            "those ops declare `Qi`. Its C peers are srmech_qi_mul and kin. "
+            "Registered here at rc466 because the drain put the token `Qi` "
+            "into declared ToolEntry type strings for the first time; before "
+            "that a Qi value crossed the MCP wire as a bare [[num, den], "
+            "[num, den]] pair with no inbound rebuild — the projection gap a "
+            "new discriminator-set member must close in the same change."),
+        "ladder": None, "rung": None, "variables": [],
+    },
     # ── the float-LA carriers (numpy-free array('d') family) ─────────────────
     "Mat": {
         "description": (
@@ -716,6 +734,12 @@ _CAPABILITY: Dict[str, Dict[str, Any]] = {
     # jurisdiction over it, the same reasoning as the polynomial-ladder rows.
     "Qalg": _cap("field multiply (mod m)", _CAP_ZERO_DIVISORS,
                  _CAP_ABELIAN_ONLY, True, varies_with="minimal_polynomial"),
+    # Qi is ℚ(i) = CD(ℚ) at γ = −1: a FIELD (no zero divisors, every non-zero
+    # element invertible), commutative, real dimension 2 — the ℂ rung of the
+    # Hurwitz ladder over ℚ, so Hurwitz has jurisdiction and the wall is by
+    # definition, exactly as Q's is.
+    "Qi": _cap("Gaussian-rational multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True,
+               max_dim=2, bounded_by="definition"),
     # ── the float-LA carriers ────────────────────────────────────────────────
     # Mat's ALGEBRA product is `@` (mat_matmul): associative and NON-commutative,
     # so turns fold with their which-way intact — and it has zero divisors

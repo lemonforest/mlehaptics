@@ -85,9 +85,9 @@ def op(
     *,
     up: int = 1,
     down: int = 1,
-    filter_taps: Optional[List[float]] = None,
+    filter_taps: Optional[List] = None,
     D: int = 8192,
-) -> List[float]:
+) -> List:
     """Rational sample-rate conversion by ratio ``up/down``.
 
     Up-samples by inserting ``up - 1`` zeros, low-pass filters with
@@ -110,20 +110,39 @@ def op(
     Returns
     -------
     list of float
-        Resampled signal.
+        Resampled signal (``int`` / ``Q`` leaves on the exact route — see
+        below).
+
+    Accuracy (rc466, `#T1188`)
+    --------------------------
+    **The carrier is the operand's.** With ``up == down == 1`` the op is the
+    identity and returns the signal AS GIVEN — through rc465 it returned a
+    float64-rounded copy (``multirate([2**53+1, 2, 3, 4])[0]`` was
+    ``9007199254740992.0``) with no arithmetic performed. An exact ``signal``
+    with CALLER-SUPPLIED exact ``filter_taps`` takes the type-preserving pure
+    convolution on BOTH projections (the rc463 ``fir`` routing; zero-insertion,
+    decimation and the ``up`` gain are exact integer glue) and the output is
+    the exact resampled signal. The DEFAULT low-pass — a 41-tap windowed sinc
+    (Class-N sine over the cascade π, Hamming-windowed, normalised by a float
+    sum) — is a float64 quantity by nature, so under it the resampled output is
+    **accurate to round-off** (~1 ULP, c_dispatched Toeplitz matvec); supply
+    integer taps for an exact result. A float leaf anywhere keeps the float
+    route, **accurate to round-off**.
     """
     if up < 1 or down < 1:
         raise ValueError("up and down must be >= 1")
     seq = list(signal)
     if seq and hasattr(seq[0], "__len__") and not isinstance(seq[0], (str, bytes)):
         raise ValueError("multirate expects 1-D signal")
-    sig = [float(v) for v in seq]
-    n0 = len(sig)
     if up == 1 and down == 1:
-        return list(sig)
+        return list(seq)                    # rc466: the identity returns the operand
+    exact = filter_taps is not None and _dsp.exact_operands(seq, filter_taps)
+    sig = seq if exact else [float(v) for v in seq]
+    n0 = len(sig)
+    zero = 0 if exact else 0.0
     # Up-sample: insert ``up - 1`` zeros between samples (Class C streaming).
     if up > 1:
-        upsampled = [0.0] * (n0 * up)
+        upsampled = [zero] * (n0 * up)
         for i in range(n0):
             upsampled[i * up] = sig[i]
     else:
@@ -142,13 +161,16 @@ def op(
         windowed = [taps[k] * w[k] for k in range(n_taps)]
         total = sum(windowed)
         filter_taps = [v / total for v in windowed]
-    else:
+    elif not exact:
         filter_taps = [float(v) for v in filter_taps]
+    else:
+        filter_taps = list(filter_taps)     # rc466: exact taps as given
     # composition_of_c (rc150 / B4c): when the native dense-matmul is present the
     # low-pass convolution rides a Toeplitz matvec through the c_dispatched
     # srmech_dense_matmul_complex (_dsp.convolve_matmul); otherwise the complete
     # numpy-free pure cascade. Both return a list; the matmul path is within-tol
-    # (not byte-identical).
+    # (not byte-identical). rc466: EXACT operands take the pure cascade on
+    # BOTH projections (the rc463 fir precedent — see _dsp.exact_operands).
     from srmech import _native
 
     _convolve = (
@@ -157,6 +179,7 @@ def op(
             _native.HAS_NATIVE
             and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_dense_matmul_complex")
+            and not exact
         )
         else _dsp.convolve
     )

@@ -95,11 +95,23 @@ def op(
     -------
     list
         Real PSD estimate of length ``len(signal)`` as a ``list`` of ``float``.
+
+    **Accuracy (rc466, `#T1188`).** The PSD is a float64 estimate: each taper
+    is a float64 sequence (scipy's DPSS bank when scipy is importable, else the
+    Class-N sine over the π cascade, ℓ²-normalised by a float sqrt), and the
+    tapered signal, the per-taper periodogram ``|F|²`` and the bundle average
+    are accumulated in float, **accurate to round-off** (~1 ULP per operation),
+    never exact. ``signal`` is used as given (the entry projection ``float(v)``
+    of rc465 is gone) — and that changes NOTHING here, because the first
+    operation on every sample is a multiply by an irrational taper: an integer
+    signal and its float64 projection give byte-identical PSDs, so a 54-bit
+    sample is rounded at that multiply. No shipped op computes a tapered PSD on
+    an exact carrier.
     """
     seq = list(signal)
     if seq and hasattr(seq[0], "__len__") and not isinstance(seq[0], (str, bytes)):
         raise ValueError("multitaper expects 1-D signal")
-    arr = [float(v) for v in seq]
+    arr = seq                               # rc466: as given (see Accuracy)
     n = len(arr)
     try:
         from scipy.signal.windows import dpss  # type: ignore[import-untyped]

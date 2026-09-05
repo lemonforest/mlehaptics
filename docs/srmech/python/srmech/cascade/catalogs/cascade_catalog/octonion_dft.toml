@@ -151,7 +151,7 @@ canonical_landings = [
 [[cascade.chain]]
 chain_schema_version = 2
 summary = "ODFT as an indexed map of indexed maps with the F378-declared bracketing inside the summand op."
-returns = "list[list[float]]  # N octonions (8-component lists)"
+returns = "list[list[float]] | list[list[Q]]  # N octonions (8-component lists). rc466 (`#T1188`): Q leaves in the Python runner over an exact sample list (exact through the forward scale and any power-of-two inverse; a Q of the float64 1/n otherwise — see dft_scale); the C host is double-only on this chain (a named divergence); the octonion_dft wrapper elects float at its own entry"
 
 [[cascade.chain.steps]]
 class = "M"

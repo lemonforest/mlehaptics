@@ -52,6 +52,11 @@ from __future__ import annotations
 from typing import List, Sequence
 
 from srmech.math.mat import Mat
+from srmech.math.qi import (  # rc466 (`#T1188`): the exact Gaussian-rational carrier
+    Qi,
+    exact_complex_rows as _exact_complex_rows,
+    exact_complex_vector as _exact_complex_vector,
+)
 from srmech.math.laplacian import (
     mat_eigvals,
     mat_hermitian_eigendecompose,
@@ -88,8 +93,8 @@ def _im_magnitude(z: complex) -> float:
 
 
 def inner_product_eta(
-    a: Sequence[complex], b: Sequence[complex], eta
-) -> complex:
+    a: Sequence, b: Sequence, eta
+) -> "complex | Qi":
     """η-deformed inner product ``⟨a|b⟩_η = ⟨a| η |b⟩``.
 
     For ``η = I`` reduces to the standard Hilbert-space inner product.
@@ -104,11 +109,50 @@ def inner_product_eta(
         eta: Positive operator (n × n :class:`Mat` or list-of-rows).
 
     Returns:
-        Complex scalar ``aᴴ η b``.
+        Complex scalar ``aᴴ η b`` — an exact :class:`~srmech.math.qi.Qi` on
+        the exact route, ``complex`` otherwise (see below).
 
     Raises:
         ValueError: shape mismatch.
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). The form
+    is sesquilinear — polynomial over the Gaussian rationals — so when EVERY
+    leaf of ``a``, ``b`` AND ``eta`` is exact (``int`` / ``Q`` / ``(num, den)``
+    / :class:`~srmech.math.qi.Qi`; a ``QMat`` ``eta`` is read through
+    ``to_lists()``) the matvec and the conjugate-dot run on ``Qi`` (C peer
+    ``qi_mul_c``) and the result is EXACT. A ``Mat`` / ``Vec`` operand, or one
+    float / complex leaf anywhere, keeps the float route, **accurate to
+    round-off**. Through rc465 the op was HALF exact: a ``Qi`` leaf in ``a``
+    survived, but ``eta`` always went through ``complex(x)`` into a float
+    ``Mat``, so ``inner_product_eta([1,0], [1,0], [[2**53+1, 0], [0, 1]])``
+    returned ``9007199254740992+0j``.
     """
+    a_x = _exact_complex_vector(a)
+    b_x = _exact_complex_vector(b) if a_x is not None else None
+    eta_x = _exact_complex_rows(eta) if b_x is not None else None
+    if eta_x is not None:
+        n = len(a_x)
+        if n != len(b_x):
+            raise ValueError(
+                f"inner_product_eta: a, b must be vectors of same length; "
+                f"got a={n}, b={len(b_x)}"
+            )
+        if len(eta_x) != n or any(len(r) != n for r in eta_x):
+            shape = (len(eta_x), len(eta_x[0]) if eta_x else 0)
+            raise ValueError(
+                f"inner_product_eta: eta must be ({n}, {n}); got {shape}"
+            )
+        zero = Qi(0, 0)
+        w = []
+        for i in range(n):
+            acc = zero
+            for j in range(n):
+                acc = acc + eta_x[i][j] * b_x[j]
+            w.append(acc)
+        out = zero
+        for i in range(n):
+            out = out + a_x[i].conjugate() * w[i]
+        return out
     eta = _as_mat(eta)
     if len(a) != len(b):
         raise ValueError(

@@ -25,6 +25,9 @@ from typing import List, Sequence, Tuple
 from srmech.math import rational as _srn
 from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matmul
 from srmech.math.mat import Mat
+from srmech.math.q import exact_vector as _exact_vector          # rc466 (`#T1188`)
+from srmech.math.qi import Qi, exact_complex_vector as _exact_complex_vector
+from srmech.math.qmat import QMat
 from srmech.physics.qm.quaternion import quaternion_twiddle as _quaternion_twiddle
 
 # The four quarter-turn roots of unity ``exp(2πi·m/4)`` for m = 0, 1, 2, 3 —
@@ -320,7 +323,7 @@ def shift_operator(n: int) -> "Mat":
     return Mat.from_rows(rows, is_complex=True)
 
 
-def density_matrix(psi: Sequence[complex]) -> "Mat":
+def density_matrix(psi: Sequence) -> "Mat | QMat | List[List[Qi]]":
     """Pure-state density matrix ``ρ = |ψ⟩⟨ψ|``.
 
     Canonical SSoT: von Neumann (1932) *Mathematische Grundlagen*;
@@ -332,11 +335,34 @@ def density_matrix(psi: Sequence[complex]) -> "Mat":
 
     Returns:
         Density matrix as an (n, n) complex ``Mat``, Hermitian PSD with
-        trace = ⟨ψ|ψ⟩.
+        trace = ⟨ψ|ψ⟩ — or its exact carrier (see below).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). ``|ψ⟩⟨ψ|``
+    is an outer product — no transcendental anywhere — so an exact ``psi``
+    returns the exact object: a REAL-exact ``psi`` (every leaf ``int`` / ``Q``
+    / ``(num, den)``) returns an exact-ℚ :class:`~srmech.math.qmat.QMat`
+    (``col.matmul(row)``); a GAUSSIAN-exact ``psi`` (some leaf a
+    :class:`~srmech.math.qi.Qi`, every leaf exact) returns ``list[list[Qi]]``
+    with ``ρ[i][j] = ψ_i · conj(ψ_j)`` — the shipped ``left_mult_matrix ->
+    List[List[Q]]`` precedent, because no exact complex MATRIX carrier ships
+    yet. A ``Vec`` operand, or one float / complex leaf, keeps the float
+    ``Mat`` route, **accurate to round-off** — ``Mat`` rounds AT CONSTRUCTION,
+    so through rc465 ``density_matrix([2**53+1, 1])`` returned the off-diagonal
+    ``9007199254740992`` with no arithmetic performed on it. The in-tree
+    consumer :func:`liouville_evolve` takes a ``Mat``; project with
+    ``QMat.to_mat()`` when feeding it an exact ρ.
     """
     n = len(psi)
     if n == 0:
         raise ValueError("density_matrix: psi must be a non-empty sequence")
+    psi_r = _exact_vector(psi)
+    if psi_r is not None:
+        col = QMat.from_rows([[q] for q in psi_r])
+        row = QMat.from_rows([list(psi_r)])
+        return col.matmul(row)
+    psi_c = _exact_complex_vector(psi)
+    if psi_c is not None:
+        return [[psi_c[i] * psi_c[j].conjugate() for j in range(n)] for i in range(n)]
     # ρ = |ψ⟩⟨ψ| = outer(ψ, conj(ψ)) via the column·row Class-L matmul cascade.
     col = Mat.from_rows([[complex(psi[i])] for i in range(n)], is_complex=True)      # (n,1)
     row = Mat.from_rows(

@@ -91,7 +91,19 @@ FLOOR_REGISTERED_OPS = 550
 #: The carrier registry is a fixed, reviewed set, so this one IS an equality —
 #: a carrier appearing or disappearing is exactly the event the gate must not
 #: miss.
-EXPECTED_CARRIERS = 28
+#: rc466 (`#T1188`, stage 3): 28 -> 29. ``Qi`` — the exact Gaussian-rational
+#: scalar that had shipped since rc362 as ``Qalg`` over x²+1 with a fixed
+#: embedding — entered declared ToolEntry type strings for the first time when
+#: the seventy-row drain gave ``elementwise_multiply_complex`` /
+#: ``inner_product_eta`` / ``density_matrix`` / ``magnetic_laplacian(exact=True)``
+#: their exact arm, and rc205 flagged the token as absent from the carrier
+#: registry. Its wire form is a ``_CARRIER_WIRE`` row (the Qalg / QMat
+#: precedent): ``{"re": [num, den], "im": [num, den]}`` inside the
+#: ``$srmech_carrier`` envelope, rebuilt structurally on the way in. The
+#: Stage-1 cut had emitted a bare ``[[num, den], [num, den]]`` — which this
+#: file's sweep correctly filed as a carrier that does NOT round-trip (no
+#: envelope, no carrier-level rebuild) before the row existed.
+EXPECTED_CARRIERS = 29
 
 #: Ops whose DECLARED return type has no inbound coercer at all. A round-trip
 #: claim over these is UNDEFINED, not true — the value comes back unchanged
@@ -144,7 +156,21 @@ EXPECTED_CARRIERS = 28
 #: coercer either and its widened union now does. Contrast the three rc419 rows
 #: the paragraph above defends: those have no wire form at ALL, so a coercer for
 #: them would be theatre. These seven had one and were simply not given it.
-CEIL_RETURN_TYPES_WITHOUT_COERCER = 133
+#: rc466 (`#T1188`, stage 3): 133 -> 129, a DRAIN. The seventy-row drain widened
+#: seven return spellings with no inbound coercer (`Mat | list` x4, `complex | Qi`,
+#: `Mat | QMat | list[list[Qi]]`, `Mat | Vec | list[Qi] | list[list[Qi]]`) and
+#: moved `klein4_gain_laplacian` to `dict[str, Mat] | dict[str, list]`; measured
+#: 140 on the Stage-2 head. Landing the five coercers (each a rebuild of the
+#: exact wire leaves Q `[num, den]` / Qi `[[a, b], [c, d]]`, round-tripped by
+#: execution) covers those eight AND rc463's three `Mat | list` builders, which
+#: had sat inside the 133 since rc463: 140 - 11 = 129.
+CEIL_RETURN_TYPES_WITHOUT_COERCER = 127
+#: rc466 review fix (`#T1188`): 129 -> 127. `symmetric_eigendecompose` /
+#: `hermitian_eigendecompose` declared `tuple[Vec, Mat]`, which never had an
+#: inbound coercer; their exact route widened the spelling and the coercer
+#: landed with it (`_to_eigenpairs_exact_or_float`), together with
+#: `Vec | list[Qalg]` for `fiedler_vector` (which would otherwise have gone
+#: 129 -> 130). Measured after the coercers: 127.
 
 #: Carriers, constructed from their own shipped example expressions, that do
 #: NOT survive a wire round-trip. Counted over the EVALUABLE subset.
@@ -215,11 +241,12 @@ def _example_namespace() -> dict:
     )
     from srmech.math.hdc import HV, Mat
     from srmech.math.qalg import Qalg
+    from srmech.math.qi import Qi
     from srmech.math.qmat import QMat
     from srmech.biology.coupling import Vec
 
     return dict(
-        Qalg=Qalg,
+        Qalg=Qalg, Qi=Qi,
         array=array, Q=Q, Poly=Poly, BiPoly=BiPoly,
         TriPoly=TriPoly, QPoly=QPoly, QBiPoly=QBiPoly, Mat=Mat, Vec=Vec,
         QMat=QMat, HV=HV, EllMonomial=EllMonomial, EllRatio=EllRatio,

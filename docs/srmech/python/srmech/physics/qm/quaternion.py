@@ -92,7 +92,8 @@ from srmech.cascade import right_mult_matrix as _right_mult_matrix
 # local — the same shape `qm.octonion` carries at dim 8. Sharing the judgement
 # and keeping the arity local is deliberate: this module must not acquire a
 # dependency on the rung ABOVE it just to read its own operand.
-from srmech.cascade.matrix_cascades import _exact_leaf
+from srmech.math.q import exact_vector as _exact_vector  # rc466 (`#T1188`): the ONE exact reader
+from srmech.math.q import exact_scalar as _exact_scalar  # rc466: quaternion_log's exact route
 from srmech.math.q import Q  # rc465: the exact-ℚ scalar carrier
 from srmech.math.qmat import QMat  # rc465: the exact-ℚ 4×4 L_q / R_q carrier
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
@@ -298,53 +299,16 @@ def _operand_leaves(v, op: str):
         return v
 
 
-def _exact_component(c):
-    """The EXACT-ℚ reading of ONE operand component, or ``None``.
-
-    rc465-fix (`#T1188`) — :func:`~srmech.cascade.matrix_cascades._exact_leaf`
-    plus the ``(num, den)`` PAIR, because the pair is what this surface's own
-    shipped prose, its declared wire type ``HV | Sequence[int | Q]`` and its MCP
-    encoding hint all promise, and it was the one spelling of the three that
-    did not work. Measured before the fix:
-    ``octonion_conjugate([(7, 3), 0, 0, 0, 0, 0, 0, 0])`` raised
-    ``a must be an 8-vector`` — the operand IS an 8-vector; the rejected thing
-    was the component type, so the message named the wrong contract too.
-
-    ``(num, den)`` means a 2-element integer pair everywhere else in this
-    package (:func:`srmech.math.q.to_q`, ``QMat.from_rows``,
-    ``srmech/apokatastasis/modular_forms_ring.py`` spells it out), so this
-    reading is the package's, not a new one. rc463's shared ``_exact_leaf`` is
-    deliberately NOT changed: its contract is the einsum admission gate and a
-    2-tuple there is a SHAPE, not a scalar.
-    """
-    if isinstance(c, (tuple, list)) and len(c) == 2             and isinstance(c[0], int) and not isinstance(c[0], bool)             and isinstance(c[1], int) and not isinstance(c[1], bool)             and c[1] != 0:
-        return Q(int(c[0]), int(c[1]))
-    return _exact_leaf(c)
-
-
 def _exact_quaternion(v):
-    """The EXACT-ℚ reading of a 4-vector operand, or ``None``.
-
-    rc465 (`#T1188`) — the dim-4 peer of
-    :func:`srmech.physics.qm.octonion._exact_octonion`: a **whole-operand**
-    admission gate over the imported rc463 scalar predicate
-    :func:`~srmech.cascade.matrix_cascades._exact_leaf`. ONE float component
-    anywhere sends the entire call down the float route, because mixing
-    carriers mid-computation is the defect rather than the cure.
-
-    The LENGTH check is deliberately absent — a wrong-length operand returns
-    ``None`` and falls through to :func:`_as_quaternion`, which raises the
-    documented ``ValueError``, so the arity contract is CARRIER-INDEPENDENT.
+    """The EXACT-ℚ reading of a 4-vector operand as ``list[Q]``, or ``None`` —
+    the dim-4 call of :func:`srmech.math.q.exact_vector`, the ONE reader every
+    carrier-admission site imports since rc466 (`#T1188`; rc465 wrote a copy of
+    it here and a second in :mod:`srmech.physics.qm.octonion`). ONE float
+    component anywhere returns ``None`` (whole-operand admission: the call takes
+    the float route entire); a wrong-length operand returns ``None`` too, so
+    :func:`_as_quaternion`'s ``ValueError`` fires on EITHER carrier.
     """
-    if not isinstance(v, list) or len(v) != _DIM:
-        return None
-    out = []
-    for c in v:
-        q = _exact_component(c)
-        if q is None:
-            return None
-        out.append(q)
-    return out
+    return _exact_vector(v, n=_DIM)
 
 
 def _resolve_mu4(mu, op: str) -> List[float]:
@@ -714,7 +678,7 @@ def _try_native_log(q: List[float]) -> List[float]:
     return [float(c_out[i]) for i in range(_DIM)]
 
 
-def quaternion_log(q: Sequence[float]) -> List[float]:
+def quaternion_log(q: Sequence[int | Q | Tuple[int, int] | float]) -> List[float] | List[Q]:
     """The INVERSE of :func:`quaternion_exp` — the unit-quaternion log map.
 
     For a UNIT quaternion ``q = [w, v]`` (``v`` the 3-vector imaginary part)
@@ -734,15 +698,45 @@ def quaternion_log(q: Sequence[float]) -> List[float]:
     peer ``srmech_quaternion_log`` (byte-exact pure fallback otherwise). Class K
     (‖v‖ + the pin-slot) ∘ Class N (sqrt + atan2) ∘ Class C (the v̂ orientation).
 
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`) — an exact
+    ROUTE, the ``quaternion_norm`` shape one cascade longer. For an exact
+    operand (``int`` / ``Q`` / ``(num, den)`` components — the pair spelling
+    raised "must be a 4-vector" through rc465): ``‖v‖²`` is the exact ``Q``
+    sum of squares; ``‖v‖`` is the Class-N :func:`srmech.math.rational.sqrt`
+    of it — EXACT on the Class-N dyadic grid (an integer root, or a
+    power-of-two denominator), **accurate to** ``2**-54`` relative otherwise;
+    ``θ`` is the Class-N Q61 :func:`srmech.math.rational.atan2` cascade **on a
+    ratio rounded to round-off** (``atan2`` casts its two arguments to float64
+    before the cascade, so ``θ`` is accurate to ~1 ULP of that ratio plus the
+    ``2**-61`` grid); and ``v̂ = v/‖v‖`` and ``θ·v̂`` are exact ``Q`` products.
+    The result is ``list[Q]`` — the DIRECTION is carried exactly (through
+    rc465 the float route perturbed it: ``quaternion_log([1, 2**53+1, 0, 0])``
+    and ``[1, 2**53, 0, 0]`` gave the same ``θ·v̂₁`` and ``2**53+2`` a different
+    one, on an axis that is exactly ``(1, 0, 0)`` for all three), and the
+    pin-slot at zero returns the exact zero tangent. A float component
+    anywhere keeps the float route — the C peer ``srmech_quaternion_log`` —
+    **accurate to round-off**.
+
     Args:
-        q: A 4-vector quaternion (typically unit).
+        q: A 4-vector quaternion (typically unit); exact or ``float``.
 
     Returns:
-        The pure-imaginary log ``[0, θ·v̂₁, θ·v̂₂, θ·v̂₃]`` as a ``list[float]``.
+        The pure-imaginary log ``[0, θ·v̂₁, θ·v̂₂, θ·v̂₃]`` — ``list[Q]`` for an
+        exact operand, ``list[float]`` for a float one.
 
     Raises:
-        ValueError: if ``q`` is not a 4-vector.
+        ValueError: if ``q`` is not a 4-vector (on EITHER carrier).
     """
+    q = _operand_leaves(q, "quaternion_log")
+    exact = _exact_quaternion(q)
+    if exact is not None:
+        w, v1, v2, v3 = exact
+        norm_sq = v1 * v1 + v2 * v2 + v3 * v3
+        if norm_sq == 0:                            # Class-K pin-slot at zero
+            return [Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1)]
+        nv = _rsqrt(_magnitude(norm_sq))             # Class-K magnitude ∘ Class-N sqrt (Q)
+        theta = _ratan2(nv, w)                       # Class-N atan2 (Q61 Q; float-cast args)
+        return [Q(0, 1), theta * v1 / nv, theta * v2 / nv, theta * v3 / nv]
     q = _as_quaternion(q, "quaternion_log")
     native = _try_native_log(q)
     if native is not None:

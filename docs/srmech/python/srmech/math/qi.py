@@ -35,8 +35,13 @@ from .. import _native
 from . import rational as _rational
 from .hdc import KLEIN4_STATES
 from .q import Q
+from .q import exact_scalar as _exact_scalar  # rc466: the ONE exact reader
 
 __all__ = ["Qi"]
+# ``exact_complex_scalar`` / ``_vector`` / ``_rows`` (rc466, `#T1188`) are the
+# Gaussian peers of ``q.exact_scalar`` and kin: package-internal admission
+# readers, imported by name, not public ops — kept out of ``__all__`` for the
+# reason recorded beside ``srmech.math.q.__all__``.
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
@@ -402,3 +407,61 @@ class Qi:
 # ``numbers.Number``) but NOT a ``numbers.Real`` (it is genuinely complex). The
 # exact-complex peer of ``Complex128``'s float-complex registration.
 numbers.Complex.register(Qi)
+
+
+# ── rc466 (`#T1188`) — the Gaussian-rational peers of q.exact_scalar / _vector / _rows
+def exact_complex_scalar(value):
+    """The EXACT Gaussian-rational reading of ONE scalar as a :class:`Qi`, or
+    ``None``. A live ``Qi`` passes through; anything :func:`srmech.math.q.exact_scalar`
+    reads (``int`` / ``Q`` / ``(num, den)`` / Fraction) becomes ``Qi(q, 0)``; a
+    ``float`` / ``complex`` — the caller's elected continuous carrier — reads as
+    ``None``. Never raises."""
+    if isinstance(value, Qi):
+        return value
+    q = _exact_scalar(value)
+    return None if q is None else Qi(q, _Q_ZERO)
+
+
+def exact_complex_vector(seq, *, n: int = None):
+    """``list[Qi]`` for a flat operand whose EVERY leaf is exact (whole-operand
+    admission — one float / complex leaf anywhere returns ``None``); ``None`` on
+    a non-iterable / nested / (with ``n``) wrong-length operand, so the caller's
+    own arity refusal stays carrier-independent."""
+    if isinstance(seq, (str, bytes, bytearray)):
+        return None
+    try:
+        items = list(seq)
+    except TypeError:
+        return None
+    if n is not None and len(items) != n:
+        return None
+    out = []
+    for c in items:
+        z = exact_complex_scalar(c)
+        if z is None:
+            return None
+        out.append(z)
+    return out
+
+
+def exact_complex_rows(rows):
+    """``list[list[Qi]]`` for a 2-D operand whose every leaf is exact (a ``QMat``
+    is read through ``to_lists()``; a float ``Mat`` reads as ``None`` through its
+    leaves); ``None`` the moment any leaf is inexact."""
+    if hasattr(rows, "to_lists"):
+        rows = rows.to_lists()
+    if isinstance(rows, (str, bytes, bytearray)):
+        return None
+    try:
+        row_list = list(rows)
+    except TypeError:
+        return None
+    out = []
+    for r in row_list:
+        if isinstance(r, (str, bytes, bytearray)) or not hasattr(r, "__iter__"):
+            return None
+        v = exact_complex_vector(r)
+        if v is None:
+            return None
+        out.append(v)
+    return out

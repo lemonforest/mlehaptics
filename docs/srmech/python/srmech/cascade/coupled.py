@@ -32,6 +32,7 @@ from srmech.math import hdc as _hdc
 from ..amsc.format import sha256_bytes as _sha256
 
 from .atoms import magnitude as _magnitude, pin_slot_at_zero
+from srmech.math.q import Q as _Q, exact_vector as _exact_vector   # rc466 (`#T1188`)
 
 #: The trig component functions a coupled wave may use for its (E, B) legs.
 _COMPONENTS = {"sin": _sin, "cos": _cos}
@@ -171,6 +172,15 @@ def multiplex_streams(
         "layer"}`` — ``driver`` is the single recombined real-valued steering
         wave; ``role_bound`` is the clause-slot tagging when ``roles`` is given.
 
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`).
+    ``driver`` is ``list[Q]`` when every leaf of every stream is exact (``int``
+    / ``Q`` / ``(num, den)``) — ``roundrobin`` / ``pickbest`` return the selected
+    leaves unchanged and ``superpose`` sums and normalises over ``Q`` — and
+    ``list[float]`` otherwise, **accurate to round-off**. Through rc465 a
+    selection op ``float()``-ed the leaf it selected, so
+    ``multiplex_streams([[2**53+1, 2], [3, 4]])["driver"][0]`` was
+    ``9007199254740992.0``: zero arithmetic, changed value.
+
     Note:
         ``streams`` are real-valued *waves*; ``hdc.bind``/``bundle`` (bipolar
         HDC *content* vectors) are a different layer and are NOT used to
@@ -203,34 +213,69 @@ def multiplex_streams(
     }
 
 
+def _exact_streams(streams):
+    """``list[list[Q]]`` when EVERY leaf of EVERY stream is exact (``int`` /
+    ``Q`` / ``(num, den)``), else ``None`` — the whole-operand admission of
+    :func:`multiplex_streams` (rc466, `#T1188`)."""
+    out = []
+    for s in streams:
+        v = _exact_vector(s)
+        if v is None:
+            return None
+        out.append(v)
+    return out
+
+
 def _recombine_waves(streams, mode, n, length):
-    """Recombine N real-valued steering waves into one driver wave."""
+    """Recombine N real-valued steering waves into one driver wave.
+
+    rc466 (`#T1188`) — **the carrier is the operand's.** ``roundrobin`` and
+    ``pickbest`` perform NO arithmetic (they SELECT a leaf), and through rc465
+    they still ``float()``-ed what they selected — the selection now returns
+    the leaf as given. ``superpose`` is a sum and a divide by the peak
+    magnitude: exact over ``Q`` when every leaf is exact (:func:`cascade.magnitude`
+    is type-preserving over any ordered real carrier), the float route
+    otherwise. One float leaf anywhere elects the float route entire."""
     assert n > 0
     assert length >= 0
+    exact = _exact_streams(streams)
+    if exact is not None:
+        src = exact
+        zero = _Q(0, 1)
+        cast = (lambda v: v)
+    else:
+        src = streams
+        zero = 0.0
+        cast = float
     if mode == "roundrobin":
         # The t mod N multiplex — stream (t % N) drives step t.
-        return [float(streams[t % n][t]) for t in range(length)]
+        return [cast(src[t % n][t]) for t in range(length)]
     if mode == "pickbest":
         # Strongest-bearing wave wins each step (Class-K magnitude).
         out = []
         for t in range(length):
             best_i = 0
-            best_m = _magnitude(float(streams[0][t]))
+            best_m = _magnitude(cast(src[0][t]))
             for i in range(1, n):
-                m = _magnitude(float(streams[i][t]))
+                m = _magnitude(cast(src[i][t]))
                 if m > best_m:
                     best_m, best_i = m, i
-            out.append(float(streams[best_i][t]))
+            out.append(cast(src[best_i][t]))
         return out
     # superpose — real-field interference: elementwise SUM, then renormalise
     # by the driver's peak magnitude (keeps the steering wave bounded).
-    summed = [sum(float(streams[i][t]) for i in range(n)) for t in range(length)]
-    peak = 0.0
+    summed = []
+    for t in range(length):
+        acc = zero
+        for i in range(n):
+            acc = acc + cast(src[i][t])
+        summed.append(acc)
+    peak = zero
     for v in summed:
         m = _magnitude(v)
         if m > peak:
             peak = m
-    if peak == 0.0:
+    if peak == zero:
         return summed
     return [v / peak for v in summed]
 

@@ -110,6 +110,9 @@ from typing import Tuple
 
 from srmech.math.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
 from srmech.math.laplacian import mat_hermitian_eigendecompose
+from srmech.cascade.matrix_cascades import eigvals_exact as _eigvals_exact  # rc466 (`#T1188`)
+from srmech.math.q import Q, exact_rows as _exact_rows                     # rc466
+from srmech.math.qi import exact_complex_rows as _exact_complex_rows       # rc466
 from srmech.math.mat import Mat
 from srmech.physics.qm.spin import pauli_matrices
 
@@ -257,8 +260,43 @@ def chsh_operator() -> "Mat":
 # ---------------------------------------------------------------------------
 
 
-def operator_norm(H) -> float:
+def _exact_hermitian_rows(H):
+    """The EXACT reading of ``H`` as REAL rational rows, or ``None`` (rc466,
+    `#T1188`): a real-exact matrix as given; a Gaussian-exact one (some leaf a
+    ``Qi``) as its real ``2n×2n`` embedding ``[[Re, −Im], [Im, Re]]`` — the
+    technique :mod:`srmech.math.laplacian` already uses — whose spectrum is the
+    Hermitian spectrum with every eigenvalue doubled, so ``max|λ|`` is
+    unchanged. A ``Mat`` (float) reads as ``None``."""
+    real = _exact_rows(H)
+    if real is not None:
+        return real
+    rows = _exact_complex_rows(H)
+    if rows is None:
+        return None
+    n = len(rows)
+    top = [[z.real for z in r] + [-z.imag for z in r] for r in rows]
+    bot = [[z.imag for z in r] + [z.real for z in r] for r in rows]
+    return top + bot
+
+
+def operator_norm(H) -> "float | Q":
     """Operator (spectral) norm of a Hermitian matrix: ``max_i |λ_i|``.
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`) — an exact
+    ROUTE with one declared bound (the rc465 ``octonion_norm`` shape). An exact
+    ``H`` (every leaf ``int`` / ``Q`` / ``(num, den)`` / ``Qi``; a ``QMat``)
+    is NOT rounded into a ``Mat``: its spectrum is isolated by the exact
+    cascade :func:`srmech.cascade.matrix_cascades.eigvals_exact`
+    (``char_poly`` → Sturm → rational bisection, exact ℚ throughout, the
+    rational pre-scale this rc gave it) with ``return_intervals=True``, and the
+    returned :class:`~srmech.math.q.Q` is the Class-K magnitude of the extreme
+    isolating interval's midpoint — **accurate to** ``2**-64`` (the cascade's
+    default ``bits``), never rounded at the entry. A Gaussian-exact ``H`` is
+    embedded as the real ``2n×2n`` ``[[Re, −Im], [Im, Re]]`` first (spectrum
+    doubled, ``max|λ|`` unchanged). A ``Mat``, or one float / complex leaf,
+    keeps the float route — the cyclic-Jacobi eigendecomposition, **accurate
+    to round-off** (~1e-15) — through which ``operator_norm([[2**53+1, 0],
+    [0, 0]])`` returned ``9007199254740992.0`` until this rc.
 
     numpy-FREE (v0.7.5rc115) — accepts a :class:`~srmech.math.mat.Mat`, an
     ``ndarray``, or a list-of-rows. Computed via the unconditionally numpy-free
@@ -299,6 +337,20 @@ def operator_norm(H) -> float:
         ndim = getattr(H, "ndim", None)
         if not (ndim is None or ndim == 2):
             raise TypeError(f"operator_norm: H must be 2-D; got ndim {ndim!r}")
+        exact = _exact_hermitian_rows(H)
+        if exact is not None:
+            if any(len(r) != len(exact) for r in exact):
+                raise ValueError(
+                    f"operator_norm: H must be square; got "
+                    f"({len(exact)}, {len(exact[0]) if exact else 0})")
+            intervals = _eigvals_exact(exact, return_intervals=True)
+            best = Q(0, 1)
+            for lo, hi in intervals:
+                mid = (lo + hi) / 2
+                mag = mid if mid >= 0 else -mid      # Class-K pin-slot, no abs()
+                if mag > best:
+                    best = mag
+            return best
         Hm = Mat.from_rows([list(row) for row in H], is_complex=True)
     evals, _V = mat_hermitian_eigendecompose(Hm)   # (n,1) REAL Mat, ascending
     # Class-K magnitude via explicit sign-branch (no abs()); eigvals real (Hermitian).

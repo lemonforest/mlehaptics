@@ -92,11 +92,28 @@ def op(
     list
         Complex STFT matrix as a ``list`` of ``n_frames`` per-frame ``list``s,
         each of length ``frame_size``.
+
+    Accuracy (rc466, `#T1188`)
+    --------------------------
+    The signal and a supplied ``window`` are used AS GIVEN — through rc465 both
+    were projected to the float carrier at the entry (``complex(v)`` /
+    ``float(v)``) before the frame reached the cascade, so an integer signal
+    under an integer window was rounded before the exact engine saw it. Now an
+    integer signal under an integer window gives an exact integer frame, which
+    :func:`srmech.cascade.spectral_cascades.fft` carries exact-until-rotation
+    (every bin an exact ``ℤ[ζ_N]`` integer); each returned ``complex`` bin is
+    that engine's single **terminal float lift** — exact wherever the bin is
+    float-representable (a lone 54-bit sample in a zero frame is that sample in
+    every bin, and the lift rounds it), **accurate to round-off** (~1 ULP)
+    otherwise. The DEFAULT ``window`` is the Hann taper — a float64 quantity
+    (the Class-N cosine cascade collapsed to float), so a frame under it is
+    float and its transform is **accurate to round-off**; supply an integer
+    window for the exact frame.
     """
     seq = list(signal)
     if seq and hasattr(seq[0], "__len__") and not isinstance(seq[0], (str, bytes)):
         raise ValueError("stft expects 1-D signal")
-    sig = [complex(v) for v in seq]
+    sig = seq
     if hop_size is None:
         hop_size = frame_size // 2
     if hop_size <= 0:
@@ -109,7 +126,7 @@ def op(
             for c in _ccos([2.0 * _PI * nn / denom for nn in range(frame_size)])
         ]
     else:
-        window = [float(v) for v in window]
+        window = list(window)              # rc466: as given — the carrier is the operand's
     if len(window) != frame_size:
         raise ValueError(
             f"window length {len(window)} != frame_size {frame_size}"
@@ -117,7 +134,7 @@ def op(
     n_samples = len(sig)
     if n_samples < frame_size:
         # Zero-pad so we still get one frame.
-        padded = [complex(0)] * frame_size
+        padded = [0] * frame_size          # rc466: an exact zero pad
         for k in range(n_samples):
             padded[k] = sig[k]
         framed = [padded[k] * window[k] for k in range(frame_size)]

@@ -219,6 +219,20 @@ _TYPE_LEXICON: Dict[str, str] = {
     #    licence to hide the PARAMETER.
     "host_callable": "null",
     "host_rng": "null",
+    # rc466 (`#T1188`): the 70-row drain's widened operand types — every one
+    # an ARRAY on the wire (the flux union is a number OR an array; the array
+    # token is kept so a schema-obedient client can send the sequence form and
+    # the exact [num, den] pair, which are both arrays). Mirrored in
+    # c/src/srmech_tool_schema.c in this same change; that table is
+    # HAND-MAINTAINED and nothing syncs it for you. Deliberately ASCII-only
+    # hints (see the rc463 note above).
+    "list[float] | list[Q]": "array",
+    "Optional[list[int | Q | float]]": "array",
+    "list[list[float]] | list[list[Q]]": "array",
+    "Optional[list[list[float]] | list[list[Q]]]": "array",
+    "Mat | Vec | Sequence[int | Q]": "array",
+    "float | Q | Sequence[int | Q | float]": "array",
+    "Vec | Sequence[int | Q]": "array",
 }
 
 
@@ -356,6 +370,29 @@ _ENCODING_HINT: Dict[str, str] = {
     "operator_name": (
         "dotted import path of a unary sequence->sequence srmech operator, "
         'e.g. "srmech.cascade.chiral_flip"'
+    ),
+    # rc466 (`#T1188`): the 70-row drain's widened operand types. ASCII-only;
+    # mirrored byte-for-byte into MCP_ENCODING_HINT in c/src/srmech_tool_schema.c.
+    "list[float] | list[Q]": (
+        "flat JSON array. The LEAVES select the carrier: bare integers or [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one"
+    ),
+    "Optional[list[int | Q | float]]": (
+        "flat JSON array (or null): each entry a bare integer, a float, or an exact [numerator, denominator] pair"
+    ),
+    "list[list[float]] | list[list[Q]]": (
+        "JSON array of flat JSON arrays. The LEAVES select the carrier: bare integers or [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one"
+    ),
+    "Optional[list[list[float]] | list[list[Q]]]": (
+        "JSON array of flat JSON arrays, or null. The LEAVES select the carrier: bare integers or [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one"
+    ),
+    "Mat | Vec | Sequence[int | Q]": (
+        "nested JSON array of rows (2-D) OR a flat JSON array (1-D); complex elements as [re, im]. Integer leaves take the EXACT-Q rung IN-PROCESS (an exact [num, den] leaf is ambiguous with a 2-column row on the wire)"
+    ),
+    "float | Q | Sequence[int | Q | float]": (
+        "a bare number (a scalar flux) or a JSON array (a flux sequence) whose entries are bare numbers or exact [numerator, denominator] pairs; the exact scalar flux is spelled as the one-element sequence [[num, den]]"
+    ),
+    "Vec | Sequence[int | Q]": (
+        "flat JSON array (length-n). The LEAVES select the carrier: bare integers or [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one"
     ),
 }
 

@@ -78,10 +78,24 @@ def op(
     Modulate: complex baseband sample stream as a ``list``.
     Demodulate: ``(n_symbols, n_subcarriers)`` complex subcarrier matrix as a
     ``list`` of ``list`` (rows are subcarrier values per OFDM symbol).
+
+    Accuracy (rc466, `#T1188`)
+    --------------------------
+    ``symbols`` are used AS GIVEN (through rc465 ``[complex(v) for v in
+    symbols]`` rounded an exact symbol stream before the transform). An
+    integer / Gaussian-integer block rides the cascade's exact-until-rotation
+    IFFT / FFT (:func:`srmech.cascade.spectral_cascades.ifft`, with the ``1/N``
+    scale applied at the lift) and the cyclic-prefix copy is exact glue, so
+    each returned ``complex`` sample is the engine's single **terminal float
+    lift** — exact wherever float-representable, **accurate to round-off**
+    (~1 ULP) otherwise. A float stream is transformed on the float64 carrier,
+    **accurate to round-off**. The ``channel=`` equaliser on the demodulate
+    path is a per-subcarrier float64 divide of the lifted bins (the Class-N
+    ``hypot`` guard at ``1e-12``), **accurate to round-off** — never exact.
     """
     n = n_subcarriers
     if demodulate:
-        rx = [complex(v) for v in symbols]
+        rx = list(symbols)
         samples_per_ofdm = n + cp_length
         n_symbols = len(rx) // samples_per_ofdm
         out = []
@@ -103,13 +117,13 @@ def op(
             out.append(X)
         return out
 
-    syms = [complex(v) for v in symbols]
+    syms = list(symbols)
     if len(syms) % n != 0:
         raise ValueError(
             f"symbols length {len(syms)} not multiple of n_subcarriers {n}"
         )
     n_symbols = len(syms) // n
-    out = [complex(0)] * (n_symbols * (n + cp_length))
+    out = [0] * (n_symbols * (n + cp_length))   # rc466: the exact zero pad
     for i in range(n_symbols):
         block = syms[i * n : (i + 1) * n]
         # Class I IFFT

@@ -22,7 +22,12 @@ the rc70 ``dense_matvec_complex`` numpy-carrier trap — the ``Mat``/``Vec``
 carriers are numpy-free).  NUMERIC (within-tol, reldiff ≤ 1e-9, not
 byte-identical): the matmul float accumulation may FMA-fuse ~1 ULP on some
 platforms.  The identity oracle: ``target_indices == sample_indices`` gives
-``S = I`` (``sinc`` of nonzero integers is 0), so ``out == y`` exactly.
+``S = I`` and ``out == y`` exactly — TRUE since rc466 (`#T1188`), because
+``_sinc`` decides an integral offset by a Class-K branch (exact ``0.0`` /
+``1.0``). Through rc465 that sentence was FALSE: ``sin(π·k)`` through the
+30-digit float π is ``~3.9e-17``, not 0 (measured ``_sinc(1.0) =
+3.892866406999617e-17``), so coincident indices reproduced the signal only to
+round-off and a 54-bit sample bled ``±0.35`` into its neighbours.
 
 Path B dual in Phase 6 (Path B band-limit bundle).
 
@@ -56,12 +61,21 @@ _PI = float(_srn.pi_cascade_digits(30))
 def _sinc(x: float) -> float:
     """Normalised sinc ``sin(πx)/(πx)`` matching ``np.sinc``, numpy-free.
 
-    Routes through ``rational.sin`` over the Class-N ``_PI`` source. The
-    removable singularity at ``x == 0`` is a Class-K branch (returns ``1.0``,
-    no division), so there is no ``abs()`` and no divide-by-zero.
+    Routes through ``rational.sin`` over the Class-N ``_PI`` source. Both
+    zero-of-the-numerator cases are Class-K branches, not divisions: ``x == 0``
+    returns ``1.0`` (the removable singularity); a nonzero INTEGRAL ``x``
+    returns ``0.0`` exactly (rc466, `#T1188`) — ``sin(πk)`` is zero in exact
+    arithmetic, but through a 30-digit float π the cascade returned
+    ``~3.9e-17`` at ``k = 1``, which made the identity reconstruction
+    ``target_indices == sample_indices`` inexact. Every non-integral ``x`` is
+    transcendental (π un-cancelled) and is evaluated to float64 round-off. No
+    ``abs()``, no divide-by-zero.
     """
+    x = float(x)
     if x == 0.0:
         return 1.0
+    if x.is_integer():                      # Class-K pin-slot: sin(πk) ≡ 0
+        return 0.0
     px = _PI * x
     return float(_srn.sin(px)) / px       # exact Q → float (FPU interpolation tap)
 
@@ -98,6 +112,21 @@ def op(signal, sample_indices, target_indices, *, D: int = 8192):
     -------
     list of complex (or a single complex for a scalar ``target_indices``)
         Interpolated values at ``target_indices``.
+
+    **Accuracy (rc466, `#T1188`).** Whittaker–Shannon reconstruction is a
+    float64 quantity: the kernel ``sinc((t_q − t_s)/T)`` is transcendental for
+    every non-integral offset (π stays in the denominator — ``Qalg`` holds
+    ``sin(πp/q)`` but nothing shipped holds π), evaluated **to round-off**
+    (~1 ULP) through the Class-N sine over the π cascade, and the matvec
+    accumulates in float (the native ``srmech_dense_matmul_complex`` route may
+    FMA-fuse, so native and pure agree to ``reldiff ≤ 1e-9``, not
+    byte-for-byte). ``signal`` is projected to ``complex`` and both index
+    lists to float64 at the entry, so a 54-bit sample or index loses its low
+    bit before the kernel is formed. At an INTEGRAL offset the kernel is
+    exactly ``0`` / ``1`` (a Class-K branch since rc466), so
+    ``target_indices == sample_indices`` returns ``[complex(v) for v in
+    signal]`` exactly; through rc465 it returned it only to ``~3.9e-17`` per
+    neighbour.
     """
     sig_seq = list(signal)
     if sig_seq and hasattr(sig_seq[0], "__len__") and not isinstance(

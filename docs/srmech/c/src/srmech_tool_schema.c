@@ -559,7 +559,17 @@ static const mcp_kv_t MCP_TYPE_LEXICON[] = {
     {"QMat | Sequence[Sequence[int | Q]]", "array"},
     {"QMat | Sequence[Sequence[int | Q]] | Sequence[int | Q]", "array"},
     {"Mat | QMat | Sequence[Sequence[int | Q]]", "array"},
-    {"Qalg", "object"}
+    {"Qalg", "object"},
+    /* rc466 (#T1188): the 70-row drain's widened operand types -- every one
+     * an ARRAY on the wire. Mirrors _TYPE_LEXICON in
+     * python/srmech/mcp/_tools.py; this table is HAND-MAINTAINED. */
+    {"list[float] | list[Q]", "array"},
+    {"Optional[list[int | Q | float]]", "array"},
+    {"list[list[float]] | list[list[Q]]", "array"},
+    {"Optional[list[list[float]] | list[list[Q]]]", "array"},
+    {"Mat | Vec | Sequence[int | Q]", "array"},
+    {"float | Q | Sequence[int | Q | float]", "array"},
+    {"Vec | Sequence[int | Q]", "array"}
 };
 
 /* type-string → per-type JSON wire-encoding hint (mirrors _ENCODING_HINT).
@@ -663,7 +673,23 @@ static const mcp_kv_t MCP_ENCODING_HINT[] = {
      "``Generator``), supplied by the calling process. Generator STATE has "
      "no JSON form, so over MCP / JSON-RPC the only legal value is null "
      "(absent) \xe2\x80\x94 pass the integer ``seed`` parameter instead, which is "
-     "advertised alongside it and gives a reproducible stream"}
+     "advertised alongside it and gives a reproducible stream"},
+    /* rc466 (#T1188): the 70-row drain's widened operand types. ASCII-only;
+     * mirrored byte-for-byte from _ENCODING_HINT in python/srmech/mcp/_tools.py. */
+    {"list[float] | list[Q]",
+     "flat JSON array. The LEAVES select the carrier: bare integers or [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one"},
+    {"Optional[list[int | Q | float]]",
+     "flat JSON array (or null): each entry a bare integer, a float, or an exact [numerator, denominator] pair"},
+    {"list[list[float]] | list[list[Q]]",
+     "JSON array of flat JSON arrays. The LEAVES select the carrier: bare integers or [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one"},
+    {"Optional[list[list[float]] | list[list[Q]]]",
+     "JSON array of flat JSON arrays, or null. The LEAVES select the carrier: bare integers or [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one"},
+    {"Mat | Vec | Sequence[int | Q]",
+     "nested JSON array of rows (2-D) OR a flat JSON array (1-D); complex elements as [re, im]. Integer leaves take the EXACT-Q rung IN-PROCESS (an exact [num, den] leaf is ambiguous with a 2-column row on the wire)"},
+    {"float | Q | Sequence[int | Q | float]",
+     "a bare number (a scalar flux) or a JSON array (a flux sequence) whose entries are bare numbers or exact [numerator, denominator] pairs; the exact scalar flux is spelled as the one-element sequence [[num, den]]"},
+    {"Vec | Sequence[int | Q]",
+     "flat JSON array (length-n). The LEAVES select the carrier: bare integers or [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one"}
 };
 
 /* Bounded linear scan of a static kv table; NULL when the key is absent. */

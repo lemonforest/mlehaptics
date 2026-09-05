@@ -44,11 +44,11 @@ This led to a systematic investigation of whether chess has genuine spectral and
 ### Where we ended up
 
 The chess board is a **classical lattice fermion system** with:
-- A rank-5 total fiber bundle: 3 off-diagonal symmetric (non-spatial rule coupling), 1 off-diagonal antisymmetric (pawn directionality — the only Z₂-breaking operator content), 1 diagonal (the rook's spatially-mirrored shadow, hidden by the grid eigenbasis)
+- A rank-3 shared off-diagonal subspace across the piece Laplacians in the grid eigenbasis — the `off(·)` residual of approximate joint diagonalisation (Eynard, Glashoff, Bronstein & Bronstein, arXiv:1209.2295v2; see the attribution note below the tag table). Rank 3 is the *maximum attainable* (σ₄ = 0 is forced by queen = bishop + rook), and the object is **not a fibre bundle** (no base, no projection, no structure group). Alongside it: one off-diagonal antisymmetric direction (pawn directionality — the only Z₂-breaking operator content) and the rook's purely diagonal shadow. The earlier "rank-5 total fiber bundle" count (3 + 1 + 1) is **INCONSISTENT — re-measure** (§9n sums ranks of differently-shaped matrices; the "Rank-5 complete fiber" row of the tag table)
 - Piece types classifiable by unique spectral quantum number 5-tuples (all 6 pieces, including pawn)
-- Captures that decompose exactly into movement + annihilation + cross-term components
+- Captures that decompose exactly into movement + annihilation + cross-term components (the exactness is an identity — a vector split plus polarisation; the percentages are one configuration's numbers)
 - Rules that live in dimensions independent of the board surface
-- Non-trivial holonomy (fiber similarity around closed loops ≠ 1.0)
+- ~~Non-trivial holonomy (fiber similarity around closed loops ≠ 1.0)~~ — **FAILED / RETRACTED** (2026-09-04): the harness loop did not close ((4,1)→(4,0) is not a knight move) and the −0.016 is the cosine between two squares' local residuals, against a generic pairwise −0.004 (§8c; the "Non-trivial holonomy" row of the tag table)
 - Cross-species field energy approximately conserved for non-king material
 - A 640-dimensional HDC encoding (5 D4 irreps + 3 symmetric fiber + 1 antisymmetric fiber + 1 diagonal fiber, each × 64 eigenmodes) connecting to UTLP S3 coprime-phase architecture
 - Spectrally derived piece values (mean degree / 2.6) replacing magic numbers, eliminating king domination
@@ -63,31 +63,83 @@ The physics tools (discrete spectral theory on finite graphs, finite-rank fiber 
 
 We are not making a model of what people think chess is. We are not using chess language to describe physics, or physics language to describe chess strategy. We are characterizing a structured dynamical system on a lattice using spectral methods, and documenting which mathematical structures emerge from the game's geometry alone.
 
-### What's novel vs what's known
+### What is known, what we computed, and what was searched
+
+**The tag convention (revised 2026-09-04).** Every row carries one of seven buckets. The bare word *Novel* is retired from this column and from every section verdict: a tag defined as "no prior art found" is a *search result*, and it was being read downstream (Priority 4 of `CHESS_SPECTRAL_INSTRUCTIONS.md`; the attribution table in §9j) as a *priority claim*. A search result that carries no date, no engines, no query strings and no searcher cannot be audited, so it is not a measurement.
+
+| Bucket | Means | Audit trail required |
+|---|---|---|
+| **KNOWN** | published result; the document was read | the citation, and which lines / sections were read |
+| **KNOWN technique; applied here** | the method is textbook; this notebook runs it on chess — says nothing about who applied it before | the citation for the technique; **no** claim about prior applications |
+| **CONFIRMED (internal)** | we computed it; says nothing about the literature | the generating code (file, function) |
+| **SEARCHED — NOT FOUND (search record SR-n)** | a search was run and found nothing — a search result, never a priority claim | the search record (see *Search records* below) |
+| **PREDICTION (untested)** | a stated falsifiable prediction | what would refute it |
+| **FAILED / RETRACTED** | tested and did not hold, or withdrawn | the section that retracts it |
+| **INCONSISTENT — re-measure** | the claim's parts contradict each other | what must be re-measured |
+
+*Connection type* is **MATHEMATICAL** only where the mathematics on the chess side is exhibited; **ANALOGICAL** where the framework describes a structure (a Lagrangian, a skin-mode localisation) that has not been exhibited on the chess side. *Attributed-not-attested* marks a source whose identifier resolves but whose full text was paywalled or unreachable (MPM discipline).
 
 | Finding | Status | Grounding | Connection type |
 |---------|--------|-----------|----------------|
-| Board Laplacian eigenvectors = 2D DCT basis | **Known** | Merris 1994; Spielman 2025 | MATHEMATICAL |
-| Per-piece spectral graph analysis | **Known technique, new application** | Chung 1997 | MATHEMATICAL |
-| Knight exact orthogonality to all sliding pieces (DCT basis) | **Novel observation** | Verified computationally; Cayley graph theorem (§1b.3) | MATHEMATICAL |
-| 5-tuple quantum number classification of pieces | **Novel** | No prior art found | — |
-| Capture energy decomposition (movement + annihilation + cross-term) | **Novel** | Weyl perturbation theory applies | MATHEMATICAL |
-| Rank-3 off-diagonal shared fiber bundle | **Novel** | No prior art found | — |
-| Rank-5 complete fiber (3 symmetric + 1 antisymmetric + 1 diagonal) | **Novel** | Three orthogonal coupling subspaces; dual derivation via polarization (§9r) | — |
-| Pawn antisymmetric fiber: ||A_anti||/||A_sym|| = 1.000 | **Novel** | Hatano-Nelson t_L = 0 (§1b.1); Nielsen-Ninomiya evasion (§1b.1) | MATHEMATICAL |
-| Rank-4 full fiber (diagonal + off-diagonal) — rook's shadow | **Novel** | Verified: σ₅ = 0 (queen = bishop + rook) | — |
-| Non-trivial holonomy on the bundle | **Novel** | Verified computationally; corrected in §8c | — |
-| Cross-species field energy transfer with approximate conservation | **Novel** | ΔE < 0.2%; five independent frameworks (§1b.2) | MATHEMATICAL |
-| Three-level hierarchy of rule encoding | **Novel** | Level 3 provably unrecoverable | — |
-| Spectral piece values from movement graph topology | **Novel** | Correlation r=0.97 with traditional; lattice propagator mass-range (§1b.5) | MATHEMATICAL |
-| D4 irrep decomposition of board eigenspace | **Known technique, new application** | Serre 1977; Püschel & Moura 2003 (§1b.3) | MATHEMATICAL |
-| 8-generator spectral lattice as coprime basis | **Novel** | Connects to UTLP S3 | — |
-| Coprime roll binding for spatial HDC | **Novel application** | UTLP S3 pattern applied to space | — |
-| Pieces as perturbations of grid Hamiltonian | **Known framework, new application** | Hubbard 1963; Weyl 1912 | MATHEMATICAL |
-| Chebyshev compression of random walk distributions | **Known technique, new application** | Jackson 1912; NASA JPL | MATHEMATICAL |
-| Pawn as non-Hermitian chiral fermion (no doubler) | **Novel application** | Ma & Zhang 2024; Chen, Giedt & Poppitz (§1b.1) | MATHEMATICAL |
-| NHSE as pawn promotion-rank accumulation | **Novel mapping** | Shen et al. 2025; Hu 2025 (§1b.1) | MATHEMATICAL |
-| Polarization reframing: (θ, r, c) parameterization | **Novel** | Lattice propagator anisotropy (§1b.5); D₄ orbit structure | MATHEMATICAL |
+| Board Laplacian eigenvectors = 2D DCT basis | **KNOWN** | Merris 1994 (attributed — Elsevier paywall; the OA copy was not opened); Spielman 2025 (the readable source) — the Kronecker-sum / DCT fact | MATHEMATICAL |
+| Per-piece spectral graph analysis | **KNOWN technique; applied here** | Chung 1997. Chess-specific spectral prior work exists and is attributed-not-attested: Kyung & Huang, *A Spectral Graph Analysis of Chess Piece Movement on n×n Boards …*, AMS 2026 Spring Western Sectional (abstract); *Spectral properties of king's graph*, OPSEARCH 2025 (doi:10.1007/s12597-025-00919-9). "New application" is withdrawn — it was an unsearched priority claim | MATHEMATICAL |
+| Knight exact orthogonality to all sliding pieces (DCT basis) | **CONFIRMED (internal)** on the bounded board; the torus statement is **KNOWN**; **SEARCH PENDING** before write-up | `chess_spectral_consolidated.py` §3 (cosine 0.00 in the DCT basis). The Cayley-graph eigenvalue theorem (Trevisan 2011; Liu 2022; §1b.3) is a *torus* statement; the bounded-board exactness is a computation, not the theorem. The knight's-graph spectral literature has not been searched (SR-1 §"declared gaps"); the earlier "no prior publication found" was an unrecorded null and is withdrawn as a claim | MATHEMATICAL (torus) / CONFIRMED (bounded board) |
+| 5-tuple spectral-invariant separation of the six piece graphs | **CONFIRMED (internal)** for the separation; **KNOWN** for each coordinate; **SEARCHED — NOT FOUND (SR-1, weak null)** for the tuple as a named classification | `chess_spectral_consolidated.py` §4. Components = multiplicity of Laplace eigenvalue 0 (Brouwer & Haemers, *Spectra of graphs*, Prop. 1.3.7); algebraic connectivity (Fiedler 1973) — **note** the coded λ₂ (`nonzero[0]`, §4 harness) is the smallest *nonzero* eigenvalue, which is *not* Fiedler's a(G) on the disconnected bishop and pawn graphs (rename or restrict); bipartite ⟺ symmetric adjacency spectrum (B&H §1.3.6); rook = K₈ □ K₈ ⇒ spectrum {0, 8¹⁴, 16⁴⁹} closed-form (B&H §1.4.1, §1.4.6). "Quantum number" and "complete classification" are relabellings of "six graphs separated by five invariants" | MATHEMATICAL |
+| Capture energy decomposition (movement + annihilation + cross-term) | **CONFIRMED (internal)** for the percentages of one configuration; the *exactness* is an identity | `chess_spectral_consolidated.py` §5. δ = move + annihilate is a vector split, exact by construction; E_cross = 2⟨move, annihilate⟩ is the polarisation identity; cos = 1/√2 is a property of the two one-hot patterns (`move` has ±3 at two squares, `annihilate` 3.5 at one); the 9.29e−17 reconstruction error is float roundoff of a linear identity — an instrument that cannot return otherwise. Weyl's inequality grounds §4's eigenvalue shifts, not this | MATHEMATICAL (identity) |
+| Rank-3 shared off-diagonal subspace (three distinct piece residuals; σ₄ = 0 forced by queen = bishop + rook) | **CONFIRMED (internal)**; the construction is **KNOWN**. Rank 3 is the *maximum attainable* (f_queen = f_bishop, since L_queen = L_bishop + L_rook and the rook's off-diagonal block is zero); it is **not a fibre bundle** (no base, no projection, no structure group) | `chess_spectral_consolidated.py` §7. Off-diagonality criterion `off(X) = ‖X − diag X‖²_F` of approximate joint diagonalisation of Laplacians (Eynard, Glashoff, Bronstein & Bronstein, arXiv:1209.2295v2, eq. 3); non-commutation of Laplacians (Bronstein, Glashoff & Loring, arXiv:1307.6549); the rook's exact diagonality from L(K₈) = 8I − J (B&H §1.4.1, §1.4.6); the shared-subspace-across-aligned-graphs model is COSIE (Arroyo, Athreya, Cape, Chen, Priebe & Vogelstein, JMLR 22, 2021) with V fixed to the grid eigenbasis. See the attribution note below | MATHEMATICAL |
+| Rank-5 complete fiber (3 symmetric + 1 antisymmetric + 1 diagonal) | **INCONSISTENT — re-measure** | §9n adds the ranks of three differently-shaped matrices; its "diagonal deviation rank = 1" contradicts §7b's own cosines (0.53–0.98). Re-measure rank(5 × 64 diagonal-deviation stack) before this row, §9n, §9r's "dual derivation" or the summary bullet above is used | — |
+| Pawn antisymmetric part: ‖A_anti‖/‖A_sym‖ = 1.000 | **CONFIRMED (internal, forced)**; framework **KNOWN** | For any digraph with no reciprocal edge, A_ij·A_ji = 0 ⇒ Σ(A_ij + A_ji)² = Σ(A_ij − A_ji)², so the ratio is *identically 1* — it cannot return otherwise for the pawn; the pure-imaginary spectrum of A_anti is likewise forced (real antisymmetric). Hatano–Nelson t_L = 0 (§1b.1) | MATHEMATICAL (identity) |
+| Rank-4 full fiber (diagonal + off-diagonal) — rook's shadow | **KNOWN (algebraically forced)** | σ₅ = 0 ⇐ L_queen = L_bishop + L_rook; the rook's exact diagonality ⇐ L(K₈) = 8I − J, diagonal in any basis with a constant first vector (B&H §1.4.1, §1.4.6). The §6e rook row, §4 rook row, §7 rook cosine, §7b σ₅ and §9n type 3 are one classical fact | MATHEMATICAL |
+| Non-trivial holonomy on the bundle | **FAILED / RETRACTED** (§8c) | The harness loop (4,0)→…→(4,1) does not close — (4,1)→(4,0) is not a knight move; −0.016 is the cosine of two squares' local residuals and §8b's generic pairwise cosine is −0.004; §8c retracts curvature | — |
+| Cross-species field energy transfer with approximate conservation | **CONFIRMED (internal)** for ΔE < 0.2% on the tested positions | The ΔQ_G split is an identity (§6d). The five frameworks (BGI, PCAC, Ward, GW, KAM; §1b.2) describe approximate conservation *given* a Lagrangian L₀ + εL₁, and §11 states the variational principle is not yet identified | ANALOGICAL |
+| Three-level hierarchy of rule encoding | **CONFIRMED (internal)** as a measured negative | 58.3 % offset classification, saturating (§8b, §9h′, §9o); "provably unrecoverable" is an argument plus a failed classifier — measured: *not recovered* | — |
+| Spectral piece values from movement-graph topology | **CONFIRMED (internal)**; **SEARCH PENDING** | mean degree / 2.6 (a fitted normaliser) correlates r = 0.97 with traditional values; "spectral" = tr L / 64 (§9c). Mobility-derived material values are an old chess-programming idea (Shannon 1950's evaluation has a mobility term) and that literature (ICGA Journal; the chessprogramming wiki as a lead index) has not been searched (SR-1 §"declared gaps"). The propagator mass–range mapping (§1b.5) is an analogy for r ∈ {1, ∞} | ANALOGICAL |
+| D4 irrep decomposition of board eigenspace | **KNOWN technique; applied here** | Serre 1977; Püschel & Moura 2003 (DCT = dihedral irreps; §1b.3) | MATHEMATICAL |
+| 8-generator spectral lattice (path eigenvalues as generators) | **KNOWN** (Kronecker sum) + **CONFIRMED (internal)** (33 unique pairwise sums) | Eigenvalues of P₈ □ P₈ are λ_a + λ_b (B&H §1.4.6); the pairwise irrational ratios are a number-theory check. The former "no aliasing" clause was **false**: λ_k + λ_{8−k} = 2(1 − cos θ) + 2(1 − cos(π − θ)) = 4 for k = 1, 2, 3 and λ₄ + λ₄ = 4 — four pairs alias at the value 4, which is exactly why 36 pairs give 33 unique sums (§9b, corrected). The UTLP-S3 "no two families overlap" analogy holds for the generators and breaks at the sum level | MATHEMATICAL |
+| Coprime roll binding for spatial HDC | **KNOWN technique; applied here** + **CONFIRMED (internal)** for the (67, 7) Diophantine check | Cyclic-shift (permutation) binding is standard HDC — Kanerva 2009 (cited above). UTLP S3 is this project's own unpublished vocabulary, not an external anchor | MATHEMATICAL |
+| Pieces as perturbations of grid Hamiltonian | **KNOWN technique; applied here** | Hubbard 1963; Weyl 1912 | MATHEMATICAL |
+| Chebyshev compression of random walk distributions | **KNOWN technique; applied here** | Jackson 1912; NASA JPL | MATHEMATICAL |
+| Pawn as non-Hermitian chiral fermion (no doubler) | **KNOWN framework; applied here** | The forward-move graph is the Hatano–Nelson chain at t_L = 0 — an exact instance (Ma & Zhang 2024; §1b.1). The Nielsen–Ninomiya evasion is a statement about the physics model's continuum limit and chiral symmetry, neither of which the pawn graph has (Chen, Giedt & Poppitz) | MATHEMATICAL (HN instance) / ANALOGICAL (NN evasion) |
+| NHSE as pawn promotion-rank accumulation | **ANALOGICAL (unmeasured on the chess side)** | §9m reports A_anti's eigenvalues; no eigenvector (skin-mode) localisation at rank 8 is measured; chess pawns promote and leave rather than accumulate (Shen et al. 2025; Hu 2025; §1b.1) | ANALOGICAL |
+| Polarization reframing: (θ, r, c) parameterization | **CONFIRMED (internal)** as a relabelling ("No numbers change", §9r); the (3, 1) L-piece is **PREDICTION (untested)** | Labels ground in known frameworks (r: propagator range, §1b.5; θ: D₄ orbit; c: HN asymmetry). Its "fiber rank from parameter count = 5" (§9r) rests on the INCONSISTENT row above and is unavailable until that row is re-measured | MATHEMATICAL (labels) |
+
+**Rows that need a search before write-up (not re-bucketed; marked SEARCH PENDING above).** (1) *Spectral piece values* — mobility-based piece valuation in the chess-programming literature (ICGA Journal; chessprogramming wiki as a lead index, not a source). (2) *Knight/DCT orthogonality on the bounded board* — the knight's-graph spectral literature; SR-1 located two chess-spectral items it could not read (attributed-not-attested). Neither row survives as anything but CONFIRMED (internal) until its search record exists. *Cross-species energy transfer* needs a search only if it is to be filed as SEARCHED — NOT FOUND; as CONFIRMED (internal) + ANALOGICAL it needs none.
+
+### Attribution — the framework that owns the "fiber" object (2026-09-04)
+
+The per-piece off-diagonal residual `‖UᵀL_pU − diag(UᵀL_pU)‖_F` is the standard **off-diagonality criterion** `off(·)` of **approximate joint diagonalisation of graph Laplacians** — *"`min_V̂ Σᵢ off(V̂ᵀ Lᵢ V̂)` s.t. `V̂ᵀV̂ = I`, where `off(X) = ‖X − diag(X)‖²_F`"* — Eynard, Glashoff, M. M. Bronstein & A. M. Bronstein, arXiv:1209.2295v2, §2 eq. (3) (read from the PDF; the TPAMI 2015 version carries a different title and a fifth author, Kovnatsky — do not merge the citations). It measures the failure of `L_p` to commute with `L₀` (*"the Laplacian matrices rarely have a joint eigenbasis (iff they commute)"*; Bronstein, Glashoff & Loring, *Making Laplacians commute*, arXiv:1307.6549, attested at abstract level; numerical lineage Bunse-Gerstner et al. 1993, Cardoso & Souloumiac 1993/1996 — the latter attributed-not-attested). The closest *statistical* framework is **COSIE / MASE** (Arroyo, Athreya, Cape, Chen, Priebe & Vogelstein, *Inference for Multiple Heterogeneous Networks with a Common Invariant Subspace*, JMLR 22:1–49, 2021, read from the PDF): several graphs on one aligned vertex set sharing an orthonormal subspace `V` with per-graph score matrices `R⁽ⁱ⁾` — **the chess construction is COSIE with `V` fixed to the grid eigenbasis rather than estimated**, `R⁽ᵖ⁾ = UᵀL_pU`, the "diagonal part" `diag(R⁽ᵖ⁾)` and the "fiber" its off-diagonal part. It is **not** a multiplex / supra-Laplacian object (that framework couples layers with inter-layer edges; nothing here does) and **not** a connection Laplacian (no group element per edge). The rook's exactly-zero residual follows from `L(K₈) = 8I − J` being a multiple of the projection onto `1⊥`, hence diagonal in any basis with a constant first vector (Brouwer & Haemers §1.4.1, §1.4.6); `σ₄ = 0` follows from `L_queen = L_bishop + L_rook`. Nothing in this paragraph is claimed as novel; the phrase "fiber bundle" is withdrawn from §7 / §7b / §9n's claims and kept only as the historical section name.
+
+### Search records (auditable nulls)
+
+A record is auditable when a second person can re-run it and get the same null. Per the template below, each record carries the retrieval date, the engines and databases searched *and not searched*, the exact query strings, the searcher, the near-misses, the strength label, the attestation status of every source touched, and a re-run policy. Without the databases, the queries and the strength label a record is a sentence, not a measurement.
+
+**SR-1 — 2026-09-04.** *Scope:* the rank-3 shared subspace row and the 5-tuple classification row of the tag table; the full audit is the 2026-09-04 literature-check report (a session scratchpad, not a repo file; its search audit and source-attestation table are reproduced here verbatim, so nothing below depends on it). *Engines:* WebSearch (US index) + direct document retrieval. *Searcher:* a Claude Code agent session (an LLM; the model/version is in the session log, not in this record — a declared gap). *Queries, verbatim, in order:*
+
+1. `Kivelä "Multilayer networks" Journal of Complex Networks 2014 supra-adjacency off-diagonal blocks`
+2. `Singer Wu "Vector diffusion maps and the connection Laplacian" arXiv Communications on Pure and Applied Mathematics`
+3. `Cardoso Souloumiac "Jacobi angles for simultaneous diagonalization" SIAM Journal Matrix Analysis 1996`
+4. `Eynard Kovnatsky Bronstein "simultaneous diagonalization of Laplacians" multimodal manifold analysis arXiv 1209.2295`
+5. `Bandeira Singer Spielman "Cheeger inequality for the graph connection Laplacian" arXiv`
+6. `Arroyo Athreya Cape Chen Priebe Vogelstein "common invariant subspace" multiple heterogeneous networks JMLR 2021 COSIE`
+7. `spectral graph theory chess piece move graphs eigenvalues knight graph king graph Laplacian spectrum`
+8. `chess "spectral graph" OR "graph Laplacian" analysis of chess piece movement graphs paper`
+9. `"A Spectral Graph Analysis of Chess Piece Movement" AMS abstract 2026 author`
+10. `meetings.ams.org spring2026w "Chess Piece Movement on n×n Boards" abstract author Special Session`
+11. `"knight graph" OR "knight's graph" chessboard adjacency spectrum eigenvalues bipartite research paper`
+12. `"rook's graph" spectrum eigenvalues "line graph" complete bipartite Cartesian product K_n K_n strongly regular`
+13. `chess "fiber bundle" OR "gauge theory" board game mathematics prior work spectral quantum numbers pieces`
+14. `chess board multiplex network layers piece movement graphs "multilayer" network science analysis`
+15. `Kovnatsky Bronstein "Coupled quasi-harmonic bases" Eurographics off-diagonal penalty joint approximate diagonalization Laplacians`
+16. `Kenyon "Spanning forests and the vector bundle Laplacian" Annals of Probability discrete vector bundle over a graph connection`
+17. `"simultaneously diagonalizable" graph Laplacians commuting graphs same vertex set common eigenbasis condition`
+18. `"graph Fourier transform" operator expressed in another graph's eigenbasis off-diagonal "mode coupling" spectral leakage multiple graphs shared subspace SVD`
+19. `De Domenico Solé-Ribalta Cozzo Kivelä Moreno Porter Gómez Arenas "Mathematical Formulation of Multilayer Networks" Physical Review X 2013`
+20. `Fiedler "Algebraic connectivity of graphs" Czechoslovak Mathematical Journal 1973 23 98 298-305 dml.cz`
+21. `Merris "Laplacian matrices of graphs: a survey" Linear Algebra and its Applications 1994 197 198 143-176`
+
+*Declared gaps (NOT searched):* no paywalled-database search (Scopus / Web of Science / MathSciNet / zbMATH); no patent search beyond incidental USPTO hits; no non-English sources; no chess-specific venues (ICGA Journal, *Journal of Chess Research*); no systematic sweep of the board-game-mathematics literature (Berlekamp–Conway–Guy lineage); no knight's-graph spectral sweep; no chess-programming mobility-valuation sweep. *Near-misses:* Kyung & Huang (AMS 2026 Spring Western Sectional, Paper/59497; metadata verified from the page's `citation_*` tags, abstract unreachable — attributed-not-attested); *Spectral properties of king's graph*, OPSEARCH 2025 (Springer paywall — attributed-not-attested); Rigaux & Kashima, arXiv:2410.23753 (graph representation of chess for RL, not spectral; abstract-level). *Result:* no prior publication assigning the 5-tuple to chess piece graphs, and no prior "fiber" framing, was located; the rank-3 object itself is KNOWN under its own name (see the attribution note). *Strength:* **weak null** — 21 general-web queries; must be labelled as such wherever it is used. *Attestation of sources touched:* ATTESTED (full text read) — Kivelä et al. 2014 (doi:10.1093/comnet/cnu016); Eynard et al. arXiv:1209.2295v2; Brouwer & Haemers, *Spectra of graphs* (author-hosted PDF, 2011); Fiedler 1973 (doi:10.21136/CMJ.1973.101168); Arroyo et al. JMLR 22 (2021); De Domenico et al. arXiv:1307.4977v2 / PRX 3, 041022. ATTESTED (abstract-level) — Bronstein, Glashoff & Loring arXiv:1307.6549; Singer & Wu arXiv:1102.0075; Bandeira, Singer & Spielman arXiv:1204.3873; Rigaux & Kashima arXiv:2410.23753. ATTRIBUTED / ATTRIBUTED-NOT-ATTESTED — Kenyon arXiv:1001.4028 (metadata only); Cardoso & Souloumiac 1996 (SIAM paywall; verified only via Eynard et al.'s citation); Kovnatsky et al. 2013 (arXiv v2 **withdrawn by the author, Nov 2025** — do not cite the preprint; CGF version paywalled); Kyung & Huang 2026; OPSEARCH 2025; Merris 1994 (Elsevier paywall; an OA copy at math.ucdavis.edu was not opened). Wikipedia and MathWorld were used only to locate leads and are not cited. *Re-run policy:* this record expires — a claim written up more than six months after 2026-09-04 needs a fresh record, and any row filed SEARCHED — NOT FOUND against it inherits the weak-null label.
+
+**Template for a new record (SR-n).** (1) retrieval date; (2) engines and databases searched, by name, *and separately those not searched*; (3) the exact query strings, verbatim, numbered; (4) the searcher (person or tool, with model/version if a tool); (5) near-misses — what was found and why it was judged not to be the claim; (6) the strength label; (7) the attestation status of every source touched (ATTESTED / abstract-level / ATTRIBUTED-NOT-ATTESTED); (8) the re-run policy.
 
 ### Key citations
 
@@ -250,7 +302,7 @@ The literature survey classifies the strongest connections by type. The followin
 | Knight graph asymptotically isospectral to higher-D lattice | Saburova 2024 | §6c (Weyl d_eff ≈ 3–5) |
 | Haldane model as hard T-breaking precedent | Haldane 1988 | §9m (pawn sector) |
 
-No papers directly presenting chess dynamics as a lattice field theory with these structures were found in the survey, confirming the model appears **novel and unpublished** as of April 2026.
+No papers directly presenting chess dynamics as a lattice field theory with these structures were found in the survey. That is a search result over the venues the survey covered, not a priority claim — and it is a *weaker* record than SR-1: the survey's queries were kept in a working file (`Spectral_lattice_fermion_model_of_chess.md`) that is **not in this tree** (checked 2026-09-05: `git ls-files` finds no such file; the two mentions of it in this notebook are the only trace), so by the rule under *Search records* this sentence is a sentence, not a measurement, until those queries are recovered or re-run. It predates the 2026-09-04 audit (search record SR-1, above), which located chess-spectral prior work it could not read and found the rank-3 object KNOWN under its own name (approximate joint diagonalisation).
 
 ---
 
@@ -414,8 +466,8 @@ for i, n1 in enumerate(names):
 **The knight is exactly orthogonal (0.00) to every other piece type in the DCT basis.** The queen shows expected similarity to bishop (0.69) and rook (0.72), consistent with queen = bishop + rook. The bishop and rook are orthogonal to each other (0.00), confirming they operate on independent spatial axes.
 
 ### Verdict
-- Per-piece spectral analysis: **KNOWN TECHNIQUE, novel application to chess.**
-- Knight exact DCT orthogonality: **NOVEL OBSERVATION.** No prior publication found.
+- Per-piece spectral analysis: **KNOWN technique; applied here** (Chung 1997). Chess-specific spectral prior work exists — Kyung & Huang (AMS 2026); *Spectral properties of king's graph* (OPSEARCH 2025) — both attributed-not-attested (search record SR-1).
+- Knight exact DCT orthogonality: **CONFIRMED (internal)** on the bounded board (`chess_spectral_consolidated.py` §3); the torus statement is **KNOWN** (Cayley-graph theorem, §1b.3). **SEARCH PENDING** before write-up — the knight's-graph spectral literature has not been searched; the earlier "No prior publication found" was an unrecorded null and is withdrawn as a claim.
 - Bishop 2-component = color-binding: **KNOWN implication of graph theory** (bipartite sub-result).
 - Rook regularity = K₈ □ K₈: **KNOWN** (Cartesian product of complete graphs).
 
@@ -540,9 +592,9 @@ print(f"  Correlation/total ratio: {ratio:.1%}")
 
 ### Verdict
 - Pauli exclusion (n_i ∈ {0,1}): **EXACT** — identical constraint, not analogous.
-- Weyl perturbation: **KNOWN THEOREM**, correctly applied to chess for the first time.
-- Quantum number 5-tuple: **NOVEL** — no prior classification found.
-- Many-body correlation: **NOVEL APPLICATION** of known perturbation theory.
+- Weyl perturbation: **KNOWN theorem; applied here** ("for the first time" withdrawn — an unsearched priority claim).
+- Quantum number 5-tuple: **CONFIRMED (internal)** for the separation; **KNOWN** for each coordinate (Brouwer & Haemers; Fiedler 1973 — and the coded λ₂ is the smallest *nonzero* eigenvalue, not Fiedler's a(G), on the disconnected bishop and pawn graphs); **SEARCHED — NOT FOUND (SR-1, weak null)** for the tuple as a named classification.
+- Many-body correlation: **KNOWN technique; applied here** (perturbation theory).
 
 ---
 
@@ -599,9 +651,9 @@ Post-capture spectral overlap with original piece signatures:
 - Asymmetry: **+1.000** in every case tested (N×b, B×p, R×r, Q×q)
 
 ### Verdict
-- Exact decomposition: **NOVEL.** The specific decomposition of capture perturbations into movement + annihilation + cross-term is, as far as we can determine, unpublished.
-- Cross-term dominance: **NOVEL FINDING** with analogy to exchange-correlation energy.
-- Aggressor asymmetry = charge conjugation: **NOVEL OBSERVATION.**
+- Exact decomposition: **CONFIRMED (internal)** — and the *exactness* is an identity, not a finding: δ = move + annihilate is a vector split, exact by construction; E_cross = 2⟨move, annihilate⟩ is the polarisation identity; the 9.29e−17 reconstruction error is float roundoff of a linear identity (an instrument that cannot return otherwise). The percentages are one configuration's numbers. "As far as we can determine, unpublished" was an unrecorded null and is withdrawn.
+- Cross-term dominance: **CONFIRMED (internal)**; the exchange-correlation reading is ANALOGICAL.
+- Aggressor asymmetry = charge conjugation: **CONFIRMED (internal)** (no search recorded).
 
 ### Honest limitations
 - The entropy-based time-reversal test (Test 5 in original code) did not cleanly separate moves from captures. Von Neumann entropy of GFT coefficients projected onto the grid Laplacian is not the right quantity for detecting irreversibility. A piece-type-specific eigenbasis might work better — this is an open problem.
@@ -704,9 +756,9 @@ Which piece's eigenbasis best compresses the field shift from its own removal?
 
 #### Verdict
 - Value × position factorization: **MATHEMATICALLY EXACT** (follows from GFT unitarity).
-- Cross-species energy transfer: **NOVEL FINDING.** No prior publication found documenting cross-graph Laplacian energy transfer on chess piece graphs.
-- Energy increase from material removal: **NOVEL.** The sign reversal (removing material increases field energy on certain graphs) demonstrates the field is genuinely coupled, not decomposable into independent per-species components.
-- Bishop eigenbasis as universal compressor: **NOVEL OBSERVATION.** Requires further investigation — may be a property of diagonal eigenmodes on square lattices generally, not chess-specific.
+- Cross-species energy transfer: **CONFIRMED (internal)** (ΔE < 0.2 % on the tested positions; the ΔQ_G split is an identity); grounding ANALOGICAL until a Lagrangian is exhibited (§11). "No prior publication found" was an unrecorded null and is withdrawn.
+- Energy increase from material removal: **CONFIRMED (internal)**. The sign reversal (removing material increases field energy on certain graphs) shows the field is coupled, not decomposable into independent per-species components.
+- Bishop eigenbasis as universal compressor: **CONFIRMED (internal)**; open question — may be a property of diagonal eigenmodes on square lattices generally, not chess-specific.
 
 ### 5c. Rigorous Field Coupling Analysis
 
@@ -816,10 +868,10 @@ The transfer matrix T[A,B] = average ΔE on graph B when a piece of type A is re
 
 #### Verdict
 - Analytical decomposition (coupling + self-energy): **MATHEMATICALLY EXACT** (identity from quadratic form expansion).
-- Rank-4 coupling channels (98.1% in σ₁): **NOVEL.** The field coupling structure is almost one-dimensional.
-- Cross-species correlation > 0.81: **NOVEL.** All pieces see nearly identical field gradients.
-- Approximate conservation for non-king material: **NOVEL.** Field energy redistributes rather than dissipates — captures are approximately elastic in the multi-graph energy sense.
-- Asymmetric transfer matrix: **NOVEL.** Directed coupling flow between species.
+- Rank-4 coupling channels (98.1% in σ₁): **CONFIRMED (internal)** (no search recorded). The field coupling structure is almost one-dimensional.
+- Cross-species correlation > 0.81: **CONFIRMED (internal)**. All pieces see nearly identical field gradients.
+- Approximate conservation for non-king material: **CONFIRMED (internal)**; ANALOGICAL as a conservation law (§11: no variational principle yet). Field energy redistributes rather than dissipates — captures are approximately elastic in the multi-graph energy sense.
+- Asymmetric transfer matrix: **CONFIRMED (internal)**. Directed coupling flow between species.
 
 **Literature grounding (§1b.2).** The approximate conservation result (<0.2% field energy change for non-king captures) is supported by five independent mathematical frameworks: BGI approximate Noether theory guarantees violations O(ε) for L = L₀ + εL₁; the PCAC relation provides the precise template (conservation violation ∝ explicit breaking parameter); lattice Ward identities with Wilson fermions quantify symmetry-breaking effects; the Ginsparg-Wilson relation suggests a stronger result (exact modified conservation law); and KAM theory predicts exponentially good adiabatic invariants when pawn timescales separate from piece dynamics. The isospin-breaking program in lattice QCD (Portelli 2013) demonstrates that comparable ~1% breaking effects are treated perturbatively — validating the perturbative regime of this finding.
 
@@ -912,18 +964,18 @@ Projecting each piece's Laplacian onto the board eigenbasis:
 **The rook's Laplacian is entirely expressible in board eigenmodes** — zero off-diagonal coupling. It's a purely 2D creature. The knight has 12.8% irreducible rule content that lives orthogonal to the board surface.
 
 ### Verdict
-- Scale invariance of categorical properties: **NOVEL SYSTEMATIC TEST.**
-- Generator analysis: **KNOWN GROUP THEORY**, novel application.
-- Weyl's law dimensionality: **NOVEL APPLICATION** — no prior measurement of chess piece graph effective dimensionality found.
-- Toroidal regularization: **NOVEL OBSERVATION.**
-- Spatial vs abstract decomposition: **NOVEL.**
+- Scale invariance of categorical properties: **CONFIRMED (internal)** — a systematic test; no search recorded.
+- Generator analysis: **KNOWN technique; applied here** (group theory).
+- Weyl's law dimensionality: **CONFIRMED (internal)** — a measured d_eff; "no prior measurement found" was an unrecorded null and is withdrawn as a claim.
+- Toroidal regularization: **KNOWN** — the Cayley-graph eigenbasis fact (§1b.3).
+- Spatial vs abstract decomposition: **KNOWN construction** — `off(UᵀL_pU)` of approximate joint diagonalisation (Eynard et al., arXiv:1209.2295v2, eq. 3; attribution note under the tag table); **CONFIRMED (internal)** for the chess numbers.
 
 ---
 
-## 7. The Rank-3 Fiber Bundle
+## 7. The Rank-3 Shared Subspace (section formerly titled "The Rank-3 Fiber Bundle" — the object is not a bundle; see the attribution note under the tag table)
 
 ### Claim
-The off-diagonal coupling matrices (rule content from Section 6e) of all piece types share a 3-dimensional subspace. The bundle has non-trivial holonomy (curvature ≠ 0) and position-dependent fiber norm.
+The off-diagonal coupling matrices (rule content from Section 6e) of all piece types share a 3-dimensional subspace. ~~The bundle has non-trivial holonomy (curvature ≠ 0)~~ *[2026-09-05: the holonomy half of this claim is FAILED / RETRACTED — see the Holonomy test below and §8c; the object is not a bundle, see the section title]* and the local residual norm is position-dependent.
 
 ### Theoretical basis
 - Fiber bundles: Nakahara (2003), Ch. 9.
@@ -977,22 +1029,24 @@ for i, s in enumerate(S_f):
 
 Bishop-Queen fiber similarity = 1.000 exactly, because queen = bishop + rook and rook has zero fiber, so queen's fiber IS bishop's fiber.
 
-### Holonomy test
+### Holonomy test — FAILED / RETRACTED (2026-09-04; audit trail completed 2026-09-05)
 
-Transporting the knight's local fiber around a closed loop on the board:
+*As originally recorded:* transporting the knight's local fiber around a closed loop on the board:
 
 - Start-end fiber similarity: **−0.016**
-- **NON-TRIVIAL HOLONOMY** — the connection has curvature.
+- ~~**NON-TRIVIAL HOLONOMY** — the connection has curvature.~~
+
+*What the re-measurement found:* the harness loop (4,0)→…→(4,1) does not close — (4,1)→(4,0) is not a knight move (executed: `(4,0) in knight_targets(4,1)` is False) — so the −0.016 is the cosine between two *different* squares' local residuals, against a generic pairwise cosine of −0.004 (§8b). Nothing was transported around a loop, and no curvature was measured. The number is kept as the record of what was believed; the claim is withdrawn here, in the Verdict below, in the tag table and in §8c.
 
 ### Position-dependent fiber norm
 
 The knight's fiber norm (rule content) varies from **1.373 at corners** to **2.751 at center** — a 2:1 ratio. The fiber is "thicker" at the center of the board.
 
 ### Verdict
-- Rank-3 shared fiber: **NOVEL.** No prior art found.
-- Non-trivial holonomy: **NOVEL.** First measurement of bundle curvature on a chess board graph.
-- Bishop-Queen fiber identity: **NOVEL OBSERVATION** consistent with queen = bishop + rook.
-- Position-dependent fiber: **NOVEL.**
+- Rank-3 shared subspace: **CONFIRMED (internal)**; the construction is **KNOWN** — the `off(·)` residual of approximate joint diagonalisation (Eynard, Glashoff, Bronstein & Bronstein, arXiv:1209.2295v2, eq. 3), COSIE with V fixed (Arroyo et al., JMLR 22). Rank 3 is the *maximum attainable* (f_queen = f_bishop); not a fibre bundle. "No prior art found" is replaced by search record SR-1 (weak null) for the *framing* only — the object itself is known under its own name.
+- Non-trivial holonomy: **FAILED / RETRACTED** (§8c) — the harness loop does not close ((4,1)→(4,0) is not a knight move); the −0.016 is the cosine between two squares' local residuals, against a generic pairwise −0.004 (§8b). "First measurement of bundle curvature" is withdrawn.
+- Bishop-Queen fiber identity: **KNOWN (forced)** — f_queen = f_bishop because L_queen = L_bishop + L_rook and the rook's off-diagonal block is exactly zero (L(K₈) = 8I − J).
+- Position-dependent local residual norm: **CONFIRMED (internal)** (no search recorded).
 
 ### 7b. The Rank-4 Full Fiber — The Rook's Shadow
 
@@ -1187,7 +1241,7 @@ In the physics framing: the connection form A(k→t) exists if and only if (k,t)
 
 The local fiber at each square decomposes exactly into per-edge contributions (error < 10⁻¹⁶). Each legal target contributes a specific 3D connection vector. However:
 
-**Correction to §7 holonomy interpretation:** Accumulated fiber change around closed loops is identically zero by telescoping: Σ(f_{i+1} − f_i) = f_final − f_start = 0. The −0.016 holonomy measured in §7 used cosine similarity of fiber vectors (not accumulated delta), which measures genuine geometric content but is not the same as curvature of the discrete connection. The rook bundle is confirmed flat (zero global fiber). The distinction between holonomy-as-similarity and curvature-as-transport requires careful treatment in any formal write-up.
+**Correction to §7 holonomy interpretation — and its retraction (2026-09-04/05).** Accumulated fiber change around closed loops is identically zero by telescoping: Σ(f_{i+1} − f_i) = f_final − f_start = 0. The −0.016 "holonomy" measured in §7 used cosine similarity of fiber vectors (not accumulated delta). *This paragraph originally went on to say that the cosine "measures genuine geometric content" and that "the rook bundle is confirmed flat"; both sentences are withdrawn.* The 2026-09-04 re-measurement found that the §7 harness loop does not close — (4,1)→(4,0) is not a knight move — so −0.016 is the cosine between two different squares' local residuals (a generic pairwise value is −0.004, §8b), not a transport around any loop: it measures nothing about a connection, and there is no bundle to be flat or curved (no base, no projection, no structure group — see the attribution note under the tag table). **This is the section the FAILED / RETRACTED tag-table row points to, and the retraction is: no holonomy or curvature of any kind was measured in §7.** The distinction between holonomy-as-similarity and curvature-as-transport still deserves care in any write-up that *does* construct a connection; this notebook has not.
 
 **Note on the production encoder.** The v3 dual-channel encoder (70-dim) discussed in §8 is an R&D artifact, not the production encoder. The production encoder is 640-dim (documented in §9a): `encode_640` in `chess-spectral/python/chess_spectral/encoder.py`, which extends the v3 geometric/interaction split into 5 D4 irreps + 5 fiber channels and generates every `.spectralz` file in `results/`. See [ENCODERS.md](ENCODERS.md) for the full lineage and reproduction recipe.
 
@@ -1278,7 +1332,7 @@ Re-run artefact: `docs/chess-maths/archive/chess_a1_followup.py` executed agains
 
 The 8 path graph eigenvalues λ_k = 2(1 − cos(πk/8)) for k = 0,...,7 generate the full board spectrum via pairwise sums. Verified: 33 unique pairwise sums account for all 33 unique board eigenvalues exactly.
 
-The pairwise ratios of path eigenvalues are **irrational** (no two are rational multiples of each other). This is the spectral analog of coprime independence in UTLP S3: each generator produces a family of spectral modes, no two families overlap, and the lattice of pairwise sums has no aliasing. The 8 path eigenfrequencies function as **domain-specific coprime generators** derived from game geometry.
+The pairwise ratios of path eigenvalues are **irrational** (no two are rational multiples of each other). This is the spectral analog of coprime independence in UTLP S3 at the *generator* level: each generator produces a family of spectral modes and no two families coincide. **The lattice of pairwise sums does alias** (corrected 2026-09-04; the previous text said "no aliasing"): λ_k + λ_{8−k} = 2(1 − cos θ) + 2(1 − cos(π − θ)) = 4 for k = 1, 2, 3, and λ₄ + λ₄ = 4, so four pairs land on the single value 4 — which is exactly why 36 (a, b) pairs give the 33 unique sums counted above. The UTLP S3 "no two families overlap" analogy holds for the generators and breaks at the sum level. The 8 path eigenfrequencies are **domain-specific generators** derived from game geometry (KNOWN — the Kronecker-sum spectrum of P₈ □ P₈, Brouwer & Haemers §1.4.6); the 33-sum count is CONFIRMED (internal).
 
 ### 9c. Spectrally Derived Piece Values
 
@@ -1726,20 +1780,22 @@ The original "Future Work: Othello as Validation Domain" subsection has been pro
 
 **Verification status (2026-04-22):** Phase 0–2 of §10 is now computationally grounded. The structural predictions (§10.4 decomposition, §10.7 sheaf Laplacian instantiation) are CONFIRMED; the rank claim was partially revised (rank-6 did not emerge as an operator rank — it is an irrep multiplicity). WTHOR empirical tests (§10.10) remain open pending external data. See §10.12 for the pass-table and [`../othello-maths/`](../othello-maths/) for the full artifact set.
 
-### Prior art candidates for formal documentation
+### Findings and their attribution status
+
+*(Heading changed 2026-09-04 from "Prior art candidates for formal documentation": this table was being read as a list of priority claims. Each row's bucket — per the convention at the top of this notebook — is stated in the grounding column where the 2026-09-04 audit reached it; a row with no bucket stated is at most **CONFIRMED (internal)** — no search has been recorded for it.)*
 
 | # | Finding | Connection type | Literature grounding (§1b) |
 |---|---------|----------------|---------------------------|
-| 1 | Rank-5 complete fiber bundle over chess board graph (3 symmetric + 1 antisymmetric + 1 diagonal) | — | Dual derivation: subspace + polarization (§9n, §9r) |
-| 2 | Rank-3 off-diagonal shared fiber (the gauge content subset) | — | No prior art found |
-| 3 | Rank-4 full fiber with rook's diagonal shadow | — | No prior art found |
+| 1 | Rank-5 complete "fiber" (3 symmetric + 1 antisymmetric + 1 diagonal) | — | **INCONSISTENT — re-measure**: §9n adds ranks of differently-shaped matrices and its "diagonal deviation rank = 1" contradicts §7b; the §9r "dual derivation" is unavailable until the 5 × 64 diagonal-deviation stack is re-measured. Not a bundle |
+| 2 | Rank-3 off-diagonal shared subspace (the rule-content residual) | MATHEMATICAL | **CONFIRMED (internal)**; construction **KNOWN** — the `off(·)` criterion of approximate joint diagonalisation (Eynard et al., arXiv:1209.2295v2, eq. 3); COSIE with V fixed (Arroyo et al., JMLR 22); rank 3 is the maximum attainable (f_queen = f_bishop). Framing only: SEARCHED — NOT FOUND (SR-1, weak null) |
+| 3 | Rank-4 full fiber with rook's diagonal shadow | MATHEMATICAL | **KNOWN (algebraically forced)** — σ₅ = 0 ⇐ L_queen = L_bishop + L_rook; rook diagonal ⇐ L(K₈) = 8I − J (Brouwer & Haemers §1.4.1, §1.4.6) |
 | 4 | Pawn antisymmetric fiber: \|\|A_anti\|\|/\|\|A_sym\|\| = 1.000 (only Z₂-breaking operator) | MATHEMATICAL | Hatano-Nelson t_L = 0 (§1b.1); Nielsen-Ninomiya evasion (§1b.1) |
-| 5 | 5-tuple spectral quantum number classification (all 6 piece types, including pawn) | — | No prior art found |
-| 6 | Capture spectral decomposition (movement + annihilation + cross-term) | MATHEMATICAL | Weyl perturbation theory |
-| 7 | Knight exact DCT orthogonality to all sliding pieces | MATHEMATICAL | Cayley graph eigenvalue theorem (§1b.3); Niven's theorem (§1b.3) |
-| 8 | Cross-species field energy transfer with approximate conservation | MATHEMATICAL | Five frameworks: BGI, PCAC, Ward, GW, KAM (§1b.2) |
+| 5 | 5-tuple spectral-invariant separation of the six piece graphs | MATHEMATICAL | **CONFIRMED (internal)** for the separation; **KNOWN** for each coordinate (Brouwer & Haemers Prop. 1.3.7, §1.3.6, §1.4.1, §1.4.6; Fiedler 1973 — the coded λ₂ is not a(G) on disconnected graphs); **SEARCHED — NOT FOUND (SR-1, weak null)** for the tuple as a named classification |
+| 6 | Capture spectral decomposition (movement + annihilation + cross-term) | MATHEMATICAL (identity) | **CONFIRMED (internal)** for the percentages; the exactness is linearity + polarisation, not Weyl perturbation theory (which grounds §4) |
+| 7 | Knight exact DCT orthogonality to all sliding pieces | MATHEMATICAL (torus) / CONFIRMED (bounded board) | Cayley graph eigenvalue theorem (§1b.3) is a torus statement; Niven's theorem (§1b.3); the bounded-board 0.00 is **CONFIRMED (internal)** and **SEARCH PENDING** |
+| 8 | Cross-species field energy transfer with approximate conservation | ANALOGICAL | **CONFIRMED (internal)** (ΔE < 0.2 % on tested positions); the five frameworks (BGI, PCAC, Ward, GW, KAM; §1b.2) presuppose a Lagrangian not yet exhibited (§11) |
 | 9 | Three-level hierarchy of rule encoding (identity / coupling / legality) | — | Level 3 provably unrecoverable; Wilson term analogy via Yumoto-Misumi (§9i.9) |
-| 10 | Spectral piece values from movement graph mean degree (P=0.84, N=2.0, B=3.4, R=5.4, Q=8.8, K=2.5) | MATHEMATICAL | Lattice propagator mass-range relation (§1b.5) |
+| 10 | Spectral piece values from movement graph mean degree (P=0.84, N=2.0, B=3.4, R=5.4, Q=8.8, K=2.5) | ANALOGICAL | **CONFIRMED (internal)**; **SEARCH PENDING** (chess-programming mobility-valuation literature); the lattice propagator mass–range relation (§1b.5) is an analogy for r ∈ {1, ∞} |
 | 11 | D4 irrep decomposition → A₁ as depth-gap predictor (ρ=+0.452, p=0.0005) | MATHEMATICAL | DCT = dihedral irreps (Püschel & Moura 2003; §1b.3) |
 | 12 | Z₂ decomposition: energy → complexity, signed sum → material (confirmed) | — | Empirical; D4 × Z₂ group theory |
 | 13 | A₁ eval-volatility correlation (ρ=+0.134, p<10⁻⁶, N=2165 plies, 20 games) | — | Empirical |
@@ -1751,9 +1807,9 @@ The original "Future Work: Othello as Validation Domain" subsection has been pro
 | 19 | Chaos ratio (fiber/irrep balance) as game character classifier (sharp vs positional) | — | Empirical; entropy production mode decomposition (Sekizawa et al. 2024; §1b.6) |
 | 20 | Empirical confirmation of Level 2/Level 3 boundary (Kg4?? null result: zero spectral signature on a known tactical blunder) | — | Empirical confirmation of §8b theoretical prediction |
 | 21 | Polarization parameterization: six excitation types as (angle θ, range r, chirality c) orientational states (§9r) | MATHEMATICAL | Lattice propagator (§1b.5); D₄ orbit structure; HN asymmetry (§1b.1) |
-| 22 | Dual derivation of rank-5 fiber: subspace decomposition and polarization parameter count yield same integer (§9n, §9r) | — | Two independent routes to same structural invariant |
+| 22 | Dual derivation of rank-5 fiber: subspace decomposition and polarization parameter count yield same integer (§9n, §9r) | — | **INCONSISTENT — re-measure** (rests on row 1); the coincidence argument is unavailable until the rank is re-measured |
 | 23 | Extensibility prediction for fairy pieces: (θ, r, c) triple predicts DCT-orthogonality and fiber contribution before measurement (§9r) | — | Falsifiable; (3,1) L-piece as first probe |
-| 24 | NHSE as pawn promotion-rank accumulation mechanism | MATHEMATICAL | Shen et al. 2025; Hu 2025 (§1b.1) |
+| 24 | NHSE as pawn promotion-rank accumulation mechanism | ANALOGICAL | **ANALOGICAL (unmeasured on the chess side)** — no skin-mode localisation at rank 8 is measured; Shen et al. 2025; Hu 2025 (§1b.1) |
 | 25 | Pawn as non-Hermitian chiral fermion evading Nielsen-Ninomiya doubling | MATHEMATICAL | Ma & Zhang 2024; Chen, Giedt & Poppitz (§1b.1) |
 | 26 | KL divergence = ∞ per pawn advance (maximal entropy production per T-breaking move) | MATHEMATICAL | Seifert 2012; Roldán & Parrondo 2012 (§1b.1) |
 | 27 | Knight graph asymptotically isospectral to higher-dimensional lattice (explains d_eff ≈ 3–5) | MATHEMATICAL | Saburova 2024 (§1b.3) |
@@ -4550,7 +4606,7 @@ Applied to this notebook:
 
 4. **Chess itself is a Markov chain.** The chess state space (position plus castling rights, en-passant availability, fifty-move counter, repetition state) is a Markov chain under any policy — uniform random play gives one transition operator, engine play gives another, human play gives a third. This has been studied directly: Atashpendar, Schilling & Voigtmann (2016), "Sequencing Chess" (*EPL* 116(1):10009; arXiv:1609.04648), treats the chess state space as a non-stationary non-reversible Markov chain and samples transition paths between configurations via SPRES (stochastic-process rare-event sampling, Berryman & Schilling 2010). That paper independently identifies pawn irreversibility as the key topological feature of the state space — real games occupy "well-separated thin sheets" defined by conserved pawn structure, which is structurally equivalent to this notebook's identification of the pawn antisymmetric channel as the T-violation sector. Steinerberger (2015), *Int. J. Game Theory* 44:761, provides a rigorous upper bound on the number of legal chess positions. Simpler classifications of chess games as Markov chains over aggregated state spaces (e.g. "move was a capture / check / both / neither") appear in the applied-statistics literature (e.g. RPubs 335466, 2017).
 
-**Where the notebook's contribution lies relative to this existing literature.** The individual piece-as-Markov-chain correspondence is standard — anyone trained in Markov chain theory on graphs recognizes it immediately. What has not been done in the literature, to our knowledge, is the **joint treatment of multiple coupled piece-Markov-chains on a shared base graph via an explicit fiber bundle construction**. The rank-3 fiber (§7), the rank-4 full fiber (§7b), and the rank-5 decomposition (§9n) characterize the cross-chain coupling structure — how the relaxation modes of each piece's random walk project onto the shared grid basis and how they overlap with each other. The identification of the pawn's FA channel as a specific T-violation signature of a non-reversible chain coupled to reversible chains in a fiber-bundle structure also appears to be novel. Captures (§5) are transitions between Markov-chain configurations that destroy a component chain, which the notebook characterizes spectrally in a form that has no direct literature analog we have found.
+**Where the notebook's contribution lies relative to this existing literature.** The individual piece-as-Markov-chain correspondence is standard — anyone trained in Markov chain theory on graphs recognizes it immediately. What has not been done in the literature, to our knowledge, is the **joint treatment of multiple coupled piece-Markov-chains on a shared base graph via an explicit fiber bundle construction**. *[2026-09-04 correction: "to our knowledge" is an unrecorded null, and the "explicit fiber bundle construction" is withdrawn — the object is the `off(·)` residual of approximate joint diagonalisation of Laplacians (Eynard et al.) / COSIE with V fixed to the grid eigenbasis (Arroyo et al.), rank 3 being the forced maximum; see the attribution note under the tag table and search record SR-1. The sentence is kept as the record of what was believed when this retrospective was written.]* The rank-3 fiber (§7), the rank-4 full fiber (§7b), and the rank-5 decomposition (§9n) characterize the cross-chain coupling structure — how the relaxation modes of each piece's random walk project onto the shared grid basis and how they overlap with each other. The identification of the pawn's FA channel as a specific T-violation signature of a non-reversible chain coupled to reversible chains in a fiber-bundle structure also appears to be novel *[2026-09-05: same correction as above — "appears to be novel" is an unrecorded null and the fiber-bundle framing is withdrawn; the pawn FA channel is **CONFIRMED (internal)**, its priority unsearched]*. Captures (§5) are transitions between Markov-chain configurations that destroy a component chain, which the notebook characterizes spectrally in a form that has no direct literature analog we have found *[2026-09-05: likewise an unrecorded null — **CONFIRMED (internal)**, no search on record; the exactness of the §5 decomposition is an identity, see the tag table]*.
 
 **What this means for the rest of the notebook.** Every result in §3 through §11 can be translated into Markov-chain language without loss. §7c's spectral dispersion framework is a statement about the entropy evolution of a non-reversible Markov chain under policy-biased sampling. §9c's A₁/depth-gap correlation is a statement about the stationary-distribution projection onto the most-invariant eigenmode. §11's phase-operator move engine is a statement about biased-sampling structure on a non-reversible chain. The notebook has been computing Markov-chain quantities the entire time; it has just been calling them other things, because the generative vocabulary was resonance-and-coupling rather than transition-kernels-and-stationary-measures.
 

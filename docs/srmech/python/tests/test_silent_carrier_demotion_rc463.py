@@ -96,7 +96,11 @@ have shipped blind to their own subject (`#T1136`, `#T1138`, `#T1182`, and the
     ``matrix_cascades.svd`` is documented at its delegate); a keyword in an
     unrelated sentence reads as declared (a false negative). Do NOT "simplify"
     the delegation follow — it was added because running the gate without it
-    red-flagged a correctly-documented op.
+    red-flagged a correctly-documented op. rc466 (`#T1188`) MEASURED the false
+    negative: ``odft_summand`` read as declared on *"not a tolerance"* — a
+    negation the keyword reader cannot see (``tools/demotion_probe.py``
+    disclosure 9; pinned as an instrument fact in
+    ``tests/test_declared_inexactness_rc466.py``).
 
     ⚠️ **And through rc464 it resolved that delegate as ``getattr(_la, name)``**
     — hard-wired to ``srmech.math.laplacian``. So Layer 3 was not merely
@@ -309,6 +313,83 @@ def _l1_rows():
          lambda: _first_leaf(_sp_fir([3, 0], [3002399751580331])), P),
         ("signal_processing.matched_filter[int]",
          lambda: _first_leaf(_sp_mf([3, 0], [3002399751580331])), P),
+        # ── rc466 (`#T1188`): the seventy-row drain's FIX half, one row per
+        # PATH, every row executing the exact route. The full per-op gate is
+        # tests/test_exact_carrier_drain_rc466.py; these rows are the ones
+        # that hold the drain here, in the census's own strict-zero layer, so
+        # a re-demotion is red OUTSIDE the roster ceiling forever.
+        ("hdc.loop_conj[int]", lambda: _hdc().loop_conj([P] + [0] * 7)[0], P),
+        ("hdc.loop_bind[int]", lambda: _hdc().loop_bind([P] + [0] * 7, [1] + [0] * 7)[0], P),
+        ("hdc.loop_left_op[int]", lambda: _hdc().loop_left_op([P] + [0] * 7)[0, 0], P),
+        ("hdc.loop_right_op[int]", lambda: _hdc().loop_right_op([P] + [0] * 7)[0, 0], P),
+        ("hdc.loop_associator[int]",
+         lambda: _hdc().loop_associator([0, 0, 0, 0, P, 0, 0, 0], _e8(1), _e8(2))[7], 2 * P),
+        ("hdc.cross7[int]", lambda: _hdc().cross7([0, P] + [0] * 6, _e8(2))[3], P),
+        ("hdc.g2_three_form[int]", lambda: _hdc().g2_three_form([0, P] + [0] * 6, _e8(2), _e8(3)), P),
+        ("hdc.loop_conj_hd[int]", lambda: _hdc().loop_conj_hd([P] + [0] * 7 + _e8(0))[0], P),
+        ("hdc.loop_bind_hd[int]",
+         lambda: _hdc().loop_bind_hd([P] + [0] * 7 + _e8(0), _e8(0) + _e8(0))[0], P),
+        ("hdc.loop_unbind_hd[int]",
+         lambda: _hdc().loop_unbind_hd(_e8(0) + _e8(0), [P] + [0] * 7 + _e8(0))[0], P),
+        ("hdc.loop_runbind_hd[int]",
+         lambda: _hdc().loop_runbind_hd(_e8(0) + _e8(0), [P] + [0] * 7 + _e8(0))[0], P),
+        ("cascade.hypercomplex_couple[int, theta=0.0]",
+         lambda: _cascade().hypercomplex_couple([P, 0, 0], theta=0.0)[1], P),
+        ("cascade.as_oct8[int]", lambda: _cascade().as_oct8([P, 0, 0, 0])[0], P),
+        ("cascade.as_quat4[int]", lambda: _cascade().as_quat4([P, 0, 0, 0, 0, 0, 0, 0])[0], P),
+        ("cascade.qdft_summand[int, k*m == 0 mod n]",
+         lambda: _cascade().qdft_summand([[P, 0, 0, 0]], 0, 0, 1, True, -1, [0.0, 1.0, 0.0, 0.0])[0], P),
+        ("cascade.odft_summand[int, k*m == 0 mod n]",
+         lambda: _cascade().odft_summand([[P] + [0] * 7], 0, 0, 1, "left", "left_associated", -1,
+                                         [0.0, 1.0] + [0.0] * 6, [0.0, 1.0] + [0.0] * 6)[0], P),
+        ("cascade.correlation_product[int]",
+         lambda: _composites.correlation_product([3, 3002399751580331], 0, 1), P),
+        ("cascade.coupled.multiplex_streams[int]",
+         lambda: _coupled().multiplex_streams([[P, 2], [3, 4]])["driver"][0], P),
+        ("laplacian.klein4_gain_laplacian[exact]",
+         lambda: _la.klein4_gain_laplacian(2, [(0, 1)], [P], exact=True)["chi00"][0][0], P),
+        ("laplacian.mass_normalized_laplacian[exact, rw]",
+         lambda: _la.mass_normalized_laplacian(2, [(0, 1)], [P], masses=[1, 1], kind="rw", exact=True)[0][0], P),
+        ("laplacian.mass_normalized_laplacian[exact, symmetric]",
+         lambda: _la.mass_normalized_laplacian(2, [(0, 1)], [P], masses=[1, 1], exact=True)[0][0], P),
+        ("laplacian.normalized_laplacian[exact, K4: the product root is exact]",
+         lambda: _la.normalized_laplacian(4, [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
+                                          [P] * 6, exact=True)[0][1] * (-3 * P), P),
+        ("laplacian.magnetic_laplacian[exact, q=0]",
+         lambda: _la.magnetic_laplacian(2, [(0, 1)], [P], q=0, exact=True)[0][0].real * 2, P),
+        ("laplacian.quaternion_laplacian[exact]",
+         lambda: _la.quaternion_laplacian(2, [(0, 1)], [P], exact=True)[0][0] * 2, P),
+        # rc466 review fix: the eigen family's exact route (eig_exact behind
+        # exact=, the jacobi_eigvals precedent); read back via as_rational().
+        ("laplacian.symmetric_eigendecompose[exact]",
+         lambda: _la.symmetric_eigendecompose([[P, 0], [0, 0]], exact=True)[0][1].as_rational(), P),
+        ("laplacian.hermitian_eigendecompose[exact]",
+         lambda: _la.hermitian_eigendecompose([[P, 0], [0, 0]], exact=True)[0][1].as_rational(), P),
+        ("laplacian.fiedler_vector[exact, rank-1 operand: lambda_2 vector (1/P, 1), read as 1/v0]",
+         lambda: (1 / _la.fiedler_vector([[1, P], [P, P * P]], exact=True)[0]).as_rational(), P),
+        ("laplacian.three_fold_eigvec_groups[exact, rank-1 operand]",
+         lambda: (-_la.three_fold_eigvec_groups([[1, P], [P, P * P]], exact=True)["mid"][0][0]).as_rational(), P),
+        ("laplacian.klein4_relational_structure[exact, K2]",
+         lambda: _la.klein4_relational_structure([(0, 1)], [P], exact=True)["coherence"]["chi00"].as_rational(), 2 * P),
+        ("laplacian.elementwise_multiply_complex[int]",
+         lambda: _la.elementwise_multiply_complex([P], [1])[0].real, P),
+        ("signal_processing.polyphase[int]", lambda: _sp_op("polyphase")([P, 2, 3], [1, 2, 3, 4], L=2)[0], P + 4),
+        ("signal_processing.multirate[int identity]", lambda: _sp_op("multirate")([P, 2, 3, 4])[0], P),
+        ("signal_processing.multirate[int taps]",
+         lambda: _sp_op("multirate")([P, 1, 1], up=2, filter_taps=[1, 1])[0], 2 * P),
+        ("signal_processing.farrow[int, mu=0]", lambda: _sp_op("farrow")([0, 1, P, 3])[2], P),
+        ("signal_processing.iir[int, a0=1]", lambda: _sp_op("iir")([1, 0, 0], [1], [1, P])[1], -P),
+        ("signal_processing.wavelet[int, exact rational at 2 levels]",
+         lambda: _sp_op("wavelet")([P, 4, 4, 4], levels=2)[0][0].as_rational() * 2 - 12, P),
+        ("relativistic.four_momentum_squared[int]",
+         lambda: _qm("relativistic").four_momentum_squared([P, 0, 0, 0]), P * P),
+        ("pseudo_hermitian.inner_product_eta[int eta]",
+         lambda: _qm("pseudo_hermitian").inner_product_eta([1, 0], [1, 0], [[P, 0], [0, 1]]).real, P),
+        ("single_particle.density_matrix[int]",
+         lambda: _qm("single_particle").density_matrix([P, 1])[0, 1], P),
+        ("quaternion.quaternion_log[int, exact direction]",
+         lambda: _qm("quaternion").quaternion_log([0, P, 0, 0])[1]
+         - _qm("quaternion").quaternion_log([0, 1, 0, 0])[1] + P, P),
         # ⚠️ `composites.top_k_by_score[int]` WAS a row here and is REMOVED
         # rather than repaired, because no witness for it can fail. Measured
         # at the source: the whole body is
@@ -330,6 +411,37 @@ def _l1_rows():
 def _sp_fir(sig, coeffs):
     import srmech.signal_processing as sp
     return sp.fir(sig, coeffs)
+
+
+# rc466 (`#T1188`) — lazy module handles for the drain rows above (the loop
+# family lives in srmech.math.hdc, whose import srmech.cascade triggers).
+def _hdc():
+    from srmech.math import hdc
+    return hdc
+
+
+def _e8(i):
+    return [1 if k == i else 0 for k in range(8)]
+
+
+def _cascade():
+    import srmech.cascade as cascade
+    return cascade
+
+
+def _coupled():
+    from srmech.cascade import coupled
+    return coupled
+
+
+def _sp_op(name):
+    import importlib
+    return importlib.import_module(f"srmech.signal_processing.closed_form_ops.{name}").op
+
+
+def _qm(name):
+    import importlib
+    return importlib.import_module(f"srmech.physics.qm.{name}")
 
 
 def _sp_mf(sig, template):
@@ -486,12 +598,12 @@ _STALENESS_BLIND_SPOT = (
 #: per-cell constant asserted only in its own cell is how the previous cut
 #: ended up measuring the host: this one is asserted in FULL in EVERY cell.
 EXPECTED_UNDECLARED_ROSTER_SHA256 = (
-    "7834607ae6812928a12dd914f41bfc4d86c6447313f4b05889f47ab880cc255f")
+    "99c2164df1109c3f7f1c2fd18f4b1592254dfc4ec548f2315558461cd1b7e17b")
 
 #: Pinned only so the failure message can say "70 -> 71" instead of dumping
 #: every key; the ROSTER above is the actual contract. Same relationship
 #: ``EXPECTED_N`` has to ``EXPECTED_NAME_SET_SHA256`` in rc361.
-EXPECTED_UNDECLARED_N = {"native": 70, "pure": 71}
+EXPECTED_UNDECLARED_N = {"native": 1, "pure": 1}
 
 #: Down-only. ``NO_SHAPE`` rows — parameters the probe could not build ANY
 #: candidate binding for, so no carrier verdict was ever reachable. This is the
@@ -526,10 +638,7 @@ CEIL_DEMOTION_UNREACHED = {"native": 52, "pure": 52}
 #: binding the other accepts, which is still two behaviours under one name.
 _DIVERGENT: "frozenset[str]" = frozenset({
     # the C path rounds an exact operand the pure path keeps exact
-    "srmech.signal_processing.iir::a",                        # DEMOTED / EXACT
     # one projection reaches a carrier verdict the other never gets to
-    "srmech.math.laplacian.recover_check::charges",           # INSENSITIVE / DEMOTED
-    "srmech.math.laplacian.recover_check_spectral::charges",  # INSENSITIVE / DEMOTED
     "srmech.math.laplacian.klein4_gain_laplacian::gains",     # EXACT / RAISED
     "srmech.biology.coupling.resonant_spectrum_sparse::edges_or_path",  # EXACT / RAISED
     "srmech.math.modular_linalg.crt_combine::moduli",         # RAISED / EXACT
@@ -557,6 +666,87 @@ _FIXED_IN_RC465 = frozenset({
     "srmech.physics.qm.quaternion.quaternion_conjugate",
     "srmech.physics.qm.quaternion.quaternion_norm",
     "srmech.physics.qm.triality.triality_apply",
+})
+
+#: The ops rc466 FIXED (`#T1188`) — the seventy-row drain's FIX half. Strict
+#: zero, forever, on the same terms as ``_FIXED_IN_RC465``: each carries an
+#: exact operand exactly (an exact CARRIER end to end, or an exact ROUTE with
+#: ONE declared bound — the rc465 ``octonion_norm`` shape), with float as the
+#: caller's own explicit request. Named, not derived from a module prefix. The
+#: three ``*_hd`` siblings were never on the roster (the census filed them
+#: INEXACT_BASE behind a float in the OTHER operand) and are pinned here so the
+#: family's one entry gate cannot split into two behaviours again.
+_FIXED_IN_RC466 = frozenset({
+    "srmech.math.hdc.loop_conj",
+    "srmech.math.hdc.loop_bind",
+    "srmech.math.hdc.loop_inv",
+    "srmech.math.hdc.loop_left_op",
+    "srmech.math.hdc.loop_right_op",
+    "srmech.math.hdc.loop_associator",
+    "srmech.math.hdc.cross7",
+    "srmech.math.hdc.g2_three_form",
+    "srmech.math.hdc.loop_conj_hd",
+    "srmech.math.hdc.loop_inv_hd",
+    "srmech.math.hdc.loop_bind_hd",
+    "srmech.math.hdc.loop_unbind_hd",
+    "srmech.math.hdc.loop_runbind_hd",
+    "srmech.cascade.hypercomplex_couple",
+    "srmech.cascade.cd_couple_working",
+    "srmech.cascade.cdr_couple_working",
+    "srmech.cascade.cdr_uncouple_working",
+    "srmech.cascade.as_oct8",
+    "srmech.cascade.as_quat4",
+    "srmech.cascade.qdft_summand",
+    "srmech.cascade.odft_summand",
+    "srmech.cascade.correlation_product",
+    "srmech.cascade.coupled.multiplex_streams",
+    "srmech.math.laplacian.klein4_gain_laplacian",
+    "srmech.math.laplacian.mass_normalized_laplacian",
+    "srmech.math.laplacian.normalized_laplacian",
+    "srmech.math.laplacian.magnetic_laplacian",
+    "srmech.math.laplacian.quaternion_laplacian",
+    "srmech.math.laplacian.elementwise_multiply_complex",
+    "srmech.math.laplacian.ground_state_flux_response",
+    # rc466 review fix: DECLARED at Stage 2, FIXED at the review — the exact
+    # peer (eig_exact) ships and jacobi_eigvals already wears it behind exact=.
+    "srmech.math.laplacian.hermitian_eigendecompose",
+    "srmech.math.laplacian.symmetric_eigendecompose",
+    "srmech.math.laplacian.three_fold_eigvec_groups",
+    "srmech.math.laplacian.fiedler_vector",
+    "srmech.math.laplacian.klein4_relational_structure",
+    "srmech.signal_processing.rfft",
+    "srmech.signal_processing.stft",
+    "srmech.signal_processing.ofdm",
+    "srmech.signal_processing.polyphase",
+    "srmech.signal_processing.multirate",
+    "srmech.signal_processing.farrow",
+    "srmech.signal_processing.iir",
+    "srmech.signal_processing.wavelet",
+    "srmech.physics.qm.relativistic.four_momentum_squared",
+    "srmech.physics.qm.pseudo_hermitian.inner_product_eta",
+    "srmech.physics.qm.single_particle.density_matrix",
+    "srmech.physics.qm.bell.operator_norm",
+    "srmech.physics.qm.quaternion.quaternion_log",
+})
+
+#: ⚠️ THE ONE ROW rc466 DEFERRED — "exact peer ships, deferred", never declared.
+#: ``resonant_spectrum`` returns four faculties in one dict; ``tensions`` and
+#: ``force_orders`` have shipped exact peers (``eigvals_exact`` intervals,
+#: ``QMat.matmul`` powers) but ``modes`` needs ``eigvec_exact`` with a
+#: caller-supplied IRREDUCIBLE minimal polynomial per eigenvalue (the documented
+#: rc-E follow-up at ``matrix_cascades.py``) and each eigenvalue lives in its
+#: own number field with no compositum carrier, so an exact route today would
+#: return exact tensions beside float modes — the mixed-carrier shape rc463
+#: names as the defect. It waits on a ``modes`` design, not on effort.
+#:
+#: Pinned so the debt stays VISIBLE: the row must remain in the undeclared
+#: roster of BOTH cells. Draining it by an R3 sentence would convert a defect
+#: into documentation (the failure mode `#T1188` names); draining it by a real
+#: exact route is GOOD NEWS the gate reports, at which point the op moves to a
+#: ``_FIXED_IN_RC4NN`` set. A drain by narrowing admission (the row leaving as
+#: ``RAISED``) is refused on the same terms as everywhere else in this file.
+_DEFERRED_EXACT_PEER_SHIPS = frozenset({
+    "srmech.biology.coupling.resonant_spectrum::L",
 })
 
 #: The rc463 hand-written six, kept as the probe's POSITIVE CONTROL rather than
@@ -804,6 +994,53 @@ def test_layer3_the_rc465_fixed_family_is_strict_zero(op) -> None:
     assert not bad, (
         f"{op} is demoting again with no accuracy declaration: {bad}. rc465 "
         f"gave it an exact carrier; see tests/test_octonion_exact_carrier_rc465.py")
+
+
+@pytest.mark.parametrize("op", sorted(_FIXED_IN_RC466))
+def test_layer3_the_rc466_fixed_family_is_strict_zero(op) -> None:
+    """The forty-eight ops rc466 drained by FIXING can never re-enter the roster
+    (forty-three at Stage 1; the five eigen-family ops moved here from the
+    DECLARE ledger at the rc466 review, each with an executed ``exact=`` route).
+
+    The committed manifest was re-measured in BOTH cells at Stage 3 of rc466
+    (`#T1188`) after the last registry-type edit, so this reads the drain as
+    RECORDED; between the Stage-1 commit and that re-measurement it was red by
+    design. ``stft::signal`` is the one row expected to remain DEMOTED after
+    the fix (a lone 54-bit sample in a zero frame is that sample in every bin,
+    and the single terminal float lift rounds it); it drains by its R3 lift
+    sentence, and ``stft`` is therefore NOT in this set's roster check but in
+    the DECLARE ledger.
+    """
+    if op == "srmech.signal_processing.stft":
+        pytest.skip("stft::signal drains by its terminal-lift R3 sentence (declared), not by the roster")
+    _meta, rows = _manifest()
+    bad = sorted(f"{c}:{_dp.key(r)}" for c in _cells()
+                 for r in _dp.undeclared(rows, c) if r["op"] == op)
+    assert not bad, (
+        f"{op} is demoting again with no accuracy declaration: {bad}. rc466 "
+        f"gave it an exact carrier; see tests/test_exact_carrier_drain_rc466.py")
+
+
+@pytest.mark.parametrize("row", sorted(_DEFERRED_EXACT_PEER_SHIPS))
+def test_layer3_the_deferred_row_is_still_undeclared_debt(row) -> None:
+    """The ONE row rc466 left in the roster on purpose is still there, in BOTH
+    cells, and still undeclared. Its leaving is never silent: a real exact
+    route is good news to RECORD (move the op to a fixed set); an R3 sentence
+    on an op whose exact peers all ship is the failure mode this rc names, and
+    is refused by this pin until the route exists.
+    """
+    _meta, rows = _manifest()
+    for c in _cells():
+        keys = set(_dp.undeclared_keys(rows, c))
+        assert row in keys, (
+            f"[{c}] {row} is no longer an UNDECLARED demoter. If it drained by "
+            f"an exact route: GOOD NEWS, ACTION REQUIRED — move the op into a "
+            f"_FIXED_IN_RC4NN set and remove it from _DEFERRED_EXACT_PEER_SHIPS "
+            f"in the SAME change. If it drained by an accuracy SENTENCE while "
+            f"eigvals_exact / eigvec_exact / QMat.matmul still ship, that is a "
+            f"defect converted into documentation — revert the sentence. If it "
+            f"left as RAISED, admission was narrowed rather than the value "
+            f"computed — also refused.")
 
 
 def test_the_native_pure_divergence_is_a_named_finding() -> None:

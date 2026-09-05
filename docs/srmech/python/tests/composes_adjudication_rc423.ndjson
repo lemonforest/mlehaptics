@@ -65,8 +65,6 @@
 {"composes": [], "name": "srmech.biology.q8.q8_project_v4", "tier": "LEAF"}
 {"composes": [], "name": "srmech.bus.list_endpoints", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.algebra_table", "tier": "LEAF"}
-{"composes": [], "name": "srmech.cascade.as_oct8", "tier": "LEAF"}
-{"composes": [], "name": "srmech.cascade.as_quat4", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.byte_slice", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.cd_basis_product", "tier": "LEAF"}
 {"composes": [], "name": "srmech.cascade.cd_conjugate", "tier": "LEAF"}
@@ -324,6 +322,8 @@
 {"composes": ["srmech.math.hdc.klein4_bind"], "name": "srmech.biology.genome.quad_turn", "tier": "SINGLE"}
 {"composes": ["srmech.math.octonion.oct_mult"], "name": "srmech.biology.genome.split_defect", "tier": "SINGLE"}
 {"composes": ["srmech.bus.list_endpoints"], "name": "srmech.bus.by_name", "tier": "SINGLE"}
+{"composes": ["srmech.cascade.cd_promote"], "name": "srmech.cascade.as_oct8", "tier": "SINGLE"}
+{"composes": ["srmech.cascade.cd_project"], "name": "srmech.cascade.as_quat4", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.jordan_product"], "name": "srmech.cascade.cayley_plane_incidence", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.hamming_encode"], "name": "srmech.cascade.cd_carry", "tier": "SINGLE"}
 {"composes": ["srmech.cascade.hamming_decode_correct"], "name": "srmech.cascade.cd_correct", "tier": "SINGLE"}
@@ -409,6 +409,7 @@
 {"composes": ["srmech.math.laplacian.propagate"], "name": "srmech.math.laplacian.eph_harvest", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.eulerian_path"], "name": "srmech.math.laplacian.eulerian_circuit", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_hermitian_eigendecompose"], "name": "srmech.math.laplacian.hermitian_eigendecompose", "tier": "SINGLE"}
+{"composes": ["srmech.math.laplacian.signed_laplacian"], "name": "srmech.math.laplacian.klein4_gain_laplacian", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_matmul"], "name": "srmech.math.laplacian.mat_eigvals", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_matmul"], "name": "srmech.math.laplacian.mat_matvec", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.fiedler_sparse"], "name": "srmech.math.laplacian.normalized_cut_bisect", "tier": "SINGLE"}
@@ -434,7 +435,6 @@
 {"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.math.weight_lattice.integrable_weights", "tier": "SINGLE"}
 {"composes": ["srmech.music.bessel_j_fixed"], "name": "srmech.music.bessel_zero_fixed", "tier": "SINGLE"}
 {"composes": ["srmech.physics.qm.spin.pauli_matrices"], "name": "srmech.physics.qm.bell.chsh_pauli_combination", "tier": "SINGLE"}
-{"composes": ["srmech.math.laplacian.mat_hermitian_eigendecompose"], "name": "srmech.physics.qm.bell.operator_norm", "tier": "SINGLE"}
 {"composes": ["srmech.physics.qm.gauge.casimir_operator"], "name": "srmech.physics.qm.gauge.casimir_eigenvalue", "tier": "SINGLE"}
 {"composes": ["srmech.math.laplacian.mat_matmul"], "name": "srmech.physics.qm.gauge.casimir_operator", "tier": "SINGLE"}
 {"composes": ["srmech.physics.qm.spin.pauli_matrices"], "name": "srmech.physics.qm.gauge.su2_generators", "tier": "SINGLE"}

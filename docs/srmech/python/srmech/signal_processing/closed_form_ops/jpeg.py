@@ -210,6 +210,24 @@ def op(
     ``list`` of ``block_size×block_size`` integer list-of-lists, ``quant_table``
     a list-of-lists (numpy-free, #564).
     Decode: 2-D real ``list`` recovering the input image.
+
+    **Accuracy (rc466, `#T1188`).** The image is projected to float64 at the
+    entry (``float(v)`` per pixel — a 54-bit sample loses its low bit before
+    the transform), the block DCT-II rides a float64 cosine basis (the Class-N
+    ``rational.cos`` cascade collapsed to float, faithful to the closed form to
+    ``~1e-9``; :func:`dct._dct_matrix`), and each quantised coefficient is
+    round-half-even of a float64 ratio — **accurate to round-off**: a
+    coefficient within ``~1e-9`` of a half-integer boundary may quantise to
+    either neighbour, and an 8×8 ramp with its corner at ``2**53+1`` and at
+    ``2**53`` encode to the same blocks. Decode is the float64 DCT-III with a
+    ``1/(2·bs)²`` float normalisation. The basis is algebraic
+    (``cos(π(2j+1)k/16)`` lies in ``ℚ(ζ_32)⁺``, which ``Qalg.cos_2pi_over_n``
+    holds), so the TRANSFORM could be carried exactly; the quantiser cannot —
+    deciding the nearest integer of an algebraic number needs an ORDERED exact
+    real carrier and ``Qalg`` is embedding-agnostic (it has no ordering). The
+    drain path is a Sturm-style isolating interval on a real embedding (the
+    technique ``eigvals_exact`` already uses), recorded in the CHANGELOG; this
+    is a declaration of the shipped surface, not a float-by-nature claim.
     """
     bs = block_size
 

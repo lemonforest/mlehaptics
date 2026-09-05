@@ -85,11 +85,23 @@ def op(
     -------
     list
         Real denoised signal as a ``list`` of ``float``.
+
+    **Accuracy (rc466, `#T1188`).** Spectral subtraction is a float64
+    estimate: ``|X|²``, the over-subtraction floor and the magnitude / phase
+    reconstruction (``sqrt``, ``atan2``, ``cos``, ``sin`` — Class-N cascades
+    collapsed to float) are float quantities, and the output is the real part
+    of the inverse transform's single **terminal float lift** — **accurate to
+    round-off** (~1 ULP per operation), never exact; transcendental phase
+    reconstruction has no exact carrier. ``signal`` is used as given (through
+    rc465 it was projected to float64 at the entry): an integer signal's
+    forward transform is exact-until-rotation, so ``op([2**53+1] + [1]*7,
+    [0.0]*8)`` and the same call at ``2**53`` now differ; nothing after that
+    transform is exact. ``noise_psd`` is read as float64.
     """
     sig = list(signal)
     if sig and hasattr(sig[0], "__len__") and not isinstance(sig[0], (str, bytes)):
         raise ValueError("spectral_subtraction expects 1-D signal")
-    sig = [float(v) for v in sig]
+    # rc466: `sig` is used as given (see Accuracy) — no entry projection.
     n_psd = [float(v) for v in noise_psd]
     if len(n_psd) != len(sig):
         raise ValueError(

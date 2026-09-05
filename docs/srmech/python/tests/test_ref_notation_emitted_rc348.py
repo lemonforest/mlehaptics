@@ -773,6 +773,16 @@ SCAN_ROOTS = {
     # reach. Declaring it is what forces the trigger check above, and
     # `docs/srmech/**` does watch it.
     "tests/test_ctest_collection_parity_rc452.py": ("docs/srmech",),
+    # rc466 (`#T1188`): the exact-carrier drain gate reads
+    # `c/src/srmech_compose_run.c` to check that the five chain steps it pins
+    # as `_COMPOSE_HOST_FLOAT_ONLY` really have a C twin (`cr_op_as_quat4`,
+    # `cr_op_qdft_summand`, ...). The set is a NAMED projection divergence —
+    # exact in the Python runner, double in the C host — and a name in it that
+    # no longer matches a C arm would make the pin decorative; a fixture copy
+    # of the arm names would be a copy of the claim under test (the rc447 /
+    # rc450 argument). Reaching into c/ is the point.
+    "tests/test_exact_carrier_drain_rc466.py": (
+        "docs/srmech/python", "docs/srmech/c"),
     # rc454 (`#T1159`, gh #1653 item 11): the cascade-catalog PROSE-CURRENCY
     # gate is strict-zero on catalog cardinals written as literals in emitted
     # ToolEntry prose, and it must read `c/src/srmech_tool_registry.c` because

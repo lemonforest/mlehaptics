@@ -1796,8 +1796,13 @@ def _register_primitive_class_tools() -> None:
             # unchanged.
             parameters=(P("n", "int", True),
                         P("edges", "list[tuple[int, int]]", True),
-                        P("weights", "Optional[list[float]]", False)),
-            returns=R("Mat", "n × n symmetric matrix — Mat, the array('d') row-major 2-D carrier"),
+                        P("weights", "Optional[list[int | Q | float]]", False),
+                        P("exact", "bool", False,
+                          "keyword-only; rc466 (`#T1188`) — True returns list[list[Q]]: exact degrees, each off-diagonal "
+                          "-A[r][c]/sqrt(d_r*d_c) with ONE Class-N root of the exact PRODUCT (exact on a perfect square — every "
+                          "regular graph — else accurate to 2**-54 relative). Refuses a float weight by name. Default False "
+                          "returns the Mat = array('d') carrier, accurate to float64 round-off.")),
+            returns=R("Mat | list", "n × n symmetric matrix — Mat (array('d')) by default, or exact rows of Q with exact=True"),
         ),
         # rc328 (task #893 / #888 rec (c)): the Laplace–Beltrami α-family.
         # mass_normalized_laplacian generalises normalized_laplacian from
@@ -1816,12 +1821,17 @@ def _register_primitive_class_tools() -> None:
                     "native C dispatch. #888 scoping.",
             parameters=(P("n", "int", True),
                         P("edges", "list[tuple[int, int]]", True),
-                        P("weights", "Optional[list[float]]", False),
-                        P("masses", "Optional[list[float]]", False,
+                        P("weights", "Optional[list[int | Q | float]]", False),
+                        P("masses", "Optional[list[int | Q | float]]", False,
                           "diagonal mass M; None → degree D (α=0)"),
                         P("kind", "str", False,
-                          "'symmetric' (default) or 'rw' (random-walk)")),
-            returns=R("Mat", "n × n real mass-normalized Laplacian — Mat, array('d') row-major"),
+                          "'symmetric' (default) or 'rw' (random-walk)"),
+                        P("exact", "bool", False,
+                          "keyword-only; rc466 (`#T1188`) — True returns list[list[Q]]: kind='rw' is FULLY rational; "
+                          "kind='symmetric' takes ONE Class-N root of the exact product m_r*m_c per entry (exact on a "
+                          "perfect square, else accurate to 2**-54 relative). Refuses float weights / masses by name. "
+                          "Default False returns the Mat = array('d') carrier, accurate to float64 round-off.")),
+            returns=R("Mat | list", "n × n real mass-normalized Laplacian — Mat (array('d')) by default, or exact rows of Q with exact=True"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.cotangent_weights", owner="srmech",
@@ -1888,15 +1898,22 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("n", "int", True),
                         P("edges", "list[tuple[int, int]]", True,
                           "directed u → v"),
-                        P("weights", "Optional[list[float]]", False),
-                        P("q", "float", False,
+                        P("weights", "Optional[list[int | Q | float]]", False),
+                        P("q", "float | Q", False,
                           "flux in turns per unit net flow; default 0.25; "
                           "mutually exclusive with charges"),
-                        P("charges", "Optional[list[float]]", False,
+                        P("charges", "Optional[list[int | Q | float]]", False,
                           "per-edge charge in turns, parallel to edges "
                           "(len(charges) == len(edges)); (u,v,c) ≡ (v,u,−c); "
-                          "mutually exclusive with q")),
-            returns=R("Mat", "n × n complex Hermitian matrix — Mat, array('d') interleaved (re, im)"),
+                          "mutually exclusive with q"),
+                        P("exact", "bool", False,
+                          "keyword-only; rc466 (`#T1188`) — True returns list[list[Qi]] on the exact Gaussian-rational "
+                          "carrier: exact degrees, each phase the exact root of unity i**k — every turn whose reduced "
+                          "denominator is 1, 2 or 4 (the default q=1/4, q=0, q=1/2, the F1006 ±q quarter turn); any "
+                          "other rational turn is REFUSED by name (the message names the Qalg carrier over Phi_N that "
+                          "holds it), never rounded. Refuses a float weight / charge / q by name. Default False returns "
+                          "the complex Mat carrier, accurate to float64 round-off.")),
+            returns=R("Mat | list", "n × n complex Hermitian matrix — Mat, array('d') interleaved (re, im) by default, or exact rows of Qi with exact=True"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.quaternion_laplacian", owner="srmech",
@@ -1921,14 +1938,20 @@ def _register_primitive_class_tools() -> None:
                     "arXiv:math/0105155 §1.",
             parameters=(P("n", "int", True),
                         P("edges", "list[tuple[int, int]]", True),
-                        P("weights", "Optional[list[float]]", False),
-                        P("gains", "Optional[list[list[float]]]", False,
+                        P("weights", "Optional[list[int | Q | float]]", False),
+                        P("gains", "Optional[list[list[float]] | list[list[Q]]]", False,
                           "per-edge unit quaternions (4-vectors) parallel to "
                           "edges; default identity gain (1,0,0,0); normalised "
-                          "to Sp(1) via quaternion_norm")),
-            returns=R("Mat",
+                          "to Sp(1) via quaternion_norm (under exact=True a gain must be an exact "
+                          "4-vector with N(g) == 1 on the nose — no normalisation runs)"),
+                        P("exact", "bool", False,
+                          "keyword-only; rc466 (`#T1188`) — True returns the 4n×4n list[list[Q]]: L(g) is the "
+                          "exact left_mult_matrix, the conjugate cd_conjugate, every entry EXACT. Refuses a float "
+                          "weight, a float gain or a non-unit gain by name. Default False returns the Mat = "
+                          "array('d') carrier, accurate to float64 round-off.")),
+            returns=R("Mat | list",
                       "4n × 4n real-symmetric quaternion gain Laplacian "
-                      "— Mat, array('d') row-major"),
+                      "— Mat, array('d') row-major by default, or exact rows of Q with exact=True"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.octonion_laplacian", owner="srmech",
@@ -2021,16 +2044,21 @@ def _register_primitive_class_tools() -> None:
                     "byte-identical). Reff LAA 436 (2012), arXiv:1110.4554.",
             parameters=(P("n", "int", True),
                         P("edges", "list[tuple[int, int]]", True),
-                        P("weights", "Optional[list[float]]", False,
+                        P("weights", "Optional[list[int | Q | float]]", False,
                           "may be negative"),
                         P("gains", "Optional[list[int | tuple[int, int]]]",
                           False,
                           "per-edge V₄ gain parallel to edges — int 0..3 "
                           "(g1<<1|g0) or a 2-tuple (g0, g1); None → all "
-                          "identity (the four sectors coincide)")),
-            returns=R("dict[str, Mat]",
-                      "{'chi00','chi01','chi10','chi11'} → the four n×n "
-                      "real-symmetric PSD sector Laplacians"),
+                          "identity (the four sectors coincide)"),
+                        P("exact", "bool", False,
+                          "keyword-only; rc466 (`#T1188`) — True returns each sector as list[list[Q]] (signed_laplacian "
+                          "under ITS exact=True on the chi-transformed weights; chi is an integer, so EXACT). Refuses a "
+                          "float weight by name. Default False returns Mat = array('d') sectors, accurate to float64 round-off.")),
+            returns=R("dict[str, Mat] | dict[str, list]",
+                      "('chi00', 'chi01', 'chi10', 'chi11') → the four n×n "
+                      "real-symmetric PSD sector Laplacians — Mat by default, exact rows of Q with exact=True"),
+            composes=("srmech.math.laplacian.signed_laplacian",),   # rc466: four χ-sector builds through the one shipped builder
         ),
         ToolEntry(
             name="srmech.math.laplacian.klein4_relational_structure",
@@ -2052,10 +2080,21 @@ def _register_primitive_class_tools() -> None:
                         P("gains", "Optional[list[int | tuple[int, int]]]",
                           False, "per-edge V₄ gains (see klein4_gain_laplacian)"),
                         P("n", "Optional[int]", False,
-                          "node count; inferred from edges when None")),
+                          "node count; inferred from edges when None"),
+                        P("exact", "bool", False,
+                          "rc466 review fix: exact sectors "
+                          "(klein4_gain_laplacian exact=True) read with "
+                          "symmetric_eigendecompose(exact=True): tension / "
+                          "coherence are Qalg (a balanced sector's tension IS "
+                          "0), sector_asymmetry a certified (lo, hi) enclosure "
+                          "of exact Q — degenerate (lo == hi) when both mixed "
+                          "tensions are rational; a float weight is refused by "
+                          "name")),
             returns=R("dict",
                       "{'sectors', 'tension': {sector: λ_min}, 'coherence': "
-                      "{sector: λ₂}, 'sector_asymmetry': |Δ tension χ10,χ01|}"),
+                      "{sector: λ₂}, 'sector_asymmetry': |Δ tension χ10,χ01|}; "
+                      "with exact=True the tensions / coherences are Qalg and "
+                      "sector_asymmetry is a (Q lo, Q hi) enclosure"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.cycle_holonomy", owner="srmech",
@@ -2314,16 +2353,18 @@ def _register_primitive_class_tools() -> None:
                           "convention)"),
                         P("weights", "Optional[list[float]]", False,
                           "per-edge magnitudes; default 1.0 each"),
-                        P("fluxes", "float | Sequence[float]", True,
+                        P("fluxes", "float | Q | Sequence[int | Q | float]", True,
                           "total flux value(s) in turns; scalar → float, "
-                          "sequence → Vec"),
-                        P("charges", "Optional[list[float]]", False,
+                          "sequence → Vec. An EXACT flux (int / Q / [num, den]) with an exact charge pattern is "
+                          "reduced mod 1 per edge on the Q carrier BEFORE the single float lift (rc466, `#T1188`); "
+                          "a float flux is used as given"),
+                        P("charges", "Optional[list[int | Q | float]]", False,
                           "per-edge charge PATTERN (turns), parallel to "
                           "edges — scaled by each flux; default uniform "
                           "1/n_edges")),
             returns=R("float | Vec", "λ_min(Φ) — a float for scalar fluxes, "
                                      "a real Vec (one λ_min per Φ) for a "
-                                     "sequence"),
+                                     "sequence; the Hermitian Jacobi solver's λ_min, accurate to round-off (~1 ULP·n)"),
         ),
         # ────────────────────────────────────────────────────────────
         # rc136 (siona gh#1274) — EPH, the complex-time Wick-rotation
@@ -2588,8 +2629,17 @@ def _register_primitive_class_tools() -> None:
                     "Dispatches real→symmetric_eigendecompose, "
                     "complex→hermitian_eigendecompose (both native).",
             parameters=(P("matrix", "Mat", True,
-                          "n × n real-symmetric or complex-Hermitian Laplacian"),),
-            returns=R("Vec", "length-n λ₂ eigenvector — Vec, the array('d') 1-D carrier"),
+                          "n × n real-symmetric or complex-Hermitian Laplacian"),
+                        P("exact", "bool", False,
+                          "rc466 review fix: the λ₂ column of "
+                          "hermitian_eigendecompose(matrix, exact=True) — a "
+                          "list of n Qalg, the exact null-space vector of "
+                          "A − λ₂I over Q(λ₂), unnormalised; exact real "
+                          "symmetric operand required (a Qi with imaginary "
+                          "part is refused by name)")),
+            returns=R("Vec | list[Qalg]",
+                      "length-n λ₂ eigenvector — Vec, the array('d') 1-D carrier; "
+                      "list[Qalg] with exact=True"),
         ),
         # §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler —
         # the n-unbounded peer of fiedler_vector. Native standalone-C matvec
@@ -2881,9 +2931,19 @@ def _register_primitive_class_tools() -> None:
                     "graph — the package imports numpy nowhere). Sakurai "
                     "§2.1.5; Golub & Van Loan §8.5.",
             parameters=(P("H", "Mat", True,
-                          "n × n complex Hermitian matrix"),),
-            returns=R("tuple[Vec, Mat]",
-                      "(eigvals_ascending Vec, V_unitary complex Mat)"),
+                          "n × n complex Hermitian matrix"),
+                        P("exact", "bool", False,
+                          "rc466 review fix: an exact REAL operand (int / Q / "
+                          "Fraction, or Qi with zero imaginary part) takes "
+                          "symmetric_eigendecompose's exact route; a Qi entry with "
+                          "non-zero imaginary part is REFUSED by name (no shipped "
+                          "exact eigenvector carrier over Q(λ, i)); a float entry "
+                          "is refused, never rounded")),
+            returns=R("tuple[Vec, Mat] | tuple[list, list]",
+                      "(eigvals_ascending Vec, V_unitary complex Mat); with "
+                      "exact=True (list[Qalg] ascending with multiplicity, "
+                      "n×n nested list of Qalg whose columns are the exact "
+                      "unnormalised eigenvectors)"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.symmetric_eigendecompose",
@@ -2896,9 +2956,16 @@ def _register_primitive_class_tools() -> None:
                     "eigvals AND eigvecs (no ComplexWarning for a real "
                     "Laplacian). Golub & Van Loan §8.3.",
             parameters=(P("L", "Mat", True,
-                          "n × n real symmetric matrix"),),
-            returns=R("tuple[Vec, Mat]",
-                      "(eigvals_ascending Vec, V_orthogonal real Mat)"),
+                          "n × n real symmetric matrix"),
+                        P("exact", "bool", False, "rc466 review fix: route to the exact eigensolver (eig_exact — exact char-poly, irreducible factors, Sturm-isolated roots, exact null space over Q(λ)); the operand must be exact (int / Q / Fraction entries) and symmetric, a float entry is REFUSED by name. Opt-in: polynomial-factoring cost class, not Jacobi's")),
+            returns=R("tuple[Vec, Mat] | tuple[list, list]",
+                      "(eigvals_ascending Vec, V_orthogonal real Mat); with "
+                      "exact=True (list[Qalg] eigenvalues ascending WITH "
+                      "multiplicity — the order decided exactly by Sturm "
+                      "intervals, never the float embedding — and an n×n nested "
+                      "list of Qalg whose COLUMNS are the exact eigenvectors, "
+                      "each a null-space basis vector over its own eigenvalue's "
+                      "field, unnormalised)"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.mat_matmul",
@@ -3061,10 +3128,10 @@ def _register_primitive_class_tools() -> None:
             owner="srmech", category="laplacian",
             summary="Elementwise complex multiplication a * b (equal-shape; "
                     "shape-polymorphic — Mat in → Mat out, Vec in → Vec out).",
-            parameters=(P("a", "Mat | Vec", True, "Mat (2-D) or Vec (1-D) complex"),
-                        P("b", "Mat | Vec", True, "same-shape complex operand")),
-            returns=R("Mat | Vec",
-                      "Mat (2-D in) or Vec (1-D in), complex; rank-preserving"),
+            parameters=(P("a", "Mat | Vec | Sequence[int | Q]", True, "Mat (2-D) or Vec (1-D) complex, or a nested / flat sequence; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one (Qi leaves are exact too)"),
+                        P("b", "Mat | Vec | Sequence[int | Q]", True, "same-shape complex operand")),
+            returns=R("Mat | Vec | list[Qi] | list[list[Qi]]",
+                      "Mat (2-D in) or Vec (1-D in), complex, accurate to round-off; rank-preserving. For all-exact operands: list[Qi] (1-D) / list[list[Qi]] (2-D), the exact Gaussian-rational products (rc466, `#T1188`)"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.elementwise_transcendental",
@@ -3280,8 +3347,14 @@ def _register_primitive_class_tools() -> None:
             category="laplacian",
             summary="Harmonic-3 three-fold spectral reading (F150): partition the "
                     "eigenvectors of a real-symmetric Laplacian into low/mid/high.",
-            parameters=(P("L", "Mat", True, "real-symmetric matrix"),),
-            returns=R("dict", "low/mid/high eigenvector bands (each a real Mat)"),
+            parameters=(P("L", "Mat", True, "real-symmetric matrix"),
+                        P("exact", "bool", False,
+                          "rc466 review fix: the bands are column slices of "
+                          "symmetric_eigendecompose(L, exact=True)'s exact "
+                          "eigenvector matrix (each an (n, k) nested list of "
+                          "Qalg); exact symmetric operand required")),
+            returns=R("dict", "low/mid/high eigenvector bands (each a real Mat; "
+                              "each an (n, k) nested list of Qalg with exact=True)"),
         ),
         # ────────────────────────────────────────────────────────────
         # rc204 (gh#1324 / F1167–F1169) — the spectral SPINE + the
@@ -6637,38 +6710,38 @@ def _register_primitive_class_tools() -> None:
                     "the k=7 gauge ARITHMETIC triality is blind to (F271). M∘C "
                     "with a Class-K associator residue; NO new class. Baez 2002.",
             parameters=(
-                P("x", "HV", True, "power-of-two vector (dim 8 = octonion)"),
-                P("y", "HV", True, "same length as x"),
+                P("x", "HV | Sequence[int | Q]", True, "power-of-two vector (dim 8 = octonion); The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("y", "HV | Sequence[int | Q]", True, "same length as x"),
             ),
-            returns=R("list[float]", "the product x·y, same length"),
+            returns=R("list[float] | list[Q]", "the product x·y, same length — list[Q] (exact, srmech_cd_mult) for exact operands, list[float] (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.math.hdc.loop_conj", owner="srmech", category="hdc",
             summary="Octonion conjugate x̄ — negate the imaginary part, keep the "
                     "real anchor x[0]. The Class-C flip powering the unbind.",
-            parameters=(P("x", "HV", True, "power-of-two vector"),),
-            returns=R("list[float]", "conjugate, same length"),
+            parameters=(P("x", "HV | Sequence[int | Q]", True, "power-of-two vector; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
+            returns=R("list[float] | list[Q]", "conjugate, same length — list[Q] (exact) for an exact operand, list[float] (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.math.hdc.loop_inv", owner="srmech", category="hdc",
             summary="Moufang inverse x⁻¹ = x̄/⟨x,x⟩ — the unbind key; "
                     "loop_bind(x, loop_inv(x))=e₀. Class-K norm² gate, no abs().",
-            parameters=(P("x", "HV", True, "nonzero power-of-two vector"),),
-            returns=R("list[float]", "inverse, same length"),
+            parameters=(P("x", "HV | Sequence[int | Q]", True, "nonzero power-of-two vector; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
+            returns=R("list[float] | list[Q]", "inverse, same length — list[Q] (exact) for an exact operand, list[float] (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.math.hdc.loop_left_op", owner="srmech", category="hdc",
             summary="Left-multiplication operator L_a(x)=a·x (the (4:3) "
                     "ordering) as a dim×dim matrix. L_a≠R_a≠R_aᵀ.",
-            parameters=(P("a", "HV", True, "power-of-two vector"),),
-            returns=R("Mat", "dim×dim matrix"),
+            parameters=(P("a", "HV | Sequence[int | Q]", True, "power-of-two vector; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
+            returns=R("Mat | QMat", "dim×dim matrix — exact-Q QMat for an exact operand, float Mat (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.math.hdc.loop_right_op", owner="srmech", category="hdc",
             summary="Right-multiplication operator R_a(x)=x·a (the (3:4) mirror "
                     "ordering) as a dim×dim matrix.",
-            parameters=(P("a", "HV", True, "power-of-two vector"),),
-            returns=R("Mat", "dim×dim matrix"),
+            parameters=(P("a", "HV | Sequence[int | Q]", True, "power-of-two vector; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
+            returns=R("Mat | QMat", "dim×dim matrix — exact-Q QMat for an exact operand, float Mat (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.math.hdc.loop_associator", owner="srmech", category="hdc",
@@ -6676,11 +6749,11 @@ def _register_primitive_class_tools() -> None:
                     "loop bind (zero on a Fano line, nonzero off it = the "
                     "(4:3)|(3:4) boundary). =−([L_a,R_b]·c-style residue).",
             parameters=(
-                P("a", "HV", True, "power-of-two vector"),
-                P("b", "HV", True, "same length"),
-                P("c", "HV", True, "same length"),
+                P("a", "HV | Sequence[int | Q]", True, "power-of-two vector; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("b", "HV | Sequence[int | Q]", True, "same length"),
+                P("c", "HV | Sequence[int | Q]", True, "same length"),
             ),
-            returns=R("list[float]", "the associator, same length"),
+            returns=R("list[float] | list[Q]", "the associator, same length — list[Q] (exact) when all three operands are exact, list[float] (accurate to round-off) otherwise"),
         ),
         # ────────────────────────────────────────────────────────────
         # 7-D cross product + G₂ associative 3-form (v0.7.0rc2 / MS #21 #813).
@@ -6693,10 +6766,10 @@ def _register_primitive_class_tools() -> None:
                     "M (bind) ∘ C (imaginary-part ordering). Identity "
                     "‖x×y‖²=‖x‖²‖y‖²−⟨x,y⟩². Baez 2002 §4.",
             parameters=(
-                P("x", "HV", True, "power-of-two vector (dim 8 = octonion)"),
-                P("y", "HV", True, "same length as x"),
+                P("x", "HV | Sequence[int | Q]", True, "power-of-two vector (dim 8 = octonion); The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("y", "HV | Sequence[int | Q]", True, "same length as x"),
             ),
-            returns=R("list[float]", "x×y, same length (e₀ component zero)"),
+            returns=R("list[float] | list[Q]", "x×y, same length (e₀ component zero) — list[Q] (exact) for exact operands, list[float] (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.math.hdc.g2_three_form", owner="srmech", category="hdc",
@@ -6705,11 +6778,11 @@ def _register_primitive_class_tools() -> None:
                     "7 Fano associative 3-planes, 0 on the other 28 triples. "
                     "(M∘C)∘⟨·,·⟩ contraction (Class-L/M). Harvey–Lawson 1982.",
             parameters=(
-                P("x", "HV", True, "power-of-two vector"),
-                P("y", "HV", True, "same length"),
-                P("z", "HV", True, "same length"),
+                P("x", "HV | Sequence[int | Q]", True, "power-of-two vector; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("y", "HV | Sequence[int | Q]", True, "same length"),
+                P("z", "HV | Sequence[int | Q]", True, "same length"),
             ),
-            returns=R("float", "the 3-form value (scalar)"),
+            returns=R("float | Q", "the 3-form value (scalar) — an exact Q for exact operands, a float (accurate to round-off) otherwise"),
         ),
         # ────────────────────────────────────────────────────────────
         # Block-octonion HD tiling (v0.7.0rc4 / MS #21 #811). Direct sum of
@@ -6724,10 +6797,10 @@ def _register_primitive_class_tools() -> None:
                     "bind (capacity-free, #812). M over a direct-sum tile; no new "
                     "class. F289.",
             parameters=(
-                P("x", "HV", True, "length = positive multiple of 8"),
-                P("y", "HV", True, "same length as x"),
+                P("x", "HV | Sequence[int | Q]", True, "length = positive multiple of 8; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("y", "HV | Sequence[int | Q]", True, "same length as x"),
             ),
-            returns=R("list[float]", "the block-wise product, same length"),
+            returns=R("list[float] | list[Q]", "the block-wise product, same length — list[Q] (exact) for exact operands, list[float] (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.math.hdc.loop_unbind_hd", owner="srmech", category="hdc",
@@ -6736,10 +6809,10 @@ def _register_primitive_class_tools() -> None:
                     "(conj(a)·(a·v)=v by alternativity). Class-K clean; no abs(). "
                     "F289.",
             parameters=(
-                P("a", "HV", True, "length = positive multiple of 8"),
-                P("b", "HV", True, "same length as a"),
+                P("a", "HV | Sequence[int | Q]", True, "length = positive multiple of 8; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("b", "HV | Sequence[int | Q]", True, "same length as a"),
             ),
-            returns=R("list[float]", "the unbound vector, same length"),
+            returns=R("list[float] | list[Q]", "the unbound vector, same length — list[Q] (exact) for exact operands, list[float] (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.math.hdc.loop_conj_hd", owner="srmech", category="hdc",
@@ -6749,9 +6822,9 @@ def _register_primitive_class_tools() -> None:
                     "silently wrong on an HD block vector; this is per-block. "
                     "Class C; no new class. F-§12.1.",
             parameters=(
-                P("x", "HV", True, "length = positive multiple of 8"),
+                P("x", "HV | Sequence[int | Q]", True, "length = positive multiple of 8; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
             ),
-            returns=R("list[float]", "the per-block conjugate, same length"),
+            returns=R("list[float] | list[Q]", "the per-block conjugate, same length — list[Q] (exact) for an exact operand, list[float] (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.math.hdc.loop_inv_hd", owner="srmech", category="hdc",
@@ -6761,9 +6834,9 @@ def _register_primitive_class_tools() -> None:
                     "wrong on an HD block vector; this is per-block. Class-K "
                     "clean (per-block norm² gate, no abs()). F-§12.1.",
             parameters=(
-                P("x", "HV", True, "length = positive multiple of 8"),
+                P("x", "HV | Sequence[int | Q]", True, "length = positive multiple of 8; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
             ),
-            returns=R("list[float]", "the per-block inverse, same length"),
+            returns=R("list[float] | list[Q]", "the per-block inverse, same length — list[Q] (exact) for an exact operand, list[float] (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.math.hdc.loop_runbind_hd", owner="srmech", category="hdc",
@@ -6774,10 +6847,10 @@ def _register_primitive_class_tools() -> None:
                     "Right-division for a left-fold sequence store. Class-K "
                     "clean; no abs(). F-§12.2.",
             parameters=(
-                P("a", "HV", True, "length = positive multiple of 8"),
-                P("b", "HV", True, "same length as a"),
+                P("a", "HV | Sequence[int | Q]", True, "length = positive multiple of 8; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("b", "HV | Sequence[int | Q]", True, "same length as a"),
             ),
-            returns=R("list[float]", "the right-unbound vector, same length"),
+            returns=R("list[float] | list[Q]", "the right-unbound vector, same length — list[Q] (exact) for exact operands, list[float] (accurate to round-off) otherwise"),
         ),
         # ────────────────────────────────────────────────────────────
         # Class K ∘ L composition — signed-sum coupling score (v0.4.3rc3).
@@ -9986,8 +10059,8 @@ def _register_primitive_class_tools() -> None:
                     "autocorrelation chain's Σ step names a registered op — "
                     "the SAME body the shipped fallback calls."
                     + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("values", "list[float]", True),),
-            returns=R("float", "the compensated sum"),
+            parameters=(P("values", "list[float] | list[Q]", True, "The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
+            returns=R("float | Q", "the compensated sum — an exact Q for exact values (the compensation term is then identically zero), a float otherwise"),
             smoke_test_hint={"values": "[1e10, 1.0, -1e10, 2.0]"},
         ),
         ToolEntry(
@@ -10001,9 +10074,9 @@ def _register_primitive_class_tools() -> None:
                     "n index arrives from the registered Class-I mod_add; the "
                     "iteration lives in the chain's indexed-map layer."
                     + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("x", "list[float]", True),
+            parameters=(P("x", "list[float] | list[Q]", True, "The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
                         P("i", "int", True), P("j", "int", True)),
-            returns=R("float", "float(x[i]) * float(x[j])"),
+            returns=R("float | Q", "x[i] * x[j] — an exact Q for two exact leaves, float(x[i]) * float(x[j]) (accurate to round-off) otherwise"),
             smoke_test_hint={"x": "[1.0, -2.0, 3.0]", "i": "0", "j": "2"},
         ),
         ToolEntry(
@@ -10032,8 +10105,11 @@ def _register_primitive_class_tools() -> None:
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(P("theta", "list[float]", True),
                         P("i", "int", True), P("j", "int", True)),
-            returns=R("Q", "sin(theta[j] - theta[i]) as an EXACT rational — the "
-                           "Class-N sin returns Q, not a float. Declared float "
+            returns=R("Q", "the Q61 rational sine (denominator 2**61) of the "
+                           "FLOAT64 difference theta[j] - theta[i]: exact for "
+                           "that rounded argument, not for an exact phase — a "
+                           "54-bit phase is rounded at the entry (rc466 "
+                           "accuracy note on the op, `#T1188`). Declared float "
                            "through rc430; measured by invocation at rc430 "
                            "repair (`#T1127`)."),
             smoke_test_hint={"theta": "[0.1, 2.0]", "i": "0", "j": "1"},
@@ -10105,8 +10181,9 @@ def _register_primitive_class_tools() -> None:
                     "would silently leak ℍ). The per-sample coercion step of "
                     "quaternion_dft, public so the declared chain's coercion "
                     "map names a registered op." + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("v", "sequence", True, "4- or ℍ-valued 8-vector"),),
-            returns=R("list[float]", "the 4-component sample"),
+            parameters=(P("v", "list[float] | list[Q]", True, "4- or ℍ-valued 8-vector; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
+            returns=R("list[float] | list[Q]", "the 4-component sample — list[Q] (exact, via cd_project) for an exact operand, list[float] otherwise"),
+            composes=("srmech.cascade.cd_project",),   # rc466: the exact arm's 8->4 realification
             smoke_test_hint={"v": "[1.0, 2.0, 3.0, 4.0]"},
         ),
         ToolEntry(
@@ -10117,8 +10194,9 @@ def _register_primitive_class_tools() -> None:
                     "per-sample coercion step of octonion_dft, public so the "
                     "declared chain's coercion map names a registered op."
                     + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("vec", "sequence", True, "4- or 8-component"),),
-            returns=R("list[float]", "the 8-component sample"),
+            parameters=(P("vec", "list[float] | list[Q]", True, "4- or 8-component; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
+            returns=R("list[float] | list[Q]", "the 8-component sample — list[Q] (exact, via cd_promote) for an exact operand, list[float] otherwise"),
+            composes=("srmech.cascade.cd_promote",),   # rc466: the exact arm's zero-extension
             smoke_test_hint={"vec": "[1.0, 2.0, 3.0, 4.0]"},
         ),
         ToolEntry(
@@ -10183,13 +10261,13 @@ def _register_primitive_class_tools() -> None:
                     "Pointwise and total — the k/m iteration lives in the "
                     "chain's indexed-map layer, never in here."
                     + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("xs", "list[list[float]]", True, "coerced samples"),
+            parameters=(P("xs", "list[list[float]] | list[list[Q]]", True, "coerced samples; the leaves of xs[m] select the carrier (rc466, `#T1188`): an exact sample rides cd_mult with the Q61 twiddle, a float one the C-mirrored float route"),
                         P("k", "int", True), P("m", "int", True),
                         P("n", "int", True, "len(xs), fixed at entry"),
                         P("left", "bool", True, "twiddle side"),
                         P("sigma", "int", True, "the dft_sigma convention"),
                         P("mu_hat", "list[float]", True, "resolved unit axis")),
-            returns=R("list[float]", "the 4-component summand for bin k"),
+            returns=R("list[float] | list[Q]", "the 4-component summand for bin k — list[Q] for an exact sample (exact when k*m == 0 mod n, else on the 2**-61 Q61 grid), list[float] (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.cascade.odft_summand", owner="srmech",
@@ -10203,7 +10281,7 @@ def _register_primitive_class_tools() -> None:
                     "INSIDE this op instance as a descriptor-static branch; "
                     "the shipped path CALLS this op since rc420). Pointwise "
                     "and total." + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("xs", "list[list[float]]", True, "coerced samples"),
+            parameters=(P("xs", "list[list[float]] | list[list[Q]]", True, "coerced samples; the leaves of xs[m] select the carrier (rc466, `#T1188`)"),
                         P("k", "int", True), P("m", "int", True),
                         P("n", "int", True),
                         P("form", "str", True, "left | right | two_sided"),
@@ -10213,7 +10291,7 @@ def _register_primitive_class_tools() -> None:
                         P("mu_hat", "list[float]", True),
                         P("mu_r_hat", "list[float]", True,
                           "right axis (two-sided; ignored one-sided)")),
-            returns=R("list[float]", "the 8-component summand for bin k"),
+            returns=R("list[float] | list[Q]", "the 8-component summand for bin k — list[Q] for an exact sample (exact when k*m == 0 mod n, else on the 2**-61 Q61 grid), list[float] (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.cascade.kuramoto_step", owner="srmech",
@@ -10449,10 +10527,10 @@ def _register_primitive_class_tools() -> None:
                     "Numpy-free end to end: pure cascade over the "
                     "octonion tables." + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("streams", "sequence", True,
+                P("streams", "list[float] | list[Q]", True,
                   "≤3 reals → quaternion imag carrier; 4–7 → octonion imag; a "
                   "length-4/8 sequence is a literal quaternion/octonion (feeds back "
-                  "in to unbind)"),
+                  "in to unbind). The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
                 P("axis", "str", False,
                   "coupling axis μ: 'diagonal' (default) | 'i'|'j'|'k'|'ijk' | a unit "
                   "pure-imaginary vector. A single named axis carries, not couples"),
@@ -10462,9 +10540,9 @@ def _register_primitive_class_tools() -> None:
                 P("form", "str", False, "'left' (T·q) or 'right' (q·T); default 'left'"),
                 P("inverse", "bool", False, "flip the effective sign (≡ toggling sigma); default False"),
             ),
-            returns=R("list[float]",
+            returns=R("list[float] | list[Q]",
                       "the coupled value — a 4-component quaternion (≤3 streams) or "
-                      "8-component octonion"),
+                      "8-component octonion; list[Q] on the Q61 grid (2**-61; exact at theta=0) for exact streams, list[float] (accurate to round-off) otherwise"),
         ),
         # Literal exp(μθ) unit hypercomplex twiddle (v0.9.0rc10; F882, srmech #205).
         # Registered FLAT as srmech.cascade.hypercomplex_exp; native C peer
@@ -14538,15 +14616,15 @@ def _register_primitive_class_tools() -> None:
                     "coupler's sign is Class-K ∘ Class-C). Class M ∘ C ∘ N."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("vals", "sequence", True,
-                  "≤ min(dim,8)−1 real streams to fold into the working word"),
+                P("vals", "list[float] | list[Q]", True,
+                  "≤ min(dim,8)−1 real streams to fold into the working word; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
                 P("dim", "int", False,
                   "register rung (power of two in [1, 256]); sets the cap. Default 8 "
                   "(the octonion working word, cap 7)"),
             ),
-            returns=R("list[float]",
+            returns=R("list[float] | list[Q]",
                       "the coupled working word — a 4-component quaternion (≤3 "
-                      "streams) or 8-component octonion (4–7 streams); [] if empty"),
+                      "streams) or 8-component octonion (4–7 streams); [] if empty. list[Q] on the Q61 grid for exact vals, list[float] (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.cascade.cd_uncouple_working", owner="srmech",
@@ -14561,13 +14639,13 @@ def _register_primitive_class_tools() -> None:
                     "tolerance. Composes hypercomplex_couple; no abs(). Class M ∘ C ∘ N."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("word", "sequence", True,
+                P("word", "list[float] | list[Q]", True,
                   "a coupled working word (4-component quaternion / 8-component "
-                  "octonion) from cd_couple_working"),
+                  "octonion) from cd_couple_working; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
             ),
-            returns=R("list[float]",
+            returns=R("list[float] | list[Q]",
                       "the recovered streams (the carrier's imaginary slots); [] if "
-                      "empty"),
+                      "empty. list[Q] for an exact word (the Q61 twiddle-norm residue is then an exact Q — bit-exact recovery only at theta=0), list[float] (accurate to round-off) otherwise"),
         ),
         ToolEntry(
             name="srmech.cascade.cd_carry", owner="srmech",
@@ -14804,13 +14882,13 @@ def _register_primitive_class_tools() -> None:
                     "ValueError on a register built for pure addressing — the gate "
                     "is the point, not an accident." + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("vals", "list[float]", True,
-                  "the streams to bind; at most min(dim, 8) − 1 of them"),
+                P("vals", "list[float] | list[Q]", True,
+                  "the streams to bind; at most min(dim, 8) − 1 of them. The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
                 P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
                 P("coupling", "bool", True,
                   "the register's OPT-layer-1 gate; False/None RAISES"),
             ),
-            returns=R("list[float]", "the reversible working word"),
+            returns=R("list[float] | list[Q]", "the reversible working word — list[Q] on the Q61 grid for exact vals, list[float] (accurate to round-off) otherwise"),
             smoke_test_hint={"vals": "[1.5, -2.25, 3.0]", "dim": "16",
                              "coupling": "True"},
         ),
@@ -14822,12 +14900,12 @@ def _register_primitive_class_tools() -> None:
                     "bound streams bit-exactly (Class-M unbind). RAISES ValueError on "
                     "a register built for pure addressing." + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("word", "list[float]", True, "a reversible working word"),
+                P("word", "list[float] | list[Q]", True, "a reversible working word; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
                 P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
                 P("coupling", "bool", True,
                   "the register's OPT-layer-1 gate; False/None RAISES"),
             ),
-            returns=R("list[float]", "the recovered streams"),
+            returns=R("list[float] | list[Q]", "the recovered streams — list[Q] for an exact word (bit-exact only at theta=0; the Q61 twiddle-norm residue is exact), list[float] (accurate to round-off) otherwise"),
             smoke_test_hint={
                 "word": ("__import__('srmech').cascade.cdr_couple_working("
                          "[1.5, -2.25, 3.0], 16, True)"),
@@ -15367,9 +15445,9 @@ def _register_primitive_class_tools() -> None:
                     "flip mid-clause; the role tag is stored via Class-M hdc.bind "
                     "for unbindability. No new primitive class. F573/F577; #928 "
                     "W18." + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("streams", "sequence", True,
+            parameters=(P("streams", "list[list[float]] | list[list[Q]]", True,
                           "N equal-length real-valued sequences (the steering "
-                          "waves; ideally each a coupled_wave bearing)"),
+                          "waves; ideally each a coupled_wave bearing). The LEAVES select the driver's carrier (rc466, `#T1188`): all-exact streams give an exact-Q driver (roundrobin/pickbest SELECT a leaf unchanged; superpose sums and normalises on Q), one float anywhere a float64 one"),
                         P("mode", "str", False,
                           "'roundrobin' (default) | 'superpose' (real "
                           "interference sum + renorm) | 'pickbest' (max-magnitude "
@@ -15378,7 +15456,7 @@ def _register_primitive_class_tools() -> None:
                           "optional N clause-role labels e.g. ('S','V','O'); role "
                           "k steers clause-slot k, tagged via Class-M hdc.bind")),
             returns=R("dict",
-                      "{driver (the single recombined steering wave), mode, "
+                      "{driver (the single recombined steering wave — list[Q] for all-exact streams, list[float] accurate to round-off otherwise), mode, "
                       "n_streams, length, roles, role_bound (clause-slot tagging "
                       "when roles given), layer}"),
         ),
@@ -15617,8 +15695,8 @@ def _register_qm_tools() -> None:
             category="qm.single_particle",
             summary="Pure-state density matrix ρ = |ψ⟩⟨ψ|. "
                     "von Neumann (1932); Sakurai §3.4.",
-            parameters=(P("psi", "Vec", True, "(n,)"),),
-            returns=R("Mat", "(n, n) Hermitian PSD"),
+            parameters=(P("psi", "Vec | Sequence[int | Q]", True, "(n,); The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one (Qi leaves are exact too)"),),
+            returns=R("Mat | QMat | list[list[Qi]]", "(n, n) Hermitian PSD — exact-Q QMat for a real-exact psi, rows of exact Qi for a Gaussian-exact psi, float Mat (accurate to round-off) otherwise (rc466, `#T1188`)"),
         ),
         ToolEntry(
             name="srmech.physics.qm.single_particle.liouville_evolve", owner="srmech",
@@ -15693,8 +15771,8 @@ def _register_qm_tools() -> None:
             category="qm.bell",
             summary="Spectral norm max|λ_i| of a Hermitian matrix via Class L "
                     "hermitian_eigendecompose. Golub & Van Loan §8.5.",
-            parameters=(P("H", "Mat", True, "Hermitian square"),),
-            returns=R("float", "largest absolute eigenvalue"),
+            parameters=(P("H", "Mat | QMat | Sequence[Sequence[int | Q]]", True, "Hermitian square; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one (Qi leaves are exact too)"),),
+            returns=R("float | Q", "largest absolute eigenvalue — an exact-route Q accurate to 2**-64 (eigvals_exact isolating intervals) for an exact H, a float accurate to round-off (~1e-15, Jacobi) otherwise (rc466, `#T1188`)"),
         ),
         ToolEntry(
             name="srmech.physics.qm.bell.chsh_pauli_combination_norm", owner="srmech",
@@ -15852,8 +15930,8 @@ def _register_qm_tools() -> None:
             name="srmech.physics.qm.relativistic.four_momentum_squared", owner="srmech",
             category="qm.relativistic",
             summary="Lorentz-invariant k² = k_μ k^μ (mostly-minus convention).",
-            parameters=(P("k", "Vec", True, "4-vector"),),
-            returns=R("float", "may be negative for spacelike k"),
+            parameters=(P("k", "Vec | Sequence[int | Q]", True, "4-vector; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
+            returns=R("float | Q", "may be negative for spacelike k — an exact Q for an exact 4-vector (the form is a polynomial), a float accurate to round-off otherwise (rc466, `#T1188`)"),
         ),
 
         # ────────────────────────────────────────────────────────────
@@ -15864,7 +15942,7 @@ def _register_qm_tools() -> None:
             owner="srmech", category="qm.propagators",
             summary="Scalar Feynman propagator G_F(k²) = i / (k² − m² + iε). "
                     "Feynman (1949); Peskin-Schroeder §4.2.",
-            parameters=(P("k_squared", "float", True),
+            parameters=(P("k_squared", "float | Q", True, "k² — a float, or the exact Q four_momentum_squared returns for an exact 4-vector (rc466)"),
                         P("m", "float", True, "≥ 0"),
                         P("epsilon", "float", False, "iε regulator")),
             returns=R("complex", ""),
@@ -15884,7 +15962,7 @@ def _register_qm_tools() -> None:
             owner="srmech", category="qm.propagators",
             summary="Photon Feynman propagator D^{μν}(k) = -i g^{μν}/k² (Feynman "
                     "gauge); ξ-gauge with explicit k. Peskin-Schroeder §4.8.",
-            parameters=(P("k_squared", "float", True),
+            parameters=(P("k_squared", "float | Q", True, "k² — a float, or the exact Q four_momentum_squared returns for an exact 4-vector (rc466)"),
                         P("gauge_xi", "float", False, "default 0 ⇒ Feynman"),
                         P("epsilon", "float", False),
                         P("k", "Optional[Vec]", False)),
@@ -15909,9 +15987,9 @@ def _register_qm_tools() -> None:
             category="qm.pseudo_hermitian",
             summary="η-deformed inner product ⟨a|b⟩_η = a^† η b. "
                     "Mostafazadeh (2002).",
-            parameters=(P("a", "Vec", True), P("b", "Vec", True),
-                        P("eta", "Mat", True)),
-            returns=R("complex", ""),
+            parameters=(P("a", "Vec | Sequence[int | Q]", True, "The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one (Qi leaves are exact too)"), P("b", "Vec | Sequence[int | Q]", True),
+                        P("eta", "Mat | QMat | Sequence[Sequence[int | Q]]", True, "n × n; a QMat / exact rows take the exact route with exact a and b")),
+            returns=R("complex | Qi", "a^† η b — an exact Qi when a, b and eta are all exact, complex (accurate to round-off) otherwise (rc466, `#T1188`)"),
         ),
         ToolEntry(
             name="srmech.physics.qm.pseudo_hermitian.expectation_eta", owner="srmech",
@@ -16409,9 +16487,9 @@ def _register_qm_tools() -> None:
                     "= the Class-N rational atan2 (Q61 atan cascade, quadrant in "
                     "exact rational space, projected once — no libm). Class K∘N∘C. "
                     "Same-rc C peer srmech_quaternion_log (byte-exact).",
-            parameters=(P("q", "HV", True, "4-vector quaternion (typically unit)"),),
-            returns=R("list[float]",
-                      "pure-imaginary log [0, θ·v̂₁, θ·v̂₂, θ·v̂₃]"),
+            parameters=(P("q", "HV | Sequence[int | Q]", True, "4-vector quaternion (typically unit); The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
+            returns=R("list[float] | list[Q]",
+                      "pure-imaginary log [0, θ·v̂₁, θ·v̂₂, θ·v̂₃] — list[Q] for an exact operand (an exact ROUTE: ‖v‖ exact on the dyadic grid else 2**-54 relative, θ the Q61 atan2 of a round-off-rounded ratio, the direction exact), list[float] (accurate to round-off) otherwise (rc466, `#T1188`)"),
         ),
         ToolEntry(
             name="srmech.physics.qm.quaternion.quaternion_slerp", owner="srmech",
@@ -18878,9 +18956,9 @@ def _register_closed_form_path_a_tools() -> None:
                 P("hop_size", "Optional[int]", False,
                   "samples advanced between frames; None means frame_size // 2 "
                   "(50 percent overlap)"),
-                P("window", "list[float]", False,
+                P("window", "list[float] | list[Q]", False,
                   "per-sample taper of length frame_size; None means a "
-                  "Hann window"),
+                  "Hann window (a float64 taper). An integer window over an integer signal gives an exact frame (rc466, `#T1188`)"),
                 _D,
             ),
             returns=R("list",
@@ -19024,7 +19102,7 @@ def _register_closed_form_path_a_tools() -> None:
                 "scaling that keeps the transform energy-preserving)."
             ),
             parameters=(
-                P("signal", "list", True, "real 1-D array-like"),
+                P("signal", "list[float] | list[Q]", True, "real 1-D array-like; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
                 P("levels", "int", False,
                   "how many times to recurse on the approximation band; "
                   "default 3"),
@@ -19034,7 +19112,7 @@ def _register_closed_form_path_a_tools() -> None:
             ),
             returns=R("tuple",
                       "the coarsest approximation band followed by the detail "
-                      "bands, finest last"),
+                      "bands, finest last — Qalg leaves over Q(sqrt 2) (exact; .to_float() on request) for an exact signal, float64 accurate to round-off otherwise (rc466, `#T1188`)"),
             composes=("srmech.math.rational.sqrt",
                       "srmech.math.laplacian.mat_matvec"),
             preserves=_DISC,
@@ -19086,16 +19164,16 @@ def _register_closed_form_path_a_tools() -> None:
                 "with Class C (the recursive streaming orientation)."
             ),
             parameters=(
-                P("signal", "list", True, "input signal, 1-D array-like"),
-                P("b", "list", True, "feedforward (numerator) coefficients"),
-                P("a", "list", True,
+                P("signal", "list[float] | list[Q]", True, "input signal, 1-D array-like; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("b", "list[float] | list[Q]", True, "feedforward (numerator) coefficients"),
+                P("a", "list[float] | list[Q]", True,
                   "feedback (denominator) coefficients; a[0] normalises"),
-                P("biquad_sections", "list[list[float]]", False,
+                P("biquad_sections", "list[list[float]] | list[list[Q]]", False,
                   "optional second-order sections, applied in cascade instead "
                   "of the flat b / a pair"),
                 _D,
             ),
-            returns=R("list", "the filtered signal, same length as the input"),
+            returns=R("list", "the filtered signal, same length as the input — exact (Q leaves; integers when a[0] == 1) when signal, b and a are all exact, float64 accurate to round-off (~1 ULP) otherwise (rc466, `#T1188`)"),
             preserves=_DISC,
         ),
         ToolEntry(
@@ -19731,16 +19809,16 @@ def _register_closed_form_path_a_tools() -> None:
                 "work removed; reach for that one at scale."
             ),
             parameters=(
-                P("signal", "list", True, "input signal, 1-D array-like"),
+                P("signal", "list[float] | list[Q]", True, "input signal, 1-D array-like; with up == down == 1 returned AS GIVEN; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
                 P("up", "int", False, "interpolation factor; default 1"),
                 P("down", "int", False, "decimation factor; default 1"),
-                P("filter_taps", "list[float]", False,
+                P("filter_taps", "list[float] | list[Q]", False,
                   "the shared anti-imaging / anti-aliasing filter; None means "
-                  "a windowed-sinc design is generated"),
+                  "a windowed-sinc design is generated (float64 by nature — supply integer taps for an exact result)"),
                 _D,
             ),
-            returns=R("list[float]",
-                      "the resampled signal, at up / down times the input rate"),
+            returns=R("list",
+                      "the resampled signal, at up / down times the input rate — exact (int / Q leaves) for an exact signal with exact caller-supplied taps, float64 accurate to round-off otherwise (rc466, `#T1188`)"),
             composes=("srmech.math.rational.sin",
                       "srmech.math.rational.cos"),
             preserves=_DISC,
@@ -19760,15 +19838,15 @@ def _register_closed_form_path_a_tools() -> None:
                 "assignment). RELATION: same values as multirate, restructured."
             ),
             parameters=(
-                P("signal", "list", True, "input signal, 1-D array-like"),
-                P("filter_taps", "list", True,
+                P("signal", "list[float] | list[Q]", True, "input signal, 1-D array-like; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("filter_taps", "list[float] | list[Q]", True,
                   "the prototype filter to decompose"),
                 P("L", "int", False, "number of polyphase branches; default 2"),
                 P("mode", "str", False,
                   "'decimation' (default) or 'interpolation'"),
                 _D,
             ),
-            returns=R("list", "the resampled signal"),
+            returns=R("list", "the resampled signal — exact (int / Q leaves, the pure cascade on BOTH projections) for exact signal and taps, float64 accurate to round-off (~1 ULP, the c_dispatched Toeplitz matvec) otherwise (rc466, `#T1188`)"),
             preserves=_DISC,
         ),
         ToolEntry(
@@ -19787,12 +19865,12 @@ def _register_closed_form_path_a_tools() -> None:
                 "ideal-bandlimited peer, exact but not cheaply retunable."
             ),
             parameters=(
-                P("signal", "list", True, "input signal, 1-D array-like"),
-                P("mu", "float", False,
-                  "fractional delay in samples, 0.0 to 1.0; default 0.0"),
+                P("signal", "list[float] | list[Q]", True, "input signal, 1-D array-like; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("mu", "float | Q", False,
+                  "fractional delay in samples, 0 to 1; default the exact 0. An exact mu (int / Q / [num, den]) with an exact signal takes the exact route"),
                 _D,
             ),
-            returns=R("list", "the signal resampled at the fractional offset"),
+            returns=R("list", "the signal resampled at the fractional offset — exact (int / Q leaves) for an exact signal and mu, float64 accurate to round-off otherwise (rc466, `#T1188`)"),
             composes=("srmech.math.laplacian.mat_matvec",),
             preserves=_DISC,
         ),
@@ -19822,7 +19900,10 @@ def _register_closed_form_path_a_tools() -> None:
                 _D,
             ),
             returns=R("list",
-                      "the reconstructed values, one per target index"),
+                      "the reconstructed values, one per target index — "
+                      "float64 complex, accurate to round-off: the sinc kernel "
+                      "is transcendental at every non-integral offset (rc466 "
+                      "accuracy note on the op, `#T1188`)"),
             composes=("srmech.math.laplacian.mat_matvec",),
             preserves=_DISC,
         ),

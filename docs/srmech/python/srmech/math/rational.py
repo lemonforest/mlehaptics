@@ -1576,6 +1576,20 @@ def _q61_fxmul(a: int, b: int) -> int:
     return -mag if neg else mag                     # Class-C re-orientation
 
 
+#: The Q61 octant reduction's range (rc466, `#T1188`): ``_q61_reduce`` loses
+#: octant bits at ``|x| >= 2**55`` (``e >= 3`` for a 53-bit significand), and the
+#: scalar C peers ``srmech_cos_q61`` / ``srmech_sin_q61`` return status 2 there.
+#: :func:`cos` / :func:`sin` refuse at this bound BEFORE either projection runs,
+#: with one exception text, so the refusal is carrier-independent: through rc465
+#: the native branch raised ``"srmech_cos_q61: argument has no Q61 rational
+#: (status 2)"`` — a message that did not name the argument — while the pure
+#: cascade's did, and ``recover_check::charges`` read INSENSITIVE native /
+#: DEMOTED pure on nothing but that difference. The array kernel's own copy of
+#: the defect (a silently returned ``0.0``) is guarded at
+#: ``srmech.math.laplacian._q61_trig_range_refuse``, which imports this bound.
+Q61_TRIG_RANGE = 2.0 ** 55
+
+
 def _q61_reduce(x: float):
     """Integer cyclic octant reduction (mirror ``trig_reduce``).
 
@@ -2089,6 +2103,8 @@ def cos(x: float, *, precision: int | None = None) -> "Q":
         raise ValueError("cos: x must be finite (Q is the finite-rational carrier)")
     if precision is not None:
         return _trig_reference(x, precision, "cos")
+    if (x if x >= 0.0 else -x) >= Q61_TRIG_RANGE:   # rc466: one refusal, both cells
+        raise ValueError(f"cos: |x| too large for the Q61 octant reduction; got {x}")
     if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
         return _q(_native.cos_q61_c(x), _Q61_ONE)
     ok, octant, r = _q61_reduce(x)
@@ -2112,6 +2128,8 @@ def sin(x: float, *, precision: int | None = None) -> "Q":
         raise ValueError("sin: x must be finite (Q is the finite-rational carrier)")
     if precision is not None:
         return _trig_reference(x, precision, "sin")
+    if (x if x >= 0.0 else -x) >= Q61_TRIG_RANGE:   # rc466: one refusal, both cells
+        raise ValueError(f"sin: |x| too large for the Q61 octant reduction; got {x}")
     if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
         return _q(_native.sin_q61_c(x), _Q61_ONE)
     ok, octant, r = _q61_reduce(x)

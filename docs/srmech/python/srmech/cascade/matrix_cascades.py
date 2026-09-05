@@ -518,18 +518,13 @@ def _exact_leaf(v):
     elected, so it stays on the float carrier even though it happens to be
     integral. ``int`` / ``Q`` / any ``numerator``-``denominator`` pair
     (``fractions.Fraction`` and peers) is exact; nothing else is.
+
+    rc466 (`#T1188`): the body IS :func:`srmech.math.q.exact_scalar` with
+    ``pair=False`` — the ONE reader every carrier-admission site now imports.
+    The ``pair=False`` is this gate's contract kept verbatim: on the einsum
+    admission gate a 2-tuple is a SHAPE, not a scalar.
     """
-    if isinstance(v, bool):
-        return Q(int(v), 1)
-    if isinstance(v, int):
-        return Q(v, 1)
-    if isinstance(v, Q):
-        return v
-    num = getattr(v, "numerator", None)
-    den = getattr(v, "denominator", None)
-    if isinstance(num, int) and isinstance(den, int) and not isinstance(v, float):
-        return Q(num, den)
-    return None
+    return _exact_scalar(v, pair=False)
 
 
 def _exact_nd(op):
@@ -936,6 +931,48 @@ def _char_poly_float(rows: List[List[complex]], n: int) -> List[complex]:
     return coeffs
 
 
+def _exact_rational_rows(a):
+    """The EXACT-ℚ reading of a square operand as ``list[list[Q]]``, or ``None``
+    when any entry is a float / complex (the genuinely continuous carrier).
+    rc466 (`#T1188`): the admission gate of the rational pre-scale below."""
+    rows = a.to_lists() if hasattr(a, "to_lists") else (
+        a.tolist() if hasattr(a, "tolist") else [list(r) for r in a])
+    out = []
+    for r in rows:
+        v = _exact_vector(r, pair=False)
+        if v is None:
+            return None
+        out.append(v)
+    return out
+
+
+def _rational_prescale(rows_q):
+    """``(c, B)`` with ``c`` the LCM of every denominator and ``B = c·A`` an
+    INTEGER matrix (rc466, `#T1188`) — the Class-N pre-scale that makes the
+    exact integer eigen-cascade reach a RATIONAL matrix:
+
+        det(xI − A) = c^{−n}·det((cx)I − B)   ⟹   c_k(A) = c_k(B) / c^k,
+        λ(B) = c·λ(A)                          ⟹   an isolating interval of B
+                                                    divided by c isolates A.
+
+    ``c == 1`` when every entry is already an integer (then ``B`` is ``A``)."""
+    c = 1
+    for r in rows_q:
+        for q in r:
+            d = q.denominator
+            g = _gcd_int(c, d)
+            c = c // g * d
+    B = [[int((q * c).numerator) for q in r] for r in rows_q]
+    return c, B
+
+
+def _gcd_int(a: int, b: int) -> int:
+    """Euclid on non-negative ints (no ``math.gcd`` import — Class I)."""
+    while b:
+        a, b = b, a % b
+    return a
+
+
 def char_poly(a) -> List:
     """Exact integer characteristic polynomial ``det(xI - A)`` (Faddeev–LeVerrier).
 
@@ -973,6 +1010,20 @@ def char_poly(a) -> List:
                 break
         if not real_integer:
             break
+    if not real_integer:
+        # rc466 (`#T1188`): a RATIONAL matrix stays exact. Through rc465 a
+        # single ``Q(1, 2)`` entry fell to ``_char_poly_float`` — while
+        # ``jacobi_eigvals(exact=True)``'s docstring promised "every entry an
+        # int / fractions.Fraction / srmech Q" and then RAISED on it. The
+        # Class-N pre-scale ``B = c·A`` (``c`` = LCM of the denominators) runs
+        # the integer recursion on ``B`` and divides ``c_k`` by ``c^k``; the
+        # coefficients come back as exact ``Q``.
+        rows_q = _exact_rational_rows(rows)
+        if rows_q is not None:
+            c, B = _rational_prescale(rows_q)
+            native = _native.char_poly_int_c(B)
+            coeffs_b = native if native is not None else _char_poly_int(B, n)
+            return [Q(int(ck), c ** k) for k, ck in enumerate(coeffs_b)]
     if real_integer:
         A = [[int(v.real) if hasattr(v, "real") else int(v) for v in r] for r in rows]
         # rc161 (Qalg TAIL Batch 5): the integer char-poly dispatches to
@@ -1138,6 +1189,8 @@ def separate_frame_curvature(a, b):
 # the eigenvalues come out exact-to-arbitrary-precision and well-conditioned.
 
 from srmech.math.q import Q, to_q  # noqa: E402  (`#T845`: exact-ℚ, was Fraction)
+from srmech.math.q import exact_scalar as _exact_scalar  # noqa: E402  rc466 (`#T1188`): the ONE exact reader
+from srmech.math.q import exact_vector as _exact_vector  # noqa: E402  rc466
 
 
 def _FR(num, den=1):
@@ -1604,6 +1657,18 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     **Class K** (the ℚ box/interval pin-slots) ∘ **Class N** (the rational
     refinement anchors).
     """
+    # rc466 (`#T1188`): a RATIONAL matrix is pre-scaled to the INTEGER matrix
+    # B = c·A (c = LCM of the denominators), isolated there — the C kernel
+    # ``srmech_sturm_isolate`` takes an integer char-poly — and every isolating
+    # interval / certified box is divided by c on the way out (λ(B) = c·λ(A)).
+    # Through rc465 a rational entry silently fell to a FLOAT char-poly and
+    # then RAISED at ``to_q`` — under a docstring that promised Q entries.
+    _scale = 1
+    _rows_q = _exact_rational_rows(a)
+    if _rows_q is not None:
+        _scale, _B = _rational_prescale(_rows_q)
+        if _scale != 1:
+            a = _B
     cp = char_poly(a)                                # monic, high→low
     p = [_FR(c) for c in reversed(cp)]               # low→high over ℚ
     # rc162 (Qalg TAIL Batch 6): the real-eigenvalue isolation dispatches to
@@ -1624,6 +1689,8 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
                 for _ in range(mult):
                     eigs.append((lo, hi))
     eigs.sort(key=lambda iv: iv[0] + iv[1])
+    if _scale != 1:                                   # rc466: undo the pre-scale
+        eigs = [(_FR(lo) / _scale, _FR(hi) / _scale) for (lo, hi) in eigs]
     # ``return_intervals`` yields the exact real isolating intervals; it applies to
     # the real spectrum only (a complex root is a box, not an interval), so it is
     # honoured solely on the real-only path and ignored when include_complex=True.
@@ -1650,7 +1717,8 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     # no-native fallback). The shared sort by (re, im) fixes the order on both paths.
     native_c = _native.complex_isolate_c(cp, bits) if _native.HAS_NATIVE else None
     if native_c is not None:
-        certified: List[complex] = [complex(float(re), float(im))
+        certified: List[complex] = [complex(float(_FR(re) / _scale),
+                                            float(_FR(im) / _scale))
                                     for (re, im) in native_c]
     else:
         # MIRROR THE REAL PATH: isolate the complex roots PER SQUARE-FREE FACTOR.
@@ -1684,8 +1752,10 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
                     f"{want_upper_factor}")
             for z in upper_roots:
                 for _ in range(mult):                 # mirror the real path's mult
-                    certified.append(complex(z.real, z.imag))
-                    certified.append(complex(z.real, -z.imag))   # conjugate
+                    zr = z.real / _scale              # rc466: undo the pre-scale
+                    zi = z.imag / _scale
+                    certified.append(complex(zr, zi))
+                    certified.append(complex(zr, -zi))   # conjugate
                 certified_upper += mult
         # Reconcile the summed per-factor multiplicities with the char-poly count.
         if certified_upper != want_upper:
@@ -3706,18 +3776,24 @@ def lll_reduce(basis, delta=(3, 4)):
 def eig_exact(a, *, bits: int = 64, project: bool = True):
     """Turnkey EXACT eigensolver — a matrix → ALL its exact eigenpairs (rc-F).
 
-    ⚠️ **``a`` must be INTEGER-VALUED** (the entries may ride as ``int`` / ``Q`` /
-    ``fractions.Fraction``, but each must equal an integer). Measured at the
-    rc463 fix pass: ``eig_exact([[Fraction(1,2), 0], [0, 1]])`` raises
-    ``TypeError: int() argument … not 'complex'`` from inside
-    :func:`factor_integer_poly`, because the chain starts at :func:`char_poly`,
-    whose own contract says a non-integer matrix falls back to a FLOAT
-    Faddeev–LeVerrier, and the factoring step cannot take complex coefficients.
-    :func:`eigvec_exact`, :func:`eigvec_exact_float` and
-    :func:`jordan_chains_exact` DO accept a genuinely rational matrix — they
-    take ``λ`` directly and never route through ``char_poly`` — which is why
-    the limit is stated per op instead of once for the family. The prose here
-    said "integer/rational" until it was executed.
+    **``a`` is an INTEGER or RATIONAL square matrix** (entries ``int`` / ``Q`` /
+    ``fractions.Fraction``; a float / complex entry is outside the exact
+    contract). rc466 review fix (`#T1188`): a genuinely rational matrix rides
+    the same Class-N pre-scale :func:`eigvals_exact` took at rc466 Stage 1 —
+    ``B = c·A`` with ``c`` the LCM of the denominators is INTEGER, its
+    eigenpairs are ``(c·λ, v)`` with the SAME eigenvectors, and every
+    eigenvalue is divided by ``c`` on the way out, exactly, inside its own
+    field (``ℚ(cλ) = ℚ(λ)``). Two consequences a caller can read: each entry
+    then carries ``"denominator_scale": c`` (absent when ``c == 1``, so the
+    integer contract is byte-identical), and ``"min_poly"`` is the minimal
+    polynomial of ``c·λ`` — the ``Qalg`` carrier takes a MONIC integer ``m``,
+    and ``λ`` itself need not be an algebraic integer. Through the rc466
+    Stage-3 head a rational entry reached ``int(c)`` on the char-poly
+    coefficients — TRUNCATION — and the wrong polynomial then failed inside
+    :func:`eigvec_exact` with *"A − λI is non-singular"* (measured on
+    ``[[Q(1,2), 0], [0, 1]]``); the rc463 note that stood here recorded the
+    ``TypeError`` of the pre-Stage-1 tree, which the pre-scale in
+    :func:`char_poly` had already turned into that silent truncation.
 
     Chains the rotation-last exact machinery into one call:
     ``char_poly(a)`` → Yun square-free → :func:`factor_integer_poly` (the
@@ -3765,14 +3841,23 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
     ``jordan_blocks`` + ``generalized_vectors`` (the latter as ``list[list[Qalg]]``).
 
     **SELF-VALIDATION** (asserted before returning — this is what catches a
-    factorisation bug): (a) ``Σ algebraic_multiplicity == n`` AND the FULL
-    generalized basis has exactly ``n`` vectors (the complete-basis guarantee);
-    (b) the eigenvalue multiset (with algebraic multiplicity) reconstructs the monic
-    char-poly (``Π (x − value_k) ≈`` char-poly to ~1e-7, numeric); (c) every returned
-    ``(value, vector)`` satisfies ``A·vector ≈ value·vector`` to ~1e-9, AND the full
-    generalized basis ``P`` (all eigenvalues' chains together) satisfies
-    ``A·P ≈ P·J`` to ~1e-9 where ``J`` is the Jordan form. A clear ``ValueError`` is
-    raised on any failure (it means an upstream bug).
+    factorisation bug), **EXACT since the rc466 review fix** (`#T1188`): (a)
+    ``Σ algebraic_multiplicity == n`` AND the FULL generalized basis has exactly
+    ``n`` vectors (the complete-basis guarantee); (b) the irreducible factors
+    with their multiplicities reconstruct the monic char-poly as an INTEGER
+    polynomial identity ``Π m_i^{mult_i} == char_poly`` (exact ``_ipoly_mul``,
+    no float); (c) every geometric eigenvector satisfies ``A·v == λ·v`` over
+    ``Qalg``, componentwise, and every Jordan chain satisfies
+    ``(A − λI)·chain[k] == chain[k−1]`` with ``(A − λI)·chain[0] == 0`` — the
+    complete relation ``A·P == P·J`` read chain by chain, exactly. Through the
+    rc466 Stage-3 head (b) and (c) were FLOAT read-outs with ABSOLUTE
+    tolerances (``1e-7`` / ``1e-9``), and they refused ``[[2**53+1, 1], [1, 0]]``
+    — a legitimate integer operand whose spectrum spans ``2**106`` — as a
+    "factorisation bug": the float lift of an exact eigenvector coordinate is a
+    Horner evaluation at a float root and CANCELS at that scale, so the
+    instrument could not hold the operand it was asked to certify. An exact
+    identity is the only measurement of an exact claim. A clear ``ValueError``
+    is raised on any failure (it means an upstream bug).
 
     **Class L** (the spectral content) ∘ **Class J** (the irreducible-factor
     substrate) ∘ **Class N** (the exact ℚ(λ) field arithmetic) ∘ **Class K** (the
@@ -3797,6 +3882,25 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
     if any(len(r) != n for r in rows):
         raise ValueError(f"eig_exact: a must be square 2-D; got {n}x{len(rows[0])}")
 
+    # rc466 review fix (`#T1188`): a RATIONAL matrix is pre-scaled to the
+    # INTEGER matrix B = c·A (c = LCM of the denominators), solved there, and
+    # every eigenvalue is divided by c on the way out — exactly, in its own
+    # field (λ(B) = c·λ(A); the eigenvectors are shared). Through the Stage-3
+    # head a Q entry reached `int(c)` on the char-poly coefficients below —
+    # truncation — and eigvec_exact then refused the wrong λ.
+    _rows_q = _exact_rational_rows(rows)
+    if _rows_q is not None:
+        _scale, _B = _rational_prescale(_rows_q)
+        if _scale != 1:
+            scaled = eig_exact(_B, bits=bits, project=project)
+            for e in scaled:
+                e["denominator_scale"] = _scale
+                if project:
+                    e["value"] = e["value"] / _scale
+                else:
+                    e["value_qalg"] = e["value_qalg"] / _scale
+            return scaled
+
     cp = char_poly(a)                                # monic, high→low
     cp_low = [int(c) for c in reversed(cp)]          # low→high integer coeffs
 
@@ -3804,6 +3908,7 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
     irr_factors = factor_integer_poly(cp_low)        # [(m_i low→high tuple, alg_mult)]
 
     eigenpairs: List[dict] = []
+    _order_iv: dict = {}                             # id(λ) -> [chain, lo, hi] (real roots)
     for (m_tuple, alg_mult) in irr_factors:
         m_low = list(m_tuple)                        # primitive irreducible, low→high
         # make m monic over ℤ (it must be — char-poly is monic, factors of a monic
@@ -3818,9 +3923,21 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
         # complex — the embeddings for the Qalg projection. We build a tiny companion
         # of m and reuse eigvals_exact's exact isolation on it.
         roots = _roots_of_irreducible(m_low, bits)
+        # rc466 review fix (`#T1188`): the REAL roots also carry their exact
+        # Sturm-isolating intervals (ascending, the same order as `roots`), so
+        # the eigenpairs can be ORDERED exactly below instead of by the float
+        # embedding, which ties on eigenvalues closer than float resolution.
+        real_ivs = _real_root_intervals_of_irreducible(m_low, bits)
+        m_chain = _sturm_chain([_FR(c) for c in m_low])
+        n_real_seen = 0
 
         for root in roots:
             lam = Qalg.alpha(m_int, root=root)
+            is_real_root = not (isinstance(root, complex) and root.imag != 0)
+            if is_real_root:
+                _order_iv[id(lam)] = [m_chain, real_ivs[n_real_seen][0],
+                                      real_ivs[n_real_seen][1]]
+                n_real_seen += 1
             res = eigvec_exact(a, lam)               # list[Qalg] or list[list[Qalg]]
             if res and isinstance(res[0], list):
                 basis = res                          # geometric mult > 1
@@ -3833,8 +3950,20 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
             # equals the geometric basis (existing behaviour); for a DEFECTIVE λ this
             # is the full μ-many basis. Chains are bottom→top (bottom = geometric).
             chains, block_sizes = jordan_chains_exact(a, lam)
+            # (c) EXACT over Qalg (rc466 review fix, `#T1188`): every geometric
+            # eigenvector satisfies A·v == λ·v, and every chain satisfies
+            # (A − λI)·chain[k] == chain[k−1] with the bottom annihilated — the
+            # complete relation A·P == P·J, read chain by chain, with no float.
+            for vec in basis:
+                _eig_exact_check_relation(rows, lam, vec, None)
+            for chain in chains:
+                prev = None
+                for vec in chain:
+                    _eig_exact_check_relation(rows, lam, vec, prev)
+                    prev = vec
             gen_qalg = [vec for chain in chains for vec in chain]  # flatten by chain
             entry = {
+                "_lam": lam,
                 "min_poly": m_int,
                 "algebraic_multiplicity": alg_mult,
                 "geometric_multiplicity": geom,
@@ -3858,16 +3987,29 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
                 entry["generalized_vectors"] = gen_qalg
             eigenpairs.append(entry)
 
-    # deterministic order: by (value real, value imag) when projected, else by the
-    # isolated root carried on the Qalg.
-    def _sort_key(e):
-        if project:
-            v = e["value"]
-            return (v.real, v.imag)
-        r = e["value_qalg"].root
-        rc = complex(r)
+    # Deterministic order (rc466 review fix, `#T1188`): the REAL eigenvalues are
+    # ordered EXACTLY — each carries its own Sturm-isolating interval, and two
+    # intervals that overlap are refined against their own irreducible factors
+    # until they separate (two distinct algebraic numbers always do) — and the
+    # complex eigenvalues follow, by the float (re, im) of their certified box.
+    # Through the Stage-3 head the whole order was the float embedding's, which
+    # TIES on eigenvalues closer than float resolution: measured,
+    # eig_exact([[2**60+2, 0], [0, 2**60+1]]) returned the LARGER first.
+    real_pairs = [e for e in eigenpairs if id(e["_lam"]) in _order_iv]
+    complex_pairs = [e for e in eigenpairs if id(e["_lam"]) not in _order_iv]
+    real_pairs = _order_real_eigenpairs_exact(real_pairs, _order_iv)
+
+    def _float_key(e):
+        rc = complex(e["_lam"].root)
         return (rc.real, rc.imag)
-    eigenpairs.sort(key=_sort_key)
+    # The historic global (re, im) order is kept where it was RIGHT: a stable
+    # sort by the float key over the exactly-ordered reals cannot invert two
+    # reals (float rounding is monotone), and only re-interleaves the complex
+    # pairs among them by (re, im) as before.
+    eigenpairs = real_pairs + complex_pairs
+    eigenpairs.sort(key=_float_key)
+    for e in eigenpairs:
+        del e["_lam"]
 
     # ── SELF-VALIDATION ──────────────────────────────────────────────────────────
     # (a) Σ algebraic_multiplicity == n AND the FULL generalized basis is n-many.
@@ -3887,118 +4029,99 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
             f"{total_gen} vectors != n = {n} — the Jordan-chain construction is "
             "incomplete (upstream bug)")
 
-    # the float/complex eigenvalue list (with algebraic multiplicity) for (b)/(c).
-    if project:
-        eval_list = [(e["value"], e["algebraic_multiplicity"]) for e in eigenpairs]
-    else:
-        eval_list = []
-        for e in eigenpairs:
-            lam = e["value_qalg"]
-            r = lam.root
-            val = (lam.to_complex() if (isinstance(r, complex) and r.imag != 0)
-                   else complex(lam.to_float(), 0.0))
-            eval_list.append((val, e["algebraic_multiplicity"]))
-
-    # (b) Π (x − value_k)^mult ≈ monic char-poly (numeric, ~1e-7).
-    recon = [1.0 + 0j]                               # low→high complex poly
-    for (val, mlt) in eval_list:
-        for _ in range(mlt):
-            # multiply by (x − val): shift up minus val·current.
-            nxt = [0j] * (len(recon) + 1)
-            for i, c in enumerate(recon):
-                nxt[i] += -val * c
-                nxt[i + 1] += c
-            recon = nxt
-    cp_monic_low = [complex(c) for c in reversed(cp)]  # monic char-poly low→high
-    if len(recon) != len(cp_monic_low):
+    # (b) EXACT (rc466 review fix, `#T1188`): the irreducible factors with their
+    # multiplicities reconstruct the monic char-poly as an INTEGER identity.
+    # Through the Stage-3 head this was Π(x − float value) against the float
+    # coefficients at an ABSOLUTE 1e-7, which refused [[2**53+1, 1], [1, 0]].
+    recon_int = [1]
+    for (m_tuple, alg_mult) in irr_factors:
+        for _ in range(alg_mult):
+            recon_int = _ipoly_mul(recon_int, list(m_tuple))
+    if _ipoly_trim(recon_int) != _ipoly_trim(list(cp_low)):
         raise ValueError(
-            "eig_exact self-validation (b) FAILED: reconstructed degree "
-            f"{len(recon) - 1} != char-poly degree {len(cp_monic_low) - 1}")
-    for i in range(len(recon)):
-        if _modulus(recon[i] - cp_monic_low[i]) > 1e-7:
-            raise ValueError(
-                "eig_exact self-validation (b) FAILED: Π(x − value) does not "
-                f"reconstruct the char-poly at coeff {i} "
-                f"({recon[i]!r} vs {cp_monic_low[i]!r}) — factorisation bug")
-
-    # (c) A·vector ≈ value·vector to ~1e-9 for every returned (value, vector).
-    af = [[complex(rows[i][j]) for j in range(n)] for i in range(n)]
-    for e in eigenpairs:
-        if project:
-            val = e["value"]
-            vecs = [e["vector"]]
-        else:
-            lam = e["value_qalg"]
-            r = lam.root
-            val = (lam.to_complex() if (isinstance(r, complex) and r.imag != 0)
-                   else complex(lam.to_float(), 0.0))
-            real_root = not (isinstance(r, complex) and r.imag != 0)
-            vecs = [[(c.to_complex() if not real_root else complex(c.to_float(), 0.0))
-                     for c in vec] for vec in e["vectors_qalg"]]
-        for vec in vecs:
-            for i in range(n):
-                lhs = sum(af[i][j] * complex(vec[j]) for j in range(n))
-                rhs = val * complex(vec[i])
-                if _modulus(lhs - rhs) > 1e-9:
-                    raise ValueError(
-                        "eig_exact self-validation (c) FAILED: A·v != λ·v at "
-                        f"component {i} for eigenvalue {val!r} "
-                        f"({lhs!r} vs {rhs!r}) — eigenvector bug")
-
-    # rc27 (c') the FULL generalized basis P satisfies A·P ≈ P·J (the complete
-    # Jordan relation, defective or not): build P (columns = each eigenvalue's
-    # generalized vectors, chain by chain) and J (the Jordan matrix — λ on the
-    # diagonal, a super-diagonal 1 WITHIN each chain) in float/complex, then check
-    # ‖A·P − P·J‖∞ ≤ ~1e-9. (For project=False the Qalg columns are projected here;
-    # eig_exact's float check is the rotation-last read-out of the exact relation
-    # jordan_chains_exact already asserted bit-exactly over Qalg.)
-    cols: List[List[complex]] = []                       # P columns (n-vectors)
-    jblocks: List[Tuple[complex, int]] = []              # (λ, chain_len) per chain
-    for e in eigenpairs:
-        if project:
-            val = e["value"]
-            gv = [[complex(c) for c in vec] for vec in e["generalized_vectors"]]
-            sizes = e["jordan_blocks"]
-        else:
-            lam = e["value_qalg"]
-            r = lam.root
-            val = (lam.to_complex() if (isinstance(r, complex) and r.imag != 0)
-                   else complex(lam.to_float(), 0.0))
-            real_root = not (isinstance(r, complex) and r.imag != 0)
-            gv = [[(c.to_complex() if not real_root else complex(c.to_float(), 0.0))
-                   for c in vec] for vec in e["generalized_vectors"]]
-            sizes = e["jordan_blocks"]
-        # the generalized_vectors are laid out chain-by-chain (bottom→top); slice
-        # them back into the chains so J gets a super-diagonal 1 only WITHIN a chain.
-        off = 0
-        for s in sizes:
-            for k in range(s):
-                cols.append(gv[off + k])
-            jblocks.append((val, s))
-            off += s
-    if len(cols) == n:                                   # (defensive — (a) ensures it)
-        # J: block-diagonal Jordan, columns/rows in the same chain-by-chain order as P.
-        J = [[0j] * n for _ in range(n)]
-        pos = 0
-        for (val, s) in jblocks:
-            for k in range(s):
-                J[pos + k][pos + k] = val
-                if k + 1 < s:                            # super-diagonal 1 within chain
-                    J[pos + k][pos + k + 1] = 1.0 + 0j
-            pos += s
-        # P has the generalized vectors as COLUMNS: P[i][col] = cols[col][i].
-        # Check A·P ≈ P·J columnwise: (A·P)[:,c] = A·cols[c]; (P·J)[:,c] = Σ_k P[:,k]·J[k][c].
-        for c in range(n):
-            ap = [sum(af[i][j] * cols[c][j] for j in range(n)) for i in range(n)]
-            pj = [sum(cols[k][i] * J[k][c] for k in range(n)) for i in range(n)]
-            for i in range(n):
-                if _modulus(ap[i] - pj[i]) > 1e-9:
-                    raise ValueError(
-                        "eig_exact self-validation (c') FAILED: A·P != P·J at "
-                        f"row {i}, column {c} ({ap[i]!r} vs {pj[i]!r}) — Jordan-form "
-                        "bug")
+            "eig_exact self-validation (b) FAILED: Π m_i^mult_i does not "
+            f"reconstruct the char-poly ({recon_int!r} vs {cp_low!r}) — "
+            "factorisation bug")
+    # (c) / (c') ran EXACTLY inside the per-eigenvalue loop above
+    # (_eig_exact_check_relation on every geometric vector and every chain).
 
     return eigenpairs
+
+
+def _eig_exact_check_relation(rows, lam, vec, prev) -> None:
+    """``(A − λI)·vec == prev`` EXACTLY over ``Qalg`` (``prev is None`` means the
+    zero vector — the eigen-relation ``A·v == λ·v``). rc466 review fix
+    (`#T1188`): the one exact instrument :func:`eig_exact` self-validates with;
+    ``rows`` entries are the operand's own ``int`` / ``Q`` scalars, coerced into
+    the field by ``Qalg.__mul__``."""
+    n = len(rows)
+    for i in range(n):
+        acc = None
+        for j in range(n):
+            term = vec[j] * rows[i][j]
+            acc = term if acc is None else acc + term
+        lhs = acc - lam * vec[i]
+        expect_zero = prev is None
+        ok = (not lhs) if expect_zero else (lhs == prev[i])
+        if not ok:
+            raise ValueError(
+                "eig_exact self-validation (c) FAILED: (A − λI)·v != "
+                f"{'0' if expect_zero else 'next-down'} at component {i} "
+                f"for eigenvalue {lam!r} — eigenvector / Jordan-chain bug")
+
+
+def _real_root_intervals_of_irreducible(m_low: List[int], bits: int) -> List[Tuple]:
+    """The exact Sturm-isolating ``(lo, hi)`` intervals of the REAL roots of a
+    monic irreducible integer polynomial ``m`` (low→high), ascending — the same
+    order :func:`_roots_of_irreducible` lists its real roots in. A degree-1
+    ``m`` is its single rational root, returned as the degenerate ``(r, r)``.
+    rc466 review fix (`#T1188`): the carrier of the exact eigenvalue ORDER in
+    :func:`eig_exact`."""
+    m_low = _ipoly_trim(m_low)
+    if len(m_low) == 2:
+        r = _FR(-m_low[0])
+        return [(r, r)]
+    ivs = _isolate_real_roots([_FR(c) for c in m_low], bits)
+    ivs.sort(key=lambda iv: iv[0] + iv[1])
+    return ivs
+
+
+def _order_real_eigenpairs_exact(pairs: List[dict], order_iv: dict) -> List[dict]:
+    """Sort ``pairs`` (eig_exact entries whose ``_lam`` is a REAL root) by the
+    exact value of the eigenvalue. ``order_iv[id(lam)] = [sturm_chain, lo, hi]``
+    is the root's own isolating interval; two roots of DIFFERENT irreducible
+    factors are distinct numbers, so bisecting the wider interval against its
+    factor (the Class-K pin-slot split of :func:`_isolate_real_roots`) until the
+    two are disjoint always terminates. Two roots of the SAME factor are already
+    disjoint (they were isolated together). No float anywhere."""
+    def _refine(iv) -> None:
+        chain, lo, hi = iv
+        mid = (lo + hi) / 2
+        if _sturm_V(chain, lo) - _sturm_V(chain, mid) == 1:
+            iv[2] = mid
+        else:
+            iv[1] = mid
+
+    def _less(a: dict, b: dict) -> bool:
+        ia = order_iv[id(a["_lam"])]
+        ib = order_iv[id(b["_lam"])]
+        while not (ia[2] < ib[1] or ib[2] < ia[1]):      # overlapping: refine
+            wa = ia[2] - ia[1]
+            wb = ib[2] - ib[1]
+            if wa == 0 and wb == 0:
+                raise ValueError(
+                    "eig_exact: two eigenvalues carry the same exact rational "
+                    "root under different irreducible factors (internal bug)")
+            _refine(ia if wa >= wb else ib)
+        return ia[2] < ib[1]
+
+    out: List[dict] = []
+    for e in pairs:                                     # insertion sort, stable
+        k = len(out)
+        while k > 0 and _less(e, out[k - 1]):
+            k -= 1
+        out.insert(k, e)
+    return out
 
 
 def _roots_of_irreducible(m_low: List[int], bits: int) -> List:
