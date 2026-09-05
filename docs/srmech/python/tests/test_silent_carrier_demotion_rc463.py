@@ -96,7 +96,11 @@ have shipped blind to their own subject (`#T1136`, `#T1138`, `#T1182`, and the
     ``matrix_cascades.svd`` is documented at its delegate); a keyword in an
     unrelated sentence reads as declared (a false negative). Do NOT "simplify"
     the delegation follow — it was added because running the gate without it
-    red-flagged a correctly-documented op.
+    red-flagged a correctly-documented op. rc466 (`#T1188`) MEASURED the false
+    negative: ``odft_summand`` read as declared on *"not a tolerance"* — a
+    negation the keyword reader cannot see (``tools/demotion_probe.py``
+    disclosure 9; pinned as an instrument fact in
+    ``tests/test_declared_inexactness_rc466.py``).
 
     ⚠️ **And through rc464 it resolved that delegate as ``getattr(_la, name)``**
     — hard-wired to ``srmech.math.laplacian``. So Layer 3 was not merely

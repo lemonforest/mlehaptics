@@ -680,6 +680,24 @@ def kuramoto_sin_term(theta: Sequence[float], i: int, j: int) -> float:
     ``float()`` is idempotent on the pre-coerced phases). Pointwise and
     total; the all-to-all ``(i, j)`` iteration lives in the chain's
     indexed-map combinator layer.
+
+    **Accuracy (rc466, `#T1188`).** ``theta[i]`` and ``theta[j]`` are read as
+    float64 (``float(theta[.])``) and the difference ``theta[j] - theta[i]`` is
+    formed in float64 BEFORE the sine is taken, so a phase whose significand
+    exceeds 53 bits is rounded **to round-off** (~1 ULP of the phase) at the
+    entry — an exact ``int`` / ``Q`` phase is NOT carried exactly:
+    ``kuramoto_sin_term([2**53+1, 0], 0, 1)`` equals
+    ``kuramoto_sin_term([2**53, 0], 0, 1)``. The returned ``Q`` is the Q61
+    rational sine of that float64 difference (:func:`srmech.math.rational.sin`,
+    denominator ``2**61``): exact for the rounded argument, not for the exact
+    rational one. There is no exact route: ``rational.sin`` reads its argument
+    as float64 by its own contract (a ``Q`` argument is rounded inside it — the
+    scalar-parameter blind spot ``tools/demotion_probe.py`` records),
+    ``sin_series_truncate`` is a partial sum with no argument reduction, and no
+    shipped carrier reduces a rational phase modulo 2π (π is not rational). The
+    float-op order is kept because the C compose-host twin
+    (``srmech_compose_run.c``) and :func:`kuramoto_step`'s fallback are pinned
+    to it byte-for-byte.
     """
     return _rsin(float(theta[j]) - float(theta[i]))
 

@@ -129,6 +129,22 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     this of the whole ``hdc`` family; rc465 measured it false — ``loop_conj``,
     ``loop_bind``, ``loop_inv``, ``loop_left_op`` and ``loop_right_op`` take
     float sequences and round P.
+ 8. **SCALAR parameters are never probed** (rc466, `#T1188`). :func:`probe_op`
+    enumerates SEQUENCE-shaped registry parameters only, so an op that rounds an
+    exact SCALAR operand is outside the census by construction. Measured:
+    ``srmech.math.rational.sin(Q(2**53+1, 1)) == rational.sin(2**53)`` — the Q61
+    cascade reads its argument as float64 by its own contract — and this probe
+    emits NO row for it. ``kuramoto_sin_term`` is DECLARED on exactly that fact;
+    the scalar class itself is unratcheted here, and a scalar-parameter probe is
+    a different instrument (its witness is a value, not a leaf position).
+ 9. **The keyword list cannot read NEGATION** (rc466, `#T1188`; the measured
+    instance of blind spot 5's false negative). ``odft_summand`` counted as
+    DECLARED through rc465 on the phrase *"(the byte-exact parity contract, not
+    a tolerance)"* — the token ``tolerance`` inside a sentence denying it, on a
+    row that was in substance undeclared. rc466 replaced that op's words with a
+    declaration; the reader is deliberately unchanged, because a negation-aware
+    reader is a different instrument, and "simplifying" this one is how the
+    delegate follow's blind spot came to be invisible in rc463.
 
 numpy-free. No ``abs()`` — a sign is a Class-K pin-slot branch composed with
 Class C. No stdlib ``fractions``.

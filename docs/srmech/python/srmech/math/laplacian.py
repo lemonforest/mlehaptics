@@ -121,6 +121,7 @@ from srmech.math.rational import exp as _rexp  # Class-N exp cascade, not libm
 from srmech.math.rational import cos as _rcos  # Class-N cos cascade, not libm
 from srmech.math.rational import sin as _rsin  # Class-N sin cascade, not libm
 from srmech.math.rational import log as _rlog  # Class-N log cascade, not libm
+from srmech.math.rational import Q61_TRIG_RANGE as _Q61_TRIG_RANGE  # rc466: one bound, imported
 from srmech.math.rational import atan2 as _ratan2  # Class-N atan2 cascade, not libm
 from srmech.math.rational import complex_exp as _rcomplex_exp  # Class-N e^z, not libm
 from srmech.math.rational import exp_series_truncate as _exp_series  # rc136 EPH: Class-N exp
@@ -291,6 +292,17 @@ def three_fold_eigvec_groups(L) -> dict:
     Jacobi eigenbasis is non-unique): native == pure agree on the band SIZES
     (exact) and the per-band SPAN, not element-wise — the rc146 so7 / rc152
     ``casimir_eigenvalue`` invariant precedent. No new C symbol.
+
+    **Accuracy (rc466, `#T1188`).** The three bands are column slices of
+    :func:`symmetric_eigendecompose`'s eigenvector matrix: ``L`` is projected to
+    float64 at the entry and every column is Jacobi-iterated **to round-off**
+    (~1 ULP·n), never exact; only the band SIZES are exact. The census witness
+    that demoted this row (``[[1, 2**53+1], [0, 1]]``, the probe's leaf-``[0,1]``
+    perturbation of the identity) is NON-symmetric and outside the precondition,
+    and the native and pure Jacobi return DIFFERENT vectors for it; the entry
+    projection is real regardless — the eigenvalue witness of the same entry
+    shows it. Exact eigenvectors: ``eig_exact`` / ``eigvec_exact`` over
+    ``Qalg``.
     """
     _eigvals, V = symmetric_eigendecompose(L)  # V real Mat, columns = eigenvectors
     n_rows = V.n_rows
@@ -1934,6 +1946,25 @@ def hermitian_eigendecompose(H):
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed.,
     Johns Hopkins, 2013) §8.5 (Hermitian eigendecomposition via
     unitary Jacobi rotations).
+
+    **Accuracy (rc466, `#T1188`).** ``H`` is projected onto the ``Mat`` float64
+    carrier at the entry (``complex(v)`` per entry), so an exact entry wider
+    than 53 significand bits is rounded before the first rotation runs —
+    ``hermitian_eigendecompose([[2**53+1, 0], [0, 0]])`` returns the eigenvalue
+    ``9007199254740992.0``. Eigenvalues and eigenvectors are then a
+    cyclic-Jacobi ITERATIVE approximation (the pure cascade stops at an
+    off-diagonal norm of ``1e-12``), **accurate to round-off** (~1 ULP·n),
+    never exact: a rotation basis is a tower of square roots and cannot reach
+    an irreducible-cubic eigenvalue (:func:`jacobi_eigvals` proves it at
+    n = 3), and the ``Vec`` / ``Mat`` return carriers are ``array('d')`` by
+    contract. The exact spectrum is a DIFFERENT cascade shipped under its own
+    name — ``jacobi_eigvals(H, exact=True)`` /
+    :func:`srmech.cascade.matrix_cascades.eigvals_exact`
+    (``return_intervals=True`` keeps the exact ``Q`` isolating intervals); exact
+    eigenvectors are :func:`srmech.cascade.matrix_cascades.eig_exact` (integer
+    matrices) / ``eigvec_exact`` (rational, over ``Qalg``). Wiring that cascade
+    behind this name would make two algorithms of different cost class wear one
+    name, which this tree rates worse than a declared demotion.
     """
     rows = _as_rows(H)
     n = len(rows)
@@ -2108,6 +2139,18 @@ def symmetric_eigendecompose(
     projection is exact. Eigenvalues come out ascending as a ``Vec``. Correctness is
     pinned by eigenvalues + reconstruction + orthonormality (the eigenvector sign /
     degenerate-subspace basis is non-unique), not element-wise parity.
+
+    **Accuracy (rc466, `#T1188`).** ``L`` is projected to float64 at the entry
+    (``float(v)`` per entry), so an exact entry wider than 53 significand bits
+    loses its low bit before the first rotation —
+    ``symmetric_eigendecompose([[2**53+1, 0], [0, 0]])`` returns the eigenvalue
+    ``9007199254740992.0``. The eigenpairs are the cyclic-Jacobi iterative
+    approximation of :func:`hermitian_eigendecompose`, **accurate to round-off**
+    (~1 ULP·n), never exact; eigenvectors are defined only up to sign (pinned by
+    the Class-K pivot rule) and, on a degenerate spectrum, up to the basis of
+    the eigenspace. Exact spectrum: ``jacobi_eigvals(L, exact=True)`` /
+    ``eigvals_exact``; exact eigenvectors: ``eig_exact`` / ``eigvec_exact``
+    (over ``Qalg``) — a different cascade, reachable by name.
     """
     rows = _as_rows(L)
     real_rows = [[float(v.real) if isinstance(v, complex) else float(v) for v in r]
@@ -3634,6 +3677,36 @@ def _real_transcendental_native(flat_real: list, op_id: int):
     return True, None, rc
 
 
+def _q61_trig_range_refuse(flat_real: list, op_name: str) -> None:
+    """Refuse ``cos`` / ``sin`` / ``exp_i`` arguments the Q61 octant reduction
+    cannot reduce, BEFORE either projection runs (rc466, `#T1188`).
+
+    The pure cascade (:func:`srmech.math.rational.cos` → ``_q61_reduce``) raises
+    ``ValueError("cos: |x| too large for the Q61 octant reduction; got …")`` at
+    ``|x| >= 2**55``, and the scalar C peers ``srmech_cos_q61`` / ``srmech_sin_q61``
+    return status 2 for the same argument (the bound is
+    :data:`srmech.math.rational.Q61_TRIG_RANGE`, imported — not a second copy).
+    The ARRAY kernel ``srmech_elementwise_transcendental``
+    (``c/src/srmech_laplacian.c``) calls
+    ``srmech_cos`` / ``srmech_sin`` per element and DISCARDS the status —
+    ``(void)srmech_cos(x, &out[i])`` — so through rc465 the native projection
+    returned ``0.0`` for such an element, silently, where the pure projection
+    refused: MEASURED ``elementwise_transcendental([5.659390201622752e+16],
+    "cos")`` → ``0.0`` native / ``ValueError`` pure. A silent wrong value is the
+    top defect class; this guard makes the refusal carrier-independent (same
+    exception, same text, both cells) at the dispatch boundary. The C kernel's
+    status discard is the root and is named as a C follow-up (its fix is a
+    per-element status return — an ABI-visible change class). The magnitude is
+    a Class-K pin-slot branch, not ``abs()``.
+    """
+    label = "cos" if op_name == "exp_i" else op_name
+    for x in flat_real:
+        m = x if x >= 0.0 else -x
+        if m >= _Q61_TRIG_RANGE:
+            raise ValueError(
+                f"{label}: |x| too large for the Q61 octant reduction; got {x}")
+
+
 def _real_transcendental_loop(flat_real: list, op_name: str) -> list:
     """numpy-free real ``exp``/``cos``/``sin``/``log`` via the Class-N scalar cascades.
 
@@ -3721,6 +3794,26 @@ def elementwise_transcendental(arr, op_name: str):
     no-native / complex paths run the Class-N rational cascades per element.
 
     Canonical SSoT: ANSI C99 §7.12 libm.
+
+    **Accuracy (rc466, `#T1188`).** Every element is projected to float64 at
+    the entry (``float(x)``): an exact argument wider than 53 significand bits
+    loses its low bit BEFORE the cascade runs — ``cos`` of ``2**53+1`` and of
+    ``2**53`` return the same float. Each result is the Class-N Q61
+    fixed-point cascade (61 fractional bits; ``exp`` via Cody–Waite ln2
+    reduction; ``log`` requires ``x > 0``) returned to float64 round-off
+    (~1 ULP) — never exact, because ``exp`` / ``cos`` / ``sin`` / ``log`` of a
+    non-zero rational is transcendental, so no carrier holds the value; the
+    exact-ARGUMENT series (``rational.cos_series_truncate(numerator,
+    denominator, num_terms)`` and kin) are the truncated-series reference
+    contract, not an exact peer. ``cos`` / ``sin`` / ``exp_i`` REFUSE
+    ``|x| >= 2**55`` with ``ValueError`` (the Q61 octant reduction's range) in
+    BOTH projections since rc466: through rc465 only the pure cascade refused,
+    while the native array kernel ``srmech_elementwise_transcendental`` discards
+    the per-element status and returned ``0.0`` for such an element —
+    measured ``elementwise_transcendental([5.659390201622752e+16], "cos")``
+    → ``0.0`` native / ``ValueError`` pure — a silent wrong value, now refused
+    at the dispatch boundary (:func:`_q61_trig_range_refuse`); the C kernel's
+    status discard is named as a C follow-up.
     """
     is_mat = _ew_is_matrix(arr)
     shape = _ew_mat_shape(arr) if is_mat else None
@@ -3730,6 +3823,7 @@ def elementwise_transcendental(arr, op_name: str):
         n = len(real_flat)
         if n == 0:
             return _ew_pack([], matrix=is_mat, shape=shape, is_complex=True)
+        _q61_trig_range_refuse(real_flat, op_name)      # rc466: both cells refuse
         ok_c, cos_out, _ = _real_transcendental_native(
             real_flat, _native.SRMECH_TRANS_COS
         )
@@ -3755,6 +3849,8 @@ def elementwise_transcendental(arr, op_name: str):
     n = len(real_flat)
     if n == 0:
         return _ew_pack([], matrix=is_mat, shape=shape, is_complex=False)
+    if op_name in ("cos", "sin"):
+        _q61_trig_range_refuse(real_flat, op_name)      # rc466: both cells refuse
     op_id = _TRANS_OP_IDS[op_name]
     ok, out, rc = _real_transcendental_native(real_flat, op_id)
     if ok:
@@ -5013,6 +5109,20 @@ def klein4_relational_structure(
     -------
     dict
         The per-sector tensions / coherences + the mixed-sector asymmetry.
+
+    **Accuracy (rc466, `#T1188`).** ``weights`` are projected to float64 at the
+    entry (use ``klein4_gain_laplacian(..., exact=True)`` for the exact sector
+    Laplacians on the ``Q`` carrier); ``tension`` / ``coherence`` are the
+    Jacobi solver's λ_min / λ₂ per sector, **accurate to round-off** (~1 ULP·n)
+    — a balanced sector reads ``~1e-16``, not exactly 0 — and
+    ``sector_asymmetry`` inherits that bound. Observation recorded with the
+    census: on the 12-node census graph with one weight at ``2**53+1`` the
+    native and pure Jacobi converge to DIFFERENT coherences for the SAME
+    operand (``0.409`` vs ``0.052`` on ``chi00``) — a ``2**53``-scale mixed
+    matrix is where two float Jacobi implementations stop agreeing; both cells
+    round the operand, so the row is DEMOTED in both and this is not a
+    divergence of verdict. Exact sector spectra: ``jacobi_eigvals(sector,
+    exact=True)`` / ``eigvals_exact`` (single terminal float lift).
     """
     edge_list = [tuple(e) for e in edges]
     nn = _infer_n_from_edges(edge_list) if n is None else int(n)
@@ -5526,7 +5636,24 @@ def recover_check(vocab_size, edges, weights, charges=None):
     faculties need ``vocab_size <= 256`` — use :func:`recover_check_structural`
     / :func:`recover_check_spectral` at corpus scale (F1227). Faithful port of
     R-RBS-LM-RECOVERCHECK. Returns ``{ok, op, operand, responsion,
-    curvature:{directed, n_cycles, holonomy_nonzero, verdict}, diagnostics}``."""
+    curvature:{directed, n_cycles, holonomy_nonzero, verdict}, diagnostics}``.
+
+    **Accuracy (rc466, `#T1188`).** ``weights`` and ``charges`` are projected to
+    float64 at the entry; ``op`` and ``responsion`` are decided on the float64
+    carrier — the spectrum to Jacobi round-off (~1 ULP·n) against a ``1e-9``
+    PSD **tolerance** and a ``1e-9`` zero-mode snap, the propagator ``e^{−zL}``
+    through the Class-N cascade — and every ``diagnostics`` value is rounded to
+    6 decimals. Only ``curvature`` (:func:`cycle_holonomy` on ``Q``) is exact.
+    The verdict is a threshold test (the rc444 ruling): an exact input does not
+    make it an exact computation, and an exact spectrum feeding a ``1e-9``
+    tolerance would move no verdict. A charge pattern that drives the
+    propagator's phase to ``|x| >= 2**55`` is reported through
+    ``diagnostics["responsion_error"]`` — :func:`srmech.math.rational.cos`'s
+    Q61 range refusal, ONE exception text in both cells since rc466. Through
+    rc465 the native scalar peer refused with a message that did not name the
+    argument while the pure cascade's did, so the ``::charges`` census row read
+    INSENSITIVE native / DEMOTED pure on nothing but that text; the refusal
+    now precedes dispatch (:data:`srmech.math.rational.Q61_TRIG_RANGE`)."""
     edges = [tuple(e) for e in edges]
     diag = {}
     operand = (len(edges) > 0 and len(edges) == len(weights)
@@ -5590,7 +5717,22 @@ def recover_check_spectral(vocab_size, edges, weights, charges=None, *,
     that block — so the dense n×n eigendecompose stays within the native n<=256
     wall at ANY corpus vocab. The F1227 bounded-spectral peer of
     :func:`recover_check_structural` (#1390 item 4). Returns ``{op, responsion,
-    dim, diagnostics}``."""
+    dim, diagnostics}``.
+
+    **Accuracy (rc466, `#T1188`).** As :func:`recover_check`, on the bounded
+    principal submatrix: ``weights`` and ``charges`` are projected to float64
+    at the entry; ``op`` and ``responsion`` are decided on the float64 carrier
+    — the spectrum to Jacobi round-off (~1 ULP·n) against a ``1e-9`` PSD
+    **tolerance** and a ``1e-9`` zero-mode snap, the propagator ``e^{−zL}``
+    through the Class-N cascade — and every ``diagnostics`` value is rounded to
+    6 decimals. The verdict is a threshold test; an exact input does not make
+    it an exact computation. A charge pattern that drives the propagator's
+    phase to ``|x| >= 2**55`` is reported through
+    ``diagnostics["responsion_error"]`` — :func:`srmech.math.rational.cos`'s
+    Q61 range refusal, ONE exception text in both cells since rc466 (through
+    rc465 the native scalar peer's message did not name the argument while the
+    pure cascade's did, which is all that made the ``::charges`` census row
+    read INSENSITIVE native / DEMOTED pure)."""
     edges = [tuple(e) for e in edges]
     dim = min(vocab_size, max_dim)
     sub_e, sub_w, sub_c = [], [], []
@@ -7097,6 +7239,16 @@ def fiedler_vector(matrix) -> "Vec":
     ``complex`` carrier for a Hermitian input, ``float`` for a real one), NOT a
     bare ``list``. For ``n < 2`` there is no second eigenvector; raises
     ``ValueError``.
+
+    **Accuracy (rc466, `#T1188`).** ``matrix`` is projected to float64 (or
+    complex float64) at the entry; the returned λ₂ column is the Jacobi
+    solver's, **accurate to round-off** (~1 ULP·n), never exact, and defined
+    only up to sign / phase. The census demoted this row on the probe's
+    NON-symmetric witness ``[[1, 2**53+1], [0, 1]]`` (outside the precondition —
+    native and pure return different vectors for it); on the in-contract
+    diagonal witness the column is a basis vector for any entry. For the exact
+    Fiedler vector of a rational Laplacian use ``eigvec_exact(matrix, lam)``
+    over ``Qalg`` — a different cascade.
     """
     rows = _as_rows(matrix)
     n = len(rows)
@@ -7484,6 +7636,17 @@ def fiedler_sparse(
     Vec
         The sign-bearing Fiedler vector (numpy-free 1-D carrier, ``.shape ==
         (n,)``). For ``n < 2`` the zero vector (no cut).
+
+    **Accuracy (rc466, `#T1188`).** ``weights`` are projected to float64 at the
+    entry (a weight wider than 53 significand bits loses its low bit before the
+    first matvec). The returned vector is a deflated POWER-ITERATION estimate —
+    rescaled by its max magnitude each step and stopped at sign-stability (5
+    identical sign partitions after a 20-iteration warm-up, ``max_iters`` cap)
+    — **accurate to that stopping rule, NOT to round-off**; only the SIGN
+    pattern (the normalized-cut bisection) is the contract, and it is
+    bit-identical native / pure. There is no exact peer for the iterative
+    O(edges) route; the exact Fiedler vector of a rational Laplacian is the
+    dense ``eigvec_exact`` cascade (a different algorithm and cost class).
     """
     edge_list, w_list = _validate_edges_weights_py(n, edges, weights)
     if _native.has_native_fiedler_sparse() and n >= 2:

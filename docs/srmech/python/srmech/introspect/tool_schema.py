@@ -10061,8 +10061,11 @@ def _register_primitive_class_tools() -> None:
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(P("theta", "list[float]", True),
                         P("i", "int", True), P("j", "int", True)),
-            returns=R("Q", "sin(theta[j] - theta[i]) as an EXACT rational — the "
-                           "Class-N sin returns Q, not a float. Declared float "
+            returns=R("Q", "the Q61 rational sine (denominator 2**61) of the "
+                           "FLOAT64 difference theta[j] - theta[i]: exact for "
+                           "that rounded argument, not for an exact phase — a "
+                           "54-bit phase is rounded at the entry (rc466 "
+                           "accuracy note on the op, `#T1188`). Declared float "
                            "through rc430; measured by invocation at rc430 "
                            "repair (`#T1127`)."),
             smoke_test_hint={"theta": "[0.1, 2.0]", "i": "0", "j": "1"},
@@ -19851,7 +19854,10 @@ def _register_closed_form_path_a_tools() -> None:
                 _D,
             ),
             returns=R("list",
-                      "the reconstructed values, one per target index"),
+                      "the reconstructed values, one per target index — "
+                      "float64 complex, accurate to round-off: the sinc kernel "
+                      "is transcendental at every non-integral offset (rc466 "
+                      "accuracy note on the op, `#T1188`)"),
             composes=("srmech.math.laplacian.mat_matvec",),
             preserves=_DISC,
         ),

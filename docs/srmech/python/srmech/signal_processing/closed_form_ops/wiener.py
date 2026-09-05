@@ -71,11 +71,23 @@ def op(
     list
         Real Wiener-filtered estimate of the clean signal (``list`` of
         ``float``, length ``len(signal)``).
+
+    **Accuracy (rc466, `#T1188`).** Block Wiener filtering is a float64
+    estimate: the observed PSD ``|X|²``, the ``1e-30`` ε-floor and the MMSE
+    gain ``S/(S+N)`` are float quantities and the output is the real part of
+    the inverse transform's single **terminal float lift** — **accurate to
+    round-off** (~1 ULP per operation), never exact. ``signal`` is used as
+    given (through rc465 it was projected to float64 at the entry): an integer
+    signal's forward transform is exact-until-rotation
+    (:func:`srmech.cascade.spectral_cascades.fft`), so
+    ``op([2**53+1] + [1]*7, [0.0]*8)`` and the same call at ``2**53`` now
+    differ; nothing after that transform is exact. ``noise_psd`` and
+    ``signal_psd`` are read as float64.
     """
     rows = list(signal)
     if rows and hasattr(rows[0], "__len__"):
         raise ValueError(f"wiener expects 1-D signal; got {len(rows)} rows")
-    sig = [float(v) for v in rows]
+    sig = rows                              # rc466: as given (see Accuracy)
     n_psd = [float(v) for v in noise_psd]
     n = len(sig)
     if len(n_psd) != n:

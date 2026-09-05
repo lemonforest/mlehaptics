@@ -57,6 +57,20 @@ def op(
     list
         Real energy density as a ``list`` of ``n_frames`` per-frame ``list``s
         (carrier-free since v0.7.5rc89, #564 — ``stft.op`` now returns lists).
+
+    **Accuracy (rc466, `#T1188`).** The energy density is ``|X|²`` of the
+    STFT's single **terminal float lift** — a float64 quantity **accurate to
+    round-off** (~1 ULP) per bin, never exact. For an integer signal under an
+    integer window the underlying STFT bins are exact-until-rotation (see
+    :func:`stft.op`), but the squared magnitude is taken AFTER the lift, so a
+    bin whose exact value is not float-representable is rounded before it is
+    squared: ``op([2**53+1, 0, 0, 0], frame_size=4, window=[1]*4)`` and the
+    same call at ``2**53`` return the same density. The exact object — the
+    ring norm ``X_k·conj(X_k)`` of an exact ``ℤ[ζ_N]`` bin, an element of the
+    real subring ``ℤ[ζ_N]⁺`` — IS representable (:func:`srmech.cascade.exact_dft`
+    returns the bin), but no shipped op computes that norm and no STFT returns
+    exact frames; that is the drain path, recorded in the CHANGELOG. This is a
+    declaration of the shipped surface, not a float-by-nature claim.
     """
     stft_matrix = stft_op(
         signal,
