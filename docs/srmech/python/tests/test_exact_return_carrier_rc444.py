@@ -656,16 +656,18 @@ def test_the_carrier_selector_census_figure_is_re_measured() -> None:
         for s in names & selectors:
             per[s] += 1
             ops.add(tool.name)
-    assert per["exact"] == 18, (
-        f"exact= is on {per['exact']} registry entries, expected 18 (the four "
+    assert per["exact"] == 19, (
+        f"exact= is on {per['exact']} registry entries, expected 19 (the four "
         f"precedents + triality_companions + the three rc463 graph builders + "
         f"the five rc466 graph builders + the five rc466 eigen-family routes "
-        f"of the review fix)")
-    assert len(ops) == 71, (
-        f"{len(ops)} ops carry a carrier/regime selector, expected 71 "
+        f"of the review fix + rc467's resonant_spectrum, the last undeclared "
+        f"demoter)")
+    assert len(ops) == 72, (
+        f"{len(ops)} ops carry a carrier/regime selector, expected 72 "
         f"(58 at rc444 + the three rc463 graph builders + the five rc466 graph "
-        f"builders + the five rc466 eigen-family routes — the rc466 CHANGELOG "
-        f"carries the figure). Per-selector: {per}. If this "
+        f"builders + the five rc466 eigen-family routes + rc467's "
+        f"resonant_spectrum — the rc467 CHANGELOG carries the figure). "
+        f"Per-selector: {per}. If this "
         f"moved for a good reason, update the CHANGELOG figure in the SAME "
         f"change — do not just re-pin the number here.")
 

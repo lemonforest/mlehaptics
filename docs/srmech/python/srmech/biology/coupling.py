@@ -33,9 +33,13 @@ Laplacian ``L`` as a *stored* (excitation-free) object:
 * its **eigenvectors** (columns) are the **excitation modes**.
 * the **force-orders** ``[L, L², …, Lᵒ]`` are forces-of-forces — ``L²`` is the
   **biharmonic / tidal** concentration (4th-order dispersive curvature, NOT the
-  2nd-order matter curvature). Each ``Lᵏ = V·diag(Λᵏ)·Vᵀ`` is reconstructed in
-  the eigenbasis from **one** eigensolve (Λ raised to ``k``), never by repeated
-  ``L``-matmuls.
+  2nd-order matter curvature). On the DEFAULT (float) route each
+  ``Lᵏ = V·diag(Λᵏ)·Vᵀ`` is reconstructed in the eigenbasis from **one**
+  eigensolve (Λ raised to ``k``), never by repeated ``L``-matmuls. The
+  ``exact=True`` route (rc467, `#T1188`) CANNOT take that reconstruction —
+  ``V·diag(Λᵏ)·Vᵀ`` is the cross-field product the ``singular_values_exact``
+  precedent refuses — so it takes ``QMat`` matmul powers of the OPERAND
+  instead, and says so in the op's Accuracy paragraph.
 * the **resonances** are integer/prime ratios of the tensions: each adjacent
   nonzero-tension ratio is read with Class-N :func:`best_rational`, and the
   resulting denominator is prime-coordinate-factorised (Class-J
@@ -65,6 +69,7 @@ Canonical SSoT:
 
 from __future__ import annotations
 
+from fractions import Fraction
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..math.q import Q  # rc100: the exact-ℚ scalar carrier (fractal_spectrum scale / |q|-meter)
@@ -220,6 +225,297 @@ def _resonances_from_tensions(lam: List[float], max_den: int) -> List[Dict[str, 
     return resonances
 
 
+# ── the EXACT route (rc467, `#T1188`) — four faculties, four shipped ops ─────
+#
+# The rc466 census left ONE undeclared silent demoter: resonant_spectrum::L.
+# It was deferred as "exact peer ships, deferred" on the grounds that the modes
+# faculty "needs eigvec_exact with a caller-supplied IRREDUCIBLE minimal
+# polynomial per eigenvalue". That was already false when it was written —
+# ``eig_exact`` supplies the irreducible minimal polynomial ITSELF and returns
+# ``vectors_qalg`` — and the ``_symmetric_eig_exact`` wrapper landed one commit
+# later. Every faculty below is composed from an op that already ships:
+#
+#   tensions      laplacian._symmetric_eig_exact  -> list[Qalg], ascending
+#   modes         the SAME call's Qalg columns    -> list[list[Qalg]]
+#   force_orders  QMat.matmul powers of L         -> list[QMat] (entries plain Q)
+#   resonances    matrix_cascades.eigvals_exact(return_intervals=True)
+#                 + rational.best_rational on BOTH enclosure endpoints
+#
+# NO cross-field number is ever formed, which is why the SVE precedent — the
+# ``singular_values_exact`` refusal to return a combined ``U·Σ·Vᵀ`` because
+# assembling ACROSS the per-value fields needs a compositum — does not apply
+# here: ``tensions`` is a LIST of per-field ``Qalg`` (never combined), ``modes``
+# is per-COLUMN over its own eigenvalue's field, ``force_orders`` lives entirely
+# in ``ℚ`` (no field at all), and the resonance read touches only the RATIONAL
+# bracket endpoints. The combined dict is returned and the fields are declared
+# per column.
+
+
+def _exact_rows(L) -> List[list]:
+    """The RAW rows of ``L``, before any float-carrier coercion.
+
+    ``QMat`` (the exact carrier) via ``.to_lists()``; ``Mat`` / ndarray-like via
+    ``.tolist()`` — a ``Mat`` is float64 by construction, so its rows are
+    REFUSED by name downstream rather than rounded (that refusal is the point:
+    ``Mat.from_rows([[2**53+1, ...]])`` has already lost the low bit)."""
+    if hasattr(L, "to_lists"):
+        return [list(r) for r in L.to_lists()]
+    if hasattr(L, "tolist"):
+        return [list(r) for r in L.tolist()]
+    return [list(r) for r in L]
+
+
+def _denominator_lcm(rows) -> int:
+    """The Class-I LCM of every entry denominator — ``eig_exact``'s pre-scale
+    ``c`` (``B = c·A`` is the INTEGER matrix it actually isolates).
+
+    Load-bearing because :func:`srmech.math.laplacian._symmetric_eig_exact`
+    DISCARDS ``eig_exact``'s ``denominator_scale``, so the minimal polynomial
+    each ``Qalg`` carries is that of ``c·λ``, not of ``λ``. Any exact read
+    against ``λ.m`` — the sign pin and the bracket-containment check below —
+    must scale by ``c`` first, and ``c`` is not reachable through the public
+    wrapper. ``c == 1`` for an integer operand, so the integer path is
+    untouched. Class I (:func:`srmech.math.cyclic.gcd`), not ``math.gcd``."""
+    from ..math.cyclic import gcd as _gcd
+    c = 1
+    for r in rows:
+        for v in r:
+            d = int(getattr(v, "denominator", 1))
+            c = c // _gcd(c, d) * d
+    return c
+
+
+def _int_poly_at(m, x: "Fraction") -> "Fraction":
+    """Horner evaluation of an integer polynomial ``m`` (LOW→HIGH, the
+    ``eig_exact`` ``min_poly`` convention) at an exact rational ``x``. Exact ℚ
+    the whole way — no float, no ``abs()``."""
+    s = Fraction(0)
+    for coeff in reversed(m):
+        s = s * x + coeff
+    return s
+
+
+def _bracket_holds(value, lo, hi, scale: int) -> bool:
+    """Does the exact isolating bracket ``[lo, hi]`` hold the eigenvalue
+    ``value`` — checked EXACTLY, never through the float embedding.
+
+    A RATIONAL eigenvalue is decided by ``Q`` comparison. An IRRATIONAL one is
+    decided by a SIGN CHANGE of its own minimal polynomial across the scaled
+    bracket ``[c·lo, c·hi]``: ``m`` is irreducible and the bracket is an
+    ISOLATING interval of the characteristic polynomial (it holds exactly one
+    distinct root), so ``m`` has at most one root in it and a sign change — or a
+    zero at an endpoint — is exactly the containment test. Signs are read by
+    comparison (Class K pin-slot), never ``abs()``.
+
+    What this proves, stated so nobody reads more into it: index ``i``'s bracket
+    holds a root of index ``i``'s minimal polynomial. Two eigenvalues that are
+    Galois conjugates SHARE one ``m``, so for those the check is "a root of the
+    shared ``m`` lies here" and the PAIRING follows from both lists being
+    ascending over pairwise-disjoint brackets. That is the honest strength of
+    the assertion — and it is CHECKED rather than assumed, because the two
+    shipped ops isolate independently."""
+    r = value.as_rational()
+    if r is not None:
+        return lo <= r <= hi
+    at_lo = _int_poly_at(value.m, Fraction(lo) * scale)
+    at_hi = _int_poly_at(value.m, Fraction(hi) * scale)
+    if at_lo == 0 or at_hi == 0:
+        return True
+    return (at_lo > 0) != (at_hi > 0)
+
+
+def _positive_tension_indices(values, intervals, scale: int) -> List[int]:
+    """The Class-K sign pin: the indices whose tension is STRICTLY POSITIVE.
+
+    This replaces the float route's relative floor ``lam[i] > lam[-1]·1e-9``
+    (:data:`_ZERO_TENSION_REL`), which is not a zero test at all — on the 3-node
+    path Laplacian with weights ``(2**53+1, 1)`` that floor is
+    ``1.8e16 · 1e-9 = 1.8e7``, so it discards a tension of ``3/2`` as "free" and
+    the resonance list comes back EMPTY. Here the zero mode is ``λ == 0``,
+    exactly.
+
+    A bare ``λ != 0`` test would be wrong in the other direction:
+    :func:`~srmech.math.rational.best_rational` REFUSES a negative numerator,
+    :func:`resonant_spectrum` validates only squareness and ``orders >= 1``, and
+    an INDEFINITE real-symmetric matrix is reachable through the public contract
+    (``[[1, 2], [2, 1]]`` has tensions ``-1`` and ``3``). The float route never
+    trips that because its floor silently drops every non-positive tension;
+    keeping the two routes in agreement means the exact test is POSITIVITY, read
+    off the exact bracket.
+
+    A bracket that straddles zero is decided in ONE exact step rather than
+    refined: the eigenvalue is irrational there (``0`` is rational), so splitting
+    the bracket at ``0`` and reading the sign change of ``m`` on ``[c·lo, 0]``
+    says which side the root is on."""
+    nz: List[int] = []
+    for i, v in enumerate(values):
+        r = v.as_rational()
+        if r is not None:
+            if r.numerator > 0:
+                nz.append(i)
+            continue
+        lo, hi = intervals[i]
+        if lo > 0:
+            nz.append(i)
+            continue
+        if hi < 0:
+            continue
+        # The bracket straddles 0. Split it AT 0 and read the sign change.
+        at_lo = _int_poly_at(v.m, Fraction(lo) * scale)
+        at_zero = Fraction(v.m[0])          # m(0) — the constant term
+        if at_zero == 0:
+            raise ValueError(
+                f"resonant_spectrum(exact=True): eigenvalue {v!r} at index {i} "
+                "reports an irreducible minimal polynomial with a zero constant "
+                "term (root 0), which would make it rational — eig_exact "
+                "inconsistency (upstream bug)")
+        if at_lo == 0 or (at_lo > 0) != (at_zero > 0):
+            continue                        # the root is in [c·lo, 0] => λ <= 0
+        nz.append(i)                        # the root is in (0, c·hi] => λ > 0
+    return nz
+
+
+def _resonances_from_exact_brackets(values, intervals, scale: int,
+                                    max_den: int) -> List[Dict[str, object]]:
+    """The EXACT peer of :func:`_resonances_from_tensions` — the adjacent
+    positive-tension resonance read taken off the exact Sturm brackets.
+
+    A PEER, deliberately not a widening: ``_resonances_from_tensions`` is the one
+    lock/libration source of truth SHARED with :func:`resonant_spectrum_sparse`,
+    and the sparse op has no exact eigensolver to feed it, so widening the shared
+    helper would change the sparse op's contract in the same edit.
+
+    The ratio of two positive tensions is ENCLOSED, not sampled: with
+    ``λ_a ∈ [A_lo, A_hi]`` and ``λ_b ∈ [B_lo, B_hi]`` (all positive) the ratio
+    lies in ``[A_lo/B_hi, A_hi/B_lo]``, and :func:`best_rational` runs on BOTH
+    endpoints. Agreement CERTIFIES the anchor — no rational with denominator
+    ``<= max_den`` other than that one lies in the enclosure. Disagreement is
+    REPORTED (``certified=False`` plus both anchors), never guessed away. Both
+    endpoints are plain ``ℚ``: no cross-field quotient of two ``Qalg`` is ever
+    formed (``Qalg`` division across unequal fields refuses by name, correctly).
+
+    ``(0, 1)`` in ``"ratio"`` is the UNDERFLOW SENTINEL — ``best_rational``
+    returns it when the ratio is below ``1/max_den`` — and is NOT the integer
+    lock that an empty ``den_coords`` otherwise denotes."""
+    from ..math import primes as _primes
+    from ..math import rational as _rational
+
+    nz = _positive_tension_indices(values, intervals, scale)
+    out: List[Dict[str, object]] = []
+    for a, b in zip(nz, nz[1:]):
+        lo_a, hi_a = intervals[a]
+        lo_b, hi_b = intervals[b]
+        for idx, lo in ((a, lo_a), (b, lo_b)):
+            if not lo > 0:
+                raise ValueError(
+                    f"resonant_spectrum(exact=True): tension {idx} is positive "
+                    f"but its isolating bracket [{lo!r}, ...] does not have a "
+                    "strictly positive lower endpoint, so the ratio enclosure "
+                    "cannot be formed without dividing by a bracket that reaches "
+                    "0. Re-isolate at higher precision "
+                    "(srmech.cascade.matrix_cascades.eigvals_exact takes bits=) "
+                    "and read the resonances from those brackets.")
+        r_lo = Fraction(lo_a) / Fraction(hi_b)      # the ratio's exact floor
+        r_hi = Fraction(hi_a) / Fraction(lo_b)      # the ratio's exact ceiling
+        n1, d1 = _rational.best_rational(r_lo.numerator, r_lo.denominator, max_den)
+        n2, d2 = _rational.best_rational(r_hi.numerator, r_hi.denominator, max_den)
+        den_coords = {p: e for p, e in _primes.factor(d1)} if d1 > 1 else {}
+        out.append({
+            "pair": (a, b),
+            "ratio": (n1, d1),
+            "den_coords": den_coords,
+            "locked": _tension_is_locked(den_coords, max_den=max_den),
+            "certified": (n1, d1) == (n2, d2),
+            "ratio_enclosure": ((n1, d1), (n2, d2)),
+        })
+    return out
+
+
+def _resonant_spectrum_exact(L, orders: int, max_den: int, *, bits: int = 64):
+    """The ``exact=True`` route of :func:`resonant_spectrum` — see that
+    docstring for the contract, the design decisions and the cost."""
+    from ..math import laplacian as _L
+    from ..math.qmat import QMat
+    from ..cascade.matrix_cascades import eigvals_exact
+
+    rows = _exact_rows(L)
+    # Validation + the exact eigensolve, under THIS op's name: the shared
+    # laplacian helper takes the caller's name, so a refusal never surfaces
+    # another op's identity. SQUARE + EXACT + SYMMETRIC are all refused here —
+    # and SYMMETRY is a route asymmetry the default route does not have (it
+    # accepts a non-symmetric operand and reads the float Jacobi's answer).
+    values, modes = _L._symmetric_eig_exact(rows, "resonant_spectrum", bits=bits)
+    n = len(values)
+
+    # ── force-orders, exact: QMat.matmul powers of the OPERAND. ─────────
+    # The float route reconstructs Lᵏ = V·diag(Λᵏ)·Vᵀ from the ONE eigensolve.
+    # That is exactly the cross-field PRODUCT the SVE precedent refuses — V's
+    # columns live in per-eigenvalue fields, Λᵏ in another — so the exact route
+    # CANNOT take it and multiplies the OPERAND instead. The algorithm differs
+    # by necessity; the VALUE is the one the float route approximates (measured
+    # on the 2**53+1 witness: the float reconstruction of L²[0][0] is
+    # 1.6225927682921347e+32 against the exact 2·P² whose float is
+    # 1.622592768292134e+32 — the eigenbasis reconstruction is itself lossy at
+    # that scale).
+    A = QMat.from_rows([[v if isinstance(v, Q) else Q(Fraction(v).numerator,
+                                                      Fraction(v).denominator)
+                         for v in r] for r in rows])
+    force_orders: List["QMat"] = []
+    power = A
+    for k in range(1, orders + 1):
+        if k > 1:
+            power = power.matmul(A)
+        force_orders.append(power)
+
+    # ── resonances, exact: Sturm brackets + best_rational on BOTH endpoints. ─
+    scale = _denominator_lcm(rows)
+
+    def _isolate(at_bits: int):
+        """The Sturm brackets at ``at_bits``, index-CHECKED against ``values``.
+
+        The two shipped exact ops isolate independently, so the alignment their
+        ``pair`` indices rest on is CHECKED, not assumed — every re-isolation
+        below is checked again, at the precision it was taken."""
+        ivs = eigvals_exact(rows, bits=at_bits, return_intervals=True)
+        if len(ivs) != n:
+            raise ValueError(
+                f"resonant_spectrum(exact=True): the exact eigensolver returned "
+                f"{n} eigenvalues but the Sturm isolation returned {len(ivs)} "
+                "isolating intervals on the same operand — an upstream "
+                "inconsistency, not an input error")
+        for i in range(n):
+            lo, hi = ivs[i]
+            if not _bracket_holds(values[i], lo, hi, scale):
+                raise ValueError(
+                    "resonant_spectrum(exact=True): the two shipped exact ops "
+                    f"disagree on eigenvalue order — isolating interval {i} = "
+                    f"[{lo!r}, {hi!r}] does not hold {values[i]!r}. Both are "
+                    "ascending Sturm orders, so this is an upstream "
+                    "inconsistency, not an input error")
+        return ivs
+
+    intervals = _isolate(bits)
+    resonances = _resonances_from_exact_brackets(values, intervals, scale, max_den)
+    # An uncertified anchor means the enclosure is wider than the gap between
+    # two admissible rationals. Re-isolate at DOUBLED precision (bounded: three
+    # further attempts) rather than picking an endpoint. Still uncertified after
+    # that, the record SAYS so — it is never guessed away.
+    attempts = 0
+    while attempts < 3 and any(not r["certified"] for r in resonances):
+        attempts += 1
+        bits *= 2
+        intervals = _isolate(bits)
+        resonances = _resonances_from_exact_brackets(
+            values, intervals, scale, max_den)
+
+    return {
+        "tensions": values,
+        "modes": modes,
+        "force_orders": force_orders,
+        "resonances": resonances,
+    }
+
+
 def _resonant_spectrum_native(L, orders: int, max_den: int):
     """The §75 native path: route through the ``srmech_resonant_spectrum`` C
     peer when it is bound, returning the same dict the pure-Python op returns
@@ -290,22 +586,32 @@ def resonant_spectrum(
     *,
     orders: int = 2,
     max_den: int = 64,
+    exact: bool = False,
 ) -> Dict[str, object]:
     """Read a coupling Laplacian as a stored resonant object (§75 / F928).
 
     Args:
         L: an ``(n, n)`` real-symmetric coupling Laplacian — a
             :class:`~srmech.math.mat.Mat` (or list-of-rows / ndarray-like). The
-            stored ("dark") object before any excitation.
+            stored ("dark") object before any excitation. Under ``exact=True``
+            it is instead an EXACT operand (``QMat`` / rows of ``int`` /
+            :class:`fractions.Fraction` / ``Q``) — see *Accuracy* below.
         orders: how many force-orders to materialise — ``[L¹, …, Lᵒ]`` (default
             2: the force ``L`` and the biharmonic forces-of-forces ``L²``).
             Must be ``≥ 1``.
         max_den: the ``best_rational`` denominator ceiling for the resonance
             read (Class-N). Default 64 (the Laplace 4:2:1 ladder fits well
             inside it). The lock/libration cutoff scales as ``isqrt(max_den)``.
+        exact: keyword-only opt-in to the EXACT route (rc467, ``#T1188``; the
+            :func:`~srmech.math.laplacian.symmetric_eigendecompose` precedent).
+            Default ``False`` — the float64 route below, unchanged byte for
+            byte. See *Accuracy* for the contract, the carriers and the cost.
 
     Returns:
-        A dict with:
+        A dict with four keys on BOTH routes; the CARRIERS differ, because the
+        exact route returns the exact objects rather than a lift.
+
+        Default route (``exact=False``):
 
         * ``"tensions"`` — a real :class:`~srmech.math.vec.Vec` of eigenvalues
           ASCENDING (the stored "dark" tension spectrum; no excitation).
@@ -314,7 +620,8 @@ def resonant_spectrum(
         * ``"force_orders"`` — a list of ``orders`` :class:`~srmech.math.mat.Mat`
           ``[L, L², …, Lᵒ]``; ``Lᵏ = V·diag(Λᵏ)·Vᵀ`` reconstructed from the ONE
           eigensolve (Λ raised to ``k`` in the eigenbasis), never repeated
-          ``L``-matmuls.
+          ``L``-matmuls **on this route** (the exact route cannot take that
+          reconstruction — see *Accuracy*).
         * ``"resonances"`` — a list of dicts, one per adjacent nonzero-tension
           pair, each ``{"pair": (i, j), "ratio": (num, den), "den_coords":
           {prime: exp}, "locked": bool}``: the Class-N best-rational of the
@@ -322,22 +629,171 @@ def resonant_spectrum(
           denominator + the lock (smooth/2-adic den) vs libration (large-prime
           den) verdict.
 
+        Exact route (``exact=True``):
+
+        * ``"tensions"`` — a ``list`` of ``n`` :class:`~srmech.math.qalg.Qalg`
+          eigenvalues ASCENDING with multiplicity, each over its OWN number
+          field. A rational one answers ``.as_rational()``; the exact zero mode
+          satisfies ``value == 0``.
+        * ``"modes"`` — an ``n×n`` nested ``list`` of ``Qalg`` (``V[i][j]``)
+          whose COLUMNS are the exact eigenvectors, each over its eigenvalue's
+          own field.
+        * ``"force_orders"`` — a list of ``orders``
+          :class:`~srmech.math.qmat.QMat` ``[L, L², …, Lᵒ]``, entries plain
+          ``Q`` (no field at all).
+        * ``"resonances"`` — the same four keys PLUS two: ``"certified"``
+          (``bool`` — both endpoints of the exact ratio ENCLOSURE read to the
+          same anchor) and ``"ratio_enclosure"`` (both anchors, so a
+          ``certified=False`` record still shows what it was between).
+
+    **Accuracy (rc467, ``#T1188``).**
+
+    Default route (``exact=False``) — a SILENT CARRIER DEMOTION, now declared.
+    ``L`` is coerced to the float64 :class:`~srmech.math.mat.Mat` carrier at the
+    entry, so an exact entry wider than 53 significand bits loses its low bit
+    before the first Jacobi rotation, and the native peer
+    ``srmech_resonant_spectrum`` takes ``const double *L_rowmajor``, so it
+    cannot carry an exact operand either. Measured on the 3-node path Laplacian
+    with weights ``(2**53+1, 1)`` — ``[[P, -P, 0], [-P, P+1, -1], [0, -1, 1]]``
+    with ``P = 2**53+1`` — the float route returns tensions
+    ``[0.13144078898136016, 1.5756659922051879, 1.8014398509481988e+16]``
+    where the exact answers are ``0``, a degree-2 algebraic near ``3/2``, and
+    a degree-2 algebraic near ``1.8e16``: the two small tensions are wrong by
+    ``O(0.1)``. Its resonance list comes back EMPTY, and for a structural
+    reason worth naming — the free-mode floor is RELATIVE
+    (:data:`_ZERO_TENSION_REL` ``= 1e-9`` of the largest tension), which on
+    this operand is ``1.8e16 · 1e-9 = 1.8e7``, so a real tension of ``3/2`` is
+    discarded as "free" and no adjacent pair survives to be read. The
+    ``force_orders`` reconstruction is lossy at that scale too:
+    ``L²[0][0]`` comes back ``1.6225927682921347e+32`` against the exact
+    ``2·P² = 162259276829213399420375029252098`` (float
+    ``1.622592768292134e+32``). Those digits were measured in BOTH cells and
+    are byte-identical: the C peer is bound and IS the route taken natively, so
+    this is not a pure-cell artefact.
+
+    ``exact=True`` — the route composes FOUR shipped exact ops and introduces
+    no new type and no new C symbol:
+
+    * ``tensions`` and ``modes`` — the ONE exact eigensolve,
+      :func:`srmech.math.laplacian.symmetric_eigendecompose`'s ``exact=True``
+      engine (exact integer char-poly → irreducible factors → Sturm-isolated
+      roots → the null space of ``A − λI`` over ``ℚ(λ)``), entered under THIS
+      op's name so a refusal never surfaces another op's identity.
+    * ``force_orders`` — :class:`~srmech.math.qmat.QMat` ``matmul`` powers of
+      the OPERAND.
+    * ``resonances`` — :func:`srmech.cascade.matrix_cascades.eigvals_exact`
+      with ``return_intervals=True`` (the exact rational Sturm brackets) and
+      :func:`srmech.math.rational.best_rational` on BOTH endpoints of the ratio
+      enclosure.
+
+    On the witness above it returns ``tensions[0] == 0`` EXACTLY,
+    ``force_orders[1][0][0] == 2·P²`` exactly, and one CERTIFIED resonance
+    record where the float route returned none.
+
+    Four things this route does, stated so nobody reads them in:
+
+    1. **The modes are UNNORMALISED eigenlines.** Each column is a null-space
+       basis vector of ``A − λI``; ``‖col‖²`` is an integer or an irrational,
+       never ``1`` (measured on the witness: ``3`` for the constant zero-mode
+       column, and an element with no rational value for the others).
+       Normalising needs ``sqrt(‖v‖²)`` — a further quadratic extension with no
+       shipped carrier — and inside a degenerate eigenspace the columns
+       are not orthogonal either. The float route's ``Mat`` columns ARE
+       orthonormal; that difference is the price of exactness, not an oversight.
+    2. **The exact zero mode is ``λ == 0``**, not the ``1e-9`` relative floor
+       the float route uses. That floor is what empties the witness's resonance
+       list. The positivity test is a Class-K sign pin read off the exact
+       bracket (never ``abs()``, never a bare ``λ != 0``): ``best_rational``
+       REFUSES a negative numerator and an INDEFINITE real-symmetric operand is
+       reachable through this contract — ``[[1, 2], [2, 1]]`` has tensions
+       ``-1`` and ``3`` — so a ``!= 0`` test would keep the negative one and
+       then raise inside ``best_rational``. Both routes drop it.
+    3. **``(0, 1)`` in a resonance ``"ratio"`` is the UNDERFLOW SENTINEL**, not
+       an integer lock: ``best_rational`` returns it whenever the ratio is
+       below ``1/max_den``. On the witness the surviving pair is
+       ``λ₁/λ₂ ≈ 8.3e-17``, far under ``1/64``, so its ``ratio`` is ``(0, 1)``
+       with an EMPTY ``den_coords``. This route reproduces the default route's
+       verdict on that record byte for byte — including that
+       :func:`_tension_is_locked` reads an empty ``den_coords`` as an integer
+       lock, which for an UNDERFLOWED anchor is the wrong verdict. That is a
+       PRE-EXISTING defect of the shipped op, not one this route introduces —
+       measured, ``resonant_spectrum([[1.0, 0.0], [0.0, 100.0]])`` already
+       reports ``{'ratio': (0, 1), 'den_coords': {}, 'locked': True}`` on the
+       default route today, and the same wrong verdict is written in the C peer
+       (``srmech_coupling.c``, ``den <= 1`` ⇒ locked). It is deliberately NOT
+       special-cased here: fixing it on the exact route alone would make the
+       two routes disagree on a verdict for the same operand, and fixing it at
+       root means one change in BOTH languages under the Python↔C value-parity
+       gate. Named here as an OPEN defect of both routes, with its own
+       sequenced fix; ``certified`` is unaffected (the enclosure is genuinely
+       ``(0, 1)`` at both endpoints).
+    4. **``force_orders`` changes ALGORITHM, necessarily.** The float route
+       reconstructs ``Lᵏ = V·diag(Λᵏ)·Vᵀ`` from the one eigensolve. That is
+       exactly the cross-field PRODUCT the
+       :func:`~srmech.cascade.matrix_cascades.singular_values_exact` precedent
+       refuses — ``V``'s columns live in per-eigenvalue fields and ``Λᵏ`` in
+       another, and assembling across them needs a compositum — so the exact
+       route multiplies the OPERAND instead. Nothing ELSE here forms a
+       cross-field object (``tensions`` is a LIST of per-field ``Qalg``,
+       ``modes`` is per-COLUMN over its own field, ``force_orders`` is entirely
+       in ``ℚ``, and the resonance read touches only the RATIONAL bracket
+       endpoints), which is why the combined dict IS returned here where
+       ``singular_values_exact`` refuses a combined ``U·Σ·Vᵀ``.
+
+    Two ROUTE ASYMMETRIES, stated rather than discovered: ``exact=True``
+    requires the operand to be SYMMETRIC and EXACT and refuses otherwise BY
+    NAME, where the default route accepts a non-symmetric operand (and reads
+    the float Jacobi's answer on it) and rounds a wide exact one. Both
+    refusals name ``resonant_spectrum(exact=True)``.
+
+    Cost, measured (pure cell, this tree): the exact route runs 141–251× the
+    float route on integer path Laplacians — ``n=3`` 0.16 s vs 0.0011 s,
+    ``n=6`` 1.31 s vs 0.0067 s, ``n=8`` 4.58 s vs 0.018 s — which is why it is
+    opt-in and the float Jacobi stays the default. Roughly half of that is the
+    SECOND isolation: the brackets are a separate ``eigvals_exact`` pass,
+    because ``_symmetric_eig_exact`` discards ``eig_exact``'s
+    ``denominator_scale`` and the private isolator is not reachable through the
+    public wrapper. ``force_orders`` is NOT the expensive half and does not
+    explode: exact ``Lᵏ`` entries grow LINEARLY in digits (measured on the
+    witness — 33 digits at ``k=2``, 130 at ``k=8``, 520 at ``k=32``, each step
+    ~0.4 ms), so ``orders`` carries the same unbounded contract on both routes
+    and no ceiling is imposed on one of them.
+
+    ADR-0009 §1.2 (a disclosed missing capability is still a missing
+    capability): a bare-C host runs 0 of this route. ``srmech_resonant_spectrum``
+    takes ``const double *L_rowmajor`` and can never carry it; the exact KERNELS
+    it would dispatch to are C-backed already (``srmech_sturm_isolate``,
+    ``srmech_eigvec_exact``, ``srmech_factor_integer_poly``, the
+    ``srmech_qmat_*`` family), so the gap is orchestrator-level. Closing it
+    later ADDS a symbol and is therefore ABI-additive.
+
     The op composes SHIPPED ops only — ``laplacian.symmetric_eigendecompose``
     (Class L), ``laplacian.mat_matmul`` / the carrier ``@`` (Class L),
     ``rational.best_rational`` (Class N), ``primes.factor`` /
-    ``qprime.Qprime`` (Class J) — so it is value-identical on the native and
-    pure-Python paths (the C peer ``srmech_resonant_spectrum`` orchestrates the
-    same kernels). No ``abs()`` (tension signs are read by
+    ``qprime.Qprime`` (Class J) — so the DEFAULT route is value-identical on
+    the native and pure-Python paths (the C peer ``srmech_resonant_spectrum``
+    orchestrates the same kernels). No ``abs()`` (tension signs are read by
     comparison, Class-K).
 
     Raises:
-        ValueError: ``orders < 1`` or a non-square / empty ``L``.
+        ValueError: ``orders < 1`` or a non-square / empty ``L``; and under
+            ``exact=True`` also a non-EXACT (float / complex) entry or a
+            non-SYMMETRIC operand, each refused by name.
     """
     from ..math import laplacian as _L  # lazy: laplacian imports carriers (avoid cycle)
     from ..math.mat import Mat
 
     if not isinstance(orders, int) or orders < 1:
         raise ValueError(f"resonant_spectrum: orders must be an int >= 1; got {orders!r}")
+
+    # The EXACT route (rc467, `#T1188`) branches BEFORE the Mat coercion below
+    # AND before the native call: Mat is float64, so Mat.from_rows would round
+    # 2**53+1 to 2**53 and _symmetric_eig_exact would then refuse its own
+    # operand by name; and srmech_resonant_spectrum takes `const double *
+    # L_rowmajor`, so the C peer can never carry this route (see the docstring's
+    # ADR-0009 note). The raw rows go straight to the exact ops.
+    if exact:
+        return _resonant_spectrum_exact(L, orders, max_den)
 
     # Native path (value-parity, native authoritative when present): the C peer
     # orchestrates the same kernels. Returns None ⇒ run the pure-Python complete

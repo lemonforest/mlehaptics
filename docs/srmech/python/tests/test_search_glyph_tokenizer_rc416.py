@@ -1083,8 +1083,29 @@ from srmech.math.text import fold_marks, glyph_stream
 #: parameter with its description and a widened `returns` spelling, and those
 #: strings are corpus. Cause measured by rebuilding the frames: 762 / 733 / 29.
 #: was: 566f65aa19672de9e93397604f7f03c50791873b1d57c0cbe237bd105e111de9 (rc466 stage 3, after the Qi carrier)
+#: rc467 (`#T1188`, stage 1): re-pinned. Frame count UNCHANGED — 762 = 733 op +
+#: 29 carrier, measured — and no tokenizer or search behaviour moved. MEASURED
+#: frame by frame against the rc466 tree in a scratch worktree (which reproduced
+#: the digest below exactly, so the comparison is against the shipped corpus and
+#: not a rebuild artefact): **11 frames changed, 0 added, 0 removed.** Two are
+#: CARRIER frames — `Q` and `QMat`, whose consumes back-indices gained
+#: `resonant_spectrum` when its `L` widened off bare `Mat`. Nine are OP frames,
+#: and eight of those moved for a reason unrelated to the exact route: the 16
+#: `coupling.py:NNN` line-number citations in `_tool_docs_curated.py` became
+#: function names (`coupling.py::resonant_spectrum`, …) because inserting the
+#: exact route moved every one of them — and three were already stale by 1-2
+#: lines before this rc. `resonant_spectrum` itself moved for both reasons: its
+#: ToolEntry grew an `exact` parameter, a widened `L` type and a rewritten
+#: `returns` / `summary`, and those strings are corpus.
+#:
+#: ⚠️ This pin moves ONCE MORE in stage 2, after that stage's own ToolEntry
+#: edits. The plan called for a single re-pin taken after the LAST corpus edit
+#: of the rc; that rule is written for a single-commit rc, and leaving this gate
+#: RED across a commit boundary is worse than pinning twice with both causes
+#: recorded. Both digests are kept below so the two causes stay separable.
+#: was: d9eafc751c5920f34c97dd8aaa5e7aa7e451c5205fbb64026a1d5754a43113ad (rc466 review fix)
 WITNESS_RC416 = (
-    "d9eafc751c5920f34c97dd8aaa5e7aa7e451c5205fbb64026a1d5754a43113ad")
+    "a60b01ed02774691a86630db487162ddf7063048b404648f5cf8d4426afb4e6f")
 #: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
 #: op corpus, so registering induced_representation + zeta_conjugate moves it by
 #: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.

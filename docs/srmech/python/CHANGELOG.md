@@ -19,6 +19,82 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc467] - `#T1188`: the last undeclared demoter, drained by an exact route the deferral said did not exist
+
+*(Stage 1 of 2 — ITEM 1. The five named rc466 residuals, the census re-measure in both cells, the roster pins and the `_FIXED_IN_RC467` move land in Stage 2. Until then `tests/demotion_census.ndjson` is STALE against the registry signature BY DESIGN: `resonant_spectrum`'s parameter list and its `L` type both moved here, and `tools/demotion_probe.registry_signature()` includes the parameter and return types, so the probe is re-run ONCE, after the last type edit of the rc.)*
+
+**NO MERGE, NO TAG, NO PUBLISH.** This rc is gated by hand.
+
+**The carrier-selector census figure, re-measured for `tests/test_exact_return_carrier_rc444.py`:** `exact=` is now on **19** registry entries (rc466's 18 + `resonant_spectrum`), and **72** ops carry a carrier / regime selector (rc466's 71 + the same one). Per-selector: `element_type` 22, `table` 19, `exact` 19, `mode` 9, `gammas` 2, `with_path` 1 — measured, not quoted.
+
+### ITEM 1 — `resonant_spectrum(exact=True)`: the roster's last row, FIXED
+
+rc466 drained seventy undeclared silent carrier demotions to **one** and deferred that one by name — `srmech.biology.coupling.resonant_spectrum::L`, pinned in `_DEFERRED_EXACT_PEER_SHIPS` — on the ground that the `modes` faculty *"needs `eigvec_exact` with a caller-supplied IRREDUCIBLE minimal polynomial per eigenvalue"*.
+
+**That ground was already false on the day it was written, and git says so.** `eig_exact` supplies the irreducible minimal polynomial *itself* and returns `vectors_qalg`; it did so at `32246efca`, the very commit the pin was written in. The `_symmetric_eig_exact` wrapper that makes it a one-line call landed one commit later, at `c7b5f9501`. The deferral was stale by one commit when it shipped and doubly stale one commit on — the same shape as three of rc466's five named residuals, which were closed by that same review-fix commit.
+
+**All four faculties come from shipped exact ops. No new type, no new C symbol, no new numerical kernel.**
+
+| faculty | route | carrier |
+|---|---|---|
+| `tensions` | `laplacian._symmetric_eig_exact` → `matrix_cascades.eig_exact` | `list[Qalg]`, ascending with multiplicity, one field per value |
+| `modes` | the SAME call's `vectors_qalg` | `list[list[Qalg]]`, UNNORMALISED eigenlines, one field per COLUMN |
+| `force_orders` | `QMat.matmul` powers of the OPERAND | `list[QMat]`, entries plain `Q` (no field at all) |
+| `resonances` | `matrix_cascades.eigvals_exact(return_intervals=True)` + `rational.best_rational` on BOTH ends of the ratio enclosure | `Q` bracket endpoints only |
+
+**The witness, EXECUTED in both cells** — the 3-node path Laplacian with weights `(2**53+1, 1)`, i.e. `[[P, -P, 0], [-P, P+1, -1], [0, -1, 1]]` with `P = 2**53+1`:
+
+| | default (float) route | `exact=True` |
+|---|---|---|
+| `tensions` | `[0.13144078898136016, 1.5756659922051879, 1.8014398509481988e+16]` | `Q(0,1)` **exactly**, then two degree-2 `Qalg` near `3/2` and `1.8e16` |
+| error on the two small tensions | `+0.131` where the answer is `0`; `+0.0757` | none — the objects ARE the answers |
+| `resonances` | `[]` — **EMPTY** | one record, `pair (1,2)`, `certified: True` |
+| `force_orders[1][0][0]` | `1.6225927682921347e+32` | `162259276829213399420375029252098` = `2·P²` |
+
+The empty float resonance list is not a digit accident, and naming its mechanism is half the finding: the free-mode floor is **relative** (`_ZERO_TENSION_REL = 1e-9` of the largest tension), so on this operand it sits at `1.8e16 · 1e-9 = 1.8e7` and discards a real tension of `3/2` as "free". One tension survives, no adjacent pair exists, and the op returns `[]` while reporting nothing wrong.
+
+**Measured, and it corrects a scout's open question:** those float digits are **byte-identical in both cells**. The C peer `srmech_resonant_spectrum` is bound and IS the route taken in the native cell (verified after a rebuild), and it returns the same three doubles, the same empty list and the same `1.6225927682921347e+32`. The demotion is not a pure-cell artefact.
+
+**Five design decisions, stated in the op's own Accuracy paragraph rather than left to be discovered:**
+
+1. **The modes are UNNORMALISED eigenlines.** Each column is a null-space basis vector of `A − λI`; measured on the witness, `‖col₀‖² = 3` and `‖col₁‖²` has no rational value. A unit column needs `sqrt(‖v‖²)`, a further quadratic extension with no shipped carrier, and inside a degenerate eigenspace the columns are not orthogonal either. The float route's `Mat` columns ARE orthonormal; the difference is the price of exactness, not an oversight.
+2. **The exact zero mode is `λ == 0`**, not the `1e-9` relative floor.
+3. **The sign test is POSITIVITY, read off the exact bracket as a Class-K pin — never `abs()`, and deliberately not a bare `λ != 0`.** `best_rational` REFUSES a negative numerator (`rational.py::_ensure_nonneg_int`), `resonant_spectrum` validates only squareness and `orders >= 1`, and an INDEFINITE real-symmetric operand is reachable through the public contract: `[[1, 2], [2, 1]]` has tensions `-1` and `3`. A `!= 0` test keeps the negative one and then raises inside `best_rational`. The float route never trips it only because its floor silently drops every non-positive tension — so both routes drop it, and `resonant_spectrum([[1,2],[2,1]], exact=True)["resonances"] == []` matches the float route exactly (executed). A bracket that straddles zero is decided in ONE exact step (split at 0, read the sign change of `m` on `[c·lo, 0]`), not by refinement — the eigenvalue is irrational there, because `0` is rational.
+4. **`(0, 1)` in a resonance `ratio` is the UNDERFLOW SENTINEL** — `best_rational` returns it whenever the ratio is below `1/max_den` — **not** the integer lock that an empty `den_coords` otherwise denotes. On the witness the surviving pair is `λ₁/λ₂ ≈ 8.3e-17`, far under `1/64`, so its `ratio` is `(0, 1)`, `den_coords` is `{}`, and `_tension_is_locked` calls it LOCKED. **That verdict is wrong, it is PRE-EXISTING, and it is NOT fixed here** — measured, `resonant_spectrum([[1.0, 0.0], [0.0, 100.0]])` already reports `{'ratio': (0, 1), 'den_coords': {}, 'locked': True}` on the shipped float route today, and the same wrong verdict is written in the C peer (`srmech_coupling.c`, `den <= 1` ⇒ locked). The exact route reproduces it byte for byte on purpose: fixing it on one route alone would make the two routes disagree on a verdict for the same operand, and fixing it at root is one change in BOTH languages under the Python↔C value-parity gate. **Named here as an open defect of both routes, with its own sequenced fix in Stage 2.** `certified` is unaffected — the enclosure really is `(0, 1)` at both endpoints.
+5. **`force_orders` changes ALGORITHM, necessarily.** The float route reconstructs `Lᵏ = V·diag(Λᵏ)·Vᵀ` from the one eigensolve. That is exactly the cross-field PRODUCT the `singular_values_exact` precedent refuses, so the exact route multiplies the OPERAND instead. The module docstring's *"never by repeated `L`-matmuls"* is now route-scoped rather than absolute.
+
+**Why the SVE precedent does not carry over, stated once:** `singular_values_exact` refuses a combined `U·Σ·Vᵀ` because assembling ACROSS per-value fields needs a compositum. Nothing here does that — `tensions` is a LIST of per-field `Qalg`, `modes` is per-COLUMN over its own field, `force_orders` lives entirely in `ℚ`, and the resonance read touches only RATIONAL bracket endpoints. The combined dict is returned, and the fields are declared per column. (The test proves the fields really are distinct: `V[0][0] + V[0][1]` raises *"Qalg binary op requires equal m"*, which is the whole reason `modes` is declared per column.)
+
+**Two instruments that can return otherwise, because a check that cannot fail is not a check:**
+
+* **Index alignment is CHECKED, not assumed.** The two shipped ops isolate independently, so every bracket is verified against its eigenvalue exactly — rational eigenvalues by `Q` comparison, irrational ones by a sign change of their own minimal polynomial across the scaled bracket. Executed negative controls: on the rational operand the same check returns `[True, False, False]` at the wrong scale and `False` on a deliberately misaligned bracket.
+* **⚠️ The rational pre-scale, which the brief did not name.** `eig_exact` isolates `B = c·A` for a rational operand, so each `Qalg`'s minimal polynomial is that of `c·λ` — and `_symmetric_eig_exact` DISCARDS the `denominator_scale`, so `c` is not reachable through the public wrapper. The route recovers it as a Class-I LCM of the entry denominators (`srmech.math.cyclic.gcd`, not `math.gcd`). Without that, containment fails on exactly the irrational eigenvalues, which is what the negative control above measures.
+* **Certification can fail and says so.** An uncertified anchor triggers a bounded retry (`bits` doubled, three further attempts). At the shipped default every enclosure in the corpus certifies; at `bits=2` none does, the retry cannot close it, and the record reports `certified: False` and carries BOTH anchors rather than picking one. Executed in both directions.
+
+**Refusals name THIS op, never another.** `_symmetric_eig_exact` takes the caller's name, so a float entry, a `Mat` operand, a non-symmetric operand and a non-square operand all raise under `resonant_spectrum(exact=True)`. Two route asymmetries are stated rather than discovered: `exact=True` requires SYMMETRIC and EXACT where the default route accepts a non-symmetric operand and rounds a wide exact one.
+
+**The entry order is load-bearing.** The exact branch runs BEFORE `Mat.from_rows` and BEFORE `_resonant_spectrum_native`. `Mat` is float64, so the coercion would round `2**53+1` to `2**53` and `_symmetric_eig_exact` would then refuse its own operand by name; and `srmech_resonant_spectrum` takes `const double *L_rowmajor`, so the C peer can never carry the route.
+
+**Cost, measured (integer path Laplacians, pure cell):** `n=3` 0.16 s vs 0.0011 s; `n=6` 1.31 s vs 0.0067 s; `n=8` 4.58 s vs 0.018 s — 141–251×, which is why it is opt-in. Roughly half is the SECOND isolation (the brackets are a separate `eigvals_exact` pass, forced by the discarded `denominator_scale`).
+
+**One plan decision NOT taken, with the measurement that refused it.** The synthesis called for a named refusal at `orders > 8` on the exact route, on the stated ground that exact `Lᵏ` entries *"square each step (`L²[0][0] ≈ 1.6e32`, so `L⁸ ≈ 10^250` per entry)"*. Measured on the witness, entries do **not** square: digits grow LINEARLY — 33 at `k=2`, 65 at `k=4`, **130 at `k=8`** (not 250), 260 at `k=16`, 520 at `k=32` — each step costing ~0.4 ms. The premise is refuted, so no ceiling was imposed: it would have made the exact route refuse an operand the float route accepts, for a reason measurement does not support, and would have compiled the false premise into a docstring. The growth is stated in the Accuracy paragraph instead, so a caller can budget.
+
+### Declarations, registry and the generated surfaces
+
+* `tools/demotion_probe.declaration_hits(resonant_spectrum)` now reads `['float64', 'exact= opt-in']` (executed) — the row drains on BOTH grounds, and rule **F1** ("no keyword without an executed route") is honoured by two Layer-1 strict-zero rows that RUN the exact route.
+* The ToolEntry declares `exact` and widens `L` off bare `Mat` to `Mat | QMat | Sequence[Sequence[int | Q]]` — a type string already in the lexicon (`array`), already carrying an encoding hint, already mirrored in the hand-maintained `srmech_tool_schema.c`, and measured to keep `2**53+1` intact through `coerce_param`. `invoke_tool(..., exact=True)` returns `Qalg` over the wire (executed), so this keyword is NOT wire-dead the way the five eigen-family `exact=` routes are.
+  * The widening was not optional: `tests/test_declared_param_completeness_rc408.py::test_every_real_parameter_is_declared` is strict-zero and went RED the moment the callable grew a parameter the registry did not declare — the gate doing exactly its job.
+* The ToolEntry's *"1:1 C peer"* claim is now route-conditional, and states the **ADR-0009 §1.2** decline in the same sentence: a bare-C host runs 0 of the exact route because `srmech_resonant_spectrum` takes `const double *`. The gap is ORCHESTRATOR-level — the kernels it would dispatch to (`srmech_sturm_isolate`, `srmech_eigvec_exact`, `srmech_factor_integer_poly`, the `srmech_qmat_*` family) all ship — and closing it later ADDS a symbol, so it is ABI-additive. The formal ADR row lands in Stage 2 beside the five `exact=` Laplacian routes.
+* `laplacian.py` carried a MISATTRIBUTION: `klein4_relational_structure`'s own compositum gap was labelled *"the `resonant_spectrum` compositum gap"*. ITEM 1 measures the opposite — `resonant_spectrum(exact=True)` forms no cross-field object at all — so the label is corrected to name the op that actually has the gap.
+* **All 16 `coupling.py:NNN` citations in `_tool_docs_curated.py` are replaced by function names** (`coupling.py::resonant_spectrum`, …). They were 16, not 4, and 3 of them (`:1030`, `:1147`, `:1546`) were **already stale by 1–2 lines before this rc**; inserting the exact route moved every one. A line number in a citation that no gate reads rots silently, so the fix is to stop minting them. The regen propagates the change into `_tool_docs.py` and `srmech_tool_registry.c` — 16 stale numeric cites in each, gone.
+
+### What Stage 2 inherits, stated so nothing is silently open
+
+* The census has **not** been re-measured, and ONE gate is RED because of it, by design and on rc466's own precedent: `tests/test_silent_carrier_demotion_rc463.py::test_the_manifest_is_fresh_against_the_registry_signature` reports the manifest at `abcbdc060c57` against a live registry signature of `83e993016633`, because `registry_signature_lines()` includes the PARAMETER and RETURN types and both moved on `resonant_spectrum` here. Re-measuring now would measure a draft — stage 2 edits more ToolEntries — so the probe runs ONCE, in stage 2, after the last type edit, in each cell. Everything else in the file is green. `tests/test_silent_carrier_demotion_rc463.py` is GREEN right now for a reason worth recording, because a scout predicted otherwise: `test_layer3_the_deferred_row_is_still_undeclared_debt` reads the **stored** manifest (*"it is a file read, not a run"*), not the live op, so it cannot fire on a code change alone. It goes RED — with its own "GOOD NEWS, ACTION REQUIRED" message — the moment the probe re-runs. `EXPECTED_UNDECLARED_N` → `{"native": 0, "pure": 0}`, `EXPECTED_UNDECLARED_ROSTER_SHA256` → the empty-roster digest, `_DEFERRED_EXACT_PEER_SHIPS` deleted together with its own gate, and `_FIXED_IN_RC467` added ALONGSIDE `_FIXED_IN_RC466` (never renamed — `test_declared_inexactness_rc466.py` imports it cross-file).
+* `WITNESS_RC416` is re-pinned here because the corpus moved (the ToolEntry strings and the curated explanations are corpus). It will move ONCE MORE in Stage 2 after that stage's own ToolEntry edits; the plan's "one re-pin" was written for a single-commit rc, and leaving the gate red across a commit boundary is worse than pinning twice with both causes recorded.
+* The `(0, 1)` lock verdict (decision 4 above) is fixed at root in Stage 2 — one Python line, one C line, one rebuild, then the rc37 ctypes parity block.
+
+
 ## [0.9.0rc466] - `#T1188`: the seventy-row drain — forty-seven rows fixed on an exact carrier, twenty-two declared with a peer verdict on record, one deferred by name
 
 *(Stage 1 of 3 — the FIX ops. The full entry, the DECLARE sentences, the regenerated census and the new roster pins land in the later stages of this rc. Until then the census manifest is STALE against the registry signature by design: parameter and return types moved on every fixed entry and the probe is re-run once, after the last type edit.)*

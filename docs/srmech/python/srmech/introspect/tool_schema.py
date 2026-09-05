@@ -6888,19 +6888,49 @@ def _register_primitive_class_tools() -> None:
                     "Class-J lock verdict (smooth/2-adic den = LOCK on the "
                     "Laplace ladder; large-prime den = libration off-lock). "
                     "Composes symmetric_eigendecompose (L) + mat_matmul (L) "
-                    "+ best_rational (N) + primes.factor (J); 1:1 C peer "
-                    "srmech_resonant_spectrum (native when present, "
-                    "pure-Python the complete alternative). no abs().",
-            parameters=(P("L", "Mat", True,
-                          "an n×n real-symmetric coupling Laplacian"),
+                    "+ best_rational (N) + primes.factor (J). The C peer "
+                    "srmech_resonant_spectrum is 1:1 with the DEFAULT route "
+                    "only (native when present, pure-Python the complete "
+                    "alternative); it takes const double *L_rowmajor, so it "
+                    "cannot carry exact=True and a bare-C host runs 0 of that "
+                    "route (ADR-0009 §1.2, orchestrator-level — the exact "
+                    "KERNELS srmech_sturm_isolate / srmech_eigvec_exact / "
+                    "srmech_qmat_* all ship). no abs().",
+            parameters=(P("L", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
+                          "an n×n real-symmetric coupling Laplacian. The "
+                          "LEAVES select the carrier (rc467, `#T1188`): a Mat "
+                          "/ any float leaf is the float64 route; with "
+                          "exact=True the operand must be EXACT (QMat / int / "
+                          "Fraction / Q) and SYMMETRIC, or it is refused by "
+                          "name — never rounded"),
                         P("orders", "int", False,
                           "how many force-orders [L¹…Lᵒ]; default 2 (≥1)"),
                         P("max_den", "int", False,
-                          "best_rational denominator ceiling; default 64")),
+                          "best_rational denominator ceiling; default 64"),
+                        P("exact", "bool", False,
+                          "opt in to the EXACT route (rc467, `#T1188`): "
+                          "tensions/modes become Qalg over per-eigenvalue "
+                          "fields, force_orders QMat of Q, and each resonance "
+                          "gains 'certified' + 'ratio_enclosure' from "
+                          "best_rational on BOTH ends of the exact Sturm "
+                          "ratio enclosure. The zero mode is then λ == 0 "
+                          "exactly, not the 1e-9 relative floor. Default "
+                          "False = the float64 route, unchanged")),
             returns=R("dict", "{'tensions': Vec (ascending), 'modes': Mat "
                               "(columns = eigenvectors), 'force_orders': "
                               "list[Mat] [L,…,Lᵒ], 'resonances': list of "
-                              "{pair, ratio (num,den), den_coords, locked}}"),
+                              "{pair, ratio (num,den), den_coords, locked}}. "
+                              "Under exact=True the same four keys carry the "
+                              "exact carriers — tensions list[Qalg] ascending "
+                              "with multiplicity, modes list[list[Qalg]] "
+                              "whose UNNORMALISED columns each sit over their "
+                              "own eigenvalue's field, force_orders "
+                              "list[QMat] (entries plain Q), and each "
+                              "resonance record two keys wider: 'certified' "
+                              "(bool) and 'ratio_enclosure' (both anchors). "
+                              "(0, 1) in 'ratio' is the UNDERFLOW SENTINEL "
+                              "— the ratio is below 1/max_den — not an "
+                              "integer lock"),
         ),
         ToolEntry(
             name="srmech.biology.coupling.resonant_spectrum_sparse", owner="srmech",

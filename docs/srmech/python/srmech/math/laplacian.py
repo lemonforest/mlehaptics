@@ -2051,8 +2051,9 @@ def _symmetric_eig_exact(rows, where: str, *, bits: int = 64):
     """The EXACT symmetric eigendecomposition (rc466 review fix, `#T1188`) —
     the ``exact=True`` route shared by :func:`symmetric_eigendecompose`,
     :func:`hermitian_eigendecompose` (real-exact operand),
-    :func:`fiedler_vector`, :func:`three_fold_eigvec_groups` and
-    :func:`klein4_relational_structure`.
+    :func:`fiedler_vector`, :func:`three_fold_eigvec_groups`,
+    :func:`klein4_relational_structure` and (rc467, `#T1188`)
+    :func:`srmech.biology.coupling.resonant_spectrum`.
 
     Validates ``rows`` SQUARE, **exact** (every entry ``int`` /
     :class:`fractions.Fraction` / ``Q`` — a float or complex entry is REFUSED by
@@ -5329,8 +5330,11 @@ def klein4_relational_structure(
     ENCLOSURE ``(lo, hi)`` of exact ``Q``: when both mixed-sector tensions are
     rational the enclosure is degenerate — ``lo == hi == |t₁₀ − t₀₁|`` exactly,
     the Class-K sign branch on ``Q`` — and otherwise the two tensions live in
-    different number fields whose difference has no shipped carrier (the
-    ``resonant_spectrum`` compositum gap), so it is bounded by their Sturm
+    different number fields whose difference has no shipped carrier (THIS op's
+    own compositum gap — the label "the ``resonant_spectrum`` compositum gap"
+    stood here until rc467 and was a MISATTRIBUTION: ``resonant_spectrum``'s
+    ``exact=True`` route forms no cross-field object at all, which is exactly
+    why it returns its combined dict), so it is bounded by their Sturm
     isolating intervals (``eigvals_exact(..., return_intervals=True)``, width
     ``< 2**-64`` each): ``[lo, hi]`` contains the true magnitude, and an
     enclosure straddling 0 comes back as ``(0, max)``. Cost is the exact
