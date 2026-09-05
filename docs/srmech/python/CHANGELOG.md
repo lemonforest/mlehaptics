@@ -195,6 +195,30 @@ Three of the five named residuals were **already closed by rc466's own review-fi
 - **Pure-cell census cost (~20 min vs 68 s native)** — cause identified and attributed (`recover_check` / `recover_check_spectral`, `CHANGELOG.md:505`); no correctness consequence, and CI never runs it. **Not bought with a `-k` filter or a skip** — this file already records three consecutive commits fighting one symptom without asking whether the thing belonged where it was.
 - **The 27 unexercised ops** carrying `compensated_sum`'s boilerplate — disclosed as uncleared.
 
+#### What CI found that the targeted local runs did not — thirteen tests, six causes
+
+The local discipline for this rc was brief FOREGROUND runs of the gates each change touched. That is the right default and it is not sufficient: **CI is authoritative, and it found thirteen distinct failing tests across six causes, every one of them real.** Recorded here rather than quietly fixed, because the pattern is the point — five of the six are gates that only a *whole-tree* run can reach.
+
+**1. `fractions` at STRICT ZERO — and one of the two sites shipped in stage 1.** `srmech/biology/coupling.py` imported `fractions.Fraction` for the exact route's ratio enclosure and its Sturm sign reads. `fractions` is a `BANNED_ENGINE` at **strict zero across package, tests AND tools** — the sanctioned carrier is srmech's own `Q` / `to_q`, whose whole point is that it routes to `srmech_rational_*` / `srmech_bigint`, so a `Fraction` detour makes the exact route unreachable from a bare-C host and quietly re-creates the ADR-0009 gap the same rc was busy *recording*. Both sites converted (the second was this rc's own new census helper). **Stage 1's commit had no CI run behind it**, which is exactly how it survived to be found here.
+
+**2. Five callers of `jacobi_eigvals(exact=True)` in `test_exact_eigvals_routing_rc21.py`.** The seventh-residual fix changed a return carrier, and this file read every answer through `_vec_to_list`. **Rewritten, and STRENGTHENED rather than loosened**: rows that asserted a float within `1e-9` now assert the exact rational (the 3-cycle Laplacian's zero mode is `Q(0)`, not "0.0 within tolerance"), the float-agreement comparison it used to make is kept as its own separate claim, and a new row carries the `2**53+1` witness the old contract could not see — because every assertion in the file read the answer through `float`.
+
+**3. Two ADR-0009 citations tripped rc415's V3 adjacency rule** (`CEIL_TOKEN_EVIDENCE` 7 → 8). A backticked symbol within **55 columns** of a citation is a claim that the symbol is at that address, and a dense `sym (addr), sym (addr)` enumeration cross-contaminates — the second symbol falls inside the FIRST citation's window. **The ceiling was not raised**; the two rows were restructured to separate naming from addressing, which is the remedy the gate's own message names.
+
+**4. Three conservation pins in `test_namespace_prefix_decode_aware_rc361`**, and their attribution is the most useful thing CI produced this rc. Widening a declared type puts an op's name into more carrier back-indices, and those back-indices are what these pins count. Measured per carrier against `df75d0794`:
+
+| pin | rc466 | rc467 | attribution |
+|---|---|---|---|
+| `srmech.math.` | 447 | **460** | the eight widened `srmech.math.laplacian` operands: all eight join `Q`, five of them also `int` (8 + 5 = 13) |
+| `srmech.biology.` | 111 | **112** | `resonant_spectrum` joining `Q` alone — it already named `int` through `orders` / `max_den` |
+| `srmech.physics.qm.` | 207 | **209** | `triality_companions`, the NINTH widened operand, `Q` +1 and `int` +1 |
+
+The three agree: 13 + 1 + 2 = 16 references for nine widenings, and the shortfall from a naive "9 ops × 2 carriers = 18" is exactly the three ops that already named `int`. A reader deriving the number from the prose alone would get neither figure, so the per-op table is written into the pin rather than summarised.
+
+**5. `test_synth_args_provenance_rc430`, twice.** The new `Qi` operand union had no row in `_synth_value_for_type`, so `CEIL_UNSYNTHESIZABLE_PARAMS` went 52 → 53. **The ceiling was not raised** — a row was added, which is what the gate's message asks for. The same absence had a second, worse effect that only the *joined* gate could see: with no synthesisable argument, `hermitian_eigendecompose` **stopped returning** under the synth-args consumer, and `test_invocable_returned_floor_rc431` caught it. Its own message names why it exists: *"the parametrized sibling stays GREEN when an op stops returning, because it only asserts the op was REACHED."* One missing table row silently removed an op from the returned set, and only the join noticed.
+
+**6. Two version-currency gates.** Four `Live at rcNNN:` stamps in the SSoT notebook and the README's worked `native_status()` block. A `Live at` sentence asserts a CURRENT value, so all four were **re-verified rather than bumped**: `len(get_tool_schema().tools)` is 733 and equals `describe()["tools"]["total"]`; the cascade catalog is `total=21, executable=18, leaf=3, c_runnable=18`; `SRMECH_ABI_VERSION` is 25. The README block was re-measured by running `native_status()`.
+
 #### The numbers
 
 | quantity | rc466 | rc467 | moved? |

@@ -837,14 +837,16 @@ def _exact_leaves(o):
 
 def _carries(o, target: int) -> bool:
     """True iff ``target`` survived coercion somewhere in ``o``, EXACTLY."""
-    from fractions import Fraction
+    # srmech's OWN exact carrier, never stdlib `fractions` -- that module is a
+    # BANNED_ENGINE at STRICT ZERO across package, tests AND tools.
+    from srmech.math.q import to_q
     for v in _exact_leaves(o):
         try:
-            if Fraction(v) == target:
+            if to_q(v) == Q(target):
                 return True
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, ZeroDivisionError):
             r = getattr(v, "as_rational", None)
-            if r is not None and r() == target:
+            if r is not None and r() == Q(target):
                 return True
     return False
 

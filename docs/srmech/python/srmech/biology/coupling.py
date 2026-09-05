@@ -69,7 +69,12 @@ Canonical SSoT:
 
 from __future__ import annotations
 
-from fractions import Fraction
+from srmech.math.q import Q as _Q, to_q as _to_q  # rc467 (`#T1188`): the
+# exact-ℚ carrier is srmech's OWN Q, never stdlib fractions -- that module
+# is a BANNED_ENGINE at STRICT ZERO (tests/test_selfhosting_import_ban.py),
+# because routing through it would bypass the native srmech_rational_* /
+# srmech_bigint peers and make the exact route unreachable from a bare-C
+# host. Q is the same arithmetic on the shipped carrier.
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..math.q import Q  # rc100: the exact-ℚ scalar carrier (fractal_spectrum scale / |q|-meter)
@@ -296,11 +301,11 @@ def _denominator_lcm(rows) -> int:
     return c
 
 
-def _int_poly_at(m, x: "Fraction") -> "Fraction":
+def _int_poly_at(m, x: "_Q") -> "_Q":
     """Horner evaluation of an integer polynomial ``m`` (LOW→HIGH, the
     ``eig_exact`` ``min_poly`` convention) at an exact rational ``x``. Exact ℚ
     the whole way — no float, no ``abs()``."""
-    s = Fraction(0)
+    s = _Q(0, 1)
     for coeff in reversed(m):
         s = s * x + coeff
     return s
@@ -328,8 +333,8 @@ def _bracket_holds(value, lo, hi, scale: int) -> bool:
     r = value.as_rational()
     if r is not None:
         return lo <= r <= hi
-    at_lo = _int_poly_at(value.m, Fraction(lo) * scale)
-    at_hi = _int_poly_at(value.m, Fraction(hi) * scale)
+    at_lo = _int_poly_at(value.m, _to_q(lo) * scale)
+    at_hi = _int_poly_at(value.m, _to_q(hi) * scale)
     if at_lo == 0 or at_hi == 0:
         return True
     return (at_lo > 0) != (at_hi > 0)
@@ -372,8 +377,8 @@ def _positive_tension_indices(values, intervals, scale: int) -> List[int]:
         if hi < 0:
             continue
         # The bracket straddles 0. Split it AT 0 and read the sign change.
-        at_lo = _int_poly_at(v.m, Fraction(lo) * scale)
-        at_zero = Fraction(v.m[0])          # m(0) — the constant term
+        at_lo = _int_poly_at(v.m, _to_q(lo) * scale)
+        at_zero = _Q(v.m[0], 1)             # m(0) — the constant term
         if at_zero == 0:
             raise ValueError(
                 f"resonant_spectrum(exact=True): eigenvalue {v!r} at index {i} "
@@ -426,8 +431,8 @@ def _resonances_from_exact_brackets(values, intervals, scale: int,
                     "0. Re-isolate at higher precision "
                     "(srmech.cascade.matrix_cascades.eigvals_exact takes bits=) "
                     "and read the resonances from those brackets.")
-        r_lo = Fraction(lo_a) / Fraction(hi_b)      # the ratio's exact floor
-        r_hi = Fraction(hi_a) / Fraction(lo_b)      # the ratio's exact ceiling
+        r_lo = _to_q(lo_a) / _to_q(hi_b)            # the ratio's exact floor
+        r_hi = _to_q(hi_a) / _to_q(lo_b)            # the ratio's exact ceiling
         n1, d1 = _rational.best_rational(r_lo.numerator, r_lo.denominator, max_den)
         n2, d2 = _rational.best_rational(r_hi.numerator, r_hi.denominator, max_den)
         den_coords = {p: e for p, e in _primes.factor(d1)} if d1 > 1 else {}
@@ -469,8 +474,7 @@ def _resonant_spectrum_exact(L, orders: int, max_den: int, *, bits: int = 64):
     # 1.6225927682921347e+32 against the exact 2·P² whose float is
     # 1.622592768292134e+32 — the eigenbasis reconstruction is itself lossy at
     # that scale).
-    A = QMat.from_rows([[v if isinstance(v, Q) else Q(Fraction(v).numerator,
-                                                      Fraction(v).denominator)
+    A = QMat.from_rows([[v if isinstance(v, Q) else _to_q(v)
                          for v in r] for r in rows])
     force_orders: List["QMat"] = []
     power = A
