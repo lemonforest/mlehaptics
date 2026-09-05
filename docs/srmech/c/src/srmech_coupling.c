@@ -94,7 +94,9 @@ static uint64_t resonant_isqrt(uint64_t v)
 
 /* Class-J lock test: factor `den` and return 1 iff every prime factor is
  * ≤ isqrt(max_den) (a smooth / 2-adic-ladder denominator), else 0. den==1
- * (no factors) is an exact-integer lock. */
+ * (no factors) is an exact-integer lock. The UNDERFLOW sentinel (0, 1)
+ * is NOT decided here — the caller guards on the numerator, because a
+ * ratio that underflowed 1/max_den arrives with the same den==1. */
 static int resonant_den_is_locked(uint64_t den, uint64_t max_den)
 {
     assert(den >= 1u);
@@ -223,7 +225,14 @@ static srmech_status_t resonant_emit_resonances(
             out_pairs[(size_t)cnt * 2 + 1] = (int32_t)i;
             out_ratio[(size_t)cnt * 2] = p;
             out_ratio[(size_t)cnt * 2 + 1] = q;
-            out_locked[cnt] = resonant_den_is_locked(q, max_den);
+            /* `p != 0` is the UNDERFLOW GUARD, not a second lock rule:
+             * (0, 1) is what srmech_best_rational returns when the ratio
+             * is below 1/max_den, and den==1 would otherwise read as the
+             * exact-integer lock. Python peer: coupling.py, the same
+             * guard on both of its routes (rc467, `#T1188`). */
+            out_locked[cnt] = (p != 0u)
+                            ? resonant_den_is_locked(q, max_den)
+                            : 0;
             cnt++;
         }
         prev = (int32_t)i;

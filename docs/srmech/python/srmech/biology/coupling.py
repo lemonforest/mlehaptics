@@ -202,7 +202,15 @@ def _resonances_from_tensions(lam: List[float], max_den: int) -> List[Dict[str, 
     the same tension values). The zero-mode floor is read relative to
     ``lam[-1]`` (the largest tension in the passed list), so a k-extreme list
     that includes the global-max tension floors the same way the full spectrum
-    does. No ``abs()`` (signs are read by comparison, Class-K)."""
+    does. No ``abs()`` (signs are read by comparison, Class-K).
+
+    ``(0, 1)`` in ``"ratio"`` is the UNDERFLOW SENTINEL — what
+    :func:`best_rational` returns when the ratio falls below ``1/max_den`` — and
+    is deliberately NOT the integer lock that an empty ``den_coords`` otherwise
+    denotes. The verdict carries a ``num > 0`` guard so the two readings of an
+    empty ``den_coords`` stay distinguishable (rc467, ``#T1188``); before that
+    guard both routes AND the C peer reported ``locked: True`` for a ratio they
+    had failed to resolve at all."""
     from ..math import primes as _primes
     from ..math import rational as _rational
 
@@ -220,7 +228,10 @@ def _resonances_from_tensions(lam: List[float], max_den: int) -> List[Dict[str, 
             "pair": (a, b),
             "ratio": (num, den),
             "den_coords": den_coords,
-            "locked": _tension_is_locked(den_coords, max_den=max_den),
+            # `num > 0` is the UNDERFLOW GUARD, not a second lock rule: (0, 1)
+            # is what best_rational returns when the ratio is below 1/max_den,
+            # and its empty den_coords would otherwise read as the integer lock.
+            "locked": num > 0 and _tension_is_locked(den_coords, max_den=max_den),
         })
     return resonances
 
@@ -424,7 +435,8 @@ def _resonances_from_exact_brackets(values, intervals, scale: int,
             "pair": (a, b),
             "ratio": (n1, d1),
             "den_coords": den_coords,
-            "locked": _tension_is_locked(den_coords, max_den=max_den),
+            # The underflow guard the float peer carries — see there.
+            "locked": n1 > 0 and _tension_is_locked(den_coords, max_den=max_den),
             "certified": (n1, d1) == (n2, d2),
             "ratio_enclosure": ((n1, d1), (n2, d2)),
         })
