@@ -784,7 +784,7 @@ instrument cannot decide them, and saying so is the honest output:
   defect rc343 removed when it retired `turn`'s `bounded_by: "associativity"`. **A coverage number is
   never a reason to mint a declaration nothing can contradict.**
 - **A music entry in `limits.capabilities` — admissible but not owed by this ADR.** `srmech.music` does
-  ship a genuine three-rung ceiling (`_spectra.py:50`: *"Tier 3 has no exact carrier by construction"*)
+  ship a genuine three-rung ceiling (`_spectra.py:63`: *"Tier 3 has no exact carrier by construction"*)
   that maps onto the published schema. But all 3 existing entries are `family="cayley_dickson"`; no
   non-CD domain has ever populated the axis. rc362 **inherits** an empty axis. Recorded as a standing
   hole; not a defect.

@@ -109,6 +109,14 @@ def _o(w):
     return [w] + [0] * 7
 
 
+# The rc467 (`#T1188`) resonant_spectrum witness — the 3-node PATH Laplacian
+# with weights (2**53+1, 1). Exact spectrum: 0, a degree-2 algebraic near 3/2,
+# and a degree-2 algebraic near 1.8e16. The float route's answers for the first
+# two are 0.13144078898136016 and 1.5756659922051879 — wrong by O(0.1) — and
+# its resonance list comes back EMPTY.
+_RS_PATH3 = [[P, -P, 0], [-P, P + 1, -1], [0, -1, 1]]
+
+
 # ── LAYER 1 — strict-zero exactness, one row per PATH, every row executes ─────
 def _rows():
     from srmech.math import hdc, laplacian as la
@@ -126,6 +134,7 @@ def _rows():
     from srmech.physics.qm.single_particle import density_matrix
     from srmech.physics.qm.bell import operator_norm
     from srmech.physics.qm.quaternion import quaternion_log
+    from srmech.biology.coupling import resonant_spectrum
     mu4 = [0.0, 1.0, 0.0, 0.0]
     mu8 = [0.0, 1.0] + [0.0] * 6
     return [
@@ -269,6 +278,16 @@ def _rows():
          lambda: quaternion_log([0, P, 0, 0])[1] - quaternion_log([0, 1, 0, 0])[1] + P, P),
         ("quaternion.quaternion_log[(num,den) pair no longer refused]",
          lambda: quaternion_log([(0, 1), (P, 1), 0, 0])[1] - quaternion_log([0, 1, 0, 0])[1] + P, P),
+        # ── biology.coupling — the LAST undeclared demoter (rc467, `#T1188`) ──
+        # Both rows RUN the exact route; neither merely observes the keyword.
+        # The first is the CENSUS witness itself — demotion_probe synthesises
+        # the Mat-shaped operand as the 2x2 identity with the leaf at [0][0]
+        # — so the row that drains census row 20 is the row executed here.
+        ("coupling.resonant_spectrum[int, the census witness -> exact tension]",
+         lambda: resonant_spectrum([[P, 0], [0, 1]], exact=True)["tensions"][1].as_rational(), P),
+        ("coupling.resonant_spectrum[int, exact force_orders on the path-3 witness]",
+         lambda: resonant_spectrum(_RS_PATH3, exact=True)["force_orders"][1].to_lists()[0][0],
+         2 * P * P),
     ]
 
 
@@ -384,6 +403,182 @@ def test_the_eigen_family_exact_route_orders_and_separates_where_float_cannot() 
     k2 = la.klein4_relational_structure([(0, 1), (1, 2), (2, 0)], [1, 2, 3], gains=[1, 0, 0], exact=True)
     lo, hi = k2["sector_asymmetry"]
     assert isinstance(lo, Q) and isinstance(hi, Q) and lo <= hi and hi - lo < Q(1, 2 ** 62)
+
+
+# ── rc467 (`#T1188`) — the LAST undeclared silent demoter, drained ───────────
+def test_resonant_spectrum_exact_route_drains_the_last_undeclared_demoter() -> None:
+    """rc466 drained seventy undeclared silent demoters to ONE and deferred that
+    one — ``srmech.biology.coupling.resonant_spectrum::L`` — as "exact peer
+    ships, deferred". The deferral's stated ground was that the ``modes``
+    faculty "needs eigvec_exact with a caller-supplied IRREDUCIBLE minimal
+    polynomial per eigenvalue". ``eig_exact`` supplies the irreducible minimal
+    polynomial ITSELF, and this test runs all four faculties over exact
+    carriers, so the ground is refuted BY EXECUTION and not by argument.
+
+    The witness is the 3-node PATH Laplacian with weights ``(2**53+1, 1)``.
+    Measured on the pure cell of this tree at rc467:
+
+    * float route tensions ``[0.13144078898136016, 1.5756659922051879,
+      1.8014398509481988e+16]`` where the exact answers are ``0`` and two
+      degree-2 algebraics near ``3/2`` and ``1.8e16`` — the two small tensions
+      are wrong by ``O(0.1)``;
+    * float route ``resonances == []``;
+    * float route ``force_orders[1][0][0] == 1.6225927682921347e+32`` against
+      the exact ``2·P²`` whose own float is ``1.622592768292134e+32``.
+
+    Those digits are recorded rather than asserted — a float Jacobi's low bits
+    are an implementation detail — but they were measured in BOTH cells and are
+    BYTE-IDENTICAL: the C peer ``srmech_resonant_spectrum`` is bound and IS the
+    route taken in the native cell, and it returns the same three doubles, the
+    same empty resonance list and the same ``1.6225927682921347e+32``. What is
+    ASSERTED below is cell-independent all the same — the entry rounding, the
+    structural emptiness of the float resonance list, and the exact values.
+    """
+    from srmech.biology.coupling import resonant_spectrum, _ZERO_TENSION_REL
+    from srmech.math.mat import Mat
+    from srmech.math.qalg import Qalg
+    from srmech.math.qmat import QMat
+
+    out = resonant_spectrum(_RS_PATH3, exact=True)
+
+    # (1) tensions — exact Qalg, ascending, and the zero mode IS zero.
+    vals = out["tensions"]
+    assert isinstance(vals, list) and len(vals) == 3
+    assert all(isinstance(v, Qalg) for v in vals)
+    assert vals[0] == 0 and vals[0].as_rational() == 0
+    # the two non-zero tensions are a conjugate pair over ONE degree-2 field
+    assert vals[1].as_rational() is None and vals[1].m == vals[2].m
+    assert len(vals[1].m) == 3                      # degree 2
+
+    # (2) modes — exact eigenLINES, UNNORMALISED, one field per column.
+    V = out["modes"]
+    assert isinstance(V, list) and len(V) == 3 and all(len(r) == 3 for r in V)
+    assert all(isinstance(V[i][j], Qalg) for i in range(3) for j in range(3))
+    for j in range(3):                              # A·v == λ·v EXACTLY, per column
+        col = [V[i][j] for i in range(3)]
+        zero_j = col[0] * 0                         # each column has its OWN field
+        for i in range(3):
+            got = sum((_RS_PATH3[i][k] * col[k] for k in range(3)), zero_j)
+            assert got == vals[j] * col[i]
+    # the columns really are in DIFFERENT fields — Qalg refuses to mix them, by
+    # name, which is the whole reason the modes faculty is declared per COLUMN.
+    with pytest.raises(ValueError, match="requires equal m"):
+        V[0][0] + V[0][1]
+    col0 = [V[i][0] for i in range(3)]
+    nsq0 = sum((c * c for c in col0), col0[0] * 0)
+    assert nsq0 == 3 and not nsq0 == 1              # the constant vector, ‖·‖² = 3
+    col1 = [V[i][1] for i in range(3)]
+    nsq1 = sum((c * c for c in col1), col1[0] * 0)
+    assert nsq1.as_rational() is None               # irrational — no unit column here
+
+    # (3) force_orders — QMat powers of the OPERAND, entries plain Q.
+    fo = out["force_orders"]
+    assert len(fo) == 2 and all(isinstance(m, QMat) for m in fo)
+    assert fo[0].to_lists()[0][0] == P
+    assert fo[1].to_lists()[0][0] == 2 * P * P
+    assert fo[1].to_lists()[0][0] == 162259276829213399420375029252098
+
+    # (4) resonances — ONE record, CERTIFIED by both enclosure endpoints.
+    res = out["resonances"]
+    assert len(res) == 1
+    r = res[0]
+    assert set(r) == {"pair", "ratio", "den_coords", "locked",
+                      "certified", "ratio_enclosure"}
+    assert r["pair"] == (1, 2) and r["certified"] is True
+    assert r["ratio_enclosure"] == (r["ratio"], r["ratio"])
+
+    # ── the float route on the SAME operand, for contrast ────────────────────
+    fl = resonant_spectrum([[float(x) for x in row] for row in _RS_PATH3])
+    # (a) the entry rounding is carrier-structural — true in BOTH cells.
+    assert Mat.from_rows([[float(P), 0.0], [0.0, 1.0]]).tolist()[0][0] != P
+    # (b) the resonance list is EMPTY, and for a reason that is structural, not
+    #     a digit accident: the free-mode floor is RELATIVE, so on this operand
+    #     it sits at 1.8e16 · 1e-9 = 1.8e7 and discards a real tension of 3/2.
+    assert fl["resonances"] == []
+    lam_max = float(fl["tensions"][2])
+    assert lam_max * _ZERO_TENSION_REL > 1.0e7 > float(vals[1].to_float())
+    # (c) and the census witness itself: exact where the float route rounds.
+    assert resonant_spectrum([[P, 0], [0, 1]], exact=True)["tensions"][1].as_rational() == P
+    assert float(resonant_spectrum([[float(P), 0.0], [0.0, 1.0]])["tensions"][1]) == 2.0 ** 53
+
+
+def test_resonant_spectrum_exact_route_refuses_rather_than_rounds() -> None:
+    """F3 for the new route: every refusal names ``resonant_spectrum(exact=True)``
+    — never the shared laplacian helper's own identity — and a ``Mat`` operand
+    is REFUSED rather than silently accepted at 53 bits, because ``Mat`` IS the
+    float64 carrier and its rows have already lost the low bit."""
+    from srmech.biology.coupling import resonant_spectrum
+    from srmech.math.mat import Mat
+    for bad in (Mat.from_rows([[float(P), 0.0], [0.0, 1.0]]),
+                [[1.0, 0], [0, 1]]):
+        with pytest.raises(ValueError, match=r"resonant_spectrum\(exact=True\).*EXACT"):
+            resonant_spectrum(bad, exact=True)
+    with pytest.raises(ValueError, match=r"resonant_spectrum\(exact=True\).*SYMMETRIC"):
+        resonant_spectrum([[1, 2], [3, 4]], exact=True)
+    with pytest.raises(ValueError, match=r"resonant_spectrum\(exact=True\).*square"):
+        resonant_spectrum([[1, 2, 3], [4, 5, 6]], exact=True)
+
+
+def test_resonant_spectrum_exact_sign_pin_is_positivity_not_nonzero() -> None:
+    """The Class-K sign pin, and why it is POSITIVITY rather than ``!= 0``.
+
+    ``best_rational`` refuses a negative numerator, ``resonant_spectrum``
+    validates only squareness and ``orders >= 1``, and an INDEFINITE
+    real-symmetric operand is reachable through the public contract. A bare
+    ``λ != 0`` test would keep the negative tension and then RAISE inside
+    ``best_rational``; the float route never trips it only because its relative
+    floor silently drops every non-positive tension. Both routes therefore drop
+    it — the exact one by an exact sign read, and without ``abs()``."""
+    from srmech.biology.coupling import resonant_spectrum
+    ex = resonant_spectrum([[1, 2], [2, 1]], exact=True)
+    assert [v.as_rational() for v in ex["tensions"]] == [-1, 3]
+    assert ex["resonances"] == []                       # no adjacent POSITIVE pair
+    assert resonant_spectrum([[1.0, 2.0], [2.0, 1.0]])["resonances"] == []
+
+
+def test_resonant_spectrum_exact_reaches_a_rational_operand() -> None:
+    """The pre-scale trap, executed. ``eig_exact`` isolates ``B = c·A`` for a
+    rational operand, so each ``Qalg``'s minimal polynomial is that of ``c·λ``
+    — and ``_symmetric_eig_exact`` DISCARDS the ``denominator_scale``. The
+    exact route recovers ``c`` itself (a Class-I LCM of the entry denominators)
+    so the sign pin and the bracket-containment check read ``λ.m`` in the right
+    scale. Without that, containment fails on the irrational eigenvalues."""
+    from srmech.biology import coupling as cp
+    from srmech.math import laplacian as la
+    from srmech.math.q import Q
+    from srmech.cascade.matrix_cascades import eigvals_exact
+    rows = [[Q(3, 4), Q(-3, 4), 0], [Q(-3, 4), Q(7, 4), -1], [0, -1, 1]]
+    out = cp.resonant_spectrum(rows, orders=2, max_den=64, exact=True)
+    assert out["tensions"][0] == 0
+    assert len(out["resonances"]) == 1 and out["resonances"][0]["certified"] is True
+    assert out["resonances"][0]["ratio"] == (8, 25)
+    # the instrument has teeth: the SAME check at the wrong scale REFUSES.
+    vals, _ = la._symmetric_eig_exact(rows, "probe")
+    ivs = eigvals_exact(rows, return_intervals=True)
+    assert cp._denominator_lcm(rows) == 4
+    assert [cp._bracket_holds(vals[i], *ivs[i], 4) for i in range(3)] == [True, True, True]
+    assert [cp._bracket_holds(vals[i], *ivs[i], 1) for i in range(3)] == [True, False, False]
+    # and it discriminates a MISALIGNED bracket, which is what it is there for
+    assert cp._bracket_holds(vals[0], *ivs[1], 4) is False
+
+
+def test_resonant_spectrum_exact_certification_can_fail_and_says_so() -> None:
+    """An instrument that cannot return otherwise is not a measurement. At the
+    shipped default (``bits=64``) every enclosure in this corpus certifies; at
+    ``bits=2`` the enclosure is wider than the gap between two admissible
+    rationals, the bounded doubling retry (three further attempts) still cannot
+    close it, and the record SAYS ``certified: False`` and carries BOTH anchors
+    rather than picking one."""
+    from srmech.biology import coupling as cp
+    L = [[1, -1, 0, 0, 0], [-1, 2, -1, 0, 0], [0, -1, 2, -1, 0],
+         [0, 0, -1, 2, -1], [0, 0, 0, -1, 1]]
+    tight = cp._resonant_spectrum_exact(L, 2, 1_000_000, bits=64)
+    assert [r["certified"] for r in tight["resonances"]] == [True, True, True]
+    loose = cp._resonant_spectrum_exact(L, 2, 1_000_000, bits=2)
+    assert [r["certified"] for r in loose["resonances"]] == [False, False, False]
+    for r in loose["resonances"]:
+        lo, hi = r["ratio_enclosure"]
+        assert lo != hi and r["ratio"] == lo
 
 
 def test_eig_exact_self_validation_is_exact_and_reaches_a_rational_matrix() -> None:
@@ -558,7 +753,10 @@ _RETURNS = {
     "srmech.cascade.compensated_sum": "float | Q",
     "srmech.math.laplacian.normalized_laplacian": "Mat | list",
     "srmech.math.laplacian.mass_normalized_laplacian": "Mat | list",
-    "srmech.math.laplacian.magnetic_laplacian": "Mat | list",
+    # rc467 (`#T1188`): the ONLY one of the five exact= builders whose
+    # exact leaf is Qi and not Q, so it no longer hides in the shared
+    # `Mat | list` its four siblings legitimately share.
+    "srmech.math.laplacian.magnetic_laplacian": "Mat | list[list[Qi]]",
     "srmech.math.laplacian.quaternion_laplacian": "Mat | list",
     "srmech.math.laplacian.klein4_gain_laplacian": "dict[str, Mat] | dict[str, list]",
     "srmech.math.laplacian.elementwise_multiply_complex": "Mat | Vec | list[Qi] | list[list[Qi]]",
@@ -599,6 +797,226 @@ def test_every_keyword_builder_declares_exact_in_the_registry(name) -> None:
     ps = {p.name: p for p in entry.parameters}
     assert "exact" in ps and ps["exact"].type == "bool", name
     assert "Q" in (ps["exact"].summary or ""), name
+
+
+# -- rc467 (`#T1188`): the POPULATION gate that replaced an instance list -----
+#
+# rc466 shipped `_KEYWORD_BUILDERS` - five NAMED ops - as the registry half of
+# the exact-carrier drain. An instance list can only fail on the instances
+# somebody thought to write down, and the five it named were the five that were
+# already fine. Asked of the whole REGISTRY instead, the same question found
+# five more, and four of them were worse than the one the dossier had named:
+#
+#   hermitian_eigendecompose::H   RAISED its own exactness refusal (wire-dead)
+#   dense_solve::A                returned Q(1, 2**53)  - direct: Q(1, 2**53+1)
+#   schur_complement::L           returned Q(2**53 - 1) - direct: Q(2**53)
+#   dirichlet_to_neumann::L       returned Q(2**53 - 1) - direct: Q(2**53)
+#   triality_companions::g_v      returned Q(9007199254740999, 8) - direct: an
+#                                 INTEGER, 1125899906842625
+#
+# A raise is a defect the caller can see. Those four are SILENT WRONG ANSWERS
+# WEARING THE EXACT CARRIER: the wire rounded the operand to float64, the op
+# then computed exactly on the rounded number, and the caller got back a `Q` -
+# the carrier whose whole meaning is "this is exact" - holding a value that is
+# not the answer to the question asked.
+#
+# The gate below asks the population question, so a NEW `exact=`-bearing op
+# that declares a rounding operand is red on the day it lands.
+
+
+def _exact_leaves(o):
+    """Every scalar leaf of a coerced operand, containers unwrapped."""
+    if hasattr(o, "tolist"):
+        o = o.tolist()
+    if isinstance(o, (list, tuple)):
+        for x in o:
+            yield from _exact_leaves(x)
+    else:
+        yield o
+
+
+def _carries(o, target: int) -> bool:
+    """True iff ``target`` survived coercion somewhere in ``o``, EXACTLY."""
+    # srmech's OWN exact carrier, never stdlib `fractions` -- that module is a
+    # BANNED_ENGINE at STRICT ZERO across package, tests AND tools.
+    from srmech.math.q import to_q
+    for v in _exact_leaves(o):
+        try:
+            if to_q(v) == Q(target):
+                return True
+        except (TypeError, ValueError, ZeroDivisionError):
+            r = getattr(v, "as_rational", None)
+            if r is not None and r() == Q(target):
+                return True
+    return False
+
+
+def test_no_exact_bearing_op_declares_an_operand_that_rounds_over_the_wire() -> None:
+    """rc467 (`#T1188`) - the POPULATION gate. STRICT ZERO.
+
+    For every registry entry carrying an ``exact`` parameter, every array-shaped
+    operand it declares must carry ``2**53 + 1`` through ``coerce_param``
+    INTACT. A bare ``Mat`` does not - it is float64 - so the wire hands the
+    exact route a rounded operand and the route answers exactly, about the
+    wrong matrix.
+
+    This asks about OPERAND SURVIVAL, not return exactness. An op may
+    legitimately return a float (that is what a DECLARED demotion is); none may
+    legitimately be handed a number its caller did not send."""
+    from srmech.introspect.tool_schema import get_tool_schema
+    from srmech.mcp._coercion import coerce_param, has_coercer
+
+    target = 2 ** 53 + 1
+    witnesses = ([[target, 0], [0, 1]], [target, 1])
+    population = [e for e in get_tool_schema().tools
+                  if any(p.name == "exact" for p in e.parameters)]
+    # The instrument can return otherwise: the population is non-empty, and it
+    # is strictly bigger than the five-name list rc466 shipped.
+    assert len(population) > len(_KEYWORD_BUILDERS), len(population)
+
+    rounding = []
+    for entry in population:
+        for prm in entry.parameters:
+            if prm.name == "exact" or not has_coercer(prm.type):
+                continue
+            for w in witnesses:
+                try:
+                    got = coerce_param(w, prm.type)
+                except Exception:
+                    continue          # this operand does not take this shape
+                if not _carries(got, target):
+                    rounding.append("%s::%s (%s)" % (entry.name, prm.name, prm.type))
+                break
+
+    assert rounding == [], (
+        "these exact=-bearing ops declare an operand that ROUNDS over the "
+        "wire, so exact=True computes on a number the caller did not send: "
+        + "; ".join(sorted(rounding)))
+
+
+def test_the_widened_operands_cross_the_wire_and_agree_with_the_direct_call() -> None:
+    """rc467 (`#T1188`) - the EXECUTED half. Each widened operand is not merely
+    DECLARED wider: it round-trips over the wire and AGREES with the direct
+    call. Every wire value asserted below was wrong before this rc."""
+    from srmech.mcp import invoke_tool
+    from srmech.math import laplacian as _L
+    from srmech.physics.qm import triality as _T
+
+    # (a) the four eigen-family routes that RAISED their own exactness refusal
+    vals = invoke_tool("srmech.math.laplacian.jacobi_eigvals",
+                       {"matrix": [[P, 0], [0, 1]], "exact": True})
+    assert [v.as_rational() for v in vals] == [Q(1), Q(P)], vals
+    lam, _V = invoke_tool("srmech.math.laplacian.symmetric_eigendecompose",
+                          {"L": [[P, 0], [0, 1]], "exact": True})
+    assert lam[1].as_rational() == Q(P), lam
+    fied = invoke_tool("srmech.math.laplacian.fiedler_vector",
+                       {"matrix": [[P, 0], [0, 1]], "exact": True})
+    assert all(type(x).__name__ == "Qalg" for x in fied), fied
+    grp = invoke_tool("srmech.math.laplacian.three_fold_eigvec_groups",
+                      {"L": [[P, 0], [0, 1]], "exact": True})
+    assert set(grp) == {"low", "mid", "high"}, sorted(grp)
+
+    # (b) the four that answered exactly, about the WRONG matrix
+    Lm = [[P, -1], [-1, 1]]
+    assert (invoke_tool("srmech.math.laplacian.schur_complement",
+                        {"L": Lm, "boundary_idx": [0], "exact": True})
+            == _L.schur_complement(Lm, [0], exact=True))
+    assert (invoke_tool("srmech.math.laplacian.dirichlet_to_neumann",
+                        {"L": Lm, "boundary_idx": [0], "exact": True})
+            == _L.dirichlet_to_neumann(Lm, [0], exact=True))
+    assert (invoke_tool("srmech.math.laplacian.dense_solve",
+                        {"A": [[P, 0], [0, 1]], "B": [1, 1], "exact": True})
+            == _L.dense_solve([[P, 0], [0, 1]], [1, 1], exact=True))
+    g8 = [[P if i == j == 0 else (1 if i == j else 0) for j in range(8)]
+          for i in range(8)]
+    assert (invoke_tool("srmech.physics.qm.triality.triality_companions",
+                        {"g_v": g8, "exact": True})[0][0][0]
+            == _T.triality_companions(g8, exact=True)[0][0][0] == Q(2 ** 50 + 1))
+
+
+def test_the_exact_jacobi_route_no_longer_lifts_to_float() -> None:
+    """rc467 (`#T1188`) - the SEVENTH residual. jacobi_eigvals(exact=True) ended
+    in a terminal float lift that destroyed the exactness the keyword exists to
+    supply, while its sibling fiedler_vector had returned list[Qalg] since
+    rc466. An op whose sibling ships the exact return is not float by nature,
+    so it was FIXED, not declared."""
+    from srmech.math.laplacian import jacobi_eigvals, fiedler_vector
+
+    vals = jacobi_eigvals([[P, 0], [0, 1]], exact=True)
+    assert [type(v).__name__ for v in vals] == ["Qalg", "Qalg"], vals
+    assert vals[1].as_rational() == Q(P), vals[1]      # was 9007199254740992.0
+
+    # an IRRATIONAL spectrum comes back as the algebraic number, not a float:
+    # x^3 - 10x^2 + 28x - 22 is irreducible over Q (the docstring's own witness).
+    irr = jacobi_eigvals([[2, 1, 1], [1, 3, 1], [1, 1, 5]], exact=True)
+    assert all(v.as_rational() is None for v in irr), irr
+    assert {v.m for v in irr} == {(-22, 28, -10, 1)}, [v.m for v in irr]
+
+    # the sibling agrees on carrier, which is the argument that decided it
+    sib = fiedler_vector([[P, 0], [0, 1]], exact=True)
+    assert type(sib[0]).__name__ == type(irr[0]).__name__ == "Qalg"
+
+    # and the DEFAULT float route is untouched
+    assert type(jacobi_eigvals([[2.0, 1.0], [1.0, 2.0]])).__name__ == "Vec"
+
+
+def test_compensated_sum_honours_the_declaration_it_already_shipped() -> None:
+    """rc467 (`#T1188`) - the op declared three exact rungs and delivered one.
+
+    The SHIPPED parameter sentence - compiled into
+    ``c/src/srmech_tool_registry.c`` and served over MCP since rc466 - reads
+    *"the LEAVES select the carrier: integers / Q / [num, den] pairs take the
+    EXACT-Q rung, one float anywhere the float64 one"*. Measured before this
+    rc, two of those three rungs were false:
+
+      compensated_sum([2**53+1, 1, -2**53])  ->  1.0        (answer: 2)
+      compensated_sum([[1, 3], [1, 3]])      ->  TypeError
+
+    The ``s = 0.0`` seed pulled every integer operand onto the float path, so
+    an all-exact operand was summed in float64 and silently lost the bit. Only
+    the ``Q`` rung worked, and only by accident, through ``Q.__radd__``. The
+    op was FIXED rather than the sentence corrected: the exact rung it already
+    promised is ten lines, and the shipped ``returns`` sentence ("an exact Q
+    for exact values, the compensation term is then identically zero") already
+    described the behaviour that was missing."""
+    from srmech.cascade.composites import compensated_sum
+
+    # (a) the int rung - the silent wrong answer
+    got = compensated_sum([P, 1, -(2 ** 53)])
+    assert got == Q(2), got
+    assert isinstance(got, Q), type(got).__name__
+
+    # (b) the [num, den] rung - the TypeError
+    assert compensated_sum([[1, 3], [1, 3], [1, 3]]) == Q(1)
+
+    # (c) the Q rung, which already worked
+    assert compensated_sum([Q(1, 3)] * 3) == Q(1)
+
+    # (d) the compensation term IS identically zero on the exact rung, which
+    #     is what the shipped `returns` sentence claims. If it were not, the
+    #     sum would not be exact and (a) could not hold at 2**53.
+    assert compensated_sum([Q(1, 7)] * 7) == Q(1)
+
+    # (e) ONE float leaf anywhere keeps the byte-identical rc420 float body,
+    #     so the autocorrelation chain's pinned float-op order does not move
+    assert compensated_sum([1e10, 1.0, -1e10, 2.0]) == 3.0
+    assert isinstance(compensated_sum([1, 2, 0.5]), float)
+    # NOTE the value, and how it was found. The curated worked example
+    # shipped `compensated_sum([0.1] * 10)  # -> 1.0000000000000002` -
+    # compiled into srmech_tool_registry.c and served over MCP - and the op
+    # returns 1.0, which is the CORRECT Neumaier answer (math.fsum agrees; a
+    # naive += gives 0.9999999999999999). Measured identical on both sides of
+    # this rc, so the example was wrong when it was written, not broken here.
+    # The worked-example ledger does not catch this class: it EXECUTES each
+    # snippet and records what it prints, and never compares that against the
+    # `# ->` comment the snippet states. Named in the rc467 CHANGELOG.
+    assert compensated_sum([0.1] * 10) == 1.0
+
+    # (f) an EMPTY operand has no leaves, so nothing selects a carrier: it
+    #     keeps the float 0.0 it has always returned (the curated worked
+    #     example asserts exactly this) rather than acquiring a Q silently
+    assert compensated_sum([]) == 0.0
+    assert isinstance(compensated_sum([]), float)
 
 
 def test_every_widened_param_type_has_a_coercer_and_a_lexicon_row() -> None:

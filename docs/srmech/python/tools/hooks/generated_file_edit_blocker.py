@@ -6,7 +6,7 @@ WHAT IT CATCHES
 A surgical fix typed straight into one of the six ``tools/regen_all.py``
 outputs. The temptation is live every time a count-pin reddens, and the damage
 is delayed rather than loud: a hand-edited ``_tool_docs.py`` SHIPS IN THE WHEEL
-and reaches users through ``describe()``, the MCP tool list and the compiled-in
+and reaches users through the MCP tool list and the compiled-in
 C registry — then silently reverts on the next regen, taking the fix with it.
 
 The propagation is measured, not assumed: rc346 injected 14 bytes into

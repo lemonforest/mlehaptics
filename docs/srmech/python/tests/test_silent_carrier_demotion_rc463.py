@@ -597,13 +597,24 @@ _STALENESS_BLIND_SPOT = (
 #: Both columns ride ONE digest deliberately. The cells disagree, and a
 #: per-cell constant asserted only in its own cell is how the previous cut
 #: ended up measuring the host: this one is asserted in FULL in EVERY cell.
+#: was: 99c2164df1109c3f7f1c2fd18f4b1592254dfc4ec548f2315558461cd1b7e17b (rc466,
+#: the roster at ONE). rc467 (`#T1188`) takes it to ZERO, so this is the digest
+#: of an EMPTY roster body -- ``_roster_body`` renders that as b"\n". It is
+#: PINNED FROM THE PROBE'S OWN RE-MEASURE in both cells, not from the
+#: derivation, so the constant records what was measured rather than what was
+#: expected to be measured.
 EXPECTED_UNDECLARED_ROSTER_SHA256 = (
-    "99c2164df1109c3f7f1c2fd18f4b1592254dfc4ec548f2315558461cd1b7e17b")
+    "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b")
 
 #: Pinned only so the failure message can say "70 -> 71" instead of dumping
 #: every key; the ROSTER above is the actual contract. Same relationship
 #: ``EXPECTED_N`` has to ``EXPECTED_NAME_SET_SHA256`` in rc361.
-EXPECTED_UNDECLARED_N = {"native": 1, "pure": 1}
+#: was: {"native": 1, "pure": 1} (rc466). ZERO at rc467 (`#T1188`) -- the whole
+#: roster is drained. DEMOTED itself also moved, 70 -> 69 in BOTH cells, which
+#: is a drain BY FIXING and not by narrowing: compensated_sum's harvested
+#: witness is [1e10, 1.0, -1e10, 2.0], every leaf integral, so the probe's
+#: `exactify` reads it as int and the new exact rung answers it EXACTLY.
+EXPECTED_UNDECLARED_N = {"native": 0, "pure": 0}
 
 #: Down-only. ``NO_SHAPE`` rows — parameters the probe could not build ANY
 #: candidate binding for, so no carrier verdict was ever reachable. This is the
@@ -745,8 +756,29 @@ _FIXED_IN_RC466 = frozenset({
 #: exact route is GOOD NEWS the gate reports, at which point the op moves to a
 #: ``_FIXED_IN_RC4NN`` set. A drain by narrowing admission (the row leaving as
 #: ``RAISED``) is refused on the same terms as everywhere else in this file.
-_DEFERRED_EXACT_PEER_SHIPS = frozenset({
-    "srmech.biology.coupling.resonant_spectrum::L",
+#: rc467 (`#T1188`): the ops rc467 drained by FIXING, kept ALONGSIDE
+#: ``_FIXED_IN_RC466`` and never merged into it -- that name is imported by
+#: ``tests/test_declared_inexactness_rc466.py`` across files, so renaming it
+#: breaks a gate in a different module for no gain.
+#:
+#: ``resonant_spectrum`` is the row rc466 left in the roster on purpose, under
+#: a ``_DEFERRED_EXACT_PEER_SHIPS`` pin (deleted here, together with its
+#: Layer-3 test) whose stated ground was that the ``modes`` faculty "needs
+#: eigvec_exact with a caller-supplied IRREDUCIBLE minimal polynomial per
+#: eigenvalue". ``eig_exact`` supplies the irreducible minimal polynomial
+#: ITSELF and returned ``vectors_qalg`` at 32246efca -- the very commit the pin
+#: was written in -- and the ``_symmetric_eig_exact`` wrapper landed one commit
+#: later at c7b5f9501. The pin was stale on the day it was written.
+#:
+#: ``compensated_sum`` is here for a different reason and is worth separating:
+#: it was never in the undeclared ROSTER, because its declaration already
+#: PROMISED the exact rung. What was missing was the rung. Its census row moved
+#: DEMOTED -> EXACT behind an UNCHANGED signature, which is this instrument's
+#: declared blind spot, so it is pinned by name here rather than left to the
+#: roster to notice.
+_FIXED_IN_RC467 = frozenset({
+    "srmech.biology.coupling.resonant_spectrum",
+    "srmech.cascade.compensated_sum",
 })
 
 #: The rc463 hand-written six, kept as the probe's POSITIVE CONTROL rather than
@@ -1021,26 +1053,30 @@ def test_layer3_the_rc466_fixed_family_is_strict_zero(op) -> None:
         f"gave it an exact carrier; see tests/test_exact_carrier_drain_rc466.py")
 
 
-@pytest.mark.parametrize("row", sorted(_DEFERRED_EXACT_PEER_SHIPS))
-def test_layer3_the_deferred_row_is_still_undeclared_debt(row) -> None:
-    """The ONE row rc466 left in the roster on purpose is still there, in BOTH
-    cells, and still undeclared. Its leaving is never silent: a real exact
-    route is good news to RECORD (move the op to a fixed set); an R3 sentence
-    on an op whose exact peers all ship is the failure mode this rc names, and
-    is refused by this pin until the route exists.
+@pytest.mark.parametrize("op", sorted(_FIXED_IN_RC467))
+def test_layer3_the_rc467_fixed_family_is_strict_zero(op) -> None:
+    """The two ops rc467 drained by FIXING can never re-enter the roster.
+
+    This test REPLACES ``test_layer3_the_deferred_row_is_still_undeclared_debt``
+    -- deleted in the same change as the ``_DEFERRED_EXACT_PEER_SHIPS`` set it
+    read, because an empty ``parametrize`` collects zero cases and reports
+    SKIPPED, which is a gate that cannot fail rather than a gate that passes.
+
+    That test's own failure message wrote the instruction this change follows:
+    *"If it drained by an exact route: GOOD NEWS, ACTION REQUIRED -- move the
+    op into a _FIXED_IN_RC4NN set and remove it from _DEFERRED_EXACT_PEER_SHIPS
+    in the SAME change."* It also named the two ways of draining that are
+    REFUSED, and neither was taken: the route is executed rather than a
+    sentence (see ``tests/test_exact_carrier_drain_rc466.py``), and admission
+    was widened rather than narrowed -- the row did not leave as ``RAISED``,
+    and the default float path is byte-unchanged on both ops.
     """
     _meta, rows = _manifest()
-    for c in _cells():
-        keys = set(_dp.undeclared_keys(rows, c))
-        assert row in keys, (
-            f"[{c}] {row} is no longer an UNDECLARED demoter. If it drained by "
-            f"an exact route: GOOD NEWS, ACTION REQUIRED — move the op into a "
-            f"_FIXED_IN_RC4NN set and remove it from _DEFERRED_EXACT_PEER_SHIPS "
-            f"in the SAME change. If it drained by an accuracy SENTENCE while "
-            f"eigvals_exact / eigvec_exact / QMat.matmul still ship, that is a "
-            f"defect converted into documentation — revert the sentence. If it "
-            f"left as RAISED, admission was narrowed rather than the value "
-            f"computed — also refused.")
+    bad = sorted(f"{c}:{_dp.key(r)}" for c in _cells()
+                 for r in _dp.undeclared(rows, c) if r["op"] == op)
+    assert not bad, (
+        f"{op} is demoting again with no accuracy declaration: {bad}. rc467 "
+        f"gave it an exact route; see tests/test_exact_carrier_drain_rc466.py")
 
 
 def test_the_native_pure_divergence_is_a_named_finding() -> None:

@@ -8,7 +8,7 @@ This session's shipped defect. Four worked examples — ``rational_mul`` and thr
 subscriptable`` ever since the exact-ℚ arm made those ops return a ``Q``. The
 committed ``tests/worked_examples_result.ndjson`` recorded them ``ok``, because
 it had not been re-run since the flip. Those snippets ship via ``_tool_docs.py``
--> ``ToolEntry.example`` -> ``describe()``, the MCP tool list and the
+-> ``ToolEntry.example`` -> the MCP tool list and the
 compiled-in C registry. Fixed at 17 sites; this hook is what keeps it fixed.
 
 ⚠️ THE DESIGNED MECHANISM WAS WRONG, AND MEASURING IT IS WHY THIS HOOK DIFFERS
@@ -224,7 +224,7 @@ def body(payload: Dict[str, Any]) -> int:
         "",
         "An instrument that has not been re-run cannot return otherwise: those "
         "rows still record the status of the OLD implementation, and they ship "
-        "through describe(), the MCP tool list and the compiled-in C registry.",
+        "through the MCP tool list and the compiled-in C registry.",
         "",
         "Re-run the affected snippets, then commit the ledger with the change:",
         *[f"    python3 tools/run_worked_examples.py --only {n}" for n in shown[:3]],

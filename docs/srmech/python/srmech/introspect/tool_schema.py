@@ -1913,7 +1913,7 @@ def _register_primitive_class_tools() -> None:
                           "other rational turn is REFUSED by name (the message names the Qalg carrier over Phi_N that "
                           "holds it), never rounded. Refuses a float weight / charge / q by name. Default False returns "
                           "the complex Mat carrier, accurate to float64 round-off.")),
-            returns=R("Mat | list", "n × n complex Hermitian matrix — Mat, array('d') interleaved (re, im) by default, or exact rows of Qi with exact=True"),
+            returns=R("Mat | list[list[Qi]]", "n × n complex Hermitian matrix — Mat, array('d') interleaved (re, im) by default, or exact rows of Qi with exact=True"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.quaternion_laplacian", owner="srmech",
@@ -2628,8 +2628,8 @@ def _register_primitive_class_tools() -> None:
                     "second-smallest eigenvalue (λ₂) of a Laplacian. "
                     "Dispatches real→symmetric_eigendecompose, "
                     "complex→hermitian_eigendecompose (both native).",
-            parameters=(P("matrix", "Mat", True,
-                          "n × n real-symmetric or complex-Hermitian Laplacian"),
+            parameters=(P("matrix", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
+                          "n × n real-symmetric or complex-Hermitian Laplacian. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` RAISED its own exactness refusal on every operand a caller could actually send."),
                         P("exact", "bool", False,
                           "rc466 review fix: the λ₂ column of "
                           "hermitian_eigendecompose(matrix, exact=True) — a "
@@ -2823,13 +2823,25 @@ def _register_primitive_class_tools() -> None:
                     "c/s computation. Native C dispatch at any n (the kernel "
                     "rotates in place, so the bound is the caller's RAM, not a "
                     "compiled cap); pure-Python Jacobi cascade otherwise.",
-            parameters=(P("matrix", "Mat", True, "n × n symmetric"),
+            parameters=(P("matrix", "Mat | QMat | Sequence[Sequence[int | Q]]", True, "n × n symmetric. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` RAISED its own exactness refusal on every operand a caller could actually send."),
                         P("max_sweeps", "int", False, "default 100"),
                         P("tolerance", "float", False),
                         P("exact", "bool", False,
-                          "exact eigvals_exact route for integer/rational "
-                          "symmetric input (default float-Jacobi)")),
-            returns=R("Vec", "n eigenvalues ascending — Vec, the array('d') 1-D carrier"),
+                          "rc467 (`#T1188`): route to the exact symmetric "
+                          "eigensolve for an exact (int / Q / Fraction) "
+                          "symmetric operand and RETURN the eigenvalues exact "
+                          "— a list of n Qalg, each over its own irreducible "
+                          "minimal polynomial, never a float. Until rc466 this "
+                          "route ended in a terminal float lift that destroyed "
+                          "what the keyword was asked for: [[2**53+1, 0], "
+                          "[0, 1]] came back 9007199254740992.0, off by one, "
+                          "for a spectrum of two exact integers. The default "
+                          "float-Jacobi path is UNCHANGED")),
+            returns=R("Vec | list[Qalg]",
+                      "n eigenvalues ascending with multiplicity — a Vec (the "
+                      "array('d') 1-D carrier) on the default float-Jacobi "
+                      "route, and a list of n exact Qalg under exact=True "
+                      "(rc467, `#T1188`), matching the sibling fiedler_vector"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.spectral_block_dispatch", owner="srmech",
@@ -2868,8 +2880,8 @@ def _register_primitive_class_tools() -> None:
                     "realization rides the numpy-free "
                     "Mat engine; exact-rational Q solve (Class-N exact-ℚ core, "
                     "exact=True).",
-            parameters=(P("A", "Mat", True,
-                          "n × n coefficient matrix; nested JSON list over MCP"),
+            parameters=(P("A", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
+                          "n × n coefficient matrix; nested JSON list over MCP. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` then computed EXACTLY on a ROUNDED operand and returned a wrong answer wearing the exact carrier."),
                         P("B", "Mat | Vec", True,
                           "right-hand side: n × w matrix or length-n vector"),
                         P("exact", "bool", False,
@@ -2889,7 +2901,7 @@ def _register_primitive_class_tools() -> None:
                     "the operator|operand FUSION op). Exact-rational Q "
                     "solve (Class-N core, exact=True); the float realization "
                     "rides the numpy-free Mat engine (dense_solve -> mat_solve).",
-            parameters=(P("L", "Mat", True,
+            parameters=(P("L", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
                           "n × n SPD operator (a graph Laplacian); nested JSON "
                           "list over MCP"),
                         P("boundary_idx", "list[int]", True,
@@ -2905,7 +2917,7 @@ def _register_primitive_class_tools() -> None:
             summary="Alias for schur_complement — the discrete "
                     "Dirichlet-to-Neumann map: boundary values ⟹ the boundary "
                     "normal-derivative of their harmonic interior extension.",
-            parameters=(P("L", "Mat", True,
+            parameters=(P("L", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
                           "n × n SPD operator (a graph Laplacian); nested JSON "
                           "list over MCP"),
                         P("boundary_idx", "list[int]", True,
@@ -2930,8 +2942,8 @@ def _register_primitive_class_tools() -> None:
                     "complex-Jacobi cascade (there is no NumPy in the call "
                     "graph — the package imports numpy nowhere). Sakurai "
                     "§2.1.5; Golub & Van Loan §8.5.",
-            parameters=(P("H", "Mat", True,
-                          "n × n complex Hermitian matrix"),
+            parameters=(P("H", "Mat | QMat | Sequence[Sequence[int | Q]] | list[list[Qi]]", True,
+                          "n × n complex Hermitian matrix. The `Qi` leaf is the exact GAUSSIAN-rational form this op's OWN exact route accepts (a real Qi entry takes the exact rung; a non-real one is REFUSED by name), declared at rc467 so `Qi` is a wire-reachable OPERAND — until then it appeared in no parameter type at all. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` RAISED its own exactness refusal on every operand a caller could actually send."),
                         P("exact", "bool", False,
                           "rc466 review fix: an exact REAL operand (int / Q / "
                           "Fraction, or Qi with zero imaginary part) takes "
@@ -2955,8 +2967,8 @@ def _register_primitive_class_tools() -> None:
                     "hermitian_eigendecompose: guarantees real float64 "
                     "eigvals AND eigvecs (no ComplexWarning for a real "
                     "Laplacian). Golub & Van Loan §8.3.",
-            parameters=(P("L", "Mat", True,
-                          "n × n real symmetric matrix"),
+            parameters=(P("L", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
+                          "n × n real symmetric matrix. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` RAISED its own exactness refusal on every operand a caller could actually send."),
                         P("exact", "bool", False, "rc466 review fix: route to the exact eigensolver (eig_exact — exact char-poly, irreducible factors, Sturm-isolated roots, exact null space over Q(λ)); the operand must be exact (int / Q / Fraction entries) and symmetric, a float entry is REFUSED by name. Opt-in: polynomial-factoring cost class, not Jacobi's")),
             returns=R("tuple[Vec, Mat] | tuple[list, list]",
                       "(eigvals_ascending Vec, V_orthogonal real Mat); with "
@@ -3347,7 +3359,7 @@ def _register_primitive_class_tools() -> None:
             category="laplacian",
             summary="Harmonic-3 three-fold spectral reading (F150): partition the "
                     "eigenvectors of a real-symmetric Laplacian into low/mid/high.",
-            parameters=(P("L", "Mat", True, "real-symmetric matrix"),
+            parameters=(P("L", "Mat | QMat | Sequence[Sequence[int | Q]]", True, "real-symmetric matrix. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` RAISED its own exactness refusal on every operand a caller could actually send."),
                         P("exact", "bool", False,
                           "rc466 review fix: the bands are column slices of "
                           "symmetric_eigendecompose(L, exact=True)'s exact "
@@ -3722,10 +3734,10 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.math.rational.sqrt", owner="srmech", category="rational",
-            summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — IEEE-bit x = M*2^e, root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K). Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
+            summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — IEEE-bit x = M*2^e, root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K). Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error. EXACTNESS (0.9.0rc467): 'exact rational' scopes to the CARRIER — the returned Q is an exact rational APPROXIMATION of sqrt(x), and for a non-square rational it cannot be the value itself. An exact peer EXISTS and is not this op: sqrt(r) for rational r generates the quadratic (hence abelian, hence by Kronecker-Weber cyclotomic) field Q(sqrt(r)), carried exactly by srmech.math.qalg.Qalg over t^2 - r; for sqrt(2) specifically the exact value is 2*srmech.math.qalg.cos_2pi_over_n(8). Reach for those when the value must SATISFY its defining equation, and for this op when a rational of declared precision is what is wanted.",
             parameters=(P("x", "float", True, "radicand, x >= 0"),
                         P("precision", "int", False, "higher-precision bignum reference (keyword-only); default None = C-bit-exact K=27 cascade")),
-            returns=R("Q", "sqrt(x) as an exact rational (Class-N Q carrier) from the integer root"),
+            returns=R("Q", "sqrt(x) as an exact-rational APPROXIMATION (Class-N Q carrier) from the integer root; the exact algebraic value is Qalg over t^2 - x"),
         ),
         ToolEntry(
             name="srmech.math.rational.hypot", owner="srmech", category="rational",
@@ -3733,7 +3745,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("a", "float", True, "first leg"),
                         P("b", "float", True, "second leg"),
                         P("precision", "int", False, "scaled-integer precision (keyword-only); default 64")),
-            returns=R("Q", "Euclidean norm sqrt(a^2 + b^2) as an exact rational (Class-N Q carrier)"),
+            returns=R("Q", "Euclidean norm sqrt(a^2 + b^2) as an exact-rational APPROXIMATION (Class-N Q carrier); the exact algebraic value is Qalg over t^2 - (a^2 + b^2)"),
         ),
         ToolEntry(
             name="srmech.cascade.spectral_cascades.dft", owner="srmech", category="cascade",
@@ -3770,21 +3782,21 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.cascade.exact_dft.exact_dft", owner="srmech", category="cascade",
-            summary="Exact cyclotomic-integer DFT of an integer / Gaussian-integer power-of-two signal: the twiddles e^(-2pi*i*j/N) are roots of unity (algebraic integers in Z[zeta_N]); for power-of-two N, zeta^(N/2) = -1 (a Class-K sign-flip) collapses the ring to the negacyclic integers Z[x]/(x^(N/2)+1), so the transform is PURE INTEGER add/subtract — no floats. Returns the exact spectrum (one integer (real_vec, imag_vec) pair of length N/2 per bin); call lift() for the single FPU rotation to complex. Class I (cyclic index) + Class K (zeta^(N/2)=-1 reduction) + Class M (integer bundle). Rides the native srmech_exact_dft_i64 int64 twin; arbitrary-precision magnitudes use the Python bignum path. Raises on non-integer / non-power-of-two input (use dft there).",
+            summary="Exact cyclotomic-integer DFT of an integer / Gaussian-integer power-of-two signal: the twiddles e^(-2pi*i*j/N) are roots of unity (algebraic integers in Z[zeta_N]); for power-of-two N, zeta^(N/2) = -1 (a Class-K sign-flip) collapses the ring to the negacyclic integers Z[x]/(x^(N/2)+1), so the transform is PURE INTEGER add/subtract — no floats. Returns the exact spectrum (one integer (real_vec, imag_vec) pair of length N/2 per bin); call lift() for the single FPU rotation to complex. RING (conditional): each half of the returned (real_vec, imag_vec) pair is an exact Z[zeta_N] element. The coefficient VALUE real + i*imag is in Z[zeta_N] for a REAL signal, and in Z[zeta_lcm(N,4)] for a Gaussian-integer signal when 4 does not divide N, because i is not in Q(zeta_N) there; when 4 divides N the two rings coincide. Class I (cyclic index) + Class K (zeta^(N/2)=-1 reduction) + Class M (integer bundle). Rides the native srmech_exact_dft_i64 int64 twin; arbitrary-precision magnitudes use the Python bignum path. Raises on non-integer / non-power-of-two input (use dft there).",
             parameters=(P("signal", "list[complex]", True, "integer / Gaussian-integer power-of-two-length sequence (integer-valued)"),
                         P("inverse", "bool", False, "keyword-only; conjugate exponent zeta^(-nk); default False")),
-            returns=R("list[tuple[list[int], list[int]]]", "exact Z[zeta_N] integer spectrum (per-bin (real_vec, imag_vec))"),
+            returns=R("list[tuple[list[int], list[int]]]", "exact cyclotomic-integer spectrum (per-bin (real_vec, imag_vec); each half in Z[zeta_N], the VALUE in Z[zeta_lcm(N,4)] for a Gaussian-integer signal when 4 does not divide N)"),
         ),
         ToolEntry(
             name="srmech.cascade.exact_dft.exact_idft", owner="srmech", category="cascade",
             summary="Inverse exact cyclotomic-integer DFT — exact_dft() with the conjugate exponent zeta^(-nk). Unnormalised: the 1/N scale is a Class-N rational applied at lift() time (lift(exact_idft(x), scale=N)), keeping this core pure integer.",
             parameters=(P("signal", "list[complex]", True, "integer / Gaussian-integer power-of-two-length sequence (integer-valued)"),),
-            returns=R("list[tuple[list[int], list[int]]]", "exact Z[zeta_N] integer inverse spectrum"),
+            returns=R("list[tuple[list[int], list[int]]]", "exact cyclotomic-integer inverse spectrum (each half in Z[zeta_N]; the VALUE in Z[zeta_lcm(N,4)] for a Gaussian-integer signal when 4 does not divide N)"),
         ),
         ToolEntry(
             name="srmech.cascade.exact_dft.lift", owner="srmech", category="cascade",
             summary="The single FPU lift: rotate an exact Z[zeta_N] integer spectrum (from exact_dft) to complex at zeta_N = e^(-2pi*i/N). This is the ONLY place a float is produced — the projection from the exact discrete substrate to the continuous observable (floats are for the FPU lift, not the math). scale divides the result (use scale=N for a normalised inverse). Class C (i-rotation) over the Class-N substrate-native cexp.",
-            parameters=(P("spectrum", "list[tuple[list[int], list[int]]]", True, "exact Z[zeta_N] integer spectrum from exact_dft / exact_idft"),
+            parameters=(P("spectrum", "list[tuple[list[int], list[int]]]", True, "exact cyclotomic-integer spectrum from exact_dft / exact_idft (each half in Z[zeta_N])"),
                         P("scale", "int", False, "keyword-only; divide the lifted result (scale=N normalises an inverse); default 1")),
             returns=R("list[complex]", "lifted complex spectrum / samples"),
         ),
@@ -6888,19 +6900,49 @@ def _register_primitive_class_tools() -> None:
                     "Class-J lock verdict (smooth/2-adic den = LOCK on the "
                     "Laplace ladder; large-prime den = libration off-lock). "
                     "Composes symmetric_eigendecompose (L) + mat_matmul (L) "
-                    "+ best_rational (N) + primes.factor (J); 1:1 C peer "
-                    "srmech_resonant_spectrum (native when present, "
-                    "pure-Python the complete alternative). no abs().",
-            parameters=(P("L", "Mat", True,
-                          "an n×n real-symmetric coupling Laplacian"),
+                    "+ best_rational (N) + primes.factor (J). The C peer "
+                    "srmech_resonant_spectrum is 1:1 with the DEFAULT route "
+                    "only (native when present, pure-Python the complete "
+                    "alternative); it takes const double *L_rowmajor, so it "
+                    "cannot carry exact=True and a bare-C host runs 0 of that "
+                    "route (ADR-0009 §1.2, orchestrator-level — the exact "
+                    "KERNELS srmech_sturm_isolate / srmech_eigvec_exact / "
+                    "srmech_qmat_* all ship). no abs().",
+            parameters=(P("L", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
+                          "an n×n real-symmetric coupling Laplacian. The "
+                          "LEAVES select the carrier (rc467, `#T1188`): a Mat "
+                          "/ any float leaf is the float64 route; with "
+                          "exact=True the operand must be EXACT (QMat / int / "
+                          "Fraction / Q) and SYMMETRIC, or it is refused by "
+                          "name — never rounded"),
                         P("orders", "int", False,
                           "how many force-orders [L¹…Lᵒ]; default 2 (≥1)"),
                         P("max_den", "int", False,
-                          "best_rational denominator ceiling; default 64")),
+                          "best_rational denominator ceiling; default 64"),
+                        P("exact", "bool", False,
+                          "opt in to the EXACT route (rc467, `#T1188`): "
+                          "tensions/modes become Qalg over per-eigenvalue "
+                          "fields, force_orders QMat of Q, and each resonance "
+                          "gains 'certified' + 'ratio_enclosure' from "
+                          "best_rational on BOTH ends of the exact Sturm "
+                          "ratio enclosure. The zero mode is then λ == 0 "
+                          "exactly, not the 1e-9 relative floor. Default "
+                          "False = the float64 route, unchanged")),
             returns=R("dict", "{'tensions': Vec (ascending), 'modes': Mat "
                               "(columns = eigenvectors), 'force_orders': "
                               "list[Mat] [L,…,Lᵒ], 'resonances': list of "
-                              "{pair, ratio (num,den), den_coords, locked}}"),
+                              "{pair, ratio (num,den), den_coords, locked}}. "
+                              "Under exact=True the same four keys carry the "
+                              "exact carriers — tensions list[Qalg] ascending "
+                              "with multiplicity, modes list[list[Qalg]] "
+                              "whose UNNORMALISED columns each sit over their "
+                              "own eigenvalue's field, force_orders "
+                              "list[QMat] (entries plain Q), and each "
+                              "resonance record two keys wider: 'certified' "
+                              "(bool) and 'ratio_enclosure' (both anchors). "
+                              "(0, 1) in 'ratio' is the UNDERFLOW SENTINEL "
+                              "— the ratio is below 1/max_den — not an "
+                              "integer lock"),
         ),
         ToolEntry(
             name="srmech.biology.coupling.resonant_spectrum_sparse", owner="srmech",
@@ -16346,8 +16388,14 @@ def _register_qm_tools() -> None:
                     "then π enters ONCE as the Class-N 4·atan(1) cascade at the "
                     "float64 boundary (never math.pi). σ=−1 (default) = forward "
                     "DFT (matches cascade.octonion_dft); σ=+1 = inverse. "
-                    "Twiddle closure: exp(μ2π/N)^N = 1. Class I∘N∘C∘M. Same-rc "
-                    "C peer srmech_octonion_twiddle (byte-exact).",
+                    "Twiddle closure: jk = 0 (mod N) gives the EXACT identity; "
+                    "exp(μ2π/N)^N = 1 holds only to a FLOAT TOLERANCE "
+                    "(gated < 1e-14), not exactly. The target is a root of "
+                    "unity and this float64 carrier does not reach it; the "
+                    "exact route is srmech.math.qalg.cos_2pi_over_n / "
+                    "sin_2pi_over_n and is deliberately NOT taken here "
+                    "(0.9.0rc467 gap, scoped to a later rc). Class I∘N∘C∘M. "
+                    "Same-rc C peer srmech_octonion_twiddle (byte-exact).",
             parameters=(
                 P("j", "int", True, "frequency index (non-negative)"),
                 P("k", "int", True, "sample index (non-negative)"),
@@ -16547,7 +16595,13 @@ def _register_qm_tools() -> None:
                     "4·atan(1) cascade at the float64 boundary (never math.pi). "
                     "σ=−1 (default) = forward DFT (matches cascade."
                     "quaternion_dft); σ=+1 = inverse. Twiddle closure: "
-                    "exp(μ2π/N)^N = 1. Class I∘N∘C∘M. Same-rc C peer "
+                    "jk = 0 (mod N) gives the EXACT identity; exp(μ2π/N)^N = 1 "
+                    "holds only to a FLOAT TOLERANCE (gated <= 1e-9*N), not "
+                    "exactly. The target is a root of unity and this float64 "
+                    "carrier does not reach it; the exact route is "
+                    "srmech.math.qalg.cos_2pi_over_n / sin_2pi_over_n and is "
+                    "deliberately NOT taken here (0.9.0rc467 gap, scoped to a "
+                    "later rc). Class I∘N∘C∘M. Same-rc C peer "
                     "srmech_quaternion_twiddle (byte-exact).",
             parameters=(
                 P("j", "int", True, "frequency index (non-negative)"),
@@ -17053,7 +17107,7 @@ def _register_qm_tools() -> None:
                     "that exact carrier (list[list[Q]]) instead of the float64 "
                     "Mat, and keeps the OPERAND exact too. "
                     "Class M. Baez (2002) §2.4.",
-            parameters=(P("g_v", "Mat", True, "8×8 so(8) generator"),
+            parameters=(P("g_v", "Mat | QMat | Sequence[Sequence[int | Q]]", True, "8×8 so(8) generator. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` then computed EXACTLY on a ROUNDED operand and returned a wrong answer wearing the exact carrier."),
                         P("exact", "bool", False,
                           "return the exact-ℚ companions as list[list[Q]] "
                           "instead of the float64 Mat (default False)")),
@@ -20119,7 +20173,21 @@ def _register_music_tools() -> None:
                     "any spectrum-carrying value. Tier 1 = exact RATIONAL "
                     "carrier (Q/int). Tier 2 = exact ALGEBRAIC-IRRATIONAL "
                     "carrier (Qalg; alpha**2 == 2 holds IN THE FIELD, so it "
-                    "is still exact and still decidable). Tier 3 = NO exact "
+                    "is still exact and still decidable) — and Tier 2 SPLITS "
+                    "(0.9.0rc467) into 2a, algebraic AND cyclotomic (abelian "
+                    "Galois group, so Kronecker-Weber embeds the field in "
+                    "some Q(zeta_m): every x^2 - r, hence all of "
+                    "stiff_string_partials), and 2b, algebraic and NOT "
+                    "cyclotomic (an irreducible x^N - c at N >= 3 gives a "
+                    "non-normal, hence non-abelian, field with a non-abelian "
+                    "Galois closure, so it embeds in NO Q(zeta_m): "
+                    "equal_temperament_partials(12)). Both are exactly "
+                    "carriable and exactly decidable, so the tier VALUE and "
+                    "every commensurability verdict are unchanged; the split "
+                    "is recorded because one label asserted a sameness that "
+                    "does not hold, and a reader taking Tier 2 to mean "
+                    "'reachable from roots of unity' is wrong for 2b. "
+                    "Tier 3 = NO exact "
                     "carrier exists — transcendence unresolved or "
                     "known-absent — so any number present is a rational of "
                     "DECLARED PRECISION only. The spectrum's tier is the "

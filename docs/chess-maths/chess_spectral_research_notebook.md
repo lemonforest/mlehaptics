@@ -201,7 +201,7 @@ The strongest finding is that multiple connections are **mathematically identica
 
 ### 1b.1 The pawn sector: non-Hermitian lattice dynamics
 
-**Grounds:** §9m (pawn directed Laplacian), §9n (rank-5 fiber), §9p (FA structural sensitivity)
+**Grounds:** §9m (pawn directed Laplacian), §9n (rank-5 fiber — **INCONSISTENT — re-measure**, see the tag table), §9p (FA structural sensitivity)
 
 The pawn's forward-only hopping (A_{ij} ≠ A_{ji}) makes its adjacency matrix non-Hermitian. This places the pawn squarely within the non-Hermitian lattice dynamics literature, where three independent results converge:
 
@@ -1627,7 +1627,7 @@ This pattern is consistent with an underlying **unified field description** of c
 
 **Nested fiber structure.** The rank-3 off-diagonal fiber sits inside the rank-4 full fiber, with the boundary determined by the grid eigenbasis. This is a graded decomposition: gauge content (off-diagonal, invisible to spatial basis) vs total content (gauge + spatial modification). Graded structures are characteristic of gauge theories.
 
-**Polarization over taxonomy.** The rank-3 → rank-4 → rank-5 nesting is not a quirk of chess's six-piece roster; it is what one would expect if the pieces are polarization states of a single lattice excitation parameterized by (angle θ, range r, chirality c). Under that reading (developed in §9r), the fiber ranks are parameter-count results: the symmetric angle content gives rank 3, the chirality bit (realized only by pawns) adds rank 1, and the range degree (Queen = Bishop + Rook with long range vs king-style short range) adds another rank 1. The coupling-matrix derivation and the polarization derivation land on the same rank-5 total by different routes, which suggests the decomposition is structural rather than coincidental.
+**Polarization over taxonomy.** [**INCONSISTENT — re-measure**; see the tag table's rank-5 row. §9n adds the ranks of three differently-shaped matrices, and its "diagonal deviation rank = 1" contradicts §7b. The count below is NOT usable until that is re-measured.] The rank-3 → rank-4 → rank-5 nesting is not a quirk of chess's six-piece roster; it is what one would expect if the pieces are polarization states of a single lattice excitation parameterized by (angle θ, range r, chirality c). Under that reading (developed in §9r), the fiber ranks are parameter-count results: the symmetric angle content gives rank 3, the chirality bit (realized only by pawns) adds rank 1, and the range degree (Queen = Bishop + Rook with long range vs king-style short range) adds another rank 1. The coupling-matrix derivation and the polarization derivation land on the same rank-5 total by different routes, which suggests the decomposition is structural rather than coincidental.
 
 **D4 × Z₂ as the full symmetry group.** The board signal assigns +v to white pieces and −v to black. The sign inversion s → −s is a Z₂ symmetry (spin flip in the Ising sense). The full symmetry group of the encoding is D4 × Z₂ (16 elements): 8 spatial symmetries × 2 spin orientations. D4 alone doesn't separate spatial structure from color/advantage content.
 
@@ -1870,7 +1870,7 @@ The core LOGO vocabulary is ~12 commands:
 
 **Fiber F₁ (vocabulary ↔ syntax):** How commands participate in grammar. Predicted rank: 3-4. Modes: "spatial transform with argument" (FORWARD/BACK/LEFT/RIGHT share this), "state toggle" (PENUP/PENDOWN), "block-opening control" (REPEAT/IF/TO), "variable binding" (MAKE/THING).
 
-**Fiber F₂ (syntax ↔ geometry):** How program structure determines output shape. This is the novel fiber — connecting abstract rule space to concrete spatial output. The spectral content of the program (nesting depth, repetition counts, argument values) couples to the spectral content of the shape (symmetry order, spatial frequencies, Laplacian eigenvalues).
+**Fiber F₂ (syntax ↔ geometry):** How program structure determines output shape. This is the fiber the LOGO arc is FOR — PREDICTION (untested) *[rebucketed rc467, `#T1188`: “the novel fiber” read as a priority claim in a future-work section where nothing has been measured yet]* — connecting abstract rule space to concrete spatial output. The spectral content of the program (nesting depth, repetition counts, argument values) couples to the spectral content of the shape (symmetry order, spatial frequencies, Laplacian eigenvalues).
 
 **The symmetry connection is direct:**
 
@@ -1925,7 +1925,9 @@ The pawn was the only piece without spectral characterization. Unlike all other 
 
 ### 9n. The Complete Fiber: Rank-5 from Three Orthogonal Subspaces
 
-The pawn's antisymmetric fiber completes the picture of rule content in chess. The full fiber bundle has **rank 5**, arising from three mathematically orthogonal types of coupling between board eigenmodes:
+[**INCONSISTENT — re-measure**; see the tag table's rank-5 row. §9n adds the ranks of three differently-shaped matrices, and its "diagonal deviation rank = 1" contradicts §7b. The count below is NOT usable until that is re-measured.]
+
+The pawn's antisymmetric fiber completes the picture of rule content in chess. The full fiber bundle has **rank 5** [INCONSISTENT — re-measure], arising from three mathematically orthogonal types of coupling between board eigenmodes:
 
 **Type 1 — Symmetric off-diagonal (rank 3).** How pieces create undirected coupling between eigenmodes: mode i and mode j are mutually coupled with strength s, where C[i,j] = C[j,i]. This is the original rank-3 fiber from §7 — Knight, King, Bishop, Queen all contribute symmetric coupling. The pawn's symmetric part (A_sym) also contributes here, nearest to the King (cos=0.65). σ₁=1.70 (72.6%), σ₂=0.82 (16.9%), σ₃=0.65 (10.5%), σ₄=0.00.
 
@@ -1943,9 +1945,9 @@ A sum of symmetric patterns is always symmetric. An antisymmetric pattern is ort
 | Off-diagonal antisymmetric | Pawn only | 1 | §9m | Channel 9 (NEW — 640-dim) |
 | Diagonal deviation | Rook (+others) | 1 | §7b | Channel 10 (NEW — 640-dim) |
 
-**Completeness argument.** The 64×64 coupling matrix C = U^T L U decomposes uniquely into diagonal (64 elements), symmetric off-diagonal (2016 elements), and antisymmetric off-diagonal (2016 elements). Each subspace's rank across 6 piece types is bounded by min(6, subspace dimension). We measured: symmetric off-diagonal rank = 3 (Queen = Bishop + Rook eliminates one degree of freedom), antisymmetric rank = 1 (only pawn contributes), diagonal rank = 1 (Queen = Bishop + Rook again). Total = 5. No additional chess piece type can add dimensions because all three subspaces are already measured and their ranks determined. The fiber is complete.
+**Completeness argument.** [INCONSISTENT — re-measure: this is the argument the tag-table row disputes — the three summands are ranks of differently-shaped matrices.] The 64×64 coupling matrix C = U^T L U decomposes uniquely into diagonal (64 elements), symmetric off-diagonal (2016 elements), and antisymmetric off-diagonal (2016 elements). Each subspace's rank across 6 piece types is bounded by min(6, subspace dimension). We measured: symmetric off-diagonal rank = 3 (Queen = Bishop + Rook eliminates one degree of freedom), antisymmetric rank = 1 (only pawn contributes), diagonal rank = 1 (Queen = Bishop + Rook again). Total = 5. No additional chess piece type can add dimensions because all three subspaces are already measured and their ranks determined. The fiber is complete.
 
-**Dual derivation.** The rank-5 result has a second, independent derivation via the polarization reframing (§9r): the parameter space (θ, r, c) = (3 angle classes + 1 chirality bit + 1 range degree) also sums to 5. The two paths — subspace decomposition of the coupling matrix and parameter count of the polarization labels — land on the same integer by different routes. That kind of agreement is a hint that the decomposition is a structural feature of the lattice excitation, not an artefact of how we chose to project it.
+**Dual derivation.** [INCONSISTENT — re-measure: two derivations of a disputed integer agreeing does not settle it, since both consume the same §9n rank assignment.] The rank-5 result has a second, independent derivation via the polarization reframing (§9r): the parameter space (θ, r, c) = (3 angle classes + 1 chirality bit + 1 range degree) also sums to 5. The two paths — subspace decomposition of the coupling matrix and parameter count of the polarization labels — land on the same integer by different routes. That kind of agreement is a hint that the decomposition is a structural feature of the lattice excitation, not an artefact of how we chose to project it.
 
 ### 9o. Safety Field and Channel Delta Analysis: Honest Negatives
 
@@ -2108,9 +2110,11 @@ Every part of this reframing is a reinterpretation of a result already in the no
 - **Knight DCT orthogonality** (§3, §9h): the knight's θ class (knight-offset) is disjoint from {axial, diagonal} — it is the only piece whose displacement is not a lattice-axis projection. Its exact DCT orthogonality to every other piece is exactly the statement that knight-offset is its own polarization axis.
 - **Bishop–Queen fiber cosine** (§9h): the bishop's θ is a proper subset of the queen's θ, so the queen's fiber contains the bishop's. Non-zero cosine with partial overlap is the expected signature.
 - **Pawn antisymmetry / Z₂ chirality** (§9m, §9h): the pawn is the only piece type whose rule depends on the color of the mover (white pushes up, black pushes down). In (θ, r, c) this is chirality c = −. The measurement ||A_anti||/||A_sym|| = 1.000 for pawns and 0.000 for every other piece is the direct spectral signature of the chirality label.
-- **Pawn as spectral composite** (Prior Art #17): the pawn's measured king-forward + bishop-diagonal composition (cosine = 0.52) is *predicted* by (θ_push = axial forward, r_push = 1) superposed with (θ_capture = diagonal forward, r_capture = 1). The pawn is a chirality-flipped king restricted to the forward axial direction plus a short-range bishop on the forward diagonal.
+- **Pawn as spectral composite** (§9j Findings row 17) *[was “Prior Art #17”; the table was renamed 2026-09-04 precisely because it was being read as a list of priority claims, and this cross-reference kept the retired name — corrected rc467, `#T1188`]*: the pawn's measured king-forward + bishop-diagonal composition (cosine = 0.52) is *predicted* by (θ_push = axial forward, r_push = 1) superposed with (θ_capture = diagonal forward, r_capture = 1). The pawn is a chirality-flipped king restricted to the forward axial direction plus a short-range bishop on the forward diagonal.
 
 #### Fiber rank from parameter count
+
+[**INCONSISTENT — re-measure**; see the tag table's rank-5 row. This count is the "dual derivation" of §9n's disputed rank-5, and it consumes the same rank assignment, so agreement between the two does not settle it.]
 
 | Polarization label | Degrees of freedom |
 |---|---|
@@ -2119,7 +2123,7 @@ Every part of this reframing is a reinterpretation of a result already in the no
 | Range r (one degree: short vs long) | 1 |
 | **Total** | **5** |
 
-This is the rank-5 fiber of §9n, arrived at from a different direction. §9n derived it as (symmetric off-diagonal rank 3) + (antisymmetric off-diagonal rank 1) + (diagonal deviation rank 1). The polarization reframing gives the same 5 from (3 angle + 1 chirality + 1 range). Two independent derivations landing on the same integer is unlikely by coincidence; it is the kind of agreement that suggests the decomposition is structural, not incidental.
+This is the rank-5 fiber of §9n [INCONSISTENT — re-measure], arrived at from a different direction. §9n derived it as (symmetric off-diagonal rank 3) + (antisymmetric off-diagonal rank 1) + (diagonal deviation rank 1). The polarization reframing gives the same 5 from (3 angle + 1 chirality + 1 range). Two independent derivations landing on the same integer is unlikely by coincidence; it is the kind of agreement that suggests the decomposition is structural, not incidental.
 
 #### What this changes and what it doesn't
 
@@ -2200,7 +2204,7 @@ Against the chess spectral framework documented in §§2–9r, Othello transfers
 
 | Chess element | Othello analog | Verdict |
 |---|---|---|
-| Piece species (rank-5 fiber, 5-tuple quantum numbers) | Single particle type — rank-5 has no referent | **FAILS** |
+| Piece species (rank-5 fiber [INCONSISTENT — re-measure], 5-tuple quantum numbers) | Single particle type — rank-5 has no referent | **FAILS** |
 | Hopping Hamiltonian (piece movement) | No movement at all | **FAILS** |
 | Pawn → Hatano-Nelson local T-violator (§1b.1) | No local T-violator; T-breaking is global monotone disc count | **FAILS** (global ≠ local) |
 | Nearest-neighbor piece adjacency | Flanking is state-dependent and length ≤ 7 along rays | **FAILS** |
@@ -2311,7 +2315,7 @@ reducing to the ordinary graph Laplacian for the constant sheaf ℝ with identit
 
 Hansen's thesis (U. Penn 2020) and the Neural Sheaf Diffusion work (Bodnar et al., NeurIPS 2022, arXiv:2202.04579) develop the computational tooling. Singer-Wu (*Comm. Pure Appl. Math.* 65, 1067, 2012) provides the connection-Laplacian variant via vector diffusion maps. Riess-Ghrist et al. (arXiv:2504.02049, 2510.00270, 2025) establish that partially asynchronous nonlinear sheaf diffusion converges linearly under bounded delays — relevant for the move-by-move update structure.
 
-**Novel application status.** No paper applies sheaf Laplacians, connection Laplacians, or temporal graph signal processing to any board game. Applying Hansen-Ghrist to Othello is an open research direction — this section is the **MATHEMATICAL framework-level match**; the instantiation is novel. **Minimal instantiation CONFIRMED 2026-04-22** — see [`othello-maths/research/dynamic_sheaf.py`](../othello-maths/research/dynamic_sheaf.py). A 60-move random-play trajectory yielded λ₂ ranging [0.22, 0.93] with **Spearman(legal_moves, λ₂) = +0.765, p = 1.1e-12**. The sheaf spectral gap tracks strategic freedom, not disc density (Spearman(ρ_disc, λ₂) = −0.008, null). The observation is a snapshot correlation — the logo-maths §L7b retraction template explicitly warns that snapshot fibers do not necessarily extrapolate forward in time, and the Othello sheaf's predictive power is an open question for the sequel.
+**Attribution status — KNOWN technique; applied here (Hansen–Ghrist) + CONFIRMED (internal).** *[Rebucketed rc467 (`#T1188`). This paragraph read:* “No paper applies sheaf Laplacians, connection Laplacians, or temporal graph signal processing to any board game … the instantiation is novel.” *That is a literature-priority claim of exactly the class the 2026-09-04 tag convention retired — “no prior art found” asserted as fact, with no SR-n search record behind it. The convention admits such a claim only as **SEARCHED — NOT FOUND (SR-n)**, and no search was run, so the priority half is WITHDRAWN rather than rebadged. What survives is what was actually done: the sheaf-Laplacian method is textbook (Hansen–Ghrist), this section is the **MATHEMATICAL framework-level match**, and the instantiation was computed here.]* **Minimal instantiation CONFIRMED 2026-04-22** — see [`othello-maths/research/dynamic_sheaf.py`](../othello-maths/research/dynamic_sheaf.py). A 60-move random-play trajectory yielded λ₂ ranging [0.22, 0.93] with **Spearman(legal_moves, λ₂) = +0.765, p = 1.1e-12**. The sheaf spectral gap tracks strategic freedom, not disc density (Spearman(ρ_disc, λ₂) = −0.008, null). The observation is a snapshot correlation — the logo-maths §L7b retraction template explicitly warns that snapshot fibers do not necessarily extrapolate forward in time, and the Othello sheaf's predictive power is an open question for the sequel.
 
 ### 10.8. Information thermodynamics: Sagawa-Ueda under a Boltzmann-policy embedding
 
@@ -2564,7 +2568,7 @@ Two natural variants point at distinct subfields:
 
 ### 15.6. Honest scope: math vs. toolkit
 
-The mathematical content here is 0% novel — every individual ingredient is well-established. The toolkit packaging is ~70% novel: no single PyPI package combines what chess-spectral with qm_4d will provide. The chess-as-4D-spectral-physics framing is ~95% novel for chess specifically. **The realistic value proposition for someone outside chess is "useful infrastructure," not "new physics."** That's a real but modest niche, and it's where the toolkit's reach naturally goes.
+The mathematical content here is entirely **KNOWN** — every individual ingredient is well-established. *[Rebucketed rc467 (`#T1188`). The two percentages that stood here —* “the toolkit packaging is ~70% novel: no single PyPI package combines …” *and* “the chess-as-4D-spectral-physics framing is ~95% novel for chess specifically” *— are WITHDRAWN. Both are unsourced literature-priority estimates: no search record backs either figure, and neither has a stated method by which 70 or 95 was arrived at. Flagged as F03 (MEDIUM, “the percentages are not sourced”) by this subtree's own v1.5 docs audit and left standing until now.]* **The realistic value proposition for someone outside chess is "useful infrastructure," not "new physics."** That's a real but modest niche, and it's where the toolkit's reach naturally goes.
 
 The QM extension (the planned `qm_4d` module) is *not* intended as a physics paper. The Aaronson "Read the Fine Print" critique (2015) applies directly to any straight-line QM-rebrand of classical lattice data — basis-aligned PVMs on basis-aligned states return classical readouts tautologically. The escape valves are genuine interference (`H_legal_moves` producing rankings different from the classical legal-move oracle), genuine speedups versus classical baselines, or representation-theoretic identities. The spectral identity in §15.2(2) is the cleanest of these: the encoder's basis IS the simultaneous eigenbasis of (Δ, B_4 commutant), at machine precision. That's a clean math statement, and it's the theorem underlying every claim about "B_4 equivariance for free." See the 4D notebook's *qm_4d Pre-flight Findings* section for the audit record that produced this confidence.
 
@@ -2753,7 +2757,7 @@ These are descriptive findings the chess analogues haven't been computed yet —
 
 These are the genuine "merge candidates" — substantive results that have an obvious chess analogue but aren't in chess-spectral yet:
 
-1. **In-book Shannon-information effect (Othello Patch 3).** Novel to Othello; no chess analog exists. Frame: state-richness axis = |M(s)|, strategic-structure axis = D_4 × Z_2 occupation. Test analogue: chess Stockfish-eval-divergence within / outside an opening book (Reti, KID, etc.) vs spectral channel signature. Worth a Phase 7 experiment slot.
+1. **In-book Shannon-information effect (Othello Patch 3).** CONFIRMED (internal) for Othello; PREDICTION (untested) for the chess transfer. *[Rebucketed rc467 (`#T1188`): this read* “Novel to Othello; no chess analog exists” *— the second clause is about this project's own unrun work, not the literature, so it is a prediction and not a null result.]* Frame: state-richness axis = |M(s)|, strategic-structure axis = D_4 × Z_2 occupation. Test analogue: chess Stockfish-eval-divergence within / outside an opening book (Reti, KID, etc.) vs spectral channel signature. Worth a Phase 7 experiment slot.
 2. **Faithful sheaf for chess.** Define analogous bracket-state pseudo-channels for chess: pending-capture chains, pin/skewer geometry, discovered-attack potential. Should lift A_1 / STD4 partial ρ in the same way Othello's R1/R2/R3/R4 lifted theirs. Direct extension; would slot into Phase 7 (learned weights) as a richer feature basis.
 3. **Phase-operator learned coupling for chess.** The Othello Nelder-Mead-fit coupling matrix on entropy-difference is directly applicable to the QM-expectation evaluator's `α_O` weights in chess Phase 6.3. Use this as the *prior* for any learned-weights Phase 7 work — start from the Othello-style construction and only deviate if chess data demands it.
 4. **Three-regime channel decomposition.** Phase 6's per-channel ablation should classify chess channels into the (monotone / trajectory-driven / turn-order-coupled) regimes. Trajectory-driven channels are where sheaf-style architecture helps; monotone ones are tautological; turn-order-coupled ones need explicit side-to-move encoding (which we already do per Pre-flight 1's Z_2 superselection).

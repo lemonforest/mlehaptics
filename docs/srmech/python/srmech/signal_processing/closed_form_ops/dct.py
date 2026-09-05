@@ -13,6 +13,23 @@ the cascade DCT-matrix path IS the substrate-native realisation and stays
 value-faithful to ``scipy_dct(..., norm=None)`` to ~1e-9. No top-level
 ``import numpy``.
 
+EXACTNESS CLASSIFICATION — exact object EXISTS, exact route NOT BUILT
+=====================================================================
+(0.9.0rc467, `#T1188`.)
+The DCT basis value ``cos(π(2n+1)k/2N)`` is ``cos(2π(2n+1)k/4N)``, i.e. the
+real part of ``ζ_{4N}^{(2n+1)k}`` — an algebraic number in the cyclotomic field
+``ℚ(ζ_{4N})``, and an integer signal's DCT coefficient is an exact element of
+``ℤ[ζ_{4N}]``, exactly as an integer signal's DFT coefficient is of ``ℤ[ζ_N]``.
+That object is representable TODAY in a shipped carrier
+(:func:`srmech.math.qalg.cos_2pi_over_n` returns ``cos(2π/n)`` exactly as a
+``Qalg``), and this module does NOT route to it: the basis here is built
+through the Class-N ``rational.cos`` APPROXIMATION over ``_PI`` and lands in
+float. So the honest label is **exact object exists, exact route not
+implemented** — an inconsistency with the DFT (which got an exact engine in
+:mod:`srmech.cascade.exact_dft`), not a false claim: nothing below asserts
+exactness. Building the exact route is a carrier change scoped to its own rc;
+it is RECORDED here, deliberately not done.
+
 Path B dual in Phase 6 (eigenbasis as bound-vector lookup).
 
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Ahmed,

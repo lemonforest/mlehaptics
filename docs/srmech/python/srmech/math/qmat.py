@@ -1185,7 +1185,7 @@ def _reconstruct_matrix(good_residues, good_moduli, n_rows, n_cols,
 #
 # ⚠️ **A REMAINING GAP, RECORDED RATHER THAN LEFT SILENT (ADR-0009).** These
 # ops close the *registration* half of the defect — the surface is now reachable
-# through `describe()`, the MCP tool list and the compiled C registry. They do
+# through the MCP tool list and the compiled C registry. They do
 # NOT close the *claim* half. `tools/gen_c_claims.py` attributes a C symbol by
 # walking an op's BYTECODE, and a bound-method call (`QMat.from_rows(rows).det()`)
 # names `det`, not `srmech_qmat_det` — the walk has no way to reach through the

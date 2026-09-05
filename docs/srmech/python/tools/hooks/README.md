@@ -374,7 +374,7 @@ swallowed it. The fix is `sys.modules[spec.name] = mod` before `exec_module`.
 
 Measured against the HEAD hook: **`_c_claims.py` exited 0** — a real
 `regen_all` output that ships in the wheel and reaches users through
-`describe()`, the MCP tool list and the compiled-in C registry. So did
+the MCP tool list and the compiled-in C registry. So did
 `_unicode_fold_tables.py`. Only `_tool_docs.py` blocked, and only because it
 spells its banner in capitals: the banner match was case-*sensitive*.
 

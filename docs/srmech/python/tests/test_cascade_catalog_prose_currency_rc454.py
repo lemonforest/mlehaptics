@@ -54,8 +54,8 @@ was live in all four simultaneously:
   destroyed by the next generator run. Gating here is what makes a fix durable.
 
   **L1 — the live ToolEntry surface.** ``warmup_all()`` +
-  ``get_tool_schema().tools`` — what ``describe()`` and the MCP tool list
-  actually serve. ``tool_schema`` imports ``TOOL_DOCS`` from the GENERATED
+  ``get_tool_schema().tools`` — what the MCP tool list actually serves
+  (``describe()`` serves counts only; corrected rc467, `#T1188`). ``tool_schema`` imports ``TOOL_DOCS`` from the GENERATED
   ``_tool_docs``, so this layer transitively pins that file's content too.
 
   **L2 — the checked-in generated artifacts.** Derived by iterating

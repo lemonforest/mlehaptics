@@ -16,7 +16,7 @@ srmech's MPM discipline is *a citation without attestation is not real; an
 attestation that can't be re-verified is broken.* Measured at rc428: **zero**
 gates covered literature citations in shipped source. All identifier-bearing
 citations in the package — and their copies inside the generated artifacts that
-reach users through ``describe()``, the MCP tool list and the compiled-in C
+reach users through the MCP tool list and the compiled-in C
 registry — were entirely ungated, which is how six citation defects reached
 published wheels while every attestation gate stayed green.
 

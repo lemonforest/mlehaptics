@@ -7,10 +7,40 @@ the commensurability verdict have something real to decide on:
 constructor                  tier   carrier
 ============================ ====== =========================================
 ``bell_partials``            1      ``Q`` — small-integer ratios, exactly
-``equal_temperament_partials`` 2    ``Qalg`` in ℚ[x]/(xᴺ−c)
-``stiff_string_partials``    2      ``Qalg`` in ℚ[x]/(x²−r), r ∈ ℚ
+``equal_temperament_partials`` 2a/2b ``Qalg`` in ℚ[x]/(xᴺ−c); 2a at N ≤ 2
+``stiff_string_partials``    2a     ``Qalg`` in ℚ[x]/(x²−r), r ∈ ℚ
 ``membrane_partials``        3      declared OPEN (Bessel zeros)
 ============================ ====== =========================================
+
+TIER 2 SPLITS (0.9.0rc467, `#T1188`)
+====================================
+Tier 2 was ONE label over two field-theoretically different objects, and the
+distinction is not cosmetic — it is whether the number is a root of unity in
+disguise:
+
+**Tier 2a — algebraic AND cyclotomic (abelian).** ``x² − r`` generates the
+quadratic field ``ℚ(√r)``, whose Galois group is ``C₂``; abelian, so by
+Kronecker–Weber it embeds in some ``ℚ(ζ_m)``. Every ``stiff_string_partials``
+ratio is here (MEASURED: ``Qalg`` over ``x² − 98100`` at ``B = 1/100``), and so
+is ``equal_temperament_partials(2)`` (MEASURED minimal polynomial ``x² − 2``;
+its root is ``2·cos_2pi_over_n(8)``, exactly).
+
+**Tier 2b — algebraic and NOT cyclotomic (non-abelian).** The constructor
+REJECTS a reducible ``x^N − c``, so at ``N ≥ 3`` the field ``ℚ(c^{1/N})`` has
+degree ``N`` and is NOT NORMAL: it sits in ``ℝ`` and so contains only the real
+roots of ``x^N − c``, never all ``N`` complex ones (``ζ_N ∉ ℝ`` for ``N ≥ 3``).
+Not normal ⇒ not abelian, and its Galois closure ``ℚ(c^{1/N}, ζ_N)`` has a
+NON-ABELIAN group (a subgroup of ``(ℤ/N) ⋊ (ℤ/N)^×``; ``S₃`` at ``N = 3``). By
+Kronecker–Weber a field with non-abelian Galois group lies in NO cyclotomic
+field. ``equal_temperament_partials(12)`` is here (MEASURED minimal polynomial
+``x¹² − 2``, degree 12) — exact, but not torsion.
+
+Both tiers are exactly carriable by ``Qalg`` and both are exactly decidable, so
+the COMMENSURABILITY verdict is unaffected; the split is recorded because a
+single "Tier 2 algebraic" bucket asserts a sameness that does not hold, and
+anything downstream that reads the tag as "reachable from roots of unity"
+would be wrong for 2b. The tag values shipped in the payloads are UNCHANGED —
+this rc corrects the CLASSIFICATION prose only.
 
 Every ratio is returned relative to the fundamental ``f₀``, so partial ``n``'s
 frequency is ``ratio[n] · f₀``. Nothing here takes a frequency in Hz: the
@@ -144,12 +174,22 @@ def bell_partials() -> Dict[str, object]:
 def equal_temperament_partials(divisions: int = 12,
                                octave: int = 2,
                                degrees: Sequence[int] = None) -> Dict[str, object]:
-    """Equal temperament as EXACT algebraic numbers — **Tier 2**.
+    """Equal temperament as EXACT algebraic numbers — **Tier 2** (2a at
+    ``divisions ≤ 2``, **2b** at ``divisions ≥ 3``; see the module docstring).
 
     Builds the field ℚ[x]/(x^``divisions`` − ``octave``) and returns the
     requested scale degrees as exact ``Qalg`` powers of its generator ``s``. The
     step ratio ``s`` is the ``divisions``-th root of the octave — irrational,
     and carried EXACTLY rather than approximated.
+
+    ⚠️ **Not cyclotomic at ``divisions ≥ 3``** (0.9.0rc467, `#T1188`). For
+    ``divisions ≤ 2`` the field is ``ℚ`` or a quadratic ``ℚ(√octave)`` —
+    abelian, hence (Kronecker–Weber) cyclotomic: Tier 2a. At ``divisions ≥ 3``
+    the reducible case is already REFUSED above, so the field has degree
+    ``divisions`` and is not normal (it is real; ``ζ_N ∉ ℝ``), hence not
+    abelian, hence by Kronecker–Weber inside NO ``ℚ(ζ_m)``: Tier 2b. Those
+    ratios are exact and exactly decidable but are NOT roots of unity, and
+    nothing may treat the shared "Tier 2" tag as though they were.
 
     This is the verified worked case for the whole module. In ℚ[x]/(x¹²−2):
     ``s⁰`` is rational (1), ``s¹…s¹¹`` are **all** irrational, ``s¹²`` is
@@ -220,7 +260,7 @@ def equal_temperament_partials(divisions: int = 12,
 
 
 def stiff_string_partials(inharmonicity, n_partials: int = 8) -> Dict[str, object]:
-    """A stiff (piano) string's partials — **Tier 2**, exactly carriable today.
+    """A stiff (piano) string's partials — **Tier 2a**, exactly carriable today.
 
     The textbook closed form is ``f_n = n·f₀·√(1 + B·n²)`` (Fletcher & Rossing,
     *The Physics of Musical Instruments*, 2nd ed., Springer 1998, §2.18 —
@@ -229,7 +269,10 @@ def stiff_string_partials(inharmonicity, n_partials: int = 8) -> Dict[str, objec
 
         ``r_n = n·√(1 + B n²) = √(n²(1 + B n²))``
 
-    so each partial is a QUADRATIC SURD and lives exactly in ℚ[x]/(x² − rₙ). No
+    so each partial is a QUADRATIC SURD and lives exactly in ℚ[x]/(x² − rₙ) —
+    a quadratic, hence abelian, hence (Kronecker–Weber) CYCLOTOMIC field, which
+    is what makes this Tier **2a** and ``equal_temperament_partials(12)``
+    Tier 2b (0.9.0rc467, `#T1188`; module docstring). No
     approximation is needed anywhere — this whole family was already exactly
     carriable by the shipped ``Qalg``; what was missing was the tier tag and a
     verdict that could read it.

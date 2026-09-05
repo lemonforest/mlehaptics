@@ -5,7 +5,7 @@ WHAT IT CATCHES
 ===============
 Prose in this tree SHIPS. ``python/README.md`` is the PyPI long-description;
 ``_tool_docs.py`` prose is emitted into the wheel and reaches users through
-``describe()``, the MCP tool list and the compiled-in C registry. Four gates
+the MCP tool list and the compiled-in C registry. Four gates
 already cover four slices of it — and coverage without repair is what rc452
 found: ``test_readme_currency_rc419.py`` was RED on a shipped "**ABI 21** at
 this release" sentence while the macro said 22, and had been for a release.

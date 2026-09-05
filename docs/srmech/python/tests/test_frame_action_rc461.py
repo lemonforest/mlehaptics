@@ -10,7 +10,7 @@ living in ``docs/srmech/notes/v4_so8_bridge_derivation_rc422.py`` and in
 ``tests/test_covering_layer_rc422.py``.
 
 **Neither of those ships.** ``triality_rep_dictionary()`` emits
-``tau_label_action`` into ``describe()``, the MCP tool list and the compiled-in
+``tau_label_action`` into the MCP tool list and the compiled-in
 C tool registry, so a consumer read a claim that no shipped op could re-derive.
 That is the same reach the ref-notation arc measured and the same reach the
 citation gates guard, one axis over: *a value inside the wheel whose only

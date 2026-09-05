@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import ctypes
 from typing import List, Sequence, Tuple
-from srmech.math.q import exact_scalar as _exact_scalar  # rc466 (`#T1188`)
+from srmech.math.q import Q, exact_scalar as _exact_scalar  # rc466/rc467 (`#T1188`)
 
 from srmech import _native
 from srmech.math.cyclic import gcd as _cyclic_gcd
@@ -65,7 +65,7 @@ DEFAULT_MAX_DENOMINATOR = 100
 DEFAULT_FINE_SCALE = 1_000_000
 
 
-def compensated_sum(values: Sequence[float]) -> float:
+def compensated_sum(values: Sequence[float]):
     """Class M: Kahan–Babuška–Neumaier compensated summation —
     substrate-native (rc13 replaces the stdlib ``math.fsum``; PUBLIC since
     v0.9.0rc420 so the ``autocorrelation.toml`` declared chain's Σ step
@@ -82,7 +82,47 @@ def compensated_sum(values: Sequence[float]) -> float:
     accumulator plus a final combine — declaratively expressible once the
     pair/framing inventory exists, but shipped as one leaf so the float-op
     order stays pinned to this exact body (the `#T1114` rung-4 delegation,
-    recorded rather than hidden)."""
+    recorded rather than hidden).
+
+    **Accuracy (rc467, `#T1188`).** THE LEAVES SELECT THE CARRIER. When every
+    leaf reads exact (``int`` / ``Q`` / :class:`fractions.Fraction` / a
+    ``[num, den]`` pair — :func:`srmech.math.q.exact_scalar`) the sum is formed
+    in ℚ and returned as an exact :class:`~srmech.math.q.Q`; the compensation
+    term is then identically zero, because exact addition loses no bits for it
+    to recover. A single float leaf anywhere takes the float64 body below,
+    byte-for-byte the rc420 one, so the op order the ``autocorrelation.toml``
+    declared chain pins does not move.
+
+    This op's own SHIPPED declaration has promised that since rc466 — *"the
+    LEAVES select the carrier: integers / Q / [num, den] pairs take the
+    EXACT-Q rung, one float anywhere the float64 one"*, compiled into the C
+    tool registry and served over MCP — and it was false for two of the three
+    rungs it named. ``compensated_sum([2**53+1, 1, -2**53])`` returned ``1.0``
+    where the answer is ``2``: the ``s = 0.0`` seed pulled every integer onto
+    the float path, so an all-exact operand was summed in float64 and silently
+    lost the bit. A ``[num, den]`` leaf did not even do that — it raised
+    ``TypeError: unsupported operand type(s) for +: 'float' and 'list'``. Only
+    the ``Q`` rung worked, and only by accident, through ``Q.__radd__``.
+    Thirty-three ops carry that same declaration sentence; this was the one
+    that broke it (six were probed directly, so the population is NOT cleared —
+    see the rc467 CHANGELOG)."""
+    exact = []
+    for v in values:
+        q = _exact_scalar(v)
+        if q is None:
+            exact = None
+            break
+        exact.append(q)
+    if exact:                       # NOT `is not None`: an EMPTY operand has
+        # no leaves, so there is nothing to select a carrier — it keeps the
+        # float 0.0 it has always returned rather than acquiring a Q silently.
+        # The EXACT rung. No compensation term exists to accumulate — ℚ
+        # addition is lossless — so the `+ c` the float body ends on is
+        # `+ Q(0, 1)`, written out to keep the two rungs the same shape.
+        total = Q(0, 1)
+        for q in exact:
+            total = total + q
+        return total + Q(0, 1)
     s = 0.0
     c = 0.0                                        # running compensation
     for v in values:

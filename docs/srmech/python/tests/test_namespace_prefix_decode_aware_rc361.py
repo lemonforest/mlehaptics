@@ -966,8 +966,47 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # and cannot contribute here however they are typed - the same structural
     # split rc461 recorded, at ten times the scale.
     # rc466 (`#T1188`, stage 3): see the two-cause attribution above the `music` pin — (a) the `Q` fragment hoisted to a byte array, (b) the widened dual-carrier declarations.
-    assert math == 447, (
-        f"expected 447 srmech.math op references inside the DECODED channel "
+    # rc467 (`#T1188`) - 447 -> 460, the WIDENED-DECLARATION category (rc463's,
+    # not rc456's): no op is registered and none is renamed, but nine
+    # `exact=`-bearing operands are widened off bare `Mat` onto
+    # `Mat | QMat | Sequence[Sequence[int | Q]]`, because a bare `Mat` coerces
+    # every leaf to float64 over the wire and `exact=True` was therefore
+    # computing on a rounded operand (four of the nine returned a `Q` holding
+    # the wrong answer). A widened type string puts the op's name in more
+    # carrier back-indices, and those back-indices are what this pin counts.
+    #
+    # The split is again the informative half, and it is the SAME structural
+    # split rc461 and rc463 recorded: of the nine widened operands only EIGHT
+    # are under `srmech.math.` at all. The ninth,
+    # `srmech.physics.qm.triality.triality_companions`, cannot contribute here
+    # however it is typed.
+    #
+    # MEASURED per carrier against df75d0794, not inferred - every one of the
+    # eight joins the `Q` back-index, and five of the eight also join `int`:
+    #
+    #     dense_solve               +2   Q +1, int +1
+    #     dirichlet_to_neumann      +1   Q +1
+    #     fiedler_vector            +2   Q +1, int +1
+    #     hermitian_eigendecompose  +2   Q +1, int +1
+    #     jacobi_eigvals            +1   Q +1
+    #     schur_complement          +1   Q +1
+    #     symmetric_eigendecompose  +2   Q +1, int +1
+    #     three_fold_eigvec_groups  +2   Q +1, int +1
+    #                              ---
+    #                              +13   = 8 x Q + 5 x int
+    #
+    # The three that gain `Q` only (dirichlet_to_neumann, schur_complement,
+    # jacobi_eigvals) already named `int` before this rc - the first two through
+    # their `boundary_idx: list[int]` operand, jacobi through `max_sweeps: int` -
+    # so the widening had no new `int` row to add for them. That asymmetry is
+    # the reason the delta is 13 and not 16, and it is worth stating because a
+    # reader deriving "9 ops x 2 carriers" from the prose alone would get
+    # neither number.
+    assert math == 460, (
+        f"expected 460 srmech.math op references inside the DECODED channel "
+        f"(447 at rc466 + rc467 +13: the eight widened srmech.math.laplacian "
+        f"exact= operands, each joining the `Q` carrier back-index and five "
+        f"of them also `int`; see the per-op table above) "
         f"(352 at rc461 part 3 + rc463 +9: the six qmat_* ops at one carrier "
         f"back-index ref each EXCEPT qmat_solve, which names the exact-row "
         f"carrier twice (rows AND b) for two, plus the two qalg trig ops at "
@@ -1037,11 +1076,21 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # CONSERVED, which is what this pin measures — a rise that the diff explains is a
     # surface that grew, not a channel that leaked.
     # rc466 (`#T1188`, stage 3): see the two-cause attribution above the `music` pin — (a) the `Q` fragment hoisted to a byte array, (b) the widened dual-carrier declarations.
-    assert biology == 111, (
-        f"expected 111 srmech.biology op references inside the DECODED channel "
+    # rc467 (`#T1188`) - 111 -> 112, the SAME widened-declaration category as the
+    # `math` pin above, at its smallest possible scale: exactly ONE reference,
+    # `srmech.biology.coupling.resonant_spectrum` joining the `Q` carrier's
+    # back-index when its `L` operand widened off bare `Mat` for the exact
+    # route. MEASURED per carrier against df75d0794: Q 0 -> 1, and no other
+    # carrier and no other biology op moved at all. It does NOT also join `int`
+    # -- unlike five of the eight laplacian ops above -- because it already
+    # named `int` through its `orders` and `max_den` parameters.
+    assert biology == 112, (
+        f"expected 112 srmech.biology op references inside the DECODED channel "
         f"(the rc375 biology bucket's genome / q8 / coupling carrier back-index 99 + "
-        f"rc390 split_defect 2 + rc408 coupling/int declarations 5), found {biology}. "
-        f"If this is not 110 the population is not conserved — re-measure.")
+        f"rc390 split_defect 2 + rc408 coupling/int declarations 5 + rc467 +1: "
+        f"resonant_spectrum joining the `Q` back-index when its `L` widened), "
+        f"found {biology}. If this is not 112 the population is not conserved "
+        f"— re-measure.")
     # rc377 — THE srmech.cascade RECEIVING SIDE, the arc's FINAL and largest-carrier
     # population move. The 15 cascade modules folded amsc->srmech.cascade; their
     # carrier back-index refs (one / cayley_dickson / sedenion_register / cd_register
@@ -1220,8 +1269,20 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # rename and the rc385/rc396/rc461 op adds — and no amsc pin moves.
     physics_qm = joined.count("srmech.physics.qm.")
     # rc466 (`#T1188`, stage 3): see the two-cause attribution above the `music` pin — (a) the `Q` fragment hoisted to a byte array, (b) the widened dual-carrier declarations.
-    assert physics_qm == 207, (
-        f"expected 207 srmech.physics.qm op references inside the DECODED channel "
+    # rc467 (`#T1188`) - 207 -> 209, and this is where the NINTH widened operand
+    # lands. The `math` pin above says of its +13 that "of the nine widened
+    # operands only EIGHT are under `srmech.math.` at all"; this is the ninth.
+    # `triality_companions`'s `g_v` widened off bare `Mat` for the same reason
+    # as the other eight -- over the wire its exact route was returning
+    # Q(9007199254740999, 8) where the direct call returns the integer
+    # 1125899906842625 -- and MEASURED per carrier against df75d0794 it gains
+    # Q 1 -> 2 and int 0 -> 1. Two references, one op, and the two pins agree:
+    # 13 + 2 = the fifteen the nine widenings are worth in this channel.
+    assert physics_qm == 209, (
+        f"expected 209 srmech.physics.qm op references inside the DECODED channel "
+        f"(207 at rc466 + rc467 +2: triality_companions' widened g_v, Q +1 and "
+        f"int +1 -- the ninth of the nine widened exact= operands, the eight "
+        f"others being under srmech.math.laplacian) "
         f"(the rc381 qm-subpackage rename's carrier back-index — octonion / "
         f"quaternion / so8 / triality / gauge / sm op names — plus rc385's "
         f"quaternion_log (+2) / quaternion_slerp (+3), rc396's clock_operator "

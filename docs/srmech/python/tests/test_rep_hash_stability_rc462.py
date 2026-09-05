@@ -4,7 +4,7 @@
 The `#T1179` package widens the tier-4 rep payload from exact-ℚ to ℚ(ζₑ),
 and the one irreversible defect that widening can ship is a silently MOVED
 ℚ ``matrices_sha256``.  It would be silent (no exception, no wrong shape),
-wheel-borne (the digest is emitted into `describe()`, the MCP tool list and
+wheel-borne (the digest is emitted into the MCP tool list and
 the compiled C registry) and un-catchable by the ledgers, because
 ``tests/example_args_ledger.ndjson`` carries those digests and is
 REGENERATED — a moved hash rewrites it green.  So the pin has to live here,

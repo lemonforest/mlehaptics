@@ -1083,8 +1083,67 @@ from srmech.math.text import fold_marks, glyph_stream
 #: parameter with its description and a widened `returns` spelling, and those
 #: strings are corpus. Cause measured by rebuilding the frames: 762 / 733 / 29.
 #: was: 566f65aa19672de9e93397604f7f03c50791873b1d57c0cbe237bd105e111de9 (rc466 stage 3, after the Qi carrier)
+#: rc467 (`#T1188`, stage 1): re-pinned. Frame count UNCHANGED — 762 = 733 op +
+#: 29 carrier, measured — and no tokenizer or search behaviour moved. MEASURED
+#: frame by frame against the rc466 tree in a scratch worktree (which reproduced
+#: the digest below exactly, so the comparison is against the shipped corpus and
+#: not a rebuild artefact): **11 frames changed, 0 added, 0 removed.** Two are
+#: CARRIER frames — `Q` and `QMat`, whose consumes back-indices gained
+#: `resonant_spectrum` when its `L` widened off bare `Mat`. Nine are OP frames,
+#: and eight of those moved for a reason unrelated to the exact route: the 16
+#: `coupling.py:NNN` line-number citations in `_tool_docs_curated.py` became
+#: function names (`coupling.py::resonant_spectrum`, …) because inserting the
+#: exact route moved every one of them — and three were already stale by 1-2
+#: lines before this rc. `resonant_spectrum` itself moved for both reasons: its
+#: ToolEntry grew an `exact` parameter, a widened `L` type and a rewritten
+#: `returns` / `summary`, and those strings are corpus.
+#:
+#: ⚠️ This pin moved ONCE MORE in stage 2, after that stage's own ToolEntry
+#: edits — see the stage-2 block below, which is the final one. The plan called for a single re-pin taken after the LAST corpus edit
+#: of the rc; that rule is written for a single-commit rc, and leaving this gate
+#: RED across a commit boundary is worse than pinning twice with both causes
+#: recorded. Both digests are kept below so the two causes stay separable.
+#: was: d9eafc751c5920f34c97dd8aaa5e7aa7e451c5205fbb64026a1d5754a43113ad (rc466 review fix)
+#: was: a60b01ed02774691a86630db487162ddf7063048b404648f5cf8d4426afb4e6f (rc467 stage 1)
+#: rc467 (`#T1188`, stage 2): re-pinned, the LAST re-pin of the rc, taken
+#: after the last corpus edit. Frame count UNCHANGED again — 762 = 733 op +
+#: 29 carrier — and no tokenizer or search behaviour moved. MEASURED frame by
+#: frame against the stage-1 commit in a scratch worktree that reproduced the
+#: digest above EXACTLY, so the comparison is against the shipped corpus and
+#: not a rebuild artefact: **7 frames changed, 0 added, 0 removed.**
+#:
+#: FIVE are CARRIER frames — `Q`, `QMat`, `Qalg`, `Qi`, `int` — whose
+#: consumes / produces back-indices moved when nine `exact=`-bearing operands
+#: widened off bare `Mat` onto `Mat | QMat | Sequence[Sequence[int | Q]]`
+#: (and, for `Qi`, when hermitian_eigendecompose's operand gained the
+#: `list[list[Qi]]` leaf and magnetic_laplacian's RETURN began naming it).
+#: TWO are op frames: `compensated_sum` (its docstring gained the Accuracy
+#: paragraph for the exact rung) and `triality_frame_action` (its curated
+#: explanation dropped `describe()` from the emission-surface formula).
+#:
+#: WHY ONLY TWO OP FRAMES, when this stage rewrote nine operand types, two
+#: return types and several parameter summaries: an op frame carries `name`,
+#: `category`, `summary`, `explanation`, `example.*`, `composes` and
+#: `preserves` (`_op_fields`, search.py) — it does NOT carry parameter types,
+#: parameter summaries or the return type. Those reach the corpus only
+#: INDIRECTLY, through the carrier back-indices, which is exactly the five
+#: carrier frames above. Worth stating rather than assuming: a reader
+#: expecting this gate to notice a widened operand DIRECTLY would be wrong,
+#: and the gate that does notice it is
+#: test_no_exact_bearing_op_declares_an_operand_that_rounds_over_the_wire.
 WITNESS_RC416 = (
-    "d9eafc751c5920f34c97dd8aaa5e7aa7e451c5205fbb64026a1d5754a43113ad")
+    "074fb8f3a12954d42000e2e8ca74578986f253e23390f5fbb79663bbfd3a0e7b")
+#: rc467 (`#T1188`): re-pinned after a PROSE-ONLY correction pass. Five docstring
+#: /summary fixes (the twiddle ^N=1 tolerance-not-exactness note, the conditional
+#: exact_dft ring, the DCT/Haar exact-object-no-route labels, the rational.sqrt
+#: exact peer, and the music Tier 2a/2b split) edited op summaries that ARE the
+#: searchable corpus, so the digest moves by construction — which this gate says
+#: is the point. Confirmed a prose move and NOT a non-deterministic build before
+#: re-pinning: the witness is identical across two builds in one process, equals
+#: the ops+carriers union witness, and the value computed locally matches the one
+#: CI reported to the character. Registry stays 733; no tokenizer, no search
+#: behaviour, and no carrier changed.
+#: was: f0acd83f2b2ae7da47036ce47d69fe42da919484b91496290da047b9ad93942e
 #: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
 #: op corpus, so registering induced_representation + zeta_conjugate moves it by
 #: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.

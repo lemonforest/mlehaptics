@@ -2101,6 +2101,14 @@ def _synth_value_for_type(type_string: str) -> Any:
         # param was declared `Mat`. The 2x2 identity commutes with itself, so
         # the op returns is_flat True rather than raising.
         "Mat | QMat | Sequence[Sequence[int | Q]]": [[1, 0], [0, 1]],
+        # rc467 (`#T1188`): the same union with the exact-complex leaf --
+        # hermitian_eigendecompose's operand, widened so a real `Qi` entry
+        # can reach the exact route it has always shipped. The synthesised
+        # value stays INTEGER for the same reason as the row above (it
+        # selects the exact rung), and the 2x2 identity is Hermitian, so
+        # the op answers rather than raising on its own symmetry check.
+        "Mat | QMat | Sequence[Sequence[int | Q]] | list[list[Qi]]":
+            [[1, 0], [0, 1]],
         # The exact eigensolver's algebraic eigenvalue (eigvec_exact /
         # eigvec_exact_float / jordan_chains_exact `lam`), in the canonical
         # JSON mapping _to_qalg reads: λ = 1 as an element of ℚ[x]/(x − 1),

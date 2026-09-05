@@ -3,13 +3,28 @@
 The substrate-native answer to "don't use floats for bit-exact math": a DFT's
 twiddle factors ``e^{-2πi·j/N}`` are *roots of unity* — algebraic integers in the
 cyclotomic ring ``ℤ[ζ_N]``. So the DFT of an integer (or Gaussian-integer)
-substrate signal is **exact integer arithmetic**: every spectral coefficient is
-an exact ``ℤ[ζ_N]`` element (an integer vector in the cyclotomic power basis),
-computed with **no floating-point at all**. Floats appear exactly **once**, at
+substrate signal is **exact integer arithmetic**, computed with **no
+floating-point at all**. Floats appear exactly **once**, at
 the very end, in the FPU *lift* (:func:`lift`) that rotates ``ℤ[ζ_N] → ℂ`` by
 evaluating ``ζ_N = e^{-2πi/N}`` — the projection from the discrete substrate to
 the continuous observable (per ``[[user_stance_epicycle_via_gear_plus_pin]]``:
 floats are for the FPU lift, not the math).
+
+⚠️ **Which ring, exactly** (0.9.0rc467, `#T1188` — this said ``ℤ[ζ_N]``
+unconditionally, and that is true only of the REAL case). A coefficient is
+carried as a ``(real_vec, imag_vec)`` PAIR, and each half is an exact
+``ℤ[ζ_N]`` element in the cyclotomic power basis. For a purely REAL integer
+signal ``imag_vec`` is identically zero and the coefficient IS an element of
+``ℤ[ζ_N]`` (MEASURED at ``N = 3``: ``exact_dft([1,2,3])`` returns
+``([6,0],[0,0]), ([-2,-1],[0,0]), ([-1,1],[0,0])``). For a GAUSSIAN-integer
+signal the coefficient is ``real + i·imag``, and since ``i ∉ ℚ(ζ_N)`` whenever
+``4 ∤ N``, that value lies in ``ℤ[ζ_N][i] = ℤ[ζ_{lcm(N,4)}]`` — strictly
+larger than ``ℤ[ζ_N]`` (MEASURED at ``N = 3``: ``exact_dft([1, 1j, 0])``
+returns pairs with BOTH halves non-zero). When ``4 | N`` the two coincide,
+because ``i = ζ_N^{N/4}`` is already in the ring. This is a LABELLING fact
+about the value; the carrier and every returned integer are unchanged. The
+sibling :func:`srmech.math.qalg.sin_2pi_over_n` makes exactly the same
+``lcm(n, 4)`` point about its own field.
 
 For a power-of-two ``N`` the cyclotomic polynomial is ``Φ_N(x) = x^{N/2} + 1``,
 so ``ζ^{N/2} = -1`` and the ring collapses to the **negacyclic** integers
@@ -21,10 +36,12 @@ accumulates rounding at every butterfly) because it rounds exactly once.
 
 Public surface (v0.7.5rc29):
 
-- :func:`exact_dft` / :func:`exact_idft` — return the **exact** ``ℤ[ζ_N]``
-  integer spectrum (an :data:`ExactSpectrum`: one ``(real_vec, imag_vec)``
-  integer pair per output bin) of an integer / Gaussian-integer signal at
-  **any** length ``N ≥ 2``. No floats. The native-C twin
+- :func:`exact_dft` / :func:`exact_idft` — return the exact integer spectrum
+  (an :data:`ExactSpectrum`: one ``(real_vec, imag_vec)`` pair per output bin,
+  each half an exact ``ℤ[ζ_N]`` element; the coefficient VALUE is in
+  ``ℤ[ζ_N]`` for a real signal and in ``ℤ[ζ_{lcm(N,4)}]`` for a
+  Gaussian-integer one when ``4 ∤ N`` — see the ring note above) of an integer
+  / Gaussian-integer signal at **any** length ``N ≥ 2``. No floats. The native-C twin
   ``srmech_exact_dft_i64`` runs the int64 fast path for power-of-two ``N``;
   arbitrary-precision magnitudes fall back to the Python bignum path.
 - :func:`lift` — the single FPU lift ``ℤ[ζ_N] → ℂ`` (the *only* float producer).
@@ -444,7 +461,7 @@ def _lift_spectrum(spectrum: ExactSpectrum, n: int, *, scale: int = 1) -> List[c
 
 
 def exact_dft(signal: Sequence, *, inverse: bool = False) -> ExactSpectrum:
-    """Exact ``ℤ[ζ_N]`` integer spectrum of an integer / Gaussian-integer signal.
+    """Exact cyclotomic-integer spectrum of an integer / Gaussian-integer signal.
 
     ``signal`` must be an all-integer (or Gaussian-integer) sequence of length
     ``N ≥ 2`` (**any** ``N`` — power-of-two or not). Returns the spectrum as ``N``
@@ -454,6 +471,13 @@ def exact_dft(signal: Sequence, *, inverse: bool = False) -> ExactSpectrum:
     the ``1/N`` scale at :func:`lift` time). Bit-for-bit deterministic; the
     power-of-two case rides the native-C int64 twin, the general case uses the
     arbitrary-precision Python cyclotomic path.
+
+    ⚠️ **The ring is conditional** (0.9.0rc467, `#T1188`): each HALF of the pair
+    is an exact ``ℤ[ζ_N]`` element. The coefficient VALUE ``real + i·imag`` is in
+    ``ℤ[ζ_N]`` for a REAL signal, but in ``ℤ[ζ_{lcm(N,4)}]`` for a
+    Gaussian-integer signal when ``4 ∤ N``, because ``i ∉ ℚ(ζ_N)`` there. The
+    module docstring carries the measurement; nothing about the returned
+    integers changes.
 
     Raises ``ValueError`` for non-integral input (use
     :func:`~srmech.cascade.spectral_cascades.dft` for float signals) or

@@ -151,10 +151,46 @@ def test_resonances_lock_vs_libration_prime_structure():
         # (e.g. 11 with max_den=64 ⇒ cutoff 8) is libration (off-lock).
         cutoff = 8  # isqrt(64)
         smooth = all(p <= cutoff for p in r["den_coords"].keys())
-        assert r["locked"] == smooth
+        # The model carries the UNDERFLOW GUARD (rc467, `#T1188`). `locked ==
+        # smooth` alone is VACUOUS on a (0, 1) ratio: best_rational returns it
+        # when the ratio is below 1/max_den, den_coords is then empty, and the
+        # old model asserted the very verdict that was wrong. This fixture has
+        # no (0, 1) pair, so the correction changes no assertion here — the row
+        # below is the one that measures it.
+        assert r["locked"] == (num > 0 and smooth)
     # At least one LOCK and the Laplace ladder is read (a den with only small
     # primes appears among the adjacent-tension ratios).
     assert any(r["locked"] for r in res)
+
+
+def test_the_underflow_sentinel_is_not_an_integer_lock_rc467():
+    """`#T1188` — a ratio BELOW 1/max_den comes back as (0, 1) with an empty
+    den_coords, which is byte-identical to the exact-integer lock's record. Both
+    routes and the C peer reported ``locked: True`` for it until rc467. The
+    verdict is now guarded on the numerator, so an unresolved ratio no longer
+    claims to be the most resolved one there is.
+
+    EXECUTED, both routes, one operand: eigenvalues 1 and 100 with max_den=64
+    put the ratio at 1/100 < 1/64, so best_rational underflows to (0, 1)."""
+    from srmech.math.rational import best_rational
+    # The mechanism, first: this really is an underflow, not a factorisation.
+    assert best_rational(10000, 1000000, 64) == (0, 1)
+
+    for route in ({}, {"exact": True}):
+        rows = coupling.resonant_spectrum(
+            [[1, 0], [0, 100]] if route else [[1.0, 0.0], [0.0, 100.0]],
+            orders=1, max_den=64, **route)["resonances"]
+        assert len(rows) == 1, (route, rows)
+        r = rows[0]
+        assert r["ratio"] == (0, 1), (route, r)
+        assert r["den_coords"] == {}, (route, r)
+        assert r["locked"] is False, (route, r)
+
+    # And the INTEGER lock — the other reading of an empty den_coords — is
+    # still reported locked, so the guard narrowed nothing it should not have.
+    lock = coupling.resonant_spectrum(
+        [[1.0, 0.0], [0.0, 1.0]], orders=1, max_den=64)["resonances"]
+    assert lock and lock[0]["ratio"] == (1, 1) and lock[0]["locked"] is True
 
 
 # ─────────────────────────────────────────────────────────────────────

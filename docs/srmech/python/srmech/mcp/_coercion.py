@@ -1645,6 +1645,19 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "tuple[Vec, Mat] | tuple[list, list]": _to_eigenpairs_exact_or_float,
     "Vec | list[Qalg]": _to_vec_or_qalg_vector,
     "Mat | QMat | list[list[Qi]]": _to_exact_complex_rows,
+    # rc467 (`#T1188`): the two halves of the `Qi` projection gap ADR-0009
+    # left open. (a) magnetic_laplacian is the ONLY one of the five exact=
+    # builders that returns Qi rather than Q — measured, its leaf is
+    # `(1/2+0i)` where the other four are `1` — so its declared return now
+    # NAMES the carrier instead of hiding inside the shared `Mat | list`,
+    # which had the Qi back-index reporting 3 producers beside a carrier
+    # description that names 4. (b) the hermitian operand: `Qi` had never
+    # appeared in ANY declared PARAMETER type, so `consumes` was empty by
+    # construction while the shipped carrier description claimed Qi was
+    # "an accepted operand leaf". Both keys route to the handler that
+    # already exists; neither raises CEIL_RETURN_TYPES_WITHOUT_COERCER.
+    "Mat | list[list[Qi]]": _to_exact_complex_rows,
+    "Mat | QMat | Sequence[Sequence[int | Q]] | list[list[Qi]]": _to_exact_complex_rows,
     "Mat | Vec | list[Qi] | list[list[Qi]]": _to_exact_complex_rows_or_vector,
     "complex | Qi": _to_complex_or_qi,
     "dict[str, Mat] | dict[str, list]": _to_mapping_of_exact_or_float_rows,

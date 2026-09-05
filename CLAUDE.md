@@ -226,7 +226,7 @@ looks deliberate.
 **Why it is load-bearing: this prose SHIPS.** Docstrings and `ToolEntry` text are emitted into
 generated files and travel inside the wheel. Measured 2026-07-27: **15 false links were live in
 published artifacts** (`_tool_docs.py`, `_c_claims.py`, `srmech_tool_registry.c`), reaching users via
-`describe()`, the MCP tool list and the compiled-in C registry — `#938` as a task ID renders as
+the MCP tool list and the compiled-in C registry — `#938` as a task ID renders as
 *"srmech v0.7.5rc13: numpy-math ratchet"*, an unrelated PR. It applies to **four** surfaces, and the
 fourth is the one people miss: file content · commit messages · PR body · **the PR TITLE, which
 becomes the merge-commit subject**.
@@ -244,8 +244,19 @@ GitHub object happens to hold that number. Local task IDs and GitHub issue numbe
 numeric range, so the collision is routine, not rare — `#938` as a local task renders as *"srmech
 v0.7.5rc13: numpy-math ratchet + lmmse → cascade"*, an unrelated PR. Measured 2026-07-27: **15 such
 false links had shipped inside published wheels** (`_tool_docs.py`, `_c_claims.py`,
-`srmech_tool_registry.c`), reaching users through `describe()`, the MCP tool list and the compiled-in
-C registry.
+`srmech_tool_registry.c`), reaching users through the MCP tool list and the compiled-in C
+registry.
+
+> **Corrected rc467 (`#T1188`), measured.** Both paragraphs above used to name
+> `describe()` as a third emission surface. It is not one: `srmech.describe()` returns
+> **counts only** — 27,350 bytes carrying no op name, no summary, no docstring, no carrier
+> description and no digest of any kind (keys: `srmech_version`, `tool_schema_version`,
+> `native`, `tools`, `handle_pending`, `categories`, `classes`, `cascade_catalog`,
+> `carriers`, `limits`, `c_claims`, `lanes`, `frames` — each a tally or a flag). The two
+> surviving members ARE emission surfaces, and differ from each other: the MCP tool list
+> carries op names, summaries and PARAMETER summaries but **not** `explanation` prose;
+> the compiled-in `srmech_tool_registry.c` carries all of it. Where prose actually reaches
+> a reader outside the wheel's own docstrings is `inspect.getdoc`.
 
 **It applies to FOUR surfaces**, and the fourth is the one people miss:
 1. file content (including docstrings and `ToolEntry` prose — **these are emitted into generated
