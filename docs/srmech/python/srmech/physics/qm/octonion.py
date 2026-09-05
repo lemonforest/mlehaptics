@@ -752,8 +752,9 @@ def octonion_exp(theta: float, mu="i") -> List[float]:
     round-trip composition is exact despite 𝕆's non-associativity).
     Properties (tested): ``‖exp(μθ)‖ = 1``; ``exp(μθ₁)·exp(μθ₂) =
     exp(μ(θ₁+θ₂))`` for the SAME axis; ``conj(exp(μθ)) = exp(−μθ)``;
-    ``exp(μ·2π/N)^N = 1`` (the N-th roots of unity the DFT needs — see
-    :func:`octonion_twiddle`).
+    and ``exp(μ·2π/N)^N = 1`` **to a stated float tolerance, not exactly**
+    (the N-th-roots closure the DFT needs — see :func:`octonion_twiddle`,
+    which carries the exactness note in full).
 
     Exactness convention (the rc109 three tiers, at dim 8): trig is the Q61
     Class-N cascade (``rational.{cos,sin}``; native ``srmech_{cos,sin}_q61``)
@@ -895,7 +896,24 @@ def octonion_twiddle(j: int, k: int, n_points: int, *,
     ``σ = −1`` (default) is the forward-DFT orientation (matching
     ``cascade.octonion_dft``); ``σ = +1`` the inverse. Twiddle closure
     (tested): ``octonion_twiddle(j, k, N)`` for ``jk ≡ 0 (mod N)`` is the
-    identity, and ``exp(μ·2π/N)^N = 1``.
+    EXACT identity, and ``exp(μ·2π/N)^N = 1`` **to a float tolerance, not
+    exactly** — gated at ``max|component − identity| < 1e-14`` by
+    ``tests/test_octonion_dft_rc111.py``
+    ``test_twiddle_nth_roots_of_unity_closure``.
+
+    ⚠️ **Exactness gap (0.9.0rc467, `#T1188`) — recorded, not closed.** The
+    target IS a root of unity, an exact algebraic integer; this carrier is
+    float64 and does NOT satisfy the closure exactly (MEASURED on the sibling
+    exact-Q61 tier: :func:`srmech.cascade.hypercomplex_exp` at ``2π/8`` raised
+    to the 8th is a ratio of 147-digit integers, not ``1``). An EXACT route
+    for the same object ships one module over —
+    :func:`srmech.math.qalg.cos_2pi_over_n` /
+    :func:`~srmech.math.qalg.sin_2pi_over_n`, on which
+    ``(2·cos_2pi_over_n(8))² == 2``, ``cos² + sin² == 1`` and ``ζ₈⁸ == 1``
+    all hold EXACTLY — and this op deliberately does NOT take it. Swapping
+    the carrier is a DFT-path change with its own blast radius, scoped to a
+    later rc; until then the identity above is a TOLERANCE and is written
+    here as one.
 
     Dispatches to the same-rc C peer ``srmech_octonion_twiddle`` (byte-exact
     pure mirror otherwise). Class I (cyclic index) ∘ N (π cascade + Q61

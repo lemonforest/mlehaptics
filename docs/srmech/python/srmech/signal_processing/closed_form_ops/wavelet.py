@@ -21,6 +21,21 @@ carrier ``mat_matvec`` ∘ ``mat_matmul`` → the c_dispatched
 The transform is orthonormal, so the analysis matrix's transpose is the exact
 synthesis (perfect-reconstruction) inverse — the value oracle.
 
+EXACTNESS CLASSIFICATION — exact object EXISTS, exact route NOT BUILT
+=====================================================================
+(0.9.0rc467, `#T1188`.)
+The Haar constant ``c = 1/√2`` is an algebraic number in the cyclotomic field
+``ℚ(ζ₈)``, and it is representable TODAY in a shipped carrier: it IS
+:func:`srmech.math.qalg.cos_2pi_over_n` at ``n = 8`` (MEASURED:
+``cos_2pi_over_n(8)**2 == Q(1, 2)`` exactly, and ``(2·cos_2pi_over_n(8))² == 2``).
+This module does NOT route to it — ``c`` is carried as a float, so the
+transform is exact-in-target but approximate-on-carrier. The honest label is
+therefore **exact object exists, exact route not implemented**; it is an
+inconsistency with :mod:`srmech.cascade.exact_dft`, not a false claim, since
+nothing here asserts exactness (the reldiff ≤ 1e-9 note above is the real
+contract). Building the exact route is a carrier change scoped to its own rc;
+it is RECORDED here, deliberately not done.
+
 Path B dual in Phase 6 (multi-scale bundle).
 
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Haar (1910)

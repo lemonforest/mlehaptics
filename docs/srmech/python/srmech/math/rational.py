@@ -2474,6 +2474,22 @@ def sqrt(x, *, precision: int = None) -> "Q":
     rooted at ``N`` fractional bits), e.g. for the π-cascade. (rc318: the knob
     was renamed ``precision_bits`` → ``precision`` for the uniform Class-N
     precision contract — a pure rename, bit-identical at matched precision.)
+
+    ⚠️ **"EXACT ``Q``" scopes to the CARRIER, not to the value** (0.9.0rc467,
+    `#T1188`). The returned ``Q`` is an exact rational; it is an APPROXIMATION
+    of ``√x``, and for a non-square rational it cannot be anything else, since
+    ``√x`` is irrational and ``Q`` is rational. What was missing here is that an
+    EXACT peer exists: ``√r`` for rational ``r`` is an ALGEBRAIC number, it
+    generates the quadratic — hence abelian, hence by Kronecker–Weber
+    cyclotomic — field ``ℚ(√r)``, and the shipped
+    :class:`srmech.math.qalg.Qalg` carries it exactly as ``Qalg`` over
+    ``t² − r`` (the carrier ``music.stiff_string_partials`` already uses). For
+    ``√2`` specifically the exact value is
+    ``2·srmech.math.qalg.cos_2pi_over_n(8)`` (MEASURED:
+    ``(2·cos_2pi_over_n(8))² == 2`` exactly). Reach for those when the value
+    must SATISFY its defining equation; reach for this op when a rational of
+    declared precision is what is wanted. This op is deliberately the
+    approximating Class-N path and is not being re-routed.
     """
     # Q-input: root the exact rational directly (stay-rational; e.g. hypot).
     if hasattr(x, "as_pair") and not isinstance(x, float):
@@ -2524,6 +2540,12 @@ def hypot(a: float, b: float, *, precision: int = None) -> "Q":
     ``|z| = hypot(z.real, z.imag)``). ``a``/``b`` may be ``float`` or ``Q``.
     ``precision=N`` (rc318 rename of ``precision_bits``) selects the literal
     ABSOLUTE ``N``-fractional-bit grid; a pure rename, bit-identical.
+
+    ⚠️ **"EXACT ``Q``" scopes to the CARRIER, not to the value** — the
+    sum-of-squares is formed exactly, and the ``√`` of it is the approximating
+    :func:`sqrt` path. See :func:`sqrt` for the exact peer (``Qalg`` over
+    ``t² − (a² + b²)``) and why this op is deliberately not routed to it
+    (0.9.0rc467, `#T1188`).
     """
     an, ad = (a.as_pair() if hasattr(a, "as_pair") and not isinstance(a, float)
               else float(a).as_integer_ratio())

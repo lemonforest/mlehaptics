@@ -47,6 +47,19 @@ Tier         carrier                                  decidable?
 3 open       none                                      **no**
 ============ ======================================= ==================
 
+Tier 2 SPLITS into **2a** (algebraic AND cyclotomic — an abelian Galois group,
+so by Kronecker–Weber the field embeds in some ``ℚ(ζ_m)``: every ``x² − r``,
+hence all of ``stiff_string_partials``) and **2b** (algebraic and NOT
+cyclotomic — an irreducible ``x^N − c`` at ``N ≥ 3`` gives a non-normal, hence
+non-abelian, field whose Galois closure is non-abelian too, so it embeds in no
+``ℚ(ζ_m)``: ``equal_temperament_partials(12)``). Both are exactly
+carriable by ``Qalg`` and both are exactly DECIDABLE, so the table above and
+every commensurability verdict stand as written; the split matters because
+"Tier 2 algebraic" alone asserts a sameness that does not hold, and a reader
+who takes the tag to mean "reachable from roots of unity" is wrong for 2b.
+Added 0.9.0rc467, `#T1188` — a classification correction, no carrier change
+and no change to any shipped ``tier`` value.
+
 Tier 3 has no exact carrier by construction: ``Qalg.alpha`` REJECTS a
 non-integer minimal polynomial (``ValueError``), so a transcendental cannot be
 smuggled in as if it were exact. It follows that **Tier 3 must be DECLARED, not

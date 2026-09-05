@@ -288,7 +288,16 @@ def hypercomplex_exp(theta: float, k_axes: int) -> Tuple["_Q", ...]:
 
     Substrate-native fixed-width Q61 cascade (``rational.{cos,sin}`` + the
     integer-sqrt unit norm — no bignum, no libm), **byte-exact** with the native
-    peer ``srmech_hypercomplex_exp_q61`` when present. ``k_axes`` outside
+    peer ``srmech_hypercomplex_exp_q61`` when present. ⚠️ "byte-exact" scopes
+    to PURE-vs-NATIVE agreement, and "exact ``Q``" to the CARRIER: the returned
+    rationals are exact rationals, NOT the exact algebraic number. At
+    ``θ = 2πk/N`` the target is a root of unity, and this op does not reach it —
+    MEASURED (0.9.0rc467, `#T1188`): ``hypercomplex_exp(2π/8, 1)`` raised to the
+    8th power is a ratio of 147-digit integers, not ``1``. The exact route for
+    that object is :func:`srmech.math.qalg.cos_2pi_over_n` /
+    :func:`~srmech.math.qalg.sin_2pi_over_n` (on which ``ζ₈⁸ == 1`` holds
+    exactly); routing this op through it is a carrier change scoped to a later
+    rc, recorded here rather than done. ``k_axes`` outside
     ``{1, 3, 7}`` or a non-finite ``theta`` raises ``ValueError`` (``Q`` is the
     finite-rational carrier)."""
     if k_axes not in _HC_INV_Q61:
