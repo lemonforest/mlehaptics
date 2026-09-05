@@ -1132,7 +1132,18 @@ from srmech.math.text import fold_marks, glyph_stream
 #: and the gate that does notice it is
 #: test_no_exact_bearing_op_declares_an_operand_that_rounds_over_the_wire.
 WITNESS_RC416 = (
-    "f0acd83f2b2ae7da47036ce47d69fe42da919484b91496290da047b9ad93942e")
+    "074fb8f3a12954d42000e2e8ca74578986f253e23390f5fbb79663bbfd3a0e7b")
+#: rc467 (`#T1188`): re-pinned after a PROSE-ONLY correction pass. Five docstring
+#: /summary fixes (the twiddle ^N=1 tolerance-not-exactness note, the conditional
+#: exact_dft ring, the DCT/Haar exact-object-no-route labels, the rational.sqrt
+#: exact peer, and the music Tier 2a/2b split) edited op summaries that ARE the
+#: searchable corpus, so the digest moves by construction — which this gate says
+#: is the point. Confirmed a prose move and NOT a non-deterministic build before
+#: re-pinning: the witness is identical across two builds in one process, equals
+#: the ops+carriers union witness, and the value computed locally matches the one
+#: CI reported to the character. Registry stays 733; no tokenizer, no search
+#: behaviour, and no carrier changed.
+#: was: f0acd83f2b2ae7da47036ce47d69fe42da919484b91496290da047b9ad93942e
 #: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
 #: op corpus, so registering induced_representation + zeta_conjugate moves it by
 #: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.
