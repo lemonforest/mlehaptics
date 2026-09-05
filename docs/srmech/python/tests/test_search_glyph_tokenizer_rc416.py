@@ -1053,8 +1053,32 @@ from srmech.math.text import fold_marks, glyph_stream
 #:   that a pin whose corpus includes examples cannot be taken until the examples
 #:   are final.
 #: was: 54fd35fa99df3812ceea67c54c039201c5f92fe284a523cb462bc1923de3e809 (rc465 stage 3)
+#:
+#: rc466 (`#T1188`, stage 3): re-pinned. MEASURED frame by frame against the
+#: rc465 tree in a scratch worktree (both builds 761 frames = 733 op + 28
+#: carrier): **4 frames changed, 0 added, 0 removed, and ZERO of the four are
+#: op frames** — they are the CARRIER frames `Q`, `QMat`, `float` and `int`,
+#: whose consumes / produces back-indices moved because the seventy-row drain
+#: widened ~45 registry declarations to name both carriers (`list[float] |
+#: list[Q]`, `Mat | QMat`, `float | Q`, `HV | Sequence[int | Q]`, ...). The
+#: fifty-odd docstring edits of stages 1-2 did NOT enter this corpus:
+#: `_tool_docs.py` was byte-identical across the final `regen_all.py` (the op
+#: frames read the curated docs, not `inspect.getdoc`). Registry 733 -> 733;
+#: no tokenizer or search behaviour changed. Taken AFTER the final regen
+#: (idempotent, 1 file moved: the C tool registry) and after the last
+#: corpus-touching edit of the rc.
+#: was: f8eb0f75db276bcede50cebd0e6e9b996864ef71332b61b417a25553de20718a (rc465 stage 3 follow-up)
+#:
+#: Then, still in rc466 stage 3, the pin moved ONCE MORE by exactly one frame:
+#: registering ``Qi`` as the 29th carrier (rc205 had flagged the token as
+#: absent from the carrier registry the moment the drain put it into declared
+#: type strings) adds ONE carrier frame — 761 -> 762 = 733 op + 29 carrier —
+#: and the Q / QMat / float / int carrier frames keep the four-frame move above.
+#: The intermediate digest 4a6991… was measured and is recorded here so the
+#: two causes stay separable; it never shipped.
+#: was: 4a6991599183d4bea374290ba1b2a5b6ed99d6f1626c9790bf26ab7b5f032092 (rc466 stage 3, before the Qi carrier)
 WITNESS_RC416 = (
-    "f8eb0f75db276bcede50cebd0e6e9b996864ef71332b61b417a25553de20718a")
+    "566f65aa19672de9e93397604f7f03c50791873b1d57c0cbe237bd105e111de9")
 #: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
 #: op corpus, so registering induced_representation + zeta_conjugate moves it by
 #: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.

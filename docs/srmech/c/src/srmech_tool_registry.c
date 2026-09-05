@@ -4396,6 +4396,9 @@ static const char *const ts_composes_24[] = {
 static const char *const ts_composes_26[] = {
     "srmech.math.modular_linalg.gf_rref",
 };
+static const char *const ts_composes_42[] = {
+    "srmech.math.laplacian.signed_laplacian",
+};
 static const char *const ts_composes_46[] = {
     "srmech.math.laplacian.eulerian_path",
 };
@@ -4782,6 +4785,12 @@ static const char *const ts_composes_388[] = {
 };
 static const char *const ts_composes_389[] = {
     "srmech.math.rational.sin",
+};
+static const char *const ts_composes_390[] = {
+    "srmech.cascade.cd_project",
+};
+static const char *const ts_composes_391[] = {
+    "srmech.cascade.cd_promote",
 };
 static const char *const ts_frame_axis_396[] = {
     "modulus",
@@ -6487,7 +6496,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"sectors: ['chi00', 'chi01', 'chi10', 'chi11'] | chi00 IS dense_laplacian: True\\n edge 0 arbor,Metonic g=0 -> {'chi00': -1.0, 'chi01': -1.0, 'chi10': -1.0, 'chi11': -1.0}\\n edge 1 mesh,Metonic g=1 -> {'chi00': -1.0, 'chi01': -1.0, 'chi10': 1.0, 'chi11': 1.0}\\n edge 8 mesh,Saros   g=3 -> {'chi00': -1.0, 'chi01': 1.0, 'chi10': 1.0, 'chi11': -1.0}\\ndegree is character-independent: [3.0, 3.0, 3.0, 3.0]\",\"why\":\"Carries TWO real sign bits per gear edge (sense flip x which back-panel spiral) and returns all four character sectors at once: chi00 is exactly dense_laplacian, and the four sectors separate all four bit combinations - a distinction the single-bit signed_laplacian cannot make.\",\"worked\":\"# Antikythera Metonic+Saros train, Freeth 2021 (Sci. Rep. 11:5821).\\n# node: 0 b1(224) 1 b2(64) 2 e2(32) 3 e5(53) 4 k1(96) 5 e6(53)\\n#       6 l1(38)  7 l2(53) 8 m1(96) 9 f1(53) 10 f2(30) 11 g1(54)\\nE = [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,7),(7,8),(3,9),(9,10),(10,11)]\\nAXLE = {0, 4, 6, 9}            # shared-arbor edges; the other 7 are gear MESHES\\n\\nfrom srmech.math.laplacian import klein4_gain_laplacian, dense_laplacian, signed_laplacian\\n# TWO independent Z2 bits per edge: bit0 = rotation-sense flip (mesh vs arbor),\\n# bit1 = which display face the edge feeds (0 = Metonic spiral, 1 = Saros spiral).\\nSAROS = {8, 9, 10}\\ngains = [((1 if k not in AXLE else 0) | ((1 if k in SAROS else 0) << 1))\\n         for k in range(len(E))]\\nS = klein4_gain_laplacian(n=12, edges=E, gains=gains)\\nL = dense_laplacian(n=12, edges=E)\\nprint(\\\"sectors:\\\", sorted(S), \\\"| chi00 IS dense_laplacian:\\\",\\n      max(abs(S[\\\"chi00\\\"][i,j]-L[i,j]) for i in range(12) for j in range(12)) < 1e-12)\\nfor k, (u, v), what in [(0,(0,1),\\\"arbor,Metonic\\\"), (1,(1,2),\\\"mesh,Metonic\\\"),\\n                        (8,(3,9),\\\"mesh,Saros \\\")]:\\n    print(\\\" edge%2d %-12s g=%d ->\\\" % (k, what, gains[k]),\\n          {s: S[s][u,v] for s in sorted(S)})\\nprint(\\\"degree is character-independent:\\\", [S[s][3,3] for s in sorted(S)])\"}",
         NULL,
         "WHAT: the V4 = Z2 x Z2 gain Laplacian \342\200\224 TWO sign bits per edge \342\200\224 returned as all FOUR real character sectors {chi00, chi01, chi10, chi11} in one call. chi00 (the trivial character) equals dense_laplacian for unit gains; the signed degree is the Class-K magnitude and therefore character-INDEPENDENT, so the four sectors differ only in their off-diagonal signs. The two bits are handled symmetrically \342\200\224 no bit is privileged. WHEN: a relationship carries two independent binary senses at once, which the single-bit signed_laplacian cannot separate. SIBLINGS: signed_laplacian is the one-bit instance of exactly this construction; klein4_relational_structure is the joint read-out over these four blocks; spectral_block_dispatch's 4-cap IS this shape. HONEST BOUNDARY (F552): the sectors carry the ASYMMETRY, never the orientation LABEL \342\200\224 that needs the odd-channel cycle_holonomy.",
-        NULL, 0u,
+        ts_composes_42, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
@@ -13361,7 +13370,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "Class N: ONE (i, j) coupling term of the SIMPLE Kuramoto path \342\200\224 sin(theta[j] - theta[i]) via the Class-N rational sin. Unweighted on purpose: the simple path weights the SUM (inv_n * S), not the terms \342\200\224 the float-order distinction that makes kuramoto_step TWO declared cascades. Pointwise; the all-to-all (i, j) iteration lives in the chain's indexed-map layer. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
         ts_params_386, 3u,
         "Q",
-        "sin(theta[j] - theta[i]) as an EXACT rational \342\200\224 the Class-N sin returns Q, not a float. Declared float through rc430; measured by invocation at rc430 repair (`#T1127`).",
+        "the Q61 rational sine (denominator 2**61) of the FLOAT64 difference theta[j] - theta[i]: exact for that rounded argument, not for an exact phase \342\200\224 a 54-bit phase is rounded at the entry (rc466 accuracy note on the op, `#T1188`). Declared float through rc430; measured by invocation at rc430 repair (`#T1127`).",
         1,
         NULL,
         "{\"input\":{\"i\":\"the oscillator receiving coupling\",\"j\":\"the oscillator providing it\",\"theta\":\"the whole phase list (the map body reads it at both indices)\"},\"output\":\"kuramoto_sin_term([0.1, 2.0], 0, 1) = Q(545504860453082587, 576460752303423488) \\u2014 the Class-N rational sin flows EXACT (Q) and collapses to float only at the Euler combine, exactly as the shipped path does\",\"why\":\"The simple path weights the SUM, not the terms \\u2014 this op is deliberately unweighted, which is precisely the float-order distinction that makes kuramoto_step two declared cascades.\",\"worked\":\"from srmech.cascade import kuramoto_sin_term\\nkuramoto_sin_term([0.1, 2.0], 0, 1)\\n                    # -> Q(545504860453082587, 576460752303423488)\\nfloat(kuramoto_sin_term([0.1, 2.0], 0, 1))\\n                    # -> 0.9463000876874145  (sin(1.9))\\nkuramoto_sin_term([0.5, 0.5], 0, 1)\\n                    # -> Q(0, 1)  (sin(0): no self-coupling term)\\n\"}",
@@ -13447,7 +13456,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"v\":\"one QDFT sample: a 4-component quaternion, or an H-valued 8-vector (e4..e7 zero)\"},\"output\":\"as_quat4([1.0, 2.0, 3.0, 4.0, 0.0, 0.0, 0.0, 0.0]) = [1.0, 2.0, 3.0, 4.0]; a nonzero e4..e7 tail raises (it would silently leak H)\",\"why\":\"The per-sample coercion step of quaternion_dft, public so the declared chain's coercion map names a registered op \\u2014 and the H-leak guard is part of the contract, not a convenience.\",\"worked\":\"from srmech.cascade import as_quat4\\nas_quat4([1.0, 2.0, 3.0, 4.0])    # -> [1.0, 2.0, 3.0, 4.0]\\nas_quat4([1.0, 2.0, 3.0, 4.0, 0.0, 0.0, 0.0, 0.0])\\n                                  # -> [1.0, 2.0, 3.0, 4.0]\\nas_quat4([0.0] * 4 + [1.0] + [0.0] * 3)\\n                                  # -> ValueError (e4..e7 must be zero)\\n\"}",
         "{\"v\":\"[1.0, 2.0, 3.0, 4.0]\"}",
         "WHAT \342\200\224 Class M: coerce one QDFT sample to a plain 4-list of floats \342\200\224 accepting a 4-component quaternion or the octonion-embedded 8-vector form with ``e4..e7 == 0``, and RAISING on a nonzero tail (accepting it would silently project an octonion into \342\204\215, which is a value error, not a convenience). WHEN \342\200\224 as the coercion-map body of the declared ``quaternion_dft`` chain (``seq_get`` then this, once per sample, exactly as the shipped wrapper coerces up front); it was the private ``_as_quat4`` until rc420, promoted because a declared chain cannot honestly name a private symbol \342\200\224 the BLK-REGMAP resolution is that every step of a shipped descriptor is a REGISTERED op. ``float()`` coercion is exact on floats, so the map order is the shipped order. SIBLING \342\200\224 ``srmech.cascade.as_oct8`` is the octonion twin (zero-EXTENDS a quaternion instead of truncating); ``srmech.cascade.qdft_resolve_mu`` is the axis-side coercion of the same one-resolution contract.",
-        NULL, 0u,
+        ts_composes_390, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
@@ -13467,7 +13476,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"vec\":\"one ODFT sample: an 8-component octonion, or a 4-component quaternion to zero-extend\"},\"output\":\"as_oct8([1.0, 2.0, 3.0, 4.0]) = [1.0, 2.0, 3.0, 4.0, 0.0, 0.0, 0.0, 0.0] \\u2014 a quaternion zero-extends into H \\u2282 O\",\"why\":\"The octonion coercion is widening (H embeds in O losslessly) where the quaternion one is guarded \\u2014 the asymmetry IS the algebra: projection loses, embedding does not.\",\"worked\":\"from srmech.cascade import as_oct8\\nas_oct8([1.0, 2.0, 3.0, 4.0])\\n            # -> [1.0, 2.0, 3.0, 4.0, 0.0, 0.0, 0.0, 0.0]\\nas_oct8([1.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0])\\n            # -> [1.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0]\\n\"}",
         "{\"vec\":\"[1.0, 2.0, 3.0, 4.0]\"}",
         "WHAT \342\200\224 Class M: coerce a 4- or 8-component sample to an 8-list of floats \342\200\224 a quaternion zero-extends into ``\342\204\215 \342\212\202 \360\235\225\206`` (lossless embedding), an 8-vector passes through coerced. Contrast the quaternion-side twin, which must GUARD: projecting \360\235\225\206 \342\206\222 \342\204\215 can lose content, embedding \342\204\215 \342\206\222 \360\235\225\206 cannot \342\200\224 the asymmetry between the two coercions is the algebra itself, made visible at the op boundary. WHEN \342\200\224 as the coercion-map body of the declared ``octonion_dft`` chain (``seq_get`` then this, per sample, the shipped wrapper's own order); it was the private ``_as8`` until rc420, promoted so the descriptor's step list names only registered ops (the BLK-REGMAP discipline). Parameter name is ``vec`` (the historical signature, kept \342\200\224 a rename would be churn with no value). SIBLING \342\200\224 ``srmech.cascade.as_quat4`` (the guarded quaternion twin); ``srmech.cascade.odft_resolve_mu`` (the axis-side coercion of the same transform).",
-        NULL, 0u,
+        ts_composes_391, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
@@ -19741,7 +19750,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "Whittaker-Shannon sinc interpolation \342\200\224 reconstruct a bandlimited signal at arbitrary target positions from its samples. This is the interpolation the sampling theorem names: for a genuinely bandlimited signal sampled above the Nyquist rate it is not an approximation but the exact reconstruction. Its cost is that every output touches every input, which is why cheaper interpolators exist at all. IDENTITY: Class L (the interpolation operator as a matvec against a sinc kernel matrix) composed with Class K (the removable singularity at zero offset, handled as an explicit boundary rather than by dividing). RELATION: farrow is the cheap retunable peer.",
         ts_params_705, 4u,
         "list",
-        "the reconstructed values, one per target index",
+        "the reconstructed values, one per target index \342\200\224 float64 complex, accurate to round-off: the sinc kernel is transcendental at every non-integral offset (rc466 accuracy note on the op, `#T1188`)",
         1,
         NULL,
         "{\"output\":\"Reconstructing at the sample times themselves returns [-0.0, 0.0, 1.0, 0.0, -0.0] -- the input impulse, with off-diagonal residuals around 4e-17 rather than exact zeros. Reconstructing the same impulse a half sample either side returns 0.636619772 twice, which is 2/pi, the textbook value of sinc(1/2). A scalar target of 1.5 returns a scalar -0.212206591, the first negative lobe.\",\"why\":\"The half-sample value is the convincing one: 0.636619772 is 2/pi to nine places, which is what Whittaker-Shannon reconstruction of a unit impulse MUST give, and it lands there with numpy absent and pi coming from the Class-N rational cascade rather than a float constant. The identity line is the other end of the same fact -- the kernel is exactly the identity on the sample grid, to within a 4e-17 residual, which is why the op is safe to call with targets that partly coincide with samples.\",\"worked\":\"from srmech.signal_processing import sinc_interp\\nts = [-2.0, -1.0, 0.0, 1.0, 2.0]\\nimpulse = [0.0, 0.0, 1.0, 0.0, 0.0]\\n# reconstructing AT the sample times: the kernel matrix is the\\n# identity, because sinc of a nonzero integer is zero\\n[round(v.real, 9) for v in sinc_interp(impulse, ts, ts)]\\n# -> [-0.0, 0.0, 1.0, 0.0, -0.0]\\n# a unit impulse reconstructs as the sinc function ITSELF:\\n[round(v.real, 9) for v in sinc_interp(impulse, ts, [-0.5, 0.5])]\\n# -> [0.636619772, 0.636619772]   = 2/pi, both sides\\nround(sinc_interp(impulse, ts, 1.5).real, 9)\\n# -> -0.212206591   a SCALAR target gives a scalar back\\nsinc_interp([1.0, 2.0], ts, [0.0])\\n# -> ValueError    signal and sample_indices must pair up\"}",

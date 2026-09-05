@@ -1347,6 +1347,114 @@ def _to_exact_or_float_rows(value: Any, *, param: str = "") -> Any:
     return _to_qmat_rows(value, param=param)
 
 
+def _rebuild_exact_leaf(x: Any) -> Any:
+    """One wire leaf -> its exact carrier where the wire form is unambiguous.
+
+    ``[num, den]`` (two ints, den != 0) -> ``Q``, the exact inverse of what
+    :func:`serialise_native` emits for a ``Q``. A ``Qi`` needs no arm here: it
+    crosses as a ``$srmech_carrier`` envelope (``_CARRIER_WIRE["Qi"]``) that
+    :func:`deserialise_native` has already rebuilt, at the top level or nested,
+    before any declared-type coercer runs — so it arrives LIVE and passes
+    through. Anything else (a float, an int, a live carrier, a longer list)
+    passes through unchanged, so the op's own admission gate, not the
+    transport, decides the rung."""
+    from srmech.math.q import Q         # exact-ℚ carrier; lazy
+
+    def _int(v):
+        return isinstance(v, int) and not isinstance(v, bool)
+
+    if (isinstance(x, (list, tuple)) and len(x) == 2
+            and _int(x[0]) and _int(x[1]) and x[1] != 0):
+        return Q(int(x[0]), int(x[1]))
+    return x
+
+
+def _to_exact_complex_rows(value: Any, *, param: str = "") -> Any:
+    """The rc466 (`#T1188`) DUAL-CARRIER MATRIX returns whose exact arm may hold
+    ``Qi`` leaves — ``Mat | list`` (the five ``exact=`` Laplacian builders and
+    rc463's three; ``magnetic_laplacian`` emits rows of ``Qi``) and
+    ``Mat | QMat | list[list[Qi]]`` (``density_matrix``).
+
+    A live ``Mat`` / ``QMat`` passes through. A nested sequence is ROWS — every
+    top-level element is a row, never a leaf, which is what removes the one
+    ambiguity a 2-column exact matrix would otherwise have (a row
+    ``[[2, 1], [-1, 1]]`` of two ``Q`` reads the same as one ``Qi``). Within a
+    row, float leaves stay floats, ``[num, den]`` rebuilds to ``Q`` and a
+    ``Qi`` envelope has already been rebuilt to a live ``Qi`` — the division of labour
+    :func:`_to_exact_or_float_rows` states: the coercer produces the honest
+    minimal structure and the op's admission builds the final carrier.
+    Through rc465 these return strings had NO inbound coercer, so a value one
+    op emitted could not be fed to the next by declared type (the rc414
+    ceiling this drains)."""
+    from srmech.math.mat import Mat     # float64 dense carrier; lazy
+    from srmech.math.qmat import QMat
+    if isinstance(value, (Mat, QMat)):
+        return value
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of rows for param {param or '<rows>'!r}; "
+            f"got {type(value).__name__}")
+    return [[_rebuild_exact_leaf(x) for x in row] if isinstance(row, (list, tuple))
+            else row for row in value]
+
+
+def _to_exact_complex_rows_or_vector(value: Any, *, param: str = "") -> Any:
+    """``elementwise_multiply_complex``'s ``Mat | Vec | list[Qi] | list[list[Qi]]``
+    return (rc466, `#T1188`). The exact arm is ``Qi``-valued in BOTH shapes,
+    never ``list[list[Q]]``, so the flat-vs-nested question is decidable: a
+    top-level element that is a scalar or one exact leaf (``[num, den]``, or
+    a live ``Q`` / ``Qi``) makes the value a flat VECTOR; otherwise the
+    top-level elements are rows. A live ``Mat`` / ``Vec`` passes through."""
+    from srmech.math.mat import Mat
+    from srmech.math.vec import Vec
+    if isinstance(value, (Mat, Vec)):
+        return value
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list (a vector or rows) for param {param or '<value>'!r}; "
+            f"got {type(value).__name__}")
+    if all(not isinstance(x, (list, tuple)) or _is_exact_leaf_form(x) for x in value):
+        return [_rebuild_exact_leaf(x) for x in value]
+    return _to_exact_complex_rows(value, param=param)
+
+
+def _is_exact_leaf_form(x: Any) -> bool:
+    """True iff ``x`` IS one exact wire leaf: a ``[num, den]`` pair, or a live
+    ``Q`` / ``Qi`` a rebuilt envelope already put there."""
+    from srmech.math.q import Q
+    from srmech.math.qi import Qi
+    return isinstance(_rebuild_exact_leaf(x), (Q, Qi))
+
+
+def _to_complex_or_qi(value: Any, *, param: str = "") -> Any:
+    """``inner_product_eta``'s ``complex | Qi`` return (rc466, `#T1188`): a live
+    ``Qi`` passes through (its envelope was rebuilt before this ran);
+    ``[re, im]`` of floats rebuilds to ``complex`` (the form
+    :func:`serialise_native` emits for a complex); a bare number becomes
+    ``complex``."""
+    from srmech.math.qi import Qi
+    if isinstance(value, (Qi, complex)):
+        return value
+    rebuilt = _rebuild_exact_leaf(value)
+    if isinstance(rebuilt, Qi):
+        return rebuilt
+    if isinstance(value, (list, tuple)) and len(value) == 2:
+        return complex(float(value[0]), float(value[1]))
+    return complex(value)
+
+
+def _to_mapping_of_exact_or_float_rows(value: Any, *, param: str = "") -> Any:
+    """``klein4_gain_laplacian``'s ``dict[str, Mat] | dict[str, list]`` return
+    (rc466, `#T1188`): the four χ-sector matrices keyed by character label,
+    each rebuilt through :func:`_to_exact_complex_rows`."""
+    if not isinstance(value, dict):
+        raise ValueError(
+            f"expected a mapping of sector label -> rows for param "
+            f"{param or '<sectors>'!r}; got {type(value).__name__}")
+    return {k: _to_exact_complex_rows(v, param=f"{param}[{k}]")
+            for k, v in value.items()}
+
+
 def _to_reactions(value: Any, *, param: str = "") -> Any:
     """``srmech.chemistry.deficiency`` ``reactions`` (v0.9.0rc379).
 
@@ -1482,6 +1590,17 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # ceiling comment defends, whose returns have NO wire form at all.)
     "Mat | QMat": _to_exact_or_float_rows,
     "list[float] | list[Q]": _to_exact_or_float_vector,
+    # 0.9.0rc466 (`#T1188`) stage 3: the RETURN spellings the seventy-row drain
+    # widened (and rc463's `Mat | list`, which never had one). Each had a wire
+    # form — Q as [num, den], Qi as a $srmech_carrier envelope since this
+    # stage — and no inbound rebuild, so a value one op emitted could not
+    # be fed to the next by declared type. Landed here rather than by raising
+    # test_wire_round_trip_rc414's ceiling.
+    "Mat | list": _to_exact_complex_rows,
+    "Mat | QMat | list[list[Qi]]": _to_exact_complex_rows,
+    "Mat | Vec | list[Qi] | list[list[Qi]]": _to_exact_complex_rows_or_vector,
+    "complex | Qi": _to_complex_or_qi,
+    "dict[str, Mat] | dict[str, list]": _to_mapping_of_exact_or_float_rows,
     # 0.9.0rc463 (`#T1188`): the exact eigensolver's eigenvalue operand. A NEW
     # declared param TYPE widens this discriminator set in the SAME change that
     # registers the ops — the whole exact-eigensolver family was public in
@@ -1943,6 +2062,28 @@ def _unwire_qalg(v: Any) -> Any:
                 [Q(int(c[0]), int(c[1])) for c in v["coords"]])
 
 
+def _wire_qi(z: Any) -> Any:
+    """``Qi`` -> ``{"re": [num, den], "im": [num, den]}`` — the two exact
+    ``Q`` parts of the Gaussian-rational scalar (rc466, `#T1188`, stage 3).
+
+    Registered here rather than as a bare ``[[num, den], [num, den]]`` value
+    (the form the Stage-1 cut emitted) because a value with no
+    ``$srmech_carrier`` envelope has no carrier-level inbound rebuild: it came
+    back from the wire as a nested list, and the rc414 sweep filed the new
+    carrier as one that does not round-trip. The envelope is rebuilt
+    structurally by :func:`deserialise_native` at the top level and nested
+    inside any dict / list, so a ``Qi`` reaches its consumer as a ``Qi``
+    whatever the declared type-string says."""
+    return {"re": [z.real.numerator, z.real.denominator],
+            "im": [z.imag.numerator, z.imag.denominator]}
+
+
+def _unwire_qi(v: Any) -> Any:
+    from srmech.math.q import Q
+    from srmech.math.qi import Qi
+    return Qi(Q(int(v["re"][0]), int(v["re"][1])), Q(int(v["im"][0]), int(v["im"][1])))
+
+
 def _wire_carrier_spectrum(cs: Any) -> Any:
     """``CarrierSpectrum`` -> ``{"element": <EllRatio form>}``.
 
@@ -2126,6 +2267,7 @@ _CARRIER_WIRE: Dict[str, Any] = {
     "RecoverableFold": (_wire_recoverable_fold, _unwire_recoverable_fold),
     "QMat": (_wire_qmat, _unwire_qmat),
     "Qalg": (_wire_qalg, _unwire_qalg),
+    "Qi": (_wire_qi, _unwire_qi),                      # rc466 (`#T1188`) stage 3
     "CarrierSpectrum": (_wire_carrier_spectrum, _unwire_carrier_spectrum),
     "ThetaSum": (_wire_theta_sum, _unwire_theta_sum),
     "ThetaBracketSum": (_wire_theta_bracket_sum, _unwire_theta_bracket_sum),
@@ -2279,14 +2421,8 @@ def serialise_native(value: Any) -> Any:
     # with complex's [re, im] (which is keyed by the declared `complex` param type
     # on the inbound side).
     from srmech.math.q import Q as _Q
-    from srmech.math.qi import Qi as _Qi
-    if isinstance(value, _Qi):
-        # rc466 (`#T1188`): the exact Gaussian-rational scalar rides as its two
-        # exact pairs [[re_num, re_den], [im_num, im_den]] — the form
-        # Qi.as_pairs() speaks (density_matrix / inner_product_eta /
-        # elementwise_multiply_complex return it on their exact routes).
-        (rn, rd), (i_n, i_d) = value.as_pairs()
-        return [[rn, rd], [i_n, i_d]]
+    # A Qi never reaches this line: it is a ``_CARRIER_WIRE`` carrier (rc466
+    # stage 3) and ``serialise_carrier`` above already returned its envelope.
     if isinstance(value, _Q):
         return [value.numerator, value.denominator]
     # srmech HV handle (numpy-free Klein-4 carrier, v0.7.0rc29) -> list[int].

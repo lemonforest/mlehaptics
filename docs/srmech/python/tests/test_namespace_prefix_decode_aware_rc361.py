@@ -798,8 +798,44 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
         f"the carrier registry's decoded amsc population is {amsc}, expected "
         f"2 — the cascade subpackage drained it 97 -> 2 at rc377 (ADR-0010 "
         f"execution COMPLETE); re-read the pins before trusting anything else.")
-    assert music == 19, (
-        f"expected 19 srmech.music op references inside the DECODED channel "
+    # rc466 (`#T1188`, stage 3) — FIVE pins move at once, and the cause is TWO
+    # things braided together, separated by MEASUREMENT (main vs HEAD carrier
+    # registry, decoded per name, both channels counted on both files):
+    #
+    #   (a) A CHANNEL MOVE, the rc452 category IN REVERSE. The `Q` carrier's
+    #       consumes/produces fragment grew past the generator's 4095-byte
+    #       MSVC hoist threshold (c/tools/gen_carrier_registry.py:61-68) and is
+    #       now baked as the byte array `cs_lstr_2` — the hoisted blobs went
+    #       {HV, Mat, float, int} -> {HV, Mat, Q, float, int}. Every op that
+    #       consumes or produces `Q` therefore LEFT the as-text channel and
+    #       ENTERED the decoded one: rational_add/_mul/_div/_pow_uint 1 -> 3,
+    #       the five *_series_truncate 1 -> 2, rational.sin/cos/tan/exp/log/
+    #       sqrt/hypot/atan/atan2 2 -> 3, the six qmat_* 1-2 -> 2-3, the eight
+    #       srmech.music Q-consumers +1 each, coupling.fold_spectrum 1 -> 2.
+    #       Conserved where nothing else moved: music decoded 19 -> 27 while
+    #       as-text 11 -> 3 (total 30 -> 30); biology decoded 110 -> 111 while
+    #       as-text 7 -> 6 (total 117 -> 117). Neither namespace gained an op.
+    #   (b) POPULATION GROWTH from the seventy-row drain's WIDENED
+    #       DECLARATIONS (the rc408 category): ~45 existing ops now declare
+    #       both carriers (`list[float] | list[Q]`, `Mat | QMat`, `float | Q`,
+    #       `HV | Sequence[int | Q]`, `exact=`), so each lands in a second
+    #       carrier's back-index — the thirteen hdc loop ops 2 -> 4/5, the
+    #       five laplacian builders + elementwise_multiply_complex +
+    #       ground_state_flux_response +1/+2, as_oct8/as_quat4 1 -> 4, the
+    #       four couple_working pass-throughs +2/+3, the two DFT summands
+    #       3 -> 5, correlation_product 3 -> 5, multiplex_streams 0 -> 2, the
+    #       five physics.qm singletons +2/+3 (operator_norm 2 -> 5,
+    #       four_momentum_squared 1 -> 4, ...), plus the rc465 dual-carrier
+    #       octonion/quaternion/triality ops that now ALSO ride (a).
+    #       Not conserved, by construction: math total (decoded + as-text)
+    #       474 -> 521, cascade 277 -> 305, physics.qm 230 -> 248,
+    #       signal_processing 75 -> 82 — those deltas are (b); the rest of
+    #       each decoded rise is (a).
+    #   Registry 733 -> 733; no op was added, removed or renamed; srmech.amsc
+    #   decoded holds at 2 (as-text 0). The blob count is the tell for (a):
+    #   `decoded_blobs()` returns 5 labels where rc465 returned 4.
+    assert music == 27, (
+        f"expected 27 srmech.music op references inside the DECODED channel "
         f"(9 from the rc362 Q / Qalg ops.consumes back-index + 4 from the rc366 "
         f"harmonics module move + 6 from the rc424 RELATIONS lane), found "
         f"{music}. If this is 0 the natural experiment below is inert and this "
@@ -929,8 +965,9 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # `srmech.cascade.matrix_cascades` registrations are not under `srmech.math.`
     # and cannot contribute here however they are typed - the same structural
     # split rc461 recorded, at ten times the scale.
-    assert math == 361, (
-        f"expected 361 srmech.math op references inside the DECODED channel "
+    # rc466 (`#T1188`, stage 3): see the two-cause attribution above the `music` pin — (a) the `Q` fragment hoisted to a byte array, (b) the widened dual-carrier declarations.
+    assert math == 447, (
+        f"expected 447 srmech.math op references inside the DECODED channel "
         f"(352 at rc461 part 3 + rc463 +9: the six qmat_* ops at one carrier "
         f"back-index ref each EXCEPT qmat_solve, which names the exact-row "
         f"carrier twice (rows AND b) for two, plus the two qalg trig ops at "
@@ -999,8 +1036,9 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # accounting every prior pair-shaped addition here produced. The population is
     # CONSERVED, which is what this pin measures — a rise that the diff explains is a
     # surface that grew, not a channel that leaked.
-    assert biology == 110, (
-        f"expected 110 srmech.biology op references inside the DECODED channel "
+    # rc466 (`#T1188`, stage 3): see the two-cause attribution above the `music` pin — (a) the `Q` fragment hoisted to a byte array, (b) the widened dual-carrier declarations.
+    assert biology == 111, (
+        f"expected 111 srmech.biology op references inside the DECODED channel "
         f"(the rc375 biology bucket's genome / q8 / coupling carrier back-index 99 + "
         f"rc390 split_defect 2 + rc408 coupling/int declarations 5), found {biology}. "
         f"If this is not 110 the population is not conserved — re-measure.")
@@ -1108,8 +1146,9 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # because `list[float]` is named on BOTH the parameter and the return, on
     # top of the `int` dim - the per-(op, carrier) multiplicity this pin exists
     # to keep honest, and why "one row per new op" would have been a guess.
-    assert cascade == 191, (
-        f"expected 191 srmech.cascade op references inside the DECODED channel "
+    # rc466 (`#T1188`, stage 3): see the two-cause attribution above the `music` pin — (a) the `Q` fragment hoisted to a byte array, (b) the widened dual-carrier declarations.
+    assert cascade == 231, (
+        f"expected 231 srmech.cascade op references inside the DECODED channel "
         f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
         f"rc384's octonion_frame_read + rc386's cd_three_form + rc387's flip_pair / "
         f"group_algebra_table + rc395's cd_zero_divisor_witness / _witnesses + rc398's "
@@ -1180,8 +1219,9 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # the third distinguishable cause this pin has now seen, after the rc381
     # rename and the rc385/rc396/rc461 op adds — and no amsc pin moves.
     physics_qm = joined.count("srmech.physics.qm.")
-    assert physics_qm == 176, (
-        f"expected 176 srmech.physics.qm op references inside the DECODED channel "
+    # rc466 (`#T1188`, stage 3): see the two-cause attribution above the `music` pin — (a) the `Q` fragment hoisted to a byte array, (b) the widened dual-carrier declarations.
+    assert physics_qm == 207, (
+        f"expected 207 srmech.physics.qm op references inside the DECODED channel "
         f"(the rc381 qm-subpackage rename's carrier back-index — octonion / "
         f"quaternion / so8 / triality / gauge / sm op names — plus rc385's "
         f"quaternion_log (+2) / quaternion_slerp (+3), rc396's clock_operator "

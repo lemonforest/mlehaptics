@@ -885,9 +885,3 @@
 {"exposed_as": "srmech.math.qmat.qmat_nullspace", "defined_at": "srmech.math.qmat.qmat_nullspace", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.qalg.cos_2pi_over_n", "defined_at": "srmech.math.qalg.cos_2pi_over_n", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.qalg.sin_2pi_over_n", "defined_at": "srmech.math.qalg.sin_2pi_over_n", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.math.q.exact_rows", "defined_at": "srmech.math.q.exact_rows", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.math.q.exact_scalar", "defined_at": "srmech.math.q.exact_scalar", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.math.q.exact_vector", "defined_at": "srmech.math.q.exact_vector", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.math.qi.exact_complex_rows", "defined_at": "srmech.math.qi.exact_complex_rows", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.math.qi.exact_complex_scalar", "defined_at": "srmech.math.qi.exact_complex_scalar", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.math.qi.exact_complex_vector", "defined_at": "srmech.math.qi.exact_complex_vector", "bucket": "composition_of_c"}

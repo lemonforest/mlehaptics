@@ -13,7 +13,7 @@ Steven has aphantasia (no visual imagery) and reasons through proprioceptive spa
 
 ### Key Principle: Honest Science
 
-Every claim must be tagged as KNOWN (published, cited), NOVEL (no prior art found), CONFIRMED (computationally verified), or FAILED (tested and didn't work). When predictions fail, document the failure and its root cause — failed tests are results, not embarrassments. The notebook documents several important failures (entropy-based time reversal, global fiber encoding, legal move Fisher discrimination) that are as informative as the successes.
+Every claim carries one of: **KNOWN** (published; cite the document you read and the lines you read); **KNOWN technique; applied here** (the method is textbook, this notebook runs it on chess — this says nothing about who applied it before); **CONFIRMED (internal)** (we computed it; name the generating code); **SEARCHED — NOT FOUND (search record SR-n)** (a literature search was run and found nothing; the record lists date, engines and databases, exact queries, declared gaps, searcher, and a strength label — this is a search result, never a priority claim); **PREDICTION (untested)**; **FAILED / RETRACTED** (tested and did not hold, or withdrawn — name the section that says so); **INCONSISTENT — re-measure** (the claim's parts contradict each other — say what must be re-measured). The bare word *NOVEL* is not a tag: it reads as a priority claim and cannot be audited (convention revised 2026-09-04; the buckets, the search-record template and record SR-1 live under the notebook's tag table). When predictions fail, document the failure and its root cause — failed tests are results, not embarrassments. The notebook documents several important failures (entropy-based time reversal, global fiber encoding, legal move Fisher discrimination) that are as informative as the successes.
 
 ---
 
@@ -32,7 +32,7 @@ Key spectral properties:
 - Queen = Bishop + Rook exactly: A_queen = clip(A_bishop + A_rook), L_queen = L_bishop + L_rook
 
 ### The Fiber Bundle
-Each piece's Laplacian, projected onto the board eigenbasis, decomposes into a diagonal part (board-aligned) and an off-diagonal part (rule content). The off-diagonal parts of all piece types share a **rank-3 subspace** (σ₁=1.70, σ₂=0.82, σ₃=0.65, σ₄=0.00). This is the shared fiber of the bundle. The bundle has non-trivial holonomy (cosine similarity of fiber vectors around closed loops ≠ 1.0) and position-dependent fiber norm (2.75 at center, 1.37 at corners).
+Each piece's Laplacian, projected onto the board eigenbasis, decomposes into a diagonal part (board-aligned) and an off-diagonal part (rule content). The off-diagonal parts of the piece types span a **rank-3 subspace** (σ₁=1.70, σ₂=0.82, σ₃=0.65, σ₄=0.00) — the `off(·)` residual of approximate joint diagonalisation of Laplacians (Eynard, Glashoff, Bronstein & Bronstein, arXiv:1209.2295v2; COSIE with V fixed to the grid eigenbasis, Arroyo et al., JMLR 22). Rank 3 is the *maximum attainable*: f_queen = f_bishop because L_queen = L_bishop + L_rook and the rook's off-diagonal block is exactly zero (L(K₈) = 8I − J). This is **not a fibre bundle** (no base, no projection, no structure group), and the earlier "non-trivial holonomy" claim is **retracted** (notebook §8c: the harness loop did not close; the −0.016 is a cosine between two squares' local residuals against a generic −0.004). The local residual norm is position-dependent (2.75 at center, 1.37 at corners) — CONFIRMED (internal).
 
 ### Captures as Annihilation
 Captures decompose exactly into: Movement (35.1%) + Annihilation (23.9%) + Cross-term (41.0%). The cross-term is dominant. cos(movement, annihilation) = 1/√2 exactly. Aggressor survival shows perfect charge-conjugation signature (overlap with target = −1.000 in all cases tested).
@@ -74,16 +74,16 @@ The UTLP Sub-layer 3 uses coprime-phase-indexed cyclic permutations to generate 
 | Dimension D | Number of lattice sites (64) |
 | Basis generation | Kronecker sum of path eigenvalues |
 
-The 8 path eigenfrequencies function as coprime generators: each produces a family of spectral modes, no two families overlap (pairwise ratios are irrational), and the lattice of pairwise sums reproduces the full board spectrum with no aliasing. The 33 unique eigenvalues from 36 (a,b) pairs = the full board spectral content.
+The 8 path eigenfrequencies function as generators: each produces a family of spectral modes and no two families coincide (pairwise ratios are irrational), and the lattice of pairwise sums reproduces the full board spectrum — **with aliasing** (corrected 2026-09-04): λ_k + λ_{8−k} = 4 for k = 1, 2, 3 and λ₄ + λ₄ = 4, so four pairs land on the value 4, which is exactly why 36 (a,b) pairs give 33 unique eigenvalues. This is the Kronecker-sum spectrum of P₈ □ P₈ (KNOWN — Brouwer & Haemers §1.4.6); the 33-sum count is CONFIRMED (internal).
 
-The key claim (novel, needs documentation): the coprime-phase rotation basis from UTLP S3 and the Laplacian eigenfrequency basis from spectral graph theory are instances of the same mathematical construction — basis generation from independent frequency generators. UTLP uses number-theoretic independence (coprimality). Chess uses analytic independence (irrationality of cos values). Both produce maximally spread, non-aliasing bases.
+The key claim (CONFIRMED (internal) as an analogy; no search recorded — it is not a priority claim): the coprime-phase rotation basis from UTLP S3 and the Laplacian eigenfrequency basis from spectral graph theory are both bases generated from independent frequency generators. UTLP uses number-theoretic independence (coprimality). Chess uses analytic independence (irrationality of cos values). The analogy holds at the generator level and breaks at the sum level (the aliasing at 4 above); "maximally spread, non-aliasing bases" is withdrawn.
 
 ---
 
 ## File Organization
 
 ### Research Notebook
-- `chess_spectral_research_notebook.md` — 917-line working notebook, 10 sections, all claims tagged KNOWN/NOVEL/CONFIRMED/FAILED
+- `chess_spectral_research_notebook.md` — the working notebook; every claim tagged per the seven-bucket convention above (KNOWN / KNOWN technique; applied here / CONFIRMED (internal) / SEARCHED — NOT FOUND (SR-n) / PREDICTION (untested) / FAILED–RETRACTED / INCONSISTENT — re-measure)
 
 ### Proof Harness
 - `chess_spectral_consolidated.py` — 544 lines, 7 test sections, ALL PASS. Reproduces every claim from Sections 2-7 of the notebook. Run: `python3 chess_spectral_consolidated.py`
@@ -137,17 +137,17 @@ Test unbinding: encode a board state, query "what's on e4?", retrieve correct pi
 ### Priority 3: Position Similarity Benchmark
 Encode a large set of positions with known evaluations (from Stockfish or lichess database) and test whether spectral similarity predicts evaluation similarity. This is the practical value test: if spectrally similar positions have similar evaluations, the encoding is useful for approximate position retrieval without exhaustive search.
 
-### Priority 4: Prior Art Documentation
-Formalize the novel findings for disclosure/publication:
-1. Rank-3 shared fiber bundle over chess board graph
-2. 5-tuple spectral quantum number classification
-3. Capture spectral decomposition (movement + annihilation + cross-term)
-4. Knight exact DCT orthogonality to all sliding pieces
-5. Cross-species field energy transfer with approximate conservation
-6. Three-level hierarchy of rule encoding (identity / coupling / legality)
-7. 8-generator spectral lattice as domain-specific coprime basis
-8. D4 irrep decomposition → invariant position encoding
-9. Connection to UTLP S3 coprime-phase HDC
+### Priority 4: Findings to write up with full attribution
+**Findings to write up with full attribution** — each with its bucket, its generating code, and (where SEARCHED — NOT FOUND) its search record. Items 1 and 2 below are, as of the 2026-09-04 check, a forced maximum (rank 3) and a standard construction (approximate joint diagonalisation); item 1's "bundle" wording is withdrawn. Nothing on this list is a priority claim.
+1. Rank-3 shared off-diagonal subspace — CONFIRMED (internal); construction KNOWN (`off(·)`, Eynard et al. arXiv:1209.2295v2; COSIE, Arroyo et al. JMLR 22); rank 3 = maximum attainable; not a bundle
+2. 5-tuple spectral-invariant separation — CONFIRMED (internal); each invariant KNOWN; the tuple-as-classification SEARCHED — NOT FOUND (SR-1, weak null)
+3. Capture spectral decomposition (movement + annihilation + cross-term) — CONFIRMED (internal); the exactness is an identity
+4. Knight exact DCT orthogonality to all sliding pieces — CONFIRMED (internal) on the bounded board; KNOWN on the torus; SEARCH PENDING
+5. Cross-species field energy transfer with approximate conservation — CONFIRMED (internal); ANALOGICAL
+6. Three-level hierarchy of rule encoding (identity / coupling / legality) — CONFIRMED (internal) as a measured negative
+7. 8-generator spectral lattice — KNOWN (Kronecker sum) + CONFIRMED (internal) (33 sums; four pairs alias at 4)
+8. D4 irrep decomposition → invariant position encoding — KNOWN technique; applied here
+9. Connection to UTLP S3 coprime-phase HDC — KNOWN technique; applied here (Kanerva 2009); the UTLP S3 vocabulary is the project's own
 
 ---
 
@@ -165,7 +165,7 @@ Formalize the novel findings for disclosure/publication:
 
 6. **Rook has zero global fiber but nonzero local fibers.** Individual rook edge fibers are nonzero but sum to exactly zero across all 64 squares. This is a consistency check: the cancellation is exact and confirms the rank-3 fiber structure. Don't interpret nonzero local rook fiber as "the rook has rule content" — it cancels in aggregate.
 
-7. **Holonomy vs curvature.** Accumulated fiber change around a closed loop telescopes to zero (Σ Δf = 0, always). The holonomy we measured (−0.016) was cosine similarity of fiber vectors at start and end of the loop, which does NOT telescope and measures genuine geometric content. Be precise about which quantity is being measured.
+7. **Holonomy vs curvature.** Accumulated fiber change around a closed loop telescopes to zero (Σ Δf = 0, always). The holonomy we measured (−0.016) was cosine similarity of fiber vectors at start and end of the loop, which does NOT telescope. *[2026-09-04: it also does not measure holonomy — the harness loop does not close ((4,1)→(4,0) is not a knight move), so −0.016 is the cosine between two different squares' local residuals, against a generic pairwise −0.004 (notebook §8b/§8c); the claim is FAILED / RETRACTED.]* Be precise about which quantity is being measured.
 
 ---
 

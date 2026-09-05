@@ -187,6 +187,22 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
     "srmech.cascade.right_mult_matrix": (
         "srmech.cascade.cd_mult",
     ),
+    # ── rc466 (`#T1188`, stage 3) ─────────────────────────────────
+    # The rc437 shape again, and for the same reason. Since rc466 the op has
+    # TWO direct call edges — `mat_hermitian_eigendecompose` (the float
+    # route, Jacobi to round-off) and `matrix_cascades.eigvals_exact` (the
+    # exact route, Sturm isolating intervals to 2**-64) — and the OPERAND's
+    # leaves pick exactly one of them. They are MUTUALLY EXCLUSIVE branches:
+    # no single call ever runs both, so a two-element tuple would assert a
+    # sequence that never occurs. That is a SELECTION, not a composition.
+    # Declared: the shipped-since-rc12 default route; the exact route
+    # SUBSTITUTES it and is not declared. Declared ⊂ derived (criterion 4),
+    # and the under-read is the conservative direction for an attribution
+    # claim. Through rc465 this row sat in the SINGLE tier (one edge); the
+    # second edge moved it here rather than silently re-tiering it.
+    "srmech.physics.qm.bell.operator_norm": (
+        "srmech.math.laplacian.mat_hermitian_eigendecompose",
+    ),
     # ── rc436 (local task T1141) ──────────────────────────────────
     # TRACED, not inferred: the sweep calls `associator` once per ordered
     # distinct imaginary triple (210 calls, 168 of which land in the

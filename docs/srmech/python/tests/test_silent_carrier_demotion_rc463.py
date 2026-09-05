@@ -586,12 +586,12 @@ _STALENESS_BLIND_SPOT = (
 #: per-cell constant asserted only in its own cell is how the previous cut
 #: ended up measuring the host: this one is asserted in FULL in EVERY cell.
 EXPECTED_UNDECLARED_ROSTER_SHA256 = (
-    "7834607ae6812928a12dd914f41bfc4d86c6447313f4b05889f47ab880cc255f")
+    "99c2164df1109c3f7f1c2fd18f4b1592254dfc4ec548f2315558461cd1b7e17b")
 
 #: Pinned only so the failure message can say "70 -> 71" instead of dumping
 #: every key; the ROSTER above is the actual contract. Same relationship
 #: ``EXPECTED_N`` has to ``EXPECTED_NAME_SET_SHA256`` in rc361.
-EXPECTED_UNDECLARED_N = {"native": 70, "pure": 71}
+EXPECTED_UNDECLARED_N = {"native": 1, "pure": 1}
 
 #: Down-only. ``NO_SHAPE`` rows — parameters the probe could not build ANY
 #: candidate binding for, so no carrier verdict was ever reachable. This is the
@@ -626,10 +626,7 @@ CEIL_DEMOTION_UNREACHED = {"native": 52, "pure": 52}
 #: binding the other accepts, which is still two behaviours under one name.
 _DIVERGENT: "frozenset[str]" = frozenset({
     # the C path rounds an exact operand the pure path keeps exact
-    "srmech.signal_processing.iir::a",                        # DEMOTED / EXACT
     # one projection reaches a carrier verdict the other never gets to
-    "srmech.math.laplacian.recover_check::charges",           # INSENSITIVE / DEMOTED
-    "srmech.math.laplacian.recover_check_spectral::charges",  # INSENSITIVE / DEMOTED
     "srmech.math.laplacian.klein4_gain_laplacian::gains",     # EXACT / RAISED
     "srmech.biology.coupling.resonant_spectrum_sparse::edges_or_path",  # EXACT / RAISED
     "srmech.math.modular_linalg.crt_combine::moduli",         # RAISED / EXACT
@@ -711,6 +708,26 @@ _FIXED_IN_RC466 = frozenset({
     "srmech.physics.qm.single_particle.density_matrix",
     "srmech.physics.qm.bell.operator_norm",
     "srmech.physics.qm.quaternion.quaternion_log",
+})
+
+#: ⚠️ THE ONE ROW rc466 DEFERRED — "exact peer ships, deferred", never declared.
+#: ``resonant_spectrum`` returns four faculties in one dict; ``tensions`` and
+#: ``force_orders`` have shipped exact peers (``eigvals_exact`` intervals,
+#: ``QMat.matmul`` powers) but ``modes`` needs ``eigvec_exact`` with a
+#: caller-supplied IRREDUCIBLE minimal polynomial per eigenvalue (the documented
+#: rc-E follow-up at ``matrix_cascades.py``) and each eigenvalue lives in its
+#: own number field with no compositum carrier, so an exact route today would
+#: return exact tensions beside float modes — the mixed-carrier shape rc463
+#: names as the defect. It waits on a ``modes`` design, not on effort.
+#:
+#: Pinned so the debt stays VISIBLE: the row must remain in the undeclared
+#: roster of BOTH cells. Draining it by an R3 sentence would convert a defect
+#: into documentation (the failure mode `#T1188` names); draining it by a real
+#: exact route is GOOD NEWS the gate reports, at which point the op moves to a
+#: ``_FIXED_IN_RC4NN`` set. A drain by narrowing admission (the row leaving as
+#: ``RAISED``) is refused on the same terms as everywhere else in this file.
+_DEFERRED_EXACT_PEER_SHIPS = frozenset({
+    "srmech.biology.coupling.resonant_spectrum::L",
 })
 
 #: The rc463 hand-written six, kept as the probe's POSITIVE CONTROL rather than
@@ -964,15 +981,14 @@ def test_layer3_the_rc465_fixed_family_is_strict_zero(op) -> None:
 def test_layer3_the_rc466_fixed_family_is_strict_zero(op) -> None:
     """The forty-three ops rc466 drained by FIXING can never re-enter the roster.
 
-    ⚠️ Until the Stage-3 census re-run of this rc lands, the committed manifest
-    still lists these rows (it was measured on the rc465 tree); this test reads
-    the manifest and is therefore expected RED between the Stage-1 commit and
-    the re-measurement — that is the drain being recorded, not absorbed.
-    ``stft::signal`` is the one row expected to remain DEMOTED after the fix
-    (a lone 54-bit sample in a zero frame is that sample in every bin, and the
-    single terminal float lift rounds it); it drains by its R3 lift sentence,
-    and ``stft`` is therefore NOT in this set's roster check but in the
-    DECLARE ledger.
+    The committed manifest was re-measured in BOTH cells at Stage 3 of rc466
+    (`#T1188`) after the last registry-type edit, so this reads the drain as
+    RECORDED; between the Stage-1 commit and that re-measurement it was red by
+    design. ``stft::signal`` is the one row expected to remain DEMOTED after
+    the fix (a lone 54-bit sample in a zero frame is that sample in every bin,
+    and the single terminal float lift rounds it); it drains by its R3 lift
+    sentence, and ``stft`` is therefore NOT in this set's roster check but in
+    the DECLARE ledger.
     """
     if op == "srmech.signal_processing.stft":
         pytest.skip("stft::signal drains by its terminal-lift R3 sentence (declared), not by the roster")
@@ -982,6 +998,28 @@ def test_layer3_the_rc466_fixed_family_is_strict_zero(op) -> None:
     assert not bad, (
         f"{op} is demoting again with no accuracy declaration: {bad}. rc466 "
         f"gave it an exact carrier; see tests/test_exact_carrier_drain_rc466.py")
+
+
+@pytest.mark.parametrize("row", sorted(_DEFERRED_EXACT_PEER_SHIPS))
+def test_layer3_the_deferred_row_is_still_undeclared_debt(row) -> None:
+    """The ONE row rc466 left in the roster on purpose is still there, in BOTH
+    cells, and still undeclared. Its leaving is never silent: a real exact
+    route is good news to RECORD (move the op to a fixed set); an R3 sentence
+    on an op whose exact peers all ship is the failure mode this rc names, and
+    is refused by this pin until the route exists.
+    """
+    _meta, rows = _manifest()
+    for c in _cells():
+        keys = set(_dp.undeclared_keys(rows, c))
+        assert row in keys, (
+            f"[{c}] {row} is no longer an UNDECLARED demoter. If it drained by "
+            f"an exact route: GOOD NEWS, ACTION REQUIRED — move the op into a "
+            f"_FIXED_IN_RC4NN set and remove it from _DEFERRED_EXACT_PEER_SHIPS "
+            f"in the SAME change. If it drained by an accuracy SENTENCE while "
+            f"eigvals_exact / eigvec_exact / QMat.matmul still ship, that is a "
+            f"defect converted into documentation — revert the sentence. If it "
+            f"left as RAISED, admission was narrowed rather than the value "
+            f"computed — also refused.")
 
 
 def test_the_native_pure_divergence_is_a_named_finding() -> None:

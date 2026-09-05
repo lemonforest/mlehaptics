@@ -37,7 +37,11 @@ from .hdc import KLEIN4_STATES
 from .q import Q
 from .q import exact_scalar as _exact_scalar  # rc466: the ONE exact reader
 
-__all__ = ["Qi", "exact_complex_scalar", "exact_complex_vector", "exact_complex_rows"]
+__all__ = ["Qi"]
+# ``exact_complex_scalar`` / ``_vector`` / ``_rows`` (rc466, `#T1188`) are the
+# Gaussian peers of ``q.exact_scalar`` and kin: package-internal admission
+# readers, imported by name, not public ops — kept out of ``__all__`` for the
+# reason recorded beside ``srmech.math.q.__all__``.
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)

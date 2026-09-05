@@ -2058,6 +2058,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("dict[str, Mat] | dict[str, list]",
                       "('chi00', 'chi01', 'chi10', 'chi11') → the four n×n "
                       "real-symmetric PSD sector Laplacians — Mat by default, exact rows of Q with exact=True"),
+            composes=("srmech.math.laplacian.signed_laplacian",),   # rc466: four χ-sector builds through the one shipped builder
         ),
         ToolEntry(
             name="srmech.math.laplacian.klein4_relational_structure",
@@ -10139,6 +10140,7 @@ def _register_primitive_class_tools() -> None:
                     "map names a registered op." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("v", "list[float] | list[Q]", True, "4- or ℍ-valued 8-vector; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
             returns=R("list[float] | list[Q]", "the 4-component sample — list[Q] (exact, via cd_project) for an exact operand, list[float] otherwise"),
+            composes=("srmech.cascade.cd_project",),   # rc466: the exact arm's 8->4 realification
             smoke_test_hint={"v": "[1.0, 2.0, 3.0, 4.0]"},
         ),
         ToolEntry(
@@ -10151,6 +10153,7 @@ def _register_primitive_class_tools() -> None:
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(P("vec", "list[float] | list[Q]", True, "4- or 8-component; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
             returns=R("list[float] | list[Q]", "the 8-component sample — list[Q] (exact, via cd_promote) for an exact operand, list[float] otherwise"),
+            composes=("srmech.cascade.cd_promote",),   # rc466: the exact arm's zero-extension
             smoke_test_hint={"vec": "[1.0, 2.0, 3.0, 4.0]"},
         ),
         ToolEntry(

@@ -83,11 +83,15 @@ from .. import _native
 from . import cyclic as _cyclic
 from . import rational as _rational
 
-__all__ = ["Q", "to_q",
-    "exact_scalar",
-    "exact_vector",
-    "exact_rows",
-]
+__all__ = ["Q", "to_q"]
+# ``exact_scalar`` / ``exact_vector`` / ``exact_rows`` (rc466, `#T1188`) are the
+# ONE package-internal reader for "is this operand exact" — imported by name
+# from twenty modules (octonion, quaternion, hdc, laplacian, the DSP ops, the
+# MCP coercion layer) so no second copy can drift. They are NOT public ops:
+# the registry-completeness gate (rc416) reads ``__all__`` as the declared
+# public surface, and an admission predicate has no ToolEntry to resolve to,
+# so they are deliberately kept out of it, exactly as ``matrix_cascades.
+# _exact_leaf`` and rc465's ``_exact_component`` were private.
 
 
 def _integer_exponent(exp):

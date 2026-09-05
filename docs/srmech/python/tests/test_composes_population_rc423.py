@@ -219,7 +219,14 @@ _DECLARING: Dict[str, Tuple[str, ...]] = {
 # `_sha256_raw` aliased import), so it tiers SINGLE and declares. The ceiling
 # comes DOWN in the same commit, per the sanctioned-drain rule.
 # ──────────────────────────────────────────────────────────────────────
-CEIL_UNADJUDICATED = 181
+#: rc466 (`#T1188`, stage 3): 181 -> 180, a DRAIN by the mechanical SINGLE rule.
+#: `klein4_gain_laplacian` gained its exact route through the one shipped builder
+#: (`signed_laplacian(..., exact=True)`), so its direct call set is a singleton and
+#: the census re-tiered it SINGLE; `as_oct8` / `as_quat4` left LEAF for SINGLE
+#: (`cd_promote` / `cd_project`) and `operator_norm` left SINGLE for ROSTER (a
+#: SELECTION between two eigen-routes, the rc437 shape) — none of those three
+#: moves this count; the klein4 row does. Ledger re-run by the committed census.
+CEIL_UNADJUDICATED = 180
 
 #: How far the residual may drain below the ceiling before the ceiling itself
 #: must come down. Small on purpose — a ratchet with slack ratchets nothing.

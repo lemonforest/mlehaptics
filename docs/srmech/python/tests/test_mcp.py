@@ -2145,6 +2145,15 @@ def _synth_value_for_type(type_string: str) -> Any:
         "Optional[Vec]": vec,
         "Optional[HV]": [0, 1, 2, 3, 0, 1, 2, 3],
         "Mat | Vec": mat2,   # the 2-D arm satisfies the most ops; 1-D is tolerated
+        # 0.9.0rc466 (`#T1188`) stage 3: the five PARAM spellings the seventy-row
+        # drain widened (the leaves select the carrier; floats keep the float
+        # route, so the synth value is the SAME value the narrower spelling got
+        # and every op that returned under it still returns).
+        "Vec | Sequence[int | Q]": vec,
+        "Mat | Vec | Sequence[int | Q]": mat2,
+        "list[float] | list[Q]": [1.0, 2.0],
+        "list[list[float]] | list[list[Q]]": mat2,
+        "float | Q": 1.0,
         # v0.7.5rc155: the §50 holographic-bundle accumulator (klein4_bundle_*).
         #   accumulate's `acc` synths to None — accumulate(None, v) is the clean
         #   fold-start (creates a fresh accumulator sized to v); resolve's `acc`

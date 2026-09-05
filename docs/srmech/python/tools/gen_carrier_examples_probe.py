@@ -32,6 +32,7 @@ from srmech.apokatastasis.ellbase import Theta  # noqa: E402  (rc363: the ellipt
 from srmech.apokatastasis.riemann_theta_multisum import ThetaBracketSum  # noqa: E402
 from srmech.apokatastasis.harmonic_maass import MockQSeries, UnaryTheta, HarmonicMaass  # noqa: E402
 from srmech.math.qmat import QMat  # noqa: E402  (rc379: the exact-ℚ matrix carrier)
+from srmech.math.qi import Qi  # noqa: E402  (rc466: the exact Gaussian-rational scalar)
 from srmech.math import laplacian as _lap  # noqa: E402
 from srmech.math import hdc as _hdc  # noqa: E402
 from srmech.cascade import the_one, cd_register  # noqa: E402
@@ -62,6 +63,7 @@ _CONSTRUCT = {
     "QBiPoly": "QBiPoly([QPoly([Poly([Q(1)])])])",
     "Fraction": "Fraction(3, 4)",
     "Q": "Q(3, 4)",
+    "Qi": "Qi(Q(3, 4), Q(-1, 2))  # 3/4 - i/2, both parts exact Q",
     "Mat": "dense_laplacian(4, [(0, 1), (1, 2), (2, 0), (2, 3)], [1.0, 1.0, 1.0, 1.0])",
     "Vec": "fiedler_vector(dense_laplacian(4, [(0,1),(1,2),(2,0),(2,3)], [1.0]*4))",
     # rc379: the exact-ℚ matrix carrier. The element×species matrix of
