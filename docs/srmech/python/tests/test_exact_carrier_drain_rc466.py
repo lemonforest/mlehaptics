@@ -753,7 +753,10 @@ _RETURNS = {
     "srmech.cascade.compensated_sum": "float | Q",
     "srmech.math.laplacian.normalized_laplacian": "Mat | list",
     "srmech.math.laplacian.mass_normalized_laplacian": "Mat | list",
-    "srmech.math.laplacian.magnetic_laplacian": "Mat | list",
+    # rc467 (`#T1188`): the ONLY one of the five exact= builders whose
+    # exact leaf is Qi and not Q, so it no longer hides in the shared
+    # `Mat | list` its four siblings legitimately share.
+    "srmech.math.laplacian.magnetic_laplacian": "Mat | list[list[Qi]]",
     "srmech.math.laplacian.quaternion_laplacian": "Mat | list",
     "srmech.math.laplacian.klein4_gain_laplacian": "dict[str, Mat] | dict[str, list]",
     "srmech.math.laplacian.elementwise_multiply_complex": "Mat | Vec | list[Qi] | list[list[Qi]]",
@@ -953,6 +956,65 @@ def test_the_exact_jacobi_route_no_longer_lifts_to_float() -> None:
 
     # and the DEFAULT float route is untouched
     assert type(jacobi_eigvals([[2.0, 1.0], [1.0, 2.0]])).__name__ == "Vec"
+
+
+def test_compensated_sum_honours_the_declaration_it_already_shipped() -> None:
+    """rc467 (`#T1188`) - the op declared three exact rungs and delivered one.
+
+    The SHIPPED parameter sentence - compiled into
+    ``c/src/srmech_tool_registry.c`` and served over MCP since rc466 - reads
+    *"the LEAVES select the carrier: integers / Q / [num, den] pairs take the
+    EXACT-Q rung, one float anywhere the float64 one"*. Measured before this
+    rc, two of those three rungs were false:
+
+      compensated_sum([2**53+1, 1, -2**53])  ->  1.0        (answer: 2)
+      compensated_sum([[1, 3], [1, 3]])      ->  TypeError
+
+    The ``s = 0.0`` seed pulled every integer operand onto the float path, so
+    an all-exact operand was summed in float64 and silently lost the bit. Only
+    the ``Q`` rung worked, and only by accident, through ``Q.__radd__``. The
+    op was FIXED rather than the sentence corrected: the exact rung it already
+    promised is ten lines, and the shipped ``returns`` sentence ("an exact Q
+    for exact values, the compensation term is then identically zero") already
+    described the behaviour that was missing."""
+    from srmech.cascade.composites import compensated_sum
+
+    # (a) the int rung - the silent wrong answer
+    got = compensated_sum([P, 1, -(2 ** 53)])
+    assert got == Q(2), got
+    assert isinstance(got, Q), type(got).__name__
+
+    # (b) the [num, den] rung - the TypeError
+    assert compensated_sum([[1, 3], [1, 3], [1, 3]]) == Q(1)
+
+    # (c) the Q rung, which already worked
+    assert compensated_sum([Q(1, 3)] * 3) == Q(1)
+
+    # (d) the compensation term IS identically zero on the exact rung, which
+    #     is what the shipped `returns` sentence claims. If it were not, the
+    #     sum would not be exact and (a) could not hold at 2**53.
+    assert compensated_sum([Q(1, 7)] * 7) == Q(1)
+
+    # (e) ONE float leaf anywhere keeps the byte-identical rc420 float body,
+    #     so the autocorrelation chain's pinned float-op order does not move
+    assert compensated_sum([1e10, 1.0, -1e10, 2.0]) == 3.0
+    assert isinstance(compensated_sum([1, 2, 0.5]), float)
+    # NOTE the value, and how it was found. The curated worked example
+    # shipped `compensated_sum([0.1] * 10)  # -> 1.0000000000000002` -
+    # compiled into srmech_tool_registry.c and served over MCP - and the op
+    # returns 1.0, which is the CORRECT Neumaier answer (math.fsum agrees; a
+    # naive += gives 0.9999999999999999). Measured identical on both sides of
+    # this rc, so the example was wrong when it was written, not broken here.
+    # The worked-example ledger does not catch this class: it EXECUTES each
+    # snippet and records what it prints, and never compares that against the
+    # `# ->` comment the snippet states. Named in the rc467 CHANGELOG.
+    assert compensated_sum([0.1] * 10) == 1.0
+
+    # (f) an EMPTY operand has no leaves, so nothing selects a carrier: it
+    #     keeps the float 0.0 it has always returned (the curated worked
+    #     example asserts exactly this) rather than acquiring a Q silently
+    assert compensated_sum([]) == 0.0
+    assert isinstance(compensated_sum([]), float)
 
 
 def test_every_widened_param_type_has_a_coercer_and_a_lexicon_row() -> None:

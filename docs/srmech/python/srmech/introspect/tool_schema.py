@@ -1913,7 +1913,7 @@ def _register_primitive_class_tools() -> None:
                           "other rational turn is REFUSED by name (the message names the Qalg carrier over Phi_N that "
                           "holds it), never rounded. Refuses a float weight / charge / q by name. Default False returns "
                           "the complex Mat carrier, accurate to float64 round-off.")),
-            returns=R("Mat | list", "n × n complex Hermitian matrix — Mat, array('d') interleaved (re, im) by default, or exact rows of Qi with exact=True"),
+            returns=R("Mat | list[list[Qi]]", "n × n complex Hermitian matrix — Mat, array('d') interleaved (re, im) by default, or exact rows of Qi with exact=True"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.quaternion_laplacian", owner="srmech",
@@ -2942,8 +2942,8 @@ def _register_primitive_class_tools() -> None:
                     "complex-Jacobi cascade (there is no NumPy in the call "
                     "graph — the package imports numpy nowhere). Sakurai "
                     "§2.1.5; Golub & Van Loan §8.5.",
-            parameters=(P("H", "Mat | QMat | Sequence[Sequence[int | Q]]", True,
-                          "n × n complex Hermitian matrix. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` RAISED its own exactness refusal on every operand a caller could actually send."),
+            parameters=(P("H", "Mat | QMat | Sequence[Sequence[int | Q]] | list[list[Qi]]", True,
+                          "n × n complex Hermitian matrix. The `Qi` leaf is the exact GAUSSIAN-rational form this op's OWN exact route accepts (a real Qi entry takes the exact rung; a non-real one is REFUSED by name), declared at rc467 so `Qi` is a wire-reachable OPERAND — until then it appeared in no parameter type at all. ⚠️ WIRE (rc467, `#T1188`): widened off bare `Mat`, which coerces every leaf to float64 over the wire — `exact=True` RAISED its own exactness refusal on every operand a caller could actually send."),
                         P("exact", "bool", False,
                           "rc466 review fix: an exact REAL operand (int / Q / "
                           "Fraction, or Qi with zero imaginary part) takes "

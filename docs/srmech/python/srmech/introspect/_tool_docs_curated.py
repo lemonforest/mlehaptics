@@ -4628,8 +4628,11 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                        'compensated_sum([1e10, 1.0, -1e10, 2.0])\n'
                        '                                  # -> 3.0\n'
                        'compensated_sum([])               # -> 0.0\n'
-                       'compensated_sum([0.1] * 10)       # -> '
-                       '1.0000000000000002\n'},
+                       'compensated_sum([0.1] * 10)       # -> 1.0  (fsum '
+                       'agrees; a naive += gives 0.9999999999999999)\n'
+                       'compensated_sum([2**53 + 1, 1, -2**53])\n'
+                       '                                  # -> Q(2, 1)  the '
+                       'EXACT rung: every leaf exact\n'},
  'explanation': 'WHAT — Class M: the Kahan-Babuska-Neumaier compensated '
                 'summation, public since rc420 (it was the private '
                 '``_compensated_sum`` since rc13, when it replaced the '

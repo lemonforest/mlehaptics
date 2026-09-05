@@ -121,6 +121,8 @@ _TYPE_LEXICON: Dict[str, str] = {
     "QMat | Sequence[Sequence[int | Q]]": "array",
     "QMat | Sequence[Sequence[int | Q]] | Sequence[int | Q]": "array",
     "Mat | QMat | Sequence[Sequence[int | Q]]": "array",
+    # rc467 (`#T1188`): the same union with the exact-complex leaf.
+    "Mat | QMat | Sequence[Sequence[int | Q]] | list[list[Qi]]": "array",
     "Qalg": "object",
     # 0.9.0rc363: the C2 (ADR-0012 §3.1) type-honesty widenings keep the JSON-schema
     # token their pre-widening spelling advertised, so no client sees a narrower
@@ -327,6 +329,13 @@ _ENCODING_HINT: Dict[str, str] = {
     "QMat | Sequence[Sequence[int | Q]] | Sequence[int | Q]": (
         "nested JSON array of rows (an (m, k) block) OR a flat JSON array of integers (an (m,) column); each entry exact -- never a float. A RATIONAL column must use the nested (m, 1) form, because [[a, b], [c, d]] is read as a 2-column block and not as a column of two rationals"
     ),
+    # rc467 (`#T1188`): hermitian_eigendecompose's operand, whose exact
+    # route accepts a real Qi leaf that no declared type could carry.
+    "Mat | QMat | Sequence[Sequence[int | Q]] | list[list[Qi]]": (
+        "nested JSON array of rows, row-major. The LEAVES select the "
+        "carrier: integers / [numerator, denominator] pairs take the "
+        "EXACT-Q rung, a $srmech_carrier Qi envelope the exact-GAUSSIAN "
+        "one, floats the float64 one"),
     "Mat | QMat | Sequence[Sequence[int | Q]]": (
         "nested JSON array of rows, row-major. The LEAVES select the carrier: integers / [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one"
     ),
