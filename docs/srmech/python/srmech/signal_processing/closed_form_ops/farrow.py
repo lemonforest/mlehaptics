@@ -38,6 +38,8 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Farrow
 
 from __future__ import annotations
 
+from srmech.math.q import Q as _Q, exact_scalar as _exact_scalar   # rc466 (`#T1188`)
+
 OPERATION_NAME = "farrow"
 CLASS_COMPOSITION = ("N",)
 PERFORMANCE_HINT = "single-token-fast"
@@ -52,17 +54,22 @@ SSOT_CITATION = (
 
 # Cubic Lagrange interpolation Farrow sub-filters (Erup et al. 1993).
 # h(mu, n) = sum_k C[k][n] * mu^k where the 4-tap sub-filter rows are indexed
-# by polynomial order 0..3. Plain-tuple constant table (numpy-free carrier per
-# #564); each row is a fixed 4-tuple of exact-rational Lagrange coefficients.
-_FARROW_LAGRANGE_CUBIC = (
-    (0.0, 1.0, 0.0, 0.0),             # C0: input sample at offset 0
-    (-1 / 6, -1 / 2, 1.0, -1 / 3),    # C1
-    (0.0, 1 / 2, -1.0, 1 / 2),        # C2
-    (1 / 6, -1 / 2, 1 / 2, -1 / 6),   # C3
+# by polynomial order 0..3. rc466 (`#T1188`): the table is stored EXACTLY, as
+# the rationals the Lagrange derivation produces (through rc465 it was stored
+# as floats, so -1/6 and -1/3 were rounded before any signal arrived); the
+# float table is DERIVED from it once, and each float entry is the correctly
+# rounded value of its exact rational — byte-identical to the old literals.
+_FARROW_LAGRANGE_CUBIC_Q = (
+    (_Q(0), _Q(1), _Q(0), _Q(0)),                    # C0: input sample at offset 0
+    (_Q(-1, 6), _Q(-1, 2), _Q(1), _Q(-1, 3)),         # C1
+    (_Q(0), _Q(1, 2), _Q(-1), _Q(1, 2)),              # C2
+    (_Q(1, 6), _Q(-1, 2), _Q(1, 2), _Q(-1, 6)),       # C3
 )
+_FARROW_LAGRANGE_CUBIC = tuple(tuple(float(c) for c in row)
+                               for row in _FARROW_LAGRANGE_CUBIC_Q)
 
 
-def op(signal, *, mu: float = 0.0, D: int = 8192):
+def op(signal, *, mu=0, D: int = 8192):
     """Apply a fractional-delay Farrow filter with offset ``mu in [0, 1)``.
 
     Closed-form reference: cubic Lagrange interpolation via Farrow
@@ -74,19 +81,52 @@ def op(signal, *, mu: float = 0.0, D: int = 8192):
     signal:
         1-D real input (any sequence of reals).
     mu:
-        Fractional delay in [0, 1). 0 -> integer-aligned passthrough.
+        Fractional delay in [0, 1). 0 -> integer-aligned passthrough. Exact
+        (``int`` / ``Q`` / a ``(num, den)`` pair) or ``float``; the default is
+        the exact ``0``.
     D:
         Path B dimensionality (Path A unused).
 
     Returns
     -------
     list[float]
-        Fractionally-delayed real output (length ``len(signal)``).
+        Fractionally-delayed real output (length ``len(signal)``) — ``int`` /
+        ``Q`` leaves on the exact route.
+
+    Accuracy (rc466, `#T1188`)
+    --------------------------
+    **The carrier is the operand's.** An exact ``signal`` with an exact ``mu``
+    computes the effective 4-tap kernel ``h_eff[j] = Σ_k mu^k · C[k][j]`` over
+    the exact Lagrange table and correlates on the type-preserving pure cascade
+    (:func:`srmech.signal_processing._dsp_cascades.correlate`) on BOTH
+    projections — the EXACT Farrow output at any rational offset, and at
+    ``mu = 0`` the exact integer-delay passthrough the op's own contract
+    promises (through rc465 ``farrow([2**53+1, 1, 2], mu=0)[0]`` came back
+    ``9007199254740992.0``: the op changed the value it passed through). A
+    float leaf in the signal, or a float ``mu``, keeps the float route — the
+    float table and the c_dispatched Toeplitz matvec — **accurate to
+    round-off** (~1 ULP; reldiff <= 1e-9 to the pure cascade).
     """
+    from srmech.signal_processing import _dsp_cascades as _dsp
+
+    mu_q = _exact_scalar(mu)
+    if mu_q is not None and _dsp.exact_operands(signal):
+        if not 0 <= mu_q < 1:
+            raise ValueError(f"mu must be in [0, 1); got {mu}")
+        sig_q = list(signal)
+        if not sig_q:
+            return []
+        padded_q = [0] + sig_q + [0, 0]
+        h_eff_q = [
+            sum((mu_q ** k) * _FARROW_LAGRANGE_CUBIC_Q[k][j] for k in range(4))
+            for j in range(4)
+        ]
+        return list(_dsp.correlate(padded_q, h_eff_q, mode="valid"))
     try:
         sig = [float(x) for x in signal]
     except TypeError as exc:  # nested sequence -> not 1-D
         raise ValueError("farrow expects a 1-D real signal") from exc
+    mu = float(mu)
     if not 0.0 <= mu < 1.0:
         raise ValueError(f"mu must be in [0, 1); got {mu}")
     n = len(sig)

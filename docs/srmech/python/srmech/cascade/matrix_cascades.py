@@ -518,18 +518,13 @@ def _exact_leaf(v):
     elected, so it stays on the float carrier even though it happens to be
     integral. ``int`` / ``Q`` / any ``numerator``-``denominator`` pair
     (``fractions.Fraction`` and peers) is exact; nothing else is.
+
+    rc466 (`#T1188`): the body IS :func:`srmech.math.q.exact_scalar` with
+    ``pair=False`` — the ONE reader every carrier-admission site now imports.
+    The ``pair=False`` is this gate's contract kept verbatim: on the einsum
+    admission gate a 2-tuple is a SHAPE, not a scalar.
     """
-    if isinstance(v, bool):
-        return Q(int(v), 1)
-    if isinstance(v, int):
-        return Q(v, 1)
-    if isinstance(v, Q):
-        return v
-    num = getattr(v, "numerator", None)
-    den = getattr(v, "denominator", None)
-    if isinstance(num, int) and isinstance(den, int) and not isinstance(v, float):
-        return Q(num, den)
-    return None
+    return _exact_scalar(v, pair=False)
 
 
 def _exact_nd(op):
@@ -936,6 +931,48 @@ def _char_poly_float(rows: List[List[complex]], n: int) -> List[complex]:
     return coeffs
 
 
+def _exact_rational_rows(a):
+    """The EXACT-ℚ reading of a square operand as ``list[list[Q]]``, or ``None``
+    when any entry is a float / complex (the genuinely continuous carrier).
+    rc466 (`#T1188`): the admission gate of the rational pre-scale below."""
+    rows = a.to_lists() if hasattr(a, "to_lists") else (
+        a.tolist() if hasattr(a, "tolist") else [list(r) for r in a])
+    out = []
+    for r in rows:
+        v = _exact_vector(r, pair=False)
+        if v is None:
+            return None
+        out.append(v)
+    return out
+
+
+def _rational_prescale(rows_q):
+    """``(c, B)`` with ``c`` the LCM of every denominator and ``B = c·A`` an
+    INTEGER matrix (rc466, `#T1188`) — the Class-N pre-scale that makes the
+    exact integer eigen-cascade reach a RATIONAL matrix:
+
+        det(xI − A) = c^{−n}·det((cx)I − B)   ⟹   c_k(A) = c_k(B) / c^k,
+        λ(B) = c·λ(A)                          ⟹   an isolating interval of B
+                                                    divided by c isolates A.
+
+    ``c == 1`` when every entry is already an integer (then ``B`` is ``A``)."""
+    c = 1
+    for r in rows_q:
+        for q in r:
+            d = q.denominator
+            g = _gcd_int(c, d)
+            c = c // g * d
+    B = [[int((q * c).numerator) for q in r] for r in rows_q]
+    return c, B
+
+
+def _gcd_int(a: int, b: int) -> int:
+    """Euclid on non-negative ints (no ``math.gcd`` import — Class I)."""
+    while b:
+        a, b = b, a % b
+    return a
+
+
 def char_poly(a) -> List:
     """Exact integer characteristic polynomial ``det(xI - A)`` (Faddeev–LeVerrier).
 
@@ -973,6 +1010,20 @@ def char_poly(a) -> List:
                 break
         if not real_integer:
             break
+    if not real_integer:
+        # rc466 (`#T1188`): a RATIONAL matrix stays exact. Through rc465 a
+        # single ``Q(1, 2)`` entry fell to ``_char_poly_float`` — while
+        # ``jacobi_eigvals(exact=True)``'s docstring promised "every entry an
+        # int / fractions.Fraction / srmech Q" and then RAISED on it. The
+        # Class-N pre-scale ``B = c·A`` (``c`` = LCM of the denominators) runs
+        # the integer recursion on ``B`` and divides ``c_k`` by ``c^k``; the
+        # coefficients come back as exact ``Q``.
+        rows_q = _exact_rational_rows(rows)
+        if rows_q is not None:
+            c, B = _rational_prescale(rows_q)
+            native = _native.char_poly_int_c(B)
+            coeffs_b = native if native is not None else _char_poly_int(B, n)
+            return [Q(int(ck), c ** k) for k, ck in enumerate(coeffs_b)]
     if real_integer:
         A = [[int(v.real) if hasattr(v, "real") else int(v) for v in r] for r in rows]
         # rc161 (Qalg TAIL Batch 5): the integer char-poly dispatches to
@@ -1138,6 +1189,8 @@ def separate_frame_curvature(a, b):
 # the eigenvalues come out exact-to-arbitrary-precision and well-conditioned.
 
 from srmech.math.q import Q, to_q  # noqa: E402  (`#T845`: exact-ℚ, was Fraction)
+from srmech.math.q import exact_scalar as _exact_scalar  # noqa: E402  rc466 (`#T1188`): the ONE exact reader
+from srmech.math.q import exact_vector as _exact_vector  # noqa: E402  rc466
 
 
 def _FR(num, den=1):
@@ -1604,6 +1657,18 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     **Class K** (the ℚ box/interval pin-slots) ∘ **Class N** (the rational
     refinement anchors).
     """
+    # rc466 (`#T1188`): a RATIONAL matrix is pre-scaled to the INTEGER matrix
+    # B = c·A (c = LCM of the denominators), isolated there — the C kernel
+    # ``srmech_sturm_isolate`` takes an integer char-poly — and every isolating
+    # interval / certified box is divided by c on the way out (λ(B) = c·λ(A)).
+    # Through rc465 a rational entry silently fell to a FLOAT char-poly and
+    # then RAISED at ``to_q`` — under a docstring that promised Q entries.
+    _scale = 1
+    _rows_q = _exact_rational_rows(a)
+    if _rows_q is not None:
+        _scale, _B = _rational_prescale(_rows_q)
+        if _scale != 1:
+            a = _B
     cp = char_poly(a)                                # monic, high→low
     p = [_FR(c) for c in reversed(cp)]               # low→high over ℚ
     # rc162 (Qalg TAIL Batch 6): the real-eigenvalue isolation dispatches to
@@ -1624,6 +1689,8 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
                 for _ in range(mult):
                     eigs.append((lo, hi))
     eigs.sort(key=lambda iv: iv[0] + iv[1])
+    if _scale != 1:                                   # rc466: undo the pre-scale
+        eigs = [(_FR(lo) / _scale, _FR(hi) / _scale) for (lo, hi) in eigs]
     # ``return_intervals`` yields the exact real isolating intervals; it applies to
     # the real spectrum only (a complex root is a box, not an interval), so it is
     # honoured solely on the real-only path and ignored when include_complex=True.
@@ -1650,7 +1717,8 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     # no-native fallback). The shared sort by (re, im) fixes the order on both paths.
     native_c = _native.complex_isolate_c(cp, bits) if _native.HAS_NATIVE else None
     if native_c is not None:
-        certified: List[complex] = [complex(float(re), float(im))
+        certified: List[complex] = [complex(float(_FR(re) / _scale),
+                                            float(_FR(im) / _scale))
                                     for (re, im) in native_c]
     else:
         # MIRROR THE REAL PATH: isolate the complex roots PER SQUARE-FREE FACTOR.
@@ -1684,8 +1752,10 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
                     f"{want_upper_factor}")
             for z in upper_roots:
                 for _ in range(mult):                 # mirror the real path's mult
-                    certified.append(complex(z.real, z.imag))
-                    certified.append(complex(z.real, -z.imag))   # conjugate
+                    zr = z.real / _scale              # rc466: undo the pre-scale
+                    zi = z.imag / _scale
+                    certified.append(complex(zr, zi))
+                    certified.append(complex(zr, -zi))   # conjugate
                 certified_upper += mult
         # Reconcile the summed per-factor multiplicities with the char-poly count.
         if certified_upper != want_upper:

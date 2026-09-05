@@ -89,7 +89,7 @@ from srmech.cascade import right_mult_matrix as _right_mult_matrix
 # re-derived. It has exactly ONE definition in this tree — rc463 wrote it for
 # einsum — and a second hand-rolled copy of a load-bearing type test is how two
 # surfaces come to disagree about what "exact" means.
-from srmech.cascade.matrix_cascades import _exact_leaf
+from srmech.math.q import exact_vector as _exact_vector  # rc466 (`#T1188`): the ONE exact reader
 from srmech.math.q import Q  # rc465: the exact-ℚ scalar carrier
 from srmech.math.qmat import QMat  # rc465: the exact-ℚ 8×8 L_a / R_a carrier
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
@@ -353,58 +353,22 @@ def _operand_leaves(v, op: str, noun: str = "a"):
         return v
 
 
-def _exact_component(c):
-    """The EXACT-ℚ reading of ONE operand component, or ``None``.
-
-    rc465-fix (`#T1188`) — :func:`~srmech.cascade.matrix_cascades._exact_leaf`
-    plus the ``(num, den)`` PAIR, because the pair is what this surface's own
-    shipped prose, its declared wire type ``HV | Sequence[int | Q]`` and its MCP
-    encoding hint all promise, and it was the one spelling of the three that
-    did not work. Measured before the fix:
-    ``octonion_conjugate([(7, 3), 0, 0, 0, 0, 0, 0, 0])`` raised
-    ``a must be an 8-vector`` — the operand IS an 8-vector; the rejected thing
-    was the component type, so the message named the wrong contract too.
-
-    ``(num, den)`` means a 2-element integer pair everywhere else in this
-    package (:func:`srmech.math.q.to_q`, ``QMat.from_rows``,
-    ``srmech/apokatastasis/modular_forms_ring.py`` spells it out), so this
-    reading is the package's, not a new one. rc463's shared ``_exact_leaf`` is
-    deliberately NOT changed: its contract is the einsum admission gate and a
-    2-tuple there is a SHAPE, not a scalar.
-    """
-    if isinstance(c, (tuple, list)) and len(c) == 2             and isinstance(c[0], int) and not isinstance(c[0], bool)             and isinstance(c[1], int) and not isinstance(c[1], bool)             and c[1] != 0:
-        return Q(int(c[0]), int(c[1]))
-    return _exact_leaf(c)
-
-
 def _exact_octonion(v):
-    """The EXACT-ℚ reading of an 8-vector operand, or ``None``.
+    """The EXACT-ℚ reading of an 8-vector operand as ``list[Q]``, or ``None``.
 
-    rc465 (`#T1188`) — **the whole-operand admission gate**, over the imported
-    rc463 scalar predicate :func:`~srmech.cascade.matrix_cascades._exact_leaf`
-    (a TYPE test: ``2.0`` is a float the caller ELECTED and stays on the float
-    carrier even though it happens to be integral). ONE float component
-    anywhere sends the entire call down the float route, because mixing
-    carriers mid-computation is the defect rather than the cure — the rc463
-    ``_exact_nd`` rule, applied at dim 8.
-
-    ⚠️ **The length check is NOT here, and that is deliberate.** A wrong-length
-    operand returns ``None`` and falls through to :func:`_as_octonion`, which
-    raises the documented ``ValueError`` — so the arity contract is
-    CARRIER-INDEPENDENT and an 8-vector rule cannot be quietly relaxed for
-    exact callers. ``tests/test_declared_raises_execution_rc434.py`` drives the
-    float half of that and ``tests/test_octonion_exact_carrier_rc465.py`` the
-    exact half.
+    rc465 (`#T1188`) wrote the whole-operand admission gate here, over its own
+    copy of the rc463 scalar predicate plus the ``(num, den)`` PAIR the wire
+    contract promises. rc466 (`#T1188`) lifts that reader to
+    :func:`srmech.math.q.exact_vector` — the ONE reader every carrier-admission
+    site now imports (``srmech.math.hdc`` needed it at every power-of-two
+    dimension and cannot import ``srmech.physics``) — and this function is the
+    dim-8 call of it. ONE float component anywhere returns ``None`` and sends
+    the whole call down the float route (mixing carriers mid-computation is the
+    defect rather than the cure); a wrong-length operand returns ``None`` too,
+    so :func:`_as_octonion`'s documented ``ValueError`` fires on EITHER carrier
+    and the arity contract stays CARRIER-INDEPENDENT.
     """
-    if not isinstance(v, list) or len(v) != _DIM:
-        return None
-    out = []
-    for c in v:
-        q = _exact_component(c)
-        if q is None:
-            return None
-        out.append(q)
-    return out
+    return _exact_vector(v, n=_DIM)
 
 
 def _loop_op_native_ready(symbol: str) -> bool:

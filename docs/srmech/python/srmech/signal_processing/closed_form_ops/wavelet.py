@@ -30,6 +30,7 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Haar (1910)
 from __future__ import annotations
 
 from srmech.math import rational as _srn
+from srmech.math.q import Q as _Q, exact_vector as _exact_vector   # rc466 (`#T1188`)
 
 OPERATION_NAME = "wavelet"
 CLASS_COMPOSITION = ("L", "N")
@@ -40,6 +41,37 @@ SSOT_CITATION = (
     "decomposition', IEEE Trans. PAMI 11(7), 674-693. DOI 10.1109/34.192463 "
     "(Crossref). Daubechies (1992), 'Ten Lectures on Wavelets', SIAM."
 )
+
+
+#: ``m = x² − 2``, ascending — the field ℚ(√2) the Haar normaliser lives in.
+_HAAR_FIELD = (-2, 0, 1)
+
+
+def _haar_exact(sig_q, levels: int):
+    """rc466 (`#T1188`): the exact Haar analysis over ``ℚ(√2)`` — the same
+    butterfly :func:`op` runs as a banded float matvec, on the
+    :class:`~srmech.math.qalg.Qalg` carrier. ``1/√2 = α/2`` with ``α = √2``."""
+    from srmech.math.qalg import Qalg
+    root = float(_srn.sqrt(2.0))
+    inv_sqrt2 = Qalg(_HAAR_FIELD, (0, _Q(1, 2)), root=root)
+    zero = Qalg.rational(0, _HAAR_FIELD, root=root)
+    current = [Qalg.rational(q, _HAAR_FIELD, root=root) for q in sig_q]
+    details = []
+    for _ in range(levels):
+        n = len(current)
+        if n < 2 or n % 2 != 0:
+            current = current + [zero] * (n % 2)
+            n = len(current)
+        half = n // 2
+        if half == 0:
+            details.append([])
+            current = []
+            continue
+        approx = [(current[2 * m] + current[2 * m + 1]) * inv_sqrt2 for m in range(half)]
+        detail = [(current[2 * m] - current[2 * m + 1]) * inv_sqrt2 for m in range(half)]
+        details.append(detail)
+        current = approx
+    return current, details[::-1]
 
 
 def op(signal, *, levels: int = 3, wavelet: str = "haar", D: int = 8192):
@@ -68,6 +100,23 @@ def op(signal, *, levels: int = 3, wavelet: str = "haar", D: int = 8192):
         ``(approx, [detail_level_k, ..., detail_level_1])`` where ``approx``
         is the coarsest-scale approximation and ``detail_level_k`` is the
         detail coefficients at level k. Both are ``list``\\s — numpy-free (#564).
+        ``Qalg`` leaves on the exact route (see Accuracy).
+
+    Accuracy (rc466, `#T1188`)
+    --------------------------
+    **The carrier is the operand's.** The orthonormal Haar coefficients live in
+    the number field ``ℚ(√2)``, which SHIPS as :class:`~srmech.math.qalg.Qalg`
+    over ``m = x² − 2``. An exact ``signal`` (every leaf ``int`` / ``Q`` /
+    ``(num, den)``) is therefore transformed EXACTLY: each level is
+    ``(x[2m] ± x[2m+1]) · (1/√2)`` on that carrier — two adds and one field
+    multiply per coefficient, no matvec — and the returned coefficients are
+    ``Qalg`` elements with ``root = √2`` attached, so ``.to_float()`` is the
+    float on request (an even number of levels collapses every coefficient to
+    an exact rational). A float leaf anywhere keeps the float route — the
+    float ``1/√2`` and the c_dispatched banded matvec — **accurate to
+    round-off** (reldiff <= 1e-9 to the pure cascade). Through rc465
+    ``wavelet([4, 4, 4, 4, 0, 0, 0, 0] with 2**53+1 in slot 0)`` was rounded at
+    the entry, in a carrier that could have held it exactly.
     """
     if wavelet != "haar":
         raise NotImplementedError(
@@ -78,6 +127,9 @@ def op(signal, *, levels: int = 3, wavelet: str = "haar", D: int = 8192):
     # numpy-free list carrier (#564); the 1/sqrt(2) Class-N normaliser is the
     # libm-free rational sqrt, and every level's analysis band is one banded
     # matvec through the c_dispatched srmech_dense_matmul_complex.
+    sig_q = _exact_vector(signal)
+    if sig_q is not None:
+        return _haar_exact(sig_q, levels)
     try:
         current = [float(x) for x in signal]
     except TypeError as exc:  # nested sequence -> not 1-D

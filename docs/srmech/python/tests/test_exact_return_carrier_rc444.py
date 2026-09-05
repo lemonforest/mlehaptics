@@ -599,6 +599,19 @@ def test_the_exact_population_is_the_four_precedents_plus_this_one() -> None:
         "srmech.math.laplacian.dense_solve",
         "srmech.math.laplacian.dirichlet_to_neumann",
         "srmech.math.laplacian.jacobi_eigvals",
+        # rc466 (`#T1188`) added five: the remaining Laplacian BUILDERS take the
+        # SAME-module, same-sense keyword rc463 gave their three siblings, so the
+        # seventy-row drain does not flip every ``weights=None`` call (measured
+        # 10/10, 10/13, 8/11, 4/10, 3/3 test call sites carry no float literal)
+        # onto a Q carrier their consumer ``symmetric_eigendecompose`` cannot
+        # take. Each has a Layer-1 row that EXECUTES the route
+        # (tests/test_exact_carrier_drain_rc466.py), because the probe drains a
+        # census row on the keyword's mere presence.
+        "srmech.math.laplacian.klein4_gain_laplacian",
+        "srmech.math.laplacian.magnetic_laplacian",
+        "srmech.math.laplacian.mass_normalized_laplacian",
+        "srmech.math.laplacian.normalized_laplacian",
+        "srmech.math.laplacian.quaternion_laplacian",
         "srmech.math.laplacian.schur_complement",
         "srmech.math.laplacian.signed_laplacian",
         "srmech.physics.qm.triality.triality_companions",
@@ -630,12 +643,14 @@ def test_the_carrier_selector_census_figure_is_re_measured() -> None:
         for s in names & selectors:
             per[s] += 1
             ops.add(tool.name)
-    assert per["exact"] == 8, (
-        f"exact= is on {per['exact']} registry entries, expected 8 (the four "
-        f"precedents + triality_companions + the three rc463 graph builders)")
-    assert len(ops) == 61, (
-        f"{len(ops)} ops carry a carrier/regime selector, expected 61 "
-        f"(58 at rc444 + the three rc463 graph builders). Per-selector: {per}. If this "
+    assert per["exact"] == 13, (
+        f"exact= is on {per['exact']} registry entries, expected 13 (the four "
+        f"precedents + triality_companions + the three rc463 graph builders + "
+        f"the five rc466 graph builders)")
+    assert len(ops) == 66, (
+        f"{len(ops)} ops carry a carrier/regime selector, expected 66 "
+        f"(58 at rc444 + the three rc463 graph builders + the five rc466 graph "
+        f"builders — the rc466 CHANGELOG carries the figure). Per-selector: {per}. If this "
         f"moved for a good reason, update the CHANGELOG figure in the SAME "
         f"change — do not just re-pin the number here.")
 

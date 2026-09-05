@@ -1277,6 +1277,44 @@ def _to_exact_or_float_vector(value: Any, *, param: str = "") -> Any:
     return out
 
 
+def _to_exact_or_float_row_list(value: Any, *, param: str = "") -> Any:
+    """rc466 (`#T1188`): ``list[list[float]] | list[list[Q]]`` — a LIST of
+    flat vectors (the DFT summands' sample list, ``multiplex_streams``'s
+    stream list, ``iir``'s biquad sections, ``quaternion_laplacian``'s gains):
+    each row goes through :func:`_to_exact_or_float_vector`, so a ``[num, den]``
+    leaf is rebuilt as a ``Q`` and an ``int`` / ``float`` leaf stays what it is
+    — the op's own admission gate picks the rung. A non-list passes through
+    (an in-process carrier)."""
+    if not isinstance(value, (list, tuple)):
+        return value
+    return [_to_exact_or_float_vector(row, param=param) for row in value]
+
+
+def _to_vec_or_exact_vector(value: Any, *, param: str = "") -> Any:
+    """rc466 (`#T1188`): ``Vec | Sequence[int | Q]`` — a live ``Vec`` passes
+    through (the float carrier, as :func:`_to_vec` states), a flat sequence
+    keeps its leaves' exactness through :func:`_to_exact_or_float_vector`."""
+    from srmech.math.vec import Vec  # numpy-free 1-D carrier; lazy
+    if isinstance(value, Vec):
+        return value
+    return _to_exact_or_float_vector(value, param=param)
+
+
+def _to_scalar_or_charges(value: Any, *, param: str = "") -> Any:
+    """rc466 (`#T1188`): ``float | Q | Sequence[int | Q | float]`` —
+    ``ground_state_flux_response`` ``fluxes``: a bare number is a SCALAR flux
+    and passes through (a live ``Q`` from an in-process caller too); a list is
+    ALWAYS the flux SEQUENCE and rides :func:`_seq_charge`, whose entries may
+    be bare numbers or exact ``[num, den]`` pairs. A bare 2-int list is
+    therefore two integer fluxes on the wire exactly as it is in-process —
+    the exact scalar flux is spelled as the one-element sequence
+    ``[[num, den]]`` (a length-1 ``Vec`` comes back) rather than by making a
+    pair mean different things on the two sides of the wire."""
+    if isinstance(value, bool) or not isinstance(value, (list, tuple)):
+        return value
+    return _seq_charge(value, param=param)
+
+
 def _to_exact_or_float_rows(value: Any, *, param: str = "") -> Any:
     """``separate_frame_curvature`` ``a`` / ``b`` (rc463 fix pass).
 
@@ -1645,6 +1683,17 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # a live host object is already the native form and must not be touched.
     "host_callable": _identity,
     "host_rng": _identity,
+    # rc466 (`#T1188`): the 70-row drain's widened operand types. Each keeps
+    # the LEAVES' exactness (an int stays int, a [num, den] pair becomes Q, a
+    # float stays float) and lets the op's own admission gate pick the rung —
+    # the rc465 division of labour. `list[float] | list[Q]` had a coercer since
+    # rc465 and no lexicon row; `Optional[list[int | Q | float]]` (charges)
+    # likewise — both gain their lexicon rows in this rc.
+    "list[list[float]] | list[list[Q]]": _to_exact_or_float_row_list,
+    "Optional[list[list[float]] | list[list[Q]]]": _to_exact_or_float_row_list,
+    "Mat | Vec | Sequence[int | Q]": _to_mat_or_vec,
+    "float | Q | Sequence[int | Q | float]": _to_scalar_or_charges,
+    "Vec | Sequence[int | Q]": _to_vec_or_exact_vector,
 }
 
 
@@ -2230,6 +2279,14 @@ def serialise_native(value: Any) -> Any:
     # with complex's [re, im] (which is keyed by the declared `complex` param type
     # on the inbound side).
     from srmech.math.q import Q as _Q
+    from srmech.math.qi import Qi as _Qi
+    if isinstance(value, _Qi):
+        # rc466 (`#T1188`): the exact Gaussian-rational scalar rides as its two
+        # exact pairs [[re_num, re_den], [im_num, im_den]] — the form
+        # Qi.as_pairs() speaks (density_matrix / inner_product_eta /
+        # elementwise_multiply_complex return it on their exact routes).
+        (rn, rd), (i_n, i_d) = value.as_pairs()
+        return [[rn, rd], [i_n, i_d]]
     if isinstance(value, _Q):
         return [value.numerator, value.denominator]
     # srmech HV handle (numpy-free Klein-4 carrier, v0.7.0rc29) -> list[int].

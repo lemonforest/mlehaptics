@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import ctypes
 from typing import Sequence, Tuple
+from srmech.math.q import Q, exact_vector as _exact_vector  # rc466 (`#T1188`): the ONE exact reader
 
 from srmech import _native
 from srmech.math import rational as _srn
@@ -370,13 +371,28 @@ def klein_gordon_dispersion(k_spatial: Sequence[float], m: float) -> float:
     return float(_srn.sqrt(k_sq + m * m))
 
 
-def four_momentum_squared(k: Sequence[float]) -> float:
+def four_momentum_squared(k: Sequence) -> "float | Q":
     """Lorentz-invariant squared 4-momentum ``k² = k_μ k^μ = k_0² - |k|²``.
 
     Mostly-minus convention. On-shell: ``k² = m²``.
 
     Canonical SSoT: Peskin-Schroeder §3.1 eq 3.4.
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). The form
+    is a polynomial — rational-closed — so an exact 4-vector (every component
+    ``int`` / ``Q`` / ``(num, den)``) returns the EXACT
+    :class:`~srmech.math.q.Q` ``k_0² − k_1² − k_2² − k_3²``; a float component
+    anywhere keeps the float64 bilinear form over :func:`minkowski_metric`,
+    **accurate to round-off**. Through rc465 ``[float(x) for x in k]`` ran at
+    the entry, so ``four_momentum_squared([2**53+1, 0, 0, 0])`` returned
+    ``8.112963841460668e+31`` for an exact ``(2**53+1)**2``. The propagators
+    that consume this value (:mod:`srmech.physics.qm.propagators`) accept the
+    ``Q`` — ``complex(k_squared - m*m, epsilon)`` collapses it at THEIR float
+    boundary.
     """
+    exact = _exact_vector(k, n=4)
+    if exact is not None:
+        return exact[0] * exact[0] - exact[1] * exact[1] - exact[2] * exact[2] - exact[3] * exact[3]
     k = [float(x) for x in k]
     if len(k) != 4:
         raise ValueError(

@@ -1,0 +1,636 @@
+"""rc466 (`#T1188`) — the SEVENTY-ROW drain: the FIX half, gated.
+
+WHAT THIS FILE IS
+=================
+rc465 replaced rc463's six hand-written demotion rows with a registry-driven
+probe and found the population: **77 undeclared silent carrier demotions**, of
+which it fixed nine and labelled seventy as debt (``tests/demotion_census.ndjson``,
+``EXPECTED_UNDECLARED_N = {"native": 70, "pure": 71}``). This rc drains that
+roster. The judgement was PER OP, and it is recorded per op in the CHANGELOG:
+**FIX** (an exact carrier end to end, float as the caller's own request) wherever
+an exact peer ships; **DECLARE** (an R3 accuracy sentence a caller can read
+before calling) only where the op is float by nature — because declaring an op
+that could have been fixed converts a defect into documentation.
+
+This file holds the FIX half: forty-seven roster rows over thirty-nine ops,
+plus three unrostered ``hdc`` siblings (``loop_bind_hd`` / ``loop_unbind_hd`` /
+``loop_runbind_hd``, which share the same entry gate and demoted identically —
+the census filed them ``INEXACT_BASE`` only because the harvested example
+carried a float in the OTHER operand) and one hidden roster member
+(``odft_summand``, "declared" through rc465 by the NEGATED phrase *"not a
+tolerance"*, which the R3 keyword reader counted as a declaration).
+
+THE RULES THE FIXES OBEY (and this file executes)
+=================================================
+F1  **No keyword without an executed route.** An ``exact=`` parameter drains a
+    census row by its mere presence (``tools/demotion_probe.py``'s R3 reader
+    counts ``exact= opt-in``), so every keyword builder below has a row that
+    RUNS the exact route on the 2**53+1 witness.
+F2  **Whole-operand admission**: one float anywhere elects the float route,
+    byte-for-byte the shipped behaviour. Mixing carriers mid-computation is the
+    defect, not the cure.
+F3  **Refusals stay carrier-independent**, and an exact operand never falls
+    silently to float — it raises where the exact carrier cannot hold it,
+    naming the carrier that could.
+F4  **No ``abs()``** — Class-K pin-slot branches throughout.
+
+THE ONE FINDING THIS RC NAMES RATHER THAN HIDES
+===============================================
+The C compose host (``c/src/srmech_compose_run.c``) has no rational value kind
+and its twins of five chain steps coerce to doubles. After this rc a declared
+chain run over an EXACT input is exact in the Python runner and rounded in the
+C host. That is a projection divergence the census cannot see (it probes
+Python ops), so it is pinned here BY NAME (:data:`_COMPOSE_HOST_FLOAT_ONLY`)
+with a test that runs one exact proof case through BOTH executors and asserts
+that the disagreement EXISTS — the co-equal-dual-construction stance: the
+disagreement is the finding. The drain path is a Q61-bigint arm in the C host
+(an ABI-bump class of change; a later rc).
+
+numpy-free. No ``abs()`` — the significand read is a Class-K pin-slot branch.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+from srmech.math.q import Q
+from srmech.math.qi import Qi
+from srmech.math.qmat import QMat
+from srmech.math.mat import Mat
+
+_TESTS = Path(__file__).resolve().parent
+if str(_TESTS) not in sys.path:
+    sys.path.insert(0, str(_TESTS))
+
+#: ``2**53 + 1`` — the smallest positive integer float64 cannot represent.
+P = 2 ** 53 + 1
+#: Its two neighbours: the float carrier collapses P onto F and keeps G apart.
+F = 2 ** 53
+G = 2 ** 53 + 2
+
+
+def _significand_bits(n: int) -> int:
+    """Class-K pin-slot on the sign; never an ALU ``abs()``."""
+    if n < 0:
+        n = -n
+    if n == 0:
+        return 0
+    while n % 2 == 0:
+        n //= 2
+    return n.bit_length()
+
+
+def _discriminating(v) -> bool:
+    """Layer-0: could this oracle have been rounded? True iff its exact value
+    has more than 53 significand bits and the float carrier changes it."""
+    if isinstance(v, Q):
+        return float(v) != v and (_significand_bits(v.numerator) > 53
+                                  or _significand_bits(v.denominator) > 53)
+    return _significand_bits(v) > 53 and float(v) != v
+
+
+def _e(i, n=8):
+    return [1 if k == i else 0 for k in range(n)]
+
+
+def _o(w):
+    return [w] + [0] * 7
+
+
+# ── LAYER 1 — strict-zero exactness, one row per PATH, every row executes ─────
+def _rows():
+    from srmech.math import hdc, laplacian as la
+    from srmech.cascade import (hypercomplex_couple, cd_couple_working,
+                                cdr_couple_working, as_oct8, as_quat4,
+                                qdft_summand, odft_summand, correlation_product,
+                                compensated_sum)
+    from srmech.cascade.coupled import multiplex_streams
+    from srmech.signal_processing import _fft_carrier as _fc
+    from srmech.signal_processing.closed_form_ops import (stft, ofdm, polyphase,
+                                                          multirate, farrow, iir,
+                                                          wavelet)
+    from srmech.physics.qm.relativistic import four_momentum_squared
+    from srmech.physics.qm.pseudo_hermitian import inner_product_eta
+    from srmech.physics.qm.single_particle import density_matrix
+    from srmech.physics.qm.bell import operator_norm
+    from srmech.physics.qm.quaternion import quaternion_log
+    mu4 = [0.0, 1.0, 0.0, 0.0]
+    mu8 = [0.0, 1.0] + [0.0] * 6
+    return [
+        # ── math.hdc — the Cayley-Dickson loop family (13 ops) ───────────────
+        ("hdc.loop_conj[int]", lambda: hdc.loop_conj(_o(P))[0], P),
+        ("hdc.loop_conj[(num,den) pair]", lambda: hdc.loop_conj([(P, 1)] + [0] * 7)[0], P),
+        ("hdc.loop_bind[int]", lambda: hdc.loop_bind(_o(P), _e(0))[0], P),
+        ("hdc.loop_bind[dim 4]", lambda: hdc.loop_bind([P, 0, 0, 0], [1, 0, 0, 0])[0], P),
+        ("hdc.loop_inv[int]", lambda: hdc.loop_inv(_o(P))[0], Q(1, P)),
+        ("hdc.loop_left_op[int]", lambda: hdc.loop_left_op(_o(P))[0, 0], P),
+        ("hdc.loop_right_op[int]", lambda: hdc.loop_right_op(_o(P))[0, 0], P),
+        ("hdc.loop_associator[int]",
+         lambda: hdc.loop_associator([0, 0, 0, 0, P, 0, 0, 0], _e(1), _e(2))[7], 2 * P),
+        ("hdc.cross7[int]", lambda: hdc.cross7([0, P] + [0] * 6, _e(2))[3], P),
+        ("hdc.g2_three_form[int]", lambda: hdc.g2_three_form([0, P] + [0] * 6, _e(2), _e(3)), P),
+        ("hdc.loop_conj_hd[int, 2 blocks]", lambda: hdc.loop_conj_hd(_o(P) + _e(0))[0], P),
+        ("hdc.loop_inv_hd[int, 2 blocks]", lambda: hdc.loop_inv_hd(_o(P) + _e(0))[0], Q(1, P)),
+        ("hdc.loop_bind_hd[int, 2 blocks] (UNROSTERED)",
+         lambda: hdc.loop_bind_hd(_o(P) + _e(0), _e(0) + _e(0))[0], P),
+        ("hdc.loop_unbind_hd[int, 2 blocks] (UNROSTERED)",
+         lambda: hdc.loop_unbind_hd(_e(0) + _e(0), _o(P) + _e(0))[0], P),
+        ("hdc.loop_runbind_hd[int, 2 blocks] (UNROSTERED)",
+         lambda: hdc.loop_runbind_hd(_e(0) + _e(0), _o(P) + _e(0))[0], P),
+        # ── cascade ──────────────────────────────────────────────────────────
+        ("cascade.hypercomplex_couple[int, theta=0.0]",
+         lambda: hypercomplex_couple([P, 0, 0], theta=0.0)[1], P),
+        ("cascade.hypercomplex_couple[int literal octonion, theta=0.0]",
+         lambda: hypercomplex_couple(_o(P), theta=0.0)[0], P),
+        ("cascade.as_oct8[int]", lambda: as_oct8([P, 0, 0, 0])[0], P),
+        ("cascade.as_quat4[int, 4]", lambda: as_quat4([P, 0, 0, 0])[0], P),
+        ("cascade.as_quat4[int, 8 -> 4]", lambda: as_quat4([P, 0, 0, 0, 0, 0, 0, 0])[0], P),
+        ("cascade.qdft_summand[int, k*m == 0 mod n, left]",
+         lambda: qdft_summand([[P, 0, 0, 0]], 0, 0, 1, True, -1, mu4)[0], P),
+        ("cascade.qdft_summand[int, k*m == 0 mod n, right]",
+         lambda: qdft_summand([[P, 0, 0, 0]], 0, 0, 1, False, -1, mu4)[0], P),
+        ("cascade.odft_summand[int, left]",
+         lambda: odft_summand([_o(P)], 0, 0, 1, "left", "left_associated", -1, mu8, mu8)[0], P),
+        ("cascade.odft_summand[int, two_sided left_associated]",
+         lambda: odft_summand([_o(P)], 0, 0, 1, "two_sided", "left_associated", -1, mu8, mu8)[0], P),
+        ("cascade.odft_summand[int, two_sided right_associated]",
+         lambda: odft_summand([_o(P)], 0, 0, 1, "two_sided", "right_associated", -1, mu8, mu8)[0], P),
+        ("cascade.correlation_product[int]",
+         lambda: correlation_product([3, 3002399751580331], 0, 1), P),
+        ("cascade.compensated_sum[Q] (the chain's next step)",
+         lambda: compensated_sum([Q(P), Q(0)]), P),
+        ("cascade.coupled.multiplex_streams[int, roundrobin]",
+         lambda: multiplex_streams([[P, 2], [3, 4]])["driver"][0], P),
+        ("cascade.coupled.multiplex_streams[int, pickbest]",
+         lambda: multiplex_streams([[P, 2], [3, 4]], mode="pickbest")["driver"][0], P),
+        ("cascade.coupled.multiplex_streams[int, superpose]",
+         lambda: multiplex_streams([[P, 2], [0, 0]], mode="superpose")["driver"][1], Q(2, P)),
+        # ── math.laplacian — the five keyword builders + two operand-typed ops ─
+        ("laplacian.klein4_gain_laplacian[exact=True]",
+         lambda: la.klein4_gain_laplacian(2, [(0, 1)], [P], exact=True)["chi00"][0][0], P),
+        ("laplacian.klein4_gain_laplacian[exact=True, chi01 sign]",
+         lambda: la.klein4_gain_laplacian(2, [(0, 1)], [P], exact=True)["chi01"][0][1], -P),
+        ("laplacian.mass_normalized_laplacian[exact=True, symmetric, masses=1]",
+         lambda: la.mass_normalized_laplacian(2, [(0, 1)], [P], masses=[1, 1], exact=True)[0][0], P),
+        ("laplacian.mass_normalized_laplacian[exact=True, rw]",
+         lambda: la.mass_normalized_laplacian(2, [(0, 1)], [P], masses=[1, 1], kind="rw", exact=True)[0][1], -P),
+        ("laplacian.normalized_laplacian[exact=True, K4 with P weights: -1/3 on the nose]",
+         lambda: la.normalized_laplacian(4, [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)], [P] * 6,
+                                         exact=True)[0][1] * (3 * P), -P),
+        ("laplacian.magnetic_laplacian[exact=True, q=0]",
+         lambda: la.magnetic_laplacian(2, [(0, 1)], [P], q=0, exact=True)[0][0].real * 2, P),
+        ("laplacian.magnetic_laplacian[exact=True, default q=1/4 -> phase i]",
+         lambda: la.magnetic_laplacian(2, [(0, 1)], [P], exact=True)[0][1].imag * -2, P),
+        ("laplacian.magnetic_laplacian[exact=True, charges]",
+         lambda: la.magnetic_laplacian(2, [(0, 1)], [P], charges=[Q(1, 2)], exact=True)[1][0].real * 2, P),
+        ("laplacian.quaternion_laplacian[exact=True]",
+         lambda: la.quaternion_laplacian(2, [(0, 1)], [P], exact=True)[0][0] * 2, P),
+        ("laplacian.quaternion_laplacian[exact=True, off-diagonal block]",
+         lambda: la.quaternion_laplacian(2, [(0, 1)], [P], exact=True)[0][4] * -2, P),
+        ("laplacian.elementwise_multiply_complex[int, 1-D]",
+         lambda: la.elementwise_multiply_complex([P], [1])[0].real, P),
+        ("laplacian.elementwise_multiply_complex[int, 2-D]",
+         lambda: la.elementwise_multiply_complex([[P, 0], [0, 1]], [[1, 0], [0, 1]])[0][0].real, P),
+        # ── signal_processing (the three terminal-lift ROUTES — rfft / stft /
+        #    ofdm — are DIFFERENTIAL witnesses and live in their own test below)
+        ("signal_processing.polyphase[int, decimation]",
+         lambda: polyphase.op([P, 2, 3], [1, 2, 3, 4], L=2)[0], P + 4),
+        ("signal_processing.polyphase[int, interpolation]",
+         lambda: polyphase.op([P, 1], [1, 1], L=2, mode="interpolation")[0], P),
+        ("signal_processing.multirate[int, identity]", lambda: multirate.op([P, 2, 3, 4])[0], P),
+        ("signal_processing.multirate[int, int taps]",
+         lambda: multirate.op([P, 1, 1], up=2, filter_taps=[1, 1])[0], 2 * P),
+        ("signal_processing.farrow[int, mu=0 passthrough]", lambda: farrow.op([0, 1, P, 3])[2], P),
+        ("signal_processing.farrow[int, mu=Q(1,2)]",
+         lambda: farrow.op([0, P, 1, 2, 0, 0], mu=Q(1, 2))[0], Q(11258999068426241, 4)),
+        ("signal_processing.farrow[int, mu=(1,2) pair]",
+         lambda: farrow.op([0, P, 1, 2, 0, 0], mu=(1, 2))[0], Q(11258999068426241, 4)),
+        ("signal_processing.iir[int, a0 = 1 -> integer output]",
+         lambda: iir.op([1, 0, 0], [1], [1, P])[1], -P),
+        ("signal_processing.iir[int, a = [P, 1] -> Q output]",
+         lambda: iir.op([1, 0, 0], [1], [P, 1])[0], Q(1, P)),
+        ("signal_processing.iir[int, biquad cascade]",
+         lambda: iir.op([1, 0, 0], [1], [1], biquad_sections=[[1, 0, 0, 1, -P, 0]])[1], P),
+        ("signal_processing.wavelet[int, 2 levels -> exact rational]",
+         lambda: wavelet.op([P, 4, 4, 4], levels=2)[0][0].as_rational(), Q(P + 12, 2)),
+        # ── physics.qm singletons ─────────────────────────────────────────────
+        ("relativistic.four_momentum_squared[int]", lambda: four_momentum_squared([P, 0, 0, 0]), P * P),
+        ("relativistic.four_momentum_squared[int, spacelike]",
+         lambda: four_momentum_squared([0, P, 1, 0]), -P * P - 1),
+        ("pseudo_hermitian.inner_product_eta[int eta]",
+         lambda: inner_product_eta([1, 0], [1, 0], [[P, 0], [0, 1]]).real, P),
+        ("pseudo_hermitian.inner_product_eta[QMat eta]",
+         lambda: inner_product_eta([1, 0], [1, 0], QMat.from_rows([[P, 0], [0, 1]])).real, P),
+        ("pseudo_hermitian.inner_product_eta[Qi leaf]",
+         lambda: inner_product_eta([Qi(0, 1), 0], [Qi(0, P), 0], [[1, 0], [0, 1]]).real, P),
+        ("single_particle.density_matrix[int -> QMat]", lambda: density_matrix([P, 1])[0, 1], P),
+        ("single_particle.density_matrix[Qi -> rows of Qi]",
+         lambda: density_matrix([Qi(P, 1), 1])[0][1].real, P),
+        ("quaternion.quaternion_log[int, the direction is exact]",
+         lambda: quaternion_log([0, P, 0, 0])[1] - quaternion_log([0, 1, 0, 0])[1] + P, P),
+        ("quaternion.quaternion_log[(num,den) pair no longer refused]",
+         lambda: quaternion_log([(0, 1), (P, 1), 0, 0])[1] - quaternion_log([0, 1, 0, 0])[1] + P, P),
+    ]
+
+
+def _eq_exact(got, want) -> bool:
+    if isinstance(got, complex) or isinstance(want, complex):
+        return got == want
+    return got == want and float(got) == float(want)
+
+
+@pytest.mark.parametrize("label,call,want", _rows(), ids=[r[0] for r in _rows()])
+def test_layer1_exact_in_exact_out(label, call, want) -> None:
+    """STRICT ZERO. Every row executes the exact route on a witness the float
+    carrier would have rounded, and must return the exact value."""
+    assert _discriminating(want if not isinstance(want, int) or want > 0 else -want), (
+        f"Layer-0 rejected the witness for {label}: it could not have failed")
+    got = call()
+    assert _eq_exact(got, want), (
+        f"SILENT CARRIER DEMOTION at {label}: got {got!r}, exact value is "
+        f"{want!r}. rc466 gave this path an exact carrier — fix the carrier, "
+        f"do not widen a tolerance.")
+
+
+# ── the terminal-lift ROUTES: the operand reaches the exact engine ───────────
+def test_the_fft_family_hands_the_operand_to_the_exact_engine() -> None:
+    """rfft / stft / ofdm return ``complex`` — a single terminal float lift of an
+    exact-until-rotation transform — so the witness is DIFFERENTIAL: through
+    rc465 the entry ``complex(x)`` collapsed 2**53+1 onto 2**53 BEFORE the exact
+    engine ran, and the two witnesses gave the SAME bins. Now the engine sees
+    P, and a bin the lift can represent (Σx = 2**53 for the alternating signal;
+    (P + 3)/4 = 2251799813685249 for the OFDM block) comes back distinct from
+    the F witness's."""
+    from srmech.signal_processing import _fft_carrier as _fc
+    from srmech.cascade import spectral_cascades as _sc
+    from srmech.signal_processing.closed_form_ops import stft, ofdm
+    sig_p = [P, 0, -1, 0, 1, 0, -1, 0]
+    sig_f = [F, 0, -1, 0, 1, 0, -1, 0]
+    assert _fc.rfft(sig_p)[0] == _sc.fft(sig_p)[0] == 2 ** 53          # the DC bin is exact Σx
+    assert _fc.rfft(sig_f)[0] == 2 ** 53 - 1
+    assert _fc.rfft(sig_p)[0] != 9007199254740991 + 0j                # the rc465 value
+    assert _fc.rfft([P, -1])[0] == 2 ** 53 and _fc.rfft([F, -1])[0] == 2 ** 53 - 1
+    win = [1] * 8
+    assert stft.op([P, -1, 1, -1, 1, -1, 1, -1], frame_size=8, window=win)[0][0] == 2 ** 53
+    assert stft.op([F, -1, 1, -1, 1, -1, 1, -1], frame_size=8, window=win)[0][0] == 2 ** 53 - 1
+    # the IFFT lift is float(Σ)/N, so the witness needs Σ float-representable on
+    # BOTH sides: Σ_P = P − 1 = 2**53 and Σ_F = 2**53 − 1 are, and they differ.
+    assert ofdm.op([P, -1, 0, 0], n_subcarriers=4, cp_length=1)[1] == 2 ** 51
+    assert ofdm.op([F, -1, 0, 0], n_subcarriers=4, cp_length=1)[1] == 2 ** 51 - 0.25
+    # the float route is unchanged: a float signal takes the float64 carrier
+    assert _fc.rfft([1.0, 2.0, 3.0, 4.0]) == [(10 + 0j), (-2 + 2j), (-2 + 0j)]
+
+
+# ── the exact ROUTES with a declared bound (the octonion_norm shape) ──────────
+def test_operator_norm_exact_route_is_within_its_declared_bound() -> None:
+    from srmech.physics.qm.bell import operator_norm
+    on = operator_norm([[P, 0], [0, 0]])
+    assert isinstance(on, Q), type(on)
+    d = on - P
+    d = d if d >= 0 else -d                           # Class-K pin-slot, no abs()
+    assert d <= Q(1, 2 ** 60), f"declared accurate to 2**-64; measured {float(d)}"
+    # the two witnesses the float carrier collapses are DISTINCT on this route
+    assert on != operator_norm([[F, 0], [0, 0]])
+    # a Gaussian-exact Hermitian H rides the real 2n×2n embedding
+    g = operator_norm([[0, Qi(0, -P)], [Qi(0, P), 0]])
+    dg = g - P
+    dg = dg if dg >= 0 else -dg
+    assert isinstance(g, Q) and dg <= Q(1, 2 ** 60)
+    # a rational H no longer falls to float inside the peer (the rc466 pre-scale)
+    r = operator_norm([[Q(1, 2), 0], [0, Q(1, 3)]])
+    dr = r - Q(1, 2)
+    dr = dr if dr >= 0 else -dr
+    assert isinstance(r, Q) and dr <= Q(1, 2 ** 60)
+
+
+def test_char_poly_and_eigvals_exact_reach_a_rational_matrix() -> None:
+    """The peer fix that unblocks operator_norm: through rc465 a single Q(1, 2)
+    entry fell to a FLOAT Faddeev-LeVerrier and eigvals_exact then RAISED at
+    to_q — under a docstring promising Q entries."""
+    from srmech.cascade import matrix_cascades as mc
+    from srmech.math import laplacian as la
+    assert mc.char_poly([[Q(1, 2), 0], [0, 1]]) == [1, Q(-3, 2), Q(1, 2)]
+    ivs = mc.eigvals_exact([[Q(1, 2), 0], [0, 1]], return_intervals=True, bits=8)
+    assert all(isinstance(lo, Q) and isinstance(hi, Q) for lo, hi in ivs)
+    assert ivs[0][0] <= Q(1, 2) <= ivs[0][1] and ivs[1][0] <= 1 <= ivs[1][1]
+    assert list(la.jacobi_eigvals([[Q(1, 2), 0], [0, 1]], exact=True)) == [0.5, 1.0]
+    # the integer path is byte-identical to before
+    assert mc.char_poly([[P, 0], [0, 1]]) == [1, -(P + 1), P]
+
+
+def test_ground_state_flux_response_reduces_an_exact_flux_mod_1() -> None:
+    """The exact half turn Q(2**53+1, 2) and Q(1, 2) are the same phase; through
+    rc465 the first read 0.4889 (a rounded phase) and the second 0.5."""
+    from srmech.math import laplacian as la
+    cyc = [(0, 1), (1, 2), (2, 0)]
+    a = la.ground_state_flux_response(3, cyc, fluxes=[Q(P, 2)])[0]
+    b = la.ground_state_flux_response(3, cyc, fluxes=[Q(1, 2)])[0]
+    assert (a - b if a >= b else b - a) < 1e-12, (a, b)
+    # the integer witnesses are ONE flux point (periodicity), all the zero-flux ground state
+    v = la.ground_state_flux_response(3, cyc, fluxes=[P, F, G, 0])
+    assert all((x if x >= 0 else -x) < 1e-12 for x in v), list(v)
+    # a scalar Q flux is a SCALAR (through rc465 it iterated as its (num, den) pair)
+    assert isinstance(la.ground_state_flux_response(3, cyc, fluxes=Q(3, 2)), float)
+
+
+def test_hypercomplex_couple_exact_route_lives_on_the_q61_grid() -> None:
+    from srmech.cascade import hypercomplex_couple, cd_couple_working, cd_uncouple_working
+    out = hypercomplex_couple([P, 0, 0])
+    assert all(isinstance(v, Q) and (2 ** 61) % v.denominator == 0 for v in out)
+    # the pass-throughs inherit the carrier
+    assert all(isinstance(v, Q) for v in cd_couple_working([P, 0, 0]))
+    assert all(isinstance(v, Q) for v in cd_uncouple_working(cd_couple_working([1, 2, 3])))
+    # a non-dyadic rational is QUANTISED to the grid, as declared — not refused
+    q = hypercomplex_couple([Q(1, 3), 0, 0], theta=0.0)[1]
+    d = q - Q(1, 3)
+    d = d if d >= 0 else -d
+    assert d <= Q(1, 2 ** 61)
+
+
+# ── F2: one float anywhere → the float route, byte-for-byte ──────────────────
+def test_one_float_component_elects_the_float_route() -> None:
+    from srmech.math import hdc, laplacian as la
+    from srmech.cascade import hypercomplex_couple, as_oct8, correlation_product
+    from srmech.cascade.coupled import multiplex_streams
+    from srmech.signal_processing.closed_form_ops import farrow, iir
+    from srmech.physics.qm.relativistic import four_momentum_squared
+    assert hdc.loop_conj([1.0] + [0] * 7) == [1.0, -0.0, -0.0, -0.0, -0.0, -0.0, -0.0, -0.0]
+    assert isinstance(hdc.loop_left_op([1.0] + [0] * 7), Mat)
+    assert isinstance(hdc.loop_bind([P] + [0] * 7, [1.0] + [0] * 7)[0], float)
+    assert isinstance(hypercomplex_couple([1.0, 2, 3])[0], float)
+    assert as_oct8([1.0, 2, 3, 4]) == [1.0, 2.0, 3.0, 4.0, 0.0, 0.0, 0.0, 0.0]
+    assert correlation_product([1.0, 2], 0, 1) == 2.0
+    assert multiplex_streams([[1.0, 2], [3, 4]])["driver"] == [1.0, 4.0]
+    assert isinstance(la.klein4_gain_laplacian(2, [(0, 1)], [P])["chi00"], Mat)
+    assert farrow.op([0.0, 1.0, 2.0, 3.0], mu=0.0) == [0.0, 1.0, 2.0, 3.0]
+    assert farrow.op([0, 1, 2, 3], mu=0.5)[1] == 1.25
+    assert iir.op([1.0, 0.0, 0.0, 0.0], [1.0], [1.0, -0.5]) == [1.0, 0.5, 0.25, 0.125]
+    assert isinstance(four_momentum_squared([1.0, 0, 0, 0]), float)
+
+
+# ── F3: refusals stay carrier-independent; an exact operand never falls to float ─
+def test_refusals_are_carrier_independent() -> None:
+    from srmech.math import hdc, laplacian as la
+    from srmech.cascade import as_quat4
+    from srmech.physics.qm.quaternion import quaternion_log
+    for bad in ([0] * 8, [0.0] * 8):
+        with pytest.raises(ZeroDivisionError, match="loop_inv: zero vector has no inverse"):
+            hdc.loop_inv(bad)
+        with pytest.raises(ZeroDivisionError, match="loop_inv_hd: block 0 is the zero vector"):
+            hdc.loop_inv_hd(bad)
+    for bad in ([1] * 25, [1.0] * 25):
+        with pytest.raises(ValueError, match="positive multiple of 8"):
+            hdc.loop_conj_hd(bad)
+    # (the power-of-two refusal is _as_loop's own `assert`, which `python -O`
+    #  strips — a test may not pin a package contract on it; rc433 gate.)
+    # an EXACT operand above CD_MAX_DIM raises — it is never rounded to float
+    with pytest.raises(ValueError, match="exceeds CD_MAX_DIM"):
+        hdc.loop_bind([1] * 512, [1] * 512)
+    assert isinstance(hdc.loop_bind([1.0] * 512, [1.0] * 512)[0], float)   # the float route accepts it
+    # … while the single-element HD-misuse refusal keeps ONE text on either carrier
+    for bad in ([1] * 512, [1.0] * 512):
+        with pytest.raises(ValueError, match="wider than one octonion"):
+            hdc.loop_conj(bad)
+    for bad in ([1, 0, 0, 0, 0, 0, 0, 5], [1.0, 0, 0, 0, 0, 0, 0, 5]):
+        with pytest.raises(ValueError, match="e4..e7 must be zero"):
+            as_quat4(bad)
+    for bad in ([1, 0], [1.0, 0]):
+        with pytest.raises(ValueError, match="must be a 4-vector"):
+            quaternion_log(bad)
+    # the laplacian builders refuse a float by NAME under exact=True …
+    with pytest.raises(TypeError, match="EXACT weights"):
+        la.klein4_gain_laplacian(2, [(0, 1)], [1.0], exact=True)
+    with pytest.raises(TypeError, match="EXACT masses"):
+        la.mass_normalized_laplacian(2, [(0, 1)], [1], masses=[1.0, 1.0], exact=True)
+    with pytest.raises(TypeError, match="EXACT gains"):
+        la.quaternion_laplacian(2, [(0, 1)], [1], gains=[[1.0, 0, 0, 0]], exact=True)
+    with pytest.raises(ValueError, match="UNIT gains"):
+        la.quaternion_laplacian(2, [(0, 1)], [1], gains=[[1, 1, 0, 0]], exact=True)
+    # … and magnetic_laplacian names the carrier a non-Gaussian phase needs
+    with pytest.raises(ValueError, match="Qalg carrier over Phi_3"):
+        la.magnetic_laplacian(2, [(0, 1)], [1], q=Q(1, 3), exact=True)
+
+
+def test_g2_three_form_is_not_cd_three_form() -> None:
+    """The exact route is ⟨x, Im(y·z)⟩; cd_three_form is ⟨x, y·z⟩ INCLUDING the
+    real slot. They coincide only on Im 𝕆 — substituting one for the other
+    would change the shipped function under a carrier fix."""
+    from srmech.math import hdc
+    from srmech.cascade import cd_three_form
+    assert hdc.g2_three_form(_e(0), _e(1), _e(1)) == 0
+    assert cd_three_form(_e(0), _e(1), _e(1)) == Q(-1)
+    assert hdc.g2_three_form(_e(1), _e(2), _e(3)) == cd_three_form(_e(1), _e(2), _e(3))
+
+
+def test_the_dft_wrappers_elect_the_float_carrier_at_their_own_entry() -> None:
+    """quaternion_dft / octonion_dft are float-declared transforms with a
+    C-mirrored op order; they make the float request EXPLICITLY at entry so a
+    fixed coercion step cannot turn their accumulator into Q-of-float."""
+    from srmech.cascade import quaternion_dft, octonion_dft
+    out = quaternion_dft([[P, 0, 0, 0], [1, 2, 3, 4]])
+    assert all(isinstance(c, float) for row in out for c in row)
+    out = octonion_dft([[P, 0, 0, 0]])
+    assert all(isinstance(c, float) for row in out for c in row)
+
+
+# ── the REGISTRY says both carriers ──────────────────────────────────────────
+_RETURNS = {
+    "srmech.math.hdc.loop_conj": "list[float] | list[Q]",
+    "srmech.math.hdc.loop_bind": "list[float] | list[Q]",
+    "srmech.math.hdc.loop_inv": "list[float] | list[Q]",
+    "srmech.math.hdc.loop_left_op": "Mat | QMat",
+    "srmech.math.hdc.loop_right_op": "Mat | QMat",
+    "srmech.math.hdc.loop_associator": "list[float] | list[Q]",
+    "srmech.math.hdc.cross7": "list[float] | list[Q]",
+    "srmech.math.hdc.g2_three_form": "float | Q",
+    "srmech.math.hdc.loop_conj_hd": "list[float] | list[Q]",
+    "srmech.math.hdc.loop_inv_hd": "list[float] | list[Q]",
+    "srmech.math.hdc.loop_bind_hd": "list[float] | list[Q]",
+    "srmech.math.hdc.loop_unbind_hd": "list[float] | list[Q]",
+    "srmech.math.hdc.loop_runbind_hd": "list[float] | list[Q]",
+    "srmech.cascade.hypercomplex_couple": "list[float] | list[Q]",
+    "srmech.cascade.cd_couple_working": "list[float] | list[Q]",
+    "srmech.cascade.cd_uncouple_working": "list[float] | list[Q]",
+    "srmech.cascade.cdr_couple_working": "list[float] | list[Q]",
+    "srmech.cascade.cdr_uncouple_working": "list[float] | list[Q]",
+    "srmech.cascade.as_oct8": "list[float] | list[Q]",
+    "srmech.cascade.as_quat4": "list[float] | list[Q]",
+    "srmech.cascade.qdft_summand": "list[float] | list[Q]",
+    "srmech.cascade.odft_summand": "list[float] | list[Q]",
+    "srmech.cascade.correlation_product": "float | Q",
+    "srmech.cascade.compensated_sum": "float | Q",
+    "srmech.math.laplacian.normalized_laplacian": "Mat | list",
+    "srmech.math.laplacian.mass_normalized_laplacian": "Mat | list",
+    "srmech.math.laplacian.magnetic_laplacian": "Mat | list",
+    "srmech.math.laplacian.quaternion_laplacian": "Mat | list",
+    "srmech.math.laplacian.klein4_gain_laplacian": "dict[str, Mat] | dict[str, list]",
+    "srmech.math.laplacian.elementwise_multiply_complex": "Mat | Vec | list[Qi] | list[list[Qi]]",
+    "srmech.physics.qm.relativistic.four_momentum_squared": "float | Q",
+    "srmech.physics.qm.pseudo_hermitian.inner_product_eta": "complex | Qi",
+    "srmech.physics.qm.single_particle.density_matrix": "Mat | QMat | list[list[Qi]]",
+    "srmech.physics.qm.bell.operator_norm": "float | Q",
+    "srmech.physics.qm.quaternion.quaternion_log": "list[float] | list[Q]",
+}
+
+
+@pytest.mark.parametrize("name,want", sorted(_RETURNS.items()))
+def test_the_declared_return_names_both_carriers(name, want) -> None:
+    """A caller must be able to read which carrier comes back BEFORE calling. A
+    return type naming only ONE of two live carriers is FALSE — a rung below R1."""
+    from srmech.introspect.tool_schema import get_tool_schema
+    entry = get_tool_schema().lookup(name)
+    assert entry is not None, name
+    assert entry.returns.type == want, (
+        f"{name} declares {entry.returns.type!r}, live carriers are {want!r}")
+
+
+_KEYWORD_BUILDERS = (
+    "srmech.math.laplacian.normalized_laplacian",
+    "srmech.math.laplacian.mass_normalized_laplacian",
+    "srmech.math.laplacian.magnetic_laplacian",
+    "srmech.math.laplacian.quaternion_laplacian",
+    "srmech.math.laplacian.klein4_gain_laplacian",
+)
+
+
+@pytest.mark.parametrize("name", _KEYWORD_BUILDERS)
+def test_every_keyword_builder_declares_exact_in_the_registry(name) -> None:
+    """F1's registry half: the ``exact=`` keyword each builder grew is declared,
+    typed ``bool``, and its description names the carrier it returns."""
+    from srmech.introspect.tool_schema import get_tool_schema
+    entry = get_tool_schema().lookup(name)
+    ps = {p.name: p for p in entry.parameters}
+    assert "exact" in ps and ps["exact"].type == "bool", name
+    assert "Q" in (ps["exact"].summary or ""), name
+
+
+def test_every_widened_param_type_has_a_coercer_and_a_lexicon_row() -> None:
+    from srmech.mcp._coercion import has_coercer
+    from srmech.mcp._tools import _TYPE_LEXICON, _ENCODING_HINT
+    for ty in ("list[float] | list[Q]", "Optional[list[int | Q | float]]",
+               "list[list[float]] | list[list[Q]]",
+               "Optional[list[list[float]] | list[list[Q]]]",
+               "Mat | Vec | Sequence[int | Q]", "float | Q | Sequence[int | Q | float]",
+               "Vec | Sequence[int | Q]", "HV | Sequence[int | Q]", "float | Q",
+               "Mat | QMat | Sequence[Sequence[int | Q]]"):
+        assert has_coercer(ty), ty
+        assert _TYPE_LEXICON.get(ty) in ("array", "number"), ty
+        if ty != "float | Q":            # rc363: deliberately hint-free (a number)
+            assert ty in _ENCODING_HINT, ty
+
+
+def test_an_exact_operand_crosses_the_wire_exact() -> None:
+    from srmech.mcp import invoke_tool
+    assert invoke_tool("srmech.math.hdc.loop_conj", {"x": _o(P)})[0] == Q(P)
+    assert isinstance(invoke_tool("srmech.math.hdc.loop_left_op", {"a": _o(P)}), QMat)
+    assert invoke_tool("srmech.cascade.hypercomplex_couple",
+                       {"streams": [P, 0, 0], "theta": 0.0})[1] == P
+    assert invoke_tool("srmech.cascade.correlation_product", {"x": [P, 1], "i": 0, "j": 1}) == P
+    assert invoke_tool("srmech.math.laplacian.klein4_gain_laplacian",
+                       {"n": 2, "edges": [[0, 1]], "weights": [P], "exact": True})["chi00"][0][0] == P
+    assert invoke_tool("srmech.physics.qm.relativistic.four_momentum_squared",
+                       {"k": [P, 0, 0, 0]}) == P * P
+    assert isinstance(invoke_tool("srmech.physics.qm.single_particle.density_matrix",
+                                  {"psi": [P, 1]}), QMat)
+    # a [num, den] leaf rides as the exact rational it names
+    assert invoke_tool("srmech.signal_processing.farrow",
+                       {"signal": [0, P, 1, 2, 0, 0], "mu": [1, 2]})[1] == 7318349394477057
+    # and the float route still crosses as floats
+    assert isinstance(invoke_tool("srmech.math.hdc.loop_conj",
+                                  {"x": [1.0, 0, 0, 0, 0, 0, 0, 0]})[0], float)
+
+
+# ── THE NAMED FINDING: the C compose host is double-only on five chain steps ──
+#: Chain steps whose Python op now carries an exact operand exactly while the C
+#: compose host's twin (``c/src/srmech_compose_run.c``) coerces to doubles: a
+#: declared chain over an EXACT input is exact in the Python runner and rounded
+#: in the C host. Pinned BY NAME so a new member is red and a drained one has to
+#: be recorded. ``hypercomplex_couple`` and its pass-throughs are NOT here: their
+#: C twin ``srmech_hypercomplex_couple_q61`` IS the exact route.
+_COMPOSE_HOST_FLOAT_ONLY = frozenset({
+    "srmech.cascade.as_quat4",
+    "srmech.cascade.as_oct8",
+    "srmech.cascade.qdft_summand",
+    "srmech.cascade.odft_summand",
+    "srmech.cascade.correlation_product",
+})
+
+
+def test_the_compose_host_divergence_is_a_named_finding() -> None:
+    """Runs ONE exact proof case (the autocorrelation chain over ``[2**53+1, 1]``)
+    through BOTH executors and asserts the disagreement EXISTS: the Python runner
+    returns the exact ``Q`` energy ``(2**53+1)**2 + 1`` and the C host a double
+    that cannot hold it. An instrument that cannot return otherwise is not a
+    measurement — so the Python side is asserted exact and the C side asserted
+    unequal, not merely "different"."""
+    from _native_gate import require_native
+    require_native("the C compose host")
+    import test_c_cascade_value_parity_rc450 as harness
+    from srmech.cascade import compose as _compose
+    from srmech.dsl._cascade_chain import cascade_chain_specs
+    variant, spec, entry = cascade_chain_specs("autocorrelation")[0]
+    inputs = dict(harness._case_defaults(entry))
+    inputs.update({"x": [P, 1]})
+    py = harness._py_run(spec, inputs)
+    exact_energy = P * P + 1
+    assert isinstance(py[0], Q) and py[0] == exact_energy, py
+    rc, wire, ok = harness._c_run(harness._chain_only(entry), inputs)
+    assert ok and rc == 0, (rc, wire[:80])
+    c_val = _compose._reconstruct_value(_compose._srmech_json.loads(wire.decode("utf-8")))
+    assert c_val[0] != exact_energy, (
+        "the C compose host now carries the exact energy — GOOD NEWS, ACTION "
+        "REQUIRED: remove correlation_product from _COMPOSE_HOST_FLOAT_ONLY and "
+        "record the drain")
+    assert isinstance(c_val[0], float)
+
+
+def test_compose_host_float_only_members_are_real_chain_steps() -> None:
+    """The pinned set names registered ops whose C twin exists — a name that is
+    not a chain step would make the pin decorative."""
+    from srmech.introspect.tool_schema import get_tool_schema
+    schema = get_tool_schema()
+    for name in sorted(_COMPOSE_HOST_FLOAT_ONLY):
+        assert schema.lookup(name) is not None, name
+    csrc = (Path(__file__).resolve().parents[2] / "c" / "src" / "srmech_compose_run.c").read_text(encoding="utf-8")
+    for token in ("cr_op_as_quat4", "cr_op_as_oct8", "cr_op_qdft_summand",
+                  "cr_op_odft_summand", "cr_a_corr_product"):
+        assert token in csrc, token
+
+
+# ── the declared DFT chains in the PYTHON runner over an exact sample list ───
+def test_the_declared_qdft_chain_in_the_python_runner_over_an_exact_sample() -> None:
+    """The chain steps carry an exact sample exactly, so the declared
+    ``quaternion_dft`` chain run by the PYTHON runner over an exact sample list
+    is exact on the DC bin (its twiddle is the unit on the nose) and STAYS
+    exact through ``vec_scale`` whenever ``dft_scale``'s float ``1/n`` is a
+    dyadic — ``Q`` absorbs ``1.0`` and ``2**-k`` exactly. ``dft_scale`` has NO
+    operand whose leaves could elect a carrier (a bool and an int), so an
+    inverse over a non-dyadic ``n`` multiplies the exact accumulator by the
+    float64-rounded ``1/n``: a ``Q`` of a rounded scale, the one mixed-carrier
+    residue of this drain, DECLARED on ``dft_scale`` and pinned here so that a
+    chain-level exact scale is GOOD NEWS the gate reports, never absorbed."""
+    import test_c_cascade_value_parity_rc450 as harness
+    from srmech.dsl._cascade_chain import cascade_chain_specs
+    _variant, spec, entry = cascade_chain_specs("quaternion_dft")[0]
+    fwd = dict(harness._case_defaults(entry))
+    fwd.update({"x": [[P, 0, 0, 0], [1, 0, 0, 0]], "mu_axis": "i",
+                "inverse": False, "left": True})
+    out = harness._py_run(spec, fwd)
+    assert isinstance(out[0][0], Q) and out[0][0] == P + 1, out[0]   # Σ x[m], exact
+    inv2 = dict(fwd)
+    inv2["inverse"] = True                                            # n = 2: 1/2 is dyadic
+    out = harness._py_run(spec, inv2)
+    assert isinstance(out[0][0], Q) and out[0][0] == Q(P + 1, 2), out[0]
+    inv3 = dict(fwd)
+    inv3.update({"x": [[P, 0, 0, 0], [1, 0, 0, 0], [2, 0, 0, 0]], "inverse": True})
+    out = harness._py_run(spec, inv3)                                 # n = 3: 1/3 is not
+    assert isinstance(out[0][0], Q), out[0]
+    assert out[0][0] != Q(P + 3, 3), (
+        "the declared chain now carries an exact 1/3 through dft_scale — GOOD "
+        "NEWS, ACTION REQUIRED: retire the mixed-carrier declaration on "
+        "dft_scale and turn this assertion into the exact equality")
+    # the ONLY difference is the scale: the float 1/3, read exactly, recovers the sum
+    assert out[0][0] == Q(P + 3) * Q(*(1.0 / 3.0).as_integer_ratio())

@@ -2870,6 +2870,69 @@ def _as_loop(v, op: str):
     return arr
 
 
+def _exact_loop(v, op: str, *, single_element: bool = False):
+    """The EXACT-ℚ reading of ONE Cayley-Dickson operand as ``list[Q]``, or
+    ``None`` — the whole-operand admission gate of the loop family (rc466,
+    `#T1188`), over the ONE shared reader :func:`srmech.math.q.exact_vector`.
+
+    ONE float component anywhere returns ``None`` and the call takes the float
+    route entire (mixing carriers mid-recursion is the defect rather than the
+    cure — the rc463 ``_exact_nd`` rule). A length that is not a power of two
+    ALSO returns ``None``, so :func:`_as_loop`'s own refusal fires on either
+    carrier and the arity contract stays CARRIER-INDEPENDENT.
+
+    ⚠️ An exact operand ABOVE ``CD_MAX_DIM`` (256) RAISES here rather than
+    falling silently to the float route: the float path accepts any power of
+    two, the exact carrier (:mod:`srmech.cascade.cayley_dickson`) is capped at
+    256, and "the caller asked for exact and got float" is precisely the class
+    this rc drains. Pass floats to elect the float route at that width.
+    """
+    from srmech.math.q import exact_vector
+    from srmech.cascade.cayley_dickson import CD_MAX_DIM
+    q = exact_vector(v)
+    if q is None:
+        return None
+    n = len(q)
+    if n < 1 or (n & (n - 1)) != 0:
+        return None                      # the float route's own refusal fires
+    if single_element:
+        _reject_hd_block_misuse(q, op)   # the SAME refusal, the same text, either carrier
+    if n > CD_MAX_DIM:
+        raise ValueError(
+            f"{op}: an EXACT operand of length {n} exceeds CD_MAX_DIM="
+            f"{CD_MAX_DIM}, the exact-ℚ Cayley-Dickson carrier's ceiling; an "
+            f"exact operand is never silently rounded to the float route — "
+            f"pass float components to elect it at this width")
+    return q
+
+
+def _exact_hd(v, op: str):
+    """The EXACT-ℚ reading of an HD block-octonion operand (rc466, `#T1188`):
+    ``list[Q]`` whose length is a positive multiple of ``LOOP_DIM``, or ``None``
+    (one float leaf anywhere, or a length :func:`_as_hd` will refuse — that
+    refusal stays carrier-independent, the rc433 `#T1131` lesson)."""
+    from srmech.math.q import exact_vector
+    q = exact_vector(v)
+    if q is None:
+        return None
+    n = len(q)
+    if not n or n % LOOP_DIM:
+        return None
+    return q
+
+
+def _cd():
+    """The exact-ℚ Cayley-Dickson peers — imported LAZILY because
+    ``srmech.cascade`` imports this module (a top-level import would cycle)."""
+    from srmech.cascade import cayley_dickson as cd
+    return cd
+
+
+def _q_blocks(q):
+    """Split an exact HD ``list[Q]`` into its length-LOOP_DIM blocks."""
+    return [q[k * LOOP_DIM:(k + 1) * LOOP_DIM] for k in range(len(q) // LOOP_DIM)]
+
+
 def _loop_basis(i, dim):
     """The ``i``-th standard basis vector of length ``dim`` as a ``list[float]``."""
     v = [0.0] * dim
@@ -3154,7 +3217,21 @@ def loop_conj(x):
     """Octonion conjugate x̄ — negate the imaginary part, keep the real anchor
     ``x[0]``. The Class-C orientation flip that powers the unbind. Single
     element only — an HD block-octonion vector raises (use ``loop_conj_hd``).
-    Dispatches to the native ``srmech_loop_conj_f64`` for the dim-8 octonion."""
+    Dispatches to the native ``srmech_loop_conj_f64`` for the dim-8 octonion.
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). An exact
+    operand — every component ``int`` / ``Q`` / ``(num, den)`` — returns
+    ``list[Q]`` through :func:`srmech.cascade.cd_conjugate` (the exact-ℚ C peer
+    ``srmech_cd_qconjugate``); ONE float component anywhere routes the whole
+    call to the f64 route below, which is **accurate to round-off** (each
+    component is truncated to a 53-bit significand on entry). No ``exact=``
+    keyword: the operand says which carrier was asked for. Through rc465 this
+    op performed NO arithmetic — seven sign flips — and still returned
+    ``9007199254740992.0`` for ``loop_conj([2**53+1, 0, …])[0]``, because
+    ``[float(x) for x in v]`` ran at the entry."""
+    exact = _exact_loop(x, "loop_conj", single_element=True)
+    if exact is not None:
+        return list(_cd().cd_conjugate(exact))
     arr = _as_loop(x, "loop_conj")
     _reject_hd_block_misuse(arr, "loop_conj")
     native = _try_native_loop_conj(arr)
@@ -3175,7 +3252,20 @@ def loop_bind(x, y):
 
     rc125 (numpy-free): operands are coerced to ``list[float]`` and the result is
     a ``list[float]`` (was an ndarray).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). When BOTH
+    operands are exact (``int`` / ``Q`` / ``(num, den)`` components) the product
+    is :func:`srmech.cascade.cd_mult` — the exact-ℚ C peer ``srmech_cd_mult`` —
+    and returns ``list[Q]`` at any power-of-two length up to ``CD_MAX_DIM``; one
+    float component in either operand routes the whole call to the f64 route,
+    which is **accurate to round-off**. An exact operand wider than
+    ``CD_MAX_DIM`` raises rather than being rounded.
     """
+    ea = _exact_loop(x, "loop_bind")
+    eb = _exact_loop(y, "loop_bind")
+    if ea is not None and eb is not None:
+        assert len(ea) == len(eb), "loop_bind: operands must have equal length"
+        return list(_cd().cd_mult(ea, eb))
     a_ = _as_loop(x, "loop_bind")
     b_ = _as_loop(y, "loop_bind")
     assert len(a_) == len(b_), "loop_bind: operands must have equal length"
@@ -3192,7 +3282,22 @@ def loop_inv(x):
     block-octonion vector raises (use ``loop_inv_hd``).
 
     rc125 (numpy-free): the norm² gate is the numpy-free ``mat_dot`` (the
-    prior numpy-carrier ``dense_dot_real``); returns a ``list[float]``."""
+    prior numpy-carrier ``dense_dot_real``); returns a ``list[float]``.
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). An exact
+    operand returns ``x̄ / ⟨x,x⟩`` as ``list[Q]`` — :func:`srmech.cascade.cd_conjugate`
+    over :func:`srmech.cascade.cd_norm_sq` (C peers ``srmech_cd_qconjugate`` /
+    ``srmech_cd_qnorm_sq``), a rational function of the components and so EXACT;
+    the zero vector raises the SAME ``ZeroDivisionError`` on either carrier. A
+    float component anywhere keeps the f64 route (**accurate to round-off**)."""
+    exact = _exact_loop(x, "loop_inv", single_element=True)
+    if exact is not None:
+        cd = _cd()
+        nsq = cd.cd_norm_sq(exact)
+        if not nsq > 0:
+            raise ZeroDivisionError(
+                "loop_inv: zero vector has no inverse (Moufang division)")
+        return [c / nsq for c in cd.cd_conjugate(exact)]
     arr = _as_loop(x, "loop_inv")
     _reject_hd_block_misuse(arr, "loop_inv")
     from srmech.math.laplacian import mat_dot  # numpy-free inner product
@@ -3211,7 +3316,19 @@ def loop_left_op(a):
     dim×dim :class:`Mat`. L_a ≠ R_a ≠ R_aᵀ — the operational chirality.
 
     rc125 (numpy-free): returns a real ``Mat`` (was an ndarray); the fallback
-    column-stacks the per-basis binds into a row-major nested list."""
+    column-stacks the per-basis binds into a row-major nested list.
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). An exact
+    operand returns an exact-ℚ :class:`~srmech.math.qmat.QMat` through
+    :func:`srmech.cascade.left_mult_matrix` (``srmech_cd_mult`` /
+    ``srmech_cd_qbasis`` column by column — the rc465 ``octonion_left_mult``
+    route at every power-of-two dim ≤ ``CD_MAX_DIM``); a float component
+    anywhere keeps the f64 ``Mat`` route (**accurate to round-off**);
+    ``QMat.to_mat()`` projects on demand."""
+    exact = _exact_loop(a, "loop_left_op")
+    if exact is not None:
+        from srmech.math.qmat import QMat
+        return QMat.from_rows(_cd().left_mult_matrix(exact))
     arr = _as_loop(a, "loop_left_op")
     dim = len(arr)
     native = _try_native_loop_left_op(arr)
@@ -3227,7 +3344,17 @@ def loop_right_op(a):
     """Right-multiplication operator R_a(x) = x·a (the (3:4) mirror ordering) as
     a dim×dim :class:`Mat`.
 
-    rc125 (numpy-free): returns a real ``Mat`` (was an ndarray)."""
+    rc125 (numpy-free): returns a real ``Mat`` (was an ndarray).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`) — the
+    :func:`loop_left_op` rule verbatim, one hand over: an exact operand returns
+    an exact-ℚ ``QMat`` via :func:`srmech.cascade.right_mult_matrix`; a float
+    component anywhere keeps the f64 ``Mat`` route (**accurate to
+    round-off**)."""
+    exact = _exact_loop(a, "loop_right_op")
+    if exact is not None:
+        from srmech.math.qmat import QMat
+        return QMat.from_rows(_cd().right_mult_matrix(exact))
     arr = _as_loop(a, "loop_right_op")
     dim = len(arr)
     native = _try_native_loop_right_op(arr)
@@ -3246,7 +3373,20 @@ def loop_associator(a, b, c):
     −(``[L_a, R_b]`` · x). The K-residue is what makes the loop bind carry order
     / nesting / direction the commutative ``klein4_bind`` XOR washes out (F274).
 
-    rc125 (numpy-free): returns a ``list[float]`` (was an ndarray)."""
+    rc125 (numpy-free): returns a ``list[float]`` (was an ndarray).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). When all
+    THREE operands are exact the residue is :func:`srmech.cascade.associator`
+    — two ``srmech_cd_mult`` products and an exact subtraction — as
+    ``list[Q]``; a float component in any operand keeps the f64 route
+    (**accurate to round-off**)."""
+    ea = _exact_loop(a, "loop_associator")
+    eb = _exact_loop(b, "loop_associator")
+    ec = _exact_loop(c, "loop_associator")
+    if ea is not None and eb is not None and ec is not None:
+        assert len(ea) == len(eb) == len(ec), (
+            "loop_associator: operands must have equal length")
+        return list(_cd().associator(ea, eb, ec))
     aa = _as_loop(a, "loop_associator")
     bb = _as_loop(b, "loop_associator")
     cc = _as_loop(c, "loop_associator")
@@ -3265,7 +3405,20 @@ def cross7(x, y):
     ‖x×y‖² = ‖x‖²‖y‖² − ⟨x,y⟩². Ground-truth derived FROM the shipped loop_bind
     (F281); NO new class.
 
-    rc125 (numpy-free): returns a ``list[float]`` (was an ndarray)."""
+    rc125 (numpy-free): returns a ``list[float]`` (was an ndarray).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). Two exact
+    operands return ``Im(x·y)`` as ``list[Q]`` — ONE :func:`srmech.cascade.cd_mult`
+    with the real slot set to ``Q(0)`` (the Class-C imaginary projection; no
+    new cascade op, per ``cd_three_form``'s own "no new symbol" note); a float
+    component anywhere keeps the f64 route (**accurate to round-off**)."""
+    ea = _exact_loop(x, "cross7")
+    eb = _exact_loop(y, "cross7")
+    if ea is not None and eb is not None:
+        assert len(ea) == len(eb), "cross7: operands must have equal length"
+        prod = list(_cd().cd_mult(ea, eb))
+        prod[0] = Q(0, 1)   # Im: drop the e₀ real component (Class-C projection)
+        return prod
     a_ = _as_loop(x, "cross7")
     b_ = _as_loop(y, "cross7")
     assert len(a_) == len(b_), "cross7: operands must have equal length"
@@ -3286,7 +3439,28 @@ def g2_three_form(x, y, z):
     NO new class. Returns a scalar.
 
     rc125 (numpy-free): the contraction is the numpy-free ``mat_dot`` (the
-    prior numpy-carrier ``dense_dot_real``)."""
+    prior numpy-carrier ``dense_dot_real``).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). Three
+    exact operands return ``⟨x, Im(y·z)⟩`` as a ``Q`` — one
+    :func:`srmech.cascade.cd_mult` and an exact contraction over the IMAGINARY
+    slots. ⚠️ This is NOT :func:`srmech.cascade.cd_three_form`, which is
+    ``Re(x̄·(yz)) = ⟨x, yz⟩`` INCLUDING the real slot: the two coincide only on
+    ``Im 𝕆`` (measured: ``g2_three_form(e0, e1, e1) == 0`` while
+    ``cd_three_form(e0, e1, e1) == -1``), so substituting it would change the
+    shipped function under a carrier fix. A float component anywhere keeps the
+    f64 route (**accurate to round-off**)."""
+    ex = _exact_loop(x, "g2_three_form")
+    ey = _exact_loop(y, "g2_three_form")
+    ez = _exact_loop(z, "g2_three_form")
+    if ex is not None and ey is not None and ez is not None:
+        assert len(ex) == len(ey) and len(ex) == len(ez), (
+            "g2_three_form: operands must have equal length")
+        yz = _cd().cd_mult(ey, ez)
+        acc = Q(0, 1)
+        for i in range(1, len(ex)):          # ⟨x, Im(y·z)⟩: the real slot is dropped
+            acc = acc + ex[i] * yz[i]
+        return acc
     xa = _as_loop(x, "g2_three_form")
     ya = _as_loop(y, "g2_three_form")
     za = _as_loop(z, "g2_three_form")
@@ -3346,7 +3520,25 @@ def loop_bind_hd(x, y):
     M∘C with a Class-K residue) over a direct-sum TILE layout — NO new class.
     Operand length must be a positive multiple of LOOP_DIM (8).
 
-    rc125 (numpy-free): operates on ``list[float]`` (was an ndarray)."""
+    rc125 (numpy-free): operates on ``list[float]`` (was an ndarray).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). Two exact
+    operands return the per-block :func:`srmech.cascade.cd_mult` as ``list[Q]``
+    (the HD layout is a direct sum, so no HD-wide exact op is needed); a float
+    leaf anywhere keeps the f64 route (**accurate to round-off**). The
+    positive-multiple-of-8 length contract is identical on both carriers."""
+    ea = _exact_hd(x, "loop_bind_hd")
+    eb = _exact_hd(y, "loop_bind_hd")
+    if ea is not None and eb is not None:
+        if len(ea) != len(eb):
+            raise ValueError(
+                f"loop_bind_hd: operands must have equal length; "
+                f"got {len(ea)} vs {len(eb)}")
+        cd = _cd()
+        out = []
+        for xb, yb in zip(_q_blocks(ea), _q_blocks(eb)):
+            out.extend(cd.cd_mult(xb, yb))
+        return out
     a_ = _as_hd(x, "loop_bind_hd")
     b_ = _as_hd(y, "loop_bind_hd")
     if len(a_) != len(b_):
@@ -3368,7 +3560,24 @@ def loop_unbind_hd(a, b):
     shipped ``loop_conj`` + ``loop_bind`` block-wise; Class-K clean (conjugate +
     bind, no abs()). #811/F289.
 
-    rc125 (numpy-free): operates on ``list[float]`` (was an ndarray)."""
+    rc125 (numpy-free): operates on ``list[float]`` (was an ndarray).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`): two exact
+    operands return the per-block ``conj(aₖ)·bₖ`` over the exact-ℚ C peers as
+    ``list[Q]``; a float leaf anywhere keeps the f64 route (**accurate to
+    round-off**)."""
+    ea = _exact_hd(a, "loop_unbind_hd")
+    eb = _exact_hd(b, "loop_unbind_hd")
+    if ea is not None and eb is not None:
+        if len(ea) != len(eb):
+            raise ValueError(
+                f"loop_unbind_hd: operands must have equal length; "
+                f"got {len(ea)} vs {len(eb)}")
+        cd = _cd()
+        out = []
+        for ab, bb in zip(_q_blocks(ea), _q_blocks(eb)):
+            out.extend(cd.cd_mult(cd.cd_conjugate(ab), bb))
+        return out
     a_ = _as_hd(a, "loop_unbind_hd")
     b_ = _as_hd(b, "loop_unbind_hd")
     if len(a_) != len(b_):
@@ -3392,7 +3601,19 @@ def loop_conj_hd(x):
     over the direct-sum TILE layout; NO new class. Length must be a positive
     multiple of LOOP_DIM (8).
 
-    rc125 (numpy-free): operates on ``list[float]`` (was an ndarray)."""
+    rc125 (numpy-free): operates on ``list[float]`` (was an ndarray).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`): an exact
+    operand returns the per-block :func:`srmech.cascade.cd_conjugate` as
+    ``list[Q]``; a float leaf anywhere keeps the f64 route (**accurate to
+    round-off** — through rc465 a sign flip changed the value it was handed)."""
+    exact = _exact_hd(x, "loop_conj_hd")
+    if exact is not None:
+        cd = _cd()
+        out = []
+        for blk in _q_blocks(exact):
+            out.extend(cd.cd_conjugate(blk))
+        return out
     a_ = _as_hd(x, "loop_conj_hd")
     native = _try_native_loop_conj_hd(a_)
     if native is not None:
@@ -3412,7 +3633,24 @@ def loop_inv_hd(x):
     LOOP_DIM (8).
 
     rc125 (numpy-free): the per-block norm² gate is the numpy-free
-    ``mat_dot``; operates on ``list[float]`` (was an ndarray)."""
+    ``mat_dot``; operates on ``list[float]`` (was an ndarray).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`): an exact
+    operand returns the per-block ``x̄ₖ / ⟨xₖ,xₖ⟩`` over the exact-ℚ C peers as
+    ``list[Q]`` (EXACT — a rational function of the components), raising the
+    SAME ``ZeroDivisionError`` naming the zero block on either carrier; a float
+    leaf anywhere keeps the f64 route (**accurate to round-off**)."""
+    exact = _exact_hd(x, "loop_inv_hd")
+    if exact is not None:
+        cd = _cd()
+        out = []
+        for k, blk in enumerate(_q_blocks(exact)):
+            nsq = cd.cd_norm_sq(blk)
+            if not nsq > 0:
+                raise ZeroDivisionError(
+                    f"loop_inv_hd: block {k} is the zero vector (no Moufang inverse)")
+            out.extend(c / nsq for c in cd.cd_conjugate(blk))
+        return out
     a_ = _as_hd(x, "loop_inv_hd")
     native = _try_native_loop_inv_hd(a_)
     if native is not None:
@@ -3442,7 +3680,24 @@ def loop_runbind_hd(a, b):
     (conjugate + bind, no abs()). NO new class. Length must be a positive
     multiple of LOOP_DIM (8).
 
-    rc125 (numpy-free): operates on ``list[float]`` (was an ndarray)."""
+    rc125 (numpy-free): operates on ``list[float]`` (was an ndarray).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`): two exact
+    operands return the per-block ``bₖ·conj(aₖ)`` over the exact-ℚ C peers as
+    ``list[Q]``; a float leaf anywhere keeps the f64 route (**accurate to
+    round-off**)."""
+    ea = _exact_hd(a, "loop_runbind_hd")
+    eb = _exact_hd(b, "loop_runbind_hd")
+    if ea is not None and eb is not None:
+        if len(ea) != len(eb):
+            raise ValueError(
+                f"loop_runbind_hd: operands must have equal length; "
+                f"got {len(ea)} vs {len(eb)}")
+        cd = _cd()
+        out = []
+        for ab, bb in zip(_q_blocks(ea), _q_blocks(eb)):
+            out.extend(cd.cd_mult(bb, cd.cd_conjugate(ab)))
+        return out
     a_ = _as_hd(a, "loop_runbind_hd")
     b_ = _as_hd(b, "loop_runbind_hd")
     if len(a_) != len(b_):

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import ctypes
 from typing import List, Sequence, Tuple
+from srmech.math.q import exact_scalar as _exact_scalar  # rc466 (`#T1188`)
 
 from srmech import _native
 from srmech.math.cyclic import gcd as _cyclic_gcd
@@ -625,9 +626,9 @@ def autocorrelation(x: Sequence[float]) -> List[float]:
     ]
 
 
-def correlation_product(x: Sequence[float], i: int, j: int) -> float:
+def correlation_product(x: Sequence, i: int, j: int) -> "float | Q":
     """Class L: ONE ``(i, j)`` product of the circular autocorrelation —
-    ``float(x[i]) * float(x[j])``.
+    ``x[i] * x[j]``.
 
     The pointwise body of :func:`autocorrelation`'s Σ (which CALLS this op
     since v0.9.0rc420, so the declared chain and the shipped fallback share
@@ -636,7 +637,24 @@ def correlation_product(x: Sequence[float], i: int, j: int) -> float:
     arithmetic arrives from the REGISTERED Class-I ``mod_add`` step — the
     index math needs no leaf of its own. Pointwise and total; the ``i``/``k``
     iteration lives in the chain's indexed-map combinator layer.
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). Two
+    exact leaves (``int`` / ``Q`` / ``(num, den)``) return the exact product as
+    a :class:`~srmech.math.q.Q`; a float leaf keeps ``float(x[i]) * float(x[j])``,
+    **accurate to round-off**. Through rc465 the body was the float form
+    unconditionally, so ``correlation_product([3, 3002399751580331], 0, 1)``
+    returned ``9007199254740992.0`` for an exact product of ``2**53 + 1``. The
+    shipped :func:`autocorrelation` fallback still elects the float carrier
+    at ITS entry (``[float(v) for v in x]``); over an exact chain input the
+    declared chain is exact end to end (``compensated_sum`` returns ``Q`` for
+    ``Q`` input), and the C compose host's twin of this step is double-only —
+    the divergence is pinned by name in
+    ``tests/test_exact_carrier_drain_rc466.py``.
     """
+    qi = _exact_scalar(x[i])
+    qj = _exact_scalar(x[j])
+    if qi is not None and qj is not None:
+        return qi * qj
     return float(x[i]) * float(x[j])
 
 

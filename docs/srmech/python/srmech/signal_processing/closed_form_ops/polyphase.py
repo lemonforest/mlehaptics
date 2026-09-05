@@ -59,12 +59,21 @@ def decompose(filter_taps, L: int) -> List[list]:
     """Decompose ``filter_taps`` into L polyphase components.
 
     ``E_k[n] = h[k + n*L]`` for k = 0..L-1. Returns a ``list`` of L ``list``s.
+
+    rc466 (`#T1188`): a pure REINDEX — the taps are kept as given when every
+    tap is exact (``int`` / ``Q`` / ``(num, den)``), so an exact prototype
+    decomposes into exact components; a float tap keeps the float carrier.
     """
-    taps = [float(v) for v in filter_taps]
+    taps = list(filter_taps)
+    if _dsp.exact_operands(taps):
+        pad_v = 0
+    else:
+        taps = [float(v) for v in taps]
+        pad_v = 0.0
     # Pad to multiple of L
     pad = (-len(taps)) % L
     if pad:
-        taps = taps + [0.0] * pad
+        taps = taps + [pad_v] * pad
     components = []
     for k in range(L):
         e_k = taps[k::L]
@@ -99,14 +108,36 @@ def op(
     Returns
     -------
     list
-        Polyphase-filtered output (length-``N`` ``list`` of ``float``).
+        Polyphase-filtered output (length-``N`` ``list`` of ``float``, or of
+        ``int`` / ``Q`` on the exact route — see below).
+
+    Accuracy (rc466, `#T1188`)
+    --------------------------
+    **The carrier is the operand's.** An exact ``signal`` AND exact
+    ``filter_taps`` (every leaf ``int`` / ``Q`` / ``(num, den)``) take the
+    type-preserving pure convolution cascade on BOTH projections
+    (:func:`srmech.signal_processing._dsp_cascades.convolve`, seeded with the
+    integer ``0``) and the output is the EXACT filter response — integers for
+    integers, ``Q`` for rationals — the rc463 ``fir`` routing, verbatim. A
+    float leaf anywhere keeps the c_dispatched Toeplitz matvec
+    (``srmech_dense_matmul_complex``), **accurate to round-off** (~1 ULP;
+    the accumulation may FMA-fuse). Through rc465 ``[float(v) for v in
+    signal]`` ran at the entry and EVERY call took the float matvec whenever
+    the library was loaded, so ``polyphase([2**53+1, 2, 3], [1, 2, 3, 4])``
+    returned ``9007199254740992.0`` where the exact cascade gives
+    ``9007199254740993``.
     """
-    sig = [float(v) for v in signal]
+    sig = list(signal)
+    exact = _dsp.exact_operands(sig, filter_taps)
+    if not exact:
+        sig = [float(v) for v in sig]
     components = decompose(filter_taps, L)
     # composition_of_c (rc150 / B4c): route each per-component convolution through
     # the c_dispatched srmech_dense_matmul_complex (Toeplitz matvec) when the
     # native lib is present; else the complete numpy-free pure cascade. Within-tol
     # (not byte-identical): the matmul float accumulation may FMA-fuse ~1 ULP.
+    # rc466: EXACT operands take the pure cascade on BOTH projections (the
+    # rc463 fir precedent — see _dsp.exact_operands).
     from srmech import _native
 
     _convolve = (
@@ -115,14 +146,16 @@ def op(
             _native.HAS_NATIVE
             and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_dense_matmul_complex")
+            and not exact
         )
         else _dsp.convolve
     )
+    zero = 0 if exact else 0.0
     if mode == "decimation":
         # Decimation: each polyphase component filters a decimated version
         # of the input then we sum (Class-M accumulate into the shared buffer).
         out_len = (len(sig) + L - 1) // L
-        out = [0.0] * (out_len + len(components[0]) - 1)
+        out = [zero] * (out_len + len(components[0]) - 1)
         for k, e_k in enumerate(components):
             # Take every L-th sample of signal starting at offset k
             x_k = sig[k::L] if k < len(sig) else []
@@ -140,7 +173,7 @@ def op(
             per_component.append(filtered)
         # Interleave outputs (strided write, Class-C reorientation).
         max_len = max(len(c) for c in per_component)
-        out = [0.0] * (max_len * L)
+        out = [zero] * (max_len * L)
         for k, c in enumerate(per_component):
             for i in range(len(c)):
                 out[k + i * L] = c[i]

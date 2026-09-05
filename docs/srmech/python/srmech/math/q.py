@@ -83,7 +83,11 @@ from .. import _native
 from . import cyclic as _cyclic
 from . import rational as _rational
 
-__all__ = ["Q", "to_q"]
+__all__ = ["Q", "to_q",
+    "exact_scalar",
+    "exact_vector",
+    "exact_rows",
+]
 
 
 def _integer_exponent(exp):
@@ -668,3 +672,108 @@ def to_q(value) -> "Q":
     raise TypeError(
         f"to_q: cannot coerce {type(value).__name__} to an exact Q "
         f"(expected Q / int / float / (num, den) pair / as_integer_ratio-able)")
+
+
+# ── rc466 (`#T1188`) — THE ONE exact-operand reader ─────────────────────────
+#
+# Three copies of the same predicate shipped before this rc:
+# ``srmech.cascade.matrix_cascades._exact_leaf`` (rc463, the einsum admission
+# gate), ``srmech.physics.qm.octonion._exact_component`` and
+# ``srmech.physics.qm.quaternion._exact_component`` (rc465, each adding the
+# ``(num, den)`` pair the octonion / quaternion wire contract promises) — and
+# each carried its own dim-locked vector reader (``_exact_octonion`` at 8,
+# ``_exact_quaternion`` at 4). ``srmech.math.hdc`` needed the same reader at
+# ANY power-of-two dimension and cannot import it from ``srmech.physics``
+# (physics imports math — an inversion), so the reader is lifted HERE, beside
+# :func:`to_q`, and every former copy now imports it. No alias, no second copy.
+#
+# ⚠️ It is a TYPE test, not a value test — ``2.0`` is a float the caller
+# ELECTED and stays on the float carrier even though it is integral. The
+# ``(num, den)`` PAIR is read as a scalar only when ``pair=True`` (the physics /
+# hdc / signal_processing surfaces, whose prose and wire hints promise it);
+# ``matrix_cascades._exact_leaf`` passes ``pair=False`` because on the einsum
+# admission gate a 2-tuple is a SHAPE, not a scalar — that contract is unchanged.
+
+def exact_scalar(value, *, pair: bool = True):
+    """The EXACT-ℚ reading of ONE scalar as a :class:`Q`, or ``None``.
+
+    ``int`` / ``bool`` / :class:`Q` / any ``numerator``-``denominator`` pair
+    (``fractions.Fraction`` and peers) is exact; with ``pair=True`` a
+    2-element integer ``(num, den)`` tuple or list is too. A ``float`` or a
+    ``complex`` — a genuinely continuous operand the caller elected — reads as
+    ``None``, and so does anything else. Never raises.
+    """
+    if isinstance(value, bool):
+        return Q(int(value), 1)
+    if isinstance(value, int):
+        return Q(value, 1)
+    if isinstance(value, Q):
+        return value
+    if (pair and isinstance(value, (tuple, list)) and len(value) == 2
+            and isinstance(value[0], int) and not isinstance(value[0], bool)
+            and isinstance(value[1], int) and not isinstance(value[1], bool)
+            and value[1] != 0):
+        return Q(int(value[0]), int(value[1]))
+    num = getattr(value, "numerator", None)
+    den = getattr(value, "denominator", None)
+    if isinstance(num, int) and isinstance(den, int) and not isinstance(value, float):
+        return Q(num, den)
+    return None
+
+
+def exact_vector(seq, *, n: int = None, pair: bool = True):
+    """The EXACT-ℚ reading of a FLAT operand as ``list[Q]``, or ``None``.
+
+    **Whole-operand admission**: ONE inexact leaf anywhere returns ``None``, so
+    the caller's entire call takes the float route — mixing carriers
+    mid-computation is the defect rather than the cure (the rc463 ``_exact_nd``
+    rule). Accepts any iterable of scalars (``list`` / ``tuple`` / ``HV`` —
+    whose elements are plain ``int`` — / ``array``); a ``str`` / ``bytes``, a
+    non-iterable, or a NESTED sequence reads as ``None``. With ``n`` given, a
+    wrong length also reads as ``None`` — the caller's own arity refusal then
+    fires on the float route, so the arity contract is CARRIER-INDEPENDENT (the
+    rc465 lesson: an exact caller must not be able to relax a length rule).
+    """
+    if isinstance(seq, (str, bytes, bytearray)):
+        return None
+    try:
+        items = list(seq)
+    except TypeError:
+        return None
+    if n is not None and len(items) != n:
+        return None
+    out = []
+    for c in items:
+        q = exact_scalar(c, pair=pair)
+        if q is None:
+            return None
+        out.append(q)
+    return out
+
+
+def exact_rows(rows, *, pair: bool = True):
+    """The EXACT-ℚ reading of a 2-D operand as ``list[list[Q]]``, or ``None``.
+
+    A carrier exposing ``to_lists()`` (an exact ``QMat``) is read through it; a
+    float carrier (``Mat`` — its elements are floats) reads as ``None`` through
+    the leaves. Rows may be ragged only in the sense that no shape is imposed
+    here: every row is read with :func:`exact_vector`, and one inexact leaf
+    anywhere returns ``None`` (whole-operand admission).
+    """
+    if hasattr(rows, "to_lists"):
+        rows = rows.to_lists()
+    if isinstance(rows, (str, bytes, bytearray)):
+        return None
+    try:
+        row_list = list(rows)
+    except TypeError:
+        return None
+    out = []
+    for r in row_list:
+        if isinstance(r, (str, bytes, bytearray)) or not hasattr(r, "__iter__"):
+            return None
+        v = exact_vector(r, pair=pair)
+        if v is None:
+            return None
+        out.append(v)
+    return out

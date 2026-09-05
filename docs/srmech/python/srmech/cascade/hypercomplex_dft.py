@@ -141,6 +141,8 @@ _BRACKETINGS = ("left_associated", "right_associated")
 from srmech.math.q import Q                          # `#T845`: exact float→ℚ boundary
 from srmech.math.rational import _q61_fxmul               # Q61 fixed-point multiply
 from .cayley_dickson import cd_basis_product as _cd_basis
+from .cayley_dickson import cd_mult, cd_promote, cd_project   # rc466: the exact peers
+from srmech.math.q import exact_vector as _exact_vector      # rc466: the ONE exact reader
 # (`_q61_int` is the module-local Q-int projector defined above.)
 
 
@@ -185,6 +187,32 @@ def _q61_couple_fits_native(streams_q61: Sequence[int]) -> bool:
     return True
 
 
+def _q61_twiddle_ints(eff: float, mu_q61: Sequence[int]) -> List[int]:
+    """``exp(eff·μ) = cos eff·1 + sin eff·μ`` as Q61 ints over an already-Q61
+    unit axis ``mu_q61`` (``mu_q61[0] == 0``; any length) — the ONE twiddle
+    construction ``_couple_q61`` has always run, factored out in rc466
+    (`#T1188`) so the exact routes of :func:`qdft_summand` / :func:`odft_summand`
+    build the same object instead of a second copy. Native Q61 trig when
+    present, else the pure Q61 cascade — byte-identical."""
+    if _native.has_native_trans_q61():
+        cos = _native.cos_q61_c(eff)
+        sin = _native.sin_q61_c(eff)
+    else:
+        cos = _q61_int(_rcos(eff))
+        sin = _q61_int(_rsin(eff))
+    return [cos] + [_q61_fxmul(sin, mu_q61[i]) for i in range(1, len(mu_q61))]
+
+
+def _q61_twiddle(eff: float, mu_hat: Sequence[float]) -> List["Q"]:
+    """The Q61 twiddle as exact ``Q`` (denominator ``2**61``) over a float unit
+    axis projected at Q61 — the boundary :func:`hypercomplex_couple` has owned
+    since rc16. EXACT ``[1, 0, …]`` at ``eff == 0.0`` (``cos`` is the Q61 unit
+    and ``sin`` is 0 there); otherwise every component is quantised to the
+    ``2**-61`` grid, which is the declared bound of the exact DFT routes."""
+    ints = _q61_twiddle_ints(eff, [_to_q61(float(v)) for v in mu_hat])
+    return [Q(v, _Q61_ONE) for v in ints]
+
+
 def _couple_q61(streams_q61: Sequence[int], mu_q61: Sequence[int],
                 eff: float, *, form: str) -> List[int]:
     """The exact-Q61 coupler core: ``T ⊗ q`` with the twiddle ``T = exp(eff·μ) =
@@ -199,13 +227,7 @@ def _couple_q61(streams_q61: Sequence[int], mu_q61: Sequence[int],
             streams_q61, mu_q61, eff, form == "left")
         if out is not None:                          # None = native int64 ceiling
             return out
-    if _native.has_native_trans_q61():
-        cos = _native.cos_q61_c(eff)
-        sin = _native.sin_q61_c(eff)
-    else:
-        cos = _q61_int(_rcos(eff))
-        sin = _q61_int(_rsin(eff))
-    tw = [cos] + [_q61_fxmul(sin, mu_q61[i]) for i in range(1, 8)]
+    tw = _q61_twiddle_ints(eff, mu_q61)
     if form == "left":
         return _octo_mult_q61(tw, streams_q61)    # T·q
     return _octo_mult_q61(streams_q61, tw)        # q·T
@@ -246,7 +268,7 @@ def hypercomplex_exp(theta: float, k_axes: int) -> Tuple["_Q", ...]:
     return tuple(_Q(v, _Q61_ONE) for v in ints)
 
 
-def as_oct8(vec) -> List[float]:
+def as_oct8(vec) -> "List[float] | List[Q]":
     """Class M: coerce a 4- or 8-component quaternion/octonion sample to an
     8-vector ``list[float]`` — a quaternion is zero-extended
     into ``ℍ ⊂ 𝕆``.
@@ -254,7 +276,23 @@ def as_oct8(vec) -> List[float]:
     The per-sample coercion step of :func:`octonion_dft` (public since
     v0.9.0rc420 so the ``octonion_dft.toml`` declared chain's elementwise
     coercion map names a registered op — the `#T1114` BLK-REGMAP
-    resolution)."""
+    resolution).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). This op
+    performs NO arithmetic — it zero-extends — and through rc465 it changed the
+    value it was handed (``as_oct8([2**53+1, 0, 0, 0])[0]`` came back
+    ``9007199254740992.0``: the ``[float(x) for x in vec]`` at the entry). An
+    exact operand (every component ``int`` / ``Q`` / ``(num, den)``) now
+    returns ``list[Q]`` through :func:`srmech.cascade.cd_promote` (the exact
+    subalgebra embedding ℍ ↪ 𝕆); one float component keeps the float route,
+    **accurate to round-off**. The 4-or-8 length contract is identical on
+    both carriers. ⚠️ The exact route is reachable from the public wrappers
+    only by design: :func:`octonion_dft` elects the float carrier at ITS entry
+    (a float-declared transform), so this op's exact rung serves direct
+    callers and the declared chain, not the transform's C-mirrored path."""
+    exact = _exact_vector(vec)
+    if exact is not None and len(exact) in (4, 8):
+        return list(cd_promote(exact, 8))
     a = [float(x) for x in vec]
     n = len(a)
     if n == 4:
@@ -314,6 +352,27 @@ def _resolve_mu(mu_axis, *, octonion) -> List[float]:
         raise ValueError("mu_axis must be a non-zero pure-imaginary vector")
     inv = 1.0 / norm
     return [x * inv for x in v]
+
+
+def _pack_streams_exact(streams):
+    """The EXACT peer of :func:`_pack_streams` (rc466, `#T1188`): ``(q, octonion)``
+    with ``q`` an 8-list of exact ``Q`` when EVERY stream leaf is exact, else
+    ``None`` (the float packer then runs, with its own length refusal — the
+    contract is carrier-independent). Same packing rule, exact zeros."""
+    a = _exact_vector(streams)
+    if a is None:
+        return None
+    n = len(a)
+    zero = Q(0, 1)
+    if n == 4:
+        return a + [zero] * 4, False
+    if n == 8:
+        return list(a), True
+    if 1 <= n <= 3:
+        return [zero] + a + [zero] * (7 - n), False
+    if 5 <= n <= 7:
+        return [zero] + a + [zero] * (7 - n), True
+    return None
 
 
 def _pack_streams(streams) -> "tuple":
@@ -469,7 +528,7 @@ _C_DBLP = ctypes.POINTER(ctypes.c_double)
 _QDFT_N_MAX = 2 ** 32
 
 
-def as_quat4(v) -> List[float]:
+def as_quat4(v) -> "List[float] | List[Q]":
     """Class M: coerce one QDFT sample to a plain 4-list.
 
     Accepts a 4-component quaternion or the rc31 octonion-embedded 8-vector
@@ -479,7 +538,27 @@ def as_quat4(v) -> List[float]:
     The per-sample coercion step of :func:`quaternion_dft` (public since
     v0.9.0rc420 so the ``quaternion_dft.toml`` declared chain's elementwise
     coercion map names a registered op — the `#T1114` BLK-REGMAP
-    resolution)."""
+    resolution).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). Zero
+    arithmetic, and through rc465 ``as_quat4([2**53+1, 0, 0, 0])[0]`` returned
+    ``9007199254740992.0``. An exact operand returns ``list[Q]`` — the exact
+    4-list as given, or the 8-vector realified through
+    :func:`srmech.cascade.cd_project` when its ``e4..e7`` are exactly zero (a
+    nonzero tail raises the SAME ``ValueError`` on either carrier); a float
+    component keeps the float route, **accurate to round-off**. As with
+    :func:`as_oct8`, :func:`quaternion_dft` elects the float carrier at its own
+    entry, so the exact rung is the direct caller's and the declared chain's."""
+    exact = _exact_vector(v)
+    if exact is not None and len(exact) in (4, 8):
+        if len(exact) == 4:
+            return exact
+        if any(exact[i] != 0 for i in range(4, 8)):
+            raise ValueError(
+                "quaternion_dft requires quaternion samples (components "
+                "e4..e7 must be zero); use octonion_dft for full octonions"
+            )
+        return list(cd_project(exact))
     a = [float(c) for c in v]
     n = len(a)
     if n == 4:
@@ -579,12 +658,30 @@ def dft_scale(inverse: bool, n: int) -> float:
     The ``scale = (1.0 / float(n_pts)) if inverse else 1.0`` line of both
     composed DFT paths, exiled to its own op instance. The ``n > 0`` guard
     mirrors the public wrappers' ``if not xs: return []`` early return
-    (wrapper-layer, not iteration-layer), so the op is total on ``n >= 0``."""
+    (wrapper-layer, not iteration-layer), so the op is total on ``n >= 0``.
+
+    **Accuracy (rc466, `#T1188`) — the one step of the DFT chains with NO
+    operand to elect a carrier.** Its inputs are a ``bool`` and an ``int``, so
+    the rc466 rule "the leaves of the operand pick the rung" has nothing to
+    read here, and the return is the float64 ``1/n`` on every call. In the
+    declared ``quaternion_dft`` / ``octonion_dft`` chains run by the PYTHON
+    runner over an EXACT sample list, the summands and the ``vec_add`` fold
+    are exact ``Q``, and this scale is absorbed EXACTLY by ``Q`` for the
+    forward transform (``1.0``) and for every inverse whose ``n`` is a power
+    of two (``2**-k`` is a dyadic float): those chains stay exact end to end.
+    An inverse over any other ``n`` multiplies the exact accumulator by the
+    float64-rounded ``1/n`` — **accurate to round-off** (~1 ULP), a ``Q`` of a
+    rounded scale, the one mixed-carrier residue of the rc466 drain. It is
+    pinned by name in ``tests/test_exact_carrier_drain_rc466.py`` so that a
+    chain-level exact scale (``Q(1, n)`` once the runner can declare a
+    per-step carrier) is reported as GOOD NEWS rather than absorbed. The
+    public wrappers never reach this case: they elect the float carrier at
+    their own entry."""
     return (1.0 / float(n)) if (inverse and n > 0) else 1.0
 
 
 def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
-                 mu_hat) -> List[float]:
+                 mu_hat) -> "List[float] | List[Q]":
     """Class M: ONE ``(k, m)`` summand of the QDFT —
     ``W(σ·2πkm/n) · x[m]`` (left form) or ``x[m] · W`` (right form).
 
@@ -604,13 +701,39 @@ def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
         mu_hat: the resolved unit axis (see :func:`qdft_resolve_mu`).
 
     Returns:
-        The 4-component summand term for output bin ``k``.
+        The 4-component summand term for output bin ``k`` — ``list[Q]`` for an
+        exact sample, ``list[float]`` for a float one.
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). When the
+    sample ``xs[m]`` is exact (every component ``int`` / ``Q`` / ``(num, den)``)
+    the summand is the exact-ℚ :func:`srmech.cascade.cd_mult` of the Q61
+    twiddle with the sample: EXACT whenever ``k·m ≡ 0 (mod n)`` — the twiddle is
+    then the unit on the nose, and the summand is ``1 · x[m]`` (the DC bin, the
+    ``m = 0`` term) — and otherwise carried on the ``2**-61`` Q61 grid
+    (``cos``/``sin`` of the float angle and the axis ``μ̂`` projected at Q61, the
+    boundary :func:`hypercomplex_couple` has owned since rc16), which is the
+    declared bound of this route. ``mu_hat`` is a chain-internal wire and is
+    read as the float unit axis it is. A float component in the sample keeps the
+    float route: the C-mirrored op order, **accurate to round-off**.
+
+    ⚠️ **Projection divergence, named.** The C compose host's twin of this
+    step (``cr_op_qdft_summand``) coerces to doubles and has no rational value
+    kind, so a declared chain run over an exact sample is exact in the Python
+    runner and rounded in the C host — pinned by name in
+    ``tests/test_exact_carrier_drain_rc466.py`` (``_COMPOSE_HOST_FLOAT_ONLY``).
     """
     from srmech.physics.qm.quaternion import (
         _twiddle_resolved,
         quaternion_left_mult,
         quaternion_right_mult,
     )
+    xm_exact = _exact_vector(xs[m], n=_QDIM)
+    if xm_exact is not None:
+        r = (k * m) % n
+        theta = float(sigma) * (2.0 * _PI) * (float(r) / float(n))
+        tw = _q61_twiddle(theta, mu_hat)
+        prod = cd_mult(tw, xm_exact) if left else cd_mult(xm_exact, tw)
+        return list(prod)
     w = _twiddle_resolved(k, m, n, sigma, mu_hat)
     op = quaternion_left_mult(w) if left else quaternion_right_mult(w)
     rows = op.tolist()
@@ -625,7 +748,7 @@ def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
 
 
 def odft_summand(xs, k: int, m: int, n: int, form: str, bracketing: str,
-                 sigma: int, mu_hat, mu_r_hat) -> List[float]:
+                 sigma: int, mu_hat, mu_r_hat) -> "List[float] | List[Q]":
     """Class M: ONE ``(k, m)`` summand of the ODFT — the exact float-op
     order of the composed path's inner loop (which CALLS this op since
     v0.9.0rc420), including the DECLARED two-sided bracketing order (F378).
@@ -651,17 +774,42 @@ def odft_summand(xs, k: int, m: int, n: int, form: str, bracketing: str,
             one-sided forms pass ``mu_hat`` again, ignored).
 
     Returns:
-        The 8-component summand term for output bin ``k``.
+        The 8-component summand term for output bin ``k`` — ``list[Q]`` for an
+        exact sample, ``list[float]`` for a float one.
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`) — the
+    :func:`qdft_summand` rule at rung 8, with the declared bracketing applied to
+    :func:`srmech.cascade.cd_mult` products in the same order as the float
+    route: EXACT when ``k·m ≡ 0 (mod n)``, otherwise on the ``2**-61`` Q61 grid
+    (the declared bound). A float component in the sample keeps the C-mirrored
+    float route, **accurate to round-off**. Through rc465 the only accuracy
+    words on this op were "(the byte-exact parity contract, not a tolerance)"
+    — a NEGATED keyword that the R3 reader counted as a declaration; the
+    sentence above is the declaration. The C compose host's twin is
+    double-only (see ``qdft_summand``).
     """
     from srmech.physics.qm.octonion import (
         _twiddle_resolved,
         octonion_left_mult,
         octonion_right_mult,
     )
-    w = _twiddle_resolved(k, m, n, sigma, mu_hat)
     two_sided = form == "two_sided"
     left = form == "left"
     left_assoc = bracketing == "left_associated"
+    xm_exact = _exact_vector(xs[m], n=_ODIM)
+    if xm_exact is not None:
+        r = (k * m) % n
+        theta = float(sigma) * (2.0 * _PI) * (float(r) / float(n))
+        w_q = _q61_twiddle(theta, mu_hat)
+        if two_sided:
+            w_r_q = _q61_twiddle(theta, mu_r_hat)
+            if left_assoc:                     # (W_l · x) · W_r
+                return list(cd_mult(cd_mult(w_q, xm_exact), w_r_q))
+            return list(cd_mult(w_q, cd_mult(xm_exact, w_r_q)))
+        if left:
+            return list(cd_mult(w_q, xm_exact))
+        return list(cd_mult(xm_exact, w_q))
+    w = _twiddle_resolved(k, m, n, sigma, mu_hat)
     if two_sided:
         w_r = _twiddle_resolved(k, m, n, sigma, mu_r_hat)
         if left_assoc:                         # (W_l · x) · W_r
@@ -826,7 +974,15 @@ def quaternion_dft(
                 "complex Mat"
             )
         x = x.tolist()
-    xs = [as_quat4(v) for v in x]
+    # rc466 (`#T1188`): this transform is FLOAT-DECLARED (``list[list[float]]``,
+    # a C-mirrored op order and a whole-transform C peer that marshals
+    # doubles), so the float request is made EXPLICITLY here — the
+    # ``autocorrelation`` precedent — rather than inherited from a coercion
+    # step that no longer rounds. Without it an exact sample would ride
+    # ``qdft_summand``'s exact rung into ``vec_add``'s float accumulator and
+    # ``Q.__radd__`` would turn the chain into Q-of-float arithmetic: a mixed
+    # carrier, which rc463 names as the defect rather than the cure.
+    xs = [as_quat4([float(c) for c in v]) for v in x]
     mu_hat = qdft_resolve_mu(mu_axis)
     if not xs:
         return []
@@ -959,7 +1115,10 @@ def octonion_dft(
                 "complex Mat"
             )
         x = x.tolist()
-    xs = [as_oct8(v) for v in x]
+    # rc466 (`#T1188`): the float request is explicit at THIS entry — see
+    # quaternion_dft for why (a float-declared transform over a coercion step
+    # that now carries an exact operand exactly).
+    xs = [as_oct8([float(c) for c in v]) for v in x]
     # One-resolution parity contract: μ̂ (and μ̂_r for the two-sided form) are
     # resolved exactly ONCE so the native and composed paths consume the
     # identical floats. The one-sided forms pass μ̂ twice (μ_r ignored).
@@ -1205,7 +1364,7 @@ def hypercomplex_couple(
     sigma: int = 1,
     form: str = "left",
     inverse: bool = False,
-) -> List[float]:
+) -> "List[float] | List[Q]":
     """Bidirectional ``(σ, θ, μ)`` hypercomplex coupler — bind ≥3 streams into
     one quaternion/octonion + a joint coherence channel, and unbind losslessly.
 
@@ -1256,9 +1415,29 @@ def hypercomplex_couple(
 
     Returns
     -------
-    list[float]
+    list[float] | list[Q]
         The coupled value — a 4-component quaternion (≤3 streams / literal
-        quaternion) or 8-component octonion (otherwise).
+        quaternion) or 8-component octonion (otherwise). ``list[Q]`` for an
+        exact operand, ``list[float]`` for a float one (see below).
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`) — and this
+    op was exact in the MIDDLE all along. ``_couple_q61`` has run the Q61
+    coupler on exact integers since rc16 (bignum-exact past the int64 domain);
+    the only two float boundaries were ``[float(x) for x in streams]`` at the
+    entry and ``v / float(2**61)`` at the exit, and both are gone for an exact
+    operand. Every stream leaf ``int`` / ``Q`` / ``(num, den)`` → the streams
+    ride to Q61 by ``round(q · 2**61)`` (exact for integers and for dyadic
+    rationals with ≤ 61 fractional bits; **any other rational is quantised to
+    the ``2**-61`` grid**, which is the declared bound of this route, the
+    ``octonion_norm`` precedent), the axis ``μ`` and ``cos θ``/``sin θ`` are
+    carried at Q61 as they always were, and the result comes back as ``list[Q]``
+    with denominator ``2**61``. At ``theta = 0.0`` the twiddle is EXACTLY the
+    unit and the op returns its operand unchanged — the strict-zero witness
+    ``hypercomplex_couple([2**53+1, 0, 0], theta=0.0)[1] == 2**53+1``. One
+    float leaf anywhere elects the float route, byte-for-byte the rc16
+    behaviour, **accurate to round-off** at its two boundaries. The C twin
+    ``srmech_hypercomplex_couple_q61`` IS this exact route within the int64
+    domain; no C change.
 
     Class home: **M** (octonion multiply) ∘ **C** (the ``σ``/conjugation
     orientation) ∘ **N** (the rational phase ``θ``). F436 / F437; §29.
@@ -1268,6 +1447,15 @@ def hypercomplex_couple(
     if form not in _FORMS:
         raise ValueError(f"form must be one of {_FORMS}; got {form!r}")
 
+    exact = _pack_streams_exact(streams)
+    if exact is not None:
+        q_ex, octonion = exact
+        mu = _resolve_mu(axis, octonion=octonion)
+        eff = float(sigma) * (-1.0 if inverse else 1.0) * float(theta)
+        out_q61 = _couple_q61([round(v * _Q61_ONE) for v in q_ex],
+                              [_to_q61(v) for v in mu], eff, form=form)
+        out_q = [Q(v, _Q61_ONE) for v in out_q61]
+        return out_q if octonion else out_q[:4]
     q, octonion = _pack_streams(streams)
     mu = _resolve_mu(axis, octonion=octonion)
     eff = float(sigma) * (-1.0 if inverse else 1.0) * float(theta)

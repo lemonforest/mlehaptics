@@ -42,6 +42,7 @@ Canonical SSoT:
 from __future__ import annotations
 
 from typing import Optional, Sequence
+from srmech.math.q import Q  # rc466: four_momentum_squared's exact return
 
 from srmech.math.laplacian import mat_matmul
 from srmech.math.mat import Mat
@@ -78,13 +79,15 @@ def _outer(u: Sequence[float], v: Sequence[float]) -> "Mat":
     return mat_matmul(col, row)
 
 
-def _denominator(k_squared: float, m: float, epsilon: float) -> complex:
-    """``k² - m² + iε`` with safe handling of on-shell points."""
+def _denominator(k_squared: "float | Q", m: float, epsilon: float) -> complex:
+    """``k² - m² + iε`` with safe handling of on-shell points. rc466 (`#T1188`):
+    ``k_squared`` may be the exact ``Q`` :func:`four_momentum_squared` now
+    returns for an exact 4-vector; this ``complex(...)`` is the float boundary."""
     return complex(k_squared - m * m, epsilon)
 
 
 def feynman_scalar_propagator(
-    k_squared: float, m: float, epsilon: float = 0.0
+    k_squared: "float | Q", m: float, epsilon: float = 0.0
 ) -> complex:
     """Scalar Feynman propagator ``G_F(k) = i / (k² - m² + iε)``.
 
@@ -162,7 +165,7 @@ def feynman_fermion_propagator(
 
 
 def feynman_photon_propagator(
-    k_squared: float, gauge_xi: float = 0.0, epsilon: float = 0.0,
+    k_squared: "float | Q", gauge_xi: float = 0.0, epsilon: float = 0.0,
     k: Optional[Sequence[float]] = None
 ) -> "Mat":
     """Photon (massless gauge boson) Feynman propagator.

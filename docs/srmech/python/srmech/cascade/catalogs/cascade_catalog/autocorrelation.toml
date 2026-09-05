@@ -99,7 +99,7 @@ canonical_landings = [
 [[cascade.chain]]
 chain_schema_version = 2
 summary = "Circular autocorrelation as an indexed map of indexed maps: out[k] = compensated_sum(x[i] * x[(i+k) mod n])."
-returns = "list[float]  # length n; out[0] is the signal energy"
+returns = "list[float] | list[Q]  # length n; out[0] is the signal energy. rc466 (`#T1188`): exact Q leaves in the Python runner over an exact x (correlation_product and compensated_sum carry the operand's carrier); the C host is double-only on this chain (a named divergence)"
 
 [[cascade.chain.steps]]
 class = "B"

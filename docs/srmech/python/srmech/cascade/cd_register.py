@@ -324,7 +324,7 @@ def cd_navmap_is_signed_permutation(dim: int) -> bool:
 # They compose the already-C-backed hypercomplex_couple / hamming primitives — no
 # new algebra, no new C symbol (composition_of_c, exactly like the sed_* peers).
 
-def cd_couple_working(vals: Sequence[float], dim: int = WORKING_BLOCK_DIM) -> List[float]:
+def cd_couple_working(vals: Sequence, dim: int = WORKING_BLOCK_DIM) -> "List[float] | List[Q]":
     """Bind ``≤ min(dim, 8) − 1`` real streams into one reversible working word —
     the canonical Class-M **bind** on the Cayley–Dickson register (rc301, `#T938`).
 
@@ -354,6 +354,12 @@ def cd_couple_working(vals: Sequence[float], dim: int = WORKING_BLOCK_DIM) -> Li
     list[float]
         The coupled working word — a 4-component quaternion (≤3 streams) or
         8-component octonion (4–7 streams); ``[]`` when nothing is coupled.
+        ``list[Q]`` for exact ``vals`` (``int`` / ``Q`` leaves — the Q61 grid,
+        ``2**-61``, is the declared bound; exact at ``theta = 0.0``, which this
+        op does not use), ``list[float]`` for float ``vals`` — a pass-through
+        of :func:`hypercomplex_couple`, whose rc466 (`#T1188`) accuracy
+        statement is the contract here. The float route is **accurate to
+        round-off** at its two boundaries.
     """
     cap = _working_cap(dim)
     if len(vals) > cap:
@@ -369,15 +375,26 @@ def cd_couple_working(vals: Sequence[float], dim: int = WORKING_BLOCK_DIM) -> Li
     return hypercomplex_couple(list(vals), axis="diagonal")
 
 
-def cd_uncouple_working(word: Sequence[float]) -> List[float]:
-    """Recover the streams bound by :func:`cd_couple_working` — the exact inverse
-    (the Class-M **unbind**; rc301, `#T938`).
+def cd_uncouple_working(word: Sequence) -> "List[float] | List[Q]":
+    """Recover the streams bound by :func:`cd_couple_working` — the inverse
+    twiddle (the Class-M **unbind**; rc301, `#T938`).
 
     Applies the conjugate twiddle (``inverse=True``) and drops the anchor slot,
     returning the carrier's imaginary components (``word[1:]``): 7 for an octonion
     word, 3 for a quaternion word. Empty in → empty out (the dim-1 boundary).
-    Recovery is exact to float round-off (the division-algebra identity
-    ``T̄·(T·q) = ‖T‖²·q``, F437), matching the shipped register's tolerance."""
+
+    **Accuracy (rc466, `#T1188`) — two routes, stated separately.** The word's
+    own leaves pick the carrier (a pass-through of :func:`hypercomplex_couple`):
+    an exact word (``int`` / ``Q`` leaves) returns ``list[Q]`` on the Q61 grid;
+    a float word returns ``list[float]``. The round trip
+    ``uncouple(couple(v))`` recovers ``v`` BIT-EXACTLY only where the twiddle is
+    exact — ``theta = 0.0`` — and this op runs the default ``π/2`` fold, where
+    the recovery carries the Q61 twiddle-norm residue
+    (``‖T‖² = cos² + sin²`` on the ``2**-61`` grid is not the unit on the nose):
+    on the exact route that residue is an exact ``Q`` you can read; on the float
+    route it is **accurate to round-off** (the division-algebra identity
+    ``T̄·(T·q) = ‖T‖²·q``, F437). Through rc465 this docstring said "exact to
+    float round-off"; the float half of that sentence was the whole story."""
     if not word:                    # the dim-1 empty-coupling boundary
         return []
     from . import hypercomplex_couple
@@ -532,7 +549,7 @@ class CDRegister:
                 "into the reversible working word (couple_working / uncouple_working)."
             )
 
-    def couple_working(self, vals: Sequence[float]) -> List[float]:
+    def couple_working(self, vals: Sequence) -> "List[float] | List[Q]":
         """Bind ``≤ len(working_block()) − 1`` values into one reversible working
         word — THE canonical Class-M bind (rc301). Reads the dim-scaled cap
         (``min(dim, 8) − 1``), never a hardcoded 7: dim 2 couples 1, dim 4 couples
@@ -544,7 +561,7 @@ class CDRegister:
         self._require_coupling()
         return cd_couple_working(vals, self.dim)
 
-    def uncouple_working(self, word: Sequence[float]) -> List[float]:
+    def uncouple_working(self, word: Sequence) -> "List[float] | List[Q]":
         """The exact inverse of :meth:`couple_working` — recover the streams
         (Class-M unbind; rc301). Requires ``coupling=True``. Delegates to
         :func:`cd_uncouple_working`."""
@@ -981,13 +998,20 @@ def cdr_couple_working(vals, dim, coupling):
     """``couple_working`` (GATED on ``coupling``): bind ``<= min(dim, 8) - 1``
     values into one reversible working word — the canonical Class-M bind. Raises
     the register's own ``ValueError`` when the class was constructed for pure
-    addressing (``coupling`` false / absent)."""
+    addressing (``coupling`` false / absent). The carrier is the operand's
+    (rc466, `#T1188`): exact ``vals`` return ``list[Q]`` on the Q61 grid,
+    float ``vals`` return ``list[float]`` **accurate to round-off** — see
+    :func:`cd_couple_working`."""
     return _cdr_rehydrate(dim, coupling=coupling).couple_working(vals)
 
 
 def cdr_uncouple_working(word, dim, coupling):
-    """``uncouple_working`` (GATED on ``coupling``): the exact inverse of
-    :func:`cdr_couple_working` — recover the streams (Class-M unbind)."""
+    """``uncouple_working`` (GATED on ``coupling``): the inverse twiddle of
+    :func:`cdr_couple_working` — recover the streams (Class-M unbind). The
+    carrier is the operand's (rc466, `#T1188`); the recovery is bit-exact only
+    at ``theta = 0.0`` and carries the Q61 twiddle-norm residue at the default
+    fold — an exact ``Q`` on the exact route, **accurate to round-off** on the
+    float one. See :func:`cd_uncouple_working`."""
     return _cdr_rehydrate(dim, coupling=coupling).uncouple_working(word)
 
 

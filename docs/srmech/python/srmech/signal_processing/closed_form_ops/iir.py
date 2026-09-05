@@ -34,6 +34,8 @@ from __future__ import annotations
 
 from typing import Optional, Sequence
 
+from srmech.math.q import Q as _Q, exact_vector as _exact_vector, to_q as _to_q   # rc466 (`#T1188`)
+
 OPERATION_NAME = "iir"
 CLASS_COMPOSITION = ("N", "C")
 PERFORMANCE_HINT = "shallow-cascade-biquad-amortise"
@@ -112,12 +114,60 @@ def _lfilter_direct(b: Sequence[float], a: Sequence[float], x: Sequence[float]):
     return y
 
 
+def _lfilter_exact(b, a, x):
+    """rc466 (`#T1188`): the direct-form-II-transposed recursion on the EXACT
+    carrier — the same loop as :func:`_lfilter_direct`, state seeded with the
+    integer ``0``. With ``a[0] == 1`` no division runs and integer operands
+    give INTEGER output (the difference equation is closed over ℤ); otherwise
+    every coefficient is divided by ``a[0]`` on ``Q`` and the output is exact
+    ``Q``. ``b`` / ``a`` / ``x`` arrive as ``list[Q]`` from the admission
+    gate, or as the caller's own ``int`` / ``Q`` leaves."""
+    a0 = a[0]
+    if a0 != 1:
+        a0q = _to_q(a0)                      # int / int would be a FLOAT division
+        b = [_to_q(bi) / a0q for bi in b]
+        a = [_to_q(ai) / a0q for ai in a]
+    else:
+        b = list(b)
+        a = list(a)
+    n = len(x)
+    nfilt = max(len(a), len(b))
+    b = b + [0] * (nfilt - len(b))
+    a = a + [0] * (nfilt - len(a))
+    y = [0] * n
+    nz = nfilt - 1
+    z = [0] * nz
+    for i in range(n):
+        y[i] = b[0] * x[i] + (z[0] if nz > 0 else 0)
+        for j in range(1, nfilt):
+            if j - 1 < nz:
+                z[j - 1] = (
+                    b[j] * x[i]
+                    - a[j] * y[i]
+                    + (z[j] if j < nz else 0)
+                )
+    return y
+
+
+def _exact_leaves(seq):
+    """The operand AS GIVEN when every leaf is a plain ``int`` / ``Q`` (so integer
+    output stays integer), else its ``list[Q]`` reading (``(num, den)`` pairs /
+    Fractions become ``Q``); ``None`` when any leaf is inexact."""
+    qs = _exact_vector(seq)
+    if qs is None:
+        return None
+    items = list(seq)
+    if all(isinstance(v, (int, _Q)) and not isinstance(v, bool) for v in items):
+        return items
+    return qs
+
+
 def op(
     signal,
     b,
     a,
     *,
-    biquad_sections: Optional[Sequence[Sequence[float]]] = None,
+    biquad_sections: Optional[Sequence[Sequence]] = None,
     D: int = 8192,
 ):
     """Recursive IIR filter applied to ``signal``.
@@ -139,7 +189,24 @@ def op(
     Returns
     -------
     list
-        Filtered output; numpy-free (#564).
+        Filtered output; numpy-free (#564). ``int`` / ``Q`` leaves on the exact
+        route (see Accuracy).
+
+    Accuracy (rc466, `#T1188`)
+    --------------------------
+    **The carrier is the operand's.** When ``signal``, ``b`` and ``a`` (or, in
+    cascade form, every ``biquad_sections`` entry) are all exact — every leaf
+    ``int`` / ``Q`` / ``(num, den)`` — the recursion runs on the exact carrier
+    on BOTH projections (:func:`_lfilter_exact`): the difference equation is
+    closed over ℚ, so the output is EXACT ``Q``, and with ``a[0] == 1`` and
+    integer coefficients it is INTEGER. A float leaf anywhere keeps the
+    c_dispatched ``srmech_iir_lfilter_f64`` (pure DF2T fallback), **accurate
+    to round-off** (~1 ULP; the accumulation may FMA-fuse, so the parity
+    contract is reldiff <= 1e-9, not byte-equality). Through rc465 the two
+    projections DISAGREED on an exact operand (the census's one native/pure
+    DIVERGENT row): the C wrapper rounded ``a`` to float64 before dividing
+    while the pure body divided int by int with one correctly-rounded
+    division — two answers one ULP apart under one name, neither exact.
 
     Raises
     ------
@@ -180,6 +247,29 @@ def op(
     wrong one of two predicates that had been reasoned about as one, so the
     headline divergence survived on the branch nobody probed.
     """
+    sig_exact = _exact_leaves(signal)
+    if sig_exact is not None:
+        if biquad_sections is None:
+            b_x = _exact_leaves(b)
+            a_x = _exact_leaves(a)
+            if b_x is not None and a_x is not None:
+                b_x, a_x = _check_ba(b_x, a_x)
+                return _lfilter_exact(b_x, a_x, sig_exact)
+        else:
+            secs = [list(s) for s in biquad_sections]
+            secs_x = [_exact_leaves(s) for s in secs]
+            if all(s is not None for s in secs_x):
+                out = list(sig_exact)
+                for idx, section in enumerate(secs_x):
+                    if len(section) != 6:
+                        raise ValueError(
+                            f"biquad section requires 6 coefficients; got "
+                            f"{len(section)}"
+                        )
+                    b_s, a_s = _check_ba(section[:3], section[3:],
+                                         where=f" (biquad section {idx})")
+                    out = _lfilter_exact(b_s, a_s, out)
+                return out
     try:
         sig = [float(x) for x in signal]
     except TypeError as exc:  # nested sequence -> not 1-D

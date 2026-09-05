@@ -133,6 +133,28 @@ def exact_integer_operands(a, b) -> bool:
     return True
 
 
+def exact_operands(*seqs) -> bool:
+    """rc466 (`#T1188`): True iff EVERY operand is exact end to end — every leaf
+    ``int`` / ``Q`` / ``(num, den)`` / ``fractions.Fraction`` — through the ONE
+    shared reader :func:`srmech.math.q.exact_vector`.
+
+    The admission gate of the exact filter routes (``polyphase`` /
+    ``multirate`` / ``farrow`` / ``iir``), and STRICTER than
+    :func:`exact_integer_operands` on purpose: that gate reads
+    ``int(v) == v``, so a rational ``Q(1, 2)`` tap falls through it to the
+    float Toeplitz matvec and is rounded there, and an integral FLOAT ``2.0``
+    passes it and rides the exact cascade. This one is a TYPE test — a float
+    is the carrier the caller elected — so an exact rational operand rides the
+    type-preserving pure cascade (``Q * int -> Q``) on BOTH projections and a
+    float operand keeps the C-dispatched matvec.
+    """
+    from srmech.math.q import exact_vector
+    for s in seqs:
+        if exact_vector(s) is None:
+            return False
+    return True
+
+
 def convolve(a, b, mode: str = "full"):
     """Discrete linear convolution — numpy-free Class I ∘ Class M cascade.
 

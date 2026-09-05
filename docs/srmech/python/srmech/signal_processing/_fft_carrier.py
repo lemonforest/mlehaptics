@@ -36,19 +36,34 @@ def _is_nested(seq) -> bool:
     )
 
 
-def _apply_n(data: List[complex], n: Optional[int]) -> List[complex]:
-    """NumPy ``n=`` semantics, numpy-free: truncate (Class K pin-slot) / zero-pad."""
+def _apply_n(data: list, n: Optional[int]) -> list:
+    """NumPy ``n=`` semantics, numpy-free: truncate (Class K pin-slot) / zero-pad.
+
+    rc466 (`#T1188`): the pad is the exact integer ``0`` — on the exact route
+    it keeps an integer signal integer, and on the float route the cascade's
+    own ``complex(v)`` makes it ``0j``, byte-identical to the old ``[0j]`` pad."""
     length = len(data)
     if n is None or n == length:
         return data
     if n < length:
         return data[:n]
-    return data + [0j] * (n - length)
+    return data + [0] * (n - length)
 
 
 def _transform_1d(seq, n: Optional[int], cascade) -> List[complex]:
-    """The numpy-free 1-D transform: Sequence → cascade → ``List[complex]``."""
-    data = _apply_n([complex(x) for x in seq], n)
+    """The numpy-free 1-D transform: Sequence → cascade → ``List[complex]``.
+
+    ⚠️ rc466 (`#T1188`): the operand is handed to the cascade AS GIVEN. Through
+    rc465 this read ``[complex(x) for x in seq]`` — and the cascade it hands the
+    frame to (:func:`srmech.cascade.spectral_cascades.fft`) already routes an
+    integer / Gaussian-integer signal through the exact-until-rotation
+    cyclotomic engine, so the one line here rounded the operand BEFORE the
+    exact engine saw it: ``rfft([2**53+1, 0, -1, 0, 1, 0, -1, 0])[0]`` came
+    back ``9007199254740991+0j`` while the cascade on the same list gives the
+    exact ``9007199254740992+0j`` (Σx = 2**53). The exact engine transformed
+    the wrong signal faithfully. A float signal takes the cascade's float route
+    exactly as before."""
+    data = _apply_n(list(seq), n)
     if not data:
         return []
     return [complex(z) for z in cascade(data)]
@@ -105,7 +120,17 @@ def rfft(arr, n: Optional[int] = None, axis: int = -1):
 
     Mirrors NumPy by rejecting complex input (NumPy raises ``TypeError``).
     For real input the Hermitian half-spectrum is the full transform sliced
-    to the non-redundant ``0 .. n//2`` bins (length ``n//2 + 1``)."""
+    to the non-redundant ``0 .. n//2`` bins (length ``n//2 + 1``).
+
+    **Accuracy (rc466, `#T1188`).** An integer signal rides the cascade's
+    exact-until-rotation route (:func:`srmech.cascade.spectral_cascades.fft`
+    routes 1-2: every coefficient an exact ``ℤ[ζ_N]`` integer) and the returned
+    ``complex`` is its single **terminal float lift** — exact wherever the bin
+    value is float-representable (the DC bin of any integer signal is the exact
+    sum ``Σx`` up to 2**53), **accurate to round-off** (~1 ULP) otherwise. A
+    float signal is transformed on the float64 carrier, **accurate to
+    round-off**. A non-integral rational leaf takes the float route (the
+    exact engine admits ``ℤ`` / ``ℤ[i]`` only)."""
     if axis in (-1, 0):
         seq = _try_1d_sequence(arr)
         if seq is not None:
