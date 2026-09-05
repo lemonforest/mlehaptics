@@ -150,16 +150,38 @@ def test_the_row_determines_the_word_for_only_three_carriers():
     So it raised both the denominator AND the unambiguous list, and both
     assertions below move together; the ``none_of_the_four`` /
     ``word_is_worst_case_only_for`` / ``undecidable`` content buckets are
-    untouched (QMat has no ``varies_with`` and a determinate word).
+    untouched (QMat has no ``varies_with`` and a determinate word). (v0.9.0rc464
+    then removed the 16-slot register and its carrier, 29 → 28; the paragraph
+    above records rc379's move as it happened.)
+
+    v0.9.0rc466 registered ``Qi`` (the exact Gaussian-rational scalar — the
+    ``Q`` peer of ``complex``, whose projection gap the rc466 Stage-3 ripple
+    gate found open on the MCP wire) and this went 28 → 29, by the same rule.
+    Its move is a FOURTH kind: ``Qi`` is commutative with a closed
+    division product (``compose: full``, ``turn: abelian_only``, ``max_dim 2``),
+    so its row lands exactly where ``complex`` and ``Q`` land —
+    ``undecidable``: the four words cannot separate a commutative division
+    carrier without the unpublished ``order`` field (``ℂ`` and ``ℚ(i)`` lose
+    total order at the SAME step ``R→C``). So it moved the denominator and the
+    ``undecidable`` count (13 → 14) and nothing else — the two content-bearing
+    buckets (``none_of_the_four`` / ``word_is_worst_case_only_for``) and the
+    unambiguous list are untouched. The rc466 review found this pin unmoved on
+    a red CI in both cells: the ripple gate's list never ran this file, and the
+    remedy is the one the paragraphs above prescribe — raise with the count,
+    never exclude the carrier.
     """
     gap = _domain_word_gap()
     assert gap["verdict"].startswith("NOT DERIVABLE")
-    assert gap["of"] == 28
+    assert gap["of"] == 29
     assert gap["determined_unambiguous"] == 4
     assert gap["unambiguous"] == ["Mat", "QMat", "octonion", "quaternion"]
     assert gap["word_returned_but_qualified"] == [
         "CDRegister", "HV", "sedenion"]
-    assert len(gap["by_verdict"]["undecidable"]) == 13
+    assert len(gap["by_verdict"]["undecidable"]) == 14
+    # rc466: Qi is the exact peer of `complex`, and the verdict says so by
+    # landing both in the same bucket — the four words see no difference.
+    assert "Qi" in gap["by_verdict"]["undecidable"]
+    assert "complex" in gap["by_verdict"]["undecidable"]
     # rc362: pinned because this is the bucket Qalg MOVED, and it was the one
     # bucket with no assertion — so the registration changed a published
     # verdict set and only the denominator noticed. Vec was alone here; the

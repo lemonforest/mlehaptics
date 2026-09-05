@@ -1124,6 +1124,47 @@ def _to_species(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _is_qalg_like(x: Any) -> bool:
+    """A live ``Qalg`` (the structural envelope rebuild runs first) or its bare
+    ``{"m", "coords"}`` mapping — the exact-eigen leaf the rc466 review-fix
+    return spellings below discriminate on."""
+    from srmech.math.qalg import Qalg
+    return isinstance(x, Qalg) or (isinstance(x, dict) and "m" in x and "coords" in x)
+
+
+def _to_vec_or_qalg_vector(value: Any, *, param: str = "") -> Any:
+    """``Vec | list[Qalg]`` — the return of ``fiedler_vector`` since the rc466
+    review fix (`#T1188`): the float λ₂ column by default, the exact
+    ``list[Qalg]`` null-space vector under ``exact=True``. A list whose leaves
+    are ``Qalg`` (live, or the bare mapping) is rebuilt leaf by leaf through
+    :func:`_to_qalg`; anything else is the flat ``Vec`` wire form."""
+    if isinstance(value, (list, tuple)) and value and all(_is_qalg_like(x) for x in value):
+        return [_to_qalg(x, param=param) for x in value]
+    return _to_vec(value, param=param)
+
+
+def _to_eigenpairs_exact_or_float(value: Any, *, param: str = "") -> Any:
+    """``tuple[Vec, Mat] | tuple[list, list]`` — the return of
+    ``symmetric_eigendecompose`` / ``hermitian_eigendecompose`` since the rc466
+    review fix (`#T1188`): ``(eigvals, V)`` as ``(Vec, Mat)`` by default, or
+    ``(list[Qalg], list[list[Qalg]])`` under ``exact=True``. The eigenvalue
+    leaves decide the rung (the whole-operand rule): all-``Qalg`` → both halves
+    rebuilt exactly; otherwise the float ``Vec`` / ``Mat`` carriers. Through
+    the rc466 Stage-3 head ``tuple[Vec, Mat]`` had NO inbound coercer at all,
+    so the two ops counted against ``CEIL_RETURN_TYPES_WITHOUT_COERCER``;
+    landing this drains them (129 → 127) instead of the widened spelling
+    raising it."""
+    if not isinstance(value, (list, tuple)) or len(value) != 2:
+        raise ValueError(
+            f"expected an (eigvals, V) pair for param {param or '<eigenpairs>'!r}; "
+            f"got {type(value).__name__}")
+    vals, vecs = value
+    if isinstance(vals, (list, tuple)) and vals and all(_is_qalg_like(x) for x in vals):
+        return ([_to_qalg(x, param=param) for x in vals],
+                [[_to_qalg(x, param=param) for x in row] for row in vecs])
+    return (_to_vec(vals, param=param), _to_mat(vecs, param=param))
+
+
 def _to_qalg(value: Any, *, param: str = "") -> Any:
     """The ``lam`` eigenvalue of ``eigvec_exact`` / ``eigvec_exact_float`` /
     ``jordan_chains_exact`` (rc463, `#T1188`).
@@ -1597,6 +1638,12 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # be fed to the next by declared type. Landed here rather than by raising
     # test_wire_round_trip_rc414's ceiling.
     "Mat | list": _to_exact_complex_rows,
+    # 0.9.0rc466 review fix (`#T1188`): the eigen family's exact route widened
+    # two RETURN spellings; `tuple[Vec, Mat]` had never had a coercer (two ops
+    # in the rc414 residual) and `Vec` had one. Landed here, so the residual
+    # DRAINS 129 -> 127 rather than rising by the one `Vec | list[Qalg]` op.
+    "tuple[Vec, Mat] | tuple[list, list]": _to_eigenpairs_exact_or_float,
+    "Vec | list[Qalg]": _to_vec_or_qalg_vector,
     "Mat | QMat | list[list[Qi]]": _to_exact_complex_rows,
     "Mat | Vec | list[Qi] | list[list[Qi]]": _to_exact_complex_rows_or_vector,
     "complex | Qi": _to_complex_or_qi,

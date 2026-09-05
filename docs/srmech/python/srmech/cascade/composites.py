@@ -670,35 +670,48 @@ def kuramoto_inv_n(coupling: float, n: int) -> float:
     return (float(coupling) / n) if n > 0 else 0.0
 
 
-def kuramoto_sin_term(theta: Sequence[float], i: int, j: int) -> float:
+def kuramoto_sin_term(theta: Sequence, i: int, j: int) -> "Q":
     """Class N: ONE ``(i, j)`` coupling term of the SIMPLE Kuramoto path —
     ``sin(theta[j] - theta[i])`` via the shipped Class-N rational sin.
 
     The simple path weights the SUM (``inv_n * S``), not the terms — this op
-    is the unweighted term, preserving the shipped float-op order exactly
-    (:func:`kuramoto_step`'s simple fallback CALLS it since v0.9.0rc420;
-    ``float()`` is idempotent on the pre-coerced phases). Pointwise and
+    is the unweighted term, preserving the shipped float-op order exactly for
+    float phases (:func:`kuramoto_step`'s simple fallback CALLS it since
+    v0.9.0rc420, on phases it has coerced to float first). Pointwise and
     total; the all-to-all ``(i, j)`` iteration lives in the chain's
     indexed-map combinator layer.
 
-    **Accuracy (rc466, `#T1188`).** ``theta[i]`` and ``theta[j]`` are read as
-    float64 (``float(theta[.])``) and the difference ``theta[j] - theta[i]`` is
-    formed in float64 BEFORE the sine is taken, so a phase whose significand
-    exceeds 53 bits is rounded **to round-off** (~1 ULP of the phase) at the
-    entry — an exact ``int`` / ``Q`` phase is NOT carried exactly:
-    ``kuramoto_sin_term([2**53+1, 0], 0, 1)`` equals
-    ``kuramoto_sin_term([2**53, 0], 0, 1)``. The returned ``Q`` is the Q61
-    rational sine of that float64 difference (:func:`srmech.math.rational.sin`,
-    denominator ``2**61``): exact for the rounded argument, not for the exact
-    rational one. There is no exact route: ``rational.sin`` reads its argument
-    as float64 by its own contract (a ``Q`` argument is rounded inside it — the
-    scalar-parameter blind spot ``tools/demotion_probe.py`` records),
-    ``sin_series_truncate`` is a partial sum with no argument reduction, and no
-    shipped carrier reduces a rational phase modulo 2π (π is not rational). The
-    float-op order is kept because the C compose-host twin
-    (``srmech_compose_run.c``) and :func:`kuramoto_step`'s fallback are pinned
-    to it byte-for-byte.
+    **Accuracy (rc466, `#T1188`; the difference made exact at the rc466
+    review fix).** When BOTH phases are exact (``int`` / ``Q`` / ``(num, den)``
+    — :func:`srmech.math.q.exact_scalar`) the difference ``theta[j] − theta[i]``
+    is formed EXACTLY in ``Q`` and rounded ONCE, to float64, on its way into
+    :func:`srmech.math.rational.sin`: ``kuramoto_sin_term([2**53+1, 2**53+3],
+    0, 1)`` is ``sin(2)`` — through the Stage-3 head each phase was rounded
+    separately first (``2**53`` and ``2**53+4``), and the op returned ``sin(4)``,
+    the WRONG SIGN for an exactly representable difference. What remains
+    declared, because it is float by nature: the exact difference itself is
+    rounded **to round-off** (~1 ULP of the DIFFERENCE) when it exceeds 53
+    significand bits — ``kuramoto_sin_term([2**53+1, 0], 0, 1)`` still equals
+    ``kuramoto_sin_term([2**53, 0], 0, 1)``, and at that magnitude one ULP is
+    two radians — and the returned ``Q`` is the Q61 rational sine of that
+    float64 (denominator ``2**61``), exact for the rounded argument, never for
+    the rational one: ``rational.sin`` reads its argument as float64 by its own
+    contract (a ``Q`` argument is rounded inside it — the scalar-parameter
+    blind spot ``tools/demotion_probe.py`` records), ``sin_series_truncate``
+    is a partial sum with no argument reduction, and no shipped carrier reduces
+    a rational phase modulo 2π (π is not rational). A float phase on either
+    side keeps the float64 difference, byte-for-byte the rc420 order. The C
+    compose-host twin (``cr_op_kur_sin_term`` in ``srmech_compose_run.c``)
+    reads both phases as doubles and so DIVERGES from this op on an exact wide
+    phase — pinned by name in ``tests/test_exact_carrier_drain_rc466.py``
+    (``_COMPOSE_HOST_FLOAT_ONLY``), the sixth member; :func:`kuramoto_step`
+    coerces its phases to float BEFORE calling this op, so its native and pure
+    projections stay byte-identical.
     """
+    ti = _exact_scalar(theta[i])
+    tj = _exact_scalar(theta[j])
+    if ti is not None and tj is not None:
+        return _rsin(float(tj - ti))            # ONE rounding, of the difference
     return _rsin(float(theta[j]) - float(theta[i]))
 
 
@@ -863,19 +876,24 @@ def kuramoto_step(
         # v0.9.0rc420 (`#T1114`): the per-(i, j) term and the per-i combine are
         # the PUBLIC ops kuramoto_sin_term / kuramoto_out_simple and this loop
         # CALLS them — the declared chain in kuramoto_step.toml and this
-        # fallback share one body (float() is idempotent on the pre-coerced
-        # phases, so the float-op order is unchanged; measured bit-identical,
-        # `#T1114` rung 4, 7/7).
+        # fallback share one body (measured bit-identical, `#T1114` rung 4,
+        # 7/7). rc466 review fix (`#T1188`): the phases are coerced to float
+        # HERE, once — the rc420 comment said "pre-coerced" of a list that was
+        # never coerced, which did not matter while kuramoto_sin_term rounded
+        # each phase itself; now that it forms an exact difference for exact
+        # phases, this coercion is what keeps the fallback byte-identical to
+        # the C peer srmech_cascade_kuramoto_step_f64, which reads doubles.
+        theta_f = [float(v) for v in theta_list]
         inv_n = kuramoto_inv_n(coupling, n)
         out: List[float] = []
         for i in range(n):
             coupling_sum = 0.0
             for j in range(n):
-                coupling_sum += kuramoto_sin_term(theta_list, i, j)
+                coupling_sum += kuramoto_sin_term(theta_f, i, j)
             # Kuramoto phase step — float to match the native peer + List[float]
             # contract (the integrator is an FPU dynamical system; the sin
             # coupling flowed Q, collapsing at this per-step boundary).
-            out.append(kuramoto_out_simple(theta_list, omega_list, i,
+            out.append(kuramoto_out_simple(theta_f, omega_list, i,
                                            coupling_sum, inv_n, dt))
         return out
 

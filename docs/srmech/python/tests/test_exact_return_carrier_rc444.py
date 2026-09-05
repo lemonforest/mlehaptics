@@ -598,6 +598,16 @@ def test_the_exact_population_is_the_four_precedents_plus_this_one() -> None:
         "srmech.math.laplacian.dense_laplacian",
         "srmech.math.laplacian.dense_solve",
         "srmech.math.laplacian.dirichlet_to_neumann",
+        # rc466 review fix (`#T1188`) added five MORE: the eigen family
+        # (hermitian_ / symmetric_eigendecompose, three_fold_eigvec_groups,
+        # fiedler_vector, klein4_relational_structure) takes the SAME keyword
+        # jacobi_eigvals has carried since rc-B, routing to eig_exact — Stage 2
+        # had DECLARED these five on the ground that an exact route would be
+        # "two algorithms of different cost class wearing one name", which
+        # jacobi_eigvals, three lines down this list, already was. Each has an
+        # executed Layer-1 row in tests/test_exact_carrier_drain_rc466.py.
+        "srmech.math.laplacian.fiedler_vector",
+        "srmech.math.laplacian.hermitian_eigendecompose",
         "srmech.math.laplacian.jacobi_eigvals",
         # rc466 (`#T1188`) added five: the remaining Laplacian BUILDERS take the
         # SAME-module, same-sense keyword rc463 gave their three siblings, so the
@@ -608,12 +618,15 @@ def test_the_exact_population_is_the_four_precedents_plus_this_one() -> None:
         # (tests/test_exact_carrier_drain_rc466.py), because the probe drains a
         # census row on the keyword's mere presence.
         "srmech.math.laplacian.klein4_gain_laplacian",
+        "srmech.math.laplacian.klein4_relational_structure",   # rc466 review fix
         "srmech.math.laplacian.magnetic_laplacian",
         "srmech.math.laplacian.mass_normalized_laplacian",
         "srmech.math.laplacian.normalized_laplacian",
         "srmech.math.laplacian.quaternion_laplacian",
         "srmech.math.laplacian.schur_complement",
         "srmech.math.laplacian.signed_laplacian",
+        "srmech.math.laplacian.symmetric_eigendecompose",     # rc466 review fix
+        "srmech.math.laplacian.three_fold_eigvec_groups",     # rc466 review fix
         "srmech.physics.qm.triality.triality_companions",
     ], f"the exact= population moved: {sorted(declaring)}"
     # ⚠️ ``einsum`` is DELIBERATELY ABSENT and that is the rc463 decision, not an
@@ -643,14 +656,16 @@ def test_the_carrier_selector_census_figure_is_re_measured() -> None:
         for s in names & selectors:
             per[s] += 1
             ops.add(tool.name)
-    assert per["exact"] == 13, (
-        f"exact= is on {per['exact']} registry entries, expected 13 (the four "
+    assert per["exact"] == 18, (
+        f"exact= is on {per['exact']} registry entries, expected 18 (the four "
         f"precedents + triality_companions + the three rc463 graph builders + "
-        f"the five rc466 graph builders)")
-    assert len(ops) == 66, (
-        f"{len(ops)} ops carry a carrier/regime selector, expected 66 "
+        f"the five rc466 graph builders + the five rc466 eigen-family routes "
+        f"of the review fix)")
+    assert len(ops) == 71, (
+        f"{len(ops)} ops carry a carrier/regime selector, expected 71 "
         f"(58 at rc444 + the three rc463 graph builders + the five rc466 graph "
-        f"builders — the rc466 CHANGELOG carries the figure). Per-selector: {per}. If this "
+        f"builders + the five rc466 eigen-family routes — the rc466 CHANGELOG "
+        f"carries the figure). Per-selector: {per}. If this "
         f"moved for a good reason, update the CHANGELOG figure in the SAME "
         f"change — do not just re-pin the number here.")
 

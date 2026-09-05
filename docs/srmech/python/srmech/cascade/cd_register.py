@@ -388,13 +388,19 @@ def cd_uncouple_working(word: Sequence) -> "List[float] | List[Q]":
     an exact word (``int`` / ``Q`` leaves) returns ``list[Q]`` on the Q61 grid;
     a float word returns ``list[float]``. The round trip
     ``uncouple(couple(v))`` recovers ``v`` BIT-EXACTLY only where the twiddle is
-    exact — ``theta = 0.0`` — and this op runs the default ``π/2`` fold, where
-    the recovery carries the Q61 twiddle-norm residue
-    (``‖T‖² = cos² + sin²`` on the ``2**-61`` grid is not the unit on the nose):
-    on the exact route that residue is an exact ``Q`` you can read; on the float
-    route it is **accurate to round-off** (the division-algebra identity
-    ``T̄·(T·q) = ‖T‖²·q``, F437). Through rc465 this docstring said "exact to
-    float round-off"; the float half of that sentence was the whole story."""
+    exact — ``theta = 0.0`` — and this op runs the default ``π/2`` fold on the
+    ``'diagonal'`` axis, where the recovery carries the twiddle-norm residue
+    ``‖T‖² − 1`` of the identity ``T̄·(T·q) = ‖T‖²·q`` (F437). **That residue is
+    the AXIS, not the trig** (rc466 review fix, `#T1188`): ``‖T‖² = cos² +
+    sin²·‖μ‖²``, the Q61 ``cos²+sin²`` sits within one grid unit of the unit,
+    and the equal-weight axis ``(i+j+k)/√3`` is normalised in float64 before
+    its projection to Q61 — measured ``‖μ_q61‖² − 1 = 2.7e-16 = 620`` grid
+    units, so ``uncouple(couple([2**60+1, 2, 3]))[0] − (2**60+1) = 309.8``
+    (absolute, on an operand of ``2**60+1``: 2.7e-16 relative, ``≈ 2**-53``,
+    NOT the ``2**-61`` grid the Stage-1 sentence claimed). On the exact route that residue is an exact ``Q`` you
+    can read; on the float route it is **accurate to round-off**. Through rc465
+    this docstring said "exact to float round-off"; the float half of that
+    sentence was the whole story."""
     if not word:                    # the dim-1 empty-coupling boundary
         return []
     from . import hypercomplex_couple
@@ -1009,9 +1015,11 @@ def cdr_uncouple_working(word, dim, coupling):
     """``uncouple_working`` (GATED on ``coupling``): the inverse twiddle of
     :func:`cdr_couple_working` — recover the streams (Class-M unbind). The
     carrier is the operand's (rc466, `#T1188`); the recovery is bit-exact only
-    at ``theta = 0.0`` and carries the Q61 twiddle-norm residue at the default
-    fold — an exact ``Q`` on the exact route, **accurate to round-off** on the
-    float one. See :func:`cd_uncouple_working`."""
+    at ``theta = 0.0`` and carries the ``'diagonal'`` axis's float-normalisation
+    residue at the default fold (``‖μ_q61‖² − 1 ≈ 2**-53``-relative, ~620 grid
+    units; measured 309.8 absolute on ``[2**60+1, 2, 3]`` at dim 8, 2.7e-16 relative) — an
+    exact ``Q`` on the exact route, **accurate to round-off** on the float one.
+    See :func:`cd_uncouple_working`."""
     return _cdr_rehydrate(dim, coupling=coupling).uncouple_working(word)
 
 

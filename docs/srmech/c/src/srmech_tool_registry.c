@@ -1370,6 +1370,7 @@ static const srmech_tool_param_t ts_params_43[] = {
     { "weights", "Optional[list[float]]", 0, "" },
     { "gains", "Optional[list[int | tuple[int, int]]]", 0, "per-edge V\342\202\204 gains (see klein4_gain_laplacian)" },
     { "n", "Optional[int]", 0, "node count; inferred from edges when None" },
+    { "exact", "bool", 0, "rc466 review fix: exact sectors (klein4_gain_laplacian exact=True) read with symmetric_eigendecompose(exact=True): tension / coherence are Qalg (a balanced sector's tension IS 0), sector_asymmetry a certified (lo, hi) enclosure of exact Q \342\200\224 degenerate (lo == hi) when both mixed tensions are rational; a float weight is refused by name" },
 };
 static const srmech_tool_param_t ts_params_44[] = {
     { "edges", "list[tuple[int, int]]", 1, "a self-loop is a 1-cycle; a parallel edge a digon" },
@@ -1454,6 +1455,7 @@ static const srmech_tool_param_t ts_params_58[] = {
 };
 static const srmech_tool_param_t ts_params_59[] = {
     { "matrix", "Mat", 1, "n \303\227 n real-symmetric or complex-Hermitian Laplacian" },
+    { "exact", "bool", 0, "rc466 review fix: the \316\273\342\202\202 column of hermitian_eigendecompose(matrix, exact=True) \342\200\224 a list of n Qalg, the exact null-space vector of A \342\210\222 \316\273\342\202\202I over Q(\316\273\342\202\202), unnormalised; exact real symmetric operand required (a Qi with imaginary part is refused by name)" },
 };
 static const srmech_tool_param_t ts_params_60[] = {
     { "n", "int", 1, "" },
@@ -1517,9 +1519,11 @@ static const srmech_tool_param_t ts_params_69[] = {
 };
 static const srmech_tool_param_t ts_params_70[] = {
     { "H", "Mat", 1, "n \303\227 n complex Hermitian matrix" },
+    { "exact", "bool", 0, "rc466 review fix: an exact REAL operand (int / Q / Fraction, or Qi with zero imaginary part) takes symmetric_eigendecompose's exact route; a Qi entry with non-zero imaginary part is REFUSED by name (no shipped exact eigenvector carrier over Q(\316\273, i)); a float entry is refused, never rounded" },
 };
 static const srmech_tool_param_t ts_params_71[] = {
     { "L", "Mat", 1, "n \303\227 n real symmetric matrix" },
+    { "exact", "bool", 0, "rc466 review fix: route to the exact eigensolver (eig_exact \342\200\224 exact char-poly, irreducible factors, Sturm-isolated roots, exact null space over Q(\316\273)); the operand must be exact (int / Q / Fraction entries) and symmetric, a float entry is REFUSED by name. Opt-in: polynomial-factoring cost class, not Jacobi's" },
 };
 static const srmech_tool_param_t ts_params_72[] = {
     { "a", "Mat", 1, "m \303\227 k (real or complex) Mat" },
@@ -1629,6 +1633,7 @@ static const srmech_tool_param_t ts_params_100[] = {
 };
 static const srmech_tool_param_t ts_params_101[] = {
     { "L", "Mat", 1, "real-symmetric matrix" },
+    { "exact", "bool", 0, "rc466 review fix: the bands are column slices of symmetric_eigendecompose(L, exact=True)'s exact eigenvector matrix (each an (n, k) nested list of Qalg); exact symmetric operand required" },
 };
 static const srmech_tool_param_t ts_params_102[] = {
     { "edges", "list[tuple[int, int]]", 1, "undirected relational edges; n inferred from endpoints" },
@@ -6508,9 +6513,9 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "laplacian",
         "The joint EVEN-channel read-out of a V\342\202\204-gain relational graph (#687): per-sector spectral tensions (\316\273_min = frustration, 0 iff balanced) + coherences (\316\273\342\202\202 = algebraic connectivity) + the Class-K sector-asymmetry meter between the two MIXED sectors \317\20710/\317\20701 \342\200\224 the (4:3)|(3:4) sector-occupancy diagnostic (F552: a chirality-collapse deviation lands here, random noise does not). Diagnostic, not predictive \342\200\224 the orientation LABEL needs the ODD-channel cycle_holonomy. Composes klein4_gain_laplacian + symmetric_eigendecompose (one eigensolve per sector); no dedicated C symbol. no abs().",
-        ts_params_43, 4u,
+        ts_params_43, 5u,
         "dict",
-        "{'sectors', 'tension': {sector: \316\273_min}, 'coherence': {sector: \316\273\342\202\202}, 'sector_asymmetry': |\316\224 tension \317\20710,\317\20701|}",
+        "{'sectors', 'tension': {sector: \316\273_min}, 'coherence': {sector: \316\273\342\202\202}, 'sector_asymmetry': |\316\224 tension \317\20710,\317\20701|}; with exact=True the tensions / coherences are Qalg and sector_asymmetry is a (Q lo, Q hi) enclosure",
         1,
         NULL,
         "{\"output\":\"tree tension  : {'chi00': 0.0, 'chi01': 0.0, 'chi10': 0.0, 'chi11': 0.0}\\ntree coherence: {'chi00': 0.106314, 'chi01': 0.106314, 'chi10': 0.106314, 'chi11': 0.106314}\\ntree sector_asymmetry: 0.0\\ntriangle tension: {'chi00': 0.0, 'chi01': 0.0, 'chi10': 1.0, 'chi11': 1.0}\\ntriangle sector_asymmetry: 1.0\",\"why\":\"The one-call joint read of the four V4 sectors: the gear TREE is balanced in every sector (all tensions 0, asymmetry 0) while the closed 3-mesh idler triangle frustrates exactly the two sectors that see bit0, lifting lambda_min to 1.0.\",\"worked\":\"# Antikythera Metonic+Saros train, Freeth 2021 (Sci. Rep. 11:5821).\\n# node: 0 b1(224) 1 b2(64) 2 e2(32) 3 e5(53) 4 k1(96) 5 e6(53)\\n#       6 l1(38)  7 l2(53) 8 m1(96) 9 f1(53) 10 f2(30) 11 g1(54)\\nE = [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,7),(7,8),(3,9),(9,10),(10,11)]\\nAXLE = {0, 4, 6, 9}            # shared-arbor edges; the other 7 are gear MESHES\\n\\nfrom srmech.math.laplacian import klein4_relational_structure\\nSAROS = {8, 9, 10}\\ngains = [((1 if k not in AXLE else 0) | ((1 if k in SAROS else 0) << 1))\\n         for k in range(len(E))]\\nr = klein4_relational_structure(edges=E, gains=gains, n=12)\\nprint(\\\"tree tension  :\\\", {k: round(v, 12) for k, v in r[\\\"tension\\\"].items()})\\nprint(\\\"tree coherence:\\\", {k: round(v, 6) for k, v in r[\\\"coherence\\\"].items()})\\nprint(\\\"tree sector_asymmetry:\\\", round(r[\\\"sector_asymmetry\\\"], 12))\\n# The 3-gear idler triangle: three sense-flips round a closed loop = frustration.\\nf = klein4_relational_structure(edges=[(0,1),(1,2),(2,0)], gains=[1,1,1], n=3)\\nprint(\\\"triangle tension:\\\", {k: round(v, 6) for k, v in f[\\\"tension\\\"].items()})\\nprint(\\\"triangle sector_asymmetry:\\\", round(f[\\\"sector_asymmetry\\\"], 6))\"}",
@@ -6828,9 +6833,9 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "laplacian",
         "The Fiedler navigation embedding: eigenvector of the second-smallest eigenvalue (\316\273\342\202\202) of a Laplacian. Dispatches real\342\206\222symmetric_eigendecompose, complex\342\206\222hermitian_eigendecompose (both native).",
-        ts_params_59, 1u,
-        "Vec",
-        "length-n \316\273\342\202\202 eigenvector \342\200\224 Vec, the array('d') 1-D carrier",
+        ts_params_59, 2u,
+        "Vec | list[Qalg]",
+        "length-n \316\273\342\202\202 eigenvector \342\200\224 Vec, the array('d') 1-D carrier; list[Qalg] with exact=True",
         1,
         NULL,
         "{\"output\":\"lambda_1 = 0.002409088\\nmonotone along the strand: True -> the embedding IS a position coordinate\\nends/middle: 0.1767 0.0043 -0.0043 -0.1767\\nsign cut: 32 / 64 -> the exact midpoint\\non the DISCONNECTED synonymous graph lambda_1 = 0 and the vector is a\\n  component indicator: ['TAT', 'TAC']\",\"why\":\"Returns the lambda_2 eigenvector whose SIGN is the 2-way cut: on the codon backbone it is a monotone position coordinate that cuts at the exact midpoint, and on a disconnected graph it degenerates to a component indicator - read lambda_1 first.\",\"worked\":\"from srmech.biology.genome import codon_read\\n# The attested Standard Genetic Code, read back through the shipped op:\\nB    = \\\"TCAG\\\"                                   # attested base_order\\nCOD  = [B[i//16] + B[i//4 % 4] + B[i % 4] for i in range(64)]  # 16*b0+4*b1+b2\\nAA   = codon_read([b for i in range(64) for b in (i//16, i//4 % 4, i % 4)])\\nONE  = [(i, j) for i in range(64) for j in range(i+1, 64)\\n        if sum(a != b for a, b in zip(COD[i], COD[j])) == 1]   # 288 substitutions\\nSYN  = [(i, j) for (i, j) in ONE if AA[i] == AA[j]]            # synonymous only\\nCHAIN = [(i, i+1) for i in range(63)]           # the backbone: codons in table order\\n\\nfrom srmech.math.laplacian import dense_laplacian, fiedler_vector, jacobi_eigvals\\nf = fiedler_vector(dense_laplacian(64, CHAIN))        # the backbone strand\\nprint(\\\"lambda_1 =\\\", round(jacobi_eigvals(dense_laplacian(64, CHAIN))[1], 9))\\nprint(\\\"monotone along the strand:\\\", all(f[i] >= f[i+1] for i in range(63)),\\n      \\\"-> the embedding IS a position coordinate\\\")\\nprint(\\\"ends/middle:\\\", round(f[0],4), round(f[31],4), round(f[32],4), round(f[63],4))\\nprint(\\\"sign cut:\\\", sum(1 for i in range(64) if f[i] < 0), \\\"/ 64 -> the exact midpoint\\\")\\n# CAVEAT worth knowing before you trust any single cut:\\ng = fiedler_vector(dense_laplacian(64, SYN))\\nprint(\\\"on the DISCONNECTED synonymous graph lambda_1 = 0 and the vector is a\\\")\\nprint(\\\"  component indicator:\\\", [COD[i] for i in range(64) if abs(g[i]) > 1e-9])\"}",
@@ -7048,9 +7053,9 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "laplacian",
         "Hermitian eigendecomposition H = V diag(eigvals) V^H via complex-Jacobi rotations. Native C dispatch up to the configurable SRMECH_HERMITIAN_DEFAULT_MAX_NODES (2048), NOT 256; the fallback is srmech's own pure-Python complex-Jacobi cascade (there is no NumPy in the call graph \342\200\224 the package imports numpy nowhere). Sakurai \302\2472.1.5; Golub & Van Loan \302\2478.5.",
-        ts_params_70, 1u,
-        "tuple[Vec, Mat]",
-        "(eigvals_ascending Vec, V_unitary complex Mat)",
+        ts_params_70, 2u,
+        "tuple[Vec, Mat] | tuple[list, list]",
+        "(eigvals_ascending Vec, V_unitary complex Mat); with exact=True (list[Qalg] ascending with multiplicity, n\303\227n nested list of Qalg whose columns are the exact unnormalised eigenvectors)",
         1,
         NULL,
         "{\"output\":\"eigvals: Vec(4, real) -> [-1.0, -1.0, 1.0, 1.0]\\nV: (4, 4) complex: True\\nsame numbers as mat_hermitian_eigendecompose, different CARRIERS:\\n  hermitian_eigendecompose -> (Vec, Mat);  mat_* -> ((n,1) Mat, Mat)\\n  values agree: True\",\"why\":\"The Vec-returning face of the Hermitian eigensolve on gamma5: identical numbers to mat_hermitian_eigendecompose but a Vec of eigenvalues instead of an (n,1) Mat - pick by the carrier you want, not by capability.\",\"worked\":\"from srmech.math.laplacian import hermitian_eigendecompose, mat_hermitian_eigendecompose\\nfrom srmech.physics.qm.relativistic import gamma_5\\nev, V = hermitian_eigendecompose(gamma_5())\\nprint(\\\"eigvals:\\\", ev, \\\"->\\\", [round(ev[i], 12) for i in range(4)])\\nprint(\\\"V:\\\", V.shape, \\\"complex:\\\", V.is_complex)\\nmv, _ = mat_hermitian_eigendecompose(gamma_5())\\nprint(\\\"same numbers as mat_hermitian_eigendecompose, different CARRIERS:\\\")\\nprint(\\\"  hermitian_eigendecompose -> (Vec, Mat);  mat_* -> ((n,1) Mat, Mat)\\\")\\nprint(\\\"  values agree:\\\", [round(ev[i],12) for i in range(4)] ==\\n      [round(mv[i,0],12) for i in range(4)])\"}",
@@ -7068,9 +7073,9 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "laplacian",
         "Real-symmetric eigendecomposition L = V diag(eigvals) V\341\265\200 via srmech's own Jacobi cascade (native C peer when present; no NumPy in the call graph). Real-input specialisation of hermitian_eigendecompose: guarantees real float64 eigvals AND eigvecs (no ComplexWarning for a real Laplacian). Golub & Van Loan \302\2478.3.",
-        ts_params_71, 1u,
-        "tuple[Vec, Mat]",
-        "(eigvals_ascending Vec, V_orthogonal real Mat)",
+        ts_params_71, 2u,
+        "tuple[Vec, Mat] | tuple[list, list]",
+        "(eigvals_ascending Vec, V_orthogonal real Mat); with exact=True (list[Qalg] eigenvalues ascending WITH multiplicity \342\200\224 the order decided exactly by Sturm intervals, never the float embedding \342\200\224 and an n\303\227n nested list of Qalg whose COLUMNS are the exact eigenvectors, each a null-space basis vector over its own eigenvalue's field, unnormalised)",
         1,
         NULL,
         "{\"output\":\"eigvals[:3]: [0.0, 0.106314157, 0.198062264]  V: (12, 12) complex: False <- REAL eigenvectors, guaranteed\\nhermitian_eigendecompose on the same L gives complex V: True\\nsame eigenvalues: True\\nL . v_1 = lambda_1 . v_1 : 0.0\",\"why\":\"The real-symmetric specialisation on the gear Laplacian: same eigenvalues as hermitian_eigendecompose but REAL eigenvectors, which is the only difference and the only reason to choose between them.\",\"worked\":\"# Antikythera Metonic+Saros train, Freeth 2021 (Sci. Rep. 11:5821).\\n# 0 b1 (crank side) ... 8 m1 (Metonic dial) ... 11 g1 (Saros dial)\\nE = [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,7),(7,8),(3,9),(9,10),(10,11)]\\n\\nfrom srmech.math.laplacian import symmetric_eigendecompose, dense_laplacian, hermitian_eigendecompose\\nL = dense_laplacian(12, E)\\nev, V = symmetric_eigendecompose(L)\\nprint(\\\"eigvals[:3]:\\\", [round(ev[i], 9) for i in range(3)], \\\" V:\\\", V.shape,\\n      \\\"complex:\\\", V.is_complex, \\\"<- REAL eigenvectors, guaranteed\\\")\\nhv, HV_ = hermitian_eigendecompose(L)\\nprint(\\\"hermitian_eigendecompose on the same L gives complex V:\\\", HV_.is_complex)\\nprint(\\\"same eigenvalues:\\\", [round(ev[i],12) for i in range(12)] ==\\n      [round(hv[i],12) for i in range(12)])\\nprint(\\\"L . v_1 = lambda_1 . v_1 :\\\",\\n      round(sum(L[0,j]*V[j,1] for j in range(12)) - ev[1]*V[0,1], 12))\"}",
@@ -7668,9 +7673,9 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "laplacian",
         "Harmonic-3 three-fold spectral reading (F150): partition the eigenvectors of a real-symmetric Laplacian into low/mid/high.",
-        ts_params_101, 1u,
+        ts_params_101, 2u,
         "dict",
-        "low/mid/high eigenvector bands (each a real Mat)",
+        "low/mid/high eigenvector bands (each a real Mat; each an (n, k) nested list of Qalg with exact=True)",
         1,
         NULL,
         "{\"output\":\"{'low': (64, 21), 'mid': (64, 21), 'high': (64, 22)} -> |low| <= |mid| <= |high|\\n64 =  21 + 21 + 22\\nlow band col 0 (the constant zero mode): 0.125 0.125\",\"why\":\"Splits the whole eigenvector set into three contiguous LOW/MID/HIGH bands - the order-3 read of the spectrum that complements fiedler's 2-way sign cut and spectral_spine's single dominant mode.\",\"worked\":\"from srmech.biology.genome import codon_read\\n# The attested Standard Genetic Code, read back through the shipped op:\\nB    = \\\"TCAG\\\"                                   # attested base_order\\nCOD  = [B[i//16] + B[i//4 % 4] + B[i % 4] for i in range(64)]  # 16*b0+4*b1+b2\\nAA   = codon_read([b for i in range(64) for b in (i//16, i//4 % 4, i % 4)])\\nONE  = [(i, j) for i in range(64) for j in range(i+1, 64)\\n        if sum(a != b for a, b in zip(COD[i], COD[j])) == 1]   # 288 substitutions\\nSYN  = [(i, j) for (i, j) in ONE if AA[i] == AA[j]]            # synonymous only\\nCHAIN = [(i, i+1) for i in range(63)]           # the backbone: codons in table order\\n\\nfrom srmech.math.laplacian import dense_laplacian, three_fold_eigvec_groups\\ng = three_fold_eigvec_groups(dense_laplacian(64, ONE))\\nprint({k: g[k].shape for k in (\\\"low\\\", \\\"mid\\\", \\\"high\\\")}, \\\"-> |low| <= |mid| <= |high|\\\")\\nprint(\\\"64 = \\\", g[\\\"low\\\"].shape[1], \\\"+\\\", g[\\\"mid\\\"].shape[1], \\\"+\\\", g[\\\"high\\\"].shape[1])\\nprint(\\\"low band col 0 (the constant zero mode):\\\", round(g[\\\"low\\\"][0, 0], 6),\\n      round(g[\\\"low\\\"][63, 0], 6))\"}",

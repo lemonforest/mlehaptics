@@ -207,10 +207,49 @@ def _q61_twiddle(eff: float, mu_hat: Sequence[float]) -> List["Q"]:
     """The Q61 twiddle as exact ``Q`` (denominator ``2**61``) over a float unit
     axis projected at Q61 — the boundary :func:`hypercomplex_couple` has owned
     since rc16. EXACT ``[1, 0, …]`` at ``eff == 0.0`` (``cos`` is the Q61 unit
-    and ``sin`` is 0 there); otherwise every component is quantised to the
-    ``2**-61`` grid, which is the declared bound of the exact DFT routes."""
+    and ``sin`` is 0 there). Otherwise the components carry TWO bounds, and
+    the larger is not the grid (rc466 review fix, `#T1188`): ``eff`` is a
+    float64 ANGLE, so ``cos``/``sin`` are those of the ROUNDED angle — an error
+    of ``|fl(θ) − θ| ≲ 2**-53·|θ|``, i.e. up to ~2**8 grid units per radian
+    (measured at ``θ = π/4``: the real slot sits 50 grid units off ``cos π/4``,
+    explained exactly by ``|fl(π/4) − π/4|·sin π/4``) — and then the ``2**-61``
+    grid of the Q61 cascade. The rational-turn summands
+    (:func:`qdft_summand` / :func:`odft_summand`) take the exact Gaussian
+    twiddle on the quarter turns instead (:func:`_quarter_turn_twiddle`)."""
     ints = _q61_twiddle_ints(eff, [_to_q61(float(v)) for v in mu_hat])
     return [Q(v, _Q61_ONE) for v in ints]
+
+
+def _quarter_turn_twiddle(sigma, r: int, n: int, mu_hat: Sequence[float]):
+    """The EXACT twiddle of the rational turn ``σ·r/n`` when it is a QUARTER
+    turn (``4·r ≡ 0 (mod n)``), else ``None`` — rc466 review fix (`#T1188`).
+
+    On those turns ``exp(2πi·r/n)`` is a Gaussian UNIT, ``(cos, sin) ∈
+    {(1,0), (0,1), (−1,0), (0,−1)}``, decided by the Class-K pin-slot on the
+    quarter index and the Class-C orientation ``σ`` — no angle, no float, no
+    grid. Through the Stage-3 head the exact routes of :func:`qdft_summand` /
+    :func:`odft_summand` built these from ``cos``/``sin`` of the float angle
+    ``fl(π/2)``: measured, ``qdft_summand([[0,0,0,0],[2**60+1,0,0,0]], 1, 1,
+    4, True, -1, [0,1,0,0])`` returned ``[70.5, −2**60−1, 0, 0]`` where the
+    exact term is ``[0, −2**60−1, 0, 0]`` — 70.5 in a slot that is exactly
+    zero, because ``cos(fl(π/2))·2**61 = 141`` grid units. The axis ``μ̂`` is
+    the chain's float unit axis projected at Q61 (exact for every NAMED axis;
+    the equal-weight ``'diagonal'`` axis is irrational and stays on the grid),
+    so the sine slot is ``±μ̂_q61`` exactly and the cosine slot is ``0`` / ``±1``
+    exactly."""
+    if n <= 0 or (4 * r) % n != 0:
+        return None
+    quarter = ((4 * r) // n) % 4                      # 0, 1, 2, 3 quarter turns
+    if float(sigma) < 0.0:                            # Class-C orientation
+        quarter = (-quarter) % 4
+    cos_i, sin_i = ((1, 0), (0, 1), (-1, 0), (0, -1))[quarter]
+    one = Q(1, 1)
+    zero = Q(0, 1)
+    mu_q = [Q(_to_q61(float(v)), _Q61_ONE) for v in mu_hat]
+    head = one if cos_i == 1 else (-one if cos_i == -1 else zero)
+    if sin_i == 0:
+        return [head] + [zero] * (len(mu_q) - 1)
+    return [head] + [(m if sin_i == 1 else -m) for m in mu_q[1:]]
 
 
 def _couple_q61(streams_q61: Sequence[int], mu_q61: Sequence[int],
@@ -706,15 +745,21 @@ def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
 
     **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`). When the
     sample ``xs[m]`` is exact (every component ``int`` / ``Q`` / ``(num, den)``)
-    the summand is the exact-ℚ :func:`srmech.cascade.cd_mult` of the Q61
-    twiddle with the sample: EXACT whenever ``k·m ≡ 0 (mod n)`` — the twiddle is
-    then the unit on the nose, and the summand is ``1 · x[m]`` (the DC bin, the
-    ``m = 0`` term) — and otherwise carried on the ``2**-61`` Q61 grid
-    (``cos``/``sin`` of the float angle and the axis ``μ̂`` projected at Q61, the
-    boundary :func:`hypercomplex_couple` has owned since rc16), which is the
-    declared bound of this route. ``mu_hat`` is a chain-internal wire and is
-    read as the float unit axis it is. A float component in the sample keeps the
-    float route: the C-mirrored op order, **accurate to round-off**.
+    the summand is the exact-ℚ :func:`srmech.cascade.cd_mult` of the twiddle
+    with the sample: EXACT on every QUARTER turn ``4·k·m ≡ 0 (mod n)`` — the
+    twiddle is then a Gaussian unit (``1``, ``±μ̂``, ``−1``) by the Class-K
+    pin-slot :func:`_quarter_turn_twiddle`, so every rung ``n ∈ {1, 2, 4}`` and
+    the DC / half / quarter bins of every rung are exact (through the Stage-3
+    head only ``k·m ≡ 0`` was, and the quarter turns carried ``cos(fl(π/2))`` =
+    141 grid units in a slot that is exactly 0 — measured, see the helper) —
+    and otherwise carried by the Q61 twiddle of the FLOAT64 angle ``2π·r/n``,
+    whose bound is the angle's own rounding, ``≲ 2**-53·|θ|`` (up to ~2**8
+    grid units per radian; 50 grid units measured at ``n = 8``), plus the
+    ``2**-61`` grid — the bound of this route, which through the Stage-3 head
+    this sentence understated as the grid alone. ``mu_hat`` is a chain-internal
+    wire and is read as the float unit axis it is (exact for a named axis on
+    the Q61 grid). A float component in the sample keeps the float route: the
+    C-mirrored op order, **accurate to round-off**.
 
     ⚠️ **Projection divergence, named.** The C compose host's twin of this
     step (``cr_op_qdft_summand``) coerces to doubles and has no rational value
@@ -730,8 +775,10 @@ def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
     xm_exact = _exact_vector(xs[m], n=_QDIM)
     if xm_exact is not None:
         r = (k * m) % n
-        theta = float(sigma) * (2.0 * _PI) * (float(r) / float(n))
-        tw = _q61_twiddle(theta, mu_hat)
+        tw = _quarter_turn_twiddle(sigma, r, n, mu_hat)   # exact on quarter turns
+        if tw is None:
+            theta = float(sigma) * (2.0 * _PI) * (float(r) / float(n))
+            tw = _q61_twiddle(theta, mu_hat)
         prod = cd_mult(tw, xm_exact) if left else cd_mult(xm_exact, tw)
         return list(prod)
     w = _twiddle_resolved(k, m, n, sigma, mu_hat)
@@ -780,8 +827,11 @@ def odft_summand(xs, k: int, m: int, n: int, form: str, bracketing: str,
     **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`) — the
     :func:`qdft_summand` rule at rung 8, with the declared bracketing applied to
     :func:`srmech.cascade.cd_mult` products in the same order as the float
-    route: EXACT when ``k·m ≡ 0 (mod n)``, otherwise on the ``2**-61`` Q61 grid
-    (the declared bound). A float component in the sample keeps the C-mirrored
+    route: EXACT on every quarter turn ``4·k·m ≡ 0 (mod n)`` (the Gaussian-unit
+    twiddle of :func:`_quarter_turn_twiddle`, both twiddles of the two-sided
+    form), otherwise bounded by the float64 angle's rounding (``≲ 2**-53·|θ|``)
+    plus the ``2**-61`` Q61 grid — the rc466 review corrected this sentence,
+    which had named the grid alone. A float component in the sample keeps the C-mirrored
     float route, **accurate to round-off**. Through rc465 the only accuracy
     words on this op were "(the byte-exact parity contract, not a tolerance)"
     — a NEGATED keyword that the R3 reader counted as a declaration; the
@@ -799,10 +849,14 @@ def odft_summand(xs, k: int, m: int, n: int, form: str, bracketing: str,
     xm_exact = _exact_vector(xs[m], n=_ODIM)
     if xm_exact is not None:
         r = (k * m) % n
+        w_q = _quarter_turn_twiddle(sigma, r, n, mu_hat)  # exact on quarter turns
         theta = float(sigma) * (2.0 * _PI) * (float(r) / float(n))
-        w_q = _q61_twiddle(theta, mu_hat)
+        if w_q is None:
+            w_q = _q61_twiddle(theta, mu_hat)
         if two_sided:
-            w_r_q = _q61_twiddle(theta, mu_r_hat)
+            w_r_q = _quarter_turn_twiddle(sigma, r, n, mu_r_hat)
+            if w_r_q is None:
+                w_r_q = _q61_twiddle(theta, mu_r_hat)
             if left_assoc:                     # (W_l · x) · W_r
                 return list(cd_mult(cd_mult(w_q, xm_exact), w_r_q))
             return list(cd_mult(w_q, cd_mult(xm_exact, w_r_q)))
@@ -1428,16 +1482,33 @@ def hypercomplex_couple(
     operand. Every stream leaf ``int`` / ``Q`` / ``(num, den)`` → the streams
     ride to Q61 by ``round(q · 2**61)`` (exact for integers and for dyadic
     rationals with ≤ 61 fractional bits; **any other rational is quantised to
-    the ``2**-61`` grid**, which is the declared bound of this route, the
-    ``octonion_norm`` precedent), the axis ``μ`` and ``cos θ``/``sin θ`` are
-    carried at Q61 as they always were, and the result comes back as ``list[Q]``
-    with denominator ``2**61``. At ``theta = 0.0`` the twiddle is EXACTLY the
-    unit and the op returns its operand unchanged — the strict-zero witness
+    the ``2**-61`` grid**, the ``octonion_norm`` precedent), and the result
+    comes back as ``list[Q]`` with denominator ``2**61``. **Two boundaries
+    remain on this route, and neither is the grid** (rc466 review fix,
+    `#T1188` — the Stage-1 sentence said the axis and the trig were "carried at
+    Q61", which understated the bound by ~2**9): (1) ``theta`` is a float64
+    ANGLE, so ``cos θ``/``sin θ`` are the Q61 trig of the ROUNDED angle —
+    ``≲ 2**-53·|θ|``, which at the default fold ``fl(π/2)`` puts
+    ``cos(fl(π/2)) = 141`` grid units into the real slot of a pure-imaginary
+    twiddle (measured: ``hypercomplex_couple([2**60+1, 0, 0, 0], axis='i')``
+    returns ``[70.5, 2**60+1, 0, 0]``, where a quarter turn would give
+    ``[0, 2**60+1, 0, 0]``); (2) a NAMED axis ``'i'``/``'j'``/``'k'`` is exact
+    on the grid, but the default ``'diagonal'`` axis ``(i+j+k)/√3`` is
+    irrational and is normalised in float64 BEFORE its projection to Q61:
+    measured ``‖μ_q61‖² − 1 = 2.7e-16 = 620`` grid units, and that — not
+    ``cos² + sin²``, which sits within one grid unit of the unit — is the whole
+    of the round-trip residue :func:`cd_uncouple_working` reports
+    (``uncouple(couple([2**60+1, 2, 3]))[0] − (2**60+1) = 309.8`` — absolute, on an operand of ``2**60+1``: 2.7e-16 relative, the axis residue on the nose).
+    At ``theta = 0.0`` the twiddle is EXACTLY the unit and the op returns its
+    operand unchanged — the strict-zero witness
     ``hypercomplex_couple([2**53+1, 0, 0], theta=0.0)[1] == 2**53+1``. One
     float leaf anywhere elects the float route, byte-for-byte the rc16
     behaviour, **accurate to round-off** at its two boundaries. The C twin
     ``srmech_hypercomplex_couple_q61`` IS this exact route within the int64
-    domain; no C change.
+    domain; no C change. A rational-TURN parameterisation (``theta`` as a
+    ``Q`` turn, the quarter turns then exact by the summands' pin-slot) and a
+    Q61-integer-sqrt ``'diagonal'`` axis are the named drain of both bounds,
+    not shipped here.
 
     Class home: **M** (octonion multiply) ∘ **C** (the ``σ``/conjugation
     orientation) ∘ **N** (the rational phase ``θ``). F436 / F437; §29.

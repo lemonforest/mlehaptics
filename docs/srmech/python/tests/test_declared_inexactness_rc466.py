@@ -3,9 +3,16 @@
 WHAT THIS FILE IS
 =================
 ``tests/test_exact_carrier_drain_rc466.py`` holds the FIX half of the drain.
-This file holds the DECLARE half: the seventeen ops the rc466 plan judged
+This file holds the DECLARE half: the twelve ops the rc466 plan judged
 float-by-nature (FBN) or exact-object-without-a-shipped-op (NPO), each given a
-TRUE accuracy sentence on its OWN docstring. The judgement was per op and the
+TRUE accuracy sentence on its OWN docstring. (Seventeen at Stage 2: the five
+eigen-family ops — ``hermitian_`` / ``symmetric_eigendecompose``,
+``three_fold_eigvec_groups``, ``fiedler_vector``, ``klein4_relational_structure``
+— were moved to the FIX half at the rc466 review, which found Stage 2's reason
+for declaring them, "two algorithms of different cost class wearing one name",
+contradicted by ``jacobi_eigvals(exact=True)`` in the same module; they now
+carry an ``exact=`` route through ``eig_exact`` and executed rows in
+``tests/test_exact_carrier_drain_rc466.py``.) The judgement was per op and the
 kind is recorded per op below, because the failure mode this stage guards
 against is *declaring an op that could have been fixed* — converting a defect
 into documentation. An NPO row therefore names the exact object AND the
@@ -16,8 +23,13 @@ THE RULES THE DECLARATIONS OBEY (and this file executes)
 ========================================================
 D1  **The sentence is on the op's OWN docstring** and carries at least one
     verbatim token of ``tools/demotion_probe.py``'s ``R3_VOCABULARY``. The
-    probe's one-level delegate follow is not relied on: ``describe()`` and the
-    MCP tool list emit the op's own text, and that is what a caller reads.
+    probe's one-level delegate follow is not relied on: the op's own docstring
+    is what ``inspect.getdoc`` / ``help()`` and the probe's
+    ``declaration_hits`` read. (Corrected at the rc466 review: this line said
+    ``describe()`` and the MCP tool list emit the op's own text — they emit
+    its FIRST paragraph only, ``tools/gen_tool_docs.py``'s ``_clean_doc``, so
+    the accuracy paragraph does not reach the wire; emitting it there is a
+    named residual, and the claim is not repeated here.)
 D2  **No DECLARE op grew an ``exact=`` keyword.** The R3 reader counts
     ``exact= opt-in`` as a declaration by its mere presence, so a keyword
     without an executed route would drain a census row for free (rule F1 of
@@ -93,17 +105,14 @@ _DECLARED_IN_RC466 = {
         "NPO", "an ORDERED exact real carrier for the round-half-even quantiser: "
                "Sturm-style isolating intervals on a real embedding of Q(zeta_32)^+"),
     # ── math.laplacian ───────────────────────────────────────────────────
-    "srmech.math.laplacian.hermitian_eigendecompose": ("FBN", None),   # cyclic Jacobi
-    "srmech.math.laplacian.symmetric_eigendecompose": ("FBN", None),
-    "srmech.math.laplacian.three_fold_eigvec_groups": ("FBN", None),
-    "srmech.math.laplacian.fiedler_vector": ("FBN", None),
+    # (the five eigen-family entries that stood here at Stage 2 are FIXED
+    # since the rc466 review — see the module docstring)
     "srmech.math.laplacian.fiedler_sparse": ("FBN", None),             # power iteration
-    "srmech.math.laplacian.klein4_relational_structure": ("FBN", None),
     "srmech.math.laplacian.elementwise_transcendental": ("FBN", None), # transcendental
     "srmech.math.laplacian.recover_check": ("FBN", None),              # threshold verdict
     "srmech.math.laplacian.recover_check_spectral": ("FBN", None),
     # ── cascade ──────────────────────────────────────────────────────────
-    "srmech.cascade.kuramoto_sin_term": ("FBN", None),                 # float64 phase diff
+    "srmech.cascade.kuramoto_sin_term": ("FBN", None),                 # the DIFFERENCE is float64 (exact first since the review fix)
 }
 
 
@@ -226,6 +235,9 @@ def test_jpeg_quantised_blocks_collapse_p_onto_f() -> None:
 
 
 def test_eigen_family_entry_projection_witness() -> None:
+    """The DEFAULT route's sentence, still true after the review fix moved the
+    five ops to the FIX half: the float Jacobi rounds the operand at the entry.
+    The exact route's rows live in tests/test_exact_carrier_drain_rc466.py."""
     from srmech.math import laplacian as la
     assert float(la.hermitian_eigendecompose([[P, 0], [0, 0]])[0][1]) == float(F)
     assert float(la.symmetric_eigendecompose([[P, 0], [0, 0]])[0][1]) == float(F)
@@ -241,15 +253,30 @@ def test_elementwise_transcendental_rounds_the_argument_before_the_cascade() -> 
     assert ct([G], "cos")[0] != ct([F], "cos")[0]
 
 
-def test_kuramoto_sin_term_forms_the_difference_in_float64() -> None:
-    from srmech.cascade.composites import kuramoto_sin_term
+def test_kuramoto_sin_term_forms_the_difference_exactly_then_rounds_it_once() -> None:
+    """rc466 review fix: the exact difference first (one rounding, of the
+    DIFFERENCE), so an exactly representable difference is the sine of that
+    difference — through the Stage-3 head each phase was rounded separately and
+    ``[2**53+1, 2**53+3]`` returned ``sin(4)``, the wrong SIGN for ``sin(2)``.
+    What stays declared: the difference itself rounds past 53 bits."""
+    from srmech.cascade.composites import kuramoto_sin_term, kuramoto_step
     from srmech.math import rational
-    assert kuramoto_sin_term([P, 0], 0, 1) == kuramoto_sin_term([F, 0], 0, 1)
+    assert kuramoto_sin_term([P, P + 2], 0, 1) == rational.sin(2.0)
+    assert kuramoto_sin_term([P, P + 2], 0, 1) != rational.sin(4.0)
+    assert kuramoto_sin_term([P, 0], 0, 1) == kuramoto_sin_term([F, 0], 0, 1), (
+        "the DIFFERENCE −(2**53+1) still rounds: that is the declared demotion")
     assert kuramoto_sin_term([G, 0], 0, 1) != kuramoto_sin_term([F, 0], 0, 1)
     assert isinstance(kuramoto_sin_term([P, 0], 0, 1), Q)
-    # the reason there is no exact route: rational.sin reads a Q as float64
+    # a float phase on either side keeps the rc420 float64 difference, byte for byte
+    assert kuramoto_sin_term([0.5, 1.25], 0, 1) == rational.sin(1.25 - 0.5)
+    assert kuramoto_sin_term([P, 1.0], 0, 1) == rational.sin(1.0 - float(P))
+    # the reason the OUTPUT stays declared: rational.sin reads a Q as float64
     assert rational.sin(Q(P, 1)) == rational.sin(F)
     assert rational.sin(G) != rational.sin(F)
+    # kuramoto_step coerces its phases to float BEFORE the term op, so its
+    # projections cannot disagree on a wide phase (the C peer reads doubles)
+    assert kuramoto_step([P, P + 2], [0, 0], coupling=1.0, dt=0.1) == \
+        kuramoto_step([float(P), float(P + 2)], [0, 0], coupling=1.0, dt=0.1)
 
 
 # ── the refusal made carrier-independent while writing the recover sentence ───

@@ -12,8 +12,14 @@ an exact peer ships; **DECLARE** (an R3 accuracy sentence a caller can read
 before calling) only where the op is float by nature — because declaring an op
 that could have been fixed converts a defect into documentation.
 
-This file holds the FIX half: forty-seven roster rows over thirty-nine ops,
-plus three unrostered ``hdc`` siblings (``loop_bind_hd`` / ``loop_unbind_hd`` /
+This file holds the FIX half: forty-seven roster rows over thirty-nine ops
+(plus, since the rc466 review, the five eigen-family rows — ``hermitian_`` /
+``symmetric_eigendecompose``, ``three_fold_eigvec_groups``, ``fiedler_vector``,
+``klein4_relational_structure`` — which Stage 2 had DECLARED on the ground that
+an ``exact=`` route would be "two algorithms of different cost class wearing
+one name", a ruling ``jacobi_eigvals(exact=True)`` in the same module already
+contradicted; they now carry the keyword, an executed route through
+``eig_exact``, and the rows below), plus three unrostered ``hdc`` siblings (``loop_bind_hd`` / ``loop_unbind_hd`` /
 ``loop_runbind_hd``, which share the same entry gate and demoted identically —
 the census filed them ``INEXACT_BASE`` only because the harvested example
 carried a float in the OTHER operand) and one hidden roster member
@@ -37,7 +43,10 @@ F4  **No ``abs()``** — Class-K pin-slot branches throughout.
 THE ONE FINDING THIS RC NAMES RATHER THAN HIDES
 ===============================================
 The C compose host (``c/src/srmech_compose_run.c``) has no rational value kind
-and its twins of five chain steps coerce to doubles. After this rc a declared
+and its twins of six chain steps coerce to doubles (five at Stage 1; the sixth,
+``kuramoto_sin_term``, joined at the rc466 review when the op began forming an
+exact phase DIFFERENCE for exact phases — the C twin ``cr_op_kur_sin_term``
+reads both phases as doubles). After this rc a declared
 chain run over an EXACT input is exact in the Python runner and rounded in the
 C host. That is a projection divergence the census cannot see (it probes
 Python ops), so it is pinned here BY NAME (:data:`_COMPOSE_HOST_FLOAT_ONLY`)
@@ -190,6 +199,33 @@ def _rows():
          lambda: la.quaternion_laplacian(2, [(0, 1)], [P], exact=True)[0][0] * 2, P),
         ("laplacian.quaternion_laplacian[exact=True, off-diagonal block]",
          lambda: la.quaternion_laplacian(2, [(0, 1)], [P], exact=True)[0][4] * -2, P),
+        # ── math.laplacian — the eigen family's exact route (rc466 review fix).
+        #    Every row reads the exact object back through Qalg.as_rational():
+        #    a rational eigenvalue / coordinate IS its Q, no lift anywhere.
+        ("laplacian.symmetric_eigendecompose[exact=True, diagonal witness]",
+         lambda: la.symmetric_eigendecompose([[P, 0], [0, 0]], exact=True)[0][1].as_rational(), P),
+        ("laplacian.symmetric_eigendecompose[exact=True, K2 with weight P: lambda_2 = 2P]",
+         lambda: la.symmetric_eigendecompose([[P, -P], [-P, P]], exact=True)[0][1].as_rational(), 2 * P),
+        ("laplacian.symmetric_eigendecompose[exact=True, rank-1 [[1,P],[P,P^2]]: the null vector is (-P, 1)]",
+         lambda: (-la.symmetric_eigendecompose([[1, P], [P, P * P]], exact=True)[1][0][0]).as_rational(), P),
+        ("laplacian.symmetric_eigendecompose[exact=True, rational operand rides the pre-scale]",
+         lambda: la.symmetric_eigendecompose([[Q(P, 2), 0], [0, 0]], exact=True)[0][1].as_rational(), Q(P, 2)),
+        ("laplacian.hermitian_eigendecompose[exact=True, real-exact operand]",
+         lambda: la.hermitian_eigendecompose([[P, 0], [0, 0]], exact=True)[0][1].as_rational(), P),
+        ("laplacian.hermitian_eigendecompose[exact=True, Qi with zero imaginary part]",
+         lambda: la.hermitian_eigendecompose([[Qi(P, 0), 0], [0, 0]], exact=True)[0][1].as_rational(), P),
+        ("laplacian.fiedler_vector[exact=True, rank-1: the lambda_2 vector is (1/P, 1)]",
+         lambda: la.fiedler_vector([[1, P], [P, P * P]], exact=True)[0].as_rational(), Q(1, P)),
+        ("laplacian.three_fold_eigvec_groups[exact=True, rank-1: the mid band holds the null vector (-P, 1)]",
+         lambda: (-la.three_fold_eigvec_groups([[1, P], [P, P * P]], exact=True)["mid"][0][0]).as_rational(), P),
+        ("laplacian.klein4_relational_structure[exact=True, K2 weight P: coherence chi00 = 2P]",
+         lambda: la.klein4_relational_structure([(0, 1)], [P], exact=True)["coherence"]["chi00"].as_rational(), 2 * P),
+        ("laplacian.klein4_relational_structure[exact=True, frustrated triangle: tension chi10 = P]",
+         lambda: la.klein4_relational_structure([(0, 1), (1, 2), (2, 0)], [P, P, P], gains=[1, 0, 0],
+                                                exact=True)["tension"]["chi10"].as_rational(), P),
+        ("laplacian.klein4_relational_structure[exact=True, frustrated triangle: sector_asymmetry lo == hi == P]",
+         lambda: la.klein4_relational_structure([(0, 1), (1, 2), (2, 0)], [P, P, P], gains=[1, 0, 0],
+                                                exact=True)["sector_asymmetry"][0], P),
         ("laplacian.elementwise_multiply_complex[int, 1-D]",
          lambda: la.elementwise_multiply_complex([P], [1])[0].real, P),
         ("laplacian.elementwise_multiply_complex[int, 2-D]",
@@ -304,6 +340,64 @@ def test_operator_norm_exact_route_is_within_its_declared_bound() -> None:
     dr = r - Q(1, 2)
     dr = dr if dr >= 0 else -dr
     assert isinstance(r, Q) and dr <= Q(1, 2 ** 60)
+
+
+def test_the_eigen_family_exact_route_refuses_rather_than_rounds() -> None:
+    """F3 for the five eigen-family ops (rc466 review fix): a float entry, a
+    non-symmetric operand and a Gaussian-rational Hermitian operand are REFUSED
+    by name on the exact route — never rounded, never silently re-routed to the
+    float Jacobi — and the refusals name the carrier that could hold each."""
+    from srmech.math import laplacian as la
+    with pytest.raises(ValueError, match="EXACT"):
+        la.symmetric_eigendecompose([[1.0, 0], [0, 2]], exact=True)
+    with pytest.raises(ValueError, match="SYMMETRIC"):
+        la.symmetric_eigendecompose([[1, 2], [0, 2]], exact=True)
+    with pytest.raises(ValueError, match=r"Q\(λ, i\)"):
+        la.hermitian_eigendecompose([[0, Qi(0, -1)], [Qi(0, 1), 0]], exact=True)
+    with pytest.raises(ValueError, match="EXACT"):
+        la.fiedler_vector([[1.0, 0], [0, 2.0]], exact=True)
+    with pytest.raises(ValueError, match="EXACT"):
+        la.three_fold_eigvec_groups([[1.0, 0], [0, 2.0]], exact=True)
+    with pytest.raises(TypeError, match="exact=True requires EXACT weights"):
+        la.klein4_relational_structure([(0, 1)], [1.5], exact=True)   # the builder's own refusal
+
+
+def test_the_eigen_family_exact_route_orders_and_separates_where_float_cannot() -> None:
+    """The two facts that make the route a FIX and not a keyword: (1) the
+    exact spectrum of an operand the float route ROUNDS differs from the float
+    route's — ``[[2**53+1, 1], [1, 0]]`` has largest eigenvalue
+    ``9007199254740994.0`` exactly-then-lifted, ``9007199254740992.0`` rounded
+    first; (2) two eigenvalues that TIE at float resolution come back in the
+    exact ascending order — ``eig_exact`` returned ``[2**60+2, 2**60+1]`` for
+    the diagonal witness before the review fix (measured)."""
+    from srmech.math import laplacian as la
+    exact_top = la.symmetric_eigendecompose([[P, 1], [1, 0]], exact=True)[0][1].to_float()
+    float_top = float(la.symmetric_eigendecompose([[P, 1], [1, 0]])[0][1])
+    assert exact_top == 9007199254740994.0 and float_top == 9007199254740992.0
+    vals = la.symmetric_eigendecompose([[2 ** 60 + 2, 0], [0, 2 ** 60 + 1]], exact=True)[0]
+    assert [v.as_rational() for v in vals] == [2 ** 60 + 1, 2 ** 60 + 2]
+    # a balanced sector's tension IS zero on the exact route (the docstring's
+    # "0 exactly when balanced", literally true only here)
+    k = la.klein4_relational_structure([(0, 1), (1, 2), (2, 0)], [1, 1, 1], exact=True)
+    assert k["tension"]["chi00"] == 0 and k["sector_asymmetry"] == (Q(0, 1), Q(0, 1))
+    # an irrational pair of mixed tensions comes back as an enclosure of exact Q
+    k2 = la.klein4_relational_structure([(0, 1), (1, 2), (2, 0)], [1, 2, 3], gains=[1, 0, 0], exact=True)
+    lo, hi = k2["sector_asymmetry"]
+    assert isinstance(lo, Q) and isinstance(hi, Q) and lo <= hi and hi - lo < Q(1, 2 ** 62)
+
+
+def test_eig_exact_self_validation_is_exact_and_reaches_a_rational_matrix() -> None:
+    """The exact peer's own instrument (rc466 review fix): ``eig_exact`` refused
+    ``[[2**53+1, 1], [1, 0]]`` as a "factorisation bug" through a FLOAT
+    reconstruction at an absolute 1e-7, and TRUNCATED a rational char-poly to
+    ``int`` before factoring. Both are executed here as the fixed behaviour."""
+    from srmech.cascade import matrix_cascades as mc
+    pairs = mc.eig_exact([[P, 1], [1, 0]], project=False)
+    assert sum(e["algebraic_multiplicity"] for e in pairs) == 2
+    rat = mc.eig_exact([[Q(1, 2), Q(1, 3)], [Q(1, 3), 0]], project=False)
+    assert [e["value_qalg"].as_rational() for e in rat] == [Q(-1, 6), Q(2, 3)]
+    assert all(e["denominator_scale"] == 6 for e in rat)
+    assert "denominator_scale" not in mc.eig_exact([[1, 0], [0, 2]])[0]
 
 
 def test_char_poly_and_eigvals_exact_reach_a_rational_matrix() -> None:
@@ -556,6 +650,9 @@ _COMPOSE_HOST_FLOAT_ONLY = frozenset({
     "srmech.cascade.qdft_summand",
     "srmech.cascade.odft_summand",
     "srmech.cascade.correlation_product",
+    # rc466 review fix: the op forms an exact phase DIFFERENCE for exact phases
+    # and rounds it once; cr_op_kur_sin_term reads each phase as a double.
+    "srmech.cascade.kuramoto_sin_term",
 })
 
 
@@ -596,8 +693,17 @@ def test_compose_host_float_only_members_are_real_chain_steps() -> None:
         assert schema.lookup(name) is not None, name
     csrc = (Path(__file__).resolve().parents[2] / "c" / "src" / "srmech_compose_run.c").read_text(encoding="utf-8")
     for token in ("cr_op_as_quat4", "cr_op_as_oct8", "cr_op_qdft_summand",
-                  "cr_op_odft_summand", "cr_a_corr_product"):
+                  "cr_op_odft_summand", "cr_a_corr_product", "cr_op_kur_sin_term"):
         assert token in csrc, token
+    # the sixth member's divergence, stated in the C twin's own arithmetic:
+    # cr_op_kur_sin_term does `s = xj - xi` on doubles (cr_list_at_dbl), and
+    # the op now forms the exact difference first. On [2**53+1, 2**53+3] the
+    # difference is 2; the doubles are 2**53 and 2**53+4, whose difference is 4.
+    from srmech.cascade.composites import kuramoto_sin_term
+    from srmech.math import rational
+    assert "cr_list_at_dbl(th, i, &xi)" in csrc and "s = xj - xi;" in csrc
+    assert kuramoto_sin_term([P, P + 2], 0, 1) == rational.sin(2.0)
+    assert rational.sin(float(P + 2) - float(P)) == rational.sin(4.0) != rational.sin(2.0)
 
 
 # ── the declared DFT chains in the PYTHON runner over an exact sample list ───

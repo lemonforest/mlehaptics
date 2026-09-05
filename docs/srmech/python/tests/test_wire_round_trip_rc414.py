@@ -164,7 +164,13 @@ EXPECTED_CARRIERS = 29
 #: exact wire leaves Q `[num, den]` / Qi `[[a, b], [c, d]]`, round-tripped by
 #: execution) covers those eight AND rc463's three `Mat | list` builders, which
 #: had sat inside the 133 since rc463: 140 - 11 = 129.
-CEIL_RETURN_TYPES_WITHOUT_COERCER = 129
+CEIL_RETURN_TYPES_WITHOUT_COERCER = 127
+#: rc466 review fix (`#T1188`): 129 -> 127. `symmetric_eigendecompose` /
+#: `hermitian_eigendecompose` declared `tuple[Vec, Mat]`, which never had an
+#: inbound coercer; their exact route widened the spelling and the coercer
+#: landed with it (`_to_eigenpairs_exact_or_float`), together with
+#: `Vec | list[Qalg]` for `fiedler_vector` (which would otherwise have gone
+#: 129 -> 130). Measured after the coercers: 127.
 
 #: Carriers, constructed from their own shipped example expressions, that do
 #: NOT survive a wire round-trip. Counted over the EVALUABLE subset.

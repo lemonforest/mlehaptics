@@ -1077,8 +1077,14 @@ from srmech.math.text import fold_marks, glyph_stream
 #: The intermediate digest 4a6991… was measured and is recorded here so the
 #: two causes stay separable; it never shipped.
 #: was: 4a6991599183d4bea374290ba1b2a5b6ed99d6f1626c9790bf26ab7b5f032092 (rc466 stage 3, before the Qi carrier)
+#: rc466 review fix (`#T1188`): re-pinned. The frame count is UNCHANGED — 762 =
+#: 733 op + 29 carrier, measured — and no tokenizer or search behaviour moved;
+#: the corpus text did: the five eigen-family ToolEntries grew an `exact`
+#: parameter with its description and a widened `returns` spelling, and those
+#: strings are corpus. Cause measured by rebuilding the frames: 762 / 733 / 29.
+#: was: 566f65aa19672de9e93397604f7f03c50791873b1d57c0cbe237bd105e111de9 (rc466 stage 3, after the Qi carrier)
 WITNESS_RC416 = (
-    "566f65aa19672de9e93397604f7f03c50791873b1d57c0cbe237bd105e111de9")
+    "d9eafc751c5920f34c97dd8aaa5e7aa7e451c5205fbb64026a1d5754a43113ad")
 #: rc462 (`#T1179`): re-pinned. The corpus witness is a digest over the SEARCHABLE
 #: op corpus, so registering induced_representation + zeta_conjugate moves it by
 #: construction. Registry 700 -> 702; no tokenizer or search behaviour changed.

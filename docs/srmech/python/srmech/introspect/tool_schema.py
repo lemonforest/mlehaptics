@@ -2080,10 +2080,21 @@ def _register_primitive_class_tools() -> None:
                         P("gains", "Optional[list[int | tuple[int, int]]]",
                           False, "per-edge V₄ gains (see klein4_gain_laplacian)"),
                         P("n", "Optional[int]", False,
-                          "node count; inferred from edges when None")),
+                          "node count; inferred from edges when None"),
+                        P("exact", "bool", False,
+                          "rc466 review fix: exact sectors "
+                          "(klein4_gain_laplacian exact=True) read with "
+                          "symmetric_eigendecompose(exact=True): tension / "
+                          "coherence are Qalg (a balanced sector's tension IS "
+                          "0), sector_asymmetry a certified (lo, hi) enclosure "
+                          "of exact Q — degenerate (lo == hi) when both mixed "
+                          "tensions are rational; a float weight is refused by "
+                          "name")),
             returns=R("dict",
                       "{'sectors', 'tension': {sector: λ_min}, 'coherence': "
-                      "{sector: λ₂}, 'sector_asymmetry': |Δ tension χ10,χ01|}"),
+                      "{sector: λ₂}, 'sector_asymmetry': |Δ tension χ10,χ01|}; "
+                      "with exact=True the tensions / coherences are Qalg and "
+                      "sector_asymmetry is a (Q lo, Q hi) enclosure"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.cycle_holonomy", owner="srmech",
@@ -2618,8 +2629,17 @@ def _register_primitive_class_tools() -> None:
                     "Dispatches real→symmetric_eigendecompose, "
                     "complex→hermitian_eigendecompose (both native).",
             parameters=(P("matrix", "Mat", True,
-                          "n × n real-symmetric or complex-Hermitian Laplacian"),),
-            returns=R("Vec", "length-n λ₂ eigenvector — Vec, the array('d') 1-D carrier"),
+                          "n × n real-symmetric or complex-Hermitian Laplacian"),
+                        P("exact", "bool", False,
+                          "rc466 review fix: the λ₂ column of "
+                          "hermitian_eigendecompose(matrix, exact=True) — a "
+                          "list of n Qalg, the exact null-space vector of "
+                          "A − λ₂I over Q(λ₂), unnormalised; exact real "
+                          "symmetric operand required (a Qi with imaginary "
+                          "part is refused by name)")),
+            returns=R("Vec | list[Qalg]",
+                      "length-n λ₂ eigenvector — Vec, the array('d') 1-D carrier; "
+                      "list[Qalg] with exact=True"),
         ),
         # §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler —
         # the n-unbounded peer of fiedler_vector. Native standalone-C matvec
@@ -2911,9 +2931,19 @@ def _register_primitive_class_tools() -> None:
                     "graph — the package imports numpy nowhere). Sakurai "
                     "§2.1.5; Golub & Van Loan §8.5.",
             parameters=(P("H", "Mat", True,
-                          "n × n complex Hermitian matrix"),),
-            returns=R("tuple[Vec, Mat]",
-                      "(eigvals_ascending Vec, V_unitary complex Mat)"),
+                          "n × n complex Hermitian matrix"),
+                        P("exact", "bool", False,
+                          "rc466 review fix: an exact REAL operand (int / Q / "
+                          "Fraction, or Qi with zero imaginary part) takes "
+                          "symmetric_eigendecompose's exact route; a Qi entry with "
+                          "non-zero imaginary part is REFUSED by name (no shipped "
+                          "exact eigenvector carrier over Q(λ, i)); a float entry "
+                          "is refused, never rounded")),
+            returns=R("tuple[Vec, Mat] | tuple[list, list]",
+                      "(eigvals_ascending Vec, V_unitary complex Mat); with "
+                      "exact=True (list[Qalg] ascending with multiplicity, "
+                      "n×n nested list of Qalg whose columns are the exact "
+                      "unnormalised eigenvectors)"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.symmetric_eigendecompose",
@@ -2926,9 +2956,16 @@ def _register_primitive_class_tools() -> None:
                     "eigvals AND eigvecs (no ComplexWarning for a real "
                     "Laplacian). Golub & Van Loan §8.3.",
             parameters=(P("L", "Mat", True,
-                          "n × n real symmetric matrix"),),
-            returns=R("tuple[Vec, Mat]",
-                      "(eigvals_ascending Vec, V_orthogonal real Mat)"),
+                          "n × n real symmetric matrix"),
+                        P("exact", "bool", False, "rc466 review fix: route to the exact eigensolver (eig_exact — exact char-poly, irreducible factors, Sturm-isolated roots, exact null space over Q(λ)); the operand must be exact (int / Q / Fraction entries) and symmetric, a float entry is REFUSED by name. Opt-in: polynomial-factoring cost class, not Jacobi's")),
+            returns=R("tuple[Vec, Mat] | tuple[list, list]",
+                      "(eigvals_ascending Vec, V_orthogonal real Mat); with "
+                      "exact=True (list[Qalg] eigenvalues ascending WITH "
+                      "multiplicity — the order decided exactly by Sturm "
+                      "intervals, never the float embedding — and an n×n nested "
+                      "list of Qalg whose COLUMNS are the exact eigenvectors, "
+                      "each a null-space basis vector over its own eigenvalue's "
+                      "field, unnormalised)"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.mat_matmul",
@@ -3310,8 +3347,14 @@ def _register_primitive_class_tools() -> None:
             category="laplacian",
             summary="Harmonic-3 three-fold spectral reading (F150): partition the "
                     "eigenvectors of a real-symmetric Laplacian into low/mid/high.",
-            parameters=(P("L", "Mat", True, "real-symmetric matrix"),),
-            returns=R("dict", "low/mid/high eigenvector bands (each a real Mat)"),
+            parameters=(P("L", "Mat", True, "real-symmetric matrix"),
+                        P("exact", "bool", False,
+                          "rc466 review fix: the bands are column slices of "
+                          "symmetric_eigendecompose(L, exact=True)'s exact "
+                          "eigenvector matrix (each an (n, k) nested list of "
+                          "Qalg); exact symmetric operand required")),
+            returns=R("dict", "low/mid/high eigenvector bands (each a real Mat; "
+                              "each an (n, k) nested list of Qalg with exact=True)"),
         ),
         # ────────────────────────────────────────────────────────────
         # rc204 (gh#1324 / F1167–F1169) — the spectral SPINE + the

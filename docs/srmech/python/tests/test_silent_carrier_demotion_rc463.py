@@ -359,6 +359,18 @@ def _l1_rows():
          lambda: _la.magnetic_laplacian(2, [(0, 1)], [P], q=0, exact=True)[0][0].real * 2, P),
         ("laplacian.quaternion_laplacian[exact]",
          lambda: _la.quaternion_laplacian(2, [(0, 1)], [P], exact=True)[0][0] * 2, P),
+        # rc466 review fix: the eigen family's exact route (eig_exact behind
+        # exact=, the jacobi_eigvals precedent); read back via as_rational().
+        ("laplacian.symmetric_eigendecompose[exact]",
+         lambda: _la.symmetric_eigendecompose([[P, 0], [0, 0]], exact=True)[0][1].as_rational(), P),
+        ("laplacian.hermitian_eigendecompose[exact]",
+         lambda: _la.hermitian_eigendecompose([[P, 0], [0, 0]], exact=True)[0][1].as_rational(), P),
+        ("laplacian.fiedler_vector[exact, rank-1 operand: lambda_2 vector (1/P, 1), read as 1/v0]",
+         lambda: (1 / _la.fiedler_vector([[1, P], [P, P * P]], exact=True)[0]).as_rational(), P),
+        ("laplacian.three_fold_eigvec_groups[exact, rank-1 operand]",
+         lambda: (-_la.three_fold_eigvec_groups([[1, P], [P, P * P]], exact=True)["mid"][0][0]).as_rational(), P),
+        ("laplacian.klein4_relational_structure[exact, K2]",
+         lambda: _la.klein4_relational_structure([(0, 1)], [P], exact=True)["coherence"]["chi00"].as_rational(), 2 * P),
         ("laplacian.elementwise_multiply_complex[int]",
          lambda: _la.elementwise_multiply_complex([P], [1])[0].real, P),
         ("signal_processing.polyphase[int]", lambda: _sp_op("polyphase")([P, 2, 3], [1, 2, 3, 4], L=2)[0], P + 4),
@@ -695,6 +707,13 @@ _FIXED_IN_RC466 = frozenset({
     "srmech.math.laplacian.quaternion_laplacian",
     "srmech.math.laplacian.elementwise_multiply_complex",
     "srmech.math.laplacian.ground_state_flux_response",
+    # rc466 review fix: DECLARED at Stage 2, FIXED at the review — the exact
+    # peer (eig_exact) ships and jacobi_eigvals already wears it behind exact=.
+    "srmech.math.laplacian.hermitian_eigendecompose",
+    "srmech.math.laplacian.symmetric_eigendecompose",
+    "srmech.math.laplacian.three_fold_eigvec_groups",
+    "srmech.math.laplacian.fiedler_vector",
+    "srmech.math.laplacian.klein4_relational_structure",
     "srmech.signal_processing.rfft",
     "srmech.signal_processing.stft",
     "srmech.signal_processing.ofdm",
@@ -979,7 +998,9 @@ def test_layer3_the_rc465_fixed_family_is_strict_zero(op) -> None:
 
 @pytest.mark.parametrize("op", sorted(_FIXED_IN_RC466))
 def test_layer3_the_rc466_fixed_family_is_strict_zero(op) -> None:
-    """The forty-three ops rc466 drained by FIXING can never re-enter the roster.
+    """The forty-eight ops rc466 drained by FIXING can never re-enter the roster
+    (forty-three at Stage 1; the five eigen-family ops moved here from the
+    DECLARE ledger at the rc466 review, each with an executed ``exact=`` route).
 
     The committed manifest was re-measured in BOTH cells at Stage 3 of rc466
     (`#T1188`) after the last registry-type edit, so this reads the drain as
