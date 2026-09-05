@@ -557,7 +557,7 @@ def test_s2_presence_only_claims_ceiling() -> None:
 #: This is the arm that catches what rc427's own FIX created. rc427 removed a
 #: false Baez citation for "the Mal'cev tangent algebra" and wrote the
 #: reasoning into a ``#`` comment — which does not ship. The claim ships:
-#: through ``help()``, ``describe()``, the MCP tool list and the compiled-in C
+#: through ``help()``, the MCP tool list and the compiled-in C
 #: registry, and it shipped with no verdict attached. **Removing a false
 #: citation is not a fix; it is a change of defect class**, and nothing in the
 #: tree noticed for a whole rc.
@@ -1329,7 +1329,7 @@ S6_BITE_FIXTURES: Tuple[Tuple[str, str, bool, Tuple[str, ...], str], ...] = (
      "J(x,y,[x,z])=[J(x,y,z),x]",
      True, ("Mal'cev",),
      "Term present, no identifier, no verdict, no negation. This SHIPPED to "
-     "users via describe(), the MCP tool list and the compiled-in C registry."),
+     "users via the MCP tool list and the compiled-in C registry."),
     ("site 2 — tool_schema.py cwf summary, rc428 state",
      "rc313 — the mod-2 Calugareanu-White-Fuller consistency check on a "
      "strand: Lk == Tw + Wr (mod 2). Three INDEPENDENTLY-computed reads.",

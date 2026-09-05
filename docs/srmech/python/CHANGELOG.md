@@ -21,7 +21,7 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [0.9.0rc467] - `#T1188`: the last undeclared demoter, drained by an exact route the deferral said did not exist
 
-*(Stage 1 of 2 — ITEM 1. The five named rc466 residuals, the census re-measure in both cells, the roster pins and the `_FIXED_IN_RC467` move land in Stage 2. Until then `tests/demotion_census.ndjson` is STALE against the registry signature BY DESIGN: `resonant_spectrum`'s parameter list and its `L` type both moved here, and `tools/demotion_probe.registry_signature()` includes the parameter and return types, so the probe is re-run ONCE, after the last type edit of the rc.)*
+*(Both stages. Stage 1 shipped ITEM 1 — the exact `resonant_spectrum` route. Stage 2 shipped the residuals, the wire drain, the `Qi` gap, the roster pins and the census re-measure in both cells, and is written up below.)*
 
 **NO MERGE, NO TAG, NO PUBLISH.** This rc is gated by hand.
 
@@ -94,6 +94,116 @@ The empty float resonance list is not a digit accident, and naming its mechanism
 * `WITNESS_RC416` is re-pinned here because the corpus moved (the ToolEntry strings and the curated explanations are corpus). It will move ONCE MORE in Stage 2 after that stage's own ToolEntry edits; the plan's "one re-pin" was written for a single-commit rc, and leaving the gate red across a commit boundary is worse than pinning twice with both causes recorded.
 * The `(0, 1)` lock verdict (decision 4 above) is fixed at root in Stage 2 — one Python line, one C line, one rebuild, then the rc37 ctypes parity block.
 
+
+### Stage 2 — the wire the keyword could not cross, four silent wrong answers in the exact carrier, and the two halves of the `Qi` gap
+
+**The undeclared-demoter roster is at ZERO.** `{native: 0, pure: 0}`, against `{native: 1, pure: 1}` at rc466. `_DEFERRED_EXACT_PEER_SHIPS` and the Layer-3 test that guarded it are deleted together; `_FIXED_IN_RC467` is added ALONGSIDE `_FIXED_IN_RC466`, which is kept and never renamed because `tests/test_declared_inexactness_rc466.py` imports it by name across files.
+
+#### The `(0, 1)` underflow sentinel — one Python guard on two routes, one C body line
+
+`best_rational` returns `(0, 1)` when a ratio falls below `1/max_den`. Its record is byte-identical to the EXACT-INTEGER lock's — `den == 1`, `den_coords` empty — and all three lock verdicts in the tree read that empty `den_coords` as "no prime exceeds the cutoff, therefore LOCKED". **A ratio the op had failed to resolve at all was reported as the most resolved kind of ratio there is.**
+
+MEASURED before, in the NATIVE cell, on `[[1, 0], [0, 100]]` with `max_den=64` (the ratio is `1/100`, below `1/64`): both routes returned `'locked': True`. After: `False` on both, while the integer lock `[[1, 0], [0, 1]]` → `(1, 1)` still reads `True`.
+
+Fixed at ROOT in BOTH languages — `_resonances_from_tensions`, `_resonances_from_exact_brackets`, and `srmech_coupling.c` — rather than special-cased on the new route, because fixing one route alone makes the two disagree on a verdict for the same operand. One C body line inside an existing function: no symbol, no macro, no recursion, no signature, so the JPL ratchets and ABI 25 are untouched.
+
+`test_resonances_lock_vs_libration_prime_structure` asserted `locked == smooth`, which is **vacuous** on a `(0, 1)` row: `den_coords` is empty, so `smooth` is vacuously `True` and the model asserted the wrong verdict. Corrected to `locked == (num > 0 and smooth)`. Not a bought green — the Jupiter fixture has no `(0, 1)` pair, so no assertion in that test changes value; the row that MEASURES it is new.
+
+#### The population gate that replaced an instance list — and the four silent wrong answers it found
+
+rc466's registry-half gate was `_KEYWORD_BUILDERS`, **five named ops**. An instance list can only fail on the instances somebody thought to write down, and those five were the five that were already fine. Asked of the whole REGISTRY instead — *every entry carrying an `exact` parameter, every array-shaped operand it declares, must carry `2**53 + 1` through `coerce_param` INTACT* — the same question found **five more**:
+
+| op::operand | over the wire | direct call |
+|---|---|---|
+| `hermitian_eigendecompose::H` | RAISED its own exactness refusal | — |
+| `dense_solve::A` | `Q(1, 2**53)` | `Q(1, 2**53 + 1)` |
+| `schur_complement::L` | `Q(2**53 - 1)` | `Q(2**53)` |
+| `dirichlet_to_neumann::L` | `Q(2**53 - 1)` | `Q(2**53)` |
+| `triality_companions::g_v` | `Q(9007199254740999, 8)` | `1125899906842625` |
+
+**A raise is a defect the caller can see. The other four are silent wrong answers wearing the exact carrier.** A bare `Mat` is float64, so the wire rounded the operand, the op then computed *exactly* on the rounded number, and the caller received a `Q` — the carrier whose entire meaning is "this is exact" — holding a value that is not the answer to the question asked.
+
+All nine operands now declare `Mat | QMat | Sequence[Sequence[int | Q]]`: an EXISTING type string with an existing coercer, lexicon row, encoding hint and both C mirrors. Zero new type strings, no ceiling moved. The executed row asserts each wire result EQUAL to the direct call, which is the only comparison that catches this class.
+
+#### The seventh residual — `jacobi_eigvals(exact=True)` returns exact
+
+Not in the brief; promoted by the standing rule. The route ended in a terminal float lift, so `[[2**53+1, 0], [0, 1]]` came back `9007199254740992.0` — off by one, for a spectrum of two exact integers. Its sibling in the same family and the same rc466 sweep, `fiedler_vector`, already declared `Vec | list[Qalg]` and returned exact. **An op whose sibling ships the exact return is not float by nature**, so it was FIXED, not declared. It routes through the shared `_symmetric_eig_exact` and returns `list[Qalg]`; the default float route is byte-unchanged.
+
+That BREAKS a shipped return contract, so the caller was rewritten in the same change rather than shimmed. `test_exact_return_carrier_rc444` pinned the OPPOSITE — it was named `..._returns_a_FLOAT_vec_not_a_Q_carrier` and read the lift as the second of "two legitimate readings" of `exact=`. **Its own failure message named the condition for revisiting that**: *"if this became Q the two exact= readings have converged and the docstrings describing them must be revisited"*. The instrument was built to be able to return otherwise, and it did. It now pins the convergence.
+
+#### ITEM 2(e) — the `Qi` projection gap, both halves
+
+(a) The shipped `Qi` carrier description — baked verbatim into `srmech_carrier_registry.c` — named **four** producers including `magnetic_laplacian(exact=True)`, while the derived back-index in the SAME artifact listed **three**. Cause: the op declared the `Mat | list` its four sibling `exact=` builders share, and that string never spells `Qi`. Measured, `magnetic_laplacian` is the ONLY one of the five whose exact leaf is `Qi` — its leaf prints `(1/2+0i)` where the other four print `1`. It now declares `Mat | list[list[Qi]]`. **Qi produces: 3 → 4.**
+
+(b) The same sentence claimed `Qi` is "an accepted operand leaf wherever those ops declare `Qi`". **No ToolEntry parameter anywhere declared `Qi`**, so `consumes` was empty BY CONSTRUCTION and the claim was vacuously true. The op that ships the route is `hermitian_eigendecompose(exact=True)`: measured, a REAL `Qi` operand takes the exact rung and returns the exact spectrum, a non-real one is refused by name. **Qi consumes: `[]` → `['hermitian_eigendecompose']`.**
+
+Both `_PARAM_COERCERS` keys route to the EXISTING `_to_exact_complex_rows`, so `CEIL_RETURN_TYPES_WITHOUT_COERCER` stays **127** — the coercer lands with the return, never a raised ceiling. This is the one change touching a table `regen_all` does not emit: both HAND-MAINTAINED mirrors in `c/src/srmech_tool_schema.c` move with their Python originals, which is why it is an isolated, revertible commit.
+
+**The other half of 2(e) is DEFERRED with a landing surface, not a changelog line.** No C route computes any of the five `exact=` Laplacian routes — every symbol in the family is `const double *` in and `double *` out — so a bare-C host runs **0 of 5**. Same for `resonant_spectrum`'s own exact route (`srmech_resonant_spectrum` takes `const double *L_rowmajor`). Both are now **ADR-0009 §1.2 table rows** carrying the capability, the declining implementation, the boundary, the reason and a `#T1188` task ref. ADR-0009 §5 is explicit that a changelog entry is not a tracked gap. Note the shape of the second one: every kernel the exact cascade needs already ships in C (`srmech_sturm_isolate`, `srmech_eigvec_exact`, `srmech_factor_integer_poly`, `srmech_faddeev_leverrier`, the `srmech_qmat_*` family) — the gap is ORCHESTRATOR-level, not arithmetic. Closing either later is ABI-additive; ABI stays 25 either way.
+
+#### ITEM 3 MINOR 3 — `compensated_sum` had shipped the declaration and not the behaviour
+
+Its parameter sentence — compiled into `srmech_tool_registry.c` and served over MCP since rc466 — promises three exact rungs. **Two were false:** `compensated_sum([2**53+1, 1, -2**53])` returned `1.0` where the answer is `2`, and `compensated_sum([[1, 3], [1, 3]])` raised `TypeError`. The `s = 0.0` seed pulled every integer onto the float path; only the `Q` rung worked, and only by accident, through `Q.__radd__`.
+
+FIXED rather than disclaimed — the rung is ten lines and the op's own `returns` sentence already described it. One float leaf anywhere keeps the byte-identical rc420 body, so the `autocorrelation.toml` chain's pinned float-op order does not move; an EMPTY operand has no leaves to select a carrier, so it keeps the float `0.0` the curated example asserts. **27 of the 33 ops carrying the same boilerplate were NOT exercised — the population is disclosed as uncleared, not claimed clear.**
+
+**A falsehood the new row found by walking into it:** the curated worked example shipped `compensated_sum([0.1] * 10)  # -> 1.0000000000000002`. The op returns `1.0`, which is the CORRECT Neumaier answer (`math.fsum` agrees; a naive `+=` gives `0.9999999999999999`). Measured identical on both sides of this rc with the float body stashed out, so the example was wrong when written. **The reason it survived is worth naming: the worked-example ledger EXECUTES each snippet and records what it prints — it never compares that against the `# ->` the snippet states.** A wrong stated output is invisible to it.
+
+#### ITEM 3 MINOR 1 — the `describe()` formula was false, measured
+
+The standing formula *"reaching users via `describe()`, the MCP tool list and the compiled-in C registry"* appears across CLAUDE.md, the hook docstrings, `ripple_gates.txt` and eleven test files. **Measured: `srmech.describe()` returns 27,350 bytes of COUNTS** — no op name, no summary, no docstring, no carrier description and no digest of any kind. The two surviving members are real and differ from each other: the MCP tool list carries op names, summaries and PARAMETER summaries but **not** `explanation` prose; `srmech_tool_registry.c` carries all of it.
+
+Corrected in **live** prose only — CLAUDE.md (with the measurement quoted), three hook docstrings, `ripple_gates.txt`, `tools/hooks/README.md`, eight test files and one SHIPPED curated explanation. **Historical CHANGELOG entries and `# was:` records are left as record**; one edit that had reached into a historical rc463 comment in `test_op_name_set_witness_rc361.py` was reverted for that reason. The rc466 corrective note in `test_declared_inexactness_rc466.py` is corrected a second time: it had narrowed the claim to "the FIRST paragraph only" while still naming `describe()` at all.
+
+Editing an existing curated entry costs one `--accept-seed-drift`, which `gen_tool_docs`'s own guard docstring names as the correct price ("the author is replacing authored text and should say so once"). Said once, here.
+
+#### ITEM 2(b) and 2(c) — the chess notebook
+
+**2(b), the `INCONSISTENT — re-measure` flag propagated.** It lived at four sites — the summary bullet, the tag row and §9j rows 1 and 22 — and was absent from the sections that DERIVE the count, including §9n itself, the section the tag row instructs the reader not to use. Now carried inline at §1b.1 Grounds, §9h, the §9n head, §9n's rank assertion, its completeness argument, its dual derivation, the §9r parameter-count head, §9r's cross-reference and the §10 consumer row. `:3623` is a chessboard *rank* and was deliberately not touched. **The six restatements outside the chess notebook are deliberately out of scope** — rc466's ruling stops the tag convention at this notebook, and widening it is a maintainer call. **The re-measurement itself is a research spike, not a build item.**
+
+**2(c), the priority claims.** The sweep is auditable — this is the command, run verbatim:
+
+```
+grep -rniE "\bnovel\b|no prior (art|work|publication)|to our knowledge|no paper (applies|exists|has)|has not been done|no (direct )?literature|first (measurement|application|treatment|to)|unpublished|appears? (to be )?(new|novel)" docs/chess-maths/ docs/othello-maths/ docs/logo-maths/ --include=*.md | grep -v worktrees
+```
+
+50 hits. Four in-scope survivors rebucketed, each with the retired text quoted so the change is reviewable:
+
+- **§10.7 "Novel application status"** — *"No paper applies sheaf Laplacians … to any board game"* was a literature-priority claim with no SR-n record. The convention admits it only as **SEARCHED — NOT FOUND (SR-n)**, and no search was run, so the priority half is **WITHDRAWN** rather than rebadged. Rebucketed **KNOWN technique; applied here (Hansen–Ghrist) + CONFIRMED (internal)**.
+- **§15.6** — the *"~70% novel"* and *"~95% novel"* percentages **withdrawn**: unsourced priority estimates with no stated method, already flagged F03 (MEDIUM) by this subtree's own v1.5 docs audit and left standing until now.
+- **§16.8.4** — *"Novel to Othello; no chess analog exists"* → **CONFIRMED (internal)** for Othello + **PREDICTION (untested)** for the chess transfer; the second clause is about this project's own unrun work, not the literature.
+- **§9l** — *"the novel fiber"* → **PREDICTION (untested)**, in a future-work section where nothing has been measured.
+- **§10 cross-reference** — *"Prior Art #17"* → *"§9j Findings row 17"*. The table was renamed 2026-09-04 *precisely because it was being read as a list of priority claims*, and this reference kept the retired name.
+
+**The sister notebooks are DEFERRED, named, not silent.** The Othello (`:37`) and Antikythera (`:37`) convention blocks each define the retired class verbatim; Antikythera carries six `**Tag:**` rows and eight unsourced §11.6 "no published paper" sentences whose cited "systematic searches" record no query, engine or date; MFO `:6796` lacks the flag its own `:6975` twin carries; `OTHELLO_SPECTRAL_BUILD_PROMPT.md:139` states the retracted chess holonomy as prior. **Reason:** a ~40-site four-notebook prose sweep is unreviewable beside an exact-arithmetic branch in an rc the maintainer is gating by hand.
+
+#### NOT A DEFECT — verified at HEAD, do not re-fix
+
+Three of the five named residuals were **already closed by rc466's own review-fix commit `c7b5f9501`, one commit after the reports that named them** — the same stale-by-one-commit shape as ITEM 1's deferral pin. Verified at HEAD rather than scheduled:
+
+- **2(a)** the holonomy audit trail — §8c now retracts explicitly (`chess…notebook.md:1244`, blamed to `c7b5f9501`); at `32246efca` the same section still affirmed *"the rook bundle is confirmed flat"*.
+- **2(d)** `kuramoto_sin_term` — `composites.py:711-716` forms the phase difference EXACTLY in `Q` and rounds it ONCE, which is what its sentence documents. The declared demotion is the demotion it has.
+- **2(e) wire half** — a `Qi` round-trips over MCP; the six `srmech_qi_*` C symbols have shipped since rc15.
+- **ITEM 3 MINOR 2** — `normalized_laplacian` / `mass_normalized_laplacian` take ONE root of the exact PRODUCT (`_exact_root_or_grid(deg[r] * deg[c])`), and the claim holds on the hard case: degrees 8 and 2, product 16, NEITHER factor square, off-diagonal exactly `-1/4`.
+
+#### DEFERRED, each with its reason
+
+- **C arms for the five `exact=` Laplacian routes** and **a C arm for the exact resonant route** — ADR-0009 §1.2 rows above, not changelog lines.
+- **Sister-notebook prose sweep** — scope, named above, grep command attached.
+- **The rank-5 re-measurement** — research, not a build item.
+- **Wire emission of the Accuracy paragraphs** — a `gen_tool_docs` first-paragraph surface design, not a correctness fix; already an enumerated rc466 residual.
+- **Pure-cell census cost (~20 min vs 68 s native)** — cause identified and attributed (`recover_check` / `recover_check_spectral`, `CHANGELOG.md:505`); no correctness consequence, and CI never runs it. **Not bought with a `-k` filter or a skip** — this file already records three consecutive commits fighting one symptom without asking whether the thing belonged where it was.
+- **The 27 unexercised ops** carrying `compensated_sum`'s boilerplate — disclosed as uncleared.
+
+#### The numbers
+
+| quantity | rc466 | rc467 | moved? |
+|---|---|---|---|
+| `SRMECH_ABI_VERSION` | 25 | **25** | no — one C body line, no symbol added, removed or re-signatured |
+| registry total | 733 | **733** | no |
+| carrier count | 29 | **29** | no |
+| search frames | 762 | **762** | count no; `WITNESS_RC416` re-pinned twice, both causes recorded |
+| `CEIL_RETURN_TYPES_WITHOUT_COERCER` | 127 | **127** | no |
 
 ## [0.9.0rc466] - `#T1188`: the seventy-row drain — forty-seven rows fixed on an exact carrier, twenty-two declared with a peer verdict on record, one deferred by name
 

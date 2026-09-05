@@ -16,7 +16,7 @@ so ``srmech.tests.*`` is not importable and never was.
 
 WHY THIS IS A SHIPPED DEFECT, NOT TIDINESS. Docstrings here are not local
 commentary — they are emitted into generated files and travel inside the wheel,
-reaching users through ``describe()``, the MCP tool list and the compiled-in C
+reaching users through the MCP tool list and the compiled-in C
 registry. This is the same four-surface reasoning the issue-ref convention rests
 on (root ``CLAUDE.md``): a reference that looks authoritative and points nowhere
 is worse than no reference, because a reader spends effort resolving it before

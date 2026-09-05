@@ -3994,8 +3994,8 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
             'triality_rep_dictionary and trusting it. Through rc460 that field '
             'was a hard-coded module dict whose only independent derivation '
             'lived in a note script and a test, neither of which ships, while '
-            'the value itself was emitted into describe(), the MCP tool list '
-            'and the compiled-in C registry. What you would otherwise wrongly '
+            'the value itself was emitted into the MCP tool list and the '
+            'compiled-in C registry. What you would otherwise wrongly '
             "hand-roll is a char-poly probe over all 28 generators' companion "
             'solves — correct, and about four orders of magnitude slower: this '
             'op is 5.2 ms because all three shipped maps preserve that Cartan '

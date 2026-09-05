@@ -11,7 +11,7 @@ valid text that nothing computes over, so it survives every existing gate --
 which is why it went undetected for many rcs. Measured at rc348: **15 such
 false links had already SHIPPED inside published wheels** (``_tool_docs.py``
 5, ``_c_claims.py`` 1, ``srmech_tool_registry.c`` 9), reaching users through
-``describe()``, the MCP tool list and the compiled-in C registry.
+the MCP tool list and the compiled-in C registry.
 
 WHY THIS GUARDS THE EMITTED ARTIFACTS AND NOT THE SOURCES
 =========================================================
@@ -707,7 +707,7 @@ SCAN_ROOTS = {
     # rc436 (`#T1141`): the citation-CONTRADICTION gate reads the compiled-in C
     # tool registry alongside every package module, because the contradiction it
     # is strict-zero on shipped in BOTH -- the rc429 Fuller-1971 claim reached
-    # users through `describe()`, the MCP tool list and
+    # users through the MCP tool list and
     # `c/src/srmech_tool_registry.c` (4 occurrences there alone). Scanning only
     # python/ would have missed the surface with the most copies of the defect,
     # so reaching into c/ is the POINT of the gate, not an accident of layout.
@@ -789,7 +789,7 @@ SCAN_ROOTS = {
     # that is where the defect had the most copies — the stale
     # "17 executable / 3 leaf" clause shipped simultaneously in the curated
     # SSoT, the generated `_tool_docs.py`, the compiled-in C registry and the
-    # built `libsrmech`, reaching users through `describe()`, the MCP tool list
+    # built `libsrmech`, reaching users through the MCP tool list
     # and a bare-C host with no interpreter. It also reads the C file in BOTH of
     # that file's encodings (plain octal-escaped `const char *` and
     # JSON-escaped-inside-C), which no fixture copy could reproduce. The roster

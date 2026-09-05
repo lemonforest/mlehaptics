@@ -736,7 +736,7 @@ tests/test_cascade_catalog_prose_currency_rc454.py
 #
 #    test_frame_action_rc461 is a RIPPLE gate in the strict sense — it binds a
 #    SHIPPED CONSTANT (`_TAU_LABEL_ACTION` / `_SWAP_LABEL_ACTION`, emitted into
-#    describe(), the MCP tool list and the compiled-in C registry through
+#    the MCP tool list and the compiled-in C registry through
 #    triality_rep_dictionary) to a DERIVATION, so any edit to either side moves
 #    it. Proven red BOTH ways by planted mutation: flipping the constant reds 1
 #    test, swapping the 8s/8c derivation reds 3. ~55 s (the cold

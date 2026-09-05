@@ -22,7 +22,7 @@ rc429 then wrote, of the same paper::
     are paywalled-only or offline ...
 
 Both shipped, for four releases (rc429 → rc435), across **seven** surfaces
-reaching users through ``describe()``, the MCP tool list and the compiled-in C
+reaching users through the MCP tool list and the compiled-in C
 registry. The obvious reading is that one of them was right.
 
 **Neither was.** Measured against NCBI E-utilities rather than against either

@@ -25,11 +25,14 @@ D1  **The sentence is on the op's OWN docstring** and carries at least one
     verbatim token of ``tools/demotion_probe.py``'s ``R3_VOCABULARY``. The
     probe's one-level delegate follow is not relied on: the op's own docstring
     is what ``inspect.getdoc`` / ``help()`` and the probe's
-    ``declaration_hits`` read. (Corrected at the rc466 review: this line said
-    ``describe()`` and the MCP tool list emit the op's own text — they emit
-    its FIRST paragraph only, ``tools/gen_tool_docs.py``'s ``_clean_doc``, so
-    the accuracy paragraph does not reach the wire; emitting it there is a
-    named residual, and the claim is not repeated here.)
+    ``declaration_hits`` read. (Corrected TWICE. rc466: this line said
+    ``describe()`` and the MCP tool list emit the op's own text — the MCP tool
+    list emits its FIRST paragraph only, ``tools/gen_tool_docs.py``'s
+    ``_clean_doc``, so the accuracy paragraph does not reach the wire.
+    rc467 (`#T1188`): naming ``describe()`` there at all was wrong — MEASURED,
+    it returns 27,350 bytes of COUNTS, carrying no op name, no summary, no
+    docstring and no digest of any kind. Emitting the accuracy paragraphs on
+    the wire remains a named residual.)
 D2  **No DECLARE op grew an ``exact=`` keyword.** The R3 reader counts
     ``exact= opt-in`` as a declaration by its mere presence, so a keyword
     without an executed route would drain a census row for free (rule F1 of
