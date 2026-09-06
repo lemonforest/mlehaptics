@@ -76,7 +76,7 @@ from __future__ import annotations
 
 import ctypes
 import functools
-from typing import List, Sequence, Tuple
+from typing import List, Sequence
 
 # §22: scalar root + trig via the Class-N rational cascade, not libm; π from the
 # Archimedes pi_cascade (`[[feedback_continuous_number_line_pedagogical_obstacle]]`).
@@ -276,7 +276,8 @@ def _exact_turn_pair(n: int, r: int, sigma: int):
             f"which is the silent wrong answer this rc removed; pass a float "
             f"sample to elect the float carrier deliberately")
     # ONE narrowing rule for the whole tree — the same helper the two exact
-    # twiddles and hypercomplex_turn elect their carrier with. The axis on this
+    # twiddles and hypercomplex_exp's turn= route elect their carrier with.
+    # The axis on this
     # route is always rational (it is a wire, not a name), so ``axis_k = 1``
     # and the rational arm here IS exactly the quarter turns.
     return _qalg._turn_scalars(1, n, r, sigma)
@@ -504,41 +505,170 @@ def _couple_q61_turn(streams_q61: Sequence[int], mu_q61: Sequence[int],
     return _octo_mult_q61(streams_q61, tw)        # q·T
 
 
-def hypercomplex_exp(theta: float, k_axes: int) -> Tuple["_Q", ...]:
+def _exp_at_turn(turn, k_axes: int) -> "tuple":
+    """The ``turn=(k, n)`` route of :func:`hypercomplex_exp` — the unit
+    hypercomplex exponential at the EXACT RATIONAL TURN ``k/n``, as an 8-tuple
+    of exact algebraic numbers over one cyclotomic field (rc468, `#T1188`).
+
+    The refusal shape is :func:`hypercomplex_couple`'s, deliberately: both ops
+    read the SAME ``turn=(k, n)`` operand, so a malformed pair must fail the
+    same way on both. No float, no π, no Q61 grid, and no fallback — a
+    fallback on a NAMED turn would be the silent demotion this surface exists
+    to remove."""
+    if (isinstance(turn, (tuple, list)) and len(turn) == 2
+            and all(isinstance(v, int) and not isinstance(v, bool)
+                    for v in turn)):
+        k_turn, n_turn = int(turn[0]), int(turn[1])
+    else:
+        raise ValueError(
+            f"hypercomplex_exp: turn must be an (int, int) pair (k, n) "
+            f"meaning the rational turn 2*pi*k/n; got {turn!r}")
+    if n_turn < 1:
+        raise ValueError(
+            f"hypercomplex_exp: turn denominator must be >= 1; got {n_turn}")
+    index = _qalg._turn_field_index(n_turn, k_axes)
+    if index > _qalg.MAX_CYCLOTOMIC_INDEX:
+        raise ValueError(
+            f"hypercomplex_exp: turn=({k_turn}, {n_turn}) at k_axes={k_axes} "
+            f"needs Q(zeta_{index}), above the measured "
+            f"MAX_CYCLOTOMIC_INDEX={_qalg.MAX_CYCLOTOMIC_INDEX} field cap. "
+            f"The exact route RAISES rather than falling back to a rounded "
+            f"angle; hand theta= a float radian to take that carrier "
+            f"deliberately")
+    one = Q(1, 1)
+    zero = Q(0, 1)
+    weights = [zero] + [one if a < k_axes else zero for a in range(7)]
+    return tuple(_qalg._turn_twiddle(8, weights, k_axes, n_turn, k_turn, 1))
+
+
+def hypercomplex_exp(theta=None, k_axes=None, *, turn=None) -> "tuple":
     """The unit hypercomplex exponential ``exp(μθ) = cos θ + μ·sin θ`` as an
-    8-tuple of EXACT :class:`~srmech.math.q.Q` (Q61, denominator ``2**61``).
+    8-tuple — **one op over both carriers, elected by which operand you hand
+    it** (rc468, `#T1188`).
 
     ``μ`` is the EQUAL-WEIGHT UNIT pure-imaginary over the first ``k_axes``
     octonion imaginary axes — ``k_axes ∈ {1, 3, 7}`` selecting ``ℂ`` / ``ℍ`` /
     ``𝕆`` (the F882 *literal* QDFT / ODFT twiddle). The eight components are
     ``q[0] = cos θ``, ``q[1..k] = sin θ / √k`` (so ``|q| = 1``), ``q[k+1..7] =
-    0``. Feed them into :func:`~srmech.cascade.cd_mult` to rotate a
-    hypercomplex value **in the algebra** (then project once) — the "do the
-    transform in ℍ/𝕆, then read out" that beats composing scalar ``phase_bind``
-    ops on the projected carrier (F882: ℂ 0.78 = the spirit's ℍ rung; 𝕆/ODFT
-    0.81, a new routing high).
+    0`` on BOTH routes. Feed them into :func:`~srmech.cascade.cd_mult` to
+    rotate a hypercomplex value **in the algebra** (then project once) — the
+    "do the transform in ℍ/𝕆, then read out" that beats composing scalar
+    ``phase_bind`` ops on the projected carrier (F882: ℂ 0.78 = the spirit's ℍ
+    rung; 𝕆/ODFT 0.81, a new routing high).
 
-    Substrate-native fixed-width Q61 cascade (``rational.{cos,sin}`` + the
-    integer-sqrt unit norm — no bignum, no libm), **byte-exact** with the native
-    peer ``srmech_hypercomplex_exp_q61`` when present. ⚠️ "byte-exact" scopes
-    to PURE-vs-NATIVE agreement, and "exact ``Q``" to the CARRIER: the returned
-    rationals are exact rationals, NOT the exact algebraic number. At
-    ``θ = 2πk/N`` the target is a root of unity, and this op cannot reach it
-    for ANY carrier — MEASURED (0.9.0rc467, `#T1188`): ``hypercomplex_exp(2π/8,
-    1)`` raised to the 8th power is a ratio of 147-digit integers, not ``1``.
-    The reason is the OPERAND, not the carrier: this op takes an ANGLE IN
-    RADIANS, and ``fl(2π/8)`` is already not ``2π/8``, so no exact arithmetic
-    downstream can recover the turn. **The exact peer SHIPS as of 0.9.0rc468**
-    — :func:`hypercomplex_turn`, which takes the TURN ``k/n`` itself and
-    returns the root of unity over ``ℚ(ζ_M)``, with ``hypercomplex_turn(1, 8,
-    1)**8 == 1`` exactly. Reach for it whenever the angle you have is a
-    rational multiple of a turn; reach for this op when it genuinely is a
-    continuous radian. ``k_axes`` outside
-    ``{1, 3, 7}`` or a non-finite ``theta`` raises ``ValueError`` (``Q`` is the
-    finite-rational carrier)."""
-    if k_axes not in _HC_INV_Q61:
+    **THE TWO OPERANDS.** Exactly one of these is given:
+
+    * ``theta=`` — an ANGLE IN RADIANS, a genuinely continuous ``float``.
+      Substrate-native fixed-width Q61 cascade (``rational.{cos,sin}`` + the
+      integer-sqrt unit norm — no bignum, no libm), **byte-exact** with the
+      native peer ``srmech_hypercomplex_exp_q61`` when present, returning
+      eight exact :class:`~srmech.math.q.Q` on the Q61 grid (denominator
+      ``2**61``). ⚠️ "byte-exact" scopes to PURE-vs-NATIVE agreement, and
+      "exact ``Q``" to the CARRIER: the returned rationals are exact
+      rationals, NOT the exact algebraic number. At ``θ = 2πk/N`` the target
+      is a root of unity and this route cannot reach it for ANY carrier —
+      MEASURED (0.9.0rc467, `#T1188`): ``hypercomplex_exp(2π/8, 1)`` raised to
+      the 8th power is a ratio of 147-digit integers, not ``1``. The reason is
+      the OPERAND, not the carrier: ``fl(2π/8)`` is already not ``2π/8``, so
+      no exact arithmetic downstream can recover the turn.
+    * ``turn=(k, n)`` — the TURN ITSELF, an exact ``(int, int)`` rational.
+      Returns the root of unity over ``ℚ(ζ_M)``: ``q[0] = cos(2πk/n)``,
+      ``q[1..k_axes] = sin(2πk/n)/√k_axes``, with the ``1/√k_axes`` normaliser
+      built INSIDE the field (``1`` for ``ℂ``, ``ζ₁₂ + ζ₁₂⁻¹`` inverted for
+      ``ℍ`` = ``√3``, the quadratic Gauss sum ``g/i`` inverted for ``𝕆`` =
+      ``√7``). There ``‖q‖² == 1`` and ``q**n == 1`` hold EXACTLY, with ``==``,
+      not to a tolerance. No angle, no ``π``, no float, no Q61 grid.
+
+    **Why ONE op with two operands, and not two ops** (rc468, `#T1188`). rc468
+    first shipped the exact route as a separate ``hypercomplex_turn(k, n,
+    k_axes)``. That was a duplicate op: the two differ only in which operand
+    they are handed, and the standing pattern in this tree is that one op
+    serves every carrier, dispatching on what it is given — the ``einsum`` /
+    ``kron`` precedent (``srmech.cascade.matrix_cascades.einsum``: *"Elect the
+    exact carrier by handing this op exact operands; there is no keyword"*).
+    ``hypercomplex_turn`` is REMOVED, with no alias and no deprecation
+    wrapper: ``hypercomplex_turn(k, n, k_axes)`` is
+    ``hypercomplex_exp(k_axes=k_axes, turn=(k, n))``, the same object by the
+    same construction.
+
+    **Why a named ``turn=`` and not a polymorphic ``theta=``.** Reading an
+    exact-rational ``theta`` as the turn would make the UNIT depend on the
+    carrier — ``Q(1, 2)`` would be half a turn where ``0.5`` is half a radian
+    — which is a silent wrong answer waiting for the first caller who
+    generalises a float. The turn gets its own name so the unit is in the
+    spelling. This is not a new shape: :func:`hypercomplex_couple` has taken
+    exactly this ``theta=`` / ``turn=(k, n)`` pair since rc468, and this op now
+    matches it, refusal for refusal — a malformed ``turn`` raises
+    ``ValueError`` naming the ``(int, int)`` contract on both.
+
+    Args:
+        theta: the angle in RADIANS (float route). Mutually exclusive with
+            ``turn``; a non-finite value raises ``ValueError`` (``Q`` is the
+            finite-rational carrier).
+        k_axes: ``1``, ``3`` or ``7`` — the ℂ / ℍ / 𝕆 axis width. Required on
+            both routes.
+        turn: the exact rational turn as an ``(int, int)`` pair ``(k, n)``
+            meaning ``2πk/n``; ``k`` may be any int (a negative ``k`` is the
+            conjugate turn — the Class-C orientation) and ``n >= 1``.
+
+    Returns:
+        On ``theta=``: an 8-tuple of ``Q`` on the Q61 grid. On ``turn=``: an
+        8-tuple of ``Q`` when every component is rational and of
+        :class:`~srmech.math.qalg.Qalg` over ``m = Φ_M`` otherwise — **the
+        carrier is elected by the VALUE**, uniformly, never a mixed tuple.
+        ``M = lcm(n, 4)`` / ``lcm(n, 12)`` / ``lcm(n, 28)`` for ``k_axes``
+        ``1`` / ``3`` / ``7``. At ``k_axes = 1`` the rational set is exactly
+        the quarter turns ``4k ≡ 0 (mod n)``; ⚠️ at ``k_axes = 3`` and ``7``
+        the ``1/√k_axes`` scale SHIFTS it rather than emptying it, and this was
+        measured rather than predicted: ``turn=(1, 3)`` at ``k_axes=3`` is the
+        all-rational ``(−1/2, 1/2, 1/2, 1/2, 0, 0, 0, 0)`` — the order-3 unit
+        quaternion of the binary tetrahedral group — because
+        ``sin(2π/3)/√3 = 1/2`` exactly, while ``turn=(1, 3)`` at ``k_axes=1``
+        is irrational. Read the rule as "every component rational".
+
+    Raises:
+        ValueError: ``k_axes`` outside ``{1, 3, 7}``; neither or both of
+            ``theta`` / ``turn`` given; a non-finite ``theta``; a ``turn`` that
+            is not an ``(int, int)`` pair or whose ``n < 1``; or a turn whose
+            field index exceeds
+            :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` (256) — it RAISES
+            there rather than falling back to a rounded angle, so
+            ``k_axes=7`` refuses ``n = 64`` (``lcm`` 448).
+
+    Worked anchors::
+
+        from srmech.cascade import hypercomplex_exp
+        from srmech.math.q import Q
+        hypercomplex_exp(k_axes=1, turn=(1, 4))[:2]
+        # -> (Q(0, 1), Q(1, 1))          a quarter turn: exp(i pi / 2) = i
+        w = hypercomplex_exp(k_axes=1, turn=(1, 8))
+        w[0] * w[0] * Q(2, 1) == w[0].one()
+        # -> True                        cos(2 pi / 8) = sqrt2 / 2, exactly
+        hypercomplex_exp(k_axes=3, turn=(1, 3))[:4]
+        # -> (Q(-1, 2), Q(1, 2), Q(1, 2), Q(1, 2))
+        #    a THIRD turn, and still ALL-RATIONAL: the 1/sqrt3 axis scale
+        #    cancels the sqrt3 in the sine -- the order-3 unit quaternion of
+        #    the binary tetrahedral group, MEASURED
+        hypercomplex_exp(0.7853981633974483, 1)[0]
+        # -> Q(1630477228166597827, 2305843009213693952)
+        #    the Q61 cosine of the ROUNDED angle -- an exact rational, but not
+        #    the algebraic number, and its 8th power is a 147-digit ratio
+
+    Class J (the cyclotomic field, ``turn=`` route only) ∘ N (exact ``Q``
+    coordinates) ∘ C (the turn orientation) ∘ M (the equal-weight hypercomplex
+    axis). No ``abs``, no ``math``.
+    """
+    if isinstance(k_axes, bool) or k_axes not in _HC_INV_Q61:
         raise ValueError(
             f"hypercomplex_exp: k_axes must be 1, 3 or 7 (ℂ/ℍ/𝕆); got {k_axes!r}")
+    if (theta is None) == (turn is None):
+        raise ValueError(
+            f"hypercomplex_exp: give exactly ONE of theta= (an angle in "
+            f"RADIANS, the float64 carrier) or turn=(k, n) (the exact "
+            f"rational turn 2*pi*k/n, the cyclotomic carrier); got "
+            f"theta={theta!r}, turn={turn!r}")
+    if turn is not None:
+        return _exp_at_turn(turn, k_axes)
     th = float(theta)
     if not _rational._is_finite(th):
         raise ValueError("hypercomplex_exp: theta must be finite (Q is the finite-rational carrier)")
@@ -550,102 +680,6 @@ def hypercomplex_exp(theta: float, k_axes: int) -> Tuple["_Q", ...]:
         scaled = _rational._q61_fxmul(s, _HC_INV_Q61[k_axes])   # sin θ / √k (Class K·C)
         ints = [c] + [scaled if a < k_axes else 0 for a in range(7)]
     return tuple(_Q(v, _Q61_ONE) for v in ints)
-
-
-def hypercomplex_turn(k: int, n: int, k_axes: int) -> "tuple":
-    """The unit hypercomplex exponential at the RATIONAL TURN ``k/n`` —
-    ``exp(μ·2πk/n) = cos(2πk/n) + μ·sin(2πk/n)`` as an 8-tuple of EXACT
-    algebraic numbers over one cyclotomic field. The exact peer of
-    :func:`hypercomplex_exp`, whose parameter is a float64 RADIAN and which
-    therefore cannot reach this object at all (0.9.0rc468, `#T1188`).
-
-    ``μ`` is the EQUAL-WEIGHT UNIT pure-imaginary over the first ``k_axes``
-    octonion imaginary axes — ``k_axes ∈ {1, 3, 7}`` selecting ``ℂ`` / ``ℍ`` /
-    ``𝕆``, the same F882 literal QDFT / ODFT twiddle
-    :func:`hypercomplex_exp` names — but built EXACTLY: the ``1/√k_axes``
-    normaliser is ``1`` for ``ℂ``, ``ζ₁₂ + ζ₁₂⁻¹`` inverted for ``ℍ``
-    (``√3``), and the quadratic Gauss sum ``g/i`` inverted for ``𝕆``
-    (``√7``), all inside the field. So ``q[0] = cos(2πk/n)``,
-    ``q[1..k_axes] = sin(2πk/n)/√k_axes``, ``q[k_axes+1..7] = 0`` — and
-    ``‖q‖² == 1`` and ``q**n == 1`` hold EXACTLY, with ``==``, not to a
-    tolerance.
-
-    **Why this op exists rather than a keyword on the exponential.**
-    :func:`hypercomplex_exp` takes an ANGLE IN RADIANS. ``exp(μ·fl(π/4))`` is
-    not ``ζ₈`` for any carrier whatever — the operand is already the rounded
-    number — so that op's rc467 exactness note is TRUE and stays true, and the
-    only way to reach the root of unity is to be handed the TURN instead of
-    its angle. That is this op. MEASURED on the sibling:
-    ``hypercomplex_exp(2π/8, 1)`` raised to the 8th is a ratio of 147-digit
-    integers; ``hypercomplex_turn(1, 8, 1)`` raised to the 8th is exactly
-    ``1``.
-
-    **The carrier is elected by the VALUE**, as on the twiddles: every
-    component is a plain :class:`~srmech.math.q.Q` when every component is
-    rational, and a :class:`~srmech.math.qalg.Qalg` over ``Φ_M`` otherwise —
-    uniformly, never a mixed tuple. At ``k_axes = 1`` that set is exactly the
-    quarter turns ``4k ≡ 0 (mod n)``. ⚠️ At ``k_axes = 3`` and ``7`` the
-    ``1/√k_axes`` scale SHIFTS it rather than emptying it, and this was
-    measured rather than predicted: ``hypercomplex_turn(1, 3, 3)`` is the
-    all-rational ``(−1/2, 1/2, 1/2, 1/2, 0, 0, 0, 0)`` — the order-3 unit
-    quaternion of the binary tetrahedral group — because ``sin(2π/3)/√3 = 1/2``
-    exactly, while ``hypercomplex_turn(1, 3, 1)`` at the SAME turn is
-    irrational. Read the rule as "every component rational".
-
-    Args:
-        k: the turn numerator (any ``int``; reduced mod ``n``, so a negative
-            ``k`` is the conjugate turn — the Class-C orientation).
-        n: the turn denominator, ``n >= 1``.
-        k_axes: ``1``, ``3`` or ``7`` — the ℂ / ℍ / 𝕆 axis width.
-
-    Returns:
-        An 8-tuple of ``Q`` (quarter turns at ``k_axes == 1``) or of ``Qalg``
-        over ``m = Φ_M``, ``M = lcm(n, 4)`` / ``lcm(n, 12)`` / ``lcm(n, 28)``
-        for ``k_axes`` ``1`` / ``3`` / ``7``.
-
-    Raises:
-        ValueError: ``k_axes`` outside ``{1, 3, 7}``, ``n < 1``, or ``M``
-            above :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` (256) — it
-            RAISES there rather than falling back to a rounded angle, so
-            ``k_axes=7`` refuses ``n = 64`` (``lcm`` 448).
-        TypeError: a non-``int`` ``k`` / ``n`` / ``k_axes``.
-
-    Worked anchors::
-
-        from srmech.cascade import hypercomplex_turn
-        hypercomplex_turn(1, 4, 1)[:2]
-        # -> (Q(0, 1), Q(1, 1))          a quarter turn: exp(i pi / 2) = i
-        w = hypercomplex_turn(1, 8, 1)
-        w[0] * w[0] * 2 == w[0].one() * Q(1, 1)
-        # -> True                        cos(2 pi / 8) = sqrt2 / 2, exactly
-
-    Class J (the cyclotomic field) ∘ N (exact ``Q`` coordinates) ∘ C (the turn
-    orientation) ∘ M (the equal-weight hypercomplex axis). No ``abs``, no
-    ``math``, no float, no series, no Q61 grid.
-    """
-    if isinstance(k_axes, bool) or k_axes not in _HC_INV_Q61:
-        raise ValueError(
-            f"hypercomplex_turn: k_axes must be 1, 3 or 7 (ℂ/ℍ/𝕆); "
-            f"got {k_axes!r}")
-    for label, v in (("k", k), ("n", n)):
-        if isinstance(v, bool) or not isinstance(v, int):
-            raise TypeError(
-                f"hypercomplex_turn: {label} must be a plain int; "
-                f"got {type(v).__name__}")
-    if n < 1:
-        raise ValueError(f"hypercomplex_turn: n must be >= 1; got {n}")
-    index = _qalg._turn_field_index(n, k_axes)
-    if index > _qalg.MAX_CYCLOTOMIC_INDEX:
-        raise ValueError(
-            f"hypercomplex_turn: n={n} at k_axes={k_axes} needs "
-            f"Q(zeta_{index}), above the measured "
-            f"MAX_CYCLOTOMIC_INDEX={_qalg.MAX_CYCLOTOMIC_INDEX} field cap. "
-            f"The exact route RAISES rather than falling back to a rounded "
-            f"angle; hypercomplex_exp is the float-angle peer")
-    one = Q(1, 1)
-    zero = Q(0, 1)
-    weights = [zero] + [one if a < k_axes else zero for a in range(7)]
-    return tuple(_qalg._turn_twiddle(8, weights, k_axes, n, k, 1))
 
 
 def as_oct8(vec) -> "List[float] | List[Q]":

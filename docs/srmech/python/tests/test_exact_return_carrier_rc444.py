@@ -665,6 +665,19 @@ def test_the_carrier_selector_census_figure_is_re_measured() -> None:
     descriptors" line that had doubled). So the figure is asserted here rather
     than left as prose.
     """
+    # ⚠️ A RESIDUAL, recorded rather than quietly closed (rc468, `#T1188`).
+    # `turn` is NOT in this set and two shipped ops now select a carrier with
+    # it — `srmech.cascade.hypercomplex_couple(turn=(k, n))` since earlier in
+    # this same rc, and `srmech.cascade.hypercomplex_exp(turn=(k, n))` since
+    # the consolidation, where it selects the exact ℚ(ζ_M) route against the
+    # float64 `theta=` radian. That is a carrier selector by this census's own
+    # definition. It is left out DELIBERATELY and in the open: widening a
+    # reviewed selector set is a census decision that moves this pin (74 -> 76)
+    # and the CHANGELOG figure with it, and doing it as a side effect of an op
+    # consolidation would be exactly the silent re-scope the docstring above
+    # says this figure exists to prevent. The count below is therefore the
+    # SAME instrument it has always been, and the gap is named here so it is
+    # not invisible.
     selectors = {"element_type", "table", "mode", "exact", "gammas", "with_path"}
     schema = get_tool_schema()
     per = {s: 0 for s in selectors}

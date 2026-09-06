@@ -98,12 +98,19 @@ REVIEWED_ROSTER: Dict[str, Tuple[str, Tuple[str, ...]]] = {
     "srmech.cascade.cyclic_mod_mul": ("parametric", ("modulus",)),
     "srmech.cascade.cyclic_mod_mul_wide": ("parametric", ("modulus",)),
     "srmech.cascade.cyclic_mod_pow": ("parametric", ("modulus",)),
-    # rc468 (`#T1188`): the exact rational-turn pair. MEASURED parametric in
+    # rc468 (`#T1188`): the exact rational-turn frame. MEASURED parametric in
     # the turn denominator — the numerator k is periodic in n, which is the
-    # Class-I reduction the ops perform first and the SAME frame the two
-    # summands above carry. Reviewed against the census rows: 505 / 507
+    # Class-I reduction the op performs first and the SAME frame the two
+    # summands below carry. Reviewed against the census rows: 505 / 507
     # probe calls, one finding each, coord k carried by param n.
-    "srmech.cascade.hypercomplex_turn": ("parametric", ("modulus",)),
+    # The `hypercomplex_turn` row that stood here left with the op in the same
+    # rc — its route folded into `hypercomplex_exp`'s `turn=(k, n)` operand,
+    # and the declaration did NOT move with it. MEASURED: the probe enters an
+    # op only through INT-typed parameters, and a `(k, n)` pair is not one, so
+    # the census returns `measured_scope=null` for the folded op and a
+    # declaration there would be one this instrument cannot check. The frame
+    # itself is unchanged and still measured — on the scalar constructor
+    # underneath, `cos_sin_2pi_k_over_n(n: int, k: int)`, at 505 probe calls.
     "srmech.cascade.odft_summand": ("parametric", ("modulus",)),
     "srmech.cascade.qdft_summand": ("parametric", ("modulus",)),
     "srmech.math.qalg.cos_sin_2pi_k_over_n": ("parametric", ("modulus",)),
@@ -1094,12 +1101,21 @@ def test_no_control_in_this_module_is_computed_and_then_ignored() -> None:
     # srmech.math.cyclic.gcd became measurable. The count moved because the
     # INSTRUMENT was repaired, not because an op was hand-added to the roster.
     # 23 at rc468 (`#T1188`): the exact rational-turn pair
-    # (cos_sin_2pi_k_over_n, hypercomplex_turn) declares the SAME
-    # parametric/modulus frame the two DFT summands carry, because the turn
-    # numerator is reduced in Z_n first — Class I, measured, not asserted.
-    # The count moved because two ops were REGISTERED, not because the
-    # instrument or the predicate changed.
-    assert len(_declared()) == len(REVIEWED_ROSTER) == 23
+    # (cos_sin_2pi_k_over_n, and the turn route of the hypercomplex rotor)
+    # declares the SAME parametric/modulus frame the two DFT summands carry,
+    # because the turn numerator is reduced in Z_n first — Class I, measured,
+    # not asserted. The count moved because two ops were REGISTERED, not
+    # because the instrument or the predicate changed.
+    # 22 after the same rc's consolidation: `hypercomplex_turn` was folded
+    # into `hypercomplex_exp` as its `turn=(k, n)` operand, and the
+    # declaration did NOT follow it. That is the honest direction and the
+    # reason is measurable rather than editorial — the probe enters by INT
+    # parameters and a pair is not one, so the folded op measures
+    # `scope=null`; declaring the frame there would be an assertion this
+    # instrument cannot return. The FRAME did not go unmeasured: the scalar
+    # constructor it is built on, `cos_sin_2pi_k_over_n(n: int, k: int)`,
+    # declares and MEASURES the same parametric/modulus frame at 505 calls.
+    assert len(_declared()) == len(REVIEWED_ROSTER) == 22
     assert set(_census()) == {e.name for e in get_tool_schema().tools}, (
         "the census does not cover the registry, so §4's set comparison is "
         "over a subset it chose itself")

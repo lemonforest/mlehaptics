@@ -221,8 +221,9 @@ def op(
     either neighbour, and an 8×8 ramp with its corner at ``2**53+1`` and at
     ``2**53`` encode to the same blocks. Decode is the float64 DCT-III with a
     ``1/(2·bs)²`` float normalisation. The basis is algebraic
-    (``cos(π(2j+1)k/16)`` lies in ``ℚ(ζ_32)⁺``, which ``Qalg.cos_2pi_over_n``
-    holds), so the TRANSFORM could be carried exactly; the quantiser cannot —
+    (``cos(π(2j+1)k/16)`` lies in ``ℚ(ζ_32)⁺``, which
+    ``qalg.cos_sin_2pi_k_over_n`` holds), so the TRANSFORM could be carried
+    exactly; the quantiser cannot —
     deciding the nearest integer of an algebraic number needs an ORDERED exact
     real carrier and ``Qalg`` is embedding-agnostic (it has no ordering). The
     drain path is a Sturm-style isolating interval on a real embedding (the

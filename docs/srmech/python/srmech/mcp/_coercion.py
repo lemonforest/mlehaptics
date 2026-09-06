@@ -1187,7 +1187,8 @@ def _to_qalg_pair(value: Any, *, param: str = "") -> Any:
 
 def _to_exact_or_qalg_tuple(value: Any, *, param: str = "") -> Any:
     """``tuple[Q, ...] | tuple[Qalg, ...]`` — the 8-tuple return of
-    :func:`srmech.cascade.hypercomplex_turn` (rc468, `#T1188`).
+    :func:`srmech.cascade.hypercomplex_exp` on its ``turn=(k, n)`` route
+    (rc468, `#T1188`).
 
     The same leaf-decided rule as :func:`_to_exact_or_float_or_qalg_vector`,
     returning a TUPLE because that is what the op returns and a caller

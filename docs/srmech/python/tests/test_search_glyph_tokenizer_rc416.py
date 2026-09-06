@@ -1157,8 +1157,26 @@ from srmech.math.text import fold_marks, glyph_stream
 #: is not called, because it always answers over Phi_lcm(N,4) and an
 #: irrational axis needs a larger field. The summaries now say what is true
 #: (the same construction, lifted), and op summaries ARE the corpus.
+#: A FIFTH pin, in rc468 STAGE 4 (the CONSOLIDATION), for a fifth separable
+#: cause — and the FIRST time the frame COUNT has gone DOWN. 764 -> 761 =
+#: 732 op + 29 carrier: three ops were REMOVED as duplicates
+#: (`srmech.math.qalg.cos_2pi_over_n` and `sin_2pi_over_n`, absorbed by
+#: `cos_sin_2pi_k_over_n` which IS them at k = 1; and
+#: `srmech.cascade.hypercomplex_turn`, folded into `hypercomplex_exp` as its
+#: `turn=(k, n)` operand), and an op frame is minted per registry entry. The
+#: carrier count is UNCHANGED at 29, which is again the measurement worth
+#: stating rather than assuming: a removal cannot retire a carrier that other
+#: ops still name, and `Qalg` is named by the survivor. Several op summaries
+#: also moved by construction — the survivor's, the rotor's and both twiddles'
+#: (which gained the paragraph saying WHY they keep `exact=` where
+#: operand-typed dispatch is the tree's rule) — and op summaries ARE the
+#: searchable corpus. Confirmed a registration+prose move and not a
+#: non-deterministic build before re-pinning: `_build_frames("all")` returned
+#: the same digest on two consecutive calls, and the ops+carriers union
+#: equals it (`test_scope_witnesses_agree_with_the_union`).
 WITNESS_RC416 = (
-    "dd0149df3067cbb6d72bd555b90b366ee1a63a2625fd63bd44e84aaa6a881a3e")
+    "0fb043cc3c534f95038ada90e824b276c632dfdc141c3ecbca2d00d03bc1cedc")
+#: was: dd0149df3067cbb6d72bd555b90b366ee1a63a2625fd63bd44e84aaa6a881a3e (rc468 stage 3)
 #: A FOURTH pin, in rc468 STAGE 3, for a fourth separable cause: the maintainer
 #: rejected stage 1's deferral of the coupler default, so `hypercomplex_couple`'s
 #: `theta` / `turn` param summaries and the RETURN summaries of it and its four

@@ -44,7 +44,6 @@ from srmech.cascade import (
     cd_mult,
     hypercomplex_couple,
     hypercomplex_exp,
-    hypercomplex_turn,
     odft_summand,
     qdft_summand,
 )
@@ -52,9 +51,7 @@ from srmech.math.q import Q
 from srmech.math.qalg import (
     MAX_CYCLOTOMIC_INDEX,
     Qalg,
-    cos_2pi_over_n,
     cos_sin_2pi_k_over_n,
-    sin_2pi_over_n,
 )
 from srmech.physics.qm.octonion import octonion_twiddle
 from srmech.physics.qm.quaternion import quaternion_twiddle
@@ -180,13 +177,29 @@ def _cyclotomic_index_of(x: "Qalg") -> int:
     raise AssertionError("no cyclotomic order found for this field")
 
 
-def test_the_k_equals_one_case_reproduces_both_siblings() -> None:
-    """The general turn is a WIDENING, not a second answer: at ``k = 1`` and
-    ``4 | n`` it returns the same two elements the shipped constructors do."""
-    for n in (4, 8, 12, 16):
-        c, s = cos_sin_2pi_k_over_n(n)
-        assert c == cos_2pi_over_n(n), n
-        assert s == sin_2pi_over_n(n), n
+def test_the_k_equals_one_case_IS_the_two_ops_it_absorbed() -> None:
+    """⚠️ THIS ROW USED TO PROVE A WIDENING; it now records a REMOVAL.
+
+    Through the first rc468 pass it asserted
+    ``cos_sin_2pi_k_over_n(n) == (cos_2pi_over_n(n), sin_2pi_over_n(n))`` at
+    ``n in {4, 8, 12, 16}`` — and it PASSED, which is exactly what made the two
+    older ops duplicates rather than peers: a generalisation had shipped beside
+    its own special cases. Both were removed in the same rc, so the equality
+    can no longer be written, and what is left to assert is the two halves of
+    that identity that survive it:
+
+      * the values themselves, pinned against the ``Φ₈`` coordinates the
+        removed ``cos_2pi_over_n(8)`` returned (``lcm(8, 4) = 8``, so this is
+        the same field and the same element — the removal moved no value); and
+      * the removal itself, so no alias can quietly reintroduce the pair.
+    """
+    c8, s8 = cos_sin_2pi_k_over_n(8)
+    assert c8.m == (1, 0, 0, 0, 1)
+    assert c8.coords == (Q(0, 1), Q(1, 2), Q(0, 1), Q(-1, 2))
+    assert s8 == c8                       # sin(pi/4) == cos(pi/4), exactly
+    import srmech.math.qalg as _qalg_mod
+    for gone in ("cos_2pi_over_n", "sin_2pi_over_n"):
+        assert not hasattr(_qalg_mod, gone), gone
 
 
 def test_the_rational_collapse_set_is_EXACTLY_the_quarter_turns() -> None:
@@ -305,7 +318,7 @@ def test_the_axis_scale_SHIFTS_the_rational_set_rather_than_emptying_it() -> Non
     This was caught by the op's own worked example failing to execute, not by
     review of the sentence — which is the argument for shipping the example.
     """
-    assert list(hypercomplex_turn(1, 3, 3))[:4] == [
+    assert list(hypercomplex_exp(k_axes=3, turn=(1, 3)))[:4] == [
         Q(-1, 2), Q(1, 2), Q(1, 2), Q(1, 2)]
     assert quaternion_twiddle(1, 1, 3, mu="ijk", sigma=1, exact=True) == [
         Q(-1, 2), Q(1, 2), Q(1, 2), Q(1, 2)]
@@ -315,7 +328,7 @@ def test_the_axis_scale_SHIFTS_the_rational_set_rather_than_emptying_it() -> Non
     # the SAME turn on a basis axis has nothing to cancel the sqrt(3)
     for v in quaternion_twiddle(1, 1, 3, mu="i", exact=True):
         assert isinstance(v, Qalg)
-    for v in hypercomplex_turn(1, 3, 1)[:2]:
+    for v in hypercomplex_exp(k_axes=1, turn=(1, 3))[:2]:
         assert isinstance(v, Qalg)
 
 
@@ -415,36 +428,115 @@ def test_the_summand_RAISES_above_the_field_cap() -> None:
     assert all(isinstance(v, float) for v in got)
 
 
-# ── 4. hypercomplex_turn, the exact peer of the radian exponential ──────────
+# ── 4. hypercomplex_exp's turn= route, the exact peer of its own radian ───
+# rc468 (`#T1188`) shipped this route as a SEPARATE `hypercomplex_turn(k, n,
+# k_axes)` and then folded it back in: two ops that differ only in which
+# operand they are handed are one op, on the einsum/kron precedent. These rows
+# are the same measurements through the surviving spelling.
 @pytest.mark.parametrize("k_axes", [1, 3, 7])
 @pytest.mark.parametrize("n", [3, 4, 8])
-def test_hypercomplex_turn_closes_where_the_radian_exponential_cannot(
+def test_the_turn_route_closes_where_the_radian_route_cannot(
         n, k_axes) -> None:
-    w = list(hypercomplex_turn(1, n, k_axes))
+    w = list(hypercomplex_exp(k_axes=k_axes, turn=(1, n)))
     assert _is_identity(_power(w, n)), (n, k_axes)
     assert _is_one(_norm_sq(w)), (n, k_axes)
 
 
-def test_the_radian_exponential_still_cannot_and_that_is_the_operand() -> None:
-    """``hypercomplex_exp`` takes an ANGLE. ``fl(2π/8)`` is already not
+def test_the_radian_route_still_cannot_and_that_is_the_operand() -> None:
+    """``theta=`` takes an ANGLE. ``fl(2π/8)`` is already not
     ``2π/8``, so no carrier downstream can recover the turn — the op's own
     rc467 note is TRUE and stays true. This is the negative control that keeps
-    the pair honest."""
+    the two routes honest, and it is the reason ONE op can serve both: the
+    operand really is different, so there is something to dispatch on."""
     from srmech.cascade.hypercomplex_dft import _PI
     w = list(hypercomplex_exp(2.0 * _PI / 8.0, 1))
     assert all(isinstance(v, Q) for v in w)
     assert not _is_identity(_power(w, 8))
-    # ...while the TURN peer, handed the same rotation as a turn, does close
-    assert _is_identity(_power(list(hypercomplex_turn(1, 8, 1)), 8))
+    # ...while the SAME op, handed the same rotation as a TURN, does close
+    assert _is_identity(_power(list(hypercomplex_exp(k_axes=1, turn=(1, 8))), 8))
 
 
-def test_hypercomplex_turn_refuses_its_three_boundaries() -> None:
+def test_the_turn_route_refuses_its_boundaries() -> None:
     with pytest.raises(ValueError, match="k_axes"):
-        hypercomplex_turn(1, 8, 2)
-    with pytest.raises(TypeError):
-        hypercomplex_turn(1.0, 8, 1)
+        hypercomplex_exp(k_axes=2, turn=(1, 8))
+    with pytest.raises(ValueError, match=r"\(int, int\) pair"):
+        hypercomplex_exp(k_axes=1, turn=(1.0, 8))
+    with pytest.raises(ValueError, match="denominator must be >= 1"):
+        hypercomplex_exp(k_axes=1, turn=(1, 0))
     with pytest.raises(ValueError, match="MAX_CYCLOTOMIC_INDEX"):
-        hypercomplex_turn(1, 64, 7)
+        hypercomplex_exp(k_axes=7, turn=(1, 64))
+
+
+def test_exactly_one_of_theta_and_turn_is_given() -> None:
+    """The two operands are MUTUALLY EXCLUSIVE, and both degenerate calls
+    raise. Without this row the fold could ship a silent precedence rule —
+    "turn wins" or "theta wins" — which is the shape of silent wrong answer
+    the whole rc removes."""
+    with pytest.raises(ValueError, match="exactly ONE"):
+        hypercomplex_exp(k_axes=1)
+    with pytest.raises(ValueError, match="exactly ONE"):
+        hypercomplex_exp(0.5, 1, turn=(1, 8))
+
+
+def test_the_absorbed_op_is_GONE_with_no_alias() -> None:
+    """Removal means removal: `hypercomplex_turn` is not importable, not an
+    attribute of either module, and not in `srmech.cascade.__all__`."""
+    import srmech.cascade as _casc
+    from srmech.cascade import hypercomplex_dft as _mod
+    assert not hasattr(_casc, "hypercomplex_turn")
+    assert not hasattr(_mod, "hypercomplex_turn")
+    assert "hypercomplex_turn" not in _casc.__all__
+    assert "hypercomplex_exp" in _casc.__all__
+    with pytest.raises(ImportError):
+        from srmech.cascade import hypercomplex_turn  # noqa: F401
+
+
+def test_the_exact_keyword_drains_NOTHING_and_execution_is_the_evidence() -> None:
+    """rc468 (`#T1188`) — the Defect-3 adjudication, MEASURED both ways.
+
+    ``tools/demotion_probe.py`` treats a parameter merely NAMED ``exact`` as an
+    R3 accuracy declaration, so a keyword CAN drain a carrier-census row
+    without any route ever running. The two DFT twiddles keep that keyword —
+    they have no inexact operand to dispatch on, so there is nothing an
+    operand-carrier rule could read — and this row proves the keyword is not
+    what is doing the draining:
+
+      * the marker really is produced for both ops (so the hazard is real and
+        this assertion is not vacuous), AND
+      * neither op has a single row in the committed demotion census, so there
+        is nothing for the marker to drain — measured against a control op the
+        probe DOES reach, so an empty census file cannot pass this silently.
+
+    Therefore the only evidence that these two take an exact route is the
+    EXECUTED strict-zero witness at the top of this file, which is the correct
+    state and the one the maintainer asked to be confirmed rather than assumed.
+    """
+    import json
+    import sys as _sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    tools = root / "tools"
+    if str(tools) not in _sys.path:
+        _sys.path.insert(0, str(tools))
+    import demotion_probe as _dp
+
+    for fn in (quaternion_twiddle, octonion_twiddle):
+        hits = _dp.declaration_hits(fn)
+        assert "exact= opt-in" in hits, (fn.__name__, hits)
+
+    census = root / "tests" / "demotion_census.ndjson"
+    rows = [json.loads(ln) for ln in
+            census.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    rows = [r for r in rows if "op" in r]
+    named = {"srmech.physics.qm.quaternion.quaternion_twiddle",
+             "srmech.physics.qm.octonion.octonion_twiddle"}
+    assert [r for r in rows if r["op"] in named] == [], (
+        "a twiddle now HAS census rows — the probe reaches it, so the "
+        "'the keyword drains nothing' claim above is stale. Re-read it; this "
+        "is good news, not a failure.")
+    assert [r for r in rows if r["op"] == "srmech.cascade.qdft_summand"], (
+        "the control is empty too, so the assertion above measures nothing")
 
 
 # ── 5. the coupler's rational turn ──────────────────────────────────────────

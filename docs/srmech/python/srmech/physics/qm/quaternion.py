@@ -1091,6 +1091,39 @@ def quaternion_twiddle(j: int, k: int, n_points: int, *,
     remains a TRUE statement about that route, and stands beside — not
     instead of — the strict-zero peer.
 
+    **Why a KEYWORD here, where rc466 ruled for operand-typed dispatch**
+    (0.9.0rc468, `#T1188`). The standing pattern in this tree is that one op
+    serves every carrier and elects it from what it is HANDED — ``einsum`` /
+    ``kron`` take the exact route on exact operands with no keyword, and
+    :func:`srmech.cascade.hypercomplex_exp` chooses between a float ``theta=``
+    radian and an exact ``turn=(k, n)`` the same way. **This op cannot,
+    because it has no inexact operand to dispatch on.** ``j``, ``k``,
+    ``n_points`` and ``sigma`` are ints on BOTH routes — already exact — so an
+    operand-carrier rule would make the exact answer the ONLY answer and leave
+    the float route, with its byte-exact C peer ``srmech_quaternion_twiddle``,
+    unreachable. The one operand that carries a value rather than an index is
+    ``mu``, and it cannot carry the request either: the exact route
+    deliberately accepts everything the float route does and MORE. A named
+    axis is a LABEL with no carrier at all, and the irrational axes are
+    precisely where the float route fails hardest; and a float64 ``mu``
+    VECTOR is accepted here BY DESIGN, landing on the same exact axis the name
+    does, because its components are exactly proportional to an integer vector
+    (MEASURED — see :func:`_exact_axis4`). A carrier-typed ``mu`` rule
+    would have to break both. So the keyword is the honest spelling, not a
+    lapse: the exactness being selected lives in the RETURN, and nothing on
+    the way in can express it.
+
+    ⚠️ **And the keyword is therefore never allowed to be the evidence.**
+    ``tools/demotion_probe.py`` reads a parameter merely NAMED ``exact`` as an
+    R3 accuracy declaration, so a keyword can drain a census row without any
+    route ever running. It drains nothing here — MEASURED: this op has ZERO
+    rows in the committed ``tests/demotion_census.ndjson`` in either cell,
+    because the probe enters only by a sequence-shaped parameter and this
+    signature has none. The only evidence that the exact route works is the
+    EXECUTED strict-zero witness in ``tests/test_exact_twiddle_rc468.py``,
+    and that is asserted as the state of affairs by
+    ``test_the_exact_keyword_drains_NOTHING_and_execution_is_the_evidence``.
+
     Dispatches to the same-rc C peer ``srmech_quaternion_twiddle`` (byte-exact
     pure mirror otherwise). Class I (cyclic index) ∘ N (π cascade + Q61
     trig) ∘ C (σ orientation) ∘ M (axis scaling).

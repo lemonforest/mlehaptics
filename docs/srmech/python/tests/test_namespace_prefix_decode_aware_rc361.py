@@ -1013,8 +1013,18 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # sibling `srmech.cascade.hypercomplex_turn` is not under `srmech.math.` at
     # all and cannot contribute here however it is typed - the structural split
     # rc461 and rc463 both recorded.
-    assert math == 461, (
-        f"expected 461 srmech.math op references inside the DECODED channel "
+    # rc468 (`#T1188`) CONSOLIDATION - 461 -> 459, the first DECREASE this
+    # pin has recorded from a removal. `cos_2pi_over_n` and `sin_2pi_over_n`
+    # were absorbed by `cos_sin_2pi_k_over_n` (they ARE its k = 1 case), and
+    # each contributed exactly ONE reference - the `int` carrier back-index for
+    # its `n` operand. MEASURED by differencing the committed carrier registry
+    # against the regenerated one, per op, not projected: cos_2pi_over_n 1 -> 0,
+    # sin_2pi_over_n 1 -> 0, and the SURVIVOR cos_sin_2pi_k_over_n unmoved at 1,
+    # which is the informative half - absorbing two ops does not widen the
+    # absorber's carrier footprint, because the back-index is per (op, carrier)
+    # and the survivor already named `int`.
+    assert math == 459, (
+        f"expected 459 srmech.math op references inside the DECODED channel "
         f"(447 at rc466 + rc467 +13 + rc468 +1: the eight widened srmech.math.laplacian "
         f"exact= operands, each joining the `Q` carrier back-index and five "
         f"of them also `int`; see the per-op table above) "
@@ -1227,8 +1237,32 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # other direction. The sibling `srmech.math.` pin moves +1 for the OTHER
     # registration, and `srmech.physics.qm.` +2 for the two twiddles - one rc,
     # three namespaces, three different reasons.
-    assert cascade == 233, (
-        f"expected 233 srmech.cascade op references inside the DECODED channel "
+    # rc468 (`#T1188`) CONSOLIDATION - 233 -> 231, exactly reverting the +2
+    # above, and again MEASURED per op by differencing the committed carrier
+    # registry against the regenerated one:
+    #
+    #     hypercomplex_turn     2 -> 0   REMOVED; its route folded into
+    #                                    hypercomplex_exp's `turn=(k, n)`
+    #                                    operand, so the OP left but the
+    #                                    capability did not
+    #     hypercomplex_exp      3 -> 3   UNCHANGED, and this is the informative
+    #                                    half: it gained a `tuple[int, int]`
+    #                                    parameter and a widened
+    #                                    `tuple[Q, ...] | tuple[Qalg, ...]`
+    #                                    return and moved NOTHING. It already
+    #                                    sat in the `Q` / `float` / `int`
+    #                                    back-indexes, and `Qalg` inside a
+    #                                    union return is not a token this
+    #                                    channel indexes - measured, and it was
+    #                                    equally true of hypercomplex_turn,
+    #                                    whose 2 were `int` and `Q` and never
+    #                                    `Qalg`.
+    #
+    # So a reader deriving "one op left, so one row" would get neither number,
+    # which is the same arithmetic every note above records from the other
+    # direction.
+    assert cascade == 231, (
+        f"expected 231 srmech.cascade op references inside the DECODED channel "
         f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
         f"rc384's octonion_frame_read + rc386's cd_three_form + rc387's flip_pair / "
         f"group_algebra_table + rc395's cd_zero_divisor_witness / _witnesses + rc398's "

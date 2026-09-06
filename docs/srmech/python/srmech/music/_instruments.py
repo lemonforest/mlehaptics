@@ -23,7 +23,7 @@ quadratic field ``ℚ(√r)``, whose Galois group is ``C₂``; abelian, so by
 Kronecker–Weber it embeds in some ``ℚ(ζ_m)``. Every ``stiff_string_partials``
 ratio is here (MEASURED: ``Qalg`` over ``x² − 98100`` at ``B = 1/100``), and so
 is ``equal_temperament_partials(2)`` (MEASURED minimal polynomial ``x² − 2``;
-its root is ``2·cos_2pi_over_n(8)``, exactly).
+its root is ``2·cos_sin_2pi_k_over_n(8)[0]``, exactly).
 
 **Tier 2b — algebraic and NOT cyclotomic (non-abelian).** The constructor
 REJECTS a reducible ``x^N − c``, so at ``N ≥ 3`` the field ``ℚ(c^{1/N})`` has

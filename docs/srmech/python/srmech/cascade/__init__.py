@@ -188,7 +188,6 @@ from .hypercomplex_dft import (
     phase_coherent_peak,
     hypercomplex_couple,
     hypercomplex_exp,
-    hypercomplex_turn,
     # `#T1114` rc420 — the DFT leaf set the declared chains name (the composed
     # paths CALL these, so chain/op bit-identity is structural):
     as_quat4,
@@ -482,11 +481,12 @@ __all__ = [
     "phase_coherent_peak",
     # Bidirectional (σ,θ,μ) hypercomplex coupler (v0.7.2rc1; #908, F436/F437)
     "hypercomplex_couple",
-    # Literal exp(μθ) unit hypercomplex twiddle (v0.9.0rc10; F882, srmech #205)
+    # Literal exp(μθ) unit hypercomplex twiddle (v0.9.0rc10; F882, srmech #205).
+    # ONE op over both carriers since v0.9.0rc468 (`#T1188`): theta= is the
+    # float64 radian, turn=(k, n) the EXACT rational turn over Q(zeta_M), where
+    # W**n == 1 holds with ==. The rc468 `hypercomplex_turn` that first shipped
+    # that route separately was REMOVED in the same rc as a duplicate op.
     "hypercomplex_exp",
-    # Its EXACT rational-turn peer over Q(zeta_M) (v0.9.0rc468, `#T1188`):
-    # exp(mu*2*pi*k/n) as an algebraic number, so W**n == 1 holds with ==
-    "hypercomplex_turn",
     # Hamming / GF(2) block-code family (v0.7.2rc2; #910, §30 / F442/F449)
     "hamming_encode",
     "hamming_syndrome",

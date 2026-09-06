@@ -332,7 +332,7 @@ def _matches_token(raw: Any, token: str):
     # gate fail with `advertised='Qalg' :: OBSERVED 'Qalg' does not match
     # advertised` -- a message printing two IDENTICAL strings, because it
     # renders the observed __name__ rather than the token it actually tested
-    # against. `Qalg` was LIVE (cos_2pi_over_n / sin_2pi_over_n return one);
+    # against. `Qalg` was LIVE (cos_sin_2pi_k_over_n returns a pair of them);
     # `QMat` was LATENT -- its two ops raise a tolerated domain error on synth
     # args, so their return type is never observed and the identical mis-route
     # never fired. Both fixed here; only one had a witness.

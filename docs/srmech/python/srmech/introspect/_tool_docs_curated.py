@@ -3214,7 +3214,37 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
     'srmech.cascade.hamming_encode': {'example': {'input': {'data_bits': "the two wobble-invariant bases of the Leu codon 5'-CUG-3' as 2-bit codes (A=00 C=01 G=10 U=11), i.e. 'CU' -> [0, 1, 1, 1]; then 5 bases plus a strand-orientation bit for the (15,11) rung", 'n': '3 for Hamming(7,4), 4 for Hamming(15,11)'}, 'output': "'CU' -> data bits [0, 1, 1, 1]\nhamming_encode([0,1,1,1], 3) = [0, 0, 0, 1, 1, 1, 1]   (len 7)\n  parity slots 1,2,4 = [0, 0, 1]   data slots 3,5,6,7 = [0, 1, 1, 1]\nhamming_syndrome(codeword)   = 0    (clean)\n'CUGAA' + orientation bit -> [0,1,1,1,1,0,0,0,0,0,0]  (11 bits)\nhamming_encode(payload, 4)   = [1,0,0,1,1,1,1,1,1,0,0,0,0,0,0]  (len 15)\nhamming_encode([0,1,1], 3)   -> ValueError: Hamming(2^3-1=7, 4) needs exactly 4 data bits; got 3", 'worked': "from srmech.cascade import hamming_encode, hamming_syndrome\nBITS = {'A': (0,0), 'C': (0,1), 'G': (1,0), 'U': (1,1)}\nto_bits = lambda s: [b for x in s for b in BITS[x]]\ndata = to_bits('CU')            # -> [0, 1, 1, 1]\ncw = hamming_encode(data, 3)    # -> [0, 0, 0, 1, 1, 1, 1]\nhamming_syndrome(cw)            # -> 0\npayload = to_bits('CUGAA') + [0]        # 11 bits\nhamming_encode(payload, 4)\n#   -> [1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0]\nhamming_encode([0, 1, 1], 3)    # -> ValueError (wrong payload length)", 'why': "The two bases that survive third-base wobble are exactly what has to be protected, and 'CU' is 4 bits — precisely the Hamming(7,4) payload — while the (15,11) rung carries 5 bases plus a strand-orientation bit in ONE structure, which is 11 reversible slots against the octonion's 7."}, 'explanation': "WHAT — encode ``k = 2**n - 1 - n`` data bits into a Hamming(2**n - 1, k) single-error-correcting GF(2) codeword. Canonical 1-indexed layout: parity bits sit at the power-of-two positions 1, 2, 4, ..., each set to the even-parity XOR of every position whose index has that bit set; the remaining positions carry the data in ascending order. ``n`` is the PARITY-BIT COUNT, not the codeword length, and must be in [2, 16]; a payload of the wrong length raises ValueError. Lean-ALU: XOR and index arithmetic only — no float, no libm, no ``abs()``. WHEN — reach for it when a carrier must hold MORE than seven reversible items and still survive a single flipped bit. This is the CARRY half of the carry-plus-couple front-loader: Hamming(15,11) holds 11 data slots against the octonion algebra's 7, a ratio of 1.5714. Third-base codon wobble is the biological analogue — degeneracy gives error TOLERANCE, while this gives error LOCATION. SIBLINGS you would otherwise re-derive: ``cascade.hamming_syndrome`` (``srmech/cascade/hamming.py:150``) reads the error position out of a received word and ``cascade.hamming_decode_correct`` (``hamming.py:181``) repairs it and returns the payload — do not write a parity-check matrix to do either. The COUPLE half is ``cascade.hypercomplex_couple`` (``srmech/cascade/hypercomplex_dft.py:1068``), capped at the octonion by Hurwitz, and it is a genuinely different role: this code gives NO multiplicative product, so it does not replace binding. For more than single-error tolerance you need BCH or Reed-Solomon, which is a different construction and is not in this module."},
     'srmech.cascade.hamming_syndrome': {'example': {'input': {'codeword': "the Hamming(7,4) encoding of the Leu-codon bases 'CU', [0,0,0,1,1,1,1], clean and then with position 1, 5 or 7 flipped; plus the (15,11) word with position 11 flipped"}, 'output': 'hamming_syndrome([0,0,0,1,1,1,1]) = 0    clean\nflip position 1 -> [1,0,0,1,1,1,1]  syndrome = 1\nflip position 5 -> [0,0,0,1,0,1,1]  syndrome = 5\nflip position 7 -> [0,0,0,1,1,1,0]  syndrome = 7\nHamming(15,11), flip position 11    syndrome = 11\nhamming_syndrome([0,1,1,0,1]) -> ValueError: codeword length 5 is not of the form 2^n-1 (a Hamming codeword is 3, 7, 15, 31, 63, ...)', 'worked': "from srmech.cascade import hamming_encode, hamming_syndrome\ncw = hamming_encode([0, 1, 1, 1], 3)    # 'CU' -> [0,0,0,1,1,1,1]\nhamming_syndrome(cw)                    # -> 0   (clean)\nfor pos in (1, 5, 7):\n    bad = list(cw); bad[pos - 1] ^= 1\n    hamming_syndrome(bad)               # -> 1, then 5, then 7\nhamming_syndrome([0, 1, 1, 0, 1])       # -> ValueError (length 5)", 'why': "The syndrome IS the flipped position, not a code for it: flip bit 5 and it returns 5. That identity is the whole content of Hamming's construction and it is why no lookup table is needed anywhere in the decode path."}, 'explanation': "WHAT — recompute every power-of-two parity of a received word and read the failed set as a binary number; by Hamming's construction that number IS the 1-indexed position of the single flipped bit, and 0 means clean. The parity-bit count ``n`` is INFERRED from the length, so a length that is not of the form ``2**n - 1`` raises ValueError, as does any element that is not 0 or 1. Class home: content-addressing — the syndrome is a content-addressed error LOCATOR. WHEN — reach for it when you want to know WHETHER and WHERE a carrier was corrupted without paying to rebuild the payload: a cheap integrity check on a stored codeword, a corruption counter, a test assertion that a channel is clean. What you would otherwise wrongly hand-roll is a parity-check matrix multiply, or a table of syndromes to positions — neither is needed, because the syndrome already equals the position, which the worked run demonstrates three times. SIBLINGS you would otherwise re-derive: ``cascade.hamming_encode`` (``srmech/cascade/hamming.py:99``) builds the word this reads, and ``cascade.hamming_decode_correct`` (``hamming.py:181``) already CALLS this op, flips the located bit and returns the payload — so if you are about to write ``if hamming_syndrome(w): w[s-1] ^= 1`` you are rewriting that op. It dispatches to the C peer ``srmech_hamming_syndrome`` when present, which is what makes the decode ``composition_of_c`` for free."},
     "srmech.cascade.hypercomplex_couple": {"example": {"input": {"1": "hypercomplex_couple([8.0, 2.0, 128.0])", "2": "hypercomplex_couple(hypercomplex_couple([8.0, 2.0, 128.0]), sigma=-1)", "3": "[round(v, 12) for v in hypercomplex_couple([1.0, 1.0, 1.0])]", "4": "[round(v, 12) for v in hypercomplex_couple([1.0, -1.0, 1.0])]"}, "output": {"1": "[-79.67433714816836, 72.74613391789286, -69.2820323027551, -3.4641016151377553]", "2": "[5.128276275856436e-15, 8.000000000000002, 1.9999999999999944, 128.00000000000003]", "3": "[-1.732050807569, 0.0, 0.0, 0.0]", "4": "[-0.57735026919, 1.154700538379, 0.0, -1.154700538379]"}, "why": "Bind then unbind recovers the attested codon-position counts (8, 2, 128) exactly, and the diagonal axis makes the anchor slot a coherence detector: [1,1,1] folds entirely onto it, [1,−1,1] does not."}, "explanation": "WHAT — the bidirectional (σ, θ, μ) hypercomplex coupler: pack ``streams`` into the imaginary slots of a quaternion (≤3) or octonion (4–7) carrier and apply T = exp(σ·μ·θ). Where ``quaternion_dft`` / ``octonion_dft`` CARRY N streams along named single axes, this COUPLES them. WHEN — reach for it to bind several real streams reversibly, and reach for the DIAGONAL axis (the default μ = (i+j+k)/√3 for ℍ, (Σeₙ)/√7 for 𝕆) when you want a COHERENCE DETECTOR: a diagonal fold sends coherent streams into the real/anchor channel (calls 3–4 — [1,1,1] lands entirely on the anchor at −√3 with all three imaginary slots vanishing to 0.0 at 12 decimals, while [1,−1,1] leaves real residue in them). REVERSIBILITY IS GUARANTEED ONLY UP TO 𝕆 — bind with sigma=+1, unbind with sigma=−1 (the conjugate twiddle), recovered by the division-algebra identity x̄·(x·y) = ‖x‖²·y; sedenion zero divisors break it, which is why the cap is 7 streams and not more. SIBLINGS — ``cd_couple_working`` is this op with axis fixed to diagonal and the cap derived from a register rung; ``cd_uncouple_working`` is its unbind with the anchor slot dropped; ``hypercomplex_exp`` is the literal exp(μθ) twiddle if you want the rotor itself rather than an applied coupling; ``hdc.bind`` is the binary-hypervector bind and is self-inverse, which this is not."},
-    "srmech.cascade.hypercomplex_exp": {"example": {"input": {"1": "hypercomplex_exp(0.7853981633974483, 1)[:2]", "2": "[round(float(v), 12) for v in hypercomplex_exp(0.7853981633974483, 3)]", "3": "round(float(cd_norm_sq(list(hypercomplex_exp(0.7853981633974483, 7)))), 15)", "4": "[round(float(v), 12) for v in cd_mult(list(hypercomplex_exp(1.5707963267948966, 1))[:4], [0,1,0,0])]"}, "output": {"1": "(Q(1630477228166597827, 2305843009213693952), Q(815238614083298863, 1152921504606846976))", "2": "[0.707106781187, 0.408248290464, 0.408248290464, 0.408248290464, 0.0, 0.0, 0.0, 0.0]", "3": "1.0", "4": "[-1.0, 0.0, 0.0, 0.0]"}, "why": "One rotor, three rungs: k_axes 1/3/7 gives the ℂ/ℍ/𝕆 unit twiddle as exact Q61 with |q| = 1, and multiplying e1 by exp(iπ/2) through cd_mult returns −1."}, "explanation": "WHAT — the literal exp(μθ) = cos θ + μ·sin θ unit hypercomplex twiddle as an exact Q61 8-tuple. μ is the equal-weight UNIT pure-imaginary over the first ``k_axes`` octonion axes, so k_axes ∈ {1, 3, 7} selects the ℂ / ℍ / 𝕆 rung. Returns [cos θ, sin θ/√k × k, 0 × (7−k)] with |q| = 1 (call 3: 1.0 to 15 decimals at k = 7). WHEN — reach for it when you want the ROTOR itself, to feed into ``cd_mult`` and rotate a value IN the algebra, then project once — which beats composing scalar phase-binds on an already-projected carrier. Call 4 does the smallest honest version: exp(iπ/2) times e1 is −1, in ℍ, through the shipped product. WHAT YOU WOULD OTHERWISE WRONGLY HAND-ROLL — ``math.cos``/``math.sin`` into a float 4-tuple. srmech has no libm and takes no float path here: this is fixed-width Q61, no bignum, with a byte-exact C peer ``srmech_hypercomplex_exp_q61``. SIBLINGS — ``hypercomplex_couple`` APPLIES a twiddle of this family to streams (use it when you want the coupling, not the rotor); ``srmech.physics.qm.quaternion.quaternion_exp`` / ``srmech.physics.qm.octonion.octonion_exp`` are the general (non-unit-μ) exponentials at fixed rungs; ``rational.cos``/``sin`` are the Class-N scalar series underneath; ``the_one`` builds the whole 1+3+7 ladder of such epicycles at once rather than one rotor."},
+    "srmech.cascade.hypercomplex_exp": {"example": {"input": {"1": "hypercomplex_exp(0.7853981633974483, 1)[:2]", "2": "[round(float(v), 12) for v in hypercomplex_exp(0.7853981633974483, 3)]", "3": "round(float(cd_norm_sq(list(hypercomplex_exp(0.7853981633974483, 7)))), 15)", "4": "[round(float(v), 12) for v in cd_mult(list(hypercomplex_exp(1.5707963267948966, 1))[:4], [0,1,0,0])]"}, "output": {"1": "(Q(1630477228166597827, 2305843009213693952), Q(815238614083298863, 1152921504606846976))", "2": "[0.707106781187, 0.408248290464, 0.408248290464, 0.408248290464, 0.0, 0.0, 0.0, 0.0]", "3": "1.0", "4": "[-1.0, 0.0, 0.0, 0.0]"}, "why": "One rotor, three rungs AND two operands: theta= gives the ℂ/ℍ/𝕆 unit twiddle as exact Q61 with |q| = 1 from a float64 RADIAN, turn=(k, n) gives the same rotor as an ALGEBRAIC NUMBER from the turn itself -- and only the second closes, because the first is handed an operand that is already rounded.", "worked": "from srmech.cascade import hypercomplex_exp\n"
+                                   "from srmech.math.q import Q\n"
+                                   "hypercomplex_exp(k_axes=1, turn=(1, 4))[:2]\n"
+                                   "# -> (Q(0, 1), Q(1, 1))   a quarter turn is\n"
+                                   "#    RATIONAL, so the narrowest exact\n"
+                                   "#    carrier is plain Q\n"
+                                   "w = hypercomplex_exp(k_axes=1, turn=(1, 8))\n"
+                                   "w[0] * w[0] * Q(2, 1) == w[0].one()\n"
+                                   "# -> True     cos(2 pi / 8) = sqrt2 / 2,\n"
+                                   "#    EXACTLY -- over Phi_8, not to a\n"
+                                   "#    tolerance\n"
+                                   "hypercomplex_exp(k_axes=3, turn=(1, 3))[:4]\n"
+                                   "# -> (Q(-1, 2), Q(1, 2), Q(1, 2), Q(1, 2))\n"
+                                   "#    a THIRD turn, and still ALL-RATIONAL:\n"
+                                   "#    the 1/sqrt3 axis scale cancels the\n"
+                                   "#    sqrt3 in the sine. It is the order-3\n"
+                                   "#    unit quaternion of the binary\n"
+                                   "#    tetrahedral group -- MEASURED, and it\n"
+                                   "#    is why the carrier rule is every\n"
+                                   "#    component rational, NOT the quarter\n"
+                                   "#    turns\n"
+                                   "hypercomplex_exp(k_axes=1, turn=(1, 3))[1].is_rational()\n"
+                                   "# -> False    the SAME turn at k_axes = 1\n"
+                                   "#    has no scale to cancel sqrt3, so it\n"
+                                   "#    stays in Phi_12\n"
+                                   "hypercomplex_exp(0.7853981633974483, 1)[0]\n"
+                                   "# -> Q(1630477228166597827, 2305843009213693952)\n"
+                                   "#    the Q61 cosine of the ROUNDED angle --\n"
+                                   "#    an exact rational, but not the\n"
+                                   "#    algebraic number, and its 8th power is\n"
+                                   "#    a 147-digit ratio, not 1\n"}, "explanation": "WHAT — the literal exp(μθ) = cos θ + μ·sin θ unit hypercomplex twiddle as an exact Q61 8-tuple. μ is the equal-weight UNIT pure-imaginary over the first ``k_axes`` octonion axes, so k_axes ∈ {1, 3, 7} selects the ℂ / ℍ / 𝕆 rung. Returns [cos θ, sin θ/√k × k, 0 × (7−k)] with |q| = 1 (call 3: 1.0 to 15 decimals at k = 7). WHEN — reach for it when you want the ROTOR itself, to feed into ``cd_mult`` and rotate a value IN the algebra, then project once — which beats composing scalar phase-binds on an already-projected carrier. Call 4 does the smallest honest version: exp(iπ/2) times e1 is −1, in ℍ, through the shipped product. WHAT YOU WOULD OTHERWISE WRONGLY HAND-ROLL — ``math.cos``/``math.sin`` into a float 4-tuple. srmech has no libm and takes no float path here: this is fixed-width Q61, no bignum, with a byte-exact C peer ``srmech_hypercomplex_exp_q61``. SIBLINGS — ``hypercomplex_couple`` APPLIES a twiddle of this family to streams (use it when you want the coupling, not the rotor); ``srmech.physics.qm.quaternion.quaternion_exp`` / ``srmech.physics.qm.octonion.octonion_exp`` are the general (non-unit-μ) exponentials at fixed rungs; ``rational.cos``/``sin`` are the Class-N scalar series underneath; ``the_one`` builds the whole 1+3+7 ladder of such epicycles at once rather than one rotor. TWO OPERANDS, ONE OP (0.9.0rc468, `#T1188`): ``turn=(k, n)`` hands it the EXACT rational turn instead of a radian and returns the root of unity over ℚ(ζ_M), where ‖q‖² == 1 and q**n == 1 hold with ``==``, not to a tolerance -- while ``hypercomplex_exp(2π/8, 1)**8`` is MEASURED as a ratio of 147-digit integers, because ``fl(2π/8)`` is already not ``2π/8`` and the rounding is in the OPERAND. That route first shipped in the same rc as a separate ``hypercomplex_turn`` and was folded in here as a duplicate op, on the einsum/kron precedent that the carrier is elected by what the op is handed; the turn keeps its own parameter NAME because reading an exact-rational ``theta`` as a turn would make the UNIT depend on the carrier. ``srmech.math.qalg.cos_sin_2pi_k_over_n`` is the scalar constructor underneath it."},
     "srmech.cascade.inertia_signature": {"example": {"input": {"1": "[(n, inertia_signature(t)['signature'], inertia_signature(t)['norm_signature']) for n, t in (('R', algebra_table(1)), ('C', algebra_table(2)), ('H', algebra_table(4)), ('O', O8), ('split-O', SPLIT8))]", "2": "inertia_signature(SPLIT8)['witness']", "3": "inertia_signature(algebra_table(2, gammas=[1]))['signature'], inertia_signature(algebra_table(2, gammas=[1]))['has_negative_direction']", "4": "left_mult_is_invertible([1, -1], table=algebra_table(2, gammas=[1]))"}, "output": {"1": "[('R', (1, 0, 0), (1, 0, 0)), ('C', (1, 1, 0), (2, 0, 0)), ('H', (1, 3, 0), (4, 0, 0)), ('O', (1, 7, 0), (8, 0, 0)), ('split-O', (5, 3, 0), (4, 4, 0))]", "2": "[0, 0, 1, 0, 0, 0, 0, 0]", "3": "((2, 0, 0), False)", "4": "False"}, "why": "It reads the table, never a declared dimension — so split-𝕆 answers trace (5,3,0) / norm (4,4,0) rather than 𝕆's (1,7,0) / (8,0,0), and split-ℂ's n₋ = 0 sits right next to a genuine zero divisor."}, "explanation": "WHAT — Sylvester inertia (n₊, n₋, n₀) of the TRACE form q(x) = Re(x·x) read off a rank-3 structure-constant table, with the negative pivot direction attached as a witness; the NORM form's inertia ships alongside because the literature's split-𝕆 (4,4) is the norm read, not the trace read. WHEN — reach for it to ask what a table's quadratic form actually IS, on an algebra you may have just constructed. What you would otherwise wrongly hand-roll is the coordinate shortcut a² − |v|²; that substitution is INPUT-BLIND — it matches the real read 4000/4000 on 𝕆 and only 854/4000 on split-𝕆, and stays wrong at infinite precision. SCOPE, and this is the part a reader must not over-read: it reads ONE quadratic form and nothing else. n₋ == 0 does NOT mean orderable (split-ℂ answers (2,0,0) and still has (1+j)(1−j)=0, shown here), and a diagonal-pinned scrambled table answers exactly as 𝕆 does, so it certifies nothing about associativity, alternativity, composition or division. SIBLINGS — ``algebra_table`` builds the table it reads; ``left_mult_is_invertible`` / ``left_mult_kernel`` answer the division question this op deliberately does not; ``cd_norm_sq`` gives the norm form's VALUE at one element where this gives the form's signature over the whole algebra."},
     "srmech.cascade.is_division_algebra_dim": {"example": {"input": {"1": "[(d, is_division_algebra_dim(d)) for d in (1, 2, 4, 8, 16, 32, 64)]", "2": "left_mult_is_invertible(ZD['x'])", "3": "cd_navmap_is_signed_permutation(16)", "4": "len(left_mult_kernel([1,0,0,0,0,0,0,1], table=SPLIT8))"}, "output": {"1": "[(1, True), (2, True), (4, True), (8, True), (16, False), (32, False), (64, False)]", "2": "False", "3": "True", "4": "4"}, "why": "Hurwitz's dims 1/2/4/8 — and the three calls beside it keep the three boundaries apart: element-invertibility, addressability, and the split algebras that break at dim 8."}, "explanation": "WHAT — Hurwitz's 1898 theorem as a predicate: the normed division algebras over ℝ are exactly dims 1, 2, 4, 8. The boundary between the reversible interior (≤ 𝕆) and the open exterior (≥ 16). WHEN — reach for it for a cheap structural precondition when you have a dimension and no element. What you would otherwise wrongly hand-roll is ``dim in (1,2,4,8)`` — identical bytes, and still worth the call, because the op is the place the THEOREM is cited and the place the three adjacent boundaries are kept apart. IT IS A STATEMENT ABOUT THE DEFINITE LADDER'S DIMENSION AND NOTHING ELSE. It does not answer for a specific element (dim-16 elements are overwhelmingly invertible — 300/300 random ones were), it does not answer for a SPLIT algebra of the same dimension (split-𝕆 is dim 8 and has zero divisors, call 4), and it is NOT the addressing boundary (call 3: the navmap is still a signed permutation at 16). SIBLINGS — ``left_mult_is_invertible(x)`` is the per-element question; ``cd_navmap_is_signed_permutation(dim)`` is the per-rung ADDRESSING question, which answers True where this answers False; ``inertia_signature`` answers a third, independent question about the quadratic form and certifies nothing about division."},
     'srmech.cascade.kuramoto_step': {'example': {'input': {'theta': '[0.0, 2.0, 4.0] — the three Antikythera back-panel metacycle dial hands, started apart', 'omega': '[2*pi/235, 2*pi/223, 2*pi/940] rad per synodic month — the Metonic, Saros and Callippic rates', 'coupling / dt': 'K = 0.0 vs 0.05, dt = 1 synodic month'}, 'output': 'omega = [0.02673696, 0.02817572, 0.00668424]   theta0 = [0.0, 2.0, 4.0]\nONE step, K=0.0 -> [0.026736958753955688, 2.0281757188662763, 4.0066842396884885]\nONE step, K=0.5 -> [0.05215278067358127, 2.0281757188662763, 3.9812684177688635]\norder parameter r(theta0) = 0.055902\nafter 2000 months, K=0.0  r = 0.380528  theta = [53.4739, 58.3514, 17.3685]   DRIFTED APART\nafter 2000 months, K=0.05 r = 0.979632  theta = [43.1926, 43.2223, 42.7790]  PHASE-LOCKED\ndirected adjacency (Saros drives Metonic only), dt=0.1 -> [0.09360343855796374, 2.0028175718866277, 4.000668423968849]\nSakaguchi alpha=0.3, dt=0.1 -> [0.008217311304816755, 2.001165551607108, 3.9964997745658954]\npinned to psi=0, strength 2.0, dt=0.1 -> [0.007756860259320684, 1.8209580865214914, 4.14694575864651]\nn=1 is pure drift -> [0.31]      n=0 -> []\nomega shorter than theta -> ValueError: cascade.kuramoto_step: omega length 1 != theta length 2', 'worked': 'import math\nfrom srmech.cascade import kuramoto_step\nfrom srmech.math.rational import sin as rsin, cos as rcos\nfrom srmech.math.laplacian import mat_norm\nTAU = 2.0 * math.pi\nOMEGA = [TAU/235.0, TAU/223.0, TAU/940.0]   # Metonic, Saros, Callippic\nTH0 = [0.0, 2.0, 4.0]\nkuramoto_step(TH0, OMEGA, coupling=0.0, dt=1.0)   # pure drift\nkuramoto_step(TH0, OMEGA, coupling=0.5, dt=1.0)   # coupled\ndef r(th):\n    return mat_norm([sum(float(rcos(t)) for t in th),\n                     sum(float(rsin(t)) for t in th)]) / len(th)\nfor K in (0.0, 0.05):\n    th = list(TH0)\n    for _ in range(2000):\n        th = kuramoto_step(th, OMEGA, coupling=K, dt=1.0)\n    r(th)                    # -> 0.380528 then 0.979632\nA = [[0.0,1.0,0.0], [0.0,0.0,0.0], [0.0,0.0,0.0]]   # one-way\nkuramoto_step(TH0, OMEGA, coupling=1.0, dt=0.1, adjacency=A)\nkuramoto_step(TH0, OMEGA, coupling=1.0, dt=0.1, alpha=0.3)\nkuramoto_step(TH0, OMEGA, coupling=1.0, dt=0.1,\n              pin_anchor=[0.0, 0.0, 0.0], pin_strength=2.0)\nkuramoto_step([0.0, 0.0], [0.01], dt=1.0)          # -> ValueError', 'why': 'Two thousand synodic months of the same three dials with the SAME natural rates separate to r = 0.3805 uncoupled and collapse to r = 0.9796 with K = 0.05 — the synchronisation transition is visible in one changed argument, and the three generalised levers (adjacency, alpha, pinning) each move the step off that mean-field baseline without a second function.'}, 'explanation': 'WHAT — one forward-Euler step of the canonical Kuramoto coupled-oscillator model, ``theta_i <- theta_i + dt * (omega_i + (K/n) * sum_j sin(theta_j - theta_i))``, returning the ``n`` updated phases. Four optional levers generalise it to Kuramoto-Sakaguchi without a second entry point: ``adjacency`` (an n-by-n coupling matrix; non-symmetric means DIRECTED one-way coupling, a graph Laplacian means graph-structured coupling), ``alpha`` (phase frustration), and ``pin_anchor`` + ``pin_strength`` (a per-oscillator pull toward an external anchor). With all of them at their defaults the step is byte-for-byte the plain mean-field one. Honest cascade shape: Class-I cyclic phase, a sin coupling, a sum-reduce and a Class-C Euler add — a COMPOSITION, not a new privileged primitive, and no ``abs()``. Both the simple and the generalised step have co-equal C peers (``srmech_cascade_kuramoto_step_f64`` / ``_general_f64``) so srmech runs the integrator with no host Python; parity is to libm-trig tolerance, NOT bit-exact across platforms. WHEN — reach for it for any coupled-phase or synchronisation question: dispatch clocks, phase-locked dial hands, an order-parameter sweep against coupling strength. This is the exact step the spectral-research arc hand-rolled repeatedly in Python before it existed; rewriting the double loop by hand also loses the guaranteed identical summation ORDER that makes the Python fallback match the C peer to the last bit on one platform. SIBLINGS you would otherwise re-derive: ``cascade.winding_fold`` (``srmech/cascade/one.py:348``) is what to fold the ACCUMULATED phases with afterwards — the phases here grow past 40 radians and a bare ``% (2*pi)`` throws the winding away; ``srmech.math.kepler.kepler_solve`` (``srmech/math/kepler.py:102``) is the other periodic-dynamics op in the tree but it is a Newton SOLVE of an implicit equation, not an integrator, so they are not interchangeable; ``srmech.math.rational.sin`` (``srmech/math/rational.py:1869``) is the Class-N rational trig the pure path uses instead of libm.'},
@@ -11667,12 +11697,13 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                       " if all(v.is_rational()\n"
                       "        for v in cos_sin_2pi_k_over_n(n, k))]\n"
                       "# -> exactly the turns with 4*k == 0 mod n, MEASURED\n",
-            'why': 'The two shipped k = 1 constructors answer over Phi_n and '
-                   'Phi_lcm(n, 4), so for n not divisible by 4 they live in '
-                   'DIFFERENT fields and Qalg correctly refuses to add them -- '
-                   'which means c*c + s*s could not even be WRITTEN before '
-                   'this op. Both values here are built over the one field, so '
-                   'the identity is not merely true, it is expressible.'},
+            'why': 'The two rc463 k = 1 constructors this op absorbed '
+                   'answered over Phi_n and Phi_lcm(n, 4), so for n not '
+                   'divisible by 4 they lived in DIFFERENT fields and Qalg '
+                   'correctly refused to add them -- which means c*c + s*s '
+                   'could not even be WRITTEN before this op. Both values here '
+                   'are built over the one field, so the identity is not '
+                   'merely true, it is expressible.'},
         'explanation':
             'WHAT it returns: (cos(2 pi k / n), sin(2 pi k / n)) EXACTLY, both '
             'as elements of the SAME number field Q(zeta_N) with '
@@ -11682,189 +11713,24 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
             'of a full rotation has to be an ALGEBRAIC NUMBER you can do exact '
             'arithmetic with, and especially when you need BOTH the cosine and '
             'the sine of that turn in one expression -- a root of unity, an '
-            'exact rotation, a DFT twiddle. It adds exactly two things over '
-            'its two k = 1 siblings, and both are why the exact DFT twiddle '
-            'could not be written without it: a GENERAL turn (they answer only '
+            'exact rotation, a DFT twiddle. rc463 shipped this surface as '
+            'TWO k = 1 ops -- cos_2pi_over_n over Phi_n and sin_2pi_over_n '
+            'over Phi_lcm(n, 4) -- and rc468 REMOVED both, because with k '
+            'defaulting to 1 this op IS them and a generalisation shipping '
+            'beside its own special cases is a duplicate op. It does two '
+            'things they could not, and both are why the exact DFT twiddle '
+            'could not be written on them: a GENERAL turn (they answered only '
             'at k = 1, while a twiddle needs 2 pi (jk mod N) / N), and ONE '
-            'field (so the two values compose instead of raising). The pair is '
+            'field (so the two values compose instead of raising -- a cosine '
+            'that could not be added to its own sine). The pair is '
             'BOTH rational precisely on the quarter turns 4k == 0 mod n -- '
             'measured, not assumed, and it is what elects list[Q] over '
             'list[Qalg] in the exact twiddle routes. '
-            'SIBLINGS: cos_2pi_over_n and sin_2pi_over_n are the k = 1 halves, '
-            'each over its own field -- reach for those when one value at one '
-            'turn is all you need. Do NOT reach for srmech.math.rational.cos / '
+            'SIBLINGS: do NOT reach for srmech.math.rational.cos / '
             'sin: those are rational APPROXIMATIONS from truncated series and '
             'can never be the algebraic number. '
             'srmech.physics.qm.quaternion.quaternion_twiddle(exact=True), the '
-            'octonion peer, and srmech.cascade.hypercomplex_turn are the three '
+            'octonion peer, and srmech.cascade.hypercomplex_exp on its '
+            'turn=(k, n) route are the three '
             'hypercomplex surfaces this constructor makes exact.'},
-
-    'srmech.cascade.hypercomplex_turn': {
-        'example': {
-            'input': {'k': 1, 'n': 8, 'k_axes': 1},
-            'output': "an 8-tuple of Qalg over Phi_8: (cos(2 pi / 8), "
-                      "sin(2 pi / 8), 0, 0, 0, 0, 0, 0)",
-            'worked': "from srmech.cascade import (hypercomplex_exp,\n"
-                      "    hypercomplex_turn)\n"
-                      "from srmech.math.q import Q\n"
-                      "w = hypercomplex_turn(1, 8, 1)\n"
-                      "w[0] * w[0] * Q(2, 1) == w[0].one()\n"
-                      "# -> True     cos(2 pi / 8) = sqrt2 / 2, EXACTLY\n"
-                      "hypercomplex_turn(1, 4, 1)[:2]\n"
-                      "# -> (Q(0, 1), Q(1, 1))   a quarter turn is RATIONAL,\n"
-                      "#    so the narrowest exact carrier is plain Q\n"
-                      "hypercomplex_turn(1, 3, 3)[:4]\n"
-                      "# -> (Q(-1, 2), Q(1, 2), Q(1, 2), Q(1, 2))\n"
-                      "#    a THIRD turn, and still ALL-RATIONAL: the\n"
-                      "#    1/sqrt3 axis scale cancels the sqrt3 in the\n"
-                      "#    sine. It is the order-3 unit quaternion of\n"
-                      "#    the binary tetrahedral group -- MEASURED,\n"
-                      "#    and it is why the carrier rule is 'every\n"
-                      "#    component rational', NOT 'the quarter turns'\n"
-                      "hypercomplex_turn(1, 3, 1)[1].is_rational()\n"
-                      "# -> False    the SAME turn at k_axes = 1 has no\n"
-                      "#    scale to cancel sqrt3, so it stays in Phi_12\n"
-                      "hypercomplex_exp(0.7853981633974483, 1)[0]\n"
-                      "# -> Q(1630477228166597827, 2305843009213693952)\n"
-                      "#    the Q61 cosine of the ROUNDED angle -- an exact\n"
-                      "#    rational, but not the algebraic number, and its\n"
-                      "#    8th power is a 147-digit ratio, not 1\n",
-            'why': 'The float peer is handed fl(2 pi / 8), which is already '
-                   'not 2 pi / 8, so no carrier downstream can recover the '
-                   'turn -- the rounding is in the OPERAND. Handed the turn '
-                   'itself, the same rotation closes exactly. That is the '
-                   'whole difference between the two ops, and it is a '
-                   'difference of signature, not of arithmetic.'},
-        'explanation':
-            'WHAT it returns: exp(mu * 2 pi k / n) at the EXACT RATIONAL TURN '
-            'k / n, as an 8-tuple over the cyclotomic field Q(zeta_M). mu is '
-            'the equal-weight UNIT pure-imaginary over the first k_axes '
-            'octonion axes (k_axes in {1, 3, 7} = C / H / O), built exactly: '
-            'the 1/sqrt(k_axes) normaliser is 1 for C, the inverse of '
-            'zeta_12 + 1/zeta_12 for H (sqrt3), and the inverted quadratic '
-            'Gauss sum g / i for O (sqrt7), all INSIDE the field. So '
-            'norm squared == 1 and q ** n == 1 hold with ==, not to a '
-            'tolerance. '
-            'WHEN to reach for it: whenever the rotation you want is a '
-            'rational multiple of a turn and the answer has to SATISFY its '
-            'defining equation -- a root of unity, an exact DFT twiddle, a '
-            'closure you intend to assert rather than sample. Reach for '
-            'hypercomplex_exp instead when the angle genuinely is a continuous '
-            'radian, which is the case its float64 carrier is honest about. '
-            'The carrier here is elected by the VALUE: plain Q when every '
-            'component is rational, Qalg over Phi_M otherwise, never mixed. At '
-            'k_axes = 1 that set is exactly the quarter turns; at k_axes = 3 '
-            'and 7 the 1/sqrt(k) scale SHIFTS it rather than emptying it, '
-            'which was MEASURED and not predicted -- hypercomplex_turn(1, 3, 3) '
-            'is the all-rational (-1/2, 1/2, 1/2, 1/2, 0, 0, 0, 0), the order-3 '
-            'unit quaternion of the binary tetrahedral group, because '
-            'sin(2 pi / 3) / sqrt3 = 1/2, while the SAME turn at k_axes = 1 is '
-            'irrational. M is '
-            'lcm(n, 4) / lcm(n, 12) / lcm(n, 28) for k_axes 1 / 3 / 7, and the '
-            'op RAISES above MAX_CYCLOTOMIC_INDEX = 256 rather than falling '
-            'back to a rounded angle -- a fallback would be a silent demotion. '
-            'SIBLINGS: hypercomplex_exp is the float-angle peer (same object, '
-            'different operand type); srmech.math.qalg.cos_sin_2pi_k_over_n is '
-            'the scalar constructor underneath; '
-            'srmech.physics.qm.quaternion.quaternion_twiddle(exact=True) and '
-            'the octonion peer are the DFT-facing forms with a named axis and '
-            'an index reduction. Do NOT feed a Qalg-valued tuple to cd_mult -- '
-            'it carries exact Q and refuses the field carrier by design; '
-            'multiply through the two-grade bilinear expansion instead, which '
-            'is what the summands do.'},
-
-    'srmech.math.qalg.cos_2pi_over_n': {
-        'example': {
-            'input': {'n': 3},
-            'output': "Qalg((1, 1, 1), (Q(-1, 2), Q(0, 1)))",
-            'worked': "from srmech.math.qalg import cos_2pi_over_n\n"
-                      "cos_2pi_over_n(3)\n"
-                      "# -> Qalg((1, 1, 1), (Q(-1, 2), Q(0, 1)))\n"
-                      "#    exactly -1/2, as an element of Q(zeta_3)\n"
-                      "cos_2pi_over_n(3).is_rational()\n"
-                      "# -> True\n"
-                      "cos_2pi_over_n(5)\n"
-                      "# -> Qalg((1, 1, 1, 1, 1),\n"
-                      "#         (Q(-1, 2), Q(0, 1), Q(-1, 2), Q(-1, 2)))\n"
-                      "cos_2pi_over_n(5).is_rational()\n"
-                      "# -> False\n"
-                      "[n for n in range(1, 61) if "
-                      "cos_2pi_over_n(n).is_rational()]\n"
-                      "# -> [1, 2, 3, 4, 6]   Niven's theorem, MEASURED\n",
-            'why': 'Niven says the only rational values of cos(2 pi / n) are '
-                   '0, +-1/2 and +-1, so the census must come back as exactly '
-                   'five indices. Sweeping 60 of them and getting those five '
-                   'is the theorem arriving as a measurement rather than as '
-                   'an assumption written into the op.'},
-        'explanation':
-            'WHAT it returns: cos(2 pi / n) EXACTLY, as an element of the '
-            'number field Q(zeta_n) = Q[x] / Phi_n -- the element '
-            '(zeta + 1/zeta) / 2 reduced against the cyclotomic polynomial. No '
-            'float, no series truncation, no rational approximation: the '
-            'returned Qalg IS the cosine, carrying its own exact minimal '
-            'polynomial, with phi(n) exact Q coordinates in the alpha power '
-            'basis. '
-            'WHEN to reach for it: whenever a cosine at a rational multiple of '
-            'a turn has to be an ALGEBRAIC NUMBER you can do exact arithmetic '
-            'with -- a root of unity computation, an exact rotation matrix, a '
-            'character sum, a Chebyshev identity you want to verify rather '
-            'than sample. is_rational() is True for exactly n in {1, 2, 3, 4, '
-            '6}, which is Niven theorem arriving as a measurement. '
-            'SIBLINGS: do NOT reach for srmech.math.rational.cos -- that is a '
-            'rational APPROXIMATION from a truncated series, a different '
-            'object, and it can never be the algebraic number. sin_2pi_over_n '
-            'is the peer, but note it returns over Phi_lcm(n, 4), so for n not '
-            'divisible by 4 the two live in DIFFERENT fields and Qalg '
-            'correctly refuses a mixed binary op between them; '
-            'srmech.math.poly.cyclotomic_polynomial supplies the modulus.'},
-
-    'srmech.math.qalg.sin_2pi_over_n': {
-        'example': {
-            'input': {'n': 12},
-            'output': "Qalg((1, 0, -1, 0, 1), (Q(1, 2), Q(0, 1), Q(0, 1), "
-                      "Q(0, 1)))",
-            'worked': "from srmech.math.qalg import (cos_2pi_over_n,\n"
-                      "    sin_2pi_over_n)\n"
-                      "sin_2pi_over_n(3).m\n"
-                      "# -> (1, 0, -1, 0, 1)   Phi_12, NOT Phi_3: "
-                      "lcm(3, 4) = 12\n"
-                      "cos_2pi_over_n(3).m\n"
-                      "# -> (1, 1, 1)          Phi_3 -- a DIFFERENT field\n"
-                      "cos_2pi_over_n(3) + sin_2pi_over_n(3)\n"
-                      "# -> ValueError: Qalg binary op requires equal m; got\n"
-                      "#    (1, 1, 1) vs (1, 0, -1, 0, 1)\n"
-                      "c, s = cos_2pi_over_n(12), sin_2pi_over_n(12)   # 4 | "
-                      "12\n"
-                      "c * c + s * s\n"
-                      "# -> Qalg((1, 0, -1, 0, 1),\n"
-                      "#         (Q(1, 1), Q(0, 1), Q(0, 1), Q(0, 1)))  == 1\n"
-                      "[n for n in range(1, 61) if "
-                      "sin_2pi_over_n(n).is_rational()]\n"
-                      "# -> [1, 2, 4, 12]\n",
-            'why': 'The refusal at n = 3 and the exact Pythagorean identity at '
-                   'n = 12 are the same fact seen twice: the sine lives over '
-                   'Phi_lcm(n, 4), so it shares a field with the cosine '
-                   'exactly when 4 divides n. The refusal is correct '
-                   'behaviour, not a limitation.'},
-        'explanation':
-            'WHAT it returns: sin(2 pi / n) EXACTLY, as an element of '
-            'Q(zeta_N) with N = lcm(n, 4) -- the field that carries zeta_n AND '
-            'i at once, so the 1/i in (zeta - 1/zeta) / (2i) divides out and '
-            'the returned value is the SINE ITSELF, not i times the sine. The '
-            'degree cost is exactly one factor of two: phi(lcm(n, 4)) = '
-            '2 phi(n) when 4 does not divide n. '
-            'WHEN to reach for it: alongside cos_2pi_over_n, wherever an exact '
-            'algebraic sine is needed. Note the field carefully -- it is '
-            'Phi_lcm(n, 4), NOT Phi_n unless 4 divides n, so for n = 3 this op '
-            'answers over Phi_12 while cos_2pi_over_n answers over Phi_3, and '
-            'Qalg correctly REFUSES a mixed binary op between them. That '
-            'refusal is the contract working: two elements of different fields '
-            'have no common arithmetic. At n = 12 they share a field and '
-            'c*c + s*s comes back exactly 1. is_rational() is True for exactly '
-            'n in {1, 2, 4, 12}. '
-            'SIBLINGS: do NOT reach for srmech.math.rational.sin -- it is a '
-            'rational APPROXIMATION from a truncated series, not the algebraic '
-            'number, and substituting one for the other is the mistake this '
-            'op exists to make unnecessary. cos_2pi_over_n is the peer; '
-            'srmech.math.poly.cyclotomic_polynomial supplies Phi_lcm(n, 4).'},
 }

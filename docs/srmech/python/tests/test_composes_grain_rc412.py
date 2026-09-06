@@ -263,29 +263,15 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.math.primes.is_prime",
         "srmech.cascade.matrix_cascades.lll_reduce",
     ),
-    # cos_2pi_over_n: also zero at depth 1 — it reaches
-    # cyclotomic_polynomial through a private reduction helper, so the edge is
-    # real at depth 2 and the op genuinely composes it. A one-element tuple
-    # carries no order claim at all, which is the whole content here.
-    # (sin_2pi_over_n reaches it at depth 1 and is tiered SINGLE by the
-    # census, so it is deliberately NOT duplicated into this hand-traced
-    # roster.)
-    "srmech.math.qalg.cos_2pi_over_n": (
-        "srmech.math.poly.cyclotomic_polynomial",
-    ),
-    # hypercomplex_turn: the same shape one rung up, and traced by hand for
-    # the same reason. Its own body calls no registered op at all — the field
-    # index, the cyclotomic modulus, the two field scalars and the axis
-    # normaliser are all private helpers in srmech.math.qalg — so the depth-1
-    # SINGLE rule cannot tier it and the census files it RESIDUAL. The edge is
-    # real at depth 3: `_turn_field_index` takes two `lcm`s over the shipped
-    # Class-I `gcd`, which is the only registered op the construction reaches.
-    # A one-element tuple carries no order claim, which is again all that is
-    # being said. (`cos_sin_2pi_k_over_n` reaches the same op at depth 1 and is
-    # tiered SINGLE by the census, so it is deliberately NOT duplicated here.)
-    "srmech.cascade.hypercomplex_turn": (
-        "srmech.math.cyclic.gcd",
-    ),
+    # rc468 (`#T1188`) — TWO hand-traced rows LEFT this roster with the ops
+    # they described. `cos_2pi_over_n` reached `cyclotomic_polynomial` at
+    # depth 2 through a private reduction helper; `hypercomplex_turn` reached
+    # `gcd` at depth 3 through `_turn_field_index`. Both ops were removed as
+    # duplicates — `cos_sin_2pi_k_over_n` IS the first at k = 1, and the
+    # second folded into `hypercomplex_exp` under `turn=(k, n)`. Neither
+    # survivor needs a hand trace: `cos_sin_2pi_k_over_n` reaches `gcd` at
+    # depth 1 and the census tiers it SINGLE, and `hypercomplex_exp` declares
+    # no `composes` at all, so there is no edge here to adjudicate.
     # ── rc412 ─────────────────────────────────────────────────────────
     # Class K pin-slot -> Class N anchor -> Class C re-orient. The op's own
     # docstring names the cascade; the native branch returns a finished

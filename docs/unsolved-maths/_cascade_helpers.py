@@ -171,26 +171,33 @@ def cyclic_gcd(a: int, b: int) -> int:
 #   math.ceil(x)                                 -- 1 script
 #   numpy.mean(xs) / numpy.std(xs)               -- 8 scripts
 #
-# LANDED -- five of the seven, with their REAL homes and REAL signatures:
+# LANDED -- five of the seven, with their REAL homes and REAL signatures.
+# The candidate NUMBERS below are the original seven's index and are kept
+# stable, so candidates 1 and 2 share one entry: rc468 (`#T1188`) merged
+# them into a single shipped op, which is why five landed candidates are
+# now four rows.
 #
-#   1. srmech.math.qalg.cos_2pi_over_n(n: int) -> Qalg                  [rc463]
-#      EXACT cos(2*pi/n) as an element of Q(zeta_n) = Q[x]/Phi_n. Class J (the
-#      cyclotomic divisor lattice) o Class N (the exact rational coordinates)
-#      o Class C (the zeta rotation). This block's old entry promised
-#      `(n, max_d) -> (int, int)`, "exact for constructible n, Class N rational
-#      approximation otherwise". BOTH halves of that were wrong: the shipped op
-#      takes NO max_d and never approximates, because cos(2*pi/n) is an
-#      algebraic number for EVERY n -- there is no non-constructible fallback
-#      case to have. Bounded 1 <= n <= 256 (a measured field-degree cap, not a
+#   1 + 2. srmech.math.qalg.cos_sin_2pi_k_over_n(n: int, k: int = 1)
+#           -> tuple[Qalg, Qalg]                            [rc463 / rc468]
+#      EXACT (cos(2*pi*k/n), sin(2*pi*k/n)), BOTH as elements of the ONE field
+#      Q(zeta_N) with N = lcm(n, 4). Class J (the cyclotomic divisor lattice
+#      and the lcm) o Class I (k reduced in Z_n first) o Class N (the exact
+#      rational coordinates) o Class C (the zeta rotation). This block's
+#      original entry promised `(n, max_d) -> (int, int)`, "exact for
+#      constructible n, Class N rational approximation otherwise". BOTH halves
+#      of that were wrong: the shipped op takes NO max_d and never
+#      approximates, because cos and sin of a rational turn are algebraic
+#      numbers for EVERY n -- there is no non-constructible fallback case to
+#      have. Bounded 1 <= n <= 256 (a measured field-degree cap, not a
 #      constructibility condition).
 #
-#   2. srmech.math.qalg.sin_2pi_over_n(n: int) -> Qalg                  [rc463]
-#      EXACT sin(2*pi/n) -- but over Phi_lcm(n,4), NOT Phi_n. i = zeta_4 is
-#      absent from Q(zeta_n) unless 4 | n, and without i the 1/i in
-#      (zeta - zeta^-1)/(2i) cannot be divided out, so the sine simply does not
-#      live in Q(zeta_n). Read the op's field note before composing it with
-#      cos_2pi_over_n: the two share a field exactly when 4 | n, and Qalg
-#      refuses a cross-field binary op otherwise.
+#      ⚠️ rc463 shipped this as TWO ops, cos_2pi_over_n over Phi_n and
+#      sin_2pi_over_n over Phi_lcm(n,4), and rc468 (`#T1188`) REMOVED both:
+#      with k defaulting to 1 the general constructor IS the two, so keeping
+#      them was a duplicate op. They were also the worse spelling -- the
+#      cosine and the sine answered in DIFFERENT fields whenever 4 does not
+#      divide n, so Qalg correctly refused to add a cosine to its own sine.
+#      There is no alias: cos_2pi_over_n(n) is cos_sin_2pi_k_over_n(n)[0].
 #
 #   3. srmech.math.rational.log(x, *, precision=None) -> Q
 #      Exact-Q natural log. The old entry named a dead

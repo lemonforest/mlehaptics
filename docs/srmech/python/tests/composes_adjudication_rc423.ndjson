@@ -427,7 +427,6 @@
 {"composes": ["srmech.math.cyclic.gcd"], "name": "srmech.math.primes.cyclic_period", "tier": "SINGLE"}
 {"composes": ["srmech.math.primes.is_prime"], "name": "srmech.math.primes.next_prime", "tier": "SINGLE"}
 {"composes": ["srmech.math.cyclic.gcd"], "name": "srmech.math.qalg.cos_sin_2pi_k_over_n", "tier": "SINGLE"}
-{"composes": ["srmech.math.cyclic.gcd"], "name": "srmech.math.qalg.sin_2pi_over_n", "tier": "SINGLE"}
 {"composes": ["srmech.math.rational.atan"], "name": "srmech.math.rational.atan2", "tier": "SINGLE"}
 {"composes": ["srmech.math.cyclic.gcd"], "name": "srmech.math.rational.exp_series_truncate", "tier": "SINGLE"}
 {"composes": ["srmech.math.rational.rational_div"], "name": "srmech.math.rational.relative_writhe", "tier": "SINGLE"}

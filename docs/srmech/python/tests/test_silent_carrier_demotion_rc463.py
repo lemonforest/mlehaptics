@@ -801,9 +801,27 @@ _FIXED_IN_RC467 = frozenset({
 #: And the two DFT twiddles have **ZERO rows in this census in either cell** —
 #: measured, not inferred: they take ``int`` scalars plus a ``str`` axis, so no
 #: sequence-shaped parameter exists for the probe to enter by. A green carrier
-#: gate said nothing whatever about the defect rc468 fixed.
+#: gate said nothing whatever about the defect rc468 fixed. That is still true
+#: of ``quaternion_twiddle`` / ``octonion_twiddle``, and it is the whole reason
+#: their ``exact=`` keyword cannot be the evidence for anything: the probe
+#: treats a parameter merely NAMED ``exact`` as an R3 declaration, so a keyword
+#: CAN drain a row — and here there is no row to drain. See
+#: ``test_the_exact_keyword_drains_NOTHING_and_execution_is_the_evidence``.
 #:
-#: So the strict-zero witness for this family is NOT here. It is
+#: ⚠️ **`hypercomplex_exp` LEFT that blind spot in the same rc, and the gate
+#: below is what caught it.** The stage-4 consolidation folded
+#: ``hypercomplex_turn``'s exact route into it as a ``turn=(k, n)`` operand —
+#: and a ``tuple[int, int]`` IS sequence-shaped, so the probe can now enter an
+#: op it could not reach for its whole shipped life. What it measures there is
+#: ``EXACT`` in BOTH cells (``srmech.cascade.hypercomplex_exp::turn``,
+#: ``type: tuple[int, int]``): handed an exact operand, the op does not round
+#: it. That is a coverage GAIN produced as a side effect of removing a
+#: duplicate op, and it is the first carrier-census evidence this family has
+#: ever had. The gate's own failure text says "this is good news, not a failure
+#: of the fix", and it was right; the row is recorded here rather than pinned
+#: around.
+#:
+#: So the strict-zero witness for the TWIDDLES is still not here. It is
 #: ``tests/test_exact_twiddle_rc468.py``, which asserts ``W**N ==`` the exact
 #: identity and ``|W|**2 == 1`` with ``==``, and asserts the float route's
 #: INEQUALITY beside them so the file cannot go vacuous by the two routes
@@ -1119,10 +1137,25 @@ def test_the_twiddle_family_has_NO_census_row_and_that_is_MEASURED() -> None:
     breath, from the same manifest.
     """
     _meta, rows = _manifest()
+    # rc468 (`#T1188`) stage 4 — TWO names left this tuple, for two different
+    # reasons, and only one of them is bookkeeping:
+    #
+    #   `hypercomplex_turn`  the OP was removed as a duplicate; its exact
+    #                        route is now `hypercomplex_exp(turn=(k, n))`.
+    #   `hypercomplex_exp`   ⚠️ it is NO LONGER BLIND. The folded `turn=(k, n)`
+    #                        operand is `tuple[int, int]` — sequence-shaped —
+    #                        so the probe now enters an op it could never
+    #                        reach, and measures EXACT in both cells. This
+    #                        assertion FIRED on that row and was right to; the
+    #                        finding is recorded above rather than pinned
+    #                        around. Removing a duplicate op closed a census
+    #                        blind spot, which was not the point of the change
+    #                        and is the best thing in it.
+    #
+    # The two twiddles stay: their signatures are still int/int/int/str/int/bool
+    # with nothing for the probe to enter by.
     blind = ("srmech.physics.qm.quaternion.quaternion_twiddle",
-             "srmech.physics.qm.octonion.octonion_twiddle",
-             "srmech.cascade.hypercomplex_exp",
-             "srmech.cascade.hypercomplex_turn")
+             "srmech.physics.qm.octonion.octonion_twiddle")
     for op in blind:
         got = [_dp.key(r) for r in rows if r["op"] == op]
         assert got == [], (
@@ -1134,6 +1167,21 @@ def test_the_twiddle_family_has_NO_census_row_and_that_is_MEASURED() -> None:
     assert reached, (
         "the control is empty too, so the assertions above measure nothing: "
         "the probe reaches qdft_summand's sequence operands and must show rows")
+    # rc468 (`#T1188`) — the SECOND control, and the sharper one: the op that
+    # STOPPED being blind in this rc. It is asserted positively so the note
+    # above cannot go stale in the other direction either, and its verdict is
+    # asserted too — a row that appeared but read DEMOTED would be a defect the
+    # fold introduced, not a coverage gain.
+    gained = [r for r in rows if r["op"] == "srmech.cascade.hypercomplex_exp"]
+    assert gained, (
+        "srmech.cascade.hypercomplex_exp has no census row again — the "
+        "turn=(k, n) operand that made it reachable is gone or is no longer "
+        "sequence-shaped, so the coverage this rc gained was lost silently")
+    assert all(r[cell]["verdict"] == "EXACT"
+               for r in gained for cell in ("native", "pure")), (
+        f"hypercomplex_exp's newly-reachable turn= operand does not read EXACT "
+        f"in both cells: {gained}. The fold would then have introduced a "
+        f"demotion, which is the opposite of what it was for")
 
 @pytest.mark.parametrize("op", sorted(_FIXED_IN_RC467))
 def test_layer3_the_rc467_fixed_family_is_strict_zero(op) -> None:
