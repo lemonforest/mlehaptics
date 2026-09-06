@@ -363,6 +363,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_cos_q61',
         'srmech_exp_q61',
         'srmech_hypercomplex_couple_q61',
+        'srmech_hypercomplex_couple_turn_q61',
         'srmech_sin_q61',
         'srmech_sqrt_q61',
     ),

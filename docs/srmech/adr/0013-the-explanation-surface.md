@@ -634,7 +634,7 @@ a docs backlog, not a nice-to-have, and not a candidate for a `docs/` directory.
 
 Three measured facts make this a structural claim rather than a preference:
 
-1. **It crosses the C wire.** `srmech_tool_entry_t` carries `explanation` (`c/include/srmech.h:6061`)
+1. **It crosses the C wire.** `srmech_tool_entry_t` carries `explanation` (`c/include/srmech.h:6119`)
    and `example_json` (`:5649`). The gcd WHEN clause quoted in §1.1 is present in
    `c/src/srmech_tool_registry.c` as shipped text. For a bare-C / MCU host this prose IS the
    introspect layer — ADR-0012 §7.1 makes exactly that point about the generated registry.
@@ -646,8 +646,8 @@ Three measured facts make this a structural claim rather than a preference:
    docs aspiration.
 
 **A vocabulary correction this ADR makes explicitly.** The header calls `example` /
-`smoke_test_hint` the **"documentation-hint fields"** at `c/include/srmech.h:6036`, and it
-describes `explanation` as a **"hint"** at `c/include/srmech.h:6069`.
+`smoke_test_hint` the **"documentation-hint fields"** at `c/include/srmech.h:6086`, and it
+describes `explanation` as a **"hint"** at `c/include/srmech.h:6119`.
 That wording is the calculator framing of §1 written into the wire contract — a *hint* is
 something a caller may ignore, and a *documentation* field is something that lives elsewhere by right.
 This ADR states the opposite: **the field is self-information, and the wire contract carries it because
@@ -1090,7 +1090,7 @@ three distinct objects:
 |---|---|---|
 | 1 | the **operator-chain / cascade** language — `chain()` + `[cascade]`/`[chain]` TOML | `srmech/dsl/__init__.py:1` (*"srmech.dsl — cascade DSL"*), `c/src/srmech_dsl_chain_run.c` |
 | 2 | the **argument-reference** grammar `@row.col` / `@step[0].output`, nested *inside* sense 1 | ADR-0008 §3.7 |
-| 3 | the **`[class]` object-model** descriptors — "DSL-declared class" | ADR-0003 `:54`, `srmech.h:6347`, `:6270` |
+| 3 | the **`[class]` object-model** descriptors — "DSL-declared class" | ADR-0003 `:54`, `srmech.h:6393`, `:6316` |
 
 **ADR-0008 alone applies "DSL" to two different languages in one document**, confirmed by line: sense 1
 at `:1` (*"Operator-chain DSL — schema specification"*) and `:18`; sense 2 at `:28`, `:100`, `:199`
@@ -1278,7 +1278,7 @@ rewrite would target, and because §3 establishes that this payload is *inside t
 `srmech/mcp/_tools.py:395-402` (the `description` assembly that omits the prose) ·
 `srmech/cli/*.py` (the 57 hand-authored help strings; `cli/mcp.py:7` for the "nothing is
 hand-authored" docstring) ·
-`c/include/srmech.h:6061-6006` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
+`c/include/srmech.h:6119`, `:6190` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
 `:5668`; `explanation` at `:5701`; the byte-identity/hash contract at `:5662-5672`) ·
 `c/tools/gen_tool_registry.py:265,:276,:277,:278` (where `summary` / `example` / `smoke_test_hint` /
 `explanation` are baked into C) ·

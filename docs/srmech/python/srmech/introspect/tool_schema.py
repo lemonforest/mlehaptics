@@ -10612,24 +10612,24 @@ def _register_primitive_class_tools() -> None:
                     "Numpy-free end to end: pure cascade over the "
                     "octonion tables." + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("streams", "list[float] | list[Q]", True,
+                P("streams", "list[float] | list[Q] | list[Qalg]", True,
                   "≤3 reals → quaternion imag carrier; 4–7 → octonion imag; a "
                   "length-4/8 sequence is a literal quaternion/octonion (feeds back "
-                  "in to unbind). The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                  "in to unbind). " "The LEAVES select the carrier (rc466 / rc468, `#T1188`): integers / Q / [num, den] pairs and Qalg field elements take the EXACT rung, one float anywhere the float64 one"),
                 P("axis", "str", False,
                   "coupling axis μ: 'diagonal' (default) | 'i'|'j'|'k'|'ijk' | a unit "
                   "pure-imaginary vector. A single named axis carries, not couples"),
                 P("theta", "float", False,
-                  "continuous coupling phase; default π/2 (the F436 quarter-turn fold)"),
+                  "the coupling phase as a float64 ANGLE. Default None is NOT 'no phase' — it is turn=(1, 4), the F436 quarter-turn fold, taken as the exact rational turn rather than as fl(pi/2) (rc468, `#T1188`). Pass a float to elect the ANGLE route deliberately, whose twiddle is cos/sin of the ROUNDED angle. Mutually exclusive with turn"),
                 P("turn", "sequence", False,
-                  "the coupling phase as an EXACT RATIONAL TURN (k, n) meaning 2*pi*k/n (rc468, `#T1188`) — with an exact operand and an exactly-normalisable axis the whole coupler is exact, with no angle, no Q61 grid and no axis quantisation; it REFUSES rather than rounding. Default None = the float theta route, unchanged"),
+                  "the coupling phase as an EXACT RATIONAL TURN (k, n) meaning 2*pi*k/n (rc468, `#T1188`) — with an exact operand and an exactly-normalisable axis the whole coupler is exact, with no angle, no Q61 grid and no axis quantisation. An EXPLICIT turn REFUSES rather than rounding; the DEFAULT phase (1, 4) runs the same election and reads a refusal as the operand's own carrier instead. Default None = the default quarter turn"),
                 P("sigma", "int", False, "chirality σ ∈ {+1,-1}: +1 binds, -1 unbinds; default +1"),
                 P("form", "str", False, "'left' (T·q) or 'right' (q·T); default 'left'"),
                 P("inverse", "bool", False, "flip the effective sign (≡ toggling sigma); default False"),
             ),
             returns=R("list[float] | list[Q] | list[Qalg]",
                       "the coupled value — a 4-component quaternion (≤3 streams) or "
-                      "8-component octonion; on the float theta route list[Q] on the Q61 grid (2**-61; exact at theta=0) for exact streams and list[float] otherwise; on the turn= route EXACT — list[Q] on a quarter turn with a rational axis, list[Qalg] over Phi_M otherwise"),
+                      "8-component octonion. THE DEFAULT CALL IS THE EXACT ROUTE (rc468, `#T1188`): an exact operand on an exactly-normalisable axis is EXACT — list[Q] on a rational axis ('i'/'j'/'k'), list[Qalg] over Phi_M on the default 'diagonal' axis, whose 1/sqrt(3) is carried in the field. A float leaf, or an axis with no exact unit over Q, elects the operand's fixed-point carrier: list[float], or list[Q] on the 2**-61 grid — where the PHASE is still the exact quarter turn and the irrational axis is the one remaining bound. An explicit theta=<float> elects the float64-ANGLE route and keeps its rounding deliberately (exact at theta=0)"),
         ),
         # Literal exp(μθ) unit hypercomplex twiddle (v0.9.0rc10; F882, srmech #205).
         # Registered FLAT as srmech.cascade.hypercomplex_exp; native C peer
@@ -14745,21 +14745,21 @@ def _register_primitive_class_tools() -> None:
                     "degenerate base: empty in → empty out). Composes "
                     "hypercomplex_couple (axis='diagonal', the F436 coupling axis; its "
                     "octonion multiply dispatches to the standalone-C "
-                    "srmech_hypercomplex_couple_q61) — reversed exactly by "
+                    "srmech_hypercomplex_couple_turn_q61 on the fixed-point route) — reversed exactly by "
                     "cd_uncouple_working (T̄·(T·q)=‖T‖²·q, F437). At dim 16 bit-exact "
                     "with the removed 16-slot register's couple_working. No abs() (the "
                     "coupler's sign is Class-K ∘ Class-C). Class M ∘ C ∘ N."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("vals", "list[float] | list[Q]", True,
-                  "≤ min(dim,8)−1 real streams to fold into the working word; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("vals", "list[float] | list[Q] | list[Qalg]", True,
+                  "≤ min(dim,8)−1 real streams to fold into the working word; " "The LEAVES select the carrier (rc466 / rc468, `#T1188`): integers / Q / [num, den] pairs and Qalg field elements take the EXACT rung, one float anywhere the float64 one"),
                 P("dim", "int", False,
                   "register rung (power of two in [1, 256]); sets the cap. Default 8 "
                   "(the octonion working word, cap 7)"),
             ),
-            returns=R("list[float] | list[Q]",
+            returns=R("list[float] | list[Q] | list[Qalg]",
                       "the coupled working word — a 4-component quaternion (≤3 "
-                      "streams) or 8-component octonion (4–7 streams); [] if empty. list[Q] on the Q61 grid for exact vals, list[float] (accurate to round-off) otherwise"),
+                      "streams) or 8-component octonion (4–7 streams); [] if empty. " "THE DEFAULT PHASE IS THE EXACT QUARTER TURN (rc468, `#T1188`), so exact vals return list[Qalg] over Q(zeta_12) — EXACT, the diagonal axis's 1/sqrt(3) carried in the field rather than rounded onto the 2**-61 grid; float vals return list[float] (accurate to round-off) on the fixed-point route, whose phase is now exact too and whose one remaining bound is that irrational axis"),
         ),
         ToolEntry(
             name="srmech.cascade.cd_uncouple_working", owner="srmech",
@@ -14769,18 +14769,19 @@ def _register_primitive_class_tools() -> None:
                     "twiddle (inverse=True) and drops the anchor slot, returning the "
                     "carrier's imaginary components (7 for an octonion word, 3 for a "
                     "quaternion word). Empty in → empty out (the dim-1 boundary). "
-                    "Recovery is exact to float round-off (the division-algebra "
-                    "identity T̄·(T·q)=‖T‖²·q, F437), matching the shipped register's "
-                    "tolerance. Composes hypercomplex_couple; no abs(). Class M ∘ C ∘ N."
+                    "Recovery is EXACT on the exact carrier since rc468 (`#T1188`) and "
+                    "exact to float round-off on the float one (the division-algebra "
+                    "identity T̄·(T·q)=‖T‖²·q, F437). "
+                    "Composes hypercomplex_couple; no abs(). Class M ∘ C ∘ N."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("word", "list[float] | list[Q]", True,
+                P("word", "list[float] | list[Q] | list[Qalg]", True,
                   "a coupled working word (4-component quaternion / 8-component "
-                  "octonion) from cd_couple_working; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                  "octonion) from cd_couple_working; " "The LEAVES select the carrier (rc466 / rc468, `#T1188`): integers / Q / [num, den] pairs and Qalg field elements take the EXACT rung, one float anywhere the float64 one"),
             ),
-            returns=R("list[float] | list[Q]",
+            returns=R("list[float] | list[Q] | list[Qalg]",
                       "the recovered streams (the carrier's imaginary slots); [] if "
-                      "empty. list[Q] for an exact word (the Q61 twiddle-norm residue is then an exact Q — bit-exact recovery only at theta=0), list[float] (accurate to round-off) otherwise"),
+                      "empty. An EXACT word returns list[Qalg] and the round trip is now BIT-EXACT at the DEFAULT phase (rc468, `#T1188`) — through rc467 it was exact only at theta=0, because the 'diagonal' axis was float-normalised before its Q61 projection and left 620 grid units of ||T||²−1 (309.8 absolute on [2**60+1, 2, 3]); that residue is now exactly 0. A float word returns list[float], accurate to round-off, where the axis is still normalised in float"),
         ),
         ToolEntry(
             name="srmech.cascade.cd_carry", owner="srmech",
@@ -15017,13 +15018,13 @@ def _register_primitive_class_tools() -> None:
                     "ValueError on a register built for pure addressing — the gate "
                     "is the point, not an accident." + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("vals", "list[float] | list[Q]", True,
-                  "the streams to bind; at most min(dim, 8) − 1 of them. The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("vals", "list[float] | list[Q] | list[Qalg]", True,
+                  "the streams to bind; at most min(dim, 8) − 1 of them. " "The LEAVES select the carrier (rc466 / rc468, `#T1188`): integers / Q / [num, den] pairs and Qalg field elements take the EXACT rung, one float anywhere the float64 one"),
                 P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
                 P("coupling", "bool", True,
                   "the register's OPT-layer-1 gate; False/None RAISES"),
             ),
-            returns=R("list[float] | list[Q]", "the reversible working word — list[Q] on the Q61 grid for exact vals, list[float] (accurate to round-off) otherwise"),
+            returns=R("list[float] | list[Q] | list[Qalg]", "the reversible working word — " "THE DEFAULT PHASE IS THE EXACT QUARTER TURN (rc468, `#T1188`), so exact vals return list[Qalg] over Q(zeta_12) — EXACT, the diagonal axis's 1/sqrt(3) carried in the field rather than rounded onto the 2**-61 grid; float vals return list[float] (accurate to round-off) on the fixed-point route, whose phase is now exact too and whose one remaining bound is that irrational axis"),
             smoke_test_hint={"vals": "[1.5, -2.25, 3.0]", "dim": "16",
                              "coupling": "True"},
         ),
@@ -15035,12 +15036,12 @@ def _register_primitive_class_tools() -> None:
                     "bound streams bit-exactly (Class-M unbind). RAISES ValueError on "
                     "a register built for pure addressing." + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("word", "list[float] | list[Q]", True, "a reversible working word; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),
+                P("word", "list[float] | list[Q] | list[Qalg]", True, "a reversible working word; " "The LEAVES select the carrier (rc466 / rc468, `#T1188`): integers / Q / [num, den] pairs and Qalg field elements take the EXACT rung, one float anywhere the float64 one"),
                 P("dim", "int", True, "algebra dimension — a power of two in [1, 256]"),
                 P("coupling", "bool", True,
                   "the register's OPT-layer-1 gate; False/None RAISES"),
             ),
-            returns=R("list[float] | list[Q]", "the recovered streams — list[Q] for an exact word (bit-exact only at theta=0; the Q61 twiddle-norm residue is exact), list[float] (accurate to round-off) otherwise"),
+            returns=R("list[float] | list[Q] | list[Qalg]", "the recovered streams — an EXACT word returns list[Qalg] and the round trip is BIT-EXACT at the DEFAULT phase (rc468, `#T1188`), not only at theta=0; a float word returns list[float], accurate to round-off"),
             smoke_test_hint={
                 "word": ("__import__('srmech').cascade.cdr_couple_working("
                          "[1.5, -2.25, 3.0], 16, True)"),

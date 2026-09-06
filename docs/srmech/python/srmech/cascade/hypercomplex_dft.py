@@ -198,12 +198,13 @@ def _q61_twiddle_ints(eff: float, mu_q61: Sequence[int]) -> List[int]:
     build the same object instead of a second copy. Native Q61 trig when
     present, else the pure Q61 cascade — byte-identical.
 
-    ⚠️ Its ONE remaining caller is :func:`_couple_q61`, the float-``theta``
-    coupler route. The exact routes stopped using it in rc468 (`#T1188`): they
-    take :func:`_exact_turn_pair`, which has no angle to round. ``eff`` here is
-    still a float64 ANGLE and ``cos``/``sin`` are still those of the ROUNDED
-    angle — ``≲ 2**-53·|θ|``, up to ~2**8 grid units per radian — on top of the
-    ``2**-61`` grid."""
+    ⚠️ Its ONE remaining caller is :func:`_couple_q61`, which since rc468
+    (`#T1188`) is reached ONLY by an explicit ``theta=<float>``. The exact
+    routes take :func:`_exact_turn_pair` and the coupler's own default takes
+    :func:`_couple_q61_turn`, neither of which has an angle to round. ``eff``
+    here is still a float64 ANGLE and ``cos``/``sin`` are still those of the
+    ROUNDED angle — ``≲ 2**-53·|θ|``, up to ~2**8 grid units per radian — on
+    top of the ``2**-61`` grid. That bound is now this route's alone."""
     if _native.has_native_trans_q61():
         cos = _native.cos_q61_c(eff)
         sin = _native.sin_q61_c(eff)
@@ -418,8 +419,10 @@ def _exact_couple_axis(axis, *, octonion: bool):
 
 def _couple_q61(streams_q61: Sequence[int], mu_q61: Sequence[int],
                 eff: float, *, form: str) -> List[int]:
-    """The exact-Q61 coupler core: ``T ⊗ q`` with the twiddle ``T = exp(eff·μ) =
-    cos eff·1 + sin eff·μ`` (Q61) and ``⊗`` the left/right octonion multiply.
+    """The float64-ANGLE Q61 coupler core: ``T ⊗ q`` with the twiddle
+    ``T = exp(eff·μ) = cos eff·1 + sin eff·μ`` (Q61) and ``⊗`` the left/right
+    octonion multiply. Its exact-TURN peer is :func:`_couple_q61_turn`, which is
+    what the coupler's DEFAULT phase takes since rc468 (`#T1188`).
     Returns the 8 Q61 ints — byte-exact with ``srmech_hypercomplex_couple_q61``
     when native AND the streams are unit-bounded (the int64 Q61 domain); larger
     magnitudes take the pure bignum-exact path (the Q61 trig cascade +
@@ -431,6 +434,71 @@ def _couple_q61(streams_q61: Sequence[int], mu_q61: Sequence[int],
         if out is not None:                          # None = native int64 ceiling
             return out
     tw = _q61_twiddle_ints(eff, mu_q61)
+    if form == "left":
+        return _octo_mult_q61(tw, streams_q61)    # T·q
+    return _octo_mult_q61(streams_q61, tw)        # q·T
+
+
+#: The coupler's OWN default phase, as the RATIONAL TURN it is rather than as
+#: ``fl(π/2)`` (rc468, `#T1188`). ``(1, 4)`` — the F436 quarter-turn fold where
+#: the diagonal axis sends the streams into the anchor.
+_DEFAULT_TURN = (1, 4)
+
+#: ``(cos, sin)`` of a whole number of quarter turns, in Q61. The ONLY turns the
+#: fixed-point carrier holds without residue — ``{0, ±1}`` land on the grid
+#: exactly, every other turn's cosine or sine is irrational and belongs to the
+#: ``ℚ(ζ_M)`` carrier instead. Read by the SAME index on both sides of the
+#: wire, which is why :func:`_couple_q61_turn` and its C twin cannot drift.
+_QUARTER_COS_Q61 = (_Q61_ONE, 0, -_Q61_ONE, 0)
+_QUARTER_SIN_Q61 = (0, _Q61_ONE, 0, -_Q61_ONE)
+
+
+def _signed_turn_k(k: int, sigma, inverse: bool) -> int:
+    """The turn numerator with the Class-C chirality applied — ``sigma`` and
+    ``inverse`` are the two orientation flips of the SAME turn (F437's unbind is
+    the NEGATED turn, not a different one). The exact ℚ(ζ) route spells this
+    as ``eff_sign`` inside :func:`_couple_from_plan`; this is that same flip on
+    the fixed-point route, applied to the NUMERATOR so the phase never has to
+    become an angle to carry a sign. No ``abs()``: Class K pin-slot ∘ Class C."""
+    return k * ((1 if sigma > 0 else -1) * (-1 if inverse else 1))
+
+
+def _couple_q61_turn(streams_q61: Sequence[int], mu_q61: Sequence[int],
+                     k: int, n: int, *, form: str) -> List[int]:
+    """The exact-TURN peer of :func:`_couple_q61` — the same ``T ⊗ q``, with the
+    twiddle built from the RATIONAL TURN ``2πk/n`` instead of from ``cos``/``sin``
+    of a float64 ANGLE (rc468, `#T1188`).
+
+    This is where the coupler's default phase stopped rounding on the
+    fixed-point carrier. ``_q61_twiddle_ints(fl(π/2), ·)`` puts ``cos = 141``
+    grid units into the real slot of a twiddle that is meant to be purely
+    imaginary — not because the Q61 grid is too coarse to hold a quarter turn
+    (it holds it exactly, at ``0``) but because no float64 IS ``π/2``. Here the
+    quarter turn is the integer it is.
+
+    ONLY quarter turns reach here (``4k ≡ 0 mod n``), and it RAISES on any
+    other rather than rounding: every other turn's twiddle is irrational, has no
+    Q61 form, and belongs to the exact ``ℚ(ζ_M)`` carrier. Byte-exact with
+    ``srmech_hypercomplex_couple_turn_q61`` by construction — both sides read the
+    same four constants off the same quarter-turn index, so there is no angle to
+    round on either side of the wire."""
+    if n < 1:
+        raise ValueError(f"exact-turn couple: denominator must be >= 1; got {n}")
+    if (4 * k) % n:
+        raise ValueError(
+            f"exact-turn couple: the turn {k}/{n} is not a whole number of "
+            f"quarter turns, so its cos/sin have no exact Q61 form; the exact "
+            f"Q(zeta) carrier is the complete alternative")
+    if (_native.has_native_hypercomplex_couple_turn()
+            and _q61_couple_fits_native(streams_q61)):
+        out = _native.hypercomplex_couple_turn_q61_c(   # the whole couple in C
+            streams_q61, mu_q61, k, n, form == "left")
+        if out is not None:                             # None = native int64 ceiling
+            return out
+    quarters = ((4 * k) // n) % 4
+    cos = _QUARTER_COS_Q61[quarters]
+    sin = _QUARTER_SIN_Q61[quarters]
+    tw = [cos] + [_q61_fxmul(sin, mu_q61[i]) for i in range(1, len(mu_q61))]
     if form == "left":
         return _octo_mult_q61(tw, streams_q61)    # T·q
     return _octo_mult_q61(streams_q61, tw)        # q·T
@@ -1697,14 +1765,16 @@ def _pack_streams_field(streams):
     octonion)``, or ``None`` when any leaf is neither exact ``ℚ`` nor a field
     element.
 
-    Used ONLY by the ``turn=`` route, and it exists for one reason: that route
-    RETURNS field-valued components on any turn whose sine is irrational, and
-    an unbind must be able to take the bind's own output back. Without this
-    the coupler's headline round-trip property (F437) would hold on the float
-    carrier and on ``ℚ``, but not on the exact carrier that replaced them —
-    which is the shape of defect this rc exists to remove, not to add. The
-    float ``theta`` route keeps its own ℚ-only reader untouched, because its
-    Q61 projection ``round(v · 2**61)`` has no meaning for a field element."""
+    Used by BOTH exact-turn routes — the explicit ``turn=`` one and, since the
+    default phase became a turn, the DEFAULT one — and it exists for one
+    reason: they RETURN field-valued components whenever the sine or the axis
+    scale is irrational, and an unbind must be able to take the bind's own
+    output back. Without this the coupler's headline round-trip property (F437)
+    would hold on the float carrier and on ``ℚ``, but not on the exact carrier
+    that replaced them — which is the shape of defect this rc exists to remove,
+    not to add. The float ``theta`` route keeps its own ℚ-only reader
+    untouched, because its Q61 projection ``round(v · 2**61)`` has no meaning
+    for a field element."""
     try:
         items = list(streams)
     except TypeError:
@@ -1733,12 +1803,57 @@ def _pack_streams_field(streams):
     return None
 
 
+def _exact_turn_plan(streams, axis, k_turn: int, n_turn: int):
+    """``(q_ex, octonion, weights, axis_k)`` when the operand, the axis AND the
+    cyclotomic field all carry the turn ``k/n`` EXACTLY — else a one-line reason
+    string naming WHICH of the three refused (rc468, `#T1188`).
+
+    One election read two ways by :func:`hypercomplex_couple`. On the explicit
+    ``turn=`` route the reason string becomes a ``ValueError``, because a caller
+    who NAMED a turn asked for exactness and a quiet demotion would be the
+    silent wrong answer this rc removes. On the DEFAULT route the same string is
+    the carrier election of rc466 — *the carrier is the operand's, not the
+    op's* — and the operand takes its own fixed-point route, whose phase is the
+    same exact quarter turn either way (:func:`_couple_q61_turn`). The two
+    readings differ in what the caller ASKED, never in what the op computes."""
+    packed = _pack_streams_field(streams)
+    if packed is None:
+        return ("every stream leaf must be exact (int / Q / (num, den) / "
+                "Qalg) for the exact turn; a float leaf elects the float "
+                "carrier, which has no exact turn")
+    q_ex, octonion = packed
+    resolved = _exact_couple_axis(axis, octonion=octonion)
+    if resolved is None:
+        return (f"the exact turn needs an axis whose squared norm is 1, 3 or "
+                f"7 times a rational square (the widths the shipped cyclotomic "
+                f"fields normalise exactly); got {axis!r}")
+    weights, axis_k = resolved
+    index = _qalg._turn_field_index(n_turn, axis_k)
+    if index > _qalg.MAX_CYCLOTOMIC_INDEX:
+        return (f"turn=({k_turn}, {n_turn}) on this axis needs "
+                f"Q(zeta_{index}), above the measured "
+                f"MAX_CYCLOTOMIC_INDEX={_qalg.MAX_CYCLOTOMIC_INDEX} field cap")
+    return q_ex, octonion, weights, axis_k
+
+
+def _couple_from_plan(plan, k_turn: int, n_turn: int, sigma, form, inverse):
+    """Run the coupler over an :func:`_exact_turn_plan` — the exact ``ℚ(ζ_M)``
+    twiddle applied by the ℚ-bilinear graded product. No angle, no grid."""
+    q_ex, octonion, weights, axis_k = plan
+    # Class C: sigma and inverse are the two chirality flips of the same turn.
+    eff_sign = (1 if sigma > 0 else -1) * (-1 if inverse else 1)
+    cos, sine = _qalg._turn_scalars(axis_k, n_turn, k_turn, eff_sign)
+    out = _graded_one_sided(cos, sine, list(weights), list(q_ex),
+                            left=(form == "left"))
+    return out if octonion else out[:4]
+
+
 def _couple_exact_turn(streams, axis, turn, sigma, form, inverse):
-    """The ``turn=(k, n)`` route of :func:`hypercomplex_couple` — EXACT, or a
-    refusal that names WHICH requirement failed — the turn's shape, its
-    denominator, the operand's exactness, the axis, or the field cap (rc468,
-    `#T1188`). Never a fallback: a fallback here would be the silent demotion
-    the whole rc removes."""
+    """The explicit ``turn=(k, n)`` route of :func:`hypercomplex_couple` —
+    EXACT, or a refusal that names WHICH requirement failed — the turn's shape,
+    its denominator, the operand's exactness, the axis, or the field cap
+    (rc468, `#T1188`). Never a fallback: a fallback on a NAMED turn would be the
+    silent demotion the whole rc removes."""
     if (isinstance(turn, (tuple, list)) and len(turn) == 2
             and all(isinstance(v, int) and not isinstance(v, bool)
                     for v in turn)):
@@ -1750,40 +1865,19 @@ def _couple_exact_turn(streams, axis, turn, sigma, form, inverse):
     if n_turn < 1:
         raise ValueError(
             f"hypercomplex_couple: turn denominator must be >= 1; got {n_turn}")
-    packed = _pack_streams_field(streams)
-    if packed is None:
+    plan = _exact_turn_plan(streams, axis, k_turn, n_turn)
+    if isinstance(plan, str):
         raise ValueError(
-            "hypercomplex_couple: turn= is the EXACT route and every stream "
-            "leaf must be exact (int / Q / (num, den) / Qalg); a float leaf "
-            "elects the float carrier, which has no exact turn — drop turn= "
-            "to take it deliberately")
-    q_ex, octonion = packed
-    resolved = _exact_couple_axis(axis, octonion=octonion)
-    if resolved is None:
-        raise ValueError(
-            f"hypercomplex_couple: turn= needs an axis whose squared norm is "
-            f"1, 3 or 7 times a rational square (the widths the shipped "
-            f"cyclotomic fields normalise exactly); got {axis!r}")
-    weights, axis_k = resolved
-    index = _qalg._turn_field_index(n_turn, axis_k)
-    if index > _qalg.MAX_CYCLOTOMIC_INDEX:
-        raise ValueError(
-            f"hypercomplex_couple: turn=({k_turn}, {n_turn}) on this axis "
-            f"needs Q(zeta_{index}), above the measured "
-            f"MAX_CYCLOTOMIC_INDEX={_qalg.MAX_CYCLOTOMIC_INDEX} field cap")
-    # Class C: sigma and inverse are the two chirality flips of the same turn.
-    eff_sign = (1 if sigma > 0 else -1) * (-1 if inverse else 1)
-    cos, sine = _qalg._turn_scalars(axis_k, n_turn, k_turn, eff_sign)
-    out = _graded_one_sided(cos, sine, list(weights), list(q_ex),
-                            left=(form == "left"))
-    return out if octonion else out[:4]
+            f"hypercomplex_couple: turn= is the EXACT route and {plan} — drop "
+            f"turn= to take the operand's own carrier deliberately")
+    return _couple_from_plan(plan, k_turn, n_turn, sigma, form, inverse)
 
 
 def hypercomplex_couple(
     streams: Sequence,
     *,
     axis="diagonal",
-    theta: float = _PI / 2.0,
+    theta=None,
     turn=None,
     sigma: int = 1,
     form: str = "left",
@@ -1825,10 +1919,15 @@ def hypercomplex_couple(
         ``'k'``/``'ijk'`` or a unit pure-imaginary vector). See
         :func:`_resolve_mu`. A single named axis does **not** couple across
         axes (it only carries) — use ``'diagonal'`` for true coupling (F436).
-    theta : float
-        The continuous coupling phase (default ``π/2`` — the F436 quarter-turn
-        fold where the diagonal axis sends the streams into the anchor).
-        Ignored when ``turn`` is given.
+    theta : float or None
+        The coupling phase as a float64 ANGLE. ``None`` (the default) is NOT
+        "no phase" — it is the phase ``turn=(1, 4)``, the F436 quarter-turn
+        fold where the diagonal axis sends the streams into the anchor, taken
+        as the exact rational turn it is rather than as ``fl(π/2)`` (rc468,
+        `#T1188`). Pass a float here to take the ANGLE route deliberately: the
+        twiddle is then ``cos``/``sin`` of the ROUNDED angle, which is a real
+        bound (see below) and is the only route with a float64-angle C twin.
+        Mutually exclusive with ``turn`` — they are two spellings of one phase.
     turn : (int, int) or None
         The coupling phase as an EXACT RATIONAL TURN ``(k, n)`` meaning
         ``2πk/n`` — the rc468 (`#T1188`) drain of ``theta``'s float64 rounding.
@@ -1836,8 +1935,9 @@ def hypercomplex_couple(
         axis, the whole coupler is exact: the twiddle comes from
         :func:`srmech.math.qalg.cos_sin_2pi_k_over_n` in ``ℚ(ζ_M)`` and the
         product from the ℚ-bilinear expansion, so there is no angle, no Q61
-        grid and no axis quantisation anywhere. Default ``None`` — the
-        float-``theta`` route, unchanged byte for byte, including its C twin.
+        grid and no axis quantisation anywhere. Where the DEFAULT phase elects
+        the operand's carrier, an explicit ``turn`` REFUSES anything it cannot
+        answer exactly — that difference is the whole of the two spellings.
     sigma : {+1, -1}
         Conjugation / chirality: ``+1`` binds (forward fold), ``−1`` unbinds
         (the conjugate twiddle; F437).
@@ -1849,62 +1949,81 @@ def hypercomplex_couple(
 
     Returns
     -------
-    list[float] | list[Q]
+    list[float] | list[Q] | list[Qalg]
         The coupled value — a 4-component quaternion (≤3 streams / literal
-        quaternion) or 8-component octonion (otherwise). ``list[Q]`` for an
-        exact operand, ``list[float]`` for a float one (see below).
+        quaternion) or 8-component octonion (otherwise). The CARRIER is the
+        operand's and the axis's, never the op's (see below).
 
     **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`) — and this
     op was exact in the MIDDLE all along. ``_couple_q61`` has run the Q61
     coupler on exact integers since rc16 (bignum-exact past the int64 domain);
     the only two float boundaries were ``[float(x) for x in streams]`` at the
     entry and ``v / float(2**61)`` at the exit, and both are gone for an exact
-    operand. Every stream leaf ``int`` / ``Q`` / ``(num, den)`` → the streams
-    ride to Q61 by ``round(q · 2**61)`` (exact for integers and for dyadic
-    rationals with ≤ 61 fractional bits; **any other rational is quantised to
-    the ``2**-61`` grid**, the ``octonion_norm`` precedent), and the result
-    comes back as ``list[Q]`` with denominator ``2**61``. **Two boundaries
-    remain on this route, and neither is the grid** (rc466 review fix,
-    `#T1188` — the Stage-1 sentence said the axis and the trig were "carried at
-    Q61", which understated the bound by ~2**9): (1) ``theta`` is a float64
-    ANGLE, so ``cos θ``/``sin θ`` are the Q61 trig of the ROUNDED angle —
-    ``≲ 2**-53·|θ|``, which at the default fold ``fl(π/2)`` puts
+    operand.
+
+    ✅ **THE DEFAULT CALL IS THE EXACT ROUTE** (0.9.0rc468, `#T1188`). The op's
+    own phase is the rational turn ``(1, 4)``, not ``fl(π/2)``, so on an exact
+    operand with an exactly-normalisable axis the whole coupler is exact: the
+    twiddle comes from :func:`srmech.math.qalg.cos_sin_2pi_k_over_n` in
+    ``ℚ(ζ_M)`` and the product from the ℚ-bilinear expansion — no angle, no
+    Q61 grid, no axis quantisation. The carrier is the narrowest that holds the
+    value: ``list[Q]`` on a rational axis (``'i'``/``'j'``/``'k'``), ``list[Qalg]``
+    on the default ``'diagonal'`` axis, whose ``1/√3`` is carried in the field
+    rather than rounded into it. STRICT-ZERO witnesses (``==``):
+    ``hypercomplex_couple([2**60+1, 0, 0], axis='i')[1] == 0`` — the slot the
+    ANGLE route fills with ``70.5`` grid units — and the ``'diagonal'``
+    bind/unbind round trip returns the operand EXACTLY, where the angle route
+    missed ``2**60+1`` by ``309.8``.
+
+    **The two bounds that route removed, and where they still live.** Through
+    rc467 the default was ``theta = fl(π/2)`` and carried BOTH: (1) ``theta`` is
+    a float64 ANGLE, so ``cos θ``/``sin θ`` are the Q61 trig of the ROUNDED
+    angle — ``≲ 2**-53·|θ|``, which at the quarter-turn fold puts
     ``cos(fl(π/2)) = 141`` grid units into the real slot of a pure-imaginary
-    twiddle (measured: ``hypercomplex_couple([2**60+1, 0, 0, 0], axis='i')``
-    returns ``[70.5, 2**60+1, 0, 0]``, where a quarter turn would give
-    ``[0, 2**60+1, 0, 0]``); (2) a NAMED axis ``'i'``/``'j'``/``'k'`` is exact
-    on the grid, but the default ``'diagonal'`` axis ``(i+j+k)/√3`` is
-    irrational and is normalised in float64 BEFORE its projection to Q61:
-    measured ``‖μ_q61‖² − 1 = 2.7e-16 = 620`` grid units, and that — not
-    ``cos² + sin²``, which sits within one grid unit of the unit — is the whole
-    of the round-trip residue :func:`cd_uncouple_working` reports
-    (``uncouple(couple([2**60+1, 2, 3]))[0] − (2**60+1) = 309.8`` — absolute, on an operand of ``2**60+1``: 2.7e-16 relative, the axis residue on the nose).
-    At ``theta = 0.0`` the twiddle is EXACTLY the unit and the op returns its
+    twiddle (measured: ``hypercomplex_couple([2**60+1, 0, 0], axis='i',
+    theta=π/2)`` returns ``70.5`` there, where the turn gives exactly ``0``);
+    (2) the ``'diagonal'`` axis ``(i+j+k)/√3`` is irrational and was normalised
+    in float64 BEFORE its projection to Q61 — measured ``‖μ_q61‖² − 1 =
+    2.7e-16 = 620`` grid units, the whole of the round-trip residue
+    :func:`cd_uncouple_working` used to report. **Bound (1) is now gone from
+    every route**, including the fixed-point one: the quarter turn's ``cos``/
+    ``sin`` are ``{0, ±1}``, which the Q61 grid holds exactly, and both
+    projections read them off the same index (:func:`_couple_q61_turn` and
+    ``srmech_hypercomplex_couple_turn_q61`` — 216 byte-for-byte rows). **Bound
+    (2) is a property of the CARRIER, not of the code**: √3 has no dyadic
+    form, so it is drained only by leaving the grid, which is exactly what an
+    exact operand now does by default.
+
+    **The fixed-point route, and what still elects it.** A float leaf anywhere,
+    or an axis with no exact unit over ℚ, elects the operand's own fixed-point
+    carrier: the streams ride to Q61 by ``round(q · 2**61)`` (exact for integers
+    and for dyadic rationals with ≤ 61 fractional bits; **any other rational is
+    quantised to the ``2**-61`` grid**, the ``octonion_norm`` precedent) and the
+    result comes back as ``list[Q]`` with denominator ``2**61``, or as
+    ``list[float]`` for a float operand. That is an ELECTION, not a fallback:
+    the phase there is the same exact quarter turn, and what the carrier cannot
+    hold is the irrational axis, which it declares. An explicit ``theta=<float>``
+    elects the ANGLE route instead and keeps bound (1) deliberately; at
+    ``theta = 0.0`` the twiddle is EXACTLY the unit and the op returns its
     operand unchanged — the strict-zero witness
-    ``hypercomplex_couple([2**53+1, 0, 0], theta=0.0)[1] == 2**53+1``. One
-    float leaf anywhere elects the float route, byte-for-byte the rc16
-    behaviour, **accurate to round-off** at its two boundaries. The C twin
-    ``srmech_hypercomplex_couple_q61`` IS this exact route within the int64
-    domain; no C change.
+    ``hypercomplex_couple([2**53+1, 0, 0], theta=0.0)[1] == 2**53+1``.
 
-    ✅ **BOTH bounds drain at ``turn=(k, n)``** (0.9.0rc468, `#T1188`) — the
-    rational-turn parameterisation the paragraph above used to name as *"not
-    shipped here"*. ``turn`` replaces the float64 angle with the turn itself,
-    so ``cos``/``sin`` come from ``ℚ(ζ_M)`` exactly; and the axis is read as
-    the integer direction it is, with the ``1/√3`` or ``1/√7`` carried in the
-    same field, so the ``'diagonal'`` axis residue goes to zero as well.
-    STRICT-ZERO witnesses (``==``): ``hypercomplex_couple([2**60+1, 0, 0],
-    axis='i', turn=(1, 4))[0] == 0`` — the slot where the default float fold
-    puts ``70.5`` — and the ``'diagonal'`` bind/unbind round trip returns the
-    operand EXACTLY, where the float route misses ``2**60+1`` by ``309.8``.
-    The carrier is the narrowest that holds the value: ``list[Q]`` on a
-    quarter turn with a rational axis, ``list[Qalg]`` otherwise.
+    **Both projections, on the default.** The C twins are
+    ``srmech_hypercomplex_couple_turn_q61`` (the turn; rc468) and
+    ``srmech_hypercomplex_couple_q61`` (the float angle; rc16, byte-identical
+    before and after this rc). The exact ``ℚ(ζ_M)`` route has no C peer
+    because that CARRIER has none — C has no bignum ℚ, let alone a cyclotomic
+    field — and where the two carriers overlap they agree EXACTLY: on a dyadic
+    operand with a rational axis inside the int64 ceiling, the ``ℚ(ζ)`` answer
+    and the C Q61 answer are equal as rationals (measured, 24 settings).
 
-    ⚠️ ``turn`` REFUSES rather than rounding: a non-exact operand, an axis with
-    no exact unit over ℚ, or a field index above
-    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` all raise, naming which.
-    The DEFAULT call is untouched — ``turn=None`` keeps the float ``theta``
-    route and its C twin, so the two projections do not diverge on the default.
+    ⚠️ An explicit ``turn`` REFUSES rather than rounding: a non-exact operand,
+    an axis with no exact unit over ℚ, or a field index above
+    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` all raise, naming which. The
+    DEFAULT phase runs the same election and reads a refusal as the operand's
+    carrier instead — the difference is what the CALLER asked for, never what
+    the op computes. ``turn`` and ``theta`` are two spellings of one phase and
+    passing both raises.
 
     Class home: **M** (octonion multiply) ∘ **C** (the ``σ``/conjugation
     orientation) ∘ **N** (the rational phase ``θ``). F436 / F437; §29.
@@ -1913,27 +2032,60 @@ def hypercomplex_couple(
         raise ValueError(f"sigma must be +1 or -1; got {sigma!r}")
     if form not in _FORMS:
         raise ValueError(f"form must be one of {_FORMS}; got {form!r}")
+    if turn is not None and theta is not None:
+        raise ValueError(
+            "hypercomplex_couple: turn= and theta= are two spellings of the "
+            "SAME phase and only one may be given; turn=(k, n) is the exact "
+            "rational turn, theta the float64 angle")
 
-    exact = _pack_streams_exact(streams)
     if turn is not None:
         return _couple_exact_turn(streams, axis, turn, sigma, form, inverse)
+
+    k_turn, n_turn = _DEFAULT_TURN
+    if theta is None:
+        # THE DEFAULT PHASE — the quarter turn, as the turn it is. The CARRIER
+        # is still the operand's (rc466): an exact operand on an exactly
+        # normalisable axis takes the exact Q(zeta) route below and pays no
+        # grid at all; anything else takes the fixed-point route, where the
+        # SAME quarter turn is applied exactly (`_couple_q61_turn`) rather than
+        # as cos/sin of `fl(pi/2)`. That is an election, not a fallback: both
+        # arms compute the same phase, and they differ only in what the operand
+        # can carry.
+        plan = _exact_turn_plan(streams, axis, k_turn, n_turn)
+        if not isinstance(plan, str):
+            return _couple_from_plan(plan, k_turn, n_turn, sigma, form, inverse)
+
+    exact = _pack_streams_exact(streams)
     if exact is not None:
         q_ex, octonion = exact
         mu = _resolve_mu(axis, octonion=octonion)
-        eff = float(sigma) * (-1.0 if inverse else 1.0) * float(theta)
-        out_q61 = _couple_q61([round(v * _Q61_ONE) for v in q_ex],
-                              [_to_q61(v) for v in mu], eff, form=form)
+        streams_q61 = [round(v * _Q61_ONE) for v in q_ex]
+        mu_q61 = [_to_q61(v) for v in mu]
+        if theta is None:
+            out_q61 = _couple_q61_turn(streams_q61, mu_q61,
+                                       _signed_turn_k(k_turn, sigma, inverse),
+                                       n_turn, form=form)
+        else:
+            eff = float(sigma) * (-1.0 if inverse else 1.0) * float(theta)
+            out_q61 = _couple_q61(streams_q61, mu_q61, eff, form=form)
         out_q = [Q(v, _Q61_ONE) for v in out_q61]
         return out_q if octonion else out_q[:4]
     q, octonion = _pack_streams(streams)
     mu = _resolve_mu(axis, octonion=octonion)
-    eff = float(sigma) * (-1.0 if inverse else 1.0) * float(theta)
     # rc16 (C-host parity): the float `Mat` octonion-matvec is replaced by the
-    # EXACT-Q61 octonion couple `_couple_q61` (cd_basis_product structure
-    # constants + Q61 fxmul) — byte-exact reproducible in C
-    # (`srmech_hypercomplex_couple_q61`), the stay-rational NORTH STAR with no
-    # float boundary except this final projection.
-    out_q61 = _couple_q61([_to_q61(v) for v in q], [_to_q61(v) for v in mu],
-                          eff, form=form)
+    # EXACT-Q61 octonion couple (cd_basis_product structure constants + Q61
+    # fxmul) — byte-exact reproducible in C, the stay-rational NORTH STAR with
+    # no float boundary except this final projection. rc468 (`#T1188`) splits
+    # the twiddle by how the phase ARRIVED: `srmech_hypercomplex_couple_q61`
+    # for a float64 angle, `srmech_hypercomplex_couple_turn_q61` for the turn.
+    streams_q61 = [_to_q61(v) for v in q]
+    mu_q61 = [_to_q61(v) for v in mu]
+    if theta is None:
+        out_q61 = _couple_q61_turn(streams_q61, mu_q61,
+                                   _signed_turn_k(k_turn, sigma, inverse),
+                                   n_turn, form=form)
+    else:
+        eff = float(sigma) * (-1.0 if inverse else 1.0) * float(theta)
+        out_q61 = _couple_q61(streams_q61, mu_q61, eff, form=form)
     out = [v / float(_Q61_ONE) for v in out_q61]
     return list(out) if octonion else out[:4]

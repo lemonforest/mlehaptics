@@ -284,14 +284,54 @@ def test_rc330_signed_slot_reads_match_the_record():
 def test_coupler_words_are_bit_exact_with_the_record():
     """Recorded as ``float.hex()`` strings, so this is bit-identity and not a
     tolerance. The recorded register's coupler was UNGATED; CDRegister gates it,
-    which is why the subsuming form opts in."""
-    r = _subsuming()
+    which is why the subsuming form opts in.
+
+    **The record is DATED and is not re-recorded** (rc468, `#T1188`). The removed
+    16-slot register's ``couple_working`` composed ``hypercomplex_couple`` at the
+    float64 angle ``fl(π/2)``, which was that op's DEFAULT when these hex
+    strings were taken. rc468 made the default the exact rational quarter turn,
+    so the DEFAULT call no longer reproduces them — and rewriting a recorded
+    measurement to today's number would falsify the record the file exists to
+    preserve. What is asserted instead is stronger: the removed register's
+    behaviour is still reproducible BIT FOR BIT, through the route that produced
+    it, which is now spelled ``theta=fl(π/2)``. The subsumption claim is intact
+    and it is the PHASE that moved, not the coupler.
+
+    The companion row below measures the divergence and attributes it."""
+    from srmech.cascade.hypercomplex_dft import _PI
+    from srmech.cascade import hypercomplex_couple
     for rec in load_golden()["couple"]:
         vals = [float.fromhex(v) for v in rec["vals"]]
-        word = r.couple_working(vals)
+        word = hypercomplex_couple(list(vals), axis="diagonal",
+                                   theta=_PI / 2.0)
         assert [float(v).hex() for v in word] == rec["word"], (
             f"the coupled working word diverged on {vals}")
-        assert [float(v).hex() for v in r.uncouple_working(word)] == rec["uncoupled"]
+        back = hypercomplex_couple(list(word), axis="diagonal",
+                                   theta=_PI / 2.0, inverse=True)
+        assert [float(v).hex() for v in list(back)[1:]] == rec["uncoupled"]
+
+
+def test_the_default_phase_diverges_from_the_record_and_the_difference_is_the_leak():
+    """The divergence the row above stops asserting, measured and attributed
+    rather than left implicit (rc468, `#T1188`).
+
+    The recorded words came from ``cos(fl(π/2)) = 141`` Q61 grid units leaking
+    into the anchor slot of a twiddle meant to be purely imaginary. The DEFAULT
+    coupler now applies the quarter turn exactly, so it differs — and it differs
+    only there: the round trip that the record could only recover to float
+    round-off is EXACT on the exact carrier."""
+    from srmech.math.qalg import Qalg
+    r = _subsuming()
+    rec = load_golden()["couple"][0]
+    vals = [float.fromhex(v) for v in rec["vals"]]
+    live = r.couple_working(vals)
+    assert [float(v).hex() for v in live] != rec["word"], (
+        "the default phase reproduced the pre-rc468 record exactly, which "
+        "would mean the exact turn never reached this pass-through")
+    #  and on the EXACT carrier the same default is exact end to end
+    ex = r.couple_working([1, -1, 1, 1, -1, 1, -1])
+    assert all(isinstance(v, Qalg) for v in ex), ex
+    assert list(r.uncouple_working(ex)) == [1, -1, 1, 1, -1, 1, -1]
 
 
 def test_hamming_carry_and_every_single_bit_correction_match_the_record():

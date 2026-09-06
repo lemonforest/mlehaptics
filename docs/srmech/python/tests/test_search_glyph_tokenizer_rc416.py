@@ -1158,7 +1158,15 @@ from srmech.math.text import fold_marks, glyph_stream
 #: irrational axis needs a larger field. The summaries now say what is true
 #: (the same construction, lifted), and op summaries ARE the corpus.
 WITNESS_RC416 = (
-    "02a62dc5af90b67dac3c7372d0a8d3f098eeb7f772ff0e11bde0b9f0b436c891")
+    "dd0149df3067cbb6d72bd555b90b366ee1a63a2625fd63bd44e84aaa6a881a3e")
+#: A FOURTH pin, in rc468 STAGE 3, for a fourth separable cause: the maintainer
+#: rejected stage 1's deferral of the coupler default, so `hypercomplex_couple`'s
+#: `theta` / `turn` param summaries and the RETURN summaries of it and its four
+#: pass-throughs now say the DEFAULT phase is the exact rational quarter turn.
+#: Those summaries ARE the corpus, so the digest moves by construction. Confirmed
+#: a prose move and not a non-deterministic build: `_build_frames` was run twice
+#: on the unedited tree and returned the same digest both times.
+#: was: 02a62dc5af90b67dac3c7372d0a8d3f098eeb7f772ff0e11bde0b9f0b436c891 (rc468 stage 1, post-correction)
 #: was: 074fb8f3a12954d42000e2e8ca74578986f253e23390f5fbb79663bbfd3a0e7b (rc467 stage 2)
 #: was: f62f353583b7f017e1e350aa12e02b7bcec335009d757a54448a497d100f1291 (rc468 stage 1, pre-summary-correction)
 #: was: fc07900d63dd37d4698ade213558e87e2500386716eb9b52defdb859d9caf2e9 (rc468 stage 1, pre-correction)

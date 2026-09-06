@@ -26,13 +26,20 @@ Rows that would have FAILED at rc467, and the number they returned:
     exact value is ``(2**60+1)·√2/2``. ``2·slot² − ((2**60+1)²)`` was
     ``8.2e19``; it is now exactly ``0``.
   * ``hypercomplex_couple([2**60+1, 0, 0, 0], axis='i')`` slot 0 — ``70.5``
-    grid units in a slot a quarter turn makes exactly ``0``.
+    grid units in a slot a quarter turn makes exactly ``0``. **That was the
+    op's DEFAULT call through rc467, and it still is what ``theta=π/2``
+    returns**; since the second rc468 pass the default is the exact turn and
+    the slot is strictly ``0`` (see
+    ``test_the_couple_DEFAULT_call_is_the_exact_route``, which replaced this
+    file's own ``..._is_untouched`` row when the maintainer rejected the
+    deferral that wrote it).
   * ``quaternion_twiddle(1, 1, N)`` ``‖W‖² − 1`` — nonzero at EVERY N tested.
 """
 from __future__ import annotations
 
 import pytest
 
+from srmech.cascade import hypercomplex_dft as _hdft
 from srmech.cascade import (
     cd_mult,
     hypercomplex_couple,
@@ -55,6 +62,12 @@ from srmech.physics.qm.quaternion import quaternion_twiddle
 #: The discriminating operand: an odd integer above 2**53, so a float64 round
 #: trip is visible in the value and not only in a bound.
 P = 2 ** 60 + 1
+
+#: ``fl(π/2)`` — the float64 quarter turn the coupler's default USED to be,
+#: still reachable as ``theta=`` and still rounding. Read off the shipped
+#: cascade-π rather than ``math.pi`` (srmech has no libm), so this is the
+#: same double the pre-rc468 default passed to the C twin.
+_FLOAT_QUARTER = _hdft._PI / 2.0
 
 
 # ── an INDEPENDENT instrument ───────────────────────────────────────────────
@@ -452,14 +465,138 @@ def test_the_diagonal_couple_round_trip_is_EXACT() -> None:
         Q(0, 1), Q(P, 1), Q(2, 1), Q(3, 1)]
 
 
-def test_the_couple_default_call_is_untouched() -> None:
-    """``turn=None`` keeps the float ``theta`` route AND its C twin, so the two
-    projections do not diverge on the default call — which is why this rc did
-    NOT put a value-triggered pin-slot on ``theta``."""
+def test_the_couple_DEFAULT_call_is_the_exact_route() -> None:
+    """The rc468 review's own deferral, reversed — and this test is its
+    inverse, kept at the same name-shape so the reversal is visible in the diff.
+
+    Through the first rc468 pass the default stayed on the float ``theta``
+    route and this file asserted so, on the stated ground that flipping it
+    would make the default diverge from the C twin
+    ``srmech_hypercomplex_couple_q61``. That reason did not survive: a C peer
+    needing the same correction is WORK, not grounds to skip the Python half,
+    and the correction landed in the same change
+    (``srmech_hypercomplex_couple_turn_q61``). The default phase is now the
+    exact rational turn ``(1, 4)`` in BOTH projections, and an exact operand on
+    an exactly-normalisable axis takes the exact route — with the CARRIER
+    still the operand's, which is the rc466 rule and is why a float leaf still
+    comes back float."""
+    #  the slot the ANGLE route fills with 70.5 grid units, on the DEFAULT call
+    assert hypercomplex_couple([P, 0, 0], axis="i")[1] == Q(0, 1)
+    assert hypercomplex_couple([P, 0, 0], axis="i") == [
+        Q(-P, 1), Q(0, 1), Q(0, 1), Q(0, 1)]
+    #  the default 'diagonal' axis carries 1/sqrt(3) in the FIELD, so the
+    #  default call on an exact operand is Qalg and EXACT, not Q on the grid
     out = hypercomplex_couple([P, 0, 0])
+    assert all(isinstance(v, Qalg) for v in out), out
+    #  and the ANGLE route is still reachable, still rounding, deliberately
+    ang = hypercomplex_couple([P, 0, 0], axis="i", theta=_FLOAT_QUARTER)
+    assert ang[1] != Q(0, 1)
     assert all(isinstance(v, Q) and (2 ** 61) % v.denominator == 0
-               for v in out)
+               for v in ang)
+    #  the carrier is still the OPERAND'S: one float leaf elects float
     assert isinstance(hypercomplex_couple([1.0, 2, 3])[0], float)
+
+
+def test_the_couple_default_agrees_across_BOTH_projections() -> None:
+    """The deferral's stated reason, measured. The default no longer routes
+    through a float64 angle in EITHER projection, and where the two carriers
+    overlap — a dyadic operand on a rational axis inside the int64 Q61 ceiling
+    — the exact Q(zeta) answer and the C fixed-point answer are EQUAL as
+    rationals. Skipped, never silently vacuous, when no library is loaded."""
+    from srmech import _native
+    from srmech.cascade import hypercomplex_dft as _H
+    if not _native.has_native_hypercomplex_couple_turn():
+        pytest.skip("no native turn coupler loaded; the pure arm is the "
+                    "complete alternative and is covered by the row above")
+    one = _H._Q61_ONE
+    mu_i = [0, one, 0, 0, 0, 0, 0, 0]
+    streams = [Q(1, 2), Q(1, 4), Q(-1, 8)]
+    for form in ("left", "right"):
+        for sig, inv in ((1, False), (-1, False), (1, True)):
+            exact = hypercomplex_couple(list(streams), axis="i", form=form,
+                                        sigma=sig, inverse=inv)
+            packed, _octo = _H._pack_streams_exact(streams)
+            from_c = _native.hypercomplex_couple_turn_q61_c(
+                [round(v * one) for v in packed], mu_i,
+                _H._signed_turn_k(1, sig, inv), 4, form == "left")
+            assert from_c is not None
+            assert list(exact) == [Q(v, one) for v in from_c][:4]
+
+
+def test_the_two_projections_agree_BYTE_FOR_BYTE_on_the_exact_turn() -> None:
+    """THE deliverable of the rc468 stage-3 brief, as a standing gate rather
+    than a one-off measurement.
+
+    The stage-1 deferral's stated reason was that flipping the default would
+    "make the default exact-stream call diverge from its C twin". It does not,
+    because the C twin was corrected in the same change. This sweeps the pure
+    Q61 quarter-turn twiddle against ``srmech_hypercomplex_couple_turn_q61``
+    over three axes x four operands x both forms x nine turns and asserts
+    INTEGER equality on all eight limbs of every row -- no tolerance anywhere,
+    because there is nothing to round: both sides read the same four exact
+    constants off the same quarter-turn index.
+
+    Skipped, never silently vacuous, when no library is loaded: a pure host has
+    no second projection to disagree with, and the pure arm is the complete
+    alternative."""
+    from srmech import _native
+    from srmech.cascade import hypercomplex_dft as _H
+    if not _native.has_native_hypercomplex_couple_turn():
+        pytest.skip("no native turn coupler loaded; nothing to compare against")
+    one = _H._Q61_ONE
+    axes = {
+        "i": [0, one, 0, 0, 0, 0, 0, 0],
+        "diagonal": [0] + [_H._to_q61(1.0 / (3.0 ** 0.5))] * 3 + [0, 0, 0, 0],
+        "octonion": [0] + [_H._to_q61(1.0 / (7.0 ** 0.5))] * 7,
+    }
+    operands = [
+        [0, one, 0, 0, 0, 0, 0, 0],
+        [0, one // 2, one // 4, -one // 8, 0, 0, 0, 0],
+        [one // 3, -one, one, one // 7, one // 11, 0, -one // 5, one // 2],
+        [0, 1, -1, 3, 5, 7, 11, 13],
+    ]
+    rows = 0
+    for name, mu in axes.items():
+        for streams in operands:
+            for form in ("left", "right"):
+                #  every quarter-turn index, both orientations, and turns whose
+                #  numerator reduces onto one -- 5/4 and 8/4 are 1/4 and 0 again
+                for k in (-3, -2, -1, 0, 1, 2, 3, 5, 8):
+                    nat = _native.hypercomplex_couple_turn_q61_c(
+                        streams, mu, k, 4, form == "left")
+                    assert nat is not None, "operand inside the native ceiling"
+                    quarters = ((4 * k) // 4) % 4
+                    cos = _H._QUARTER_COS_Q61[quarters]
+                    sin = _H._QUARTER_SIN_Q61[quarters]
+                    tw = [cos] + [_H._q61_fxmul(sin, mu[i]) for i in range(1, 8)]
+                    pure = (_H._octo_mult_q61(tw, streams) if form == "left"
+                            else _H._octo_mult_q61(streams, tw))
+                    assert nat == pure, (name, form, k, nat, pure)
+                    rows += 1
+    assert rows == 216, rows            # the sweep cannot silently shrink
+
+
+def test_the_turn_coupler_REFUSES_a_turn_the_grid_cannot_hold() -> None:
+    """The C peer and the pure peer make the SAME refusal, and it is the same
+    one the ``turn=`` route makes: a turn that is not a whole number of quarter
+    turns has no exact Q61 twiddle, so it raises rather than rounding. The
+    complete alternative is the exact Q(zeta_M) carrier, which is not a
+    fixed-point one and therefore has no C-host peer at this width."""
+    from srmech import _native
+    from srmech.cascade import hypercomplex_dft as _H
+    one = _H._Q61_ONE
+    mu = [0, one, 0, 0, 0, 0, 0, 0]
+    st = [0, one // 2, 0, 0, 0, 0, 0, 0]
+    with pytest.raises(ValueError, match="quarter turns"):
+        _H._couple_q61_turn(st, mu, 1, 8, form="left")
+    with pytest.raises(ValueError, match="denominator"):
+        _H._couple_q61_turn(st, mu, 1, 0, form="left")
+    if not _native.has_native_hypercomplex_couple_turn():
+        pytest.skip("no native peer to cross-check the refusal against")
+    with pytest.raises(ValueError, match="status"):
+        _native.hypercomplex_couple_turn_q61_c(st, mu, 1, 8, True)
+    #  and the turn it CAN hold answers, on both sides
+    assert _native.hypercomplex_couple_turn_q61_c(st, mu, 1, 4, True) is not None
 
 
 def test_the_couple_turn_route_REFUSES_rather_than_rounding() -> None:

@@ -21,11 +21,13 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [0.9.0rc468] - `#T1188`: a root of unity computed from a float64 angle, a freshness gate blind to a quarter of its own population, and the loop idiom that drops its last line
 
-*(Two stages, one rc. Stage 1 = ITEM 1, the twiddle carrier. Stage 2 = ITEM 2, the ledger-freshness gate, and ITEM 3, the silent partial pass.)*
+*(Three stages, one rc. Stage 1 = ITEM 1, the twiddle carrier. Stage 2 = ITEM 2, the ledger-freshness gate, and ITEM 3, the silent partial pass. Stage 3 = ITEM 4, the DEFERRAL the maintainer rejected, and the C twin it said could not be moved.)*
 
 **NO MERGE, NO TAG, NO PUBLISH.** This rc is gated by hand.
 
-**Registry: 733 → 735.** `srmech.math.qalg.cos_sin_2pi_k_over_n` and `srmech.cascade.hypercomplex_turn`. **`SRMECH_ABI_VERSION` stays 25** — no C symbol was added, removed or re-signed; the four generated C sources moved because the tool surface did, and the `.so` was rebuilt for that reason alone.
+**Registry: 733 → 735.** `srmech.math.qalg.cos_sin_2pi_k_over_n` and `srmech.cascade.hypercomplex_turn`. **Stage 3 adds NO registry entry** — 735 is the final total; it adds one C symbol, `srmech_hypercomplex_couple_turn_q61`, which is not a tool.
+
+**`SRMECH_ABI_VERSION` stays 25**, and stage 3 re-decided that against the header's own rules rather than inheriting stage 1's answer — see ITEM 4. *(Through stage 2 this line read "no C symbol was added, removed or re-signed". That was true when written and stage 3 made half of it false: a symbol IS added. The rule it cites is unchanged — "Adding a NEW symbol does not bump ABI" — and no existing signature or return value moves.)*
 
 **The carrier-selector census, re-measured for `tests/test_exact_return_carrier_rc444.py`:** `exact=` is now on **21** registry entries (rc467's 19 + the two DFT twiddles) and **74** ops carry a carrier / regime selector (rc467's 72 + the same two).
 
@@ -60,7 +62,7 @@ That second line is the finding, not a footnote: **a census row that reads EXACT
 
 **`qdft_summand` / `odft_summand`** — the exact route is now exact on every turn, not just the quarter turns. `_q61_twiddle` is **DELETED**; `_quarter_turn_twiddle` is subsumed. The two-sided ODFT's declared F378 bracketing survives verbatim, because the four-term expansion carries it in which nested product the `s²` term takes.
 
-**`hypercomplex_couple(..., turn=(k, n))`** — the rational-turn parameterisation the op's own docstring named as *"not shipped here"*. It drains BOTH declared bounds at once: the float64 angle AND the Q61-quantised `'diagonal'` axis. `hypercomplex_couple([2**60+1, 0, 0, 0], axis='i', turn=(1, 4))[0] == 0` exactly, in the slot the default fold fills with `70.5`; and the `'diagonal'` bind/unbind round trip returns its operand EXACTLY, where the float route misses `2**60+1` by `309.8`.
+**`hypercomplex_couple(..., turn=(k, n))`** — the rational-turn parameterisation the op's own docstring named as *"not shipped here"*. It drains BOTH declared bounds at once: the float64 angle AND the Q61-quantised `'diagonal'` axis. `hypercomplex_couple([2**60+1, 0, 0, 0], axis='i', turn=(1, 4))[0] == 0` exactly, in the slot the default fold fills with `70.5`; and the `'diagonal'` bind/unbind round trip returns its operand EXACTLY, where the float route misses `2**60+1` by `309.8`. **Stage 1 shipped it as an OPT-IN and left the default on the float angle. Stage 3 made it the default** — see ITEM 4.
 
 ### The design decision that deleted most of the cost
 
@@ -162,6 +164,79 @@ Those 38 were then re-run through the new `--names-file` reader, deliberately fe
 ### Files (stage 2)
 
 `tools/run_worked_examples.py` (N-name `--only`, `--names-file`, hard-fail on an unknown name, `requested`/`ran`/`merged`, `def_module` + `def_blob` set in BOTH `collect()` and `run()`, and `--backfill` with its machine-checked honesty precondition), `tools/hooks/derived_ledger_freshness.py` (the three-clause union and the complete remedy), `tools/hooks/check_hooks.py` (the re-export fixture and three cases, two of which fail against rc467's hook), `tools/hooks/README.md`, `tools/ripple_gates.txt`, `tests/test_worked_examples_execute_rc354.py` (strict zero: every row carries both fields and its `def_module` is the LIVE one, which is what makes a rebind red), `tests/test_ledger_freshness_hook_rc468.py`, `tests/test_shell_line_loop_rc468.py`, `tests/worked_examples_result.ndjson`, and `docs/srmech/rbs_lm_research/check_swap.sh`.
+
+### ITEM 4 — the deferral the maintainer rejected, and the C twin it said could not be moved
+
+Stage 1 shipped the exact turn as an OPT-IN and **deferred flipping `hypercomplex_couple`'s default** off the float `theta`. The reason on record was:
+
+> *"Would make the default exact-stream call diverge from its C twin `srmech_hypercomplex_couple_q61` — an undeclared Python-vs-C value divergence on the default call, invisible to the census. Also moves the Q61-grid pin and the `cd_couple_working` / `cdr_*` / `cd_uncouple_working` pass-throughs."*
+
+**That is not a reason, and the maintainer ruled it out:** *"we don't refuse to fix a thing because it has codegen parity that needs corrected too."* This tree is multi-implementation with co-equal projections, so a C peer needing the same correction is WORK. "The two projections would disagree" is a reason to fix both in one change, which is what the no-legacy-paths and co-equal-projection rules already require. **The deferral converted a real inexactness into a documented one — the exact failure this arc exists to stop — and every consequence it listed as a cost was simply the work.**
+
+#### What the default now is
+
+`theta`'s default is `None`, and `None` is **not** "no phase": it is the rational turn `(1, 4)`, the same F436 quarter-turn fold, taken as the turn it is rather than as `fl(pi/2)`. The CARRIER is still the operand's (the rc466 rule), so the route is ELECTED, not fallen back to:
+
+* an exact operand on an exactly-normalisable axis -> the exact `Q(zeta_M)` route. On `'i'`/`'j'`/`'k'` that is `list[Q]`; on the DEFAULT `'diagonal'` axis it is `list[Qalg]` over `Q(zeta_12)`, because `1/sqrt(3)` is carried in the field instead of rounded into the grid.
+* a float leaf, or an axis with no exact unit over the rationals -> the fixed-point route — **whose phase is now the same exact quarter turn**.
+* `theta=<float>` -> the float64-ANGLE route, deliberately, byte-for-byte what the default used to be. `theta` and `turn` are two spellings of one phase and passing both raises.
+
+MEASURED, on the DEFAULT call: `hypercomplex_couple([2**60+1, 0, 0], axis='i')[1] == 0` where it returned `70.5` grid units, and `cd_uncouple_working(cd_couple_working([2**60+1, 2, 3]))` returns its operand with residue **exactly 0** where it missed by `309.8`.
+
+#### The finding: the default's two bounds had different fixability, and only measuring said which
+
+Bound (1), the ANGLE, looked like the harder half and was the easy one. `cos(fl(pi/2))` is `141` Q61 grid units — not because the grid is too coarse to hold a quarter turn (**it holds it exactly, at `0`; `sin` was already exactly `2**61`**) but because no `double` IS `pi/2`. So it drains on **every** route including the fixed-point one, in both projections.
+
+Bound (2), the `'diagonal'` AXIS, looked like the same kind of thing and is not: `sqrt(3)` has no dyadic form at any width, so 620 grid units of the twiddle-norm residue is a property of the CARRIER, not of the code. It drains only by leaving the grid — which is exactly what an exact operand now does by default, which a float operand cannot do, and which it correctly still declares.
+
+#### The C twin — fixed, and why it is a second symbol rather than an edit
+
+**`srmech_hypercomplex_couple_turn_q61(int64_t k, int64_t n, streams8, mu8, form_is_left, out8)`** (`c/src/srmech_trig.c`, declared in `c/include/srmech.h`). Same contract as the angle-taking peer — same `mu`, same forms, same `srmech_cd_basis_product` constants, same int64 Q61 stream ceiling — with the phase arriving as the TURN.
+
+It is a new symbol because **there is no fix available inside the existing signature**. `srmech_hypercomplex_couple_q61(double eff, ...)` is not wrong: it is the faithful twin of the `theta=` route and stays byte-identical. Special-casing the bit pattern `fl(pi/2)` inside it would make it answer about a NEIGHBOURING angle — the class of defect this arc removes, not one it may install. The angle IS the defect, so the fix is a phase that is not an angle. Like the Python route it **REFUSES rather than rounds**: a turn that is not a whole number of quarter turns has no exact Q61 twiddle (`SRMECH_ERR_BAD_INPUT`), and the exact `Q(zeta_M)` carrier is the complete alternative — that carrier has no C peer because C has no bignum rationals, let alone a cyclotomic field.
+
+**The agreement, EXECUTED, not asserted.** 216 rows of pure-Q61-vs-C byte-for-byte equality over `{'i', 'diagonal', octonion}` x 4 operands x both forms x 9 turns, all identical; the op's own default through C and with the C peer disabled, identical on 6 settings; and — the cross-CARRIER row — on a dyadic operand with a rational axis inside the int64 ceiling, the exact `Q(zeta)` answer and the C Q61 answer are **equal as rationals** over 24 settings. All three ship as standing gates rather than one-off measurements: `test_the_two_projections_agree_BYTE_FOR_BYTE_on_the_exact_turn` (which asserts its own row count, so the sweep cannot silently shrink), `test_the_couple_default_agrees_across_BOTH_projections`, and `test_the_coupler_passthroughs_really_return_the_third_carrier`. A fourth, `test_the_turn_coupler_REFUSES_a_turn_the_grid_cannot_hold`, pins that the C peer and the pure peer make the SAME refusal on a turn the grid cannot hold. Every one of them SKIPS with a named reason on a pure host rather than passing vacuously.
+
+#### The ABI decision, argued against the header's rules rather than assumed from them
+
+**`SRMECH_ABI_VERSION` stays 25.** The rules are at `c/include/srmech.h:70-98`: bump when *the wire format of any exported function changes*; adding a NEW symbol does not; changing an existing signature does; REMOVING always does; and (the v2/v3 precedent) a new callback typedef does, because the ctypes shim's `CFUNCTYPE` construction moves.
+
+Three things had to be checked, not one:
+
+1. **Is anything removed or re-signatured?** No. `srmech_hypercomplex_couple_q61` is byte-identical before and after — the shared body was factored into two static helpers with the domain check kept in its original position, so even the NaN-`eff`-with-out-of-range-stream ordering (`OVERFLOW`, not `BAD_INPUT`) is preserved.
+2. **Does an existing function's RETURN VALUE move?** No — and this is the clause that would have bitten, because **the v25 note in this same header records that changing what a function returns WOULD have bumped on its own** (`srmech_make_class_run_arena_bytes`, twice). Nothing here changes what any existing export returns; the new value comes from a new symbol.
+3. **Is the mixed-version pairing silent?** No, in both directions. A fresh shim against a stale ABI-25 library binds the symbol by `hasattr`, finds it absent, and runs the caller's own pure Q61 quarter-turn path — **bit-identical to the C by construction**, because both read the same four exact constants off the same quarter-turn index. An old shim against a fresh library never asks for it. The one thing that DOES go stale in the first pairing is the `c_dispatched` claim, and that is precisely what `tests/test_c_claim_resolution_rc300.py` resolves against the loaded library.
+
+#### Pins moved in the same change
+
+* `srmech/introspect/_c_claims.py` — `hypercomplex_couple`'s claim tuple gains `srmech_hypercomplex_couple_turn_q61` (regenerated, not hand-edited).
+* `c/src/srmech_carrier_registry.c` — `Qalg`'s `produces`/`consumes` gain the four coupler pass-throughs (regenerated).
+* `tests/test_exact_carrier_drain_rc466.py::_RETURNS` — the four pass-throughs widen to `list[float] | list[Q] | list[Qalg]`, **and** an EXECUTED witness lands beside them so the pin is not the only thing claiming it.
+* `tests/demotion_census.ndjson` re-measured in BOTH cells (the registry signature moved when the param types widened). `EXPECTED_UNDECLARED_N` stays `{native: 0, pure: 0}`.
+* `tests/test_exact_twiddle_rc468.py::test_the_couple_default_call_is_untouched` is **replaced by its inverse**, `test_the_couple_DEFAULT_call_is_the_exact_route`, kept at the same name-shape so the reversal is legible in the diff. Its docstring — *"which is why this rc did NOT put a value-triggered pin-slot on `theta`"* — was the deferral's own reasoning, written into a test.
+* The Q61-grid pin itself: `test_hypercomplex_couple_exact_route_lives_on_the_q61_grid` -> `..._angle_route_lives_on_the_q61_grid`, because the grid is now the ANGLE route's bound and only its.
+* Worked examples re-executed for all five ops (`hypercomplex_couple`, `cd_couple_working`, `cd_uncouple_working`, `cdr_couple_working`, `cdr_uncouple_working`) — the float route's anchor slot moves, e.g. `-3.4641016151377473` -> `-3.4641016151377553`.
+* `tests/test_mcp.py::_synth_value_for_type` gains a row for `list[float] | list[Q] | list[Qalg]`. The five widened param types pushed `CEIL_UNSYNTHESIZABLE_PARAMS` from 52 to 55, and that ceiling is DOWN-ONLY — so the row lands rather than the ceiling rising, which is the remedy the gate's own failure message prescribes. Back at **52**.
+* **The dated golden is NOT re-recorded.** `tests/sedenion_register_golden_rc464.ndjson` holds the removed 16-slot register's coupler words as `float.hex()` strings, taken when `hypercomplex_couple`'s default WAS `fl(π/2)`. `test_coupler_words_are_bit_exact_with_the_record` now reproduces them through `theta=fl(π/2)` — the route that produced them — and still asserts BIT identity, so the subsumption claim is intact and it is visibly the PHASE that moved. A companion row, `test_the_default_phase_diverges_from_the_record_and_the_difference_is_the_leak`, measures the divergence, attributes it to the 141-grid-unit cosine, and shows the same default is EXACT end to end on the exact carrier. Rewriting the hex strings to today's numbers would have falsified the record the file exists to preserve.
+
+#### One thing the deferral did not name
+
+It listed the four pass-throughs and the Q61-grid pin. It did **not** name the two tests whose entire stated premise was that the default stays on the grid, nor the four `_RETURNS` declared-type pins, nor the `Qalg` carrier-registry back-index, nor the demotion-census registry signature. The call graph named them; the deferral's own list was short by four surfaces.
+
+#### Collateral, named because it is real
+
+Re-running `tools/run_example_args.py` in FULL (rather than `--only-stale`) moved **20** ledger rows: two are this change's (`cdr_couple_working`, `cdr_uncouple_working`), and **17 are pre-existing staleness the `--only-stale` path was hiding** — rows for `dense_laplacian`, `quaternion_twiddle` and 15 others that gained an `exact=` parameter in rc466/rc467 and never re-recorded it, because that path keys on the hash of the WORKED SNIPPET and the snippet did not change. They are kept, not reverted: re-writing rows known to be stale would be the worse move, and every artefact here is tool-produced rather than hand-patched. `n_with_args` 454 -> 458.
+
+That correction has exactly one downstream: `tests/frame_scope_census.ndjson` moves **three** rows, `NO_ARG` -> `UNBOUND_REQUIRED` for `fiedler_vector` / `hermitian_eigendecompose` / `symmetric_eigendecompose`. They now carry a recorded `exact=false` where they had no recorded argument at all, so the census can say WHICH required argument is missing (`matrix` / `H` / `L`) instead of "nothing was harvested" — strictly more information, and **no ceiling moves** (`test_frame_scope_rc430.py` and `test_synth_args_provenance_rc430.py` both pass at their existing CEILs).
+
+#### Two re-pins this change owes to its own edits
+
+* **`tests/test_adr_citation_integrity_rc415.py`** went red at **12 against a down-only CEIL of 7**, and all five new rows had one cause: `c/include/srmech.h` gained 46 lines at `:4283`, so every ADR citation below that point pointed one screen high. **The pointers are fixed, not the ceiling** — five `srmech.h:NNNN` citations in ADR-0012 and ADR-0013 re-resolved against the live file (`srmech_genome_amplify` `:9436` -> `:9496`; `srmech_tool_entry_t` / `explanation` `:6061` -> `:6119`; the "documentation-hint fields" wording `:6036` -> `:6086`; the `[class]` row `:6347, :6270` -> `:6393, :6316`). Back at **7**, and the V4 quote-evidence residual back at **1**. This is the gate doing exactly its job on an edit that had no other symptom.
+* **`WITNESS_RC416`** re-pinned a FOURTH time within this rc, for a fourth separable cause: op summaries ARE the searchable corpus and this stage rewrote six of them. Confirmed a prose move and not a non-deterministic build — `_build_frames("all")` returns the same digest on two consecutive calls.
+
+### Files (stage 3)
+
+`c/src/srmech_trig.c` (the turn coupler and the two static helpers it shares with the angle one), `c/include/srmech.h` (the declaration and the why-a-second-symbol / ABI reasoning), `srmech/_native/__init__.py` (`argtypes` + `has_native_hypercomplex_couple_turn` + `hypercomplex_couple_turn_q61_c`), `srmech/cascade/hypercomplex_dft.py` (`_exact_turn_plan` / `_couple_from_plan` / `_signed_turn_k` / `_couple_q61_turn`, the signature flip and the rewritten accuracy statement), `srmech/cascade/cd_register.py` (four docstrings and two return annotations), `srmech/introspect/tool_schema.py`, the regenerated `_tool_docs.py` / `_c_claims.py` / `srmech_tool_registry.c` / `srmech_carrier_registry.c`, `srmech/introspect/_tool_docs_curated.py`, `tests/test_exact_twiddle_rc468.py` (86 -> 88 rows), `tests/test_exact_carrier_drain_rc466.py`, `tests/test_cd_register_golden_rc464.py`, `tests/test_mcp.py`, `tests/test_search_glyph_tokenizer_rc416.py`, `tests/demotion_census.ndjson`, `tests/example_args_ledger.ndjson`, `tests/frame_scope_census.ndjson`, `tests/worked_examples_result.ndjson`, `adr/0012-introspect-as-the-api-contract.md`, `adr/0013-the-explanation-surface.md`, `notes/cd_register_addressing_layer_contract_rc301.md`, and the research notebook's runnable genetic-code coupler example.
 
 ## [0.9.0rc467] - `#T1188`: the last undeclared demoter, drained by an exact route the deferral said did not exist
 

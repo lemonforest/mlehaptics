@@ -6672,12 +6672,23 @@ for i in range(64):
 print("synonymous by pos:", cnt, "of 192 each")
 w = cd_couple_working([float(c) for c in cnt], dim=8)
 print("couple->uncouple :", cd_uncouple_working(w))
+ex = cd_couple_working(cnt, dim=8)                  # the SAME counts, as ints
+print("exact recovery   :", [v == c for v, c in zip(cd_uncouple_working(ex), cnt)])
 ```
 
 ```
 synonymous by pos: [8, 2, 128] of 192 each
-couple->uncouple : [8.000000000000002, 1.999999999999995, 128.00000000000003]
+couple->uncouple : [8.000000000000002, 1.9999999999999944, 128.00000000000003]
+exact recovery   : [True, True, True]
 ```
+
+**The third line is the one that changed, and it is not a tolerance.** Since
+v0.9.0rc468 (`#T1188`) the coupler's default phase is the exact rational quarter
+turn rather than `fl(π/2)`, and the `'diagonal'` axis carries its `1/√3` in
+ℚ(ζ₁₂) instead of rounding it onto the `2**-61` grid — so the same three
+attested counts, handed over as the INTEGERS they are, come back EXACTLY. The
+float line above is the same op on the carrier its own operand elected, and its
+residue is now the axis alone.
 
 **Why.** Redundancy in the genetic code is **concentrated in the third base** — 128 of 192 possible third-position substitutions are synonymous, against 8 and 2 at the first and second. Those three measured streams bind into one quaternion word and come back to ~1e-15. The bind is capped at `min(dim, 8) − 1 = 7` streams **derived from Hurwitz, never hardcoded**: asking a dim-16 register for 8 streams raises rather than silently spilling, because reversibility stops at 𝕆.
 
