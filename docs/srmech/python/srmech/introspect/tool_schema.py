@@ -7705,6 +7705,49 @@ def _register_primitive_class_tools() -> None:
             composes=("srmech.math.cyclic.gcd",),
             smoke_test_hint={"n": "12"},
         ),
+        # ── rc468 (`#T1188`) — the GENERAL rational turn, both values in ONE
+        # field. The two k = 1 constructors above answer over DIFFERENT fields
+        # whenever 4 does not divide n, so they cannot be added together; and
+        # neither answers at any turn but 1/n. Both gaps blocked the exact
+        # DFT twiddle, and both close here.
+        ToolEntry(
+            name="srmech.math.qalg.cos_sin_2pi_k_over_n", owner="srmech",
+            frame_scope="parametric", frame_axis=("modulus",),
+            category="qalg",
+            summary="(cos(2πk/n), sin(2πk/n)) EXACTLY, BOTH as elements of the "
+                    "ONE field ℚ(ζ_N) with N = lcm(n, 4) — the general-turn "
+                    "constructor cos_2pi_over_n / sin_2pi_over_n are the k = 1 "
+                    "halves of. Two things it adds: a GENERAL turn (the "
+                    "siblings answer only at k = 1, while a DFT twiddle needs "
+                    "2π·(jk mod N)/N), and ONE field (cos_2pi_over_n returns "
+                    "over Φ_n and sin_2pi_over_n over Φ_lcm(n,4), so for 4 ∤ n "
+                    "Qalg correctly REFUSES to add them). Here c*c + s*s == 1 "
+                    "exactly at every n, and (c + s·i)**n == 1 exactly with "
+                    "i = ζ_N^(N/4). Both are rational precisely on the QUARTER "
+                    "turns 4k ≡ 0 (mod n) — measured, not assumed, and it is "
+                    "what elects list[Q] over list[Qalg] in the exact twiddle "
+                    "routes. NO float, NO series, NO math module. Class J (the "
+                    "divisor lattice and the lcm) ∘ Class I (k reduced in Z_n "
+                    "first) ∘ Class N (exact ℚ coordinates) ∘ Class C (the two "
+                    "chiralities of the ζ rotation).",
+            parameters=(
+                P("n", "int", True,
+                  "the turn denominator / cyclotomic index, 1 <= n <= 256; "
+                  "TypeError for a non-int (bool included), ValueError outside "
+                  "the range"),
+                P("k", "int", False,
+                  "the turn numerator, any int (reduced mod n); default 1, "
+                  "which reproduces the two sibling constructors exactly"),
+            ),
+            returns=R("tuple[Qalg, Qalg]",
+                      "(cos, sin) of the turn k/n, both over m = Φ_lcm(n,4) "
+                      "with root=None; coords = φ(lcm(n,4)) exact Q each"),
+            composes=("srmech.math.cyclic.gcd",),
+            preserves=("numpy-free; exact ℚ(ζ_M); no abs() — the turn's "
+                       "orientation stays a Class-K pin-slot on the sine "
+                       "coordinate, never a stripped magnitude",),
+            smoke_test_hint={"n": "8", "k": "1"},
+        ),
         # ── rc463 (`#T1188`) — the exact-ℚ linear algebra, REGISTERED ────────
         # Four shipped ToolEntry texts told readers "RANK / DET / INVERSE /
         # RREF / SOLVE / NULLSPACE ... ship on srmech.math.qmat.QMat". They did.
@@ -10309,7 +10352,7 @@ def _register_primitive_class_tools() -> None:
                         P("left", "bool", True, "twiddle side"),
                         P("sigma", "int", True, "the dft_sigma convention"),
                         P("mu_hat", "list[float]", True, "resolved unit axis")),
-            returns=R("list[float] | list[Q]", "the 4-component summand for bin k — list[Q] for an exact sample (exact when k*m == 0 mod n, else on the 2**-61 Q61 grid), list[float] (accurate to round-off) otherwise"),
+            returns=R("list[float] | list[Q] | list[Qalg]", "the 4-component summand for bin k — for an exact sample, EXACT on every turn (rc468, `#T1188`): list[Q] on a quarter turn 4*k*m == 0 mod n and list[Qalg] over Phi_lcm(n,4) otherwise; list[float] (accurate to round-off) for a float sample"),
         ),
         ToolEntry(
             name="srmech.cascade.odft_summand", owner="srmech",
@@ -10333,7 +10376,7 @@ def _register_primitive_class_tools() -> None:
                         P("mu_hat", "list[float]", True),
                         P("mu_r_hat", "list[float]", True,
                           "right axis (two-sided; ignored one-sided)")),
-            returns=R("list[float] | list[Q]", "the 8-component summand for bin k — list[Q] for an exact sample (exact when k*m == 0 mod n, else on the 2**-61 Q61 grid), list[float] (accurate to round-off) otherwise"),
+            returns=R("list[float] | list[Q] | list[Qalg]", "the 8-component summand for bin k — for an exact sample, EXACT on every turn (rc468, `#T1188`): list[Q] on a quarter turn 4*k*m == 0 mod n and list[Qalg] over Phi_lcm(n,4) otherwise; list[float] (accurate to round-off) for a float sample"),
         ),
         ToolEntry(
             name="srmech.cascade.kuramoto_step", owner="srmech",
@@ -10578,13 +10621,15 @@ def _register_primitive_class_tools() -> None:
                   "pure-imaginary vector. A single named axis carries, not couples"),
                 P("theta", "float", False,
                   "continuous coupling phase; default π/2 (the F436 quarter-turn fold)"),
+                P("turn", "sequence", False,
+                  "the coupling phase as an EXACT RATIONAL TURN (k, n) meaning 2*pi*k/n (rc468, `#T1188`) — with an exact operand and an exactly-normalisable axis the whole coupler is exact, with no angle, no Q61 grid and no axis quantisation; it REFUSES rather than rounding. Default None = the float theta route, unchanged"),
                 P("sigma", "int", False, "chirality σ ∈ {+1,-1}: +1 binds, -1 unbinds; default +1"),
                 P("form", "str", False, "'left' (T·q) or 'right' (q·T); default 'left'"),
                 P("inverse", "bool", False, "flip the effective sign (≡ toggling sigma); default False"),
             ),
-            returns=R("list[float] | list[Q]",
+            returns=R("list[float] | list[Q] | list[Qalg]",
                       "the coupled value — a 4-component quaternion (≤3 streams) or "
-                      "8-component octonion; list[Q] on the Q61 grid (2**-61; exact at theta=0) for exact streams, list[float] (accurate to round-off) otherwise"),
+                      "8-component octonion; on the float theta route list[Q] on the Q61 grid (2**-61; exact at theta=0) for exact streams and list[float] otherwise; on the turn= route EXACT — list[Q] on a quarter turn with a rational axis, list[Qalg] over Phi_M otherwise"),
         ),
         # Literal exp(μθ) unit hypercomplex twiddle (v0.9.0rc10; F882, srmech #205).
         # Registered FLAT as srmech.cascade.hypercomplex_exp; native C peer
@@ -10612,6 +10657,54 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[Q, ...]",
                       "8-tuple of exact Q (Q61, denominator 2^61): "
                       "[cos θ, sin θ/√k ×k_axes, 0 ×(7−k_axes)]"),
+        ),
+        # ── rc468 (`#T1188`) — the EXACT peer of hypercomplex_exp. That op
+        # takes an ANGLE IN RADIANS, so exp(μ·fl(π/4)) is not ζ₈ for ANY
+        # carrier: the operand is already the rounded number. The only way to
+        # reach the root of unity is to be handed the TURN instead.
+        ToolEntry(
+            name="srmech.cascade.hypercomplex_turn", owner="srmech",
+            frame_scope="parametric", frame_axis=("modulus",),
+            category="cascade",
+            summary="exp(μ·2πk/n) at the EXACT RATIONAL TURN k/n — the "
+                    "algebraic-number peer of hypercomplex_exp, as an 8-tuple "
+                    "over the cyclotomic field ℚ(ζ_M). μ is the equal-weight "
+                    "UNIT pure-imaginary over the first k_axes octonion axes "
+                    "(k_axes ∈ {1,3,7} = ℂ/ℍ/𝕆, the same F882 twiddle), but "
+                    "built EXACTLY: the 1/√k_axes normaliser is 1 for ℂ, "
+                    "1/(ζ₁₂ + ζ₁₂⁻¹) for ℍ (√3) and the inverted quadratic "
+                    "Gauss sum g/i for 𝕆 (√7), all inside the field. So "
+                    "‖q‖² == 1 and q**n == 1 hold with ==, not to a tolerance "
+                    "— where hypercomplex_exp(2π/8, 1)**8 is MEASURED as a "
+                    "ratio of 147-digit integers. Carrier elected by the "
+                    "VALUE: plain Q when every component is rational, Qalg over "
+                    "Φ_M otherwise, never mixed — at k_axes = 1 that is exactly "
+                    "the quarter turns, but the 1/sqrt(k) scale SHIFTS the set "
+                    "rather than emptying it (measured: hypercomplex_turn(1, 3, "
+                    "3) is the all-rational (-1/2, 1/2, 1/2, 1/2, 0, 0, 0, 0), "
+                    "the order-3 unit quaternion of the binary tetrahedral "
+                    "group, because sin(2pi/3)/sqrt3 = 1/2). M is "
+                    "lcm(n,4) / lcm(n,12) / lcm(n,28) for k_axes 1/3/7, and "
+                    "the op RAISES above MAX_CYCLOTOMIC_INDEX = 256 rather "
+                    "than falling back to a rounded angle. NO float, NO π, NO "
+                    "Q61 grid. Class J ∘ N ∘ C ∘ M; no abs().",
+            parameters=(
+                P("k", "int", True,
+                  "the turn numerator, any int (reduced mod n); a negative k "
+                  "is the conjugate turn — the Class-C orientation"),
+                P("n", "int", True, "the turn denominator, n >= 1"),
+                P("k_axes", "int", True,
+                  "imaginary-axis count: 1 (ℂ) | 3 (ℍ / QDFT) | 7 (𝕆 / ODFT)"),
+            ),
+            returns=R("tuple[Q, ...] | tuple[Qalg, ...]",
+                      "8-tuple [cos(2πk/n), sin(2πk/n)/√k_axes ×k_axes, "
+                      "0 ×(7−k_axes)]: exact Q on a quarter turn at k_axes=1, "
+                      "exact Qalg over Φ_M otherwise"),
+            composes=("srmech.math.cyclic.gcd",),
+            preserves=("numpy-free; exact ℚ(ζ_M); no abs() — the turn's "
+                       "orientation stays a Class-K pin-slot on the sine "
+                       "coordinate, never a stripped magnitude",),
+            smoke_test_hint={"k": "1", "n": "8", "k_axes": "1"},
         ),
         # Hamming / GF(2) linear block-code family (v0.7.2rc2; #910 / §30,
         # F442/F449) — the CARRY/EC half of the sedenion front-loader. Rosetta
@@ -16390,12 +16483,32 @@ def _register_qm_tools() -> None:
                     "DFT (matches cascade.octonion_dft); σ=+1 = inverse. "
                     "Twiddle closure: jk = 0 (mod N) gives the EXACT identity; "
                     "exp(μ2π/N)^N = 1 holds only to a FLOAT TOLERANCE "
-                    "(gated < 1e-14), not exactly. The target is a root of "
-                    "unity and this float64 carrier does not reach it; the "
-                    "exact route is srmech.math.qalg.cos_2pi_over_n / "
-                    "sin_2pi_over_n and is deliberately NOT taken here "
-                    "(0.9.0rc467 gap, scoped to a later rc). Class I∘N∘C∘M. "
-                    "Same-rc C peer srmech_octonion_twiddle (byte-exact).",
+                    "(gated < 1e-14) on that route. exact=True (0.9.0rc468, "
+                    "`#T1188`) returns the SAME object over the cyclotomic "
+                    "field ℚ(ζ_M) instead — from the same exact "
+                    "(cos, sin) construction "
+                    "srmech.math.qalg.cos_sin_2pi_k_over_n publishes, lifted "
+                    "into whatever field the AXIS needs (so that op is not "
+                    "CALLED: it always answers over Phi_lcm(N,4) while 'ijk' "
+                    "needs Phi_lcm(N,12)), with no angle, no π, no float "
+                    "and no grid — and there W**N == identity and "
+                    "‖W‖² == 1 hold with ==, on every named axis including the "
+                    "irrational 'ijk' (√3 = ζ₁₂ + ζ₁₂⁻¹) and 'diagonal' "
+                    "(√7 = g/i, the quadratic Gauss sum mod 7), both inside "
+                    "the field. Carrier elected by the VALUE: list[Q] when "
+                    "every component is rational, list[Qalg] otherwise, never "
+                    "mixed — on a RATIONAL axis that is exactly the quarter "
+                    "turns 4jk = 0 mod N, but the 1/sqrt(k) axes SHIFT the set "
+                    "rather than emptying it (measured: mu='ijk' at N=3 is the "
+                    "all-rational (-1/2, 1/2, 1/2, 1/2), the order-3 unit "
+                    "quaternion of the binary tetrahedral group). "
+                    "M = lcm(N,4) / lcm(N,12) / lcm(N,28) by axis; "
+                    "above MAX_CYCLOTOMIC_INDEX = 256 the exact route RAISES "
+                    "rather than falling back, because a fallback would be a "
+                    "silent demotion. exact=False is unchanged byte for byte "
+                    "and keeps its C peer. Class I∘N∘C∘M. Same-rc C peer "
+                    "srmech_octonion_twiddle (byte-exact on the float route; "
+                    "the exact route is Python-side, no ABI move).",
             parameters=(
                 P("j", "int", True, "frequency index (non-negative)"),
                 P("k", "int", True, "sample index (non-negative)"),
@@ -16404,8 +16517,15 @@ def _register_qm_tools() -> None:
                   "axis μ̂: 'i'|'j'|'k' (= 'e1'|'e2'|'e3') | 'e4'..'e7' | 'ijk' "
                   "| 'diagonal', or a pure-imaginary 4-/8-vector; default 'i'"),
                 P("sigma", "int", False, "−1 forward (default) | +1 inverse"),
+                P("exact", "bool", False,
+                  "True takes the EXACT cyclotomic route and returns list[Q] "
+                  "(quarter turns) or list[Qalg]; False (default) the float64 "
+                  "carrier and its C peer"),
             ),
-            returns=R("list[float]", "the unit-octonion twiddle (8 components)"),
+            returns=R("list[float] | list[Q] | list[Qalg]",
+                      "the unit-octonion twiddle (8 components): float64 at "
+                      "exact=False; exact Q on a quarter turn and exact Qalg "
+                      "over Φ_M otherwise at exact=True"),
         ),
 
         # ────────────────────────────────────────────────────────────
@@ -16596,13 +16716,32 @@ def _register_qm_tools() -> None:
                     "σ=−1 (default) = forward DFT (matches cascade."
                     "quaternion_dft); σ=+1 = inverse. Twiddle closure: "
                     "jk = 0 (mod N) gives the EXACT identity; exp(μ2π/N)^N = 1 "
-                    "holds only to a FLOAT TOLERANCE (gated <= 1e-9*N), not "
-                    "exactly. The target is a root of unity and this float64 "
-                    "carrier does not reach it; the exact route is "
-                    "srmech.math.qalg.cos_2pi_over_n / sin_2pi_over_n and is "
-                    "deliberately NOT taken here (0.9.0rc467 gap, scoped to a "
-                    "later rc). Class I∘N∘C∘M. Same-rc C peer "
-                    "srmech_quaternion_twiddle (byte-exact).",
+                    "holds only to a FLOAT TOLERANCE (gated <= 1e-9*N) on that "
+                    "route. exact=True (0.9.0rc468, `#T1188`) returns the SAME "
+                    "object over the cyclotomic field ℚ(ζ_M) instead — from "
+                    "the same exact (cos, sin) construction "
+                    "srmech.math.qalg.cos_sin_2pi_k_over_n publishes, lifted "
+                    "into whatever field the AXIS needs (so that op is not "
+                    "CALLED: it always answers over Phi_lcm(N,4) while 'ijk' "
+                    "needs Phi_lcm(N,12)), with no angle, no π, no float "
+                    "and no grid — and there W**N == identity "
+                    "and ‖W‖² == 1 hold with ==, on every named axis including "
+                    "the irrational 'ijk' (√3 = ζ₁₂ + ζ₁₂⁻¹, inside the "
+                    "field). Carrier elected by the VALUE: list[Q] when "
+                    "every component is rational, list[Qalg] otherwise, never "
+                    "mixed — on a RATIONAL axis that is exactly the quarter "
+                    "turns 4jk = 0 mod N, but the 1/sqrt(k) axes SHIFT the set "
+                    "rather than emptying it (measured: mu='ijk' at N=3 is the "
+                    "all-rational (-1/2, 1/2, 1/2, 1/2), the order-3 unit "
+                    "quaternion of the binary tetrahedral group, because "
+                    "sin(2pi/3)/sqrt3 = 1/2). M = lcm(N,4) for a basis axis "
+                    "and lcm(N,12) for "
+                    "'ijk'; above MAX_CYCLOTOMIC_INDEX = 256 the exact route "
+                    "RAISES rather than falling back, because a fallback would "
+                    "be a silent demotion. exact=False is unchanged byte for "
+                    "byte and keeps its C peer. Class I∘N∘C∘M. Same-rc C peer "
+                    "srmech_quaternion_twiddle (byte-exact on the float route; "
+                    "the exact route is Python-side, no ABI move).",
             parameters=(
                 P("j", "int", True, "frequency index (non-negative)"),
                 P("k", "int", True, "sample index (non-negative)"),
@@ -16611,8 +16750,15 @@ def _register_qm_tools() -> None:
                   "axis μ̂: 'i'|'j'|'k'|'ijk' or a pure-imaginary 4-vector; "
                   "default 'i'"),
                 P("sigma", "int", False, "−1 forward (default) | +1 inverse"),
+                P("exact", "bool", False,
+                  "True takes the EXACT cyclotomic route and returns list[Q] "
+                  "(quarter turns) or list[Qalg]; False (default) the float64 "
+                  "carrier and its C peer"),
             ),
-            returns=R("list[float]", "the unit-quaternion twiddle (4 components)"),
+            returns=R("list[float] | list[Q] | list[Qalg]",
+                      "the unit-quaternion twiddle (4 components): float64 at "
+                      "exact=False; exact Q on a quarter turn and exact Qalg "
+                      "over Φ_M otherwise at exact=True"),
         ),
         ToolEntry(
             name="srmech.physics.qm.quaternion.quaternion_cycle_holonomy",

@@ -119,15 +119,76 @@ def _table_element_lines(source: str, path: str, total: int) -> Dict[int, int]:
     except SyntaxError:
         return covered
     for node in ast.walk(tree):
-        if not isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        if isinstance(node, ast.Dict):
+            # rc468 (`#T1188`): a MAPPING all of whose values are numeric
+            # literals is the same object as the tuple/list/set above with keys
+            # instead of positions — an integer in it means "the value at this
+            # key", not "the registry total". Same threshold, same
+            # all-elements-numeric requirement, so it cannot launder a lone
+            # cardinal any more than the positional form can.
+            elts = list(node.values)
+        elif (isinstance(node, (ast.List, ast.Tuple)) and node.elts
+                and all(isinstance(e, ast.Dict) for e in node.elts)
+                and len(node.elts) >= _TABLE_MIN_ELEMENTS):
+            # rc468 (`#T1188`): a RECORD TABLE — a sequence of mappings, which
+            # is the same data table one axis over: the meaning of a cell is
+            # its (row, key), not its magnitude. This is the shipped
+            # `lk_mod2` measurement table in ``introspect/__init__.py``, whose
+            # rows mix strings and counts, so neither the positional arm nor
+            # the all-numeric mapping arm above can see it. Only NUMERIC cells
+            # are deducted, and only from tables of at least
+            # ``_TABLE_MIN_ELEMENTS`` rows, so a lone ``{"total": N}`` is
+            # still a restatement.
+            elts = [v for row in node.elts for v in row.values
+                    if _numeric_literal(v) is not None]
+            for element in elts:
+                if _numeric_literal(element) == float(total):
+                    covered[element.lineno] = covered.get(element.lineno, 0) + 1
             continue
-        values = [_numeric_literal(e) for e in node.elts]
+        elif isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+            elts = list(node.elts)
+        else:
+            continue
+        values = [_numeric_literal(e) for e in elts]
         if len(values) < _TABLE_MIN_ELEMENTS or any(v is None for v in values):
             continue
-        for element, value in zip(node.elts, values):
+        for element, value in zip(elts, values):
             if value == float(total):
                 covered[element.lineno] = covered.get(element.lineno, 0) + 1
     return covered
+
+
+def _locator_occurrences(line: str, total: int) -> int:
+    """How often ``total`` appears in ``line`` as a RATIO numerator or as a
+    SOURCE-LOCATION reference.
+
+    THE rc468 RE-SCOPE (`#T1188`), and it is a fifth axis on the same
+    principle rather than an exemption. rc410 predicted this gate would report
+    false positives once the total landed on a value with a life of its own,
+    and left standing orders: re-scope, never exempt. It has now come true
+    four times — 569 (prime, ``_STRUCT_PRIMES``), 655 (a citation page range),
+    687 (a GitHub PR number), and at rc468 **735**, which is the numerator of
+    a MEASURED RATE the tree quotes in four places (``735/3000`` — the
+    ``lk_mod2`` sign-algebra hit count out of 3000 trials, in
+    ``introspect/__init__.py`` and ``tool_schema.py``) and a LINE NUMBER in a
+    fifth (``srmech/math/rational.py`` refers to a sibling op at ``(:735)``).
+
+    Two syntactic shapes, neither of which a count restatement can wear:
+
+    * ``<total>/<digits>`` — a ratio. A cardinal is never written over a
+      denominator; ``735 ops`` and ``total = 735`` carry no slash.
+    * ``:<total>`` — a location. This tree spells a source reference
+      ``path.py:LINE`` or ``(:LINE)``, and the colon binds the digits to a
+      position rather than to a quantity.
+
+    It cannot launder a real restatement: the subtraction is PER OCCURRENCE,
+    so a line carrying a ratio AND a bare cardinal still fails on the cardinal
+    — the same property the rc427 and rc458 axes were built with, and the same
+    one :func:`test_the_restatement_scan_still_bites` drives from both sides.
+    """
+    ratio = re.compile(rf"\b{re.escape(str(total))}\s*/\s*\d")
+    locator = re.compile(rf":{re.escape(str(total))}\b")
+    return len(ratio.findall(line)) + len(locator.findall(line))
 
 
 def _numeric_range_occurrences(line: str, total: int) -> int:
@@ -182,6 +243,14 @@ def _restatement_lines(source: str, path: str, total: int) -> List[int]:
     comparison is unchanged, so a line carrying one more occurrence than the
     two subtractions jointly account for still fails.
 
+    rc468 adds a FOURTH and FIFTH subtraction in one helper
+    (:func:`_locator_occurrences`), for the same reason a fourth time: the
+    total landed on **735**, which is the numerator of a measured ``735/3000``
+    rate quoted in four shipped lines and a line number ``(:735)`` in a fifth.
+    A ratio numerator and a ``:``-bound location are both syntactically unable
+    to be cardinals. The dict-value arm of the table subtraction lands in the
+    same change, for the fifth line.
+
     rc458 adds a THIRD subtraction, again by syntax and again because the
     gate's own prediction came true a second time: the total landed on
     **687**, which is the monorepo's research-integration PR — referenced as
@@ -200,7 +269,7 @@ def _restatement_lines(source: str, path: str, total: int) -> List[int]:
         for i, line in enumerate(source.splitlines(), start=1)
         if len(pattern.findall(line))
         > (covered.get(i, 0) + _numeric_range_occurrences(line, total)
-           + len(ghref.findall(line)))
+           + len(ghref.findall(line)) + _locator_occurrences(line, total))
     ]
 
 
@@ -588,7 +657,47 @@ def test_the_restatement_scan_still_bites() -> None:
             f"({src!r}) — it must deduct only the #-prefixed reference"
         )
 
+    # rc468 (`#T1188`): the ratio / locator axis must bite too, on the same
+    # per-occurrence terms. A measured rate or a line reference sitting beside
+    # a bare cardinal does not hide the cardinal.
+    must_find["extra occurrence on a ratio line"] = (
+        f"# sign {total}/3000 index 182/3000 — and {total} ops in all"
+    )
+    must_find["extra occurrence on a locator line"] = (
+        f"# see rational.py:{total}; the registry carries {total} ops"
+    )
+    must_find["lone keyed cardinal is still a restatement"] = (
+        f'_M = {{"total": {total}}}'
+    )
+    must_find["slash with a non-numeric far side"] = (
+        f'"""the {total}/N ratio."""'
+    )
+    for label, src in list(must_find.items())[-4:]:
+        assert _restatement_lines(src, f"<{label}>", total) == [1], (
+            f"the rc468 ratio/locator subtraction over-fired on a {label} "
+            f"({src!r}) — it must deduct only the ratio or the location"
+        )
+
     must_not_find = {
+        # rc468 (`#T1188`) — the four shipped shapes that made THIS rc red.
+        "measured ratio in a comment": (
+            f"#   Lk  lk_mod2  sign {total}/3000   index 182/3000"
+        ),
+        "measured ratio in prose": (
+            f'"""        Lk    lk_mod2    {total}/3000      182/3000"""'
+        ),
+        "source-location reference": (
+            f'"""see the sibling at (:{total}) and rational_mul (:762)."""'
+        ),
+        "mapping of ints": (
+            f'_M = {{"sign_algebra": {total}, "index_algebra": 182, "n": 0}}'
+        ),
+        # the SHIPPED shape: rows that mix strings and counts, so only the
+        # record-table arm can see it
+        "record table of mixed mappings": (
+            f'_T = [{{"name": "a", "hits": 1}}, {{"name": "b", "hits": 2}}, '
+            f'{{"name": "Lk", "hits": {total}}}]'
+        ),
         "tuple of ints": f"_PRIMES = (563, {total}, 571)",
         "list of ints": f"_T = [563, {total}, 571]",
         "set of ints": f"_S = {{563, {total}, 571}}",

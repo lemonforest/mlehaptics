@@ -562,9 +562,12 @@ def test_the_exact_population_is_the_four_precedents_plus_this_one() -> None:
     import inspect
 
     from srmech.cascade import composites as _composites
+    from srmech.cascade import hypercomplex_dft as _hcd
     from srmech.cascade import matrix_cascades as _mc
     from srmech.cascade import spectral_cascades as _sc
     from srmech.math import laplacian
+    from srmech.physics.qm import octonion as _oct
+    from srmech.physics.qm import quaternion as _quat
     from srmech.physics.qm import triality as _tri
 
     # ⚠️ rc463 (`#T1188`) WIDENED THIS SCAN, and the narrowness was load-bearing.
@@ -574,8 +577,17 @@ def test_the_exact_population_is_the_four_precedents_plus_this_one() -> None:
     # A census that structurally cannot see the module under audit is not a
     # census of the package; it is a census of two modules wearing the package's
     # name. The cascade modules are now scanned too.
+    #
+    # ⚠️ rc468 (`#T1188`) WIDENED IT AGAIN, and the narrowness was load-bearing
+    # a SECOND time. Through rc467 the scan stopped at the cascade modules, so
+    # ``srmech.physics.qm.quaternion`` / ``.octonion`` /
+    # ``srmech.cascade.hypercomplex_dft`` — the three modules rc468 was ABOUT —
+    # could not have appeared in this census even if they declared ``exact=``,
+    # and two of them now do. Shipping the exact twiddle past a gate that is
+    # structurally blind to the module it audits is the defect this rc removes,
+    # so the widening lands in the SAME change as the keyword.
     declaring = []
-    for mod in (laplacian, _tri, _mc, _sc, _composites):
+    for mod in (laplacian, _tri, _mc, _sc, _composites, _quat, _oct, _hcd):
         for name in dir(mod):
             if name.startswith("_"):
                 continue
@@ -627,6 +639,12 @@ def test_the_exact_population_is_the_four_precedents_plus_this_one() -> None:
         "srmech.math.laplacian.signed_laplacian",
         "srmech.math.laplacian.symmetric_eigendecompose",     # rc466 review fix
         "srmech.math.laplacian.three_fold_eigvec_groups",     # rc466 review fix
+        # rc468 (`#T1188`) added two: both DFT twiddles grew the exact
+        # cyclotomic rung, where the float64 carrier could not satisfy the
+        # closure it is named for. Strict-zero witnesses (``==``, not a
+        # tolerance) in tests/test_exact_twiddle_rc468.py.
+        "srmech.physics.qm.octonion.octonion_twiddle",
+        "srmech.physics.qm.quaternion.quaternion_twiddle",
         "srmech.physics.qm.triality.triality_companions",
     ], f"the exact= population moved: {sorted(declaring)}"
     # ⚠️ ``einsum`` is DELIBERATELY ABSENT and that is the rc463 decision, not an
@@ -656,17 +674,18 @@ def test_the_carrier_selector_census_figure_is_re_measured() -> None:
         for s in names & selectors:
             per[s] += 1
             ops.add(tool.name)
-    assert per["exact"] == 19, (
-        f"exact= is on {per['exact']} registry entries, expected 19 (the four "
+    assert per["exact"] == 21, (
+        f"exact= is on {per['exact']} registry entries, expected 21 (the four "
         f"precedents + triality_companions + the three rc463 graph builders + "
         f"the five rc466 graph builders + the five rc466 eigen-family routes "
         f"of the review fix + rc467's resonant_spectrum, the last undeclared "
-        f"demoter)")
-    assert len(ops) == 72, (
-        f"{len(ops)} ops carry a carrier/regime selector, expected 72 "
+        f"demoter, + rc468's two DFT twiddles)")
+    assert len(ops) == 74, (
+        f"{len(ops)} ops carry a carrier/regime selector, expected 74 "
         f"(58 at rc444 + the three rc463 graph builders + the five rc466 graph "
         f"builders + the five rc466 eigen-family routes + rc467's "
-        f"resonant_spectrum — the rc467 CHANGELOG carries the figure). "
+        f"resonant_spectrum + rc468's quaternion_twiddle and octonion_twiddle "
+        f"— the rc468 CHANGELOG carries the figure). "
         f"Per-selector: {per}. If this "
         f"moved for a good reason, update the CHANGELOG figure in the SAME "
         f"change — do not just re-pin the number here.")

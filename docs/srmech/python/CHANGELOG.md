@@ -19,6 +19,94 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc468] - `#T1188`: the root of unity that was computed from a float64 angle, and the exact peer that had been shipping beside it
+
+*(Stage 1 of 2. This stage ships ITEM 1 — the twiddle carrier. ITEMS 2 and 3 follow in stage 2.)*
+
+**NO MERGE, NO TAG, NO PUBLISH.** This rc is gated by hand.
+
+**Registry: 733 → 735.** `srmech.math.qalg.cos_sin_2pi_k_over_n` and `srmech.cascade.hypercomplex_turn`. **`SRMECH_ABI_VERSION` stays 25** — no C symbol was added, removed or re-signed; the four generated C sources moved because the tool surface did, and the `.so` was rebuilt for that reason alone.
+
+**The carrier-selector census, re-measured for `tests/test_exact_return_carrier_rc444.py`:** `exact=` is now on **21** registry entries (rc467's 19 + the two DFT twiddles) and **74** ops carry a carrier / regime selector (rc467's 72 + the same two).
+
+### The defect
+
+`octonion_twiddle`, `quaternion_twiddle` and `hypercomplex_exp` compute a **root of unity from a float64 ANGLE**. rc467 corrected their docstrings — they stopped claiming the closure identity held exactly — and deliberately left the implementation alone. That is the move the standing rule forbids: *fixing is required where an exact peer ships, and declaring what could be fixed converts a defect into documentation.* The exact peer was one module over the whole time (`srmech.math.qalg.cos_2pi_over_n` / `sin_2pi_over_n`, on which `ζ₈⁸ == 1` holds with `==`), and the ops did not use it.
+
+Three MEASURED failures, and each is now a strict-zero assertion in `tests/test_exact_twiddle_rc468.py`:
+
+| what | rc467 returned | rc468 |
+|---|---|---|
+| `hypercomplex_exp(2π/8, 1)**8` | a ratio of 147-digit integers | `hypercomplex_turn(1, 8, 1)**8 == 1` **exactly** |
+| `qdft_summand(…, 1, 1, 8, True, −1, [0,1,0,0])[0]` | `Q(1879812259125035306248210951689718979, 2**61)` — `2·slot² − P²` off by `8.2e19` | exactly `P·√2/2`; `2·slot² == P²` |
+| `quaternion_twiddle(1, 1, N)` `‖W‖² − 1` | nonzero at every `N` (−2.0e-17 at 8, +7.2e-17 at 7) | `‖W‖² == 1` and `W**N ==` the identity |
+
+### What the family actually was — established by EXECUTION, not by report
+
+The rc466 verifier said the Q61 exact routes of `qdft_summand` / `odft_summand` / `hypercomplex_couple` computed their twiddle from a float64 angle. rc466's own review commit said it had fixed *"a phase difference rounded before it was formed"*. **Both were wrong by half**, and the scouting round measured which half:
+
+* `_quarter_turn_twiddle` was real, and covered **quarter turns only** — exact-route coverage was `{0}` of 3 turns at `n = 3`, and `{0,2,4,6}` of 8 at `n = 8`. Every other turn fell through to `_q61_twiddle(theta, …)` with `theta = float(σ)·2π·(r/n)`.
+* `hypercomplex_couple` sat in `_FIXED_IN_RC466` and reads **EXACT** in the committed carrier census — while rounding at its own DEFAULT `theta`. `_quarter_turn_twiddle` was never wired into it at all.
+
+That second line is the finding, not a footnote: **a census row that reads EXACT on an op that rounds.** The carrier probe substitutes its witness at a numeric leaf of a SEQUENCE-shaped parameter, and these ops take `int` scalars plus a `str` axis — so `tests/demotion_census.ndjson` holds **zero** rows for either twiddle, and the probe's own P/F/G oracle returns EXACT for both summands at `n = 8, k = m = 1`, the residue where the twiddle demonstrably rounded. A green carrier gate said nothing whatever about this defect, which is why the fix ships with its own witness file rather than a census row.
+
+### What ships
+
+**`srmech.math.qalg.cos_sin_2pi_k_over_n(n, k=1)`** — the general rational turn, both values over the ONE field `Φ_lcm(n,4)`. The two `k = 1` constructors could not do this job twice over: they answer only at `k = 1`, and for `4 ∤ n` they answer over DIFFERENT fields, so `Qalg` correctly refuses to add them. `sin_2pi_over_n`'s docstring had told the caller to build the lift *by hand* — a shipped instruction to write code that did not ship; it now names the op.
+
+**`srmech.cascade.hypercomplex_turn(k, n, k_axes)`** — the exact peer of `hypercomplex_exp`. `hypercomplex_exp` is NOT fixed in place, and that is not a deferral: its parameter is an ANGLE IN RADIANS, `fl(2π/8)` is already not `2π/8`, and no carrier downstream can recover the turn from a rounded operand. Its rc467 note is TRUE and stays true. The only fix available is a peer that takes the turn itself, and a peer that is not registered is documentation with code attached — so it is registered.
+
+**`quaternion_twiddle(..., exact=True)` / `octonion_twiddle(..., exact=True)`** — exact on EVERY turn and EVERY named axis, the irrational ones included. `1/√3 = 1/(ζ₁₂ + ζ₁₂⁻¹)` and `1/√7 = i/g` with `g` the quadratic Gauss sum mod 7, both constructed INSIDE the field, so `'ijk'` and `'diagonal'` return genuine roots of unity where the float axes miss the unit sphere by `2.2e-16` / `1.1e-16`. `exact=False` is unchanged byte for byte and keeps its C peer.
+
+**`qdft_summand` / `odft_summand`** — the exact route is now exact on every turn, not just the quarter turns. `_q61_twiddle` is **DELETED**; `_quarter_turn_twiddle` is subsumed. The two-sided ODFT's declared F378 bracketing survives verbatim, because the four-term expansion carries it in which nested product the `s²` term takes.
+
+**`hypercomplex_couple(..., turn=(k, n))`** — the rational-turn parameterisation the op's own docstring named as *"not shipped here"*. It drains BOTH declared bounds at once: the float64 angle AND the Q61-quantised `'diagonal'` axis. `hypercomplex_couple([2**60+1, 0, 0, 0], axis='i', turn=(1, 4))[0] == 0` exactly, in the slot the default fold fills with `70.5`; and the `'diagonal'` bind/unbind round trip returns its operand EXACTLY, where the float route misses `2**60+1` by `309.8`.
+
+### The design decision that deleted most of the cost
+
+The obvious route — an exact twiddle whose components are `Qalg` — dies immediately: **`cd_mult` REFUSES the field carrier** (`TypeError: to_q: cannot coerce Qalg to an exact Q`). Both plans written for this rc budgeted a `Qalg` admission into `srmech/cascade/cayley_dickson.py`, the single largest cost item in each.
+
+It is not needed. `cd_mult` is ℚ-**bilinear** and the twiddle has only TWO grades — the real `1` and the rational direction `μ̂` — so
+
+```
+(c + s·μ̂) ⊗ x  =  c·x  +  s·(μ̂ ⊗ x)
+```
+
+is one `cd_mult` over ℚ followed by scalar multiplication of its ℚ components by the two field scalars. Association order is untouched. **`cayley_dickson.py` is not touched, and `cd_mult` still refuses `Qalg` — deliberately.** The one place a field-valued operand does appear is the coupler's own round trip (an unbind must accept the bind's output), and that walks the `φ(M)` grades of ℚ(ζ_M) as a ℚ-vector space, which is the same identity applied once more.
+
+### Where it REFUSES, and why refusing is the fix
+
+The exact route RAISES when the field index exceeds `MAX_CYCLOTOMIC_INDEX` (256) — `lcm(n,4)` for a rational axis, `lcm(n,12)` for `1/√3`, `lcm(n,28)` for `1/√7`. It does **not** fall back to the float carrier. A fallback would be a new silent demotion, which is the defect class the whole arc exists to remove, and the float route is one keyword away for a caller who wants it.
+
+This is a deliberate BREAK for one shape: an exact sample at `n = 65` through `qdft_summand` used to answer, inexactly, wearing the exact carrier. It now raises. That is the rc467 population gate's own finding applied to this op — *an exact route that computes exactly about a rounded number is a silent wrong answer wearing the exact carrier.*
+
+### The gate that was blind to the module under audit — a third time
+
+`tests/test_exact_return_carrier_rc444.py`'s `exact=` roster scans a hard-coded module tuple. Through rc467 it stopped at the cascade modules, so `srmech.physics.qm.quaternion`, `srmech.physics.qm.octonion` and `srmech.cascade.hypercomplex_dft` — **the three modules this rc is about** — could not have appeared in the census even if they declared `exact=`, and two of them now do. rc463 widened that same scan for the same reason and left the widening un-generalised. The scan is widened in the SAME change as the keyword: shipping the exact twiddle past a gate structurally blind to the module it audits would be the rc's own defect shape, committed by the rc that names it.
+
+A sibling hole closed with it: `hypercomplex_couple`'s `turn=` is an exactness selector that is not spelled `exact`, so no roster in the tree watches it. `test_the_couple_turn_selector_declares_its_carrier_too` now does.
+
+### A claim this rc wrote down, falsified by its own worked example
+
+Every axis-bearing surface first said the exact route returns `list[Q]` **exactly on the quarter turns**. That is true of the axis-free constructor and of a rational axis, and FALSE once the `1/√k` scale is in play — because `sin(2π/3)/√3 = 1/2` exactly. MEASURED: `hypercomplex_turn(1, 3, 3)` is the all-rational `(−1/2, 1/2, 1/2, 1/2, 0, 0, 0, 0)`, the order-3 unit quaternion of the binary tetrahedral group, while the SAME turn at `k_axes = 1` is irrational. The rule is **"every component rational"**, and the two arms are genuinely different: neither subsumes the other.
+
+It was caught by the new op's **worked example failing to execute** (`'Q' object has no attribute 'is_rational'`), not by anyone re-reading the sentence — which is the argument for shipping an example that runs. The claim is corrected on all seven surfaces that carried it (two op docstrings, `hypercomplex_turn`'s, the `qalg` helper's, three ToolEntry summaries, the curated explanation) and pinned as a measurement in `test_the_axis_scale_SHIFTS_the_rational_set_rather_than_emptying_it`.
+
+### The ripple, and the four gates that had to be re-scoped rather than re-pinned
+
+`tools/ripple_check.py` went red on **eight** targets, all of them this change's own, and four of them wanted more than a number moved:
+
+* **`test_wire_round_trip_rc414`** — 134 un-coercible return types against a down-only ceiling of 127. The +7 is exact: two ops REGISTERED with field-valued returns, and five whose declared return widened from `list[float] | list[Q]` to `... | list[Qalg]`. The ceiling's own rule is *"a new op with an un-coercible return type must land its coercer in the same rc"*, so three coercers land in `srmech/mcp/_coercion.py` — `list[float] | list[Q] | list[Qalg]`, `tuple[Qalg, Qalg]` and `tuple[Q, ...] | tuple[Qalg, ...]`, each leaf-decided by the whole-operand rule, none of them deciding a carrier. The ceiling holds at **127** rather than rising to 134.
+* **`test_owner_axis_rc410`** — the registry total landed on **735**, which is the numerator of a measured `735/3000` rate quoted in four shipped lines and a line number `(:735)` in a fifth. That gate has predicted this exact false positive since rc410 and left standing orders: *re-scope, never exempt*. It has now come true a fourth time (569 prime, 655 a page range, 687 a PR number), so the fifth re-scope lands in its idiom — two new syntactic subtractions (`<total>/<digits>` is a RATIO, `:<total>` is a LOCATION) plus a record-table arm for a sequence of mappings, all per-occurrence, all driven from both sides by `test_the_restatement_scan_still_bites`. No file is named, no line is skipped, no `noqa` exists.
+* **`test_composes_grain_rc412` / `test_composes_population_rc423`** — and one failure here was NOT this rc's registration at all. Memoising `srmech.math.qalg._cyclotomic_m` with `functools.lru_cache` **silently broke `cos_2pi_over_n`'s shipped `composes` declaration**: the derivation walks the caller's AST and descends into the callee it resolves, and a `lru_cache` wrapper is not the `FunctionDef` it looks for. The memo is now a plain dict — same cost, visible call — with the reason written at the site. `hypercomplex_turn` joins the hand-traced `ROSTER` on `cos_2pi_over_n`'s own precedent: its body calls no registered op directly, and the one edge it does reach (`gcd`, at depth 3, through two `lcm`s) is a one-element tuple carrying no order claim.
+* **`test_preserves_taxonomy_rc423`** — one new classified string, `numpy-free; exact ℚ(ζ_M); no abs() …`, following rc461's precedent of adding a ℚ peer beside the ℤ one rather than rewording it. The carrier claim here is a CYCLOTOMIC FIELD, strictly stronger than exact ℚ, and the no-`abs()` clause is a different one again: these ops take no magnitude at all, and the only sign is the turn's orientation applied as a pin-slot on the sine coordinate.
+
+The other four were number moves with measured attribution: `test_t1158_registry_param_order_rc449` (the new `turn=` parameter had been appended to the ToolEntry rather than placed at its signature position — order is load-bearing for positional binding) and the three `test_namespace_prefix_decode_aware_rc361` population pins, `srmech.math.` 460 → 461, `srmech.cascade.` 231 → 233, `srmech.physics.qm.` 209 → 211. That last split is the informative one and it is MEASURED per op, not projected: `hypercomplex_turn` 0 → 2, both twiddles 2 → 3 (they join the `Q` back-index for the first time), and `qdft_summand` / `odft_summand` / `hypercomplex_couple` **0** — all three widened their return and moved nothing, because they already sat in both the `float` and `Q` back-indexes and the count is per (op, carrier).
+
+### Files
+
+`srmech/math/qalg.py` (the general turn, `1/√k` for `k ∈ {1,3,7}`, the exact-axis reader, a memoised `Φ`), `srmech/physics/qm/quaternion.py`, `srmech/physics/qm/octonion.py`, `srmech/cascade/hypercomplex_dft.py`, `srmech/cascade/__init__.py`, `srmech/introspect/tool_schema.py`, the four regenerated codegen outputs, and `tests/test_exact_twiddle_rc468.py` (83 strict-zero witnesses, carrying the float route's INEQUALITY beside the exact route's equality so the file cannot go vacuous by the two quietly converging).
+
 ## [0.9.0rc467] - `#T1188`: the last undeclared demoter, drained by an exact route the deferral said did not exist
 
 *(Both stages. Stage 1 shipped ITEM 1 — the exact `resonant_spectrum` route. Stage 2 shipped the residuals, the wire drain, the `Qi` gap, the roster pins and the census re-measure in both cells, and is written up below.)*

@@ -1002,9 +1002,20 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # the reason the delta is 13 and not 16, and it is worth stating because a
     # reader deriving "9 ops x 2 carriers" from the prose alone would get
     # neither number.
-    assert math == 460, (
-        f"expected 460 srmech.math op references inside the DECODED channel "
-        f"(447 at rc466 + rc467 +13: the eight widened srmech.math.laplacian "
+    # rc468 (`#T1188`) - 460 -> 461, the rc456 registration category a SIXTH
+    # time, and the rc461 SPLIT exactly: this rc registers TWO ops and only ONE
+    # moves this pin. `srmech.math.qalg.cos_sin_2pi_k_over_n` takes
+    # (n: int, k: int), so it earns one `int` carrier back-index reference -
+    # ONE and not two, because the back-index is per OP, not per operand, which
+    # is the same arithmetic the rc463 note above spells out in the other
+    # direction (`qmat_solve` names its carrier twice and contributes a ninth
+    # reference because the two operands carry DIFFERENT type strings). Its
+    # sibling `srmech.cascade.hypercomplex_turn` is not under `srmech.math.` at
+    # all and cannot contribute here however it is typed - the structural split
+    # rc461 and rc463 both recorded.
+    assert math == 461, (
+        f"expected 461 srmech.math op references inside the DECODED channel "
+        f"(447 at rc466 + rc467 +13 + rc468 +1: the eight widened srmech.math.laplacian "
         f"exact= operands, each joining the `Q` carrier back-index and five "
         f"of them also `int`; see the per-op table above) "
         f"(352 at rc461 part 3 + rc463 +9: the six qmat_* ops at one carrier "
@@ -1196,8 +1207,28 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # top of the `int` dim - the per-(op, carrier) multiplicity this pin exists
     # to keep honest, and why "one row per new op" would have been a guess.
     # rc466 (`#T1188`, stage 3): see the two-cause attribution above the `music` pin — (a) the `Q` fragment hoisted to a byte array, (b) the widened dual-carrier declarations.
-    assert cascade == 231, (
-        f"expected 231 srmech.cascade op references inside the DECODED channel "
+    # rc468 (`#T1188`) - 231 -> 233, and the split is MEASURED per op rather
+    # than projected, on this pin's own standing terms:
+    #
+    #     hypercomplex_turn     0 -> 2   REGISTERED here; it names `int`
+    #                                    (k / n / k_axes) and, through its
+    #                                    `tuple[Q, ...] | tuple[Qalg, ...]`
+    #                                    return, `Q`
+    #     qdft_summand          0        UNCHANGED, and this is the informative
+    #     odft_summand          0        half: all three widened their return
+    #     hypercomplex_couple   0        from `list[float] | list[Q]` to
+    #                                    `... | list[Qalg]`, and moved NOTHING,
+    #                                    because they already sat in both the
+    #                                    `float` and `Q` back-indexes and the
+    #                                    count is per (op, carrier).
+    #
+    # So a reader deriving "five ops changed, five rows" would get neither
+    # number, which is the same arithmetic rc437 and rc420 record from the
+    # other direction. The sibling `srmech.math.` pin moves +1 for the OTHER
+    # registration, and `srmech.physics.qm.` +2 for the two twiddles - one rc,
+    # three namespaces, three different reasons.
+    assert cascade == 233, (
+        f"expected 233 srmech.cascade op references inside the DECODED channel "
         f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
         f"rc384's octonion_frame_read + rc386's cd_three_form + rc387's flip_pair / "
         f"group_algebra_table + rc395's cd_zero_divisor_witness / _witnesses + rc398's "
@@ -1278,7 +1309,16 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # 1125899906842625 -- and MEASURED per carrier against df75d0794 it gains
     # Q 1 -> 2 and int 0 -> 1. Two references, one op, and the two pins agree:
     # 13 + 2 = the fifteen the nine widenings are worth in this channel.
-    assert physics_qm == 209, (
+    # rc468 (`#T1188`) - 209 -> 211, the WIDENED-DECLARATION category (rc463's,
+    # not rc456's): no qm op is registered and none is renamed. Both DFT
+    # twiddles widened their return from `list[float]` to
+    # `list[float] | list[Q] | list[Qalg]` when they grew the exact cyclotomic
+    # rung, so each joins the `Q` carrier's back-index for the first time.
+    # MEASURED, per op: quaternion_twiddle 2 -> 3, octonion_twiddle 2 -> 3.
+    # They gain ONE row apiece and not two - `Qalg` is not a back-indexed
+    # emitted carrier token here, which is the same rule rc399 records for the
+    # four ops that returned `Q` and added zero, run in the other direction.
+    assert physics_qm == 211, (
         f"expected 209 srmech.physics.qm op references inside the DECODED channel "
         f"(207 at rc466 + rc467 +2: triality_companions' widened g_v, Q +1 and "
         f"int +1 -- the ninth of the nine widened exact= operands, the eight "

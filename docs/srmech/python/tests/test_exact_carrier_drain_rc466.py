@@ -740,15 +740,18 @@ _RETURNS = {
     "srmech.math.hdc.loop_bind_hd": "list[float] | list[Q]",
     "srmech.math.hdc.loop_unbind_hd": "list[float] | list[Q]",
     "srmech.math.hdc.loop_runbind_hd": "list[float] | list[Q]",
-    "srmech.cascade.hypercomplex_couple": "list[float] | list[Q]",
+    # rc468 (`#T1188`): the exact routes gained an ALGEBRAIC third carrier —
+    # the twiddle of a turn that is not a quarter turn is not rational, so a
+    # return naming only float and Q was true of two of three live carriers.
+    "srmech.cascade.hypercomplex_couple": "list[float] | list[Q] | list[Qalg]",
     "srmech.cascade.cd_couple_working": "list[float] | list[Q]",
     "srmech.cascade.cd_uncouple_working": "list[float] | list[Q]",
     "srmech.cascade.cdr_couple_working": "list[float] | list[Q]",
     "srmech.cascade.cdr_uncouple_working": "list[float] | list[Q]",
     "srmech.cascade.as_oct8": "list[float] | list[Q]",
     "srmech.cascade.as_quat4": "list[float] | list[Q]",
-    "srmech.cascade.qdft_summand": "list[float] | list[Q]",
-    "srmech.cascade.odft_summand": "list[float] | list[Q]",
+    "srmech.cascade.qdft_summand": "list[float] | list[Q] | list[Qalg]",
+    "srmech.cascade.odft_summand": "list[float] | list[Q] | list[Qalg]",
     "srmech.cascade.correlation_product": "float | Q",
     "srmech.cascade.compensated_sum": "float | Q",
     "srmech.math.laplacian.normalized_laplacian": "Mat | list",
@@ -765,6 +768,11 @@ _RETURNS = {
     "srmech.physics.qm.single_particle.density_matrix": "Mat | QMat | list[list[Qi]]",
     "srmech.physics.qm.bell.operator_norm": "float | Q",
     "srmech.physics.qm.quaternion.quaternion_log": "list[float] | list[Q]",
+    # rc468 (`#T1188`): both twiddles grew the exact= cyclotomic rung.
+    "srmech.physics.qm.quaternion.quaternion_twiddle":
+        "list[float] | list[Q] | list[Qalg]",
+    "srmech.physics.qm.octonion.octonion_twiddle":
+        "list[float] | list[Q] | list[Qalg]",
 }
 
 
@@ -785,6 +793,12 @@ _KEYWORD_BUILDERS = (
     "srmech.math.laplacian.magnetic_laplacian",
     "srmech.math.laplacian.quaternion_laplacian",
     "srmech.math.laplacian.klein4_gain_laplacian",
+    # rc468 (`#T1188`): the two DFT twiddles. Their exact rung is not a graph
+    # builder's — it is a whole different NUMBER FIELD — but the registry
+    # obligation is identical: a caller must be able to read which carrier the
+    # keyword elects before calling.
+    "srmech.physics.qm.quaternion.quaternion_twiddle",
+    "srmech.physics.qm.octonion.octonion_twiddle",
 )
 
 
@@ -797,6 +811,22 @@ def test_every_keyword_builder_declares_exact_in_the_registry(name) -> None:
     ps = {p.name: p for p in entry.parameters}
     assert "exact" in ps and ps["exact"].type == "bool", name
     assert "Q" in (ps["exact"].summary or ""), name
+
+
+def test_the_couple_turn_selector_declares_its_carrier_too() -> None:
+    """rc468 (`#T1188`) — the sibling of the gate above for the ONE exactness
+    selector in the tree that is not spelled ``exact``.
+
+    ``hypercomplex_couple(turn=(k, n))`` elects the exact cyclotomic route
+    exactly as ``exact=True`` does on the twiddles, but under a different
+    name, so no roster in this file or in rc444's census watches it. A
+    selector that changes the returned carrier and is invisible to every
+    carrier gate is the shape rc463 named; this is its one-line answer."""
+    from srmech.introspect.tool_schema import get_tool_schema
+    entry = get_tool_schema().lookup("srmech.cascade.hypercomplex_couple")
+    ps = {p.name: p for p in entry.parameters}
+    assert "turn" in ps, "hypercomplex_couple lost its exact rational-turn selector"
+    assert "EXACT" in (ps["turn"].summary or ""), ps["turn"].summary
 
 
 # -- rc467 (`#T1188`): the POPULATION gate that replaced an instance list -----

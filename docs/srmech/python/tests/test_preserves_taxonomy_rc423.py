@@ -189,6 +189,24 @@ CLASSIFIED: Dict[str, Tuple[str, ...]] = {
     # would drop the half the rc exists to guarantee.
     'numpy-free; exact ℤ; no abs() — sign-handling stays Class-K pin-slot + Class-C':
         ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
+    # rc468 (`#T1188`) — the ℚ(ζ) peer of the two strings below, and for the
+    # third time deliberately NOT a reword. The carrier claim here is a
+    # CYCLOTOMIC FIELD: `cos_sin_2pi_k_over_n` and `hypercomplex_turn` carry
+    # cos and sin of a rational turn as elements of ℚ(ζ_M), which is strictly
+    # STRONGER than "exact ℚ" — a value in it satisfies a polynomial equation
+    # the rationals cannot express, and that is the whole point of the ops
+    # (`W**n == 1` holds with `==`, where the float and ℚ carriers reach it
+    # only to a tolerance). Borrowing the ℚ sentence would understate the
+    # guarantee, exactly as rc461 said borrowing the ℤ one would overstate it.
+    #
+    # The no-abs() clause is also a different one from all three siblings: it
+    # is neither "sign-handling is Class K" over a magnitude nor "the ± weight
+    # closure is Class-C orientation". These ops take no magnitude at all —
+    # the ONLY sign in the construction is the turn's orientation σ, applied
+    # as a pin-slot on the sine coordinate via `Qalg.__neg__`.
+    "numpy-free; exact ℚ(ζ_M); no abs() — the turn's orientation stays a "
+    "Class-K pin-slot on the sine coordinate, never a stripped magnitude":
+        ('IMPLEMENTATION_DISCIPLINE', 'EXACTNESS'),
     # rc461 — the ℚ peer of the ℤ string above, and again deliberately NOT a
     # reword of it: the guarantee is exactness in the RATIONALS, which is a
     # strictly weaker carrier claim than "never leaves ℤ" and must not borrow

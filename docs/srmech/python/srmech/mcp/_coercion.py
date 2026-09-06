@@ -1143,6 +1143,64 @@ def _to_vec_or_qalg_vector(value: Any, *, param: str = "") -> Any:
     return _to_vec(value, param=param)
 
 
+def _to_exact_or_float_or_qalg_vector(value: Any, *, param: str = "") -> Any:
+    """``list[float] | list[Q] | list[Qalg]`` — the flat hypercomplex vector
+    with its rc468 (`#T1188`) THIRD rung, the cyclotomic field.
+
+    ``qdft_summand`` / ``odft_summand`` / ``hypercomplex_couple`` and the two
+    DFT twiddles return the exact twiddle of a rational turn, and that value is
+    a plain ``Q`` only when every component happens to be rational (on a
+    rational axis, exactly the quarter turns). On every other turn the
+    components are ``Qalg`` over ``Φ_M``, and a declared type naming only
+    ``float`` and ``Q`` would advertise a rung the wire could not carry — the
+    shape rc465 measured on ``octonion_left_mult`` and rc466 on
+    ``fiedler_vector``.
+
+    The rule is the whole-operand one, and it is decided by the leaves rather
+    than by a flag: an all-``Qalg`` list is rebuilt leaf by leaf through
+    :func:`_to_qalg`; anything else falls to the ``float``/``Q`` peer
+    :func:`_to_exact_or_float_vector`, which rebuilds ``[num, den]`` pairs and
+    passes ``int`` / ``float`` / a live carrier through untouched. Nothing here
+    decides a carrier — the op's own admission gate does."""
+    if (isinstance(value, (list, tuple)) and value
+            and all(_is_qalg_like(x) for x in value)):
+        return [_to_qalg(x, param=param) for x in value]
+    return _to_exact_or_float_vector(value, param=param)
+
+
+def _to_qalg_pair(value: Any, *, param: str = "") -> Any:
+    """``tuple[Qalg, Qalg]`` — the ``(cos, sin)`` return of
+    :func:`srmech.math.qalg.cos_sin_2pi_k_over_n` (rc468, `#T1188`).
+
+    Exactly two elements, both rebuilt through :func:`_to_qalg`, and the arity
+    is CHECKED rather than assumed: this op's whole contract is that the two
+    values arrive over ONE field, and a one- or three-element wire value is not
+    that pair under any reading."""
+    if not isinstance(value, (list, tuple)) or len(value) != 2:
+        raise ValueError(
+            f"expected a (cos, sin) pair for param {param or '<turn>'!r}; got "
+            f"{type(value).__name__}"
+            + (f" of length {len(value)}"
+               if isinstance(value, (list, tuple)) else ""))
+    return tuple(_to_qalg(x, param=param) for x in value)
+
+
+def _to_exact_or_qalg_tuple(value: Any, *, param: str = "") -> Any:
+    """``tuple[Q, ...] | tuple[Qalg, ...]`` — the 8-tuple return of
+    :func:`srmech.cascade.hypercomplex_turn` (rc468, `#T1188`).
+
+    The same leaf-decided rule as :func:`_to_exact_or_float_or_qalg_vector`,
+    returning a TUPLE because that is what the op returns and a caller
+    round-tripping it must get its own type back. An all-``Qalg`` value is
+    rebuilt in the field; otherwise every ``[num, den]`` leaf becomes a ``Q``
+    and an ``int`` stays an ``int``."""
+    if not isinstance(value, (list, tuple)):
+        return value
+    if value and all(_is_qalg_like(x) for x in value):
+        return tuple(_to_qalg(x, param=param) for x in value)
+    return tuple(_to_exact_or_float_vector(list(value), param=param))
+
+
 def _to_eigenpairs_exact_or_float(value: Any, *, param: str = "") -> Any:
     """``tuple[Vec, Mat] | tuple[list, list]`` — the return of
     ``symmetric_eigendecompose`` / ``hermitian_eigendecompose`` since the rc466
@@ -1644,6 +1702,18 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # DRAINS 129 -> 127 rather than rising by the one `Vec | list[Qalg]` op.
     "tuple[Vec, Mat] | tuple[list, list]": _to_eigenpairs_exact_or_float,
     "Vec | list[Qalg]": _to_vec_or_qalg_vector,
+    # rc468 (`#T1188`): the exact twiddle carrier's three return
+    # spellings. The two DFT summands, the coupler and both twiddles
+    # gained a THIRD rung (Qalg over Phi_M, on every turn whose
+    # components are not all rational), and two ops were REGISTERED
+    # returning the field directly. Landed here rather than counted:
+    # the ceiling's own rule is that a new op with an un-coercible
+    # return type lands its coercer in the same rc, so this holds
+    # CEIL_RETURN_TYPES_WITHOUT_COERCER at 127 rather than raising it
+    # to 134.
+    "list[float] | list[Q] | list[Qalg]": _to_exact_or_float_or_qalg_vector,
+    "tuple[Qalg, Qalg]": _to_qalg_pair,
+    "tuple[Q, ...] | tuple[Qalg, ...]": _to_exact_or_qalg_tuple,
     "Mat | QMat | list[list[Qi]]": _to_exact_complex_rows,
     # rc467 (`#T1188`): the two halves of the `Qi` projection gap ADR-0009
     # left open. (a) magnetic_laplacian is the ONLY one of the five exact=

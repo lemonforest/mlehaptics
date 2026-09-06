@@ -368,19 +368,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     ),
     'srmech.cascade.hypercomplex_dft.hypercomplex_exp': ('srmech_hypercomplex_exp_q61',),
     'srmech.cascade.hypercomplex_dft.octonion_dft': ('srmech_octonion_dft',),
-    'srmech.cascade.hypercomplex_dft.odft_summand': (
-        'srmech_cos_q61',
-        'srmech_exp_q61',
-        'srmech_sin_q61',
-        'srmech_sqrt_q61',
-    ),
     'srmech.cascade.hypercomplex_dft.phase_coherent_peak': ('srmech_phase_coherent_peak',),
-    'srmech.cascade.hypercomplex_dft.qdft_summand': (
-        'srmech_cos_q61',
-        'srmech_exp_q61',
-        'srmech_sin_q61',
-        'srmech_sqrt_q61',
-    ),
     'srmech.cascade.hypercomplex_dft.quaternion_dft': ('srmech_quaternion_dft',),
     'srmech.cascade.matrix_cascades.char_poly': (
         'srmech_bigint_from_dec',

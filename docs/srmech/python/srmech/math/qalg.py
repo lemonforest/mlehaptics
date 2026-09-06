@@ -64,6 +64,7 @@ __all__ = [
     "MAX_CYCLOTOMIC_INDEX",
     "Qalg",
     "cos_2pi_over_n",
+    "cos_sin_2pi_k_over_n",
     "sin_2pi_over_n",
 ]
 
@@ -574,11 +575,38 @@ def _validated_index(n, where: str) -> int:
     return n
 
 
+#: The ``Φ`` memo — a plain dict rather than ``functools.lru_cache``, and the
+#: difference is load-bearing rather than stylistic. The decorator replaces the
+#: function object with a wrapper, and ``tests/composes_derive.py`` resolves a
+#: declared ``composes`` edge by walking the AST of the CALLER and then
+#: descending into the callee it resolves; a wrapper is not the ``FunctionDef``
+#: it looks for, so decorating this function silently broke
+#: ``cos_2pi_over_n``'s shipped ``composes=("...cyclotomic_polynomial",)``
+#: declaration. MEASURED at rc468 (`#T1188`): the decorated form failed
+#: ``test_every_declared_sub_op_is_actually_called``. Same memo, same cost,
+#: visible call.
+_PHI_CACHE: dict = {}
+
+
 def _cyclotomic_m(index: int):
     """The monic ℤ[x] minimal polynomial ``Φ_index`` as the ASCENDING int tuple
     ``Qalg`` wants for its ``m`` — Class J, the divisor-lattice construction in
-    :func:`srmech.math.poly.cyclotomic_polynomial`."""
-    return tuple(cyclotomic_polynomial(index)["coefficients"])
+    :func:`srmech.math.poly.cyclotomic_polynomial`.
+
+    MEMOISED since rc468 (`#T1188`): the exact twiddle routes
+    (:func:`cos_sin_2pi_k_over_n` and its callers in
+    ``srmech.physics.qm.quaternion`` / ``.octonion`` /
+    ``srmech.cascade.hypercomplex_dft``) rebuild the SAME ``Φ_M`` once per
+    turn across a whole transform, and the modulus is an immutable int tuple
+    with no other state. Measured on this tree: a 64-turn sweep at ``n = 64``
+    halves, 0.025 s → 0.013 s. The cache is keyed by index alone; the returned
+    tuple is immutable, so no caller can perturb another's copy."""
+    hit = _PHI_CACHE.get(index)
+    if hit is not None:
+        return hit
+    m = tuple(cyclotomic_polynomial(index)["coefficients"])
+    _PHI_CACHE[index] = m
+    return m
 
 
 def cos_2pi_over_n(n: int) -> "Qalg":
@@ -674,9 +702,12 @@ def sin_2pi_over_n(n: int) -> "Qalg":
     The two fields COINCIDE exactly when ``4 | n``, and there
     ``cos_2pi_over_n(n)**2 + sin_2pi_over_n(n)**2 == 1`` composes directly.
     When ``4 ∤ n`` they are different fields and ``Qalg``'s ``_same_field``
-    guard will (correctly) raise on a mixed binary op — lift the cosine into
-    ℚ(ζ_N) yourself as ``(ω^(N/n) + ω^(−N/n))/2`` first. Measured: the
-    Pythagorean identity then holds exactly for every ``n`` tested.
+    guard will (correctly) raise on a mixed binary op. **The lift SHIPS**
+    (0.9.0rc468, `#T1188`): :func:`cos_sin_2pi_k_over_n` returns BOTH values
+    over ``Φ_lcm(n, 4)``, so ``c, s = cos_sin_2pi_k_over_n(n)`` composes
+    directly at every ``n`` and ``c*c + s*s == 1`` holds exactly. Through
+    rc467 this paragraph told the caller to build ``(ω^(N/n) + ω^(−N/n))/2``
+    by hand — a shipped instruction to write code that did not ship.
 
     **Cascade composition.** Class J (the divisor lattice building ``Φ_N``, and
     the ``lcm`` that chooses ``N``) ∘ Class N (the exact rational coordinates)
@@ -725,3 +756,311 @@ def sin_2pi_over_n(n: int) -> "Qalg":
     # the field. inverse() IS ζ^(N−k) here — the cheaper spelling of the same
     # element (verified equal for every n tested).
     return (zeta - zeta.inverse()) * imag_unit.inverse() * Q(1, 2)
+
+
+# ── the general rational turn (rc468, `#T1188`) ──────────────────────────────
+#: The cyclotomic index whose field carries ``1/√k`` for each equal-weight
+#: hypercomplex axis width ``k``. ``k = 1`` is a single basis axis (already
+#: rational, so the field needs only ``i``); ``k = 3`` is the quaternion body
+#: diagonal ``(i+j+k)/√3`` and ``√3 = ζ₁₂ + ζ₁₂⁻¹``; ``k = 7`` is the
+#: equal-weight octonion axis and ``√7 = g/i`` with ``g`` the quadratic Gauss
+#: sum ``Σ_{a=1..6} (a|7)·ζ₇^a`` (``g² = −7``, so ``√7`` needs ``ζ₇`` AND ``i``
+#: — index ``lcm(7, 4) = 28``). Both are MEASURED exactly, not asserted:
+#: ``r*r == k`` and ``r * r.inverse() == 1`` hold in the field.
+_AXIS_SCALE_INDEX = {1: 4, 3: 12, 7: 28}
+
+#: The quadratic residues mod 7 — the Legendre-symbol ``(a|7) = +1`` set, the
+#: only table the ``√7`` Gauss sum needs (Class J).
+_QR7 = frozenset((1, 2, 4))
+
+
+def _isqrt(x: int):
+    """The exact integer square root of a non-negative ``int``, or ``None`` if
+    ``x`` is not a perfect square. Newton on ints — no ``math.isqrt`` (``math``
+    is a BANNED_ENGINE in this tree), no float, no ``abs``."""
+    if x < 0:
+        return None
+    if x < 2:
+        return x
+    r = 1 << ((x.bit_length() + 1) // 2)             # a bound above the root
+    while True:
+        nxt = (r + x // r) // 2
+        if nxt >= r:
+            break
+        r = nxt
+    return r if r * r == x else None
+
+
+def _rational_sqrt_exact(q: "Q"):
+    """The exact rational ``√q`` when ``q`` is a square of a rational, else
+    ``None`` — Class J on the numerator and denominator separately (a reduced
+    ``p/d`` is a rational square iff BOTH ``p`` and ``d`` are integer
+    squares)."""
+    num, den = q.numerator, q.denominator
+    if num < 0:
+        return None
+    rn = _isqrt(num)
+    rd = _isqrt(den)
+    if rn is None or rd is None:
+        return None
+    return Q(rn, rd)
+
+
+def _exact_axis(weights):
+    """``(unit_weights, axis_k)`` — the EXACTLY-normalisable reading of a
+    rational pure-imaginary direction, or ``None`` when the shipped cyclotomic
+    fields cannot hold its normaliser.
+
+    ``weights`` is a list of exact :class:`~srmech.math.q.Q` with
+    ``weights[0] == 0``. Writing ``‖w‖² = k·t²`` with ``k ∈ {1, 3, 7}`` and
+    ``t`` rational, the unit direction is ``w/t`` scaled by ``1/√k`` — so the
+    rational part of the normaliser is folded into the returned weights and
+    only the irrational part ``1/√k`` is left for :func:`_inv_sqrt_k`. That
+    covers every basis axis (``k = 1``), the quaternion body diagonal
+    ``(0,1,1,1)`` (``‖w‖² = 3``) and the equal-weight octonion axis
+    ``(0,1,…,1)`` (``‖w‖² = 7``) — and it REFUSES, rather than rounding, a
+    direction like ``(0,1,2,0)`` whose ``‖w‖² = 5`` needs ``√5`` and hence a
+    field this rc does not build. Class J ∘ N; no float, no ``abs``."""
+    zero = Q(0, 1)
+    if not weights or weights[0] != zero:
+        return None
+    nsq = zero
+    for w in weights[1:]:
+        nsq = nsq + w * w
+    if nsq == zero:
+        return None
+    for k in (1, 3, 7):
+        t = _rational_sqrt_exact(nsq / Q(k, 1))
+        if t is None:
+            continue
+        inv_t = Q(t.denominator, t.numerator)
+        return [w * inv_t for w in weights], k
+    return None
+
+
+def _turn_field_index(n: int, axis_k: int = 1) -> int:
+    """The cyclotomic index ``M`` of the field carrying ``ζ_n``, ``i`` AND the
+    axis scale ``1/√axis_k`` at once — ``lcm(n, 4)`` for a rational axis,
+    ``lcm(n, 12)`` for the ``1/√3`` body diagonal, ``lcm(n, 28)`` for the
+    ``1/√7`` equal-weight octonion axis. Class J (two ``lcm``s over the shipped
+    Class-I :func:`~srmech.math.cyclic.gcd`)."""
+    base = _AXIS_SCALE_INDEX[axis_k]
+    m = 4 * n // _gcd(n, 4)
+    return m * base // _gcd(m, base)
+
+
+def _cos_sin_in_field(index: int, n: int, k: int):
+    """``(cos(2πk/n), sin(2πk/n))`` as a pair of exact :class:`Qalg` over
+    ``Φ_index`` — the shared worker of :func:`cos_sin_2pi_k_over_n` and of the
+    exact twiddle routes, which need the SAME two values in a LARGER field
+    than ``lcm(n, 4)`` whenever the axis carries an irrational scale.
+
+    Requires ``n | index`` and ``4 | index`` (:func:`_turn_field_index`
+    guarantees both). With ``ω = ζ_index``, ``ζ = ω^(index·k/n)`` and
+    ``i = ω^(index/4)``::
+
+        cos = (ζ + ζ⁻¹)/2        sin = (ζ − ζ⁻¹)/(2i)
+
+    — the :func:`cos_2pi_over_n` and :func:`sin_2pi_over_n` constructions, both
+    lifted into the one common field so they COMPOSE. No float, no ``abs``."""
+    omega = Qalg.alpha(_cyclotomic_m(index))
+    zeta = omega ** (((index // n) * (k % n)) % index)
+    zeta_inv = zeta.inverse()
+    half = Q(1, 2)
+    cos = (zeta + zeta_inv) * half
+    sin = (zeta - zeta_inv) * (omega ** (index // 4)).inverse() * half
+    return cos, sin
+
+
+def _inv_sqrt_k(k: int, index: int) -> "Qalg":
+    """``1/√k`` for ``k ∈ {1, 3, 7}`` as an exact :class:`Qalg` over
+    ``Φ_index`` — the equal-weight hypercomplex axis normaliser, EXACT where
+    the shipped float axes carry ``1.0 / float(rational.sqrt(k))``.
+
+    ``k = 1`` is the field one. ``k = 3`` uses ``√3 = ζ₁₂ + ζ₁₂⁻¹`` (twice the
+    cosine of a twelfth turn). ``k = 7`` uses the quadratic Gauss sum
+    ``g = Σ_{a=1..6} (a|7)·ζ₇^a``, for which ``g² = −7`` (because ``7 ≡ 3 mod
+    4``), so ``√7 = g/i``. Both need ``index`` divisible by the matching entry
+    of :data:`_AXIS_SCALE_INDEX`.
+
+    NOT a registered op, deliberately: it is sugar over :meth:`Qalg.alpha` and
+    ``**``, it is meaningful only for the three axis widths ``{1, 3, 7}`` the
+    Hurwitz ladder supplies, and a general ``sqrt_in_cyclotomic`` would have to
+    answer for every ``k`` — a different, larger op. The exactness it delivers
+    IS reachable through the ops that do ship
+    (``quaternion_twiddle(..., exact=True)``,
+    ``octonion_twiddle(..., exact=True)``, ``hypercomplex_turn``).
+    Class J ∘ N; the Legendre sign is a Class-K pin-slot, never ``abs``."""
+    omega = Qalg.alpha(_cyclotomic_m(index))
+    if k == 1:
+        return omega.one()
+    if k == 3:
+        z12 = omega ** (index // 12)
+        root = z12 + z12.inverse()                  # √3 = 2·cos(2π/12)
+    elif k == 7:
+        z7 = omega ** (index // 7)
+        root = None
+        for a in range(1, 7):                       # Class J: the Legendre sum
+            term = z7 ** a
+            term = term if a in _QR7 else -term     # Class K sign, not abs
+            root = term if root is None else root + term
+        root = root * (omega ** (index // 4)).inverse()      # g/i = √7
+    else:
+        raise ValueError(f"_inv_sqrt_k: k must be 1, 3 or 7; got {k!r}")
+    return root.inverse()
+
+
+def _narrow(v):
+    """The NARROWEST exact carrier holding ``v``: a plain
+    :class:`~srmech.math.q.Q` when the field element is rational, else the
+    :class:`Qalg` itself.
+
+    The election is by VALUE, not by a flag — both arms are exact and equal as
+    numbers. It is what keeps the QUARTER turns (where ``cos`` and ``sin`` are
+    both in ``{0, ±1}``) on the ``Q`` carrier their callers and census rows
+    already read, while leaving every other turn on the field carrier that can
+    actually hold it."""
+    return v.as_rational() if v.is_rational() else v
+
+
+def _turn_twiddle(dim: int, weights, axis_k: int, n: int, r: int, sigma: int):
+    """The EXACT unit twiddle ``cos(σ·2πr/n)·1 + sin(σ·2πr/n)·μ̂`` as a
+    ``dim``-component list — ``list[Q]`` when every component is rational, else
+    ``list[Qalg]`` over ``Φ_{_turn_field_index(n, axis_k)}``.
+
+    ``weights`` is the axis direction as ``dim`` exact ``Q`` with
+    ``weights[0] == 0`` (a pure imaginary), and ``axis_k`` is the scale width:
+    the axis is ``μ̂ = weights / √axis_k``, so an equal-weight ``(0,1,1,1)`` at
+    ``axis_k = 3`` IS the unit body diagonal with no float anywhere. ``σ`` is
+    the Class-C orientation and enters as the sine's sign — the whole of the
+    ``σ`` dependence, since the cosine is even.
+
+    The carrier is elected ONCE for the whole list, by
+    :func:`_turn_scalars`: a rational cosine beside an irrational sine
+    (``n = 3`` at ``axis_k = 1``) keeps BOTH on ``Qalg``, because a list
+    carrying ``Q`` in one slot and ``Qalg`` in another is the mixed-carrier
+    shape rc463 names as the defect, not a saving. Note the election reads the
+    SCALED sine ``sin/√axis_k``, not the bare one, which is why ``n = 3`` at
+    ``axis_k = 3`` collapses to ``Q`` (``sin(2π/3)/√3 = 1/2``) where the same
+    turn at ``axis_k = 1`` does not.
+
+    This is the ONE construction all three exact twiddle surfaces share
+    (``quaternion_twiddle`` / ``octonion_twiddle`` at ``exact=True``, and
+    ``hypercomplex_turn``). No ``abs``: the ``σ`` negation is a Class-K
+    pin-slot on the sine coordinate, applied by ``Qalg.__neg__``."""
+    cos, sin = _turn_scalars(axis_k, n, r, sigma)
+    zero = Q(0, 1)
+    field_zero = zero if isinstance(cos, Q) else cos - cos
+    return [cos] + [(sin * weights[i]) if weights[i] != zero else field_zero
+                    for i in range(1, dim)]
+
+
+def _turn_scalars(axis_k: int, n: int, r: int, sigma: int):
+    """``(cos(σ·2πr/n), sin(σ·2πr/n)/√axis_k)`` — the TWO scalars every exact
+    twiddle in this tree is built from, jointly narrowed to
+    :class:`~srmech.math.q.Q` when both are rational and left as
+    :class:`Qalg` over ``Φ_{_turn_field_index(n, axis_k)}`` otherwise.
+
+    Narrowed JOINTLY, never per-component: a rational cosine beside an
+    irrational sine (``n = 3`` at ``axis_k = 1``) keeps BOTH on ``Qalg``,
+    because a value carrying ``Q`` in one slot and ``Qalg`` in another is the
+    mixed-carrier shape rc463 names as the defect, not a saving. ⚠️ The
+    election reads the SCALED sine ``sin/√axis_k``, not the bare one, and that
+    is load-bearing rather than incidental: ``n = 3`` at ``axis_k = 3``
+    collapses to ``Q`` (``sin(2π/3)/√3 = 1/2``) where the SAME turn at
+    ``axis_k = 1`` does not. So "the rational set is the quarter turns" is true
+    only for ``axis_k = 1``. ``σ`` enters only as the sine's sign — the whole of the ``σ`` dependence, since the cosine is even —
+    and it is a Class-K pin-slot via ``__neg__``, never an ``abs``."""
+    index = _turn_field_index(n, axis_k)
+    cos, sin = _cos_sin_in_field(index, n, r)
+    if sigma < 0:                                   # Class C: the other chirality
+        sin = -sin
+    if axis_k != 1:
+        sin = sin * _inv_sqrt_k(axis_k, index)
+    if cos.is_rational() and sin.is_rational():
+        return cos.as_rational(), sin.as_rational()
+    return cos, sin
+
+
+def cos_sin_2pi_k_over_n(n: int, k: int = 1) -> "tuple":
+    """``(cos(2πk/n), sin(2πk/n))`` as an EXACT pair of :class:`Qalg`, BOTH over
+    the ONE field ``ℚ(ζ_N)`` with ``N = lcm(n, 4)`` — the general-turn
+    constructor that :func:`cos_2pi_over_n` and :func:`sin_2pi_over_n` are the
+    ``k = 1`` halves of.
+
+    Two things it adds over its two siblings, and both are why the exact
+    twiddle routes could not be written without it (0.9.0rc468, `#T1188`):
+
+    * **a general turn.** The siblings answer only at ``k = 1``. A DFT twiddle
+      needs ``2π·((j·k) mod N)/N`` — every turn, not one.
+    * **ONE field.** :func:`cos_2pi_over_n` returns over ``Φ_n`` and
+      :func:`sin_2pi_over_n` over ``Φ_lcm(n,4)``, so for ``4 ∤ n`` they live in
+      different fields and ``Qalg`` correctly REFUSES to add them. Both values
+      here are built over ``Φ_lcm(n,4)``, so they compose: ``c*c + s*s == 1``
+      exactly at every ``n`` — MEASURED (not asserted) at
+      ``n ∈ {3, 5, 7, 8, 12, 16, 64}`` — and ``(c + s·i)**n == 1`` exactly
+      with ``i = ζ_N^(N/4)``.
+
+    **The rational-collapse verdict is decidable, and it is exactly the QUARTER
+    TURNS.** ``c`` and ``s`` are BOTH rational precisely when ``4·k ≡ 0
+    (mod n)`` — measured over every turn of every ``n ≤ 16``, not assumed.
+    That is why the exact twiddle routes return ``list[Q]`` on the quarter
+    turns and ``list[Qalg]`` elsewhere: the carrier is elected by the VALUE.
+
+    **Cascade composition.** Class J (the divisor lattice building ``Φ_N`` and
+    the ``lcm`` choosing ``N``) ∘ Class I (``k mod n`` — the turn is reduced in
+    ``Z_n`` FIRST, exactly, so ``k`` may be any int) ∘ Class N (the exact
+    rational coordinates) ∘ Class C (the ``ζ`` rotation; the cosine is the
+    symmetric part of the two chiralities, the sine the anti-symmetric part).
+    No ``abs``, no ``math``, no float, no series.
+
+    Args:
+        n: the turn denominator / cyclotomic index,
+            ``1 <= n <= MAX_CYCLOTOMIC_INDEX`` (256). ``TypeError`` for a
+            non-``int`` (``bool`` included); ``ValueError`` outside the range.
+        k: the turn numerator (any ``int``; reduced mod ``n``). Default ``1``,
+            which reproduces the two sibling constructors exactly.
+
+    Returns:
+        ``(cos, sin)`` — two ``Qalg`` over ``m = Φ_lcm(n, 4)``, both with
+        ``root=None`` (see :func:`cos_2pi_over_n` on why no embedding is
+        attached: computing ``e^(2πi/N)`` would need exactly the FPU
+        transcendental these ops exist to avoid).
+
+    Worked anchors::
+
+        c, s = cos_sin_2pi_k_over_n(8, 1)
+        c * c + s * s == c.one()
+        # -> True        exactly, over Phi_8
+
+        c, s = cos_sin_2pi_k_over_n(4, 1)      # a QUARTER turn
+        (c.as_rational(), s.as_rational())
+        # -> (Q(0, 1), Q(1, 1))                cos = 0, sin = 1, both rational
+
+        c, s = cos_sin_2pi_k_over_n(3, 1)
+        c.as_rational()
+        # -> Q(-1, 2)                          cos(2 pi / 3) = -1/2 exactly
+        s.is_rational()
+        # -> False                             sin = sqrt(3) / 2
+
+    Cost is set by the DEGREE ``φ(lcm(n, 4))`` — one turn measured on this
+    tree: ``n = 8`` 0.6 ms, ``n = 64`` 2.0 ms, ``n = 128`` 3.4 ms,
+    ``n = 256`` 7.1 ms. ``Φ`` itself is memoised (:func:`_cyclotomic_m`).
+
+    See also:
+        :func:`cos_2pi_over_n` / :func:`sin_2pi_over_n` — the ``k = 1`` halves,
+        each over its own field.
+        :func:`srmech.physics.qm.quaternion.quaternion_twiddle` and
+        :func:`srmech.physics.qm.octonion.octonion_twiddle` at ``exact=True``,
+        and :func:`srmech.cascade.hypercomplex_turn` — the three hypercomplex
+        surfaces this constructor makes exact.
+
+    Note:
+        Exact ``Q`` throughout; no ``abs``; no ``math``; no float.
+    """
+    _validated_index(n, "cos_sin_2pi_k_over_n")
+    if isinstance(k, bool) or not isinstance(k, int):
+        raise TypeError(
+            f"cos_sin_2pi_k_over_n: k must be a plain int (the turn "
+            f"numerator); got {type(k).__name__}")
+    return _cos_sin_in_field(4 * n // _gcd(n, 4), n, k)

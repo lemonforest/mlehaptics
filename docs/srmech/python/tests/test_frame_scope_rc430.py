@@ -98,8 +98,15 @@ REVIEWED_ROSTER: Dict[str, Tuple[str, Tuple[str, ...]]] = {
     "srmech.cascade.cyclic_mod_mul": ("parametric", ("modulus",)),
     "srmech.cascade.cyclic_mod_mul_wide": ("parametric", ("modulus",)),
     "srmech.cascade.cyclic_mod_pow": ("parametric", ("modulus",)),
+    # rc468 (`#T1188`): the exact rational-turn pair. MEASURED parametric in
+    # the turn denominator — the numerator k is periodic in n, which is the
+    # Class-I reduction the ops perform first and the SAME frame the two
+    # summands above carry. Reviewed against the census rows: 505 / 507
+    # probe calls, one finding each, coord k carried by param n.
+    "srmech.cascade.hypercomplex_turn": ("parametric", ("modulus",)),
     "srmech.cascade.odft_summand": ("parametric", ("modulus",)),
     "srmech.cascade.qdft_summand": ("parametric", ("modulus",)),
+    "srmech.math.qalg.cos_sin_2pi_k_over_n": ("parametric", ("modulus",)),
     "srmech.math.covering.center_parity": ("fixed", ("modulus",)),
     "srmech.math.covering.lift_fibre": ("parametric", ("modulus",)),
     # Added at the rc430 REPAIR, not at rc430: the probe's degeneracy screen
@@ -1086,7 +1093,13 @@ def test_no_control_in_this_module_is_computed_and_then_ignored() -> None:
     # degeneracy screen stopped foreclosing the parametric sweep and
     # srmech.math.cyclic.gcd became measurable. The count moved because the
     # INSTRUMENT was repaired, not because an op was hand-added to the roster.
-    assert len(_declared()) == len(REVIEWED_ROSTER) == 21
+    # 23 at rc468 (`#T1188`): the exact rational-turn pair
+    # (cos_sin_2pi_k_over_n, hypercomplex_turn) declares the SAME
+    # parametric/modulus frame the two DFT summands carry, because the turn
+    # numerator is reduced in Z_n first — Class I, measured, not asserted.
+    # The count moved because two ops were REGISTERED, not because the
+    # instrument or the predicate changed.
+    assert len(_declared()) == len(REVIEWED_ROSTER) == 23
     assert set(_census()) == {e.name for e in get_tool_schema().tools}, (
         "the census does not cover the registry, so §4's set comparison is "
         "over a subset it chose itself")

@@ -1,4 +1,4 @@
-{"n": 649, "native": true, "python": "3.10", "record": "meta", "verified_at": "0dc36c588a2be4521bd207980c1d2dfe23d055df"}
+{"n": 651, "native": true, "python": "3.10", "record": "meta", "verified_at": "7ae826266a97ab58ef2523d3e56573ae9d532639"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -167,6 +167,7 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.hamming_decode_correct", "problems": [], "src_sha256": "76911ba80ce8ba1cf2b05af426e637100873c87f69d562371463b46e2b92c95a", "statements": 14, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 10}], "n_markers": 1, "name": "srmech.cascade.hamming_encode", "problems": [], "src_sha256": "a38310568a83d614d445b3b0bb405aaa87b3f4671500422d4f3e35c77c317236", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 7}], "n_markers": 1, "name": "srmech.cascade.hamming_syndrome", "problems": [], "src_sha256": "99b4bb493e417e69f7ec237abeb46d74c0f64ecd6b2753f0731d6a847be7d894", "statements": 5, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.hypercomplex_turn", "problems": [], "src_sha256": "c9064261a2655297edda3bae57f40b1e6bdafee08aa3c78397249400d198491f", "statements": 8, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.int_parse_le", "problems": [], "src_sha256": "b2457fb53d5e4bfb4a9a4eb4a9cf054422ee240c349234b566a662df4477a0d3", "statements": 3, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.is_moufang", "problems": [], "src_sha256": "6a52737ec70a0b4ee87db4a617fecbf1d11bbb2d0e5f2c208548f36c7c0655b8", "statements": 5, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.jordan_product", "problems": [], "src_sha256": "9a5345a8ffa2ecc8b70ed3f4c15659ba5b73ce1d53ffff133fb10eef758f8dcb", "statements": 5, "status": "ok"}
@@ -442,6 +443,7 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.primes.is_prime", "problems": [], "src_sha256": "caa84da7772977c665f18d7fefd02f4894d7889eff93ff7ebc6f4e2ba11858a9", "statements": 4, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.primes.next_prime", "problems": [], "src_sha256": "ef54efb40372358c0bf936fda28d27e86cbbdf391b7d9b53e5ac4faad667fa80", "statements": 5, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.qalg.cos_2pi_over_n", "problems": [], "src_sha256": "01cb96ba7ecf9143db8f015c556c3454f470de51d92e6f226b17c2a1ca6ebe0f", "statements": 6, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.math.qalg.cos_sin_2pi_k_over_n", "problems": [], "src_sha256": "4afa8a63d328627dc8dc644ad81a800ba68e57917ea3f91ad2b40a5b2e7abb17", "statements": 10, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 7}], "n_markers": 1, "name": "srmech.math.qalg.sin_2pi_over_n", "problems": [], "src_sha256": "6b1ac00dc77d721461ccffe90cc8e23746ea2f264e94c944259e9d4418cd5a93", "statements": 7, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.qmat.qmat_det", "problems": [], "src_sha256": "4e85c486895327d27a227804b1e1d51646f7ceccd2f765ac8bcbc6007329734f", "statements": 5, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 11}], "n_markers": 1, "name": "srmech.math.qmat.qmat_inverse", "problems": [], "src_sha256": "90d66c54d11d60faada47e43fe6fe70f908a435979f3d7e254e25b3294710c4d", "statements": 5, "status": "ok"}

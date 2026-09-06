@@ -288,7 +288,7 @@ def test_represent_is_a_tool_entry_total_matches_live():
     # rc410 (`#T1085`): filter by OWNER, not by name-prefix — see
     # tests/_profile_probe.py for why the prefix axis was the wrong question.
     shipped = list(get_tool_schema().by_owner("srmech"))
-    assert len(shipped) == 733
+    assert len(shipped) == 735
     names = {t.name for t in shipped}
     assert "srmech.apokatastasis.modular_forms_ring.modular_forms_ring_represent" in names
     # the carrier constructor + the pure accessors are NOT ToolEntries

@@ -885,3 +885,5 @@
 {"exposed_as": "srmech.math.qmat.qmat_nullspace", "defined_at": "srmech.math.qmat.qmat_nullspace", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.qalg.cos_2pi_over_n", "defined_at": "srmech.math.qalg.cos_2pi_over_n", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.qalg.sin_2pi_over_n", "defined_at": "srmech.math.qalg.sin_2pi_over_n", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.hypercomplex_turn", "defined_at": "srmech.cascade.hypercomplex_dft.hypercomplex_turn", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.qalg.cos_sin_2pi_k_over_n", "defined_at": "srmech.math.qalg.cos_sin_2pi_k_over_n", "bucket": "composition_of_c"}

@@ -11643,6 +11643,136 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
             'complementary count from the same elimination; qmat_solve covers '
             'the inhomogeneous system.'},
 
+    'srmech.math.qalg.cos_sin_2pi_k_over_n': {
+        'example': {
+            'input': {'n': 8, 'k': 1},
+            'output': "(Qalg((1, 0, 0, 0, 1), (Q(0, 1), Q(1, 2), Q(0, 1), "
+                      "Q(-1, 2))), Qalg((1, 0, 0, 0, 1), (Q(0, 1), Q(1, 2), "
+                      "Q(0, 1), Q(-1, 2))))",
+            'worked': "from srmech.math.qalg import (Qalg,\n"
+                      "    cos_sin_2pi_k_over_n)\n"
+                      "c, s = cos_sin_2pi_k_over_n(8, 1)\n"
+                      "c * c + s * s == c.one()\n"
+                      "# -> True     exactly 1, over Phi_8\n"
+                      "i = Qalg.alpha(c.m) ** 2      # zeta_8 ** (8/4) = i\n"
+                      "(c + s * i) ** 8 == c.one()\n"
+                      "# -> True     W ** 8 == 1, with ==, not a tolerance\n"
+                      "c2, s2 = cos_sin_2pi_k_over_n(4, 1)\n"
+                      "(c2.as_rational(), s2.as_rational())\n"
+                      "# -> (Q(0, 1), Q(1, 1))   a QUARTER turn: both rational\n"
+                      "c3, s3 = cos_sin_2pi_k_over_n(3, 1)\n"
+                      "(c3.as_rational(), s3.is_rational())\n"
+                      "# -> (Q(-1, 2), False)    cos = -1/2, sin = sqrt3 / 2\n"
+                      "[(n, k) for n in range(1, 9) for k in range(n)\n"
+                      " if all(v.is_rational()\n"
+                      "        for v in cos_sin_2pi_k_over_n(n, k))]\n"
+                      "# -> exactly the turns with 4*k == 0 mod n, MEASURED\n",
+            'why': 'The two shipped k = 1 constructors answer over Phi_n and '
+                   'Phi_lcm(n, 4), so for n not divisible by 4 they live in '
+                   'DIFFERENT fields and Qalg correctly refuses to add them -- '
+                   'which means c*c + s*s could not even be WRITTEN before '
+                   'this op. Both values here are built over the one field, so '
+                   'the identity is not merely true, it is expressible.'},
+        'explanation':
+            'WHAT it returns: (cos(2 pi k / n), sin(2 pi k / n)) EXACTLY, both '
+            'as elements of the SAME number field Q(zeta_N) with '
+            'N = lcm(n, 4) -- the field carrying zeta_n AND i at once. No '
+            'float, no series, no math module. '
+            'WHEN to reach for it: whenever a turn that is a rational multiple '
+            'of a full rotation has to be an ALGEBRAIC NUMBER you can do exact '
+            'arithmetic with, and especially when you need BOTH the cosine and '
+            'the sine of that turn in one expression -- a root of unity, an '
+            'exact rotation, a DFT twiddle. It adds exactly two things over '
+            'its two k = 1 siblings, and both are why the exact DFT twiddle '
+            'could not be written without it: a GENERAL turn (they answer only '
+            'at k = 1, while a twiddle needs 2 pi (jk mod N) / N), and ONE '
+            'field (so the two values compose instead of raising). The pair is '
+            'BOTH rational precisely on the quarter turns 4k == 0 mod n -- '
+            'measured, not assumed, and it is what elects list[Q] over '
+            'list[Qalg] in the exact twiddle routes. '
+            'SIBLINGS: cos_2pi_over_n and sin_2pi_over_n are the k = 1 halves, '
+            'each over its own field -- reach for those when one value at one '
+            'turn is all you need. Do NOT reach for srmech.math.rational.cos / '
+            'sin: those are rational APPROXIMATIONS from truncated series and '
+            'can never be the algebraic number. '
+            'srmech.physics.qm.quaternion.quaternion_twiddle(exact=True), the '
+            'octonion peer, and srmech.cascade.hypercomplex_turn are the three '
+            'hypercomplex surfaces this constructor makes exact.'},
+
+    'srmech.cascade.hypercomplex_turn': {
+        'example': {
+            'input': {'k': 1, 'n': 8, 'k_axes': 1},
+            'output': "an 8-tuple of Qalg over Phi_8: (cos(2 pi / 8), "
+                      "sin(2 pi / 8), 0, 0, 0, 0, 0, 0)",
+            'worked': "from srmech.cascade import (hypercomplex_exp,\n"
+                      "    hypercomplex_turn)\n"
+                      "from srmech.math.q import Q\n"
+                      "w = hypercomplex_turn(1, 8, 1)\n"
+                      "w[0] * w[0] * Q(2, 1) == w[0].one()\n"
+                      "# -> True     cos(2 pi / 8) = sqrt2 / 2, EXACTLY\n"
+                      "hypercomplex_turn(1, 4, 1)[:2]\n"
+                      "# -> (Q(0, 1), Q(1, 1))   a quarter turn is RATIONAL,\n"
+                      "#    so the narrowest exact carrier is plain Q\n"
+                      "hypercomplex_turn(1, 3, 3)[:4]\n"
+                      "# -> (Q(-1, 2), Q(1, 2), Q(1, 2), Q(1, 2))\n"
+                      "#    a THIRD turn, and still ALL-RATIONAL: the\n"
+                      "#    1/sqrt3 axis scale cancels the sqrt3 in the\n"
+                      "#    sine. It is the order-3 unit quaternion of\n"
+                      "#    the binary tetrahedral group -- MEASURED,\n"
+                      "#    and it is why the carrier rule is 'every\n"
+                      "#    component rational', NOT 'the quarter turns'\n"
+                      "hypercomplex_turn(1, 3, 1)[1].is_rational()\n"
+                      "# -> False    the SAME turn at k_axes = 1 has no\n"
+                      "#    scale to cancel sqrt3, so it stays in Phi_12\n"
+                      "hypercomplex_exp(0.7853981633974483, 1)[0]\n"
+                      "# -> Q(1630477228166597827, 2305843009213693952)\n"
+                      "#    the Q61 cosine of the ROUNDED angle -- an exact\n"
+                      "#    rational, but not the algebraic number, and its\n"
+                      "#    8th power is a 147-digit ratio, not 1\n",
+            'why': 'The float peer is handed fl(2 pi / 8), which is already '
+                   'not 2 pi / 8, so no carrier downstream can recover the '
+                   'turn -- the rounding is in the OPERAND. Handed the turn '
+                   'itself, the same rotation closes exactly. That is the '
+                   'whole difference between the two ops, and it is a '
+                   'difference of signature, not of arithmetic.'},
+        'explanation':
+            'WHAT it returns: exp(mu * 2 pi k / n) at the EXACT RATIONAL TURN '
+            'k / n, as an 8-tuple over the cyclotomic field Q(zeta_M). mu is '
+            'the equal-weight UNIT pure-imaginary over the first k_axes '
+            'octonion axes (k_axes in {1, 3, 7} = C / H / O), built exactly: '
+            'the 1/sqrt(k_axes) normaliser is 1 for C, the inverse of '
+            'zeta_12 + 1/zeta_12 for H (sqrt3), and the inverted quadratic '
+            'Gauss sum g / i for O (sqrt7), all INSIDE the field. So '
+            'norm squared == 1 and q ** n == 1 hold with ==, not to a '
+            'tolerance. '
+            'WHEN to reach for it: whenever the rotation you want is a '
+            'rational multiple of a turn and the answer has to SATISFY its '
+            'defining equation -- a root of unity, an exact DFT twiddle, a '
+            'closure you intend to assert rather than sample. Reach for '
+            'hypercomplex_exp instead when the angle genuinely is a continuous '
+            'radian, which is the case its float64 carrier is honest about. '
+            'The carrier here is elected by the VALUE: plain Q when every '
+            'component is rational, Qalg over Phi_M otherwise, never mixed. At '
+            'k_axes = 1 that set is exactly the quarter turns; at k_axes = 3 '
+            'and 7 the 1/sqrt(k) scale SHIFTS it rather than emptying it, '
+            'which was MEASURED and not predicted -- hypercomplex_turn(1, 3, 3) '
+            'is the all-rational (-1/2, 1/2, 1/2, 1/2, 0, 0, 0, 0), the order-3 '
+            'unit quaternion of the binary tetrahedral group, because '
+            'sin(2 pi / 3) / sqrt3 = 1/2, while the SAME turn at k_axes = 1 is '
+            'irrational. M is '
+            'lcm(n, 4) / lcm(n, 12) / lcm(n, 28) for k_axes 1 / 3 / 7, and the '
+            'op RAISES above MAX_CYCLOTOMIC_INDEX = 256 rather than falling '
+            'back to a rounded angle -- a fallback would be a silent demotion. '
+            'SIBLINGS: hypercomplex_exp is the float-angle peer (same object, '
+            'different operand type); srmech.math.qalg.cos_sin_2pi_k_over_n is '
+            'the scalar constructor underneath; '
+            'srmech.physics.qm.quaternion.quaternion_twiddle(exact=True) and '
+            'the octonion peer are the DFT-facing forms with a named axis and '
+            'an index reduction. Do NOT feed a Qalg-valued tuple to cd_mult -- '
+            'it carries exact Q and refuses the field carrier by design; '
+            'multiply through the two-grade bilinear expansion instead, which '
+            'is what the summands do.'},
+
     'srmech.math.qalg.cos_2pi_over_n': {
         'example': {
             'input': {'n': 3},
