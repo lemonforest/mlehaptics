@@ -19,9 +19,9 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
-## [0.9.0rc468] - `#T1188`: the root of unity that was computed from a float64 angle, and the exact peer that had been shipping beside it
+## [0.9.0rc468] - `#T1188`: a root of unity computed from a float64 angle, a freshness gate blind to a quarter of its own population, and the loop idiom that drops its last line
 
-*(Stage 1 of 2. This stage ships ITEM 1 — the twiddle carrier. ITEMS 2 and 3 follow in stage 2.)*
+*(Two stages, one rc. Stage 1 = ITEM 1, the twiddle carrier. Stage 2 = ITEM 2, the ledger-freshness gate, and ITEM 3, the silent partial pass.)*
 
 **NO MERGE, NO TAG, NO PUBLISH.** This rc is gated by hand.
 
@@ -106,6 +106,62 @@ The other four were number moves with measured attribution: `test_t1158_registry
 ### Files
 
 `srmech/math/qalg.py` (the general turn, `1/√k` for `k ∈ {1,3,7}`, the exact-axis reader, a memoised `Φ`), `srmech/physics/qm/quaternion.py`, `srmech/physics/qm/octonion.py`, `srmech/cascade/hypercomplex_dft.py`, `srmech/cascade/__init__.py`, `srmech/introspect/tool_schema.py`, the four regenerated codegen outputs, and `tests/test_exact_twiddle_rc468.py` (83 strict-zero witnesses, carrying the float route's INEQUALITY beside the exact route's equality so the file cannot go vacuous by the two quietly converging).
+
+### ITEM 2 — a gate that verified one side of a relation and could not see the other
+
+`tools/hooks/derived_ledger_freshness.py` matched a changed module to a ledger row by the row's PUBLISHED dotted name: `n == m or n.startswith(m + ".")`. `srmech.cascade.compensated_sum` is DEFINED in `srmech.cascade.composites` and re-exported by `srmech/cascade/__init__.py`, so editing `composites.py` selected **zero** of its own rows and the hook exited 0 with **no output at all**. Reproduced end-to-end against the real hook, on the real tree, before the change.
+
+**The brief said 18 rows for one module. The census says 165 of 651 (25.3%), across 64 defining modules.** Every row name was resolved through `srmech._resolve.resolve_dotted_callable` (0 unresolved) and compared against the hook's own `_module_of` over `git ls-files`. The blindness is **all-or-nothing per module** — those 64 select ZERO of their own rows and not one module is mixed — so no spot check on a visible module could ever have found it. Worst offenders: `cayley_dickson` 20, `composites` 18, `cd_register` 14, `hypercomplex_dft` 12, `leaves` 12, `atoms` 6, `music.relations` 6, then a long tail including 39 single-row `signal_processing.closed_form_ops.*` modules.
+
+**It was disarming ITEM 1 in this same rc.** `srmech/cascade/hypercomplex_dft.py` holds `qdft_summand`, `odft_summand` and `hypercomplex_couple` — the ops stage 1 changed. Its 12 ledger rows selected `stale=0`.
+
+**The fix is a UNION, not a replacement, and that is load-bearing.** All 165 invisible rows are claimed today by their package `__init__`, and only 11 rows in the whole tree are defined directly in a package `__init__.py` (7 `srmech.spectral`, 4 `srmech.introspect`). Swapping the published-name test for a defining-module test would take `srmech/cascade/__init__.py` from claiming 131 rows to claiming 0. Three OR-ed clauses now: (1) the row's `def_blob` differs from its defining module's HEAD blob; (2) that module is dirty in the working tree; (3) the original published-name rule, kept — it is also the only clause that can see a REBIND, where an `__init__` re-exports an op from a different submodule and `def_module` still points at the old, unchanged file. Measured as a union: `composites.py` 0 → 18, `hypercomplex_dft.py` 0 → 12, `closed_form_ops/dct.py` 0 → 1, `cascade/__init__.py` 131 → 131, `math/rational.py` 29 → 29. Strictly additive.
+
+**A BLOB, not a commit sha.** `run_worked_examples.py` stamps at run time, when HEAD is still the commit *before* the one that lands the change — so a commit-sha stamp reads stale immediately after the natural edit → blocked → re-run → commit-both loop, and would need a second no-op re-run to clear. That is the "blocks forever on a provably current ledger" shape `write_ledger`'s own comment exists to prevent. A blob matches the moment the content matches, in either order, and survives a rebase.
+
+**The hook stays import-free.** Resolving the defining module live costs only 0.78 s, so cost is not the objection: `_hooklib.run_hook` catches every exception and exits ALLOW, so a hook that imported `srmech` would pass *silently* on any tree that is mid-edit or syntactically broken — precisely the tree state a Stop hook runs in. The defining module is therefore read from the ROW.
+
+**The plant, and it fails on the old hook.** `tools/hooks/check_hooks.py`'s ledger fixture had no re-export anywhere in it, so all six existing cases exercised only the visible half of the population — an instrument that could not return otherwise, which is why this survived. Three cases added. Measured with the rc467 hook restored beside the new fixtures: **7 passed, 2 failed**; with rc468's hook, 9 passed.
+
+**And the old `repaired` case could not fail either.** It rewrote the ledger with ONE of the two rows under the changed module and DELETED the other, so the hook allowed because the row it should have flagged was gone — the silent-partial-pass defect built into the fixture meant to guard against it. Both rows now stay present and only one carries a fresh stamp; that case BLOCKS, and only a both-fresh ledger ALLOWS.
+
+**The remedy the hook prints was itself a partial pass.** It emitted one `--only <name>` line for the first three rows shown, so following the hook's own instructions on a 55-row block re-ran three and left fifty-two. It now prints a single command covering **every** stale row — as a `--names-file -` heredoc above 24 names, because Windows `cmd` truncates an argv past 8191 characters and a truncated remedy is a partial pass wearing a complete one's clothes.
+
+### ITEM 3 — the silent partial pass, guarded at the instrument rather than at the idiom
+
+`while read -r n; do …; done < names.txt` drops a final line with no trailing newline: `read` returns nonzero at EOF *after* assigning the variables. rc467 hit it twice while driving this very ledger by name — 70 of 71, then 54 of 55, and the row the second one missed was `quaternion_twiddle`, one of the very ops that rc's change was about.
+
+**MEASURED, WSL2 / bash 5.1.16, 3-line file with no trailing newline:** `while read` → 2; `cat f | while read` → 2; **`wc -l` → 2**; `while read … || [ -n "$x" ]` → 3; `mapfile -t` → 3; `grep -c .` → 3. Note the third: a count assertion built on `wc -l` **agrees with the broken loop**, so it cannot fail on this class. The rc467 catch worked only because it compared against `grep -c .`.
+
+**Root cause: `--only` took exactly ONE name and had no list mode**, so every by-name re-run this arc has done (rc465 71 rows; rc466 475, 3, 71; rc467 9, 55) was necessarily driven by a caller-written loop the tool never checked. And an unknown `--only` name was a **silent empty pass with exit 0** that still rewrote the ledger and re-stamped `verified_at`.
+
+Three changes, and only the third is a class guard:
+
+1. `--only` takes N names; `--names-file PATH|-` reads a list through Python line iteration, which never drops an unterminated final line. There is no longer a REASON to write the loop.
+2. An unknown name is exit 2 with the names listed; after the run the tool asserts `{recorded} == {requested}` before it writes; and it prints `requested=N ran=N merged=M` — three numbers, because the existing summary reports the MERGED ledger size and a reader watching only that could not tell 55 rows from 3.
+3. **The class guard is the per-row `def_blob`.** A row a driver dropped keeps its old stamp, so the Stop hook names it — whatever drove the partial pass, and even if the drop happened outside the process entirely. (1) and (2) cannot see a name a caller's loop never sent; (3) can, because it is a property of the LEDGER rather than of the run.
+
+**The tree lint is the smaller half and is not claimed as more.** `tests/test_shell_line_loop_rc468.py` is strict zero over tracked `.sh` / `.yml` / `.yaml` and bash-fenced `.md`. Its live population is **zero**: exactly one shell read-loop exists in the tree (`docs/srmech/rbs_lm_research/check_swap.sh`, reading `/proc/swaps`, which IS newline-terminated), and it was **converted** to the guarded form rather than allowlisted — an exemption is a place for the rule to rot. Both rc467 incidents were session one-liners in no committed file, so this lint could not have caught either and does not pretend to; its job is to stop the idiom being re-introduced into a committed script. Non-vacuity is asserted two ways: the predicate is driven over four synthetic lines (bare, piped, `|| [ -n …]`-guarded, `read -d ''`), and the scan population is asserted non-trivial.
+
+### The instrument fired on this rc's own tree, before it was asked to
+
+`--backfill` stamps rows without running them, and it may only do so where the row's defining module has NOT moved between the commit it was measured at (`meta.verified_at`) and HEAD. That precondition is machine-checked, not promised. Run on this branch it **REFUSED**, naming **38 rows** whose defining modules stage 1 had changed.
+
+It named all 38 because **the old ledger could not represent which of them had already been re-run.** `verified_at` is one per-FILE stamp in the meta row and rows carried no per-row evidence, so "8 of 38 ran" and "38 of 38 ran" produce byte-identical committed ledgers — which is the same unrepresentability that let two rc467 partial passes look complete. All 38 were therefore re-run. With `def_blob` on every row that distinction is now representable, and it is the whole reason (3) above is a class guard rather than a convenience.
+
+Those 38 were then re-run through the new `--names-file` reader, deliberately fed a list file with **no trailing newline** (`wc -l` → 37, `grep -c .` → 38, last name `quaternion_twiddle` — the rc467 drop, reproduced as a fixture): `requested=38 ran=38 merged=651`, tally unchanged at `{ok: 550, unexpected_raise: 96, needs_subprocess: 4, timeout: 1}`. The backfill then stamped the remaining **613**, preserving the meta row byte for byte — a backfill executes nothing, so re-stamping `verified_at` there would assert a verification that did not happen.
+
+**No full ledger re-run was performed, on purpose.** `tests/test_worked_examples_execute_rc354.py` pins the pure cell at `{unexpected_raise: 96, timeout: 1}` and records that a native-Windows re-run measures **97** because one snippet hardcodes a `/mnt/d/…` path; regenerating merely to acquire a field would trip a down-only ceiling for reasons unrelated to the field.
+
+### Counters and what did NOT move
+
+**`SRMECH_ABI_VERSION` stays 25** and the registry stays at **735** — stage 2 registers no op, adds no C symbol and regenerates no codegen output. The worked-example ledger stays at **651** rows with the same status tally; the only change to its rows is the two new fields. `EXPECTED_UNDECLARED_N` is untouched at `{native: 0, pure: 0}` — stage 2 does not touch `srmech/`. Ripple manifest **129 → 131** targets (the two new gates; the manifest carries no count pin, and `test_ripple_manifest_covers_known_gates.py` is a frozen-set check that is additive-safe).
+
+**Prose currency, with a boundary drawn deliberately.** The `581 rows / 266 modules` figures appear in two kinds of place. Where they are the CURRENT population (`derived_ledger_freshness.py` cost and C-advisory paragraphs, `tools/hooks/README.md` §"Two things measurement changed") they are now 651. Where they are an **rc454 measurement of a specific tree at a specific commit** — the Windows-vs-WSL git table in `_hooklib.py` and `README.md`, and the same block quoted in the hook — they are **left exactly as measured**, with one added sentence saying the same predicate reads 267 / 651 today. Rewriting a dated measurement to a current number would falsify the record it exists to preserve.
+
+### Files (stage 2)
+
+`tools/run_worked_examples.py` (N-name `--only`, `--names-file`, hard-fail on an unknown name, `requested`/`ran`/`merged`, `def_module` + `def_blob` set in BOTH `collect()` and `run()`, and `--backfill` with its machine-checked honesty precondition), `tools/hooks/derived_ledger_freshness.py` (the three-clause union and the complete remedy), `tools/hooks/check_hooks.py` (the re-export fixture and three cases, two of which fail against rc467's hook), `tools/hooks/README.md`, `tools/ripple_gates.txt`, `tests/test_worked_examples_execute_rc354.py` (strict zero: every row carries both fields and its `def_module` is the LIVE one, which is what makes a rebind red), `tests/test_ledger_freshness_hook_rc468.py`, `tests/test_shell_line_loop_rc468.py`, `tests/worked_examples_result.ndjson`, and `docs/srmech/rbs_lm_research/check_swap.sh`.
 
 ## [0.9.0rc467] - `#T1188`: the last undeclared demoter, drained by an exact route the deferral said did not exist
 

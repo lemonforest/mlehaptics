@@ -50,7 +50,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 HOOKS = Path(__file__).resolve().parent
 sys.path.insert(0, str(HOOKS))
@@ -527,23 +527,69 @@ def check_ssot_agreement() -> None:
 
 # ── 6. derived-ledger-freshness ───────────────────────────────────────────
 
+LEDGER_REL = "docs/srmech/python/tests/worked_examples_result.ndjson"
+
+#: ledger row name -> (defining module, its repo-relative path). The last entry
+#: is THE RE-EXPORT SHAPE: published under ``srmech.cascade``, defined in
+#: ``srmech.cascade.composites``. Until rc468 the fixture had no such row, so
+#: all six ledger-freshness cases exercised only the half of the population
+#: whose published name happens to prefix-match its own file — an instrument
+#: that could not return otherwise, which is why the blind spot survived.
+_LEDGER_ROWS = {
+    "srmech.math.rational.rational_mul":
+        ("srmech.math.rational", "docs/srmech/python/srmech/math/rational.py"),
+    "srmech.math.rational.exp_series_truncate":
+        ("srmech.math.rational", "docs/srmech/python/srmech/math/rational.py"),
+    "srmech.amsc.catalog.get_attested_dataset":
+        ("srmech.amsc.catalog", "docs/srmech/python/srmech/amsc/catalog.py"),
+    "srmech.cascade.compensated_sum":
+        ("srmech.cascade.composites",
+         "docs/srmech/python/srmech/cascade/composites.py"),
+}
+
+
+def _blob(root: Path, rel: str) -> str:
+    """The blob sha of ``rel`` at HEAD — the stamp a real run records."""
+    code, out = _git(["rev-parse", "HEAD:" + rel], root)
+    return out.strip() if code == 0 else ""
+
+
+def _ledger_text(root: Path, names: Sequence[str],
+                 stale_stamp: Sequence[str] = ()) -> str:
+    """Serialise a ledger holding ``names``, stamped against HEAD.
+
+    A name in ``stale_stamp`` gets a WRONG ``def_blob`` — that is the planted
+    partial re-run: the row is still present and still says ``ok``, it simply
+    was not re-measured against the current source.
+    """
+    rows: List[Dict[str, Any]] = [
+        {"n": len(names), "record": "meta", "native": True, "python": "3.10"}]
+    for i, n in enumerate(names):
+        mod, rel = _LEDGER_ROWS[n]
+        rows.append({"name": n, "status": "ok",
+                     "src_sha256": chr(ord("a") + i) * 64,
+                     "def_module": mod,
+                     "def_blob": ("0" * 40) if n in stale_stamp
+                                 else _blob(root, rel)})
+    return "".join(json.dumps(r, sort_keys=True) + "\n" for r in rows)
+
+
 def _ledger_fixture(tmp: Path) -> Path:
     root = tmp / "repo"
     _init_repo(root)
     _write(root / "docs/srmech/python/srmech/math/rational.py",
            "def rational_mul(a, b):\n    return (a[0] * b[0], a[1] * b[1])\n")
     _write(root / "docs/srmech/python/srmech/amsc/catalog.py", "X = 1\n")
-    rows = [
-        {"n": 2, "record": "meta", "native": True, "python": "3.10"},
-        {"name": "srmech.math.rational.rational_mul", "status": "ok",
-         "src_sha256": "a" * 64},
-        {"name": "srmech.math.rational.exp_series_truncate", "status": "ok",
-         "src_sha256": "b" * 64},
-        {"name": "srmech.amsc.catalog.get_attested_dataset", "status": "ok",
-         "src_sha256": "c" * 64},
-    ]
-    _write(root / "docs/srmech/python/tests/worked_examples_result.ndjson",
-           "".join(json.dumps(r, sort_keys=True) + "\n" for r in rows))
+    # THE RE-EXPORT SHAPE, in the fixture rather than only in the prose.
+    _write(root / "docs/srmech/python/srmech/cascade/composites.py",
+           "def compensated_sum(xs):\n    return sum(xs)\n")
+    _write(root / "docs/srmech/python/srmech/cascade/__init__.py",
+           "from .composites import compensated_sum\n\n"
+           "__all__ = [\"compensated_sum\"]\n")
+    _commit(root, "baseline sources")
+    # The stamps are BLOBS, so they can only be written once the sources are
+    # committed. Two commits, and the second is the ledger's own baseline.
+    _write(root / LEDGER_REL, _ledger_text(root, list(_LEDGER_ROWS)))
     _commit(root, "baseline: ledger written against these sources")
     return root
 
@@ -578,14 +624,66 @@ def check_ledger_freshness() -> None:
         case("ledger-freshness ALLOWS a change to a module NO ledger row uses",
              "derived_ledger_freshness.py", stop, 0, project_dir=other)
 
+        # ── the rc468 blind spot, and it FAILED HERE BEFORE THE FIX ────────
+        #
+        # `srmech.cascade.compensated_sum` is DEFINED in
+        # `srmech.cascade.composites`. The published-name test
+        # `n == m or n.startswith(m + ".")` cannot match it, so against the
+        # rc467 hook this case returned exit 0 with EMPTY stderr — verified by
+        # running the real hook against this exact fixture shape before the
+        # change. On the real tree the same shape hid 165 of 651 rows.
+        reexport = _ledger_fixture(tmp / "reexport")
+        _write(reexport / "docs/srmech/python/srmech/cascade/composites.py",
+               "def compensated_sum(xs):\n"
+               "    return sum(sorted(xs))   # implementation flip\n")
+        case("ledger-freshness BLOCKS when the DEFINING module of a "
+             "RE-EXPORTED row changes (the rc468 blind spot)",
+             "derived_ledger_freshness.py", stop, 2,
+             contains="srmech.cascade.compensated_sum", project_dir=reexport)
+
+        # THE MIRROR, so a future "simplification" to a defining-module-ONLY
+        # match cannot pass. Editing the package __init__ must still claim the
+        # row it publishes: on the real tree that edge is worth 131 rows, and
+        # only 11 rows in the whole tree are defined in a package __init__.
+        pkg = _ledger_fixture(tmp / "pkg")
+        _write(pkg / "docs/srmech/python/srmech/cascade/__init__.py",
+               "from .composites import compensated_sum   # rebound\n\n"
+               "__all__ = [\"compensated_sum\"]\n")
+        case("ledger-freshness BLOCKS when the PACKAGE __init__ that publishes "
+             "a row changes (the union's other half)",
+             "derived_ledger_freshness.py", stop, 2,
+             contains="srmech.cascade.compensated_sum", project_dir=pkg)
+
+        # ── a PARTIAL re-run must not clear the block ──────────────────────
+        #
+        # ⚠️ THE OLD `repaired` CASE COULD NOT FAIL. It rewrote the ledger with
+        # ONE of the two rows under the changed module and DELETED the other,
+        # so the hook allowed because the row it should have flagged was gone.
+        # That is the rc467 silent-partial-pass defect built into the fixture
+        # that was supposed to guard against it. Both rows now stay present and
+        # only one carries a fresh stamp.
+        partial = _ledger_fixture(tmp / "partial")
+        _write(partial / "docs/srmech/python/srmech/math/rational.py",
+               "# changed\n")
+        _commit(partial, "change rational.py")
+        _write(partial / LEDGER_REL,
+               _ledger_text(partial, list(_LEDGER_ROWS),
+                            stale_stamp=["srmech.math.rational.exp_series_truncate"]))
+        _commit(partial, "re-ran ONE of the two affected rows")
+        case("ledger-freshness BLOCKS a PARTIAL re-run — both rows present, "
+             "one stamp stale",
+             "derived_ledger_freshness.py", stop, 2,
+             contains="srmech.math.rational.exp_series_truncate",
+             project_dir=partial)
+
         repaired = _ledger_fixture(tmp / "repaired")
-        _write(repaired / "docs/srmech/python/srmech/math/rational.py", "# changed\n")
-        _write(repaired / "docs/srmech/python/tests/worked_examples_result.ndjson",
-               json.dumps({"n": 0, "record": "meta"}) + "\n"
-               + json.dumps({"name": "srmech.math.rational.rational_mul",
-                             "status": "ok", "src_sha256": "d" * 64}) + "\n")
+        _write(repaired / "docs/srmech/python/srmech/math/rational.py",
+               "# changed\n")
+        _commit(repaired, "change rational.py")
+        _write(repaired / LEDGER_REL, _ledger_text(repaired, list(_LEDGER_ROWS)))
         _commit(repaired, "re-ran the ledger alongside the source change")
-        case("ledger-freshness ALLOWS once the ledger is re-run and committed with it",
+        case("ledger-freshness ALLOWS once EVERY affected row is re-run and "
+             "committed with the change",
              "derived_ledger_freshness.py", stop, 0, project_dir=repaired)
 
         loop = _ledger_fixture(tmp / "loop")

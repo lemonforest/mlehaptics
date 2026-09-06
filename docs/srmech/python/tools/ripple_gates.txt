@@ -72,6 +72,19 @@ tests/test_worked_examples_strict_zero_rc353.py
 tests/test_worked_examples_execute_rc354.py
 tests/test_tool_example_input_schema_rc355.py
 
+# -- the ledger-freshness hook's own fixtures (rc468, `#T1188`) -------------
+#    tools/hooks/check_hooks.py drives the shipped hooks against planted
+#    repositories, and until rc468 it ran ONLY when a human typed it -- so its
+#    cases could rot or be deleted with every board green. This target
+#    subprocess-runs the `ledger` subset (temp-dir fixtures only; the `ratchet`
+#    and `jpl` subsets write into the real tree and are deliberately excluded)
+#    and asserts the three rc468 plants are still NAMED in the output. Those
+#    plants are the only cases that distinguish a hook resolving a row to its
+#    DEFINING module from one matching its published name -- the blind spot
+#    that hid 165 of 651 rows, including all 12 for hypercomplex_dft.py, the
+#    module this very rc changed. ~19 s.
+tests/test_ledger_freshness_hook_rc468.py
+
 # -- composes: declaration drift + verifiability (rc412, `#T1093`) -----------
 #    The `composes` field is edited in the SAME curated file as explanation /
 #    example, so an rc touching a ToolEntry can move it by accident -- and the
@@ -152,6 +165,17 @@ tests/test_class_catalog_oprefs_resolve_930.py
 
 # -- ref-notation emitted-artifact guard (bare-#NNN autolink) ----------------
 tests/test_ref_notation_emitted_rc348.py
+
+# -- shell line-loop lint (rc468, `#T1188`) ---------------------------------
+#    Strict zero over tracked .sh/.yml/.yaml and bash-fenced .md: a
+#    `while read` loop with no `|| [ -n "$v" ]` guard DROPS a final line with
+#    no trailing newline. rc467 hit it twice while driving this very ledger by
+#    name (70 of 71, then 54 of 55 -- the missed row being quaternion_twiddle,
+#    one of the ops that rc was about). Live population is ZERO, deliberately:
+#    the one real instance was CONVERTED rather than allowlisted. Sits beside
+#    ref-notation because it is the same shape of gate -- a decidable tree-wide
+#    lint whose whole value is that a re-introduction goes red. ~2 s.
+tests/test_shell_line_loop_rc468.py
 
 # -- registration surface: allowlist / return-type honesty -------------------
 # ADDED rc425 (`#T1112`), same reason as the citation gate below. CI's second

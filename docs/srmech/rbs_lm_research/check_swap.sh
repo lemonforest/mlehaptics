@@ -30,7 +30,12 @@ current_ram_total_gb() {
 
 current_swap_total_gb() {
     local total_kb=0
-    while read -r _name _type size _used _prio; do
+    # `|| [ -n "$_name" ]` is not decoration: `read` returns nonzero on a
+    # final line with no trailing newline, having already assigned every
+    # field, so the bare form silently DROPS that line. /proc/swaps is
+    # newline-terminated today, which is exactly why this would have gone
+    # on looking correct. (rc468, `#T1188`)
+    while read -r _name _type size _used _prio || [ -n "$_name" ]; do
         # /proc/swaps line: filename type size used priority
         total_kb=$((total_kb + size))
     done < <(tail -n +2 /proc/swaps 2>/dev/null)
