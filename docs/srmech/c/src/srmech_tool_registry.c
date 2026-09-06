@@ -3078,9 +3078,9 @@ static const srmech_tool_param_t ts_params_402[] = {
     { "inverse", "bool", 0, "flip the effective sign (\342\211\241 toggling sigma); default False" },
 };
 static const srmech_tool_param_t ts_params_403[] = {
-    { "theta", "float", 0, "the rotation angle \316\270 in RADIANS \342\200\224 the float64 carrier and its byte-exact Q61 C peer. Mutually exclusive with turn" },
+    { "theta", "float", 0, "the rotation angle \316\270 in RADIANS \342\200\224 the float64 carrier and its byte-exact Q61 C peer. MUTUALLY EXCLUSIVE with turn, and NOT the wire-declared operand: hand it INSTEAD of turn (never as well as) when the angle you have genuinely is a continuous radian rather than a rational multiple of a turn" },
     { "k_axes", "int", 1, "imaginary-axis count: 1 (\342\204\202) | 3 (\342\204\215 / QDFT) | 7 (\360\235\225\206 / ODFT)" },
-    { "turn", "tuple[int, int]", 0, "the EXACT rational turn (k, n) meaning 2\317\200k/n \342\200\224 the cyclotomic carrier. k may be any int (a negative k is the conjugate turn, the Class-C orientation); n >= 1. Mutually exclusive with theta" },
+    { "turn", "tuple[int, int]", 1, "the EXACT rational turn (k, n) meaning 2\317\200k/n \342\200\224 the cyclotomic carrier, and the operand the WIRE declares, so a caller holding only this schema always reaches the route where q**n == 1 holds with == rather than the one that rounds. k may be any int (a negative k is the conjugate turn, the Class-C orientation); n >= 1. Mutually exclusive with theta, which SUBSTITUTES for it and is never given beside it" },
 };
 static const srmech_tool_param_t ts_params_404[] = {
     { "data_bits", "sequence", 1, "exactly 2\342\201\277\342\210\2221\342\210\222n data bits, each 0/1 (4 for H(7,4), 11 for H(15,11))" },

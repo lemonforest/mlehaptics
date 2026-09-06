@@ -10609,6 +10609,20 @@ def _register_primitive_class_tools() -> None:
         # a turn would make the UNIT depend on the carrier (Q(1,2) a half TURN
         # where 0.5 is a half RADIAN) — a silent wrong answer. This is the
         # `theta=` / `turn=` pair hypercomplex_couple already takes.
+        #
+        # ⚠️ `turn` is declared REQUIRED and `theta` is not, though in
+        # Python BOTH default to None and EXACTLY ONE must be given. The
+        # registry's `required` flag is per-parameter and cannot say "one
+        # of these two", so declaring both optional advertises a schema
+        # whose conforming call -- k_axes alone -- RAISES. That is not
+        # hypothetical: it is what tests/test_invocable_returned_floor_rc431
+        # measured the moment the fold landed, and the gate was right. One
+        # of the two must carry the flag, and it is the EXACT one, so a
+        # consumer holding only this schema reaches the route where
+        # q**n == 1 holds with `==` rather than the one that rounds.
+        # Before the fold the declared operand was `theta` and the op
+        # returned from its required params; it still does, on the better
+        # route.
         # NO frame_scope declaration, and that is MEASURED rather than an
         # oversight: the frame probe enters an op only through INT-typed
         # parameters, and this op's turn crosses as a `(k, n)` PAIR, so the
@@ -10661,13 +10675,20 @@ def _register_primitive_class_tools() -> None:
             parameters=(
                 P("theta", "float", False,
                   "the rotation angle θ in RADIANS — the float64 carrier and its "
-                  "byte-exact Q61 C peer. Mutually exclusive with turn"),
+                  "byte-exact Q61 C peer. MUTUALLY EXCLUSIVE with turn, and NOT "
+                  "the wire-declared operand: hand it INSTEAD of turn (never as "
+                  "well as) when the angle you have genuinely is a continuous "
+                  "radian rather than a rational multiple of a turn"),
                 P("k_axes", "int", True,
                   "imaginary-axis count: 1 (ℂ) | 3 (ℍ / QDFT) | 7 (𝕆 / ODFT)"),
-                P("turn", "tuple[int, int]", False,
+                P("turn", "tuple[int, int]", True,
                   "the EXACT rational turn (k, n) meaning 2πk/n — the cyclotomic "
-                  "carrier. k may be any int (a negative k is the conjugate turn, "
-                  "the Class-C orientation); n >= 1. Mutually exclusive with theta"),
+                  "carrier, and the operand the WIRE declares, so a caller "
+                  "holding only this schema always reaches the route where "
+                  "q**n == 1 holds with == rather than the one that rounds. "
+                  "k may be any int (a negative k is the conjugate turn, the "
+                  "Class-C orientation); n >= 1. Mutually exclusive with theta, "
+                  "which SUBSTITUTES for it and is never given beside it"),
             ),
             returns=R("tuple[Q, ...] | tuple[Qalg, ...]",
                       "8-tuple [cos θ, sin θ/√k ×k_axes, 0 ×(7−k_axes)]. On theta=, "
