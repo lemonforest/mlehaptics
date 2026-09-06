@@ -1131,8 +1131,63 @@ from srmech.math.text import fold_marks, glyph_stream
 #: expecting this gate to notice a widened operand DIRECTLY would be wrong,
 #: and the gate that does notice it is
 #: test_no_exact_bearing_op_declares_an_operand_that_rounds_over_the_wire.
+#: rc468 (`#T1188`, stage 1): re-pinned. Frame count MOVED for the first time
+#: since rc465 — 762 -> 764 = 735 op + 29 carrier — because the rc REGISTERS
+#: two ops (srmech.math.qalg.cos_sin_2pi_k_over_n and
+#: srmech.cascade.hypercomplex_turn), and an op frame is minted per registry
+#: entry. The carrier count is UNCHANGED at 29, which is the measurement
+#: worth stating rather than assuming: the exact routes return Qalg, and
+#: `Qalg` has been a carrier frame since rc463 — declaring it in two more
+#: return-type strings adds no NEW carrier, where rc416:1075 records a
+#: precedent in which a new type string DID mint one. Confirmed a
+#: registration move and not a non-deterministic build before re-pinning:
+#: the witness is identical across two builds in one process and equals the
+#: ops+carriers union witness. Several op frames also moved by construction —
+#: the two twiddle summaries, both summand summaries and hypercomplex_exp all
+#: gained exact-route prose, and op summaries ARE the searchable corpus.
+#: Re-pinned ONCE MORE within the same stage, after the rational-collapse
+#: correction moved three of those summaries again: the first pin
+#: (fc07900d…) recorded a claim the new op's own worked example then
+#: FALSIFIED, so the corpus edit that fixes it lands after it. Both digests
+#: are kept below so the two causes stay separable; leaving this gate RED
+#: across the fix would be worse than pinning twice with both causes named.
+#: A THIRD pin followed in the same stage, for a third separable cause: the
+#: two twiddle summaries said the exact route was "built by"
+#: cos_sin_2pi_k_over_n, which CONTRADICTED their own `composes` — that op
+#: is not called, because it always answers over Phi_lcm(N,4) and an
+#: irrational axis needs a larger field. The summaries now say what is true
+#: (the same construction, lifted), and op summaries ARE the corpus.
+#: A FIFTH pin, in rc468 STAGE 4 (the CONSOLIDATION), for a fifth separable
+#: cause — and the FIRST time the frame COUNT has gone DOWN. 764 -> 761 =
+#: 732 op + 29 carrier: three ops were REMOVED as duplicates
+#: (`srmech.math.qalg.cos_2pi_over_n` and `sin_2pi_over_n`, absorbed by
+#: `cos_sin_2pi_k_over_n` which IS them at k = 1; and
+#: `srmech.cascade.hypercomplex_turn`, folded into `hypercomplex_exp` as its
+#: `turn=(k, n)` operand), and an op frame is minted per registry entry. The
+#: carrier count is UNCHANGED at 29, which is again the measurement worth
+#: stating rather than assuming: a removal cannot retire a carrier that other
+#: ops still name, and `Qalg` is named by the survivor. Several op summaries
+#: also moved by construction — the survivor's, the rotor's and both twiddles'
+#: (which gained the paragraph saying WHY they keep `exact=` where
+#: operand-typed dispatch is the tree's rule) — and op summaries ARE the
+#: searchable corpus. Confirmed a registration+prose move and not a
+#: non-deterministic build before re-pinning: `_build_frames("all")` returned
+#: the same digest on two consecutive calls, and the ops+carriers union
+#: equals it (`test_scope_witnesses_agree_with_the_union`).
 WITNESS_RC416 = (
-    "074fb8f3a12954d42000e2e8ca74578986f253e23390f5fbb79663bbfd3a0e7b")
+    "0fb043cc3c534f95038ada90e824b276c632dfdc141c3ecbca2d00d03bc1cedc")
+#: was: dd0149df3067cbb6d72bd555b90b366ee1a63a2625fd63bd44e84aaa6a881a3e (rc468 stage 3)
+#: A FOURTH pin, in rc468 STAGE 3, for a fourth separable cause: the maintainer
+#: rejected stage 1's deferral of the coupler default, so `hypercomplex_couple`'s
+#: `theta` / `turn` param summaries and the RETURN summaries of it and its four
+#: pass-throughs now say the DEFAULT phase is the exact rational quarter turn.
+#: Those summaries ARE the corpus, so the digest moves by construction. Confirmed
+#: a prose move and not a non-deterministic build: `_build_frames` was run twice
+#: on the unedited tree and returned the same digest both times.
+#: was: 02a62dc5af90b67dac3c7372d0a8d3f098eeb7f772ff0e11bde0b9f0b436c891 (rc468 stage 1, post-correction)
+#: was: 074fb8f3a12954d42000e2e8ca74578986f253e23390f5fbb79663bbfd3a0e7b (rc467 stage 2)
+#: was: f62f353583b7f017e1e350aa12e02b7bcec335009d757a54448a497d100f1291 (rc468 stage 1, pre-summary-correction)
+#: was: fc07900d63dd37d4698ade213558e87e2500386716eb9b52defdb859d9caf2e9 (rc468 stage 1, pre-correction)
 #: rc467 (`#T1188`): re-pinned after a PROSE-ONLY correction pass. Five docstring
 #: /summary fixes (the twiddle ^N=1 tolerance-not-exactness note, the conditional
 #: exact_dft ring, the DCT/Haar exact-object-no-route labels, the rational.sqrt

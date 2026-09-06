@@ -452,6 +452,49 @@ static srmech_status_t octo_mult_q61(const int64_t a[8], const int64_t b[8],
     return SRMECH_OK;
 }
 
+/* Static helper — the int64 Q61 domain ceiling on the stream limbs, shared by
+ * the angle-taking and turn-taking couplers. A limb must be unit-bounded
+ * (|x| <= 1, i.e. |limb| <= 2^61) so neither the limbs nor the norm-preserving
+ * output (|q| <= sqrt(8) < 4) overflow int64. Larger magnitudes have no
+ * Q61-int64 representation (no bignum in C) -> SRMECH_ERR_OVERFLOW; the
+ * caller's pure path (bignum-exact) is the complete alternative. Class-K
+ * magnitude test (no abs). */
+static srmech_status_t couple_domain_q61(const int64_t streams8[8])
+{
+    assert(streams8 != NULL);
+    const int64_t one_q61 = (int64_t)1 << SRMECH_TRIG_FBITS;
+    assert(one_q61 > 0);                               /* grid anchor sane */
+    for (int i = 0; i < 8; i++) {
+        if (streams8[i] > one_q61 || streams8[i] < -one_q61) {
+            return SRMECH_ERR_OVERFLOW;
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Static helper — apply the twiddle T = c*1 + s*mu to the streams in the
+ * requested (non-commutative) order. c and s are the Q61 cosine and sine of
+ * the phase, however the caller obtained them: from a double angle
+ * (srmech_hypercomplex_couple_q61) or from an exact rational turn
+ * (srmech_hypercomplex_couple_turn_q61). Class-M bind o Class-C order. */
+static srmech_status_t couple_apply_q61(int64_t c, int64_t s,
+                                        const int64_t streams8[8],
+                                        const int64_t mu8[8], int form_is_left,
+                                        int64_t out8[8])
+{
+    assert(streams8 != NULL && mu8 != NULL);
+    assert(out8 != NULL);
+    int64_t tw[8];
+    tw[0] = c;
+    for (int a = 1; a < 8; a++) {
+        tw[a] = trig_fxmul(s, mu8[a]);                 /* sin(phase) * mu[a] */
+    }
+    if (form_is_left) {
+        return octo_mult_q61(tw, streams8, out8);      /* T * q */
+    }
+    return octo_mult_q61(streams8, tw, out8);          /* q * T */
+}
+
 /* 0.9.0rc16 exact-Q61 (sigma,theta,mu) octonion coupler — the C-host peer of
  * cascade.hypercomplex_dft.hypercomplex_couple (closes the rc12 sed_couple /
  * sed_uncouple transitive-ratchet allowlist). T = exp(eff*mu) = cos(eff) +
@@ -472,32 +515,66 @@ srmech_status_t srmech_hypercomplex_couple_q61(double eff, const int64_t streams
     if (streams8 == NULL || mu8 == NULL || out8 == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    /* int64 Q61 domain ceiling: a stream limb must be unit-bounded (|x| <= 1,
-     * i.e. |limb| <= 2^61) so neither the limbs nor the norm-preserving output
-     * (|q| <= sqrt(8) < 4) overflow int64. Larger magnitudes have no Q61-int64
-     * representation (no bignum in C) -> SRMECH_ERR_OVERFLOW; the caller's pure
-     * path (bignum-exact) is the complete alternative. Class-K test (no abs). */
-    const int64_t one_q61 = (int64_t)1 << SRMECH_TRIG_FBITS;
-    for (int i = 0; i < 8; i++) {
-        if (streams8[i] > one_q61 || streams8[i] < -one_q61) {
-            return SRMECH_ERR_OVERFLOW;
-        }
-    }
+    srmech_status_t st = couple_domain_q61(streams8);
+    if (st != SRMECH_OK) { return st; }
     int64_t c = 0;
     int64_t s = 0;
-    srmech_status_t st = srmech_cos_q61(eff, &c);
+    st = srmech_cos_q61(eff, &c);
     if (st != SRMECH_OK) { return st; }
     st = srmech_sin_q61(eff, &s);
     if (st != SRMECH_OK) { return st; }
-    int64_t tw[8];
-    tw[0] = c;
-    for (int a = 1; a < 8; a++) {
-        tw[a] = trig_fxmul(s, mu8[a]);                 /* sin(eff) * mu[a] */
+    return couple_apply_q61(c, s, streams8, mu8, form_is_left, out8);
+}
+
+/* 0.9.0rc468 (`#T1188`) exact-TURN Q61 octonion coupler — the C twin of
+ * cascade.hypercomplex_dft.hypercomplex_couple's DEFAULT call, which no longer
+ * has an angle. The phase arrives as the rational turn k/n meaning 2*pi*k/n,
+ * NOT as a double: `srmech_hypercomplex_couple_q61(fl(pi/2), ...)` puts
+ * cos = 141 grid units into the real slot of what is meant to be a pure
+ * imaginary twiddle (measured), because no double IS pi/2. Here the quarter
+ * turn is the integer it is and cos/sin are exactly {0, +-1}.
+ *
+ * REFUSES rather than rounding. The turn has an exact Q61 twiddle iff it is a
+ * whole number of QUARTER turns (4*k % n == 0); every other turn has an
+ * irrational cos or sin with no Q61 form -> SRMECH_ERR_BAD_INPUT. That is the
+ * same refusal the Python turn= route makes, and its complete alternative is
+ * the same one: the exact Q(zeta_M) route, which is not a fixed-point carrier
+ * and therefore has no C-host peer at this width. n < 1, or a k past
+ * INT64_MAX/4 -> SRMECH_ERR_BAD_INPUT; a stream limb past the unit-bounded
+ * int64 Q61 domain -> SRMECH_ERR_OVERFLOW (the caller's bignum-exact pure path
+ * is the complete alternative, as for the angle-taking peer above).
+ *
+ * ABI: an ADDITIVE symbol reusing no callback typedef, so SRMECH_ABI_VERSION
+ * stays 25. See the header declaration for the mixed-version reasoning. */
+srmech_status_t srmech_hypercomplex_couple_turn_q61(int64_t k, int64_t n,
+                                                    const int64_t streams8[8],
+                                                    const int64_t mu8[8],
+                                                    int form_is_left,
+                                                    int64_t out8[8])
+{
+    assert(streams8 != NULL && mu8 != NULL);
+    assert(out8 != NULL);
+    if (streams8 == NULL || mu8 == NULL || out8 == NULL) {
+        return SRMECH_ERR_NULL_ARG;
     }
-    if (form_is_left) {
-        return octo_mult_q61(tw, streams8, out8);      /* T * q */
+    if (n < 1) { return SRMECH_ERR_BAD_INPUT; }
+    if (k > (INT64_MAX / 4) || k < (INT64_MIN / 4)) {
+        return SRMECH_ERR_BAD_INPUT;                   /* 4*k would overflow */
     }
-    return octo_mult_q61(streams8, tw, out8);          /* q * T */
+    int64_t four_k = k * 4;
+    if ((four_k % n) != 0) {
+        return SRMECH_ERR_BAD_INPUT;                   /* not a quarter turn */
+    }
+    /* Class-I cyclic reduction to the quarter-turn index; C division truncates
+     * toward zero, so the +4 keeps a negative turn's Class-C orientation. */
+    int64_t quarters = ((four_k / n) % 4 + 4) % 4;
+    assert(quarters >= 0 && quarters < 4);
+    srmech_status_t st = couple_domain_q61(streams8);
+    if (st != SRMECH_OK) { return st; }
+    static const int64_t cos_q[4] = { SRMECH_TRIG_ONE, 0, -SRMECH_TRIG_ONE, 0 };
+    static const int64_t sin_q[4] = { 0, SRMECH_TRIG_ONE, 0, -SRMECH_TRIG_ONE };
+    return couple_apply_q61(cos_q[quarters], sin_q[quarters],
+                            streams8, mu8, form_is_left, out8);
 }
 
 /* atan(|m|) for m >= 0 as an exact Q61 INTEGER — the three-band recombination

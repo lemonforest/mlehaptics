@@ -91,6 +91,8 @@ from srmech.cascade import right_mult_matrix as _right_mult_matrix
 # surfaces come to disagree about what "exact" means.
 from srmech.math.q import exact_vector as _exact_vector  # rc466 (`#T1188`): the ONE exact reader
 from srmech.math.q import Q  # rc465: the exact-ℚ scalar carrier
+from srmech.math.q import exact_scalar as _exact_scalar  # rc468 (`#T1188`): the exact axis reader
+from srmech.math import qalg as _qalg  # rc468 (`#T1188`): the exact twiddle field
 from srmech.math.qmat import QMat  # rc465: the exact-ℚ 8×8 L_a / R_a carrier
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat  # rc122: numpy-free 2-D carrier for L_a / R_a
@@ -157,6 +159,10 @@ _MU_AXES = {
     "ijk": (0.0, _S3, _S3, _S3, 0.0, 0.0, 0.0, 0.0),
     "diagonal": (0.0, _S7, _S7, _S7, _S7, _S7, _S7, _S7),
 }
+
+#: rc468 (`#T1188`): the exact-ℚ scalar under the name the shared
+#: exact-axis reader uses.
+_Q = Q
 
 #: The native uint32 twiddle-index bound (documented parity contract: the
 #: pure path enforces the same ceiling so native == pure everywhere).
@@ -659,6 +665,83 @@ def octonion_norm(x: Sequence[int | Q | Tuple[int, int] | float]) -> float | Q:
 # ────────────────────────────────────────────────────────────────────────
 
 
+def _exact_axis8(mu, op: str):
+    """``(weights, axis_k)`` for the EXACT twiddle route — the exact rational
+    direction and the irrational scale width ``1/√axis_k`` left for the
+    cyclotomic field (rc468, `#T1188`).
+
+    The float peer :func:`_resolve_mu8` normalises with the Class-N
+    ``rational.sqrt`` cascade and lands on a float64 axis whose ``‖μ̂‖² − 1`` is
+    NONZERO for the irrational axes (measured: ``+2.2e-16`` for ``'ijk'`` and
+    ``−1.1e-16`` for ``'diagonal'``).
+    This reader never normalises in float: a NAMED axis is read as the integer
+    direction it is (``'ijk'`` is ``(0,1,1,1)`` with ``axis_k = 3``, and
+    ``'diagonal'`` is ``(0,1,1,1,1,1,1,1)`` with ``axis_k = 7``), and a
+    general sequence is read exactly — ``int`` / ``Q`` / ``(num, den)`` leaves
+    as themselves, a ``float`` leaf as the exact rational
+    :meth:`~srmech.math.q.Q.from_float` makes it — then handed to
+    :func:`srmech.math.qalg._exact_axis`, which folds the RATIONAL part of the
+    normaliser into the weights and reports the residual ``k ∈ {1, 3, 7}``.
+
+    ⚠️ It normalises the DIRECTION exactly and REFUSES rather than rounding.
+    ``‖w‖²`` is written ``k·t²`` with ``k ∈ {1, 3, 7}`` and ``t`` rational, so
+    the rational part of the normaliser folds into the weights and only the
+    irrational ``1/√k`` is left for the field. That is why the float64
+    ``'ijk'`` VECTOR is ACCEPTED and lands on the same exact ``(0,1,1,1)/√3``
+    the NAME does: its components are exactly proportional to ``(1,1,1)``, so
+    ``‖w‖² = 3·t²`` on the nose even though it misses the unit sphere by
+    ``2.2e-16``. (This paragraph first claimed the opposite; the
+    implementation was right and the sentence was wrong — measured.) What has
+    no exact unit in the fields this rc builds is a direction whose ``‖w‖²``
+    is not ``k·(rational square)`` for one of those three ``k`` —
+    ``(0,1,2,0)``, whose ``‖w‖² = 5``, or a float64 axis whose components are
+    not exactly proportional to an integer vector. There is no exact root of
+    unity along those, and ``exact=True`` says so instead of answering about
+    a neighbouring axis."""
+    if isinstance(mu, str):
+        if mu not in _MU_AXES:
+            raise ValueError(
+                f"{op}: mu must be one of {sorted(_MU_AXES)} or a unit "
+                f"pure-imaginary 4-/8-vector; got {mu!r}")
+        # Class K pin-slot on each table entry's sign — never abs(), and never
+        # the float MAGNITUDE, which is exactly what this route exists to drop.
+        weights = [(_Q(1, 1) if c > 0.0 else (_Q(-1, 1) if c < 0.0 else _Q(0, 1)))
+                   for c in _MU_AXES[mu]]
+    else:
+        if isinstance(mu, Mat):
+            raise ValueError(f"{op}: mu must be a 4-/8-vector; got a Mat {mu.shape}")
+        try:
+            raw = list(mu)
+        except TypeError as exc:
+            raise ValueError(
+                f"{op}: mu must be a 4-/8-vector; got {mu!r}") from exc
+        if len(raw) == 4:
+            raw = list(raw) + [0, 0, 0, 0]   # the ℍ ⊂ 𝕆 zero-extension
+        if len(raw) != _DIM:
+            raise ValueError(
+                f"{op}: a general mu must have 4 (ℍ ⊂ 𝕆) or 8 components; "
+                f"got length {len(raw)}")
+        weights = []
+        for c in raw:
+            q = _exact_scalar(c)
+            if q is None:
+                try:
+                    q = _Q.from_float(float(c))     # a float IS an exact rational
+                except (TypeError, ValueError, OverflowError) as exc:
+                    raise ValueError(
+                        f"{op}: mu component {c!r} is not an exact-rational "
+                        f"scalar") from exc
+            weights.append(q)
+    axis = _qalg._exact_axis(weights)
+    if axis is None:
+        raise ValueError(
+            f"{op}: exact=True needs a direction whose squared norm is "
+            f"1, 3 or 7 times a rational square (the widths the shipped "
+            f"cyclotomic fields normalise exactly); got {mu!r}. A float64 "
+            f"unit vector generally is NOT one — pass the axis NAME instead")
+    return axis
+
+
 def _native_ready(symbol: str) -> bool:
     """True iff the native lib is loaded AND exports ``symbol``.
     The twiddle-family readiness gate (the loop-op gate above is separate so
@@ -883,7 +966,9 @@ def _twiddle_resolved(j_red: int, k_red: int, n_points: int, sigma: int,
 
 
 def octonion_twiddle(j: int, k: int, n_points: int, *,
-                     mu="i", sigma: int = -1) -> List[float]:
+                     mu="i", sigma: int = -1,
+                     exact: bool = False
+                     ) -> "List[float] | List[Q] | list":
     """The ODFT twiddle factor ``exp(σ·μ·2πjk/N)`` — the DFT-facing form of
     :func:`octonion_exp`, with π and the index reduction handled natively
     (0.9.0rc111; the dim-8 mirror of
@@ -901,19 +986,85 @@ def octonion_twiddle(j: int, k: int, n_points: int, *,
     ``tests/test_octonion_dft_rc111.py``
     ``test_twiddle_nth_roots_of_unity_closure``.
 
-    ⚠️ **Exactness gap (0.9.0rc467, `#T1188`) — recorded, not closed.** The
-    target IS a root of unity, an exact algebraic integer; this carrier is
-    float64 and does NOT satisfy the closure exactly (MEASURED on the sibling
-    exact-Q61 tier: :func:`srmech.cascade.hypercomplex_exp` at ``2π/8`` raised
-    to the 8th is a ratio of 147-digit integers, not ``1``). An EXACT route
-    for the same object ships one module over —
-    :func:`srmech.math.qalg.cos_2pi_over_n` /
-    :func:`~srmech.math.qalg.sin_2pi_over_n`, on which
-    ``(2·cos_2pi_over_n(8))² == 2``, ``cos² + sin² == 1`` and ``ζ₈⁸ == 1``
-    all hold EXACTLY — and this op deliberately does NOT take it. Swapping
-    the carrier is a DFT-path change with its own blast radius, scoped to a
-    later rc; until then the identity above is a TOLERANCE and is written
-    here as one.
+    ✅ **The exact rung SHIPS (0.9.0rc468, `#T1188`) — ``exact=True``.** The
+    target IS a root of unity, an exact algebraic integer, and the float64
+    carrier above does not reach it. ``exact=True`` returns the SAME object
+    over the cyclotomic field ``ℚ(ζ_M)`` instead, from the same exact
+    ``(cos, sin)`` construction :func:`srmech.math.qalg.cos_sin_2pi_k_over_n`
+    publishes — lifted into whatever field the AXIS needs, which is why that
+    public op is not called directly: it always answers over ``Φ_lcm(n,4)``
+    and ``'ijk'`` needs ``Φ_lcm(n,12)``. No angle, no π, no float, no
+    grid. STRICT-ZERO witness (``==``, not a tolerance) in
+    ``tests/test_exact_twiddle_rc468.py``: the ``N``-th power of
+    ``octonion_twiddle(1, 1, N, exact=True)`` is the EXACT identity
+    ``[1, 0, …]`` at every ``N`` tested for every named axis, ``'ijk'`` and
+    ``'diagonal'`` included, and ``‖W‖² == 1`` exactly —
+    where the float route's ``‖W‖² − 1`` is measurably nonzero
+    (``−2.0e-17`` at ``N = 8``, ``+7.2e-17`` at ``N = 7``). Through rc467 this
+    paragraph recorded the gap instead of closing it.
+
+    **The carrier is elected by the VALUE** — ``list[Q]`` when every component
+    is rational, ``list[Qalg]`` otherwise, uniformly, never a mixed list. On a
+    RATIONAL axis that set is exactly the quarter turns ``4·j·k ≡ 0 (mod N)``.
+    ⚠️ The ``1/√k`` axes SHIFT it rather than emptying it, and the shift was
+    measured rather than predicted: ``μ̂ = 'ijk'`` at ``N = 3`` returns the
+    all-rational ``(−1/2, 1/2, 1/2, 1/2)`` — the order-3 unit quaternion of the
+    binary tetrahedral group — because ``sin(2π/3)/√3 = 1/2`` exactly. So read
+    the rule as "every component rational", never as "the quarter turns".
+
+    **The field, and where it RAISES.** ``M = lcm(N, 4)`` for a basis axis,
+    ``lcm(N, 12)`` for ``'ijk'`` (``√3 = ζ₁₂ + ζ₁₂⁻¹``) and ``lcm(N, 28)`` for
+    ``'diagonal'`` (``√7 = g/i`` from the quadratic Gauss sum mod 7).
+    ``exact=True`` REFUSES when ``M > srmech.math.qalg.MAX_CYCLOTOMIC_INDEX``
+    (256) rather than falling back to the float carrier — a fallback would be
+    a silent demotion, and the float route is one keyword away. So ``'ijk'``
+    refuses ``N = 128`` and ``'diagonal'`` refuses ``N = 64``, whose ``lcm``s
+    are 384 and 448. A ``mu`` SEQUENCE is normalised EXACTLY rather than in
+    float (see :func:`_exact_axis8`), so ``mu=[0, 1, 1, 1]`` and the float64
+    ``'ijk'`` vector both land on the same exact ``(0,1,1,1)/√3``; what it
+    REFUSES is a direction whose ``‖w‖²`` is not ``1``, ``3`` or ``7`` times a
+    rational square — ``[0, 1, 2, 0]`` (``‖w‖² = 5``), or a float64 axis whose
+    components are not exactly proportional to an integer vector.
+
+    ⚠️ **``exact=False`` is unchanged, byte for byte.** The float route still
+    dispatches to ``srmech_octonion_twiddle`` and its pure mirror still follows
+    the C float-op order exactly; no C source moved in rc468 and
+    ``SRMECH_ABI_VERSION`` did not bump. The tolerance gate named above
+    remains a TRUE statement about that route, and stands beside — not
+    instead of — the strict-zero peer.
+
+    **Why a KEYWORD here, where rc466 ruled for operand-typed dispatch**
+    (0.9.0rc468, `#T1188`). The standing pattern in this tree is that one op
+    serves every carrier and elects it from what it is HANDED — ``einsum`` /
+    ``kron`` take the exact route on exact operands with no keyword, and
+    :func:`srmech.cascade.hypercomplex_exp` chooses between a float ``theta=``
+    radian and an exact ``turn=(k, n)`` the same way. **This op cannot,
+    because it has no inexact operand to dispatch on.** ``j``, ``k``,
+    ``n_points`` and ``sigma`` are ints on BOTH routes — already exact — so an
+    operand-carrier rule would make the exact answer the ONLY answer and leave
+    the float route, with its byte-exact C peer ``srmech_octonion_twiddle``,
+    unreachable. The one operand that carries a value rather than an index is
+    ``mu``, and it cannot carry the request either: the exact route
+    deliberately accepts everything the float route does and MORE. A named
+    axis is a LABEL with no carrier at all, and the irrational axes are
+    precisely where the float route fails hardest; and a float64 ``mu``
+    VECTOR is accepted here BY DESIGN, landing on the same exact axis the name
+    does, because its components are exactly proportional to an integer vector
+    (MEASURED — see :func:`_exact_axis8`). A carrier-typed ``mu`` rule
+    would have to break both. So the keyword is the honest spelling, not a
+    lapse: the exactness being selected lives in the RETURN, and nothing on
+    the way in can express it.
+
+    ⚠️ **And the keyword is therefore never allowed to be the evidence.**
+    ``tools/demotion_probe.py`` reads a parameter merely NAMED ``exact`` as an
+    R3 accuracy declaration, so a keyword can drain a census row without any
+    route ever running. It drains nothing here — MEASURED: this op has ZERO
+    rows in the committed ``tests/demotion_census.ndjson`` in either cell,
+    because the probe enters only by a sequence-shaped parameter and this
+    signature has none. The only evidence that the exact route works is the
+    EXECUTED strict-zero witness in ``tests/test_exact_twiddle_rc468.py``,
+    and that is asserted as the state of affairs by
+    ``test_the_exact_keyword_drains_NOTHING_and_execution_is_the_evidence``.
 
     Dispatches to the same-rc C peer ``srmech_octonion_twiddle`` (byte-exact
     pure mirror otherwise). Class I (cyclic index) ∘ N (π cascade + Q61
@@ -926,12 +1077,18 @@ def octonion_twiddle(j: int, k: int, n_points: int, *,
             parity bound, enforced identically on the pure path).
         mu: The axis ``μ̂`` (same forms as :func:`octonion_exp`). Default ``'i'``.
         sigma: ``−1`` forward (default) or ``+1`` inverse.
+        exact: ``True`` takes the EXACT cyclotomic route (see above);
+            ``False`` (default) the float64 carrier and its C peer.
 
     Returns:
-        The unit-octonion twiddle as a ``list[float]`` (8 components).
+        The unit-octonion twiddle as 8 components — ``list[float]`` at
+        ``exact=False``; at ``exact=True`` ``list[Q]`` on a quarter turn and
+        ``list[Qalg]`` on every other, both EXACT.
 
     Raises:
-        ValueError: bad ``j``/``k``/``n_points``/``sigma``/``mu``.
+        ValueError: bad ``j``/``k``/``n_points``/``sigma``/``mu``; or, at
+            ``exact=True``, a field index above ``MAX_CYCLOTOMIC_INDEX`` or a
+            ``mu`` sequence with no exact unit over ℚ.
     """
     j = int(j)
     k = int(k)
@@ -945,9 +1102,23 @@ def octonion_twiddle(j: int, k: int, n_points: int, *,
     if sigma not in (1, -1):
         raise ValueError(
             f"octonion_twiddle: sigma must be +1 or -1; got {sigma!r}")
-    mu_hat = _resolve_mu8(mu, "octonion_twiddle")
     j_red = j % n_points
     k_red = k % n_points
+    if exact:
+        weights, axis_k = _exact_axis8(mu, "octonion_twiddle")
+        index = _qalg._turn_field_index(n_points, axis_k)
+        if index > _qalg.MAX_CYCLOTOMIC_INDEX:
+            raise ValueError(
+                f"octonion_twiddle: exact=True builds Q(zeta_{index}) for n_points="
+                f"{n_points} on this axis, above the measured "
+                f"MAX_CYCLOTOMIC_INDEX={_qalg.MAX_CYCLOTOMIC_INDEX} cap. The "
+                f"field index is lcm(n_points, 4) for a rational axis, "
+                f"lcm(n_points, 12) for 1/sqrt(3) and lcm(n_points, 28) for "
+                f"1/sqrt(7) — the exact route RAISES here rather than falling "
+                f"back to the float carrier, which would be a silent demotion")
+        return _qalg._turn_twiddle(_DIM, weights, axis_k, n_points,
+                                   (j_red * k_red) % n_points, sigma)
+    mu_hat = _resolve_mu8(mu, "octonion_twiddle")
     return _twiddle_resolved(j_red, k_red, n_points, sigma, mu_hat)
 
 

@@ -68,7 +68,7 @@ startup plus `_hooklib` import on this mount, and no hook can be cheaper. So
 | **`git_add_all_blocker.py`** | PreToolUse (Bash) | `git add -A`, `git add --all`, `git add .`, `git commit -a`/`-am`. Not `git add -u` (tracked-only, cannot sweep). Not a mention inside `echo`. | **0.33–0.36 s** (was stated ~0) | ~0 — this row **is** the floor |
 | **`generated_file_edit_blocker.py`** | PreToolUse (Edit/Write/NotebookEdit) | Hand-edits to any `regen_all.py` output (6, from `codegen_manifest.GENERATORS`) or any file whose first five lines carry a generated-file banner — *"generated"* **and** *"do not edit"*, case-insensitively. Regeneration is never blocked: `regen_all.py` writes via Bash, not the Edit tool. | **0.59–0.71 s** (was stated ~1 ms — **the largest error in the old table, ~590×**) | ~0.26 s — it execs `codegen_manifest.py` |
 | **`ssot_agreement.py`** | Stop, SubagentStop, PreToolUse (`git commit`) | A disagreement among the **five** version SSoT files (ADR-0007 §2.1) or among the **seven** ABI surfaces — the `srmech.h` macro, `EXPECTED_ABI_VERSION`, and **five** prose/generated statements (`docs/srmech/CLAUDE.md`, `c/README.md`, `python/README.md`, the notebook stamp, and the generated `_c_claims.py`). **Twelve surfaces, not nine.** | **0.50–0.53 s** (stated <0.5 s — the only row that was nearly right) | ~0.17 s — 12 regex reads |
-| **`derived_ledger_freshness.py`** | Stop, SubagentStop | Stopping while `tests/worked_examples_result.ndjson` records results for ops whose defining module changed after the ledger's own commit. | **4.5–5.7 s** (was stated ~0.3 s, **~15–19×**) | ~4.2 s — the git calls cost 2.4–8.1 s on this mount |
+| **`derived_ledger_freshness.py`** | Stop, SubagentStop | Stopping while `tests/worked_examples_result.ndjson` records results for ops whose defining module has moved. Three OR-ed clauses (rc468): the row's `def_blob` content stamp no longer matches that module's HEAD blob; that module is dirty in the working tree; or the row's PUBLISHED name falls under a module changed since the ledger's own commit. | **rc455: 4.5–5.7 s.** rc468 re-measured, and the figure is dominated by the MOUNT, not the hook: **0.69 s warm / 7.69 s cold** Windows-native, **17.2–18.7 s** WSL2-9p. The rc467 hook measured **16.4–17.8 s** on the same WSL mount in the same session, so the three-clause union costs ~1 s — one `git ls-tree` of the srmech subtree, measured bare at 0.52–0.61 s. | ~4.2 s — the git calls cost 2.4–8.1 s on this mount |
 | **`ripple_stamp_before_push.py`** | PreToolUse (`git push`) | Pushing an op-touching branch with no green `tools/hooks/ripple_stamp.py` record at the current HEAD. Escape token: `[ripple-pending]` in the HEAD commit message. | **1.42–1.49 s** (was stated <1 s) | ~1.1 s — diff against upstream |
 | **`jpl_audit_gate.py`** *(rc455)* | Stop, SubagentStop, PreToolUse (`git commit`, **any option form**) | Declaring done or committing while any of `tests/test_jpl_audit.py`'s **13** checks is red — goto, new recursion, malloc, >60-line functions, <2 asserts, multi-line macros, new function-pointer declarators, and the three seed-tightness plus two detector-vacuity checks. Overrides: `SRMECH_ALLOW_JPL_VIOLATION=1`, or `[jpl-pending]` in the commit message. | in scope: **4.1–4.9 s, median 4.3 s** Windows-native / **4.5–9.5 s, median 5.4 s** WSL2-9p, 6 spaced samples each; **0.15 s** on any other Bash command | ~4.1 s — it imports the audit and calls its own functions |
 | **`prose_currency_gate.py`** *(rc455)* | Stop, SubagentStop | Stopping while a prose gate armed by *this session's* edits is red — **committed drift as well as working-tree drift**. Four gates, each armed by its own pathspec. A SKIP is reported, never counted as a pass. Override: `SRMECH_ALLOW_PROSE_LAG=1`. | **0.46–0.47 s** Windows-native / 0.30–0.33 s WSL2 when no prose surface moved; **13.8 s** with all four armed | ~13.3 s — it re-enters pytest |
@@ -341,11 +341,47 @@ session's defect was an implementation flip underneath an unchanged snippet
 snippet-hash comparison could not have caught it. The tree's own
 `run_worked_examples.py --only-stale` inherits the same blind spot and would not
 have re-run those rows either. The hook therefore asks a different, decidable
-question: *has the module that defines this op changed since the ledger's own
-commit?* — per-row scoped, so one module's edit never demands the full
-581-snippet run. C-source changes are reported as an advisory and do not block;
+question: *has the module that defines this op changed since that row was
+measured?* — per-row scoped, so one module's edit never demands the full
+651-snippet run. C-source changes are reported as an advisory and do not block;
 attributing them to individual rows is not decidable from the ledger, and
-blocking would flag all 581 rows on any C edit.
+blocking would flag all 651 rows on any C edit.
+
+**1b. That question was asked of the PUBLISHED name, and a quarter of the
+population could not answer it (rc468, `#T1188`).** The match was
+`n == m or n.startswith(m + ".")`. `srmech.cascade.compensated_sum` is DEFINED
+in `srmech.cascade.composites` and re-exported by `srmech/cascade/__init__.py`,
+so editing `composites.py` selected **zero** of its own 18 rows and the hook
+exited 0 with no output — reproduced end-to-end against the real hook before
+the fix. Measured over all 651 rows resolved through
+`srmech._resolve.resolve_dotted_callable`: **165 rows (25.3%) across 64
+defining modules** were invisible, and the blindness is all-or-nothing per
+module — those 64 select ZERO of their own rows, none is mixed — so no spot
+check on a visible module could have found it. It mattered in the rc that found
+it: `srmech/cascade/hypercomplex_dft.py`, whose twiddle carrier rc468 changed,
+selected `stale=0`.
+
+The repair records the defining module IN THE ROW (`def_module`) together with
+that file's git blob at run time (`def_blob`), so the hook stays import-free —
+resolving live costs only 0.78 s, but `_hooklib.run_hook` exits ALLOW on any
+exception, so a hook that imported `srmech` would pass silently on exactly the
+mid-edit tree a Stop hook runs in. The published-name test is KEPT and OR-ed,
+not replaced: every one of those 165 rows is claimed today by its package
+`__init__`, and only 11 rows in the whole tree are defined directly in a package
+`__init__.py`, so a replacement would take `srmech/cascade/__init__.py` from
+claiming 131 rows to claiming 0. Verified as a union — `composites.py` 0 -> 18,
+`hypercomplex_dft.py` 0 -> 12, `cascade/__init__.py` 131 -> 131,
+`math/rational.py` 29 -> 29 — strictly additive.
+
+A **blob**, not a commit sha: `run_worked_examples.py` stamps at run time, when
+HEAD is still the commit *before* the one that lands the change, so a commit
+stamp would read stale immediately after the natural
+edit -> blocked -> re-run -> commit-both loop.
+
+And the block message now prints **one command covering every stale row**. It
+used to print `--only <name>` for the first three shown, so following the
+hook's own instructions on a 55-row block re-ran three and left fifty-two — the
+hook prescribing the partial pass it exists to catch.
 
 **2. `stale_native_tripwire` uses mtime, and the tree bans mtime.** The ban in
 `regen_all.py` is correct for the case it rules on — every file in its argument

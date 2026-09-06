@@ -23,7 +23,7 @@ larger than ``ℤ[ζ_N]`` (MEASURED at ``N = 3``: ``exact_dft([1, 1j, 0])``
 returns pairs with BOTH halves non-zero). When ``4 | N`` the two coincide,
 because ``i = ζ_N^{N/4}`` is already in the ring. This is a LABELLING fact
 about the value; the carrier and every returned integer are unchanged. The
-sibling :func:`srmech.math.qalg.sin_2pi_over_n` makes exactly the same
+sibling :func:`srmech.math.qalg.cos_sin_2pi_k_over_n` makes exactly the same
 ``lcm(n, 4)`` point about its own field.
 
 For a power-of-two ``N`` the cyclotomic polynomial is ``Φ_N(x) = x^{N/2} + 1``,

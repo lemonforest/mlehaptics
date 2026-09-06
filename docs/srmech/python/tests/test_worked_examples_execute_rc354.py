@@ -290,6 +290,48 @@ def test_the_needs_subprocess_set_is_declared_not_silently_timed_out() -> None:
             assert r["status"] != "timeout", r["name"]
 
 
+# ── (F) STRICT ZERO — every row knows which module DEFINES it ─────────────
+
+def test_every_row_carries_its_defining_module_and_content_stamp() -> None:
+    """``def_module`` + ``def_blob`` on all 651 rows, and the module must be
+    the LIVE one. (rc468, `#T1188`)
+
+    The freshness hook matched a row to a changed module by its PUBLISHED
+    dotted name. ``srmech.cascade.compensated_sum`` is defined in
+    ``srmech.cascade.composites`` and re-exported by the package ``__init__``,
+    so that test could not match it: measured, **165 of 651 rows (25.3%)**
+    across 64 defining modules were invisible, all-or-nothing per module.
+    Recording the defining module IN THE ROW is what lets the hook stay
+    import-free and still see them.
+
+    ⚠️ THE FIELD ERODES IF ONLY ``collect()`` SETS IT. A record that comes back
+    from the worker is a fresh dict, so ``run()`` must stamp it too — otherwise
+    every re-run row silently loses both fields, i.e. exactly the rows a
+    by-name pass touches. This assertion is what makes that failure loud.
+    """
+    _meta, rows = _rows()
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+    import run_worked_examples as rwe
+
+    missing = sorted(r["name"] for r in rows
+                     if not r.get("def_module") or not r.get("def_blob"))
+    assert not missing, (
+        f"{len(missing)} ledger row(s) carry no defining-module stamp. "
+        "Re-run them, or `python3 tools/run_worked_examples.py --backfill` if "
+        "their defining modules have not moved since meta.verified_at:\n"
+        f"  {missing[:8]}")
+
+    live = {j["name"]: j["def_module"] for j in rwe.collect()}
+    wrong = sorted(r["name"] for r in rows
+                   if r["name"] in live and r["def_module"] != live[r["name"]])
+    assert not wrong, (
+        "a row's recorded defining module is not where the op lives now. "
+        "That is a REBIND — a package __init__ now re-exports it from a "
+        "different submodule — and the row's content stamp is watching the "
+        f"wrong file:\n  {[(n, live[n]) for n in wrong[:8]]}")
+
+
 # ── the meta-test: prove the gate can go red ──────────────────────────────
 
 _PLANTED = {

@@ -324,7 +324,7 @@ def cd_navmap_is_signed_permutation(dim: int) -> bool:
 # They compose the already-C-backed hypercomplex_couple / hamming primitives — no
 # new algebra, no new C symbol (composition_of_c, exactly like the sed_* peers).
 
-def cd_couple_working(vals: Sequence, dim: int = WORKING_BLOCK_DIM) -> "List[float] | List[Q]":
+def cd_couple_working(vals: Sequence, dim: int = WORKING_BLOCK_DIM) -> "List[float] | List[Q] | list":
     """Bind ``≤ min(dim, 8) − 1`` real streams into one reversible working word —
     the canonical Class-M **bind** on the Cayley–Dickson register (rc301, `#T938`).
 
@@ -351,15 +351,19 @@ def cd_couple_working(vals: Sequence, dim: int = WORKING_BLOCK_DIM) -> "List[flo
 
     Returns
     -------
-    list[float]
+    list[float] | list[Q] | list[Qalg]
         The coupled working word — a 4-component quaternion (≤3 streams) or
         8-component octonion (4–7 streams); ``[]`` when nothing is coupled.
-        ``list[Q]`` for exact ``vals`` (``int`` / ``Q`` leaves — the Q61 grid,
-        ``2**-61``, is the declared bound; exact at ``theta = 0.0``, which this
-        op does not use), ``list[float]`` for float ``vals`` — a pass-through
-        of :func:`hypercomplex_couple`, whose rc466 (`#T1188`) accuracy
-        statement is the contract here. The float route is **accurate to
-        round-off** at its two boundaries.
+        A pass-through of :func:`hypercomplex_couple`, so its carrier rule and
+        its accuracy statement ARE the contract here (rc466 / rc468, `#T1188`).
+        This op fixes ``axis='diagonal'`` and takes the coupler's DEFAULT phase,
+        which since rc468 is the exact rational quarter turn rather than
+        ``fl(π/2)`` — so exact ``vals`` (``int`` / ``Q`` leaves) return
+        ``list[Qalg]`` over ``ℚ(ζ₁₂)``, EXACT, with the diagonal axis's
+        ``1/√3`` carried in the field instead of rounded onto the ``2**-61``
+        grid. Float ``vals`` return ``list[float]`` on the fixed-point route,
+        **accurate to round-off** — whose phase is now exact too, leaving the
+        irrational axis as its one remaining bound.
     """
     cap = _working_cap(dim)
     if len(vals) > cap:
@@ -375,7 +379,7 @@ def cd_couple_working(vals: Sequence, dim: int = WORKING_BLOCK_DIM) -> "List[flo
     return hypercomplex_couple(list(vals), axis="diagonal")
 
 
-def cd_uncouple_working(word: Sequence) -> "List[float] | List[Q]":
+def cd_uncouple_working(word: Sequence) -> "List[float] | List[Q] | list":
     """Recover the streams bound by :func:`cd_couple_working` — the inverse
     twiddle (the Class-M **unbind**; rc301, `#T938`).
 
@@ -383,24 +387,32 @@ def cd_uncouple_working(word: Sequence) -> "List[float] | List[Q]":
     returning the carrier's imaginary components (``word[1:]``): 7 for an octonion
     word, 3 for a quaternion word. Empty in → empty out (the dim-1 boundary).
 
-    **Accuracy (rc466, `#T1188`) — two routes, stated separately.** The word's
-    own leaves pick the carrier (a pass-through of :func:`hypercomplex_couple`):
-    an exact word (``int`` / ``Q`` leaves) returns ``list[Q]`` on the Q61 grid;
-    a float word returns ``list[float]``. The round trip
-    ``uncouple(couple(v))`` recovers ``v`` BIT-EXACTLY only where the twiddle is
-    exact — ``theta = 0.0`` — and this op runs the default ``π/2`` fold on the
-    ``'diagonal'`` axis, where the recovery carries the twiddle-norm residue
-    ``‖T‖² − 1`` of the identity ``T̄·(T·q) = ‖T‖²·q`` (F437). **That residue is
-    the AXIS, not the trig** (rc466 review fix, `#T1188`): ``‖T‖² = cos² +
-    sin²·‖μ‖²``, the Q61 ``cos²+sin²`` sits within one grid unit of the unit,
-    and the equal-weight axis ``(i+j+k)/√3`` is normalised in float64 before
-    its projection to Q61 — measured ``‖μ_q61‖² − 1 = 2.7e-16 = 620`` grid
-    units, so ``uncouple(couple([2**60+1, 2, 3]))[0] − (2**60+1) = 309.8``
-    (absolute, on an operand of ``2**60+1``: 2.7e-16 relative, ``≈ 2**-53``,
-    NOT the ``2**-61`` grid the Stage-1 sentence claimed). On the exact route that residue is an exact ``Q`` you
-    can read; on the float route it is **accurate to round-off**. Through rc465
-    this docstring said "exact to float round-off"; the float half of that
-    sentence was the whole story."""
+    **Accuracy (rc466 / rc468, `#T1188`) — two routes, stated separately.** The
+    word's own leaves pick the carrier (a pass-through of
+    :func:`hypercomplex_couple`): an EXACT word (``int`` / ``Q`` / ``Qalg``
+    leaves) returns ``list[Qalg]`` over ``ℚ(ζ₁₂)``; a float word returns
+    ``list[float]``.
+
+    ✅ **The exact round trip is now BIT-EXACT at the DEFAULT phase** (rc468).
+    Through rc467 it was exact only at ``theta = 0.0``, because the op ran the
+    default ``fl(π/2)`` fold on the ``'diagonal'`` axis and the recovery carried
+    the twiddle-norm residue ``‖T‖² − 1`` of the identity ``T̄·(T·q) = ‖T‖²·q``
+    (F437). **That residue was the AXIS, not the trig** (rc466 review fix):
+    ``‖T‖² = cos² + sin²·‖μ‖²``, the Q61 ``cos²+sin²`` sat within one grid
+    unit of the unit, and the equal-weight axis ``(i+j+k)/√3`` was normalised
+    in float64 before its projection to Q61 — measured ``‖μ_q61‖² − 1 =
+    2.7e-16 = 620`` grid units, so ``uncouple(couple([2**60+1, 2, 3]))[0] −
+    (2**60+1)`` was ``309.8``. On the exact carrier the axis is no longer
+    normalised in float at all — ``1/√3`` is carried in the field — so
+    ``‖T‖² == 1`` exactly and that same expression is now exactly ``0``.
+
+    On the FLOAT carrier both statements above still hold as written: the axis
+    is still float-normalised onto the ``2**-61`` grid and the recovery is
+    **accurate to round-off**. What changed there is the PHASE, which is now the
+    exact quarter turn in both projections (``srmech_hypercomplex_couple_turn_q61``)
+    rather than ``cos``/``sin`` of ``fl(π/2)``. Through rc465 this docstring said
+    "exact to float round-off"; the float half of that sentence was the whole
+    story."""
     if not word:                    # the dim-1 empty-coupling boundary
         return []
     from . import hypercomplex_couple
@@ -1005,7 +1017,8 @@ def cdr_couple_working(vals, dim, coupling):
     values into one reversible working word — the canonical Class-M bind. Raises
     the register's own ``ValueError`` when the class was constructed for pure
     addressing (``coupling`` false / absent). The carrier is the operand's
-    (rc466, `#T1188`): exact ``vals`` return ``list[Q]`` on the Q61 grid,
+    (rc466 / rc468, `#T1188`): exact ``vals`` return ``list[Qalg]`` — EXACT
+    over ``ℚ(ζ₁₂)`` at the default quarter turn on the diagonal axis — and
     float ``vals`` return ``list[float]`` **accurate to round-off** — see
     :func:`cd_couple_working`."""
     return _cdr_rehydrate(dim, coupling=coupling).couple_working(vals)
@@ -1014,12 +1027,15 @@ def cdr_couple_working(vals, dim, coupling):
 def cdr_uncouple_working(word, dim, coupling):
     """``uncouple_working`` (GATED on ``coupling``): the inverse twiddle of
     :func:`cdr_couple_working` — recover the streams (Class-M unbind). The
-    carrier is the operand's (rc466, `#T1188`); the recovery is bit-exact only
-    at ``theta = 0.0`` and carries the ``'diagonal'`` axis's float-normalisation
-    residue at the default fold (``‖μ_q61‖² − 1 ≈ 2**-53``-relative, ~620 grid
-    units; measured 309.8 absolute on ``[2**60+1, 2, 3]`` at dim 8, 2.7e-16 relative) — an
-    exact ``Q`` on the exact route, **accurate to round-off** on the float one.
-    See :func:`cd_uncouple_working`."""
+    carrier is the operand's (rc466 / rc468, `#T1188`). On the EXACT carrier the
+    round trip is now bit-exact at the DEFAULT phase, not only at
+    ``theta = 0.0``: the quarter turn and the diagonal axis's ``1/√3`` are both
+    carried in ``ℚ(ζ₁₂)``, so ``uncouple(couple([2**60+1, 2, 3]))`` returns the
+    operand with residue exactly ``0`` where the pre-rc468 default missed it by
+    ``309.8``. On the FLOAT carrier the ``'diagonal'`` axis is still normalised
+    in float64 before its Q61 projection (``‖μ_q61‖² − 1 = 2.7e-16``, ~620 grid
+    units) and the recovery is **accurate to round-off**. See
+    :func:`cd_uncouple_working`."""
     return _cdr_rehydrate(dim, coupling=coupling).uncouple_working(word)
 
 

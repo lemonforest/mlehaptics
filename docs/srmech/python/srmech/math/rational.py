@@ -2485,9 +2485,9 @@ def sqrt(x, *, precision: int = None) -> "Q":
     :class:`srmech.math.qalg.Qalg` carries it exactly as ``Qalg`` over
     ``t² − r`` (the carrier ``music.stiff_string_partials`` already uses). For
     ``√2`` specifically the exact value is
-    ``2·srmech.math.qalg.cos_2pi_over_n(8)`` (MEASURED:
-    ``(2·cos_2pi_over_n(8))² == 2`` exactly). Reach for those when the value
-    must SATISFY its defining equation; reach for this op when a rational of
+    ``2·srmech.math.qalg.cos_sin_2pi_k_over_n(8)[0]`` (MEASURED:
+    ``(2·cos_sin_2pi_k_over_n(8)[0])² == 2`` exactly). Reach for those when
+    the value must SATISFY its defining equation; reach for this op when a rational of
     declared precision is what is wanted. This op is deliberately the
     approximating Class-N path and is not being re-routed.
     """

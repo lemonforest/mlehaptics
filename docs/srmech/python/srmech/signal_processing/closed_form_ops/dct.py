@@ -21,8 +21,8 @@ real part of ``ζ_{4N}^{(2n+1)k}`` — an algebraic number in the cyclotomic fie
 ``ℚ(ζ_{4N})``, and an integer signal's DCT coefficient is an exact element of
 ``ℤ[ζ_{4N}]``, exactly as an integer signal's DFT coefficient is of ``ℤ[ζ_N]``.
 That object is representable TODAY in a shipped carrier
-(:func:`srmech.math.qalg.cos_2pi_over_n` returns ``cos(2π/n)`` exactly as a
-``Qalg``), and this module does NOT route to it: the basis here is built
+(:func:`srmech.math.qalg.cos_sin_2pi_k_over_n` returns ``cos(2πk/n)`` exactly
+as a ``Qalg``), and this module does NOT route to it: the basis here is built
 through the Class-N ``rational.cos`` APPROXIMATION over ``_PI`` and lands in
 float. So the honest label is **exact object exists, exact route not
 implemented** — an inconsistency with the DFT (which got an exact engine in

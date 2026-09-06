@@ -299,7 +299,7 @@ def test_lossy_projection_record_validates():
 # ─────────────────────────────────────────────────────────────────────
 def test_tools_total_matches_live():
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 733
+    assert introspect.describe()["tools"]["total"] == 732
 
 
 def test_all_three_ops_are_registered_including_fold_identity():

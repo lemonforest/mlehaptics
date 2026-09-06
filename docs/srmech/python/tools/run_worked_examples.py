@@ -4,8 +4,60 @@ registry and write the ledger the rc354 gate reads (gh #1530 §K).
 
     python3 tools/run_worked_examples.py                  # run all, write ledger
     python3 tools/run_worked_examples.py --only-stale     # re-run what changed
-    python3 tools/run_worked_examples.py --only <name>    # one snippet
+    python3 tools/run_worked_examples.py --only A B C     # N snippets, by name
+    python3 tools/run_worked_examples.py --names-file -   # N names on stdin
+    python3 tools/run_worked_examples.py --backfill       # stamp only, no run
     python3 tools/run_worked_examples.py --print          # human table, no write
+
+THE SILENT PARTIAL PASS, AND WHY ``--only`` NOW TAKES N NAMES (rc468, `#T1188`)
+===============================================================================
+``--only`` accepted exactly ONE name for its whole life, so every by-name
+re-run this arc has done -- rc465 (71 rows), rc466 (475, then 3, then 71),
+rc467 (9, then 55) -- was necessarily driven by a CALLER-WRITTEN LOOP that this
+tool never checked. Twice in rc467 that loop was the shell idiom
+``while read -r n; do ...; done < names.txt``, which DROPS THE FINAL LINE when
+the file has no trailing newline: one pass silently covered 70 of 71, another
+54 of 55, and the row the second one missed was ``quaternion_twiddle`` -- one of
+the very ops that rc's change was about. Both were caught only by diffing
+ran-against-wanted afterwards.
+
+Note what a count assertion built on ``wc -l`` would have done. MEASURED on a
+3-line file with no trailing newline (WSL2, bash 5.1.16): ``while read`` yields
+2 and ``wc -l`` also yields 2. The broken loop and the naive check AGREE, so
+the check cannot fail. (``grep -c .`` yields 3, which is why the rc467 catch
+worked -- it compared against a newline-independent count.)
+
+Three things changed here, and only the third is a class guard:
+
+  1. ``--only`` takes N names and ``--names-file PATH|-`` reads a list --
+     through Python line iteration, which never drops an unterminated final
+     line -- so there is no longer a REASON to write the loop.
+  2. A requested name absent from the live registry is a HARD FAIL (exit 2,
+     names listed), never a silent empty pass; and after the run the tool
+     asserts ``{recorded names} == {requested names}`` before it writes.
+     It prints ``requested=N ran=N merged=M`` -- three numbers, because the
+     summary line below reports the MERGED ledger size and a reader watching
+     only that could not tell 55 rows from 3.
+  3. THE CLASS GUARD is the per-row stamp: every record carries ``def_module``
+     (the module that DEFINES the op, not the one it is published under) and
+     ``def_blob`` (that file's git blob at run time). A row a driver dropped
+     keeps its OLD blob, so ``tools/hooks/derived_ledger_freshness.py`` names
+     it at the next Stop -- whatever drove the partial pass, and even if the
+     drop happened outside this process entirely.
+
+(1) and (2) cannot see a name a caller's loop never sent. (3) can, because it
+is a property of the LEDGER rather than of the run.
+
+WHY ``def_module`` AND NOT THE PUBLISHED NAME
+=============================================
+``srmech.cascade.compensated_sum`` is DEFINED in ``srmech.cascade.composites``
+and re-exported by ``srmech/cascade/__init__.py``. Matching a row to a changed
+module by its published name -- ``n == m or n.startswith(m + ".")`` -- therefore
+misses it entirely. MEASURED on this tree at rc468: **165 of 651 rows (25.3%)**
+are invisible to that test, across **64 defining modules**, and the blindness is
+all-or-nothing per module (those 64 select ZERO of their own rows; not one
+module is mixed). Recording the defining module IN THE ROW keeps the hook
+import-free and lets it match on the relation that actually holds.
 
 WHY THIS EXISTS
 ===============
@@ -102,6 +154,14 @@ from typing import Any, Dict, List, Optional, Tuple
 HERE = Path(__file__).resolve().parent
 PY_ROOT = HERE.parent
 LEDGER = PY_ROOT / "tests" / "worked_examples_result.ndjson"
+
+#: repo root, and the two path constants the freshness hook uses verbatim.
+#: They are spelled the same in both files on purpose: the hook resolves a
+#: row's ``def_module`` back to a path with exactly this rule, so a divergence
+#: would make the stamp unreadable rather than wrong-and-loud.
+REPO_ROOT = PY_ROOT.parents[2]
+PY_PREFIX = "docs/srmech/python/"
+WATCHED = "docs/srmech/python/srmech"
 
 #: default per-snippet wall budget, seconds.
 DEFAULT_BUDGET = 15.0
@@ -258,6 +318,61 @@ def bind_markers(src: str) -> Dict[int, str]:
     return bound
 
 
+def _git(args: List[str]) -> Tuple[int, str]:
+    """``git`` in the repo root. Returns ``(code, stdout)``; never raises."""
+    try:
+        p = subprocess.run(["git", *args], cwd=str(REPO_ROOT),
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                           check=False)
+    except (OSError, ValueError):
+        return 1, ""
+    return p.returncode, p.stdout.decode("utf-8", "replace")
+
+
+def module_of(repo_rel_path: str) -> str:
+    """``docs/srmech/python/srmech/math/rational.py`` -> ``srmech.math.rational``.
+
+    Byte-identical to ``tools/hooks/derived_ledger_freshness.py::_module_of``.
+    ``.py`` only: a module whose behaviour partly lives in a sibling ``.toml``
+    (18 ledger rows have one) is stamped by its ``.py`` blob and nothing else.
+    """
+    if not repo_rel_path.startswith(PY_PREFIX) or not repo_rel_path.endswith(".py"):
+        return ""
+    rel = repo_rel_path[len(PY_PREFIX):][:-3]
+    parts = [x for x in rel.split("/") if x]
+    if parts and parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(parts)
+
+
+def head_blob_map() -> Dict[str, str]:
+    """``module -> blob sha at HEAD`` for every tracked ``.py`` under srmech/.
+
+    ONE ``git ls-tree`` for the whole subtree rather than one ``rev-parse`` per
+    row. Content-derived, so it survives clone, rebase and ``git checkout`` --
+    the same reason ``regen_all`` rules mtime out for tracked files, and the
+    reason this is a BLOB and not the commit sha: a commit stamp minted at run
+    time predates the commit that lands the change, so the natural
+    edit-block-rerun-commit loop would leave every row it just verified
+    "stale" and need a second no-op re-run to clear.
+    """
+    code, out = _git(["ls-tree", "-r", "HEAD", "--", WATCHED])
+    if code != 0:
+        return {}
+    blobs: Dict[str, str] = {}
+    for line in out.splitlines():
+        if "\t" not in line:
+            continue
+        meta, path = line.split("\t", 1)
+        parts = meta.split()
+        if len(parts) < 3 or parts[1] != "blob":
+            continue
+        m = module_of(path.strip().strip('"'))
+        if m:
+            blobs[m] = parts[2]
+    return blobs
+
+
 def snippet_source(example: Dict[str, Any]) -> str:
     """``setup`` (shared preamble, if any) concatenated with ``worked``."""
     setup = example.get("setup") or ""
@@ -272,18 +387,34 @@ def src_sha256(example: Dict[str, Any]) -> str:
 
 
 def collect() -> List[Dict[str, Any]]:
-    """Every srmech tool carrying a ``worked`` snippet, from the LIVE schema."""
+    """Every srmech tool carrying a ``worked`` snippet, from the LIVE schema.
+
+    Each job also carries ``def_module`` -- the ``__module__`` of the live
+    callable, i.e. where the op is DEFINED rather than where it is published --
+    and ``def_blob``, that module file's git blob at HEAD. Measured cost of the
+    resolution pass: ~0.33 s over 651 names, inside a call that already imports
+    srmech and warms the whole schema.
+    """
     sys.path.insert(0, str(PY_ROOT))
     from srmech.introspect.tool_schema import get_tool_schema, warmup_all
+    from srmech._resolve import resolve_dotted_callable
     warmup_all()
+    blobs = head_blob_map()
     out = []
     for t in get_tool_schema().tools:
         ex = t.example
         if t.owner != "srmech" or not isinstance(ex, dict) or not ex.get("worked"):
             continue
+        try:
+            dm = getattr(resolve_dotted_callable(t.name), "__module__", "") or ""
+        except Exception:
+            # unresolvable: the row carries no stamp and the hook falls back to
+            # its published-name rule for it. MEASURED at rc468: 0 of 651.
+            dm = ""
         out.append({"name": t.name, "src": snippet_source(ex),
                     "src_sha256": src_sha256(ex),
-                    "markers": bind_markers(snippet_source(ex))})
+                    "markers": bind_markers(snippet_source(ex)),
+                    "def_module": dm, "def_blob": blobs.get(dm, "")})
     out.sort(key=lambda r: r["name"])
     return out
 
@@ -428,6 +559,8 @@ def run(jobs: List[Dict[str, Any]], budget: float) -> Tuple[List[Dict], bool]:
         name = job["name"]
         if name in NEEDS_SUBPROCESS:
             records.append({"name": name, "src_sha256": job["src_sha256"],
+                            "def_module": job.get("def_module", ""),
+                            "def_blob": job.get("def_blob", ""),
                             "status": "needs_subprocess", "statements": 0,
                             "markers_fired": [], "problems": []})
             continue
@@ -449,6 +582,12 @@ def run(jobs: List[Dict[str, Any]], budget: float) -> Tuple[List[Dict], bool]:
                 since_recycle = 0
         rec["src_sha256"] = job["src_sha256"]
         rec["n_markers"] = len(job["markers"])
+        # ⚠️ SET HERE AND NOT ONLY IN collect(). A record that comes back from
+        # the worker is a fresh dict, so stamping only at collection time would
+        # DROP both fields on every re-run row -- i.e. exactly the rows a
+        # by-name pass touches, eroding the guard on its first real use.
+        rec["def_module"] = job.get("def_module", "")
+        rec["def_blob"] = job.get("def_blob", "")
         records.append(rec)
         print("[%3d/%3d] %-14s %s" % (i, len(jobs), rec["status"], name),
               file=sys.stderr)
@@ -468,6 +607,18 @@ def load_ledger() -> Dict[str, Dict[str, Any]]:
     return out
 
 
+def load_meta() -> Dict[str, Any]:
+    """The ledger's ``record: "meta"`` row, or ``{}``."""
+    if not LEDGER.exists():
+        return {}
+    for line in LEDGER.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            r = json.loads(line)
+            if r.get("record") == "meta":
+                return r
+    return {}
+
+
 def _head_commit() -> str:
     """HEAD's sha at run time, or "" outside a git checkout."""
     try:
@@ -481,7 +632,8 @@ def _head_commit() -> str:
         return ""
 
 
-def write_ledger(records: List[Dict[str, Any]], native: bool) -> None:
+def write_ledger(records: List[Dict[str, Any]], native: bool,
+                 meta_row: Optional[Dict[str, Any]] = None) -> None:
     # ⚠️ `verified_at` EXISTS SO THAT A CONFIRMING RE-RUN IS RECORDABLE (rc452,
     # `#T1166`). tools/hooks/derived_ledger_freshness.py takes the ledger's own
     # LAST COMMIT as its baseline and flags every row whose module changed
@@ -494,46 +646,231 @@ def write_ledger(records: List[Dict[str, Any]], native: bool) -> None:
     # and the hook could not be cleared by doing the very thing it asked for.
     # Stamping HEAD makes "I re-ran and it did not move" a committable fact
     # rather than an unrepresentable one.
-    lines = [json.dumps({"record": "meta", "native": native,
-                         "python": "%d.%d" % sys.version_info[:2],
-                         "verified_at": _head_commit(),
-                         "n": len(records)}, sort_keys=True)]
+    #
+    # ``meta_row`` is the --backfill path and it PRESERVES the prior meta row
+    # byte for byte. A backfill executes no snippet, so re-stamping
+    # ``verified_at`` there would assert a verification that did not happen --
+    # the same class of false claim this whole file exists to prevent.
+    if meta_row is not None:
+        meta = dict(meta_row)
+        assert meta.get("n") == len(records), (meta.get("n"), len(records))
+    else:
+        meta = {"record": "meta", "native": native,
+                "python": "%d.%d" % sys.version_info[:2],
+                "verified_at": _head_commit(),
+                "n": len(records)}
+    lines = [json.dumps(meta, sort_keys=True)]
     for r in sorted(records, key=lambda r: r["name"]):
         lines.append(json.dumps(r, sort_keys=True))
     LEDGER.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
 
+def read_names(text: str) -> List[str]:
+    """One name per line, ``#`` comments and blanks dropped.
+
+    ``str.splitlines()`` is the point of this function: it returns the final
+    line whether or not the text ends in a newline. The shell idiom
+    ``while read -r n`` does not, and that is the rc467 defect (70 of 71, then
+    54 of 55) this reader exists to make unnecessary.
+    """
+    out: List[str] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            out.append(line)
+    return out
+
+
+def backfill(all_jobs: List[Dict[str, Any]], prior: Dict[str, Dict[str, Any]],
+             meta: Dict[str, Any], show: bool = False) -> int:
+    """Stamp ``def_module`` / ``def_blob`` onto existing rows WITHOUT running.
+
+    THE HONESTY PRECONDITION, AND IT IS MACHINE-CHECKED
+    ===================================================
+    A stamp says "this row was measured against THIS content". A backfill
+    measures nothing, so it may only stamp a row whose defining module has not
+    moved between the commit the row WAS measured at (``meta.verified_at``) and
+    HEAD -- and is clean in the working tree. Any row failing that is NAMED and
+    the whole backfill REFUSES with exit 2; the fix is to re-run those rows,
+    which is what produces an honest stamp for them.
+
+    This exists because the alternative is a full re-run, and a full re-run is
+    host-coupled: ``tests/test_worked_examples_execute_rc354.py`` pins the pure
+    cell at ``{unexpected_raise: 96, timeout: 1}`` and records that a
+    native-Windows re-run measures **97**, because one snippet hardcodes a
+    ``/mnt/d/...`` path. Regenerating merely to acquire a field would trip a
+    down-only ceiling for reasons that have nothing to do with the field.
+    """
+    ref = (meta or {}).get("verified_at") or ""
+    if not ref:
+        print("REFUSING to backfill: the ledger's meta row carries no "
+              "verified_at, so there is no commit its rows were measured at "
+              "and no honest content to stamp them with.", file=sys.stderr)
+        return 2
+    if _git(["cat-file", "-e", ref + "^{commit}"])[0] != 0:
+        print("REFUSING to backfill: meta.verified_at %s does not resolve in "
+              "this checkout." % ref[:12], file=sys.stderr)
+        return 2
+
+    moved = set()
+    code, out = _git(["diff", "--name-only", ref + "..HEAD", "--", WATCHED])
+    if code == 0:
+        moved |= {module_of(l.strip().strip('"')) for l in out.splitlines()
+                  if l.strip()}
+    code, out = _git(["diff", "HEAD", "--numstat", "--ignore-cr-at-eol", "--",
+                      WATCHED])
+    if code == 0:
+        for line in out.splitlines():
+            parts = line.rstrip().split("\t")
+            if len(parts) >= 3 and not (parts[0] == "0" and parts[1] == "0"):
+                moved.add(module_of(parts[-1].strip().strip('"')))
+    code, out = _git(["ls-files", "--others", "--exclude-standard", "--",
+                      WATCHED])
+    if code == 0:
+        moved |= {module_of(l.strip()) for l in out.splitlines() if l.strip()}
+    moved.discard("")
+
+    jobs = {j["name"]: j for j in all_jobs}
+    absent = sorted(set(jobs) - set(prior))
+    if absent:
+        print("REFUSING to backfill: %d snippet(s) have no ledger row. A "
+              "backfill must not invent a result it never ran:" % len(absent),
+              file=sys.stderr)
+        for n in absent[:16]:
+            print("    " + n, file=sys.stderr)
+        return 2
+
+    refuse = sorted(n for n in prior
+                    if n in jobs and jobs[n]["def_module"] in moved)
+    if refuse:
+        print("REFUSING to backfill %d row(s): their defining module changed "
+              "between meta.verified_at (%s) and HEAD, so the HEAD blob is NOT "
+              "the content they were measured against." % (len(refuse), ref[:12]),
+              file=sys.stderr)
+        for n in refuse:
+            print("    %-58s %s" % (n, jobs[n]["def_module"]), file=sys.stderr)
+        print("\nRe-run exactly those rows first -- that is what mints an "
+              "honest stamp for them:", file=sys.stderr)
+        # Same rule as the freshness hook's remedy: ONE command covering
+        # EVERY named row, and above 24 names the heredoc form, because
+        # Windows `cmd` truncates an argv past 8191 characters and a
+        # truncated remedy is a partial pass wearing a complete one's
+        # clothes.
+        if len(refuse) <= 24:
+            print("    python3 tools/run_worked_examples.py --only "
+                  + " ".join(refuse), file=sys.stderr)
+        else:
+            print("    python3 tools/run_worked_examples.py --names-file "
+                  "- <<'EOF'", file=sys.stderr)
+            for n in refuse:
+                print(n, file=sys.stderr)
+            print("EOF", file=sys.stderr)
+        return 2
+
+    records, stamped = [], 0
+    for name, row in prior.items():
+        j = jobs.get(name)
+        if j is None:
+            print("REFUSING to backfill: ledger row %r is not in the live "
+                  "schema. Re-run rather than stamp." % name, file=sys.stderr)
+            return 2
+        new = dict(row)
+        if (new.get("def_module"), new.get("def_blob")) != \
+                (j["def_module"], j["def_blob"]):
+            stamped += 1
+        new["def_module"] = j["def_module"]
+        new["def_blob"] = j["def_blob"]
+        records.append(new)
+
+    print("backfilled=%d rows=%d (meta row preserved: verified_at=%s)"
+          % (stamped, len(records), ref[:12]), file=sys.stderr)
+    if show:
+        return 0                       # --print never writes, here as elsewhere
+    write_ledger(records, bool(meta.get("native")), meta_row=meta)
+    print("wrote %s" % LEDGER, file=sys.stderr)
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--only-stale", action="store_true")
-    ap.add_argument("--only", default=None)
+    ap.add_argument("--only", nargs="+", default=None, metavar="NAME")
+    ap.add_argument("--names-file", default=None, metavar="PATH",
+                    help="file of names, one per line; '-' reads stdin")
+    ap.add_argument("--backfill", action="store_true",
+                    help="stamp def_module/def_blob on existing rows; runs nothing")
     ap.add_argument("--print", dest="show", action="store_true")
     ap.add_argument("--budget", type=float, default=DEFAULT_BUDGET)
     args = ap.parse_args()
 
-    jobs = collect()
+    all_jobs = collect()
     prior = load_ledger()
+    live = {j["name"] for j in all_jobs}
+
+    if args.backfill:
+        if args.only or args.names_file or args.only_stale:
+            print("REFUSING: --backfill runs nothing, so it cannot be "
+                  "combined with a selector.", file=sys.stderr)
+            return 2
+        return backfill(all_jobs, prior, load_meta(), show=args.show)
+
+    requested: Optional[set] = None
     if args.only:
-        jobs = [j for j in jobs if j["name"] == args.only]
+        requested = set(args.only)
+    if args.names_file:
+        text = sys.stdin.read() if args.names_file == "-" \
+            else Path(args.names_file).read_text(encoding="utf-8")
+        requested = (requested or set()) | set(read_names(text))
+
+    jobs = all_jobs
+    if requested is not None:
+        unknown = sorted(requested - live)
+        if unknown:
+            print("REFUSING: %d requested name(s) are not in the live "
+                  "registry:" % len(unknown), file=sys.stderr)
+            for n in unknown:
+                print("    " + n, file=sys.stderr)
+            print("An unknown --only name used to be a SILENT EMPTY PASS that "
+                  "still rewrote the ledger and re-stamped verified_at.",
+                  file=sys.stderr)
+            return 2
+        jobs = [j for j in all_jobs if j["name"] in requested]
     elif args.only_stale:
-        jobs = [j for j in jobs
+        jobs = [j for j in all_jobs
                 if prior.get(j["name"], {}).get("src_sha256") != j["src_sha256"]]
+        requested = {j["name"] for j in jobs}
         print("stale: %d snippet(s)" % len(jobs), file=sys.stderr)
 
     t0 = time.time()
     records, native = run(jobs, args.budget)
     elapsed = time.time() - t0
 
-    if args.only or args.only_stale:
+    n_ran = len(records)
+    if requested is not None:
+        ran = {r["name"] for r in records}
+        if ran != requested:
+            missing = sorted(requested - ran)
+            extra = sorted(ran - requested)
+            print("REFUSING to write: the run did not cover what was "
+                  "requested. missing(%d)=%s extra(%d)=%s"
+                  % (len(missing), missing[:8], len(extra), extra[:8]),
+                  file=sys.stderr)
+            return 2
         merged = dict(prior)
         for r in records:
             merged[r["name"]] = r
         # drop rows for snippets that no longer exist
-        live = {j["name"] for j in collect()}
         records = [v for k, v in merged.items() if k in live]
 
     from collections import Counter
     tally = Counter(r["status"] for r in records)
+    if requested is not None:
+        # THREE numbers, deliberately. The line below reports the MERGED
+        # ledger size, and a reader watching only that could not tell a 55-row
+        # pass from a 3-row one -- which is how two silent partial passes got
+        # through rc467.
+        print("requested=%d ran=%d merged=%d"
+              % (len(requested), n_ran, len(records)), file=sys.stderr)
     print("\n%d snippets in %.1f s: %s" % (len(records), elapsed, dict(tally)),
           file=sys.stderr)
     if args.show:

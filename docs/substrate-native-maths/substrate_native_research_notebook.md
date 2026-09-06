@@ -306,6 +306,16 @@ The cascade-helpers catalog (per `[[project_srmech_foundational_cascade_operatio
 
   ⚠️ **Name correction (2026-07-29, `#T1031`).** This bullet previously read
   `srmech.cosmos.cascade` + `cos_2pi_over_n` / `log_class_n`. **None of those three names exists.**
+
+  ⚠️ **Amendment (2026-09-06, `#T1188`) — one third of that sentence went stale and came back.**
+  `srmech.math.qalg.cos_2pi_over_n` **did** exist from v0.9.0rc463 to v0.9.0rc468: rc463 shipped it
+  (with `sin_2pi_over_n`) as an exact cyclotomic-trig constructor, so for five releases this note
+  named a real op while asserting it did not exist. rc468 removed BOTH as duplicates of
+  `srmech.math.qalg.cos_sin_2pi_k_over_n`, which returns the pair over one field — so the sentence
+  is true again, for a different reason than it was written for. `srmech.cosmos` and `log_class_n`
+  never existed and still do not. **Reach for `cos_sin_2pi_k_over_n(n, k)`.** Recorded rather than
+  silently repaired because the interval matters: an "X does not exist" claim is only as current as
+  its last re-measurement, and this one was not re-measured for five releases.
   `import srmech.cosmos` raises `ModuleNotFoundError: No module named 'srmech.cosmos'` — there is no
   `srmech/cosmos/` package and there never was (the `feat/srmech-cosmos-catalog` *branch* name is the
   likely origin of the mistake; `docs/srmech/python/CHANGELOG.md:8494` recorded the same correction

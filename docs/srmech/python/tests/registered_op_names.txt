@@ -492,8 +492,7 @@ srmech.math.primes.cyclic_period
 srmech.math.primes.factor
 srmech.math.primes.is_prime
 srmech.math.primes.next_prime
-srmech.math.qalg.cos_2pi_over_n
-srmech.math.qalg.sin_2pi_over_n
+srmech.math.qalg.cos_sin_2pi_k_over_n
 srmech.math.qbipoly.qbipoly_from_coeffs
 srmech.math.qmat.qmat_det
 srmech.math.qmat.qmat_inverse

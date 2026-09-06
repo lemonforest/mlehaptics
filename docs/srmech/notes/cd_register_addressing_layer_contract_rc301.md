@@ -236,8 +236,13 @@ The ONLY difference from `SedenionRegister` is that the coupling cap is read fro
 `len(working_block()) − 1` (dim-scaled) instead of the constant `WORKING_WORD_CAP =
 7`. At dim 16 the two coincide, which is why oracle parity is bit-exact.
 
-The underlying coupling math is already C-backed
-(`srmech_hypercomplex_couple_q61`), and the EC math is already C-backed
+The underlying coupling math is already C-backed — `srmech_hypercomplex_couple_q61`
+for the float64-ANGLE route, and since rc468 (`#T1188`)
+`srmech_hypercomplex_couple_turn_q61` for the DEFAULT phase, which is now the exact
+rational quarter turn rather than `fl(π/2)`. (The coupler's other rc468 route, the
+exact `ℚ(ζ_M)` one an exact operand elects, has no C peer and cannot: C has no
+bignum ℚ, let alone a cyclotomic field. That is a CARRIER boundary, not a deferred
+symbol.) The EC math is already C-backed
 (`srmech_hamming_encode` / `srmech_hamming_syndrome` / the composed decode). So
 each of the four ops **exists fully in C** as a composition of reachable header
 symbols — the C peer for the reversible working word and for the EC block is the

@@ -117,7 +117,8 @@ def op(
     lift and is not exact: ``op([2**53+1, 0, 0], [1, 0, 0], frame_size=4)``
     and the same call at ``2**53`` return the same CSD. The windowed path has
     no exact carrier at any shipped surface — ``cos(2πn/(N−1))`` is
-    cyclotomic (``Qalg.cos_2pi_over_n`` holds it) but no shipped DFT admits a
+    cyclotomic (``qalg.cos_sin_2pi_k_over_n`` holds it) but no shipped DFT
+    admits a
     ``Qalg``-valued frame.
     """
     xs = list(x)                            # rc466: as given — the carrier is the operand's

@@ -781,6 +781,58 @@ _FIXED_IN_RC467 = frozenset({
     "srmech.cascade.compensated_sum",
 })
 
+#: rc468 (`#T1188`): the ops rc468 drained by FIXING the twiddle CARRIER, kept
+#: alongside the two sets above on the same terms and never merged into them.
+#:
+#: ⚠️ **The finding this set exists to record is about THIS INSTRUMENT, not
+#: about the ops.** ``hypercomplex_couple`` sat in ``_FIXED_IN_RC466`` and read
+#: ``native: EXACT | pure: EXACT`` in the committed census while it ROUNDED at
+#: its own DEFAULT ``theta`` — measured at rc467: ``hypercomplex_couple([2**60
+#: + 1, 0, 0, 0], axis='i')`` returned ``70.5`` in the real slot, where a
+#: quarter turn gives exactly ``0``, because ``cos(fl(pi/2))·2**61 = 141`` grid
+#: units. A census row reading EXACT on an op that rounds is the finding, and
+#: the reason is structural rather than accidental: this probe substitutes its
+#: P/F/G witness at a numeric leaf of a SEQUENCE-shaped parameter, so the
+#: ANGLE — a float64 scalar with a default — is not a coordinate it varies.
+#: Same shape one op over: ``qdft_summand`` / ``odft_summand`` read EXACT at the
+#: residue where their twiddle demonstrably rounded, because the witness rides
+#: ``xs`` and the rounding rides ``n``.
+#:
+#: And the two DFT twiddles have **ZERO rows in this census in either cell** —
+#: measured, not inferred: they take ``int`` scalars plus a ``str`` axis, so no
+#: sequence-shaped parameter exists for the probe to enter by. A green carrier
+#: gate said nothing whatever about the defect rc468 fixed. That is still true
+#: of ``quaternion_twiddle`` / ``octonion_twiddle``, and it is the whole reason
+#: their ``exact=`` keyword cannot be the evidence for anything: the probe
+#: treats a parameter merely NAMED ``exact`` as an R3 declaration, so a keyword
+#: CAN drain a row — and here there is no row to drain. See
+#: ``test_the_exact_keyword_drains_NOTHING_and_execution_is_the_evidence``.
+#:
+#: ⚠️ **`hypercomplex_exp` LEFT that blind spot in the same rc, and the gate
+#: below is what caught it.** The stage-4 consolidation folded
+#: ``hypercomplex_turn``'s exact route into it as a ``turn=(k, n)`` operand —
+#: and a ``tuple[int, int]`` IS sequence-shaped, so the probe can now enter an
+#: op it could not reach for its whole shipped life. What it measures there is
+#: ``EXACT`` in BOTH cells (``srmech.cascade.hypercomplex_exp::turn``,
+#: ``type: tuple[int, int]``): handed an exact operand, the op does not round
+#: it. That is a coverage GAIN produced as a side effect of removing a
+#: duplicate op, and it is the first carrier-census evidence this family has
+#: ever had. The gate's own failure text says "this is good news, not a failure
+#: of the fix", and it was right; the row is recorded here rather than pinned
+#: around.
+#:
+#: So the strict-zero witness for the TWIDDLES is still not here. It is
+#: ``tests/test_exact_twiddle_rc468.py``, which asserts ``W**N ==`` the exact
+#: identity and ``|W|**2 == 1`` with ``==``, and asserts the float route's
+#: INEQUALITY beside them so the file cannot go vacuous by the two routes
+#: converging. This set is the roster half: having been fixed, these ops can
+#: never re-enter the undeclared roster.
+_FIXED_IN_RC468 = frozenset({
+    "srmech.cascade.qdft_summand",
+    "srmech.cascade.odft_summand",
+    "srmech.cascade.hypercomplex_couple",
+})
+
 #: The rc463 hand-written six, kept as the probe's POSITIVE CONTROL rather than
 #: as the population. If the instrument cannot re-find the rows a human found by
 #: reading code, it is not measuring — the ``test_layer0`` question asked of the
@@ -1052,6 +1104,84 @@ def test_layer3_the_rc466_fixed_family_is_strict_zero(op) -> None:
         f"{op} is demoting again with no accuracy declaration: {bad}. rc466 "
         f"gave it an exact carrier; see tests/test_exact_carrier_drain_rc466.py")
 
+
+@pytest.mark.parametrize("op", sorted(_FIXED_IN_RC468))
+def test_layer3_the_rc468_fixed_family_is_strict_zero(op) -> None:
+    """The three ops rc468 drained by fixing the twiddle CARRIER can never
+    re-enter the roster.
+
+    Read the ``_FIXED_IN_RC468`` note first: two of these three were reading
+    EXACT in this very census while rounding, so their passing here is NOT the
+    evidence that the fix landed. The evidence is
+    ``tests/test_exact_twiddle_rc468.py``. What this test adds is the one thing
+    a roster CAN say: whatever the probe does reach on these ops must not start
+    demoting without a declaration.
+    """
+    _meta, rows = _manifest()
+    bad = sorted(f"{c}:{_dp.key(r)}" for c in _cells()
+                 for r in _dp.undeclared(rows, c) if r["op"] == op)
+    assert not bad, (
+        f"{op} is demoting again with no accuracy declaration: {bad}. rc468 "
+        f"gave its twiddle an exact cyclotomic carrier; see "
+        f"tests/test_exact_twiddle_rc468.py")
+
+
+def test_the_twiddle_family_has_NO_census_row_and_that_is_MEASURED() -> None:
+    """The vacuity check for the note above. STRICT ZERO in the other
+    direction: if a future rc gives these ops a sequence-shaped parameter the
+    probe can enter by, this fails and the note stops being true — which is
+    exactly when someone should re-read it.
+
+    An instrument that cannot return otherwise is not a measurement, so the
+    same assertion is made against an op the probe DOES reach, in the same
+    breath, from the same manifest.
+    """
+    _meta, rows = _manifest()
+    # rc468 (`#T1188`) stage 4 — TWO names left this tuple, for two different
+    # reasons, and only one of them is bookkeeping:
+    #
+    #   `hypercomplex_turn`  the OP was removed as a duplicate; its exact
+    #                        route is now `hypercomplex_exp(turn=(k, n))`.
+    #   `hypercomplex_exp`   ⚠️ it is NO LONGER BLIND. The folded `turn=(k, n)`
+    #                        operand is `tuple[int, int]` — sequence-shaped —
+    #                        so the probe now enters an op it could never
+    #                        reach, and measures EXACT in both cells. This
+    #                        assertion FIRED on that row and was right to; the
+    #                        finding is recorded above rather than pinned
+    #                        around. Removing a duplicate op closed a census
+    #                        blind spot, which was not the point of the change
+    #                        and is the best thing in it.
+    #
+    # The two twiddles stay: their signatures are still int/int/int/str/int/bool
+    # with nothing for the probe to enter by.
+    blind = ("srmech.physics.qm.quaternion.quaternion_twiddle",
+             "srmech.physics.qm.octonion.octonion_twiddle")
+    for op in blind:
+        got = [_dp.key(r) for r in rows if r["op"] == op]
+        assert got == [], (
+            f"{op} now HAS census rows ({got}) — the probe reaches it, so the "
+            f"_FIXED_IN_RC468 note's 'zero rows' claim is stale. Re-read it; "
+            f"this is good news, not a failure of the fix.")
+    reached = [_dp.key(r) for r in rows
+               if r["op"] == "srmech.cascade.qdft_summand"]
+    assert reached, (
+        "the control is empty too, so the assertions above measure nothing: "
+        "the probe reaches qdft_summand's sequence operands and must show rows")
+    # rc468 (`#T1188`) — the SECOND control, and the sharper one: the op that
+    # STOPPED being blind in this rc. It is asserted positively so the note
+    # above cannot go stale in the other direction either, and its verdict is
+    # asserted too — a row that appeared but read DEMOTED would be a defect the
+    # fold introduced, not a coverage gain.
+    gained = [r for r in rows if r["op"] == "srmech.cascade.hypercomplex_exp"]
+    assert gained, (
+        "srmech.cascade.hypercomplex_exp has no census row again — the "
+        "turn=(k, n) operand that made it reachable is gone or is no longer "
+        "sequence-shaped, so the coverage this rc gained was lost silently")
+    assert all(r[cell]["verdict"] == "EXACT"
+               for r in gained for cell in ("native", "pure")), (
+        f"hypercomplex_exp's newly-reachable turn= operand does not read EXACT "
+        f"in both cells: {gained}. The fold would then have introduced a "
+        f"demotion, which is the opposite of what it was for")
 
 @pytest.mark.parametrize("op", sorted(_FIXED_IN_RC467))
 def test_layer3_the_rc467_fixed_family_is_strict_zero(op) -> None:

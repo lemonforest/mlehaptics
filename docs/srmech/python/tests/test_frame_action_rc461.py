@@ -423,7 +423,7 @@ def test_the_op_is_registered_and_the_total_moved_by_two() -> None:
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.physics.qm.triality.triality_frame_action" in names
     assert "srmech.math.laplacian.cyclic_laplacian_spectrum" in names
-    assert srmech.describe()["tools"]["total"] == 733
+    assert srmech.describe()["tools"]["total"] == 732
 
 
 def test_the_op_is_exported() -> None:

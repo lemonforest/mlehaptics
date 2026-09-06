@@ -103,8 +103,10 @@ WIRE_ARGS: List[Tuple[str, Dict[str, Any]]] = [
     ("srmech.cascade.matrix_cascades.singular_values_exact",
      {"a": [[1, 1], [0, 1]]}),
     # ── exact cyclotomic trigonometry ────────────────────────────────────────
-    ("srmech.math.qalg.cos_2pi_over_n", {"n": 8}),
-    ("srmech.math.qalg.sin_2pi_over_n", {"n": 12}),
+    # rc468 (`#T1188`): the two k = 1 rows that stood here were REMOVED with
+    # the ops. `cos_sin_2pi_k_over_n` IS them at k = 1 and carries the wire
+    # contract for the whole surface; its own invocability row lives in
+    # tests/test_exact_twiddle_rc468.py.
     # ── the six qmat_* flat ops (each also has a shipped hint, checked below) ─
     ("srmech.math.qmat.qmat_rank", {"rows": [[1, 2], [2, 4]]}),
     ("srmech.math.qmat.qmat_det", {"rows": [[1, 2], [3, 4]]}),
@@ -116,7 +118,22 @@ WIRE_ARGS: List[Tuple[str, Dict[str, Any]]] = [
 
 #: rc463 registered EIGHTEEN entries (702 → 720). Pinned so a row silently
 #: dropped from the table above cannot make this file smaller and greener.
-EXPECTED_ROWS = 18
+#:
+#: rc468 (`#T1188`) — TWO of those eighteen were REMOVED as duplicates of an op
+#: that already served the same carriers, so this population legitimately
+#: shrinks for the first time. ⚠️ A shrinking wire-gate population is exactly
+#: what this pin exists to catch, so it is not lowered by hand: the eighteen
+#: stays the invariant below, the two names are listed, and
+#: :func:`test_the_table_covers_every_entry_this_rc_registered` PROVES they
+#: resolve to nothing in the live registry. The count can therefore only fall
+#: for the one reason a wire gate is allowed to shrink — the op is gone, not
+#: the row.
+REMOVED_AT_RC468 = (
+    "srmech.math.qalg.cos_2pi_over_n",
+    "srmech.math.qalg.sin_2pi_over_n",
+)
+RC463_REGISTRATIONS = 18
+EXPECTED_ROWS = RC463_REGISTRATIONS - len(REMOVED_AT_RC468)
 
 
 def _entry(name: str):
@@ -131,10 +148,24 @@ def _entry(name: str):
 # ══════════════════════════════════════════════════════════════════════
 
 def test_the_table_covers_every_entry_this_rc_registered() -> None:
-    """A population assertion whose population must not quietly shrink."""
-    assert len(WIRE_ARGS) == EXPECTED_ROWS, (
-        f"{len(WIRE_ARGS)} rows for {EXPECTED_ROWS} entries registered by this "
-        f"rc. A row removed rather than fixed is how a wire gate goes green.")
+    """A population assertion whose population must not quietly shrink.
+
+    rc468 (`#T1188`): the only sanctioned shrink is an op that no longer
+    exists, and that is CHECKED here rather than taken on the comment's word.
+    A row deleted while its op still resolves fails the arithmetic below.
+    """
+    warmup_all()
+    schema = get_tool_schema()
+    for gone in REMOVED_AT_RC468:
+        assert schema.lookup(gone) is None, (
+            f"{gone} is listed as removed but still resolves in the registry — "
+            f"its wire row was deleted rather than its op, which is precisely "
+            f"how a wire gate goes green by shrinking")
+    assert len(WIRE_ARGS) + len(REMOVED_AT_RC468) == RC463_REGISTRATIONS, (
+        f"{len(WIRE_ARGS)} rows + {len(REMOVED_AT_RC468)} proved-removed "
+        f"!= {RC463_REGISTRATIONS} entries registered by this rc. A row removed "
+        f"rather than fixed is how a wire gate goes green.")
+    assert len(WIRE_ARGS) == EXPECTED_ROWS
     assert len({n for n, _ in WIRE_ARGS}) == EXPECTED_ROWS, "duplicate row"
     for name, _ in WIRE_ARGS:
         assert _entry(name).mcp_callable, (
@@ -182,9 +213,13 @@ def test_qmat_solve_own_smoke_hint_works_through_the_wire() -> None:
 def test_every_shipped_smoke_hint_runs_through_the_wire() -> None:
     """The same clause over ALL of this rc's entries that publish a hint.
 
-    Eight of the eighteen do. A hint that cannot be executed through the wire
-    is a published falsehood about how to call the op, so this is strict zero
-    rather than a ceiling.
+    Eight of the eighteen did at rc463. Six do at rc468 (`#T1188`), and the
+    floor moves with the SAME derivation as the row count next door rather
+    than by hand: both removed ops published a hint (``{"n": "8"}`` and
+    ``{"n": "12"}``), so the floor is ``8 − 2`` and cannot be reached by
+    deleting a hint from an op that still exists. A hint that cannot be
+    executed through the wire is a published falsehood about how to call the
+    op, so this is strict zero rather than a ceiling.
     """
     checked = 0
     for name, _ in WIRE_ARGS:
@@ -194,9 +229,12 @@ def test_every_shipped_smoke_hint_runs_through_the_wire() -> None:
         checked += 1
         args = {k: ast.literal_eval(v) for k, v in hint.items()}
         invoke_tool(name, args)
-    assert checked >= 8, (
+    floor = 8 - len(REMOVED_AT_RC468)
+    assert checked >= floor, (
         f"only {checked} of this rc's entries published a smoke_test_hint; "
-        f"eight did at rc463, so the population has shrunk")
+        f"eight did at rc463 and {len(REMOVED_AT_RC468)} of those ops were "
+        f"removed, so the floor is {floor} and the population has shrunk "
+        f"beyond what the removal accounts for")
 
 
 def test_lstsq_exact_is_not_refused_by_its_own_declared_type() -> None:

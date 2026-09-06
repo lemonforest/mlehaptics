@@ -2160,6 +2160,13 @@ def _synth_value_for_type(type_string: str) -> Any:
         "Vec | Sequence[int | Q]": vec,
         "Mat | Vec | Sequence[int | Q]": mat2,
         "list[float] | list[Q]": [1.0, 2.0],
+        # rc468 (`#T1188`): the coupler family's THIRD carrier. The wire value
+        # is a plain float list on purpose — one float leaf elects the float
+        # carrier by the whole-operand rule, which is the arm every one of
+        # these ops accepts unconditionally, where a Qalg leaf would additionally
+        # need the axis and the turn to admit it. Synthesising the permissive
+        # arm keeps this a BINDING probe and not a domain one.
+        "list[float] | list[Q] | list[Qalg]": [1.0, 2.0],
         "list[list[float]] | list[list[Q]]": mat2,
         "float | Q": 1.0,
         # v0.7.5rc155: the §50 holographic-bundle accumulator (klein4_bundle_*).

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE "rc467"
-#define SRMECH_VERSION "0.9.0rc467"
+#define SRMECH_VERSION_PRE "rc468"
+#define SRMECH_VERSION "0.9.0rc468"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4280,6 +4280,52 @@ srmech_status_t srmech_hypercomplex_exp_q61(double theta, int k_axes,
 srmech_status_t srmech_hypercomplex_couple_q61(double eff, const int64_t streams8[8],
                                                const int64_t mu8[8], int form_is_left,
                                                int64_t out8[8]);
+
+/* 0.9.0rc468 (`#T1188`) exact-TURN Q61 octonion coupler — the C twin of
+ * cascade.hypercomplex_dft.hypercomplex_couple's DEFAULT call. Same contract as
+ * the angle-taking peer above (mu a caller-provided UNIT pure-imaginary Q61
+ * 8-vector, out8 = T*streams8 / streams8*T by form_is_left, the same
+ * srmech_cd_basis_product structure constants and the same int64 Q61 stream
+ * ceiling), with ONE difference that is the whole point: the phase arrives as
+ * the rational TURN k/n meaning 2*pi*k/n, not as a double angle.
+ *
+ * WHY A SECOND SYMBOL RATHER THAN A FIX INSIDE THE FIRST. The coupler's default
+ * phase is the quarter turn, and NO double IS pi/2 — so
+ * srmech_hypercomplex_couple_q61(fl(pi/2), ...) computes cos = 141 grid units
+ * into the real slot of a twiddle that is meant to be purely imaginary
+ * (measured: srmech_cos_q61(fl(pi/2)) == 141, where sin is already exactly
+ * 2^61). That function is not wrong — it is the faithful C twin of the
+ * float-`theta` route and stays byte-identical — and special-casing the bit
+ * pattern fl(pi/2) inside it would make it answer about a NEIGHBOURING angle,
+ * which is the class of defect this arc removes rather than one it may install.
+ * The angle is the defect, so the fix is a phase that is not an angle.
+ *
+ * REFUSES rather than rounding: the turn has an exact Q61 twiddle iff it is a
+ * whole number of QUARTER turns (4*k % n == 0), where cos/sin are exactly
+ * {0, +-1}; every other turn has an irrational cos or sin with no Q61 form ->
+ * SRMECH_ERR_BAD_INPUT. Same refusal as the Python turn= route, same complete
+ * alternative: the exact Q(zeta_M) carrier, which is not fixed-point and has no
+ * C-host peer at this width. n < 1 or |k| > INT64_MAX/4 -> SRMECH_ERR_BAD_INPUT;
+ * a stream limb past the unit-bounded int64 Q61 domain -> SRMECH_ERR_OVERFLOW.
+ *
+ * ABI: ADDITIVE — a new plain symbol reusing NO callback typedef, and no
+ * existing signature or return value moves (srmech_hypercomplex_couple_q61 is
+ * byte-identical before and after), so SRMECH_ABI_VERSION stays 25. Checked
+ * against the standing rule at the top of this header rather than assumed from
+ * it: the v25 note records that CHANGING WHAT AN EXISTING FUNCTION RETURNS
+ * would have bumped on its own, and nothing here does. Both mixed-version
+ * pairings are benign and neither is silent: a fresh shim against a stale
+ * ABI-25 library binds this symbol by hasattr, finds it absent, and runs the
+ * caller's own pure Q61 quarter-turn path, which is bit-identical to this
+ * function by construction (cos/sin are the same four exact constants); an old
+ * shim against a fresh library never asks for it. The c_dispatched claim that
+ * DOES go stale in the first pairing is exactly what
+ * tests/test_c_claim_resolution_rc300.py resolves against the loaded library. */
+srmech_status_t srmech_hypercomplex_couple_turn_q61(int64_t k, int64_t n,
+                                                    const int64_t streams8[8],
+                                                    const int64_t mu8[8],
+                                                    int form_is_left,
+                                                    int64_t out8[8]);
 
 /* Class-N rational exp/log cascade (v0.7.0rc46; the C-transpile closeout).
  * exp(x) = 2^n * exp(r) with the Q61 integer Taylor for exp(r) (|r| <= ln2/2)

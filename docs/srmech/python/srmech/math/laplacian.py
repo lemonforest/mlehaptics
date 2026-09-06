@@ -671,7 +671,7 @@ def _exact_unit_phase(turns: Q, where: str) -> Qi:
     unity ``i**k``). rc466 (`#T1188`): any other rational turn is a root of
     unity the ``Qi`` carrier cannot hold; it is REFUSED by name, pointing at the
     carrier that can (``Qalg`` over ``Φ_N`` via
-    :func:`srmech.math.qalg.cos_2pi_over_n`), rather than rounded."""
+    :func:`srmech.math.qalg.cos_sin_2pi_k_over_n`), rather than rounded."""
     tr = turns % 1
     den = tr.denominator
     if den not in (1, 2, 4):
@@ -680,7 +680,7 @@ def _exact_unit_phase(turns: Q, where: str) -> Qi:
             f"carrier, whose roots of unity are i**k (turn denominators 1, 2, 4); "
             f"got a turn of {tr} (denominator {den}). That phase is a root of "
             f"unity in Q(zeta_{den}) — the Qalg carrier over Phi_{den} "
-            f"(srmech.math.qalg.cos_2pi_over_n / sin_2pi_over_n) holds it; no "
+            f"(srmech.math.qalg.cos_sin_2pi_k_over_n) holds it; no "
             f"Laplacian over Qalg ships yet, so it is refused rather than rounded.")
     k = int(tr * 4) % 4
     re, im = _GAUSSIAN_UNIT_PHASES[k]

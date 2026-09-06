@@ -2545,6 +2545,26 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_hypercomplex_couple_q61.restype = ctypes.c_int
 
+    # rc468 (`#T1188`) — the exact-TURN peer of the coupler above: the phase
+    # arrives as the rational turn (k, n) meaning 2*pi*k/n, not as a double
+    # angle, because no double IS pi/2 and the coupler's DEFAULT phase is the
+    # quarter turn. ADDITIVE symbol, so EXPECTED_ABI_VERSION stays 25; a stale
+    # ABI-25 lib lacks it and the caller runs its own bit-identical pure Q61
+    # quarter-turn path.
+    #   int srmech_hypercomplex_couple_turn_q61(int64_t k, int64_t n,
+    #       const int64_t streams[8], const int64_t mu[8], int form_is_left,
+    #       int64_t out[8])
+    if hasattr(lib, "srmech_hypercomplex_couple_turn_q61"):
+        lib.srmech_hypercomplex_couple_turn_q61.argtypes = [
+            ctypes.c_int64,                     # k — the turn numerator
+            ctypes.c_int64,                     # n — the turn denominator
+            ctypes.POINTER(ctypes.c_int64),     # streams[8] (Q61)
+            ctypes.POINTER(ctypes.c_int64),     # mu[8] (Q61, unit pure-imag)
+            ctypes.c_int,                       # form_is_left (1=left, 0=right)
+            ctypes.POINTER(ctypes.c_int64),     # out[8] (Q61)
+        ]
+        lib.srmech_hypercomplex_couple_turn_q61.restype = ctypes.c_int
+
     # Sedenion address layer (v0.9.0rc12; UPSTREAM §31 / F465+F468) — the
     # navigation + reversibility gate a C-only host needs for "Siona's address
     # layer." hasattr-guarded so a stale lib (pre-rc12) keeps the rest.
@@ -18740,6 +18760,41 @@ def hypercomplex_couple_q61_c(streams8, mu8, eff: float, form_is_left: bool):
         return None
     if rc != SRMECH_OK:
         raise ValueError(f"srmech_hypercomplex_couple_q61: status {rc}")
+    return [out[i] for i in range(8)]
+
+
+def has_native_hypercomplex_couple_turn() -> bool:
+    """True iff the C exact-TURN Q61 octonion coupler peer is loaded (rc468+)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_hypercomplex_couple_turn_q61"))
+
+
+def hypercomplex_couple_turn_q61_c(streams8, mu8, k: int, n: int,
+                                   form_is_left: bool):
+    """Native exact-TURN Q61 octonion couple ``T ⊗ q`` → 8 Q61 ints, where the
+    phase is the RATIONAL TURN ``2πk/n`` and ``T = cos·1 + sin·μ`` with ``cos``
+    / ``sin`` the exact grid values ``{0, ±1}`` (rc468, `#T1188`).
+
+    Byte-exact with the pure path by construction: both sides read the same four
+    constants off the same quarter-turn index, so there is no angle to round on
+    either side of the wire.
+
+    Returns ``None`` when a stream limb is outside the int64 Q61 domain
+    (``|stream| > 1`` → ``SRMECH_ERR_OVERFLOW``; no bignum in C) — the caller's
+    pure path is the complete alternative, the same documented native ceiling
+    the angle-taking peer carries. A turn that is not a whole number of QUARTER
+    turns has no exact Q61 twiddle and RAISES rather than rounding; the caller
+    never sends one, because that is the exact ℚ(ζ) carrier's own domain."""
+    s = (ctypes.c_int64 * 8)(*streams8)
+    m = (ctypes.c_int64 * 8)(*mu8)
+    out = (ctypes.c_int64 * 8)()
+    rc = LIB.srmech_hypercomplex_couple_turn_q61(
+        ctypes.c_int64(k), ctypes.c_int64(n), s, m,
+        ctypes.c_int(1 if form_is_left else 0), out)
+    if rc == SRMECH_ERR_OVERFLOW:
+        return None
+    if rc != SRMECH_OK:
+        raise ValueError(f"srmech_hypercomplex_couple_turn_q61: status {rc}")
     return [out[i] for i in range(8)]
 
 

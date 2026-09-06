@@ -625,18 +625,43 @@ def test_ground_state_flux_response_reduces_an_exact_flux_mod_1() -> None:
     assert isinstance(la.ground_state_flux_response(3, cyc, fluxes=Q(3, 2)), float)
 
 
-def test_hypercomplex_couple_exact_route_lives_on_the_q61_grid() -> None:
-    from srmech.cascade import hypercomplex_couple, cd_couple_working, cd_uncouple_working
-    out = hypercomplex_couple([P, 0, 0])
+def test_hypercomplex_couple_angle_route_lives_on_the_q61_grid() -> None:
+    """The Q61 grid is the ANGLE route's bound, and since rc468 that is the
+    only route it bounds. ``theta=<float>`` is now the deliberate spelling of
+    it; the DEFAULT phase left the grid entirely (see
+    ``test_the_coupler_passthroughs_really_return_the_third_carrier``)."""
+    from srmech.cascade import hypercomplex_couple
+    from srmech.cascade.hypercomplex_dft import _PI
+    out = hypercomplex_couple([P, 0, 0], theta=_PI / 2.0)
     assert all(isinstance(v, Q) and (2 ** 61) % v.denominator == 0 for v in out)
-    # the pass-throughs inherit the carrier
-    assert all(isinstance(v, Q) for v in cd_couple_working([P, 0, 0]))
-    assert all(isinstance(v, Q) for v in cd_uncouple_working(cd_couple_working([1, 2, 3])))
     # a non-dyadic rational is QUANTISED to the grid, as declared — not refused
     q = hypercomplex_couple([Q(1, 3), 0, 0], theta=0.0)[1]
     d = q - Q(1, 3)
     d = d if d >= 0 else -d
     assert d <= Q(1, 2 ** 61)
+
+
+def test_the_coupler_passthroughs_really_return_the_third_carrier() -> None:
+    """EXECUTED, so the four widened ``_RETURNS`` pins above are not the only
+    thing claiming it. All four fix ``axis='diagonal'`` and take the coupler's
+    DEFAULT phase, so an exact operand comes back over ℚ(ζ₁₂) — and the
+    round trip that used to miss ``2**60+1`` by ``309.8`` is now EXACT."""
+    from srmech.cascade import (cd_couple_working, cd_uncouple_working,
+                                cdr_couple_working, cdr_uncouple_working)
+    from srmech.math.qalg import Qalg
+    word = cd_couple_working([P, 2, 3])
+    assert all(isinstance(v, Qalg) for v in word), word
+    back = cd_uncouple_working(word)
+    assert all(isinstance(v, Qalg) for v in back), back
+    assert [v == w for v, w in zip(back, [P, 2, 3])] == [True, True, True], back
+    cw = cdr_couple_working([P, 2, 3], 16, True)
+    assert all(isinstance(v, Qalg) for v in cw), cw
+    cb = cdr_uncouple_working(cw, 16, True)
+    assert all(isinstance(v, Qalg) for v in cb), cb
+    assert [v == w for v, w in zip(cb, [P, 2, 3])] == [True, True, True], cb
+    # and one float leaf still elects the float carrier, on all four
+    assert isinstance(cd_couple_working([1.0, 2, 3])[0], float)
+    assert isinstance(cdr_couple_working([1.0, 2, 3], 16, True)[0], float)
 
 
 # ── F2: one float anywhere → the float route, byte-for-byte ──────────────────
@@ -740,15 +765,24 @@ _RETURNS = {
     "srmech.math.hdc.loop_bind_hd": "list[float] | list[Q]",
     "srmech.math.hdc.loop_unbind_hd": "list[float] | list[Q]",
     "srmech.math.hdc.loop_runbind_hd": "list[float] | list[Q]",
-    "srmech.cascade.hypercomplex_couple": "list[float] | list[Q]",
-    "srmech.cascade.cd_couple_working": "list[float] | list[Q]",
-    "srmech.cascade.cd_uncouple_working": "list[float] | list[Q]",
-    "srmech.cascade.cdr_couple_working": "list[float] | list[Q]",
-    "srmech.cascade.cdr_uncouple_working": "list[float] | list[Q]",
+    # rc468 (`#T1188`): the exact routes gained an ALGEBRAIC third carrier —
+    # the twiddle of a turn that is not a quarter turn is not rational, so a
+    # return naming only float and Q was true of two of three live carriers.
+    "srmech.cascade.hypercomplex_couple": "list[float] | list[Q] | list[Qalg]",
+    # rc468 second pass (`#T1188`): the four coupler PASS-THROUGHS inherit that
+    # third carrier, because the coupler's DEFAULT phase is now the exact turn
+    # and they all fix ``axis='diagonal'`` — whose ``1/√3`` is carried in
+    # ℚ(ζ₁₂), not rounded onto the grid. Widened here AND witnessed by
+    # ``test_the_coupler_passthroughs_really_return_the_third_carrier`` below,
+    # so this pin is not the only thing saying so.
+    "srmech.cascade.cd_couple_working": "list[float] | list[Q] | list[Qalg]",
+    "srmech.cascade.cd_uncouple_working": "list[float] | list[Q] | list[Qalg]",
+    "srmech.cascade.cdr_couple_working": "list[float] | list[Q] | list[Qalg]",
+    "srmech.cascade.cdr_uncouple_working": "list[float] | list[Q] | list[Qalg]",
     "srmech.cascade.as_oct8": "list[float] | list[Q]",
     "srmech.cascade.as_quat4": "list[float] | list[Q]",
-    "srmech.cascade.qdft_summand": "list[float] | list[Q]",
-    "srmech.cascade.odft_summand": "list[float] | list[Q]",
+    "srmech.cascade.qdft_summand": "list[float] | list[Q] | list[Qalg]",
+    "srmech.cascade.odft_summand": "list[float] | list[Q] | list[Qalg]",
     "srmech.cascade.correlation_product": "float | Q",
     "srmech.cascade.compensated_sum": "float | Q",
     "srmech.math.laplacian.normalized_laplacian": "Mat | list",
@@ -765,6 +799,11 @@ _RETURNS = {
     "srmech.physics.qm.single_particle.density_matrix": "Mat | QMat | list[list[Qi]]",
     "srmech.physics.qm.bell.operator_norm": "float | Q",
     "srmech.physics.qm.quaternion.quaternion_log": "list[float] | list[Q]",
+    # rc468 (`#T1188`): both twiddles grew the exact= cyclotomic rung.
+    "srmech.physics.qm.quaternion.quaternion_twiddle":
+        "list[float] | list[Q] | list[Qalg]",
+    "srmech.physics.qm.octonion.octonion_twiddle":
+        "list[float] | list[Q] | list[Qalg]",
 }
 
 
@@ -785,6 +824,12 @@ _KEYWORD_BUILDERS = (
     "srmech.math.laplacian.magnetic_laplacian",
     "srmech.math.laplacian.quaternion_laplacian",
     "srmech.math.laplacian.klein4_gain_laplacian",
+    # rc468 (`#T1188`): the two DFT twiddles. Their exact rung is not a graph
+    # builder's — it is a whole different NUMBER FIELD — but the registry
+    # obligation is identical: a caller must be able to read which carrier the
+    # keyword elects before calling.
+    "srmech.physics.qm.quaternion.quaternion_twiddle",
+    "srmech.physics.qm.octonion.octonion_twiddle",
 )
 
 
@@ -797,6 +842,22 @@ def test_every_keyword_builder_declares_exact_in_the_registry(name) -> None:
     ps = {p.name: p for p in entry.parameters}
     assert "exact" in ps and ps["exact"].type == "bool", name
     assert "Q" in (ps["exact"].summary or ""), name
+
+
+def test_the_couple_turn_selector_declares_its_carrier_too() -> None:
+    """rc468 (`#T1188`) — the sibling of the gate above for the ONE exactness
+    selector in the tree that is not spelled ``exact``.
+
+    ``hypercomplex_couple(turn=(k, n))`` elects the exact cyclotomic route
+    exactly as ``exact=True`` does on the twiddles, but under a different
+    name, so no roster in this file or in rc444's census watches it. A
+    selector that changes the returned carrier and is invisible to every
+    carrier gate is the shape rc463 named; this is its one-line answer."""
+    from srmech.introspect.tool_schema import get_tool_schema
+    entry = get_tool_schema().lookup("srmech.cascade.hypercomplex_couple")
+    ps = {p.name: p for p in entry.parameters}
+    assert "turn" in ps, "hypercomplex_couple lost its exact rational-turn selector"
+    assert "EXACT" in (ps["turn"].summary or ""), ps["turn"].summary
 
 
 # -- rc467 (`#T1188`): the POPULATION gate that replaced an instance list -----
