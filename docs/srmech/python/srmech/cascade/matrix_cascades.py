@@ -1058,6 +1058,23 @@ def separate_frame_curvature(a, b):
       commutator`` scaled by ½ — but the NEW object is the *decomposition* plus
       the exact vanishing flag, not the bare commutator.
 
+    **Naming scope note (`#T1188`; srmech notebook §3.59.8(b) / MFO §VIII.31.20
+    item 6).** "Curvature" here names the antisymmetric part of a product of two
+    GENERAL OPERATORS — the connection-curvature sense (for covariant-derivative
+    operators ``[∇_X, ∇_Y]`` IS the curvature up to a torsion-free term). A
+    DIFFERENT arity-2 antisymmetric bracket — :func:`srmech.cascade.cd_commutator`,
+    on two CAYLEY–DICKSON ALGEBRA ELEMENTS rather than operators — is named the
+    TORSION-type member of the property-loss ladder (rc465, `#T1188`; the
+    geodesic-loop sense, "naming only", as that entry's own fence says). Both
+    namings are correct in their own setting; neither corrects the other, and this
+    op makes no geodesic-loop claim. Separately, the ``op / operand / responsion ≅
+    field / excitation / CURVATURE`` thread above places curvature in the THIRD
+    slot; the k=3 read of a Class-L object instead reads metric / curvature /
+    chirality as three PERSPECTIVES ON the OPERAND (edges) slot — the shape
+    :mod:`srmech.introspect.responsion_schema` already ships, as a per-entry
+    ``"curvature": "flat" | "curved"`` attribute. That reconciliation is recorded
+    OPEN, not resolved; say which frame you are in.
+
     ``fixed_frame + curvature == A·B`` reconstructs the full product, and the
     curvature is EXACTLY the zero carrier iff ``[A,B] = 0`` (the operators commute
     = the pairing is FLAT = frame-independent = always bit-exact) — the same

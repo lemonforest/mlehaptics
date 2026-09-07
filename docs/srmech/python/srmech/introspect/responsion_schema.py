@@ -14,6 +14,21 @@ ops + operands are the k=2 pair of NODES you can point at, and the responsion
 is the **EDGE** that binds them: *this op, on this operand, answers THIS way*
 (op⊗operand⊗responsion — the correcting/binding third; F1131/F1186).
 
+SCOPE — WHICH GRAPH THIS FILE'S TRIPLE IS ABOUT (`#T1188`, 2026-09-07).
+This module's triple is the INTROSPECTION graph, not the Class-L spectral
+one. Here the NODES are ops and carriers and the responsion is the
+``(operator, carrier)`` EDGE that binds them. In the Class-L ``k=3`` read
+the word "edges" names a DIFFERENT graph — the Laplacian's own — where the
+EDGES are the OPERAND and the EIGENVALUES are the responsion
+(``op⊗operand⊗responsion`` = ``distributional⊗relational⊗responsion`` =
+``eigenvectors⊗edges⊗eigenvalues``). Both are correct in their own graph;
+the word "edge" is doing two jobs, so say which graph you mean. Note also
+that "operand" is used in TWO senses across this file: in this module's own
+dictionary it is a CARRIER NOUN, and in the ``answers_with`` prose below it
+means the DATA a reducer answers with, as opposed to a verdict — neither is
+a slot-2 placement in the Class-L read. Full reconciliation, and the four
+placements of the TURN: ``srmech_research_notebook.md`` §3.59.
+
 The shape (the key IS the edge)
 -------------------------------
 Every entry is an EDGE keyed by the ``(operator, carrier)`` pair — the key

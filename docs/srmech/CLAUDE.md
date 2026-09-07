@@ -448,7 +448,7 @@ GPU *because* the continuum shadow has no closed form). The test is
 reverse-engineered to approximate a continuous / spacetime target
 (top-down)?" — not "is it GPU". See
 `[[feedback_metric_field_native_not_spacetime_shadow]]` + the canonical
-scope-doc `docs/antikythera-maths/CLAUDE.md`.
+scope-doc `docs/antikythera-maths/CLAUDE.md`. The triple's slot dictionary and the four placements of the TURN are adjudicated in `srmech_research_notebook.md` §3.59; the carrier-side reading is MFO §VIII.31.20.
 
 **The C native surface, by contrast, intentionally covers every
 primitive class srmech exposes** — full C/Python parity is the
