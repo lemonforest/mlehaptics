@@ -10317,7 +10317,7 @@ def _register_primitive_class_tools() -> None:
                         P("left", "bool", True, "twiddle side"),
                         P("sigma", "int", True, "the dft_sigma convention"),
                         P("mu_hat", "list[float]", True, "resolved unit axis")),
-            returns=R("list[float] | list[Q] | list[Qalg]", "the 4-component summand for bin k — for an exact sample, EXACT on every turn (rc468, `#T1188`): list[Q] on a quarter turn 4*k*m == 0 mod n and list[Qalg] over Phi_lcm(n,4) otherwise; list[float] (accurate to round-off) for a float sample"),
+            returns=R("list[float] | list[Q] | list[Qalg]", "the 4-component summand for bin k — for an exact sample, EXACT on every turn (rc468, `#T1188`) AND on every axis width (rc469): list[Q] where the cosine and the axis-SCALED sine are both rational, list[Qalg] over Phi_M otherwise, M = lcm(n, 4 | 12 | 28) for an axis of width 1 | 1/sqrt(3) | 1/sqrt(7). The rational set is the quarter turns 4*k*m == 0 mod n only at width 1. It RAISES above the MAX_CYCLOTOMIC_INDEX=256 field cap (a SIEVE over n, not a ceiling) and on a direction with no exact unit in those fields; list[float] (accurate to round-off) for a float sample"),
         ),
         ToolEntry(
             name="srmech.cascade.odft_summand", owner="srmech",
@@ -10341,7 +10341,7 @@ def _register_primitive_class_tools() -> None:
                         P("mu_hat", "list[float]", True),
                         P("mu_r_hat", "list[float]", True,
                           "right axis (two-sided; ignored one-sided)")),
-            returns=R("list[float] | list[Q] | list[Qalg]", "the 8-component summand for bin k — for an exact sample, EXACT on every turn (rc468, `#T1188`): list[Q] on a quarter turn 4*k*m == 0 mod n and list[Qalg] over Phi_lcm(n,4) otherwise; list[float] (accurate to round-off) for a float sample"),
+            returns=R("list[float] | list[Q] | list[Qalg]", "the 8-component summand for bin k — for an exact sample, EXACT on every turn (rc468, `#T1188`) AND on every axis width (rc469): list[Q] where the cosine and the axis-SCALED sine are both rational, list[Qalg] over Phi_M otherwise, M = lcm(n, 4 | 12 | 28) for an axis of width 1 | 1/sqrt(3) | 1/sqrt(7). It RAISES above the MAX_CYCLOTOMIC_INDEX=256 field cap (a SIEVE over n, not a ceiling), on a direction with no exact unit in those fields, and — two-sided only — on a MIXED-WIDTH axis pair, whose compositum is not a simple extension; list[float] (accurate to round-off) for a float sample"),
         ),
         ToolEntry(
             name="srmech.cascade.kuramoto_step", owner="srmech",
