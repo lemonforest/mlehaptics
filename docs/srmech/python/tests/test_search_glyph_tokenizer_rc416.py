@@ -1174,8 +1174,23 @@ from srmech.math.text import fold_marks, glyph_stream
 #: non-deterministic build before re-pinning: `_build_frames("all")` returned
 #: the same digest on two consecutive calls, and the ops+carriers union
 #: equals it (`test_scope_witnesses_agree_with_the_union`).
+#: A FIFTH pin, in rc469, for a fifth separable cause — and the largest prose
+#: move of the five, because rc469's subject WAS the DFT family's documentation.
+#: Three separable edits, all of them corpus: (a) `qdft_summand` and
+#: `odft_summand` gained `Raises:` documentation when their axis reader moved
+#: from `_exact_mu_q` to `_exact_axis`, since an axis outside the exactly-
+#: representable set now refuses rather than answering wrongly; (b) the comment
+#: asserting `axis_k = 1` on that route was DELETED as false — it was true only
+#: for `i`-family axes and wrong for `ijk` and `diagonal`; (c) the curated
+#: worked example for `qdft_resolve_mu` was corrected by one ULP
+#: (`0.6` -> `0.6000000000000001`), and curated worked examples are corpus.
+#: Confirmed a prose move and not a non-deterministic build before re-pinning:
+#: `search("rank", k=1).witness` returned the same digest on two consecutive
+#: interpreter runs, and the ops+carriers union equals it
+#: (`test_scope_witnesses_agree_with_the_union`).
 WITNESS_RC416 = (
-    "0fb043cc3c534f95038ada90e824b276c632dfdc141c3ecbca2d00d03bc1cedc")
+    "40a2d8ebb1cf59de0302dcaf8052aee20eb8ed119e43584fdd0b10278a3bcc14")
+#: was: 0fb043cc3c534f95038ada90e824b276c632dfdc141c3ecbca2d00d03bc1cedc (rc468 stage 5)
 #: was: dd0149df3067cbb6d72bd555b90b366ee1a63a2625fd63bd44e84aaa6a881a3e (rc468 stage 3)
 #: A FOURTH pin, in rc468 STAGE 3, for a fourth separable cause: the maintainer
 #: rejected stage 1's deferral of the coupler default, so `hypercomplex_couple`'s
