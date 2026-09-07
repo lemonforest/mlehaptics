@@ -91,14 +91,31 @@ from srmech.introspect.tool_schema import get_tool_schema, warmup_all  # noqa: E
 # `srmech.math.rational.rational_div` went `ok` -> `no_jsonable_arg`, its two
 # `Q | tuple[int, int]` params arriving as `Q` objects where the committed
 # ledger had recorded them as `(19, 20)` / `(9991, 10000)` tuples, same
-# `src_sha256` and same 4 recorded calls. Re-running with `--only-stale`
-# instead harvests only the genuinely-new rows and leaves all 692 others
-# byte-identical, and the count returns to 52. THE LESSON, since the ledger's
-# own freshness clause only compares `src_sha256`: a full re-harvest is not a
-# no-op on unchanged rows, so use `--only-stale` unless you mean to re-measure
-# the whole surface. This rc's three ops contribute ZERO here — `Mat` already
-# has a `_synth_value_for_type` row, `g2_membership`'s operand is harvested
-# from its worked example, and `epq_frame_address` takes no parameters.
+# `src_sha256` and same 4 recorded calls.
+#
+# rc461 answered that by scoping the re-harvest with a stale selector, so the
+# unchanged rows were never re-measured and the count returned to 52. rc469
+# (`#T1188`) reads it the other way and removed the selector: an instability a
+# full re-harvest exposes is a property of the HARVEST, not of the run that
+# exposed it, and scoping it away makes this ledger's numbers depend on which
+# command last wrote them.
+#
+# MEASURED at rc469, on the full re-harvest that removal forced (732 ops, WSL2,
+# numpy absent): `by_status` came back BYTE-IDENTICAL — needs_subprocess 4,
+# no_jsonable_arg 105, no_returning_call 83, no_worked_snippet 83, ok 456,
+# timeout 1 — `n` 732 and `n_with_args` 456 held, and this ceiling did not move.
+# The rc461 `rational_div` flip did NOT reproduce, so nothing was changed to
+# chase it. Recorded because the absence is the useful half: the tree carried a
+# scoping flag for four rcs on the strength of one unreproduced row.
+#
+# ⚠️ IF IT EVER DOES MOVE, DO NOT RAISE THIS CEILING. A count that depends on
+# whether the harvest ran in one process or many is a CANONICALISATION defect
+# (a `Q | tuple[int, int]` param arriving as `Q` where the ledger recorded a
+# tuple), and the honest repair is at write time in `example_args`, recording
+# the wire form — the same argument `jsonable` already makes for collapsing
+# tuples to lists. rc430's three ops contribute ZERO here — `Mat` already has a
+# `_synth_value_for_type` row, `g2_membership`'s operand is harvested from its
+# worked example, and `epq_frame_address` takes no parameters.
 CEIL_UNSYNTHESIZABLE_PARAMS = 52
 
 #: Advertised ops skipped entirely because at least one required param is
@@ -344,9 +361,10 @@ def test_ledger_is_fresh_against_the_live_schema() -> None:
     stale = sorted(n for n in set(live) & set(rows)
                    if rows[n].get("src_sha256") != live[n])
     assert not (missing or extra or stale), (
-        f"ledger is STALE.\n  missing {missing[:10]}\n  extra {extra[:10]}\n"
-        f"  changed snippet {stale[:10]}\n\nRun: "
-        f"python3 tools/run_example_args.py --only-stale")
+        f"ledger is STALE.\n  missing {missing}\n  extra {extra}\n"
+        f"  changed snippet {stale}\n\nRun (there is no scoped form; "
+        "rc469 removed it, and this harvest re-measures every row):\n"
+        "    python3 tools/run_example_args.py")
 
 
 def test_harness_integrity_is_recorded_not_tolerated() -> None:
@@ -376,6 +394,61 @@ def test_harness_integrity_is_recorded_not_tolerated() -> None:
         f"{by_status.get('timeout')} harvest timeouts; the budget is being "
         f"measured instead of the ops. Add the op to run_worked_examples's "
         f"SLOW_ALLOWLIST with a measured number, as that module already does.")
+
+
+def test_every_row_carries_its_defining_module_stamp() -> None:
+    """Strict zero. The per-row stamp this ledger gained at rc469 (`#T1188`).
+
+    ``def_module`` is where the op is DEFINED, ``def_blob`` that file's git blob
+    at harvest time. The pair is what makes an implementation-side change
+    visible: ``src_sha256`` above cannot move when an implementation moves, and
+    rc468 measured the price on the sibling ledger — a full re-harvest moved 20
+    rows, 17 of them pre-existing staleness the scoped selector had hidden,
+    including ``dense_laplacian`` and ``quaternion_twiddle`` rows that gained an
+    ``exact=`` parameter in rc466/rc467 and never re-recorded it.
+
+    ⚠️ THE FIELD ERODES IF ONLY ``collect()`` SETS IT — the same trap the
+    sibling gate names. A record coming back from a harvest worker is a FRESH
+    dict built by the child process, so ``run()`` must stamp it too; a stamp
+    applied only at collection would be dropped on exactly the rows that RAN.
+    Strict zero here is what makes that loud instead of silent.
+    """
+    rows = ea.load_ledger()
+    missing = sorted(n for n, r in rows.items()
+                     if not r.get("def_module") or not r.get("def_blob"))
+    assert not missing, (
+        f"{len(missing)} of {len(rows)} example-args rows carry no defining-"
+        f"module stamp — every one of them, not a prefix:\n"
+        f"  {missing}\n"
+        "Re-harvest: python3 tools/run_example_args.py")
+
+
+def test_the_ledger_records_the_version_it_was_measured_at() -> None:
+    """The stamp this artifact has always carried and nothing has ever read.
+
+    rc469 (`#T1188`). ``meta.srmech_version`` has been written by every harvest
+    since the ledger existed, and no assertion anywhere consulted it — so a
+    ledger measured three rcs ago read exactly as fresh as one measured now,
+    and the committed artifact was in fact stamped ``0.9.0rc468`` on an
+    ``0.9.0rc469`` tree when this arm was added. The sibling frame census has
+    had the identical clause since rc430
+    (``tests/test_frame_scope_rc430.py``); this ledger simply never grew one,
+    which is why it accumulated 17 stale rows that only a full re-harvest
+    could find.
+
+    This is the CHEAP half of freshness and it does not replace the expensive
+    half above: a version match says the harvest ran on this release, not that
+    it ran on this tree. Both clauses are needed, which is why both are here.
+    """
+    import srmech
+    meta = ea.load_meta()
+    assert meta, "ledger has no meta row — regenerate it"
+    assert meta.get("srmech_version") == srmech.__version__, (
+        f"the example-args ledger was measured at "
+        f"{meta.get('srmech_version')!r} but the tree is at "
+        f"{srmech.__version__!r}. Every coverage number below is a statement "
+        f"about a release that is no longer this one. Re-harvest:\n"
+        "    python3 tools/run_example_args.py")
 
 
 # ══════════════════════════════════════════════════════════════════════

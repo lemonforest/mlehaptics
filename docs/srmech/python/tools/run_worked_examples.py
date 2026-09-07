@@ -3,7 +3,6 @@
 registry and write the ledger the rc354 gate reads (gh #1530 §K).
 
     python3 tools/run_worked_examples.py                  # run all, write ledger
-    python3 tools/run_worked_examples.py --only-stale     # re-run what changed
     python3 tools/run_worked_examples.py --only A B C     # N snippets, by name
     python3 tools/run_worked_examples.py --names-file -   # N names on stdin
     python3 tools/run_worked_examples.py --backfill       # stamp only, no run
@@ -47,6 +46,46 @@ Three things changed here, and only the third is a class guard:
 
 (1) and (2) cannot see a name a caller's loop never sent. (3) can, because it
 is a property of the LEDGER rather than of the run.
+
+WHY THERE IS NO STALE SELECTOR (rc469, `#T1188`)
+================================================
+This tool carried a stale-selector flag until rc469 (the CHANGELOG entry for
+that rc names it; nothing live does any more, so a grep hit outside a dated
+record is a defect rather than a mention). Its predicate was one line --
+``prior[name]["src_sha256"] != job["src_sha256"]`` -- and :func:`src_sha256` is
+``sha256(setup + NUL + worked)``, the SNIPPET TEXT and nothing else. The ledger
+row carries NINE fields; the selector consulted exactly one, and not one that
+moves when an implementation moves. ``rational_mul`` began returning ``Q`` with
+its snippet unchanged to the byte, and no run of that flag could ever have
+re-measured it.
+
+That much was already written down, here and in three other files, and writing
+it down was not enough. What removed the flag is the second half:
+
+  * A run selecting ZERO rows still reached :func:`write_ledger` and minted a
+    fresh meta stamping ``verified_at = HEAD``. "0 stale" therefore PUBLISHED
+    "verified at HEAD" having executed nothing.
+  * :func:`backfill` computes its moved set from ``meta.verified_at..HEAD``.
+    So "select nothing, stamp HEAD, commit" moved the base a later
+    ``--backfill`` trusts; that backfill then found an EMPTY moved set, stamped
+    every row with current HEAD blobs, and the freshness hook read ``content=0``
+    and passed. Staleness laundered into a clean stamp by two tools each
+    behaving exactly as documented, with nothing in between to object.
+  * MEASURED at rc469: 27 live mentions across 12 files (plus 27 more in two
+    dated records, which stay) -- and the two loudest were REMEDIATION STRINGS
+    printed by gates that had just gone red. Three agents in this arc did not
+    choose this flag; the gate that had just failed them named it. That is why
+    the mentions went WITH the code: a flag removed but still prescribed is a
+    flag still in use.
+
+The replacements were always available and are now the only ones: a FULL run,
+or ``--only`` / ``--names-file`` when you can name the rows.
+``tools/hooks/derived_ledger_freshness.py`` names them for you, in full, because
+it asks the decidable question -- has the module that DEFINES this row moved --
+that a snippet hash cannot.
+
+The empty-selector hole is closed with it: a selector that selects nothing now
+exits 2 without writing, so the laundering path has no first step.
 
 WHY ``def_module`` AND NOT THE PUBLISHED NAME
 =============================================
@@ -793,7 +832,6 @@ def backfill(all_jobs: List[Dict[str, Any]], prior: Dict[str, Dict[str, Any]],
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--only-stale", action="store_true")
     ap.add_argument("--only", nargs="+", default=None, metavar="NAME")
     ap.add_argument("--names-file", default=None, metavar="PATH",
                     help="file of names, one per line; '-' reads stdin")
@@ -808,7 +846,7 @@ def main() -> int:
     live = {j["name"] for j in all_jobs}
 
     if args.backfill:
-        if args.only or args.names_file or args.only_stale:
+        if args.only or args.names_file:
             print("REFUSING: --backfill runs nothing, so it cannot be "
                   "combined with a selector.", file=sys.stderr)
             return 2
@@ -835,11 +873,19 @@ def main() -> int:
                   file=sys.stderr)
             return 2
         jobs = [j for j in all_jobs if j["name"] in requested]
-    elif args.only_stale:
-        jobs = [j for j in all_jobs
-                if prior.get(j["name"], {}).get("src_sha256") != j["src_sha256"]]
-        requested = {j["name"] for j in jobs}
-        print("stale: %d snippet(s)" % len(jobs), file=sys.stderr)
+        if not jobs:
+            # A selector that selects NOTHING used to fall straight through to
+            # write_ledger, minting a fresh meta with verified_at = HEAD having
+            # executed nothing -- and backfill() computes its moved set from
+            # meta.verified_at..HEAD, so that empty pass moved the base a later
+            # --backfill trusts and laundered every implementation-stale row
+            # into a clean stamp. --names-file on an empty file reaches here
+            # with requested == set(), so no unknown-name refusal fires either.
+            print("REFUSING: a selector was given and it matched NO snippet. "
+                  "Writing now would re-stamp verified_at to HEAD having run "
+                  "nothing, which moves the base --backfill trusts.",
+                  file=sys.stderr)
+            return 2
 
     t0 = time.time()
     records, native = run(jobs, args.budget)

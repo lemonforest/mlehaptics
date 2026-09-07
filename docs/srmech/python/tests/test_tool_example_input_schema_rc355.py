@@ -23,8 +23,8 @@ enforced it. The existing guards are each sound and each blind to this:
   from ``parameters``, so ``example`` is again untouched;
 * ``tests/test_worked_examples_strict_zero_rc353.py`` stringifies the example
   (``str(t.example or "")``) and greps it — it never compares keys to anything;
-* ``tools/run_worked_examples.py:180`` executes ``setup + worked`` and
-  ``:198`` selects on ``ex.get("worked")`` — it never reads ``input`` at all.
+* ``tools/run_worked_examples.py:414`` (``snippet_source``) builds ``setup``
+  + ``worked``, and ``:444`` selects on ``ex.get("worked")`` — never ``input``.
 
 So a reader could be handed ``jacobi_sncndn_series_truncate(u=…, m=…)`` next to
 an ``inputSchema`` whose required set is ``{numerator, denominator, m_numerator,

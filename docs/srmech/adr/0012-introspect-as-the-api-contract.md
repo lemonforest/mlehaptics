@@ -929,7 +929,7 @@ shape available, because nothing in the artifact reveals it.
 `tests/test_carrier_schema_rc205.py:310-326` (the drift ratchet, and its type-string scope) ·
 `tests/test_worked_examples_strict_zero_rc353.py` (strict-zero by user direction 2026-07-28 — **no
 `CEIL_` dict, no per-category allowlist**) ·
-`tools/run_worked_examples.py:198` + `tests/test_worked_examples_execute_rc354.py` ·
+`tools/run_worked_examples.py:444` + `tests/test_worked_examples_execute_rc354.py` ·
 `tests/test_tool_example_input_schema_rc355.py:137-139` ·
 `srmech/mcp/_tools.py:209` (the `"string"` fallback) · `srmech/mcp/_coercion.py` (the inbound
 strict-zero ratchet; `serialise_native`'s rc231 comment) ·

@@ -41,9 +41,15 @@ step and `regen_all.py` does not run it, but the executed-example ledger gate
 reds without it):
 
 ```
-python3 tools/regen_all.py                        # rebuild every generated file + verify idempotence
-python3 tools/run_worked_examples.py --only-stale # refresh the executed-example ledger
+python3 tools/regen_all.py            # rebuild every generated file + verify idempotence
+python3 tools/run_worked_examples.py  # re-execute the worked-example ledger, IN FULL
 ```
+
+The second step is FULL because a regen moves the dispatch surface *underneath*
+snippets whose text has not changed a byte. rc469 removed the scoped selector
+that hashed exactly that text: it re-executed nothing after a regen and reported
+a refreshed ledger it had not refreshed. Run it under WSL2 — the pure cell's
+ceiling encodes one snippet's absolute `/mnt/d/...` path.
 
 ⚠️ **A THIRD step, when the op you registered takes a sequence-shaped parameter**
 (rc465, `#T1188`). `tests/demotion_census.ndjson` is a committed MEASUREMENT of
@@ -96,7 +102,7 @@ mirror):
 | MCP | `test_mcpb_emit` (tool list == advertised introspection), `test_mcp_marshal_c_rc187`, `test_mcp_sse_c_rc194`, `test_mcp_stdio_c_rc186` | a new op appears in the MCP surface (bundle + C marshalling over the SSE / stdio transports) |
 | MCP coercer + signature drift | `test_mcp.py::test_all_param_types_json_coercible`, `test_mcp.py::test_schema_signature_alignment_no_drift` (by NODE-ID) | the **novel param-type** axis: a new op declaring a param TYPE with no `_PARAM_COERCERS` handler, or declared params drifting from the signature (the rc273 / rc328 failure class). `test_mcpb_emit` does NOT cover coercion and the C-marshalling gates test the wire, not the Python coercer registry -- so these two carry the axis. They run pure (~sub-second, no server / no fixture). The rest of `test_mcp.py` (socket SSE server + subprocess round-trips) stays EXCLUDED -- as a whole file it hangs a fast runner (>90s, no clean exit) |
 | regen graph | `test_regen_all_rc346` | the codegen dependency graph + idempotence |
-| worked-example family | `test_worked_examples_strict_zero_rc353` (registry-only, strict-zero), `test_worked_examples_execute_rc354` (executed ledger -- needs `run_worked_examples.py --only-stale`) | the two DIFFERENT-regen worked-example gates that bit rc385 |
+| worked-example family | `test_worked_examples_strict_zero_rc353` (registry-only, strict-zero), `test_worked_examples_execute_rc354` (executed ledger -- needs a FULL `run_worked_examples.py`) | the two DIFFERENT-regen worked-example gates that bit rc385 |
 | count-pin | `test_registry_smoke_rc127`, `test_rc15_describe_resolve` | representative `describe()["tools"]["total"]` pins (the full blast radius is 67 files / 74 lines at rc450 -- see note) |
 | class-TOML op-ref | `test_class_catalog_oprefs_resolve_930` | the third generated C table (`srmech_class_registry.c`) op refs |
 | ref-notation | `test_ref_notation_emitted_rc348` | bare-`#NNN` autolink guard on emitted artifacts |

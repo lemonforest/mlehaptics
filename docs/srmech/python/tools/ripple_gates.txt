@@ -358,8 +358,11 @@ tests/test_frame_scope_rc430.py
 #    the package tree, which is the defect (`#T1094`) that shipped a stray file
 #    named `a` for ~400 rcs. Depends on tests/example_args_ledger.ndjson and
 #    asserts that ledger is FRESH against the live schema, so an rc that edits
-#    any worked example takes it red until the ledger is re-run
-#    (`python3 tools/run_example_args.py --only-stale`). ~10 s, pure-Python.
+#    any worked example takes it red until the ledger is re-harvested IN FULL
+#    (`python3 tools/run_example_args.py` — rc469 removed the scoped form,
+#    which hashed snippet TEXT and so could not see a signature moving under an
+#    unchanged snippet; rc468 measured 17 rows it had been hiding). The gate
+#    itself is ~10 s, pure-Python; the re-harvest it prescribes is not.
 tests/test_synth_args_provenance_rc430.py
 
 # -- citation-contains-term (rc428, `#T1126`) --------------------------------

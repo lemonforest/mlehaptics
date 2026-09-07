@@ -131,7 +131,7 @@ have shipped blind to their own subject (`#T1136`, `#T1138`, `#T1182`, and the
     when an implementation changes carrier behaviour behind an unchanged
     signature**, which is precisely the class this file exists to find. The
     tree has paid for the identical blind spot once already — the worked-
-    example ledger's ``--only-stale`` hashes snippet TEXT, *"and that blind
+    example ledger's freshness key hashes snippet TEXT, *"and that blind
     spot is exactly how the ℚ-flip defect shipped"* — so it is written here in
     prose rather than left to be rediscovered. What still EXECUTES on every CI
     run is Layer 1: strict-zero exactness against the shipped carriers,
@@ -566,7 +566,7 @@ MANIFEST = Path(__file__).resolve().parent / "demotion_census.ndjson"
 #:
 #: This is written out rather than left implied because **the tree has already
 #: paid for the identical blind spot once**, and said so: the worked-example
-#: ledger's own note records that ``--only-stale`` *"keys on the SNIPPET-TEXT
+#: ledger's own note records that its freshness key *"keys on the SNIPPET-TEXT
 #: hash, which does not move when an implementation moves — the blind spot the
 #: freshness hook exists for"*, and *"that blind spot is exactly how the ℚ-flip
 #: defect shipped"*. The mitigation there — re-run BY NAME with explicit

@@ -152,10 +152,11 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     implementation changes carrier behaviour behind an unchanged signature** —
     the very class this probe exists to find. That is stated here and again in
     the gate, because the tree has already paid for the identical blind spot
-    once: ``tools/run_worked_examples.py``'s ``--only-stale`` keys on the
+    once: the worked-example ledger's freshness key, ``src_sha256``, is the
     snippet-TEXT hash, which does not move when the implementation moves, "and
-    that blind spot is exactly how the ℚ-flip defect shipped". A guard whose
-    limit is unwritten is a guard people believe.
+    that blind spot is exactly how the ℚ-flip defect shipped" — rc469 removed
+    the scoping flag that was built on it, for that reason. A guard whose limit
+    is unwritten is a guard people believe.
  7. **Byte / bit carriers admit no witness.** They surface as ``NO_SHAPE`` with
     the reason stated, which is a DOMAIN fact recorded as data. rc463 asserted
     this of the whole ``hdc`` family; rc465 measured it false — ``loop_conj``,
@@ -1207,10 +1208,10 @@ def merge_cell(path: Optional[Path] = None, *, progress: bool = True
     """Measure THIS cell and merge its column into the committed manifest.
 
     The other cell's column is carried forward UNTOUCHED — which is the rc460
-    worked-example-ledger defect (its own CHANGELOG entry: ``--only-stale``
-    "stamps the CURRENT cell's ``native`` flag onto rows merged from another
-    cell") repaired rather than repeated: nothing here relabels a measurement it
-    did not take.
+    worked-example-ledger defect (its own CHANGELOG entry, of the scoped re-run
+    rc469 has since removed: it "stamps the CURRENT cell's ``native`` flag onto
+    rows merged from another cell") repaired rather than repeated: nothing here
+    relabels a measurement it did not take.
 
     ⚠️ It REFUSES to carry forward a column measured against a DIFFERENT
     registry signature. Two halves of one manifest measured on two different
