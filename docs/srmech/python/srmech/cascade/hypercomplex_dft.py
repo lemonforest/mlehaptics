@@ -1276,6 +1276,17 @@ def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
     kind, so a declared chain run over an exact sample is exact in the Python
     runner and rounded in the C host — pinned by name in
     ``tests/test_exact_carrier_drain_rc466.py`` (``_COMPOSE_HOST_FLOAT_ONLY``).
+    Raises:
+        ValueError: on an EXACT sample only — an axis with no exact unit in
+            the shipped fields (a direction whose real component is nonzero,
+            or whose ``‖μ̂‖²`` is not 1, 3 or 7 times a rational square), or a
+            field index ``M = lcm(n, 4 | 12 | 28)`` above
+            :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` (256), which is a
+            SIEVE over ``n`` and not a ceiling. Both refuse rather than
+            electing the float carrier behind the caller's back; a float
+            sample elects it deliberately. Under execution in
+            ``tests/test_exact_axis_summand_rc469.py`` and, since rc469, in
+            the ``tests/test_declared_raises_execution_rc434.py`` corpus.
     """
     from srmech.physics.qm.quaternion import (
         _twiddle_resolved,
@@ -1359,6 +1370,17 @@ def odft_summand(xs, k: int, m: int, n: int, form: str, bracketing: str,
     keyword that the R3 reader counted as a declaration; the sentence above is
     the declaration. The C compose host's twin is double-only (see
     ``qdft_summand``).
+    Raises:
+        ValueError: on an EXACT sample only — the two conditions
+            :func:`qdft_summand` refuses (no exact unit for the direction; a
+            field index above :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX`),
+            and one more that is 8-wide and two-sided: a MIXED-WIDTH axis
+            PAIR. One sine scalar cannot carry two different irrational
+            scales, and their compositum ``ℚ(√3, √7)`` is not a simple
+            extension ``Qalg`` builds — so answering there would be the silent
+            wrong answer this rc removed. Under execution in
+            ``tests/test_exact_axis_summand_rc469.py`` and, since rc469, in
+            the ``tests/test_declared_raises_execution_rc434.py`` corpus.
     """
     from srmech.physics.qm.octonion import (
         _twiddle_resolved,

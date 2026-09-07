@@ -5286,8 +5286,14 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                        '    # -> [0.0, 0.5773502691896258, '
                        '0.5773502691896258, 0.5773502691896258]\n'
                        'qdft_resolve_mu([0.0, 3.0, 0.0, 4.0])\n'
-                       '    # -> [0.0, 0.6, 0.0, 0.8]  (normalised general '
-                       'axis)\n'},
+                       '    # -> [0.0, 0.6000000000000001, 0.0, 0.8]\n'
+                       '    #    (the normalised general axis. Component [1] lands ONE\n'
+                       '    #    ULP ABOVE 0.6 — 0x1.3333333333334p-1 against 0.6 =\n'
+                       '    #    0x1.3333333333333p-1 — because that is where the Class-N\n'
+                       '    #    sqrt cascade lands. It is a CAPTURE, not a typo to tidy\n'
+                       '    #    back; component [3] IS exactly 0.8. Pinned by\n'
+                       '    #    tests/test_curated_output_literal_rc469.py, which asserts\n'
+                       '    #    BOTH the executed value AND this literal.)\n'},
  'explanation': 'WHAT — resolve the QDFT transform axis to a UNIT '
                 'pure-imaginary 4-list ``μ̂`` (``μ̂² = −1``): named axes '
                 "``'i'``/``'j'``/``'k'``/``'ijk'`` (for ℍ, ``'diagonal'`` IS "
