@@ -155,6 +155,35 @@ INSTRUMENT_REVISIONS = [
                "verdict in under 0.2 s and every one is NOT_ADMISSIBLE — zero "
                "false ADMISSIBLE. The 2 expensive ones are named in SLOW_SKIP "
                "with their measured seconds AND with the verdict they reach."},
+    {"rev": 11, "change": "the modulus search excluded the coordinate BY "
+                          "PARAMETER NAME, and a coordinate sweep assigned "
+                          "the WHOLE parameter",
+     "forced_by": "hypercomplex_exp: 99 probe calls, a period of 4 found and "
+                  "attributed to the caller, then NOT_ADMISSIBLE",
+     "defect": "TWO defects that only look like one. (a) moduli() admitted "
+               "only a top-level bare int, while _carries -- one function up "
+               "in the same file -- already read INSIDE a sequence; the probe "
+               "could SEE a caller-supplied modulus and could not SWEEP one. "
+               "(b) the exclusion was by parameter NAME, so an op whose frame "
+               "crosses as ONE (k, n) operand had its modulus thrown away "
+               "with its coordinate. MEASURED over the registry: 221 ops "
+               "carry a frame coordinate, 123 of them had an EMPTY moduli(), "
+               "and 46 of those 123 hold a candidate modulus leaf that was "
+               "unreachable.",
+     "repair": "leaf addressing. moduli() returns (param, index_path) for an "
+               "int > 1 at any depth; the exclusion is BY LEAF; and -- the "
+               "half without which the other half is a silent no-op -- the "
+               "coordinate translation is a LEAF WRITE INTO THE OVERRIDE "
+               "instead of a whole-parameter assignment recomputed from the "
+               "untouched base. MEASURED with (a) applied and (b) not: "
+               "by_verdict byte-identical to rc468, ADMISSIBLE still 22, no "
+               "red anywhere -- a repair that reads as applied. With both: "
+               "EXACTLY ONE verdict moves across all 732 ops "
+               "(hypercomplex_exp -> ADMISSIBLE), reached holds at 218, and "
+               "the two negative controls linking_number_cwf / just_limit are "
+               "DRIVEN over their new candidates (187 and 118 calls) and stay "
+               "NOT_ADMISSIBLE. MOD_LEAF_BUDGET bounds the widening at 4 "
+               "leaves per parameter, measured verdict-identical to uncapped."},
 ]
 
 
@@ -257,7 +286,8 @@ def main() -> int:
                              "count could not resist and a statement can.",
         },
         "R": fp.R, "MMAX": fp.MMAX, "MIN_CONFIRMATIONS": fp.MIN_CONFIRMATIONS,
-        "NS": list(fp.NS), "slow_skipped": sorted(fp.SLOW_SKIP),
+        "NS": list(fp.NS), "MOD_LEAF_BUDGET": fp.MOD_LEAF_BUDGET,
+        "slow_skipped": sorted(fp.SLOW_SKIP),
     }
     records.insert(0, meta)
 

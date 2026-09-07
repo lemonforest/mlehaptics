@@ -103,14 +103,30 @@ REVIEWED_ROSTER: Dict[str, Tuple[str, Tuple[str, ...]]] = {
     # Class-I reduction the op performs first and the SAME frame the two
     # summands below carry. Reviewed against the census rows: 505 / 507
     # probe calls, one finding each, coord k carried by param n.
-    # The `hypercomplex_turn` row that stood here left with the op in the same
-    # rc — its route folded into `hypercomplex_exp`'s `turn=(k, n)` operand,
-    # and the declaration did NOT move with it. MEASURED: the probe enters an
-    # op only through INT-typed parameters, and a `(k, n)` pair is not one, so
-    # the census returns `measured_scope=null` for the folded op and a
-    # declaration there would be one this instrument cannot check. The frame
-    # itself is unchanged and still measured — on the scalar constructor
-    # underneath, `cos_sin_2pi_k_over_n(n: int, k: int)`, at 505 probe calls.
+    #
+    # rc469 (`#T1188`) ADDS `hypercomplex_exp`, and the sentence that stood
+    # here to explain its ABSENCE was FALSE. It read: "MEASURED: the probe
+    # enters an op only through INT-typed parameters, and a `(k, n)` pair is
+    # not one, so the census returns `measured_scope=null`". Refuted twice
+    # over. `frame_probe.is_frame_coordinate` has admitted int LISTS and
+    # NESTED int lists since rc465 — a widening THIS FILE gates — and the
+    # ledger is JSON, so the harvested binding is `turn: [1, 4]`, a flat int
+    # list, which IS a coordinate. And the rc468 census row for the op
+    # recorded 99 calls with `period_carried_by: {"turn": ["turn"]}`: the
+    # probe had entered, driven to a period of 4, and correctly attributed it
+    # to the caller. What actually blocked the declaration was one line of the
+    # INSTRUMENT — `Driver.moduli()` excluded the coordinate by parameter
+    # NAME, discarding the modulus at `turn[1]` together with the coordinate
+    # at `turn[0]` — and `Driver.sequence()` then assigned the whole parameter
+    # from the untouched base, clobbering any override that shared it. Both
+    # are leaf-addressed at rc469; see §0's leaf controls below.
+    #
+    # MEASURED after the repair: ADMISSIBLE, parametric, coord turn[0],
+    # modulus turn[1], 483 probe calls. Reviewed independently of the probe:
+    # the value is periodic in k with period exactly n at every n in
+    # (5, 7, 9, 11, 12), n distinct values per period, and no constant period
+    # in 2..24 survives the sweep.
+    "srmech.cascade.hypercomplex_exp": ("parametric", ("modulus",)),
     "srmech.cascade.odft_summand": ("parametric", ("modulus",)),
     "srmech.cascade.qdft_summand": ("parametric", ("modulus",)),
     "srmech.math.qalg.cos_sin_2pi_k_over_n": ("parametric", ("modulus",)),
@@ -497,11 +513,144 @@ def test_the_instrument_moves_one_axis_at_a_time() -> None:
     drv = fp.Driver("LEAK_B", base, _leak_b)
     assert drv.base == base, "the driver mutated its own base binding"
     assert fp.translate(5, 7) == 12 and fp.translate([1, 2, 3], 7) == [8, 2, 3]
-    # sequence() must not leak state between overrides
-    s1 = drv.sequence("x", {"n": 5}, length=12)
-    s2 = drv.sequence("x", {"n": 7}, length=12)
+    # sequence() must not leak state between overrides. Overrides are LEAF
+    # ADDRESSES since rc469 (`#T1188`) -- a scalar parameter is the leaf at
+    # path ().
+    s1 = drv.sequence("x", {("n", ()): 5}, length=12)
+    s2 = drv.sequence("x", {("n", ()): 7}, length=12)
     assert s1 != s2, "two different moduli produced identical sequences"
     assert drv.base == base
+
+
+# ── rc469 (`#T1188`): the LEAF-ADDRESSING controls ─────────────────────
+#
+# The repair is TWO changes that look like one, and the second is the one that
+# does the work. These controls are synthetic on purpose: a shipped op could
+# move for either half, and only a planted case separates them.
+
+def _pair_frame(pair: list) -> int:
+    """A frame that crosses as ONE operand: ``pair = [k, n]``, reduced mod n.
+
+    This is ``hypercomplex_exp(turn=(k, n))``'s shape with the algebra taken
+    out. The coordinate is ``pair[0]`` and its modulus is ``pair[1]``, so an
+    exclusion by parameter NAME throws the modulus away with the coordinate,
+    and a whole-parameter coordinate assignment clobbers any modulus override.
+    """
+    return pair[0] % pair[1]
+
+
+def _pair_ignores_second(pair: list) -> int:
+    """The negative control: same SHAPE, and ``pair[1]`` is not a frame.
+
+    Without this, "leaf addressing found a frame in a pair" could just mean
+    "any int at index 1 of any list is now called a modulus".
+    """
+    return pair[0] * 3 + pair[1]
+
+
+def test_a_modulus_INSIDE_a_sequence_is_reachable_at_all() -> None:
+    """Half one of the repair: ``moduli()`` addresses LEAVES, and excludes the
+    coordinate's own leaf rather than its whole parameter."""
+    drv = fp.Driver("PAIR", {"pair": [1, 4]}, _pair_frame)
+    assert drv.coordinates() == ["pair"]
+    assert drv.coord_leaf("pair") == ("pair", (0,))
+    assert drv.moduli("pair") == [("pair", (1,))], (
+        "the modulus at pair[1] is invisible. Through rc468 moduli() read "
+        "is_int(v) on the whole parameter and excluded by NAME, so this list "
+        "was empty and no op whose frame crosses as one (k, n) operand could "
+        "ever be admitted.")
+    # and the coordinate's OWN leaf is still excluded -- relaxing the guard to
+    # nothing at all would let the probe sweep the coordinate against itself
+    assert ("pair", (0,)) not in drv.moduli("pair")
+
+
+def test_the_coordinate_translation_is_a_LEAF_WRITE_into_the_override() -> None:
+    """Half two, and the half a naive repair silently omits.
+
+    Through rc468 the sweep read ``kw[coord] = translate(self.base[coord], d)``
+    -- a whole-parameter assignment recomputed from the UNTOUCHED base -- so a
+    modulus sharing a parameter with its coordinate was clobbered the instant
+    the sweep began. MEASURED at rc469 with half one applied and this half
+    NOT: the census by_verdict comes back byte-identical to rc468, ADMISSIBLE
+    still 22, and nothing is red anywhere. A no-op that reads as a repair.
+    """
+    seen = []
+    drv = fp.Driver("PAIR", {"pair": [1, 4]},
+                    lambda pair: seen.append(list(pair)) or _pair_frame(pair))
+    drv.sequence("pair", {("pair", (1,)): 5}, length=3)
+    assert seen == [[1, 5], [2, 5], [3, 5]], (
+        f"the coordinate sweep did not preserve the modulus override: {seen}. "
+        f"The translation must be written INTO the overridden value, not "
+        f"computed from self.base and assigned over the whole parameter.")
+
+
+def test_the_pair_frame_control_separates_from_its_negative() -> None:
+    """The instrument returns DIFFERENT answers for the two pair-shaped ops.
+
+    ``_pair_frame`` is parametric in ``pair[1]``; ``_pair_ignores_second`` has
+    the same shape and no frame. An instrument that admitted both would be
+    reporting the SHAPE, not the behaviour.
+
+    THE BASE IS ``[8, 4]`` AND NOT ``[1, 4]``, and that line is worth keeping:
+    at ``pair[0] = 1`` the modulus sweep does not move the output at all
+    (``1 % n == 1`` for every n in NS), so the probe stops at its own
+    "sweeping it does not move anything" screen and answers NOT_ADMISSIBLE --
+    correctly, about that BINDING. MEASURED while writing this control, and it
+    is the same degeneracy the harvested worked-example bindings keep
+    producing: readable prose picks the tidy value, and the tidy value
+    switches the operand off.
+    """
+    good = fp.classify("PAIR_FRAME", {"pair": [8, 4]}, _pair_frame)
+    bad = fp.classify("PAIR_NO_FRAME", {"pair": [8, 4]}, _pair_ignores_second)
+    assert good["verdict"] == "ADMISSIBLE", good
+    assert good["findings"] == [{"coord": "pair[0]", "scope": "parametric",
+                                 "param": "pair[1]", "axis": ["modulus"]}], good
+    assert bad["verdict"] == "NOT_ADMISSIBLE", bad
+
+
+def test_the_leaf_budget_is_named_and_bounds_the_search() -> None:
+    """MOD_LEAF_BUDGET is a REACH limit, so it is stated rather than inlined.
+
+    MEASURED at rc469 over the full 732-op registry: capped at 4 against
+    uncapped gives an identical by_verdict, an identical admissible set and
+    identical findings, at 38,622 probe calls against 100,193 -- 90% of the
+    difference in ONE op, ``normalized_cut_bisect``, whose harvested ``edges``
+    operand is 69 vertex pairs. The call count is the measurement because it
+    is deterministic; wall clock at this size ran 41.5-42.7 s capped against
+    48.9-59.5 s uncapped over two runs and would support either conclusion.
+    Generating code: ``docs/srmech/notes/_frame_leaf_addressing_rc469.py``.
+    What the budget can hide is named at the constant: a fifth-or-later
+    qualifying leaf carrying a real frame.
+    """
+    assert fp.MOD_LEAF_BUDGET >= 2, (
+        "a budget below 2 cannot reach the second leaf of a (k, n) pair, "
+        "which is the shape the rc469 repair exists for")
+    wide = {"m": list(range(2, 40))}
+    drv = fp.Driver("WIDE", wide, lambda m: m[0] % m[1])
+    got = drv.moduli("m")
+    assert len(got) == fp.MOD_LEAF_BUDGET, (
+        f"the budget is not being applied: {len(got)} candidate leaves from "
+        f"one 38-element operand")
+    assert all(p[0] == "m" for p in got)
+
+
+def test_leaf_helpers_preserve_the_operand_shape() -> None:
+    """``set_leaf`` copies and keeps tuple-ness -- an op handed a tuple
+    operand must keep being handed one, and the base binding is never
+    mutated."""
+    assert fp.leaf_paths(3) == [()]
+    assert fp.leaf_paths([1, 4]) == [(0,), (1,)]
+    assert fp.leaf_paths([[1, 2], [3, 4]]) == [(0, 0), (0, 1), (1, 0), (1, 1)]
+    assert fp.coordinate_leaf(3) == () and fp.coordinate_leaf([1, 4]) == (0,)
+    assert fp.coordinate_leaf([[1, 2]]) == (0, 0)
+    assert fp.leaf_name("turn", (1,)) == "turn[1]"
+    assert fp.leaf_name("n", ()) == "n"
+    src = (1, 4)
+    out = fp.set_leaf(src, (1,), 9)
+    assert out == (1, 9) and isinstance(out, tuple) and src == (1, 4)
+    nested = [[1, 2], [3, 4]]
+    assert fp.set_leaf(nested, (1, 0), 9) == [[1, 2], [9, 4]]
+    assert nested == [[1, 2], [3, 4]], "set_leaf mutated its input"
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -682,6 +831,61 @@ def test_declared_equals_admissible_in_both_directions() -> None:
         f"removed {sorted(set(REVIEWED_ROSTER) - declared)}")
 
 
+def test_the_rc469_repair_moved_exactly_one_verdict_and_no_frame() -> None:
+    """The blast radius of the leaf-addressing repair, asserted per op.
+
+    THREE claims, and each fails on its own.
+
+    (i) ``hypercomplex_exp`` is ADMISSIBLE, parametric, with the coordinate
+        and the modulus addressed as the two LEAVES of one operand. Without
+        the leaf write in ``Driver._step`` this comes back NOT_ADMISSIBLE and
+        the whole census is otherwise unchanged and green -- MEASURED, that
+        half-repair reproduces the rc468 by_verdict byte for byte.
+
+    (ii) THE TWO NEGATIVE CONTROLS. ``linking_number_cwf(twist=[3, 2],
+         writhe=[5, 2])`` and ``just_limit(den=1, num=[3, 2])`` are shipped
+         ops that GAIN candidate modulus leaves under the widening -- 3 and 2
+         of them -- and are DRIVEN over every one (187 and 118 probe calls).
+         They stay NOT_ADMISSIBLE. Without them, "leaf addressing found a
+         frame" could mean "any int inside any list is now a modulus".
+
+    (iii) ⚠️ ``qdft_summand`` and ``odft_summand`` ALREADY declare this frame
+          and are members of the reviewed roster. The same rc changed their
+          carrier election and added a refusal path, so a moved verdict here
+          would break ``declared_minus_admissible`` -- a failure it is natural
+          to attribute only to the newly-added op. Assert instead that the
+          value fix moved a VALUE and not a FRAME.
+    """
+    census = _census()
+    exp = census["srmech.cascade.hypercomplex_exp"]
+    assert exp["verdict"] == "ADMISSIBLE", (
+        f"hypercomplex_exp reads {exp['verdict']}. If the census is otherwise "
+        f"identical to rc468, the leaf write in Driver._step is missing and "
+        f"the leaf-addressed moduli() is a silent no-op.")
+    assert fp.declared_scope(exp["findings"]) == "parametric", exp
+    assert exp["findings"] == [{"coord": "turn[0]", "scope": "parametric",
+                                "param": "turn[1]", "axis": ["modulus"]}], exp
+
+    for neg in ("srmech.math.covering.linking_number_cwf",
+                "srmech.music.just_limit"):
+        rec = census[neg]
+        assert rec["verdict"] == "NOT_ADMISSIBLE", (
+            f"{neg} is a negative control for the leaf widening and it moved: "
+            f"{rec}")
+        assert rec.get("calls"), f"{neg} was never driven, so it proves nothing"
+
+    for summand in ("srmech.cascade.qdft_summand", "srmech.cascade.odft_summand"):
+        rec = census[summand]
+        entry = get_tool_schema().lookup(summand)
+        assert rec["verdict"] == "ADMISSIBLE", (
+            f"{summand} left the admissible set. It DECLARES "
+            f"frame_scope={entry.frame_scope!r}, so this breaks §4's declared "
+            f"arm; the rc469 carrier/refusal change was supposed to move a "
+            f"VALUE, not a FRAME.")
+        assert fp.declared_scope(rec["findings"]) == entry.frame_scope
+        assert tuple(fp.declared_axis(rec["findings"])) == entry.frame_axis
+
+
 def test_unadjudicated_ops_are_counted_under_a_down_only_ceiling() -> None:
     """An op the driver cannot reach is UNADJUDICATED, not passing.
 
@@ -741,6 +945,18 @@ def test_unadjudicated_ops_are_counted_under_a_down_only_ceiling() -> None:
     # executions that raised. A floor is the half of this gate that cannot be
     # satisfied by relabelling: whatever names the residual classes carry, the
     # instrument has to have actually DRIVEN this many ops.
+    #
+    # rc469 (`#T1188`) RE-EXAMINED IT AND DELIBERATELY LEFT IT AT 218, which
+    # is worth a line because the rc widened the instrument and a widening
+    # normally raises a floor. The leaf-addressing repair moves an op BETWEEN
+    # the two classes this sum adds together (hypercomplex_exp,
+    # NOT_ADMISSIBLE -> ADMISSIBLE), so `reached` is invariant under it by
+    # construction: 218 before, 218 after, MEASURED. Nothing new became
+    # DRIVABLE -- the 46 ops that gained a candidate modulus leaf were already
+    # being driven along their coordinate; what they gained is a modulus to
+    # sweep. Raising the floor here would claim reach the rc did not buy, and
+    # the constant that DID move is MOD_LEAF_BUDGET, which is named in
+    # tools/frame_probe.py with its own measurement.
     reached = counts.get("ADMISSIBLE", 0) + counts.get("NOT_ADMISSIBLE", 0)
     assert reached >= 218, (
         f"only {reached} ops were actually DRIVEN. §4 compares two sets the "
@@ -1096,26 +1312,37 @@ def test_no_control_in_this_module_is_computed_and_then_ignored() -> None:
     assert verdicts == {"fixed", "parametric"}, (
         f"the three controls collapsed to {verdicts}; an instrument that "
         f"returns one verdict for every input is not measuring anything")
-    # 20 at rc430; 21 at the rc430 repair (`#T1127`), when the probe's
-    # degeneracy screen stopped foreclosing the parametric sweep and
-    # srmech.math.cyclic.gcd became measurable. The count moved because the
-    # INSTRUMENT was repaired, not because an op was hand-added to the roster.
-    # 23 at rc468 (`#T1188`): the exact rational-turn pair
-    # (cos_sin_2pi_k_over_n, and the turn route of the hypercomplex rotor)
-    # declares the SAME parametric/modulus frame the two DFT summands carry,
-    # because the turn numerator is reduced in Z_n first — Class I, measured,
-    # not asserted. The count moved because two ops were REGISTERED, not
-    # because the instrument or the predicate changed.
-    # 22 after the same rc's consolidation: `hypercomplex_turn` was folded
-    # into `hypercomplex_exp` as its `turn=(k, n)` operand, and the
-    # declaration did NOT follow it. That is the honest direction and the
-    # reason is measurable rather than editorial — the probe enters by INT
-    # parameters and a pair is not one, so the folded op measures
-    # `scope=null`; declaring the frame there would be an assertion this
-    # instrument cannot return. The FRAME did not go unmeasured: the scalar
-    # constructor it is built on, `cos_sin_2pi_k_over_n(n: int, k: int)`,
-    # declares and MEASURES the same parametric/modulus frame at 505 calls.
-    assert len(_declared()) == len(REVIEWED_ROSTER) == 22
+    # THE COUNT, AND WHY EACH MOVE HAPPENED — the whole point of keeping it
+    # here is that a number alone cannot say whether the registry grew or the
+    # instrument did.
+    #
+    #   20  rc430.
+    #   21  the rc430 repair (`#T1127`): the probe's degeneracy screen stopped
+    #       foreclosing the parametric sweep and srmech.math.cyclic.gcd became
+    #       measurable. The INSTRUMENT was repaired; no op was hand-added.
+    #   23  rc468 (`#T1188`): two ops were REGISTERED carrying the exact
+    #       rational-turn frame.
+    #   22  the same rc's consolidation: `hypercomplex_turn` folded into
+    #       `hypercomplex_exp` as its `turn=(k, n)` operand and the
+    #       declaration did not follow it.
+    #   23  rc469 (`#T1188`): the declaration follows it at last, and the
+    #       instrument is what moved. The rc468 justification for leaving it
+    #       off — "the probe enters by INT parameters and a pair is not one,
+    #       so the folded op measures scope=null" — was WRITTEN AS MEASURED
+    #       AND WAS FALSE. is_frame_coordinate has taken int lists and nested
+    #       int lists since rc465 (gated by this file), the ledger is JSON so
+    #       the binding arrives as `turn: [1, 4]`, and the rc468 census row
+    #       records 99 calls and period_carried_by {"turn": ["turn"]} — the
+    #       probe entered and reached the period. The real blocker was
+    #       `Driver.moduli()` excluding the coordinate by parameter NAME, plus
+    #       `Driver.sequence()` assigning the whole parameter from the base
+    #       and clobbering the override. Both are leaf-addressed now.
+    #
+    # MEASURED across all 732 ops: EXACTLY ONE verdict moves
+    # (hypercomplex_exp, NOT_ADMISSIBLE -> ADMISSIBLE), `reached` holds at
+    # exactly 218, and the widening is verdict-identical capped at
+    # MOD_LEAF_BUDGET=4 versus uncapped.
+    assert len(_declared()) == len(REVIEWED_ROSTER) == 23
     assert set(_census()) == {e.name for e in get_tool_schema().tools}, (
         "the census does not cover the registry, so §4's set comparison is "
         "over a subset it chose itself")

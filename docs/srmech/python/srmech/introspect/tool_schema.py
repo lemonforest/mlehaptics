@@ -10623,19 +10623,30 @@ def _register_primitive_class_tools() -> None:
         # Before the fold the declared operand was `theta` and the op
         # returned from its required params; it still does, on the better
         # route.
-        # NO frame_scope declaration, and that is MEASURED rather than an
-        # oversight: the frame probe enters an op only through INT-typed
-        # parameters, and this op's turn crosses as a `(k, n)` PAIR, so the
-        # census returns measured_scope=null and a declaration here would be
-        # unmeasurable by the instrument that exists. The frame is real -- the
-        # turn numerator is periodic in the denominator, Class I -- and it IS
-        # declared and MEASURED on the scalar constructor underneath,
-        # srmech.math.qalg.cos_sin_2pi_k_over_n(n: int, k: int), which the
-        # census reaches (505 probe calls, ADMISSIBLE). The rc468
-        # `hypercomplex_turn` that briefly carried the declaration took three
-        # int params, so the probe could see it; folding the route into a pair
-        # operand traded that visibility for one op instead of two, and the
-        # honest record is this comment plus the surviving measured peer.
+        # frame_scope IS DECLARED HERE since rc469 (`#T1188`), and the
+        # sentence that used to stand in its place was FALSE. It read: "the
+        # frame probe enters an op only through INT-typed parameters, and this
+        # op's turn crosses as a (k, n) PAIR, so the census returns
+        # measured_scope=null" -- and it was labelled MEASURED. It was
+        # refuted twice over. The probe's coordinate predicate has admitted
+        # int LISTS and nested int lists since rc465, and the ledger is JSON,
+        # so the harvested binding is `turn: [1, 4]` -- a flat int list, which
+        # IS a coordinate. And the rc468 census row for this op recorded 99
+        # calls and `period_carried_by: {"turn": ["turn"]}`: the probe had
+        # entered, driven to a period of 4, and correctly attributed it to the
+        # caller. What actually blocked the declaration was one line in the
+        # instrument -- `Driver.moduli()` excluded the coordinate BY PARAMETER
+        # NAME, so the modulus at turn[1] was discarded together with the
+        # coordinate at turn[0]. rc469 addresses both by LEAF.
+        #
+        # MEASURED after the repair: ADMISSIBLE, scope parametric, coord
+        # turn[0], modulus turn[1], axis ["modulus"], 483 probe calls. And
+        # independently of the probe: the value is periodic in k with period
+        # exactly n at every n in (5, 7, 9, 11, 12), with n distinct values
+        # per period and NO constant period in 2..24 surviving the sweep --
+        # which is what "parametric" means. The frame is the same Class-I
+        # reduction the scalar constructor underneath declares,
+        # srmech.math.qalg.cos_sin_2pi_k_over_n(n: int, k: int).
         ToolEntry(
             name="srmech.cascade.hypercomplex_exp", owner="srmech",
             category="cascade",
@@ -10700,6 +10711,7 @@ def _register_primitive_class_tools() -> None:
                        "turn's orientation stays a Class-K pin-slot on the "
                        "sine coordinate, never a stripped magnitude",),
             smoke_test_hint={"k_axes": "1", "turn": "(1, 8)"},
+            frame_scope="parametric", frame_axis=("modulus",),
         ),
         # Hamming / GF(2) linear block-code family (v0.7.2rc2; #910 / §30,
         # F442/F449) — the CARRY/EC half of the sedenion front-loader. Rosetta
