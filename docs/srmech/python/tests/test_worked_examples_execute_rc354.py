@@ -135,6 +135,33 @@ def _rows():
     return meta, [r for r in rows if "name" in r]
 
 
+def _remedy(names) -> str:
+    """The COMPLETE re-run command for ``names`` — never a truncated one.
+
+    Same idiom, same threshold and the same reason as
+    ``tools/hooks/derived_ledger_freshness.py``: at or below 24 names the single
+    command is ``--only NAME ...``; above it the command is written as a
+    ``--names-file -`` heredoc, because Windows ``cmd`` truncates an argv past
+    8191 characters and a truncated remedy is a partial pass wearing a complete
+    one's clothes. That hook learned it the hard way — it used to print one
+    ``--only`` line for the first three of N rows, so an operator following its
+    instructions exactly on a 55-row block re-ran 3 and left 52.
+
+    With nothing nameable the command is the FULL run, which is always correct.
+    A snippet that has been DELETED cannot be passed to ``--only`` (an unknown
+    name is a hard refusal, deliberately) and does not need to be: the by-name
+    path merges into the prior ledger and then keeps only rows still in the
+    live registry, so a removal is carried by the merge rather than by the run.
+    """
+    if not names:
+        return "    python3 tools/run_worked_examples.py"
+    if len(names) <= 24:
+        return ("    python3 tools/run_worked_examples.py --only "
+                + " ".join(names))
+    return ("    python3 tools/run_worked_examples.py --names-file - <<'EOF'\n"
+            + "\n".join(names) + "\nEOF")
+
+
 def _live():
     """``{name: src_sha256}`` recomputed from the LIVE schema."""
     import sys
@@ -150,8 +177,17 @@ def test_ledger_is_fresh_against_the_live_schema() -> None:
 
     This is the assertion that makes the other three trustworthy: without it
     the ratchet reports on a tree that no longer exists. It catches added,
-    removed AND edited snippets, per-snippet rather than per-run, so the fix is
-    ``--only-stale`` and costs one import plus the changed snippets.
+    removed AND edited snippets, per-snippet rather than per-run — so the
+    remedy it prints NAMES them, all of them, and costs one import plus the
+    changed snippets.
+
+    It used to prescribe a stale-selector flag instead, and print the first
+    EIGHT of each set. Both halves were defects and rc469 (`#T1188`) removed
+    them together. The flag hashed the snippet TEXT, which is the one quantity
+    this assertion has already established did NOT move for the rows it stays
+    silent about; and a truncated list is a truncated remedy, which is exactly
+    how the sibling freshness hook once prescribed a 3-of-55 pass to an
+    operator following it correctly.
     """
     _meta, rows = _rows()
     ledger = {r["name"]: r["src_sha256"] for r in rows}
@@ -159,12 +195,80 @@ def test_ledger_is_fresh_against_the_live_schema() -> None:
     added = sorted(set(live) - set(ledger))
     removed = sorted(set(ledger) - set(live))
     edited = sorted(n for n in set(live) & set(ledger) if live[n] != ledger[n])
+    nameable = sorted(set(added) | set(edited))
     assert not (added or removed or edited), (
-        "the worked-example ledger is STALE. Re-run:\n"
-        "    python3 tools/run_worked_examples.py --only-stale\n"
-        f"  added({len(added)}):   {added[:8]}\n"
-        f"  removed({len(removed)}): {removed[:8]}\n"
-        f"  edited({len(edited)}):  {edited[:8]}")
+        "the worked-example ledger is STALE. Re-run — the command "
+        "below covers EVERY row listed under it, not a prefix:\n"
+        + _remedy(nameable) + "\n"
+        f"  added({len(added)}):   {added}\n"
+        f"  removed({len(removed)}): {removed}\n"
+        f"  edited({len(edited)}):  {edited}")
+
+
+def test_the_stale_remedy_names_every_row_and_never_a_prefix() -> None:
+    """The remedy above is a COMMAND an operator will paste. Drive it.
+
+    rc469 (`#T1188`). This arm exists because the failure it guards is
+    invisible from a green run: until this rc the message printed
+    ``{added[:8]}`` beside a scoped-selector command, so a 30-row staleness
+    handed the operator eight names and a flag that would have re-run none of
+    them, and every gate in this file still passed. The sibling freshness hook
+    shipped the identical defect (``shown[:3]``) and only found it by someone
+    following its instructions on a 55-row block and re-running 3.
+
+    Four independent ways this can go red: a truncation reappearing in the
+    remedy; the heredoc threshold drifting so a >24-name remedy is built as an
+    argv Windows ``cmd`` will cut at 8191 characters; the message naming rows
+    other than the ones actually stale; and the empty case losing the full-run
+    fallback, which is the only correct answer when every stale row is a
+    DELETION and none can be passed to ``--only``.
+    """
+    assert _remedy([]) == "    python3 tools/run_worked_examples.py"
+
+    one = _remedy(["srmech.math.rational.rational_mul"])
+    assert one.endswith("--only srmech.math.rational.rational_mul")
+    assert "[" not in one and "..." not in one
+
+    small = [f"srmech.demo.op{i:02d}" for i in range(24)]
+    line = _remedy(small)
+    assert line.count(chr(10)) == 0, "24 names must stay a single --only line"
+    for n in small:
+        assert n in line
+
+    big = [f"srmech.demo.op{i:02d}" for i in range(25)]
+    block = _remedy(big)
+    assert "--names-file - <<'EOF'" in block
+    body = block.split("<<'EOF'" + chr(10), 1)[1].rsplit(chr(10) + "EOF", 1)[0]
+    assert body.split(chr(10)) == big, (
+        "the heredoc must carry EVERY name, in order, and nothing else")
+
+    # ── and the message the operator actually sees, on a real staleness ──
+    import sys as _sys
+    mod = _sys.modules[__name__]
+    stale_names = [f"srmech.demo.stale{i:02d}" for i in range(30)]
+    gone = "srmech.demo.deleted"
+    fake_rows = [{"name": n, "src_sha256": "old"} for n in stale_names]
+    fake_rows.append({"name": gone, "src_sha256": "old"})
+    real_rows, real_live = mod._rows, mod._live
+    mod._rows = lambda: ({}, fake_rows)
+    mod._live = lambda: {n: "new" for n in stale_names}
+    try:
+        with pytest.raises(AssertionError) as exc:
+            test_ledger_is_fresh_against_the_live_schema()
+    finally:
+        mod._rows, mod._live = real_rows, real_live
+    msg = str(exc.value)
+    for n in stale_names:
+        assert n in msg, f"the remedy dropped {n}"
+    assert gone in msg, "a removed row must still be REPORTED"
+    # pytest re-indents an assertion message when it appends its own
+    # explanation, so the block is read line-wise rather than by slicing.
+    lines = [ln.strip() for ln in msg.splitlines()]
+    i = next(k for k, ln in enumerate(lines) if ln.endswith("<<'EOF'"))
+    j = next(k for k in range(i + 1, len(lines)) if lines[k] == "EOF")
+    assert lines[i + 1:j] == stale_names, (
+        "the COMMAND must name every re-runnable row and only those: a deleted "
+        "snippet is a hard --only refusal and is carried by the merge instead")
 
 
 # ── (B) STRICT ZERO — every snippet compiles ──────────────────────────────
@@ -317,10 +421,12 @@ def test_every_row_carries_its_defining_module_and_content_stamp() -> None:
     missing = sorted(r["name"] for r in rows
                      if not r.get("def_module") or not r.get("def_blob"))
     assert not missing, (
-        f"{len(missing)} ledger row(s) carry no defining-module stamp. "
-        "Re-run them, or `python3 tools/run_worked_examples.py --backfill` if "
-        "their defining modules have not moved since meta.verified_at:\n"
-        f"  {missing[:8]}")
+        f"{len(missing)} ledger row(s) carry no defining-module stamp.\n"
+        "Re-run them — this command covers every one of them:\n"
+        + _remedy(missing) + "\n"
+        "or `python3 tools/run_worked_examples.py --backfill` if their "
+        "defining modules have not moved since meta.verified_at.\n"
+        f"  {missing}")
 
     live = {j["name"]: j["def_module"] for j in rwe.collect()}
     wrong = sorted(r["name"] for r in rows
@@ -329,7 +435,9 @@ def test_every_row_carries_its_defining_module_and_content_stamp() -> None:
         "a row's recorded defining module is not where the op lives now. "
         "That is a REBIND — a package __init__ now re-exports it from a "
         "different submodule — and the row's content stamp is watching the "
-        f"wrong file:\n  {[(n, live[n]) for n in wrong[:8]]}")
+        "wrong file. Re-run them, all of them:\n"
+        + _remedy(wrong) + "\n"
+        f"  {[(n, live[n]) for n in wrong]}")
 
 
 # ── the meta-test: prove the gate can go red ──────────────────────────────

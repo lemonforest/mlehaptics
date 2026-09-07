@@ -338,9 +338,10 @@ but `tools/run_worked_examples.py` defines it as
 `sha256(setup + "\0" + worked)` — the hash of the **snippet text**. This
 session's defect was an implementation flip underneath an unchanged snippet
 (`rational_mul` began returning `Q`, and `'Q' object is not subscriptable`), so a
-snippet-hash comparison could not have caught it. The tree's own
-`run_worked_examples.py --only-stale` inherits the same blind spot and would not
-have re-run those rows either. The hook therefore asks a different, decidable
+snippet-hash comparison could not have caught it. `run_worked_examples.py`
+carried a scoping flag on that same key, which inherited the whole blind spot
+and would not have re-run those rows either; rc469 removed it, and this hook is
+what replaced it. The hook therefore asks a different, decidable
 question: *has the module that defines this op changed since that row was
 measured?* — per-row scoped, so one module's edit never demands the full
 651-snippet run. C-source changes are reported as an advisory and do not block;

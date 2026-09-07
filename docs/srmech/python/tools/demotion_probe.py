@@ -69,10 +69,37 @@ triple, substituted at one numeric leaf of one sequence-shaped parameter:
 
     out(P) == out(F)  and  out(G) != out(F)   ->  DEMOTED
     out(P) != out(F)                          ->  EXACT
-    all three equal                           ->  INSENSITIVE
+    all three equal                           ->  a NULL, split THREE ways
 
-``INSENSITIVE`` is a CLASSIFIED NULL, not a pass: the leaf did not reach the
-output. It is retried at further leaves before it is recorded, because the
+THE THREE NULLS ARE THREE DIFFERENT QUESTIONS AND ARE NEVER MERGED
+-------------------------------------------------------------------
+``all three equal`` says only that the witness did not move the output. WHY it
+did not is a separate question, and it has three answers. The rule beside
+:data:`H` — *classify every null; do not merge two of them* — is why each gets
+its own name rather than sharing one:
+
+  * ``UNRESOLVED_AT_WITNESS`` is about the **witness scale**. The leaf DOES
+    reach the output, but the op's own resolution is coarser than one float64
+    step at ``2**53``, so this triple cannot decide its carrier. Split by the
+    coarse fourth witness :data:`H` (rc465).
+  * ``VACUOUS`` is about the **binding** (rc469, `#T1188`). The HARVESTED values
+    of the OTHER parameters hold the op in a degenerate regime in which this
+    leaf cannot reach the output at all — while at another binding of those
+    same siblings it reaches it perfectly well. Split by a bounded round-robin
+    sweep, :data:`MAX_ALT_BINDINGS`.
+  * ``INSENSITIVE`` is about the **op**, and is only what remains once the
+    other two have been subtracted.
+
+**``INSENSITIVE`` carried all three through rc468, and the conflation is the
+kind this instrument exists to find.** ``INSENSITIVE`` is a claim about the OP;
+a single harvested binding can only support a claim about the MEASUREMENT.
+MEASURED at rc469: ``srmech.cascade.qdft_summand::mu_hat`` read ``INSENSITIVE``
+in BOTH cells over a live silent-wrong-answer, because its harvested ``n = 2``
+makes the exact turn's sine exactly zero, which annihilates the axis the row was
+probing — two different axes return byte-identical output there. The null was
+true of that binding and false of the op, and the row was green over the defect.
+
+Each null is retried at further leaves before it is recorded, because the
 verdict is position-specific.
 
 ``out(G) != out(F)`` is the vacuity guard and it is not decoration. Without it
@@ -102,8 +129,13 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     :func:`synthesize`, not about the library.
  2. **One parameter at a time.** A demotion that needs two exact operands
     simultaneously is out of reach.
- 3. **Bounded leaf positions** (:data:`MAX_LEAVES`). A demotion visible only at
-    leaf 40 of a long vector is out of reach.
+ 3. **Bounded leaf positions** (:data:`MAX_LEAVES`), and bounded sibling
+    bindings (:data:`MAX_ALT_BINDINGS`). A demotion visible only at leaf 40 of a
+    long vector is out of reach; so is one visible only under a sibling value
+    outside :data:`ALT_SIBLING_VALUES`, which stays ``INSENSITIVE`` rather than
+    being named ``VACUOUS``. Both bounds fail SAFE in the same direction — they
+    can leave a null under-split, never over-split, because ``VACUOUS`` is only
+    ever awarded on a POSITIVE observation that the leaf reached the output.
  4. **It measures through PYTHON only** (rc463 blind spot 4, unchanged). A
     demotion in the C projection the Python path does not share is invisible.
  5. **Layer-3 vocabulary is still a KEYWORD LIST** (rc463 blind spot 5). The
@@ -120,10 +152,11 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     implementation changes carrier behaviour behind an unchanged signature** —
     the very class this probe exists to find. That is stated here and again in
     the gate, because the tree has already paid for the identical blind spot
-    once: ``tools/run_worked_examples.py``'s ``--only-stale`` keys on the
+    once: the worked-example ledger's freshness key, ``src_sha256``, is the
     snippet-TEXT hash, which does not move when the implementation moves, "and
-    that blind spot is exactly how the ℚ-flip defect shipped". A guard whose
-    limit is unwritten is a guard people believe.
+    that blind spot is exactly how the ℚ-flip defect shipped" — rc469 removed
+    the scoping flag that was built on it, for that reason. A guard whose limit
+    is unwritten is a guard people believe.
  7. **Byte / bit carriers admit no witness.** They surface as ``NO_SHAPE`` with
     the reason stated, which is a DOMAIN fact recorded as data. rc463 asserted
     this of the whole ``hdc`` family; rc465 measured it false — ``loop_conj``,
@@ -218,12 +251,78 @@ G = 2 ** 53 + 2
 #: which is a different and false statement. Measured: ``octonion_norm`` reduces
 #: through a truncated Class-N rational ``sqrt`` and returns the same float for
 #: P, F and G while ``H`` moves it, so it is ``UNRESOLVED_AT_WITNESS``, not
-#: ``INSENSITIVE``. Classify every null; do not merge two of them.
+#: ``INSENSITIVE``. Classify every null; do not merge two of them — there
+#: are now THREE (``VACUOUS`` is the third; see the module docstring), and
+#: :data:`H` is the split for THIS one only. It asks about the witness
+#: SCALE. It cannot ask whether the leaf was reachable under some other
+#: binding of the siblings, which is a question about the BINDING.
 H = 3 * 2 ** 53
 
 #: How many numeric leaves of one parameter are tried before the row is
 #: recorded ``INSENSITIVE``. Bounded so the census terminates; blind spot 3.
 MAX_LEAVES = 6
+
+#: Values substituted into ONE sibling parameter when a null needs splitting
+#: into ``VACUOUS`` vs ``INSENSITIVE``. Small ints, because the degeneracies
+#: this is built to escape are structural rather than numeric: a period, a
+#: dimension, a term count sitting at the value that collapses the op.
+#: MEASURED on the ``qdft_summand`` binding — ``n = 2`` gives the exact turn a
+#: sine of exactly zero, and ``3`` is the first value that un-degenerates it.
+ALT_SIBLING_VALUES = (3, 4, 5)
+
+#: How many alternate sibling bindings are tried before the null is recorded
+#: ``INSENSITIVE``. Bounded so the census terminates, like :data:`MAX_LEAVES`.
+#:
+#: ⚠️ **ENUMERATION ORDER IS LOAD-BEARING AND A DEPTH-FIRST ORDER MAKES THIS
+#: INSTRUMENT BLIND.** :func:`_alt_bindings` goes ROUND-ROBIN — one value across
+#: EVERY sibling before any sibling's second value. MEASURED on the harvested
+#: ``qdft_summand::mu_hat`` binding (siblings ``k``, ``left``, ``m``, ``n``,
+#: ``sigma``): ``k`` = 3/4/5 does not un-degenerate it, ``left`` = 3/4/5 does
+#: not, ``m`` = 3/4/5 RAISES ``IndexError``, and ``n`` = 3/4/5 DOES. In
+#: sibling-major (depth-first) order the only sibling that answers arrives at
+#: candidate **10 of 15**; round-robin reaches it at candidate **4**.
+#:
+#: **Stated exactly, because the weaker claim is the true one:** at the budget
+#: shipped here, 12, that particular row is found under EITHER order — 10 <= 12.
+#: The orders separate as soon as a row has five or more scalar siblings, which
+#: is why the planted control that pins this (``gated_deep``, five
+#: co-parameters, only the last of which un-degenerates) has five rather than
+#: the three a smaller reading of the same point would need: round-robin reaches
+#: its answer at candidate 5, sibling-major would need candidate 13, and 13 > 12.
+#: MEASURED both ways in
+#: ``tests/test_silent_carrier_demotion_rc463.py``. A depth-first "simplification"
+#: of :func:`_alt_bindings` therefore does not fail loudly — it returns
+#: ``INSENSITIVE`` for the wide-signature rows and the census diff shows nothing
+#: moving, whose natural misreading is "the fix had no effect" rather than "the
+#: instrument is blind".
+#:
+#: WHAT IT CAN HIDE, stated because a bounded instrument that does not say so
+#: is a guard people believe: an op whose degeneracy is escaped ONLY by a
+#: sibling value outside :data:`ALT_SIBLING_VALUES`, or only by moving TWO
+#: siblings at once, or by a sibling that is neither ``int`` nor ``bool`` (the
+#: sweep does not move strings or sequences — ``odft_summand``'s ``bracketing``
+#: and ``form`` are outside it), still reads ``INSENSITIVE``. That is the same
+#: shape as blind spot 2 and is bounded by the same argument: one at a time.
+MAX_ALT_BINDINGS = 12
+
+#: How many of the null-reaching (shape, leaf) POSITIONS the sweep re-asks at.
+#:
+#: ⚠️ **ONE IS NOT ENOUGH, AND THIS WAS MEASURED BY A PLANTED CONTROL
+#: RATHER THAN REASONED.** The first cut of this split remembered a single
+#: position — the LAST one to reach the null — and planted control
+#: ``gated(v, n)`` read ``INSENSITIVE`` where it must read ``VACUOUS``. The
+#: cause is that :func:`synthesize` ends its candidate list with SQUARE shapes,
+#: so the last position reached was the 1x1 matrix ``[[1]]``: at the harvested
+#: ``n = 2`` the op short-circuits and never looks at ``v``, so that shape binds
+#: and records a null — and at ``n = 3`` it evaluates ``sum([[x]])`` and
+#: RAISES. The sweep then saw nothing but failures and reported no finding.
+#: **A position that binds under the HARVESTED sibling values need not bind
+#: under the alternate ones**, so the sweep re-asks at the first few positions
+#: in DISCOVERY order (the harvested shape first whenever it is int-clean)
+#: rather than at whichever one happened to be walked last. Bounds the sweep at
+#: ``MAX_NULL_CONTEXTS * MAX_ALT_BINDINGS * 2`` calls per row, paid ONLY by rows
+#: that would otherwise have been recorded ``INSENSITIVE``.
+MAX_NULL_CONTEXTS = 3
 
 #: Shapes synthesised for a sequence-shaped parameter with no harvested value.
 #: The Cayley-Dickson ladder, because that is what this package's vector ops are
@@ -696,6 +795,65 @@ def _verdict(cP: Any, cF: Any, cG: Any) -> str:
     return "DEMOTED"
 
 
+def _scalar_siblings(base: Dict[str, Any], pname: str) -> List[str]:
+    """The OTHER parameters a witness sweep can move: bare ``int`` / ``bool``.
+
+    Sequence and string siblings are deliberately outside it — substituting a
+    small int for a vector or for a mode name asks a DIFFERENT question of the
+    op, and would answer this one with an artefact.
+    """
+    return sorted(k for k, v in base.items()
+                  if k != pname and (_is_int(v) or isinstance(v, bool)))
+
+
+def _alt_bindings(base: Dict[str, Any], pname: str
+                  ) -> Iterator[Tuple[str, int, Dict[str, Any]]]:
+    """``(sibling, value, binding)`` — ROUND-ROBIN, not sibling-major.
+
+    One value across EVERY sibling before any sibling's second value. See
+    :data:`MAX_ALT_BINDINGS` for the measurement that decides this, and for what
+    a depth-first walk costs.
+    """
+    sibs = _scalar_siblings(base, pname)
+    spent = 0
+    for val in ALT_SIBLING_VALUES:
+        for k in sibs:
+            if base[k] == val:
+                continue
+            if spent >= MAX_ALT_BINDINGS:
+                return
+            spent += 1
+            yield k, val, {**base, k: val}
+
+
+def _vacuous_by(fn, base: Dict[str, Any], pname: str, shape: Any,
+                path: Tuple[int, ...]) -> Optional[Tuple[str, int]]:
+    """Does this leaf reach the output under some OTHER sibling binding?
+
+    Returns the ``(sibling, value)`` that shows it does, or ``None``.
+
+    ⚠️ **THE COMPARISON IS WITHIN ONE ALTERNATE BINDING.** ``out(H at B')``
+    against ``out(F at B')`` — never ``out at B'`` against ``out at B``. Under
+    the latter an op that merely RETURNS one of its other parameters moves the
+    moment a sibling moves, and every such op would be misfiled ``VACUOUS``
+    while the probed leaf still reaches nothing. Both calls here differ in the
+    probed leaf and in nothing else, so what they measure is the leaf.
+    """
+    for k, val, alt in _alt_bindings(base, pname):
+        okF, vF = call_bounded(fn, {**alt, pname: set_leaf(shape, path, F)})
+        if not okF:
+            continue                     # this sibling value does not bind
+        okH, vH = call_bounded(fn, {**alt, pname: set_leaf(shape, path, H)})
+        if not okH:
+            continue
+        cF, cH = canon(vF), canon(vH)
+        if _uncomparable(cF) or _uncomparable(cH):
+            continue
+        if cH != cF:
+            return k, val
+    return None
+
+
 def probe_param(fn, base: Dict[str, Any], opname: str,
                 pname: str, ptype: str) -> Dict[str, Any]:
     """One (op, sequence-shaped parameter) row."""
@@ -730,6 +888,14 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
     last_err: Optional[str] = None
     saw_leafless = False
     null_seen: Optional[str] = None
+    # WHERE the INSENSITIVE null was reached — (shape, path, shape_label),
+    # in DISCOVERY order, capped at MAX_NULL_CONTEXTS. The VACUOUS sweep
+    # re-asks the question at those exact leaves under a different sibling
+    # binding, so it needs the positions, not just the verdict. It is a LIST,
+    # and first-wins, for the reason recorded at MAX_NULL_CONTEXTS: a
+    # position that binds under the harvested sibling values need not bind
+    # under the alternate ones.
+    null_ctxs: List[Tuple[Any, Tuple[int, ...], str]] = []
     timed_out = 0
     for si, raw_shape in enumerate(shapes):
         if timed_out:
@@ -771,6 +937,12 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
                 cH = canon(val) if ok else None
                 null_seen = ("INSENSITIVE" if (not ok or cH == outs["F"])
                              else "UNRESOLVED_AT_WITNESS")
+                if null_seen == "INSENSITIVE" \
+                        and len(null_ctxs) < MAX_NULL_CONTEXTS:
+                    null_ctxs.append(
+                        (shape, path,
+                         "harvested" if raw_shape is base.get(pname)
+                         else f"synth[{si}]"))
                 continue                     # position-specific; try next leaf
             if v == "DEMOTED" and not (clean and sclean):
                 rec["verdict"] = "INEXACT_BASE"
@@ -792,9 +964,33 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
             f"a call exceeded {CALL_TIMEOUT}s; recorded the null already reached")
         return rec
     if null_seen is not None:
+        # SPLIT THE NULL A SECOND TIME, on a different axis. ``H`` asked whether
+        # the WITNESS was too fine. This asks whether the BINDING was degenerate
+        # — the difference between a claim about the op and a claim about this
+        # one measurement.
+        hit = None
+        ctx: Optional[Tuple[Any, Tuple[int, ...], str]] = None
+        if null_seen == "INSENSITIVE":
+            for ctx in null_ctxs:
+                hit = _vacuous_by(fn, base, pname, ctx[0], ctx[1])
+                if hit is not None:
+                    break
+        if hit is not None:
+            sib, val = hit
+            rec["verdict"] = "VACUOUS"
+            rec["reason"] = (
+                f"no witness reached the output in {MAX_LEAVES} leaves under "
+                f"the HARVESTED binding, but it does at {sib}={val} — so the "
+                f"null is a fact about this binding, not about the op")
+            rec["leaf"] = list(ctx[1])          # type: ignore[index]
+            rec["shape"] = ctx[2]               # type: ignore[index]
+            return rec
         rec["verdict"] = null_seen
         rec["reason"] = (
-            f"no witness reached the output in {MAX_LEAVES} leaves"
+            f"no witness reached the output in {MAX_LEAVES} leaves, and none "
+            f"reached it under {MAX_ALT_BINDINGS} alternate sibling "
+            f"bindings at any of {MAX_NULL_CONTEXTS} null positions "
+            f"either"
             if null_seen == "INSENSITIVE" else
             "the leaf reaches the output, but the op's own resolution is "
             "coarser than one float64 step at 2**53 — this witness triple "
@@ -1012,10 +1208,10 @@ def merge_cell(path: Optional[Path] = None, *, progress: bool = True
     """Measure THIS cell and merge its column into the committed manifest.
 
     The other cell's column is carried forward UNTOUCHED — which is the rc460
-    worked-example-ledger defect (its own CHANGELOG entry: ``--only-stale``
-    "stamps the CURRENT cell's ``native`` flag onto rows merged from another
-    cell") repaired rather than repeated: nothing here relabels a measurement it
-    did not take.
+    worked-example-ledger defect (its own CHANGELOG entry, of the scoped re-run
+    rc469 has since removed: it "stamps the CURRENT cell's ``native`` flag onto
+    rows merged from another cell") repaired rather than repeated: nothing here
+    relabels a measurement it did not take.
 
     ⚠️ It REFUSES to carry forward a column measured against a DIFFERENT
     registry signature. Two halves of one manifest measured on two different

@@ -131,7 +131,7 @@ have shipped blind to their own subject (`#T1136`, `#T1138`, `#T1182`, and the
     when an implementation changes carrier behaviour behind an unchanged
     signature**, which is precisely the class this file exists to find. The
     tree has paid for the identical blind spot once already — the worked-
-    example ledger's ``--only-stale`` hashes snippet TEXT, *"and that blind
+    example ledger's freshness key hashes snippet TEXT, *"and that blind
     spot is exactly how the ℚ-flip defect shipped"* — so it is written here in
     prose rather than left to be rediscovered. What still EXECUTES on every CI
     run is Layer 1: strict-zero exactness against the shipped carriers,
@@ -566,7 +566,7 @@ MANIFEST = Path(__file__).resolve().parent / "demotion_census.ndjson"
 #:
 #: This is written out rather than left implied because **the tree has already
 #: paid for the identical blind spot once**, and said so: the worked-example
-#: ledger's own note records that ``--only-stale`` *"keys on the SNIPPET-TEXT
+#: ledger's own note records that its freshness key *"keys on the SNIPPET-TEXT
 #: hash, which does not move when an implementation moves — the blind spot the
 #: freshness hook exists for"*, and *"that blind spot is exactly how the ℚ-flip
 #: defect shipped"*. The mitigation there — re-run BY NAME with explicit
@@ -1269,6 +1269,184 @@ def test_layer3_the_probe_can_return_both_verdicts() -> None:
 
     i = _dp.probe_param(ignores, {"v": [1, 1]}, "planted.ignores", "v", "list")
     assert i["verdict"] in ("INSENSITIVE", "UNRESOLVED_AT_WITNESS"), i
+    assert i["verdict"] == "INSENSITIVE", (
+        f"`ignores` has NO co-parameter at all, so the rc469 VACUOUS sweep has "
+        f"nothing to sweep and cannot possibly find a binding under which the "
+        f"leaf reaches the output. Reading {i['verdict']!r} here would mean "
+        f"VACUOUS is being handed out universally rather than on a positive "
+        f"observation.")
+
+
+# ── the rc469 THIRD NULL — VACUOUS vs INSENSITIVE ────────────────────────────
+#
+# ``INSENSITIVE`` is a claim about the OP; a single harvested binding can only
+# support a claim about the MEASUREMENT. These controls are PLANTED — nothing
+# committed depends on them — because a detector written to the answer would
+# move exactly the rows its own census diff expects and look perfect. That is
+# the failure class this rc exists to remove, reappearing inside the fix for it,
+# and synthetic controls are the only defence against it.
+
+
+def test_layer3_the_vacuous_split_can_fire_and_can_not_fire_rc469() -> None:
+    """rc469 (`#T1188`). FOUR planted controls, each failing a different way."""
+
+    def gated(v, n):
+        """(a) MUST read VACUOUS. At the harvested n=2 the leaf is foreclosed;
+        at n=3 it reaches the output untouched."""
+        return sum(v) if n > 2 else 0
+
+    def truly_ignores(v, n):
+        """(b) THE COMPARISON TRAP. MUST read INSENSITIVE. It HAS a
+        co-parameter and the sweep DOES move the output — but not because of
+        ``v``. An implementation comparing ``out at B'`` against ``out at B``
+        instead of comparing two calls WITHIN B' misfiles this as VACUOUS."""
+        return n
+
+    def gated_deep(v, a1, a2, a3, a4, zlast):
+        """(c) THE ENUMERATION-ORDER CONTROL. FIVE co-parameters, only the LAST
+        of which un-degenerates. Round-robin reaches it at candidate 5;
+        sibling-major would need candidate 13, past MAX_ALT_BINDINGS = 12."""
+        return sum(v) if zlast > 2 else 0
+
+    a = _dp.probe_param(gated, {"v": [1, 1], "n": 2}, "planted.gated", "v", "list")
+    assert a["verdict"] == "VACUOUS", (
+        f"(a) the plainest degenerate binding there is — n=2 forecloses the "
+        f"leaf, n=3 does not — read {a['verdict']!r}. The sweep never escaped "
+        f"the degenerate region, so the split is decoration.")
+    assert "n=3" in (a.get("reason") or ""), (
+        f"VACUOUS must name the sibling and value that show the leaf IS "
+        f"reachable; got reason {a.get('reason')!r}. The finding rides in "
+        f"`reason` because _CELL_FIELDS is a five-name allowlist and a new "
+        f"field would be silently dropped on the way into the manifest.")
+
+    b = _dp.probe_param(truly_ignores, {"v": [1, 1], "n": 2},
+                        "planted.truly_ignores", "v", "list")
+    assert b["verdict"] == "INSENSITIVE", (
+        f"(b) COMPARISON TRAP: `truly_ignores` returns its OTHER parameter, so "
+        f"moving that parameter moves the output while the probed leaf still "
+        f"reaches nothing. Reading {b['verdict']!r} means the sweep is "
+        f"comparing across bindings instead of within one, and every op that "
+        f"returns a co-parameter is being misfiled.")
+
+    deep_base = {"v": [1, 1], "a1": 1, "a2": 1, "a3": 1, "a4": 1, "zlast": 2}
+    c = _dp.probe_param(gated_deep, deep_base, "planted.gated_deep", "v", "list")
+    assert c["verdict"] == "VACUOUS", (
+        f"(c) five co-parameters, only the LAST un-degenerating, read "
+        f"{c['verdict']!r}. This is the shape a single-co-parameter control "
+        f"cannot catch: it passes green against a budget that reaches nothing.")
+    assert "zlast=3" in (c.get("reason") or ""), c.get("reason")
+
+
+def test_layer3_the_sibling_enumeration_order_is_load_bearing_rc469() -> None:
+    """rc469 (`#T1188`). The ordering is a MEASUREMENT, executed here, not a
+    comment. ``_alt_bindings`` goes ROUND-ROBIN — one value across every sibling
+    before any sibling's second value. A depth-first "simplification" does not
+    fail loudly; it returns INSENSITIVE for wide-signature rows and the census
+    diff then shows nothing moving, whose natural misreading is "the fix had no
+    effect" rather than "the instrument is blind".
+    """
+    def gated_deep(v, a1, a2, a3, a4, zlast):
+        return sum(v) if zlast > 2 else 0
+
+    base = {"v": [1, 1], "a1": 1, "a2": 1, "a3": 1, "a4": 1, "zlast": 2}
+
+    def sibling_major(bs, pname):
+        """The depth-first order a 'simplification' would produce."""
+        spent = 0
+        for k in _dp._scalar_siblings(bs, pname):
+            for val in _dp.ALT_SIBLING_VALUES:
+                if bs[k] == val:
+                    continue
+                if spent >= _dp.MAX_ALT_BINDINGS:
+                    return
+                spent += 1
+                yield k, val, {**bs, k: val}
+
+    shipped = _dp._alt_bindings
+    try:
+        _dp._alt_bindings = sibling_major
+        blind = _dp.probe_param(gated_deep, base, "planted.deep", "v", "list")
+    finally:
+        _dp._alt_bindings = shipped
+    assert blind["verdict"] == "INSENSITIVE", (
+        f"the depth-first order read {blind['verdict']!r}. If BOTH orders find "
+        f"this control, the control no longer separates them and the ordering "
+        f"claim beside MAX_ALT_BINDINGS has stopped being measured — widen the "
+        f"control (more co-parameters) rather than deleting this test.")
+
+    seeing = _dp.probe_param(gated_deep, base, "planted.deep", "v", "list")
+    assert seeing["verdict"] == "VACUOUS", (
+        "the SHIPPED round-robin order must find what the depth-first order "
+        "misses; that difference is the entire reason the order is specified.")
+
+
+# ── THE VERDICT-VOCABULARY GUARD (rc469) ─────────────────────────────────────
+#
+# ⚠️ Ships in the SAME diff as the new verdict name, and that is the point.
+# Through rc468 this file had NO verdict-vocabulary arm at all — its only
+# verdict literals were inside individual assertions — so a verdict spelled
+# anything else was counted by no ceiling and no floor, and adding or renaming
+# a class would drop its whole population out of every count at once and read
+# as a drain. The SIBLING gate closed exactly this hole and states the
+# precedent verbatim (``tests/test_frame_scope_rc430.py``: "renaming a class,
+# or adding one, would drop its whole population out of every ceiling at once
+# and read as a drain ... which is why the guard lands in the same diff").
+#: Every verdict string the census may carry. Each is either adjudicated by an
+#: assertion in this file or is a classified null / unreached class held with a
+#: stated reason.
+KNOWN_VERDICTS = frozenset({
+    "DEMOTED",               # the finding; rostered and digest-pinned
+    "EXACT",                 # the pass
+    "INEXACT_BASE",          # a non-integral float survives in the binding
+    "INSENSITIVE",           # null: about the OP
+    "UNRESOLVED_AT_WITNESS", # null: about the WITNESS SCALE (rc465)
+    "VACUOUS",               # null: about the BINDING (rc469, `#T1188`)
+    "NO_SHAPE",              # unreached; CEIL_DEMOTION_UNREACHED ratchets it
+    "RAISED",                # unreached; deliberately unratcheted
+    "UNCOMPARABLE",          # the canon form cannot be ordered
+    "UNRESOLVABLE",          # example_args could not resolve the callable
+    "CONTRACT_SKIP",         # skipped BY NAME with the op's own contract quoted
+    "CALL_TIMED_OUT",        # the hang guard fired; recorded, never dropped
+})
+
+
+def _unknown_verdicts(rows) -> list:
+    """Verdicts in ``rows`` that :data:`KNOWN_VERDICTS` does not name."""
+    seen = set()
+    for r in rows:
+        for c in ("native", "pure"):
+            if r.get(c):
+                seen.add(r[c]["verdict"])
+    return sorted(seen - KNOWN_VERDICTS)
+
+
+def test_the_census_verdict_vocabulary_is_known_rc469() -> None:
+    """No verdict may reach the manifest that nothing in this file counts."""
+    _meta, rows = _manifest()
+    unknown = _unknown_verdicts(rows)
+    assert not unknown, (
+        f"the census carries verdict(s) {unknown} that KNOWN_VERDICTS does not "
+        f"name, so their population is counted by nothing here. Give the class "
+        f"a name and a stated role in the SAME change that introduces it; do "
+        f"not leave it unnamed, which reads as a drain in every ceiling at "
+        f"once.")
+
+
+def test_the_verdict_vocabulary_guard_is_not_vacuous_rc469() -> None:
+    """AN INSTRUMENT THAT CANNOT RETURN OTHERWISE IS NOT A MEASUREMENT.
+
+    The same predicate, over a row carrying a RENAMED verdict, must fire.
+    """
+    renamed = [{"op": "planted", "param": "v",
+                "native": {"verdict": "INSENSITIVE_RENAMED"},
+                "pure": {"verdict": "INSENSITIVE_RENAMED"}}]
+    assert _unknown_verdicts(renamed) == ["INSENSITIVE_RENAMED"], (
+        "the vocabulary guard did not notice a verdict spelled differently, so "
+        "it is decoration rather than a guard")
+    _meta, rows = _manifest()
+    assert _unknown_verdicts(rows + renamed) == ["INSENSITIVE_RENAMED"], (
+        "the guard stopped noticing the planted rename once real rows were "
+        "present, so it is not reading the population it claims to read")
 
 
 def test_layer3_the_delegate_follow_reaches_outside_laplacian() -> None:

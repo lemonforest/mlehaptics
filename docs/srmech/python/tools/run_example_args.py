@@ -8,7 +8,25 @@ construction** and why ``example["input"]`` is NOT an argument source.
 Usage::
 
     python3 tools/run_example_args.py                 # full regeneration
-    python3 tools/run_example_args.py --only-stale     # re-harvest what changed
+
+THERE IS NO STALE SELECTOR, AND THE COST OF HAVING HAD ONE (rc469, `#T1188`)
+----------------------------------------------------------------------------
+This tool carried the same snippet-hash stale selector its sibling did, on the
+same key (it imported ``rwe.src_sha256`` for it), and rc469 removed both. The
+reasoning is written out once, at
+``tools/run_worked_examples.py``'s "WHY THERE IS NO STALE SELECTOR" section;
+what belongs HERE is the measured price this ledger paid for it. rc468 ran the
+first full re-harvest in a long while: **20 rows moved, and 17 of those were
+pre-existing staleness the selector had been hiding**, including
+``dense_laplacian`` and ``quaternion_twiddle`` rows that gained an ``exact=``
+parameter in rc466/rc467 and never re-recorded it. A signature can change under
+an unchanged snippet, and a snippet hash cannot see that.
+
+This ledger also had NO freshness hook watching it and NO assertion on its
+``srmech_version`` stamp -- so nothing at all could have named those 17. rc469
+adds the ``def_module`` / ``def_blob`` per-row stamp its sibling has carried
+since rc468, and
+``tests/test_synth_args_provenance_rc430.py`` now asserts the version stamp.
 
 HARNESS INTEGRITY IS A CONTROL, NOT A CONVENIENCE
 -------------------------------------------------
@@ -143,28 +161,43 @@ class Worker:
 
 
 def collect() -> List[Dict[str, str]]:
-    """Every srmech-owned tool, with its freshness key.
+    """Every srmech-owned tool, with its freshness key and its defining module.
 
     Ops with NO worked snippet are collected too, with an empty key — the
     ledger must record them as ``no_worked_snippet`` rather than omit them,
     or its op set would silently disagree with the registry and the freshness
     gate would have nothing to compare.
+
+    ``def_module`` is the ``__module__`` of the LIVE callable — where the op is
+    DEFINED, not where it is published — and ``def_blob`` is that file's git
+    blob at HEAD. Same two fields, same resolution, same reason as
+    ``tools/run_worked_examples.py::collect``: a row's snippet hash cannot move
+    when an implementation moves, and these two can. rc468 measured 25.3% of
+    the sibling ledger invisible to a published-NAME match, which is why the
+    defining module is recorded rather than derived.
     """
     from srmech.introspect.tool_schema import get_tool_schema, warmup_all
+    from srmech._resolve import resolve_dotted_callable
     warmup_all()
+    blobs = rwe.head_blob_map()
     out = []
     for t in get_tool_schema().tools:
         if t.owner != "srmech":
             continue
         ex = t.example if isinstance(t.example, dict) else None
         key = rwe.src_sha256(ex) if (ex and ex.get("worked")) else ""
-        out.append({"name": t.name, "src_sha256": key})
+        try:
+            dm = getattr(resolve_dotted_callable(t.name), "__module__", "") or ""
+        except Exception:
+            # unresolvable: the row carries no stamp rather than a wrong one.
+            dm = ""
+        out.append({"name": t.name, "src_sha256": key,
+                    "def_module": dm, "def_blob": blobs.get(dm, "")})
     return out
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--only-stale", action="store_true")
     ap.add_argument("--budget", type=float, default=DEFAULT_BUDGET)
     args = ap.parse_args()
 
@@ -172,18 +205,8 @@ def main() -> int:
     print(f"srmech.__file__    = {srmech.__file__}", file=sys.stderr)
     print(f"srmech.__version__ = {srmech.__version__}", file=sys.stderr)
 
-    jobs = collect()
-    previous = ea.load_ledger()
-    fresh: Dict[str, Dict[str, Any]] = {}
-    todo = []
-    for j in jobs:
-        old = previous.get(j["name"])
-        if (args.only_stale and old is not None
-                and old.get("src_sha256") == j["src_sha256"]):
-            fresh[j["name"]] = old
-            continue
-        todo.append(j)
-    print(f"{len(todo)} to harvest, {len(fresh)} reused", file=sys.stderr)
+    todo = collect()
+    print(f"{len(todo)} to harvest", file=sys.stderr)
 
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join(
@@ -195,7 +218,7 @@ def main() -> int:
                      encoding="utf-8")
 
     worker = Worker(str(child), env)
-    records: List[Dict[str, Any]] = list(fresh.values())
+    records: List[Dict[str, Any]] = []
     since = 0
     for i, j in enumerate(todo, 1):
         name = j["name"]
@@ -211,6 +234,11 @@ def main() -> int:
                 worker._start()
                 since = 0
         rec["src_sha256"] = j["src_sha256"]
+        # Stamped HERE and not only in collect(): a record coming back from a
+        # worker is a FRESH dict built by the child, so a stamp applied at
+        # collection would be dropped on exactly the rows that ran.
+        rec["def_module"] = j["def_module"]
+        rec["def_blob"] = j["def_blob"]
         records.append(rec)
         if i % 50 == 0:
             print(f"  {i}/{len(todo)}", file=sys.stderr)

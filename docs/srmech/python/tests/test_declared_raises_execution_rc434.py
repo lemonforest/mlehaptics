@@ -399,6 +399,45 @@ PROBES: list[tuple] = [
     # ---- cascade.exact_dft ------------------------------------------------
     ("exact_dft.exact_idft/short", "srmech.cascade.exact_dft.exact_idft",
      "ValueError", ([],), {}, "N < 2"),
+    # ---- cascade.hypercomplex_dft (rc469, `#T1188`) ------------------------
+    #
+    # The exact summands gained two refusal conditions in rc469 and the ODFT a
+    # third, and the whole rc is about instruments that could not have returned
+    # otherwise -- so they enter the corpus in the commit that declares them,
+    # rather than riding as clauses nothing executes. All three fire only on an
+    # EXACT (all-integer) sample: a float component elects the float carrier and
+    # none of these guards is reached, which is why every probe below passes ints.
+    ("qdft_summand/no-exact-unit", "srmech.cascade.qdft_summand",
+     "ValueError", ([[1, 0, 0, 0], [1, 0, 0, 0]], 1, 1, 2, True, -1,
+                    [0.0, 1.0, 2.0, 0.0]), {},
+     "axis norm-squared 5: no exact unit in the {1,3,7} fields"),
+    # n = 65 on a WIDTH-1 axis: lcm(65, 4) = 260 > 256. The width matters -- the
+    # admissible n are a sieve, not an interval -- so the probe names the width.
+    ("qdft_summand/field-cap", "srmech.cascade.qdft_summand",
+     "ValueError", ([[1, 0, 0, 0]] * 65, 1, 1, 65, True, -1,
+                    [0.0, 1.0, 0.0, 0.0]), {},
+     "field index lcm(65, 4) = 260 above MAX_CYCLOTOMIC_INDEX 256"),
+    # 1/sqrt(3) on the left and 1/sqrt(7) on the right: ONE sine scalar cannot
+    # carry both, and Q(sqrt 3, sqrt 7) is not a simple extension Qalg builds.
+    ("odft_summand/mixed-width-axis", "srmech.cascade.odft_summand",
+     "ValueError", ([[1] + [0] * 7, [1] + [0] * 7], 1, 1, 2, "two_sided",
+                    "left_associated", -1,
+                    [0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0] + [1.0] * 7), {},
+     "two-sided axis pair of DIFFERENT irrational widths (3 vs 7)"),
+    # The absence pins that keep the three above honest: the same shapes with a
+    # width the fields DO carry must still answer. Without these, a summand that
+    # raised unconditionally would satisfy every presence probe here.
+    ("qdft_summand/basis-axis-n4-answers", "srmech.cascade.qdft_summand",
+     _NO_RAISE, ([[1, 0, 0, 0]] * 4, 1, 1, 4, True, -1,
+                 [0.0, 1.0, 0.0, 0.0]), {},
+     "width 1 at n = 4: lcm 4, well inside the cap -- must NOT raise"),
+    ("odft_summand/same-width-pair-answers", "srmech.cascade.odft_summand",
+     _NO_RAISE, ([[1] + [0] * 7, [1] + [0] * 7], 1, 1, 2, "two_sided",
+                 "left_associated", -1,
+                 [0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+                 [0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0]), {},
+     "both sides 1/sqrt(3): one scale, one field -- must NOT raise"),
     # ---- cascade.hamming --------------------------------------------------
     ("hamming.hamming_syndrome/bad-length", "srmech.cascade.hamming_syndrome",
      "ValueError", ([1, 0, 1, 1],), {}, "length is not 2**n - 1"),

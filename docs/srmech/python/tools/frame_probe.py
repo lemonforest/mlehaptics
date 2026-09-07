@@ -96,6 +96,40 @@ SCREEN_TAIL = 8
 #: "no constant period survives the sweep" clause to do real work.
 NS = (5, 7, 9, 11, 12)
 
+#: Modulus-candidate LEAVES considered per PARAMETER (rc469, `#T1188`).
+#:
+#: Leaf addressing (see :func:`leaf_paths`) lets an ``int > 1`` at ANY depth
+#: inside a sequence operand stand as a candidate modulus. For a scalar
+#: parameter that is one leaf and this budget is inert; for a matrix-shaped
+#: operand the population is the operand's SIZE, and one op dominates the
+#: whole census on its own.
+#:
+#: MEASURED at rc469 over the full 732-op registry, capped at 4 against
+#: uncapped, in the same process on the same tree: IDENTICAL ``by_verdict``,
+#: IDENTICAL admissible set, and findings equal as data, at **38,622 probe
+#: calls capped against 100,193 uncapped**. 55,386 of the 61,571 extra calls
+#: (90%) are ONE op — ``normalized_cut_bisect``, whose harvested ``edges`` is
+#: 69 vertex pairs, hence 138 int leaves before the ``> 1`` filter.
+#:
+#: The CALL COUNT is the measurement, and deliberately so: it is deterministic
+#: and reproduced identically across runs, while wall clock at this size is
+#: 41.5-42.7 s capped against 48.9-59.5 s uncapped over two runs — a spread
+#: wide enough to argue either way. Generating code:
+#: ``docs/srmech/notes/_frame_leaf_addressing_rc469.py``. The comparison is
+#: what licenses the cap; a budget defended by an argument rather than by a
+#: measurement is a guess about what it hides.
+#:
+#: WHAT IT CAN HIDE, stated because a budget is a limit on REACH and not a
+#: verdict: an operand whose fifth-or-later qualifying int leaf is the real
+#: frame falls outside this and is reported NOT_ADMISSIBLE with no note. That
+#: is the same shape of silence :data:`SLOW_SKIP` carries, which is why the
+#: number is named here with its measurement instead of inlined at the call
+#: site. It is NOT a way to pay for a slow op: ``normalized_cut_bisect``
+#: reaches NOT_ADMISSIBLE in 0.36 s, so moving it to ``SLOW_SKIP`` instead
+#: would drop ``reached`` from 218 to 217 against a floor sitting at exactly
+#: 218 — buying an instrument widening with coverage.
+MOD_LEAF_BUDGET = 4
+
 
 #: MEASURED-SLOW ops, skipped by NAME with a number attached.
 #:
@@ -279,6 +313,74 @@ def translate(v: Any, d: int) -> Any:
     if is_int_seq(v):
         return [v[0] + d] + list(v[1:])
     return [[v[0][0] + d] + list(v[0][1:])] + [list(row) for row in v[1:]]
+
+
+def leaf_paths(v: Any) -> List[Tuple[int, ...]]:
+    """Index paths to every int leaf of a frame-coordinate-shaped value.
+
+    ``3`` gives ``[()]``; ``[1, 4]`` gives ``[(0,), (1,)]``; ``[[1, 2]]``
+    gives ``[(0, 0), (0, 1)]``.
+
+    The sibling instrument already ships this idiom —
+    ``tools/demotion_probe.py`` :func:`leaf_paths` / :func:`set_leaf` — and
+    this is that idiom restricted to the int-only shapes
+    :func:`is_frame_coordinate` admits, so the two probes address a nested
+    operand the same way rather than each inventing its own addressing.
+    """
+    if is_int(v):
+        return [()]
+    if is_int_seq(v):
+        return [(i,) for i in range(len(v))]
+    if is_nested_int_seq(v):
+        return [(i, j) for i, row in enumerate(v) for j in range(len(row))]
+    return []
+
+
+def get_leaf(v: Any, path: Tuple[int, ...]) -> Any:
+    for i in path:
+        v = v[i]
+    return v
+
+
+def set_leaf(v: Any, path: Tuple[int, ...], value: Any) -> Any:
+    """A COPY of ``v`` with the leaf at ``path`` replaced — never a mutation,
+    and tuple-ness is PRESERVED, because an op handed a tuple operand has to
+    keep being handed one."""
+    if not path:
+        return value
+    seq = list(v)
+    seq[path[0]] = set_leaf(seq[path[0]], path[1:], value)
+    return tuple(seq) if isinstance(v, tuple) else seq
+
+
+def leaf_name(param: str, path: Tuple[int, ...]) -> str:
+    """``turn[1]`` — the spelling a finding publishes.
+
+    rc469 (`#T1188`): findings name a LEAF rather than a parameter, and that
+    is not tidiness. ONE parameter can hold BOTH the coordinate and the
+    modulus — ``hypercomplex_exp(turn=(k, n))`` is exactly that — so a finding
+    reading ``coord: turn, param: turn`` would be unreadable, and no reader
+    could tell which element of the pair was which.
+    """
+    return param + "".join(f"[{i}]" for i in path)
+
+
+def coordinate_leaf(v: Any) -> Tuple[int, ...]:
+    """The leaf :func:`translate` actually moves.
+
+    ``()`` for a scalar, ``(0,)`` for a flat sequence, ``(0, 0)`` for a nested
+    one — the addresses of the "exactly ONE element" rule ``translate``
+    documents. Naming it is what lets the modulus search exclude the
+    coordinate BY LEAF rather than by parameter NAME, which is the whole
+    rc469 repair: through rc468 a modulus sharing a parameter with its own
+    coordinate was excluded wholesale, and no op whose frame crosses as one
+    ``(k, n)`` operand could ever be admitted.
+    """
+    if is_int(v):
+        return ()
+    if is_int_seq(v):
+        return (0,)
+    return (0, 0)
 
 
 #: Parameter types the registry spells for an integer-valued parameter. Used to
@@ -504,15 +606,84 @@ class Driver:
     def coordinates(self) -> List[str]:
         return [k for k, v in self.base.items() if is_frame_coordinate(v)]
 
-    def moduli(self, exclude: str) -> List[str]:
-        return [k for k, v in self.base.items()
-                if k != exclude and is_int(v) and v > 1]
+    def coord_leaf(self, coord: str) -> Tuple[str, Tuple[int, ...]]:
+        """The LEAF ADDRESS a coordinate sweep actually moves."""
+        return (coord, coordinate_leaf(self.base[coord]))
 
-    def raw(self, overrides: Dict[str, Any]) -> Any:
+    def moduli(self, exclude: str) -> List[Tuple[str, Tuple[int, ...]]]:
+        """Candidate modulus LEAF ADDRESSES, excluding the coordinate own leaf.
+
+        rc469 (`#T1188`) - TWO changes, and the second is the repair.
+
+        * an ``int > 1`` at ANY DEPTH inside a sequence operand is a
+          candidate, not only a top-level bare int. Through rc468 this read
+          ``is_int(v)``, so ``linking_number_cwf(twist=[3, 2],
+          writhe=[5, 2])`` offered NO candidate modulus at all - while
+          :func:`_carries`, one function up in the same file, already read
+          INSIDE a sequence to decide whether a period was caller-supplied.
+          The instrument could SEE a caller-supplied modulus and could not
+          SWEEP one.
+        * the exclusion is BY LEAF, not by parameter NAME. That is what a
+          ``(k, n)`` pair operand needs: ``hypercomplex_exp(turn=[1, 4])``
+          carries its coordinate at ``turn[0]`` and its modulus at
+          ``turn[1]``, and a name-level ``k != exclude`` threw the modulus
+          away together with the coordinate. MEASURED before the repair: 99
+          probe calls, a period of 4 found and correctly attributed to the
+          caller (``period_carried_by: {"turn": ["turn"]}``), then no modulus
+          left to sweep and a NOT_ADMISSIBLE verdict. The probe entered, drove
+          to the period, and was then blinded by its own exclusion rule.
+
+        :data:`MOD_LEAF_BUDGET` caps the leaves taken PER PARAMETER - inert
+        for every scalar, bounding for a matrix-shaped operand.
+        """
+        skip = self.coord_leaf(exclude)
+        out: List[Tuple[str, Tuple[int, ...]]] = []
+        for k, v in self.base.items():
+            qualifying = [p for p in leaf_paths(v)
+                          if (k, p) != skip and get_leaf(v, p) > 1]
+            out.extend((k, p) for p in qualifying[:MOD_LEAF_BUDGET])
+        return out
+
+    def _kwargs(self, over: Dict[Tuple[str, Tuple[int, ...]], Any]
+                ) -> Dict[str, Any]:
+        """Override leaf writes, folded into whole-parameter kwargs.
+
+        Two overrides addressing two leaves of the SAME parameter compose,
+        because each write starts from what the previous one produced.
+        """
+        kw: Dict[str, Any] = {}
+        for (p, path), val in over.items():
+            kw[p] = set_leaf(kw.get(p, self.base[p]), path, val)
+        return kw
+
+    def _call(self, kw: Dict[str, Any]) -> Any:
         self.calls += 1
-        return self.fn(**dict(self.base, **overrides))
+        return self.fn(**dict(self.base, **kw))
 
-    def sequence(self, coord: str, over: Optional[Dict[str, Any]] = None,
+    def raw(self, over: Dict[Tuple[str, Tuple[int, ...]], Any]) -> Any:
+        return self._call(self._kwargs(over))
+
+    def _step(self, coord: str, d: int,
+              over: Dict[Tuple[str, Tuple[int, ...]], Any]) -> Any:
+        """One point of a coordinate sweep.
+
+        THE COORDINATE TRANSLATION IS A LEAF WRITE **INTO THE OVERRIDE**, and
+        rc469 (`#T1188`) is that one line. Through rc468 this read
+        ``kw[coord] = translate(self.base[coord], d)`` - a WHOLE-PARAMETER
+        assignment computed from the untouched base - so a modulus sharing a
+        parameter with its coordinate was silently clobbered the instant the
+        sweep began. Leaf-addressing :meth:`moduli` WITHOUT this line changes
+        nothing at all: the candidate is found, the override is built, and it
+        is then overwritten before the call. The census comes back green and
+        completely unchanged, which reads as "the repair was applied and
+        nothing moved" rather than "the repair is a no-op".
+        """
+        kw = self._kwargs(over)
+        kw[coord] = translate(kw.get(coord, self.base[coord]), d)
+        return self._call(kw)
+
+    def sequence(self, coord: str,
+                 over: Optional[Dict[Tuple[str, Tuple[int, ...]], Any]] = None,
                  length: int = R) -> Optional[List[str]]:
         """``[key(f(coord + d)) for d in 0..length-1]``, or ``None`` if the op
         is not TOTAL over the range. Not-total is a real answer, not an error:
@@ -524,9 +695,7 @@ class Driver:
         out: List[str] = []
         try:
             for d in range(length):
-                kw = dict(over)
-                kw[coord] = translate(self.base[coord], d)
-                out.append(okey(self.raw(kw)))
+                out.append(okey(self._step(coord, d, over)))
         except BaseException:
             out_val = None
         else:
@@ -535,7 +704,7 @@ class Driver:
         return out_val
 
     def int_sequence(self, coord: str,
-                     over: Optional[Dict[str, Any]] = None,
+                     over: Optional[Dict[Tuple[str, Tuple[int, ...]], Any]] = None,
                      length: int = 8) -> Optional[List[int]]:
         """The raw INTEGER outputs over the coordinate, for the generator
         clause. ``None`` unless every output is a bare int."""
@@ -543,9 +712,7 @@ class Driver:
         vals: List[int] = []
         try:
             for d in range(length):
-                kw = dict(over)
-                kw[coord] = translate(self.base[coord], d)
-                r = self.raw(kw)
+                r = self._step(coord, d, over)
                 if not is_int(r):
                     return None
                 vals.append(r)
@@ -675,13 +842,15 @@ def classify(name: str, base: Dict[str, Any], fn) -> Dict[str, Any]:
             if m is not None:
                 carried = _carries(base, m)
                 if not carried:
-                    f: Dict[str, Any] = {"coord": x, "scope": "fixed",
+                    f: Dict[str, Any] = {"coord": leaf_name(*drv.coord_leaf(x)),
+                                         "scope": "fixed",
                                          "period": m, "confirmations": conf,
                                          "axis": ["modulus"]}
                     _add_generator(f, base, drv.int_sequence(x), m)
                     rec["findings"].append(f)
                     continue
-                rec.setdefault("period_carried_by", {})[x] = carried
+                rec.setdefault("period_carried_by",
+                               {})[leaf_name(*drv.coord_leaf(x))] = carried
 
         for np_ in drv.moduli(x):
             try:
@@ -721,10 +890,10 @@ def classify(name: str, base: Dict[str, Any], fn) -> Dict[str, Any]:
                     break
             if const is not None:
                 continue                   # a constant period survived => fixed
-            f = {"coord": x, "scope": "parametric", "param": np_,
-                 "axis": ["modulus"]}
+            f = {"coord": leaf_name(*drv.coord_leaf(x)), "scope": "parametric",
+                 "param": leaf_name(*np_), "axis": ["modulus"]}
             n_gen = NS[-1]
-            _add_generator(f, dict(base, **{np_: n_gen}),
+            _add_generator(f, dict(base, **drv._kwargs({np_: n_gen})),
                            drv.int_sequence(x, {np_: n_gen}), n_gen)
             rec["findings"].append(f)
 

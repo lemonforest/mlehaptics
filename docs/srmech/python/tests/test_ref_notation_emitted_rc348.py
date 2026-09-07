@@ -851,6 +851,27 @@ SCAN_ROOTS = {
     # exactly its job; `docs/srmech/**` watches the path.
     "tests/test_preferred_register_shape_rc464.py": (
         "docs/srmech/python", "docs/srmech/c"),
+    # rc469 (`#T1188`): the curated-output PAIRED WITNESS reads
+    # `c/src/srmech_tool_registry.c` for the same reason the four gates above
+    # do, and the reason is the defect's own history. The falsehood it pins --
+    # a worked-example output wrong by ONE ULP -- was never a source-only
+    # error: it was GENERATED into `_tool_docs.py` and into the compiled-in C
+    # registry, and reached users through the MCP tool list and a bare-C host
+    # with no interpreter. The whole point of the emission arm is that it goes
+    # red when the curated SSoT is repaired and the regen is not run, so
+    # scanning only python/ would leave the half-done shape green on the
+    # surface that actually ships. `docs/srmech/**` watches the path.
+    "tests/test_curated_output_literal_rc469.py": (
+        "docs/srmech/python", "docs/srmech/c"),
+    # rc469 (`#T1188`): the removed-stale-selector sweep is strict zero over
+    # every LIVE surface in the subtree, exempting exactly two DATED records
+    # (the CHANGELOG entry and an ADR slice). It has to walk `docs/srmech`
+    # whole: the removal touched 12 files across python/ AND the hooks that
+    # print to an operator's terminal, and the widest hand list written for it
+    # was still seven files short. A python/-only sweep would be exactly the
+    # rc348 lesson again -- the surface with the loudest live copy was the one
+    # a narrower scan misses.
+    "tests/test_no_stale_selector_rc469.py": ("docs/srmech",),
     # THE WIDE ONE: rglobs the entire subtree to derive the `#TNNN` vocabulary.
     "tests/test_ref_notation_emitted_rc348.py": ("docs/srmech",),
     # rc459: the SM-reproduction gate is strict-zero over every SHIPPED surface,

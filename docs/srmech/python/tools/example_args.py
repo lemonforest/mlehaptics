@@ -41,7 +41,7 @@ Two hard reasons, neither of them taste:
   for no benefit.
 * A ``tools/`` module is importable by ``tools/gen_tool_docs.py`` directly and
   by tests via the ``sys.path.insert(TOOLS)`` pattern already used at
-  ``tests/test_worked_examples_execute_rc354.py:100``. Zero package ripple,
+  ``tests/test_worked_examples_execute_rc354.py:168``. Zero package ripple,
   zero registry ripple, zero rosetta ripple.
 
 THE LEDGER STORES ONLY JSON-ROUND-TRIPPABLE VALUES
@@ -63,8 +63,7 @@ value the harness cannot justify has to be visible and counted; the literal
 
 Regenerate the ledger with::
 
-    python3 tools/run_example_args.py              # full
-    python3 tools/run_example_args.py --only-stale # re-run what changed
+    python3 tools/run_example_args.py              # full -- the only mode
 
 Freshness is enforced by
 ``tests/test_synth_args_provenance_rc430.py::test_ledger_is_fresh_against_the_live_schema``

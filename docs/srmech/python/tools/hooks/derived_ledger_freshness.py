@@ -25,12 +25,15 @@ does not hash the source. ``tools/run_worked_examples.py`` defines it as::
 defect it was written for: ``rational_mul``'s snippet never changed a byte. What
 changed was the implementation underneath it.
 
-This is not a hypothetical. The tree's own scoping flag inherits the same blind
-spot: ``run_worked_examples.py --only-stale`` selects rows by
-``prior[name]["src_sha256"] != job["src_sha256"]``, so ``--only-stale`` would
-NOT have re-run ``rational_mul`` after the ℚ flip either. An instrument that
-cannot return otherwise is not a measurement, and snippet-hash equality cannot
-return "stale" for an implementation-side change.
+This is not a hypothetical, and it was not free. ``run_worked_examples.py``
+carried a scoping flag built on exactly that key -- it selected rows where
+``prior[name]["src_sha256"] != job["src_sha256"]`` -- so it inherited the whole
+blind spot and would NOT have re-run ``rational_mul`` after the ℚ flip either.
+An instrument that cannot return otherwise is not a measurement, and
+snippet-hash equality cannot return "stale" for an implementation-side change.
+rc469 (`#T1188`) removed that flag rather than leave it standing beside this
+hook for a reader to choose between; ``run_worked_examples.py``'s own docstring
+records why.
 
 THE PREDICATE THIS HOOK ACTUALLY USES
 =====================================
@@ -371,9 +374,11 @@ def body(payload: Dict[str, Any]) -> int:
         "the ledger with the change:",
         *remedy,
         "",
-        "⚠️ `--only-stale` will NOT select these: it compares the snippet-text "
-        "hash (src_sha256), which does not move when the implementation moves. "
-        "That blind spot is exactly how the ℚ-flip defect shipped.",
+        "⚠️ Nothing keyed on the snippet-text hash (src_sha256) can find "
+        "these: that hash does not move when the implementation moves, which "
+        "is exactly how the ℚ-flip defect shipped. It is why the list above is "
+        "printed IN FULL and why rc469 removed the scoping flag that shared "
+        "the blind spot. Re-run the named rows, or the whole ledger.",
     ])
 
 

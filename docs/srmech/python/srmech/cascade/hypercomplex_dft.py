@@ -226,7 +226,14 @@ def _exact_mu_q(mu_hat: Sequence) -> "List[Q]":
     Through rc467 the same wire was projected onto the ``2**-61`` Q61 grid
     instead, which for the irrational axes QUANTISED it (measured on
     ``'diagonal'``: ``‖μ_q61‖² − 1 = 2.7e-16``, 620 grid units); that
-    quantisation is gone."""
+    quantisation is gone.
+
+    ⚠️ It is the WIRE reader, not the AXIS reader. It answers "what rational
+    vector is this", which is not the same question as "what unit direction, on
+    what irrational scale". Through rc468 the summands stopped here and handed
+    the result straight to the twiddle as if it were already the unit axis —
+    true only for a rational direction. :func:`_exact_summand_axis` is the
+    composition that asks the second question."""
     out = []
     for c in mu_hat:
         q = _exact_scalar(c)
@@ -236,11 +243,89 @@ def _exact_mu_q(mu_hat: Sequence) -> "List[Q]":
     return out
 
 
+def _exact_summand_axis(mu_hat: Sequence, op: str):
+    """``(unit_weights, axis_k)`` for the exact summand routes — the resolved
+    axis WIRE read as an exact unit direction, with the irrational scale width
+    ``1/√axis_k`` left for the cyclotomic field (rc469, `#T1188`).
+
+    :func:`_exact_mu_q` on the wire, then
+    :func:`srmech.math.qalg._exact_axis` on the result — the same two-step
+    every other exact-turn route in this tree already takes
+    (:func:`srmech.physics.qm.quaternion._exact_axis4`,
+    :func:`_exact_couple_axis`). A COMPOSITION rather than a new reader,
+    because the wire step and the normalisation step answer different questions
+    and both already ship.
+
+    **The defect it closes** (rc468 and earlier). The summands stopped at
+    :func:`_exact_mu_q` and multiplied that vector into a twiddle built at
+    ``axis_k = 1``. For a basis axis that is right — ``‖(0,1,0,0)‖² = 1``. For
+    ``'ijk'`` the wire is three copies of the float64 ``0.5773502691896258``,
+    whose exact square sum is NOT 1, so the op returned a ``Q`` — a carrier
+    advertising exact rationality — holding a value that is not merely rounded
+    but IRRATIONAL, and therefore cannot be a ``Q`` at all. MEASURED at
+    ``x[1] = 2**60+1``, ``n = 4``, ``k = m = 1``, ``σ = −1``:
+    ``‖out‖² − X² = 2.95e20`` where the exact answer is ``0``. This reader
+    recovers ``(0,1,1,1)`` at ``axis_k = 3`` FROM THAT SAME FLOAT WIRE — the
+    DIRECTION survives the float normalisation even though the MAGNITUDE does
+    not — so no signature moves and ``qdft_resolve_mu`` is untouched.
+
+    ⚠️ **It RAISES rather than electing a carrier**, and that was settled by
+    execution rather than by argument. Falling through to the float body on an
+    EXACT sample was tried and measured: it returns ``['Q','Q','Q','Q']``,
+    because ``float * Q`` is ``Q`` — a ``Q`` carrier holding a ROUNDED float64
+    twiddle, which re-mints the exact silent-wrong-answer class on a new axis
+    family instead of removing it. The refusal wording is
+    :func:`~srmech.physics.qm.quaternion._exact_axis4`'s, deliberately: the two
+    routes refuse the same directions for the same reason and should say so in
+    the same words.
+
+    ⚠️ **It makes ``mu_hat`` unmeasurable by the demotion probe, and that is
+    reported rather than hidden.** MEASURED at rc469: the probe writes its
+    witness into leaf ``(0,)`` of every one of the 17 candidate shapes it has
+    for a ``list[float]`` parameter (the harvested axis plus 16 synthesised
+    ones), and leaf ``(0,)`` is the REAL slot — the one component the axis
+    contract forbids. So 11 shapes now refuse here and the remaining 6 are
+    nested lists that never bound anyway. The three summand ``mu_hat`` /
+    ``mu_r_hat`` census rows therefore move ``INSENSITIVE`` →
+    ``RAISED``: from a claim ABOUT THE OP that was false (*"the axis does not
+    reach the output"* — it did, it was simply annihilated at the harvested
+    ``n = 2``, where ``sin`` is exactly zero) to an honest NON-measurement, the
+    same synth-reach class ``qdft_resolve_mu::mu_axis`` already sits in. The
+    axis is instead measured by ``tests/test_exact_axis_summand_rc469.py``,
+    which asserts the VALUE the census could only ever ask a carrier question
+    about. Class J ∘ N; no float, no ``abs``."""
+    axis = _qalg._exact_axis(_exact_mu_q(mu_hat))
+    if axis is None:
+        raise ValueError(
+            f"{op}: an exact sample needs a PURE IMAGINARY axis (component 0 "
+            f"exactly zero) whose squared norm is 1, 3 or 7 times a rational "
+            f"square — the widths the shipped cyclotomic fields normalise "
+            f"exactly; got {list(mu_hat)!r}. A float64 unit vector generally "
+            f"is NOT one: the resolved wire keeps the DIRECTION of a NAMED "
+            f"axis exactly, but a general vector loses it in the resolver's "
+            f"float normalisation. Pass a float sample to elect the float "
+            f"carrier deliberately")
+    return axis
+
+
 @functools.lru_cache(maxsize=1024)
-def _exact_turn_pair(n: int, r: int, sigma: int):
-    """``(cos, sin)`` of the turn ``σ·r/n`` as an EXACT pair, jointly narrowed
-    to :class:`~srmech.math.q.Q` on the quarter turns and left as
-    :class:`~srmech.math.qalg.Qalg` over ``Φ_lcm(n,4)`` elsewhere.
+def _exact_turn_pair(n: int, r: int, sigma: int, axis_k: int):
+    """``(cos(σ·2πr/n), sin(σ·2πr/n)/√axis_k)`` as an EXACT pair, jointly
+    narrowed to :class:`~srmech.math.q.Q` when BOTH are rational and left as
+    :class:`~srmech.math.qalg.Qalg` over ``Φ_M`` otherwise, where ``M`` is
+    :func:`srmech.math.qalg._turn_field_index` of ``(n, axis_k)``.
+
+    ``axis_k`` is the axis's irrational scale WIDTH — ``1`` for a rational
+    direction, ``3`` for the body diagonal ``(0,1,1,1)/√3``, ``7`` for the
+    equal-weight octonion axis — so ``M`` is ``lcm(n, 4)`` / ``lcm(n, 12)`` /
+    ``lcm(n, 28)`` respectively. It is part of the memo key, because the same
+    ``(n, r, σ)`` on two different widths is two different field elements.
+
+    ⚠️ **The rational arm is not "the quarter turns" in general.** That holds
+    only at ``axis_k = 1``: the election reads the SCALED sine, so ``n = 3`` at
+    ``axis_k = 3`` narrows to ``ℚ`` (``sin(2π/3)/√3 = 1/2``) where the same
+    turn at ``axis_k = 1`` does not — see
+    :func:`srmech.math.qalg._turn_scalars`.
 
     The rc468 (`#T1188`) replacement for BOTH pre-rc468 twiddle constructions:
     ``_quarter_turn_twiddle``, which was exact but only on ``4·r ≡ 0 (mod n)``,
@@ -248,7 +333,7 @@ def _exact_turn_pair(n: int, r: int, sigma: int):
     of the FLOAT64 ANGLE ``σ·2π·r/n`` — an error of ``≲ 2**-53·|θ|``, up to
     ~2**8 grid units per radian, on top of the ``2**-61`` grid. Both bounds are
     gone: there is no angle here, no ``π``, no float and no grid, only
-    :func:`srmech.math.qalg._cos_sin_in_field` in ``ℚ(ζ_lcm(n,4))``.
+    :func:`srmech.math.qalg._cos_sin_in_field` in ``ℚ(ζ_M)``.
 
     Memoised: a whole exact transform revisits at most ``n`` distinct turns,
     where the ``(k, m)`` loop would otherwise build ``n²`` fields.
@@ -264,23 +349,36 @@ def _exact_turn_pair(n: int, r: int, sigma: int):
     group; but it is the cheaper answer whenever the transform is scalar and
     the length is a power of two, and a caller should reach for it there.
 
-    Raises ``ValueError`` when ``lcm(n, 4)`` exceeds
-    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` — see
-    :func:`qdft_summand` on why it raises rather than falling back."""
-    index = _qalg._turn_field_index(n, 1)
+    Raises ``ValueError`` when ``M`` exceeds
+    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` (256) — see
+    :func:`qdft_summand` on why it raises rather than falling back.
+
+    ⚠️ **The admission rule is a SIEVE, not a ceiling**, and that was measured
+    rather than assumed. ``n`` is admissible iff ``lcm(n, base) ≤ 256`` with
+    ``base = {1: 4, 3: 12, 7: 28}[axis_k]``, which is not an interval: at
+    ``axis_k = 3`` it REFUSES ``n = 23`` (index 276) while ACCEPTING ``n = 126``
+    (index 252), and at ``axis_k = 7`` it refuses ``n = 11`` while accepting
+    ``n = 63``. Over ``n`` in 1..128 the admissible counts are 96 / 60 / 30 at
+    ``axis_k`` 1 / 3 / 7, with first refusals 65 / 23 / 11. Writing this as
+    "``axis_k = 3`` needs ``n ≤ 64``" would be wrong in BOTH directions."""
+    index = _qalg._turn_field_index(n, axis_k)
     if index > _qalg.MAX_CYCLOTOMIC_INDEX:
         raise ValueError(
-            f"exact twiddle: n={n} needs Q(zeta_{index}), above the measured "
+            f"exact twiddle: n={n} on an axis of width 1/sqrt({axis_k}) needs "
+            f"Q(zeta_{index}), above the measured "
             f"MAX_CYCLOTOMIC_INDEX={_qalg.MAX_CYCLOTOMIC_INDEX} field cap. The "
-            f"exact route RAISES rather than falling back to a rounded angle, "
-            f"which is the silent wrong answer this rc removed; pass a float "
-            f"sample to elect the float carrier deliberately")
+            f"field index is lcm(n, 4) for a rational axis, lcm(n, 12) for "
+            f"1/sqrt(3) and lcm(n, 28) for 1/sqrt(7), so the admissible n are a "
+            f"SIEVE and not an interval. The exact route RAISES rather than "
+            f"falling back to a rounded angle, which is the silent wrong answer "
+            f"this rc removed; pass a float sample to elect the float carrier "
+            f"deliberately")
     # ONE narrowing rule for the whole tree — the same helper the two exact
     # twiddles and hypercomplex_exp's turn= route elect their carrier with.
-    # The axis on this
-    # route is always rational (it is a wire, not a name), so ``axis_k = 1``
-    # and the rational arm here IS exactly the quarter turns.
-    return _qalg._turn_scalars(1, n, r, sigma)
+    # ⚠️ The cap check belongs HERE, at the CALL SITE. _turn_scalars carries no
+    # guard of its own — measured: _turn_scalars(1, 65, 1, 1) answers happily
+    # at index 260 — so moving the check inward would leave no guard at all.
+    return _qalg._turn_scalars(axis_k, n, r, sigma)
 
 
 def _cd_mult_graded(rat, vec, *, left: bool):
@@ -406,15 +504,15 @@ def _exact_couple_axis(axis, *, octonion: bool):
             raw = raw + [0, 0, 0, 0]
         if len(raw) != 8:
             return None
-        weights = []
-        for c in raw:
-            q = _exact_scalar(c)
-            if q is None:
-                try:
-                    q = Q.from_float(float(c))
-                except (TypeError, ValueError, OverflowError):
-                    return None
-            weights.append(q)
+        # The general-vector branch IS :func:`_exact_mu_q` — CALL it rather
+        # than keep a second copy of the same three lines (rc469, `#T1188`).
+        # The only difference is the contract at the edge: this route refuses
+        # by returning ``None`` where the wire reader raises, so the raise is
+        # caught here instead of the body being duplicated.
+        try:
+            weights = _exact_mu_q(raw)
+        except (TypeError, ValueError, OverflowError):
+            return None
     return _qalg._exact_axis(weights)
 
 
@@ -1126,13 +1224,19 @@ def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
     **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`), and since
     0.9.0rc468 that carrier is EXACT ON EVERY TURN. When the sample ``xs[m]``
     is exact (every component ``int`` / ``Q`` / ``(num, den)``) the twiddle is
-    built by :func:`_exact_turn_pair` in the cyclotomic field ``ℚ(ζ_lcm(n,4))``
-    — no angle, no ``π``, no float, no ``2**-61`` grid — and multiplied into
-    the sample by the ℚ-bilinear expansion :func:`_graded_one_sided`, so
+    built by :func:`_exact_turn_pair` in the cyclotomic field ``ℚ(ζ_M)``, with
+    ``M = lcm(n, 4)`` / ``lcm(n, 12)`` / ``lcm(n, 28)`` for an axis of width
+    ``axis_k`` ``1`` / ``3`` / ``7`` — no angle, no ``π``, no float, no
+    ``2**-61`` grid — and multiplied into the sample by the ℚ-bilinear
+    expansion :func:`_graded_one_sided`, so
     :func:`~srmech.cascade.cd_mult` still sees only exact ``ℚ``. The return is
-    ``list[Q]`` on a quarter turn (where the cosine and sine are both rational)
-    and ``list[Qalg]`` on every other turn — the narrowest carrier that holds
-    the value, elected by the VALUE, never a mixed list.
+    ``list[Q]`` where the cosine and the SCALED sine are both rational and
+    ``list[Qalg]`` on every other turn — the narrowest carrier that holds the
+    value, elected by the VALUE, never a mixed list. ⚠️ That rational set is
+    the quarter turns ``4·k·m ≡ 0 (mod n)`` only at ``axis_k = 1``; the
+    ``1/√axis_k`` scale SHIFTS it rather than emptying it (``n = 3`` at
+    ``axis_k = 3`` is all-rational, where the same turn on a basis axis is
+    not).
 
     Through rc467 only the quarter turns were exact; every other turn took the
     Q61 twiddle of the FLOAT64 angle ``2π·r/n``, bounded by the angle's own
@@ -1142,14 +1246,28 @@ def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
     holds EXACTLY on the value this op now returns, where the rc467 value
     ``Q(1879812259125035306248210951689718979, 2**61)`` missed it by
     ``8.2e19``. ``mu_hat`` is a chain-internal wire, already unit-normalised
-    once by :func:`qdft_resolve_mu`, and :func:`_exact_mu_q` reads it as the
-    exact rational vector it is — so the Q61 quantisation the axis used to
-    take is gone too. A float component in the SAMPLE keeps the float route:
+    once by :func:`qdft_resolve_mu`; :func:`_exact_mu_q` reads it as the exact
+    rational vector it is and :func:`_exact_summand_axis` then recovers the
+    DIRECTION and its irrational width — so the Q61 quantisation the axis used
+    to take is gone, and so (rc469, `#T1188`) is the ``axis_k = 1``
+    assumption that stood behind it. Through rc468 an ``'ijk'`` axis was
+    multiplied into a twiddle built for a RATIONAL axis, which returned a
+    ``Q`` over a value that is irrational and cannot be a ``Q`` at all
+    (MEASURED at ``x[1] = 2**60+1, n = 4, k = m = 1``:
+    ``‖out‖² − X² = 2.95e20``, where the exact answer is ``0``). ⚠️ A
+    direction with no exact unit in the shipped fields now RAISES rather than
+    answering — see :func:`_exact_summand_axis`. A float component in the
+    SAMPLE keeps the float route:
     the C-mirrored op order, **accurate to round-off**.
 
-    ⚠️ **It RAISES above the field cap.** ``lcm(n, 4)`` must be at most
+    ⚠️ **It RAISES above the field cap, and the admissible ``n`` are a SIEVE
+    rather than a ceiling.** ``M`` must be at most
     :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` (256), so an exact sample at
-    ``n = 65`` raises rather than answering from a rounded angle. That is a
+    ``n = 65`` on a basis axis raises rather than answering from a rounded
+    angle. Since ``M`` depends on the AXIS WIDTH the admissible set does too,
+    and it is not an interval: MEASURED over ``n`` in 1..128, ``axis_k`` 1 / 3
+    / 7 admit 96 / 60 / 30 lengths with first refusals 65 / 23 / 11 — and
+    ``axis_k = 3`` refuses ``n = 23`` while accepting ``n = 126``. That is a
     deliberate break with rc467, which answered — inexactly, wearing the exact
     carrier. Pass a float sample to elect the float carrier on purpose.
 
@@ -1158,6 +1276,17 @@ def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
     kind, so a declared chain run over an exact sample is exact in the Python
     runner and rounded in the C host — pinned by name in
     ``tests/test_exact_carrier_drain_rc466.py`` (``_COMPOSE_HOST_FLOAT_ONLY``).
+    Raises:
+        ValueError: on an EXACT sample only — an axis with no exact unit in
+            the shipped fields (a direction whose real component is nonzero,
+            or whose ``‖μ̂‖²`` is not 1, 3 or 7 times a rational square), or a
+            field index ``M = lcm(n, 4 | 12 | 28)`` above
+            :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` (256), which is a
+            SIEVE over ``n`` and not a ceiling. Both refuse rather than
+            electing the float carrier behind the caller's back; a float
+            sample elects it deliberately. Under execution in
+            ``tests/test_exact_axis_summand_rc469.py`` and, since rc469, in
+            the ``tests/test_declared_raises_execution_rc434.py`` corpus.
     """
     from srmech.physics.qm.quaternion import (
         _twiddle_resolved,
@@ -1166,8 +1295,9 @@ def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
     )
     xm_exact = _exact_vector(xs[m], n=_QDIM)
     if xm_exact is not None:
-        c, sn = _exact_turn_pair(n, (k * m) % n, sigma)
-        return _graded_one_sided(c, sn, _exact_mu_q(mu_hat), xm_exact, left=left)
+        weights, axis_k = _exact_summand_axis(mu_hat, "qdft_summand")
+        c, sn = _exact_turn_pair(n, (k * m) % n, sigma, axis_k)
+        return _graded_one_sided(c, sn, weights, xm_exact, left=left)
     w = _twiddle_resolved(k, m, n, sigma, mu_hat)
     op = quaternion_left_mult(w) if left else quaternion_right_mult(w)
     rows = op.tolist()
@@ -1213,22 +1343,44 @@ def odft_summand(xs, k: int, m: int, n: int, form: str, bracketing: str,
 
     **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466, `#T1188`) — the
     :func:`qdft_summand` rule at rung 8, and since 0.9.0rc468 EXACT ON EVERY
-    TURN by the same route: :func:`_exact_turn_pair` in ``ℚ(ζ_lcm(n,4))``, and
+    TURN by the same route: :func:`_exact_turn_pair` in ``ℚ(ζ_M)``, and
     :func:`_graded_two_sided` for the two-sided form, whose four-term
     ℚ-bilinear expansion keeps the DECLARED bracketing (F378) exactly where the
     float route puts it — ``(μ̂ ⊗ x) ⊗ ν̂`` versus ``μ̂ ⊗ (x ⊗ ν̂)`` — so 𝕆's
     non-associativity is untouched and ``cd_mult`` still sees only exact ``ℚ``.
-    ``list[Q]`` on a quarter turn, ``list[Qalg]`` on every other; it RAISES
-    when ``lcm(n, 4)`` exceeds
-    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX`. Through rc467 only the
-    quarter turns were exact and the rest carried the float64 angle's rounding
-    (``≲ 2**-53·|θ|``) on top of the ``2**-61`` Q61 grid; both bounds are gone.
+    ``list[Q]`` where the cosine and the SCALED sine are both rational,
+    ``list[Qalg]`` on every other turn; it RAISES when
+    ``M = lcm(n, 4 | 12 | 28)`` exceeds
+    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` — a SIEVE over ``n``, not a
+    ceiling (see :func:`qdft_summand`). Since rc469 (`#T1188`) the axis is read
+    by :func:`_exact_summand_axis` rather than by :func:`_exact_mu_q` alone, so
+    ``'ijk'`` (``axis_k = 3``) and ``'diagonal'`` (``axis_k = 7``) are exact
+    instead of silently rational-carrier-wrong — MEASURED at ``n = 4``,
+    ``x = 2**60+1``, ``‖out‖² − X²`` was ``+3.57e20`` on ``'ijk'`` and
+    ``−2.08e20`` on ``'diagonal'``, and is now ``0`` on both. ⚠️ The two-sided
+    form additionally RAISES on a MIXED-WIDTH axis pair: one sine scalar
+    cannot carry two different irrational scales, and the compositum
+    ``ℚ(√3, √7)`` is not a simple extension ``Qalg`` builds. Through rc467
+    only the quarter turns were exact and the rest carried the float64 angle's
+    rounding (``≲ 2**-53·|θ|``) on top of the ``2**-61`` Q61 grid; both bounds
+    are gone.
     A float component in the sample keeps the C-mirrored float route,
     **accurate to round-off**. Through rc465 the only accuracy words on this op
     were "(the byte-exact parity contract, not a tolerance)" — a NEGATED
     keyword that the R3 reader counted as a declaration; the sentence above is
     the declaration. The C compose host's twin is double-only (see
     ``qdft_summand``).
+    Raises:
+        ValueError: on an EXACT sample only — the two conditions
+            :func:`qdft_summand` refuses (no exact unit for the direction; a
+            field index above :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX`),
+            and one more that is 8-wide and two-sided: a MIXED-WIDTH axis
+            PAIR. One sine scalar cannot carry two different irrational
+            scales, and their compositum ``ℚ(√3, √7)`` is not a simple
+            extension ``Qalg`` builds — so answering there would be the silent
+            wrong answer this rc removed. Under execution in
+            ``tests/test_exact_axis_summand_rc469.py`` and, since rc469, in
+            the ``tests/test_declared_raises_execution_rc434.py`` corpus.
     """
     from srmech.physics.qm.octonion import (
         _twiddle_resolved,
@@ -1240,12 +1392,26 @@ def odft_summand(xs, k: int, m: int, n: int, form: str, bracketing: str,
     left_assoc = bracketing == "left_associated"
     xm_exact = _exact_vector(xs[m], n=_ODIM)
     if xm_exact is not None:
-        c, sn = _exact_turn_pair(n, (k * m) % n, sigma)
-        mu_q = _exact_mu_q(mu_hat)
+        weights, axis_k = _exact_summand_axis(mu_hat, "odft_summand")
         if two_sided:
-            return _graded_two_sided(c, sn, mu_q, _exact_mu_q(mu_r_hat),
+            weights_r, axis_k_r = _exact_summand_axis(mu_r_hat, "odft_summand")
+            if axis_k_r != axis_k:
+                raise ValueError(
+                    f"odft_summand: an exact sample with a MIXED-WIDTH axis "
+                    f"pair — mu_hat is 1/sqrt({axis_k}) and mu_r_hat "
+                    f"1/sqrt({axis_k_r}). The two-sided product carries ONE "
+                    f"sine scalar across both factors, so two different "
+                    f"irrational scales need their compositum "
+                    f"Q(sqrt({axis_k}), sqrt({axis_k_r})); Qalg is a SIMPLE "
+                    f"extension and does not build one, so answering here "
+                    f"would be the silent wrong answer. Pass a float sample "
+                    f"to elect the float carrier deliberately, or give both "
+                    f"sides the same axis width")
+            c, sn = _exact_turn_pair(n, (k * m) % n, sigma, axis_k)
+            return _graded_two_sided(c, sn, weights, weights_r,
                                      xm_exact, left_assoc=left_assoc)
-        return _graded_one_sided(c, sn, mu_q, xm_exact, left=left)
+        c, sn = _exact_turn_pair(n, (k * m) % n, sigma, axis_k)
+        return _graded_one_sided(c, sn, weights, xm_exact, left=left)
     w = _twiddle_resolved(k, m, n, sigma, mu_hat)
     if two_sided:
         w_r = _twiddle_resolved(k, m, n, sigma, mu_r_hat)

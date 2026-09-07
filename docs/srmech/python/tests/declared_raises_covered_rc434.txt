@@ -27,6 +27,8 @@ srmech.cascade.composites.cyclic_mod_mul_wide::ValueError
 srmech.cascade.exact_dft.exact_idft::ValueError
 srmech.cascade.frame_carrier.frame_carrier::ValueError
 srmech.cascade.hamming.hamming_syndrome::ValueError
+srmech.cascade.hypercomplex_dft.odft_summand::ValueError
+srmech.cascade.hypercomplex_dft.qdft_summand::ValueError
 srmech.chemistry.reactions.balance_reaction::TypeError
 srmech.chemistry.reactions.balance_reaction::ValueError
 srmech.dsl._toml_chain.build_chain_from_toml_str::TOMLDecodeError

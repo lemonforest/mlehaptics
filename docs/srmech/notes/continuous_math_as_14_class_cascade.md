@@ -73,6 +73,71 @@ Newton iteration `x_{n+1} = (x_n + a/x_n)/2`: **N** = rational arithmetic, **K**
 iteration-to-convergence (asymptotic-DoF). `hypot(a,b) = √(a²+b²)` = **M**(a²+b²) ∘
 **N∘K**(sqrt). (Used by SVD singular values and as a hypot for the complex modulus.)
 
+### normalise `v ↦ v/‖v‖` — **J ∘ N (+ K)** — the EXACT form already ships, privately, twice (`qalg._exact_axis` + `qalg._inv_sqrt_k`); recorded rc469 (`#T1188`)
+
+**This row is J-SHAPED, and that is why it stayed missing.** Every row above it is
+N-shaped: one carrier, one dial, converging. `sin_series_truncate(1, 2, 8)` returns the
+EXACT value of the truncation, and `num_terms` is a precision knob you turn.
+`‖v‖` has no such knob. It is not a limit you truncate — it is a **root of a
+polynomial**, so its discrete form is not an approximation at all but a **carrier
+election**: factor `‖v‖² = k·t²` with `t` rational and `k` squarefree (**J**, the same
+factorization that splits a radix), keep `t` on ℚ, and adjoin only `√k`. Anyone
+hunting for the missing normalisation row was looking for an N-shaped op with a
+precision knob, and there is none to find.
+
+**The `sqrt` row above did not answer this, and reading it as though it had is what kept
+the question closed.** That row is the APPROXIMATING Newton path. MEASURED at rc469:
+`asymptotic_calculus.sqrt(Q(2,1))` returns a **`Q`**, and `r*r == Q(2,1)` is **False** —
+residue `-3292739303401103/81129638414606681695789005144064`. `Q` is a carrier that
+ADVERTISES exact rationality, and `√2` cannot be one. So the table did have a row for
+`√`, and the row **masked** the question rather than answering it.
+
+**The exact form ships already, privately, twice.** `srmech.math.qalg._exact_axis`
+(`qalg.py:672`) does the **J** half — it writes `‖w‖² = k·t²` with `k ∈ {1, 3, 7}`,
+folds the rational `1/t` straight into the returned weights, and hands back only the
+integer `k`. `srmech.math.qalg._inv_sqrt_k` (`qalg.py:740`) does the irrational half,
+building `1/√k` INSIDE the cyclotomic field (`√3 = ζ₁₂ + ζ₁₂⁻¹`; `√7 = g/i` with `g`
+the quadratic Gauss sum mod 7). Neither is a registered op, and neither rounds.
+
+**What that makes TRUE in general — stated here because the narrow version reads as the
+general one.** When `‖v‖²` is a rational SQUARE, normalisation is exactly rational and
+never leaves ℚ at all: `(0, 3, 4, 0)` → `['0', '3/5', '4/5', '0']` at `k = 1`, no
+extension of any kind. "A unit vector needs `sqrt(‖v‖²)`, a further quadratic extension
+with no shipped carrier" is therefore a statement about ENTRIES THAT ARE ALREADY
+ALGEBRAIC, where the extension is a tower — not about normalisation as such. And where
+the norm is genuinely irrational, the shipped code **REFUSES rather than rounds**:
+`(0, 1, 2, 0)` (`‖v‖² = 5`) and `(0, 1, 1, 0)` (`‖v‖² = 2`) both return `None`.
+
+**The class composition, settled by the shipped code rather than by a probe.** Two
+independent scouting runs disagreed — one read `J ∘ N ∘ (J ∘ K ∘ M ∘ I)`, the other
+`C ∘ K ∘ N ∘ J ∘ M`. Both centre **J**, which is the load-bearing part. The tie is broken
+by what the implementation says about itself: `qalg.py:686` declares *"Class J ∘ N; no
+float, no `abs`"* and `qalg.py:759` declares the same with *"the Legendre sign is a
+Class-K pin-slot, never `abs`"*. So the row is **J ∘ N (+ K)**; the **M** and **I** the two
+runs added are real but INTERNAL to the composed helpers (the `‖v‖²` bundle and the
+cyclotomic index arithmetic), not steps of this cascade.
+
+**`{1, 3, 7}` is a TABLE limit, not a CARRIER limit — recorded, and DELIBERATELY not
+widened here.** `√2` is constructed exactly three functions away from where
+`_exact_axis` refuses a direction for needing it: `(2·cos_sin_2pi_k_over_n(8)[0])² == 2`
+is **True** on the shipped op. And `_inv_sqrt_k`'s `k = 7` Gauss-sum loop runs unchanged
+but for its modulus — executed, `g² == p` holds for **p = 3, 5, 7, 11, 13, 17, 19, 23**,
+eight for eight. The three widths that ship are the three the Hurwitz ladder supplies
+(`1` for a basis axis, `3` for the quaternion body diagonal, `7` for the equal-weight
+octonion axis), and a general `sqrt_in_cyclotomic` would have to answer for every `k` —
+a different, larger op. Reachable is not the same as wanted; this paragraph exists so the
+next reader does not rediscover the restriction as a gap.
+
+**What is genuinely ABSENT is the COMPOSITUM, and it is FILED.** `Qalg` is a SIMPLE
+extension guarded by `_same_field`, so exactness survives ONE vector and not an
+ORTHONORMAL BASIS: two individually-exact unit vectors over `t² − 2` and `t² − 5` raise
+`ValueError: Qalg binary op requires equal m` on so much as a product of their entries.
+Closing it needs `primitive_element` / `minimal_polynomial` in `srmech.math.poly`;
+`Poly.resultant`, the hard part, already ships. Not built in rc469.
+
+Generating code for every number above: `notes/_j_shaped_normalisation_rc469.py`,
+which writes `_j_shaped_normalisation_rc469.ndjson` (9 records, one per claim).
+
 ### DFT / FFT `X_k = Σ_n x_n·e^(−2πi·kn/N)` — **M ∘ {N∘C} ∘ I ∘ J ∘ K** — twiddles IMPLEMENTED (cexp); direct-DFT cascade buildable now
 This **IS the Antikythera epicycle-sum** (`[[user_stance_epicycle_via_gear_plus_pin]]`):
 a bundle of rotating phasors. **I** = the index `kn mod N` (cyclic group ℤ/N). The
@@ -123,7 +188,8 @@ match). The contraction itself = **I** (iterate over index tuples) ∘ **M**
 | `cos/sin/tan/atan/atan2` | N ∘ I ∘ C ∘ K | **shipped rc33** |
 | `cexp` / `complex_exp` | N ∘ C | **shipped rc34** |
 | Hermitian eig | L | **shipped rc32**, routed rc33 |
-| `sqrt` / `hypot` | N ∘ K (+ M) | **shipped rc35** (`rational.sqrt` / `rational.hypot`) |
+| `sqrt` / `hypot` | N ∘ K (+ M) | **shipped rc35** (`rational.sqrt` / `rational.hypot`) — the APPROXIMATING Newton path; for the EXACT one see the normalise row below |
+| normalise `v/‖v‖` | J ∘ N (+ K) | **shipped, privately** (`qalg._exact_axis` + `qalg._inv_sqrt_k`; widths `k ∈ {1, 3, 7}`) — a CARRIER ELECTION, not a truncation; recorded rc469 (`#T1188`). Exactly rational when `‖v‖²` is a rational square; REFUSES rather than rounds otherwise. The compositum (an orthonormal BASIS) is filed, not built |
 | DFT / direct | M ∘ {N∘C} ∘ I | **shipped rc36** (`cascade.spectral_cascades.dft` / `idft`; direct `O(N²)`) |
 | FFT (radix-2) | M ∘ {N∘C} ∘ I ∘ J ∘ K | **shipped rc37** (`cascade.spectral_cascades.fft` / `ifft`; `O(N log N)` power-of-2 butterfly + direct-`dft` fallback for all other N) |
 | FFT (mixed-radix) | M ∘ {N∘C} ∘ I ∘ J ∘ K | general butterfly over `N`'s full prime factorization → future refinement |
@@ -137,6 +203,8 @@ match). The contraction itself = **I** (iterate over index tuples) ∘ **M**
 | `math.{sin,cos,atan2}` / `math.pi` residue sweep | (route → `rational.{sin,cos,atan2}` + `pi_cascade`) | **shipped rc41** (14 sites: kepler ×7 + compose ×3 + hypercomplex_dft ×2 + form_function_rotation pi ×1; AST ratchet `test_no_math_trig_pi_anywhere_in_srmech`) |
 
 **As of rc39 the table is COMPLETE** — every op once parked in the §22 "scientific tier" (exp / cexp / sqrt / hypot / DFT / FFT / kron / QR / SVD / lstsq / einsum / non-Hermitian eig) now has a shipped A–N cascade in `srmech.amsc.{rational,cascade.spectral_cascades,cascade.matrix_cascades}`. The §22 "scientific tier" is dissolved: numpy's only remaining roles are the array container and a temporary fallback. rc40's `sqrt`/`hypot` retrofit-sweep, the rc43–rc46 C-transpile (native executable on the cascade, libm ratchet → 0), and the **rc47 numpy→`srmech[scientific]` dependency-flip** (numpy now optional; `pip install srmech` is numpy-free) are the closeout — **shipped**.
+
+⚠️ **"COMPLETE" above is scoped to the list it enumerates, and rc469 (`#T1188`) added a row after it.** The rc39 sentence is a dated claim about the twelve §22 ops named in its own parenthesis, and it stays true of them. It is not a claim that no further row exists — **normalise `v/‖v‖`** was never in that list, and it went unnoticed for thirty rcs for a reason worth keeping: the `sqrt` row LOOKED like its answer. It is not, because normalisation is J-shaped and the `sqrt` row is the N-shaped approximating path. A row can be missing from this table while a neighbouring row makes it look present.
 
 ## Reframe of §22 (the "scientific tier")
 

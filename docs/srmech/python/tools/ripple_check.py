@@ -63,13 +63,28 @@ Regen preamble (a dispatch-surface change usually needs regen FIRST)
 --------------------------------------------------------------------
 ``--regen`` runs, in the load-bearing order:
 
-    python3 tools/regen_all.py                        # rebuild every generated file + verify idempotence
-    python3 tools/run_worked_examples.py --only-stale # refresh the executed-example ledger
+    python3 tools/regen_all.py               # rebuild every generated file + verify idempotence
+    python3 tools/run_worked_examples.py     # re-execute the worked-example ledger, IN FULL
 
 These are DELIBERATELY two steps: ``run_worked_examples.py`` is not a codegen
 step and is not run by ``regen_all.py``, but the executed-ledger gate
 (``test_worked_examples_execute_rc354``) reds until the ledger is refreshed.
 "regen, then verify" is one story; this runner is that story.
+
+The second step is a FULL re-execution (rc469, `#T1188`). It used to be scoped
+by a stale selector keyed on the snippet-TEXT hash, which is blind to exactly
+the change ``--regen`` exists to propagate: a regen moves the dispatch surface
+UNDERNEATH snippets whose text has not moved a byte, so the scoped form
+re-executed nothing and the runner reported a refreshed ledger it had not
+refreshed. Full is the only spelling that keeps "regen, then verify" true.
+
+⚠️ THE FULL RUN IS HOST-COUPLED, and the ledger's ceiling is right to be strict
+about it. :func:`run_worked_examples.backfill`'s docstring records that the pure
+cell is pinned at ``{unexpected_raise: 96, timeout: 1}`` while a native-Windows
+re-run measures **97**, because one snippet
+(``amsc.catalog.register_attested_root``) hardcodes a ``/mnt/d/...`` path for
+the sister package's attested root. Run this under WSL2, or expect the ceiling
+to name that snippet.
 
 Exit code: the runner exits with pytest's return code (nonzero if any gate
 fails). ``--regen`` aborts nonzero if the regen preamble itself fails.
@@ -120,13 +135,17 @@ def _run(cmd: list[str], cwd: Path) -> int:
 
 
 def run_regen(pkg_root: Path) -> int:
-    """Rebuild the dispatch surface: regen_all, THEN refresh the worked-example ledger."""
+    """Rebuild the dispatch surface: regen_all, THEN re-execute the ledger IN FULL.
+
+    Full, not scoped: a regen changes the dispatch surface under snippets whose
+    TEXT never moves, and the selector this used to pass hashed exactly that
+    text. See the module docstring for the host coupling (WSL2; the pure cell's
+    ceiling encodes one absolute path).
+    """
     rc = _run([sys.executable, "tools/regen_all.py"], pkg_root)
     if rc != 0:
         return rc
-    return _run(
-        [sys.executable, "tools/run_worked_examples.py", "--only-stale"], pkg_root
-    )
+    return _run([sys.executable, "tools/run_worked_examples.py"], pkg_root)
 
 
 #: The whole-suite import sweep. ``--collect-only`` resolves every test in
@@ -172,8 +191,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--regen",
         action="store_true",
-        help="regenerate the dispatch surface FIRST (regen_all + run_worked_examples "
-        "--only-stale), then run the gates",
+        help="regenerate the dispatch surface FIRST (regen_all + a FULL "
+        "run_worked_examples), then run the gates",
     )
     ap.add_argument(
         "--regen-only",
