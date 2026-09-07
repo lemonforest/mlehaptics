@@ -1,20 +1,23 @@
-"""rc469 — the ledger WRITE-REFUSALS gate ().
+"""rc469 — the ledger WRITE-REFUSALS gate (`#T1188`).
 
 WHY THIS FILE EXISTS
 ====================
-rc469 removed --only-stale because it keyed on the SNIPPET-TEXT hash and
-was therefore structurally blind to an implementation change. Removing it was
-half the job. The other half was two refusals in run_worked_examples.main()
-that close the path the flag had left open:
+rc469 removed this tool's stale-selector flag (the CHANGELOG entry for that rc
+names it; nothing live does any more, so a grep hit outside a dated record is a
+defect rather than a mention). It keyed on the SNIPPET-TEXT hash and was
+therefore structurally blind to an implementation change.
 
-* a selector that matches NOTHING must not fall through to write_ledger,
-  because that mints a fresh meta stamping verified_at = HEAD having
-  executed nothing — and backfill() computes its moved set from
-  meta.verified_at..HEAD, so an empty pass moves the base a later
-  --backfill trusts and launders every implementation-stale row into a
+Removing it was half the job. The other half was two refusals in
+:func:`run_worked_examples.main`, which close the path the flag had left open:
+
+* a selector that matches NOTHING must not fall through to ``write_ledger``,
+  because that mints a fresh meta stamping ``verified_at = HEAD`` having
+  executed nothing — and ``backfill()`` computes its moved set from
+  ``meta.verified_at..HEAD``, so an empty pass moves the base a later
+  ``--backfill`` trusts and launders every implementation-stale row into a
   clean stamp;
-* an --only name that is not in the live registry must not be a silent
-  empty pass for the same reason.
+* an ``--only`` name that is not in the live registry must not be a silent
+  empty pass, for the same reason.
 
 Those two refusals ARE the item that closes the laundering path. They shipped
 in rc469 with no coverage at all: deleting either one left every ledger gate in
@@ -33,13 +36,23 @@ so out loud rather than staying green.
 
 A fourth arm pins the control name against the committed ledger, so the control
 cannot quietly become vacuous by naming an op that no longer exists. That is
-the same failure this rc found in the demotion census, where a witness at
-n=2 multiplied the axis by exact zero and three rows read INSENSITIVE over
-a live silent-wrong-answer.
+the same failure rc469 found in the demotion census, where a witness at ``n=2``
+multiplied the axis by exact zero and three rows read INSENSITIVE over a live
+silent-wrong-answer.
+
+MUTATION-TESTED, NOT ASSUMED
+============================
+Replacing the empty-selection ``return 2`` with a fallthrough takes
+:func:`test_an_empty_selector_refuses_and_does_not_restamp` red with
+``assert 0 == 2`` — the mutant WROTE where the shipped code refuses. Note for
+anyone repeating it: shadowing the tool via ``PYTHONPATH`` does NOT work,
+because :func:`_tool` does ``sys.path.insert(0, ...)`` and wins. A mutation
+test that cannot load its mutant is itself the instrument that cannot return
+otherwise.
 
 THE LEDGER IS NEVER TOUCHED
 ===========================
-Every arm monkeypatches run_worked_examples.LEDGER onto a tmp_path COPY.
+Every arm monkeypatches ``run_worked_examples.LEDGER`` onto a tmp_path COPY.
 The committed artifact is read once, for bytes, and never written.
 """
 
@@ -54,8 +67,8 @@ import pytest
 PY_ROOT = Path(__file__).resolve().parents[1]
 LEDGER = PY_ROOT / "tests" / "worked_examples_result.ndjson"
 
-#: A live op, pinned by test_the_positive_control_name_is_still_live below so
-#: it cannot rot into a vacuous control.
+#: A live op, pinned by :func:`test_the_positive_control_name_is_still_live`
+#: below so it cannot rot into a vacuous control.
 POSITIVE_CONTROL_NAME = "srmech.cascade.as_quat4"
 
 
