@@ -110,6 +110,32 @@ OVERRIDE
 ``SRMECH_ALLOW_STALE_NATIVE=1`` bypasses the block and the bypass is ECHOED to
 stderr. Deliberately exercising the pure path with a stale lib present is
 legitimate; doing it silently is not.
+
+⚠️ **WHERE it must be set (rc470, `#T1188`).** This is a PreToolUse hook: it
+runs BEFORE the command, in a process of its own, and reads ITS OWN
+environment. Writing ``SRMECH_ALLOW_STALE_NATIVE=1 python3 …`` inside the
+command sets the variable in a shell this hook was already consulted for, and
+does nothing. It must be set where the hook process inherits it —
+``.claude/settings.json``'s ``env`` block, or the shell that launches Claude
+Code. MEASURED: a build agent tried the command-string form, got a block with
+no indication why, and could not execute anything for the rest of its run; it
+verified what it could by grep and source-read alone and carried the rest from
+a transcript. The in-command attempt is now DETECTED and named in the block
+text — detected, not honoured, because reading the bypass out of the command
+would let any command wave the gate through by mentioning it.
+
+⚠️ **The remedy needs TWO steps for the non-ctest path (rc470).**
+``cmake --build build`` writes ``docs/srmech/build/``, the ctest artifact.
+Every other trusting command loads ``python/srmech/_native/``, and the
+``install()`` that copies there is guarded by ``if(DEFINED SKBUILD)`` — it runs
+under ``pip install``, not under a bare build. So a build alone leaves the
+common path still blocked. MEASURED at rc469: after ``cmake --build build``
+succeeded, ``python/srmech/_native/libsrmech.so`` was untouched and the hook
+still blocked; the copy cleared it. (In that instance the freshly built bytes
+were ``md5 3444011d…``, IDENTICAL to the lib already in place — the staleness
+was mtime-only, created by a regen that rewrote ``srmech_tool_registry.c`` with
+the same content. That is not a reason to weaken the predicate: identical bytes
+is a fact you can only learn by rebuilding, which is what the block asks for.)
 """
 
 from __future__ import annotations
@@ -311,6 +337,23 @@ def body(payload: Dict[str, Any]) -> int:
             f"{len(stale)} loadable lib(s) predate {src_path.name}. Any native "
             f"result from this command measures the OLD bytes."])
 
+    # ⚠️ rc470, `#T1188`: the override is read from THIS PROCESS's environment,
+    # and a PreToolUse hook runs BEFORE the command in a process of its own. So
+    # ``SRMECH_ALLOW_STALE_NATIVE=1 python3 …`` written INSIDE the command sets
+    # the variable in a shell this hook was already consulted for, and is
+    # invisible here. MEASURED: a build agent hit exactly that, got a block with
+    # no indication why the documented escape hatch had done nothing, and spent
+    # the rest of its run unable to execute anything — it verified what it could
+    # by grep and source-read alone. A documented escape hatch its intended
+    # caller structurally cannot reach is the same defect class as a gate that
+    # cannot fail, so the attempt is DETECTED and named.
+    #
+    # It is detected, NOT honoured. Reading the bypass out of the command string
+    # would let any command wave the gate through by mentioning it, which is the
+    # opposite of the point — the override exists so that a DELIBERATE pure-path
+    # run is possible and LOUD, not so that a block is cheap to skip.
+    override_attempted = OVERRIDE in (H.bash_command(payload) or "")
+
     try:
         shown_src = src_path.relative_to(root)
     except ValueError:
@@ -334,11 +377,34 @@ def body(payload: Dict[str, Any]) -> int:
         "Rebuild first (this hook does NOT block a build command):",
         "    cmake --build build -- -k     (-k so you see EVERY error, not "
         "just the first)",
+        # ⚠️ rc470, `#T1188`: `cmake --build` writes docs/srmech/build/, which is
+        # the CTEST artifact. Every OTHER trusting command loads
+        # python/srmech/_native/, and the install() that copies there is guarded
+        # by `if(DEFINED SKBUILD)` — it runs under `pip install`, not under a
+        # bare build. So for the common case the build alone does NOT clear this
+        # block, which is the same shape as the defect this hook's own docstring
+        # records fixing (it once blocked the rebuild it recommended).
+        "    cp build/libsrmech.so python/srmech/_native/     <- REQUIRED for "
+        "the non-ctest path: install() is SKBUILD-only, so a bare build "
+        "refreshes build/ and NOT the directory the loader reads.",
         "Then print _native.HAS_NATIVE, NATIVE_ABI_VERSION, EXPECTED_ABI_VERSION, "
         "LOAD_ERROR before trusting a parity number.",
         f"Deliberately testing the pure path? Set {OVERRIDE}=1 — the bypass is "
-        "echoed, not silent.",
+        "echoed, not silent — but see WHERE below.",
     ]
+    if override_attempted:
+        lines += [
+            "",
+            f"⚠️ You named {OVERRIDE} in the COMMAND. That cannot work, and the "
+            "failure is silent: this is a PreToolUse hook, so it runs BEFORE "
+            "your command, in its own process, and reads ITS OWN environment. "
+            "A variable you set inside the command string is set in a shell "
+            "this hook was already consulted for.",
+            "Set it where the hook process will inherit it:",
+            "    .claude/settings.json  ->  \"env\": {\"" + OVERRIDE + "\": \"1\"}",
+            "    or export it in the shell that LAUNCHES Claude Code",
+            "Rebuilding is cheaper and does not need either.",
+        ]
     return H.block(lines)
 
 
