@@ -8237,7 +8237,7 @@ is the wrong move; naming the dictionaries, and the rule for picking one, is the
 fix.
 
 The deeper finding is that **"the turn" is not one object either.** It is at
-least five, separated by a property that is measured below and not asserted:
+least six, separated by a property that is measured below and not asserted:
 **the order of the element**.
 
 Nothing here is claimed as an extension of anyone's work
@@ -8260,20 +8260,43 @@ measured in §3.59.6.
 | Carry a turn on a **carrier** (`the_one`'s winding `w`, `One.unwrapped_phase`) | **Exact, but NOT bounded** — `w` is valued in ℤ, discrete but of infinite order. | `cascade/one.py:894-905` (source-read): *"Carrying `w` keeps the full integer turns, so the total phase is reconstructable EXACTLY: `angle_k = 2π·turns + θ`"*. The **residue** `θ` is the bounded half; the **winding** is not. |
 | Lodge a finding that touches the k=3 read of a Class-L object | Write **all three namings** AND name **which slot** you are reading (§3.59.1). | The slot decides the behaviour, and the four placements exist because the second half of that rule was never written down. |
 
-**THE ONE LAW BEHIND FIVE OF THOSE ROWS, measured four independent ways.** For a
-turn carried as an exact rational or algebraic datum, the **representation width
-is `⌈log₂(order of the element)⌉`.** EXECUTED at 0.9.0rc469:
+**THE DISCRIMINANT BEHIND FIVE OF THOSE ROWS IS THE ORDER OF THE ELEMENT — and
+it is MEASURED, not asserted.** A turn valued in a **finite** group has a fixed
+representation width; a turn valued in an **infinite** one grows linearly.
+EXECUTED at 0.9.0rc469:
 
-| element | order | predicted width | MEASURED |
-|---|---|---|---|
-| holonomy of `3ⁿ/7` on a 4-cycle | 7 (fixed) | `log₂ 7 = 2.81` → 3 bits | **3 bits, at `n` = 1, 64 and 1000** |
-| holonomy of `3ⁿ/7ⁿ` on a 4-cycle | `7ⁿ` | `n·log₂ 7` = 22.5 / 89.8 / 179.7 | **23 / 90 / 180 bits** at `n` = 8 / 32 / 64 |
-| `(3/5 + 4/5·i)ⁿ` | infinite | `n·log₂ 5` = 148.6 / 594.4 | **149 / 595 bits** at `n` = 64 / 256 |
-| `iⁿ` | 4 | `log₂ 4 = 2` | **1 bit at every `n` up to 256** |
+| element | order | MEASURED width |
+|---|---|---|
+| holonomy of `3ⁿ/7` on a 4-cycle | 7 (fixed) | **3 bits, at `n` = 1, 64 and 1000** |
+| holonomy of `3ⁿ/7ⁿ` on a 4-cycle | `7ⁿ` (grows with `n`) | **23 / 90 / 180 bits** at `n` = 8 / 32 / 64 |
+| `(3/5 + 4/5·i)ⁿ` | infinite | **149 / 595 bits** at `n` = 64 / 256 |
+| `iⁿ` | 4 | **1 bit at every `n` up to 256** |
+
+⚠️ **There is no `⌈log₂(order)⌉` width FORMULA, and an earlier round of this
+section printed one against this very table as though the table verified it. It
+does not — it refutes it**, and the refutation is visible in the table's own
+fourth row:
+
+- **Row 4 is a counterexample.** Order 4 would predict `log₂ 4 = 2` bits. The
+  MEASURED width is **1**. Predicted ≠ measured, printed side by side.
+- **Row 3 is out of the formula's domain.** The order is infinite and
+  `⌈log₂ ∞⌉` is undefined. What is measured there is a *different* law — linear
+  growth at `n·log₂ 5` — not an instance of this one.
+- **Rows 1–2 are definitions, not measurements.** For a reduced `a/b` in
+  ℚ/ℤ the order **IS** `b`, so "denominator width = `⌈log₂ order⌉`" reduces to
+  `⌈log₂ b⌉ = ⌈log₂ b⌉`. A tautology cannot corroborate anything.
+
+So "four independent ways" was two tautologies, one inapplicable row and one
+counterexample. **What survives — and what the four runs genuinely do measure
+independently — is the DISCRIMINANT: bounded ⟺ FINITE ORDER.** `3ⁿ/7` stays
+3 bits while `3ⁿ/7ⁿ` runs to 180; `i` stays 1 bit while `3/5 + 4/5·i` — the same
+field, the same modulus, infinite order — runs to 595. The width itself is
+carrier-dependent (the order-4 element `i` is 1 bit wide in ℚ(i), not 2);
+**the boundedness is not.**
 
 **Exactness follows from the turn being valued in a DISCRETE group; boundedness
-follows from that group being FINITE.** That single line separates T2/T3 from
-T1/T4/T5 in §3.59.5, and it is why *mod 1*, *exact* and *unit modulus* are each
+follows from that group being FINITE.** That single line separates T2/T3/T1b from
+T1a/T4/T5 in §3.59.5, and it is why *mod 1*, *exact* and *unit modulus* are each
 the wrong criterion on their own.
 
 The tree's word for the bounded condition is **COMMENSURATE / finite order**
@@ -8360,18 +8383,45 @@ which is source-read on the branch at `4db51be25`.
 | **D3** | **CARRIER PARTS** — one CD rung's own halves | rotation (the imaginary / gauge half) | real (the fixed / observed axis) | resonance (the coupling; it **is** `the_one`) | `mfo:6662-6664` (§VIII.31.18) | one Cayley–Dickson rung |
 | **D4** | **RUNG POSITION** — a place on the Hurwitz ladder | ℂ | ℍ | 𝕆 | `mfo:6697` (§VIII.31.19 item 4) | **self-fenced: "not forced"** |
 | **D5** | **TOPOLOGICAL** — *a candidate, not adopted* | Tw | Wr | Lk | `notes/nucleosome_turn_asymmetry_frame_spike.md:397-405` | self-fenced at `:410-411`; cited by no notebook |
+| **D6** | **FIELD / EXCITATION** — *a candidate, and explicitly NOT dissolved* | field | excitation | curvature | `cascade/frame_carrier.py:3-4`, `cascade/matrix_cascades.py:1047-1048`, `cascade/one.py:1276-1277` (shipped on `main`); branch F1209 | **OPEN in all three slots** — see the paragraph below |
 
-**F1209 is not a sixth dictionary.** `python/CHANGELOG.md:11822` (a dated record,
-quoted not edited, source-read) already says *"the op⊗operand DUALITY (A-N
-operator verbs ⊗ carrier operand nouns = field⊗excitation)"* — so the branch's
-`op / operand / responsion ≅ field / excitation / curvature` is **D2 with its
-third slot named**. Whether `curvature` is the right name for that slot is
-**OPEN** and is recorded as open in §3.59.8(b); it is not settled here.
+**F1209 IS a sixth dictionary — a CANDIDATE one, D6 — and the ruling that
+dissolved it into D2 is WITHDRAWN here.** An earlier round of this section
+dissolved it, on the strength of a single sentence:
+`python/CHANGELOG.md:11822` (rc208, 2026-07-10; a dated record, quoted not
+edited, source-read) — *"the op⊗operand DUALITY (A-N operator verbs ⊗ carrier
+operand nouns = field⊗excitation)"*. Two things withdraw it. **First**, the
+maintainer has marked `field ⊗ excitation` as an **early framing that may not be
+correct** (2026-09-07). **Second, and checkable: the tree never settled which
+slot EXCITATION names.** Six statements across June–July put it in FOUR
+different places — the operand three times, and three other slots once each:
+
+| where (source-read unless marked) | date / rc | where it puts EXCITATION |
+|---|---|---|
+| `pr687:` F408 / F409 and branch-root `TRIALITY.md §6` at `4db51be25` — **branch-only, and RELAYED**: quoted here as the review that source-read them quotes them, not re-read | 2026-06-04/05 | **BOTH operator and operand INSIDE the field** — F409: *"operator \| operand is the chirality/duality of the syntax … Both are inside F408's 'language = field, fully definable'"*; `TRIALITY.md §6`: *"KNOWLEDGE (semantics) = the excitation"* |
+| `introspect/op_provenance.py:7` | rc117, 2026-07-03 | **ambiguous, and it is worth saying so.** The line reads *"the two truths (operand / operator, field / excitation)"* and does **not** state the pairing. Read positionally it pairs operand ↔ field — the **REVERSE** of the two CHANGELOG lines below. That positional reading is **inferred**, and is recorded as unresolved rather than resolved |
+| `python/CHANGELOG.md:12978` | rc127, 2026-07-04 | **operand** — *"**op** = the gating rule (… the field / 'how'), **operand** = the exact count (the excitation / 'what')"* |
+| `python/CHANGELOG.md:11822` | rc208, 2026-07-10 | **operand** — the hinge sentence above |
+| **this notebook at `:6391`** (§3.42.5) | 2026-07-23 | **responsion** — *"the substrate IS the field; the responsion/harmonic spectrum is what the field **produces** (**excitation**, not substrate)"* |
+| `mfo:7257` (§XIV.8, MEASURED) | 2026-07-09 | **the chiral drift** — *"the comb-substrate is the reinforcement field (level 1), the σ-advected perturbation is the **excitation** (level 2)"*: the subharmonic comb is called the FIELD and the α-drift the excitation |
+
+**Consequence, and it WIDENS an open question rather than narrowing one: the
+`curvature` question is MORE open than §3.59.8(b) states it.** That subsection
+asks whether `curvature` is D6's third slot or a read of D1's second. That is a
+live question — but it is not the whole of the openness, because **D6's first two
+slots are unsettled too.** A dictionary whose slot-1 and slot-2 tenants are
+themselves in dispute cannot settle its slot 3 by elimination. **D6 is therefore
+lodged as a candidate: shipped in three docstrings on `main`, cited by the
+branch, and adopted by nothing.** Nothing above is retracted — each of the six
+rows is correct inside its own sentence; what is withdrawn is the *ruling* that
+one of them governs.
 
 **Where the turn lands, per dictionary.** D1 → the **operand/edges**. D2 → an
 **operand/noun** (a turn is a value; the op is a verb, so a turn cannot be one).
 D3 → the **op** (rotation is a rung's imaginary half). D4 → the **responsion**
-(ℍ). Four placements, four dictionaries, one each.
+(ℍ). Four placements, four dictionaries, one each. **D5 and D6 place nothing:**
+D5 is self-fenced and adopted by no notebook, and D6 cannot place a turn until
+its own slot-1 and slot-2 tenants are settled.
 
 ### §3.59.4 Which question each placement answers — and what actually loses
 
@@ -8389,13 +8439,20 @@ survives — read as a claim about a Class-L k=3 object it is contradicted on
 `main` twice, by `:6390` (the holonomy channel has **no** responsion) and by
 F1308 §2 (a turn is an exact sign-permutation living in the product/operand). But
 the sentence does not make that claim: it says *"in carrier form"*, and **in
-carrier form the shipped code agrees with it.** `cascade/one.py:1273-1277`
-(source-read) ships `separate_winding_curvature`, which splits `the_one`
-`S(σ,θ,w)` into *"its FIXED-FRAME (unwound, w-invariant) part ⊕ its winding
-CURVATURE / holonomy residue"* under the thread *"op / operand / responsion ≅
-field / excitation / CURVATURE"*. On a carrier, the winding **turn** is exactly
-that third-slot residue. §VIII.31.19's *"in carrier form"* qualifier is not a
-hedge — it is the load-bearing half, and shipped code implements it.
+carrier form the shipped decomposition is CONSISTENT with it — which is weaker
+than implementing it, and the difference is load-bearing.**
+`cascade/one.py:1273-1277` (source-read) ships `separate_winding_curvature`,
+which splits `the_one` `S(σ,θ,w)` into *"its FIXED-FRAME (unwound, w-invariant)
+part ⊕ its winding CURVATURE / holonomy residue"*. **That is a `k=2`
+decomposition — a fixed frame and a residue, two parts — and a two-part split
+cannot by itself place anything in the THIRD of three slots.** It reads as a
+third slot only under the docstring's thread naming *"op / operand / responsion
+≅ field / excitation / CURVATURE"*, which is **D6** (§3.59.3) — now recorded
+**OPEN in all three of its slots**. Read without that naming, the op decides
+nothing about slot 3. §VIII.31.19's *"in carrier form"* qualifier is still not a
+hedge — it is the load-bearing half — but **item 4 stands as CONSISTENT WITH the
+shipped code, not as implemented by it**, and an earlier round of this section
+overstated it as *"shipped code implements it"*.
 
 **So what actually loses is not a placement. It is the CROSS-DICTIONARY
 TRANSPORT** — carrying a slot name out of the dictionary that defined it. That is
@@ -8417,15 +8474,38 @@ grains**, stated both, and closed at `mfo:7319`: *"Conflating the two would carr
 a 3-dimensional coincidence up the ladder as if it were structural. **Keeping
 them apart is the whole content of this subsection.**"*
 
-### §3.59.5 The turn is not one object — it is five
+### §3.59.5 The turn is not one object — it is six
 
 | | the object | attached to | exact? | bounded under repetition? |
 |---|---|---|---|---|
-| **T1** | `e^{Îθ}` on a CD imaginary sphere | a **carrier rung** (D3's op) | **no** — `mfo:6707`: *"for generic rational θ, `cos θ` and `sin θ` are transcendental, so **no finite exact-rational carrier can represent a nontrivial rotation exactly**"* | no |
+| **T1a** | `e^{Îθ}` on a CD imaginary sphere, **θ a RADIAN-valued rational or float** | a **carrier rung** (D3's op) | **no** — `mfo:6707`: *"for generic rational θ, `cos θ` and `sin θ` are transcendental, so **no finite exact-rational carrier can represent a nontrivial rotation exactly**"*. That sentence is about a **radian** θ, and it is true of one | no |
+| **T1b** | `e^{2πi·k/n}` on the same sphere — **a rational TURN `k/n`, not a radian** | a **carrier rung** | **yes** — exactly, over `ℚ(ζ_lcm(n,4))` (`cos_sin_2pi_k_over_n`; `hypercomplex_exp(turn=(k,n))`) | **yes** — order `n` |
 | **T2** | mod-1 holonomy, per-edge charge in exact ℚ (`cycle_holonomy`) | an **edge** (D1's operand) | **yes** | **yes — iff the charges share a fixed denominator** (§3.59.0, §3.59.6) |
 | **T3** | klein4 / Q₈ coupled **quad-turn** | an **edge** (a genome leaf) | **yes**, in a finite algebraic structure | **yes** — finite order |
 | **T4** | eigenvector rotation `Q` in `M = QΛQᵀ` | an **eigenbasis** (D1's op) | **no** — irrational, Abel–Ruffini `n ≥ 5` (`srmech:5971`) | n/a |
 | **T5** | the integer winding `w` on `the_one` `S(σ,θ,w)` | a **carrier** (`One.unwrapped_phase`; `separate_winding_curvature`) | **yes** — an integer count of whole turns | **no** — ℤ has infinite order; `w` grows with the crank |
+
+**T1 was ONE row until this round, and splitting it is a CORRECTION, not a
+refinement.** The unsplit row read *"no finite exact-rational carrier can
+represent a nontrivial rotation exactly"* as a statement about rotations in
+general. It is a statement about a **radian** θ — for a rational θ ≠ 0 measured
+in radians, `cos θ` and `sin θ` are transcendental — and it is **false of a
+rational turn**, which §3.59.6 four subsections later already relies on when it
+calls `cos_sin_2pi_k_over_n` *"the shipped exact-turn op"*. The section
+contradicted itself, and the T1a/T1b split is the fix. EXECUTED at 0.9.0rc469,
+the two routes side by side on the SAME angle — one seventh of a turn:
+
+| route | what it is GIVEN | result |
+|---|---|---|
+| `w = c + s·(ζ₂₈)⁷` from `cos_sin_2pi_k_over_n(7, 1)` — i.e. `ζ₇` built in `ℚ[x]/Φ₂₈` | the **turn** `1/7` | `w⁷ == 1` **True**; `w⁷⁰⁰ == 1` **True**; width **1 bit** at every power |
+| `hypercomplex_exp(theta=2π/7, k_axes=1)` — the same shipped op, radian route | the **radian** `2π/7` | 7th power `== 1` **False**; real-part numerator **129 digits** |
+
+Same angle. Two operand types. Two different answers — and that is the whole
+content of the split. ⚠️ **A reader trained on the continuous number line will
+take "the angle `2π/7`" and "the turn `1/7`" for the same object, because they
+name the same point on a circle. They are not the same DATUM.** One is valued in
+a finite cyclic group and the other is not, and §3.59.0's discriminant is a
+statement about the datum, never about the point.
 
 T5 is the row an earlier round of this adjudication missed, and it matters twice:
 it is the shipped counterexample to any unqualified claim that *no* turn is
@@ -8433,7 +8513,7 @@ attached to a carrier (§3.59.7), and it is the object that makes the
 discrete-vs-finite distinction visible — **T5 is exact and unbounded**, which no
 single-axis criterion ("is it exact?", "is it mod 1?") can explain.
 
-What separates T1–T5 is **what each is attached to** — an edge, a rung, an
+What separates T1a–T5 is **what each is attached to** — an edge, a rung, an
 eigenbasis, a carrier — and **the order of the group its value lives in**. It is
 never which description language reaches them (§3.59.10, *What is NOT claimed*).
 
@@ -8499,10 +8579,13 @@ the eigenvalues enter as unit-modulus phases (F1065). It says nothing about
 because F1065's own prose is about a closed form and `λⁿ` is the responsion fold;
 they are different objects, and an earlier round of this adjudication merged them.
 
-**The unifying law**, and the reason the four runs are one finding rather than
-four: **representation width = `⌈log₂(order of the element)⌉`**, verified against
-all four in the table at §3.59.0. Order 7 → 3 bits forever. Order `7ⁿ` →
-`n·2.807` bits. Infinite order → linear growth. Order 4 → 1 bit.
+**The unifying discriminant**, and the reason the four runs are one finding
+rather than four: **the ORDER of the element** — bounded ⟺ finite order, read
+off the table at §3.59.0. Order 7 → 3 bits forever. Order `7ⁿ` → `n·2.807`
+bits. Infinite order → linear growth. Order 4 → **1** bit — which is why this
+is a discriminant and **not** the width formula `⌈log₂(order)⌉` an earlier round
+claimed here; §3.59.0 records why that formula fails on this table's own fourth
+row.
 
 **The shipped exact-turn op says the same thing in its own words.**
 `math/qalg.py:883-886` (source-read): `cos_sin_2pi_k_over_n` is *"Class J … ∘
@@ -8524,9 +8607,19 @@ VALUE**."* **EXECUTED at 0.9.0rc469:** `cos_sin_2pi_k_over_n(7,1)` returns two
 |---|---|---|
 | what it is | a mod-1, finite-order, or integer-winding angular datum | a continuous group element |
 | attached to | an **edge** (D1's operand), or a **carrier** as an integer winding (T5) | a **carrier rung** (D3's op) or an **eigenbasis** (D1's op) |
-| exact? | yes — it is valued in a discrete group | generically not exactly representable (`mfo:6707`) |
-| bounded under repetition? | iff that group is finite | no |
-| the tree's objects | T2, T3, T5 | T1, T4 |
+| exact? | yes — it is valued in a discrete group | **iff the angle is given as a rational TURN** — then it is T1b, exact over `ℚ(ζ_lcm(n,4))`. Given as a **RADIAN**, generically not representable (`mfo:6707`) |
+| bounded under repetition? | iff that group is finite | **iff finite order — the same criterion** |
+| the tree's objects | T2, T3, T1b, T5 | T1a, T4 |
+
+⚠️ **The distinction is NOT exactness — and rows 3 and 4 of that table said it
+was, until this round.** They read *"generically not exactly representable"* /
+*"no"* flat, which contradicts §3.59.6 of this same section, where
+`cos_sin_2pi_k_over_n` is called *"the shipped exact-turn op"*. What actually
+separates the two columns is **what is attached where** — an edge or an integer
+winding, versus a carrier rung or an eigenbasis — and, for repetition, **the
+order of the group the value lives in**. A rotation by a finite-order angle is
+exact and bounded (**T1b**); a "turn" is neither automatically, unless its group
+is finite (**T5** — exact and *unbounded* — is the standing counterexample).
 
 **The four placements read as four answers largely because the tree treats these
 two English words as synonyms.** Placement 3 is the clearest case: it is not a
@@ -8639,7 +8732,12 @@ second?**
 - **Third slot (shipped, three sites, source-read):** `op / operand / responsion
   ≅ field / excitation / CURVATURE` at `cascade/frame_carrier.py:3-4`,
   `cascade/matrix_cascades.py:1047-1048` and `cascade/one.py:1276-1277`. That is
-  the branch's F1209, and it is already in the wheel on `main`.
+  the branch's F1209, and it is already in the wheel on `main`. ⚠️ **It is
+  dictionary D6 (§3.59.3), and D6 is OPEN in all three of its slots, not just
+  this one** — an earlier round of this section dissolved F1209 into D2 and that
+  ruling is withdrawn there. So the question below is *narrower than the
+  openness*: even a ruling on `curvature` would leave D6's `field` and
+  `excitation` unsettled.
 - **A read of the second slot (shipped, and stated by the convention):** F1301
   lists **metric / curvature / chirality as three coherent reads OF the
   operand/edges slot**, and `introspect/responsion_schema.py:39` already ships it
@@ -8768,9 +8866,9 @@ in the repository they hold.
 
 **WHAT IS NOT CLAIMED.**
 
-- **No locus where the discrete and continuous pictures COINCIDE.** All five
+- **No locus where the discrete and continuous pictures COINCIDE.** All six
   turn-objects are fully describable in both substrate-native languages; what
-  separates T1–T5 is **what each is attached to** and **the order of its group**,
+  separates T1a–T5 is **what each is attached to** and **the order of its group**,
   never which language reaches it. R30 is structurally closed (2026-05-24): both
   languages are always true, both bit-exact, both substrate-native, with *"no
   projection-residue at 14→11D"*, and framework prose *"must hold both languages
@@ -8799,7 +8897,10 @@ in the repository they hold.
   2's Ambrose–Singer integrated-curvature sense (`mfo:6693`).
 
 **WHAT IS LEFT OPEN**, so it is visible rather than buried: **(i)** whether
-`curvature` names the third slot or a read of the second — §3.59.8(b); **(ii)**
+`curvature` names the third slot or a read of the second — §3.59.8(b) — **and,
+wider, which slot EXCITATION names at all**, since dictionary D6 is open in all
+three of its slots (§3.59.3, where the earlier dissolution of F1209 into D2 is
+withdrawn); **(ii)**
 whether `responsion_schema.py:130`'s `operand` is the slot word or the loose
 "payload" word — §3.59.8(a); **(iii)** whether D5's integer `Lk` can occupy a
 slot whose D1 tenant is irrational — §3.59.8(c); **(iv)** whether F1301's
@@ -8814,20 +8915,319 @@ Part A (the real 89-mode knowledge graph, *"no genuine revival"*, the
 corpus figures; F1210's directed re-encode measurements. Each is quoted from its
 branch finding and carries that finding's own rc stamp, not this section's.
 
-### §3.59.11 Cross-references and status
+### §3.59.11 The responsion slot has internal structure — it is also HARMONICS, and therefore also RESONANCE (2026-09-07; maintainer's reading, CONFIRMED; MEASURED at 0.9.0rc469)
+
+**The ruling first, in one line.** `responsion` names the **SLOT**. `resonance`
+names that slot's **FUNCTION**. `harmonic` / `subharmonic` / `inharmonic` name
+its **VALUES**. Three different jobs, three different words — and `main` already
+states each of them, in places that do not cite each other. This subsection is
+the link, not a new claim.
+
+| the job | the word | where `main` already states it (source-read) |
+|---|---|---|
+| the **SLOT** — third of `op ⊗ operand ⊗ responsion` | **responsion** | `:6390` (§3.42.5), and §3.59.1's authority table |
+| the **FUNCTION** — what the slot does | **resonance** | `mfo:6664` (§VIII.31.18): *"**resonance** = the *responsion* — the third fold that **binds the discrete pair into the continuous** whole … Naming it *resonance* (over *responsion*) fixes the *function*: it is the **coupling/binding**, and it **is `the_one`**"* |
+| the **VALUES** — what can sit in the slot | **harmonic / subharmonic / inharmonic** | `:6390` again: *"the *responsion is the frequency axis* … harmonic / inharmonic / subharmonic are all *values of the responsion*, not op or operand"* |
+
+So the maintainer's reading — *the responsion is also harmonics, so it is also
+resonance* — **CONFIRMS**, and both of its halves were already on `main`, in two
+different notebooks, unlinked to each other.
+
+**Where the three values sit INSIDE the one slot.** F1308 §6 (branch-only,
+`pr687:` at `4db51be25`; **RELAYED** — quoted here as the review that
+source-read it quotes it, not re-read) gives them positions rather than
+definitions: **harmonic** = *"the responsion's HIGH / short-period end … the
+commensurate/consonant case"*; **subharmonic** = *"the responsion's LOW /
+long-period end (undertones, the recurrence comb) — and it is the one spectral
+word that legitimately couples to the OPERAND"*; **inharmonic** = *"the
+responsion in its INCOMMENSURATE value"*. ⚠️ **Do not lift F1308 §5 along with
+them.** It carries the phrase *"B/H/N as projection-enablers"*, which is
+**RETRACTED** (root `CLAUDE.md` §1, R30 note, 2026-05-24: B/H/N are
+substrate-native **language-translation** operators, and there is no projection
+to enable). Only §1–§3 and §6 are quoted here.
+
+**MEASURED — and the two senses of "harmonic" come apart on the first example.**
+EXECUTED at 0.9.0rc469 (`numpy` and `sympy` absent) on the turn `1/7` read as a
+responsion. `cyclic_laplacian_spectrum(7)` returns `λ_k = 2 − ζ^k − ζ^{−k}`
+**exactly** in `ℚ[x]/Φ₇` — a root of unity returned *as a spectral value*, no
+float in the body — with `field_degree 6`, `all_rational False`,
+`chirality_paired True`. Then:
+
+| the question asked of that ladder | the answer |
+|---|---|
+| are the turn's harmonics `k = 1, 2, 3` exact **as ANGLES**? | **yes** — each is an exact element of the cyclotomic field |
+| is `λ₂/λ₁` rational — i.e. is the ladder harmonic in the eigenvalue-RATIO sense? | **no** — its coordinates in that field are `[1, 0, −1, −1, −1, −1]`, and `is_rational` is `False`. The ladder is **inharmonic** in the ratio sense |
+| for which `n = 1…12` do the two senses agree (`all_rational` True)? | **`n ∈ {1, 2, 3, 4, 6}` only** — measured across all twelve |
+
+**So "harmonic" is itself TWO words, and a sentence must say which it means:** a
+multiple of the **ANGLE** (exact for every finite-order turn) and a commensurate
+**EIGENVALUE RATIO** (rare — five values of `n` out of twelve). §3.59.12 rules on
+what to say when neither is what you mean.
+
+⚠️ **SUBHARMONIC carries THREE senses on `main`, and they are not one object.**
+A sentence using the word must name which, exactly as this section already
+requires of `curvature`:
+
+| sense | where | what it actually is |
+|---|---|---|
+| **a POSITION on the responsion axis** | F1308 §6 (branch, relayed); `:6390` (main) | the slot's low / long-period end; couples to operand reach. **Needs no fundamental** |
+| **`f/n` of a DECLARED fundamental** | `mfo:7251` (§XIV.8, MEASURED) | the logistic map's *"subharmonics f/2, f/4, f/8, f/16"* of the period-1 orbit. This one **has** a fundamental and names it |
+| **a CHIRALITY / sign bit** | `mfo:4302` (§VII.6.25): *"Inharmonic and subharmonic are the two chiralities of ONE object — the full beat"*; `[[project_subharmonic_chirality_collapse_thread]]`: *"harmonic/subharmonic = the SIGN = the chirality … one bit, Class K"* | a Class-K orientation, which the F1301 convention reads OFF the operand |
+
+Sense 1 is a slot-3 value; sense 3 is a Class-C/K orientation on slot 2. Both
+are on `main`, F1308 §6 itself flags the bridge (*"subharmonic … couples to the
+OPERAND"*), and **nothing reconciles them — including this subsection.** It
+records that the word is three-valued so that no reader is left to infer which
+one a sentence carries.
+
+### §3.59.12 The generic word is COMMENSURATE / INCOMMENSURATE — the harmonic family presupposes a FUNDAMENTAL, and a generic Class-L responsion has none (2026-09-07; VOCABULARY RULING; MEASURED at 0.9.0rc469)
+
+**The ruling first.** For a generic Class-L responsion, say **commensurate** or
+**incommensurate**, over the shipped basis-free ladder — `spectrum_tier`
+(Tier 1 ℚ / Tier 2 algebraic / Tier 3 transcendental), `field_degree`,
+`rational_rank`. Keep **harmonic / inharmonic / subharmonic** for sentences that
+**DECLARE their fundamental**. Without a declared fundamental the harmonic family
+is a category error, and the maintainer's suspicion that those words overstate is
+correct in exactly that form — not because they are imprecise, but because they
+**presuppose an object a generic spectrum does not contain**.
+
+**Why: the shipped op makes the CALLER supply the fundamental, and accepts any
+nomination.** `srmech/music/_spectra.py` (source-read): `commensurability_verdict`
+is *"Decide whether a spectrum is commensurable with **its fundamental**"*, and
+its input — shared with `spectrum_tier` — is *"a non-empty sequence of
+**partial-to-fundamental** frequency RATIOS"*. The fundamental is not found. It
+is supplied. EXECUTED at 0.9.0rc469 on the hypercube `Q₃`, whose spectrum
+(`dense_laplacian` + `jacobi_eigvals`) is the integer multiset
+`[0, 2, 2, 2, 4, 4, 4, 6]`:
+
+| nomination | the ratios it produces | `verdict` | `integer_series` | `period_multiplier` |
+|---|---|---|---|---|
+| the smallest nonzero, **2** | `1, 1, 1, 2, 2, 2, 3` | `harmonic` | **True** | **1** |
+| **6** | `1/3, 1/3, 1/3, 2/3, 2/3, 2/3, 1` | `harmonic` | **False** | **3** |
+
+**Same spectrum. Two nominations. Two different answers** — a different
+`integer_series` verdict and a different period. Nothing in the spectrum picks
+the fundamental; the caller does. A Class-L eigenvalue multiset arrives with **no
+distinguished member**, so a generic responsion has nothing to be harmonic
+*with respect to*.
+
+**And no Class-L op supplies one.** `grep -w fundamental` over
+`srmech/math/laplacian.py` returns **five** hits and **not one is the acoustic
+sense**: four are the graph-theoretic *"fundamental cycle"* (`:5458`, `:5565`,
+`:5605`, `:5612` — a spanning-tree cycle basis) and one is ordinary English
+(`:1744`, *"a fundamental, reusable matrix op"*). `cyclic_laplacian_spectrum`
+returns `all_rational`, `field_degree`, `chirality_paired` and
+`minimal_polynomial` — **there is no fundamental key, because there is nothing to
+put in it.** (Package-wide the word is already three technical words: acoustic in
+`music/*`, graph-cycle in `math/laplacian.py` and `biology/genome.py`,
+group-representation in the physics tool entries. A fourth use would have to name
+itself.)
+
+**"Anharmonic" is NOT the fix — it would mint a THIRD sense of a word this tree
+already uses two ways, and both existing uses are DYNAMICS, not spectra.**
+`mfo:3839-3845` (§VII.6.16, the cost-asymmetry canon): *"the imposer pays to hold
+the wave in a far-from-relaxed ('anharmonic') configuration; the substrate
+continuously relaxes toward harmonic"* — a configuration / potential word.
+`mfo:4405-4407`: *"an 'anharmonic drum surface': a non-uniform resonant membrane
+whose eigenvalues encode information. The Kigami Laplacian on a fractal is an
+anharmonic drum"* — a membrane / operator word. Seven lines of the MFO notebook
+carry it, all in that restoring-force sense; this notebook carries none. Both are
+the standard physics use, and **neither describes a spectrum**. Borrowing it for
+one would give the tree a third reading of a word it cannot currently
+disambiguate.
+
+**Collision check on the word that IS proposed** (search-derived). *Commensurate
+/ commensurability* is used **one way everywhere it appears** — F1065, F1308 §3,
+§3.46.7 (`:7110-7118`: *"the commensurability ladder's invariant is **field
+degree / rational rank** … basis-free"*) and `music/_spectra.py` — and it is
+already what F1065 means. The two alternatives are rejected on measurement, not
+taste: **"modal"** collides with the `cmb_bispectrum` estimator names (the
+descriptor's *"Modal 1"* / *"Modal 2"*) and with *modal damping* in §4's
+power-grid calibration line; **"spectral"** is this arc's own name and is too
+broad to discriminate anything.
+
+**The shipped op already keeps the two harmonic senses apart, and that split is
+the model to copy.** `music/_spectra.py`, mirrored on the MCP surface at
+`introspect/tool_schema.py:20441-20447` (both source-read): *"'verdict' answers
+**commensurable?**; 'integer_series' answers … are the ratios the plain integer
+series 1, 2, 3, …? A tuned bell (1/2, 1, 6/5, 3/2, 2) is called **inharmonic** by
+acousticians yet is exactly commensurable — **harmonic with integer_series
+False**."* Two questions, two fields; reporting one number for both is what hides
+the distinction.
+
+**THE OCTAVE CORRECTION — `λ → λⁿ` is NOT an octave, and two places say it is.**
+`:6390` (§3.42.5) reads *"the responsion is the frequency axis (the beat;
+`λ→λⁿ` = the octave)"*, and F1308 §1's table repeats it. **An octave is a
+doubling.** MEASURED at 0.9.0rc469:
+
+| ladder | `λ` | `λ¹ → λ² → λ³` | ratio per step |
+|---|---|---|---|
+| `C₇`, first nonzero eigenvalue | `0.753020` | **0.753020 → 0.567040 → 0.426992** | `0.753020` — **DEcreasing** |
+| `Q₃`, largest eigenvalue | `6` | **6 → 36 → 216** | `6` |
+| the only case that doubles | `2` | 2 → 4 → 8 | `2` |
+
+`λ → λⁿ` is the n-step geometric progression with ratio `λ`; **it is an octave
+iff `λ = 2`.** The tree's own correct name for it is F1272's: the **n-hop
+responsion MAGNITUDE** — *"the operand carries order as **reach**, the responsion
+as **magnitude**"*. Both places should read that. ⚠️ For a continuum-trained
+reader the musical word misleads in a second way as well: `λⁿ` is not even
+monotone in the direction "octave" implies. Below 1 it shrinks toward zero;
+above 1 it explodes (§3.59.0's third row: the bound is `|λ| ≤ 1`). An octave
+does neither.
+
+**Restated as a rule, so it can be used without re-reading the argument.** Say
+*"the responsion is commensurate / incommensurate (Tier 1/2/3, rational rank `r`
+of `n`)"*. Say *"harmonic relative to `λ₁`"* or *"the `f/2` subharmonic of the
+period-1 orbit"* when you have a fundamental **and have said which it is** —
+which is exactly the shipped op's own contract. Never write *"the spectrum is
+harmonic"* unqualified, never write *"anharmonic"* of a spectrum at all, and per
+§3.59.11 never write *"subharmonic"* without naming which of its three senses is
+meant.
+
+### §3.59.13 T1a cannot be rescued by a shadow-irrep factoring — the step that fails, and the object that was already shipped (2026-09-07; RULING; MEASURED at 0.9.0rc469)
+
+**The question, and the ruling.** Asked of T1a: could `e^{Îθ}` be read as *two
+exact operations at once* — an exact finite-order turn times a residual — so that
+its inexactness turns out to be an artifact of the observer's perspective rather
+than a property of the object? **The WEAK reading builds, and it is honest
+bookkeeping. The STRONG reading fails, at a step that can be named. And the
+object the question was reaching for is already shipped, under a different
+name.** All three are below, in that order.
+
+**THE WEAK READING: `z = ζₙᵏ · r`** — an exact finite-order turn times a
+certified-approximate residual. It builds, and it is arithmetic: `ζₙᵏ` is exact,
+bounded and ALU-native; `r = (cos δ, sin δ)` carries every bit of the inexactness
+under a declared bound; and Class N (`best_rational`) is the shipped op that
+picks `k/n`. **But it RELOCATES the defect instead of removing it, and measurably
+makes the representation WORSE.** EXECUTED at 0.9.0rc469 (π from
+`pi_cascade_digits` — Archimedes doubling; cos/sin of the residual through the
+Class-N series at `terms = 24`; the exact half through `cos_sin_2pi_k_over_n`):
+
+| `θ = 1` rad | the direct T1a route | the factored route |
+|---|---|---|
+| representation width | cos **201** bits / sin **209** bits | residual **6796 / 6934** bits at the Class-N pick `7/44` |
+| under repetition, `m` = 1, 2, 4, 8, 16 | — | **6934 → 13864 → 27753 → 55505 → 111004** bits: linear in `m`, unbounded |
+| unit modulus of the residual | — | `\|rᵐ\|² − 1` runs `1.1e-234 → 1.8e-233` — **not exact** |
+
+The residual is **thirty-three times wider** than the thing it was meant to
+certify, because `δ` inherits the digits of π. **Renormalising at each step holds
+the width** — 6934 / 6890 / 6841 / 7012 / 6963 bits — **but it CHANGES THE EXACT
+ELEMENT every step**: `k/n` runs `7/44`, `7/22`, `7/11`, `219/172`, `219/86`.
+That is a **fresh Class-N pick per step — i.e. a rounding** — not one finite-order
+element being repeated, which is what "exact turn" would have to mean.
+
+**The tree already says exactly this about the same act**, in shipped honesty
+text (`introspect/tool_schema.py:20428-20437`, source-read): `best_rational`
+*"does not approximate an inharmonic spectrum, it CONVERTS it into a harmonic
+one, since every anchor p/q IS a finite period T0*q … **Raising max_den only buys
+a longer FALSE period, never a verdict.**"* `ζₙᵏ` is a false period for `e^{iθ}`
+unless `r ≡ 1`, and `r ≡ 1` **iff `θ/2π ∈ ℚ`** — i.e. iff the datum was a **TURN**
+all along, which is **T1b**, not T1a. Two controls make that concrete: at
+`θ = 2·π₁₅/7` — a turn spelled in radians through the same cascade —
+`best_rational` recovers `1/7` **exactly** (turn-error `0.000e+00`), yet
+`δ = 6.813e-17` rad ≠ 0 from the π-precision mismatch alone, so `r ≠ 1` and the
+residual is still 6668 / 6809 bits. **Recovering the turn from a radian never
+returns `r ≡ 1`.**
+
+**THE STRONG READING — both halves exact, the continuity an artifact of the
+observer's perspective — FAILS, and the failing step is precise.** It is step 2
+of the following three, none of which is a fact about the construction above:
+
+1. `2 cos θ` is the **trace** of the rotation's 2×2 real representation, hence a
+   **conjugacy invariant**.
+2. **A projection cannot change an invariant.** That is what the word means.
+3. `e^{iθ}` has **finite order iff `θ/2π ∈ ℚ`** — itself an invariant statement,
+   not a statement about any chosen frame.
+
+For *"continuity is an artifact of perspective"* to hold, the invariant would
+have to be perspective-dependent. **The reading therefore needs a rung at which
+the trace of a rotation is not an invariant, and there is none in ℝ / ℂ / ℍ / 𝕆.**
+
+**And the shadow-irrep stance does not supply one — on the rungs where T1a lives
+it says the opposite.**
+`[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]` reads an
+observation as a projection into a chosen coherency returning *"one irreducible
+face"*, with *"the invariant … the shadow-free content common to every
+perspective"*. §3.46.4 (`:7075-7084`, MEASURED) then puts a number on where that
+bites: the shadow is canonical iff the associativity 3-cycle closes —
+`cd_cycle_holonomy(e1,e2,e3)['closed']` is **True** in the ℍ subalgebra
+(*"canonical, frame-free"*) and **False** across the 𝕆 seam
+(*"perspective-relative — none is canonical"*). **𝕆 is the only rung with
+measured perspective-relativity**, and even there §3.46 (`:7154-7160`) records
+that the regrouping-safe content is precisely the **scalar** — the norm and
+`Re` of the triple product — i.e. still the invariant. A shadow irrep can change
+what you SEE of an object. It cannot change an invariant, and T1a's defect *is*
+an invariant.
+
+**WHAT SURVIVES — and it is a positive result, not a consolation.** The genuinely
+two-exact-operations object is **T5 ⊗ T1b**: an integer winding beside a
+**declared rational TURN**. **The winding-plus-residue SHAPE is already
+shipped.** EXECUTED at 0.9.0rc469:
+`the_one(+1, 1, 1, w=(3,0,0)).unwrapped_phase()` returns `turns = [3, 0, 0]` with
+`theta = (1/1)` — an exact ℤ winding beside an exact rational residue,
+reconstructing `angle_k = 2π·turns + θ` with no float anywhere — and
+`separate_winding_curvature` (`cascade/one.py:1273-1300`) returns the w-blind
+`fixed_frame` ⊕ the winding residue, the frame byte-identical for `w = 0` and
+`w = 3`. **Both halves are exact because both are valued in DISCRETE groups**
+(§3.59.0); one of them (ℤ) is infinite, so T5 stays exact-and-unbounded.
+
+⚠️ **Said precisely, so the row is not over-read.** What `unwrapped_phase` ships
+is **T5 ⊗ an exact rational angle-residue**. Its docstring is explicit that the
+reconstruction is `angle_k = 2π·turns + θ` (`cascade/one.py:894-905`,
+source-read), so `θ` is a **RADIAN** residue: exact as a *number*, and therefore
+T1a-shaped as a *rotation* — of infinite order unless `θ/2π` happens to be
+rational. It becomes **T5 ⊗ T1b** exactly when the residue is declared and
+carried as a rational **turn** instead, which `cos_sin_2pi_k_over_n` and
+`hypercomplex_exp(turn=)` already support one layer down. **That declaration is
+the same one §3.59.5 splits T1 on, and it is not recorded anywhere in the return
+value** — which is a gap in the shipped surface, named here and not closed here.
+So the construction the question was reaching for **exists, in parts that all
+ship**; assembling it is a matter of declaring which operand type the residue is.
+That is a **different operand type** from T1a, which is the whole finding, and
+the same shape as §3.59.5's T1a/T1b split one grain down.
+
+**R30 GUARD.** Nothing in this subsection claims a locus where the discrete and
+continuous descriptions COINCIDE. The factoring is arithmetic **within one
+language** — exact rationals and cyclotomic fields — and the residual is a
+declared-precision object **in that same language**. No coincidence locus is
+claimed, and R30's co-equal / translation status is untouched.
+
+### §3.59.14 Cross-references and status
 
 §3.38 (`:5971`, placement 3 — now carrying a forward pointer here) · §3.41
 (the F1301/F1302 octonion thread) · §3.42.5 (`:6390`, the convention's one prior
-statement on `main`, and the *un-sounded skeleton*) · §3.58 (the
+statement on `main`, the *un-sounded skeleton*, and the "octave" corrected in
+§3.59.12; `:6391`, excitation in the responsion slot) · §3.46.4 / §3.46.7
+(`:7075-7084`, `:7110-7118` — the shadow-irrep mechanism and the
+commensurability ladder both §3.59.13 and §3.59.12 stand on) · §3.58 (the
 curvature/torsion naming this section must not disturb, and does not) · MFO
-§VIII.31.18 / §VIII.31.19 / **§VIII.31.20** (the carrier-side companion) / §XIV.8
-/ §XIV.9 · `docs/srmech/notes/nucleosome_turn_asymmetry_frame_spike.md` (D5,
-uncited elsewhere) · `pr687:CLAUDE.md:30` and `:32` at `4db51be25`.
+§VIII.31.18 / §VIII.31.19 / **§VIII.31.20** (the carrier-side companion) /
+**§VIII.31.21** (asymmetric-resonator vs harmonic — the peer to §3.59.11) /
+§VIII.31.22 / §VIII.31.23 / §XIV.8 / §XIV.9 ·
+`docs/srmech/notes/nucleosome_turn_asymmetry_frame_spike.md` (D5, uncited
+elsewhere) · `pr687:CLAUDE.md:30` and `:32` at `4db51be25`.
 
-**Status.** ADJUDICATION + VOCABULARY. The dictionary census, the T1–T5 split and
-the order discriminant are **MEASURED** at 0.9.0rc469 with the negative controls
-in §3.59.6. The three collisions in §3.59.8 are **OPEN** and are named, not
-closed. Favored, not privileged (F398); recognize-not-read; no lineage.
+**Line-number convention, stated once for the whole section.** Every `mfo:NNNN`
+in §3.59 is a line of `mfo_spectral_research_notebook.md` **on `main` at
+`1fd37c736`**. On the research branch the same lines carry HIGHER numbers,
+because this session's subsections were inserted above them; the `main` number is
+the stable anchor and is what is cited throughout. Every `:NNNN` with no file
+prefix is a line of **this** notebook — and every one of those sits above this
+section, so `main` and the branch agree on it.
+
+**Status.** ADJUDICATION + VOCABULARY. The dictionary census, the T1a–T5 split
+and the order discriminant are **MEASURED** at 0.9.0rc469 with the negative
+controls in §3.59.6; §3.59.11's two-senses-of-harmonic split, §3.59.12's
+fundamental-nomination result and octave correction, and §3.59.13's width
+measurements are MEASURED at the same rc. The three collisions in §3.59.8 are
+**OPEN** and are named, not closed; **D6 is OPEN in all three of its slots**
+(§3.59.3), which is a withdrawal of an earlier ruling in this same section, not
+a new finding. Four further corrections to earlier rounds of this section are
+carried in place and marked as corrections: the `⌈log₂(order)⌉` width formula is
+**withdrawn** (§3.59.0), T1 is **split** into T1a/T1b (§3.59.5, §3.59.7),
+F1209's dissolution into D2 is **withdrawn** (§3.59.3), and *"shipped code
+implements it"* is **softened to CONSISTENT WITH** (§3.59.4). Favored, not
+privileged (F398); recognize-not-read; no lineage.
 
 ---
 
