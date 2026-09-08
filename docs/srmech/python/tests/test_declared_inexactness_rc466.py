@@ -21,8 +21,13 @@ missing op (its drain path); an FBN row names the transcendental / iterative /
 
 THE RULES THE DECLARATIONS OBEY (and this file executes)
 ========================================================
-D1  **The sentence is on the op's OWN docstring** and carries at least one
-    verbatim token of ``tools/demotion_probe.py``'s ``R3_VOCABULARY``. The
+D1  **The sentence is on the op's OWN docstring** and is READ AS A
+    DECLARATION by ``tools/demotion_probe.py``'s ``declares_inexactness``.
+    (Corrected rc470, `#T1188`: this line said "carries at least one verbatim
+    token of ``R3_VOCABULARY``", and there is no such tuple any more. The
+    predicate is a bounded-STEM regex with word boundaries and a clause-local
+    negation refusal, so a declaration is a SENTENCE that survives reading,
+    not a substring that happens to occur.) The
     probe's one-level delegate follow is not relied on: the op's own docstring
     is what ``inspect.getdoc`` / ``help()`` and the probe's
     ``declaration_hits`` read. (Corrected TWICE. rc466: this line said
@@ -120,8 +125,14 @@ _DECLARED_IN_RC466 = {
 
 
 def _own_tokens(fn) -> list:
-    doc = (inspect.getdoc(fn) or "").lower()
-    return [d for d in _dp.R3_VOCABULARY if d in doc]
+    """The R3 labels the op's OWN docstring declares.
+
+    rc470 (`#T1188`) ABSORBED the body into the probe. rc465 consolidated the
+    vocabulary CONSTANT and left THREE copies of the matching LOGIC behind;
+    this was one of them, and a copy that reads a different way from the
+    instrument it is checking is not a check.
+    """
+    return _dp.declares_inexactness(inspect.getdoc(fn) or "")
 
 
 # ── D1 / D2: the declaration is on the op, and it is a sentence, not a keyword ─
@@ -327,14 +338,25 @@ def test_blind_spot_8_scalar_parameters_are_never_probed() -> None:
     assert _dp.probe_op(ent, {}) == [], "the probe now addresses scalar parameters"
 
 
-def test_blind_spot_9_the_keyword_reader_cannot_read_negation() -> None:
-    """The measured instance behind ``odft_summand``'s rc465 'declaration'. If
-    this goes RED the reader has learned negation — rewrite disclosure 9 and the
-    rc463 gate's blind-spot 5 paragraph in the same change."""
+def test_blind_spot_9_the_reader_refuses_negation() -> None:
+    """The measured instance behind ``odft_summand``'s rc465 'declaration' — now
+    READ CORRECTLY.
+
+    Through rc469 this test asserted the OPPOSITE, and its own docstring
+    pre-authorised the inversion: *"If this goes RED the reader has learned
+    negation — rewrite disclosure 9 and the rc463 gate's blind-spot 5 paragraph
+    in the same change."* rc470 (`#T1188`) learned it, and rewrote both.
+
+    ⚠️ ``== []`` on one string is satisfied by a reader that refuses
+    EVERYTHING, so this assertion is not a measurement on its own. It becomes
+    one beside the positive controls in ``tests/test_r3_reader_rc470.py``,
+    which is where the can-fail demonstration for this predicate lives.
+    """
 
     def negated():
         """The 8x8 matvec (the byte-exact parity contract, not a tolerance)."""
 
-    assert _dp.declaration_hits(negated) == ["tolerance"], (
-        "a negated keyword no longer counts as a declaration — the disclosure "
-        "in tools/demotion_probe.py is now stale")
+    assert _dp.declaration_hits(negated) == [], (
+        "a negated keyword counts as a declaration again — the negation "
+        "refusal in tools/demotion_probe.py has regressed, and disclosure 9 "
+        "is now stale")

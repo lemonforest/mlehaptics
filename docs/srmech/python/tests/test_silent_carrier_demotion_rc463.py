@@ -90,17 +90,26 @@ have shipped blind to their own subject (`#T1136`, `#T1138`, `#T1182`, and the
     approximate. ``kron``'s empty ``preserves: ()`` is exactly that shape.
  4. **It measures through PYTHON only.** A demotion in the C projection that
     the Python path does not share is invisible here.
- 5. **Layer 3's vocabulary is a KEYWORD LIST.** Prose declaring inexactness in
-    words outside the list reads as undeclared (a false positive — see
-    ``declaration_hits``'s one-level delegation follow, which exists because
-    ``matrix_cascades.svd`` is documented at its delegate); a keyword in an
-    unrelated sentence reads as declared (a false negative). Do NOT "simplify"
-    the delegation follow — it was added because running the gate without it
-    red-flagged a correctly-documented op. rc466 (`#T1188`) MEASURED the false
+ 5. **Layer 3's vocabulary is a STEM REGEX WITH A NEGATION PREDICATE**
+    (a KEYWORD LIST through rc469; REPLACED at rc470, `#T1188`). The list erred
+    in both directions. Prose declaring inexactness in words outside it read as
+    undeclared (a false positive — see ``declaration_hits``'s one-level
+    delegation follow, which exists because ``matrix_cascades.svd`` is
+    documented at its delegate); a keyword in an unrelated or NEGATING sentence
+    read as declared (a false negative). rc466 (`#T1188`) MEASURED the false
     negative: ``odft_summand`` read as declared on *"not a tolerance"* — a
-    negation the keyword reader cannot see (``tools/demotion_probe.py``
-    disclosure 9; pinned as an instrument fact in
-    ``tests/test_declared_inexactness_rc466.py``).
+    negation the keyword reader could not see — and rewrote that one op's
+    words, leaving the CLASS open. rc470 rewrote the READER instead:
+    ``declares_inexactness`` matches bounded stems on word boundaries, per
+    occurrence, and refuses an occurrence a clause-local cue denies. MEASURED
+    over the 732-op registry, DECLARED 202 -> 206: fifteen declarations already
+    written that the old reader could not spell, against eleven readings that
+    were never declarations. The reader's own residual blind spots are
+    disclosure 9 in ``tools/demotion_probe.py``, each with a measured live count
+    of ZERO, and the predicate's can-fail proof is
+    ``tests/test_r3_reader_rc470.py``. Do NOT "simplify" the delegation follow —
+    it was added because running the gate without it red-flagged a
+    correctly-documented op.
 
     ⚠️ **And through rc464 it resolved that delegate as ``getattr(_la, name)``**
     — hard-wired to ``srmech.math.laplacian``. So Layer 3 was not merely
@@ -141,6 +150,7 @@ numpy-free. No ``abs()`` — ``significand_bits`` uses a Class-K pin-slot branch
 No stdlib ``fractions``.
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -575,9 +585,25 @@ MANIFEST = Path(__file__).resolve().parent / "demotion_census.ndjson"
 #: will remind it to.** The Layer-1 strict-zero rows below are what actually
 #: EXECUTE against the shipped carriers on every CI run; they are the live half
 #: of this file and they did not move.
+#: rc470 (`#T1188`) widened this to name BOTH halves. It described ONE blind
+#: spot — the implementation moving behind an unchanged signature — and there
+#: were always two, the second being the one rc470's own change IS: the READER
+#: moving behind an unchanged registry. That half is now CLOSED by
+#: ``demotion_probe.reader_signature`` and asserted by
+#: ``test_the_manifest_is_fresh_against_the_reader_signature`` below; the
+#: implementation half stays open, for the 17-20-minute-per-rc reason given in
+#: the probe's disclosure 6.
+#:
+#: It is also LIVE from rc470. Through rc469 it was assigned here and read by
+#: NOTHING — mentioned in two docstrings and interpolated into no message at
+#: all, which is a constant documenting a limit rather than declaring one where
+#: a maintainer would meet it. It is now interpolated into the freshness
+#: assertion's failure text.
 _STALENESS_BLIND_SPOT = (
     "the registry signature does not move when an implementation changes "
-    "carrier behaviour behind an unchanged signature")
+    "carrier behaviour behind an unchanged signature (the OPEN half); the "
+    "reader signature closes the other half, where the R3 reader moves behind "
+    "an unchanged registry")
 
 #: sha256 over the NORMALISED undeclared roster, BOTH columns, one digest:
 #: ``"<cell>\t<op>::<param>"`` lines, sorted, newline-joined with a trailing
@@ -916,6 +942,47 @@ def test_the_manifest_is_fresh_against_the_registry_signature() -> None:
         f"demotion-candidate population moved. Re-measure IN EACH STALE "
         f"CELL:\n    {_REGEN}\n"
         f"Do NOT repoint the digest by hand — it lives in the manifest the "
+        f"tool writes.\n"
+        f"NOTE the declared limit of THIS guard: {_STALENESS_BLIND_SPOT}.")
+
+
+def test_the_manifest_is_fresh_against_the_reader_signature() -> None:
+    """THE OTHER STALENESS GUARD — the one rc470 (`#T1188`) had to build to
+    make its own change visible.
+
+    The ``declares`` field on every row is written by the probe's R3 reader and
+    then FROZEN; the gate reads it back and never re-derives it. The registry
+    signature cannot see that: it hashes ``(name, parameter types, return
+    type)``, none of which moves when the reader does. So through rc469 a
+    census regenerated by an OLD reader stayed green under a NEW one, and rc470
+    is precisely the rc that moves a reader — the first change of a kind this
+    file had no instrument for.
+
+    Asserted PER CELL, and asserted to EXIST. A missing field must be RED, not
+    silently ``None``: a manifest half-measured under each reader would pass a
+    single top-level assertion by agreeing with whichever cell wrote last.
+    """
+    meta, _ = _manifest()
+    live = _dp.reader_signature()
+    got = meta.get("reader_signature_sha256")
+    assert isinstance(got, dict) and got, (
+        "the census manifest carries NO `reader_signature_sha256`. It was "
+        "measured by a probe from before rc470, so its `declares` column was "
+        "written by a reader nothing here can identify. Re-measure BOTH "
+        f"cells:\n    {_REGEN}")
+    missing = [c for c in _cells() if c not in got]
+    assert not missing, (
+        f"cells {missing} carry no reader signature, so their `declares` "
+        f"column was written by an unidentified reader. Re-measure "
+        f"them:\n    {_REGEN}")
+    stale = {c: s for c, s in got.items() if s != live}
+    assert not stale, (
+        f"the census manifest is STALE against the R3 READER: {sorted(stale)} "
+        f"measured {[s[:12] for s in stale.values()]} and this tree's reader "
+        f"is {live[:12]}. The `declares` column in those cells was written by "
+        f"a different reader, and NO registry signature moves to tell you so. "
+        f"Re-measure IN EACH STALE CELL:\n    {_REGEN}\n"
+        f"Do NOT repoint the digest by hand — it lives in the manifest the "
         f"tool writes.")
 
 
@@ -949,6 +1016,39 @@ def test_the_staleness_guard_is_not_vacuous() -> None:
     resigned = [base[0].replace("|", "|extra:Sequence[int],", 1)] + base[1:]
     assert digest(resigned) != digest(base), \
         "a RE-SIGNATURED op does not move the signature"
+
+    # ── the READER half (rc470, `#T1188`) ────────────────────────────────────
+    # Mutate a COPY of the reader SPEC and assert the digest moves for each
+    # kind of knob. An instrument that cannot return otherwise is not a
+    # measurement, and this one guards a field a human can only ever read.
+    def rdigest(spec):
+        return sha256_bytes(
+            (json.dumps(spec, sort_keys=True) + "\n").encode("utf-8"))
+
+    rbase = _dp.R3_READER_SPEC
+    assert rdigest(rbase) == _dp.reader_signature(), (
+        "reader_signature() is not the digest of R3_READER_SPEC; the guard "
+        "and its own witness have come apart")
+    pats, cues, reach, split, case = rbase
+    assert rdigest((pats + (("planted", r"\bplanted\b"),), cues, reach,
+                    split, case)) != rdigest(rbase), \
+        "an ADDED PATTERN does not move the reader signature"
+    assert rdigest((pats, cues, reach + 1, split, case)) != rdigest(rbase), \
+        "a changed NEG_REACH does not move the reader signature"
+    assert rdigest((pats, cues, reach, split, "casefold")) != rdigest(rbase), \
+        "a changed CASE_POLICY does not move the reader signature"
+    assert rdigest((pats, cues + r"|hardly", reach, split, case)) \
+        != rdigest(rbase), \
+        "a changed NEGATION_CUES does not move the reader signature"
+    assert rdigest((pats, cues, reach, split + r"|;\s", case)) \
+        != rdigest(rbase), \
+        "a changed SENTENCE_SPLIT does not move the reader signature"
+
+    # ⚠️ The digest is over DATA, not CODE. A change to
+    # `declares_inexactness`'s BODY that leaves the spec untouched is INVISIBLE
+    # to it — the same shape as the blind spot above, one level down, and
+    # enforced by review. It is written into the constant rather than left
+    # here alone.
 
 
 # ── LAYER 2 — the population, read off the manifest ───────────────────────────
@@ -1508,11 +1608,16 @@ def _numpy_faithfulness_claims():
 # a code span is legitimate. Without it this gate flags the very prose that
 # retires the claim, which is a false positive that would push an author toward
 # deleting the explanation instead of the claim.
-#: rc465: the R3 vocabulary now has ONE definition, in the probe, and Layer 4
-#: reads it from there. It was duplicated here and in the probe for exactly as
-#: long as it took to notice — which is the same defect in miniature as the
-#: manifest this rc replaced.
-_R3_VOCABULARY = _dp.R3_VOCABULARY
+#: rc465: the R3 vocabulary got ONE definition, in the probe, and Layer 4 read
+#: it from there. It had been duplicated here and in the probe for exactly as
+#: long as it took to notice — the same defect in miniature as the manifest that
+#: rc replaced.
+#:
+#: rc470 (`#T1188`) FINISHED it. rc465 consolidated the CONSTANT but left THREE
+#: copies of the MATCHING LOGIC, so a reader repair could land in the probe and
+#: leave both gates reading the old way. The ``_R3_VOCABULARY`` alias that stood
+#: here is REMOVED — absorbed, in the same change, by the probe's
+#: ``declares_inexactness`` that :func:`_claim_is_qualified` now calls.
 
 _RETRACTION = ("retired", "retracted", "corrected", "no longer", "was false",
                "not bit-identical")
@@ -1533,8 +1638,8 @@ def _claim_is_qualified(sentence: str) -> bool:
     it is why this predicate is a named function rather than an inline
     comprehension: a gate's own escape hatch needs a test that can reach it.
     """
-    low = sentence.lower()
-    return any(v in low for v in _R3_VOCABULARY + _RETRACTION)
+    return (bool(_dp.declares_inexactness(sentence))
+            or any(v in sentence.lower() for v in _RETRACTION))
 
 
 def test_layer4_every_numpy_faithfulness_claim_is_qualified() -> None:

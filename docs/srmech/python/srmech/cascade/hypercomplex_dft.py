@@ -1903,7 +1903,34 @@ def phase_coherent_peak(ladder: Sequence, *, keys: Sequence = None) -> dict:
         ``{"rung_index": r*, "score": E_{r*}, "scores": [E_0 … E_{n−1}]}`` —
         the peak rung, its phase-coherent energy, and every rung's energy.
         ``score`` is the squared magnitude (the comparison quantity — no
-        ``sqrt`` on the decision path, so the read is exact / libm-free).
+        ``sqrt`` on the decision path, so the decision path is
+        TRANSCENDENTAL-FREE and libm-free). *(Corrected rc470, `#T1188`: this
+        read "so the read is exact / libm-free". libm-free is true;
+        exact is FALSE on exactly the operands the demotion census demotes —
+        see ACCURACY below. Being transcendental-free bounds which FUNCTIONS
+        run, not which VALUES survive.)*
+
+    **ACCURACY (0.9.0rc470, `#T1188`).** The per-rung energies are
+    accumulated in float64 in the order written, so an exact integer operand is
+    DEMOTED at the first accumulation: ``phase_coherent_peak([[2**53 + 1]])``
+    and ``phase_coherent_peak([[2**53]])`` return the SAME ``score``
+    (``8.112963841460668e+31``), while ``[[2**53 + 2]]`` returns
+    ``8.112963841460672e+31``. ``score`` and ``scores`` are accurate to
+    round-off (~1 ULP per accumulated term); the pure and native paths agree
+    byte for byte with EACH OTHER, which is a PARITY contract between two float
+    projections rather than exactness. ``rung_index`` orders those float
+    energies, so a tie created at round-off is decided by the rounded values.
+
+    *(Why this paragraph exists. Through rc469 this op's ENTIRE honesty
+    declaration was a DELEGATE reading — one token inside
+    ``_phase_coherent_peak_pure``'s sentence "the parity contract, not a
+    tolerance", which DENIES it. That sentence is true and is deliberately
+    left alone; rc470 taught the reader to refuse a negated token, so the op
+    was left declaring nothing, and the census had it DEMOTED on four rows.
+    The fix is a real declaration on the op's own contract surface — the rc466
+    D1 shape — because that is what ``inspect.getdoc``, ``help()`` and the
+    probe actually read. No ``exact=`` keyword was added: the probe counts one
+    by mere PRESENCE, which would have drained the census row for free.)*
 
     Class home: **K** (the squared-magnitude phase-coherent energy + the
     argmax magnitude comparison — the real pin-slot, never ``abs()``).
