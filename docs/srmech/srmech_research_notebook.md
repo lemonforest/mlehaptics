@@ -8877,8 +8877,8 @@ and it is not established for `Lk`. The spike carries its own fence at
 > equally valid rearrangements. **What breaks the symmetry is the type/locality
 > structure of §4.1, not the algebra.**"*
 
-Its cited import path `srmech.amsc.responsion_schema` (`:400`) does not exist
-at 0.9.0rc469 — **DEAD**, EXECUTED: `ModuleNotFoundError`. The live path is
+Its cited import path `srmech.amsc.responsion_schema` (`:400`) is **DEAD** at
+0.9.0rc469 (EXECUTED: `ModuleNotFoundError`); the live path is
 `srmech.introspect.responsion_schema`. The spike is a dated fossil and is **not**
 edited; this paragraph is the correcting note.
 
@@ -8974,7 +8974,7 @@ it is lodged.
 | `srmech.qm`, `srmech.qm.so8` | `srmech.physics.qm.so8`, `srmech.physics.qm.triality` |
 | `srmech.amsc.cascade` | `srmech.cascade` (`kuramoto_step` present: `True`) |
 | `srmech.amsc.responsion_schema` | `srmech.introspect.responsion_schema` |
-| `srmech.cosmos` | — does not exist; the catalogs are `srmech.amsc.attested.*` |
+| `srmech.cosmos` | — no such module; the catalogs are `srmech.amsc.attested.*` |
 
 **Every op these findings depend on is live at a new path, so the FINDINGS
 survive the ADR-0010 move — only the spellings are stale.** `main` carries stale
