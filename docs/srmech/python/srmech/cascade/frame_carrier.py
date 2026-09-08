@@ -7,6 +7,15 @@ to carry its local frame-rotation, and a cross-seam compare must parallel-transp
 the frame first → cross-seam bit-exactness holds where the un-framed compare was
 only SOMETIMES exact").
 
+**Naming scope note (`#T1188`).** The ``field / excitation / CURVATURE``
+triple named above uses "curvature" for a two-OPERATOR antisymmetric bracket
+(the connection-curvature sense); a DIFFERENT arity-2 bracket
+(:func:`srmech.cascade.cd_commutator`, on algebra elements) is named
+TORSION-type elsewhere in this tree (rc465). Whether "curvature" names the
+third SLOT or a perspective on the OPERAND slot is an OPEN reconciliation —
+see :func:`srmech.cascade.matrix_cascades.separate_frame_curvature`'s own
+naming-scope note, and srmech notebook §3.59.8(b) / MFO §VIII.31.20 item 6.
+
 **The drift this fixes (why it is NOT a re-wrap of winding_fold / the_one).** The
 periodic Class-N series carriers :func:`~srmech.math.rational.sin_series_truncate`
 / :func:`~srmech.math.rational.cos_series_truncate` truncate the RAW rational

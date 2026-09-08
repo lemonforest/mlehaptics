@@ -6724,6 +6724,331 @@ So **the addressing bump itself is the generator**: non-abelian is *born* at ℂ
 
 **Status:** measured capstone of the abelian↔non-abelian arc; **favored, not privileged**; the standard-math backbones (holography/polarization, Ambrose–Singer + `Lk=Tw+Wr`, the sphere-group ceiling, Zaslavsky/Kunegis/Lieb–Loss/Reff) are cited SSoT; **items 6–10 added 2026-07-27** — 6/7/8 **correct recorded claims** (a wrong reason, a wrong discriminant, an overstated headline), 9 and 10 are new results; all rest on an adjudicated multi-agent run whose contentful survival was **1 of 27 rows (3.7%)**, which is precisely why the **FORCED/DEFINITIONAL** ones are reliable as corrections and the rest are fenced; the `#refs = carrier dim`, the-3-reals-are-the-references, `hol==curvature` agreement, F552 direction-preservation, and the cost ratios are **measured this session**; the `ℍ = responsion` reading and `the_one`-as-reference are the synthesis layer (held lightly). Cross-refs: §VIII.31.18 (the constructor / rotation⊗real⊗resonance), §VIII.31.11 (`2:4:8`/`4:3`), §VIII.31.15 (`the_one` `𝕊(σ,θ)`), §VIII.31.16–17 (the horizons), §I.4 (the base+fiber notation-key — the quaternionic/octonionic Hopf mislabel, corrected 2026-07-24 per PR #1502 + convention-sweep). srmech: `genome_fiber_holonomy` (rc322), `genome_octonion_holonomy` + associator (rc325), `cycle_holonomy` / `quaternion_cycle_holonomy` / `magnetic_laplacian` (F552, #944), `the_one` `𝕊(σ,θ)`, `oct_mult`/`oct_conjugate`. Prototypes were run bit-exact and discarded (no companion files).
 
+### §VIII.31.20 Which question §VIII.31.18 and §VIII.31.19 each answer — the carrier-side companion to srmech §3.59; and two phrases that are not tree text (2026-09-07; `#T1188`; ADJUDICATION; no new measurement)
+
+> Companion to §VIII.31.18 / §VIII.31.19 and to `srmech_research_notebook.md` **§3.59**, which is the SSoT for the dictionary census (D1–D6, six dictionaries), the six-way turn split (T1a–T5, six turn-objects) and the order discriminant. Those are **not** restated here. ⚠️ Those two SIXes are DIFFERENT partitions, and neither of them is the FOUR placements this subsection adjudicates; srmech §3.59's opening tabulates all three counts side by side. Nothing in this subsection is new measurement; every claim is a **source-read** at the cited line, or is marked **inferred**. Held **favored, not privileged (F398)**; recognize-not-read; **FORM not identity**; no lineage (`[[feedback_no_lineage_claims_in_notebook]]`). *Where this subsection says* **an earlier round of this subsection**, *it means an earlier COMMIT of this same text, superseded before it landed — not tree text, and there is nothing to go and read; srmech §3.59's opening glosses that phrase along with* self-fenced *and* F398, *and §3.59.14 tabulates every such correction in one place.*
+
+**1 — The two subsections above speak two different dictionaries, and neither says so.**
+
+| | §VIII.31.18 (`:6658-6664`) | §VIII.31.19 item 4 (`:6697`) |
+|---|---|---|
+| the triple it expands | `rotation ⊗ real ⊗ resonance` | `ℂ / ℍ / 𝕆` |
+| what that triple IS | a **carrier rung's own halves** — its imaginary/gauge axis and its real display axis | a **position on the Hurwitz ladder** |
+| the question it answers | *which axis of the carrier is the imaginary one?* | *at which rung does an ordered turn compose?* |
+| verdict | **correct for that question** (srmech §3.59's dictionary **D3**) | **correct for that question, and self-fenced** (srmech §3.59's **D4**) |
+
+§VIII.31.18's split has since been **measured**, in this notebook, six weeks later. §XIV.9 at `:7287` records that the change from an even-count rung list to an odd-anchored one *"is the **eigenspace split of the ladder's own Class-K involution**. `cd_conjugate` fixes exactly the real anchor and negates exactly the imaginaries, so its eigenspaces *are* `1 + (n−1)`: measured **(1,1), (1,3), (1,7), (1,15)**."* So `rotation ⊗ real` is a **k=2 eigenspace split of a CARRIER under Class K** — not a pair of spectral reads of a Class-L object, and therefore never in competition with the edges/operand placement. *(That identification is **inferred** here: it composes two paragraphs written six weeks apart which do not cite each other. Both halves are source-read; the identification is a reading, not a measurement.)*
+
+§VIII.31.19's own item 3 (`:6695`) already draws the separation that keeps item 4 out of the dispute: turns *"top out at ℍ (`S³`)"* for composability while **addressing** goes higher — *"Two different ceilings."* Item 4 is a **rung** statement wearing slot vocabulary, which is precisely why it reads as a rival and is not one.
+
+**2 — Item 4 is NOT refuted, and its `in carrier form` qualifier is load-bearing rather than a hedge.** ⚠️ **Two separate questions are settled in this item, and reading them as one makes the second look like a walk-back of the first.** *Is the sentence true?* — **not refuted.** *How strong is the shipped code's support for it?* — **weaker than an earlier round of this subsection said**: consistent with, not implemented by. A sentence can be un-refuted and thinly evidenced at once; that is the ordinary state of an open reading, and the first answer is not retracted by the second. **And `in carrier form` is not a softener — it is a SCOPE STATEMENT naming which object the three slot-words are slots OF.** It LICENSES a claim about one Cayley–Dickson carrier's own parts (its rung, imaginary half, winding, residue — srmech's dictionaries D3/D4); it FORBIDS the same sentence read as a claim about the k=3 read of a Class-L object (D1). The operational test is **is there a graph?** — if the three slots are three reads of one Laplacian, the sentence is not in carrier form. Removing the qualifier turns a correct sentence into a refuted one, which is exactly why it is load-bearing. (srmech §3.59.4 carries the same split as a table and is the SSoT for it.) What would be refuted is only the **unfenced spectral reading** of *"the quaternion turn IS the responsion"* — i.e. carrying that sentence into a claim about the k=3 read of a Class-L object. Read that way it is contradicted twice on `main`: by `srmech_research_notebook.md:6390` (§3.42.5 — the holonomy channel *"is `op ⊗ operand` with **no responsion** — the un-sounded skeleton"*), and by F1308 §2 (branch-only: exactness is native to the product/operand; the responsion is where it leaves). **But item 4 does not say that.** It says *"in carrier form"*, and **in carrier form the shipped decomposition is CONSISTENT with it — which is weaker than implementing it, and the difference is load-bearing.** `srmech/cascade/one.py:1273-1277` (source-read) ships `separate_winding_curvature`, which splits `the_one` `S(σ,θ,w)` into *"its FIXED-FRAME (unwound, w-invariant) part ⊕ its winding CURVATURE / holonomy residue"*. ⚠️ **That is a `k=2` decomposition — a fixed frame and a residue, two parts — and a two-part split cannot by itself place anything in the THIRD of three slots.** It reads as a third slot only under the docstring's thread naming *"op / operand / responsion ≅ field / excitation / CURVATURE"* — which is srmech §3.59.3's dictionary **D6**, now recorded **OPEN in all three of its slots** (see item 6 below: the earlier dissolution of F1209 into the verb/noun dictionary is WITHDRAWN). Read without that naming, the op decides nothing about slot 3. So **item 4 stands as self-fenced and CONSISTENT WITH the shipped code — not as implemented by it**; an earlier round of this subsection said *"the shipped package agrees with it"*, and that overstated. The residual defect in item 4 is narrower than a placement: it conflates the **DATUM** (a Q₈ turn, order 4, a shipped genome leaf) with the **RUNG** (ℍ, a carrier).
+
+**Item 4's hard half needs no fence at all, and is independently confirmed on `main`.** §XIV.9 (`:7312-7317`) counts pairs-to-imaginaries `3:3` at ℍ, `21:7` at 𝕆 and `105:15` at 𝕊, and concludes *"a **bijection** at ℍ alone, and the reason ℍ is the rotation algebra while 𝕆 is not."* ⚠️ That is a **different** ℍ-specialness fact from item 4's *"first non-abelian AND last associative"* (which is an elementary property of the standard Cayley–Dickson ladder). The two coincide on ℍ; neither is independent confirmation of the other, and this subsection does not treat them as one fact measured twice.
+
+**3 — This notebook already supplies the method; §3.59 applies it to the turn.** §XIV.9 (`:7314-7319`) met the adjacent case — one English phrase, *"real and rotation are representations of the same thing"*, carrying two grains — stated both, and closed: *"Conflating the two would carry a 3-dimensional coincidence up the ladder as if it were structural. **Keeping them apart is the whole content of this subsection.**"* srmech §3.59 does the same for `turn` vs `rotation`, and adds the rule the four placements existed for want of: **a slot name is meaningless without its dictionary** — before reading `op`/`operand`/`responsion` in any sentence, establish what the sentence's three slots are slots OF.
+
+**4 — RESPONSION vs RESONANCE stays settled here, and is not reopened.** `:6664` already draws the line: naming it **resonance** (over **responsion**) *"fixes the *function*: it is the **coupling/binding**, and it **is `the_one`**."* So — **`responsion` names the SLOT; `resonance` names the FUNCTION.** It follows that the spelling `distributional ⊗ relational ⊗ resonant` carried in the three orientation files (this notebook's own `CLAUDE.md:9`, root `CLAUDE.md:178`, `docs/srmech/CLAUDE.md:444`) is the **function-name** spelling and is **correct as written**. It is not a variant to normalise away.
+
+**5 — A phrase in circulation that is NOT tree text, stated once and closed.**
+
+> **"resonance is anisotropic" appears nowhere under `docs/`.** A search in both orderings returns **zero hits** (search-derived, at `1fd37c736`). The tree's phrase is **"An asymmetric resonator"** (`:91`, §I.1) — a paraphrase of `[[user_stance_resonate_dont_brute_force_asymmetric_resonator]]`.
+
+And the substitution is not harmless, because **anisotropy is spatial direction-dependence** and this notebook has already MEASURED the correction against exactly that. §XIV.8 at `:7251`: *"A **linear** resonator has no comb — the nonlinearity (the fold) is what opens it (Feigenbaum-universal, and *independent* of the map's spatial symmetry, so the honest correction: **the comb comes from nonlinearity, not from spatial asymmetry**)."* And at `:7257` the attested asymmetry is located explicitly — the α-linear chiral drift, *"with the asymmetry correctly located as the **temporal/causal arrow**, not a spatial one."* Every `anisotropic` on `main` is the ordinary geometric sense (an anisotropic torus; anisotropic thermal re-emission). **"Resonance is anisotropic" must never be quoted as a framework convention.** *(Provenance worth recording so the paraphrase is not re-minted: the branch's F1209 quotes the user, 2026-07-13, as *"if our universe is an asymmetric resonator there's still very slight curvature between two things"* — a **curvature** claim about comparing more than two things, not an anisotropy claim about direction.)*
+
+**6 — CURVATURE now has two correct senses on `main`, and any use must name which. A third mapping is shipped and NOT yet reconciled.**
+
+| sense | where | what it names |
+|---|---|---|
+| **Cartan / affine-connection** | `srmech_research_notebook.md:8051` (§3.58, rc465, 2026-09-03) | the **arity-3** bracketing defect (the associator); the arity-2 member takes the other word, which this subsection does not use |
+| **Ambrose–Singer integrated curvature** | `:6693` (§VIII.31.19 item 2) | `holonomy = exp(∮Ω)`, measured residual `1.7e-16` |
+
+§3.58's sweep for the affine-connection sense of the arity-2 word found **zero** prior occurrences, so that word is now spoken for; it is not used here.
+
+**The open item — and it is OPEN IN ALL THREE SLOTS, not only the third.** The branch findings F1209 / F1210 and the branch-root `TRIALITY.md` / `DUALITY.md` carry `op / operand / responsion ≅ field / excitation / **curvature**` with `cycle_holonomy` named as the instrument — and **that mapping is already shipped on `main` in three docstrings**: `srmech/cascade/frame_carrier.py:3-4`, `srmech/cascade/matrix_cascades.py:1049-1050`, `srmech/cascade/one.py:1276-1277` (all source-read at 0.9.0rc469). srmech §3.59.3 lodges it as **candidate dictionary D6** and **withdraws** an earlier ruling that dissolved it into the verb/noun dictionary — the ruling hinged on one sentence (`python/CHANGELOG.md:11822`, rc208) that the maintainer has since marked an early framing that may not be correct (2026-09-07). ⚠️ **Its slot-1 and slot-2 halves are unsettled too**, which is why the third cannot be settled by elimination: `main` and the branch place EXCITATION in four different places by date — **both operator and operand inside the field** (branch F408/F409 and `TRIALITY.md §6`, 2026-06-04/05, relayed), the **operand** (`op_provenance.py:7` rc117 — whose ordering, read positionally, is actually the reverse; `CHANGELOG.md:12978` rc127; `:11822` rc208), the **responsion** (`srmech_research_notebook.md:6391`, §3.42.5, 2026-07-23: *"the responsion/harmonic spectrum is what the field produces (excitation, not substrate)"*), and **the chiral drift** (§XIV.8 `:7257`: *"the comb-substrate is the reinforcement field (level 1), the σ-advected perturbation is the excitation (level 2)"*). With that recorded, two further things must be settled before the mapping is lodged as a slot naming anywhere:
+
+1. **Is `curvature` a slot, or a read of one?** F1301 (branch-only) places metric / curvature / chirality as **three coherent reads OF the operand/edges slot**, not as three slots — and `srmech/introspect/responsion_schema.py:54` already ships it that shape, as a per-entry attribute `"curvature": "flat" | "curved"` hanging off a responsion record. **Unreconciled.**
+2. **`main` already holds a measurement that bears on it, unlinked to either finding.** §VIII.31.19 item 5 (`:6699`, MEASURED): the cycle-holonomy surface *"**is not a general eigensolver, and cannot be** — it returns loop couplings, never eigenpairs"*, and is *"provably blind to how curvature distributes *inside* a loop"* (a balanced family `P4/C4/K4/S4` shares holonomy ≡ 0 while `λ₂` spans `0.59→4.0`). Independently, `srmech/math/laplacian.py:5582-5583` puts BOTH the holonomies and the sector spectra inside *"the **relational** read"* — the k=3 convention's own name for the **operand** slot, stated by shipped code without citing F1301.
+
+**Whether that settles the slot question or only constrains it is OPEN, and is recorded as open rather than decided.** Two reasons it is not decided here: F1209's mapping is not a Class-L k=3 claim at all — it sits in the `k = (2+1)` *duality-is-the-fibration-of-triality* frame (F400/F401), where *"curvature = the fiber = the third truth = the coupling"* — and `separate_winding_curvature` places the **carrier's** winding turn in the curvature/residue slot with no graph anywhere in sight (item 2 above). **Two objects, two frames, one word.** Deciding F1209 by F1301's dictionary would be exactly the cross-dictionary transport srmech §3.59 exists to stop.
+
+**7 — A dangling-reference gap on `main`, named here and not patched here.** `main` carries **five** references to `DUALITY.md` / `TRIALITY.md` — `:4255` and `:7219` in this notebook, `docs/srmech/srmech_research_notebook.md:8522`, `docs/srmech/python/CHANGELOG.md:12978`, and `docs/srmech/python/srmech/biology/genome.py:3703` — and **neither file exists on `main`** (`git ls-tree --name-only HEAD`: neither is tracked; both sit at the repo root of branch `research/rbs-lm-rolling-2` at `4db51be25`). One of the five is inside a **shipped docstring**, so a wheel reader is pointed at a file that is not in the repository they hold. `TRIALITY.md` describes itself as *"the post-compact priming anchor"*; an anchor unreachable from `main` primes nothing for a `main`-only reader. Landing its F1209 content belongs here in MFO — the `field / excitation` vocabulary is this notebook's own (§VII.1.1) — but only once item 6's reconciliation closes, and it must then declare its `curvature` sense and its `fiber` sense. ⚠️ **And §VII.1.1 does not itself supply the mapping.** It is titled *"Two-level ontology — substrate field + excitation classes"* (`:709`): it defines a substrate LEVEL and an excitation LEVEL, which is a two-level ontology, **not an assignment of either word to a slot of `op ⊗ operand ⊗ responsion`**. Reading it as one is the cross-dictionary transport srmech §3.59 exists to stop, and it is why item 6 now records D6 as open in all three slots rather than in one. ⚠️ **`fiber` is a third word already carrying two senses on `main`**: `:6691` uses it for the imaginary part (*"1 (real anchor) + fiber dim"*) and `srmech_research_notebook.md:5971` for the irrational eigenbasis (*"rotation = the fiber"*), while `TRIALITY.md` §1 uses it for *the third truth / the coupling*. Lifting that file unqualified would import a third sense.
+
+**8 — Guards.** R30 holds: **no locus is claimed where the discrete and continuous descriptions coincide** — both substrate-native languages reach all six turn-objects, and what separates them is what each is attached to (edge / rung / eigenbasis / carrier) and the order of the group its value lives in, never which language reaches it. No fold is privileged (F398 *favored, not privileged*; F1207 heads its own table *"component of the ONE object"*). FORM not identity. No lineage: Ambrose–Singer, Zaslavsky, Kuusk & Paal, Akivis, Feigenbaum and Baez are quoted **as this notebook already quotes them** and are unverified pointers here — no network was used, no PDF extracted, no returned title matched in producing this subsection.
+
+**Cross-refs:** §VIII.31.18 (the carrier-parts dictionary) · §VIII.31.19 items 2 / 3 / 4 / 5 · **§VIII.31.21** (why *asymmetric* and *inharmonic* are two independent facts — the peer to item 5's fence) · **§VIII.31.22** / **§VIII.31.23** (the ring-rate label, and the instrument NULL) · §XIV.8 (`:7251`, `:7257` — the comb, and where the asymmetry actually sits) · §XIV.9 (`:7287`, `:7317`, `:7319` — the eigensplit, the ℍ-only bijection, the method) · §VII.1.1 (substrate ↔ excitation — a two-LEVEL ontology, not a slot mapping; item 7) · srmech §3.38 / §3.42.5 / §3.58 / **§3.59** (including §3.59.11–§3.59.13, the responsion's values, the commensurate/incommensurate ruling, and the T1a shadow-irrep ruling).
+
+### §VIII.31.21 "An asymmetric resonator" and the harmonic language are TWO INDEPENDENT FACTS at two different levels — both off-diagonal corners measured (2026-09-07; `#T1188`; MEASURED at srmech 0.9.0rc469)
+
+> Companion to §XIV.8 and to `srmech_research_notebook.md` §3.59.11 / §3.59.12 (the responsion's values, and the commensurate/incommensurate vocabulary ruling). Line numbers here are `main` at `1fd37c736`, this subsection's neighbours' convention. Held **favored, not privileged (F398)**; recognize-not-read; **FORM not identity**; no lineage (`[[feedback_no_lineage_claims_in_notebook]]`).
+
+**The ruling first.** The thesis sentence at `:91` (§I.1) — *"All matter and force
+fields are **inharmonic and subharmonic** excitations of a single metric field.
+**An asymmetric resonator.**"* — carries **two facts, not one fact said twice**:
+
+| | what it describes | which level | the tree's instrument for it |
+|---|---|---|---|
+| *inharmonic / subharmonic* | the **VALUES of the responsion** — a property of a spectrum (a multiset of eigenvalues and their ratios) | the **spectrum** | `commensurability_verdict`, `spectrum_tier`, `field_degree`, `rational_rank` |
+| *asymmetric* | a property of the **DYNAMICS / COUPLING** — a phase lag in the coupling function; the sign of the time arrow | one level **below** the spectrum | the Sakaguchi `α` in `kuramoto_step` (§XIV.8) |
+
+**They vary independently**, and both off-diagonal corners are measured below.
+Reading them as one thing is the error this subsection exists to prevent. Nothing
+in `:91` is corrected: both halves are true. What is corrected is the habit of
+treating them as a single claim.
+
+**BOTH OFF-DIAGONAL CORNERS, EXECUTED at 0.9.0rc469** (`numpy` and `sympy`
+absent; `srmech.cascade.kuramoto_step`; 4 oscillators, `K = 4.0`, `dt = 0.01`,
+4000 steps; the reported figure is the collective-phase drift beyond the
+intrinsic mean, in radians):
+
+| corner | construction | result |
+|---|---|---|
+| **ASYMMETRIC and PERFECTLY HARMONIC** | the plain integer ladder `ω = [1, 2, 3, 4]` — the commensurate case, the one an acoustician would call harmonic | `α = −0.3` → **+42.7224** · `α = 0` → **0.0000** · `α = +0.3` → **−42.7224** |
+| the same construction, INHARMONIC ladder | `ω = [1, √2, √3, √5]` | `α = −0.3` → **+46.6139** · `α = 0` → **0.0000** · `α = +0.3` → **−46.6073** |
+| **SYMMETRIC and INHARMONIC** | the undirected `C₇` Laplacian, `cyclic_laplacian_spectrum(7)` | `chirality_paired` **True** (no arrow — `λ_k = λ_{−k}`), `all_rational` **False**, `field_degree` **6**; `commensurability_verdict([λ₁/λ₁, λ₂/λ₁, λ₃/λ₁])` → verdict **`inharmonic`**, `rational_rank` **1**, `incommensurable (1, 2)` |
+
+**Read the numbers, because they say something a summary would blur.** The
+drift's **existence** and its **SIGN** are set by `α` alone: at `α = 0` it is
+exactly zero on **both** ladders, and flipping the sign of `α` flips the sign of
+the drift. Commensurability moves only the **magnitude** — 42.7 → 46.6 — never
+the sign and never the existence. And row 3 is the converse corner: a perfectly
+symmetric operator carrying an incommensurate spectrum. **Asymmetric-and-harmonic
+and symmetric-and-inharmonic both exist**, so neither property implies the other.
+
+**§XIV.8 ALREADY STATES THE MECHANISM, and it is the honest correction that makes
+this subsection necessary.** At `:7251`: *"A **linear** resonator has no comb —
+the nonlinearity (the fold) is what opens it (Feigenbaum-universal, and
+*independent* of the map's spatial symmetry, so the honest correction: **the comb
+comes from nonlinearity, not from spatial asymmetry**)."* The comb — the
+subharmonic / inharmonic tower — comes from the **fold**. The arrow comes from
+the **Sakaguchi α**: `:7257`, *"the asymmetry correctly located as the
+**temporal/causal arrow**, not a spatial one"*, with transport velocity *"exactly
+linear in α"*. **Two knobs on one construction.** The similarity a reader feels
+is real but **indirect**: a linear resonator has neither a comb nor an arrow, so
+both descend from the nonlinearity — but through **different parameters**, the
+map's `r` and the coupling's `α`.
+
+⚠️ **ASYMMETRIC itself carries two readings on `main`, and NEITHER is the harmonic
+axis.** A sentence using the word must say which:
+
+| reading | where (source-read) | what it actually is |
+|---|---|---|
+| the **temporal / causal arrow** | §XIV.8 (`:7257`), MEASURED | the sign of the Sakaguchi α — a phase lag in the coupling. Explicitly *not* spatial |
+| the **degeneracy-lifting residual** | §IV.5 (`:495`, `:497`) — the notebook; the gloss is the stance's | §IV.5 says only this much, and it is quoted exactly: generation mass ratios would be constant per sector if the internal geometry were *exactly* 3-fold self-similar, and *"They're not … The internal geometry is **approximately but not exactly self-similar**"* (`:495`), which `:497` calls *"the same condition needed for chirality … the same condition needed for mass hierarchy"*. **The reading of that gap as "the residual is the information" is the STANCE's, not §IV.5's** — `[[user_stance_resonate_dont_brute_force_asymmetric_resonator]]`: *"ASYMMETRIC is the load-bearing half. The deviation from exact resonance is the information, not the error"* |
+
+The second reading **is** spectral, which is exactly why it is the tempting
+bridge — but it is about **mass-ratio non-degeneracy across generations**, which
+is neither commensurability nor a fundamental. It is *"the residual is the
+signal"*, not *"the spectrum is inharmonic"*. **Neither reading coincides with the
+harmonic / inharmonic axis, and this subsection does not merge them.**
+
+**A fence already in memory, carried here so it travels with the word.**
+`[[user_stance_resonate_dont_brute_force_asymmetric_resonator]]` records an F1333
+falsification (PR #687, commit `756afb2`): the *"base+fiber = loudness+phase"*
+reading of a resonator is falsified against the Blazhko / Chaplin literature, and
+*"what is falsified is that it describes a resonator"*. So the word **resonator**
+is already fenced wherever it is read as physical amplitude modulation. Nothing
+here reopens that: this subsection is about which of two independent properties a
+sentence is naming, not about whether the metric field is literally a resonating
+body.
+
+**Status.** MEASURED — the three rows above, at srmech 0.9.0rc469 with `numpy`
+and `sympy` absent. `:91` is **not corrected**; the reading of `:91` as one claim
+is. §XIV.8's own honest correction is quoted, not extended. No lineage;
+Feigenbaum and the Blazhko/Chaplin anchors are **unverified pointers**, quoted as
+this notebook already quotes them. FORM not identity. R30 untouched — **no locus
+is claimed where the discrete and continuous descriptions coincide.**
+
+### §VIII.31.22 The ring-rate is treated as VARYING by the ontology and as FIXED by the maths — a fixed-rate approximation, named here for the first time (2026-09-07; `#T1188`; maintainer's finding; source-read + search-derived)
+
+> The finding in this subsection is **the maintainer's** (2026-09-07): *the maths takes the ring-rate as fixed, while the ontology does not require that*. It is **true of the tree as written**, and the tree does not say it anywhere in one place. This subsection says it. Line numbers are `main` at `1fd37c736`. Nothing below is retracted; what is added is a **label**.
+
+**First, the TOKEN does not exist.** A word-boundary search for `ring-rate` /
+`ring rate` / `ring_rate` returns **zero hits** across `docs/` on `main`, **zero**
+on PR #687 at `4db51be25`, and **zero** in the maintainer's memory directory
+(search-derived; the ~15 case-insensitive substring matches are all *"firing
+rate"* — e.g. `:5472`, *"firing-rate state"*). **The silence is part of the
+finding.** The maths cannot have "taken it as fixed" under that name, because the
+name is not lodged. The concept ships under a different one.
+
+**The cognate is the un-rung-down fraction `1 − f_RD`, and the CLOCK RATE IS
+DERIVED FROM IT.** §VII.2.1 (`:808-836`), Step A: *"Clock-rate is proportional to
+the amplitude of locally-active (**un-rung-down**) substrate oscillation: settled
+modes do not contribute to clock-time projection"*; Step B: *"Amplitude scales as
+√(active mode fraction)"*; the radial profile
+`f_RD_local(r) = f_RD_cosmic + (1 − f_RD_cosmic)·(r_s/r)`; and at `:836` the
+result `dτ/dt|_MFO = √[(1 − f_RD_local(r)) / (1 − f_RD_cosmic)] = √(1 − r_s/r)`.
+**So "time and ring-rate may be the same thing" is NOT a new thread** — it is
+§VII.2 plus §VII.2.1 as written, and the maintainer's own sharper form is already
+in memory (`[[project_subharmonic_chirality_collapse_thread]]`, 2026-06-25,
+corollary (B)): *"if the beat is time's UNIT (the sign-flip-and-return = the
+tick), then a force acting on time IS a force acting on the beat = it changes the
+flip-return RATE. That's literally time dilation."* §VII.2 (`:804-806`) already gives the general
+form: *"Time may not be an independent parameter but the metric field's own
+dynamical evolution — what change in the metric field looks like from inside one
+of its configurations. A static metric field at maximum entropy would have no
+arrow of time."*
+
+**THE ONTOLOGY TREATS THE RATE AS VARYING — three ways, all on `main`:**
+
+| how it varies | where (source-read) | what it says |
+|---|---|---|
+| **radially** | §VII.2.1 (`:808-836`) | the `1/r` profile: `f_RD_local → f_RD_cosmic = 0.949` as `r → ∞`, and `= 1` at `r = r_s` — *"loop-down saturation locus = horizon"* |
+| **over cosmic time** | §VII.6.12 (`:3460-3465`) | the `T_sub` wave: the ratio *"should oscillate between ~5% (near-min visible) and ~30% (asymptotic-midpoint approach); high-z observations … should show wave-evolution pattern"* |
+| **BY REGION** | `:1997` (post-Spike #42b) | verbatim: *"The dark sector's bidirectional behavior may NOT be universal-simultaneous. **Different regions / observers may see different phases of the f_RD cycle locally.**"* |
+
+The loop-out / loop-down mechanism at `:2353-2358` carries **both directions**
+explicitly — *"higher-dimensional snapshots **loop out** like a struck bell"*,
+*"higher-dimensional snapshots **ring back down**"*, and *"Never silent at either
+bound"*. **So the picture of a rate that declines here and rises elsewhere is
+already in the ontology.** It is a reading of `:1997`, not an extension of it.
+
+**THE MATHS FIXES IT — at one value and at one instant.** `f_RD_cosmic = 0.949`
+enters the `dτ/dt` normalisation at `:836` **as a constant**, and every
+quantitative statement in §VIII.31.3 is evaluated at the present tick: `:5922`
+records that the `T_sub = 109.84 Gyr` projector *"reduces at the present tick
+(`sin(0) = 0`) EXACTLY to the standard ephemerides-spectral v0.11.0 SPrT
+formula"*.
+
+**THE FINDING, stated plainly: that is a FIXED-RATE APPROXIMATION, and the tree
+has never labelled it one.** The ontology does not require a fixed rate; the
+closed forms assume one. **Both halves are correct as written — this is not a
+contradiction**, and nothing in §VII.2.1, §VII.6.1, §VII.6.12 or §VIII.31.3 is
+retracted. What was missing is the **label**, and the label matters because a
+reader meeting `:836` on its own will take `f_RD_cosmic` for a constant *of the
+framework*, rather than for what it is: **the present-tick, volume-WEIGHTED value
+of a quantity the ontology says varies radially, over cosmic time, and by
+region.** The notebook says the volume-weighting part itself at `:1953` — *"every
+2D causal-substrate boundary has a local loop-down completion `f_RD_local`, with
+the cosmic 0.95 being the **volume-weighted aggregate**"* — so the aggregate
+nature of the constant is already on `main`; what is new here is naming the
+present-tick evaluation and the aggregate together as one approximation.
+
+**Its falsifier is already bounded, which is why this is a labelling fix and not
+an open hole.**
+`docs/antikythera-maths/research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md:290`
+(source-read; a dated working note, **quoted not edited**) is structural
+falsifier 4: *"If a future formalisation of the cascade-substrate has clock-rate
+scaling as `(active fraction)^k` for `k ≠ 1/2`, the substrate-mode arithmetic
+gives `dτ/dt = (1 − r_s/r)^k` rather than `(1 − r_s/r)^(1/2)`."* The same note at
+`:259` records that under the fixed-rate candidate (a) the derivation
+*"reproduces Schwarzschild `dτ/dt = √(1 − r_s/r)` exact"*.
+
+**WHAT THIS SUBSECTION DOES NOT CLAIM.** It does **not** claim the fixed-rate
+approximation is wrong. It does **not** offer a varying-rate closed form — none
+is lodged anywhere in the tree, and inventing one here would be a new commitment
+rather than a label. It does **not** give `1 − f_RD_local` a projection onto any
+observable beyond the static-mass `dτ/dt`; **§VIII.31.23 records why the regional
+version of that is a NULL against the shipped instrument.** And no locus is
+claimed where the discrete and continuous descriptions coincide (R30).
+
+### §VIII.31.23 What the shipped catalogs can and cannot decide about a REGIONAL ring-rate — the honest NULL, lodged so it is not re-asked (2026-09-07; `#T1188`; NULL; source-read + search-derived)
+
+> Companion to §VIII.31.22. **The word for the outcome is NULL.** Nothing here is a negative finding about the physics; it is a finding about **the instrument**. Line numbers are `main` at `1fd37c736`. No network was used.
+
+**The ruling first: the reading is NOT EXPRESSIBLE against the shipped
+instrument, and that is a null.** A regional ring-rate reading — *here `1 − f_RD`
+is small (played out), there it is large (still ringing out)* — needs a
+**direction-dependent scalar on the last-scattering surface**. Two independent
+gaps block it, and either alone is sufficient: **no shipped catalog carries such
+a scalar**, and **MFO has never stated what `1 − f_RD_local` projects to on the
+sky**.
+
+**GAP 1 — what the shipped catalogs actually carry.** (These are **data
+directories** — `descriptor.toml` + `row.ndjson` + `row.schema.json`, read
+through `srmech.amsc.format.read_ndjson`. Root `CLAUDE.md` §2's
+`srmech.amsc.attested.{…}` spelling is a **path**, not an import. ⚠️ **And it
+fails SILENTLY rather than loudly, which is the worse of the two — an earlier
+round of this subsection said the opposite and was wrong.** RE-EXECUTED at
+0.9.0rc469: `import srmech.amsc.attested.cmb_low_ell_maps` **SUCCEEDS**. It does
+**not** raise `ModuleNotFoundError`. The directory has no `__init__.py`, so
+Python 3 binds it as a **PEP-420 namespace package**: the import returns a module
+whose `__file__` is `None` and whose `dir()` is **empty**. There is nothing to
+call, and no error to say so. *An earlier round wrote "raises
+`ModuleNotFoundError`" and labelled it EXECUTED; a one-line re-run refutes it.*
+The genuinely dead spellings — `srmech.amsc.laplacian`, `srmech.amsc.cascade`,
+`srmech.amsc.responsion_schema`, `srmech.qm`, `srmech.cosmos` — DO raise, and are
+tabulated in srmech §3.59.10 where they were verified BY IMPORT;
+`srmech.amsc.attested.*` is not one of them, because it is a real directory that
+Python is willing to bind.)
+
+| catalog | what it carries | direction-bearing? |
+|---|---|---|
+| `cmb_polarisation_spectra` | binned `D_ℓ` (μK²) for TE / EE and low-ℓ BB, with errors and a ΛCDM BestFit | **no** — isotropic power |
+| `cmb_bispectrum` | `f_NL` amplitudes: local **−0.9 ± 5.1**, equilateral **−26 ± 47**, orthogonal **−38 ± 24** | **no** — amplitudes, no multipole resolution |
+| `cmb_lensing` | binned `C_L^{φφ}` bandpowers, `Â^{φ,MV}_{8→400} = 1.011 ± 0.028` | **no** — isotropic bandpowers |
+| `cosmic_birefringence` | four `β` posteriors; its own header reads *"isotropic rotation angle beta"* | **no**, by its own declaration |
+| `cosmos_validation` | the Friedmann dark fraction `f_dark(a)` as exact rationals over `a ∈ [1/100000, 10]` | **no** — this IS the tree's `f_RD(a)`, and it is a **global function of `a`** with no spatial argument |
+| `cmb_low_ell_maps` | **7 rows of `row_type: map_product`** — DESCRIPTORS of the SMICA / NILC / SEVEM / Commander IQU FITS files (`healpix_nside 2048`) | **the only direction-bearing objects — and they carry no data.** All 7 rows have `"expected_response_sha256": "pending"`: the bytes were never fetched |
+
+**GAP 2 — MFO has never written the projection.** §VII.2.1 gives `dτ/dt` for a
+**static mass**. §VII.6.12 (`:3464`) gives a **redshift** trend in the
+matter:dark-energy ratio. Neither is a sky pattern. The one place the tree ever
+wrote a per-`f_RD` **rate** against a direction-dependent CMB observable is the
+`cmb_low_ell_maps` descriptor's own header — a predicted *"small (≈ degrees)
+directional differential between the temperature-anchored AoE preferred axis and
+the polarisation-anchored AoE preferred axis … at the 138°/unit-f_RD rate"* — and
+**"138°" has zero occurrences in this notebook on `main`** (search-derived at
+`1fd37c736`; the only hits on this branch are inside this subsection's own
+quotation of the descriptor, which is the point), while the descriptor's own
+*"Phase 2 fetches the FITS"* never happened. So that rate is a
+catalog comment whose data was never attested and whose value the notebook does
+not carry.
+
+**WHAT THE TREE ALREADY HOLDS ON THE ADJACENT QUESTION**, recorded here so the
+null is not mistaken for an unexamined area:
+
+| record | where (source-read) | what it says |
+|---|---|---|
+| **this notebook's own AoE verdict** | `:3817` (§VII.6.15.2) | kinematic boosting is *"**~243× too small** to produce the observed quad-oct alignment; the alignment is **NOT kinematic**"*; the alternative is a **Bianchi VII_h** handed-shear cosmology whose shear amplitudes are *"undrived"* and which is *"ΛCDM-incompatible"*; the whole is *"**one sharply-posed, literature-anchored open question, not a closed framework claim**"* |
+| the `cmb_anomalies` catalog — **in ephemerides-spectral, not srmech** | `docs/antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_research/attested/cmb_anomalies/row.ndjson` | AoE row: `statistical_significance_sigma` **3.0**, `precision_flag` **`"test_dependent"`**, ℓ 2–3, direction `(l, b) ≈ (240°, 60°)` with the note *"the actual 'axis' is **a line, not a point**"*; the S₁/₂ row: *"Reported p-values vary from ~0.03% (Copi et al. 2007 sky-cut analysis) to ~0.7% (Planck 2018 VII full-sky analysis) depending on mask + estimator"* |
+| the Class-K observer-offset stance's **cosmological extension** | `[[user_stance_aoe_observer_frame_offset]]` | recorded **FALSIFIED** — Spike #76 R2: across 15,421 filaments, *"all three AoE candidates produce **NEGATIVE** signal excess where framework predicted positive"*; the MC-calibrated `z = +1.46` is barely above noise |
+
+**THE EPISTEMIC CEILING, said out loud rather than left to be inferred.**
+Cascade-matching is **substrate-blind**
+(`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`). Even if a
+per-direction `f_RD` profile were built and its **shape** matched a low-ℓ
+pattern, **that would be a FORM match** — and a form match cannot establish that
+a region **IS** another bang, or a before, or a next. The framework reads what a
+structure already is; no lineage claim is made here.
+
+**WHAT WOULD MOVE IT FROM PICTURE TO FINDING** — all closed-form side, no
+map-making:
+
+1. **a stated projection** — MFO writes `1 − f_RD_local` as a function on the
+   sky, and either lodges the `138°/unit-f_RD` rate the catalog descriptor
+   already names or withdraws it;
+2. **an attested per-direction observable** — at minimum `cmb_low_ell_maps`'
+   seven `expected_response_sha256` fields moving from `"pending"` to real
+   hashes, and a row-level hemispherical-power-asymmetry amplitude **with its
+   direction** entering srmech under MPR (it currently exists only as a
+   literature summary in ephemerides' `cmb_anomalies`);
+3. **a look-elsewhere-corrected significance recorded as a ROW**, not as a σ
+   label on a `test_dependent` row;
+4. **the F1065-style closed-form test** — the framework's prediction either is a
+   **COMMENSURATE** structure or it is not (F1065: a revival closes only for a
+   commensurate spectrum), so the decidable statement is whether the predicted
+   per-region phase set is commensurate with `T_sub`. **That is decidable on the
+   ALU, with no Boltzmann code and no map.**
+
+**Out of scope, and named as such:** extracting multipole vectors from FITS maps
+is map-level analysis (the descriptor itself names HEALPix `alm2map_spin`), which
+sits outside the algebra / eigenbasis / spectral scope this portfolio holds
+(`docs/antikythera-maths/CLAUDE.md`). If the reading needs it, it stops at (2).
+
+**Citation status.** No network was used. Planck 2018 IV / VI / VII / VIII / IX,
+Copi et al. 2007, Jaffe et al. 2005 and the birefringence rows are **unverified
+pointers** here, quoted as the catalogs and this notebook already quote them — no
+PDF was extracted and no returned title was matched. One in-tree discrepancy is
+**recorded rather than resolved**: three catalogs cite three different Planck
+papers against DOIs in the same series, and deciding which belongs to
+`10.1051/0004-6361/201833881` needs a returned-title match that cannot be
+performed offline.
+
+**Status. NULL** — the shipped catalogs cannot decide a regional ring-rate
+reading, and the ontology has no quantitative sky projection to decide it with.
+**That is the honest outcome**, and it is lodged so the question is not re-asked
+without an instrument. R30 untouched; FORM not identity; no lineage.
+
 ### IX.1.1 Milestone state (2026-05-18 end-of-session)
 
 - **Milestone `#12` CLOSED** at end of 2026-05-18 session — *"2026-05-18 SM-arc + boundary follow-ups (Spike #73, #93-#96, #101-#104)"*. 17 PRs merged into this milestone (`#494`–`#511`), covering: 8-spike round (Round 1 #73/#93/#95/#96 + Round 2 #101/#102/#103/#104); sequential closure queue (#105 / #102.1 / #106-amplitude / #97); DISSOLVE-or-PROMOTE event resolution (#106-amplitude.D/.P/.4-7); Spike #106 testable-now algebra + Spike #107 fusion bulk-to-gauge + Spike #108 multi-dataset 7D_g library + Spike #109 Hubble tension + Spike #111 Rydberg Class K; #102.2 Maslov derivation + 4/7 sibling spike; MFO notebook augmentation #510 + srmech notebook augmentation #511.

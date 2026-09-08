@@ -1283,6 +1283,19 @@ def separate_winding_curvature(one: "One") -> dict:
     **CURVATURE** is the winding-holonomy: what ``S(σ,θ,w)`` carries BEYOND
     ``S(σ,θ,0)`` — the full ℤ³ winding grading the adjoint cannot see.
 
+    **Naming scope note (`#T1188`).** Same "curvature = antisymmetric two-operator
+    bracket" sense as :func:`srmech.cascade.matrix_cascades.separate_frame_curvature`
+    (this is its winding-seam instance) — see that function's naming-scope note; a
+    DIFFERENT arity-2 bracket is named TORSION-type elsewhere in this tree (rc465).
+    Note also that this op is CONSISTENT WITH MFO §VIII.31.19 item 4's *"the
+    quaternion turn IS the responsion **in carrier form**"* — but only UNDER the
+    ``field / excitation / CURVATURE`` naming above (F1209), which is **OPEN**:
+    srmech notebook §3.59.3 lodges that naming as candidate dictionary D6 and
+    records it unsettled in all three of its slots. Read without it, this op is a
+    ``k=2`` split (fixed frame ⊕ residue) and places nothing in a third slot. On a
+    carrier the winding TURN is that residue, which is NOT what the same words mean
+    in the k=3 read of a Class-L object (srmech notebook §3.59.4).
+
     **Why this is NOT a shell (content beyond the ±1 spinor_sign).** The naive
     winding readout is the Z/2 double-cover sign ``spinor_sign = (−1)^Σw`` — but
     that CONFLATES ``w=2`` with ``w=4`` (both Σ even → +1). The curvature record
