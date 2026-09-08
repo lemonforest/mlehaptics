@@ -1070,7 +1070,8 @@ def separate_frame_curvature(a, b):
     op makes no geodesic-loop claim. Separately, the ``op / operand / responsion ≅
     field / excitation / CURVATURE`` thread above places curvature in the THIRD
     slot; the k=3 read of a Class-L object instead reads metric / curvature /
-    chirality as three PERSPECTIVES ON the OPERAND (edges) slot — the shape
+    chirality as three coherent READS OF the OPERAND (edges) slot — not as three
+    slots, and not as a fourth free-standing perspective — which is the shape
     :mod:`srmech.introspect.responsion_schema` already ships, as a per-entry
     ``"curvature": "flat" | "curved"`` attribute. That reconciliation is recorded
     OPEN, not resolved; say which frame you are in.
