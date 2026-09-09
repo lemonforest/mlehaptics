@@ -118,6 +118,8 @@ import importlib
 import re
 from pathlib import Path
 
+import pytest
+
 import srmech
 from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
@@ -665,11 +667,74 @@ _HEADING = re.compile(r"^#{2,6} ")
 #: A line that marks its own path dead, or declares itself a dated record.
 #: These are DECIDABLE from the line alone, which is why they are rules and
 #: not an allowlist.
+#:
+#: rc470 (`#T1188`): SIXTEEN alternatives became FOURTEEN, by ABSORB AND
+#: REMOVE. The list this replaces could not read true, idiomatic prose, and
+#: the tree had already paid for it the wrong way round — commit `91b7ab175`
+#: reworded THREE correct sentences so this reader could see them. That is
+#: backwards: the prose was right and the instrument could not read it.
+#:
+#: REMOVED, each because something here now ABSORBS it (measured on the
+#: notebook, over the prose lines that carry a dead path):
+#:   * ``as-of-rc``      fires ZERO times and is a strict prefix-subset of
+#:                       ``as-of``, so it could never have fired alone.
+#:   * ``is dead``       fired once; ``dead too`` fired once. Both are
+#:                       subsumed by ``\bdead\b`` -- which also reads
+#:                       ``is **DEAD**``, where the markdown bold sits BETWEEN
+#:                       the two words so the literal substring never occurs.
+#:   * ``no longer exist`` / ``does not exist`` are subsumed by the
+#:                       negation-scoped ``exists?`` clause, which also reads
+#:                       "did not exist", "never exists" and the plural.
+#:
+#: ⚠️ ``\bdead\b`` NEEDS its word boundary, and a control pins why: *"The
+#: deadline for the rc is Friday"* must not read as a death notice. The
+#: boundary also does the markdown work for free -- ``*`` is a non-word
+#: character, so ``\bdead\b`` matches ``**DEAD**`` with NO preprocessing.
+#:
+#: THREE PROPOSALS WERE REFUSED, and the refusals are the measured part
+#: (the header said TWO above three numbered items until this commit):
+#:   1. MARKUP NORMALISATION (stripping ``*_~`` before matching) is REFUSED:
+#:      measured over the whole notebook, the number of prose lines whose
+#:      verdict changes under normalisation is ZERO. Machinery that cannot
+#:      fire is what this rc exists to remove. Because it is refused, every
+#:      read below stays on the RAW line and the escape order is unchanged.
+#:   2. THE HARD-WRAPPED-RUN SCOPE (joining continuation lines so a marker one
+#:      line above can excuse a path) is REFUSED for rc470: it drains ZERO
+#:      rows on the gated corpus and widens a marker's authority over three
+#:      more prose lines naming a LIVE path (17 of 80 -> 20 of 80) -- the
+#:      channel by which a marker silently excuses a path that dies later. Its
+#:      only measured benefit is on the MFO notebook, which this gate does not
+#:      read; it belongs to the rc that brings MFO under the gate.
+#:   3. ``no longer ships`` was proposed and REFUSED: it has no in-tree
+#:      witness, and rc470 introduces the rule that every alternative must
+#:      have one (``test_every_marked_alternative_fires_on_real_prose``).
 _MARKED = re.compile(
-    r"REMOVED|RETIRED|ModuleNotFoundError|no longer exist|SUPERSEDED|"
-    r"WISHLIST|does not exist|is dead|dead too|stale|"
-    r"as-of|as-of-rc|it STAYS|dated rather than bumped|"
-    r"still says|would ship a call", re.I)
+    r"REMOVED|RETIRED|ModuleNotFoundError|SUPERSEDED|"
+    r"WISHLIST|stale|as-of|it STAYS|dated rather than bumped|"
+    r"still says|would ship a call|"
+    r"\bdead\b|no such (?:module|package|path|attribute|spelling|name)\b|"
+    r"(?:no longer|does not|do not|did not|never|not)\s+exists?\b", re.I)
+
+#: The fourteen alternatives, named, so the per-alternative meta-test can say
+#: WHICH one stopped firing rather than merely that one did.
+_MARKED_ALTERNATIVES = (
+    ("REMOVED", r"REMOVED"),
+    ("RETIRED", r"RETIRED"),
+    ("ModuleNotFoundError", r"ModuleNotFoundError"),
+    ("SUPERSEDED", r"SUPERSEDED"),
+    ("WISHLIST", r"WISHLIST"),
+    ("stale", r"stale"),
+    ("as-of", r"as-of"),
+    ("it STAYS", r"it STAYS"),
+    ("dated rather than bumped", r"dated rather than bumped"),
+    ("still says", r"still says"),
+    ("would ship a call", r"would ship a call"),
+    ("dead", r"\bdead\b"),
+    ("no such <noun>",
+     r"no such (?:module|package|path|attribute|spelling|name)\b"),
+    ("negation + exists?",
+     r"(?:no longer|does not|do not|did not|never|not)\s+exists?\b"),
+)
 
 _CODE_SPAN = re.compile(r"`([^`\n]+)`")
 _DOTTED_TOK = re.compile(r"^srmech(?:\.[A-Za-z_][A-Za-z0-9_]*)+$")
@@ -687,7 +752,19 @@ _DOTTED_TOK = re.compile(r"^srmech(?:\.[A-Za-z_][A-Za-z0-9_]*)+$")
 #: composition engine *"lives at `srmech.amsc.compose`"* — present tense, a
 #: live-architecture claim, and dead since ADR-0010. §3.29.1 already carried
 #: the identical correction; nothing had ever compared the two. DOWN ONLY.
-_PROSE_DEAD_PATH_CEIL = 10
+#:
+#: **10 -> 9 (rc470).** The constant was minted at 10 over a residual of
+#: 9 and had never moved: ``git log -S "_PROSE_DEAD_PATH_CEIL = "`` names
+#: exactly one commit, rc420's. One unit of slack is not cosmetic here —
+#: it is a ratchet that lets one genuine residual row appear for free,
+#: and MEASURED it did exactly that: rewording either restored sentence
+#: away takes the residual to 10 and this ceiling stays GREEN. rc470 is
+#: the rc that repaired this ruler and re-measured its corpus, so it is
+#: the rc that owes the arithmetic. The residual is 9 at both rc469 and
+#: rc470, on the SAME nine lines (763 · 771 · 838 · 1729 · 5443 · 5832 ·
+#: 6408 · 6428 · 6440), so this lowering drains nothing and admits
+#: nothing; it removes the free row.
+_PROSE_DEAD_PATH_CEIL = 9
 
 
 def _prose_lines(text: str) -> "list[tuple[int, str]]":
@@ -786,6 +863,146 @@ def test_the_prose_ceiling_is_not_slack() -> None:
         f"of {_PROSE_DEAD_PATH_CEIL}. Lower the ceiling to "
         f"{len(residual)} in the same commit — that is what makes it "
         f"down-only rather than decorative.")
+
+
+def _live_path_exposure(text: str, marker) -> "tuple[int, int]":
+    """``(marked, live)`` — the marker's authority over LIVE-path prose.
+
+    THE RULE, stated so the figure is RE-DERIVABLE rather than quoted: of the
+    :func:`_prose_lines` carrying at least one ``_CODE_SPAN`` token that
+    matches ``_DOTTED_TOK`` and DOES ``_resolves()``, the count on which
+    ``marker.search(line)`` is true.
+
+    It measures a marker's FALSE-EXCUSAL surface. A line naming a LIVE path
+    that already carries a marker word is a path this gate would excuse
+    silently IF that path later died. rc470 neither creates nor cures that
+    channel; it refuses to WIDEN it, which is why the hard-wrapped-run scope
+    was rejected (17 of 80 -> 20 of 80).
+    """
+    n_live = n_marked = 0
+    for _lineno, line in _prose_lines(text):
+        toks = [m.group(1).strip() for m in _CODE_SPAN.finditer(line)]
+        if not [t for t in toks if _DOTTED_TOK.match(t) and _resolves(t)]:
+            continue
+        n_live += 1
+        if marker.search(line):
+            n_marked += 1
+    return n_marked, n_live
+
+
+def test_the_repair_did_not_widen_the_false_excusal_surface() -> None:
+    """MEASURED at rc470: 17 of 80, and the repair moves neither number.
+
+    The residual count CANNOT prove this repair — it is 9 before and 9 after,
+    and a marker that accepted EVERYTHING would also report 9, because 9 is
+    what the unmarked residual is. This figure and the planted rejections
+    below are the evidence that the ruler still REFUSES anything.
+    """
+    marked, live = _live_path_exposure(_text(), _MARKED)
+    assert (marked, live) == (17, 80), (
+        f"live-path exposure moved to {(marked, live)} from the measured "
+        f"(17, 80). A marker that reaches MORE live-path prose lines is one "
+        f"that will silently excuse more paths when they die; re-derive it "
+        f"with _live_path_exposure and say why in the same change.")
+
+
+@pytest.mark.parametrize("name,pattern", _MARKED_ALTERNATIVES)
+def test_every_marked_alternative_fires_on_real_prose(name, pattern) -> None:
+    """Every one of the fourteen must have an IN-TREE WITNESS.
+
+    This is the rule rc470 introduces, and it is why ``no longer ships`` was
+    REFUSED as a fifteenth: an alternative nobody has written is a guess about
+    prose, and a marker vocabulary of guesses is how the rc469 list came to
+    hold ``as-of-rc``, which fires zero times and is a prefix-subset of
+    ``as-of``.
+
+    The population is the notebook's prose lines that CARRY A DEAD PATH — the
+    only lines on which a marker's verdict is load-bearing.
+    """
+    text = _text()
+    carrying = []
+    for _lineno, line in _prose_lines(text):
+        toks = [m.group(1).strip() for m in _CODE_SPAN.finditer(line)]
+        if any(_DOTTED_TOK.match(t) and not _resolves(t) for t in toks):
+            carrying.append(line)
+    assert carrying, "no dead-path-carrying prose lines at all; population lost"
+    rx = re.compile(pattern, re.I)
+    assert any(rx.search(l) for l in carrying), (
+        f"the _MARKED alternative {name!r} ({pattern!r}) fires on NONE of the "
+        f"{len(carrying)} notebook prose lines carrying a dead path. Either "
+        f"the prose it was written for has left the tree — ask why before "
+        f"deleting it — or it never had a witness and should not have been "
+        f"added. rc470 introduced this rule precisely to refuse alternatives "
+        f"written on a guess.")
+
+
+def test_the_marker_still_refuses_and_now_accepts_true_prose() -> None:
+    """THE CAN-FAIL CONTROL BLOCK. A marker is only a marker if it says no.
+
+    The two REJECTIONS are the ones that matter. *"lives at
+    `srmech.amsc.compose`"* is the live-architecture claim whose removal is the
+    entire reason ``_PROSE_DEAD_PATH_CEIL`` exists — present tense, dead since
+    ADR-0010. *"The deadline for the rc is Friday"* is why ``\bdead\b`` needs
+    its word boundary.
+
+    The three ACCEPTANCES are prose a human actually wrote and the rc469 reader
+    evicted: two of them were REWORDED by commit `91b7ab175` so the old ruler
+    could see them, and rc470 put them back.
+    """
+    for s in ("The composition engine lives at `srmech.amsc.compose`.",
+              "The deadline for the rc is Friday."):
+        assert not _MARKED.search(s), (
+            f"the marker now ACCEPTS {s!r}, which is not a death notice. "
+            f"A marker that excuses a live-architecture claim excuses the "
+            f"exact defect this ceiling was minted for.")
+
+    for s in ("| `srmech.cosmos` | — no such module; the catalogs are "
+              "`srmech.amsc.attested.*` |",
+              "Its cited import path `srmech.amsc.responsion_schema` (`:400`) "
+              "is **DEAD** at",
+              "the path no longer exists at this spelling"):
+        assert _MARKED.search(s), (
+            f"the marker REJECTS {s!r} — true, idiomatic prose naming a path "
+            f"as dead. That is the rc469 defect returning: the fix is the "
+            f"READER, never rewording correct prose.")
+
+
+def test_the_two_restored_sentences_are_read_by_the_marker() -> None:
+    """A PERMANENT control on the two sentences rc470 restored.
+
+    Asserted against the PREDICATE directly, never inferred from the residual
+    count — a restored line can also fall out of the residual by being covered
+    by a PATH CURRENCY banner span or by the mapping-table escape, in which
+    case the marker was never consulted and the vocabulary change is unproven.
+
+    MEASURED at rc470: with these two restored and the rc469 marker in place
+    the residual is 11 against a ceiling of 10 — RED. With the rc470 marker it
+    is 9. That is the ONLY measurement in which this repair moves a number, and
+    it is what makes the repair load-bearing rather than cosmetic.
+
+    ⚠️ **WHICH ROW ISOLATES WHAT, since the two are not peers.** Row 2
+    (``no such module``) is the only one that pins the VOCABULARY change:
+    EXECUTED, the rc469 marker does not match it and the rc470 marker
+    does. Row 1's joined one-line form is matched by the rc469 marker
+    TOO, through ``ModuleNotFoundError`` — its rc469 eviction was a
+    LINE-SCOPE effect (:func:`_prose_lines` reads one line at a time and
+    that token sits on the NEXT notebook line), which the join here
+    erases. Row 1 therefore pins the VERBATIM-IN-TEXT half only. Both
+    halves are load-bearing and both fire under mutation; saying which is
+    which is what stops a later reader crediting the join.
+    """
+    text = _text()
+    for verbatim in (
+            "is **DEAD** at\n0.9.0rc469 (EXECUTED: `ModuleNotFoundError`)",
+            "| `srmech.cosmos` | — no such module; the catalogs are "
+            "`srmech.amsc.attested.*` |"):
+        assert verbatim in text, (
+            f"the restored sentence is gone from the notebook: {verbatim!r}. "
+            f"rc470 restored it BECAUSE the reader was repaired; if the prose "
+            f"is being reworded again, the reader is the thing to fix.")
+        one_line = verbatim.replace("\n", " ")
+        assert _MARKED.search(one_line), (
+            f"_MARKED no longer reads the restored sentence {one_line!r}")
 
 
 # ══════════════════════════════════════════════════════════════════════

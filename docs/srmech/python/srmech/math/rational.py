@@ -2122,7 +2122,13 @@ def sin(x: float, *, precision: int | None = None) -> "Q":
     ``precision=None`` (default) → the Q61 stay-rational peer of :func:`cos`
     (byte-identical to every prior rc). ``precision=P`` → the EXACT-rational
     REFERENCE at ``P`` fractional bits (0.9.0rc320 WAVE 2; the dead ``terms``
-    kwarg is REPLACED)."""
+    kwarg is REPLACED).
+
+    That reference route octant-reduces in exact rationals and drives
+    ``sin_series_truncate`` / ``cos_series_truncate`` until the truncation
+    remainder is < ``2**-P``. The bound is stated HERE and not left to
+    :func:`cos` alone, because ``inspect.getdoc``, ``help()`` and the R3
+    declaration reader all read THIS op's own surface — rc466 rule D1."""
     x = float(x)
     if not _is_finite(x):
         raise ValueError("sin: x must be finite (Q is the finite-rational carrier)")
