@@ -1,4 +1,4 @@
-"""rc465 (`#T1188`) — the SILENT-CARRIER-DEMOTION probe: a DELIBERATE TOOL RUN.
+r"""rc465 (`#T1188`) — the SILENT-CARRIER-DEMOTION probe: a DELIBERATE TOOL RUN.
 
 ``tests/test_silent_carrier_demotion_rc463.py`` is the ratchet; :func:`merge_cell`
 writes ``tests/demotion_census.ndjson``, ONE committed manifest carrying BOTH CI
@@ -245,15 +245,41 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
       The occurrence count and the live count agree; the op SET does not, and
       an unstated detector is why.)*
     * **BOUNDING QUANTIFIER.** *"no more than 2 ULP"* is refused as if it were
-      a denial. DETECTOR: ``no (more|worse|greater|larger) than``. **0
-      occurrences** in the 732 registry docstrings — the reader's actual
-      population — and **7** across ``srmech/`` + ``tests/`` + ``tools/``,
-      NONE of them before an R3 token: two in test prose
-      (``test_carrier_ceiling_rc343.py``, ``test_mat_eigvals_balancing_rc29``),
-      four in generated tool-doc tables, and one in this very paragraph.
-      **0 live instances** on either population. *(rc470's fourth commit said
-      2 in the wider subtree; that is the count for the bare ``no more than``
-      spelling, and the bullet quoted the wider family.)*
+      a denial. DETECTOR, stated because two earlier counts differed only by
+      leaving it unstated: ``no (more|worse|greater|larger) than``, case
+      insensitive, counted PER OCCURRENCE.
+
+      POPULATION 1 — the 732 registry docstrings, the reader's actual
+      population and the only one the refusal can act on: **0 occurrences**,
+      **0 live instances**.
+
+      POPULATION 2 — ``srmech/`` + ``tests/`` + ``tools/`` **EXCLUDING THE
+      TWO FILES WHOSE SUBJECT IS THIS RESIDUAL** (this one, and
+      ``tools/rc470_figures.py``, which re-prints the figure): **8
+      occurrences on 6 LINES in 4 FILES**, NONE before an R3
+      token. Six are in two GENERATED tool-doc tables
+      (``_tool_docs.py:577`` ×2 and ``:731``; ``_tool_docs_curated.py:4292``
+      ×2 and ``:8429`` — curated prose for ``music.bessel_zero_fixed`` and
+      ``signal_processing.multitaper``, *"keep n_tapers no larger than
+      2*nw - 1"*); two are test prose (``test_carrier_ceiling_rc343.py:61``,
+      ``test_mat_eigvals_balancing_rc29.py:265``). The bare ``no more than``
+      spelling gives **1** on the same population. **0 live instances.**
+
+      ⚠️ **THE EXCLUSION IS THE POINT, not a convenience.** This paragraph
+      QUOTES the shape it is counting, so it is inside its own population and
+      every edit to it moves the figure: rc470's fourth commit reported **2**
+      (the two TEST files only), the repair commit reported **7**
+      (under-counting the tool-doc tables, because two of those four lines
+      carry the phrase TWICE, and its own prose by one), and the first draft
+      of THIS correction reported **10 on 8 lines** and then became 11 on 9 by
+      being written. It happened a SECOND time, one level out: the figure
+      script that re-prints this number carried the phrase inside its own
+      prose-diff needle and took the count 8 → 9 on its first run. A
+      self-referential population cannot be quoted stably, so it is quoted
+      with those files removed and the removal named — and the script PRINTS
+      the exclusion list, so a third such file is visible rather than
+      absorbed.
+
     * **CONTRASTIVE CLAUSE.** An unrelated earlier cue inside the reach of a
       later true declaration — *"not exact but accurate to round-off"* refuses
       on ``not`` at two intervening words. Of the 46 refused occurrences, **0**
@@ -274,17 +300,40 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     hand-reading all **219** DECLARED ops against the honesty-ladder criterion
     (``tests/test_silent_carrier_demotion_rc463.py``: *given ONLY the signature
     and the docstring, can the caller predict the returned value is not the
-    exact one?*): **41 are TOPICAL MISREADS**, leaving **178 substantive**.
+    exact one?*): **39 are TOPICAL MISREADS**, leaving **180 substantive**.
+    ⚠️ **QUOTE THE PAIR, NEVER THE 180 ALONE.** 219 is LEXICAL and
+    regenerable from this tree by anyone; 180 is 219 minus a HAND-MAINTAINED
+    by-name ledger, so it is exactly as fresh as the last hand-read and no
+    fresher. A single "180 substantive declarations" implies a measurement
+    this instrument cannot make.
     They are pinned BY NAME with a reason and a class in
     ``tests/test_r3_reader_rc470.py``'s ``_RESIDUAL_TOPIC_MISREADS``, and the
     classes are OTHER-CARRIER 14 (``QMat``/``Poly``: *"the bigint exact peer of
     the float64 Mat"*, *"collapses to float64 ONLY via to_floats"*),
-    OTHER-OP 8, DISPATCH-TYPE 6 (a native-ABI type list — *"seq is a
+    OTHER-OP 7, DISPATCH-TYPE 6 (a native-ABI type list — *"seq is a
     homogeneous int64 / float64 list"*), EXACTNESS-CLAIM 5, SERIALISATION 2,
     OTHER-DOMAIN 2 (erasure tolerance, clock-skew tolerance),
-    LOGICAL-SOUNDNESS 2, HISTORY 1, REGEX 1.
+    LOGICAL-SOUNDNESS 2, REGEX 1.
 
-    **35 of the 41 read DECLARED under the rc469 reader too**, so this is
+    **rc470's LAST commit REMOVED two rows, and 41/178 became 39/180.**
+    ``matrix_cascades.eig_exact`` (which was the whole HISTORY class, now
+    gone) and ``matrix_cascades.singular_values_exact`` fail half (2) of the
+    pinning criterion: each one WARNS the caller in prose the caller can read
+    before calling — ``"value": complex,  # the terminal float/complex
+    projection`` and *"``value`` / ``vector`` are the single TERMINAL
+    projections (rotation-last)"* on the first, ``"value": float}  # the
+    single terminal projection (project=True only)`` on the second — and both
+    carry ``project: bool = True`` in the signature. DECLARED is therefore the
+    substantively RIGHT verdict on both, and only the sentence that MATCHED is
+    off-topic, which is the LABEL-MISATTRIBUTION class below. Pinning them had
+    asserted they should read UNDECLARED, and they should not.
+    ``jordan_form_exact`` was re-read the same way and needs no change: its
+    ``~1e-`` fires on *"``A·P ≈ P·J`` to ~1e-9 in the projected float/complex
+    read-out"*, an on-topic statement about its own accuracy.
+
+    **33 of the 39 read DECLARED under the rc469 reader too** (35 of 41
+    before the two un-pins; both removed rows were in that overlap —
+    EXECUTED), so this is
     mostly a pre-existing property of the instrument that rc470 MEASURED
     rather than introduced. The SIX the widening added are exactly the six
     topical misreads among the fifteen lexical gains — ``lll_reduce`` (three
@@ -301,16 +350,28 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     A SEPARATE and SMALLER class is the LABEL MISATTRIBUTION: the verdict is
     substantively right and only the evidence pointer is wrong, because some
     OTHER sentence warns the caller while the sentence that MATCHED does not.
-    Five, named so a later rc does not read a ``declares`` label as if it
-    located the declaration: ``rational.relative_writhe`` (fires on an aside
-    about the float spike; its real declaration, *"a CERTIFIED TRUNCATION, not
-    the exact writhe"*, carries no R3 stem), ``coupling.fold_spectrum`` (fires
-    inside the discipline NAME *"honestly-inexact"*), ``rational.hypot``
+    **EIGHT**, each MEASURED by a per-occurrence dump on this tree, named so a
+    later rc does not read a ``declares`` label as if it located the
+    declaration: ``rational.relative_writhe`` (fires on an aside about the
+    float spike; its real declaration, *"a CERTIFIED TRUNCATION, not the exact
+    writhe"*, carries no R3 stem), ``coupling.fold_spectrum`` (fires inside
+    the discipline NAME *"honestly-inexact"*), ``rational.hypot``
     (``rounding`` survives out of the DENIAL *"no float ``a*a`` rounding"* —
     the cue's reach dies at the backticks — while ``approximation`` is the
-    genuine one), ``triality.lean_isa_seventh_primitive`` and both
-    ``*_exp_series_truncate``. These are NOT pinned: pinning them would assert
-    they should read undeclared, and they should not.
+    genuine one), ``triality.lean_isa_seventh_primitive``,
+    ``octonion.octonion_exp_series_truncate``,
+    ``quaternion.quaternion_exp_series_truncate``, and the two rc470's last
+    commit moved here from the pinned ledger,
+    ``matrix_cascades.eig_exact`` and
+    ``matrix_cascades.singular_values_exact``. These are NOT pinned: pinning
+    them would assert they should read undeclared, and they should not.
+
+    ⚠️ This paragraph said **"Five"** and then listed **six** through
+    rc470's repair commit, and the copy of it in
+    ``tests/test_r3_reader_rc470.py`` listed five by DROPPING ``hypot``. Both
+    are corrected, and the pair ``*_exp_series_truncate`` is now spelled out,
+    because ``rational.exp_series_truncate`` — the third op with that name —
+    reads ``[]`` and is NOT a member (EXECUTED).
 
     THE CONSEQUENCE, said plainly. The instrument is the reader PLUS a
     hand-maintained by-name ledger, and the ledger DRIFTS: the pin test fires
@@ -321,7 +382,7 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     ``**ACCURACY (rcNNN, `#T1188`).**``-headed paragraph, which is topical by
     construction — would move DECLARED far DOWN and demand roughly a hundred
     prose rewrites under rule D1, so it is a DESIGN DECISION for a later rc,
-    named here with this 41/219 rate as its motivation rather than left to be
+    named here with this 39/219 rate as its motivation rather than left to be
     discovered.
 
 numpy-free. No ``abs()`` — a sign is a Class-K pin-slot branch composed with
@@ -871,6 +932,34 @@ def call_bounded(fn, kwargs: Dict[str, Any]):
 #: earlier draft of this change left implicit.
 CASE_POLICY = "lower"            # the ONLY fold; patterns are lowercase-only
 
+#: The CLOSED fold table :data:`CASE_POLICY` names, and the reason
+#: :data:`CASE_POLICY` is now WIRED rather than merely declared.
+#:
+#: ⚠️ Through rc470's repair commit ``CASE_POLICY`` was a member of
+#: :data:`R3_READER_SPEC` that **no code read**: :func:`declares_inexactness`
+#: called ``.lower()`` under a comment saying ``# CASE_POLICY == "lower"``, so
+#: the constant and the fold agreed only by review. That is the INVERSE of the
+#: hole the spec was minted to close — a knob outside the tuple moves the
+#: reader without moving the digest; a tuple member nothing reads moves the
+#: DIGEST without moving the reader, and no mutation of it can move a read.
+#: A gate can then only prove the digest moved (which
+#: ``tests/test_silent_carrier_demotion_rc463.py`` did) and never that the
+#: READER moved. Removing the member instead would have put the fold back
+#: OUTSIDE the spec, which is the worse of the two.
+#:
+#: The table is CLOSED and checked at import: an unknown policy is a
+#: mis-spelling, and a mis-spelling that fell through to a default fold would
+#: be the same silent-wrong-answer the whole rc is about. ``"none"`` is a real
+#: member, not a placeholder — it is what the can-fail row in
+#: ``tests/test_r3_reader_rc470.py`` selects to prove the wire carries current.
+_FOLDS = {"lower": str.lower, "none": lambda s: s}
+
+assert CASE_POLICY in _FOLDS, (
+    f"CASE_POLICY is {CASE_POLICY!r}, which names no fold in _FOLDS "
+    f"({sorted(_FOLDS)}). The table is closed on purpose: a policy that fell "
+    f"through to a default would read the tree with a fold its own freshness "
+    f"key claims it is not using.")
+
 #: ``(label, pattern)``. The LABEL is what reaches the census, never the matched
 #: TEXT — ``tests/test_declared_inexactness_rc466.py`` tells an OWN hit from a
 #: DELEGATE hit by whether the string ends in ``)``, so a label must never.
@@ -988,7 +1077,7 @@ def declares_inexactness(text) -> List[str]:
     committed census, and occurrence order would churn cell-columns for no
     information.
     """
-    low = (text or "").lower()          # CASE_POLICY == "lower"
+    low = _FOLDS[CASE_POLICY](text or "")   # WIRED, not asserted in a comment
     found = set()
     for sent in _R3_SPLIT.split(low):
         if not sent:

@@ -67,6 +67,42 @@ from srmech.introspect.tool_schema import get_tool_schema  # noqa: E402
 #: shape this whole rc exists to remove.
 N_REGISTERED = 732
 
+#: The READER's own freshness key, PINNED — sha256 over
+#: :data:`demotion_probe.R3_READER_SPEC`, MEASURED at 0.9.0rc470. It is
+#: asserted BEFORE the bare DECLARED count below, because
+#: ``lexical DECLARED is N, not 219`` names an INTEGER where the defect is a
+#: READER, and a reader-shaped defect reported as an integer is what rc470's
+#: own re-validation spent a session chasing.
+#:
+#: ⚠️ **NECESSARY, NOT SUFFICIENT — MEASURED.** The digest is over DATA
+#: (``R3_READER_SPEC``), so it is blind to a CODE mutant: replace the negation
+#: refusal in :func:`demotion_probe.declares_inexactness` with ``if False:``
+#: and this literal is UNCHANGED while DECLARED goes **219 -> 246**. That
+#: mutant is not hypothetical — it was applied to the SHIPPED file during
+#: rc470's own re-validation while a sibling process was importing it, and the
+#: 246 was reported as a finding about this file. The two behavioural
+#: sentinels in the ledger test are the ONLY check that names it; the pinned
+#: signature covers only the class of change that reaches DISK.
+_READER_SIGNATURE = (
+    "8d17e6517b46d6d165347d50583029b1a919fd252d9089b954ffa79e4c434c50")
+
+
+def _reader_identity() -> str:
+    """WHICH reader answered — printed into every identity failure below.
+
+    A count that disagrees is a claim about a FILE; this names the file, the
+    digest of the bytes actually read, the spec digest, and which ``srmech``
+    was on the path. Routed through ``srmech.amsc.format.sha256_bytes``, never
+    a direct ``hashlib`` call.
+    """
+    import srmech
+    from srmech.amsc.format import sha256_bytes
+    blob = Path(_dp.__file__).read_bytes()
+    return (f"[reader identity] file={_dp.__file__} "
+            f"bytes_sha256={sha256_bytes(blob)} "
+            f"reader_signature={_dp.reader_signature()} "
+            f"srmech={srmech.__file__}")
+
 
 def _registry():
     tools = list(get_tool_schema().tools)
@@ -314,6 +350,82 @@ def test_group_d_the_numeral_cue_is_load_bearing() -> None:
     assert {n for n, f in fns if _dp.declaration_hits(f)} == before
 
 
+def test_group_d_the_case_policy_is_wired_not_declared() -> None:
+    """The knob that was a SPEC MEMBER NO CODE READ — the inverse blind spot.
+
+    ``R3_READER_SPEC`` exists so that no knob can move the reader without
+    moving the digest. ``CASE_POLICY`` was in the tuple, but through rc470's
+    repair commit :func:`demotion_probe.declares_inexactness` called
+    ``.lower()`` under a COMMENT saying ``# CASE_POLICY == "lower"``. A
+    constant nothing reads is the mirror-image defect: no mutation of it can
+    move a read, so the only thing a gate could prove was that the DIGEST
+    moved — which ``test_silent_carrier_demotion_rc463`` did, and which is
+    consistent with the reader ignoring the constant entirely.
+
+    Two halves, both EXECUTED:
+
+    1. **The wire carries current.** Set the policy to ``"none"`` and the
+       reader stops reading a SHOUTED token; restore it and the token comes
+       back. Under the old comment-only fold, both reads are identical.
+    2. **The table is CLOSED.** An unknown policy raises AT IMPORT rather than
+       falling through to a default fold — which would read the whole tree
+       with a fold the freshness key says is not in use.
+
+    ⚠️ **HOW HALF 2 IS MEASURED, and the rule it obeys.** The mutant is
+    compiled from an IN-MEMORY COPY of the probe's source and exec'd into a
+    throwaway namespace. The shipped file is never written. rc470's own
+    re-validation mutated ``tools/demotion_probe.py`` IN PLACE three times to
+    prove can-fail claims, restoring from a byte copy each time; a sibling
+    process imported one of those mutants mid-window and reported its DECLARED
+    count as a defect in this file. The restore was byte-exact, so ``git
+    diff`` was empty and the only trace was an mtime. Mutate a COPY.
+    """
+    from pathlib import Path
+
+    # ── half 1: the wire carries current ────────────────────────────────
+    assert _dp.CASE_POLICY == "lower", _dp.CASE_POLICY
+    assert sorted(_dp._FOLDS) == ["lower", "none"], sorted(_dp._FOLDS)
+    assert _dp.declares_inexactness("an APPROXIMATION") == ["approximation"]
+
+    saved = _dp.CASE_POLICY
+    try:
+        _dp.CASE_POLICY = "none"
+        shouted = _dp.declares_inexactness("an APPROXIMATION")
+        # the SAME sentence, already lowercase, is unaffected: the fold is the
+        # only difference between these two reads, which is what makes this a
+        # measurement of the fold rather than of the patterns.
+        quiet = _dp.declares_inexactness("an approximation")
+    finally:
+        _dp.CASE_POLICY = saved
+
+    assert shouted == [], (
+        f"CASE_POLICY is not WIRED: with the fold set to 'none' a SHOUTED "
+        f"token still reads {shouted}, so declares_inexactness is folding "
+        f"case by some route the constant does not decide. {_reader_identity()}")
+    assert quiet == ["approximation"], quiet
+    assert _dp.CASE_POLICY == "lower", "the policy was not restored"
+    assert _dp.declares_inexactness("an APPROXIMATION") == ["approximation"]
+    assert _dp.reader_signature() == _READER_SIGNATURE, (
+        f"CASE_POLICY is a SPEC MEMBER, so a failure to restore it moves the "
+        f"reader signature for every test after this one. {_reader_identity()}")
+
+    # ── half 2: the table is closed — mutate a COPY, never the shipped file ──
+    text = Path(_dp.__file__).read_text(encoding="utf-8")
+    line = 'CASE_POLICY = "lower"'
+    assert text.count(line) == 1, (
+        f"the CASE_POLICY assignment is not a single line spelled {line!r}; "
+        f"this control cannot target it. {_reader_identity()}")
+    mutant = text.replace(line, 'CASE_POLICY = "upper"', 1)
+    ns = {"__name__": "demotion_probe__case_policy_mutant",
+          "__file__": _dp.__file__}
+    with pytest.raises(AssertionError, match="names no fold in _FOLDS"):
+        exec(compile(mutant, _dp.__file__ + " [COPY: CASE_POLICY=upper]",
+                     "exec"), ns)
+    # the SHIPPED file is untouched by the above, and still the one we read
+    assert Path(_dp.__file__).read_text(encoding="utf-8") == text
+
+
+
 # ── E — the TOPICAL MISREAD LEDGER, over the WHOLE DECLARED set ──────────────
 
 #: **Every op that reads DECLARED and, hand-read, should not.**
@@ -329,10 +441,37 @@ def test_group_d_the_numeral_cue_is_load_bearing() -> None:
 #:   2. no OTHER sentence in the docstring warns either, R3-token-bearing or
 #:      not. Where (1) holds and (2) fails the verdict is substantively RIGHT
 #:      and only the label points at the wrong prose, so the op is NOT pinned;
-#:      those are named in ``tools/demotion_probe.py`` disclosure 10 instead
-#:      (``rational.relative_writhe``, ``coupling.fold_spectrum``,
-#:      ``triality.lean_isa_seventh_primitive``, and both
-#:      ``*_exp_series_truncate``).
+#:      those are named in ``tools/demotion_probe.py`` disclosure 10 instead.
+#:      EIGHT, MEASURED per-occurrence on this tree: ``rational.relative_writhe``,
+#:      ``coupling.fold_spectrum``, ``rational.hypot``,
+#:      ``triality.lean_isa_seventh_primitive``,
+#:      ``octonion.octonion_exp_series_truncate``,
+#:      ``quaternion.quaternion_exp_series_truncate``, and — rc470's
+#:      LAST commit, moved OUT of the ledger below —
+#:      ``matrix_cascades.eig_exact`` and
+#:      ``matrix_cascades.singular_values_exact``. This list read FIVE and
+#:      omitted ``hypot``; the probe's own copy said "Five" and listed six.
+#:      ⚠️ ``rational.exp_series_truncate`` is NOT one of them — it reads
+#:      ``[]`` (EXECUTED), so "both ``*_exp_series_truncate``" means the
+#:      OCTONION and QUATERNION pair, which is why they are now spelled out.
+#:
+#: ⚠️ **TWO ROWS WERE REMOVED BY rc470's LAST COMMIT, and removal is the
+#: rarer of the two legal moves.** ``matrix_cascades.eig_exact`` (pinned
+#: HISTORY, the whole class) and ``matrix_cascades.singular_values_exact``
+#: (pinned OTHER-OP) both fail half (2) of the criterion above, so they never
+#: belonged here: each states its own terminal projection in prose the caller
+#: can read BEFORE calling — ``"value": complex,  # the terminal float/complex
+#: projection`` and *"``value`` / ``vector`` are the single TERMINAL
+#: projections (rotation-last)"* on the first, ``"value": float}  # the single
+#: terminal projection (project=True only)`` on the second — and BOTH carry
+#: ``project: bool = True`` in the signature. The honesty ladder asks whether
+#: the caller can predict *the returned value is not the exact one*, and on
+#: both ops the answer is yes, from the docstring alone. So the verdict
+#: DECLARED is substantively right and only the matched sentence is off-topic:
+#: the LABEL-MISATTRIBUTION class, not this one. ``jordan_form_exact`` was
+#: read the same way and STAYS out of the ledger on its own merits — its
+#: ``~1e-`` fires on *"``A·P ≈ P·J`` to ~1e-9 in the projected float/complex
+#: read-out"*, which IS a statement about this op's own accuracy.
 #:
 #: ⚠️ **THE NAME.** rc470's fourth commit called these four rows "residual
 #: FALSE POSITIVES", which contradicts this file's own error-direction ⚠️
@@ -351,8 +490,12 @@ def test_group_d_the_numeral_cue_is_load_bearing() -> None:
 #: should re-run the per-occurrence dump over the DECLARED set and diff it
 #: against this dict.
 #:
-#: MEASURED at 0.9.0rc470: 219 DECLARED, 41 pinned here, **178 substantive**.
-#: The 41 are MOSTLY not a rc470 regression: **35** of them read
+#: MEASURED at 0.9.0rc470: 219 DECLARED, 39 pinned here, **180 substantive**.
+#: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 219 is LEXICAL and
+#: regenerable by anyone with this tree; 180 is 219 minus a HAND-MAINTAINED
+#: ledger, so it is only as fresh as the last hand-read. Quoting 180 alone
+#: implies a measurement the instrument cannot make.
+#: The 39 are MOSTLY not a rc470 regression: **33** of them read
 #: DECLARED under the rc469 reader too — MEASURED by re-implementing
 #: that substring reader from ``git show main:tools/demotion_probe``
 #: and checking it reproduces the published **202** on this tree
@@ -389,9 +532,6 @@ _RESIDUAL_TOPIC_MISREADS = {
         "OTHER-OP", "'the float lstsq is honest about what it is (it declares "
         "\"to round-off\")' — about :func:`lstsq`, on an op that is exact "
         "over ℚ"),
-    "srmech.cascade.matrix_cascades.singular_values_exact": (
-        "OTHER-OP", "'the float svd … declares itself accurate \"to "
-        "round-off\"' — about :func:`svd`"),
     "srmech.math.rational.continued_fraction_convergents": (
         "OTHER-OP", "'the BEST rational approximation to the limit value' is "
         "Hardy & Wright Thm 154, a theorem about the CONVERGENTS; the op is "
@@ -481,11 +621,6 @@ _RESIDUAL_TOPIC_MISREADS = {
         "OTHER-DOMAIN", "'±1 for clock-skew tolerance' is a TIME window; the "
         "op returns plaintext bytes"),
 
-    # ── HISTORY: the sentence describes a SUPERSEDED implementation ─────────
-    "srmech.cascade.matrix_cascades.eig_exact": (
-        "HISTORY", "'through the rc466 stage-3 head (b) and (c) were float "
-        "read-outs with absolute tolerances' — the route that was REPLACED"),
-
     # ── LOGICAL-SOUNDNESS: 'approximation' as a LATTICE word ────────────────
     "srmech.biology.genome.modulator_constraint": (
         "LOGICAL-SOUNDNESS", "'an over-approximation' is soundness, not "
@@ -504,12 +639,11 @@ _RESIDUAL_TOPIC_MISREADS = {
 #: counting the dict by hand. MEASURED, and asserted below.
 _MISREAD_CLASS_COUNTS = {
     "EXACTNESS-CLAIM": 5,
-    "OTHER-OP": 8,
+    "OTHER-OP": 7,
     "OTHER-CARRIER": 14,
     "DISPATCH-TYPE": 6,
     "SERIALISATION": 2,
     "OTHER-DOMAIN": 2,
-    "HISTORY": 1,
     "LOGICAL-SOUNDNESS": 2,
     "REGEX": 1,
 }
@@ -527,7 +661,53 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
         counts[cls] = counts.get(cls, 0) + 1
     assert counts == _MISREAD_CLASS_COUNTS, counts
     assert sum(_MISREAD_CLASS_COUNTS.values()) == len(
-        _RESIDUAL_TOPIC_MISREADS) == 41
+        _RESIDUAL_TOPIC_MISREADS) == 39
+
+    # ── (a) the reader ON DISK is the one this ledger was hand-read against ─
+    # Names an on-disk spec change. Blind to a code change: see the ⚠️ on
+    # _READER_SIGNATURE.
+    assert _dp.reader_signature() == _READER_SIGNATURE, (
+        f"R3_READER_SPEC has MOVED: reader_signature() is "
+        f"{_dp.reader_signature()}, not the pinned {_READER_SIGNATURE}. Every "
+        f"count in this file was hand-read against the pinned reader — re-run "
+        f"the per-occurrence dump over the DECLARED set and move all three "
+        f"numbers together. {_reader_identity()}")
+
+    # ── (b) the LIVE objects are the ones the spec describes ────────────────
+    # Names an IN-PROCESS swap — a monkeypatch, a fixture, or group_d's own
+    # controlled mutation failing to restore. reader_signature() cannot see
+    # any of those: it digests the constants, not the compiled objects.
+    neg_from_spec = (r"\b(?:" + _dp.NEGATION_CUES + r")\b(?:\s+"
+                     + _dp.NEG_WORD_CLASS + r"){0,%d}\s*$" % _dp.NEG_REACH)
+    assert _dp._R3_NEG.pattern == neg_from_spec, (
+        f"_R3_NEG is not built from the spec constants IN THIS PROCESS — an "
+        f"in-process swap, which the signature cannot see. live="
+        f"{_dp._R3_NEG.pattern!r} spec={neg_from_spec!r}. {_reader_identity()}")
+    assert [(lab, rx.pattern) for lab, rx in _dp._R3_COMPILED] == list(
+            _dp.R3_PATTERNS), (
+        f"_R3_COMPILED is not R3_PATTERNS compiled, in this process: "
+        f"{[(lab, rx.pattern) for lab, rx in _dp._R3_COMPILED]}. "
+        f"{_reader_identity()}")
+    assert _dp._R3_SPLIT.pattern == _dp.SENTENCE_SPLIT, (
+        f"_R3_SPLIT is not SENTENCE_SPLIT compiled, in this process: "
+        f"{_dp._R3_SPLIT.pattern!r}. {_reader_identity()}")
+
+    # ── (c) the reader BEHAVES — the ONLY check that names a CODE mutant ────
+    # Both sentences are verbatim shapes from this tree: the first is
+    # hypercomplex_dft._phase_coherent_peak_pure's denial (the sentence rc470
+    # deliberately left standing), the second is rc467's own APPROXIMATION,
+    # which the rc469 reader could not spell. Executed INLINE, here, rather
+    # than trusted from another test file in another process.
+    denial = _dp.declares_inexactness("the parity contract, not a tolerance")
+    assert denial == [], (
+        f"the NEGATION REFUSAL IS NOT IN FORCE IN THIS PROCESS: a denial read "
+        f"as a declaration, {denial}. Every count below is inflated and the "
+        f"defect is the READER, not the number. {_reader_identity()}")
+    approx = _dp.declares_inexactness("an APPROXIMATION")
+    assert approx == ["approximation"], (
+        f"the reader can no longer read a case-folded 'approximation': "
+        f"{approx}. Every count below is deflated and the defect is the "
+        f"READER, not the number. {_reader_identity()}")
 
     declared = {n for n, fn in _registry() if _dp.declaration_hits(fn)}
     assert len(declared) == 219, (
@@ -535,10 +715,12 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
         f"file, in tools/demotion_probe.py's disclosures and in the rc470 "
         f"CHANGELOG entry is quoted against that figure — re-run the "
         f"per-occurrence dump over the DECLARED set, re-adjudicate the "
-        f"difference, and move all three numbers together.")
+        f"difference, and move all three numbers together. The four "
+        f"assertions above have already cleared the reader, so this is a "
+        f"PROSE change, not a reader change. {_reader_identity()}")
     unknown = sorted(set(_RESIDUAL_TOPIC_MISREADS) - declared)
     assert not unknown, f"pinned but not DECLARED: {unknown}"
-    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 178
+    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 180
 
 
 @pytest.mark.parametrize("name", sorted(_RESIDUAL_TOPIC_MISREADS))
