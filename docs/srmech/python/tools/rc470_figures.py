@@ -61,6 +61,7 @@ numpy-free. No ``abs()``. Every digest routes through
 
 from __future__ import annotations
 
+import inspect
 import json
 import os
 import re
@@ -168,7 +169,7 @@ def main(argv) -> int:
            "| entries / resolved / unresolved | **{v} / {v} / 0** |")
     declared = sorted(n for n, f in fns if dp.declaration_hits(f))
     figure("DECLARED, lexical", len(declared),
-           "| DECLARED, after `rational.sin` states its own bound | **{v}**",
+           "| DECLARED, after the comprehension fold in the delegate walk | **{v}**",
            "**{v} DECLARED lexically,")
     figure("reader_signature", dp.reader_signature(),
            "{v}", where="tests/demotion_census.ndjson")
@@ -180,10 +181,10 @@ def main(argv) -> int:
     figure("pinned topical misreads", len(pinned),
            "| — of those, **TOPICAL MISREADS** pinned by name | **{v}** |",
            "**39 cannot survive the question**".replace("39", "{v}"),
-           "and the {v} of 219 readings that no lexical rule can fix")
+           "and the {v} of 222 readings that no lexical rule can fix")
     figure("substantive DECLARED", len(declared) - len(pinned),
            "| — **SUBSTANTIVE DECLARED** | **{v}** |",
-           "**219 DECLARED lexically, 39 pinned as topical misreads, "
+           "**222 DECLARED lexically, 41 pinned as topical misreads, "
            "{v} substantive**")
     unknown = sorted(set(pinned) - set(declared))
     assert not unknown, f"pinned but not DECLARED: {unknown}"
@@ -191,19 +192,55 @@ def main(argv) -> int:
     riders = [n for n in pinned
               if dp.declaration_hits(resolve_dotted_callable(n))[0].endswith(")")]
     figure("pins riding the delegate follow", len(riders),
-           "Twenty-four of the {v} pins ride it".replace("{v}", str(len(pinned)))
-           if len(riders) == 24 else "RIDERS-MOVED-{v}")
+           "Twenty-six of the {v} pins ride it".replace("{v}", str(len(pinned)))
+           if len(riders) == 26 else "RIDERS-MOVED-{v}")
 
     # the rc469 (main) reader, re-implemented by reading main's own source
+    #
+    # ⚠️ THE MECHANISM IS HELD CONSTANT ON PURPOSE, and this is a REPAIR, not
+    # a convenience. main's `declaration_hits` walks bare `code.co_names`, so
+    # re-executing it verbatim inherits the very PEP 709 defect rc470's last
+    # commit fixed: MEASURED, it reads 202 on CPython 3.10.21 and 3.11.16 and
+    # **204** on 3.12.3 and 3.14.7 — so the published "202" was never a
+    # property of the tree either, only a 3.10 reading, and this script's own
+    # output would have depended on which interpreter ran it. Re-using main's
+    # VOCABULARY over the SHIPPED (folded) delegate walk isolates the thing the
+    # comparison is actually for — what the rc469 WORD LIST read — and yields
+    # **204 on all of 3.10 / 3.11 / 3.12 / 3.14**. The delta this feeds
+    # ("206 is the READER's move") is a vocabulary delta, and holding the
+    # mechanism fixed is what makes it one.
     main_src = _git("show", "main:docs/srmech/python/tools/demotion_probe.py")
     ns = {"__name__": "demotion_probe_main_rc469", "__file__": "<main>"}
     exec(compile(main_src, "<main:tools/demotion_probe.py>", "exec"), ns)
-    old_hits = ns["declaration_hits"]
+    _vocab = ns["R3_VOCABULARY"]
+
+    def old_hits(fn):
+        """main's rc469 VOCABULARY over rc470's folded delegate walk."""
+        doc = (inspect.getdoc(fn) or "").lower()
+        hits = [d for d in _vocab if d in doc]
+        try:
+            if "exact" in inspect.signature(fn).parameters:
+                hits.append("exact= opt-in")
+        except (TypeError, ValueError):
+            pass
+        if not hits:
+            code = getattr(fn, "__code__", None)
+            glb = getattr(fn, "__globals__", {}) or {}
+            for name in (dp._delegate_names(code) if code is not None else ()):
+                delegate = glb.get(name)
+                if delegate is None or delegate is fn or not callable(delegate):
+                    continue
+                ddoc = (inspect.getdoc(delegate) or "").lower()
+                hits += [f"{d} (via {name})" for d in _vocab if d in ddoc]
+                if hits:
+                    break
+        return hits
+
     old_declared = {n for n, f in fns if old_hits(f)}
     figure("DECLARED, rc469 reader", len(old_declared),
            "| DECLARED, rc469 reader | **{v}** |")
     figure("pins already DECLARED under rc469", len(set(pinned) & old_declared),
-           "**{v} of the 39 read DECLARED under the rc469 reader too**")
+           "**{v} of the 41 read DECLARED under the rc469 reader too**")
     added = sorted(set(pinned) - old_declared)
     figure("pins the widening added", len(added), "The **SIX** the widening added"
            if len(added) == 6 else "WIDENING-ADDED-{v}")

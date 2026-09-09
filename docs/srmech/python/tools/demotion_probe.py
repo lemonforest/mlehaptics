@@ -149,7 +149,10 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     keyword in an unrelated or NEGATING sentence read as declared — are
     disclosure 9. :data:`R3_PATTERNS` replaced the list with bounded STEMS
     matched PER OCCURRENCE under a clause-local negation refusal. MEASURED over
-    the 732-op registry: DECLARED 202 -> 206, which is 15 declarations already
+    the 732-op registry: DECLARED 202 -> 206 (a DATED pair, taken on
+    CPython <= 3.11 over the then-unfolded delegate walk; see disclosure
+    10 on why that baseline is now quoted as 204), which is 15
+    declarations already
     written that the old reader could not spell, against 11 readings that were
     never declarations. The delegate follow is generalised here to
     ``fn.__globals__`` — rc463's read
@@ -297,25 +300,37 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
 10. **The reader cannot read TOPIC, and no lexical rule closes that class**
     (rc470, `#T1188`). It matches a STEM in a sentence; it has no way to ask
     whether the sentence is ABOUT this op's own numeric accuracy. MEASURED by
-    hand-reading all **219** DECLARED ops against the honesty-ladder criterion
+    hand-reading all **222** DECLARED ops against the honesty-ladder criterion
     (``tests/test_silent_carrier_demotion_rc463.py``: *given ONLY the signature
     and the docstring, can the caller predict the returned value is not the
-    exact one?*): **39 are TOPICAL MISREADS**, leaving **180 substantive**.
-    ⚠️ **QUOTE THE PAIR, NEVER THE 180 ALONE.** 219 is LEXICAL and
-    regenerable from this tree by anyone; 180 is 219 minus a HAND-MAINTAINED
+    exact one?*): **41 are TOPICAL MISREADS**, leaving **181 substantive**.
+    ⚠️ **QUOTE THE PAIR, NEVER THE 181 ALONE.** 222 is LEXICAL and
+    regenerable from this tree by anyone; 181 is 222 minus a HAND-MAINTAINED
     by-name ledger, so it is exactly as fresh as the last hand-read and no
-    fresher. A single "180 substantive declarations" implies a measurement
+    fresher. A single "181 substantive declarations" implies a measurement
     this instrument cannot make.
     They are pinned BY NAME with a reason and a class in
     ``tests/test_r3_reader_rc470.py``'s ``_RESIDUAL_TOPIC_MISREADS``, and the
-    classes are OTHER-CARRIER 14 (``QMat``/``Poly``: *"the bigint exact peer of
+    classes are OTHER-CARRIER 16 (``QMat``/``Poly``: *"the bigint exact peer of
     the float64 Mat"*, *"collapses to float64 ONLY via to_floats"*),
     OTHER-OP 7, DISPATCH-TYPE 6 (a native-ABI type list — *"seq is a
     homogeneous int64 / float64 list"*), EXACTNESS-CLAIM 5, SERIALISATION 2,
     OTHER-DOMAIN 2 (erasure tolerance, clock-skew tolerance),
     LOGICAL-SOUNDNESS 2, REGEX 1.
 
-    **rc470's LAST commit REMOVED two rows, and 41/178 became 39/180.**
+    ⚠️ **THE PAIR MOVED 219/180 -> 222/181 IN rc470'S LAST COMMIT, AND THE
+    READER IS WHY — no op became less honest.** That commit folded
+    comprehension-nested ``co_names`` into the delegate walk
+    (:func:`_delegate_names`), which is what let the reader see three ops it
+    had been blind to on CPython <= 3.11. Two of the three are FALSE readings
+    and are now pinned (``zeilberger`` and ``apagodu_zeilberger``, both
+    OTHER-CARRIER via ``Poly`` — which is the +2 on that class); the third,
+    ``signal_processing.heat_kernel``, is a TRUE declaration and stands as the
+    +1 on substantive. **The 219 was never a property of the tree — it was a
+    property of the interpreter**, and the pair is quotable now in a way it
+    was not before, because the fold makes it the same on every interpreter.
+
+    **An EARLIER rc470 commit REMOVED two rows, and 41/178 became 39/180.**
     ``matrix_cascades.eig_exact`` (which was the whole HISTORY class, now
     gone) and ``matrix_cascades.singular_values_exact`` fail half (2) of the
     pinning criterion: each one WARNS the caller in prose the caller can read
@@ -331,11 +346,11 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     ``~1e-`` fires on *"``A·P ≈ P·J`` to ~1e-9 in the projected float/complex
     read-out"*, an on-topic statement about its own accuracy.
 
-    **33 of the 39 read DECLARED under the rc469 reader too** (35 of 41
-    before the two un-pins; both removed rows were in that overlap —
-    EXECUTED), so this is
+    **35 of the 41 read DECLARED under the rc469 reader too**, so this is
     mostly a pre-existing property of the instrument that rc470 MEASURED
-    rather than introduced. The SIX the widening added are exactly the six
+    rather than introduced. *(It read 33 of 39 until rc470's last commit,
+    which added two rows AND made this comparison version-stable; both
+    new rows land in the overlap.)* The SIX the widening added are exactly the six
     topical misreads among the fifteen lexical gains — ``lll_reduce`` (three
     occurrences of "rounding", every one of them EXACT nearest-integer
     rounding), ``continued_fraction_convergents`` (Hardy & Wright Thm 154, a
@@ -343,8 +358,13 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     ``modulator_constraint*`` and ``encode_aboutness`` — the same set reached
     from the other direction, which is a cross-check on both. MEASURED by
     re-implementing the rc469 substring reader from ``git show
-    main:tools/demotion_probe.py`` and checking it reproduces the published
-    **202** on this tree before asking it anything. rc470's fourth commit
+    main:tools/demotion_probe.py``. ⚠️ Its VOCABULARY is re-used over the
+    SHIPPED, FOLDED delegate walk: main's own walk carries the PEP 709
+    defect this file's last commit fixed, and MEASURED it reads **202 on
+    CPython 3.10.21 / 3.11.16 and 204 on 3.12.3 / 3.14.7** — so the
+    published **202** was an interpreter artifact of the same defect, not
+    a property of the tree. Held constant, the figure is **204** on every
+    interpreter. rc470's fourth commit
     disclosed FOUR, having read only the fifteen ops its own change moved.
 
     A SEPARATE and SMALLER class is the LABEL MISATTRIBUTION: the verdict is
@@ -382,7 +402,7 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     ``**ACCURACY (rcNNN, `#T1188`).**``-headed paragraph, which is topical by
     construction — would move DECLARED far DOWN and demand roughly a hundred
     prose rewrites under rule D1, so it is a DESIGN DECISION for a later rc,
-    named here with this 39/219 rate as its motivation rather than left to be
+    named here with this 41/222 rate as its motivation rather than left to be
     discovered.
 
 numpy-free. No ``abs()`` — a sign is a Class-K pin-slot branch composed with
@@ -1026,7 +1046,7 @@ R3_PATTERNS = (
 #: Cues that DENY the token following them. ``0|zero`` is a member because the
 #: tree writes honest zero-counts ("6135 divisions, 0 inexact") that are the
 #: OPPOSITE of a declaration; removing it alone moves DECLARED
-#: **219 -> 221** on this tree, letting in exactly
+#: **222 -> 224** on this tree, letting in exactly
 #: ``weight_lattice.weight_multiplicities`` and
 #: ``weight_lattice.tensor_product_multiplicities``. The DELTA is the
 #: invariant; the baseline moves with every reader change, which is why
@@ -1136,14 +1156,105 @@ def reader_signature() -> str:
     return sha256_bytes(body.encode("utf-8"))
 
 
+#: The code-object names CPython gives to the three comprehension forms PEP 709
+#: (3.12) INLINED. ``<genexpr>`` is deliberately ABSENT: PEP 709 never inlined
+#: generator expressions, so they stay nested on every interpreter and folding
+#: them could not repair a version split. MEASURED and INERT rather than
+#: assumed — on the real 732-op registry, folding ``<genexpr>`` too (335 nested
+#: objects), or folding EVERY nested code object regardless of name (a further
+#: 26 ``<lambda>`` and ~35 named inner functions), yields a label map
+#: BYTE-IDENTICAL to this tuple's on all five of 3.10.21 / 3.11.16 / 3.12.3 /
+#: 3.13.15 / 3.14.7. Scoping the fold to exactly the PEP 709 class is what
+#: makes the convergence argument a proof rather than an observation; the null
+#: above is recorded because it says the arm could be widened later at a
+#: measured cost of zero today.
+_COMP_CODE_NAMES = ("<listcomp>", "<setcomp>", "<dictcomp>")
+
+
+def _delegate_names(code) -> Tuple[str, ...]:
+    """``code.co_names`` PLUS every name reachable through a nested
+    COMPREHENSION code object, recursively — order-preserving, de-duplicated.
+
+    ⚠️ **THIS EXISTS BECAUSE ``co_names`` ANSWERS A QUESTION ABOUT A COMPILED
+    ARTIFACT, AND THE READER IS ASKING ONE ABOUT SOURCE.** Through CPython 3.11
+    a comprehension compiles to its OWN nested code object, so a callee named
+    only inside one lives in ``<listcomp>.co_names`` and is INVISIBLE to
+    ``fn.__code__.co_names``. PEP 709 (3.12) inlined comprehensions and those
+    names JOIN the function's. Same source, two readings — MEASURED on this
+    registry: **DECLARED 219 on 3.10.21 and 3.11.16, 222 on 3.12.3, 3.13.15 and
+    3.14.7**, a cutover at 3.12 with a measured point on each side and no
+    unmeasured interior.
+
+    Folding UNCONDITIONALLY makes that split IMPOSSIBLE rather than merely
+    named. On >= 3.12 this returns ``()`` for every op in the registry — a
+    STRUCTURAL no-op, not a coincidence, because PEP 709 leaves no nested
+    comprehension code object to find (MEASURED: 0 of 732 there, against 839
+    ``<listcomp>`` + 51 ``<dictcomp>`` + 9 ``<setcomp>`` on 3.10/3.11). On
+    <= 3.11 it recovers exactly the three names 3.12 could already see.
+
+    The recursion is EXERCISED, not defensive: ``apokatastasis.zeilberger``
+    itself nests a listcomp inside a listcomp
+    (``[Poly.from_coeffs([Q(a, b) for a, b in cp]) for cp in coeff_pairs]``,
+    :file:`srmech/apokatastasis/zeilberger.py`:306-307), and **48 of 732 ops**
+    need depth > 1 to reach their full comprehension-name set.
+    """
+    seen: set = set()
+    out: List[str] = []
+
+    def _push(names) -> None:
+        for n in names:
+            if n not in seen:
+                seen.add(n)
+                out.append(n)
+
+    def _walk(c, guard: set) -> None:
+        if id(c) in guard:
+            return
+        guard.add(id(c))
+        for const in getattr(c, "co_consts", ()) or ():
+            if hasattr(const, "co_names") and const.co_name in _COMP_CODE_NAMES:
+                _push(const.co_names)
+                _walk(const, guard)
+
+    _push(code.co_names)
+    _walk(code, set())
+    return tuple(out)
+
+
 def declaration_hits(fn) -> List[str]:
     """Every R3 marker reachable from ``fn``'s own contract surface.
 
     THREE ARMS, unchanged in STRUCTURE by rc470: the op's OWN docstring; then
     ``exact=`` in the signature; then, ONLY if still empty, one level of
-    delegate through ``fn.__globals__`` over ``code.co_names``, breaking at the
-    first delegate with a hit. What rc470 changed is the PREDICATE each arm
-    applies — :func:`declares_inexactness` rather than a substring sweep.
+    delegate through ``fn.__globals__`` over :func:`_delegate_names`, breaking
+    at the first delegate with a hit. What rc470 changed is the PREDICATE each
+    arm applies — :func:`declares_inexactness` rather than a substring sweep.
+
+    ⚠️ **THE DELEGATE CANDIDATE LIST IS ``_delegate_names(code)``, NOT
+    ``code.co_names``** (rc470's last commit, `#T1188`). Reading ``co_names``
+    alone asked a COMPILED artifact a question about SOURCE, and PEP 709 made
+    the two answers differ: DECLARED read **219** on CPython <= 3.11 and
+    **222** on >= 3.12, from one unchanged tree. The fold is unconditional and
+    the convergence is MEASURED over the WHOLE population, not inferred from
+    three counts — on 3.10.21 / 3.11.16 / 3.12.3 / 3.13.15 / 3.14.7 the folded
+    label MAP is byte-identical, all 222 rows, sha256
+    ``06f93439fe15b27f…``. That is the LABEL map and not merely the count,
+    which matters because of the residue in the next paragraph.
+
+    ⚠️ **WHAT THE FOLD DOES NOT FIX, named so it is not rediscovered as a
+    surprise.** The loop ``break``s at the first hit-bearing delegate, so
+    ORDER decides the LABEL while the fold only makes MEMBERSHIP convergent by
+    construction. **13 of the 573 ops that reach this arm have two or more
+    hit-bearing delegates** (an identical list on 3.10 and 3.12), and their
+    labels agree across interpreters only because the names that changed
+    position are non-hit-bearing and jumped AROUND the hit-bearing pair. The
+    label-map digest pinned in ``tests/test_r3_reader_rc470.py`` is what turns
+    that accident into something a matrix cell can SEE: without it DECLARED
+    would stay 222 everywhere while the credited delegate silently differed.
+    The principled repair — making label selection a function of the SET,
+    which IS convergent, by iterating sorted names or collecting all hits
+    instead of breaking at the first — moves labels on those 13 ops on EVERY
+    interpreter and therefore owes its own adjudication and its own rc.
 
     ⚠️ The delegation follow is rc463's, with ONE change that is the whole point
     of this file: rc463 resolved a delegate as ``getattr(_la, name)``, hard-wired
@@ -1163,7 +1274,7 @@ def declaration_hits(fn) -> List[str]:
     if not hits:
         code = getattr(fn, "__code__", None)
         glb = getattr(fn, "__globals__", {}) or {}
-        for name in (code.co_names if code is not None else ()):
+        for name in (_delegate_names(code) if code is not None else ()):
             delegate = glb.get(name)
             if delegate is None or delegate is fn or not callable(delegate):
                 continue

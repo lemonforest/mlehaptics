@@ -47,6 +47,7 @@ numpy-free. No ``abs()``. No stdlib ``fractions`` / ``math`` / ``decimal``.
 from __future__ import annotations
 
 import inspect
+import json
 import sys
 from pathlib import Path
 
@@ -506,14 +507,17 @@ def test_group_d_the_case_policy_is_wired_not_declared() -> None:
 #:
 #: MEASURED at 0.9.0rc470: 219 DECLARED, 39 pinned here, **180 substantive**.
 #: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 219 is LEXICAL and
-#: regenerable by anyone with this tree; 180 is 219 minus a HAND-MAINTAINED
-#: ledger, so it is only as fresh as the last hand-read. Quoting 180 alone
+#: regenerable by anyone with this tree; 181 is 222 minus a HAND-MAINTAINED
+#: ledger, so it is only as fresh as the last hand-read. Quoting 181 alone
 #: implies a measurement the instrument cannot make.
-#: The 39 are MOSTLY not a rc470 regression: **33** of them read
+#: The 41 are MOSTLY not a rc470 regression: **35** of them read
 #: DECLARED under the rc469 reader too — MEASURED by re-implementing
-#: that substring reader from ``git show main:tools/demotion_probe``
-#: and checking it reproduces the published **202** on this tree
-#: before asking it anything. The **six** the widening added are
+#: that substring reader from ``git show main:tools/demotion_probe``.
+#: ⚠️ Its VOCABULARY is re-used over the SHIPPED, FOLDED delegate
+#: walk: main's own walk carries the PEP 709 defect rc470's last
+#: commit fixed and reads **202 on CPython <= 3.11, 204 on >= 3.12**,
+#: so the published 202 was an interpreter artifact too. Held
+#: constant, the figure is **204** on every interpreter. The **six** the widening added are
 #: exactly the six topical misreads among the fifteen lexical gains:
 #: ``lll_reduce``, ``continued_fraction_convergents``,
 #: ``lossy_projection_record``, both ``modulator_constraint*`` and
@@ -599,6 +603,18 @@ _RESIDUAL_TOPIC_MISREADS = {
         "OTHER-CARRIER", "Poly, as above"),
     "srmech.math.carrier_ladder.poly_project": (
         "OTHER-CARRIER", "Poly, as above"),
+    # The two the reader could not SEE until rc470's last commit folded
+    # comprehension-nested co_names into the delegate walk: both name Poly
+    # only inside a listcomp, so on CPython <= 3.11 they read [] and could not
+    # be pinned. Same delegate, same sentence, same class as the six above —
+    # pinning them makes via-Poly 8/8, matching via-QMat's 8/8.
+    "srmech.apokatastasis.zeilberger.zeilberger": (
+        "OTHER-CARRIER", "Poly, as above; the op's OWN docstring says 'Exact "
+        "over ℚ (bigint, no magnitude ceiling); no float' and it calls "
+        "Poly.from_coeffs, never to_floats"),
+    "srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger": (
+        "OTHER-CARRIER", "Poly, as above; 'Every returned leaf is exact and "
+        "closed-form on the ALU'"),
 
     # ── DISPATCH-TYPE: the sentence is a native-ABI TYPE list ───────────────
     "srmech.cascade.chiral_flip": (
@@ -654,13 +670,59 @@ _RESIDUAL_TOPIC_MISREADS = {
 _MISREAD_CLASS_COUNTS = {
     "EXACTNESS-CLAIM": 5,
     "OTHER-OP": 7,
-    "OTHER-CARRIER": 14,
+    "OTHER-CARRIER": 16,  # +2 at rc470's last commit: the two zeilberger ops
     "DISPATCH-TYPE": 6,
     "SERIALISATION": 2,
     "OTHER-DOMAIN": 2,
     "LOGICAL-SOUNDNESS": 2,
     "REGEX": 1,
 }
+
+#: sha256 over the WHOLE folded label map — every DECLARED op paired with the
+#: labels it reads, sorted — MEASURED byte-identical on CPython 3.10.21 /
+#: 3.11.16 / 3.12.3 / 3.13.15 / 3.14.7 at 0.9.0rc470.
+#:
+#: ⚠️ **THIS IS THE THREE-VERSION CONVERGENCE ASSERTION, and it exists because
+#: the COUNT CANNOT MAKE IT.** rc470's last commit folded comprehension-nested
+#: co_names into the delegate walk, which makes DECLARED *membership*
+#: convergent BY CONSTRUCTION. It does NOT do the same for the *label*:
+#: :func:`declaration_hits` breaks at the first hit-bearing delegate, so
+#: ``co_names`` ORDER decides WHICH delegate gets the credit, and **13 of the
+#: 573 ops that reach that arm carry two or more hit-bearing delegates**
+#: (an identical list on 3.10 and 3.12 — e.g. ``spectral_spine`` and
+#: ``relational_structure`` both name ``signed_laplacian`` AND
+#: ``symmetric_eigendecompose``). Their labels agree across interpreters TODAY
+#: only because the names that changed position happen to be non-hit-bearing
+#: and jumped AROUND the hit-bearing pair. That is an accident, not a
+#: guarantee — and a bare ``len(declared) == 222`` is blind to it, because
+#: DECLARED would stay 222 on every interpreter while the credited delegate
+#: silently differed.
+#:
+#: A single-interpreter test cannot assert a cross-version property on its own.
+#: THIS LITERAL IS HOW IT IS ASSERTED ANYWAY: the same digest is checked in
+#: every cell of the CI matrix, so a divergence reddens exactly the cell that
+#: disagrees. That is the whole mechanism — one pinned literal, checked
+#: everywhere.
+#:
+#: ⚠️ **IF THIS MOVES, SAY WHETHER THE COUNT MOVED WITH IT.** Count AND digest
+#: → the DECLARED set changed; re-adjudicate. Digest ALONE → a LABEL moved
+#: while membership held, which is either an edited docstring or the ORDER
+#: residue above finally biting. The second case is the one this constant was
+#: minted to catch; do not re-pin it without reading which delegate changed.
+_DECLARED_LABEL_MAP_DIGEST = (
+    "06f93439fe15b27f197aef81146b9f88961702db59cbf196b32b3857b372fe6b")
+
+
+def _declared_label_map_digest(pairs) -> str:
+    """sha256 over ``{op: labels}``, sorted — the LABEL map, not the count.
+
+    Routed through ``srmech.amsc.format.sha256_bytes`` — never a direct
+    ``hashlib`` call — so native dispatch picks it up transparently.
+    """
+    from srmech.amsc.format import sha256_bytes
+    body = json.dumps({n: list(h) for n, h in sorted(pairs)},
+                      sort_keys=True, ensure_ascii=True) + "\n"
+    return sha256_bytes(body.encode("utf-8"))
 
 
 def test_group_e_the_ledger_is_internally_consistent() -> None:
@@ -675,7 +737,7 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
         counts[cls] = counts.get(cls, 0) + 1
     assert counts == _MISREAD_CLASS_COUNTS, counts
     assert sum(_MISREAD_CLASS_COUNTS.values()) == len(
-        _RESIDUAL_TOPIC_MISREADS) == 39
+        _RESIDUAL_TOPIC_MISREADS) == 41
 
     # ── (a) the reader ON DISK is the one this ledger was hand-read against ─
     # Names an on-disk spec change. Blind to a code change: see the ⚠️ on
@@ -724,74 +786,141 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
         f"READER, not the number. {_reader_identity()}")
 
     declared = {n for n, fn in _registry() if _dp.declaration_hits(fn)}
-    # ⚠️ KNOWN OPEN DEFECT, DELIBERATELY LEFT FIRING — `#T1188`, deferred to
-    # rc-B. On CPython 3.12 this reads 222, not 219, on every platform, with an
-    # IDENTICAL reader_signature and IDENTICAL probe bytes. The ruler did not
-    # move; the READING did.
+    # ⚠️ THIS WAS A KNOWN OPEN DEFECT AND IS NOW CLOSED — `#T1188`, rc470's
+    # last commit. It read 219 on CPython <= 3.11 and 222 on >= 3.12 from ONE
+    # unchanged tree, with an IDENTICAL reader_signature and IDENTICAL probe
+    # bytes. The ruler did not move; the READING did.
     #
-    # MECHANISM, DIAGNOSED AND MEASURED (py3.10, this tree — NOT executed on a
-    # real 3.12; none is installed): declaration_hits's third arm follows ONE
-    # level of delegate over `fn.__code__.co_names`. Through CPython 3.11 a
-    # comprehension body compiles to its OWN nested code object with its OWN
-    # co_names, so a delegate named only inside a comprehension is invisible to
-    # that walk. PEP 709 ("Inlined comprehensions", 3.12) removes the nested
-    # code object, so those names join the enclosing function's co_names and
-    # the SAME code finds MORE delegates. Simulating it here — folding nested
-    # <listcomp>/<setcomp>/<dictcomp> co_names into the walk — moves DECLARED
-    # 219 -> 222 with ZERO losses, naming exactly zeilberger, apagodu_zeilberger
-    # (both `float64 (via Poly)`) and signal_processing.heat_kernel
-    # (`truncation (via _rexp)`). Adding <genexpr> changes nothing, the correct
-    # positive control: PEP 709 does not inline generator expressions.
+    # MECHANISM, now MEASURED on five real interpreters rather than simulated
+    # on one: declaration_hits's third arm followed ONE level of delegate over
+    # `fn.__code__.co_names` — a COMPILED artifact answering a question about
+    # SOURCE. Through CPython 3.11 a comprehension body compiles to its OWN
+    # nested code object with its OWN co_names, so a delegate named only inside
+    # a comprehension was invisible to that walk. PEP 709 ("Inlined
+    # comprehensions", 3.12) removes the nested object and those names join the
+    # enclosing function's, so the SAME code found MORE delegates:
     #
-    # WHY THE COUNT IS NOT SIMPLY MOVED TO 222. Two of those three readings are
-    # FALSE. Poly's hit sentence is "Collapses to a list of float64 only via
-    # to_floats" — an OTHER-CARRIER sentence — while zeilberger's own docstring
-    # says "Exact over ℚ (bigint, no magnitude ceiling); no float". So 219 is a
-    # reader with a blind spot and 222 is a less-blind reader making two
-    # unadjudicated misreads. Neither is "the right count", and re-adjudicating
-    # to 222 does not even go green: MEASURED, declaration_hits() is [] for both
-    # zeilberger and apagodu_zeilberger on py3.10, so pinning them into
-    # _RESIDUAL_TOPIC_MISREADS turns the parametrized misread test RED on the
-    # 3.10 cell. That move RELOCATES the failure, it does not repair it.
+    #   3.10.21 219 | 3.11.16 219 | 3.12.3 222 | 3.13.15 222 | 3.14.7 222
     #
-    # THE FIX, which is rc-B and not a CI repair: fold comprehension-nested
-    # co_names into the delegate walk UNCONDITIONALLY, on every interpreter.
-    # That makes the version-dependence IMPOSSIBLE rather than merely named —
-    # it is idempotent on 3.12 (PEP 709 already removed the nested objects) and
-    # yields 222 on <=3.11. It is deferred because it MOVES THREE VERDICTS, and
-    # rc470's invariant is that it moves readers, not verdicts: it owes a
-    # hand-read of the three, _RESIDUAL_TOPIC_MISREADS 39 -> 41, OTHER-CARRIER
-    # 14 -> 16, and the 219/180 pair -> 222/181.
+    # A cutover at 3.12 with a measured point on EACH side and no unmeasured
+    # interior. (Two earlier rounds recorded 3.11 and 3.13 as unmeasurable.
+    # They were one `uv python install 3.11 3.13` away — 2.89s. Declining to
+    # measure is a finding; calling unmeasurable something never attempted is
+    # not.)
     #
-    # A NAMED per-version exception was written and REJECTED here, measured:
-    # it adds NO detection the bare total below does not already provide (a
-    # fourth, unnamed crosser on 3.12 passes a named-set equality and is caught
-    # only by the total), while adding one NEW way to fail — every py3.12 cell
-    # that reads 219 goes red on the set equality. That matters because the six
-    # pure shards (srmech-ci.yml:399) and four asserts-live shards (:1310) all
-    # pin python 3.12 and this test carries NO skip marker, so it runs there.
+    # THE FIX, applied: tools/demotion_probe.py's _delegate_names() folds
+    # comprehension-nested co_names into the walk UNCONDITIONALLY. On >= 3.12
+    # it is a STRUCTURAL no-op (0 of 732 ops have any nested comprehension code
+    # object left to find, against 839 <listcomp> + 51 <dictcomp> + 9 <setcomp>
+    # on 3.10/3.11); on <= 3.11 it recovers exactly the names 3.12 already saw.
+    # Convergence is asserted over the WHOLE population, not three counts: the
+    # folded label MAP is byte-identical on all five interpreters, all 222
+    # rows — see _DECLARED_LABEL_MAP_DIGEST below.
     #
-    # ⚠️ READ THIS BEFORE rc-B, THE EVIDENCE IS ALREADY COLLECTED AND UNREAD:
-    # grep the uploaded `pytest-pure-log-shard-N` artifacts for this test. The
-    # PEP 709 diagnosis PREDICTS those py3.12 shards also read 222 and are also
-    # red. If they read 219 instead, THIS DIAGNOSIS IS INCOMPLETE and must be
-    # re-opened rather than widened.
-    assert len(declared) == 219, (
-        f"lexical DECLARED is {len(declared)}, not 219. Every count in this "
+    # THE THREE IT MOVES, hand-read, and it is EXACTLY three (gained 3, lost 0,
+    # label-changed 0 over the full 732 on every interpreter):
+    #   * zeilberger and apagodu_zeilberger -> FALSE readings. Poly's hit
+    #     sentence is "Collapses to a list of float64 only via to_floats" — the
+    #     word ONLY makes it an exactness claim about ANOTHER carrier — while
+    #     their own docstrings say "Exact over ℚ (bigint, no magnitude
+    #     ceiling); no float". PINNED above as OTHER-CARRIER, making via-Poly
+    #     8/8 and matching via-QMat's 8/8. Pinning them is possible only
+    #     BECAUSE of the fold: pre-fix they read [] on 3.10, and pinning would
+    #     have reddened the parametrized misread test there. The fix and the
+    #     adjudication are ONE change; neither works alone.
+    #   * heat_kernel -> a TRUE declaration. It STANDS as a gain, unpinned.
+    #     The rival reading — that _rexp's bound describes a `precision=P`
+    #     branch heat_kernel never selects, so the credit is off-topic — rests
+    #     on a premise that is FALSE, EXECUTED: rational.exp's DEFAULT branch
+    #     is a fixed 18-term Taylor (_EXPLOG_EXP_TERMS = 18) returning a
+    #     DYADIC, Q(., 2**59) at x=1.0, differing from the precision=200
+    #     reference by 5.8398e-17. A dyadic cannot equal a transcendental, so
+    #     the bound is real and the value flowing into heat_kernel IS inexact.
+    #     Consistency confirms it: of the 9 ops labelled `truncation (via X)`,
+    #     the 3 whose delegate's firing sentence is a precision=P branch the
+    #     call site never selects — kepler.pin_slot, rational.tan and
+    #     heat_kernel — are ALL unpinned. Pinning one would contradict two
+    #     live rulings.
+    #
+    # WHAT SURVIVES UNFIXED, named so it is not rediscovered as a surprise: the
+    # loop BREAKS at the first hit-bearing delegate, so ORDER decides the
+    # LABEL while the fold converges MEMBERSHIP by construction. 13 of the 573
+    # ops that reach the arm carry >= 2 hit-bearing delegates (an identical
+    # list on 3.10 and 3.12); their labels agree today only because the names
+    # that changed position are non-hit-bearing. The digest below is what lets
+    # a matrix cell SEE a future divergence there — the COUNT alone could not,
+    # since DECLARED would stay 222 everywhere while the credited delegate
+    # silently differed.
+    assert len(declared) == 222, (
+        f"lexical DECLARED is {len(declared)}, not 222. Every count in this "
         f"file, in tools/demotion_probe.py's disclosures and in the rc470 "
-        f"CHANGELOG entry is quoted against that figure. ⚠️ IF THIS IS 222 ON "
-        f"CPYTHON 3.12, it is the KNOWN PEP 709 delegate-follow defect the "
-        f"comment above diagnoses — do NOT 'move all three numbers together' "
-        f"(MEASURED: that reddens the py3.10 cell instead, because two of the "
-        f"three read [] there), and do NOT pin it per-version (MEASURED: adds "
-        f"no detection this assertion lacks, and reddens every 3.12 cell that "
-        f"reads 219). Fix the delegate-follow, in rc-B, with the ledger "
-        f"adjudication it owes. The four assertions above have already cleared "
+        f"CHANGELOG entry is quoted against that figure. ⚠️ IF THIS IS 219, "
+        f"the comprehension fold in demotion_probe._delegate_names is not "
+        f"running: 219 is the PRE-FIX reading of CPython <= 3.11 (MEASURED "
+        f"219 on 3.10.21 and 3.11.16, 222 on 3.12.3 / 3.13.15 / 3.14.7 before "
+        f"the fold; 222 on all five after). RESTORE THE FOLD rather than "
+        f"moving this number — two of the three ops it reveals are PINNED "
+        f"misreads above and would fall out of the ledger, reddening the "
+        f"parametrized test. The four assertions above have already cleared "
         f"the reader, so this is a DELEGATE-FOLLOW or PROSE change, never a "
         f"reader-vocabulary change. {_reader_identity()}")
     unknown = sorted(set(_RESIDUAL_TOPIC_MISREADS) - declared)
     assert not unknown, f"pinned but not DECLARED: {unknown}"
-    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 180
+    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 181
+
+
+def test_group_e_the_folded_label_map_is_version_independent() -> None:
+    """THE THREE-VERSION CONVERGENCE ASSERTION — see _DECLARED_LABEL_MAP_DIGEST.
+
+    Two claims, and the SECOND is the one the count cannot make:
+
+    1. The comprehension fold is present and STRUCTURALLY inert on >= 3.12.
+       ``_delegate_names`` must return the plain ``co_names`` there, because
+       PEP 709 leaves no nested comprehension code object to find — measured
+       0 of 732 on 3.12.3 / 3.13.15 / 3.14.7, against 839 ``<listcomp>`` +
+       51 ``<dictcomp>`` + 9 ``<setcomp>`` on 3.10.21 / 3.11.16. This is a
+       no-op BY CONSTRUCTION on the newer interpreters, not by luck.
+    2. The whole LABEL MAP hashes to one pinned literal on every interpreter.
+       Membership convergence is guaranteed by the fold; label convergence is
+       not, and 13 ops have two or more hit-bearing delegates whose order
+       decides the credit.
+    """
+    fold_is_live = hasattr(_dp, "_delegate_names")
+    assert fold_is_live, (
+        "tools/demotion_probe.py has no _delegate_names: the comprehension "
+        "fold has been REMOVED. DECLARED will read 219 on CPython <= 3.11 and "
+        "222 on >= 3.12 from one unchanged tree, and two of the ops pinned in "
+        f"_RESIDUAL_TOPIC_MISREADS will fall out. {_reader_identity()}")
+
+    # (1) the fold is a STRUCTURAL no-op where PEP 709 already ran
+    nested_total = 0
+    for _n, fn in _registry():
+        code = getattr(fn, "__code__", None)
+        if code is None:
+            continue
+        nested_total += len(_dp._delegate_names(code)) - len(set(code.co_names))
+    if sys.version_info >= (3, 12):
+        assert nested_total == 0, (
+            f"{nested_total} comprehension-nested names were folded on CPython "
+            f"{sys.version_info.major}.{sys.version_info.minor}, where PEP 709 "
+            f"should have left none. The fold is still CORRECT — it is "
+            f"unconditional and idempotent — but its no-op-by-construction "
+            f"justification does not hold on this interpreter, so re-measure "
+            f"before quoting it. {_reader_identity()}")
+
+    # (2) the LABEL map, not the count
+    pairs = [(n, _dp.declaration_hits(fn)) for n, fn in _registry()]
+    got = _declared_label_map_digest([(n, h) for n, h in pairs if h])
+    assert got == _DECLARED_LABEL_MAP_DIGEST, (
+        f"the folded DECLARED label map hashes to {got}, not the pinned "
+        f"{_DECLARED_LABEL_MAP_DIGEST}. This is the LABEL map, so it moves "
+        f"for a reason the bare count cannot report. FIRST check whether "
+        f"len(declared) also moved: if it did, the DECLARED SET changed and "
+        f"the ledger above needs re-adjudicating; if it did NOT, a LABEL "
+        f"moved while membership held — either an edited delegate docstring, "
+        f"or the co_names ORDER residue (13 ops carry >= 2 hit-bearing "
+        f"delegates and declaration_hits breaks at the first). Name which "
+        f"delegate changed before re-pinning. {_reader_identity()}")
 
 
 @pytest.mark.parametrize("name", sorted(_RESIDUAL_TOPIC_MISREADS))
