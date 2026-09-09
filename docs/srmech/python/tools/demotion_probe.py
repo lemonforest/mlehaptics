@@ -812,6 +812,37 @@ R3_PATTERNS = (
     # silently drop every ~1e- declaration in the tree.
     ("~1e-",                r"(?<![\w~])~1e-\d"),
     ("inexact",             r"\binexact\w*"),
+    # THE STATED-BOUND stem. A fixed-precision Class-N series that names
+    # its own error in words was invisible to every earlier vocabulary:
+    # ``rational.cos`` says "until the truncation remainder is <
+    # ``2**-P``" and read [] through rc470's fourth commit. The ``\s+`` is
+    # load-bearing — the docstrings are hard-wrapped and the phrase spans
+    # the break.
+    #
+    # MEASURED on the 732-op registry, everything else held; the two wider
+    # forms are REFUSED, and NEITHER SUBSUMES THIS ONE (both miss
+    # ``rational.exp``, whose bound is worded "absolute error"):
+    #   this pattern         DECLARED 207 -> 215, +8 / -0: rational.cos,
+    #                        rational.exp and music.bessel_j_fixed on their
+    #                        OWN prose; kepler.pin_slot, rational.cexp,
+    #                        rational.complex_exp, rational.tan and
+    #                        music.bessel_zero_fixed through one delegate.
+    #                        All eight hand-read; none is exact.
+    #   ``\btruncation\b``  DECLARED 207 -> 229, +22 / -0. Fifteen of
+    #                        the 22 are outside this set and every one
+    #                        truncates a LIST, a BASIS or a FILE rather
+    #                        than a value — ``huffman``, ``hdc_truncation``,
+    #                        ``cooccurrence_topk``, ``the_one``,
+    #                        ``harmonic_oscillator_hamiltonian``.
+    #   ``\btruncat\w*``    DECLARED 207 -> 278, +71 / -0, of which 33
+    #                        ride ONE sentence: ``sha256_bytes``'s "(a
+    #                        truncated 32-bit tag)", which is a SLICE of a
+    #                        digest — 24 through it and 9 through the
+    #                        private ``_sha256_bytes`` that repeats it.
+    # The label must not end in ")" — tests/test_declared_inexactness_rc466
+    # tells an OWN hit from a DELEGATE hit by exactly that.
+    ("truncation",          r"\btruncation\s+(?:remainder|error)\b"
+                            r"|\babsolute\s+error\b"),
 )
 
 #: Cues that DENY the token following them. ``0|zero`` is a member because the
@@ -825,21 +856,34 @@ NEGATION_CUES = (r"not|never|no|none|nothing|nor|without|neither|rather\s+than|"
 #: ``hypercomplex_exp``'s "rather than falling back to a rounded angle".
 NEG_REACH = 4
 
-SENTENCE_SPLIT = r"(?<=[.!?])\s+|\n\s*\n"
-
-_R3_COMPILED = tuple((lab, re.compile(pat)) for lab, pat in R3_PATTERNS)
-#: ⚠️ THE INTERVENING WORD CLASS IS THE STOP SET. ``[-\w'’]+`` cannot match a
-#: comma, semicolon, colon, bracket, dash, backtick, quote or asterisk, so a
-#: cue's reach DIES at the first punctuation. That is what keeps
-#: ``cascade.autocorrelation``'s "JPL-clean: no recursion, no transcendentals),
-#: parity to FFT roundoff (~1e-12)" a DECLARATION — ``no`` cannot reach
-#: ``roundoff`` across the ``)`` and the ``,``. Widening the class to ``\w+`` or
-#: ``\S+`` destroys that, and adding a separate explicit stop-set merely
+#: ⚠️ THE INTERVENING WORD CLASS IS THE STOP SET, and it is a
+#: READ-DECIDING KNOB — which is why it is a member of
+#: :data:`R3_READER_SPEC`. Through the first four rc470 commits it was a
+#: LITERAL interpolated into :data:`_R3_NEG`, and therefore OUTSIDE the
+#: spec: MEASURED over the 732 own docstrings, dropping the hyphen moves
+#: 2 ops' label lists (``math.dispatch.infer`` gains
+#: ``tolerance (via _try_spectral)``; ``signal_processing.spectrogram``
+#: gains ``rounding``) and widening to ``\S+`` moves 6, with
+#: :func:`reader_signature` UNMOVED in both cases — exactly the blind
+#: spot that signature was minted to close.
+#:
+#: ``[-\w'’]+`` cannot match a comma, semicolon, colon, bracket,
+#: dash, backtick, quote or asterisk, so a cue's reach DIES at the first
+#: punctuation. That is what keeps ``cascade.autocorrelation``'s
+#: "JPL-clean: no recursion, no transcendentals), parity to FFT roundoff
+#: (~1e-12)" a DECLARATION — ``no`` cannot reach ``roundoff`` across the
+#: ``)`` and the ``,``. Widening the class to ``\w+`` or ``\S+``
+#: destroys that, and adding a separate explicit stop-set merely
 #: duplicates it. The HYPHEN must stay INSIDE the class, or
 #: ``dispatch._try_spectral``'s denial "never a float-magnitude tolerance"
 #: survives as a declaration.
-_R3_NEG = re.compile(r"\b(?:" + NEGATION_CUES + r")\b(?:\s+[-\w'’]+){0,%d}\s*$"
-                     % NEG_REACH)
+NEG_WORD_CLASS = r"[-\w'’]+"
+
+SENTENCE_SPLIT = r"(?<=[.!?])\s+|\n\s*\n"
+
+_R3_COMPILED = tuple((lab, re.compile(pat)) for lab, pat in R3_PATTERNS)
+_R3_NEG = re.compile(r"\b(?:" + NEGATION_CUES + r")\b(?:\s+" + NEG_WORD_CLASS
+                     + r"){0,%d}\s*$" % NEG_REACH)
 _R3_SPLIT = re.compile(SENTENCE_SPLIT)
 
 
@@ -878,10 +922,15 @@ def declares_inexactness(text) -> List[str]:
 #:
 #: ⚠️ The digest is over DATA, not CODE. It is blind to a change in
 #: :func:`declares_inexactness`'s BODY that leaves this tuple untouched —
-#: dropping the sentence split, say. That limit is enforced by review, and is
-#: written here rather than left for a reader to discover.
-R3_READER_SPEC = (R3_PATTERNS, NEGATION_CUES, NEG_REACH, SENTENCE_SPLIT,
-                  CASE_POLICY)
+#: re-ordering the three arms of :func:`declaration_hits`, say, or dropping
+#: the ``break`` that stops at the first surviving occurrence. (An earlier
+#: draft of this warning offered "dropping the sentence split" as its
+#: example. That example was FALSE: :data:`SENTENCE_SPLIT` IS a member, and
+#: neutering it DOES move the digest — EXECUTED. The genuinely invisible
+#: change is one no member can see.) That limit is enforced by review, and
+#: is written here rather than left for a reader to discover.
+R3_READER_SPEC = (R3_PATTERNS, NEGATION_CUES, NEG_REACH, NEG_WORD_CLASS,
+                  SENTENCE_SPLIT, CASE_POLICY)
 
 
 def reader_signature() -> str:

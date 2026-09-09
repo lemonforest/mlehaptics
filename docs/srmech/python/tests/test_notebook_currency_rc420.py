@@ -691,7 +691,8 @@ _HEADING = re.compile(r"^#{2,6} ")
 #: boundary also does the markdown work for free -- ``*`` is a non-word
 #: character, so ``\bdead\b`` matches ``**DEAD**`` with NO preprocessing.
 #:
-#: TWO PROPOSALS WERE REFUSED, and the refusals are the measured part:
+#: THREE PROPOSALS WERE REFUSED, and the refusals are the measured part
+#: (the header said TWO above three numbered items until this commit):
 #:   1. MARKUP NORMALISATION (stripping ``*_~`` before matching) is REFUSED:
 #:      measured over the whole notebook, the number of prose lines whose
 #:      verdict changes under normalisation is ZERO. Machinery that cannot
@@ -751,7 +752,19 @@ _DOTTED_TOK = re.compile(r"^srmech(?:\.[A-Za-z_][A-Za-z0-9_]*)+$")
 #: composition engine *"lives at `srmech.amsc.compose`"* — present tense, a
 #: live-architecture claim, and dead since ADR-0010. §3.29.1 already carried
 #: the identical correction; nothing had ever compared the two. DOWN ONLY.
-_PROSE_DEAD_PATH_CEIL = 10
+#:
+#: **10 -> 9 (rc470).** The constant was minted at 10 over a residual of
+#: 9 and had never moved: ``git log -S "_PROSE_DEAD_PATH_CEIL = "`` names
+#: exactly one commit, rc420's. One unit of slack is not cosmetic here —
+#: it is a ratchet that lets one genuine residual row appear for free,
+#: and MEASURED it did exactly that: rewording either restored sentence
+#: away takes the residual to 10 and this ceiling stays GREEN. rc470 is
+#: the rc that repaired this ruler and re-measured its corpus, so it is
+#: the rc that owes the arithmetic. The residual is 9 at both rc469 and
+#: rc470, on the SAME nine lines (763 · 771 · 838 · 1729 · 5443 · 5832 ·
+#: 6408 · 6428 · 6440), so this lowering drains nothing and admits
+#: nothing; it removes the free row.
+_PROSE_DEAD_PATH_CEIL = 9
 
 
 def _prose_lines(text: str) -> "list[tuple[int, str]]":
@@ -966,17 +979,28 @@ def test_the_two_restored_sentences_are_read_by_the_marker() -> None:
     the residual is 11 against a ceiling of 10 — RED. With the rc470 marker it
     is 9. That is the ONLY measurement in which this repair moves a number, and
     it is what makes the repair load-bearing rather than cosmetic.
+
+    ⚠️ **WHICH ROW ISOLATES WHAT, since the two are not peers.** Row 2
+    (``no such module``) is the only one that pins the VOCABULARY change:
+    EXECUTED, the rc469 marker does not match it and the rc470 marker
+    does. Row 1's joined one-line form is matched by the rc469 marker
+    TOO, through ``ModuleNotFoundError`` — its rc469 eviction was a
+    LINE-SCOPE effect (:func:`_prose_lines` reads one line at a time and
+    that token sits on the NEXT notebook line), which the join here
+    erases. Row 1 therefore pins the VERBATIM-IN-TEXT half only. Both
+    halves are load-bearing and both fire under mutation; saying which is
+    which is what stops a later reader crediting the join.
     """
     text = _text()
     for verbatim in (
             "is **DEAD** at\n0.9.0rc469 (EXECUTED: `ModuleNotFoundError`)",
             "| `srmech.cosmos` | — no such module; the catalogs are "
             "`srmech.amsc.attested.*` |"):
-        assert verbatim.replace("\\n", "\n") in text, (
+        assert verbatim in text, (
             f"the restored sentence is gone from the notebook: {verbatim!r}. "
             f"rc470 restored it BECAUSE the reader was repaired; if the prose "
             f"is being reworded again, the reader is the thing to fix.")
-        one_line = verbatim.replace("\\n", " ").replace("\n", " ")
+        one_line = verbatim.replace("\n", " ")
         assert _MARKED.search(one_line), (
             f"_MARKED no longer reads the restored sentence {one_line!r}")
 

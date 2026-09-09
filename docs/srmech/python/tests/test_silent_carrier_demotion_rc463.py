@@ -1029,20 +1029,36 @@ def test_the_staleness_guard_is_not_vacuous() -> None:
     assert rdigest(rbase) == _dp.reader_signature(), (
         "reader_signature() is not the digest of R3_READER_SPEC; the guard "
         "and its own witness have come apart")
-    pats, cues, reach, split, case = rbase
+    pats, cues, reach, wordclass, split, case = rbase
     assert rdigest((pats + (("planted", r"\bplanted\b"),), cues, reach,
-                    split, case)) != rdigest(rbase), \
+                    wordclass, split, case)) != rdigest(rbase), \
         "an ADDED PATTERN does not move the reader signature"
-    assert rdigest((pats, cues, reach + 1, split, case)) != rdigest(rbase), \
+    assert rdigest((pats, cues, reach + 1, wordclass, split, case)) \
+        != rdigest(rbase), \
         "a changed NEG_REACH does not move the reader signature"
-    assert rdigest((pats, cues, reach, split, "casefold")) != rdigest(rbase), \
+    assert rdigest((pats, cues, reach, wordclass, split, "casefold")) \
+        != rdigest(rbase), \
         "a changed CASE_POLICY does not move the reader signature"
-    assert rdigest((pats, cues + r"|hardly", reach, split, case)) \
+    assert rdigest((pats, cues + r"|hardly", reach, wordclass, split, case)) \
         != rdigest(rbase), \
         "a changed NEGATION_CUES does not move the reader signature"
-    assert rdigest((pats, cues, reach, split + r"|;\s", case)) \
+    assert rdigest((pats, cues, reach, wordclass, split + r"|;\s", case)) \
         != rdigest(rbase), \
         "a changed SENTENCE_SPLIT does not move the reader signature"
+    # THE SIXTH MEMBER, and the reason it is one. Through rc470's fourth
+    # commit the intervening word class was a LITERAL inside
+    # ``_R3_NEG``, so mutating it moved 2 ops' label lists (hyphen
+    # dropped) or 6 (widened to ``\S+``) with this digest UNMOVED —
+    # the exact blind spot reader_signature exists to close, reproduced
+    # inside the guard itself. EXECUTED, both halves:
+    assert rdigest((pats, cues, reach, r"[\w'’]+", split, case)) \
+        != rdigest(rbase), \
+        "a changed NEG_WORD_CLASS does not move the reader signature"
+    assert wordclass == _dp.NEG_WORD_CLASS and _dp.NEG_WORD_CLASS in \
+        _dp._R3_NEG.pattern, (
+            "NEG_WORD_CLASS is in the spec tuple but _R3_NEG was not "
+            "built from it — the digest would move while the READER did "
+            "not, which is worse than the hole it replaced")
 
     # ⚠️ The digest is over DATA, not CODE. A change to
     # `declares_inexactness`'s BODY that leaves the spec untouched is INVISIBLE

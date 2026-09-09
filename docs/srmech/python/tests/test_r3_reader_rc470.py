@@ -26,8 +26,12 @@ C. **SUBSTRING traps** — real in-tree text where an R3 token occurs INSIDE an
 D. **The VOCABULARY META-TEST** — every pattern must earn its place on live
    prose. This is the discipline rc470 introduces, and the one most likely to
    go quietly vacuous later; see its own docstring.
-E. **The FOUR DISCLOSED RESIDUAL FALSE POSITIVES** — pinned BY NAME, because
-   none is refusable by any lexical rule. Good news, action required.
+E. **THE TOPICAL MISREADS** — every op that reads DECLARED and, on a
+   hand-read of its whole contract surface, should not: pinned BY NAME,
+   with a reason and a CLASS, because none is refusable by any lexical
+   rule. Good news, action required. rc470's fourth commit disclosed
+   FOUR and had read only the fifteen ops its own change moved; the
+   ledger below is the whole DECLARED set, hand-read.
 
 ⚠️ **THE TREE'S ERROR-DIRECTION NAMES, which are the opposite of the intuitive
 ones.** The census hunts DEFECTS, so a "positive" is a finding. A real
@@ -104,6 +108,30 @@ def test_group_a_morphology_the_old_reader_could_not_spell() -> None:
     assert own, "rational.sqrt reads as undeclared again"
 
 
+def test_group_a_a_stated_bound_in_words_is_a_declaration() -> None:
+    """``rational.cos`` — the op the task brief named, verbatim.
+
+    A fixed-precision Class-N series states its error in WORDS, and every
+    vocabulary through rc470's fourth commit was blind to it: ``cos``,
+    ``sin``, ``exp``, ``tan``, ``cexp``, ``complex_exp``,
+    ``kepler.pin_slot`` and both ``bessel`` ops read ``[]``. The ``\\s+``
+    in the pattern is load-bearing — the docstrings are hard-wrapped and
+    the phrase spans the break, which is why the sentence below carries a
+    real newline.
+    """
+    assert _dp.declares_inexactness(
+        "drive ``cos_series_truncate`` / ``sin_series_truncate`` until\n"
+        "the truncation remainder is < ``2**-P``") == ["truncation"]
+    assert _dp.declares_inexactness(
+        "``exp_series_truncate`` sized so the ``2^n``-scaled absolute\n"
+        "error is < ``2**-P``") == ["truncation"]
+    for name in ("srmech.math.rational.cos", "srmech.math.rational.sin",
+                 "srmech.math.rational.exp", "srmech.music.bessel_j_fixed"):
+        own = _dp.declares_inexactness(
+            inspect.getdoc(resolve_dotted_callable(name)))
+        assert own == ["truncation"], (name, own)
+
+
 def test_group_a_the_cue_dies_at_punctuation() -> None:
     """THE SCOPE CONTROL, and the reason the word class is the stop set.
 
@@ -159,6 +187,27 @@ def test_group_c_a_substring_is_not_a_word(text, why) -> None:
     assert _dp.declares_inexactness(text) == [], why
 
 
+def test_group_c_a_truncated_digest_is_not_a_truncation_bound() -> None:
+    """THE TRAP that decided the truncation pattern's width.
+
+    ``amsc.format.sha256_bytes`` says "``int(h[:8], 16)`` (a truncated
+    32-bit tag)". Under ``\\btruncat\\w*`` that ONE sentence declares 33 ops
+    through the delegate follow (24 via ``sha256_bytes``, 9 via the
+    private ``_sha256_bytes``), and DECLARED moves 207 -> 278. Under
+    ``\\btruncation\\b`` it moves 207 -> 229 and picks up ``huffman``,
+    ``hdc_truncation`` and ``harmonic_oscillator_hamiltonian``, which
+    truncate a LIST or a BASIS. Both were refused; this is the row that
+    goes red if a later rc "regularises" the stem.
+    """
+    assert _dp.declares_inexactness(
+        "``int(h[:8], 16)`` (a truncated 32-bit tag), NOT the digest") == []
+    assert _dp.declares_inexactness(
+        "the huffman code truncation table") == []
+    own = _dp.declares_inexactness(inspect.getdoc(
+        resolve_dotted_callable("srmech.amsc.format.sha256_bytes")))
+    assert own == [], own
+
+
 def test_group_c_the_tilde_pattern_must_not_take_a_word_boundary() -> None:
     """EXECUTED, because this one is invisible by inspection.
 
@@ -189,13 +238,24 @@ def test_group_d_every_pattern_earns_its_place_on_live_prose() -> None:
     is a gate that cries wolf, not a ratchet. They are a measurement for the
     CHANGELOG; the rule asserted here is only that none of the ten is
     decoration. MEASURED at 0.9.0rc470 in exactly this population, after
-    negation: ulp 36, round-off 91, rounding 37, tolerance 23, float64 56,
-    approximation 13, terminal float lift 8, accurate to 64, ~1e- 17, inexact 4.
+    negation: ulp 37, round-off 92, rounding 38, tolerance 23, float64 57,
+    approximation 13, terminal float lift 8, accurate to 65, ~1e- 17,
+    inexact 4, truncation 4.
     *(For contrast, and this is the trap: through the full ``declaration_hits``
-    the same sweep gives ulp 43, round-off 108, rounding 38, tolerance 28,
-    float64 86, approximation 17, terminal float lift 8, accurate to 71,
-    ~1e- 22, inexact 5. Numbers of that shape mean the WRONG POPULATION was
-    measured, not a broken reader.)*
+    the same sweep gives ulp 44, round-off 109, rounding 39, tolerance 28,
+    float64 87, approximation 17, terminal float lift 8, accurate to 72,
+    ~1e- 22, inexact 5, truncation 12. Numbers of that shape mean the
+    WRONG POPULATION was measured, not a broken reader.)*
+
+    ⚠️ **These figures were WRONG when they were first written, and the
+    way they were wrong is the whole case for the printed-not-remembered
+    rule.** rc470's fourth commit shipped "ulp 36 … accurate to 64" — a
+    sweep taken BEFORE the same commit gave ``cascade.phase_coherent_peak``
+    its ACCURACY paragraph, which adds exactly one to those five labels.
+    EXECUTED both ways: strip that paragraph in process and the sweep
+    returns the shipped numbers; leave it and it returns these. The counts
+    are deliberately unpinned, so nothing went red — which is why the
+    remedy is a rule about writing them, not a new assertion.
 
     ⚠️ **The likeliest way this test goes quietly vacuous**: a future rc deletes
     the last op carrying "terminal float lift", and the tempting fix is deleting
@@ -218,9 +278,18 @@ def test_group_d_every_pattern_earns_its_place_on_live_prose() -> None:
 def test_group_d_the_numeral_cue_is_load_bearing() -> None:
     """The ONE-TOKEN CONTROL for ``NEGATION_CUES``, executed rather than told.
 
-    With ``0|zero`` removed and everything else held, DECLARED moves 207 -> 209
-    at rc470, and the two ops let through both say "0 inexact" — an honest
-    ZERO-COUNT, which is the opposite of a declaration.
+    With ``0|zero`` removed and everything else held, DECLARED moves
+    **219 -> 221** on the repaired reader, and the two ops let through both
+    say "0 inexact" — an honest ZERO-COUNT, which is the opposite of a
+    declaration. rc470's fourth commit measured 207 -> 209 on the reader it
+    shipped, and a comment in ``tools/demotion_probe.py`` quoted a third
+    pair, 206 -> 208, that reproduced on no tree at all. The +2 is the
+    invariant; the BASELINE moves with every reader change, so it is
+    asserted as a delta and a NAMED SET below, never as a remembered pair.
+
+    The mutated regex is rebuilt from :data:`demotion_probe.NEG_WORD_CLASS`
+    rather than from a literal, so this control cannot silently diverge
+    from the reader it is holding everything-else-equal against.
     """
     import re
     fns = _registry()
@@ -231,8 +300,8 @@ def test_group_d_the_numeral_cue_is_load_bearing() -> None:
         _dp.NEGATION_CUES = saved_cues.replace("|0|zero", "")
         assert _dp.NEGATION_CUES != saved_cues, "the cue spelling moved"
         _dp._R3_NEG = re.compile(
-            r"\b(?:" + _dp.NEGATION_CUES + r")\b(?:\s+[-\w'’]+){0,%d}\s*$"
-            % _dp.NEG_REACH)
+            r"\b(?:" + _dp.NEGATION_CUES + r")\b(?:\s+"
+            + _dp.NEG_WORD_CLASS + r"){0,%d}\s*$" % _dp.NEG_REACH)
         after = {n for n, f in fns if _dp.declaration_hits(f)}
     finally:
         _dp.NEGATION_CUES, _dp._R3_NEG = saved_cues, saved_neg
@@ -245,43 +314,282 @@ def test_group_d_the_numeral_cue_is_load_bearing() -> None:
     assert {n for n, f in fns if _dp.declaration_hits(f)} == before
 
 
-# ── E — the FOUR DISCLOSED RESIDUAL FALSE POSITIVES ──────────────────────────
+# ── E — the TOPICAL MISREAD LEDGER, over the WHOLE DECLARED set ──────────────
 
-#: Each reads as DECLARED and, in the tree's naming, should not: the prose that
-#: fires is about something OTHER than this op's own numeric accuracy. NONE is
-#: refusable by any lexical rule — they are pinned, not fixed.
-_RESIDUAL_FALSE_POSITIVES = {
-    "srmech.rbs_lm.encode_aboutness":
-        "the delegate _aboutness_tokens says 'the property it was "
-        "approximating', which is about a REGEX SPELLING, not a number",
-    "srmech.introspect.op_provenance.lossy_projection_record":
-        "'a VALUE-INEXACT op (a float readout / a series truncation)' "
-        "describes the op this record is ABOUT, not this op",
-    "srmech.biology.genome.modulator_constraint":
-        "'an over-approximation' is LOGICAL soundness, not numeric error",
-    "srmech.biology.genome.modulator_constraint_satisfies":
-        "'a sound over-approximation' is LOGICAL soundness — arguably a "
-        "category R3 should not import at all",
+#: **Every op that reads DECLARED and, hand-read, should not.**
+#:
+#: THE CRITERION is the honesty ladder's, verbatim from
+#: ``tests/test_silent_carrier_demotion_rc463.py``: *given ONLY the signature
+#: and the docstring, and no knowledge of the implementation, can the caller
+#: predict that the returned value is not the exact one?* A row belongs here
+#: when BOTH halves hold:
+#:
+#:   1. EVERY surviving R3 occurrence is off-topic — it is not a statement
+#:      about THIS op's own numeric accuracy; AND
+#:   2. no OTHER sentence in the docstring warns either, R3-token-bearing or
+#:      not. Where (1) holds and (2) fails the verdict is substantively RIGHT
+#:      and only the label points at the wrong prose, so the op is NOT pinned;
+#:      those are named in ``tools/demotion_probe.py`` disclosure 10 instead
+#:      (``rational.relative_writhe``, ``coupling.fold_spectrum``,
+#:      ``triality.lean_isa_seventh_primitive``, and both
+#:      ``*_exp_series_truncate``).
+#:
+#: ⚠️ **THE NAME.** rc470's fourth commit called these four rows "residual
+#: FALSE POSITIVES", which contradicts this file's own error-direction ⚠️
+#: above: by that convention an op read as DECLARED when it did not declare is
+#: a FALSE **NEGATIVE** (it clears a defect that is there); a FALSE POSITIVE is
+#: the opposite direction. Rather than pick a polarity word and be wrong for
+#: half the readers, the ledger is named for WHAT IT IS — the reader matched a
+#: token whose TOPIC is something other than this op's accuracy.
+#:
+#: ⚠️ **NONE of these is refusable by any lexical rule, and that is the
+#: finding, not an excuse.** The reader is TOPIC-BLIND by construction. The
+#: instrument is therefore the reader PLUS this hand-maintained ledger, and a
+#: NEW false reading created by NEW prose is invisible until a human reads it
+#: — the parametrized test below fires only when a PINNED op stops reading
+#: DECLARED, never when a new one starts. Any rc that touches docstrings
+#: should re-run the per-occurrence dump over the DECLARED set and diff it
+#: against this dict.
+#:
+#: MEASURED at 0.9.0rc470: 219 DECLARED, 41 pinned here, **178 substantive**.
+#: The 41 are MOSTLY not a rc470 regression: **35** of them read
+#: DECLARED under the rc469 reader too — MEASURED by re-implementing
+#: that substring reader from ``git show main:tools/demotion_probe``
+#: and checking it reproduces the published **202** on this tree
+#: before asking it anything. The **six** the widening added are
+#: exactly the six topical misreads among the fifteen lexical gains:
+#: ``lll_reduce``, ``continued_fraction_convergents``,
+#: ``lossy_projection_record``, both ``modulator_constraint*`` and
+#: ``encode_aboutness``. The truncation stem and ``rational.sin``'s
+#: own bound added NONE — all twelve of those flips are genuine.
+_RESIDUAL_TOPIC_MISREADS = {
+    # ── EXACTNESS-CLAIM: the sentence that fires ASSERTS exactness ──────────
+    "srmech.biology.coupling.signed_sum_squared": (
+        "EXACTNESS-CLAIM", "'the small non-negative integer scores are exact "
+        "as float64 doubles' — the token is inside the claim that they are "
+        "exact"),
+    "srmech.biology.genome.genome_content": (
+        "EXACTNESS-CLAIM", "delegate _content_turns: 'n_chromosomes + "
+        "n_content is exact … an approximate relation would be useless' — a "
+        "COUNTERFACTUAL inside an exactness claim; the op returns an int"),
+    "srmech.cascade.matrix_cascades.lll_reduce": (
+        "EXACTNESS-CLAIM", "three occurrences of 'rounding', every one of "
+        "them EXACT nearest-integer rounding of μ, on an op whose first "
+        "sentence says 'in EXACT rational arithmetic (no float anywhere)'"),
+    "srmech.introspect.op_provenance.op_verdict": (
+        "EXACTNESS-CLAIM", "'sound even where the float readouts diverge in "
+        "the last ulp' — a ROBUSTNESS claim; the op returns 'EQUAL' or "
+        "'UNKNOWN'"),
+    "srmech.physics.qm.so9.spin9_spinor_generators": (
+        "EXACTNESS-CLAIM", "'entries are dyadic ({0, ±½, ±1}), hence "
+        "bit-exact in float64'"),
+
+    # ── OTHER-OP: the sentence is about a DIFFERENT operation ───────────────
+    "srmech.cascade.matrix_cascades.lstsq_exact": (
+        "OTHER-OP", "'the float lstsq is honest about what it is (it declares "
+        "\"to round-off\")' — about :func:`lstsq`, on an op that is exact "
+        "over ℚ"),
+    "srmech.cascade.matrix_cascades.singular_values_exact": (
+        "OTHER-OP", "'the float svd … declares itself accurate \"to "
+        "round-off\"' — about :func:`svd`"),
+    "srmech.math.rational.continued_fraction_convergents": (
+        "OTHER-OP", "'the BEST rational approximation to the limit value' is "
+        "Hardy & Wright Thm 154, a theorem about the CONVERGENTS; the op is "
+        "an exact bigint recurrence"),
+    "srmech.cascade.octonion_frame_read": (
+        "OTHER-OP", "'~1e-15 Sp(1)-invariance' measures "
+        ":func:`octonion_laplacian`'s spectrum; this op is 'exact end to end "
+        "— no float, no epsilon'"),
+    "srmech.music.harmonics.classify_chirality_harmonic": (
+        "OTHER-OP", "delegate to_q: 'to approximate to a small denominator "
+        "use best_rational instead' — advice about ANOTHER op; this one "
+        "returns 1, 2 or 3"),
+    "srmech.introspect.op_provenance.reproject": (
+        "OTHER-OP", "delegate _canon: 'honestly inexact leaves' is about the "
+        "RECORD's float-leaf tagging"),
+    "srmech.introspect.op_provenance.lossy_projection_record": (
+        "OTHER-OP", "'a VALUE-INEXACT op (a float readout / a series "
+        "truncation)' describes the op this record is ABOUT. ⚠️ Fixing that "
+        "sentence does NOT turn this row red: the delegate arm then reads "
+        "_canon's 'honestly INEXACT leaves' instead — EXECUTED"),
+    "srmech.introspect.op_provenance.carry": (
+        "OTHER-OP", "'params (e.g. num_terms, tolerance)' and 'None for "
+        "unnamed/inexact targets' are both about the CARRIED op"),
+
+    # ── OTHER-CARRIER: the sentence names the EXACT carrier's float peer ────
+    "srmech.math.qmat.qmat_rank": (
+        "OTHER-CARRIER", "QMat: 'the bigint exact peer of the float64 Mat' / "
+        "'collapses to a float64 mat ONLY via to_mat'"),
+    "srmech.math.qmat.qmat_det": (
+        "OTHER-CARRIER", "QMat, as above; the op returns a Q, never a float"),
+    "srmech.math.qmat.qmat_inverse": (
+        "OTHER-CARRIER", "QMat, as above; raises rather than returning a "
+        "rounded pseudo-inverse"),
+    "srmech.math.qmat.qmat_rref": ("OTHER-CARRIER", "QMat, as above"),
+    "srmech.math.qmat.qmat_solve": ("OTHER-CARRIER", "QMat, as above"),
+    "srmech.math.qmat.qmat_nullspace": ("OTHER-CARRIER", "QMat, as above"),
+    "srmech.math.groups.intertwiner_space": (
+        "OTHER-CARRIER", "QMat, as above; the op returns an EXACT basis"),
+    "srmech.chemistry.deficiency": (
+        "OTHER-CARRIER", "QMat, as above; the Feinberg δ is an integer"),
+    "srmech.apokatastasis.gosper.gosper": (
+        "OTHER-CARRIER", "Poly: 'collapses to a list of float64 ONLY via "
+        "to_floats' — the word ONLY makes it an exactness claim"),
+    "srmech.apokatastasis.wz_certificate.wz_certificate": (
+        "OTHER-CARRIER", "Poly, as above"),
+    "srmech.math.poly.poly_from_coeffs": (
+        "OTHER-CARRIER", "Poly, as above; a non_compute BUILDER over ints"),
+    "srmech.apokatastasis.zeilberger.bipoly_from_coeffs": (
+        "OTHER-CARRIER", "Poly, as above"),
+    "srmech.math.tripoly.tripoly_from_coeffs": (
+        "OTHER-CARRIER", "Poly, as above"),
+    "srmech.math.carrier_ladder.poly_project": (
+        "OTHER-CARRIER", "Poly, as above"),
+
+    # ── DISPATCH-TYPE: the sentence is a native-ABI TYPE list ───────────────
+    "srmech.cascade.chiral_flip": (
+        "DISPATCH-TYPE", "'when HAS_NATIVE is True and seq is a homogeneous "
+        "int64 / float64 list' — a C-ABI precondition; the op returns "
+        "seq[::-1], type preserved"),
+    "srmech.cascade.chiral_dual": (
+        "DISPATCH-TYPE", "the srmech_cascade_chiral_dual_f64 precondition"),
+    "srmech.cascade.reversal_law_census": (
+        "DISPATCH-TYPE", "delegate chiral_flip, as above"),
+    "srmech.cascade.anti_automorphism_witnesses": (
+        "DISPATCH-TYPE", "delegate chiral_flip, as above"),
+    "srmech.cascade.cdr_clean": (
+        "DISPATCH-TYPE", "delegate chiral_flip, as above"),
+    "srmech.cascade.parallel_sector_dispatch": (
+        "DISPATCH-TYPE", "delegate _chiral_dual, as above"),
+
+    # ── SERIALISATION: the sentence is a WIRE / BYTE format ─────────────────
+    "srmech.spectral.predict": (
+        "SERIALISATION", "delegate _complex128_bytes: 'interleaved "
+        "native-endian (re, im) float64 pairs' is a PACKING format for the "
+        "content hash. The op IS float — and nothing in its own docstring "
+        "says so, which is why this row is a misread in both directions"),
+    "srmech.physics.qm.so9.spin8_in_spin9_branching": (
+        "SERIALISATION", "delegate _branching_attestation: 'a Class A "
+        "content-address over the γ + σ float64 bytes'; the op's own prose "
+        "says 'bit-exact' six times"),
+
+    # ── OTHER-DOMAIN: a non-numeric use of an R3 word ───────────────────────
+    "srmech.math.hdc.klein4_holographic_encode": (
+        "OTHER-DOMAIN", "'3/4 known-erasure tolerance' is CODING theory; the "
+        "op returns a uint8 store"),
+    "srmech.bus.decode_splice": (
+        "OTHER-DOMAIN", "'±1 for clock-skew tolerance' is a TIME window; the "
+        "op returns plaintext bytes"),
+
+    # ── HISTORY: the sentence describes a SUPERSEDED implementation ─────────
+    "srmech.cascade.matrix_cascades.eig_exact": (
+        "HISTORY", "'through the rc466 stage-3 head (b) and (c) were float "
+        "read-outs with absolute tolerances' — the route that was REPLACED"),
+
+    # ── LOGICAL-SOUNDNESS: 'approximation' as a LATTICE word ────────────────
+    "srmech.biology.genome.modulator_constraint": (
+        "LOGICAL-SOUNDNESS", "'an over-approximation' is soundness, not "
+        "numeric error"),
+    "srmech.biology.genome.modulator_constraint_satisfies": (
+        "LOGICAL-SOUNDNESS", "'a sound over-approximation' — arguably a "
+        "category R3 should not import at all"),
+
+    # ── REGEX: the sentence is about a PATTERN SPELLING ─────────────────────
+    "srmech.rbs_lm.encode_aboutness": (
+        "REGEX", "delegate _aboutness_tokens: 'the property it was "
+        "approximating' is about a [a-z][0-9] SPELLING"),
+}
+
+#: The classes above, so a reader can see the shape of the residual without
+#: counting the dict by hand. MEASURED, and asserted below.
+_MISREAD_CLASS_COUNTS = {
+    "EXACTNESS-CLAIM": 5,
+    "OTHER-OP": 8,
+    "OTHER-CARRIER": 14,
+    "DISPATCH-TYPE": 6,
+    "SERIALISATION": 2,
+    "OTHER-DOMAIN": 2,
+    "HISTORY": 1,
+    "LOGICAL-SOUNDNESS": 2,
+    "REGEX": 1,
 }
 
 
-@pytest.mark.parametrize("name", sorted(_RESIDUAL_FALSE_POSITIVES))
-def test_group_e_the_disclosed_residuals_still_read_as_declared(name) -> None:
-    """GOOD NEWS, ACTION REQUIRED — do not simply delete this pin.
+def test_group_e_the_ledger_is_internally_consistent() -> None:
+    """The ledger's own arithmetic, so the three quoted counts cannot drift.
+
+    ``lexical DECLARED`` − ``pinned`` = ``substantive``, and every class count
+    adds up. This is the assertion that makes the CHANGELOG's three numbers
+    regenerable rather than remembered.
+    """
+    counts = {}
+    for cls, _why in _RESIDUAL_TOPIC_MISREADS.values():
+        counts[cls] = counts.get(cls, 0) + 1
+    assert counts == _MISREAD_CLASS_COUNTS, counts
+    assert sum(_MISREAD_CLASS_COUNTS.values()) == len(
+        _RESIDUAL_TOPIC_MISREADS) == 41
+
+    declared = {n for n, fn in _registry() if _dp.declaration_hits(fn)}
+    assert len(declared) == 219, (
+        f"lexical DECLARED is {len(declared)}, not 219. Every count in this "
+        f"file, in tools/demotion_probe.py's disclosures and in the rc470 "
+        f"CHANGELOG entry is quoted against that figure — re-run the "
+        f"per-occurrence dump over the DECLARED set, re-adjudicate the "
+        f"difference, and move all three numbers together.")
+    unknown = sorted(set(_RESIDUAL_TOPIC_MISREADS) - declared)
+    assert not unknown, f"pinned but not DECLARED: {unknown}"
+    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 178
+
+
+@pytest.mark.parametrize("name", sorted(_RESIDUAL_TOPIC_MISREADS))
+def test_group_e_the_pinned_misreads_still_read_as_declared(name) -> None:
+    """GOOD NEWS, ACTION REQUIRED — do not simply delete a row.
 
     If one of these goes RED the op was renamed, its prose was fixed, or the
     reader got smarter. All three are improvements, and all three require
-    UPDATING THE DISCLOSURE in ``tools/demotion_probe.py`` and the rc470
-    CHANGELOG entry, not deleting the row. A later rc "fixing" these with a
-    cleverer regex would be optimising against four hand-picked sentences.
+    UPDATING THE LEDGER, disclosure 9 in ``tools/demotion_probe.py`` and the
+    rc470 CHANGELOG entry in the same change — not deleting the row. A later
+    rc "fixing" these with a cleverer regex would be optimising against
+    forty-one hand-picked sentences.
     """
     fn = resolve_dotted_callable(name)
+    cls, why = _RESIDUAL_TOPIC_MISREADS[name]
     assert _dp.declaration_hits(fn), (
         f"{name} no longer reads as declared. That is GOOD NEWS AND ACTION "
-        f"REQUIRED: this row is a disclosed residual false positive "
-        f"({_RESIDUAL_FALSE_POSITIVES[name]}). Update disclosure 9 in "
-        f"tools/demotion_probe.py and the rc470 CHANGELOG entry in the same "
-        f"change — do not just delete this row.")
+        f"REQUIRED: this row is a pinned TOPICAL MISREAD [{cls}] ({why}). "
+        f"Update disclosure 9 in tools/demotion_probe.py and the rc470 "
+        f"CHANGELOG entry in the same change — do not just delete this row.")
+
+
+def test_group_e_no_pinned_misread_holds_a_demotion_row_at_zero() -> None:
+    """THE ONE WAY A MISREAD COULD BE LOAD-BEARING, refused by measurement.
+
+    ``EXPECTED_UNDECLARED_N`` is a strict zero over DEMOTED rows that publish
+    no R3 declaration. If a pinned misread carried a DEMOTED row, that zero
+    would be held up by a reading this file has just called false — the exact
+    shape ``phase_coherent_peak`` had through rc469, where a DELEGATE'S DENIAL
+    was the whole declaration on a genuinely demoting op.
+
+    MEASURED over the committed two-cell census: none of the 41 does.
+    """
+    import json
+    from pathlib import Path
+    cen = Path(__file__).resolve().parent / "demotion_census.ndjson"
+    rows = [json.loads(line) for line in
+            cen.read_text(encoding="utf-8").splitlines() if line.strip()]
+    data = [r for r in rows if "op" in r]
+    assert data, "the census manifest carried no data rows"
+    holding = sorted({
+        f"{r['op']}::{r['param']}" for r in data
+        if r["op"] in _RESIDUAL_TOPIC_MISREADS
+        for cell in ("native", "pure")
+        if (r.get(cell) or {}).get("verdict") == "DEMOTED"})
+    assert not holding, (
+        f"a pinned topical misread carries a DEMOTED census row: {holding}. "
+        f"EXPECTED_UNDECLARED_N's strict zero would then be held up by a "
+        f"reading this file calls false — write the op a real ACCURACY "
+        f"paragraph (the rc466 D1 shape) rather than leaving the pin.")
+
 
 
 # ── the op rc470 re-declared, D3-style ───────────────────────────────────────
