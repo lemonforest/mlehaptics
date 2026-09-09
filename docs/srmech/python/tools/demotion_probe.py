@@ -214,35 +214,115 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     **11 op-level readings** across the 732-op registry and, inside the census
     itself, exactly **one** DEMOTED op (``cascade.phase_coherent_peak``, whose
     entire declaration was a delegate sentence denying a tolerance; rc470 gave
-    it a true accuracy paragraph in the same change). Across the 732 own
-    docstrings the reader refuses **45 occurrences**.
+    it a true accuracy paragraph in the same change).
+
+    ACROSS THE 732 OWN DOCSTRINGS THE READER REFUSES **46 OCCURRENCES**, and
+    the rule that produces that number is stated here because the number does
+    not survive without it: ONE count per ``(op, label, sentence, match)``,
+    over each registered op's own ``inspect.getdoc``, splitting on the shipped
+    :data:`SENTENCE_SPLIT`. The same population gives **43** distinct
+    ``(op, label)`` pairs and **39** ops carrying at least one refusal, and 46
+    again with no sentence split at all. rc470's fourth commit wrote **45**
+    here and in its CHANGELOG entry, and 45 reproduces under none of those
+    four enumerations — it was carried from memory rather than printed, which
+    is the whole case for the rule that no figure enters shipped prose unless
+    the run that writes it printed the figure with its regenerating command.
 
     THREE RESIDUALS SURVIVE, each disclosed with its MEASURED live count rather
-    than engineered against:
+    than engineered against. Each states its DETECTOR, for the same reason:
 
     * **LOOK-BEHIND ONLY.** A denial placed AFTER the token — *"a tolerance is
-      never consulted"* — is invisible. The shape OCCURS: 6 times, on 4 ops
-      (``laplacian.recover_check``, ``laplacian.propagate_sparse``, and both
-      twiddles). On NONE is it the sole reason for the reading — each of the
-      four is declared by other sentences too, EXECUTED by deleting every
-      sentence carrying the shape and re-reading. **0 live instances.**
-      One-directional by construction.
-    * **BOUNDING QUANTIFIER.** *"no more than 2 ULP"* is refused as if it were a
-      denial. **0 occurrences** of that shape in the 732 registry docstrings —
-      the reader's actual population — and 2 in the wider python subtree, both
-      in test prose (``test_carrier_ceiling_rc343.py``,
-      ``test_mat_eigvals_balancing_rc29.py``), NEITHER before an R3 token.
-      **0 live instances** on either population.
+      never consulted"* — is invisible. DETECTOR: a surviving occurrence with
+      ``(is|are|was|were)\s+(never|not)`` or ``never\s+(consulted|used|
+      applied|taken)`` inside the 60 characters FOLLOWING it. The shape
+      OCCURS **6 times on 5 ops** (``matrix_cascades.einsum``,
+      ``laplacian.propagate_sparse``, ``rational.sqrt``, and both twiddles).
+      On NONE is it the sole reason for the reading — EXECUTED by deleting
+      every sentence carrying the shape and re-reading, all five stay
+      declared. **0 live instances.** One-directional by construction.
+      *(rc470's fourth commit reported 6 on 4, naming ``recover_check``
+      instead of ``einsum`` and ``sqrt``, under a detector it did not state.
+      The occurrence count and the live count agree; the op SET does not, and
+      an unstated detector is why.)*
+    * **BOUNDING QUANTIFIER.** *"no more than 2 ULP"* is refused as if it were
+      a denial. DETECTOR: ``no (more|worse|greater|larger) than``. **0
+      occurrences** in the 732 registry docstrings — the reader's actual
+      population — and **7** across ``srmech/`` + ``tests/`` + ``tools/``,
+      NONE of them before an R3 token: two in test prose
+      (``test_carrier_ceiling_rc343.py``, ``test_mat_eigvals_balancing_rc29``),
+      four in generated tool-doc tables, and one in this very paragraph.
+      **0 live instances** on either population. *(rc470's fourth commit said
+      2 in the wider subtree; that is the count for the bare ``no more than``
+      spelling, and the bullet quoted the wider family.)*
     * **CONTRASTIVE CLAUSE.** An unrelated earlier cue inside the reach of a
       later true declaration — *"not exact but accurate to round-off"* refuses
-      on ``not`` at two intervening words. Of the 45 refused occurrences, **0**
+      on ``not`` at two intervening words. Of the 46 refused occurrences, **0**
       carry a contrastive conjunction
       (``but|yet|though|although|except|whereas|however``) anywhere in the 70
-      characters before the token. **0 live instances.**
+      characters before the token. **0 live instances.** The 70-character rule
+      is part of the claim: under a SENTENCE-level rule instead, the count is
+      **1** — ``signal_processing.spectrogram``, where an unrelated ``not``
+      earlier in the sentence sits before a true ``rounded``; that op is
+      declared by five other labels, so the op-level effect is still zero.
 
     Do NOT "simplify" the word class that bounds the cue's reach; see the
-    comment on :data:`_R3_NEG`. Widening it is how the delegate follow's blind
-    spot came to be invisible in rc463.
+    comment on :data:`NEG_WORD_CLASS`. Widening it is how the delegate follow's
+    blind spot came to be invisible in rc463.
+10. **The reader cannot read TOPIC, and no lexical rule closes that class**
+    (rc470, `#T1188`). It matches a STEM in a sentence; it has no way to ask
+    whether the sentence is ABOUT this op's own numeric accuracy. MEASURED by
+    hand-reading all **219** DECLARED ops against the honesty-ladder criterion
+    (``tests/test_silent_carrier_demotion_rc463.py``: *given ONLY the signature
+    and the docstring, can the caller predict the returned value is not the
+    exact one?*): **41 are TOPICAL MISREADS**, leaving **178 substantive**.
+    They are pinned BY NAME with a reason and a class in
+    ``tests/test_r3_reader_rc470.py``'s ``_RESIDUAL_TOPIC_MISREADS``, and the
+    classes are OTHER-CARRIER 14 (``QMat``/``Poly``: *"the bigint exact peer of
+    the float64 Mat"*, *"collapses to float64 ONLY via to_floats"*),
+    OTHER-OP 8, DISPATCH-TYPE 6 (a native-ABI type list — *"seq is a
+    homogeneous int64 / float64 list"*), EXACTNESS-CLAIM 5, SERIALISATION 2,
+    OTHER-DOMAIN 2 (erasure tolerance, clock-skew tolerance),
+    LOGICAL-SOUNDNESS 2, HISTORY 1, REGEX 1.
+
+    **35 of the 41 read DECLARED under the rc469 reader too**, so this is
+    mostly a pre-existing property of the instrument that rc470 MEASURED
+    rather than introduced. The SIX the widening added are exactly the six
+    topical misreads among the fifteen lexical gains — ``lll_reduce`` (three
+    occurrences of "rounding", every one of them EXACT nearest-integer
+    rounding), ``continued_fraction_convergents`` (Hardy & Wright Thm 154, a
+    theorem about the convergents), ``lossy_projection_record``, both
+    ``modulator_constraint*`` and ``encode_aboutness`` — the same set reached
+    from the other direction, which is a cross-check on both. MEASURED by
+    re-implementing the rc469 substring reader from ``git show
+    main:tools/demotion_probe.py`` and checking it reproduces the published
+    **202** on this tree before asking it anything. rc470's fourth commit
+    disclosed FOUR, having read only the fifteen ops its own change moved.
+
+    A SEPARATE and SMALLER class is the LABEL MISATTRIBUTION: the verdict is
+    substantively right and only the evidence pointer is wrong, because some
+    OTHER sentence warns the caller while the sentence that MATCHED does not.
+    Five, named so a later rc does not read a ``declares`` label as if it
+    located the declaration: ``rational.relative_writhe`` (fires on an aside
+    about the float spike; its real declaration, *"a CERTIFIED TRUNCATION, not
+    the exact writhe"*, carries no R3 stem), ``coupling.fold_spectrum`` (fires
+    inside the discipline NAME *"honestly-inexact"*), ``rational.hypot``
+    (``rounding`` survives out of the DENIAL *"no float ``a*a`` rounding"* —
+    the cue's reach dies at the backticks — while ``approximation`` is the
+    genuine one), ``triality.lean_isa_seventh_primitive`` and both
+    ``*_exp_series_truncate``. These are NOT pinned: pinning them would assert
+    they should read undeclared, and they should not.
+
+    THE CONSEQUENCE, said plainly. The instrument is the reader PLUS a
+    hand-maintained by-name ledger, and the ledger DRIFTS: the pin test fires
+    only when a PINNED op stops reading DECLARED, never when NEW prose creates
+    a new misread of the same shape. Any rc that touches docstrings should
+    re-run the per-occurrence dump over the DECLARED set and diff it against
+    the ledger. The structurally better instrument — read ONLY an
+    ``**ACCURACY (rcNNN, `#T1188`).**``-headed paragraph, which is topical by
+    construction — would move DECLARED far DOWN and demand roughly a hundred
+    prose rewrites under rule D1, so it is a DESIGN DECISION for a later rc,
+    named here with this 41/219 rate as its motivation rather than left to be
+    discovered.
 
 numpy-free. No ``abs()`` — a sign is a Class-K pin-slot branch composed with
 Class C. No stdlib ``fractions``.
@@ -847,7 +927,15 @@ R3_PATTERNS = (
 
 #: Cues that DENY the token following them. ``0|zero`` is a member because the
 #: tree writes honest zero-counts ("6135 divisions, 0 inexact") that are the
-#: OPPOSITE of a declaration; removing it alone moves DECLARED 206 -> 208.
+#: OPPOSITE of a declaration; removing it alone moves DECLARED
+#: **219 -> 221** on this tree, letting in exactly
+#: ``weight_lattice.weight_multiplicities`` and
+#: ``weight_lattice.tensor_product_multiplicities``. The DELTA is the
+#: invariant; the baseline moves with every reader change, which is why
+#: ``tests/test_r3_reader_rc470.py`` asserts the delta and the NAMED SET
+#: rather than a remembered pair. This line read "206 -> 208" until
+#: rc470's repair commit: the reader-only baseline copied into a comment
+#: while the same build printed 207 -> 209 into the test beside it.
 NEGATION_CUES = (r"not|never|no|none|nothing|nor|without|neither|rather\s+than|"
                  r"instead\s+of|free\s+(?:of|from)|cannot|can't|isn't|doesn't|"
                  r"don't|avoids?|refuses?|0|zero")
