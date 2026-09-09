@@ -952,13 +952,22 @@ CASE_POLICY = "lower"            # the ONLY fold; patterns are lowercase-only
 #: be the same silent-wrong-answer the whole rc is about. ``"none"`` is a real
 #: member, not a placeholder — it is what the can-fail row in
 #: ``tests/test_r3_reader_rc470.py`` selects to prove the wire carries current.
+#:
+#: A real ``raise``, not an ``assert`` (rc433 shape, `#T1188`): this table's
+#: own closedness check was ITSELF a bare ``assert`` until the gate in
+#: ``tests/test_assert_contract_gate_rc433.py`` caught it — an import-time
+#: guard that ``python -O`` strips is no guard at all, the identical defect
+#: class rc433 exists to drain. ``ValueError`` follows the stdlib idiom for
+#: "argument value outside a closed set of choices" (e.g. ``str.encode``'s
+#: ``errors=``), which is what ``CASE_POLICY`` is.
 _FOLDS = {"lower": str.lower, "none": lambda s: s}
 
-assert CASE_POLICY in _FOLDS, (
-    f"CASE_POLICY is {CASE_POLICY!r}, which names no fold in _FOLDS "
-    f"({sorted(_FOLDS)}). The table is closed on purpose: a policy that fell "
-    f"through to a default would read the tree with a fold its own freshness "
-    f"key claims it is not using.")
+if CASE_POLICY not in _FOLDS:
+    raise ValueError(
+        f"CASE_POLICY is {CASE_POLICY!r}, which names no fold in _FOLDS "
+        f"({sorted(_FOLDS)}). The table is closed on purpose: a policy that fell "
+        f"through to a default would read the tree with a fold its own freshness "
+        f"key claims it is not using.")
 
 #: ``(label, pattern)``. The LABEL is what reaches the census, never the matched
 #: TEXT — ``tests/test_declared_inexactness_rc466.py`` tells an OWN hit from a

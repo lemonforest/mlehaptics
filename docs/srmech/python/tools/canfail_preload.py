@@ -53,7 +53,10 @@ THE TWO SANCTIONED SHAPES
    ``test_group_d_the_case_policy_is_wired_not_declared`` does to prove the
    ``CASE_POLICY`` fold table is closed: read the shipped bytes, substitute one
    line in memory, ``compile`` + ``exec`` into a fresh ``dict``, and assert the
-   ``AssertionError``. Nothing is written to disk at all.
+   ``ValueError`` (a real ``raise``, promoted from a bare ``assert`` under the
+   rc433 `#T1131`/`#T1188` discipline — a closedness guard certified via
+   ``pytest.raises(AssertionError)`` would be one `python -O` strips).
+   Nothing is written to disk at all.
 
 WHAT A LANE MUST PRINT BESIDE EVERY FIGURE
 -------------------------------------------

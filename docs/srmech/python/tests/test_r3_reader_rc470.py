@@ -369,7 +369,21 @@ def test_group_d_the_case_policy_is_wired_not_declared() -> None:
        back. Under the old comment-only fold, both reads are identical.
     2. **The table is CLOSED.** An unknown policy raises AT IMPORT rather than
        falling through to a default fold — which would read the whole tree
-       with a fold the freshness key says is not in use.
+       with a fold the freshness key says is not in use. That closedness check
+       is a real ``raise ValueError``, NOT a bare ``assert`` (rc433 shape,
+       `#T1188`): as first written it WAS an ``assert``, and
+       ``tests/test_assert_contract_gate_rc433.py`` caught it on every CI job.
+       A ``pytest.raises(AssertionError)`` here would have been certifying an
+       import-time guard that ``python -O`` deletes — and worse, this control
+       would itself have failed under ``-O``, because ``compile()`` defaults to
+       ``optimize=-1`` and INHERITS the caller's flag, so the mutant loses the
+       assert too. MEASURED (py3.10, `#T1188`): reconstructing the ``assert``
+       form and exec'ing it under ``python3 -O`` gives ``NO EXCEPTION -> GUARD
+       ABSENT; CASE_POLICY='upper'``, and the first read then raises a bare
+       ``KeyError('upper')`` — ``_FOLDS[CASE_POLICY]`` is a plain subscript
+       with no default, so what ``-O`` destroyed was the guard's LEGIBILITY and
+       EARLINESS, not a silent wrong answer. The ``raise`` fires identically at
+       optimize 0, 1 and 2.
 
     ⚠️ **HOW HALF 2 IS MEASURED, and the rule it obeys.** The mutant is
     compiled from an IN-MEMORY COPY of the probe's source and exec'd into a
@@ -418,7 +432,7 @@ def test_group_d_the_case_policy_is_wired_not_declared() -> None:
     mutant = text.replace(line, 'CASE_POLICY = "upper"', 1)
     ns = {"__name__": "demotion_probe__case_policy_mutant",
           "__file__": _dp.__file__}
-    with pytest.raises(AssertionError, match="names no fold in _FOLDS"):
+    with pytest.raises(ValueError, match="names no fold in _FOLDS"):
         exec(compile(mutant, _dp.__file__ + " [COPY: CASE_POLICY=upper]",
                      "exec"), ns)
     # the SHIPPED file is untouched by the above, and still the one we read
@@ -710,14 +724,71 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
         f"READER, not the number. {_reader_identity()}")
 
     declared = {n for n, fn in _registry() if _dp.declaration_hits(fn)}
+    # ⚠️ KNOWN OPEN DEFECT, DELIBERATELY LEFT FIRING — `#T1188`, deferred to
+    # rc-B. On CPython 3.12 this reads 222, not 219, on every platform, with an
+    # IDENTICAL reader_signature and IDENTICAL probe bytes. The ruler did not
+    # move; the READING did.
+    #
+    # MECHANISM, DIAGNOSED AND MEASURED (py3.10, this tree — NOT executed on a
+    # real 3.12; none is installed): declaration_hits's third arm follows ONE
+    # level of delegate over `fn.__code__.co_names`. Through CPython 3.11 a
+    # comprehension body compiles to its OWN nested code object with its OWN
+    # co_names, so a delegate named only inside a comprehension is invisible to
+    # that walk. PEP 709 ("Inlined comprehensions", 3.12) removes the nested
+    # code object, so those names join the enclosing function's co_names and
+    # the SAME code finds MORE delegates. Simulating it here — folding nested
+    # <listcomp>/<setcomp>/<dictcomp> co_names into the walk — moves DECLARED
+    # 219 -> 222 with ZERO losses, naming exactly zeilberger, apagodu_zeilberger
+    # (both `float64 (via Poly)`) and signal_processing.heat_kernel
+    # (`truncation (via _rexp)`). Adding <genexpr> changes nothing, the correct
+    # positive control: PEP 709 does not inline generator expressions.
+    #
+    # WHY THE COUNT IS NOT SIMPLY MOVED TO 222. Two of those three readings are
+    # FALSE. Poly's hit sentence is "Collapses to a list of float64 only via
+    # to_floats" — an OTHER-CARRIER sentence — while zeilberger's own docstring
+    # says "Exact over ℚ (bigint, no magnitude ceiling); no float". So 219 is a
+    # reader with a blind spot and 222 is a less-blind reader making two
+    # unadjudicated misreads. Neither is "the right count", and re-adjudicating
+    # to 222 does not even go green: MEASURED, declaration_hits() is [] for both
+    # zeilberger and apagodu_zeilberger on py3.10, so pinning them into
+    # _RESIDUAL_TOPIC_MISREADS turns the parametrized misread test RED on the
+    # 3.10 cell. That move RELOCATES the failure, it does not repair it.
+    #
+    # THE FIX, which is rc-B and not a CI repair: fold comprehension-nested
+    # co_names into the delegate walk UNCONDITIONALLY, on every interpreter.
+    # That makes the version-dependence IMPOSSIBLE rather than merely named —
+    # it is idempotent on 3.12 (PEP 709 already removed the nested objects) and
+    # yields 222 on <=3.11. It is deferred because it MOVES THREE VERDICTS, and
+    # rc470's invariant is that it moves readers, not verdicts: it owes a
+    # hand-read of the three, _RESIDUAL_TOPIC_MISREADS 39 -> 41, OTHER-CARRIER
+    # 14 -> 16, and the 219/180 pair -> 222/181.
+    #
+    # A NAMED per-version exception was written and REJECTED here, measured:
+    # it adds NO detection the bare total below does not already provide (a
+    # fourth, unnamed crosser on 3.12 passes a named-set equality and is caught
+    # only by the total), while adding one NEW way to fail — every py3.12 cell
+    # that reads 219 goes red on the set equality. That matters because the six
+    # pure shards (srmech-ci.yml:399) and four asserts-live shards (:1310) all
+    # pin python 3.12 and this test carries NO skip marker, so it runs there.
+    #
+    # ⚠️ READ THIS BEFORE rc-B, THE EVIDENCE IS ALREADY COLLECTED AND UNREAD:
+    # grep the uploaded `pytest-pure-log-shard-N` artifacts for this test. The
+    # PEP 709 diagnosis PREDICTS those py3.12 shards also read 222 and are also
+    # red. If they read 219 instead, THIS DIAGNOSIS IS INCOMPLETE and must be
+    # re-opened rather than widened.
     assert len(declared) == 219, (
         f"lexical DECLARED is {len(declared)}, not 219. Every count in this "
         f"file, in tools/demotion_probe.py's disclosures and in the rc470 "
-        f"CHANGELOG entry is quoted against that figure — re-run the "
-        f"per-occurrence dump over the DECLARED set, re-adjudicate the "
-        f"difference, and move all three numbers together. The four "
-        f"assertions above have already cleared the reader, so this is a "
-        f"PROSE change, not a reader change. {_reader_identity()}")
+        f"CHANGELOG entry is quoted against that figure. ⚠️ IF THIS IS 222 ON "
+        f"CPYTHON 3.12, it is the KNOWN PEP 709 delegate-follow defect the "
+        f"comment above diagnoses — do NOT 'move all three numbers together' "
+        f"(MEASURED: that reddens the py3.10 cell instead, because two of the "
+        f"three read [] there), and do NOT pin it per-version (MEASURED: adds "
+        f"no detection this assertion lacks, and reddens every 3.12 cell that "
+        f"reads 219). Fix the delegate-follow, in rc-B, with the ledger "
+        f"adjudication it owes. The four assertions above have already cleared "
+        f"the reader, so this is a DELEGATE-FOLLOW or PROSE change, never a "
+        f"reader-vocabulary change. {_reader_identity()}")
     unknown = sorted(set(_RESIDUAL_TOPIC_MISREADS) - declared)
     assert not unknown, f"pinned but not DECLARED: {unknown}"
     assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 180
