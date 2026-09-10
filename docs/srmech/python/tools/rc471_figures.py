@@ -53,11 +53,24 @@ import figure_run as fr             # noqa: E402  (path set above)
 import census_regen_diff as crd     # noqa: E402
 import demotion_probe as dp         # noqa: E402
 
-#: THE IMMUTABLE BASELINE for W7: the last commit BEFORE the regeneration, i.e.
-#: the census as rc470 left it. A raw SHA, never a branch and never a tag,
-#: following ``rc470_figures.R3_BASELINE_COMMIT``'s precedent and for the same
-#: reason — rc470's harness read ``main:…`` and died the day rc470 merged.
-R471_BASELINE_COMMIT = "bf117f391"
+#: THE IMMUTABLE BASELINE for W7: the census as rc470 left it. A raw SHA, never
+#: a branch and never a tag, following ``rc470_figures.R3_BASELINE_COMMIT``'s
+#: precedent and for the same reason — rc470's harness read ``main:…`` and died
+#: the day rc470 merged.
+#:
+#: ⚠️ It used to be ``bf117f391``, an rc471 branch commit, and "immutable" is a
+#: stronger word than that SHA could carry: rc471's repair session had to
+#: REWRITE this branch (eight commits carried a fake author — see the GIT_DIR
+#: disclosure in the entry), and every branch SHA changed. A baseline pinned to
+#: a commit that only exists on the branch being measured dies with the first
+#: rebase, force-push or amend, which is the SAME failure mode as pinning
+#: ``main`` and only slower to arrive. This is now the rc470 MERGE COMMIT on
+#: ``main`` — a commit no rc471 operation can rewrite. The pin is not weakened
+#: by the move: ``4475997fd:…/demotion_census.ndjson`` and
+#: ``bf117f391:…/demotion_census.ndjson`` are the SAME BLOB
+#: (``18f40def0860333a7f2ed5de75e12172d8adf954``, 247078 bytes, 706 lines),
+#: which is exactly what :data:`R471_BASELINE_CENSUS_SHA256` re-checks below.
+R471_BASELINE_COMMIT = "4475997fd"
 
 #: sha256 of ``R471_BASELINE_COMMIT:docs/srmech/python/tests/demotion_census.ndjson``
 #: (247078 bytes, 706 lines, LF). Without it a SHA that RESOLVES but names the
@@ -103,6 +116,57 @@ EQUISEP_NEEDLE = "equisep"
 SWEEP_EXCLUDE = (
     "docs/srmech/python/tools/rc471_figures.py",
     "docs/srmech/python/CHANGELOG.md",
+)
+
+#: The merge base this rc branched from: the rc470 merge commit on ``main``.
+#: The SAME commit as :data:`R471_BASELINE_COMMIT` since the baseline moved off
+#: the branch, and bound to it rather than re-typed so the two can never drift.
+#: The names stay distinct because the ROLES are: one is "the tree the census
+#: was regenerated FROM", the other is "the history the equiseparation witness
+#: is claimed never to have existed in".
+R471_MERGE_BASE = R471_BASELINE_COMMIT
+
+#: ⚠️ THE COMMIT SWEEP IS SELF-REFERENTIAL TOO, and rc471 shipped it as if it
+#: were not. The figure used to be a single ``git log -S equisep --all``
+#: asserted at **0** commits. ``equisep`` is a substring of ``equiseparation``,
+#: the word the CHANGELOG entry uses ~9 times to describe the refusal — so the
+#: instant the entry's own commit landed, the pickaxe found it and the figure
+#: read **1**. The file walk above had already solved exactly this by excluding
+#: the two self-referential paths BY NAME; the commit walk had no such
+#: exclusion, so rc471's own first CHANGELOG entry shipped a figure its own
+#: harness could not reproduce. The repair is the same exclusion in the same
+#: shape, spelled in revisions instead of paths.
+#:
+#: The surviving figure is ONE range: :data:`R471_MERGE_BASE` and its
+#: ancestors — the history this rc branched FROM. **0** there is the claim
+#: "it does not exist and never did", and it reproduces in any clone, because
+#: that history is the repository's.
+#:
+#: ⚠️ A SECOND range was written, RUN, and DELETED — recorded because deleting
+#: it is the rule and adjusting it was the temptation. It was
+#: ``git log -S equisep --all --oneline --not HEAD``, meant to say "and no
+#: other ref holds one either". It returned **1**, and the one was
+#: ``933241356`` — the PRE-REWRITE copy of this branch's own tip, still held by
+#: ``refs/remotes/origin/srmech-rc471`` and by a sibling session's
+#: ``refs/heads/worktree-…`` (``git for-each-ref --contains`` names both). So
+#: the self-reference came straight back, one indirection out. The lesson is
+#: more general than the accident: ``--all`` walks REFS, and refs are a
+#: property of the CLONE, not of the repository — a stale remote-tracking ref,
+#: another worktree's branch, or a colleague's fetch all move the number
+#: without anything in the tree moving. *A figure a third party cannot
+#: reproduce is not a figure.* The file walk below is what covers "it is not
+#: anywhere in the tree today"; between them, nothing is lost but a number
+#: that was never measuring what it claimed.
+#:
+#: Cost note, measured this session on this host, one timing each and NOT
+#: constants: the old single ``--all`` pickaxe took 102.7 s; the surviving
+#: merge-base range takes 95.1 s. (The deleted ref sweep was 7.4 s.)
+#: Each row is (label, git argv, prose needle). The needles are DISTINCT so a
+#: single ``**0** commits`` in the entry cannot satisfy both figures at once.
+EQUISEP_RANGES = (
+    ("commits touching `equisep` in the history this rc branched from",
+     ("log", "-S", EQUISEP_NEEDLE, "--oneline", R471_MERGE_BASE),
+     "branched from holds **{v}** commits touching it"),
 )
 
 
@@ -268,10 +332,15 @@ def main(argv) -> int:
 
     # ── the equiseparation refusal ──────────────────────────────────────────
     print("\n-- THE EQUISEPARATION WITNESS, REFUSED --")
-    run.figure("commits touching the string `equisep`, all refs",
-               len([ln for ln in fr.git("log", "-S", EQUISEP_NEEDLE, "--all",
-                                        "--oneline").splitlines() if ln.strip()]),
-               "**{v}** commits")
+    print("  the commit sweep EXCLUDES this rc's own commits, by revision "
+          "range — the same self-referential exclusion the file walk makes "
+          "by path. ONE range: a REF sweep is clone-local, not a figure "
+          "(see EQUISEP_RANGES).")
+    for label, argv, needle in EQUISEP_RANGES:
+        print(f"    git {' '.join(argv)}")
+        run.figure(label,
+                   len([ln for ln in fr.git(*argv).splitlines() if ln.strip()]),
+                   needle)
     print("  ONE walk, both sweeps. population EXCLUDES (self-referential):")
     for rel in SWEEP_EXCLUDE:
         print(f"    {rel}")
@@ -289,9 +358,10 @@ def main(argv) -> int:
                   if s.startswith("H = 3 * 2 ** 53"))
     run.figure("`H` assignment, live line", live_h,
                "`tools/demotion_probe.py:{v}`")
-    base_probe = fr.git("show",
-                        "4475997fd:docs/srmech/python/tools/demotion_probe.py"
-                        ).split("\n")
+    base_probe = fr.git(
+        "show",
+        f"{R471_MERGE_BASE}:docs/srmech/python/tools/demotion_probe.py"
+    ).split("\n")
     run.figure("`H` assignment, line on the merge base", next(
         i + 1 for i, s in enumerate(base_probe) if s.startswith("H = 3 * 2 ** 53")),
         "line **{v}** on the merge base")

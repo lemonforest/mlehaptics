@@ -118,9 +118,28 @@ def sha(data: bytes) -> str:
 
 
 def git(*args: str) -> str:
-    """``git -C <repo> …``, stdout only."""
-    return subprocess.run(["git", "-C", str(REPO), *args],
-                          capture_output=True, text=True).stdout
+    """``git -C <repo> …``, stdout only, decoded as UTF-8.
+
+    ⚠️ The encoding is NOT a detail, and leaving it to the locale cost this
+    core a silent ``None``. With ``text=True`` and no ``encoding=``, CPython
+    decodes the child's stdout with the LOCALE codec — ``cp1252`` on Windows —
+    so ``git show <sha>:tools/demotion_probe.py``, whose bytes are UTF-8, blew
+    up inside ``subprocess``'s reader THREAD. A thread that dies does not
+    propagate: ``.stdout`` came back ``None`` and surfaced 200 lines later as
+    ``AttributeError: 'NoneType' object has no attribute 'split'``, with
+    nothing naming git or the file. Every ASCII call (``rev-parse``,
+    ``status --porcelain``, ``log -S``) worked, which is why a WSL build
+    session and a Windows repair session disagreed about whether this core
+    runs at all.
+
+    ``errors="replace"`` rather than strict: git output can legitimately carry
+    non-UTF-8 bytes (a foreign-encoded path), and a mangled character in a
+    line this core only ever SEARCHES is a better answer than an exception —
+    but a silent ``None`` is not, and that is what changed.
+    """
+    proc = subprocess.run(["git", "-C", str(REPO), *args],
+                          capture_output=True)
+    return proc.stdout.decode("utf-8", "replace")
 
 
 def normalise_eol(data: bytes) -> bytes:
@@ -138,6 +157,29 @@ def head_state_of(blob: bytes, live: bytes) -> str:
     """
     same = normalise_eol(blob) == normalise_eol(live)
     return "== HEAD" if same else "!= HEAD (content differs)"
+
+
+def widen_stdout() -> str:
+    """Make ``stdout`` able to carry this core's own banner. Returns the codec.
+
+    Not cosmetic. Every banner line below prints ``⚠``/``…``/``─``, and on a
+    console whose default codec is ``cp1252`` — the Windows default, and the
+    one this rc's repair session ran on — the FIRST such ``print`` raises
+    ``UnicodeEncodeError`` inside :meth:`FigureRun.header`, before a single
+    figure is measured. An instrument that cannot print its own output cannot
+    return a measurement, so the fix belongs here rather than in an ambient
+    ``PYTHONIOENCODING`` the caller has to remember: a harness whose answer
+    depends on an env var the reader does not set is a harness that reports
+    nothing on half its hosts. ``errors`` is left strict so a genuinely
+    unencodable figure still raises rather than silently rendering as ``?``.
+    """
+    stream = getattr(sys, "stdout", None)
+    reconfigure = getattr(stream, "reconfigure", None)
+    if reconfigure is not None and (
+            getattr(stream, "encoding", "") or "").lower().replace("-", "") \
+            not in ("utf8", "utf8mb4"):
+        reconfigure(encoding="utf-8")
+    return (getattr(sys.stdout, "encoding", "") or "?")
 
 
 def git_available() -> bool:
@@ -374,6 +416,7 @@ class FigureRun:
 
     def header(self) -> None:
         """Print the run banner, the environment and the BEFORE witness."""
+        widen_stdout()
         self_check(sys.modules[__name__])
         import srmech
         from srmech import _native
@@ -384,6 +427,8 @@ class FigureRun:
         print(f"srmech.__version__ {srmech.__version__}")
         print(f"srmech.__file__    {srmech.__file__}")
         print(f"HAS_NATIVE         {_native.HAS_NATIVE}")
+        print(f"stdout codec       {sys.stdout.encoding} (widened by "
+              f"figure_run.widen_stdout)")
         for mod in ("numpy", "sympy"):
             try:
                 __import__(mod)
