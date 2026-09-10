@@ -2154,7 +2154,54 @@ def tan(x: float, *, precision: int | None = None) -> "Q":
     ``cos`` (byte-identical to every prior rc; no native ``srmech_tan``).
     ``precision=P`` → the exact quotient of the two ``precision=P`` reductions
     (0.9.0rc320 WAVE 2; the dead ``terms`` kwarg is REPLACED). Raises where
-    ``cos(x) == 0``."""
+    ``cos(x) == 0``.
+
+    **ACCURACY (0.9.0rc471, `#T1188`) — THERE IS NO ``2**-P`` BOUND ON THIS OP,
+    AND THE REGISTRY USED TO CLAIM ONE.** Through rc470 this op's ``precision``
+    parameter shipped the sentence *"the exact-rational reference at P
+    fractional bits, error < ``2**-P``"* in its ``ToolEntry`` — emitted into
+    ``srmech/introspect/_tool_docs.py`` and compiled into
+    ``c/src/srmech_tool_registry.c`` — while this docstring never stated it.
+    The claim is FALSE, so it is DROPPED rather than copied down here.
+    ``tan = sin/cos`` amplifies BOTH reductions' error by ``~1/cos(x)²``, so
+    the error grows without limit as ``x`` approaches a pole and no absolute
+    bound in ``P`` exists.
+
+    MEASURED against a 400-digit ``decimal`` reference INDEPENDENT of srmech
+    (Machin π, its own Taylor sin/cos; self-checked at 400 against 520 digits,
+    max disagreement 7.2E-367), **one fresh process per case** so the
+    module-global π cache cannot carry accuracy from one row into the next:
+
+    ==========================  ======  ==============  ===============
+    x                           P       ``|error|``     bound ``2**-P``
+    ==========================  ======  ==============  ===============
+    ``0.5``                     128     6.06600E-55     2.93874E-39  ok
+    ``float(π/2)``              16      **4.51176E+8**  1.52588E-5   NO
+    ``float(π/2)``              53      **5.11121E+7**  1.11022E-16  NO
+    ``float(π/2)``              128     **6.80885E-16** 2.93874E-39  NO
+    ``nextafter(π/2, 0)``       128     **3.18136E-17** 2.93874E-39  NO
+    ``π/2 − 1e-8``              32      **1.69164E-8**  2.32831E-10  NO
+    ``3π/2``                    128     **2.26962E-16** 2.93874E-39  NO
+    ==========================  ======  ==============  ===============
+
+    **24 of 36 fresh-process rows violate**, by up to 6.9E+23×. Away from a
+    pole the P branch is far BETTER than ``2**-P`` (``0.5`` at ``P=128`` sits
+    at 2.1E-16 of the bound), which is exactly why a grid that never
+    approaches one reads green: the failure is structural, not marginal.
+
+    ⚠️ **A SECOND MEASURED PROPERTY, recorded because it makes the first one
+    ORDER-DEPENDENT.** :func:`_pi_exact` caches its best π in a module global
+    and returns it for any smaller request, so this op's accuracy depends on
+    what else the PROCESS has already computed. EXECUTED: ``tan(float(π/2),
+    precision=32)`` returns a DIFFERENT rational before and after a
+    ``tan(1e6, precision=128)`` call in the same process — ``|error|``
+    4.51176E+8 before, 2.79711E-21 after — while the control ``tan(0.5,
+    precision=32)`` is byte-identical either way, so the effect is specific to
+    the reduction-dominated inputs. rc471 moves no op behaviour, so this is
+    recorded rather than repaired.
+
+    If a stated bound is what you need, call :func:`sin` and :func:`cos` at
+    ``precision=P`` and divide with the quotient's amplification in hand."""
     if precision is not None:
         xf = float(x)
         if not _is_finite(xf):
@@ -2174,7 +2221,29 @@ def atan(x: float, *, precision: int | None = None) -> "Q":
     value) + Class-C re-orientation; ``atan(±Inf) = ±π/2`` is a representable
     rational, NaN raises. ``precision=P`` → the EXACT-rational THREE-BAND
     REFERENCE at ``P`` fractional bits (0.9.0rc320 WAVE 2; the dead ``terms``
-    kwarg is REPLACED)."""
+    kwarg is REPLACED).
+
+    **ACCURACY (0.9.0rc471, `#T1188`) — the ``error < 2**-P`` bound HOLDS, and
+    it is stated HERE because rule D1 says the op's own surface must carry
+    it.** Through rc470 that sentence lived only in this op's ``ToolEntry``
+    parameter text — which ships in the wheel and is compiled into
+    ``c/src/srmech_tool_registry.c`` — while ``inspect.getdoc`` never showed
+    it. It was CHECKED before it was copied down, because the identical
+    sentence on :func:`tan` turned out to be false.
+
+    MEASURED against a 400-digit ``decimal`` reference INDEPENDENT of srmech
+    (Machin π, its own Taylor atan; self-checked at 400 against 520 digits,
+    max disagreement 7.2E-367) over 13 arguments × 7 precisions
+    (16 / 24 / 32 / 53 / 64 / 96 / 128) = **91 rows, 0 violations**, worst
+    ratio ``|error| / 2**-P`` = **2.03E-7** at ``x = 0.5, P = 32``. The
+    structural reason is in :func:`_atan_ratio_reference`: the three-band
+    reduction holds every series argument at ``|·| ≤ √2−1``, the series is
+    sized to ``P+8`` bits and π to ``P+16``, and ``|atan| ≤ π/2`` — nothing
+    amplifies, which is precisely what ``sin/cos`` does not have.
+
+    ⚠️ 91 rows is a GRID, not a proof over ℝ. What is asserted is that the
+    bound was measured and held there, and that the reduction carries no
+    amplification term; what is NOT asserted is a theorem."""
     x = float(x)
     if x != x:                                     # NaN
         raise ValueError("atan: x is NaN (not a rational)")
@@ -2198,7 +2267,27 @@ def atan2(y: float, x: float, *, precision: int | None = None) -> "Q":
     ``±3π/4``, ``±π``, ``±0``) are all representable rationals; only a NaN
     argument raises. ``precision=P`` → the EXACT-rational REFERENCE at ``P``
     fractional bits — ``atan(y/x)`` over the EXACT ratio plus the same ``±π``
-    quadrant shift (0.9.0rc320 WAVE 2; the dead ``terms`` kwarg is REPLACED)."""
+    quadrant shift (0.9.0rc320 WAVE 2; the dead ``terms`` kwarg is REPLACED).
+
+    **ACCURACY (0.9.0rc471, `#T1188`) — the ``error < 2**-P`` bound HOLDS,
+    stated here under rule D1** for the same reason as :func:`atan`, and
+    checked before it was copied down. MEASURED against the same 400-digit
+    independent ``decimal`` reference over 9 ``(y, x)`` pairs across all four
+    quadrants × 7 precisions = 63 rows: **56 measured, 0 violations** (worst
+    ratio ``|error| / 2**-P`` = **9.04E-10**), and **7 RAISED** — see below.
+    The finite branch takes :func:`atan` over the EXACT ratio ``y/x`` rather
+    than the float quotient, so it inherits that bound, and the ``±π`` quadrant
+    shift adds a DERIVED π sized to ``P+16``.
+
+    ⚠️ **DISCLOSED, NOT FIXED — one input class does not answer at all.**
+    ``atan2(1e300, 1e-300, precision=P)`` raises ``OverflowError: integer
+    division result too large for a float`` at every one of the seven
+    precisions, while the ``precision=None`` branch answers. The cause is the
+    float band-SELECT ``axf = axn / den`` in :func:`_atan_ratio_reference`:
+    the exact ratio is a bignum whose float projection overflows, and only the
+    BAND CHOICE needs it. rc471 moves no op behaviour, so this is recorded
+    with its reproducer rather than repaired in the same change that
+    re-measures the ruler."""
     y = float(y)
     x = float(x)
     if y != y or x != x:                           # any NaN → not a rational
@@ -2379,6 +2468,21 @@ def cexp(theta: float, *, precision: int | None = None) -> complex:
     (0.9.0rc320) is threaded to the underlying :func:`cos` / :func:`sin`
     (``None`` = the Q61 fast path; ``P`` = the exact reduction) before the
     ``complex()`` display collapse.
+
+    **ACCURACY (0.9.0rc471, `#T1188`) — ``precision=P`` DOES NOT BOUND THE
+    RESULT, because the result is not on the ``Q`` carrier.** Through rc470
+    this op's ``precision`` parameter shipped *"error < ``2**-P``"* in its
+    ``ToolEntry``; the return type is ``complex``, i.e. two float64s, so that
+    claim was false by construction for every ``P`` past the float64
+    significand. It is DROPPED. ``P`` still buys a better reduction INSIDE the
+    cascade; what the caller receives is that reduction projected at the
+    ``complex()`` display collapse on the last line.
+
+    MEASURED against a 400-digit independent ``decimal`` reference over 13
+    angles × 7 precisions: the per-component error FLOORS at ~2.0E-17 to
+    ~5.0E-17 and **does not move with P at all**; **33 of 91 rows violate**,
+    every one at ``P >= 64``, by up to 1.6E+22×. Reach for :func:`cos` /
+    :func:`sin` directly when the exact ``Q`` carrier is what is wanted.
     """
     return complex(cos(theta, precision=precision), sin(theta, precision=precision))
 
@@ -2390,6 +2494,17 @@ def complex_exp(z: complex, *, precision: int | None = None) -> complex:
     trig, composed by a Class-C imaginary-unit rotation. Substrate-native
     replacement for ``np.exp`` / ``cmath.exp`` on a complex argument.
     ``precision`` (0.9.0rc320) threads to :func:`exp` / :func:`cos` / :func:`sin`.
+
+    **ACCURACY (0.9.0rc471, `#T1188`) — ``precision=P`` DOES NOT BOUND THE
+    RESULT**, for the same reason as :func:`cexp`: the return type is
+    ``complex``. The ``ToolEntry``'s *"error < ``2**-P``"* is DROPPED. The
+    intermediate ``er * cos`` / ``er * sin`` ARE exact ``Q·Q`` products on the
+    integer ALU; the float appears at the final ``complex()``.
+
+    MEASURED against a 400-digit independent ``decimal`` reference, one fresh
+    process per case: ``complex_exp(1+2j)`` already violates at ``P = 53``
+    (error 1.57583E-16 against a bound of 1.11022E-16) and the error does not
+    move with ``P`` thereafter — 1.57583E-16 at 64, 96 and 128 alike.
     """
     z = complex(z)
     er = exp(z.real, precision=precision)           # Q — stay in the integer ALU
@@ -2400,11 +2515,23 @@ def complex_exp(z: complex, *, precision: int | None = None) -> complex:
                    er * sin(z.imag, precision=precision))
 
 
-# Scaled-integer precision for the bignum REFERENCE sqrt (bits below the
-# radix point; 64 → relative error well under the float64 floor). Pass
-# ``precision=`` explicitly to select this higher-precision reference;
-# the default float sqrt is the bit-exact-with-C K=27 cascade below.
-_SQRT_PRECISION_BITS: int = 64
+# ⚠️ ``_SQRT_PRECISION_BITS: int = 64`` STOOD HERE AND WAS READ BY NOTHING
+# (deleted 0.9.0rc471, `#T1188`). Its comment claimed it sized "the bignum
+# REFERENCE sqrt" and told a reader to "pass ``precision=`` explicitly to
+# select this higher-precision reference" — but MEASURED across the whole
+# tree (``.py`` / ``.c`` / ``.h`` / ``.md`` / ``.toml`` / ``.json``) the name
+# had exactly ONE occurrence, its own definition, and ZERO uses.
+# ⚠️ The OCCURRENCE half of that figure is now SELF-REFERENTIAL — this
+# paragraph names the constant, and so do :func:`hypot`'s docstring and the
+# rc471 CHANGELOG entry, so re-running the grep finds three and not one. That
+# is the hazard rc470 recorded for its bounding-quantifier count, one file
+# out. The DECIDABLE half survives being written down and is the load-bearing
+# one: ZERO USES. The
+# reference path is sized by the CALLER's ``precision`` argument, and the
+# ``None`` branch by :data:`_SQRT_Q_K` = 54 through
+# :func:`_sqrt_relative_k`. The 64 is the measured source of the false
+# "default 64" that shipped in ``hypot``'s registry parameter text, which is
+# why the deletion and that correction are one change.
 
 
 #: Default fractional bits for the √ of an EXACT rational (Q input / hypot's
@@ -2463,7 +2590,7 @@ def _sqrt_relative_k(num: int, den: int, k: int) -> int:
     return k + ((-e) + 1) // 2 + 1                   # Class-K pin-slot on the exponent sign
 
 
-def sqrt(x, *, precision: int = None) -> "Q":
+def sqrt(x, *, precision: int | None = None) -> "Q":
     """``√x`` (x ≥ 0) → an EXACT :class:`~srmech.math.q.Q` via the Class-N
     rational sqrt cascade.
 
@@ -2535,7 +2662,7 @@ def sqrt(x, *, precision: int = None) -> "Q":
     return _q(root << p, 1) if p >= 0 else _q(root, 1 << (-p))
 
 
-def hypot(a: float, b: float, *, precision: int = None) -> "Q":
+def hypot(a: float, b: float, *, precision: int | None = None) -> "Q":
     """``hypot(a, b) = √(a² + b²)`` → an EXACT :class:`~srmech.math.q.Q`.
 
     **Class M** (the sum-of-squares bind) ∘ **Class N∘K** (:func:`sqrt`). rc7
@@ -2546,6 +2673,21 @@ def hypot(a: float, b: float, *, precision: int = None) -> "Q":
     ``|z| = hypot(z.real, z.imag)``). ``a``/``b`` may be ``float`` or ``Q``.
     ``precision=N`` (rc318 rename of ``precision_bits``) selects the literal
     ABSOLUTE ``N``-fractional-bit grid; a pure rename, bit-identical.
+
+    ⚠️ **THE REGISTRY SAID "default 64" AND THE CODE HAS NO SUCH DEFAULT**
+    (corrected 0.9.0rc471, `#T1188`). The signature default is ``None``, and
+    the ``None`` branch is the RELATIVE route
+    ``_sqrt_relative_k(num, den, _SQRT_Q_K)`` with ``_SQRT_Q_K = 54`` — not an
+    absolute 64-bit grid, and not any absolute grid at all. So the shipped
+    sentence named a number the tree does not use and described the FIXED
+    design rc299 (`#919`) deliberately removed for returning an exact 0.0
+    below ~1e-17. MEASURED: the phantom 64 is ``_SQRT_PRECISION_BITS``, a
+    module-level constant whose comment claimed it sized this reference and
+    which was referenced **nowhere in the tree** — 1 hit for its definition
+    and 0 for any use, across ``.py`` / ``.c`` / ``.h`` / ``.md`` / ``.toml`` /
+    ``.json``. It is deleted in the same rc. ⚠️ Re-running that grep now finds
+    THREE occurrences, because this sentence is one of them; the figure that
+    survives being written down is the ZERO USES, not the one.
 
     ⚠️ **"EXACT ``Q``" scopes to the CARRIER, not to the value** — the
     sum-of-squares is formed exactly, and the ``√`` of it is the approximating
@@ -3531,7 +3673,7 @@ def _rw_remainder_bound(prec: _ClassNPrecision, n_steps: int,
 
 
 def relative_writhe(embedding, reference, *, closed: bool = True,
-                    precision=None) -> Dict[str, object]:
+                    precision: int | None = None) -> Dict[str, object]:
     """Fuller's Second-Theorem RELATIVE WRITHE ``Wr(C) − Wr(C0)`` as an EXACT
     RATIONAL certified truncation — the single-integral peer of the O(n²)
     :func:`~srmech.biology.genome.discrete_writhe` double sum, on the Class-N surface.

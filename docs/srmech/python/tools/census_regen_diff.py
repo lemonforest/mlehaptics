@@ -1,0 +1,230 @@
+r"""THE CENSUS REGENERATION INVARIANT, asserted by a script rather than an eye.
+
+WHY THIS FILE EXISTS
+--------------------
+An rc that changes the INSTRUMENT and not the POPULATION owes one claim:
+*nothing the instrument decides moved.* rc470 made that claim ("37 of 705 data
+lines, 74 cell-columns, 29 ops, differing ONLY in ``declares``; verdict changes
+== 0") and checked it with a scratch script that was never committed, so the
+next rc making the same claim had nothing to run. This is that script, shipped,
+because a load-bearing count owes its generating code.
+
+It compares the COMMITTED ``tests/demotion_census.ndjson`` against the
+regenerated one and prints five clauses, each with its own PASS / FAIL:
+
+  (i)   the meta line differs ONLY in keys named as expected on the command
+        line (``--meta-may-move``), nothing else;
+  (ii)  every DATA line that differs at all differs ONLY in ``declares`` — the
+        one field a reader change is allowed to move — and no row is added or
+        removed;
+  (iii) VERDICT CHANGES == 0, counted over every row x every cell;
+  (iv)  ``meta.by_verdict`` is byte-identical to the expected table;
+  (v)   ``n_rows`` / ``n_ops`` / ``cells_measured`` are the expected ones.
+
+⚠️ **IT RUNS NO GIT, AND THAT IS DELIBERATE.** The baseline is passed in as a
+FILE. WSL git cannot open a worktree whose ``.git`` is a pointer file holding a
+Windows path, and the obvious workaround — exporting ``GIT_DIR`` /
+``GIT_WORK_TREE`` — points every git FIXTURE in the suite at the real
+repository; rc471 measured that the hard way (see its CHANGELOG entry). Extract
+the baseline with whichever git can read the tree::
+
+    git show <ref>:docs/srmech/python/tests/demotion_census.ndjson > /tmp/base.ndjson
+    python3 tools/census_regen_diff.py /tmp/base.ndjson tests/demotion_census.ndjson
+
+RECORDED RESULT — rc471 (`#T1188`), the regeneration this file was written for:
+**INVARIANT HELD 5/5**, and clause (ii) came out at **0 of 705 data lines
+differing at all** rather than at rc470's 37, because ``declares`` is written
+onto DEMOTED rows ONLY and none of the 69 DEMOTED rows belongs to
+``srmech.math.rational``, the module that rc's prose work edited. The whole
+two-cell regeneration is **one changed line**, the meta.
+
+numpy-free. No ``abs()``. No ``hashlib``.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
+
+#: The one field a differing DATA line is allowed to differ in. It is the R3
+#: reader's output, and rc470 established that a reader change cannot move a
+#: verdict — the verdict is read off VALUES the op returns, the label off its
+#: DOCSTRING. Widening this set is a claim about the instrument, not a
+#: convenience: anything else moving means the measurement moved.
+DATA_MAY_MOVE = ("declares",)
+
+
+def load(text: str) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    """``(meta, rows)`` from one manifest's text."""
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    if not lines:
+        raise SystemExit("empty manifest")
+    return json.loads(lines[0]), [json.loads(ln) for ln in lines[1:]]
+
+
+def key(r: Dict[str, Any]) -> str:
+    return f"{r['op']}::{r['param']}"
+
+
+def paths(d: Dict[str, Any], prefix: Tuple[str, ...] = ()
+          ) -> Dict[Tuple[str, ...], Any]:
+    """Flatten one row into ``{tuple-path: leaf value}``.
+
+    A flatten rather than a top-level compare, because the cell columns are
+    nested dicts and a top-level ``!=`` cannot say WHICH field moved — which is
+    the whole question clause (ii) asks.
+    """
+    out: Dict[Tuple[str, ...], Any] = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            out.update(paths(v, prefix + (k,)))
+        else:
+            out[prefix + (k,)] = v
+    return out
+
+
+_ABSENT = "\0ABSENT\0"
+
+
+def compare(before_txt: str, after_txt: str, *,
+            meta_may_move: Tuple[str, ...],
+            by_verdict: Dict[str, Dict[str, int]] | None,
+            n_rows: int | None, n_ops: int | None,
+            cells: Tuple[str, ...]) -> int:
+    mb, rb = load(before_txt)
+    ma, ra = load(after_txt)
+    B = {key(r): r for r in rb}
+    A = {key(r): r for r in ra}
+    ok = True
+
+    # ---- (i) the meta line -------------------------------------------------
+    movers = sorted(k for k in set(mb) | set(ma)
+                    if mb.get(k, _ABSENT) != ma.get(k, _ABSENT))
+    c1 = set(movers) <= set(meta_may_move)
+    ok &= c1
+    print(f"(i)   meta keys that MOVED: {movers}")
+    print(f"      allowed to move:      {sorted(meta_may_move)}")
+    for k in movers:
+        print(f"        - {k}")
+        print(f"            before {json.dumps(mb.get(k), sort_keys=True)}")
+        print(f"            after  {json.dumps(ma.get(k), sort_keys=True)}")
+    print(f"      meta keys BYTE-IDENTICAL: "
+          f"{sorted(k for k in mb if k not in movers)}")
+    print(f"      CLAUSE (i): {'PASS' if c1 else 'FAIL'}\n")
+
+    # ---- (ii) every differing data line ------------------------------------
+    added, removed = sorted(set(A) - set(B)), sorted(set(B) - set(A))
+    differing: List[str] = []
+    bad: List[Tuple[str, List[Tuple[Tuple[str, ...], Any, Any]]]] = []
+    moved_ok = 0
+    for k in sorted(set(A) & set(B)):
+        pa, pb = paths(A[k]), paths(B[k])
+        diff = sorted(p for p in set(pa) | set(pb)
+                      if pa.get(p, _ABSENT) != pb.get(p, _ABSENT))
+        if not diff:
+            continue
+        differing.append(k)
+        offenders = [p for p in diff if p[-1] not in DATA_MAY_MOVE]
+        moved_ok += len(diff) - len(offenders)
+        if offenders:
+            bad.append((k, [(p, pb.get(p), pa.get(p)) for p in offenders]))
+    c2 = not bad and not added and not removed
+    ok &= c2
+    print(f"(ii)  rows added {len(added)}  removed {len(removed)}")
+    print(f"      data lines differing at all: {len(differing)} of {len(A)}")
+    print(f"      of those, differing ONLY in {list(DATA_MAY_MOVE)}: "
+          f"{len(differing) - len(bad)}")
+    print(f"      cell-columns moved inside {list(DATA_MAY_MOVE)}: {moved_ok}")
+    for k, offs in bad:
+        print(f"      !! {k} differs OUTSIDE {list(DATA_MAY_MOVE)}:")
+        for p, b, a in offs:
+            print(f"           {'.'.join(p)}: {b!r} -> {a!r}")
+    for k in added:
+        print(f"      !! ADDED {k}")
+    for k in removed:
+        print(f"      !! REMOVED {k}")
+    print(f"      CLAUSE (ii): {'PASS' if c2 else 'FAIL'}\n")
+
+    # ---- (iii) verdicts ----------------------------------------------------
+    changes = []
+    seen = 0
+    for k in sorted(set(A) & set(B)):
+        for cel in cells:
+            vb = (B[k].get(cel) or {}).get("verdict")
+            va = (A[k].get(cel) or {}).get("verdict")
+            if vb is not None or va is not None:
+                seen += 1
+            if vb != va:
+                changes.append((k, cel, vb, va))
+    c3 = not changes
+    ok &= c3
+    print(f"(iii) verdict cells compared: {seen} over "
+          f"{len(set(A) & set(B))} rows x {len(cells)} cells")
+    print(f"      VERDICT CHANGES: {len(changes)}")
+    for k, cel, vb, va in changes:
+        print(f"      !! {k} [{cel}] {vb} -> {va}")
+    print(f"      CLAUSE (iii): {'PASS' if c3 else 'FAIL'}\n")
+
+    # ---- (iv) by_verdict ---------------------------------------------------
+    got = ma.get("by_verdict")
+    if by_verdict is None:
+        c4 = json.dumps(got, sort_keys=True) == json.dumps(
+            mb.get("by_verdict"), sort_keys=True)
+        print("(iv)  meta.by_verdict compared against the BASELINE's "
+              "(no --by-verdict given)")
+    else:
+        c4 = json.dumps(got, sort_keys=True) == json.dumps(
+            by_verdict, sort_keys=True)
+        print("(iv)  meta.by_verdict compared against the EXPECTED table")
+    ok &= c4
+    for cel in cells:
+        print(f"        {cel} got      "
+              f"{json.dumps((got or {}).get(cel), sort_keys=True)}")
+        want = (by_verdict or mb.get('by_verdict') or {}).get(cel)
+        print(f"        {cel} expected {json.dumps(want, sort_keys=True)}")
+    print(f"      CLAUSE (iv): {'PASS' if c4 else 'FAIL'}\n")
+
+    # ---- (v) shape ---------------------------------------------------------
+    c5 = (ma.get("cells_measured") == list(cells)
+          and (n_rows is None or (ma.get("n_rows") == n_rows
+                                  and len(ra) == n_rows))
+          and (n_ops is None or ma.get("n_ops") == n_ops))
+    ok &= c5
+    print(f"(v)   n_rows {ma.get('n_rows')} (data lines on disk {len(ra)}), "
+          f"n_ops {ma.get('n_ops')}, cells_measured {ma.get('cells_measured')}")
+    print(f"      expected n_rows {n_rows}, n_ops {n_ops}, "
+          f"cells {list(cells)}")
+    print(f"      CLAUSE (v): {'PASS' if c5 else 'FAIL'}\n")
+
+    print(f"INVARIANT: {'HELD (5/5)' if ok else 'BROKEN'}")
+    return 0 if ok else 1
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("baseline", type=Path,
+                    help="the COMMITTED manifest, extracted to a file")
+    ap.add_argument("regenerated", type=Path,
+                    help="the manifest this run produced")
+    ap.add_argument("--meta-may-move", default="measured_at",
+                    help="comma-separated meta keys allowed to differ")
+    ap.add_argument("--by-verdict", default="",
+                    help="JSON {cell: {verdict: n}} the regenerated meta must "
+                         "match byte-for-byte; default is the baseline's own")
+    ap.add_argument("--n-rows", type=int, default=None)
+    ap.add_argument("--n-ops", type=int, default=None)
+    ap.add_argument("--cells", default="native,pure")
+    a = ap.parse_args(argv)
+    return compare(
+        a.baseline.read_text(encoding="utf-8"),
+        a.regenerated.read_text(encoding="utf-8"),
+        meta_may_move=tuple(s for s in a.meta_may_move.split(",") if s),
+        by_verdict=json.loads(a.by_verdict) if a.by_verdict else None,
+        n_rows=a.n_rows, n_ops=a.n_ops,
+        cells=tuple(s for s in a.cells.split(",") if s))
+
+
+if __name__ == "__main__":                                # pragma: no cover
+    raise SystemExit(main())

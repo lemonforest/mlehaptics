@@ -3686,7 +3686,7 @@ def _register_primitive_class_tools() -> None:
             name="srmech.math.rational.tan", owner="srmech", category="rational",
             summary="tan(x) = sin(x)/cos(x) via the Class-N rational cascade (raises if cos(x) == 0). Substrate-native replacement for math.tan / np.tan.",
             parameters=(P("x", "float", True, "angle in radians"),
-                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
+                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the EXACT QUOTIENT of the two precision=P sin/cos reductions (keyword-only). NO absolute-error bound holds on the P branch, and 0.9.0rc471 REMOVED the one this line used to state: a quotient amplifies both reductions error by ~1/cos(x)^2, so the error grows without limit as x approaches a pole. MEASURED against a 400-digit independent decimal reference, one fresh process per case: at x = float(pi/2) the absolute error is 4.51176E+8 at P=16 and still 6.80885E-16 at P=128, against bounds of 1.53E-5 and 2.94E-39; 24 of 36 fresh-process rows violate. Call sin and cos separately when a stated bound is what you need"),),
             returns=R("Q", "tan(x) = sin/cos as an exact rational (Class-N Q carrier)"),
         ),
         ToolEntry(
@@ -3722,14 +3722,14 @@ def _register_primitive_class_tools() -> None:
             name="srmech.math.rational.cexp", owner="srmech", category="rational",
             summary="e^(i*theta) = cos(theta) + i*sin(theta) via the Class-N cascade (Euler). Class-N trig composed with Class-C imaginary-unit rotation — the DFT twiddle factor and the quantum time-evolution phase. Substrate-native replacement for np.exp / cmath.exp of 1j*theta.",
             parameters=(P("theta", "float", True, "phase angle in radians"),
-                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
+                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 drives the internal Class-N reduction at P fractional bits (keyword-only). THE RESULT IS A float64 complex, NOT a Q, so the delivered accuracy is bounded by the CARRIER and not by 2**-P - 0.9.0rc471 REMOVED the absolute-error bound this line used to state, which was false by construction for every P past the float64 significand. MEASURED against a 400-digit independent decimal reference: the error floors at ~2E-17 to ~5E-17 and does not move with P at all; 33 of 91 grid rows violate, every one at P >= 64. Call rational.cos / rational.sin when the exact Q carrier is what you need"),),
             returns=R("complex", "e^(i*theta) on the unit circle"),
         ),
         ToolEntry(
             name="srmech.math.rational.complex_exp", owner="srmech", category="rational",
             summary="e^z for complex z = e^(z.real)*(cos(z.imag) + i*sin(z.imag)) via the Class-N cascade. Class-N exp + trig composed with Class-C i-rotation. Substrate-native replacement for np.exp / cmath.exp on a complex argument.",
             parameters=(P("z", "complex", True, "complex exponent"),
-                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
+                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 drives the internal Class-N reduction at P fractional bits (keyword-only). THE RESULT IS A float64 complex, NOT a Q, so the delivered accuracy is bounded by the CARRIER and not by 2**-P - 0.9.0rc471 REMOVED the absolute-error bound this line used to state. MEASURED against a 400-digit independent decimal reference, one fresh process per case: complex_exp(1+2j) already violates at P=53 (error 1.57583E-16 against a bound of 1.11022E-16) and the error does not move with P thereafter. Call rational.exp / rational.cos / rational.sin when the exact Q carrier is what you need"),),
             returns=R("complex", "e^z projected from the exact rational"),
         ),
         ToolEntry(
@@ -3744,7 +3744,7 @@ def _register_primitive_class_tools() -> None:
             summary="hypot(a, b) = sqrt(a^2 + b^2) via the Class-N sqrt cascade — Class-M sum-of-squares bind composed with the Class-N sqrt. Substrate-native replacement for math.hypot / np.hypot (the complex modulus |z| = hypot(z.real, z.imag)).",
             parameters=(P("a", "float", True, "first leg"),
                         P("b", "float", True, "second leg"),
-                        P("precision", "int", False, "scaled-integer precision (keyword-only); default 64")),
+                        P("precision", "int", False, "keyword-only; the signature default is None, NOT 64 - 0.9.0rc471 corrected this line, which stated a default the code does not have AND described the design rc299 deliberately removed. None = the RELATIVE-precision sqrt route _sqrt_relative_k(num, den, _SQRT_Q_K), which sizes the grid to the radicand so a sub-1 magnitude keeps its significant bits; _SQRT_Q_K is 54. rc299 (`#919`) introduced that because the old FIXED absolute grid returned an exact 0.0 below ~1e-17 - unsafe as a divisor - and was 44% off at 1e-16. precision=P selects that literal ABSOLUTE P-fractional-bit grid on request. The phantom 64 was `_SQRT_PRECISION_BITS`, a module constant referenced NOWHERE in the tree, deleted in the same rc")),
             returns=R("Q", "Euclidean norm sqrt(a^2 + b^2) as an exact-rational APPROXIMATION (Class-N Q carrier); the exact algebraic value is Qalg over t^2 - (a^2 + b^2)"),
         ),
         ToolEntry(

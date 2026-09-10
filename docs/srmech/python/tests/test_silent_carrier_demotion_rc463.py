@@ -477,7 +477,13 @@ def test_layer1_exact_in_exact_out(label, call, want) -> None:
         f"SILENT CARRIER DEMOTION at {label}: got {got!r}, exact value is "
         f"{want!r}. The op accepted an exact operand and returned a rounded "
         f"one. Fix the CARRIER (an exact peer already ships) — do not widen a "
-        f"tolerance and do not add the row to CEIL_SILENT_DEMOTION.")
+        f"tolerance, and do not reach for a ceiling: THIS LAYER IS STRICT "
+        f"ZERO AND HAS NONE. (rc463's `CEIL_SILENT_DEMOTION` was deleted with "
+        f"`_DEMOTION_MANIFEST` at rc465; the message stood for six releases "
+        f"telling a reader to add a row to a constant that does not exist, "
+        f"and rc471 swept it. The only live ceiling in this file is "
+        f"`CEIL_DEMOTION_UNREACHED`, which ratchets the probe's NO_SHAPE "
+        f"REACH and has nothing to do with this row.)")
 
 
 # ── LAYERS 2 & 3 — the COMMITTED census manifest, and the honesty gate over it ─
@@ -590,9 +596,20 @@ MANIFEST = Path(__file__).resolve().parent / "demotion_census.ndjson"
 #: were always two, the second being the one rc470's own change IS: the READER
 #: moving behind an unchanged registry. That half is now CLOSED by
 #: ``demotion_probe.reader_signature`` and asserted by
-#: ``test_the_manifest_is_fresh_against_the_reader_signature`` below; the
-#: implementation half stays open, for the 17-20-minute-per-rc reason given in
-#: the probe's disclosure 6.
+#: ``test_the_manifest_is_fresh_against_the_reader_signature`` below.
+#: rc471 (`#T1188`) closed the remaining TWO. There were never two axes here,
+#: there were four, and the fourth had no name until rc471 measured it: the
+#: PROBE can move behind an unchanged registry AND an unchanged reader —
+#: rc468->rc469 moved 16 verdicts over 7 ops with both of those UNMOVED, and 5
+#: of the 7 moved for that reason alone. ``demotion_probe.probe_signature``
+#: closes it. The IMPLEMENTATION half is closed by asserting
+#: ``meta.measured_at.<cell>.srmech_version``, which rc470 declined on the
+#: cost of a forced two-cell re-measure per rc; the historical cost is
+#: MEASURED at ZERO (all six rcs of the census's life regenerated anyway, every
+#: boundary with real row churn) and the forward cost is what rc471's shape
+#: lever buys down. ⚠️ A version stamp is a CLAIM, not a digest — it can be
+#: made green by editing one string — which is precisely why it ships WITH the
+#: three digests and never alone.
 #:
 #: It is also LIVE from rc470. Through rc469 it was assigned here and read by
 #: NOTHING — mentioned in two docstrings and interpolated into no message at
@@ -601,9 +618,12 @@ MANIFEST = Path(__file__).resolve().parent / "demotion_census.ndjson"
 #: assertion's failure text.
 _STALENESS_BLIND_SPOT = (
     "the registry signature does not move when an implementation changes "
-    "carrier behaviour behind an unchanged signature (the OPEN half); the "
-    "reader signature closes the other half, where the R3 reader moves behind "
-    "an unchanged registry")
+    "carrier behaviour behind an unchanged signature, nor when the R3 READER "
+    "moves, nor when the PROBE moves; those three axes are covered by "
+    "measured_at.<cell>.srmech_version (rc471), reader_signature (rc470) and "
+    "probe_signature (rc471) respectively, and NONE of the four is redundant "
+    "— rc468->rc469 moved 16 verdicts over 7 ops with the registry signature "
+    "and the reader signature both UNMOVED")
 
 #: sha256 over the NORMALISED undeclared roster, BOTH columns, one digest:
 #: ``"<cell>\t<op>::<param>"`` lines, sorted, newline-joined with a trailing
@@ -985,6 +1005,133 @@ def test_the_manifest_is_fresh_against_the_reader_signature() -> None:
         f"Do NOT repoint the digest by hand — it lives in the manifest the "
         f"tool writes.")
 
+def test_the_manifest_is_fresh_against_the_probe_signature() -> None:
+    """THE THIRD STALENESS GUARD — the INSTRUMENT (rc471, `#T1188`).
+
+    ⚠️ **THIS IS THE AXIS THAT ACTUALLY FIRED, and the other two are blind to
+    it.** MEASURED across ``srmech-v0.9.0rc468`` -> ``rc469``: the registry
+    signature did NOT move, ``declares`` moved ZERO times, and **16 census
+    verdicts moved over 7 ops**. Only 2 of the 7 had an implementation change;
+    the other 5 moved because the PROBE moved — the ``VACUOUS`` split arrived
+    with ``ALT_SIBLING_VALUES`` / ``MAX_ALT_BINDINGS`` / ``_alt_bindings`` /
+    ``_vacuous_by``. Nothing in this file could see that, and nothing in the
+    manifest recorded which instrument wrote its verdict column.
+
+    Asserted PER CELL and asserted to EXIST, for the same reason the reader
+    guard is: a manifest half-measured under each probe would pass a single
+    top-level assertion by agreeing with whichever cell wrote last.
+
+    The three refusal states are the reader guard's three, and each is proven
+    able to fire by ``test_the_staleness_guard_is_not_vacuous`` below and by
+    the plugin run recorded in the rc471 CHANGELOG entry.
+    """
+    meta, _ = _manifest()
+    live = _dp.probe_signature()
+    got = meta.get("probe_signature_sha256")
+    assert isinstance(got, dict) and got, (
+        "the census manifest carries NO `probe_signature_sha256`. It was "
+        "measured by a probe from before rc471, so the INSTRUMENT that wrote "
+        "its verdict column is unidentified — and a probe change moves "
+        "neither the registry signature nor the reader signature, which is "
+        "MEASURED (rc468->rc469: 16 verdicts over 7 ops, both of those "
+        f"UNMOVED). Re-measure BOTH cells:\n    {_REGEN}")
+    missing = [c for c in _cells() if c not in got]
+    assert not missing, (
+        f"cells {missing} carry no probe signature, so their verdict column "
+        f"was written by an unidentified instrument. Re-measure "
+        f"them:\n    {_REGEN}")
+    stale = {c: s for c, s in got.items() if s != live}
+    assert not stale, (
+        f"the census manifest is STALE against the PROBE: {sorted(stale)} "
+        f"measured {[s[:12] for s in stale.values()]} and this tree's probe "
+        f"is {live[:12]}. A verdict-deciding knob moved — the witness triple, "
+        f"a bound, CONTRACT_SKIP, SHAPE_LEVER, the synthesised shapes or the "
+        f"sequence/opaque identity sets — and NO registry or reader signature "
+        f"moves to tell you so. Re-measure IN EACH STALE CELL:\n    {_REGEN}\n"
+        f"Do NOT repoint the digest by hand — it lives in the manifest the "
+        f"tool writes.")
+
+
+def test_the_manifest_records_the_version_it_was_measured_at() -> None:
+    """THE IMPLEMENTATION HALF — rc470 DECLINED this, rc471 REVERSES IT.
+
+    rc470 left it open on cost: the gate *"forces a full two-cell re-measure on
+    EVERY rc"*, of which the pure cell alone costs 17-20 minutes. Two things
+    changed, and both are measurements rather than arguments.
+
+    **(1) The historical cost is ZERO.** The census has been fully regenerated
+    at ALL SIX rcs of its life (rc465 -> rc470), every boundary carrying real
+    row churn — 97 / 15 / 15 / 82 / 38 changed lines — and not one of them was
+    a version-line-only diff. This gate would have forced no additional
+    re-measure at any of them.
+
+    **(2) rc471's shape lever makes the forward cost affordable.** MEASURED,
+    PURE cell: ``recover_check_spectral``'s three rows cost 504.98 s at the
+    harvested ``vocab_size`` 64 and 8.49 s at the levered 16, with every field
+    of all three rows byte-identical. See ``tests/test_shape_lever_rc471.py``,
+    which pins the invariance AND the counter-control that makes it per-op.
+
+    ⚠️ **A VERSION STAMP IS A CLAIM, NOT A DIGEST**, and that is why it does
+    not ship alone. It can be made green by editing one string, unlike
+    ``registry_signature`` / ``reader_signature`` / ``probe_signature``, each
+    of which is computed from live tree content. The sibling ledger's own
+    docstring already rules on the pairing: *"a version match says the harvest
+    ran on this release, not that it ran on this tree. Both clauses are
+    needed."* Here the other clause is three digests, not one.
+    """
+    import srmech
+    meta, _ = _manifest()
+    live = srmech.__version__
+    measured = meta.get("measured_at")
+    assert isinstance(measured, dict) and measured, (
+        "the census manifest carries NO `measured_at`. It predates rc465. "
+        f"Re-measure BOTH cells:\n    {_REGEN}")
+    missing = [c for c in _cells() if c not in measured]
+    assert not missing, (
+        f"cells {missing} record no `measured_at`, so nothing says which "
+        f"release measured them:\n    {_REGEN}")
+    stale = {c: (measured[c] or {}).get("srmech_version")
+             for c in _cells()
+             if (measured[c] or {}).get("srmech_version") != live}
+    assert not stale, (
+        f"the census manifest was measured at {stale} and this tree is "
+        f"{live!r}. An IMPLEMENTATION can change carrier behaviour behind an "
+        f"unchanged signature, an unchanged reader and an unchanged probe — "
+        f"that is the one staleness axis no digest reaches, and the version "
+        f"stamp is the only guard that sees it. Re-measure IN EACH STALE "
+        f"CELL:\n    {_REGEN}\n"
+        f"⚠️ Do NOT edit the stamp. It is a CLAIM, not a digest: hand-editing "
+        f"it green is exactly the forgery this assertion exists to make "
+        f"visible, and the three digests beside it would not object.")
+
+
+def test_the_manifest_records_the_witness_it_was_measured_with() -> None:
+    """FREE — three string comparisons, and nothing compared them before.
+
+    ``meta.witness`` has been WRITTEN by :func:`demotion_probe.merge_cell`
+    since rc465 and READ by nothing. The gate validates that the LIVE ``P``
+    discriminates (``test_layer0_the_witness_could_have_failed``); it never
+    compared the committed witness to the live one. So re-pointing ``P`` at
+    another discriminating value would leave every row measured under a
+    different witness, and every assertion in this file green.
+
+    :data:`demotion_probe.H` is deliberately NOT asserted here: it is in
+    ``PROBE_SPEC`` and therefore in :func:`demotion_probe.probe_signature`,
+    while ``meta.witness`` holds only the triple the probe writes. Asserting a
+    field the tool does not write would be a gate over a key nobody sets.
+    """
+    meta, _ = _manifest()
+    got = meta.get("witness")
+    assert isinstance(got, dict) and got, (
+        f"the census manifest carries NO `witness`. Re-measure BOTH "
+        f"cells:\n    {_REGEN}")
+    want = {"P": str(_dp.P), "F": str(_dp.F), "G": str(_dp.G)}
+    assert got == want, (
+        f"the census was measured with witness {got} and this tree's probe "
+        f"carries {want}. Every verdict in the file was decided by a triple "
+        f"that is no longer the shipped one. Re-measure BOTH "
+        f"cells:\n    {_REGEN}")
+
 
 def test_the_staleness_guard_is_not_vacuous() -> None:
     """The guard must MOVE for each of the three changes it claims to catch.
@@ -1066,8 +1213,87 @@ def test_the_staleness_guard_is_not_vacuous() -> None:
     # enforced by review. It is written into the constant rather than left
     # here alone.
 
+    # ── the PROBE half (rc471, `#T1188`) ─────────────────────────────────────
+    # EVERY MEMBER, NOT ONE. A spec tuple is only as good as its narrowest
+    # member, and a can-fail that mutates the first entry proves the digest
+    # function works while saying nothing about the other eleven. The loop
+    # below asserts its own coverage against len(PROBE_SPEC), so a member
+    # ADDED without a mutation here fails rather than passing silently.
+    def pdigest(spec):
+        return sha256_bytes(
+            (json.dumps(spec, sort_keys=True) + "\n").encode("utf-8"))
+
+    pbase = _dp.PROBE_SPEC
+    assert pdigest(pbase) == _dp.probe_signature(), (
+        "probe_signature() is not the digest of PROBE_SPEC; the guard and its "
+        "own witness have come apart")
+    mutations = {
+        # the witness triple + the coarse fourth: H SPLITS a null, so it
+        # decides a verdict STRING and belongs in the key.
+        "witness": (str(_dp.P), str(_dp.F), str(_dp.G), str(_dp.H + 1)),
+        "leaves": _dp.MAX_LEAVES + 1,
+        "alt_sibling_values": _dp.ALT_SIBLING_VALUES + (6,),
+        "alt_bindings": _dp.MAX_ALT_BINDINGS + 1,
+        "null_contexts": _dp.MAX_NULL_CONTEXTS + 1,
+        "call_timeout": _dp.CALL_TIMEOUT + 1,
+        "contract_skip": {**_dp.CONTRACT_SKIP, "srmech.planted.op": "planted"},
+        "shape_lever": {"srmech.planted.op": {"n": 1}},
+        "flat_dims": _dp.FLAT_DIMS + (32,),
+        "square_dims": _dp.SQUARE_DIMS + (16,),
+        "seq_idents": tuple(sorted(_dp._SEQ_IDENTS)) + ("Planted",),
+        "opaque_idents": tuple(sorted(_dp._OPAQUE_IDENTS)) + ("Planted",),
+    }
+    assert sorted(mutations) == sorted(k for k, _ in pbase), (
+        f"the probe can-fail covers {sorted(mutations)} and PROBE_SPEC holds "
+        f"{sorted(k for k, _ in pbase)} — a member with no mutation is a "
+        f"member nothing proves the digest can see")
+    for name, newval in mutations.items():
+        mutated = tuple((k, newval if k == name else v) for k, v in pbase)
+        assert pdigest(mutated) != pdigest(pbase), (
+            f"a changed {name} does not move the probe signature")
+
+    # And the SHAPE LEVER is not merely IN the tuple — it is the live constant.
+    # Binding a copy would move the digest while the instrument did not, which
+    # is worse than the hole it replaces (the NEG_WORD_CLASS lesson above).
+    assert dict(pbase)["shape_lever"] is _dp.SHAPE_LEVER, (
+        "PROBE_SPEC's shape_lever is not demotion_probe.SHAPE_LEVER itself")
+    assert dict(pbase)["contract_skip"] is _dp.CONTRACT_SKIP, (
+        "PROBE_SPEC's contract_skip is not demotion_probe.CONTRACT_SKIP itself")
+
 
 # ── LAYER 2 — the population, read off the manifest ───────────────────────────
+
+def test_the_two_dead_ceiling_names_are_still_dead_rc471() -> None:
+    r"""W5.2 — ``CEIL_SILENT_DEMOTION`` and ``_DEMOTION_MANIFEST`` are GONE.
+
+    Both were rc463's, both were deleted at rc465, and both survived in prose
+    for six releases — nine sites across three files, MEASURED at rc471. The
+    CHANGELOG's three are HISTORY and stay. Of the six ``.py`` sites, five
+    already read as history (``tools/demotion_probe.py``'s module docstring,
+    two comments and a docstring here) and ONE did not: the Layer-1 failure
+    message above told a reader to *"add the row to CEIL_SILENT_DEMOTION"*, a
+    constant that does not exist, so the instruction was unexecutable in the
+    one place a reader meets it under failure.
+
+    This pins the deadness so a later rc cannot re-mint either name as live
+    code and leave the prose above reading as history. Zero live assignments
+    tree-wide, MEASURED:
+    ``grep -rnE "^\s*(CEIL_SILENT_DEMOTION|_DEMOTION_MANIFEST)\s*[:=]"
+    --include=*.py . | wc -l`` -> **0**.
+    """
+    import sys as _sys
+    me = _sys.modules[__name__]
+    for name in ("CEIL_SILENT_DEMOTION", "_DEMOTION_MANIFEST"):
+        assert not hasattr(me, name), (
+            f"{name} is LIVE again in this module. It was deleted at rc465 "
+            f"and every surviving mention of it in .py files is written as "
+            f"HISTORY. Re-minting it means the prose around those mentions is "
+            f"now false — fix both together or neither.")
+        assert not hasattr(_dp, name), (
+            f"{name} is LIVE again in tools/demotion_probe.py — same rule.")
+    # The live ceiling is the OTHER one, and it is a real constant.
+    assert isinstance(CEIL_DEMOTION_UNREACHED, dict) and CEIL_DEMOTION_UNREACHED
+
 
 def test_layer2_the_probe_refinds_the_rc463_hand_written_six() -> None:
     """POSITIVE CONTROL. An auto-populating instrument that misses what a human

@@ -50,7 +50,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
+                    Tuple)
 
 HOOKS = Path(__file__).resolve().parent
 sys.path.insert(0, str(HOOKS))
@@ -169,8 +170,64 @@ def _write(p: Path, text: str) -> Path:
     return p
 
 
+#: Environment variables that SELECT A REPOSITORY, and therefore outrank both
+#: ``cwd=`` and the fixture's own ``TemporaryDirectory``. Scrubbed from every
+#: fixture ``git`` call by :func:`fixture_git_env`.
+#:
+#: ⚠️ THIS IS A REPAIR, AND THE DAMAGE IS ON THE RECORD (rc471, `#T1188`).
+#: With ``GIT_DIR``/``GIT_WORK_TREE`` exported for a pytest run, ``cwd=`` below
+#: became inert — git resolves its repository from the environment first — so
+#: :func:`_init_repo` re-initialised the LIVE repository and, in its next two
+#: lines, wrote ``user.name = hook fixture`` / ``user.email =
+#: hooks@example.invalid`` into the SHARED ``.git/config``. The two loud
+#: symptoms (a stray ``core.worktree`` line, a stray fixture commit) were found
+#: and cleaned up; the identity write had NO symptom, survived the cleanup, and
+#: authored the next EIGHT commits — including the one disclosing the incident.
+#: rc471's CHANGELOG entry carries the full measurement and the rewrite.
+#:
+#: The disclosure at the time absolved this file because it "builds its repo in
+#: a ``TemporaryDirectory``". That reasoning is exactly the one ``GIT_DIR`` is
+#: designed to defeat: a temp directory plus ``cwd=`` is not isolation when the
+#: environment names a repository, because the ENVIRONMENT WINS.
+GIT_REPO_SELECTING_ENV = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_COMMON_DIR",
+    "GIT_INDEX_FILE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_CEILING_DIRECTORIES",
+    "GIT_CONFIG",
+    "GIT_CONFIG_GLOBAL",
+    "GIT_CONFIG_SYSTEM",
+    "GIT_CONFIG_COUNT",
+)
+
+
+def fixture_git_env(root: Path,
+                    base: Optional[Mapping[str, str]] = None
+                    ) -> Dict[str, str]:
+    """The environment a FIXTURE ``git`` may see. Pure, so it can be tested.
+
+    Two independent defences, because either alone has a hole:
+
+    1. Every name in :data:`GIT_REPO_SELECTING_ENV` is REMOVED, so nothing in
+       the ambient environment can name a repository for the child.
+    2. ``GIT_CEILING_DIRECTORIES`` is then set to the fixture root's PARENT, so
+       even the ordinary upward walk cannot leave the fixture — the case
+       scrubbing alone does not cover, because a fixture created inside a
+       checkout would otherwise discover that checkout by plain discovery.
+    """
+    env = dict(os.environ if base is None else base)
+    for name in GIT_REPO_SELECTING_ENV:
+        env.pop(name, None)
+    env["GIT_CEILING_DIRECTORIES"] = str(Path(root).resolve().parent)
+    return env
+
+
 def _git(args: List[str], cwd: Path) -> Tuple[int, str]:
     proc = subprocess.run(["git", *args], cwd=str(cwd),
+                          env=fixture_git_env(cwd),
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     return proc.returncode, proc.stdout.decode("utf-8", "replace")
 
@@ -178,8 +235,8 @@ def _git(args: List[str], cwd: Path) -> Tuple[int, str]:
 def _init_repo(root: Path) -> None:
     root.mkdir(parents=True, exist_ok=True)
     _git(["init", "-q", "-b", "main"], root)
-    _git(["config", "user.email", "hooks@example.invalid"], root)
-    _git(["config", "user.name", "hook fixture"], root)
+    _git(["config", "--local", "user.email", "hooks@example.invalid"], root)
+    _git(["config", "--local", "user.name", "hook fixture"], root)
 
 
 def _commit(root: Path, msg: str) -> None:
@@ -1072,8 +1129,25 @@ def check_jpl_audit() -> None:
                        _JPL, "_recursion_cycles()       :     9 cycles")
         _selftest_case("jpl-audit function-pointer population is 10 (vacuity)",
                        _JPL, "_fn_ptr_sites()           :    10 sites")
+        # RE-PINNED 3574 -> 3598 (rc471 repair pass, `#T1188`), and the
+        # re-pin is disclosed rather than done quietly. It was ALREADY STALE
+        # before this rc: the selftest prints 3598 against the branch head's
+        # registry AND against the pre-repair one, measured both ways, so the
+        # regeneration in this rc is not what moved it. Nothing caught it
+        # because this file is delivered WRITTEN BUT NOT ACTIVATED and no
+        # pytest run collects it -- ungated surfaces trickle.
+        #
+        # UNLIKE ITS TWO SIBLINGS ABOVE, this literal is not a ratchet. 9
+        # cycles and 10 sites are down-only POPULATIONS with a meaning; the
+        # function total is just "how many C functions exist", and it moves
+        # every time the library gains one. The case's own name says what it
+        # is for -- a VACUITY check, that the scanner found a population at
+        # all -- so the exact literal is a currency pin on a number with no
+        # ceiling behind it, and it will go stale again. The real Rule-4/5
+        # ratchets live in tests/test_jpl_audit.py, which is green at 13
+        # passed / RED: 0 on this tree.
         _selftest_case("jpl-audit scans a non-empty function population",
-                       _JPL, "_scan_functions() total   :  3574 funcs")
+                       _JPL, "_scan_functions() total   :  3598 funcs")
 
     # A missing audit file is an INFRASTRUCTURE failure and must fail OPEN.
     # ⚠️ The fixture carries a C tree ON PURPOSE. It used to be `python/` alone,

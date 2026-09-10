@@ -368,6 +368,24 @@ def _git(args: List[str]) -> Tuple[int, str]:
     return p.returncode, p.stdout.decode("utf-8", "replace")
 
 
+def _git_stderr(args: List[str]) -> Tuple[int, str, str]:
+    """``git`` in the repo root, KEEPING stderr. ``(code, stdout, stderr)``.
+
+    :func:`_git` sends stderr to ``DEVNULL`` and never raises, which is right
+    for the callers that only want a best-effort answer. :func:`head_blob_map`
+    is not one of them: its failure has to name what git said (rc471,
+    `#T1188`).
+    """
+    try:
+        p = subprocess.run(["git", *args], cwd=str(REPO_ROOT),
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           check=False)
+    except (OSError, ValueError) as exc:                      # noqa: BLE001
+        return 1, "", f"{type(exc).__name__}: {exc}"
+    return (p.returncode, p.stdout.decode("utf-8", "replace"),
+            p.stderr.decode("utf-8", "replace"))
+
+
 def module_of(repo_rel_path: str) -> str:
     """``docs/srmech/python/srmech/math/rational.py`` -> ``srmech.math.rational``.
 
@@ -394,10 +412,32 @@ def head_blob_map() -> Dict[str, str]:
     time predates the commit that lands the change, so the natural
     edit-block-rerun-commit loop would leave every row it just verified
     "stale" and need a second no-op re-run to clear.
+
+    ⚠️ **AN EMPTY MAP IS AN ERROR, NOT "NOTHING CHANGED"** (rc471, `#T1188`).
+    Through rc470 this returned ``{}`` when git failed, and both callers then
+    stamped ``def_blob: ""`` on EVERY row with nothing raised anywhere --
+    "an instrument that cannot return otherwise is not a measurement", one
+    level down. MEASURED IN THE WORKTREE THAT WROTE THIS: WSL git cannot open a
+    worktree whose ``.git`` is a pointer file holding a WINDOWS path, so
+    ``git ls-tree`` exits **128** with *"fatal: not a git repository:
+    /mnt/d/.../D:/GitHub/mlehaptics/.git/worktrees/..."* and this function
+    returned **0 entries**. A ledger harvested there would have carried 732
+    empty stamps and looked like a clean run. It now RAISES, naming git's own
+    stderr, and a SUCCESSFUL call that finds no blob raises too -- both mean
+    "no stamps are available", and neither may be spelled the same way as
+    "no module moved".
     """
-    code, out = _git(["ls-tree", "-r", "HEAD", "--", WATCHED])
+    p = _git_stderr(["ls-tree", "-r", "HEAD", "--", WATCHED])
+    code, out, err = p
     if code != 0:
-        return {}
+        raise RuntimeError(
+            f"head_blob_map: `git ls-tree -r HEAD -- {WATCHED}` exited {code} "
+            f"in {REPO_ROOT}. git said: {err.strip() or '<no stderr>'}. "
+            f"Every ledger row would otherwise be stamped def_blob='' with no "
+            f"error, which reads as 'no module moved'. Fix the git "
+            f"environment (a worktree .git pointer holding a Windows path is "
+            f"unreadable by WSL git -- export GIT_DIR and GIT_WORK_TREE, or "
+            f"run under the toolchain that owns the checkout).")
     blobs: Dict[str, str] = {}
     for line in out.splitlines():
         if "\t" not in line:
@@ -409,6 +449,12 @@ def head_blob_map() -> Dict[str, str]:
         m = module_of(path.strip().strip('"'))
         if m:
             blobs[m] = parts[2]
+    if not blobs:
+        raise RuntimeError(
+            f"head_blob_map: `git ls-tree` succeeded in {REPO_ROOT} but named "
+            f"no .py module under {WATCHED} ({len(out.splitlines())} tree "
+            f"lines). That is not 'no module moved' -- it is 'no stamps are "
+            f"available', and stamping def_blob='' on every row would hide it.")
     return blobs
 
 

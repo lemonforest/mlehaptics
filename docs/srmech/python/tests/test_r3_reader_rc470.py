@@ -505,11 +505,21 @@ def test_group_d_the_case_policy_is_wired_not_declared() -> None:
 #: should re-run the per-occurrence dump over the DECLARED set and diff it
 #: against this dict.
 #:
-#: MEASURED at 0.9.0rc470: 219 DECLARED, 39 pinned here, **180 substantive**.
-#: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 219 is LEXICAL and
-#: regenerable by anyone with this tree; 181 is 222 minus a HAND-MAINTAINED
-#: ledger, so it is only as fresh as the last hand-read. Quoting 181 alone
+#: MEASURED at 0.9.0rc471: 223 DECLARED, 41 pinned here, **182 substantive**.
+#: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 223 is LEXICAL and
+#: regenerable by anyone with this tree; 182 is 223 minus a HAND-MAINTAINED
+#: ledger, so it is only as fresh as the last hand-read. Quoting 182 alone
 #: implies a measurement the instrument cannot make.
+#: ⚠️ **THIS COMMENT SAID 219 / 39 / 180 UNTIL rc471, AND EVERY ONE OF THE
+#: THREE WAS FALSE.** The pair moved 219/180 -> 222/181 in rc470's last
+#: commit and the pinned ledger moved 39 -> 41 in an earlier one, but this
+#: line was never re-read — while its own file already
+#: asserted 41, 222 and 181 at rc470, so the comment contradicted assertions
+#: in its own file. rc470's own freshness harness could not see it: it witnessed
+#: this file's HASH and diffed the prose of two OTHER files. rc471 widened
+#: that diff to read this comment (``tools/rc470_figures.py``'s
+#: ``_the_gates_own_baseline_line``), which is why the figure is now taken
+#: from the run rather than from memory.
 #: The 41 are MOSTLY not a rc470 regression: **35** of them read
 #: DECLARED under the rc469 reader too — MEASURED by re-implementing
 #: that substring reader from ``git show main:tools/demotion_probe``.
@@ -694,8 +704,8 @@ _MISREAD_CLASS_COUNTS = {
 #: ``symmetric_eigendecompose``). Their labels agree across interpreters TODAY
 #: only because the names that changed position happen to be non-hit-bearing
 #: and jumped AROUND the hit-bearing pair. That is an accident, not a
-#: guarantee — and a bare ``len(declared) == 222`` is blind to it, because
-#: DECLARED would stay 222 on every interpreter while the credited delegate
+#: guarantee — and a bare ``len(declared) == 223`` is blind to it, because
+#: DECLARED would stay 223 on every interpreter while the credited delegate
 #: silently differed.
 #:
 #: A single-interpreter test cannot assert a cross-version property on its own.
@@ -709,8 +719,26 @@ _MISREAD_CLASS_COUNTS = {
 #: while membership held, which is either an edited docstring or the ORDER
 #: residue above finally biting. The second case is the one this constant was
 #: minted to catch; do not re-pin it without reading which delegate changed.
+#: ⚠️ **MOVED AT rc471 (`#T1188`) — 06f93439fe15b27f -> b43563f9e417da49 —
+#: AND THE COUNT MOVED WITH IT (222 -> 223), so this was the "re-adjudicate"
+#: branch of the paragraph above, not the ORDER residue.** The cause is
+#: rc471's own W6 prose: ``rational.cexp`` gained an ACCURACY paragraph, which
+#: (i) moved ITS OWN label from ``truncation (via cos)`` — a delegate hit —
+#: to ``float64`` on its own docstring, and (ii) made
+#: ``cascade.spectral_cascades.dft`` DECLARED for the first time, through the
+#: same ``cexp`` delegate. The second was HAND-READ before this digest moved:
+#: ``dft``'s own docstring carries no R3 stem but DOES warn the caller
+#: (*"one FPU lift — don't use floats for bit-exact math"*, and it names
+#: exactly which signals take the float ``cexp`` path), and its census row
+#: reads EXACT in both cells. So DECLARED is substantively RIGHT and only the
+#: evidence POINTER is a delegate — the LABEL-MISATTRIBUTION class, which is
+#: deliberately NOT pinned, because pinning asserts an op should read
+#: undeclared and this one should not. Ledger stays 41; substantive 181 ->
+#: 182. RE-MEASURED on five interpreters in the same run: 3.10.21 / 3.11.16 /
+#: 3.12.3 / 3.13.15 / 3.14.7 all give DECLARED 223 and this digest, byte for
+#: byte, every one numpy-absent and sympy-absent.
 _DECLARED_LABEL_MAP_DIGEST = (
-    "06f93439fe15b27f197aef81146b9f88961702db59cbf196b32b3857b372fe6b")
+    "b43563f9e417da49c57caa409c52a80840c7ea6d16dc6775bfe8c80a6bd1b3fa")
 
 
 def _declared_label_map_digest(pairs) -> str:
@@ -814,8 +842,9 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
     # object left to find, against 839 <listcomp> + 51 <dictcomp> + 9 <setcomp>
     # on 3.10/3.11); on <= 3.11 it recovers exactly the names 3.12 already saw.
     # Convergence is asserted over the WHOLE population, not three counts: the
-    # folded label MAP is byte-identical on all five interpreters, all 222
-    # rows — see _DECLARED_LABEL_MAP_DIGEST below.
+    # folded label MAP is byte-identical on all five interpreters, all 223
+    # rows — see _DECLARED_LABEL_MAP_DIGEST below. (222 rows at rc470; rc471's
+    # W6 prose added one, hand-read and adjudicated at that constant.)
     #
     # THE THREE IT MOVES, hand-read, and it is EXACTLY three (gained 3, lost 0,
     # label-changed 0 over the full 732 on every interpreter):
@@ -849,24 +878,26 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
     # list on 3.10 and 3.12); their labels agree today only because the names
     # that changed position are non-hit-bearing. The digest below is what lets
     # a matrix cell SEE a future divergence there — the COUNT alone could not,
-    # since DECLARED would stay 222 everywhere while the credited delegate
+    # since DECLARED would stay 223 everywhere while the credited delegate
     # silently differed.
-    assert len(declared) == 222, (
-        f"lexical DECLARED is {len(declared)}, not 222. Every count in this "
-        f"file, in tools/demotion_probe.py's disclosures and in the rc470 "
-        f"CHANGELOG entry is quoted against that figure. ⚠️ IF THIS IS 219, "
+    assert len(declared) == 223, (
+        f"lexical DECLARED is {len(declared)}, not 223. Every count in this "
+        f"file, in tools/demotion_probe.py's disclosures and in the rc471 "
+        f"CHANGELOG entry is quoted against that figure. ⚠️ IF THIS IS 220, "
         f"the comprehension fold in demotion_probe._delegate_names is not "
-        f"running: 219 is the PRE-FIX reading of CPython <= 3.11 (MEASURED "
-        f"219 on 3.10.21 and 3.11.16, 222 on 3.12.3 / 3.13.15 / 3.14.7 before "
-        f"the fold; 222 on all five after). RESTORE THE FOLD rather than "
-        f"moving this number — two of the three ops it reveals are PINNED "
-        f"misreads above and would fall out of the ledger, reddening the "
-        f"parametrized test. The four assertions above have already cleared "
-        f"the reader, so this is a DELEGATE-FOLLOW or PROSE change, never a "
-        f"reader-vocabulary change. {_reader_identity()}")
+        f"running: 220 is the PRE-FIX reading of CPython <= 3.11, MEASURED ON "
+        f"THIS TREE at rc471 by replacing _delegate_names with a bare "
+        f"code.co_names — 220 on 3.10.21 and 3.11.16, 223 on 3.12.3 and "
+        f"3.14.7 without the fold; 223 on all five with it. (rc470 measured "
+        f"the same three-op split as 219/222 on its own prose.) RESTORE THE "
+        f"FOLD rather than moving this number — two of the three ops it "
+        f"reveals are PINNED misreads above and would fall out of the ledger, "
+        f"reddening the parametrized test. The four assertions above have "
+        f"already cleared the reader, so this is a DELEGATE-FOLLOW or PROSE "
+        f"change, never a reader-vocabulary change. {_reader_identity()}")
     unknown = sorted(set(_RESIDUAL_TOPIC_MISREADS) - declared)
     assert not unknown, f"pinned but not DECLARED: {unknown}"
-    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 181
+    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 182
 
 
 def test_group_e_the_folded_label_map_is_version_independent() -> None:
@@ -888,8 +919,10 @@ def test_group_e_the_folded_label_map_is_version_independent() -> None:
     fold_is_live = hasattr(_dp, "_delegate_names")
     assert fold_is_live, (
         "tools/demotion_probe.py has no _delegate_names: the comprehension "
-        "fold has been REMOVED. DECLARED will read 219 on CPython <= 3.11 and "
-        "222 on >= 3.12 from one unchanged tree, and two of the ops pinned in "
+        "fold has been REMOVED. DECLARED will read 220 on CPython <= 3.11 and "
+        "223 on >= 3.12 from one unchanged tree (MEASURED on THIS tree at "
+        "rc471; rc470 measured the same split as 219/222), and two of the "
+        "ops pinned in "
         f"_RESIDUAL_TOPIC_MISREADS will fall out. {_reader_identity()}")
 
     # (1) the fold is a STRUCTURAL no-op where PEP 709 already ran

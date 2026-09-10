@@ -1188,8 +1188,35 @@ from srmech.math.text import fold_marks, glyph_stream
 #: `search("rank", k=1).witness` returned the same digest on two consecutive
 #: interpreter runs, and the ops+carriers union equals it
 #: (`test_scope_witnesses_agree_with_the_union`).
+#: A SIXTH pin, in rc471's REPAIR PASS (`#T1188`), for a sixth separable cause,
+#: and it is the plainest of the six: three `explanation` strings moved, and
+#: **op explanations ARE the corpus**. `hypot`'s hand-curated explanation in
+#: `srmech/introspect/_tool_docs_curated.py` still said *"precision= sets the
+#: scaled-integer working precision (default 64)"* — the identical false claim
+#: W6.2 had just corrected in the same op's PARAMETER text, shipping 785 lines
+#: away in the same compiled `c/src/srmech_tool_registry.c`. `gen_tool_docs.py`
+#: is curation-PRESERVING, so no regeneration and no ripple gate could ever
+#: catch it: they prove the generated files are in SYNC with the curated
+#: source, never that the curated source is TRUE. `tan`'s and `atan`'s
+#: explanations moved with it, from silence to the accuracy story their
+#: parameter texts had just gained (`tan`'s bound DENIED, `atan`'s STATED).
+#:
+#: CONFIRMED A PROSE MOVE AND NOT A NON-DETERMINISTIC BUILD, before re-pinning
+#: and by the procedure the pins above established: **20 builds, one digest** —
+#: five successive `_build_frames("all")` calls in one process plus five in
+#: each of THREE fresh interpreters, all returning
+#: `6c51206c057f…af03ede1c2b0e`. The FRAME COUNT DID NOT MOVE: **761 = 732 ops
+#: + 29 carriers**, the same 761 the rc468-stage-4 note below records, and
+#: `ops + carriers == all` (`test_scope_witnesses_agree_with_the_union`). So no
+#: op was minted, removed or renamed — the registry did not move at all.
+#:
+#: THE CAUSE IS ISOLATED, not inferred: reverting `srmech/introspect/
+#: _tool_docs.py` ALONE to the pre-repair commit returns the digest to
+#: `40a2d8eb…` at the same 761 frames, and restoring it returns
+#: `6c51206c…`. One file, one cause, measured in both directions.
 WITNESS_RC416 = (
-    "40a2d8ebb1cf59de0302dcaf8052aee20eb8ed119e43584fdd0b10278a3bcc14")
+    "6c51206c057f6728dc80d2cd08821b9ca67b19695e219a8ddc1af03ede1c2b0e")
+#: was: 40a2d8ebb1cf59de0302dcaf8052aee20eb8ed119e43584fdd0b10278a3bcc14 (rc469)
 #: was: 0fb043cc3c534f95038ada90e824b276c632dfdc141c3ecbca2d00d03bc1cedc (rc468 stage 5)
 #: was: dd0149df3067cbb6d72bd555b90b366ee1a63a2625fd63bd44e84aaa6a881a3e (rc468 stage 3)
 #: A FOURTH pin, in rc468 STAGE 3, for a fourth separable cause: the maintainer
