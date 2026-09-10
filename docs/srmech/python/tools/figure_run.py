@@ -558,8 +558,15 @@ class FigureRun:
                "-p", "no:cacheprovider", *extra]
         if mutant is not None:
             cmd += ["-p", "canfail_preload"]
+        # encoding= explicitly, for the reason written out at :func:`git`:
+        # `text=True` alone decodes with the LOCALE codec, and a cp1252 host
+        # meeting one non-ASCII byte in a pytest summary loses the whole
+        # capture inside subprocess's reader thread. Same defect class, same
+        # file, so it is closed here rather than left as the one that had not
+        # bitten yet.
         out = subprocess.run(cmd, cwd=str(PY_ROOT), capture_output=True,
-                             text=True, env=env).stdout
+                             text=True, encoding="utf-8", errors="replace",
+                             env=env).stdout
         tail = [x for x in out.strip().split("\n")
                 if "passed" in x or "failed" in x or "error" in x]
         return re.sub(r"\s+in\s+[\d.]+s.*$", "", tail[-1]) if tail else "<no result>"
