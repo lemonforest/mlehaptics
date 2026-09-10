@@ -69,6 +69,29 @@ Three independent read-only reviews were run against this branch after it was pu
 
 **AND CI IS THE EVIDENCE FOR THE TWO BLOCKERS THIS HOST COULD NOT PRODUCE.** The same `ubuntu-latest • py3.12` run — a NATIVE host, which this session has none of — no longer lists `test_arm_i_the_finder_delivers_a_package_mutant_with_real_siblings` or `test_assert_contract_gate_rc433`. Both were red on that exact job before the repair. The route-aware arm (i) and the promoted `canfail_preload` contract are therefore proven where they had to be proven, and not by argument. What remains on that job after the re-pin is the one disclosed ledger red. `test_citation_manifest_rc428` does not appear at all, which independently confirms the checkout-path reading above.
 
+**AND THEN THE MANIFEST WAS RUN THE WAY IT SHOULD HAVE BEEN RUN FROM THE START — `python3 tools/ripple_check.py`, all 131 committed targets.** It is worth two numbers, because the first one is a trap this environment sets and a later reader will meet it too:
+
+| run | result |
+|---|---|
+| as first invoked | **39 failed, 2481 passed, 460 skipped, 10 errors** (1258 s) |
+| with `SRMECH_EXPECT_PURE=1` | **6 failed, 2481 passed, 503 skipped** (1323 s) |
+
+**The passed count is IDENTICAL — 2481 both ways — which is the tell.** Nothing was fixed between the runs; a declaration was added. `tests/_native_gate.py::require_native` fails, rather than skips, when `libsrmech` is absent and the run has NOT declared `SRMECH_EXPECT_PURE=1`, on the `#T843` contract that *"a native-parity claim with nothing behind it must never pass quietly"* — and this worktree has no library. The first run's very first named failure is `test_c_cascade_value_parity_rc450::test_native_library_is_present`, which says so outright.
+
+**The six that survive the declaration are the two families already disclosed above and NOTHING ELSE**: `test_synth_args_provenance_rc430` ×1 (the ledger version stamp) and `test_citation_manifest_rc428` ×5 (the `.claude/worktrees/` path artefact). So the full committed ripple manifest, run correctly for this environment, finds no ripple from this pass beyond the corpus witness it had already repaired.
+
+**CI'S VERDICT ON THE RE-PINNED HEAD, which is the number that decides this.** Every full-matrix job goes **4 failed → 1 failed**, and the one is the disclosed ledger red:
+
+| job | before the re-pin | after |
+|---|---|---|
+| `ubuntu-latest • py3.10` | — | **1 failed, 17655 passed, 68 skipped, 1 xpassed** |
+| `ubuntu-latest • py3.12` | 4 failed, 17652 passed, 68 skipped | **1 failed, 17655 passed, 68 skipped, 1 xpassed** |
+| `macos-14 • py3.12` | 4 failed, 17648 passed, 72 skipped | **1 failed, 17651 passed, 72 skipped, 1 xpassed** |
+| `windows-latest • py3.12` | 4 failed, 17637 passed, 83 skipped | **1 failed, 17640 passed, 83 skipped, 1 xpassed** |
+| `fallback • shard 6/6` | 4 failed, 2481 passed, 533 skipped | **1 failed, 2484 passed, 533 skipped** |
+
+Every other job — the three pedantic C builds, the pure-wheel build, the ref-notation guard, the five other fallback shards, the shard coverage-union, the durations merge and the pure-by-design skip audit — **passes**. ⚠️ Note that `ubuntu-latest • py3.10` is a **python 3.10** cell with the library built, i.e. the interpreter the committed example-args ledger was harvested on; that is where rc472's re-harvest belongs, and it is reachable.
+
 ⚠️ **ONE ENVIRONMENT DIFFERENCE, DISCLOSED because the harness banner names it.** This repair session's host has `sympy` INSTALLED, so `tools/rc471_figures.py` prints `sympy PRESENT` where the build session printed `absent`. It cannot reach a figure: `grep -rn "import sympy" --include=*.py .` over `docs/srmech/python` returns **0** lines — the only occurrences of the string anywhere are prose inside two generated doc files and one test's list of names. numpy is genuinely absent, and every figure below is quoted numpy-absent as before.
 
 ### W0 — PRE-FLIGHT, AND IT BIT HARDER THAN THE PLAN PREDICTED
