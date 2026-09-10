@@ -1129,8 +1129,25 @@ def check_jpl_audit() -> None:
                        _JPL, "_recursion_cycles()       :     9 cycles")
         _selftest_case("jpl-audit function-pointer population is 10 (vacuity)",
                        _JPL, "_fn_ptr_sites()           :    10 sites")
+        # RE-PINNED 3574 -> 3598 (rc471 repair pass, `#T1188`), and the
+        # re-pin is disclosed rather than done quietly. It was ALREADY STALE
+        # before this rc: the selftest prints 3598 against the branch head's
+        # registry AND against the pre-repair one, measured both ways, so the
+        # regeneration in this rc is not what moved it. Nothing caught it
+        # because this file is delivered WRITTEN BUT NOT ACTIVATED and no
+        # pytest run collects it -- ungated surfaces trickle.
+        #
+        # UNLIKE ITS TWO SIBLINGS ABOVE, this literal is not a ratchet. 9
+        # cycles and 10 sites are down-only POPULATIONS with a meaning; the
+        # function total is just "how many C functions exist", and it moves
+        # every time the library gains one. The case's own name says what it
+        # is for -- a VACUITY check, that the scanner found a population at
+        # all -- so the exact literal is a currency pin on a number with no
+        # ceiling behind it, and it will go stale again. The real Rule-4/5
+        # ratchets live in tests/test_jpl_audit.py, which is green at 13
+        # passed / RED: 0 on this tree.
         _selftest_case("jpl-audit scans a non-empty function population",
-                       _JPL, "_scan_functions() total   :  3574 funcs")
+                       _JPL, "_scan_functions() total   :  3598 funcs")
 
     # A missing audit file is an INFRASTRUCTURE failure and must fail OPEN.
     # ⚠️ The fixture carries a C tree ON PURPOSE. It used to be `python/` alone,
