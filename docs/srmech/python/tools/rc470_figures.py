@@ -147,11 +147,21 @@ GATE_SETS = (
     ("tests/test_notebook_currency_rc420.py",),
 )
 
+#: The needle each gate set's figure is diffed against. rc471 moved these off
+#: rc470's "**N passed**" sentences and onto its own, because ``passed`` is not
+#: a property of the tree — see the ⚠️ in :func:`main`. The rc470 figures are
+#: still COMPARED, and printed beside each set, but they are the reading of a
+#: different cell and are not the diff target.
 GATE_NEEDLES = (
-    "`test_native_sha256.py` → **{v} passed**",
-    "`test_r3_reader_rc470.py` → **{v} passed**",
-    "`test_notebook_currency_rc420.py` → **{v} passed**",
+    "gate set 1 → **{v} collected**",
+    "gate set 2 → **{v} collected**",
+    "gate set 3 → **{v} collected**",
 )
+
+#: What the rc470 entry quotes for each set, from a NATIVE-PRESENT host
+#: (`CHANGELOG.md`, the rc470 gate-totals paragraph). Printed as a comparison,
+#: never asserted: this tree cannot reproduce a native-cell reading.
+RC470_QUOTED = (166, 192, 40)
 
 #: The R3 gate whose can-fail figures this run reproduces.
 R3_GATE = ("tests/test_r3_reader_rc470.py",)
@@ -375,20 +385,45 @@ def main(argv) -> int:
         print("!! This run is NOT a final figure run.")
     else:
         print("\n-- GATE TOTALS (ONE union pytest, split on junit classname) --")
+        # ⚠️ THE QUOTED FIGURE IS `collected` = passed + skipped, NOT `passed`,
+        # and rc471 changed it for a measured reason. A row that skips because
+        # `libsrmech` is absent PASSES on a host that has one, so the same
+        # unchanged gate reports two different "N passed" numbers on two hosts
+        # — a figure that is a property of the tree × the cell, quoted as
+        # though it were a property of the tree. MEASURED on this branch, with
+        # HAS_NATIVE False: set 1 is 148 passed + 18 skipped and set 2 is 189
+        # passed + 3 skipped, against the 166 and 192 the rc470 entry quotes
+        # from a native-present host. `collected` reproduces BOTH exactly.
         xml = _outside_the_tree("rc470_figures_junit") / "union.xml"
         totals, tally = run.union_pytest(GATE_SETS, xml)
-        for rel, n in sorted(tally.items()):
-            print(f"      {rel:56} {n:4d} passed")
-        for i, (total, needle) in enumerate(zip(totals, GATE_NEEDLES), 1):
-            run.figure(f"gate set {i}", total, needle)
+        for rel, row in sorted(tally.items()):
+            print(f"      {rel:52} {row['collected']:4d} collected "
+                  f"= {row['passed']} passed + {row['skipped']} skipped"
+                  + (f"  ({row['failed']} FAILED)" if row["failed"] else "")
+                  + (f"  ({row['error']} ERROR)" if row["error"] else ""))
+        for i, (got, needle, rc470) in enumerate(
+                zip(totals, GATE_NEEDLES, RC470_QUOTED), 1):
+            reach = got["collected"] + got["failed"] + got["error"]
+            print(f"    gate set {i}: {got['collected']} collected "
+                  f"= {got['passed']} passed + {got['skipped']} skipped"
+                  + (f", {got['failed']} FAILED" if got["failed"] else "")
+                  + f"   [rc470 quoted {rc470} passed on a native host; "
+                    f"collected+failed here = {reach}"
+                  + ("]" if reach == rc470 else " — DOES NOT ACCOUNT]"))
+            run.figure(f"gate set {i}", got["collected"], needle)
+            if got["failed"] or got["error"]:
+                run.failures.append(
+                    ("<pytest>", f"gate set {i} is not green", got,
+                     "0 failed, 0 error"))
         if control:
             print("\n-- ORDER-INDEPENDENCE CONTROL: the old per-set shape --")
             per_set = run.per_set_pytest(GATE_SETS)
-            print(f"    union   {totals}")
+            union_collected = [t["collected"] for t in totals]
+            print(f"    union   {union_collected}")
             print(f"    per-set {per_set}")
-            if per_set != list(totals):
+            if per_set != union_collected:
                 run.failures.append(
-                    ("<pytest>", "order independence", totals, per_set))
+                    ("<pytest>", "order independence", union_collected, per_set))
                 print("    !! THE UNION AND THE PER-SET SHAPE DISAGREE — a test's "
                       "outcome depends on which siblings ran with it.")
             else:
@@ -408,7 +443,7 @@ def main(argv) -> int:
         stem = cf.write_mutant("demotion_probe", [(stem_pat, "")], tmp / "stem")
         print(f"  mutant(neg)  {neg}  sha256 {cf.blob_sha256(neg)[:32]}…")
         print(f"  mutant(stem) {stem} sha256 {cf.blob_sha256(stem)[:32]}…")
-        clean = f"{tally.get(R3_GATE[0], 0)} passed"
+        clean = f"{tally.get(R3_GATE[0], {}).get('passed', 0)} passed"
         print(f"    r3 gate, clean (recovered from the union XML) -> {clean}")
         run.figure("r3 gate, clean", clean, "clean **{v}**")
         run.figure("r3 gate, negation refusal disabled",

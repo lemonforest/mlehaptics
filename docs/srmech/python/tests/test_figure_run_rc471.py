@@ -186,10 +186,33 @@ def test_junit_grouping_is_on_classname(tmp_path) -> None:
     xml = tmp_path / "u.xml"
     xml.write_text(_JUNIT, encoding="utf-8")
     tally = fr.parse_junit(xml)
-    assert tally == {"tests/test_figure_run_rc471.py": 2}, tally
+    assert set(tally) == {"tests/test_figure_run_rc471.py"}, tally
+    assert tally["tests/test_figure_run_rc471.py"] == {
+        "passed": 2, "skipped": 1, "failed": 1, "error": 0, "collected": 3}
     assert "file=" not in _JUNIT, (
         "this fixture must reproduce the shipped XML's shape, which carries no "
         "file attribute — the whole point of grouping on classname")
+
+
+def test_collected_is_the_cell_invariant_figure_and_passed_is_not(tmp_path) -> None:
+    """⚠️ ``N passed`` is a property of the tree × THE CELL, not of the tree.
+
+    A row that skips because ``libsrmech`` is absent PASSES on a host that has
+    one, so an unchanged gate reports two different "N passed" figures on two
+    hosts — MEASURED at 166 against 148 for one of this arc's gate sets.
+    ``collected`` = ``passed + skipped`` is invariant across that difference,
+    and this pins the arithmetic that makes it so.
+    """
+    xml = tmp_path / "u.xml"
+    xml.write_text(_JUNIT, encoding="utf-8")
+    pure = fr.parse_junit(xml)["tests/test_figure_run_rc471.py"]
+    # the same file on a host where the skipped row runs and passes
+    xml.write_text(_JUNIT.replace('<skipped message="nope"/>', ""),
+                   encoding="utf-8")
+    native = fr.parse_junit(xml)["tests/test_figure_run_rc471.py"]
+    assert native["passed"] != pure["passed"], (
+        "the fixture no longer models the cell difference it exists to model")
+    assert native["collected"] == pure["collected"] == 3
 
 
 def test_junit_grouping_reports_an_unmappable_classname(tmp_path) -> None:
@@ -197,7 +220,7 @@ def test_junit_grouping_reports_an_unmappable_classname(tmp_path) -> None:
     xml = tmp_path / "u.xml"
     xml.write_text(_JUNIT.replace("tests.test_figure_run_rc471",
                                   "nowhere.at.all"), encoding="utf-8")
-    assert fr.parse_junit(xml) == {"": 2}
+    assert set(fr.parse_junit(xml)) == {""}
     assert fr._file_of_classname("nowhere.at.all") == ""
 
 

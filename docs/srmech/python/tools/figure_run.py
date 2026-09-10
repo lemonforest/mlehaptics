@@ -277,21 +277,37 @@ def sweep_paths(paths: Iterable[Path],
     return {tag: tuple(v) for tag, v in out.items()}
 
 
-def parse_junit(xml_path: Path) -> Dict[str, int]:
-    """``{relative .py path: number of PASSED cases}`` from a junit XML.
+#: The outcome keys :func:`parse_junit` reports per file. ``collected`` is
+#: ``passed + skipped``, and it is the one a gate figure should be quoted
+#: against: see :meth:`FigureRun.union_pytest`.
+OUTCOME_KEYS = ("passed", "skipped", "failed", "error", "collected")
 
-    Passed means: a ``<testcase>`` with no ``failure``/``error``/``skipped``
-    child — the same population pytest's ``-q`` summary calls "N passed".
+
+def parse_junit(xml_path: Path) -> Dict[str, Dict[str, int]]:
+    """``{relative .py path: {passed, skipped, failed, error, collected}}``.
+
+    ⚠️ ``passed`` alone is NOT a property of the tree. A row that skips because
+    the native library is absent passes on a host that has one, so the same
+    unchanged gate reports two different "N passed" figures on two hosts —
+    MEASURED at 166 against 148 for one of the sets below. ``collected`` =
+    ``passed + skipped`` is the figure that survives the cell, which is why it
+    is computed here rather than left to each caller to remember.
     """
     root = ET.parse(str(xml_path)).getroot()
-    tally: Dict[str, int] = {}
+    tally: Dict[str, Dict[str, int]] = {}
     for case in root.iter("testcase"):
-        bad = any(case.find(k) is not None
-                  for k in ("failure", "error", "skipped"))
-        if bad:
-            continue
         rel = _file_of_classname(case.get("classname") or "")
-        tally[rel] = tally.get(rel, 0) + 1
+        row = tally.setdefault(rel, {k: 0 for k in OUTCOME_KEYS})
+        if case.find("error") is not None:
+            row["error"] += 1
+        elif case.find("failure") is not None:
+            row["failed"] += 1
+        elif case.find("skipped") is not None:
+            row["skipped"] += 1
+            row["collected"] += 1
+        else:
+            row["passed"] += 1
+            row["collected"] += 1
     return tally
 
 
@@ -439,13 +455,14 @@ class FigureRun:
         return sweep_paths(paths, patterns)
 
     # ── ONE pytest process for every gate set ────────────────────────────────
-    def union_pytest(self, sets: Sequence[Sequence[str]],
-                     xml_path: Path) -> Tuple[list, Dict[str, int]]:
+    def union_pytest(self, sets: Sequence[Sequence[str]], xml_path: Path
+                     ) -> Tuple[list, Dict[str, Dict[str, int]]]:
         """Run the UNION of ``sets`` in ONE pytest and split the tally back.
 
-        Returns ``(per_set_totals, per_file_tally)``. rc470 spent one process
-        per set over 11 file-slots covering 9 distinct files, re-running the
-        two that appeared twice.
+        Returns ``(per_set_outcomes, per_file_tally)``, each an
+        :data:`OUTCOME_KEYS` dict. rc470 spent one process per set over 11
+        file-slots covering 9 distinct files, re-running the two that appeared
+        twice.
 
         ⚠️ **One agreeing run is not proof of order-independence.** A test whose
         outcome depends on module state left by a sibling file will differ
@@ -457,7 +474,7 @@ class FigureRun:
         line = self._pytest(union, extra=[f"--junit-xml={xml_path}"])
         print(f"    union of {len(union)} files -> {line}")
         tally = parse_junit(xml_path)
-        unmapped = tally.pop("", 0)
+        unmapped = tally.pop("", None)
         if unmapped:
             raise AssertionError(
                 f"{unmapped} junit test case(s) could not be mapped back to a "
@@ -465,12 +482,24 @@ class FigureRun:
                 f"`classname`, and a classname that resolves to nothing means "
                 f"the split is silently dropping cases — which is how a first "
                 f"parse of this XML returned zeros.")
-        return [sum(tally.get(f, 0) for f in group) for group in sets], tally
+        per_set = [{k: sum(tally.get(f, {}).get(k, 0) for f in group)
+                    for k in OUTCOME_KEYS} for group in sets]
+        return per_set, tally
 
     def per_set_pytest(self, sets: Sequence[Sequence[str]]) -> list:
-        """The OLD shape — one process per set. The order-independence control."""
-        return [int(re.search(r"(\d+) passed", self._pytest(group)).group(1))
-                for group in sets]
+        """The OLD shape — one process per set. The order-independence control.
+
+        Returns ``collected`` (``passed + skipped``) per set, so it compares
+        like with like against :meth:`union_pytest`.
+        """
+        out = []
+        for group in sets:
+            line = self._pytest(group)
+            got = {k: int(m.group(1)) for k, m in
+                   ((k, re.search(r"(\d+) " + k, line)) for k in
+                    ("passed", "skipped")) if m}
+            out.append(got.get("passed", 0) + got.get("skipped", 0))
+        return out
 
     # ── one pytest invocation ────────────────────────────────────────────────
     def _pytest(self, files: Sequence[str], mutant=None, module=None,
