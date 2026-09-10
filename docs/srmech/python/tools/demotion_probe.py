@@ -300,14 +300,14 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
 10. **The reader cannot read TOPIC, and no lexical rule closes that class**
     (rc470, `#T1188`). It matches a STEM in a sentence; it has no way to ask
     whether the sentence is ABOUT this op's own numeric accuracy. MEASURED by
-    hand-reading all **222** DECLARED ops against the honesty-ladder criterion
+    hand-reading all **223** DECLARED ops against the honesty-ladder criterion
     (``tests/test_silent_carrier_demotion_rc463.py``: *given ONLY the signature
     and the docstring, can the caller predict the returned value is not the
-    exact one?*): **41 are TOPICAL MISREADS**, leaving **181 substantive**.
-    ⚠️ **QUOTE THE PAIR, NEVER THE 181 ALONE.** 222 is LEXICAL and
-    regenerable from this tree by anyone; 181 is 222 minus a HAND-MAINTAINED
+    exact one?*): **41 are TOPICAL MISREADS**, leaving **182 substantive**.
+    ⚠️ **QUOTE THE PAIR, NEVER THE 182 ALONE.** 223 is LEXICAL and
+    regenerable from this tree by anyone; 182 is 223 minus a HAND-MAINTAINED
     by-name ledger, so it is exactly as fresh as the last hand-read and no
-    fresher. A single "181 substantive declarations" implies a measurement
+    fresher. A single "182 substantive declarations" implies a measurement
     this instrument cannot make.
     They are pinned BY NAME with a reason and a class in
     ``tests/test_r3_reader_rc470.py``'s ``_RESIDUAL_TOPIC_MISREADS``, and the
@@ -370,7 +370,11 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     A SEPARATE and SMALLER class is the LABEL MISATTRIBUTION: the verdict is
     substantively right and only the evidence pointer is wrong, because some
     OTHER sentence warns the caller while the sentence that MATCHED does not.
-    **EIGHT**, each MEASURED by a per-occurrence dump on this tree, named so a
+    **NINE** (EIGHT through rc470; rc471 added ``cascade.spectral_cascades.dft``
+    — it reads DECLARED only through the ``cexp`` delegate's new ``float64``
+    sentence, while its OWN warning, *"one FPU lift — don't use floats for
+    bit-exact math"*, carries no R3 stem; its census row is EXACT in both
+    cells), each MEASURED by a per-occurrence dump on this tree, named so a
     later rc does not read a ``declares`` label as if it located the
     declaration: ``rational.relative_writhe`` (fires on an aside about the
     float spike; its real declaration, *"a CERTIFIED TRUNCATION, not the exact
@@ -1302,8 +1306,9 @@ def declaration_hits(fn) -> List[str]:
     **222** on >= 3.12, from one unchanged tree. The fold is unconditional and
     the convergence is MEASURED over the WHOLE population, not inferred from
     three counts — on 3.10.21 / 3.11.16 / 3.12.3 / 3.13.15 / 3.14.7 the folded
-    label MAP is byte-identical, all 222 rows, sha256
-    ``06f93439fe15b27f…``. That is the LABEL map and not merely the count,
+    label MAP is byte-identical, all 223 rows, sha256
+    ``b43563f9e417da49…`` (222 rows / ``06f93439fe15b27f…`` at rc470; rc471's
+    W6 prose added one, hand-read at ``_DECLARED_LABEL_MAP_DIGEST``). That is the LABEL map and not merely the count,
     which matters because of the residue in the next paragraph.
 
     ⚠️ **WHAT THE FOLD DOES NOT FIX, named so it is not rediscovered as a

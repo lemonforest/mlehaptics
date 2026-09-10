@@ -1732,7 +1732,7 @@ static const srmech_tool_param_t ts_params_121[] = {
 };
 static const srmech_tool_param_t ts_params_122[] = {
     { "x", "float", 1, "angle in radians" },
-    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)" },
+    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the EXACT QUOTIENT of the two precision=P sin/cos reductions (keyword-only). NO absolute-error bound holds on the P branch, and 0.9.0rc471 REMOVED the one this line used to state: a quotient amplifies both reductions error by ~1/cos(x)^2, so the error grows without limit as x approaches a pole. MEASURED against a 400-digit independent decimal reference, one fresh process per case: at x = float(pi/2) the absolute error is 4.51176E+8 at P=16 and still 6.80885E-16 at P=128, against bounds of 1.53E-5 and 2.94E-39; 24 of 36 fresh-process rows violate. Call sin and cos separately when a stated bound is what you need" },
 };
 static const srmech_tool_param_t ts_params_123[] = {
     { "x", "float", 1, "argument" },
@@ -1753,11 +1753,11 @@ static const srmech_tool_param_t ts_params_126[] = {
 };
 static const srmech_tool_param_t ts_params_127[] = {
     { "theta", "float", 1, "phase angle in radians" },
-    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)" },
+    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 drives the internal Class-N reduction at P fractional bits (keyword-only). THE RESULT IS A float64 complex, NOT a Q, so the delivered accuracy is bounded by the CARRIER and not by 2**-P - 0.9.0rc471 REMOVED the absolute-error bound this line used to state, which was false by construction for every P past the float64 significand. MEASURED against a 400-digit independent decimal reference: the error floors at ~2E-17 to ~5E-17 and does not move with P at all; 33 of 91 grid rows violate, every one at P >= 64. Call rational.cos / rational.sin when the exact Q carrier is what you need" },
 };
 static const srmech_tool_param_t ts_params_128[] = {
     { "z", "complex", 1, "complex exponent" },
-    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)" },
+    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 drives the internal Class-N reduction at P fractional bits (keyword-only). THE RESULT IS A float64 complex, NOT a Q, so the delivered accuracy is bounded by the CARRIER and not by 2**-P - 0.9.0rc471 REMOVED the absolute-error bound this line used to state. MEASURED against a 400-digit independent decimal reference, one fresh process per case: complex_exp(1+2j) already violates at P=53 (error 1.57583E-16 against a bound of 1.11022E-16) and the error does not move with P thereafter. Call rational.exp / rational.cos / rational.sin when the exact Q carrier is what you need" },
 };
 static const srmech_tool_param_t ts_params_129[] = {
     { "x", "float", 1, "radicand, x >= 0" },
@@ -1766,7 +1766,7 @@ static const srmech_tool_param_t ts_params_129[] = {
 static const srmech_tool_param_t ts_params_130[] = {
     { "a", "float", 1, "first leg" },
     { "b", "float", 1, "second leg" },
-    { "precision", "int", 0, "scaled-integer precision (keyword-only); default 64" },
+    { "precision", "int", 0, "keyword-only; the signature default is None, NOT 64 - 0.9.0rc471 corrected this line, which stated a default the code does not have AND described the design rc299 deliberately removed. None = the RELATIVE-precision sqrt route _sqrt_relative_k(num, den, _SQRT_Q_K), which sizes the grid to the radicand so a sub-1 magnitude keeps its significant bits; _SQRT_Q_K is 54. rc299 (`#919`) introduced that because the old FIXED absolute grid returned an exact 0.0 below ~1e-17 - unsafe as a divisor - and was 44% off at 1e-16. precision=P selects that literal ABSOLUTE P-fractional-bit grid on request. The phantom 64 was `_SQRT_PRECISION_BITS`, a module constant referenced NOWHERE in the tree, deleted in the same rc" },
 };
 static const srmech_tool_param_t ts_params_131[] = {
     { "x", "list[complex]", 1, "input samples" },

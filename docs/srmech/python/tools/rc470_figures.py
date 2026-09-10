@@ -72,8 +72,8 @@ WHAT IT CANNOT DO, stated rather than left to be discovered
 1. It checks PRESENCE of a rendered literal, not that the literal is in the
    sentence a reader would attach it to. A figure moved into an unrelated
    paragraph still passes.
-2. The SUBSTANTIVE count (181) is 222 minus a HAND-MAINTAINED ledger. This run
-   regenerates the 222 and the arithmetic; it cannot regenerate the hand-read.
+2. The SUBSTANTIVE count (182) is 223 minus a HAND-MAINTAINED ledger. This run
+   regenerates the 223 and the arithmetic; it cannot regenerate the hand-read.
    That is why the arc's baseline is quotable only as the PAIR.
 3. Gate totals are re-run here, so this script is slow. ``--quick`` skips them
    and is NOT sufficient for a final run; it says so and exits with a marker.
@@ -235,13 +235,13 @@ def main(argv) -> int:
     run.figure("pinned topical misreads", len(pinned),
                "| — of those, **TOPICAL MISREADS** pinned by name | **{v}** |",
                "**39 cannot survive the question**".replace("39", "{v}"),
-               "and the {v} of 222 readings that no lexical rule can fix")
+               "and the {v} of 223 readings that no lexical rule can fix")
     run.figure("pinned topical misreads, pinned in the R3 gate", len(pinned),
                "len(\n        _RESIDUAL_TOPIC_MISREADS) == {v}",
                where=R3_GATE_FILE)
     run.figure("substantive DECLARED", len(declared) - len(pinned),
                "| — **SUBSTANTIVE DECLARED** | **{v}** |",
-               "**222 DECLARED lexically, 41 pinned as topical misreads, "
+               "**223 DECLARED lexically, 41 pinned as topical misreads, "
                "{v} substantive**")
     run.figure("substantive DECLARED, pinned in the R3 gate",
                len(declared) - len(pinned),
