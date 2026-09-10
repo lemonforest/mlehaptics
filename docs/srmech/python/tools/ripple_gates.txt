@@ -922,3 +922,13 @@ tests/test_unit_label_and_domain_word_rc354.py
 #    touching rational.sin's refusal text, kepler.py, or that C site moves it.
 #    ~1 s, pure-Python; identical assertions in both cells.
 tests/test_eoc_q61_parity_rc472.py
+
+# -- merge_cell's FOURTH carry-forward refusal (rc472 W2, `#T1188`) ----------
+#    The census merge refused a column measured against a different registry,
+#    reader or probe signature, and carried the other column's RELEASE stamp
+#    forward with no comparison at all -- so a two-release manifest could be
+#    PRODUCED and caught only later by the version-stamp gate, after the
+#    cell's minutes were spent. Five tests; the last is the SEAM (a planted
+#    manifest carrying this tree's three live digests and a foreign release,
+#    with census() replaced by a function that fails if reached). ~2 s, pure.
+tests/test_merge_cell_cross_release_rc472.py

@@ -97,12 +97,19 @@ def _reader_identity() -> str:
     a direct ``hashlib`` call.
     """
     import srmech
+    from srmech import _native
     from srmech.amsc.format import sha256_bytes
     blob = Path(_dp.__file__).read_bytes()
+    # rc472 W4 (`#T1188`): the interpreter and HAS_NATIVE ride beside the
+    # digests — DISCLOSED, never asserted. rc471's confident wrong refusal
+    # carried a 3.12 / 3.14 reading against an artefact stamped 3.10 and
+    # had nowhere to say so; a guard on either would be the asserting-
+    # comment false green this arc keeps repairing.
     return (f"[reader identity] file={_dp.__file__} "
             f"bytes_sha256={sha256_bytes(blob)} "
             f"reader_signature={_dp.reader_signature()} "
-            f"srmech={srmech.__file__}")
+            f"srmech={srmech.__file__} "
+            f"python={sys.version.split()[0]} HAS_NATIVE={_native.HAS_NATIVE}")
 
 
 def _registry():

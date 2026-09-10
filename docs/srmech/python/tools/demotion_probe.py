@@ -2150,6 +2150,10 @@ def merge_cell(path: Optional[Path] = None, *, progress: bool = True
             f"is {sig[:12]}. Re-measure {other!r} on THIS tree "
             f"(`PYTHONPATH=$PWD python3 tools/demotion_probe.py` in that cell) "
             f"or delete {p.name} and measure both.")
+    # rc472 W2 (`#T1188`): the FOURTH carry-forward refusal — the other
+    # column's RELEASE — with the interpreter WARNING beside it.
+    _refuse_cross_release(dict(prev_meta.get("measured_at") or {}), other,
+                          srmech.__version__, sys.version_info, p.name)
 
     t0 = time.time()
     recs = census(progress=progress)
@@ -2236,6 +2240,54 @@ def merge_cell(path: Optional[Path] = None, *, progress: bool = True
         for d in meta["divergent"]:
             print(f"  {d}", file=sys.stderr)
     return meta
+
+
+def _refuse_cross_release(prev_measured: Dict[str, Any], other: str,
+                          live_version: str, live_py, manifest_name: str
+                          ) -> None:
+    """rc472 W2 (`#T1188`): the FOURTH carry-forward refusal in
+    :func:`merge_cell`, symmetric with the three ``SystemExit`` refusals on
+    the reader / probe / registry signatures — on the OTHER cell's
+    ``measured_at[other]["srmech_version"]``.
+
+    Until rc472 the other column's ``measured_at`` was carried forward with
+    NO comparison of either field, so a manifest whose two columns were
+    measured at two RELEASES could be PRODUCED here and caught only later,
+    by ``tests/test_silent_carrier_demotion_rc463.py``'s version stamp —
+    after the cell's minutes had been spent on a merge the tree would
+    refuse. An implementation can change carrier behaviour behind an
+    unchanged signature, an unchanged reader and an unchanged probe; the
+    release stamp is the one axis those three digests cannot see, which is
+    why this refuses rather than warns.
+
+    The INTERPRETER gets a printed WARNING, never a refusal: the committed
+    census declares ``3.12`` in both cells, and the rc471 arc measured the
+    interpreter non-causal for every figure it had been blamed for —
+    asserting it here would forbid the very cross-interpreter re-measure
+    that showed so. Can-fail: ``tests/test_merge_cell_cross_release_rc472.py``
+    plants a manifest whose other column carries a foreign release and
+    asserts the refusal fires BEFORE :func:`census` runs.
+    """
+    rec = dict(prev_measured.get(other) or {})
+    v = rec.get("srmech_version")
+    if v is not None and v != live_version:
+        raise SystemExit(
+            f"REFUSING to merge: the committed {other!r} column was measured "
+            f"at srmech {v} and this tree is {live_version}. An "
+            f"implementation can change carrier behaviour behind an unchanged "
+            f"signature, reader and probe — the release stamp is the one axis "
+            f"those digests cannot see. Re-measure {other!r} on THIS tree "
+            f"(`PYTHONPATH=$PWD python3 tools/demotion_probe.py` in that cell) "
+            f"or delete {manifest_name} and measure both.")
+    py = rec.get("python")
+    live = f"{live_py[0]}.{live_py[1]}"
+    if py is not None and py != live:
+        print(f"[merge_cell] WARNING: the committed {other!r} column was "
+              f"measured on python {py}; this cell is running {live}. Not a "
+              f"refusal — the interpreter is DISCLOSED in `measured_at`, and "
+              f"the rc471 arc measured it non-causal — but a reader of the "
+              f"merged manifest should know the two columns differ in it.",
+              file=sys.stderr)
 
 
 if __name__ == "__main__":                                # pragma: no cover
