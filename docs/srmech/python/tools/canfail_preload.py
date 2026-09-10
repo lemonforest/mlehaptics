@@ -169,12 +169,14 @@ def source_of(module_name: str) -> Path:
     """
     if "." in module_name:
         parts = module_name.split(".")
-        assert all(parts) and not any(p in (os.sep, os.altsep) for p in parts), (
-            f"{module_name!r} is not a dotted module name")
+        if not all(parts) or any(s in (os.sep, os.altsep) for s in parts):
+            raise ValueError(
+                f"{module_name!r} is not a dotted module name")
         p = PACKAGE_ROOT.joinpath(*parts).with_suffix(".py")
     else:
         p = PACKAGE_ROOT / "tools" / (module_name + ".py")
-    assert p.is_file(), f"no shipped source at {p}"
+    if not p.is_file():
+        raise FileNotFoundError(f"no shipped source at {p}")
     return p
 
 
@@ -197,25 +199,31 @@ def write_mutant(module_name: str,
     the only route to the mutant is the finder :func:`install` puts in place.
     """
     out_dir = Path(out_dir).resolve()
-    assert PACKAGE_ROOT not in out_dir.parents and out_dir != PACKAGE_ROOT, (
-        f"refusing to write a mutant inside the package tree ({out_dir}). "
-        f"A mutant under {PACKAGE_ROOT} is collectable by pytest, importable "
-        f"by any sibling process, and committable by accident — which is the "
-        f"whole class of defect this harness removes.")
+    if PACKAGE_ROOT in out_dir.parents or out_dir == PACKAGE_ROOT:
+        raise ValueError(
+            f"refusing to write a mutant inside the package tree ({out_dir}). "
+            f"A mutant under {PACKAGE_ROOT} is collectable by pytest, "
+            f"importable by any sibling process, and committable by accident "
+            f"— which is the whole class of defect this harness removes.")
     src_path = source_of(module_name)
     text = src_path.read_text(encoding="utf-8")
     for old, new in replacements:
         n = text.count(old)
-        assert n == 1, (
-            f"the mutation target {old!r} occurs {n} times in "
-            f"{src_path} — a control that matches zero times leaves the "
-            f"'mutant' identical to the shipped file and the demonstration "
-            f"passes for the wrong reason.")
+        if n != 1:
+            raise ValueError(
+                f"the mutation target {old!r} occurs {n} times in "
+                f"{src_path} — a control that matches zero times leaves "
+                f"the 'mutant' identical to the shipped file and the "
+                f"demonstration passes for the wrong reason.")
         text = text.replace(old, new, 1)
     out_dir.mkdir(parents=True, exist_ok=True)
     dst = out_dir / (module_name + ".py")
     dst.write_text(text, encoding="utf-8", newline="\n")
-    assert src_path.read_text(encoding="utf-8") != text, "the mutant is a no-op"
+    if src_path.read_text(encoding="utf-8") == text:
+        raise RuntimeError(
+            f"the mutant written to {dst} is byte-identical to {src_path}: "
+            f"every replacement matched and none of them changed anything. "
+            f"A no-op mutant greens every gate it is handed.")
     return dst
 
 

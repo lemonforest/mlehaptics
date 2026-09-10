@@ -81,10 +81,56 @@ def test_source_of_resolves_a_dotted_package_module() -> None:
 
 
 def test_source_of_refuses_a_name_with_no_shipped_source() -> None:
-    with pytest.raises(AssertionError):
+    """A REAL raise, not a bare ``assert`` — and the type says which fault.
+
+    ⚠️ Both of these were ``pytest.raises(AssertionError)`` when rc471 first
+    shipped, and `tests/test_assert_contract_gate_rc433.py` went RED on them at
+    five sites across this file. That gate was RIGHT, and its message says the
+    repair: *"THE FIX IS NEVER TO DELETE THE TEST. Promote the ``assert`` to a
+    real ``raise`` of the type tree precedent already uses for that input
+    class, then update the test to expect it."* ``canfail_preload``'s own
+    module docstring had been citing that discipline since rc471 while its
+    input contract rested on four bare asserts, so ``python -O`` deleted every
+    guard this file certifies. Adding the five lines to the gate's EXEMPTIONS
+    would have been widening a ceiling to green a red gate.
+    """
+    with pytest.raises(FileNotFoundError):
         cf.source_of("srmech.math.no_such_module_rc471")
-    with pytest.raises(AssertionError):
+    with pytest.raises(FileNotFoundError):
         cf.source_of("no_such_tool_rc471")
+
+
+def test_the_promoted_guards_survive_python_dash_O() -> None:
+    """THE CAN-FAIL FOR THE PROMOTION ITSELF, and it is the whole point.
+
+    ``python -O`` strips every ``assert`` statement. Under the old spelling
+    this subprocess would have completed with no exception at all and
+    ``write_mutant`` would have written a no-op "mutant" into the package tree.
+    Run with ``-O``, each promoted guard must still raise.
+    """
+    probe = (
+        "import sys; sys.path.insert(0, %r)\n"
+        "import canfail_preload as cf\n"
+        "seen = []\n"
+        "for fn, exc in ((lambda: cf.source_of('srmech.math.nope_rc471'),"
+        " FileNotFoundError),\n"
+        "                (lambda: cf.write_mutant(%r, [('x','y')], %r),"
+        " ValueError)):\n"
+        "    try:\n"
+        "        fn()\n"
+        "    except exc as e:\n"
+        "        seen.append(type(e).__name__)\n"
+        "    except BaseException as e:\n"
+        "        seen.append('WRONG:' + type(e).__name__)\n"
+        "    else:\n"
+        "        seen.append('NO RAISE')\n"
+        "print('SEEN' + repr(seen))\n"
+    ) % (str(_TOOLS), TARGET, str(_PY_ROOT))
+    out = _run(["-O", "-c", probe])
+    assert out.returncode == 0, out.stderr
+    line = [x for x in out.stdout.splitlines() if x.startswith("SEEN")][-1]
+    assert eval(line[4:]) == ["FileNotFoundError", "ValueError"], (
+        "a guard vanished under `python -O`: " + line)
 
 
 def test_the_refusal_it_overturned_is_gone_from_the_file() -> None:
@@ -172,7 +218,7 @@ def test_install_refuses_a_target_already_in_sys_modules(tmp_path) -> None:
 
 def test_install_refuses_a_target_whose_source_does_not_exist(tmp_path) -> None:
     """A typo in ``CANFAIL_MODULE`` must not install a finder that never fires."""
-    with pytest.raises(AssertionError) as excinfo:
+    with pytest.raises(FileNotFoundError) as excinfo:
         cf.install({"srmech.math.no_such_module_rc471": tmp_path / "x.py"})
     assert "no shipped source at" in str(excinfo.value)
 
@@ -190,17 +236,44 @@ def test_install_refuses_a_target_with_no_mutant_written(tmp_path) -> None:
 
 # ── 3. THE THREE ARMS ────────────────────────────────────────────────────────
 
+#: ⚠️ THE BEHAVIOURAL PROBE IS ROUTE-DEPENDENT, and rc471 first shipped it as
+#: if it were not. The mutated line — ``result.append(p // q)`` — lives in
+#: ``continued_fraction``'s **pure-Python fallback**
+#: (``srmech/math/rational.py``, under ``# Pure-Python fallback: Euclidean
+#: expansion``), and the function RETURNS before reaching it whenever
+#: ``_native.HAS_NATIVE and _native.LIB is not None``. So a bare
+#: ``continued_fraction(22, 7) != [3, 7]`` assertion cannot fire on any host
+#: that builds ``libsrmech`` — which is four of CI's jobs, where it failed with
+#: *"the mutant is behaving like the shipped file"*. The mutant WAS loaded; the
+#: probe was asking the wrong route.
+#:
+#: The repair measures BOTH routes and says which is which. Forcing the
+#: fallback by toggling ``_native.HAS_NATIVE`` is not invented here: it is the
+#: shipped spelling of ``tests/test_rational_parity.py``'s own native/fallback
+#: parity sweep, which is also why the RED arm below survives on a native host
+#: — that sweep compares the two routes, so a mutated fallback makes it
+#: disagree with the native one and go red.
 _INSPECT = """
 import json
 import canfail_preload as cf
 from srmech.math import rational, q
+
+_saved = rational._native.HAS_NATIVE
+try:
+    rational._native.HAS_NATIVE = False
+    _cf22_fallback = rational.continued_fraction(22, 7)
+finally:
+    rational._native.HAS_NATIVE = _saved
+
 print("JSON" + json.dumps({
     "rational": rational.__file__,
     "package": rational.__package__,
     "q_rational": q._rational.__file__,
     "cyclic": rational._cyclic.__file__,
     "native": rational._native.__file__,
+    "has_native": bool(_saved and rational._native.LIB is not None),
     "cf22": rational.continued_fraction(22, 7),
+    "cf22_fallback": _cf22_fallback,
     "mutated": sorted(cf.mutated()),
 }))
 """
@@ -219,7 +292,17 @@ def test_arm_i_the_finder_delivers_a_package_mutant_with_real_siblings(tmp_path)
     Its ``__package__`` is the REAL parent, so its own ``from .. import
     _native`` / ``from . import cyclic`` bind the shipped objects; the parent's
     attribute is rebound; and the sibling ``srmech.math.q`` picks the mutant up
-    as its ``_rational``.
+    as its ``_rational``. Those five assertions are route-independent — they
+    are about which FILE loaded — and they were never the problem.
+
+    The behavioural assertion was. See the note on :data:`_INSPECT`: the
+    mutation lives in the pure-Python fallback, so on a native host the shipped
+    dispatch returns before reaching it and ``continued_fraction(22, 7)``
+    answers ``[3, 7]`` from a mutant that IS loaded. The check now names the
+    route it measured, and pins the native route as UNAFFECTED rather than
+    skipping it — *an instrument that cannot return otherwise is not a
+    measurement*, and "the mutation changed nothing on this route" is a real
+    answer here, not a missing one.
     """
     got = _inspect(tmp_path, env_extra={
         "PYTHONPATH": str(_TOOLS),
@@ -231,8 +314,69 @@ def test_arm_i_the_finder_delivers_a_package_mutant_with_real_siblings(tmp_path)
     assert got["package"] == "srmech.math"
     assert got["cyclic"] == str(_PY_ROOT / "srmech" / "math" / "cyclic.py")
     assert got["native"] == str(_PY_ROOT / "srmech" / "_native" / "__init__.py")
-    assert got["cf22"] != [3, 7], "the mutant is behaving like the shipped file"
+    assert got["cf22_fallback"] != [3, 7], (
+        "the MUTATED ROUTE is behaving like the shipped file: the mutant is "
+        "loaded (asserted above) but its pure-Python Euclidean expansion "
+        "returned the shipped expansion of 22/7, so the mutation did not take")
+    if got["has_native"]:
+        assert got["cf22"] == [3, 7], (
+            "the native route answered a MUTATED value. The mutation is a "
+            "one-line edit to the pure-Python fallback and cannot reach "
+            "libsrmech, so either the mutation moved or the dispatch did")
+    else:
+        assert got["cf22"] == got["cf22_fallback"], (
+            "HAS_NATIVE is False, so the live call and the forced fallback "
+            "must be the SAME route and cannot differ")
     assert got["mutated"] == [TARGET]
+
+
+def test_the_mutation_target_lives_below_the_native_dispatch_return() -> None:
+    """WHY arm (i) has to name its route — proven from the SOURCE, not the host.
+
+    This host may or may not have ``libsrmech``. The claim "the native route
+    cannot see this mutation" must not depend on which one it is, so it is
+    decided structurally: inside ``continued_fraction``, the
+    ``if _native.HAS_NATIVE and _native.LIB is not None:`` block ENDS in a
+    ``return``, and the mutation target sits strictly below it. A caller with
+    native present therefore never executes the mutated line — which is exactly
+    what four CI jobs reported as *"the mutant is behaving like the shipped
+    file"* before this rc named the route.
+
+    If someone later moves the mutation above the dispatch, or gives the native
+    branch a fall-through, this goes red and arm (i)'s asymmetric assertion
+    needs re-deciding. That is the correct behaviour.
+    """
+    import ast
+
+    src_path = _PY_ROOT / "srmech" / "math" / "rational.py"
+    src = src_path.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn = next((n for n in ast.walk(tree)
+               if isinstance(n, ast.FunctionDef)
+               and n.name == "continued_fraction"), None)
+    assert fn is not None, f"continued_fraction is gone from {src_path}"
+
+    branches = [n for n in ast.walk(fn)
+                if isinstance(n, ast.If) and "HAS_NATIVE" in ast.unparse(n.test)]
+    assert len(branches) == 1, (
+        f"expected exactly one HAS_NATIVE branch in continued_fraction, "
+        f"found {len(branches)}")
+    branch = branches[0]
+    assert any(isinstance(n, ast.Return) for n in branch.body), (
+        "the native branch does not return, so it FALLS THROUGH into the "
+        "pure-Python expansion and arm (i)'s route split is wrong")
+
+    lines = src.split("\n")
+    hits = [i + 1 for i, s in enumerate(lines) if MUTATION[0] in s]
+    assert len(hits) == 1, (
+        f"the mutation target occurs {len(hits)} times; write_mutant refuses "
+        f"anything but 1, so this file and that refusal disagree")
+    assert hits[0] > branch.end_lineno, (
+        f"the mutation target is at line {hits[0]}, which is NOT below the "
+        f"native dispatch branch (ends {branch.end_lineno}) — the native "
+        f"route would execute it and arm (i) must be re-decided")
+    assert fn.lineno < hits[0] <= fn.end_lineno, (
+        "the mutation target is not inside continued_fraction at all")
 
 
 def test_arm_ii_a_hostile_sys_path_insert_cannot_outrank_the_finder(tmp_path) -> None:
@@ -348,12 +492,12 @@ def test_the_out_of_tree_refusal_keys_on_out_dir_not_on_the_module_name(
     """
     target = _PY_ROOT / inside if inside else _PY_ROOT
     for module in (TARGET, "demotion_probe"):
-        with pytest.raises(AssertionError) as excinfo:
+        with pytest.raises(ValueError) as excinfo:
             cf.write_mutant(module, [MUTATION], target)
         assert "inside the package tree" in str(excinfo.value)
 
 
 def test_a_zero_match_replacement_is_a_stale_control(tmp_path) -> None:
-    with pytest.raises(AssertionError) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         cf.write_mutant(TARGET, [("no such text rc471", "x")], tmp_path)
     assert "occurs 0 times" in str(excinfo.value)
