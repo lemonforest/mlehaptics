@@ -19,6 +19,35 @@ All notable changes to this package will be documented here. The format follows 
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc471] - `#T1188`: the arc's figure harness was DEAD the day it merged, its `== HEAD` column could not print anything but `!=`, and its can-fail harness could not reach a single module the rest of the arc mutates
+
+*(rc-B **stage 1** of the "ALU All The Way" arc — the TOOLS half. rc-B was split in two because a new census lane must not land in the same rc as a ruler change: land both and any verdict change is unattributable, which is the failure rc470 refused when it promised "0 verdict changes." This rc changes the INSTRUMENTS and holds the census population at **705 rows / 428 ops** — verified below, unchanged.)*
+
+**HELD ACROSS THE WHOLE rc.** `SRMECH_ABI_VERSION` **25** (re-read live: `srmech._native.EXPECTED_ABI_VERSION` 25, `c/include/srmech.h:625` 25). Registry total **732** (`len(get_tool_schema().tools)`, and `describe()["tools"]["total"]` reads the same 732). No op minted, no parameter type or return type moved, so `registry_signature()` did not move — census `registry_signature_sha256` is `5bdea931880f7f2dec21ff98a013cfb8e9be25fa789c3b6d6a6caed7d2b74e47` in both cells, unchanged. **No new `exact=` keyword anywhere** (the probe counts one by mere PRESENCE, so adding one would drain a census row for free — a false drain in the rc that changes the ruler). No `numpy`, no `abs()`, no direct `hashlib` call. Python, tests and tools only; the only C-side byte is the version macro.
+
+### W0 — PRE-FLIGHT, AND IT BIT HARDER THAN THE PLAN PREDICTED
+
+**The tree's cleanliness is toolchain-dependent, and in a fresh worktree it is not 19 files but 1101.** Measured on the rc471 worktree, over the 1111 files `git ls-files` reports under `docs/srmech/python`:
+
+| | pure CRLF | pure LF | mixed | no newline |
+|---|---|---|---|---|
+| files on disk | **1101** | 4 | **0** | 6 |
+
+Every repo BLOB is LF (`HEAD:…/tools/rc470_figures.py` is 20202 bytes, 429 LF, **0 CR**; the same file on disk is 20631 bytes, 429 CR, 429 LF). The two toolchains then disagree completely:
+
+* **Windows git**, which has `core.autocrlf=true`, runs the clean filter and calls the tree **CLEAN** — `git status --porcelain` empty, `git diff` **0 bytes**.
+* **WSL git**, where `core.autocrlf` is UNSET, calls **1101 of 1111** files modified under `docs/srmech/python` (4952 tree-wide), a **67,475,077-byte** diff of **494,235 insertions against 494,235 deletions** — pure line-ending churn, no content.
+
+⚠️ **So any gate in this arc that reasons from `git status` reads differently under each toolchain**, and W1.6's `== HEAD` column was exactly such a gate. It is now EOL-normalised and toolchain-independent; see below.
+
+**Two environment facts a later lane must not re-derive the hard way.** (i) This worktree's `.git` is a POINTER FILE holding a Windows path (`gitdir: D:/GitHub/mlehaptics/.git/worktrees/…`), which WSL git cannot follow — `fatal: not a git repository`. It is reachable only by exporting `GIT_DIR` and `GIT_WORK_TREE` explicitly. (ii) The two interpreters on this box are NOT interchangeable for any figure in this arc: WSL `python3` is **3.12.3** with numpy absent and **sympy absent**; the Windows `python3` is **3.14.3** with numpy absent but **sympy PRESENT** — and the harness's own banner refuses a sympy-present run as *"NOT comparable"*. Every figure in this entry was measured under WSL 3.12.3.
+
+**The stale-native tripwire is NOT blocking, re-checked live.** `docs/srmech/python/srmech/_native/libsrmech.so` is dated 2026-09-09 18:04 against a newest C source (`c/include/srmech.h`) of 2026-09-09 17:01:56, so the loader's artifact is newer than everything it is built from. Separately: **this worktree carries no `libsrmech.so` at all** (it is untracked), so every measurement in this entry ran `HAS_NATIVE=False` — the PURE projection. That is stated rather than left to be discovered, because it is why one baseline below reads 30 rather than 33.
+
+**The version bump, and its can-fail.** `0.9.0rc470` → **`0.9.0rc471`** in the five SSOT files (`pyproject.toml`, `pyproject-pure.toml`, `srmech/version.py`, `c/include/srmech.h`'s `SRMECH_VERSION_PRE` + `SRMECH_VERSION`, and the hard pin in `tests/test_signal_processing_scaffolding.py`). The pin is not taken on trust: `tests/test_signal_processing_scaffolding.py` → **40 passed** at rc471, and with `srmech/version.py` reverted to rc470 → **1 failed, 39 passed**, `AssertionError: expected srmech.__version__ == '0.9.0rc471'; got '0.9.0rc470'`.
+
+**The bump moved a live gate, and the four values under it were RE-MEASURED rather than re-stamped.** `test_live_at_rc_stamps_name_the_pinned_release` went red (`['rc470'] == ['rc471']`) because the notebook's four `Live at rcNNN:` stamps assert a CURRENT value. Each was re-read live at 0.9.0rc471 before its stamp moved: registry **732** (`len(get_tool_schema().tools)`) and `describe()["tools"]["total"]` **732**; `describe()["cascade_catalog"]` **total 21 / executable 18 / leaf 3 / c_runnable 18**; `SRMECH_ABI_VERSION` **25**. `tests/test_notebook_currency_rc420.py` → **40 passed** after the move (39 passed + 1 failed before it).
+
 ## [0.9.0rc470] - `#T1188`: two rulers that could not read their own tree — a declaration reader blind to morphology, to word boundaries, to negation and to a bound stated in words; a dead-path marker that had already evicted three true sentences; a census whose freshness key cannot see the reader that wrote it; and the 41 of 222 readings that no lexical rule can fix, hand-read and pinned by name
 
 *(rc-A of an arc whose subject is srmech computing in float where its own exact and cyclic carriers already exist. It comes FIRST for one reason: every "undeclared" figure in that arc is currently taken with a ruler that under-reads, so no downstream count is quotable until the ruler is fixed. **Fix the ruler, then count.**)*
