@@ -2520,7 +2520,13 @@ def complex_exp(z: complex, *, precision: int | None = None) -> complex:
 # REFERENCE sqrt" and told a reader to "pass ``precision=`` explicitly to
 # select this higher-precision reference" — but MEASURED across the whole
 # tree (``.py`` / ``.c`` / ``.h`` / ``.md`` / ``.toml`` / ``.json``) the name
-# had exactly ONE occurrence, its own definition, and ZERO uses. The
+# had exactly ONE occurrence, its own definition, and ZERO uses.
+# ⚠️ The OCCURRENCE half of that figure is now SELF-REFERENTIAL — this
+# paragraph names the constant, and so do :func:`hypot`'s docstring and the
+# rc471 CHANGELOG entry, so re-running the grep finds three and not one. That
+# is the hazard rc470 recorded for its bounding-quantifier count, one file
+# out. The DECIDABLE half survives being written down and is the load-bearing
+# one: ZERO USES. The
 # reference path is sized by the CALLER's ``precision`` argument, and the
 # ``None`` branch by :data:`_SQRT_Q_K` = 54 through
 # :func:`_sqrt_relative_k`. The 64 is the measured source of the false
@@ -2679,7 +2685,9 @@ def hypot(a: float, b: float, *, precision: int | None = None) -> "Q":
     module-level constant whose comment claimed it sized this reference and
     which was referenced **nowhere in the tree** — 1 hit for its definition
     and 0 for any use, across ``.py`` / ``.c`` / ``.h`` / ``.md`` / ``.toml`` /
-    ``.json``. It is deleted in the same rc.
+    ``.json``. It is deleted in the same rc. ⚠️ Re-running that grep now finds
+    THREE occurrences, because this sentence is one of them; the figure that
+    survives being written down is the ZERO USES, not the one.
 
     ⚠️ **"EXACT ``Q``" scopes to the CARRIER, not to the value** — the
     sum-of-squares is formed exactly, and the ``√`` of it is the approximating
