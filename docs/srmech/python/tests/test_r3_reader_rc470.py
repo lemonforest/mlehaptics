@@ -506,9 +506,20 @@ def test_group_d_the_case_policy_is_wired_not_declared() -> None:
 #: against this dict.
 #:
 #: MEASURED at 0.9.0rc471: 223 DECLARED, 41 pinned here, **182 substantive**.
-#: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 223 is LEXICAL and
-#: regenerable by anyone with this tree; 182 is 223 minus a HAND-MAINTAINED
-#: ledger, so it is only as fresh as the last hand-read. Quoting 182 alone
+#: MEASURED at 0.9.0rc472 (`#T1188`): **232 DECLARED, 41 pinned, 191
+#: substantive** — the +9 is EXACTLY the nine ops that received the ten
+#: scalar-lane ACCURACY paragraphs (``coupled_wave``, ``kuramoto_inv_n``,
+#: ``winding_fold``, ``rational.log``, ``harmonic_oscillator_hamiltonian``,
+#: ``feynman_photon_propagator``, ``fermion_mass_from_yukawa`` (two rows),
+#: ``higgs_vev``, ``allpass``), every one reading on its OWN docstring, and
+#: ZERO other ops changed their reading through the delegate arm (measured by
+#: listing every DECLARED op credited ``(via <one of the nine>)``: none).
+#: Each paragraph was hand-read against the eight classes below before it
+#: shipped, and each names the cast that collapses the operand and the side
+#: of the op the exactness is on. The ledger stays 41.
+#: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 232 is LEXICAL and
+#: regenerable by anyone with this tree; 191 is 232 minus a HAND-MAINTAINED
+#: ledger, so it is only as fresh as the last hand-read. Quoting 191 alone
 #: implies a measurement the instrument cannot make.
 #: ⚠️ **THIS COMMENT SAID 219 / 39 / 180 UNTIL rc471, AND EVERY ONE OF THE
 #: THREE WAS FALSE.** The pair moved 219/180 -> 222/181 in rc470's last
@@ -737,8 +748,16 @@ _MISREAD_CLASS_COUNTS = {
 #: 182. RE-MEASURED on five interpreters in the same run: 3.10.21 / 3.11.16 /
 #: 3.12.3 / 3.13.15 / 3.14.7 all give DECLARED 223 and this digest, byte for
 #: byte, every one numpy-absent and sympy-absent.
+#: ⚠️ **MOVED AT rc472 (`#T1188`) — b43563f9e417da49 -> 1be7956c86ddd197 —
+#: AND THE COUNT MOVED WITH IT (223 -> 232)**: the "re-adjudicate" branch
+#: again, and the adjudication is the nine ACCURACY paragraphs themselves,
+#: each on the op's OWN docstring (so every one of the nine new rows credits
+#: itself, never a delegate). MEASURED on CPython 3.12.3, WSL2, numpy-absent,
+#: native cell; the five-interpreter re-measure is owed by the next rc that
+#: touches the delegate walk, not by prose edits that add own-docstring
+#: labels — the fold's convergence argument is untouched by them.
 _DECLARED_LABEL_MAP_DIGEST = (
-    "b43563f9e417da49c57caa409c52a80840c7ea6d16dc6775bfe8c80a6bd1b3fa")
+    "1be7956c86ddd19739bac17fec16e23a4f55f97a305452a238b6f051b44f6f75")
 
 
 def _declared_label_map_digest(pairs) -> str:
@@ -880,24 +899,26 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
     # a matrix cell SEE a future divergence there — the COUNT alone could not,
     # since DECLARED would stay 223 everywhere while the credited delegate
     # silently differed.
-    assert len(declared) == 223, (
-        f"lexical DECLARED is {len(declared)}, not 223. Every count in this "
-        f"file, in tools/demotion_probe.py's disclosures and in the rc471 "
-        f"CHANGELOG entry is quoted against that figure. ⚠️ IF THIS IS 220, "
-        f"the comprehension fold in demotion_probe._delegate_names is not "
-        f"running: 220 is the PRE-FIX reading of CPython <= 3.11, MEASURED ON "
-        f"THIS TREE at rc471 by replacing _delegate_names with a bare "
-        f"code.co_names — 220 on 3.10.21 and 3.11.16, 223 on 3.12.3 and "
-        f"3.14.7 without the fold; 223 on all five with it. (rc470 measured "
-        f"the same three-op split as 219/222 on its own prose.) RESTORE THE "
-        f"FOLD rather than moving this number — two of the three ops it "
-        f"reveals are PINNED misreads above and would fall out of the ledger, "
+    assert len(declared) == 232, (
+        f"lexical DECLARED is {len(declared)}, not 232. Every count in this "
+        f"file, in tools/demotion_probe.py's disclosures and in the rc472 "
+        f"CHANGELOG entry is quoted against that figure (223 through rc471; "
+        f"rc472's nine own-docstring ACCURACY paragraphs are the +9). ⚠️ IF "
+        f"THIS IS 229, the comprehension fold in demotion_probe._delegate_names "
+        f"is not running: 220 was the PRE-FIX reading of CPython <= 3.11 at "
+        f"rc471, MEASURED ON THAT TREE by replacing _delegate_names with a "
+        f"bare code.co_names — 220 on 3.10.21 and 3.11.16, 223 on 3.12.3 and "
+        f"3.14.7 without the fold; 223 on all five with it — and the three "
+        f"ops the fold reveals are unchanged by rc472. (rc470 measured the "
+        f"same three-op split as 219/222 on its own prose.) RESTORE THE FOLD "
+        f"rather than moving this number — two of the three ops it reveals "
+        f"are PINNED misreads above and would fall out of the ledger, "
         f"reddening the parametrized test. The four assertions above have "
         f"already cleared the reader, so this is a DELEGATE-FOLLOW or PROSE "
         f"change, never a reader-vocabulary change. {_reader_identity()}")
     unknown = sorted(set(_RESIDUAL_TOPIC_MISREADS) - declared)
     assert not unknown, f"pinned but not DECLARED: {unknown}"
-    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 182
+    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 191
 
 
 def test_group_e_the_folded_label_map_is_version_independent() -> None:

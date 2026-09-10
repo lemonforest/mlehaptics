@@ -2410,7 +2410,10 @@ def exp(x: float, *, precision: int | None = None) -> "Q":
 
 
 def log(x: float, *, precision: int | None = None) -> "Q":
-    """``ln(x)`` (natural log, x > 0) → an EXACT :class:`~srmech.math.q.Q`.
+    """``ln(x)`` (natural log, x > 0) → an EXACT :class:`~srmech.math.q.Q` —
+    exact as a CARRIER (a Q61 grid point) of the argument AS THIS OP READS IT;
+    the Accuracy paragraph below says which side the exactness is on (this
+    first line stood alone until rc472).
 
     ``precision=None`` (default) → the Q61 Class-N atanh cascade, BYTE-IDENTICAL
     to every prior rc: ``x = m·2^e`` read EXACTLY from the bit pattern, ``m``
@@ -2423,7 +2426,19 @@ def log(x: float, *, precision: int | None = None) -> "Q":
     ``P`` fractional bits: the SAME ``m·2^e`` bit-extraction, ``log(m) =
     log1p(m−1)`` via ``log1p_series_truncate`` sized to < ``2**-P`` and a DERIVED
     exact ``e·ln2`` (0.9.0rc320, Class-N precision-contract WAVE 2 — the dead
-    ``terms`` kwarg is REPLACED, no legacy alias)."""
+    ``terms`` kwarg is REPLACED, no legacy alias).
+
+    **Accuracy (rc472, `#T1188`) — which side the exactness is on.** "EXACT
+    ``Q``" scopes to the CARRIER, as :func:`sqrt`'s note says of itself: the
+    returned value is a rational on the Q61 grid (denominator ``2**61``), and
+    it is an approximation of ``ln`` of the float64 this op reads. That read
+    is the first line of the body, ``x = float(x)``, BEFORE the domain check
+    and before either path: an ``int`` wider than 53 significand bits, or a
+    ``Q`` argument, is rounded to the nearest float64 — ``log(2**53 + 1)`` ==
+    ``log(2**53)`` — and the ``m·2^e`` bit extraction above reads THAT float64
+    and never the rational the caller held. ``precision=P`` changes the series
+    bound and leaves the entry read as it is. Measured: the rc472 census row
+    ``rational.log::x``, DEMOTED in both cells."""
     x = float(x)
     if not _is_finite(x):
         raise ValueError("log: x must be finite (Q is the finite-rational carrier)")

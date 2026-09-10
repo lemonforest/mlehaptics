@@ -706,6 +706,17 @@ def kuramoto_inv_n(coupling: float, n: int) -> float:
     :func:`kuramoto_step` paths, exiled to its own op instance (the
     ``n == 0`` guard is descriptor-static; the empty-roster chain maps over
     nothing, but the scale step must still be total on ``n >= 0``).
+
+    **Accuracy (rc472, `#T1188`).** ``coupling`` is read at float64
+    resolution: ``float(coupling)`` is the first thing that touches the
+    operand, so an ``int`` wider than 53 significand bits is rounded BEFORE
+    the division — ``kuramoto_inv_n(2**53 + 1, 4)`` ==
+    ``kuramoto_inv_n(2**53, 4)`` — and the quotient is float64 division,
+    accurate to round-off (~1 ULP). That is the shipped Kuramoto step's own
+    float order, byte for byte (:func:`kuramoto_step` coerces its phases to
+    float first); the rational quotient of an integer pair would be
+    ``Q(coupling, n)``, which this op does not compute. Measured: the rc472
+    census row ``kuramoto_inv_n::coupling``, DEMOTED in both cells.
     """
     return (float(coupling) / n) if n > 0 else 0.0
 

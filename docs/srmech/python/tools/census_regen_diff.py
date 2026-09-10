@@ -88,11 +88,32 @@ def paths(d: Dict[str, Any], prefix: Tuple[str, ...] = ()
 _ABSENT = "\0ABSENT\0"
 
 
+def _lane_of(ty: str) -> str:
+    """The census lane of a registry type, read from the SHARED instrument."""
+    import sys
+    tools = str(Path(__file__).resolve().parent)
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    import demotion_probe as dp  # noqa: E402
+    return dp.lane_of(ty)
+
+
 def compare(before_txt: str, after_txt: str, *,
             meta_may_move: Tuple[str, ...],
             by_verdict: Dict[str, Dict[str, int]] | None,
             n_rows: int | None, n_ops: int | None,
-            cells: Tuple[str, ...]) -> int:
+            cells: Tuple[str, ...],
+            expect_added: int = 0, added_lane: str = "") -> int:
+    """``expect_added`` / ``added_lane`` (rc472, `#T1188`): an rc that adds a
+    LANE to the census adds rows without moving any. Clause (ii) then holds
+    iff EXACTLY ``expect_added`` rows were added, EVERY one of them is in
+    ``added_lane`` (read from the row's registry type through the shared
+    :func:`demotion_probe.lane_of`), and still no row was removed. The
+    default ``0`` is the rc471 behaviour byte for byte: any addition breaks
+    clause (ii). Clause (iii) is unchanged — verdicts are compared over the
+    keys BOTH manifests carry, so the added rows cannot hide a move and a
+    move cannot hide among the added rows.
+    """
     mb, rb = load(before_txt)
     ma, ra = load(after_txt)
     B = {key(r): r for r in rb}
@@ -130,10 +151,23 @@ def compare(before_txt: str, after_txt: str, *,
         moved_ok += len(diff) - len(offenders)
         if offenders:
             bad.append((k, [(p, pb.get(p), pa.get(p)) for p in offenders]))
-    c2 = not bad and not added and not removed
+    lane_bad: List[Tuple[str, str]] = []
+    if added and added_lane:
+        for k in added:
+            try:
+                lane = _lane_of(A[k].get("type") or "")
+            except ValueError as exc:
+                lane = f"<{exc}>"
+            if lane != added_lane:
+                lane_bad.append((k, lane))
+    c2 = (not bad and not removed and len(added) == expect_added
+          and (not added or bool(added_lane)) and not lane_bad)
     ok &= c2
-    print(f"(ii)  rows added {len(added)}  removed {len(removed)}")
-    print(f"      data lines differing at all: {len(differing)} of {len(A)}")
+    print(f"(ii)  rows added {len(added)} (expected {expect_added}"
+          f"{', lane ' + added_lane if added_lane else ''})  "
+          f"removed {len(removed)}")
+    print(f"      data lines differing at all: {len(differing)} of "
+          f"{len(set(A) & set(B))} shared")
     print(f"      of those, differing ONLY in {list(DATA_MAY_MOVE)}: "
           f"{len(differing) - len(bad)}")
     print(f"      cell-columns moved inside {list(DATA_MAY_MOVE)}: {moved_ok}")
@@ -141,8 +175,23 @@ def compare(before_txt: str, after_txt: str, *,
         print(f"      !! {k} differs OUTSIDE {list(DATA_MAY_MOVE)}:")
         for p, b, a in offs:
             print(f"           {'.'.join(p)}: {b!r} -> {a!r}")
-    for k in added:
-        print(f"      !! ADDED {k}")
+    if added:
+        # the added population, by cell and verdict, so the addition is a
+        # printed figure rather than a bare count
+        for cel in cells:
+            hist: Dict[str, int] = {}
+            for k in added:
+                v = (A[k].get(cel) or {}).get("verdict")
+                if v is not None:
+                    hist[v] = hist.get(v, 0) + 1
+            print(f"      added rows [{cel}] by_verdict "
+                  f"{json.dumps(dict(sorted(hist.items())), sort_keys=True)}")
+        print(f"      added rows over {len({A[k]['op'] for k in added})} ops")
+        if len(added) != expect_added or not added_lane:
+            for k in added:
+                print(f"      !! ADDED {k}")
+    for k, lane in lane_bad:
+        print(f"      !! ADDED {k} is in lane {lane!r}, not {added_lane!r}")
     for k in removed:
         print(f"      !! REMOVED {k}")
     print(f"      CLAUSE (ii): {'PASS' if c2 else 'FAIL'}\n")
@@ -216,6 +265,14 @@ def main(argv=None) -> int:
     ap.add_argument("--n-rows", type=int, default=None)
     ap.add_argument("--n-ops", type=int, default=None)
     ap.add_argument("--cells", default="native,pure")
+    ap.add_argument("--expect-added", type=int, default=0,
+                    help="rows the regenerated manifest may ADD — exactly this "
+                         "many, every one in --added-lane (rc472: a new census "
+                         "lane adds rows without moving any); default 0")
+    ap.add_argument("--added-lane", default="",
+                    help="the census lane every added row must belong to "
+                         "('sequence' or 'scalar', read from the row's registry "
+                         "type through demotion_probe.lane_of)")
     a = ap.parse_args(argv)
     return compare(
         a.baseline.read_text(encoding="utf-8"),
@@ -223,7 +280,8 @@ def main(argv=None) -> int:
         meta_may_move=tuple(s for s in a.meta_may_move.split(",") if s),
         by_verdict=json.loads(a.by_verdict) if a.by_verdict else None,
         n_rows=a.n_rows, n_ops=a.n_ops,
-        cells=tuple(s for s in a.cells.split(",") if s))
+        cells=tuple(s for s in a.cells.split(",") if s),
+        expect_added=a.expect_added, added_lane=a.added_lane)
 
 
 if __name__ == "__main__":                                # pragma: no cover

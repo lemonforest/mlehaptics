@@ -158,6 +158,130 @@ def test_an_added_row_breaks_clause_ii(capsys):
     assert "ADDED pkg.mod.gamma::xs" in out
 
 
+# ── (ii), the rc472 allowance: a NEW LANE adds rows without moving any ───────
+def _scalar_extra(op="pkg.mod.gamma", ty="float"):
+    extra = json.loads(json.dumps(_ROWS[0]))
+    extra["op"], extra["param"], extra["type"] = op, "x", ty
+    return extra
+
+
+def _meta_for(rows):
+    """A meta line CONSISTENT with ``rows`` — n_rows / n_ops / by_verdict
+    derived — so each test below fails on the clause it names and no other."""
+    m = json.loads(json.dumps(_META))
+    m["n_rows"] = len(rows)
+    m["n_ops"] = len({r["op"] for r in rows})
+    m["by_verdict"] = {}
+    for cel in ("native", "pure"):
+        hist = {}
+        for r in rows:
+            v = r[cel]["verdict"]
+            hist[v] = hist.get(v, 0) + 1
+        m["by_verdict"][cel] = hist
+    return m
+
+
+#: The meta keys a LANE-ADDING regeneration legitimately moves besides
+#: ``measured_at`` — each is pinned EXPLICITLY by clause (iv) / (v), which is
+#: why clause (i) may let it through. ``probe_signature_sha256`` is the fifth
+#: such key in the real rc472 run (a new lane is a new PROBE_SPEC member) and
+#: is deliberately NOT in this fixture's list: the fixture never moves it, so
+#: listing it here would be an allowance nothing exercises.
+_LANE_ADD_MAY_MOVE = ("measured_at", "by_verdict", "n_rows", "n_ops")
+
+
+def _run_added(rows, **kw):
+    m = _meta_for(rows)
+    opts = dict(n_rows=m["n_rows"], n_ops=m["n_ops"], by_verdict=m["by_verdict"],
+                meta_may_move=_LANE_ADD_MAY_MOVE)
+    opts.update(kw)
+    return _run(_text(), _text(meta=m, rows=rows), **opts)
+
+
+def test_a_lane_addition_still_refuses_an_unlisted_meta_move_rc472(capsys):
+    """The allowance is BY KEY: with the fixture's own three keys allowed, a
+    moved registry signature is still clause (i) RED."""
+    rows = json.loads(json.dumps(_ROWS)) + [_scalar_extra()]
+    m = _meta_for(rows)
+    m["registry_signature_sha256"]["native"] = "dd" * 32
+    assert _run(_text(), _text(meta=m, rows=rows), n_rows=3, n_ops=3,
+                by_verdict=m["by_verdict"], meta_may_move=_LANE_ADD_MAY_MOVE,
+                expect_added=1, added_lane="scalar") == 1
+    out = capsys.readouterr().out
+    assert "CLAUSE (i): FAIL" in out and "registry_signature_sha256" in out
+    assert "CLAUSE (ii): PASS" in out
+
+
+def test_an_expected_added_row_in_the_named_lane_is_HELD_rc472(capsys):
+    """rc472 (`#T1188`): the scalar lane adds rows and moves none. Exactly the
+    expected count, every one in the named lane, and the addition is PRINTED
+    per cell by verdict so it is a figure rather than a bare count."""
+    rows = json.loads(json.dumps(_ROWS)) + [_scalar_extra()]
+    assert _run_added(rows, expect_added=1, added_lane="scalar") == 0
+    out = capsys.readouterr().out
+    assert "rows added 1 (expected 1, lane scalar)" in out
+    assert 'added rows [native] by_verdict {"EXACT": 1}' in out
+    assert "added rows over 1 ops" in out
+    assert "VERDICT CHANGES: 0" in out
+    assert "INVARIANT: HELD (5/5)" in out
+
+
+def test_an_added_row_outside_the_named_lane_breaks_clause_ii_rc472(capsys):
+    """A SEQUENCE row arriving under a scalar-lane allowance is not the lane
+    growing — it is a population change the allowance was never for."""
+    rows = json.loads(json.dumps(_ROWS)) + [_scalar_extra(ty="list[float]")]
+    assert _run_added(rows, expect_added=1, added_lane="scalar") == 1
+    out = capsys.readouterr().out
+    assert "CLAUSE (ii): FAIL" in out
+    assert "is in lane 'sequence', not 'scalar'" in out
+    assert "CLAUSE (iii): PASS" in out and "CLAUSE (iv): PASS" in out
+
+
+def test_more_added_rows_than_expected_breaks_clause_ii_rc472(capsys):
+    rows = json.loads(json.dumps(_ROWS)) + [_scalar_extra(),
+                                            _scalar_extra(op="pkg.mod.delta")]
+    assert _run_added(rows, expect_added=1, added_lane="scalar") == 1
+    out = capsys.readouterr().out
+    assert "rows added 2 (expected 1, lane scalar)" in out
+    assert "CLAUSE (ii): FAIL" in out
+    assert "CLAUSE (iv): PASS" in out
+
+
+def test_an_expected_addition_with_no_lane_named_breaks_clause_ii_rc472(capsys):
+    """An allowance must name the lane it is for, or any row could ride it."""
+    rows = json.loads(json.dumps(_ROWS)) + [_scalar_extra()]
+    assert _run_added(rows, expect_added=1, added_lane="") == 1
+    out = capsys.readouterr().out
+    assert "CLAUSE (ii): FAIL" in out
+    assert "CLAUSE (iv): PASS" in out
+
+
+def test_an_expected_addition_does_not_license_a_removal_rc472(capsys):
+    rows = json.loads(json.dumps(_ROWS))[:1] + [_scalar_extra()]
+    assert _run_added(rows, expect_added=1, added_lane="scalar") == 1
+    out = capsys.readouterr().out
+    assert "REMOVED pkg.mod.beta::ys" in out
+    assert "CLAUSE (ii): FAIL" in out
+    assert "CLAUSE (iv): PASS" in out
+
+
+def test_an_expected_addition_does_not_hide_a_moved_verdict_rc472(capsys):
+    """Clause (iii) runs over the SHARED keys, so an addition cannot mask a
+    move and a move cannot pass as an addition."""
+    rows = json.loads(json.dumps(_ROWS)) + [_scalar_extra()]
+    rows[0]["native"]["verdict"] = "DEMOTED"
+    assert _run_added(rows, expect_added=1, added_lane="scalar") == 1
+    out = capsys.readouterr().out
+    # the ADDITION is accounted for exactly as expected ...
+    assert "rows added 1 (expected 1, lane scalar)  removed 0" in out
+    # ... and the MOVE is still reported on its own clause (clause (ii) also
+    # flags the moved verdict as a field outside `declares`, exactly as the
+    # rc471 precedent `test_a_moved_verdict_breaks_clause_iii` records).
+    assert "VERDICT CHANGES: 1" in out
+    assert "pkg.mod.alpha::xs [native] EXACT -> DEMOTED" in out
+    assert "CLAUSE (iii): FAIL" in out
+
+
 # ── (iii) ────────────────────────────────────────────────────────────────────
 def test_a_moved_verdict_breaks_clause_iii(capsys):
     rows = json.loads(json.dumps(_ROWS))

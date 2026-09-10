@@ -77,10 +77,25 @@ def coupled_wave(
 
     Returns:
         ``(E, B, handedness, klein4_quadrant)`` where ``E``/``B`` are the
-        quadrature legs (float, C-dispatched, exact-rational underneath),
+        quadrature legs (each the Q61 rational ``Q`` that
+        :func:`srmech.math.rational.sin` / ``cos`` returns — this line said
+        "float" until rc472; see Accuracy below),
         ``handedness`` echoes the chosen convention (stable — it does NOT
         flip with ``theta``), and ``klein4_quadrant = (sign E, sign B)`` is
         the Klein-4 sector (each sign via Class-K ``pin_slot_at_zero``).
+
+    **Accuracy (rc472, `#T1188`).** ``theta`` is read at float64 resolution:
+    after the Class-K sign branch (which is lossless on an ``int``) the phase
+    is handed to :func:`srmech.math.rational.sin` /
+    :func:`srmech.math.rational.cos`, each of which does ``x = float(x)`` at
+    its own door BEFORE its Q61 cascade runs. So an integer ``theta`` wider
+    than 53 significand bits, or a ``Q``, is rounded to the nearest float64
+    first — ``coupled_wave(2**53 + 1)`` == ``coupled_wave(2**53)`` — and the
+    returned legs are the Q61 rational sine and cosine of THAT float64: each a
+    ``Q`` with denominator ``2**61``, a rational that is an approximation of
+    the trig value of the rounded angle and says nothing about the angle the
+    caller held. Measured: the rc472 census row ``coupled_wave::theta``,
+    DEMOTED in both cells.
     """
     assert isinstance(theta, (int, float))
     assert len(components) == 2, "components must be an (E, B) pair"

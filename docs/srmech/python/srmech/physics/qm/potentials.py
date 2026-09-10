@@ -202,6 +202,20 @@ def harmonic_oscillator_hamiltonian(
 
     Returns:
         Hermitian ``(n_dim, n_dim)`` Hamiltonian as a complex ``Mat``.
+
+    **Accuracy (rc472, `#T1188`).** ``omega`` is carried in float64. The
+    ladder is a complex ``Mat`` (its Class-N rational ``sqrt(n)`` entries are
+    collapsed to ``complex`` when that ``Mat`` is built), and ``omega`` first
+    meets the operator as ``omega * m[i, j]`` inside ``_scale`` — an ``int``
+    times a Python ``complex`` — so an ``omega`` wider than 53 significand
+    bits is rounded at that first multiply, before anything is summed:
+    ``harmonic_oscillator_hamiltonian(omega=2**53 + 1)`` ==
+    ``harmonic_oscillator_hamiltonian(omega=2**53)``. Every entry of the
+    returned ``Mat`` is complex128, accurate to round-off (~1 ULP of each
+    product). The "exact at infinite truncation" above is about the Fock-space
+    basis cut at ``n_dim`` and says nothing about the number carrier.
+    Measured: the rc472 census row ``harmonic_oscillator_hamiltonian::omega``,
+    DEMOTED in both cells.
     """
     a, a_dagger = harmonic_oscillator_ladder(n_dim, omega)
     # H = ω·(a†·a + ½·I) — Class-L matmul cascade + numpy-free Mat add/scale.

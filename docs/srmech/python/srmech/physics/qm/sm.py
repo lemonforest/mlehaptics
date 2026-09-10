@@ -111,6 +111,18 @@ def higgs_vev(mu_squared: float, lam: float) -> float:
 
     Returns:
         Vacuum expectation value ``v > 0``.
+
+    **Accuracy (rc472, `#T1188`).** ``lam`` meets a float literal first: the
+    body is ``float(_srn.sqrt(mu_squared / (2.0 * lam)))``, and ``2.0 * lam``
+    is float64 arithmetic, so an ``int`` ``lam`` wider than 53 significand
+    bits is rounded at that first product, before the division and before the
+    Class-N :func:`~srmech.math.rational.sqrt` cascade — ``higgs_vev(1, 2**53
+    + 1)`` == ``higgs_vev(1, 2**53)``. ``mu_squared`` is then divided in
+    float64 by that product, ``sqrt`` reads the float64 quotient, and the
+    terminal ``float(...)`` lift rounds the rational root once more: the
+    result is float64, accurate to round-off (~1 ULP) of the Class-N root of a
+    float64 ratio. Measured: the rc472 census row ``higgs_vev::lam``, DEMOTED
+    in both cells.
     """
     if mu_squared <= 0:
         raise ValueError(f"higgs_vev: mu_squared must be > 0; got {mu_squared}")
@@ -242,6 +254,22 @@ def fermion_mass_from_yukawa(yukawa: float, vev: float) -> float:
 
     Returns:
         Fermion (Dirac) mass.
+
+    **Accuracy (rc472, `#T1188`) — the collapse is at the EXIT, not at the
+    door.** The body is ``float(yukawa * vev / _srn.sqrt(2.0))``: two ``int``
+    operands multiply without loss, the Class-N
+    :func:`~srmech.math.rational.sqrt` returns a rational (itself an
+    approximation of ``√2``, as its own docstring says), and the quotient is
+    a rational of those — then the single terminal ``float(...)`` lift rounds
+    it to the nearest float64. So a ``yukawa`` or ``vev`` wider than 53
+    significand bits reaches the quotient intact and is rounded on the way
+    OUT: ``fermion_mass_from_yukawa(1, 2**53 + 1)`` ==
+    ``fermion_mass_from_yukawa(1, 2**53)`` (the two quotients differ by
+    ``1/√2``, under one ULP at that magnitude). The result is float64,
+    accurate to round-off of a value that is itself the Class-N ``sqrt``
+    approximation; a float operand on either side takes the float route from
+    its first multiply. Measured: the rc472 census rows
+    ``fermion_mass_from_yukawa::yukawa`` and ``::vev``, DEMOTED in both cells.
     """
     if vev <= 0:
         raise ValueError(f"fermion_mass_from_yukawa: vev must be > 0; got {vev}")

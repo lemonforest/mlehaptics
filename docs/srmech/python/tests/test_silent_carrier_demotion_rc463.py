@@ -80,6 +80,15 @@ have shipped blind to their own subject (`#T1136`, `#T1138`, `#T1182`, and the
     synthesised binding, so driving that number down is a question about the
     SHAPE SYNTHESISER, not about the tree, and a down-only ceiling on it would
     ratchet the instrument rather than the library.
+    rc472 (`#T1188`) adds the SECOND population under the same instrument:
+    every SCALAR-numeric registry parameter (``float`` / ``number`` /
+    ``complex``, not sequence-shaped), probed at its VALUE — **130 rows over
+    87 ops**, of which 42 ops already carried a sequence row and 45 are new
+    to the census; ``NO_SHAPE`` 5 / 5 (the five named at
+    :data:`CEIL_DEMOTION_UNREACHED`), ``DEMOTED`` 18 / 18, every one
+    declared. The 705 sequence rows did not move (0 of 1410 verdict cells),
+    which is the census's own proof that the lane is an ADDITION and not a
+    change of instrument for the rows that were already there.
  2. **No branch-coverage oracle.** Layer 1 enumerates paths somebody THOUGHT
     OF. ``einsum`` needed six shapes to reach both of its branches and the
     census that found five of them missed the sixth; nothing here proves a
@@ -675,7 +684,30 @@ EXPECTED_UNDECLARED_N = {"native": 0, "pure": 0}
 #: Keyed by cell because the two columns are separate measurements — but
 #: asserted over BOTH columns in EVERY cell, which is the difference between
 #: recording a per-cell fact and pinning a host.
-CEIL_DEMOTION_UNREACHED = {"native": 52, "pure": 52}
+#:
+#: ⚠️ KEYED BY ``(lane, cell)`` SINCE rc472 (`#T1188`), and the lane is DERIVED
+#: at read time from the row's REGISTRY TYPE (:func:`demotion_probe.lane_of`),
+#: never stored in the manifest — so a row cannot be filed under a lane by a
+#: stale field. rc472 adds the SCALAR lane: a registry parameter whose type
+#: names ``float`` / ``number`` / ``complex`` and is not sequence-shaped, with
+#: the witness put at the VALUE (``SCALAR_SLOT``) rather than at a leaf. A
+#: merged ceiling would let ``sequence +1 / scalar -1`` in one cell pass
+#: green — a regression in the sequence synthesiser paid for by a gain in the
+#: scalar fill — so each lane ratchets its own number; the can-fail beside the
+#: ratchet below plants exactly that mutation. The scalar figure is the FIVE
+#: rows whose REQUIRED sibling is unbindable — a fact about
+#: ``_fill_required``'s reach and not about the ops — MEASURED identical in
+#: both cells at rc472, each carrying the reason
+#: ``required parameter(s) unbindable: [...]``:
+#: ``biology.coupling.fold_spectrum::margin_floor`` (needs ``fold``),
+#: ``rbs_lm.encode_aboutness::func_frac`` (``text``),
+#: ``spectral.predict::dt`` (``handle``),
+#: ``spectral.prediction_error::threshold`` (``observed``, ``predicted``),
+#: ``spectral.truncate_sparse::threshold`` (``handle``).
+CEIL_DEMOTION_UNREACHED = {
+    "sequence": {"native": 52, "pure": 52},
+    "scalar": {"native": 5, "pure": 5},
+}
 
 #: ⚠️ **THE NAMED FINDING** (`#T1188`). Rows whose verdict DEPENDS ON WHETHER
 #: ``libsrmech`` LOADED. rc463 rates this class worse than a plain demotion —
@@ -843,6 +875,12 @@ _FIXED_IN_RC467 = frozenset({
 #: Same shape one op over: ``qdft_summand`` / ``odft_summand`` read EXACT at the
 #: residue where their twiddle demonstrably rounded, because the witness rides
 #: ``xs`` and the rounding rides ``n``.
+#: rc472 (`#T1188`) closed exactly that blind spot with the SCALAR lane, and
+#: the first thing it measured here is the sentence above becoming true in
+#: the census: ``hypercomplex_couple::theta`` now HAS a row and reads
+#: **DEMOTED in both cells**, declared on the op's own rc466 prose
+#: (``declares`` ``['rounding', 'float64']``). The angle is a coordinate the
+#: instrument varies from rc472 on.
 #:
 #: And the two DFT twiddles have **ZERO rows in this census in either cell** —
 #: measured, not inferred: they take ``int`` scalars plus a ``str`` axis, so no
@@ -1045,8 +1083,9 @@ def test_the_manifest_is_fresh_against_the_probe_signature() -> None:
         f"the census manifest is STALE against the PROBE: {sorted(stale)} "
         f"measured {[s[:12] for s in stale.values()]} and this tree's probe "
         f"is {live[:12]}. A verdict-deciding knob moved — the witness triple, "
-        f"a bound, CONTRACT_SKIP, SHAPE_LEVER, the synthesised shapes or the "
-        f"sequence/opaque identity sets — and NO registry or reader signature "
+        f"a bound, CONTRACT_SKIP, SHAPE_LEVER, the synthesised shapes, the "
+        f"sequence/opaque/scalar identity sets or the scalar slot — and NO "
+        f"registry or reader signature "
         f"moves to tell you so. Re-measure IN EACH STALE CELL:\n    {_REGEN}\n"
         f"Do NOT repoint the digest by hand — it lives in the manifest the "
         f"tool writes.")
@@ -1242,6 +1281,12 @@ def test_the_staleness_guard_is_not_vacuous() -> None:
         "square_dims": _dp.SQUARE_DIMS + (16,),
         "seq_idents": tuple(sorted(_dp._SEQ_IDENTS)) + ("Planted",),
         "opaque_idents": tuple(sorted(_dp._OPAQUE_IDENTS)) + ("Planted",),
+        # rc472 (`#T1188`): the SCALAR lane's two knobs — the ident set that
+        # decides which registry parameters the lane admits AT ALL, and the
+        # value the witness is put at. Both decide the row population, which
+        # is the same blind spot seq_idents / opaque_idents close one lane over.
+        "scalar_idents": tuple(sorted(_dp._SCALAR_IDENTS)) + ("Planted",),
+        "scalar_slot": _dp.SCALAR_SLOT + 1,
     }
     assert sorted(mutations) == sorted(k for k, _ in pbase), (
         f"the probe can-fail covers {sorted(mutations)} and PROBE_SPEC holds "
@@ -1343,23 +1388,105 @@ def test_layer2_the_unreached_population_is_ratcheted_down_only() -> None:
     address at all. Bounded here so the population cannot grow while the gate
     stays green — the failure mode a coverage number carried only in prose has
     no defence against. **Both columns are asserted in every cell**, which is
-    what makes this a fact about the tree rather than about the host.
+    what makes this a fact about the tree rather than about the host — and,
+    since rc472 (`#T1188`), **both lanes**: the lane is derived from each
+    row's registry type, so the sequence and the scalar population each
+    ratchet their own number.
     """
     _meta, rows = _manifest()
-    for c in _cells():
-        n = len([r for r in rows
-                 if r.get(c) and r[c]["verdict"] == "NO_SHAPE"])
-        ceil = CEIL_DEMOTION_UNREACHED[c]
-        assert n <= ceil, (
-            f"[{c}] {n} rows are NO_SHAPE (the probe could build no binding at "
-            f"all), ceiling is {ceil}. This ratchet is DOWN-ONLY: the "
-            f"instrument reaching LESS than it did is a regression in the "
-            f"instrument. Widen `synthesize` rather than the ceiling; each row "
-            f"carries its own `reason`.")
-        assert n == ceil, (
-            f"GOOD NEWS, ACTION REQUIRED: only {n} of {ceil} rows are "
-            f"unreachable in the {c} column. Lower "
-            f"CEIL_DEMOTION_UNREACHED[{c!r}] to {n} in the SAME change.")
+    for lane in sorted(CEIL_DEMOTION_UNREACHED):
+        for c in _cells():
+            n = len([r for r in rows
+                     if _dp.lane_of(r.get("type") or "") == lane
+                     and r.get(c) and r[c]["verdict"] == "NO_SHAPE"])
+            ceil = CEIL_DEMOTION_UNREACHED[lane][c]
+            assert n <= ceil, (
+                f"[{lane}/{c}] {n} rows are NO_SHAPE (the probe could build no "
+                f"binding at all), ceiling is {ceil}. This ratchet is "
+                f"DOWN-ONLY: the instrument reaching LESS than it did is a "
+                f"regression in the instrument. Widen `synthesize` (sequence) "
+                f"or `_fill_required` (scalar) rather than the ceiling; each "
+                f"row carries its own `reason`.")
+            assert n == ceil, (
+                f"GOOD NEWS, ACTION REQUIRED: only {n} of {ceil} rows are "
+                f"unreachable in the {lane}/{c} column. Lower "
+                f"CEIL_DEMOTION_UNREACHED[{lane!r}][{c!r}] to {n} in the SAME "
+                f"change.")
+
+
+def test_the_ceiling_is_keyed_per_lane_and_a_merged_count_would_lie_rc472() -> None:
+    """THE CAN-FAIL for the ``(lane, cell)`` keying (rc472, `#T1188`).
+
+    The predicate the ratchet above applies is re-applied here to a MUTATED
+    copy of the live per-lane counts: ``sequence +1 / scalar -1`` in one cell.
+    A merged ceiling (the rc465-rc471 idiom, one number per cell) is
+    INDIFFERENT to that mutation — the sum is unchanged — while the per-lane
+    ceiling goes red on both halves. That difference is the whole reason the
+    key has two parts, and an instrument that cannot return otherwise is not
+    a measurement.
+    """
+    _meta, rows = _manifest()
+    live = {lane: {c: len([r for r in rows
+                           if _dp.lane_of(r.get("type") or "") == lane
+                           and r.get(c) and r[c]["verdict"] == "NO_SHAPE"])
+                   for c in _cells()}
+            for lane in sorted(CEIL_DEMOTION_UNREACHED)}
+    assert live == CEIL_DEMOTION_UNREACHED, (live, CEIL_DEMOTION_UNREACHED)
+    c = _cells()[0]
+    mutated = {lane: dict(cells) for lane, cells in live.items()}
+    mutated["sequence"][c] += 1
+    mutated["scalar"][c] -= 1
+    merged_live = sum(live[lane][c] for lane in live)
+    merged_mut = sum(mutated[lane][c] for lane in mutated)
+    assert merged_mut == merged_live, (
+        "the planted mutation must be INVISIBLE to a merged per-cell count, "
+        "or it does not demonstrate what the lane key buys")
+    assert mutated["sequence"][c] > CEIL_DEMOTION_UNREACHED["sequence"][c], (
+        "the per-lane ceiling did not go RED on the sequence half")
+    assert mutated["scalar"][c] != CEIL_DEMOTION_UNREACHED["scalar"][c], (
+        "the per-lane ceiling did not go RED on the scalar half")
+
+
+def test_the_census_is_total_over_both_lanes_rc472() -> None:
+    """TOTALITY BY KEY-SET IDENTITY, both directions (rc472, `#T1188`).
+
+    Every registry ``(op, param)`` the probe admits — sequence-shaped OR
+    scalar-numeric — has a census row, and every census row is one of those.
+    Asserted as an IDENTITY rather than as two counts, because a count cannot
+    see a swap: a parameter re-typed out of one lane and a new one typed into
+    the other leave both cardinals unchanged. The two lanes are asserted
+    DISJOINT in the same breath, so no key can be reached twice. The in-process
+    control mutates the EXPECTED set — one scalar key dropped, one planted —
+    and the identity must fire both times.
+    """
+    _meta, rows = _manifest()
+    keys = {_dp.key(r) for r in rows}
+    seq, sca = set(), set()
+    for e in get_tool_schema().tools:
+        for p in (e.parameters or ()):
+            ty = p.type or ""
+            k = f"{e.name}::{p.name}"
+            if _dp.sequence_shaped(ty):
+                seq.add(k)
+            if _dp.scalar_numeric(ty):
+                sca.add(k)
+    assert seq and sca, "a lane is EMPTY; the identity below would be vacuous on it"
+    assert not (seq & sca), (
+        f"the two lanes overlap on {sorted(seq & sca)[:5]}: scalar_numeric must "
+        f"exclude sequence-shaped types by construction")
+    expected = seq | sca
+    assert keys == expected, (
+        f"the census is NOT total over the two lanes: "
+        f"in the census but in no lane {sorted(keys - expected)[:8]}; "
+        f"in a lane but not in the census {sorted(expected - keys)[:8]}. "
+        f"An op was added, re-typed or removed and the manifest has not been "
+        f"re-measured — or a lane predicate moved without a regeneration.")
+    # ── the control: the identity can fire, in both directions ───────────
+    dropped = set(expected)
+    dropped.discard(sorted(sca)[0])
+    assert keys != dropped, "the identity did not notice a dropped scalar key"
+    assert keys != expected | {"srmech.planted.op::v"}, (
+        "the identity did not notice a planted key")
 
 
 # ── LAYER 3 — the honesty gate, as a pinned ROSTER ────────────────────────────
@@ -1514,11 +1641,23 @@ def test_the_twiddle_family_has_NO_census_row_and_that_is_MEASURED() -> None:
     # above cannot go stale in the other direction either, and its verdict is
     # asserted too — a row that appeared but read DEMOTED would be a defect the
     # fold introduced, not a coverage gain.
-    gained = [r for r in rows if r["op"] == "srmech.cascade.hypercomplex_exp"]
+    # rc472 (`#T1188`): filtered to the `turn=` ROW, by name. The assertion
+    # was always ABOUT that operand — the message names it — but it read every
+    # row of the op, and the scalar lane now gives `hypercomplex_exp::theta`
+    # (`float`) a row of its own: the ANGLE, the coordinate `_FIXED_IN_RC468`'s
+    # note records the sequence probe could never vary. MEASURED at rc472 it
+    # reads RAISED in both cells — the harvested binding already carries
+    # `turn=`, and the op refuses "give exactly ONE of theta= ... or
+    # turn=(k, n)" — so without this filter the EXACT assertion below would
+    # have gone red on a row it was never about. That row is measured in the
+    # census like any other and is not this assertion's subject.
+    gained = [r for r in rows
+              if r["op"] == "srmech.cascade.hypercomplex_exp" and r["param"] == "turn"]
     assert gained, (
-        "srmech.cascade.hypercomplex_exp has no census row again — the "
-        "turn=(k, n) operand that made it reachable is gone or is no longer "
-        "sequence-shaped, so the coverage this rc gained was lost silently")
+        "srmech.cascade.hypercomplex_exp has no census row for turn= again — "
+        "the turn=(k, n) operand that made it reachable is gone or is no "
+        "longer sequence-shaped, so the coverage this rc gained was lost "
+        "silently")
     assert all(r[cell]["verdict"] == "EXACT"
                for r in gained for cell in ("native", "pure")), (
         f"hypercomplex_exp's newly-reachable turn= operand does not read EXACT "

@@ -324,18 +324,43 @@ def test_q61_trig_range_refusal_is_one_text_in_this_cell() -> None:
 
 
 # ── D4: the two blind spots, pinned as measured instrument facts ──────────────
-def test_blind_spot_8_scalar_parameters_are_never_probed() -> None:
-    """``rational.sin`` rounds a ``Q`` argument to float64 and the probe emits NO
-    row for it, because :func:`demotion_probe.probe_op` enumerates sequence-shaped
-    parameters only. Pinned, not fixed: a scalar-parameter probe is a different
-    instrument. If this goes RED the probe has learned scalars — rewrite
-    disclosure 8 in ``tools/demotion_probe.py`` in the same change."""
+def test_blind_spot_8_scalar_parameters_are_now_probed_rc472() -> None:
+    """``rational.sin`` rounds a ``Q`` argument to float64 — and the probe now
+    EMITS THE ROW.
+
+    Through rc471 this test asserted the OPPOSITE (``probe_op(ent, {}) == []``)
+    and its own docstring pre-authorised the inversion: *"If this goes RED the
+    probe has learned scalars — rewrite disclosure 8 in
+    ``tools/demotion_probe.py`` in the same change."* rc472 (`#T1188`) learned
+    them: the SCALAR lane admits a registry parameter whose type names
+    ``float`` / ``number`` / ``complex`` and is not sequence-shaped, and puts
+    the witness at the VALUE (``SCALAR_SLOT``) rather than at a leaf. Disclosure
+    8 is rewritten in the same change, as the old text asked.
+
+    Three things are pinned, and the third is the one that makes the row an
+    honest one rather than a new debt: the lane admits ``x`` (``float``) and
+    NOT ``precision`` (``int`` is outside the ident set — the int lane was
+    measured and refused in the rc472 scoping); the row reads ``DEMOTED``,
+    which is the disclosure-8 fact the instrument could not previously state;
+    and ``declares`` is non-empty ON THE OP'S OWN DOCSTRING (``sin`` states
+    its ``2**-P`` truncation bound), so the row lands declared, not in the
+    strict-zero roster.
+    """
     from srmech.introspect.tool_schema import get_tool_schema
     from srmech.math import rational
     ent = {e.name: e for e in get_tool_schema().tools}["srmech.math.rational.sin"]
     assert [p.type for p in ent.parameters] == ["float", "int"]
-    assert rational.sin(Q(P, 1)) == rational.sin(Q(F, 1)), "the demotion the probe cannot see"
-    assert _dp.probe_op(ent, {}) == [], "the probe now addresses scalar parameters"
+    assert rational.sin(Q(P, 1)) == rational.sin(Q(F, 1)), (
+        "the demotion the probe could not see through rc471")
+    rows = _dp.probe_op(ent, {})
+    assert [r["param"] for r in rows] == ["x"], (
+        f"the scalar lane must admit exactly `x` (float) and not `precision` "
+        f"(int) on rational.sin; got {[(r['param'], r['type']) for r in rows]}")
+    (row,) = rows
+    assert row["verdict"] == "DEMOTED", row
+    assert row.get("declares") == ["truncation"], (
+        f"rational.sin must land DECLARED on its own docstring, not in the "
+        f"undeclared roster: {row}")
 
 
 def test_blind_spot_9_the_reader_refuses_negation() -> None:

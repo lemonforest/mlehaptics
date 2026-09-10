@@ -51,7 +51,9 @@ that hashed exactly that text: it re-executed nothing after a regen and reported
 a refreshed ledger it had not refreshed. Run it under WSL2 — the pure cell's
 ceiling encodes one snippet's absolute `/mnt/d/...` path.
 
-⚠️ **A THIRD step, when the op you registered takes a sequence-shaped parameter**
+⚠️ **A THIRD step, when the op you registered takes a sequence-shaped parameter —
+or, since rc472 (`#T1188`), a scalar-numeric one (`float` / `number` / `complex`;
+the census's second lane)**
 (rc465, `#T1188`). `tests/demotion_census.ndjson` is a committed MEASUREMENT of
 which registered parameters round an exact operand, and its staleness guard is a
 hash of the registry's `(op name, parameter types, return type)` triples — so

@@ -195,6 +195,18 @@ def feynman_photon_propagator(
 
     Returns:
         ``D^{μν}(k)`` as a 4×4 complex ``Mat``.
+
+    **Accuracy (rc472, `#T1188`).** ``k_squared`` is read at complex128
+    resolution: the body's first use of it is ``denom = complex(k_squared,
+    epsilon)``, so a ``Q`` (which the annotation admits) or an ``int`` wider
+    than 53 significand bits is rounded to float64 at the door, before the
+    on-shell check and before the ``Mat`` scale —
+    ``feynman_photon_propagator(2**53 + 1)`` ==
+    ``feynman_photon_propagator(2**53)``. Every entry of the returned
+    ``D^{μν}`` is complex128, accurate to round-off (~1 ULP). The ``Q`` in
+    the annotation names what is ACCEPTED at the door; what is carried past
+    it is float64. Measured: the rc472 census row
+    ``feynman_photon_propagator::k_squared``, DEMOTED in both cells.
     """
     if epsilon < 0:
         raise ValueError(

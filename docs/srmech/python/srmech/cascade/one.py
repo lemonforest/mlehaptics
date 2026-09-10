@@ -485,8 +485,10 @@ def winding_fold(theta: float) -> Tuple[int, float]:
     (the grading-collapse the divmod audit hunts) — and ``theta_res`` is the
     **epicycle residue** (``|theta_res| ≤ π``). An external consumer with an
     accumulated angle (a Kuramoto phase, an ``Im(z)·λ`` from its own solve) no
-    longer hand-rolls the float modulo: this op is the EXACT fold — one
-    divmod, both harvests. The winding ``w`` feeds the One's metacycle dial
+    longer hand-rolls the float modulo: this op is the fold as ONE divmod,
+    both harvests, lossless over the image of ``theta`` that ``float(theta)``
+    reads (this line said "the EXACT fold" until rc472; the Accuracy paragraph
+    below says which side the exactness is on). The winding ``w`` feeds the One's metacycle dial
     directly (``the_one(σ, θ_num, θ_den, w=(w, 0, 0))`` →
     :meth:`One.sigma_effective` / :attr:`One.spinor_sign` /
     :meth:`One.unwrapped_phase`).
@@ -509,9 +511,11 @@ def winding_fold(theta: float) -> Tuple[int, float]:
     grids are Q61 native / 2⁻⁴⁴ pure — both quantise the SAME real residue).
 
     Args:
-        theta: the accumulated angle in radians — any FINITE real (complex is
-            rejected: the fold is a real-axis operation; non-finite is
-            rejected: the fold's domain is finite angles).
+        theta: the accumulated angle in radians — any FINITE real, READ AT
+            FLOAT64 RESOLUTION (``float(theta)`` is the op's first act; see
+            Accuracy — this line said only "any FINITE real" until rc472).
+            Complex is rejected: the fold is a real-axis operation;
+            non-finite is rejected: the fold's domain is finite angles.
 
     Returns:
         ``(w, theta_res)`` — ``w`` the whole-ℤ metacycle winding (``int``),
@@ -523,6 +527,21 @@ def winding_fold(theta: float) -> Tuple[int, float]:
         TypeError: complex ``theta`` (a real-axis fold — the complex phase
             is a different op: fold ``cmath.phase``'s output, not the number).
         ValueError: non-finite ``theta`` (NaN / ±Inf).
+
+    **Accuracy (rc472, `#T1188`) — which side the exactness is on.** The
+    exactness claimed above is the FOLD's, over the float64 image of
+    ``theta``: the op begins with ``f = float(theta)``, so an ``int`` wider
+    than 53 significand bits, or a ``Q``, is rounded to the nearest float64
+    BEFORE the divmod — ``winding_fold(2**53 + 1)`` == ``winding_fold(2**53)``
+    — and the fold is then lossless OF ``f`` (the pure path is an
+    arbitrary-precision rational divmod of ``f`` against the Machin-2π
+    constant, the native path the Q61 2/π grid; both return the same ``w``).
+    ``theta_res`` is a float64 on the fold grid (2⁻⁴⁴ pure / Q61 native), so
+    it is accurate to that grid's resolution. The rule ``sqrt`` states of
+    itself — "EXACT scopes to the CARRIER, not to the value"
+    (:func:`srmech.math.rational.sqrt`) — applies here to the OPERAND: the
+    caller's angle is what is rounded. Measured: the rc472 census row
+    ``winding_fold::theta``, DEMOTED in both cells.
     """
     is_complex = isinstance(theta, complex)
     if not is_complex:
