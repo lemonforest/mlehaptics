@@ -6901,6 +6901,24 @@ def propagate_wound(L, u0, z) -> dict:
 
     Raises:
         ValueError: non-square ``L``, or ``len(u0) != n``.
+
+    **Accuracy (rc472, `#T1188`).** ``u0`` is read at complex128 resolution
+    on BOTH projections: :func:`_vec` keeps each entry as it came, and the
+    first arithmetic the entry meets is ``complex(x)`` — the ctypes marshal
+    ``u_il`` in :func:`_eph_propagate_wound_native` on the native path, the
+    ``uc = [complex(x) for x in u]`` projection in
+    :func:`_eph_propagate_eig_py` on the pure one — so an ``int`` entry wider
+    than 53 significand bits is rounded to float64 at that cast, before the
+    eigenbasis projection. ``propagate_wound([[1, 0], [0, 1]], [2**53 + 1,
+    0], 1)`` returns the same harvest as ``[2**53, 0]`` while ``[2**53 + 2,
+    0]`` moves it. ``L``, ``z`` and the eigensolve are float64 throughout, so
+    every returned per-mode value is float64, accurate to round-off (~1 ULP)
+    of the float64 image of ``u0``; the winding ``w_k`` is an integer count
+    of whole turns of that float64 fold. Measured: the rc472 census row
+    ``propagate_wound::u0``, DEMOTED in both cells — it read RAISED through
+    the rc472 lane commit because the census bound the required ``z`` to a
+    synthesised vector, and the required-scalar fill repair (C3) is what let
+    the instrument ask.
     """
     rows = _as_rows(L)
     n = len(rows)

@@ -293,6 +293,173 @@ def test_a_moved_verdict_breaks_clause_iii(capsys):
     assert "pkg.mod.alpha::xs [native] EXACT -> DEMOTED" in out
 
 
+# ── (iii), the rc472-C3 allowance: a REACH REPAIR moves verdicts OUT of one
+#    named verdict — exactly N per cell, the same rows in every cell, none
+#    INTO it, and nothing else ────────────────────────────────────────────────
+def _raised_pair(after_native="EXACT", after_pure="EXACT", moved_rows=(0,)):
+    """``(before, after)`` row lists: every index in ``moved_rows`` reads
+    RAISED in both cells BEFORE and the given verdicts AFTER."""
+    before = json.loads(json.dumps(_ROWS))
+    after = json.loads(json.dumps(_ROWS))
+    for i in moved_rows:
+        for cel in ("native", "pure"):
+            before[i][cel] = {"verdict": "RAISED", "reason": "TypeError: planted"}
+        for cel, v in (("native", after_native), ("pure", after_pure)):
+            after[i][cel] = {"verdict": v, "leaf": [0], "shape": "[1]*8"}
+            if v == "DEMOTED":
+                after[i][cel]["declares"] = []
+    return before, after
+
+
+def _run_moved(before, after, **kw):
+    mb, ma = _meta_for(before), _meta_for(after)
+    opts = dict(n_rows=ma["n_rows"], n_ops=ma["n_ops"],
+                by_verdict=ma["by_verdict"], meta_may_move=_LANE_ADD_MAY_MOVE)
+    opts.update(kw)
+    return _run(_text(meta=mb, rows=before), _text(meta=ma, rows=after), **opts)
+
+
+def test_an_expected_move_out_of_the_named_verdict_is_HELD_rc472(capsys):
+    """rc472 C3 (`#T1188`): the required-scalar fill lets rows BIND that used
+    to raise at a synthesised sibling, so their verdict moves OUT of RAISED.
+    The allowance is exactly N per cell, every move out of the named verdict
+    and none into it, the same rows in every cell — and the cell-columns
+    that moved are the ONLY data that may differ outside `declares`."""
+    before, after = _raised_pair()
+    assert _run_moved(before, after, expect_moved=1, moved_from="RAISED") == 0
+    out = capsys.readouterr().out
+    assert ("VERDICT CHANGES: 2 (expected 1 per cell, every one OUT of "
+            "'RAISED' and none INTO it)") in out
+    assert "moved [native]: 1" in out and "moved [pure]: 1" in out
+    assert 'transitions: {"RAISED->EXACT": 2}' in out
+    assert "CLAUSE (ii): PASS" in out and "CLAUSE (iii): PASS" in out
+    assert "INVARIANT: HELD (5/5)" in out
+
+
+def test_more_moves_than_expected_breaks_clause_iii_rc472(capsys):
+    before, after = _raised_pair(moved_rows=(0, 1))
+    assert _run_moved(before, after, expect_moved=1, moved_from="RAISED") == 1
+    out = capsys.readouterr().out
+    assert "moved [native]: 2" in out
+    assert "CLAUSE (iii): FAIL" in out
+
+
+def test_a_move_INTO_the_named_verdict_breaks_clause_iii_rc472(capsys):
+    """The direction is the half an accident cannot satisfy: a row ARRIVING
+    in RAISED under an out-of-RAISED allowance is red even at the right
+    count."""
+    before, after = _raised_pair()
+    for cel in ("native", "pure"):
+        after[1][cel] = {"verdict": "RAISED", "reason": "planted"}
+    assert _run_moved(before, after, expect_moved=2, moved_from="RAISED") == 1
+    out = capsys.readouterr().out
+    assert "moved [native]: 2" in out
+    assert ("pkg.mod.beta::ys [native] DEMOTED -> RAISED is not a move OUT "
+            "of 'RAISED'") in out
+    assert "CLAUSE (iii): FAIL" in out
+
+
+def test_a_move_from_another_verdict_breaks_clause_iii_rc472(capsys):
+    before, after = _raised_pair()
+    for cel in ("native", "pure"):
+        after[1][cel]["verdict"] = "EXACT"        # DEMOTED -> EXACT
+    assert _run_moved(before, after, expect_moved=2, moved_from="RAISED") == 1
+    out = capsys.readouterr().out
+    assert ("pkg.mod.beta::ys [native] DEMOTED -> EXACT is not a move OUT "
+            "of 'RAISED'") in out
+    assert "CLAUSE (iii): FAIL" in out
+
+
+def test_cells_that_move_different_rows_break_clause_iii_rc472(capsys):
+    """'The same N rows in every cell' is part of the pin: a native-only move
+    beside a pure-only move elsewhere has the right COUNT in each cell and
+    is still red."""
+    before, after = _raised_pair(moved_rows=(0, 1))
+    after[0]["pure"] = json.loads(json.dumps(before[0]["pure"]))
+    after[1]["native"] = json.loads(json.dumps(before[1]["native"]))
+    assert _run_moved(before, after, expect_moved=1, moved_from="RAISED") == 1
+    out = capsys.readouterr().out
+    assert "moved [native]: 1" in out and "moved [pure]: 1" in out
+    assert "the moved key sets DIFFER across cells" in out
+    assert "CLAUSE (iii): FAIL" in out
+
+
+def test_an_expected_move_does_not_license_an_unmoved_rows_field_rc472(capsys):
+    """The clause (ii) exemption is per moved CELL-COLUMN, never per file: a
+    `reason` edit on a row whose verdict did not move is still red."""
+    before, after = _raised_pair()
+    after[1]["native"]["reason"] = "reworded"
+    assert _run_moved(before, after, expect_moved=1, moved_from="RAISED") == 1
+    out = capsys.readouterr().out
+    assert "pkg.mod.beta::ys differs OUTSIDE ['declares']" in out
+    assert "CLAUSE (ii): FAIL" in out
+    assert "CLAUSE (iii): PASS" in out
+
+
+def test_an_expected_move_with_no_verdict_named_breaks_clause_iii_rc472(capsys):
+    before, after = _raised_pair()
+    assert _run_moved(before, after, expect_moved=1, moved_from="") == 1
+    out = capsys.readouterr().out
+    assert "an allowance must name the verdict it is for" in out
+    assert "CLAUSE (iii): FAIL" in out
+
+
+def test_an_expected_move_does_not_license_an_addition_rc472(capsys):
+    before, after = _raised_pair()
+    after.append(_scalar_extra())
+    assert _run_moved(before, after, expect_moved=1, moved_from="RAISED") == 1
+    out = capsys.readouterr().out
+    assert "ADDED pkg.mod.gamma::x" in out
+    assert "CLAUSE (ii): FAIL" in out
+    assert "CLAUSE (iii): PASS" in out
+
+
+# ── (ii), the rc472-C3 labeller allowance: rows named IN ADVANCE may differ
+#    in `shape` only; every named row must relabel; an unnamed relabel is red ─
+def _relabelled(keys=("pkg.mod.alpha::xs",)):
+    rows = json.loads(json.dumps(_ROWS))
+    for r in rows:
+        if f"{r['op']}::{r['param']}" in keys:
+            for cel in ("native", "pure"):
+                r[cel]["shape"] = "synth[0]"
+    return rows
+
+
+def test_a_named_relabel_in_shape_only_is_HELD_rc472(capsys):
+    assert _run(_text(), _text(rows=_relabelled()),
+                may_relabel=("pkg.mod.alpha::xs",)) == 0
+    out = capsys.readouterr().out
+    assert "rows allowed to RELABEL (shape only): 1 named, 1 relabelled" in out
+    assert "pkg.mod.alpha::xs native.shape: 'harvested' -> 'synth[0]'" in out
+    assert "CLAUSE (ii): PASS" in out and "INVARIANT: HELD (5/5)" in out
+
+
+def test_an_unnamed_relabel_is_still_red_rc472(capsys):
+    assert _run(_text(), _text(rows=_relabelled()),
+                may_relabel=("pkg.mod.beta::ys",)) == 1
+    out = capsys.readouterr().out
+    assert "pkg.mod.alpha::xs differs OUTSIDE ['declares']" in out
+    assert "pkg.mod.beta::ys was named in --may-relabel but did not relabel" in out
+    assert "CLAUSE (ii): FAIL" in out
+
+
+def test_a_named_row_may_not_move_anything_but_shape_rc472(capsys):
+    rows = _relabelled()
+    rows[0]["native"]["leaf"] = [1]
+    assert _run(_text(), _text(rows=rows),
+                may_relabel=("pkg.mod.alpha::xs",)) == 1
+    out = capsys.readouterr().out
+    assert "native.leaf: [0] -> [1]" in out
+    assert "CLAUSE (ii): FAIL" in out
+
+
+def test_a_named_row_that_does_not_relabel_is_slack_and_red_rc472(capsys):
+    assert _run(_text(), _text(), may_relabel=("pkg.mod.alpha::xs",)) == 1
+    out = capsys.readouterr().out
+    assert "pkg.mod.alpha::xs was named in --may-relabel but did not relabel" in out
+    assert "CLAUSE (ii): FAIL" in out
+
+
 # ── (iv) ─────────────────────────────────────────────────────────────────────
 def test_a_by_verdict_count_off_by_one_breaks_clause_iv(capsys):
     m = json.loads(json.dumps(_META))

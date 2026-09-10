@@ -1287,6 +1287,12 @@ def test_the_staleness_guard_is_not_vacuous() -> None:
         # is the same blind spot seq_idents / opaque_idents close one lane over.
         "scalar_idents": tuple(sorted(_dp._SCALAR_IDENTS)) + ("Planted",),
         "scalar_slot": _dp.SCALAR_SLOT + 1,
+        # rc472 C3 (`#T1188`): the value a REQUIRED scalar-numeric sibling is
+        # held at. It decides which rows can bind at all (13 rows left RAISED
+        # when it landed), so it is in the key on its own — the two values
+        # are equal today, and a change to one and not the other must move
+        # the digest, which is what this mutation proves it does.
+        "required_scalar_fill": _dp.REQUIRED_SCALAR_FILL + 1,
     }
     assert sorted(mutations) == sorted(k for k, _ in pbase), (
         f"the probe can-fail covers {sorted(mutations)} and PROBE_SPEC holds "

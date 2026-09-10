@@ -214,14 +214,24 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     instrument"* was half right: it is the SAME instrument with a second lane
     and two :data:`PROBE_SPEC` members, and no other change — measured at
     rc472, the lane moves ZERO of the 1410 sequence verdict cells and adds its
-    own rows beside them. What the lane CANNOT reach is named rather than
-    absorbed: a REQUIRED scalar sibling is still filled by :func:`synthesize`
-    with an int-filled vector (:func:`_fill_required` is untouched here), so
-    the rows whose required sibling is itself a scalar read ``NO_SHAPE`` on
-    that binding — the gate's scalar NO_SHAPE ceiling is exactly those rows,
-    each carrying the reason. And ``int`` is not a member of the lane: an int
+    own rows beside them. **The lane commit then said, of what it could not
+    reach, one true thing and one false one, and C3 (`#T1188`) corrects both
+    in the same change that closes the true one.** True: a REQUIRED
+    scalar-numeric sibling was still filled by :func:`synthesize` with an
+    int-filled vector — closed by :data:`REQUIRED_SCALAR_FILL`, which holds
+    such a sibling at the slot; 13 rows that read RAISED at the sibling now
+    bind and are asked. False: *"the rows whose required sibling is itself a
+    scalar read NO_SHAPE … the gate's scalar NO_SHAPE ceiling is exactly
+    those rows."* They read RAISED, not NO_SHAPE (an 8-vector binds, then the
+    op refuses it), and the five scalar NO_SHAPE rows are the ones whose
+    required sibling is OPAQUE (``fold``, ``text``, ``handle``, ``observed`` /
+    ``predicted``) — a different residue, unchanged by C3, still the ceiling.
+    What C3 leaves named is the ``int``-typed required sibling: it is still
+    handed a vector, because ``int`` is not a member of the lane — an int
     lane admits every integer parameter of every op and the twiddle
-    strict-zero gate goes red on it.
+    strict-zero gate goes red on it — and the fill follows the lane's ident
+    set rather than minting a second one. The seven rows that residue holds
+    are listed at :data:`REQUIRED_SCALAR_FILL`.
  9. **The reader REFUSES negation, and does so LOOK-BEHIND ONLY** (rc466
     found it, `#T1188`; rc470 fixed it). ``odft_summand`` counted as DECLARED
     through rc465 on the phrase *"(the byte-exact parity contract, not a
@@ -869,6 +879,37 @@ _SCALAR_IDENTS = frozenset({"float", "number", "complex"})
 #: reads), and the question is about the carrier, not the harvest.
 SCALAR_SLOT = 1
 
+#: THE REQUIRED-SCALAR FILL (rc472 C3, `#T1188`): what :func:`_fill_required`
+#: binds to a REQUIRED scalar-numeric sibling the harvest left unbound. The
+#: same value as :data:`SCALAR_SLOT`, bound under its own name because it is a
+#: different KNOB — the lane decides where the WITNESS goes; this decides what
+#: the other scalar parameters are held at while it is asked — and a member of
+#: :data:`PROBE_SPEC` in its own right for the same reason.
+#:
+#: Through the rc472 lane commit ``_fill_required`` asked :func:`synthesize`
+#: for EVERY missing required parameter, and ``synthesize`` refuses only the
+#: :data:`_OPAQUE_IDENTS`, so a missing ``float`` / ``complex`` / ``float | Q``
+#: sibling was bound to ``[1] * 8`` — an 8-vector handed to a parameter the
+#: registry declares scalar — and the op RAISED at that sibling before the
+#: probed parameter was ever asked. Those rows read RAISED with a reason that
+#: was the instrument's, wearing the op's name.
+#:
+#: What this does NOT reach is named rather than absorbed: a required ``int``
+#: sibling (``dim``, ``sigma``, ``k``, ``n_sources``, …) is still bound to a
+#: synthesised vector, because :func:`scalar_numeric` excludes ``int`` by
+#: design (see :data:`_SCALAR_IDENTS`) and the fill follows the lane's own
+#: ident set rather than minting a second one. MEASURED in the rc472 build
+#: (native cell, in process, CPython 3.12.3, numpy absent, the shipped
+#: :func:`probe_param` walk): this fill moves **13** rows over 8 ops, every one
+#: OUT of RAISED and none INTO it; the same walk with ``int`` admitted to the
+#: FILL ONLY moves **20**, and the seven it adds — ``cd_promote::x``,
+#: ``the_one::w``, ``top_k_by_score::scores``, ``music_doa::R`` /
+#: ``::steering_vectors``, ``modular_forms_ring_represent::q_series``,
+#: ``quasimodular_represent::q_series`` — are the int-fill residue, handed to
+#: the next rc as a design question the lane's exclusion has already ruled on
+#: once, not as a knob to widen quietly.
+REQUIRED_SCALAR_FILL = SCALAR_SLOT
+
 
 def scalar_numeric(ty: str) -> bool:
     """Does the REGISTRY declare this parameter as scalar-numeric — the rc472
@@ -1460,7 +1501,17 @@ def _base_for(entry, rows: Dict[str, Any], *,
 
 def _fill_required(fn, base: Dict[str, Any], entry
                    ) -> Tuple[Dict[str, Any], List[str]]:
-    """Synthesise the required parameters the harvest left unbound."""
+    """Bind the required parameters the harvest left unbound.
+
+    A required sibling whose registry type is scalar-numeric
+    (:func:`scalar_numeric`) is held at :data:`REQUIRED_SCALAR_FILL`; every
+    other required sibling is asked of :func:`synthesize`, exactly as before
+    rc472 C3 (`#T1188`). The scalar arm exists because ``synthesize`` refuses
+    only the opaque identifiers, so it answered ``[1] * 8`` for a ``float`` —
+    a vector handed to a scalar — and the op raised at the sibling before the
+    probed parameter was ever reached. See :data:`REQUIRED_SCALAR_FILL` for
+    what the repair moves and for the ``int``-typed residue it leaves named.
+    """
     try:
         sig = inspect.signature(fn)
     except (TypeError, ValueError):
@@ -1473,7 +1524,8 @@ def _fill_required(fn, base: Dict[str, Any], entry
             continue
         if p.default is not inspect.Parameter.empty or p.name in out:
             continue
-        cands = synthesize(types.get(p.name, ""))
+        ty = types.get(p.name, "")
+        cands = [REQUIRED_SCALAR_FILL] if scalar_numeric(ty) else synthesize(ty)
         if not cands:
             missing.append(p.name)
             continue
@@ -1570,12 +1622,26 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
     # sequence lane's shape ladder is untouched. A scalar has no leaf to walk
     # — leaf_paths(SCALAR_SLOT) is the empty path and set_leaf puts the
     # witness AT the value — so everything below is the same walk for both
-    # lanes. (A required scalar sibling that `_fill_required` synthesised as
-    # an int-filled vector still arrives in `base` and is tried first as a
-    # "harvested" shape; it fails to bind on every measured row and the slot
-    # decides. That residue is disclosure 8's, not this function's.)
+    # lanes. (A required scalar-NUMERIC sibling is held at REQUIRED_SCALAR_FILL
+    # by `_fill_required` since rc472 C3; a required `int` sibling still
+    # arrives as an int-filled vector and the op raises at it before this walk
+    # starts. That residue is disclosure 8's, not this function's.)
     synth = [SCALAR_SLOT] if scalar_numeric(ptype) else synthesize(ptype, extra)
     shapes: List[Any] = []
+    # rc472 C3 (`#T1188`): each candidate's LABEL is recorded beside it, never
+    # recovered afterwards by identity. The old `raw_shape is base.get(pname)`
+    # read "harvested" for ANY candidate that happened to be the same OBJECT
+    # as the base's value — and the scalar lane's one candidate is the small
+    # int 1, which CPython interns, so every scalar row whose base value was
+    # 1 (a harvested `sin(1)`, or a required sibling held at the fill) called
+    # the slot "harvested" for a value no harvest supplied. The lane never
+    # offers the harvested value as a candidate (`harvested` below requires a
+    # list / tuple), so on a scalar row "harvested" was always the artefact.
+    # MEASURED on the first C3 regeneration, both cells: 2 rows relabelled
+    # THEMSELVES through the fill (feynman_photon_propagator::k_squared,
+    # higgs_potential::phi) with their verdicts unmoved, and the committed C2
+    # census already carried the artefact on every scalar row bound at 1.
+    labels: List[Optional[str]] = []
     harvested = pname in base and isinstance(base[pname], (list, tuple))
     # ⚠️ ORDER IS A MEASUREMENT DECISION. A harvested vector carrying a
     # NON-INTEGRAL float can only ever yield ``INEXACT_BASE`` — a float result
@@ -1585,9 +1651,12 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
     hv_clean = harvested and exactify(base[pname])[1]
     if hv_clean:
         shapes.append(base[pname])
+        labels.append("harvested")
     shapes.extend(synth)
+    labels.extend([None] * len(synth))
     if harvested and not hv_clean:
         shapes.append(base[pname])
+        labels.append("harvested")
     if not shapes:
         rec["verdict"] = "NO_SHAPE"
         rec["reason"] = f"no shape synthesisable for declared type {ptype!r}"
@@ -1648,9 +1717,7 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
                 if null_seen == "INSENSITIVE" \
                         and len(null_ctxs) < MAX_NULL_CONTEXTS:
                     null_ctxs.append(
-                        (shape, path,
-                         "harvested" if raw_shape is base.get(pname)
-                         else f"synth[{si}]"))
+                        (shape, path, labels[si] or f"synth[{si}]"))
                 continue                     # position-specific; try next leaf
             if v == "DEMOTED" and not (clean and sclean):
                 rec["verdict"] = "INEXACT_BASE"
@@ -1659,8 +1726,7 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
             else:
                 rec["verdict"] = v
             rec["leaf"] = list(path)
-            rec["shape"] = ("harvested" if raw_shape is base.get(pname)
-                            else f"synth[{si}]")
+            rec["shape"] = labels[si] or f"synth[{si}]"
             return rec
         if timed_out:
             continue                     # decided at the top of the next pass
@@ -1910,6 +1976,12 @@ PROBE_SPEC = (
     # be re-measured from an empty manifest, which is the guard doing its job.
     ("scalar_idents", tuple(sorted(_SCALAR_IDENTS))),
     ("scalar_slot", SCALAR_SLOT),
+    # rc472 C3 (`#T1188`): the value a REQUIRED scalar-numeric sibling is held
+    # at by `_fill_required`. It decides which rows can BIND at all — 13 rows
+    # left RAISED when it landed — so it is a verdict-deciding knob and belongs
+    # in the key, separately from `scalar_slot` even while the two values are
+    # equal: a future change to one and not the other must move the digest.
+    ("required_scalar_fill", REQUIRED_SCALAR_FILL),
 )
 
 

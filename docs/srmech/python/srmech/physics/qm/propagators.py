@@ -105,6 +105,25 @@ def feynman_scalar_propagator(
 
     Raises:
         ValueError: on-shell point with ``epsilon == 0``.
+
+    **Accuracy (rc472, `#T1188`).** ``epsilon`` is read at float64
+    resolution: it reaches the arithmetic only as the imaginary part of
+    ``complex(k_squared - m * m, epsilon)`` in :func:`_denominator`, so an
+    ``int`` regulator wider than 53 significand bits is rounded there.
+    ``feynman_scalar_propagator(1, 1, 2**53 + 1)`` ==
+    ``feynman_scalar_propagator(1, 1, 2**53)``. ``k_squared`` and ``m`` are
+    combined in the operand's own arithmetic FIRST — ``k_squared - m * m``
+    on an ``int`` or ``Q`` ``k_squared`` stays an ``int`` / ``Q`` — and it
+    is that difference the ``complex(...)`` cast rounds, which is why a
+    witness placed at either of those two parameters still moves the result
+    while one placed at ``epsilon`` collapses. The returned value is
+    complex128, accurate to round-off (~1 ULP) of ``i`` over the float64
+    image of the denominator. Measured: the rc472 census rows
+    ``feynman_scalar_propagator::epsilon`` (DEMOTED) beside ``::k_squared``
+    and ``::m``, both cells — all three read RAISED through the rc472 lane
+    commit because the census bound the required ``m`` and ``k_squared`` to
+    synthesised vectors, and the required-scalar fill repair (C3) is what
+    let the instrument ask.
     """
     if m < 0:
         raise ValueError(f"feynman_scalar_propagator: m must be ≥ 0; got {m}")

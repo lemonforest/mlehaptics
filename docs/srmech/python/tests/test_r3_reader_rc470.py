@@ -517,6 +517,17 @@ def test_group_d_the_case_policy_is_wired_not_declared() -> None:
 #: Each paragraph was hand-read against the eight classes below before it
 #: shipped, and each names the cast that collapses the operand and the side
 #: of the op the exactness is on. The ledger stays 41.
+#: MEASURED AGAIN at 0.9.0rc472 C3 (`#T1188`), same cell and interpreter:
+#: **236 DECLARED, 41 pinned, 195 substantive** — the +4 is EXACTLY the four
+#: ops that received the required-scalar-fill ACCURACY paragraphs
+#: (``propagate_wound``, ``dirac_operator_momentum_space``,
+#: ``feynman_scalar_propagator``, ``music_doa``), every one OWN-FIRST, ZERO
+#: other ops credited ``(via <one of the four>)``, all 41 pinned misreads
+#: still DECLARED. Three of the four are rows the fill repair moved OUT of
+#: RAISED and INTO DEMOTED; the fourth (``music_doa``) stays RAISED in the
+#: census because its required ``n_sources`` is ``int``-typed — outside the
+#: fill by the lane's own rule — and is declared on a direct probe-walk
+#: measurement so that closing that residue later adds no roster debt.
 #: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 232 is LEXICAL and
 #: regenerable by anyone with this tree; 191 is 232 minus a HAND-MAINTAINED
 #: ledger, so it is only as fresh as the last hand-read. Quoting 191 alone
@@ -756,8 +767,12 @@ _MISREAD_CLASS_COUNTS = {
 #: native cell; the five-interpreter re-measure is owed by the next rc that
 #: touches the delegate walk, not by prose edits that add own-docstring
 #: labels — the fold's convergence argument is untouched by them.
+#: ⚠️ **MOVED AGAIN AT rc472 C3 (`#T1188`) — 1be7956c86ddd197 ->
+#: ee4922b5817ead0c — AND THE COUNT MOVED WITH IT (232 -> 236)**: the four
+#: required-scalar-fill ACCURACY paragraphs, each on the op's OWN docstring;
+#: same interpreter, same cell, same reader (``_READER_SIGNATURE`` unmoved).
 _DECLARED_LABEL_MAP_DIGEST = (
-    "1be7956c86ddd19739bac17fec16e23a4f55f97a305452a238b6f051b44f6f75")
+    "ee4922b5817ead0c191ee40ccfa9fcc3d65058727c309554bbbcf715af6f8473")
 
 
 def _declared_label_map_digest(pairs) -> str:
@@ -899,12 +914,13 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
     # a matrix cell SEE a future divergence there — the COUNT alone could not,
     # since DECLARED would stay 223 everywhere while the credited delegate
     # silently differed.
-    assert len(declared) == 232, (
-        f"lexical DECLARED is {len(declared)}, not 232. Every count in this "
+    assert len(declared) == 236, (
+        f"lexical DECLARED is {len(declared)}, not 236. Every count in this "
         f"file, in tools/demotion_probe.py's disclosures and in the rc472 "
         f"CHANGELOG entry is quoted against that figure (223 through rc471; "
-        f"rc472's nine own-docstring ACCURACY paragraphs are the +9). ⚠️ IF "
-        f"THIS IS 229, the comprehension fold in demotion_probe._delegate_names "
+        f"rc472's nine scalar-lane own-docstring ACCURACY paragraphs are the "
+        f"+9 and its four required-scalar-fill paragraphs the +4). ⚠️ IF "
+        f"THIS IS 233, the comprehension fold in demotion_probe._delegate_names "
         f"is not running: 220 was the PRE-FIX reading of CPython <= 3.11 at "
         f"rc471, MEASURED ON THAT TREE by replacing _delegate_names with a "
         f"bare code.co_names — 220 on 3.10.21 and 3.11.16, 223 on 3.12.3 and "
@@ -918,7 +934,7 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
         f"change, never a reader-vocabulary change. {_reader_identity()}")
     unknown = sorted(set(_RESIDUAL_TOPIC_MISREADS) - declared)
     assert not unknown, f"pinned but not DECLARED: {unknown}"
-    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 191
+    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 195
 
 
 def test_group_e_the_folded_label_map_is_version_independent() -> None:
