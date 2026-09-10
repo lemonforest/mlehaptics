@@ -166,6 +166,16 @@ def source_of(module_name: str) -> Path:
     ⚠️ Through rc470 this function refused the dotted form on the record. The
     refusal, and rc471's reversal of it, are set out in the module docstring —
     it is a REVERSAL after review, not a narrowing that was forgotten.
+
+    RAISES — and these are REAL raises, not bare ``assert`` statements, which
+    is the contract and not a detail. ``ValueError`` for a malformed dotted
+    name; ``FileNotFoundError`` when the resolved path is not a file. Both were
+    ``assert`` until 0.9.0rc471's repair pass, and
+    ``tests/test_assert_contract_gate_rc433.py`` went RED at five sites in
+    ``tests/test_canfail_preload_pkg_rc471.py`` for exactly that reason: a test
+    certifying an input contract through ``pytest.raises(AssertionError)``
+    certifies a guard ``python -O`` deletes. The module docstring below had
+    been citing that discipline all along while this function rested on it.
     """
     if "." in module_name:
         parts = module_name.split(".")
@@ -197,6 +207,14 @@ def write_mutant(module_name: str,
     The mutant filename KEEPS THE DOTS (``srmech.math.rational.py``). That is
     deliberate: such a directory exposes nothing importable on ``sys.path``, so
     the only route to the mutant is the finder :func:`install` puts in place.
+
+    RAISES, all real raises since 0.9.0rc471 (see :func:`source_of`):
+    ``ValueError`` for an ``out_dir`` inside the package tree and for a
+    replacement matching anything but exactly once; ``RuntimeError`` if the
+    written mutant is byte-identical to its source, which is the post-condition
+    — every replacement matched and none of them changed anything. Under the
+    old spelling ``python -O`` deleted all four, and the "refusals" this
+    function is built on became a silent write of a no-op mutant.
     """
     out_dir = Path(out_dir).resolve()
     if PACKAGE_ROOT in out_dir.parents or out_dir == PACKAGE_ROOT:
