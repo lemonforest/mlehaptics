@@ -112,6 +112,103 @@ What arm (i) actually loaded, printed rather than asserted: `rational.__file__` 
 
 No regression on the bare `tools/` path: the `demotion_probe` neg mutant still takes `tests/test_r3_reader_rc470.py` to **10 failed, 53 passed**.
 
+### W3 — THE SHAPE LEVER: A CHANGE OF SHAPE, NOT A DELETION OF SIGNAL, AND THE COUNTER-CONTROL THAT PROVES IT IS PER-OP
+
+`tools/demotion_probe.py` gains `SHAPE_LEVER`, which overrides ONE harvested parameter of ONE op: `srmech.math.laplacian.recover_check_spectral` is measured at `vocab_size=16` in place of the ledger's 64.
+
+**⚠️ THE FIRST QUESTION IS WHETHER THIS IS `SLOW_SKIP` RETURNING, AND THE ANSWER IS A MEASUREMENT.** `08d80a037` shipped a roster of ops the census was told to avoid; rc465 deleted it after measuring what the skip had cost, and wrote the rule beside the deletion: *"A roster keyed by how fast the machine is measures the machine."* The lever passes that test for a reason about the OP. `recover_check_spectral` takes `max_dim` as a CALLER BOUND on a principal submatrix — its own docstring, *"the first `min(vocab_size, max_dim)` nodes + the edges within that block"* — so a smaller `vocab_size` asks the SAME question of a smaller block. Its sibling does not bound, it REFUSES, and the identical shrink destroys its measurement.
+
+**MEASURED** (WSL2 py3.12.3, PURE cell, `HAS_NATIVE=False`), whole probe records — verdict, `leaf`, `shape`, `reason`, `declares`, `base_source`:
+
+| op | `vocab_size` | seconds | edges / nodes in the bounded block | verdicts |
+|---|---|---|---|---|
+| `recover_check_spectral` | 8 | 2.96 | 16 / 8 | `{charges DEMOTED, edges INSENSITIVE, weights DEMOTED}` |
+| | **16 — SHIPPED** | **8.49** | **48 / 16** | the same |
+| | 24 | 27.16 | 72 / 24 | the same |
+| | 32 | 71.66 | 112 / 32 | the same |
+| | 64 (the harvest) | 504.98 | 288 / 64 | the same |
+| `recover_check` | 8 | 0.22 | — | `{charges RAISED, edges RAISED, weights RAISED}` |
+| | 16 | 0.02 | — | all RAISED |
+| | 32 | 0.02 | — | all RAISED |
+| | 64 (the harvest) | 44.78 | — | `{charges DEMOTED, edges RAISED, weights DEMOTED}` |
+
+At 8 and at 16 the levered op's records are BYTE-IDENTICAL to the committed `pure` column — `leaf [0]`, `shape` `synth[0]` / `harvested`, the INSENSITIVE `reason` string and the five-label `declares` list included, not merely the verdict word. **16 is shipped rather than 8 because the choice is not free**: the bounded block holds 16 edges over 8 nodes at 8 and 48 over 16 at 16, so 16 buys three times the graph for 5.5 s — and BOTH are re-measured live by the gate, so the shipped value is never the only one exercised. *(No wall clock here is a constant; the 504.98 s reading was taken while a second measurement contended for the same host. The STRUCTURAL counts are what the gate asserts, and those reproduced exactly.)*
+
+**⚠️ THE COUNTER-CONTROL IS THE POINT, and it is in the same file.** `recover_check` collapses to all-RAISED at 8/16/32 *in 0.02 s*, which is itself the tell: a shrink that makes a row fast by making it answer nothing is the deletion this lever must not be. `tests/test_shape_lever_rc471.py` (NEW, **10 passed, 1 skipped in 65.84 s** in the pure cell) asserts BOTH directions on every run — the all-RAISED reading at three reduced shapes AND the committed triple at the harvested 64 (44.78 s), because *an instrument that cannot return otherwise is not a measurement* and the 64 arm is the otherwise.
+
+**NOT EXTENDED, and that is deliberate.** `propagate_sparse::weights`, `relational_structure::weights` and `ground_state_flux_response::fluxes` are the other slow rows and they are **UNMEASURED** on the shape axis. Two of the eight slow rows were tested and came out **opposite ways**, so a policy is exactly the wrong generalisation; each further op owes its own invariance proof. `test_the_lever_names_one_op_and_a_parameter_that_exists` asserts `list(SHAPE_LEVER) == ["srmech.math.laplacian.recover_check_spectral"]` and names those three in its failure message.
+
+**⚠️ DISCLOSED — ONE ARM IS OPT-IN.** `test_the_harvested_shape_is_the_positive_control` re-measures the LEVERED op at 64 and costs **504.98 s** in the pure cell. It runs under `SRMECH_SHAPE_LEVER_FULL=1` and `pytest.skip`s otherwise, with the cost and the command in the skip message. Eight and a half minutes per CI job for one assertion is the cost that moved the census out of CI at rc465; the same argument applies one level down. What DOES run every time is two live shapes for the levered op and both arms of the counter-control.
+
+### W4 — THE CENSUS HAD FOUR STALENESS AXES AND NAMES FOR TWO. THE MISSING ONE IS THE ONE THAT ACTUALLY FIRED.
+
+`registry_signature` (rc465) moves when the POPULATION moves. `reader_signature` (rc470) moves when the R3 READER moves. Neither moves when the INSTRUMENT does, and neither moves when the IMPLEMENTATION does — and the verdict column is written by the instrument against the implementation.
+
+**THE MEASUREMENT THAT DECIDES THIS, re-run in the session that quotes it.** Across `srmech-v0.9.0rc468` → `rc469` the registry signature did **not** move (`5bdea931880f7f2dec21ff98a013cfb8e9be25fa789c3b6d6a6caed7d2b74e47` in both cells at both tags) and the `declares` column moved in **0** cells — yet **16 verdict cells moved over 7 ops**:
+
+| op | move | own source moved between the tags? |
+|---|---|---|
+| `srmech.cascade.odft_summand::mu_hat` / `::mu_r_hat` | INSENSITIVE → RAISED | **yes** (`srmech.cascade.hypercomplex_dft`) |
+| `srmech.cascade.qdft_summand::mu_hat` | INSENSITIVE → RAISED | **yes** (same module) |
+| `srmech.cascade.kuramoto_step::adjacency` | INSENSITIVE → VACUOUS | no |
+| `srmech.physics.qm.quaternion.quaternion_slerp::q1` | INSENSITIVE → VACUOUS | no |
+| `srmech.signal_processing.multirate::filter_taps` | INSENSITIVE → VACUOUS | no |
+| `srmech.signal_processing.ofdm::channel` | INSENSITIVE → VACUOUS | no |
+| `srmech.signal_processing.spectral_subtraction::noise_psd` | INSENSITIVE → VACUOUS | no |
+
+The right-hand column is measured by resolving each op's `__module__` LIVE (never guessed from the published name) and diffing the op's OWN function source at the two tags: **2 of 7 moved, 5 of 7 did not.** The five moved because the PROBE moved — `demotion_probe.py` mentions `VACUOUS` **0** times at rc468 and **9** at rc469, arriving with `ALT_SIBLING_VALUES` (0 → 4), `MAX_ALT_BINDINGS` (0 → 7), `MAX_NULL_CONTEXTS` (0 → 6), `_alt_bindings` (0 → 4) and `_vacuous_by` (0 → 2). So a per-op IMPLEMENTATION key — the other candidate, refused below — catches **2** of those 7 ops, and `probe_signature` catches the other **5**.
+
+**`probe_signature()` (NEW)** — sha256 over `PROBE_SPEC`, written PER CELL into the manifest by `merge_cell`, refused on merge exactly as the registry and reader signatures are, and asserted by the gate. Routed through `srmech.amsc.format.sha256_bytes`; no direct `hashlib`. **On this tree it reads `dcda27264e45c8f91c9b5e6371102b16d10263b62aaa8841b2614a1b26615e61`.**
+
+`PROBE_SPEC` holds **twelve** members, not the four a narrow reading would take, on `R3_READER_SPEC`'s own rule that a knob outside the tuple moves the instrument without moving the digest: `witness` (P/F/G **and** the coarse fourth H, which SPLITS a null and therefore decides a verdict STRING), `leaves`, `alt_sibling_values`, `alt_bindings`, `null_contexts`, `call_timeout` (at 20 s it *decided* two rows), `contract_skip` (a member's presence IS its row's verdict), `shape_lever`, `flat_dims`, `square_dims`, and the two identity sets `seq_idents` / `opaque_idents` — which decide which registry parameters are probed AT ALL, i.e. move the ROW POPULATION with no registry-signature move.
+
+**THE CAN-FAIL MUTATES EVERY MEMBER, NOT ONE**, and asserts its own coverage against `len(PROBE_SPEC)` so a member added without a mutation fails rather than passing silently. **EXECUTED: all 12 move the digest.** It also pins `PROBE_SPEC["shape_lever"] is SHAPE_LEVER` and `PROBE_SPEC["contract_skip"] is CONTRACT_SKIP` — binding a COPY would move the digest while the instrument did not, which is worse than the hole it replaces (rc470's `NEG_WORD_CLASS` lesson, one level out).
+
+**THE GATE'S THREE REFUSAL STATES, PROVEN THROUGH `tools/canfail_preload.py`** (the shipped tree is never written), with the POSITIVE control that makes the other three mean something:
+
+| arm | manifest state | result |
+|---|---|---|
+| **A — positive control** | field present, both cells, LIVE digest | **exit 0, 1 passed** |
+| **B** | field present, only `pure` | **exit 1** — *"cells `['native']` carry no probe signature"* |
+| **C** | field present, both cells, foreign digest | **exit 1** — *"STALE against the PROBE … this tree's probe is `dcda27264e45`"* |
+| **D — the shipped state** | field ABSENT | **exit 1** — *"carries NO `probe_signature_sha256`"* |
+
+**`meta.measured_at.<cell>.srmech_version` IS NOW ASSERTED — rc470's declined call, REVERSED on measurement rather than on argument.** rc470 declined because the gate *"forces a full two-cell re-measure on EVERY rc"*, of which its own disclosure 6 says *"the pure cell alone costs 17-20 minutes"*. Two things answer that. **(1) The historical cost is ZERO**, measured over every boundary of the census's life by diffing the committed artefact at each tag (DATA lines only, meta excluded):
+
+| boundary | data lines differing | verdict cells moved | `declares` cells moved | version-line-only? |
+|---|---|---|---|---|
+| rc465 → rc466 | 96 | 107 | 147 | no |
+| rc466 → rc467 | 14 | 2 | 4 | no |
+| rc467 → rc468 | 14 | 0 | 0 | no |
+| rc468 → rc469 | 81 | 16 | 0 | no |
+| rc469 → rc470 | 37 | 0 | 74 | no |
+
+Every boundary carries real churn and **not one was a version-line-only diff**, so this gate would have forced no additional re-measure at any of them. **(2)** W3 is what buys the forward cost down. Can-fail, both directions: the shipped state is RED (`{'native': '0.9.0rc470', 'pure': '0.9.0rc470'}` against a `0.9.0rc471` tree) and a mutant whose `load_manifest` stamps the live version is **GREEN**.
+
+**⚠️ A VERSION STAMP IS A CLAIM, NOT A DIGEST — which is exactly why it does not ship alone.** It can be made green by editing one string, unlike `registry_signature` / `reader_signature` / `probe_signature`, each computed from live tree content. The sibling ledger's own docstring already ruled on the pairing: *"a version match says the harvest ran on this release, not that it ran on this tree. Both clauses are needed."* Here the other clause is three digests. The assertion's failure text says so in as many words, because the cheapest way to make it green is the forgery it exists to expose.
+
+**`meta.witness` IS NOW ASSERTED — free, three string comparisons, and nothing compared them before.** The field has been written by `merge_cell` since rc465 and read by NOTHING. The gate validated that the LIVE `P` discriminates; it never compared the committed witness to the live one, so re-pointing `P` at another discriminating value left every row measured under a different witness and every assertion green. Can-fail, both directions: shipped **PASSES**; a mutant with `P = 2**53 + 3` goes **RED**, naming both triples. `H` is deliberately NOT asserted here — it is in `PROBE_SPEC` and therefore in `probe_signature`, while `meta.witness` holds only the triple the tool writes, and a gate over a key nobody sets is not a gate.
+
+**REFUSED FOR rc471 — the per-op IMPLEMENTATION key, with three reasons, and the second is a RULING that must be taken before it is built.**
+
+1. **Its cost is not the digest.** `tools/demotion_probe.py` has **no CLI at all** — no `argparse`, no `sys.argv`; `census()` takes no op subset and the entrypoint is a bare `merge_cell()`. A scoped re-measure has to be built from scratch, against the `run_worked_examples.py --only` precedent that rc468 had to widen from one name to N after a **silent partial pass**.
+2. **It contradicts a LIVE invariant.** `merge_cell` refuses to carry forward a column measured against a different registry signature or reader, on the stated grounds that *"two halves of one manifest measured on two different trees is a file that is internally consistent and jointly false."* A per-op key institutionalises exactly that at **row** granularity. That needs an explicit ruling **before** it is built, not after — and rc471 does not make it.
+3. **It would have caught 2 of the 7 ops** at the one boundary that mattered (table above), where `probe_signature` catches the other 5.
+
+It stays live for rc472 behind that ruling. ⚠️ The sensitivity figures the research phase measured for it (a per-op `co_code`+consts key against the module-level `def_blob` key) are **NOT re-quoted here**: this run did not print them, and a carried-forward figure is invisible to the rule that no figure enters shipped prose unless the run that wrote it printed the figure.
+
+**`head_blob_map()` RETURNING `{}` IS NOW AN ERROR, NOT "NOTHING CHANGED".** Through rc470 it swallowed a git failure and returned an empty map; both callers then stamped `def_blob: ""` on **every** row with nothing raised anywhere. **MEASURED IN THE WORKTREE THAT WROTE THIS ENTRY:** WSL git cannot open a worktree whose `.git` is a pointer file holding a Windows path, so `git ls-tree -r HEAD -- docs/srmech/python/srmech` exits **128** with *"fatal: not a git repository: /mnt/d/…/D:/GitHub/mlehaptics/.git/worktrees/…"* and the function returned **0 entries** — a ledger harvested there would have carried 732 empty stamps and looked like a clean run. It now RAISES, naming git's own stderr through a new `_git_stderr` helper (`_git` keeps its "never raises" contract for the callers that want it), and a SUCCESSFUL call that finds no `.py` module raises too, because both mean *"no stamps are available"* and neither may be spelled the same way as *"no module moved"*. Both directions EXECUTED in one session: **RuntimeError** with git's message under WSL git, **267 entries** with `GIT_DIR`/`GIT_WORK_TREE` exported.
+
+**⚠️ WHAT IS RED ON THIS BRANCH BECAUSE OF W4, AND WHAT CLEARS IT.** `tests/test_silent_carrier_demotion_rc463.py` → **145 passed, 1 skipped, 2 FAILED**: `test_the_manifest_is_fresh_against_the_probe_signature` (the manifest predates the field) and `test_the_manifest_records_the_version_it_was_measured_at` (it stamps rc470). Both clear on the ONE census regeneration this rc's W7 owes, and **both cells must be measured, not one**: `SHAPE_LEVER` moves `probe_signature`, so `merge_cell`'s new refusal fires by name on a one-cell run. That is the guard working; the cost is stated here rather than discovered at the merge.
+
+### W5.2 — TWO CEILING NAMES THAT HAVE NOT EXISTED SINCE rc465, AND THE ONE SITE THAT WAS STILL GIVING INSTRUCTIONS
+
+`CEIL_SILENT_DEMOTION` and `_DEMOTION_MANIFEST` were rc463's; rc465 deleted both. **MEASURED: zero live assignments tree-wide** — `grep -rnE "^\s*(CEIL_SILENT_DEMOTION|_DEMOTION_MANIFEST)\s*[:=]" --include=*.py . | wc -l` → **0** — and `hasattr` is False for both on the imported gate module and on `demotion_probe`. They survive in prose at **nine sites across three files**: `CHANGELOG.md` ×3, `tests/test_silent_carrier_demotion_rc463.py` ×4, `tools/demotion_probe.py` ×2. *(Line numbers are deliberately not quoted: this entry is itself an edit to one of those three files and would invalidate them as it was written — the same self-referential-population hazard rc470 recorded for its bounding-quantifier count.)*
+
+The CHANGELOG's three are **history and stay**. Of the six `.py` sites, **five already read as history** — `tools/demotion_probe.py`'s module docstring (*"rc463 shipped the demotion class as six hand-written rows … with `CEIL_SILENT_DEMOTION = 6` pinned to `len(_DEMOTION_MANIFEST)`"*), the two comments at 486/488 (*"Through rc464 this section was `_DEMOTION_MANIFEST`"*) and the docstring at 1093 (*"rc463's ceiling was `len(_DEMOTION_MANIFEST)`"*). **ONE did not**, and it is the one a reader meets under failure: the Layer-1 strict-zero message told them to *"not add the row to CEIL_SILENT_DEMOTION"* — an instruction naming a constant that does not exist, standing for six releases. It now says the layer is strict zero and HAS no ceiling, records that the constant was deleted at rc465, and points at the only live one (`CEIL_DEMOTION_UNREACHED`, which ratchets the probe's NO_SHAPE REACH and has nothing to do with that row).
+
+`test_the_two_dead_ceiling_names_are_still_dead_rc471` pins the deadness on both modules, so a later rc cannot re-mint either name as live code and leave five history paragraphs quietly false.
+
 ### GATES RUN (foreground, narrowly; the full suite is CI's)
 
 `tests/test_figure_run_rc471.py` → **26 passed**. `tests/test_canfail_preload_pkg_rc471.py` → **20 passed**. `tests/test_signal_processing_scaffolding.py` → **40 passed**. `tests/test_notebook_currency_rc420.py` → **40 passed**. `tests/test_pypi_readme_changelog.py` → **14 passed, 3 skipped**. `tests/test_ref_notation_emitted_rc348.py` → **18 passed**. `tests/test_r3_reader_rc470.py` + `tests/test_declared_inexactness_rc466.py` + `tests/test_silent_carrier_demotion_rc463.py` → **244 passed, 1 skipped**. `tests/test_readme_currency_rc419.py` + `tests/test_frame_scope_rc430.py` → **57 passed**. Gate set 1 → **165 collected**, gate set 2 → **192 collected**, gate set 3 → **40 collected**.

@@ -722,6 +722,71 @@ CONTRACT_SKIP: Dict[str, str] = {
 # ``mlse`` and the three weight-lattice rows. A roster keyed by how fast the
 # machine is measures the machine.
 
+#: THE SHAPE LEVER (rc471, `#T1188`) — ``op -> {harvested parameter: value}``,
+#: overriding the harvest for ONE op, with its invariance MEASURED and its
+#: COUNTER-CONTROL pinned in the same test.
+#:
+#: ⚠️ **READ THE PARAGRAPH ABOVE FIRST: this is NOT ``SLOW_SKIP`` returning.**
+#: A skip DELETES a measurement and reports the deletion as a saving — rc465
+#: measured that cost at four rows of real signal (pure DEMOTED 117 -> 121,
+#: undeclared 67 -> 71, decided 219 -> 223). This changes the SHAPE the same
+#: measurement is taken at, keeps the row, and is legitimate for exactly one
+#: reason, which is a property of the OP and not of the machine:
+#: :func:`srmech.math.laplacian.recover_check_spectral` takes ``max_dim`` as a
+#: CALLER BOUND on a principal submatrix — *"the first ``min(vocab_size,
+#: max_dim)`` nodes + the edges within that block"* — so a smaller
+#: ``vocab_size`` asks the SAME question of a smaller block rather than a
+#: different question. An op that refuses out-of-block indices instead of
+#: bounding them is destroyed by the identical shrink, which is what the
+#: counter-control below demonstrates rather than asserts.
+#:
+#: MEASURED (WSL2 py3.12.3, PURE cell, native absent), the full probe records
+#: — verdict, ``leaf``, ``shape``, ``reason``, ``declares``, ``base_source`` —
+#: at every value against the committed 64-shape column:
+#:
+#:   ``recover_check_spectral``  {charges DEMOTED, edges INSENSITIVE,
+#:                                weights DEMOTED}
+#:       vocab_size  8   2.96 s     16 edges over  8 nodes in the block
+#:       vocab_size 16   8.49 s     48 edges over 16 nodes   <- SHIPPED
+#:       vocab_size 24  27.16 s     72 edges over 24 nodes
+#:       vocab_size 32  71.66 s    112 edges over 32 nodes
+#:       vocab_size 64 504.98 s    288 edges over 64 nodes   (the harvest)
+#:
+#: All five reproduce the committed triple, and at 8 and 16 the whole record is
+#: BYTE-IDENTICAL to the committed row, ``leaf [0]`` / ``shape`` ``synth[0]``,
+#: ``harvested`` and the INSENSITIVE ``reason`` string included. **16 is
+#: shipped rather than 8** because the choice is not free: the bounded block at
+#: 8 holds 16 edges over 8 nodes and at 16 holds 48 over 16, so 16 buys three
+#: times the graph for 5.5 s, and BOTH are asserted by the pinned test so the
+#: shipped value is never the only one exercised.
+#:
+#: ⚠️ **THE COUNTER-CONTROL IS WHAT MAKES THIS PER-OP RATHER THAN POLICY**, and
+#: it is pinned in ``tests/test_shape_lever_rc471.py`` beside the invariance:
+#: :func:`srmech.math.laplacian.recover_check` is DESTROYED by the same shrink
+#: — all three of its params collapse to ``RAISED`` at 8 / 16 / 32 (0.02 s,
+#: because nothing is computed), where the harvested 64 reproduces
+#: ``{charges DEMOTED, edges RAISED, weights DEMOTED}`` in 44.78 s. It is
+#: therefore NOT levered, and its committed column stays the 64-shape
+#: measurement. Any further op needs its own measured invariance proof:
+#: ``propagate_sparse::weights`` (60.8 s), ``relational_structure::weights``
+#: (59.2 s) and ``ground_state_flux_response::fluxes`` (51.2 s) are UNMEASURED
+#: on this axis and are deliberately not levered — two of the eight slow rows
+#: were tested and came out OPPOSITE ways.
+#:
+#: It is a member of :data:`PROBE_SPEC`, so :func:`probe_signature` moves when
+#: it moves and a census measured under a different lever cannot be carried
+#: forward as if it were this one.
+SHAPE_LEVER: Dict[str, Dict[str, Any]] = {
+    "srmech.math.laplacian.recover_check_spectral": {"vocab_size": 16},
+}
+
+#: The values of :data:`SHAPE_LEVER` proven verdict-preserving by measurement,
+#: asserted by ``tests/test_shape_lever_rc471.py``. A lever value outside this
+#: set is a value nobody measured.
+SHAPE_LEVER_MEASURED_INVARIANT: Dict[str, Dict[str, Tuple[int, ...]]] = {
+    "srmech.math.laplacian.recover_check_spectral": {"vocab_size": (8, 16, 24, 32)},
+}
+
 
 _IDENT = re.compile(r"[A-Za-z_][A-Za-z_0-9]*")
 
@@ -1286,8 +1351,17 @@ def declaration_hits(fn) -> List[str]:
 
 
 # ── the probe ─────────────────────────────────────────────────────────────────
-def _base_for(entry, rows: Dict[str, Any]) -> Tuple[Dict[str, Any], bool, str]:
-    """``(base, exact_clean, source)`` — the harvested binding, exactified."""
+def _base_for(entry, rows: Dict[str, Any], *,
+              lever: Optional[Dict[str, Dict[str, Any]]] = None
+              ) -> Tuple[Dict[str, Any], bool, str]:
+    """``(base, exact_clean, source)`` — the harvested binding, exactified.
+
+    ``lever`` defaults to :data:`SHAPE_LEVER` and is applied AFTER the harvest
+    and BEFORE :func:`exactify`, so a levered value is exactified on the same
+    path a harvested one is. Pass ``{}`` to measure the raw harvest — that is
+    how ``tests/test_shape_lever_rc471.py`` takes the shape ladder and the
+    counter-control.
+    """
     raw = dict((rows.get(entry.name) or {}).get("args") or {})
     src = "ledger" if raw else "none"
     if not raw:
@@ -1295,6 +1369,15 @@ def _base_for(entry, rows: Dict[str, Any]) -> Tuple[Dict[str, Any], bool, str]:
         if isinstance(hint, dict) and isinstance(hint.get("args"), dict):
             raw = dict(hint["args"])
             src = "smoke_test_hint"
+    lv = SHAPE_LEVER if lever is None else lever
+    over = lv.get(entry.name)
+    if over and raw:
+        # Only OVERRIDE what the harvest already bound. Introducing a NEW
+        # parameter here would be synthesis wearing a lever's name, and the
+        # `base_source` would then say `ledger` about a value no ledger holds.
+        for k, v in over.items():
+            if k in raw:
+                raw[k] = v
     base, clean = exactify(raw)
     return base, clean, src
 
@@ -1545,8 +1628,13 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
     return rec
 
 
-def probe_op(entry, rows: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Every sequence-shaped parameter of one registered op."""
+def probe_op(entry, rows: Dict[str, Any], *,
+             lever: Optional[Dict[str, Dict[str, Any]]] = None
+             ) -> List[Dict[str, Any]]:
+    """Every sequence-shaped parameter of one registered op.
+
+    ``lever`` is forwarded to :func:`_base_for`; see :data:`SHAPE_LEVER`.
+    """
     params = [p for p in (entry.parameters or ()) if sequence_shaped(p.type or "")]
     if not params:
         return []
@@ -1560,7 +1648,7 @@ def probe_op(entry, rows: Dict[str, Any]) -> List[Dict[str, Any]]:
                  "verdict": "UNRESOLVABLE", "base_source": "none",
                  "seconds": 0.0} for p in params]
     fn = res[2]
-    base, _clean, src = _base_for(entry, rows)
+    base, _clean, src = _base_for(entry, rows, lever=lever)
     base, missing = _fill_required(fn, base, entry)
     try:
         sig = inspect.signature(fn)
@@ -1669,6 +1757,84 @@ def registry_signature() -> str:
     return sha256_bytes(body)
 
 
+#: EVERY KNOB THAT DECIDES A VERDICT LIVES HERE — the PROBE's freshness key
+#: (rc471, `#T1188`), the third and last of the three staleness axes this file
+#: names. :func:`registry_signature` moves when the POPULATION moves;
+#: :func:`reader_signature` moves when the R3 READER moves; neither moves when
+#: the INSTRUMENT does, and the instrument is what decides the verdict column.
+#:
+#: ⚠️ **THIS IS THE AXIS THAT ACTUALLY FIRED, and nothing could see it.**
+#: MEASURED across the ``srmech-v0.9.0rc468`` -> ``rc469`` boundary: the
+#: registry signature did NOT move and ``declares`` moved ZERO times, yet
+#: **16 census verdicts moved over 7 ops**. Only **2 of the 7** had an
+#: implementation change; the other **5** moved because the PROBE moved —
+#: ``VACUOUS`` went 0 -> 9 mentions between those tags, arriving with
+#: :data:`ALT_SIBLING_VALUES`, :data:`MAX_ALT_BINDINGS`, :func:`_alt_bindings`
+#: and :func:`_vacuous_by`. A per-op IMPLEMENTATION key — the other candidate,
+#: REFUSED for rc471 in the CHANGELOG with its three reasons — catches 2 of
+#: those 7 ops. This one catches the other 5.
+#:
+#: The membership rule is the one :data:`R3_READER_SPEC` states: a knob outside
+#: this tuple moves the instrument without moving the digest. So it holds MORE
+#: than the four bounds a narrow reading would take — the witness values
+#: themselves (:data:`P` / :data:`F` / :data:`G` and the coarse fourth
+#: :data:`H`, which SPLITS a null and therefore decides a verdict string), the
+#: shapes :func:`synthesize` offers (:data:`FLAT_DIMS` / :data:`SQUARE_DIMS`:
+#: which shape BINDS first decides the ``shape`` and ``leaf`` a row records,
+#: and can decide the verdict when an early candidate raises), the two identity
+#: sets that decide which registry parameters are probed AT ALL
+#: (:data:`_SEQ_IDENTS` / :data:`_OPAQUE_IDENTS` — a change to either moves the
+#: ROW POPULATION with no registry signature move, which is the same blind spot
+#: one level out), the hang guard :data:`CALL_TIMEOUT` (at 20 s it DECIDED two
+#: rows; the comment beside it records the flip), the named refusals
+#: :data:`CONTRACT_SKIP` (a member's presence IS its row's verdict), and
+#: :data:`SHAPE_LEVER` (rc471's own change, which sets the SHAPE a row is
+#: measured at).
+#:
+#: ⚠️ The digest is over DATA, not CODE, exactly as :data:`R3_READER_SPEC` is.
+#: It is blind to a change in :func:`probe_param`'s BODY that leaves this tuple
+#: untouched — re-ordering the candidate shapes, dropping the ``break`` that
+#: retires a parameter at the first deciding leaf, or making
+#: :func:`_alt_bindings` depth-first (which the comment at
+#: :data:`MAX_ALT_BINDINGS` measures as SILENT). That limit is enforced by
+#: review and is written here rather than left for a reader to discover.
+PROBE_SPEC = (
+    ("witness", (str(P), str(F), str(G), str(H))),
+    ("leaves", MAX_LEAVES),
+    ("alt_sibling_values", ALT_SIBLING_VALUES),
+    ("alt_bindings", MAX_ALT_BINDINGS),
+    ("null_contexts", MAX_NULL_CONTEXTS),
+    ("call_timeout", CALL_TIMEOUT),
+    ("contract_skip", CONTRACT_SKIP),
+    ("shape_lever", SHAPE_LEVER),
+    ("flat_dims", FLAT_DIMS),
+    ("square_dims", SQUARE_DIMS),
+    ("seq_idents", tuple(sorted(_SEQ_IDENTS))),
+    ("opaque_idents", tuple(sorted(_OPAQUE_IDENTS))),
+)
+
+
+def probe_signature() -> str:
+    """sha256 over :data:`PROBE_SPEC` — the census's INSTRUMENT freshness key.
+
+    The peer of :func:`reader_signature`, minted at rc471 (`#T1188`) for the
+    third staleness axis. Written PER CELL into the manifest by
+    :func:`merge_cell`, refused on merge exactly as the registry and reader
+    signatures are, and asserted by
+    ``tests/test_silent_carrier_demotion_rc463.py``.
+
+    The witness values are stringified because :data:`P`, :data:`F`, :data:`G`
+    and :data:`H` are 54-bit integers and a JSON number is not the right
+    carrier for a value whose EXACT bits are the point.
+
+    Routed through ``srmech.amsc.format.sha256_bytes`` — never a direct
+    ``hashlib`` call — so native dispatch picks it up transparently.
+    """
+    from srmech.amsc.format import sha256_bytes
+    body = json.dumps(PROBE_SPEC, sort_keys=True) + "\n"
+    return sha256_bytes(body.encode("utf-8"))
+
+
 # -- manifest readers ---------------------------------------------------------
 def demoters(recs: Sequence[Dict[str, Any]], cel: str = ""
              ) -> List[Dict[str, Any]]:
@@ -1754,20 +1920,29 @@ def merge_cell(path: Optional[Path] = None, *, progress: bool = True
     relabels a measurement it did not take.
 
     ⚠️ It REFUSES to carry forward a column measured against a DIFFERENT
-    registry signature, OR against a different R3 READER. Two halves of one
-    manifest measured on two different trees is a file that is internally
-    consistent and jointly false, and the gate reading it could not tell.
+    registry signature, OR against a different R3 READER, OR against a
+    different PROBE. Two halves of one manifest measured on two different trees
+    is a file that is internally consistent and jointly false, and the gate
+    reading it could not tell.
 
     The READER refusal (rc470, `#T1188`) is the one that catches the shortcut
     this rc's own change invited: running only the native cell. A reader change
     moves NO registry signature, so without it the pure column is carried
     forward with its stale ``declares`` and nothing anywhere objects.
+
+    The PROBE refusal (rc471, `#T1188`) closes the third axis, and rc471 IS a
+    tree it fires on: :data:`SHAPE_LEVER` moves :func:`probe_signature`, so a
+    one-cell regeneration on this tree is REFUSED BY NAME rather than silently
+    producing a manifest whose two columns were measured by two instruments.
+    That is the guard working; the cost is that BOTH cells must be measured in
+    the rc that changes the instrument.
     """
     import srmech
     p = path or CENSUS
     me = cell()
     sig = registry_signature()
     rsig = reader_signature()
+    psig = probe_signature()
 
     prev_meta: Dict[str, Any] = {}
     prev_rows: Dict[str, Dict[str, Any]] = {}
@@ -1782,6 +1957,17 @@ def merge_cell(path: Optional[Path] = None, *, progress: bool = True
             f"was written by R3 reader {prev_rsigs[other][:12]} and this "
             f"tree's reader is {rsig[:12]}. A reader change moves NO registry "
             f"signature, so nothing else in this file can see it. Re-measure "
+            f"{other!r} on THIS tree "
+            f"(`PYTHONPATH=$PWD python3 tools/demotion_probe.py` in that cell) "
+            f"or delete {p.name} and measure both.")
+    prev_psigs = dict(prev_meta.get("probe_signature_sha256") or {})
+    if other in prev_psigs and prev_psigs[other] != psig:
+        raise SystemExit(
+            f"REFUSING to merge: the committed {other!r} column was measured "
+            f"by PROBE {prev_psigs[other][:12]} and this tree's probe is "
+            f"{psig[:12]}. A probe change moves NO registry signature and no "
+            f"reader signature — MEASURED at rc468->rc469, where 16 verdicts "
+            f"moved over 7 ops with both of those UNMOVED. Re-measure "
             f"{other!r} on THIS tree "
             f"(`PYTHONPATH=$PWD python3 tools/demotion_probe.py` in that cell) "
             f"or delete {p.name} and measure both.")
@@ -1829,6 +2015,8 @@ def merge_cell(path: Optional[Path] = None, *, progress: bool = True
     sigs[me] = sig
     rsigs = dict(prev_rsigs)
     rsigs[me] = rsig
+    psigs = dict(prev_psigs)
+    psigs[me] = psig
     measured = dict(prev_meta.get("measured_at") or {})
     # ⚠️ NO WALL CLOCK HERE. `census_seconds` was in this dict until it was
     # MEASURED: a native re-run on an unchanged tree reproduced all 703 rows
@@ -1849,6 +2037,7 @@ def merge_cell(path: Optional[Path] = None, *, progress: bool = True
         "cells_measured": cells_present,
         "registry_signature_sha256": sigs,
         "reader_signature_sha256": rsigs,
+        "probe_signature_sha256": psigs,
         "measured_at": measured,
         "n_rows": len(rows),
         "n_ops": len({r["op"] for r in rows}),
