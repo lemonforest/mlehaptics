@@ -910,3 +910,15 @@ tests/test_silent_carrier_demotion_rc463.py
 # cells on a ripple this gate reported green. A carrier registration is a
 # dispatch-surface change, so the live-count pin rides here from now on.
 tests/test_unit_label_and_domain_word_rc354.py
+
+# rc472 (`#T1188`) -- the Q61 refusal on equation_of_centre, CARRIER-INDEPENDENT.
+#    Listed BY HAND for the reason every rc45x block above gives: the manifest
+#    meta-test has no growth obligation. It pins the guard at the Python
+#    dispatch boundary against the pure cascade's OWN refusal text (taken live
+#    from rational.sin, byte for byte), with a planted native binding that must
+#    never be reached. Through rc471 the native cell RETURNED
+#    -0.08984990210223018 for (2**53+1, 0.0549, 4) where the pure cell raised;
+#    the C peer discards srmech_sin's status at srmech_kepler.c:180. Any rc
+#    touching rational.sin's refusal text, kepler.py, or that C site moves it.
+#    ~1 s, pure-Python; identical assertions in both cells.
+tests/test_eoc_q61_parity_rc472.py

@@ -27,6 +27,7 @@ from typing import Tuple
 from srmech.math.rational import atan2 as _ratan2  # §22: Class-N rational trig, not libm
 from srmech.math.rational import cos as _rcos
 from srmech.math.rational import sin as _rsin
+from srmech.math.rational import Q61_TRIG_RANGE as _Q61_TRIG_RANGE  # rc472: one bound, imported
 
 from .. import _native
 
@@ -191,7 +192,14 @@ def equation_of_centre(
 
     Raises:
         ValueError: For ``e < 0``, ``e >= 1``, ``n_terms == 0``, or
-            ``n_terms > EOC_MAX_TERMS``.
+            ``n_terms > EOC_MAX_TERMS``; and (rc472, `#T1188`) for any
+            harmonic ``(k + 1) * M_rad`` that is not finite or whose
+            magnitude reaches :data:`srmech.math.rational.Q61_TRIG_RANGE`
+            (``2**55``) — the two refusals :func:`srmech.math.rational.sin`
+            makes, raised HERE with its own text, before either projection
+            dispatches, so the native and pure cells refuse identically.
+            Through rc471 the C peer discarded ``srmech_sin``'s status and
+            the native cell RETURNED a value where the pure cell raised.
     """
     if not (0.0 <= e < 1.0):
         raise ValueError(
@@ -202,6 +210,26 @@ def equation_of_centre(
             f"equation_of_centre: n_terms must be in [1, {EOC_MAX_TERMS}]; "
             f"got {n_terms}"
         )
+    # rc472 (`#T1188`): the refusals the PURE cascade makes inside
+    # rational.sin, made here at the Python dispatch boundary so they are
+    # carrier-independent. The C peer discards srmech_sin's status
+    # (`(void)srmech_sin(harmonic, &sin_h);`, srmech_kepler.c:180), so
+    # through rc471 equation_of_centre(2**53 + 1, 0.0549, 4) RETURNED
+    # -0.08984990210223018 in the native cell where the pure cell raised —
+    # a silent wrong value. Same harmonics, same order, as the pure loop.
+    # float(...) is rational.sin's own entry read (it does `x = float(x)`
+    # before it refuses), so the text below matches the pure cascade's
+    # byte-for-byte for an int M_rad too: the int spelling would render
+    # 36028797018963972 where the pure cascade says 3.602879701896397e+16.
+    # The magnitude is a Class-K pin-slot branch, never an ALU abs().
+    for k_idx in range(n_terms):
+        harmonic = float((k_idx + 1) * M_rad)
+        if harmonic - harmonic != 0.0:                     # NaN or ±inf
+            raise ValueError(
+                "sin: x must be finite (Q is the finite-rational carrier)")
+        if (harmonic if harmonic >= 0.0 else -harmonic) >= _Q61_TRIG_RANGE:
+            raise ValueError(
+                f"sin: |x| too large for the Q61 octant reduction; got {harmonic}")
     if _native.HAS_NATIVE:
         out = ctypes.c_double(0.0)
         rc = _native.LIB.srmech_equation_of_centre(
