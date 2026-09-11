@@ -197,12 +197,14 @@ Propagation alone does not make the two projections agree — several callees we
 | `srmech_atan2(nan, 1.0)` | `(0, -3.2146018366025517)` | `(2, nan)` | raises |
 | `srmech_atan2(nan, 0.0)` | `(0, 0.0)` | `(2, nan)` | raises |
 | `srmech_atan2(+inf, +inf)` | `(0, -3.2146018366025517)` | `(0, 0.7853981633974483)` | `Q(905502432259640355, 1152921504606846976)` = π/4 |
-| `srmech_atan2(-inf, -inf)` | `(0, -6.3561944901923448)` | `(0, -2.356194490192345)` | −3π/4 |
+| `srmech_atan2(-inf, -inf)` | `(0, -6.356194490192345)` | `(0, -2.356194490192345)` | −3π/4 |
 | `srmech_exp(nan)` / `log(nan)` | `(0, nan)` | `(2, nan)` | raises |
 | `srmech_rational_sqrt(nan)` | `(0, nan)` | `(2, nan)` | raises |
 | `srmech_rational_sqrt(-4.0)` | `(2, 0.0)` | `(2, nan)` | raises |
 | `srmech_winding_fold(nan)` | `(0, 0, nan)` | `(2, 0, nan)` | raises |
 | `srmech_winding_fold(2**55)` | `(2, 0, 0.0)` | `(2, 0, nan)` | raises |
+
+**Every "rc472" figure in that table was RE-MEASURED in the repair session, not carried over from stage A.** By the time the repair is written the tree no longer has the old behaviour, so the only honest way to re-print it is to rebuild the old library: `notes/_rc473_before_table.py` exports `c/src` + `c/include` at `b398b8c46` with `git archive`, compiles them standalone, loads the result with ctypes and reads the same rows the post-repair proof reads. It prints the artifact's own `srmech_abi_version()` first — **25** — so the library under test is identified rather than assumed, and its 34 output rows are committed beside it as `notes/_rc473_before_table.ndjson`. *(On this cell the export half had to be handed a pre-extracted tree: `git archive` needs a resolvable gitdir, and a worktree created by Windows git writes an absolute `D:/…` path into its `.git` file that git under WSL2 cannot follow — measured, and the script records which route it took.)*
 
 Three of those are the **silent-zero** class rather than a status class: `x - x` is NaN only when `x` is non-finite, and is exactly `0.0` for every finite argument, so `srmech_sin(2**55)`, `srmech_rational_sqrt(-4.0)` and `srmech_winding_fold(2**55)` refused *while writing a plausible number* into `*out`, against a header that promised NaN in all three places. A status-only repair would not have closed it, which is why the gate asserts the written value as well.
 
@@ -224,7 +226,9 @@ tests/test_value_status_c_boundary_rc473   33 failed, 46 passed,   79 passed, 4 
                                            4 xfailed
 ```
 
-The C gate grew from 67 to 75 rows in the repair pass: four `srmech_winding_fold` rows, an `atan2(nan, 0.0)` row — which exercises the `x == 0.0` early return that never reaches `srmech_atan`, so status propagation alone does **not** cover it — and the two `check_is_nan` follow-ups those rows carry.
+The C gate's COUNTED rows go **66 → 75**, and the reconciliation is worth stating because the two numbers are not a simple "eight rows added". Measured: rc472 printed `36 passed, 30 failed` = **66** counted; after the repair, `75 passed, 0 failed` and — checked — **0 SKIP**. Eight rows were added in the repair pass (seven in the `srmech_winding_fold` block, one `atan2(nan, 0.0)` — which exercises the `x == 0.0` early return that never reaches `srmech_atan`, so status propagation alone does **not** cover it). The ninth is not a new row: `check_is_nan(out, "sin(nan) out")` sits behind `if (st != SRMECH_OK)` and printed `SKIP` while `srmech_sin(nan)` still returned `SRMECH_OK`, so it becomes countable only once the status row passes. 66 + 8 + 1 = 75.
+
+*(⚠️ **Corrected in the same rc.** The first version of this paragraph and of the repair commit's message both said "67 to 75". 67 was never printed by anything; `36 + 30` is 66. The figure is small and the class is not — it is exactly the "a stamped-measured figure that does not reproduce" defect this rc's own scoping review called the one a reader would read as disqualifying. The commit message carrying it is already pushed and is left as written; this is the correction, per the tree's in-place-correction precedent.)*
 
 **One test-side edit, disclosed rather than buried.** `test_value_status_c_boundary_rc473.py`'s `_SCALAR_DECL` regex anchors on `^srmech_status_t`, so it stopped matching every tagged declaration the moment `SRMECH_NODISCARD` landed in front of them — the header scan fell from eight symbols to one. It did **not** fail silently: `test_the_roster_covers_every_class_n_scalar_export_two_way` failed on its own emptiness assertion, whose message reads *"Re-point the regex; do not delete the assertion."* The prefix is now optional in the pattern, and the gate's two-way equality plus that emptiness control are what prove the widened pattern still finds the same family rather than a smaller one.
 
