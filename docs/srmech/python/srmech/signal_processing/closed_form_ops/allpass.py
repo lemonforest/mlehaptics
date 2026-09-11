@@ -75,6 +75,21 @@ def op(signal, a, *, b=None, order: int = 1, D: int = 8192):
     list[float]
         Allpass-filtered output (the framework-native numpy-free carrier;
         #564 carrier-flip) with unity magnitude at all frequencies.
+
+    Accuracy (rc472, `#T1188`)
+    --------------------------
+    ``a`` (and, at ``order == 2``, ``b``) are carried in float64 from their
+    first use: the coefficient vectors ``[a, 1.0]`` / ``[1.0, a]`` (order 1)
+    or ``[a, b, 1.0]`` / ``[1.0, b, a]`` (order 2) are handed to the C
+    ``srmech_iir_lfilter_f64`` as doubles (the shim's ``float(v)``), and the
+    pure direct-form-I fallback multiplies them against a signal already
+    coerced by ``float(x)``, so an ``int`` coefficient wider than 53
+    significand bits is rounded before the first recursion step in BOTH
+    projections — ``allpass(sig, 2**53 + 1)`` == ``allpass(sig, 2**53)`` —
+    and every output sample is float64, accurate to round-off of the
+    recursion (the native and pure paths agree to round-off, not bit for
+    bit). Measured: the rc472 census row ``allpass::a``, DEMOTED in both
+    cells.
     """
     # Carrier: a plain Python list of floats (numpy-free; float(x) over a
     # nested sequence raises, so a 1-D contract is still enforced).

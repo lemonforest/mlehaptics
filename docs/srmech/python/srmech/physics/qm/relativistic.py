@@ -325,6 +325,21 @@ def dirac_operator_momentum_space(k: Sequence[float], m: float) -> "Mat":
 
     Returns:
         ``(γ^μ k_μ - m I_4)`` as a 4×4 complex ``Mat``.
+
+    **Accuracy (rc472, `#T1188`).** ``k`` is read at float64 resolution: the
+    body's first line is ``k = [float(x) for x in k]``, so an ``int``
+    component wider than 53 significand bits is rounded at the door, before
+    the metric lowering and before the γ-matrix scale.
+    ``dirac_operator_momentum_space([2**53 + 1, 0, 0, 0], 1)`` ==
+    ``dirac_operator_momentum_space([2**53, 0, 0, 0], 1)``. ``m`` enters
+    ``_scale(m, _eye4())`` as it came and is rounded at the same resolution
+    when the complex ``Mat`` is built. Every entry of the returned ``Mat``
+    is complex128, accurate to round-off (~1 ULP) of the float64 image of
+    ``k``. Measured: the rc472 census row
+    ``dirac_operator_momentum_space::k``, DEMOTED in both cells — it read
+    RAISED through the rc472 lane commit because the census bound the
+    required ``m`` to a synthesised vector, and the required-scalar fill
+    repair (C3) is what let the instrument ask.
     """
     k = [float(x) for x in k]
     if len(k) != 4:

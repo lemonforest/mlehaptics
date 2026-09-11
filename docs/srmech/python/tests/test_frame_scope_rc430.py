@@ -1138,6 +1138,60 @@ def test_the_committed_frame_census_matches_the_live_one() -> None:
     assert sorted(meta["slow_skipped"]) == sorted(fp.SLOW_SKIP)
 
 
+def _frame_census_meta() -> Dict[str, Any]:
+    path = Path(__file__).resolve().parent / "frame_scope_census.ndjson"
+    for line in path.read_text(encoding="utf-8").splitlines():
+        row = json.loads(line)
+        if row.get("record") == "meta":
+            return row
+    raise AssertionError("census artefact carries no meta record")
+
+
+#: rc472 W1 (`#T1188`): the five budget knobs ``tools/frame_scope_census.py``
+#: WRITES into the artefact's meta, each read back against the live
+#: ``tools/frame_probe.py`` constant it was copied from. Written by the
+#: census since rc465 and asserted by nothing until rc472 — so a knob could
+#: move in the instrument while the committed artefact kept describing the
+#: old one, with every COUNT in it still matching (the counts are re-derived
+#: live above; the knobs were not). ``MOD_LEAF_BUDGET`` is the one that DID
+#: move (rc469, named at the reach floor above), which is why the can-fail
+#: below plants exactly that.
+_FRAME_KNOBS = ("R", "MMAX", "MIN_CONFIRMATIONS", "NS", "MOD_LEAF_BUDGET")
+
+
+def _knob_disagreements(meta: Dict[str, Any]) -> List[str]:
+    out: List[str] = []
+    for k in _FRAME_KNOBS:
+        live = getattr(fp, k)
+        live = list(live) if isinstance(live, tuple) else live
+        if meta.get(k) != live:
+            out.append(f"{k}: census {meta.get(k)!r} vs live {live!r}")
+    return out
+
+
+def test_the_committed_frame_census_records_the_live_budget_knobs_rc472() -> None:
+    meta = _frame_census_meta()
+    missing = [k for k in _FRAME_KNOBS if k not in meta]
+    assert not missing, (
+        f"the census meta carries no {missing}; re-run "
+        f"tools/frame_scope_census.py")
+    got = _knob_disagreements(meta)
+    assert got == [], (
+        "the committed frame census was written under DIFFERENT probe budgets "
+        "than the live instrument carries:\n  " + "\n  ".join(got)
+        + "\nRe-run tools/frame_scope_census.py — every count it holds was "
+          "taken under the old knobs.")
+
+
+def test_the_knob_check_can_fail_rc472(monkeypatch) -> None:
+    """The instrument can return otherwise: move the one knob that DID move
+    at rc469 and the check names it, and only it."""
+    meta = _frame_census_meta()
+    monkeypatch.setattr(fp, "MOD_LEAF_BUDGET", fp.MOD_LEAF_BUDGET + 1)
+    got = _knob_disagreements(meta)
+    assert len(got) == 1 and got[0].startswith("MOD_LEAF_BUDGET:"), got
+
+
 # ══════════════════════════════════════════════════════════════════════
 # 5. THE PAYLOAD SAYS WHAT THE MEASUREMENTS SAY
 # ══════════════════════════════════════════════════════════════════════

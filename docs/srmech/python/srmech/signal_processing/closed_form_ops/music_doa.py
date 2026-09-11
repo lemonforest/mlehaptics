@@ -87,6 +87,22 @@ def op(
     list[float]
         Real-valued MUSIC pseudo-spectrum of length K (one per steering
         vector); peaks correspond to source directions.
+
+    **Accuracy (rc472, `#T1188`).** ``R`` and ``steering_vectors`` are read
+    at complex128 resolution: every entry passes through ``complex(v)`` when
+    the two ``Mat`` carriers are built, so an ``int`` entry wider than 53
+    significand bits is rounded to float64 at the door, before the Hermitian
+    eigensolve and the noise-subspace projection. ``n_sources`` is a count
+    and is used as one. The pseudo-spectrum is float64 throughout, and it is
+    accurate to round-off of the float64 images of both inputs (``|proj|²``
+    is summed as ``re² + im²`` in float64 and inverted once). Measured in
+    the rc472 build — the shipped probe walk, native cell, in process, with
+    the required ``n_sources`` held at 1: rows ``music_doa::R`` and
+    ``::steering_vectors`` both read DEMOTED. The committed census rows read
+    RAISED, because the census's required-parameter fill hands the
+    ``int``-typed ``n_sources`` a synthesised vector — the residue named at
+    ``tools/demotion_probe.py``'s ``REQUIRED_SCALAR_FILL`` — so this
+    paragraph records what the probe measures once that residue is closed.
     """
     # Coerce R + steering vectors to numpy-free complex Mats (tolist() covers
     # ndarray AND Mat).

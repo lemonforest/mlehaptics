@@ -362,6 +362,8 @@ def test_the_cell_the_committed_ledger_selects_is_actually_SEEDED() -> None:
     actually committed.  Regenerate in a new cell and the suite goes RED with
     instructions, instead of quietly dropping a ratchet.
     """
+    import sys
+    from srmech import _native
     meta, _rows_ = _rows()
     cell = "native" if meta.get("native") else "pure"
     assert cell in CEIL_WORKED_EXAMPLE_FAILURES, (
@@ -373,7 +375,10 @@ def test_the_cell_the_committed_ledger_selects_is_actually_SEEDED() -> None:
         f"measured for it, so the down-only ratchet next door is SKIPPING on "
         f"the artifact this tree actually ships. Seed it: run "
         f"`python3 tools/run_worked_examples.py` in this cell and commit what "
-        f"it printed — do NOT copy the other cell's numbers.")
+        f"it printed — do NOT copy the other cell's numbers. (This run: python "
+        f"{sys.version.split()[0]}, HAS_NATIVE {_native.HAS_NATIVE}; the "
+        f"ledger declares python {meta.get('python')!r} — disclosed beside the "
+        f"stamp, never asserted; rc472 W4, `#T1188`.)")
 
 
 def test_the_needs_subprocess_set_is_declared_not_silently_timed_out() -> None:

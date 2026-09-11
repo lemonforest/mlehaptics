@@ -61,7 +61,9 @@ MEASUREMENT, and the parameter roster is read from the REGISTRY.
 THE ORACLE IS DIFFERENTIAL, SO IT NEEDS NO PER-OP EXACT VALUE
 --------------------------------------------------------------
 That is what makes the manifest auto-populating. Three calls, one witness
-triple, substituted at one numeric leaf of one sequence-shaped parameter:
+triple, substituted at one numeric leaf of one sequence-shaped parameter — or,
+since rc472 (`#T1188`), AT the value of one scalar-numeric parameter (the
+second lane; disclosure 8):
 
     P = 2**53 + 1   the smallest positive integer float64 cannot represent
     F = 2**53       the value float64 collapses P to
@@ -197,14 +199,39 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     this of the whole ``hdc`` family; rc465 measured it false — ``loop_conj``,
     ``loop_bind``, ``loop_inv``, ``loop_left_op`` and ``loop_right_op`` take
     float sequences and round P.
- 8. **SCALAR parameters are never probed** (rc466, `#T1188`). :func:`probe_op`
-    enumerates SEQUENCE-shaped registry parameters only, so an op that rounds an
-    exact SCALAR operand is outside the census by construction. Measured:
-    ``srmech.math.rational.sin(Q(2**53+1, 1)) == rational.sin(2**53)`` — the Q61
-    cascade reads its argument as float64 by its own contract — and this probe
-    emits NO row for it. ``kuramoto_sin_term`` is DECLARED on exactly that fact;
-    the scalar class itself is unratcheted here, and a scalar-parameter probe is
-    a different instrument (its witness is a value, not a leaf position).
+ 8. ~~**SCALAR parameters are never probed**~~ (rc466, `#T1188`) — **CLOSED at
+    rc472 (`#T1188`) by the SCALAR LANE.** Through rc471 :func:`probe_op`
+    enumerated SEQUENCE-shaped registry parameters only, so an op that rounds
+    an exact SCALAR operand was outside the census by construction; the
+    measured instance was ``srmech.math.rational.sin(Q(2**53+1, 1)) ==
+    rational.sin(2**53)`` — the Q61 cascade reads its argument as float64 by
+    its own contract — with NO row emitted for it. rc472 admits a second,
+    DISJOINT population, :func:`scalar_numeric` — a registry type naming
+    ``float`` / ``number`` / ``complex`` and not sequence-shaped — and puts
+    the witness triple AT THE VALUE (:data:`SCALAR_SLOT`): the witness is a
+    value, not a leaf position, exactly as this bullet said a scalar probe's
+    would be. The rc466 sentence *"a scalar-parameter probe is a different
+    instrument"* was half right: it is the SAME instrument with a second lane
+    and two :data:`PROBE_SPEC` members, and no other change — measured at
+    rc472, the lane moves ZERO of the 1410 sequence verdict cells and adds its
+    own rows beside them. **The lane commit then said, of what it could not
+    reach, one true thing and one false one, and C3 (`#T1188`) corrects both
+    in the same change that closes the true one.** True: a REQUIRED
+    scalar-numeric sibling was still filled by :func:`synthesize` with an
+    int-filled vector — closed by :data:`REQUIRED_SCALAR_FILL`, which holds
+    such a sibling at the slot; 13 rows that read RAISED at the sibling now
+    bind and are asked. False: *"the rows whose required sibling is itself a
+    scalar read NO_SHAPE … the gate's scalar NO_SHAPE ceiling is exactly
+    those rows."* They read RAISED, not NO_SHAPE (an 8-vector binds, then the
+    op refuses it), and the five scalar NO_SHAPE rows are the ones whose
+    required sibling is OPAQUE (``fold``, ``text``, ``handle``, ``observed`` /
+    ``predicted``) — a different residue, unchanged by C3, still the ceiling.
+    What C3 leaves named is the ``int``-typed required sibling: it is still
+    handed a vector, because ``int`` is not a member of the lane — an int
+    lane admits every integer parameter of every op and the twiddle
+    strict-zero gate goes red on it — and the fill follows the lane's ident
+    set rather than minting a second one. The seven rows that residue holds
+    are listed at :data:`REQUIRED_SCALAR_FILL`.
  9. **The reader REFUSES negation, and does so LOOK-BEHIND ONLY** (rc466
     found it, `#T1188`; rc470 fixed it). ``odft_summand`` counted as DECLARED
     through rc465 on the phrase *"(the byte-exact parity contract, not a
@@ -303,11 +330,27 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     hand-reading all **223** DECLARED ops against the honesty-ladder criterion
     (``tests/test_silent_carrier_demotion_rc463.py``: *given ONLY the signature
     and the docstring, can the caller predict the returned value is not the
-    exact one?*): **41 are TOPICAL MISREADS**, leaving **182 substantive**.
-    ⚠️ **QUOTE THE PAIR, NEVER THE 182 ALONE.** 223 is LEXICAL and
-    regenerable from this tree by anyone; 182 is 223 minus a HAND-MAINTAINED
+    exact one?*): **41 are TOPICAL MISREADS**, leaving **182 substantive**
+    (rc471's pair).
+    rc472 (`#T1188`) moves the pair to **236 / 41 / 195**, in two dated steps
+    that ``tests/test_r3_reader_rc470.py`` records one by one: C2 to 232 / 41
+    / 191 — the +9 is exactly the nine ops that received the scalar lane's
+    ten ACCURACY paragraphs — and C3 to 236 / 41 / 195 — the +4 is exactly
+    the four ops that received the required-scalar-fill paragraphs
+    (``propagate_wound``, ``dirac_operator_momentum_space``,
+    ``feynman_scalar_propagator``, ``music_doa``). Every one of the thirteen
+    was hand-read against the eight classes and reads on its OWN docstring;
+    no other op's reading moved (measured: zero DECLARED ops credited through
+    one of the thirteen by the delegate arm). This paragraph quoted the C2
+    pair, 232 / 41 / 191, until the rc472 repair pass: C3 moved the pair and
+    left this line behind — the carried-figure shape the warning below
+    exists for, inside the file that carries the warning — and
+    ``test_r3_reader_rc470.py`` now reads THIS paragraph's pair back against
+    the live count, so the next move cannot leave it behind again.
+    ⚠️ **QUOTE THE PAIR, NEVER THE 195 ALONE.** 236 is LEXICAL and
+    regenerable from this tree by anyone; 195 is 236 minus a HAND-MAINTAINED
     by-name ledger, so it is exactly as fresh as the last hand-read and no
-    fresher. A single "182 substantive declarations" implies a measurement
+    fresher. A single "195 substantive declarations" implies a measurement
     this instrument cannot make.
     They are pinned BY NAME with a reason and a class in
     ``tests/test_r3_reader_rc470.py``'s ``_RESIDUAL_TOPIC_MISREADS``, and the
@@ -821,6 +864,86 @@ def sequence_shaped(ty: str) -> bool:
     return any(i in _SEQ_IDENTS for i in type_idents(ty))
 
 
+#: THE SCALAR LANE (rc472, `#T1188`): type identifiers that denote a scalar
+#: NUMERIC parameter — one whose VALUE is the witness slot. Through rc471 the
+#: census enumerated sequence-shaped registry parameters only (disclosure 8
+#: above), so an op that rounds an exact SCALAR operand — ``rational.sin``,
+#: ``kuramoto_inv_n``, every ``float`` coefficient in ``signal_processing`` —
+#: was outside the instrument by construction. The lane predicate is exactly
+#: ``type_idents(ty) ∩ _SCALAR_IDENTS ≠ ∅ and not sequence_shaped(ty)``; the
+#: second clause keeps the two lanes DISJOINT (``list[float]`` is a sequence).
+#: ``int`` is deliberately NOT a member: an int lane admits every integer
+#: parameter of every op — a period, a dimension, a term count — and the
+#: twiddle strict-zero gate goes red on it (measured in the rc472 scoping).
+#: Private, like its two peers above, and exposed in :data:`PROBE_SPEC` under
+#: a public key, exactly as they are.
+_SCALAR_IDENTS = frozenset({"float", "number", "complex"})
+
+#: Where the scalar lane puts its witness: the parameter's VALUE. An ``int``
+#: ``1``, for the same reason :func:`synthesize` is int-filled — a ``1.0``
+#: would force every op onto a float route and the whole lane would read
+#: DEMOTED. ``leaf_paths(1)`` is the empty path and ``set_leaf(1, (), w)`` is
+#: ``w``, so the witness triple REPLACES the slot wholesale and the rest of
+#: :func:`probe_param` is the same walk for both lanes. A harvested scalar
+#: float is never used as a shape: a non-integral one could only ever answer
+#: ``INEXACT_BASE`` (through the OTHER parameters, which is what ``clean``
+#: reads), and the question is about the carrier, not the harvest.
+SCALAR_SLOT = 1
+
+#: THE REQUIRED-SCALAR FILL (rc472 C3, `#T1188`): what :func:`_fill_required`
+#: binds to a REQUIRED scalar-numeric sibling the harvest left unbound. The
+#: same value as :data:`SCALAR_SLOT`, bound under its own name because it is a
+#: different KNOB — the lane decides where the WITNESS goes; this decides what
+#: the other scalar parameters are held at while it is asked — and a member of
+#: :data:`PROBE_SPEC` in its own right for the same reason.
+#:
+#: Through the rc472 lane commit ``_fill_required`` asked :func:`synthesize`
+#: for EVERY missing required parameter, and ``synthesize`` refuses only the
+#: :data:`_OPAQUE_IDENTS`, so a missing ``float`` / ``complex`` / ``float | Q``
+#: sibling was bound to ``[1] * 8`` — an 8-vector handed to a parameter the
+#: registry declares scalar — and the op RAISED at that sibling before the
+#: probed parameter was ever asked. Those rows read RAISED with a reason that
+#: was the instrument's, wearing the op's name.
+#:
+#: What this does NOT reach is named rather than absorbed: a required ``int``
+#: sibling (``dim``, ``sigma``, ``k``, ``n_sources``, …) is still bound to a
+#: synthesised vector, because :func:`scalar_numeric` excludes ``int`` by
+#: design (see :data:`_SCALAR_IDENTS`) and the fill follows the lane's own
+#: ident set rather than minting a second one. MEASURED in the rc472 build
+#: (native cell, in process, CPython 3.12.3, numpy absent, the shipped
+#: :func:`probe_param` walk): this fill moves **13** rows over 8 ops, every one
+#: OUT of RAISED and none INTO it; the same walk with ``int`` admitted to the
+#: FILL ONLY moves **20**, and the seven it adds — ``cd_promote::x``,
+#: ``the_one::w``, ``top_k_by_score::scores``, ``music_doa::R`` /
+#: ``::steering_vectors``, ``modular_forms_ring_represent::q_series``,
+#: ``quasimodular_represent::q_series`` — are the int-fill residue, handed to
+#: the next rc as a design question the lane's exclusion has already ruled on
+#: once, not as a knob to widen quietly.
+REQUIRED_SCALAR_FILL = SCALAR_SLOT
+
+
+def scalar_numeric(ty: str) -> bool:
+    """Does the REGISTRY declare this parameter as scalar-numeric — the rc472
+    lane? Disjoint from :func:`sequence_shaped` by construction."""
+    return bool(set(type_idents(ty)) & _SCALAR_IDENTS) and not sequence_shaped(ty)
+
+
+def lane_of(ty: str) -> str:
+    """``"sequence"`` or ``"scalar"`` — the census lane a registry type is
+    probed in.
+
+    DERIVED from the type, never stored on a row: the gate keys its NO_SHAPE
+    ceiling by ``(lane, cell)`` and reads the lane through this function, so
+    a row cannot be filed under a lane by a stale field. Raises on a type in
+    neither lane, because such a type has no census row to be asked about.
+    """
+    if sequence_shaped(ty):
+        return "sequence"
+    if scalar_numeric(ty):
+        return "scalar"
+    raise ValueError(f"registry type {ty!r} is in neither census lane")
+
+
 # ── exactness plumbing ────────────────────────────────────────────────────────
 def _is_int(v: Any) -> bool:
     return isinstance(v, int) and not isinstance(v, bool)
@@ -1305,10 +1428,19 @@ def declaration_hits(fn) -> List[str]:
     the two answers differ: DECLARED read **219** on CPython <= 3.11 and
     **222** on >= 3.12, from one unchanged tree. The fold is unconditional and
     the convergence is MEASURED over the WHOLE population, not inferred from
-    three counts — on 3.10.21 / 3.11.16 / 3.12.3 / 3.13.15 / 3.14.7 the folded
-    label MAP is byte-identical, all 223 rows, sha256
-    ``b43563f9e417da49…`` (222 rows / ``06f93439fe15b27f…`` at rc470; rc471's
-    W6 prose added one, hand-read at ``_DECLARED_LABEL_MAP_DIGEST``). That is the LABEL map and not merely the count,
+    three counts — MEASURED AT rc471 on 3.10.21 / 3.11.16 / 3.12.3 / 3.13.15
+    / 3.14.7: the folded label MAP was byte-identical on all five, all 223
+    rows, sha256 ``b43563f9e417da49…`` (222 rows / ``06f93439fe15b27f…`` at
+    rc470; rc471's W6 prose added one, hand-read at
+    ``_DECLARED_LABEL_MAP_DIGEST``). rc472 (`#T1188`) moved the map to
+    **236 rows** at ``ee4922b5817ead0c…`` (232 rows / ``1be7956c86ddd197…``
+    after C2, 236 after C3), on CPython 3.12.3 ALONE: thirteen own-docstring
+    ACCURACY paragraphs, none touching the delegate walk, so the
+    five-interpreter re-measure is OWED by the next rc that touches that
+    walk — the ⚠️ chain at ``_DECLARED_LABEL_MAP_DIGEST`` says the same.
+    (This paragraph carried the rc471 pair as if live until the rc472 repair
+    pass; ``tests/test_r3_reader_rc470.py`` now reads the count and digest
+    prefix back from it.) That is the LABEL map and not merely the count,
     which matters because of the residue in the next paragraph.
 
     ⚠️ **WHAT THE FOLD DOES NOT FIX, named so it is not rediscovered as a
@@ -1320,7 +1452,8 @@ def declaration_hits(fn) -> List[str]:
     position are non-hit-bearing and jumped AROUND the hit-bearing pair. The
     label-map digest pinned in ``tests/test_r3_reader_rc470.py`` is what turns
     that accident into something a matrix cell can SEE: without it DECLARED
-    would stay 222 everywhere while the credited delegate silently differed.
+    would hold its count on every interpreter (222 when this was written at
+    rc470; 236 at rc472) while the credited delegate silently differed.
     The principled repair — making label selection a function of the SET,
     which IS convergent, by iterating sorted names or collecting all hits
     instead of breaking at the first — moves labels on those 13 ops on EVERY
@@ -1389,7 +1522,17 @@ def _base_for(entry, rows: Dict[str, Any], *,
 
 def _fill_required(fn, base: Dict[str, Any], entry
                    ) -> Tuple[Dict[str, Any], List[str]]:
-    """Synthesise the required parameters the harvest left unbound."""
+    """Bind the required parameters the harvest left unbound.
+
+    A required sibling whose registry type is scalar-numeric
+    (:func:`scalar_numeric`) is held at :data:`REQUIRED_SCALAR_FILL`; every
+    other required sibling is asked of :func:`synthesize`, exactly as before
+    rc472 C3 (`#T1188`). The scalar arm exists because ``synthesize`` refuses
+    only the opaque identifiers, so it answered ``[1] * 8`` for a ``float`` —
+    a vector handed to a scalar — and the op raised at the sibling before the
+    probed parameter was ever reached. See :data:`REQUIRED_SCALAR_FILL` for
+    what the repair moves and for the ``int``-typed residue it leaves named.
+    """
     try:
         sig = inspect.signature(fn)
     except (TypeError, ValueError):
@@ -1402,7 +1545,8 @@ def _fill_required(fn, base: Dict[str, Any], entry
             continue
         if p.default is not inspect.Parameter.empty or p.name in out:
             continue
-        cands = synthesize(types.get(p.name, ""))
+        ty = types.get(p.name, "")
+        cands = [REQUIRED_SCALAR_FILL] if scalar_numeric(ty) else synthesize(ty)
         if not cands:
             missing.append(p.name)
             continue
@@ -1484,7 +1628,8 @@ def _vacuous_by(fn, base: Dict[str, Any], pname: str, shape: Any,
 
 def probe_param(fn, base: Dict[str, Any], opname: str,
                 pname: str, ptype: str) -> Dict[str, Any]:
-    """One (op, sequence-shaped parameter) row."""
+    """One (op, parameter) row — a sequence-shaped parameter (the leaf walk)
+    or, since rc472 (`#T1188`), a scalar-numeric one (the value slot)."""
     rec: Dict[str, Any] = {"op": opname, "param": pname, "type": ptype}
     # ⚠️ Cleanliness is read over the OTHER parameters ONLY. The probed one is
     # about to be REPLACED by the witness shape, so judging the binding by a
@@ -1494,8 +1639,30 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
     clean = exactify({k: v for k, v in base.items() if k != pname})[1]
     extra = [len(v) for k, v in base.items()
              if k != pname and isinstance(v, (list, tuple)) and v]
-    synth = synthesize(ptype, extra)
+    # rc472 (`#T1188`): the SCALAR lane's one candidate is the value slot; the
+    # sequence lane's shape ladder is untouched. A scalar has no leaf to walk
+    # — leaf_paths(SCALAR_SLOT) is the empty path and set_leaf puts the
+    # witness AT the value — so everything below is the same walk for both
+    # lanes. (A required scalar-NUMERIC sibling is held at REQUIRED_SCALAR_FILL
+    # by `_fill_required` since rc472 C3; a required `int` sibling still
+    # arrives as an int-filled vector and the op raises at it before this walk
+    # starts. That residue is disclosure 8's, not this function's.)
+    synth = [SCALAR_SLOT] if scalar_numeric(ptype) else synthesize(ptype, extra)
     shapes: List[Any] = []
+    # rc472 C3 (`#T1188`): each candidate's LABEL is recorded beside it, never
+    # recovered afterwards by identity. The old `raw_shape is base.get(pname)`
+    # read "harvested" for ANY candidate that happened to be the same OBJECT
+    # as the base's value — and the scalar lane's one candidate is the small
+    # int 1, which CPython interns, so every scalar row whose base value was
+    # 1 (a harvested `sin(1)`, or a required sibling held at the fill) called
+    # the slot "harvested" for a value no harvest supplied. The lane never
+    # offers the harvested value as a candidate (`harvested` below requires a
+    # list / tuple), so on a scalar row "harvested" was always the artefact.
+    # MEASURED on the first C3 regeneration, both cells: 2 rows relabelled
+    # THEMSELVES through the fill (feynman_photon_propagator::k_squared,
+    # higgs_potential::phi) with their verdicts unmoved, and the committed C2
+    # census already carried the artefact on every scalar row bound at 1.
+    labels: List[Optional[str]] = []
     harvested = pname in base and isinstance(base[pname], (list, tuple))
     # ⚠️ ORDER IS A MEASUREMENT DECISION. A harvested vector carrying a
     # NON-INTEGRAL float can only ever yield ``INEXACT_BASE`` — a float result
@@ -1505,9 +1672,12 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
     hv_clean = harvested and exactify(base[pname])[1]
     if hv_clean:
         shapes.append(base[pname])
+        labels.append("harvested")
     shapes.extend(synth)
+    labels.extend([None] * len(synth))
     if harvested and not hv_clean:
         shapes.append(base[pname])
+        labels.append("harvested")
     if not shapes:
         rec["verdict"] = "NO_SHAPE"
         rec["reason"] = f"no shape synthesisable for declared type {ptype!r}"
@@ -1568,9 +1738,7 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
                 if null_seen == "INSENSITIVE" \
                         and len(null_ctxs) < MAX_NULL_CONTEXTS:
                     null_ctxs.append(
-                        (shape, path,
-                         "harvested" if raw_shape is base.get(pname)
-                         else f"synth[{si}]"))
+                        (shape, path, labels[si] or f"synth[{si}]"))
                 continue                     # position-specific; try next leaf
             if v == "DEMOTED" and not (clean and sclean):
                 rec["verdict"] = "INEXACT_BASE"
@@ -1579,8 +1747,7 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
             else:
                 rec["verdict"] = v
             rec["leaf"] = list(path)
-            rec["shape"] = ("harvested" if raw_shape is base.get(pname)
-                            else f"synth[{si}]")
+            rec["shape"] = labels[si] or f"synth[{si}]"
             return rec
         if timed_out:
             continue                     # decided at the top of the next pass
@@ -1636,11 +1803,14 @@ def probe_param(fn, base: Dict[str, Any], opname: str,
 def probe_op(entry, rows: Dict[str, Any], *,
              lever: Optional[Dict[str, Dict[str, Any]]] = None
              ) -> List[Dict[str, Any]]:
-    """Every sequence-shaped parameter of one registered op.
+    """Every sequence-shaped parameter of one registered op — and, since rc472
+    (`#T1188`), every scalar-numeric one: the two census lanes, disjoint by
+    construction (:func:`lane_of`).
 
     ``lever`` is forwarded to :func:`_base_for`; see :data:`SHAPE_LEVER`.
     """
-    params = [p for p in (entry.parameters or ()) if sequence_shaped(p.type or "")]
+    params = [p for p in (entry.parameters or ())
+              if sequence_shaped(p.type or "") or scalar_numeric(p.type or "")]
     if not params:
         return []
     if entry.name in CONTRACT_SKIP:
@@ -1691,7 +1861,8 @@ def probe_op(entry, rows: Dict[str, Any], *,
 
 def census(rows: Optional[Dict[str, Any]] = None, *,
            progress: bool = False) -> List[Dict[str, Any]]:
-    """Every sequence-shaped parameter of every registered op."""
+    """Every sequence-shaped and (rc472) every scalar-numeric parameter of
+    every registered op."""
     from srmech.introspect.tool_schema import get_tool_schema
     rows = ea.load_ledger() if rows is None else rows
     recs: List[Dict[str, Any]] = []
@@ -1816,6 +1987,22 @@ PROBE_SPEC = (
     ("square_dims", SQUARE_DIMS),
     ("seq_idents", tuple(sorted(_SEQ_IDENTS))),
     ("opaque_idents", tuple(sorted(_OPAQUE_IDENTS))),
+    # rc472 (`#T1188`): the scalar lane's two knobs, exact peers of the two
+    # lines above. `scalar_idents` decides which registry parameters the lane
+    # admits AT ALL — a change moves the ROW POPULATION with no registry
+    # signature move, the identical blind spot `seq_idents` closes one lane
+    # over — and `scalar_slot` is the value every scalar witness is put at.
+    # Adding them is what makes rc472's own regeneration REFUSE a one-cell
+    # merge: the committed columns carry the rc471 digest, so both cells must
+    # be re-measured from an empty manifest, which is the guard doing its job.
+    ("scalar_idents", tuple(sorted(_SCALAR_IDENTS))),
+    ("scalar_slot", SCALAR_SLOT),
+    # rc472 C3 (`#T1188`): the value a REQUIRED scalar-numeric sibling is held
+    # at by `_fill_required`. It decides which rows can BIND at all — 13 rows
+    # left RAISED when it landed — so it is a verdict-deciding knob and belongs
+    # in the key, separately from `scalar_slot` even while the two values are
+    # equal: a future change to one and not the other must move the digest.
+    ("required_scalar_fill", REQUIRED_SCALAR_FILL),
 )
 
 
@@ -1984,6 +2171,10 @@ def merge_cell(path: Optional[Path] = None, *, progress: bool = True
             f"is {sig[:12]}. Re-measure {other!r} on THIS tree "
             f"(`PYTHONPATH=$PWD python3 tools/demotion_probe.py` in that cell) "
             f"or delete {p.name} and measure both.")
+    # rc472 W2 (`#T1188`): the FOURTH carry-forward refusal — the other
+    # column's RELEASE — with the interpreter WARNING beside it.
+    _refuse_cross_release(dict(prev_meta.get("measured_at") or {}), other,
+                          srmech.__version__, sys.version_info, p.name)
 
     t0 = time.time()
     recs = census(progress=progress)
@@ -2070,6 +2261,54 @@ def merge_cell(path: Optional[Path] = None, *, progress: bool = True
         for d in meta["divergent"]:
             print(f"  {d}", file=sys.stderr)
     return meta
+
+
+def _refuse_cross_release(prev_measured: Dict[str, Any], other: str,
+                          live_version: str, live_py, manifest_name: str
+                          ) -> None:
+    """rc472 W2 (`#T1188`): the FOURTH carry-forward refusal in
+    :func:`merge_cell`, symmetric with the three ``SystemExit`` refusals on
+    the reader / probe / registry signatures — on the OTHER cell's
+    ``measured_at[other]["srmech_version"]``.
+
+    Until rc472 the other column's ``measured_at`` was carried forward with
+    NO comparison of either field, so a manifest whose two columns were
+    measured at two RELEASES could be PRODUCED here and caught only later,
+    by ``tests/test_silent_carrier_demotion_rc463.py``'s version stamp —
+    after the cell's minutes had been spent on a merge the tree would
+    refuse. An implementation can change carrier behaviour behind an
+    unchanged signature, an unchanged reader and an unchanged probe; the
+    release stamp is the one axis those three digests cannot see, which is
+    why this refuses rather than warns.
+
+    The INTERPRETER gets a printed WARNING, never a refusal: the committed
+    census declares ``3.12`` in both cells, and the rc471 arc measured the
+    interpreter non-causal for every figure it had been blamed for —
+    asserting it here would forbid the very cross-interpreter re-measure
+    that showed so. Can-fail: ``tests/test_merge_cell_cross_release_rc472.py``
+    plants a manifest whose other column carries a foreign release and
+    asserts the refusal fires BEFORE :func:`census` runs.
+    """
+    rec = dict(prev_measured.get(other) or {})
+    v = rec.get("srmech_version")
+    if v is not None and v != live_version:
+        raise SystemExit(
+            f"REFUSING to merge: the committed {other!r} column was measured "
+            f"at srmech {v} and this tree is {live_version}. An "
+            f"implementation can change carrier behaviour behind an unchanged "
+            f"signature, reader and probe — the release stamp is the one axis "
+            f"those digests cannot see. Re-measure {other!r} on THIS tree "
+            f"(`PYTHONPATH=$PWD python3 tools/demotion_probe.py` in that cell) "
+            f"or delete {manifest_name} and measure both.")
+    py = rec.get("python")
+    live = f"{live_py[0]}.{live_py[1]}"
+    if py is not None and py != live:
+        print(f"[merge_cell] WARNING: the committed {other!r} column was "
+              f"measured on python {py}; this cell is running {live}. Not a "
+              f"refusal — the interpreter is DISCLOSED in `measured_at`, and "
+              f"the rc471 arc measured it non-causal — but a reader of the "
+              f"merged manifest should know the two columns differ in it.",
+              file=sys.stderr)
 
 
 if __name__ == "__main__":                                # pragma: no cover

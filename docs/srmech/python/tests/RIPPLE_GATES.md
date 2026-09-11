@@ -45,13 +45,37 @@ python3 tools/regen_all.py            # rebuild every generated file + verify id
 python3 tools/run_worked_examples.py  # re-execute the worked-example ledger, IN FULL
 ```
 
+**And the FOURTH producer, which this file did not name until rc472
+(`#T1188`): `tools/run_example_args.py`.** It writes
+`tests/example_args_ledger.ndjson` — the harvested-argument ledger that
+`tools/demotion_probe.py` (every census base), `tools/frame_probe.py` /
+`tools/frame_scope_census.py`, `tools/gen_curated_probe.py` and the
+synthesised-argument gate all READ, and that `tools/gen_tool_docs.py` folds into
+`_tool_docs.py`, which ships in the wheel. Its version stamp is asserted by
+`test_synth_args_provenance_rc430`, so a version bump reds that gate until the
+ledger is re-harvested. **Every producer runs in a DECLARED cell, and the cell
+is part of the artefact** — read from each committed artefact's own meta row:
+
+| producer | writes | declared cell |
+|---|---|---|
+| `tools/regen_all.py` | the six generated files | cell-independent (codegen; loads no `.so`) |
+| `tools/run_worked_examples.py` | `tests/worked_examples_result.ndjson` | `native: true`, `python: "3.10"` |
+| `tools/run_example_args.py` | `tests/example_args_ledger.ndjson` | `python: "3.10"`; the meta records NO cell flag — rc471's harvest ran `HAS_NATIVE False` and said so only in its CHANGELOG entry |
+| `tools/demotion_probe.py` | `tests/demotion_census.ndjson` | BOTH cells, each column stamped under `measured_at.<cell>` (`python: "3.12"`) |
+
+Run each on the interpreter its meta declares (`uv run --python 3.10 …` for the
+two 3.10 ledgers): a bare `python3` bakes whatever is on PATH into the rows,
+which is the wrong-instrument shape rc471 measured and rc472 corrects.
+
 The second step is FULL because a regen moves the dispatch surface *underneath*
 snippets whose text has not changed a byte. rc469 removed the scoped selector
 that hashed exactly that text: it re-executed nothing after a regen and reported
 a refreshed ledger it had not refreshed. Run it under WSL2 — the pure cell's
 ceiling encodes one snippet's absolute `/mnt/d/...` path.
 
-⚠️ **A THIRD step, when the op you registered takes a sequence-shaped parameter**
+⚠️ **A THIRD step, when the op you registered takes a sequence-shaped parameter —
+or, since rc472 (`#T1188`), a scalar-numeric one (`float` / `number` / `complex`;
+the census's second lane)**
 (rc465, `#T1188`). `tests/demotion_census.ndjson` is a committed MEASUREMENT of
 which registered parameters round an exact operand, and its staleness guard is a
 hash of the registry's `(op name, parameter types, return type)` triples — so

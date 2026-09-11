@@ -441,14 +441,24 @@ def test_the_ledger_records_the_version_it_was_measured_at() -> None:
     it ran on this tree. Both clauses are needed, which is why both are here.
     """
     import srmech
+    from srmech import _native
     meta = ea.load_meta()
     assert meta, "ledger has no meta row — regenerate it"
+    # rc472 W4 (`#T1188`): the remedy names the ledger's DECLARED interpreter
+    # (a bare `python3` bakes whatever is on PATH into the rows), and the
+    # live interpreter / HAS_NATIVE are DISCLOSED beside the stamp, never
+    # asserted — rc471's first refusal was measured on the wrong interpreter
+    # and had nowhere to say so.
     assert meta.get("srmech_version") == srmech.__version__, (
         f"the example-args ledger was measured at "
         f"{meta.get('srmech_version')!r} but the tree is at "
         f"{srmech.__version__!r}. Every coverage number below is a statement "
-        f"about a release that is no longer this one. Re-harvest:\n"
-        "    python3 tools/run_example_args.py")
+        f"about a release that is no longer this one. Re-harvest on the "
+        f"ledger's declared interpreter (meta.python={meta.get('python')!r}):\n"
+        f"    uv run --python {meta.get('python')} --no-project python3 "
+        f"tools/run_example_args.py\n"
+        f"(this run: python {sys.version.split()[0]}, HAS_NATIVE "
+        f"{_native.HAS_NATIVE} — disclosed, not asserted)")
 
 
 # ══════════════════════════════════════════════════════════════════════
