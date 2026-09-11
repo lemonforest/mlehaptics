@@ -183,7 +183,13 @@ def _the_gates_own_baseline_line(run, declared, pinned, substantive):
     same file and nothing fired.
     """
     text = run.prose(R3_GATE_FILE)
-    m = _MEASURED_AT.search(text)
+    # rc472 repair pass (`#T1188`): the LAST such line, not the first. rc472
+    # appended its triples BELOW rc471's, so `.search()` kept reading rc471's
+    # (223, 41, 182) against a tree that measures (236, 41, 195) and printed
+    # RED for a disagreement that was this reader's, not the gate's. The gate
+    # file keeps the dated chain in order and ends it with the live triple.
+    found = list(_MEASURED_AT.finditer(text))
+    m = found[-1] if found else None
     if m is None:
         run.figure("gate's MEASURED-at comment", "<no MEASURED at line>",
                    "MEASURED at", where=R3_GATE_FILE)

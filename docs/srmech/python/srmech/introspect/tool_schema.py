@@ -15283,7 +15283,8 @@ def _register_primitive_class_tools() -> None:
                     "w = round(theta/2π) (round-half-toward-+∞) is the "
                     "METACYCLE winding — the whole 2π turns a bare float "
                     "`theta % (2*pi)` throws away (the grading-collapse the "
-                    "audit hunts, and a precision hazard vs the exact fold); "
+                    "audit hunts, and a precision hazard vs the divmod fold, "
+                    "which is lossless over the float64 image of theta); "
                     "theta_res is the EPICYCLE residue (|theta_res| ≤ π). The "
                     "op an external consumer folds an accumulated angle with "
                     "(a Kuramoto phase, an Im(z)·λ from its own solve) — the "
@@ -15303,7 +15304,11 @@ def _register_primitive_class_tools() -> None:
                     "fold); non-finite rejected (finite-angle domain).",
             parameters=(
                 P("theta", "float", True,
-                  "the accumulated angle in radians — any finite real"),
+                  "the accumulated angle in radians — any finite real, READ "
+                  "AT FLOAT64 RESOLUTION: float(theta) is the op's first "
+                  "arithmetic act, so an int wider than 53 significand bits "
+                  "is rounded before the fold (this said only 'any finite "
+                  "real' until rc472)"),
             ),
             returns=R("tuple", "(w, theta_res) — w the whole-ℤ metacycle "
                                "winding (int), theta_res the folded epicycle "
@@ -15561,8 +15566,11 @@ def _register_primitive_class_tools() -> None:
                           "and distinct; default ('sin','cos') → E=sin, B=cos")),
             returns=R("tuple",
                       "(E, B, handedness, klein4_quadrant) — the quadrature "
-                      "legs (float, C-dispatched), the STABLE chosen handedness, "
-                      "and (sign E, sign B) the Klein-4 sector"),
+                      "legs (each the Q61 dyadic rational Q that "
+                      "srmech.math.rational.sin / cos return, of theta read at "
+                      "float64 resolution — this said 'float' until rc472), "
+                      "the STABLE chosen handedness, and (sign E, sign B) the "
+                      "Klein-4 sector"),
         ),
         ToolEntry(
             name="srmech.cascade.coupled.multiplex_streams", owner="srmech",

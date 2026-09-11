@@ -59,7 +59,7 @@ def coupled_wave(
     *,
     handedness: int = 1,
     components: Sequence[str] = ("sin", "cos"),
-) -> Tuple[float, float, int, Tuple[int, int]]:
+) -> Tuple[_Q, _Q, int, Tuple[int, int]]:
     """The coupled EM quadrature drive at phase ``theta`` (radians).
 
     Returns ``(E, B, handedness, klein4_quadrant)`` — the full-chirality
@@ -84,15 +84,25 @@ def coupled_wave(
         flip with ``theta``), and ``klein4_quadrant = (sign E, sign B)`` is
         the Klein-4 sector (each sign via Class-K ``pin_slot_at_zero``).
 
-    **Accuracy (rc472, `#T1188`).** ``theta`` is read at float64 resolution:
-    after the Class-K sign branch (which is lossless on an ``int``) the phase
-    is handed to :func:`srmech.math.rational.sin` /
+    **Accuracy (rc472, `#T1188`).** ``theta`` is read at float64 resolution.
+    The op's door is ``assert isinstance(theta, (int, float))``, so a ``Q``
+    (or any other carrier) is REFUSED there and never reaches a cast —
+    measured, ``coupled_wave(Q(2**53 + 1, 1))`` raises ``AssertionError`` in
+    both cells; this paragraph admitted "or a ``Q``" to the next sentence
+    until the rc472 repair pass, a clause copied from ``winding_fold``'s
+    paragraph, where it IS true, without being re-checked against this
+    door. Past the door, after the Class-K sign branch (lossless on an
+    ``int``), the phase is handed to :func:`srmech.math.rational.sin` /
     :func:`srmech.math.rational.cos`, each of which does ``x = float(x)`` at
     its own door BEFORE its Q61 cascade runs. So an integer ``theta`` wider
-    than 53 significand bits, or a ``Q``, is rounded to the nearest float64
-    first — ``coupled_wave(2**53 + 1)`` == ``coupled_wave(2**53)`` — and the
-    returned legs are the Q61 rational sine and cosine of THAT float64: each a
-    ``Q`` with denominator ``2**61``, a rational that is an approximation of
+    than 53 significand bits is rounded to the nearest float64 first —
+    ``coupled_wave(2**53 + 1)`` == ``coupled_wave(2**53)`` — and the returned
+    legs are the Q61 rational sine and cosine of THAT float64: each a dyadic
+    ``Q`` whose denominator DIVIDES ``2**61`` (``Q`` reduces — measured ``1``
+    at ``theta = 0.0``, ``2**59`` / ``2**60`` at ``theta = 1.0``, ``2**61`` /
+    ``2**61`` at ``theta = 2.0``; over eleven angles the denominators seen are
+    ``1``, ``2**58``, ``2**59``, ``2**60``, ``2**61``; this said "denominator
+    ``2**61``" until the repair pass), a rational that is an approximation of
     the trig value of the rounded angle and says nothing about the angle the
     caller held. Measured: the rc472 census row ``coupled_wave::theta``,
     DEMOTED in both cells.

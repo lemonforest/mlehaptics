@@ -78,8 +78,9 @@ def op(signal, a, *, b=None, order: int = 1, D: int = 8192):
 
     Accuracy (rc472, `#T1188`)
     --------------------------
-    ``a`` (and ``b``) are carried in float64 from their first use: the
-    coefficient vectors ``[a, 1.0]`` / ``[1.0, a]`` are handed to the C
+    ``a`` (and, at ``order == 2``, ``b``) are carried in float64 from their
+    first use: the coefficient vectors ``[a, 1.0]`` / ``[1.0, a]`` (order 1)
+    or ``[a, b, 1.0]`` / ``[1.0, b, a]`` (order 2) are handed to the C
     ``srmech_iir_lfilter_f64`` as doubles (the shim's ``float(v)``), and the
     pure direct-form-I fallback multiplies them against a signal already
     coerced by ``float(x)``, so an ``int`` coefficient wider than 53

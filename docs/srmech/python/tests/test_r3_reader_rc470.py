@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -535,10 +536,23 @@ def test_group_d_the_case_policy_is_wired_not_declared() -> None:
 #: census because its required ``n_sources`` is ``int``-typed — outside the
 #: fill by the lane's own rule — and is declared on a direct probe-walk
 #: measurement so that closing that residue later adds no roster debt.
-#: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 232 is LEXICAL and
-#: regenerable by anyone with this tree; 191 is 232 minus a HAND-MAINTAINED
-#: ledger, so it is only as fresh as the last hand-read. Quoting 191 alone
-#: implies a measurement the instrument cannot make.
+#: MEASURED at 0.9.0rc472: 236 DECLARED, 41 pinned here, **195 substantive**
+#: — the live triple after C3, restated in the ONE-LINE form
+#: ``tools/rc470_figures.py``'s ``_the_gates_own_baseline_line`` parses (it
+#: takes the LAST such line in this file; the two rc472 steps above are its
+#: history, in prose that reader does not parse). Measured in the rc472
+#: repair pass: with only rc471's line in that form, the harness read
+#: (223, 41, 182) against a tree measuring (236, 41, 195) and printed RED for
+#: its own staleness, not the gate's.
+#: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 236 is LEXICAL and
+#: regenerable by anyone with this tree; 195 is 236 minus a HAND-MAINTAINED
+#: ledger, so it is only as fresh as the last hand-read. Quoting 195 alone
+#: implies a measurement the instrument cannot make. (This paragraph said
+#: 232 / 191 — the C2 pair — until the rc472 repair pass, four lines below
+#: the C3 paragraph that moved it: the same slip, in the same rc, as
+#: ``tools/demotion_probe.py``'s disclosure 10, which
+#: ``test_group_e_the_probes_own_disclosures_quote_the_live_figures`` below
+#: now reads back against the tree.)
 #: ⚠️ **THIS COMMENT SAID 219 / 39 / 180 UNTIL rc471, AND EVERY ONE OF THE
 #: THREE WAS FALSE.** The pair moved 219/180 -> 222/181 in rc470's last
 #: commit and the pinned ledger moved 39 -> 41 in an earlier one, but this
@@ -733,9 +747,9 @@ _MISREAD_CLASS_COUNTS = {
 #: ``symmetric_eigendecompose``). Their labels agree across interpreters TODAY
 #: only because the names that changed position happen to be non-hit-bearing
 #: and jumped AROUND the hit-bearing pair. That is an accident, not a
-#: guarantee — and a bare ``len(declared) == 223`` is blind to it, because
-#: DECLARED would stay 223 on every interpreter while the credited delegate
-#: silently differed.
+#: guarantee — and a bare ``len(declared) == 236`` (223 when this was written
+#: at rc471) is blind to it, because DECLARED would hold that count on every
+#: interpreter while the credited delegate silently differed.
 #:
 #: A single-interpreter test cannot assert a cross-version property on its own.
 #: THIS LITERAL IS HOW IT IS ASSERTED ANYWAY: the same digest is checked in
@@ -919,8 +933,9 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
     # list on 3.10 and 3.12); their labels agree today only because the names
     # that changed position are non-hit-bearing. The digest below is what lets
     # a matrix cell SEE a future divergence there — the COUNT alone could not,
-    # since DECLARED would stay 223 everywhere while the credited delegate
-    # silently differed.
+    # since DECLARED would hold its count (236 at rc472; 223 when this was
+    # written at rc471) everywhere while the credited delegate silently
+    # differed.
     assert len(declared) == 236, (
         f"lexical DECLARED is {len(declared)}, not 236. Every count in this "
         f"file, in tools/demotion_probe.py's disclosures and in the rc472 "
@@ -942,6 +957,78 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
     unknown = sorted(set(_RESIDUAL_TOPIC_MISREADS) - declared)
     assert not unknown, f"pinned but not DECLARED: {unknown}"
     assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 195
+
+
+#: rc472 repair pass (`#T1188`): the two sentences in ``tools/demotion_probe.py``
+#: that quote this file's figures, read back against the tree. Disclosure 10
+#: quotes the R3 pair ("moves the pair to **A / B / C**"); the
+#: ``declaration_hits`` docstring quotes the label-map row count and digest
+#: prefix ("moved the map to **N rows** at ``<16 hex>…``"). Both were left
+#: behind by rc472 C3 — 232 / 41 / 191 and "all 223 rows, b43563f9…" while this
+#: file asserted 236 / 41 / 195 and ee4922b5… — because nothing read them; the
+#: failure text at ``len(declared) == 236`` even named the probe's disclosures
+#: as agreeing. These regexes are what reads them now, pinned to the LIVE
+#: values computed in-process rather than to a literal that could itself age.
+_PROBE_PAIR_RX = re.compile(
+    r"moves the pair to \*\*(\d+) / (\d+) / (\d+)\*\*")
+_PROBE_MAP_RX = re.compile(
+    r"moved the map to\s+\*\*(\d+) rows\*\* at ``([0-9a-f]{16})…``")
+
+
+def test_group_e_the_probes_own_disclosures_quote_the_live_figures() -> None:
+    """The instrument's disclosure prose is diffed against the tree, not trusted.
+
+    Same class as ``_the_gates_own_baseline_line`` in ``tools/rc470_figures.py``
+    (rc471), one directory over: a comment naming the arc's baseline can drift
+    from the assertions that hold it, and only a reader that parses the prose
+    can see it. Two sentences, two regexes, both compared to values this
+    process measures.
+    """
+    text = Path(_dp.__file__).read_text(encoding="utf-8")
+    declared = {n for n, fn in _registry() if _dp.declaration_hits(fn)}
+    live = (len(declared), len(_RESIDUAL_TOPIC_MISREADS),
+            len(declared) - len(_RESIDUAL_TOPIC_MISREADS))
+
+    m = _PROBE_PAIR_RX.search(text)
+    assert m is not None, (
+        "tools/demotion_probe.py disclosure 10 no longer spells "
+        "'moves the pair to **A / B / C**'; re-pin this regex WITH the prose, "
+        "never by deleting the check.")
+    quoted = tuple(int(g) for g in m.groups())
+    assert quoted == live, (
+        f"tools/demotion_probe.py disclosure 10 quotes the R3 pair as "
+        f"{quoted}; this tree measures {live}. A count moved and the probe's "
+        f"own prose was left behind — the rc472 C3 slip, again. Move the "
+        f"prose, not this assertion. {_reader_identity()}")
+
+    m2 = _PROBE_MAP_RX.search(text)
+    assert m2 is not None, (
+        "tools/demotion_probe.py's declaration_hits docstring no longer "
+        "spells 'moved the map to **N rows** at ``<16 hex>…``'; re-pin this "
+        "regex WITH the prose, never by deleting the check.")
+    assert int(m2.group(1)) == len(declared), (
+        f"the declaration_hits docstring quotes a {m2.group(1)}-row label "
+        f"map; this tree has {len(declared)} DECLARED rows. "
+        f"{_reader_identity()}")
+    assert _DECLARED_LABEL_MAP_DIGEST.startswith(m2.group(2)), (
+        f"the declaration_hits docstring quotes label-map digest "
+        f"{m2.group(2)}…; the pinned digest is "
+        f"{_DECLARED_LABEL_MAP_DIGEST[:16]}…. {_reader_identity()}")
+
+
+def test_group_e_the_probe_disclosure_reader_can_return_otherwise() -> None:
+    """THE CAN-FAIL: the figures rc472 C3 left behind, in the sentences' current
+    form, parse to the stale values — so the test above reddens on them rather
+    than on nothing (`#T1188`)."""
+    stale = "rc472 (`#T1188`) moves the pair to **232 / 41 / 191**: the +9 is"
+    assert tuple(int(g) for g in _PROBE_PAIR_RX.search(stale).groups()) == (
+        232, 41, 191)
+    stale2 = ("rc472 (`#T1188`) moved the map to\n    **223 rows** at "
+              "``b43563f9e417da49…`` (222 rows / ``06f93439fe15b27f…`` at")
+    m = _PROBE_MAP_RX.search(stale2)
+    assert m is not None
+    assert (int(m.group(1)), m.group(2)) == (223, "b43563f9e417da49")
+    assert not _DECLARED_LABEL_MAP_DIGEST.startswith(m.group(2))
 
 
 def test_group_e_the_folded_label_map_is_version_independent() -> None:

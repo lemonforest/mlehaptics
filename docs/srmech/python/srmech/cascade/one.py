@@ -512,8 +512,10 @@ def winding_fold(theta: float) -> Tuple[int, float]:
 
     Args:
         theta: the accumulated angle in radians — any FINITE real, READ AT
-            FLOAT64 RESOLUTION (``float(theta)`` is the op's first act; see
-            Accuracy — this line said only "any FINITE real" until rc472).
+            FLOAT64 RESOLUTION (``float(theta)`` is the op's first ARITHMETIC
+            act — the complex-rejection branch under Raises runs before it;
+            see Accuracy — this line said only "any FINITE real" until rc472
+            and "the op's first act" until the rc472 repair pass).
             Complex is rejected: the fold is a real-axis operation;
             non-finite is rejected: the fold's domain is finite angles.
 
@@ -530,7 +532,9 @@ def winding_fold(theta: float) -> Tuple[int, float]:
 
     **Accuracy (rc472, `#T1188`) — which side the exactness is on.** The
     exactness claimed above is the FOLD's, over the float64 image of
-    ``theta``: the op begins with ``f = float(theta)``, so an ``int`` wider
+    ``theta``: the op's first arithmetic act — after the complex-rejection
+    branch the Raises clause names, which is its fourth statement — is
+    ``f = float(theta)``, so an ``int`` wider
     than 53 significand bits, or a ``Q``, is rounded to the nearest float64
     BEFORE the divmod — ``winding_fold(2**53 + 1)`` == ``winding_fold(2**53)``
     — and the fold is then lossless OF ``f`` (the pure path is an

@@ -330,16 +330,27 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     hand-reading all **223** DECLARED ops against the honesty-ladder criterion
     (``tests/test_silent_carrier_demotion_rc463.py``: *given ONLY the signature
     and the docstring, can the caller predict the returned value is not the
-    exact one?*): **41 are TOPICAL MISREADS**, leaving **182 substantive**.
-    rc472 (`#T1188`) moves the pair to **232 / 41 / 191**: the +9 is exactly
-    the nine ops that received the scalar lane's ten ACCURACY paragraphs,
-    each hand-read against the eight classes and each reading on its OWN
-    docstring; no other op's reading moved (measured: zero DECLARED ops
-    credited through one of the nine by the delegate arm).
-    ⚠️ **QUOTE THE PAIR, NEVER THE 191 ALONE.** 232 is LEXICAL and
-    regenerable from this tree by anyone; 191 is 232 minus a HAND-MAINTAINED
+    exact one?*): **41 are TOPICAL MISREADS**, leaving **182 substantive**
+    (rc471's pair).
+    rc472 (`#T1188`) moves the pair to **236 / 41 / 195**, in two dated steps
+    that ``tests/test_r3_reader_rc470.py`` records one by one: C2 to 232 / 41
+    / 191 — the +9 is exactly the nine ops that received the scalar lane's
+    ten ACCURACY paragraphs — and C3 to 236 / 41 / 195 — the +4 is exactly
+    the four ops that received the required-scalar-fill paragraphs
+    (``propagate_wound``, ``dirac_operator_momentum_space``,
+    ``feynman_scalar_propagator``, ``music_doa``). Every one of the thirteen
+    was hand-read against the eight classes and reads on its OWN docstring;
+    no other op's reading moved (measured: zero DECLARED ops credited through
+    one of the thirteen by the delegate arm). This paragraph quoted the C2
+    pair, 232 / 41 / 191, until the rc472 repair pass: C3 moved the pair and
+    left this line behind — the carried-figure shape the warning below
+    exists for, inside the file that carries the warning — and
+    ``test_r3_reader_rc470.py`` now reads THIS paragraph's pair back against
+    the live count, so the next move cannot leave it behind again.
+    ⚠️ **QUOTE THE PAIR, NEVER THE 195 ALONE.** 236 is LEXICAL and
+    regenerable from this tree by anyone; 195 is 236 minus a HAND-MAINTAINED
     by-name ledger, so it is exactly as fresh as the last hand-read and no
-    fresher. A single "191 substantive declarations" implies a measurement
+    fresher. A single "195 substantive declarations" implies a measurement
     this instrument cannot make.
     They are pinned BY NAME with a reason and a class in
     ``tests/test_r3_reader_rc470.py``'s ``_RESIDUAL_TOPIC_MISREADS``, and the
@@ -1417,10 +1428,19 @@ def declaration_hits(fn) -> List[str]:
     the two answers differ: DECLARED read **219** on CPython <= 3.11 and
     **222** on >= 3.12, from one unchanged tree. The fold is unconditional and
     the convergence is MEASURED over the WHOLE population, not inferred from
-    three counts — on 3.10.21 / 3.11.16 / 3.12.3 / 3.13.15 / 3.14.7 the folded
-    label MAP is byte-identical, all 223 rows, sha256
-    ``b43563f9e417da49…`` (222 rows / ``06f93439fe15b27f…`` at rc470; rc471's
-    W6 prose added one, hand-read at ``_DECLARED_LABEL_MAP_DIGEST``). That is the LABEL map and not merely the count,
+    three counts — MEASURED AT rc471 on 3.10.21 / 3.11.16 / 3.12.3 / 3.13.15
+    / 3.14.7: the folded label MAP was byte-identical on all five, all 223
+    rows, sha256 ``b43563f9e417da49…`` (222 rows / ``06f93439fe15b27f…`` at
+    rc470; rc471's W6 prose added one, hand-read at
+    ``_DECLARED_LABEL_MAP_DIGEST``). rc472 (`#T1188`) moved the map to
+    **236 rows** at ``ee4922b5817ead0c…`` (232 rows / ``1be7956c86ddd197…``
+    after C2, 236 after C3), on CPython 3.12.3 ALONE: thirteen own-docstring
+    ACCURACY paragraphs, none touching the delegate walk, so the
+    five-interpreter re-measure is OWED by the next rc that touches that
+    walk — the ⚠️ chain at ``_DECLARED_LABEL_MAP_DIGEST`` says the same.
+    (This paragraph carried the rc471 pair as if live until the rc472 repair
+    pass; ``tests/test_r3_reader_rc470.py`` now reads the count and digest
+    prefix back from it.) That is the LABEL map and not merely the count,
     which matters because of the residue in the next paragraph.
 
     ⚠️ **WHAT THE FOLD DOES NOT FIX, named so it is not rediscovered as a
@@ -1432,7 +1452,8 @@ def declaration_hits(fn) -> List[str]:
     position are non-hit-bearing and jumped AROUND the hit-bearing pair. The
     label-map digest pinned in ``tests/test_r3_reader_rc470.py`` is what turns
     that accident into something a matrix cell can SEE: without it DECLARED
-    would stay 222 everywhere while the credited delegate silently differed.
+    would hold its count on every interpreter (222 when this was written at
+    rc470; 236 at rc472) while the credited delegate silently differed.
     The principled repair — making label selection a function of the SET,
     which IS convergent, by iterating sorted names or collecting all hits
     instead of breaking at the first — moves labels on those 13 ops on EVERY
