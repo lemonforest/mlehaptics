@@ -1,0 +1,20 @@
+{"kind": "meta_old", "meta": {"by_status": {"needs_subprocess": 4, "no_jsonable_arg": 105, "no_returning_call": 83, "no_worked_snippet": 83, "ok": 456, "timeout": 1}, "n": 732, "n_with_args": 456, "python": "3.10", "record": "meta", "srmech_version": "0.9.0rc472"}, "path": "/tmp/args_head.ndjson"}
+{"kind": "meta_new", "meta": {"by_status": {"needs_subprocess": 4, "no_jsonable_arg": 105, "no_returning_call": 83, "no_worked_snippet": 83, "ok": 456, "timeout": 1}, "n": 732, "n_with_args": 456, "python": "3.10", "record": "meta", "srmech_version": "0.9.0rc473"}, "path": "/tmp/args_native_run.ndjson"}
+{"kind": "counts", "new_rows": 732, "old_rows": 732}
+{"fields": ["error"], "kind": "row_moved", "new": {"error": "OSError: srmech_ndjson_iter('srmech/amsc/attested/cosmos_validation/row.ndjson') failed: IO (fopen / fread failed)"}, "old": {"error": "FileNotFoundError: [Errno 2] No such file or directory: 'srmech/amsc/attested/cosmos_validation/row.ndjson'"}, "op": "srmech.amsc.format.read_ndjson"}
+{"fields": ["n_calls"], "kind": "row_moved", "new": {"n_calls": 5}, "old": {"n_calls": 7}, "op": "srmech.biology.genome.genome_groups"}
+{"fields": ["n_calls"], "kind": "row_moved", "new": {"n_calls": 2}, "old": {"n_calls": 8}, "op": "srmech.biology.genome.quad_turn"}
+{"fields": ["args"], "kind": "row_moved", "new": {"args": {"time_ns": 1789164001210298496, "window_ns": null}}, "old": {"args": {"time_ns": 1789089134473850370, "window_ns": null}}, "op": "srmech.bus.decode_splice"}
+{"fields": ["args"], "kind": "row_moved", "new": {"args": {"x": -0.07189024134555966}}, "old": {"args": {"x": -0.07189024134555967}}, "op": "srmech.cascade.magnitude"}
+{"fields": ["n_calls"], "kind": "row_moved", "new": {"n_calls": 1}, "old": {"n_calls": 2}, "op": "srmech.cascade.pair"}
+{"fields": ["args", "n_calls"], "kind": "row_moved", "new": {"args": {"orientation": -1, "value": 0.07189024134555966}, "n_calls": 3}, "old": {"args": {"orientation": -1, "value": 0.07189024134555967}, "n_calls": 4}, "op": "srmech.cascade.reorient"}
+{"fields": ["n_calls"], "kind": "row_moved", "new": {"n_calls": 2}, "old": {"n_calls": 3}, "op": "srmech.introspect.op_provenance.op_provenance_hash"}
+{"fields": ["n_calls"], "kind": "row_moved", "new": {"n_calls": 16}, "old": {"n_calls": 22}, "op": "srmech.math.hdc.klein4_bind"}
+{"fields": ["def_blob", "n_calls"], "kind": "row_moved", "new": {"def_blob": "b28976bce7635e50d4c2a5b6a2178a43b8fc6b78", "n_calls": 4}, "old": {"def_blob": "455b9ae7d737415d9dcfd2fb255f968bddcd32ad", "n_calls": 5}, "op": "srmech.math.rational.cos"}
+{"fields": ["def_blob", "n_calls"], "kind": "row_moved", "new": {"def_blob": "b28976bce7635e50d4c2a5b6a2178a43b8fc6b78", "n_calls": 4}, "old": {"def_blob": "455b9ae7d737415d9dcfd2fb255f968bddcd32ad", "n_calls": 6}, "op": "srmech.math.rational.sqrt"}
+{"fields": "args", "kind": "tally", "n": 2, "ops": ["srmech.bus.decode_splice", "srmech.cascade.magnitude"]}
+{"fields": "args,n_calls", "kind": "tally", "n": 1, "ops": ["srmech.cascade.reorient"]}
+{"fields": "def_blob", "kind": "tally", "n": 89, "ops": ["srmech.math.kepler.equation_of_centre", "srmech.math.kepler.kepler_solve", "srmech.math.kepler.pin_slot", "srmech.math.laplacian.cotangent_weights", "srmech.math.laplacian.cycle_holonomy", "srmech.math.laplacian.cyclic_laplacian_spectrum", "srmech.math.laplacian.dense_adjacency", "srmech.math.laplacian.dense_laplacian", "srmech.math.laplacian.dense_solve", "srmech.math.laplacian.dirichlet_to_neumann", "srmech.math.laplacian.elementwise_hypot", "srmech.math.laplacian.elementwise_multiply_complex", "..."]}
+{"fields": "def_blob,n_calls", "kind": "tally", "n": 2, "ops": ["srmech.math.rational.cos", "srmech.math.rational.sqrt"]}
+{"fields": "error", "kind": "tally", "n": 1, "ops": ["srmech.amsc.format.read_ndjson"]}
+{"fields": "n_calls", "kind": "tally", "n": 5, "ops": ["srmech.biology.genome.genome_groups", "srmech.biology.genome.quad_turn", "srmech.cascade.pair", "srmech.introspect.op_provenance.op_provenance_hash", "srmech.math.hdc.klein4_bind"]}
