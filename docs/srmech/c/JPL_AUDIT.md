@@ -603,12 +603,25 @@ pass.
 each of `srmech_plat__ensure_dir`, `srmech_plat_sleep_ms`,
 `srmech_plat_stream_server_close`, `srmech_cascade_chiral_flip_f64`,
 `srmech_cascade_reorient_f64`, `srmech_class_descriptor_lookup`,
-`srmech_genome_centromere_of`. **41 of the 51 are `srmech_plat_*` teardown or
-clock reads** on paths where there is no action to take on failure — the class
-Holzmann's own commentary blesses. That is a **statement of shape, not an
-audit**: they are enumerated here so that the next person to measure this rule
-starts from a list rather than from a sentence, and the last three in
-particular are ordinary library calls that have not been walked.
+`srmech_genome_centromere_of`. **44 of the 51, over 12 of the 17 symbols, are
+`srmech_plat_*`** — the platform layer: mutex unlock and destroy, thread join,
+socket and stream close, clock reads, sleep, and four writes — mostly on
+teardown paths where there is no action to take on failure, the class
+Holzmann's own commentary blesses. The remaining **7**, over 5 symbols, are
+not: `srmech_bus_client_close` (3) and one each of
+`srmech_cascade_chiral_flip_f64`, `srmech_cascade_reorient_f64`,
+`srmech_class_descriptor_lookup`, `srmech_genome_centromere_of`. That is a
+**statement of shape, not an audit**: they are enumerated here so that the next
+person to measure this rule starts from a list rather than from a sentence, and
+the last four in particular are ordinary library calls that have not been
+walked.
+
+⚠️ **This paragraph read "41 of the 51" when it was first written at rc473, in
+the same session that produced the census.** The enumeration above it was
+right; the cardinal summarising it was arithmetic done in prose rather than
+read off the measurement — 1+6+11+4+1+2+5+1+2+2+2+7 is 44. Corrected within the
+rc, and recorded rather than silently replaced, because a wrong summary sitting
+over a correct list is exactly how the "Violations: 0" line above survived.
 
 ### ⚠️ THERE IS NO RULE-7 DETECTOR
 
