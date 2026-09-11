@@ -88,12 +88,50 @@
 
 /* Class-N rational sqrt (srmech_rational_sqrt) — the native Jacobi eigensolver
  * computes its rotation-angle roots via the cascade, not libm (rc45,
- * C-transpile triality). All call sites pass provably non-negative args. */
+ * C-transpile triality).
+ *
+ * 0.9.0rc473 (`#T1188`): the status is CAPTURED, asserted and consumed rather
+ * than cast away. This is the srmech_modular_linalg.c:70-71 idiom (gf_add /
+ * gf_mul / gf_inv, plus srmech_octonion_carrier.c:88-90), not a new pattern:
+ * the call is OUTSIDE the assert so it survives -DNDEBUG, and (void)st keeps
+ * st "used" when the assert strips.
+ *
+ * WHY THIS HELPER KEEPS ITS `double` RETURN instead of growing a status
+ * channel like the Kuramoto and JADE helpers did in the same rc.
+ * srmech_rational_sqrt refuses exactly two argument classes — x < 0 and NaN —
+ * and every one of this helper's call sites was walked at rc473 and passes
+ * neither. Measured, 15 call sites across 9 enclosing functions:
+ *   :240 `d > 0.0 ? … : 0.0` · :304 inside `if (m_i > 0.0)` · :344 after an
+ *   early `return SRMECH_ERR_BAD_INPUT` on a degenerate triangle · :1308,
+ *   :1310, :1312, :1477, :1479, :1481 `1 + tau*tau` / `1 + t*t`, sums of
+ *   squares · :1457 after `if (g_mag_sq < 1e-300) return;` · :1852 inside
+ *   `if (deg[i] > 0.0)` · :1864 after `if (pn2 <= 0.0) return 0.0;` · :1943
+ *   after `if (max_sq <= 0.0) return 0;` · :2311 after
+ *   `if (n2 <= 0.0) return 0;` · :2507 `(double)n`.
+ * SIX of those nine enclosers have no status channel at all —
+ * srmech_laplacian_jacobi_rotate and srmech_hermitian_jacobi_rotate are
+ * `static void`, fiedler_build_sp is `static double`, fiedler_rescale and
+ * kext_normalize are `static int`, kext_inject_trivial is `static uint32_t` —
+ * so a refusal branch here would have to grow a status channel through all of
+ * them and every one of their callers, for a branch unreachable by
+ * construction. The assert IS live in CI's asserts-live-smoke job, which
+ * builds Debug and refuses to run if __assert_fail is absent from the
+ * library.
+ *
+ * ⚠️ And the honest limit of that: the shipped wheel builds Release
+ * (python/pyproject.toml cmake.build-type), Release implies -DNDEBUG, so in
+ * everything srmech ships this site carries NO runtime refusal. It is one of
+ * six such sites in the rc — 18 of the 24 propagate a status to a bare-C
+ * host; these six are asserted-unreachable and are byte-identical to rc472 in
+ * the Release artifact. */
 static double lap_sqrt(double x)
 {
-    assert(x >= 0.0);
     double out = 0.0;
-    (void)srmech_rational_sqrt(x, &out);
+    srmech_status_t st;
+    assert(x >= 0.0);
+    st = srmech_rational_sqrt(x, &out);
+    assert(st == SRMECH_OK);
+    (void)st;
     assert(out >= 0.0);
     return out;
 }
@@ -1715,6 +1753,18 @@ srmech_status_t srmech_elementwise_multiply_complex(
     return SRMECH_OK;
 }
 
+/* PARTIAL-OUTPUT CONTRACT (rc473, `#T1188`). Each element's Class-N status is
+ * captured and checked, and the first refusal returns it immediately:
+ * out[0..i) hold the elements already computed and out[i..n) are unspecified.
+ * That is the tree's existing early-return shape. The alternative — a
+ * pre-scan for the callee's domain — was rejected because it copies the
+ * callee's 2^55 bound into this caller, a second copy of a bound the callee
+ * owns.
+ *
+ * The LOG pre-scan below is `arr[i] <= 0.0`, which is FALSE for NaN, so a NaN
+ * reaches the callee in EVERY op including LOG. Measured at rc472 with the
+ * statuses discarded: COS / SIN / EXP / LOG of NaN all returned SRMECH_OK,
+ * and so did COS of 2^55 (with 0.0 written) and SIN of +Inf (with NaN). */
 srmech_status_t srmech_elementwise_transcendental(
     uint32_t       n,
     const double  *arr,
@@ -1739,17 +1789,21 @@ srmech_status_t srmech_elementwise_transcendental(
             }
         }
     }
+    /* Per-element status captured and checked; see the note above the
+     * function for the partial-output contract. */
     for (uint32_t i = 0; i < n; i++) {
         double x = arr[i];
+        srmech_status_t st;
         if (op_id == SRMECH_TRANS_EXP) {
-            (void)srmech_exp(x, &out[i]);          /* Class-N exp cascade, not libm */
+            st = srmech_exp(x, &out[i]);           /* Class-N exp cascade, not libm */
         } else if (op_id == SRMECH_TRANS_COS) {
-            (void)srmech_cos(x, &out[i]);
+            st = srmech_cos(x, &out[i]);
         } else if (op_id == SRMECH_TRANS_SIN) {
-            (void)srmech_sin(x, &out[i]);
+            st = srmech_sin(x, &out[i]);
         } else {
-            (void)srmech_log(x, &out[i]);          /* Class-N log cascade, not libm */
+            st = srmech_log(x, &out[i]);           /* Class-N log cascade, not libm */
         }
+        if (st != SRMECH_OK) { return st; }
     }
     return SRMECH_OK;
 }

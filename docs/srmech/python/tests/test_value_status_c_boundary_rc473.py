@@ -593,11 +593,22 @@ _HEADER = (Path(__file__).resolve().parent.parent.parent
            / "c" / "include" / "srmech.h")
 
 #: A declaration of the form ``srmech_status_t srmech_NAME(double a, double
-#: *out);`` or the two-argument ``atan2`` shape. This is the family whose
-#: members take a real and write a real through a status channel — the ops this
-#: file is responsible for.
+#: *out);`` or the two-argument ``atan2`` shape, with or without the
+#: ``SRMECH_NODISCARD`` attribute macro in front of it. This is the family
+#: whose members take a real and write a real through a status channel — the
+#: ops this file is responsible for.
+#:
+#: ⚠️ The optional prefix is load-bearing and was added at rc473 with the
+#: attribute itself. Without it the anchor ``^srmech_status_t`` stopped
+#: matching every tagged declaration the moment ``SRMECH_NODISCARD`` landed,
+#: and the scan fell from eight symbols to one. It did NOT fall silently —
+#: ``test_the_roster_covers_every_class_n_scalar_export_two_way`` failed on its
+#: own emptiness assertion, whose message is "Re-point the regex; do not delete
+#: the assertion" — which is what this is. Both the emptiness control and the
+#: two-way equality below are what prove the widened pattern still finds the
+#: same family rather than a smaller one.
 _SCALAR_DECL = re.compile(
-    r"^srmech_status_t\s+(srmech_[A-Za-z0-9_]+)\("
+    r"^(?:SRMECH_NODISCARD\s+)?srmech_status_t\s+(srmech_[A-Za-z0-9_]+)\("
     r"\s*double\s+[A-Za-z_][A-Za-z0-9_]*\s*,"
     r"(?:\s*double\s+[A-Za-z_][A-Za-z0-9_]*\s*,)?"
     r"\s*double\s*\*\s*out\s*\)\s*;",

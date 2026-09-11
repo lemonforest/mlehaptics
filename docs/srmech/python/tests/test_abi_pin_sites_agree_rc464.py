@@ -4,7 +4,7 @@ spellings: the comment a sweep can grep for, and the local it cannot.
 THE DEFECT CLASS, MEASURED THREE TIMES IN THIRTEEN RCS. ``test_bus.py`` holds
 its ABI pin as a local, then interpolates it into the failure message::
 
-    # ABI-PIN: EXPECTED_ABI_VERSION == 25      <- a sweep CAN see this
+    # ABI-PIN: EXPECTED_ABI_VERSION == 26      <- a sweep CAN see this
     want_abi = 24                              <- a sweep CANNOT, and this is
     assert _native.EXPECTED_ABI_VERSION == want_abi, (      the asserted one
         f"EXPECTED_ABI_VERSION should be {want_abi}; got ..."
@@ -65,7 +65,7 @@ from srmech import _native
 
 _TESTS = os.path.dirname(os.path.abspath(__file__))
 
-#: ``ABI-PIN: EXPECTED_ABI_VERSION == 25  (any trailing prose)``, as it appears
+#: ``ABI-PIN: EXPECTED_ABI_VERSION == 26  (any trailing prose)``, as it appears
 #: inside a comment token. Two of the three live sites carry a ``⚠️`` before the
 #: keyword, which sits outside the match rather than needing to be spelled.
 _PIN_COMMENT = re.compile(r"ABI-PIN:\s*(\w*ABI\w*)\s*==\s*(\d+)")

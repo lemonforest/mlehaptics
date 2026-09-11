@@ -81,13 +81,30 @@
 #define SVD_MAX_SWEEPS 60u
 
 /* libm-free double square root via the Class-N rational cascade (the same
- * lap_sqrt route the native Jacobi eigensolver uses). All call sites pass a
- * provably non-negative argument. */
+ * lap_sqrt route the native Jacobi eigensolver uses).
+ *
+ * 0.9.0rc473 (`#T1188`): the status is CAPTURED, asserted and consumed — the
+ * srmech_modular_linalg.c:70-71 idiom (call outside the assert so it survives
+ * -DNDEBUG; (void)st keeps st used when the assert strips). The `double`
+ * return is kept for the same measured reason lap_sqrt keeps its own: 6 call
+ * sites across 4 enclosing functions, and ALL FOUR — qr_step, svd_finalize,
+ * svd_jacobi_rotation (`static void`) and svd_one_sweep (`static int`) — have
+ * no status channel. Each argument passes neither refusal class of
+ * srmech_rational_sqrt (x < 0, NaN): :153 and :328 are `nrm2`, running sums
+ * of squares; :250, :252, :254 are `1 + zeta*zeta` and `1 + t*t`; :297 is
+ * `aa * bb` with both factors above a positive zero-floor on the lines above.
+ *
+ * ⚠️ The wheel builds Release (-DNDEBUG), so this site carries NO runtime
+ * refusal in the shipped artifact — one of the rc's six asserted-unreachable
+ * sites. The assert is live only in CI's asserts-live-smoke Debug lane. */
 static double sq_sqrt(double x)
 {
     double out = 0.0;
+    srmech_status_t st;
     assert(x >= 0.0);
-    (void)srmech_rational_sqrt(x, &out);
+    st = srmech_rational_sqrt(x, &out);
+    assert(st == SRMECH_OK);
+    (void)st;
     assert(out >= 0.0);
     return out;
 }

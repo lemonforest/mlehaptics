@@ -267,7 +267,7 @@ from typing import Optional
 #        figure into a v24 library: over-provisioned, correct. New (smaller)
 #        figure into a v23 library: the old tail-slice guard answers a correct
 #        SRMECH_ERR_OVERFLOW. Neither computes and lies.
-EXPECTED_ABI_VERSION: int = 25
+EXPECTED_ABI_VERSION: int = 26
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-

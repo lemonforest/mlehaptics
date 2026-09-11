@@ -50,6 +50,28 @@ static void check_close(double got, double want, double tol, const char *desc)
     }
 }
 
+/* 0.9.0rc473 (`#T1188`): the exact-identity block below used to call the Q61
+ * peers as bare statements and read only the int64 they wrote. That discarded
+ * eight srmech_status_t values inside a file whose whole subject is "a C-only
+ * host gets the right answer" — if a peer had refused, the block would have
+ * checked the initialiser instead of the answer and reported PASS for
+ * sin(0) == 0 without srmech_sin_q61 having written anything. Three of the
+ * eight became -Werror=unused-result the moment SRMECH_NODISCARD landed on
+ * the roster, which is the attribute doing exactly its job; the other five
+ * are checked here for the same reason rather than left as the difference
+ * between "tagged" and "true". */
+static void check_ok(srmech_status_t st, const char *desc)
+{
+    if (st == SRMECH_OK) {
+        g_passed++;
+        printf("  PASS  %s -> SRMECH_OK\n", desc);
+    } else {
+        g_failed++;
+        printf("  FAIL  %s\n    expected SRMECH_OK, got status=%d\n",
+               desc, (int)st);
+    }
+}
+
 static void check_eq_i64(int64_t got, int64_t want, const char *desc)
 {
     if (got == want) {
@@ -141,18 +163,21 @@ int main(void)
     /* (1) EXACT int64 identities — the rational reassembles bit-exactly */
     {
         int64_t c = 0, core = 0, n = 0, logm = 0, e = 0, root = 0, p = 0;
-        srmech_sin_q61(0.0, &c);    check_eq_i64(c, 0, "sin(0) core == 0");
-        srmech_cos_q61(0.0, &c);    check_eq_i64(c, SRMECH_Q61_ONE, "cos(0) core == 2^61 (=1)");
-        srmech_atan_q61(0.0, &c);   check_eq_i64(c, 0, "atan(0) core == 0");
-        srmech_exp_q61(0.0, &core, &n);
+        check_ok(srmech_sin_q61(0.0, &c), "sin_q61(0) status");
+        check_eq_i64(c, 0, "sin(0) core == 0");
+        check_ok(srmech_cos_q61(0.0, &c), "cos_q61(0) status");
+        check_eq_i64(c, SRMECH_Q61_ONE, "cos(0) core == 2^61 (=1)");
+        check_ok(srmech_atan_q61(0.0, &c), "atan_q61(0) status");
+        check_eq_i64(c, 0, "atan(0) core == 0");
+        check_ok(srmech_exp_q61(0.0, &core, &n), "exp_q61(0) status");
         check_eq_i64(core, SRMECH_Q61_ONE, "exp(0) core == 2^61");
         check_eq_i64(n, 0, "exp(0) n == 0");
-        srmech_log_q61(1.0, &logm, &e);
+        check_ok(srmech_log_q61(1.0, &logm, &e), "log_q61(1) status");
         check_eq_i64(logm, 0, "log(1) logm == 0");
         check_eq_i64(e, 0, "log(1) e == 0");
-        srmech_sqrt_q61(4.0, &root, &p);
+        check_ok(srmech_sqrt_q61(4.0, &root, &p), "sqrt_q61(4) status");
         check_close(ldexp((double)root, (int)p), 2.0, 0.0, "sqrt(4) == 2 exactly");
-        srmech_sqrt_q61(0.25, &root, &p);
+        check_ok(srmech_sqrt_q61(0.25, &root, &p), "sqrt_q61(1/4) status");
         check_close(ldexp((double)root, (int)p), 0.5, 0.0, "sqrt(1/4) == 1/2 exactly");
     }
 

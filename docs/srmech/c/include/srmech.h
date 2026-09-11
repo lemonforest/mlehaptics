@@ -621,8 +621,56 @@ extern "C" {
  *      guard and DEFERS, which is what the old library did anyway.
  *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
+ *
+ * v26 — v0.9.0rc473 (`#T1188`): THE CLASS-N REFUSAL CONTRACT. A status
+ *      reinterpretation across the scalar Class-N surface and every exported
+ *      composite that calls it, in the direction v21 named: the SECOND bump on
+ *      this library driven by a SILENT WRONG VALUE rather than by a raise.
+ *      Nothing is added and nothing is removed; what changes is which inputs
+ *      the C projection SERVES, which is the same class v21's second move
+ *      bumped for — "co-equal projections must agree on what they refuse."
+ *
+ *      WHAT MOVED, in two independent halves.
+ *
+ *      (1) THE DISCARDED STATUSES. 24 call sites across 7 translation units
+ *      spelled `(void)srmech_sin(...)` and friends, so a callee that had
+ *      ALREADY refused its argument was overruled by its own caller. Measured
+ *      at rc472 through the exported symbols, with no Python in the path:
+ *        srmech_equation_of_centre(2^53+1, 0.0549, 4)
+ *            -> (SRMECH_OK, -0.08984990210223018)   [Python raised ValueError]
+ *        srmech_pin_slot(2^55, 0.5, 1.0)          -> (SRMECH_OK, 0.0)
+ *        srmech_kepler_solve(2^55, 0.3, 1e-12, 20)
+ *            -> (SRMECH_OK, 3.602879701896397e+16) [E == M; Newton never moved]
+ *        srmech_cascade_kuramoto_step_f64([0, 2^55], ...)
+ *            -> (SRMECH_OK, [0.0, 3.602879701896397e+16]) [oscillator frozen]
+ *      Each now returns its callee's status. At rc473 the same calls return
+ *      SRMECH_ERR_BAD_INPUT.
+ *
+ *      (2) THE CALLEE CONTRACTS, where the header's own promise was being
+ *      violated. srmech_sin / srmech_cos returned SRMECH_OK for NaN against a
+ *      published "returns SRMECH_ERR_BAD_INPUT for non-finite x"; srmech_atan
+ *      and srmech_atan2 returned SRMECH_OK with -3.2146018366025517, a finite
+ *      value BELOW -pi and outside their own range, for NaN and (via Inf/Inf)
+ *      for both-infinite arguments; srmech_exp / srmech_log carried an
+ *      explicit `if (x != x) return SRMECH_OK;`; srmech_rational_sqrt served
+ *      NaN and wrote 0.0 — not the promised NaN — for every finite negative
+ *      argument. srmech_winding_fold carried both halves. All refuse now, and
+ *      all write NaN. srmech_atan2 also gains the quadrant diagonal, so
+ *      atan2(±Inf, ±Inf) answers ±pi/4 / ±3pi/4 as the pure projection does.
+ *
+ *      THE PAIRING THIS REJECTS. rc473 Python removes nothing yet, but an
+ *      rc473 library against an older Python reader and — the direction that
+ *      matters — an rc472 library against rc473 Python both restore the silent
+ *      value with no other symptom: the older .so computes a wrong number and
+ *      reports SRMECH_OK, and there is no second channel to notice it by.
+ *      NATIVE_ABI_VERSION != EXPECTED_ABI_VERSION is the only thing that
+ *      refuses that pairing. The attribute added in the same rc
+ *      (SRMECH_NODISCARD) is a DIAGNOSTIC, not a wire change, and contributes
+ *      nothing to this bump.
+ *
+ *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  */
-#define SRMECH_ABI_VERSION 25
+#define SRMECH_ABI_VERSION 26
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -647,6 +695,68 @@ extern "C" {
 #define SRMECH_THREAD_LOCAL __thread
 #else
 #define SRMECH_THREAD_LOCAL
+#endif
+
+/* ------------------------------------------------------------------ *
+ * SRMECH_NODISCARD — discarding a returned srmech_status_t is a COMPILE
+ * ERROR on the pedantic gcc / clang legs (0.9.0rc473, `#T1188`).
+ *
+ * WHY. srmech claims Python and C are co-equal projections: a bare-C host,
+ * with no Python present, runs every op (ADR-0009 §2.1, §2.4). Measured at
+ * rc472, twenty-four call sites across seven translation units spelled
+ * `(void)srmech_sin(...)` and friends, so a callee that had already refused
+ * its argument was overruled by its own caller and the host was handed a
+ * wrong number with SRMECH_OK. That is a silent wrong answer, and nothing
+ * in the package could see it: Rule 7 of the JPL Power-of-Ten set has no
+ * detector in tests/test_jpl_audit.py, which ratchets Rules 1, 3, 4, 5, 8
+ * and 9 only.
+ *
+ * The 24 are repaired at rc473. This macro is what stops a 25th: the
+ * attribute makes the idiom that produced them unwritable. MEASURED on gcc
+ * 13.3.0 with -Wall -Wextra -Wpedantic -O2 -DNDEBUG: a bare call warns AND
+ * an explicit `(void)f(x, &o)` cast warns too — gcc deliberately does not
+ * let the cast silence this attribute — so re-casting a site is a loud build
+ * failure rather than a quiet re-introduction. Capturing the status and
+ * either checking it or consuming it (`assert(st == SRMECH_OK); (void)st;`,
+ * the srmech_modular_linalg.c:70-71 idiom) is clean under both -DNDEBUG and
+ * not.
+ *
+ * ⚠️ THIS DEPARTS FROM SRMECH_THREAD_LOCAL ABOVE, DELIBERATELY, AND THE
+ * REASON BELONGS HERE RATHER THAN IN A PLAN. SRMECH_THREAD_LOCAL puts
+ * `#if defined(_MSC_VER)` first and gives MSVC a REAL spelling
+ * (__declspec(thread)). This macro puts _MSC_VER first as well — so the
+ * ordering is the same and the difference is visible at the branch rather
+ * than inferred from a fall-through — but the MSVC expansion is EMPTY, and
+ * that is a genuine asymmetry, not an oversight:
+ *
+ *   - `warn_unused_result` is a GNU attribute (gcc and clang).
+ *   - C has no portable pre-C23 equivalent. `[[nodiscard]]` needs C23, which
+ *     this library does not target (it builds -std=c11).
+ *   - MSVC's nearest analogue is the SAL annotation `_Check_return_`, which
+ *     requires <sal.h> in a public header and only diagnoses under
+ *     /analyze — not under the /WX pedantic leg this project runs.
+ *
+ * So the compile-time guard does not cover all three legs equally. What is
+ * MEASURED here is the gcc leg: both the bare and the cast form are errors
+ * under -Werror. The clang leg is NOT measured on this cell — no clang is
+ * installed in the WSL2 environment the repair was built in — so whether
+ * clang honours an explicit (void) cast is an open figure the macOS pedantic
+ * job answers, not a claim this comment makes. The MSVC leg diagnoses
+ * nothing, by the reasoning above. Two of three legs run with -Werror, so a
+ * re-introduced discard fails the build for every contributor before review
+ * on at least the gcc one; that is the property being bought, and it is
+ * stated at its measured strength rather than at its hoped-for one.
+ *
+ * This is a single-token object-like macro on the MSVC and fallback legs and
+ * a single-line one on the GNU leg (JPL Rule 8 clean: no token-paste, no
+ * varargs, no line continuation).
+ * ------------------------------------------------------------------ */
+#if defined(_MSC_VER)
+#define SRMECH_NODISCARD
+#elif defined(__GNUC__) || defined(__clang__)
+#define SRMECH_NODISCARD __attribute__((warn_unused_result))
+#else
+#define SRMECH_NODISCARD
 #endif
 
 /* ------------------------------------------------------------------ *
@@ -1734,10 +1844,19 @@ srmech_status_t srmech_unwrapped_phase(int64_t w0, int64_t w1, int64_t w2,
  * constant), so the (w, theta) pair IS the fold's own divmod — the
  * quotient (the METACYCLE winding) retained instead of discarded, the
  * remainder the EPICYCLE residue. Same domain as srmech_cos: returns
- * SRMECH_ERR_BAD_INPUT for Inf / |theta| >= 2^55 (*theta_out NaN); a
- * quiet-NaN input propagates as NaN with SRMECH_OK (the srmech_cos
- * convention); SRMECH_ERR_NULL_ARG for a NULL out pointer. */
-srmech_status_t srmech_winding_fold(double theta, int64_t *w_out,
+ * SRMECH_ERR_BAD_INPUT for NaN / Inf / |theta| >= 2^55, with *theta_out set
+ * to NaN and *w_out to 0; SRMECH_ERR_NULL_ARG for a NULL out pointer.
+ *
+ * ⚠️ CORRECTED 0.9.0rc473 (`#T1188`). This paragraph read "a quiet-NaN input
+ * propagates as NaN with SRMECH_OK (the srmech_cos convention)" and both
+ * halves were true of the code and false as a contract: srmech_cos returned
+ * SRMECH_OK for NaN in violation of its OWN published promise two blocks
+ * down, so "the srmech_cos convention" was a defect being cited as a
+ * precedent. rc473 repairs both. Measured before the repair:
+ * srmech_winding_fold(NaN) -> (SRMECH_OK, 0, NaN) and
+ * srmech_winding_fold(2^55) -> (SRMECH_ERR_BAD_INPUT, 0, 0.0) — the second a
+ * FINITE 0.0 where this paragraph promised NaN, from `theta - theta`. */
+SRMECH_NODISCARD srmech_status_t srmech_winding_fold(double theta, int64_t *w_out,
                                     double *theta_out);
 
 /* rc313 — srmech_genome_discrete_writhe: the EXACT-integer DIRECTIONAL
@@ -4189,14 +4308,41 @@ srmech_status_t srmech_equation_of_centre(double    M_rad,
  * pi-cascade; no libm sin/cos/atan2, no abs()). float appears only at
  * the final rational->double projection. These are the native peers the
  * kepler / kuramoto ops route through so the executable runs the cascade,
- * not libm. Matches libm to machine epsilon for |x| < 2^55; returns
- * SRMECH_ERR_BAD_INPUT for non-finite x (out set to NaN). Additive ->
- * ABI unchanged.
+ * not libm. Matches libm to machine epsilon for |x| < 2^55.
+ *
+ * DOMAIN, stated per op rather than per family (0.9.0rc473, `#T1188` — this
+ * block said "returns SRMECH_ERR_BAD_INPUT for non-finite x (out set to NaN)"
+ * for all four, which was right for sin/cos and wrong for atan/atan2 in one
+ * direction and wrong for the implementation in the other):
+ *
+ *   srmech_sin / srmech_cos — SRMECH_ERR_BAD_INPUT for NaN, for ±Inf and for
+ *     |x| >= 2^55 (no Q61 octant form exists), *out set to NaN. Through rc472
+ *     the NaN case returned SRMECH_OK — a violation of this very sentence,
+ *     which has been here since the block was written — and the |x| >= 2^55
+ *     case wrote 0.0 rather than NaN, because the idiom was `*out = x - x`.
+ *   srmech_atan — TOTAL on the EXTENDED reals: atan(±Inf) = ±π/2 with
+ *     SRMECH_OK, which is what the pure peer rational.atan(±Inf) also
+ *     answers. SRMECH_ERR_BAD_INPUT for NaN only, *out set to NaN. Through
+ *     rc472 a NaN returned SRMECH_OK with -3.2146018366025517, a finite value
+ *     BELOW -π and outside atan's own range.
+ *   srmech_atan2 — SRMECH_ERR_BAD_INPUT if EITHER argument is NaN, *out NaN.
+ *     Served on every ±Inf combination, including both-infinite, where the
+ *     quadrant diagonal is used rather than the ratio: atan2(±Inf, +Inf) =
+ *     ±π/4 and atan2(±Inf, −Inf) = ±3π/4, matching the pure peer. Through
+ *     rc472 both-infinite produced -3.2146018366025517 with SRMECH_OK,
+ *     because Inf/Inf is NaN inside the function and the NaN then reached
+ *     srmech_atan — a wrong answer reachable with no NaN passed in.
+ *
+ * Range: srmech_atan returns within [-π/2, π/2] and srmech_atan2 within
+ * [-π, π] whenever it returns SRMECH_OK.
+ *
+ * Additive -> ABI unchanged. (The rc473 status reinterpretation is NOT
+ * additive and DOES bump — see the v26 entry in the version history above.)
  * ------------------------------------------------------------------ */
-srmech_status_t srmech_sin(double x, double *out);
-srmech_status_t srmech_cos(double x, double *out);
-srmech_status_t srmech_atan(double x, double *out);
-srmech_status_t srmech_atan2(double y, double x, double *out);
+SRMECH_NODISCARD srmech_status_t srmech_sin(double x, double *out);
+SRMECH_NODISCARD srmech_status_t srmech_cos(double x, double *out);
+SRMECH_NODISCARD srmech_status_t srmech_atan(double x, double *out);
+SRMECH_NODISCARD srmech_status_t srmech_atan2(double y, double x, double *out);
 
 /* 0.9.0rc8 Q61 model constants (F868) — the fixed-point scale + the two
  * transcendental recombine anchors a C-ONLY host needs to reassemble the EXACT
@@ -4228,17 +4374,30 @@ srmech_status_t srmech_atan2(double y, double x, double *out);
  * non-finite (or |x| >= 2^55) argument has no Q61 form -> SRMECH_ERR_BAD_INPUT.
  * A C-only host reassembles the rational via the SRMECH_Q61_* constants above.
  * Additive -> ABI unchanged. */
-srmech_status_t srmech_sin_q61(double x, int64_t *out_q61);
-srmech_status_t srmech_cos_q61(double x, int64_t *out_q61);
-srmech_status_t srmech_atan_q61(double x, int64_t *out_q61);
+SRMECH_NODISCARD srmech_status_t srmech_sin_q61(double x, int64_t *out_q61);
+SRMECH_NODISCARD srmech_status_t srmech_cos_q61(double x, int64_t *out_q61);
+SRMECH_NODISCARD srmech_status_t srmech_atan_q61(double x, int64_t *out_q61);
 
 /* Class-N rational sqrt cascade (v0.7.0rc45). sqrt(x) (x >= 0) via an INTEGER
  * floor-isqrt on a scaled radicand (portable two-limb 128-bit isqrt; no libm,
  * no float sqrt, no __int128) + IEEE-exponent-field power-of-two scaling.
  * srmech_laplacian.c's cyclic-Jacobi eigensolver routes through this so the
- * executable runs the cascade. Machine-epsilon vs libm; negative x ->
- * SRMECH_ERR_BAD_INPUT (out = NaN). Additive -> ABI unchanged. */
-srmech_status_t srmech_rational_sqrt(double x, double *out);
+ * executable runs the cascade. Machine-epsilon vs libm; negative x AND NaN ->
+ * SRMECH_ERR_BAD_INPUT (out = NaN); +Inf -> +Inf with SRMECH_OK.
+ *
+ * ⚠️ 0.9.0rc473 (`#T1188`): the "(out = NaN)" half of that sentence has been
+ * here since the op shipped and was FALSE for every finite negative x — the
+ * implementation wrote `x - x`, i.e. 0.0. Measured at rc472:
+ * srmech_rational_sqrt(-4.0) -> (SRMECH_ERR_BAD_INPUT, 0.0). The status was
+ * already correct, so only a gate that reads the WRITTEN VALUE could see it.
+ * NaN was served (SRMECH_OK, NaN) through rc472 and is now refused. +Inf
+ * stays served, and that is a DECLINE rc473 does not repair, tracked under
+ * `#T1188`: lap_sqrt / sq_sqrt reach +Inf on the tau-overflow path and rely
+ * on sqrt(+Inf) = +Inf, while the pure peer rational.sqrt(+Inf) raises.
+ *
+ * Additive -> ABI unchanged. (The rc473 status reinterpretation bumps; see
+ * the v26 entry above.) */
+SRMECH_NODISCARD srmech_status_t srmech_rational_sqrt(double x, double *out);
 
 /* 0.9.0rc7 stay-rational Q61 peer (F868). sqrt(x) = root * 2^(e/2 - K) EXACTLY
  * (root = isqrt(M << 2K), K = 27). Returns the integer pieces (*out_root,
@@ -4264,7 +4423,7 @@ srmech_status_t srmech_isqrt(uint64_t nhi, uint64_t nlo, uint64_t *out_root);
  * one projection. Byte-exact with the Python pure-Q61 cascade.hypercomplex_exp.
  * Non-finite / |theta| >= 2^55, or k_axes not in {1,3,7} -> SRMECH_ERR_BAD_INPUT.
  * Additive -> ABI unchanged. */
-srmech_status_t srmech_hypercomplex_exp_q61(double theta, int k_axes,
+SRMECH_NODISCARD srmech_status_t srmech_hypercomplex_exp_q61(double theta, int k_axes,
                                             int64_t *out8);
 
 /* 0.9.0rc16 exact-Q61 (sigma,theta,mu) octonion coupler — the C-host peer of
@@ -4277,7 +4436,7 @@ srmech_status_t srmech_hypercomplex_exp_q61(double theta, int k_axes,
  * fixed-point multiply. Byte-exact with the pure-Q61 Python mirror. Non-finite /
  * |eff| >= 2^55 -> SRMECH_ERR_BAD_INPUT (the cos/sin peers gate it). Additive ->
  * ABI unchanged. */
-srmech_status_t srmech_hypercomplex_couple_q61(double eff, const int64_t streams8[8],
+SRMECH_NODISCARD srmech_status_t srmech_hypercomplex_couple_q61(double eff, const int64_t streams8[8],
                                                const int64_t mu8[8], int form_is_left,
                                                int64_t out8[8]);
 
@@ -4321,7 +4480,7 @@ srmech_status_t srmech_hypercomplex_couple_q61(double eff, const int64_t streams
  * shim against a fresh library never asks for it. The c_dispatched claim that
  * DOES go stale in the first pairing is exactly what
  * tests/test_c_claim_resolution_rc300.py resolves against the loaded library. */
-srmech_status_t srmech_hypercomplex_couple_turn_q61(int64_t k, int64_t n,
+SRMECH_NODISCARD srmech_status_t srmech_hypercomplex_couple_turn_q61(int64_t k, int64_t n,
                                                     const int64_t streams8[8],
                                                     const int64_t mu8[8],
                                                     int form_is_left,
@@ -4335,9 +4494,20 @@ srmech_status_t srmech_hypercomplex_couple_turn_q61(int64_t k, int64_t n,
  * srmech_laplacian.c's elementwise transcendental op routes through these so
  * the executable runs the cascade (the last two libm calls in libsrmech).
  * Machine-epsilon vs libm; exp overflow -> +Inf, underflow -> 0; log of a
- * non-positive x -> SRMECH_ERR_BAD_INPUT. Additive -> ABI unchanged. */
-srmech_status_t srmech_exp(double x, double *out);
-srmech_status_t srmech_log(double x, double *out);
+ * non-positive x -> SRMECH_ERR_BAD_INPUT.
+ *
+ * NaN -> SRMECH_ERR_BAD_INPUT for BOTH (0.9.0rc473, `#T1188`; *out is the NaN
+ * itself). Through rc472 each carried an explicit `if (x != x) { *out = x;
+ * return SRMECH_OK; }` — a decision to serve NaN, libm-shaped, while the pure
+ * peers raised and srmech_exp_q61 / srmech_log_q61 refused. ±Inf is NOT
+ * widened and IS a tracked decline under `#T1188`: exp(+Inf) = +Inf,
+ * exp(-Inf) = 0, log(+Inf) = +Inf all keep SRMECH_OK where the pure
+ * projection raises.
+ *
+ * Additive -> ABI unchanged. (The rc473 status reinterpretation bumps; see
+ * the v26 entry above.) */
+SRMECH_NODISCARD srmech_status_t srmech_exp(double x, double *out);
+SRMECH_NODISCARD srmech_status_t srmech_log(double x, double *out);
 
 /* 0.9.0rc7 stay-rational Q61 peers (F868). Return the EXACT rational pieces so
  * the Python rational.{exp,log} dispatch to native AND keep full Q61 provenance:

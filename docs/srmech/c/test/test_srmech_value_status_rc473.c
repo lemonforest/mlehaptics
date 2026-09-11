@@ -325,6 +325,13 @@ static void rows_scalar_contract(void)
     check_refuses(st, out, "atan2(nan, 1.0)");
     st = srmech_atan2(1.0, NAN, &out);
     check_refuses(st, out, "atan2(1.0, nan)");
+    /* The x == 0.0 early return, which never reaches srmech_atan at all —
+     * so propagating atan's status is NOT sufficient for this row and the
+     * repair has to check the arguments where they enter. Added in the
+     * repair pass; the pure peer raises here too
+     * (rational.atan2(nan, 0.0) -> ValueError). */
+    st = srmech_atan2(NAN, 0.0, &out);
+    check_refuses(st, out, "atan2(nan, 0.0)");
     st = srmech_exp(NAN, &out);
     check_refuses(st, out, "exp(nan)");
     st = srmech_log(NAN, &out);
@@ -347,6 +354,54 @@ static void rows_scalar_contract(void)
     st = srmech_sin(NAN, &out);
     if (st != SRMECH_OK) { check_is_nan(out, "sin(nan) out"); }
     else { printf("  SKIP  sin(nan) out — status row above already failed\n"); }
+}
+
+/* ------------------------------------------------------------------ *
+ * (2) CONTRACT rows — srmech_winding_fold.
+ *
+ * ADDED IN THE REPAIR PASS, from a measurement the scoping did not have.
+ * srmech_winding_fold is not one of the 24 discarded-status sites and was in
+ * neither gate; it is in SRMECH_NODISCARD's roster as a "clean peer", which
+ * is how it came to be measured at all. It carried BOTH halves of the defect
+ * this rc repairs elsewhere, in the same translation unit:
+ *
+ *   winding_fold(NaN)  -> (SRMECH_OK, w=0, theta=NaN)          [status half]
+ *   winding_fold(2^55) -> (SRMECH_ERR_BAD_INPUT, w=0, theta=0.0)  [value half]
+ *
+ * and srmech.h documented the first as deliberate, citing "the srmech_cos
+ * convention" — a defect being quoted as a precedent. The pure peer
+ * srmech.cascade.one.winding_fold raises ValueError for a non-finite theta
+ * BEFORE it dispatches, so the C projection served an input the Python
+ * projection refused, hidden behind a pre-dispatch guard in the other
+ * projection: the exact shape this rc exists to remove.
+ * ------------------------------------------------------------------ */
+static void rows_winding_fold(void)
+{
+    int64_t w = -1;
+    double th = -1.0;
+    srmech_status_t st;
+
+    printf("\n[contract] srmech_winding_fold — same domain as its own header says\n");
+
+    w = -1; th = -1.0;
+    st = srmech_winding_fold(NAN, &w, &th);
+    check_refuses(st, th, "winding_fold(nan)");
+    if (st != SRMECH_OK) { check_is_nan(th, "winding_fold(nan) theta"); }
+
+    w = -1; th = -1.0;
+    st = srmech_winding_fold(SRMECH_VS_2_55, &w, &th);
+    check_refuses(st, th, "winding_fold(2^55)");
+    if (st != SRMECH_OK) { check_is_nan(th, "winding_fold(2^55) theta"); }
+
+    w = -1; th = -1.0;
+    st = srmech_winding_fold(INFINITY, &w, &th);
+    check_refuses(st, th, "winding_fold(+inf)");
+
+    /* Control: an ordinary angle must still fold. */
+    w = -1; th = -1.0;
+    st = srmech_winding_fold(1.0, &w, &th);
+    check_accepts(st, "winding_fold(1.0)");
+    check_close(th, 1.0, 1e-15, "winding_fold(1.0) theta");
 }
 
 /* ------------------------------------------------------------------ *
@@ -594,6 +649,7 @@ int main(void)
 
     rows_controls();
     rows_scalar_contract();
+    rows_winding_fold();
     rows_range();
     rows_composites();
     rows_elementwise();

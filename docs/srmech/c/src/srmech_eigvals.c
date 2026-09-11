@@ -71,7 +71,16 @@ static void srmech_eig_cmax(double re, double im, double *out)
 
 /* |re + i*im| — the SCALED float modulus. Scaling by the larger component
  * keeps the squared term in range, so this is relative-precision at every
- * magnitude (the property `#919` restored on the Python side). */
+ * magnitude (the property `#919` restored on the Python side).
+ *
+ * 0.9.0rc473 (`#T1188`): the status is captured, asserted and consumed — the
+ * srmech_modular_linalg.c:70-71 idiom, not a new pattern. This helper is
+ * `static void` and has no status channel; the refusal is unreachable by
+ * construction because srmech_rational_sqrt refuses only x < 0 and NaN, and
+ * `x*x + y*y` is a sum of squares while a NaN argument is already excluded by
+ * the assert on the line above (a NaN would trip THAT assert first, in the
+ * same Debug build). ⚠️ The wheel builds Release, so this site carries no
+ * runtime refusal in the shipped artifact — one of the rc's six such sites. */
 static void srmech_eig_modulus(double re, double im, double *out)
 {
     assert(out != NULL);
@@ -82,7 +91,9 @@ static void srmech_eig_modulus(double re, double im, double *out)
     double x = re / big;
     double y = im / big;
     double root = 0.0;
-    (void)srmech_rational_sqrt(x * x + y * y, &root);
+    srmech_status_t st = srmech_rational_sqrt(x * x + y * y, &root);
+    assert(st == SRMECH_OK);
+    (void)st;
     *out = big * root;
 }
 
@@ -100,8 +111,23 @@ static void srmech_eig_csqrt(double a, double b, double *out_re, double *out_im)
     double im_arg = (mod - a) / 2.0;               /* a tiny <0 is round-off */
     double re = 0.0;
     double im = 0.0;
-    if (re_arg > 0.0) { (void)srmech_rational_sqrt(re_arg, &re); }
-    if (im_arg > 0.0) { (void)srmech_rational_sqrt(im_arg, &im); }
+    /* rc473 (`#T1188`): status captured and asserted. Each call is already
+     * behind a `> 0.0` guard on its own argument, and `> 0.0` is FALSE for
+     * NaN as well as for negatives — so both refusal classes of
+     * srmech_rational_sqrt are excluded by the guard that was already there.
+     * Written on separate lines because the one-line form is the shape a
+     * line-anchored regex reads as absent (measured: a line-start-anchored
+     * discard scan finds 22 of the 24 sites, missing exactly this pair). */
+    if (re_arg > 0.0) {
+        srmech_status_t st = srmech_rational_sqrt(re_arg, &re);
+        assert(st == SRMECH_OK);
+        (void)st;
+    }
+    if (im_arg > 0.0) {
+        srmech_status_t st = srmech_rational_sqrt(im_arg, &im);
+        assert(st == SRMECH_OK);
+        (void)st;
+    }
     *out_re = re;
     *out_im = (b >= 0.0) ? im : -im;               /* Class-K sign branch */
 }
@@ -212,7 +238,20 @@ static void srmech_eig_balance(uint32_t n, double *H)
  *
  * Scaling x by its largest component BEFORE forming the reflector is a
  * CORRECTNESS requirement, not a nicety: it keeps the modulus call inside the
- * range where x0/|x0| is a unit phase. Mirrors `_householder_reflector`. */
+ * range where x0/|x0| is a unit phase. Mirrors `_householder_reflector`.
+ *
+ * rc473 (`#T1188`): the srmech_rational_sqrt status inside is captured,
+ * asserted and consumed rather than cast away. The `if (normx2 <= 0.0)
+ * return 0;` guard immediately above the call makes the x < 0 refusal
+ * unreachable. `<= 0.0` is FALSE for NaN, so a NaN normx2 WOULD reach the
+ * call — but this file already treats a NaN component as an assert-level
+ * precondition violation: srmech_eig_modulus, called two lines further on
+ * with the same vector, has asserted `!(re != re) && !(im != im)` since it
+ * was written, so a NaN input aborts this function in a Debug build either
+ * way and the new assert only moves that abort two lines earlier. The `int`
+ * return is kept because its 0 means "zero vector, no reflector" — a defined
+ * ANSWER, not an error channel — so there is no status channel here to
+ * propagate into. */
 static int srmech_eig_reflector(uint32_t len, const double *x,
                                 double *v, double *out_beta)
 {
@@ -233,7 +272,11 @@ static int srmech_eig_reflector(uint32_t len, const double *x,
     }
     if (normx2 <= 0.0) { return 0; }
     double normx = 0.0;
-    (void)srmech_rational_sqrt(normx2, &normx);
+    /* rc473 (`#T1188`): status captured and asserted; see the note above the
+     * function for why this helper keeps its `int` return. */
+    srmech_status_t st = srmech_rational_sqrt(normx2, &normx);
+    assert(st == SRMECH_OK);
+    (void)st;
     double modx0 = 0.0;
     srmech_eig_modulus(v[0], v[1], &modx0);
     /* The phase exists only to keep v[0] = x0 - alpha away from cancellation;
