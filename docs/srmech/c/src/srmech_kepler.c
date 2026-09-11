@@ -44,7 +44,32 @@
  *   - Rule 5 (≥2 asserts/fn)  : OK — entry-pointer assert +
  *                              precondition / post-condition invariant
  *                              (per [[feedback_jpl_rule_5_two_assert_habit]])
- *   - Rule 7 (return-value)   : OK — srmech_status_t throughout
+ *   - Rule 7 (return-value)   : VIOLATED — 7 sites in this file discard a
+ *                              srmech_status_t (:97, :98, :101, :130, :135,
+ *                              :136, :180). This line read "OK —
+ *                              srmech_status_t throughout" from the file's
+ *                              first commit to rc472; every one of those
+ *                              discards was already present. Rule 7 is about
+ *                              CHECKING a returned value, not about declaring
+ *                              a return type, and "srmech_status_t
+ *                              throughout" answers the second question while
+ *                              appearing to answer the first.
+ *
+ *                              It survived because Rule 7 has NO DETECTOR:
+ *                              tests/test_jpl_audit.py mechanically ratchets
+ *                              Rules 1, 3, 4, 5, 8 and 9, and carries no
+ *                              RULE_7 symbol at all, so this claim was never
+ *                              measured against anything. Measured at rc473
+ *                              by planting warn_unused_result on the seven
+ *                              Class-N callees and compiling c/src unmodified:
+ *                              24 -Wunused-result diagnostics across 7 files,
+ *                              the same file:line set the
+ *                              `(void)srmech_<callee>(` grep finds, 0 other
+ *                              diagnostics. Seven of the 24 are here.
+ *
+ *                              Corrected rather than deleted, per the
+ *                              in-place-correction precedent JPL_AUDIT.md
+ *                              sets for its own headline.
  *   - Rule 10 (warnings clean): OK
  *
  * License: MIT.
