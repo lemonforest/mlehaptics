@@ -50,7 +50,7 @@ DOWN but not UP.
 |   4  | Functions ≤ 60 lines                              | 0        | ✅ pass *(was 1; fixed in this ship by extracting `srmech_ndjson_process_chunk`)* |
 |   5  | ≥ 2 assertions per non-trivial function           | 0        | ✅ pass *(trivial accessors exempt per documented rationale; inline arithmetic helpers exempt)* |
 |   6  | Smallest possible scope for data                  | 0        | ✅ pass |
-|   7  | Return values checked / parameters validated      | 0        | ✅ pass |
+|   7  | Return values checked / parameters validated      | return-value **0** (was **24** at rc472); parameter-validation **unmeasured** | ⚠️ **partial** — the return-value half is measured and now compiler-enforced for one family; the parameter-validation half has no instrument and there is **no Rule-7 detector in the ratchet at all** (see Rule 7 below) |
 |   8  | Limited preprocessor (no multiline macros)        | 0        | ✅ pass |
 |   9  | Pointer dereference depth ≤ 1; no function ptrs* | deref 0; **fn-ptr 10** | ⚠️ **partial** — deref depth clean; 10 function-pointer declarator sites under a seeded down-only ratchet (rc452; see Rule 9 below) |
 |  10  | Compile clean at most-pedantic warning level      | 0        | ✅ pass (`SRMECH_PEDANTIC=ON` CMake + CI matrix) |
@@ -59,14 +59,29 @@ DOWN but not UP.
 deliberate deviation" this line used to claim was false long before that —
 see the measured census in the Rule 9 section below.
 
-**Headline (corrected at v0.9.0rc441 `#T1148`, and again at rc452):** Eight of
-the ten rules are clean. **Rule 1 is PARTIAL** — the goto/setjmp/longjmp half
-is clean, the recursion half carries a measured population of 9 depth-bounded
-cycles under a down-only ratchet. **Rule 9 is PARTIAL** — the
-dereference-depth half is clean, the function-pointer half carries a measured
-population of 10 declarator sites under a seeded down-only ratchet (this
-document said "one deliberate deviation" while the tree carried 12; rc452
-measured it, drained 4, and gated the rest).
+**Headline (corrected at v0.9.0rc441 `#T1148`, again at rc452, and again at
+rc473 `#T1188`):** **Seven** of the ten rules are clean. **Rule 1 is PARTIAL** —
+the goto/setjmp/longjmp half is clean, the recursion half carries a measured
+population of 9 depth-bounded cycles under a down-only ratchet. **Rule 9 is
+PARTIAL** — the dereference-depth half is clean, the function-pointer half
+carries a measured population of 10 declarator sites under a seeded down-only
+ratchet (this document said "one deliberate deviation" while the tree carried
+12; rc452 measured it, drained 4, and gated the rest). **Rule 7 is PARTIAL** —
+see the third paragraph below; it read "Violations: 0 / Pass" from this
+document's first commit through rc472 while 24 discarded statuses were live in
+`c/src`, and the reason it survived is that **`test_jpl_audit.py` has no Rule-7
+detector of any kind**.
+
+rc473 (`#T1188`) is the third instance of the same shape and the plainest
+one yet: **a rule with no detector recorded as passing.** The Rule-7 row above
+read `0 / ✅ pass`, and the Rule-7 section's evidence was a four-function table
+(`srmech_sha256_hex`, `srmech_ndjson_iter`, `srmech_version`,
+`srmech_abi_version`) in a library of thousands of functions. Meanwhile **24
+call sites across 7 translation units** spelled `(void)srmech_sin(...)` and
+kin, discarding a `srmech_status_t` a callee had already set to
+`SRMECH_ERR_BAD_INPUT`. Measured this time by a compiler rather than a regex,
+and the compiler is the reason the population is trustworthy — see the Rule 7
+section.
 
 This headline read *"All ten JPL Power-of-Ten rules satisfied"* through rc440.
 It was **not** true, and the reason it survived is worth recording: the Rule 1
@@ -520,7 +535,92 @@ Manual review of every variable declaration:
 
 > *"The return value of non-void functions must be checked by each calling function, and the validity of parameters must be checked inside each function."*
 
-### Violations: 0
+### ⚠️ PARTIAL — return-value half measured **24 → 0** at rc473; parameter-validation half **UNMEASURED**; **NO DETECTOR IN THE RATCHET**
+
+**What this section said, and for how long.** It said *"Violations: 0"* and
+*"✅ Pass"* from this document's first commit through **v0.9.0rc472**, on the
+evidence of the four-function table below. `srmech_kepler.c`'s own header block
+said the same thing in its own words — *"Rule 7 (return-value): OK —
+srmech_status_t throughout"* — in a file carrying **seven** discards. Rule 7 is
+about **checking** a returned value; "srmech_status_t throughout" answers a
+different question, which is how one sentence could be written in good faith
+and be false.
+
+**The measured population, and the instrument.** At rc472, **24** call sites
+across **7** translation units (`srmech_kepler.c`, `srmech_laplacian.c`,
+`srmech_kuramoto.c`, `srmech_trig.c`, `srmech_jade.c`, `srmech_eigvals.c`,
+`srmech_svd_qr.c`) discarded a `srmech_status_t` returned by one of seven
+Class-N double callees — `srmech_sin`, `srmech_cos`, `srmech_atan`,
+`srmech_atan2`, `srmech_exp`, `srmech_log`, `srmech_rational_sqrt`. The
+instrument was **the compiler, not a grep**: `SRMECH_NODISCARD`
+(`__attribute__((warn_unused_result))` on gcc/clang) was planted on those seven
+declarations in a scratch copy of `c/include` and `c/src` compiled against it
+unmodified, yielding **exactly 24** `-Wunused-result` diagnostics at 24 distinct
+`file:line`, with 0 other diagnostics and the repository untouched.
+
+⚠️ **The grep that scoped this work was wrong twice, in both directions, and
+both misses are the reason the compiler is the oracle here.** It first spelled
+the symbol `srmech_sqrt` where the exported name is `srmech_rational_sqrt`,
+which hid `srmech_eigvals.c` and `srmech_svd_qr.c` **entirely** — 6 of the 24
+sites, so the count history ran 14 → 12 → 15 → 18 before the compiler said 24.
+Second, run UNMASKED over `c/test/`, the same pattern later reported one site
+that is the bad spelling quoted inside a block comment. A census of code that
+counts prose and a census that cannot spell its own symbol fail the same way:
+they report a number.
+
+**State at rc473, this tree, masked scan** (`notes/_rc473_rule7_census.py`,
+which blanks comments and string/char literals before matching):
+
+| Population | Predicate | Count |
+| --- | --- | ---: |
+| Discards of the seven Class-N callees | `(void)NAME(` over `c/src`, `c/test`, `c/tools` — **179** `.c` files | **0** *(was 24)* |
+| `SRMECH_NODISCARD`-tagged declarations | `^SRMECH_NODISCARD srmech_status_t NAME(` in `c/include/srmech.h` | **14** |
+| Every other `(void)srmech_*(` discard | same masked scan, 17 distinct symbols | **51** |
+
+The 14 tagged declarations are the seven that were violated plus seven clean
+peers of the same family — `srmech_sin_q61`, `srmech_cos_q61`,
+`srmech_atan_q61`, `srmech_winding_fold`, `srmech_hypercomplex_exp_q61`,
+`srmech_hypercomplex_couple_q61`, `srmech_hypercomplex_couple_turn_q61` — so
+the family is closed rather than the seven that happened to be caught. A
+discard of any of the fourteen is a **build failure** under `-Werror` on the
+Linux gcc and macOS clang pedantic cells. Measured on gcc 13.3: an explicit
+`(void)` cast does **not** silence the attribute, so the idiom that produced
+all 24 sites is unwritable there.
+
+⚠️ **THE MSVC CELL IS NOT COVERED.** `warn_unused_result` is a gcc/clang
+attribute; `SRMECH_NODISCARD` expands empty under `_MSC_VER`, so the Windows
+pedantic leg enforces nothing here. C has no portable pre-C23 equivalent
+(`_Check_return_` requires `/analyze`). The guard is therefore one-sided by
+construction, and this is exactly why the row above is PARTIAL rather than
+pass.
+
+**The 51 residual discards**, by symbol, all outside the Class-N family:
+`srmech_plat_mutex_unlock` 11, `srmech_plat_thread_join` 7,
+`srmech_plat_mutex_destroy` 6, `srmech_plat_stream_conn_close` 5,
+`srmech_plat_now_ns` 4, `srmech_bus_client_close` 3,
+`srmech_plat_stdout_write` / `srmech_plat_tcp_conn_close` /
+`srmech_plat_tcp_server_close` / `srmech_plat_tcp_write_all` 2 each, and one
+each of `srmech_plat__ensure_dir`, `srmech_plat_sleep_ms`,
+`srmech_plat_stream_server_close`, `srmech_cascade_chiral_flip_f64`,
+`srmech_cascade_reorient_f64`, `srmech_class_descriptor_lookup`,
+`srmech_genome_centromere_of`. **41 of the 51 are `srmech_plat_*` teardown or
+clock reads** on paths where there is no action to take on failure — the class
+Holzmann's own commentary blesses. That is a **statement of shape, not an
+audit**: they are enumerated here so that the next person to measure this rule
+starts from a list rather than from a sentence, and the last three in
+particular are ordinary library calls that have not been walked.
+
+### ⚠️ THERE IS NO RULE-7 DETECTOR
+
+`python/tests/test_jpl_audit.py` contains the string `RULE_7` **zero** times
+and defines **zero** tests naming Rule 7; its test functions cover Rules 1, 3,
+4, 5, 8 and 9 only. So the return-value count above is a **measurement, not a
+ratchet**: nothing in the pytest suite refuses a 25th site. What does refuse
+one, for the fourteen tagged names on two of three OS cells, is
+`SRMECH_NODISCARD` plus `-Werror`. A `RULE_7_ROSTER` detector — a masked scan
+gated strict-zero, two-way against the header's tagged set — is **named here as
+owed and is not shipped in rc473**; recording it as absent is the whole point
+of this section, since recording it as present is what went wrong.
 
 Parameter validation at every public entry point:
 
@@ -544,7 +644,14 @@ Return-value checks at every internal-callsite:
 - `memcpy` / `memset` returns ignored per standard-library
   convention.
 
-✅ **Pass.**
+⚠️ **The four-function table above is the ENTIRE parameter-validation evidence
+this document has ever carried**, and it names two functions that take no
+parameters. It is kept verbatim because it is the record of what was claimed,
+not because it is a census. The parameter-validation half of Rule 7 remains
+**unmeasured**.
+
+⚠️ **Partial** — return-value half **0** and compiler-enforced for 14 symbols
+on gcc/clang; parameter-validation half unmeasured; no detector in the ratchet.
 
 ---
 

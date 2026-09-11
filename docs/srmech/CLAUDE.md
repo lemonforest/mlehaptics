@@ -918,9 +918,18 @@ scratch remains single-thread-at-a-time until similarly converted.
 
 ### JPL Power-of-Ten audit
 
-The C library is clean on **eight** of the 10 Holzmann Power-of-Ten
-rules; **Rule 1 and Rule 9 are both PARTIAL**, each under a seeded
-down-only ratchet (see [c/JPL_AUDIT.md](c/JPL_AUDIT.md)). Rule 9's
+The C library is clean on **seven** of the 10 Holzmann Power-of-Ten
+rules; **Rules 1, 7 and 9 are PARTIAL** (see
+[c/JPL_AUDIT.md](c/JPL_AUDIT.md)). Rules 1 and 9 are each under a
+seeded down-only ratchet. **Rule 7 has no detector at all** — the
+audit document recorded it "0 violations / Pass" from its first
+commit through rc472, on a four-function evidence table, while **24**
+discarded `srmech_status_t` values sat across 7 translation units;
+rc473 (`#T1188`) repaired them to **0** and closed the family with
+`SRMECH_NODISCARD` on 14 declarations, which is a compiler guard on
+gcc/clang only and nothing on MSVC. A `RULE_7_ROSTER` ratchet is
+named as owed and is NOT shipped, so this count is a measurement and
+not a floor. Rule 9's
 measured population is **10 function-pointer declarator sites** —
 this line said "one deliberate deviation" until rc452, while the tree
 carried 12 pre-rc452 sites including `IV_VTABLE` (a 38-row dispatch
