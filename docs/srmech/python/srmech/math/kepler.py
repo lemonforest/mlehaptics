@@ -27,7 +27,6 @@ from typing import Tuple
 from srmech.math.rational import atan2 as _ratan2  # §22: Class-N rational trig, not libm
 from srmech.math.rational import cos as _rcos
 from srmech.math.rational import sin as _rsin
-from srmech.math.rational import Q61_TRIG_RANGE as _Q61_TRIG_RANGE  # rc472: one bound, imported
 
 from .. import _native
 
@@ -75,7 +74,14 @@ def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
 
     Raises:
         ValueError: When ``pin_offset == 0 and pin_distance == 0``
-            (atan2(0, 0) is implementation-defined).
+            (atan2(0, 0) is implementation-defined) — refused HERE, before
+            either projection, because it is a precondition on the ARGUMENTS
+            and the C peer refuses the same pair; and (rc473, `#T1188`) for
+            any ``theta`` the Class-N cascade cannot reduce, in the pure
+            cascade's own words. ``srmech_pin_slot`` now PROPAGATES
+            ``srmech_cos`` / ``srmech_sin`` / ``srmech_atan2``'s refusal
+            instead of discarding it, so the native cell reaches the same
+            refusal through the C symbol rather than around it.
     """
     if pin_offset == 0.0 and pin_distance == 0.0:
         raise ValueError(
@@ -89,12 +95,22 @@ def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
             ctypes.c_double(pin_distance),
             ctypes.byref(out),
         )
-        if rc != _native.SRMECH_OK:
+        if rc == _native.SRMECH_OK:
+            return out.value
+        if rc != _native.SRMECH_ERR_BAD_INPUT:
             raise ValueError(f"srmech_pin_slot returned status {rc}")
-        return out.value
-    # Pure-Python fallback. The pin-slot internal cascade flows Q (exact ALU
-    # arithmetic); ``float()`` is the FPU last-mile rotate that matches the
-    # native ``srmech_pin_slot`` c_double contract (the angle is the observable).
+        # rc473 (`#T1188`): the C peer REFUSED. Fall through to the pure
+        # cascade, which reaches the same refusal one line later and names it
+        # in its own words — one text in both cells (rc466 rule D1), reached
+        # only AFTER the C symbol has been consulted. The measured
+        # alternative is the bare status number: through rc472 this line read
+        # ``raise ValueError(f"srmech_pin_slot returned status {rc}")``, which
+        # says "status 2" where the pure cell says
+        # "cos: |x| too large for the Q61 octant reduction; got …".
+    # Pure-Python fallback, and the refusal path above. The pin-slot internal
+    # cascade flows Q (exact ALU arithmetic); ``float()`` is the FPU last-mile
+    # rotate that matches the native ``srmech_pin_slot`` c_double contract (the
+    # angle is the observable).
     x = pin_distance + pin_offset * _rcos(theta)
     y = pin_offset * _rsin(theta)
     return float(_ratan2(y, x))
@@ -123,7 +139,13 @@ def kepler_solve(
         Eccentric anomaly ``E`` in radians.
 
     Raises:
-        ValueError: For ``e < 0``, ``e >= 1``, or ``max_iter <= 0``.
+        ValueError: For ``e < 0``, ``e >= 1``, or ``max_iter <= 0``; and
+            (rc473, `#T1188`) for any ``M_rad`` the Class-N ``sin`` cascade
+            cannot reduce, in the pure cascade's own words.
+            ``srmech_kepler_solve`` now propagates ``srmech_sin``'s refusal
+            instead of discarding it — through rc472 the Newton iteration
+            never moved ``E`` off its ``M`` initial guess and the caller was
+            handed ``E == M`` with ``SRMECH_OK``.
         RuntimeError: If not converged within ``max_iter`` iterations.
     """
     if not (0.0 <= e < 1.0):
@@ -146,8 +168,17 @@ def kepler_solve(
                 f"kepler_solve: did not converge in {max_iter} iterations "
                 f"(M={M_rad}, e={e}, best_E={out.value})"
             )
-        raise ValueError(f"srmech_kepler_solve returned status {rc}")
-    # Pure-Python fallback.
+        if rc != _native.SRMECH_ERR_BAD_INPUT:
+            raise ValueError(f"srmech_kepler_solve returned status {rc}")
+        # rc473 (`#T1188`): fall through to the pure cascade for the refusal
+        # text, AFTER the C symbol has answered. Measured on this cell: the
+        # only inputs C refuses here are the ones ``rational.sin`` refuses on
+        # the very next line, so the fallthrough re-raises rather than
+        # answering. ``e == 0.0`` is the one path whose pure body returns
+        # without calling ``sin`` — and ``srmech_kepler_solve`` takes its own
+        # ``e == 0`` shortcut too, so it returns SRMECH_OK there and this
+        # branch is never reached (MEASURED: (nan, 0.0) -> status 0 in both).
+    # Pure-Python fallback, and the refusal path above.
     if e == 0.0:
         return M_rad
     E = M_rad + e * _rsin(M_rad)
@@ -192,14 +223,23 @@ def equation_of_centre(
 
     Raises:
         ValueError: For ``e < 0``, ``e >= 1``, ``n_terms == 0``, or
-            ``n_terms > EOC_MAX_TERMS``; and (rc472, `#T1188`) for any
-            harmonic ``(k + 1) * M_rad`` that is not finite or whose
-            magnitude reaches :data:`srmech.math.rational.Q61_TRIG_RANGE`
-            (``2**55``) — the two refusals :func:`srmech.math.rational.sin`
-            makes, raised HERE with its own text, before either projection
-            dispatches, so the native and pure cells refuse identically.
-            Through rc471 the C peer discarded ``srmech_sin``'s status and
-            the native cell RETURNED a value where the pure cell raised.
+            ``n_terms > EOC_MAX_TERMS``; and for any harmonic
+            ``(k + 1) * M_rad`` that is not finite or whose magnitude reaches
+            :data:`srmech.math.rational.Q61_TRIG_RANGE` (``2**55``) — the two
+            refusals :func:`srmech.math.rational.sin` makes, in its own words.
+
+            rc472 raised those two HERE, before ``if _native.HAS_NATIVE:``,
+            because the C peer discarded ``srmech_sin``'s status and the
+            native cell returned a value where the pure cell raised. rc473
+            (`#T1188`) repaired ``srmech_kepler.c`` instead, and DELETED that
+            pre-dispatch guard: a guard that answers before the C symbol is
+            consulted is exactly what kept the defect invisible for eight
+            release candidates. The refusal is now the C peer's, reached
+            through it, and the pure cascade below supplies the text.
+            MEASURED at rc473 over 118 candidate ``M_rad`` values x 6
+            ``n_terms`` = 708 direct ``srmech_equation_of_centre`` calls: the
+            deleted guard and the C symbol refuse the SAME 364 inputs, 0
+            disagreements.
     """
     if not (0.0 <= e < 1.0):
         raise ValueError(
@@ -210,26 +250,13 @@ def equation_of_centre(
             f"equation_of_centre: n_terms must be in [1, {EOC_MAX_TERMS}]; "
             f"got {n_terms}"
         )
-    # rc472 (`#T1188`): the refusals the PURE cascade makes inside
-    # rational.sin, made here at the Python dispatch boundary so they are
-    # carrier-independent. The C peer discards srmech_sin's status
-    # (`(void)srmech_sin(harmonic, &sin_h);`, srmech_kepler.c:180), so
-    # through rc471 equation_of_centre(2**53 + 1, 0.0549, 4) RETURNED
-    # -0.08984990210223018 in the native cell where the pure cell raised —
-    # a silent wrong value. Same harmonics, same order, as the pure loop.
-    # float(...) is rational.sin's own entry read (it does `x = float(x)`
-    # before it refuses), so the text below matches the pure cascade's
-    # byte-for-byte for an int M_rad too: the int spelling would render
-    # 36028797018963972 where the pure cascade says 3.602879701896397e+16.
-    # The magnitude is a Class-K pin-slot branch, never an ALU abs().
-    for k_idx in range(n_terms):
-        harmonic = float((k_idx + 1) * M_rad)
-        if harmonic - harmonic != 0.0:                     # NaN or ±inf
-            raise ValueError(
-                "sin: x must be finite (Q is the finite-rational carrier)")
-        if (harmonic if harmonic >= 0.0 else -harmonic) >= _Q61_TRIG_RANGE:
-            raise ValueError(
-                f"sin: |x| too large for the Q61 octant reduction; got {harmonic}")
+    # rc473 (`#T1188`): rc472's pre-dispatch guard loop stood HERE and is
+    # GONE. It walked the harmonics and raised rational.sin's two refusals
+    # before `if _native.HAS_NATIVE:` was consulted, which made every parity
+    # gate green while srmech_kepler.c:180 went on discarding srmech_sin's
+    # status -- the cover satisfied the instrument without touching the thing
+    # it measured. rc473 repaired the C site; the refusal is the C peer's now,
+    # and the pure cascade below supplies its text.
     if _native.HAS_NATIVE:
         out = ctypes.c_double(0.0)
         rc = _native.LIB.srmech_equation_of_centre(
@@ -238,10 +265,17 @@ def equation_of_centre(
             ctypes.c_uint32(n_terms),
             ctypes.byref(out),
         )
-        if rc != _native.SRMECH_OK:
-            raise ValueError(f"srmech_equation_of_centre returned status {rc}")
-        return out.value
-    # Pure-Python fallback.
+        if rc == _native.SRMECH_OK:
+            return out.value
+        if rc != _native.SRMECH_ERR_BAD_INPUT:
+            raise ValueError(
+                f"srmech_equation_of_centre returned status {rc}")
+        # rc473 (`#T1188`): the C peer REFUSED -- fall through to the pure
+        # cascade, which walks the same harmonics in the same order and raises
+        # rational.sin's own text. float(...) inside rational.sin is what makes
+        # that text match for an int M_rad: the int spelling would render
+        # 36028797018963972 where the pure cascade says 3.602879701896397e+16.
+    # Pure-Python fallback, and the refusal path above.
     delta = 0.0
     e_power = 1.0
     for k_idx in range(n_terms):

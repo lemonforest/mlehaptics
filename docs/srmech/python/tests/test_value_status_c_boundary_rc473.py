@@ -308,6 +308,103 @@ def test_the_direct_call_path_reaches_the_library_not_a_wrapper() -> None:
 
 
 # --------------------------------------------------------------------------
+# rc473 stage C — THE PYTHON OP MUST CONSULT THE C SYMBOL BEFORE REFUSING.
+#
+# The rows above read the two projections separately. This one reads the SEAM:
+# it plants a recording kernel binding and requires the array op to have called
+# it. rc466 and rc472 each repaired this defect class by raising in the Python
+# wrapper BEFORE dispatch, which turned every parity gate green while the C
+# kernel went on returning 0.0 for a refused element. A pre-dispatch cover is
+# therefore not a stylistic matter here: it is the mechanism by which this
+# tree's instruments stopped measuring. Runs in BOTH cells — the plant replaces
+# srmech.math.laplacian._native wholesale, so no library is required.
+# --------------------------------------------------------------------------
+def test_the_array_op_consults_the_kernel_before_it_refuses(monkeypatch) -> None:
+    from srmech.math import laplacian as _lap
+
+    calls: list[tuple] = []
+
+    class _Lib:
+        @staticmethod
+        def srmech_elementwise_transcendental(*a):
+            calls.append(a)
+            return 2                          # SRMECH_ERR_BAD_INPUT
+
+    class _Nat:
+        HAS_NATIVE = True
+        LIB = _Lib()
+        SRMECH_OK = 0
+        SRMECH_ERR_BAD_INPUT = 2
+        SRMECH_TRANS_EXP = 0
+        SRMECH_TRANS_COS = 1
+        SRMECH_TRANS_SIN = 2
+        SRMECH_TRANS_LOG = 3
+
+    monkeypatch.setattr(_lap, "_native", _Nat)
+
+    for arg, op, pattern in [
+        (2.0 ** 55, "cos", "too large for the Q61 octant reduction"),
+        (2.0 ** 55, "sin", "too large for the Q61 octant reduction"),
+        (NAN, "cos", "must be finite"),
+        (NAN, "exp", "must be finite"),
+    ]:
+        before = len(calls)
+        with pytest.raises(ValueError, match=pattern):
+            _lap.elementwise_transcendental([arg], op)
+        assert len(calls) > before, (
+            f"elementwise_transcendental([{arg!r}], {op!r}) refused WITHOUT "
+            "calling srmech_elementwise_transcendental. A pre-dispatch cover "
+            "is back; the kernel is then free to write a wrong value with "
+            "SRMECH_OK and nothing in this tree measures it."
+        )
+
+    # exp_i dispatches twice (cos, then sin) and must reach the kernel too
+    before = len(calls)
+    with pytest.raises(ValueError, match="too large for the Q61 octant reduction"):
+        _lap.elementwise_transcendental([2.0 ** 55], "exp_i")
+    assert len(calls) > before, "exp_i refused without consulting the kernel"
+
+
+def test_the_consult_probe_can_fail(monkeypatch) -> None:
+    """Non-vacuity: the probe above must report a cover when one is present.
+
+    A cover is simulated by a plant whose op raises before dispatch. If this
+    test cannot make the recorder stay empty, the recorder is not measuring.
+    """
+    from srmech.math import laplacian as _lap
+
+    calls: list[tuple] = []
+
+    class _Lib:
+        @staticmethod
+        def srmech_elementwise_transcendental(*a):
+            calls.append(a)
+            return 0
+
+    class _Nat:
+        HAS_NATIVE = True
+        LIB = _Lib()
+        SRMECH_OK = 0
+        SRMECH_ERR_BAD_INPUT = 2
+
+    monkeypatch.setattr(_lap, "_native", _Nat)
+
+    def _covered(values, op_name):
+        for x in values:
+            m = x if x >= 0.0 else -x         # Class-K pin-slot branch
+            if m >= rational.Q61_TRIG_RANGE:
+                raise ValueError(
+                    f"{op_name}: |x| too large for the Q61 octant reduction")
+        return _lap.elementwise_transcendental(values, op_name)
+
+    with pytest.raises(ValueError):
+        _covered([2.0 ** 55], "cos")
+    assert calls == [], (
+        "the recorder logged a call from a body that raises before dispatch — "
+        "it is not recording what it claims to record")
+
+
+# --------------------------------------------------------------------------
 # THE BOTH-DIRECTIONS CLAUSE. C refuses <=> the pure projection raises.
 # --------------------------------------------------------------------------
 @_needs_native

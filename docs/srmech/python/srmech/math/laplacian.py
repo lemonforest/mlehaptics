@@ -122,7 +122,6 @@ from srmech.math.rational import exp as _rexp  # Class-N exp cascade, not libm
 from srmech.math.rational import cos as _rcos  # Class-N cos cascade, not libm
 from srmech.math.rational import sin as _rsin  # Class-N sin cascade, not libm
 from srmech.math.rational import log as _rlog  # Class-N log cascade, not libm
-from srmech.math.rational import Q61_TRIG_RANGE as _Q61_TRIG_RANGE  # rc466: one bound, imported
 from srmech.math.rational import atan2 as _ratan2  # Class-N atan2 cascade, not libm
 from srmech.math.rational import complex_exp as _rcomplex_exp  # Class-N e^z, not libm
 from srmech.math.rational import exp_series_truncate as _exp_series  # rc136 EPH: Class-N exp
@@ -3892,34 +3891,35 @@ def _real_transcendental_native(flat_real: list, op_id: int):
     return True, None, rc
 
 
-def _q61_trig_range_refuse(flat_real: list, op_name: str) -> None:
-    """Refuse ``cos`` / ``sin`` / ``exp_i`` arguments the Q61 octant reduction
-    cannot reduce, BEFORE either projection runs (rc466, `#T1188`).
-
-    The pure cascade (:func:`srmech.math.rational.cos` → ``_q61_reduce``) raises
-    ``ValueError("cos: |x| too large for the Q61 octant reduction; got …")`` at
-    ``|x| >= 2**55``, and the scalar C peers ``srmech_cos_q61`` / ``srmech_sin_q61``
-    return status 2 for the same argument (the bound is
-    :data:`srmech.math.rational.Q61_TRIG_RANGE`, imported — not a second copy).
-    The ARRAY kernel ``srmech_elementwise_transcendental``
-    (``c/src/srmech_laplacian.c``) calls
-    ``srmech_cos`` / ``srmech_sin`` per element and DISCARDS the status —
-    ``(void)srmech_cos(x, &out[i])`` — so through rc465 the native projection
-    returned ``0.0`` for such an element, silently, where the pure projection
-    refused: MEASURED ``elementwise_transcendental([5.659390201622752e+16],
-    "cos")`` → ``0.0`` native / ``ValueError`` pure. A silent wrong value is the
-    top defect class; this guard makes the refusal carrier-independent (same
-    exception, same text, both cells) at the dispatch boundary. The C kernel's
-    status discard is the root and is named as a C follow-up (its fix is a
-    per-element status return — an ABI-visible change class). The magnitude is
-    a Class-K pin-slot branch, not ``abs()``.
-    """
-    label = "cos" if op_name == "exp_i" else op_name
-    for x in flat_real:
-        m = x if x >= 0.0 else -x
-        if m >= _Q61_TRIG_RANGE:
-            raise ValueError(
-                f"{label}: |x| too large for the Q61 octant reduction; got {x}")
+# rc473 (`#T1188`): ``_q61_trig_range_refuse`` stood HERE, between
+# ``_real_transcendental_native`` and ``_real_transcendental_loop``, and is
+# GONE. It was rc466's Python-side cover for a defect whose root is in C:
+# ``srmech_elementwise_transcendental`` called ``srmech_cos`` / ``srmech_sin``
+# per element and discarded the per-element status, so the native projection
+# returned ``0.0`` for an element the pure projection refused. rc473 repaired
+# the four discards in ``c/src/srmech_laplacian.c`` instead. Three measurements
+# retired the guard, all taken on this tree with the rc473 library loaded:
+#
+#   * REDUNDANT. For every ``|x| >= 2**55`` element the kernel now returns
+#     ``SRMECH_ERR_BAD_INPUT``, and the fallthrough already below hands the
+#     array to ``_real_transcendental_loop``, which raises the identical text.
+#     ``elementwise_transcendental([2**55], "cos" / "sin" / "exp_i")`` is
+#     byte-identical with the guard and without it.
+#   * HOLED. ``m = x if x >= 0.0 else -x; if m >= 2**55`` — BOTH comparisons
+#     are False for NaN, so the guard never refused one. Measured: calling it
+#     on ``[nan]`` returned ``None``. The C repair closes that for free: NaN
+#     now returns status 2 from every one of EXP / COS / SIN / LOG, including
+#     LOG, whose own pre-scan ``arr[i] <= 0.0`` is also False for NaN.
+#   * WRONG on ±Inf. The guard raised ``"cos: |x| too large for the Q61 octant
+#     reduction; got inf"`` — but ``rational.cos(inf)`` raises ``"cos: x must
+#     be finite (Q is the finite-rational carrier)"``. The guard reported the
+#     wrong one of the pure cascade's two refusals, in a docstring that claimed
+#     to raise what the pure cascade raises, from rc466 to rc472. Deleting it
+#     restores the finite-carrier text, measured.
+#
+# The bound itself is unmoved and unduplicated: it lives in exactly one place,
+# :data:`srmech.math.rational.Q61_TRIG_RANGE`, and this module no longer needs
+# to name it at all.
 
 
 def _real_transcendental_loop(flat_real: list, op_name: str) -> list:
@@ -4021,14 +4021,23 @@ def elementwise_transcendental(arr, op_name: str):
     exact-ARGUMENT series (``rational.cos_series_truncate(numerator,
     denominator, num_terms)`` and kin) are the truncated-series reference
     contract, not an exact peer. ``cos`` / ``sin`` / ``exp_i`` REFUSE
-    ``|x| >= 2**55`` with ``ValueError`` (the Q61 octant reduction's range) in
-    BOTH projections since rc466: through rc465 only the pure cascade refused,
-    while the native array kernel ``srmech_elementwise_transcendental`` discards
-    the per-element status and returned ``0.0`` for such an element —
-    measured ``elementwise_transcendental([5.659390201622752e+16], "cos")``
-    → ``0.0`` native / ``ValueError`` pure — a silent wrong value, now refused
-    at the dispatch boundary (:func:`_q61_trig_range_refuse`); the C kernel's
-    status discard is named as a C follow-up.
+    ``|x| >= 2**55`` with ``ValueError`` (the Q61 octant reduction's range),
+    and every op here refuses a non-finite element, in BOTH projections.
+
+    Through rc465 only the pure cascade refused: the native array kernel
+    ``srmech_elementwise_transcendental`` discarded the per-element status and
+    returned ``0.0`` for such an element — measured
+    ``elementwise_transcendental([5.659390201622752e+16], "cos")`` → ``0.0``
+    native / ``ValueError`` pure, a silent wrong value. rc466 covered it with a
+    Python-side pre-dispatch guard and named the C kernel as a follow-up; rc473
+    (`#T1188`) repaired the kernel and DELETED that guard, because a guard that
+    answers before the C symbol is consulted is what kept the defect invisible.
+    The refusal is now the kernel's own ``SRMECH_ERR_BAD_INPUT``, and the
+    existing fallthrough hands the array to the pure Class-N loop, which names
+    it: one text, both cells, reached through the C boundary rather than around
+    it. The guard also never caught NaN (it compared magnitudes, and both
+    comparisons are False for NaN) and mis-reported ±Inf as an octant-range
+    failure; both are measured in the note where it stood.
     """
     is_mat = _ew_is_matrix(arr)
     shape = _ew_mat_shape(arr) if is_mat else None
@@ -4038,7 +4047,6 @@ def elementwise_transcendental(arr, op_name: str):
         n = len(real_flat)
         if n == 0:
             return _ew_pack([], matrix=is_mat, shape=shape, is_complex=True)
-        _q61_trig_range_refuse(real_flat, op_name)      # rc466: both cells refuse
         ok_c, cos_out, _ = _real_transcendental_native(
             real_flat, _native.SRMECH_TRANS_COS
         )
@@ -4064,18 +4072,27 @@ def elementwise_transcendental(arr, op_name: str):
     n = len(real_flat)
     if n == 0:
         return _ew_pack([], matrix=is_mat, shape=shape, is_complex=False)
-    if op_name in ("cos", "sin"):
-        _q61_trig_range_refuse(real_flat, op_name)      # rc466: both cells refuse
     op_id = _TRANS_OP_IDS[op_name]
-    ok, out, rc = _real_transcendental_native(real_flat, op_id)
+    ok, out, _ = _real_transcendental_native(real_flat, op_id)
     if ok:
         if out is not None:
             return _ew_pack(out, matrix=is_mat, shape=shape, is_complex=False)
-        if rc == _native.SRMECH_ERR_BAD_INPUT and op_name == "log":
-            raise ValueError("log requires all arr[i] > 0")
-    # numpy-free Class-N scalar cascade (the no-native / Pyodide path). The
-    # log domain check (all arr[i] > 0, parity with the C BAD_INPUT contract)
-    # lives inside _real_transcendental_loop.
+    # numpy-free Class-N scalar cascade — the no-native / Pyodide path, AND
+    # the refusal path: a non-OK status from the kernel above falls through
+    # to here so the exception text is the pure cascade's own, one text in
+    # both cells. The log domain check (all arr[i] > 0, parity with the C
+    # BAD_INPUT contract) lives inside _real_transcendental_loop.
+    #
+    # rc473 (`#T1188`): a second copy of "log requires all arr[i] > 0" stood
+    # here, raised directly on SRMECH_ERR_BAD_INPUT from the log kernel. That
+    # was correct while the kernel's only refusal was its own pre-scan
+    # arr[i] <= 0.0 — but that scan is FALSE for NaN, and rc473 made
+    # srmech_log refuse NaN, so the copy began answering a NaN element with
+    # the DOMAIN text. MEASURED before removal: elementwise_transcendental(
+    # [nan], "log") said "log requires all arr[i] > 0" in the native cell and
+    # "log: x must be finite (Q is the finite-rational carrier)" in the pure
+    # one. The loop below says the right one of the two for both inputs, so
+    # the copy is gone rather than widened.
     flat_out = _real_transcendental_loop(real_flat, op_name)
     return _ew_pack(flat_out, matrix=is_mat, shape=shape, is_complex=False)
 
