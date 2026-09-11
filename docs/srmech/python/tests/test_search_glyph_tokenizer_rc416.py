@@ -1214,8 +1214,33 @@ from srmech.math.text import fold_marks, glyph_stream
 #: _tool_docs.py` ALONE to the pre-repair commit returns the digest to
 #: `40a2d8eb…` at the same 761 frames, and restoring it returns
 #: `6c51206c…`. One file, one cause, measured in both directions.
+#: A SEVENTH pin, in rc472's REPAIR PASS (`#T1188`), for the plainest cause
+#: of all: three `ToolEntry` strings moved — `winding_fold`'s `theta` summary
+#: ("any finite real" -> read at float64 resolution), its summary's "vs the
+#: exact fold" (-> "the divmod fold, which is lossless over the float64 image
+#: of theta") and `coupled_wave`'s return shape ("(float, C-dispatched)" ->
+#: the Q61 dyadic rational Q the legs actually are) — the rc471 corrections
+#: that rc472 C2 had scoped in the op DOCSTRINGS and never in the registry
+#: prose that ships in the wheel and the compiled-in C registry. Parameter
+#: summaries, op summaries and return shapes ARE the corpus, so the digest
+#: moves by construction. rc472's first repair commit (9fabd8eea) shipped the
+#: strings and NOT this pin: CI's pure shard 6/6 reddened on the three
+#: witness assertions below while the native jobs were still running — this
+#: gate doing its job, and that commit's hand-picked gate list being a
+#: subset of `tools/ripple_gates.txt` (the lossy-relay defect
+#: `tools/ripple_check.py`'s own docstring names); the whole manifest was run
+#: before the next push.
+#: CONFIRMED A PROSE MOVE AND NOT A NON-DETERMINISTIC BUILD, by the procedure
+#: above: `_build_frames("all")` returned `dfa2770091f0…e60a47fc3fad7` on two
+#: consecutive interpreter runs in the native cell and once in a pure
+#: snapshot outside the repo (CPython 3.12.3, numpy absent), and
+#: `search("rank", k=1).witness` agrees. THE FRAME COUNT DID NOT MOVE: 761 =
+#: 732 ops + 29 carriers. THE CAUSE IS ISOLATED, both directions: reverting
+#: `srmech/introspect/tool_schema.py` ALONE to ada84402a returns the digest
+#: to `6c51206c…` at 761 frames, and restoring it returns `dfa2770091…`.
 WITNESS_RC416 = (
-    "6c51206c057f6728dc80d2cd08821b9ca67b19695e219a8ddc1af03ede1c2b0e")
+    "dfa2770091f08f92774fa3e4fc52617e0f8091bfde9961b3223e60a47fc3fad7")
+#: was: 6c51206c057f6728dc80d2cd08821b9ca67b19695e219a8ddc1af03ede1c2b0e (rc471 repair pass)
 #: was: 40a2d8ebb1cf59de0302dcaf8052aee20eb8ed119e43584fdd0b10278a3bcc14 (rc469)
 #: was: 0fb043cc3c534f95038ada90e824b276c632dfdc141c3ecbca2d00d03bc1cedc (rc468 stage 5)
 #: was: dd0149df3067cbb6d72bd555b90b366ee1a63a2625fd63bd44e84aaa6a881a3e (rc468 stage 3)
