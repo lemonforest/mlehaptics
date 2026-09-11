@@ -953,7 +953,21 @@ jobs:
     # rc452 (`#T1166`) — 12 → 14. This job's ctest set grows 18 → 38: every
     # `c/test/test_srmech_*.c` is now registered (the other 20 previously ran in
     # NO automation on any platform — `make test` covers them on POSIX but no
-    # workflow invokes make). RE-DERIVED by rc357's rule, not bumped to taste:
+    # workflow invokes make).
+    #
+    # ⚠️ CORRECTED rc473 (`#T1188`): that "38" was never right. The commit that
+    # wrote this line (`6fba88091`) is the SAME commit that added
+    # `c/test/test_srmech_cascade_toml_host.c`, and its `SRMECH_C_TESTS_RC452`
+    # list carried 21 names, so the set grew 18 → 18 + 21 = **39**. The 38 was
+    # the pre-commit census, stale on arrival, and every rc since re-read it.
+    # rc473 adds `test_srmech_value_status_rc473`, so the live figure is **40**
+    # — measured on this cell, `ctest --test-dir build -N | tail -1` prints
+    # `Total Tests: 40` and a full `ctest --test-dir build` reports
+    # `100% tests passed out of 40`. Corrected in place rather than deleted,
+    # per the precedent `c/JPL_AUDIT.md` sets for its own headline: the wrong
+    # number and the reason it survived are more useful than a clean one.
+    #
+    # RE-DERIVED by rc357's rule, not bumped to taste:
     #   T = ceil(max_observed) + max(ceil(0.5 * max_observed), 10)
     # with max_observed 1:47 + the 20 added compile-and-link units ≈ 3:20,
     # giving ceil 4 + max(2, 10) = 14. Still FLOOR-DOMINATED, which is why the
@@ -962,8 +976,12 @@ jobs:
     # ⚠️ THE INPUT IS A PROJECTION, NOT A MEASUREMENT, AND IS LABELLED SO
     # DELIBERATELY. The binding cell is the Windows MSVC leg and this rc could
     # not observe it — the 20 files have only ever been compiled by gcc on WSL2
-    # (measured there: the whole 38-test ctest set runs in 5.89 s wall, so the
-    # RUN half contributes essentially nothing; the added cost is COMPILE). The
+    # (measured there: rc452 timed the whole ctest set at 5.89 s wall and
+    # called it 38 tests — the set was 39, see the correction above; at rc473
+    # it is 40 and ran in 5.35 s and 4.98 s wall on two consecutive
+    # invocations, WSL2 / gcc 13.3.0 / Release + SRMECH_PEDANTIC=ON. Either
+    # way the RUN half contributes essentially nothing; the added cost is
+    # COMPILE). The
     # projection is an upper bound built from the local per-target build cost.
     # Replace it with the measured max after this rc's first green run rather
     # than re-quoting this line as though it were measured.
