@@ -435,6 +435,36 @@ By the freshness hook's own list at `ad870d67b`: **91 of 649** rows unverified, 
 
 One paragraph of commit `ad870d67b`'s message stated `tests/test_jpl_audit.py` **13 passed** and the five ratchet seeds **before those figures had been printed in this session** — they had been observed inside a 103-passed batch, not alone. They were then measured alone, and **every one reproduces**: `13 passed in 38.62 s`; `RULE_5_EXEMPT_FUNCTIONS` **35** · `RULE_4_SEEDED_OVER_CAP` **12** · `RULE_5_SEEDED_UNDER_MIN` **2** · `RULE_1_RECURSION_SEEDED` **9** · `RULE_9_FN_PTR_SEEDED` **10** · `CEIL_RULE_1_RECURSION` **9** · `CEIL_RULE_9_FN_PTR` **10**; `re.findall(r"RULE_7\w*", …)` → `[]`. The figures stand; the ordering did not, and a commit message is a dated record, so the correction is here rather than there.
 
+### Gates run in this stage, foreground, with their results
+
+```
+ctest --test-dir build                            100% tests passed out of 40 (6.05 s)
+./build/test_srmech_value_status_rc473            75 passed, 0 failed (exit 0)
+the five gates the guard deletion touches         166 passed, 4 xfailed
+14 parity / transcendental files                  417 passed, 4 xfailed
+5 of those files, library moved aside             111 passed, 9 skipped
+jpl_audit + xrefs + introspect + version pin      103 passed
+tests/test_jpl_audit.py alone                     13 passed (38.62 s), seeds unmoved
+tests/test_value_status_c_boundary_rc473.py       81 passed, 4 xfailed (native)
+the three C-boundary / Q61 files, library aside   47 passed, 81 skipped
+5 prose / currency gates incl. pypi_readme        80 passed, 3 skipped (77.13 s)
+the 4 files the sweep found red, after repair     232 passed, 1 skipped (80.57 s)
+tools/regen_all.py                                0 changed, 6 same, idempotent (141.6 s)
+tools/hooks/derived_ledger_freshness.py           exit 0, no output
+tools/hooks/ssot_agreement.py                     HOOKRC=0
+tools/ripple_check.py  (collect + 135 targets)    RIPPLE_RC=1 -- 9 failed, 3074 passed,
+                                                  6 skipped, 4 xfailed (1828.52 s)
+```
+
+**The nine, triaged by measurement rather than by which looked plausible.** They are three different things, and only one class is this rc's.
+
+* **REAL, and this rc's own — two version-stamp censuses, red since STAGE A and run by neither A nor B, both in `tools/ripple_gates.txt`.** `test_silent_carrier_demotion_rc463::test_the_manifest_records_the_version_it_was_measured_at` (*"measured at {'native': '0.9.0rc472', 'pure': '0.9.0rc472'} and this tree is '0.9.0rc473'"*) and `test_frame_scope_rc430::test_the_committed_frame_census_matches_the_live_one` (*"census recorded at 0.9.0rc472, tree is at 0.9.0rc473"*). Their own remedies were taken and the stamp was never touched — the demotion gate says outright *"Do NOT edit the stamp. It is a CLAIM, not a digest: hand-editing it green is exactly the forgery this assertion exists to make visible."* **Pinned before the runs, and the pin was WRONG in the safe direction:** I expected native-cell rows for `equation_of_centre` / `pin_slot` / `kepler_solve` / `elementwise_transcendental` / `kuramoto_step` to move, since rc473 makes exactly those ops refuse where they returned wrong values. **Measured — frame census** (native cell, py3.12): **734 rows → 734, 0 added, 0 removed, 0 data rows differing**, meta moving in `census_seconds` (42.1 → 38.7) and `srmech_version` alone — the same two fields rc472 recorded. **Demotion census**, BOTH cells from an empty manifest (the tool REFUSES to merge a fresh column beside a stale one), native loaded then pure with the library moved aside (`HAS_NATIVE False` printed): **835 → 835, 0 added, 0 removed, 0 of 835 data rows differing**, meta moving in `measured_at` ALONE. Why the pin was wrong, stated rather than passed over: the census probes at the `2**53` witness family (`F 9007199254740992`, `P …93`, `G …94`) and every refusal rc473 moves sits at `2**55` or at a non-finite value, so the behaviour change is outside the probe set. A real null, not a blind instrument — which is why it had to be run rather than predicted.
+* **ENVIRONMENT, not the tree — `test_worked_examples_execute_rc354` ×2.** The WSL-git defect recorded above; green with `GIT_DIR` / `GIT_WORK_TREE` exported (**18 passed** with its rc353 sibling).
+* **DESIGNED FAIL-LOUD, and the tree says so — `test_citation_manifest_rc428` ×5.** `assert len(CC.shipped_modules()) >= 200` → **0**. Read rather than guessed: `tests/citation_corpus.py`'s `EXCLUDED_DIR_NAMES` carries `".claude"` and `"worktrees"`, and `_excluded` matches ANY path component, so the corpus is empty inside a session worktree. That file's own comment states it — *"an EXCLUDED ANCESTOR zeroes the corpus … That is the intended behaviour and not a hole in CI: the non-vacuity floors below … FAIL LOUD rather than reporting a clean tree"* — and all five failures ARE those floors firing. **A zero from this cause looks exactly like a zero from a clean corpus**, which is why it is classified from the source and not from the count. CI runs from the repo root.
+
+⚠️ **One contamination risk, disclosed by name.** While the 30-minute sweep was in flight I moved `libsrmech.so` aside for **43 s** to take a pure-cell reading. A gate running in that window would have FAILED, not passed — `tests/_native_gate.py`'s `require_native` calls `pytest.fail` when the library is absent unless the run declares `SRMECH_EXPECT_PURE=1`, which the sweep does not — so the sweep cannot have been falsely GREEN by that route, and none of the nine failures carries a native-absence message. It could have produced a spurious RED, and did not.
+
+⚠️ `tests/test_pypi_readme_changelog.py` is **not** in `tools/ripple_gates.txt` (`grep -n pypi` over the manifest → no match) and this stage edits the file it reads, so it was run by name rather than left to the manifest.
 ### Deliberately not done, disclosed by name
 
 * **The `RULE_7_ROSTER` detector is NOT shipped.** `c/JPL_AUDIT.md` now says so in its own section, which is the point — the rule's return-value count is a **measurement, not a ratchet**, and only `SRMECH_NODISCARD` + `-Werror` refuses a 25th site, on gcc and clang and not on MSVC.
