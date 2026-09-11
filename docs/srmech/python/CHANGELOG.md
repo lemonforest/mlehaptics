@@ -18,6 +18,129 @@ All notable changes to this package will be documented here. The format follows 
      `srmech.__version__` and that the slice holds EVERY current-minor entry in the file, so a
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc473] - `#T1188`: the instrument first — two gates read at the C boundary and proven RED on the unmodified tree, the twenty-four discarded statuses counted off a planted header without ever committing a red build, and four divergences the scoping had not found
+
+*(**STAGE A** of rc473. The rc has two halves and neither is optional: make the co-equal-projections claim TRUE — 24 call sites across 7 C files stop discarding a `srmech_status_t` — and make the instrument able to DETECT when it is not. This stage ships the SECOND half, and ships it FIRST. rc472 did it the other way round: it added a guard inside the Python wrapper, which turned every parity gate green while the defect stayed exactly where it was. **No call site is repaired here.** Order is the deliverable: a gate that was never seen red is a prediction, not a measurement.)*
+
+**CONDITIONS FOR EVERY FIGURE BELOW.** WSL2 (`Linux lemonade 6.18.33.2-microsoft-standard-WSL2`), session worktree `.claude/worktrees/wf_9fa19a06-4e3-1/docs/srmech`, branched from `b398b8c46` (v0.9.0rc472), gcc **13.3.0**, cmake **4.4.3**, CPython **3.12.3** under `uv run --python 3.12 --no-project --offline`, **numpy absent**, `SRMECH_PEDANTIC=ON` / `CMAKE_BUILD_TYPE=Release`. Native cell live and current, no stale-native tripwire: `HAS_NATIVE True`, `EXPECTED_ABI_VERSION 25 == NATIVE_ABI_VERSION 25`. **`SRMECH_ABI_VERSION` stays 25 in this stage** — no exported function's behaviour moves here; the bump to 26 belongs with the repair that earns it. Generating code for every number is committed under `docs/srmech/notes/_rc473_*.py` with its NDJSON output beside it.
+
+### The defect, restated in the two projections' own words
+
+```
+Python : equation_of_centre(2.0**53+1, 0.0549, 4)        -> ValueError
+C      : srmech_equation_of_centre(2.0**53+1, 0.0549, 4) -> status 0 (SRMECH_OK),
+                                                           -0.08984990210223018
+```
+
+`4 * (2**53 + 1)` is exactly `2**55`; `srmech_sin` **already refuses** that argument at rc472 (measured: `(2, 0.0)`), and `srmech_kepler.c:180` spells the call `(void)srmech_sin(harmonic, &sin_h);`. A bare-C host computes a wrong number and is told it is correct — the project's own top-severity class, live in one of the two projections the architecture rests on (ADR-0009 §2.1, §2.4).
+
+**And the instruments were pointed at the wrong boundary.** Of the **47** test files under `python/tests` whose name carries `parity`, **42 make zero direct calls to a C symbol**; of the five that do, none names a math op. Exactly **one** test in the whole tree named a math op through `LIB.` — `tests/test_native_explog_rc46.py:55-57`, a direct `LIB.srmech_log(-1.0)` asserting status **and** `isnan`. This stage generalises that one template.
+
+### The population, cross-checked by two instruments that can disagree
+
+```
+$ grep -rnE '\(void\)srmech_(sin|cos|atan|atan2|exp|log|rational_sqrt)\(' c/src/*.c | wc -l
+24
+$ grep -rlE '...same...' c/src/*.c | wc -l
+7
+$ grep -rnE '...same...' c/test/ c/tools/ | wc -l
+0                      # and find c/tools -name '*.c' | wc -l  ->  0
+```
+
+Per file: `srmech_eigvals.c` 4 · `srmech_jade.c` 3 · `srmech_kepler.c` 7 · `srmech_kuramoto.c` 3 · `srmech_laplacian.c` 5 · `srmech_svd_qr.c` 1 · `srmech_trig.c` 1 = **24**.
+
+`notes/_rc473_nodiscard_plant.py` then reads the same population with a compiler instead of a regex: it copies `c/include` to a temp directory, plants `SRMECH_NODISCARD` (`__attribute__((warn_unused_result))` on gcc/clang, empty otherwise) on **14** declarations, and compiles `c/src/*.c` **unmodified** against it with the live pedantic flags read out of `build/CMakeFiles/srmech.dir/flags.make`:
+
+```
+{"declarations_tagged": 14, "roster": 14}
+{"unused_result_sites": 24, "grep_sites": 24, "sets_equal": true,
+ "compiler_only": [], "grep_only": [], "other_diagnostics": 0}
+{"file": "srmech_kepler.c", "returncode": 1, "first_error":
+ "…/srmech_kepler.c:97:11: error: ignoring return value of 'srmech_cos'
+  declared with attribute 'warn_unused_result' [-Werror=unused-result]"}
+{"header_bytes_identical": true}
+```
+
+**24 sites, identical `file:line` set, zero other diagnostics, repo untouched.** The plant tags each of the 14 by a regex that requires **exactly one** match and aborts otherwise, because a declaration spelled differently is a silent hole in precisely the coverage the number is meant to prove. Two things fall out for free: every one of the 24 sites is written `(void)srmech_…(…)`, and all 24 still warned — so **the `(void)` cast does not suppress the attribute on gcc**, measured rather than quoted; and the `-Werror` form is a **build** failure, not a test failure, which is why the header and the 24 repairs must land in ONE commit. With `-Werror` the pedantic job's Build step fails on all three OSes, `libsrmech` and all 40 test binaries are never produced, and neither ctest nor the asserts-live smoke can run at all. "The intermediate is expected red" is not a statable position there: it is a commit at which the rc cannot be measured by any instrument it ships. So the 24 is a **scratch** measurement by construction, and nothing is gained by committing one.
+
+### The two gates, and that they are RED
+
+**`c/test/test_srmech_value_status_rc473.c` — a bare-C host, no Python in the acceptance path.** It links `libsrmech` and calls the exported symbols. House style of `test_srmech_trans_q61.c` (`g_passed`/`g_failed`, printf PASS/FAIL), and **runtime `if`, never `assert`**: the wheel builds Release, Release implies `-DNDEBUG`, and an assert compiled out of the shipped build is a CI-lane instrument rather than a gate.
+
+```
+$ ./build/test_srmech_value_status_rc473
+…
+  FAIL  equation_of_centre(2^53+1, 0.0549, 4)
+    equation_of_centre(2^53+1, 0.0549, 4) returned SRMECH_OK with -0.08984990210223018
+…
+36 passed, 30 failed          EXIT=1
+
+$ ctest --test-dir build -R value_status --output-on-failure
+The following tests FAILED:
+	 40 - test_srmech_value_status_rc473 (Failed)          CTEST_EXIT=8
+```
+
+Every value the file prints goes through **`srmech_double_repr`** — srmech's own integer-only Ryu conversion — rather than `printf("%.17g")`. Two reasons, both about the gate being quotable as evidence: `%.17g` is not portable output (`srmech.h` records that MSVC spells `1e17` as `1e+017`, so a three-OS gate would print a different number on one leg), and `srmech_double_repr` returns the shortest round-tripping spelling, which is the one CPython's `repr()` returns. That is why the FAIL line above is byte-identical to the Python-side figure for the same double — which is the entire subject of this rc.
+
+**`python/tests/test_value_status_c_boundary_rc473.py` — the same contract read through ctypes, with the both-directions clause.** `33 failed, 46 passed, 4 xfailed`, by test function: `a_refusal_writes_nan_not_a_plausible_number` **9** · `elementwise_transcendental_propagates_per_element` **8** · `c_and_pure_agree_on_what_they_refuse` **6** · `atan2_agrees_with_pure_in_status_and_value` **4** · `kuramoto_steps_propagate_their_sin_refusal` **3** · `pin_slot` / `kepler_solve` / `equation_of_centre` **1** each. Six of the nine NaN-value rows are the same defect as six status rows (the value half is unreachable while the status is still `SRMECH_OK`), so the **distinct** count is **27**, stated rather than left to read as 33.
+
+**The asymmetry in every row is the design.** The C side is read at the SYMBOL (`_native.LIB.srmech_*`, no wrapper); the Python side is read at the op a user calls. A cover inside the wrapper therefore cannot turn a row green — it moves only the Python side, and the C side still answers. That is the property rc472's guard did not have.
+
+⚠️ **The file FAILS rather than skips when a library is present and did not load.** The cell is classified from the filesystem, not from a flag: skip only when no shared-library file exists beside `srmech/_native/` at all. A library on disk with `HAS_NATIVE False` is an ABI mismatch or a stale artifact — the exact state in which a native gate silently degrades to a skip and stops measuring. `notes/_rc473_cell_classification_probe.py` drives the classifier through all three cells so the branch is executed rather than asserted:
+
+```
+{"cell": "as-loaded",                      "has_native": true,  "outcome": "returned"}
+{"cell": "library-present-but-not-loaded", "has_native": false, "outcome": "Failed: …"}
+{"cell": "genuinely-pure",                 "has_native": false, "outcome": "returned"}
+```
+
+### ctest 39 → 40, and the registration that would have failed silently
+
+```
+$ ctest --test-dir build -N | tail -1
+Total Tests: 39          (before)          Total Tests: 40          (after)
+$ pytest tests/test_ctest_collection_parity_rc452.py tests/test_c_test_wiring_rc356.py -q
+10 passed in 14.09s
+```
+
+The new stem goes in `SRMECH_C_TESTS_RC452`, whose `foreach` does `add_executable` **and** `target_link_libraries` **and** `add_test`. The other `foreach` in the file issues `add_test` only — a name added there would be registered with ctest, would satisfy the parity gate's two-way set equality, would make `ctest -N` print the expected 40, and would **never be compiled**, so the `-Werror` / `/WX` matrix would never see the file.
+
+⚠️ **A comment containing `)` inside the `set()` body silently truncates the parity gate's parse**, and this was found by hitting it. `test_ctest_collection_parity_rc452::_registered` resolves the list with the **non-greedy** `set\(\s*(\w+)\s+(.*?)\)`, so the first `)` anywhere in the body ends the capture — including one inside a `#` comment, which CMake itself ignores. `notes/_rc473_cmake_set_parse_probe.py` isolates the cause in both directions:
+
+```
+{"variant": "no comment in body",      "n": 4, "new_target_seen": true}
+{"variant": "comment containing ')'",  "n": 3, "new_target_seen": false}
+{"variant": "comment with no ')'",     "n": 4, "new_target_seen": true}
+```
+
+The build is fine in the middle case; the target compiles and runs; the gate reports the file as UNREGISTERED and points the reader at the registration, which is correct. The warning is now written above the `set(`, where it cannot be captured.
+
+### Four divergences the scoping did not have, all measured here
+
+1. **`srmech_atan2(+inf, +inf)` → `(SRMECH_OK, -3.2146018366025517)`**, reached with no NaN ever passed in: `y / x` is `inf/inf` = NaN inside `srmech_atan2`. Pure `rational.atan2(+inf, +inf)` answers `Q(905502432259640355, 1152921504606846976)` = `0.7853981633974483` (π/4). The two projections disagree there in value **and** in status, and the C value is **below −π**, outside `atan2`'s own codomain. `(-inf, -inf)` gives `-6.3561944901923448`.
+2. **`srmech_atan2(1.0, nan)` → `(SRMECH_OK, -0.073009183012758605)`** — a small, *in-range*, entirely plausible angle manufactured from a NaN. A range check cannot catch this one; only the status can. It is the strongest single argument in this rc for gating status and value separately.
+3. **`srmech_sin(2**55)` and `srmech_cos(2**55)` refuse with `(2, 0.0)`** — status correct, value **0.0**, where `srmech.h` promises NaN. Same shape as the already-known `srmech_rational_sqrt(-4.0) -> (2, 0.0)` (the implementation writes `x - x`, which is `0.0` for every finite x). Three sites where the status half is already right and the **value** half is wrong, which status-only propagation would not have closed.
+4. **`srmech_atan(±inf)` and the four finite-argument `atan2` infinity quadrants AGREE with pure** — C `(0, ±1.5707963267948966)`, pure `Q(±3622009729038561421, 2305843009213693952)`, the same ±π/2. The gate's atan rows are written as *served* rows from that measurement and for no other reason; the plan's worry that they would disagree is closed, in the direction that needs no special case.
+
+Also on the record, from `notes/_rc473_a0_baseline.ndjson` (84 rows): `srmech_pin_slot(2**55, 0.5, 1.0) -> (0, 0.0)`; `srmech_kepler_solve(2**55, 0.3, 1e-12, 20) -> (0, 3.602879701896397e+16)` with `E == M` — the Newton iteration never moves `E` off its initial guess, so the caller is handed the input back as the answer; `srmech_cascade_kuramoto_step_f64([0.0, 2**55], …) -> (0, [0.0, 3.602879701896397e+16])`, oscillator 0 silently **frozen** rather than NaN; `srmech_elementwise_transcendental([2**55], COS) -> (0, 0.0)` and `([+inf], COS) -> (0, nan)` while the scalar peer refuses both; and `([nan], LOG) -> (0, nan)`, because the kernel's own domain pre-scan is `arr[i] <= 0.0`, which is FALSE for NaN.
+
+### A false JPL claim, corrected where it was written
+
+`c/src/srmech_kepler.c:47` read **"Rule 7 (return-value) : OK — srmech_status_t throughout"** — in a file with **seven** discarded statuses, from that file's first commit through rc472. Rule 7 is about CHECKING a returned value, not about declaring a return type, and "srmech_status_t throughout" answers the second question while appearing to answer the first. It survived because **Rule 7 has no detector**: `tests/test_jpl_audit.py` ratchets Rules 1, 3, 4, 5, 8 and 9 and carries no `RULE_7` symbol at all, so the claim was never measured against anything. Corrected in place with the measurement, per the precedent `JPL_AUDIT.md` sets for its own headline. The detector itself, and `JPL_AUDIT.md`'s own Rule-7 row, belong with the repair.
+
+### Declines, named rather than dropped
+
+* **C serves a non-finite argument to `exp` / `log` / `rational_sqrt` where the pure projection refuses it** — `srmech_exp(+inf) -> (0, inf)`, `srmech_exp(-inf) -> (0, 0.0)`, `srmech_log(+inf) -> (0, inf)`, `srmech_rational_sqrt(+inf) -> (0, inf)`, against `ValueError` from each pure peer. An ADR-0009 §2.4 instance, **not repaired here**: `lap_sqrt(1.0 + tau*tau)` in `srmech_laplacian.c` and `sq_sqrt` in `srmech_svd_qr.c` both reach `+Inf` on the tau-overflow path and rely on `sqrt(+Inf) = +Inf` to get `t = 1/(tau + Inf) = 0`, inside `static` helpers with no status channel. Carried as **strict** `xfail` rows in the Python gate and as pinned rows in the C gate — strict because the pinned C behaviour is deterministic and host-independent, which is exactly the condition the tree's one live non-strict xfail was written for the absence of. ADR-0009 §5 is explicit that disclosure is necessary and **not** sufficient: the tracked filing is owed and is not made by this stage.
+* **`rational.exp(2.0**55)` is NOT EXERCISED, by name.** `exp(x)` is built as `2**n * exp(r)`, so `n ~ 5.2e16` and the exact integer has ~5e16 bits; under `ulimit -v 4000000` it raises `MemoryError`, unbounded it is a machine-filling allocation. A gate must not execute it. The pure-side crash — where C answers `(0, +Inf)` — is a real defect and a different one from the discarded statuses measured here.
+* **`srmech_cascade_dead_band_f64` is excluded from the roster's two-way coverage check, with its reason in the table.** It matches the header's scalar-declaration shape but is a cascade LEAF whose pure peer is `srmech.cascade.leaves.dead_band`, not `srmech.math.rational`; `dead_band(NaN, band)` is NaN **by design** in both projections and is a pinned required-DIVERGENT witness in the rc450 value-parity comparator, so a refusal row for it would assert the opposite of its own specification. The exclusion is itself gated: an entry that stops naming a real declaration fails the test, because a stale carve-out reads exactly like coverage.
+
+### Corrections to this rc's own scoping documents
+
+* **ctest is `39 → 40`, not `38 → 39`.** Measured `Total Tests: 39` before and `40` after. The `38` traces to `.github/workflows/srmech-ci.yml:953`, written by the same commit that added the 39th test file, and stale from the moment it was written. The stated failure signature "ctest lists 38 not 39" would have made a correct build look broken.
+* **`ctest` exits `8`, not `1`,** when a test fails — 8 is its "some tests failed" code. The *executable* exits 1. Both are above.
+* **A version bump alone reds `tests/test_pypi_readme_changelog.py`.** `test_slice_newest_entry_is_the_live_version` asserts the changelog slice's newest heading equals `srmech.__version__`, so the five SSOT files and a CHANGELOG entry are one atomic change, not two. Not stated anywhere in this rc's scoping.
+* **The version-bump gates, green after:** `tests/test_signal_processing_scaffolding.py` **40 passed**; `tools/hooks/ssot_agreement.py` `HOOKRC=0`; `tests/test_jpl_audit.py` + `tests/test_ref_notation_emitted_rc348.py` **31 passed**.
+
 
 ## [0.9.0rc472] - `#T1188`: the census learns SCALARS, an op that answered in one projection and refused in the other, the required-scalar fill that let thirteen rows be asked — and two of rc471's own shipped sentences corrected, one for a claim that is true at exactly one binade and one for a cause that was never the cause
 

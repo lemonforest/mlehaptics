@@ -1,0 +1,4 @@
+{"describe_tools_total": 732, "equal": true, "len_get_tool_schema_tools": 732, "stamp": "notebook 817 / 5463 \u2014 tool schema registry total"}
+{"c_runnable": 18, "executable": 18, "leaf": 3, "stamp": "notebook 5455 \u2014 cascade catalog", "total": 21}
+{"expected_abi_version": 25, "has_native": true, "macro_in_srmech_h": 25, "native_abi_version": 25, "stamp": "notebook 5464 \u2014 ABI"}
+{"srmech_version": "0.9.0rc473", "stamp": "python/README.md:188 \u2014 worked native_status block"}
