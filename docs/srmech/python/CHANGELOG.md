@@ -578,6 +578,15 @@ Exporting `GIT_DIR` / `GIT_WORK_TREE` — the documented remedy for WSL git on t
 * Pedantic build, gcc 13.3.0, `SRMECH_PEDANTIC=ON` / Release — exit 0, `grep -ciE "warning:|error:"` = **0**, with 17 `SRMECH_NODISCARD` declarations live.
 * `check_hooks.py` — **117 passed / 6 failed / 2 skipped**, byte-identical to the branch-head hook files in the same cell.
 
+#### The closing question, answered by measurement: is any divergence left UNFILED?
+
+Asked at the ctypes symbols against the pure peers, on the committed tree, native cell, ABI 26 == 26 — **90 rows**: six scalar ops × fifteen arguments (NaN, ±Inf, `2^55`, `2^55−4`, `−4.0`, `0.0`, `1.0`, `0.5`, `2^53+1`, `±1e300`, `5e-324`, and the `709.78` / `709.79` pair that straddles `log(DBL_MAX)`).
+
+**UNFILED disagreements: 0.** Nine rows disagree and every one of them is a row this rc has already filed — **6 are D8** (`exp` / `log` / `rational_sqrt` at an argument the Q61 peer itself refuses: `exp(±Inf)`, `exp(±1e300)`, `log(+Inf)`, `rational_sqrt(+Inf)`) and **3 are D9** (`exp` at `2^53`, `2^55−4`, `2^55`, where `srmech_exp_q61` ACCEPTS — status 0, with `n` between 1.3e16 and 5.2e16 — `srmech_exp` answers `inf`, and `rational.exp` raises `MemoryError` under `ulimit -v 4000000`). The eccentricity band agrees on all six out-of-band values with the ordinary control still served identically, and **no refusal writes a non-NaN**: 0 plausible values across the whole roster.
+
+⚠️ **The first version of that classifier reported "4 unfiled" and was wrong**, because its filed-set was a hard-coded list of arguments — the ±Inf four plus the one finite NEGATIVE witness — and could not recognise the positive-finite half of the same row. A predicate narrower than its own population, in the probe written to check for exactly that. The classifier now ASKS THE LIBRARY (`srmech_exp_q61` / `log_q61` / `sqrt_q61` status) instead of holding a list, and the three it still could not place were then measured rather than assumed to be D9's.
+
+⚠️ **And that first run executed `rational.exp(2.0**55)` with NO memory bound.** It happened to raise rather than thrash, which is luck and not a design. `_NOT_EXERCISED_PURE` exists in the boundary gate precisely so a GATE never does this; a scratch probe is not a gate and had no such guard. Recorded because the next person writing a probe against D9's arguments needs the `ulimit` and will not get it from the gate.
 #### Deliberately not done in this pass, disclosed by name
 
 * **The three C-NARROWER declines, the `elementwise exp` overflow divergence and the `kepler_solve` convergence divergence are FILED, not repaired.** Each is an ADR-0009 §1.2 row tracked under `` `#T1188` ``, **Still open**, with the close path named. Two of the three narrowing cases are structural (an `int64_t` out-parameter cannot carry a bignum, so closing them means a limb form), and the `kepler_solve` one is the float-vs-exact seam this rc's brief puts out of scope by name.
