@@ -778,14 +778,14 @@ extern "C" {
  * transcendental family, the attribute is free, and the pedantic build stays
  * at 0 warnings because the c/test sites were already repaired by hand.
  *
- * So the compiler guard now covers 17 of the status-returning Class-N
- * exports, and that is a NUMBER rather than an unknown. It is still not a
- * ratchet: the RULE_7_ROSTER detector named as owed in c/JPL_AUDIT.md is not
- * shipped, so a discard on a symbol nobody tagged is invisible to the
- * compiler, to the roster gate and to the pytest audit alike. The decidable
- * thing for that ratchet to assert, when it is written, is two-way: every
- * member of the declared family carries SRMECH_NODISCARD, and every tagged
- * name is still a real declaration.
+ * MEASURED after that: the tagged set and the Class-N transcendental
+ * status-returning family are now EQUAL at 17 — 0 family members untagged,
+ * 0 tagged names outside the family — so the guard's reach is a two-way
+ * equality rather than a coverage fraction. It is still not a ratchet: the
+ * RULE_7_ROSTER detector named as owed in c/JPL_AUDIT.md is not shipped, so
+ * a discard on a symbol nobody tagged is invisible to the compiler, to the
+ * roster gate and to the pytest audit alike. What that ratchet should
+ * assert is the equality above, which is now true and is not enforced.
  *
  * This is a single-token object-like macro on the MSVC and fallback legs and
  * a single-line one on the GNU leg (JPL Rule 8 clean: no token-paste, no
