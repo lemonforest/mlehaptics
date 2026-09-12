@@ -932,8 +932,9 @@ scratch remains single-thread-at-a-time until similarly converted.
 
 The C library is clean on **seven** of the 10 Holzmann Power-of-Ten
 rules; **Rules 1, 7 and 9 are PARTIAL** (see
-[c/JPL_AUDIT.md](c/JPL_AUDIT.md)). Rules 1 and 9 are each under a
-seeded down-only ratchet. **Rule 7 has no detector at all** — the
+[c/JPL_AUDIT.md](c/JPL_AUDIT.md)). All three are under a seeded
+down-only ratchet — **Rule 7's since rc473's pre-publish pass; it had
+no detector at all before that**, and the
 audit document recorded it "0 violations / Pass" from its first
 commit through rc472, on a four-function evidence table, while **24**
 discarded `srmech_status_t` values sat across 7 translation units;
@@ -947,9 +948,24 @@ clang for a BARE-statement discard, on **gcc alone** for the
 `(void)`-cast form all 24 repaired sites used, and nothing on MSVC
 (measured at the rc473 pre-publish pass on gcc 13.3.0 / clang 22.1.0
 / cl 19.31.31104; CI's macos-14 and windows-latest compilers are
-UNMEASURED). A `RULE_7_ROSTER` ratchet is
+UNMEASURED). ⚠️ **This paragraph ended "a `RULE_7_ROSTER` ratchet is
 named as owed and is NOT shipped, so this count is a measurement and
-not a floor. Rule 9's
+not a floor" until the A4 pre-publish pass shipped it.** It is a floor
+now: four `test_rule_7_*` functions (`13 passed` → `17 passed`) holding
+strict zero on the 29-name roster — pinned two-way against a live
+masked scan of the header, so the attribute cannot be silently lost —
+plus down-only `==` ceilings on the residual, `c/src` **18** and
+`c/test` **118**, counted separately so a harness drain cannot hide a
+library regression. Being a SOURCE scan it runs on the MSVC cell too,
+where the compiler guard diagnoses nothing. It does NOT make the rule
+pass: its own scope stops at the public header plus each TU's statics
+(so the 44 `srmech_plat_*` discards declared in the private
+`c/src/srmech_platform.h` stay enumerated rather than gated — the next
+drain), it is blind to a call that is the second statement on one line
+(a BARE discard, which gcc and clang both refuse, so the two detectors'
+blind spots are complementary), and Rule 7's parameter-validation half
+is still unmeasured. Predicate, seeds, sensitivity and the three-plant
+mutation are in `notes/_rc473_a4_rule7_ratchet.py`. Rule 9's
 measured population is **10 function-pointer declarator sites** —
 this line said "one deliberate deviation" until rc452, while the tree
 carried 12 pre-rc452 sites including `IV_VTABLE` (a 38-row dispatch
@@ -974,7 +990,12 @@ Enforcement:
    detects Rules 1 (no goto **and, since rc441, no new direct/indirect
    recursion — strict on novel cycles, down-only on the seeded
    population of 9**), 3 (no malloc), 4 (≤60-line functions), 5 (≥2
-   asserts per non-exempt function), 8 (no multi-line macros), and —
+   asserts per non-exempt function), **7 (since rc473's pre-publish
+   pass — no discarded `srmech_status_t` from a `SRMECH_NODISCARD`-tagged
+   callee, strict zero, plus down-only residual ceilings of 18 in
+   `c/src` and 118 in `c/test`; the test-side ceiling carries its own
+   `c/test` existence skip because `sdist.include` does not ship that
+   directory)**, 8 (no multi-line macros), and —
    since rc452 — 9 (**no new function-pointer declarators** — masked
    scan, strict on novel sites, down-only on the seeded population of
    10, with a vacuity check that must find the documented

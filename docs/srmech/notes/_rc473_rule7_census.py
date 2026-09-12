@@ -2,10 +2,29 @@
 
 ``c/JPL_AUDIT.md`` recorded Rule 7 as *"Violations: 0 / Pass"* with a
 four-function evidence table, while 24 discarded ``srmech_status_t`` values sat
-in ``c/src``. There is no Rule-7 detector in ``tests/test_jpl_audit.py`` at all
-— its test functions name Rules 1, 3, 4, 5, 8 and 9, and the string ``RULE_7``
-does not appear in the file — so nothing contradicted the sentence. This script
-measures what the document should have said.
+in ``c/src``. When this script was written there was no Rule-7 detector in
+``tests/test_jpl_audit.py`` at all — its test functions named Rules 1, 3, 4, 5,
+8 and 9, and the string ``RULE_7`` did not appear in the file — so nothing
+contradicted the sentence. This script measures what the document should have
+said.
+
+⚠️ **That paragraph read in the present tense until the rc473 pre-publish pass
+shipped the ratchet** (A4: ``RULE_7_NODISCARD_ROSTER`` + two down-only ceilings
++ a vacuity seed + four ``test_rule_7_*`` functions). The two ``jpl_audit_*``
+fields this script emits are exactly the reading that had to move, and they
+did: ``[] -> ["RULE_7", "RULE_7_NODISCARD_ROSTER", "RULE_7_VACUITY_SEEDS"]``
+and ``[] -> the four test names``. Both were written as an instrument that
+could return otherwise, and it returned otherwise the first time it was asked.
+
+⚠️ **And that first reading was SHORT, which is this rc's own defect class a
+third time.** The symbol pattern below was ``\\bRULE_7\\w*``, and ``\\b`` does
+not match between ``L`` and ``R`` — so ``CEIL_RULE_7_SRC`` and
+``CEIL_RULE_7_TEST``, the two down-only ceilings that ARE the ratchet, were
+invisible to it while three other symbols were found. A reader that returns a
+non-empty short list reads as a complete list. Widened to allow a leading
+``[A-Z_]*``; the same anchoring defect is already recorded twice in this rc, at
+``_SCALAR_DECL``'s ``^srmech_status_t`` and at ``_rc473_nodiscard_plant.py``'s
+roster pattern.
 
 Three populations, each with its predicate written out:
 
@@ -120,7 +139,10 @@ def main() -> int:
 
     jpl = (ROOT / "python" / "tests" / "test_jpl_audit.py").read_text(
         encoding="utf-8")
-    rule7_symbols = sorted(set(re.findall(r"\bRULE_7\w*", jpl)))
+    # `[A-Z_]*` prefix, not a bare `\b`: `\b` does not match between the `L` of
+    # CEIL and the `R` of RULE_7, so the two down-only ceilings — the ratchet
+    # itself — were invisible to the first spelling. See the module docstring.
+    rule7_symbols = sorted(set(re.findall(r"\b[A-Z_]*RULE_7\w*", jpl)))
     rule7_tests = sorted(set(re.findall(r"def (test_\w*rule_7\w*)", jpl)))
 
     rows.append({

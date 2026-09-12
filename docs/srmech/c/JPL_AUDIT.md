@@ -50,7 +50,7 @@ DOWN but not UP.
 |   4  | Functions ≤ 60 lines                              | 0        | ✅ pass *(was 1; fixed in this ship by extracting `srmech_ndjson_process_chunk`)* |
 |   5  | ≥ 2 assertions per non-trivial function           | 0        | ✅ pass *(trivial accessors exempt per documented rationale; inline arithmetic helpers exempt)* |
 |   6  | Smallest possible scope for data                  | 0        | ✅ pass |
-|   7  | Return values checked / parameters validated      | return-value **0** (was **24** at rc472); parameter-validation **unmeasured** | ⚠️ **partial** — the return-value half is measured and now compiler-enforced for one family; the parameter-validation half has no instrument and there is **no Rule-7 detector in the ratchet at all** (see Rule 7 below) |
+|   7  | Return values checked / parameters validated      | on-roster **0** (was **24** at rc472); residual **src 18 · test 118** under a down-only ratchet; parameter-validation **unmeasured** | ⚠️ **partial** — the return-value half is measured, compiler-enforced for 29 declarations, and since the rc473 pre-publish pass carries a `RULE_7` ratchet in `test_jpl_audit.py` (strict zero on the roster, two down-only ceilings); the parameter-validation half still has no instrument (see Rule 7 below) |
 |   8  | Limited preprocessor (no multiline macros)        | 0        | ✅ pass |
 |   9  | Pointer dereference depth ≤ 1; no function ptrs* | deref 0; **fn-ptr 10** | ⚠️ **partial** — deref depth clean; 10 function-pointer declarator sites under a seeded down-only ratchet (rc452; see Rule 9 below) |
 |  10  | Compile clean at most-pedantic warning level      | 0        | ✅ pass (`SRMECH_PEDANTIC=ON` CMake + CI matrix) |
@@ -69,8 +69,14 @@ ratchet (this document said "one deliberate deviation" while the tree carried
 12; rc452 measured it, drained 4, and gated the rest). **Rule 7 is PARTIAL** —
 see the third paragraph below; it read "Violations: 0 / Pass" from this
 document's first commit through rc472 while 24 discarded statuses were live in
-`c/src`, and the reason it survived is that **`test_jpl_audit.py` has no Rule-7
-detector of any kind**.
+`c/src`, and the reason it survived is that `test_jpl_audit.py` had **no Rule-7
+detector of any kind**. *(That last clause was true through the whole life of
+this document and until the rc473 pre-publish pass, which shipped one: the
+ratchet is described at the end of the Rule 7 section. The rule stays PARTIAL
+because the parameter-validation half remains unmeasured and the return-value
+half now carries a measured residual of 18 + 118 under down-only ceilings —
+"has a detector" and "is clean" are different claims, and conflating them is
+how the sentence this paragraph corrects was written in the first place.)*
 
 rc473 (`#T1188`) is the third instance of the same shape and the plainest
 one yet: **a rule with no detector recorded as passing.** The Rule-7 row above
@@ -729,21 +735,92 @@ read off the measurement — 1+6+11+4+1+2+5+1+2+2+2+7 is 44. Corrected within th
 rc, and recorded rather than silently replaced, because a wrong summary sitting
 over a correct list is exactly how the "Violations: 0" line above survived.
 
-### ⚠️ THERE IS NO RULE-7 DETECTOR
+### THE RULE-7 DETECTOR — absent for this document's whole life, shipped at the rc473 pre-publish pass
 
-`python/tests/test_jpl_audit.py` contains the string `RULE_7` **zero** times
-and defines **zero** tests naming Rule 7; its test functions cover Rules 1, 3,
-4, 5, 8 and 9 only. So the return-value count above is a **measurement, not a
-ratchet**: nothing in the pytest suite refuses a 25th site. What does refuse
-one, for the seventeen tagged names, is `SRMECH_NODISCARD` plus `-Werror` — on
-**two** of the three cells' compiler families for a BARE-statement discard and
-on **one** (gcc) for the `(void)`-cast form all 24 repaired sites used. *(This
-sentence read "on two of three OS cells" with no form named until the rc473
-pre-publish pass measured the forms; the form is the load-bearing half, and
-the matrix is in the Rule-7 section above.)* A `RULE_7_ROSTER` detector — a masked scan
-gated strict-zero, two-way against the header's tagged set — is **named here as
-owed and is not shipped in rc473**; recording it as absent is the whole point
-of this section, since recording it as present is what went wrong.
+⚠️ **What this heading said until then, kept because it is the record:**
+*"THERE IS NO RULE-7 DETECTOR. `python/tests/test_jpl_audit.py` contains the
+string `RULE_7` **zero** times and defines **zero** tests naming Rule 7; its
+test functions cover Rules 1, 3, 4, 5, 8 and 9 only. So the return-value count
+above is a measurement, not a ratchet: nothing in the pytest suite refuses a
+25th site."* Every clause of that was true when written, and the rc473 entry
+named the detector as owed **twice** without shipping it.
+
+**It is shipped now.** `python/tests/test_jpl_audit.py` carries four
+`test_rule_7_*` functions — the suite goes **13 → 17 passed** — over a
+predicate written out in the file rather than inferred, because an unstated
+predicate is why this population had several honest cardinals at once:
+
+| element | what it pins | seeded at |
+| --- | --- | ---: |
+| `RULE_7_NODISCARD_ROSTER` | the tagged export names, **two-way** against a live masked scan of `srmech.h` | **29** |
+| strict zero | a discard of ANY roster callee, in `c/src` **and** `c/test` | **0** |
+| `CEIL_RULE_7_SRC` | the `c/src` residual, down-only, `==` not `<=` | **18** (16 cast + 2 bare) |
+| `CEIL_RULE_7_TEST` | the `c/test` residual, down-only, behind its own skip | **118** (6 cast + 112 bare) |
+| `RULE_7_VACUITY_SEEDS` | what the scan must SEE or it is not looking | `genome_hex` ×2 bare · `srmech_bus_client_close` ×3 cast |
+
+**The predicate.** A callee is a function returning `srmech_status_t` — an
+export declared at line start in the masked `c/include/srmech.h` (512 of them)
+or a `static srmech_status_t` defined in the translation unit being scanned. A
+discard is either `(void)NAME(` **anywhere** on a masked line (line-start
+anchoring finds 22 of the 24 rc473 repaired; two sat mid-line inside an `if`
+body) or `NAME(` as the first token on a line whose predecessor does not end in
+a continuation character or the word `return`.
+
+**Which clauses are load-bearing was measured, one at a time, on this tree and
+on `b398b8c46`** (`notes/_rc473_a4_rule7_ratchet.py`, `predicate_sensitivity`
+rows): the continuation clause **is** — removing it takes `c/src` 18 → 24 here
+and 42 → 47 on main, the extra rows all being a wrapped `st =` continuation
+onto `jade_pair(`, which is a CHECKED call. Three candidate refinements move
+**no row on either tree** and are therefore NOT shipped or are shipped as
+stated judgements rather than measurements: treating a trailing `else` as a
+continuation, dropping `return` from that set, and adding a
+skip-definition-heads clause. A clause that cannot fire is a dead
+instrumentation seam.
+
+**Proven to fire, not assumed to** (same generator, `mutation` rows — three
+plants into a scratch copy of `c/src/srmech_kepler.c`, the real tree asserted
+byte-identical afterwards):
+
+| planted at `srmech_kepler.c:275` | found | trips strict zero | trips the ceiling |
+| --- | :-: | :-: | :-: |
+| `if (e > 0.0) { (void)srmech_rational_sqrt(e, &sin_h); }` | ✅ | ✅ | ✅ 18 → 19 |
+| `srmech_sin(1.0, &sin_h);` | ✅ | ✅ | ✅ 18 → 19 |
+| `if (e > 0.0) { } srmech_cos(1.0, &sin_h);` | ❌ | — | — |
+
+**The third row is the predicate's blind spot, recorded by the instrument that
+has it.** A call that is the second statement on one line is not found. That
+form is a BARE discard, which gcc **and** clang both refuse outright for a
+tagged callee — while the compiler guard's blind spot is the `(void)` cast,
+refused on gcc alone and on nothing at all under `_MSC_VER`. The two detectors'
+blind spots are **complementary**, which is why the source ratchet is the
+primary detector for the form the defect actually had rather than a backstop,
+and why both ship.
+
+**Strict zero is not a gate nobody has watched return otherwise.** Applying
+this roster to `b398b8c46` — the commit rc473 branched from — finds **32** rows
+(24 in `c/src`, 8 in `c/test`), so the clause reads **32 → 0** across the
+repair. Measured, not argued: the same generator's `strict_zero_non_vacuity`
+row, with the baseline tree it read written into the row.
+
+⚠️ **The `c/test` ceiling carries its own skip, and the reason is a
+shipped-artifact defect rather than a CI one.** `python/pyproject.toml`'s
+`sdist.include` ships `tests/**`, `../c/src/**` and `../c/include/**` and
+**not** `../c/test/**`, while the module-level `pytestmark` guards only
+`c/src`. Without a `_C_TEST_DIR.exists()` skip the `==` assertion would go red
+in an sdist-installed cell — and **no CI job installs from an sdist**, so
+nothing would have caught it. Worse than a CI red, not better.
+
+**What the ratchet does NOT reach, named.** Its callee population is the public
+header plus the scanned TU's own statics, so a status-returning helper declared
+in a private `c/src/*.h` and called from another TU is outside it:
+`srmech_platform.h` carries **38** such declarations and **44** of the 51
+residual `(void)srmech_*(` discards enumerated above are `srmech_plat_*`. They
+are enumerated in this document by symbol and count and are mostly teardown
+paths; widening the population to `c/src/*.h` is this ratchet's next drain and
+was deliberately kept out of the change that first ships it. The one
+`srmech_plat_*` row the ceilings do hold is `srmech_plat__ensure_dir`, a
+file-local static. And Rule 7's **parameter-validation half is still
+unmeasured** — nothing below this line changes that.
 
 Parameter validation at every public entry point:
 
@@ -773,10 +850,13 @@ parameters. It is kept verbatim because it is the record of what was claimed,
 not because it is a census. The parameter-validation half of Rule 7 remains
 **unmeasured**.
 
-⚠️ **Partial** — return-value half **0**; compiler-enforced for 29 symbols on
-gcc and clang for a bare-statement discard and on **gcc alone** for the
-`(void)`-cast form the 24 sites used (measured, matrix above);
-parameter-validation half unmeasured; no detector in the ratchet.
+⚠️ **Partial** — return-value half: **0** on the 29-name roster, with a
+measured residual of **18** (`c/src`) + **118** (`c/test`) under down-only
+ceilings; compiler-enforced for those 29 on gcc and clang for a bare-statement
+discard and on **gcc alone** for the `(void)`-cast form the 24 sites used
+(measured, matrix above); the `RULE_7` ratchet ships in
+`python/tests/test_jpl_audit.py` as of the rc473 pre-publish pass;
+parameter-validation half **unmeasured**.
 
 ---
 
