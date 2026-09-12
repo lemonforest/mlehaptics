@@ -651,6 +651,14 @@ cl. The figures are LLVM clang 22.1.0 and cl 19.31.31104 x64 on a developer
 machine, so "gcc alone" is measured across compiler FAMILIES and inferred for
 those two CI cells.
 
+**Generator:** `notes/_rc473_a2_nodiscard_form_matrix.py`, output at
+`notes/_rc473_a2_nodiscard_form_matrix.ndjson` (66 rows). It takes two hosts —
+gcc on the WSL2 side of this machine, clang on the Windows side — so a run
+MERGES by host rather than overwriting, and a compiler it cannot reach is
+recorded as `unreachable` BY NAME rather than dropped. The MSVC rows are
+transcribed, not auto-run, because cl needs a vcvars environment; each carries
+its spelling, flags, form and verbatim diagnostic.
+
 ⚠️ **THE MSVC CELL IS NOT COVERED.** `warn_unused_result` is a gcc/clang
 attribute; `SRMECH_NODISCARD` expands empty under `_MSC_VER`, so the Windows
 pedantic leg enforces nothing here. C has no portable pre-C23 equivalent
