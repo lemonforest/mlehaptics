@@ -162,7 +162,11 @@ srmech_status_t srmech_pin_slot(double  theta,
  * BETWEEN the braces, and this function measured 58 against a cap of 60 with
  * six comment lines inside it. Two lines of headroom is a trap for the next
  * edit, and the ratchet is down-only, so the design moves rather than the
- * ratchet.
+ * ratchet. With the prose out here it is 52 again — the figure it carried
+ * before the repair — and srmech_equation_of_centre is 32, both read with the
+ * audit's own _scan_functions rather than by counting. A comment above a
+ * signature costs nothing under Rule 4; the same comment one line lower costs
+ * its full length.
  *
  * Both eccentricity guards in this file were spelled `e < 0.0 || e >= 1.0`,
  * which is NaN-BLIND: both comparisons are false for a NaN, so the rejecting
