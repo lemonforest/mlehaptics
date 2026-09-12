@@ -778,14 +778,14 @@ extern "C" {
  * transcendental family, the attribute is free, and the pedantic build stays
  * at 0 warnings because the c/test sites were already repaired by hand.
  *
- * MEASURED after that: the tagged set and the Class-N transcendental
- * status-returning family are now EQUAL at 17 — 0 family members untagged,
- * 0 tagged names outside the family — so the guard's reach is a two-way
- * equality rather than a coverage fraction. It is still not a ratchet: the
- * RULE_7_ROSTER detector named as owed in c/JPL_AUDIT.md is not shipped, so
- * a discard on a symbol nobody tagged is invisible to the compiler, to the
- * roster gate and to the pytest audit alike. What that ratchet should
- * assert is the equality above, which is now true and is not enforced.
+ * CORRECTED at the rc473 pre-publish pass. What stood here — tagged set and
+ * Class-N transcendental family "EQUAL at 17" — was MEASURED false BOTH ways:
+ * 16 same-stem status exports untagged, 3 tagged names with no such stem.
+ * Eleven of the 16 are now tagged, plus srmech_winding_tower: roster 29. The
+ * other five are pow/root LEXICAL hits, left out with reasons in the runnable
+ * derivation notes/_rc473_a3b_nodiscard_family.py. So the roster is a COVERAGE
+ * FRACTION of 512, not an equality, and a discard on any of the other 483 is
+ * invisible to compiler, roster gate and pytest audit alike. Ratchet unshipped.
  *
  * This is a single-token object-like macro on the MSVC and fallback legs and
  * a single-line one on the GNU leg (JPL Rule 8 clean: no token-paste, no
@@ -1850,7 +1850,7 @@ srmech_status_t srmech_parse_formula(const char *s, size_t len, void *ws,
  *
  * Returns SRMECH_ERR_NULL_ARG (bits_out / n_bits_out NULL), SRMECH_ERR_BAD_INPUT
  * (bits_cap < 0), SRMECH_ERR_OVERFLOW (bits_cap too small; |w| needs up to 64). */
-srmech_status_t srmech_winding_tower(int64_t w, uint8_t *bits_out,
+SRMECH_NODISCARD srmech_status_t srmech_winding_tower(int64_t w, uint8_t *bits_out,
                                      int32_t bits_cap, int32_t *n_bits_out);
 
 /* The chirality READOUT via the winding's binary tower — sigma modulated by the
@@ -4204,7 +4204,7 @@ srmech_status_t srmech_best_rational_path(uint64_t  numerator,
  * (Lagrange remainder) for the convergence claim; Bishop *Foundations
  * of Constructive Analysis* §2 for the asymptotic-rate framing.
  */
-srmech_status_t srmech_exp_series_truncate(int64_t   x_num,
+SRMECH_NODISCARD srmech_status_t srmech_exp_series_truncate(int64_t   x_num,
                                            uint64_t  x_den,
                                            uint32_t  num_terms,
                                            int64_t  *out_num,
@@ -4452,7 +4452,7 @@ SRMECH_NODISCARD srmech_status_t srmech_sqrt_q61(double x, int64_t *out_root, in
  * Python rational._integer_sqrt dispatch) needs NO stdlib math.isqrt. The
  * Python peer falls back to arbitrary-precision integer-Newton beyond 128 bits.
  * Additive -> ABI unchanged. */
-srmech_status_t srmech_isqrt(uint64_t nhi, uint64_t nlo, uint64_t *out_root);
+SRMECH_NODISCARD srmech_status_t srmech_isqrt(uint64_t nhi, uint64_t nlo, uint64_t *out_root);
 
 /* 0.9.0rc10 hypercomplex exp(mu*theta) twiddle (F882, srmech #205). Fills out8
  * (an 8-element int64 array) with the unit exponential q = cos(theta) +
@@ -10042,7 +10042,7 @@ srmech_status_t srmech_bigint_divmod_small(srmech_bigint_t *q, uint32_t *rem,
 
 /* out = floor(sqrt(a)). a >= 0 else SRMECH_ERR_BAD_INPUT. Integer Newton
  * iteration over the caller arena `ws`. OVERFLOW if out->cap too small. */
-srmech_status_t srmech_bigint_isqrt(srmech_bigint_t *out, const srmech_bigint_t *a,
+SRMECH_NODISCARD srmech_status_t srmech_bigint_isqrt(srmech_bigint_t *out, const srmech_bigint_t *a,
                                     void *ws, size_t ws_len);
 
 /* out = gcd(|a|, |b|) >= 0. Caller arena `ws`. 0.9.0rc169: LEHMER'S
@@ -10307,7 +10307,7 @@ size_t srmech_bigexp_ws_bound(size_t num_limbs, size_t den_limbs,
                               uint32_t num_terms);
 
 /* exp partial sum S_N(p/q) = Σ_{k=0..N} (p/q)^k / k!. num_terms <= 512. */
-srmech_status_t srmech_exp_series_truncate_big(const srmech_bigint_t *x_num,
+SRMECH_NODISCARD srmech_status_t srmech_exp_series_truncate_big(const srmech_bigint_t *x_num,
                                                const srmech_bigint_t *x_den,
                                                uint32_t num_terms,
                                                srmech_bigint_t *out_num,
@@ -10315,7 +10315,7 @@ srmech_status_t srmech_exp_series_truncate_big(const srmech_bigint_t *x_num,
                                                void *ws, size_t ws_len);
 
 /* sin partial sum Σ_{k=0..N} (-1)^k (p/q)^(2k+1) / (2k+1)!. num_terms <= 50. */
-srmech_status_t srmech_sin_series_truncate_big(const srmech_bigint_t *x_num,
+SRMECH_NODISCARD srmech_status_t srmech_sin_series_truncate_big(const srmech_bigint_t *x_num,
                                                const srmech_bigint_t *x_den,
                                                uint32_t num_terms,
                                                srmech_bigint_t *out_num,
@@ -10323,7 +10323,7 @@ srmech_status_t srmech_sin_series_truncate_big(const srmech_bigint_t *x_num,
                                                void *ws, size_t ws_len);
 
 /* cos partial sum Σ_{k=0..N} (-1)^k (p/q)^(2k) / (2k)!. num_terms <= 50. */
-srmech_status_t srmech_cos_series_truncate_big(const srmech_bigint_t *x_num,
+SRMECH_NODISCARD srmech_status_t srmech_cos_series_truncate_big(const srmech_bigint_t *x_num,
                                                const srmech_bigint_t *x_den,
                                                uint32_t num_terms,
                                                srmech_bigint_t *out_num,
@@ -10332,7 +10332,7 @@ srmech_status_t srmech_cos_series_truncate_big(const srmech_bigint_t *x_num,
 
 /* log1p partial sum Σ_{k=1..N} (-1)^(k+1) (p/q)^k / k. Domain -1 < p/q <= 1.
  * num_terms <= 64. */
-srmech_status_t srmech_log1p_series_truncate_big(const srmech_bigint_t *x_num,
+SRMECH_NODISCARD srmech_status_t srmech_log1p_series_truncate_big(const srmech_bigint_t *x_num,
                                                  const srmech_bigint_t *x_den,
                                                  uint32_t num_terms,
                                                  srmech_bigint_t *out_num,
@@ -10341,7 +10341,7 @@ srmech_status_t srmech_log1p_series_truncate_big(const srmech_bigint_t *x_num,
 
 /* atan partial sum Σ_{k=0..N} (-1)^k (p/q)^(2k+1) / (2k+1). Domain |p/q| <= 1.
  * num_terms <= 64. */
-srmech_status_t srmech_atan_series_truncate_big(const srmech_bigint_t *x_num,
+SRMECH_NODISCARD srmech_status_t srmech_atan_series_truncate_big(const srmech_bigint_t *x_num,
                                                 const srmech_bigint_t *x_den,
                                                 uint32_t num_terms,
                                                 srmech_bigint_t *out_num,
@@ -13883,7 +13883,7 @@ srmech_status_t srmech_quaternion_conjugate(
  * with the pure-Python mirror). Errors: SRMECH_ERR_NULL_ARG;
  * SRMECH_ERR_BAD_INPUT (n != 4, mu[0] != 0, zero axis, or theta with no
  * Q61 form — non-finite / |theta| >= 2^55). */
-srmech_status_t srmech_quaternion_exp(
+SRMECH_NODISCARD srmech_status_t srmech_quaternion_exp(
     double theta, const double *mu, size_t n, double *out);
 
 /* The QDFT twiddle factor exp(sigma * mu * 2*pi*j*k/N): theta =
@@ -13930,7 +13930,7 @@ srmech_status_t srmech_quaternion_dft(
  * be 4; `out` MAY alias `q`. Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT
  * (n != 4) or an srmech_rational_sqrt / srmech_atan_q61 error. Additive symbol
  * -> SRMECH_ABI_VERSION stays 10. */
-srmech_status_t srmech_quaternion_log(
+SRMECH_NODISCARD srmech_status_t srmech_quaternion_log(
     const double *q, size_t n, double *out);
 
 /* 0.9.0rc385 (#T1048) — shortest-arc geodesic interpolation on the unit-
@@ -14123,7 +14123,7 @@ srmech_status_t srmech_split_defect(const uint8_t *word, uint32_t n, uint32_t k,
  * double ONCE (byte-exact with the pure-Python mirror). Errors:
  * SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (n != 8, mu[0] != 0, zero
  * axis, or theta with no Q61 form — non-finite / |theta| >= 2^55). */
-srmech_status_t srmech_octonion_exp(
+SRMECH_NODISCARD srmech_status_t srmech_octonion_exp(
     double theta, const double *mu, size_t n, double *out);
 
 /* The ODFT twiddle factor exp(sigma * mu * 2*pi*j*k/N): theta =

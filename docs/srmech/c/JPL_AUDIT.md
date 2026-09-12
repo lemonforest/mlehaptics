@@ -574,7 +574,7 @@ which blanks comments and string/char literals before matching):
 | Population | Predicate | Count |
 | --- | --- | ---: |
 | Discards of the seven Class-N callees | `(void)NAME(` over `c/src`, `c/test`, `c/tools` — **179** `.c` files | **0** *(was 24)* |
-| `SRMECH_NODISCARD`-tagged declarations | `^SRMECH_NODISCARD srmech_status_t NAME(` in `c/include/srmech.h` | **17** *(14 at the first rc473 pass; +3 in the repair pass)* |
+| `SRMECH_NODISCARD`-tagged declarations | `^SRMECH_NODISCARD srmech_status_t NAME(` in `c/include/srmech.h` | **29** *(14 at the first rc473 pass; +3 in the repair pass; +12 at the pre-publish pass)* |
 | Every other `(void)srmech_*(` discard | same masked scan, 17 distinct symbols | **51** |
 
 The tagged declarations are the seven that were violated plus TEN clean
@@ -583,9 +583,43 @@ peers of the same family — `srmech_sin_q61`, `srmech_cos_q61`,
 `srmech_hypercomplex_couple_q61`, `srmech_hypercomplex_couple_turn_q61`,
 and — added in the rc473 repair pass — `srmech_exp_q61`,
 `srmech_log_q61`, `srmech_sqrt_q61` — so the family is closed rather than
-the seven that happened to be caught. A discard of any of the seventeen is
-a **build failure** under `-Werror` on the Linux gcc and macOS clang
-pedantic cells.
+the seven that happened to be caught.
+
+⚠️ **The pre-publish pass added TWELVE more and retired the "family" framing,
+because that framing was carrying a false sentence.** `c/include/srmech.h`
+shipped a paragraph LABELLED MEASURED asserting the tagged set and the Class-N
+transcendental status-returning family were "EQUAL at 17 — 0 family members
+untagged, 0 tagged names outside the family". Re-measured with the predicate
+written down and runnable (`notes/_rc473_a3b_nodiscard_family.py`: a
+status-returning export whose name carries a Class-N transcendental or root
+stem as an underscore-delimited token, over the MASKED header): the equality
+was false BOTH ways — **16** same-stem status exports untagged and **3** tagged
+names carrying no such stem. Eleven of the 16 are now tagged, plus
+`srmech_winding_tower` (peer of the already-tagged `srmech_winding_fold`):
+the six `*_series_truncate*` primitives `CLAUDE.md` §2 names as THE Class-N
+asymptotic-calculus surface, `srmech_quaternion_exp` / `srmech_quaternion_log`
+/ `srmech_octonion_exp`, and `srmech_isqrt` / `srmech_bigint_isqrt`. The other
+**five** are `pow`/`root` LEXICAL hits — `srmech_mod_pow`,
+`srmech_bigint_pow_u32`, `srmech_rational_pow_uint`,
+`srmech_rational_pow_uint_big`, `srmech_poly_root_box_certify` — modular and
+integer exponentiation and a polynomial-root *certifier*, none of them a
+transcendental or a root EXTRACTION; they stay out with those reasons recorded
+beside the predicate. So the roster now states a **coverage fraction, 29 of the
+512 status-returning exports**, and not an equality: there is no
+machine-derivable predicate on this tree that reproduces "the Class-N
+transcendental family" — the other candidate, `_SCALAR_DECL` in
+`python/tests/test_value_status_c_boundary_rc473.py`, returns **8** against a
+17-name roster. Cost of the twelve, measured by compiling: exactly **one** new
+build error, `c/test/test_srmech_bigint.c:278` bare-discarding
+`srmech_bigint_isqrt`, repaired with the `check_status(...)` row that file
+already uses everywhere else. Attribute-only, so **ABI stays 26**.
+
+A discard of any of the twenty-nine is a **build failure** under `-Werror`
+when the discard is a BARE statement and the cell is not `_MSC_VER`-defining
+(gcc 13.3.0 and clang 22.1.0, both measured); for the `(void)`-cast form it is
+a build failure on **gcc alone**, and under `_MSC_VER` — cl, and any clang
+targeting MSVC — the macro is empty and neither form is diagnosed. CI's
+macos-14 Apple clang and windows-latest cl remain UNMEASURED.
 
 ⚠️ **The first rc473 pass stopped at 14, and the three it left out cost
 something measurable.** `srmech_exp_q61` / `srmech_log_q61` /
@@ -739,7 +773,7 @@ parameters. It is kept verbatim because it is the record of what was claimed,
 not because it is a census. The parameter-validation half of Rule 7 remains
 **unmeasured**.
 
-⚠️ **Partial** — return-value half **0**; compiler-enforced for 17 symbols on
+⚠️ **Partial** — return-value half **0**; compiler-enforced for 29 symbols on
 gcc and clang for a bare-statement discard and on **gcc alone** for the
 `(void)`-cast form the 24 sites used (measured, matrix above);
 parameter-validation half unmeasured; no detector in the ratchet.

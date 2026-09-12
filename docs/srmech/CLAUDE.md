@@ -938,7 +938,11 @@ audit document recorded it "0 violations / Pass" from its first
 commit through rc472, on a four-function evidence table, while **24**
 discarded `srmech_status_t` values sat across 7 translation units;
 rc473 (`#T1188`) repaired them to **0** and closed the family with
-`SRMECH_NODISCARD` on 17 declarations — a compiler guard on gcc AND
+`SRMECH_NODISCARD` on 29 declarations (14 at the first pass, 17 after the
+repair pass, 29 after the pre-publish pass, which also retired the header's
+false "EQUAL at 17" equality in favour of a coverage fraction over the 512
+status-returning exports — derivation in
+`notes/_rc473_a3b_nodiscard_family.py`) — a compiler guard on gcc AND
 clang for a BARE-statement discard, on **gcc alone** for the
 `(void)`-cast form all 24 repaired sites used, and nothing on MSVC
 (measured at the rc473 pre-publish pass on gcc 13.3.0 / clang 22.1.0
