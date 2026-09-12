@@ -75,12 +75,26 @@ static void srmech_eig_cmax(double re, double im, double *out)
  *
  * 0.9.0rc473 (`#T1188`): the status is captured, asserted and consumed — the
  * srmech_modular_linalg.c:70-71 idiom, not a new pattern. This helper is
- * `static void` and has no status channel; the refusal is unreachable by
- * construction because srmech_rational_sqrt refuses only x < 0 and NaN, and
- * `x*x + y*y` is a sum of squares while a NaN argument is already excluded by
- * the assert on the line above (a NaN would trip THAT assert first, in the
- * same Debug build). ⚠️ The wheel builds Release, so this site carries no
- * runtime refusal in the shipped artifact — one of the rc's six such sites. */
+ * `static void` and has no status channel, and srmech_rational_sqrt refuses
+ * only x < 0 and NaN. The two classes sit DIFFERENTLY here. The NEGATIVE one
+ * cannot arise: `x*x + y*y` is a sum of squares. The NaN one is excluded by
+ * the assert on the line above, and ONLY IN A DEBUG BUILD — which is the word
+ * rc473's pre-publish pass corrected, because this paragraph had called the
+ * refusal unreachable without naming which class it meant.
+ *
+ * PROVEN both ways, not inferred. A DEBUG build (asserts live) calling the
+ * PUBLIC symbol srmech_mat_eigvals_ws on a 2x2 complex-interleaved matrix
+ * with NaN on the diagonal ABORTS exactly HERE, on this helper's own
+ * `assert(!(re != re) && !(im != im))` — so the Debug mechanism named above
+ * is real and reached. The SAME call on the shipped Release build returns
+ * SRMECH_OK with out [nan, 0, nan, 0]. Control with a00 = 4.0: status 0 and
+ * [4.414213562373095, 0, 1.585786437626905, 0] on BOTH builds, no abort.
+ *
+ * ⚠️ So the wheel, which builds Release, carries NO runtime refusal here —
+ * one of the rc's six such sites. No refusal is threaded anyway: at the float
+ * carrier NaN is a value BOTH projections carry through identically (measured
+ * on the authenticated rc473 native cell against the pure cell), so refusing
+ * it in C alone would make C narrower than pure. */
 static void srmech_eig_modulus(double re, double im, double *out)
 {
     assert(out != NULL);

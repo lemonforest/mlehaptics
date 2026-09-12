@@ -98,23 +98,65 @@
  *
  * WHY THIS HELPER KEEPS ITS `double` RETURN instead of growing a status
  * channel like the Kuramoto and JADE helpers did in the same rc.
- * srmech_rational_sqrt refuses exactly two argument classes — x < 0 and NaN —
- * and every one of this helper's call sites was walked at rc473 and passes
- * neither. Measured, 15 call sites across 9 enclosing functions:
- *   :240 `d > 0.0 ? … : 0.0` · :304 inside `if (m_i > 0.0)` · :344 after an
- *   early `return SRMECH_ERR_BAD_INPUT` on a degenerate triangle · :1308,
- *   :1310, :1312, :1477, :1479, :1481 `1 + tau*tau` / `1 + t*t`, sums of
- *   squares · :1457 after `if (g_mag_sq < 1e-300) return;` · :1852 inside
- *   `if (deg[i] > 0.0)` · :1864 after `if (pn2 <= 0.0) return 0.0;` · :1943
- *   after `if (max_sq <= 0.0) return 0;` · :2311 after
- *   `if (n2 <= 0.0) return 0;` · :2507 `(double)n`.
+ * srmech_rational_sqrt refuses exactly two argument classes — x < 0 and NaN.
+ * They are NOT in the same position here, and rc473's pre-publish pass
+ * corrected this block for having said they were.
+ *
+ * NEGATIVE — no call site can produce one. 15 call sites across 9 enclosing
+ * functions, named by FUNCTION rather than by line, because a comment's own
+ * growth moves the lines it cites: MEASURED at the pre-publish pass, all 15
+ * line numbers this block used to carry were ALREADY stale, ten of them by
+ * +6 and the other five by +22.
+ *   srmech_graph_normalized_laplacian       `(d > 0.0) ? 1/lap_sqrt(d) : 0`
+ *   srmech_graph_mass_normalized_laplacian  inside `if (m_i > 0.0)`
+ *   lap_cotangent                           after `if (!(cross2 > 0.0))
+ *                                           return SRMECH_ERR_BAD_INPUT;`
+ *   srmech_laplacian_jacobi_rotate  x3      `1 + tau*tau` / `1 + t*t`
+ *   srmech_hermitian_jacobi_rotate  x4      `g_mag_sq` after
+ *                                           `if (g_mag_sq < 1e-300) return;`,
+ *                                           then `1 + tau*tau` / `1 + t*t`
+ *   fiedler_build_sp                x2      inside `if (deg[i] > 0.0)`, then
+ *                                           `pn2` after `if (pn2 <= 0.0)`
+ *   fiedler_rescale                         `max_sq` after `if (max_sq<=0.0)`
+ *   kext_normalize                          `n2` after `if (n2 <= 0.0)`
+ *   kext_inject_trivial                     `(double)n`, integral conversion
+ *
+ * NaN — REACHABLE. Read guard by guard: four of the sites above sit behind a
+ * `> 0.0` test, which is FALSE for NaN and so excludes it, and `(double)n`
+ * cannot be one; the remaining TEN are unguarded or sit behind `< 1e-300` /
+ * `<= 0.0` tests that are false for NaN in the direction that lets it THROUGH.
+ * Nothing in this file tests finiteness — measured, zero isnan / isfinite /
+ * isinf and zero `x != x` self-inequality guards in srmech_laplacian.c.
+ * PROVEN, not inferred: a DEBUG build (asserts live, __assert_fail present)
+ * calling the PUBLIC symbol srmech_jacobi_eigvals(2, [[nan,1],[1,2]],
+ * max_sweeps 0, tol 1e-12) ABORTS in lap_sqrt on this helper's own
+ * `assert(x >= 0.0)`, which is FALSE for NaN. The SAME call on the shipped
+ * Release build returns SRMECH_OK with out_eigvals [nan, nan]. Control with
+ * a finite [[4,1],[1,2]]: status 0 and [4.414213562373096, 1.5857864376269053]
+ * on BOTH builds, no abort — so the instrument can return otherwise.
+ *
+ * So the reason this helper keeps its `double` is a PARITY measurement, not
+ * an unreachability claim. MEASURED in-process on the rc473 library
+ * (0.9.0rc473, ABI 26, Release: `nm -D | grep -c __assert_fail` → 0; the cell
+ * authenticated by srmech_rational_sqrt(NaN) → status 2 AT THE SYMBOL, which
+ * is what separates an rc473 .so from an rc472 one — version and ABI alone do
+ * not) and again on a pure rc473 cell:
+ *   normalized_laplacian(2, [(0,1)], weights=[nan]) → [[0,nan],[nan,0]] on
+ *   BOTH cells, and jacobi_eigvals([[nan,1],[1,2]]) → [nan,nan] on BOTH.
+ * At the float carrier NaN is a value both projections carry through
+ * IDENTICALLY, so threading a NaN refusal out of this helper would make C
+ * NARROWER than pure — an ADR-0009 §2.4 row pointing the wrong way. That,
+ * and not unreachability, is the reason. (+Inf is not a refusal class at all:
+ * srmech_rational_sqrt(+Inf) → status 0 writing +Inf. -Inf refuses like any
+ * other negative: status 2 writing NaN. Both on the same authenticated cell.)
+ *
  * SIX of those nine enclosers have no status channel at all —
  * srmech_laplacian_jacobi_rotate and srmech_hermitian_jacobi_rotate are
  * `static void`, fiedler_build_sp is `static double`, fiedler_rescale and
  * kext_normalize are `static int`, kext_inject_trivial is `static uint32_t` —
  * so a refusal branch here would have to grow a status channel through all of
- * them and every one of their callers, for a branch unreachable by
- * construction. The assert IS live in CI's asserts-live-smoke job, which
+ * them and every one of their callers, in order to refuse a class the other
+ * projection serves. The assert IS live in CI's asserts-live-smoke job, which
  * builds Debug and refuses to run if __assert_fail is absent from the
  * library.
  *
@@ -122,8 +164,9 @@
  * (python/pyproject.toml cmake.build-type), Release implies -DNDEBUG, so in
  * everything srmech ships this site carries NO runtime refusal. It is one of
  * six such sites in the rc — 18 of the 24 propagate a status to a bare-C
- * host; these six are asserted-unreachable and are byte-identical to rc472 in
- * the Release artifact. */
+ * host; these six are asserted-unreachable (a label the pre-publish pass
+ * narrowed to the NEGATIVE class) and are byte-identical to rc472 in the
+ * Release artifact. */
 static double lap_sqrt(double x)
 {
     double out = 0.0;
