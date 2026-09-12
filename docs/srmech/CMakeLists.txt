@@ -408,11 +408,23 @@ if(SRMECH_SRCS)
         # unregistered and a registration cannot outlive its file. That
         # closes the rc356 shape STRUCTURALLY instead of once.
         #
-        # ⚠️ These 20 have only ever been executed on WSL2. The macOS
-        # clang and Windows MSVC cells are UNMEASURED for them as of this
-        # commit. A cell that reds is a finding to FIX, not to
-        # deregister — deregistering would restore exactly the state this
-        # block removes.
+        # ⚠️ These 22 RUN on all three cells. A cell that reds is a finding
+        # to FIX, not to deregister — deregistering would restore exactly the
+        # state this block removes.
+        #
+        # This comment read "These 20 have only ever been executed on WSL2.
+        # The macOS clang and Windows MSVC cells are UNMEASURED for them as of
+        # this commit", and BOTH halves were wrong by the rc473 repair pass.
+        # The count: the set() below carries 22 names, measured by the parity
+        # gate's own non-greedy `set\(\s*(\w+)\s+(.*?)\)` parse — it was
+        # already 21 when "20" was written at rc452, the same commit whose
+        # srmech-ci.yml comment said "38" for a 39-test set and was corrected
+        # for that reason. The platform claim: rc452 is what wired this list
+        # into ctest, and the pedantic job runs ctest on ubuntu-latest/gcc,
+        # macos-14/clang and windows-latest/MSVC, so these have not been
+        # WSL2-only since that commit. Re-count here rather than editing the
+        # number by hand — a cardinal above a list that grows is the shape
+        # this file keeps re-minting.
         #
         # rc473 (`#T1188`) added test_srmech_value_status_rc473 to the list
         # below, and WHICH list is not cosmetic. The foreach at ~:376 issues

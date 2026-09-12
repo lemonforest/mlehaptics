@@ -574,16 +574,31 @@ which blanks comments and string/char literals before matching):
 | Population | Predicate | Count |
 | --- | --- | ---: |
 | Discards of the seven Class-N callees | `(void)NAME(` over `c/src`, `c/test`, `c/tools` — **179** `.c` files | **0** *(was 24)* |
-| `SRMECH_NODISCARD`-tagged declarations | `^SRMECH_NODISCARD srmech_status_t NAME(` in `c/include/srmech.h` | **14** |
+| `SRMECH_NODISCARD`-tagged declarations | `^SRMECH_NODISCARD srmech_status_t NAME(` in `c/include/srmech.h` | **17** *(14 at the first rc473 pass; +3 in the repair pass)* |
 | Every other `(void)srmech_*(` discard | same masked scan, 17 distinct symbols | **51** |
 
-The 14 tagged declarations are the seven that were violated plus seven clean
+The tagged declarations are the seven that were violated plus TEN clean
 peers of the same family — `srmech_sin_q61`, `srmech_cos_q61`,
 `srmech_atan_q61`, `srmech_winding_fold`, `srmech_hypercomplex_exp_q61`,
-`srmech_hypercomplex_couple_q61`, `srmech_hypercomplex_couple_turn_q61` — so
-the family is closed rather than the seven that happened to be caught. A
-discard of any of the fourteen is a **build failure** under `-Werror` on the
-Linux gcc and macOS clang pedantic cells. Measured on gcc 13.3: an explicit
+`srmech_hypercomplex_couple_q61`, `srmech_hypercomplex_couple_turn_q61`,
+and — added in the rc473 repair pass — `srmech_exp_q61`,
+`srmech_log_q61`, `srmech_sqrt_q61` — so the family is closed rather than
+the seven that happened to be caught. A discard of any of the seventeen is
+a **build failure** under `-Werror` on the Linux gcc and macOS clang
+pedantic cells.
+
+⚠️ **The first rc473 pass stopped at 14, and the three it left out cost
+something measurable.** `srmech_exp_q61` / `srmech_log_q61` /
+`srmech_sqrt_q61` were untagged while their siblings `srmech_sin_q61` /
+`cos_q61` / `atan_q61` were tagged, because the scoping predicate was the
+scalar `(double, double*)` shape and these take a third out-parameter. A
+shape is not a reason. Of the SEVEN discarded statuses found in
+`c/test/test_srmech_trans_q61.c` — the "site 25" this rc turned up — the
+attribute raised exactly **three**, the tagged trio, and the other **four**
+were found and fixed by hand. Tagging the three costs nothing (they already
+return a status, Rule 8 stays clean, and the pedantic build is still 0
+warnings / 0 errors because those four sites were already repaired), and it
+turns the residual from an unknown into a number. Measured on gcc 13.3: an explicit
 `(void)` cast does **not** silence the attribute, so the idiom that produced
 all 24 sites is unwritable there.
 
@@ -629,7 +644,7 @@ over a correct list is exactly how the "Violations: 0" line above survived.
 and defines **zero** tests naming Rule 7; its test functions cover Rules 1, 3,
 4, 5, 8 and 9 only. So the return-value count above is a **measurement, not a
 ratchet**: nothing in the pytest suite refuses a 25th site. What does refuse
-one, for the fourteen tagged names on two of three OS cells, is
+one, for the seventeen tagged names on two of three OS cells, is
 `SRMECH_NODISCARD` plus `-Werror`. A `RULE_7_ROSTER` detector — a masked scan
 gated strict-zero, two-way against the header's tagged set — is **named here as
 owed and is not shipped in rc473**; recording it as absent is the whole point
@@ -663,7 +678,7 @@ parameters. It is kept verbatim because it is the record of what was claimed,
 not because it is a census. The parameter-validation half of Rule 7 remains
 **unmeasured**.
 
-⚠️ **Partial** — return-value half **0** and compiler-enforced for 14 symbols
+⚠️ **Partial** — return-value half **0** and compiler-enforced for 17 symbols
 on gcc/clang; parameter-validation half unmeasured; no detector in the ratchet.
 
 ---

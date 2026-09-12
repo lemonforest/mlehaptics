@@ -60,10 +60,16 @@
  *
  * EARLY RETURN, not an accumulated status, and the precedent is the tree's
  * own: `srmech_status_t st = …; if (st != SRMECH_OK) { return st; }` is the
- * shape at 2804 sites across the c/src translation units (measured at rc473;
- * predicate `if \((st|rc) != SRMECH_OK\) \{ return \1; \}`, 3395 lines
- * carrying `!= SRMECH_OK` in total). No new pattern, so no new reason is
- * owed. */
+ * shape at 2804 sites across the 138 c/src translation units — measured on
+ * the rc472 tree b398b8c46, i.e. the precedent, BEFORE this rc's own 16
+ * additions; predicate `if \((st|rc) != SRMECH_OK\) \{ return \1; \}` — with
+ * 3395 OCCURRENCES of `!= SRMECH_OK` across 3393 LINES. No new pattern, so no
+ * new reason is owed.
+ *
+ * (This comment said "3395 lines", which is the wrong noun: two lines carry
+ * two occurrences each. Corrected in the rc473 repair pass, along with the
+ * tree the figure was taken on, which was also unstated — at rc473 HEAD the
+ * same predicates read 2820 and 3416 occurrences across 3414 lines.) */
 static srmech_status_t srmech_kuramoto__coupling_sum(
     const double *theta, size_t n, size_t i, double *out_sum)
 {

@@ -452,7 +452,7 @@ from srmech.math.text import fold_marks, glyph_stream
 #: frames, and 690 = 661 ops + 29 carriers with the ops half still exactly the
 #: live registry total. Two curated entries moved, both Class-B TLV:
 #: ``tlv_pack``'s explanation stopped citing its C peer by LINE number
-#: (``c/include/srmech.h:2707`` had drifted onto unrelated prose — stale before
+#: (``c/include/srmech.h:2747`` had drifted onto unrelated prose — stale before
 #: this rc touched the header, and a symbol name cannot go stale where a line
 #: offset does) and now records that ``tlv_unpack`` has a C peer of its own;
 #: ``tlv_unpack``'s gained that peer's contract, because rc441 is the rc that
@@ -510,7 +510,7 @@ from srmech.math.text import fold_marks, glyph_stream
 #: rc445 (`#T1153`) MOVES IT AGAIN, for the same reason and on a wider surface.
 #: The FALSE-tier prose pass rewrote **25 ToolEntry ``summary=`` fields** and
 #: **6 curated ``explanation`` blocks** — the false ``n <= 256`` native cap
-#: (measured: ``_can_dispatch_native`` never reads its ``n``; ``srmech.h:1536``
+#: (measured: ``_can_dispatch_native`` never reads its ``n``; ``srmech.h:1576``
 #: says "No N cap"), the false "NumPy eigh fallback" on
 #: ``hermitian_eigendecompose`` and "via NumPy eigh" on
 #: ``symmetric_eigendecompose`` (both measured to run with numpy absent from
@@ -1238,8 +1238,37 @@ from srmech.math.text import fold_marks, glyph_stream
 #: 732 ops + 29 carriers. THE CAUSE IS ISOLATED, both directions: reverting
 #: `srmech/introspect/tool_schema.py` ALONE to ada84402a returns the digest
 #: to `6c51206c…` at 761 frames, and restoring it returns `dfa2770091…`.
+#: AN EIGHTH pin, in rc473's REPAIR PASS (`#T1188`), for a cause that is
+#: entirely mechanical and worth naming BECAUSE it is: the repair pass added
+#: two prose blocks to `c/include/srmech.h` — the corrected v26 ABI paragraph
+#: and the note saying where the SRMECH_NODISCARD roster stops — which grew
+#: the header 14782 -> 14822 lines and so moved the content under every
+#: `c/include/srmech.h:NNN` citation below the insertions. Twenty-two of those
+#: citations sit inside `explanation` strings in `_tool_docs_curated.py`, and
+#: those explanations ARE the corpus, so the digest moves by construction.
+#: The generated pair was regenerated from the curated source rather than
+#: hand-edited (`tools/regen_all.py --accept-seed-drift`; the guard that
+#: refuses otherwise is doing its job and the flag is the documented escape
+#: for a deliberate curated edit), and the two regenerated files changed 22
+#: lines each with EVERY changed line explained entirely by an
+#: `srmech.h:<digits>` substitution — 0 lines not so explained, checked by
+#: normalising the digits away and requiring the before/after pair to become
+#: identical, because 44 insertions against 44 deletions is also the
+#: signature of a CRLF flip and this tree has that trap live.
+#: CONFIRMED A PROSE MOVE AND NOT A NON-DETERMINISTIC BUILD, by the
+#: procedure this pin has used since rc468: FIVE successive
+#: `_build_frames("all")` calls inside each of THREE fresh interpreters on
+#: WSL2 (CPython 3.12.3, numpy absent, native cell, ABI 26 == 26) returned
+#: `f595e2da9b69…cc7ad5c01e35a` every time, the recomputation over the
+#: returned frames agrees, and `search("rank", k=1).witness` agrees. THE
+#: FRAME COUNT DID NOT MOVE: 761 = 732 ops + 29 carriers, before and after.
+#: THE CAUSE IS ISOLATED, both directions: reverting
+#: `srmech/introspect/_tool_docs.py` ALONE to its 7665c594c blob returns the
+#: digest to `dfa2770091…` at 761 frames, and restoring it returns
+#: `f595e2da9b…`. One file, one cause, measured in both directions.
 WITNESS_RC416 = (
-    "dfa2770091f08f92774fa3e4fc52617e0f8091bfde9961b3223e60a47fc3fad7")
+    "f595e2da9b69b91fc8ecc04e25f4f00bd870ef45dac9b19bcf2cc7ad5c01e35a")
+#: was: dfa2770091f08f92774fa3e4fc52617e0f8091bfde9961b3223e60a47fc3fad7 (rc472 repair pass)
 #: was: 6c51206c057f6728dc80d2cd08821b9ca67b19695e219a8ddc1af03ede1c2b0e (rc471 repair pass)
 #: was: 40a2d8ebb1cf59de0302dcaf8052aee20eb8ed119e43584fdd0b10278a3bcc14 (rc469)
 #: was: 0fb043cc3c534f95038ada90e824b276c632dfdc141c3ecbca2d00d03bc1cedc (rc468 stage 5)

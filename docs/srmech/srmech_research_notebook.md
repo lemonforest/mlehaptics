@@ -6500,7 +6500,7 @@ The framing — a tri-state packed `Q` as "the uniform layer between all functio
 > and every op they call was verified present at rc420, which is a weaker claim and is stated as
 > such. Two path citations inside §3.45.0's rc352-era narrative are left as written on purpose
 > (`srmech/amsc/qmat.py:447` is now `srmech/math/qmat.py:447` — same line number;
-> `c/include/srmech.h:11761` is now `:12126`), because that table is a dated account of a past
+> `c/include/srmech.h:11801` is now `:12126`), because that table is a dated account of a past
 > session, not a live instruction.
 
 ### 3.45.0 Why this section exists — the phantom-gap failure
@@ -6517,7 +6517,7 @@ That is the function's declaration re-rendered. It carries no argument values, n
 
 | Phantom gap queued | What already shipped |
 |---|---|
-| `mat_rank` | `QMat.rank` at `srmech/amsc/qmat.py:447`, C peer `srmech_qmat_rank` at `c/include/srmech.h:11761` |
+| `mat_rank` | `QMat.rank` at `srmech/amsc/qmat.py:447`, C peer `srmech_qmat_rank` at `c/include/srmech.h:11801` |
 | an enumeration primitive | already present seven times over in the C layer |
 
 So the bar for an example is not "documented". It is: **a competent reader cannot fail to see the op already does this job.** That requires three things a signature echo cannot supply — a worked call across a few coherent invocations, its real captured output, and prose naming the siblings so a neighbour cannot be re-derived by accident.

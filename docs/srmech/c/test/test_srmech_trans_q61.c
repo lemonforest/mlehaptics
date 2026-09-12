@@ -52,14 +52,27 @@ static void check_close(double got, double want, double tol, const char *desc)
 
 /* 0.9.0rc473 (`#T1188`): the exact-identity block below used to call the Q61
  * peers as bare statements and read only the int64 they wrote. That discarded
- * eight srmech_status_t values inside a file whose whole subject is "a C-only
+ * SEVEN srmech_status_t values inside a file whose whole subject is "a C-only
  * host gets the right answer" — if a peer had refused, the block would have
  * checked the initialiser instead of the answer and reported PASS for
  * sin(0) == 0 without srmech_sin_q61 having written anything. Three of the
- * eight became -Werror=unused-result the moment SRMECH_NODISCARD landed on
- * the roster, which is the attribute doing exactly its job; the other five
+ * seven became -Werror=unused-result the moment SRMECH_NODISCARD landed on
+ * the roster, which is the attribute doing exactly its job; the other FOUR
  * are checked here for the same reason rather than left as the difference
- * between "tagged" and "true". */
+ * between "tagged" and "true".
+ *
+ * ⚠️ This comment read "eight" and "the other five" as shipped, and both were
+ * wrong by one. Re-measured in the rc473 repair pass, predicate stated so it
+ * is re-runnable: BEFORE is a bare-statement call at `b398b8c46`, a line whose
+ * only content is `srmech_<name>(` with the return value dropped
+ * (`^[ \t]*srmech_[A-Za-z0-9_]+\s*\(`) → 7, at :144 :145 :146 :147 :150 :153
+ * :155; AFTER is a `check_ok(srmech_...)` call row at HEAD → 7. The 3/4 split
+ * is the same predicate partitioned by whether the callee carries
+ * SRMECH_NODISCARD: sin_q61 / cos_q61 / atan_q61 are tagged, exp_q61 /
+ * log_q61 / sqrt_q61 (×2) are not. The split is kept rather than smoothed,
+ * because it is the finding: the attribute saw three of the seven and four
+ * were structurally invisible to it — see the NODISCARD block in srmech.h for
+ * why the roster stops where it does. */
 static void check_ok(srmech_status_t st, const char *desc)
 {
     if (st == SRMECH_OK) {

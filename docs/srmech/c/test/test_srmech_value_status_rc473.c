@@ -473,6 +473,27 @@ static void rows_composites(void)
     st = srmech_kepler_solve(SRMECH_VS_2_55, 0.3, 1e-12, 20, &out);
     check_refuses(st, out, "kepler_solve(2^55, 0.3, 1e-12, 20)");
 
+    /* rc473 repair pass (`#T1188`): the ECCENTRICITY band, not the angle.
+     * The rows above all reach their refusal through a CALLEE. These reach it
+     * through the guard on the function's own parameter, which was written
+     * `e < 0.0 || e >= 1.0` — NaN-blind, both comparisons false for a NaN.
+     * Measured at 7665c594c before the repair, native cell, ABI 26:
+     * srmech_equation_of_centre(0.7, NaN, 4) -> status 0, out=nan, against
+     * ValueError from the Python peer. kepler_solve's identical guard was
+     * saved only incidentally, so its NaN row could not have caught the
+     * class; it is pinned here anyway, because "saved incidentally" is a
+     * property of today's callees and not a contract. */
+    st = srmech_equation_of_centre(0.7, NAN, 4, &out);
+    check_refuses(st, out, "equation_of_centre(0.7, NaN, 4)");
+    st = srmech_kepler_solve(0.7, NAN, 1e-12, 30, &out);
+    check_refuses(st, out, "kepler_solve(0.7, NaN, 1e-12, 30)");
+    st = srmech_equation_of_centre(0.7, INFINITY, 4, &out);
+    check_refuses(st, out, "equation_of_centre(0.7, +inf, 4)");
+    st = srmech_equation_of_centre(0.7, 1.0, 4, &out);
+    check_refuses(st, out, "equation_of_centre(0.7, 1.0, 4)");
+    st = srmech_equation_of_centre(0.7, -0.1, 4, &out);
+    check_refuses(st, out, "equation_of_centre(0.7, -0.1, 4)");
+
     /* Composite controls: ordinary arguments must still be served. */
     st = srmech_equation_of_centre(0.5, 0.0549, 4, &out);
     check_accepts(st, "equation_of_centre(0.5, 0.0549, 4)");

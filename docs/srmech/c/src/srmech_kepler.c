@@ -169,7 +169,13 @@ srmech_status_t srmech_kepler_solve(double    M_rad,
         return SRMECH_ERR_NULL_ARG;
     }
     *out_E_rad = M_rad;
-    if (e < 0.0 || e >= 1.0) {
+    /* rc473 repair (`#T1188`): spelled as the NEGATION of the accepted band,
+     * not as a disjunction of rejections. `e < 0.0 || e >= 1.0` is NaN-BLIND —
+     * both comparisons are false for a NaN, so the rejecting branch is not
+     * taken and the NaN flows on. The Python peer already spells it
+     * `if not (0.0 <= e < 1.0)` (kepler.py:151), which IS NaN-catching, so the
+     * two projections differed in which inputs they serve — ADR-0009 §2.4. */
+    if (!(e >= 0.0 && e < 1.0)) {
         return SRMECH_ERR_BAD_INPUT;
     }
     if (max_iter == 0) {
@@ -227,7 +233,16 @@ srmech_status_t srmech_equation_of_centre(double    M_rad,
         return SRMECH_ERR_NULL_ARG;
     }
     *out_delta_rad = 0.0;
-    if (e < 0.0 || e >= 1.0) {
+    /* rc473 repair (`#T1188`): the SAME NaN-blind spelling as kepler_solve's,
+     * and here it was reachable. Measured on the rc473 branch head before this
+     * repair, native cell, ABI 26: the C symbol answered
+     * srmech_equation_of_centre(0.7, NaN, 4) -> status 0 (SRMECH_OK), out=nan
+     * while kepler.equation_of_centre(0.7, nan, 4) raised
+     * "e must satisfy 0 <= e < 1; got nan". kepler_solve was saved only
+     * incidentally (a NaN e poisons E and srmech_sin now refuses NaN); this
+     * one had no such backstop, because e never reaches a callee that
+     * validates it — it is only ever MULTIPLIED. */
+    if (!(e >= 0.0 && e < 1.0)) {
         return SRMECH_ERR_BAD_INPUT;
     }
     if (n_terms == 0 || n_terms > SRMECH_KEPLER_EOC_MAX_TERMS) {

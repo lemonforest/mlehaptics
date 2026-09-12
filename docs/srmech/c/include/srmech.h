@@ -658,13 +658,29 @@ extern "C" {
  *      all write NaN. srmech_atan2 also gains the quadrant diagonal, so
  *      atan2(±Inf, ±Inf) answers ±pi/4 / ±3pi/4 as the pure projection does.
  *
- *      THE PAIRING THIS REJECTS. rc473 Python removes nothing yet, but an
- *      rc473 library against an older Python reader and — the direction that
- *      matters — an rc472 library against rc473 Python both restore the silent
- *      value with no other symptom: the older .so computes a wrong number and
- *      reports SRMECH_OK, and there is no second channel to notice it by.
+ *      THE PAIRING THIS REJECTS. rc473 Python DELETES both pre-dispatch
+ *      covers — kepler.equation_of_centre's rc472 harmonic loop and
+ *      laplacian._q61_trig_range_refuse, rc466's array cover — so nothing is
+ *      left in EITHER projection to notice the silent value by. An rc473
+ *      library against an older Python reader and — the direction that
+ *      matters — an rc472 library against rc473 Python both restore it with no
+ *      other symptom: the older .so computes a wrong number and reports
+ *      SRMECH_OK, and with the covers gone there is no second channel at all.
  *      NATIVE_ABI_VERSION != EXPECTED_ABI_VERSION is the only thing that
- *      refuses that pairing. The attribute added in the same rc
+ *      refuses that pairing, and it does: measured on this cell with an
+ *      rc472-behaviour .so dropped beside rc473 Python, HAS_NATIVE False and
+ *      "ABI version mismatch (got 25, expected 26); falling back to
+ *      pure-Python paths".
+ *
+ *      (This paragraph opened "rc473 Python removes nothing yet". That was
+ *      true when it was written at stage B and FALSE by the end of the same
+ *      rc, which deleted both covers at stage C — and it UNDERSTATED the
+ *      bump's own case, since a cover left standing would have been exactly
+ *      the second channel the sentence says does not exist. Corrected in the
+ *      rc473 repair pass; the commit message that carries the original wording
+ *      is a dated record and is left alone.)
+ *
+ *      The attribute added in the same rc
  *      (SRMECH_NODISCARD) is a DIAGNOSTIC, not a wire change, and contributes
  *      nothing to this bump.
  *
@@ -746,6 +762,30 @@ extern "C" {
  * re-introduced discard fails the build for every contributor before review
  * on at least the gcc one; that is the property being bought, and it is
  * stated at its measured strength rather than at its hoped-for one.
+ *
+ * WHERE THE ROSTER STOPS, AND WHY — so "this macro is what stops a 25th" is
+ * not read as covering the whole Q61 surface. rc473 tagged 14 declarations;
+ * the rc473 repair pass raised that to 17 by adding srmech_exp_q61,
+ * srmech_log_q61 and srmech_sqrt_q61, which had been left untagged while
+ * their siblings srmech_sin_q61 / cos_q61 / atan_q61 carried the attribute,
+ * with no stated reason. The asymmetry was not harmless and its cost is
+ * measured: of the seven discarded statuses in c/test/test_srmech_trans_q61.c
+ * (the "site 25" this rc found), the attribute raised exactly THREE — the
+ * tagged trio — and the other FOUR had to be found and fixed by hand. The
+ * three were outside the roster because the scoping predicate was the scalar
+ * `(double, double*)` family and these take a third out-parameter; a shape is
+ * not a reason. They are status-returning exports of the same Class-N
+ * transcendental family, the attribute is free, and the pedantic build stays
+ * at 0 warnings because the c/test sites were already repaired by hand.
+ *
+ * So the compiler guard now covers 17 of the status-returning Class-N
+ * exports, and that is a NUMBER rather than an unknown. It is still not a
+ * ratchet: the RULE_7_ROSTER detector named as owed in c/JPL_AUDIT.md is not
+ * shipped, so a discard on a symbol nobody tagged is invisible to the
+ * compiler, to the roster gate and to the pytest audit alike. The decidable
+ * thing for that ratchet to assert, when it is written, is two-way: every
+ * member of the declared family carries SRMECH_NODISCARD, and every tagged
+ * name is still a real declaration.
  *
  * This is a single-token object-like macro on the MSVC and fallback legs and
  * a single-line one on the GNU leg (JPL Rule 8 clean: no token-paste, no
@@ -4404,7 +4444,7 @@ SRMECH_NODISCARD srmech_status_t srmech_rational_sqrt(double x, double *out);
  * *out_p) so the Python rational.sqrt forms Q(root << p, 1) for p >= 0 else
  * Q(root, 1 << -p). sqrt(0) -> (0, 0); negative / non-finite -> BAD_INPUT.
  * Additive -> ABI unchanged. */
-srmech_status_t srmech_sqrt_q61(double x, int64_t *out_root, int64_t *out_p);
+SRMECH_NODISCARD srmech_status_t srmech_sqrt_q61(double x, int64_t *out_root, int64_t *out_p);
 
 /* 0.9.0rc13 public integer floor-sqrt — floor(sqrt((nhi:nlo))) for a 128-bit
  * unsigned radicand, written to *out_root. Exposes the two-limb isqrt the
@@ -4518,8 +4558,8 @@ SRMECH_NODISCARD srmech_status_t srmech_log(double x, double *out);
  *     in Q61, *out_e); Python forms Q(logm + e*_Q61_LN2, 2^61) with the cascade-
  *     derived Q61 ln2. x <= 0 / non-finite -> BAD_INPUT.
  * Additive -> ABI unchanged. */
-srmech_status_t srmech_exp_q61(double x, int64_t *out_core, int64_t *out_n);
-srmech_status_t srmech_log_q61(double x, int64_t *out_logm, int64_t *out_e);
+SRMECH_NODISCARD srmech_status_t srmech_exp_q61(double x, int64_t *out_core, int64_t *out_n);
+SRMECH_NODISCARD srmech_status_t srmech_log_q61(double x, int64_t *out_logm, int64_t *out_e);
 
 /* ------------------------------------------------------------------ *
  * Class M — HDC binary spatter codes (Task #217 Phase C1 rc8)

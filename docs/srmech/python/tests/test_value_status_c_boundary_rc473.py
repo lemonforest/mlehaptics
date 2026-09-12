@@ -108,14 +108,18 @@ _needs_native = pytest.mark.skipif(
 _DECLINED_T1188 = pytest.mark.xfail(
     strict=True,
     reason=(
-        "`#T1188`: C serves a non-finite argument to exp / log / rational_sqrt "
-        "where the pure projection refuses it — an ADR-0009 §2.4 'differ in "
-        "which inputs they serve' instance rc473 does NOT repair. Measured "
-        "hazard: lap_sqrt(1.0 + tau*tau) in srmech_laplacian.c and sq_sqrt in "
-        "srmech_svd_qr.c both reach +Inf on the tau-overflow path and rely on "
-        "sqrt(+Inf) = +Inf to get t = 1/(tau + Inf) = 0, inside static helpers "
-        "with no status channel. Disclosure is necessary and is not sufficient "
-        "(ADR-0009 §5): the tracked filing is owed separately."
+        "`#T1188`: C serves an argument to exp / log / rational_sqrt that the "
+        "pure projection refuses — an ADR-0009 §2.4 'differ in which inputs "
+        "they serve' instance rc473 does NOT repair. NOT confined to the "
+        "non-finite: srmech_exp(-1e300) -> (SRMECH_OK, 0.0) is a FINITE "
+        "witness, and it is a row below. Measured hazard: lap_sqrt(1.0 + "
+        "tau*tau) in srmech_laplacian.c and sq_sqrt in srmech_svd_qr.c both "
+        "reach +Inf on the tau-overflow path and rely on sqrt(+Inf) = +Inf to "
+        "get t = 1/(tau + Inf) = 0, inside static helpers with no status "
+        "channel. Disclosure is necessary and is not sufficient (ADR-0009 §5) "
+        "— the tracked filing is ADR-0009 §1.2, this rc's exp / log / "
+        "rational_sqrt row, which the rc473 repair pass re-titled from "
+        "'at ±Inf' to the domain it actually covers."
     ),
 )
 
@@ -229,6 +233,16 @@ _DECLINED_ROWS: list[tuple[str, str, float]] = [
     ("srmech_exp", "exp", -INF),
     ("srmech_log", "log", INF),
     ("srmech_rational_sqrt", "sqrt", INF),
+    # rc473 repair pass (`#T1188`) — the FINITE witness. The four rows above
+    # are all non-finite, which let the ADR row's own title read "at ±Inf" and
+    # let a reader conclude the residual divergence is confined to the
+    # non-finite. It is not. MEASURED on this cell (native, ABI 26 == 26,
+    # CPython 3.12.3, numpy absent): srmech_exp(-1e300) -> (SRMECH_OK, 0.0),
+    # srmech_exp_q61(-1e300) -> status 2 (its own 1e18 bound), and
+    # rational.exp(-1e300) raises. Safe to EXECUTE, unlike the +2**55
+    # direction in _NOT_EXERCISED_PURE below: exp of a large NEGATIVE argument
+    # underflows to 0.0 rather than allocating ~5e16 bits.
+    ("srmech_exp", "exp", -1e300),
 ]
 
 _ATAN2_ROWS: list[tuple[float, float, str]] = [
@@ -577,6 +591,54 @@ def test_equation_of_centre_the_named_defect() -> None:
         f"{type(python_result).__name__}. A bare-C host computes a wrong "
         "number and is told it is correct."
     )
+
+
+@_needs_native
+@pytest.mark.parametrize("ecc", [NAN, INF, -INF, 1.0, -0.1])
+def test_the_eccentricity_band_is_refused_identically_by_both_projections(
+    ecc: float,
+) -> None:
+    """The repair pass's own row (`#T1188`) — the parameter, not the angle.
+
+    Every composite row above reaches its refusal through a CALLEE. This one
+    is the function's guard on its OWN parameter, and through
+    ``7665c594c`` that guard was written ``e < 0.0 || e >= 1.0`` — NaN-BLIND,
+    since both comparisons are false for a NaN, so the rejecting branch was
+    not taken. The Python peer has always spelled it ``not (0.0 <= e < 1.0)``
+    (``kepler.py:151``/``:244``), which IS NaN-catching.
+
+    Measured at ``7665c594c`` before the repair, native cell, ABI 26 == 26,
+    CPython 3.12.3, numpy absent::
+
+        C  equation_of_centre(0.7, nan, 4) -> status 0, out=nan
+        py equation_of_centre(0.7, nan, 4) -> ValueError: e must satisfy
+                                              0 <= e < 1; got nan
+
+    ``kepler_solve`` carried the identical guard and was saved only
+    incidentally — a NaN ``e`` poisons ``E`` and ``srmech_sin`` now refuses
+    NaN — so it is parametrised here too: "saved incidentally" is a property
+    of today's callees, not a contract.
+    """
+    for symbol, argtypes, c_args, pure_fn, pure_args in (
+        ("srmech_equation_of_centre", [_D, _D, _U32, _DP],
+         (_D(0.7), _D(ecc), _U32(4)), kepler.equation_of_centre, (0.7, ecc, 4)),
+        ("srmech_kepler_solve", [_D, _D, _D, _U32, _DP],
+         (_D(0.7), _D(ecc), _D(1e-12), _U32(30)), kepler.kepler_solve, (0.7, ecc)),
+    ):
+        fn = _bind(symbol, argtypes)
+        out = ctypes.c_double(0.0)
+        status = fn(*c_args, ctypes.byref(out))
+        python_refused, python_result = _pure_raises(pure_fn, *pure_args)
+        assert python_refused, (
+            f"{symbol}: the Python projection must refuse e={ecc!r}; it "
+            f"returned {python_result!r}"
+        )
+        assert status != _native.SRMECH_OK, (
+            f"{symbol} accepted e={ecc!r} and returned SRMECH_OK with "
+            f"{out.value!r}, while the Python projection raised "
+            f"{type(python_result).__name__}. ADR-0009 §2.4: co-equal "
+            "projections may not differ in which inputs they serve."
+        )
 
 
 @_needs_native
