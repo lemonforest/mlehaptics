@@ -157,6 +157,21 @@ srmech_status_t srmech_pin_slot(double  theta,
  * E == M with SRMECH_OK. Measured at rc472,
  * srmech_kepler_solve(2^55, 0.3, 1e-12, 20) -> (SRMECH_OK,
  * 3.602879701896397e+16), and 3.602879701896397e+16 IS 2^55. */
+/* rc473 repair pass (`#T1188`) — THE ECCENTRICITY BAND, and the comment lives
+ * HERE rather than beside the guard on purpose: JPL Rule 4 counts lines
+ * BETWEEN the braces, and this function measured 58 against a cap of 60 with
+ * six comment lines inside it. Two lines of headroom is a trap for the next
+ * edit, and the ratchet is down-only, so the design moves rather than the
+ * ratchet.
+ *
+ * Both eccentricity guards in this file were spelled `e < 0.0 || e >= 1.0`,
+ * which is NaN-BLIND: both comparisons are false for a NaN, so the rejecting
+ * branch is not taken and the NaN flows on. The Python peer has always
+ * spelled it `if not (0.0 <= e < 1.0)` (srmech/math/kepler.py, in
+ * kepler_solve and equation_of_centre alike), which IS NaN-catching — so the
+ * two projections differed in which inputs they serve, ADR-0009 §2.4, the
+ * exact class this rc exists to close. Both are now the NEGATION of the
+ * accepted band. */
 srmech_status_t srmech_kepler_solve(double    M_rad,
                                     double    e,
                                     double    tolerance,
@@ -169,13 +184,7 @@ srmech_status_t srmech_kepler_solve(double    M_rad,
         return SRMECH_ERR_NULL_ARG;
     }
     *out_E_rad = M_rad;
-    /* rc473 repair (`#T1188`): spelled as the NEGATION of the accepted band,
-     * not as a disjunction of rejections. `e < 0.0 || e >= 1.0` is NaN-BLIND —
-     * both comparisons are false for a NaN, so the rejecting branch is not
-     * taken and the NaN flows on. The Python peer already spells it
-     * `if not (0.0 <= e < 1.0)` (kepler.py:151), which IS NaN-catching, so the
-     * two projections differed in which inputs they serve — ADR-0009 §2.4. */
-    if (!(e >= 0.0 && e < 1.0)) {
+    if (!(e >= 0.0 && e < 1.0)) {                    /* NaN-catching; see above */
         return SRMECH_ERR_BAD_INPUT;
     }
     if (max_iter == 0) {
@@ -221,7 +230,19 @@ srmech_status_t srmech_kepler_solve(double    M_rad,
  * the harmonic loop discarded that refusal: the C projection answered
  * (SRMECH_OK, -0.08984990210223018) for an input the Python projection
  * raised ValueError on. The status is now propagated; *out_delta_rad stays
- * at the 0.0 set on entry, which is a defined value and not an answer. */
+ * at the 0.0 set on entry, which is a defined value and not an answer.
+ *
+ * rc473 REPAIR PASS: the eccentricity guard below carried the SAME NaN-blind
+ * spelling as kepler_solve's (see that function's block above), and HERE it
+ * was reachable. MEASURED at the branch head before the repair, native cell,
+ * ABI 26 == 26: srmech_equation_of_centre(0.7, NaN, 4) -> status 0
+ * (SRMECH_OK), out = nan, while kepler.equation_of_centre(0.7, nan, 4) raised
+ * "e must satisfy 0 <= e < 1; got nan". kepler_solve was saved only
+ * INCIDENTALLY — a NaN e poisons E and srmech_sin now refuses NaN — and this
+ * one had no such backstop, because e never reaches a callee that validates
+ * it: it is only ever MULTIPLIED. Its NaN row is pinned in the C-host gate
+ * anyway, because "saved incidentally" is a property of today's callees and
+ * not a contract. */
 srmech_status_t srmech_equation_of_centre(double    M_rad,
                                           double    e,
                                           uint32_t  n_terms,
@@ -233,16 +254,7 @@ srmech_status_t srmech_equation_of_centre(double    M_rad,
         return SRMECH_ERR_NULL_ARG;
     }
     *out_delta_rad = 0.0;
-    /* rc473 repair (`#T1188`): the SAME NaN-blind spelling as kepler_solve's,
-     * and here it was reachable. Measured on the rc473 branch head before this
-     * repair, native cell, ABI 26: the C symbol answered
-     * srmech_equation_of_centre(0.7, NaN, 4) -> status 0 (SRMECH_OK), out=nan
-     * while kepler.equation_of_centre(0.7, nan, 4) raised
-     * "e must satisfy 0 <= e < 1; got nan". kepler_solve was saved only
-     * incidentally (a NaN e poisons E and srmech_sin now refuses NaN); this
-     * one had no such backstop, because e never reaches a callee that
-     * validates it — it is only ever MULTIPLIED. */
-    if (!(e >= 0.0 && e < 1.0)) {
+    if (!(e >= 0.0 && e < 1.0)) {                    /* NaN-catching; see above */
         return SRMECH_ERR_BAD_INPUT;
     }
     if (n_terms == 0 || n_terms > SRMECH_KEPLER_EOC_MAX_TERMS) {
