@@ -338,13 +338,34 @@ def body(payload: Dict[str, Any]) -> int:
 
 
 def selftest() -> int:
+    """The DIAGNOSTIC surface, which must survive a git it cannot run.
+
+    rc473 repair pass (`#T1188`): ``_hooklib.dirty_paths`` now RAISES
+    ``GitUnusable`` where it used to return ``[]``, which is right for a
+    VERDICT — an empty change set is not the same fact as an unreadable
+    checkout — and wrong for this function, whose whole job is to describe the
+    environment it is standing in. A diagnostic that dies on the condition it
+    exists to diagnose reports nothing, and check_hooks.py's vacuity case
+    ("passed=N > 0") then has no line to key on. So the verdict path in
+    :func:`body` still raises and still fails open LOUDLY through
+    :func:`_hooklib.run_hook`; here the failure is printed and the selftest
+    carries on to the part that does not need git.
+    """
     root = H.repo_root()
     for line in H.describe_env(root, all_watched()):
         print(line)
     print()
-    working = H.dirty_paths(root, all_watched())
+    try:
+        working = H.dirty_paths(root, all_watched())
+    except H.GitUnusable as exc:
+        print(f"working-tree half : UNAVAILABLE — {exc}")
+        working = []
     base, how = resolve_base(root)
-    dirty, _ = changed_prose_paths(root)
+    try:
+        dirty, _ = changed_prose_paths(root)
+    except H.GitUnusable as exc:
+        print(f"trigger (union)   : UNAVAILABLE — {exc}")
+        dirty = []
     committed = [p for p in dirty if p not in working]
     print(f"watched pathspecs : {len(all_watched())}")
     print(f"base commit       : {base[:12] or '(none)'}  via {how}")

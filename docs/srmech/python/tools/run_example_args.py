@@ -205,6 +205,41 @@ def main() -> int:
     print(f"srmech.__file__    = {srmech.__file__}", file=sys.stderr)
     print(f"srmech.__version__ = {srmech.__version__}", file=sys.stderr)
 
+    # ── rc473 (`#T1188`): DECLARING a cell is not ENTERING one. ──────────
+    # `env.setdefault("SRMECH_EXPECT_PURE", "1")` below is the tests' own
+    # DECLARATION channel; it does not unload a library that is present. So
+    # through 7665c594c this same command, on the same tree at the same
+    # commit, wrote a DIFFERENT ledger depending only on whether
+    # srmech/_native/libsrmech.so happened to sit beside the package — and
+    # nothing in the output said which cell had answered. MEASURED at rc473
+    # by notes/_rc473_args_ledger_cell_probe.py: library PRESENT moved 100
+    # rows against the committed ledger, including a 1-ULP float shift
+    # (-0.07189024134555967 -> ...66) and an exception-class change
+    # (FileNotFoundError -> OSError); library ABSENT moved 92, as committed.
+    #
+    # The declaration is now CHECKED against the cell, and the run refuses
+    # rather than harvesting into a ledger that cannot say where it came
+    # from. The sibling defect is _hooklib's fail-open, repaired in the same
+    # pass: both were "the instrument could not answer" wearing the spelling
+    # of an answer.
+    from srmech import _native as _n
+    expect_pure = os.environ.get("SRMECH_EXPECT_PURE", "1") == "1"
+    print(f"HAS_NATIVE         = {_n.HAS_NATIVE} "
+          f"(SRMECH_EXPECT_PURE declares pure={expect_pure})", file=sys.stderr)
+    if expect_pure and _n.HAS_NATIVE:
+        lib = getattr(getattr(_n, "LIB", None), "_name", "<unknown>")
+        print(
+            "[run_example_args] REFUSING: this harvest declares the PURE cell "
+            f"(SRMECH_EXPECT_PURE=1) and a native library is LOADED ({lib}, "
+            f"ABI {_n.NATIVE_ABI_VERSION}). The ledger written from the native "
+            "cell differs from the committed one in ~100 rows and carries no "
+            "record of which cell produced it, so the two are not "
+            "distinguishable after the fact. Move the library aside (mv "
+            "srmech/_native/libsrmech.so <elsewhere>) to harvest the declared "
+            "cell, or set SRMECH_EXPECT_PURE=0 to declare the native cell "
+            "deliberately.", file=sys.stderr)
+        return 2
+
     todo = collect()
     print(f"{len(todo)} to harvest", file=sys.stderr)
 
@@ -253,6 +288,15 @@ def main() -> int:
         "by_status": by_status,
         "srmech_version": srmech.__version__,
         "python": f"{sys.version_info[0]}.{sys.version_info[1]}",
+        # rc473 (`#T1188`): the CELL, stamped, so the ledger states the
+        # condition its figures were taken under instead of leaving a reader
+        # to infer it from the figures themselves. The refusal above makes the
+        # pair {declared, actual} agree; this makes it READABLE afterwards.
+        # The committed ledger predates this key — it was harvested in the
+        # pure cell, which is why its rows are the 92-row set and not the
+        # 100-row one, and it acquires the stamp on its next re-harvest.
+        "has_native": bool(_n.HAS_NATIVE),
+        "expect_pure": expect_pure,
     }
     ea.write_ledger(records, meta)
     print(json.dumps(meta, sort_keys=True), file=sys.stderr)
