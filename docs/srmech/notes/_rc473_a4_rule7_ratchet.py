@@ -44,6 +44,7 @@ and the baseline tree is made with (from the repo root)::
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -79,6 +80,30 @@ PLANTS = {
     "second-statement-on-one-line":
         "    if (e > 0.0) { } srmech_cos(1.0, &sin_h);",
 }
+
+
+def header_sha256(root: pathlib.Path) -> str:
+    """Identify a tree by the header the predicate reads, LINE-ENDING NORMALISED.
+
+    The baseline row below otherwise names only a filesystem PATH, which is a
+    condition of the run and not an identity -- a reader handed a scratch
+    directory that no longer exists cannot tell which tree it held.
+
+    ``\\r`` is stripped before hashing so the identity does not depend on a
+    checkout's line-ending policy: this header is stored CRLF in a Windows
+    checkout under ``core.autocrlf=true`` (measured here: 10974 CR-bearing
+    lines on disk) and LF in a POSIX one, and a raw byte hash would then report
+    two identities for one commit.
+
+    ⚠️ Stated as a PRECAUTION and not as a repair for an observed
+    disagreement, because the comparison that would have shown one did not:
+    on the machine this was written on, ``git archive`` ALSO applies the
+    working-tree conversion, so the export and the checkout agreed on the RAW
+    hash too. The normalisation is therefore untested against a genuinely
+    LF-stored copy of this file, and that is written down rather than implied.
+    """
+    raw = (root / "c" / "include" / "srmech.h").read_bytes()
+    return hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()
 
 
 def scan_dir(gate, directory: pathlib.Path):
@@ -174,6 +199,7 @@ def main() -> int:
         "srmech_allow_stale_native": os.environ.get(
             "SRMECH_ALLOW_STALE_NATIVE", "<unset>"),
         "tree": str(ROOT),
+        "tree_header_sha256": header_sha256(ROOT),
         "gate_module": str(GATE),
         "note": "source scan only -- this ledger reads no shared library, so "
                 "no native cell is involved and none is claimed",
@@ -227,6 +253,7 @@ def main() -> int:
             "kind": "strict_zero_non_vacuity",
             "auto_run": True,
             "baseline_tree": str(base),
+            "baseline_header_sha256": header_sha256(base),
             "baseline_total_src": len(base_src),
             "baseline_total_test": len(base_test),
             "on_roster_src": len(on_src),
