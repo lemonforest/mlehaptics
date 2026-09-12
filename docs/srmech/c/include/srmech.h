@@ -714,8 +714,8 @@ extern "C" {
 #endif
 
 /* ------------------------------------------------------------------ *
- * SRMECH_NODISCARD — discarding a returned srmech_status_t is a COMPILE
- * ERROR on the pedantic gcc / clang legs (0.9.0rc473, `#T1188`).
+ * SRMECH_NODISCARD — a discarded srmech_status_t is a COMPILE ERROR on the
+ * gcc leg, and on clang only if BARE (0.9.0rc473, `#T1188`; form matters).
  *
  * WHY. srmech claims Python and C are co-equal projections: a bare-C host,
  * with no Python present, runs every op (ADR-0009 §2.1, §2.4). Measured at
@@ -745,23 +745,23 @@ extern "C" {
  * than inferred from a fall-through — but the MSVC expansion is EMPTY, and
  * that is a genuine asymmetry, not an oversight:
  *
- *   - `warn_unused_result` is a GNU attribute (gcc and clang).
+ *   - `warn_unused_result` is GNU (gcc; clang only when _MSC_VER is undef).
  *   - C has no portable pre-C23 equivalent. `[[nodiscard]]` needs C23, which
  *     this library does not target (it builds -std=c11).
  *   - MSVC's nearest analogue is the SAL annotation `_Check_return_`, which
  *     requires <sal.h> in a public header and only diagnoses under
  *     /analyze — not under the /WX pedantic leg this project runs.
  *
- * So the compile-time guard does not cover all three legs equally. What is
- * MEASURED here is the gcc leg: both the bare and the cast form are errors
- * under -Werror. The clang leg is NOT measured on this cell — no clang is
- * installed in the WSL2 environment the repair was built in — so whether
- * clang honours an explicit (void) cast is an open figure the macOS pedantic
- * job answers, not a claim this comment makes. The MSVC leg diagnoses
- * nothing, by the reasoning above. Two of three legs run with -Werror, so a
- * re-introduced discard fails the build for every contributor before review
- * on at least the gcc one; that is the property being bought, and it is
- * stated at its measured strength rather than at its hoped-for one.
+ * So the guard covers neither all three legs nor both FORMS equally. gcc:
+ * bare AND cast are both errors under -Werror. The clang leg was an open
+ * figure here — no clang was installed in the WSL2 cell the repair was
+ * built in — and the rc473 pre-publish pass MEASURED it, closing it
+ * UNFAVOURABLY: on clang 22.1.0 (one form per TU, attribute applied
+ * directly, object emitted, -std=c11 -Wall -Wextra -Wunused-result
+ * -Werror) bare is an error and the (void) CAST form exits 0 printing
+ * NOTHING — clang reads an explicit cast as an acknowledgement where gcc
+ * deliberately does not. All twenty-four rc473 sites were CAST, so for THAT
+ * form this is a ONE-leg guard; macos-14 and windows cl are UNMEASURED.
  *
  * WHERE THE ROSTER STOPS, AND WHY — so "this macro is what stops a 25th" is
  * not read as covering the whole Q61 surface. rc473 tagged 14 declarations;

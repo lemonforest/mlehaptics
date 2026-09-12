@@ -602,6 +602,55 @@ turns the residual from an unknown into a number. Measured on gcc 13.3: an expli
 `(void)` cast does **not** silence the attribute, so the idiom that produced
 all 24 sites is unwritable there.
 
+⚠️ **AND ONLY THERE — the cast form is refused on gcc ALONE.** Re-measured at
+the rc473 pre-publish pass, one form per translation unit, the attribute
+applied directly rather than through the macro, compiled to an OBJECT (`-c`)
+under `-std=c11 -Wall -Wextra -Wunused-result -Werror`:
+
+| form | gcc 13.3.0 | clang 22.1.0 | cl 19.31.31104 `/W4 /WX` | cl + SAL `/analyze` |
+| --- | --- | --- | --- | --- |
+| `(void)srmech_sin(1.0, &o);` — the form all 24 sites used | **error** | **SILENT, exit 0** | silent | **silent** (the cast suppresses it) |
+| `srmech_sin(1.0, &o);` bare | **error** | **error** | silent | warns **C6031** |
+| no attribute (control) | exit 0 | exit 0 | — | — |
+
+clang reads an explicit cast as an acknowledgement where gcc deliberately does
+not — same result with the attribute applied directly (default target and
+`--target=x86_64-pc-linux-gnu`) and through the REAL shipped header under
+`-U_MSC_VER`.
+
+⚠️ **THE DISCRIMINATOR IS `_MSC_VER`, NOT THE COMPILER'S NAME.** A clang
+targeting MSVC — Windows clang, and clang-cl — defines `_MSC_VER`, so
+`srmech.h`'s `#if defined(_MSC_VER)` arm (deliberately first) hands it the
+EMPTY macro and it diagnoses NEITHER form. Measured with the preprocessor:
+`clang -E` over a TU including `srmech.h` prints ` int probe(void);` on the
+default Windows target and
+`__attribute__((warn_unused_result)) int probe(void);` under `-U_MSC_VER`. So
+"clang" in the table above means a clang for which `_MSC_VER` is undefined —
+the macos-14 cell, and any Linux clang. Nothing in this document had said so.
+
+A masked scan of `b398b8c46` puts all **24** repaired `c/src` sites in the cast
+form (24 cast / 0 bare) and all **7** of the "site 25" discards in
+`c/test/test_srmech_trans_q61.c` in the bare form (7 bare / 0 cast), so the two
+forms are refused by one compiler family and by two respectively. The unshipped
+source ratchet is therefore the PRIMARY detector for the form this rule's own
+24 actually had, not a backstop — and the two detectors are worth keeping
+together because a bare call is the one gcc AND clang both refuse.
+
+`[[nodiscard]]`, the only standard spelling, is unavailable: `error C2059:
+syntax error: '['` under `/std:c11` and `/std:c17`, and `/std:clatest` is
+`D9002 ignoring unknown option` and falls back to the same error. The library
+builds `-std=c11` (`CMAKE_C_STANDARD 11` with `CMAKE_C_STANDARD_REQUIRED ON`),
+so C23 is unavailable by construction, and `SRMECH_PEDANTIC` gives MSVC
+`/WX /w44062` and not `/analyze`.
+
+⚠️ **Caveat on the instrument, measured rather than quoted.** Under
+`-fsyntax-only` gcc exits 0 on BOTH forms — its `-Wunused-result` fires in the
+middle end — so a syntax-only probe reports this whole matrix as a null. The
+run above emits an object. **UNMEASURED:** CI's macOS Apple clang and Windows
+cl. The figures are LLVM clang 22.1.0 and cl 19.31.31104 x64 on a developer
+machine, so "gcc alone" is measured across compiler FAMILIES and inferred for
+those two CI cells.
+
 ⚠️ **THE MSVC CELL IS NOT COVERED.** `warn_unused_result` is a gcc/clang
 attribute; `SRMECH_NODISCARD` expands empty under `_MSC_VER`, so the Windows
 pedantic leg enforces nothing here. C has no portable pre-C23 equivalent
@@ -644,8 +693,12 @@ over a correct list is exactly how the "Violations: 0" line above survived.
 and defines **zero** tests naming Rule 7; its test functions cover Rules 1, 3,
 4, 5, 8 and 9 only. So the return-value count above is a **measurement, not a
 ratchet**: nothing in the pytest suite refuses a 25th site. What does refuse
-one, for the seventeen tagged names on two of three OS cells, is
-`SRMECH_NODISCARD` plus `-Werror`. A `RULE_7_ROSTER` detector — a masked scan
+one, for the seventeen tagged names, is `SRMECH_NODISCARD` plus `-Werror` — on
+**two** of the three cells' compiler families for a BARE-statement discard and
+on **one** (gcc) for the `(void)`-cast form all 24 repaired sites used. *(This
+sentence read "on two of three OS cells" with no form named until the rc473
+pre-publish pass measured the forms; the form is the load-bearing half, and
+the matrix is in the Rule-7 section above.)* A `RULE_7_ROSTER` detector — a masked scan
 gated strict-zero, two-way against the header's tagged set — is **named here as
 owed and is not shipped in rc473**; recording it as absent is the whole point
 of this section, since recording it as present is what went wrong.
@@ -678,8 +731,10 @@ parameters. It is kept verbatim because it is the record of what was claimed,
 not because it is a census. The parameter-validation half of Rule 7 remains
 **unmeasured**.
 
-⚠️ **Partial** — return-value half **0** and compiler-enforced for 17 symbols
-on gcc/clang; parameter-validation half unmeasured; no detector in the ratchet.
+⚠️ **Partial** — return-value half **0**; compiler-enforced for 17 symbols on
+gcc and clang for a bare-statement discard and on **gcc alone** for the
+`(void)`-cast form the 24 sites used (measured, matrix above);
+parameter-validation half unmeasured; no detector in the ratchet.
 
 ---
 

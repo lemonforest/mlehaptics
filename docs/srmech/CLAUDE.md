@@ -938,8 +938,12 @@ audit document recorded it "0 violations / Pass" from its first
 commit through rc472, on a four-function evidence table, while **24**
 discarded `srmech_status_t` values sat across 7 translation units;
 rc473 (`#T1188`) repaired them to **0** and closed the family with
-`SRMECH_NODISCARD` on 17 declarations, which is a compiler guard on
-gcc/clang only and nothing on MSVC. A `RULE_7_ROSTER` ratchet is
+`SRMECH_NODISCARD` on 17 declarations — a compiler guard on gcc AND
+clang for a BARE-statement discard, on **gcc alone** for the
+`(void)`-cast form all 24 repaired sites used, and nothing on MSVC
+(measured at the rc473 pre-publish pass on gcc 13.3.0 / clang 22.1.0
+/ cl 19.31.31104; CI's macos-14 and windows-latest compilers are
+UNMEASURED). A `RULE_7_ROSTER` ratchet is
 named as owed and is NOT shipped, so this count is a measurement and
 not a floor. Rule 9's
 measured population is **10 function-pointer declarator sites** —
