@@ -729,7 +729,7 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 ### ABI compatibility
 
 C ABI version is currently **26** (`SRMECH_ABI_VERSION = 26` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 25` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 26` in
 *(this line said 12 until rc420, 13 until rc425, 14 until rc438, 15 until
 rc439, 16 until rc442, 17 until rc449 and — the point — **17 through the whole of
 rc447 AND rc448**, so it was two bumps behind by the time rc449 read it: a SIXTH
@@ -816,7 +816,19 @@ stories with both numbers.)*
 pointed at `python/srmech/amsc/_native.py` until rc404 (`#T1069`) — two stale
 facts in three lines: the version was three bumps behind, and ADR-0010 moved
 the shim, so the named path had ceased to exist. This file is NOT
-hygiene-gated, so nothing but a reader catches that.)* **Bump in lockstep**
+hygiene-gated, so nothing but a reader catches that. **And it happened a
+SEVENTH time, inside rc473 itself.** rc473's ABI sweep moved the gated cardinal
+`**26**` and the `SRMECH_ABI_VERSION = 26` beside it, and left
+`EXPECTED_ABI_VERSION` on **25** — one clause later, in the same sentence, where
+both halves had read a correct 25 at `b398b8c46`. That is the rc454 shape
+inverted: a correct cardinal and a correct story with a STALE cardinal wedged
+between them. It is repaired in the same rc that wrote it, and the residual is
+closed rather than re-noted: `test_abi_prose_currency_rc449` now asserts BOTH
+cardinals in this sentence, not one — see that file's
+`test_claude_md_expected_abi_cardinal_matches_the_shim`. The bracketed
+prediction six lines above ("nothing but a reader catches that") was true for
+six consecutive lags and is no longer true for this half of the sentence.)*
+**Bump in lockstep**
 whenever
 the wire format of any existing exported function changes. Adding
 a new symbol does NOT bump ABI (the Python shim just doesn't bind
@@ -926,7 +938,7 @@ audit document recorded it "0 violations / Pass" from its first
 commit through rc472, on a four-function evidence table, while **24**
 discarded `srmech_status_t` values sat across 7 translation units;
 rc473 (`#T1188`) repaired them to **0** and closed the family with
-`SRMECH_NODISCARD` on 14 declarations, which is a compiler guard on
+`SRMECH_NODISCARD` on 17 declarations, which is a compiler guard on
 gcc/clang only and nothing on MSVC. A `RULE_7_ROSTER` ratchet is
 named as owed and is NOT shipped, so this count is a measurement and
 not a floor. Rule 9's
