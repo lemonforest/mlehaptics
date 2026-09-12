@@ -745,6 +745,141 @@ def test_kuramoto_steps_propagate_their_sin_refusal(arg: float) -> None:
 
 
 # --------------------------------------------------------------------------
+# A MATRIX-KERNEL divergence, pinned. rc473 pre-publish pass, `#T1188`.
+#
+# Everything above this line is SCALAR: six Class-N C symbols against their
+# `srmech.math.rational` peers. rc473's closing question — "is any divergence
+# left UNFILED?" — was answered over 90 such rows and the answer was 0, which
+# is true of that population and of no other. The first probe at a MATRIX
+# kernel found one, and it reproduces on the shipped artifact.
+#
+# MEASURED, both cells, same interpreter, native cell authenticated by
+# srmech_rational_sqrt(NaN) -> status 2 at the ctypes symbol:
+#
+#   normalized_laplacian(2, [(0,1)], weights=[+inf])
+#       native cell, dispatched wrapper  -> [[0.0, nan], [nan, 0.0]]
+#       native cell, _normalized_laplacian_py IN THE SAME PROCESS
+#                                        -> [[1.0, nan], [nan, 1.0]]
+#       pure cell, wrapper (IS the _py)  -> [[1.0, nan], [nan, 1.0]]
+#
+# The normalised diagonal is 1.0 or 0.0 depending only on whether a library is
+# loaded. It is +inf-SPECIFIC — -inf and nan agree on both cells and through
+# both routes, and so do the finite controls — which is narrower than
+# "non-finite" and was measured rather than assumed. Cause, at the symbol:
+# srmech_rational_sqrt(+Inf) -> (SRMECH_OK, +Inf), so +Inf is not a refusal
+# class and the two routes differ only in the order they take 1/sqrt(inf) in.
+#
+# NOT repaired in rc473: which projection is right is the float carrier's
+# non-finite contract, which is unwritten. Filed as an ADR-0009 §1.2 row under
+# `#T1188`; ADR-0009 §5 says a disclosure without an executable pin is not an
+# exemption, and this is the pin.
+#
+# Two design points that are the whole reason this row is not vacuous:
+#   * _needs_native GATING. On a pure cell the wrapper IS
+#     _normalized_laplacian_py — measured, both [[1.0, nan], [nan, 1.0]] — so
+#     an ungated comparison would agree with ITSELF and a strict xfail would
+#     XPASS and redden the pure cell for the wrong reason.
+#   * The four AGREEING siblings ship as plain passing rows, so this is not an
+#     instrument that can only return "differ".
+# --------------------------------------------------------------------------
+_DIVERGENT_MATRIX_T1188 = pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "`#T1188`: normalized_laplacian(weights=[+inf]) answers 1.0 on the "
+        "normalised diagonal through the pure implementation and 0.0 through "
+        "the C symbol — an ADR-0009 §2.4 divergence at a MATRIX kernel, "
+        "outside the scalar population rc473's 90-row closing probe asked "
+        "about. NOT repaired here: which answer is right is the float "
+        "carrier's non-finite contract, which is unwritten, and writing it is "
+        "an rc of its own that must separate +Inf from -Inf because at this "
+        "divergence they behave differently. Strict, so that repairing it "
+        "REDDENS this row instead of letting it pass forever."
+    ),
+)
+
+#: (weights value, does the wrapper agree with `_normalized_laplacian_py`).
+#: The False row is the divergence; the True rows are the controls that prove
+#: the comparator can return otherwise.
+_LAPLACIAN_NONFINITE_ROWS: "list[tuple[float, bool]]" = [
+    (math.inf, False),
+    (-math.inf, True),
+    (math.nan, True),
+    (-1.0, True),
+    (1.0, True),
+]
+
+
+def _as_rows(result) -> "list[list[float]]":
+    """`Mat` or nested list -> nested list, so the two routes are comparable.
+
+    The dispatched wrapper returns a ``Mat`` and ``_normalized_laplacian_py``
+    returns nested lists on this tree; normalising here rather than at the
+    assertion keeps the failure message about the VALUES.
+    """
+    return result.tolist() if hasattr(result, "tolist") else result
+
+
+def _same_grid(a, b) -> bool:
+    """NaN-aware elementwise equality. ``nan != nan``, and every row here has
+    NaNs off the diagonal, so a plain ``==`` would report every row as
+    divergent and the pin would be vacuous."""
+    if len(a) != len(b):
+        return False
+    for ra, rb in zip(a, b):
+        if len(ra) != len(rb):
+            return False
+        for x, y in zip(ra, rb):
+            if math.isnan(x) and math.isnan(y):
+                continue
+            if x != y:
+                return False
+    return True
+
+
+@_needs_native
+@pytest.mark.parametrize(
+    "weight",
+    [w for w, agrees in _LAPLACIAN_NONFINITE_ROWS if agrees],
+    ids=[repr(w) for w, agrees in _LAPLACIAN_NONFINITE_ROWS if agrees],
+)
+def test_normalized_laplacian_agrees_between_projections(weight: float) -> None:
+    """The controls. Four weights where the two routes agree in-process.
+
+    Without these the divergent row below is an instrument nobody has watched
+    return "agree", and a comparator that cannot would pin a defect that is
+    its own.
+    """
+    from srmech.math import laplacian as _lap
+
+    dispatched = _as_rows(_lap.normalized_laplacian(2, [(0, 1)],
+                                                    weights=[weight]))
+    pure = _as_rows(_lap._normalized_laplacian_py(2, [(0, 1)],
+                                                  weights=[weight]))
+    assert _same_grid(dispatched, pure), (
+        f"normalized_laplacian(weights=[{weight!r}]) disagrees between the "
+        f"dispatched wrapper {dispatched!r} and _normalized_laplacian_py "
+        f"{pure!r} in the same process. This row is a CONTROL — it agreed "
+        "when the +inf divergence beside it was filed, so a failure here is a "
+        "NEW divergence, not the filed one."
+    )
+
+
+@_needs_native
+@_DIVERGENT_MATRIX_T1188
+def test_normalized_laplacian_plus_inf_diverges_between_projections() -> None:
+    """Strict-xfail. Passes only when the +inf contract is settled — then reds."""
+    from srmech.math import laplacian as _lap
+
+    dispatched = _as_rows(_lap.normalized_laplacian(2, [(0, 1)],
+                                                    weights=[math.inf]))
+    pure = _as_rows(_lap._normalized_laplacian_py(2, [(0, 1)],
+                                                  weights=[math.inf]))
+    assert _same_grid(dispatched, pure), (
+        f"dispatched {dispatched!r} vs _normalized_laplacian_py {pure!r}"
+    )
+
+
+# --------------------------------------------------------------------------
 # ROSTER COVERAGE, two-way. A new scalar Class-N export cannot be added
 # without a refusal row here.
 # --------------------------------------------------------------------------
