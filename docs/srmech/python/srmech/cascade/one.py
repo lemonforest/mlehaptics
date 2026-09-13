@@ -495,54 +495,80 @@ def winding_fold(theta: float) -> Tuple[int, float]:
 
     Cascade decomposition (no new primitive class): the divmod against the
     period is **Class I** (cyclic reduction) with the quotient retained; the
-    2π enters as the exact **Class-N** cascade constant (the Machin-2π
-    rational pure / the Q61 2/π quarter-turn grid native — the SAME constants
-    :func:`~srmech.math.laplacian.propagate` folds with, no forked 2π); the
-    residue sign is **Class K/C** (an explicit branch, never ``abs()``).
+    2π enters as the exact **Class-N** cascade constant — the Machin-2π
+    rational :data:`~srmech.math.laplacian._EPH_TWO_PI`, in BOTH projections
+    since rc473 (`#T1188`); the residue sign is **Class K/C** (an explicit
+    branch, never ``abs()``). *This clause read "(the Machin-2π rational pure
+    / the Q61 2/π quarter-turn grid native — the SAME constants propagate
+    folds with, no forked 2π)". The parenthesis contradicted itself: it named
+    two constants and then said there was no fork. There were two, the fold
+    diverged by the distance between them, and there is one now.*
 
-    Dispatch: the native C peer ``srmech_winding_fold`` (rc207; the exact
-    Q61 2/π machinery ``srmech_cos``/``srmech_sin`` fold with) when
+    Dispatch: the native C peer ``srmech_winding_fold`` (rc207; since rc473
+    an exact-integer divmod against the Machin-2π rational above, seeded by
+    the quarter-turn reduction ``srmech_cos``/``srmech_sin`` share) when
     ``HAS_NATIVE`` and the angle is inside its ``|theta| < 2^55`` domain;
     otherwise the COMPLETE pure alternative — the laplacian
     :func:`~srmech.math.laplacian._eph_seam_fold` exact-rational Machin-2π
     divmod (arbitrary-precision, any finite float; the same fold
     ``propagate_wound``'s pure path runs).
 
-    **Native vs pure — CORRECTED at the rc473 A6 repair pass, and it is a
-    DIVERGENCE, not a common grid.** This paragraph said *"Native == pure:
-    ``w`` exact-integer equal, ``theta_res`` equal to the fold grids' common
-    resolution (the two grids are Q61 native / 2⁻⁴⁴ pure — both quantise the
-    SAME real residue)."* The first half holds and the second does not.
-    MEASURED in one process on an authenticated rc473 native cell
-    (``srmech_rational_sqrt(NaN)`` → status 2, ABI 26), dispatched op against
-    the pure alternative it names, 24 angles:
+    **Native vs pure — one 2π, one grid, BIT-IDENTICAL (rc473, `#T1188`).**
+    This paragraph has now said three things, and it read the SECOND of them
+    until the rc473 twin-defect pass. Through rc472 it said *"Native
+    == pure: ``w`` exact-integer equal, ``theta_res`` equal to the fold
+    grids' common resolution (the two grids are Q61 native / 2⁻⁴⁴ pure — both
+    quantise the SAME real residue)"*; the rc473 A6 pass measured that the
+    second half was false and replaced it with the divergence; the twin-defect
+    pass in the same rc REPAIRED the divergence, and this is that record.
 
-    * ``w`` is **exact-integer equal on every row**, including at ``|theta|``
-      just under the native ``2**55`` bound.
-    * ``theta_res`` is **not**. The gap is PROPORTIONAL TO THE WINDING:
-      ``|native − pure| / |w|`` lies in **[7.944e-21, 8.039e-21] rad per
-      turn** over the 15 probed angles with ``|w| ≥ 1e8`` — a spread of
-      **1.2%** across five decades of ``|theta|`` (1e9 … 3.14e16), which is a
-      LAW and not a worst case. It therefore crosses the 2⁻⁴⁴ grid this
-      paragraph cited at ``|theta|`` of order 1e8 and reaches **4.02e-05**
-      (7.07e8 × 2⁻⁴⁴) at ``theta = 3.1415926535897932e16``. **17 of 24
-      probed rows exceed 2⁻⁴⁴.** (Below ``|w| ≈ 1e8`` the pure path's own
-      2⁻⁴⁴ quantisation is what dominates, so the ratio there is reading the
-      floor rather than the drift; the law is fitted above that and says so.)
-    * Against an INDEPENDENT 60-digit 2π (neither projection's own constant),
-      the PURE residue is the accurate one by about five orders of magnitude
-      at every divergent row — e.g. at ``theta = 3.1415926535897932e16``,
-      ``|native − true|`` 4.02e-05 against ``|pure − true|`` 3.29e-10. Both
-      drift with ``w``; the native drifts ~1e5 times faster.
+    **What was measured, on an authenticated rc473 native cell**
+    (``srmech_rational_sqrt(NaN)`` → status 2, ABI 26), dispatched op against
+    the pure alternative it names, in ONE process, 24 angles:
+
+    * ``w`` was **exact-integer equal on every row**, including just under
+      the native ``2**55`` bound. That half always held.
+    * ``theta_res`` was **not**, on **17 of the 24**. The gap was
+      PROPORTIONAL TO THE WINDING — ``|native − pure| / |w|`` in
+      **[7.944e-21, 8.039e-21] rad per turn** over the 15 angles with
+      ``|w| ≥ 1e8``, a **1.2%** spread across five decades of ``|theta|``
+      (1e9 … 3.14e16), so a LAW and not a worst case — reaching **4.02e-05**
+      (7.07e8 × 2⁻⁴⁴) at ``theta = 3.1415926535897932e16``.
     * **Pre-existing, not an rc473 regression**: identical values on a
       ``b398b8c46`` (rc472, ABI 25) build of the same probe.
 
-    FILED, not repaired, as an ADR-0009 §1.2 **Still open** row under
-    ``#T1188``, and pinned executably in
-    ``tests/test_value_status_c_boundary_rc473.py`` as a strict xfail with
-    agreeing controls beside it. A caller who needs the residue rather than
-    the winding at large ``|theta|`` should take the pure fold
-    (:func:`~srmech.math.laplacian._eph_seam_fold`) until that row closes.
+    **The cause was TWO 2π constants, which is what "no forked 2π" above had
+    denied.** The native fold read its residue off the quarter-turn
+    reduction's 64-bit 2/π, whose own rounding error is 8.1449e-22
+    (= 2⁻⁷⁰·⁰⁶); a fold inherits that as ``π²·δ`` = 8.0387e-21 rad per whole
+    turn, which is the measured law to five significant figures. The pure
+    peer folds against the Machin-2π rational
+    :data:`~srmech.math.laplacian._EPH_TWO_PI` (``N / 2**80``).
+
+    **The repair**: ``srmech_winding_fold`` now folds against that same
+    rational, in exact integers, and emits on the same 2⁻⁴⁴ grid — so the two
+    projections return the IDENTICAL ``(w, theta_res)`` pair rather than two
+    quantisations of one. VERIFIED at the C symbol and through this wrapper,
+    in one process: **45 named angles (the 24 filed ones among them) and
+    35329 fuzzed angles inside the door, zero mismatches**, with the
+    ``|theta| < 2**55`` / non-finite door unchanged. ``sin`` and ``cos`` are
+    untouched: the quarter-turn reduction still serves them, and only the
+    winding fold settles.
+
+    **What that cost, stated.** The residue is no longer carried at Q61, so
+    at SMALL windings the old native value was the finer of the two: against
+    an independent 60-digit 2π, ``|theta_res − true|`` at ``theta = 10π``
+    moves 6.7975e-20 → 1.2247e-15 (the shared grid's own quantum), while at
+    ``theta = 3.1415926535897932e16`` it moves 4.0193e-05 → 3.2894e-10. The
+    trade is deliberate: a divergence between co-equal projections is a
+    defect and a declared shared grid is not. The residue's remaining
+    inaccuracy is the shared constant's — ``|w|`` × 6.5785e-26 rad per turn,
+    plus the 2⁻⁴⁵ grid round — and it is the SAME number in both cells.
+
+    ADR-0009 §1.2's row is **repaired**, and the executable pin in
+    ``tests/test_value_status_c_boundary_rc473.py`` is now an equality over
+    the 24 filed angles (plus a C-symbol row and a non-vacuity row) rather
+    than the strict xfail that recorded the break.
 
     Args:
         theta: the accumulated angle in radians — any FINITE real, READ AT
@@ -571,15 +597,16 @@ def winding_fold(theta: float) -> Tuple[int, float]:
     ``f = float(theta)``, so an ``int`` wider
     than 53 significand bits, or a ``Q``, is rounded to the nearest float64
     BEFORE the divmod — ``winding_fold(2**53 + 1)`` == ``winding_fold(2**53)``
-    — and the fold is then lossless OF ``f`` (the pure path is an
-    arbitrary-precision rational divmod of ``f`` against the Machin-2π
-    constant, the native path the Q61 2/π grid; both return the same ``w``).
-    ``theta_res`` is a float64 on the fold grid (2⁻⁴⁴ pure / Q61 native). It
-    is accurate to that grid's resolution **on the pure path only** — this
-    sentence carried no such qualifier until the A6 repair pass, and the
-    Dispatch paragraph above now carries the measurement that removes it: the
-    NATIVE residue drifts 8.04e-21 rad per turn of winding and leaves the
-    2⁻⁴⁴ grid at ``|theta|`` of order 1e8. The rule ``sqrt`` states of
+    — and the fold is then lossless OF ``f``: both projections run the same
+    exact-rational divmod of ``f`` against the same Machin-2π constant, so
+    both return the same ``w`` AND the same residue.
+    ``theta_res`` is a float64 on the fold grid, which is **2⁻⁴⁴ in both
+    projections** since rc473 (`#T1188`). This sentence read "(2⁻⁴⁴ pure /
+    Q61 native)" and then, at the A6 pass, "accurate to that grid's
+    resolution **on the pure path only**" — the first spelling named a fork
+    and the second named the divergence the fork caused. There is no fork
+    now; the Dispatch paragraph above carries both measurements and what the
+    repair cost. The rule ``sqrt`` states of
     itself — "EXACT scopes to the CARRIER, not to the value"
     (:func:`srmech.math.rational.sqrt`) — applies here to the OPERAND: the
     caller's angle is what is rounded. Measured: the rc472 census row

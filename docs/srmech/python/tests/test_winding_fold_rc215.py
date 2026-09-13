@@ -21,8 +21,12 @@ Covers:
   (c) the ≥2⁵⁵ native-domain boundary — the honest srmech_cos-family bound:
       native declines, the COMPLETE pure Machin-2π divmod answers exactly at
       any finite float (Fraction oracle);
-  (d) native == forced-pure parity — ``w`` exact-integer equal; ``theta_res``
-      to the fold grids' common resolution (Q61 native / 2⁻⁴⁴ pure);
+  (d) native == forced-pure parity — BIT-IDENTICAL in both harvests since
+      rc473 (`#T1188`). This line read *"``theta_res`` to the fold grids'
+      common resolution (Q61 native / 2⁻⁴⁴ pure)"*, which named a fork the
+      repair removed: there was one grid per projection AND one 2π per
+      projection, and the residues drifted apart at 8.0387e-21 rad per whole
+      turn. One 2π and one 2⁻⁴⁴ grid now, so (d) asserts ``==``;
   (e) the propagate_wound cross-check — the SAME fold, per mode: the public
       op reproduces the wound propagator's (w, θ) verdicts;
   (f) the One-readout reuse contract — the fold's w feeds the metacycle dial:
@@ -48,13 +52,29 @@ from srmech.cascade import winding_fold
 
 # ── helpers (no numpy) ──────────────────────────────────────────────────
 
-#: The pure fold grid quantum (laplacian._EPH_FOLD_DEN = 2^44) — theta_res is
-#: quantised to multiples of 2^-44 on the pure path (finer, Q61, native).
+#: The fold grid quantum (laplacian._EPH_FOLD_DEN = 2^44) — theta_res is
+#: quantised to multiples of 2^-44 in BOTH projections since rc473
+#: (`#T1188`). This line said "finer, Q61, native"; the native fold used to
+#: emit at Q61 off a DIFFERENT 2π and that difference was the defect.
 _GRID = Fraction(1, 1 << 44)
 
-#: The two 2π approximations (Machin-2π pure / Q61 2/π native) agree to
-#: ~2^-60; the round-trip bound carries |w| of that mismatch.
-_TWO_PI_MISMATCH = Fraction(1, 1 << 60)
+#: ZERO since rc473 (`#T1188`), and the comment it replaces is the finding.
+#:
+#: It read: *"The two 2π approximations (Machin-2π pure / Q61 2/π native)
+#: agree to ~2^-60; the round-trip bound carries |w| of that mismatch"*, and
+#: the value was `Fraction(1, 1 << 60)`. Two things were wrong with it. The
+#: small one: the constants' own disagreement is nearer 2^-70, so the number
+#: was never derived. The load-bearing one: a |w|-SCALED slack in a
+#: native-vs-pure bound is a term that grows exactly as fast as the defect it
+#: is covering. MEASURED — the native residue drifted from the pure one at
+#: 8.0387e-21 rad per whole turn, so at this file's largest battery angle
+#: (2^40, |w| ≈ 1.75e11) the real gap was ~1.4e-09 against a bound of
+#: ~1.5e-07: green with two orders of magnitude to spare, on a cell where the
+#: same op was 7.07e8 x 2^-44 wrong at theta = 3.14e16. This gate could not
+#: have found it. It is 0 now because there is ONE 2π: both projections fold
+#: against laplacian._EPH_TWO_PI, so `w` windings of it subtract identically
+#: and the only residual is the shared 2^-44 quantisation.
+_TWO_PI_MISMATCH = Fraction(0, 1)
 
 
 def _two_pi_fraction() -> Fraction:
@@ -223,12 +243,20 @@ def test_beyond_native_domain_falls_to_the_exact_pure_fold():
 
 
 def test_native_equals_pure_verdicts():
-    """w exact-integer equal; theta_res to the fold grids' common resolution
-    (Q61 native / 2⁻⁴⁴ pure quantise the SAME real residue) PLUS |w|·(the
-    2π-approximation mismatch) — the two paths subtract w windings of two
-    DIFFERENT exact-rational 2π's (Q61 quarter-turn native / Machin pure,
-    agreeing to ≲2⁻⁶⁰), so the residues drift apart by |w| of that gap —
-    generic angles, both signs, small through large windings."""
+    """BOTH harvests bit-identical — `==`, not a bound (rc473, `#T1188`).
+
+    This docstring read *"theta_res to the fold grids' common resolution (Q61
+    native / 2⁻⁴⁴ pure quantise the SAME real residue) PLUS |w|·(the
+    2π-approximation mismatch)"*, and the assertion below was
+    `d*d <= bound*bound` with `bound = 2·2⁻⁴⁴ + |w|·2⁻⁶⁰`. The parenthesis
+    was false — the two grids did NOT quantise the same real residue, because
+    the paths folded against two different 2π's — and the |w| term was what
+    kept the falsehood green: it grew at the same rate as the divergence.
+
+    Since rc473 there is one 2π and one grid, so the comparison is equality
+    and carries no slack to hide inside. The battery is unchanged so the
+    before/after are the same measurement.
+    """
     battery = (0.0, 1e-9, 0.5, 3.0, _float_pi(), 7.0, 44.0 / 3.0, 44.0,
                100.5, 12345.6789, 1.0e6, 2.0 ** 40 + 0.375)
     for theta in battery:
@@ -237,12 +265,12 @@ def test_native_equals_pure_verdicts():
             wn, tn = winding_fold(t)
             wp, tp = _force_pure(lambda: winding_fold(t))
             assert wn == wp, f"theta={t}: native w {wn} != pure {wp}"
-            mag_w = wn if wn >= 0 else -wn
-            bound = 2.0 * float(_GRID) + mag_w * float(_TWO_PI_MISMATCH)
-            d = tn - tp
-            assert d * d <= bound * bound, (
-                f"theta={t}: native theta_res {tn} != pure {tp} beyond the "
-                f"common fold-grid resolution (bound {bound:.3e}, w={wn})")
+            assert tn == tp, (
+                f"theta={t}: native theta_res {tn!r} != pure {tp!r} "
+                f"(gap {abs(tn - tp):.3e} = {abs(tn - tp) / float(_GRID):.6g} "
+                f"x 2**-44, w={wn}). The two projections share ONE 2π and ONE "
+                "output grid since rc473; this is exact or it is a "
+                "regression.")
 
 
 # ── (e) the propagate_wound cross-check (the SAME fold) ─────────────────

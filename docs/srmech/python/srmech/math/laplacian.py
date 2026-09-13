@@ -6864,8 +6864,13 @@ def propagate_wound(L, u0, z) -> dict:
     mod-collapse), **remainder** ``θ_k`` = the EPICYCLE residue (``|θ| ≤ π``
     — what ``propagate`` keeps). ``propagate_wound`` keeps the GRADING:
     BOTH harvests at the seam, from the SAME fold (:func:`_eph_seam_fold`
-    pure / ``srmech_winding_fold`` native — the exact Machin-2π / Q61 2/π
-    constants ``propagate`` already folds with; no forked path). Carrying
+    pure / ``srmech_winding_fold`` native — since rc473 (`#T1188`) the SAME
+    exact Machin-2π constant :data:`_EPH_TWO_PI` on both sides, and the same
+    2⁻⁴⁴ output grid, so the two return the identical ``(w, θ)`` pair. This
+    clause read "the exact Machin-2π / Q61 2/π constants ``propagate``
+    already folds with; no forked path" — which named the fork in the act of
+    denying it, and the native residue drifted from the pure one at
+    8.0387e-21 rad per whole turn because of it). Carrying
     ``w`` does NOT perturb the epicycle harvest: it is byte-identical to
     ``propagate``'s at the same dispatch tier (same cascade, same order).
 

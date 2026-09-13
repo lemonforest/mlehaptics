@@ -78,6 +78,14 @@ MARKERS = (
     "this paragraph ended",
     "superseded by",
     "is what that clause said",
+    # rc473 twin-defect pass (`#T1188`). The A6 sentences it quotes are the
+    # ones A6 itself wrote, so a pass that REPAIRS what A6 FILED needs its own
+    # marker: "until the a6 repair pass" says the opposite of what the
+    # correction now records. Added rather than reworded into an existing
+    # marker, because a marker is a claim about WHICH pass measured the change
+    # and borrowing one would misattribute the measurement.
+    "until the rc473 twin-defect pass",
+    "at the rc473 twin-defect pass",
 )
 
 

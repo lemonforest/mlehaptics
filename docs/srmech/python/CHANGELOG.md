@@ -780,6 +780,120 @@ One of the nine was **already malformed before this pass and is repaired rather 
 * **The residual the A6 phrase gate cannot catch, named rather than discovered later:** a genuinely NEW live assertion of a listed phrase, smuggled into a paragraph that already carries a correction marker. Paragraph granularity is the price of not forcing the correction notes to be deleted.
 * **`example_args_ledger.ndjson` still ships without its `has_native` stamp**, as A5 disclosed. Unchanged by this pass.
 
+### THE TWIN-DEFECT PASS — the two live silent-wrong-answers no lettered rc covers, repaired rather than filed: one 2π instead of two, and two argument slots the C served and the pure cascade refused
+
+*(A6 FILED six divergences and repaired none. Three of them — `jpeg`, `polyphase`, `normalized_laplacian` — are array/matrix kernels at non-finite input and are **rc-J's** stated subject, so they stay filed and nothing here touches them. The other two are SCALAR, are squarely this rc's own subject, and are slated nowhere: **`cascade.one.winding_fold`'s residue** and **`math.kepler.pin_slot` / `kepler_solve` at argument slots no row named**. "Unless the known broken is slated to be fixed in our current lettered rc alu arc, we should correct the broken item before calling it ready.")*
+
+**CONDITIONS FOR EVERY FIGURE IN THIS SECTION, and they differ from the rest of the entry.** Native **Windows**, session worktree `.claude/worktrees/wf_389308c4-22b-1/docs/srmech`, branched from `1ab8d405b` (48 commits over `b398b8c46`). **clang-cl 22.1.0** (`x86_64-pc-windows-msvc`), cmake **4.3.1** + Ninja, `CMAKE_BUILD_TYPE=Release` (`/O2 /DNDEBUG` — asserts stripped, the shipped configuration) **and** a parallel `Debug` build with asserts LIVE. CPython **3.14.4**, **numpy absent**. Native cell AUTHENTICATED before every native figure: `srmech_rational_sqrt(NaN)` → status **2** at the ctypes symbol, `srmech_abi_version()` **26**, `srmech_version()` `0.9.0rc473` — version and ABI alone do not separate an rc473 `.so` from an rc472 one. Pure cell = the same tree with the library absent (`HAS_NATIVE False`, 0 `.dll`). `SRMECH_ALLOW_STALE_NATIVE` never set; no tripwire fired. ⚠️ **WSL2 was NOT AVAILABLE to this pass** — the worktree-isolation guard refuses to launch `wsl.exe` — so the gcc 13.3.0 / WSL2 cell every other rc473 figure was taken on is **UNMEASURED here**, and the three build flags this host needed (`/arch:AVX2 /clang:-msha /clang:-msse4.1`) are scratch-build flags for a measurement cell, not a shipped change.
+
+#### D1 — `winding_fold`: the cause was a FORKED CONSTANT, not a precision shortfall
+
+A6 filed the divergence and named its close path as *"a wider-precision 2π on the native fold"*. **Re-measured here, independently, and the close path was the wrong shape.** The reproduction first, against a 2π derived IN THE PROBE by its own Machin arctan series in exact `Fraction` arithmetic and cross-checked against a 60-digit π literal to **4.592e-60** before use (`scratchpad/rc473t/d1_measure.py`, run on the authenticated cell):
+
+| figure | A6 | this pass |
+|---|---|---|
+| angles probed | 24 | 24 (the same tuple) |
+| `w` disagreements | 0 | **0** |
+| rows with gap > 2⁻⁴⁴ | 17 | **17** |
+| gap per turn, `\|w\| ≥ 1e8` | [7.944e-21, 8.039e-21] | **[7.943969295651272e-21, 8.038741653988082e-21]**, spread **1.1930%** |
+| worst gap | 7.07e8 × 2⁻⁴⁴ | **7.07084e8 × 2⁻⁴⁴ = 4.01934e-05** at `theta = 3.1415926535897932e16` |
+| which side is accurate | pure | **pure on 17 rows, NATIVE on 6, 1 tie** — a row A6 did not have |
+
+That last row is the one that changed the design. Below `\|w\| ≈ 1e8` the pure path's own 2⁻⁴⁴ quantisation dominates and the NATIVE Q61 residue is the closer of the two: at `theta = 10π`, `\|native − true\|` was **6.7975e-20** against `\|pure − true\|` **1.2247e-15`**. So "make the native more precise" would have made the two projections disagree *more*, not less.
+
+**The cause, derived rather than fitted.** `SRMECH_TRIG_TWO_OVER_PI_Q64 = 11743562013128004906` is 2/π to 64 bits and is CORRECTLY ROUNDED — its residual is only 0.015 ulp — but its absolute error is still **δ = 8.144891e-22 = 2⁻⁷⁰·⁰⁶**, and a fold inherits that as `π²·δ` per whole turn:
+
+```
+pi**2 * delta            = 8.0387e-21 rad/turn   <- predicted
+measured gap per turn    = 8.0387e-21 rad/turn   <- max over 15 angles
+pure side, |_EPH_TWO_PI - true|   = 6.5785e-26 rad/turn
+```
+
+Five significant figures, from the constant alone. **The two projections were folding against two different 2π's** — the native's 64-bit 2/π and the pure peer's Machin-2π rational `_EPH_TWO_PI = N / 2**80` — while the op's own docstring said *"no forked 2π"*, and the C comment said the fold used *"the SAME integer 2/π quarter-turn machinery … (no forked 2π constant)"*. The parenthesis named one constant where there were two, in the act of denying the fork.
+
+**The repair.** `srmech_winding_fold` now settles winding and residue EXACTLY, in integers, against that same Machin-2π rational (two 64-bit limbs, `N = 7595904947272677161575987`), and emits on the pure peer's **2⁻⁴⁴** grid. Six new `static` helpers do 128-bit two's-complement work; the cancellation is exact modulo 2¹²⁸ because `\|theta·2^80 − w·N\| < 2^85`, so the 136-bit operands' high limbs cancel and only the low 128 bits are needed. The quarter-turn count still SEEDS the winding; a bounded 4-iteration settle (JPL Rule 2) puts the remainder in `[−N/2, N/2)`, which IS Python's `_eph_round_div` half-rule expressed as a band. **`srmech_sin` / `srmech_cos` are untouched** — `trig_reduce_k` still serves them; only the fold settles.
+
+**Modelled BEFORE any C was written**, then verified after:
+
+| check | command | result |
+|---|---|---|
+| the algorithm, in Python, vs `_eph_seam_fold` | `d1_modelA.py <pure-cell> 40000` | 44 named angles **0 mismatches**; 35329 fuzzed **0 mismatches** (on `(w, qn)`, the integers) |
+| the shipped C, at the SYMBOL and through the wrapper | `d1_verify.py <native-cell> 40000` | 45 named (the 24 filed among them) **0**; 35329 fuzzed **0**; **BIT-IDENTICAL** |
+| the same, on a Debug build with asserts LIVE | `d1_verify.py <dbg-cell> 40000` | identical, **no assert fires** |
+| the 24 filed angles, re-measured | `d1_measure.py <native-cell>` | gap **0** on every row; `\|nat−true\|` **==** `\|pure−true\|` on every row |
+| the door | same probe | `2^55`, `-2^55`, `NaN`, `±Inf`, `1e300` → status **2**, `theta_out` **NaN** — unchanged |
+
+The fuzz spans the whole `\|theta\| < 2^55` door in four families: uniform, log-uniform over `2^-1070 … 2^54`, **deliberately near half-turn boundaries** (where the winding's rounding decides), and random 64-bit patterns.
+
+**WHAT THE REPAIR COST, and it is a real cost.** The residue is no longer carried at Q61. Against the independent 2π: at `theta = 10π`, `\|theta_res − true\|` moves **6.7975e-20 → 1.2247e-15** (the shared grid's own quantum); at `theta = 3.1415926535897932e16` it moves **4.0193e-05 → 3.2894e-10**, a factor of **1.22e5** better. The trade is deliberate and is stated in the op's docstring, in `srmech_trig.c`, in `srmech.h` and in the ADR row: a divergence between co-equal projections is a defect and a declared shared grid is not. ADR-0009 §2.4 is a statement about agreement, not about resolution.
+
+**Three pins were RECORDING the defect, and each is named rather than quietly re-pinned:**
+
+1. `test_value_status_c_boundary_rc473.py::test_winding_fold_residue_diverges_between_projections` — the strict xfail A6 shipped. It **XPASSED** on the first run after the repair, which is exactly what strict is for. Replaced by an equality over the 24 filed angles, a row that drives the C SYMBOL and requires `SRMECH_OK` (so the door is proven open rather than the wrapper merely falling back), the five agreeing controls kept, and a NON-VACUITY row proving the comparator can still report a difference.
+2. `test_winding_fold_rc215.py`'s `_TWO_PI_MISMATCH = Fraction(1, 1 << 60)` — a `\|w\|`-SCALED slack in a native-vs-pure bound, i.e. a term that grows exactly as fast as the defect it covers. At that file's largest battery angle (`2^40`, `\|w\| ≈ 1.75e11`) the real gap was ~1.4e-09 against a bound of ~1.5e-07: green with two orders of magnitude to spare on a cell where the same op was 7.07e8 × 2⁻⁴⁴ wrong at 3.14e16. **This gate could not have found it.** Now `Fraction(0, 1)`, and test (d) asserts `==`.
+3. The curated worked example for `winding_fold` was **CELL-DEPENDENT** and shipped as a single transcript: `(5, -1.2247147740396258e-15)` is the native answer and a pure cell already printed `(5, 0.0)`. Re-harvested on both cells, which now agree: `(5, 0.0)` / `(19, 0.0)` / `(-3, -3.1415926535897825)`, and `TAU*w + res` → `119.38052083641213`, **equal to** `theta`. The `search.search` curated example quotes that transcript inside its own `why` excerpt and was re-harvested with it.
+
+#### D2 — `pin_slot` and `kepler_solve`: three serve-vs-refuse slots, found by sweeping the slots
+
+**The slots were found rather than assumed.** One argument varied at a time off a known-good baseline — `nan`, `±inf`, `±2^55`, `2^53+1`, `±0.0`, `-1.0`, `1e300` in each of `pin_slot`'s three slots and `kepler_solve`'s four — driven through the PUBLIC op on both cells and through the raw C symbol on the native one, so a row separates "the wrapper refused" from "the symbol refused" (`scratchpad/rc473t/d2_slots.py`, diffed by `d2_diff.py`). **63 rows per cell; 11 differed; exactly 3 were the serve-vs-refuse class:**
+
+```
+pin_slot(theta=0.0, pin_offset=1.0, pin_distance=+inf)
+    C -> (SRMECH_OK, 0.0)                  pure -> TypeError: float + Q
+pin_slot(theta=0.0, pin_offset=1.0, pin_distance=-inf)
+    C -> (SRMECH_OK, 3.141592653589793)    pure -> TypeError: float + Q
+kepler_solve(1.5707963267948966, 0.0549, tolerance=+inf, max_iter=20)
+    C -> (SRMECH_OK, 1.625613861425157)    pure -> TypeError: Q < float
+```
+
+The tolerance row is the sharpest: `\|delta\| < +inf` is true on the FIRST Newton step, so C returns the one-step estimate and calls it converged. `nan` and `-inf` were the same defect wearing a different answer — C ran the loop out and returned `SRMECH_ERR_OVERFLOW`, i.e. told the caller "did not converge" about an argument that was never a tolerance.
+
+**Where the refusal belongs, and why it is the C.** Neither argument reaches a callee that could check it: the geometry enters at the bare double arithmetic `x = pin_distance + pin_offset * cs`, and `tolerance` is only ever the right-hand side of `adelta < tolerance`. So the refusal belongs to the function whose arguments they are — beside `srmech_pin_slot`'s existing `(0, 0)` refusal and `srmech_kepler_solve`'s existing eccentricity band. Both return `SRMECH_ERR_BAD_INPUT` now, via a single-line `KEP_FINITE(x)` macro copying `srmech_eph_propagate_sparse.c`'s inline idiom (`x == x && x - x == 0.0` — no libm, and no single-scalar predicate function needing a JPL Rule-5 exemption).
+
+**The Python precondition beside it is not a cover, and this rc is the reason that distinction has to be argued.** rc473 DELETED `equation_of_centre`'s pre-dispatch guard because it hid a C defect for eight release candidates. The difference is the category: a CASCADE-DOMAIN refusal must be reached THROUGH the C symbol, while a PRECONDITION on the op's own arguments is exactly what `pin_slot` already raises before dispatch for — *"because it is a precondition on the ARGUMENTS and the C peer refuses the same pair"*. The new `tests/test_kepler_non_finite_slots_rc473.py` asserts the second half AT THE SYMBOL rather than about it, and carries the controls the repair must not have taken with it:
+
+* **every FINITE tolerance is unchanged**, at both signs and every magnitude — positive ones converge (a huge one on the first step), zero and negative ones run to non-convergence, in both projections. ⚠️ *That control table was first written as "the tight one converges; the rest run out" and `tolerance=1e300` falsified it on the first run, which is why it states measurements and says so in its own comment.*
+* a row requiring the tolerance guard to **precede the `e == 0` shortcut** — without it a circular orbit with a nonsense tolerance would be served by C while Python refused, a NEW divergence in the slot the repair exists for.
+
+**After: 63 rows per cell, 6 differ, 0 of them serve-vs-refuse.** All six are same-verdict rows.
+
+⚠️ **One same-verdict divergence found in the same sweep is NOT repaired, and is named here rather than left in a transcript.** At a finite tolerance that never converges, both projections raise `RuntimeError("kepler_solve: did not converge …")` and the MESSAGES differ: the pure one interpolates `best_E` as an exact `Q` (a ~70-digit fraction), the native one as a `float`. Same verdict, same class, different text. It is a pure-side formatting inconsistency, it is pre-existing, and repairing it would move the pure projection — the direction this pass was told not to take. Filed in the ADR row.
+
+#### ABI — decided, not assumed: **26, unmoved**, and the header's own rule is why
+
+`srmech_winding_fold` returns a different value for the same input, which is a value change on an exported symbol — the ground `srmech.h` v21 minted and this entry's own v26 half (1) bumped for. It does not cost v27, and the rule is the header's:
+
+> *"v21 ALSO COVERS A SECOND rc452 CONTRACT MOVE, of the v19 shape, landed later in the same (unreleased) rc so it rides the same bump rather than minting v22"*
+
+rc473 is unmerged and untagged; the newest library in the wild is rc472 at ABI **25**, which `EXPECTED_ABI_VERSION 26` already refuses. A second contract move inside the same unreleased rc rides the bump it already minted. The v26 entry gains a clause (a) for the residue and a clause (b) for the two refusals, so the move is recorded where a reader looks for it. **The seven ABI surfaces and the test pins do not move, because the number does not.** `SRMECH_GENOME_FORMAT_VERSION` stays 20.
+
+#### Gates run in this pass, foreground, with their results
+
+| command | result |
+|---|---|
+| `pytest tests/test_value_status_c_boundary_rc473.py -q`, native | **before the pin inversion: 1 failed** — `XPASS(strict)` on the divergence row, the proof the brief asked for |
+| the same, after | **155 passed, 6 xfailed** (with `test_kepler_non_finite_slots_rc473.py`) |
+| the same two files, genuinely pure cell | **65 passed, 136 skipped** |
+| `pytest tests/test_winding_fold_rc215.py tests/test_kepler_parity.py -q`, native | **40 passed** (before) → **17 passed** + kepler after the `_TWO_PI_MISMATCH` tightening |
+| `pytest tests/test_jpl_audit.py -q`, native | *(see the ratchet row below)* |
+| `pytest` over the 9-file affected set (cascade coherence, fold step-form, magnitude parity, eoc q61, frame carrier, JPL audit, quaternion log/slerp, signal-processing path B, status conflation) | **163 passed** |
+| `pytest` over the 11-file second affected set (bus, c-ref indexing, composes grain/population, invoke-tool atoms, namespace prefix, coarse-symbol, r3 reader, glyph tokenizer, selfhosting import ban, tool-schema coverage) | **336 passed** |
+| `pytest tests/test_eph_propagate_wound_rc207.py -q` | passes — the wound propagator's per-mode `(w, θ)` verdicts move with the fold and its cross-check still holds |
+| `pytest tests/test_rc473_a6_phrase_gate_runs.py -q` | **3 passed** — it FIRED first on `one.py:516` (`theta_res_common_resolution`, LIVE), which is the gate working; two markers added for this pass rather than borrowing A6's, because a marker is a claim about WHICH pass measured the change |
+| `python tools/regen_all.py` | **2 files changed** (`_tool_docs.py`, `srmech_tool_registry.c`), idempotent on the second pass |
+| `python tools/run_worked_examples.py --only srmech.cascade.winding_fold srmech.introspect.search.search` | **2 ran, 649 merged**, both `ok`; tally unmoved (`548 ok / 96 unexpected_raise / 4 needs_subprocess / 1 timeout`), so the down-only ceiling is untouched |
+| `cmake --build` (Release and Debug) | **0 warnings, 0 errors**, both configurations |
+| `grep -c "Still open"` on ADR-0009 | **16 → 14** |
+
+⚠️ **THE LEDGER'S DECLARED INTERPRETER CHANGED, AND IT IS A SUBSTITUTION, NOT A MEASUREMENT.** `tests/worked_examples_result.ndjson`'s meta row declared `python: "3.10"`; **CPython 3.10 is not installed on this host** (`py -0p` lists 3.14 / 3.12 / 3.11 / 3.9 / 3.6), and `run_worked_examples.py` re-stamps the meta from `sys.version_info` on every write. So the meta now reads `"3.14"` while 647 of the 649 rows were measured on 3.10 and two on 3.14. The alternatives were both worse: a FULL re-run on this host trips the down-only ceiling for a HOST reason the gate's own comment predicts (`test_worked_examples_execute_rc354.py` records **97** rather than 96 on a native-Windows cell, because one snippet hardcodes a WSL path), and hand-editing the meta back to `"3.10"` would assert a verification that did not happen. Disclosed rather than smoothed.
+
+#### Deliberately NOT done, each with the measurement that stopped it
+
+* **The three rc-J rows are untouched** — `jpeg`, `polyphase`, `normalized_laplacian` stay filed as Still-open. Their subject is the float carrier's non-finite contract, which is that rc's to write.
+* **A third live falsehood was found and NOT repaired, because it is a third defect.** `_tool_docs_curated.py`'s `search.search` example claims `[h['name'] for h in search('exact rank of a matrix', k=2, scope='carriers')]` → `['Mat', 'QMat']`. Executed, it returns **`['Mat', 'int']`** — on the native cell, on the pure cell, AND on a pristine `git archive 1ab8d405b` cell, so it is **pre-existing and not caused by this pass**. It is a shipped curated example asserting a value it does not produce, in the same entry this pass had to re-harvest for a different reason; it is named here with the command (`scratchpad/rc473t/harvest_search.py`) rather than corrected, because `['Mat', 'int']` reads like a ranking defect rather than a typo and diagnosing that is not this pass's scope.
+* **The WSL2 / gcc cell, macOS clang and Windows MSVC** are unmeasured by this pass. **CI is authoritative.**
+* **The full suite** was not run here.
+
 ---
 
 ## [0.9.0rc472] - `#T1188`: the census learns SCALARS, an op that answered in one projection and refused in the other, the required-scalar fill that let thirteen rows be asked — and two of rc471's own shipped sentences corrected, one for a claim that is true at exactly one binade and one for a cause that was never the cause

@@ -24,6 +24,7 @@ from __future__ import annotations
 import ctypes
 from typing import Tuple
 
+from srmech.math.rational import _is_finite  # rc473: the Q carrier's own finite test
 from srmech.math.rational import atan2 as _ratan2  # §22: Class-N rational trig, not libm
 from srmech.math.rational import cos as _rcos
 from srmech.math.rational import sin as _rsin
@@ -82,10 +83,31 @@ def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
             ``srmech_cos`` / ``srmech_sin`` / ``srmech_atan2``'s refusal
             instead of discarding it, so the native cell reaches the same
             refusal through the C symbol rather than around it.
+
+            **rc473 second repair (`#T1188`) — the GEOMETRY slots.** A
+            non-finite ``pin_offset`` or ``pin_distance`` is refused here for
+            the same reason the zero pair is: it is a precondition on this
+            op's own arguments, and it reaches no callee that could check it
+            — it enters at ``pin_distance + pin_offset * cos(theta)``, which
+            is ``float + Q``, and ``Q`` is the finite-rational carrier.
+            MEASURED before the repair on an authenticated rc473 cell
+            (ABI 26): ``pin_slot(0.0, 1.0, +inf)`` returned ``0.0`` through C
+            and raised ``TypeError`` through the pure projection, and
+            ``-inf`` returned ``3.141592653589793`` — a serve-vs-refuse
+            divergence (ADR-0009 §2.4) at a slot no §1.2 row named.
+            ``srmech_pin_slot`` refuses the same two arguments now, so the
+            guard here is not a cover: ``tests/test_kepler_non_finite_slots_
+            rc473.py`` drives the C symbol directly and requires it.
     """
     if pin_offset == 0.0 and pin_distance == 0.0:
         raise ValueError(
             "pin_slot: pin_offset and pin_distance cannot both be zero"
+        )
+    if not (_is_finite(pin_offset) and _is_finite(pin_distance)):
+        raise ValueError(
+            f"pin_slot: pin_offset and pin_distance must be finite (Q is the "
+            f"finite-rational carrier); got pin_offset={pin_offset!r}, "
+            f"pin_distance={pin_distance!r}"
         )
     if _native.HAS_NATIVE:
         out = ctypes.c_double(0.0)
@@ -139,19 +161,40 @@ def kepler_solve(
         Eccentric anomaly ``E`` in radians.
 
     Raises:
-        ValueError: For ``e < 0``, ``e >= 1``, or ``max_iter <= 0``; and
+        ValueError: For ``e < 0``, ``e >= 1``, ``max_iter <= 0``, or a
+            non-finite ``tolerance``; and
             (rc473, `#T1188`) for any ``M_rad`` the Class-N ``sin`` cascade
             cannot reduce, in the pure cascade's own words.
             ``srmech_kepler_solve`` now propagates ``srmech_sin``'s refusal
             instead of discarding it — through rc472 the Newton iteration
             never moved ``E`` off its ``M`` initial guess and the caller was
             handed ``E == M`` with ``SRMECH_OK``.
+
+            **rc473 second repair (`#T1188`) — the TOLERANCE slot.** It is a
+            precondition on this op's own argument and reaches no callee: it
+            is only ever the right-hand side of ``|delta| < tolerance``, so a
+            non-finite one is never examined. MEASURED before the repair on an
+            authenticated rc473 cell (ABI 26) at ``M = pi/2``, ``e = 0.0549``,
+            ``max_iter = 20``: ``tolerance=+inf`` returned
+            ``1.625613861425157`` through C — the ONE-Newton-step estimate,
+            reported as converged — where the pure projection raised; and
+            ``nan`` / ``-inf`` returned ``SRMECH_ERR_OVERFLOW``, i.e. the
+            caller was told "did not converge" about an argument that was
+            never a tolerance. A FINITE tolerance is unchanged at every sign
+            and magnitude: zero and negative values still run to
+            non-convergence in both projections, which is what they already
+            agreed on.
         RuntimeError: If not converged within ``max_iter`` iterations.
     """
     if not (0.0 <= e < 1.0):
         raise ValueError(f"kepler_solve: e must satisfy 0 <= e < 1; got {e}")
     if max_iter <= 0:
         raise ValueError(f"kepler_solve: max_iter must be positive; got {max_iter}")
+    if not _is_finite(tolerance):
+        raise ValueError(
+            f"kepler_solve: tolerance must be finite (Q is the "
+            f"finite-rational carrier); got {tolerance!r}"
+        )
     if _native.HAS_NATIVE:
         out = ctypes.c_double(0.0)
         rc = _native.LIB.srmech_kepler_solve(
