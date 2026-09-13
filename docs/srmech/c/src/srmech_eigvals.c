@@ -78,9 +78,15 @@ static void srmech_eig_cmax(double re, double im, double *out)
  * `static void` and has no status channel, and srmech_rational_sqrt refuses
  * only x < 0 and NaN. The two classes sit DIFFERENTLY here. The NEGATIVE one
  * cannot arise: `x*x + y*y` is a sum of squares. The NaN one is excluded by
- * the assert on the line above, and ONLY IN A DEBUG BUILD — which is the word
- * rc473's pre-publish pass corrected, because this paragraph had called the
- * refusal unreachable without naming which class it meant.
+ * srmech_eig_modulus's OWN `assert(!(re != re) && !(im != im))` — named by
+ * FUNCTION, because a comment's own growth moves the lines it cites and
+ * because srmech_eig_cmax above carries a BYTE-IDENTICAL assert, so "the line
+ * above" pointed at either of two and at neither decidably (corrected at the
+ * A6 repair pass; the rule it now follows is the one the sibling lap_sqrt
+ * comment in srmech_laplacian.c states of itself) — and ONLY IN A DEBUG
+ * BUILD, which is the word rc473's pre-publish pass corrected, because this
+ * paragraph had called the refusal unreachable without naming which class it
+ * meant.
  *
  * PROVEN both ways, not inferred. A DEBUG build (asserts live) calling the
  * PUBLIC symbol srmech_mat_eigvals_ws on a 2x2 complex-interleaved matrix

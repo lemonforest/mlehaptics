@@ -671,10 +671,20 @@ the macos-14 cell, and any Linux clang. Nothing in this document had said so.
 A masked scan of `b398b8c46` puts all **24** repaired `c/src` sites in the cast
 form (24 cast / 0 bare) and all **7** of the "site 25" discards in
 `c/test/test_srmech_trans_q61.c` in the bare form (7 bare / 0 cast), so the two
-forms are refused by one compiler family and by two respectively. The unshipped
-source ratchet is therefore the PRIMARY detector for the form this rule's own
+forms are refused by one compiler family and by two respectively. The source
+ratchet is therefore the PRIMARY detector for the form this rule's own
 24 actually had, not a backstop — and the two detectors are worth keeping
 together because a bare call is the one gcc AND clang both refuse.
+
+> ⚠️ **That sentence read "The *unshipped* source ratchet" until the A6 repair
+> pass.** It was written at A2 and falsified at A4 — in this same rc, three
+> commits later — by the section **THE RULE-7 DETECTOR** below, which says in
+> this same document that it **is shipped now**. A document contradicting
+> itself about whether its own Rule-7 detector exists is the defect this whole
+> rc is about, so the word is removed here rather than reconciled in a note
+> somewhere else. The dated per-rc records further down that describe an
+> earlier state are NOT swept: they are correct accounts of when they were
+> written.
 
 `[[nodiscard]]`, the only standard spelling, is unavailable: `error C2059:
 syntax error: '['` under `/std:c11` and `/std:c17`, and `/std:clatest` is
@@ -769,13 +779,29 @@ a continuation character or the word `return`.
 **Which clauses are load-bearing was measured, one at a time, on this tree and
 on `b398b8c46`** (`notes/_rc473_a4_rule7_ratchet.py`, `predicate_sensitivity`
 rows): the continuation clause **is** — removing it takes `c/src` 18 → 24 here
-and 42 → 47 on main, the extra rows all being a wrapped `st =` continuation
-onto `jade_pair(`, which is a CHECKED call. Three candidate refinements move
+and 42 → 47 on main, and **every added row is a CHECKED call**, which is the
+property the clause exists to preserve. Three candidate refinements move
 **no row on either tree** and are therefore NOT shipped or are shipped as
 stated judgements rather than measurements: treating a trailing `else` as a
 continuation, dropping `return` from that set, and adding a
 skip-definition-heads clause. A clause that cannot fire is a dead
 instrumentation seam.
+
+> ⚠️ **The sentence above ended *"the extra rows all being a wrapped `st =`
+> continuation onto `jade_pair(`"* until the A6 repair pass, and that
+> characterisation is MEASURED FALSE. The two cardinals reproduce exactly; the
+> description of the rows does not.** Enumerated by importing the SHIPPED
+> predicate out of `python/tests/test_jpl_audit.py` and re-running it with the
+> clause removed: on this tree the clause suppresses **6** rows and exactly
+> **ONE** is `jade_pair`; on `b398b8c46` it suppresses **5** and **NONE** is —
+> impossible by construction, because `jade_pair` is declared `static void`
+> there and cannot enter the callee population at all; rc473 itself changed it
+> to `static srmech_status_t`. Four of the six follow `!= SRMECH_OK ||` inside
+> a multi-line condition (`genome_file_size` ×2, `inf_fill_bigint`,
+> `inf_read_poly`) rather than an `st =`. The `predicate_sensitivity` rows
+> carried the cardinals only, with no callee breakdown, so the sentence had
+> nothing runnable to be checked against — which is how a figure that reads as
+> measured ships without being one.
 
 **Proven to fire, not assumed to** (same generator, `mutation` rows — three
 plants into a scratch copy of `c/src/srmech_kepler.c`, the real tree asserted
@@ -1142,10 +1168,18 @@ the toolchain-level Rule-10 ratchet.
   only). No new mechanical violations; ratchet stays at 0.
 
 Both `srmech_parallel.c` (rc6) and `srmech_kuramoto.c` (rc9 + rc14) pass the
-`tests/test_jpl_audit.py` mechanical ratchet (Rules 1 / 3 / 4 / 5 / 8)
+`tests/test_jpl_audit.py` mechanical ratchet (Rules 1 / 3 / 4 / 5 / 8 **as of
+that rc; Rule 9 joined at rc452 and Rule 7 at rc473's pre-publish pass**)
 and the 3-cell pedantic `-Werror` / `-Wpedantic` build (Linux gcc /
 macOS clang / Windows MSVC), verified green in CI. `srmech_json.c` and
 `srmech_genome.c` are held to the same ratchet + pedantic build.
+
+*(The rule list above is a dated per-rc record and is left as one; the
+bracketed clause is a currency stamp rather than a rewrite. It is stamped
+because the paragraph immediately below re-uses "the same ratchet" as a LIVE
+statement of coverage, and because the monorepo-root `CLAUDE.md` line this
+mirrors was updated in this same branch — so without the stamp the two
+surfaces disagree. Named as not-done by the A4/A5 pass; done here.)*
 
 **`srmech_config.c` (rc161 — config-driven library limits) + the
 `srmech_platform.c` FILE surface** pass the same ratchet + pedantic

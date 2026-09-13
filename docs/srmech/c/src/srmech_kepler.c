@@ -56,12 +56,20 @@
  *                              throughout" answers the second question while
  *                              appearing to answer the first.
  *
- *                              It survived because Rule 7 has NO DETECTOR in
+ *                              It survived because Rule 7 HAD no detector in
  *                              the pytest ratchet: tests/test_jpl_audit.py
- *                              mechanically ratchets Rules 1, 3, 4, 5, 8 and
- *                              9, and carries no RULE_7 symbol at all, so
+ *                              mechanically ratcheted Rules 1, 3, 4, 5, 8 and
+ *                              9, and carried no RULE_7 symbol at all, so
  *                              this claim was never measured against
- *                              anything. Measured at rc473 by planting
+ *                              anything. (The rc473 pre-publish pass shipped
+ *                              one — four test_rule_7_* functions, 13 passed
+ *                              -> 17 passed, and 32 RULE_7 occurrences in
+ *                              that file. Those three clauses stood in the
+ *                              PRESENT tense until the A6 repair pass; the
+ *                              CHANGELOG entry corrected its own paraphrase
+ *                              of this very sentence at A4 and left the
+ *                              source file it paraphrases untouched.)
+ *                              Measured at rc473 by planting
  *                              warn_unused_result on the seven Class-N
  *                              callees and compiling c/src unmodified: 24
  *                              -Wunused-result diagnostics across 7 files,

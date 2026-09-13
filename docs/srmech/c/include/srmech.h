@@ -723,9 +723,15 @@ extern "C" {
  * `(void)srmech_sin(...)` and friends, so a callee that had already refused
  * its argument was overruled by its own caller and the host was handed a
  * wrong number with SRMECH_OK. That is a silent wrong answer, and nothing
- * in the package could see it: Rule 7 of the JPL Power-of-Ten set has no
- * detector in tests/test_jpl_audit.py, which ratchets Rules 1, 3, 4, 5, 8
- * and 9 only.
+ * in the package could see it: Rule 7 of the JPL Power-of-Ten set HAD no
+ * detector in tests/test_jpl_audit.py, which ratcheted Rules 1, 3, 4, 5, 8
+ * and 9 only. The rc473 pre-publish pass shipped one — four test_rule_7_*
+ * functions in that file, 13 passed -> 17 passed — so those two clauses are
+ * PAST tense as of this tree and are written that way here. (They stood in
+ * the PRESENT tense until the A6 repair pass, inside a paragraph whose own
+ * subject is a shipped sentence its tree contradicts; python/CHANGELOG.md
+ * already carried the same sentence correctly tensed at that point, and this
+ * header was the surface the A4 sweep missed.)
  *
  * The 24 are repaired at rc473. This macro is what stops a 25th: the
  * attribute makes the idiom that produced them unwritable. MEASURED on gcc
@@ -784,8 +790,41 @@ extern "C" {
  * Eleven of the 16 are now tagged, plus srmech_winding_tower: roster 29. The
  * other five are pow/root LEXICAL hits, left out with reasons in the runnable
  * derivation notes/_rc473_a3b_nodiscard_family.py. So the roster is a COVERAGE
- * FRACTION of 512, not an equality, and a discard on any of the other 483 is
- * invisible to compiler, roster gate and pytest audit alike. Ratchet unshipped.
+ * FRACTION of 512, not an equality.
+ *
+ * WHAT THE RESIDUAL 483 ARE AND ARE NOT INVISIBLE TO — corrected at the A6
+ * repair pass, which MEASURED it. This paragraph ended "a discard on any of
+ * the other 483 is invisible to compiler, roster gate and pytest audit alike.
+ * Ratchet unshipped." Both clauses were written at A3b and falsified by A4
+ * three commits later, in the same pass, and this header was the one peer
+ * surface the A4 sweep did not reach. The measured statement:
+ *
+ *   - the COMPILER's reach is the 29. A discard of one of the other 483 is
+ *     invisible to it, and to the roster gate, which asserts strict zero on
+ *     those 29 names only.
+ *   - the PYTEST AUDIT's reach is WIDER than the roster and NARROWER than
+ *     512: tests/test_jpl_audit.py's Rule 7 ceilings hold every
+ *     status-returning export in this header PLUS each scanned TU's own
+ *     file-local `static srmech_status_t`, under down-only `==` ceilings
+ *     (CEIL_RULE_7_SRC 18, CEIL_RULE_7_TEST 118). MEASURED, not argued:
+ *     planting `(void)srmech_bigint_add(0, 0, 0);` — an UNTAGGED
+ *     status-returning export, i.e. one of the 483 — at c/src/srmech_kepler.c
+ *     takes the c/src population 18 -> 19 and fails
+ *     test_rule_7_src_ceiling_is_not_slack by name, while the roster
+ *     strict-zero clause correctly stays silent.
+ *   - what the roster buys ON TOP of the ratchet is therefore a BUILD failure
+ *     rather than a test failure, on the gcc leg and on clang for the bare
+ *     form only.
+ *   - outside BOTH: a status-returning helper declared in a private header
+ *     under c/src (srmech_platform.h is the one that matters, carrying 38
+ *     such declarations) and called from another TU — where the 44
+ *     srmech_plat_ discards c/JPL_AUDIT.md enumerates live. That is the
+ *     ratchet's next drain and is named in its own test file. (Spelled
+ *     without a glob here on purpose: a slash-star inside a block comment
+ *     is -Werror=comment on the gcc leg, which is how the first draft of
+ *     this paragraph broke the pedantic build.)
+ *
+ * Ratchet SHIPPED, at the A4 pre-publish pass of this same rc.
  *
  * This is a single-token object-like macro on the MSVC and fallback legs and
  * a single-line one on the GNU leg (JPL Rule 8 clean: no token-paste, no
