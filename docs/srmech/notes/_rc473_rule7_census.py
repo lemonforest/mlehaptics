@@ -26,6 +26,20 @@ non-empty short list reads as a complete list. Widened to allow a leading
 ``_SCALAR_DECL``'s ``^srmech_status_t`` and at ``_rc473_nodiscard_plant.py``'s
 roster pattern.
 
+⚠️ **And the WIDENED reading was LONG, which is the same defect from the other
+side.** This reader took ``test_jpl_audit.py`` UNMASKED while masking its own C
+scan two functions away, so the bare token ``RULE_7`` inside that file's
+comment *"# string `RULE_7` zero times — so nothing was positioned to
+contradict that"* was counted as a symbol: **eleven** reported where **ten**
+identifiers exist, and **three** under the narrow pattern where **two** do. The
+census of the ratchet was counting the sentence that says the string appeared
+zero times. Masked at the A6 repair pass with ``_mask_python`` (``tokenize``,
+not a regex — the thing being masked is a docstring containing the token) and
+verified against ``ast``: ten identifiers contain ``RULE_7`` and bare
+``RULE_7`` is not one of them. A census that counts prose and a grep that
+cannot spell its own symbol fail the same way, and this rc has now committed
+both.
+
 Three populations, each with its predicate written out:
 
   1. **The rc473 family** — a discarded return from one of the seven Class-N
@@ -33,7 +47,15 @@ Three populations, each with its predicate written out:
      line, over ``c/src/*.c``, ``c/test/*.c``, ``c/tools/*.c``.
   2. **Every ``SRMECH_NODISCARD``-tagged declaration** in ``c/include/srmech.h``
      — the compiler-enforced half of the rule. A discard of one of these is a
-     ``-Werror=unused-result`` build failure on gcc and clang.
+     ``-Werror=unused-result`` build failure on gcc and clang for a BARE
+     statement discard, and **on gcc alone** for the ``(void)``-cast form —
+     which is the form all twenty-four sites rc473 repaired took. clang reads
+     an explicit cast as an acknowledgement and emits nothing even under
+     ``-Wunused-result -Werror``. Under ``_MSC_VER`` the macro expands empty
+     and neither form is diagnosed. (This line said "on gcc and clang"
+     unqualified until the A6 repair pass; the A2 pass MEASURED the form split
+     and swept five surfaces without reaching this one — the script whose own
+     output the CHANGELOG entry quotes.)
   3. **Every other ``(void)srmech_*(`` discard in the C tree** — the residual
      the document owes a reason for, enumerated by symbol so it can be read.
 
@@ -103,6 +125,41 @@ def mask_lines(text: str) -> list[str]:
     return out
 
 
+def _mask_python(text: str) -> str:
+    """Blank out Python comments and string/bytes literals, newlines kept.
+
+    ``tokenize`` rather than a regex, because the thing being masked is a
+    docstring that CONTAINS the token being counted, and a regex over quotes
+    cannot see a triple-quoted block reliably. Anything that fails to tokenize
+    is returned unmasked rather than silently half-masked — a partial mask
+    reads exactly like a complete one, which is this rc's own defect class.
+    """
+    import io
+    import tokenize
+
+    try:
+        toks = list(tokenize.generate_tokens(io.StringIO(text).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return text
+    lines = text.splitlines(keepends=True)
+    out = list(lines)
+    for tok in toks:
+        if tok.type not in (tokenize.COMMENT, tokenize.STRING):
+            continue
+        (r1, c1), (r2, c2) = tok.start, tok.end
+        for r in range(r1, r2 + 1):
+            line = out[r - 1]
+            body = line.rstrip("\r\n")
+            tail = line[len(body):]
+            a = c1 if r == r1 else 0
+            b = c2 if r == r2 else len(body)
+            b = min(b, len(body))
+            if a >= b:
+                continue
+            out[r - 1] = body[:a] + " " * (b - a) + body[b:] + tail
+    return "".join(out)
+
+
 def _sources() -> list[Path]:
     out: list[Path] = []
     for sub in ("src", "test", "tools"):
@@ -137,8 +194,18 @@ def main() -> int:
     header_masked = "\n".join(mask_lines(header_text))
     tagged = sorted(set(_NODISCARD_DECL.findall(header_masked)))
 
-    jpl = (ROOT / "python" / "tests" / "test_jpl_audit.py").read_text(
+    jpl_raw = (ROOT / "python" / "tests" / "test_jpl_audit.py").read_text(
         encoding="utf-8")
+    # MASKED before the symbol scan, for the same reason the C scan is masked
+    # (see the module docstring's masking note). Unmasked, this reader counted
+    # the bare token `RULE_7` inside the comment "# string `RULE_7` zero times
+    # — so nothing was positioned to contradict that" as a SYMBOL: it reported
+    # ELEVEN where ten identifiers exist, so the census of the ratchet was
+    # literally counting the sentence that says the string appeared zero
+    # times. Corrected at the A6 repair pass; verified against ast, which
+    # finds ten identifiers containing RULE_7 and says bare `RULE_7` is not
+    # one of them.
+    jpl = _mask_python(jpl_raw)
     # `[A-Z_]*` prefix, not a bare `\b`: `\b` does not match between the `L` of
     # CEIL and the `R` of RULE_7, so the two down-only ceilings — the ratchet
     # itself — were invisible to the first spelling. See the module docstring.

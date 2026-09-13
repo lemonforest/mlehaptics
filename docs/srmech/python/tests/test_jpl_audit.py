@@ -819,8 +819,17 @@ def test_rule_5_minimum_two_asserts_per_function() -> None:
 # and on `b398b8c46`, one clause at a time:
 #
 #   * the continuation clause IS load-bearing — removing it takes `c/src`
-#     18 -> 24 here and 42 -> 47 on main, the added rows being `st =` followed
-#     by a wrapped `jade_pair(` continuation line, which is a CHECKED call;
+#     18 -> 24 here and 42 -> 47 on main, and EVERY added row is a CHECKED
+#     call, which is the property the clause exists to preserve. (That line
+#     read "the added rows being `st =` followed by a wrapped `jade_pair(`
+#     continuation line" until the A6 repair pass, which enumerated them with
+#     this same predicate: 6 added rows here, exactly ONE of them `jade_pair`,
+#     and 5 added rows on main with NONE — `jade_pair` is `static void` on
+#     `b398b8c46` and so is not a status callee there at all. Four of the six
+#     follow `!= SRMECH_OK ||` inside a multi-line condition rather than an
+#     `st =`. The cardinals reproduced; the description of the rows did not,
+#     and `notes/_rc473_a4_rule7_ratchet.py` recorded no callee breakdown to
+#     check it against.);
 #   * `return` in that set moves NO row on either tree. It is kept because
 #     `return\n    foo(x);` is a propagation and not a discard, and it is
 #     named here as a correctness clause rather than a measured one;
