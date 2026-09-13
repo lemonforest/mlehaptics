@@ -704,6 +704,18 @@ _WORKFLOWS = _REPO_ROOT / ".github" / "workflows"
 #: the filename. `parents[2]` from a test file is `docs/srmech`; anything
 #: deeper than `docs/srmech/python` can escape the srmech-ci trigger.
 SCAN_ROOTS = {
+    # rc473 (`#T1188`, A6 repair pass): the PHRASE gate reads every surface
+    # that ships — `c/include/srmech.h`, `c/src/*.c`, `c/JPL_AUDIT.md`,
+    # `python/CHANGELOG.md`, package modules, test files AND the `notes/`
+    # generating scripts whose printed output the entry quotes as
+    # measurements. Reaching out of `python/` is the POINT: the four decidable
+    # falsehoods that pass repaired were on `c/include/srmech.h`,
+    # `c/src/srmech_kepler.c`, `c/JPL_AUDIT.md` and
+    # `notes/_rc473_rule7_census.py` — three of the four outside `python/`
+    # entirely, and the fourth reached only because `notes/` is included here.
+    # A `python/`-only scan would have been green over every one of them.
+    "tests/test_rc473_a6_phrase_gate_runs.py": (
+        "docs/srmech/python", "docs/srmech/c", "docs/srmech/notes"),
     # rc436 (`#T1141`): the citation-CONTRADICTION gate reads the compiled-in C
     # tool registry alongside every package module, because the contradiction it
     # is strict-zero on shipped in BOTH -- the rc429 Fuller-1971 claim reached
