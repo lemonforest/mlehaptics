@@ -1021,9 +1021,16 @@ _OUTSIDE_THE_NARROW_SHAPE: "dict[str, str]" = {
     "srmech_log_q61": "Q61 peer: two int64_t out-params (logm, e).",
     "srmech_sqrt_q61": "Q61 peer: two int64_t out-params (root, p).",
     "srmech_cascade_magnitude_f64": (
-        "a cascade LEAF, not a Class-N transcendental — the same reason "
-        "srmech_cascade_dead_band_f64 carries in _NOT_A_RATIONAL_PEER. Its "
-        "pure peer is srmech.cascade.leaves, not srmech.math.rational."
+        "a cascade ATOM, not a Class-N transcendental — the same KIND of "
+        "reason srmech_cascade_dead_band_f64 carries in _NOT_A_RATIONAL_PEER, "
+        "though not the same module. Its pure peer is "
+        "srmech.cascade.atoms.magnitude (`_c_claims.py` maps exactly that "
+        "name to this symbol), a Class-K pin-slot at zero that is "
+        "type-preserving over any ordered real carrier — not "
+        "srmech.math.rational. (This entry said `srmech.cascade.leaves` until "
+        "it was checked: `dead_band` IS in leaves.py, `magnitude` is in "
+        "atoms.py, and a carve-out whose stated reason names the wrong module "
+        "is the defect this file's own A6 pass exists to remove.)"
     ),
     "srmech_pin_slot": (
         "`#T1188`, ADR-0009 §1.2 (A6 repair pass): three double inputs, and "
