@@ -968,3 +968,251 @@ def test_the_roster_covers_every_class_n_scalar_export_two_way() -> None:
         f"{len(phantom)} row(s) name a symbol {_HEADER.name} does not declare "
         f"in the scalar family: {phantom}"
     )
+
+
+# --------------------------------------------------------------------------
+# THE ROSTER'S OWN BLIND SPOT, closed at the A6 repair pass.
+#
+# `_SCALAR_DECL`'s note above calls its population "the family whose members
+# take a real and write a real through a status channel". It is NOT that
+# family: the pattern requires the LAST parameter to be spelled literally
+# `double *out` and allows at most TWO `double` inputs, so of the SEVENTEEN
+# status-returning exports whose parameters are all-`double` scalars plus
+# scalar out-pointers it matches EIGHT. On the narrower spelling a merge gate
+# used against this rc — n doubles, exactly one `double *` out — it is 8 of 10.
+#
+# That mattered, and it was found from OUTSIDE this file: a cross-implementation
+# differential drove the whole double-taking exported roster instead of these
+# six scalar symbols, and reported this gate returning `90 passed, 6 xfailed`
+# on a cell where `srmech_winding_fold`'s residue diverges between the
+# projections by up to 7.07e8 x 2**-44 — because `srmech_winding_fold` is a
+# declared export this file's roster regex cannot spell. A gate whose
+# population predicate is narrower than the family its own prose claims is the
+# same defect as a grep that cannot spell its own symbol.
+#
+# The repair is NOT to widen `_SCALAR_DECL`. Every symbol it matches carries
+# both a served and a refused row, and widening it would silently DEMAND those
+# rows for nine more symbols — which is a different rc, not a repair. The
+# repair is to make the RESIDUAL DECIDABLE: enumerate the wider family from
+# the header and require every member to sit in exactly one of three places —
+# exercised above, excluded in `_NOT_A_RATIONAL_PEER`, or named below with the
+# reason it has no row. A symbol in NONE of them then reddens by name.
+# --------------------------------------------------------------------------
+
+#: Head-to-`;` declaration capture, parameter list whitespace-normalised, for
+#: the family `_SCALAR_DECL`'s prose claims and its pattern does not reach.
+_WIDE_SCALAR_DECL = re.compile(
+    r"^(?:SRMECH_NODISCARD\s+)?srmech_status_t\s+(srmech_[A-Za-z0-9_]+)\s*\("
+    r"(?P<params>[^;{]*?)\)\s*;",
+    re.M | re.S,
+)
+_SCALAR_IN = re.compile(r"(?:const\s+)?double\s+[A-Za-z_]\w*")
+_SCALAR_OUT = re.compile(
+    r"(?:double|int64_t|int32_t|uint32_t|int)\s*\*\s*[A-Za-z_]\w*"
+)
+
+#: Wider-family members the narrow `_SCALAR_DECL` cannot match, each with the
+#: reason it has no served/refused row pair here.
+_OUTSIDE_THE_NARROW_SHAPE: "dict[str, str]" = {
+    "srmech_sin_q61": "Q61 peer: writes int64_t, not `double *out`.",
+    "srmech_cos_q61": "Q61 peer: writes int64_t, not `double *out`.",
+    "srmech_atan_q61": "Q61 peer: writes int64_t, not `double *out`.",
+    "srmech_exp_q61": "Q61 peer: two int64_t out-params (core, n).",
+    "srmech_log_q61": "Q61 peer: two int64_t out-params (logm, e).",
+    "srmech_sqrt_q61": "Q61 peer: two int64_t out-params (root, p).",
+    "srmech_cascade_magnitude_f64": (
+        "a cascade LEAF, not a Class-N transcendental — the same reason "
+        "srmech_cascade_dead_band_f64 carries in _NOT_A_RATIONAL_PEER. Its "
+        "pure peer is srmech.cascade.leaves, not srmech.math.rational."
+    ),
+    "srmech_pin_slot": (
+        "`#T1188`, ADR-0009 §1.2 (A6 repair pass): three double inputs, and "
+        "MEASURED to DIVERGE — pin_slot(pin_distance=+inf, pin_offset=1.0, "
+        "theta=0.0) returns 0.0 through C and raises TypeError through the "
+        "pure projection. That is a serve-vs-refuse divergence, not a row "
+        "this file can pin as served or refused. FILED rather than exercised; "
+        "pre-existing on b398b8c46."
+    ),
+    "srmech_winding_fold": (
+        "`#T1188`, ADR-0009 §1.2 (A6 repair pass): two out-params of different "
+        "types (int64_t *w_out, double *theta_out), and the theta_out channel "
+        "DIVERGES between the projections — pinned executably below rather "
+        "than as a served/refused row."
+    ),
+}
+
+
+def _header_wide_scalar_family() -> "set[str]":
+    text = _HEADER.read_text(encoding="utf-8")
+    out: "set[str]" = set()
+    for m in _WIDE_SCALAR_DECL.finditer(text):
+        parts = [p.strip() for p in " ".join(m.group("params").split()).split(",")]
+        if not parts or parts in ([""], ["void"]):
+            continue
+        ins = [p for p in parts if "*" not in p]
+        outs = [p for p in parts if "*" in p]
+        if not ins or not outs:
+            continue
+        if not all(_SCALAR_IN.fullmatch(p) for p in ins):
+            continue
+        if not all(_SCALAR_OUT.fullmatch(p) for p in outs):
+            continue
+        out.add(m.group(1))
+    return out
+
+
+def test_the_wider_scalar_family_has_no_unaccounted_member() -> None:
+    """Every all-double-in / scalar-out status export is PLACED, or this reds.
+
+    Exercised above, excluded with a reason, or named in
+    `_OUTSIDE_THE_NARROW_SHAPE` with a reason. The point is that a symbol in
+    NONE of them — which is what `srmech_winding_fold` and `srmech_pin_slot`
+    were — fails here BY NAME instead of being invisible to a roster regex.
+    """
+    wide = _header_wide_scalar_family()
+    narrow = _header_scalar_family()
+    assert len(wide) >= len(narrow), (
+        "the wide scalar family parsed SMALLER than the narrow one, which "
+        "means this scan is broken rather than that the family shrank: "
+        f"wide={len(wide)} narrow={len(narrow)}"
+    )
+    exercised = {symbol for symbol, _, _, _ in _UNARY_ROWS}
+    exercised |= {symbol for symbol, _, _ in _DECLINED_ROWS}
+    exercised.add("srmech_atan2")
+    placed = exercised | set(_NOT_A_RATIONAL_PEER) | set(_OUTSIDE_THE_NARROW_SHAPE)
+
+    unaccounted = sorted(wide - placed)
+    assert not unaccounted, (
+        f"{len(unaccounted)} scalar status export(s) sit in NO place this file "
+        f"accounts for: {unaccounted}. Give each a served/refused row pair, or "
+        "a named reason in _OUTSIDE_THE_NARROW_SHAPE. Do not narrow this scan "
+        "to make them disappear."
+    )
+    phantom = sorted(set(_OUTSIDE_THE_NARROW_SHAPE) - wide)
+    assert not phantom, (
+        f"{len(phantom)} entry/entries in _OUTSIDE_THE_NARROW_SHAPE no longer "
+        f"name a declaration in the wider family: {phantom}. A carve-out for a "
+        "symbol that does not exist is indistinguishable from coverage."
+    )
+
+
+def test_the_narrow_roster_is_a_subset_and_not_the_family() -> None:
+    """Non-vacuity for the row above: the two populations must DIFFER.
+
+    If the narrow regex ever matched the whole wider family, the assertion
+    above would be satisfied by `_SCALAR_DECL` alone and
+    `_OUTSIDE_THE_NARROW_SHAPE` would be a dead instrumentation seam.
+    """
+    missed = sorted(_header_wide_scalar_family() - _header_scalar_family())
+    assert missed, (
+        "the narrow _SCALAR_DECL now matches the whole wider scalar family. "
+        "Good news — but _OUTSIDE_THE_NARROW_SHAPE is then dead: fold its "
+        "entries into the rows above and delete this test."
+    )
+    assert set(missed) == set(_OUTSIDE_THE_NARROW_SHAPE), (
+        "the set the narrow regex misses is not the set named as missed. "
+        f"missed={missed} named={sorted(_OUTSIDE_THE_NARROW_SHAPE)}"
+    )
+
+
+# --------------------------------------------------------------------------
+# `srmech.cascade.one.winding_fold` — `theta_res` DIVERGES between the
+# projections at ordinary FINITE angles. Filed at the A6 repair pass.
+#
+# Found from outside this file, by the differential described above. The
+# docstring asserted the two folds "quantise the SAME real residue"; measured,
+# they do not, and the gap is proportional to the winding. It is PRE-EXISTING
+# (identical values on a b398b8c46 / ABI 25 build of the same probe) and it is
+# NOT repaired here: the native side is the drifting one, so closing it is a C
+# change with its own measurement, and which residue is canonical is the same
+# float-vs-exact seam ADR-0009 §1.2's kepler_solve row names.
+#
+# The pin's shape follows the +inf laplacian row above exactly:
+#   * `_needs_native`-gated — on a pure cell the dispatched op IS the pure
+#     fold, so an ungated comparison would agree with itself and a strict
+#     xfail would XPASS and redden the pure cell for the wrong reason;
+#   * dispatched public op vs `_eph_seam_fold`, the pure alternative the
+#     docstring names, IN ONE PROCESS, so there is no cell confound;
+#   * strict, so a repair REDDENS this row instead of letting it pass forever;
+#   * with agreeing controls beside it as plain passing rows, and a separate
+#     row pinning the half of the claim that HOLDS, so this is not an
+#     instrument that can only say "differ".
+# --------------------------------------------------------------------------
+_WINDING_FOLD_T1188 = pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "`#T1188`: winding_fold's theta_res diverges between the projections "
+        "in proportion to the winding — MEASURED in [7.944e-21, 8.039e-21] "
+        "rad per turn over the 15 probed angles with |w| >= 1e8, a spread of "
+        "1.2% across five decades of |theta| (1e9 .. 3.14e16), so it is a law "
+        "and not a worst case; reaching 4.02e-05 = 7.07e8 x 2**-44 at "
+        "theta = 3.1415926535897932e16, with 17 of 24 probed angles over the "
+        "2**-44 grid the docstring cited — while w is exact-integer equal on "
+        "every row. Against an INDEPENDENT 60-digit 2-pi the PURE residue is "
+        "the accurate one by ~5 orders of magnitude, so the native fold is "
+        "the drifting side. ADR-0009 §1.2, Still open. Strict, so a repair "
+        "reddens this row."
+    ),
+)
+
+#: `theta` values where the two folds are MEASURED to agree on `theta_res`.
+#: Small windings only — the drift is proportional to |w|, so these are
+#: controls for the comparator and not a claim about the op at scale.
+_WINDING_FOLD_AGREEING: "tuple[float, ...]" = (0.0, 1.0, 0.5, -1.0, 2.0)
+
+
+def _winding_fold_pair(theta: float) -> "tuple[tuple[int, float], tuple[int, float]]":
+    """`(dispatched, pure)` as `(w, theta_res)` pairs, in ONE process."""
+    from srmech.cascade import one as _one
+    from srmech.math import laplacian as _lap
+
+    w_d, res_d = _one.winding_fold(theta)
+    w_p, qn = _lap._eph_seam_fold(theta)
+    return (w_d, res_d), (w_p, qn / float(_lap._EPH_FOLD_DEN))
+
+
+@_needs_native
+@pytest.mark.parametrize("theta", _WINDING_FOLD_AGREEING)
+def test_winding_fold_agrees_between_projections_at_small_windings(
+    theta: float,
+) -> None:
+    """CONTROL rows. These agreed when the divergence beside them was filed."""
+    (w_d, res_d), (w_p, res_p) = _winding_fold_pair(theta)
+    assert w_d == w_p, f"winding disagrees at {theta!r}: {w_d} vs {w_p}"
+    assert res_d == res_p, (
+        f"theta_res disagrees at {theta!r}: dispatched {res_d!r} vs "
+        f"_eph_seam_fold {res_p!r}. This row is a CONTROL — a failure here is "
+        "a NEW divergence, not the filed one."
+    )
+
+
+@_needs_native
+def test_winding_fold_winding_agrees_where_the_residue_does_not() -> None:
+    """The HALF of the docstring's claim that HOLDS, pinned so it stays held.
+
+    Without this row the divergence pin below would be equally consistent with
+    the two folds disagreeing about EVERYTHING, which is a different and much
+    larger defect than the one filed.
+    """
+    for theta in (1e9, 1e12, 3.1415926535897932e16, -3.1415926535897932e16):
+        (w_d, _), (w_p, _) = _winding_fold_pair(theta)
+        assert w_d == w_p, (
+            f"the WINDING diverges at {theta!r} ({w_d} vs {w_p}). ADR-0009 "
+            "§1.2's winding_fold row files a RESIDUE divergence only; a "
+            "winding divergence is a new and larger finding."
+        )
+
+
+@_needs_native
+@_WINDING_FOLD_T1188
+def test_winding_fold_residue_diverges_between_projections() -> None:
+    """Strict-xfail. Passes only when the residue contract is settled."""
+    grid = 2.0 ** -44
+    theta = 3.1415926535897932e16      # inside the native |theta| < 2**55 door
+    (_, res_d), (_, res_p) = _winding_fold_pair(theta)
+    gap = abs(res_d - res_p)
+    assert gap <= grid, (
+        f"dispatched {res_d!r} vs _eph_seam_fold {res_p!r} at theta={theta!r} "
+        f"— gap {gap!r} = {gap / grid:.6g} x the 2**-44 grid the docstring "
+        "cited."
+    )
