@@ -211,6 +211,58 @@ def git(args: Sequence[str], cwd: Path, timeout: float = 30.0) -> Tuple[int, str
     return run([git_exe(), *args], cwd=cwd, timeout=timeout)
 
 
+class GitUnusable(RuntimeError):
+    """The running git could not answer — as distinct from answering "none".
+
+    rc473 (`#T1188`). :func:`dirty_paths` and :func:`tracked_files` tested
+    ``if code == 0`` and otherwise fell through to an EMPTY list, so a git that
+    could not read the checkout at all was spelled exactly the same way as a
+    git that read it and found nothing changed. MEASURED on the rc473 worktree
+    (``.claude/worktrees/wf_9fa19a06-4e3-10``, whose ``.git`` is a pointer file
+    holding the WINDOWS path ``D:/GitHub/mlehaptics/.git/worktrees/...``, which
+    WSL git cannot open), CPython 3.12.3 under WSL2, git on PATH::
+
+        git rev-parse  : exit 128 | fatal: not a git repository: ...
+        git diff HEAD  : exit 128 | fatal: not a git repository: ...
+        git ls-files   : exit 128 | fatal: not a git repository: ...
+        dirty_paths    : returned 0 paths  <-- NO EXCEPTION
+        tracked_files  : returned 0 paths  <-- NO EXCEPTION
+
+    That is how ``derived_ledger_freshness`` reported **0 stale rows on a tree
+    with 91**: a success status carrying a wrong answer, in the one state it
+    must not be silent in. The sibling :func:`tools.run_worked_examples
+    .head_blob_map` already REFUSES on the identical condition and names git's
+    own stderr; this is that shape, moved down to the shared helpers.
+
+    It does NOT change the open-vs-closed policy the module docstring sets. A
+    git that cannot run is an INFRASTRUCTURE failure, and infrastructure
+    failures still fail OPEN — but :func:`run_hook` fails open **loudly**, with
+    a named exception on stderr, which is a different thing from returning an
+    empty measurement that reads as a verdict.
+    """
+
+
+def _git_or_refuse(args: Sequence[str], cwd: Path, why: str) -> str:
+    """``git(args)``'s output, or :class:`GitUnusable` naming git's own words.
+
+    ``run`` merges stderr into stdout, so ``out`` already carries git's
+    message; a timeout arrives as ``-1`` and a missing binary as ``-2``, and
+    all three are "could not answer", never "answered none".
+    """
+    code, out = git(args, cwd=cwd)
+    if code == 0:
+        return out
+    raise GitUnusable(
+        f"`{git_exe()} {' '.join(args)}` exited {code} in {cwd}. git said: "
+        f"{out.strip().splitlines()[0] if out.strip() else '<no output>'}. "
+        f"{why} Fix the git environment rather than reading the empty result "
+        f"as an answer — a worktree .git pointer holding a Windows path is "
+        f"unreadable by WSL git; export GIT_DIR and GIT_WORK_TREE, set "
+        f"{HOOK_GIT_ENV} to the git that owns the checkout, or run under that "
+        f"toolchain."
+    )
+
+
 def python_exe() -> str:
     """The interpreter to re-enter with. ``sys.executable`` keeps a hook on the
     same Python the harness launched it with, which avoids the classic
@@ -230,23 +282,30 @@ def dirty_paths(root: Path, paths: Sequence[str]) -> List[str]:
 
     Binary files report ``-`` for both counts; those are kept, because a binary
     difference is never EOL noise.
+
+    Raises :class:`GitUnusable` if either query fails (rc473, `#T1188`). Both
+    tested ``if code == 0`` and otherwise fell through to ``[]``, which spells
+    "git could not read this checkout" identically to "nothing is dirty".
     """
     out_paths: List[str] = []
-    code, out = git(["diff", "HEAD", "--numstat", "--ignore-cr-at-eol", "--",
-                     *paths], cwd=root)
-    if code == 0:
-        for line in out.splitlines():
-            parts = line.rstrip().split("\t")
-            if len(parts) < 3:
-                continue
-            adds, dels, path = parts[0], parts[1], parts[-1]
-            if adds == "0" and dels == "0":
-                continue                      # EOL-only: not a content change
-            out_paths.append(path.strip().strip('"'))
-    code, out = git(["ls-files", "--others", "--exclude-standard", "--",
-                     *paths], cwd=root)
-    if code == 0:
-        out_paths.extend(l.strip() for l in out.splitlines() if l.strip())
+    out = _git_or_refuse(
+        ["diff", "HEAD", "--numstat", "--ignore-cr-at-eol", "--", *paths], root,
+        "Every caller would otherwise read the empty result as 'no file has "
+        "changed', which is what let the derived-ledger freshness hook report "
+        "0 stale rows on a tree with 91.")
+    for line in out.splitlines():
+        parts = line.rstrip().split("\t")
+        if len(parts) < 3:
+            continue
+        adds, dels, path = parts[0], parts[1], parts[-1]
+        if adds == "0" and dels == "0":
+            continue                          # EOL-only: not a content change
+        out_paths.append(path.strip().strip('"'))
+    out = _git_or_refuse(
+        ["ls-files", "--others", "--exclude-standard", "--", *paths], root,
+        "The untracked half would otherwise be silently empty, so a brand-new "
+        "file would read as absent rather than as unmeasurable.")
+    out_paths.extend(l.strip() for l in out.splitlines() if l.strip())
     return out_paths
 
 
@@ -256,10 +315,17 @@ def tracked_files(root: Path, paths: Sequence[str]) -> List[str]:
     Index membership is EOL-agnostic — measured identical (151 entries for
     ``c/src`` + ``c/include``) under both gits — so this is safe to build a
     scan population from.
+
+    Raises :class:`GitUnusable` rather than returning ``[]`` (rc473,
+    `#T1188`). This one is the sharper half of the pair: its callers use the
+    result as a SCAN POPULATION (``jpl_audit_gate.py`` and
+    ``sha256_routing_gate.py`` both iterate it), and a gate that scans an
+    empty population passes vacuously.
     """
-    code, out = git(["ls-files", "--", *paths], cwd=root)
-    if code != 0:
-        return []
+    out = _git_or_refuse(
+        ["ls-files", "--", *paths], root,
+        "Callers build a scan POPULATION from this, and a gate over an empty "
+        "population passes vacuously — 'not A' is not 'B'.")
     return [l.strip().strip('"') for l in out.splitlines() if l.strip()]
 
 
@@ -270,10 +336,22 @@ def eol_noise(root: Path, paths: Sequence[str]) -> Tuple[int, int]:
     checkout's EOL policy, and any hook keyed on ``status --porcelain`` is
     about to false-fire. Reported by :func:`describe_env`; never used to
     decide a verdict, because :func:`dirty_paths` already answers correctly.
+
+    rc473 repair pass (`#T1188`): this function ALREADY had the right shape
+    for "could not answer" — it returns ``-1`` for the porcelain half rather
+    than ``0``, so an unusable git is spelled differently from a clean tree.
+    It is kept, and the content half is given the same treatment now that
+    :func:`dirty_paths` raises: ``(-1, -1)``. It does NOT re-raise, and the
+    distinction is the one the module docstring draws — this is a canary a
+    diagnostic prints, not a measurement a verdict rests on, and a diagnostic
+    that dies on the condition it exists to report reports nothing.
     """
     code, out = git(["status", "--porcelain", "--", *paths], cwd=root)
     porcelain = len([l for l in out.splitlines() if l.strip()]) if code == 0 else -1
-    return porcelain, len(dirty_paths(root, paths))
+    try:
+        return porcelain, len(dirty_paths(root, paths))
+    except GitUnusable:
+        return porcelain, -1
 
 
 # ── pytest summary parsing — a SKIP IS NOT A PASS ─────────────────────────

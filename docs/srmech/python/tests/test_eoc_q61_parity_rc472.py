@@ -46,6 +46,25 @@ unguarded ``(void)srmech_{sin,cos,atan2}`` sites remain in
 ``srmech_jade.c`` / ``srmech_kepler.c`` / ``srmech_kuramoto.c``; only
 ``srmech_laplacian.c:1747/1749`` are guarded, by the rc466 Python guard.
 
+⚠️ UPDATED AT rc473 (`#T1188`) — READ THIS BEFORE THE TESTS BELOW
+-----------------------------------------------------------------
+The C follow-up SHIPPED. rc473 repaired 24 discarded statuses across 7 C
+units (the count above, twelve, was itself short: the scoping grep spelled
+``srmech_sqrt`` where the symbol is ``srmech_rational_sqrt``, which hid
+``srmech_eigvals.c`` and ``srmech_svd_qr.c`` entirely), and DELETED the
+pre-dispatch guard this file was written for.
+
+Everything the file pins still holds — the refused text is still the pure
+cascade's own, byte for byte, in both cells — but it now holds for the
+opposite reason, and ONE test had to be inverted rather than kept:
+``test_the_refusal_fires_before_dispatch`` asserted the C peer is NEVER
+reached. That property is precisely the blindness rc473 exists to remove: a
+wrapper that answers before the C symbol is consulted is why the silent wrong
+value survived eight release candidates with every parity gate green. The
+test now asserts the C peer IS reached, refuses, and that the pure cascade
+supplies the text afterwards. Renamed, not edited in place, so the old name
+cannot pass by accident.
+
 numpy-free. No ``abs()`` — the magnitude in the guard is a Class-K pin-slot
 branch. No ``hashlib``.
 """
@@ -92,25 +111,74 @@ def test_the_non_finite_refusal_is_the_pure_cascades_own_text_too() -> None:
         assert str(e.value) == want, (bad, str(e.value))
 
 
-def test_the_refusal_fires_before_dispatch(monkeypatch) -> None:
-    """A planted native binding that must never be reached, in EITHER cell."""
+def test_the_refusal_is_REACHED_THROUGH_the_c_peer_rc473(monkeypatch) -> None:
+    """rc473 (`#T1188`) — the inversion of ``test_the_refusal_fires_before_dispatch``.
+
+    Through rc472 this test planted a native binding that raised
+    ``AssertionError`` if reached, and passed because the guard refused first.
+    That is the shape ADR-0009 §2.1 rules out — *"'realizes it by calling the
+    other implementation' is not realizing it"* — read from the other side: a
+    Python-side refusal that pre-empts dispatch leaves the C projection free to
+    serve the same input, which is exactly what it was doing.
+
+    The plant now RECORDS the call and returns ``SRMECH_ERR_BAD_INPUT``, and
+    this test asserts three things in one run: the C peer was consulted, it
+    refused, and the text the caller sees is still the pure cascade's own.
+    """
+    calls: list[tuple] = []
+
     class _Lib:
         @staticmethod
-        def srmech_equation_of_centre(*_a):
-            raise AssertionError(
-                "equation_of_centre dispatched to the C peer BEFORE refusing "
-                "— the guard is on the wrong side of `if _native.HAS_NATIVE:`")
+        def srmech_equation_of_centre(*a):
+            calls.append(a)
+            return 2                      # SRMECH_ERR_BAD_INPUT
 
     class _Nat:
         HAS_NATIVE = True
         LIB = _Lib()
         SRMECH_OK = 0
+        SRMECH_ERR_BAD_INPUT = 2
 
     monkeypatch.setattr(kepler, "_native", _Nat)
     with pytest.raises(ValueError, match="too large for the Q61 octant reduction"):
         kepler.equation_of_centre(P, 0.0549, 4)
+    assert len(calls) == 1, (
+        "equation_of_centre refused WITHOUT calling the C peer. A pre-dispatch "
+        "guard is back, and with it the blindness rc473 removed: the C symbol "
+        "is then free to return a wrong value with SRMECH_OK and no gate in "
+        "this tree would see it.")
     with pytest.raises(ValueError, match="must be finite"):
         kepler.equation_of_centre(float("nan"), 0.0549, 1)
+    assert len(calls) == 2, "the non-finite refusal also skipped the C peer"
+
+    # ...and the same for the two wrappers that never had a guard, so the
+    # property is pinned for all three kepler ops, not just the named one.
+    ps_calls: list[tuple] = []
+    ks_calls: list[tuple] = []
+
+    class _Lib2:
+        @staticmethod
+        def srmech_pin_slot(*a):
+            ps_calls.append(a)
+            return 2
+
+        @staticmethod
+        def srmech_kepler_solve(*a):
+            ks_calls.append(a)
+            return 2
+
+    class _Nat2(_Nat):
+        LIB = _Lib2()
+        SRMECH_ERR_OVERFLOW = 4
+
+    monkeypatch.setattr(kepler, "_native", _Nat2)
+    with pytest.raises(ValueError, match="too large for the Q61 octant reduction"):
+        kepler.pin_slot(2.0 ** 55, 0.5, 1.0)
+    assert len(ps_calls) == 1, "pin_slot refused without consulting srmech_pin_slot"
+    with pytest.raises(ValueError, match="too large for the Q61 octant reduction"):
+        kepler.kepler_solve(2.0 ** 55, 0.3)
+    assert len(ks_calls) == 1, (
+        "kepler_solve refused without consulting srmech_kepler_solve")
 
 
 def test_the_control_still_answers_in_this_cell() -> None:
@@ -126,7 +194,33 @@ def test_the_control_still_answers_in_this_cell() -> None:
         kepler.equation_of_centre(P, 0.0549, 0)
 
 
-def test_the_bound_is_imported_not_restated() -> None:
-    """rc466's rule ("one bound, imported"; ``laplacian.py`` precedent)."""
-    assert kepler._Q61_TRIG_RANGE is rational.Q61_TRIG_RANGE
+def test_the_bound_is_NAMED_IN_ONE_MODULE_rc473() -> None:
+    """rc466's rule ("one bound, imported") strengthened by rc473's deletion.
+
+    rc472 imported ``Q61_TRIG_RANGE`` into ``kepler`` to write the guard with,
+    and this test pinned the alias. With the guard gone the import went with
+    it, so the rule can be stated the stronger way: the bound is bound to a
+    module-level name in EXACTLY ONE module of ``srmech.math``, and neither
+    ``kepler`` nor ``laplacian`` carries a copy under any name.
+
+    Checked over the module namespaces rather than the source text, because a
+    docstring that MENTIONS ``2**55`` is not a second copy of the bound and a
+    source grep cannot tell the two apart.
+    """
     assert rational.Q61_TRIG_RANGE == 2.0 ** 55
+
+    def _copies(mod) -> list:
+        return sorted(
+            name for name, val in vars(mod).items()
+            if type(val) is float and val == 2.0 ** 55)
+
+    assert _copies(rational) == ["Q61_TRIG_RANGE"], (
+        "the bound moved, was renamed, or gained a sibling in rational; this "
+        "assertion is the non-vacuity control for the two below")
+    assert _copies(kepler) == [], (
+        f"kepler re-states the Q61 bound as {_copies(kepler)}; rc473 deleted "
+        "the guard that needed it")
+    from srmech.math import laplacian as _la
+    assert _copies(_la) == [], (
+        f"laplacian re-states the Q61 bound as {_copies(_la)}; rc473 deleted "
+        "_q61_trig_range_refuse, which was its only user")

@@ -212,11 +212,21 @@ def _changed_paths(root: Path, base: str, dirty: List[str]) -> List[str]:
     planted two-line edit. The commit-to-commit half below never needed the
     repair — both sides of ``base..HEAD`` are index blobs, so EOL policy does
     not enter.
+
+    rc473 (`#T1188`): the commit-to-commit half tested ``if code == 0`` and
+    otherwise contributed NOTHING, so a git that could not resolve
+    ``base..HEAD`` left this reading exactly like "no file changed between
+    those commits". It now refuses, the same way :func:`_hooklib.dirty_paths`
+    does, and :func:`_hooklib.run_hook` turns that into the documented LOUD
+    fail-open rather than a silent verdict.
     """
     seen: List[str] = []
-    code, out = H.git(["diff", "--name-only", f"{base}..HEAD"], cwd=root)
-    if code == 0:
-        seen.extend(l.strip() for l in out.splitlines() if l.strip())
+    out = H._git_or_refuse(
+        ["diff", "--name-only", f"{base}..HEAD"], root,
+        "The commit-to-commit half of the change set would otherwise be "
+        "silently empty, so every module touched since the ledger was written "
+        "would read as untouched.")
+    seen.extend(l.strip() for l in out.splitlines() if l.strip())
     seen.extend(dirty)
     return seen
 
@@ -249,10 +259,19 @@ def _head_blobs(root: Path) -> Dict[str, str]:
 
     ONE ``ls-tree`` for the whole subtree; the alternative is one
     ``rev-parse HEAD:<path>`` per distinct module.
+
+    rc473 (`#T1188`): this returned ``{}`` on a git it could not run, which
+    makes clause 1 (``blobs[dm] != db``) VACUOUS for every row — ``dm in
+    blobs`` is false throughout — so the hook reported no content staleness
+    for a reason that had nothing to do with content. It refuses now, exactly
+    as ``tools/run_worked_examples.py``'s ``head_blob_map`` already did for
+    the same ``ls-tree`` on the same condition.
     """
-    code, out = H.git(["ls-tree", "-r", "HEAD", "--", WATCHED], cwd=root)
-    if code != 0:
-        return {}
+    out = H._git_or_refuse(
+        ["ls-tree", "-r", "HEAD", "--", WATCHED], root,
+        "Clause 1 compares each row's def_blob against this map; an empty map "
+        "makes that comparison vacuous for every row, which reads as 'nothing "
+        "moved'.")
     blobs: Dict[str, str] = {}
     for line in out.splitlines():
         if "\t" not in line:
@@ -278,8 +297,16 @@ def body(payload: Dict[str, Any]) -> int:
     if not ledger.is_file():
         return H.allow()
 
-    code, out = H.git(["log", "-1", "--format=%H", "--", LEDGER_REL], cwd=root)
-    base = out.strip().splitlines()[-1].strip() if (code == 0 and out.strip()) else ""
+    # rc473 (`#T1188`): the two reasons this can be empty are NOT the same
+    # reason, and they used to be spelled the same way. `git log` EXITING
+    # NON-ZERO means the instrument could not answer; `git log` succeeding with
+    # no output means the ledger has never been committed, which genuinely is
+    # "nothing to compare against". Only the second may allow.
+    out = H._git_or_refuse(
+        ["log", "-1", "--format=%H", "--", LEDGER_REL], root,
+        "An unreadable log is not the same fact as an uncommitted ledger, and "
+        "allowing on both makes the hook silent exactly when it cannot see.")
+    base = out.strip().splitlines()[-1].strip() if out.strip() else ""
     if not base:
         return H.allow()          # never committed: nothing to compare against
 

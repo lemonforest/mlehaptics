@@ -1,0 +1,84 @@
+{"expected_abi": 25, "has_native": true, "impl": "CPython", "kind": "conditions", "lib": "/mnt/d/GitHub/mlehaptics/.claude/worktrees/wf_9fa19a06-4e3-1/docs/srmech/python/srmech/_native/libsrmech.so", "native_abi": 25, "numpy_present": false, "python": "3.12.3", "uname": "Linux lemonade 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64 x86_64"}
+{"call": "srmech_equation_of_centre(2.0**53+1, 0.0549, 4)", "kind": "c", "status": 0, "value": "-0.08984990210223018"}
+{"call": "srmech_pin_slot(2**55, 0.5, 1.0)", "kind": "c", "status": 0, "value": "0.0"}
+{"E_equals_M": true, "call": "srmech_kepler_solve(2**55, 0.3, 1e-12, 20)", "kind": "c", "status": 0, "value": "3.602879701896397e+16"}
+{"call": "srmech_sin(nan)", "kind": "c", "status": 0, "value": "nan"}
+{"call": "srmech_atan(nan)", "kind": "c", "status": 0, "value": "-3.2146018366025517"}
+{"call": "srmech_rational_sqrt(-4.0)", "kind": "c", "status": 2, "value": "0.0"}
+{"call": "srmech_atan(+inf)", "kind": "c", "status": 0, "value": "1.5707963267948966"}
+{"as_float": 1.5707963267948966, "call": "rational.atan(+inf)", "detail": "Q(3622009729038561421, 2305843009213693952)", "kind": "pure", "outcome": "returned"}
+{"call": "srmech_atan(-inf)", "kind": "c", "status": 0, "value": "-1.5707963267948966"}
+{"as_float": -1.5707963267948966, "call": "rational.atan(-inf)", "detail": "Q(-3622009729038561421, 2305843009213693952)", "kind": "pure", "outcome": "returned"}
+{"call": "srmech_atan2(+inf, 1.0)", "kind": "c", "status": 0, "value": "1.5707963267948966"}
+{"as_float": 1.5707963267948966, "call": "rational.atan2(+inf, 1.0)", "detail": "Q(3622009729038561421, 2305843009213693952)", "kind": "pure", "outcome": "returned"}
+{"call": "srmech_atan2(-inf, 1.0)", "kind": "c", "status": 0, "value": "-1.5707963267948966"}
+{"as_float": -1.5707963267948966, "call": "rational.atan2(-inf, 1.0)", "detail": "Q(-3622009729038561421, 2305843009213693952)", "kind": "pure", "outcome": "returned"}
+{"call": "srmech_atan2(1.0, +inf)", "kind": "c", "status": 0, "value": "0.0"}
+{"as_float": 0.0, "call": "rational.atan2(1.0, +inf)", "detail": "Q(0, 1)", "kind": "pure", "outcome": "returned"}
+{"call": "srmech_atan2(1.0, -inf)", "kind": "c", "status": 0, "value": "3.141592653589793"}
+{"as_float": 3.141592653589793, "call": "rational.atan2(1.0, -inf)", "detail": "Q(3622009729038561421, 1152921504606846976)", "kind": "pure", "outcome": "returned"}
+{"call": "srmech_atan2(+inf, +inf)", "kind": "c", "status": 0, "value": "-3.2146018366025517"}
+{"as_float": 0.7853981633974483, "call": "rational.atan2(+inf, +inf)", "detail": "Q(905502432259640355, 1152921504606846976)", "kind": "pure", "outcome": "returned"}
+{"call": "srmech_atan2(nan, 1.0)", "kind": "c", "status": 0, "value": "-3.2146018366025517"}
+{"as_float": null, "call": "rational.atan2(nan, 1.0)", "detail": "atan2: y or x is NaN (not a rational)", "kind": "pure", "outcome": "ValueError"}
+{"call": "srmech_sin(nan)", "kind": "c", "status": 0, "value": "nan"}
+{"call": "srmech_sin(+inf)", "kind": "c", "status": 2, "value": "nan"}
+{"call": "srmech_sin(-inf)", "kind": "c", "status": 2, "value": "nan"}
+{"call": "srmech_sin(2**55)", "kind": "c", "status": 2, "value": "0.0"}
+{"call": "srmech_sin(2**55-1ulp)", "kind": "c", "status": 0, "value": "0.05581618041342654"}
+{"call": "srmech_cos(nan)", "kind": "c", "status": 0, "value": "nan"}
+{"call": "srmech_cos(+inf)", "kind": "c", "status": 2, "value": "nan"}
+{"call": "srmech_cos(-inf)", "kind": "c", "status": 2, "value": "nan"}
+{"call": "srmech_cos(2**55)", "kind": "c", "status": 2, "value": "0.0"}
+{"call": "srmech_cos(2**55-1ulp)", "kind": "c", "status": 0, "value": "0.9984410618579626"}
+{"call": "srmech_atan(nan)", "kind": "c", "status": 0, "value": "-3.2146018366025517"}
+{"call": "srmech_atan(+inf)", "kind": "c", "status": 0, "value": "1.5707963267948966"}
+{"call": "srmech_atan(-inf)", "kind": "c", "status": 0, "value": "-1.5707963267948966"}
+{"call": "srmech_atan(2**55)", "kind": "c", "status": 0, "value": "1.5707963267948966"}
+{"call": "srmech_atan(2**55-1ulp)", "kind": "c", "status": 0, "value": "1.5707963267948966"}
+{"call": "srmech_exp(nan)", "kind": "c", "status": 0, "value": "nan"}
+{"call": "srmech_exp(+inf)", "kind": "c", "status": 0, "value": "inf"}
+{"call": "srmech_exp(-inf)", "kind": "c", "status": 0, "value": "0.0"}
+{"call": "srmech_exp(2**55)", "kind": "c", "status": 0, "value": "inf"}
+{"call": "srmech_exp(2**55-1ulp)", "kind": "c", "status": 0, "value": "inf"}
+{"call": "srmech_log(nan)", "kind": "c", "status": 0, "value": "nan"}
+{"call": "srmech_log(+inf)", "kind": "c", "status": 0, "value": "inf"}
+{"call": "srmech_log(-inf)", "kind": "c", "status": 2, "value": "nan"}
+{"call": "srmech_log(2**55)", "kind": "c", "status": 0, "value": "38.123094930796995"}
+{"call": "srmech_log(2**55-1ulp)", "kind": "c", "status": 0, "value": "38.123094930796995"}
+{"call": "srmech_rational_sqrt(nan)", "kind": "c", "status": 0, "value": "nan"}
+{"call": "srmech_rational_sqrt(+inf)", "kind": "c", "status": 0, "value": "inf"}
+{"call": "srmech_rational_sqrt(-inf)", "kind": "c", "status": 2, "value": "nan"}
+{"call": "srmech_rational_sqrt(2**55)", "kind": "c", "status": 0, "value": "189812531.2485031"}
+{"call": "srmech_rational_sqrt(2**55-1ulp)", "kind": "c", "status": 0, "value": "189812531.2485031"}
+{"call": "srmech_sin_q61(nan)", "kind": "c", "status": 2, "value": "-12345"}
+{"call": "srmech_atan_q61(nan)", "kind": "c", "status": 2, "value": "-12345"}
+{"call": "srmech_elementwise_transcendental([nan], EXP)", "kind": "c", "status": 0, "value": "nan"}
+{"call": "srmech_elementwise_transcendental([+inf], EXP)", "kind": "c", "status": 0, "value": "inf"}
+{"call": "srmech_elementwise_transcendental([2**55], EXP)", "kind": "c", "status": 0, "value": "inf"}
+{"call": "srmech_elementwise_transcendental([nan], COS)", "kind": "c", "status": 0, "value": "nan"}
+{"call": "srmech_elementwise_transcendental([+inf], COS)", "kind": "c", "status": 0, "value": "nan"}
+{"call": "srmech_elementwise_transcendental([2**55], COS)", "kind": "c", "status": 0, "value": "0.0"}
+{"call": "srmech_elementwise_transcendental([nan], SIN)", "kind": "c", "status": 0, "value": "nan"}
+{"call": "srmech_elementwise_transcendental([+inf], SIN)", "kind": "c", "status": 0, "value": "nan"}
+{"call": "srmech_elementwise_transcendental([2**55], SIN)", "kind": "c", "status": 0, "value": "0.0"}
+{"call": "srmech_elementwise_transcendental([nan], LOG)", "kind": "c", "status": 0, "value": "nan"}
+{"call": "srmech_elementwise_transcendental([+inf], LOG)", "kind": "c", "status": 0, "value": "inf"}
+{"call": "srmech_elementwise_transcendental([2**55], LOG)", "kind": "c", "status": 0, "value": "38.123094930796995"}
+{"call": "srmech_cascade_kuramoto_step_f64([0.0, 2**55], [0,0], n=2, K=1, dt=0.1)", "kind": "c", "status": 0, "value": "[0.0, 3.602879701896397e+16]"}
+{"call": "srmech_cascade_kuramoto_step_general_f64([0.0, 2**55], alpha=0.1)", "kind": "c", "status": 0, "value": "[-0.004991670832341408, 3.602879701896397e+16]"}
+{"call": "srmech_cascade_kuramoto_step_f64([0.0, nan], [0,0], n=2, K=1, dt=0.1)", "kind": "c", "status": 0, "value": "[nan, nan]"}
+{"call": "srmech_cascade_kuramoto_step_general_f64([0.0, nan], alpha=0.1)", "kind": "c", "status": 0, "value": "[nan, nan]"}
+{"call": "srmech_cascade_kuramoto_step_f64([0.0, +inf], [0,0], n=2, K=1, dt=0.1)", "kind": "c", "status": 0, "value": "[nan, nan]"}
+{"call": "srmech_cascade_kuramoto_step_general_f64([0.0, +inf], alpha=0.1)", "kind": "c", "status": 0, "value": "[nan, nan]"}
+{"call": "rational.sin(nan)", "detail": "sin: x must be finite (Q is the finite-rational carrier)", "kind": "pure", "outcome": "ValueError"}
+{"call": "rational.cos(nan)", "detail": "cos: x must be finite (Q is the finite-rational carrier)", "kind": "pure", "outcome": "ValueError"}
+{"call": "rational.atan(nan)", "detail": "atan: x is NaN (not a rational)", "kind": "pure", "outcome": "ValueError"}
+{"call": "rational.exp(nan)", "detail": "exp: x must be finite (Q is the finite-rational carrier)", "kind": "pure", "outcome": "ValueError"}
+{"call": "rational.log(nan)", "detail": "log: x must be finite (Q is the finite-rational carrier)", "kind": "pure", "outcome": "ValueError"}
+{"call": "rational.sqrt(-4.0)", "detail": "sqrt domain error: x must be >= 0; got -4.0", "kind": "pure", "outcome": "ValueError"}
+{"call": "rational.sqrt(+inf)", "detail": "sqrt: x must be finite (Q is the finite-rational carrier)", "kind": "pure", "outcome": "ValueError"}
+{"call": "rational.exp(+inf)", "detail": "exp: x must be finite (Q is the finite-rational carrier)", "kind": "pure", "outcome": "ValueError"}
+{"call": "rational.log(+inf)", "detail": "log: x must be finite (Q is the finite-rational carrier)", "kind": "pure", "outcome": "ValueError"}
+{"call": "rational.sin(2**55)", "detail": "sin: |x| too large for the Q61 octant reduction; got 3.602879701896397e+16", "kind": "pure", "outcome": "ValueError"}
+{"call": "rational.cos(2**55)", "detail": "cos: |x| too large for the Q61 octant reduction; got 3.602879701896397e+16", "kind": "pure", "outcome": "ValueError"}

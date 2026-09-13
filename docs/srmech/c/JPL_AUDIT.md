@@ -50,7 +50,7 @@ DOWN but not UP.
 |   4  | Functions ≤ 60 lines                              | 0        | ✅ pass *(was 1; fixed in this ship by extracting `srmech_ndjson_process_chunk`)* |
 |   5  | ≥ 2 assertions per non-trivial function           | 0        | ✅ pass *(trivial accessors exempt per documented rationale; inline arithmetic helpers exempt)* |
 |   6  | Smallest possible scope for data                  | 0        | ✅ pass |
-|   7  | Return values checked / parameters validated      | 0        | ✅ pass |
+|   7  | Return values checked / parameters validated      | on-roster **0** (was **24** at rc472); residual **src 18 · test 118** under a down-only ratchet; parameter-validation **unmeasured** | ⚠️ **partial** — the return-value half is measured, compiler-enforced for 29 declarations, and since the rc473 pre-publish pass carries a `RULE_7` ratchet in `test_jpl_audit.py` (strict zero on the roster, two down-only ceilings); the parameter-validation half still has no instrument (see Rule 7 below) |
 |   8  | Limited preprocessor (no multiline macros)        | 0        | ✅ pass |
 |   9  | Pointer dereference depth ≤ 1; no function ptrs* | deref 0; **fn-ptr 10** | ⚠️ **partial** — deref depth clean; 10 function-pointer declarator sites under a seeded down-only ratchet (rc452; see Rule 9 below) |
 |  10  | Compile clean at most-pedantic warning level      | 0        | ✅ pass (`SRMECH_PEDANTIC=ON` CMake + CI matrix) |
@@ -59,14 +59,35 @@ DOWN but not UP.
 deliberate deviation" this line used to claim was false long before that —
 see the measured census in the Rule 9 section below.
 
-**Headline (corrected at v0.9.0rc441 `#T1148`, and again at rc452):** Eight of
-the ten rules are clean. **Rule 1 is PARTIAL** — the goto/setjmp/longjmp half
-is clean, the recursion half carries a measured population of 9 depth-bounded
-cycles under a down-only ratchet. **Rule 9 is PARTIAL** — the
-dereference-depth half is clean, the function-pointer half carries a measured
-population of 10 declarator sites under a seeded down-only ratchet (this
-document said "one deliberate deviation" while the tree carried 12; rc452
-measured it, drained 4, and gated the rest).
+**Headline (corrected at v0.9.0rc441 `#T1148`, again at rc452, and again at
+rc473 `#T1188`):** **Seven** of the ten rules are clean. **Rule 1 is PARTIAL** —
+the goto/setjmp/longjmp half is clean, the recursion half carries a measured
+population of 9 depth-bounded cycles under a down-only ratchet. **Rule 9 is
+PARTIAL** — the dereference-depth half is clean, the function-pointer half
+carries a measured population of 10 declarator sites under a seeded down-only
+ratchet (this document said "one deliberate deviation" while the tree carried
+12; rc452 measured it, drained 4, and gated the rest). **Rule 7 is PARTIAL** —
+see the third paragraph below; it read "Violations: 0 / Pass" from this
+document's first commit through rc472 while 24 discarded statuses were live in
+`c/src`, and the reason it survived is that `test_jpl_audit.py` had **no Rule-7
+detector of any kind**. *(That last clause was true through the whole life of
+this document and until the rc473 pre-publish pass, which shipped one: the
+ratchet is described at the end of the Rule 7 section. The rule stays PARTIAL
+because the parameter-validation half remains unmeasured and the return-value
+half now carries a measured residual of 18 + 118 under down-only ceilings —
+"has a detector" and "is clean" are different claims, and conflating them is
+how the sentence this paragraph corrects was written in the first place.)*
+
+rc473 (`#T1188`) is the third instance of the same shape and the plainest
+one yet: **a rule with no detector recorded as passing.** The Rule-7 row above
+read `0 / ✅ pass`, and the Rule-7 section's evidence was a four-function table
+(`srmech_sha256_hex`, `srmech_ndjson_iter`, `srmech_version`,
+`srmech_abi_version`) in a library of thousands of functions. Meanwhile **24
+call sites across 7 translation units** spelled `(void)srmech_sin(...)` and
+kin, discarding a `srmech_status_t` a callee had already set to
+`SRMECH_ERR_BAD_INPUT`. Measured this time by a compiler rather than a regex,
+and the compiler is the reason the population is trustworthy — see the Rule 7
+section.
 
 This headline read *"All ten JPL Power-of-Ten rules satisfied"* through rc440.
 It was **not** true, and the reason it survived is worth recording: the Rule 1
@@ -520,7 +541,312 @@ Manual review of every variable declaration:
 
 > *"The return value of non-void functions must be checked by each calling function, and the validity of parameters must be checked inside each function."*
 
-### Violations: 0
+### ⚠️ PARTIAL — return-value half measured **24 → 0** at rc473; parameter-validation half **UNMEASURED**; **NO DETECTOR IN THE RATCHET**
+
+**What this section said, and for how long.** It said *"Violations: 0"* and
+*"✅ Pass"* from this document's first commit through **v0.9.0rc472**, on the
+evidence of the four-function table below. `srmech_kepler.c`'s own header block
+said the same thing in its own words — *"Rule 7 (return-value): OK —
+srmech_status_t throughout"* — in a file carrying **seven** discards. Rule 7 is
+about **checking** a returned value; "srmech_status_t throughout" answers a
+different question, which is how one sentence could be written in good faith
+and be false.
+
+**The measured population, and the instrument.** At rc472, **24** call sites
+across **7** translation units (`srmech_kepler.c`, `srmech_laplacian.c`,
+`srmech_kuramoto.c`, `srmech_trig.c`, `srmech_jade.c`, `srmech_eigvals.c`,
+`srmech_svd_qr.c`) discarded a `srmech_status_t` returned by one of seven
+Class-N double callees — `srmech_sin`, `srmech_cos`, `srmech_atan`,
+`srmech_atan2`, `srmech_exp`, `srmech_log`, `srmech_rational_sqrt`. The
+instrument was **the compiler, not a grep**: `SRMECH_NODISCARD`
+(`__attribute__((warn_unused_result))` on gcc/clang) was planted on those seven
+declarations in a scratch copy of `c/include` and `c/src` compiled against it
+unmodified, yielding **exactly 24** `-Wunused-result` diagnostics at 24 distinct
+`file:line`, with 0 other diagnostics and the repository untouched.
+
+⚠️ **The grep that scoped this work was wrong twice, in both directions, and
+both misses are the reason the compiler is the oracle here.** It first spelled
+the symbol `srmech_sqrt` where the exported name is `srmech_rational_sqrt`,
+which hid `srmech_eigvals.c` and `srmech_svd_qr.c` **entirely** — 6 of the 24
+sites, so the count history ran 14 → 12 → 15 → 18 before the compiler said 24.
+Second, run UNMASKED over `c/test/`, the same pattern later reported one site
+that is the bad spelling quoted inside a block comment. A census of code that
+counts prose and a census that cannot spell its own symbol fail the same way:
+they report a number.
+
+**State at rc473, this tree, masked scan** (`notes/_rc473_rule7_census.py`,
+which blanks comments and string/char literals before matching):
+
+| Population | Predicate | Count |
+| --- | --- | ---: |
+| Discards of the seven Class-N callees | `(void)NAME(` over `c/src`, `c/test`, `c/tools` — **179** `.c` files | **0** *(was 24)* |
+| `SRMECH_NODISCARD`-tagged declarations | `^SRMECH_NODISCARD srmech_status_t NAME(` in `c/include/srmech.h` | **29** *(14 at the first rc473 pass; +3 in the repair pass; +12 at the pre-publish pass)* |
+| Every other `(void)srmech_*(` discard | same masked scan, 17 distinct symbols | **51** |
+
+The tagged declarations are the seven that were violated plus TEN clean
+peers of the same family — `srmech_sin_q61`, `srmech_cos_q61`,
+`srmech_atan_q61`, `srmech_winding_fold`, `srmech_hypercomplex_exp_q61`,
+`srmech_hypercomplex_couple_q61`, `srmech_hypercomplex_couple_turn_q61`,
+and — added in the rc473 repair pass — `srmech_exp_q61`,
+`srmech_log_q61`, `srmech_sqrt_q61` — so the family is closed rather than
+the seven that happened to be caught.
+
+⚠️ **The pre-publish pass added TWELVE more and retired the "family" framing,
+because that framing was carrying a false sentence.** `c/include/srmech.h`
+shipped a paragraph LABELLED MEASURED asserting the tagged set and the Class-N
+transcendental status-returning family were "EQUAL at 17 — 0 family members
+untagged, 0 tagged names outside the family". Re-measured with the predicate
+written down and runnable (`notes/_rc473_a3b_nodiscard_family.py`: a
+status-returning export whose name carries a Class-N transcendental or root
+stem as an underscore-delimited token, over the MASKED header): the equality
+was false BOTH ways — **16** same-stem status exports untagged and **3** tagged
+names carrying no such stem. Eleven of the 16 are now tagged, plus
+`srmech_winding_tower` (peer of the already-tagged `srmech_winding_fold`):
+the six `*_series_truncate*` primitives `CLAUDE.md` §2 names as THE Class-N
+asymptotic-calculus surface, `srmech_quaternion_exp` / `srmech_quaternion_log`
+/ `srmech_octonion_exp`, and `srmech_isqrt` / `srmech_bigint_isqrt`. The other
+**five** are `pow`/`root` LEXICAL hits — `srmech_mod_pow`,
+`srmech_bigint_pow_u32`, `srmech_rational_pow_uint`,
+`srmech_rational_pow_uint_big`, `srmech_poly_root_box_certify` — modular and
+integer exponentiation and a polynomial-root *certifier*, none of them a
+transcendental or a root EXTRACTION; they stay out with those reasons recorded
+beside the predicate. So the roster now states a **coverage fraction, 29 of the
+512 status-returning exports**, and not an equality: there is no
+machine-derivable predicate on this tree that reproduces "the Class-N
+transcendental family" — the other candidate, `_SCALAR_DECL` in
+`python/tests/test_value_status_c_boundary_rc473.py`, returns **8** against a
+17-name roster. Cost of the twelve, measured by compiling: exactly **one** new
+build error, `c/test/test_srmech_bigint.c:278` bare-discarding
+`srmech_bigint_isqrt`, repaired with the `check_status(...)` row that file
+already uses everywhere else. Attribute-only, so **ABI stays 26**.
+
+A discard of any of the twenty-nine is a **build failure** under `-Werror`
+when the discard is a BARE statement and the cell is not `_MSC_VER`-defining
+(gcc 13.3.0 and clang 22.1.0, both measured); for the `(void)`-cast form it is
+a build failure on **gcc alone**, and under `_MSC_VER` — cl, and any clang
+targeting MSVC — the macro is empty and neither form is diagnosed. CI's
+macos-14 Apple clang and windows-latest cl remain UNMEASURED.
+
+⚠️ **The first rc473 pass stopped at 14, and the three it left out cost
+something measurable.** `srmech_exp_q61` / `srmech_log_q61` /
+`srmech_sqrt_q61` were untagged while their siblings `srmech_sin_q61` /
+`cos_q61` / `atan_q61` were tagged, because the scoping predicate was the
+scalar `(double, double*)` shape and these take a third out-parameter. A
+shape is not a reason. Of the SEVEN discarded statuses found in
+`c/test/test_srmech_trans_q61.c` — the "site 25" this rc turned up — the
+attribute raised exactly **three**, the tagged trio, and the other **four**
+were found and fixed by hand. Tagging the three costs nothing (they already
+return a status, Rule 8 stays clean, and the pedantic build is still 0
+warnings / 0 errors because those four sites were already repaired), and it
+turns the residual from an unknown into a number. Measured on gcc 13.3: an explicit
+`(void)` cast does **not** silence the attribute, so the idiom that produced
+all 24 sites is unwritable there.
+
+⚠️ **AND ONLY THERE — the cast form is refused on gcc ALONE.** Re-measured at
+the rc473 pre-publish pass, one form per translation unit, the attribute
+applied directly rather than through the macro, compiled to an OBJECT (`-c`)
+under `-std=c11 -Wall -Wextra -Wunused-result -Werror`:
+
+| form | gcc 13.3.0 | clang 22.1.0 | cl 19.31.31104 `/W4 /WX` | cl + SAL `/analyze` |
+| --- | --- | --- | --- | --- |
+| `(void)srmech_sin(1.0, &o);` — the form all 24 sites used | **error** | **SILENT, exit 0** | silent | **silent** (the cast suppresses it) |
+| `srmech_sin(1.0, &o);` bare | **error** | **error** | silent | warns **C6031** |
+| no attribute (control) | exit 0 | exit 0 | — | — |
+
+clang reads an explicit cast as an acknowledgement where gcc deliberately does
+not — same result with the attribute applied directly (default target and
+`--target=x86_64-pc-linux-gnu`) and through the REAL shipped header under
+`-U_MSC_VER`.
+
+⚠️ **THE DISCRIMINATOR IS `_MSC_VER`, NOT THE COMPILER'S NAME.** A clang
+targeting MSVC — Windows clang, and clang-cl — defines `_MSC_VER`, so
+`srmech.h`'s `#if defined(_MSC_VER)` arm (deliberately first) hands it the
+EMPTY macro and it diagnoses NEITHER form. Measured with the preprocessor:
+`clang -E` over a TU including `srmech.h` prints ` int probe(void);` on the
+default Windows target and
+`__attribute__((warn_unused_result)) int probe(void);` under `-U_MSC_VER`. So
+"clang" in the table above means a clang for which `_MSC_VER` is undefined —
+the macos-14 cell, and any Linux clang. Nothing in this document had said so.
+
+A masked scan of `b398b8c46` puts all **24** repaired `c/src` sites in the cast
+form (24 cast / 0 bare) and all **7** of the "site 25" discards in
+`c/test/test_srmech_trans_q61.c` in the bare form (7 bare / 0 cast), so the two
+forms are refused by one compiler family and by two respectively. The source
+ratchet is therefore the PRIMARY detector for the form this rule's own
+24 actually had, not a backstop — and the two detectors are worth keeping
+together because a bare call is the one gcc AND clang both refuse.
+
+> ⚠️ **That sentence read "The *unshipped* source ratchet" until the A6 repair
+> pass.** It was written at A2 and falsified at A4 — in this same rc, three
+> commits later — by the section **THE RULE-7 DETECTOR** below, which says in
+> this same document that it **is shipped now**. A document contradicting
+> itself about whether its own Rule-7 detector exists is the defect this whole
+> rc is about, so the word is removed here rather than reconciled in a note
+> somewhere else. The dated per-rc records further down that describe an
+> earlier state are NOT swept: they are correct accounts of when they were
+> written.
+
+`[[nodiscard]]`, the only standard spelling, is unavailable: `error C2059:
+syntax error: '['` under `/std:c11` and `/std:c17`, and `/std:clatest` is
+`D9002 ignoring unknown option` and falls back to the same error. The library
+builds `-std=c11` (`CMAKE_C_STANDARD 11` with `CMAKE_C_STANDARD_REQUIRED ON`),
+so C23 is unavailable by construction, and `SRMECH_PEDANTIC` gives MSVC
+`/WX /w44062` and not `/analyze`.
+
+⚠️ **Caveat on the instrument, measured rather than quoted.** Under
+`-fsyntax-only` gcc exits 0 on BOTH forms — its `-Wunused-result` fires in the
+middle end — so a syntax-only probe reports this whole matrix as a null. The
+run above emits an object. **UNMEASURED:** CI's macOS Apple clang and Windows
+cl. The figures are LLVM clang 22.1.0 and cl 19.31.31104 x64 on a developer
+machine, so "gcc alone" is measured across compiler FAMILIES and inferred for
+those two CI cells.
+
+**Generator:** `notes/_rc473_a2_nodiscard_form_matrix.py`, output at
+`notes/_rc473_a2_nodiscard_form_matrix.ndjson` (66 rows). It takes two hosts —
+gcc on the WSL2 side of this machine, clang on the Windows side — so a run
+MERGES by host rather than overwriting, and a compiler it cannot reach is
+recorded as `unreachable` BY NAME rather than dropped. The MSVC rows are
+transcribed, not auto-run, because cl needs a vcvars environment; each carries
+its spelling, flags, form and verbatim diagnostic.
+
+⚠️ **THE MSVC CELL IS NOT COVERED.** `warn_unused_result` is a gcc/clang
+attribute; `SRMECH_NODISCARD` expands empty under `_MSC_VER`, so the Windows
+pedantic leg enforces nothing here. C has no portable pre-C23 equivalent
+(`_Check_return_` requires `/analyze`). The guard is therefore one-sided by
+construction, and this is exactly why the row above is PARTIAL rather than
+pass.
+
+**The 51 residual discards**, by symbol, all outside the Class-N family:
+`srmech_plat_mutex_unlock` 11, `srmech_plat_thread_join` 7,
+`srmech_plat_mutex_destroy` 6, `srmech_plat_stream_conn_close` 5,
+`srmech_plat_now_ns` 4, `srmech_bus_client_close` 3,
+`srmech_plat_stdout_write` / `srmech_plat_tcp_conn_close` /
+`srmech_plat_tcp_server_close` / `srmech_plat_tcp_write_all` 2 each, and one
+each of `srmech_plat__ensure_dir`, `srmech_plat_sleep_ms`,
+`srmech_plat_stream_server_close`, `srmech_cascade_chiral_flip_f64`,
+`srmech_cascade_reorient_f64`, `srmech_class_descriptor_lookup`,
+`srmech_genome_centromere_of`. **44 of the 51, over 12 of the 17 symbols, are
+`srmech_plat_*`** — the platform layer: mutex unlock and destroy, thread join,
+socket and stream close, clock reads, sleep, and four writes — mostly on
+teardown paths where there is no action to take on failure, the class
+Holzmann's own commentary blesses. The remaining **7**, over 5 symbols, are
+not: `srmech_bus_client_close` (3) and one each of
+`srmech_cascade_chiral_flip_f64`, `srmech_cascade_reorient_f64`,
+`srmech_class_descriptor_lookup`, `srmech_genome_centromere_of`. That is a
+**statement of shape, not an audit**: they are enumerated here so that the next
+person to measure this rule starts from a list rather than from a sentence, and
+the last four in particular are ordinary library calls that have not been
+walked.
+
+⚠️ **This paragraph read "41 of the 51" when it was first written at rc473, in
+the same session that produced the census.** The enumeration above it was
+right; the cardinal summarising it was arithmetic done in prose rather than
+read off the measurement — 1+6+11+4+1+2+5+1+2+2+2+7 is 44. Corrected within the
+rc, and recorded rather than silently replaced, because a wrong summary sitting
+over a correct list is exactly how the "Violations: 0" line above survived.
+
+### THE RULE-7 DETECTOR — absent for this document's whole life, shipped at the rc473 pre-publish pass
+
+⚠️ **What this heading said until then, kept because it is the record:**
+*"THERE IS NO RULE-7 DETECTOR. `python/tests/test_jpl_audit.py` contains the
+string `RULE_7` **zero** times and defines **zero** tests naming Rule 7; its
+test functions cover Rules 1, 3, 4, 5, 8 and 9 only. So the return-value count
+above is a measurement, not a ratchet: nothing in the pytest suite refuses a
+25th site."* Every clause of that was true when written, and the rc473 entry
+named the detector as owed **twice** without shipping it.
+
+**It is shipped now.** `python/tests/test_jpl_audit.py` carries four
+`test_rule_7_*` functions — the suite goes **13 → 17 passed** — over a
+predicate written out in the file rather than inferred, because an unstated
+predicate is why this population had several honest cardinals at once:
+
+| element | what it pins | seeded at |
+| --- | --- | ---: |
+| `RULE_7_NODISCARD_ROSTER` | the tagged export names, **two-way** against a live masked scan of `srmech.h` | **29** |
+| strict zero | a discard of ANY roster callee, in `c/src` **and** `c/test` | **0** |
+| `CEIL_RULE_7_SRC` | the `c/src` residual, down-only, `==` not `<=` | **18** (16 cast + 2 bare) |
+| `CEIL_RULE_7_TEST` | the `c/test` residual, down-only, behind its own skip | **118** (6 cast + 112 bare) |
+| `RULE_7_VACUITY_SEEDS` | what the scan must SEE or it is not looking | `genome_hex` ×2 bare · `srmech_bus_client_close` ×3 cast |
+
+**The predicate.** A callee is a function returning `srmech_status_t` — an
+export declared at line start in the masked `c/include/srmech.h` (512 of them)
+or a `static srmech_status_t` defined in the translation unit being scanned. A
+discard is either `(void)NAME(` **anywhere** on a masked line (line-start
+anchoring finds 22 of the 24 rc473 repaired; two sat mid-line inside an `if`
+body) or `NAME(` as the first token on a line whose predecessor does not end in
+a continuation character or the word `return`.
+
+**Which clauses are load-bearing was measured, one at a time, on this tree and
+on `b398b8c46`** (`notes/_rc473_a4_rule7_ratchet.py`, `predicate_sensitivity`
+rows): the continuation clause **is** — removing it takes `c/src` 18 → 24 here
+and 42 → 47 on main, and **every added row is a CHECKED call**, which is the
+property the clause exists to preserve. Three candidate refinements move
+**no row on either tree** and are therefore NOT shipped or are shipped as
+stated judgements rather than measurements: treating a trailing `else` as a
+continuation, dropping `return` from that set, and adding a
+skip-definition-heads clause. A clause that cannot fire is a dead
+instrumentation seam.
+
+> ⚠️ **The sentence above ended *"the extra rows all being a wrapped `st =`
+> continuation onto `jade_pair(`"* until the A6 repair pass, and that
+> characterisation is MEASURED FALSE. The two cardinals reproduce exactly; the
+> description of the rows does not.** Enumerated by importing the SHIPPED
+> predicate out of `python/tests/test_jpl_audit.py` and re-running it with the
+> clause removed: on this tree the clause suppresses **6** rows and exactly
+> **ONE** is `jade_pair`; on `b398b8c46` it suppresses **5** and **NONE** is —
+> impossible by construction, because `jade_pair` is declared `static void`
+> there and cannot enter the callee population at all; rc473 itself changed it
+> to `static srmech_status_t`. Four of the six follow `!= SRMECH_OK ||` inside
+> a multi-line condition (`genome_file_size` ×2, `inf_fill_bigint`,
+> `inf_read_poly`) rather than an `st =`. The `predicate_sensitivity` rows
+> carried the cardinals only, with no callee breakdown, so the sentence had
+> nothing runnable to be checked against — which is how a figure that reads as
+> measured ships without being one.
+
+**Proven to fire, not assumed to** (same generator, `mutation` rows — three
+plants into a scratch copy of `c/src/srmech_kepler.c`, the real tree asserted
+byte-identical afterwards):
+
+| planted at `srmech_kepler.c:275` | found | trips strict zero | trips the ceiling |
+| --- | :-: | :-: | :-: |
+| `if (e > 0.0) { (void)srmech_rational_sqrt(e, &sin_h); }` | ✅ | ✅ | ✅ 18 → 19 |
+| `srmech_sin(1.0, &sin_h);` | ✅ | ✅ | ✅ 18 → 19 |
+| `if (e > 0.0) { } srmech_cos(1.0, &sin_h);` | ❌ | — | — |
+
+**The third row is the predicate's blind spot, recorded by the instrument that
+has it.** A call that is the second statement on one line is not found. That
+form is a BARE discard, which gcc **and** clang both refuse outright for a
+tagged callee — while the compiler guard's blind spot is the `(void)` cast,
+refused on gcc alone and on nothing at all under `_MSC_VER`. The two detectors'
+blind spots are **complementary**, which is why the source ratchet is the
+primary detector for the form the defect actually had rather than a backstop,
+and why both ship.
+
+**Strict zero is not a gate nobody has watched return otherwise.** Applying
+this roster to `b398b8c46` — the commit rc473 branched from — finds **32** rows
+(24 in `c/src`, 8 in `c/test`), so the clause reads **32 → 0** across the
+repair. Measured, not argued: the same generator's `strict_zero_non_vacuity`
+row, with the baseline tree it read written into the row.
+
+⚠️ **The `c/test` ceiling carries its own skip, and the reason is a
+shipped-artifact defect rather than a CI one.** `python/pyproject.toml`'s
+`sdist.include` ships `tests/**`, `../c/src/**` and `../c/include/**` and
+**not** `../c/test/**`, while the module-level `pytestmark` guards only
+`c/src`. Without a `_C_TEST_DIR.exists()` skip the `==` assertion would go red
+in an sdist-installed cell — and **no CI job installs from an sdist**, so
+nothing would have caught it. Worse than a CI red, not better.
+
+**What the ratchet does NOT reach, named.** Its callee population is the public
+header plus the scanned TU's own statics, so a status-returning helper declared
+in a private `c/src/*.h` and called from another TU is outside it:
+`srmech_platform.h` carries **38** such declarations and **44** of the 51
+residual `(void)srmech_*(` discards enumerated above are `srmech_plat_*`. They
+are enumerated in this document by symbol and count and are mostly teardown
+paths; widening the population to `c/src/*.h` is this ratchet's next drain and
+was deliberately kept out of the change that first ships it. The one
+`srmech_plat_*` row the ceilings do hold is `srmech_plat__ensure_dir`, a
+file-local static. And Rule 7's **parameter-validation half is still
+unmeasured** — nothing below this line changes that.
 
 Parameter validation at every public entry point:
 
@@ -544,7 +870,19 @@ Return-value checks at every internal-callsite:
 - `memcpy` / `memset` returns ignored per standard-library
   convention.
 
-✅ **Pass.**
+⚠️ **The four-function table above is the ENTIRE parameter-validation evidence
+this document has ever carried**, and it names two functions that take no
+parameters. It is kept verbatim because it is the record of what was claimed,
+not because it is a census. The parameter-validation half of Rule 7 remains
+**unmeasured**.
+
+⚠️ **Partial** — return-value half: **0** on the 29-name roster, with a
+measured residual of **18** (`c/src`) + **118** (`c/test`) under down-only
+ceilings; compiler-enforced for those 29 on gcc and clang for a bare-statement
+discard and on **gcc alone** for the `(void)`-cast form the 24 sites used
+(measured, matrix above); the `RULE_7` ratchet ships in
+`python/tests/test_jpl_audit.py` as of the rc473 pre-publish pass;
+parameter-validation half **unmeasured**.
 
 ---
 
@@ -830,10 +1168,18 @@ the toolchain-level Rule-10 ratchet.
   only). No new mechanical violations; ratchet stays at 0.
 
 Both `srmech_parallel.c` (rc6) and `srmech_kuramoto.c` (rc9 + rc14) pass the
-`tests/test_jpl_audit.py` mechanical ratchet (Rules 1 / 3 / 4 / 5 / 8)
+`tests/test_jpl_audit.py` mechanical ratchet (Rules 1 / 3 / 4 / 5 / 8 **as of
+that rc; Rule 9 joined at rc452 and Rule 7 at rc473's pre-publish pass**)
 and the 3-cell pedantic `-Werror` / `-Wpedantic` build (Linux gcc /
 macOS clang / Windows MSVC), verified green in CI. `srmech_json.c` and
 `srmech_genome.c` are held to the same ratchet + pedantic build.
+
+*(The rule list above is a dated per-rc record and is left as one; the
+bracketed clause is a currency stamp rather than a rewrite. It is stamped
+because the paragraph immediately below re-uses "the same ratchet" as a LIVE
+statement of coverage, and because the monorepo-root `CLAUDE.md` line this
+mirrors was updated in this same branch — so without the stamp the two
+surfaces disagree. Named as not-done by the A4/A5 pass; done here.)*
 
 **`srmech_config.c` (rc161 — config-driven library limits) + the
 `srmech_platform.c` FILE surface** pass the same ratchet + pedantic

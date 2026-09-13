@@ -685,12 +685,17 @@ def test_native_status():
 
     # expected_abi is the compiled-against ABI (rc275: 6 — the §101 encode-progress /
     # graceful-abort callback typedef bumped it 5 → 6, #886; rc242 had bumped 4 → 5, #840).
-    # ⚠️ ABI-PIN: EXPECTED_ABI_VERSION == 25   (grep target — this is the
+    # ⚠️ ABI-PIN: EXPECTED_ABI_VERSION == 26   (grep target — this is the
     # SUBSCRIPT form, and test_bus.py's own note names it as the site the
     # rc452 `(NATIVE|EXPECTED)_ABI_VERSION == 22` sweep could not see. It was
     # invisible to rc455's sweep for the same reason and moved by hand.
     # rc455: 23 -> 24, the srmech_dsl_chain_run_arena_bytes writer-reserve move.
-    assert status["expected_abi"] == 25
+    # rc464: 24 -> 25, the three sedenion-register symbol REMOVALS.
+    # rc473 (`#T1188`): 25 -> 26, the Class-N refusal contract — 24 discarded
+    # statuses propagated and the scalar callees brought up to their own
+    # published domain, which is a status reinterpretation on the bare-C
+    # surface and therefore a wire change.
+    assert status["expected_abi"] == 26
 
     # Agrees with describe()['native'] on the shared fields (single source
     # of truth: both read srmech._native).

@@ -44,7 +44,54 @@
  *   - Rule 5 (≥2 asserts/fn)  : OK — entry-pointer assert +
  *                              precondition / post-condition invariant
  *                              (per [[feedback_jpl_rule_5_two_assert_habit]])
- *   - Rule 7 (return-value)   : OK — srmech_status_t throughout
+ *   - Rule 7 (return-value)   : OK as of 0.9.0rc473 — every srmech_status_t
+ *                              returned inside this file is captured and
+ *                              checked. It was VIOLATED through rc472 at
+ *                              SEVEN sites, and this line read "OK —
+ *                              srmech_status_t throughout" from the file's
+ *                              first commit to rc472; every one of those
+ *                              discards was already present. Rule 7 is about
+ *                              CHECKING a returned value, not about declaring
+ *                              a return type, and "srmech_status_t
+ *                              throughout" answers the second question while
+ *                              appearing to answer the first.
+ *
+ *                              It survived because Rule 7 HAD no detector in
+ *                              the pytest ratchet: tests/test_jpl_audit.py
+ *                              mechanically ratcheted Rules 1, 3, 4, 5, 8 and
+ *                              9, and carried no RULE_7 symbol at all, so
+ *                              this claim was never measured against
+ *                              anything. (The rc473 pre-publish pass shipped
+ *                              one — four test_rule_7_* functions, 13 passed
+ *                              -> 17 passed, and 32 RULE_7 occurrences in
+ *                              that file. Those three clauses stood in the
+ *                              PRESENT tense until the A6 repair pass; the
+ *                              CHANGELOG entry corrected its own paraphrase
+ *                              of this very sentence at A4 and left the
+ *                              source file it paraphrases untouched.)
+ *                              Measured at rc473 by planting
+ *                              warn_unused_result on the seven Class-N
+ *                              callees and compiling c/src unmodified: 24
+ *                              -Wunused-result diagnostics across 7 files,
+ *                              the same file:line set the
+ *                              `(void)srmech_<callee>(` grep finds, 0 other
+ *                              diagnostics. Seven of the 24 were here.
+ *
+ *                              What replaces the missing detector for this
+ *                              family is SRMECH_NODISCARD in srmech.h: the
+ *                              seven Class-N callees and their seven clean
+ *                              _q61 peers carry warn_unused_result, and on
+ *                              gcc neither a bare call nor an explicit
+ *                              (void) cast silences it, so re-introducing
+ *                              any of the 24 is a -Werror build failure
+ *                              rather than a quiet regression. That is a
+ *                              compile-time guard on this ONE family, not a
+ *                              Rule-7 detector over the whole library; the
+ *                              general ratchet is still owed.
+ *
+ *                              Corrected rather than deleted, per the
+ *                              in-place-correction precedent JPL_AUDIT.md
+ *                              sets for its own headline.
  *   - Rule 10 (warnings clean): OK
  *
  * License: MIT.
@@ -92,16 +139,51 @@ srmech_status_t srmech_pin_slot(double  theta,
     /* Class-N cascade trig (srmech_cos/sin/atan2), not libm — so the native
      * executable runs the same cascade as the Python source (rc43, C-transpile
      * triality coherence). */
+    /* Each cascade call's status is CAPTURED and CHECKED (rc473, `#T1188`).
+     * *out_phi was set to 0.0 above, so a refusal leaves a defined value that
+     * is not an answer, and the caller learns which it is from the status. */
     double cs;
     double sn;
-    (void)srmech_cos(theta, &cs);
-    (void)srmech_sin(theta, &sn);
+    srmech_status_t st = srmech_cos(theta, &cs);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_sin(theta, &sn);
+    if (st != SRMECH_OK) { return st; }
     double x = pin_distance + pin_offset * cs;
     double y = pin_offset * sn;
-    (void)srmech_atan2(y, x, out_phi);
-    return SRMECH_OK;
+    return srmech_atan2(y, x, out_phi);
 }
 
+/* rc473 (`#T1188`): every srmech_sin / srmech_cos status inside the Newton
+ * iteration is captured and checked. A refusal mid-iteration writes the
+ * best-effort E reached so far and returns the callee's status — the same
+ * partial-result shape this function already used for non-convergence
+ * (SRMECH_ERR_OVERFLOW with the best-effort E at the bottom).
+ *
+ * Through rc472 those statuses were discarded, and the consequence was not a
+ * NaN but a plausible number: srmech_sin(2^55) already refused and wrote 0.0,
+ * so E was never moved off its M initial guess and the caller was handed
+ * E == M with SRMECH_OK. Measured at rc472,
+ * srmech_kepler_solve(2^55, 0.3, 1e-12, 20) -> (SRMECH_OK,
+ * 3.602879701896397e+16), and 3.602879701896397e+16 IS 2^55. */
+/* rc473 repair pass (`#T1188`) — THE ECCENTRICITY BAND, and the comment lives
+ * HERE rather than beside the guard on purpose: JPL Rule 4 counts lines
+ * BETWEEN the braces, and this function measured 58 against a cap of 60 with
+ * six comment lines inside it. Two lines of headroom is a trap for the next
+ * edit, and the ratchet is down-only, so the design moves rather than the
+ * ratchet. With the prose out here it is 52 again — the figure it carried
+ * before the repair — and srmech_equation_of_centre is 32, both read with the
+ * audit's own _scan_functions rather than by counting. A comment above a
+ * signature costs nothing under Rule 4; the same comment one line lower costs
+ * its full length.
+ *
+ * Both eccentricity guards in this file were spelled `e < 0.0 || e >= 1.0`,
+ * which is NaN-BLIND: both comparisons are false for a NaN, so the rejecting
+ * branch is not taken and the NaN flows on. The Python peer has always
+ * spelled it `if not (0.0 <= e < 1.0)` (srmech/math/kepler.py, in
+ * kepler_solve and equation_of_centre alike), which IS NaN-catching — so the
+ * two projections differed in which inputs they serve, ADR-0009 §2.4, the
+ * exact class this rc exists to close. Both are now the NEGATION of the
+ * accepted band. */
 srmech_status_t srmech_kepler_solve(double    M_rad,
                                     double    e,
                                     double    tolerance,
@@ -114,7 +196,7 @@ srmech_status_t srmech_kepler_solve(double    M_rad,
         return SRMECH_ERR_NULL_ARG;
     }
     *out_E_rad = M_rad;
-    if (e < 0.0 || e >= 1.0) {
+    if (!(e >= 0.0 && e < 1.0)) {                    /* NaN-catching; see above */
         return SRMECH_ERR_BAD_INPUT;
     }
     if (max_iter == 0) {
@@ -127,13 +209,16 @@ srmech_status_t srmech_kepler_solve(double    M_rad,
     /* Smith (1979) initial guess: E_0 = M + e * sin(M). Converges in 4-6
      * iterations for e < 0.5; e >= 0.95 may need >30 (caller's max_iter). */
     double sin_m;
-    (void)srmech_sin(M_rad, &sin_m);
+    srmech_status_t st = srmech_sin(M_rad, &sin_m);
+    if (st != SRMECH_OK) { return st; }   /* *out_E_rad stays M_rad (set above) */
     double E = M_rad + e * sin_m;
     for (uint32_t i = 0; i < max_iter; i++) {
         double sin_e;
         double cos_e;
-        (void)srmech_sin(E, &sin_e);
-        (void)srmech_cos(E, &cos_e);
+        st = srmech_sin(E, &sin_e);
+        if (st != SRMECH_OK) { *out_E_rad = E; return st; }
+        st = srmech_cos(E, &cos_e);
+        if (st != SRMECH_OK) { *out_E_rad = E; return st; }
         double f      = E - e * sin_e - M_rad;
         double f_prime = 1.0 - e * cos_e;
         /* f_prime > 0 for e < 1 (no division-by-zero risk). */
@@ -152,6 +237,24 @@ srmech_status_t srmech_kepler_solve(double    M_rad,
     return SRMECH_ERR_OVERFLOW;
 }
 
+/* rc473 (`#T1188`) — THE row this rc is named for. 4 * (2^53 + 1) is exactly
+ * 2^55, which srmech_sin already refused at rc472, and the sin call inside
+ * the harmonic loop discarded that refusal: the C projection answered
+ * (SRMECH_OK, -0.08984990210223018) for an input the Python projection
+ * raised ValueError on. The status is now propagated; *out_delta_rad stays
+ * at the 0.0 set on entry, which is a defined value and not an answer.
+ *
+ * rc473 REPAIR PASS: the eccentricity guard below carried the SAME NaN-blind
+ * spelling as kepler_solve's (see that function's block above), and HERE it
+ * was reachable. MEASURED at the branch head before the repair, native cell,
+ * ABI 26 == 26: srmech_equation_of_centre(0.7, NaN, 4) -> status 0
+ * (SRMECH_OK), out = nan, while kepler.equation_of_centre(0.7, nan, 4) raised
+ * "e must satisfy 0 <= e < 1; got nan". kepler_solve was saved only
+ * INCIDENTALLY — a NaN e poisons E and srmech_sin now refuses NaN — and this
+ * one had no such backstop, because e never reaches a callee that validates
+ * it: it is only ever MULTIPLIED. Its NaN row is pinned in the C-host gate
+ * anyway, because "saved incidentally" is a property of today's callees and
+ * not a contract. */
 srmech_status_t srmech_equation_of_centre(double    M_rad,
                                           double    e,
                                           uint32_t  n_terms,
@@ -163,7 +266,7 @@ srmech_status_t srmech_equation_of_centre(double    M_rad,
         return SRMECH_ERR_NULL_ARG;
     }
     *out_delta_rad = 0.0;
-    if (e < 0.0 || e >= 1.0) {
+    if (!(e >= 0.0 && e < 1.0)) {                    /* NaN-catching; see above */
         return SRMECH_ERR_BAD_INPUT;
     }
     if (n_terms == 0 || n_terms > SRMECH_KEPLER_EOC_MAX_TERMS) {
@@ -177,7 +280,8 @@ srmech_status_t srmech_equation_of_centre(double    M_rad,
         e_power *= e;
         double harmonic = (double)(k_idx + 1) * M_rad;
         double sin_h;
-        (void)srmech_sin(harmonic, &sin_h);
+        srmech_status_t st = srmech_sin(harmonic, &sin_h);
+        if (st != SRMECH_OK) { return st; }
         delta += SRMECH_KEPLER_EOC_COEFFS[k_idx] * e_power * sin_h;
     }
     *out_delta_rad = delta;

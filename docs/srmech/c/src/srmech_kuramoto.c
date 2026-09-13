@@ -47,19 +47,45 @@
 #include <stddef.h>
 
 /* The mean-field coupling sum Σ_j sin(θ_j − θ_i) for oscillator i.
- * Reads ONLY the shared read-only θ array; no writes (reentrant). */
-static double srmech_kuramoto__coupling_sum(
-    const double *theta, size_t n, size_t i)
+ * Reads ONLY the shared read-only θ array; no writes (reentrant).
+ *
+ * 0.9.0rc473 (`#T1188`): this helper RETURNS A STATUS and writes its sum
+ * through an out-parameter, because a `static double` has no channel to say
+ * "the cascade refused". It discarded srmech_sin's status through rc472, so
+ * an oscillator whose phase difference reached ±2^55 or a non-finite value
+ * contributed 0.0 to the sum and the step returned SRMECH_OK — measured at
+ * rc472, srmech_cascade_kuramoto_step_f64([0, 2^55], …) -> (SRMECH_OK,
+ * [0.0, 3.602879701896397e+16]): oscillator 0 silently FROZEN at its input
+ * phase, a wrong number rather than a NaN a caller could notice.
+ *
+ * EARLY RETURN, not an accumulated status, and the precedent is the tree's
+ * own: `srmech_status_t st = …; if (st != SRMECH_OK) { return st; }` is the
+ * shape at 2804 sites across the 138 c/src translation units — measured on
+ * the rc472 tree b398b8c46, i.e. the precedent, BEFORE this rc's own 16
+ * additions; predicate `if \((st|rc) != SRMECH_OK\) \{ return \1; \}` — with
+ * 3395 OCCURRENCES of `!= SRMECH_OK` across 3393 LINES. No new pattern, so no
+ * new reason is owed.
+ *
+ * (This comment said "3395 lines", which is the wrong noun: two lines carry
+ * two occurrences each. Corrected in the rc473 repair pass, along with the
+ * tree the figure was taken on, which was also unstated — at rc473 HEAD the
+ * same predicates read 2820 and 3416 occurrences across 3414 lines.) */
+static srmech_status_t srmech_kuramoto__coupling_sum(
+    const double *theta, size_t n, size_t i, double *out_sum)
 {
     assert(theta != NULL);
+    assert(out_sum != NULL);
     assert(i < n);
     double acc = 0.0;
+    *out_sum = 0.0;
     for (size_t j = 0; j < n; ++j) {
         double sv;
-        (void)srmech_sin(theta[j] - theta[i], &sv);   /* Class-N cascade, not libm */
+        srmech_status_t st = srmech_sin(theta[j] - theta[i], &sv);  /* Class-N, not libm */
+        if (st != SRMECH_OK) { return st; }
         acc += sv;
     }
-    return acc;
+    *out_sum = acc;
+    return SRMECH_OK;
 }
 
 srmech_status_t srmech_cascade_kuramoto_step_f64(
@@ -76,8 +102,12 @@ srmech_status_t srmech_cascade_kuramoto_step_f64(
     assert(n == 0 || (theta != NULL && omega != NULL));
     /* Mean-field normalisation K/N (n == 0 ⇒ no oscillators ⇒ no-op). */
     const double inv_n = (n > 0) ? (coupling_k / (double)n) : 0.0;
+    /* Prefix-valid partial output: out[0..i) hold the oscillators already
+     * stepped, out[i..n) are unspecified when a refusal is propagated. */
     for (size_t i = 0; i < n; ++i) {
-        const double coupling = srmech_kuramoto__coupling_sum(theta, n, i);
+        double coupling = 0.0;
+        srmech_status_t st = srmech_kuramoto__coupling_sum(theta, n, i, &coupling);
+        if (st != SRMECH_OK) { return st; }
         out[i] = theta[i] + dt * (omega[i] + inv_n * coupling);
     }
     return SRMECH_OK;
@@ -94,21 +124,25 @@ srmech_status_t srmech_cascade_kuramoto_step_f64(
  * `alpha` is the Sakaguchi phase frustration. Reads ONLY read-only arrays;
  * no writes (reentrant). (§32 fix: prior code used the raw A_ij and ignored
  * `coupling_k` on the adjacency path.) */
-static double srmech_kuramoto__general_sum(
+static srmech_status_t srmech_kuramoto__general_sum(
     const double *theta, const double *adjacency, size_t n, size_t i,
-    double coupling_k, double inv_n, double alpha)
+    double coupling_k, double inv_n, double alpha, double *out_sum)
 {
     assert(theta != NULL);
+    assert(out_sum != NULL);
     assert(i < n);
     double acc = 0.0;
+    *out_sum = 0.0;
     for (size_t j = 0; j < n; ++j) {
         const double w = (adjacency != NULL)
             ? (coupling_k * adjacency[i * n + j]) : inv_n;
         double sv;
-        (void)srmech_sin(theta[j] - theta[i] - alpha, &sv);   /* Class-N cascade */
+        srmech_status_t st = srmech_sin(theta[j] - theta[i] - alpha, &sv);  /* Class-N */
+        if (st != SRMECH_OK) { return st; }
         acc += w * sv;
     }
-    return acc;
+    *out_sum = acc;
+    return SRMECH_OK;
 }
 
 srmech_status_t srmech_cascade_kuramoto_step_general_f64(
@@ -127,15 +161,20 @@ srmech_status_t srmech_cascade_kuramoto_step_general_f64(
     assert(n == 0 || (theta != NULL && omega != NULL));
     /* Mean-field fallback weight when `adjacency == NULL`. */
     const double inv_n = (n > 0) ? (coupling_k / (double)n) : 0.0;
+    /* Prefix-valid partial output, as in the plain step above. */
     for (size_t i = 0; i < n; ++i) {
-        double f = omega[i] + srmech_kuramoto__general_sum(
-            theta, adjacency, n, i, coupling_k, inv_n, alpha);
+        double gsum = 0.0;
+        srmech_status_t st = srmech_kuramoto__general_sum(
+            theta, adjacency, n, i, coupling_k, inv_n, alpha, &gsum);
+        if (st != SRMECH_OK) { return st; }
+        double f = omega[i] + gsum;
         if (pin_anchor != NULL) {
             /* Per-oscillator pinning toward anchor ψ_i: + p_i·sin(ψ_i − θ_i).
              * NULL pin_strength ⇒ unit strength. No abs(). */
             const double p = (pin_strength != NULL) ? pin_strength[i] : 1.0;
             double sv;
-            (void)srmech_sin(pin_anchor[i] - theta[i], &sv);   /* Class-N cascade */
+            st = srmech_sin(pin_anchor[i] - theta[i], &sv);   /* Class-N cascade */
+            if (st != SRMECH_OK) { return st; }
             f += p * sv;
         }
         out[i] = theta[i] + dt * f;

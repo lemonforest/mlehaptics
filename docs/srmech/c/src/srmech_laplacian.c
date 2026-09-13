@@ -88,12 +88,93 @@
 
 /* Class-N rational sqrt (srmech_rational_sqrt) — the native Jacobi eigensolver
  * computes its rotation-angle roots via the cascade, not libm (rc45,
- * C-transpile triality). All call sites pass provably non-negative args. */
+ * C-transpile triality).
+ *
+ * 0.9.0rc473 (`#T1188`): the status is CAPTURED, asserted and consumed rather
+ * than cast away. This is the srmech_modular_linalg.c:70-71 idiom (gf_add /
+ * gf_mul / gf_inv, plus srmech_octonion_carrier.c:88-90), not a new pattern:
+ * the call is OUTSIDE the assert so it survives -DNDEBUG, and (void)st keeps
+ * st "used" when the assert strips.
+ *
+ * WHY THIS HELPER KEEPS ITS `double` RETURN instead of growing a status
+ * channel like the Kuramoto and JADE helpers did in the same rc.
+ * srmech_rational_sqrt refuses exactly two argument classes — x < 0 and NaN.
+ * They are NOT in the same position here, and rc473's pre-publish pass
+ * corrected this block for having said they were.
+ *
+ * NEGATIVE — no call site can produce one. 15 call sites across 9 enclosing
+ * functions, named by FUNCTION rather than by line, because a comment's own
+ * growth moves the lines it cites: MEASURED at the pre-publish pass, all 15
+ * line numbers this block used to carry were ALREADY stale, ten of them by
+ * +6 and the other five by +22.
+ *   srmech_graph_normalized_laplacian       `(d > 0.0) ? 1/lap_sqrt(d) : 0`
+ *   srmech_graph_mass_normalized_laplacian  inside `if (m_i > 0.0)`
+ *   lap_cotangent                           after `if (!(cross2 > 0.0))
+ *                                           return SRMECH_ERR_BAD_INPUT;`
+ *   srmech_laplacian_jacobi_rotate  x3      `1 + tau*tau` / `1 + t*t`
+ *   srmech_hermitian_jacobi_rotate  x4      `g_mag_sq` after
+ *                                           `if (g_mag_sq < 1e-300) return;`,
+ *                                           then `1 + tau*tau` / `1 + t*t`
+ *   fiedler_build_sp                x2      inside `if (deg[i] > 0.0)`, then
+ *                                           `pn2` after `if (pn2 <= 0.0)`
+ *   fiedler_rescale                         `max_sq` after `if (max_sq<=0.0)`
+ *   kext_normalize                          `n2` after `if (n2 <= 0.0)`
+ *   kext_inject_trivial                     `(double)n`, integral conversion
+ *
+ * NaN — REACHABLE. Read guard by guard: four of the sites above sit behind a
+ * `> 0.0` test, which is FALSE for NaN and so excludes it, and `(double)n`
+ * cannot be one; the remaining TEN are unguarded or sit behind `< 1e-300` /
+ * `<= 0.0` tests that are false for NaN in the direction that lets it THROUGH.
+ * Nothing in this file tests finiteness — measured, zero isnan / isfinite /
+ * isinf and zero `x != x` self-inequality guards in srmech_laplacian.c.
+ * PROVEN, not inferred: a DEBUG build (asserts live, __assert_fail present)
+ * calling the PUBLIC symbol srmech_jacobi_eigvals(2, [[nan,1],[1,2]],
+ * max_sweeps 0, tol 1e-12) ABORTS in lap_sqrt on this helper's own
+ * `assert(x >= 0.0)`, which is FALSE for NaN. The SAME call on the shipped
+ * Release build returns SRMECH_OK with out_eigvals [nan, nan]. Control with
+ * a finite [[4,1],[1,2]]: status 0 and [4.414213562373096, 1.5857864376269053]
+ * on BOTH builds, no abort — so the instrument can return otherwise.
+ *
+ * So the reason this helper keeps its `double` is a PARITY measurement, not
+ * an unreachability claim. MEASURED in-process on the rc473 library
+ * (0.9.0rc473, ABI 26, Release: `nm -D | grep -c __assert_fail` → 0; the cell
+ * authenticated by srmech_rational_sqrt(NaN) → status 2 AT THE SYMBOL, which
+ * is what separates an rc473 .so from an rc472 one — version and ABI alone do
+ * not) and again on a pure rc473 cell:
+ *   normalized_laplacian(2, [(0,1)], weights=[nan]) → [[0,nan],[nan,0]] on
+ *   BOTH cells, and jacobi_eigvals([[nan,1],[1,2]]) → [nan,nan] on BOTH.
+ * At the float carrier NaN is a value both projections carry through
+ * IDENTICALLY, so threading a NaN refusal out of this helper would make C
+ * NARROWER than pure — an ADR-0009 §2.4 row pointing the wrong way. That,
+ * and not unreachability, is the reason. (+Inf is not a refusal class at all:
+ * srmech_rational_sqrt(+Inf) → status 0 writing +Inf. -Inf refuses like any
+ * other negative: status 2 writing NaN. Both on the same authenticated cell.)
+ *
+ * SIX of those nine enclosers have no status channel at all —
+ * srmech_laplacian_jacobi_rotate and srmech_hermitian_jacobi_rotate are
+ * `static void`, fiedler_build_sp is `static double`, fiedler_rescale and
+ * kext_normalize are `static int`, kext_inject_trivial is `static uint32_t` —
+ * so a refusal branch here would have to grow a status channel through all of
+ * them and every one of their callers, in order to refuse a class the other
+ * projection serves. The assert IS live in CI's asserts-live-smoke job, which
+ * builds Debug and refuses to run if __assert_fail is absent from the
+ * library.
+ *
+ * ⚠️ And the honest limit of that: the shipped wheel builds Release
+ * (python/pyproject.toml cmake.build-type), Release implies -DNDEBUG, so in
+ * everything srmech ships this site carries NO runtime refusal. It is one of
+ * six such sites in the rc — 18 of the 24 propagate a status to a bare-C
+ * host; these six are asserted-unreachable (a label the pre-publish pass
+ * narrowed to the NEGATIVE class) and are byte-identical to rc472 in the
+ * Release artifact. */
 static double lap_sqrt(double x)
 {
-    assert(x >= 0.0);
     double out = 0.0;
-    (void)srmech_rational_sqrt(x, &out);
+    srmech_status_t st;
+    assert(x >= 0.0);
+    st = srmech_rational_sqrt(x, &out);
+    assert(st == SRMECH_OK);
+    (void)st;
     assert(out >= 0.0);
     return out;
 }
@@ -1715,6 +1796,18 @@ srmech_status_t srmech_elementwise_multiply_complex(
     return SRMECH_OK;
 }
 
+/* PARTIAL-OUTPUT CONTRACT (rc473, `#T1188`). Each element's Class-N status is
+ * captured and checked, and the first refusal returns it immediately:
+ * out[0..i) hold the elements already computed and out[i..n) are unspecified.
+ * That is the tree's existing early-return shape. The alternative — a
+ * pre-scan for the callee's domain — was rejected because it copies the
+ * callee's 2^55 bound into this caller, a second copy of a bound the callee
+ * owns.
+ *
+ * The LOG pre-scan below is `arr[i] <= 0.0`, which is FALSE for NaN, so a NaN
+ * reaches the callee in EVERY op including LOG. Measured at rc472 with the
+ * statuses discarded: COS / SIN / EXP / LOG of NaN all returned SRMECH_OK,
+ * and so did COS of 2^55 (with 0.0 written) and SIN of +Inf (with NaN). */
 srmech_status_t srmech_elementwise_transcendental(
     uint32_t       n,
     const double  *arr,
@@ -1739,17 +1832,21 @@ srmech_status_t srmech_elementwise_transcendental(
             }
         }
     }
+    /* Per-element status captured and checked; see the note above the
+     * function for the partial-output contract. */
     for (uint32_t i = 0; i < n; i++) {
         double x = arr[i];
+        srmech_status_t st;
         if (op_id == SRMECH_TRANS_EXP) {
-            (void)srmech_exp(x, &out[i]);          /* Class-N exp cascade, not libm */
+            st = srmech_exp(x, &out[i]);           /* Class-N exp cascade, not libm */
         } else if (op_id == SRMECH_TRANS_COS) {
-            (void)srmech_cos(x, &out[i]);
+            st = srmech_cos(x, &out[i]);
         } else if (op_id == SRMECH_TRANS_SIN) {
-            (void)srmech_sin(x, &out[i]);
+            st = srmech_sin(x, &out[i]);
         } else {
-            (void)srmech_log(x, &out[i]);          /* Class-N log cascade, not libm */
+            st = srmech_log(x, &out[i]);           /* Class-N log cascade, not libm */
         }
+        if (st != SRMECH_OK) { return st; }
     }
     return SRMECH_OK;
 }

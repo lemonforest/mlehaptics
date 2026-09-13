@@ -866,7 +866,7 @@ def _suffix_index() -> Dict[str, Tuple[Path, ...]]:
 
     The corpus does not spell citations as full repo paths. It writes
     ``introspect/tool_schema.py:645`` and ``tool_schema.py:498`` and
-    ``srmech.h:5429`` — shortened to whatever is unambiguous to a human
+    ``srmech.h:5469`` — shortened to whatever is unambiguous to a human
     reader. A resolver that only joins against roots reports **27 of 78**
     citations as dead files when in fact none of those 27 is a dead file, and
     a gate whose V1 arm is 100% false positive is worse than no gate: it

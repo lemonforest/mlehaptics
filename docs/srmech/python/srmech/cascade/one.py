@@ -506,9 +506,43 @@ def winding_fold(theta: float) -> Tuple[int, float]:
     otherwise the COMPLETE pure alternative — the laplacian
     :func:`~srmech.math.laplacian._eph_seam_fold` exact-rational Machin-2π
     divmod (arbitrary-precision, any finite float; the same fold
-    ``propagate_wound``'s pure path runs). Native == pure: ``w`` exact-integer
-    equal, ``theta_res`` equal to the fold grids' common resolution (the two
-    grids are Q61 native / 2⁻⁴⁴ pure — both quantise the SAME real residue).
+    ``propagate_wound``'s pure path runs).
+
+    **Native vs pure — CORRECTED at the rc473 A6 repair pass, and it is a
+    DIVERGENCE, not a common grid.** This paragraph said *"Native == pure:
+    ``w`` exact-integer equal, ``theta_res`` equal to the fold grids' common
+    resolution (the two grids are Q61 native / 2⁻⁴⁴ pure — both quantise the
+    SAME real residue)."* The first half holds and the second does not.
+    MEASURED in one process on an authenticated rc473 native cell
+    (``srmech_rational_sqrt(NaN)`` → status 2, ABI 26), dispatched op against
+    the pure alternative it names, 24 angles:
+
+    * ``w`` is **exact-integer equal on every row**, including at ``|theta|``
+      just under the native ``2**55`` bound.
+    * ``theta_res`` is **not**. The gap is PROPORTIONAL TO THE WINDING:
+      ``|native − pure| / |w|`` lies in **[7.944e-21, 8.039e-21] rad per
+      turn** over the 15 probed angles with ``|w| ≥ 1e8`` — a spread of
+      **1.2%** across five decades of ``|theta|`` (1e9 … 3.14e16), which is a
+      LAW and not a worst case. It therefore crosses the 2⁻⁴⁴ grid this
+      paragraph cited at ``|theta|`` of order 1e8 and reaches **4.02e-05**
+      (7.07e8 × 2⁻⁴⁴) at ``theta = 3.1415926535897932e16``. **17 of 24
+      probed rows exceed 2⁻⁴⁴.** (Below ``|w| ≈ 1e8`` the pure path's own
+      2⁻⁴⁴ quantisation is what dominates, so the ratio there is reading the
+      floor rather than the drift; the law is fitted above that and says so.)
+    * Against an INDEPENDENT 60-digit 2π (neither projection's own constant),
+      the PURE residue is the accurate one by about five orders of magnitude
+      at every divergent row — e.g. at ``theta = 3.1415926535897932e16``,
+      ``|native − true|`` 4.02e-05 against ``|pure − true|`` 3.29e-10. Both
+      drift with ``w``; the native drifts ~1e5 times faster.
+    * **Pre-existing, not an rc473 regression**: identical values on a
+      ``b398b8c46`` (rc472, ABI 25) build of the same probe.
+
+    FILED, not repaired, as an ADR-0009 §1.2 **Still open** row under
+    ``#T1188``, and pinned executably in
+    ``tests/test_value_status_c_boundary_rc473.py`` as a strict xfail with
+    agreeing controls beside it. A caller who needs the residue rather than
+    the winding at large ``|theta|`` should take the pure fold
+    (:func:`~srmech.math.laplacian._eph_seam_fold`) until that row closes.
 
     Args:
         theta: the accumulated angle in radians — any FINITE real, READ AT
@@ -540,8 +574,12 @@ def winding_fold(theta: float) -> Tuple[int, float]:
     — and the fold is then lossless OF ``f`` (the pure path is an
     arbitrary-precision rational divmod of ``f`` against the Machin-2π
     constant, the native path the Q61 2/π grid; both return the same ``w``).
-    ``theta_res`` is a float64 on the fold grid (2⁻⁴⁴ pure / Q61 native), so
-    it is accurate to that grid's resolution. The rule ``sqrt`` states of
+    ``theta_res`` is a float64 on the fold grid (2⁻⁴⁴ pure / Q61 native). It
+    is accurate to that grid's resolution **on the pure path only** — this
+    sentence carried no such qualifier until the A6 repair pass, and the
+    Dispatch paragraph above now carries the measurement that removes it: the
+    NATIVE residue drifts 8.04e-21 rad per turn of winding and leaves the
+    2⁻⁴⁴ grid at ``|theta|`` of order 1e8. The rule ``sqrt`` states of
     itself — "EXACT scopes to the CARRIER, not to the value"
     (:func:`srmech.math.rational.sqrt`) — applies here to the OPERAND: the
     caller's angle is what is rounded. Measured: the rc472 census row

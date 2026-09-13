@@ -932,3 +932,26 @@ tests/test_eoc_q61_parity_rc472.py
 #    manifest carrying this tree's three live digests and a foreign release,
 #    with census() replaced by a function that fails if reached). ~2 s, pure.
 tests/test_merge_cell_cross_release_rc472.py
+
+# -- the ABI-PIN gate, and the C boundary (rc473 B2/B1, `#T1188`) -------------
+#    test_abi_pin_sites_agree_rc464.py was ABSENT from this manifest and from
+#    tests/test_ripple_manifest_covers_known_gates.py's known-gate list, while
+#    its sibling tests/test_abi_prose_currency_rc449.py was in both. Measured
+#    at rc473 before the append: `grep -c abi_pin_sites tools/ripple_gates.txt`
+#    -> 0, out of 133 targets. That is the gate for the defect class which has
+#    shipped RED three times -- its own docstring records rc452, rc455 and
+#    rc464 each sweeping the ABI-PIN COMMENTS to the new value and leaving the
+#    grep-invisible int LOCALS on the old one -- and it was the one an
+#    ABI-bumping rc's pre-push runner would not execute. ~2 s, pure-Python
+#    (it reads _native.EXPECTED_ABI_VERSION, an int in both cells).
+tests/test_abi_pin_sites_agree_rc464.py
+
+#    And the gate that judges this rc, listed BY HAND for the reason every
+#    rc45x block above gives: the manifest meta-test has no growth obligation.
+#    It reads the C boundary DIRECTLY (_native.LIB.srmech_*, ctypes, no
+#    wrapper) and asserts status AND written value, plus the both-directions
+#    clause -- C refuses <=> the pure projection raises. It is the instrument
+#    a guard added inside a Python wrapper CANNOT satisfy, which is what rc472
+#    did. Any rc touching a Class-N scalar's domain, one of the composites
+#    that calls it, or SRMECH_NODISCARD's roster moves it. ~12 s native.
+tests/test_value_status_c_boundary_rc473.py

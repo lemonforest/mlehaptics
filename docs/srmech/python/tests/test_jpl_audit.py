@@ -771,6 +771,366 @@ def test_rule_5_minimum_two_asserts_per_function() -> None:
     assert not violations, "Rule 5 violations: " + "; ".join(violations)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Rule 7: RETURN VALUES CHECKED (rc473 pre-publish pass, `#T1188`)
+# ──────────────────────────────────────────────────────────────────────
+#
+# JPL Rule 7: "The return value of non-void functions must be checked by each
+# calling function, and the validity of parameters must be checked inside each
+# function."
+#
+# Through v0.9.0rc472 `c/JPL_AUDIT.md` recorded Rule 7 as "Violations: 0" and
+# "✅ Pass" on a four-function evidence table, and THIS FILE contained the
+# string `RULE_7` zero times — so nothing was positioned to contradict that
+# sentence while `c/src` carried 24 discarded `srmech_status_t` returns across
+# seven translation units. rc473 repaired the 24, and its own CHANGELOG entry
+# named this ratchet as owed TWICE without shipping it. This is it.
+#
+# ── THE PREDICATE, STATED ─────────────────────────────────────────────
+#
+# An unstated predicate is why this population could not be reproduced: during
+# rc473 several different cardinals were in circulation for "the Rule 7
+# count" — the Class-N float family alone (24 on `b398b8c46`), every
+# `(void)srmech_*(` regardless of return type (51 on this tree, 44 of them
+# `srmech_plat_*` and one of them a `const char *` function), and the totals
+# below. Every one was honestly measured; none of them was the same question.
+#
+# Rule 7 is about a returned STATUS, so the population gated here is:
+#
+#   CALLEE   a function whose return type is `srmech_status_t` — either an
+#            export declared `[SRMECH_NODISCARD] srmech_status_t srmech_NAME(`
+#            at line start in the literal-masked `c/include/srmech.h` (512 of
+#            them on this tree), or a `static srmech_status_t NAME(` defined
+#            in the translation unit being scanned.
+#
+#   DISCARD  one of TWO forms, over literal-masked text:
+#            (a) `(void)NAME(` ANYWHERE on a line — the cast idiom, which is
+#                the form all 24 sites rc473 repaired took (24 cast / 0 bare,
+#                measured on `b398b8c46`). "Anywhere" rather than at line
+#                start is load-bearing: two of the 24 sat mid-line inside
+#                `if (re_arg > 0.0) { (void)srmech_rational_sqrt(...); }`, and
+#                a line-start anchor finds 22 of 24.
+#            (b) `NAME(` as the FIRST token on a line, where the previous
+#                non-blank masked line does not end in a continuation
+#                character (`= ( , + - * / ? : & | ! < > ^ %`) or in the word
+#                `return`.
+#
+# Which clauses are load-bearing was MEASURED rather than argued, on this tree
+# and on `b398b8c46`, one clause at a time:
+#
+#   * the continuation clause IS load-bearing — removing it takes `c/src`
+#     18 -> 24 here and 42 -> 47 on main, and EVERY added row is a CHECKED
+#     call, which is the property the clause exists to preserve. (That line
+#     read "the added rows being `st =` followed by a wrapped `jade_pair(`
+#     continuation line" until the A6 repair pass, which enumerated them with
+#     this same predicate: 6 added rows here, exactly ONE of them `jade_pair`,
+#     and 5 added rows on main with NONE — `jade_pair` is `static void` on
+#     `b398b8c46` and so is not a status callee there at all. Four of the six
+#     follow `!= SRMECH_OK ||` inside a multi-line condition rather than an
+#     `st =`. The cardinals reproduced; the description of the rows did not,
+#     and `notes/_rc473_a4_rule7_ratchet.py` recorded no callee breakdown to
+#     check it against.);
+#   * `return` in that set moves NO row on either tree. It is kept because
+#     `return\n    foo(x);` is a propagation and not a discard, and it is
+#     named here as a correctness clause rather than a measured one;
+#   * treating a trailing `else` as a continuation moves NO row on either
+#     tree, so it is NOT shipped — it would be a judgement wearing a
+#     measurement's clothes, and `else\n    foo(x);` IS a discard;
+#   * a "skip definition heads" clause moves NO row on either tree, because
+#     form (b) cannot match a one-line definition head anyway. Not shipped:
+#     a clause that cannot fire is a dead instrumentation seam.
+#
+# KNOWN BLIND SPOT, named here rather than discovered later: a call that is the
+# SECOND statement on one line (`if (x > 0.0) { } srmech_cos(1.0, &o);`) is not
+# found. That form is a BARE discard, which gcc AND clang both refuse outright
+# for a `SRMECH_NODISCARD`-tagged callee — while the compiler guard's own blind
+# spot is the `(void)` cast, refused on gcc alone and on nothing at all under
+# `_MSC_VER` (the matrix is in `c/JPL_AUDIT.md`'s Rule 7 section). The two
+# detectors' blind spots are COMPLEMENTARY, which is why this one is the
+# primary detector for the form the defect actually had and not a backstop.
+#
+# SCOPE OF THE CALLEE POPULATION, and what it leaves out. "Header export or
+# file-local static" does NOT reach a status-returning helper declared in a
+# PRIVATE `c/src/*.h` and called from another TU. Measured: `srmech_platform.h`
+# carries 38 such declarations, `c/include/srmech.h` mentions `srmech_plat_`
+# exactly once, and 44 of the 51 residual `(void)srmech_*(` discards
+# `c/JPL_AUDIT.md` enumerates are `srmech_plat_*` — so they sit outside the
+# ceilings below. They are not lost: that enumeration is in the audit document,
+# by symbol and by count, and most are teardown paths. Widening the population
+# to `c/src/*.h` is the next drain of this ratchet and is deliberately not
+# folded into the change that first ships it. The ONE `srmech_plat_*` row the
+# ceilings DO hold is `srmech_plat__ensure_dir`, because it is a file-local
+# `static srmech_status_t` (srmech_platform.c) rather than a cross-TU
+# declaration.
+#
+# NOT COVERED, named: Rule 7's PARAMETER-VALIDATION half. It remains
+# unmeasured — `c/JPL_AUDIT.md` says so, and its evidence table is four
+# functions, two of which take no parameters.
+
+# The C test harness. Separate from _C_SRC_DIR because it is NOT shipped:
+# python/pyproject.toml's sdist.include carries `tests/**`, `../c/src/**` and
+# `../c/include/**` and NOT `../c/test/**`, so in an sdist-installed cell this
+# directory does not exist while c/src does. The module-level `pytestmark`
+# above guards only _C_SRC_DIR, which is why the test-side ceiling below
+# carries its own skip — without it the shipped sdist's own suite goes red on
+# a `==` assertion against an empty scan.
+_C_TEST_DIR = _HERE.parent.parent / "c" / "test"
+
+#: The `SRMECH_NODISCARD`-tagged export roster as of the rc473 pre-publish
+#: pass — 29 of the 512 status-returning declarations. Pinned LITERALLY and
+#: checked TWO-WAY against a live scan of the header, because the failure this
+#: catches is the attribute being silently LOST: rc473 has one recorded
+#: instance already, where a line-anchored regex stopped matching the moment
+#: `SRMECH_NODISCARD` landed in front of `srmech_status_t` and "the scan fell
+#: from eight symbols to one".
+RULE_7_NODISCARD_ROSTER: "frozenset[str]" = frozenset({
+    "srmech_atan",
+    "srmech_atan2",
+    "srmech_atan_q61",
+    "srmech_atan_series_truncate_big",
+    "srmech_bigint_isqrt",
+    "srmech_cos",
+    "srmech_cos_q61",
+    "srmech_cos_series_truncate_big",
+    "srmech_exp",
+    "srmech_exp_q61",
+    "srmech_exp_series_truncate",
+    "srmech_exp_series_truncate_big",
+    "srmech_hypercomplex_couple_q61",
+    "srmech_hypercomplex_couple_turn_q61",
+    "srmech_hypercomplex_exp_q61",
+    "srmech_isqrt",
+    "srmech_log",
+    "srmech_log1p_series_truncate_big",
+    "srmech_log_q61",
+    "srmech_octonion_exp",
+    "srmech_quaternion_exp",
+    "srmech_quaternion_log",
+    "srmech_rational_sqrt",
+    "srmech_sin",
+    "srmech_sin_q61",
+    "srmech_sin_series_truncate_big",
+    "srmech_sqrt_q61",
+    "srmech_winding_fold",
+    "srmech_winding_tower",
+})
+
+#: Down-only. The residual status discards in the shipped library. Repairing
+#: one (propagate it, consume it with a documented assert, or tag its callee
+#: and let `-Werror` refuse it) lowers this; it must NEVER go up.
+#: Seeded at the rc473 pre-publish pass: 16 `(void)` casts + 2 bare.
+CEIL_RULE_7_SRC: int = 18
+
+#: Down-only, same discipline, over the C test harness. 6 casts + 112 bare.
+#: The drain path is the one rc473 walked for `c/test/test_srmech_trans_q61.c`
+#: and `c/test/test_srmech_bigint.c`: a `check_*(...)` row per call site.
+CEIL_RULE_7_TEST: int = 118
+
+#: What the detector MUST see, or it is not looking. Both entries are residual
+#: discards that no `(void)srmech_*(` grep can find on its own: `genome_hex` is
+#: a file-local `static srmech_status_t` whose return is dropped BARE on the
+#: line after a CHECKED `srmech_sha256_hex` — invisible to every cast-form
+#: scan and to the attribute alike, since the attribute is plantable only on
+#: declarations in the public header.
+RULE_7_VACUITY_SEEDS: "set[tuple[str, str, str]]" = {
+    ("srmech_genome.c", "genome_hex", "bare"),
+    ("srmech_bus.c", "srmech_bus_client_close", "void"),
+}
+
+_RULE_7_HDR_DECL = re.compile(
+    r"^(?P<tag>SRMECH_NODISCARD\s+)?srmech_status_t\s+(?P<name>srmech_\w+)\s*\(",
+    re.MULTILINE,
+)
+_RULE_7_STATIC_DEF = re.compile(
+    r"^static\s+srmech_status_t\s+(\w+)\s*\(", re.MULTILINE
+)
+_RULE_7_VOID_CAST = re.compile(r"\(\s*void\s*\)\s*([A-Za-z_]\w*)\s*\(")
+_RULE_7_STMT_HEAD = re.compile(r"^\s*([A-Za-z_]\w*)\s*\(")
+_RULE_7_CONTINUATION_TAIL = tuple("=(,+-*/?:&|!<>^%")
+_RULE_7_RETURN_TAIL = re.compile(r"\breturn$")
+
+
+def _rule7_header_population() -> "tuple[set[str], set[str]]":
+    """``(every status-returning export, the SRMECH_NODISCARD-tagged subset)``.
+
+    Read from the MASKED header so a declaration quoted inside a comment
+    cannot enter the population — the same discipline the Rule 7 census had to
+    adopt after an unmasked scan reported a site that was a bad spelling inside
+    a block comment.
+    """
+    text = _mask_c_literals(
+        (_C_INCLUDE_DIR / "srmech.h").read_text(encoding="utf-8")
+    )
+    decls: "set[str]" = set()
+    tagged: "set[str]" = set()
+    for m in _RULE_7_HDR_DECL.finditer(text):
+        decls.add(m.group("name"))
+        if m.group("tag"):
+            tagged.add(m.group("name"))
+    return decls, tagged
+
+
+def _rule7_discards(directory: Path) -> "list[tuple[str, int, str, str]]":
+    """Every status discard in ``directory``'s ``*.c``, per the predicate above.
+
+    Returns ``(file name, 1-based line, form, callee)`` rows, where form is
+    ``"void"`` (the cast idiom) or ``"bare"`` (a statement-start call).
+    """
+    exports, _tagged = _rule7_header_population()
+    rows: "list[tuple[str, int, str, str]]" = []
+    for path in sorted(directory.glob("*.c")):
+        text = _mask_c_literals(path.read_text(encoding="utf-8"))
+        population = exports | set(_RULE_7_STATIC_DEF.findall(text))
+        previous_nonblank = ""
+        for lineno, line in enumerate(text.split("\n"), 1):
+            for m in _RULE_7_VOID_CAST.finditer(line):
+                if m.group(1) in population:
+                    rows.append((path.name, lineno, "void", m.group(1)))
+            m = _RULE_7_STMT_HEAD.match(line)
+            if (
+                m is not None
+                and m.group(1) in population
+                and m.group(1) not in _C_KEYWORDS_CALLLIKE
+            ):
+                previous = previous_nonblank.rstrip()
+                continued = previous.endswith(_RULE_7_CONTINUATION_TAIL) or bool(
+                    _RULE_7_RETURN_TAIL.search(previous)
+                )
+                if not continued:
+                    rows.append((path.name, lineno, "bare", m.group(1)))
+            if line.strip():
+                previous_nonblank = line
+    return rows
+
+
+def test_rule_7_detector_is_not_vacuous() -> None:
+    """The detector must FIND the seeded residual, in BOTH forms.
+
+    Same discipline as the Rule 1 and Rule 9 vacuity checks. A scan that
+    silently returned nothing — a changed layout, a mask that ate every body,
+    a regex that stopped matching when a macro moved in front of the return
+    type (which has already happened once in this rc) — would make every
+    ratchet below pass while measuring zero, which is the "believed absent"
+    state this rule spent its whole life in.
+    """
+    exports, tagged = _rule7_header_population()
+    assert len(exports) > 400, (
+        f"the header scan found only {len(exports)} status-returning "
+        "declarations; it is not parsing srmech.h"
+    )
+    assert tagged, "the header scan found NO SRMECH_NODISCARD-tagged export"
+
+    found = _rule7_discards(_C_SRC_DIR)
+    assert found, "the Rule 7 detector found NOTHING in c/src — it is not looking"
+    seen = {(f, callee, form) for f, _line, form, callee in found}
+    missing = sorted(RULE_7_VACUITY_SEEDS - seen)
+    assert not missing, (
+        f"the Rule 7 scan cannot see {missing} — residual discards measured at "
+        "the rc473 pre-publish pass. The detector is broken, not the tree "
+        "clean. Note genome_hex is a BARE discard of a file-local static: no "
+        "`(void)srmech_*(` grep and no compiler attribute can reach it, which "
+        "is the whole reason this form is in the predicate."
+    )
+
+
+def test_rule_7_no_discarded_status_from_a_tagged_callee() -> None:
+    """Strict ZERO, and a two-way pin of the roster against the live header.
+
+    The roster pin comes first because the strict-zero clause is meaningless
+    without it: if the attribute were silently lost from a declaration, the
+    live tagged set would shrink, and a discard of that callee would stop
+    being counted at the same instant it stopped being a build error.
+
+    Non-vacuity of the strict-zero half is measured rather than asserted:
+    applying THIS roster to `b398b8c46` — the tree rc473 branched from — finds
+    32 rows (24 in c/src, 8 in c/test), so the clause reads 32 -> 0 across the
+    repair and can plainly return otherwise.
+    """
+    _exports, tagged = _rule7_header_population()
+    assert tagged == set(RULE_7_NODISCARD_ROSTER), (
+        "RULE_7_NODISCARD_ROSTER and the live SRMECH_NODISCARD scan of "
+        "srmech.h disagree.\n"
+        f"  tagged in the header but not in the roster: "
+        f"{sorted(tagged - set(RULE_7_NODISCARD_ROSTER))}\n"
+        f"  in the roster but no longer tagged: "
+        f"{sorted(set(RULE_7_NODISCARD_ROSTER) - tagged)}\n"
+        "If the attribute was added, add the name here and update the count in "
+        "c/JPL_AUDIT.md's Rule 7 section in the same commit. If it was "
+        "REMOVED, say why in that section — an untagged callee is one the "
+        "compiler stops refusing."
+    )
+
+    directories = [_C_SRC_DIR] + ([_C_TEST_DIR] if _C_TEST_DIR.exists() else [])
+    offenders = [
+        (f, line, form, callee)
+        for d in directories
+        for (f, line, form, callee) in _rule7_discards(d)
+        if callee in tagged
+    ]
+    assert not offenders, (
+        "Rule 7 violation — the status of a SRMECH_NODISCARD-tagged callee is "
+        "discarded at: "
+        + "; ".join(f"{f}:{line} ({form}) {callee}" for f, line, form, callee
+                    in sorted(offenders))
+        + ". Propagate it, or consume it with an assert and a comment that "
+          "states what makes the refusal unreachable and on which build. Note "
+          "that under `_MSC_VER` the attribute expands EMPTY, so the Windows "
+          "leg compiles this silently and only this gate sees it."
+    )
+
+
+def test_rule_7_src_ceiling_is_not_slack() -> None:
+    """Down-only, and the ceiling tracks the measurement rather than leading it.
+
+    A ceiling left above the live count is invisible slack a new discard could
+    be added into with nothing firing — the same reason Rules 1 and 9 assert
+    equality rather than `<=`.
+    """
+    found = _rule7_discards(_C_SRC_DIR)
+    assert len(found) <= CEIL_RULE_7_SRC, (
+        f"Rule 7 population in c/src is {len(found)}, over the down-only "
+        f"ceiling {CEIL_RULE_7_SRC}. New rows: "
+        + "; ".join(f"{f}:{line} ({form}) {callee}"
+                    for f, line, form, callee in sorted(found))
+    )
+    assert len(found) == CEIL_RULE_7_SRC, (
+        f"live Rule 7 population in c/src is {len(found)} but CEIL_RULE_7_SRC "
+        f"is {CEIL_RULE_7_SRC} — if a discard was repaired, LOWER the ceiling "
+        f"(it is down-only) and move c/JPL_AUDIT.md's Rule 7 count with it"
+    )
+
+
+@pytest.mark.skipif(
+    not _C_TEST_DIR.exists(),
+    reason=(
+        "the C test harness is not present. python/pyproject.toml's "
+        "sdist.include ships tests/**, ../c/src/** and ../c/include/** and "
+        "NOT ../c/test/**, so an sdist-installed cell has c/src and no c/test. "
+        "Without this skip the `==` assertion below would go red in the "
+        "shipped artifact while every CI job — none of which installs from "
+        "sdist — stayed green."
+    ),
+)
+def test_rule_7_test_ceiling_is_not_slack() -> None:
+    """The harness-side residual. Same ratchet, its own ceiling.
+
+    Pooling this with c/src would let a c/test drain hide a c/src regression
+    behind one cardinal, so the two are counted separately and neither can
+    borrow the other's headroom.
+    """
+    found = _rule7_discards(_C_TEST_DIR)
+    assert len(found) <= CEIL_RULE_7_TEST, (
+        f"Rule 7 population in c/test is {len(found)}, over the down-only "
+        f"ceiling {CEIL_RULE_7_TEST}"
+    )
+    assert len(found) == CEIL_RULE_7_TEST, (
+        f"live Rule 7 population in c/test is {len(found)} but "
+        f"CEIL_RULE_7_TEST is {CEIL_RULE_7_TEST} — if a discard was repaired "
+        f"(the `check_*(...)` row rc473 used in test_srmech_trans_q61.c and "
+        f"test_srmech_bigint.c), LOWER the ceiling; it is down-only"
+    )
+
+
 def test_rule_8_no_multiline_macros() -> None:
     """JPL Rule 8: no multi-line macros, no token-paste, no varargs."""
     forbidden = re.compile(r"##|__VA_ARGS__|\\\s*$")

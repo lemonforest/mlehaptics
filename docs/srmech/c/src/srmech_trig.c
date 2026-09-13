@@ -214,6 +214,46 @@ static double trig_to_double(int64_t q61)
     return (double)q61 / (double)SRMECH_TRIG_ONE;
 }
 
+/* Write the quiet NaN srmech.h promises a refused argument leaves in *out
+ * (0.9.0rc473, `#T1188`).
+ *
+ * `*out = x - x` was the idiom here through rc472 and it is NOT that value.
+ * It is NaN only when x is itself non-finite; for a FINITE |x| >= 2^55 —
+ * which trig_reduce also refuses — `x - x` is exactly 0.0. Measured at rc472:
+ * srmech_sin(2^55) returned (SRMECH_ERR_BAD_INPUT, 0.0), a plausible number
+ * rather than a NaN, so a caller that inspected the value and not the status
+ * read a real answer. Three sites carried that shape (sin, cos, and
+ * srmech_rational_sqrt's negative branch), which is why the repair is a
+ * written NaN and not a status change alone. */
+static void trig_write_nan(double *out)
+{
+    uint64_t nan_bits = UINT64_C(0x7FF8000000000000);
+    assert(out != NULL);
+    assert((nan_bits >> 51) == UINT64_C(0xFFF));   /* quiet NaN, exponent all 1s */
+    memcpy(out, &nan_bits, sizeof *out);
+}
+
+/* Is v an infinity? Bit-pattern read (exponent all ones, zero fraction), the
+ * same IEEE read trig_reduce_k already does — no libm isinf, and the magnitude
+ * is taken bitwise rather than with abs(). */
+static bool trig_is_inf(double v)
+{
+    uint64_t bits;
+    memcpy(&bits, &v, sizeof bits);
+    bits &= UINT64_C(0x7FFFFFFFFFFFFFFF);          /* Class-K magnitude, bitwise */
+    assert(sizeof bits == sizeof v);
+    assert((bits >> 63) == 0u);                    /* sign bit cleared above */
+    return bits == UINT64_C(0x7FF0000000000000);
+}
+
+/* rc473 (`#T1188`): srmech_sin and srmech_cos refuse UNCONDITIONALLY when the
+ * Q61 octant reduction has no form for the argument — NaN, ±Inf, or
+ * |x| >= 2^55 — and write NaN. srmech.h has promised exactly that since the
+ * block was written; the `return (x == x) ? SRMECH_ERR_BAD_INPUT :
+ * SRMECH_OK;` idiom violated it for precisely one input class, NaN, while
+ * srmech_sin_q61 and srmech_cos_q61 in this same file always refused it.
+ * The written value changes too: `*out = x - x` is 0.0 for a FINITE
+ * |x| >= 2^55, so srmech_sin(2^55) refused with a plausible 0.0. */
 srmech_status_t srmech_sin(double x, double *out)
 {
     assert(out != NULL);
@@ -221,8 +261,8 @@ srmech_status_t srmech_sin(double x, double *out)
     int oct;
     int64_t r;
     if (!trig_reduce(x, &oct, &r)) {
-        *out = x - x;                      /* NaN for Inf/NaN; 0 path unreachable here */
-        return (x == x) ? SRMECH_ERR_BAD_INPUT : SRMECH_OK;
+        trig_write_nan(out);               /* see the note above */
+        return SRMECH_ERR_BAD_INPUT;
     }
     assert(oct >= 0 && oct < 4);
     int64_t sc = trig_sin_core(r), cc = trig_cos_core(r);
@@ -238,8 +278,8 @@ srmech_status_t srmech_cos(double x, double *out)
     int oct;
     int64_t r;
     if (!trig_reduce(x, &oct, &r)) {
-        *out = x - x;
-        return (x == x) ? SRMECH_ERR_BAD_INPUT : SRMECH_OK;
+        trig_write_nan(out);               /* see srmech_sin above */
+        return SRMECH_ERR_BAD_INPUT;
     }
     assert(oct >= 0 && oct < 4);
     int64_t sc = trig_sin_core(r), cc = trig_cos_core(r);
@@ -259,7 +299,24 @@ srmech_status_t srmech_cos(double x, double *out)
  * w is the METACYCLE winding (the harvest the mod-collapse threw away);
  * theta_fold is the EPICYCLE residue. Sign is Class-K/Class-C (no fabs).
  * Same domain as srmech_cos: non-finite or |theta| >= 2^55 ->
- * SRMECH_ERR_BAD_INPUT (out set to NaN; a quiet NaN input propagates OK). */
+ * SRMECH_ERR_BAD_INPUT, *theta_out set to NaN.
+ *
+ * ⚠️ 0.9.0rc473 (`#T1188`) — this sentence used to end "(a quiet NaN input
+ * propagates OK)", and it was accurate: `(theta == theta) ? BAD_INPUT : OK`
+ * returned SRMECH_OK for NaN, and `theta - theta` wrote 0.0 rather than NaN
+ * for a FINITE |theta| >= 2^55. Measured at rc473 before the repair:
+ * srmech_winding_fold(NaN) -> (SRMECH_OK, w=0, theta=NaN) and
+ * srmech_winding_fold(2^55) -> (SRMECH_ERR_BAD_INPUT, w=0, theta=0.0).
+ * Both halves are the same defect the rc repairs in srmech_sin / srmech_cos /
+ * srmech_rational_sqrt, in this same file, and this function was NOT among
+ * the 24 discarded-status sites — it was reached because SRMECH_NODISCARD's
+ * roster includes it. The pure peer srmech.cascade.one.winding_fold raises
+ * ValueError("winding_fold: theta must be finite") for NaN before it ever
+ * dispatches, so C serving it was an ADR-0009 §2.4 divergence hidden behind
+ * a pre-dispatch guard in the OTHER projection — the precise shape this rc
+ * exists to remove. Its one C caller (srmech_eph_propagate.c) already
+ * captured and propagated the status, so the repair reaches a bare-C host
+ * through that path with no further change. */
 srmech_status_t srmech_winding_fold(double theta, int64_t *w_out,
                                     double *theta_out)
 {
@@ -270,8 +327,8 @@ srmech_status_t srmech_winding_fold(double theta, int64_t *w_out,
     int64_t r = 0;
     if (!trig_reduce_k(theta, &k, &r)) {
         *w_out = 0;
-        *theta_out = theta - theta;        /* NaN for Inf / NaN input        */
-        return (theta == theta) ? SRMECH_ERR_BAD_INPUT : SRMECH_OK;
+        trig_write_nan(theta_out);         /* see the ⚠️ note above          */
+        return SRMECH_ERR_BAD_INPUT;
     }
     uint64_t oct = (uint64_t)k & 3u;       /* residue mod 4, negative-safe   */
     int64_t w;
@@ -324,10 +381,24 @@ static double trig_atan_nonneg(double m)
     return half_pi / 2.0 + (neg ? -a : a);
 }
 
+/* atan is TOTAL on the EXTENDED reals and refuses only NaN — measured, not
+ * assumed: srmech_atan(+inf) -> (SRMECH_OK, 1.5707963267948966) and the pure
+ * peer rational.atan(+inf) -> Q(3622009729038561421, 2305843009213693952),
+ * the same pi/2, so the two projections already agree there and widening the
+ * refusal to "non-finite" would break an agreement rather than repair one.
+ * NaN is different: through rc472 it reached trig_atan_nonneg, where
+ * (int64_t)(NaN * 2^61 + 0.5) is undefined behaviour, and the function
+ * returned SRMECH_OK with -3.2146018366025517 — a FINITE value BELOW -pi,
+ * outside atan's own published range of [-pi/2, pi/2]. The pure peer raises
+ * "atan: x is NaN (not a rational)". */
 srmech_status_t srmech_atan(double x, double *out)
 {
     assert(out != NULL);
     if (out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (x != x) {                                         /* NaN */
+        trig_write_nan(out);
+        return SRMECH_ERR_BAD_INPUT;
+    }
     double xm = (x < 0.0) ? -x : x;                       /* Class-K magnitude */
     assert(xm >= 0.0);
     double r = trig_atan_nonneg(xm);
@@ -335,10 +406,33 @@ srmech_status_t srmech_atan(double x, double *out)
     return SRMECH_OK;
 }
 
+/* rc473 (`#T1188`) — three repairs, and only the first is the discarded
+ * status this rc is named for.
+ *
+ *  1. srmech_atan's status is propagated instead of cast away.
+ *  2. A NaN in EITHER argument is refused ON ENTRY. Propagation alone is not
+ *     enough: the `x == 0.0` branch below returns before srmech_atan is ever
+ *     called, so atan2(NaN, 0.0) would still have answered SRMECH_OK with
+ *     0.0. The pure peer raises "atan2: y or x is NaN (not a rational)".
+ *  3. BOTH arguments infinite is served from the quadrant DIAGONAL rather
+ *     than from y / x. Inf/Inf is NaN, so the quadrant information was
+ *     destroyed by the division rather than by the inputs: measured at rc472,
+ *     srmech_atan2(+Inf, +Inf) -> (SRMECH_OK, -3.2146018366025517), a finite
+ *     value BELOW -pi and outside atan2's own range, reached with no NaN ever
+ *     passed in. On the diagonal the ratio's MAGNITUDE is 1 and only the two
+ *     signs matter, so the ratio is formed from the signs (Class-C
+ *     orientation, no division). That reproduces the pure projection on all
+ *     four diagonals — measured: rational.atan2(+inf, +inf) -> pi/4,
+ *     (-inf, +inf) -> -pi/4, (+inf, -inf) -> 3pi/4, (-inf, -inf) -> -3pi/4.
+ */
 srmech_status_t srmech_atan2(double y, double x, double *out)
 {
     assert(out != NULL);
     if (out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (y != y || x != x) {                               /* NaN in either arg */
+        trig_write_nan(out);
+        return SRMECH_ERR_BAD_INPUT;
+    }
     double half_pi = trig_to_double(SRMECH_TRIG_HALF_PI_Q61);
     double pi = 2.0 * half_pi;
     assert(pi > 3.0 && pi < 3.3);
@@ -346,8 +440,17 @@ srmech_status_t srmech_atan2(double y, double x, double *out)
         *out = (y > 0.0) ? half_pi : (y < 0.0) ? -half_pi : 0.0;
         return SRMECH_OK;
     }
+    /* Both arguments infinite: the diagonal ratio, not the division. See the
+     * note above the function. */
+    double ratio;
+    if (trig_is_inf(y) && trig_is_inf(x)) {
+        ratio = ((y > 0.0) == (x > 0.0)) ? 1.0 : -1.0;
+    } else {
+        ratio = y / x;
+    }
     double base;
-    (void)srmech_atan(y / x, &base);
+    srmech_status_t st = srmech_atan(ratio, &base);
+    if (st != SRMECH_OK) { trig_write_nan(out); return st; }
     if (x > 0.0) { *out = base; return SRMECH_OK; }
     *out = (y >= 0.0) ? base + pi : base - pi;            /* x<0 quadrant shift (Class C) */
     return SRMECH_OK;
