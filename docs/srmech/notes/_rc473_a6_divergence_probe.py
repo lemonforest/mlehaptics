@@ -27,6 +27,19 @@ Three questions, each with its predicate written out:
      emitted with BOTH cells' answers so the NDJSON is the evidence and not a
      summary of it.
 
+  4. **The ops a merge gate measured diverging at their OWN DOCUMENTED EXAMPLE
+     ARGUMENTS** — no adversarial input at all. Driven at
+     ``python/tests/example_args_ledger.ndjson``'s own ``args``, because that
+     ledger IS the gate's population.
+
+     ⚠️ **The first version of this section drove those ops at arguments the
+     probe INVENTED, and every one came back AGREE.** That reads as a
+     refutation and is not one: a null at a different argument answers a
+     different question, and reporting it as "does not reproduce" would have
+     been this rc's own defect class a fifth time. Re-driven at the ledger's
+     arguments, five of the seven DIVERGE, at the figures the gate quoted.
+     The population is part of the predicate.
+
 CELL AUTHENTICITY. Every native figure is taken behind
 ``srmech_rational_sqrt(NaN) -> status 2`` at the ctypes symbol. An rc472 ``.so``
 returns **0** there; version and ABI alone do not distinguish the two, and this
@@ -225,6 +238,81 @@ def q3_unfiled(rows, native):
                      "ok": True, "value": "status=%d out=%r" % (st, out.value)})
 
 
+#: Ops a merge gate measured diverging at their OWN example arguments.
+_LEDGER_OPS = (
+    "srmech.math.hdc.loop_inv_hd",
+    "srmech.math.laplacian.fiedler_sparse",
+    "srmech.math.laplacian.ground_state_flux_response",
+    "srmech.math.laplacian.propagate_sparse",
+    "srmech.signal_processing.fir",
+    "srmech.signal_processing.ica_jade",
+    "srmech.signal_processing.matched_filter",
+)
+
+
+def _resolve(dotted):
+    import importlib
+
+    parts = dotted.split(".")
+    for cut in range(len(parts) - 1, 0, -1):
+        try:
+            mod = importlib.import_module(".".join(parts[:cut]))
+        except ImportError:
+            continue
+        obj = mod
+        for attr in parts[cut:]:
+            obj = getattr(obj, attr, None)
+            if obj is None:
+                break
+        if obj is not None:
+            return obj
+    return None
+
+
+def _canon(value):
+    try:
+        value = value.tolist()
+    except AttributeError:
+        pass
+    if isinstance(value, (list, tuple)):
+        return [_canon(x) for x in value]
+    return repr(value)
+
+
+def q4_example_args(rows, native):
+    """The gate's own population: each op at the LEDGER's arguments."""
+    ledger = ROOT / "python" / "tests" / "example_args_ledger.ndjson"
+    if not ledger.exists():
+        rows.append({"kind": "note", "text": "example_args_ledger.ndjson absent"})
+        return
+    with ledger.open(encoding="utf-8") as handle:
+        entries = [json.loads(line) for line in handle]
+    seen = set()
+    for entry in entries[1:]:
+        op = entry.get("op")
+        if op not in _LEDGER_OPS or op in seen:
+            continue
+        seen.add(op)
+        args = entry.get("args")
+        fn = _resolve(op)
+        if not args or fn is None:
+            rows.append({"kind": "example_arg_case", "case": op,
+                         "cell": "native" if native else "pure", "ok": False,
+                         "value": "NO LEDGER ARGS" if not args else "UNRESOLVED"})
+            continue
+        try:
+            value = fn(**args) if isinstance(args, dict) else fn(*args)
+            payload = json.dumps(_canon(value))
+        except Exception as exc:                   # noqa: BLE001
+            rows.append({"kind": "example_arg_case", "case": op,
+                         "cell": "native" if native else "pure", "ok": False,
+                         "value": "%s: %s" % (type(exc).__name__, str(exc)[:240])})
+            continue
+        rows.append({"kind": "example_arg_case", "case": op,
+                     "cell": "native" if native else "pure", "ok": True,
+                     "value": payload[:4000]})
+
+
 def main() -> int:
     native, auth, abi = _cell()
     if native and auth != 2:
@@ -247,6 +335,7 @@ def main() -> int:
                           .find_spec("numpy") is not None,
     }]
     q3_unfiled(rows, native)
+    q4_example_args(rows, native)
     if native:
         q1_law(rows)
         q2_accuracy(rows)
