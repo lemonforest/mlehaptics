@@ -1352,8 +1352,24 @@ from srmech.math.text import fold_marks, glyph_stream
 #: `math/kepler.py` -> no move. Each applied ALONE onto the old state:
 #: `_tool_docs.py` -> `da8db242…`, the other two -> no move. All three old ->
 #: `f28fb52c…`, the pin below; all three new -> `da8db242…`.
+#: A THIRTEENTH pin, in rc473's truth repair 1 (`#T1188`), for one cause: the
+#: regenerated `_tool_docs.py`. The curated file:line citations were resolved by
+#: ast and every one off its definition line now names its module, and pin_slot's
+#: WHEN / why and equation_of_centre's nu - E sentence state measured figures.
+#: CONFIRMED A PROSE MOVE AND NOT A NON-DETERMINISTIC BUILD, by the same
+#: procedure: FIVE `_build_frames("all")` calls inside each of THREE fresh
+#: interpreters in a git-free WSL2 tree extracted LF from `4e9972bab` plus the
+#: regenerated files (CPython 3.12.3, native cell, library `8c3b5982879d4b36`,
+#: authenticated) returned `5ce08382175…27eb3b4839` every time, `search("rank",
+#: k=1).witness` agrees, and a pure snapshot of the same bytes returns the same
+#: digest. 761 = 732 ops + 29 carriers, unmoved. ISOLATED BOTH WAYS against the
+#: `d346173fc` blobs, where exactly three package files differ: reverted ALONE,
+#: `_tool_docs.py` -> `da8db242…`, `_tool_docs_curated.py` and `math/kepler.py`
+#: -> no move; applied ALONE onto the old state, `_tool_docs.py` -> `5ce08382…`,
+#: the other two -> no move. All three old -> `da8db242…`, the pin below.
 WITNESS_RC416 = (
-    "da8db24232bd1b404cc0a0daa307f8f93c688a9f8a80a2eead8ab6ef296173c9")
+    "5ce08382175192d63e794bf0008532ed5d80402e08f873fd7f284e27eb3b4839")
+#: was: da8db24232bd1b404cc0a0daa307f8f93c688a9f8a80a2eead8ab6ef296173c9 (rc473 truth round)
 #: was: f28fb52c01b61054dd3424eb26071b9324408b4781d6159cc6016c42225dd0b4 (rc473 close-out)
 #: was: bb82a3fd0f0f51b9e8ce23ddb2c952255ce5c56924a2b061119a55e683711659 (rc473 repair round 1)
 #: was: ddcc47f6c5c33d985c0101e245ca3658805811c4edca01ab63ab267e3a3dcea1 (rc473 twin-defect pass)
