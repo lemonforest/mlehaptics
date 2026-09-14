@@ -24,6 +24,7 @@ from __future__ import annotations
 import ctypes
 from typing import Tuple
 
+from srmech.math.rational import _is_finite  # rc473: the Q carrier's own finite test
 from srmech.math.rational import atan2 as _ratan2  # §22: Class-N rational trig, not libm
 from srmech.math.rational import cos as _rcos
 from srmech.math.rational import sin as _rsin
@@ -46,6 +47,11 @@ _EOC_COEFFS: Tuple[float, ...] = (
 
 DEFAULT_KEPLER_TOLERANCE: float = 1e-12
 DEFAULT_KEPLER_MAX_ITER: int = 30
+
+# The largest iteration count ``srmech_kepler_solve``'s ``uint32_t max_iter``
+# can carry. ``ctypes.c_uint32`` wraps anything wider, so a larger ``max_iter``
+# is refused before dispatch in BOTH cells (rc473, `#T1188`).
+_KEPLER_MAX_ITER_WIRE: int = (1 << 32) - 1
 
 
 def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
@@ -82,6 +88,24 @@ def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
             ``srmech_cos`` / ``srmech_sin`` / ``srmech_atan2``'s refusal
             instead of discarding it, so the native cell reaches the same
             refusal through the C symbol rather than around it.
+
+            **rc473 twin-defect pass (`#T1188`) — the GEOMETRY slots.** A
+            non-finite ``pin_offset`` or ``pin_distance`` is refused by
+            ``srmech_pin_slot`` itself, because it reaches no callee that
+            could check it — in C it enters at bare double arithmetic, and in
+            the pure cascade at ``pin_distance + pin_offset * cos(theta)``,
+            which is ``float + Q`` with ``Q`` the finite-rational carrier.
+            MEASURED on an authenticated rc473 cell (ABI 26) at ``1ab8d405b``,
+            before the repair: ``pin_slot(0.0, 1.0, +inf)`` returned ``0.0``
+            through C and ``-inf`` returned ``3.141592653589793``, while the
+            pure projection raised ``TypeError`` on both — a serve-vs-refuse
+            divergence (ADR-0009 §2.4) at a slot no §1.2 row named. The
+            check that supplies the text sits AFTER the native call, the
+            placement ``equation_of_centre`` uses, so a native cell reaches
+            the refusal through the C symbol and a C regression there is
+            visible to every public-op gate;
+            ``tests/test_kepler_non_finite_slots_rc473.py`` requires both the
+            symbol's refusal and that the public op consulted it.
     """
     if pin_offset == 0.0 and pin_distance == 0.0:
         raise ValueError(
@@ -111,6 +135,20 @@ def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
     # cascade flows Q (exact ALU arithmetic); ``float()`` is the FPU last-mile
     # rotate that matches the native ``srmech_pin_slot`` c_double contract (the
     # angle is the observable).
+    #
+    # rc473 twin-defect pass (`#T1188`): the finite-geometry check lives HERE,
+    # after the native call, and not before dispatch. srmech_pin_slot refuses
+    # a non-finite pin_offset / pin_distance itself, so a native cell reaches
+    # this line only after the C symbol has said SRMECH_ERR_BAD_INPUT, and this
+    # check supplies the one text both cells raise. Before dispatch it would
+    # answer before C was consulted, which is the shape that kept
+    # equation_of_centre's C defect invisible for eight release candidates.
+    if not (_is_finite(pin_offset) and _is_finite(pin_distance)):
+        raise ValueError(
+            f"pin_slot: pin_offset and pin_distance must be finite (Q is the "
+            f"finite-rational carrier); got pin_offset={pin_offset!r}, "
+            f"pin_distance={pin_distance!r}"
+        )
     x = pin_distance + pin_offset * _rcos(theta)
     y = pin_offset * _rsin(theta)
     return float(_ratan2(y, x))
@@ -139,19 +177,53 @@ def kepler_solve(
         Eccentric anomaly ``E`` in radians.
 
     Raises:
-        ValueError: For ``e < 0``, ``e >= 1``, or ``max_iter <= 0``; and
+        ValueError: For ``e < 0``, ``e >= 1``, ``max_iter <= 0``,
+            ``max_iter > 2**32 - 1``, or a non-finite ``tolerance``; and
             (rc473, `#T1188`) for any ``M_rad`` the Class-N ``sin`` cascade
             cannot reduce, in the pure cascade's own words.
             ``srmech_kepler_solve`` now propagates ``srmech_sin``'s refusal
             instead of discarding it — through rc472 the Newton iteration
             never moved ``E`` off its ``M`` initial guess and the caller was
             handed ``E == M`` with ``SRMECH_OK``.
+
+            **rc473 twin-defect pass (`#T1188`) — the TOLERANCE slot.** It
+            reaches no callee: it is only ever the right-hand side of
+            ``|delta| < tolerance``, so a non-finite one was never examined.
+            MEASURED on an authenticated rc473 cell (ABI 26) at ``1ab8d405b``,
+            before the repair, at ``M = pi/2``, ``e = 0.0549``,
+            ``max_iter = 20``: ``tolerance=+inf`` returned
+            ``1.625613861425157`` through C — the ONE-Newton-step estimate,
+            reported as converged — where the pure projection raised
+            ``TypeError``; ``nan`` and ``-inf`` raised "did not converge"
+            through C, a story about an argument that was never a tolerance.
+            ``srmech_kepler_solve`` now refuses all three before its own
+            ``e == 0`` shortcut, and the check supplying the text sits after
+            the native call and before the pure ``e == 0.0`` return, so a
+            native cell reaches the refusal through the C symbol.
+
+            **The MAX_ITER wire (`#T1188`).** ``srmech_kepler_solve`` takes a
+            ``uint32_t``, and ``ctypes.c_uint32`` WRAPS: measured at
+            ``1ab8d405b``, ``max_iter=2**32 + 1`` crossed the wire as ``1``,
+            C ran one Newton step and the native cell raised "did not
+            converge in 4294967297 iterations" where the pure cell returned
+            ``1.625613861239322``. No C code can refuse a value its parameter
+            type cannot hold, so this precondition is checked BEFORE
+            dispatch, in both cells, with one text — the one refusal here the
+            C projection cannot express.
         RuntimeError: If not converged within ``max_iter`` iterations.
     """
     if not (0.0 <= e < 1.0):
         raise ValueError(f"kepler_solve: e must satisfy 0 <= e < 1; got {e}")
     if max_iter <= 0:
         raise ValueError(f"kepler_solve: max_iter must be positive; got {max_iter}")
+    if max_iter > _KEPLER_MAX_ITER_WIRE:
+        # rc473 (`#T1188`): the uint32 wire cannot carry it, so C cannot refuse
+        # it — c_uint32 would wrap it silently. Checked before dispatch, in
+        # both cells, with one text. See the docstring's MAX_ITER paragraph.
+        raise ValueError(
+            f"kepler_solve: max_iter must be at most 2**32 - 1 (the uint32 "
+            f"iteration count srmech_kepler_solve takes); got {max_iter}"
+        )
     if _native.HAS_NATIVE:
         out = ctypes.c_double(0.0)
         rc = _native.LIB.srmech_kepler_solve(
@@ -170,15 +242,24 @@ def kepler_solve(
             )
         if rc != _native.SRMECH_ERR_BAD_INPUT:
             raise ValueError(f"srmech_kepler_solve returned status {rc}")
-        # rc473 (`#T1188`): fall through to the pure cascade for the refusal
-        # text, AFTER the C symbol has answered. Measured on this cell: the
-        # only inputs C refuses here are the ones ``rational.sin`` refuses on
-        # the very next line, so the fallthrough re-raises rather than
-        # answering. ``e == 0.0`` is the one path whose pure body returns
-        # without calling ``sin`` — and ``srmech_kepler_solve`` takes its own
-        # ``e == 0`` shortcut too, so it returns SRMECH_OK there and this
-        # branch is never reached (MEASURED: (nan, 0.0) -> status 0 in both).
+        # rc473 (`#T1188`): the C peer REFUSED. Fall through to the pure
+        # cascade for the refusal text, AFTER the C symbol has answered. C
+        # refuses two things here, and the pure body below re-raises each in
+        # the same order: a non-finite tolerance (checked before its own
+        # ``e == 0`` shortcut, as the tolerance check below precedes the pure
+        # one), and an ``M_rad`` the Q61 ``sin`` cascade cannot reduce (which
+        # ``rational.sin`` refuses on the first line of the iteration).
     # Pure-Python fallback, and the refusal path above.
+    #
+    # rc473 twin-defect pass (`#T1188`): the tolerance check lives HERE, after
+    # the native call and before the ``e == 0.0`` return — not before dispatch.
+    # srmech_kepler_solve refuses a non-finite tolerance itself, so a native
+    # cell reaches this line only through the C symbol's refusal.
+    if not _is_finite(tolerance):
+        raise ValueError(
+            f"kepler_solve: tolerance must be finite (Q is the "
+            f"finite-rational carrier); got {tolerance!r}"
+        )
     if e == 0.0:
         return M_rad
     E = M_rad + e * _rsin(M_rad)

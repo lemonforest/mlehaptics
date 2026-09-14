@@ -117,6 +117,34 @@ static const double SRMECH_KEPLER_EOC_COEFFS[SRMECH_KEPLER_EOC_MAX_TERMS] = {
     1223.0 / 960.0           /* k=6: (1223/960) e^6 sin(6M) */
 };
 
+/* Finiteness inline, the srmech_eph_propagate_sparse idiom: x == x rejects
+ * NaN, x - x == 0 rejects ±Inf (Inf - Inf is NaN). No libm, no dedicated
+ * predicate function (a pure single-scalar predicate would need a JPL Rule-5
+ * exemption; the inline form does not). Single-line macro — Rule 8. */
+#define KEP_FINITE(x) (((x) == (x)) && ((x) - (x) == 0.0))
+
+/* rc473 repair pass (`#T1188`) — THE GEOMETRY ARGUMENTS, and the comment
+ * lives above the signature for the same JPL Rule-4 reason the eccentricity
+ * band's does below: lines BETWEEN the braces are what the cap counts.
+ *
+ * theta was already refused for the whole Class-N cascade domain (the
+ * srmech_cos / srmech_sin / srmech_atan2 statuses this function propagates).
+ * pin_offset and pin_distance were not checked at all, and they never reach
+ * a callee that could check them — they enter at the bare double arithmetic
+ * `x = pin_distance + pin_offset * cs`, so this function is the only place
+ * the argument exists. MEASURED at rc473 on an authenticated cell (ABI 26):
+ *   srmech_pin_slot(0.0, 1.0, +Inf) -> (SRMECH_OK, 0.0)
+ *   srmech_pin_slot(0.0, 1.0, -Inf) -> (SRMECH_OK, 3.141592653589793)
+ * while the pure peer raises on the SAME arguments — `pin_distance +
+ * pin_offset * cos(theta)` is `float + Q`, and Q is the finite-rational
+ * carrier, so it refuses a non-finite float. That is ADR-0009 §2.4, a
+ * serve-vs-refuse divergence at a slot NO filed row named: §1.2's row 52
+ * files kepler_solve at a large M, a different argument. A non-finite
+ * pin_offset already refused here, but only by accident — `pin_offset *
+ * sin(0.0)` is `Inf * 0.0` = NaN and srmech_atan2 refuses NaN — so the
+ * guard below makes an accident into a contract, at no change of status.
+ * Both are PRECONDITIONS on this function's own arguments, which is why they
+ * sit beside the (0, 0) refusal rather than inside a callee. */
 srmech_status_t srmech_pin_slot(double  theta,
                                 double  pin_offset,
                                 double  pin_distance,
@@ -131,6 +159,10 @@ srmech_status_t srmech_pin_slot(double  theta,
     /* Degenerate case: zero baseline AND zero pin offset. atan2(0, 0) is
      * implementation-defined; refuse rather than silently return 0. */
     if (pin_distance == 0.0 && pin_offset == 0.0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    /* rc473 (`#T1188`): the geometry must be finite — see the note above. */
+    if (!KEP_FINITE(pin_offset) || !KEP_FINITE(pin_distance)) {
         return SRMECH_ERR_BAD_INPUT;
     }
     /* Standard Antikythera pin-and-slot: pin position relative to follower
@@ -183,7 +215,24 @@ srmech_status_t srmech_pin_slot(double  theta,
  * kepler_solve and equation_of_centre alike), which IS NaN-catching — so the
  * two projections differed in which inputs they serve, ADR-0009 §2.4, the
  * exact class this rc exists to close. Both are now the NEGATION of the
- * accepted band. */
+ * accepted band.
+ *
+ * rc473 SECOND repair (`#T1188`) — THE TOLERANCE, a slot no filed row named.
+ * `tolerance` reaches no callee either: it is only ever the right-hand side
+ * of `adelta < tolerance`, so a non-finite one is never examined. MEASURED
+ * on an authenticated cell (ABI 26), M = pi/2, e = 0.0549, max_iter = 20:
+ *   tolerance = +Inf  -> (SRMECH_OK, 1.625613861425157)   [pure RAISES]
+ *   tolerance =  NaN  -> (SRMECH_ERR_OVERFLOW, ...)       [pure RAISES]
+ *   tolerance = -Inf  -> (SRMECH_ERR_OVERFLOW, ...)       [pure RAISES]
+ * The +Inf row is the serve-vs-refuse divergence: `adelta < +Inf` is true on
+ * the first step, so C returns the ONE-Newton-step estimate and calls it
+ * converged. The other two are the same defect wearing a different answer —
+ * `adelta < NaN` is never true, so the loop runs out and the caller is told
+ * "did not converge" about an argument that was never a tolerance. The pure
+ * peer refuses all three at `Q < float`, Q being the finite-rational
+ * carrier. A FINITE tolerance of any sign or magnitude is unchanged: zero
+ * and negative values still run to non-convergence in BOTH projections,
+ * which is what they already agreed on. */
 srmech_status_t srmech_kepler_solve(double    M_rad,
                                     double    e,
                                     double    tolerance,
@@ -200,6 +249,9 @@ srmech_status_t srmech_kepler_solve(double    M_rad,
         return SRMECH_ERR_BAD_INPUT;
     }
     if (max_iter == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (!KEP_FINITE(tolerance)) {           /* rc473: see the note above    */
         return SRMECH_ERR_BAD_INPUT;
     }
     /* Circular orbit (e = 0): E = M exactly. */
