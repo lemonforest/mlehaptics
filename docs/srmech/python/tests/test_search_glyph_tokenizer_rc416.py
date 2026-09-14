@@ -1266,8 +1266,34 @@ from srmech.math.text import fold_marks, glyph_stream
 #: `srmech/introspect/_tool_docs.py` ALONE to its 7665c594c blob returns the
 #: digest to `dfa2770091…` at 761 frames, and restoring it returns
 #: `f595e2da9b…`. One file, one cause, measured in both directions.
+#: A NINTH pin, in rc473's TWIN-DEFECT PASS (`#T1188`), for two causes at
+#: once, and both are prose the pass moved on purpose. (i) `tool_schema.py`:
+#: the `winding_fold` and `propagate_wound` ToolEntry strings stopped saying
+#: the two projections fold against "the Machin-2π rational pure / Q61 2/π
+#: native" and "theta_res to the fold grids' common resolution" — false, the
+#: residues drifted 8.0387e-21 rad per whole turn apart — and now say one 2π,
+#: one grid, bit-identical. (ii) `_tool_docs.py`: the curated `winding_fold`
+#: transcript was CELL-DEPENDENT and now prints the one answer both cells give
+#: (`(5, 0.0)` where the native cell printed `(5, -1.2247147740396258e-15)`),
+#: the `search.search` example that quotes it moved with it, and 23
+#: `c/include/srmech.h:NNN` citations in curated explanations were re-pointed
+#: after the pass grew the header. Explanations and summaries ARE the corpus.
+#: CONFIRMED A PROSE MOVE AND NOT A NON-DETERMINISTIC BUILD, by the procedure
+#: this pin has used since rc468: FIVE `_build_frames("all")` calls inside each
+#: of THREE fresh interpreters on WSL2 (CPython 3.12.3, numpy absent, native
+#: cell, ABI 26) returned `ddcc47f6c5c3…a3dcea1` every time,
+#: `search("rank", k=1).witness` agrees, and a pure snapshot of the same bytes
+#: returns the same digest. THE FRAME COUNT DID NOT MOVE: 761 = 732 ops + 29
+#: carriers. THE CAUSE IS ISOLATED, file by file, each reverted ALONE to its
+#: `1ab8d405b` blob and then restored: `_tool_docs.py` -> `be8e0500c78c…` and
+#: back to `ddcc47f6…`; `tool_schema.py` -> `37d3ea98b118…` and back;
+#: `_tool_docs_curated.py`, `cascade/one.py`, `math/kepler.py` and
+#: `math/laplacian.py` -> no move at all (the corpus reads the GENERATED docs,
+#: not the curated source, and no op docstring). All six reverted together ->
+#: `f595e2da9b…`, the pin below; restored -> `ddcc47f6…`.
 WITNESS_RC416 = (
-    "f595e2da9b69b91fc8ecc04e25f4f00bd870ef45dac9b19bcf2cc7ad5c01e35a")
+    "ddcc47f6c5c33d985c0101e245ca3658805811c4edca01ab63ab267e3a3dcea1")
+#: was: f595e2da9b69b91fc8ecc04e25f4f00bd870ef45dac9b19bcf2cc7ad5c01e35a (rc473 repair pass)
 #: was: dfa2770091f08f92774fa3e4fc52617e0f8091bfde9961b3223e60a47fc3fad7 (rc472 repair pass)
 #: was: 6c51206c057f6728dc80d2cd08821b9ca67b19695e219a8ddc1af03ede1c2b0e (rc471 repair pass)
 #: was: 40a2d8ebb1cf59de0302dcaf8052aee20eb8ed119e43584fdd0b10278a3bcc14 (rc469)
