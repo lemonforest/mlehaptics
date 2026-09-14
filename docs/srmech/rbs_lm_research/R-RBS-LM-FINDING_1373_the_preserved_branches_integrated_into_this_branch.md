@@ -139,3 +139,74 @@ The later branch edit stays. Which reading is right is a research question these
 
 - The `preserved_branches/` archive, the errata and the three `archive/*` tags are untouched.
 - No branch or tag was deleted. Nothing was force-pushed. PR #687 was not merged.
+
+## Maintainer ruling 2026-09-14: the 19 task931 sites use klein4_address
+
+**The ruling.** The section "Kept as the branch has them: 19 sites" above left 19 sites to the maintainer. The maintainer ruled that they use `klein4_address`, as `e035d2495` chose, and not `klein4_encode_bytes`, as `145558237` (F1284) chose. All 19 are now applied. The earlier paragraph and its per-branch answer **no** stay as they were written; this section supersedes both.
+
+**The reasoning accepted.** It is `e035d2495`'s own argument:
+
+- These vectors are **atomic addresses**. Each one is bound into a pair, superposed into a memory, and retrieved by exact-identity argmax.
+- Relatedness between tokens enters only through corpus counts and Laplacian edge weights, never through vector geometry.
+- `klein4_encode_bytes` builds a vector from position-bound per-byte vectors, so similar spellings get similar vectors. That commit measured cat/cats 0.6597 and cat/dog 0.2517 with it, against 0.2589 and 0.2454 with `klein4_address`. At these sites that similarity would inject morphological confusion the experiments do not want.
+- The other 29 sites of `e035d2495` already use `klein4_address` on this branch (`1d38f2160`).
+
+**The commits that disagreed.**
+
+| commit | committed | op on these 19 lines | how it read the sites |
+|---|---|---|---|
+| `e035d2495` (`#T931` 3/3) | 2026-07-20T23:34:48−05:00 | `hdc.klein4_address(D, w)` | as addresses: *"So klein4_address is the faithful op, and klein4_encode_bytes would be WRONG here"* |
+| `145558237` (F1284) | 2026-07-21T18:57:23Z, 14 h 22 m later | `hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D)` | as representations: *"representation (klein4_random(D, seed=hash(w))) : 20 -> hdc.klein4_encode_bytes"* |
+
+F1284 did not have the earlier argument to read: `git branch -r --contains e035d2495` prints nothing, on 2026-09-14 as before this integration.
+
+**A third commit bears on these files.** `e791a4f83` (F1260, 2026-07-20T15:35:46Z) left these historical probes unedited on purpose: *"the generating code IS the attestation of a lodged number; editing it would mean the lodged result no longer reproduces"*. Both later commits change those numbers. Two measurements from today:
+
+- The seeds the lodged numbers came from did not reproduce either. `python -c 'print(hash("the")%80000+11, hash("the")%90000+7)'`, run three times in a row on Python 3.14.4, printed `836 832`, `15404 5400` and `26490 46486`. Builtin `hash()` of a str is salted per process.
+- None of the 19 scripts was re-run for this record. Each one reads an uncommitted corpus at `/home/skirklan/corpora/wikipedia/simplewiki_fullbody_instrument.ndjson` (19 of 19 files; 0 of them import numpy).
+
+The findings' `.md` files, and the numbers lodged in them, are unchanged.
+
+**The premise check.** Before changing a file, the ruling's premise was checked in it: the vector made at the site is used only as an address, and no code compares two different tokens' vectors. Each file was read, and `F1373_supporting/t931_ruling_premise_scan.py` checks the same thing on the AST (output `t931_ruling_premise_scan.ndjson`). Across the 19 files:
+
+- every use of the site's dict is a lookup (`vec[t]`) or a membership test (`t in vec`), except one line in F981 that never runs (below);
+- 0 `klein4_similarity` calls compare two tokens' vectors. In every read at a site vector, one argument is a probe unbound from the memory `M`, and the other is a candidate's vector;
+- 0 comparisons (`==`, `<`, …) have a use of the dict on either side. The `==` tests compare the token a read returns with the target token.
+
+| file | site line | how the vector is used (lines) | where the result is decided (lines) | compares two tokens' vectors | premise |
+|---|---|---|---|---|---|
+| FINDING_976 | 23 | bound 37–38, bundled 39, probes 40–41, read 27 | `s[0][1]==X` 28 | no | holds |
+| FINDING_981 | 19 | bundled 33, probe 28, read 29 | `t1==T` 37, `tk==T` 41 | no. Line 28's `bind(bind(vec[c],ROLE),vec)` is in an `if False` branch and never runs | holds |
+| FINDING_982 | 20 | bundled 22, probe 24, reads 26, 28, 35 | the top-4 tokens of each read are printed, 31–32; `fw in vec` 36 | no | holds |
+| FINDING_983 | 20 | bundled 26, read 28–31 | `t==T` 34, 37; `w in vec` 38 | no | holds |
+| FINDING_984 | 23 | bundled 24, read 26–29 | the top-3 tokens are printed, 31, 35–37; `docf.get(raw[0])` 36 is a corpus count | no | holds |
+| FINDING_985 | 24 | bound and bundled 44, read 52–55 | `rd()==target` 56 | no | holds |
+| FINDING_986 | 22 | bundled 38, read 41–42 | `==T` 47–48 | no | holds |
+| FINDING_991 | 19 | bundled 31, read 33 | `!=seq[i]` 37, `p==seq[i]` 58 | no | holds |
+| FINDING_992 | 48 | bundled 63, reads 65, 67–68, votes counted by token 72 | `==T` 78–80 | no. The similarity at 23 is Part A's `klein4_expand` vectors, not this dict | holds |
+| FINDING_993 | 46 | bundled 61, reads 64, 66–68 (Klein-4 flips of the probe) | `==T` 74–76 | no | holds |
+| FINDING_994 | 35 | bundled 51, and with each pair's three chiral images 57; read 59 | `==T` 64–65 | no. The similarity at 17 compares `klein4_expand(D, 1)` with `klein4_expand(D, 2)` for the isometry check, not this dict | holds |
+| FINDING_995 | 26 | bundled 49, bound with rung keys and bundled 51, reads 53, 56, 59 | `==T` 65–67 | no | holds |
+| FINDING_997 | 23 | bundled 47, read 49 | `read_M(a)==b` 50 | no | holds |
+| FINDING_998b | 24 | bundled 45, read 47 | `==b` 48 | no | holds |
+| FINDING_998c | 23 | bundled 42, read 47–48 | `b in rankfn(a)[:K]` 56 | no | holds |
+| FINDING_998d | 23 | bundled 42, read 46–47 | `==b` 58–61 | no | holds |
+| FINDING_999 | 28 | bound with rung keys and bundled 49, read 51 | `rk[0]==T`, `T in rk[:3]` 57 | no | holds |
+| FINDING_1000 | 29 | bound with rung keys and bundled 50, reads 57–60 | `==T` 61 | no | holds |
+| FINDING_1001 | 32 | bound with rung keys and bundled 53, reads 60–68 | `==T` 69 | no | holds |
+
+Where relatedness does enter these scripts, it comes from corpus counts (`docf`, `freq`, `nexts`, `rankof`), from the edge weights of `recursive_cut`, and in F997 and F998b–d from `magnetic_laplacian` over directed edge counts. None of those reads a site vector.
+
+**The change.** The premise held in all 19 files, so all 19 were changed.
+
+- In each file, the line F1284 added was found exactly once and replaced with the line `e035d2495` added, character for character. The two commits had removed the same line, and at `4db9932dd` each site line still equalled F1284's added line.
+- Nothing else in the files changed. All 19 were edited by later commits elsewhere: they are among the 548 research files that differ between `145558237` and `4db9932dd`. Those edits stay. `git diff --numstat` shows 1 line added and 1 deleted in each of the 19 files.
+- Each site's before and after text is in `F1373_supporting/t931_ruling_apply.ndjson`.
+- All 19 compile: `python -m py_compile` exits 0 for each (Python 3.14.4, with `PYTHONPYCACHEPREFIX` outside the tree).
+- None of the 19 files was touched by the integration range `66a97bab2..4db9932dd`, so they are not among the 40 research scripts counted above.
+
+**Is every change of `task931-rbs-klein4-reconcile` on this branch now?**
+
+- task931-rbs-klein4-reconcile: every change is on this branch: yes. All 48 sites of `e035d2495` are here: 29 in `1d38f2160` and 19 in the commit that adds this section.
+
+**Not done here.** The maintainer also chose to delete the three `archive/*` tags and remove `preserved_branches/` once every change is proven integrated. That cleanup is not part of this commit. The tags and the folder are unchanged.
