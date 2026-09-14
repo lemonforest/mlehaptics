@@ -18,12 +18,12 @@
  *                                 nu - M in eccentricity e (Brouwer & Clemence
  *                                 1961 §3.2 + Murray & Dermott 1999 §2.5)
  *
- * Per [[user_stance_kepler_shape_universal]] + PR #416 F2/F15/F17:
- * Kepler-equation algebra IS pin-slot composition. The bronze instantiates
- * Class K natively (pin-on-eccentric-disc + radial slot follower); the
- * universe instantiates the same algebra via gravitational dynamics. Same
- * Kepler-shape primitive cascade at different dimensional reaches per
- * [[user_stance_1d_t_as_storage_extraction]].
+ * [[user_stance_kepler_shape_universal]] + PR #416 F2/F15/F17 read Kepler-equation algebra
+ * as pin-slot composition. Measured at rc473 on the pure projection: ONE stage (theta = pi - M,
+ * eps = e) matches E - M through e^2 and departs at e^3; nu - E is a doubled stage to within
+ * 2e-15 rad; M -> E is no stage, and srmech_kepler_solve reaches it by Newton at a declared
+ * precision (figures and eps conventions: srmech/math/kepler.py). The bronze instantiates
+ * Class K natively (pin-on-eccentric-disc + radial slot follower) per [[user_stance_1d_t_as_storage_extraction]].
  *
  * Canonical SSoT per [[feedback_science_is_ssot_not_project]]:
  *   - Pin-slot transform        : Freeth (2021) Nature Sci Rep, Supp S9.
@@ -130,10 +130,10 @@ static const double SRMECH_KEPLER_EOC_COEFFS[SRMECH_KEPLER_EOC_MAX_TERMS] = {
  *
  * theta was already refused for the whole Class-N cascade domain (the
  * srmech_cos / srmech_sin / srmech_atan2 statuses this function propagates).
- * pin_offset and pin_distance were not checked at all, and they never reach
- * a callee that could check them — they enter at the bare double arithmetic
- * `x = pin_distance + pin_offset * cs`, so this function is the only place
- * the argument exists. MEASURED at rc473 on an authenticated cell (ABI 26):
+ * pin_offset and pin_distance were not checked at all, and no callee refuses every
+ * non-finite value for them: they enter at the bare double arithmetic `x = pin_distance
+ * + pin_offset * cs`, whose one callee srmech_atan2 refuses a NaN but serves an infinite
+ * argument ((inf, inf) -> (0, pi/4) at the symbol). MEASURED at rc473 on an authenticated cell (ABI 26):
  *   srmech_pin_slot(0.0, 1.0, +Inf) -> (SRMECH_OK, 0.0)
  *   srmech_pin_slot(0.0, 1.0, -Inf) -> (SRMECH_OK, 3.141592653589793)
  * while the pure peer raises on the SAME arguments — `pin_distance +

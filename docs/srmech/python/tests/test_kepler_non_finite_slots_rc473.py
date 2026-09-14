@@ -68,11 +68,16 @@ still say "differ".
 
 WHERE EACH REFUSAL LIVES
 ========================
-Neither `pin_offset` / `pin_distance` nor `tolerance` reaches a callee that
-checks it: the geometry enters at the bare double arithmetic `x =
-pin_distance + pin_offset * cs`, and `tolerance` was only ever the right-hand
-side of `adelta < tolerance` until repair round 1, which hands it to the Q61
-iteration only after the finite check. So the refusal belongs to `srmech_pin_slot` and
+No callee refuses every non-finite `pin_offset` / `pin_distance`, and none
+refuses a non-finite `tolerance`: the geometry enters at the bare double
+arithmetic `x = pin_distance + pin_offset * cs`, whose one callee
+`srmech_atan2` refuses a NaN but serves an infinite argument (measured at the
+symbol: `srmech_atan2(inf, inf)` -> `(0, 0.7853981633974483)`), and
+`tolerance` was only ever the right-hand side of `adelta < tolerance` until
+repair round 1, which hands it to the Q61 iteration only after the finite
+check — where `tolerance == tolerance` is a Debug-build `assert`, not a
+refusal. (Until rc473's truth round this paragraph said no callee "checks"
+these arguments; that assert is a check.) So the refusal belongs to `srmech_pin_slot` and
 `srmech_kepler_solve`, beside their existing (0, 0) refusal and eccentricity
 band. The Python checks that supply the one text both cells raise sit AFTER
 the native call — the placement rc473 gave `equation_of_centre` — so a native

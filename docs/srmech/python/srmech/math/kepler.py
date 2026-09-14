@@ -1,8 +1,26 @@
 """Class K — equation-of-centre / pin-slot (Kepler-shape projection-shadow).
 
 Continuous projection-shadow of the integer-cyclic upstream (Class I
-cyclic groups + Class J prime-period). Per ``[[user_stance_kepler_shape_universal]]``
-+ PR #416 F2/F15/F17: Kepler-equation algebra IS pin-slot composition.
+cyclic groups + Class J prime-period). ``[[user_stance_kepler_shape_universal]]``
++ PR #416 F2/F15/F17 read Kepler-equation algebra as pin-slot composition.
+What rc473 (`#T1188`) measured against that reading, on a pure cell with
+this module's own three ops (a 256-point sine quadrature), where ONE
+pin-slot stage means ``pin_slot(theta, eps, 1.0) = atan2(eps sin theta,
+1 + eps cos theta)``, i.e. ``eps = pin_offset / pin_distance``:
+
+- ``E - M`` (Kepler's equation) is matched by one stage only through
+  ``e**2``. With ``theta = pi - M`` and ``eps = e`` the stage's harmonics
+  are ``e**k / k``; at ``e = 0.002`` the ``e**3`` terms read -0.125 (at
+  ``sin M``) and +0.375 (at ``sin 3M``) for Kepler against 0 and +0.333333
+  for the stage, and ``E - M - pin_slot(pi - M, e, 1.0)`` peaks over the
+  M grid at 0.166667 ``e**3`` at ``e = 0.001``.
+- ``nu - E`` IS a stage, doubled: ``E + 2 * pin_slot(pi - E, beta, 1.0)``
+  with ``beta = e / (1 + sqrt(1 - e**2))`` agreed with the true anomaly to
+  within 2.0e-15 rad at ``e`` = 0.0549, 0.3, 0.7, 0.9 and 0.99.
+- ``nu - M`` (the equation of centre) is not one stage: ``c2 / c1**2`` is
+  0.3125 for the series and 0.5 for a single stage at every ``eps``.
+- ``M -> E`` is not a stage: :func:`kepler_solve` reaches ``E`` by
+  Newton-Raphson at a declared precision.
 
 This module ships three operations:
 
@@ -145,9 +163,18 @@ def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
 
         phi = atan2(i * sin(theta), d + i * cos(theta))
 
-    Per ``[[user_stance_kepler_shape_universal]]`` + PR #416 F2/F15/F17,
-    this transform IS the Kepler equation of centre to second order in
-    eccentricity ``epsilon = pin_offset / pin_distance``.
+    ``[[user_stance_kepler_shape_universal]]`` + PR #416 F2/F15/F17 read
+    this transform as Kepler's shape. With ``eps = pin_offset /
+    pin_distance``, ``pin_slot(theta, eps, 1.0)`` has sine harmonics
+    ``(-1)**(k+1) eps**k / k``. Measured at rc473 (`#T1188`), pure cell,
+    256-point quadrature: it is NOT the equation of centre ``nu - M`` to
+    second order (``c2 / c1**2`` is 0.3125 for that series and 0.5 here, at
+    every ``eps``); at ``theta = pi - M`` and ``eps = e`` it matches
+    ``E - M`` through ``e**2`` and departs at ``e**3``; and at
+    ``theta = pi - E`` and ``eps = e / (1 + sqrt(1 - e**2))``,
+    ``E + 2 * pin_slot(theta, eps, 1.0)`` is the true anomaly to within
+    2.0e-15 rad for ``e`` from 0.0549 to 0.99. The module docstring
+    carries the figures.
 
     Args:
         theta: Input shaft angle in radians.
@@ -172,8 +199,11 @@ def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
 
             **rc473 twin-defect pass (`#T1188`) — the GEOMETRY slots.** A
             non-finite ``pin_offset`` or ``pin_distance`` is refused by
-            ``srmech_pin_slot`` itself, because it reaches no callee that
-            could check it — in C it enters at bare double arithmetic, and in
+            ``srmech_pin_slot`` itself, because no callee refuses every
+            non-finite value — in C it enters at bare double arithmetic whose
+            one callee, ``srmech_atan2``, refuses a NaN but serves an infinite
+            argument (measured at the symbol: ``srmech_atan2(inf, inf)`` ->
+            ``(0, 0.7853981633974483)``), and in
             the pure cascade at ``pin_distance + pin_offset * cos(theta)``,
             which is ``float + Q`` with ``Q`` the finite-rational carrier.
             MEASURED on an authenticated rc473 cell (ABI 26) at ``1ab8d405b``,

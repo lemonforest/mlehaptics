@@ -311,6 +311,16 @@ FROZEN_KNOWN_GATES = frozenset({
     # from the manifest does not weaken a gate; it restores a surface that had
     # none, on the axis every op rc edits.
     "tests/test_cascade_catalog_prose_currency_rc454.py",
+    # rc473 (`#T1188`): the three gates rc473 added to the manifest, frozen
+    # because each was listed there with nothing guarding the line. Measured
+    # by rc473's close-out gates: with `tests/test_r3_reader_rc470.py`'s line
+    # deleted, this file stayed at 7 passed and the 135-target manifest then
+    # passed a real R3 label move that the listed file reddens. The other two
+    # are the C-boundary instrument that judges rc473's repair and the ABI-pin
+    # gate whose absence let three ABI bumps ship red.
+    "tests/test_r3_reader_rc470.py",
+    "tests/test_value_status_c_boundary_rc473.py",
+    "tests/test_abi_pin_sites_agree_rc464.py",
 })
 
 
