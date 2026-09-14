@@ -984,8 +984,10 @@ def test_the_roster_covers_every_class_n_scalar_export_two_way() -> None:
 # That mattered, and it was found from OUTSIDE this file: a cross-implementation
 # differential drove the whole double-taking exported roster instead of these
 # six scalar symbols, and reported this gate returning `90 passed, 6 xfailed`
-# on a cell where `srmech_winding_fold`'s residue diverges between the
-# projections by up to 7.07e8 x 2**-44 — because `srmech_winding_fold` is a
+# on a cell where `srmech_winding_fold`'s residue DIVERGED between the
+# projections by up to 7.07e8 x 2**-44 (past tense as of the rc473 twin-defect
+# pass, which repaired it; the roster blindness it exposed is unchanged and is
+# what this section is about) — because `srmech_winding_fold` is a
 # declared export this file's roster regex cannot spell. A gate whose
 # population predicate is narrower than the family its own prose claims is the
 # same defect as a grep that cannot spell its own symbol.
@@ -1033,18 +1035,27 @@ _OUTSIDE_THE_NARROW_SHAPE: "dict[str, str]" = {
         "is the defect this file's own A6 pass exists to remove.)"
     ),
     "srmech_pin_slot": (
-        "`#T1188`, ADR-0009 §1.2 (A6 repair pass): three double inputs, and "
-        "MEASURED to DIVERGE — pin_slot(pin_distance=+inf, pin_offset=1.0, "
-        "theta=0.0) returns 0.0 through C and raises TypeError through the "
-        "pure projection. That is a serve-vs-refuse divergence, not a row "
-        "this file can pin as served or refused. FILED rather than exercised; "
-        "pre-existing on b398b8c46."
+        "`#T1188`: THREE double inputs, so it has no single served/refused "
+        "row shape here. It is not unexercised: the divergence this entry "
+        "used to record as live — pin_slot(pin_distance=+inf, pin_offset=1.0, "
+        "theta=0.0) returning 0.0 through C where the pure projection raised, "
+        "and -inf returning 3.141592653589793 — was REPAIRED in the rc473 "
+        "twin-defect pass. srmech_pin_slot now refuses a non-finite "
+        "pin_offset or pin_distance as a precondition on its own arguments, "
+        "and tests/test_kepler_non_finite_slots_rc473.py drives the C symbol "
+        "directly over both slots and both signs. (The entry said 'FILED "
+        "rather than exercised; pre-existing on b398b8c46' — the second half "
+        "was and stays true; the first is now false.)"
     ),
     "srmech_winding_fold": (
-        "`#T1188`, ADR-0009 §1.2 (A6 repair pass): two out-params of different "
-        "types (int64_t *w_out, double *theta_out), and the theta_out channel "
-        "DIVERGES between the projections — pinned executably below rather "
-        "than as a served/refused row."
+        "`#T1188`: two out-params of DIFFERENT types (int64_t *w_out, "
+        "double *theta_out), so it has no served/refused row shape here — it "
+        "is pinned executably below instead. This entry read 'the theta_out "
+        "channel DIVERGES between the projections' at the A6 filing; that "
+        "divergence was REPAIRED in the same rc (one 2-pi constant, one "
+        "2**-44 grid, both projections), and the rows below now require "
+        "bit-identical (w, theta_res) at the 24 angles the law was fitted "
+        "over, at the C symbol as well as through the wrapper."
     ),
 }
 
@@ -1123,48 +1134,51 @@ def test_the_narrow_roster_is_a_subset_and_not_the_family() -> None:
 
 
 # --------------------------------------------------------------------------
-# `srmech.cascade.one.winding_fold` — `theta_res` DIVERGES between the
-# projections at ordinary FINITE angles. Filed at the A6 repair pass.
+# `srmech.cascade.one.winding_fold` — `theta_res` DIVERGED between the
+# projections at ordinary FINITE angles. Filed at the A6 repair pass;
+# REPAIRED in the same rc, and this block is the inverted pin.
 #
-# Found from outside this file, by the differential described above. The
-# docstring asserted the two folds "quantise the SAME real residue"; measured,
-# they do not, and the gap is proportional to the winding. It is PRE-EXISTING
-# (identical values on a b398b8c46 / ABI 25 build of the same probe) and it is
-# NOT repaired here: the native side is the drifting one, so closing it is a C
-# change with its own measurement, and which residue is canonical is the same
-# float-vs-exact seam ADR-0009 §1.2's kepler_solve row names.
+# WHAT WAS HERE, and why it is gone. A6 shipped a STRICT xfail asserting the
+# gap at theta = 3.1415926535897932e16 exceeded the 2**-44 grid, with a reason
+# recording the law: |native − pure| / |w| in [7.944e-21, 8.039e-21] rad per
+# turn over the 15 probed angles with |w| >= 1e8, a 1.2% spread across five
+# decades, reaching 4.0193e-05 = 7.07e8 x 2**-44, 17 of 24 probed angles over
+# the grid, `w` exact-integer equal on every row. All of that reproduced —
+# independently, on an authenticated cell — and the repair then made the row
+# XPASS, which is what a strict xfail is for. It is replaced rather than
+# deleted so the figure it carried is not lost.
 #
-# The pin's shape follows the +inf laplacian row above exactly:
+# WHAT THE REPAIR WAS. The divergence was TWO 2-pi constants: the C read the
+# residue off the quarter-turn fold's 64-bit 2/pi (own error 8.1449e-22 =
+# 2**-70.06, inherited by the residue at pi**2*delta = 8.0387e-21 rad per whole
+# turn), while the pure peer folds against the Machin-2-pi rational
+# `_EPH_TWO_PI = N / 2**80`. `srmech_winding_fold` now folds against that same
+# rational, in exact integers, and emits on the same 2**-44 grid — so the two
+# projections return the IDENTICAL `(w, theta_res)` pair, not two
+# quantisations of one. srmech_sin / srmech_cos are untouched: trig_reduce_k
+# still serves them and only the winding fold settles.
+#
+# The pin's shape is the A6 one, inverted:
 #   * `_needs_native`-gated — on a pure cell the dispatched op IS the pure
-#     fold, so an ungated comparison would agree with itself and a strict
-#     xfail would XPASS and redden the pure cell for the wrong reason;
-#   * dispatched public op vs `_eph_seam_fold`, the pure alternative the
-#     docstring names, IN ONE PROCESS, so there is no cell confound;
-#   * strict, so a repair REDDENS this row instead of letting it pass forever;
-#   * with agreeing controls beside it as plain passing rows, and a separate
-#     row pinning the half of the claim that HOLDS, so this is not an
-#     instrument that can only say "differ".
+#     fold, so an ungated equality would agree with itself and pin nothing;
+#   * dispatched public op vs `_eph_seam_fold` IN ONE PROCESS, so there is no
+#     cell confound, PLUS a row driving the C symbol directly, because the
+#     wrapper could agree while the symbol a bare-C host calls does not;
+#   * a NON-VACUITY row proving the comparator can still say "differ" — an
+#     equality assertion that cannot fail is not a measurement.
 # --------------------------------------------------------------------------
-_WINDING_FOLD_T1188 = pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "`#T1188`: winding_fold's theta_res diverges between the projections "
-        "in proportion to the winding — MEASURED in [7.944e-21, 8.039e-21] "
-        "rad per turn over the 15 probed angles with |w| >= 1e8, a spread of "
-        "1.2% across five decades of |theta| (1e9 .. 3.14e16), so it is a law "
-        "and not a worst case; reaching 4.02e-05 = 7.07e8 x 2**-44 at "
-        "theta = 3.1415926535897932e16, with 17 of 24 probed angles over the "
-        "2**-44 grid the docstring cited — while w is exact-integer equal on "
-        "every row. Against an INDEPENDENT 60-digit 2-pi the PURE residue is "
-        "the accurate one by ~5 orders of magnitude, so the native fold is "
-        "the drifting side. ADR-0009 §1.2, Still open. Strict, so a repair "
-        "reddens this row."
-    ),
+
+#: The 24 angles the A6 law was fitted over, verbatim, so the repair is proven
+#: on the population that produced the finding rather than a friendlier one.
+#: 17 of these carried a gap over 2**-44 before the repair.
+_WINDING_FOLD_FILED: "tuple[float, ...]" = (
+    1.0, 31.41592653589793, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11,
+    1e12, 1e13, 1e14, 1e15, 2.0 ** 40, 2.0 ** 50, 2.0 ** 53, 2.0 ** 54, 1.5e16,
+    3.1415926535897932e16, -1e10, -1e8, -3.1415926535897932e16,
 )
 
-#: `theta` values where the two folds are MEASURED to agree on `theta_res`.
-#: Small windings only — the drift is proportional to |w|, so these are
-#: controls for the comparator and not a claim about the op at scale.
+#: `theta` values that agreed even BEFORE the repair. Kept as controls: if
+#: these ever disagree the comparator itself has moved, not the fold.
 _WINDING_FOLD_AGREEING: "tuple[float, ...]" = (0.0, 1.0, 0.5, -1.0, 2.0)
 
 
@@ -1178,48 +1192,152 @@ def _winding_fold_pair(theta: float) -> "tuple[tuple[int, float], tuple[int, flo
     return (w_d, res_d), (w_p, qn / float(_lap._EPH_FOLD_DEN))
 
 
+def _same_fold(a: "tuple[int, float]", b: "tuple[int, float]") -> bool:
+    """THE comparator every winding-fold row below uses: `==` on both harvests.
+
+    One function, so the non-vacuity row exercises the same comparison the
+    equality rows assert rather than a look-alike.
+    """
+    return a[0] == b[0] and a[1] == b[1]
+
+
+def _gap_mag(a: float, b: float) -> float:
+    """`|a - b|` as a Class-K sign branch (never `abs()`), for failure text."""
+    d = a - b
+    return d if d >= 0.0 else -d
+
+
+def _pre_repair_q61_residue(theta: float) -> float:
+    """The residue `srmech_winding_fold` returned BEFORE the twin-defect pass.
+
+    Transliterated from the pre-repair C (`1ab8d405b:c/src/srmech_trig.c`):
+    the quarter-turn reduction's octant and Q61 remainder `r`, then
+    `theta_q61 = oct_rel * HALF_PI_Q61 + r` and `theta_q61 / 2**61`, with
+    `oct_rel` in {0, 1, -2 or 2 by the sign of r, -1} for octant 0..3. The
+    reduction is `srmech.math.rational._q61_reduce`, the pure mirror of the C
+    `trig_reduce`, so the 64-bit 2/pi this fold inherited its drift from is
+    the same constant here.
+    """
+    from srmech.math import rational as _r
+
+    ok, octant, r = _r._q61_reduce(theta)
+    assert ok, f"_q61_reduce refused {theta!r}; the row is inside the door"
+    if octant == 0:
+        oct_rel = 0
+    elif octant == 1:
+        oct_rel = 1
+    elif octant == 2:
+        oct_rel = -2 if r >= 0 else 2
+    else:
+        oct_rel = -1
+    return float(oct_rel * _r._Q61_HALF_PI_Q61 + r) / float(1 << 61)
+
+
+def _winding_fold_at_symbol(theta: float) -> "tuple[int, int, float]":
+    """`(status, w, theta_res)` straight off `srmech_winding_fold`."""
+    import ctypes
+
+    fn = _native.LIB.srmech_winding_fold
+    w = ctypes.c_int64(0)
+    res = ctypes.c_double(0.0)
+    st = fn(ctypes.c_double(theta), ctypes.byref(w), ctypes.byref(res))
+    return int(st), int(w.value), float(res.value)
+
+
 @_needs_native
 @pytest.mark.parametrize("theta", _WINDING_FOLD_AGREEING)
 def test_winding_fold_agrees_between_projections_at_small_windings(
     theta: float,
 ) -> None:
-    """CONTROL rows. These agreed when the divergence beside them was filed."""
+    """CONTROL rows. These agreed BEFORE the repair as well as after."""
     (w_d, res_d), (w_p, res_p) = _winding_fold_pair(theta)
     assert w_d == w_p, f"winding disagrees at {theta!r}: {w_d} vs {w_p}"
     assert res_d == res_p, (
         f"theta_res disagrees at {theta!r}: dispatched {res_d!r} vs "
-        f"_eph_seam_fold {res_p!r}. This row is a CONTROL — a failure here is "
-        "a NEW divergence, not the filed one."
+        f"_eph_seam_fold {res_p!r}. This row is a CONTROL — it agreed before "
+        "the repair too, so a failure here is a comparator move."
     )
 
 
 @_needs_native
-def test_winding_fold_winding_agrees_where_the_residue_does_not() -> None:
-    """The HALF of the docstring's claim that HOLDS, pinned so it stays held.
+@pytest.mark.parametrize("theta", _WINDING_FOLD_FILED)
+def test_winding_fold_is_bit_identical_between_projections(theta: float) -> None:
+    """The inverted pin: BOTH harvests equal, on the 24 filed angles.
 
-    Without this row the divergence pin below would be equally consistent with
-    the two folds disagreeing about EVERYTHING, which is a different and much
-    larger defect than the one filed.
+    `w` was already exact-integer equal on every one of these; `theta_res` was
+    not, on 17 of them. Equality here is bit-level — `==` on the float, not a
+    tolerance — because the two projections now quantise onto the same grid
+    from the same constant, so there is nothing left for a tolerance to cover.
     """
-    for theta in (1e9, 1e12, 3.1415926535897932e16, -3.1415926535897932e16):
-        (w_d, _), (w_p, _) = _winding_fold_pair(theta)
-        assert w_d == w_p, (
-            f"the WINDING diverges at {theta!r} ({w_d} vs {w_p}). ADR-0009 "
-            "§1.2's winding_fold row files a RESIDUE divergence only; a "
-            "winding divergence is a new and larger finding."
-        )
+    (w_d, res_d), (w_p, res_p) = _winding_fold_pair(theta)
+    assert w_d == w_p, (
+        f"the WINDING diverges at {theta!r} ({w_d} vs {w_p}). That half held "
+        "throughout the divergence, so a failure here is a NEW finding."
+    )
+    assert _same_fold((w_d, res_d), (w_p, res_p)), (
+        f"theta_res diverges at {theta!r}: dispatched {res_d!r} vs "
+        f"_eph_seam_fold {res_p!r}, gap {_gap_mag(res_d, res_p)!r} = "
+        f"{_gap_mag(res_d, res_p) / 2.0 ** -44:.6g} x 2**-44. ADR-0009 §1.2's "
+        "winding_fold row is REPAIRED, not filed — this reopens it."
+    )
 
 
 @_needs_native
-@_WINDING_FOLD_T1188
-def test_winding_fold_residue_diverges_between_projections() -> None:
-    """Strict-xfail. Passes only when the residue contract is settled."""
-    grid = 2.0 ** -44
-    theta = 3.1415926535897932e16      # inside the native |theta| < 2**55 door
-    (_, res_d), (_, res_p) = _winding_fold_pair(theta)
-    gap = abs(res_d - res_p)
-    assert gap <= grid, (
-        f"dispatched {res_d!r} vs _eph_seam_fold {res_p!r} at theta={theta!r} "
-        f"— gap {gap!r} = {gap / grid:.6g} x the 2**-44 grid the docstring "
-        "cited."
+def test_winding_fold_c_symbol_itself_matches_the_pure_fold() -> None:
+    """The bare-C host's view, not the wrapper's.
+
+    `cascade.one.winding_fold` falls back to `_eph_seam_fold` on any non-OK
+    status, so a wrapper-only comparison would also pass if the C symbol
+    started REFUSING every angle. This row reads the status and requires
+    SRMECH_OK, so the door is proven open as well as the value equal.
+    """
+    for theta in _WINDING_FOLD_FILED:
+        st, w_c, res_c = _winding_fold_at_symbol(theta)
+        (_, _), (w_p, res_p) = _winding_fold_pair(theta)
+        assert st == _native.SRMECH_OK, (
+            f"srmech_winding_fold({theta!r}) returned status {st}; the "
+            "|theta| < 2**55 door must stay open at these angles."
+        )
+        assert _same_fold((w_c, res_c), (w_p, res_p)), (
+            f"the C SYMBOL diverges at {theta!r}: ({w_c}, {res_c!r}) vs pure "
+            f"({w_p}, {res_p!r}). A bare-C host sees this even if the Python "
+            "wrapper does not."
+        )
+
+
+def test_the_winding_fold_comparator_can_still_report_a_difference() -> None:
+    """NON-VACUITY. An equality that cannot fail is not a measurement.
+
+    Feeds `_same_fold` — the comparator the equality rows above assert with —
+    a genuinely DIFFERENT fold: the pre-repair Q61 residue, transliterated in
+    `_pre_repair_q61_residue`, paired with the pure winding. At
+    `theta = 3.1415926535897932e16` it must report "differ", by more than the
+    2**-44 grid; at `theta = 1.0`, where the two folds agreed before the
+    repair too, it must report "agree". Both halves run on every cell: the
+    comparison involves no library, so a pure cell proves it as well.
+
+    (This row used to assert only `res_p + 2**-44 != res_p` — float
+    arithmetic, with no second fold ever compared, so it could not have
+    caught a comparator that always said "equal".)
+    """
+    theta = 3.1415926535897932e16
+    (_, _), (w_p, res_p) = _winding_fold_pair(theta)
+    res_old = _pre_repair_q61_residue(theta)
+    gap = _gap_mag(res_old, res_p)
+    assert not _same_fold((w_p, res_old), (w_p, res_p)), (
+        f"the comparator called the pre-repair fold EQUAL to the pure one at "
+        f"{theta!r}: old {res_old!r} vs pure {res_p!r}. Every equality row "
+        "above is then unable to fail."
+    )
+    assert gap > 2.0 ** -44, (
+        f"the pre-repair residue differs by {gap!r}, within one 2**-44 grid "
+        "step — so this row would not distinguish the forked constant from "
+        "a rounding tie, which is not the difference it exists to show."
+    )
+
+    (_, _), (w_1, res_1) = _winding_fold_pair(1.0)
+    assert _same_fold((w_1, _pre_repair_q61_residue(1.0)), (w_1, res_1)), (
+        "control: at theta = 1.0 the pre-repair and pure folds agreed before "
+        "the repair; the comparator must still say so, or it is an instrument "
+        "that can only return 'differ'."
     )
