@@ -394,6 +394,12 @@ $$R^{-1}(w) = \frac{5 \pm \sqrt{25 - 4w}}{2}$$
 
 To generate eigenvalues at level m+1, take the level-m eigenvalues, apply R⁻¹ to each, and add the "born" eigenvalues at {2, 5} (the values where R(λ) hits the seed). At level 0 (pre-gasket), the relevant eigenvalues with Neumann boundary conditions are {0, 5}.
 
+**Which Laplacian these equations are for (measured 2026-09-14, F1373).** The two equations above are written for the unnormalised graph Laplacian D − A, in which every interior vertex has degree 4; its born values are {2, 5}, as used in the paragraph above. For the degree-normalised Laplacian (D − A)/4, whose eigenvalues are those of D − A divided by 4 and whose born values are therefore {1/2, 5/4}, the same map reads
+
+$$R(\lambda) = \lambda(5 - 4\lambda), \qquad R^{-1}(w) = \frac{5 \pm \sqrt{25 - 16w}}{8}$$
+
+Commit `256ba6b78` (branch `research/sm-inverse-decimation-spike`) had replaced the equations above with this second form as a transcription fix. The two forms were compared directly on the level-1 to level-4 pre-gasket graphs, with the three corner vertices held at zero (Dirichlet), using `srmech.math.laplacian.dense_laplacian` and `jacobi_eigvals`. On D − A, R(λ) = λ(5 − λ) sends every non-exceptional level-(m+1) eigenvalue onto the level-m spectrum (6 of 6, 21 of 21, 66 of 66), and λ(5 − 4λ) sends none of them. On the eigenvalues divided by 4, the two results swap. So both forms are correct, each for its own Laplacian, and the replacement would have made the equations disagree with the born values {2, 5}; the first form is kept and the second is recorded here. With the degree-2 corners kept as ordinary vertices (no boundary condition), neither form maps the whole spectrum (1 of 9, 6 of 26, 31 of 71). Script and output: `docs/srmech/rbs_lm_research/F1373_sg_decimation_convention.py` and `F1373_sg_decimation_convention.out.txt`.
+
 Iterating gives a self-similar tree of eigenvalues. To get the continuous-Laplacian eigenvalues, scale by 5^m at level m (this is the renormalization factor for the SG; it's the decimation constant, related to the spectral dimension).
 
 **Spectral dimension of SG:**
@@ -6952,6 +6958,23 @@ Constraints (apply equally to both realisations):
 - Non-Killing perturbation enabling chirality
 
 Approach: parametric search over the cascade-substrate space. The cascade-composition realisation is the more directly tractable form (antikythera-spectral has the tooling) and instantiates Spike #24 Classes I, J, K, L, M, N natively. The fractal-recursive realisation (PCF self-similar fractals; SG generalisations, nested fractals, products) is computable via spectral decimation; both compare against the 9-dimensional SM mass² ratio target.
+
+**Status update — 2026-05-12 (srmech spike series, branch `research/sm-inverse-decimation-spike`):** Six independent eigenvalue-based attempts catalogued under `docs/srmech/notes/sm_*_spike_script.py`:
+
+1. **Forward eigenvalue catalogue search** (PR #350, 14 candidate fractals) — no fit.
+2. **Inverse SG decimation** — SG-family R(λ) refuted directly (k_μ, k_τ not coherent across families).
+3. **Universal-b sweep across polynomial R(λ)** — Diophantine-degenerate; null test shows random ratios reproduce apparent fits at rates that destroy discrimination.
+4. **Multiplicity test (G/H gauge-irrep coverage)** — tautological when G/H = SM gauge group; reveals only that simple round-sphere geometries lack SU(2)-doublet multiplicity, which is textbook physics.
+5. **MFO-natural log-m² reframing** — fixes the "11-orders-of-magnitude span" problem (bounded to [0, 25.5] in log-mass²) but no candidate F × G/H produces residuals small enough to be a physics fit.
+6. **12-fermion log-symmetric test (lepton seesaw pairing)** — SM 1↔1 pairing ranks 6 / 15 of possible pairings; in the better half but not signal.
+
+Honest conclusion: **eigenvalue-based search methods (forward, inverse, base-sweep, multiplicity, log-space, pairing) cannot identify THE fractal.** The framework's central computation as stated remains open. The next test classes that have *not* been tried, and which might succeed where eigenvalue matching cannot:
+- Topological invariants of the candidate fractal (anomaly polynomials, K-theory, η-invariants)
+- Running-coupling RG flow on the fractal (does β(g) on F reproduce SM β-functions?)
+- Spectral-action functional on F (Connes-style NCG action recovers SM Lagrangian terms?)
+- Specific anomaly-cancellation constraints requiring particular fractal symmetry
+
+Each of these is a research project of its own scale. Until one yields a candidate, §XIII.1 remains genuinely open — not refuted, but not solved either. The framework's other claims (waveguide correspondence, spectral dimension flow, chirality from non-Killing perturbations) do *not* depend on §XIII.1 being solved.
 
 ### XIII.2 Baptista at 7D
 
