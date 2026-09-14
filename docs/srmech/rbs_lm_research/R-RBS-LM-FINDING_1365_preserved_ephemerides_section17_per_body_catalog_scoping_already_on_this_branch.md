@@ -22,3 +22,5 @@ Consolidation record (2026-09-14). Source: local branch `research/v0.20.x-per-bo
 - `docs/antikythera-maths/ephemerides_spectral_research_notebook.md` — the notebook has moved on since `9c7558bad`, whose version equals this branch's tip.
 
 Branch safe to delete once this commit is on origin: yes
+
+Integrated 2026-09-14: see F1373.

@@ -36,3 +36,5 @@ This branch's notebook agrees on the first point. At `4db51be25` it still prints
 - `docs/antikythera-maths/mfo_spectral_research_notebook.md` — the notebook has moved on by thousands of lines, and this commit's §IV.2 and §XIII.1 edits are on no other ref.
 
 Branch safe to delete once this commit is on origin: no — every byte is preserved in the archive, but `main`'s MFO notebook and CHANGELOG cite commit `256ba6b78` by SHA and use `git branch --contains 256ba6b78` as their evidence. Deleting this branch leaves that SHA unreachable, so those citations should first point at the archived patch, whose `From 256ba6b78…` header carries the SHA. That repointing is a maintainer decision and is not part of this commit.
+
+Integrated 2026-09-14: see F1373.

@@ -1,0 +1,59 @@
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-105_sweepC_plasticity_pareto.py b/docs/srmech/rbs_lm_research/R-RBS-LM-105_sweepC_plasticity_pareto.py
+index 6671478d9..470ecfa11 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-105_sweepC_plasticity_pareto.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-105_sweepC_plasticity_pareto.py
+@@ -212 +212 @@ def item_24_hybrid_extended(D, N, rng):
+-        k4_a = hdc.klein4_random(D, np.random.default_rng(i * 31))
++        k4_a = hdc.klein4_expand(D, i * 31)
+@@ -222 +222 @@ def item_24_hybrid_extended(D, N, rng):
+-        k4_b = hdc.klein4_random(D, np.random.default_rng(i * 31 + 1))
++        k4_b = hdc.klein4_expand(D, i * 31 + 1)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-123_religious_text_chirality.py b/docs/srmech/rbs_lm_research/R-RBS-LM-123_religious_text_chirality.py
+index f91476fba..7842c121d 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-123_religious_text_chirality.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-123_religious_text_chirality.py
+@@ -91 +91 @@ def encode_word(word: str, D: int, hex_chars: int) -> np.ndarray:
+-    return hdc.klein4_random(D, np.random.default_rng(seed))
++    return hdc.klein4_expand(D, seed)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-214_retrieval_vs_render_recipient_fiber.py b/docs/srmech/rbs_lm_research/R-RBS-LM-214_retrieval_vs_render_recipient_fiber.py
+index 48a99edb8..03ac1824b 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-214_retrieval_vs_render_recipient_fiber.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-214_retrieval_vs_render_recipient_fiber.py
+@@ -297 +297 @@ def main():
+-        orient_vec = hdc.klein4_random(D, np.random.default_rng(seed + 1000 + r))
++        orient_vec = hdc.klein4_expand(D, seed + 1000 + r)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-221_structured_recipient_depth_anchor.py b/docs/srmech/rbs_lm_research/R-RBS-LM-221_structured_recipient_depth_anchor.py
+index ea2e4e4f4..9bfd8a288 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-221_structured_recipient_depth_anchor.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-221_structured_recipient_depth_anchor.py
+@@ -362 +362 @@ def main():
+-        orient_vec = hdc.klein4_random(D, np.random.default_rng(seed + 1000 + r))
++        orient_vec = hdc.klein4_expand(D, seed + 1000 + r)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-224_teaching_equals_bilingualism_headtohead.py b/docs/srmech/rbs_lm_research/R-RBS-LM-224_teaching_equals_bilingualism_headtohead.py
+index 909055c42..21cdf8970 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-224_teaching_equals_bilingualism_headtohead.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-224_teaching_equals_bilingualism_headtohead.py
+@@ -398,2 +398,2 @@ def main():
+-        bs = hdc.klein4_random(D, np.random.default_rng(seed + 3000 + 2 * r))
+-        bd = hdc.klein4_random(D, np.random.default_rng(seed + 3000 + 2 * r + 1))
++        bs = hdc.klein4_expand(D, seed + 3000 + 2 * r)
++        bd = hdc.klein4_expand(D, seed + 3000 + 2 * r + 1)
+diff --git a/docs/srmech/rbs_lm_research/mechanism_loop_bind.py b/docs/srmech/rbs_lm_research/mechanism_loop_bind.py
+index 64fe3bd44..041d05f74 100644
+--- a/docs/srmech/rbs_lm_research/mechanism_loop_bind.py
++++ b/docs/srmech/rbs_lm_research/mechanism_loop_bind.py
+@@ -64 +64 @@ def random_klein4_vec(seed: int) -> np.ndarray:
+-    return klein4_random(K4DIM, rng=np.random.default_rng(seed))
++    return klein4_expand(K4DIM, seed)
+@@ -103,2 +103,2 @@ def check_consistency():
+-    kv = klein4_random(K4DIM, rng=np.random.default_rng(77))
+-    kw = klein4_random(K4DIM, rng=np.random.default_rng(88))
++    kv = klein4_expand(K4DIM, 77)
++    kw = klein4_expand(K4DIM, 88)
+diff --git a/docs/srmech/rbs_nn_research/R-RBS-NN-16_phase5_remaining_candidates.py b/docs/srmech/rbs_nn_research/R-RBS-NN-16_phase5_remaining_candidates.py
+index 78c6b7156..31df075f8 100644
+--- a/docs/srmech/rbs_nn_research/R-RBS-NN-16_phase5_remaining_candidates.py
++++ b/docs/srmech/rbs_nn_research/R-RBS-NN-16_phase5_remaining_candidates.py
+@@ -79 +79 @@ def test_1_cascade_ordering(D, N, rng):
+-    base_concepts = [hdc.klein4_random(D, np.random.default_rng(i)) for i in range(N)]
++    base_concepts = [hdc.klein4_expand(D, i) for i in range(N)]

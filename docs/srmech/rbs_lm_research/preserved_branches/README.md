@@ -30,3 +30,5 @@ Re-apply a folder with `git am --keep-cr 0*.patch` on the base commit named in i
 | `fix__rbs-lm-bigram-resonator-s57` | F1367 |
 
 `srmech-rc427-research` also had commits on no remote, but all 23 paths they touch are identical on `main`, so it is recorded in the PR #687 body only and has no folder here.
+
+Integrated 2026-09-14: see F1373.

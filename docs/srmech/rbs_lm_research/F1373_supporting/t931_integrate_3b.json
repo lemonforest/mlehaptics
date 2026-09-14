@@ -1,0 +1,72 @@
+[
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-863_massless_rider_coupling_walk.py",
+  "old_start": 41,
+  "action": "INTEGRATED",
+  "line": 41,
+  "source_old": "klein4_random(D, seed=sum(t.encode()))",
+  "source_new": "klein4_address(D, t)",
+  "branch_before": "toks_k = {t: hdc.klein4_expand(D, sum(t.encode())) for t in set(SENT)}",
+  "branch_after": "toks_k = {t: hdc.klein4_address(D, t) for t in set(SENT)}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py",
+  "old_start": 44,
+  "action": "INTEGRATED",
+  "line": 44,
+  "source_old": "klein4_random(D, seed=_hashseed(pr))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in pr))",
+  "branch_before": "return hdc.klein4_expand(D, _hashseed(pr))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in pr))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py",
+  "old_start": 47,
+  "action": "INTEGRATED",
+  "line": 47,
+  "source_old": "klein4_random(D, seed=_hashseed(ctx_oct(win)))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in ctx_oct(win)))",
+  "branch_before": "k = hdc.klein4_expand(D, _hashseed(ctx_oct(win)))",
+  "branch_after": "k = hdc.klein4_address(D, \",\".join(str(x) for x in ctx_oct(win)))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py",
+  "old_start": 53,
+  "action": "INTEGRATED",
+  "line": 53,
+  "source_old": "klein4_random(D, seed=_hashseed(ctx_oct(win)))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in ctx_oct(win)))",
+  "branch_before": "return hdc.klein4_expand(D, _hashseed(ctx_oct(win)))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in ctx_oct(win)))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py",
+  "old_start": 39,
+  "action": "INTEGRATED",
+  "line": 39,
+  "source_old": "klein4_random(D, seed=_hashseed(cascade.cd_mult(unit_q(pos, kaxes), p)))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in cascade.cd_mult(unit_q(pos, kaxes), p)))",
+  "branch_before": "return hdc.klein4_expand(D, _hashseed(cascade.cd_mult(unit_q(pos, kaxes), p)))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in cascade.cd_mult(unit_q(pos, kaxes), p)))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py",
+  "old_start": 43,
+  "action": "INTEGRATED",
+  "line": 43,
+  "source_old": "klein4_random(D, seed=_hashseed(pr))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in pr))",
+  "branch_before": "return hdc.klein4_expand(D, _hashseed(pr))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in pr))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py",
+  "old_start": 41,
+  "action": "INTEGRATED",
+  "line": 41,
+  "source_old": "klein4_random(D, seed=_hs(cascade.cd_mult(tuple(q), p)))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in cascade.cd_mult(tuple(q), p)))",
+  "branch_before": "return hdc.klein4_expand(D, _hs(cascade.cd_mult(tuple(q), p)))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in cascade.cd_mult(tuple(q), p)))"
+ }
+]

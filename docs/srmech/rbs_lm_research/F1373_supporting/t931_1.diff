@@ -1,0 +1,1341 @@
+diff --git a/docs/srmech/rbs_lm_research/F291_L1_autoregressive_order_memory.py b/docs/srmech/rbs_lm_research/F291_L1_autoregressive_order_memory.py
+index a23041390..e04f90b3b 100644
+--- a/docs/srmech/rbs_lm_research/F291_L1_autoregressive_order_memory.py
++++ b/docs/srmech/rbs_lm_research/F291_L1_autoregressive_order_memory.py
+@@ -145,2 +145,2 @@ def build_codebooks(off=0):
+-    k4_tok = [hdc.klein4_random(D, seed=base + s) for s in range(V)]
+-    k4_val = [hdc.klein4_random(D, seed=base + 1000 + s) for s in range(V)]
++    k4_tok = [hdc.klein4_expand(D, base + s) for s in range(V)]
++    k4_val = [hdc.klein4_expand(D, base + 1000 + s) for s in range(V)]
+@@ -382,2 +382,2 @@ def main():
+-    pos0 = hdc.klein4_random(D, seed=SEED_POS0)
+-    pos1 = hdc.klein4_random(D, seed=SEED_POS1)
++    pos0 = hdc.klein4_expand(D, SEED_POS0)
++    pos1 = hdc.klein4_expand(D, SEED_POS1)
+diff --git a/docs/srmech/rbs_lm_research/F293_triality_ecc_distributed_anchor.py b/docs/srmech/rbs_lm_research/F293_triality_ecc_distributed_anchor.py
+index 6167ffac5..05e15df8b 100644
+--- a/docs/srmech/rbs_lm_research/F293_triality_ecc_distributed_anchor.py
++++ b/docs/srmech/rbs_lm_research/F293_triality_ecc_distributed_anchor.py
+@@ -44 +44 @@ def part_A():
+-    v = hdc.klein4_random(D, seed=SEED)
++    v = hdc.klein4_expand(D, SEED)
+@@ -58 +58 @@ def part_B():
+-        v = hdc.klein4_random(D, seed=SEED + 1)
++        v = hdc.klein4_expand(D, SEED + 1)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-136_so8_chirality_storage_signature.py b/docs/srmech/rbs_lm_research/R-RBS-LM-136_so8_chirality_storage_signature.py
+index 4850cc649..64ea94609 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-136_so8_chirality_storage_signature.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-136_so8_chirality_storage_signature.py
+@@ -103 +103 @@ def _token_klein4(token: str) -> np.ndarray:
+-    return klein4_random(D_KLEIN4, seed=seed % (2**32))
++    return klein4_expand(D_KLEIN4, seed % (2**32))
+@@ -213 +213 @@ def so8_chirality_kernel(chunks_tokens):
+-        bundle_inputs = routed or [klein4_random(D_KLEIN4, seed=0)]
++        bundle_inputs = routed or [klein4_expand(D_KLEIN4, 0)]
+@@ -215,2 +215,2 @@ def so8_chirality_kernel(chunks_tokens):
+-    K_unweighted = klein4_bundle(*(routed or [klein4_random(D_KLEIN4, seed=0)]))
+-    K_noroute = klein4_bundle(*(raw or [klein4_random(D_KLEIN4, seed=0)]))
++    K_unweighted = klein4_bundle(*(routed or [klein4_expand(D_KLEIN4, 0)]))
++    K_noroute = klein4_bundle(*(raw or [klein4_expand(D_KLEIN4, 0)]))
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-144_triality_vs_klein4_sector_tagging.py b/docs/srmech/rbs_lm_research/R-RBS-LM-144_triality_vs_klein4_sector_tagging.py
+index 1bdde510b..144efe3a6 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-144_triality_vs_klein4_sector_tagging.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-144_triality_vs_klein4_sector_tagging.py
+@@ -105 +105 @@ def klein4_sector_tags(D, seed):
+-    base = hdc.klein4_random(D, seed=seed)
++    base = hdc.klein4_expand(D, seed)
+@@ -119 +119 @@ def triality_3_3bar_tags(D, seed):
+-    base3 = [hdc.klein4_random(D, seed=seed + 11 + i) for i in range(3)]
++    base3 = [hdc.klein4_expand(D, seed + 11 + i) for i in range(3)]
+@@ -146 +146 @@ def triality_order3_tags(D, seed):
+-        tags.append(hdc.klein4_random(D, seed=s))
++        tags.append(hdc.klein4_expand(D, s))
+@@ -234 +234 @@ def capacity_sweep(scheme_fn, D, seed, n_grid):
+-        items = [hdc.klein4_random(D, seed=int(s)) for s in item_seeds]
++        items = [hdc.klein4_expand(D, int(s)) for s in item_seeds]
+@@ -269 +269 @@ def contrast_at_load(scheme_fn, D, seed, N):
+-    items = [hdc.klein4_random(D, seed=int(s)) for s in item_seeds]
++    items = [hdc.klein4_expand(D, int(s)) for s in item_seeds]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-235_distributed_neurology_chirality.py b/docs/srmech/rbs_lm_research/R-RBS-LM-235_distributed_neurology_chirality.py
+index cec6dbd44..e8288df63 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-235_distributed_neurology_chirality.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-235_distributed_neurology_chirality.py
+@@ -489 +489 @@ def _orientation_to_klein4(orientations, dim, seed):
+-    sector_inphase = hdc.klein4_random(dim, seed=seed + 1)            # the in-phase (+1) gamma5 sector
++    sector_inphase = hdc.klein4_expand(dim, seed + 1)            # the in-phase (+1) gamma5 sector
+@@ -493 +493 @@ def _orientation_to_klein4(orientations, dim, seed):
+-        pos = hdc.klein4_random(dim, seed=pos_rng_seed + 1000 + k)    # position tag for unit k
++        pos = hdc.klein4_expand(dim, pos_rng_seed + 1000 + k)    # position tag for unit k
+@@ -500 +500 @@ def _orientation_to_klein4(orientations, dim, seed):
+-        return hdc.klein4_random(dim, seed=seed + 99)                # degenerate: nothing coordinated
++        return hdc.klein4_expand(dim, seed + 99)                # degenerate: nothing coordinated
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-242_working_memory_wireframe.py b/docs/srmech/rbs_lm_research/R-RBS-LM-242_working_memory_wireframe.py
+index f706cc039..f55f983bf 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-242_working_memory_wireframe.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-242_working_memory_wireframe.py
+@@ -337 +337 @@ def _token_atom(token):
+-    return hdc.klein4_random(KLEIN4_D, seed=seed)                            # Class M atom
++    return hdc.klein4_expand(KLEIN4_D, seed)                            # Class M atom
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-861_crank_into_real_store.py b/docs/srmech/rbs_lm_research/R-RBS-LM-861_crank_into_real_store.py
+index 3b3d63c38..aaf55da39 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-861_crank_into_real_store.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-861_crank_into_real_store.py
+@@ -28 +28 @@ def phase_state(hv, frac):
+-base = hdc.klein4_random(D, seed=11)
++base = hdc.klein4_expand(D, 11)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-862_algebra_object_probe.py b/docs/srmech/rbs_lm_research/R-RBS-LM-862_algebra_object_probe.py
+index 7998cfb62..b07091299 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-862_algebra_object_probe.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-862_algebra_object_probe.py
+@@ -14 +14 @@ print("=== Does the object carry ORDER (the WALK needs it) ? ===")
+-a = hdc.klein4_random(64, seed=1); b = hdc.klein4_random(64, seed=2); c = hdc.klein4_random(64, seed=3)
++a = hdc.klein4_expand(64, 1); b = hdc.klein4_expand(64, 2); c = hdc.klein4_expand(64, 3)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-864_marriage_generator.py b/docs/srmech/rbs_lm_research/R-RBS-LM-864_marriage_generator.py
+index a13897cc6..7ec088a6a 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-864_marriage_generator.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-864_marriage_generator.py
+@@ -21 +21 @@ def byte_k4(bv):
+-    return hdc.klein4_random(D, seed=bv)                       # 256-byte vocab (language-agnostic)
++    return hdc.klein4_expand(D, bv)                       # 256-byte vocab (language-agnostic)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-865_byte_glyph_M_resonator.py b/docs/srmech/rbs_lm_research/R-RBS-LM-865_byte_glyph_M_resonator.py
+index 12bf1513c..36a4b330e 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-865_byte_glyph_M_resonator.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-865_byte_glyph_M_resonator.py
+@@ -18 +18 @@ def byte_k4(b):
+-    return hdc.klein4_random(D, seed=b)                # 256-byte vocab (language-agnostic)
++    return hdc.klein4_expand(D, b)                # 256-byte vocab (language-agnostic)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-866_holographic_octonion_context.py b/docs/srmech/rbs_lm_research/R-RBS-LM-866_holographic_octonion_context.py
+index 84b345bce..3e2f13ef1 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-866_holographic_octonion_context.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-866_holographic_octonion_context.py
+@@ -20 +20 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-867_generalization_distribution.py b/docs/srmech/rbs_lm_research/R-RBS-LM-867_generalization_distribution.py
+index 506298670..418b15035 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-867_generalization_distribution.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-867_generalization_distribution.py
+@@ -23 +23 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-868_stay_rational.py b/docs/srmech/rbs_lm_research/R-RBS-LM-868_stay_rational.py
+index feea2f41e..bf0a194ca 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-868_stay_rational.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-868_stay_rational.py
+@@ -17 +17 @@ K, WPOS = 2, 100
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-869_composed_resonator.py b/docs/srmech/rbs_lm_research/R-RBS-LM-869_composed_resonator.py
+index c2b356a78..9929497bb 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-869_composed_resonator.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-869_composed_resonator.py
+@@ -21 +21 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-870_scale_stress.py b/docs/srmech/rbs_lm_research/R-RBS-LM-870_scale_stress.py
+index 266109456..d2320345e 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-870_scale_stress.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-870_scale_stress.py
+@@ -21 +21 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+@@ -39 +39 @@ print(f"  (chance={CHANCE}, gate={GATE}, clean single bind=D={D})")
+-key0 = hdc.klein4_random(D, seed=999999); val0 = hdc.klein4_random(D, seed=888888)
++key0 = hdc.klein4_expand(D, 999999); val0 = hdc.klein4_expand(D, 888888)
+@@ -43 +43 @@ for N in [1, 3, 8, 30, 100, 300, 1000, 3000]:
+-    others = [hdc.klein4_bind(hdc.klein4_random(D, seed=i), hdc.klein4_random(D, seed=100000 + i)) for i in range(N - 1)]
++    others = [hdc.klein4_bind(hdc.klein4_expand(D, i), hdc.klein4_expand(D, 100000 + i)) for i in range(N - 1)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-871_dimension_sweep.py b/docs/srmech/rbs_lm_research/R-RBS-LM-871_dimension_sweep.py
+index 31f3a805e..73d9e5b94 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-871_dimension_sweep.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-871_dimension_sweep.py
+@@ -18 +18 @@ def capacity(D, Ngrid):
+-    key0 = hdc.klein4_random(D, seed=7); val0 = hdc.klein4_random(D, seed=9)
++    key0 = hdc.klein4_expand(D, 7); val0 = hdc.klein4_expand(D, 9)
+@@ -22,2 +22,2 @@ def capacity(D, Ngrid):
+-        others = [hdc.klein4_bind(hdc.klein4_random(D, seed=1000 + i),
+-                                  hdc.klein4_random(D, seed=50000 + i)) for i in range(N - 1)]
++        others = [hdc.klein4_bind(hdc.klein4_expand(D, 1000 + i),
++                                  hdc.klein4_expand(D, 50000 + i)) for i in range(N - 1)]
+@@ -25 +25 @@ def capacity(D, Ngrid):
+-            target, *others, hdc.klein4_random(D, seed=424242))   # odd count for majority
++            target, *others, hdc.klein4_expand(D, 424242))   # odd count for majority
+@@ -54 +54 @@ for D in [4096, 10000, 16384]:
+-    a = hdc.klein4_random(D, seed=11); b = hdc.klein4_random(D, seed=22)
++    a = hdc.klein4_expand(D, 11); b = hdc.klein4_expand(D, 22)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-872_rebuild_chunked_8192.py b/docs/srmech/rbs_lm_research/R-RBS-LM-872_rebuild_chunked_8192.py
+index 3f19d17e4..424c9df6c 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-872_rebuild_chunked_8192.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-872_rebuild_chunked_8192.py
+@@ -23 +23 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-875_streaming_grid_emit.py b/docs/srmech/rbs_lm_research/R-RBS-LM-875_streaming_grid_emit.py
+index 43d61333d..ac7d49d1d 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-875_streaming_grid_emit.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-875_streaming_grid_emit.py
+@@ -15 +15 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-877_resonator_wired_stream.py b/docs/srmech/rbs_lm_research/R-RBS-LM-877_resonator_wired_stream.py
+index 542c2d758..941735ee9 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-877_resonator_wired_stream.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-877_resonator_wired_stream.py
+@@ -15 +15 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-878_phase_disambiguation.py b/docs/srmech/rbs_lm_research/R-RBS-LM-878_phase_disambiguation.py
+index c30e934cc..b5a0910fb 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-878_phase_disambiguation.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-878_phase_disambiguation.py
+@@ -16 +16 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-879_phase_keyed_grid_scale.py b/docs/srmech/rbs_lm_research/R-RBS-LM-879_phase_keyed_grid_scale.py
+index 2f67320d1..34c1120ca 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-879_phase_keyed_grid_scale.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-879_phase_keyed_grid_scale.py
+@@ -17 +17 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-880_content_routed_navigation.py b/docs/srmech/rbs_lm_research/R-RBS-LM-880_content_routed_navigation.py
+index 3973659bb..3ac0fb5d3 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-880_content_routed_navigation.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-880_content_routed_navigation.py
+@@ -17 +17 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-881_hypercomplex_phase_fiber.py b/docs/srmech/rbs_lm_research/R-RBS-LM-881_hypercomplex_phase_fiber.py
+index 66404f30a..9e37c87c8 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-881_hypercomplex_phase_fiber.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-881_hypercomplex_phase_fiber.py
+@@ -34 +34 @@ def word_k4(w):
+-    return cs.bundle_odd([hdc.klein4_bind(hdc.klein4_random(D, seed=b), cs.pos_key(i))
++    return cs.bundle_odd([hdc.klein4_bind(hdc.klein4_expand(D, b), cs.pos_key(i))
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py b/docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py
+index 5af6ce2da..c39b95a56 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py
+@@ -58 +58 @@ def wv(w):
+-        WV[w] = cs.bundle_odd([hdc.klein4_bind(hdc.klein4_random(D, seed=b), cs.pos_key(i))
++        WV[w] = cs.bundle_odd([hdc.klein4_bind(hdc.klein4_expand(D, b), cs.pos_key(i))
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py b/docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py
+index 69bb0b023..c51670ea8 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py
+@@ -48 +48 @@ def wv(w):
+-        WV[w] = cs.bundle_odd([hdc.klein4_bind(hdc.klein4_random(D, seed=b), cs.pos_key(i))
++        WV[w] = cs.bundle_odd([hdc.klein4_bind(hdc.klein4_expand(D, b), cs.pos_key(i))
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-884_page_as_cavity_node_probe.py b/docs/srmech/rbs_lm_research/R-RBS-LM-884_page_as_cavity_node_probe.py
+index 2413436a5..b79fa4e6f 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-884_page_as_cavity_node_probe.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-884_page_as_cavity_node_probe.py
+@@ -17 +17 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-885_saturated_cavity_node_test.py b/docs/srmech/rbs_lm_research/R-RBS-LM-885_saturated_cavity_node_test.py
+index f1a9e849d..44f8eef8e 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-885_saturated_cavity_node_test.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-885_saturated_cavity_node_test.py
+@@ -16 +16 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-886_2d_phase_boundary_bundlefix.py b/docs/srmech/rbs_lm_research/R-RBS-LM-886_2d_phase_boundary_bundlefix.py
+index ed33f593f..ed3073cc9 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-886_2d_phase_boundary_bundlefix.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-886_2d_phase_boundary_bundlefix.py
+@@ -15 +15 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-887_ridge_slope_coupling_ratio.py b/docs/srmech/rbs_lm_research/R-RBS-LM-887_ridge_slope_coupling_ratio.py
+index e3dc1ebf5..53ba65d62 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-887_ridge_slope_coupling_ratio.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-887_ridge_slope_coupling_ratio.py
+@@ -15 +15 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-888_mobius_hunt_elem3_control_boundary_sharpness.py b/docs/srmech/rbs_lm_research/R-RBS-LM-888_mobius_hunt_elem3_control_boundary_sharpness.py
+index 0be234d50..a11ef7eef 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-888_mobius_hunt_elem3_control_boundary_sharpness.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-888_mobius_hunt_elem3_control_boundary_sharpness.py
+@@ -17 +17 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py b/docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py
+index ce4bdd61e..51aa0ff86 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py
+@@ -21 +21 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-890_agn_scale_boundary_gradient.py b/docs/srmech/rbs_lm_research/R-RBS-LM-890_agn_scale_boundary_gradient.py
+index 9ea7d0259..6a01a3fde 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-890_agn_scale_boundary_gradient.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-890_agn_scale_boundary_gradient.py
+@@ -17 +17 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-892_chandrasekhar_amplitude_collapse_fit.py b/docs/srmech/rbs_lm_research/R-RBS-LM-892_chandrasekhar_amplitude_collapse_fit.py
+index fcc31c644..fbf43ee0a 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-892_chandrasekhar_amplitude_collapse_fit.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-892_chandrasekhar_amplitude_collapse_fit.py
+@@ -16 +16 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-893_siona_page_address_grid.py b/docs/srmech/rbs_lm_research/R-RBS-LM-893_siona_page_address_grid.py
+index eef366ea1..9285e081e 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-893_siona_page_address_grid.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-893_siona_page_address_grid.py
+@@ -15 +15 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-895_route_verify_circular.py b/docs/srmech/rbs_lm_research/R-RBS-LM-895_route_verify_circular.py
+index 266967f81..4dbf73563 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-895_route_verify_circular.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-895_route_verify_circular.py
+@@ -16 +16 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-896_end_to_end_stack_kstar.py b/docs/srmech/rbs_lm_research/R-RBS-LM-896_end_to_end_stack_kstar.py
+index 42f3b1733..4866b5575 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-896_end_to_end_stack_kstar.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-896_end_to_end_stack_kstar.py
+@@ -15 +15 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-BITPACK_realise_the_log_n_storage_and_push_dimension_to_32768.py b/docs/srmech/rbs_lm_research/R-RBS-LM-BITPACK_realise_the_log_n_storage_and_push_dimension_to_32768.py
+index 0f51d0af6..bd692a63b 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-BITPACK_realise_the_log_n_storage_and_push_dimension_to_32768.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-BITPACK_realise_the_log_n_storage_and_push_dimension_to_32768.py
+@@ -133,2 +133,2 @@ def part_b(N, dims):
+-        keys = [bytes(hdc.klein4_random(d, seed=10_000 + i)) for i in range(N)]
+-        vals = [bytes(hdc.klein4_random(d, seed=20_000 + i)) for i in range(N)]
++        keys = [bytes(hdc.klein4_expand(d, 10_000 + i)) for i in range(N)]
++        vals = [bytes(hdc.klein4_expand(d, 20_000 + i)) for i in range(N)]
+@@ -159,2 +159,2 @@ def main():
+-    keys = [bytes(hdc.klein4_random(d0, seed=10_000 + i)) for i in range(args.n)]
+-    vals = [bytes(hdc.klein4_random(d0, seed=20_000 + i)) for i in range(args.n)]
++    keys = [bytes(hdc.klein4_expand(d0, 10_000 + i)) for i in range(args.n)]
++    vals = [bytes(hdc.klein4_expand(d0, 20_000 + i)) for i in range(args.n)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-BYTEGLYPH_DIRECTION_AUDIT_the_ni_vanuatu_base_is_metric_only_zero_curvature.py b/docs/srmech/rbs_lm_research/R-RBS-LM-BYTEGLYPH_DIRECTION_AUDIT_the_ni_vanuatu_base_is_metric_only_zero_curvature.py
+index 430a3ba94..05ab63eef 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-BYTEGLYPH_DIRECTION_AUDIT_the_ni_vanuatu_base_is_metric_only_zero_curvature.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-BYTEGLYPH_DIRECTION_AUDIT_the_ni_vanuatu_base_is_metric_only_zero_curvature.py
+@@ -29 +29 @@ def _glyph(ch):
+-    return hdc.klein4_random(DIM, seed=_seed("niv/" + ch))
++    return hdc.klein4_expand(DIM, _seed("niv/" + ch))
+@@ -33 +33 @@ def _pos(i):
+-    return hdc.klein4_random(DIM, seed=_seed("niv/pos/%d" % i))
++    return hdc.klein4_expand(DIM, _seed("niv/pos/%d" % i))
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-CHUNKLAW_chunked_stores_and_is_the_capacity_ratio_a_projection_not_a_constant.py b/docs/srmech/rbs_lm_research/R-RBS-LM-CHUNKLAW_chunked_stores_and_is_the_capacity_ratio_a_projection_not_a_constant.py
+index 2e461354c..4c098943b 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-CHUNKLAW_chunked_stores_and_is_the_capacity_ratio_a_projection_not_a_constant.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-CHUNKLAW_chunked_stores_and_is_the_capacity_ratio_a_projection_not_a_constant.py
+@@ -74,2 +74,2 @@ def carriers(n, dim):
+-    k = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(n)]
+-    v = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(n)]
++    k = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(n)]
++    v = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(n)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-CORPUSFIBER_step2_all_simplewiki_bodies_one_genome_native_klein4_fiber_content_addressed_byte_exact_no_doctoring.py b/docs/srmech/rbs_lm_research/R-RBS-LM-CORPUSFIBER_step2_all_simplewiki_bodies_one_genome_native_klein4_fiber_content_addressed_byte_exact_no_doctoring.py
+index e7931f4f5..3bd6068c4 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-CORPUSFIBER_step2_all_simplewiki_bodies_one_genome_native_klein4_fiber_content_addressed_byte_exact_no_doctoring.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-CORPUSFIBER_step2_all_simplewiki_bodies_one_genome_native_klein4_fiber_content_addressed_byte_exact_no_doctoring.py
+@@ -65 +65 @@ def the_one():
+-    return hdc.klein4_random(DIM, seed=0)       # the held invariant (F833 seed=0), content-addressed into the manifest
++    return hdc.klein4_expand(DIM, 0)       # the held invariant (F833 seed=0), content-addressed into the manifest
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-COUNTHORIZON_sparsity_indexed_read_true_horizon_and_the_collision_lever.py b/docs/srmech/rbs_lm_research/R-RBS-LM-COUNTHORIZON_sparsity_indexed_read_true_horizon_and_the_collision_lever.py
+index 8961a126d..614ebbd78 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-COUNTHORIZON_sparsity_indexed_read_true_horizon_and_the_collision_lever.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-COUNTHORIZON_sparsity_indexed_read_true_horizon_and_the_collision_lever.py
+@@ -94,2 +94,2 @@ def main():
+-    keys = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(args.max_n)]
+-    vals = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(args.max_n)]
++    keys = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(args.max_n)]
++    vals = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(args.max_n)]
+@@ -152,2 +152,2 @@ def main():
+-        B = hdc.klein4_bundle([hdc.klein4_bind(hdc.klein4_random(dim, seed=10_000 + i),
+-                                               hdc.klein4_random(dim, seed=20_000 + i)) for i in range(N)])
++        B = hdc.klein4_bundle([hdc.klein4_bind(hdc.klein4_expand(dim, 10_000 + i),
++                                               hdc.klein4_expand(dim, 20_000 + i)) for i in range(N)])
+@@ -156,2 +156,2 @@ def main():
+-            probe = hdc.klein4_bind(B, hdc.klein4_random(dim, seed=10_000 + p))
+-            best = max(range(N), key=lambda j: hdc.klein4_similarity(probe, hdc.klein4_random(dim, seed=20_000 + j)))
++            probe = hdc.klein4_bind(B, hdc.klein4_expand(dim, 10_000 + p))
++            best = max(range(N), key=lambda j: hdc.klein4_similarity(probe, hdc.klein4_expand(dim, 20_000 + j)))
+@@ -169,2 +169,2 @@ def main():
+-        k2 = [bytes(hdc.klein4_random(d2, seed=10_000 + i)) for i in range(N2)]
+-        v2 = [bytes(hdc.klein4_random(d2, seed=20_000 + i)) for i in range(N2)]
++        k2 = [bytes(hdc.klein4_expand(d2, 10_000 + i)) for i in range(N2)]
++        v2 = [bytes(hdc.klein4_expand(d2, 20_000 + i)) for i in range(N2)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-COUNTSTORE_the_bundle_is_an_argmax_read_keep_the_counts.py b/docs/srmech/rbs_lm_research/R-RBS-LM-COUNTSTORE_the_bundle_is_an_argmax_read_keep_the_counts.py
+index 286fbd8cf..739fefab8 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-COUNTSTORE_the_bundle_is_an_argmax_read_keep_the_counts.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-COUNTSTORE_the_bundle_is_an_argmax_read_keep_the_counts.py
+@@ -70,2 +70,2 @@ def main():
+-    keys = [hdc.klein4_random(dim, seed=10_000 + i) for i in range(args.max_n)]
+-    vals = [hdc.klein4_random(dim, seed=20_000 + i) for i in range(args.max_n)]
++    keys = [hdc.klein4_expand(dim, 10_000 + i) for i in range(args.max_n)]
++    vals = [hdc.klein4_expand(dim, 20_000 + i) for i in range(args.max_n)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-CURVADDR_curvature_into_class_M_and_zero_divisor_addressing_vs_the_bind_wall.py b/docs/srmech/rbs_lm_research/R-RBS-LM-CURVADDR_curvature_into_class_M_and_zero_divisor_addressing_vs_the_bind_wall.py
+index 0a1399501..dbbc893f6 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-CURVADDR_curvature_into_class_M_and_zero_divisor_addressing_vs_the_bind_wall.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-CURVADDR_curvature_into_class_M_and_zero_divisor_addressing_vs_the_bind_wall.py
+@@ -85 +85 @@ def test1(G):
+-    base = hdc.klein4_random(D, seed=1080)
++    base = hdc.klein4_expand(D, 1080)
+@@ -140,2 +140,2 @@ def test2():
+-    keys = [hdc.klein4_random(D, seed=10_000 + i) for i in range(80)]
+-    vals = [hdc.klein4_random(D, seed=20_000 + i) for i in range(80)]
++    keys = [hdc.klein4_expand(D, 10_000 + i) for i in range(80)]
++    vals = [hdc.klein4_expand(D, 20_000 + i) for i in range(80)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-DECONV_recover_the_missing_operand_is_unbind_is_spectral_deconvolution_dft_qdft_odft.py b/docs/srmech/rbs_lm_research/R-RBS-LM-DECONV_recover_the_missing_operand_is_unbind_is_spectral_deconvolution_dft_qdft_odft.py
+index 2d709e3ed..c689ccf14 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-DECONV_recover_the_missing_operand_is_unbind_is_spectral_deconvolution_dft_qdft_odft.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-DECONV_recover_the_missing_operand_is_unbind_is_spectral_deconvolution_dft_qdft_odft.py
+@@ -51 +51 @@ def recover_missing_operand():
+-    ka, kb = hdc.klein4_random(D, seed=1), hdc.klein4_random(D, seed=2)
++    ka, kb = hdc.klein4_expand(D, 1), hdc.klein4_expand(D, 2)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-DNABOOKSHELF_pack_real_kernels_into_the_genome_class.py b/docs/srmech/rbs_lm_research/R-RBS-LM-DNABOOKSHELF_pack_real_kernels_into_the_genome_class.py
+index 853055bc0..b9cbdb563 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-DNABOOKSHELF_pack_real_kernels_into_the_genome_class.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-DNABOOKSHELF_pack_real_kernels_into_the_genome_class.py
+@@ -67 +67 @@ def leaf(text):
+-    return klein4_random(DIM, seed=seed)
++    return klein4_expand(DIM, seed)
+@@ -81 +81 @@ def main():
+-    one = klein4_random(DIM, seed=1)
++    one = klein4_expand(DIM, 1)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-EXPONENT_pin_the_capacity_exponent_and_test_the_cayley_dickson_chunk_reading.py b/docs/srmech/rbs_lm_research/R-RBS-LM-EXPONENT_pin_the_capacity_exponent_and_test_the_cayley_dickson_chunk_reading.py
+index 27876780d..7a208847b 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-EXPONENT_pin_the_capacity_exponent_and_test_the_cayley_dickson_chunk_reading.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-EXPONENT_pin_the_capacity_exponent_and_test_the_cayley_dickson_chunk_reading.py
+@@ -71,2 +71,2 @@ def carriers(n, dim):
+-        k = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(n)]
+-        v = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(n)]
++        k = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(n)]
++        v = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(n)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-F291-L5_melody_order_fiber.py b/docs/srmech/rbs_lm_research/R-RBS-LM-F291-L5_melody_order_fiber.py
+index cfdae7e36..3ab745b07 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-F291-L5_melody_order_fiber.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-F291-L5_melody_order_fiber.py
+@@ -95 +95 @@ def build_klein4_codebook():
+-    return {d: hdc.klein4_random(D, seed=KLEIN_BASE + d) for d in range(N_DEGREES)}
++    return {d: hdc.klein4_expand(D, KLEIN_BASE + d) for d in range(N_DEGREES)}
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FIBERGENOME_atom_document_as_a_genome_native_klein4_dna_fiber_content_addressed_byte_exact_no_plaintext.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FIBERGENOME_atom_document_as_a_genome_native_klein4_dna_fiber_content_addressed_byte_exact_no_plaintext.py
+index a7fa66b62..3f29a40be 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FIBERGENOME_atom_document_as_a_genome_native_klein4_dna_fiber_content_addressed_byte_exact_no_plaintext.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FIBERGENOME_atom_document_as_a_genome_native_klein4_dna_fiber_content_addressed_byte_exact_no_plaintext.py
+@@ -27 +27 @@ from srmech.amsc import genome as G, hdc as H, format as F
+-COUPLE = H.klein4_random(64, seed=1080)                     # the sandroing/UNESCO-00073 coupling invariant
++COUPLE = H.klein4_expand(64, 1080)                     # the sandroing/UNESCO-00073 coupling invariant
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FIBERWALK_deterministic_article_reconstruction_eulerian_path_fiber_on_rbs_hdc_vs_k.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FIBERWALK_deterministic_article_reconstruction_eulerian_path_fiber_on_rbs_hdc_vs_k.py
+index 073277837..00c341dda 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FIBERWALK_deterministic_article_reconstruction_eulerian_path_fiber_on_rbs_hdc_vs_k.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FIBERWALK_deterministic_article_reconstruction_eulerian_path_fiber_on_rbs_hdc_vs_k.py
+@@ -42 +42 @@ def pos(j):                                                  # a position-role v
+-    return hdc.klein4_random(D, seed=_seed("pos/%d" % j))
++    return hdc.klein4_expand(D, _seed("pos/%d" % j))
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDINGSGENOME_directed_time_preserving_amsc_attested_index.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDINGSGENOME_directed_time_preserving_amsc_attested_index.py
+index fc92cd1ba..7ce966291 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDINGSGENOME_directed_time_preserving_amsc_attested_index.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDINGSGENOME_directed_time_preserving_amsc_attested_index.py
+@@ -33 +33 @@ LEAF = 64
+-COUPLE = hdc.klein4_random(LEAF, seed=1217)
++COUPLE = hdc.klein4_expand(LEAF, 1217)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1000_QDFT_peak_read_closes_rung_selection_and_elliptic_BEATS_independent_on_the_phase_coherent_read_F999_prediction_confirmed.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1000_QDFT_peak_read_closes_rung_selection_and_elliptic_BEATS_independent_on_the_phase_coherent_read_F999_prediction_confirmed.py
+index 3507c606d..e327828e1 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1000_QDFT_peak_read_closes_rung_selection_and_elliptic_BEATS_independent_on_the_phase_coherent_read_F999_prediction_confirmed.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1000_QDFT_peak_read_closes_rung_selection_and_elliptic_BEATS_independent_on_the_phase_coherent_read_F999_prediction_confirmed.py
+@@ -12 +12 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5
++ROLE=hdc.klein4_expand(D, 4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5
+@@ -15,2 +15,2 @@ def rot(seq,k): k%=len(seq); return seq[-k:]+seq[:-k]
+-RK_ind=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]
+-base=hdc.klein4_random(D, seed=99001); bl=base.tolist(); dlt=D//(2*NR)
++RK_ind=[hdc.klein4_expand(D, 71000+r) for r in range(NR)]
++base=hdc.klein4_expand(D, 99001); bl=base.tolist(); dlt=D//(2*NR)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1001_full_complex_QDFT_does_NOT_amplify_peak_is_optimal_for_the_single_rung_spike_elliptic_win_is_noise_floor_not_coherence.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1001_full_complex_QDFT_does_NOT_amplify_peak_is_optimal_for_the_single_rung_spike_elliptic_win_is_noise_floor_not_coherence.py
+index 8bb8b151a..6ebebac22 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1001_full_complex_QDFT_does_NOT_amplify_peak_is_optimal_for_the_single_rung_spike_elliptic_win_is_noise_floor_not_coherence.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1001_full_complex_QDFT_does_NOT_amplify_peak_is_optimal_for_the_single_rung_spike_elliptic_win_is_noise_floor_not_coherence.py
+@@ -11 +11 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5
++ROLE=hdc.klein4_expand(D, 4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5
+@@ -18,2 +18,2 @@ def rot(seq,k): k%=len(seq); return seq[-k:]+seq[:-k]
+-RK_ind=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]
+-base=hdc.klein4_random(D, seed=99001); bl=base.tolist(); dlt=D//(2*NR)
++RK_ind=[hdc.klein4_expand(D, 71000+r) for r in range(NR)]
++base=hdc.klein4_expand(D, 99001); bl=base.tolist(); dlt=D//(2*NR)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1002_read_independent_test_elliptic_is_PERFECTLY_CIRCULANT_premise_structure_correct_but_recall_advantage_was_noise.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1002_read_independent_test_elliptic_is_PERFECTLY_CIRCULANT_premise_structure_correct_but_recall_advantage_was_noise.py
+index 57d9b38f3..cb0561453 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1002_read_independent_test_elliptic_is_PERFECTLY_CIRCULANT_premise_structure_correct_but_recall_advantage_was_noise.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1002_read_independent_test_elliptic_is_PERFECTLY_CIRCULANT_premise_structure_correct_but_recall_advantage_was_noise.py
+@@ -9 +9 @@ from srmech.amsc import hdc
+-D=8192; g5=hdc.klein4_chirality_flip_gamma5; HV=type(hdc.klein4_random(D,seed=0))
++D=8192; g5=hdc.klein4_chirality_flip_gamma5; HV=type(hdc.klein4_expand(D, 0))
+@@ -16,2 +16,2 @@ def rot(seq,k): k%=len(seq); return seq[-k:]+seq[:-k]
+-RK_ind=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]
+-base=hdc.klein4_random(D, seed=99001); bl=base.tolist(); dlt=D//(2*NR)
++RK_ind=[hdc.klein4_expand(D, 71000+r) for r in range(NR)]
++base=hdc.klein4_expand(D, 99001); bl=base.tolist(); dlt=D//(2*NR)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1004_recall_lift_resolver_byteglyph_is_spelling_structural_real_but_usage_override_selection_lift_NULL_exact_target_dominance_lift_is_edit_distance_cleanup.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1004_recall_lift_resolver_byteglyph_is_spelling_structural_real_but_usage_override_selection_lift_NULL_exact_target_dominance_lift_is_edit_distance_cleanup.py
+index d5e4370d3..1140ed705 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1004_recall_lift_resolver_byteglyph_is_spelling_structural_real_but_usage_override_selection_lift_NULL_exact_target_dominance_lift_is_edit_distance_cleanup.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1004_recall_lift_resolver_byteglyph_is_spelling_structural_real_but_usage_override_selection_lift_NULL_exact_target_dominance_lift_is_edit_distance_cleanup.py
+@@ -10 +10 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1010_siona_infer1_intent_router_20of20_declared_operators_plus_operand_shape_dispatch_to_four_real_handlers_one_substrate.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1010_siona_infer1_intent_router_20of20_declared_operators_plus_operand_shape_dispatch_to_four_real_handlers_one_substrate.py
+index 546a6860d..56967c0df 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1010_siona_infer1_intent_router_20of20_declared_operators_plus_operand_shape_dispatch_to_four_real_handlers_one_substrate.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1010_siona_infer1_intent_router_20of20_declared_operators_plus_operand_shape_dispatch_to_four_real_handlers_one_substrate.py
+@@ -11 +11 @@ D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bundle=cs.bundle_odd; bind=hdc
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1018_homograph_superposition_on_the_elliptic_rung_ladder_N_languages_one_object_12of12_plus_operator_accretion_from_fixed_role_frame.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1018_homograph_superposition_on_the_elliptic_rung_ladder_N_languages_one_object_12of12_plus_operator_accretion_from_fixed_role_frame.py
+index 9c9d849bb..7eda4c4cc 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1018_homograph_superposition_on_the_elliptic_rung_ladder_N_languages_one_object_12of12_plus_operator_accretion_from_fixed_role_frame.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1018_homograph_superposition_on_the_elliptic_rung_ladder_N_languages_one_object_12of12_plus_operator_accretion_from_fixed_role_frame.py
+@@ -14 +14 @@ D=8192; bind=hdc.klein4_bind; g5=hdc.klein4_chirality_flip_gamma5
+-HV=type(hdc.klein4_random(D,seed=0))
++HV=type(hdc.klein4_expand(D, 0))
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_898_bit_serialized_rbs_hdc_instrument.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_898_bit_serialized_rbs_hdc_instrument.py
+index 0b4058321..080be8722 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_898_bit_serialized_rbs_hdc_instrument.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_898_bit_serialized_rbs_hdc_instrument.py
+@@ -15 +15 @@ def _dig(s):
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+@@ -68 +68 @@ print(f"=== F898 the bit-serialized RBS-HDC instrument ({len(arts)} real article
+-t0 = hdc.klein4_random(D, seed=99); rt = bits_to_hv(hv_to_bits(t0)).tolist() == t0.tolist()
++t0 = hdc.klein4_expand(D, 99); rt = bits_to_hv(hv_to_bits(t0)).tolist() == t0.tolist()
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_899_packaged_rbs_lm_is_word_hash_not_byte_glyph.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_899_packaged_rbs_lm_is_word_hash_not_byte_glyph.py
+index 734687c3b..aeac8a384 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_899_packaged_rbs_lm_is_word_hash_not_byte_glyph.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_899_packaged_rbs_lm_is_word_hash_not_byte_glyph.py
+@@ -26 +26 @@ print("    attestation keys:", list(sub.attestation().keys()))
+-def byte_k4(b): return hdc.klein4_random(D, seed=b)
++def byte_k4(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_900_scale_invariant_compose_is_one_operator_at_every_scale.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_900_scale_invariant_compose_is_one_operator_at_every_scale.py
+index 0a1135671..f7b10cc02 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_900_scale_invariant_compose_is_one_operator_at_every_scale.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_900_scale_invariant_compose_is_one_operator_at_every_scale.py
+@@ -81 +81 @@ def atom(content_hash_seed):
+-    return hdc.klein4_random(D, seed=content_hash_seed)
++    return hdc.klein4_expand(D, content_hash_seed)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_901_recursive_c1_ladder_executes_f900_open_a.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_901_recursive_c1_ladder_executes_f900_open_a.py
+index 42290db57..c16e3613e 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_901_recursive_c1_ladder_executes_f900_open_a.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_901_recursive_c1_ladder_executes_f900_open_a.py
+@@ -17,2 +17,2 @@ def bundle_odd(vecs): return _cs.bundle_odd(list(vecs))
+-def pos_key(i): return hdc.klein4_random(D, seed=0x70000000 + i)     # role/position key
+-def byte_atom(b): return hdc.klein4_random(D, seed=b)                # bounded 256 codebook
++def pos_key(i): return hdc.klein4_expand(D, 0x70000000 + i)     # role/position key
++def byte_atom(b): return hdc.klein4_expand(D, b)                # bounded 256 codebook
+@@ -85 +85 @@ class C1Context(ContextSubstrate):
+-        self._pad = hdc.klein4_random(int(D), seed=0x7FFFFFFF); super().__init__(D=D, hex_chars=hex_chars, sector=sector)
++        self._pad = hdc.klein4_expand(int(D), 0x7FFFFFFF); super().__init__(D=D, hex_chars=hex_chars, sector=sector)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_902_phrase_form_coherence_two_axis_manifold.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_902_phrase_form_coherence_two_axis_manifold.py
+index 0b661d4d3..d12163b8c 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_902_phrase_form_coherence_two_axis_manifold.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_902_phrase_form_coherence_two_axis_manifold.py
+@@ -14,2 +14,2 @@ def bundle_odd(v): return _cs.bundle_odd(list(v))
+-def pos_key(i): return hdc.klein4_random(D, seed=0x70000000 + i)
+-def byte_atom(b): return hdc.klein4_random(D, seed=b)
++def pos_key(i): return hdc.klein4_expand(D, 0x70000000 + i)
++def byte_atom(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_903_three_bonds_caloric_reading_reversibility.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_903_three_bonds_caloric_reading_reversibility.py
+index 5918b1453..5a1feb3d4 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_903_three_bonds_caloric_reading_reversibility.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_903_three_bonds_caloric_reading_reversibility.py
+@@ -16,2 +16,2 @@ def bundle_odd(v): return _cs.bundle_odd(list(v))
+-def pos_key(i): return hdc.klein4_random(D, seed=0x70000000 + i)
+-def byte_atom(b): return hdc.klein4_random(D, seed=b)                       # the 256-atom periodic table
++def pos_key(i): return hdc.klein4_expand(D, 0x70000000 + i)
++def byte_atom(b): return hdc.klein4_expand(D, b)                       # the 256-atom periodic table
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_905_caloric_loss_is_content_blind_quantum_like_not_atomic_molecular.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_905_caloric_loss_is_content_blind_quantum_like_not_atomic_molecular.py
+index c5e1322ea..3486418c0 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_905_caloric_loss_is_content_blind_quantum_like_not_atomic_molecular.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_905_caloric_loss_is_content_blind_quantum_like_not_atomic_molecular.py
+@@ -17,2 +17,2 @@ def bundle_odd(v): return _cs.bundle_odd(list(v))
+-def pos_key(i): return hdc.klein4_random(D, seed=0x70000000 + i)
+-def byte_atom(b): return hdc.klein4_random(D, seed=b)
++def pos_key(i): return hdc.klein4_expand(D, 0x70000000 + i)
++def byte_atom(b): return hdc.klein4_expand(D, b)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_914_an_heptad_4plus3_partition_KLM_vs_DEFG.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_914_an_heptad_4plus3_partition_KLM_vs_DEFG.py
+index 4183fe623..063745ecd 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_914_an_heptad_4plus3_partition_KLM_vs_DEFG.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_914_an_heptad_4plus3_partition_KLM_vs_DEFG.py
+@@ -8 +8 @@ from srmech.amsc import hdc
+-a=hdc.klein4_random(2048,seed=1); b=hdc.klein4_random(2048,seed=2); c=hdc.klein4_random(2048,seed=3)
++a=hdc.klein4_expand(2048, 1); b=hdc.klein4_expand(2048, 2); c=hdc.klein4_expand(2048, 3)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_918_revalidate_handrolled_probes_against_rc28_native.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_918_revalidate_handrolled_probes_against_rc28_native.py
+index f49924d32..0b7714a87 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_918_revalidate_handrolled_probes_against_rc28_native.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_918_revalidate_handrolled_probes_against_rc28_native.py
+@@ -19 +19 @@ def band(units, alts):
+-bw=band([hdc.klein4_random(D,seed=b) for b in b"computer"], [hdc.klein4_random(D,seed=b) for b in b"XYZ"])
++bw=band([hdc.klein4_expand(D, b) for b in b"computer"], [hdc.klein4_expand(D, b) for b in b"XYZ"])
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_939_klein4_is_the_two_bit_cd_doubling_address.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_939_klein4_is_the_two_bit_cd_doubling_address.py
+index 71e69c45d..10c7a0e51 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_939_klein4_is_the_two_bit_cd_doubling_address.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_939_klein4_is_the_two_bit_cd_doubling_address.py
+@@ -12 +12 @@ print('sign cocycle: i*j=', prod(1,2), ' j*i=', prod(2,1), ' i*i=', prod(1,1), '
+-a=hdc.klein4_random(256,seed=1); b=hdc.klein4_random(256,seed=2)
++a=hdc.klein4_expand(256, 1); b=hdc.klein4_expand(256, 2)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_941_fullbeat_recall_step_advances_where_halfbeat_stalls.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_941_fullbeat_recall_step_advances_where_halfbeat_stalls.py
+index 5601187ce..f15f3e0b6 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_941_fullbeat_recall_step_advances_where_halfbeat_stalls.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_941_fullbeat_recall_step_advances_where_halfbeat_stalls.py
+@@ -10,2 +10,2 @@ vocab=['a','b','c','d','e','f','g','h']
+-vec={t: hdc.klein4_random(D, seed=1000+i) for i,t in enumerate(vocab)}
+-ROLE=hdc.klein4_random(D, seed=4242)
++vec={t: hdc.klein4_expand(D, 1000+i) for i,t in enumerate(vocab)}
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_942_recall_beat_is_chirality_collapse_now_collapsing_past_collapsed.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_942_recall_beat_is_chirality_collapse_now_collapsing_past_collapsed.py
+index 3883ad8ee..f7a2961d2 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_942_recall_beat_is_chirality_collapse_now_collapsing_past_collapsed.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_942_recall_beat_is_chirality_collapse_now_collapsing_past_collapsed.py
+@@ -10,2 +10,2 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_random(D, seed=1000+i) for i,t in enumerate(vocab)}
+-ROLE=hdc.klein4_random(D, seed=4242); chain=['a','b','c','d','e']
++vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_expand(D, 1000+i) for i,t in enumerate(vocab)}
++ROLE=hdc.klein4_expand(D, 4242); chain=['a','b','c','d','e']
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_944_chunk_against_f896_plus_wire_collapse_margin_into_real_resonator.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_944_chunk_against_f896_plus_wire_collapse_margin_into_real_resonator.py
+index d79ebb77d..cfc21f9b1 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_944_chunk_against_f896_plus_wire_collapse_margin_into_real_resonator.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_944_chunk_against_f896_plus_wire_collapse_margin_into_real_resonator.py
+@@ -12,2 +12,2 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_random(D, seed=1000+i) for i,t in enumerate(vocab)}
+-ROLE=hdc.klein4_random(D, seed=4242); chain=['a','b','c','d','e']; edges=list(zip(chain,chain[1:]))
++vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_expand(D, 1000+i) for i,t in enumerate(vocab)}
++ROLE=hdc.klein4_expand(D, 4242); chain=['a','b','c','d','e']; edges=list(zip(chain,chain[1:]))
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_945_community_tome_routing_plus_coherence_trichotomy_branch_vs_stop.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_945_community_tome_routing_plus_coherence_trichotomy_branch_vs_stop.py
+index 13445e1a1..9689b2c30 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_945_community_tome_routing_plus_coherence_trichotomy_branch_vs_stop.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_945_community_tome_routing_plus_coherence_trichotomy_branch_vs_stop.py
+@@ -11,2 +11,2 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-vocab=['a','b','c','d','e','f','g','h','i','j']; vec={t: hdc.klein4_random(D, seed=2000+i) for i,t in enumerate(vocab)}
+-ROLE=hdc.klein4_random(D, seed=4242)
++vocab=['a','b','c','d','e','f','g','h','i','j']; vec={t: hdc.klein4_expand(D, 2000+i) for i,t in enumerate(vocab)}
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_947_spectral_routing_hairball_chunking_principle_holds_partition_fails.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_947_spectral_routing_hairball_chunking_principle_holds_partition_fails.py
+index dd8530a95..b65277e38 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_947_spectral_routing_hairball_chunking_principle_holds_partition_fails.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_947_spectral_routing_hairball_chunking_principle_holds_partition_fails.py
+@@ -25,2 +25,2 @@ idx={t:i for i,t in enumerate(vocab)}; n=len(vocab)
+-vec={t: hdc.klein4_random(D, seed=3000+i) for i,t in enumerate(vocab)}
+-ROLE=hdc.klein4_random(D, seed=4242)
++vec={t: hdc.klein4_expand(D, 3000+i) for i,t in enumerate(vocab)}
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_951_no_rotation_first_cascade_it_is_the_seam_previous_rotation_last_re_entering.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_951_no_rotation_first_cascade_it_is_the_seam_previous_rotation_last_re_entering.py
+index e72568f05..e17200ad6 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_951_no_rotation_first_cascade_it_is_the_seam_previous_rotation_last_re_entering.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_951_no_rotation_first_cascade_it_is_the_seam_previous_rotation_last_re_entering.py
+@@ -10,2 +10,2 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_random(D, seed=1000+i) for i,t in enumerate(vocab)}
+-ROLE=hdc.klein4_random(D, seed=4242); chain=['a','b','c','d','e']
++vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_expand(D, 1000+i) for i,t in enumerate(vocab)}
++ROLE=hdc.klein4_expand(D, 4242); chain=['a','b','c','d','e']
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_969_shadow_forced_encode_naive_graft_is_a_null_the_stop_is_not_an_encoding_gap.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_969_shadow_forced_encode_naive_graft_is_a_null_the_stop_is_not_an_encoding_gap.py
+index d57782297..f824c748f 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_969_shadow_forced_encode_naive_graft_is_a_null_the_stop_is_not_an_encoding_gap.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_969_shadow_forced_encode_naive_graft_is_a_null_the_stop_is_not_an_encoding_gap.py
+@@ -16,2 +16,2 @@ sh=(sh*8)[:32]                                    # tile for enough positions
+-vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_random(D,seed=1000+i) for i,t in enumerate(vocab)}
+-ROLE=hdc.klein4_random(D,seed=4242); chain=['a','b','c','d','e']  # sink = e (no stored next)
++vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_expand(D, 1000+i) for i,t in enumerate(vocab)}
++ROLE=hdc.klein4_expand(D, 4242); chain=['a','b','c','d','e']  # sink = e (no stored next)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_975_recall_recession_is_one_rung_half_life_like_coherence_has_a_load_half_life.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_975_recall_recession_is_one_rung_half_life_like_coherence_has_a_load_half_life.py
+index ed09b68fe..0db6de510 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_975_recall_recession_is_one_rung_half_life_like_coherence_has_a_load_half_life.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_975_recall_recession_is_one_rung_half_life_like_coherence_has_a_load_half_life.py
+@@ -10 +10 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+@@ -12 +12 @@ def margin_at_load(N):                      # chain of N tokens; store forward p
+-    vec=[hdc.klein4_random(D, seed=5000+i) for i in range(N)]
++    vec=[hdc.klein4_expand(D, 5000+i) for i in range(N)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_976_multi_time_read_buys_sqrtk_altitude_but_the_rung_rate_is_invariant_ground_truth_of_loss.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_976_multi_time_read_buys_sqrtk_altitude_but_the_rung_rate_is_invariant_ground_truth_of_loss.py
+index 40f02decb..3f27aade4 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_976_multi_time_read_buys_sqrtk_altitude_but_the_rung_rate_is_invariant_ground_truth_of_loss.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_976_multi_time_read_buys_sqrtk_altitude_but_the_rung_rate_is_invariant_ground_truth_of_loss.py
+@@ -13 +13 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_977_stop_and_think_recall_is_the_multi_cue_read_recovers_a_faded_memory_single_cue_lost.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_977_stop_and_think_recall_is_the_multi_cue_read_recovers_a_faded_memory_single_cue_lost.py
+index 147e85744..6844e718d 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_977_stop_and_think_recall_is_the_multi_cue_read_recovers_a_faded_memory_single_cue_lost.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_977_stop_and_think_recall_is_the_multi_cue_read_recovers_a_faded_memory_single_cue_lost.py
+@@ -10 +10 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+@@ -12 +12 @@ V=800
+-vec=[hdc.klein4_random(D, seed=6000+i) for i in range(V)]
++vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_978_the_recall_cascade_knows_when_to_stop_and_think_margin_is_the_self_trigger.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_978_the_recall_cascade_knows_when_to_stop_and_think_margin_is_the_self_trigger.py
+index 4d4a261ec..7458786ce 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_978_the_recall_cascade_knows_when_to_stop_and_think_margin_is_the_self_trigger.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_978_the_recall_cascade_knows_when_to_stop_and_think_margin_is_the_self_trigger.py
+@@ -11,2 +11,2 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242); V=800
+-vec=[hdc.klein4_random(D, seed=6000+i) for i in range(V)]
++ROLE=hdc.klein4_expand(D, 4242); V=800
++vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_979_etak_walk_demo.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_979_etak_walk_demo.py
+index 70782aa6a..35c34a3f2 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_979_etak_walk_demo.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_979_etak_walk_demo.py
+@@ -5,2 +5,2 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242); V=1400
+-vec=[hdc.klein4_random(D, seed=6000+i) for i in range(V)]
++ROLE=hdc.klein4_expand(D, 4242); V=1400
++vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_979_k_recovery_effort_curve_plus_etak_walk_self_escalates_deeper_resolution.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_979_k_recovery_effort_curve_plus_etak_walk_self_escalates_deeper_resolution.py
+index 14154f249..f81ac2253 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_979_k_recovery_effort_curve_plus_etak_walk_self_escalates_deeper_resolution.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_979_k_recovery_effort_curve_plus_etak_walk_self_escalates_deeper_resolution.py
+@@ -8,2 +8,2 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242); V=1200
+-vec=[hdc.klein4_random(D, seed=6000+i) for i in range(V)]
++ROLE=hdc.klein4_expand(D, 4242); V=1200
++vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_981_etak_deeper_at_heavy_real_corpus_load_recovers_where_fast_fails.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_981_etak_deeper_at_heavy_real_corpus_load_recovers_where_fast_fails.py
+index c95fbe2dc..801d1b3e0 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_981_etak_deeper_at_heavy_real_corpus_load_recovers_where_fast_fails.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_981_etak_deeper_at_heavy_real_corpus_load_recovers_where_fast_fails.py
+@@ -11 +11 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_982_de_lens_at_runtime_not_write_time_write_time_drop_doctors_the_ssot_and_destroys_shapes.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_982_de_lens_at_runtime_not_write_time_write_time_drop_doctors_the_ssot_and_destroys_shapes.py
+index 6e1fe9351..3dc4f7df4 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_982_de_lens_at_runtime_not_write_time_write_time_drop_doctors_the_ssot_and_destroys_shapes.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_982_de_lens_at_runtime_not_write_time_write_time_drop_doctors_the_ssot_and_destroys_shapes.py
+@@ -11 +11 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_983_full_plus_runtime_delens_rebuild_raw_idf_too_blunt_needs_function_ness_not_frequency.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_983_full_plus_runtime_delens_rebuild_raw_idf_too_blunt_needs_function_ness_not_frequency.py
+index f7c2933f5..d9f1b0ef9 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_983_full_plus_runtime_delens_rebuild_raw_idf_too_blunt_needs_function_ness_not_frequency.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_983_full_plus_runtime_delens_rebuild_raw_idf_too_blunt_needs_function_ness_not_frequency.py
+@@ -10 +10 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_984_aboutness_gate_is_document_frequency_one_sided_suppression_the_correct_runtime_delens.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_984_aboutness_gate_is_document_frequency_one_sided_suppression_the_correct_runtime_delens.py
+index 3ee6fbb7a..d1a57fdc7 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_984_aboutness_gate_is_document_frequency_one_sided_suppression_the_correct_runtime_delens.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_984_aboutness_gate_is_document_frequency_one_sided_suppression_the_correct_runtime_delens.py
+@@ -10 +10 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_985_end_to_end_gate_wired_into_cut_and_emission_doubles_content_recall.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_985_end_to_end_gate_wired_into_cut_and_emission_doubles_content_recall.py
+index ed07cd57e..51e3950ec 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_985_end_to_end_gate_wired_into_cut_and_emission_doubles_content_recall.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_985_end_to_end_gate_wired_into_cut_and_emission_doubles_content_recall.py
+@@ -11 +11 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_986_etak_deeper_on_gated_pipeline_lifts_buried_recall_57_to_82.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_986_etak_deeper_on_gated_pipeline_lifts_buried_recall_57_to_82.py
+index d1b39b5e3..c0cc53aa7 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_986_etak_deeper_on_gated_pipeline_lifts_buried_recall_57_to_82.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_986_etak_deeper_on_gated_pipeline_lifts_buried_recall_57_to_82.py
+@@ -10 +10 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_988_deconvolution_recall_peels_the_recession_reaches_single_context_burial_etak_cannot.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_988_deconvolution_recall_peels_the_recession_reaches_single_context_burial_etak_cannot.py
+index 0b7715f0e..f0428a459 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_988_deconvolution_recall_peels_the_recession_reaches_single_context_burial_etak_cannot.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_988_deconvolution_recall_peels_the_recession_reaches_single_context_burial_etak_cannot.py
+@@ -11,2 +11,2 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242); V=700
+-vec=[hdc.klein4_random(D, seed=6000+i) for i in range(V)]
++ROLE=hdc.klein4_expand(D, 4242); V=700
++vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_989_concurrent_time_front_bubbles_coupled_for_navigation_not_merge.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_989_concurrent_time_front_bubbles_coupled_for_navigation_not_merge.py
+index fd42154c4..1be4d5459 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_989_concurrent_time_front_bubbles_coupled_for_navigation_not_merge.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_989_concurrent_time_front_bubbles_coupled_for_navigation_not_merge.py
+@@ -9,2 +9,2 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242); V=200
+-vec=[hdc.klein4_random(D,seed=6000+i) for i in range(V)]
++ROLE=hdc.klein4_expand(D, 4242); V=200
++vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_990_landmarks_at_the_coherence_scale_two_chiral_fronts_overtone_undertone_no_new_rules.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_990_landmarks_at_the_coherence_scale_two_chiral_fronts_overtone_undertone_no_new_rules.py
+index a92a8ad90..b5206a545 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_990_landmarks_at_the_coherence_scale_two_chiral_fronts_overtone_undertone_no_new_rules.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_990_landmarks_at_the_coherence_scale_two_chiral_fronts_overtone_undertone_no_new_rules.py
+@@ -8,2 +8,2 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242); V=400
+-vec=[hdc.klein4_random(D,seed=6000+i) for i in range(V)]
++ROLE=hdc.klein4_expand(D, 4242); V=400
++vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_991_measure_R_on_real_gated_tomes_capacity_lever_pushes_it_wider_context_does_not.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_991_measure_R_on_real_gated_tomes_capacity_lever_pushes_it_wider_context_does_not.py
+index 0f7fa4bfd..1f4b51476 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_991_measure_R_on_real_gated_tomes_capacity_lever_pushes_it_wider_context_does_not.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_991_measure_R_on_real_gated_tomes_capacity_lever_pushes_it_wider_context_does_not.py
+@@ -7 +7 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_992_low_load_landmarks_confirmed_the_wall_is_artificial_multi_perspective_breaks_it_soft_beats_hard.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_992_low_load_landmarks_confirmed_the_wall_is_artificial_multi_perspective_breaks_it_soft_beats_hard.py
+index f0c2ce445..2864dec23 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_992_low_load_landmarks_confirmed_the_wall_is_artificial_multi_perspective_breaks_it_soft_beats_hard.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_992_low_load_landmarks_confirmed_the_wall_is_artificial_multi_perspective_breaks_it_soft_beats_hard.py
+@@ -12 +12 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+@@ -15 +15 @@ ROLE=hdc.klein4_random(D, seed=4242)
+-V=120; vec=[hdc.klein4_random(D,seed=6000+i) for i in range(V)]
++V=120; vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_993_chirality_frame_perspectives_collapse_on_identity_stored_M_you_cannot_read_a_chirality_you_didnt_write.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_993_chirality_frame_perspectives_collapse_on_identity_stored_M_you_cannot_read_a_chirality_you_didnt_write.py
+index f39c87b37..f6d34124d 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_993_chirality_frame_perspectives_collapse_on_identity_stored_M_you_cannot_read_a_chirality_you_didnt_write.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_993_chirality_frame_perspectives_collapse_on_identity_stored_M_you_cannot_read_a_chirality_you_didnt_write.py
+@@ -12 +12 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_994_symmetric_chirality_is_useless_write_or_generate_the_storage_smart_lever_is_the_asymmetric_fractal_fold.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_994_symmetric_chirality_is_useless_write_or_generate_the_storage_smart_lever_is_the_asymmetric_fractal_fold.py
+index 3b4fec9ca..0062c106a 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_994_symmetric_chirality_is_useless_write_or_generate_the_storage_smart_lever_is_the_asymmetric_fractal_fold.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_994_symmetric_chirality_is_useless_write_or_generate_the_storage_smart_lever_is_the_asymmetric_fractal_fold.py
+@@ -12 +12 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+@@ -16 +16 @@ g5=hdc.klein4_chirality_flip_gamma5; w7=hdc.klein4_chirality_flip_omega7; cpt=hd
+-a=hdc.klein4_random(D,seed=1); b=hdc.klein4_random(D,seed=2)
++a=hdc.klein4_expand(D, 1); b=hdc.klein4_expand(D, 2)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_995_asymmetric_fold_encoder_separates_the_distribution_at_1x_storage_oracle_rung_76_vs_58.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_995_asymmetric_fold_encoder_separates_the_distribution_at_1x_storage_oracle_rung_76_vs_58.py
+index e40b0e134..7f036528e 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_995_asymmetric_fold_encoder_separates_the_distribution_at_1x_storage_oracle_rung_76_vs_58.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_995_asymmetric_fold_encoder_separates_the_distribution_at_1x_storage_oracle_rung_76_vs_58.py
+@@ -12 +12 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+@@ -14 +14 @@ NR=6
+-RK=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]   # NR distinct rung-keys (the fold ladder)
++RK=[hdc.klein4_expand(D, 71000+r) for r in range(NR)]   # NR distinct rung-keys (the fold ladder)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_996_the_ontological_inversion_operations_are_bit_exact_the_substrate_is_continuous_information_is_the_subharmonic_field.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_996_the_ontological_inversion_operations_are_bit_exact_the_substrate_is_continuous_information_is_the_subharmonic_field.py
+index 3fb12d114..89bf641da 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_996_the_ontological_inversion_operations_are_bit_exact_the_substrate_is_continuous_information_is_the_subharmonic_field.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_996_the_ontological_inversion_operations_are_bit_exact_the_substrate_is_continuous_information_is_the_subharmonic_field.py
+@@ -12 +12 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+@@ -15,3 +15,3 @@ def cap(M_modes, N):
+-    A=[hdc.klein4_random(D, seed=90000+i) for i in range(N)]
+-    B=[hdc.klein4_random(D, seed=120000+i) for i in range(N)]
+-    MODE=[hdc.klein4_random(D, seed=150000+m) for m in range(M_modes)]
++    A=[hdc.klein4_expand(D, 90000+i) for i in range(N)]
++    B=[hdc.klein4_expand(D, 120000+i) for i in range(N)]
++    MODE=[hdc.klein4_expand(D, 150000+m) for m in range(M_modes)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_997_resonant_spectral_store_beats_discrete_bundle_55_vs_42_but_subharmonic_only_fails_fine_edges_are_high_modes.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_997_resonant_spectral_store_beats_discrete_bundle_55_vs_42_but_subharmonic_only_fails_fine_edges_are_high_modes.py
+index ec7796198..c94d2664f 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_997_resonant_spectral_store_beats_discrete_bundle_55_vs_42_but_subharmonic_only_fails_fine_edges_are_high_modes.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_997_resonant_spectral_store_beats_discrete_bundle_55_vs_42_but_subharmonic_only_fails_fine_edges_are_high_modes.py
+@@ -11 +11 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998b_two_tier_resonant_translation_bridge_grounded_bounded_high_band_kernel_resolves_fine_content.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998b_two_tier_resonant_translation_bridge_grounded_bounded_high_band_kernel_resolves_fine_content.py
+index 9f5c82785..66de2d544 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998b_two_tier_resonant_translation_bridge_grounded_bounded_high_band_kernel_resolves_fine_content.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998b_two_tier_resonant_translation_bridge_grounded_bounded_high_band_kernel_resolves_fine_content.py
+@@ -12 +12 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998c_distributional_read_lifts_recall_to_92_top5_but_discrete_bundle_distributes_better_than_resonant_complementary.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998c_distributional_read_lifts_recall_to_92_top5_but_discrete_bundle_distributes_better_than_resonant_complementary.py
+index 8b1962910..08e0f3ecc 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998c_distributional_read_lifts_recall_to_92_top5_but_discrete_bundle_distributes_better_than_resonant_complementary.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998c_distributional_read_lifts_recall_to_92_top5_but_discrete_bundle_distributes_better_than_resonant_complementary.py
+@@ -11 +11 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998d_propose_resolve_pipeline_beats_both_alone_sparse_proposes_resonant_resolves_60_vs_53_vs_47.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998d_propose_resolve_pipeline_beats_both_alone_sparse_proposes_resonant_resolves_60_vs_53_vs_47.py
+index bad10240f..76588af04 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998d_propose_resolve_pipeline_beats_both_alone_sparse_proposes_resonant_resolves_60_vs_53_vs_47.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998d_propose_resolve_pipeline_beats_both_alone_sparse_proposes_resonant_resolves_60_vs_53_vs_47.py
+@@ -11 +11 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242)
++ROLE=hdc.klein4_expand(D, 4242)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_999_elliptic_minus_z_inverse_rung_keys_MATCH_not_beat_independent_keys_on_discrete_read_structure_pays_off_in_resonant_read.py b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_999_elliptic_minus_z_inverse_rung_keys_MATCH_not_beat_independent_keys_on_discrete_read_structure_pays_off_in_resonant_read.py
+index e79c9f62d..ba57332df 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_999_elliptic_minus_z_inverse_rung_keys_MATCH_not_beat_independent_keys_on_discrete_read_structure_pays_off_in_resonant_read.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_999_elliptic_minus_z_inverse_rung_keys_MATCH_not_beat_independent_keys_on_discrete_read_structure_pays_off_in_resonant_read.py
+@@ -11 +11 @@ def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
+-ROLE=hdc.klein4_random(D, seed=4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5
++ROLE=hdc.klein4_expand(D, 4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5
+@@ -14,2 +14,2 @@ def rot(seq,k): k%=len(seq); return seq[-k:]+seq[:-k]
+-RK_ind=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]      # F995: INDEPENDENT random keys
+-base=hdc.klein4_random(D, seed=99001); bl=base.tolist(); dlt=D//(2*NR)
++RK_ind=[hdc.klein4_expand(D, 71000+r) for r in range(NR)]      # F995: INDEPENDENT random keys
++base=hdc.klein4_expand(D, 99001); bl=base.tolist(); dlt=D//(2*NR)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOME-CENSUS_chromosome_type_makeup_stick_minted_diploid_and_nuclear_vs_organelle_topology_plus_the_native_op_ask.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOME-CENSUS_chromosome_type_makeup_stick_minted_diploid_and_nuclear_vs_organelle_topology_plus_the_native_op_ask.py
+index 0647a3dab..a7e3237e0 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOME-CENSUS_chromosome_type_makeup_stick_minted_diploid_and_nuclear_vs_organelle_topology_plus_the_native_op_ask.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOME-CENSUS_chromosome_type_makeup_stick_minted_diploid_and_nuclear_vs_organelle_topology_plus_the_native_op_ask.py
+@@ -86 +86 @@ def _demo():
+-    one = hdc.klein4_random(64, seed=0)
++    one = hdc.klein4_expand(64, 0)
+@@ -110 +110 @@ if __name__ == "__main__":
+-        one = hdc.klein4_random(64, seed=0)
++        one = hdc.klein4_expand(64, 0)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOME-RC262-VERIFY_1407_delivery_check_rename_centromere_diploid_integrate_aliasing_and_the_recover_diploid_erasure_asymmetry.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOME-RC262-VERIFY_1407_delivery_check_rename_centromere_diploid_integrate_aliasing_and_the_recover_diploid_erasure_asymmetry.py
+index 91137a20c..c22fd98aa 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOME-RC262-VERIFY_1407_delivery_check_rename_centromere_diploid_integrate_aliasing_and_the_recover_diploid_erasure_asymmetry.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOME-RC262-VERIFY_1407_delivery_check_rename_centromere_diploid_integrate_aliasing_and_the_recover_diploid_erasure_asymmetry.py
+@@ -27 +27 @@ import srmech.dsl as dsl
+-one = hdc.klein4_random(64, seed=0)
++one = hdc.klein4_expand(64, 0)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEAPPEND-MEMLEAK_threaded_catalog_append_leaks_On_memory_internal_to_genome_append_OOM_at_corpus_scale.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEAPPEND-MEMLEAK_threaded_catalog_append_leaks_On_memory_internal_to_genome_append_OOM_at_corpus_scale.py
+index 77af3765a..c402e30e0 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEAPPEND-MEMLEAK_threaded_catalog_append_leaks_On_memory_internal_to_genome_append_OOM_at_corpus_scale.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEAPPEND-MEMLEAK_threaded_catalog_append_leaks_On_memory_internal_to_genome_append_OOM_at_corpus_scale.py
+@@ -30 +30 @@ def main():
+-    one = hdc.klein4_random(64, seed=0)
++    one = hdc.klein4_expand(64, 0)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEAPPEND-SCALING_isolated_repro_genome_append_is_On_per_call_On2_total.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEAPPEND-SCALING_isolated_repro_genome_append_is_On_per_call_On2_total.py
+index c4173475a..0ab67d526 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEAPPEND-SCALING_isolated_repro_genome_append_is_On_per_call_On2_total.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEAPPEND-SCALING_isolated_repro_genome_append_is_On_per_call_On2_total.py
+@@ -39 +39 @@ def main():
+-    one = hdc.klein4_random(DIM, seed=0)
++    one = hdc.klein4_expand(DIM, 0)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMECRUD_full_crud_plus_chr_bundle.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMECRUD_full_crud_plus_chr_bundle.py
+index 72f2d1719..0cfe6814c 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMECRUD_full_crud_plus_chr_bundle.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMECRUD_full_crud_plus_chr_bundle.py
+@@ -19,2 +19,2 @@ DIM = 64
+-ONE = hdc.klein4_random(DIM, seed=0)
+-def Lv(s, n): return [hdc.klein4_random(DIM, seed=s * 100 + i) for i in range(n)]
++ONE = hdc.klein4_expand(DIM, 0)
++def Lv(s, n): return [hdc.klein4_expand(DIM, s * 100 + i) for i in range(n)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEDISK_rc128_save_load_roundtrip_verify.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEDISK_rc128_save_load_roundtrip_verify.py
+index b50a6aa8e..5b563e2c7 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEDISK_rc128_save_load_roundtrip_verify.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEDISK_rc128_save_load_roundtrip_verify.py
+@@ -32 +32 @@ DIM = 64
+-ONE = hdc.klein4_random(DIM, seed=0)            # the coherence-anchor leaf ("the one"), dim = leaf dim
++ONE = hdc.klein4_expand(DIM, 0)            # the coherence-anchor leaf ("the one"), dim = leaf dim
+@@ -34 +34 @@ def _leaves(seed, n):
+-    return [hdc.klein4_random(DIM, seed=seed * 1000 + i) for i in range(n)]
++    return [hdc.klein4_expand(DIM, seed * 1000 + i) for i in range(n)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEEDIT_remove_kernel_compose_vs_inplace.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEEDIT_remove_kernel_compose_vs_inplace.py
+index 926368d87..f55431768 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEEDIT_remove_kernel_compose_vs_inplace.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEEDIT_remove_kernel_compose_vs_inplace.py
+@@ -29 +29 @@ DIM = 64
+-ONE = hdc.klein4_random(DIM, seed=0)
++ONE = hdc.klein4_expand(DIM, 0)
+@@ -45 +45 @@ def main():
+-        return [hdc.klein4_random(DIM, seed=s * 100 + i) for i in range(n)]
++        return [hdc.klein4_expand(DIM, s * 100 + i) for i in range(n)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEENCODE_instrument_to_native_srmech_genome_body_chromosomes_vocab_genes.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEENCODE_instrument_to_native_srmech_genome_body_chromosomes_vocab_genes.py
+index c05864540..fb175b83b 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEENCODE_instrument_to_native_srmech_genome_body_chromosomes_vocab_genes.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEENCODE_instrument_to_native_srmech_genome_body_chromosomes_vocab_genes.py
+@@ -53 +53 @@ def the_one():
+-    return hdc.klein4_random(DIM, seed=0)
++    return hdc.klein4_expand(DIM, 0)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMELANDS_genome_surface_and_class_from_toml_land_in_srmech_rc42.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMELANDS_genome_surface_and_class_from_toml_land_in_srmech_rc42.py
+index f2826fe8a..207981f82 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMELANDS_genome_surface_and_class_from_toml_land_in_srmech_rc42.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMELANDS_genome_surface_and_class_from_toml_land_in_srmech_rc42.py
+@@ -73,4 +73,4 @@ def main():
+-    one = klein4_random(64, seed=1)
+-    kernels = {"astronomy": [klein4_random(64, seed=s) for s in (10, 11, 12)],
+-               "geography": [klein4_random(64, seed=s) for s in (20, 21)],
+-               "music": [klein4_random(64, seed=30)]}
++    one = klein4_expand(64, 1)
++    kernels = {"astronomy": [klein4_expand(64, s) for s in (10, 11, 12)],
++               "geography": [klein4_expand(64, s) for s in (20, 21)],
++               "music": [klein4_expand(64, 30)]}
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEREAD_introspect_between_telomeres.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEREAD_introspect_between_telomeres.py
+index 3de003bde..6d4724a88 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEREAD_introspect_between_telomeres.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEREAD_introspect_between_telomeres.py
+@@ -24 +24 @@ DIM = 64
+-ONE = hdc.klein4_random(DIM, seed=0)                 # the coherence-anchor leaf ("the one")
++ONE = hdc.klein4_expand(DIM, 0)                 # the coherence-anchor leaf ("the one")
+@@ -28,3 +28,3 @@ SHELF = {
+-    "siona_identity": ([hdc.klein4_random(DIM, seed=10 + i) for i in range(5)], "who Siona is — her self-identity shelf"),
+-    "mfo_the_one":    ([hdc.klein4_random(DIM, seed=20 + i) for i in range(3)], "the MFO 'the one is the held invariant' kernel"),
+-    "dragon_taught":  ([hdc.klein4_random(DIM, seed=30 + i) for i in range(2)], "a tome taught at runtime via build-by-dialogue"),
++    "siona_identity": ([hdc.klein4_expand(DIM, 10 + i) for i in range(5)], "who Siona is — her self-identity shelf"),
++    "mfo_the_one":    ([hdc.klein4_expand(DIM, 20 + i) for i in range(3)], "the MFO 'the one is the held invariant' kernel"),
++    "dragon_taught":  ([hdc.klein4_expand(DIM, 30 + i) for i in range(2)], "a tome taught at runtime via build-by-dialogue"),
+@@ -78,3 +78,3 @@ def main():
+-    chrom_genes = [("intro",   [hdc.klein4_random(DIM, seed=200 + i) for i in range(2)]),
+-                   ("history", [hdc.klein4_random(DIM, seed=210 + i) for i in range(3)]),
+-                   ("refs",    [hdc.klein4_random(DIM, seed=220 + i) for i in range(1)])]
++    chrom_genes = [("intro",   [hdc.klein4_expand(DIM, 200 + i) for i in range(2)]),
++                   ("history", [hdc.klein4_expand(DIM, 210 + i) for i in range(3)]),
++                   ("refs",    [hdc.klein4_expand(DIM, 220 + i) for i in range(1)])]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMERECALL_prototype_native_srmech_genome_recall_token_hv_leaves_bottom_up.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMERECALL_prototype_native_srmech_genome_recall_token_hv_leaves_bottom_up.py
+index 2928f8b04..2c0281ea9 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMERECALL_prototype_native_srmech_genome_recall_token_hv_leaves_bottom_up.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GENOMERECALL_prototype_native_srmech_genome_recall_token_hv_leaves_bottom_up.py
+@@ -57 +57 @@ def main():
+-    one = hdc.klein4_random(DIM, seed=0)
++    one = hdc.klein4_expand(DIM, 0)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GLYPHCHIRALITY_bd_pq_mirror_is_a_klein4_orbit_native_no_lift.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GLYPHCHIRALITY_bd_pq_mirror_is_a_klein4_orbit_native_no_lift.py
+index 09787c7b8..c774ffc4b 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GLYPHCHIRALITY_bd_pq_mirror_is_a_klein4_orbit_native_no_lift.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GLYPHCHIRALITY_bd_pq_mirror_is_a_klein4_orbit_native_no_lift.py
+@@ -50 +50 @@ def shape_vec(seed_label="glyph-shape::bdpq"):
+-    return klein4_random(DIM, seed=seed)
++    return klein4_expand(DIM, seed)
+@@ -64 +64 @@ def naive():
+-        out[ch] = klein4_random(DIM, seed=seed)
++        out[ch] = klein4_expand(DIM, seed)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-GRAPH2KERNEL_prototype_general_directed_signed_graph_genome_codec.py b/docs/srmech/rbs_lm_research/R-RBS-LM-GRAPH2KERNEL_prototype_general_directed_signed_graph_genome_codec.py
+index cb6d62794..91a25cf57 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-GRAPH2KERNEL_prototype_general_directed_signed_graph_genome_codec.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-GRAPH2KERNEL_prototype_general_directed_signed_graph_genome_codec.py
+@@ -28 +28 @@ LEAF = 64
+-COUPLE = hdc.klein4_random(LEAF, seed=1080)          # same coupling as NIVDIRECTED (the sandroing/UNESCO 00073 seed)
++COUPLE = hdc.klein4_expand(LEAF, 1080)          # same coupling as NIVDIRECTED (the sandroing/UNESCO 00073 seed)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-HOLOFOLD_streaming_klein4_holographic_cooccurrence_fold_fixed_width.py b/docs/srmech/rbs_lm_research/R-RBS-LM-HOLOFOLD_streaming_klein4_holographic_cooccurrence_fold_fixed_width.py
+index 1e057a364..a0fb3812f 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-HOLOFOLD_streaming_klein4_holographic_cooccurrence_fold_fixed_width.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-HOLOFOLD_streaming_klein4_holographic_cooccurrence_fold_fixed_width.py
+@@ -56 +56 @@ def hv_syms(tok, _cache={}):
+-        v = _cache[tok] = array("b", hdc.klein4_random(D, seed=seed).tolist())
++        v = _cache[tok] = array("b", hdc.klein4_expand(D, seed).tolist())
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-NIVDIRECTED_word_as_directed_glyph_graph_genome_native.py b/docs/srmech/rbs_lm_research/R-RBS-LM-NIVDIRECTED_word_as_directed_glyph_graph_genome_native.py
+index e1fd9318a..79962bab1 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-NIVDIRECTED_word_as_directed_glyph_graph_genome_native.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-NIVDIRECTED_word_as_directed_glyph_graph_genome_native.py
+@@ -29 +29 @@ LEAF = 64
+-COUPLE = hdc.klein4_random(LEAF, seed=1080)          # canonical leaf_dim coupling vector (the sandroing/UNESCO 00073 seed)
++COUPLE = hdc.klein4_expand(LEAF, 1080)          # canonical leaf_dim coupling vector (the sandroing/UNESCO 00073 seed)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-NOISERULE_deviation_is_first_a_substrate_chirality_feature.py b/docs/srmech/rbs_lm_research/R-RBS-LM-NOISERULE_deviation_is_first_a_substrate_chirality_feature.py
+index bc635fb3e..d97f5f524 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-NOISERULE_deviation_is_first_a_substrate_chirality_feature.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-NOISERULE_deviation_is_first_a_substrate_chirality_feature.py
+@@ -30 +30 @@ def main():
+-    A = hdc.klein4_random(8192, seed=7)
++    A = hdc.klein4_expand(8192, 7)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-NOWCURVATURE_responsion_store_and_observing_the_seam.py b/docs/srmech/rbs_lm_research/R-RBS-LM-NOWCURVATURE_responsion_store_and_observing_the_seam.py
+index 2cc8bbc12..1c027741d 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-NOWCURVATURE_responsion_store_and_observing_the_seam.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-NOWCURVATURE_responsion_store_and_observing_the_seam.py
+@@ -37 +37 @@ LEAF = 64
+-COUPLE = hdc.klein4_random(LEAF, seed=1218)
++COUPLE = hdc.klein4_expand(LEAF, 1218)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-OVERHAULAUDIT_rc78_the_one_typed_to_scalar_dedup_numpy_removal.py b/docs/srmech/rbs_lm_research/R-RBS-LM-OVERHAULAUDIT_rc78_the_one_typed_to_scalar_dedup_numpy_removal.py
+index 43f9c732e..a23650ba2 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-OVERHAULAUDIT_rc78_the_one_typed_to_scalar_dedup_numpy_removal.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-OVERHAULAUDIT_rc78_the_one_typed_to_scalar_dedup_numpy_removal.py
+@@ -110 +110 @@ def main():
+-        one = klein4_random(64, seed=1); k = {"a": [klein4_random(64, seed=s) for s in (10, 11)], "b": [klein4_random(64, seed=20)]}
++        one = klein4_expand(64, 1); k = {"a": [klein4_expand(64, s) for s in (10, 11)], "b": [klein4_expand(64, 20)]}
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-PERTOPIC_conservation_core_fraction_coherent_vs_random_populations_matched_size.py b/docs/srmech/rbs_lm_research/R-RBS-LM-PERTOPIC_conservation_core_fraction_coherent_vs_random_populations_matched_size.py
+index f3400d4d3..c6fc15c0c 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-PERTOPIC_conservation_core_fraction_coherent_vs_random_populations_matched_size.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-PERTOPIC_conservation_core_fraction_coherent_vs_random_populations_matched_size.py
+@@ -36 +36 @@ LEAF = 64
+-COUPLE = hdc.klein4_random(LEAF, seed=1080)
++COUPLE = hdc.klein4_expand(LEAF, 1080)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-PLASMIDEXTRACT_stage1_sectional_plasmid_store_simplewiki_rc278_with_progress.py b/docs/srmech/rbs_lm_research/R-RBS-LM-PLASMIDEXTRACT_stage1_sectional_plasmid_store_simplewiki_rc278_with_progress.py
+index 61b2e3beb..851c1c598 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-PLASMIDEXTRACT_stage1_sectional_plasmid_store_simplewiki_rc278_with_progress.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-PLASMIDEXTRACT_stage1_sectional_plasmid_store_simplewiki_rc278_with_progress.py
+@@ -30 +30 @@ LEAF = 64                                   # >= 52 required (the §89 kernel he
+-COUPLE = hdc.klein4_random(LEAF, seed=1080)  # the store's canonical coupling seed
++COUPLE = hdc.klein4_expand(LEAF, 1080)  # the store's canonical coupling seed
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-POOLED_pool_read_makes_cost_N_independent_and_the_exponent_SPECTRUM_test.py b/docs/srmech/rbs_lm_research/R-RBS-LM-POOLED_pool_read_makes_cost_N_independent_and_the_exponent_SPECTRUM_test.py
+index e41686c06..63f3c2710 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-POOLED_pool_read_makes_cost_N_independent_and_the_exponent_SPECTRUM_test.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-POOLED_pool_read_makes_cost_N_independent_and_the_exponent_SPECTRUM_test.py
+@@ -95,2 +95,2 @@ def carriers(n, dim):
+-    k = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(n)]
+-    v = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(n)]
++    k = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(n)]
++    v = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(n)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-R10_collapse_disables_or_hides_correction.py b/docs/srmech/rbs_lm_research/R-RBS-LM-R10_collapse_disables_or_hides_correction.py
+index 1e583cc3a..f8e3a9895 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-R10_collapse_disables_or_hides_correction.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-R10_collapse_disables_or_hides_correction.py
+@@ -50 +50 @@ def main():
+-        c = hdc.klein4_random(D, seed=20260604 + t)
++        c = hdc.klein4_expand(D, 20260604 + t)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-R13_rc28_797_ops_validation.py b/docs/srmech/rbs_lm_research/R-RBS-LM-R13_rc28_797_ops_validation.py
+index f1c81964f..8ecc62048 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-R13_rc28_797_ops_validation.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-R13_rc28_797_ops_validation.py
+@@ -46 +46 @@ def order2_cpt_correct_rate(strength, rng_seed):
+-        v = hdc.klein4_random(D, seed=rng_seed + t)
++        v = hdc.klein4_expand(D, rng_seed + t)
+@@ -62 +62 @@ def two_vote_correct_rate(strength, rng_seed):
+-        v = hdc.klein4_random(D, seed=rng_seed + t)
++        v = hdc.klein4_expand(D, rng_seed + t)
+@@ -80 +80 @@ def main():
+-    v0 = hdc.klein4_random(D, seed=1)
++    v0 = hdc.klein4_expand(D, 1)
+@@ -95 +95 @@ def main():
+-            v = hdc.klein4_random(D, seed=900 + t)
++            v = hdc.klein4_expand(D, 900 + t)
+@@ -108 +108 @@ def main():
+-        v = hdc.klein4_random(D, seed=1700 + t)
++        v = hdc.klein4_expand(D, 1700 + t)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-R18_recall_is_lossy_codeword_is_bit_exact.py b/docs/srmech/rbs_lm_research/R-RBS-LM-R18_recall_is_lossy_codeword_is_bit_exact.py
+index 83a93483a..dc9efbcc2 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-R18_recall_is_lossy_codeword_is_bit_exact.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-R18_recall_is_lossy_codeword_is_bit_exact.py
+@@ -55 +55 @@ def main():
+-                v = hdc.klein4_random(D, seed=700 + 31 * k + t)
++                v = hdc.klein4_expand(D, 700 + 31 * k + t)
+@@ -78 +78 @@ def main():
+-            v = hdc.klein4_random(D, seed=9000 + t)
++            v = hdc.klein4_expand(D, 9000 + t)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-R1_klein4_vs_loopbind_capacity.py b/docs/srmech/rbs_lm_research/R-RBS-LM-R1_klein4_vs_loopbind_capacity.py
+index f04ded327..4c7707051 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-R1_klein4_vs_loopbind_capacity.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-R1_klein4_vs_loopbind_capacity.py
+@@ -50,2 +50,2 @@ def run_klein4(K, seed):
+-    keys = [hdc.klein4_random(D, seed=rng_seed + i) for i in range(K)]
+-    vals = [hdc.klein4_random(D, seed=rng_seed + 10_000 + i) for i in range(K)]
++    keys = [hdc.klein4_expand(D, rng_seed + i) for i in range(K)]
++    vals = [hdc.klein4_expand(D, rng_seed + 10_000 + i) for i in range(K)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-R25_reverse_direction_43_native_bit_exact.py b/docs/srmech/rbs_lm_research/R-RBS-LM-R25_reverse_direction_43_native_bit_exact.py
+index f7e31ee0f..fe03d404b 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-R25_reverse_direction_43_native_bit_exact.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-R25_reverse_direction_43_native_bit_exact.py
+@@ -90 +90 @@ def main():
+-    v = hdc.klein4_random(D, seed=383)
++    v = hdc.klein4_expand(D, 383)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-R36_rc47_multilayer_surface_practice.py b/docs/srmech/rbs_lm_research/R-RBS-LM-R36_rc47_multilayer_surface_practice.py
+index 55b4ea80d..cfd91c13f 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-R36_rc47_multilayer_surface_practice.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-R36_rc47_multilayer_surface_practice.py
+@@ -37,2 +37,2 @@ def main():
+-    a = hdc.klein4_random(64, seed=seed)
+-    b = hdc.klein4_random(64, seed=seed + 1)
++    a = hdc.klein4_expand(64, seed)
++    b = hdc.klein4_expand(64, seed + 1)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-R4_k2detect_k3correct_klein4.py b/docs/srmech/rbs_lm_research/R-RBS-LM-R4_k2detect_k3correct_klein4.py
+index 78cda37ee..590a16a58 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-R4_k2detect_k3correct_klein4.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-R4_k2detect_k3correct_klein4.py
+@@ -45 +45 @@ def trial(p, seed):
+-    v_true = hdc.klein4_random(D, seed=seed)
++    v_true = hdc.klein4_expand(D, seed)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-R8_savefetch_bitexact_vs_rotate_dof.py b/docs/srmech/rbs_lm_research/R-RBS-LM-R8_savefetch_bitexact_vs_rotate_dof.py
+index c987220ae..fd3e256fd 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-R8_savefetch_bitexact_vs_rotate_dof.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-R8_savefetch_bitexact_vs_rotate_dof.py
+@@ -45,2 +45,2 @@ def run_trial(seed):
+-    anchors = [hdc.klein4_random(D, seed=seed + i) for i in range(K)]
+-    locs = [hdc.klein4_random(D, seed=seed + 1000 + i) for i in range(K)]
++    anchors = [hdc.klein4_expand(D, seed + i) for i in range(K)]
++    locs = [hdc.klein4_expand(D, seed + 1000 + i) for i in range(K)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-R9_erasure_vs_majority_discriminator.py b/docs/srmech/rbs_lm_research/R-RBS-LM-R9_erasure_vs_majority_discriminator.py
+index 6d5ac780a..3a6883d13 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-R9_erasure_vs_majority_discriminator.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-R9_erasure_vs_majority_discriminator.py
+@@ -57 +57 @@ def trial(seed):
+-    c = hdc.klein4_random(D, seed=seed)
++    c = hdc.klein4_expand(D, seed)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-REGRESSION_srmech_surfaces_our_findings_use.py b/docs/srmech/rbs_lm_research/R-RBS-LM-REGRESSION_srmech_surfaces_our_findings_use.py
+index e57aea151..65a676115 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-REGRESSION_srmech_surfaces_our_findings_use.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-REGRESSION_srmech_surfaces_our_findings_use.py
+@@ -27 +27 @@ def main():
+-    v, w = klein4_random(64, seed=3), klein4_random(64, seed=4)
++    v, w = klein4_expand(64, 3), klein4_expand(64, 4)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-SEEDENSEMBLE_which_lodged_quantities_are_couple_invariant_and_the_prng_serialization_dependency.py b/docs/srmech/rbs_lm_research/R-RBS-LM-SEEDENSEMBLE_which_lodged_quantities_are_couple_invariant_and_the_prng_serialization_dependency.py
+index 020e6fb59..a1d4a22a7 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-SEEDENSEMBLE_which_lodged_quantities_are_couple_invariant_and_the_prng_serialization_dependency.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-SEEDENSEMBLE_which_lodged_quantities_are_couple_invariant_and_the_prng_serialization_dependency.py
+@@ -74 +74 @@ def main():
+-    v = hdc.klein4_random(64, seed=1080)
++    v = hdc.klein4_expand(64, 1080)
+@@ -85 +85 @@ def main():
+-    rnd = bytes(hdc.klein4_random(D, seed=1080))
++    rnd = bytes(hdc.klein4_expand(D, 1080))
+@@ -105 +105 @@ def main():
+-        couple = hdc.klein4_random(LEAF, seed=seed)
++        couple = hdc.klein4_expand(LEAF, seed)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-SIGNWRITING_seven_iswa_classes_kernel.py b/docs/srmech/rbs_lm_research/R-RBS-LM-SIGNWRITING_seven_iswa_classes_kernel.py
+index 9a809c5c6..cf000c432 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-SIGNWRITING_seven_iswa_classes_kernel.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-SIGNWRITING_seven_iswa_classes_kernel.py
+@@ -30 +30 @@ DIM = 64
+-ONE = hdc.klein4_random(DIM, seed=0)
++ONE = hdc.klein4_expand(DIM, 0)
+@@ -48 +48 @@ def _leaves(cls, parts):               # one leaf per featural sub-part, seeded
+-    return [hdc.klein4_random(DIM, seed=_seed(f"{cls}/{p}")) for p in parts]
++    return [hdc.klein4_expand(DIM, _seed(f"{cls}/{p}")) for p in parts]
+@@ -65 +65 @@ def main():
+-    anchors = {cls: hdc.klein4_random(DIM, seed=_seed(cls)) for cls in ISWA}
++    anchors = {cls: hdc.klein4_expand(DIM, _seed(cls)) for cls in ISWA}
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-SIMPLEWIKIGENOME2_eukaryotic_reencode_genome_from_graph_partitioned_nuclear_plasmid_rc272.py b/docs/srmech/rbs_lm_research/R-RBS-LM-SIMPLEWIKIGENOME2_eukaryotic_reencode_genome_from_graph_partitioned_nuclear_plasmid_rc272.py
+index 2f58d003e..b94b4e8b4 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-SIMPLEWIKIGENOME2_eukaryotic_reencode_genome_from_graph_partitioned_nuclear_plasmid_rc272.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-SIMPLEWIKIGENOME2_eukaryotic_reencode_genome_from_graph_partitioned_nuclear_plasmid_rc272.py
+@@ -29 +29 @@ LEAF = 64
+-COUPLE = hdc.klein4_random(LEAF, seed=1080)
++COUPLE = hdc.klein4_expand(LEAF, 1080)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-SIONA231_directed_class_l_corpus_genome_store_spine.py b/docs/srmech/rbs_lm_research/R-RBS-LM-SIONA231_directed_class_l_corpus_genome_store_spine.py
+index 233b0067b..a2c1cb78d 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-SIONA231_directed_class_l_corpus_genome_store_spine.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-SIONA231_directed_class_l_corpus_genome_store_spine.py
+@@ -32 +32 @@ OUT = Path("/tmp/siona231")
+-COUPLE = hdc.klein4_random(LEAF, seed=1080)          # the sandroing/UNESCO 00073 coupling seed
++COUPLE = hdc.klein4_expand(LEAF, 1080)          # the sandroing/UNESCO 00073 coupling seed
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-SIONAGENEPOOL_storyteller_etak_walk_over_genome_with_notebooks.py b/docs/srmech/rbs_lm_research/R-RBS-LM-SIONAGENEPOOL_storyteller_etak_walk_over_genome_with_notebooks.py
+index 74d84baa7..2cf648e34 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-SIONAGENEPOOL_storyteller_etak_walk_over_genome_with_notebooks.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-SIONAGENEPOOL_storyteller_etak_walk_over_genome_with_notebooks.py
+@@ -60 +60 @@ DIM = 64
+-ONE = hdc.klein4_random(DIM, seed=0)
++ONE = hdc.klein4_expand(DIM, 0)
+@@ -76 +76 @@ def _glyph(ch):
+-        v = _GLYPH_CACHE[ch] = hdc.klein4_random(DIM, seed=_seed("niv/" + ch))
++        v = _GLYPH_CACHE[ch] = hdc.klein4_expand(DIM, _seed("niv/" + ch))
+@@ -78 +78 @@ def _glyph(ch):
+-def _posrole(i): return hdc.klein4_random(DIM, seed=_seed(f"niv/pos/{i}"))       # position role (order-preserving bind)
++def _posrole(i): return hdc.klein4_expand(DIM, _seed(f"niv/pos/{i}"))       # position role (order-preserving bind)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-SIONAGENOME_genome_backed_world_era_dictionary.py b/docs/srmech/rbs_lm_research/R-RBS-LM-SIONAGENOME_genome_backed_world_era_dictionary.py
+index 83d305af0..acb7b9372 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-SIONAGENOME_genome_backed_world_era_dictionary.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-SIONAGENOME_genome_backed_world_era_dictionary.py
+@@ -37 +37 @@ DIM = 64
+-ONE = hdc.klein4_random(DIM, seed=0)
++ONE = hdc.klein4_expand(DIM, 0)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATEMIRROR_synaptic_gap_has_the_4_3_signature_F552_catches_it.py b/docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATEMIRROR_synaptic_gap_has_the_4_3_signature_F552_catches_it.py
+index c83eea28a..7a305c06e 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATEMIRROR_synaptic_gap_has_the_4_3_signature_F552_catches_it.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATEMIRROR_synaptic_gap_has_the_4_3_signature_F552_catches_it.py
+@@ -27 +27 @@ def main():
+-    R = hdc.klein4_random(8192, seed=11)
++    R = hdc.klein4_expand(8192, 11)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATERAMPANCY_rampancy_is_a_biology_substrate_failure_mode.py b/docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATERAMPANCY_rampancy_is_a_biology_substrate_failure_mode.py
+index 0f1190f79..d68610e13 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATERAMPANCY_rampancy_is_a_biology_substrate_failure_mode.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATERAMPANCY_rampancy_is_a_biology_substrate_failure_mode.py
+@@ -45,2 +45,2 @@ def main():
+-    v0 = klein4_random(DIM, seed=719)
+-    one = klein4_random(DIM, seed=1)
++    v0 = klein4_expand(DIM, 719)
++    one = klein4_expand(DIM, 1)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATESERVICES_biology_bakes_in_storage_and_EC_silicon_must_author_them.py b/docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATESERVICES_biology_bakes_in_storage_and_EC_silicon_must_author_them.py
+index 3ece5a88f..4afd6bdf5 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATESERVICES_biology_bakes_in_storage_and_EC_silicon_must_author_them.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATESERVICES_biology_bakes_in_storage_and_EC_silicon_must_author_them.py
+@@ -47,2 +47,2 @@ def main():
+-    one = klein4_random(64, seed=1)
+-    leaves = [klein4_random(64, seed=s) for s in (10, 11, 12)]
++    one = klein4_expand(64, 1)
++    leaves = [klein4_expand(64, s) for s in (10, 11, 12)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-TAILFIX_measure_the_low_thresholds_on_steep_curve_not_flat_tail.py b/docs/srmech/rbs_lm_research/R-RBS-LM-TAILFIX_measure_the_low_thresholds_on_steep_curve_not_flat_tail.py
+index c81c5d74b..08113afdc 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-TAILFIX_measure_the_low_thresholds_on_steep_curve_not_flat_tail.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-TAILFIX_measure_the_low_thresholds_on_steep_curve_not_flat_tail.py
+@@ -82,2 +82,2 @@ def main():
+-        k = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(ladder[-1])]
+-        v = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(ladder[-1])]
++        k = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(ladder[-1])]
++        v = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(ladder[-1])]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-THRESHDEP_is_the_exponent_threshold_dependent_and_does_0926_hold_over_512_to_16384.py b/docs/srmech/rbs_lm_research/R-RBS-LM-THRESHDEP_is_the_exponent_threshold_dependent_and_does_0926_hold_over_512_to_16384.py
+index 35ef0550d..b87e3c475 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-THRESHDEP_is_the_exponent_threshold_dependent_and_does_0926_hold_over_512_to_16384.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-THRESHDEP_is_the_exponent_threshold_dependent_and_does_0926_hold_over_512_to_16384.py
+@@ -108,2 +108,2 @@ def main():
+-        keys = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(nmax)]
+-        vals = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(nmax)]
++        keys = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(nmax)]
++        vals = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(nmax)]
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-TWOSTAGE_chain_stage1_extract_into_stage2_organize_simplewiki_rc281.py b/docs/srmech/rbs_lm_research/R-RBS-LM-TWOSTAGE_chain_stage1_extract_into_stage2_organize_simplewiki_rc281.py
+index be946fa99..f1f7441b3 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-TWOSTAGE_chain_stage1_extract_into_stage2_organize_simplewiki_rc281.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-TWOSTAGE_chain_stage1_extract_into_stage2_organize_simplewiki_rc281.py
+@@ -30 +30 @@ LEAF = 64
+-COUPLE = hdc.klein4_random(LEAF, seed=1080)
++COUPLE = hdc.klein4_expand(LEAF, 1080)
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-U1ACCEPTANCE_rc49_tokenize_cooccurrence_vs_section40_bar.py b/docs/srmech/rbs_lm_research/R-RBS-LM-U1ACCEPTANCE_rc49_tokenize_cooccurrence_vs_section40_bar.py
+index 708a7ede2..40e1a1527 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-U1ACCEPTANCE_rc49_tokenize_cooccurrence_vs_section40_bar.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-U1ACCEPTANCE_rc49_tokenize_cooccurrence_vs_section40_bar.py
+@@ -61,2 +61,2 @@ def genome_regression():
+-    one = klein4_random(64, seed=1)
+-    kernels = {"a": [klein4_random(64, seed=s) for s in (10, 11)], "b": [klein4_random(64, seed=20)]}
++    one = klein4_expand(64, 1)
++    kernels = {"a": [klein4_expand(64, s) for s in (10, 11)], "b": [klein4_expand(64, 20)]}
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-WIKITOMES_persist_encoded_kernel_as_mobius_biaxial_bookshelf_of_14.py b/docs/srmech/rbs_lm_research/R-RBS-LM-WIKITOMES_persist_encoded_kernel_as_mobius_biaxial_bookshelf_of_14.py
+index 3c65c6514..e9d0af062 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-WIKITOMES_persist_encoded_kernel_as_mobius_biaxial_bookshelf_of_14.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-WIKITOMES_persist_encoded_kernel_as_mobius_biaxial_bookshelf_of_14.py
+@@ -35 +35 @@ DIM, NT = 64, 14                                                              #
+-ONE = hdc.klein4_random(DIM, seed=0)
++ONE = hdc.klein4_expand(DIM, 0)
+diff --git a/docs/srmech/rbs_lm_research/f275_native_port.py b/docs/srmech/rbs_lm_research/f275_native_port.py
+index c8cbc376c..73e4a2f7d 100644
+--- a/docs/srmech/rbs_lm_research/f275_native_port.py
++++ b/docs/srmech/rbs_lm_research/f275_native_port.py
+@@ -180 +180 @@ def main():
+-    kb = [hdc.klein4_random(2048, seed=200 + i) for i in range(3)]
++    kb = [hdc.klein4_expand(2048, 200 + i) for i in range(3)]
+diff --git a/docs/srmech/rbs_lm_research/loop_bind_capacity_812.py b/docs/srmech/rbs_lm_research/loop_bind_capacity_812.py
+index b7c575f9a..da3ad9a96 100644
+--- a/docs/srmech/rbs_lm_research/loop_bind_capacity_812.py
++++ b/docs/srmech/rbs_lm_research/loop_bind_capacity_812.py
+@@ -43,2 +43,2 @@ def cap_klein4(K):
+-        V = [hdc.klein4_random(D, seed=10_000 + t * 4000 + m) for m in range(M)]
+-        keys = [hdc.klein4_random(D, seed=9_000_000 + t * 4000 + i) for i in range(K)]
++        V = [hdc.klein4_expand(D, 10_000 + t * 4000 + m) for m in range(M)]
++        keys = [hdc.klein4_expand(D, 9_000_000 + t * 4000 + i) for i in range(K)]
+diff --git a/docs/srmech/rbs_lm_research/loop_bind_paths_experiment.py b/docs/srmech/rbs_lm_research/loop_bind_paths_experiment.py
+index a97287623..2ec439d3a 100644
+--- a/docs/srmech/rbs_lm_research/loop_bind_paths_experiment.py
++++ b/docs/srmech/rbs_lm_research/loop_bind_paths_experiment.py
+@@ -72 +72 @@ def main():
+-    k = [hdc.klein4_random(2048, seed=100 + t) for t in range(3)]
++    k = [hdc.klein4_expand(2048, 100 + t) for t in range(3)]
+@@ -97 +97 @@ def main():
+-    ka, kb = hdc.klein4_random(2048, seed=11), hdc.klein4_random(2048, seed=12)
++    ka, kb = hdc.klein4_expand(2048, 11), hdc.klein4_expand(2048, 12)
+diff --git a/docs/srmech/rbs_lm_research/loop_bind_rbs_and_L5refine.py b/docs/srmech/rbs_lm_research/loop_bind_rbs_and_L5refine.py
+index 4e69e5c80..8bf01c435 100644
+--- a/docs/srmech/rbs_lm_research/loop_bind_rbs_and_L5refine.py
++++ b/docs/srmech/rbs_lm_research/loop_bind_rbs_and_L5refine.py
+@@ -46 +46 @@ def part_a():
+-    k = [hdc.klein4_random(D, seed=300 + i) for i in range(3)]
++    k = [hdc.klein4_expand(D, 300 + i) for i in range(3)]
+diff --git a/docs/srmech/rbs_lm_research/loop_bind_sol_resonance.py b/docs/srmech/rbs_lm_research/loop_bind_sol_resonance.py
+index 60e95bd21..1b1abad9f 100644
+--- a/docs/srmech/rbs_lm_research/loop_bind_sol_resonance.py
++++ b/docs/srmech/rbs_lm_research/loop_bind_sol_resonance.py
+@@ -69 +69 @@ def main():
+-    kb = [hdc.klein4_random(2048, seed=200 + i) for i in range(3)]
++    kb = [hdc.klein4_expand(2048, 200 + i) for i in range(3)]
+diff --git a/docs/srmech/rbs_lm_research/mass_spec_tree.py b/docs/srmech/rbs_lm_research/mass_spec_tree.py
+index b5c55619e..61fee0a81 100644
+--- a/docs/srmech/rbs_lm_research/mass_spec_tree.py
++++ b/docs/srmech/rbs_lm_research/mass_spec_tree.py
+@@ -89 +89 @@ def commutative_bundle(anchors, node_ids):
+-    return hdc.klein4_bundle(*[hdc.klein4_random(2048, seed=nid) for nid in node_ids])
++    return hdc.klein4_bundle(*[hdc.klein4_expand(2048, nid) for nid in node_ids])
+diff --git a/docs/srmech/rbs_lm_research/rc4_groundtruth.py b/docs/srmech/rbs_lm_research/rc4_groundtruth.py
+index bf5ed2954..13f8d36e9 100644
+--- a/docs/srmech/rbs_lm_research/rc4_groundtruth.py
++++ b/docs/srmech/rbs_lm_research/rc4_groundtruth.py
+@@ -85,2 +85,2 @@ def main():
+-            V = [hdc.klein4_random(D, seed=10_000 + t * 4000 + m) for m in range(M)]
+-            keys = [hdc.klein4_random(D, seed=9_000_000 + t * 4000 + i) for i in range(K)]
++            V = [hdc.klein4_expand(D, 10_000 + t * 4000 + m) for m in range(M)]
++            keys = [hdc.klein4_expand(D, 9_000_000 + t * 4000 + i) for i in range(K)]
+diff --git a/docs/srmech/rbs_lm_research/triality_test_harness_scaffold.py b/docs/srmech/rbs_lm_research/triality_test_harness_scaffold.py
+index bd8e3406a..82c85dadd 100644
+--- a/docs/srmech/rbs_lm_research/triality_test_harness_scaffold.py
++++ b/docs/srmech/rbs_lm_research/triality_test_harness_scaffold.py
+@@ -338 +338 @@ def run_q1_triality_relation() -> None:
+-        v = hdc.klein4_random(HDC_DIM_D, seed=SEED)
++        v = hdc.klein4_expand(HDC_DIM_D, SEED)
+@@ -346 +346 @@ def run_q1_triality_relation() -> None:
+-        bad = orbit.copy(); bad[D:2 * D] = _np.asarray(hdc.klein4_random(D, seed=SEED + 1))
++        bad = orbit.copy(); bad[D:2 * D] = _np.asarray(hdc.klein4_expand(D, SEED + 1))
+@@ -391 +391 @@ def run_q2_cap_boundary_today() -> None:
+-        rng_vec = hdc.klein4_random(HDC_DIM_D, seed=SEED)
++        rng_vec = hdc.klein4_expand(HDC_DIM_D, SEED)
+@@ -446 +446 @@ def run_q2_triality_recursion() -> None:
+-        v = hdc.klein4_random(HDC_DIM_D, seed=SEED)
++        v = hdc.klein4_expand(HDC_DIM_D, SEED)

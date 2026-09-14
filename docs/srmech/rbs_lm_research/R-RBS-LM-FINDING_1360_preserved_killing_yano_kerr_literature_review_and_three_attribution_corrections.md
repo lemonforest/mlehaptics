@@ -21,3 +21,5 @@ Consolidation record (2026-09-14). Source: local branch `research/killing-yano-l
 None.
 
 Branch safe to delete once this commit is on origin: yes — the spike-12b pointer names the branch and `c85259c`; after deletion the content resolves at the same path here and byte-exact in the archive.
+
+Integrated 2026-09-14: see F1373.

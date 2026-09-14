@@ -20,3 +20,5 @@ Consolidation record (2026-09-14). Source: local branch `fix/rbs-lm-bigram-reson
 - `docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md` — the file grew by later sections and lacks this commit's APPLIED note.
 
 Branch safe to delete once this commit is on origin: yes
+
+Integrated 2026-09-14: see F1373.

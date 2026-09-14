@@ -23,3 +23,5 @@ None.
 **Composes:** F1362.
 
 Branch safe to delete once this commit is on origin: yes
+
+Integrated 2026-09-14: see F1373.

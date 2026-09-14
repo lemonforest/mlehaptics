@@ -93,3 +93,5 @@ git rev-parse 7018ec8cc^{tree}             -> 42edd00b8a3d4e61aa14f42317cc984af2
 The linear series reproduces the merged tip tree exactly, so the two merges carry nothing the patches lack.
 
 Branch safe to delete once this commit is on origin: yes
+
+Integrated 2026-09-14: see F1373.

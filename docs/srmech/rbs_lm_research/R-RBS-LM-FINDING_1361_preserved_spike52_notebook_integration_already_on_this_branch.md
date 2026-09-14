@@ -20,3 +20,5 @@ Consolidation record (2026-09-14). Source: local branch `research/spike-52-evolu
 - `docs/srmech/srmech_research_notebook.md` — the notebook has moved on since `c6b34629a`, whose version equals this commit's.
 
 Branch safe to delete once this commit is on origin: yes
+
+Integrated 2026-09-14: see F1373.

@@ -31,3 +31,5 @@ Consolidation record (2026-09-14). Source: local branch `research-rc426-notation
 None.
 
 Branch safe to delete once this commit is on origin: yes
+
+Integrated 2026-09-14: see F1373.

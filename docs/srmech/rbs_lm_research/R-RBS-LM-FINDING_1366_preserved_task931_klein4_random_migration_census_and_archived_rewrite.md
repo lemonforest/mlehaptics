@@ -30,3 +30,5 @@ Measured 2026-09-14 against this branch at `4db51be25`:
 klein4_random occurrences across the 112 DIFFERS paths: in neither version 85, in both 17, in the branch tip only 8, in this branch only 2. The rewrite therefore does not re-apply cleanly here; the archive keeps it exact for reading, and for re-application on its own base.
 
 Branch safe to delete once this commit is on origin: yes
+
+Integrated 2026-09-14: see F1373.

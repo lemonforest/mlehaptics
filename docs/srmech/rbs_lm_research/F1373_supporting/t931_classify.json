@@ -1,0 +1,4295 @@
+{
+ "1": [
+  {
+   "path": "docs/srmech/rbs_lm_research/F291_L1_autoregressive_order_memory.py",
+   "old_start": 145,
+   "cls": "PRESENT",
+   "old": [
+    "    k4_tok = [hdc.klein4_random(D, seed=base + s) for s in range(V)]",
+    "    k4_val = [hdc.klein4_random(D, seed=base + 1000 + s) for s in range(V)]"
+   ],
+   "new": [
+    "    k4_tok = [hdc.klein4_expand(D, base + s) for s in range(V)]",
+    "    k4_val = [hdc.klein4_expand(D, base + 1000 + s) for s in range(V)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    144
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/F291_L1_autoregressive_order_memory.py",
+   "old_start": 382,
+   "cls": "PRESENT",
+   "old": [
+    "    pos0 = hdc.klein4_random(D, seed=SEED_POS0)",
+    "    pos1 = hdc.klein4_random(D, seed=SEED_POS1)"
+   ],
+   "new": [
+    "    pos0 = hdc.klein4_expand(D, SEED_POS0)",
+    "    pos1 = hdc.klein4_expand(D, SEED_POS1)"
+   ],
+   "old_at": [],
+   "new_at": [
+    381
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/F293_triality_ecc_distributed_anchor.py",
+   "old_start": 44,
+   "cls": "PRESENT",
+   "old": [
+    "    v = hdc.klein4_random(D, seed=SEED)"
+   ],
+   "new": [
+    "    v = hdc.klein4_expand(D, SEED)"
+   ],
+   "old_at": [],
+   "new_at": [
+    43
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/F293_triality_ecc_distributed_anchor.py",
+   "old_start": 58,
+   "cls": "PRESENT",
+   "old": [
+    "        v = hdc.klein4_random(D, seed=SEED + 1)"
+   ],
+   "new": [
+    "        v = hdc.klein4_expand(D, SEED + 1)"
+   ],
+   "old_at": [],
+   "new_at": [
+    57
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-136_so8_chirality_storage_signature.py",
+   "old_start": 103,
+   "cls": "DIVERGED",
+   "old": [
+    "    return klein4_random(D_KLEIN4, seed=seed % (2**32))"
+   ],
+   "new": [
+    "    return klein4_expand(D_KLEIN4, seed % (2**32))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-136_so8_chirality_storage_signature.py",
+   "old_start": 213,
+   "cls": "PRESENT",
+   "old": [
+    "        bundle_inputs = routed or [klein4_random(D_KLEIN4, seed=0)]"
+   ],
+   "new": [
+    "        bundle_inputs = routed or [klein4_expand(D_KLEIN4, 0)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    212
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-136_so8_chirality_storage_signature.py",
+   "old_start": 215,
+   "cls": "PRESENT",
+   "old": [
+    "    K_unweighted = klein4_bundle(*(routed or [klein4_random(D_KLEIN4, seed=0)]))",
+    "    K_noroute = klein4_bundle(*(raw or [klein4_random(D_KLEIN4, seed=0)]))"
+   ],
+   "new": [
+    "    K_unweighted = klein4_bundle(*(routed or [klein4_expand(D_KLEIN4, 0)]))",
+    "    K_noroute = klein4_bundle(*(raw or [klein4_expand(D_KLEIN4, 0)]))"
+   ],
+   "old_at": [],
+   "new_at": [
+    214
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-144_triality_vs_klein4_sector_tagging.py",
+   "old_start": 105,
+   "cls": "PRESENT",
+   "old": [
+    "    base = hdc.klein4_random(D, seed=seed)"
+   ],
+   "new": [
+    "    base = hdc.klein4_expand(D, seed)"
+   ],
+   "old_at": [],
+   "new_at": [
+    104
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-144_triality_vs_klein4_sector_tagging.py",
+   "old_start": 119,
+   "cls": "PRESENT",
+   "old": [
+    "    base3 = [hdc.klein4_random(D, seed=seed + 11 + i) for i in range(3)]"
+   ],
+   "new": [
+    "    base3 = [hdc.klein4_expand(D, seed + 11 + i) for i in range(3)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    118
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-144_triality_vs_klein4_sector_tagging.py",
+   "old_start": 146,
+   "cls": "PRESENT",
+   "old": [
+    "        tags.append(hdc.klein4_random(D, seed=s))"
+   ],
+   "new": [
+    "        tags.append(hdc.klein4_expand(D, s))"
+   ],
+   "old_at": [],
+   "new_at": [
+    145
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-144_triality_vs_klein4_sector_tagging.py",
+   "old_start": 234,
+   "cls": "PRESENT",
+   "old": [
+    "        items = [hdc.klein4_random(D, seed=int(s)) for s in item_seeds]"
+   ],
+   "new": [
+    "        items = [hdc.klein4_expand(D, int(s)) for s in item_seeds]"
+   ],
+   "old_at": [],
+   "new_at": [
+    233
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-144_triality_vs_klein4_sector_tagging.py",
+   "old_start": 269,
+   "cls": "PRESENT",
+   "old": [
+    "    items = [hdc.klein4_random(D, seed=int(s)) for s in item_seeds]"
+   ],
+   "new": [
+    "    items = [hdc.klein4_expand(D, int(s)) for s in item_seeds]"
+   ],
+   "old_at": [],
+   "new_at": [
+    268
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-235_distributed_neurology_chirality.py",
+   "old_start": 489,
+   "cls": "PRESENT",
+   "old": [
+    "    sector_inphase = hdc.klein4_random(dim, seed=seed + 1)            # the in-phase (+1) gamma5 sector"
+   ],
+   "new": [
+    "    sector_inphase = hdc.klein4_expand(dim, seed + 1)            # the in-phase (+1) gamma5 sector"
+   ],
+   "old_at": [],
+   "new_at": [
+    488
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-235_distributed_neurology_chirality.py",
+   "old_start": 493,
+   "cls": "PRESENT",
+   "old": [
+    "        pos = hdc.klein4_random(dim, seed=pos_rng_seed + 1000 + k)    # position tag for unit k"
+   ],
+   "new": [
+    "        pos = hdc.klein4_expand(dim, pos_rng_seed + 1000 + k)    # position tag for unit k"
+   ],
+   "old_at": [],
+   "new_at": [
+    492
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-235_distributed_neurology_chirality.py",
+   "old_start": 500,
+   "cls": "PRESENT",
+   "old": [
+    "        return hdc.klein4_random(dim, seed=seed + 99)                # degenerate: nothing coordinated"
+   ],
+   "new": [
+    "        return hdc.klein4_expand(dim, seed + 99)                # degenerate: nothing coordinated"
+   ],
+   "old_at": [],
+   "new_at": [
+    499
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-242_working_memory_wireframe.py",
+   "old_start": 337,
+   "cls": "PRESENT",
+   "old": [
+    "    return hdc.klein4_random(KLEIN4_D, seed=seed)                            # Class M atom"
+   ],
+   "new": [
+    "    return hdc.klein4_expand(KLEIN4_D, seed)                            # Class M atom"
+   ],
+   "old_at": [],
+   "new_at": [
+    334
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-861_crank_into_real_store.py",
+   "old_start": 28,
+   "cls": "PRESENT",
+   "old": [
+    "base = hdc.klein4_random(D, seed=11)"
+   ],
+   "new": [
+    "base = hdc.klein4_expand(D, 11)"
+   ],
+   "old_at": [],
+   "new_at": [
+    27
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-862_algebra_object_probe.py",
+   "old_start": 14,
+   "cls": "PRESENT",
+   "old": [
+    "a = hdc.klein4_random(64, seed=1); b = hdc.klein4_random(64, seed=2); c = hdc.klein4_random(64, seed=3)"
+   ],
+   "new": [
+    "a = hdc.klein4_expand(64, 1); b = hdc.klein4_expand(64, 2); c = hdc.klein4_expand(64, 3)"
+   ],
+   "old_at": [],
+   "new_at": [
+    13
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-864_marriage_generator.py",
+   "old_start": 21,
+   "cls": "PRESENT",
+   "old": [
+    "    return hdc.klein4_random(D, seed=bv)                       # 256-byte vocab (language-agnostic)"
+   ],
+   "new": [
+    "    return hdc.klein4_expand(D, bv)                       # 256-byte vocab (language-agnostic)"
+   ],
+   "old_at": [],
+   "new_at": [
+    20
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-865_byte_glyph_M_resonator.py",
+   "old_start": 18,
+   "cls": "PRESENT",
+   "old": [
+    "    return hdc.klein4_random(D, seed=b)                # 256-byte vocab (language-agnostic)"
+   ],
+   "new": [
+    "    return hdc.klein4_expand(D, b)                # 256-byte vocab (language-agnostic)"
+   ],
+   "old_at": [],
+   "new_at": [
+    17
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-866_holographic_octonion_context.py",
+   "old_start": 20,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    19
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-867_generalization_distribution.py",
+   "old_start": 23,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    22
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-868_stay_rational.py",
+   "old_start": 17,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    16
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-869_composed_resonator.py",
+   "old_start": 21,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    20
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-870_scale_stress.py",
+   "old_start": 21,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    20
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-870_scale_stress.py",
+   "old_start": 39,
+   "cls": "PRESENT",
+   "old": [
+    "key0 = hdc.klein4_random(D, seed=999999); val0 = hdc.klein4_random(D, seed=888888)"
+   ],
+   "new": [
+    "key0 = hdc.klein4_expand(D, 999999); val0 = hdc.klein4_expand(D, 888888)"
+   ],
+   "old_at": [],
+   "new_at": [
+    38
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-870_scale_stress.py",
+   "old_start": 43,
+   "cls": "PRESENT",
+   "old": [
+    "    others = [hdc.klein4_bind(hdc.klein4_random(D, seed=i), hdc.klein4_random(D, seed=100000 + i)) for i in range(N - 1)]"
+   ],
+   "new": [
+    "    others = [hdc.klein4_bind(hdc.klein4_expand(D, i), hdc.klein4_expand(D, 100000 + i)) for i in range(N - 1)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    42
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-871_dimension_sweep.py",
+   "old_start": 18,
+   "cls": "PRESENT",
+   "old": [
+    "    key0 = hdc.klein4_random(D, seed=7); val0 = hdc.klein4_random(D, seed=9)"
+   ],
+   "new": [
+    "    key0 = hdc.klein4_expand(D, 7); val0 = hdc.klein4_expand(D, 9)"
+   ],
+   "old_at": [],
+   "new_at": [
+    17
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-871_dimension_sweep.py",
+   "old_start": 22,
+   "cls": "PRESENT",
+   "old": [
+    "        others = [hdc.klein4_bind(hdc.klein4_random(D, seed=1000 + i),",
+    "                                  hdc.klein4_random(D, seed=50000 + i)) for i in range(N - 1)]"
+   ],
+   "new": [
+    "        others = [hdc.klein4_bind(hdc.klein4_expand(D, 1000 + i),",
+    "                                  hdc.klein4_expand(D, 50000 + i)) for i in range(N - 1)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    21
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-871_dimension_sweep.py",
+   "old_start": 25,
+   "cls": "PRESENT",
+   "old": [
+    "            target, *others, hdc.klein4_random(D, seed=424242))   # odd count for majority"
+   ],
+   "new": [
+    "            target, *others, hdc.klein4_expand(D, 424242))   # odd count for majority"
+   ],
+   "old_at": [],
+   "new_at": [
+    24
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-871_dimension_sweep.py",
+   "old_start": 54,
+   "cls": "PRESENT",
+   "old": [
+    "    a = hdc.klein4_random(D, seed=11); b = hdc.klein4_random(D, seed=22)"
+   ],
+   "new": [
+    "    a = hdc.klein4_expand(D, 11); b = hdc.klein4_expand(D, 22)"
+   ],
+   "old_at": [],
+   "new_at": [
+    53
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-872_rebuild_chunked_8192.py",
+   "old_start": 23,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    22
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-875_streaming_grid_emit.py",
+   "old_start": 15,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    14
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-877_resonator_wired_stream.py",
+   "old_start": 15,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    14
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-878_phase_disambiguation.py",
+   "old_start": 16,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    15
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-879_phase_keyed_grid_scale.py",
+   "old_start": 17,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    16
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-880_content_routed_navigation.py",
+   "old_start": 17,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    16
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-881_hypercomplex_phase_fiber.py",
+   "old_start": 34,
+   "cls": "PRESENT",
+   "old": [
+    "    return cs.bundle_odd([hdc.klein4_bind(hdc.klein4_random(D, seed=b), cs.pos_key(i))"
+   ],
+   "new": [
+    "    return cs.bundle_odd([hdc.klein4_bind(hdc.klein4_expand(D, b), cs.pos_key(i))"
+   ],
+   "old_at": [],
+   "new_at": [
+    33
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py",
+   "old_start": 58,
+   "cls": "PRESENT",
+   "old": [
+    "        WV[w] = cs.bundle_odd([hdc.klein4_bind(hdc.klein4_random(D, seed=b), cs.pos_key(i))"
+   ],
+   "new": [
+    "        WV[w] = cs.bundle_odd([hdc.klein4_bind(hdc.klein4_expand(D, b), cs.pos_key(i))"
+   ],
+   "old_at": [],
+   "new_at": [
+    57
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py",
+   "old_start": 48,
+   "cls": "PRESENT",
+   "old": [
+    "        WV[w] = cs.bundle_odd([hdc.klein4_bind(hdc.klein4_random(D, seed=b), cs.pos_key(i))"
+   ],
+   "new": [
+    "        WV[w] = cs.bundle_odd([hdc.klein4_bind(hdc.klein4_expand(D, b), cs.pos_key(i))"
+   ],
+   "old_at": [],
+   "new_at": [
+    47
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-884_page_as_cavity_node_probe.py",
+   "old_start": 17,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    16
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-885_saturated_cavity_node_test.py",
+   "old_start": 16,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    15
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-886_2d_phase_boundary_bundlefix.py",
+   "old_start": 15,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    14
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-887_ridge_slope_coupling_ratio.py",
+   "old_start": 15,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    14
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-888_mobius_hunt_elem3_control_boundary_sharpness.py",
+   "old_start": 17,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    16
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py",
+   "old_start": 21,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    20
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-890_agn_scale_boundary_gradient.py",
+   "old_start": 17,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    16
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-892_chandrasekhar_amplitude_collapse_fit.py",
+   "old_start": 16,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    15
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-893_siona_page_address_grid.py",
+   "old_start": 15,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    14
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-895_route_verify_circular.py",
+   "old_start": 16,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    15
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-896_end_to_end_stack_kstar.py",
+   "old_start": 15,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    14
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-BITPACK_realise_the_log_n_storage_and_push_dimension_to_32768.py",
+   "old_start": 133,
+   "cls": "DIVERGED",
+   "old": [
+    "        keys = [bytes(hdc.klein4_random(d, seed=10_000 + i)) for i in range(N)]",
+    "        vals = [bytes(hdc.klein4_random(d, seed=20_000 + i)) for i in range(N)]"
+   ],
+   "new": [
+    "        keys = [bytes(hdc.klein4_expand(d, 10_000 + i)) for i in range(N)]",
+    "        vals = [bytes(hdc.klein4_expand(d, 20_000 + i)) for i in range(N)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     133,
+     "keys = [bytes(hdc.klein4_expand(d, 10000 + i)) for i in range(N)]"
+    ],
+    [
+     159,
+     "keys = [bytes(hdc.klein4_expand(d0, 10000 + i)) for i in range(args.n)]"
+    ],
+    [
+     134,
+     "vals = [bytes(hdc.klein4_expand(d, 20000 + i)) for i in range(N)]"
+    ],
+    [
+     160,
+     "vals = [bytes(hdc.klein4_expand(d0, 20000 + i)) for i in range(args.n)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-BITPACK_realise_the_log_n_storage_and_push_dimension_to_32768.py",
+   "old_start": 159,
+   "cls": "DIVERGED",
+   "old": [
+    "    keys = [bytes(hdc.klein4_random(d0, seed=10_000 + i)) for i in range(args.n)]",
+    "    vals = [bytes(hdc.klein4_random(d0, seed=20_000 + i)) for i in range(args.n)]"
+   ],
+   "new": [
+    "    keys = [bytes(hdc.klein4_expand(d0, 10_000 + i)) for i in range(args.n)]",
+    "    vals = [bytes(hdc.klein4_expand(d0, 20_000 + i)) for i in range(args.n)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     133,
+     "keys = [bytes(hdc.klein4_expand(d, 10000 + i)) for i in range(N)]"
+    ],
+    [
+     159,
+     "keys = [bytes(hdc.klein4_expand(d0, 10000 + i)) for i in range(args.n)]"
+    ],
+    [
+     134,
+     "vals = [bytes(hdc.klein4_expand(d, 20000 + i)) for i in range(N)]"
+    ],
+    [
+     160,
+     "vals = [bytes(hdc.klein4_expand(d0, 20000 + i)) for i in range(args.n)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-BYTEGLYPH_DIRECTION_AUDIT_the_ni_vanuatu_base_is_metric_only_zero_curvature.py",
+   "old_start": 29,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(DIM, seed=_seed(\"niv/\" + ch))"
+   ],
+   "new": [
+    "    return hdc.klein4_expand(DIM, _seed(\"niv/\" + ch))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-BYTEGLYPH_DIRECTION_AUDIT_the_ni_vanuatu_base_is_metric_only_zero_curvature.py",
+   "old_start": 33,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(DIM, seed=_seed(\"niv/pos/%d\" % i))"
+   ],
+   "new": [
+    "    return hdc.klein4_expand(DIM, _seed(\"niv/pos/%d\" % i))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-CHUNKLAW_chunked_stores_and_is_the_capacity_ratio_a_projection_not_a_constant.py",
+   "old_start": 74,
+   "cls": "DIVERGED",
+   "old": [
+    "    k = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(n)]",
+    "    v = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(n)]"
+   ],
+   "new": [
+    "    k = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(n)]",
+    "    v = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(n)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     84,
+     "k = [bytes(hdc.klein4_expand(dim, 10000 + i)) for i in range(n)]"
+    ],
+    [
+     85,
+     "v = [bytes(hdc.klein4_expand(dim, 20000 + i)) for i in range(n)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-CORPUSFIBER_step2_all_simplewiki_bodies_one_genome_native_klein4_fiber_content_addressed_byte_exact_no_doctoring.py",
+   "old_start": 65,
+   "cls": "PRESENT",
+   "old": [
+    "    return hdc.klein4_random(DIM, seed=0)       # the held invariant (F833 seed=0), content-addressed into the manifest"
+   ],
+   "new": [
+    "    return hdc.klein4_expand(DIM, 0)       # the held invariant (F833 seed=0), content-addressed into the manifest"
+   ],
+   "old_at": [],
+   "new_at": [
+    64
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-COUNTHORIZON_sparsity_indexed_read_true_horizon_and_the_collision_lever.py",
+   "old_start": 94,
+   "cls": "DIVERGED",
+   "old": [
+    "    keys = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(args.max_n)]",
+    "    vals = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(args.max_n)]"
+   ],
+   "new": [
+    "    keys = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(args.max_n)]",
+    "    vals = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(args.max_n)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     94,
+     "keys = [bytes(hdc.klein4_expand(dim, 10000 + i)) for i in range(args.max_n)]"
+    ],
+    [
+     95,
+     "vals = [bytes(hdc.klein4_expand(dim, 20000 + i)) for i in range(args.max_n)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-COUNTHORIZON_sparsity_indexed_read_true_horizon_and_the_collision_lever.py",
+   "old_start": 152,
+   "cls": "DIVERGED",
+   "old": [
+    "        B = hdc.klein4_bundle([hdc.klein4_bind(hdc.klein4_random(dim, seed=10_000 + i),",
+    "                                               hdc.klein4_random(dim, seed=20_000 + i)) for i in range(N)])"
+   ],
+   "new": [
+    "        B = hdc.klein4_bundle([hdc.klein4_bind(hdc.klein4_expand(dim, 10_000 + i),",
+    "                                               hdc.klein4_expand(dim, 20_000 + i)) for i in range(N)])"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     152,
+     "B = hdc.klein4_bundle([hdc.klein4_bind(hdc.klein4_expand(dim, 10000 + i),"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-COUNTHORIZON_sparsity_indexed_read_true_horizon_and_the_collision_lever.py",
+   "old_start": 156,
+   "cls": "DIVERGED",
+   "old": [
+    "            probe = hdc.klein4_bind(B, hdc.klein4_random(dim, seed=10_000 + p))",
+    "            best = max(range(N), key=lambda j: hdc.klein4_similarity(probe, hdc.klein4_random(dim, seed=20_000 + j)))"
+   ],
+   "new": [
+    "            probe = hdc.klein4_bind(B, hdc.klein4_expand(dim, 10_000 + p))",
+    "            best = max(range(N), key=lambda j: hdc.klein4_similarity(probe, hdc.klein4_expand(dim, 20_000 + j)))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     156,
+     "probe = hdc.klein4_bind(B, hdc.klein4_expand(dim, 10000 + p))"
+    ],
+    [
+     157,
+     "best = max(range(N), key=lambda j: hdc.klein4_similarity(probe, hdc.klein4_expand(dim, 20000 + j)))"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-COUNTHORIZON_sparsity_indexed_read_true_horizon_and_the_collision_lever.py",
+   "old_start": 169,
+   "cls": "DIVERGED",
+   "old": [
+    "        k2 = [bytes(hdc.klein4_random(d2, seed=10_000 + i)) for i in range(N2)]",
+    "        v2 = [bytes(hdc.klein4_random(d2, seed=20_000 + i)) for i in range(N2)]"
+   ],
+   "new": [
+    "        k2 = [bytes(hdc.klein4_expand(d2, 10_000 + i)) for i in range(N2)]",
+    "        v2 = [bytes(hdc.klein4_expand(d2, 20_000 + i)) for i in range(N2)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     169,
+     "k2 = [bytes(hdc.klein4_expand(d2, 10000 + i)) for i in range(N2)]"
+    ],
+    [
+     170,
+     "v2 = [bytes(hdc.klein4_expand(d2, 20000 + i)) for i in range(N2)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-COUNTSTORE_the_bundle_is_an_argmax_read_keep_the_counts.py",
+   "old_start": 70,
+   "cls": "DIVERGED",
+   "old": [
+    "    keys = [hdc.klein4_random(dim, seed=10_000 + i) for i in range(args.max_n)]",
+    "    vals = [hdc.klein4_random(dim, seed=20_000 + i) for i in range(args.max_n)]"
+   ],
+   "new": [
+    "    keys = [hdc.klein4_expand(dim, 10_000 + i) for i in range(args.max_n)]",
+    "    vals = [hdc.klein4_expand(dim, 20_000 + i) for i in range(args.max_n)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     70,
+     "keys = [hdc.klein4_expand(dim, 10000 + i) for i in range(args.max_n)]"
+    ],
+    [
+     71,
+     "vals = [hdc.klein4_expand(dim, 20000 + i) for i in range(args.max_n)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-CURVADDR_curvature_into_class_M_and_zero_divisor_addressing_vs_the_bind_wall.py",
+   "old_start": 85,
+   "cls": "PRESENT",
+   "old": [
+    "    base = hdc.klein4_random(D, seed=1080)"
+   ],
+   "new": [
+    "    base = hdc.klein4_expand(D, 1080)"
+   ],
+   "old_at": [],
+   "new_at": [
+    84
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-CURVADDR_curvature_into_class_M_and_zero_divisor_addressing_vs_the_bind_wall.py",
+   "old_start": 140,
+   "cls": "DIVERGED",
+   "old": [
+    "    keys = [hdc.klein4_random(D, seed=10_000 + i) for i in range(80)]",
+    "    vals = [hdc.klein4_random(D, seed=20_000 + i) for i in range(80)]"
+   ],
+   "new": [
+    "    keys = [hdc.klein4_expand(D, 10_000 + i) for i in range(80)]",
+    "    vals = [hdc.klein4_expand(D, 20_000 + i) for i in range(80)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     140,
+     "keys = [hdc.klein4_expand(D, 10000 + i) for i in range(80)]"
+    ],
+    [
+     141,
+     "vals = [hdc.klein4_expand(D, 20000 + i) for i in range(80)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-DECONV_recover_the_missing_operand_is_unbind_is_spectral_deconvolution_dft_qdft_odft.py",
+   "old_start": 51,
+   "cls": "PRESENT",
+   "old": [
+    "    ka, kb = hdc.klein4_random(D, seed=1), hdc.klein4_random(D, seed=2)"
+   ],
+   "new": [
+    "    ka, kb = hdc.klein4_expand(D, 1), hdc.klein4_expand(D, 2)"
+   ],
+   "old_at": [],
+   "new_at": [
+    50
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-DNABOOKSHELF_pack_real_kernels_into_the_genome_class.py",
+   "old_start": 67,
+   "cls": "PRESENT",
+   "old": [
+    "    return klein4_random(DIM, seed=seed)"
+   ],
+   "new": [
+    "    return klein4_expand(DIM, seed)"
+   ],
+   "old_at": [],
+   "new_at": [
+    66
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-DNABOOKSHELF_pack_real_kernels_into_the_genome_class.py",
+   "old_start": 81,
+   "cls": "PRESENT",
+   "old": [
+    "    one = klein4_random(DIM, seed=1)"
+   ],
+   "new": [
+    "    one = klein4_expand(DIM, 1)"
+   ],
+   "old_at": [],
+   "new_at": [
+    80
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-EXPONENT_pin_the_capacity_exponent_and_test_the_cayley_dickson_chunk_reading.py",
+   "old_start": 71,
+   "cls": "DIVERGED",
+   "old": [
+    "        k = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(n)]",
+    "        v = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(n)]"
+   ],
+   "new": [
+    "        k = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(n)]",
+    "        v = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(n)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     81,
+     "k = [bytes(hdc.klein4_expand(dim, 10000 + i)) for i in range(n)]"
+    ],
+    [
+     82,
+     "v = [bytes(hdc.klein4_expand(dim, 20000 + i)) for i in range(n)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-F291-L5_melody_order_fiber.py",
+   "old_start": 95,
+   "cls": "PRESENT",
+   "old": [
+    "    return {d: hdc.klein4_random(D, seed=KLEIN_BASE + d) for d in range(N_DEGREES)}"
+   ],
+   "new": [
+    "    return {d: hdc.klein4_expand(D, KLEIN_BASE + d) for d in range(N_DEGREES)}"
+   ],
+   "old_at": [],
+   "new_at": [
+    94
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FIBERGENOME_atom_document_as_a_genome_native_klein4_dna_fiber_content_addressed_byte_exact_no_plaintext.py",
+   "old_start": 27,
+   "cls": "PRESENT",
+   "old": [
+    "COUPLE = H.klein4_random(64, seed=1080)                     # the sandroing/UNESCO-00073 coupling invariant"
+   ],
+   "new": [
+    "COUPLE = H.klein4_expand(64, 1080)                     # the sandroing/UNESCO-00073 coupling invariant"
+   ],
+   "old_at": [],
+   "new_at": [
+    26
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FIBERWALK_deterministic_article_reconstruction_eulerian_path_fiber_on_rbs_hdc_vs_k.py",
+   "old_start": 42,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=_seed(\"pos/%d\" % j))"
+   ],
+   "new": [
+    "    return hdc.klein4_expand(D, _seed(\"pos/%d\" % j))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDINGSGENOME_directed_time_preserving_amsc_attested_index.py",
+   "old_start": 33,
+   "cls": "PRESENT",
+   "old": [
+    "COUPLE = hdc.klein4_random(LEAF, seed=1217)"
+   ],
+   "new": [
+    "COUPLE = hdc.klein4_expand(LEAF, 1217)"
+   ],
+   "old_at": [],
+   "new_at": [
+    32
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1000_QDFT_peak_read_closes_rung_selection_and_elliptic_BEATS_independent_on_the_phase_coherent_read_F999_prediction_confirmed.py",
+   "old_start": 12,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5"
+   ],
+   "old_at": [],
+   "new_at": [
+    11
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1000_QDFT_peak_read_closes_rung_selection_and_elliptic_BEATS_independent_on_the_phase_coherent_read_F999_prediction_confirmed.py",
+   "old_start": 15,
+   "cls": "DIVERGED",
+   "old": [
+    "RK_ind=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]",
+    "base=hdc.klein4_random(D, seed=99001); bl=base.tolist(); dlt=D//(2*NR)"
+   ],
+   "new": [
+    "RK_ind=[hdc.klein4_expand(D, 71000+r) for r in range(NR)]",
+    "base=hdc.klein4_expand(D, 99001); bl=base.tolist(); dlt=D//(2*NR)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1001_full_complex_QDFT_does_NOT_amplify_peak_is_optimal_for_the_single_rung_spike_elliptic_win_is_noise_floor_not_coherence.py",
+   "old_start": 11,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5"
+   ],
+   "old_at": [],
+   "new_at": [
+    10
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1001_full_complex_QDFT_does_NOT_amplify_peak_is_optimal_for_the_single_rung_spike_elliptic_win_is_noise_floor_not_coherence.py",
+   "old_start": 18,
+   "cls": "DIVERGED",
+   "old": [
+    "RK_ind=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]",
+    "base=hdc.klein4_random(D, seed=99001); bl=base.tolist(); dlt=D//(2*NR)"
+   ],
+   "new": [
+    "RK_ind=[hdc.klein4_expand(D, 71000+r) for r in range(NR)]",
+    "base=hdc.klein4_expand(D, 99001); bl=base.tolist(); dlt=D//(2*NR)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1002_read_independent_test_elliptic_is_PERFECTLY_CIRCULANT_premise_structure_correct_but_recall_advantage_was_noise.py",
+   "old_start": 9,
+   "cls": "PRESENT",
+   "old": [
+    "D=8192; g5=hdc.klein4_chirality_flip_gamma5; HV=type(hdc.klein4_random(D,seed=0))"
+   ],
+   "new": [
+    "D=8192; g5=hdc.klein4_chirality_flip_gamma5; HV=type(hdc.klein4_expand(D, 0))"
+   ],
+   "old_at": [],
+   "new_at": [
+    8
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1002_read_independent_test_elliptic_is_PERFECTLY_CIRCULANT_premise_structure_correct_but_recall_advantage_was_noise.py",
+   "old_start": 16,
+   "cls": "DIVERGED",
+   "old": [
+    "RK_ind=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]",
+    "base=hdc.klein4_random(D, seed=99001); bl=base.tolist(); dlt=D//(2*NR)"
+   ],
+   "new": [
+    "RK_ind=[hdc.klein4_expand(D, 71000+r) for r in range(NR)]",
+    "base=hdc.klein4_expand(D, 99001); bl=base.tolist(); dlt=D//(2*NR)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1004_recall_lift_resolver_byteglyph_is_spelling_structural_real_but_usage_override_selection_lift_NULL_exact_target_dominance_lift_is_edit_distance_cleanup.py",
+   "old_start": 10,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    9
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1010_siona_infer1_intent_router_20of20_declared_operators_plus_operand_shape_dispatch_to_four_real_handlers_one_substrate.py",
+   "old_start": 11,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    10
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1018_homograph_superposition_on_the_elliptic_rung_ladder_N_languages_one_object_12of12_plus_operator_accretion_from_fixed_role_frame.py",
+   "old_start": 14,
+   "cls": "PRESENT",
+   "old": [
+    "HV=type(hdc.klein4_random(D,seed=0))"
+   ],
+   "new": [
+    "HV=type(hdc.klein4_expand(D, 0))"
+   ],
+   "old_at": [],
+   "new_at": [
+    13
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_898_bit_serialized_rbs_hdc_instrument.py",
+   "old_start": 15,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    14
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_898_bit_serialized_rbs_hdc_instrument.py",
+   "old_start": 68,
+   "cls": "PRESENT",
+   "old": [
+    "t0 = hdc.klein4_random(D, seed=99); rt = bits_to_hv(hv_to_bits(t0)).tolist() == t0.tolist()"
+   ],
+   "new": [
+    "t0 = hdc.klein4_expand(D, 99); rt = bits_to_hv(hv_to_bits(t0)).tolist() == t0.tolist()"
+   ],
+   "old_at": [],
+   "new_at": [
+    67
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_899_packaged_rbs_lm_is_word_hash_not_byte_glyph.py",
+   "old_start": 26,
+   "cls": "PRESENT",
+   "old": [
+    "def byte_k4(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def byte_k4(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [
+    25
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_900_scale_invariant_compose_is_one_operator_at_every_scale.py",
+   "old_start": 81,
+   "cls": "PRESENT",
+   "old": [
+    "    return hdc.klein4_random(D, seed=content_hash_seed)"
+   ],
+   "new": [
+    "    return hdc.klein4_expand(D, content_hash_seed)"
+   ],
+   "old_at": [],
+   "new_at": [
+    80
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_901_recursive_c1_ladder_executes_f900_open_a.py",
+   "old_start": 17,
+   "cls": "DIVERGED",
+   "old": [
+    "def pos_key(i): return hdc.klein4_random(D, seed=0x70000000 + i)     # role/position key",
+    "def byte_atom(b): return hdc.klein4_random(D, seed=b)                # bounded 256 codebook"
+   ],
+   "new": [
+    "def pos_key(i): return hdc.klein4_expand(D, 0x70000000 + i)     # role/position key",
+    "def byte_atom(b): return hdc.klein4_expand(D, b)                # bounded 256 codebook"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_901_recursive_c1_ladder_executes_f900_open_a.py",
+   "old_start": 85,
+   "cls": "DIVERGED",
+   "old": [
+    "        self._pad = hdc.klein4_random(int(D), seed=0x7FFFFFFF); super().__init__(D=D, hex_chars=hex_chars, sector=sector)"
+   ],
+   "new": [
+    "        self._pad = hdc.klein4_expand(int(D), 0x7FFFFFFF); super().__init__(D=D, hex_chars=hex_chars, sector=sector)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     85,
+     "self._pad = hdc.klein4_expand(int(D), 2147483647); super().__init__(D=D, hex_chars=hex_chars, sector=sector)"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_902_phrase_form_coherence_two_axis_manifold.py",
+   "old_start": 14,
+   "cls": "DIVERGED",
+   "old": [
+    "def pos_key(i): return hdc.klein4_random(D, seed=0x70000000 + i)",
+    "def byte_atom(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def pos_key(i): return hdc.klein4_expand(D, 0x70000000 + i)",
+    "def byte_atom(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_903_three_bonds_caloric_reading_reversibility.py",
+   "old_start": 16,
+   "cls": "DIVERGED",
+   "old": [
+    "def pos_key(i): return hdc.klein4_random(D, seed=0x70000000 + i)",
+    "def byte_atom(b): return hdc.klein4_random(D, seed=b)                       # the 256-atom periodic table"
+   ],
+   "new": [
+    "def pos_key(i): return hdc.klein4_expand(D, 0x70000000 + i)",
+    "def byte_atom(b): return hdc.klein4_expand(D, b)                       # the 256-atom periodic table"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_905_caloric_loss_is_content_blind_quantum_like_not_atomic_molecular.py",
+   "old_start": 17,
+   "cls": "DIVERGED",
+   "old": [
+    "def pos_key(i): return hdc.klein4_random(D, seed=0x70000000 + i)",
+    "def byte_atom(b): return hdc.klein4_random(D, seed=b)"
+   ],
+   "new": [
+    "def pos_key(i): return hdc.klein4_expand(D, 0x70000000 + i)",
+    "def byte_atom(b): return hdc.klein4_expand(D, b)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_914_an_heptad_4plus3_partition_KLM_vs_DEFG.py",
+   "old_start": 8,
+   "cls": "PRESENT",
+   "old": [
+    "a=hdc.klein4_random(2048,seed=1); b=hdc.klein4_random(2048,seed=2); c=hdc.klein4_random(2048,seed=3)"
+   ],
+   "new": [
+    "a=hdc.klein4_expand(2048, 1); b=hdc.klein4_expand(2048, 2); c=hdc.klein4_expand(2048, 3)"
+   ],
+   "old_at": [],
+   "new_at": [
+    7
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_918_revalidate_handrolled_probes_against_rc28_native.py",
+   "old_start": 19,
+   "cls": "PRESENT",
+   "old": [
+    "bw=band([hdc.klein4_random(D,seed=b) for b in b\"computer\"], [hdc.klein4_random(D,seed=b) for b in b\"XYZ\"])"
+   ],
+   "new": [
+    "bw=band([hdc.klein4_expand(D, b) for b in b\"computer\"], [hdc.klein4_expand(D, b) for b in b\"XYZ\"])"
+   ],
+   "old_at": [],
+   "new_at": [
+    18
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_939_klein4_is_the_two_bit_cd_doubling_address.py",
+   "old_start": 12,
+   "cls": "PRESENT",
+   "old": [
+    "a=hdc.klein4_random(256,seed=1); b=hdc.klein4_random(256,seed=2)"
+   ],
+   "new": [
+    "a=hdc.klein4_expand(256, 1); b=hdc.klein4_expand(256, 2)"
+   ],
+   "old_at": [],
+   "new_at": [
+    11
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_941_fullbeat_recall_step_advances_where_halfbeat_stalls.py",
+   "old_start": 10,
+   "cls": "DIVERGED",
+   "old": [
+    "vec={t: hdc.klein4_random(D, seed=1000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "vec={t: hdc.klein4_expand(D, 1000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_942_recall_beat_is_chirality_collapse_now_collapsing_past_collapsed.py",
+   "old_start": 10,
+   "cls": "DIVERGED",
+   "old": [
+    "vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_random(D, seed=1000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_random(D, seed=4242); chain=['a','b','c','d','e']"
+   ],
+   "new": [
+    "vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_expand(D, 1000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_expand(D, 4242); chain=['a','b','c','d','e']"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_944_chunk_against_f896_plus_wire_collapse_margin_into_real_resonator.py",
+   "old_start": 12,
+   "cls": "DIVERGED",
+   "old": [
+    "vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_random(D, seed=1000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_random(D, seed=4242); chain=['a','b','c','d','e']; edges=list(zip(chain,chain[1:]))"
+   ],
+   "new": [
+    "vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_expand(D, 1000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_expand(D, 4242); chain=['a','b','c','d','e']; edges=list(zip(chain,chain[1:]))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_945_community_tome_routing_plus_coherence_trichotomy_branch_vs_stop.py",
+   "old_start": 11,
+   "cls": "DIVERGED",
+   "old": [
+    "vocab=['a','b','c','d','e','f','g','h','i','j']; vec={t: hdc.klein4_random(D, seed=2000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "vocab=['a','b','c','d','e','f','g','h','i','j']; vec={t: hdc.klein4_expand(D, 2000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_947_spectral_routing_hairball_chunking_principle_holds_partition_fails.py",
+   "old_start": 25,
+   "cls": "DIVERGED",
+   "old": [
+    "vec={t: hdc.klein4_random(D, seed=3000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "vec={t: hdc.klein4_expand(D, 3000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_951_no_rotation_first_cascade_it_is_the_seam_previous_rotation_last_re_entering.py",
+   "old_start": 10,
+   "cls": "DIVERGED",
+   "old": [
+    "vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_random(D, seed=1000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_random(D, seed=4242); chain=['a','b','c','d','e']"
+   ],
+   "new": [
+    "vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_expand(D, 1000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_expand(D, 4242); chain=['a','b','c','d','e']"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_969_shadow_forced_encode_naive_graft_is_a_null_the_stop_is_not_an_encoding_gap.py",
+   "old_start": 16,
+   "cls": "DIVERGED",
+   "old": [
+    "vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_random(D,seed=1000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_random(D,seed=4242); chain=['a','b','c','d','e']  # sink = e (no stored next)"
+   ],
+   "new": [
+    "vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_expand(D, 1000+i) for i,t in enumerate(vocab)}",
+    "ROLE=hdc.klein4_expand(D, 4242); chain=['a','b','c','d','e']  # sink = e (no stored next)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_975_recall_recession_is_one_rung_half_life_like_coherence_has_a_load_half_life.py",
+   "old_start": 10,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    9
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_975_recall_recession_is_one_rung_half_life_like_coherence_has_a_load_half_life.py",
+   "old_start": 12,
+   "cls": "DIVERGED",
+   "old": [
+    "    vec=[hdc.klein4_random(D, seed=5000+i) for i in range(N)]"
+   ],
+   "new": [
+    "    vec=[hdc.klein4_expand(D, 5000+i) for i in range(N)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_976_multi_time_read_buys_sqrtk_altitude_but_the_rung_rate_is_invariant_ground_truth_of_loss.py",
+   "old_start": 13,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    12
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_977_stop_and_think_recall_is_the_multi_cue_read_recovers_a_faded_memory_single_cue_lost.py",
+   "old_start": 10,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    9
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_977_stop_and_think_recall_is_the_multi_cue_read_recovers_a_faded_memory_single_cue_lost.py",
+   "old_start": 12,
+   "cls": "DIVERGED",
+   "old": [
+    "vec=[hdc.klein4_random(D, seed=6000+i) for i in range(V)]"
+   ],
+   "new": [
+    "vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_978_the_recall_cascade_knows_when_to_stop_and_think_margin_is_the_self_trigger.py",
+   "old_start": 11,
+   "cls": "DIVERGED",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242); V=800",
+    "vec=[hdc.klein4_random(D, seed=6000+i) for i in range(V)]"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242); V=800",
+    "vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_979_etak_walk_demo.py",
+   "old_start": 5,
+   "cls": "DIVERGED",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242); V=1400",
+    "vec=[hdc.klein4_random(D, seed=6000+i) for i in range(V)]"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242); V=1400",
+    "vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_979_k_recovery_effort_curve_plus_etak_walk_self_escalates_deeper_resolution.py",
+   "old_start": 8,
+   "cls": "DIVERGED",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242); V=1200",
+    "vec=[hdc.klein4_random(D, seed=6000+i) for i in range(V)]"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242); V=1200",
+    "vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_981_etak_deeper_at_heavy_real_corpus_load_recovers_where_fast_fails.py",
+   "old_start": 11,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    10
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_982_de_lens_at_runtime_not_write_time_write_time_drop_doctors_the_ssot_and_destroys_shapes.py",
+   "old_start": 11,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    10
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_983_full_plus_runtime_delens_rebuild_raw_idf_too_blunt_needs_function_ness_not_frequency.py",
+   "old_start": 10,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    9
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_984_aboutness_gate_is_document_frequency_one_sided_suppression_the_correct_runtime_delens.py",
+   "old_start": 10,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    9
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_985_end_to_end_gate_wired_into_cut_and_emission_doubles_content_recall.py",
+   "old_start": 11,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    10
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_986_etak_deeper_on_gated_pipeline_lifts_buried_recall_57_to_82.py",
+   "old_start": 10,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    9
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_988_deconvolution_recall_peels_the_recession_reaches_single_context_burial_etak_cannot.py",
+   "old_start": 11,
+   "cls": "DIVERGED",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242); V=700",
+    "vec=[hdc.klein4_random(D, seed=6000+i) for i in range(V)]"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242); V=700",
+    "vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_989_concurrent_time_front_bubbles_coupled_for_navigation_not_merge.py",
+   "old_start": 9,
+   "cls": "DIVERGED",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242); V=200",
+    "vec=[hdc.klein4_random(D,seed=6000+i) for i in range(V)]"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242); V=200",
+    "vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_990_landmarks_at_the_coherence_scale_two_chiral_fronts_overtone_undertone_no_new_rules.py",
+   "old_start": 8,
+   "cls": "DIVERGED",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242); V=400",
+    "vec=[hdc.klein4_random(D,seed=6000+i) for i in range(V)]"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242); V=400",
+    "vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_991_measure_R_on_real_gated_tomes_capacity_lever_pushes_it_wider_context_does_not.py",
+   "old_start": 7,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    6
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_992_low_load_landmarks_confirmed_the_wall_is_artificial_multi_perspective_breaks_it_soft_beats_hard.py",
+   "old_start": 12,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    11
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_992_low_load_landmarks_confirmed_the_wall_is_artificial_multi_perspective_breaks_it_soft_beats_hard.py",
+   "old_start": 15,
+   "cls": "DIVERGED",
+   "old": [
+    "V=120; vec=[hdc.klein4_random(D,seed=6000+i) for i in range(V)]"
+   ],
+   "new": [
+    "V=120; vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_993_chirality_frame_perspectives_collapse_on_identity_stored_M_you_cannot_read_a_chirality_you_didnt_write.py",
+   "old_start": 12,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    11
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_994_symmetric_chirality_is_useless_write_or_generate_the_storage_smart_lever_is_the_asymmetric_fractal_fold.py",
+   "old_start": 12,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    11
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_994_symmetric_chirality_is_useless_write_or_generate_the_storage_smart_lever_is_the_asymmetric_fractal_fold.py",
+   "old_start": 16,
+   "cls": "PRESENT",
+   "old": [
+    "a=hdc.klein4_random(D,seed=1); b=hdc.klein4_random(D,seed=2)"
+   ],
+   "new": [
+    "a=hdc.klein4_expand(D, 1); b=hdc.klein4_expand(D, 2)"
+   ],
+   "old_at": [],
+   "new_at": [
+    15
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_995_asymmetric_fold_encoder_separates_the_distribution_at_1x_storage_oracle_rung_76_vs_58.py",
+   "old_start": 12,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    11
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_995_asymmetric_fold_encoder_separates_the_distribution_at_1x_storage_oracle_rung_76_vs_58.py",
+   "old_start": 14,
+   "cls": "DIVERGED",
+   "old": [
+    "RK=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]   # NR distinct rung-keys (the fold ladder)"
+   ],
+   "new": [
+    "RK=[hdc.klein4_expand(D, 71000+r) for r in range(NR)]   # NR distinct rung-keys (the fold ladder)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_996_the_ontological_inversion_operations_are_bit_exact_the_substrate_is_continuous_information_is_the_subharmonic_field.py",
+   "old_start": 12,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    11
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_996_the_ontological_inversion_operations_are_bit_exact_the_substrate_is_continuous_information_is_the_subharmonic_field.py",
+   "old_start": 15,
+   "cls": "DIVERGED",
+   "old": [
+    "    A=[hdc.klein4_random(D, seed=90000+i) for i in range(N)]",
+    "    B=[hdc.klein4_random(D, seed=120000+i) for i in range(N)]",
+    "    MODE=[hdc.klein4_random(D, seed=150000+m) for m in range(M_modes)]"
+   ],
+   "new": [
+    "    A=[hdc.klein4_expand(D, 90000+i) for i in range(N)]",
+    "    B=[hdc.klein4_expand(D, 120000+i) for i in range(N)]",
+    "    MODE=[hdc.klein4_expand(D, 150000+m) for m in range(M_modes)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_997_resonant_spectral_store_beats_discrete_bundle_55_vs_42_but_subharmonic_only_fails_fine_edges_are_high_modes.py",
+   "old_start": 11,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    10
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998b_two_tier_resonant_translation_bridge_grounded_bounded_high_band_kernel_resolves_fine_content.py",
+   "old_start": 12,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    11
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998c_distributional_read_lifts_recall_to_92_top5_but_discrete_bundle_distributes_better_than_resonant_complementary.py",
+   "old_start": 11,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    10
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998d_propose_resolve_pipeline_beats_both_alone_sparse_proposes_resonant_resolves_60_vs_53_vs_47.py",
+   "old_start": 11,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242)"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242)"
+   ],
+   "old_at": [],
+   "new_at": [
+    10
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_999_elliptic_minus_z_inverse_rung_keys_MATCH_not_beat_independent_keys_on_discrete_read_structure_pays_off_in_resonant_read.py",
+   "old_start": 11,
+   "cls": "PRESENT",
+   "old": [
+    "ROLE=hdc.klein4_random(D, seed=4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5"
+   ],
+   "new": [
+    "ROLE=hdc.klein4_expand(D, 4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5"
+   ],
+   "old_at": [],
+   "new_at": [
+    10
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_999_elliptic_minus_z_inverse_rung_keys_MATCH_not_beat_independent_keys_on_discrete_read_structure_pays_off_in_resonant_read.py",
+   "old_start": 14,
+   "cls": "DIVERGED",
+   "old": [
+    "RK_ind=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]      # F995: INDEPENDENT random keys",
+    "base=hdc.klein4_random(D, seed=99001); bl=base.tolist(); dlt=D//(2*NR)"
+   ],
+   "new": [
+    "RK_ind=[hdc.klein4_expand(D, 71000+r) for r in range(NR)]      # F995: INDEPENDENT random keys",
+    "base=hdc.klein4_expand(D, 99001); bl=base.tolist(); dlt=D//(2*NR)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOME-CENSUS_chromosome_type_makeup_stick_minted_diploid_and_nuclear_vs_organelle_topology_plus_the_native_op_ask.py",
+   "old_start": 86,
+   "cls": "PRESENT",
+   "old": [
+    "    one = hdc.klein4_random(64, seed=0)"
+   ],
+   "new": [
+    "    one = hdc.klein4_expand(64, 0)"
+   ],
+   "old_at": [],
+   "new_at": [
+    85
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOME-CENSUS_chromosome_type_makeup_stick_minted_diploid_and_nuclear_vs_organelle_topology_plus_the_native_op_ask.py",
+   "old_start": 110,
+   "cls": "PRESENT",
+   "old": [
+    "        one = hdc.klein4_random(64, seed=0)"
+   ],
+   "new": [
+    "        one = hdc.klein4_expand(64, 0)"
+   ],
+   "old_at": [],
+   "new_at": [
+    109
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOME-RC262-VERIFY_1407_delivery_check_rename_centromere_diploid_integrate_aliasing_and_the_recover_diploid_erasure_asymmetry.py",
+   "old_start": 27,
+   "cls": "PRESENT",
+   "old": [
+    "one = hdc.klein4_random(64, seed=0)"
+   ],
+   "new": [
+    "one = hdc.klein4_expand(64, 0)"
+   ],
+   "old_at": [],
+   "new_at": [
+    26
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEAPPEND-MEMLEAK_threaded_catalog_append_leaks_On_memory_internal_to_genome_append_OOM_at_corpus_scale.py",
+   "old_start": 30,
+   "cls": "PRESENT",
+   "old": [
+    "    one = hdc.klein4_random(64, seed=0)"
+   ],
+   "new": [
+    "    one = hdc.klein4_expand(64, 0)"
+   ],
+   "old_at": [],
+   "new_at": [
+    29
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEAPPEND-SCALING_isolated_repro_genome_append_is_On_per_call_On2_total.py",
+   "old_start": 39,
+   "cls": "PRESENT",
+   "old": [
+    "    one = hdc.klein4_random(DIM, seed=0)"
+   ],
+   "new": [
+    "    one = hdc.klein4_expand(DIM, 0)"
+   ],
+   "old_at": [],
+   "new_at": [
+    38
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMECRUD_full_crud_plus_chr_bundle.py",
+   "old_start": 19,
+   "cls": "PRESENT",
+   "old": [
+    "ONE = hdc.klein4_random(DIM, seed=0)",
+    "def Lv(s, n): return [hdc.klein4_random(DIM, seed=s * 100 + i) for i in range(n)]"
+   ],
+   "new": [
+    "ONE = hdc.klein4_expand(DIM, 0)",
+    "def Lv(s, n): return [hdc.klein4_expand(DIM, s * 100 + i) for i in range(n)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    18
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEDISK_rc128_save_load_roundtrip_verify.py",
+   "old_start": 32,
+   "cls": "PRESENT",
+   "old": [
+    "ONE = hdc.klein4_random(DIM, seed=0)            # the coherence-anchor leaf (\"the one\"), dim = leaf dim"
+   ],
+   "new": [
+    "ONE = hdc.klein4_expand(DIM, 0)            # the coherence-anchor leaf (\"the one\"), dim = leaf dim"
+   ],
+   "old_at": [],
+   "new_at": [
+    31
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEDISK_rc128_save_load_roundtrip_verify.py",
+   "old_start": 34,
+   "cls": "PRESENT",
+   "old": [
+    "    return [hdc.klein4_random(DIM, seed=seed * 1000 + i) for i in range(n)]"
+   ],
+   "new": [
+    "    return [hdc.klein4_expand(DIM, seed * 1000 + i) for i in range(n)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    33
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEEDIT_remove_kernel_compose_vs_inplace.py",
+   "old_start": 29,
+   "cls": "PRESENT",
+   "old": [
+    "ONE = hdc.klein4_random(DIM, seed=0)"
+   ],
+   "new": [
+    "ONE = hdc.klein4_expand(DIM, 0)"
+   ],
+   "old_at": [],
+   "new_at": [
+    28
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEEDIT_remove_kernel_compose_vs_inplace.py",
+   "old_start": 45,
+   "cls": "PRESENT",
+   "old": [
+    "        return [hdc.klein4_random(DIM, seed=s * 100 + i) for i in range(n)]"
+   ],
+   "new": [
+    "        return [hdc.klein4_expand(DIM, s * 100 + i) for i in range(n)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    44
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEENCODE_instrument_to_native_srmech_genome_body_chromosomes_vocab_genes.py",
+   "old_start": 53,
+   "cls": "PRESENT",
+   "old": [
+    "    return hdc.klein4_random(DIM, seed=0)"
+   ],
+   "new": [
+    "    return hdc.klein4_expand(DIM, 0)"
+   ],
+   "old_at": [],
+   "new_at": [
+    52
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMELANDS_genome_surface_and_class_from_toml_land_in_srmech_rc42.py",
+   "old_start": 73,
+   "cls": "PRESENT",
+   "old": [
+    "    one = klein4_random(64, seed=1)",
+    "    kernels = {\"astronomy\": [klein4_random(64, seed=s) for s in (10, 11, 12)],",
+    "               \"geography\": [klein4_random(64, seed=s) for s in (20, 21)],",
+    "               \"music\": [klein4_random(64, seed=30)]}"
+   ],
+   "new": [
+    "    one = klein4_expand(64, 1)",
+    "    kernels = {\"astronomy\": [klein4_expand(64, s) for s in (10, 11, 12)],",
+    "               \"geography\": [klein4_expand(64, s) for s in (20, 21)],",
+    "               \"music\": [klein4_expand(64, 30)]}"
+   ],
+   "old_at": [],
+   "new_at": [
+    72
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEREAD_introspect_between_telomeres.py",
+   "old_start": 24,
+   "cls": "PRESENT",
+   "old": [
+    "ONE = hdc.klein4_random(DIM, seed=0)                 # the coherence-anchor leaf (\"the one\")"
+   ],
+   "new": [
+    "ONE = hdc.klein4_expand(DIM, 0)                 # the coherence-anchor leaf (\"the one\")"
+   ],
+   "old_at": [],
+   "new_at": [
+    23
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEREAD_introspect_between_telomeres.py",
+   "old_start": 28,
+   "cls": "PRESENT",
+   "old": [
+    "    \"siona_identity\": ([hdc.klein4_random(DIM, seed=10 + i) for i in range(5)], \"who Siona is — her self-identity shelf\"),",
+    "    \"mfo_the_one\":    ([hdc.klein4_random(DIM, seed=20 + i) for i in range(3)], \"the MFO 'the one is the held invariant' kernel\"),",
+    "    \"dragon_taught\":  ([hdc.klein4_random(DIM, seed=30 + i) for i in range(2)], \"a tome taught at runtime via build-by-dialogue\"),"
+   ],
+   "new": [
+    "    \"siona_identity\": ([hdc.klein4_expand(DIM, 10 + i) for i in range(5)], \"who Siona is — her self-identity shelf\"),",
+    "    \"mfo_the_one\":    ([hdc.klein4_expand(DIM, 20 + i) for i in range(3)], \"the MFO 'the one is the held invariant' kernel\"),",
+    "    \"dragon_taught\":  ([hdc.klein4_expand(DIM, 30 + i) for i in range(2)], \"a tome taught at runtime via build-by-dialogue\"),"
+   ],
+   "old_at": [],
+   "new_at": [
+    27
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMEREAD_introspect_between_telomeres.py",
+   "old_start": 78,
+   "cls": "PRESENT",
+   "old": [
+    "    chrom_genes = [(\"intro\",   [hdc.klein4_random(DIM, seed=200 + i) for i in range(2)]),",
+    "                   (\"history\", [hdc.klein4_random(DIM, seed=210 + i) for i in range(3)]),",
+    "                   (\"refs\",    [hdc.klein4_random(DIM, seed=220 + i) for i in range(1)])]"
+   ],
+   "new": [
+    "    chrom_genes = [(\"intro\",   [hdc.klein4_expand(DIM, 200 + i) for i in range(2)]),",
+    "                   (\"history\", [hdc.klein4_expand(DIM, 210 + i) for i in range(3)]),",
+    "                   (\"refs\",    [hdc.klein4_expand(DIM, 220 + i) for i in range(1)])]"
+   ],
+   "old_at": [],
+   "new_at": [
+    77
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GENOMERECALL_prototype_native_srmech_genome_recall_token_hv_leaves_bottom_up.py",
+   "old_start": 57,
+   "cls": "PRESENT",
+   "old": [
+    "    one = hdc.klein4_random(DIM, seed=0)"
+   ],
+   "new": [
+    "    one = hdc.klein4_expand(DIM, 0)"
+   ],
+   "old_at": [],
+   "new_at": [
+    56
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GLYPHCHIRALITY_bd_pq_mirror_is_a_klein4_orbit_native_no_lift.py",
+   "old_start": 50,
+   "cls": "PRESENT",
+   "old": [
+    "    return klein4_random(DIM, seed=seed)"
+   ],
+   "new": [
+    "    return klein4_expand(DIM, seed)"
+   ],
+   "old_at": [],
+   "new_at": [
+    49
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GLYPHCHIRALITY_bd_pq_mirror_is_a_klein4_orbit_native_no_lift.py",
+   "old_start": 64,
+   "cls": "PRESENT",
+   "old": [
+    "        out[ch] = klein4_random(DIM, seed=seed)"
+   ],
+   "new": [
+    "        out[ch] = klein4_expand(DIM, seed)"
+   ],
+   "old_at": [],
+   "new_at": [
+    63
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-GRAPH2KERNEL_prototype_general_directed_signed_graph_genome_codec.py",
+   "old_start": 28,
+   "cls": "PRESENT",
+   "old": [
+    "COUPLE = hdc.klein4_random(LEAF, seed=1080)          # same coupling as NIVDIRECTED (the sandroing/UNESCO 00073 seed)"
+   ],
+   "new": [
+    "COUPLE = hdc.klein4_expand(LEAF, 1080)          # same coupling as NIVDIRECTED (the sandroing/UNESCO 00073 seed)"
+   ],
+   "old_at": [],
+   "new_at": [
+    31
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-HOLOFOLD_streaming_klein4_holographic_cooccurrence_fold_fixed_width.py",
+   "old_start": 56,
+   "cls": "PRESENT",
+   "old": [
+    "        v = _cache[tok] = array(\"b\", hdc.klein4_random(D, seed=seed).tolist())"
+   ],
+   "new": [
+    "        v = _cache[tok] = array(\"b\", hdc.klein4_expand(D, seed).tolist())"
+   ],
+   "old_at": [],
+   "new_at": [
+    55
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-NIVDIRECTED_word_as_directed_glyph_graph_genome_native.py",
+   "old_start": 29,
+   "cls": "PRESENT",
+   "old": [
+    "COUPLE = hdc.klein4_random(LEAF, seed=1080)          # canonical leaf_dim coupling vector (the sandroing/UNESCO 00073 seed)"
+   ],
+   "new": [
+    "COUPLE = hdc.klein4_expand(LEAF, 1080)          # canonical leaf_dim coupling vector (the sandroing/UNESCO 00073 seed)"
+   ],
+   "old_at": [],
+   "new_at": [
+    28
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-NOISERULE_deviation_is_first_a_substrate_chirality_feature.py",
+   "old_start": 30,
+   "cls": "PRESENT",
+   "old": [
+    "    A = hdc.klein4_random(8192, seed=7)"
+   ],
+   "new": [
+    "    A = hdc.klein4_expand(8192, 7)"
+   ],
+   "old_at": [],
+   "new_at": [
+    30
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-NOWCURVATURE_responsion_store_and_observing_the_seam.py",
+   "old_start": 37,
+   "cls": "PRESENT",
+   "old": [
+    "COUPLE = hdc.klein4_random(LEAF, seed=1218)"
+   ],
+   "new": [
+    "COUPLE = hdc.klein4_expand(LEAF, 1218)"
+   ],
+   "old_at": [],
+   "new_at": [
+    36
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-OVERHAULAUDIT_rc78_the_one_typed_to_scalar_dedup_numpy_removal.py",
+   "old_start": 110,
+   "cls": "PRESENT",
+   "old": [
+    "        one = klein4_random(64, seed=1); k = {\"a\": [klein4_random(64, seed=s) for s in (10, 11)], \"b\": [klein4_random(64, seed=20)]}"
+   ],
+   "new": [
+    "        one = klein4_expand(64, 1); k = {\"a\": [klein4_expand(64, s) for s in (10, 11)], \"b\": [klein4_expand(64, 20)]}"
+   ],
+   "old_at": [],
+   "new_at": [
+    109
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-PERTOPIC_conservation_core_fraction_coherent_vs_random_populations_matched_size.py",
+   "old_start": 36,
+   "cls": "PRESENT",
+   "old": [
+    "COUPLE = hdc.klein4_random(LEAF, seed=1080)"
+   ],
+   "new": [
+    "COUPLE = hdc.klein4_expand(LEAF, 1080)"
+   ],
+   "old_at": [],
+   "new_at": [
+    35
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-PLASMIDEXTRACT_stage1_sectional_plasmid_store_simplewiki_rc278_with_progress.py",
+   "old_start": 30,
+   "cls": "PRESENT",
+   "old": [
+    "COUPLE = hdc.klein4_random(LEAF, seed=1080)  # the store's canonical coupling seed"
+   ],
+   "new": [
+    "COUPLE = hdc.klein4_expand(LEAF, 1080)  # the store's canonical coupling seed"
+   ],
+   "old_at": [],
+   "new_at": [
+    29
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-POOLED_pool_read_makes_cost_N_independent_and_the_exponent_SPECTRUM_test.py",
+   "old_start": 95,
+   "cls": "DIVERGED",
+   "old": [
+    "    k = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(n)]",
+    "    v = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(n)]"
+   ],
+   "new": [
+    "    k = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(n)]",
+    "    v = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(n)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     95,
+     "k = [bytes(hdc.klein4_expand(dim, 10000 + i)) for i in range(n)]"
+    ],
+    [
+     96,
+     "v = [bytes(hdc.klein4_expand(dim, 20000 + i)) for i in range(n)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R10_collapse_disables_or_hides_correction.py",
+   "old_start": 50,
+   "cls": "PRESENT",
+   "old": [
+    "        c = hdc.klein4_random(D, seed=20260604 + t)"
+   ],
+   "new": [
+    "        c = hdc.klein4_expand(D, 20260604 + t)"
+   ],
+   "old_at": [],
+   "new_at": [
+    49
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R13_rc28_797_ops_validation.py",
+   "old_start": 46,
+   "cls": "PRESENT",
+   "old": [
+    "        v = hdc.klein4_random(D, seed=rng_seed + t)"
+   ],
+   "new": [
+    "        v = hdc.klein4_expand(D, rng_seed + t)"
+   ],
+   "old_at": [],
+   "new_at": [
+    45,
+    61
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R13_rc28_797_ops_validation.py",
+   "old_start": 62,
+   "cls": "PRESENT",
+   "old": [
+    "        v = hdc.klein4_random(D, seed=rng_seed + t)"
+   ],
+   "new": [
+    "        v = hdc.klein4_expand(D, rng_seed + t)"
+   ],
+   "old_at": [],
+   "new_at": [
+    45,
+    61
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R13_rc28_797_ops_validation.py",
+   "old_start": 80,
+   "cls": "PRESENT",
+   "old": [
+    "    v0 = hdc.klein4_random(D, seed=1)"
+   ],
+   "new": [
+    "    v0 = hdc.klein4_expand(D, 1)"
+   ],
+   "old_at": [],
+   "new_at": [
+    79
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R13_rc28_797_ops_validation.py",
+   "old_start": 95,
+   "cls": "PRESENT",
+   "old": [
+    "            v = hdc.klein4_random(D, seed=900 + t)"
+   ],
+   "new": [
+    "            v = hdc.klein4_expand(D, 900 + t)"
+   ],
+   "old_at": [],
+   "new_at": [
+    94
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R13_rc28_797_ops_validation.py",
+   "old_start": 108,
+   "cls": "PRESENT",
+   "old": [
+    "        v = hdc.klein4_random(D, seed=1700 + t)"
+   ],
+   "new": [
+    "        v = hdc.klein4_expand(D, 1700 + t)"
+   ],
+   "old_at": [],
+   "new_at": [
+    107
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R18_recall_is_lossy_codeword_is_bit_exact.py",
+   "old_start": 55,
+   "cls": "PRESENT",
+   "old": [
+    "                v = hdc.klein4_random(D, seed=700 + 31 * k + t)"
+   ],
+   "new": [
+    "                v = hdc.klein4_expand(D, 700 + 31 * k + t)"
+   ],
+   "old_at": [],
+   "new_at": [
+    54
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R18_recall_is_lossy_codeword_is_bit_exact.py",
+   "old_start": 78,
+   "cls": "PRESENT",
+   "old": [
+    "            v = hdc.klein4_random(D, seed=9000 + t)"
+   ],
+   "new": [
+    "            v = hdc.klein4_expand(D, 9000 + t)"
+   ],
+   "old_at": [],
+   "new_at": [
+    77
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R1_klein4_vs_loopbind_capacity.py",
+   "old_start": 50,
+   "cls": "DIVERGED",
+   "old": [
+    "    keys = [hdc.klein4_random(D, seed=rng_seed + i) for i in range(K)]",
+    "    vals = [hdc.klein4_random(D, seed=rng_seed + 10_000 + i) for i in range(K)]"
+   ],
+   "new": [
+    "    keys = [hdc.klein4_expand(D, rng_seed + i) for i in range(K)]",
+    "    vals = [hdc.klein4_expand(D, rng_seed + 10_000 + i) for i in range(K)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     50,
+     "keys = [hdc.klein4_expand(D, rng_seed + i) for i in range(K)]"
+    ],
+    [
+     66,
+     "keys = [unit_octonion_blocks(D, rng) for _ in range(K)]"
+    ],
+    [
+     51,
+     "vals = [hdc.klein4_expand(D, rng_seed + 10000 + i) for i in range(K)]"
+    ],
+    [
+     67,
+     "vals = [unit_octonion_blocks(D, rng) for _ in range(K)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R25_reverse_direction_43_native_bit_exact.py",
+   "old_start": 90,
+   "cls": "PRESENT",
+   "old": [
+    "    v = hdc.klein4_random(D, seed=383)"
+   ],
+   "new": [
+    "    v = hdc.klein4_expand(D, 383)"
+   ],
+   "old_at": [],
+   "new_at": [
+    90
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R36_rc47_multilayer_surface_practice.py",
+   "old_start": 37,
+   "cls": "PRESENT",
+   "old": [
+    "    a = hdc.klein4_random(64, seed=seed)",
+    "    b = hdc.klein4_random(64, seed=seed + 1)"
+   ],
+   "new": [
+    "    a = hdc.klein4_expand(64, seed)",
+    "    b = hdc.klein4_expand(64, seed + 1)"
+   ],
+   "old_at": [],
+   "new_at": [
+    36
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R4_k2detect_k3correct_klein4.py",
+   "old_start": 45,
+   "cls": "PRESENT",
+   "old": [
+    "    v_true = hdc.klein4_random(D, seed=seed)"
+   ],
+   "new": [
+    "    v_true = hdc.klein4_expand(D, seed)"
+   ],
+   "old_at": [],
+   "new_at": [
+    44
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R8_savefetch_bitexact_vs_rotate_dof.py",
+   "old_start": 45,
+   "cls": "PRESENT",
+   "old": [
+    "    anchors = [hdc.klein4_random(D, seed=seed + i) for i in range(K)]",
+    "    locs = [hdc.klein4_random(D, seed=seed + 1000 + i) for i in range(K)]"
+   ],
+   "new": [
+    "    anchors = [hdc.klein4_expand(D, seed + i) for i in range(K)]",
+    "    locs = [hdc.klein4_expand(D, seed + 1000 + i) for i in range(K)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    44
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-R9_erasure_vs_majority_discriminator.py",
+   "old_start": 57,
+   "cls": "PRESENT",
+   "old": [
+    "    c = hdc.klein4_random(D, seed=seed)"
+   ],
+   "new": [
+    "    c = hdc.klein4_expand(D, seed)"
+   ],
+   "old_at": [],
+   "new_at": [
+    56
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-REGRESSION_srmech_surfaces_our_findings_use.py",
+   "old_start": 27,
+   "cls": "PRESENT",
+   "old": [
+    "    v, w = klein4_random(64, seed=3), klein4_random(64, seed=4)"
+   ],
+   "new": [
+    "    v, w = klein4_expand(64, 3), klein4_expand(64, 4)"
+   ],
+   "old_at": [],
+   "new_at": [
+    26
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SEEDENSEMBLE_which_lodged_quantities_are_couple_invariant_and_the_prng_serialization_dependency.py",
+   "old_start": 74,
+   "cls": "PRESENT",
+   "old": [
+    "    v = hdc.klein4_random(64, seed=1080)"
+   ],
+   "new": [
+    "    v = hdc.klein4_expand(64, 1080)"
+   ],
+   "old_at": [],
+   "new_at": [
+    74
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SEEDENSEMBLE_which_lodged_quantities_are_couple_invariant_and_the_prng_serialization_dependency.py",
+   "old_start": 85,
+   "cls": "PRESENT",
+   "old": [
+    "    rnd = bytes(hdc.klein4_random(D, seed=1080))"
+   ],
+   "new": [
+    "    rnd = bytes(hdc.klein4_expand(D, 1080))"
+   ],
+   "old_at": [],
+   "new_at": [
+    85
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SEEDENSEMBLE_which_lodged_quantities_are_couple_invariant_and_the_prng_serialization_dependency.py",
+   "old_start": 105,
+   "cls": "PRESENT",
+   "old": [
+    "        couple = hdc.klein4_random(LEAF, seed=seed)"
+   ],
+   "new": [
+    "        couple = hdc.klein4_expand(LEAF, seed)"
+   ],
+   "old_at": [],
+   "new_at": [
+    105
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SIGNWRITING_seven_iswa_classes_kernel.py",
+   "old_start": 30,
+   "cls": "PRESENT",
+   "old": [
+    "ONE = hdc.klein4_random(DIM, seed=0)"
+   ],
+   "new": [
+    "ONE = hdc.klein4_expand(DIM, 0)"
+   ],
+   "old_at": [],
+   "new_at": [
+    29
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SIGNWRITING_seven_iswa_classes_kernel.py",
+   "old_start": 48,
+   "cls": "DIVERGED",
+   "old": [
+    "    return [hdc.klein4_random(DIM, seed=_seed(f\"{cls}/{p}\")) for p in parts]"
+   ],
+   "new": [
+    "    return [hdc.klein4_expand(DIM, _seed(f\"{cls}/{p}\")) for p in parts]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SIGNWRITING_seven_iswa_classes_kernel.py",
+   "old_start": 65,
+   "cls": "PRESENT",
+   "old": [
+    "    anchors = {cls: hdc.klein4_random(DIM, seed=_seed(cls)) for cls in ISWA}"
+   ],
+   "new": [
+    "    anchors = {cls: hdc.klein4_expand(DIM, _seed(cls)) for cls in ISWA}"
+   ],
+   "old_at": [],
+   "new_at": [
+    64
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SIMPLEWIKIGENOME2_eukaryotic_reencode_genome_from_graph_partitioned_nuclear_plasmid_rc272.py",
+   "old_start": 29,
+   "cls": "PRESENT",
+   "old": [
+    "COUPLE = hdc.klein4_random(LEAF, seed=1080)"
+   ],
+   "new": [
+    "COUPLE = hdc.klein4_expand(LEAF, 1080)"
+   ],
+   "old_at": [],
+   "new_at": [
+    28
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SIONA231_directed_class_l_corpus_genome_store_spine.py",
+   "old_start": 32,
+   "cls": "PRESENT",
+   "old": [
+    "COUPLE = hdc.klein4_random(LEAF, seed=1080)          # the sandroing/UNESCO 00073 coupling seed"
+   ],
+   "new": [
+    "COUPLE = hdc.klein4_expand(LEAF, 1080)          # the sandroing/UNESCO 00073 coupling seed"
+   ],
+   "old_at": [],
+   "new_at": [
+    31
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SIONAGENEPOOL_storyteller_etak_walk_over_genome_with_notebooks.py",
+   "old_start": 60,
+   "cls": "PRESENT",
+   "old": [
+    "ONE = hdc.klein4_random(DIM, seed=0)"
+   ],
+   "new": [
+    "ONE = hdc.klein4_expand(DIM, 0)"
+   ],
+   "old_at": [],
+   "new_at": [
+    59
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SIONAGENEPOOL_storyteller_etak_walk_over_genome_with_notebooks.py",
+   "old_start": 76,
+   "cls": "DIVERGED",
+   "old": [
+    "        v = _GLYPH_CACHE[ch] = hdc.klein4_random(DIM, seed=_seed(\"niv/\" + ch))"
+   ],
+   "new": [
+    "        v = _GLYPH_CACHE[ch] = hdc.klein4_expand(DIM, _seed(\"niv/\" + ch))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     74,
+     "v = _GLYPH_CACHE.get(ch)"
+    ],
+    [
+     76,
+     "v = _GLYPH_CACHE[ch] = hdc.klein4_expand(DIM, _seed('niv/' + ch))"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SIONAGENEPOOL_storyteller_etak_walk_over_genome_with_notebooks.py",
+   "old_start": 78,
+   "cls": "DIVERGED",
+   "old": [
+    "def _posrole(i): return hdc.klein4_random(DIM, seed=_seed(f\"niv/pos/{i}\"))       # position role (order-preserving bind)"
+   ],
+   "new": [
+    "def _posrole(i): return hdc.klein4_expand(DIM, _seed(f\"niv/pos/{i}\"))       # position role (order-preserving bind)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SIONAGENOME_genome_backed_world_era_dictionary.py",
+   "old_start": 37,
+   "cls": "PRESENT",
+   "old": [
+    "ONE = hdc.klein4_random(DIM, seed=0)"
+   ],
+   "new": [
+    "ONE = hdc.klein4_expand(DIM, 0)"
+   ],
+   "old_at": [],
+   "new_at": [
+    36
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATEMIRROR_synaptic_gap_has_the_4_3_signature_F552_catches_it.py",
+   "old_start": 27,
+   "cls": "PRESENT",
+   "old": [
+    "    R = hdc.klein4_random(8192, seed=11)"
+   ],
+   "new": [
+    "    R = hdc.klein4_expand(8192, 11)"
+   ],
+   "old_at": [],
+   "new_at": [
+    27
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATERAMPANCY_rampancy_is_a_biology_substrate_failure_mode.py",
+   "old_start": 45,
+   "cls": "PRESENT",
+   "old": [
+    "    v0 = klein4_random(DIM, seed=719)",
+    "    one = klein4_random(DIM, seed=1)"
+   ],
+   "new": [
+    "    v0 = klein4_expand(DIM, 719)",
+    "    one = klein4_expand(DIM, 1)"
+   ],
+   "old_at": [],
+   "new_at": [
+    44
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-SUBSTRATESERVICES_biology_bakes_in_storage_and_EC_silicon_must_author_them.py",
+   "old_start": 47,
+   "cls": "PRESENT",
+   "old": [
+    "    one = klein4_random(64, seed=1)",
+    "    leaves = [klein4_random(64, seed=s) for s in (10, 11, 12)]"
+   ],
+   "new": [
+    "    one = klein4_expand(64, 1)",
+    "    leaves = [klein4_expand(64, s) for s in (10, 11, 12)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    46
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-TAILFIX_measure_the_low_thresholds_on_steep_curve_not_flat_tail.py",
+   "old_start": 82,
+   "cls": "DIVERGED",
+   "old": [
+    "        k = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(ladder[-1])]",
+    "        v = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(ladder[-1])]"
+   ],
+   "new": [
+    "        k = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(ladder[-1])]",
+    "        v = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(ladder[-1])]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     82,
+     "k = [bytes(hdc.klein4_expand(dim, 10000 + i)) for i in range(ladder[-1])]"
+    ],
+    [
+     83,
+     "v = [bytes(hdc.klein4_expand(dim, 20000 + i)) for i in range(ladder[-1])]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-THRESHDEP_is_the_exponent_threshold_dependent_and_does_0926_hold_over_512_to_16384.py",
+   "old_start": 108,
+   "cls": "DIVERGED",
+   "old": [
+    "        keys = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(nmax)]",
+    "        vals = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(nmax)]"
+   ],
+   "new": [
+    "        keys = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(nmax)]",
+    "        vals = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(nmax)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     108,
+     "keys = [bytes(hdc.klein4_expand(dim, 10000 + i)) for i in range(nmax)]"
+    ],
+    [
+     109,
+     "vals = [bytes(hdc.klein4_expand(dim, 20000 + i)) for i in range(nmax)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-TWOSTAGE_chain_stage1_extract_into_stage2_organize_simplewiki_rc281.py",
+   "old_start": 30,
+   "cls": "PRESENT",
+   "old": [
+    "COUPLE = hdc.klein4_random(LEAF, seed=1080)"
+   ],
+   "new": [
+    "COUPLE = hdc.klein4_expand(LEAF, 1080)"
+   ],
+   "old_at": [],
+   "new_at": [
+    29
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-U1ACCEPTANCE_rc49_tokenize_cooccurrence_vs_section40_bar.py",
+   "old_start": 61,
+   "cls": "PRESENT",
+   "old": [
+    "    one = klein4_random(64, seed=1)",
+    "    kernels = {\"a\": [klein4_random(64, seed=s) for s in (10, 11)], \"b\": [klein4_random(64, seed=20)]}"
+   ],
+   "new": [
+    "    one = klein4_expand(64, 1)",
+    "    kernels = {\"a\": [klein4_expand(64, s) for s in (10, 11)], \"b\": [klein4_expand(64, 20)]}"
+   ],
+   "old_at": [],
+   "new_at": [
+    60
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-WIKITOMES_persist_encoded_kernel_as_mobius_biaxial_bookshelf_of_14.py",
+   "old_start": 35,
+   "cls": "PRESENT",
+   "old": [
+    "ONE = hdc.klein4_random(DIM, seed=0)"
+   ],
+   "new": [
+    "ONE = hdc.klein4_expand(DIM, 0)"
+   ],
+   "old_at": [],
+   "new_at": [
+    34
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/f275_native_port.py",
+   "old_start": 180,
+   "cls": "PRESENT",
+   "old": [
+    "    kb = [hdc.klein4_random(2048, seed=200 + i) for i in range(3)]"
+   ],
+   "new": [
+    "    kb = [hdc.klein4_expand(2048, 200 + i) for i in range(3)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    179
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/loop_bind_capacity_812.py",
+   "old_start": 43,
+   "cls": "DIVERGED",
+   "old": [
+    "        V = [hdc.klein4_random(D, seed=10_000 + t * 4000 + m) for m in range(M)]",
+    "        keys = [hdc.klein4_random(D, seed=9_000_000 + t * 4000 + i) for i in range(K)]"
+   ],
+   "new": [
+    "        V = [hdc.klein4_expand(D, 10_000 + t * 4000 + m) for m in range(M)]",
+    "        keys = [hdc.klein4_expand(D, 9_000_000 + t * 4000 + i) for i in range(K)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     43,
+     "V = [hdc.klein4_expand(D, 10000 + t * 4000 + m) for m in range(M)]"
+    ],
+    [
+     33,
+     "keys = [rand_unit_blocks(rng) for _ in range(K)]"
+    ],
+    [
+     44,
+     "keys = [hdc.klein4_expand(D, 9000000 + t * 4000 + i) for i in range(K)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/loop_bind_paths_experiment.py",
+   "old_start": 72,
+   "cls": "PRESENT",
+   "old": [
+    "    k = [hdc.klein4_random(2048, seed=100 + t) for t in range(3)]"
+   ],
+   "new": [
+    "    k = [hdc.klein4_expand(2048, 100 + t) for t in range(3)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    71
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/loop_bind_paths_experiment.py",
+   "old_start": 97,
+   "cls": "PRESENT",
+   "old": [
+    "    ka, kb = hdc.klein4_random(2048, seed=11), hdc.klein4_random(2048, seed=12)"
+   ],
+   "new": [
+    "    ka, kb = hdc.klein4_expand(2048, 11), hdc.klein4_expand(2048, 12)"
+   ],
+   "old_at": [],
+   "new_at": [
+    96
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/loop_bind_rbs_and_L5refine.py",
+   "old_start": 46,
+   "cls": "PRESENT",
+   "old": [
+    "    k = [hdc.klein4_random(D, seed=300 + i) for i in range(3)]"
+   ],
+   "new": [
+    "    k = [hdc.klein4_expand(D, 300 + i) for i in range(3)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    45
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/loop_bind_sol_resonance.py",
+   "old_start": 69,
+   "cls": "PRESENT",
+   "old": [
+    "    kb = [hdc.klein4_random(2048, seed=200 + i) for i in range(3)]"
+   ],
+   "new": [
+    "    kb = [hdc.klein4_expand(2048, 200 + i) for i in range(3)]"
+   ],
+   "old_at": [],
+   "new_at": [
+    68
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/mass_spec_tree.py",
+   "old_start": 89,
+   "cls": "PRESENT",
+   "old": [
+    "    return hdc.klein4_bundle(*[hdc.klein4_random(2048, seed=nid) for nid in node_ids])"
+   ],
+   "new": [
+    "    return hdc.klein4_bundle(*[hdc.klein4_expand(2048, nid) for nid in node_ids])"
+   ],
+   "old_at": [],
+   "new_at": [
+    88
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/rc4_groundtruth.py",
+   "old_start": 85,
+   "cls": "DIVERGED",
+   "old": [
+    "            V = [hdc.klein4_random(D, seed=10_000 + t * 4000 + m) for m in range(M)]",
+    "            keys = [hdc.klein4_random(D, seed=9_000_000 + t * 4000 + i) for i in range(K)]"
+   ],
+   "new": [
+    "            V = [hdc.klein4_expand(D, 10_000 + t * 4000 + m) for m in range(M)]",
+    "            keys = [hdc.klein4_expand(D, 9_000_000 + t * 4000 + i) for i in range(K)]"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     85,
+     "V = [hdc.klein4_expand(D, 10000 + t * 4000 + m) for m in range(M)]"
+    ],
+    [
+     76,
+     "keys = [rand_unit_blocks(crng) for _ in range(K)]"
+    ],
+    [
+     86,
+     "keys = [hdc.klein4_expand(D, 9000000 + t * 4000 + i) for i in range(K)]"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/triality_test_harness_scaffold.py",
+   "old_start": 338,
+   "cls": "PRESENT",
+   "old": [
+    "        v = hdc.klein4_random(HDC_DIM_D, seed=SEED)"
+   ],
+   "new": [
+    "        v = hdc.klein4_expand(HDC_DIM_D, SEED)"
+   ],
+   "old_at": [],
+   "new_at": [
+    337,
+    445
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/triality_test_harness_scaffold.py",
+   "old_start": 346,
+   "cls": "PRESENT",
+   "old": [
+    "        bad = orbit.copy(); bad[D:2 * D] = _np.asarray(hdc.klein4_random(D, seed=SEED + 1))"
+   ],
+   "new": [
+    "        bad = orbit.copy(); bad[D:2 * D] = _np.asarray(hdc.klein4_expand(D, SEED + 1))"
+   ],
+   "old_at": [],
+   "new_at": [
+    345
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/triality_test_harness_scaffold.py",
+   "old_start": 391,
+   "cls": "PRESENT",
+   "old": [
+    "        rng_vec = hdc.klein4_random(HDC_DIM_D, seed=SEED)"
+   ],
+   "new": [
+    "        rng_vec = hdc.klein4_expand(HDC_DIM_D, SEED)"
+   ],
+   "old_at": [],
+   "new_at": [
+    390
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/triality_test_harness_scaffold.py",
+   "old_start": 446,
+   "cls": "PRESENT",
+   "old": [
+    "        v = hdc.klein4_random(HDC_DIM_D, seed=SEED)"
+   ],
+   "new": [
+    "        v = hdc.klein4_expand(HDC_DIM_D, SEED)"
+   ],
+   "old_at": [],
+   "new_at": [
+    337,
+    445
+   ]
+  }
+ ],
+ "2": [
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-105_sweepC_plasticity_pareto.py",
+   "old_start": 212,
+   "cls": "APPLICABLE",
+   "old": [
+    "        k4_a = hdc.klein4_random(D, np.random.default_rng(i * 31))"
+   ],
+   "new": [
+    "        k4_a = hdc.klein4_expand(D, i * 31)"
+   ],
+   "old_at": [
+    211
+   ],
+   "new_at": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-105_sweepC_plasticity_pareto.py",
+   "old_start": 222,
+   "cls": "APPLICABLE",
+   "old": [
+    "        k4_b = hdc.klein4_random(D, np.random.default_rng(i * 31 + 1))"
+   ],
+   "new": [
+    "        k4_b = hdc.klein4_expand(D, i * 31 + 1)"
+   ],
+   "old_at": [
+    221
+   ],
+   "new_at": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-123_religious_text_chirality.py",
+   "old_start": 91,
+   "cls": "APPLICABLE",
+   "old": [
+    "    return hdc.klein4_random(D, np.random.default_rng(seed))"
+   ],
+   "new": [
+    "    return hdc.klein4_expand(D, seed)"
+   ],
+   "old_at": [
+    91
+   ],
+   "new_at": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-214_retrieval_vs_render_recipient_fiber.py",
+   "old_start": 297,
+   "cls": "APPLICABLE",
+   "old": [
+    "        orient_vec = hdc.klein4_random(D, np.random.default_rng(seed + 1000 + r))"
+   ],
+   "new": [
+    "        orient_vec = hdc.klein4_expand(D, seed + 1000 + r)"
+   ],
+   "old_at": [
+    296
+   ],
+   "new_at": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-221_structured_recipient_depth_anchor.py",
+   "old_start": 362,
+   "cls": "APPLICABLE",
+   "old": [
+    "        orient_vec = hdc.klein4_random(D, np.random.default_rng(seed + 1000 + r))"
+   ],
+   "new": [
+    "        orient_vec = hdc.klein4_expand(D, seed + 1000 + r)"
+   ],
+   "old_at": [
+    361
+   ],
+   "new_at": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-224_teaching_equals_bilingualism_headtohead.py",
+   "old_start": 398,
+   "cls": "APPLICABLE",
+   "old": [
+    "        bs = hdc.klein4_random(D, np.random.default_rng(seed + 3000 + 2 * r))",
+    "        bd = hdc.klein4_random(D, np.random.default_rng(seed + 3000 + 2 * r + 1))"
+   ],
+   "new": [
+    "        bs = hdc.klein4_expand(D, seed + 3000 + 2 * r)",
+    "        bd = hdc.klein4_expand(D, seed + 3000 + 2 * r + 1)"
+   ],
+   "old_at": [
+    397
+   ],
+   "new_at": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/mechanism_loop_bind.py",
+   "old_start": 64,
+   "cls": "APPLICABLE",
+   "old": [
+    "    return klein4_random(K4DIM, rng=np.random.default_rng(seed))"
+   ],
+   "new": [
+    "    return klein4_expand(K4DIM, seed)"
+   ],
+   "old_at": [
+    63
+   ],
+   "new_at": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/mechanism_loop_bind.py",
+   "old_start": 103,
+   "cls": "APPLICABLE",
+   "old": [
+    "    kv = klein4_random(K4DIM, rng=np.random.default_rng(77))",
+    "    kw = klein4_random(K4DIM, rng=np.random.default_rng(88))"
+   ],
+   "new": [
+    "    kv = klein4_expand(K4DIM, 77)",
+    "    kw = klein4_expand(K4DIM, 88)"
+   ],
+   "old_at": [
+    102
+   ],
+   "new_at": []
+  },
+  {
+   "path": "docs/srmech/rbs_nn_research/R-RBS-NN-16_phase5_remaining_candidates.py",
+   "old_start": 79,
+   "cls": "APPLICABLE",
+   "old": [
+    "    base_concepts = [hdc.klein4_random(D, np.random.default_rng(i)) for i in range(N)]"
+   ],
+   "new": [
+    "    base_concepts = [hdc.klein4_expand(D, i) for i in range(N)]"
+   ],
+   "old_at": [
+    78
+   ],
+   "new_at": []
+  }
+ ],
+ "3": [
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-872_rebuild_chunked_8192.py",
+   "old_start": 35,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-875_streaming_grid_emit.py",
+   "old_start": 27,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-877_resonator_wired_stream.py",
+   "old_start": 27,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-878_phase_disambiguation.py",
+   "old_start": 28,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-879_phase_keyed_grid_scale.py",
+   "old_start": 29,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-880_content_routed_navigation.py",
+   "old_start": 29,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-880b_chunked_signature_routing.py",
+   "old_start": 25,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-881_hypercomplex_phase_fiber.py",
+   "old_start": 26,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-884_page_as_cavity_node_probe.py",
+   "old_start": 29,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-885_saturated_cavity_node_test.py",
+   "old_start": 28,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-886_2d_phase_boundary_bundlefix.py",
+   "old_start": 27,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-887_ridge_slope_coupling_ratio.py",
+   "old_start": 27,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-888_mobius_hunt_elem3_control_boundary_sharpness.py",
+   "old_start": 29,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-890_agn_scale_boundary_gradient.py",
+   "old_start": 29,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-892_chandrasekhar_amplitude_collapse_fit.py",
+   "old_start": 28,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-893_siona_page_address_grid.py",
+   "old_start": 27,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-895_route_verify_circular.py",
+   "old_start": 28,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-895b_routing_context_length_is_the_lever.py",
+   "old_start": 24,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-896_end_to_end_stack_kstar.py",
+   "old_start": 27,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1000_QDFT_peak_read_closes_rung_selection_and_elliptic_BEATS_independent_on_the_phase_coherent_read_F999_prediction_confirmed.py",
+   "old_start": 29,
+   "cls": "DIVERGED",
+   "old": [
+    "gv={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "gv={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1001_full_complex_QDFT_does_NOT_amplify_peak_is_optimal_for_the_single_rung_spike_elliptic_win_is_noise_floor_not_coherence.py",
+   "old_start": 32,
+   "cls": "DIVERGED",
+   "old": [
+    "gv={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "gv={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1005_open_vocab_word_definition_dictionary_depth_read_leads_are_definitions_F768_gate_makes_them_retrievable_open_vocab_usage_fallback.py",
+   "old_start": 42,
+   "cls": "DIVERGED",
+   "old": [
+    "    if w not in gv: gv[w]=hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)"
+   ],
+   "new": [
+    "    if w not in gv: gv[w]=hdc.klein4_address(D, w)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1008_siona_infer2_srmech_tool_schema_grounds_as_depth_read_dictionary_utterance_to_tool_78pct_top1.py",
+   "old_start": 30,
+   "cls": "DIVERGED",
+   "old": [
+    "    if w not in gv: gv[w]=hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)"
+   ],
+   "new": [
+    "    if w not in gv: gv[w]=hdc.klein4_address(D, w)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1009_siona_infer3_srmech_drive_loop_ground_to_run_5of5_real_ops_driven_end_to_end_signature_fit_disambiguates.py",
+   "old_start": 23,
+   "cls": "DIVERGED",
+   "old": [
+    "    if w not in gv: gv[w]=hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)"
+   ],
+   "new": [
+    "    if w not in gv: gv[w]=hdc.klein4_address(D, w)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1010_siona_infer1_intent_router_20of20_declared_operators_plus_operand_shape_dispatch_to_four_real_handlers_one_substrate.py",
+   "old_start": 26,
+   "cls": "DIVERGED",
+   "old": [
+    "    if w not in gv: gv[w]=hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)"
+   ],
+   "new": [
+    "    if w not in gv: gv[w]=hdc.klein4_address(D, w)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1011_siona_infer4_self_hosting_own_tools_in_srmech_registry_10of10_self_grounding_class_h_live_help_one_loop_two_surfaces.py",
+   "old_start": 42,
+   "cls": "DIVERGED",
+   "old": [
+    "    if w not in gv: gv[w]=hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)"
+   ],
+   "new": [
+    "    if w not in gv: gv[w]=hdc.klein4_address(D, w)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1012_siona_infer5_10of10_session_cross_turn_operand_from_memory_plus_kernel_conversion_212F_derived_exact_rational_rc1_gate_prototyped.py",
+   "old_start": 43,
+   "cls": "DIVERGED",
+   "old": [
+    "    if w not in gv: gv[w]=hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)"
+   ],
+   "new": [
+    "    if w not in gv: gv[w]=hdc.klein4_address(D, w)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1018_homograph_superposition_on_the_elliptic_rung_ladder_N_languages_one_object_12of12_plus_operator_accretion_from_fixed_role_frame.py",
+   "old_start": 17,
+   "cls": "DIVERGED",
+   "old": [
+    "def vec(w,s=7): return hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+s)"
+   ],
+   "new": [
+    "def vec(w,s=7): return hdc.klein4_address(D, w)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1021_probe_byteglyph_note_premeasure.py",
+   "old_start": 13,
+   "cls": "DIVERGED",
+   "old": [
+    "def tvec(w): return hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)"
+   ],
+   "new": [
+    "def tvec(w): return hdc.klein4_address(D, w)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_898_bit_serialized_rbs_hdc_instrument.py",
+   "old_start": 27,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_976_multi_time_read_buys_sqrtk_altitude_but_the_rung_rate_is_invariant_ground_truth_of_loss.py",
+   "old_start": 23,
+   "cls": "DIVERGED",
+   "old": [
+    "vec={t: hdc.klein4_random(D, seed=hash(t)%90000+7) for t in uniq}"
+   ],
+   "new": [
+    "vec={t: hdc.klein4_address(D, t) for t in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_981_etak_deeper_at_heavy_real_corpus_load_recovers_where_fast_fails.py",
+   "old_start": 19,
+   "cls": "DIVERGED",
+   "old": [
+    "uniq=list(dict.fromkeys(content)); vec={t: hdc.klein4_random(D, seed=(hash(t)%80000)+11) for t in uniq}"
+   ],
+   "new": [
+    "uniq=list(dict.fromkeys(content)); vec={t: hdc.klein4_address(D, t) for t in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_982_de_lens_at_runtime_not_write_time_write_time_drop_doctors_the_ssot_and_destroys_shapes.py",
+   "old_start": 20,
+   "cls": "DIVERGED",
+   "old": [
+    "vec={t: hdc.klein4_random(D, seed=(hash(t)%80000)+11) for t in uniq}"
+   ],
+   "new": [
+    "vec={t: hdc.klein4_address(D, t) for t in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_983_full_plus_runtime_delens_rebuild_raw_idf_too_blunt_needs_function_ness_not_frequency.py",
+   "old_start": 20,
+   "cls": "DIVERGED",
+   "old": [
+    "vec={t: hdc.klein4_random(D, seed=(hash(t)%80000)+11) for t in uniq}"
+   ],
+   "new": [
+    "vec={t: hdc.klein4_address(D, t) for t in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_984_aboutness_gate_is_document_frequency_one_sided_suppression_the_correct_runtime_delens.py",
+   "old_start": 23,
+   "cls": "DIVERGED",
+   "old": [
+    "tome=arts[0]; uniq=list(dict.fromkeys(tome)); vec={t: hdc.klein4_random(D, seed=(hash(t)%80000)+11) for t in uniq}"
+   ],
+   "new": [
+    "tome=arts[0]; uniq=list(dict.fromkeys(tome)); vec={t: hdc.klein4_address(D, t) for t in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_985_end_to_end_gate_wired_into_cut_and_emission_doubles_content_recall.py",
+   "old_start": 24,
+   "cls": "DIVERGED",
+   "old": [
+    "vec={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "vec={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_986_etak_deeper_on_gated_pipeline_lifts_buried_recall_57_to_82.py",
+   "old_start": 22,
+   "cls": "DIVERGED",
+   "old": [
+    "vec={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "vec={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_991_measure_R_on_real_gated_tomes_capacity_lever_pushes_it_wider_context_does_not.py",
+   "old_start": 19,
+   "cls": "DIVERGED",
+   "old": [
+    "vec={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "vec={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_992_low_load_landmarks_confirmed_the_wall_is_artificial_multi_perspective_breaks_it_soft_beats_hard.py",
+   "old_start": 48,
+   "cls": "DIVERGED",
+   "old": [
+    "gv={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "gv={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_993_chirality_frame_perspectives_collapse_on_identity_stored_M_you_cannot_read_a_chirality_you_didnt_write.py",
+   "old_start": 46,
+   "cls": "DIVERGED",
+   "old": [
+    "gv={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "gv={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_994_symmetric_chirality_is_useless_write_or_generate_the_storage_smart_lever_is_the_asymmetric_fractal_fold.py",
+   "old_start": 35,
+   "cls": "DIVERGED",
+   "old": [
+    "gv={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "gv={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_995_asymmetric_fold_encoder_separates_the_distribution_at_1x_storage_oracle_rung_76_vs_58.py",
+   "old_start": 26,
+   "cls": "DIVERGED",
+   "old": [
+    "gv={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "gv={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_997_resonant_spectral_store_beats_discrete_bundle_55_vs_42_but_subharmonic_only_fails_fine_edges_are_high_modes.py",
+   "old_start": 23,
+   "cls": "DIVERGED",
+   "old": [
+    "gv={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "gv={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998b_two_tier_resonant_translation_bridge_grounded_bounded_high_band_kernel_resolves_fine_content.py",
+   "old_start": 24,
+   "cls": "DIVERGED",
+   "old": [
+    "gv={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "gv={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998c_distributional_read_lifts_recall_to_92_top5_but_discrete_bundle_distributes_better_than_resonant_complementary.py",
+   "old_start": 23,
+   "cls": "DIVERGED",
+   "old": [
+    "gv={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "gv={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998d_propose_resolve_pipeline_beats_both_alone_sparse_proposes_resonant_resolves_60_vs_53_vs_47.py",
+   "old_start": 23,
+   "cls": "DIVERGED",
+   "old": [
+    "gv={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "gv={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_999_elliptic_minus_z_inverse_rung_keys_MATCH_not_beat_independent_keys_on_discrete_read_structure_pays_off_in_resonant_read.py",
+   "old_start": 28,
+   "cls": "DIVERGED",
+   "old": [
+    "gv={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}"
+   ],
+   "new": [
+    "gv={w: hdc.klein4_address(D, w) for w in uniq}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/leg_l3_real_grammatical_order.py",
+   "old_start": 91,
+   "cls": "DIVERGED",
+   "old": [
+    "        klein_cb[w] = hdc.klein4_random(D, seed=_word_seed(KLEIN_SEED, w))"
+   ],
+   "new": [
+    "        klein_cb[w] = hdc.klein4_address(D, w)"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     91,
+     "klein_cb[w] = hdc.klein4_expand(D, _word_seed(KLEIN_SEED, w))"
+    ]
+   ]
+  }
+ ],
+ "3b": [
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-863_massless_rider_coupling_walk.py",
+   "old_start": 41,
+   "cls": "DIVERGED",
+   "old": [
+    "toks_k = {t: hdc.klein4_random(D, seed=sum(t.encode())) for t in set(SENT)}"
+   ],
+   "new": [
+    "toks_k = {t: hdc.klein4_address(D, t) for t in set(SENT)}"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     41,
+     "toks_k = {t: hdc.klein4_expand(D, sum(t.encode())) for t in set(SENT)}"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py",
+   "old_start": 44,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=_hashseed(pr))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in pr))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py",
+   "old_start": 47,
+   "cls": "DIVERGED",
+   "old": [
+    "    k = hdc.klein4_random(D, seed=_hashseed(ctx_oct(win)))"
+   ],
+   "new": [
+    "    k = hdc.klein4_address(D, \",\".join(str(x) for x in ctx_oct(win)))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": [
+    [
+     47,
+     "k = hdc.klein4_expand(D, _hashseed(ctx_oct(win)))"
+    ],
+    [
+     49,
+     "k = hdc.klein4_phase_bind(k, ((pos * MULT[a]) % PMAX) / PMAX)"
+    ]
+   ]
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py",
+   "old_start": 53,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=_hashseed(ctx_oct(win)))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in ctx_oct(win)))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py",
+   "old_start": 39,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=_hashseed(cascade.cd_mult(unit_q(pos, kaxes), p)))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in cascade.cd_mult(unit_q(pos, kaxes), p)))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py",
+   "old_start": 43,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=_hashseed(pr))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in pr))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  },
+  {
+   "path": "docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py",
+   "old_start": 41,
+   "cls": "DIVERGED",
+   "old": [
+    "    return hdc.klein4_random(D, seed=_hs(cascade.cd_mult(tuple(q), p)))"
+   ],
+   "new": [
+    "    return hdc.klein4_address(D, \",\".join(str(x) for x in cascade.cd_mult(tuple(q), p)))"
+   ],
+   "old_at": [],
+   "new_at": [],
+   "branch_candidates": []
+  }
+ ]
+}

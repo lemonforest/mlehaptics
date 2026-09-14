@@ -45,3 +45,5 @@ The text above calls R3 U1 closed at rc43. This branch's own later record, writt
 So by this branch's record, R3 U1 closed against the §40 bar at rc50, after this finding was written at rc43. The status label above is kept as written; this landing does not re-run either acceptance. The appended index lines say the same.
 
 **Composes:** F722, F723, F724 (the later acceptance record) · F716 · the archive `preserved_branches/rbs-lm-rolling-2/`.
+
+Integrated 2026-09-14: see F1373.

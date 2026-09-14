@@ -24,3 +24,5 @@ F1369 (2026-09-14) rechecked the May-2026 record with two independent researcher
 **Composes:** F1369.
 
 Branch safe to delete once this commit is on origin: yes
+
+Integrated 2026-09-14: see F1373.

@@ -1,0 +1,37 @@
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-863_massless_rider_coupling_walk.py b/docs/srmech/rbs_lm_research/R-RBS-LM-863_massless_rider_coupling_walk.py
+index 4d41965a9..1d90776bf 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-863_massless_rider_coupling_walk.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-863_massless_rider_coupling_walk.py
+@@ -41 +41 @@ D = 1024
+-toks_k = {t: hdc.klein4_random(D, seed=sum(t.encode())) for t in set(SENT)}
++toks_k = {t: hdc.klein4_address(D, t) for t in set(SENT)}
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py b/docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py
+index c39b95a56..f2d3edbfd 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py
+@@ -44 +44 @@ def twiddle_key(win, pos, kaxes):                 # LITERAL exp(mu*theta): rotat
+-    return hdc.klein4_random(D, seed=_hashseed(pr))
++    return hdc.klein4_address(D, ",".join(str(x) for x in pr))
+@@ -47 +47 @@ def scalar_key(win, pos, axes):                   # F881 SPIRIT: composed scalar
+-    k = hdc.klein4_random(D, seed=_hashseed(ctx_oct(win)))
++    k = hdc.klein4_address(D, ",".join(str(x) for x in ctx_oct(win)))
+@@ -53 +53 @@ def plain_key(win, pos):                          # no-phase baseline
+-    return hdc.klein4_random(D, seed=_hashseed(ctx_oct(win)))
++    return hdc.klein4_address(D, ",".join(str(x) for x in ctx_oct(win)))
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py b/docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py
+index c51670ea8..21deb3896 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py
+@@ -39 +39 @@ def single_key(win, pos, kaxes):                  # F882: left twiddle q*p
+-    return hdc.klein4_random(D, seed=_hashseed(cascade.cd_mult(unit_q(pos, kaxes), p)))
++    return hdc.klein4_address(D, ",".join(str(x) for x in cascade.cd_mult(unit_q(pos, kaxes), p)))
+@@ -43 +43 @@ def sandwich_key(win, pos, kaxes):                # F883: inverse-coupling rotat
+-    return hdc.klein4_random(D, seed=_hashseed(pr))
++    return hdc.klein4_address(D, ",".join(str(x) for x in pr))
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py b/docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py
+index 51aa0ff86..3a3ba3e20 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py
+@@ -41 +41 @@ def odft_key(win, num, den):                      # F882 single-sided O-twiddle,
+-    return hdc.klein4_random(D, seed=_hs(cascade.cd_mult(tuple(q), p)))
++    return hdc.klein4_address(D, ",".join(str(x) for x in cascade.cd_mult(tuple(q), p)))

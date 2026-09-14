@@ -1,0 +1,482 @@
+[
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-872_rebuild_chunked_8192.py",
+  "old_start": 35,
+  "action": "INTEGRATED",
+  "line": 35,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-875_streaming_grid_emit.py",
+  "old_start": 27,
+  "action": "INTEGRATED",
+  "line": 27,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-877_resonator_wired_stream.py",
+  "old_start": 27,
+  "action": "INTEGRATED",
+  "line": 27,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-878_phase_disambiguation.py",
+  "old_start": 28,
+  "action": "INTEGRATED",
+  "line": 28,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-879_phase_keyed_grid_scale.py",
+  "old_start": 29,
+  "action": "INTEGRATED",
+  "line": 29,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-880_content_routed_navigation.py",
+  "old_start": 29,
+  "action": "INTEGRATED",
+  "line": 29,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-880b_chunked_signature_routing.py",
+  "old_start": 25,
+  "action": "INTEGRATED",
+  "line": 25,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-881_hypercomplex_phase_fiber.py",
+  "old_start": 26,
+  "action": "INTEGRATED",
+  "line": 26,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-884_page_as_cavity_node_probe.py",
+  "old_start": 29,
+  "action": "INTEGRATED",
+  "line": 29,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-885_saturated_cavity_node_test.py",
+  "old_start": 28,
+  "action": "INTEGRATED",
+  "line": 28,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-886_2d_phase_boundary_bundlefix.py",
+  "old_start": 27,
+  "action": "INTEGRATED",
+  "line": 27,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-887_ridge_slope_coupling_ratio.py",
+  "old_start": 27,
+  "action": "INTEGRATED",
+  "line": 27,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-888_mobius_hunt_elem3_control_boundary_sharpness.py",
+  "old_start": 29,
+  "action": "INTEGRATED",
+  "line": 29,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-890_agn_scale_boundary_gradient.py",
+  "old_start": 29,
+  "action": "INTEGRATED",
+  "line": 29,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-892_chandrasekhar_amplitude_collapse_fit.py",
+  "old_start": 28,
+  "action": "INTEGRATED",
+  "line": 28,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-893_siona_page_address_grid.py",
+  "old_start": 27,
+  "action": "INTEGRATED",
+  "line": 27,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-895_route_verify_circular.py",
+  "old_start": 28,
+  "action": "INTEGRATED",
+  "line": 28,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-895b_routing_context_length_is_the_lever.py",
+  "old_start": 24,
+  "action": "INTEGRATED",
+  "line": 24,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-896_end_to_end_stack_kstar.py",
+  "old_start": 27,
+  "action": "INTEGRATED",
+  "line": 27,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1000_QDFT_peak_read_closes_rung_selection_and_elliptic_BEATS_independent_on_the_phase_coherent_read_F999_prediction_confirmed.py",
+  "old_start": 29,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 29,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1001_full_complex_QDFT_does_NOT_amplify_peak_is_optimal_for_the_single_rung_spike_elliptic_win_is_noise_floor_not_coherence.py",
+  "old_start": 32,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 32,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1005_open_vocab_word_definition_dictionary_depth_read_leads_are_definitions_F768_gate_makes_them_retrievable_open_vocab_usage_fallback.py",
+  "old_start": 42,
+  "action": "INTEGRATED",
+  "line": 42,
+  "source_old": "klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "if w not in gv: gv[w]=hdc.klein4_expand(D, sum(((i + 1) * ord(c) for i, c in enumerate(w))) % 80000 + 7)",
+  "branch_after": "if w not in gv: gv[w]=hdc.klein4_address(D, w)"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1008_siona_infer2_srmech_tool_schema_grounds_as_depth_read_dictionary_utterance_to_tool_78pct_top1.py",
+  "old_start": 30,
+  "action": "INTEGRATED",
+  "line": 30,
+  "source_old": "klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "if w not in gv: gv[w]=hdc.klein4_expand(D, sum(((i + 1) * ord(c) for i, c in enumerate(w))) % 80000 + 7)",
+  "branch_after": "if w not in gv: gv[w]=hdc.klein4_address(D, w)"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1009_siona_infer3_srmech_drive_loop_ground_to_run_5of5_real_ops_driven_end_to_end_signature_fit_disambiguates.py",
+  "old_start": 23,
+  "action": "INTEGRATED",
+  "line": 23,
+  "source_old": "klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "if w not in gv: gv[w]=hdc.klein4_expand(D, sum(((i + 1) * ord(c) for i, c in enumerate(w))) % 80000 + 7)",
+  "branch_after": "if w not in gv: gv[w]=hdc.klein4_address(D, w)"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1010_siona_infer1_intent_router_20of20_declared_operators_plus_operand_shape_dispatch_to_four_real_handlers_one_substrate.py",
+  "old_start": 26,
+  "action": "INTEGRATED",
+  "line": 26,
+  "source_old": "klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "if w not in gv: gv[w]=hdc.klein4_expand(D, sum(((i + 1) * ord(c) for i, c in enumerate(w))) % 80000 + 7)",
+  "branch_after": "if w not in gv: gv[w]=hdc.klein4_address(D, w)"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1011_siona_infer4_self_hosting_own_tools_in_srmech_registry_10of10_self_grounding_class_h_live_help_one_loop_two_surfaces.py",
+  "old_start": 42,
+  "action": "INTEGRATED",
+  "line": 42,
+  "source_old": "klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "if w not in gv: gv[w]=hdc.klein4_expand(D, sum(((i + 1) * ord(c) for i, c in enumerate(w))) % 80000 + 7)",
+  "branch_after": "if w not in gv: gv[w]=hdc.klein4_address(D, w)"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1012_siona_infer5_10of10_session_cross_turn_operand_from_memory_plus_kernel_conversion_212F_derived_exact_rational_rc1_gate_prototyped.py",
+  "old_start": 43,
+  "action": "INTEGRATED",
+  "line": 43,
+  "source_old": "klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "if w not in gv: gv[w]=hdc.klein4_expand(D, sum(((i + 1) * ord(c) for i, c in enumerate(w))) % 80000 + 7)",
+  "branch_after": "if w not in gv: gv[w]=hdc.klein4_address(D, w)"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1018_homograph_superposition_on_the_elliptic_rung_ladder_N_languages_one_object_12of12_plus_operator_accretion_from_fixed_role_frame.py",
+  "old_start": 17,
+  "action": "INTEGRATED",
+  "line": 17,
+  "source_old": "klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+s)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "def vec(w,s=7): return hdc.klein4_expand(D, sum(((i + 1) * ord(c) for i, c in enumerate(w))) % 80000 + s)",
+  "branch_after": "def vec(w,s=7): return hdc.klein4_address(D, w)"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1021_probe_byteglyph_note_premeasure.py",
+  "old_start": 13,
+  "action": "INTEGRATED",
+  "line": 13,
+  "source_old": "klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "def tvec(w): return hdc.klein4_expand(D, sum(((i + 1) * ord(c) for i, c in enumerate(w))) % 80000 + 7)",
+  "branch_after": "def tvec(w): return hdc.klein4_address(D, w)"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_898_bit_serialized_rbs_hdc_instrument.py",
+  "old_start": 27,
+  "action": "INTEGRATED",
+  "line": 27,
+  "source_old": "klein4_random(D, seed=int.from_bytes(_dig(\",\".join(str(x) for x in p))[:8], \"big\"))",
+  "source_new": "klein4_address(D, \",\".join(str(x) for x in p))",
+  "branch_before": "return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))",
+  "branch_after": "return hdc.klein4_address(D, \",\".join(str(x) for x in p))"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_976_multi_time_read_buys_sqrtk_altitude_but_the_rung_rate_is_invariant_ground_truth_of_loss.py",
+  "old_start": 23,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 23,
+  "source_old": "klein4_random(D, seed=hash(t)%90000+7)",
+  "source_new": "klein4_address(D, t)",
+  "branch_before": "vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}",
+  "branch_after": "vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_981_etak_deeper_at_heavy_real_corpus_load_recovers_where_fast_fails.py",
+  "old_start": 19,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 19,
+  "source_old": "klein4_random(D, seed=(hash(t)%80000)+11)",
+  "source_new": "klein4_address(D, t)",
+  "branch_before": "uniq=list(dict.fromkeys(content)); vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}",
+  "branch_after": "uniq=list(dict.fromkeys(content)); vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_982_de_lens_at_runtime_not_write_time_write_time_drop_doctors_the_ssot_and_destroys_shapes.py",
+  "old_start": 20,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 20,
+  "source_old": "klein4_random(D, seed=(hash(t)%80000)+11)",
+  "source_new": "klein4_address(D, t)",
+  "branch_before": "vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}",
+  "branch_after": "vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_983_full_plus_runtime_delens_rebuild_raw_idf_too_blunt_needs_function_ness_not_frequency.py",
+  "old_start": 20,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 20,
+  "source_old": "klein4_random(D, seed=(hash(t)%80000)+11)",
+  "source_new": "klein4_address(D, t)",
+  "branch_before": "vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}",
+  "branch_after": "vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_984_aboutness_gate_is_document_frequency_one_sided_suppression_the_correct_runtime_delens.py",
+  "old_start": 23,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 23,
+  "source_old": "klein4_random(D, seed=(hash(t)%80000)+11)",
+  "source_new": "klein4_address(D, t)",
+  "branch_before": "tome=arts[0]; uniq=list(dict.fromkeys(tome)); vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}",
+  "branch_after": "tome=arts[0]; uniq=list(dict.fromkeys(tome)); vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_985_end_to_end_gate_wired_into_cut_and_emission_doubles_content_recall.py",
+  "old_start": 24,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 24,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "vec={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "vec={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_986_etak_deeper_on_gated_pipeline_lifts_buried_recall_57_to_82.py",
+  "old_start": 22,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 22,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "vec={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "vec={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_991_measure_R_on_real_gated_tomes_capacity_lever_pushes_it_wider_context_does_not.py",
+  "old_start": 19,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 19,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "vec={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "vec={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_992_low_load_landmarks_confirmed_the_wall_is_artificial_multi_perspective_breaks_it_soft_beats_hard.py",
+  "old_start": 48,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 48,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_993_chirality_frame_perspectives_collapse_on_identity_stored_M_you_cannot_read_a_chirality_you_didnt_write.py",
+  "old_start": 46,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 46,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_994_symmetric_chirality_is_useless_write_or_generate_the_storage_smart_lever_is_the_asymmetric_fractal_fold.py",
+  "old_start": 35,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 35,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_995_asymmetric_fold_encoder_separates_the_distribution_at_1x_storage_oracle_rung_76_vs_58.py",
+  "old_start": 26,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 26,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_997_resonant_spectral_store_beats_discrete_bundle_55_vs_42_but_subharmonic_only_fails_fine_edges_are_high_modes.py",
+  "old_start": 23,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 23,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998b_two_tier_resonant_translation_bridge_grounded_bounded_high_band_kernel_resolves_fine_content.py",
+  "old_start": 24,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 24,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998c_distributional_read_lifts_recall_to_92_top5_but_discrete_bundle_distributes_better_than_resonant_complementary.py",
+  "old_start": 23,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 23,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_998d_propose_resolve_pipeline_beats_both_alone_sparse_proposes_resonant_resolves_60_vs_53_vs_47.py",
+  "old_start": 23,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 23,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_999_elliptic_minus_z_inverse_rung_keys_MATCH_not_beat_independent_keys_on_discrete_read_structure_pays_off_in_resonant_read.py",
+  "old_start": 28,
+  "action": "KEPT_BRANCH_F1284",
+  "line": 28,
+  "source_old": "klein4_random(D, seed=(hash(w)%80000)+11)",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}",
+  "branch_after": "gv={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}"
+ },
+ {
+  "path": "docs/srmech/rbs_lm_research/leg_l3_real_grammatical_order.py",
+  "old_start": 91,
+  "action": "INTEGRATED",
+  "line": 91,
+  "source_old": "klein4_random(D, seed=_word_seed(KLEIN_SEED, w))",
+  "source_new": "klein4_address(D, w)",
+  "branch_before": "klein_cb[w] = hdc.klein4_expand(D, _word_seed(KLEIN_SEED, w))",
+  "branch_after": "klein_cb[w] = hdc.klein4_address(D, w)"
+ }
+]
