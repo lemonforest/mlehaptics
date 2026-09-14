@@ -955,3 +955,14 @@ tests/test_abi_pin_sites_agree_rc464.py
 #    did. Any rc touching a Class-N scalar's domain, one of the composites
 #    that calls it, or SRMECH_NODISCARD's roster moves it. ~12 s native.
 tests/test_value_status_c_boundary_rc473.py
+
+# -- the R3 reader's declared label map (rc473 close-out, `#T1188`) -----------
+#    ABSENT from this manifest through rc473's repair round 1. Between
+#    2eb05877f and 5a0f65855 the folded label map moved one entry, measured:
+#    `kepler_solve`, ["tolerance"] -> ["ulp", "rounding", "tolerance"], off its
+#    rewritten docstring, with 236 declared ops on both sides. Commit
+#    5a0f65855 re-pinned it after CI went red on it; a run of this manifest
+#    could not have seen it, because the file was not listed. Any rc that
+#    edits a registered op's docstring can move the map, which is exactly the
+#    edit this list exists to ripple-check. Pure-Python.
+tests/test_r3_reader_rc470.py

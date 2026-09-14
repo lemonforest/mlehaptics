@@ -6030,8 +6030,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.math.kepler.kepler_solve", owner="srmech", category="kepler",
-            summary="Newton-Raphson on Kepler's equation M = E - e sin E. "
-                    "Smith (1979) starter; converges in 4-6 iter for e < 0.5.",
+            summary="Newton-Raphson on Kepler's equation M = E - e sin E, in "
+                    "Q61 integers (declared 2^-61 rad precision). Smith (1979) "
+                    "starter.",
             parameters=(P("M_rad", "float", True, "mean anomaly (radians)"),
                         P("e", "float", True, "eccentricity, 0 ≤ e < 1"),
                         P("tolerance", "float", False, "default 1e-12"),

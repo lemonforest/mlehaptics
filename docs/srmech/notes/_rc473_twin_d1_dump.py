@@ -1,7 +1,8 @@
 """D1 dump: srmech_winding_fold at the C SYMBOL, the dispatched public op, and
-the pure `_eph_seam_fold`, over the 24 filed + 45 named angles and a fuzz.
+the pure `_eph_seam_fold`, over the 24 filed angles, 21 further named ones (45
+named in all) and a fuzz.
 
-Usage: python m_d1_dump.py <python-root> <out.json> [n-fuzz]
+Usage: python notes/_rc473_twin_d1_dump.py <python-root> <out.json> [n-fuzz]
 
 Refuses to run on an inauthentic native cell. Floats are dumped as float.hex
 so nothing is lost in transit.

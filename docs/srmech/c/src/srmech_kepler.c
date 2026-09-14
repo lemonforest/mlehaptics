@@ -206,8 +206,10 @@ srmech_status_t srmech_pin_slot(double  theta,
  * or srmech_cos at all. It runs on the Q61 quarter-turn carrier in
  * srmech_trig.c (srmech_trig_kepler_q61), which reduces M ONCE and refuses an
  * M with no reduction before any iterate exists, so there is no mid-iteration
- * refusal left to propagate: E = M + eps with |eps| bracketed by e, and the
- * residue re-reduction cannot leave the carrier. */
+ * refusal left to propagate: E = M + eps with |eps| bracketed by round(e *
+ * 2^61) Q61 units (at most 2^-62 rad above e), and the residue re-reduction
+ * cannot leave the carrier. It is Newton-Raphson over the Q61 Taylor cores at
+ * a declared 2^-61 rad precision, not an exact root of Kepler's equation. */
 /* rc473 repair pass (`#T1188`) — THE ECCENTRICITY BAND, and the comment lives
  * HERE rather than beside the guard on purpose: JPL Rule 4 counts lines
  * BETWEEN the braces, and this function measured 58 against a cap of 60 with
@@ -231,21 +233,25 @@ srmech_status_t srmech_pin_slot(double  theta,
  * accepted band.
  *
  * rc473 SECOND repair (`#T1188`) — THE TOLERANCE, a slot no filed row named.
- * `tolerance` reaches no callee either: it is only ever the right-hand side
- * of `adelta < tolerance`, so a non-finite one is never examined. MEASURED
- * on an authenticated cell (ABI 26), M = pi/2, e = 0.0549, max_iter = 20:
- *   tolerance = +Inf  -> (SRMECH_OK, 1.625613861425157)   [pure RAISES]
- *   tolerance =  NaN  -> (SRMECH_ERR_OVERFLOW, ...)       [pure RAISES]
- *   tolerance = -Inf  -> (SRMECH_ERR_OVERFLOW, ...)       [pure RAISES]
- * The +Inf row is the serve-vs-refuse divergence: `adelta < +Inf` is true on
- * the first step, so C returns the ONE-Newton-step estimate and calls it
- * converged. The other two are the same defect wearing a different answer —
- * `adelta < NaN` is never true, so the loop runs out and the caller is told
+ * Until repair round 1 `tolerance` reached no callee either: it was only ever
+ * the right-hand side of `adelta < tolerance`, so a non-finite one was never
+ * examined. MEASURED on an authenticated cell (ABI 26), M = pi/2, e = 0.0549,
+ * max_iter = 20, before the guard below existed:
+ *   tolerance = +Inf  -> (SRMECH_OK, 1.625613861425157)   [pure RAISED]
+ *   tolerance =  NaN  -> (SRMECH_ERR_OVERFLOW, ...)       [pure RAISED]
+ *   tolerance = -Inf  -> (SRMECH_ERR_OVERFLOW, ...)       [pure RAISED]
+ * The +Inf row was the serve-vs-refuse divergence: `adelta < +Inf` was true
+ * on the first step, so C returned the ONE-Newton-step estimate and called it
+ * converged. The other two were the same defect wearing a different answer —
+ * `adelta < NaN` is never true, so the loop ran out and the caller was told
  * "did not converge" about an argument that was never a tolerance. The pure
- * peer refuses all three at `Q < float`, Q being the finite-rational
- * carrier. A FINITE tolerance of any sign or magnitude is unchanged: zero
- * and negative values still run to non-convergence in BOTH projections,
- * which is what they already agreed on. */
+ * peer refused all three at `Q < float`, Q being the finite-rational carrier.
+ * The guard below left every FINITE tolerance to the iteration. Since repair
+ * round 1 the tolerance reaches srmech_trig_kepler_q61, where CONVERGED means
+ * |step| * 2^-61 < tolerance, so a finite tolerance's verdict and value are
+ * the Q61 iteration's: kepler_solve(pi/2, 0.9) is 2.263415106356943 in both
+ * cells, where the pre-round double loop gave 2.2634151063569425. Zero and
+ * negative tolerances are still never met. srmech.h v26 clause (c). */
 srmech_status_t srmech_kepler_solve(double    M_rad,
                                     double    e,
                                     double    tolerance,

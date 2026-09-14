@@ -1,7 +1,8 @@
 """kepler_solve's FINITE-tolerance frontier: where does each projection stop
-converging? Rows in the m_d2_slots.py format so m_d2_diff.py joins them.
+converging? Rows in the notes/_rc473_twin_d2_slot_sweep.py format so
+notes/_rc473_twin_d2_diff.py joins them.
 
-Usage: python m_d2_tol_frontier.py <python-root> <out.json>
+Usage: python notes/_rc473_twin_d2_tol_frontier.py <python-root> <out.json>
 """
 import ctypes
 import json

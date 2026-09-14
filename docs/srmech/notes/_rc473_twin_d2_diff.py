@@ -1,4 +1,4 @@
-"""Diff two m_d2_slots.py dumps (native vs pure). Classifies each row:
+"""Diff two notes/_rc473_twin_d2_slot_sweep.py dumps (native vs pure). Classifies each row:
 SAME (same verdict, same value or same exception text), SAME-VERDICT
 (both serve different values, or both refuse with different type/text), or
 SERVE-vs-REFUSE.

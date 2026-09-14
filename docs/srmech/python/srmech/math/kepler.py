@@ -245,13 +245,15 @@ def kepler_solve(
 
     Canonical SSoT: Kepler (1609) *Astronomia Nova*. Newton-Raphson
     starter via Smith (1979) Celestial Mech 19, 163: ``E_0 = M + e * sin(M)``.
-    Converges in 4-6 iterations for ``e < 0.5``; ``e >= 0.95`` may need
-    more (raise ``max_iter``).
+    MEASURED at rc473 (`#T1188`) with the default tolerance, over eight ``M``
+    from 0.1 to 3.1: 3 iterations at ``e = 0.0549``, 3 to 5 for ``e`` from
+    0.2 to 0.5, and 3 to 7 for ``e`` from 0.9 to 0.999.
 
     Args:
         M_rad: Mean anomaly in radians.
         e: Eccentricity, ``0 <= e < 1``.
-        tolerance: Halt when ``|delta E| < tolerance``.
+        tolerance: Halt when ``|step| * 2**-61 < tolerance``, the step
+            in Q61 units (see the Convergence paragraph below).
         max_iter: Maximum Newton-Raphson iterations.
 
     Returns:
@@ -260,16 +262,21 @@ def kepler_solve(
     Raises:
         ValueError: For ``e < 0``, ``e >= 1``, ``max_iter <= 0``,
             ``max_iter > 2**32 - 1``, or a non-finite ``tolerance``; and
-            (rc473, `#T1188`) for any ``M_rad`` the Class-N ``sin`` cascade
-            cannot reduce, in the pure cascade's own words.
-            ``srmech_kepler_solve`` now propagates ``srmech_sin``'s refusal
-            instead of discarding it — through rc472 the Newton iteration
-            never moved ``E`` off its ``M`` initial guess and the caller was
-            handed ``E == M`` with ``SRMECH_OK``.
+            (rc473, `#T1188`), when ``e > 0``, for any ``M_rad`` the Class-N
+            ``sin`` cascade cannot reduce, in the pure cascade's own words (at
+            ``e == 0`` ``M_rad`` is returned for any value, NaN and ±inf
+            included, as ``srmech_kepler_solve`` does). Through rc472
+            ``srmech_kepler_solve`` discarded ``srmech_sin``'s refusal, the
+            Newton iteration never moved ``E`` off its ``M`` initial guess and
+            the caller was handed ``E == M`` with ``SRMECH_OK``; rc473
+            propagated the refusal, and since repair round 1 the symbol
+            refuses that ``M`` at the Q61 reduction, before any iterate
+            exists.
 
-            **rc473 twin-defect pass (`#T1188`) — the TOLERANCE slot.** It
-            reaches no callee: it is only ever the right-hand side of
-            ``|delta| < tolerance``, so a non-finite one was never examined.
+            **rc473 twin-defect pass (`#T1188`) — the TOLERANCE slot.** Until
+            repair round 1 it reached no callee: it was only ever the
+            right-hand side of ``|delta| < tolerance``, so a non-finite one
+            was never examined.
             MEASURED on an authenticated rc473 cell (ABI 26) at ``1ab8d405b``,
             before the repair, at ``M = pi/2``, ``e = 0.0549``,
             ``max_iter = 20``: ``tolerance=+inf`` returned
@@ -315,12 +322,14 @@ def kepler_solve(
 
     * ``M`` is reduced once to its Q61 octant and residue; ``E`` is carried as
       ``M + eps`` with ``eps`` a Q61 integer, and ``sin E`` / ``cos E`` are
-      read off the residue plus ``eps``, re-reduced by whole quarter turns —
-      no float between steps.
+      read off the residue plus ``eps``, re-reduced by whole quarter turns,
+      through the Q61 Taylor cores ``_q61_sin_core`` / ``_q61_cos_core`` — no
+      float between steps.
     * ``e`` multiplies on the Q61 grid, rounded half away from zero; the
       Newton step ``round(g * 2**61 / g')`` is one integer division; and the
       iterate is held in its own bracket ``|eps| <= round(e * 2**61)``, where
-      every fixed point lies because ``|sin E| <= 1``.
+      every fixed point lies because ``|sin E| <= 1`` (so ``|eps| * 2**-61``
+      exceeds ``e`` by at most ``2**-62``, at a rounding tie).
     * CONVERGED means ``|step| * 2**-61 < tolerance``, decided exactly. A
       zero or negative tolerance is never met, as before; a tolerance below
       one grid unit is met only by a zero step.
@@ -328,7 +337,9 @@ def kepler_solve(
       (ties to even) — the last mile.
 
     The carrier resolves ``2**-61`` rad absolute, the resolution
-    ``rational.sin`` itself has. MEASURED after the repair on the same cells:
+    ``rational.sin`` itself has. This is Newton-Raphson at that declared
+    precision: not an exact root of Kepler's equation, and not a cyclic form
+    of it. MEASURED after the repair on the same cells:
     the 306 frontier rows and the 107 slot-sweep rows are the same outcome in
     both cells, verdict, value and text; the C symbol matches this iteration
     bit for bit over a seeded 200000-row fuzz (184218 rows compared, 15782
@@ -371,8 +382,8 @@ def kepler_solve(
         # refuses two things here, and the pure body below re-raises each in
         # the same order: a non-finite tolerance (checked before its own
         # ``e == 0`` shortcut, as the tolerance check below precedes the pure
-        # one), and an ``M_rad`` the Q61 ``sin`` cascade cannot reduce (which
-        # ``rational.sin`` refuses on the first line of the iteration).
+        # one), and, for ``e > 0`` only, an ``M_rad`` the Q61 reduction cannot
+        # hold (which ``rational.sin`` refuses just before the Q61 iteration).
     # Pure-Python fallback, and the refusal path above.
     #
     # rc473 twin-defect pass (`#T1188`): the tolerance check lives HERE, after

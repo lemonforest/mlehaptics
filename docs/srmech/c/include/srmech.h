@@ -710,11 +710,11 @@ extern "C" {
  *      and kepler_solve served a non-finite tolerance, +Inf returning the
  *      ONE-Newton-step estimate as converged and NaN / -Inf returning
  *      SRMECH_ERR_OVERFLOW, i.e. "did not converge" about an argument that was
- *      never a tolerance. Each is a slot that reaches no callee (the geometry
- *      enters at bare double arithmetic; the tolerance is only a comparison
- *      right-hand side), so the refusal belongs to these functions. The pure
- *      projection refused all of them at the Q carrier. Same sentence as
- *      before: co-equal projections must agree on what they refuse.
+ *      never a tolerance. Each slot reached no callee that checked it (the
+ *      geometry enters at bare double arithmetic; until clause (c) the
+ *      tolerance was only a comparison right-hand side), so the refusal is
+ *      these functions' own, and the pure projection refused all of them.
+ *      Same sentence: co-equal projections must agree on what they refuse.
  *
  *      (c) srmech_kepler_solve DECIDES CONVERGENCE ON THE Q61 CARRIER (repair
  *      round 1). Its double Newton step could reach an exact 0.0 or stall one
@@ -4437,16 +4437,16 @@ srmech_status_t srmech_pin_slot(double  theta,
                                 double  pin_distance,
                                 double *out_phi);
 
-/* Newton-Raphson on Kepler's equation M = E - e*sin(E). Inputs in radians.
- * 0 <= e < 1, max_iter > 0 and a finite tolerance are required, and M must
- * have a Q61 reduction; otherwise SRMECH_ERR_BAD_INPUT. Initial guess via
- * Smith (1979): E_0 = M + e*sin(M). Converges in 4-6 iter for e < 0.5;
- * e >= 0.95 may need >30. Since rc473 repair round 1 E is carried on the Q61
- * quarter-turn carrier as M + eps with |eps| <= e, CONVERGED means
- * |step| * 2^-61 < tolerance decided exactly, and the answer is M + eps
- * correctly rounded to double: one integer iteration, bit-identical to the
- * pure srmech.math.kepler.kepler_solve. Returns SRMECH_ERR_OVERFLOW if not
- * converged within max_iter (caller gets that best-effort E in out_E_rad). */
+/* Newton-Raphson on Kepler's equation M = E - e*sin(E), radians. Requires
+ * 0 <= e < 1, max_iter > 0, a finite tolerance and, for e > 0 only, an M with
+ * a Q61 reduction; otherwise SRMECH_ERR_BAD_INPUT. At e == 0 E = M is served
+ * for any M, NaN and +-Inf included. Smith (1979) starter E_0 = M + e*sin(M).
+ * Since rc473 repair round 1, E = M + eps with eps a Q61 integer bracketed by
+ * round(e * 2^61) units, sin/cos from the Q61 Taylor cores, CONVERGED iff
+ * |step| * 2^-61 < tolerance (compared exactly), E = M + eps rounded to double:
+ * Newton at a declared 2^-61 rad precision, not an exact root, bit-identical
+ * to the pure srmech.math.kepler.kepler_solve. SRMECH_ERR_OVERFLOW if not
+ * converged within max_iter (best-effort E in out_E_rad). */
 srmech_status_t srmech_kepler_solve(double    M_rad,
                                     double    e,
                                     double    tolerance,

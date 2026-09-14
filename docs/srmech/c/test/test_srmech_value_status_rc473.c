@@ -458,18 +458,18 @@ static void rows_composites(void)
     printf("\n[discard] composites must propagate the status their callees return\n");
 
     /* 4 * (2^53 + 1) reaches exactly 2^55, which srmech_sin already refuses;
-     * srmech_kepler.c:180 discards that refusal. This is the row the whole rc
-     * is named for. */
+     * at rc472 srmech_kepler.c:180 discarded that refusal. This is the row the
+     * whole rc is named for. */
     st = srmech_equation_of_centre(9007199254740993.0, 0.0549, 4, &out);
     check_refuses(st, out, "equation_of_centre(2^53+1, 0.0549, 4)");
 
-    /* srmech_cos(2^55) already refuses; srmech_kepler.c:97 discards it. */
+    /* srmech_cos(2^55) already refuses; rc472's srmech_kepler.c:97 dropped it. */
     st = srmech_pin_slot(SRMECH_VS_2_55, 0.5, 1.0, &out);
     check_refuses(st, out, "pin_slot(2^55, 0.5, 1.0)");
 
-    /* srmech_sin(2^55) already refuses; srmech_kepler.c:130 discards it, and
-     * the Newton iteration then never moves E off its M initial guess, so the
-     * caller is handed E == M with SRMECH_OK. */
+    /* srmech_sin(2^55) already refuses; rc472's srmech_kepler.c:130 discarded
+     * it, and the Newton iteration then never moved E off its M initial guess,
+     * so the caller was handed E == M with SRMECH_OK. */
     st = srmech_kepler_solve(SRMECH_VS_2_55, 0.3, 1e-12, 20, &out);
     check_refuses(st, out, "kepler_solve(2^55, 0.3, 1e-12, 20)");
 

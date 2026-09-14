@@ -26,7 +26,7 @@ SEVEN of them serve-vs-refuse (ADR-0009 §2.4):
         native serves, pure never converges — the convergence seam, which
         is not a slot, and which repair round 1 closed (below)
 
-The +inf tolerance row is the sharpest: `|delta| < +inf` is true on the first
+The +inf tolerance row is the sharpest: `|delta| < +inf` was true on the first
 Newton step, so C returned the ONE-STEP estimate (the same value the
 `max_iter=1` row prints) and reported convergence. NaN and -inf tolerances
 were the same defect wearing a different answer — C ran the loop out and the
@@ -51,11 +51,14 @@ rows below therefore drive `PIN_THETAS`, not only `theta = 0.0`.
 REPAIR ROUND 1 — THE SEAM AND THE TEXT, CLOSED
 ==============================================
 Both projections now run ONE iteration for `kepler_solve`: E carried on the
-Q61 quarter-turn carrier as M's reduction plus a Q61 correction, the Newton
-step one integer division bracketed by `|E - M| <= e`, convergence decided
-exactly as `|step| * 2**-61 < tolerance`, and the answer — and `best_E` in the
-non-convergence message — the correctly rounded double of the iterate
-(`srmech_trig_kepler_q61` in `c/src/srmech_trig.c`; `kepler._kepler_q61`).
+Q61 quarter-turn carrier as M's reduction plus a Q61 correction `eps`, sin and
+cos from the Q61 Taylor cores, the Newton step one integer division with `eps`
+bracketed by `round(e * 2**61)` Q61 units (at most `2**-62` rad above `e`),
+convergence decided exactly as `|step| * 2**-61 < tolerance`, and the answer —
+and `best_E` in the non-convergence message — the correctly rounded double of
+the iterate (`srmech_trig_kepler_q61` in `c/src/srmech_trig.c`;
+`kepler._kepler_q61`). It is Newton-Raphson at a declared `2**-61` rad
+precision, not an exact root of Kepler's equation.
 Measured on the WSL2 gcc cell against a pure sibling after the repair: the
 slot sweep 107 SAME / 0 / 0, the tolerance frontier 306 SAME / 0 / 0, and the
 C symbol against `kepler._kepler_q61` over a seeded 200000-row fuzz (184218
@@ -66,9 +69,10 @@ still say "differ".
 WHERE EACH REFUSAL LIVES
 ========================
 Neither `pin_offset` / `pin_distance` nor `tolerance` reaches a callee that
-could check it: the geometry enters at the bare double arithmetic `x =
-pin_distance + pin_offset * cs`, and `tolerance` is only ever the right-hand
-side of `adelta < tolerance`. So the refusal belongs to `srmech_pin_slot` and
+checks it: the geometry enters at the bare double arithmetic `x =
+pin_distance + pin_offset * cs`, and `tolerance` was only ever the right-hand
+side of `adelta < tolerance` until repair round 1, which hands it to the Q61
+iteration only after the finite check. So the refusal belongs to `srmech_pin_slot` and
 `srmech_kepler_solve`, beside their existing (0, 0) refusal and eccentricity
 band. The Python checks that supply the one text both cells raise sit AFTER
 the native call — the placement rc473 gave `equation_of_centre` — so a native
@@ -80,13 +84,18 @@ takes a `uint32_t`, `ctypes.c_uint32` wraps a wider value silently, and no C
 code can refuse a value its parameter type cannot hold. That precondition is
 therefore checked before dispatch, in both cells, with one text.
 
-WHAT DELIBERATELY DID NOT MOVE
-==============================
-A FINITE tolerance of any sign or magnitude. Zero, -0.0, negative and huge
-finite tolerances still run to non-convergence in BOTH projections, which is
-what they already agreed on; `test_a_finite_tolerance_is_unchanged` is that
-control, and without it this file would be equally consistent with a guard
-that refuses far more than it was written to refuse.
+WHAT THE FINITE-TOLERANCE GUARD DELIBERATELY DID NOT MOVE
+=========================================================
+The VERDICT of a finite tolerance at the base row (`M = pi/2`, `e = 0.0549`,
+`max_iter = 20`): `1e-12`, `1e300` and `2**55` converge — a huge one on the
+first step — and `0.0`, `-0.0`, `-1.0` and `-2**55` never do.
+`_FINITE_TOLERANCES` records those verdicts as measured before the guard, and
+`test_a_finite_tolerance_is_unchanged` pins them; without it this file would
+be equally consistent with a guard that refuses far more than it was written
+to refuse. Repair round 1 then moved finite-tolerance VALUES
+(`kepler_solve(pi/2, 0.9)` is `2.263415106356943`; the pre-repair loop gave
+`2.2634151063569425`) and, wherever the two old loops disagreed on a verdict,
+the verdict of at least one of them. The rows above pin the one answer now.
 
 numpy-free.
 """
@@ -250,6 +259,26 @@ def test_kepler_solve_refuses_a_non_finite_tolerance(
     )
 
 
+@pytest.mark.parametrize("label,value", NON_FINITE)
+def test_kepler_solve_refuses_a_non_finite_tolerance_at_e_zero(
+    label: str, value: float,
+) -> None:
+    """The ``e == 0`` shortcut, on EVERY cell (rc473 close-out, `#T1188`).
+
+    ``kepler_solve`` returns ``M_rad`` at ``e == 0``, and its tolerance check
+    must come first, as ``srmech_kepler_solve``'s does. The through-symbol row
+    below pins that order on a native cell only; this row runs on a pure cell
+    too, so moving the pure check after the ``e == 0.0`` return reddens a pure
+    CI shard as well.
+    """
+    with pytest.raises(ValueError) as excinfo:
+        kepler.kepler_solve(KEP_BASE["M_rad"], 0.0, tolerance=value,
+                            max_iter=KEP_BASE["max_iter"])
+    assert "tolerance must be finite" in str(excinfo.value), (
+        f"kepler_solve(e=0.0, tolerance={label}) raised {excinfo.value!r}"
+    )
+
+
 # ── the controls: what the repair must NOT have taken with it ──
 
 #: `(tolerance, converges?)` — the MEASURED pre-repair behaviour of every
@@ -268,12 +297,13 @@ _FINITE_TOLERANCES: "tuple[tuple[float, bool], ...]" = (
 
 @pytest.mark.parametrize("tol,converges", _FINITE_TOLERANCES)
 def test_a_finite_tolerance_is_unchanged(tol: float, converges: bool) -> None:
-    """Finite tolerances of every sign and magnitude still behave as before.
+    """At the base row, finite tolerances of every sign and magnitude keep the
+    verdict recorded before the finite-tolerance guard.
 
-    Both outcomes are the pre-repair behaviour and both are what the two
-    projections already agreed on, so a guard that swallowed either would be
-    over-refusing — which is the failure mode a repair to a refusal contract
-    is most exposed to.
+    Both outcomes are the pre-guard verdicts at this row and both were what
+    the two projections already agreed on there, so a guard that swallowed
+    either would be over-refusing — which is the failure mode a repair to a
+    refusal contract is most exposed to.
     """
     if converges:
         value = kepler.kepler_solve(KEP_BASE["M_rad"], KEP_BASE["e"],
@@ -641,7 +671,8 @@ def _outcome_stream() -> bytes:
 #: rows. Printed identically, after the repair and after `_fuzz_rows` stopped
 #: using float `**`, by the authenticated WSL2 gcc native cell (CPython
 #: 3.12.3), its pure sibling on CPython 3.12.3 and 3.10, the authenticated
-#: Windows clang-cl 22.1.0 Debug cell and a Windows pure cell (CPython 3.14.4).
+#: Windows clang-cl 22.1.0 Release and Debug cells and a Windows pure cell
+#: (CPython 3.14.4).
 #: (The first pin, `4977176573515e9e…`, was printed on the Linux cells only,
 #: and a Windows cell printed `7f33761e5e48b9a3…` for it — see `_fuzz_rows`.)
 _OUTCOME_DIGEST = "9585bbd6dacbd77a71ef89722e13c22476794572d7b7e667ef528fb4c0323cd0"
@@ -699,7 +730,8 @@ def test_the_kepler_comparator_can_still_report_a_difference() -> None:
     assert old_v.startswith("refuse") and new_v.startswith("serve"), (old_v, new_v)
 
     x = 2.263415106356943
-    assert "serve %r" % (x,) != "serve %r" % (math.nextafter(x, math.inf),)
+    assert _outcome(lambda: x) != _outcome(lambda: math.nextafter(x, math.inf)), (
+        "_outcome rendered two doubles one ULP apart as the same text")
 
     assert _pre_repair_outcome(PI_2, 0.0549, 1e-12, 30) == _outcome(
         lambda: kepler.kepler_solve(PI_2, 0.0549)), (

@@ -571,7 +571,7 @@ def test_equation_of_centre_the_named_defect() -> None:
     """The row the whole rc is named for.
 
     ``4 * (2**53 + 1)`` is exactly ``2**55``, which ``srmech_sin`` already
-    refuses; ``srmech_kepler.c:180`` discards that refusal. Measured at rc472:
+    refuses; at rc472 ``srmech_kepler.c:180`` discarded that refusal. Measured then:
     ``(SRMECH_OK, -0.08984990210223018)`` from C, ``ValueError`` from Python.
     """
     fn = _bind("srmech_equation_of_centre", [_D, _D, _U32, _DP])
@@ -605,7 +605,8 @@ def test_the_eccentricity_band_is_refused_identically_by_both_projections(
     ``7665c594c`` that guard was written ``e < 0.0 || e >= 1.0`` — NaN-BLIND,
     since both comparisons are false for a NaN, so the rejecting branch was
     not taken. The Python peer has always spelled it ``not (0.0 <= e < 1.0)``
-    (``kepler.py:151``/``:244``), which IS NaN-catching.
+    (in ``kepler.kepler_solve`` and ``kepler.equation_of_centre``), which IS
+    NaN-catching.
 
     Measured at ``7665c594c`` before the repair, native cell, ABI 26 == 26,
     CPython 3.12.3, numpy absent::
@@ -652,7 +653,8 @@ def test_pin_slot_propagates_its_cos_refusal() -> None:
     assert python_refused, f"Python returned {python_result!r}"
     assert status != _native.SRMECH_OK, (
         f"pin_slot(2^55, 0.5, 1.0) returned SRMECH_OK with {out.value!r}; "
-        "srmech_cos(2^55) already refuses and srmech_kepler.c:97 discards it"
+        "srmech_cos(2^55) already refuses, and rc472's srmech_kepler.c:97 "
+        "discarded it"
     )
 
 

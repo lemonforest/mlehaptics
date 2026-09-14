@@ -956,7 +956,10 @@ srmech_status_t srmech_atan_q61(double x, int64_t *out_q61)
  *     int / int true division returns. On non-convergence the best-effort E
  *     is that same double, so both cells render one text.
  * The carrier resolves 2^-61 rad absolute, which is srmech_sin's own
- * resolution; below |E| of about 2^-8 a double's ULP is finer than that.
+ * resolution: a double's ULP is finer than that below |E| = 2^-9 and equal to
+ * it on [2^-9, 2^-8). This is Newton-Raphson over the Q61 Taylor cores at that
+ * declared precision, not an exact root of Kepler's equation and not a cyclic
+ * form of it.
  * ====================================================================== */
 
 #define KQ_SAT (INT64_C(1) << 62)   /* a step this large already leaves the bracket */

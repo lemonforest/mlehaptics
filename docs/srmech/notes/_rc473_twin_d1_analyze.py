@@ -1,6 +1,6 @@
-"""D1 analysis over dumps from m_d1_dump.py.
+"""D1 analysis over dumps from notes/_rc473_twin_d1_dump.py.
 
-Usage: python m_d1_analyze.py <python-root for srmech> <mode> <json...>
+Usage: python notes/_rc473_twin_d1_analyze.py <python-root for srmech> <mode> <json...>
 
 mode "before <base.json> [rc472.json]":
     the pre-repair C: w/theta_res agreement on the 24 filed angles, the

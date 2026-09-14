@@ -3,7 +3,7 @@ time off a known-good baseline, through the PUBLIC op on this cell and (native)
 the raw C symbol. Extends the crashed pass's d2_slots.py with subnormal and
 +/-5e-324 scalars in every float slot and max_iter at the uint32 wire edge.
 
-Usage: python m_d2_slots.py <python-root> <out.json>
+Usage: python notes/_rc473_twin_d2_slot_sweep.py <python-root> <out.json>
 """
 import ctypes
 import json
