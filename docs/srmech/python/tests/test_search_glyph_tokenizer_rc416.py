@@ -1314,8 +1314,13 @@ from srmech.math.text import fold_marks, glyph_stream
 #: declared Q61 precision; the regenerated `_tool_docs.py` carries curated
 #: kepler / pin_slot / equation_of_centre explanations that no longer call the
 #: solver exact or the pin-slot identical to Kepler's equation, and module
-#: citations in place of the kepler.py:NN lines rc473's own growth of kepler.py
-#: had made false. CONFIRMED A PROSE MOVE AND NOT A NON-DETERMINISTIC BUILD, by
+#: citations in place of eight kepler.py:NN spellings. The :51, :102 and :169
+#: spellings were already one line off at rc472's `b398b8c46`, where each def
+#: sat one line lower than at the rc470 and rc471 tags, and rc473 moved them
+#: further; the :27-29, :28 and :29 spellings were exact there and were made
+#: false by rc473's own growth of kepler.py. (This comment gave rc473's growth
+#: as the cause of all eight until close-out repair round 1.) CONFIRMED A
+#: PROSE MOVE AND NOT A NON-DETERMINISTIC BUILD, by
 #: the same procedure: FIVE `_build_frames("all")` calls inside each of THREE
 #: fresh interpreters in a WSL2 clone outside every session worktree (CPython
 #: 3.12.3, native cell, library `3f587b6a57ab0cdf`, authenticated) returned
