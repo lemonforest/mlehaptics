@@ -1333,8 +1333,28 @@ from srmech.math.text import fold_marks, glyph_stream
 #: ALONE onto the old state: `_tool_docs.py` -> `74fb3809…`, `tool_schema.py`
 #: -> `59686a36…`, the other two -> no move. All four old -> `bb82a3fd…`, the
 #: pin below; all four new -> `f28fb52c…`.
+#: A TWELFTH pin, in rc473's truth round (`#T1188`), for one cause: the
+#: regenerated `_tool_docs.py`. The curated kepler / pin_slot /
+#: equation_of_centre explanations now state what a pure cell measured against
+#: Kepler's equation instead of an identity to second order, and the stale
+#: file:line citations the close-out gates listed (six in `one.py`, the
+#: `atoms.py` / `compose.py` / `rational.py` spellings) name the module that
+#: defines each symbol, with no line number. CONFIRMED A PROSE MOVE AND NOT A
+#: NON-DETERMINISTIC BUILD, by the same procedure: FIVE `_build_frames("all")`
+#: calls inside each of THREE fresh interpreters in a git-free WSL2 tree outside
+#: every session worktree (CPython 3.12.3, native cell, library
+#: `3f587b6a57ab0cdf`, authenticated) returned `da8db24232bd…296173c9` every
+#: time, `search("rank", k=1).witness` agrees, and a pure snapshot of the same
+#: bytes returns the same digest. THE FRAME COUNT DID NOT MOVE: 761 = 732 ops +
+#: 29 carriers. THE CAUSE IS ISOLATED BOTH WAYS against the `4098516e6` blobs;
+#: exactly three package files differ. Each reverted ALONE from the new state:
+#: `_tool_docs.py` -> `f28fb52c…`, `_tool_docs_curated.py` and
+#: `math/kepler.py` -> no move. Each applied ALONE onto the old state:
+#: `_tool_docs.py` -> `da8db242…`, the other two -> no move. All three old ->
+#: `f28fb52c…`, the pin below; all three new -> `da8db242…`.
 WITNESS_RC416 = (
-    "f28fb52c01b61054dd3424eb26071b9324408b4781d6159cc6016c42225dd0b4")
+    "da8db24232bd1b404cc0a0daa307f8f93c688a9f8a80a2eead8ab6ef296173c9")
+#: was: f28fb52c01b61054dd3424eb26071b9324408b4781d6159cc6016c42225dd0b4 (rc473 close-out)
 #: was: bb82a3fd0f0f51b9e8ce23ddb2c952255ce5c56924a2b061119a55e683711659 (rc473 repair round 1)
 #: was: ddcc47f6c5c33d985c0101e245ca3658805811c4edca01ab63ab267e3a3dcea1 (rc473 twin-defect pass)
 #: was: f595e2da9b69b91fc8ecc04e25f4f00bd870ef45dac9b19bcf2cc7ad5c01e35a (rc473 repair pass)
