@@ -1308,8 +1308,29 @@ from srmech.math.text import fold_marks, glyph_stream
 #: `_tool_docs.py` -> `ddcc47f6…` and back to `bb82a3fd…`;
 #: `_tool_docs_curated.py`, `math/kepler.py` and `cascade/one.py` -> no move.
 #: All four reverted together -> `ddcc47f6…`; restored -> `bb82a3fd…`.
+#: An ELEVENTH pin, in rc473's close-out (`#T1188`), for two causes, both
+#: prose that ships. `tool_schema.py`'s kepler_solve summary lost "converges
+#: in 4-6 iter for e < 0.5" (false against the measured 3-7) and now names the
+#: declared Q61 precision; the regenerated `_tool_docs.py` carries curated
+#: kepler / pin_slot / equation_of_centre explanations that no longer call the
+#: solver exact or the pin-slot identical to Kepler's equation, and module
+#: citations in place of the kepler.py:NN lines rc473's own growth of kepler.py
+#: had made false. CONFIRMED A PROSE MOVE AND NOT A NON-DETERMINISTIC BUILD, by
+#: the same procedure: FIVE `_build_frames("all")` calls inside each of THREE
+#: fresh interpreters in a WSL2 clone outside every session worktree (CPython
+#: 3.12.3, native cell, library `3f587b6a57ab0cdf`, authenticated) returned
+#: `f28fb52c01b6…225dd0b4` every time, `search("rank", k=1).witness` agrees,
+#: and a pure clone of the same bytes returns the same digest. THE FRAME COUNT
+#: DID NOT MOVE: 761 = 732 ops + 29 carriers. THE CAUSE IS ISOLATED BOTH WAYS
+#: against the `5a0f65855` blobs. Each file reverted ALONE from the new state:
+#: `_tool_docs.py` -> `59686a36…`, `tool_schema.py` -> `74fb3809…`,
+#: `_tool_docs_curated.py` and `math/kepler.py` -> no move. Each file applied
+#: ALONE onto the old state: `_tool_docs.py` -> `74fb3809…`, `tool_schema.py`
+#: -> `59686a36…`, the other two -> no move. All four old -> `bb82a3fd…`, the
+#: pin below; all four new -> `f28fb52c…`.
 WITNESS_RC416 = (
-    "bb82a3fd0f0f51b9e8ce23ddb2c952255ce5c56924a2b061119a55e683711659")
+    "f28fb52c01b61054dd3424eb26071b9324408b4781d6159cc6016c42225dd0b4")
+#: was: bb82a3fd0f0f51b9e8ce23ddb2c952255ce5c56924a2b061119a55e683711659 (rc473 repair round 1)
 #: was: ddcc47f6c5c33d985c0101e245ca3658805811c4edca01ab63ab267e3a3dcea1 (rc473 twin-defect pass)
 #: was: f595e2da9b69b91fc8ecc04e25f4f00bd870ef45dac9b19bcf2cc7ad5c01e35a (rc473 repair pass)
 #: was: dfa2770091f08f92774fa3e4fc52617e0f8091bfde9961b3223e60a47fc3fad7 (rc472 repair pass)
