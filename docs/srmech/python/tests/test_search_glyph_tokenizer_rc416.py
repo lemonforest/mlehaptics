@@ -1291,8 +1291,26 @@ from srmech.math.text import fold_marks, glyph_stream
 #: `math/laplacian.py` -> no move at all (the corpus reads the GENERATED docs,
 #: not the curated source, and no op docstring). All six reverted together ->
 #: `f595e2da9b…`, the pin below; restored -> `ddcc47f6…`.
+#: A TENTH pin, in rc473's REPAIR ROUND 1 (`#T1188`), for one cause: the
+#: regenerated `_tool_docs.py`. The merge gate found the 23 curated C-peer
+#: citations missing the symbols they name, so they now cite
+#: `c/include/srmech.h` by symbol; the curated `search.search` example's
+#: `['Mat', 'QMat']` became the `['Mat', 'int']` both cells return; and the
+#: `kepler_solve` transcript moved to `2.263415106356943`. CONFIRMED A PROSE
+#: MOVE AND NOT A NON-DETERMINISTIC BUILD, by the same procedure: FIVE
+#: `_build_frames("all")` calls inside each of THREE fresh interpreters in a
+#: WSL2 clone outside every session worktree at `f93ca67bc` (CPython 3.12.3,
+#: native cell, library `607700d5152cff82`, authenticated) returned
+#: `bb82a3fd0f0f…683711659` every time, `search("rank", k=1).witness` agrees,
+#: and a pure snapshot of the same bytes returns the same digest. THE FRAME
+#: COUNT DID NOT MOVE: 761 = 732 ops + 29 carriers. THE CAUSE IS ISOLATED,
+#: each file reverted ALONE to its `2eb05877f` blob and then restored:
+#: `_tool_docs.py` -> `ddcc47f6…` and back to `bb82a3fd…`;
+#: `_tool_docs_curated.py`, `math/kepler.py` and `cascade/one.py` -> no move.
+#: All four reverted together -> `ddcc47f6…`; restored -> `bb82a3fd…`.
 WITNESS_RC416 = (
-    "ddcc47f6c5c33d985c0101e245ca3658805811c4edca01ab63ab267e3a3dcea1")
+    "bb82a3fd0f0f51b9e8ce23ddb2c952255ce5c56924a2b061119a55e683711659")
+#: was: ddcc47f6c5c33d985c0101e245ca3658805811c4edca01ab63ab267e3a3dcea1 (rc473 twin-defect pass)
 #: was: f595e2da9b69b91fc8ecc04e25f4f00bd870ef45dac9b19bcf2cc7ad5c01e35a (rc473 repair pass)
 #: was: dfa2770091f08f92774fa3e4fc52617e0f8091bfde9961b3223e60a47fc3fad7 (rc472 repair pass)
 #: was: 6c51206c057f6728dc80d2cd08821b9ca67b19695e219a8ddc1af03ede1c2b0e (rc471 repair pass)
