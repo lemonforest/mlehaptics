@@ -684,6 +684,43 @@ extern "C" {
  *      (SRMECH_NODISCARD) is a DIAGNOSTIC, not a wire change, and contributes
  *      nothing to this bump.
  *
+ *      v26 ALSO COVERS TWO FURTHER rc473 CONTRACT MOVES, landed later in the
+ *      same (unreleased) rc so they ride the same bump rather than minting
+ *      v27 — the rule v21 states of itself ("v21 ALSO COVERS A SECOND rc452
+ *      CONTRACT MOVE, of the v19 shape, landed later in the same (unreleased)
+ *      rc so it rides the same bump rather than minting v22"). Both are this
+ *      bump's own SILENT-WRONG-VALUE ground, not a new kind.
+ *
+ *      (a) srmech_winding_fold RETURNS A DIFFERENT RESIDUE. It folded against
+ *      the 64-bit 2/π quarter-turn constant while its pure peer folds against
+ *      the Machin-2π rational, and the two answers drifted apart at
+ *      8.0387e-21 rad per whole turn — 4.0193e-05 rad = 7.07e8 × 2^-44 at
+ *      theta = 3.1415926535897932e16, an ordinary finite angle inside the
+ *      function's own 2^55 door, with 17 of 24 probed angles more than one
+ *      step of the pure grid apart. It now folds against that same rational
+ *      on that same 2^-44 grid, which is the fold's contract; measured on
+ *      WSL2 gcc 13.3.0 Release, (w, theta_out) is bit-identical to the pure
+ *      fold over the 24 filed, 21 further named and 40000 fuzzed angles. A
+ *      VALUE change on an exported symbol, which is what v21 and this entry's
+ *      own half (1) bumped for. srmech_sin / srmech_cos are untouched.
+ *
+ *      (b) srmech_pin_slot and srmech_kepler_solve REFUSE MORE. pin_slot
+ *      served a non-finite pin_offset / pin_distance — pin_slot(0.0, 1.0,
+ *      +Inf) -> (SRMECH_OK, 0.0), -Inf -> (SRMECH_OK, 3.141592653589793) —
+ *      and kepler_solve served a non-finite tolerance, +Inf returning the
+ *      ONE-Newton-step estimate as converged and NaN / -Inf returning
+ *      SRMECH_ERR_OVERFLOW, i.e. "did not converge" about an argument that was
+ *      never a tolerance. Each is a slot that reaches no callee (the geometry
+ *      enters at bare double arithmetic; the tolerance is only a comparison
+ *      right-hand side), so the refusal belongs to these functions. The pure
+ *      projection refused all of them at the Q carrier. Same sentence as
+ *      before: co-equal projections must agree on what they refuse.
+ *
+ *      Neither needs its own version because no artifact carrying ABI 26 has
+ *      been released — rc473 is unmerged and untagged, and the newest library
+ *      in the wild is rc472 at ABI 25, which EXPECTED_ABI_VERSION 26 already
+ *      refuses.
+ *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  */
 #define SRMECH_ABI_VERSION 26
@@ -1918,11 +1955,36 @@ srmech_status_t srmech_unwrapped_phase(int64_t w0, int64_t w1, int64_t w2,
  * the #741 mod-should-be-divmod audit's first concrete instance):
  * theta = 2π·(*w_out) + (*theta_out), *w_out = round(theta/2π)
  * (round-half-toward-+inf, the Python _eph_round_div convention),
- * |*theta_out| <= π. Computed on the SAME integer 2/π quarter-turn
+ * |*theta_out| <= π. The integer 2/π quarter-turn reduction srmech_cos /
+ * srmech_sin fold with SEEDS the winding; the winding and the residue are
+ * then settled EXACTLY, in integers, against the Machin-2π rational
+ * srmech.math.laplacian._EPH_TWO_PI (N / 2^80) and emitted on that peer's
+ * 2^-44 grid — so the two projections return the IDENTICAL (w, theta) pair,
+ * the quotient (the METACYCLE winding) retained instead of discarded, the
+ * remainder the EPICYCLE residue.
+ *
+ * ⚠️ CORRECTED 0.9.0rc473 (`#T1188`), and the correction is a VALUE change.
+ * The sentence above read "Computed on the SAME integer 2/π quarter-turn
  * machinery srmech_cos / srmech_sin already fold with (no forked 2π
- * constant), so the (w, theta) pair IS the fold's own divmod — the
- * quotient (the METACYCLE winding) retained instead of discarded, the
- * remainder the EPICYCLE residue. Same domain as srmech_cos: returns
+ * constant), so the (w, theta) pair IS the fold's own divmod". The
+ * parenthesis named one constant where the two projections used two: this
+ * function read its residue off the 64-bit 2/π (own error 8.1449e-22 =
+ * 2^-70.06, which a fold inherits as π²·δ per whole turn), while the pure
+ * peer folded against the Machin-2π rational. MEASURED at 1ab8d405b on an
+ * authenticated rc473 cell (ABI 26, WSL2 gcc 13.3.0 Release), 24 angles: w
+ * equal on every row, theta_out bit-equal on 1 and more than one 2^-44 step
+ * apart on 17 — the gap grew at up to 8.0387e-21 rad per turn and reached
+ * 4.0193e-05 rad = 7.07e8 × 2^-44 at theta = 3.1415926535897932e16, inside
+ * this function's own door. Pre-existing (a b398b8c46 / ABI 25 build returns
+ * the same status, w and theta_out on all 40045 probed angles), repaired
+ * here, and measured bit-identical to the pure fold after the repair over
+ * the 24 filed, 21 further named and 40000 fuzzed angles. The 2^-44 grid is
+ * the fold's contract, shared by the pure fold's two consumers (the trig
+ * readout and propagate_wound), so the residue is emitted on it rather than
+ * at Q61. srmech_sin and srmech_cos are UNCHANGED; only the winding fold
+ * settles.
+ *
+ * Same domain as srmech_cos: returns
  * SRMECH_ERR_BAD_INPUT for NaN / Inf / |theta| >= 2^55, with *theta_out set
  * to NaN and *w_out to 0; SRMECH_ERR_NULL_ARG for a NULL out pointer.
  *
@@ -3323,7 +3385,9 @@ srmech_status_t srmech_eph_propagate_sparse(
  * One's (σ, θ, w) crank vocabulary:
  *   w_k     = round(Im(z)·λ_k / 2π)  — the metacycle winding, the
  *             quotient of the SAME divmod the fold performs
- *             (srmech_winding_fold — no forked 2π constant);
+ *             (srmech_winding_fold; one 2π constant across both
+ *             projections since rc473 — this clause read "no forked 2π
+ *             constant" while there were two, see that function's ⚠️);
  *   θ_k     = the folded epicycle residue, |θ| <= π,
  *             2π·w_k + θ_k == Im(z)·λ_k on the fold's grid (lossless —
  *             the One.unwrapped_phase reconstruction per mode);
