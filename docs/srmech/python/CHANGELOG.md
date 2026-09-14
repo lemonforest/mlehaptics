@@ -995,6 +995,59 @@ Every row beyond the message's count is the stream digest or a golden, so the pi
   * **What changed.** The close-out's "three" held only as a count of distinct addresses. The bullet above and the pull request body now name all six.
   * **Dated record, not rewritten:** commit `05c16340d` ("three one.py:NNN curated citations already false at b398b8c46").
 
+**Validation of `ecc6b3d99` — dated to that commit.** It is the commit that carries the three corrections above. The commit that carries this record changes only this file.
+
+* **What `ecc6b3d99` changes against the validated code head `fdbef425d`.** `git diff --stat` lists two files: `CHANGELOG.md` (78 insertions) and `tests/test_search_glyph_tokenizer_rc416.py` (7 insertions, 2 deletions). `git rev-parse` prints the same tree id at both commits for:
+  * `docs/srmech/c` (`ff5799b8…`);
+  * `docs/srmech/python/srmech` (`59cbfa39…`);
+  * `docs/srmech/python/tools` (`0085cc8b…`);
+  * `docs/srmech/notes` (`23454804…`);
+  * and the same blob id for `tests/test_kepler_non_finite_slots_rc473.py` (`e1e5f955…`).
+* **WSL2 native cell.** The close-out's clone, outside every session worktree, re-synced to `ecc6b3d99`.
+  * **Build:** gcc 13.3.0, Release, `SRMECH_PEDANTIC=ON` with 178 `-Werror` in `build.ninja`. The incremental build printed "ninja: no work to do": exit 0, 0 warnings, 0 errors, and `nm -D` finds 0 `__assert_fail`.
+  * **Library:** `libsrmech.so` `3f587b6a57ab0cdf…`, authenticated: `srmech_rational_sqrt(NaN)` → 2, ABI 26, `0.9.0rc473`, with `_native.__file__` printed. ctest passes 100% of 40.
+  * **Pure clone:** 0 library files and `SRMECH_EXPECT_PURE=1`.
+  * **Every run:** CPython 3.12.3, numpy absent, `SRMECH_ALLOW_STALE_NATIVE` unset (printed).
+* **Windows, not rebuilt.** The close-out's clang-cl Release (`5613115476503f84…`) and Debug (`4914049f5cc38b9a…`) builds are of the `fdbef425d` archive, whose `docs/srmech/c` tree object is the same as `ecc6b3d99`'s.
+  * ctest re-run passes 100% of 40 on each.
+  * Each cell authenticated: status 2, ABI 26, `0.9.0rc473`.
+  * The kepler outcome-stream digest `9585bbd6dacbd77a…` over 906 rows equals the pin on Release, on Debug and on the Windows pure cell (CPython 3.14.4).
+* **The narrow gates by name** — the close-out's 28 files in three groups. Tracked changes were 0 after every group.
+
+| cell | group 1 | group 2 | group 3 |
+|---|---|---|---|
+| native | **348 passed, 6 xfailed** | **90 passed** | **196 passed, 1 skipped** |
+| pure | **168 passed, 186 skipped** | **90 passed** | **163 passed, 34 skipped** |
+
+* **The CHANGELOG-reading gates and the edited module:** `test_rc473_a6_phrase_gate_runs`, `test_pypi_readme_changelog`, `test_ref_notation_emitted_rc348` and `test_search_glyph_tokenizer_rc416`. Native **54 passed, 3 skipped**; pure **54 passed, 3 skipped**.
+* **D1**, the shipped probes.
+  * 40000 fuzzed rows → 0 symbol and 0 wrapper mismatches; the fuzz families are 11338 / 11338 / 11337 / 5987.
+  * The door rows (±2^55, NaN, ±Inf and 1e300) each give status 2 and result NaN.
+* **D2.**
+  * Slot sweep: **107 SAME / 0 / 0**.
+  * Tolerance frontier: **306 SAME / 0 / 0**.
+  * `srmech_kepler_solve` at the symbol against `kepler._kepler_q61`, 200000 rows, seed 9131: 184218 compared, 0 status mismatches, 0 bit mismatches, 15782 refused by both.
+  * Served-value witnesses: 20 lines per cell, 0 differing between native and pure. They include `kepler_solve(2**53, 0.999)` → `9007199254740992.0`, `kepler_solve(π/2, 0.9)` → `2.263415106356943`, and the non-convergence text ending `best_E=1.625613861239322)`.
+* **The whole ripple manifest**, native: 136 targets in six parts, whose union equals the manifest.
+
+| part | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| result | 484 passed | 438 passed | 1 failed, 345 passed | 567 passed, 2 skipped, 6 xfailed | 558 passed | 805 passed, 1 skipped |
+
+  * **Total: 3207 items — 3197 passed, 3 skipped, 6 xfailed, 1 failed** — the close-out's figures.
+  * **The failure** is `test_citation_manifest_rc428.py::test_the_validate_entry_point_exits_nonzero_on_a_failing_control`. It was run alone at `ecc6b3d99` and at `1ab8d405b`, in clones whose paths are both 26 characters; the base clone holds 0 library files. Both runs exit 1.
+  * **The comparison:** after normalising, the failure text is 5 lines in each run ("AssertionError: the shadowed import failed WITHOUT naming the cause: ModuleNotFoundError: No module named 'srmech'"), and the two print IDENTICAL.
+* **The demotion census from an EMPTY manifest.** The pure column ran first (165.2 s) and the native column was merged into it (40.7 s). Against the committed census, `tools/census_regen_diff.py` gives:
+  * **INVARIANT: HELD (5/5)**;
+  * meta keys moved `[]`;
+  * 0 of 835 data lines differ;
+  * **VERDICT CHANGES 0 over 1670 cells**;
+  * `by_verdict` identical in both cells.
+* **CI on `ecc6b3d99`**, each conclusion read after its run completed (never taken from the watcher's exit code):
+  * `srmech-ci` run 34861498129: `completed`, `success`, all 22 jobs `success`;
+  * `srmech-ref-guard` run 34861498132: `completed`, `success`;
+  * 23 of 23 in all.
+
 ---
 
 ## [0.9.0rc472] - `#T1188`: the census learns SCALARS, an op that answered in one projection and refused in the other, the required-scalar fill that let thirteen rows be asked — and two of rc471's own shipped sentences corrected, one for a claim that is true at exactly one binade and one for a cause that was never the cause
