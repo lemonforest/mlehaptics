@@ -1,0 +1,44 @@
+srmech 0.9.0rc472 HAS_NATIVE False
+
+[p.48/184/195] shifted-circle eigenvalues: mat_eigvals(I + P_n):
+   n=4: [(2+0j), (1-1j), (1+1j), (-0+0j)]  max ||lam-1|-1| = 1.3e-15
+   n=6: [(2+0j), (0.5-0.866025403784j), (1.5-0.866025403784j), -0j, (1.5+0.866025403784j), (0.5+0.866025403784j)]  max ||lam-1|-1| = 7.8e-16
+
+[p.49/197] fft on N=8 (spectral_cascades.fft), value only:
+    [(28+0j), (-4+9.656854249j), (-4+4j), (-4+1.656854249j), (-4+0j), (-4-1.656854249j), (-4-4j), (-4-9.656854249j)]
+   exact_dft._radix2_ring_op_count(8) = (64, 64, 3)
+
+[p.23 Ex.2.5] complex Hopf at (1/sqrt2,1/sqrt2) via octonion_hopf_base on a, b in C (16-vector):
+    a = (Q(6369051672525773, 9007199254740992), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1))
+    b = (Q(6369051672525773, 9007199254740992), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1))
+    base_O = (Q(40564819207303346393761349247529, 40564819207303340847894502572032), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1))
+    base_R = 0
+    norm_sq = 40564819207303346393761349247529/40564819207303340847894502572032
+    base_norm_sq = 1645504557321206492089141148895406768524688025302506974512605841/1645504557321206042154969182557350504982735865633579863348609024
+    on_s8 = True
+    reduces_to_h = True
+
+[p.24 Ex.2.8] quaternionic Hopf base at (q1,q2) = (1/sqrt2, 1/sqrt2) via octonion_frame_read:
+    frame = 4
+    dim = 8
+    base = (0, 1, 2, 3)
+    seam = (4, 5, 6, 7)
+    seam_chart = ((4, 0, 1), (5, 1, 1), (6, 2, 1), (7, 3, 1))
+    q0 = (Q(6369051672525773, 9007199254740992), Q(0, 1), Q(0, 1), Q(0, 1))
+    q1 = (Q(6369051672525773, 9007199254740992), Q(0, 1), Q(0, 1), Q(0, 1))
+    base_H = (Q(40564819207303346393761349247529, 40564819207303340847894502572032), Q(0, 1), Q(0, 1), Q(0, 1))
+    base_R = 0
+    norm_sq = 40564819207303346393761349247529/40564819207303340847894502572032
+    writhe = (Q(6369051672525773, 9007199254740992), Q(0, 1), Q(0, 1), Q(0, 1))
+    writhe_norm_sq = 40564819207303346393761349247529/81129638414606681695789005144064
+    canonical_affine = (Q(1, 1), Q(0, 1), Q(0, 1), Q(0, 1))
+   after right-multiplying both halves by a unit quaternion (hand-rolled qmul, disclosed), keys equal: {'frame': True, 'dim': True, 'base': True, 'seam': True, 'seam_chart': True, 'q0': False, 'q1': False, 'base_H': True, 'base_R': True, 'norm_sq': True, 'writhe': False, 'writhe_norm_sq': True, 'canonical_affine': True}
+
+[p.154] Hubble figure, two instruments:
+   srmech calculus.cos (Q61): 0.07674557899696177
+   exact cos Taylor (Fraction, 30 terms, hand-rolled): 0.07674557899696176
+   math.cos: 0.07674557899696177
+   variant t0=13.787, T=109.84: 0.076746
+   variant t0=13.8, T=109.84: 0.076888
+   variant t0=13.787, T=109.0: 0.077917
+   variant t0=13.797, T=109.84: 0.076856

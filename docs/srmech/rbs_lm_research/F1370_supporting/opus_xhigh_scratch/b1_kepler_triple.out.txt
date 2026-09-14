@@ -1,0 +1,69 @@
+srmech 0.9.0rc472 D:\GitHub/mlehaptics/docs/srmech/python\srmech\__init__.py HAS_NATIVE False
+preregistration sha256: 0e198576df7b22001ff7885adb9e9a55b7c7d4401054e6b6d9647dcfd0ca97dd
+
+(0) lattice column sums vs srmech bessel_j_fixed at e = 3/5 (p <= 300)
+  k=1 |lattice - (2/k)J_k(ke)| = 3.5e-77
+  k=2 |lattice - (2/k)J_k(ke)| = 3.1e-78
+  k=3 |lattice - (2/k)J_k(ke)| = 3.3e-78
+  k=4 |lattice - (2/k)J_k(ke)| = 1.2e-78
+  k=5 |lattice - (2/k)J_k(ke)| = 1.0e-77
+  k=6 |lattice - (2/k)J_k(ke)| = 2.8e-78
+
+(1) hop operator H = S - S^-1 and unsigned adjacency A = S + S^-1 on harmonics -16..16 (QMat exact)
+  cells checked (1<=p<=16, 0<=k<=16): 272
+  c(p,k) == [H^p]_(k,0) * k^(p-1) / (2^(p-1) p!) : mismatches = 0
+  support of [A^p]_(k,0) == cone {k<=p, k=p mod 2} : disagreements = 0
+  k = 0 column: walk count nonzero for even p, lattice zero; the factor k^(p-1) = 0 removes it (p >= 2)
+  commutator [D, H] == A (D = diag(harmonic index)): True   -> D and H do not commute, so they have no common eigenbasis
+
+(3) Laplace limit r_L (bisection, srmech exp/sqrt) = 0.662743419349   1/r_L = 1.508879562
+  root test |a_p|^(1/p) at M = pi/2 (a_p = sum_k c(p,k) sin(k pi/2), exact Fractions):
+    p= 21: |a_p|^(1/p) = 1.200619
+    p= 51: |a_p|^(1/p) = 1.338094
+    p=101: |a_p|^(1/p) = 1.405759
+    p=151: |a_p|^(1/p) = 1.433366
+    p=201: |a_p|^(1/p) = 1.448696
+
+  e = 1/10: truth residual max 2.2e-16
+    depth (sup over 64-point M grid): measured step ratio 0.088819   [DERIVED e = 0.1]   err@n=20: 2.22e-16
+    modes: r(k+1)/r(k) at k=10,20,40,60: 0.117605 0.126032 0.130651 0.132257   [rho(e) = 0.135574]
+    e-order at M=pi/2: per-order ratio (err(p)/err(p-2))^(1/2), last window: nan   [e/r_L = 0.150888]   err@p=61: 0.00e+00   (0s)
+
+  e = 3/10: truth residual max 4.4e-16
+    depth (sup over 64-point M grid): measured step ratio 0.289205   [DERIVED e = 0.3]   err@n=30: 4.44e-16
+    modes: r(k+1)/r(k) at k=10,20,40,60: 0.345798 0.370533 0.384099 0.388817   [rho(e) = 0.398566]
+    e-order at M=pi/2: per-order ratio (err(p)/err(p-2))^(1/2), last window: nan   [e/r_L = 0.452664]   err@p=61: 0.00e+00   (0s)
+
+  e = 1/2: truth residual max 4.4e-16
+    depth (sup over 64-point M grid): measured step ratio 0.491585   [DERIVED e = 0.5]   err@n=45: 1.33e-15
+    modes: r(k+1)/r(k) at k=10,20,40,60: 0.552943 0.592308 0.613934 0.621463   [rho(e) = 0.637034]
+    e-order at M=pi/2: per-order ratio (err(p)/err(p-2))^(1/2), last window: 0.734569   [e/r_L = 0.754440]   err@p=61: 2.01e-11   (0s)
+
+  e = 3/5: truth residual max 4.4e-16
+    depth (sup over 64-point M grid): measured step ratio 0.590447   [DERIVED e = 0.6]   err@n=60: 2.66e-15
+    modes: r(k+1)/r(k) at k=10,20,40,60: 0.644202 0.689857 0.714975 0.723727   [rho(e) = 0.741847]
+    e-order at M=pi/2: per-order ratio (err(p)/err(p-2))^(1/2), last window: 0.881410   [e/r_L = 0.905328]   err@p=61: 1.70e-06   (0s)
+
+  e = 7/10: truth residual max 4.4e-16
+    depth (sup over 64-point M grid): measured step ratio 0.694085   [DERIVED e = 0.7]   err@n=80: 1.91e-14
+    modes: r(k+1)/r(k) at k=10,20,40,60: 0.724807 0.775801 0.803910 0.813720   [rho(e) = 0.834064]
+    e-order at M=pi/2: per-order ratio (err(p)/err(p-2))^(1/2), last window: 1.028236   [e/r_L = 1.056216]   err@p=61: 2.42e-02   (0s)
+
+  e = 9/10: truth residual max 4.4e-16
+    depth (sup over 64-point M grid): measured step ratio 0.898120   [DERIVED e = 0.9]   err@n=260: 4.26e-14
+    modes: r(k+1)/r(k) at k=10,20,40,60: 0.845754 0.903058 0.934762 0.945891   [rho(e) = 0.969228]
+    e-order at M=pi/2: per-order ratio (err(p)/err(p-2))^(1/2), last window: 1.321860   [e/r_L = 1.357992]   err@p=61: 1.36e+05   (1s)
+
+(4) direction table: rate per index step; log-ratios (float, so UNDECIDED as verdicts)
+    e     depth   modes(rho)  e-order(e/r_L)  log(depth)/log(rho)  log(depth)/log(e/r_L)
+   0.10  0.0888   0.1356      0.1509           1.152309            1.217515
+   0.30  0.2892   0.3986      0.4527           1.308835            1.519006
+   0.50  0.4916   0.6370      0.7544           1.537142            2.459889
+   0.60  0.5904   0.7418      0.9053           1.710665            5.136080
+   0.70  0.6941   0.8341      1.0562(DIV)      1.965744            nan
+   0.90  0.8981   0.9692      1.3580(DIV)      3.370953            nan
+
+    exact cells after a budget B: depth B -> #{(p,k): k<=p<=B, parity} ; modes B -> every p (unbounded)
+      B=4: depth exact cells 6; modes exact cells: all p >= 1 in columns k<=B
+      B=8: depth exact cells 20; modes exact cells: all p >= 1 in columns k<=B
+      B=16: depth exact cells 72; modes exact cells: all p >= 1 in columns k<=B

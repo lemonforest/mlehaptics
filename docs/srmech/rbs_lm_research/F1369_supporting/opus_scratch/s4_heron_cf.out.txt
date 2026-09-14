@@ -1,0 +1,10 @@
+HAS_NATIVE False
+CF convergents of sqrt2 (recurrence) == srmech best_rational at each convergent denominator: True count 106
+  Heron depth 1: 3/2 = convergent index 1   error 10^-1.1
+  Heron depth 2: 17/12 = convergent index 3   error 10^-2.6
+  Heron depth 3: 577/408 = convergent index 7   error 10^-5.7
+  Heron depth 4: 665857/470832 = convergent index 15   error 10^-11.8
+  Heron depth 5: 886731088897/627013566048 = convergent index 31   error 10^-24.0
+  Heron depth 6: 1572584048032918633353217/1111984844349868137938112 = convergent index 63   error 10^-48.5
+Fibonacci ratio error ratios err(n+1)/err(n): -0.381979 -0.381966 -0.381966 -0.381966
+  |psi| = 0.618034   psi^2 = 0.381966

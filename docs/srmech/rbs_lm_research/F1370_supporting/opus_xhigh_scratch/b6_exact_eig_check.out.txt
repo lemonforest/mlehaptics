@@ -1,0 +1,54 @@
+srmech 0.9.0rc472 HAS_NATIVE False
+DOC (exact excerpt):
+ calar ``v[i]``), NOT a bare ``list[float]``. When ``HAS_NATIVE`` the
+list-marshal native path runs at any ``n`` (no node cap — see above); else
+srmech's own pure-Python Jacobi cascade.
+
+Rotation-last exact route (rc-B, ``exact=``, keyword-only)
+---------------------------------------------------------
+* ``exact=False`` (the default): **unchanged** — the float-Jacobi path
+  above, verbatim. Float-Jacobi stays the default speed path (the
+  iterative FPU last-mile, classified PRIMITIVE_NA in the rotation-last
+  audit — an intrinsic-float limit, NOT an avoidable violation).
+* ``exact=True``: route to the exact-substrate cascade. The matrix is
+  validated SQUARE, **exact** (every entry an ``int`` /
+  :class:`fractions.Fraction` / srmech ``Q`` — never a ``float`` /
+  ``complex``), and SYMMETRIC (``a[i][j] == a[j][i]``); any failure
+  raises :class:`ValueError`. (Exact eigenvalues are only achievable for
+  an integer/rational SYMMETRIC matrix: a non-symmetric integer matrix
+  can have complex eigenvalues that the real-root ``eigvals_exact``
+  returns incompletely.) The spectrum then stays exact — char-poly
+  Faddeev–LeVerrier → Yun square-free → Sturm isolation → ``Q``
+  bisection — and, since rc467 (`#T1188`), it STAYS exact: the return is a
+  ``list`` of ``n`` ascending :class:`~srmech.math.qalg.Qalg` eigenvalues
+  **with multiplicity**, each over its own irreducible minimal polynomial.
+  ⚠️ That is a DIFFERENT carrier from the float path's
+  :class:`~srmech.math.vec.Vec`, and deliberately so — the terminal float
+  lift this route used to end with rounded the exact answer away
+  (``[[2**53+1, 0], [0, 1]]`` came back ``9007199254740992.0``), which is
+  the whole defect the keyword exists to avoid. The sibling
+  :func:`fiedler_vector` has returned ``list[Qalg]`` since rc466.
+
+Why the exact route exists — float-Jacobi cannot terminate exactly, even at n = 3
+------------------------------------------------------------------------------
+A Jacobi sweep annihilates one off-diagonal pair at a time with a plane
+rotation whose entries are built from **square roots only**. Every value the
+rotation basis can reach therefore lies in a tower of quadratic extensions:
+``[ℚ(α):ℚ] = 2ᵏ``. An eigenvalue is a root of the characteristic polynomial,
+and a generic rational symmetric matrix has an **irreducible cubic** there —
+degree 3, which is odd and so divides no ``2ᵏ``. The rotatio
+
+[[2,1],[1,0]]: returned [Qalg((-1, -2, 1), (Q(0, 1), Q(1, 1))), Qalg((-1, -2, 1), (Q(0, 1), Q(1, 1)))]
+   sum of returned = Qalg((-1, -2, 1), (Q(0, 1), Q(2, 1)))   (trace 2)   product = Qalg((-1, -2, 1), (Q(1, 1), Q(2, 1)))   (det -1)
+   float() of returned raised: TypeError float() argument must be a string or a real number, not 'Qalg'
+Traceback (most recent call last):
+  File "C:\Users\sckir\AppData\Local\Temp\claude\D--GitHub-mlehaptics\623ea061-948c-4282-968d-ca4179875bf2\scratchpad\infinity_research\followup\opus_xhigh_scratch\b6_exact_eig_check.py", line 17, in <module>
+    for x in ev[1:]: s = s + x
+                         ~~^~~
+  File "D:\GitHub/mlehaptics/docs/srmech/python\srmech\math\qalg.py", line 399, in __add__
+    self._same_field(other)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+  File "D:\GitHub/mlehaptics/docs/srmech/python\srmech\math\qalg.py", line 319, in _same_field
+    raise ValueError(
+        f"Qalg binary op requires equal m; got {self._m!r} vs {other._m!r}")
+ValueError: Qalg binary op requires equal m; got (0, 1) vs (5, -5, 1)

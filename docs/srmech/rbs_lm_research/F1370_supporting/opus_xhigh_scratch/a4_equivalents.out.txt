@@ -1,0 +1,35 @@
+srmech 0.9.0rc472 HAS_NATIVE False
+
+[p.184/223] Tsirelson: chsh_operator_norm() = 2.8284271247461907  2*sqrt2 = 2.82842712474619  verify_chsh: (True, 4.440892098500626e-16, 4.440892098500626e-16)
+
+[p.69 Ex.8.4] kepler_solve(pi/4, 0.3) = 1.0448534569212085 (book prints E2~0.99622)
+   residual E - 0.3 sin E - pi/4 at book value 0.99622: -0.04100495399509674  at solver value: 0.0
+   Newton E1 = 1.054646
+   Newton E2 = 1.044868
+   Newton E3 = 1.044853
+   Newton E4 = 1.044853
+
+[p.152/184] Schwarzschild ISCO 1 - sqrt(8/9): 0.057190958417936644 (book 0.0571909584)
+            Kerr extremal 1 - 1/sqrt(3): 0.42264973081037416 (book 0.4226497308)
+
+[p.94/211] Omega_sub = 2pi/(109.84e9 * 3.1557e7 s) = 1.8126903981893924e-18 (book 1.813e-18)
+
+[p.154] Hubble: 1 - cos(pi*13.787/109.84) = 0.07674557899696177  argument 0.39432936921925055 (book: 1-0.9231 = 7.69%; notebooks :2143/:1284 print 0.07686)
+
+[p.60/200] toy_modulation_time closed form T = (1/c)(1/eps - 1/gap) [alpha=2], (1/2c)(1/eps^2 - 1/gap^2) [alpha=3], exact Q:
+   alpha=2: 999   alpha=3: 999999/2 (book 999 / 499999.5)
+
+[p.87/218] Cauchy kernel K_k=1/k!: exp_series_truncate(1,2,N):
+   N=4: f(0.5)=1.648437500000  f(0.5)*f(-0.5)=1.000223795572917
+   N=8: f(0.5)=1.648721265036  f(0.5)*f(-0.5)=1.000000005014068
+   N=16: f(0.5)=1.648721270700  f(0.5)*f(-0.5)=1.000000000000000
+   K_k=1 geometric partial sums (exact Q) at x=1/2 and x=2:
+   x=1/2: [1.0, 1.5, 1.75, 1.875, 1.9375, 1.9688, 1.9844, 1.9922, 1.9961, 1.998, 1.999, 1.9995]
+   x=2: [1.0, 3.0, 7.0, 15.0, 31.0, 63.0, 127.0, 255.0, 511.0, 1023.0, 2047.0, 4095.0]
+
+[p.48/184/195] shifted-circle eigenvalues: mat_eigvals(I + P_n):
+Traceback (most recent call last):
+  File "C:\Users\sckir\AppData\Local\Temp\claude\D--GitHub-mlehaptics\623ea061-948c-4282-968d-ca4179875bf2\scratchpad\infinity_research\followup\opus_xhigh_scratch\a4_equivalents.py", line 58, in <module>
+    ev = L.mat_eigvals(Mat(rows))
+                       ~~~^^^^^^
+TypeError: Mat.__init__() missing 2 required positional arguments: 'n_rows' and 'n_cols'

@@ -1,0 +1,9 @@
+gap 2.000 <- a/M = 0.00000
+gap 1.485 <- a/M = 0.66985
+gap 0.282 <- a/M = 0.99001
+gap 0.089 <- a/M = 0.99901
+stack (7,): frequency 7, zeros per period 14 = 2*prod
+stack (7, 7): frequency 49, zeros per period 98 = 2*prod
+stack (7, 7, 7): frequency 343, zeros per period 686 = 2*prod
+stack (3, 7): frequency 21, zeros per period 42 = 2*prod
+stack (11, 13): frequency 143, zeros per period 286 = 2*prod

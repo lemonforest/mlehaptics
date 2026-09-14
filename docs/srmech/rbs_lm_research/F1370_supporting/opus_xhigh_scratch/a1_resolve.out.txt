@@ -1,0 +1,131 @@
+srmech 0.9.0rc472 D:\GitHub/mlehaptics/docs/srmech/python\srmech\__init__.py
+HAS_NATIVE False
+EXISTS       srmech.__version__                                      str 
+EXISTS       srmech.amsc                                             module srmech.amsc
+MISSING      srmech.amsc._native                                     deepest importable: srmech.amsc; missing attr '_native' after srmech.amsc
+MISSING      srmech.amsc._native.HAS_NATIVE                          deepest importable: srmech.amsc; missing attr '_native' after srmech.amsc
+MISSING      srmech.amsc.antikythera                                 deepest importable: srmech.amsc; missing attr 'antikythera' after srmech.amsc
+MISSING      srmech.amsc.antikythera.lunar_dial                      deepest importable: srmech.amsc; missing attr 'antikythera' after srmech.amsc
+MISSING      srmech.amsc.cascade                                     deepest importable: srmech.amsc; missing attr 'cascade' after srmech.amsc
+EXISTS       srmech.amsc.catalog                                     module srmech.amsc.catalog
+EXISTS       srmech.amsc.catalog.register_attested_root              function srmech.amsc.catalog
+EXISTS       srmech.amsc.catalog.list_attested_sources               function srmech.amsc.catalog
+EXISTS       srmech.amsc.catalog.get_attested_dataset                function srmech.amsc.catalog
+MISSING      srmech.amsc.class                                       deepest importable: srmech.amsc; missing attr 'class' after srmech.amsc
+MISSING      srmech.amsc.cmb_residual                                deepest importable: srmech.amsc; missing attr 'cmb_residual' after srmech.amsc
+MISSING      srmech.amsc.cmb_residual.smica_nilc_compare             deepest importable: srmech.amsc; missing attr 'cmb_residual' after srmech.amsc
+MISSING      srmech.amsc.cyclic                                      deepest importable: srmech.amsc; missing attr 'cyclic' after srmech.amsc
+MISSING      srmech.amsc.cyclic.mod_add                              deepest importable: srmech.amsc; missing attr 'cyclic' after srmech.amsc
+MISSING      srmech.amsc.cyclic.mod_mul                              deepest importable: srmech.amsc; missing attr 'cyclic' after srmech.amsc
+MISSING      srmech.amsc.cyclic.mod_pow                              deepest importable: srmech.amsc; missing attr 'cyclic' after srmech.amsc
+MISSING      srmech.amsc.cyclic.mod_inv                              deepest importable: srmech.amsc; missing attr 'cyclic' after srmech.amsc
+MISSING      srmech.amsc.cyclic.gcd                                  deepest importable: srmech.amsc; missing attr 'cyclic' after srmech.amsc
+MISSING      srmech.amsc.cyclic.lcm                                  deepest importable: srmech.amsc; missing attr 'cyclic' after srmech.amsc
+MISSING      srmech.amsc.dispatch                                    deepest importable: srmech.amsc; missing attr 'dispatch' after srmech.amsc
+MISSING      srmech.amsc.dispatch.match                              deepest importable: srmech.amsc; missing attr 'dispatch' after srmech.amsc
+MISSING      srmech.amsc.dna                                         deepest importable: srmech.amsc; missing attr 'dna' after srmech.amsc
+MISSING      srmech.amsc.factorise                                   deepest importable: srmech.amsc; missing attr 'factorise' after srmech.amsc
+EXISTS       srmech.amsc.format                                      module srmech.amsc.format
+EXISTS       srmech.amsc.format.sha256_bytes                         function srmech.amsc.format
+EXISTS       srmech.amsc.format.read_ndjson                          function srmech.amsc.format
+EXISTS       srmech.amsc.gap_suggester                               module srmech.amsc.gap_suggester
+MISSING      srmech.amsc.hdc                                         deepest importable: srmech.amsc; missing attr 'hdc' after srmech.amsc
+MISSING      srmech.amsc.hdc.bind                                    deepest importable: srmech.amsc; missing attr 'hdc' after srmech.amsc
+MISSING      srmech.amsc.hdc.bundle                                  deepest importable: srmech.amsc; missing attr 'hdc' after srmech.amsc
+MISSING      srmech.amsc.hdc.permute                                 deepest importable: srmech.amsc; missing attr 'hdc' after srmech.amsc
+MISSING      srmech.amsc.hdc.similarity                              deepest importable: srmech.amsc; missing attr 'hdc' after srmech.amsc
+MISSING      srmech.amsc.introspect                                  deepest importable: srmech.amsc; missing attr 'introspect' after srmech.amsc
+MISSING      srmech.amsc.kepler                                      deepest importable: srmech.amsc; missing attr 'kepler' after srmech.amsc
+MISSING      srmech.amsc.kepler.kepler_solve                         deepest importable: srmech.amsc; missing attr 'kepler' after srmech.amsc
+MISSING      srmech.amsc.kepler.equation_of_centre                   deepest importable: srmech.amsc; missing attr 'kepler' after srmech.amsc
+MISSING      srmech.amsc.kepler.pin_slot                             deepest importable: srmech.amsc; missing attr 'kepler' after srmech.amsc
+MISSING      srmech.amsc.laplacian                                   deepest importable: srmech.amsc; missing attr 'laplacian' after srmech.amsc
+MISSING      srmech.amsc.laplacian.dense_laplacian                   deepest importable: srmech.amsc; missing attr 'laplacian' after srmech.amsc
+MISSING      srmech.amsc.laplacian.hermitian_eigendecompose          deepest importable: srmech.amsc; missing attr 'laplacian' after srmech.amsc
+MISSING      srmech.amsc.laplacian.jacobi_eigvals                    deepest importable: srmech.amsc; missing attr 'laplacian' after srmech.amsc
+MISSING      srmech.amsc.mtheory                                     deepest importable: srmech.amsc; missing attr 'mtheory' after srmech.amsc
+MISSING      srmech.amsc.mtheory.bipartite_modes                     deepest importable: srmech.amsc; missing attr 'mtheory' after srmech.amsc
+MISSING      srmech.amsc.mycorrhizal                                 deepest importable: srmech.amsc; missing attr 'mycorrhizal' after srmech.amsc
+MISSING      srmech.amsc.mycorrhizal.band_membership                 deepest importable: srmech.amsc; missing attr 'mycorrhizal' after srmech.amsc
+MISSING      srmech.amsc.naming                                      deepest importable: srmech.amsc; missing attr 'naming' after srmech.amsc
+MISSING      srmech.amsc.naming.lookup                               deepest importable: srmech.amsc; missing attr 'naming' after srmech.amsc
+MISSING      srmech.amsc.ndjson                                      deepest importable: srmech.amsc; missing attr 'ndjson' after srmech.amsc
+MISSING      srmech.amsc.octopus                                     deepest importable: srmech.amsc; missing attr 'octopus' after srmech.amsc
+MISSING      srmech.amsc.physarum                                    deepest importable: srmech.amsc; missing attr 'physarum' after srmech.amsc
+MISSING      srmech.amsc.primes                                      deepest importable: srmech.amsc; missing attr 'primes' after srmech.amsc
+MISSING      srmech.amsc.primes.is_prime                             deepest importable: srmech.amsc; missing attr 'primes' after srmech.amsc
+MISSING      srmech.amsc.primes.factor                               deepest importable: srmech.amsc; missing attr 'primes' after srmech.amsc
+MISSING      srmech.amsc.primes.cyclic_period                        deepest importable: srmech.amsc; missing attr 'primes' after srmech.amsc
+MISSING      srmech.amsc.protein                                     deepest importable: srmech.amsc; missing attr 'protein' after srmech.amsc
+MISSING      srmech.amsc.protein.ramachandran                        deepest importable: srmech.amsc; missing attr 'protein' after srmech.amsc
+MISSING      srmech.amsc.rational                                    deepest importable: srmech.amsc; missing attr 'rational' after srmech.amsc
+MISSING      srmech.amsc.rational.continued_fraction                 deepest importable: srmech.amsc; missing attr 'rational' after srmech.amsc
+MISSING      srmech.amsc.rational.best_rational                      deepest importable: srmech.amsc; missing attr 'rational' after srmech.amsc
+MISSING      srmech.amsc.search                                      deepest importable: srmech.amsc; missing attr 'search' after srmech.amsc
+MISSING      srmech.amsc.search.byte_search                          deepest importable: srmech.amsc; missing attr 'search' after srmech.amsc
+MISSING      srmech.amsc.template                                    deepest importable: srmech.amsc; missing attr 'template' after srmech.amsc
+MISSING      srmech.amsc.template.render                             deepest importable: srmech.amsc; missing attr 'template' after srmech.amsc
+MISSING      srmech.amsc.tlv                                         deepest importable: srmech.amsc; missing attr 'tlv' after srmech.amsc
+MISSING      srmech.amsc.tlv.tlv_pack                                deepest importable: srmech.amsc; missing attr 'tlv' after srmech.amsc
+MISSING      srmech.amsc.tool_schema                                 deepest importable: srmech.amsc; missing attr 'tool_schema' after srmech.amsc
+MISSING      srmech.amsc.tool_schema.get_tool_schema                 deepest importable: srmech.amsc; missing attr 'tool_schema' after srmech.amsc
+MISSING      srmech.amsc.tool_schema.tool_schema_view                deepest importable: srmech.amsc; missing attr 'tool_schema' after srmech.amsc
+MISSING      srmech.amsc.verify_attestation                          deepest importable: srmech.amsc; missing attr 'verify_attestation' after srmech.amsc
+MISSING      srmech.amsc.verify_attestation.bytes                    deepest importable: srmech.amsc; missing attr 'verify_attestation' after srmech.amsc
+MISSING      srmech.asymptotic_dof                                   deepest importable: srmech; missing attr 'asymptotic_dof' after srmech
+MISSING      srmech.asymptotic_dof.toy_modulation_time               deepest importable: srmech; missing attr 'asymptotic_dof' after srmech
+EXISTS       srmech.calculus                                         module srmech.calculus
+MISSING      srmech.calculus.cycle_derivative                        deepest importable: srmech.calculus; missing attr 'cycle_derivative' after srmech.calculus
+EXISTS       srmech.cascade                                          module srmech.cascade
+MISSING      srmech.cascade.cauchy_kernel                            deepest importable: srmech.cascade; missing attr 'cauchy_kernel' after srmech.cascade
+MISSING      srmech.cascade.fft_decomposition                        deepest importable: srmech.cascade; missing attr 'fft_decomposition' after srmech.cascade
+MISSING      srmech.cascade.recursive_hopf_signs                     deepest importable: srmech.cascade; missing attr 'recursive_hopf_signs' after srmech.cascade
+MISSING      srmech.cascade.ring_equilibrium_attractor               deepest importable: srmech.cascade; missing attr 'ring_equilibrium_attractor' after srmech.cascade
+MISSING      srmech.cascade.shifted_circle_eigenvalues               deepest importable: srmech.cascade; missing attr 'shifted_circle_eigenvalues' after srmech.cascade
+MISSING      srmech.catalogue                                        deepest importable: srmech; missing attr 'catalogue' after srmech
+MISSING      srmech.catalogue.class_frequency                        deepest importable: srmech; missing attr 'catalogue' after srmech
+MISSING      srmech.cognition                                        deepest importable: srmech; missing attr 'cognition' after srmech
+MISSING      srmech.cognition.proof_check_cascade                    deepest importable: srmech; missing attr 'cognition' after srmech
+MISSING      srmech.cosmology                                        deepest importable: srmech; missing attr 'cosmology' after srmech
+MISSING      srmech.cosmology.dark_ratio_trajectory                  deepest importable: srmech; missing attr 'cosmology' after srmech
+MISSING      srmech.cosmology.hubble_tension                         deepest importable: srmech; missing attr 'cosmology' after srmech
+MISSING      srmech.dark_sector                                      deepest importable: srmech; missing attr 'dark_sector' after srmech
+MISSING      srmech.dark_sector.coupling_intensity                   deepest importable: srmech; missing attr 'dark_sector' after srmech
+MISSING      srmech.geometry                                         deepest importable: srmech; missing attr 'geometry' after srmech
+MISSING      srmech.geometry.hopf                                    deepest importable: srmech; missing attr 'geometry' after srmech
+MISSING      srmech.geometry.hopf.complex_project                    deepest importable: srmech; missing attr 'geometry' after srmech
+MISSING      srmech.geometry.hopf.octonionic_project                 deepest importable: srmech; missing attr 'geometry' after srmech
+MISSING      srmech.gr                                               deepest importable: srmech; missing attr 'gr' after srmech
+MISSING      srmech.gr.isco                                          deepest importable: srmech; missing attr 'gr' after srmech
+MISSING      srmech.gr.isco.efficiency                               deepest importable: srmech; missing attr 'gr' after srmech
+MISSING      srmech.kepler                                           deepest importable: srmech; missing attr 'kepler' after srmech
+MISSING      srmech.kepler.solve                                     deepest importable: srmech; missing attr 'kepler' after srmech
+EXISTS       srmech.list_profiles                                    function srmech.profile_loader
+EXISTS       srmech.profile                                          function srmech.profile_loader
+MISSING      srmech.precession                                       deepest importable: srmech; missing attr 'precession' after srmech
+MISSING      srmech.precession.omega_sub                             deepest importable: srmech; missing attr 'precession' after srmech
+MISSING      srmech.qm                                               deepest importable: srmech; missing attr 'qm' after srmech
+MISSING      srmech.qm.bell                                          deepest importable: srmech; missing attr 'qm' after srmech
+MISSING      srmech.qm.bell.chsh_operator_norm                       deepest importable: srmech; missing attr 'qm' after srmech
+MISSING      srmech.qm.propagators                                   deepest importable: srmech; missing attr 'qm' after srmech
+MISSING      srmech.qm.qft                                           deepest importable: srmech; missing attr 'qm' after srmech
+MISSING      srmech.qm.qft.decompose                                 deepest importable: srmech; missing attr 'qm' after srmech
+MISSING      srmech.qm.relativistic                                  deepest importable: srmech; missing attr 'qm' after srmech
+MISSING      srmech.qm.relativistic.schwarzschild_isco_efficiency    deepest importable: srmech; missing attr 'qm' after srmech
+MISSING      srmech.qm.single_particle                               deepest importable: srmech; missing attr 'qm' after srmech
+MISSING      srmech.qm.spin                                          deepest importable: srmech; missing attr 'qm' after srmech
+MISSING      srmech.shadows                                          deepest importable: srmech; missing attr 'shadows' after srmech
+EXISTS       srmech.signal_processing                                module srmech.signal_processing
+MISSING      srmech.signal_processing.fft                            deepest importable: srmech.signal_processing; missing attr 'fft' after srmech.signal_processing
+MISSING      srmech.signal_processing.ifft                           deepest importable: srmech.signal_processing; missing attr 'ifft' after srmech.signal_processing
+EXISTS       srmech.signal_processing.sign_quantise                  function srmech.signal_processing.closed_form_ops.sign_quantise
+EXISTS       srmech.signal_processing.matched_filter                 function srmech.signal_processing.closed_form_ops.matched_filter
+EXISTS       srmech.signal_processing.wiener                         function srmech.signal_processing.closed_form_ops.wiener
+EXISTS       srmech.signal_processing.hdc_truncation                 function srmech.signal_processing.closed_form_ops.hdc_truncation
+EXISTS       srmech.spectral                                         module srmech.spectral
+EXISTS       srmech.spectral.decompose                               function srmech.spectral
+EXISTS       srmech.spectral.delta                                   function srmech.spectral
+EXISTS       srmech.spectral.predict                                 function srmech.spectral
+EXISTS       srmech.spectral.recompose                               function srmech.spectral
+EXISTS       srmech.spectral.truncate_sparse                         function srmech.spectral
+25 exist of 128

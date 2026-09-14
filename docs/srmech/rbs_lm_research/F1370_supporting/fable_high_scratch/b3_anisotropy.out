@@ -1,0 +1,39 @@
+srmech 0.9.0rc472 HAS_NATIVE False
+support: nonzero cells with p<=41: 441; all satisfy k<=p: True; all satisfy p=k mod 2: True
+  cells with k > p (would be a symmetric lattice): 0 by construction; the lattice is TRIANGULAR and PARITY-GRADED
+
+=== e = 0.3 ===
+  D-p   (k=1): ratios along p: ['1.125e-02', '3.750e-03', '1.875e-03'] ... ['1.071e-04', '9.375e-05'] -> 0 (factorial)
+  D-p   (k=3): ratios along p: ['5.063e-02', '2.025e-02', '1.125e-02'] ... ['9.736e-04', '8.508e-04'] -> 0 (factorial)
+  D-diag        : ratio at k=39: 0.3926; limit e*exp(1)/2 = 0.4077 -> converges
+  D-k           : r_(k+1)/r_k at k=20,40,60: ['0.3705', '0.3841', '0.3888']; rho(e) = 0.3986 -> converges for e<1
+  D-row         : (|a_(p+2)/a_p|)^(1/2)*e at p=31,35,39: ['0.4320', '0.4342', '0.4360']; e/e_L = 0.4527 -> converges
+  D-step        : err(n+1)/err(n) over steps 4..15 (1e-3 > err > 1e-10): mean 0.2835, last 0.2911 -> e = 0.3
+  equal index n=K=5: depth error 1.95e-04  vs  mode error 3.16e-04  ratio depth/mode = 0.619
+  equal index n=K=10: depth error 3.38e-07  vs  mode error 1.36e-06  ratio depth/mode = 0.249
+  equal index n=K=20: depth error 1.41e-12  vs  mode error 5.47e-11  ratio depth/mode = 0.026
+
+=== e = 0.7 ===
+  D-p   (k=1): ratios along p: ['6.125e-02', '2.042e-02', '1.021e-02'] ... ['5.833e-04', '5.104e-04'] -> 0 (factorial)
+  D-p   (k=3): ratios along p: ['2.756e-01', '1.103e-01', '6.125e-02'] ... ['5.300e-03', '4.632e-03'] -> 0 (factorial)
+  D-diag        : ratio at k=39: 0.9160; limit e*exp(1)/2 = 0.9514 -> converges
+  D-k           : r_(k+1)/r_k at k=20,40,60: ['0.7758', '0.8039', '0.8137']; rho(e) = 0.8341 -> converges for e<1
+  D-row         : (|a_(p+2)/a_p|)^(1/2)*e at p=31,35,39: ['1.0080', '1.0132', '1.0174']; e/e_L = 1.0562 -> DIVERGES
+  D-step        : err(n+1)/err(n) over steps 14..29 (1e-3 > err > 1e-10): mean 0.6823, last 0.6908 -> e = 0.7
+  equal index n=K=5: depth error 3.55e-02  vs  mode error 5.89e-02  ratio depth/mode = 0.603
+  equal index n=K=10: depth error 4.06e-03  vs  mode error 1.26e-02  ratio depth/mode = 0.323
+  equal index n=K=20: depth error 7.85e-05  vs  mode error 9.19e-04  ratio depth/mode = 0.085
+
+=== e = 0.75 ===
+  D-p   (k=1): ratios along p: ['7.031e-02', '2.344e-02', '1.172e-02'] ... ['6.696e-04', '5.859e-04'] -> 0 (factorial)
+  D-p   (k=3): ratios along p: ['3.164e-01', '1.266e-01', '7.031e-02'] ... ['6.085e-03', '5.318e-03'] -> 0 (factorial)
+  D-diag        : ratio at k=39: 0.9814; limit e*exp(1)/2 = 1.0194 -> DIVERGES
+  D-k           : r_(k+1)/r_k at k=20,40,60: ['0.8137', '0.8431', '0.8533']; rho(e) = 0.8747 -> converges for e<1
+  D-row         : (|a_(p+2)/a_p|)^(1/2)*e at p=31,35,39: ['1.0800', '1.0856', '1.0901']; e/e_L = 1.1317 -> DIVERGES
+  D-step        : err(n+1)/err(n) over steps 17..29 (1e-3 > err > 1e-10): mean 0.7331, last 0.7361 -> e = 0.75
+  equal index n=K=5: depth error 5.54e-02  vs  mode error 8.91e-02  ratio depth/mode = 0.621
+  equal index n=K=10: depth error 8.83e-03  vs  mode error 2.54e-02  ratio depth/mode = 0.348
+  equal index n=K=20: depth error 3.28e-04  vs  mode error 3.15e-03  ratio depth/mode = 0.104
+
+SUMMARY (per e): five directions, five limiting ratios {0, e*e^1/2, rho(e), e/e_L, e}: the approach is direction-dependent in the index lattice.
+radii: D-p entire (no radius); D-diag e < 2/e^1 = 0.7358; D-k e < 1; D-row e < e_L = 0.6627; D-step e < 1 (contraction).

@@ -1,0 +1,271 @@
+<unknown>:4: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+<unknown>:54: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+2570 files 0 unparsed
+## _native: defs=24 stems=0
+   def docs/srmech/python/srmech/apokatastasis/apagodu_zeilberger.py:111
+   def docs/srmech/python/srmech/apokatastasis/eisenstein.py:123
+   def docs/srmech/python/srmech/apokatastasis/elliptic_gosper.py:123
+   def docs/srmech/python/srmech/apokatastasis/elliptic_recurrence.py:310
+   def docs/srmech/python/srmech/apokatastasis/elliptic_wz_certificate.py:93
+   def docs/srmech/python/srmech/apokatastasis/elliptic_zeilberger.py:130
+   def docs/srmech/python/srmech/apokatastasis/eta_quotient.py:128
+   def docs/srmech/python/srmech/apokatastasis/gosper.py:63
+   def docs/srmech/python/srmech/apokatastasis/harmonic_maass.py:201
+   def docs/srmech/python/srmech/apokatastasis/modular_forms_ring.py:131
+   def docs/srmech/python/srmech/apokatastasis/q_gosper.py:525
+   def docs/srmech/python/srmech/apokatastasis/q_wz_certificate.py:110
+## HAS_NATIVE: defs=0 stems=0
+## antikythera: defs=0 stems=0
+## lunar_dial: defs=0 stems=0
+## cascade: defs=0 stems=0
+## class: defs=0 stems=0
+## cmb_residual: defs=0 stems=0
+## smica_nilc_compare: defs=0 stems=0
+## cyclic: defs=1 stems=1
+   def docs/srmech/python/srmech/math/carrier_spectrum.py:163
+   file docs/srmech/python/srmech/math/cyclic.py
+## mod_add: defs=1 stems=0
+   def docs/srmech/python/srmech/math/cyclic.py:236
+## mod_mul: defs=1 stems=0
+   def docs/srmech/python/srmech/math/cyclic.py:257
+## mod_pow: defs=1 stems=0
+   def docs/srmech/python/srmech/math/cyclic.py:278
+## mod_inv: defs=1 stems=0
+   def docs/srmech/python/srmech/math/cyclic.py:301
+## gcd: defs=8 stems=0
+   def docs/srmech/notes/nucleosome_turn_asymmetry_frame_spike.py:30
+   def docs/srmech/notes/nucleosome_turn_asymmetry_frame_spike.py:228
+   def docs/srmech/notes/nucleosome_turn_asymmetry_frame_spike.py:274
+   def docs/srmech/notes/rc290_one_a14_shipped_measure.py:72
+   def docs/srmech/python/srmech/math/cyclic.py:116
+   def docs/srmech/python/srmech/math/poly.py:476
+   def docs/srmech/python/srmech/math/qprime.py:188
+   def docs/srmech/python/tests/test_klein4_regime_split_rc290.py:47
+## lcm: defs=2 stems=0
+   def docs/srmech/python/srmech/math/cyclic.py:172
+   def docs/srmech/python/srmech/math/qprime.py:203
+## dispatch: defs=1 stems=1
+   def docs/srmech/python/srmech/signal_processing/cascade_dispatcher.py:402
+   file docs/srmech/python/srmech/math/dispatch.py
+## match: defs=1 stems=0
+   def docs/srmech/python/srmech/math/dispatch.py:69
+## dna: defs=0 stems=0
+## factorise: defs=1 stems=0
+   def docs/srmech/notes/spike193_rna_loe_cascade_telomere.py:421
+## factor: defs=1 stems=0
+   def docs/srmech/python/srmech/math/primes.py:84
+## factorize: defs=1 stems=0
+   def docs/srmech/notes/music_discrete_forms_commensuration_shape_spike.py:88
+## hdc: defs=0 stems=1
+   file docs/srmech/python/srmech/math/hdc.py
+## bind: defs=14 stems=0
+   def docs/antikythera-maths/antikythera-spectral/python/antikythera_spectral/_research/bit_alu.py:157
+   def docs/antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_research/bip_instrument.py:527
+   def docs/antikythera-maths/research/bip_instrument.py:527
+   def docs/antikythera-maths/research/bit_alu.py:157
+   def docs/logo-maths/logo_hdc/hd.py:65
+   def docs/srmech/notes/genome_klein4_coupling_native_or_shadow_spike.py:79
+   def docs/srmech/python/srmech/bus/_transport.py:159
+   def docs/srmech/python/srmech/bus/_transport.py:205
+   def docs/srmech/python/srmech/bus/_transport.py:310
+   def docs/srmech/python/srmech/bus/_transport.py:680
+   def docs/srmech/python/srmech/bus/_transport.py:935
+   def docs/srmech/python/srmech/bus/_transport.py:1008
+## bundle: defs=3 stems=0
+   def docs/logo-maths/logo_hdc/hd.py:75
+   def docs/srmech/notes/spike195_wet_net_rotate_permute_superposed.py:138
+   def docs/srmech/python/srmech/math/hdc.py:94
+## permute: defs=4 stems=0
+   def docs/antikythera-maths/antikythera-spectral/python/antikythera_spectral/_research/bit_alu.py:237
+   def docs/antikythera-maths/research/bit_alu.py:237
+   def docs/srmech/notes/spike195_wet_net_rotate_permute_superposed.py:121
+   def docs/srmech/python/srmech/math/hdc.py:212
+## similarity: defs=8 stems=0
+   def docs/antikythera-maths/antikythera-spectral/python/antikythera_spectral/_research/bit_alu.py:284
+   def docs/antikythera-maths/research/bit_alu.py:284
+   def docs/srmech/notes/spike170_loe_rbs_hdc_prototype.py:544
+   def docs/srmech/notes/spike_3_single_bridge_multi_kernel_script.py:156
+   def docs/srmech/python/srmech/math/hdc.py:295
+   def docs/srmech/python/srmech/math/qprime.py:217
+   def docs/srmech/python/srmech/signal_processing/rbs_hdc_instrument.py:1145
+   def docs/srmech/python/srmech/spectral/__init__.py:499
+## introspect: defs=1 stems=0
+   def docs/srmech/python/srmech/__init__.py:127=
+## kepler: defs=0 stems=1
+   file docs/srmech/python/srmech/math/kepler.py
+## kepler_solve: defs=3 stems=0
+   def docs/srmech/notes/spike_35_q1_brouwer_clemence.py:60
+   def docs/srmech/notes/spike_35_q2_signflip_asymmetry.py:37
+   def docs/srmech/python/srmech/math/kepler.py:103
+## equation_of_centre: defs=3 stems=0
+   def docs/srmech/notes/spike_41_fibonacci_unity.py:105
+   def docs/srmech/notes/spike_pinslot_batch_b_2026-05-14.py:148
+   def docs/srmech/python/srmech/math/kepler.py:170
+## equation_of_center: defs=0 stems=0
+## pin_slot: defs=2 stems=0
+   def docs/srmech/notes/spike_pinslot_five_candidates_2026-05-14.py:44
+   def docs/srmech/python/srmech/math/kepler.py:52
+## laplacian: defs=0 stems=3
+   file docs/antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_research/laplacian.py
+   file docs/antikythera-maths/research/laplacian.py
+   file docs/srmech/python/srmech/math/laplacian.py
+## dense_laplacian: defs=1 stems=0
+   def docs/srmech/python/srmech/math/laplacian.py:1008
+## hermitian_eigendecompose: defs=1 stems=0
+   def docs/srmech/python/srmech/math/laplacian.py:1994
+## jacobi_eigvals: defs=1 stems=0
+   def docs/srmech/python/srmech/math/laplacian.py:1516
+## mtheory: defs=0 stems=0
+## bipartite_modes: defs=0 stems=0
+## mycorrhizal: defs=0 stems=0
+## band_membership: defs=0 stems=0
+## naming: defs=0 stems=1
+   file docs/srmech/python/srmech/introspect/naming.py
+## lookup: defs=12 stems=0
+   def docs/antikythera-maths/antikythera-spectral/python/antikythera_spectral/_research/ephemeris_loader.py:182
+   def docs/antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_research/body_kernel_registry.py:172
+   def docs/antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_research/ephemeris_loader.py:182
+   def docs/antikythera-maths/research/body_kernel_registry.py:172
+   def docs/antikythera-maths/research/ephemeris_loader.py:182
+   def docs/chess-maths/chess-spectral/python/chess_spectral/engine/search/ttable.py:62
+   def docs/chess-maths/chess-spectral/python/chess_spectral_4d/engine/search/ttable.py:44
+   def docs/srmech/python/srmech/introspect/naming.py:68
+   def docs/srmech/python/srmech/introspect/tool_schema.py:548
+   def docs/srmech/python/srmech/signal_processing/path_registry.py:248
+   def docs/srmech/python/tests/test_catalog_c_rc172.py:363
+   def docs/srmech/python/tests/test_unicode_fold_tables_attested.py:185
+## ndjson: defs=0 stems=0
+## octopus: defs=0 stems=0
+## physarum: defs=0 stems=0
+## primes: defs=0 stems=1
+   file docs/srmech/python/srmech/math/primes.py
+## is_prime: defs=3 stems=0
+   def docs/srmech/python/srmech/math/primes.py:56
+   def docs/unsolved-maths/number_theory/gilbreath_conjecture/generate_catalog.py:45
+   def docs/unsolved-maths/number_theory/lehmer_totient_problem/generate_catalog.py:63
+## cyclic_period: defs=1 stems=0
+   def docs/srmech/python/srmech/math/primes.py:212
+## protein: defs=0 stems=0
+## ramachandran: defs=0 stems=0
+## rational: defs=1 stems=1
+   def docs/srmech/python/srmech/math/qalg.py:277
+   file docs/srmech/python/srmech/math/rational.py
+## continued_fraction: defs=5 stems=0
+   def docs/antikythera-maths/antikythera-spectral/python/antikythera_spectral/_research/rational_approximation.py:29
+   def docs/antikythera-maths/research/rational_approximation.py:29
+   def docs/srmech/notes/spike_41_fibonacci_unity.py:195
+   def docs/srmech/notes/spike_pinslot_closed_form_f14_2026-05-15.py:92
+   def docs/srmech/python/srmech/math/rational.py:137
+## best_rational: defs=4 stems=0
+   def docs/srmech/notes/spike183_wet_net_rotation_ring_eeg_prototype.py:263
+   def docs/srmech/notes/spike_35_q3_galactic_itn.py:206
+   def docs/srmech/notes/spike_35_q3_galactic_itn.py:379
+   def docs/srmech/python/srmech/math/rational.py:183
+## search: defs=6 stems=2
+   def docs/chess-maths/chess-spectral/python/chess_spectral/engine/search/core.py:275
+   def docs/chess-maths/chess-spectral/python/chess_spectral_4d/engine/search/core.py:208
+   def docs/chess-maths/pgn_fetcher.py:1438
+   def docs/srmech/python/srmech/introspect/search.py:549
+   def docs/srmech/python/tools/build_citation_manifest.py:456
+   def docs/srmech/rbs_lm_research/R-RBS-LM-GENOME-BIOLOGY-SURVEY_plasmid_crispr_transposon_recombination_ciliate_viral_one_shared_primitive_cascade_same_and_different.py:33
+   file docs/srmech/python/srmech/introspect/search.py
+   file docs/srmech/python/srmech/math/search.py
+## byte_search: defs=1 stems=0
+   def docs/srmech/python/srmech/math/search.py:88
+## template: defs=0 stems=1
+   file docs/srmech/python/srmech/math/template.py
+## render: defs=4 stems=1
+   def docs/srmech/c/tools/gen_ryu_tables.py:159
+   def docs/srmech/python/srmech/math/template.py:42
+   def docs/srmech/python/tools/gen_c_claims.py:297
+   def docs/srmech/python/tools/gen_tool_docs.py:484
+   file docs/antikythera-maths/antikythera-spectral/python/antikythera_spectral/render.py
+## tlv: defs=0 stems=1
+   file docs/srmech/python/srmech/math/tlv.py
+## tlv_pack: defs=1 stems=0
+   def docs/srmech/python/srmech/math/tlv.py:40
+## tool_schema: defs=0 stems=3
+   file docs/antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_research/tool_schema.py
+   file docs/antikythera-maths/research/tool_schema.py
+   file docs/srmech/python/srmech/introspect/tool_schema.py
+## get_tool_schema: defs=4 stems=0
+   def docs/antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_research/tool_schema.py:359
+   def docs/antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/bridge.py:5170
+   def docs/antikythera-maths/research/tool_schema.py:359
+   def docs/srmech/python/srmech/introspect/tool_schema.py:785
+## tool_schema_view: defs=1 stems=0
+   def docs/srmech/python/srmech/introspect/tool_schema.py:809
+## verify_attestation: defs=0 stems=0
+## asymptotic_dof: defs=0 stems=0
+## toy_modulation_time: defs=0 stems=0
+## cycle_derivative: defs=0 stems=0
+## cauchy_kernel: defs=0 stems=0
+## fft_decomposition: defs=0 stems=0
+## recursive_hopf_signs: defs=0 stems=0
+## ring_equilibrium_attractor: defs=0 stems=0
+## shifted_circle_eigenvalues: defs=0 stems=0
+## catalogue: defs=0 stems=0
+## class_frequency: defs=0 stems=0
+## cognition: defs=0 stems=0
+## proof_check_cascade: defs=0 stems=0
+## cosmology: defs=0 stems=0
+## dark_ratio_trajectory: defs=0 stems=0
+## hubble_tension: defs=0 stems=0
+## dark_sector: defs=0 stems=0
+## coupling_intensity: defs=0 stems=0
+## geometry: defs=0 stems=0
+## hopf: defs=0 stems=0
+## complex_project: defs=0 stems=0
+## octonionic_project: defs=0 stems=0
+## gr: defs=0 stems=0
+## isco: defs=0 stems=0
+## efficiency: defs=0 stems=0
+## isco_efficiency: defs=0 stems=0
+## precession: defs=0 stems=0
+## omega_sub: defs=0 stems=0
+## qm: defs=0 stems=2
+   file docs/chess-maths/chess-spectral/python/chess_spectral/engine/eval/qm.py
+   file docs/chess-maths/chess-spectral/python/chess_spectral_4d/engine/eval/qm.py
+## bell: defs=0 stems=1
+   file docs/srmech/python/srmech/physics/qm/bell.py
+## chsh_operator_norm: defs=1 stems=0
+   def docs/srmech/python/srmech/physics/qm/bell.py:374
+## propagators: defs=0 stems=1
+   file docs/srmech/python/srmech/physics/qm/propagators.py
+## qft: defs=0 stems=0
+## decompose: defs=12 stems=0
+   def docs/srmech/notes/spike_1_channel_shape_protocol_script.py:58
+   def docs/srmech/notes/spike_1_channel_shape_protocol_script.py:116
+   def docs/srmech/notes/spike_1_channel_shape_protocol_script.py:169
+   def docs/srmech/notes/spike_2_cross_kernel_regime_classifier_script.py:46
+   def docs/srmech/notes/spike_2_cross_kernel_regime_classifier_script.py:71
+   def docs/srmech/notes/spike_3_single_bridge_multi_kernel_script.py:43
+   def docs/srmech/notes/spike_3_single_bridge_multi_kernel_script.py:68
+   def docs/srmech/notes/spike_4_spectral_rdb_script.py:48
+   def docs/srmech/notes/spike_4_spectral_rdb_script.py:73
+   def docs/srmech/python/srmech/signal_processing/closed_form_ops/polyphase.py:58
+   def docs/srmech/python/srmech/spectral/__init__.py:316
+   def docs/unsolved-maths/cost_asymmetry/verify_round39_massspec_spacings_classN_cascade.py:68
+## relativistic: defs=0 stems=1
+   file docs/srmech/python/srmech/physics/qm/relativistic.py
+## schwarzschild_isco_efficiency: defs=0 stems=0
+## kerr_isco_efficiency: defs=0 stems=0
+## single_particle: defs=0 stems=1
+   file docs/srmech/python/srmech/physics/qm/single_particle.py
+## spin: defs=0 stems=1
+   file docs/srmech/python/srmech/physics/qm/spin.py
+## shadows: defs=0 stems=0
+## fft: defs=2 stems=2
+   def docs/srmech/python/srmech/cascade/spectral_cascades.py:151
+   def docs/srmech/python/srmech/signal_processing/_fft_carrier.py:108
+   file docs/srmech/python/srmech/signal_processing/closed_form_ops/fft.py
+   file docs/srmech/python/srmech/signal_processing/path_b_ops/fft.py
+## ifft: defs=2 stems=2
+   def docs/srmech/python/srmech/cascade/spectral_cascades.py:212
+   def docs/srmech/python/srmech/signal_processing/_fft_carrier.py:113
+   file docs/srmech/python/srmech/signal_processing/closed_form_ops/ifft.py
+   file docs/srmech/python/srmech/signal_processing/path_b_ops/ifft.py
+## solve: defs=3 stems=0
+   def docs/antikythera-maths/ephemerides-spectral/python/tests/test_eoc_catalog.py:152
+   def docs/srmech/notes/_v2_reversal_verify_rc427.py:246
+   def docs/srmech/python/srmech/math/qmat.py:689

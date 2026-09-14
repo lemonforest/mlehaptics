@@ -1,0 +1,47 @@
+HAS_NATIVE False EOC table (2.0, 1.25, 1.0833333333333333, 1.0729166666666667, 1.1427083333333334, 1.2739583333333333)
+
+(A) Spike #29 eps = 0.1146: eps^k/k vs Kepler E-M harmonics (2/k)J_k(k eps)
+  k=1  eps^k/k=1.146000e-01  (2/k)J_k=1.144120e-01  ratio=1.0016
+  k=2  eps^k/k=6.566580e-03  (2/k)J_k=6.537881e-03  ratio=1.0044
+  k=3  eps^k/k=5.016867e-04  (2/k)J_k=5.602404e-04  ratio=0.8955
+  k=4  eps^k/k=4.311997e-05  (2/k)J_k=5.689188e-05  ratio=0.7579
+  k=5  eps^k/k=3.953239e-06  (2/k)J_k=6.346799e-06  ratio=0.6229
+  k=6  eps^k/k=3.775343e-07  (2/k)J_k=7.516929e-07  ratio=0.5022
+  k=7  eps^k/k=3.708466e-08  (2/k)J_k=9.279542e-08  ratio=0.3996
+
+(B) e = 0.0167:  k | nu-M measured | EOC table c_k e^k | E-M measured | e^k/k
+   1 |  3.339884e-02 |  3.340000e-02 |  1.669942e-02 |  1.670000e-02
+   2 |  3.485769e-04 |  3.486125e-04 |  1.394320e-04 |  1.394450e-04
+   3 |  5.044712e-06 |  5.045585e-06 |  1.746275e-06 |  1.552488e-06
+   4 |  8.343068e-08 |  8.345106e-08 |  2.592076e-08 |  1.944491e-08
+
+(B) e = 0.0506:  k | nu-M measured | EOC table c_k e^k | E-M measured | e^k/k
+   1 |  1.011676e-01 |  1.012000e-01 |  5.058381e-02 |  5.060000e-02
+   2 |  3.197447e-03 |  3.200450e-03 |  1.279088e-03 |  1.280180e-03
+   3 |  1.401277e-04 |  1.403504e-04 |  4.851290e-05 |  4.318474e-05
+   4 |  7.017690e-06 |  7.033444e-06 |  2.180676e-06 |  1.638861e-06
+
+(B) e = 0.3:  k | nu-M measured | EOC table c_k e^k | E-M measured | e^k/k
+   1 |  5.933820e-01 |  6.000000e-01 |  2.966376e-01 |  3.000000e-01
+   2 |  1.088526e-01 |  1.125000e-01 |  4.366510e-02 |  4.500000e-02
+   3 |  2.765763e-02 |  2.925000e-02 |  9.622686e-03 |  9.000000e-03
+   4 |  8.028763e-03 |  8.690625e-03 |  2.511333e-03 |  2.025000e-03
+
+(C) the eps^k/k series in Kepler motion: (nu - E)(E) harmonics vs 2 beta^k / k, beta = e/(1+sqrt(1-e^2))
+  e=0.3 beta=0.153536: k1: 0.30707199/0.30707199  k2: 0.02357330/0.02357330  k3: 0.00241290/0.00241290  k4: 0.00027785/0.00027785
+  e=0.7 beta=0.408367: k1: 0.81673473/0.81673473  k2: 0.16676391/0.16676391  k3: 0.04540063/0.04540063  k4: 0.01390510/0.01390510
+
+(D) FM sidebands |J_k(beta)| vs Kepler Kapteyn radii (2/k)J_k(k beta)
+  beta=0.3  FM: 1.483e-01 1.117e-02 5.593e-04 2.100e-05 6.304e-07   Kepler: 2.966e-01 4.367e-02 9.623e-03 2.511e-03 7.198e-04
+  beta=0.5  FM: 2.423e-01 3.060e-02 2.564e-03 1.607e-04 8.054e-06   Kepler: 4.845e-01 1.149e-01 4.064e-02 1.700e-02 7.801e-03
+
+(E) Hopf 'per-mode gap' check (integers): S3 unit l(l+2); S2 unit l(l+1); Hopf base S2 radius 1/2: 4j(j+1), l = 2j
+  l=0: S3=  0  S2(r=1)=  0  gap=0  S2(r=1/2) at j=l/2: 0  equal-to-S3: True
+  l=1: S3=  3  S2(r=1)=  2  gap=1  S2(r=1/2) at j=l/2: None  equal-to-S3: -
+  l=2: S3=  8  S2(r=1)=  6  gap=2  S2(r=1/2) at j=l/2: 8  equal-to-S3: True
+  l=3: S3= 15  S2(r=1)= 12  gap=3  S2(r=1/2) at j=l/2: None  equal-to-S3: -
+  l=4: S3= 24  S2(r=1)= 20  gap=4  S2(r=1/2) at j=l/2: 24  equal-to-S3: True
+  l=5: S3= 35  S2(r=1)= 30  gap=5  S2(r=1/2) at j=l/2: None  equal-to-S3: -
+  l=6: S3= 48  S2(r=1)= 42  gap=6  S2(r=1/2) at j=l/2: 48  equal-to-S3: True
+  l=7: S3= 63  S2(r=1)= 56  gap=7  S2(r=1/2) at j=l/2: None  equal-to-S3: -
+  l=8: S3= 80  S2(r=1)= 72  gap=8  S2(r=1/2) at j=l/2: 80  equal-to-S3: True

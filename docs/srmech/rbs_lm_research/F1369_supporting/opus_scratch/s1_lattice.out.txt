@@ -1,0 +1,32 @@
+srmech 0.9.0rc472 HAS_NATIVE False
+
+(0) lattice column sums vs srmech bessel_j_fixed, e = 3/10
+  k=1  lattice(p<=120)=2.966376325462080e-01  srmech=2.966376325462080e-01  diff=4.2e-77
+  k=2  lattice(p<=120)=4.366509671584169e-02  srmech=4.366509671584169e-02  diff=8.9e-78
+  k=3  lattice(p<=120)=9.622685650577450e-03  srmech=9.622685650577450e-03  diff=1.1e-77
+  k=4  lattice(p<=120)=2.511333138655793e-03  srmech=2.511333138655793e-03  diff=-1.1e-77
+  k=5  lattice(p<=120)=7.197687069442444e-04  srmech=7.197687069442444e-04  diff=-1.0e-77
+  k=6  lattice(p<=120)=2.189663668331337e-04  srmech=2.189663668331337e-04  diff=-4.0e-78
+
+(1) depth-n one-pin cascade E_(n+1) = M + e sin E_n, exact jets to e^9, vs Kapteyn lattice
+  depth 1: all lattice cells with p <= 1 EXACT; cos-terms 0; first mismatches [(2, 2, '0', '1/2'), (3, 1, '0', '-1/8'), (3, 3, '0', '3/8')]; harmonics present at orders > n: []
+  depth 2: all lattice cells with p <= 2 EXACT; cos-terms 0; first mismatches [(3, 1, '-3/8', '-1/8'), (3, 3, '1/8', '3/8'), (4, 2, '-1/24', '-1/6')]; harmonics present at orders > n: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  depth 3: all lattice cells with p <= 3 EXACT; cos-terms 0; first mismatches [(4, 2, '-5/12', '-1/6'), (4, 4, '5/24', '1/3'), (5, 1, '37/192', '1/192')]; harmonics present at orders > n: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  depth 4: all lattice cells with p <= 4 EXACT; cos-terms 0; first mismatches [(5, 1, '-23/192', '1/192'), (5, 3, '-51/128', '-27/128'), (5, 5, '101/384', '125/384')]; harmonics present at orders > n: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  depth 5: all lattice cells with p <= 5 EXACT; cos-terms 0; first mismatches [(6, 2, '-13/96', '1/48'), (6, 4, '-47/120', '-4/15'), (6, 6, '49/160', '27/80')]; harmonics present at orders > n: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  depth 6: all lattice cells with p <= 6 EXACT; cos-terms 0; first mismatches [(7, 1, '-721/9216', '-1/9216'), (7, 3, '-477/5120', '243/5120'), (7, 5, '-3845/9216', '-3125/9216')]; harmonics present at orders > n: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  depth 7: all lattice cells with p <= 7 EXACT; cos-terms 0; first mismatches [(8, 2, '-319/2880', '-1/720'), (8, 4, '-59/2880', '4/45'), (8, 6, '-1077/2240', '-243/560')]; harmonics present at orders > n: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  depth 8: all lattice cells with p <= 8 EXACT; cos-terms 0; first mismatches [(9, 1, '-40319/737280', '1/737280'), (9, 3, '-4723/40960', '-243/40960'), (9, 5, '37805/516096', '78125/516096')]; harmonics present at orders > n: [1, 3, 5, 7, 9]
+  depth 9: all lattice cells with p <= 9 EXACT; cos-terms 0; first mismatches []; harmonics present at orders > n: []
+
+(2) e-power frame at M = pi/2: a_p = sum_k c_{p,k} sin(k pi/2); root test and partial sums
+  p= 21  |a_p|^(-1/p) = 0.832904   (sum_k|c_pk|)^(-1/p) = 0.832904
+  p= 41  |a_p|^(-1/p) = 0.763443   (sum_k|c_pk|)^(-1/p) = 0.763443
+  p= 61  |a_p|^(-1/p) = 0.735987   (sum_k|c_pk|)^(-1/p) = 0.735987
+  p= 81  |a_p|^(-1/p) = 0.720954   (sum_k|c_pk|)^(-1/p) = 0.720954
+  p=101  |a_p|^(-1/p) = 0.711360   (sum_k|c_pk|)^(-1/p) = 0.711360
+  p=121  |a_p|^(-1/p) = 0.704660   (sum_k|c_pk|)^(-1/p) = 0.704660
+  root of x*exp(sqrt(1+x^2))/(1+sqrt(1+x^2)) = 1 (CITED-NOT-FETCHED Laplace-limit formula): 0.6627434193
+  e=0.60  kepler_solve ref E-M = 0.520532639238   partial-sum error  P=25: +2.23e-04  P=51: -5.97e-06  P=81: +1.53e-07  P=121: +1.58e-09
+  e=0.65  kepler_solve ref E-M = 0.553088865573   partial-sum error  P=25: +1.80e-03  P=51: -3.86e-04  P=81: +1.09e-04  P=121: +2.77e-05
+  e=0.70  kepler_solve ref E-M = 0.583988966307   partial-sum error  P=25: +1.24e-02  P=51: -1.82e-02  P=81: +4.75e-02  P=121: +2.34e-01

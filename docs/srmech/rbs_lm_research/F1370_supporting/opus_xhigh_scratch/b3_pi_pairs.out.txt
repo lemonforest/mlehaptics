@@ -1,0 +1,55 @@
+srmech 0.9.0rc472 HAS_NATIVE False
+
+(P6/P7) error ratios per step
+  N=10: Machin err ratio -0.03679155   Euler err ratio -0.22970344
+  N=20: Machin err ratio -0.03821943   Euler err ratio -0.23879630
+  N=30: Machin err ratio -0.03876786   Euler err ratio -0.24226240
+  Pfaff depth 10: inscribed err ratio 0.25000001  circumscribed 0.24999992  (bracket holds: True)
+  Pfaff depth 20: inscribed err ratio 0.25000000  circumscribed 0.25000000  (bracket holds: True)
+  Pfaff depth 30: inscribed err ratio 0.25000000  circumscribed 0.25000000  (bracket holds: True)
+  Pfaff depth 45: inscribed err ratio 0.25000000  circumscribed 0.25000000  (bracket holds: True)
+  instrument floor: 3000-bit sqrt, errors used only while > 1e-600
+
+  shipped pi_cascade_digits at limited depth (digits vs Chudnovsky):
+    max_cascade_depth=5: first differing character index 5
+    max_cascade_depth=10: first differing character index 8
+    max_cascade_depth=20: first differing character index 14
+    max_cascade_depth=30: first differing character index 20
+
+  stage equality checks (exact): any Machin/Euler partial sum (N<=40) equal to Pfaff b_0 = 3 or a_0? False
+
+  shipped commensurability instrument on the step RATES read as values:
+    Pfaff 1/4 vs Machin 1/25 (fundamental = 1/4): verdict=harmonic integer_series=False rational_rank=2
+    Pfaff 1/4 vs Euler 1/4: verdict=harmonic integer_series=True rational_rank=2
+  step-count sense: log(1/4)/log(1/25) = 0.43067655807339306 = log2/log5 (irrational: 2^a = 5^b has no solution in positive integers)
+
+(P10) the pure winding_fold 2pi constant vs Machin partial sums
+  _eph_seam_fold source head:
+    def _eph_seam_fold(theta: float) -> Tuple[int, int]:
+        """The 2π seam-fold as the DIVMOD it is — ``(w, qn)`` with the quotient
+        KEPT (0.9.0rc207; gh#1276 — the #741 mod-should-be-divmod audit's first
+        concrete instance).
+    
+        ``w = round(θ/2π)`` (exact rational arithmetic on the dyadic θ over the
+        Machin-2π :data:`_EPH_TWO_PI` — round-half-toward-+∞ via
+        :func:`_eph_round_div`) is the **metacycle winding** — the whole 2π
+        turns. ``qn`` is the **epicycle residue** ``θ − w·2π`` quantised to the
+        fixed grid ``qn / _EPH_FOLD_DEN`` (``|θ_fold| ≤ π``). Lossless:
+        ``2π·w + qn/_EPH_FOLD_DEN`` reconstructs θ to the fold grid (the
+        ``One.unwrapped_phase`` reconstruction). :func:`_eph_cos_sin` calls this
+        and discards ``w`` (the trig readout is 2π-periodic);
+        :func:`propagate_wound` calls the SAME fold and KEEPS it — one divmod,
+        both harvests."""
+        if theta == 0.0:
+            return (0, 0)
+        tn, td = float(theta).as_integer_ratio()   # EXACT dyadic rational of θ
+        pn, pd = _EPH_TWO_PI
+        # winding w = round(θ / 2π) = round((tn·pd) / (td·pn)); td > 0, pn > 0.
+        w = _eph_round_div(tn * pd, td * pn)
+        # folded = θ − w·2π = (tn·pd − w·pn·td) / (td·pd), exact; |folded| ≤ π.
+        fn = tn * pd - w * pn * td
+        fd = td * pd
+        # re-quantise the small folded angle to the fixed-grid denominator
+        # _EPH_FOLD_DEN (exact-integer rounding) so the bounded series stays fast.
+        qn = _eph_round_div(fn * _EPH_FOLD_DEN, fd)
+        return (w, qn)

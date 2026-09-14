@@ -1,0 +1,36 @@
+srmech 0.9.0rc472 HAS_NATIVE False numpy ABSENT
+
+[p.69 Ex 8.4] srmech.kepler.solve -> srmech.math.kepler.kepler_solve (moved; the book's spelling never existed)
+   kepler_solve(M=1.000000, e=0.3) = 1.288091
+   kepler_solve(M=1.047198, e=0.3) = 1.339187
+   kepler_solve(M=0.500000, e=0.3) = 0.691250
+   (the book's E3 = 0.99622 at unstated M; kepler_solve returns E only, no iteration trace)
+
+[p.48/p.195 Ex 5.9] srmech.cascade.shifted_circle_eigenvalues(n) -> NEVER SHIPPED; equivalent: 1 + cos_sin_2pi_k_over_n(n,k) (exact turn, Qalg)
+   n=4: Im^2 == 2Re - Re^2 exactly for all k: True (exact cyclotomic carrier, no float)
+   n=6: Im^2 == 2Re - Re^2 exactly for all k: True (exact cyclotomic carrier, no float)
+
+[p.184/p.223] srmech.qm.bell.chsh_operator_norm -> srmech.physics.qm.bell.chsh_operator_norm (moved rc381; alias dropped rc382)
+   chsh_operator_norm() = 2.8284271247461907; 2*sqrt(2) = 2.828427124746190; diff = 4.4e-16
+
+[p.184] srmech.qm.relativistic.schwarzschild_isco_efficiency -> NEVER SHIPPED (not at 0.4.2, not at HEAD); closed form via Class-N sqrt:
+   1 - sqrt(8/9) via srmech.math.rational.sqrt = 0.0571909584 (book: 0.0571909584)
+
+[p.60/p.200 Thm 7.2] srmech.asymptotic_dof.toy_modulation_time -> NEVER SHIPPED; the closed-form integral, exact rational:
+   alpha=2, c=1, eps=1/1000, gap=1: T = 999   (book: 999)
+   alpha=3, c=1, eps=1/1000, gap=1: T = 999999/2   (book: 499999.5)
+   -> the claim is DERIVED-verifiable without the op; it is the elementary integral of (gap)^-alpha
+
+[p.94/p.211] srmech.precession.omega_sub -> NEVER SHIPPED; 2*pi/T_sub with srmech's own pi:
+   omega_sub = 1.8127e-18 rad/s (book: 1.81e-18); spike163 constant OMEGA_SUB in docs/srmech/notes/spike163_cross_substrate_scale_test.py
+
+[p.125] srmech.catalogue.class_frequency -> NEVER SHIPPED; shipped census: srmech.describe()['classes'] and the class catalog
+   describe()['classes'] = {'total': 4, 'names': ['CDRegister', 'Genome', 'Hurwitz', 'One'], 'routes': {'CDRegister': 'toml', 'Genome': 'toml', 'Hurwitz': 'toml', 'One': 'toml'}, 'toml_total': 4}
+
+[p.149-150/p.229] srmech.amsc.verify_attestation -> NEVER SHIPPED under that name; shipped: srmech.amsc.catalog.attestation_audit + srmech.amsc.format.validate_mpr_record
+   attestation_audit('cosmos_validation') keys: ['n_rows', 'ok', 'rows', 'source_key']
+   ok = True
+
+[p.183 Table 1] the fourteen amsc.<module> spellings -> srmech.math.<module> (rc372/rc373) except A (amsc.format, still there), H (amsc._native -> srmech._native, rc376), E (amsc.naming -> srmech.introspect.naming, rc367)
+   I mod_add/gcd/lcm: True | J is_prime/factor/cyclic_period: True | B tlv_pack: True | D match: True | G byte_search: True | F render: True | E lookup: True
+   C read_ndjson in srmech.amsc.format: True | H srmech_version(): []

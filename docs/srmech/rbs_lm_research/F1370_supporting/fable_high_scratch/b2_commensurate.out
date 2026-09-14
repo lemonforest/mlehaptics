@@ -1,0 +1,70 @@
+srmech 0.9.0rc472 HAS_NATIVE False numpy ABSENT
+lattice validation k=1: |lattice - (2/k)J_k(ke)| = 4.2e-77
+lattice validation k=3: |lattice - (2/k)J_k(ke)| = 1.1e-77
+
+=== PAIR 1: Kepler depth (one-pin iteration) vs modes (Kapteyn radii) ===
+  (I) index map: NONE (row vs column projections of one triangular lattice; coordinator-confirmed S1)
+  e=0.1: depth rate 0.0901 (e=0.1), mode rate 0.1316 (rho(e)=0.1356), q=log rd/log rm = 1.1870
+  e=0.2: depth rate 0.1859 (e=0.2), mode rate 0.2612 (rho(e)=0.2691), q=log rd/log rm = 1.2536
+  e=0.3: depth rate 0.2835 (e=0.3), mode rate 0.3869 (rho(e)=0.3986), q=log rd/log rm = 1.3276
+  e=0.5: depth rate 0.4837 (e=0.5), mode rate 0.6184 (rho(e)=0.6370), q=log rd/log rm = 1.5113
+  e=0.7: depth rate 0.6878 (e=0.7), mode rate 0.8098 (rho(e)=0.8341), q=log rd/log rm = 1.7736
+    e=0.1: q = 1.186998; best_rational(max_d=12) = 13/11 = 1.181818; |diff| = 5.18e-03 -> not a small-d rational
+    e=0.3: q = 1.327587; best_rational(max_d=12) = 4/3 = 1.333333; |diff| = 5.75e-03 -> not a small-d rational
+    e=0.7: q = 1.773594; best_rational(max_d=12) = 16/9 = 1.777778; |diff| = 4.18e-03 -> not a small-d rational
+  q spans 1.187..1.774 across e -> NOT a fixed rational -> (II) INCOMMENSURATE
+
+=== PAIR 2: Kepler depth vs e-order (Lagrange power series) ===
+  (I) index map: PARTIAL (depth n reproduces every lattice cell p<=n exactly; objects unequal; S1)
+  e=0.3: depth rate 0.2835; e-order rate 0.4394 (e/e_L = 0.4527) converges; q = 1.5329
+  e=0.5: depth rate 0.4837; e-order rate 0.7323 (e/e_L = 0.7544) converges; q = 2.3314
+  e=0.6: depth rate 0.5853; e-order rate 0.8788 (e/e_L = 0.9053) converges; q = 4.1454
+  e=0.7: depth rate 0.6878; e-order rate 1.0253 (e/e_L = 1.0562) DIVERGES; q = nan
+  q moves with e and is undefined past e_L -> (II) INCOMMENSURATE, while (I) is PARTIAL-exact
+
+=== PAIR 3: Heron sqrt(2) depth vs continued-fraction convergents ===
+  Heron n=1: best_rational(sqrt2, max_d=q_n) == x_n: True; convergent index (len(path)-1) = 1 = 2^n-1? True; CF(x_n) tail = [1, 2]; err = 10^-1.1
+  Heron n=2: best_rational(sqrt2, max_d=q_n) == x_n: True; convergent index (len(path)-1) = 3 = 2^n-1? True; CF(x_n) tail = [2, 2, 2]; err = 10^-2.6
+  Heron n=3: best_rational(sqrt2, max_d=q_n) == x_n: True; convergent index (len(path)-1) = 7 = 2^n-1? True; CF(x_n) tail = [2, 2, 2]; err = 10^-5.7
+  Heron n=4: best_rational(sqrt2, max_d=q_n) == x_n: True; convergent index (len(path)-1) = 15 = 2^n-1? True; CF(x_n) tail = [2, 2, 2]; err = 10^-11.8
+  Heron n=5: best_rational(sqrt2, max_d=q_n) == x_n: True; convergent index (len(path)-1) = 31 = 2^n-1? True; CF(x_n) tail = [2, 2, 2]; err = 10^-24.0
+  Heron n=6: best_rational(sqrt2, max_d=q_n) == x_n: True; convergent index (len(path)-1) = 63 = 2^n-1? True; CF(x_n) tail = ['(uint64 cap: continued_fraction refuses; best_rational path used)']; err = 10^-48.5
+  (I) index map: EXACT subsequence phi(n) = 2^n - 1 (srmech best_rational path)
+    Heron order check: err(n+1)/err(n)^2 = 0.3529  (constant -> order 2)
+    Heron order check: err(n+1)/err(n)^2 = 0.3536  (constant -> order 2)
+    Heron order check: err(n+1)/err(n)^2 = 0.3536  (constant -> order 2)
+    Heron order check: err(n+1)/err(n)^2 = 0.3536  (constant -> order 2)
+    CF convergent rate err(m+1)/err(m) -> 0.171573  ((sqrt2-1)^2 = 0.171573) -> order 1
+  (II) rate ratio UNDEFINED (order 2 vs order 1): the index map is exponential, not rational-affine -> INCOMMENSURATE
+
+=== PAIR 4 (control): Fibonacci ratio vs continued fraction of phi ===
+  n=5: best_rational(phi, max_d=F_n) == F_(n+1)/F_n: True; convergent index = 5
+  n=10: best_rational(phi, max_d=F_n) == F_(n+1)/F_n: True; convergent index = 10
+  n=20: best_rational(phi, max_d=F_n) == F_(n+1)/F_n: True; convergent index = 20
+  n=40: best_rational(phi, max_d=F_n) == F_(n+1)/F_n: True; convergent index = 40
+  (I) index map: EXACT, phi(n) = n (identity). rate err(n+1)/err(n) -> 0.381966 on BOTH frames (same objects) -> q = 1 -> (II) COMMENSURATE
+
+=== PAIR 5: pi by Archimedes bracket (depth = doublings) vs Machin arctan series (terms) ===
+  Archimedes per-doubling error ratios: ['0.2498', '0.2500', '0.2500', '0.2500', '0.2500', '0.2500', '0.2500']
+  Machin per-term error ratios: ['0.03703', '0.03723', '0.03741', '0.03757', '0.03771', '0.03783']
+    pi: log(1/4)/log(1/25): q = 0.422454; best_rational(max_d=12) = 3/7 = 0.428571; |diff| = 6.12e-03 -> not a small-d rational
+    DERIVED: log 4 / log 25 = log 2 / log 5 is irrational (2^a = 5^b has no integer solution) -> (II) INCOMMENSURATE
+  (I) index map: equal truncation values across 12 depths x 29 term-counts: 0 -> NONE
+
+=== PAIR 6: the 2pi anchors - dyadic grid (bits) vs Machin-2pi rational (terms) ===
+  shipped: _EPH_TWO_PI_DEN = 2^80, _EPH_FOLD_DEN = 2^44; anchor 2pi = 6.283185307179586
+  dyadic grid 2^-44: |grid - 2pi| = 2.16e-14
+  dyadic grid 2^-80: |grid - 2pi| = 6.58e-26
+  Machin terms needed to reach the 2^-80 grid: 16 (80*log2/log25 = 17.23)
+    2pi: log(1/2)/log(1/25): q = 0.215338; best_rational(max_d=12) = 2/9 = 0.222222; |diff| = 6.88e-03 -> not a small-d rational
+  (I) index map: a dyadic truncation has denominator 2^k; a Machin partial sum has denominators with factors 5, 239 -> never equal -> NONE
+
+=== PAIR 7: Class-L C_7 - L^n v (depth) vs eigenbasis expansion (modes) ===
+  (I) exact identity L^n v == sum_k lambda_k^n c_k v_k for n=1..8, K=N=7: max |diff| = 4.8e-10 -> EXACT (finite)
+  power-iteration rate lambda_second/lambda_max = 0.643104 (top eigenvalue doubly degenerate: 3.801938,3.801938)
+  (III) commensurability_verdict([l1/l1,l2/l1,l3/l1]) -> verdict=inharmonic, rational_rank=1
+  -> (I) EXACT but (III) INCOMMENSURATE: H FAILS on C_7
+
+=== PAIR 8: Class-L Q_3 hypercube - same construction ===
+  spectrum [0, 2, 2, 2, 4, 4, 4, 6]; verdict (fundamental nominated = 2) = harmonic, integer_series = True
+  -> (I) EXACT and (III) COMMENSURATE: H holds on Q_3 (but the same finite identity held on C_7)

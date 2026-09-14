@@ -1,0 +1,30 @@
+srmech 0.9.0rc472 HAS_NATIVE False
+_EPH_TWO_PI = 7595904947272677161575987 / 1208925819614629174706176  denominator bits: 81  _EPH_FOLD_DEN = 17592186044416 = 2^44
+  |_EPH_TWO_PI - 2pi| = 6.578502774529703e-26
+  N=5: 2*Machin_N == _EPH_TWO_PI exactly: False;  same 2^-44 grid cell: False;  |diff| = 1.95e-09
+  N=10: 2*Machin_N == _EPH_TWO_PI exactly: False;  same 2^-44 grid cell: True;  |diff| = 1.13e-16
+  N=15: 2*Machin_N == _EPH_TWO_PI exactly: False;  same 2^-44 grid cell: True;  |diff| = 7.96e-24
+  N=20: 2*Machin_N == _EPH_TWO_PI exactly: False;  same 2^-44 grid cell: True;  |diff| = 6.58e-26
+  N=25: 2*Machin_N == _EPH_TWO_PI exactly: False;  same 2^-44 grid cell: True;  |diff| = 6.58e-26
+  N=30: 2*Machin_N == _EPH_TWO_PI exactly: False;  same 2^-44 grid cell: True;  |diff| = 6.58e-26
+  exact Machin stage equal to the register constant: N = None
+  first N from which Machin_N stays in the register's 2^-44 cell (checked 5 further stages): 9
+
+P8 exact power sums on C_5 via Qalg cos(2 pi k/5):
+  j=1: sum lambda^j (Qalg) = Qalg((1, 0, -1, 0, 1, 0, -1, 0, 1), (Q(10, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1)))   tr(L^j) = 10
+  j=2: sum lambda^j (Qalg) = Qalg((1, 0, -1, 0, 1, 0, -1, 0, 1), (Q(30, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1)))   tr(L^j) = 30
+  j=3: sum lambda^j (Qalg) = Qalg((1, 0, -1, 0, 1, 0, -1, 0, 1), (Q(100, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1)))   tr(L^j) = 100
+  j=4: sum lambda^j (Qalg) = Qalg((1, 0, -1, 0, 1, 0, -1, 0, 1), (Q(350, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1)))   tr(L^j) = 350
+  j=5: sum lambda^j (Qalg) = Qalg((1, 0, -1, 0, 1, 0, -1, 0, 1), (Q(1250, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1)))   tr(L^j) = 1250
+  j=6: sum lambda^j (Qalg) = Qalg((1, 0, -1, 0, 1, 0, -1, 0, 1), (Q(4500, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1)))   tr(L^j) = 4500
+  j=7: sum lambda^j (Qalg) = Qalg((1, 0, -1, 0, 1, 0, -1, 0, 1), (Q(16250, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1)))   tr(L^j) = 16250
+  j=8: sum lambda^j (Qalg) = Qalg((1, 0, -1, 0, 1, 0, -1, 0, 1), (Q(58750, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1)))   tr(L^j) = 58750
+  j=9: sum lambda^j (Qalg) = Qalg((1, 0, -1, 0, 1, 0, -1, 0, 1), (Q(212500, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1)))   tr(L^j) = 212500
+  j=10: sum lambda^j (Qalg) = Qalg((1, 0, -1, 0, 1, 0, -1, 0, 1), (Q(768750, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1)))   tr(L^j) = 768750
+
+Table-1 / quick-start existence checks:
+  srmech.math.hdc has bind/bundle/permute/similarity: [True, True, True, True]
+  srmech._native.srmech_version: False ['ABI_VERSION', 'CLI_ACTION_VERSION', 'EXPECTED_ABI_VERSION', 'NATIVE_ABI_VERSION', 'NATIVE_VERSION']
+  spectral.decompose (state, laplacian, *, encoder_tag: 'str' = 'default') -> 'SpectralHandle' | predict (handle: 'SpectralHandle', laplacian, *, steps: 'int' = 1, dt: 'float' = 1.0, encoder_tag: 'str' = 'default') -> 'SpectralHandle'
+  laplacian.dense_laplacian (n: 'int', edges: 'Iterable[Tuple[int, int]]', weights: 'Optional[Iterable[float]]' = None, *, exact: 'bool' = False) -> "'Mat'" (book calls dense_laplacian(A.astype(np.complex128)))
+  path_registry public names: ['Callable', 'Dict', 'DuplicateRegistrationError', 'OperationEntry', 'Optional', 'PATH_A', 'PATH_B', 'RegistryError', 'Tuple', 'UnknownOperationError', 'VALID_PATHS', 'annotations', 'clear_registry', 'dataclass', 'field', 'has_path', 'lookup', 'register', 'register_lazy_loader', 'registered_ops']

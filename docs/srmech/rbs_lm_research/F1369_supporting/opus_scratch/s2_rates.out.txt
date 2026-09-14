@@ -1,0 +1,13 @@
+HAS_NATIVE False
+
+e = 0.1: depth frame  steps to 1e-13: 12;  per-step sup-error ratio (2nd half) min 0.0928 max 0.0990   [e = 0.1]
+  mode frame  radius ratio r_(k+1)/r_k: k=10:0.1176  k=20:0.1260  k=30:0.1291  k=40:0.1307  k=60:0.1323   [rho(e) = 0.1356]
+  modes needed so that sum of omitted radii (k<=61) < 1e-13: K = 13
+
+e = 0.3: depth frame  steps to 1e-13: 23;  per-step sup-error ratio (2nd half) min 0.2871 max 0.2940   [e = 0.3]
+  mode frame  radius ratio r_(k+1)/r_k: k=10:0.3458  k=20:0.3705  k=30:0.3795  k=40:0.3841  k=60:0.3888   [rho(e) = 0.3986]
+  modes needed so that sum of omitted radii (k<=61) < 1e-13: K = 27
+
+e = 0.7: depth frame  steps to 1e-13: 60;  per-step sup-error ratio (2nd half) min 0.6908 max 0.6927   [e = 0.7]
+  mode frame  radius ratio r_(k+1)/r_k: k=10:0.7248  k=20:0.7758  k=30:0.7943  k=40:0.8039  k=60:0.8137   [rho(e) = 0.8341]
+  modes needed so that sum of omitted radii (k<=61) < 1e-13: K = 61

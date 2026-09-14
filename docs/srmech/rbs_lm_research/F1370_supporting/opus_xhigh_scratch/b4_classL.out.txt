@@ -1,0 +1,29 @@
+srmech 0.9.0rc472 HAS_NATIVE False
+
+(P8) C_5
+  cyclic_laplacian_spectrum(5) keys: ['n', 'graph', 'minimal_polynomial', 'field_degree', 'eigenvalues', 'distinct', 'multiplicities', 'n_distinct', 'all_rational', 'rational_spectrum', 'trace', 'alpha_order_closes']
+  j= 1: tr(L^j) = 10   sum lambda^j (float via calculus.cos) = 10.000000   diff +0.0e+00
+  j= 2: tr(L^j) = 30   sum lambda^j (float via calculus.cos) = 30.000000   diff +0.0e+00
+  j= 3: tr(L^j) = 100   sum lambda^j (float via calculus.cos) = 100.000000   diff +0.0e+00
+  j= 4: tr(L^j) = 350   sum lambda^j (float via calculus.cos) = 350.000000   diff -5.7e-14
+  j= 5: tr(L^j) = 1250   sum lambda^j (float via calculus.cos) = 1250.000000   diff -2.3e-13
+  j= 6: tr(L^j) = 4500   sum lambda^j (float via calculus.cos) = 4500.000000   diff +0.0e+00
+  j= 7: tr(L^j) = 16250   sum lambda^j (float via calculus.cos) = 16250.000000   diff -1.8e-12
+  j= 8: tr(L^j) = 58750   sum lambda^j (float via calculus.cos) = 58750.000000   diff -7.3e-12
+  j= 9: tr(L^j) = 212500   sum lambda^j (float via calculus.cos) = 212500.000000   diff -2.9e-11
+  j=10: tr(L^j) = 768750   sum lambda^j (float via calculus.cos) = 768750.000000   diff -1.2e-10
+  qalg.cos_sin_2pi_k_over_n signature: (n: 'int', k: 'int' = 1) -> "'tuple'"
+  cos_sin_2pi_k_over_n(1,5) -> (Qalg((1, 0, 1), (Q(1, 1), Q(0, 1))), Qalg((1, 0, 1), (Q(0, 1), Q(0, 1))))
+  exact power sums via Qalg not reached: ValueError cos_sin_2pi_k_over_n requires n >= 1; got 0
+
+(P9) P_5 dominant eigenvalue: power iteration (exact Rayleigh quotients) vs Jacobi sweeps
+  exact spectrum 2-2cos(k pi/5): [0.0, 0.38196601125, 1.38196601125, 2.61803398875, 3.61803398875]   lambda3/lambda4 = 0.7236067977499789  squared: 0.5236067977499789
+  power n=10: RQ error 2.926e-03  ratio 0.524996
+  power n=20: RQ error 4.545e-06  ratio 0.523609
+  power n=30: RQ error 7.041e-09  ratio 0.523607
+  jacobi sweeps=1: max |eig error| = 1.618e-01
+  jacobi sweeps=2: max |eig error| = 6.649e-03
+  jacobi sweeps=3: max |eig error| = 2.283e-06
+  jacobi sweeps=4: max |eig error| = 6.217e-15
+  jacobi sweeps=5: max |eig error| = 6.217e-15
+  jacobi sweeps=6: max |eig error| = 6.217e-15

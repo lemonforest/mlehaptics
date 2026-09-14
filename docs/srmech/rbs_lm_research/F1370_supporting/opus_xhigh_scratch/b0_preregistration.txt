@@ -1,0 +1,45 @@
+PRE-REGISTRATION for Task B item 2 and item 3 (written 2026-09-14, BEFORE b1-b4 were run).
+Its sha256 (srmech.amsc.format.sha256_bytes) is printed at the top of b1's output.
+
+FRAME. A frame F is (unbounded integer index n, stage map n -> F(n), limit object X) with F(n) -> X.
+
+CORRESPONDENCE LEVELS between frames A and B (a property of STAGES, never of rates):
+  L3 EQUALITY    : there is a strictly increasing integer map f with A(n) == B(f(n)) as objects, for every tested n.
+  L2 PROJECTION  : there is f and a fixed family of coordinate projections pi_n with A(n) == pi_n(B(f(n)))
+                   (or with A and B swapped), for every tested n.
+  L1 JET         : in one common graded coordinate system, A(n) and B(f(n)) agree exactly on a coordinate set
+                   that grows without bound with n, and neither is a projection of the other.
+  L0 LIMIT ONLY  : none of the above.
+"Exact finite-stage correspondence" (ESC) is read two ways and H is tested under both:
+  ESC-weak = L >= 1 ; ESC-strong = L >= 2.
+
+COMMENSURATENESS, two definitions, both fixed now:
+  Def R (per-step rate). Step class of a convergent frame: LINEAR with root rate r = limsup eps(n)^(1/n) in (0,1);
+    SUPERLINEAR with order q = lim log eps(n+1)/log eps(n) > 1; TERMINATING (eps(n) = 0 at a finite n); DIVERGENT.
+    A pair is R-commensurate iff same class AND log r_A/log r_B in Q (linear) or log q_A/log q_B in Q (superlinear).
+    Cross-class pairs are R-incommensurate. A pair containing a terminating or divergent frame is R-UNDEFINED.
+  Def B (shared base). If eps(n) = C * beta^(s(n)) * (subexponential factor) with s an integer schedule, the pair is
+    B-commensurate iff log beta_A / log beta_B in Q, whatever the schedules. UNDEFINED where no such form exists.
+  Irrationality is decided only from closed forms (unique factorisation; Lindemann-Weierstrass, CITED-NOT-FETCHED).
+  A float ratio alone yields UNDECIDED, never a verdict.
+
+HYPOTHESIS H (CANDIDATE, from the brief): ESC <=> commensurate.
+  H is refuted by any tested pair with (ESC and incommensurate) or (not ESC and commensurate).
+  Tested in all four cells (Def R, Def B) x (ESC-weak, ESC-strong). Definitions are not to be changed after results.
+
+PAIRS (fixed now):
+  P1 Kepler depth n  vs e-order p          P2 Kepler depth n vs modes K          P3 Kepler e-order p vs modes K
+  P4 Heron depth vs CF convergent index (sqrt 2)
+  P5 CF convergent index vs every second convergent (control)
+  P6 Pfaff/Archimedes two-mean depth vs Machin 16 atan(1/5) - 4 atan(1/239) terms
+  P7 Pfaff/Archimedes two-mean depth vs Euler 4(atan(1/2) + atan(1/3)) terms
+  P8 Class L on C_5: tr(L^j) vs sum_k lambda_k^j
+  P9 Class L on P_5: power iteration (Rayleigh quotient) vs Jacobi sweeps, dominant eigenvalue
+  P10 the winding_fold pure 2^-44 grid vs Machin partial sums (a bounded register against an unbounded frame)
+  Kepler eccentricities: 3/10 and 3/5 (below the Laplace limit), 7/10 (above it).
+
+DIRECTION-DEPENDENCE measurements (item 3), fixed now:
+  (a) support of the Kepler (p,k) lattice vs walk support on the harmonic graph;
+  (b) approach rate per index direction as a function of e;
+  (c) sign of the Pell norm p^2 - 2q^2 along the CF frame vs along the Heron frame;
+  (d) many-to-one (irreversible) stage maps: Heron, Kepler depth map; invertibility of the CF step matrix.
