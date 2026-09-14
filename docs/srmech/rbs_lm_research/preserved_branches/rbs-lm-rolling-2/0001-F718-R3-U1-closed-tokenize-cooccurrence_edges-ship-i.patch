@@ -1,0 +1,109 @@
+From 308ddf7018d4f6f53419abf56c257166600f9566 Mon Sep 17 00:00:00 2001
+From: Steven Kirkland <sckirklan@gmail.com>
+Date: Tue, 9 Jun 2026 13:22:57 -0500
+Subject: [PATCH] =?UTF-8?q?F718:=20R3=20U1=20closed=20=E2=80=94=20tokenize?=
+ =?UTF-8?q?=20+=20cooccurrence=5Fedges=20ship=20in=20srmech=200.7.5rc43?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The §17 U1 text→graph stage primitives are NOW SHIPPED in srmech.amsc.laplacian
+(rc43, verified clean on TestPyPI). Flip the research notes absent → shipped:
+
+- UPSTREAM_NOTES §17 U1 status cell: absent → ✅ SHIPPED in 0.7.5rc43 (the
+  audit's amsc.laplacian check now resolves FOUND; Counter() idiom retired;
+  K1 an authorable composite end-to-end).
+- UPSTREAM_NOTES §38-residue line: R3 U1 NOW CLOSED; Ask-3 + directed sibling
+  remain open.
+- STALE_PATHS_QUEUE: OPEN (R3 U1) → DONE; held-for-user note records R3 U1 now
+  true [rc43] (#855 body-checkbox flips stay the user's; #797 still gated).
+- New F718 closure finding.
+
+Tracker-state (GitHub #855 checkboxes) untouched per create-don't-drive
+discipline.
+---
+ ...8_text_to_graph_u1_ships_in_srmech_rc43.md | 28 +++++++++++++++++++
+ .../rbs_lm_research/STALE_PATHS_QUEUE.md      |  4 +--
+ docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md |  9 +++---
+ 3 files changed, 35 insertions(+), 6 deletions(-)
+ create mode 100644 docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_718_text_to_graph_u1_ships_in_srmech_rc43.md
+
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_718_text_to_graph_u1_ships_in_srmech_rc43.md b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_718_text_to_graph_u1_ships_in_srmech_rc43.md
+new file mode 100644
+index 000000000..ea920da58
+--- /dev/null
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_718_text_to_graph_u1_ships_in_srmech_rc43.md
+@@ -0,0 +1,28 @@
++# Finding 718 — the text→graph stage primitives (§17 U1) ship in srmech 0.7.5rc43; the K1 presence-kernel is now an authorable composite end-to-end
++
++**Status:** VERIFIED (srmech 0.7.5rc43, TestPyPI, numpy-free path) — closes the last-open §17 residue.
++**Upstream:** UPSTREAM_NOTES §17 **U1** (the still-open **#855 R3 U1**, which F716 flagged NOT FOUND in `amsc.laplacian` / `amsc.cascade`).
++
++## What landed
++
++The two text→graph stage primitives — the only links between raw `text` and the already-shipped `dense_laplacian` — now live in **`srmech.amsc.laplacian`** (pure-Python, numpy-free, deterministic):
++
++- **`tokenize(text, *, stopwords=None, min_len=2, pattern=None) -> list[str]`** — Class B/G text-segmentation. A letter-led word pattern (default `[A-Za-z][A-Za-z0-9_-]+`), lowercase, drop tokens shorter than `min_len` or in `stopwords` (case-insensitive). Group-safe (`finditer`/`group(0)`).
++- **`cooccurrence_edges(tokens, *, window=5, vocab_size=1000) -> (n, edges, weights)`** — **Class-L precursor**. Keep the `vocab_size` most-frequent tokens as nodes `0..n-1` (Class-K frequency truncation), count unordered co-occurring pairs within a sliding `window`. Returns **exactly** the triple `dense_laplacian(n, edges, weights)` consumes; weights are **integer** counts (exact — floats are for the FPU lift, none here).
++
++So the K1 presence-kernel build is now a composite end-to-end — `tokenize → cooccurrence_edges → dense_laplacian → eigendecompose → topk_eigvec_tokens → mint → bundle` — with no hand-roll. **`cooccurrence_edges` retires the `re.findall` + `Counter()` co-occurrence idiom** our research scripts (e.g. the F147 lexicon encoder, the wiki kernel) carried — the exact idiom the monorepo CLAUDE.md STOP-list flags.
++
++Registry: 2 ToolEntries (`tools.total` 274 → **276**), both `non_compute` in the Rosetta ledger (string segmentation + integer graph construction — no numeric/matrix compute, no c-dispatch → no debt-bucket growth). ABI 3; numpy not required. Shipped clean on TestPyPI (all wheels + sdist + pure-python; `publish (testpypi)` green).
++
++## What stays open (NOT this finding)
++
++- **The directed sibling** — the `i(A−Aᵀ)` Hermitian-Laplacian *builder* (§18.1 op(b); F357 reference). The eigensolver already ships (`hermitian_eigendecompose`); the build target is the directed-edge adjacency helper, the directed sibling of `cooccurrence_edges`. Separate queued Class-L precursor.
++- **§17 U2/U3/U4** — register the existing text→instrument encoders as DSL ops (U2, the highest-leverage bridge) + the op-discovery unification (U3/U4). Out of scope for U1.
++- **Ask-3** — the wired 1024-node 4-sector spectral block as a one-call surface.
++- **#855 body-checkbox edits** — R1.1 (rc42) and now R3 U1 (rc43) are factually true; the GitHub-issue checkbox flips stay **held for the user** (create-don't-drive tracker discipline). #797 stays research-gated.
++
++## The on-thesis reading
++
++K1 is the **"text IS substrate"** cascade (Spike #42/#43 — `K ∘ L ∘ I ∘ N ∘ C ∘ J` over text). U1 closes the gap between the raw text substrate and the Class-L graph the rest of the cascade already speaks: `tokenize` is the **B/G framing** of the text substrate (segmentation, no continuous compute — the FPU sits idle because there is nothing continuous in a token boundary), and `cooccurrence_edges` is the **Class-L precursor** that lifts the discrete token stream into the weighted graph whose Laplacian spectrum IS the structural fingerprint. The hand-roll is retired because the substrate's own operators now reach all the way to the text edge.
++
++**Composes:** F716 (the rc42 genome/class-from-TOML land + the open-U1 flag this closes) · F147 (the lexicon-encoder reference impl `tokenize`/`cooccurrence_edges` were lifted+sharpened from) · F357 (the directed-sibling op(b) reference, still open) · UPSTREAM_NOTES §17 (the U1–U4 catalog→kernel→DSL unification) · Spike #42/#43 (text-as-substrate cascade). srmech 0.7.5rc43.
+diff --git a/docs/srmech/rbs_lm_research/STALE_PATHS_QUEUE.md b/docs/srmech/rbs_lm_research/STALE_PATHS_QUEUE.md
+index d40b88cba..48b6b338a 100644
+--- a/docs/srmech/rbs_lm_research/STALE_PATHS_QUEUE.md
++++ b/docs/srmech/rbs_lm_research/STALE_PATHS_QUEUE.md
+@@ -537,8 +537,8 @@ Per user direction ("check stale queue items to bring forward and do if remainin
+ 
+ - **DONE (#962 Part 2): genome storage model upstreamed.** F710–F715 shipped as `srmech.amsc.genome.*` + the `[class]`-TOML mechanism (`srmech.dsl.make_class` / `register_class_dir` / `srmech class` CLI). Verified end-to-end in a numpy-free rc42 venv (`R-RBS-LM-GENOMELANDS...py`, F716): `encode_shape` matches F715 to the digit; multi-kernel strand partitions reversibly through `the_one`; bring-your-own classes attested `user:<sha256>`, no shadowing. "Class names for your school of choice" = substrate-self-recognition made operational (the cascade ops are the invariant; the class/method names are the school's projection).
+ - **DONE (#962 Part 1, substantially): native A-N binding.** 12/12 previously-unbound symbols reachable via `_native.LIB`; `jacobi_eigvals` dispatches native in the numpy-absent path (the F708 49× Class-L gap, closed). UPSTREAM_NOTES §38 marked ✅ DELIVERED.
+-- **OPEN (R3 U1):** `tokenize()` / `cooccurrence_edges()` did NOT ship — the wiki kernel still hand-rolls co-occurrence edges. The Class-L precursor remains the gap (plus Ask-3, the wired 1024-node 4-sector spectral one-call surface).
+-- **HELD for the user:** the #855 body-checkbox edits (R1.1 now true; R3 U1 + #797 still open) — recorded, not driven (create-don't-drive tracker discipline).
++- **DONE (R3 U1): `tokenize()` / `cooccurrence_edges()` shipped in srmech 0.7.5rc43.** Both in `srmech.amsc.laplacian` (pure-Python / numpy-free); the audit's `amsc.laplacian` check now resolves FOUND; the hand-rolled `Counter()` co-occurrence is retired and K1 is an authorable composite end-to-end. Verified clean on TestPyPI (`tools.total` 274→276). Still open: **Ask-3** (the wired 1024-node 4-sector spectral one-call surface) + the **directed sibling** (§18.1 op(b)). See F718.
++- **HELD for the user:** the #855 body-checkbox edits (R1.1 now true; **R3 U1 now true** [rc43]; #797 still open) — recorded, not driven (create-don't-drive tracker discipline).
+ 
+ ### F717 + #855 box flips (2026-06-09, same rc42 cycle)
+ 
+diff --git a/docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md b/docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md
+index e838d93a5..8e13f68bd 100644
+--- a/docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md
++++ b/docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md
+@@ -1228,7 +1228,7 @@ So the rc19 **DSL-compose-engine residual is RESOLVED**: the chain runner loads
+ | # | Change | Why | Status today |
+ |---|---|---|---|
+ | **U2** | **Register the existing text→instrument encoders as DSL cascade-ops** — `encode_loe_content` + the `rbs_lm.encode_{word_k4,bigram_l1,skeleton_l2,sentence_l3}` stack. One catalog-TOML descriptor each (like the 11 shipped). | Cheapest, highest leverage: the primitive **already works** (verified). Registering it makes `[[stage]] op="encode_loe_content"` legal → **any catalog's text rows get a one-line kernel chain.** | exists in `signal_processing`/`rbs_lm`, **invisible to DSL** |
+-| **U1** | **Ship the 2 missing text→graph stage primitives** so the *presence* (K1) kernel-build is an authorable pure-TOML composite end-to-end: `tokenize(text, *, stopwords=, min_len=, pattern=) -> List[str]` (Class B/G text-segmentation) and `cooccurrence_edges(tokens, *, window=, vocab_size=) -> (n, edges, weights)` (**Class L precursor** — tokens→weighted edges). | These are the only missing links between `text` and the already-shipped `dense_laplacian`. `cooccurrence_edges` **kills the hand-rolled `Counter()` co-occurrence** our research scripts use (the exact idiom the CLAUDE.md STOP-list flags). With U1+U2, K1 = pure-TOML composite `tokenize → cooccurrence_edges → dense_laplacian → eigendecompose → topk_eigvec_tokens → mint → bundle`; K3 composes from `bind`+`permute` (an `ngram_bind` convenience would finish it). | **absent** (verified: no `tokenize`/`cooccur` op) |
++| **U1** | **Ship the 2 missing text→graph stage primitives** so the *presence* (K1) kernel-build is an authorable pure-TOML composite end-to-end: `tokenize(text, *, stopwords=, min_len=, pattern=) -> List[str]` (Class B/G text-segmentation) and `cooccurrence_edges(tokens, *, window=, vocab_size=) -> (n, edges, weights)` (**Class L precursor** — tokens→weighted edges). | These are the only missing links between `text` and the already-shipped `dense_laplacian`. `cooccurrence_edges` **kills the hand-rolled `Counter()` co-occurrence** our research scripts use (the exact idiom the CLAUDE.md STOP-list flags). With U1+U2, K1 = pure-TOML composite `tokenize → cooccurrence_edges → dense_laplacian → eigendecompose → topk_eigvec_tokens → mint → bundle`; K3 composes from `bind`+`permute` (an `ngram_bind` convenience would finish it). | ✅ **SHIPPED in srmech 0.7.5rc43** (both in `srmech.amsc.laplacian`, pure-Python / numpy-free; `tools.total` 274→276; the audit's `amsc.laplacian` check now resolves FOUND). `cooccurrence_edges` returns `(n, edges, weights)` straight into `dense_laplacian` and **retires the hand-rolled `Counter()` idiom**; K1 is now an authorable composite end-to-end. The **directed sibling** (`i(A−Aᵀ)` Hermitian-Laplacian builder, §18.1 op(b) ref F357) stays a separate queued Class-L precursor. See F718. |
+ | **U3** | **Unify the op-discovery surface** — one call (`dsl.list_ops()` or extend `list_cascade_ops()`) that enumerates BOTH value-transform cascade ops (incl. D2 user composites) AND `catalog.list_catalog_chains` entries, each tagged `kind` (stage / combinator / catalog-chain) + `provenance` (`srmech` / `user:<sha>` / `catalog:<source_key>`). | This IS the literal ask: a kernel chain declared on a text-catalog **shows up in the DSL op list**. The two registries already exist; they just don't see each other. | two **disjoint** surfaces (verified) |
+ | **U4** | **Catalog → DSL auto-registration bridge** — `register_attested_root(...)` of a text-catalog + a declared kernel chain (or one dropped on `SRMECH_CASCADE_PATH`) **auto-appears** in the U3 discovery surface, tagged `catalog:<source_key>`. | "Anyone's text catalog → DSL entry" becomes **one path, not three doors** (`list_catalog_chains` + `SRMECH_CASCADE_PATH` D2 + `use_local_kernel` overlay are the three doors today). | plumbing exists in pieces; **not routed through DSL** |
+ 
+@@ -1758,9 +1758,10 @@ wheel in a numpy-free venv (`R-RBS-LM-GENOMELANDS...py`):
+   `user:<sha256>`, no shadowing; `genome.toml` is the A-tier seed; `srmech class` CLI for discovery). Encode
+   criterion matches F715 to the digit; multi-kernel strand partitions reversibly through `the_one`.
+ 
+-**Residue still open:** R3 **U1** — `tokenize()` / `cooccurrence_edges()` (the Class-L co-occurrence precursor) did
+-**not** ship; we still hand-roll edges. (Ask 3, the wired 1024-node 4-sector spectral block, also not yet a shipped
+-one-call surface.) See F716.
++**Residue — R3 U1 NOW CLOSED (srmech 0.7.5rc43):** `tokenize()` / `cooccurrence_edges()` (the Class-L
++co-occurrence precursor) **shipped** in `srmech.amsc.laplacian` — the hand-rolled `Counter()` edges are retired and
++K1 is an authorable composite end-to-end. Still open: **Ask 3** (the wired 1024-node 4-sector spectral block as a
++one-call surface) + the **directed sibling** (§18.1 op(b) Hermitian-Laplacian builder). See F716 / F718.
+ 
+ ## §39 ASK — a class GENERATOR from introspection: introspection→`[class].toml` (the inverse of `make_class`; 2026-06-09; F716/F717)
+ 
+-- 
+2.53.0.windows.2
+

@@ -1,0 +1,25 @@
+PRESERVED BRANCH ARCHIVE
+
+branch:        rbs-lm-rolling-2
+tip:           308ddf7018d4f6f53419abf56c257166600f9566
+archived:      2026-09-14, onto research/rbs-lm-rolling-2 (PR #687)
+compared with: research/rbs-lm-rolling-2 at 4db51be25d4dec4121dcbe8626dd203c62575632 (2026-08-15)
+finding:       F1355 (docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1355_*.md)
+
+Commits on no remote (git log <branch> --not --remotes), newest first:
+  sha                                       author-date                 cherry-picked-with-x  subject
+  308ddf7018d4f6f53419abf56c257166600f9566  2026-06-09T13:22:57-05:00  no (archive only)     F718: R3 U1 closed — tokenize + cooccurrence_edges ship in srmech 0.7.5rc43
+
+Patches in this folder: git format-patch <branch> --not --remotes (oldest = 0001).
+Subjects and patch bodies are verbatim commit text; any bare hash-number inside them is historical and not re-spelled.
+Re-apply: git am --keep-cr 0*.patch on top of d5043578a96b5fa4bc825cf1b7735c815e2055e4 (the parent of the oldest patched commit 308ddf701).
+
+Per-path status of every path the unpushed commits touch, against research/rbs-lm-rolling-2 at 4db51be25:
+  counts: DIFFERS 2, absent 1
+  status     path
+             -> note
+  absent     docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_718_text_to_graph_u1_ships_in_srmech_rc43.md
+  DIFFERS    docs/srmech/rbs_lm_research/STALE_PATHS_QUEUE.md
+             -> research kept the F717-block line 'OPEN (R3 U1)' (line 540 at 4db51be25) and later appended F722 (rc49 fails the section-40 bar) and F723 (rc50 closes R3 U1); this commit's two-line flip was never applied there, and is re-landed as appended lines pointing at F1355.
+  DIFFERS    docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md
+             -> research kept the section-17 U1 'absent' cell and the section-38 residue text and later added section 40 (the rc49/rc50 acceptance record); this commit's edits are re-landed as appended lines pointing at F1355.

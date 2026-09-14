@@ -1,0 +1,99 @@
+From 256ba6b782266c307d4cbe7fe4a38b3fc4d0609e Mon Sep 17 00:00:00 2001
+From: Steven Kirkland <sckirklan@gmail.com>
+Date: Tue, 12 May 2026 17:54:34 -0500
+Subject: [PATCH 6/6] =?UTF-8?q?docs(mfo):=20=C2=A7IV.2=20decimation=20poly?=
+ =?UTF-8?q?nomial=20transcription=20fix=20+=20=C2=A7XIII.1=20status=20upda?=
+ =?UTF-8?q?te=20from=206-spike=20audit?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+§IV.2 fix: corrected Fukushima-Shima decimation polynomial.
+
+  Before: R(λ) = λ(5 − λ),  R⁻¹(w) = (5 ± √(25 − 4w))/2
+  After:  R(λ) = λ(5 − 4λ), R⁻¹(w) = (5 ± √(25 − 16w))/8
+
+Standard references (Strichartz; Bajorin-Chen-Dagan-Emmons-Hussein-Khalil-Mody-
+Steinhurst-Teplyaev 2008; Kigami's analysis on PCF fractals) all use the
+λ(5 − 4λ) form. The notebook's previous form had the same small-λ slope (5)
+but different second derivative + different fixed point structure; likely a
+transcription error introduced during Gemini-assisted drafting of §IV.2.
+
+The slope-5-at-zero property is preserved in both forms, so the integer-
+decimation hypothesis tests in the srmech spike series are unaffected.
+
+§XIII.1 status update: catalogue the 6-spike attempt series.
+
+  Branch: research/sm-inverse-decimation-spike
+  Scripts: docs/srmech/notes/sm_*_spike_script.py
+
+The notebook's §IV.6 already honestly states "no specific fractal geometry
+has been identified that matches this exactly." The status update makes
+the open-status concrete by referencing the 6 distinct attempts and
+articulating what test classes have NOT been tried (topological invariants,
+RG flow on the fractal, Connes spectral action, anomaly cancellation).
+
+This is fundamentally an audit-clean commit. The framework was already
+honest about §XIII.1 being open; this commit makes the attempts and the
+remaining test classes explicit, so future work doesn't repeat what was
+already refuted.
+
+The framework's other claims (waveguide correspondence II.x, spectral
+dimension flow V.x, chirality from non-Killing perturbations VI.x,
+cosmological reframings VII.x) do not depend on §XIII.1 being solved.
+
+Per [[project_may8_commit_gemini_taint_caveat]] and the §XIII.1 audit:
+none of the speculative cosmology claims (axis of evil, bubble universe
+collisions, EM-medium pressure mechanisms) ever entered the notebook —
+the MPM discipline filtered those out of commits.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+---
+ .../mfo_spectral_research_notebook.md         | 21 +++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/docs/antikythera-maths/mfo_spectral_research_notebook.md b/docs/antikythera-maths/mfo_spectral_research_notebook.md
+index 7da0d35ae..8682a57e0 100644
+--- a/docs/antikythera-maths/mfo_spectral_research_notebook.md
++++ b/docs/antikythera-maths/mfo_spectral_research_notebook.md
+@@ -340,11 +340,11 @@ Both dissolve if there is no split. The metric field is one geometry whose spect
+ 
+ The Sierpinski gasket (SG) is the canonical 3-fold self-similar fractal. Its Laplacian eigenvalues are computed via **spectral decimation** (Rammal-Toulouse 1984, Fukushima-Shima 1992): if λ is an eigenvalue at level m+1 of the pre-gasket graph, then R(λ) is an eigenvalue at level m, where
+ 
+-$$R(\lambda) = \lambda(5 - \lambda)$$
++$$R(\lambda) = \lambda(5 - 4\lambda)$$
+ 
+ The inverse map is
+ 
+-$$R^{-1}(w) = \frac{5 \pm \sqrt{25 - 4w}}{2}$$
++$$R^{-1}(w) = \frac{5 \pm \sqrt{25 - 16w}}{8}$$
+ 
+ To generate eigenvalues at level m+1, take the level-m eigenvalues, apply R⁻¹ to each, and add the "born" eigenvalues at {2, 5} (the values where R(λ) hits the seed). At level 0 (pre-gasket), the relevant eigenvalues with Neumann boundary conditions are {0, 5}.
+ 
+@@ -1182,6 +1182,23 @@ Identify the specific fractal F such that the Laplacian eigenvalue spectrum of F
+ 
+ Approach: parametric search over the space of post-critically finite self-similar fractals (SG generalizations, nested fractals, products), computing Laplacian spectra via spectral decimation, comparing to the 9-dimensional SM mass² ratio target.
+ 
++**Status update — 2026-05-12 (srmech spike series, branch `research/sm-inverse-decimation-spike`):** Six independent eigenvalue-based attempts catalogued under `docs/srmech/notes/sm_*_spike_script.py`:
++
++1. **Forward eigenvalue catalogue search** (PR #350, 14 candidate fractals) — no fit.
++2. **Inverse SG decimation** — SG-family R(λ) refuted directly (k_μ, k_τ not coherent across families).
++3. **Universal-b sweep across polynomial R(λ)** — Diophantine-degenerate; null test shows random ratios reproduce apparent fits at rates that destroy discrimination.
++4. **Multiplicity test (G/H gauge-irrep coverage)** — tautological when G/H = SM gauge group; reveals only that simple round-sphere geometries lack SU(2)-doublet multiplicity, which is textbook physics.
++5. **MFO-natural log-m² reframing** — fixes the "11-orders-of-magnitude span" problem (bounded to [0, 25.5] in log-mass²) but no candidate F × G/H produces residuals small enough to be a physics fit.
++6. **12-fermion log-symmetric test (lepton seesaw pairing)** — SM 1↔1 pairing ranks 6 / 15 of possible pairings; in the better half but not signal.
++
++Honest conclusion: **eigenvalue-based search methods (forward, inverse, base-sweep, multiplicity, log-space, pairing) cannot identify THE fractal.** The framework's central computation as stated remains open. The next test classes that have *not* been tried, and which might succeed where eigenvalue matching cannot:
++- Topological invariants of the candidate fractal (anomaly polynomials, K-theory, η-invariants)
++- Running-coupling RG flow on the fractal (does β(g) on F reproduce SM β-functions?)
++- Spectral-action functional on F (Connes-style NCG action recovers SM Lagrangian terms?)
++- Specific anomaly-cancellation constraints requiring particular fractal symmetry
++
++Each of these is a research project of its own scale. Until one yields a candidate, §XIII.1 remains genuinely open — not refuted, but not solved either. The framework's other claims (waveguide correspondence, spectral dimension flow, chirality from non-Killing perturbations) do *not* depend on §XIII.1 being solved.
++
+ ### XIII.2 Baptista at 7D
+ 
+ Baptista's S² and T² toy calculations need extension to a 7-manifold whose isometry approximately contains SU(3)×SU(2)×U(1), with SU(2)×U(1) corresponding to non-Killing perturbations. Compute:
+-- 
+2.53.0.windows.2
+

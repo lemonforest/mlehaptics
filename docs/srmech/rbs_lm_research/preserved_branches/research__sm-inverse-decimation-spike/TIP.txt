@@ -1,0 +1,45 @@
+PRESERVED BRANCH ARCHIVE
+
+branch:        research/sm-inverse-decimation-spike
+tip:           256ba6b782266c307d4cbe7fe4a38b3fc4d0609e
+archived:      2026-09-14, onto research/rbs-lm-rolling-2 (PR #687)
+compared with: research/rbs-lm-rolling-2 at 4db51be25d4dec4121dcbe8626dd203c62575632 (2026-08-15)
+finding:       F1359 (docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1359_*.md)
+
+Commits on no remote (git log <branch> --not --remotes), newest first:
+  sha                                       author-date                 cherry-picked-with-x  subject
+  256ba6b782266c307d4cbe7fe4a38b3fc4d0609e  2026-05-12T17:54:34-05:00  no (archive only)     docs(mfo): §IV.2 decimation polynomial transcription fix + §XIII.1 status update from 6-spike audit
+  df7fb90a87f0697215b9a467169aaad4e9fcfd9c  2026-05-12T17:41:14-05:00  yes                   research(srmech): SM 12-fermion log-symmetric spike — corrected null reveals no structural signal; SM seesaw pairing ranks 6/15
+  7993124a214e44020b9d1595d79b07d639646c91  2026-05-12T17:34:18-05:00  yes                   research(srmech): SM log-mass spike — MFO-natural reframing bounds the problem but doesn't reveal THE candidate
+  9eabb62c8e7b339753b7be22cff2b08902ef7653  2026-05-12T17:29:28-05:00  yes                   research(srmech): SM multiplicity test — confirms §XIII.1 is at best fractal-decorated Kaluza-Klein
+  f259081638a4276da22078539a1753891a9a65fc  2026-05-12T17:21:16-05:00  yes                   research(srmech): SM base-sweep + NULL TEST — base-sweep diagnostic is Diophantine-degenerate; eigenvalue-matching alone cannot find THE fractal
+  1742bdea275c03e555b0c90343788fbf8d66e227  2026-05-12T17:14:54-05:00  yes                   research(srmech): SM inverse-decimation spike — SG-family R(λ) REFUTED as SM mass hierarchy generator
+
+Patches in this folder: git format-patch <branch> --not --remotes (oldest = 0001).
+Subjects and patch bodies are verbatim commit text; any bare hash-number inside them is historical and not re-spelled.
+Re-apply: git am --keep-cr 0*.patch on top of 18db2b5c6fb5e5105cb52d1586c06aa24fbe2c0f (the parent of the oldest patched commit 1742bdea2).
+
+Per-path status of every path the unpushed commits touch, against research/rbs-lm-rolling-2 at 4db51be25:
+  counts: DIFFERS 1, absent 18
+  status     path
+             -> note
+  DIFFERS    docs/antikythera-maths/mfo_spectral_research_notebook.md
+             -> the notebook moved on by thousands of lines, and this commit's content is on no other ref: the research notebook still shows R^-1(w) = (5 +- sqrt(25 - 4w))/2 at line 393 and carries no six-spike section XIII.1 status block; main's notebook (Part-I notice, rc459) records this commit as living only on this branch.
+  absent     docs/srmech/notes/sm-12-fermion-log-symmetric-2026-05-12.png
+  absent     docs/srmech/notes/sm-12-fermion-log-symmetric-per-test-2026-05-12.ndjson
+  absent     docs/srmech/notes/sm-inverse-decimation-base-sweep-2026-05-12.png
+  absent     docs/srmech/notes/sm-inverse-decimation-base-sweep-per-b-2026-05-12.ndjson
+  absent     docs/srmech/notes/sm-inverse-decimation-null-test-2026-05-12.png
+  absent     docs/srmech/notes/sm-inverse-decimation-null-test-per-trial-2026-05-12.ndjson
+  absent     docs/srmech/notes/sm-inverse-decimation-spike-2026-05-12.png
+  absent     docs/srmech/notes/sm-inverse-decimation-spike-per-test-2026-05-12.ndjson
+  absent     docs/srmech/notes/sm-log-mass-spike-2026-05-12.png
+  absent     docs/srmech/notes/sm-log-mass-spike-per-test-2026-05-12.ndjson
+  absent     docs/srmech/notes/sm-multiplicity-test-2026-05-12.png
+  absent     docs/srmech/notes/sm-multiplicity-test-per-space-2026-05-12.ndjson
+  absent     docs/srmech/notes/sm_12_fermion_log_symmetric_spike_script.py
+  absent     docs/srmech/notes/sm_inverse_decimation_base_sweep_script.py
+  absent     docs/srmech/notes/sm_inverse_decimation_null_test_script.py
+  absent     docs/srmech/notes/sm_inverse_decimation_spike_script.py
+  absent     docs/srmech/notes/sm_log_mass_spike_script.py
+  absent     docs/srmech/notes/sm_multiplicity_test_spike_script.py

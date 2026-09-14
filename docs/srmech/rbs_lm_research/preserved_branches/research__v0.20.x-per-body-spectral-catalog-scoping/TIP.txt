@@ -1,0 +1,23 @@
+PRESERVED BRANCH ARCHIVE
+
+branch:        research/v0.20.x-per-body-spectral-catalog-scoping
+tip:           9c097aa1b7b9267c2d9ce1e8d4c72a09334b174d
+archived:      2026-09-14, onto research/rbs-lm-rolling-2 (PR #687)
+compared with: research/rbs-lm-rolling-2 at 4db51be25d4dec4121dcbe8626dd203c62575632 (2026-08-15)
+finding:       F1365 (docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1365_*.md)
+
+Commits on no remote (git log <branch> --not --remotes), newest first:
+  sha                                       author-date                 cherry-picked-with-x  subject
+  9c097aa1b7b9267c2d9ce1e8d4c72a09334b174d  2026-05-06T19:48:56-05:00  no (archive only)     notebook §17: drop MVP / minimum-viable-shipping framing; expand v0.20.x and v0.21.x ship sequence to full-coverage commitments
+  3a12b113f593e8b028d27b0bb6299c41688c4d1a  2026-05-06T19:19:18-05:00  no (archive only)     notebook: §17 per-body spectral catalog scoping (solid-body geodesy + magnetic multipoles + fluid envelope)
+
+Patches in this folder: git format-patch <branch> --not --remotes (oldest = 0001).
+Subjects and patch bodies are verbatim commit text; any bare hash-number inside them is historical and not re-spelled.
+Re-apply: git am --keep-cr 0*.patch on top of ad476e5317c7b843fc13fda070cc0d158eff0fcf (the parent of the oldest patched commit 3a12b113f).
+
+Per-path status of every path the unpushed commits touch, against research/rbs-lm-rolling-2 at 4db51be25:
+  counts: DIFFERS 1
+  status     path
+             -> note
+  DIFFERS    docs/antikythera-maths/ephemerides_spectral_research_notebook.md
+             -> the branch's final version equals research merge 9c7558bad (PR #236) (path-limited diff empty); the notebook has moved on since.

@@ -1,0 +1,117 @@
+From 1a1dc422ca7671d7646d8c23a3ab801528c597f0 Mon Sep 17 00:00:00 2001
+From: Steven Kirkland <sckirklan@gmail.com>
+Date: Tue, 11 Aug 2026 23:31:04 -0500
+Subject: [PATCH 3/5] =?UTF-8?q?srmech=20rc426=20research=20=E2=80=94=20`#T?=
+ =?UTF-8?q?1124`:=20the=20across-line=20null=20is=20BOUNDED,=20and=20a=20p?=
+ =?UTF-8?q?ositive=20control=20now=20says=20so?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+P3's across-line block reported `{1:0, ..., 7:0}` — no Fano line mapping to a
+line under right multiplication by any basis unit. A row of zeros with no
+control is indistinguishable from an indexing bug, so this adds `u = 0` (the
+real unit e₀) as the POSITIVE CONTROL. It returns 7/7, which makes the seven
+zeros a result rather than an artifact.
+
+The verdict is reclassified accordingly, per the null-classification rule
+(`[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`):
+**BOUNDED, not REFUTED.** What is measured is that right multiplication is not
+the across-line action — and the reason is now stated, because multiplying a
+line by one of its own members yields a set containing index 0, which is not a
+line at all. What is NOT shown is that no group acts simply transitively on
+the 7 lines; that action lives in Aut(𝕆) on the basis structure, which no
+shipped op exposes as a frame change.
+
+So the certifiable statement is narrower than "the 28 frames are not a
+torsor": `octonion_frame_read` PRESENTS them as a FIBRED SET — 7 bases, each
+carrying a 4-element torsor — and only the within-line level is certified
+torsorial by anything shipped.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01XTksuWRsHXmGUmBETmSzZx
+---
+ .../notes/_p3_frame_read_clef_rc426.ndjson    |  2 +-
+ .../srmech/notes/_p3_frame_read_clef_rc426.py | 50 ++++++++++++-------
+ 2 files changed, 33 insertions(+), 19 deletions(-)
+
+diff --git a/docs/srmech/notes/_p3_frame_read_clef_rc426.ndjson b/docs/srmech/notes/_p3_frame_read_clef_rc426.ndjson
+index d49bb5b67..cabd4a51f 100644
+--- a/docs/srmech/notes/_p3_frame_read_clef_rc426.ndjson
++++ b/docs/srmech/notes/_p3_frame_read_clef_rc426.ndjson
+@@ -1,7 +1,7 @@
+ {"fano_lines": [[1, 2, 3], [1, 4, 5], [1, 6, 7], [2, 4, 6], [2, 5, 7], [3, 4, 7], [3, 5, 6]], "finding": "F5_frame_read_field_partition", "n_frame_free_fields": 1, "n_frames_accepted": 28, "rows": [{"classification": "LINE-INVARIANT, line-dependent (ℓ cannot move it)", "distinct_over_28": 7, "distinct_within_line_max": 1, "distinct_within_line_min": 1, "field": "q0", "per_line": [1, 1, 1, 1, 1, 1, 1]}, {"classification": "FULLY FREE  (every ℓ moves it)", "distinct_over_28": 28, "distinct_within_line_max": 4, "distinct_within_line_min": 4, "field": "q1", "per_line": [4, 4, 4, 4, 4, 4, 4]}, {"classification": "FULLY FREE  (every ℓ moves it)", "distinct_over_28": 28, "distinct_within_line_max": 4, "distinct_within_line_min": 4, "field": "base_H", "per_line": [4, 4, 4, 4, 4, 4, 4]}, {"classification": "LINE-INVARIANT, line-dependent (ℓ cannot move it)", "distinct_over_28": 7, "distinct_within_line_max": 1, "distinct_within_line_min": 1, "field": "base_R", "per_line": [1, 1, 1, 1, 1, 1, 1]}, {"classification": "FRAME-FREE  (survives every frame change)", "distinct_over_28": 1, "distinct_within_line_max": 1, "distinct_within_line_min": 1, "field": "norm_sq", "per_line": [1, 1, 1, 1, 1, 1, 1]}, {"classification": "FULLY FREE  (every ℓ moves it)", "distinct_over_28": 28, "distinct_within_line_max": 4, "distinct_within_line_min": 4, "field": "writhe", "per_line": [4, 4, 4, 4, 4, 4, 4]}, {"classification": "LINE-INVARIANT, line-dependent (ℓ cannot move it)", "distinct_over_28": 7, "distinct_within_line_max": 1, "distinct_within_line_min": 1, "field": "writhe_norm_sq", "per_line": [1, 1, 1, 1, 1, 1, 1]}, {"classification": "FULLY FREE  (every ℓ moves it)", "distinct_over_28": 28, "distinct_within_line_max": 4, "distinct_within_line_min": 4, "field": "canonical_affine", "per_line": [4, 4, 4, 4, 4, 4, 4]}, {"classification": "LINE-INVARIANT, line-dependent (ℓ cannot move it)", "distinct_over_28": 7, "distinct_within_line_max": 1, "distinct_within_line_min": 1, "field": "base", "per_line": [1, 1, 1, 1, 1, 1, 1]}, {"classification": "LINE-INVARIANT, line-dependent (ℓ cannot move it)", "distinct_over_28": 7, "distinct_within_line_max": 1, "distinct_within_line_min": 1, "field": "seam", "per_line": [1, 1, 1, 1, 1, 1, 1]}, {"classification": "FULLY FREE  (every ℓ moves it)", "distinct_over_28": 28, "distinct_within_line_max": 4, "distinct_within_line_min": 4, "field": "seam_chart", "per_line": [4, 4, 4, 4, 4, 4, 4]}, {"classification": "FULLY FREE  (every ℓ moves it)", "distinct_over_28": 7, "distinct_within_line_max": 4, "distinct_within_line_min": 4, "field": "frame", "per_line": [4, 4, 4, 4, 4, 4, 4]}], "shipped_frame_count": 28, "srmech_version": "0.9.0rc424", "verdict": "1 of 12 returned fields survive EVERY one of the 28 frame changes; the rest move. That is the clef SHAPE — an invariant part and a frame-dependent reading part — measured on a shipped op."}
+ {"a_some_reading_moves": true, "b_some_invariant_survives": true, "c_no_canonical_frame": true, "finding": "F5_clef_predicate", "invariant_fields": ["norm_sq"], "moving_fields": ["q0", "q1", "base_H", "base_R", "writhe", "writhe_norm_sq", "canonical_affine", "base", "seam", "seam_chart", "frame"], "separating_fields": [], "srmech_version": "0.9.0rc424", "verdict": "octonion_frame_read satisfies the CLEF SHAPE: it reads one object on a committed frame, keeps a frame-free invariant, and distinguishes no frame. FORM, not identity."}
+ {"finding": "F5b_within_line_torsor", "line": [1, 2, 3], "multiplicity_histogram": {"2": 16}, "n_acting_units": 8, "n_frames": 4, "simply_transitive": false, "srmech_version": "0.9.0rc424", "stabiliser_order": 2, "transitive": true, "verdict": "TRANSITIVE BUT NOT FREE at the level of the frame INDEX: the 8 signed base units act transitively on the 4 splitting units with multiplicity 2 — the kernel is {±1}. So the frame-index set is a torsor for the QUOTIENT (order 4), not for the signed group (order 8). The sign the index throws away is exactly the difference."}
+-{"finding": "F5b_across_lines", "n_lines": 7, "per_unit_lines_preserved": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0}, "srmech_version": "0.9.0rc424", "verdict": "the 28-frame set is NOT presented as a single torsor by the shipped op: the (line, ℓ) pair is a FIBRED set — 7 bases each carrying a 4-element torsor — and the shipped docstring says only the WITHIN-LINE relation is a right action. Measured here: the within-line level is a torsor (for the order-4 quotient); the across-line level is not certified as one by anything shipped."}
++{"control_valid": true, "finding": "F5b_across_lines", "identity_control": 7, "n_lines": 7, "null_class": "BOUNDED", "per_unit_lines_preserved": {"0": 7, "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0}, "srmech_version": "0.9.0rc424", "verdict": "BOUNDED, not REFUTED. What is MEASURED: right multiplication by a basis unit is NOT the across-line action (0/7 for every non-identity unit, with the identity control returning 7/7 so the zeros are a result and not an indexing artifact). What is NOT shown: that no group acts simply transitively on the 7 lines — the relevant automorphism action lives in Aut(𝕆) restricted to the basis structure, which the shipped ops do not expose as a frame-change. So the honest statement is that octonion_frame_read PRESENTS the 28 frames as a FIBRED SET (7 bases, each carrying a 4-element torsor), and only the within-line level is certified torsorial by anything shipped."}
+ {"abelian": false, "closed_on_T": true, "div_inverts": "64/64", "element_order_histogram": {"1": 1, "2": 1, "4": 6}, "finding": "F6_oct_torsor_structure_group", "isomorphism_type": "Q8 (quaternion group)", "multiplicity_histogram": {"1": 64}, "n_involutions": 1, "order": 8, "simply_transitive": true, "srmech_version": "0.9.0rc424"}
+ {"candidates": [{"abelian_matches": false, "can_host": false, "order_matches": false, "target": "Z/12  (12-EDO pitch classes)", "target_abelian": true, "target_order": 12}, {"abelian_matches": false, "can_host": false, "order_matches": false, "target": "Z/7   (7-degree alphabet)", "target_abelian": true, "target_order": 7}, {"abelian_matches": false, "can_host": false, "order_matches": false, "target": "Z/24  (24-division)", "target_abelian": true, "target_order": 24}, {"abelian_matches": false, "can_host": false, "order_matches": false, "target": "Z/53  (53-division)", "target_abelian": true, "target_order": 53}, {"abelian_matches": false, "can_host": false, "order_matches": false, "target": "Z     (register-free pitch)", "target_abelian": true, "target_order": null}, {"abelian_matches": false, "can_host": false, "order_matches": false, "target": "Z^3   (5-limit just lattice)", "target_abelian": true, "target_order": null}, {"abelian_matches": true, "can_host": false, "order_matches": false, "target": "T/I   (24 triads, dihedral)", "target_abelian": false, "target_order": 24}], "finding": "F6_can_shipped_torsor_host_pitch_intervals", "n_hostable": 0, "shipped_group_abelian": false, "shipped_group_order": 8, "srmech_version": "0.9.0rc424", "verdict": "REFUTED — 0 of 7 candidate pitch-interval groups can be hosted. The shipped torsor's group has order 8 and is NON-abelian; every pitch-interval group in the table is either the wrong order, or abelian where this one is not, or INFINITE where this one is finite. Reusing oct_torsor_* as the interval group is a category error, not a tuning problem."}
+ {"finding": "F9_active_carrier_testable_predicate", "imaginary_routes": 343, "inside_H_base": 0, "nonvanishing_associators": 168, "ordered_basis_triples": 512, "predicate": "A carrier is PASSIVE iff its frame-change law is a GROUP: associative, so composing frame changes is path-INDEPENDENT and the object is unchanged by the route taken. It is ACTIVE iff that fails — the carrier records the route.", "route_dependent": 168, "seam_crossing": 168, "srmech_version": "0.9.0rc424", "verdict": "TESTABLE, and 𝕆 already returns NON-ZERO: 168/512 ordered basis triples associate differently, all 168 of them seam-crossing and 0 inside the ℍ base. So on the octonionic carrier the composed frame-change is path-DEPENDENT — the 'active' reading is a MEASURABLE property of the algebra, not a stance. On the ℍ base it is 0/64: that sub-carrier is PASSIVE. The same carrier is active or passive depending on which rung you read it at, and the rung is the frame."}
+diff --git a/docs/srmech/notes/_p3_frame_read_clef_rc426.py b/docs/srmech/notes/_p3_frame_read_clef_rc426.py
+index a4d8e6703..c7d2c9212 100644
+--- a/docs/srmech/notes/_p3_frame_read_clef_rc426.py
++++ b/docs/srmech/notes/_p3_frame_read_clef_rc426.py
+@@ -238,27 +238,41 @@ def main() -> int:
+     print("\n      across lines: 7 Fano lines. A single 28-element torsor "
+           "would need a group of order 28 acting freely+transitively on the "
+           "frames, hence an order-7 quotient acting so on the LINES.")
+-    # measure: does right-multiplication by any single octonion unit permute
+-    # the lines transitively?
++    # Measure: does right-multiplication by an octonion unit permute the
++    # lines?  u = 0 is e₀, the IDENTITY, and is included as the POSITIVE
++    # CONTROL — it must return 7/7, otherwise the indexing is wrong and the
++    # zeros below would be an artifact rather than a result.
++    L = [tuple(sorted(t)) for t in lines]
+     line_orbits = {}
+-    for u in range(1, 8):
+-        img = []
+-        for ln in lines:
+-            m = tuple(sorted({oct_mult(a, u) & 7 for a in ln}))
+-            img.append(m)
+-        line_orbits[u] = sum(1 for m in img if m in
+-                             [tuple(sorted(t)) for t in lines])
+-    print(f"      per-unit right-multiplication: how many of the 7 lines map "
+-          f"to a line?  {line_orbits}")
++    for u in range(0, 8):
++        img = [tuple(sorted({oct_mult(a, u) & 7 for a in ln})) for ln in lines]
++        line_orbits[u] = sum(1 for m in img if m in L)
++    ctrl = line_orbits[0]
++    print(f"      per-unit right-multiplication, lines mapping to a line:")
++    print(f"        u=0 (IDENTITY, positive control): {ctrl}/7  "
++          f"{'control OK' if ctrl == 7 else '!! INDEXING BROKEN'}")
++    print(f"        u=1..7: {[line_orbits[u] for u in range(1, 8)]}")
++    print(f"      why: multiplying a line by one of its OWN members produces "
++          f"a set containing index 0 (the real unit), which is not a line at "
++          f"all — so right multiplication is simply not the across-line "
++          f"action.")
+     emit(finding="F5b_across_lines",
+          n_lines=len(lines), per_unit_lines_preserved=line_orbits,
+-         verdict="the 28-frame set is NOT presented as a single torsor by the "
+-                 "shipped op: the (line, ℓ) pair is a FIBRED set — 7 bases "
+-                 "each carrying a 4-element torsor — and the shipped "
+-                 "docstring says only the WITHIN-LINE relation is a right "
+-                 "action. Measured here: the within-line level is a torsor "
+-                 "(for the order-4 quotient); the across-line level is not "
+-                 "certified as one by anything shipped.")
++         identity_control=ctrl, control_valid=ctrl == 7,
++         null_class="BOUNDED",
++         verdict="BOUNDED, not REFUTED. What is MEASURED: right "
++                 "multiplication by a basis unit is NOT the across-line "
++                 "action (0/7 for every non-identity unit, with the identity "
++                 "control returning 7/7 so the zeros are a result and not an "
++                 "indexing artifact). What is NOT shown: that no group acts "
++                 "simply transitively on the 7 lines — the relevant "
++                 "automorphism action lives in Aut(𝕆) restricted to the "
++                 "basis structure, which the shipped ops do not expose as a "
++                 "frame-change. So the honest statement is that "
++                 "octonion_frame_read PRESENTS the 28 frames as a FIBRED SET "
++                 "(7 bases, each carrying a 4-element torsor), and only the "
++                 "within-line level is certified torsorial by anything "
++                 "shipped.")
+ 
+     # ══════════════════════════════════════════════════════════════════
+     # F6 — the oct_torsor_* structure group, measured against what a
+-- 
+2.53.0.windows.2
+

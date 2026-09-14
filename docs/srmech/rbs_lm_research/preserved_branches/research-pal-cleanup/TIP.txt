@@ -1,0 +1,24 @@
+PRESERVED BRANCH ARCHIVE
+
+branch:        research-pal-cleanup
+tip:           153b7563fafb03d98ad9c92d37309ca06c33a5c5
+archived:      2026-09-14, onto research/rbs-lm-rolling-2 (PR #687)
+compared with: research/rbs-lm-rolling-2 at 4db51be25d4dec4121dcbe8626dd203c62575632 (2026-08-15)
+finding:       F1364 (docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1364_*.md)
+
+Commits on no remote (git log <branch> --not --remotes), newest first:
+  sha                                       author-date                 cherry-picked-with-x  subject
+  153b7563fafb03d98ad9c92d37309ca06c33a5c5  2026-08-14T06:54:00-05:00  yes                   srmech PAL resource-cleanup audit -- manual triage + final report (#T1129)
+  f8abb9dd6c41bec086d84adbe40208fb276799fe  2026-08-14T06:46:31-05:00  yes                   srmech PAL resource-cleanup audit -- scanner + first scan results (#T1129)
+
+Patches in this folder: git format-patch <branch> --not --remotes (oldest = 0001).
+Subjects and patch bodies are verbatim commit text; any bare hash-number inside them is historical and not re-spelled.
+Re-apply: git am --keep-cr 0*.patch on top of a3f9fc84776f378098e1c6ee4a98ac7225eb421e (the parent of the oldest patched commit f8abb9dd6).
+
+Per-path status of every path the unpushed commits touch, against research/rbs-lm-rolling-2 at 4db51be25:
+  counts: absent 3
+  status     path
+             -> note
+  absent     docs/srmech/notes/_pal_resource_cleanup_audit.md
+  absent     docs/srmech/notes/_pal_resource_cleanup_audit.ndjson
+  absent     docs/srmech/notes/_pal_resource_cleanup_audit.py

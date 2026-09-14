@@ -1,0 +1,82 @@
+From c85259c47511192dd16806ea3875a93e759d1094 Mon Sep 17 00:00:00 2001
+From: Steven Kirkland <sckirklan@gmail.com>
+Date: Tue, 12 May 2026 23:51:09 -0500
+Subject: [PATCH 3/3] fix(srmech): correct two more arXiv ID + author
+ misattributions caught by Spike #12A
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Spike #12A (PR #361) PDF extraction discipline caught two additional
+misattributions in the May-12 KY literature review beyond the
+Gray-Kubizňák correction from earlier today:
+
+1. **arXiv:2207.06435 → arXiv:2205.05064 for HKLS 2022.** The original
+   lit review listed arXiv:2207.06435 alongside the correct
+   arXiv:2205.05064 for Hadar-Kapec-Lupsasca-Strominger 2022 "Holography
+   of the Photon Ring" (CQG 39:215001). The wrong ID actually resolves
+   to Baiguera-Cederle-Penati "Supersymmetric Galilean Electrodynamics"
+   — unrelated paper. The user-facing brief for Spike #12A inherited
+   the wrong ID; the subagent's PDF-extraction caught it and verified
+   arXiv:2205.05064 as the correct HKLS paper.
+
+2. **arXiv:2309.02262 author attribution Xue-Jiang-Zhang 2023 (not
+   Hadar-Lupsasca-Strominger).** Original lit review left the authors
+   unstated; the user prompt for Spike #12A guessed "Hadar-Lupsasca-
+   Strominger 2023" based on title similarity. Subagent's PDF
+   verification: actual authors are Xue, Jiang, and Zhang. The
+   paper title ("Notes on emergent conformal symmetry for black
+   holes") was correct.
+
+Both corrections applied to table rows 11 + 12 with explanatory
+annotations capturing the verification chain.
+
+DISCIPLINE PATTERN
+
+Three misattribution corrections caught now via the same discipline:
+  1. Gray-Kubizňák 2024 (caught by Spike #11)
+  2. Hadar-Kapec-Lupsasca-Strominger 2022 arXiv ID (caught by Spike #12A)
+  3. Xue-Jiang-Zhang 2023 (caught by Spike #12A)
+
+In all three cases the literature-review subagent OR the user prompt
+got the citation wrong; the math-spike subagent caught it by extracting
+the actual paper PDF and verifying. The PDF-extraction-and-verify
+discipline is becoming a load-bearing project standard for citation
+hygiene. Worth memory-saving as a permanent practice.
+
+Per the project's [[project_may8_commit_gemini_taint_caveat]]: citation
+accuracy is a first-class concern; subagent verification catching
+attribution errors is the gold standard.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+---
+ .../notes/killing_yano_kerr_literature_review_2026-05-12.md | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/docs/srmech/notes/killing_yano_kerr_literature_review_2026-05-12.md b/docs/srmech/notes/killing_yano_kerr_literature_review_2026-05-12.md
+index 3bfd0b9ca..b9da43b41 100644
+--- a/docs/srmech/notes/killing_yano_kerr_literature_review_2026-05-12.md
++++ b/docs/srmech/notes/killing_yano_kerr_literature_review_2026-05-12.md
+@@ -26,7 +26,7 @@ Three partial-yes results exist; one full-yes does not:
+ Castro, Maloney, Strominger 2010 (arXiv:1004.0996) construct an SL(2,R)_L × SL(2,R)_R hidden conformal symmetry of the scalar wave equation in the low-frequency limit, valid for generic non-extreme Kerr. Chen-Long-Sun 2010 (arXiv:1009.1010) then construct QNMs algebraically as descendants of highest-weight states. **Crucially**, CMS itself notes the symmetry "does not derive from spacetime geometry except in the extreme limit" — so this is *not* a KY-derived hidden symmetry; it is a symmetry of the wave equation that happens to coincide with KY-driven geometry only at extremality.
+ 
+ ### 2b. Emergent SL(2,R) at the photon ring (high-frequency / eikonal regime)
+-Hadar-Kapec-Lupsasca-Strominger 2022 (arXiv:2207.06435; also "Notes on emergent conformal symmetry for black holes" 2023, arXiv:2309.02262) show that in the eikonal limit, massless scalars and nearly-bound null geodesics near the photon ring are governed by an emergent 𝔰𝔩(2,ℝ) algebra, with QNMs falling into highest-weight representations. This **does** give closed-form algebraic organization for the eikonal QNM spectrum, but: (i) it is a near-photon-ring approximation, not exact for the full QNM spectrum at finite ℓ; (ii) the SL(2,R) here is photon-ring–intrinsic, not the global spacetime KY structure of Kerr.
++Hadar-Kapec-Lupsasca-Strominger 2022 (arXiv:2205.05064, "Holography of the Photon Ring", CQG 39:215001; also Xue-Jiang-Zhang 2023 "Notes on emergent conformal symmetry for black holes" arXiv:2309.02262) show that in the eikonal limit, massless scalars and nearly-bound null geodesics near the photon ring are governed by an emergent 𝔰𝔩(2,ℝ) algebra, with QNMs falling into highest-weight representations. This **does** give closed-form algebraic organization for the eikonal QNM spectrum, but: (i) it is a near-photon-ring approximation, not exact for the full QNM spectrum at finite ℓ; (ii) the SL(2,R) here is photon-ring–intrinsic, not the global spacetime KY structure of Kerr.
+ 
+ ### 2c. KY commuting-operator algebra (foundational, but not pushed to QNMs)
+ Cariglia-Krtouš-Kubizňák 2011 (arXiv:1102.4501) establish that on Kerr-NUT-(A)dS, the principal Killing-Yano tensor generates a complete set of mutually commuting first-order Dirac symmetry operators with a "Killing-Yano bracket" related to the Schouten-Nijenhuis bracket. Gray-Kubizňák 2024 (arXiv:2401.03553) extend this to scalar/vector/tensor perturbations, finding 4 / 7 / 8 commuting operators respectively, all homogeneous in the principal tensor. These commuting-operator towers are precisely the right algebraic structure for a Casimir decomposition, **but no paper has phrased a quadratic / cubic combination of these operators as a single Casimir whose eigenvalue gives a closed-form QNM identity** in the manner of `C_L + C_R = 2·λ_S²(ℓ)`. The Carter constant `K` arises as the eigenvalue of the rank-2 Killing-tensor (= KY² contracted) symmetry operator, but its role as a "Casimir of a hidden algebra" is implicit, not formalized.
+@@ -68,8 +68,8 @@ with `α, β, γ` to-be-determined coefficients fixed by the principal-tensor st
+ | 8 | Yang, Nichols, Zhang, Zimmerman, Zhang, Chen 2012, "Quasinormal-mode spectrum of Kerr black holes and its geometric interpretation" | arXiv:1207.4253 | Establishes the WKB/eikonal closed-form-ish QNM expressions in terms of spherical-photon-orbit frequencies and Lyapunov exponents. The Carter constant `K` enters as the photon-orbit conserved quantity. Not Casimir-style but explicitly KY-geodesic-derived. |
+ | 9 | Aminov, Grassi, Hatsuda 2019, "Black Hole Quasinormal Modes and Seiberg-Witten Theory" / "Kerr-de Sitter QNMs via accessory parameter expansion" | arXiv:1811.11912, JHEP 05 (2019) 033 | Heun-equation / isomonodromy / Painlevé-VI accessory-parameter expansion. Systematic algebraic-series QNMs, not closed form. |
+ | 10 | Bonelli, Iossa, Lichtig, Tanzini 2022, "Exact solution of Kerr black hole perturbations via CFT2 and instanton counting" | arXiv:2105.04483, Phys. Rev. D 105:044047 | Refines (9): exact solution in terms of Liouville conformal blocks / Nekrasov partition function. Closest the systematic-expansion school comes to "closed form." |
+-| 11 | Hadar, Kapec, Lupsasca, Strominger 2022, "Holography of the photon ring" | arXiv:2205.05064 / 2207.06435 | Emergent SL(2,R) at the photon ring; QNMs in highest-weight representations; this **is** a closed-form algebraic structure but only in the eikonal limit. |
+-| 12 | "Notes on emergent conformal symmetry for black holes" 2023 | arXiv:2309.02262 | Persistence of emergent 𝔰𝔩(2,ℝ) near the photon ring even for black holes lacking spacetime symmetries. Important: the photon-ring SL(2,R) is *intrinsic*, not the global KY structure. |
++| 11 | Hadar, Kapec, Lupsasca, Strominger 2022, "Holography of the Photon Ring" | arXiv:2205.05064 (CQG 39:215001) | Emergent SL(2,R) at the photon ring; QNMs in highest-weight representations; this **is** a closed-form algebraic structure but only in the eikonal limit. *Note: original lit-review entry also listed arXiv:2207.06435 — that ID resolves to Baiguera-Cederle-Penati "Supersymmetric Galilean Electrodynamics" (unrelated). Spike #12A PDF extraction verified arXiv:2205.05064 as the correct HKLS paper.* |
++| 12 | Xue, Jiang, Zhang 2023, "Notes on emergent conformal symmetry for black holes" | arXiv:2309.02262 | Persistence of emergent 𝔰𝔩(2,ℝ) near the photon ring even for black holes lacking spacetime symmetries. Important: the photon-ring SL(2,R) is *intrinsic*, not the global KY structure. *Note: original lit-review attributed this paper to "Hadar-Lupsasca-Strominger 2023"; Spike #12A PDF extraction verified actual authors are Xue, Jiang, and Zhang.* |
+ | 13 | Berti, Cardoso, Casals 2009, "Quasinormal modes of black holes and black branes" (review) | arXiv:0905.2975, Class. Quantum Grav. 26:163001 | Comprehensive QNM review. Confirms: generic-spin Kerr QNMs are computed by continued-fraction (Leaver), WKB, or numerical methods; no closed-form result is reported. |
+ | 14 | Yasui, Houri 2011, "Hidden Symmetry and Exact Solutions in Einstein Gravity" | arXiv:1104.0852, Prog. Theor. Phys. Suppl. 189:126 | Review of conformal Killing-Yano tower generated by the principal tensor. Algebraic framework only; no QNM closed-form pursued. |
+ | 15 | Maldacena, Strominger 1997, "Universal low-energy dynamics for rotating black holes" | arXiv:hep-th/9702015 | Early antecedent of CMS. Hidden CFT for near-extremal rotating black holes; conformal weights and Casimir structure established for the near-extreme regime. |
+-- 
+2.53.0.windows.2
+

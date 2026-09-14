@@ -1,0 +1,107 @@
+From dff66d754e11e6a87fe71809a15bd09ec508ec5a Mon Sep 17 00:00:00 2001
+From: Steven Kirkland <sckirklan@gmail.com>
+Date: Mon, 20 Jul 2026 23:35:39 -0500
+Subject: [PATCH 5/5] =?UTF-8?q?task=20#931=20(3b/3)=20=E2=80=94=20the=20la?=
+ =?UTF-8?q?st=207=20ADDRESSED=20sites:=20=5Fhashseed/=5Fhs=20coordinate=20?=
+ =?UTF-8?q?keys=20and=20a=20byte-sum=20token=20key?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Same regime as (3/3), split out only because the content operand had to be
+reconstructed rather than read straight off the call.
+
+  _hashseed(X) and _hs(X) are both
+      int.from_bytes(_dig(",".join(str(x) for x in X))[:8], "big")
+  so the thing actually being addressed is that join over X. Six sites in
+  882/883/889 address a numeric coordinate — a quaternion product, an octonion
+  context window, a page position. Coordinates owe each other no edit-distance,
+  so addressing is the right regime and the hand-rolled digest was simply
+  klein4_address written out longhand.
+
+  863 keyed a token as seed=sum(t.encode()) — an ORDER-INSENSITIVE byte sum.
+  Every anagram collides outright ("dog"/"god" got the same vector), and so does
+  any permutation. That is not a weak address, it is a broken one, and it is now
+  klein4_address(D, t).
+
+Numbers change at all 7. 4 files, all byte-compile.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+---
+ .../R-RBS-LM-863_massless_rider_coupling_walk.py            | 2 +-
+ .../rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py    | 6 +++---
+ .../R-RBS-LM-883_inverse_coupling_sandwich.py               | 4 ++--
+ .../rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py     | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-863_massless_rider_coupling_walk.py b/docs/srmech/rbs_lm_research/R-RBS-LM-863_massless_rider_coupling_walk.py
+index 4d41965a9..1d90776bf 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-863_massless_rider_coupling_walk.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-863_massless_rider_coupling_walk.py
+@@ -38,7 +38,7 @@ print("=== (1) Klein-4 is ORDER-BLIND (cannot be a story) ===")
+ kb = hdc.klein4_bundle(*[mint for mint in [_mk for _mk in []]]) if False else None
+ # bundle the same tokens in two orders; klein4 bundle/bind are commutative
+ D = 1024
+-toks_k = {t: hdc.klein4_random(D, seed=sum(t.encode())) for t in set(SENT)}
++toks_k = {t: hdc.klein4_address(D, t) for t in set(SENT)}
+ b1 = hdc.klein4_bundle(*[toks_k[t] for t in SENT])
+ b2 = hdc.klein4_bundle(*[toks_k[t] for t in PERM])
+ print(f"  klein4_bundle(sentence) vs klein4_bundle(reversed): sim = {hdc.klein4_similarity(b1,b2):.3f}  -> 1.000 = SAME (order lost)")
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py b/docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py
+index c39b95a56..f2d3edbfd 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-882_literal_qdft_twiddle.py
+@@ -41,16 +41,16 @@ def twiddle_key(win, pos, kaxes):                 # LITERAL exp(mu*theta): rotat
+     inv = ISQRT[kaxes]
+     q = [c] + [s * inv if a < kaxes else Fr(0) for a in range(7)]   # cos + (1/sqrt k) sin * (e1..ek)
+     pr = cascade.cd_mult(tuple(q), p)             # left twiddle in O
+-    return hdc.klein4_random(D, seed=_hashseed(pr))
++    return hdc.klein4_address(D, ",".join(str(x) for x in pr))
+ 
+ def scalar_key(win, pos, axes):                   # F881 SPIRIT: composed scalar klein4_phase_bind
+-    k = hdc.klein4_random(D, seed=_hashseed(ctx_oct(win)))
++    k = hdc.klein4_address(D, ",".join(str(x) for x in ctx_oct(win)))
+     for a in range(axes):
+         k = hdc.klein4_phase_bind(k, ((pos * MULT[a]) % PMAX) / PMAX)
+     return k
+ 
+ def plain_key(win, pos):                          # no-phase baseline
+-    return hdc.klein4_random(D, seed=_hashseed(ctx_oct(win)))
++    return hdc.klein4_address(D, ",".join(str(x) for x in ctx_oct(win)))
+ 
+ WV = {}
+ def wv(w):
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py b/docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py
+index c51670ea8..21deb3896 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-883_inverse_coupling_sandwich.py
+@@ -36,11 +36,11 @@ def unit_q(pos, kaxes):
+ 
+ def single_key(win, pos, kaxes):                  # F882: left twiddle q*p
+     p = tuple(Fr(x) for x in ctx_oct(win))
+-    return hdc.klein4_random(D, seed=_hashseed(cascade.cd_mult(unit_q(pos, kaxes), p)))
++    return hdc.klein4_address(D, ",".join(str(x) for x in cascade.cd_mult(unit_q(pos, kaxes), p)))
+ def sandwich_key(win, pos, kaxes):                # F883: inverse-coupling rotation q*p*conj(q)
+     p = tuple(Fr(x) for x in ctx_oct(win)); q = unit_q(pos, kaxes)
+     pr = cascade.cd_mult(cascade.cd_mult(q, p), cascade.cd_conjugate(q))
+-    return hdc.klein4_random(D, seed=_hashseed(pr))
++    return hdc.klein4_address(D, ",".join(str(x) for x in pr))
+ 
+ WV = {}
+ def wv(w):
+diff --git a/docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py b/docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py
+index 51aa0ff86..3a3ba3e20 100644
+--- a/docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py
++++ b/docs/srmech/rbs_lm_research/R-RBS-LM-889_mobius_aware_router.py
+@@ -38,7 +38,7 @@ def cossin(num, den):
+ def odft_key(win, num, den):                      # F882 single-sided O-twiddle, angle = num/den
+     p = tuple(Fr(x) for x in ctx_oct(win)); c, s = cossin(num, den)
+     q = [c] + [s * ISQRT7]*7
+-    return hdc.klein4_random(D, seed=_hs(cascade.cd_mult(tuple(q), p)))
++    return hdc.klein4_address(D, ",".join(str(x) for x in cascade.cd_mult(tuple(q), p)))
+ def key_base(win, pos): return odft_key(win, pos, PMAX)                 # flat torus (baseline)
+ def key_pack(win, pos):                                                 # Mobius: hi bit -> sign, lo -> theta in [0,1/2)
+     half = PMAX // 2; sigma = (pos // half) % 2; theta_num = (pos % half)
+-- 
+2.53.0.windows.2
+

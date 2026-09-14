@@ -1,0 +1,23 @@
+PRESERVED BRANCH ARCHIVE
+
+branch:        research/killing-yano-literature-review
+tip:           c85259c47511192dd16806ea3875a93e759d1094
+archived:      2026-09-14, onto research/rbs-lm-rolling-2 (PR #687)
+compared with: research/rbs-lm-rolling-2 at 4db51be25d4dec4121dcbe8626dd203c62575632 (2026-08-15)
+finding:       F1360 (docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_1360_*.md)
+
+Commits on no remote (git log <branch> --not --remotes), newest first:
+  sha                                       author-date                 cherry-picked-with-x  subject
+  c85259c47511192dd16806ea3875a93e759d1094  2026-05-12T23:51:09-05:00  yes                   fix(srmech): correct two more arXiv ID + author misattributions caught by Spike #12A
+  11409fc8bdbda2c14b48f5c91d28718e17448d0e  2026-05-12T23:38:17-05:00  yes                   fix(srmech): correct arXiv:2401.03553 attribution Gray-Kubizňák 2024 (not Houri-Tanahashi-Yasui)
+  4b49b16ec6fd8c5c03fa4f5f218cc1eba07877f7  2026-05-12T23:06:50-05:00  yes                   research(srmech): Killing-Yano Kerr hidden-symmetry literature review (Spike #9 follow-up)
+
+Patches in this folder: git format-patch <branch> --not --remotes (oldest = 0001).
+Subjects and patch bodies are verbatim commit text; any bare hash-number inside them is historical and not re-spelled.
+Re-apply: git am --keep-cr 0*.patch on top of 7bbeb0267968737c648c3256e0422f6577fc4279 (the parent of the oldest patched commit 4b49b16ec).
+
+Per-path status of every path the unpushed commits touch, against research/rbs-lm-rolling-2 at 4db51be25:
+  counts: absent 1
+  status     path
+             -> note
+  absent     docs/srmech/notes/killing_yano_kerr_literature_review_2026-05-12.md

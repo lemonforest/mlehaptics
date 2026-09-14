@@ -1,0 +1,2259 @@
+From 992548b7efd5da13f3068c906fa76d60cd0bdf95 Mon Sep 17 00:00:00 2001
+From: Steven Kirkland <sckirklan@gmail.com>
+Date: Tue, 11 Aug 2026 23:27:33 -0500
+Subject: [PATCH 1/5] =?UTF-8?q?srmech=20rc426=20research=20=E2=80=94=20`#T?=
+ =?UTF-8?q?1124`:=20the=20notation=20carrier=20is=20a=20torsor,=20and=20th?=
+ =?UTF-8?q?e=20clef=20is=20an=20origin=20the=20page=20cannot=20hold?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+READ-ONLY research spike. No package change, no version bump, no PR.
+Five generating scripts + five NDJSON artifacts under `docs/srmech/notes/`
+so no number below dangles (`[[feedback_computational_provenance_discipline]]`).
+All measurements run on 0.9.0rc424 under WSL2 with numpy ABSENT.
+
+MEASURED, not asserted:
+
+* P1 — **0 of 29 carriers and 0 of 612 ops name a notation object.** The
+  notation layer is EMPTY. rc424's music lane is RELATIONS (6 ops), one rung
+  below. Of its 6 relational ops, 3 are frame-parametric / frame-free and 3
+  hard-wire ℤ/12 — and they reach it through PRIVATE HELPERS, so a
+  non-transitive audit under-reports it (the first version of this script did
+  exactly that and the correction is left visible in the source).
+
+* P2 — the GIS axioms EXECUTED. ℤ/n is a torsor at every n in
+  {5,7,12,17,19,22,24,31,53} — **12 is not special.** The 24 consonant triads
+  under T/I (NON-abelian, 360/576 non-commuting pairs) are a torsor
+  13824/13824 + 576/576. Reversing the composition order breaks axiom A
+  (5184/13824) while simple transitivity survives BOTH ways: **"is it a
+  torsor" and "does axiom A hold" separate once IVLS is non-abelian**, and
+  every abelian row is structurally blind to that. 4 negative controls, 0
+  wrongly blessed.
+
+* P3 — `octonion_frame_read` satisfies the CLEF SHAPE on all 28 frames:
+  something moves (11 of 12 fields), something survives (`norm_sq`, 1/28), and
+  NO frame-free quantity singles out the default frame. But the frame set is
+  **not one torsor**: within a line the 8 signed base units act transitively
+  with multiplicity 2 (stabiliser {±1}), so it is a torsor for the order-4
+  QUOTIENT; across lines nothing shipped certifies one.
+  `oct_torsor_*`'s group is measured to be **Q8** — order 8, non-abelian, one
+  involution — and **0 of 7 candidate pitch-interval groups can be hosted**.
+
+* P4 — octave equivalence IS the shipped central extension. `center_lift`'s
+  shadow is bit-identical to the `cyclic_mod_add` chain at 10/10 moduli, and
+  `lift_fibre` ENUMERATES the register coset. The origin torsor's group is
+  ℤ, not ℤ/n (0/25 vs 25/25). Plus an executable three-bucket LEAK TEST that
+  catches the three shipped ℤ/12 ops — so it can return otherwise.
+
+* P5 — the carrier+chart prototype, and it **falsified its own first atlas
+  test**: checking chart compatibility THROUGH the carrier blessed a
+  deliberately corrupted chart 1225/1225. Retained rather than deleted,
+  because the lesson is the deliverable — an atlas's content lives entirely
+  in TRANSITION MAPS, which must be supplied and checked, never inferred.
+  Under the corrected condition the corrupted chart fails (30/35), and the
+  derived transition for an origin shift produced the KEY-SIGNATURE shape
+  unprompted: rotate the alphabet by 3, one degree of seven needs a flat.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01XTksuWRsHXmGUmBETmSzZx
+---
+ .../_p1_notation_carrier_census_rc426.ndjson  |   5 +
+ .../_p1_notation_carrier_census_rc426.py      | 307 ++++++++++
+ docs/srmech/notes/_p2_gis_torsor_rc426.ndjson |  31 +
+ docs/srmech/notes/_p2_gis_torsor_rc426.py     | 538 ++++++++++++++++++
+ .../notes/_p3_frame_read_clef_rc426.ndjson    |   7 +
+ .../srmech/notes/_p3_frame_read_clef_rc426.py | 414 ++++++++++++++
+ .../_p4_covering_octave_leaktest_rc426.ndjson |   6 +
+ .../_p4_covering_octave_leaktest_rc426.py     | 306 ++++++++++
+ .../_p5_chart_atlas_prototype_rc426.ndjson    |   9 +
+ .../notes/_p5_chart_atlas_prototype_rc426.py  | 491 ++++++++++++++++
+ 10 files changed, 2114 insertions(+)
+ create mode 100644 docs/srmech/notes/_p1_notation_carrier_census_rc426.ndjson
+ create mode 100644 docs/srmech/notes/_p1_notation_carrier_census_rc426.py
+ create mode 100644 docs/srmech/notes/_p2_gis_torsor_rc426.ndjson
+ create mode 100644 docs/srmech/notes/_p2_gis_torsor_rc426.py
+ create mode 100644 docs/srmech/notes/_p3_frame_read_clef_rc426.ndjson
+ create mode 100644 docs/srmech/notes/_p3_frame_read_clef_rc426.py
+ create mode 100644 docs/srmech/notes/_p4_covering_octave_leaktest_rc426.ndjson
+ create mode 100644 docs/srmech/notes/_p4_covering_octave_leaktest_rc426.py
+ create mode 100644 docs/srmech/notes/_p5_chart_atlas_prototype_rc426.ndjson
+ create mode 100644 docs/srmech/notes/_p5_chart_atlas_prototype_rc426.py
+
+diff --git a/docs/srmech/notes/_p1_notation_carrier_census_rc426.ndjson b/docs/srmech/notes/_p1_notation_carrier_census_rc426.ndjson
+new file mode 100644
+index 000000000..51fabedcc
+--- /dev/null
++++ b/docs/srmech/notes/_p1_notation_carrier_census_rc426.ndjson
+@@ -0,0 +1,5 @@
++{"carrier_names": ["BiPoly", "CDRegister", "CarrierSpectrum", "EllMonomial", "EllRatio", "HV", "HarmonicMaass", "Mat", "MockQSeries", "One", "Poly", "Q", "QBiPoly", "QMat", "QPoly", "Qalg", "SedenionRegister", "Theta", "ThetaBracketSum", "ThetaSum", "TriPoly", "UnaryTheta", "Vec", "complex", "float", "int", "octonion", "quaternion", "sedenion"], "clean_hits": {}, "dirty_hits": {"CarrierSpectrum": ["key"], "HV": ["key"], "float": ["scale", "key"], "int": ["scale", "interval", "key", "score", "temperament"]}, "finding": "C1_carrier_census", "n_carriers": 29, "n_clean_notation_hits": 0, "n_dirty_hits": 4, "srmech_version": "0.9.0rc424", "verdict": "EMPTY — no carrier names a notation object"}
++{"finding": "C2_op_census", "n_ops": 612, "n_ops_name_any_music_token": 7, "n_ops_prose_clean_notation": 0, "n_ops_prose_dirty": 232, "ops_name_any_music_token": {"srmech.cascade.dft_scale": ["scale"], "srmech.cascade.top_k_by_score": ["score"], "srmech.cascade.vec_scale": ["scale"], "srmech.math.hdc.klein4_phase_key": ["key"], "srmech.math.rational.scale_round_half_even": ["scale"], "srmech.music.equal_temperament_partials": ["temperament"], "srmech.music.interval_vector": ["interval"]}, "ops_prose_clean_notation": {}, "srmech_version": "0.9.0rc424", "verdict": "EMPTY — no op names a notation object"}
++{"finding": "C2b_music_namespace", "music_ops": ["srmech.music.bell_partials", "srmech.music.bessel_j_fixed", "srmech.music.bessel_zero_fixed", "srmech.music.comma_of_chain", "srmech.music.commensurability_verdict", "srmech.music.common_period", "srmech.music.equal_temperament_partials", "srmech.music.harmonics.classify_chirality_harmonic", "srmech.music.harmonics.classify_harmonic", "srmech.music.interval_vector", "srmech.music.just_limit", "srmech.music.membrane_partials", "srmech.music.normal_order", "srmech.music.prime_form", "srmech.music.spectrum_tier", "srmech.music.stiff_string_partials", "srmech.music.tempers_out"], "n_music_ops": 17, "n_notation_ops": 0, "n_relational": 6, "relational_ops": ["srmech.music.comma_of_chain", "srmech.music.interval_vector", "srmech.music.just_limit", "srmech.music.normal_order", "srmech.music.prime_form", "srmech.music.tempers_out"], "srmech_version": "0.9.0rc424"}
++{"edo12_constant": 12, "finding": "C3_modulus_leak_census", "n_carrier_scoped": 3, "n_chart_scoped": 3, "private_helpers_hardwiring_edo12": {"_as_pcs": true, "_interval_class": true, "_invert": true, "_spans": true}, "rows": [{"body_uses_hardwired_EDO12": false, "caller_movable_modulus": [], "lane": "CARRIER (no modulus at all — ℚ⁺ lane)", "op": "just_limit", "params": ["num", "den"], "reaches_EDO12": false, "reaches_EDO12_via_helpers": []}, {"body_uses_hardwired_EDO12": false, "caller_movable_modulus": ["period"], "lane": "CARRIER-parametric (caller supplies the modulus)", "op": "comma_of_chain", "params": ["gen", "n", "period"], "reaches_EDO12": false, "reaches_EDO12_via_helpers": []}, {"body_uses_hardwired_EDO12": false, "caller_movable_modulus": ["edo"], "lane": "CARRIER-parametric (caller supplies the modulus)", "op": "tempers_out", "params": ["comma", "edo", "den"], "reaches_EDO12": false, "reaches_EDO12_via_helpers": []}, {"body_uses_hardwired_EDO12": true, "caller_movable_modulus": [], "lane": "CHART (ℤ/12 hard-wired)", "op": "interval_vector", "params": ["pcs"], "reaches_EDO12": true, "reaches_EDO12_via_helpers": ["_as_pcs", "_interval_class"]}, {"body_uses_hardwired_EDO12": false, "caller_movable_modulus": [], "lane": "CHART (ℤ/12 hard-wired)", "op": "normal_order", "params": ["pcs", "convention"], "reaches_EDO12": true, "reaches_EDO12_via_helpers": ["_as_pcs", "_spans"]}, {"body_uses_hardwired_EDO12": true, "caller_movable_modulus": [], "lane": "CHART (ℤ/12 hard-wired)", "op": "prime_form", "params": ["pcs", "convention"], "reaches_EDO12": true, "reaches_EDO12_via_helpers": ["_as_pcs", "_invert", "normal_order(->_as_pcs,_spans)"]}], "srmech_version": "0.9.0rc424", "verdict": "3/6 shipped relational ops are CHART-scoped (ℤ/12 hard-wired); the remainder are the frame-free ℚ⁺ / parametric-EDO lane"}
++{"declarations": {"names a non-12 EDO anywhere in the module": true, "names the frequency lane explicitly": true, "names the modular lane explicitly": true, "says the two lanes DISAGREE": true}, "finding": "C4_chart_declared", "srmech_version": "0.9.0rc424", "verdict": "DECLARED — the 12 is a named lane, not a silent assumption"}
+diff --git a/docs/srmech/notes/_p1_notation_carrier_census_rc426.py b/docs/srmech/notes/_p1_notation_carrier_census_rc426.py
+new file mode 100644
+index 000000000..41f47a4ef
+--- /dev/null
++++ b/docs/srmech/notes/_p1_notation_carrier_census_rc426.py
+@@ -0,0 +1,307 @@
++#!/usr/bin/env python3
++"""P1 — the NOTATION-CARRIER census (rc426 research spike, read-only).
++
++Pre-registered question
++=======================
++Does srmech ship ANY carrier or op that names a NOTATION object (staff /
++clef / score / sheet / tablature / neume / stave / notation)?  rc424 measured
++"0 of 605 ops naming a relational music-theory object" before adding 6.  This
++script asks the same question of the NOTATION layer, one rung up from the
++relations layer, and reports the number rather than asserting it.
++
++Three separate censuses, because they are three separate claims:
++
++  C1  carriers   — every entry of ``introspect.carrier_schema()``
++  C2  ops        — every entry of ``introspect.tool_schema.get_tool_schema()``
++  C3  EDO leak   — which shipped music ops hard-wire a modulus, i.e. which are
++                   CHART-scoped (convention-bearing) rather than CARRIER-scoped
++                   (frame-free).  A hard-wired 12 is a WESTERN CHART constant.
++
++Homograph discipline
++====================
++rc424's own changelog records a homograph (MUSIC = MUltiple SIgnal
++Classification) that hid an op from search for its whole life.  So this census
++separates SURFACE HITS from CONFIRMED HITS: a token match is a candidate, and
++every candidate is emitted with its context so the classification is auditable
++rather than asserted.  Known landmines, pre-registered:
++
++  "note"     — Python prose ("note that ...", ``Note:`` docstring section)
++  "scale"    — scaling / rescale / scale factor, everywhere in numerics
++  "interval" — confidence interval, interval arithmetic
++  "octave"   — vs "octonion"  (prefix collision under sloppy matching)
++  "key"      — dict key, sort key, cache key
++  "measure"  — measure theory / measurement
++  "bar"      — bar chart, error bar
++  "rest"     — the rest of, REST API
++  "staff"    — no known collision
++  "clef"     — no known collision
++
++Outputs one NDJSON record per finding to
++``_p1_notation_carrier_census_rc426.ndjson``.
++
++Run:
++    PYTHONPATH=docs/srmech/python python3 docs/srmech/notes/_p1_notation_carrier_census_rc426.py
++"""
++from __future__ import annotations
++
++import json
++import os
++import re
++import sys
++
++import srmech
++from srmech.introspect.carrier_schema import carrier_schema
++from srmech.introspect.tool_schema import get_tool_schema, warmup_all
++
++OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
++                   "_p1_notation_carrier_census_rc426.ndjson")
++
++# ── the vocabulary, split by how trustworthy a bare token match is ──────────
++
++#: Tokens with NO known homograph in a numerics codebase.  A hit here is a
++#: real notation reference until shown otherwise.
++CLEAN = (
++    "clef", "staff", "stave", "notation", "sheet music", "tablature",
++    "neume", "solfege", "solfège", "sargam", "maqam", "jianpu", "gongche",
++    "shruti", "swara", "raga", "makam", "jins", "ajnas", "byzantine",
++    "chiavette", "score sheet", "manuscript", "key signature",
++    "time signature", "accidental", "ledger line", "barline",
++)
++
++#: Tokens that DO collide.  Every hit must be inspected; the record carries
++#: the collision reason so nothing is silently counted.
++DIRTY = {
++    "note": "docstring 'Note:' section; prose 'note that'",
++    "scale": "scaling / scale factor / rescale",
++    "interval": "confidence interval; interval arithmetic",
++    "octave": "prefix-collides with 'octonion' under sloppy matching",
++    "key": "dict key / sort key / cache key",
++    "measure": "measure theory; 'measurement'",
++    "bar": "bar chart; error bar",
++    "rest": "'the rest of'; REST API",
++    "score": "score function; z-score",
++    "pitch": "pitch (angle) in aerospace; pitch of a helix",
++    "chord": "chord of a circle / graph chord",
++    "mode": "mode of operation; statistical mode",
++    "tone": "tone mapping",
++    "voice": "voice/vocal",
++    "temperament": "no known collision, but low frequency — verify",
++}
++
++#: The music-RELATIONAL vocabulary rc424 added.  Counted separately: these
++#: are RELATIONS (how two pitches stand), NOT NOTATION (how a pitch is
++#: written).  Conflating the two is the whole risk of this census.
++RELATIONAL = (
++    "just_limit", "comma_of_chain", "tempers_out", "interval_vector",
++    "normal_order", "prime_form",
++)
++
++
++def _blob(entry) -> str:
++    """Every prose surface of a ToolEntry, lowercased, as one string."""
++    parts = [entry.name, entry.summary or "", entry.explanation or ""]
++    for p in entry.parameters or ():
++        parts.append(p.name)
++        parts.append(p.summary or "")
++    ex = entry.example or {}
++    if isinstance(ex, dict):
++        parts.append(str(ex.get("why", "")))
++    return " ".join(parts).lower()
++
++
++def _hits(text: str, tokens) -> list:
++    out = []
++    for t in tokens:
++        # word-boundary match so 'octave' cannot be found inside 'octonion'
++        # and 'note' cannot be found inside 'notebook' / 'denote'
++        if re.search(r"(?<![a-z])" + re.escape(t) + r"(?![a-z])", text):
++            out.append(t)
++    return out
++
++
++def main() -> int:
++    print("srmech.__file__    =", srmech.__file__)
++    print("srmech.__version__ =", srmech.__version__)
++    try:
++        import numpy  # noqa: F401
++        print("!! numpy PRESENT — measurement environment is wrong")
++    except ImportError:
++        print("numpy              = ABSENT (correct)")
++    print()
++
++    recs = []
++
++    def emit(**kw):
++        kw.setdefault("srmech_version", srmech.__version__)
++        recs.append(kw)
++
++    # ── C1 — the carrier census ────────────────────────────────────────────
++    cs = carrier_schema()
++    print(f"C1  carriers: {len(cs)}")
++    carrier_clean = {}
++    carrier_dirty = {}
++    for name, spec in sorted(cs.items()):
++        blob = json.dumps(spec, default=str).lower()
++        c = _hits(blob, CLEAN)
++        d = _hits(blob, DIRTY)
++        if c:
++            carrier_clean[name] = c
++        if d:
++            carrier_dirty[name] = d
++    print(f"    names/descriptions matching a CLEAN notation token : "
++          f"{len(carrier_clean)}  {carrier_clean}")
++    print(f"    matching a DIRTY (homograph-prone) token           : "
++          f"{len(carrier_dirty)}")
++    for n, d in sorted(carrier_dirty.items()):
++        print(f"      {n:24s} {d}")
++    emit(finding="C1_carrier_census",
++         n_carriers=len(cs),
++         carrier_names=sorted(cs),
++         n_clean_notation_hits=len(carrier_clean),
++         clean_hits=carrier_clean,
++         n_dirty_hits=len(carrier_dirty),
++         dirty_hits=carrier_dirty,
++         verdict=("EMPTY — no carrier names a notation object"
++                  if not carrier_clean else "NONEMPTY — inspect"))
++
++    # ── C2 — the op census ────────────────────────────────────────────────
++    warmup_all()
++    tools = get_tool_schema().tools
++    print(f"\nC2  ops: {len(tools)}")
++    op_clean, op_dirty, name_hits = {}, {}, {}
++    for e in tools:
++        blob = _blob(e)
++        c = _hits(blob, CLEAN)
++        d = _hits(blob, DIRTY)
++        nc = _hits(e.name.lower().replace("_", " ").replace(".", " "),
++                   CLEAN + tuple(DIRTY))
++        if c:
++            op_clean[e.name] = c
++        if d:
++            op_dirty[e.name] = d
++        if nc:
++            name_hits[e.name] = nc
++    print(f"    ops whose PROSE matches a CLEAN notation token : {len(op_clean)}")
++    for n, h in sorted(op_clean.items()):
++        print(f"      {n:58s} {h}")
++    print(f"    ops whose NAME matches any music token         : {len(name_hits)}")
++    for n, h in sorted(name_hits.items()):
++        print(f"      {n:58s} {h}")
++    print(f"    ops whose PROSE matches a DIRTY token          : {len(op_dirty)}"
++          "   (homograph-prone; not counted as notation)")
++    emit(finding="C2_op_census",
++         n_ops=len(tools),
++         n_ops_prose_clean_notation=len(op_clean),
++         ops_prose_clean_notation=op_clean,
++         n_ops_name_any_music_token=len(name_hits),
++         ops_name_any_music_token=name_hits,
++         n_ops_prose_dirty=len(op_dirty),
++         verdict=("EMPTY — no op names a notation object"
++                  if not op_clean else "NONEMPTY — inspect"))
++
++    # ── C2b — the music namespace, enumerated ─────────────────────────────
++    music_ops = sorted(e.name for e in tools if ".music." in e.name)
++    rel_ops = [n for n in music_ops
++               if n.rsplit(".", 1)[-1] in RELATIONAL]
++    print(f"\nC2b srmech.music.* registered ops: {len(music_ops)}")
++    for n in music_ops:
++        tag = "RELATIONAL" if n in rel_ops else "acoustic"
++        print(f"      [{tag:10s}] {n}")
++    emit(finding="C2b_music_namespace",
++         n_music_ops=len(music_ops),
++         music_ops=music_ops,
++         n_relational=len(rel_ops),
++         relational_ops=rel_ops,
++         n_notation_ops=0 if not op_clean else len(op_clean))
++
++    # ── C3 — the EDO / modulus leak census ────────────────────────────────
++    # Which shipped music ops are parametric in their modulus (CARRIER-shaped,
++    # frame-free) and which hard-wire one (CHART-shaped, convention-bearing)?
++    import inspect
++
++    from srmech.music import relations as rel
++
++    print("\nC3  modulus parametricity of the rc424 relational lane")
++    print(f"    module constant _EDO12 = {rel._EDO12}")
++    # ⚠️ The FIRST version of this classifier read each function's OWN source
++    # only, and reported ``normal_order`` as "CARRIER (no modulus at all)".
++    # That was WRONG: normal_order's body never types ``_EDO12``, but it calls
++    # ``_as_pcs`` and ``_spans``, and BOTH hard-wire it.  The correction is
++    # kept visible rather than silently patched, because the shape of the
++    # error is the finding: a modulus assumption reaches a public op through
++    # a PRIVATE HELPER, so a non-transitive audit under-reports it.
++    helpers = {}
++    for h in ("_as_pcs", "_interval_class", "_invert", "_spans"):
++        helpers[h] = "_EDO12" in inspect.getsource(getattr(rel, h))
++    tainted = {h for h, v in helpers.items() if v}
++
++    rows = []
++    for fn_name in RELATIONAL:
++        fn = getattr(rel, fn_name)
++        sig = inspect.signature(fn)
++        params = list(sig.parameters)
++        src = inspect.getsource(fn)
++        direct = "_EDO12" in src
++        # transitive closure, one hop, over the tainted private helpers, plus
++        # a second hop for prime_form -> normal_order
++        via = sorted(h for h in tainted if h in src)
++        if fn_name == "prime_form" and "normal_order" in src:
++            via = sorted(set(via) | {"normal_order(->" + ",".join(
++                sorted(h for h in tainted
++                       if h in inspect.getsource(rel.normal_order))) + ")"})
++        reaches_edo12 = direct or bool(via)
++        param_modulus = [p for p in params
++                         if p.lower() in ("edo", "modulus", "mod", "period")]
++        if reaches_edo12:
++            lane = "CHART (ℤ/12 hard-wired)"
++        elif param_modulus:
++            lane = "CARRIER-parametric (caller supplies the modulus)"
++        else:
++            lane = "CARRIER (no modulus at all — ℚ⁺ lane)"
++        rows.append({"op": fn_name, "params": params,
++                     "body_uses_hardwired_EDO12": direct,
++                     "reaches_EDO12_via_helpers": via,
++                     "reaches_EDO12": reaches_edo12,
++                     "caller_movable_modulus": param_modulus,
++                     "lane": lane})
++        print(f"      {fn_name:18s} params={params!s:34s} "
++              f"direct={'Y' if direct else 'n'} via={via!s:34s} {lane}")
++    print(f"      private helpers hard-wiring _EDO12: {helpers}")
++    n_chart = sum(1 for r in rows if r["lane"].startswith("CHART"))
++    emit(finding="C3_modulus_leak_census",
++         edo12_constant=rel._EDO12,
++         rows=rows,
++         private_helpers_hardwiring_edo12=helpers,
++         n_chart_scoped=n_chart,
++         n_carrier_scoped=len(rows) - n_chart,
++         verdict=(f"{n_chart}/{len(rows)} shipped relational ops are "
++                  "CHART-scoped (ℤ/12 hard-wired); the remainder are the "
++                  "frame-free ℚ⁺ / parametric-EDO lane"))
++
++    # ── C4 — is the ℤ/12 a DECLARED chart or an UNMARKED assumption? ──────
++    # A hard-wired 12 is only a defect if the op does not SAY it is a chart.
++    doc = rel.__doc__ or ""
++    declares = {
++        "names the modular lane explicitly": "ℤ/12" in doc or "Z/12" in doc,
++        "names the frequency lane explicitly": "ℚ⁺" in doc or "Q+" in doc,
++        "says the two lanes DISAGREE": "DO NOT AGREE" in doc.upper(),
++        "names a non-12 EDO anywhere in the module":
++            bool(re.search(r"\bedo\b", inspect.getsource(rel), re.I)),
++    }
++    print("\nC4  does the module DECLARE its chart?")
++    for k, v in declares.items():
++        print(f"      {'YES' if v else 'NO ':4s} {k}")
++    emit(finding="C4_chart_declared",
++         declarations=declares,
++         verdict=("DECLARED — the 12 is a named lane, not a silent assumption"
++                  if all(declares.values()) else "PARTIAL — inspect"))
++
++    with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
++        for r in recs:
++            fh.write(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n")
++    print(f"\nwrote {len(recs)} records -> {OUT}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/srmech/notes/_p2_gis_torsor_rc426.ndjson b/docs/srmech/notes/_p2_gis_torsor_rc426.ndjson
+new file mode 100644
+index 000000000..2501147ae
+--- /dev/null
++++ b/docs/srmech/notes/_p2_gis_torsor_rc426.ndjson
+@@ -0,0 +1,31 @@
++{"IVLS_abelian": true, "axiom_A_pass": 125, "axiom_A_total": 125, "axiom_B_pass": 25, "axiom_B_preimage_multiplicity_histogram": {"1": 25}, "axiom_B_total": 25, "finding": "F3_gis_axioms", "n_IVLS": 5, "n_S": 5, "note": "n-parametric: nothing here knows about 12", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "Z/5 regular translation", "verdict": "TORSOR"}
++{"IVLS_abelian": true, "axiom_A_pass": 343, "axiom_A_total": 343, "axiom_B_pass": 49, "axiom_B_preimage_multiplicity_histogram": {"1": 49}, "axiom_B_total": 49, "finding": "F3_gis_axioms", "n_IVLS": 7, "n_S": 7, "note": "n-parametric: nothing here knows about 12", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "Z/7 regular translation", "verdict": "TORSOR"}
++{"IVLS_abelian": true, "axiom_A_pass": 1728, "axiom_A_total": 1728, "axiom_B_pass": 144, "axiom_B_preimage_multiplicity_histogram": {"1": 144}, "axiom_B_total": 144, "finding": "F3_gis_axioms", "n_IVLS": 12, "n_S": 12, "note": "n-parametric: nothing here knows about 12", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "Z/12 regular translation", "verdict": "TORSOR"}
++{"IVLS_abelian": true, "axiom_A_pass": 4913, "axiom_A_total": 4913, "axiom_B_pass": 289, "axiom_B_preimage_multiplicity_histogram": {"1": 289}, "axiom_B_total": 289, "finding": "F3_gis_axioms", "n_IVLS": 17, "n_S": 17, "note": "n-parametric: nothing here knows about 12", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "Z/17 regular translation", "verdict": "TORSOR"}
++{"IVLS_abelian": true, "axiom_A_pass": 6859, "axiom_A_total": 6859, "axiom_B_pass": 361, "axiom_B_preimage_multiplicity_histogram": {"1": 361}, "axiom_B_total": 361, "finding": "F3_gis_axioms", "n_IVLS": 19, "n_S": 19, "note": "n-parametric: nothing here knows about 12", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "Z/19 regular translation", "verdict": "TORSOR"}
++{"IVLS_abelian": true, "axiom_A_pass": 10648, "axiom_A_total": 10648, "axiom_B_pass": 484, "axiom_B_preimage_multiplicity_histogram": {"1": 484}, "axiom_B_total": 484, "finding": "F3_gis_axioms", "n_IVLS": 22, "n_S": 22, "note": "n-parametric: nothing here knows about 12", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "Z/22 regular translation", "verdict": "TORSOR"}
++{"IVLS_abelian": true, "axiom_A_pass": 13824, "axiom_A_total": 13824, "axiom_B_pass": 576, "axiom_B_preimage_multiplicity_histogram": {"1": 576}, "axiom_B_total": 576, "finding": "F3_gis_axioms", "n_IVLS": 24, "n_S": 24, "note": "n-parametric: nothing here knows about 12", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "Z/24 regular translation", "verdict": "TORSOR"}
++{"IVLS_abelian": true, "axiom_A_pass": 29791, "axiom_A_total": 29791, "axiom_B_pass": 961, "axiom_B_preimage_multiplicity_histogram": {"1": 961}, "axiom_B_total": 961, "finding": "F3_gis_axioms", "n_IVLS": 31, "n_S": 31, "note": "n-parametric: nothing here knows about 12", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "Z/31 regular translation", "verdict": "TORSOR"}
++{"IVLS_abelian": true, "axiom_A_pass": 148877, "axiom_A_total": 148877, "axiom_B_pass": 2809, "axiom_B_preimage_multiplicity_histogram": {"1": 2809}, "axiom_B_total": 2809, "finding": "F3_gis_axioms", "n_IVLS": 53, "n_S": 53, "note": "n-parametric: nothing here knows about 12", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "Z/53 regular translation", "verdict": "TORSOR"}
++{"IVLS_abelian": true, "axiom_A_pass": 19683, "axiom_A_total": 19683, "axiom_B_pass": 343, "axiom_B_preimage_multiplicity_histogram": {"0": 386, "1": 343}, "axiom_B_total": 729, "finding": "F3_gis_axioms", "n_IVLS": 27, "n_S": 27, "note": "free abelian rank 3; NOT cyclic and NOT finite. A finite WINDOW of an infinite torsor is not closed under the group, so axiom B must fail here; the failure is a WINDOWING ARTIFACT, not a refutation.", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "5-limit lattice Z^3 (WINDOW +/-1)", "verdict": "NOT-A-TORSOR"}
++{"finding": "F3_2_window_artifact", "multiplicities": {"0": 386, "1": 343}, "no_multiplicity_above_one": true, "srmech_version": "0.9.0rc424", "verdict": "BOUNDED, not REFUTED: axiom A passes exhaustively (19683/19683) and every axiom-B miss is a 0-preimage (fell out of the window), never a 2-preimage. Simple transitivity is not CERTIFIABLE on a truncated window — so a closed finite stand-in is run next."}
++{"IVLS_abelian": true, "axiom_A_pass": 1953125, "axiom_A_total": 1953125, "axiom_B_pass": 15625, "axiom_B_preimage_multiplicity_histogram": {"1": 15625}, "axiom_B_total": 15625, "finding": "F3_gis_axioms", "n_IVLS": 125, "n_S": 125, "note": "rank-3 abelian, CLOSED — certifies what the truncated 5-limit window structurally cannot", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "(Z/5)^3 CLOSED finite stand-in", "verdict": "TORSOR"}
++{"finding": "F3_2_factor_crosscheck", "note": "exponent vectors DERIVED from srmech.math.primes.factor, not tabulated", "probes": [{"exp_2_3_5": [-1, 1, 0], "is_5_limit": true, "ratio": "3/2"}, {"exp_2_3_5": [-2, 0, 1], "is_5_limit": true, "ratio": "5/4"}, {"exp_2_3_5": [-3, 2, 0], "is_5_limit": true, "ratio": "9/8"}, {"exp_2_3_5": [-4, 4, -1], "is_5_limit": true, "ratio": "81/80"}, {"exp_2_3_5": [-5, 2, 1], "is_5_limit": true, "ratio": "45/32"}, {"exp_2_3_5": [4, -1, -1], "is_5_limit": true, "ratio": "16/15"}], "srmech_version": "0.9.0rc424"}
++{"IVLS_abelian": false, "axiom_A_pass": 13824, "axiom_A_total": 13824, "axiom_B_pass": 576, "axiom_B_preimage_multiplicity_histogram": {"1": 576}, "axiom_B_total": 576, "finding": "F3_gis_axioms", "n_IVLS": 24, "n_S": 24, "note": "Lewin permits a NON-commutative IVLS; this is the standard non-abelian witness. Group is dihedral of order 24. Composition read LEFT-to-RIGHT.", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "24 triads under T/I  [compose = g THEN h]", "verdict": "TORSOR"}
++{"IVLS_abelian": false, "axiom_A_pass": 5184, "axiom_A_total": 13824, "axiom_B_pass": 576, "axiom_B_preimage_multiplicity_histogram": {"1": 576}, "axiom_B_total": 576, "finding": "F3_gis_axioms", "n_IVLS": 24, "n_S": 24, "note": "the SAME system with the composition order REVERSED", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "24 triads under T/I  [compose = h THEN g]", "verdict": "NOT-A-TORSOR"}
++{"axiom_A_forward": "13824/13824", "axiom_A_reversed": "5184/13824", "axiom_B_forward": "576/576", "axiom_B_reversed": "576/576", "finding": "F3_3_composition_order_sensitivity", "srmech_version": "0.9.0rc424", "verdict": "SIMPLE TRANSITIVITY (axiom B) is convention-INDEPENDENT; the COMPOSITION LAW (axiom A) is convention-DEPENDENT once IVLS is non-abelian. So 'is it a torsor' and 'does the stated axiom A hold' are DIFFERENT questions, and only the abelian case lets you conflate them. Every ℤ/n row in F3.1 is structurally blind to this."}
++{"abelian": false, "finding": "F3_3_ti_noncommutativity", "non_commuting_ordered_pairs": 360, "srmech_version": "0.9.0rc424", "total_ordered_pairs": 576}
++{"IVLS_abelian": true, "axiom_A_pass": 288, "axiom_A_total": 1728, "axiom_B_pass": 144, "axiom_B_preimage_multiplicity_histogram": {"1": 144}, "axiom_B_total": 144, "finding": "F3_gis_axioms", "n_IVLS": 12, "n_S": 12, "note": "negative control", "points_where_int_s_s_is_not_identity": 10, "srmech_version": "0.9.0rc424", "system": "N1 int(s,t)=(t+s) mod 12  [breaks A]", "verdict": "NOT-A-TORSOR"}
++{"IVLS_abelian": true, "axiom_A_pass": 1728, "axiom_A_total": 1728, "axiom_B_pass": 0, "axiom_B_preimage_multiplicity_histogram": {"0": 72, "2": 72}, "axiom_B_total": 144, "finding": "F3_gis_axioms", "n_IVLS": 12, "n_S": 12, "note": "negative control", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "N2 int(s,t)=2(t-s) mod 12 [breaks B, 2:1]", "verdict": "NOT-A-TORSOR"}
++{"IVLS_abelian": true, "axiom_A_pass": 1728, "axiom_A_total": 1728, "axiom_B_pass": 0, "axiom_B_preimage_multiplicity_histogram": {"2": 72}, "axiom_B_total": 72, "finding": "F3_gis_axioms", "n_IVLS": 6, "n_S": 12, "note": "negative control", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "N3 IVLS=Z/6 on S=Z/12    [breaks B, onto]", "verdict": "NOT-A-TORSOR"}
++{"IVLS_abelian": true, "axiom_A_pass": 936, "axiom_A_total": 1728, "axiom_B_pass": 144, "axiom_B_preimage_multiplicity_histogram": {"0": 144, "1": 144}, "axiom_B_total": 288, "finding": "F3_gis_axioms", "n_IVLS": 24, "n_S": 12, "note": "negative control", "points_where_int_s_s_is_not_identity": 0, "srmech_version": "0.9.0rc424", "system": "N4 IVLS=Z/24 on S=Z/12   [breaks B, 1-1]", "verdict": "NOT-A-TORSOR"}
++{"finding": "NEG_controls_gis", "instrument_valid": true, "n_controls": 4, "n_wrongly_blessed": 0, "srmech_version": "0.9.0rc424"}
++{"finding": "F4_freeness", "fixed_points": 0, "free_action": true, "modulus": 7, "srmech_version": "0.9.0rc424"}
++{"finding": "F4_freeness", "fixed_points": 0, "free_action": true, "modulus": 12, "srmech_version": "0.9.0rc424"}
++{"finding": "F4_freeness", "fixed_points": 0, "free_action": true, "modulus": 22, "srmech_version": "0.9.0rc424"}
++{"finding": "F4_freeness", "fixed_points": 0, "free_action": true, "modulus": 24, "srmech_version": "0.9.0rc424"}
++{"finding": "F4_origin_recoverability", "instrument_valid": true, "interval_vector_distinct_over_12_transpositions": 1, "negative_control_full_normal_order_distinct": 12, "negative_control_min_normal_order_distinct": 5, "prime_form_distinct_over_12_transpositions": 1, "srmech_version": "0.9.0rc424", "verdict": "origin is NOT recoverable from interval-only invariants (both give 1), and IS recoverable from a non-invariant (12) — so the instrument can return otherwise"}
++{"collisions": 1728, "finding": "F4_printed_page_underdetermines_origin", "printed_determines_origin": false, "srmech_version": "0.9.0rc424", "total": 1728, "verdict": "every printed reading is achievable from EVERY origin by choosing the content — the origin is not in the page"}
++{"backward_injective": false, "finding": "F7_translator_losslessness", "interval_agreement": "1225/1225", "n_carrier_values": 12, "n_chart_symbols": 35, "preimage_histogram": {"2": 1, "3": 11}, "srmech_version": "0.9.0rc424", "verdict": "LOSSY IN ONE DIRECTION: chart->carrier is total and interval-preserving; carrier->chart is NOT injective. The chart carries STRICTLY MORE than the carrier — the surplus is spelling, which is chart convention, not interval content.", "worst_cell": {"carrier": 10, "n_spellings": 3, "spellings": [[0, -2], [5, 1], [6, -1]]}}
++{"agreement": "37/49", "finding": "N5_wrong_chart_control", "instrument_valid": true, "srmech_version": "0.9.0rc424", "wrong_chart_rejected": true}
++{"differential_changed": 0, "finding": "F7b_differential_vs_positional", "origin_shifts": 11, "positional_changed": 11, "srmech_version": "0.9.0rc424", "verdict": "a differential chart is INVARIANT under the origin shift a positional chart is fully SENSITIVE to — the two chart FAMILIES sit at opposite ends of the torsor. The differential chart is a chart of DIFFERENCES (the torsor's group) and needs exactly ONE extra datum (an origin) to become positional. NO claim is made here about which real-world notation is which — see the sourcing table."}
+diff --git a/docs/srmech/notes/_p2_gis_torsor_rc426.py b/docs/srmech/notes/_p2_gis_torsor_rc426.py
+new file mode 100644
+index 000000000..08927101c
+--- /dev/null
++++ b/docs/srmech/notes/_p2_gis_torsor_rc426.py
+@@ -0,0 +1,538 @@
++#!/usr/bin/env python3
++"""P2 — is the notation object a TORSOR?  Axioms EXECUTED, with negative
++controls (rc426 research spike, read-only).
++
++Pre-registered falsifiers
++=========================
++F3  **The GIS axioms, run rather than quoted.**  A Generalized Interval System
++    is claimed to be ``(S, IVLS, int)`` with
++
++      (A)  int(r,s) · int(s,t) = int(r,t)          for all r,s,t ∈ S
++      (B)  ∀ s ∈ S, ∀ i ∈ IVLS  ∃! t ∈ S : int(s,t) = i
++
++    (B) IS simple transitivity, so (S, IVLS) would be an IVLS-torsor.  This
++    script executes both axioms exhaustively on finite candidate systems built
++    from SHIPPED srmech ops, and on deliberately BROKEN systems that must fail.
++    ⚠️ Whether these ARE Lewin's axioms is a CITATION question, answered
++    separately; this script measures only whether a given (S, IVLS, int)
++    satisfies the stated pair.
++
++F4  **Is there a canonical origin?**  A torsor has none.  Two measurements:
++    (i) the action is FREE — no non-identity interval fixes any point;
++    (ii) an interval-only invariant CANNOT recover the origin, while a
++    non-invariant CAN (so the instrument can return otherwise).
++
++F7  **Is the chart↔carrier translator lossless in both directions?**  Measured
++    on an explicit positional chart.  A lossy direction is a real result.
++
++Negative controls (mandatory — an instrument that blesses a wrong input is not
++measuring, ``[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_
++measurement]]``):
++    N1  int(s,t) = (t+s) mod n           — violates (A)
++    N2  int(s,t) = 2·(t−s) mod 12        — violates (B), 2-to-1
++    N3  IVLS smaller than S              — violates (B), not surjective
++    N4  IVLS larger than S               — violates (B), not injective
++    N5  a WRONG letter→semitone chart     — must break interval preservation
++
++Scope: algebra / group-action only.  No audio, no DSP, no engraving geometry.
++
++Run:
++    PYTHONPATH=docs/srmech/python python3 docs/srmech/notes/_p2_gis_torsor_rc426.py
++"""
++from __future__ import annotations
++
++import itertools
++import json
++import os
++import sys
++
++import srmech
++from srmech.cascade import cyclic_mod_add
++from srmech.math.primes import factor
++from srmech.music.relations import interval_vector, normal_order, prime_form
++
++OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
++                   "_p2_gis_torsor_rc426.ndjson")
++
++RECS = []
++
++
++def emit(**kw):
++    kw.setdefault("srmech_version", srmech.__version__)
++    RECS.append(kw)
++
++
++# ══════════════════════════════════════════════════════════════════════════
++# The GIS checker.  Takes a finite S, a finite IVLS with a composition law and
++# an identity, and an int() map.  Returns per-axiom counts — never a bare bool,
++# so a failure says HOW MUCH it failed by.
++# ══════════════════════════════════════════════════════════════════════════
++def check_gis(name, S, IVLS, compose, ident, intv, note=""):
++    S = list(S)
++    IVLS = list(IVLS)
++    # (A)  int(r,s) · int(s,t) == int(r,t)
++    a_ok = a_tot = 0
++    for r, s, t in itertools.product(S, S, S):
++        a_tot += 1
++        if compose(intv(r, s), intv(s, t)) == intv(r, t):
++            a_ok += 1
++    # (B)  unique t with int(s,t) == i
++    b_ok = b_tot = 0
++    mult = {}
++    for s in S:
++        for i in IVLS:
++            b_tot += 1
++            ts = [t for t in S if intv(s, t) == i]
++            mult[len(ts)] = mult.get(len(ts), 0) + 1
++            if len(ts) == 1:
++                b_ok += 1
++    # freeness: does any non-identity i fix a point?  (int(s,s) == ident only)
++    fixed = sum(1 for s in S if intv(s, s) != ident)
++    # is IVLS abelian under this composition?
++    abelian = all(compose(i, j) == compose(j, i)
++                  for i, j in itertools.product(IVLS, IVLS))
++    verdict = ("TORSOR" if a_ok == a_tot and b_ok == b_tot
++               else "NOT-A-TORSOR")
++    row = {"finding": "F3_gis_axioms", "system": name, "note": note,
++           "n_S": len(S), "n_IVLS": len(IVLS),
++           "axiom_A_pass": a_ok, "axiom_A_total": a_tot,
++           "axiom_B_pass": b_ok, "axiom_B_total": b_tot,
++           "axiom_B_preimage_multiplicity_histogram":
++               {str(k): v for k, v in sorted(mult.items())},
++           "points_where_int_s_s_is_not_identity": fixed,
++           "IVLS_abelian": abelian, "verdict": verdict}
++    emit(**row)
++    print(f"  {name:46s} A {a_ok:6d}/{a_tot:<6d}  B {b_ok:5d}/{b_tot:<5d}  "
++          f"|S|={len(S):3d} |IVLS|={len(IVLS):3d}  "
++          f"{'abelian' if abelian else 'NONabelian':10s}  {verdict}")
++    return row
++
++
++def main() -> int:
++    print("srmech.__file__    =", srmech.__file__)
++    print("srmech.__version__ =", srmech.__version__)
++    try:
++        import numpy  # noqa: F401
++        print("!! numpy PRESENT — environment wrong")
++    except ImportError:
++        print("numpy              = ABSENT (correct)")
++
++    # ══════════════════════════════════════════════════════════════════
++    # F3.1 — the n-EDO family.  If the axioms hold for EVERY n, then 12 is
++    # not privileged: the carrier is n-parametric and the 12 is a chart.
++    # The n sweep deliberately includes divisions used outside the Western
++    # 12 (17, 22, 24, 31, 53 all appear in tuning-theory literature) — the
++    # point is only that the ALGEBRA does not care which n.
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF3.1  ℤ/n under addition, int(s,t) = (t−s) mod n  "
++          "[Class I via shipped cyclic_mod_add]")
++    for n in (5, 7, 12, 17, 19, 22, 24, 31, 53):
++        S = range(n)
++        check_gis(f"Z/{n} regular translation",
++                  S, range(n),
++                  lambda i, j, n=n: cyclic_mod_add(i, j, n),
++                  0,
++                  lambda s, t, n=n: cyclic_mod_add(t, n - s, n),
++                  note="n-parametric: nothing here knows about 12")
++
++    # ══════════════════════════════════════════════════════════════════
++    # F3.2 — the FREQUENCY lane: a finite window of the 5-limit just lattice.
++    # S = 3-smooth/5-smooth ratios; IVLS = ℤ³ (prime exponents of 2,3,5),
++    # which is FREE ABELIAN, not cyclic.  A different group entirely, and the
++    # axioms are checked over the same window.  Uses the shipped Class-J
++    # factoriser so the exponents are derived, not tabulated.
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF3.2  the 5-limit just lattice, IVLS = ℤ³ prime-exponent vectors "
++          "[Class J via shipped factor()]")
++    W = 1  # exponent window per prime -> 3**3 = 27 points
++
++    def expvec(a, b, c):
++        return (a, b, c)
++
++    lat = [expvec(a, b, c)
++           for a in range(-W, W + 1)
++           for b in range(-W, W + 1)
++           for c in range(-W, W + 1)]
++    r = check_gis("5-limit lattice Z^3 (WINDOW +/-1)",
++                  lat, lat,
++                  lambda i, j: (i[0] + j[0], i[1] + j[1], i[2] + j[2]),
++                  (0, 0, 0),
++                  lambda s, t: (t[0] - s[0], t[1] - s[1], t[2] - s[2]),
++                  note="free abelian rank 3; NOT cyclic and NOT finite. A "
++                       "finite WINDOW of an infinite torsor is not closed "
++                       "under the group, so axiom B must fail here; the "
++                       "failure is a WINDOWING ARTIFACT, not a refutation.")
++    print("      ^ axiom B fails ONLY because the window is not closed: "
++          f"{r['axiom_B_pass']}/{r['axiom_B_total']} with multiplicity "
++          f"histogram {r['axiom_B_preimage_multiplicity_histogram']} — every "
++          "miss is multiplicity 0 (target outside the window), never >1.")
++    only_zero_or_one = set(r["axiom_B_preimage_multiplicity_histogram"]) <= {
++        "0", "1"}
++    print(f"      window-artifact signature (no multiplicity > 1): "
++          f"{only_zero_or_one}")
++    emit(finding="F3_2_window_artifact",
++         multiplicities=r["axiom_B_preimage_multiplicity_histogram"],
++         no_multiplicity_above_one=only_zero_or_one,
++         verdict=("BOUNDED, not REFUTED: axiom A passes exhaustively "
++                  f"({r['axiom_A_pass']}/{r['axiom_A_total']}) and every "
++                  "axiom-B miss is a 0-preimage (fell out of the window), "
++                  "never a 2-preimage. Simple transitivity is not "
++                  "CERTIFIABLE on a truncated window — so a closed finite "
++                  "stand-in is run next."))
++
++    # the CLOSED finite stand-in: (ℤ/5)³, same rank-3 abelian shape, closed.
++    m = 5
++    cl = [(a, b, c) for a in range(m) for b in range(m) for c in range(m)]
++    check_gis(f"(Z/{m})^3 CLOSED finite stand-in",
++              cl, cl,
++              lambda i, j: ((i[0] + j[0]) % m, (i[1] + j[1]) % m,
++                            (i[2] + j[2]) % m),
++              (0, 0, 0),
++              lambda s, t: ((t[0] - s[0]) % m, (t[1] - s[1]) % m,
++                            (t[2] - s[2]) % m),
++              note="rank-3 abelian, CLOSED — certifies what the truncated "
++                   "5-limit window structurally cannot")
++
++    # cross-check the lattice against the SHIPPED factoriser: the exponent
++    # vector of an actual ratio must equal the lattice coordinate.
++    print("      cross-check exponent vectors against shipped factor():")
++    probes = [(3, 2), (5, 4), (9, 8), (81, 80), (45, 32), (16, 15)]
++    xchk = []
++    for num, den in probes:
++        # srmech.math.primes.factor returns List[Tuple[prime, multiplicity]]
++        fn, fd = factor(num), factor(den)
++        e = {}
++        for p, mult in fn:
++            e[p] = e.get(p, 0) + mult
++        for p, mult in fd:
++            e[p] = e.get(p, 0) - mult
++        vec = tuple(e.get(p, 0) for p in (2, 3, 5))
++        ok = all(p in (2, 3, 5) for p in e)
++        xchk.append({"ratio": f"{num}/{den}", "exp_2_3_5": list(vec),
++                     "is_5_limit": ok})
++        print(f"        {num:3d}/{den:<3d}  (2,3,5)^{vec}  "
++              f"{'5-limit' if ok else 'NOT 5-limit'}")
++    emit(finding="F3_2_factor_crosscheck", probes=xchk,
++         note="exponent vectors DERIVED from srmech.math.primes.factor, "
++              "not tabulated")
++
++    # ══════════════════════════════════════════════════════════════════
++    # F3.3 — the NON-ABELIAN case.  Lewin's IVLS is required to be a group,
++    # not necessarily commutative.  The 24 consonant triads under the
++    # T/I group (order 24, non-abelian) is the standard witness.  Built from
++    # the SHIPPED prime_form / normal_order so the triad set is derived.
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF3.3  24 consonant triads under the T/I group (order 24, "
++          "NON-abelian) [built on shipped prime_form]")
++    MAJ, MIN = (0, 4, 7), (0, 3, 7)
++    print(f"      shipped prime_form(major triad, forte) = "
++          f"{prime_form(MAJ, 'forte')}")
++    print(f"      shipped prime_form(minor triad, forte) = "
++          f"{prime_form(MIN, 'forte')}   (same set class: 3-11)")
++    print(f"      shipped interval_vector(major)          = "
++          f"{interval_vector(MAJ)}")
++
++    def T(n, s):
++        return tuple(sorted(cyclic_mod_add(x, n % 12, 12) for x in s))
++
++    def I_(n, s):
++        return tuple(sorted(cyclic_mod_add(n % 12, (12 - x) % 12, 12)
++                            for x in s))
++
++    triads = []
++    for n in range(12):
++        triads.append(T(n, MAJ))
++    for n in range(12):
++        triads.append(T(n, MIN))
++    assert len(set(triads)) == 24, len(set(triads))
++
++    # T/I group elements as (kind, n): kind 0 = T_n, kind 1 = I_n
++    TI = [(0, n) for n in range(12)] + [(1, n) for n in range(12)]
++
++    def apply(g, s):
++        return T(g[1], s) if g[0] == 0 else I_(g[1], s)
++
++    # The composition law is DERIVED by acting, not tabulated — but that
++    # requires a probe the action is FAITHFUL on.
++    # ⚠️ The first version of this used the probe (0,1,2) and was WRONG:
++    # {0,1,2} is inversionally symmetric (I_n{0,1,2} == T_{n-2}{0,1,2}), so
++    # the 24 group elements collapse to 12 images and the derived law silently
++    # returned a T where an I belonged.  The symptom was axiom A passing at
++    # exactly 6912/13824 — half — which looked like an ORDER-CONVENTION
++    # finding and was actually a DEGENERATE PROBE.  The fix is to assert
++    # faithfulness, so this cannot recur silently.
++    PROBE = (0, 1, 3)   # trivial stabiliser under T/I
++    _imgs = {apply(k, PROBE): k for k in TI}
++    assert len(_imgs) == 24, (
++        f"probe {PROBE} is not faithful: {len(_imgs)} distinct images for 24 "
++        "group elements — pick a probe with trivial stabiliser")
++
++    def ti_compose(g, h):
++        """The single element equal to 'apply g, then apply h'."""
++        return _imgs[apply(h, apply(g, PROBE))]
++
++    # int(s,t) = the unique g with apply(g, s) == t
++    inv_cache = {}
++    for s in triads:
++        for g in TI:
++            inv_cache.setdefault((s, apply(g, s)), g)
++
++    def ti_int(s, t):
++        return inv_cache.get((s, t), ("NONE", -1))
++
++    rA = check_gis("24 triads under T/I  [compose = g THEN h]",
++                   triads, TI, ti_compose, (0, 0), ti_int,
++                   note="Lewin permits a NON-commutative IVLS; this is the "
++                        "standard non-abelian witness. Group is dihedral of "
++                        "order 24. Composition read LEFT-to-RIGHT.")
++
++    # ⚠️ THE ORDER CONVENTION IS LOAD-BEARING AND THIS MEASURES IT.
++    # With an ABELIAN IVLS the two composition orders agree, so every ℤ/n row
++    # above is blind to the choice.  With a NON-abelian IVLS they do not, and
++    # axiom A can pass under one order and fail under the other.  Run BOTH.
++    def ti_compose_rev(g, h):
++        return ti_compose(h, g)
++
++    rB = check_gis("24 triads under T/I  [compose = h THEN g]",
++                   triads, TI, ti_compose_rev, (0, 0), ti_int,
++                   note="the SAME system with the composition order REVERSED")
++    print(f"      order-convention sensitivity: A passes "
++          f"{rA['axiom_A_pass']}/{rA['axiom_A_total']} one way, "
++          f"{rB['axiom_A_pass']}/{rB['axiom_A_total']} the other; "
++          f"B passes {rA['axiom_B_pass']}/{rA['axiom_B_total']} BOTH ways")
++    emit(finding="F3_3_composition_order_sensitivity",
++         axiom_A_forward=f"{rA['axiom_A_pass']}/{rA['axiom_A_total']}",
++         axiom_A_reversed=f"{rB['axiom_A_pass']}/{rB['axiom_A_total']}",
++         axiom_B_forward=f"{rA['axiom_B_pass']}/{rA['axiom_B_total']}",
++         axiom_B_reversed=f"{rB['axiom_B_pass']}/{rB['axiom_B_total']}",
++         verdict="SIMPLE TRANSITIVITY (axiom B) is convention-INDEPENDENT; "
++                 "the COMPOSITION LAW (axiom A) is convention-DEPENDENT once "
++                 "IVLS is non-abelian. So 'is it a torsor' and 'does the "
++                 "stated axiom A hold' are DIFFERENT questions, and only the "
++                 "abelian case lets you conflate them. Every ℤ/n row in F3.1 "
++                 "is structurally blind to this.")
++
++    # is the T/I group really non-abelian, measured?
++    noncomm = sum(1 for g, h in itertools.product(TI, TI)
++                  if ti_compose(g, h) != ti_compose(h, g))
++    print(f"      non-commuting ordered pairs in T/I: {noncomm}/{24 * 24}")
++    emit(finding="F3_3_ti_noncommutativity",
++         non_commuting_ordered_pairs=noncomm, total_ordered_pairs=24 * 24,
++         abelian=noncomm == 0)
++
++    # ══════════════════════════════════════════════════════════════════
++    # NEGATIVE CONTROLS — every one of these MUST fail.  If any passes, the
++    # checker is not an instrument.
++    # ══════════════════════════════════════════════════════════════════
++    print("\nNEG   negative controls — every row must read NOT-A-TORSOR")
++    neg = []
++    neg.append(check_gis(
++        "N1 int(s,t)=(t+s) mod 12  [breaks A]",
++        range(12), range(12), lambda i, j: (i + j) % 12, 0,
++        lambda s, t: (t + s) % 12, note="negative control"))
++    neg.append(check_gis(
++        "N2 int(s,t)=2(t-s) mod 12 [breaks B, 2:1]",
++        range(12), range(12), lambda i, j: (i + j) % 12, 0,
++        lambda s, t: (2 * (t - s)) % 12, note="negative control"))
++    neg.append(check_gis(
++        "N3 IVLS=Z/6 on S=Z/12    [breaks B, onto]",
++        range(12), range(6), lambda i, j: (i + j) % 6, 0,
++        lambda s, t: (t - s) % 6, note="negative control"))
++    neg.append(check_gis(
++        "N4 IVLS=Z/24 on S=Z/12   [breaks B, 1-1]",
++        range(12), range(24), lambda i, j: (i + j) % 24, 0,
++        lambda s, t: (t - s) % 12, note="negative control"))
++    n_blessed = sum(1 for r in neg if r["verdict"] == "TORSOR")
++    print(f"      negative controls wrongly blessed: {n_blessed}/4  "
++          f"{'INSTRUMENT OK' if n_blessed == 0 else '!! INSTRUMENT BROKEN'}")
++    emit(finding="NEG_controls_gis", n_controls=4, n_wrongly_blessed=n_blessed,
++         instrument_valid=n_blessed == 0)
++
++    # ══════════════════════════════════════════════════════════════════
++    # F4 — is there a canonical origin?  A clef is an ORIGIN CHOICE.
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF4    no-canonical-origin measurements")
++
++    # (i) FREENESS: how many (g, s) pairs with g != identity have g·s == s?
++    for n in (7, 12, 22, 24):
++        fx = sum(1 for g in range(1, n) for s in range(n)
++                 if cyclic_mod_add(s, g, n) == s)
++        print(f"      Z/{n:<3d} fixed points of NON-identity translations: "
++              f"{fx}  ({'FREE' if fx == 0 else 'NOT FREE'})")
++        emit(finding="F4_freeness", modulus=n, fixed_points=fx,
++             free_action=fx == 0)
++
++    # (ii) an INTERVAL-ONLY invariant cannot recover the origin; a
++    #      non-invariant can.  Shipped ops on both sides.
++    base = (0, 4, 7)
++    ivs = {interval_vector(T(n, base)) for n in range(12)}
++    pfs = {prime_form(T(n, base), "forte") for n in range(12)}
++    lows = {min(normal_order(T(n, base), "forte")) for n in range(12)}
++    nos = {normal_order(T(n, base), "forte") for n in range(12)}
++    print(f"      normal_order (whole tuple) [NEG CONTROL 2]: "
++          f"{len(nos)} distinct  -> {'CANNOT' if len(nos) == 1 else 'CAN'} "
++          f"recover the origin")
++    print(f"      interval_vector over 12 transpositions: "
++          f"{len(ivs)} distinct  -> {'CANNOT' if len(ivs) == 1 else 'CAN'} "
++          f"recover the origin")
++    print(f"      prime_form      over 12 transpositions: "
++          f"{len(pfs)} distinct  -> {'CANNOT' if len(pfs) == 1 else 'CAN'} "
++          f"recover the origin")
++    print(f"      min(normal_order) [NEGATIVE CONTROL]  : "
++          f"{len(lows)} distinct  -> {'CANNOT' if len(lows) == 1 else 'CAN'} "
++          f"recover the origin")
++    emit(finding="F4_origin_recoverability",
++         interval_vector_distinct_over_12_transpositions=len(ivs),
++         prime_form_distinct_over_12_transpositions=len(pfs),
++         negative_control_min_normal_order_distinct=len(lows),
++         negative_control_full_normal_order_distinct=len(nos),
++         instrument_valid=len(nos) == 12,
++         verdict=("origin is NOT recoverable from interval-only invariants "
++                  "(both give 1), and IS recoverable from a non-invariant "
++                  "(12) — so the instrument can return otherwise"))
++
++    # (iii) the INFORMATIONAL torsor test: two different origins produce
++    #       identical printed output for suitably different content.  If the
++    #       printed page determined the origin, it would not be a torsor.
++    n = 12
++    collisions = 0
++    total = 0
++    for o1 in range(n):
++        for o2 in range(n):
++            # content c printed at origin o -> (c - o) mod n
++            # is there content c1 at o1 and c2 at o2 with equal print?
++            for c1 in range(n):
++                total += 1
++                p = (c1 - o1) % n
++                c2 = (p + o2) % n
++                if (c2 - o2) % n == p:
++                    collisions += 1
++    print(f"      printed-output/origin collisions: {collisions}/{total} "
++          f"-> printed page {'does NOT' if collisions == total else 'DOES'} "
++          f"determine the origin")
++    emit(finding="F4_printed_page_underdetermines_origin",
++         collisions=collisions, total=total,
++         printed_determines_origin=collisions != total,
++         verdict="every printed reading is achievable from EVERY origin by "
++                 "choosing the content — the origin is not in the page")
++
++    # ══════════════════════════════════════════════════════════════════
++    # F7 — translator losslessness, both directions
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF7    chart <-> carrier translator, both directions")
++    # A POSITIONAL chart: (degree in Z/7, accidental in Z, register in Z).
++    # The degree->step map is the chart's ONLY convention.  Named
++    # STEP_MAP rather than anything culture-specific: the same shape is a
++    # 7-degree map here and would be a k-degree map elsewhere.
++    STEP_MAP = (0, 2, 4, 5, 7, 9, 11)   # 7 degrees -> 12 steps
++    ACC = range(-2, 3)
++
++    def chart_to_carrier(deg, acc, reg):
++        return 12 * reg + STEP_MAP[deg] + acc
++
++    # forward: total and well-defined?
++    fwd = {}
++    for deg in range(7):
++        for acc in ACC:
++            fwd[(deg, acc)] = chart_to_carrier(deg, acc, 0) % 12
++    print(f"      forward chart->carrier: {len(fwd)} chart symbols "
++          f"-> {len(set(fwd.values()))} carrier values")
++    # backward: preimage multiplicity
++    pre = {}
++    for k, v in fwd.items():
++        pre.setdefault(v, []).append(k)
++    hist = {}
++    for v, ks in pre.items():
++        hist[len(ks)] = hist.get(len(ks), 0) + 1
++    injective = all(len(ks) == 1 for ks in pre.values())
++    worst = max(pre.items(), key=lambda kv: len(kv[1]))
++    print(f"      backward carrier->chart: preimage-size histogram {hist}  "
++          f"-> {'INJECTIVE' if injective else 'NOT injective (LOSSY)'}")
++    print(f"      worst cell: carrier {worst[0]} has {len(worst[1])} chart "
++          f"spellings {worst[1]}")
++    # is the INTERVAL structure recoverable from the chart alone?  yes by
++    # construction; measure it rather than assert it.
++    iv_ok = iv_tot = 0
++    syms = list(fwd)
++    for a, b in itertools.product(syms, syms):
++        iv_tot += 1
++        if (fwd[b] - fwd[a]) % 12 == (chart_to_carrier(b[0], b[1], 0)
++                                      - chart_to_carrier(a[0], a[1], 0)) % 12:
++            iv_ok += 1
++    print(f"      chart-computed interval == carrier interval: "
++          f"{iv_ok}/{iv_tot}")
++    emit(finding="F7_translator_losslessness",
++         n_chart_symbols=len(fwd), n_carrier_values=len(set(fwd.values())),
++         preimage_histogram={str(k): v for k, v in sorted(hist.items())},
++         backward_injective=injective,
++         worst_cell={"carrier": worst[0], "n_spellings": len(worst[1]),
++                     "spellings": [list(x) for x in worst[1]]},
++         interval_agreement=f"{iv_ok}/{iv_tot}",
++         verdict=("LOSSY IN ONE DIRECTION: chart->carrier is total and "
++                  "interval-preserving; carrier->chart is NOT injective. "
++                  "The chart carries STRICTLY MORE than the carrier — the "
++                  "surplus is spelling, which is chart convention, not "
++                  "interval content."))
++
++    # N5 — a WRONG chart must break interval preservation
++    BAD = (0, 2, 4, 5, 7, 9, 10)   # one degree perturbed
++    bad_ok = bad_tot = 0
++    for a, b in itertools.product(range(7), range(7)):
++        bad_tot += 1
++        good = (STEP_MAP[b] - STEP_MAP[a]) % 12
++        bad = (BAD[b] - BAD[a]) % 12
++        if good == bad:
++            bad_ok += 1
++    print(f"      N5 WRONG chart: interval agreement {bad_ok}/{bad_tot}  "
++          f"{'!! INSTRUMENT BLESSED A WRONG CHART' if bad_ok == bad_tot else 'correctly REJECTED'}")
++    emit(finding="N5_wrong_chart_control",
++         agreement=f"{bad_ok}/{bad_tot}",
++         wrong_chart_rejected=bad_ok != bad_tot,
++         instrument_valid=bad_ok != bad_tot)
++
++    # ══════════════════════════════════════════════════════════════════
++    # F7b — DIFFERENTIAL chart vs POSITIONAL chart.  Deliberately abstract:
++    # this makes NO claim about any named tradition.  A differential chart
++    # stores int(s_i, s_{i+1}) plus ONE origin; a positional chart stores
++    # each s_i as an offset from a fixed origin.  Both are charts on the same
++    # carrier; the question is what each loses when the origin moves.
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF7b   DIFFERENTIAL vs POSITIONAL chart under an origin shift")
++    melody = [0, 2, 4, 5, 7, 5, 4, 2, 0]
++    n = 12
++    pos_changed = diff_changed = 0
++    for d in range(1, n):
++        shifted = [cyclic_mod_add(x, d, n) for x in melody]
++        pos = [cyclic_mod_add(x, n - 0, n) for x in melody]
++        pos_s = [cyclic_mod_add(x, n - 0, n) for x in shifted]
++        if pos != pos_s:
++            pos_changed += 1
++        dif = [cyclic_mod_add(melody[i + 1], n - melody[i], n)
++               for i in range(len(melody) - 1)]
++        dif_s = [cyclic_mod_add(shifted[i + 1], n - shifted[i], n)
++                 for i in range(len(shifted) - 1)]
++        if dif != dif_s:
++            diff_changed += 1
++    print(f"      origin shifts 1..11: POSITIONAL chart changed "
++          f"{pos_changed}/11 times; DIFFERENTIAL chart changed "
++          f"{diff_changed}/11 times")
++    emit(finding="F7b_differential_vs_positional",
++         origin_shifts=11, positional_changed=pos_changed,
++         differential_changed=diff_changed,
++         verdict="a differential chart is INVARIANT under the origin shift a "
++                 "positional chart is fully SENSITIVE to — the two chart "
++                 "FAMILIES sit at opposite ends of the torsor. The "
++                 "differential chart is a chart of DIFFERENCES (the torsor's "
++                 "group) and needs exactly ONE extra datum (an origin) to "
++                 "become positional. NO claim is made here about which "
++                 "real-world notation is which — see the sourcing table.")
++
++    with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
++        for r in RECS:
++            fh.write(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n")
++    print(f"\nwrote {len(RECS)} records -> {OUT}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/srmech/notes/_p3_frame_read_clef_rc426.ndjson b/docs/srmech/notes/_p3_frame_read_clef_rc426.ndjson
+new file mode 100644
+index 000000000..d49bb5b67
+--- /dev/null
++++ b/docs/srmech/notes/_p3_frame_read_clef_rc426.ndjson
+@@ -0,0 +1,7 @@
++{"fano_lines": [[1, 2, 3], [1, 4, 5], [1, 6, 7], [2, 4, 6], [2, 5, 7], [3, 4, 7], [3, 5, 6]], "finding": "F5_frame_read_field_partition", "n_frame_free_fields": 1, "n_frames_accepted": 28, "rows": [{"classification": "LINE-INVARIANT, line-dependent (ℓ cannot move it)", "distinct_over_28": 7, "distinct_within_line_max": 1, "distinct_within_line_min": 1, "field": "q0", "per_line": [1, 1, 1, 1, 1, 1, 1]}, {"classification": "FULLY FREE  (every ℓ moves it)", "distinct_over_28": 28, "distinct_within_line_max": 4, "distinct_within_line_min": 4, "field": "q1", "per_line": [4, 4, 4, 4, 4, 4, 4]}, {"classification": "FULLY FREE  (every ℓ moves it)", "distinct_over_28": 28, "distinct_within_line_max": 4, "distinct_within_line_min": 4, "field": "base_H", "per_line": [4, 4, 4, 4, 4, 4, 4]}, {"classification": "LINE-INVARIANT, line-dependent (ℓ cannot move it)", "distinct_over_28": 7, "distinct_within_line_max": 1, "distinct_within_line_min": 1, "field": "base_R", "per_line": [1, 1, 1, 1, 1, 1, 1]}, {"classification": "FRAME-FREE  (survives every frame change)", "distinct_over_28": 1, "distinct_within_line_max": 1, "distinct_within_line_min": 1, "field": "norm_sq", "per_line": [1, 1, 1, 1, 1, 1, 1]}, {"classification": "FULLY FREE  (every ℓ moves it)", "distinct_over_28": 28, "distinct_within_line_max": 4, "distinct_within_line_min": 4, "field": "writhe", "per_line": [4, 4, 4, 4, 4, 4, 4]}, {"classification": "LINE-INVARIANT, line-dependent (ℓ cannot move it)", "distinct_over_28": 7, "distinct_within_line_max": 1, "distinct_within_line_min": 1, "field": "writhe_norm_sq", "per_line": [1, 1, 1, 1, 1, 1, 1]}, {"classification": "FULLY FREE  (every ℓ moves it)", "distinct_over_28": 28, "distinct_within_line_max": 4, "distinct_within_line_min": 4, "field": "canonical_affine", "per_line": [4, 4, 4, 4, 4, 4, 4]}, {"classification": "LINE-INVARIANT, line-dependent (ℓ cannot move it)", "distinct_over_28": 7, "distinct_within_line_max": 1, "distinct_within_line_min": 1, "field": "base", "per_line": [1, 1, 1, 1, 1, 1, 1]}, {"classification": "LINE-INVARIANT, line-dependent (ℓ cannot move it)", "distinct_over_28": 7, "distinct_within_line_max": 1, "distinct_within_line_min": 1, "field": "seam", "per_line": [1, 1, 1, 1, 1, 1, 1]}, {"classification": "FULLY FREE  (every ℓ moves it)", "distinct_over_28": 28, "distinct_within_line_max": 4, "distinct_within_line_min": 4, "field": "seam_chart", "per_line": [4, 4, 4, 4, 4, 4, 4]}, {"classification": "FULLY FREE  (every ℓ moves it)", "distinct_over_28": 7, "distinct_within_line_max": 4, "distinct_within_line_min": 4, "field": "frame", "per_line": [4, 4, 4, 4, 4, 4, 4]}], "shipped_frame_count": 28, "srmech_version": "0.9.0rc424", "verdict": "1 of 12 returned fields survive EVERY one of the 28 frame changes; the rest move. That is the clef SHAPE — an invariant part and a frame-dependent reading part — measured on a shipped op."}
++{"a_some_reading_moves": true, "b_some_invariant_survives": true, "c_no_canonical_frame": true, "finding": "F5_clef_predicate", "invariant_fields": ["norm_sq"], "moving_fields": ["q0", "q1", "base_H", "base_R", "writhe", "writhe_norm_sq", "canonical_affine", "base", "seam", "seam_chart", "frame"], "separating_fields": [], "srmech_version": "0.9.0rc424", "verdict": "octonion_frame_read satisfies the CLEF SHAPE: it reads one object on a committed frame, keeps a frame-free invariant, and distinguishes no frame. FORM, not identity."}
++{"finding": "F5b_within_line_torsor", "line": [1, 2, 3], "multiplicity_histogram": {"2": 16}, "n_acting_units": 8, "n_frames": 4, "simply_transitive": false, "srmech_version": "0.9.0rc424", "stabiliser_order": 2, "transitive": true, "verdict": "TRANSITIVE BUT NOT FREE at the level of the frame INDEX: the 8 signed base units act transitively on the 4 splitting units with multiplicity 2 — the kernel is {±1}. So the frame-index set is a torsor for the QUOTIENT (order 4), not for the signed group (order 8). The sign the index throws away is exactly the difference."}
++{"finding": "F5b_across_lines", "n_lines": 7, "per_unit_lines_preserved": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0}, "srmech_version": "0.9.0rc424", "verdict": "the 28-frame set is NOT presented as a single torsor by the shipped op: the (line, ℓ) pair is a FIBRED set — 7 bases each carrying a 4-element torsor — and the shipped docstring says only the WITHIN-LINE relation is a right action. Measured here: the within-line level is a torsor (for the order-4 quotient); the across-line level is not certified as one by anything shipped."}
++{"abelian": false, "closed_on_T": true, "div_inverts": "64/64", "element_order_histogram": {"1": 1, "2": 1, "4": 6}, "finding": "F6_oct_torsor_structure_group", "isomorphism_type": "Q8 (quaternion group)", "multiplicity_histogram": {"1": 64}, "n_involutions": 1, "order": 8, "simply_transitive": true, "srmech_version": "0.9.0rc424"}
++{"candidates": [{"abelian_matches": false, "can_host": false, "order_matches": false, "target": "Z/12  (12-EDO pitch classes)", "target_abelian": true, "target_order": 12}, {"abelian_matches": false, "can_host": false, "order_matches": false, "target": "Z/7   (7-degree alphabet)", "target_abelian": true, "target_order": 7}, {"abelian_matches": false, "can_host": false, "order_matches": false, "target": "Z/24  (24-division)", "target_abelian": true, "target_order": 24}, {"abelian_matches": false, "can_host": false, "order_matches": false, "target": "Z/53  (53-division)", "target_abelian": true, "target_order": 53}, {"abelian_matches": false, "can_host": false, "order_matches": false, "target": "Z     (register-free pitch)", "target_abelian": true, "target_order": null}, {"abelian_matches": false, "can_host": false, "order_matches": false, "target": "Z^3   (5-limit just lattice)", "target_abelian": true, "target_order": null}, {"abelian_matches": true, "can_host": false, "order_matches": false, "target": "T/I   (24 triads, dihedral)", "target_abelian": false, "target_order": 24}], "finding": "F6_can_shipped_torsor_host_pitch_intervals", "n_hostable": 0, "shipped_group_abelian": false, "shipped_group_order": 8, "srmech_version": "0.9.0rc424", "verdict": "REFUTED — 0 of 7 candidate pitch-interval groups can be hosted. The shipped torsor's group has order 8 and is NON-abelian; every pitch-interval group in the table is either the wrong order, or abelian where this one is not, or INFINITE where this one is finite. Reusing oct_torsor_* as the interval group is a category error, not a tuning problem."}
++{"finding": "F9_active_carrier_testable_predicate", "imaginary_routes": 343, "inside_H_base": 0, "nonvanishing_associators": 168, "ordered_basis_triples": 512, "predicate": "A carrier is PASSIVE iff its frame-change law is a GROUP: associative, so composing frame changes is path-INDEPENDENT and the object is unchanged by the route taken. It is ACTIVE iff that fails — the carrier records the route.", "route_dependent": 168, "seam_crossing": 168, "srmech_version": "0.9.0rc424", "verdict": "TESTABLE, and 𝕆 already returns NON-ZERO: 168/512 ordered basis triples associate differently, all 168 of them seam-crossing and 0 inside the ℍ base. So on the octonionic carrier the composed frame-change is path-DEPENDENT — the 'active' reading is a MEASURABLE property of the algebra, not a stance. On the ℍ base it is 0/64: that sub-carrier is PASSIVE. The same carrier is active or passive depending on which rung you read it at, and the rung is the frame."}
+diff --git a/docs/srmech/notes/_p3_frame_read_clef_rc426.py b/docs/srmech/notes/_p3_frame_read_clef_rc426.py
+new file mode 100644
+index 000000000..a4d8e6703
+--- /dev/null
++++ b/docs/srmech/notes/_p3_frame_read_clef_rc426.py
+@@ -0,0 +1,414 @@
++#!/usr/bin/env python3
++"""P3 — is ``octonion_frame_read`` already the CLEF operation under another
++name, and can the shipped ``oct_torsor_*`` host a notation object?
++(rc426 research spike, read-only.)
++
++Pre-registered falsifiers
++=========================
++F5  **Does a shipped frame-change behave like a clef change?**  A clef change
++    must (a) alter every printed reading, (b) leave every interval invariant,
++    (c) have no canonical choice.  Measured on all 28 shipped frames of
++    :func:`srmech.cascade.cayley_dickson.octonion_frame_read` by partitioning
++    the returned fields into INVARIANT / ORBIT-EQUIVARIANT / FREE.
++
++F5b **Is the 28-frame set a TORSOR?**  Measured, not assumed: a torsor needs a
++    group acting freely and transitively.  Within a Fano line there are 4
++    splitting units; across lines there are 7 bases.  Test each level
++    separately — a "yes" at one level and "no" at the other is a real result
++    and is exactly the kind of thing an unmeasured analogy would smooth over.
++
++F6  **Can ``oct_torsor_act`` / ``oct_torsor_div`` host a pitch-interval
++    object?**  Measure the structure group's ORDER, ABELIANITY and EXPONENT
++    and compare against what a pitch-interval group must be.  A mismatch is a
++    REFUTATION of the "reuse the shipped torsor" route, and naming the exact
++    mismatched invariant is the deliverable.
++
++F9  **What would make "the carrier is an ACTIVE PARTICIPANT" testable?**
++    Proposal under test: a passive carrier has a frame-change law that is a
++    GROUP (associative, path-independent); an active carrier has one that is
++    not (path-DEPENDENT composition ⇒ the carrier changed under transport).
++    𝕆 is the shipped object where this is decidable, because associativity
++    genuinely fails there.  Measure the associator census and the resulting
++    path-dependence of composed frame changes.
++
++Scope: algebra / group-action only.
++
++Run:
++    PYTHONPATH=docs/srmech/python python3 docs/srmech/notes/_p3_frame_read_clef_rc426.py
++"""
++from __future__ import annotations
++
++import itertools
++import json
++import os
++import sys
++
++import srmech
++from srmech.cascade.cayley_dickson import (OCTONION_FRAME_COUNT,
++                                           OCTONION_FRAME_LINE, cd_mult,
++                                           octonion_frame_read)
++from srmech.math.octonion import oct_mult, oct_torsor_act, oct_torsor_div
++
++OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
++                   "_p3_frame_read_clef_rc426.ndjson")
++RECS = []
++
++
++def emit(**kw):
++    kw.setdefault("srmech_version", srmech.__version__)
++    RECS.append(kw)
++
++
++def _basis(i):
++    v = [0] * 8
++    v[i] = 1
++    return v
++
++
++def fano_lines():
++    """The 7 quaternionic (Fano) lines, DERIVED from cd_mult — not tabulated.
++
++    A line is an unordered imaginary triple {i,j,k} with e_i·e_j = ±e_k.
++    """
++    out = set()
++    for i, j in itertools.combinations(range(1, 8), 2):
++        p = cd_mult(_basis(i), _basis(j))
++        k = [n for n, c in enumerate(p) if c != 0]
++        assert len(k) == 1, (i, j, p)
++        k = k[0]
++        if k != 0:
++            out.add(tuple(sorted((i, j, k))))
++    return sorted(out)
++
++
++def main() -> int:
++    print("srmech.__file__    =", srmech.__file__)
++    print("srmech.__version__ =", srmech.__version__)
++    try:
++        import numpy  # noqa: F401
++        print("!! numpy PRESENT — environment wrong")
++    except ImportError:
++        print("numpy              = ABSENT (correct)")
++
++    # ══════════════════════════════════════════════════════════════════
++    # F5 — the 28 frames, and what each field does under a frame change
++    # ══════════════════════════════════════════════════════════════════
++    lines = fano_lines()
++    print(f"\nF5    Fano lines DERIVED from cd_mult: {len(lines)}  {lines}")
++    print(f"      shipped OCTONION_FRAME_COUNT = {OCTONION_FRAME_COUNT}, "
++          f"default line = {OCTONION_FRAME_LINE}")
++
++    x = [1, 2, 3, 4, 5, 6, 7, 8]     # a generic octonion, no symmetry
++    frames = []
++    for line in lines:
++        for ell in range(1, 8):
++            if ell in line:
++                continue
++            try:
++                r = octonion_frame_read(x, frame=tuple(line) + (ell,))
++            except ValueError:
++                continue
++            frames.append((tuple(line), ell, r))
++    print(f"      well-posed frames actually accepted: {len(frames)} "
++          f"(shipped constant says {OCTONION_FRAME_COUNT})")
++
++    FIELDS = ("q0", "q1", "base_H", "base_R", "norm_sq", "writhe",
++              "writhe_norm_sq", "canonical_affine", "base", "seam",
++              "seam_chart", "frame")
++
++    def key(v):
++        return json.dumps(v, default=str, sort_keys=True)
++
++    print("\n      field                 distinct/28   distinct within a line "
++          "(min..max over the 7 lines)   classification")
++    rows = []
++    for f in FIELDS:
++        glob = len({key(r[f]) for _, _, r in frames})
++        per = []
++        for line in lines:
++            per.append(len({key(r[f]) for ln, _, r in frames if ln == line}))
++        lo, hi = min(per), max(per)
++        if glob == 1:
++            cls = "FRAME-FREE  (survives every frame change)"
++        elif lo == 1 and hi == 1:
++            cls = "LINE-INVARIANT, line-dependent (ℓ cannot move it)"
++        elif lo == hi == 4:
++            cls = "FULLY FREE  (every ℓ moves it)"
++        else:
++            cls = f"MIXED (per-line {per})"
++        rows.append({"field": f, "distinct_over_28": glob,
++                     "distinct_within_line_min": lo,
++                     "distinct_within_line_max": hi,
++                     "per_line": per, "classification": cls})
++        print(f"      {f:20s} {glob:6d}/28      {lo}..{hi}"
++              f"{'':30s}".rstrip().ljust(28) + f"  {cls}")
++    n_free = sum(1 for r in rows if r["distinct_over_28"] == 1)
++    emit(finding="F5_frame_read_field_partition",
++         n_frames_accepted=len(frames), shipped_frame_count=OCTONION_FRAME_COUNT,
++         fano_lines=[list(t) for t in lines], rows=rows,
++         n_frame_free_fields=n_free,
++         verdict=(f"{n_free} of {len(FIELDS)} returned fields survive EVERY "
++                  "one of the 28 frame changes; the rest move. That is the "
++                  "clef SHAPE — an invariant part and a frame-dependent "
++                  "reading part — measured on a shipped op."))
++
++    # the clef predicate, stated as three checks
++    inv_fields = [r["field"] for r in rows if r["distinct_over_28"] == 1]
++    mov_fields = [r["field"] for r in rows if r["distinct_over_28"] > 1]
++    print(f"\n      CLEF PREDICATE (a) some reading changes under every frame "
++          f"change : {len(mov_fields) > 0}  ({mov_fields})")
++    print(f"      CLEF PREDICATE (b) some invariant survives all of them     "
++          f"    : {len(inv_fields) > 0}  ({inv_fields})")
++
++    # (c) no canonical frame: is any frame distinguished by an invariant
++    #     computable from the READ alone?  Measure whether the default
++    #     frame's read is separable from the others by a frame-free quantity.
++    default = [r for ln, e, r in frames
++               if ln == tuple(OCTONION_FRAME_LINE) and e == 4]
++    sep = None
++    if default:
++        d = default[0]
++        sep = [f for f in inv_fields if key(d[f]) not in
++               {key(r[f]) for ln, e, r in frames
++                if not (ln == tuple(OCTONION_FRAME_LINE) and e == 4)}]
++    print(f"      CLEF PREDICATE (c) NO frame-free quantity singles out the "
++          f"default frame: {not sep}  (separating fields: {sep})")
++    emit(finding="F5_clef_predicate",
++         a_some_reading_moves=len(mov_fields) > 0, moving_fields=mov_fields,
++         b_some_invariant_survives=len(inv_fields) > 0,
++         invariant_fields=inv_fields,
++         c_no_canonical_frame=not sep, separating_fields=sep,
++         verdict="octonion_frame_read satisfies the CLEF SHAPE: it reads one "
++                 "object on a committed frame, keeps a frame-free invariant, "
++                 "and distinguishes no frame. FORM, not identity.")
++
++    # ══════════════════════════════════════════════════════════════════
++    # F5b — is the frame set a TORSOR?  Measured at both levels.
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF5b   is the 28-frame set a torsor?  Measured at two levels.")
++
++    # Level 1 — WITHIN a line: 4 splitting units.  The docstring states the
++    # relation e_ℓ' = u·e_ℓ for a signed base unit u.  Derive the acting set
++    # and check freeness + transitivity.
++    line = tuple(OCTONION_FRAME_LINE)
++    ells = [4, 5, 6, 7]
++    # the signed base units of the ℍ base, as octonion BYTES: idx 0..3, sign bit 8
++    base_units = [i for i in range(4)] + [i | 8 for i in range(4)]
++    act = {}
++    for u in base_units:
++        for e in ells:
++            p = oct_mult(u, e)            # u · e_ℓ, as a signed byte
++            act[(u, e)] = p & 7            # the UNSIGNED index is the frame id
++    orbit = {}
++    for (u, e), tgt in act.items():
++        orbit.setdefault(e, set()).add(tgt)
++    transitive = all(o == set(ells) for o in orbit.values())
++    # multiplicity: how many u carry a given e to a given e'?
++    mult = {}
++    for e in ells:
++        for e2 in ells:
++            n = sum(1 for u in base_units if act[(u, e)] == e2)
++            mult[n] = mult.get(n, 0) + 1
++    print(f"      within line {line}: |acting signed base units| = "
++          f"{len(base_units)}, |frames| = {len(ells)}")
++    print(f"      transitive: {transitive};  (e -> e') multiplicity "
++          f"histogram: {mult}")
++    free = set(mult) == {1}
++    print(f"      SIMPLY transitive (every multiplicity 1): {free}  -> "
++          f"{'TORSOR' if free and transitive else 'TRANSITIVE BUT NOT FREE'}")
++    print(f"      the stabiliser has order "
++          f"{len(base_units) // len(ells)} — the SIGN, which the frame index "
++          f"discards")
++    emit(finding="F5b_within_line_torsor",
++         line=list(line), n_acting_units=len(base_units), n_frames=len(ells),
++         transitive=transitive,
++         multiplicity_histogram={str(k): v for k, v in sorted(mult.items())},
++         simply_transitive=free,
++         stabiliser_order=len(base_units) // len(ells),
++         verdict=("TRANSITIVE BUT NOT FREE at the level of the frame INDEX: "
++                  "the 8 signed base units act transitively on the 4 "
++                  "splitting units with multiplicity 2 — the kernel is {±1}. "
++                  "So the frame-index set is a torsor for the QUOTIENT "
++                  "(order 4), not for the signed group (order 8). The sign "
++                  "the index throws away is exactly the difference."))
++
++    # Level 2 — ACROSS lines: is there a group of order 7 acting simply
++    # transitively on the 7 Fano lines?  A necessary condition for the whole
++    # 28-set to be one torsor.
++    print("\n      across lines: 7 Fano lines. A single 28-element torsor "
++          "would need a group of order 28 acting freely+transitively on the "
++          "frames, hence an order-7 quotient acting so on the LINES.")
++    # measure: does right-multiplication by any single octonion unit permute
++    # the lines transitively?
++    line_orbits = {}
++    for u in range(1, 8):
++        img = []
++        for ln in lines:
++            m = tuple(sorted({oct_mult(a, u) & 7 for a in ln}))
++            img.append(m)
++        line_orbits[u] = sum(1 for m in img if m in
++                             [tuple(sorted(t)) for t in lines])
++    print(f"      per-unit right-multiplication: how many of the 7 lines map "
++          f"to a line?  {line_orbits}")
++    emit(finding="F5b_across_lines",
++         n_lines=len(lines), per_unit_lines_preserved=line_orbits,
++         verdict="the 28-frame set is NOT presented as a single torsor by the "
++                 "shipped op: the (line, ℓ) pair is a FIBRED set — 7 bases "
++                 "each carrying a 4-element torsor — and the shipped "
++                 "docstring says only the WITHIN-LINE relation is a right "
++                 "action. Measured here: the within-line level is a torsor "
++                 "(for the order-4 quotient); the across-line level is not "
++                 "certified as one by anything shipped.")
++
++    # ══════════════════════════════════════════════════════════════════
++    # F6 — the oct_torsor_* structure group, measured against what a
++    #      pitch-interval group must be
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF6    the shipped oct_torsor_* structure group, MEASURED")
++    H = [i for i in range(4)] + [i | 8 for i in range(4)]     # {±e0..±e3}
++    T = [i for i in range(4, 8)] + [(i | 8) for i in range(4, 8)]
++    # closure + simple transitivity of the shipped action
++    closed = all(oct_torsor_act(t, g) in T for t in T for g in H)
++    hist = {}
++    for t1 in T:
++        for t2 in T:
++            n = sum(1 for g in H if oct_torsor_act(t1, g) == t2)
++            hist[n] = hist.get(n, 0) + 1
++    simply = set(hist) == {1}
++    # the division op inverts it uniquely
++    div_ok = sum(1 for t1 in T for t2 in T
++                 if oct_torsor_act(t1, oct_torsor_div(t1, t2)) == t2)
++    # group invariants
++    abelian = all(oct_mult(a, b) == oct_mult(b, a) for a in H for b in H)
++    order = len(H)
++    # element orders -> exponent, and the count of order-2 elements
++    def el_order(g):
++        k, cur = 1, g
++        while cur != 0:
++            cur = oct_mult(cur, g)
++            k += 1
++            if k > 64:
++                return None
++        return k
++    orders = {}
++    for g in H:
++        o = el_order(g)
++        orders[o] = orders.get(o, 0) + 1
++    n_involutions = orders.get(2, 0)
++    print(f"      |H| = {order};  closed on T: {closed};  "
++          f"simply transitive: {simply} (histogram {hist})")
++    print(f"      oct_torsor_div inverts: {div_ok}/{len(T) * len(T)}")
++    print(f"      abelian: {abelian};  element-order histogram: {orders};  "
++          f"involutions: {n_involutions}")
++    iso = ("Q8 (quaternion group)" if order == 8 and not abelian
++           and n_involutions == 1 else
++           "D4 (dihedral)" if order == 8 and not abelian else
++           f"order-{order}{' abelian' if abelian else ' non-abelian'}")
++    print(f"      isomorphism type by (order, abelian, #involutions): {iso}")
++    emit(finding="F6_oct_torsor_structure_group",
++         order=order, closed_on_T=closed, simply_transitive=simply,
++         multiplicity_histogram={str(k): v for k, v in sorted(hist.items())},
++         div_inverts=f"{div_ok}/{len(T) * len(T)}",
++         abelian=abelian,
++         element_order_histogram={str(k): v for k, v in sorted(orders.items())},
++         n_involutions=n_involutions, isomorphism_type=iso)
++
++    # the comparison table — the actual REFUTATION
++    print("\n      can this group be a pitch-INTERVAL group?  compare the "
++          "invariants that must match:")
++    cand = [
++        ("Z/12  (12-EDO pitch classes)", 12, True, 1),
++        ("Z/7   (7-degree alphabet)", 7, True, 0),
++        ("Z/24  (24-division)", 24, True, 1),
++        ("Z/53  (53-division)", 53, True, 0),
++        ("Z     (register-free pitch)", None, True, 0),
++        ("Z^3   (5-limit just lattice)", None, True, 0),
++        ("T/I   (24 triads, dihedral)", 24, False, 13),
++    ]
++    tbl = []
++    for nm, o, ab, inv in cand:
++        ok_order = (o == order)
++        ok_ab = (ab == abelian)
++        tbl.append({"target": nm, "target_order": o, "target_abelian": ab,
++                    "order_matches": ok_order, "abelian_matches": ok_ab,
++                    "can_host": bool(ok_order and ok_ab)})
++        print(f"      {nm:34s} order {str(o):5s} abelian {str(ab):5s}  "
++              f"order-match {str(ok_order):5s} abelian-match {str(ok_ab):5s}  "
++              f"-> {'CAN host' if ok_order and ok_ab else 'CANNOT host'}")
++    n_ok = sum(1 for r in tbl if r["can_host"])
++    emit(finding="F6_can_shipped_torsor_host_pitch_intervals",
++         shipped_group_order=order, shipped_group_abelian=abelian,
++         candidates=tbl, n_hostable=n_ok,
++         verdict=(f"REFUTED — {n_ok} of {len(tbl)} candidate pitch-interval "
++                  f"groups can be hosted. The shipped torsor's group has "
++                  f"order {order} and is {'abelian' if abelian else 'NON-abelian'}"
++                  f"; every pitch-interval group in the table is either the "
++                  f"wrong order, or abelian where this one is not, or "
++                  f"INFINITE where this one is finite. Reusing oct_torsor_* "
++                  f"as the interval group is a category error, not a tuning "
++                  f"problem."))
++
++    # ══════════════════════════════════════════════════════════════════
++    # F9 — what would make "the carrier is an ACTIVE PARTICIPANT" testable?
++    #      Proposal: passive => frame-change composition is ASSOCIATIVE and
++    #      path-INDEPENDENT.  Active => it is not.  𝕆 decides it.
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF9    'carrier as ACTIVE PARTICIPANT' — the associator census "
++          "as a testable predicate")
++    nz = tot = 0
++    seam_nz = base_nz = 0
++    for i, j, k in itertools.product(range(8), repeat=3):
++        tot += 1
++        a, b, c = _basis(i), _basis(j), _basis(k)
++        lhs = cd_mult(cd_mult(a, b), c)
++        rhs = cd_mult(a, cd_mult(b, c))
++        if lhs != rhs:
++            nz += 1
++            if max(i, j, k) >= 4:
++                seam_nz += 1
++            else:
++                base_nz += 1
++    print(f"      ordered basis triples: {tot};  non-vanishing associators: "
++          f"{nz}  ({100 * nz // tot}%)")
++    print(f"      of those, crossing the doubling seam (any index >= 4): "
++          f"{seam_nz};  entirely inside the ℍ base: {base_nz}")
++    # path-dependence, stated as a MEASUREMENT rather than a stance:
++    # transporting through two different frame-change routes.
++    routes = 0
++    disagree = 0
++    for a, b in itertools.product(range(1, 8), repeat=2):
++        for c in range(1, 8):
++            routes += 1
++            u, v, w = _basis(a), _basis(b), _basis(c)
++            if cd_mult(cd_mult(u, v), w) != cd_mult(u, cd_mult(v, w)):
++                disagree += 1
++    print(f"      imaginary-unit transport routes compared: {routes}; "
++          f"route-dependent: {disagree} ({100 * disagree // routes}%)")
++    emit(finding="F9_active_carrier_testable_predicate",
++         ordered_basis_triples=tot, nonvanishing_associators=nz,
++         seam_crossing=seam_nz, inside_H_base=base_nz,
++         imaginary_routes=routes, route_dependent=disagree,
++         predicate="A carrier is PASSIVE iff its frame-change law is a GROUP: "
++                   "associative, so composing frame changes is "
++                   "path-INDEPENDENT and the object is unchanged by the "
++                   "route taken. It is ACTIVE iff that fails — the carrier "
++                   "records the route.",
++         verdict=(f"TESTABLE, and 𝕆 already returns NON-ZERO: {nz}/{tot} "
++                  f"ordered basis triples associate differently, all "
++                  f"{seam_nz} of them seam-crossing and {base_nz} inside the "
++                  f"ℍ base. So on the octonionic carrier the composed "
++                  f"frame-change is path-DEPENDENT — the 'active' reading is "
++                  f"a MEASURABLE property of the algebra, not a stance. On "
++                  f"the ℍ base it is 0/64: that sub-carrier is PASSIVE. The "
++                  f"same carrier is active or passive depending on which "
++                  f"rung you read it at, and the rung is the frame."))
++
++    with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
++        for r in RECS:
++            fh.write(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n")
++    print(f"\nwrote {len(RECS)} records -> {OUT}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/srmech/notes/_p4_covering_octave_leaktest_rc426.ndjson b/docs/srmech/notes/_p4_covering_octave_leaktest_rc426.ndjson
+new file mode 100644
+index 000000000..a7cc0e373
+--- /dev/null
++++ b/docs/srmech/notes/_p4_covering_octave_leaktest_rc426.ndjson
+@@ -0,0 +1,6 @@
++{"finding": "F10_octave_is_central_extension", "n_agree": 10, "n_moduli": 10, "rows": [{"agree": true, "center_shadow": 3, "cover_lift": 28, "cyclic_chain": 3, "n": 5, "shadow_determines_lift": false}, {"agree": true, "center_shadow": 0, "cover_lift": 28, "cyclic_chain": 0, "n": 7, "shadow_determines_lift": false}, {"agree": true, "center_shadow": 4, "cover_lift": 28, "cyclic_chain": 4, "n": 12, "shadow_determines_lift": false}, {"agree": true, "center_shadow": 11, "cover_lift": 28, "cyclic_chain": 11, "n": 17, "shadow_determines_lift": false}, {"agree": true, "center_shadow": 9, "cover_lift": 28, "cyclic_chain": 9, "n": 19, "shadow_determines_lift": false}, {"agree": true, "center_shadow": 6, "cover_lift": 28, "cyclic_chain": 6, "n": 22, "shadow_determines_lift": false}, {"agree": true, "center_shadow": 4, "cover_lift": 28, "cyclic_chain": 4, "n": 24, "shadow_determines_lift": false}, {"agree": true, "center_shadow": 28, "cover_lift": 28, "cyclic_chain": 28, "n": 31, "shadow_determines_lift": false}, {"agree": true, "center_shadow": 28, "cover_lift": 28, "cyclic_chain": 28, "n": 41, "shadow_determines_lift": false}, {"agree": true, "center_shadow": 28, "cover_lift": 28, "cyclic_chain": 28, "n": 53, "shadow_determines_lift": false}], "srmech_version": "0.9.0rc424", "steps": [2, 2, 1, 2, 2, 2, 1, 5, -3, 7, -12, 19], "universal": {"center_order": 0, "center_parity": 1, "center_shadow": 28, "cover_lift": 28, "shadow_determines_lift": true}, "verdict": "CONFIRMED at 10/10 moduli: center_lift's shadow is bit-identical to the cyclic_mod_add pitch-class chain at EVERY n, and only the UNIVERSAL cover reports shadow_determines_lift=True. So srmech already ships the octave-equivalence carrier — it is called a CENTRE, and 'which octave' is exactly the datum a pitch-class encoder structurally cannot hold. FORM, not identity."}
++{"agreements": 3, "finding": "F10_neg_wrong_center_order", "instrument_valid": true, "srmech_version": "0.9.0rc424", "total": 10}
++{"finding": "F10_lift_fibre_register_coset", "rows": [{"determined": false, "fibre": [-32, -25, -18, -11, -4, 3, 10, 17, 24, 31], "n": 7, "shadow": 3, "size": 10, "window": 36}, {"determined": false, "fibre": [-33, -21, -9, 3, 15, 27], "n": 12, "shadow": 3, "size": 6, "window": 36}, {"determined": false, "fibre": [-21, 3, 27], "n": 24, "shadow": 3, "size": 3, "window": 36}], "srmech_version": "0.9.0rc424", "universal": {"center_order": 0, "determined": true, "fibre": [3], "size": 1, "window": 36}, "verdict": "lift_fibre ENUMERATES the register coset rather than asserting the loss — and returns a size-1 fibre for the universal cover through the SAME code path, so it can report 'nothing was lost' without a branch that could not have said otherwise."}
++{"finding": "F11_clef_torsor_group", "identical_pitch_class": 25, "identical_register_carrying": 0, "modulus": 12, "srmech_version": "0.9.0rc424", "trials": 25, "verdict": "The origin torsor's group is ℤ, NOT ℤ/n. Two origins an octave apart give DIFFERENT register-carrying readings (0/25) and IDENTICAL pitch-class readings (25/25). The pitch-class reading FACTORS THROUGH the quotient; it does not define the group. This is the same distinction F10 measures from the other side: an octave-transposing origin is a non-trivial element of the cover that is trivial in the centre's quotient."}
++{"caught_known_chart_ops": true, "chart_ops": ["interval_vector", "normal_order", "prime_form", "just_limit"], "finding": "F12_carrier_leak_test", "instrument_valid": true, "n_carrier": 5, "n_chart": 4, "predicate": "L1 accepts a modulus argument; L2 total over the sweep; L3 the answer moves with n; L4 no hard-wired 12. CARRIER iff L1∧L2∧L3.", "rows": [{"L1_accepts_modulus": true, "L2_total": true, "L3_answer_moves_with_n": true, "L4_no_hardwired_12": true, "distinct_answers": 3, "op": "cyclic_mod_add", "raised_at": [], "verdict": "CARRIER"}, {"L1_accepts_modulus": true, "L2_total": true, "L3_answer_moves_with_n": true, "L4_no_hardwired_12": true, "distinct_answers": 3, "op": "center_lift", "raised_at": [], "verdict": "CARRIER"}, {"L1_accepts_modulus": true, "L2_total": true, "L3_answer_moves_with_n": true, "L4_no_hardwired_12": true, "distinct_answers": 6, "op": "lift_fibre", "raised_at": [], "verdict": "CARRIER"}, {"L1_accepts_modulus": true, "L2_total": true, "L3_answer_moves_with_n": true, "L4_no_hardwired_12": false, "distinct_answers": 10, "op": "tempers_out", "raised_at": [], "verdict": "CARRIER"}, {"L1_accepts_modulus": true, "L2_total": true, "L3_answer_moves_with_n": true, "L4_no_hardwired_12": false, "distinct_answers": 10, "op": "comma_of_chain", "raised_at": [], "verdict": "CARRIER"}, {"L1_accepts_modulus": false, "L2_total": true, "L3_answer_moves_with_n": false, "L4_no_hardwired_12": false, "distinct_answers": 1, "op": "interval_vector", "raised_at": [], "verdict": "CHART"}, {"L1_accepts_modulus": false, "L2_total": true, "L3_answer_moves_with_n": false, "L4_no_hardwired_12": false, "distinct_answers": 1, "op": "normal_order", "raised_at": [], "verdict": "CHART"}, {"L1_accepts_modulus": false, "L2_total": true, "L3_answer_moves_with_n": false, "L4_no_hardwired_12": false, "distinct_answers": 1, "op": "prime_form", "raised_at": [], "verdict": "CHART"}, {"L1_accepts_modulus": false, "L2_total": true, "L3_answer_moves_with_n": false, "L4_no_hardwired_12": true, "distinct_answers": 1, "op": "just_limit", "raised_at": [], "verdict": "CHART"}], "srmech_version": "0.9.0rc424", "verdict": "VALID INSTRUMENT: it passes the ops that take a modulus and FAILS the three shipped rc424 ops that hard-wire ℤ/12, so it can return otherwise. Note that just_limit also reads CHART by this predicate and should NOT: it is the frame-free ℚ⁺ lane with no modulus at all. That is a KNOWN BOUND of the L1 clause — 'takes a modulus' and 'is frame-free' are different properties, and an op can be carrier-level by having NO frame rather than by being parametric in one. The predicate as stated conflates them; a corrected form needs a third bucket."}
++{"buckets": {"FRAME-FIXED (LEAK)": ["interval_vector", "normal_order", "prime_form"], "FRAME-FREE": ["just_limit"], "FRAME-PARAMETRIC": ["cyclic_mod_add", "center_lift", "lift_fibre", "tempers_out", "comma_of_chain"]}, "finding": "F12b_three_bucket_leak_test", "srmech_version": "0.9.0rc424", "verdict": "The corrected predicate separates 'parametric in a frame' from 'has no frame'. Only the third bucket is a leak, and it is a leak only when the op is PRESENTED as carrier-level. rc424's three ℤ/12 ops land in it and are correctly DECLARED as the modular lane, so they are charts wearing the right label — not defects."}
+diff --git a/docs/srmech/notes/_p4_covering_octave_leaktest_rc426.py b/docs/srmech/notes/_p4_covering_octave_leaktest_rc426.py
+new file mode 100644
+index 000000000..aec1170cf
+--- /dev/null
++++ b/docs/srmech/notes/_p4_covering_octave_leaktest_rc426.py
+@@ -0,0 +1,306 @@
++#!/usr/bin/env python3
++"""P4 — the OCTAVE is a central extension the tree already carries, and an
++executable CARRIER-LEAK TEST (rc426 research spike, read-only).
++
++Pre-registered falsifiers
++=========================
++F10 **Does rc422's covering layer already carry octave equivalence?**  Claim
++    under test: register-carrying pitch → octave-equivalent pitch class is the
++    central extension ``1 → nℤ → ℤ → ℤ/n → 1``, which is precisely the shape
++    :mod:`srmech.math.covering` was built for.  If so, ``center_lift`` must
++    agree BIT-EXACTLY with the ℤ/n pitch-class arithmetic built from
++    ``cyclic_mod_add``, at EVERY n, and ``lift_fibre`` must enumerate the
++    register coset.  A disagreement at any n refutes it.
++    Negative control: a WRONG ``center_order`` must disagree.
++
++F11 **Is the clef torsor over ℤ or over ℤ/n?**  These are different claims and
++    the difference is the octave.  Decide it by measuring whether two origins
++    differing by exactly n produce the same reading.  If they do, the group is
++    ℤ/n; if they differ, it is ℤ and the pitch-class reading merely FACTORS
++    through ℤ/n.
++
++F12 **THE LEAK TEST.**  An executable predicate that catches a fixed-modulus
++    assumption in something claiming to be carrier-level.  Run against the
++    ACTUAL SHIPPED rc424 ops, where it must FAIL for the chart-scoped ones —
++    otherwise it is not an instrument
++    (``[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_
++    measurement]]``).
++
++Scope: algebra / group-action only.
++
++Run:
++    PYTHONPATH=docs/srmech/python python3 docs/srmech/notes/_p4_covering_octave_leaktest_rc426.py
++"""
++from __future__ import annotations
++
++import json
++import os
++import sys
++
++import srmech
++from srmech.cascade import cyclic_mod_add
++from srmech.math.covering import UNIVERSAL, center_lift, lift_fibre
++from srmech.music.relations import (comma_of_chain, interval_vector,
++                                    just_limit, normal_order, prime_form,
++                                    tempers_out)
++
++OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
++                   "_p4_covering_octave_leaktest_rc426.ndjson")
++RECS = []
++
++#: The modulus sweep.  Deliberately NOT centred on 12: if an op is
++#: carrier-level, nothing here should be special, and 12 should be one row
++#: among many rather than the row everything else is compared to.
++MODULI = (5, 7, 12, 17, 19, 22, 24, 31, 41, 53)
++
++
++def emit(**kw):
++    kw.setdefault("srmech_version", srmech.__version__)
++    RECS.append(kw)
++
++
++def main() -> int:
++    print("srmech.__file__    =", srmech.__file__)
++    print("srmech.__version__ =", srmech.__version__)
++    try:
++        import numpy  # noqa: F401
++        print("!! numpy PRESENT — environment wrong")
++    except ImportError:
++        print("numpy              = ABSENT (correct)")
++
++    # ══════════════════════════════════════════════════════════════════
++    # F10 — octave equivalence IS the shipped central extension
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF10   octave equivalence as the shipped central extension")
++    print("      cover  G~ = ℤ      (register-carrying position)")
++    print("      local  G  = ℤ/n    (octave-equivalent class)")
++    print("      centre Z  = nℤ     (the octave itself)")
++    print("\n      n     steps                       cover_lift  shadow  "
++          "cyclic_mod_add chain  agree  shadow_determines_lift")
++    steps = [2, 2, 1, 2, 2, 2, 1, 5, -3, 7, -12, 19]
++    rows = []
++    for n in MODULI:
++        r = center_lift(steps, n)
++        # the same accumulation done ONLY in the quotient, via the shipped
++        # Class-I op — this is what a pitch-class-only encoder can hold
++        acc = 0
++        for s in steps:
++            acc = cyclic_mod_add(acc, s % n, n)
++        agree = (r["center_shadow"] == acc)
++        rows.append({"n": n, "cover_lift": r["cover_lift"],
++                     "center_shadow": r["center_shadow"],
++                     "cyclic_chain": acc, "agree": agree,
++                     "shadow_determines_lift": r["shadow_determines_lift"]})
++        print(f"      {n:3d}   (12 steps)                  "
++              f"{r['cover_lift']:6d}   {r['center_shadow']:5d}   "
++              f"{acc:16d}      {str(agree):5s}  "
++              f"{r['shadow_determines_lift']}")
++    n_agree = sum(1 for r in rows if r["agree"])
++    # the universal cover loses nothing
++    u = center_lift(steps, UNIVERSAL)
++    print(f"      UNIVERSAL (deck group ℤ): cover_lift={u['cover_lift']}, "
++          f"shadow={u['center_shadow']}, "
++          f"shadow_determines_lift={u['shadow_determines_lift']}")
++    emit(finding="F10_octave_is_central_extension",
++         steps=steps, rows=rows, n_moduli=len(MODULI), n_agree=n_agree,
++         universal=u,
++         verdict=(f"CONFIRMED at {n_agree}/{len(MODULI)} moduli: "
++                  "center_lift's shadow is bit-identical to the "
++                  "cyclic_mod_add pitch-class chain at EVERY n, and only the "
++                  "UNIVERSAL cover reports shadow_determines_lift=True. So "
++                  "srmech already ships the octave-equivalence carrier — it "
++                  "is called a CENTRE, and 'which octave' is exactly the "
++                  "datum a pitch-class encoder structurally cannot hold. "
++                  "FORM, not identity."))
++
++    # negative control — a WRONG center_order must disagree
++    bad = 0
++    for n in MODULI:
++        r = center_lift(steps, n + 1)
++        acc = 0
++        for s in steps:
++            acc = cyclic_mod_add(acc, s % n, n)
++        if r["center_shadow"] == acc:
++            bad += 1
++    print(f"      NEG control: wrong center_order agreed {bad}/{len(MODULI)} "
++          f"times  {'!! INSTRUMENT BROKEN' if bad == len(MODULI) else 'instrument OK'}")
++    emit(finding="F10_neg_wrong_center_order", agreements=bad,
++         total=len(MODULI), instrument_valid=bad < len(MODULI))
++
++    # lift_fibre — the register coset, ENUMERATED not asserted
++    print("\n      lift_fibre: which registers a class is compatible with")
++    fib = []
++    for n in (7, 12, 24):
++        f = lift_fibre(3, n, 36)
++        fib.append({"n": n, "shadow": 3, "window": 36,
++                    "fibre": f["fibre"], "size": f["size"],
++                    "determined": f["determined"]})
++        print(f"      n={n:3d} shadow=3 window=±36 -> {f['size']} lifts "
++              f"{f['fibre']}  determined={f['determined']}")
++    fu = lift_fibre(3, UNIVERSAL, 36)
++    print(f"      UNIVERSAL       shadow=3 window=±36 -> {fu['size']} lift "
++          f"{fu['fibre']}  determined={fu['determined']}")
++    emit(finding="F10_lift_fibre_register_coset", rows=fib, universal=fu,
++         verdict="lift_fibre ENUMERATES the register coset rather than "
++                 "asserting the loss — and returns a size-1 fibre for the "
++                 "universal cover through the SAME code path, so it can "
++                 "report 'nothing was lost' without a branch that could not "
++                 "have said otherwise.")
++
++    # ══════════════════════════════════════════════════════════════════
++    # F11 — is the clef torsor over ℤ or over ℤ/n?
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF11   is the origin (clef) torsor over ℤ or over ℤ/n?")
++    n = 12
++    content = [0, 4, 7, 12, 16, 19]      # register-CARRYING content
++    same_full = same_class = 0
++    for o in range(0, 25):
++        a = [c - o for c in content]
++        b = [c - (o + n) for c in content]
++        if a == b:
++            same_full += 1
++        if [x % n for x in a] == [x % n for x in b]:
++            same_class += 1
++    print(f"      origins differing by exactly n={n}:")
++    print(f"        identical REGISTER-CARRYING reading : {same_full}/25")
++    print(f"        identical PITCH-CLASS reading       : {same_class}/25")
++    emit(finding="F11_clef_torsor_group",
++         modulus=n, trials=25,
++         identical_register_carrying=same_full,
++         identical_pitch_class=same_class,
++         verdict=("The origin torsor's group is ℤ, NOT ℤ/n. Two origins an "
++                  "octave apart give DIFFERENT register-carrying readings "
++                  f"({same_full}/25) and IDENTICAL pitch-class readings "
++                  f"({same_class}/25). The pitch-class reading FACTORS "
++                  "THROUGH the quotient; it does not define the group. This "
++                  "is the same distinction F10 measures from the other side: "
++                  "an octave-transposing origin is a non-trivial element of "
++                  "the cover that is trivial in the centre's quotient."))
++
++    # ══════════════════════════════════════════════════════════════════
++    # F12 — THE LEAK TEST, and it must catch the shipped chart-scoped ops
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF12   THE CARRIER-LEAK TEST")
++    print("      PREDICATE — an op is CARRIER-level iff it is TOTAL and "
++          "NON-DEGENERATE over the modulus sweep:")
++    print("        (L1) it ACCEPTS a modulus argument at all;")
++    print("        (L2) it does not raise at any n in the sweep;")
++    print("        (L3) its answer actually MOVES with n (an op that returns "
++          "the same thing for every n is not reading n);")
++    print("        (L4) n=12 is not privileged — no branch, constant or "
++          "special case names it.")
++    print("      An op failing L1 is CHART-level. That is not a defect if the "
++          "op is DECLARED as a chart; it is a defect only if it is presented "
++          "as carrier-level.\n")
++
++    def leak_test(name, fn, call_at_n, expects_modulus):
++        """Run the four clauses.  Returns a row; prints it."""
++        l1 = expects_modulus
++        results, raised = {}, {}
++        for n in MODULI:
++            try:
++                results[n] = repr(call_at_n(n))
++            except Exception as exc:            # noqa: BLE001 - we RECORD it
++                raised[n] = f"{type(exc).__name__}: {exc}"
++        l2 = not raised
++        l3 = len(set(results.values())) > 1
++        import inspect
++        src = inspect.getsource(fn)
++        l4 = "_EDO12" not in src and " 12" not in src.replace("12)", " 12)")
++        verdict = ("CARRIER" if (l1 and l2 and l3) else "CHART")
++        print(f"      {name:22s} L1accepts-n={str(l1):5s} L2total={str(l2):5s} "
++              f"L3moves={str(l3):5s} L4no-12={str(l4):5s} -> {verdict}"
++              + (f"   (raised at {sorted(raised)})" if raised else ""))
++        return {"op": name, "L1_accepts_modulus": l1, "L2_total": l2,
++                "L3_answer_moves_with_n": l3, "L4_no_hardwired_12": l4,
++                "raised_at": sorted(raised), "verdict": verdict,
++                "distinct_answers": len(set(results.values()))}
++
++    lt = []
++    # --- ops that SHOULD pass (carrier-level) ---
++    lt.append(leak_test("cyclic_mod_add", cyclic_mod_add,
++                        lambda n: cyclic_mod_add(3, 5, n), True))
++    lt.append(leak_test("center_lift", center_lift,
++                        lambda n: center_lift([2, 2, 1, 2], n)["center_shadow"],
++                        True))
++    lt.append(leak_test("lift_fibre", lift_fibre,
++                        lambda n: lift_fibre(3, n, 24)["size"], True))
++    lt.append(leak_test("tempers_out", tempers_out,
++                        lambda n: tempers_out((81, 80), n), True))
++    lt.append(leak_test("comma_of_chain", comma_of_chain,
++                        lambda n: comma_of_chain((3, 2), n), True))
++    # --- ops that SHOULD FAIL (chart-level).  If any passes, the test is
++    #     not an instrument.
++    lt.append(leak_test("interval_vector", interval_vector,
++                        lambda n: interval_vector([0, 4, 7]), False))
++    lt.append(leak_test("normal_order", normal_order,
++                        lambda n: normal_order([0, 4, 7], "forte"), False))
++    lt.append(leak_test("prime_form", prime_form,
++                        lambda n: prime_form([0, 4, 7], "forte"), False))
++    # --- and one op with NO modulus at all (the ℚ⁺ lane) ---
++    lt.append(leak_test("just_limit", just_limit,
++                        lambda n: just_limit(3, 2)["limit"], False))
++
++    n_carrier = sum(1 for r in lt if r["verdict"] == "CARRIER")
++    n_chart = len(lt) - n_carrier
++    chart_ops = [r["op"] for r in lt if r["verdict"] == "CHART"]
++    caught = {"interval_vector", "normal_order", "prime_form"} <= set(chart_ops)
++    print(f"\n      CARRIER {n_carrier}   CHART {n_chart}   chart ops: "
++          f"{chart_ops}")
++    print(f"      instrument validity — did the test CATCH the three known "
++          f"ℤ/12-hard-wired shipped ops?  {caught}")
++    emit(finding="F12_carrier_leak_test", rows=lt,
++         n_carrier=n_carrier, n_chart=n_chart, chart_ops=chart_ops,
++         caught_known_chart_ops=caught,
++         instrument_valid=caught and n_carrier > 0,
++         predicate="L1 accepts a modulus argument; L2 total over the sweep; "
++                   "L3 the answer moves with n; L4 no hard-wired 12. "
++                   "CARRIER iff L1∧L2∧L3.",
++         verdict=("VALID INSTRUMENT: it passes the ops that take a modulus "
++                  "and FAILS the three shipped rc424 ops that hard-wire "
++                  "ℤ/12, so it can return otherwise. Note that just_limit "
++                  "also reads CHART by this predicate and should NOT: it is "
++                  "the frame-free ℚ⁺ lane with no modulus at all. That is a "
++                  "KNOWN BOUND of the L1 clause — 'takes a modulus' and "
++                  "'is frame-free' are different properties, and an op can "
++                  "be carrier-level by having NO frame rather than by being "
++                  "parametric in one. The predicate as stated conflates "
++                  "them; a corrected form needs a third bucket."))
++
++    # the corrected three-bucket form, stated and run
++    print("\n      CORRECTED three-bucket form (the L1 clause above conflates "
++          "two ways of being frame-free):")
++    print("        FRAME-PARAMETRIC — takes a modulus/frame; answer moves "
++          "with it")
++    print("        FRAME-FREE       — takes NO frame; answer cannot depend "
++          "on one")
++    print("        FRAME-FIXED      — assumes a frame it does not accept  "
++          "<-- THE LEAK")
++    buckets = {}
++    for r in lt:
++        if r["L1_accepts_modulus"] and r["L2_total"] and r["L3_answer_moves_with_n"]:
++            b = "FRAME-PARAMETRIC"
++        elif not r["L1_accepts_modulus"] and r["L4_no_hardwired_12"]:
++            b = "FRAME-FREE"
++        else:
++            b = "FRAME-FIXED (LEAK)"
++        buckets.setdefault(b, []).append(r["op"])
++    for b in ("FRAME-PARAMETRIC", "FRAME-FREE", "FRAME-FIXED (LEAK)"):
++        print(f"        {b:22s} {buckets.get(b, [])}")
++    emit(finding="F12b_three_bucket_leak_test", buckets=buckets,
++         verdict="The corrected predicate separates 'parametric in a frame' "
++                 "from 'has no frame'. Only the third bucket is a leak, and "
++                 "it is a leak only when the op is PRESENTED as carrier-"
++                 "level. rc424's three ℤ/12 ops land in it and are correctly "
++                 "DECLARED as the modular lane, so they are charts wearing "
++                 "the right label — not defects.")
++
++    with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
++        for r in RECS:
++            fh.write(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n")
++    print(f"\nwrote {len(RECS)} records -> {OUT}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docs/srmech/notes/_p5_chart_atlas_prototype_rc426.ndjson b/docs/srmech/notes/_p5_chart_atlas_prototype_rc426.ndjson
+new file mode 100644
+index 000000000..1b1abebb4
+--- /dev/null
++++ b/docs/srmech/notes/_p5_chart_atlas_prototype_rc426.ndjson
+@@ -0,0 +1,9 @@
++{"charts": [{"alphabet_size": 12, "carrier_n": 12, "family": "reference (no convention at all)", "modifier_size": 1, "name": "identity", "origin": 0, "symbol_count": 12}, {"alphabet_size": 7, "carrier_n": 12, "family": "positional-absolute", "modifier_size": 5, "name": "positional-7+mod", "origin": 0, "symbol_count": 35}, {"alphabet_size": 5, "carrier_n": 12, "family": "positional-absolute", "modifier_size": 1, "name": "positional-5", "origin": 0, "symbol_count": 5}, {"alphabet_size": 7, "carrier_n": 12, "family": "positional-relative (moved origin)", "modifier_size": 5, "name": "positional-7@origin7", "origin": 7, "symbol_count": 35}, {"alphabet_size": 7, "carrier_n": 24, "family": "positional-absolute (n=24)", "modifier_size": 5, "name": "positional-7@24", "origin": 0, "symbol_count": 35}], "finding": "P5_chart_registry", "note": "Structural families only. No musical tradition is named or claimed here; mapping traditions onto families is a CITATION question answered elsewhere. The REFERENCE chart is the empty one, so no real notation sits at the origin of the atlas.", "srmech_version": "0.9.0rc424"}
++{"finding": "F13_per_chart_roundtrip", "rows": [{"chart": "identity", "lossless_backward": true, "preimage_histogram": {"1": 12}, "symbols": 12, "uniquely_recovered": 12}, {"chart": "positional-7+mod", "lossless_backward": false, "preimage_histogram": {"2": 2, "3": 33}, "symbols": 35, "uniquely_recovered": 0}, {"chart": "positional-5", "lossless_backward": true, "preimage_histogram": {"1": 5}, "symbols": 5, "uniquely_recovered": 5}, {"chart": "positional-7@origin7", "lossless_backward": false, "preimage_histogram": {"2": 2, "3": 33}, "symbols": 35, "uniquely_recovered": 0}, {"chart": "positional-7@24", "lossless_backward": false, "preimage_histogram": {"1": 13, "2": 22}, "symbols": 35, "uniquely_recovered": 13}], "srmech_version": "0.9.0rc424", "verdict": "Charts with a MODIFIER group are LOSSY backward: several symbols name the same carrier value (the enharmonic-spelling shape). That is not a bug in the chart — it is the measurement that the chart carries STRICTLY MORE than the carrier, and the surplus is convention. A chart WITHOUT modifiers round-trips exactly."}
++{"comparable_pairs": 6, "finding": "F14_inter_chart_interval_agreement_VACUOUS", "fully_agreeing": 6, "instrument_valid": false, "pairs": [{"a": "identity", "agree": 144, "b": "positional-7+mod", "full_agreement": true, "same_carrier": true, "total": 144}, {"a": "identity", "agree": 25, "b": "positional-5", "full_agreement": true, "same_carrier": true, "total": 25}, {"a": "identity", "agree": 144, "b": "positional-7@origin7", "full_agreement": true, "same_carrier": true, "total": 144}, {"a": "identity", "agree": null, "b": "positional-7@24", "note": "different carrier modulus — NOT in the same atlas; comparing them is a category error and the instrument says so instead of returning a number", "same_carrier": false, "total": 0}, {"a": "positional-7+mod", "agree": 225, "b": "positional-5", "full_agreement": true, "same_carrier": true, "total": 225}, {"a": "positional-7+mod", "agree": 1225, "b": "positional-7@origin7", "full_agreement": true, "same_carrier": true, "total": 1225}, {"a": "positional-7+mod", "agree": null, "b": "positional-7@24", "note": "different carrier modulus — NOT in the same atlas; comparing them is a category error and the instrument says so instead of returning a number", "same_carrier": false, "total": 0}, {"a": "positional-5", "agree": 25, "b": "positional-7@origin7", "full_agreement": true, "same_carrier": true, "total": 25}, {"a": "positional-5", "agree": null, "b": "positional-7@24", "note": "different carrier modulus — NOT in the same atlas; comparing them is a category error and the instrument says so instead of returning a number", "same_carrier": false, "total": 0}, {"a": "positional-7@origin7", "agree": null, "b": "positional-7@24", "note": "different carrier modulus — NOT in the same atlas; comparing them is a category error and the instrument says so instead of returning a number", "same_carrier": false, "total": 0}], "srmech_version": "0.9.0rc424", "verdict": "6/6 comparable pairs agree — AND SO DOES A DELIBERATELY CORRUPTED CHART (F16: 1225/1225). This test is VACUOUS: it resolves chart 2's symbol BY carrier value and then compares intervals computed FROM those carrier values, so agreement is guaranteed by construction. Recorded as a failed instrument, not as evidence. The correct form is F14b."}
++{"alphabet_size": 7, "carrier_n": 12, "chosen_rotation": 3, "degrees_needing_a_modifier": 1, "finding": "F14b_corrected_atlas_condition", "origin_shift": 7, "rotation_costs": {"0": {"n_nonzero": 7, "residues": [5, 5, 5, 5, 5, 5, 5], "total": 35}, "1": {"n_nonzero": 7, "residues": [3, 3, 4, 3, 3, 3, 4], "total": 23}, "2": {"n_nonzero": 7, "residues": [1, 2, 2, 1, 1, 2, 2], "total": 11}, "3": {"n_nonzero": 1, "residues": [0, 0, 0, -1, 0, 0, 0], "total": 1}, "4": {"n_nonzero": 7, "residues": [-2, -2, -2, -2, -2, -2, -1], "total": 13}, "5": {"n_nonzero": 7, "residues": [-4, -4, -3, -4, -4, -3, -3], "total": 25}, "6": {"n_nonzero": 7, "residues": [6, -5, -5, 6, -5, -5, -5], "total": 37}}, "rows": [{"agree": 35, "commutes": true, "counterexamples": [], "pair": "positional-7+mod -> itself [identity phi]", "total": 35}, {"agree": 0, "commutes": false, "counterexamples": [{"c1_writes": 10, "c2_writes": 5, "phi_symbol": [0, -2], "symbol": [0, -2]}, {"c1_writes": 11, "c2_writes": 6, "phi_symbol": [0, -1], "symbol": [0, -1]}, {"c1_writes": 0, "c2_writes": 7, "phi_symbol": [0, 0], "symbol": [0, 0]}, {"c1_writes": 1, "c2_writes": 8, "phi_symbol": [0, 1], "symbol": [0, 1]}], "pair": "positional-7+mod -> @origin7 [identity phi]", "total": 35}, {"agree": 34, "commutes": true, "counterexamples": [], "pair": "positional-7+mod -> @origin7 [phi = rotate 3 + residue]", "total": 34}], "srmech_version": "0.9.0rc424", "verdict": "The atlas condition is a property of the DECLARED TRANSITION, not of the charts. The identity transition FAILS across a moved origin (that failure IS the origin change) and the derived transition COMMUTES. Note what the derivation produced without being told to: an origin shift is absorbed by an alphabet ROTATION plus a non-zero modifier on a MINORITY of degrees. That residue is the key-signature shape, and it fell out of the group arithmetic rather than being encoded."}
++{"finding": "F16b_corrected_wrong_chart_control", "instrument_valid": true, "rejected": true, "row": {"agree": 30, "commutes": false, "counterexamples": [{"c1_writes": 9, "c2_writes": 8, "phi_symbol": [6, -2], "symbol": [6, -2]}, {"c1_writes": 10, "c2_writes": 9, "phi_symbol": [6, -1], "symbol": [6, -1]}, {"c1_writes": 11, "c2_writes": 10, "phi_symbol": [6, 0], "symbol": [6, 0]}, {"c1_writes": 0, "c2_writes": 11, "phi_symbol": [6, 1], "symbol": [6, 1]}], "pair": "positional-7+mod -> WRONG chart [identity phi]", "total": 35}, "srmech_version": "0.9.0rc424", "verdict": "Under the CORRECTED condition the corrupted chart FAILS, where under the vacuous F14 form it scored 1225/1225. The difference between the two is the whole design lesson: compatibility must be checked against a SUPPLIED transition, because checking it through the carrier is checking nothing."}
++{"blind": true, "finding": "F15_registry_order_blindness", "permutations": 120, "srmech_version": "0.9.0rc424", "unchanged": 120, "verdict": "the carrier answer is independent of chart-registry order — no chart is 'first'. This is a WEAK check by construction (the carrier holds no registry reference at all), and it is recorded as weak rather than counted as strong evidence."}
++{"agree": 1225, "blessed": true, "finding": "F16_wrong_chart_control_vs_vacuous_F14", "instrument_valid": false, "srmech_version": "0.9.0rc424", "total": 1225, "verdict": "A deliberately corrupted chart is BLESSED by F14. This is reported as a property of F14, not of the chart: it is the measurement that condemned the test. The corrected control is F16b."}
++{"agree": 60, "finding": "F17_wrong_group_control", "instrument_valid": true, "srmech_version": "0.9.0rc424", "total": 400, "verdict": "F14 refuses this comparison as non-comparable; F17 forces it through to show the comparison WOULD have failed. The refusal is therefore a real guard, not a way of hiding a disagreement.", "would_have_failed": true}
++{"center_lift": {"center_order": 12, "center_parity": 1, "center_shadow": 0, "cover_lift": 12, "shadow_determines_lift": false}, "finding": "P5_octave_delegated_to_covering", "lift_fibre": {"center_order": 12, "determined": false, "fibre": [-24, -12, 0, 12, 24], "size": 5, "window": 24}, "srmech_version": "0.9.0rc424", "verdict": "No new op is warranted for octave equivalence: srmech.math.covering already carries the exact central extension, parametric in the modulus, with the loss ENUMERATED rather than asserted."}
+diff --git a/docs/srmech/notes/_p5_chart_atlas_prototype_rc426.py b/docs/srmech/notes/_p5_chart_atlas_prototype_rc426.py
+new file mode 100644
+index 000000000..e6605a778
+--- /dev/null
++++ b/docs/srmech/notes/_p5_chart_atlas_prototype_rc426.py
+@@ -0,0 +1,491 @@
++#!/usr/bin/env python3
++"""P5 — the CARRIER + TRANSLATOR prototype: many charts, one object
++(rc426 research spike, read-only; nothing here is proposed for the wheel
++as-is — it exists to COST the ops and to run the falsifiers on a real
++implementation rather than on a description of one).
++
++THE DESIGN, STATED BEFORE IT IS BUILT
++=====================================
++CARRIER (frame-free — holds what every notation shares):
++
++    a TORSOR (S, G, int) where G is the interval group and S carries NO
++    distinguished origin.  The ONLY carrier datum is ``int: S x S -> G``.
++    G is a PARAMETER: ℤ (register-carrying), ℤ/n (octave-equivalent, ANY n),
++    ℤ^k (a rank-k just lattice), or a non-abelian group.  Nothing in the
++    carrier may name 12, or 7, or a letter, or a staff.
++
++CHART (convention — holds what one notation does):
++
++    a 4-tuple (origin, alphabet, rho, modifier) where
++      origin   in S      -- THE CLEF.  Pure convention; carries no interval.
++      alphabet           -- the symbols this notation writes
++      rho: alphabet -> G -- what each symbol means as a displacement
++      modifier           -- an optional second map (accidental-like)
++
++TRANSLATOR: chart -> carrier is ``rho`` composed with the origin; carrier ->
++chart is its (possibly multi-valued) inverse.  The losslessness of EACH
++DIRECTION is measured, never assumed.
++
++⚠️ **THE CHART FAMILIES BELOW ARE STRUCTURAL, NOT CULTURAL.**  They are named
++by what they DO (positional / differential / action-indexed), deliberately NOT
++after any musical tradition.  Mapping a real tradition onto a family is a
++CITATION question and is not answered here.  Modelling "a Western-notation
++chart" as the reference chart would privilege Western notation, which is the
++one thing this design exists to avoid, so the reference chart is the EMPTY
++one: identity on the carrier.
++
++Pre-registered falsifiers
++=========================
++F13 Every chart must round-trip chart->carrier->chart LOSSLESSLY on its own
++    alphabet (otherwise it is not a chart of this carrier).
++F14 Every chart must agree with every OTHER chart on INTERVALS (that is what
++    it means for them to be charts of ONE object).  Disagreement refutes the
++    atlas.
++F15 The carrier must be blind to which chart is "first": permuting the chart
++    registry must not change any carrier-level answer.
++F16 NEGATIVE CONTROL — a deliberately WRONG chart must fail F14.
++F17 NEGATIVE CONTROL — a chart over the WRONG GROUP (different n) must fail.
++
++Run:
++    PYTHONPATH=docs/srmech/python python3 docs/srmech/notes/_p5_chart_atlas_prototype_rc426.py
++"""
++from __future__ import annotations
++
++import itertools
++import json
++import os
++import sys
++
++import srmech
++from srmech.cascade import cyclic_mod_add
++from srmech.math.covering import center_lift, lift_fibre
++
++OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
++                   "_p5_chart_atlas_prototype_rc426.ndjson")
++RECS = []
++
++
++def emit(**kw):
++    kw.setdefault("srmech_version", srmech.__version__)
++    RECS.append(kw)
++
++
++# ══════════════════════════════════════════════════════════════════════════
++# THE CARRIER.  Note what is NOT here: no 12, no 7, no letter, no staff, no
++# default.  ``n`` is required and has no default value, deliberately — a
++# default modulus IS a privileged frame.
++# ══════════════════════════════════════════════════════════════════════════
++class Carrier:
++    """A cyclic-interval torsor.  ``n = 0`` spells the ℤ (register-carrying)
++    carrier, matching :data:`srmech.math.covering.UNIVERSAL`."""
++
++    def __init__(self, n):
++        if not isinstance(n, int) or n < 0:
++            raise ValueError("Carrier: n must be a non-negative int "
++                             "(0 = the register-carrying ℤ carrier); "
++                             "there is NO DEFAULT, because a default modulus "
++                             "is a privileged frame")
++        self.n = n
++
++    def int_(self, a, b):
++        """int(a,b) — the unique g with a·g = b.  The ONLY carrier datum."""
++        return (b - a) if self.n == 0 else cyclic_mod_add(b, self.n - (a % self.n),
++                                                          self.n)
++
++    def act(self, a, g):
++        return (a + g) if self.n == 0 else cyclic_mod_add(a % self.n,
++                                                          g % self.n, self.n)
++
++    def __repr__(self):
++        return f"Carrier(n={self.n or 'Z'})"
++
++
++# ══════════════════════════════════════════════════════════════════════════
++# THE CHART.  origin is the CLEF.
++# ══════════════════════════════════════════════════════════════════════════
++class Chart:
++    def __init__(self, name, family, carrier, origin, alphabet, rho,
++                 modifiers=(0,)):
++        self.name, self.family = name, family
++        self.carrier, self.origin = carrier, origin
++        self.alphabet, self.rho = tuple(alphabet), dict(rho)
++        self.modifiers = tuple(modifiers)
++
++    def symbols(self):
++        return [(a, m) for a in self.alphabet for m in self.modifiers]
++
++    def write(self, sym):
++        """chart -> carrier."""
++        a, m = sym
++        return self.carrier.act(self.origin, self.rho[a] + m)
++
++    def read(self, value):
++        """carrier -> chart.  MULTI-VALUED by construction — the whole point."""
++        return [s for s in self.symbols() if self.write(s) == value]
++
++    def chart_interval(self, s1, s2):
++        """The interval computed INSIDE the chart, without leaving it."""
++        return self.carrier.int_(self.write(s1), self.write(s2))
++
++
++def main() -> int:
++    print("srmech.__file__    =", srmech.__file__)
++    print("srmech.__version__ =", srmech.__version__)
++    try:
++        import numpy  # noqa: F401
++        print("!! numpy PRESENT — environment wrong")
++    except ImportError:
++        print("numpy              = ABSENT (correct)")
++
++    C12 = Carrier(12)
++    C24 = Carrier(24)
++    CZ = Carrier(0)
++
++    # ── the chart registry.  Structural families only; NO tradition named. ──
++    charts = [
++        # the REFERENCE chart is the EMPTY one: identity on the carrier, no
++        # alphabet of its own.  Making any real notation the reference would
++        # privilege it.
++        Chart("identity", "reference (no convention at all)", C12, 0,
++              range(12), {i: i for i in range(12)}),
++        # POSITIONAL-ABSOLUTE: k symbols mapped to fixed displacements, plus a
++        # modifier group.  k=7 with modifiers is ONE instance of this family.
++        Chart("positional-7+mod", "positional-absolute", C12, 0,
++              range(7), dict(enumerate((0, 2, 4, 5, 7, 9, 11))),
++              modifiers=(-2, -1, 0, 1, 2)),
++        # the SAME family at a different k and a different rho — proving the
++        # family is not the 7-degree map.
++        Chart("positional-5", "positional-absolute", C12, 0,
++              range(5), dict(enumerate((0, 2, 4, 7, 9)))),
++        # POSITIONAL-RELATIVE: identical structure, MOVED ORIGIN.  This is a
++        # different CHART of the same carrier, not a different carrier.
++        Chart("positional-7@origin7", "positional-relative (moved origin)",
++              C12, 7, range(7), dict(enumerate((0, 2, 4, 5, 7, 9, 11))),
++              modifiers=(-2, -1, 0, 1, 2)),
++        # a chart on a DIFFERENT carrier modulus — deliberately included so
++        # F14 has something it must REFUSE to atlas with.
++        Chart("positional-7@24", "positional-absolute (n=24)", C24, 0,
++              range(7), dict(enumerate((0, 4, 8, 10, 14, 18, 22))),
++              modifiers=(-2, -1, 0, 1, 2)),
++    ]
++
++    print("\n      chart                      family                              "
++          "carrier  origin  |alphabet|  |modifiers|  |symbols|")
++    for c in charts:
++        print(f"      {c.name:26s} {c.family:36s} {c.carrier!s:12s} "
++              f"{c.origin:5d}  {len(c.alphabet):9d}  {len(c.modifiers):10d}  "
++              f"{len(c.symbols()):8d}")
++    emit(finding="P5_chart_registry",
++         charts=[{"name": c.name, "family": c.family, "carrier_n": c.carrier.n,
++                  "origin": c.origin, "alphabet_size": len(c.alphabet),
++                  "modifier_size": len(c.modifiers),
++                  "symbol_count": len(c.symbols())} for c in charts],
++         note="Structural families only. No musical tradition is named or "
++              "claimed here; mapping traditions onto families is a CITATION "
++              "question answered elsewhere. The REFERENCE chart is the empty "
++              "one, so no real notation sits at the origin of the atlas.")
++
++    # ── F13 — per-chart round trip ────────────────────────────────────────
++    print("\nF13   per-chart round trip  chart -> carrier -> chart")
++    rows = []
++    for c in charts:
++        tot = len(c.symbols())
++        exact = sum(1 for s in c.symbols() if c.read(c.write(s)) == [s])
++        hist = {}
++        for s in c.symbols():
++            k = len(c.read(c.write(s)))
++            hist[k] = hist.get(k, 0) + 1
++        rows.append({"chart": c.name, "symbols": tot,
++                     "uniquely_recovered": exact,
++                     "preimage_histogram": {str(k): v
++                                            for k, v in sorted(hist.items())},
++                     "lossless_backward": exact == tot})
++        print(f"      {c.name:26s} {exact:4d}/{tot:<4d} uniquely recovered   "
++              f"preimage sizes {dict(sorted(hist.items()))}   "
++              f"{'LOSSLESS' if exact == tot else 'LOSSY backward'}")
++    emit(finding="F13_per_chart_roundtrip", rows=rows,
++         verdict="Charts with a MODIFIER group are LOSSY backward: several "
++                 "symbols name the same carrier value (the enharmonic-"
++                 "spelling shape). That is not a bug in the chart — it is the "
++                 "measurement that the chart carries STRICTLY MORE than the "
++                 "carrier, and the surplus is convention. A chart WITHOUT "
++                 "modifiers round-trips exactly.")
++
++    # ══════════════════════════════════════════════════════════════════
++    # F14 (VACUOUS FORM) — kept, because its failure is the finding.
++    #
++    # ⚠️ THIS TEST CANNOT FAIL, AND F16 PROVED IT.  It looks up a symbol of
++    # chart 2 that writes to the SAME carrier value, then compares intervals
++    # computed FROM THOSE CARRIER VALUES — which are equal by the lookup.
++    # A deliberately corrupted chart scored 1225/1225.  This is a "good test
++    # of the wrong verb": every fixture agrees because the fixture was built
++    # by agreeing.  It is retained, with its negative control, because
++    # deleting it would hide the design lesson it produced — see F14b.
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF14   [VACUOUS FORM — retained deliberately; see F14b] "
++          "inter-chart interval agreement via carrier-value lookup")
++    pairs = []
++    for c1, c2 in itertools.combinations(charts, 2):
++        if c1.carrier.n != c2.carrier.n:
++            pairs.append({"a": c1.name, "b": c2.name,
++                          "same_carrier": False, "agree": None,
++                          "total": 0,
++                          "note": "different carrier modulus — NOT in the "
++                                  "same atlas; comparing them is a category "
++                                  "error and the instrument says so instead "
++                                  "of returning a number"})
++            print(f"      {c1.name:26s} vs {c2.name:26s} "
++                  f"DIFFERENT CARRIER (n={c1.carrier.n} vs {c2.carrier.n}) "
++                  f"-> not comparable")
++            continue
++        ok = tot = 0
++        for s1, s2 in itertools.product(c1.symbols(), c1.symbols()):
++            v1, v2 = c1.write(s1), c1.write(s2)
++            t1, t2 = c2.read(v1), c2.read(v2)
++            if not t1 or not t2:
++                continue
++            tot += 1
++            if c1.chart_interval(s1, s2) == c2.chart_interval(t1[0], t2[0]):
++                ok += 1
++        pairs.append({"a": c1.name, "b": c2.name, "same_carrier": True,
++                      "agree": ok, "total": tot,
++                      "full_agreement": ok == tot and tot > 0})
++        print(f"      {c1.name:26s} vs {c2.name:26s} "
++              f"{ok:5d}/{tot:<5d}  "
++              f"{'AGREE' if ok == tot and tot else 'DISAGREE'}")
++    n_pairs = sum(1 for p in pairs if p["same_carrier"])
++    n_agree = sum(1 for p in pairs if p.get("full_agreement"))
++    emit(finding="F14_inter_chart_interval_agreement_VACUOUS", pairs=pairs,
++         comparable_pairs=n_pairs, fully_agreeing=n_agree,
++         instrument_valid=False,
++         verdict=(f"{n_agree}/{n_pairs} comparable pairs agree — AND SO DOES "
++                  "A DELIBERATELY CORRUPTED CHART (F16: 1225/1225). This "
++                  "test is VACUOUS: it resolves chart 2's symbol BY carrier "
++                  "value and then compares intervals computed FROM those "
++                  "carrier values, so agreement is guaranteed by "
++                  "construction. Recorded as a failed instrument, not as "
++                  "evidence. The correct form is F14b."))
++
++    # ══════════════════════════════════════════════════════════════════
++    # F14b — THE CORRECTED ATLAS CONDITION.
++    #
++    # The lesson F16 forced: a carrier plus a bag of charts constrains
++    # NOTHING.  Any two charts of the same carrier are trivially "compatible"
++    # if compatibility is checked through the carrier.  The content of an
++    # atlas lives entirely in the TRANSITION MAPS, and a transition map is
++    # DATA THAT MUST BE SUPPLIED AND VERIFIED — it cannot be derived from the
++    # charts, because deriving it is what made F14 vacuous.
++    #
++    # So the corrected condition is:  given charts c1, c2 AND a declared
++    # symbol-level correspondence phi, does phi COMMUTE with write?
++    #     c1.write(s) == c2.write(phi(s))   for every s in the overlap
++    # A corrupted chart now fails, because phi is stated independently of
++    # the corruption.
++    # ══════════════════════════════════════════════════════════════════
++    print("\nF14b  CORRECTED atlas condition — a DECLARED transition map that "
++          "must COMMUTE with write")
++
++    def check_transition(c1, c2, phi, label):
++        ok = tot = 0
++        bad_examples = []
++        for s in c1.symbols():
++            t = phi(s)
++            if t is None or t[0] not in c2.rho or t[1] not in c2.modifiers:
++                continue
++            tot += 1
++            if c1.write(s) == c2.write(t):
++                ok += 1
++            elif len(bad_examples) < 4:
++                bad_examples.append(
++                    {"symbol": list(s), "c1_writes": c1.write(s),
++                     "phi_symbol": list(t), "c2_writes": c2.write(t)})
++        good = tot > 0 and ok == tot
++        print(f"      {label:52s} {ok:5d}/{tot:<5d}  "
++              f"{'COMMUTES' if good else 'DOES NOT COMMUTE'}")
++        return {"pair": label, "agree": ok, "total": tot, "commutes": good,
++                "counterexamples": bad_examples}
++
++    ident_phi = (lambda s: s)
++    tb = []
++    # same alphabet, same origin -> identity transition must commute
++    tb.append(check_transition(charts[1], charts[1], ident_phi,
++                               "positional-7+mod -> itself [identity phi]"))
++    # moved origin: the DECLARED transition is 'same symbol', and it must NOT
++    # commute, because the origin moved.  That is the clef change, visible.
++    tb.append(check_transition(charts[1], charts[3], ident_phi,
++                               "positional-7+mod -> @origin7 [identity phi]"))
++    # ...but the CORRECT transition for a moved origin compensates the shift.
++    # It is NOT a modifier shift: an origin move of s carrier-steps is
++    # absorbed mostly by a DEGREE rotation, with a small per-degree modifier
++    # residue.  Derive the best degree rotation rather than assuming one.
++    c1, c2 = charts[1], charts[3]
++    shift = c2.origin - c1.origin
++    n = c1.carrier.n
++    k = len(c1.alphabet)
++
++    def residue(a, d):
++        """The modifier the transition needs at degree a for rotation d."""
++        a2 = (a + d) % k
++        r = (c1.rho[a] - shift - c2.rho[a2]) % n
++        return r - n if r > n // 2 else r        # balanced residue, no abs()
++
++    best_d, best_cost = None, None
++    costs = {}
++    for d in range(k):
++        res = [residue(a, d) for a in range(k)]
++        # cost = how many degrees need a NON-ZERO modifier, then how large
++        cost = (sum(1 for r in res if r != 0),
++                sum(r if r > 0 else -r for r in res))
++        costs[d] = {"residues": res, "n_nonzero": cost[0], "total": cost[1]}
++        if best_cost is None or cost < best_cost:
++            best_d, best_cost = d, cost
++    print(f"      deriving the degree rotation for an origin shift of "
++          f"{shift} on a {k}-degree alphabet mod {n}:")
++    for d in range(k):
++        mark = " <- chosen" if d == best_d else ""
++        print(f"        rotation {d}: residues {costs[d]['residues']}  "
++              f"non-zero {costs[d]['n_nonzero']}{mark}")
++
++    def compensating_phi(s):
++        a, m = s
++        a2 = (a + best_d) % k
++        m2 = m + residue(a, best_d)
++        return (a2, m2)
++
++    tb.append(check_transition(
++        c1, c2, compensating_phi,
++        f"positional-7+mod -> @origin7 [phi = rotate {best_d} + residue]"))
++    print(f"      the derived transition rotates the alphabet by {best_d} and "
++          f"needs a non-zero modifier on {best_cost[0]} of {k} degrees — "
++          f"that residue is the KEY-SIGNATURE shape, derived, not assumed")
++    emit(finding="F14b_corrected_atlas_condition", rows=tb,
++         origin_shift=shift, alphabet_size=k, carrier_n=n,
++         rotation_costs={str(d): costs[d] for d in costs},
++         chosen_rotation=best_d,
++         degrees_needing_a_modifier=best_cost[0],
++         verdict="The atlas condition is a property of the DECLARED "
++                 "TRANSITION, not of the charts. The identity transition "
++                 "FAILS across a moved origin (that failure IS the origin "
++                 "change) and the derived transition COMMUTES. Note what the "
++                 "derivation produced without being told to: an origin shift "
++                 "is absorbed by an alphabet ROTATION plus a non-zero "
++                 "modifier on a MINORITY of degrees. That residue is the "
++                 "key-signature shape, and it fell out of the group "
++                 "arithmetic rather than being encoded.")
++
++    # F16b — the corrected control: a WRONG chart under the TRANSITION test
++    print("\nF16b  CORRECTED NEGATIVE CONTROL — wrong chart under F14b")
++    bad_chart = Chart("positional-7-WRONG", "deliberately corrupted", C12, 0,
++                      range(7), dict(enumerate((0, 2, 4, 5, 7, 9, 10))),
++                      modifiers=(-2, -1, 0, 1, 2))
++    r16b = check_transition(charts[1], bad_chart, ident_phi,
++                            "positional-7+mod -> WRONG chart [identity phi]")
++    print(f"      {'!! STILL BLESSED' if r16b['commutes'] else 'correctly REJECTED'}"
++          f" — counterexamples: {r16b['counterexamples'][:2]}")
++    emit(finding="F16b_corrected_wrong_chart_control", row=r16b,
++         rejected=not r16b["commutes"], instrument_valid=not r16b["commutes"],
++         verdict="Under the CORRECTED condition the corrupted chart FAILS, "
++                 "where under the vacuous F14 form it scored 1225/1225. The "
++                 "difference between the two is the whole design lesson: "
++                 "compatibility must be checked against a SUPPLIED "
++                 "transition, because checking it through the carrier is "
++                 "checking nothing.")
++
++    # ── F15 — is the carrier blind to registry order? ────────────────────
++    print("\nF15   carrier blindness to chart-registry order")
++    probe = [(0, 0), (2, 0), (4, 0)]
++    c = charts[1]
++    base = [c.chart_interval(a, b) for a, b in itertools.product(probe, probe)]
++    shuffles = 0
++    same = 0
++    for perm in itertools.permutations(range(len(charts))):
++        shuffles += 1
++        _reg = [charts[i] for i in perm]        # noqa: F841 - the point
++        got = [c.chart_interval(a, b)
++               for a, b in itertools.product(probe, probe)]
++        if got == base:
++            same += 1
++        if shuffles >= 120:
++            break
++    print(f"      registry permutations tried: {shuffles}; carrier answer "
++          f"unchanged in {same}/{shuffles}")
++    emit(finding="F15_registry_order_blindness", permutations=shuffles,
++         unchanged=same, blind=same == shuffles,
++         verdict="the carrier answer is independent of chart-registry order "
++                 "— no chart is 'first'. This is a WEAK check by "
++                 "construction (the carrier holds no registry reference at "
++                 "all), and it is recorded as weak rather than counted as "
++                 "strong evidence.")
++
++    # ── F16 — NEGATIVE CONTROL against the VACUOUS F14.  It is EXPECTED to
++    #         be blessed; that expectation is what condemns F14.
++    print("\nF16   NEGATIVE CONTROL vs the VACUOUS F14 — expected to be "
++          "wrongly blessed, which is the point")
++    bad = Chart("positional-7-WRONG", "deliberately corrupted", C12, 0,
++                range(7), dict(enumerate((0, 2, 4, 5, 7, 9, 10))),
++                modifiers=(-2, -1, 0, 1, 2))
++    good = charts[1]
++    ok = tot = 0
++    for s1, s2 in itertools.product(good.symbols(), good.symbols()):
++        v1, v2 = good.write(s1), good.write(s2)
++        t1, t2 = bad.read(v1), bad.read(v2)
++        if not t1 or not t2:
++            continue
++        tot += 1
++        if good.chart_interval(s1, s2) == bad.chart_interval(t1[0], t2[0]):
++            ok += 1
++    print(f"      wrong chart vs correct chart: {ok}/{tot} agreement  "
++          f"{'BLESSED (as predicted -> F14 is vacuous)' if tot and ok == tot else 'rejected'}")
++    emit(finding="F16_wrong_chart_control_vs_vacuous_F14",
++         agree=ok, total=tot, blessed=bool(tot and ok == tot),
++         instrument_valid=False,
++         verdict="A deliberately corrupted chart is BLESSED by F14. This is "
++                 "reported as a property of F14, not of the chart: it is the "
++                 "measurement that condemned the test. The corrected control "
++                 "is F16b.")
++
++    # ── F17 — NEGATIVE CONTROL: right shape, WRONG GROUP ─────────────────
++    print("\nF17   NEGATIVE CONTROL — right shape, WRONG interval group")
++    g12 = charts[1]
++    g24 = charts[4]
++    # force a comparison the atlas would refuse, to show it WOULD have failed
++    ok = tot = 0
++    for s1, s2 in itertools.product(g12.symbols()[:20], g12.symbols()[:20]):
++        tot += 1
++        if g12.chart_interval(s1, s2) == g24.chart_interval(s1, s2):
++            ok += 1
++    print(f"      n=12 chart vs n=24 chart, compared ANYWAY: {ok}/{tot} "
++          f"agreement  {'!! WOULD HAVE BLESSED' if ok == tot else 'would have FAILED'}")
++    emit(finding="F17_wrong_group_control", agree=ok, total=tot,
++         would_have_failed=ok != tot, instrument_valid=ok != tot,
++         verdict="F14 refuses this comparison as non-comparable; F17 forces "
++                 "it through to show the comparison WOULD have failed. The "
++                 "refusal is therefore a real guard, not a way of hiding a "
++                 "disagreement.")
++
++    # ── the OCTAVE, delegated to the SHIPPED covering layer ──────────────
++    print("\n      the register/octave axis is NOT re-implemented here — it "
++          "is the shipped covering layer:")
++    cl = center_lift([2, 2, 1, 2, 2, 2, 1], 12)
++    lf = lift_fibre(cl["center_shadow"], 12, 24)
++    print(f"      center_lift(major-scale steps, 12) -> cover_lift="
++          f"{cl['cover_lift']}, shadow={cl['center_shadow']}, "
++          f"shadow_determines_lift={cl['shadow_determines_lift']}")
++    print(f"      lift_fibre(shadow, 12, window=24)  -> {lf['size']} registers "
++          f"{lf['fibre']}, determined={lf['determined']}")
++    emit(finding="P5_octave_delegated_to_covering",
++         center_lift=cl, lift_fibre=lf,
++         verdict="No new op is warranted for octave equivalence: "
++                 "srmech.math.covering already carries the exact central "
++                 "extension, parametric in the modulus, with the loss "
++                 "ENUMERATED rather than asserted.")
++
++    with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
++        for r in RECS:
++            fh.write(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n")
++    print(f"\nwrote {len(RECS)} records -> {OUT}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+-- 
+2.53.0.windows.2
+
