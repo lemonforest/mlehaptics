@@ -1,0 +1,99 @@
+From 976f733408e90197ba1cb15388ddd1923091252f Mon Sep 17 00:00:00 2001
+From: Steven Kirkland <sckirklan@gmail.com>
+Date: Wed, 12 Aug 2026 07:32:03 -0500
+Subject: [PATCH 03/13] =?UTF-8?q?srmech=20rc426=20=E2=80=94=20verdicts=20r?=
+ =?UTF-8?q?ead=20the=20SET=20overlap,=20not=20the=20count?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The O16 verdict said "THESIS FAILS ON THIS CARRIER — chiral reversal is NOT
+total". True as far as it went, and misleading: §4b measures that chiral
+succeeds on EXACTLY the 2752 triples forward succeeds on (set equality), so
+the inversion costs nothing — what fails at the octonion loop is the FORWARD
+law itself, and its shortfall is exactly the associator.
+
+The same section shows why the count alone could not decide it: on O16 bare
+and forward have the SAME COUNT (2752 each) and DIFFERENT SETS, intersecting
+in 1408 = 16 x 88 = |S| x commuting-pairs. A count-only test would have called
+bare and chiral equivalent there.
+
+Verdicts now carry chiral_co_extensive_with_forward /
+bare_co_extensive_with_forward / forward_and_bare_intersection, and the O16
+row reads REVERSAL IS NOT REWIND, CONDITIONALLY.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01XTksuWRsHXmGUmBETmSzZx
+---
+ .../notes/reversal_is_not_rewind_rc426.ndjson | 10 +++---
+ .../notes/reversal_is_not_rewind_rc426.py     | 36 ++++++++++++++-----
+ 2 files changed, 33 insertions(+), 13 deletions(-)
+
+diff --git a/docs/srmech/notes/reversal_is_not_rewind_rc426.ndjson b/docs/srmech/notes/reversal_is_not_rewind_rc426.ndjson
+index a0e29fe7a..a9b69806d 100644
+--- a/docs/srmech/notes/reversal_is_not_rewind_rc426.ndjson
++++ b/docs/srmech/notes/reversal_is_not_rewind_rc426.ndjson
+@@ -87,8 +87,8 @@
+ {"generator_step": 6, "image_size": 12, "injective": true, "is_group_like": true, "kind": "monoid_census", "note": "A translation on a finite cyclic set is always a BIJECTION, so the shift monoid ⟨T⟩ is automatically a group. This is the finite-cancellative-monoid collapse, and it is why a directional generator on a FINITE carrier must be non-injective (i.e. lose information) to stay directional.", "op": "srmech.cascade.cyclic_mod_add", "semigroup_not_group": false, "surface": "Z12_shift_6", "surface_kind": "one_parameter_discrete_semigroup"}
+ {"backward_roundtrip_deviation": 1.4988010832439613e-15, "backward_roundtrip_exact": true, "backward_z_negative_accepted": true, "graph": "path graph on 3 nodes, L positive-semidefinite", "kind": "eph_arrow_is_not_enforced", "norm_sq_after_thermal_z_real": 0.40141410031441793, "norm_sq_after_unitary_z_imaginary": 1.0000000000000007, "norm_sq_excitation": 1.0, "op": "srmech.math.laplacian.propagate", "op_is_EPH": "harvest = e^{-zL}·u0 — the shipped Excite/Propagate/Harvest", "thermal_is_a_contraction": true, "unitary_conserves_norm": true, "unitary_roundtrip_deviation": 4.441157846834022e-16, "verdict": "GROUP, NOT SEMIGROUP. The generator's SIGN CONDITION is real and visible — L is PSD, so −L is dissipative and the thermal branch genuinely CONTRACTS (‖·‖² falls from 1.0 to ~0.40). But nothing restricts z to the closed right half-plane: propagate(L, ·, −t) is accepted and inverts the forward map to ~1e-15. So srmech's EPH surface today realises a one-parameter GROUP, and the arrow is a property of the INPUT z, not of the operator's own equation.", "what_would_be_a_true_discrete_semigroup": "A non-injective monoid action. The one shipped example this census found is (ℤ/12, srmech.math.cyclic.mod_mul): 4 units of 12, an absorbing 0, and 6 ↦ 0 — information is destroyed and cannot be recovered.", "why_finite_dimension_forces_this": "At finite dimension every e^{-tL} is invertible (det = e^{-t·tr L} ≠ 0), so the semigroup {e^{-tL} : t ≥ 0} always extends to the group {e^{-tL} : t ∈ ℝ}. Irreversibility needs either infinite dimension — where the backward Cauchy problem is ill-posed because the inverse is UNBOUNDED — or a genuinely NON-INJECTIVE step. This is the same fact §9 measures on the cyclic shifts: on a finite carrier, injective ⟹ group."}
+ {"hand_rolled": [{"gap": "MISSING SURFACE: a dihedral / T-I group carrier. The closest shipped peers are q8_mult (order 8) and oct_mult (order 16); there is no order-24 group op.", "mitigation": "every modular step inside _ti_mul / _ti_inv is a shipped cyclic_mod_add call; only the 2x2 case split is local", "reportable_finding": true, "what": "T/I group product and inverse (_ti_mul / _ti_inv)", "why": "srmech ships NO T/I (Tn / TnI) group op. srmech/music/relations.py names interval_invert / pitch_class_transpose / pitch_class_invert as COSTED AND REJECTED (each a single cyclic_mod_add carrying no decision), and prime_form consumes the Tn/TnI orbit INTERNALLY via a module-private _invert. So the T/I GROUP itself — the order-24 object, its product and its inverse — is not a public surface."}, {"gap": "MISSING SURFACE: conjugacy classes / commuting-pair census / class equation. Grep of the registry finds no conjugacy op; the class equation is load-bearing for this result and has no shipped home.", "mitigation": "every product and inverse is a shipped-op call", "reportable_finding": true, "what": "conjugacy-class orbit closure (conj_classes)", "why": "no shipped conjugacy-class / class-equation op exists"}, {"gap": "PARTIAL SURFACE: associator exists on cd tuples; there is no loop-law census over the 16-byte unit loop.", "mitigation": "all products are oct_mult calls", "reportable_finding": true, "what": "Latin-square, associativity, Moufang, alternativity checks", "why": "srmech ships `associator` (srmech.cascade) for the exact-ℚ CD carrier but no BYTE-loop associativity / Moufang / inverse-property census op"}], "kind": "op_usage_ledger", "note": "Reaching for hand-rolled arithmetic where a shipped op exists is a reportable finding, not a shortcut ([[feedback_scratch_measurements_must_use_srmech_or_gaps_stay_invisible]]). Each row above is a MISSING SURFACE, not a convenience.", "shipped_ops_used": ["srmech.cascade.cyclic_mod_add", "srmech.cascade.cd_mult", "srmech.cascade.cd_conjugate", "srmech.cascade.pin_slot_at_zero", "srmech.cascade.net_chirality", "srmech.biology.q8.q8_mult", "srmech.biology.q8.q8_conjugate", "srmech.math.octonion.oct_mult", "srmech.math.octonion.oct_conjugate", "srmech.math.octonion.oct_torsor_act", "srmech.math.octonion.oct_torsor_div", "srmech.math.cyclic.gcd", "srmech.math.cyclic.mod_mul", "srmech.introspect.tool_schema.get_tool_schema"]}
+-{"BARE": 343, "CHIRAL": 343, "FORWARD": 343, "abelian": true, "associative": true, "bare_total": true, "carrier": "Z7", "chiral_total": true, "convention_independent": true, "forward_total": true, "kind": "verdict", "order": 7, "ordered_triples": 343, "thesis": "INVERSION INVISIBLE — abelian carrier, bare and chiral both total; this row is the CONTROL and proves the harness is not manufacturing the shortfall"}
+-{"BARE": 1728, "CHIRAL": 1728, "FORWARD": 1728, "abelian": true, "associative": true, "bare_total": true, "carrier": "Z12", "chiral_total": true, "convention_independent": true, "forward_total": true, "kind": "verdict", "order": 12, "ordered_triples": 1728, "thesis": "INVERSION INVISIBLE — abelian carrier, bare and chiral both total; this row is the CONTROL and proves the harness is not manufacturing the shortfall"}
+-{"BARE": 320, "CHIRAL": 512, "FORWARD": 512, "abelian": false, "associative": true, "bare_total": false, "carrier": "Q8", "chiral_total": true, "convention_independent": true, "forward_total": true, "kind": "verdict", "order": 8, "ordered_triples": 512, "thesis": "REVERSAL IS NOT REWIND — chiral total, bare NOT total"}
+-{"BARE": 5184, "CHIRAL": 13824, "FORWARD": 13824, "abelian": false, "associative": true, "bare_total": false, "carrier": "TI24", "chiral_total": true, "convention_independent": true, "forward_total": true, "kind": "verdict", "order": 24, "ordered_triples": 13824, "thesis": "REVERSAL IS NOT REWIND — chiral total, bare NOT total"}
+-{"BARE": 2752, "CHIRAL": 2752, "FORWARD": 2752, "abelian": false, "associative": false, "bare_total": false, "carrier": "O16", "chiral_total": false, "convention_independent": true, "forward_total": false, "kind": "verdict", "order": 16, "ordered_triples": 4096, "thesis": "THESIS FAILS ON THIS CARRIER — chiral reversal is NOT total; this is the headline, not a footnote"}
++{"BARE": 343, "CHIRAL": 343, "FORWARD": 343, "abelian": true, "associative": true, "bare_co_extensive_with_forward": true, "bare_total": true, "carrier": "Z7", "chiral_co_extensive_with_forward": true, "chiral_total": true, "convention_independent": true, "forward_and_bare_intersection": 343, "forward_total": true, "kind": "verdict", "order": 7, "ordered_triples": 343, "thesis": "INVERSION INVISIBLE — abelian carrier, bare and chiral both total; this row is the CONTROL and proves the harness is not manufacturing the shortfall"}
++{"BARE": 1728, "CHIRAL": 1728, "FORWARD": 1728, "abelian": true, "associative": true, "bare_co_extensive_with_forward": true, "bare_total": true, "carrier": "Z12", "chiral_co_extensive_with_forward": true, "chiral_total": true, "convention_independent": true, "forward_and_bare_intersection": 1728, "forward_total": true, "kind": "verdict", "order": 12, "ordered_triples": 1728, "thesis": "INVERSION INVISIBLE — abelian carrier, bare and chiral both total; this row is the CONTROL and proves the harness is not manufacturing the shortfall"}
++{"BARE": 320, "CHIRAL": 512, "FORWARD": 512, "abelian": false, "associative": true, "bare_co_extensive_with_forward": false, "bare_total": false, "carrier": "Q8", "chiral_co_extensive_with_forward": true, "chiral_total": true, "convention_independent": true, "forward_and_bare_intersection": 320, "forward_total": true, "kind": "verdict", "order": 8, "ordered_triples": 512, "thesis": "REVERSAL IS NOT REWIND — chiral total, bare NOT total"}
++{"BARE": 5184, "CHIRAL": 13824, "FORWARD": 13824, "abelian": false, "associative": true, "bare_co_extensive_with_forward": false, "bare_total": false, "carrier": "TI24", "chiral_co_extensive_with_forward": true, "chiral_total": true, "convention_independent": true, "forward_and_bare_intersection": 5184, "forward_total": true, "kind": "verdict", "order": 24, "ordered_triples": 13824, "thesis": "REVERSAL IS NOT REWIND — chiral total, bare NOT total"}
++{"BARE": 2752, "CHIRAL": 2752, "FORWARD": 2752, "abelian": false, "associative": false, "bare_co_extensive_with_forward": false, "bare_total": false, "carrier": "O16", "chiral_co_extensive_with_forward": true, "chiral_total": false, "convention_independent": true, "forward_and_bare_intersection": 1408, "forward_total": false, "kind": "verdict", "order": 16, "ordered_triples": 4096, "thesis": "REVERSAL IS NOT REWIND, CONDITIONALLY — the FORWARD law is itself not total here (non-associativity), and chiral reversal succeeds on EXACTLY the triples forward does (set equality, not merely equal counts). So chiral is total RELATIVE TO the forward law's own domain, and the inversion costs nothing. Bare reversal has the SAME COUNT but a DIFFERENT SET — a count-only test would have called them equivalent"}
+diff --git a/docs/srmech/notes/reversal_is_not_rewind_rc426.py b/docs/srmech/notes/reversal_is_not_rewind_rc426.py
+index 2a2858535..115e376d2 100644
+--- a/docs/srmech/notes/reversal_is_not_rewind_rc426.py
++++ b/docs/srmech/notes/reversal_is_not_rewind_rc426.py
+@@ -1220,14 +1220,34 @@ def section_ledger(table, census):
+              convention_independent=(d["bare"] == d2["bare"]
+                                      and d["chi"] == d2["chi"]
+                                      and d["fwd"] == d2["fwd"]),
+-             thesis=("REVERSAL IS NOT REWIND — chiral total, bare NOT total"
+-                     if d["chi"] == d["total"] and d["bare"] != d["total"] else
+-                     "INVERSION INVISIBLE — abelian carrier, bare and chiral "
+-                     "both total; this row is the CONTROL and proves the "
+-                     "harness is not manufacturing the shortfall"
+-                     if d["chi"] == d["total"] and d["bare"] == d["total"] else
+-                     "THESIS FAILS ON THIS CARRIER — chiral reversal is NOT "
+-                     "total; this is the headline, not a footnote"))
++             chiral_co_extensive_with_forward=(
++                 d["hits"][d["ccell"]] == d["hits"][d["fcell"]]),
++             bare_co_extensive_with_forward=(
++                 d["hits"][d["bcell"]] == d["hits"][d["fcell"]]),
++             forward_and_bare_intersection=len(
++                 d["hits"][d["fcell"]] & d["hits"][d["bcell"]]),
++             thesis=(
++                 # abelian: inversion is invisible, everything is total
++                 "INVERSION INVISIBLE — abelian carrier, bare and chiral both "
++                 "total; this row is the CONTROL and proves the harness is not "
++                 "manufacturing the shortfall"
++                 if d["chi"] == d["total"] and d["bare"] == d["total"] else
++                 # non-abelian, associative: the clean separation
++                 "REVERSAL IS NOT REWIND — chiral total, bare NOT total"
++                 if d["chi"] == d["total"] and d["bare"] != d["total"] else
++                 # non-associative: chiral tracks forward exactly
++                 "REVERSAL IS NOT REWIND, CONDITIONALLY — the FORWARD law is "
++                 "itself not total here (non-associativity), and chiral "
++                 "reversal succeeds on EXACTLY the triples forward does (set "
++                 "equality, not merely equal counts). So chiral is total "
++                 "RELATIVE TO the forward law's own domain, and the inversion "
++                 "costs nothing. Bare reversal has the SAME COUNT but a "
++                 "DIFFERENT SET — a count-only test would have called them "
++                 "equivalent"
++                 if d["hits"][d["ccell"]] == d["hits"][d["fcell"]] else
++                 "THESIS FAILS ON THIS CARRIER — chiral reversal is neither "
++                 "total nor co-extensive with forward; this is the headline, "
++                 "not a footnote"))
+ 
+ 
+ def main():
+-- 
+2.53.0.windows.2
+
