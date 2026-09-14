@@ -210,3 +210,59 @@ Where relatedness does enter these scripts, it comes from corpus counts (`docf`,
 - task931-rbs-klein4-reconcile: every change is on this branch: yes. All 48 sites of `e035d2495` are here: 29 in `1d38f2160` and 19 in the commit that adds this section.
 
 **Not done here.** The maintainer also chose to delete the three `archive/*` tags and remove `preserved_branches/` once every change is proven integrated. That cleanup is not part of this commit. The tags and the folder are unchanged.
+
+## Scaffolding removed 2026-09-14
+
+**Why.** The final integration check at `c235eb2c0` passed: every one of the 43 non-merge commits the archive held has its change on this branch, including all 48 sites of `e035d2495` after the ruling above. On the maintainer's choice, the archive folder was then removed and its three tags were deleted. This section is the pointer to where that material now lives. It supersedes "What was not changed" and "Not done here" above, which stay as they were written.
+
+**Not edited.** F1355–F1367 and F1372 still name `preserved_branches/` paths (`git grep -l preserved_branches c235eb2c0` outside the folder lists those 14 findings and this one), and so do the two errata. They are not edited. Read their paths through the commands below.
+
+### The removal
+
+- **Commit.** `5289bf4f8` (`5289bf4f8653175e85de03893ffcfe8a3a4ffbcd`), parent `c235eb2c0`.
+- **What it removed.** It is `git rm -r docs/srmech/rbs_lm_research/preserved_branches/` and nothing else: 61 files deleted and 37,703 lines removed. The 61 files are 43 `.patch` files, 14 `TIP.txt`, `README.md`, `.gitattributes`, `ERRATUM_2026-09-14.md` and `ERRATUM_2026-09-14_addendum.md`. `git diff --cached --name-only` listed 0 paths outside the folder.
+
+### Where the files remain in history
+
+Every file is at `c235eb2c0`, the removal commit's parent, in its last version. The commits that added them (`git log --diff-filter=A --format=%h -- docs/srmech/rbs_lm_research/preserved_branches/`):
+
+| commit | files added |
+|---|---|
+| `4e112e120` | 45: `README.md`, `.gitattributes`, and the folders of 13 sources (30 patches, 13 `TIP.txt`) |
+| `7381bad74` | 1: `ERRATUM_2026-09-14.md` |
+| `a18dad372` | 14: `srmech-rc427-research/` (13 patches, `TIP.txt`) |
+| `66a97bab2` | 1: `ERRATUM_2026-09-14_addendum.md` |
+
+Only one file changed after it was added. `git log --diff-filter=M --name-status c235eb2c0` over the folder lists one commit, `4db9932dd`, and one file, `README.md` (the appended "Integrated 2026-09-14: see F1373." line). With `--diff-filter=D` it lists none. So every patch, `TIP.txt` and erratum is byte-identical to its adding commit.
+
+To read one back:
+
+```
+git ls-tree -r --name-only c235eb2c0 docs/srmech/rbs_lm_research/preserved_branches/
+git show c235eb2c0:docs/srmech/rbs_lm_research/preserved_branches/README.md
+git show c235eb2c0:docs/srmech/rbs_lm_research/preserved_branches/ERRATUM_2026-09-14.md
+```
+
+To re-apply a folder's patches, extract them from `c235eb2c0` first. The addendum's §3 procedure does this, with `B=c235eb2c0`.
+
+### The three tags
+
+The tags are deleted in the step after this commit is pushed: `git push origin :refs/tags/<name>`, then `git tag -d <name>`. All three are lightweight (`git cat-file -t` gives `commit`). Their targets, from `git ls-remote --tags origin 'archive/*'` before deletion:
+
+| tag | target | the target's change on this branch |
+|---|---|---|
+| `archive/research/killing-yano-literature-review` | `c85259c47511192dd16806ea3875a93e759d1094` | `a735365bd`, a cherry-pick whose `-x` line names `c85259c47` |
+| `archive/research/sm-inverse-decimation-spike` | `256ba6b782266c307d4cbe7fe4a38b3fc4d0609e` | `bd0101a54`, integrated (measurement in `527955900`) |
+| `archive/task931-rbs-klein4-reconcile` | `dff66d754e11e6a87fe71809a15bd09ec508ec5a` | `59ccd2405`, integrated. The archive's re-apply base, the merge `458437918`, was not replayed: `git show --cc` prints 0 lines. |
+
+**Trigger check.** Before deletion, `git grep` over `.github/workflows` at `origin/main` (`b398b8c46`) and at `c235eb2c0` found:
+
+- no `delete:` or `create:` trigger;
+- only these `tags:` filters: `antikythera-spectral-v*`, `chess-spectral-v*`, `ephemerides-spectral-v*` and `srmech-v*`, plus `siona-v*` at `c235eb2c0`. None matches `archive/*`.
+
+### What stops resolving through origin
+
+**Only the tags held these commits on origin.** Before deletion, `git branch -r --contains` printed nothing for `256ba6b78`, `c85259c47` or `dff66d754`. The local branches `research/sm-inverse-decimation-spike`, `research/killing-yano-literature-review` and `task931-rbs-klein4-reconcile` still hold them in the local clone; no branch was deleted. Once the tags are gone, no origin ref contains these commits, so these cited SHAs will no longer be reachable from origin:
+
+- **`256ba6b78` on `main`.** It is cited in `docs/antikythera-maths/mfo_spectral_research_notebook.md` (the Part-I notice, line 53) and in `docs/srmech/python/CHANGELOG.md` at lines 3926 and 3952 (`git grep -n 256ba6b78 origin/main`). A later corrections step on `main` will repoint these citations to `bd0101a54`, its integrated commit on this branch. They are not changed here.
+- **`c85259c`.** It is cited at `docs/srmech/notes/spike_12b_lie_algebroid_ky_bracket_scope_2026-05-13.md:270`, on `main` and on this branch. Its change is here as `a735365bd`. It is not changed here either, and belongs with the same corrections.
