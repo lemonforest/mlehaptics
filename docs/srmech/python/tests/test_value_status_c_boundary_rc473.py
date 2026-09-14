@@ -1319,6 +1319,16 @@ def test_the_winding_fold_comparator_can_still_report_a_difference() -> None:
     (This row used to assert only `res_p + 2**-44 != res_p` — float
     arithmetic, with no second fold ever compared, so it could not have
     caught a comparator that always said "equal".)
+
+    rc473 repair round 1 (`#T1188`): the two pairs above only proved the
+    comparator can see a gap of 7.07e8 grid steps. A merge gate replaced `==`
+    with `(a - b)**2 <= tol**2` and this row stayed green at tol = 1e-5 and at
+    tol = 2**-44, while six filed angles differ from the pure fold by less
+    than one grid step. So the row now also requires "differ" for the
+    pre-repair residue at `theta = 31.41592653589793`, a SUB-GRID gap
+    (1.224715e-15 = 0.0215 x 2**-44, printed by the repair round's probe on a
+    WSL2 CPython 3.12.3 cell), and for a residue and its one-ULP neighbour —
+    so any tolerance of one ULP or more reddens it.
     """
     theta = 3.1415926535897932e16
     (_, _), (w_p, res_p) = _winding_fold_pair(theta)
@@ -1340,4 +1350,23 @@ def test_the_winding_fold_comparator_can_still_report_a_difference() -> None:
         "control: at theta = 1.0 the pre-repair and pure folds agreed before "
         "the repair; the comparator must still say so, or it is an instrument "
         "that can only return 'differ'."
+    )
+
+    theta_sub = 31.41592653589793
+    (_, _), (w_s, res_s) = _winding_fold_pair(theta_sub)
+    res_old_s = _pre_repair_q61_residue(theta_sub)
+    gap_s = _gap_mag(res_old_s, res_s)
+    assert 0.0 < gap_s < 2.0 ** -44, (
+        f"the pre-repair residue at {theta_sub!r} differs by {gap_s!r}; this "
+        "pair exists to be a gap SMALLER than one 2**-44 step and nonzero."
+    )
+    assert not _same_fold((w_s, res_old_s), (w_s, res_s)), (
+        f"the comparator called a sub-grid gap of {gap_s!r} EQUAL at "
+        f"{theta_sub!r}; a tolerance that wide hides every filed angle whose "
+        "gap is under one grid step."
+    )
+    res_ulp = math.nextafter(res_1, math.inf)
+    assert not _same_fold((w_1, res_1), (w_1, res_ulp)), (
+        f"the comparator called {res_1!r} and its one-ULP neighbour "
+        f"{res_ulp!r} EQUAL; the equality rows are then a tolerance, not ==."
     )
