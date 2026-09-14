@@ -512,26 +512,48 @@ def test_kepler_solve_non_convergence_is_one_text() -> None:
         )
 
 
+def _double(bits: int) -> float:
+    return struct.unpack("<d", struct.pack("<Q", bits))[0]
+
+
 def _fuzz_rows(n: int, seed: int):
-    """Seeded arguments over the whole door: M uniform, log-uniform down to the
-    subnormals and up to 2**55, random bit patterns; e uniform, near 1, tiny
-    and subnormal; tolerances of every sign and magnitude; max_iter 1..40."""
+    """Seeded arguments over the whole door: M uniform, log-uniform up to and
+    past 2**55, subnormal and random bit patterns; e uniform, near 1, tiny and
+    subnormal; tolerances of every sign and magnitude; max_iter 1..40.
+
+    Every value is built from integers and exactly-rounded IEEE operations —
+    ``uniform``, ``ldexp`` inside the normal range, ``nextafter``, subtraction
+    and raw bit patterns — and never from ``**`` on a float, because libm
+    ``pow`` is not correctly rounded. MEASURED in repair round 1: the first
+    version used ``10 ** x``, and 2 of the 906 stream rows got a one-ULP
+    different ``M`` on Windows CPython 3.14.4 than on Linux CPython 3.12.3, so
+    the digest pin below differed by platform while both projections agreed
+    on every row with the same inputs.
+    """
     rng = random.Random(seed)
+    ldexp = math.ldexp
     for _ in range(n):
-        k = rng.randrange(4)
+        k = rng.randrange(5)
         if k == 0:
             m_rad = rng.uniform(-math.pi, math.pi)
         elif k == 1:
-            m_rad = rng.choice((1, -1)) * 10 ** rng.uniform(-320, 16.5)
+            m_rad = rng.choice((1, -1)) * ldexp(1.0 + rng.random(), rng.randint(-1021, 55))
         elif k == 2:
             m_rad = rng.uniform(-1e7, 1e7)
+        elif k == 3:
+            m_rad = rng.choice((1, -1)) * _double(rng.getrandbits(52))   # subnormal
         else:
-            m_rad = struct.unpack("<d", struct.pack("<Q", rng.getrandbits(64)))[0]
-        e = rng.choice((rng.uniform(0.0, 1.0), 1.0 - 10 ** rng.uniform(-16, -1),
-                        10 ** rng.uniform(-323, -1), math.nextafter(1.0, 0.0)))
-        tol = rng.choice((10 ** rng.uniform(-30, 1), 10 ** rng.uniform(-324, -30),
+            m_rad = _double(rng.getrandbits(64))
+        e = rng.choice((rng.uniform(0.0, 1.0),
+                        1.0 - ldexp(1.0 + rng.random(), -rng.randint(2, 53)),
+                        ldexp(1.0 + rng.random(), -rng.randint(2, 1021)),
+                        _double(rng.getrandbits(52)),
+                        math.nextafter(1.0, 0.0)))
+        tol = rng.choice((ldexp(1.0 + rng.random(), rng.randint(-100, 1)),
+                          ldexp(1.0 + rng.random(), rng.randint(-1021, -100)),
+                          _double(rng.getrandbits(52)),
                           0.0, -1.0, 4.0, math.nextafter(4.0, 0.0),
-                          2.0 ** -61, 3.0 * 2.0 ** -61))
+                          ldexp(1.0, -61), ldexp(3.0, -61)))
         if 0.0 < e < 1.0:
             yield m_rad, e, tol, rng.choice((1, 2, 3, 5, 8, 13, 20, 30, 40))
 
@@ -616,10 +638,13 @@ def _outcome_stream() -> bytes:
 #: NOT catch a pure-side rounding change on a pure cell — measured in repair
 #: round 1 by planting floor rounding in ``_kq_emul``: native went red, pure
 #: stayed ``62 passed, 61 skipped`` — so a pure CI shard needs a pin over many
-#: rows. Printed identically, after the repair, by the authenticated WSL2 gcc
-#: native cell (CPython 3.12.3) and by its pure sibling on CPython 3.12.3 and
-#: 3.10.
-_OUTCOME_DIGEST = "4977176573515e9e625282fb1fb37414a8045cc36dfad76d320ac8ee265f6392"
+#: rows. Printed identically, after the repair and after `_fuzz_rows` stopped
+#: using float `**`, by the authenticated WSL2 gcc native cell (CPython
+#: 3.12.3), its pure sibling on CPython 3.12.3 and 3.10, the authenticated
+#: Windows clang-cl 22.1.0 Debug cell and a Windows pure cell (CPython 3.14.4).
+#: (The first pin, `4977176573515e9e…`, was printed on the Linux cells only,
+#: and a Windows cell printed `7f33761e5e48b9a3…` for it — see `_fuzz_rows`.)
+_OUTCOME_DIGEST = "9585bbd6dacbd77a71ef89722e13c22476794572d7b7e667ef528fb4c0323cd0"
 
 
 def test_kepler_solve_outcome_stream_is_pinned() -> None:
