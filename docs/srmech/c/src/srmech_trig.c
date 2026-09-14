@@ -288,14 +288,199 @@ srmech_status_t srmech_cos(double x, double *out)
     return SRMECH_OK;
 }
 
+/* ── The ONE 2π both projections fold against (0.9.0rc473, `#T1188`) ──────
+ *
+ * THE MACHIN-2π NUMERATOR, as two 64-bit limbs: N / 2^80, where N is exactly
+ * the integer `srmech.math.laplacian._EPH_TWO_PI[0]` carries — 2π quantised
+ * to the fixed denominator `_EPH_TWO_PI_DEN = 1 << 80` from the Class-N
+ * Machin identity 2π = 32·atan(1/5) − 8·atan(1/239). N is 83 bits:
+ * 7595904947272677161575987.
+ *
+ * WHY IT IS HERE AND NOT DERIVED FROM SRMECH_TRIG_TWO_OVER_PI_Q64. The
+ * quarter-turn constant is 2/π to 64 bits, which is enough to pick the
+ * OCTANT of any angle in the door but NOT enough to resolve the RESIDUE of
+ * a large one: its own rounding error is δ = 8.1449e-22 (= 2^-70.06), and
+ * the residue error a fold inherits from it is π²·δ per whole turn. MEASURED
+ * at rc473 on an authenticated cell, 24 angles: 8.0387e-21 rad per turn,
+ * reaching 4.0193e-05 rad at theta = 3.1415926535897932e16 — 7.07e8 times the
+ * 2^-44 grid the pure projection quantises onto, at an ordinary finite angle
+ * well inside the 2^55 door. The comment this replaces said the fold used
+ * "the SAME integer 2/π quarter-turn machinery srmech_cos / srmech_sin fold
+ * with (trig_reduce_k — no forked 2π constant)", and the second half was
+ * false: the pure peer folds against the Machin-2π rational above, so there
+ * were TWO 2π constants and the divergence was the distance between them.
+ * There is one now, and it is this one. */
+static const uint64_t SRMECH_WF_TWO_PI_HI = UINT64_C(0x000000000006487E);
+static const uint64_t SRMECH_WF_TWO_PI_LO = UINT64_C(0xD5110B4611A62633);
+
+/* π on the 2^-44 fold grid = N >> 37 (since N/2^80 = 2π ⇒ N/2^37 = π·2^44).
+ * Derived from the limbs above rather than typed, so the two cannot drift.
+ * A single-line macro (JPL Rule 8) rather than a static const, because its
+ * only use is inside an assert and NDEBUG would then leave it unreferenced —
+ * which -Wunused-const-variable turns into a pedantic-build failure. */
+#define SRMECH_WF_PI_GRID44 ((int64_t)((SRMECH_WF_TWO_PI_HI << 27) | (SRMECH_WF_TWO_PI_LO >> 37)))
+
+/* 128-bit two's-complement add. The fold needs no wider word: both operands
+ * of the cancellation are ~136 bits but their DIFFERENCE is under 2^85, so
+ * arithmetic modulo 2^128 recovers it exactly. */
+static void wf_add128(uint64_t ahi, uint64_t alo, uint64_t bhi, uint64_t blo,
+                      uint64_t *rhi, uint64_t *rlo)
+{
+    assert(rhi != NULL);
+    assert(rlo != NULL);
+    uint64_t s = alo + blo;
+    *rlo = s;
+    *rhi = ahi + bhi + ((s < alo) ? UINT64_C(1) : UINT64_C(0));
+}
+
+/* 128-bit two's-complement subtract. Output may alias an input (the operands
+ * are taken by value). */
+static void wf_sub128(uint64_t ahi, uint64_t alo, uint64_t bhi, uint64_t blo,
+                      uint64_t *rhi, uint64_t *rlo)
+{
+    assert(rhi != NULL);
+    assert(rlo != NULL);
+    uint64_t borrow = (alo < blo) ? UINT64_C(1) : UINT64_C(0);
+    *rlo = alo - blo;
+    *rhi = ahi - bhi - borrow;
+}
+
+/* mant << s, modulo 2^128. s is 0..82 here; the bits shifted past 2^128 are
+ * exactly the ones the cancellation below removes. */
+static void wf_shl128(uint64_t mant, int s, uint64_t *rhi, uint64_t *rlo)
+{
+    assert(s >= 0);
+    assert(rhi != NULL);
+    assert(rlo != NULL);
+    if (s >= 128) { *rhi = 0; *rlo = 0; return; }
+    if (s >= 64)  { *rhi = mant << (s - 64); *rlo = 0; return; }
+    *rhi = (s == 0) ? UINT64_C(0) : (mant >> (64 - s));
+    *rlo = mant << s;
+}
+
+/* |w| · N, modulo 2^128 — the whole-turn part of the fold at the 2^-80 scale. */
+static void wf_mul_two_pi(uint64_t w, uint64_t *rhi, uint64_t *rlo)
+{
+    assert(rhi != NULL);
+    assert(rlo != NULL);
+    uint64_t hi = 0;
+    uint64_t lo = 0;
+    trig_umul64(w, SRMECH_WF_TWO_PI_LO, &hi, &lo);
+    *rlo = lo;
+    *rhi = hi + w * SRMECH_WF_TWO_PI_HI;
+}
+
+/* Settle (w, d) onto the round-half-toward-+inf branch: the exact remainder
+ * d = theta·2^80 − w·N must land in [−N/2, N/2), which is the band Python's
+ * _eph_round_div (`q, r = divmod(n, d); if 2r >= d: q += 1`) leaves. The seed
+ * w from the quarter-turn fold is within one turn, so the loop is bounded —
+ * JPL Rule 2 — and normally exits on the first test. The loop only EXITS
+ * SETTLED through its `break`, so running out of adjustments is asserted
+ * after it: an unsettled w would otherwise be returned silently. `adj` is
+ * read by the loop condition, so the post-loop assert leaves nothing unused
+ * under NDEBUG. */
+static int64_t wf_settle(int64_t w, uint64_t *dhi, uint64_t *dlo)
+{
+    assert(dhi != NULL);
+    assert(dlo != NULL);
+    int adj = 0;
+    for (; adj < 4; adj++) {
+        uint64_t thi = (*dhi << 1) | (*dlo >> 63);
+        uint64_t tlo = *dlo << 1;                       /* 2d, no overflow  */
+        uint64_t chi = 0;
+        uint64_t clo = 0;
+        wf_sub128(thi, tlo, SRMECH_WF_TWO_PI_HI, SRMECH_WF_TWO_PI_LO,
+                  &chi, &clo);
+        if ((chi >> 63) == 0u) {                        /* 2d >= N          */
+            w += 1;
+            wf_sub128(*dhi, *dlo, SRMECH_WF_TWO_PI_HI, SRMECH_WF_TWO_PI_LO,
+                      dhi, dlo);
+            continue;
+        }
+        wf_add128(thi, tlo, SRMECH_WF_TWO_PI_HI, SRMECH_WF_TWO_PI_LO,
+                  &chi, &clo);
+        if ((chi >> 63) != 0u) {                        /* 2d < -N          */
+            w -= 1;
+            wf_add128(*dhi, *dlo, SRMECH_WF_TWO_PI_HI, SRMECH_WF_TWO_PI_LO,
+                      dhi, dlo);
+            continue;
+        }
+        break;
+    }
+    assert(adj < 4);                            /* settled via the break */
+    return w;
+}
+
+/* d (signed, at the 2^-80 scale) -> the residue on the 2^-44 fold grid,
+ * round-half-toward-+inf. |d| <= N/2 < 2^83, so the quotient is under 2^47
+ * and the arithmetic shift's high limb is pure sign extension. */
+static int64_t wf_grid44(uint64_t dhi, uint64_t dlo)
+{
+    uint64_t qlo = (dlo >> 36) | (dhi << 28);
+    int64_t q = (int64_t)qlo;
+    uint64_t rem = dlo & ((UINT64_C(1) << 36) - 1u);    /* floor remainder  */
+    assert(((int64_t)dhi >> 36) == (q >> 63));          /* fits in int64    */
+    assert(rem < (UINT64_C(1) << 36));
+    if (rem >= (UINT64_C(1) << 35)) { q += 1; }         /* 2·rem >= 2^36    */
+    return q;
+}
+
+/* |theta| < 2^-27 (so w = 0 and the residue IS theta): theta on the 2^-44
+ * grid, round-half-toward-+inf, straight off the mantissa. */
+static int64_t wf_small_grid(uint64_t mant, int e, int sign)
+{
+    assert(e < -80);
+    assert(mant != 0u);
+    int k = -(e + 44);                                  /* > 36             */
+    if (k >= 64) { return 0; }                          /* |theta| < 2^-45  */
+    uint64_t q = mant >> k;
+    uint64_t rem = mant & ((UINT64_C(1) << k) - 1u);
+    int64_t v = (int64_t)q;
+    if (sign) {
+        v = -(int64_t)q;
+        if (rem != 0u) { v -= 1; rem = (UINT64_C(1) << k) - rem; }
+    }
+    if (rem >= (UINT64_C(1) << (k - 1))) { v += 1; }
+    return v;
+}
+
+/* The EXACT Machin-2π divmod. Takes the quarter-turn fold's winding as a seed
+ * and returns the settled one; writes the residue on the 2^-44 grid. Every
+ * step is integer — the only float read is the bit-decode of theta. */
+static int64_t wf_exact_fold(double theta, int64_t w, int64_t *qn_out)
+{
+    assert(qn_out != NULL);
+    assert(theta == theta);                 /* trig_reduce_k refused NaN    */
+    uint64_t bits = 0;
+    memcpy(&bits, &theta, sizeof bits);
+    int sign = (bits >> 63) ? 1 : 0;
+    uint32_t raw = (uint32_t)((bits >> 52) & 0x7FFu);
+    uint64_t frac = bits & ((UINT64_C(1) << 52) - 1u);
+    uint64_t mant = (raw == 0u) ? frac : (frac | (UINT64_C(1) << 52));
+    int e = (raw == 0u) ? -1074 : (int)raw - 1075;      /* |theta| = mant·2^e */
+    if (mant == 0u) { *qn_out = 0; return 0; }
+    if (e + 80 < 0) { *qn_out = wf_small_grid(mant, e, sign); return 0; }
+    uint64_t ahi = 0, alo = 0, bhi = 0, blo = 0;
+    wf_shl128(mant, e + 80, &ahi, &alo);               /* |theta|·2^80       */
+    if (sign) { wf_sub128(0, 0, ahi, alo, &ahi, &alo); }
+    uint64_t wm = (w < 0) ? (uint64_t)(-(w + 1)) + 1u : (uint64_t)w;
+    wf_mul_two_pi(wm, &bhi, &blo);
+    if (w < 0) { wf_sub128(0, 0, bhi, blo, &bhi, &blo); }
+    wf_sub128(ahi, alo, bhi, blo, &ahi, &alo);         /* d = theta·2^80 − wN */
+    w = wf_settle(w, &ahi, &alo);
+    *qn_out = wf_grid44(ahi, alo);
+    return w;
+}
+
 /* gh#1276 (0.9.0rc207): the 2π seam-fold DIVMOD with the quotient KEPT —
  * theta = 2π·w + theta_fold, w = round(theta/2π) (round-half-toward-+inf,
- * the Python _eph_round_div convention), |theta_fold| <= π. Computed on the
- * SAME integer 2/π quarter-turn machinery srmech_cos / srmech_sin fold with
- * (trig_reduce_k — no forked 2π constant): the whole-turn quotient w and the
- * folded residue are read off the retained quarter-turn count k = 4w +
- * oct_rel (oct_rel in {-2..2}) and the Q61 remainder r, so the (w, theta)
- * pair is EXACTLY the divmod the trig fold performs internally — just kept.
+ * the Python _eph_round_div convention), |theta_fold| <= π. The quarter-turn
+ * count k from trig_reduce_k SEEDS the winding; the winding and the residue
+ * are then settled EXACTLY, in integers, against the Machin-2π rational
+ * above — the same constant and the same 2^-44 output grid
+ * srmech.math.laplacian._eph_seam_fold uses, so the two projections return
+ * the identical (w, theta_fold) pair rather than two quantisations of it
+ * (0.9.0rc473, `#T1188`; the ⚠️ note below carries the measurement).
  * w is the METACYCLE winding (the harvest the mod-collapse threw away);
  * theta_fold is the EPICYCLE residue. Sign is Class-K/Class-C (no fabs).
  * Same domain as srmech_cos: non-finite or |theta| >= 2^55 ->
@@ -316,7 +501,33 @@ srmech_status_t srmech_cos(double x, double *out)
  * a pre-dispatch guard in the OTHER projection — the precise shape this rc
  * exists to remove. Its one C caller (srmech_eph_propagate.c) already
  * captured and propagated the status, so the repair reaches a bare-C host
- * through that path with no further change. */
+ * through that path with no further change.
+ *
+ * ⚠️ 0.9.0rc473 (`#T1188`), SECOND repair (the twin-defect pass), and it
+ * changes a VALUE: the residue. Through the first rc473 pass this function
+ * read the folded angle off the Q61 quarter-turn remainder — `oct_rel *
+ * SRMECH_TRIG_HALF_PI_Q61 + r`, projected by `/ SRMECH_TRIG_ONE` — which
+ * inherits the 64-bit 2/π constant's error at π²·δ = 8.0387e-21 rad PER
+ * WHOLE TURN. MEASURED at 1ab8d405b on an authenticated cell (WSL2 gcc
+ * 13.3.0 Release, SRMECH_PEDANTIC=ON, ABI 26, srmech_rational_sqrt(NaN) ->
+ * 2), this symbol against the pure peer over the 24 filed angles: w equal on
+ * all 24, theta_out bit-equal on 1 and more than one 2^-44 step apart on 17,
+ * the gap reaching 4.0193e-05 rad = 7.07e8 × 2^-44 at theta =
+ * 3.1415926535897932e16. Pre-existing, not an rc473 regression: a b398b8c46
+ * (rc472, ABI 25) build returns the same (status, w, theta_out) on all 40045
+ * angles of that probe.
+ *
+ * The repair adopts the pure projection's 2π AND its 2^-44 output grid. The
+ * grid is the fold's CONTRACT, not a resolution this function falls short
+ * of: the pure fold is one divmod whose residue two consumers share —
+ * srmech.math.laplacian._eph_cos_sin runs its trig series on the grid value
+ * and propagate_wound keeps the same (w, qn) — so a residue emitted off the
+ * grid would disagree with the one every consumer computes with. Measured on
+ * the repaired bytes, same cell: 24 filed + 21 further named + 40000 fuzzed
+ * angles, (w, theta_out) bit-identical to _eph_seam_fold at this symbol and
+ * through the Python wrapper, the door unchanged. srmech_sin / srmech_cos are
+ * untouched — trig_reduce_k still serves them, and only the winding fold
+ * settles. */
 srmech_status_t srmech_winding_fold(double theta, int64_t *w_out,
                                     double *theta_out)
 {
@@ -327,33 +538,29 @@ srmech_status_t srmech_winding_fold(double theta, int64_t *w_out,
     int64_t r = 0;
     if (!trig_reduce_k(theta, &k, &r)) {
         *w_out = 0;
-        trig_write_nan(theta_out);         /* see the ⚠️ note above          */
+        trig_write_nan(theta_out);         /* see the ⚠️ notes above         */
         return SRMECH_ERR_BAD_INPUT;
     }
     uint64_t oct = (uint64_t)k & 3u;       /* residue mod 4, negative-safe   */
     int64_t w;
-    int64_t oct_rel;                       /* k - 4w, in {-2, -1, 0, 1, 2}   */
     if (oct == 0u) {
         w = k / 4;                         /* exact: k ≡ 0 (mod 4)           */
-        oct_rel = 0;
     } else if (oct == 1u) {
         w = (k - 1) / 4;                   /* exact division                 */
-        oct_rel = 1;
     } else if (oct == 2u) {
         /* the half-turn boundary theta/2π = w + 1/2 + r/2π: round-half-
          * toward-+inf — r >= 0 rounds UP (matches Python's floor-divmod
-         * `2r >= den` half rule). */
+         * `2r >= den` half rule). A SEED only: wf_settle decides it exactly. */
         w = ((k - 2) / 4) + ((r >= 0) ? 1 : 0);
-        oct_rel = (r >= 0) ? -2 : 2;
     } else {
         w = (k + 1) / 4;                   /* exact: k ≡ 3 (mod 4)           */
-        oct_rel = -1;
     }
-    int64_t theta_q61 = oct_rel * SRMECH_TRIG_HALF_PI_Q61 + r;
-    assert(theta_q61 <= 2 * SRMECH_TRIG_HALF_PI_Q61
-           && theta_q61 >= -2 * SRMECH_TRIG_HALF_PI_Q61);  /* |theta| <= π   */
+    int64_t qn = 0;
+    w = wf_exact_fold(theta, w, &qn);      /* the Machin-2π divmod, settled  */
+    assert(qn <= SRMECH_WF_PI_GRID44 + 1
+           && qn >= -SRMECH_WF_PI_GRID44 - 1);         /* |theta_fold| <= π  */
     *w_out = w;
-    *theta_out = (double)theta_q61 / (double)SRMECH_TRIG_ONE;
+    *theta_out = (double)qn / (double)(INT64_C(1) << 44);
     return SRMECH_OK;
 }
 
