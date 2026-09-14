@@ -716,7 +716,23 @@ extern "C" {
  *      projection refused all of them at the Q carrier. Same sentence as
  *      before: co-equal projections must agree on what they refuse.
  *
- *      Neither needs its own version because no artifact carrying ABI 26 has
+ *      (c) srmech_kepler_solve DECIDES CONVERGENCE ON THE Q61 CARRIER (repair
+ *      round 1). Its double Newton step could reach an exact 0.0 or stall one
+ *      ULP away while the pure peer's exact-Q step did neither, so the two
+ *      projections halted on different arguments: over M in {pi/2, 1, 3, 0.1,
+ *      100, 1e6} x e in {0.0549, 0.5, 0.9} x 17 tolerances from 1e-12 to
+ *      5e-324 at max_iter 30, 134 of 306 rows returned different verdicts,
+ *      and kepler_solve(2^53, 0.999) returned E == M natively where pure
+ *      raised. Both now run one integer iteration (srmech_trig_kepler_q61 in
+ *      srmech_trig.c): measured on WSL2 gcc 13.3.0 Release against a pure
+ *      sibling, the 306 frontier rows and 107 slot-sweep rows are the same
+ *      outcome in both cells, and the symbol matches the pure iteration bit
+ *      for bit over a seeded 200000-row fuzz. Served VALUES move with it —
+ *      kepler_solve(pi/2, 0.9) was 2.2634151063569425 and is
+ *      2.263415106356943 — a value change on an exported symbol, this
+ *      entry's own ground.
+ *
+ *      None needs its own version because no artifact carrying ABI 26 has
  *      been released — rc473 is unmerged and untagged, and the newest library
  *      in the wild is rc472 at ABI 25, which EXPECTED_ABI_VERSION 26 already
  *      refuses.
@@ -4394,8 +4410,8 @@ srmech_status_t srmech_cf_convergents_int64(const int64_t *coefs,
  * Three continuous-projection operations. Per [[user_stance_kepler_shape_universal]]
  * + PR #416 F2/F15/F17: Kepler-equation algebra IS pin-slot composition.
  * This file ships the continuous projection-shadow of the integer-cyclic
- * upstream (Class I cyclic groups + Class J prime-period). Uses libm
- * (sin / cos / atan2 / fabs); double precision throughout.
+ * upstream (Class I cyclic groups + Class J prime-period). No libm: trig
+ * is the Class-N Q61 cascade (srmech_sin / srmech_cos / srmech_atan2).
  *
  * Canonical SSoT per [[feedback_science_is_ssot_not_project]]:
  *   - Pin-slot transform        : Freeth (2021) Nature Sci Rep, Supp S9.
@@ -4413,19 +4429,24 @@ srmech_status_t srmech_cf_convergents_int64(const int64_t *coefs,
  * on input gear; rocker axis at distance pin_distance from input gear
  * center; rocker tracks the pin via a radial slot. As input rotates by
  * theta (radians), rocker turns by phi = atan2(i*sin(theta), d + i*cos(theta)).
- * Returns SRMECH_ERR_BAD_INPUT only for the degenerate case pin_offset == 0
- * AND pin_distance == 0 (atan2(0,0) is implementation-defined). */
+ * Returns SRMECH_ERR_BAD_INPUT for pin_offset == 0 AND pin_distance == 0
+ * (atan2(0,0) is implementation-defined), for a non-finite pin_offset or
+ * pin_distance, and for a theta the Q61 cascade cannot reduce (rc473). */
 srmech_status_t srmech_pin_slot(double  theta,
                                 double  pin_offset,
                                 double  pin_distance,
                                 double *out_phi);
 
 /* Newton-Raphson on Kepler's equation M = E - e*sin(E). Inputs in radians.
- * 0 <= e < 1 required (returns SRMECH_ERR_BAD_INPUT otherwise). Initial
- * guess via Smith (1979): E_0 = M + e*sin(M). Converges in 4-6 iter for
- * e < 0.5; e >= 0.95 may need >30. Tolerance is |delta E| < tolerance.
- * Returns SRMECH_ERR_OVERFLOW if not converged within max_iter (caller
- * gets best-effort E in out_E_rad). */
+ * 0 <= e < 1, max_iter > 0 and a finite tolerance are required, and M must
+ * have a Q61 reduction; otherwise SRMECH_ERR_BAD_INPUT. Initial guess via
+ * Smith (1979): E_0 = M + e*sin(M). Converges in 4-6 iter for e < 0.5;
+ * e >= 0.95 may need >30. Since rc473 repair round 1 E is carried on the Q61
+ * quarter-turn carrier as M + eps with |eps| <= e, CONVERGED means
+ * |step| * 2^-61 < tolerance decided exactly, and the answer is M + eps
+ * correctly rounded to double: one integer iteration, bit-identical to the
+ * pure srmech.math.kepler.kepler_solve. Returns SRMECH_ERR_OVERFLOW if not
+ * converged within max_iter (caller gets that best-effort E in out_E_rad). */
 srmech_status_t srmech_kepler_solve(double    M_rad,
                                     double    e,
                                     double    tolerance,

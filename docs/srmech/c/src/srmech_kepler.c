@@ -98,6 +98,7 @@
  */
 
 #include "srmech.h"
+#include "srmech_trig_internal.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -139,12 +140,20 @@ static const double SRMECH_KEPLER_EOC_COEFFS[SRMECH_KEPLER_EOC_MAX_TERMS] = {
  * pin_offset * cos(theta)` is `float + Q`, and Q is the finite-rational
  * carrier, so it refuses a non-finite float. That is ADR-0009 §2.4, a
  * serve-vs-refuse divergence at a slot NO filed row named: §1.2's row 52
- * files kepler_solve at a large M, a different argument. A non-finite
- * pin_offset already refused here, but only by accident — `pin_offset *
- * sin(0.0)` is `Inf * 0.0` = NaN and srmech_atan2 refuses NaN — so the
- * guard below makes an accident into a contract, at no change of status.
- * Both are PRECONDITIONS on this function's own arguments, which is why they
- * sit beside the (0, 0) refusal rather than inside a callee. */
+ * files kepler_solve at a large M, a different argument.
+ *
+ * rc473 repair round 1 (`#T1188`): this note said a non-finite pin_offset
+ * "already refused here, but only by accident ... at no change of status".
+ * That was true only where the Q61 sin(theta) is exactly 0 (`Inf * 0.0` is
+ * NaN, which srmech_atan2 refuses), and every row that pinned it drove
+ * theta = 0.0. MEASURED at 1ab8d405b on an authenticated WSL2 gcc cell (ABI
+ * 26), over theta in {0, 1e-300, 0.3, 1, pi/2, 3, pi, -2, 100, 2^54}:
+ * pin_offset = +Inf or -Inf with pin_distance = 1.0 returned SRMECH_OK at 8
+ * of the 10 angles, e.g. srmech_pin_slot(0.3, +Inf, 1.0) -> (SRMECH_OK,
+ * 0.7853981633974483), and was refused only at theta = 0.0 and 1e-300, whose
+ * Q61 sine is 0. So the guard below DID change the status, at every other
+ * angle. Both are PRECONDITIONS on this function's own arguments, which is why
+ * they sit beside the (0, 0) refusal rather than inside a callee. */
 srmech_status_t srmech_pin_slot(double  theta,
                                 double  pin_offset,
                                 double  pin_distance,
@@ -185,26 +194,30 @@ srmech_status_t srmech_pin_slot(double  theta,
     return srmech_atan2(y, x, out_phi);
 }
 
-/* rc473 (`#T1188`): every srmech_sin / srmech_cos status inside the Newton
- * iteration is captured and checked. A refusal mid-iteration writes the
- * best-effort E reached so far and returns the callee's status — the same
- * partial-result shape this function already used for non-convergence
- * (SRMECH_ERR_OVERFLOW with the best-effort E at the bottom).
- *
- * Through rc472 those statuses were discarded, and the consequence was not a
- * NaN but a plausible number: srmech_sin(2^55) already refused and wrote 0.0,
- * so E was never moved off its M initial guess and the caller was handed
- * E == M with SRMECH_OK. Measured at rc472,
+/* rc473 (`#T1188`): the srmech_sin / srmech_cos statuses inside the Newton
+ * iteration were captured and checked. Through rc472 they were discarded, and
+ * the consequence was not a NaN but a plausible number: srmech_sin(2^55)
+ * already refused and wrote 0.0, so E was never moved off its M initial guess
+ * and the caller was handed E == M with SRMECH_OK. Measured at rc472,
  * srmech_kepler_solve(2^55, 0.3, 1e-12, 20) -> (SRMECH_OK,
- * 3.602879701896397e+16), and 3.602879701896397e+16 IS 2^55. */
+ * 3.602879701896397e+16), and 3.602879701896397e+16 IS 2^55.
+ *
+ * rc473 repair round 1 (`#T1188`): the iteration no longer calls srmech_sin
+ * or srmech_cos at all. It runs on the Q61 quarter-turn carrier in
+ * srmech_trig.c (srmech_trig_kepler_q61), which reduces M ONCE and refuses an
+ * M with no reduction before any iterate exists, so there is no mid-iteration
+ * refusal left to propagate: E = M + eps with |eps| bracketed by e, and the
+ * residue re-reduction cannot leave the carrier. */
 /* rc473 repair pass (`#T1188`) — THE ECCENTRICITY BAND, and the comment lives
  * HERE rather than beside the guard on purpose: JPL Rule 4 counts lines
  * BETWEEN the braces, and this function measured 58 against a cap of 60 with
  * six comment lines inside it. Two lines of headroom is a trap for the next
  * edit, and the ratchet is down-only, so the design moves rather than the
- * ratchet. With the prose out here it is 52 again — the figure it carried
- * before the repair — and srmech_equation_of_centre is 32, both read with the
- * audit's own _scan_functions rather than by counting. A comment above a
+ * ratchet. With the prose out here it was 52 again — the figure it carried
+ * before the repair — and srmech_equation_of_centre 32, both read with the
+ * audit's own _scan_functions rather than by counting. (Repair round 1 moved
+ * the Newton iteration into srmech_trig.c; the same scanner now reads this
+ * function at 34 and srmech_equation_of_centre at 32.) A comment above a
  * signature costs nothing under Rule 4; the same comment one line lower costs
  * its full length.
  *
@@ -258,35 +271,14 @@ srmech_status_t srmech_kepler_solve(double    M_rad,
     if (e == 0.0) {
         return SRMECH_OK;
     }
-    /* Smith (1979) initial guess: E_0 = M + e * sin(M). Converges in 4-6
-     * iterations for e < 0.5; e >= 0.95 may need >30 (caller's max_iter). */
-    double sin_m;
-    srmech_status_t st = srmech_sin(M_rad, &sin_m);
-    if (st != SRMECH_OK) { return st; }   /* *out_E_rad stays M_rad (set above) */
-    double E = M_rad + e * sin_m;
-    for (uint32_t i = 0; i < max_iter; i++) {
-        double sin_e;
-        double cos_e;
-        st = srmech_sin(E, &sin_e);
-        if (st != SRMECH_OK) { *out_E_rad = E; return st; }
-        st = srmech_cos(E, &cos_e);
-        if (st != SRMECH_OK) { *out_E_rad = E; return st; }
-        double f      = E - e * sin_e - M_rad;
-        double f_prime = 1.0 - e * cos_e;
-        /* f_prime > 0 for e < 1 (no division-by-zero risk). */
-        double delta = f / f_prime;
-        E -= delta;
-        double adelta = (delta < 0.0) ? -delta : delta;   /* Class-K magnitude, not fabs */
-        if (adelta < tolerance) {
-            *out_E_rad = E;
-            return SRMECH_OK;
-        }
-    }
-    /* Did not converge within max_iter; return best-effort E with overflow
-     * status so caller can decide (tighten tolerance, raise max_iter, or
-     * accept the partial result). */
-    *out_E_rad = E;
-    return SRMECH_ERR_OVERFLOW;
+    /* rc473 repair round 1 (`#T1188`): the Smith (1979) starter and the
+     * Newton iteration run on the Q61 quarter-turn carrier, in srmech_trig.c,
+     * as ONE integer cascade the pure peer runs too; the note above the
+     * function explains why. An M with no Q61 reduction is refused there with
+     * *out_E_rad left at M_rad (set above). Non-convergence is still
+     * SRMECH_ERR_OVERFLOW with the best-effort E, so the caller can tighten
+     * the tolerance, raise max_iter, or accept the partial result. */
+    return srmech_trig_kepler_q61(M_rad, e, tolerance, max_iter, out_E_rad);
 }
 
 /* rc473 (`#T1188`) — THE row this rc is named for. 4 * (2^53 + 1) is exactly

@@ -24,6 +24,8 @@ from __future__ import annotations
 import ctypes
 from typing import Tuple
 
+from srmech.math.rational import _Q61_HALF_PI_Q61, _Q61_ONE  # rc473 r1: the Q61 carrier
+from srmech.math.rational import _q61_cos_core, _q61_reduce, _q61_sin_core
 from srmech.math.rational import _is_finite  # rc473: the Q carrier's own finite test
 from srmech.math.rational import atan2 as _ratan2  # §22: Class-N rational trig, not libm
 from srmech.math.rational import cos as _rcos
@@ -52,6 +54,85 @@ DEFAULT_KEPLER_MAX_ITER: int = 30
 # can carry. ``ctypes.c_uint32`` wraps anything wider, so a larger ``max_iter``
 # is refused before dispatch in BOTH cells (rc473, `#T1188`).
 _KEPLER_MAX_ITER_WIRE: int = (1 << 32) - 1
+
+# rc473 repair round 1 (`#T1188`): Kepler's equation on the Q61 quarter-turn
+# carrier. These three helpers are ``srmech_trig_kepler_q61``'s iteration in
+# ``c/src/srmech_trig.c``, step for step, in Python ints; kepler_solve's
+# docstring states the contract they share.
+_KQ_SAT: int = 1 << 62
+_KQ_HALF: int = _Q61_HALF_PI_Q61 >> 1
+
+
+def _kq_emul(e_n: int, e_sh: int, x: int) -> int:
+    """``e * x`` on the Q61 grid, rounded half away from zero (``kq_emul``).
+
+    ``e == e_n / 2**e_sh`` exactly. The magnitude is a Class-K branch and the
+    sign is re-applied as Class C, never ``abs()``.
+    """
+    ux = x if x >= 0 else -x
+    q = (e_n * ux + (1 << (e_sh - 1))) >> e_sh
+    return q if x >= 0 else -q
+
+
+def _kq_sincos(oct_m: int, r: int) -> Tuple[int, int]:
+    """``(sin E, cos E)`` in Q61 for ``E`` = octant ``oct_m`` plus ``r``.
+
+    ``r`` is re-reduced by whole quarter turns first (``kq_sincos``), then read
+    through the octant map ``rational.sin`` / ``rational.cos`` use.
+    """
+    j = 0
+    for _ in range(4):
+        if r > _KQ_HALF:
+            r -= _Q61_HALF_PI_Q61
+            j += 1
+        elif r < -_KQ_HALF:
+            r += _Q61_HALF_PI_Q61
+            j -= 1
+        else:
+            break
+    octant = (oct_m + j) & 3
+    sc = _q61_sin_core(r)
+    cc = _q61_cos_core(r)
+    s = sc if octant == 0 else cc if octant == 1 else -sc if octant == 2 else -cc
+    c = cc if octant == 0 else -sc if octant == 1 else -cc if octant == 2 else sc
+    return s, c
+
+
+def _kepler_q61(
+    M_rad: float, e: float, tolerance: float, max_iter: int,
+) -> Tuple[bool, float]:
+    """``(converged, E)``: the Q61 Newton iteration, for ``0 < e < 1``.
+
+    The caller has already refused an ``M_rad`` with no Q61 reduction, a
+    non-finite ``tolerance`` and ``max_iter <= 0``. ``E`` is the float last
+    mile either way — the converged answer, or the best-effort iterate a
+    non-convergence message reports.
+    """
+    ok, oct_m, r_m = _q61_reduce(M_rad)
+    assert ok, "kepler_solve refuses an M the Q61 reduction cannot hold first"
+    e_n, e_d = float(e).as_integer_ratio()
+    e_sh = e_d.bit_length() - 1
+    eq = _kq_emul(e_n, e_sh, _Q61_ONE)
+    s, _ = _kq_sincos(oct_m, r_m)                    # the Smith starter
+    eps = _kq_emul(e_n, e_sh, s)
+    t_n, t_d = float(tolerance).as_integer_ratio()
+    converged = False
+    for _ in range(max_iter):
+        s, c = _kq_sincos(oct_m, r_m + eps)
+        g = eps - _kq_emul(e_n, e_sh, s)
+        gp = _Q61_ONE - _kq_emul(e_n, e_sh, c)
+        ug = g if g >= 0 else -g                     # Class-K magnitude
+        q = min(((ug << 62) + gp) // (2 * gp), _KQ_SAT)
+        nxt = eps + q if g < 0 else eps - q          # Class-C re-orientation
+        nxt = eq if nxt > eq else -eq if nxt < -eq else nxt
+        step = nxt - eps
+        eps = nxt
+        us = step if step >= 0 else -step
+        if us * t_d < t_n * _Q61_ONE:                # |step| * 2**-61 < tolerance
+            converged = True
+            break
+    m_n, m_d = float(M_rad).as_integer_ratio()
+    return converged, (m_n * _Q61_ONE + eps * m_d) / (m_d * _Q61_ONE)
 
 
 def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
@@ -210,7 +291,50 @@ def kepler_solve(
             type cannot hold, so this precondition is checked BEFORE
             dispatch, in both cells, with one text — the one refusal here the
             C projection cannot express.
-        RuntimeError: If not converged within ``max_iter`` iterations.
+        RuntimeError: If not converged within ``max_iter`` iterations. The
+            message reports ``best_E`` as the float last mile of the final
+            iterate — the double the C peer writes — so both cells raise ONE
+            text.
+
+    **Convergence, on the Q61 carrier (rc473 repair round 1, `#T1188`).**
+    Through the twin-defect pass the C peer iterated on ``double`` and this
+    body on an exact, ever-growing ``Q``, and the two decided convergence on
+    different quantities: a double step can reach an exact ``0.0`` or stall
+    one ULP away, and an exact-``Q`` step does neither. MEASURED at
+    ``2eb05877f`` on an authenticated WSL2 gcc 13.3.0 Release cell (ABI 26)
+    against a pure sibling with no library file, ``max_iter=30``: over ``M``
+    in {pi/2, 1, 3, 0.1, 100, 1e6} x ``e`` in {0.0549, 0.5, 0.9} x 17
+    tolerances from ``1e-12`` to ``5e-324``, 134 of 306 rows returned a
+    different verdict in the two cells, in both directions; the non-convergence
+    message rendered ``best_E`` as a double natively and as the exact ``Q``
+    here; and ADR-0009 row 52's ``kepler_solve(2**53, 0.999)`` returned
+    ``9007199254740992.0`` natively where this body raised.
+
+    Both projections now run ONE integer iteration (``_kepler_q61`` here,
+    ``srmech_trig_kepler_q61`` in ``c/src/srmech_trig.c``):
+
+    * ``M`` is reduced once to its Q61 octant and residue; ``E`` is carried as
+      ``M + eps`` with ``eps`` a Q61 integer, and ``sin E`` / ``cos E`` are
+      read off the residue plus ``eps``, re-reduced by whole quarter turns —
+      no float between steps.
+    * ``e`` multiplies on the Q61 grid, rounded half away from zero; the
+      Newton step ``round(g * 2**61 / g')`` is one integer division; and the
+      iterate is held in its own bracket ``|eps| <= round(e * 2**61)``, where
+      every fixed point lies because ``|sin E| <= 1``.
+    * CONVERGED means ``|step| * 2**-61 < tolerance``, decided exactly. A
+      zero or negative tolerance is never met, as before; a tolerance below
+      one grid unit is met only by a zero step.
+    * The answer is ``M + eps * 2**-61`` correctly rounded to ``float``
+      (ties to even) — the last mile.
+
+    The carrier resolves ``2**-61`` rad absolute, the resolution
+    ``rational.sin`` itself has. MEASURED after the repair on the same cells:
+    the 306 frontier rows and the 107 slot-sweep rows are the same outcome in
+    both cells, verdict, value and text; the C symbol matches this iteration
+    bit for bit over a seeded 200000-row fuzz (184218 rows compared, 15782
+    refused by both at the reduction, 0 mismatches); and served values move
+    where the two old loops rounded differently — ``kepler_solve(pi/2, 0.9)``
+    was ``2.2634151063569425`` in both cells and is ``2.263415106356943``.
     """
     if not (0.0 <= e < 1.0):
         raise ValueError(f"kepler_solve: e must satisfy 0 <= e < 1; got {e}")
@@ -262,17 +386,13 @@ def kepler_solve(
         )
     if e == 0.0:
         return M_rad
-    E = M_rad + e * _rsin(M_rad)
-    for _ in range(max_iter):
-        f = E - e * _rsin(E) - M_rad
-        f_prime = 1.0 - e * _rcos(E)
-        delta = f / f_prime
-        E -= delta
-        # Class-K magnitude of the Newton step as an EXPLICIT sign-branch,
-        # never an ALU abs().
-        delta_mag = delta if delta >= 0.0 else -delta
-        if delta_mag < tolerance:
-            return float(E)        # FPU last-mile (native srmech_kepler_solve → c_double)
+    # rc473 repair round 1 (`#T1188`): the refusal of an M the Q61 reduction
+    # cannot hold is rational.sin's, in its own words, and C refuses the same M
+    # at the same reduction. Then the one Q61 iteration both projections run.
+    _rsin(M_rad)
+    converged, E = _kepler_q61(M_rad, e, tolerance, max_iter)
+    if converged:
+        return E                   # FPU last mile, the double srmech_kepler_solve writes
     raise RuntimeError(
         f"kepler_solve: did not converge in {max_iter} iterations "
         f"(M={M_rad}, e={e}, best_E={E})"

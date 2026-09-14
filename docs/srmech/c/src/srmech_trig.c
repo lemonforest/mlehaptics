@@ -44,6 +44,7 @@
  */
 
 #include "srmech.h"
+#include "srmech_trig_internal.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -922,4 +923,271 @@ srmech_status_t srmech_atan_q61(double x, int64_t *out_q61)
     int64_t v = trig_atan_nonneg_q61(xm);                 /* +/-Inf -> +/- pi/2 via band */
     *out_q61 = (x < 0.0) ? -v : v;                        /* Class-C re-orient */
     return SRMECH_OK;
+}
+
+/* ====================================================================== *
+ * rc473 repair round 1 (`#T1188`) -- KEPLER'S EQUATION ON THE Q61
+ * QUARTER-TURN CARRIER: the one Newton iteration both projections run.
+ *
+ * Through the twin-defect pass srmech_kepler_solve iterated on `double` while
+ * its pure peer iterated on an exact, ever-growing Q, and the two decided
+ * convergence on different quantities: a double step can reach an exact 0.0
+ * or stall one ULP away, and an exact-Q step does neither. Measured on an
+ * authenticated WSL2 gcc 13.3.0 Release cell (ABI 26) against a pure sibling,
+ * M in {pi/2, 1, 3, 0.1, 100, 1e6} x e in {0.0549, 0.5, 0.9} x 17 tolerances
+ * from 1e-12 to 5e-324, max_iter 30: 134 of 306 rows returned a different
+ * verdict in the two cells, in both directions.
+ *
+ * The contract now, written identically in srmech/math/kepler.py:
+ *   - M is reduced ONCE by trig_reduce to (octant, r_M), r_M in Q61.
+ *   - E is carried as M + eps, eps a Q61 integer. sin E and cos E are read
+ *     off the residue r_M + eps re-reduced by whole quarter turns, with the
+ *     octant map srmech_sin / srmech_cos use and no double in between.
+ *   - e multiplies on the Q61 grid, rounded half away from zero (kq_emul).
+ *   - The Newton step round(g * 2^61 / g') is one integer division, and the
+ *     iterate is held in eps's own bracket |eps| <= round(e * 2^61): a fixed
+ *     point satisfies eps = e (x) sin E with |sin E| <= 1, so none lies
+ *     outside it. A step that overshoots is clamped to the edge, and from an
+ *     edge the step always points back inward, so the clamp cannot fake a
+ *     zero step.
+ *   - CONVERGED means |step| * 2^-61 < tolerance, decided exactly.
+ *   - The answer is M + eps * 2^-61 correctly rounded to double, ties to even
+ *     (kq_to_double): the float LAST MILE, and the value the pure peer's
+ *     int / int true division returns. On non-convergence the best-effort E
+ *     is that same double, so both cells render one text.
+ * The carrier resolves 2^-61 rad absolute, which is srmech_sin's own
+ * resolution; below |E| of about 2^-8 a double's ULP is finer than that.
+ * ====================================================================== */
+
+#define KQ_SAT (INT64_C(1) << 62)   /* a step this large already leaves the bracket */
+
+/* e in (0, 1) as the exact ratio e_mant / 2^e_sh: the IEEE bit read
+ * trig_reduce_k does, no frexp. e < 1 puts e_sh at 53 or above. */
+static void kq_split_e(double e, uint64_t *e_mant, int *e_sh)
+{
+    assert(e_mant != NULL && e_sh != NULL);
+    assert(e > 0.0 && e < 1.0);
+    uint64_t bits;
+    memcpy(&bits, &e, sizeof bits);
+    uint32_t raw = (uint32_t)((bits >> 52) & 0x7FFu);
+    uint64_t frac = bits & ((UINT64_C(1) << 52) - 1);
+    *e_mant = (raw == 0u) ? frac : (frac | (UINT64_C(1) << 52));
+    *e_sh = (raw == 0u) ? 1074 : 1075 - (int)raw;
+}
+
+/* e * x on the Q61 grid, rounded half away from zero; |x| <= 2^61. The
+ * magnitude is a Class-K branch and the sign is re-applied as Class C. */
+static int64_t kq_emul(uint64_t e_mant, int e_sh, int64_t x)
+{
+    assert(e_mant < (UINT64_C(1) << 53) && e_sh >= 53);
+    int neg = (x < 0) ? 1 : 0;
+    uint64_t ux = neg ? (uint64_t)(-(x + 1)) + 1u : (uint64_t)x;
+    assert(ux <= (UINT64_C(1) << 61));
+    if (e_sh >= 115) { return 0; }        /* e_mant * ux < 2^114 <= the half */
+    uint64_t hi, lo, hhi, hlo;
+    trig_umul64(e_mant, ux, &hi, &lo);
+    wf_shl128(UINT64_C(1), e_sh - 1, &hhi, &hlo);
+    wf_add128(hi, lo, hhi, hlo, &hi, &lo);
+    uint64_t q = (e_sh >= 64) ? (hi >> (e_sh - 64))
+                              : ((lo >> e_sh) | (hi << (64 - e_sh)));
+    return neg ? -(int64_t)q : (int64_t)q;
+}
+
+/* sin E and cos E for E = (octant oct_m) + r, with r first re-reduced by whole
+ * quarter turns to |r| <= HALF_PI_Q61 / 2: srmech_sin / srmech_cos's map. */
+static void kq_sincos(int oct_m, int64_t r, int64_t *s, int64_t *c)
+{
+    assert(s != NULL && c != NULL);
+    const int64_t half = SRMECH_TRIG_HALF_PI_Q61 / 2;
+    int j = 0;
+    for (int k = 0; k < 4; k++) {
+        if (r > half)       { r -= SRMECH_TRIG_HALF_PI_Q61; j++; }
+        else if (r < -half) { r += SRMECH_TRIG_HALF_PI_Q61; j--; }
+        else                { break; }
+    }
+    assert(r <= half && r >= -half);
+    unsigned oct = (unsigned)(oct_m + j) & 3u;
+    int64_t sc = trig_sin_core(r), cc = trig_cos_core(r);
+    *s = (oct == 0u) ? sc : (oct == 1u) ? cc : (oct == 2u) ? -sc : -cc;
+    *c = (oct == 0u) ? cc : (oct == 1u) ? -sc : (oct == 2u) ? -cc : sc;
+}
+
+/* floor((ug * 2^62 + gp) / (2 * gp)), i.e. ug * 2^61 / gp rounded half up,
+ * saturated at 2^62. ug < 2^62 and 0 < gp < 2^62. A fixed 64-step restoring
+ * division: no __int128, no libm. */
+static uint64_t kq_div_round(uint64_t ug, uint64_t gp)
+{
+    assert(ug < (UINT64_C(1) << 62));
+    assert(gp > 0u && gp < (UINT64_C(1) << 62));
+    uint64_t nhi, nlo;
+    wf_shl128(ug, 62, &nhi, &nlo);
+    wf_add128(nhi, nlo, UINT64_C(0), gp, &nhi, &nlo);
+    uint64_t d = gp << 1;
+    if (nhi >= d) { return (uint64_t)KQ_SAT; }       /* the quotient is >= 2^64 */
+    uint64_t rem = nhi, q = 0u;
+    for (int i = 63; i >= 0; i--) {
+        rem = (rem << 1) | ((nlo >> i) & 1u);
+        if (rem >= d) { rem -= d; q |= UINT64_C(1) << i; }
+    }
+    return (q > (uint64_t)KQ_SAT) ? (uint64_t)KQ_SAT : q;
+}
+
+/* One bracketed Newton step on g(eps) = eps - e sin(M + eps), g' = 1 - e cos.
+ * Updates *eps and returns the step actually taken. */
+static int64_t kq_step(int64_t *eps, int64_t eq, uint64_t e_mant, int e_sh,
+                       int64_t s, int64_t c)
+{
+    assert(eps != NULL);
+    assert(eq >= 0 && *eps <= eq && *eps >= -eq);
+    int64_t g = *eps - kq_emul(e_mant, e_sh, s);
+    int64_t gp = SRMECH_TRIG_ONE - kq_emul(e_mant, e_sh, c);  /* >= 2^61 - eq > 0 */
+    uint64_t ug = (g < 0) ? (uint64_t)(-(g + 1)) + 1u : (uint64_t)g;   /* Class K */
+    int64_t q = (int64_t)kq_div_round(ug, (uint64_t)gp);
+    int64_t nxt = (g < 0) ? *eps + q : *eps - q;                       /* Class C */
+    if (nxt > eq)  { nxt = eq; }
+    if (nxt < -eq) { nxt = -eq; }
+    int64_t step = nxt - *eps;
+    *eps = nxt;
+    return step;
+}
+
+/* |step| * 2^-61 < tolerance, decided exactly. us < 2^63; tolerance finite. */
+static bool kq_below_tol(uint64_t us, double tolerance)
+{
+    assert(us < (UINT64_C(1) << 63));
+    assert(tolerance == tolerance);
+    if (!(tolerance > 0.0)) { return false; }
+    if (tolerance >= 4.0)   { return true; }             /* us * 2^-61 < 4 */
+    double t2 = tolerance * 2305843009213693952.0;        /* * 2^61, exact */
+    uint64_t t = (uint64_t)t2;                            /* floor; t2 < 2^63 */
+    return ((double)t == t2) ? (us < t) : (us <= t);
+}
+
+/* Significant bits of v, 0 for 0. */
+static int kq_bitlen64(uint64_t v)
+{
+    int n = 0;
+    assert(sizeof v == 8u);
+    for (int i = 0; i < 64 && v != 0u; i++) { v >>= 1; n++; }
+    assert(n <= 64);
+    return n;
+}
+
+/* 2^k as a double, built from its bit pattern (no ldexp). */
+static double kq_pow2(int k)
+{
+    assert(k >= -1022 && k <= 1023);
+    uint64_t bits = (uint64_t)(1023 + k) << 52;
+    double d;
+    assert(sizeof bits == sizeof d);
+    memcpy(&d, &bits, sizeof d);
+    return d;
+}
+
+/* (hi:lo) * 2^scale, plus (sticky > 0) or minus (sticky < 0) a fraction of one
+ * unit lying below 2^scale, rounded to a double with ties to even. */
+static double kq_round(uint64_t hi, uint64_t lo, int scale, int sticky)
+{
+    assert(sticky >= -1 && sticky <= 1);
+    int nb = (hi != 0u) ? 64 + kq_bitlen64(hi) : kq_bitlen64(lo);
+    assert(nb > 0 && nb < 128);
+    if (nb <= 53) {
+        assert(sticky == 0);                  /* a sticky sum is >= 2^63 units */
+        return (double)lo * kq_pow2(scale);
+    }
+    int sh = nb - 53;
+    int k = sh - 1;                                        /* the half bit */
+    uint64_t m = (sh >= 64) ? (hi >> (sh - 64)) : ((lo >> sh) | (hi << (64 - sh)));
+    int hb = (k >= 64) ? (int)((hi >> (k - 64)) & 1u) : (int)((lo >> k) & 1u);
+    int low = (k >= 64) ? ((lo != 0u) || ((hi & ((UINT64_C(1) << (k - 64)) - 1u)) != 0u))
+                        : ((lo & ((UINT64_C(1) << k) - 1u)) != 0u);
+    int odd = (int)(m & 1u);
+    int up = (sticky > 0) ? hb : (sticky < 0) ? (hb && low) : (hb && (low || odd));
+    m += (uint64_t)up;
+    if (m == (UINT64_C(1) << 53)) { m >>= 1; sh++; }
+    return (double)m * kq_pow2(scale + sh);
+}
+
+/* |M| at the scale 2^scale: exact when M's lowest bit is at or above it,
+ * otherwise truncated, with *sticky = 1 when a nonzero bit fell below. */
+static void kq_align(uint64_t mant, int e2, int scale,
+                     uint64_t *hi, uint64_t *lo, int *sticky)
+{
+    assert(hi != NULL && lo != NULL && sticky != NULL);
+    assert(mant < (UINT64_C(1) << 53));
+    int s = e2 - scale;
+    *sticky = 0;
+    if (s >= 0) { wf_shl128(mant, s, hi, lo); return; }    /* s is 0..63 here */
+    int d = -s;
+    *hi = 0u;
+    *lo = (d >= 64) ? 0u : (mant >> d);
+    *sticky = (d >= 64) ? (mant != 0u) : ((mant & ((UINT64_C(1) << d) - 1u)) != 0u);
+}
+
+/* The last mile: M + eps * 2^-61 correctly rounded to double, ties to even.
+ * |M| < 2^55 and |eps| <= 2^61 here. */
+static double kq_to_double(double M, int64_t eps)
+{
+    uint64_t bits;
+    memcpy(&bits, &M, sizeof bits);
+    uint32_t raw = (uint32_t)((bits >> 52) & 0x7FFu);
+    uint64_t frac = bits & ((UINT64_C(1) << 52) - 1);
+    assert(raw != 0x7FFu);
+    assert(eps >= -(INT64_C(1) << 61) && eps <= (INT64_C(1) << 61));
+    if (eps == 0) { return (raw == 0u && frac == 0u) ? 0.0 : M; }
+    int neg_m = (bits >> 63) ? 1 : 0;
+    int neg_e = (eps < 0) ? 1 : 0;
+    uint64_t ue = neg_e ? (uint64_t)(-(eps + 1)) + 1u : (uint64_t)eps;
+    uint64_t mant = (raw == 0u) ? frac : (frac | (UINT64_C(1) << 52));
+    int e2 = (raw == 0u) ? -1074 : (int)raw - 1075;
+    int scale = (e2 >= -61) ? -61 : -125;
+    uint64_t ahi, alo, bhi, blo, rhi, rlo;
+    int sticky;
+    kq_align(mant, e2, scale, &ahi, &alo, &sticky);
+    wf_shl128(ue, (scale == -61) ? 0 : 64, &bhi, &blo);
+    int neg = neg_m;
+    if (neg_m == neg_e) {
+        wf_add128(ahi, alo, bhi, blo, &rhi, &rlo);
+    } else if (ahi > bhi || (ahi == bhi && alo >= blo)) {
+        wf_sub128(ahi, alo, bhi, blo, &rhi, &rlo);
+    } else {
+        wf_sub128(bhi, blo, ahi, alo, &rhi, &rlo);
+        neg = neg_e;
+        sticky = -sticky;            /* the truncated fraction now subtracts */
+    }
+    if (rhi == 0u && rlo == 0u) { return 0.0; }
+    double d = kq_round(rhi, rlo, scale, sticky);
+    return neg ? -d : d;
+}
+
+srmech_status_t srmech_trig_kepler_q61(double    M_rad,
+                                       double    e,
+                                       double    tolerance,
+                                       uint32_t  max_iter,
+                                       double   *out_E_rad)
+{
+    assert(out_E_rad != NULL);
+    assert(e > 0.0 && e < 1.0 && max_iter > 0u && tolerance == tolerance);
+    if (out_E_rad == NULL) { return SRMECH_ERR_NULL_ARG; }
+    int oct_m;
+    int64_t r_m;
+    if (!trig_reduce(M_rad, &oct_m, &r_m)) { return SRMECH_ERR_BAD_INPUT; }
+    uint64_t e_mant;
+    int e_sh;
+    kq_split_e(e, &e_mant, &e_sh);
+    int64_t eq = kq_emul(e_mant, e_sh, SRMECH_TRIG_ONE);
+    int64_t s, c;
+    kq_sincos(oct_m, r_m, &s, &c);                    /* the Smith starter */
+    int64_t eps = kq_emul(e_mant, e_sh, s);
+    for (uint32_t i = 0; i < max_iter; i++) {
+        kq_sincos(oct_m, r_m + eps, &s, &c);
+        int64_t step = kq_step(&eps, eq, e_mant, e_sh, s, c);
+        uint64_t us = (step < 0) ? (uint64_t)(-(step + 1)) + 1u : (uint64_t)step;
+        if (kq_below_tol(us, tolerance)) {
+            *out_E_rad = kq_to_double(M_rad, eps);
+            return SRMECH_OK;
+        }
+    }
+    *out_E_rad = kq_to_double(M_rad, eps);
+    return SRMECH_ERR_OVERFLOW;
 }
