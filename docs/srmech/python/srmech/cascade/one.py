@@ -610,8 +610,8 @@ def winding_fold(theta: float) -> Tuple[int, float]:
     Q61 native)" and then, at the A6 pass, "accurate to that grid's
     resolution **on the pure path only**" — the first spelling named a fork
     and the second named the divergence the fork caused. There is no fork
-    now; the Dispatch paragraph above carries both measurements and what the
-    repair cost. The rule ``sqrt`` states of
+    now; the Dispatch paragraph above carries both measurements. The rule
+    ``sqrt`` states of
     itself — "EXACT scopes to the CARRIER, not to the value"
     (:func:`srmech.math.rational.sqrt`) — applies here to the OPERAND: the
     caller's angle is what is rounded. Measured: the rc472 census row
