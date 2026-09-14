@@ -822,3 +822,10 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 - **Dependency-parsed relation extractor** (F756 honest gap): the reading-order=direction + function-words-between-content-words extractor is crude (breaks on passive/OSV; "of the" multiword labels dropped). A real parser (or a learned head) would give clean typed triples.
 - **Net-normalised magnetic Laplacian** (UPSTREAM_NOTES §48): the q-phase aliases for large net weights; an additive normalised variant (or auto-q) makes the directed Hermitian a drop-in over real co-occurrence graphs.
 - **Full 240k simplewiki assoc** (F754 scope): the assoc tier is 15k-article (213k vocab); the full 240,881-article run is the same code, longer (background it) — would likely pull in kombucha + the long tail.
+
+### F1355 (written as F718 on 2026-06-09; renumbered 2026-09-14) — R3 U1: tokenize + cooccurrence_edges ship in srmech 0.7.5rc43 — the unpushed F718 index lines, appended 2026-09-14
+
+These are the two lines commit `308ddf701` (F718, never pushed) wrote into the F717 block above; that block is not rewritten, so they land here. Read them in date order with F722 and F723 above, which record the later rc49 failure and rc50 closure of R3 U1 against the §40 bar (same day).
+
+- **DONE (R3 U1): `tokenize()` / `cooccurrence_edges()` shipped in srmech 0.7.5rc43.** Both in `srmech.amsc.laplacian` (pure-Python / numpy-free); the audit's `amsc.laplacian` check now resolves FOUND; the hand-rolled `Counter()` co-occurrence is retired and K1 is an authorable composite end-to-end. Verified clean on TestPyPI (`tools.total` 274→276). Still open: **Ask-3** (the wired 1024-node 4-sector spectral one-call surface) + the **directed sibling** (§18.1 op(b)). See F1355.
+- **HELD for the user:** the #855 body-checkbox edits (R1.1 now true; **R3 U1 now true** [rc43]; #797 still open) — recorded, not driven (create-don't-drive tracker discipline).

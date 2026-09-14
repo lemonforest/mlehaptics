@@ -3573,3 +3573,10 @@ is order-blind" — so callers stop treating the shipped holonomy as an integrit
 Prereq for us either way: the `stride × leaf_dim` degeneracy sweep (unswept; a rotation that maps a support set
 onto itself would reintroduce the collision). Generating code: `R-RBS-LM-TOCV3_*.py`, `R-RBS-LM-TOCV3OCT_*.py`.
 
+
+## F1355 (written as F718 on 2026-06-09; renumbered 2026-09-14) — the §17 U1 status flip and the §38 residue line, appended 2026-09-14
+
+These are the two edits commit `308ddf701` (F718, never pushed) made to §17 and §38 of this file. The table cell and paragraph above are not rewritten, so the edits land here as appended lines. Read them beside §40, whose rc49 (F722) and rc50 (F723) acceptance record came later the same day.
+
+- **§17 U1 "Status today" cell, as F718 wrote it:** ✅ **SHIPPED in srmech 0.7.5rc43** (both in `srmech.amsc.laplacian`, pure-Python / numpy-free; `tools.total` 274→276; the audit's `amsc.laplacian` check now resolves FOUND). `cooccurrence_edges` returns `(n, edges, weights)` straight into `dense_laplacian` and **retires the hand-rolled `Counter()` idiom**; K1 is now an authorable composite end-to-end. The **directed sibling** (`i(A−Aᵀ)` Hermitian-Laplacian builder, §18.1 op(b) ref F357) stays a separate queued Class-L precursor. See F1355.
+- **§38 residue line, as F718 wrote it:** **Residue — R3 U1 NOW CLOSED (srmech 0.7.5rc43):** `tokenize()` / `cooccurrence_edges()` (the Class-L co-occurrence precursor) **shipped** in `srmech.amsc.laplacian` — the hand-rolled `Counter()` edges are retired and K1 is an authorable composite end-to-end. Still open: **Ask 3** (the wired 1024-node 4-sector spectral block as a one-call surface) + the **directed sibling** (§18.1 op(b) Hermitian-Laplacian builder). See F716 / F1355.
