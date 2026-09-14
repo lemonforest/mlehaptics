@@ -35,7 +35,7 @@ longer scaffolding.
 | `srmech_template.c` | Class F — template `{key}` substitution |
 | `srmech_hdc.c`      | Class M — HDC bind / bundle / permute / similarity |
 | `srmech_rational.c` | Class N — rational approximation (best-rational) |
-| `srmech_kepler.c`   | equation-of-centre / Kepler algebra (libm) |
+| `srmech_kepler.c`   | Class K — pin-slot / Kepler solve / equation-of-centre (Class-N Q61 cascade trig, no libm) |
 | `srmech_cascade.c`  | cascade-composition primitives |
 | `srmech_bus.c`      | bus / handle-registry surface |
 | `srmech_parallel.c` | Klein-4 four-sector parallel dispatch |
@@ -48,8 +48,8 @@ The two newest v0.6.0 C files:
   Win32 `CreateThread`, or a serial fallback at build time so the
   same source compiles cleanly across the CI matrix.
 - **`srmech_kuramoto.c`** — the native Kuramoto coupled-oscillator
-  forward-Euler step (rc9), using libm `sin` exactly as
-  `srmech_kepler.c` does.
+  forward-Euler step (rc9), using the Class-N cascade `srmech_sin`, not
+  libm — as `srmech_kepler.c` uses the cascade's sin / cos / atan2.
 
 ### ABI
 

@@ -15,8 +15,12 @@ pin-slot stage means ``pin_slot(theta, eps, 1.0) = atan2(eps sin theta,
   for the stage, and ``E - M - pin_slot(pi - M, e, 1.0)`` peaks over the
   M grid at 0.166667 ``e**3`` at ``e = 0.001``.
 - ``nu - E`` IS a stage, doubled: ``E + 2 * pin_slot(pi - E, beta, 1.0)``
-  with ``beta = e / (1 + sqrt(1 - e**2))`` agreed with the true anomaly to
-  within 2.0e-15 rad at ``e`` = 0.0549, 0.3, 0.7, 0.9 and 0.99.
+  with ``beta = e / (1 + sqrt(1 - e**2))`` agreed with the true anomaly at
+  double precision, which is not a bound: the largest difference over 64
+  uniformly spaced ``E`` at ``e`` = 0.0549, 0.3, 0.7, 0.9 and 0.99 was
+  1.998e-15 rad (at 0.99), over 4096 ``E`` it was 2.220e-15 rad, and over
+  1024 ``E`` it grows toward ``e = 1`` (9.326e-15 rad at 0.999, 1.377e-13
+  at 0.9999).
 - ``nu - M`` (the equation of centre) is not one stage: ``c2 / c1**2`` is
   0.3125 for the series and 0.5 for a single stage at every ``eps``.
 - ``M -> E`` is not a stage: :func:`kepler_solve` reaches ``E`` by
@@ -172,9 +176,10 @@ def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
     every ``eps``); at ``theta = pi - M`` and ``eps = e`` it matches
     ``E - M`` through ``e**2`` and departs at ``e**3``; and at
     ``theta = pi - E`` and ``eps = e / (1 + sqrt(1 - e**2))``,
-    ``E + 2 * pin_slot(theta, eps, 1.0)`` is the true anomaly to within
-    2.0e-15 rad for ``e`` from 0.0549 to 0.99. The module docstring
-    carries the figures.
+    ``E + 2 * pin_slot(theta, eps, 1.0)`` is the true anomaly at double
+    precision (largest difference 1.998e-15 rad over 64 uniformly spaced
+    ``E`` at five ``e`` from 0.0549 to 0.99). The module docstring carries
+    the grids and the figures.
 
     Args:
         theta: Input shaft angle in radians.

@@ -710,10 +710,10 @@ extern "C" {
  *      and kepler_solve served a non-finite tolerance, +Inf returning the
  *      ONE-Newton-step estimate as converged and NaN / -Inf returning
  *      SRMECH_ERR_OVERFLOW, i.e. "did not converge" about an argument that was
- *      never a tolerance. Each slot reached no callee that checked it (the
- *      geometry enters at bare double arithmetic; until clause (c) the
- *      tolerance was only a comparison right-hand side), so the refusal is
- *      these functions' own, and the pure projection refused all of them.
+ *      never a tolerance. No callee refused every non-finite value of either
+ *      slot (srmech_atan2, the geometry's one callee, refuses a NaN and serves
+ *      an infinite argument; until clause (c) the tolerance was only a
+ *      comparison operand), so the refusal is theirs; pure refused them all.
  *      Same sentence: co-equal projections must agree on what they refuse.
  *
  *      (c) srmech_kepler_solve DECIDES CONVERGENCE ON THE Q61 CARRIER (repair
