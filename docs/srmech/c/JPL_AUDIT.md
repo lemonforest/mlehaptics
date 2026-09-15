@@ -1090,7 +1090,16 @@ the toolchain-level Rule-10 ratchet.
   model (Kuramoto 1975; Acebrón et al. 2005, Rev. Mod. Phys. 77:137):
   `θ_i(t+dt) = θ_i + dt·[ω_i + (K/N) Σ_j sin(θ_j − θ_i)]`. Closes a
   C/Python parity gap so the dispatch-clock / coupled-oscillator step
-  runs natively (libm `sin`, as `srmech_kepler.c` already does). 2
+  runs natively (libm `sin`, as `srmech_kepler.c` already does —
+  *true at v0.6.0rc9 and no longer true of the tree: ⚠️ noted at the rc473
+  final round, `#T1188`. Both files now call the Class-N Q61 cascade, not
+  libm. `notes/_rc473_final_libm_symbols.sh` on a gcc pedantic Release
+  build of rc473 prints, as undefined in `srmech_kepler.c.o`:
+  `__stack_chk_fail`, `srmech_atan2`, `srmech_cos`, `srmech_sin` and
+  `srmech_trig_kepler_q61`; in `srmech_kuramoto.c.o`: `__stack_chk_fail`
+  and `srmech_sin`; and 0 libm-named undefined symbols in either object or
+  in `libsrmech.so`. This entry is a dated record and is otherwise
+  unchanged*). 2
   functions: the public `srmech_cascade_kuramoto_step_f64` (17 lines)
   plus the static `srmech_kuramoto__coupling_sum` helper (9 lines) into
   which the O(n²) inner coupling sum was **factored to keep the public
