@@ -357,10 +357,37 @@ def bind_markers(src: str) -> Dict[int, str]:
     return bound
 
 
+def _load_git_env():
+    """``tests/_git_env.py``, loaded by path (rc473 final round, `#T1188`).
+
+    The one home of the repository-selecting variable list and of the
+    worktree-pointer lookup. Every ``git`` this module runs gets a SCRUBBED
+    environment plus, when this host cannot follow the checkout's ``.git``
+    pointer as written, a per-invocation ``--git-dir`` / ``--work-tree`` — so
+    no operator has to EXPORT ``GIT_DIR`` for this harvester to answer, which
+    is the export that let a test fixture write the live repository's shared
+    ``.git/config`` from 2026-09-11 to 2026-09-14.
+    """
+    import importlib.util
+    name = "_srmech_git_env"
+    mod = sys.modules.get(name)
+    if mod is None:
+        path = Path(__file__).resolve().parents[1] / "tests" / "_git_env.py"
+        spec = importlib.util.spec_from_file_location(name, str(path))
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[name] = mod
+        spec.loader.exec_module(mod)
+    return mod
+
+
+_GIT_ENV = _load_git_env()
+
+
 def _git(args: List[str]) -> Tuple[int, str]:
     """``git`` in the repo root. Returns ``(code, stdout)``; never raises."""
     try:
-        p = subprocess.run(["git", *args], cwd=str(REPO_ROOT),
+        p = subprocess.run(_GIT_ENV.git_argv(REPO_ROOT, args),
+                           cwd=str(REPO_ROOT), env=_GIT_ENV.scrubbed(),
                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                            check=False)
     except (OSError, ValueError):
@@ -377,7 +404,8 @@ def _git_stderr(args: List[str]) -> Tuple[int, str, str]:
     `#T1188`).
     """
     try:
-        p = subprocess.run(["git", *args], cwd=str(REPO_ROOT),
+        p = subprocess.run(_GIT_ENV.git_argv(REPO_ROOT, args),
+                           cwd=str(REPO_ROOT), env=_GIT_ENV.scrubbed(),
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                            check=False)
     except (OSError, ValueError) as exc:                      # noqa: BLE001
@@ -435,9 +463,12 @@ def head_blob_map() -> Dict[str, str]:
             f"in {REPO_ROOT}. git said: {err.strip() or '<no stderr>'}. "
             f"Every ledger row would otherwise be stamped def_blob='' with no "
             f"error, which reads as 'no module moved'. Fix the git "
-            f"environment (a worktree .git pointer holding a Windows path is "
-            f"unreadable by WSL git -- export GIT_DIR and GIT_WORK_TREE, or "
-            f"run under the toolchain that owns the checkout).")
+            f"environment: a worktree .git pointer holding a Windows path is "
+            f"already handed to git as its /mnt/<drive>/ twin per invocation "
+            f"(tests/_git_env.py) when that twin exists, so run under the "
+            f"toolchain that owns the checkout. Do NOT export GIT_DIR or "
+            f"GIT_WORK_TREE -- every child git inherits it, and it let a test "
+            f"fixture write a live repository's shared .git/config (rc473).")
     blobs: Dict[str, str] = {}
     for line in out.splitlines():
         if "\t" not in line:
@@ -708,8 +739,9 @@ def _head_commit() -> str:
     """HEAD's sha at run time, or "" outside a git checkout."""
     try:
         import subprocess
-        p = subprocess.run(["git", "rev-parse", "HEAD"],
-                           cwd=str(LEDGER.parent), stdout=subprocess.PIPE,
+        p = subprocess.run(_GIT_ENV.git_argv(LEDGER.parent, ["rev-parse", "HEAD"]),
+                           cwd=str(LEDGER.parent), env=_GIT_ENV.scrubbed(),
+                           stdout=subprocess.PIPE,
                            stderr=subprocess.DEVNULL, check=False)
         return p.stdout.decode("ascii", "replace").strip() if p.returncode == 0 \
             else ""

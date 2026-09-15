@@ -149,7 +149,14 @@ a different cause.
 
 **Windows git is the authority for this checkout**, and not by preference — the
 worktree's own `.git` file holds `gitdir: D:/GitHub/mlehaptics/.git/worktrees/…`,
-so WSL git cannot open the worktree at all without `GIT_DIR` overrides. But
+a Windows path WSL git cannot follow as written. *(This read "cannot open the
+worktree at all without `GIT_DIR` overrides" until the rc473 final round,
+`#T1188`, and was taken as advice. An EXPORTED `GIT_DIR` is inherited by every
+child git, and from 2026-09-11 to 2026-09-14 it let a test fixture's
+`git config --local` write `decoy identity` into the live repository's shared
+`.git/config`. `_hooklib.git` now scrubs the child environment and hands the
+pointer's `/mnt/<drive>/` twin to the one invocation as `--git-dir` /
+`--work-tree`, so there is nothing to export. Never export it.)* But
 pinning a binary would break under a WSL agent, so the repair is at the
 **query**. `_hooklib.dirty_paths` asks for a difference in CONTENT —
 `git diff HEAD --numstat --ignore-cr-at-eol`, keeping only rows whose

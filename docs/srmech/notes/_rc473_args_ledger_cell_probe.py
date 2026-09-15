@@ -46,8 +46,6 @@ Reproducing the two runs (the harvester always rewrites the whole ledger; keep
 a copy before the second run)::
 
     cd docs/srmech/python
-    export GIT_DIR=<repo>/.git/worktrees/<name>          # WSL git cannot read a
-    export GIT_WORK_TREE=<worktree>                      # Windows gitdir pointer
     uv run --python 3.10 --no-project --offline python tools/run_example_args.py
     cp tests/example_args_ledger.ndjson /tmp/args_native_run.ndjson
     mv srmech/_native/libsrmech.so /tmp/hold.so

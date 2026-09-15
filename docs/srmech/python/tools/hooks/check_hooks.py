@@ -70,7 +70,14 @@ def invoke(script: str, payload: Dict[str, Any], *,
            project_dir: Optional[Path] = None,
            env_extra: Optional[Dict[str, str]] = None,
            timeout: float = 300.0) -> Tuple[int, str]:
+    # rc473 final round (`#T1188`): the hook under test gets a SCRUBBED copy of
+    # the environment. It used to get dict(os.environ), so with GIT_DIR exported
+    # the freshness hook's read-only git answered for THAT repository instead of
+    # the fixture CLAUDE_PROJECT_DIR names — measured in a sandbox: `ledger` 4
+    # passed / 5 failed under the export (every BLOCK case read ALLOW), 9 / 0
+    # with this scrub. A wrong verdict, not a write, and invisible from outside.
     env = dict(os.environ)
+    H.scrub_git_env(env)
     env["CLAUDE_PROJECT_DIR"] = str(project_dir or REPO)
     env.pop("SRMECH_ALLOW_STALE_NATIVE", None)
     if env_extra:
@@ -152,7 +159,8 @@ def _selftest_case(name: str, script: str, must_contain: str) -> None:
     proc = subprocess.run(
         [sys.executable, str(HOOKS / script), "--selftest"],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        env={**os.environ, "CLAUDE_PROJECT_DIR": str(REPO)}, timeout=120)
+        env={**H._GIT_ENV.scrubbed(), "CLAUDE_PROJECT_DIR": str(REPO)},
+        timeout=120)
     out = proc.stdout.decode("utf-8", "replace")
     if proc.returncode == 0 and must_contain in out:
         _results.append((name, PASS, must_contain))
@@ -189,19 +197,21 @@ def _write(p: Path, text: str) -> Path:
 #: a ``TemporaryDirectory``". That reasoning is exactly the one ``GIT_DIR`` is
 #: designed to defeat: a temp directory plus ``cwd=`` is not isolation when the
 #: environment names a repository, because the ENVIRONMENT WINS.
-GIT_REPO_SELECTING_ENV = (
-    "GIT_DIR",
-    "GIT_WORK_TREE",
-    "GIT_COMMON_DIR",
-    "GIT_INDEX_FILE",
-    "GIT_OBJECT_DIRECTORY",
-    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-    "GIT_CEILING_DIRECTORIES",
-    "GIT_CONFIG",
-    "GIT_CONFIG_GLOBAL",
-    "GIT_CONFIG_SYSTEM",
-    "GIT_CONFIG_COUNT",
-)
+#:
+#: ⚠️ rc473 final round (`#T1188`): this tuple used to be spelled out HERE, and
+#: it lacked seven of the names git itself declares repository-local
+#: (``git rev-parse --local-env-vars``: ``GIT_CONFIG_PARAMETERS``,
+#: ``GIT_IMPLICIT_WORK_TREE``, ``GIT_GRAFT_FILE``, ``GIT_NO_REPLACE_OBJECTS``,
+#: ``GIT_REPLACE_REF_BASE``, ``GIT_PREFIX``, ``GIT_SHALLOW_FILE``) plus
+#: ``GIT_NAMESPACE`` and the numbered ``GIT_CONFIG_KEY_<n>`` family. It is now
+#: the shared list (``tests/_git_env.py``, re-exported by ``_hooklib``) plus the
+#: ceiling this file pins. And the rc471 repair this block records was not the
+#: whole story: the writer that put ``decoy identity`` into the live shared
+#: config from 2026-09-11 to 2026-09-14 was not this file — its fixture calls
+#: were measured inert under the export — but
+#: ``tests/test_hook_fixture_env_isolation_rc471.py``'s own ``_make_decoy``,
+#: which ran ``git init`` + ``git config --local`` UNSCRUBBED.
+GIT_REPO_SELECTING_ENV = H.GIT_REPO_LOCAL_ENV + ("GIT_CEILING_DIRECTORIES",)
 
 
 def fixture_git_env(root: Path,
@@ -219,6 +229,7 @@ def fixture_git_env(root: Path,
        checkout would otherwise discover that checkout by plain discovery.
     """
     env = dict(os.environ if base is None else base)
+    H.scrub_git_env(env)                     # the shared list + GIT_CONFIG_KEY_<n>
     for name in GIT_REPO_SELECTING_ENV:
         env.pop(name, None)
     env["GIT_CEILING_DIRECTORIES"] = str(Path(root).resolve().parent)

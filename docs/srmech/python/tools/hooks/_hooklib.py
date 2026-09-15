@@ -67,9 +67,17 @@ tracked ``.py`` mapping to 266 distinct modules.)*
 
 **Windows git is the authority for this checkout**, and the reason is not
 preference: the worktree's own ``.git`` file holds ``gitdir:
-D:/GitHub/mlehaptics/.git/worktrees/...``, a Windows path, so WSL git cannot
-open this worktree at all without ``GIT_DIR``/``GIT_WORK_TREE`` overrides. The
-git that owns the checkout is the git that can read it.
+D:/GitHub/mlehaptics/.git/worktrees/...``, a Windows path, which WSL git cannot
+follow as written. The git that owns the checkout is the git that can read it.
+
+⚠️ *This paragraph said WSL git "cannot open this worktree at all without
+``GIT_DIR``/``GIT_WORK_TREE`` overrides" until the rc473 final round
+(`#T1188`), which read as the way in and was taken as one — and an EXPORTED
+override is inherited by every child git, including test fixtures that write
+config. The pair is now given per invocation: :func:`git` asks
+:func:`git_location_args` for ``--git-dir=/mnt/<drive>/…`` +
+``--work-tree=<checkout>`` when, and only when, the pointer's Windows path is
+absent on this host and its mount twin is present. Never export it.*
 
 Pinning the binary alone would be brittle — a hook must still give the right
 answer under a WSL agent, which is the standing build-subagent environment.
@@ -173,14 +181,19 @@ def stop_is_repeat(payload: Dict[str, Any]) -> bool:
 # ── shelling out ──────────────────────────────────────────────────────────
 
 def run(argv: Sequence[str], cwd: Path, timeout: float = 120.0,
-        env_extra: Optional[Dict[str, str]] = None) -> Tuple[int, str]:
+        env_extra: Optional[Dict[str, str]] = None,
+        env: Optional[Dict[str, str]] = None) -> Tuple[int, str]:
     """Run a command, returning ``(returncode, combined_output)``.
 
     A timeout returns ``(-1, ...)`` so callers can distinguish "the instrument
     did not finish" from "the instrument said no" — the two must never be
     collapsed, because only the second is evidence.
+
+    ``env`` replaces the inherited environment as the base (rc473 final round,
+    `#T1188`: :func:`git` passes a scrubbed copy); ``env_extra`` is layered on
+    top of whichever base applies.
     """
-    env = dict(os.environ)
+    env = dict(os.environ if env is None else env)
     if env_extra:
         env.update(env_extra)
     try:
@@ -207,8 +220,60 @@ def git_exe() -> str:
     return os.environ.get(HOOK_GIT_ENV) or "git"
 
 
+def _load_git_env():
+    """``tests/_git_env.py``, loaded by path (rc473 final round, `#T1188`).
+
+    That file is the ONE home of the repository-selecting variable list and of
+    the worktree-pointer lookup; it lives in ``tests/`` because
+    ``sdist.include`` ships ``tests/**`` and not ``tools/``, so the suite guard
+    beside it works in every cell. A repository checkout always carries both
+    directories, which is the only place this module runs. Loading it has no
+    side effects.
+    """
+    import importlib.util
+    name = "_srmech_git_env"
+    mod = sys.modules.get(name)
+    if mod is None:
+        path = Path(__file__).resolve().parents[2] / "tests" / "_git_env.py"
+        spec = importlib.util.spec_from_file_location(name, str(path))
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[name] = mod
+        spec.loader.exec_module(mod)
+    return mod
+
+
+_GIT_ENV = _load_git_env()
+
+#: Re-exported from ``tests/_git_env.py`` — see that module for why each name
+#: is on the list. ``check_hooks.GIT_REPO_SELECTING_ENV`` is this plus
+#: ``GIT_CEILING_DIRECTORIES``, which a fixture pins rather than inherits.
+GIT_REPO_LOCAL_ENV = _GIT_ENV.GIT_REPO_LOCAL_ENV
+scrub_git_env = _GIT_ENV.scrub
+git_location_args = _GIT_ENV.git_location_args
+pointer_git_args = _GIT_ENV.pointer_git_args
+
+
 def git(args: Sequence[str], cwd: Path, timeout: float = 30.0) -> Tuple[int, str]:
-    return run([git_exe(), *args], cwd=cwd, timeout=timeout)
+    """``git <args>`` answering for the checkout ``cwd`` is in, and only that one.
+
+    rc473 final round (`#T1188`), two changes, both so that no operator ever has
+    to export ``GIT_DIR`` / ``GIT_WORK_TREE`` for a hook to answer:
+
+    * the child's environment is SCRUBBED of every repository-selecting
+      variable, so an exported ``GIT_DIR`` cannot make a hook answer for a
+      different repository than the one it was pointed at;
+    * when this host cannot follow ``cwd``'s worktree pointer as written (WSL
+      git on a Windows-made worktree), :func:`git_location_args` hands the
+      pointer's ``/mnt/<drive>/`` twin to THIS invocation as ``--git-dir`` with
+      the checkout as ``--work-tree``. With :data:`HOOK_GIT_ENV` set, no lookup
+      is added: the pinned git is the one declared to own the checkout, and a
+      Windows ``git.exe`` reached through WSL interop reads the Windows path
+      itself and could not use a ``/mnt`` one.
+    """
+    pinned = bool(os.environ.get(HOOK_GIT_ENV))
+    where = [] if pinned else git_location_args(cwd)
+    return run([git_exe(), *where, *args], cwd=cwd, timeout=timeout,
+               env=_GIT_ENV.scrubbed())
 
 
 class GitUnusable(RuntimeError):
@@ -256,10 +321,14 @@ def _git_or_refuse(args: Sequence[str], cwd: Path, why: str) -> str:
         f"`{git_exe()} {' '.join(args)}` exited {code} in {cwd}. git said: "
         f"{out.strip().splitlines()[0] if out.strip() else '<no output>'}. "
         f"{why} Fix the git environment rather than reading the empty result "
-        f"as an answer — a worktree .git pointer holding a Windows path is "
-        f"unreadable by WSL git; export GIT_DIR and GIT_WORK_TREE, set "
+        f"as an answer. A worktree .git pointer holding a Windows path is "
+        f"already handed to this git as its /mnt/<drive>/ twin "
+        f"(--git-dir/--work-tree, per invocation) when that twin exists, so "
+        f"this is a git that could not read the checkout even so: set "
         f"{HOOK_GIT_ENV} to the git that owns the checkout, or run under that "
-        f"toolchain."
+        f"toolchain. Do NOT export GIT_DIR or GIT_WORK_TREE — every child git "
+        f"inherits the export, and it let a test fixture's `git config "
+        f"--local` write a live repository's shared .git/config (rc473)."
     )
 
 
