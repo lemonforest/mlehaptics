@@ -27,10 +27,17 @@ WSL git cannot follow a worktree pointer holding a Windows path, and "export
 GIT_DIR and GIT_WORK_TREE" was the advice ``_hooklib.py`` and
 ``run_worked_examples.py`` printed. Measured in a sandbox replica
 (``git rev-parse --local-env-vars`` identical on git 2.43.0 and
-2.53.0.windows.2): an inherited ``GIT_DIR``, ``GIT_INDEX_FILE``,
-``GIT_OBJECT_DIRECTORY`` or ``GIT_COMMON_DIR`` each moved a sentinel repository
-from a fresh temp directory, and ``GIT_CONFIG`` redirected ``git config``
-without ``--local``.
+2.53.0.windows.2): an inherited ``GIT_DIR``, ``GIT_INDEX_FILE`` or
+``GIT_OBJECT_DIRECTORY`` each moved a sentinel repository from a fresh temp
+directory on BOTH gits, and ``GIT_CONFIG`` redirected ``git config`` without
+``--local`` on both. ``GIT_COMMON_DIR`` depends on the git, measured by
+``notes/_rc473_instr_git_env_matrix.sh`` (rc473 instrument round, `#T1188`):
+on Git for Windows 2.53.0.windows.2 every step of the fixture sequence
+succeeded and the sentinel moved (objects 3 -> 6, ``user.name`` now the
+fixture's); on WSL2 git 2.43.0 ``git init`` exited 1 and every later step 128,
+so the sentinel did not move. The name is scrubbed either way. *(This paragraph
+listed ``GIT_COMMON_DIR`` among the names that moved a sentinel, for one git,
+until that round.)*
 
 WHY IT LIVES IN ``tests/`` AND NOT IN ``tools/hooks/_hooklib.py``
 ------------------------------------------------------------------

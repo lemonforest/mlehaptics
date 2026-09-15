@@ -226,10 +226,12 @@ def test_codegen_is_idempotent() -> None:
     mod = _load_codegen()
     regenerated = mod.generate().replace("\r\n", "\n")
     on_disk = _C_SRC.read_text(encoding="utf-8").replace("\r\n", "\n")
-    assert regenerated == on_disk, (
-        "c/src/srmech_tool_registry.c is out of date — regenerate with "
-        "c/tools/gen_tool_registry.py"
-    )
+    if regenerated != on_disk:
+        # rc473 instrument round (`#T1188`): a ~3.3 MB string pair, so the same
+        # bounded failure as the JSON node above rather than a rendered diff.
+        _fail_diverged("c/src/srmech_tool_registry.c is out of date",
+                       "regenerated", regenerated, "on-disk", on_disk,
+                       "regenerate with c/tools/gen_tool_registry.py")
 
 
 def _owned_entry_count() -> int:

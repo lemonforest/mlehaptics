@@ -111,7 +111,7 @@ manifest)
     echo "== $p"; plant "$PURE" "$p"; pt "$PURE" 3.12 "m_$p" $M
     plant "$PURE" revert 81c55dba6 python/$M; pt "$PURE" 3.12 "m_${p}_81c55dba6" $M; restore "$PURE"
   done
-  echo "== ripple_check.py with a forwarded -k (this runner, then 81c55dba6's), --list is harmless"
+  echo "== ripple_check.py with a forwarded -k"
   (cd "$PURE/docs/srmech/python" && $UV --python 3.12 --with pytest python tools/ripple_check.py -- -k pin > /tmp/ir_rk.log 2>&1; echo "  this runner exit $?: $(head -c 160 /tmp/ir_rk.log)")
   ;;
 leak)
