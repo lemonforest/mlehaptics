@@ -108,9 +108,14 @@ hook)
   P=$R/docs/srmech/python
   git -C "$R" show "$OLD:docs/srmech/python/tools/hooks/derived_ledger_freshness.py" > "$P/tools/hooks/_ir1_old_hook.py"
   hookrun() { # <hook file> <tag>
-    local t0; t0=$(date +%s%N)
+    # The exit status is captured on the next line: expanded inside the echo it
+    # would be the status of the label's command substitution, which is always 0
+    # (the first cut of this driver printed "exit 0" on blocked plants that way).
+    local t0 c ms who; t0=$(date +%s%N)
     (cd "$P" && echo '{"hook_event_name":"Stop"}' | CLAUDE_PROJECT_DIR=$R $UV --python 3.12 python "tools/hooks/$1" > /dev/null 2> "/tmp/ir1_$2.err")
-    echo "  $([ "$1" = _ir1_old_hook.py ] && echo "$OLD hook" || echo "this hook") exit $? ($(( ($(date +%s%N) - t0) / 1000000 )) ms, uv start included), stderr lines $(grep -c . "/tmp/ir1_$2.err")"
+    c=$?; ms=$(( ($(date +%s%N) - t0) / 1000000 ))
+    if [ "$1" = _ir1_old_hook.py ]; then who="$OLD hook"; else who="this hook"; fi
+    echo "  $who exit $c ($ms ms, uv start included), stderr lines $(grep -c . "/tmp/ir1_$2.err")"
   }
   echo "== head, both committed ledgers"; hookrun derived_ledger_freshness.py h_head1; hookrun derived_ledger_freshness.py h_head2
   for spec in "V_args_1ab8d405b example_args_ledger op" "V_worked_1ab8d405b worked_examples_result name"; do

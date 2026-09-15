@@ -1716,6 +1716,94 @@ Gate round t2 named both absences as missing pins: can-fail N1 and N6, sweep N3.
 
 **CI on `f5766aa61`**, each job's conclusion read after the run completed: `srmech-ci` run 34972193409 `completed`, `success`, with all 22 jobs `success`; `srmech-ref-guard` run 34972193426 `success` (1/1). **23 of 23.**
 
+#### INSTRUMENT REPAIR 1 — gate round i1 on `20bda4ffe` returned BLOCK: the runner's refusal and the collection check asked how a filter was SPELLED, the advice gate could not read a settings file, the Stop hook's full-list sentence held for one ledger, and five sentences said more than any run measured (commits from `73676ada4`)
+
+*(Gate round i1 — sweep, can-fail, disclosure — on `20bda4ffe`. Before any change every blocking finding was re-measured on `20bda4ffe` and reproduced; none was refuted. The figures below are the committed drivers' at `73676ada4`, where a `20bda4ffe` file is written back beside the repaired one. Dated records above stand; each correction names the sentence it corrects.)*
+
+**CONDITIONS FOR EVERY FIGURE IN THIS SUBSECTION** (measured 2026-09-15 UTC).
+* **WSL2.** `~/rc473c/repo` (native; library `205f661661ba2cd0`, authenticated by `notes/_rc473_instr_auth.py`: `abi / c version : 26 0.9.0rc473`, `AUTH srmech_rational_sqrt(NaN) -> status 2`, `AUTHENTIC : True`) and `~/rc473c/pure` (0 library files), each detached at `73676ada4` with 0 tracked changes printed before and after every group. CPython 3.12.3 under `uv run --no-project --offline`; numpy absent; `SRMECH_ALLOW_STALE_NATIVE` and `PYTEST_ADDOPTS` unset. Every figure is `bash notes/_rc473_instr_r1_canfail.sh <group> ~/rc473c/repo ~/rc473c/pure [~/rc473c/build]` over the plants in `notes/_rc473_instr_plants.py`; "the `20bda4ffe` file" is that file written back by `plants.py revert`. The driver prints its exported `GIT_DIR` / `GIT_WORK_TREE` count and refuses unless it is 0 (0 every time), and the live `.git/config` digest prefix at its start and end (`ffaa8595e317ed80` every time).
+* **Windows pure cell.** CPython 3.14.4, pytest 9.0.3, 0 library files, in the session worktree before the commit.
+* **The live repository.** `git config --show-origin user.name` / `user.email` printed `file:C:/Users/sckir/.gitconfig` `Steven Kirkland` / `sckirklan@gmail.com`, and `sha256(D:/GitHub/mlehaptics/.git/config)` printed `ffaa8595e317ed80dd6b9a28efed7b0d9f5a0726149ceaa7a24e8a2be59ce2c6` at 16:07:53Z before `73676ada4` and again after it. This repair's local branch was created with `git switch --no-track -c … 20bda4ffe`, so no tracking section was written.
+
+##### R1 — the ripple runner: an allow-list, a refused `PYTEST_ADDOPTS`, and a count check that does not depend on spelling (gate round i1 sweep B1, can-fail F1, disclosure B1)
+
+* **The defect, re-measured** (`runner_old` group). `notes/_rc473_instr_r1_probe.py spellings` over the `20bda4ffe` runner printed that `narrowing_args` refused 4 of gate round i1's 23 narrowing spellings (`-k pin`, `-kpin`, `-m slow`, `--co`) and let 19 through — among them `-qk pin`, `-xk pin`, `-vk pin`, `-xkpin`, `-qm slow`, `-xm slow`, `-o addopts=-k pin`, `-oaddopts=-kscrub`, `--override-ini=addopts=-kpin`, `-c /tmp/other.ini`, `--setup-plan`, `--fixtures`, `--version`, `-h`, `-p no:python` and a positional target. So CHANGELOG I3's "`ripple_check.main` refuses `-k`, `-m`, `--deselect`, … before running anything" was true of those exact spellings only, and the refusal test's docstring "A `-k` typed at run time … the runner refuses it" was false for `-qk`.
+* **The fix** (`73676ada4`). `refused_forwarded_args` is an ALLOW-list. It reads a single-dash argument as a cluster of short flags and a long option's `=value` the way pytest's parser does, and refuses every argument it does not list. The list is the report and stop options `-x -q -v -s -l`, `-r<chars>`, `--tb`, `--maxfail`, `--capture`, `--durations`, `--durations-min`, `--color`, `--exitfirst`, `--quiet`, `--verbose`, `--showlocals`, `--no-header` and `--full-trace`. A non-empty `PYTEST_ADDOPTS` is refused. And the list is not the only guard: the gate run loads the new `tests/_collection_count_plugin.py`, and `judge_counts` fails a green run whose collection kept fewer items than it collected, deselected any, or reported no counts.
+* **Proven** (`runner_new`, `runner_old`; a manifest of `tests/test_jpl_audit.py` and `tests/test_git_export_advice_absent_rc473.py`, 23 items):
+
+  | forwarded to the runner | this runner | the `20bda4ffe` runner |
+  |---|---|---|
+  | nothing | exit 0, "23 passed", "collection kept all 23 items the manifest's targets collect" | — |
+  | `-- -qk advises` | **exit 2** in 142 ms, REFUSED | exit 0 |
+  | `-- -xk advises` | **exit 2**, REFUSED | — |
+  | `-- -o "addopts=-k advises"` | **exit 2**, REFUSED | exit 0, "4 passed, 19 deselected" |
+  | `-- --setup-plan` | **exit 2**, REFUSED | exit 0, "no tests ran" |
+  | `PYTEST_ADDOPTS="-k advises"` in its environment | **exit 2**, "REFUSED -- PYTEST_ADDOPTS is set" | — |
+  | plant `R_allowlist_off` (the refusal line becomes `refused = []`), `-- -k advises` | **exit 1**, "the gate run collected 23 items and kept 4 (19 deselected)" | — |
+  | the same plant, `-- -o "addopts=-k advises"` | **exit 1**, the same line | — |
+
+  The spelling table over this runner: all 23 refused, and the 5 allowed options (`-x`, `-xq`, `-rfEs`, `--tb=short`, `--maxfail 2`) let through. The meta-test's three runner tests: **3 passed** with this runner; **3 failed** with the `20bda4ffe` runner written in. Windows pure, before the commit: the meta-test file 12 passed.
+
+##### R2 — the COLLECTION check counts what collection removed, at every granularity (gate round i1 can-fail F2)
+
+* **The defect.** The check compared collected test FUNCTIONS, `[params]` stripped, while its comment said it also sees "a conftest hook, an `addopts` deselect". Re-measured below: under a conftest hook that drops one parametrization, the `20bda4ffe` file's COLLECTION node passes.
+* **The fix** (`73676ada4`). The COLLECTION check loads `tests/_collection_count_plugin.py` and fails when `selected != collected` or anything was deselected. The plugin records `len(items)` on entry to `pytest_collection_modifyitems` in a `tryfirst` hookwrapper, `len(session.items)` in a `trylast` `pytest_collection_finish`, and every `pytest_deselected`. It has its own can-fail, `test_the_collection_count_plugin_sees_a_removal_at_every_granularity`, over a sandbox: nothing removed (4, 4, 0); a conftest hook dropping one parametrization and a conftest hookwrapper dropping it after its own `yield` (4, 3, 0 each); `-k` and `-o addopts=-k` (4, 1, 3 each). The comment now states what it cannot see: an item that never reaches `pytest_collection_modifyitems`, and a filter that also deselects this check in the outer run.
+* **Proven** (`manifest` group):
+
+  | plant | this file | the `20bda4ffe` file |
+  |---|---|---|
+  | head | 12 passed; "703 test functions collected, … missing 0, items {'collected': 1278, 'selected': 1278, 'deselected': 0}" | — |
+  | `M_param_conftest`: a conftest `pytest_collection_modifyitems` drops the advice gate's `[notes]` parametrization | **1 failed, 11 passed**: COLLECTION, "REMOVED items: {'collected': 1278, 'selected': 1277, 'deselected': 0}". The advice gate under the same conftest: 5 passed. | 1 failed, 9 passed. The failure is its own runner test, whose fake `_run` takes no `env` argument; its COLLECTION node passed. |
+  | `M_wrapper_conftest`: the same drop in a `tryfirst` hookwrapper, after `yield` | **1 failed, 11 passed**, the same line | 1 failed, 9 passed, the same runner test; COLLECTION passed |
+  | `M_node` (the instrument round's) | 2 failed: TEXT and COLLECTION ("missing 13") | 3 failed |
+  | `M_deselect_conftest` (the instrument round's) | 1 failed: COLLECTION, 1278 → 1277 | 2 failed: COLLECTION and the runner test |
+
+##### R3 — the export-advice gate reads a settings file's `env` object, and says what it cannot read (gate round i1 sweep B2)
+
+* **The defect.** The eight forms saw none of: a JSON key naming either variable (a Claude Code settings `"env"` object, which is how a variable reaches every hook command), one-name "set / setting / point … to / at" prose, `declare -x`, `setx [/M] NAME value`, `[Environment]::SetEnvironmentVariable`, or a per-command prefix before `make` or a `./tools/*.py` script. The docstring and I4 stated one limit, the allow-listed sentence, and not this one. Re-measured below: the `20bda4ffe` gate stays 6 passed under a plant of each.
+* **The fix** (`73676ada4`). Five forms — `json_key`, `prose_set_one`, `declare_x`, `setx_space`, `dotnet_env` — and `cmd_prefix` also names `make` and any `*.py` or `*.sh`. The form test requires one example per form (`set(examples) == set(PATTERNS)`). The docstring states the second limit: forms outside the thirteen are not seen, among them code that assigns the variable, passive or indirect wording, and a prefix before a command the list does not name.
+* **Proven** (`advice` group). Head: 6 passed; `python/srmech` 315 files, 0 hits; `python/tests` 746 files, 2 hits, 2 exempt; `python/tools` 38 files, 4 hits, 5 exempt; `notes` 1214 files, 1 hit. The new forms added no hit to the tree.
+
+  | plant | this gate | the `20bda4ffe` gate |
+  |---|---|---|
+  | `P20_settings_env`: an `"env"` object naming both variables in `tools/hooks/settings.sample.json` | **1 failed** `[python/tools]` | 6 passed |
+  | `P21_readme_set_one`: one-name "set … to" in `tools/hooks/README.md` | **1 failed** `[python/tools]` | 6 passed |
+  | `P22_readme_point_at` | **1 failed** `[python/tools]` | 6 passed |
+  | `P23_notes_declare`: `declare -x` appended to a `notes/` script | **1 failed** `[notes]` | 6 passed |
+  | `P24_readme_setx` | **1 failed** `[python/tools]` | 6 passed |
+  | `P25_readme_dotnet` | **1 failed** `[python/tools]` | 6 passed |
+  | `P26_readme_prefix_tool`: a prefix before `./tools/ripple_check.py` | **1 failed** `[python/tools]` | 6 passed |
+  | `P27_readme_prefix_make` | **1 failed** `[python/tools]` | 6 passed |
+  | `P1`, `P3`, `P5`, `P6`, `P10` (the instrument round's) | 1 failed each, at the root I4 names | — |
+  | `P7`, `P13` (its green controls) | 6 passed each | — |
+
+##### R4 — the Stop hook names every stale row of either ledger, and its docstring and README describe the hook that ships (gate round i1 disclosure B2, B3)
+
+* **The defect, re-measured** (`hook` group). Under plant `V_args_1ab8d405b` the `20bda4ffe` hook exited 2, "80 of 732", 11 stderr lines, and `notes/_rc473_instr_r1_probe.py named` found **0** of the ledger's row names outside the one-line summary, which ends "(+72 more)". Its message nevertheless ended "The lists above are printed IN FULL." Under `V_worked_1ab8d405b` the same hook named 79 of 79, so the sentence held for the worked-example ledger alone. The module docstring opened on "the worked-examples ledger", said "Three clauses, OR-ed" and counted "Three git invocations … and one NDJSON parse (651 rows)"; `tools/hooks/README.md`'s table row said "Three OR-ed clauses", and its item 1 described one ledger.
+* **The fix** (`73676ada4`). An example-args block lists "every unverified row (N):" under its remedy, one row per line. The closing sentence says where each ledger's full list is, and that the one-line summaries stop at 8. The docstring's opening, its predicate (two ledgers, four clauses) and its COST (seven git invocations where the rc468 hook made five, two NDJSON parses, one `ast.parse`), and the README row and item 1, now describe the shipped hook, each with a marked note. `test_the_block_names_every_unverified_row_of_both_ledgers` (new, in `tests/test_ledger_freshness_hook_rc468.py`) drives `_block_lines` for both ledgers at 30 and at 12 stale rows.
+* **Proven** (`hook` group):
+
+  | run | this hook | the `20bda4ffe` hook |
+  |---|---|---|
+  | both committed ledgers | exit 0 twice (727 ms and 370 ms, `uv run` start included), 0 stderr lines | — |
+  | `V_args_1ab8d405b` | exit 2, "80 of 732", 92 stderr lines, **80** row names outside the summary line | exit 2, "80 of 732", 11 lines, **0** |
+  | `V_worked_1ab8d405b` | exit 2, "79 of 649", 90 lines, 79 | exit 2, "79 of 649", 90 lines, 79 |
+  | `tools/hooks/check_hooks.py ledger` | 13 passed, 0 failed, 0 skipped (13 cases) | — |
+  | `tests/test_ledger_freshness_hook_rc468.py` | 2 passed | **1 failed**, 1 passed: the new node |
+
+##### R5 — five sentences that said more than any run measured (gate round i1 disclosure B4–B8)
+
+* **B4.** `tests/_ledger_stamps.py` said a ledger stale only in `def_blob` "passed every check in the tree", and `test_every_row_def_blob_is_its_defining_modules_blob_at_head` in `tests/test_worked_examples_execute_rc354.py` said "and so did every other gate in the tree". THE INSTRUMENT ROUND's preface above ("…so a ledger stale only in `def_blob` passed every check") and the message of `fb5c671c8` ("passed every check in the tree") say the same. False for the worked-example ledger by this entry's own I1 table: the `81c55dba6` hook exited 2 with "3 of 649" on the three kepler `def_blob`s and exited 0 on the example-args ledger's same plant. No run measured "every other gate". Each should read: the ledger passed both pytest freshness gates, and — for the example-args ledger — the Stop hook too. Both files now say so, with a marked note.
+* **B5.** I6 ("…and no gate runs `check_hooks.py`") and the `tools/hooks/check_hooks.py` comment ("…and no gate runs this file") are false. The `figures` group printed `tools/ripple_gates.txt:86` `tests/test_ledger_freshness_hook_rc468.py` and `:989` `tests/test_git_env_cannot_reach_a_repository_rc473.py`, each running `subprocess.run([sys.executable, str(CHECKER), "ledger"]…` (`:70`, `:305`), and 0 test files naming `check_hooks.py` together with `jpl`. What is true: no gate runs its jpl-audit case. The comment now says so.
+* **B6.** "~3.3 MB" for the codegen idempotence pair, in `test_codegen_is_idempotent`'s comment and in the message of `dafad890d`, is the JSON pair's size, not this pair's. The `figures` group printed `git cat-file -s HEAD:docs/srmech/c/src/srmech_tool_registry.c` → 3619700 bytes, and 3619692 characters. It is ~3.6 MB; the comment now says so.
+* **B7.** The PR body's truth-repair-1 note said the instrument round "closes … N4 (the separating kepler rows)". It closes N4's one-text subset only. The `kepler` group ran the partition instrument gate round i1 used, archived byte-identical at `notes/_rc473_scratch/instr/m_kep_partition.py` (sha256 prefix `3eb88d7cb4267ecf`). Under plant `K_c_revert` (rebuild exit 0, 0 warnings, library `acbc6b7a4b3323ea`, AUTHENTIC) it printed "part frontier: 93 of 306 rows differ", "part slot: 0 of 11 rows differ", "part 2**53: 0 of 1 rows differ", "one-text rows (8) whose native and pure texts differ: 0" and "EXTENDED one-text check (8 + 4 rows): rows failing 4". At head every count was 0, and the rebuild restored `205f661661ba2cd0` MATCH. The slot and `2**53` subsets still agree under a C-only revert.
+* **B8.** I6 ("Every uncommitted instrument this entry cited is committed") and the PR body ("Every scratch instrument the CHANGELOG cited is committed…") are true of the final round's and final repair 1's instruments only. The truth round's five are cited by name in this section and are not archived. The `figures` group printed 0 archived copies of each: `truth/t04_citations.py`, `m_stale.py` and `g_cite_samples.py` (line 1163), `t09_atan2_symbol.py` (lines 1155 and 1293) and `w_sym.sh` (lines 1157 and 1293). Their dated notes there say each was never committed, and re-ground each claim on committed instruments. So they were re-grounded, not archived.
+
+**Instrument errors of this repair (recorded, not counted):**
+* The `hook` group's first run, from the driver as committed in `73676ada4`, printed "exit 0" for every hook run, the blocked plants included. Its `echo` expanded a command substitution before `$?`, so it printed that substitution's status. The commit carrying this subsection captures the status on the line after the run. Every `hook` figure above is from that driver, run from its CR-stripped copy (sha256 prefix `dde606e1d513e669`). The first run's row-name counts and pytest results equal the second's.
+* The first call for the `hook` and `figures` groups looped over the group names inside a double-quoted PowerShell string. PowerShell expanded the loop variable to nothing, and the driver refused on a missing argument before running anything.
+* The first scratch re-measurement of B7 named a partition-script path that does not exist, and a second one printed through a filter that removed its lines. No figure came from either. The third, with the script's real path, printed the figures B7 now cites from the committed driver.
+
 ---
 
 ## [0.9.0rc472] - `#T1188`: the census learns SCALARS, an op that answered in one projection and refused in the other, the required-scalar fill that let thirteen rows be asked — and two of rc471's own shipped sentences corrected, one for a claim that is true at exactly one binade and one for a cause that was never the cause
