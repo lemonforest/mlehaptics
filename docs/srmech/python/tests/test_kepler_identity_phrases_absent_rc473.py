@@ -137,8 +137,13 @@ PRESENT = {
 }
 
 #: A gap between two words: whitespace, a comment continuation mark, a C string
-#: literal boundary, or an escaped newline inside a JSON-in-C literal.
-_GAP = r"(?:\s|[*#>\"]|\\n)+"
+#: literal boundary, or an escaped newline — ``\n`` in the curated file and
+#: ``_tool_docs.py``, and ``\\n`` in ``srmech_tool_registry.c``, where the
+#: generator writes a curated newline inside a JSON-in-C literal with its
+#: backslash escaped a second time. Until rc473 final repair 1 (`#T1188`) this
+#: read ``\\n`` (ONE backslash), and 12 of 15 removed sentences planted in the
+#: registry split across its own ``\\n# `` stayed green.
+_GAP = r"(?:\s|[*#>\"]|\\+n)+"
 
 
 def _pattern(phrase: str) -> "re.Pattern[str]":
@@ -184,6 +189,14 @@ def test_each_phrase_matches_its_own_original_sentence_plain_and_wrapped(key) ->
     assert rx.search(wrapped), f"{key}: the phrase does not survive a C comment wrap"
     literal = '"' + '"\n        "'.join(original.split(" ")) + '"'
     assert rx.search(literal), f"{key}: the phrase does not survive a C string split"
+    # The two escaped-newline encodings the string surfaces carry, byte for byte:
+    # a worked-comment newline is `\n# ` in the curated file and _tool_docs.py and
+    # `\\n# ` in srmech_tool_registry.c (rc473 final repair 1, `#T1188`).
+    curated = "\\n# ".join(original.split())
+    assert rx.search(curated), f"{key}: the phrase does not survive the curated escaped newline"
+    registry = "\\\\n# ".join(original.split())
+    assert rx.search(registry), (
+        f"{key}: the phrase does not survive the C registry's escaped newline")
     assert not rx.search("an unrelated sentence about " + phrase.split()[0]), key
 
 
