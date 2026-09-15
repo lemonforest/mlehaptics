@@ -42,7 +42,17 @@ for d in DIRS:
                 tally[(term, ctx)] += 1
                 at = line.lower().index(term.lower())
                 snippet = line[max(0, at - 60):at + len(term) + 60].strip()
-                print("%-16s %-5s %s:%d  %s" % (term, "KEP" if ctx else "-", rel, i + 1, snippet))
+                # rc473 final repair 1 (`#T1188`): a flagged hit also prints the context
+                # words that flagged it, and whether each sits on the hit's own line, so
+                # the hand-read's "flagged only because ..." can be checked from output.
+                why = ""
+                if ctx:
+                    words = []
+                    for j in range(max(0, i - 1), min(len(lines), i + 2)):
+                        where = "own line" if j == i else ("line %d" % (j + 1))
+                        words += ["%s (%s)" % (m.group(0), where) for m in CONTEXT.finditer(lines[j])]
+                    why = "   <- flagged by: " + "; ".join(sorted(set(words)))
+                print("%-16s %-5s %s:%d  %s%s" % (term, "KEP" if ctx else "-", rel, i + 1, snippet, why))
                 if ctx:
                     flagged.append((term, rel, i + 1))
 print("-" * 78)
