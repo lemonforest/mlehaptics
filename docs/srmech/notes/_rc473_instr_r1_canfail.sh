@@ -47,7 +47,8 @@ runner() { # <root> <tag> <command...>   (run under uv from the python root; pri
 M=/tmp/ir1_manifest.txt
 printf 'tests/test_jpl_audit.py\ntests/test_git_export_advice_absent_rc473.py\n' > "$M"
 MT=tests/test_ripple_manifest_covers_known_gates.py
-RUNNER_TESTS="$MT::test_the_runner_refuses_forwarded_options_that_narrow_the_gate_run $MT::test_the_runner_fails_a_green_run_whose_collection_lost_items $MT::test_the_collection_count_plugin_sees_a_removal_at_every_granularity"
+# Instrument repair 2 (`#T1188`) renamed the third node from ..._sees_a_removal_at_every_granularity.
+RUNNER_TESTS="$MT::test_the_runner_refuses_forwarded_options_that_narrow_the_gate_run $MT::test_the_runner_fails_a_green_run_whose_collection_lost_items $MT::test_the_collection_count_plugin_reports_the_planted_removals"
 export SRMECH_EXPECT_PURE=1
 
 case $GROUP in
@@ -162,7 +163,11 @@ figures)
   echo "== which manifest gates run tools/hooks/check_hooks.py, and with which argument"
   grep -n -E "^tests/test_(ledger_freshness_hook_rc468|git_env_cannot_reach_a_repository_rc473)\.py" "$P/tools/ripple_gates.txt"
   grep -n -E "subprocess.run\(\[sys.executable, str\(CHECKER\)" "$P/tests/test_ledger_freshness_hook_rc468.py" "$P/tests/test_git_env_cannot_reach_a_repository_rc473.py"
-  echo "  test files naming check_hooks.py together with jpl: $(grep -l -E "CHECKER\).*jpl|check_hooks.py.*\"jpl\"" "$P"/tests/*.py | wc -l)"
+  # Instrument repair 2 (`#T1188`): this line printed "test files naming check_hooks.py together with
+  # jpl", but its pattern matched only `CHECKER)` or a double-quoted "jpl" on the line, so it could not
+  # count tests/test_ledger_freshness_hook_rc468.py:30, which names both to say the jpl case is not run.
+  # It now prints what the pattern measures: CHECKER subprocess calls that pass a jpl argument.
+  echo "  CHECKER subprocess calls passing a jpl argument: $(grep -h -E "str\(CHECKER\)" "$P"/tests/*.py | grep -c -i "jpl")"
   echo "== the five truth-round instruments the rc473 section names"
   for t in truth/t04_citations.py m_stale.py g_cite_samples.py t09_atan2_symbol.py w_sym.sh; do
     echo "  $t: CHANGELOG lines $(grep -n -F "$t" "$P/CHANGELOG.md" | cut -d: -f1 | tr '\n' ' ') archived under notes/_rc473_scratch: $(git -C "$R" ls-files docs/srmech/notes/_rc473_scratch | grep -c -F "$(basename "$t")")"

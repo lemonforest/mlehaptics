@@ -535,11 +535,25 @@ def test_the_collection_sweep_runs_before_the_gates_and_aborts_on_failure() -> N
 # deselect, an option smuggled into a line". It compared test FUNCTIONS, with the
 # `[params]` stripped, so a conftest hook that dropped ONE parametrization of a
 # frozen gate left this file at 10 passed (gate round i1). The collection now loads
-# `tests/_collection_count_plugin.py` and fails on any item removed between
-# collection and the end of it, at every granularity and however it was spelled.
-# Its limits, stated: an item that never reaches `pytest_collection_modifyitems`
-# (a conftest `collect_ignore`, a `pytest_generate_tests` that generates fewer
-# parameters) is seen only when a whole test function goes missing, by the AST
+# `tests/_collection_count_plugin.py` and fails when it counts an item collected
+# that collection did not keep, or any item deselected.
+#
+# ⚠️ Instrument repair 2 (`#T1188`): the sentence above ended "fails on any item
+# removed between collection and the end of it, at every granularity and however
+# it was spelled". Gate round i2 measured that false: a conftest `tryfirst`
+# hookwrapper that filtered before its `yield`, in either wrapper style, or the
+# same wrapper loaded by PYTEST_PLUGINS, left this file green, because the plugin
+# took its first count inside that same hook. It now counts `pytest_itemcollected`.
+# The removals this check was measured to fail on, with the command, are in the
+# rc473 CHANGELOG, INSTRUMENT REPAIR 2, and in the plugin's docstring. Its limits,
+# stated: it collects with `--collect-only`, so a removal made once collection has
+# finished (a later `trylast` `pytest_collection_finish`, a `pytest_runtestloop`
+# or `pytest_runtest_protocol` implementation) is not in its counts — measured,
+# and read instead by `tools/ripple_check.py`, which runs the gates and counts
+# what ran; an item that never reaches `pytest_itemcollected` (a
+# `pytest_make_collect_report` wrapper that leaves it out, measured; a
+# `collect_ignore` or a `pytest_generate_tests` that generates fewer parameters,
+# not planted) is seen only when a whole test function goes missing, by the AST
 # comparison; and a filter that ALSO deselects this check in the outer run removes
 # the one test that could report it.
 
@@ -579,8 +593,11 @@ def test_the_manifest_collects_every_test_function_each_frozen_file_defines() ->
     and not counted as narrowed; a skip raised anywhere else is not exempt.
 
     The collection also loads ``tests/_collection_count_plugin.py`` (instrument
-    repair 1, `#T1188`) and fails when any item — a single parametrization
-    included — is removed between collection and the end of it, or deselected.
+    repairs 1 and 2, `#T1188`) and fails when that plugin counts fewer items kept
+    at the end of collection than it counted collected (``pytest_itemcollected``),
+    or any deselected. Which removals produce that is measured in the plugin's
+    docstring and the comment above; a removal made after collection finishes is
+    outside this collect-only node.
     """
     import os
     import re
@@ -619,14 +636,15 @@ def test_the_manifest_collects_every_test_function_each_frozen_file_defines() ->
           f"module-skipped {sorted(module_skipped)}, missing {len(missing)}, "
           f"items {counts}, {time.perf_counter() - t0:.1f} s")
     assert proc.returncode == 0, out[-3000:]
-    assert counts is not None and counts.get("collected") is not None, (
+    assert counts is not None and isinstance(counts.get("collected"), int), (
         f"{ripple_check.COUNT_PLUGIN} reported no counts, so this check cannot see a "
         f"filter below function granularity:\n{out[-2000:]}")
     assert counts.get("selected") == counts["collected"] and not counts.get("deselected"), (
-        f"collecting the manifest's frozen targets REMOVED items: {counts}. A conftest "
-        "hook, an addopts or PYTEST_ADDOPTS filter, or an option carried in a manifest "
-        "line narrowed a frozen gate — possibly below function granularity, where a "
-        "dropped parametrization leaves every function collected.")
+        f"collecting the manifest's frozen targets REMOVED items: {counts}. Something in "
+        "this collection — a conftest or PYTEST_PLUGINS hook, an addopts or PYTEST_ADDOPTS "
+        "filter, an option carried in a manifest line — narrowed a frozen gate, possibly "
+        "below function granularity, where a dropped parametrization leaves every "
+        "function collected.")
     assert len(collected) >= 300, f"collected only {len(collected)} functions:\n{out[-2000:]}"
     assert not missing, (
         f"{len(missing)} test function(s) defined in FROZEN gate files are not "
@@ -636,8 +654,10 @@ def test_the_manifest_collects_every_test_function_each_frozen_file_defines() ->
 
 def test_the_runner_refuses_forwarded_options_that_narrow_the_gate_run(monkeypatch) -> None:
     """Every forwarded argument off the runner's allow-list is refused before
-    anything runs, and so is a non-empty ``PYTEST_ADDOPTS``; the report and
-    stop-early options on the list still run.
+    anything runs, and so is a non-empty ``PYTEST_ADDOPTS`` or (since instrument
+    repair 2) ``PYTEST_PLUGINS``; the report and stop-early options on the list
+    still run. The refused list below is the spellings named here, not every
+    spelling pytest accepts.
 
     (Instrument repair 1, `#T1188`.) This docstring read "a `-k` typed at run
     time ... the runner refuses it" over a DENY-list that refused ``-k`` and let
@@ -651,6 +671,7 @@ def test_the_runner_refuses_forwarded_options_that_narrow_the_gate_run(monkeypat
         raise AssertionError("ripple_check ran something before refusing")
 
     monkeypatch.delenv("PYTEST_ADDOPTS", raising=False)
+    monkeypatch.delenv("PYTEST_PLUGINS", raising=False)
     monkeypatch.setattr(ripple_check, "run_collect_sweep", ran)
     monkeypatch.setattr(ripple_check, "_run", ran)
     refused = (
@@ -671,13 +692,16 @@ def test_the_runner_refuses_forwarded_options_that_narrow_the_gate_run(monkeypat
     monkeypatch.setenv("PYTEST_ADDOPTS", "-k pin")
     assert ripple_check.main(["--", "-x"]) == 2, "a non-empty PYTEST_ADDOPTS must be refused"
     monkeypatch.delenv("PYTEST_ADDOPTS")
+    monkeypatch.setenv("PYTEST_PLUGINS", "r2_envplug")
+    assert ripple_check.main(["--", "-x"]) == 2, "a non-empty PYTEST_PLUGINS must be refused"
+    monkeypatch.delenv("PYTEST_PLUGINS")
 
     calls = []
 
     def fake_run(cmd, cwd, env=None):
         calls.append(cmd)
         Path(env[ripple_check.COUNT_ENV]).write_text(
-            '{"collected": 5, "selected": 5, "deselected": 0}', encoding="utf-8")
+            '{"collected": 5, "selected": 5, "deselected": 0, "ran": 5}', encoding="utf-8")
         return 0
 
     monkeypatch.setattr(ripple_check, "run_collect_sweep", lambda root: calls.append("sweep") or 0)
@@ -691,13 +715,22 @@ def test_the_runner_refuses_forwarded_options_that_narrow_the_gate_run(monkeypat
 
 
 def test_the_runner_fails_a_green_run_whose_collection_lost_items(monkeypatch) -> None:
-    """Spelling-independent (instrument repair 1, `#T1188`): whatever removed an
-    item — an option no list names yet, an ``addopts``, a conftest hook — a green
-    pytest whose collection lost items fails, and so does one that reported no
-    counts. A red run keeps pytest's own code."""
+    """``judge_counts`` on count payloads (instrument repairs 1 and 2, `#T1188`): a
+    green pytest whose counts show an item collected but not kept, deselected, or
+    not run fails, and so does one that reported no counts or no ``ran``; a red
+    run keeps pytest's own code. Which real removals produce those counts is
+    measured by the plugin's can-fail below and by
+    ``notes/_rc473_instr_r2_canfail.sh``, not here.
+
+    (This docstring opened "Spelling-independent …: whatever removed an item — an
+    option no list names yet, an ``addopts``, a conftest hook — a green pytest
+    whose collection lost items fails" until instrument repair 2. It drove fake
+    payloads, so it could not show that, and gate round i2 found a conftest hook
+    whose removal the payload never carried.)"""
     from pathlib import Path
 
     monkeypatch.delenv("PYTEST_ADDOPTS", raising=False)
+    monkeypatch.delenv("PYTEST_PLUGINS", raising=False)
     monkeypatch.setattr(ripple_check, "run_collect_sweep", lambda root: 0)
 
     def reporting(payload, rc=0):
@@ -709,22 +742,35 @@ def test_the_runner_fails_a_green_run_whose_collection_lost_items(monkeypatch) -
         return fake_run
 
     for payload, rc, want in (
-            ('{"collected": 5, "selected": 5, "deselected": 0}', 0, 0),
-            ('{"collected": 5, "selected": 4, "deselected": 0}', 0, 1),   # a conftest drop
-            ('{"collected": 5, "selected": 1, "deselected": 4}', 0, 1),   # a -k in any spelling
-            (None, 0, 1),                                                   # nothing reported
-            ('{"collected": 5, "selected": 4, "deselected": 0}', 3, 3)):   # red stays red
+            ('{"collected": 5, "selected": 5, "deselected": 0, "ran": 5}', 0, 0),
+            ('{"collected": 5, "selected": 4, "deselected": 0, "ran": 4}', 0, 1),  # dropped in collection
+            ('{"collected": 5, "selected": 1, "deselected": 4, "ran": 1}', 0, 1),  # deselected
+            ('{"collected": 5, "selected": 5, "deselected": 0, "ran": 4}', 0, 1),  # dropped after collection
+            ('{"collected": 5, "selected": 5, "deselected": 0}', 0, 1),            # a plugin that writes no ran
+            (None, 0, 1),                                                            # nothing reported
+            ('{"collected": 5, "selected": 4, "deselected": 0, "ran": 4}', 3, 3),  # red stays red
+            ('{"collected": 5, "selected": 5, "deselected": 0, "ran": 2}', 1, 1)):  # stopped early, red
         monkeypatch.setattr(ripple_check, "_run", reporting(payload, rc))
         assert ripple_check.main([]) == want, (payload, rc)
 
 
-def test_the_collection_count_plugin_sees_a_removal_at_every_granularity(tmp_path) -> None:
+def test_the_collection_count_plugin_reports_the_planted_removals(tmp_path) -> None:
     """The COLLECTION check and the runner both trust
-    ``tests/_collection_count_plugin.py``, so it gets its own can-fail
-    (instrument repair 1, `#T1188`): a clean sandbox reports nothing removed, and
-    each of four filters is reported — a conftest hook dropping ONE
-    parametrization, a conftest hookwrapper dropping it after its own ``yield``,
-    ``-k``, and ``-o addopts=-k``."""
+    ``tests/_collection_count_plugin.py``, so it gets its own can-fail over a
+    four-item sandbox (instrument repairs 1 and 2, `#T1188`). Each row plants one
+    removal of ``test_b[2]`` and pins the counts the plugin writes,
+    ``(collected, selected, deselected, ran)``: on a run, and in two rows under
+    ``--collect-only``, the COLLECTION check's view. The removals are the ones
+    named in the rows, not every way to remove an item; the two LIMIT rows pin
+    removals the plugin's docstring says it does NOT see, so a change in either
+    direction is reported.
+
+    (Instrument repair 2: this test was named
+    ``test_the_collection_count_plugin_sees_a_removal_at_every_granularity`` and
+    planted four filters, none of which ran before the plugin's first count. Gate
+    round i2's hookwrapper that filters before its ``yield`` — old-style,
+    new-style, and loaded by ``PYTEST_PLUGINS`` — is among the rows now.)
+    """
     import os
     import subprocess
 
@@ -732,33 +778,75 @@ def test_the_collection_count_plugin_sees_a_removal_at_every_granularity(tmp_pat
     (tmp_path / "test_probe.py").write_text(
         "import pytest\n\n\n@pytest.mark.parametrize('n', [1, 2, 3])\n"
         "def test_b(n):\n    assert n\n\n\ndef test_c():\n    assert True\n", encoding="utf-8")
-    drop = "    items[:] = [i for i in items if not i.nodeid.endswith('test_b[2]')]\n"
-    conftests = {
+    items = "    items[:] = [i for i in items if not i.nodeid.endswith('test_b[2]')]\n"
+    session = "    session.items[:] = [i for i in session.items if not i.nodeid.endswith('test_b[2]')]\n"
+    imp = "import pytest\n\n\n"
+    sources = {
         "none": "",
-        "hook": "def pytest_collection_modifyitems(config, items):\n" + drop,
-        "wrapper": ("import pytest\n\n\n@pytest.hookimpl(hookwrapper=True, tryfirst=True)\n"
-                    "def pytest_collection_modifyitems(config, items):\n    yield\n" + drop),
+        "hook": "def pytest_collection_modifyitems(config, items):\n" + items,
+        "wrapper_after_yield": (imp + "@pytest.hookimpl(hookwrapper=True, tryfirst=True)\n"
+                                "def pytest_collection_modifyitems(config, items):\n    yield\n" + items),
+        "wrapper_before_yield": (imp + "@pytest.hookimpl(hookwrapper=True, tryfirst=True)\n"
+                                 "def pytest_collection_modifyitems(config, items):\n" + items + "    yield\n"),
+        "new_wrapper_before_yield": (imp + "@pytest.hookimpl(wrapper=True, tryfirst=True)\n"
+                                     "def pytest_collection_modifyitems(config, items):\n" + items
+                                     + "    return (yield)\n"),
+        "finish_trylast": (imp + "@pytest.hookimpl(trylast=True)\n"
+                           "def pytest_collection_finish(session):\n" + session),
+        "runtestloop_wrapper": (imp + "@pytest.hookimpl(hookwrapper=True, tryfirst=True)\n"
+                                "def pytest_runtestloop(session):\n" + session + "    yield\n"),
+        "protocol_returns_true": (imp + "@pytest.hookimpl(tryfirst=True)\n"
+                                  "def pytest_runtest_protocol(item, nextitem):\n"
+                                  "    if item.nodeid.endswith('test_b[2]'):\n        return True\n"),
+        "LIMIT_make_collect_report": (imp + "@pytest.hookimpl(hookwrapper=True)\n"
+                                      "def pytest_make_collect_report(collector):\n"
+                                      "    outcome = yield\n    rep = outcome.get_result()\n"
+                                      "    if rep.result:\n        rep.result[:] = [r for r in rep.result"
+                                      " if not getattr(r, 'nodeid', '').endswith('test_b[2]')]\n"),
+        "LIMIT_setup_skips": (imp + "def pytest_runtest_setup(item):\n"
+                              "    if item.nodeid.endswith('test_b[2]'):\n        pytest.skip('planted')\n"),
     }
 
-    def counts(conftest, *extra):
-        (tmp_path / "conftest.py").write_text(conftests[conftest], encoding="utf-8")
+    def counts(source, *extra, env_plugin=False, collect_only=False):
+        (tmp_path / "conftest.py").write_text("" if env_plugin else sources[source], encoding="utf-8")
+        (tmp_path / "r2_envplug.py").write_text(sources[source] if env_plugin else "", encoding="utf-8")
         out = tmp_path / "counts.json"
         if out.exists():
             out.unlink()
         env = dict(os.environ, **{ripple_check.COUNT_ENV: str(out)})
-        env["PYTHONPATH"] = os.pathsep.join(p for p in (str(_PKG_ROOT), env.get("PYTHONPATH")) if p)
+        env["PYTHONPATH"] = os.pathsep.join(
+            p for p in (str(_PKG_ROOT), str(tmp_path), env.get("PYTHONPATH")) if p)
         env.pop("PYTEST_ADDOPTS", None)
-        proc = subprocess.run(
-            [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
-             "-p", ripple_check.COUNT_PLUGIN, "test_probe.py", *extra],
-            cwd=str(tmp_path), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            timeout=300)
+        env.pop("PYTEST_PLUGINS", None)
+        if env_plugin:
+            env["PYTEST_PLUGINS"] = "r2_envplug"
+        argv = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
+                "-p", ripple_check.COUNT_PLUGIN, "test_probe.py", *extra]
+        if collect_only:
+            argv.append("--collect-only")
+        proc = subprocess.run(argv, cwd=str(tmp_path), env=env, stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, timeout=300)
         got = ripple_check.read_counts(out)
         assert got is not None, proc.stdout.decode("utf-8", "replace")[-2000:]
-        return got["collected"], got["selected"], got["deselected"]
+        return got["collected"], got["selected"], got["deselected"], got["ran"]
 
-    assert counts("none") == (4, 4, 0)
-    assert counts("hook") == (4, 3, 0)
-    assert counts("wrapper") == (4, 3, 0)
-    assert counts("none", "-k", "test_c") == (4, 1, 3)
-    assert counts("none", "-o", "addopts=-k test_c") == (4, 1, 3)
+    # (collected, selected, deselected, ran), on a run
+    assert counts("none") == (4, 4, 0, 4)
+    assert counts("hook") == (4, 3, 0, 3)
+    assert counts("wrapper_after_yield") == (4, 3, 0, 3)
+    assert counts("wrapper_before_yield") == (4, 3, 0, 3)                   # gate round i2
+    assert counts("new_wrapper_before_yield") == (4, 3, 0, 3)               # gate round i2
+    assert counts("wrapper_before_yield", env_plugin=True) == (4, 3, 0, 3)  # gate round i2
+    assert counts("finish_trylast") == (4, 4, 0, 3)
+    assert counts("runtestloop_wrapper") == (4, 4, 0, 3)
+    assert counts("protocol_returns_true") == (4, 4, 0, 3)
+    assert counts("none", "-k", "test_c") == (4, 1, 3, 1)
+    assert counts("none", "-o", "addopts=-k test_c") == (4, 1, 3, 1)
+    # --collect-only: the pre-yield wrapper is in the counts; a removal made after
+    # collection finishes is not (the COLLECTION check's stated limit)
+    assert counts("wrapper_before_yield", collect_only=True) == (4, 3, 0, 0)
+    assert counts("finish_trylast", collect_only=True) == (4, 4, 0, 0)
+    # the plugin's stated limits, pinned: an item that never reaches
+    # pytest_itemcollected, and an item that runs and is reported skipped
+    assert counts("LIMIT_make_collect_report") == (3, 3, 0, 3)
+    assert counts("LIMIT_setup_skips") == (4, 4, 0, 4)

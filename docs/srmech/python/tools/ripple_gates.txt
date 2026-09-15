@@ -1011,12 +1011,17 @@ tests/test_kepler_identity_phrases_absent_rc473.py
 tests/test_curated_line_citations_resolve_rc473.py
 
 # -- the export advice stays out of shipped text (rc473 instrument round) ----
-#    The final round corrected every shipped sentence that told an operator to
-#    put the repository-selecting pair in the environment, and nothing kept them
+#    The final round corrected the shipped sentences that told an operator to
+#    put the repository-selecting pair in the environment, and no gate kept them
 #    corrected: two merge-gate lenses planted the advice back into a remedy
-#    string and the hooks README, and every gate stayed green. This scans the
-#    package, tests, tools and notes for eight phrase forms, exempting only an
+#    string and the hooks README, and the gates they ran stayed green. (This
+#    read "every shipped sentence" and "every gate stayed green" until
+#    instrument repair 2, `#T1188`; the lenses ran named gate files, not every
+#    gate, and this gate's own reach is its forms and roots.) This scans the
+#    package, tests, tools and notes for thirteen phrase forms, exempting only an
 #    immediately preceding negation, against an allow list held as an equality.
+#    (Instrument repair 2, `#T1188`: this read "eight phrase forms"; instrument
+#    repair 1 added five, and the gate's PATTERNS holds thirteen.)
 #    Any rc that edits a remedy string, a hooks doc or a notes recipe moves it.
 #    Pure-Python, no native .so.
 tests/test_git_export_advice_absent_rc473.py

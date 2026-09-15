@@ -7,10 +7,12 @@ From 2026-09-11 to 2026-09-14 a test fixture wrote ``decoy identity`` into the
 live repository's shared ``.git/config``, under a ``GIT_DIR`` / ``GIT_WORK_TREE``
 pair that operators had put in their environment because SHIPPED remedy text told
 them to (``tools/hooks/_hooklib.py``, ``tools/run_worked_examples.py``, the hooks
-README, ``settings.sample.json``). The final round corrected every one of those
-sentences, and no gate claimed to keep them corrected: merge-gate lenses re-planted
-the advice into a remedy string and the hooks README and every candidate gate
-stayed green. This is that gate.
+README, ``settings.sample.json``). The final round corrected those sentences, and
+no gate claimed to keep them corrected: merge-gate lenses re-planted the advice
+into a remedy string and the hooks README, and the gate files they ran under those
+plants stayed green. This is that gate. (Instrument repair 2, `#T1188`: this read
+"every candidate gate stayed green"; the lenses ran named gate files, not every
+gate.)
 
 WHAT IT SCANS
 -------------

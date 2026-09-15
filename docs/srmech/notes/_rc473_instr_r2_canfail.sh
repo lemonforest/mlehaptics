@@ -101,7 +101,7 @@ runner)
   fi
   ;;
 old_tests)
-  N="$MT::test_the_runner_refuses_forwarded_options_that_narrow_the_gate_run $MT::test_the_runner_fails_a_green_run_whose_collection_lost_items $MT::test_the_collection_count_plugin_sees_a_removal_at_every_granularity"
+  N="$MT::test_the_runner_refuses_forwarded_options_that_narrow_the_gate_run $MT::test_the_runner_fails_a_green_run_whose_collection_lost_items $MT::test_the_collection_count_plugin_reports_the_planted_removals"
   echo "== the runner and plugin tests, this tree"; pt o_tree - $N
   echo "== the same tests with the $OLD runner and plugin written in"
   plant "$PURE" revert "$OLD" python/tools/ripple_check.py python/tests/_collection_count_plugin.py

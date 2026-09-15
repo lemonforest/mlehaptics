@@ -199,13 +199,22 @@ def run_collect_sweep(pkg_root: Path) -> int:
 #: filter, and pytest's parser accepts more spellings than a list names (short
 #: flags CLUSTER, and ``addopts`` can be overridden from the command line).
 #:
-#: Everything below changes what is REPORTED or when a failing run STOPS; none
-#: selects, skips or replaces a test. ``-x`` / ``--maxfail`` stop early only after
+#: pytest 9.0.3's ``--help`` describes each option below as changing what is
+#: REPORTED (verbosity, report characters, tracebacks, locals, header, colour,
+#: durations), how output is CAPTURED, or when a failing run STOPS; none of those
+#: descriptions selects, skips or replaces a test. (Until instrument repair 2,
+#: `#T1188`, this sentence said so without naming its source; other pytest
+#: versions' help was not read.) ``-x`` / ``--maxfail`` stop early only after
 #: a failure, so the run is red either way. Short flags cluster (``-xq``,
 #: ``-vv``); ``-r`` takes the rest of its cluster, or the next argument, as its
 #: report characters. And the list is not the only guard: the gate run loads
-#: ``tests/_collection_count_plugin.py`` and fails a green run whose collection
-#: lost an item, however that removal was spelled (:func:`judge_counts`).
+#: ``tests/_collection_count_plugin.py``, and :func:`judge_counts` fails a green
+#: run whose counts show an item collected but not kept, deselected, or not run.
+#: (Instrument repair 2, `#T1188`: this read "fails a green run whose collection
+#: lost an item, however that removal was spelled". Gate round i2 found a conftest
+#: hookwrapper that removed an item before the plugin's first count; the removals
+#: the check was measured to see, and the ones it cannot, are listed in
+#: :func:`judge_counts` and the plugin's docstring.)
 ALLOWED_SHORT_FLAGS = frozenset("xqvsl")
 ALLOWED_LONG_FLAGS = frozenset({"--exitfirst", "--quiet", "--verbose",
                                 "--showlocals", "--no-header", "--full-trace"})
@@ -273,8 +282,8 @@ def refused_forwarded_args(pytest_args: list[str]) -> list[str]:
 
 
 def read_counts(path: str | Path) -> dict | None:
-    """The three counts ``tests/_collection_count_plugin.py`` wrote, or ``None``
-    when it wrote nothing readable."""
+    """The counts ``tests/_collection_count_plugin.py`` wrote, or ``None`` when it
+    wrote nothing readable."""
     try:
         text = Path(path).read_text(encoding="utf-8")
         data = json.loads(text) if text.strip() else None
@@ -286,26 +295,42 @@ def read_counts(path: str | Path) -> dict | None:
 def judge_counts(rc: int, counts: dict | None) -> int:
     """pytest's return code, unless the run it reports on is not the manifest's.
 
-    Spelling-independent (rc473 instrument repair 1, `#T1188`): whatever removed
-    an item between collection and the end of it — a forwarded option, an
-    ``addopts``, a conftest hook — a GREEN run with ``selected != collected`` or
-    any ``deselected`` item fails, and so does a run that reported no counts at
-    all. A red run stays red with pytest's own code.
+    (rc473 instrument repairs 1 and 2, `#T1188`.) ``tests/_collection_count_plugin.py``
+    writes what the gate run collected (``pytest_itemcollected``), kept once
+    collection finished, deselected, and ran (setup reports). A GREEN run fails
+    when ``selected`` or ``ran`` differs from ``collected``, when anything was
+    deselected, or when the plugin wrote no counts. A red run keeps pytest's own
+    code.
+
+    ⚠️ Instrument repair 1 said this fails a green run that lost an item "whatever
+    removed" it. It compared ``selected`` with a first count read in a ``tryfirst``
+    hookwrapper, and gate round i2 ran a conftest ``tryfirst`` hookwrapper that
+    filtered before its ``yield`` past it, the runner exiting 0 on a run that had
+    lost items. What this function is measured to fail, and the
+    removals the plugin cannot see (an item that never reaches
+    ``pytest_itemcollected``; an item that runs and is reported skipped), are
+    listed in that plugin's docstring and in the rc473 CHANGELOG, INSTRUMENT
+    REPAIR 2.
     """
-    if counts is None or counts.get("collected") is None:
+    if (counts is None or not isinstance(counts.get("collected"), int)
+            or not isinstance(counts.get("ran"), int)):
         print("ripple_check: FAILED -- the gate run reported no collection counts "
-              f"({COUNT_PLUGIN} wrote nothing), so it cannot show that it ran what "
-              "the manifest collects.", file=sys.stderr)
+              f"({COUNT_PLUGIN} wrote nothing readable), so it cannot show that it "
+              "ran what the manifest collects.", file=sys.stderr)
         return rc or 1
-    collected, selected = counts.get("collected"), counts.get("selected")
-    deselected = counts.get("deselected") or 0
-    if selected != collected or deselected:
-        print(f"ripple_check: FAILED -- the gate run collected {collected} items and "
-              f"kept {selected} ({deselected} deselected). A run that removed items "
-              "is not the manifest's run, and its green would read as the "
+    collected, selected = counts["collected"], counts.get("selected")
+    deselected, ran = counts.get("deselected") or 0, counts["ran"]
+    if selected != collected or deselected or ran != collected:
+        if rc != 0 and selected == collected and not deselected:
+            print(f"ripple_check: red -- the gate run collected {collected} items and "
+                  f"ran {ran} before pytest stopped with exit {rc}.", flush=True)
+            return rc
+        print(f"ripple_check: FAILED -- the gate run collected {collected} items, kept "
+              f"{selected} ({deselected} deselected) and ran {ran}. A run that removed "
+              "items is not the manifest's run, and its green would read as the "
               "manifest's.", file=sys.stderr)
         return rc or 1
-    print(f"ripple_check: collection kept all {collected} items the manifest's "
+    print(f"ripple_check: the gate run ran all {collected} items the manifest's "
           "targets collect", flush=True)
     return rc
 
@@ -353,7 +378,9 @@ def main(argv: list[str] | None = None) -> int:
     # `-o addopts=...` / `--setup-plan` ... narrows the gate run to a subset no
     # manifest reader can see, or runs nothing, and the runner would then report
     # that green as the manifest's. PYTEST_ADDOPTS reaches the same parser from
-    # the environment, so a non-empty one is refused too.
+    # the environment, and PYTEST_PLUGINS loads a module into the gate run (and
+    # into every pytest child a gate starts), which can remove items; a non-empty
+    # value of either is refused (PYTEST_PLUGINS since instrument repair 2).
     refused = refused_forwarded_args(args.pytest_args)
     if refused:
         print("ripple_check: REFUSED -- forwarded pytest argument(s) "
@@ -366,12 +393,12 @@ def main(argv: list[str] | None = None) -> int:
               "manifest, or run pytest on the file you want directly.",
               file=sys.stderr)
         return 2
-    if os.environ.get("PYTEST_ADDOPTS", "").strip():
-        print("ripple_check: REFUSED -- PYTEST_ADDOPTS is set "
-              f"({os.environ['PYTEST_ADDOPTS']!r}). pytest reads it as extra "
-              "command-line arguments, past this runner's allow-list; unset it "
-              "for the ripple sweep.", file=sys.stderr)
-        return 2
+    for name in ("PYTEST_ADDOPTS", "PYTEST_PLUGINS"):
+        if os.environ.get(name, "").strip():
+            print(f"ripple_check: REFUSED -- {name} is set ({os.environ[name]!r}). "
+                  "pytest reads it from the environment, past this runner's "
+                  "allow-list; unset it for the ripple sweep.", file=sys.stderr)
+            return 2
 
     targets = load_manifest(args.manifest)
 
@@ -416,9 +443,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ripple_check: manifest {args.manifest} has no targets", file=sys.stderr)
         return 1
 
-    # The gate run loads tests/_collection_count_plugin.py (instrument repair 1,
-    # `#T1188`), and judge_counts fails a green run that lost an item between
-    # collection and the end of it, whatever spelling removed it.
+    # The gate run loads tests/_collection_count_plugin.py (instrument repairs 1
+    # and 2, `#T1188`), and judge_counts fails a green run whose counts show an
+    # item collected but not kept, deselected, or not run. (This read "whatever
+    # spelling removed it" until instrument repair 2; see judge_counts for what
+    # the counts were measured to see and what they cannot.)
     fd, count_path = tempfile.mkstemp(prefix="ripple_count_", suffix=".json")
     os.close(fd)
     try:

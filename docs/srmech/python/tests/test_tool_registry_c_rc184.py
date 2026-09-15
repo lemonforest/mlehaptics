@@ -91,7 +91,8 @@ def _fail_diverged(what: str, a_name: str, a, b_name: str, b, remedy: str) -> No
     bounded window — never an ``assert a == b`` on multi-megabyte values.
 
     rc473 instrument round (`#T1188`): the bare assertion handed pytest's
-    assertion rewriting a diff of two ~3.3 MB values. At ``-q`` that is cheap;
+    assertion rewriting a diff of two ~3.3 MB values (the JSON pair; the codegen
+    pair this helper also serves is ~3.6 MB). At ``-q`` that is cheap;
     at ``-v`` pytest renders a difflib ``ndiff``, and whether it returns
     depends on the drift's CONTENT. Measured: a one-byte length shift in a
     ToolEntry sentence (curated + ``_tool_docs.py`` edited, registry not
