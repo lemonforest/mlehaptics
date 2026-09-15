@@ -1439,6 +1439,91 @@ Gate round t2 named both absences as missing pins: can-fail N1 and N6, sweep N3.
 * **The first phrase slice.** It exited 1 at `import pytest`, before any plant; it is re-run with pytest available.
 * **Windows tally parsing.** The driver's tally parser missed the Windows helper revert's failing node on CRLF output. It is named above by its assertion message. The parser was fixed before the Windows `m2_unwire` run.
 
+##### Validation of the code head `5a75bf347` (2026-09-15)
+
+**Code trees and ripple.**
+* Against the final round's validated code head `33cf3f8a5`, read by Windows git with `git rev-parse <sha>:<dir>`:
+  * `docs/srmech/c` (`466435716359`), `python/srmech` (`e00fb19f5581`) and `python/tools` (`3536b391b448`) are identical;
+  * `python/tests` and `notes` differ.
+* `git diff --name-only cb634fdb4 5a75bf347` lists the CHANGELOG, `tests/_git_env.py`, the leak gate, the phrase gate and the two notes instruments.
+* **No shipped prose moved**, so there is no regeneration, witness re-pin or ledger harvest. Group 2 below passes `test_search_glyph_tokenizer_rc416` (`WITNESS_RC416` `01ff7bc2…`) and both ledger-freshness rows in both cells.
+
+**Conditions.**
+* **WSL2** clones `~/rc473c/repo` (native) and `~/rc473c/pure` (0 library files), each at `5a75bf347` with 0 tracked changes before and after every run.
+* **Exported variables.** Every WSL script behind these figures prints the count of exported `GIT_DIR` / `GIT_WORK_TREE`, and every count printed was 0. The scripts are the final round's `w_sync.sh`, `w_gates.sh`, `w_d1d2.sh`, `w_ripple.sh` and `w_census.sh`, plus this repair's `fr1/w_clean_build.sh`, `w_d1_full.sh`, `w_env428.sh` and `w_env428_norm.sh`.
+* **Native figures.** Every one was authenticated first: `srmech_rational_sqrt(NaN)` → 2, ABI 26, `0.9.0rc473`, with `_native.__file__` and the library digest printed.
+* CPython 3.12.3; `SRMECH_ALLOW_STALE_NATIVE` unset; no mtime touched.
+* **The live repository:** `file:C:/Users/sckir/.gitconfig` `Steven Kirkland` / `sckirklan@gmail.com`, and `sha256(.git/config)` `ffaa8595e317ed80dd6b9a28efed7b0d9f5a0726149ceaa7a24e8a2be59ce2c6` at 06:09:12Z and at 07:20:56Z.
+
+**Builds.**
+* **WSL gcc 13.3.0**, CLEAN pedantic Release in a fresh `~/rc473c/build_fr1`:
+  * configure 0, build 0, 0 warnings / 0 errors, `[219/219]`;
+  * 178 `-Werror`, 0 `__assert_fail`;
+  * library `205f661661ba2cd0`, the final round's digest;
+  * ctest "100% tests passed out of 40".
+* **Windows clang-cl 22.1.0** (cmake 4.3.1, Ninja 1.12.0, `/arch:AVX2 /clang:-msha /clang:-msse4.1`), in a `git -c core.autocrlf=false archive` extract of `5a75bf347` under `C:/Users/sckir/rc473c_win/fr1/win` with 0 CR bytes in `srmech_kepler.c`:
+  * **Release:** configure 0, build 0, 0 warning / 0 error lines, 178 `/WX`, ctest 40/40, DLL `47c94bc24e7e8455`;
+  * **Debug:** the same, DLL `eac19a3aec592ae8`;
+  * both DLL digests differ from the final round's `3e9bbe174dde7560` / `f4712ffe32809d9b`, which were built at a different extract path. The cause was not measured.
+* **The Windows C-boundary pair** (`test_kepler_non_finite_slots_rc473` + `test_value_status_c_boundary_rc473`), inside the extract, one DLL at a time:
+  * Release **250 passed, 6 xfailed** and Debug **250 passed, 6 xfailed**, each AUTHENTIC;
+  * pure **73 passed, 183 skipped**.
+
+**The named gates** — the same four groups as the final round's validation above, one foreground pytest per group and cell:
+
+| group | native | pure |
+|---|---|---|
+| 1 | 348 passed, 6 xfailed | 168 passed, 186 skipped |
+| 2 | 90 passed | 90 passed |
+| 3 | 203 passed, 1 skipped | 170 passed, 34 skipped |
+| **the 29 files** | **641 passed, 1 skipped, 6 xfailed** | **428 passed, 220 skipped** |
+| 4 | **114 passed, 3 skipped** | **114 passed, 3 skipped** |
+
+* Group 4 is the final round's 111 plus the three new leak-gate tests. The 3 skips are `hatch_fancy_pypi_readme`.
+
+**Windows, extra to the brief** (CPython 3.14.4, pure).
+* **In a real checkout.** The six git-reading group-4 files — the leak gate, rc471, `ledger_write_refusals`, `shell_line_loop`, `figure_run` and `registry_completeness` — ran in the session worktree, a Windows-git checkout at `5a75bf347` with 0 tracked changes: **66 passed**.
+* **In the git-free extract**, group 4 printed 3 failed, 110 passed, 4 skipped.
+  * The 3 failures are all `test_ledger_write_refusals_rc469`, raising `head_blob_map`'s refusal "exited 128 … not a git repository".
+  * The same file run the same way in a git-free extract of the base `1ab8d405b` (`fr1/base_rc469.py`) fails the **identical** three nodes. Its failure line shares its first 325 characters and differs only in the remedy text rc473 rewrote: base "export GIT_DIR and GIT_WORK_TREE", head "Do NOT export GIT_DIR or GIT_WORK_TREE".
+  * **Environmental:** a git-free cell cannot serve a git-reading gate.
+
+**D1** (`notes/_rc473_twin_d1_dump.py` + `_d1_analyze.py`, printed in full by `fr1/w_d1_full.sh`):
+* `rows=40045`;
+* filed 24 rows, extra 21 rows and fuzz 40000 rows, each "symbol mismatches 0 wrapper mismatches 0";
+* families `{'0': 11338, '1': 11338, '2': 11337, '3': 5987}`;
+* the door rows (±2^55, NaN, ±Inf, 1e300) print `st 2 … res nan`.
+
+**D2.** The slot sweep printed "rows compared: 107 {'SAME': 107, 'SAME-VERDICT': 0, 'SERVE-vs-REFUSE': 0}", and the tolerance frontier "rows compared: 306 {'SAME': 306, 'SAME-VERDICT': 0, 'SERVE-vs-REFUSE': 0}".
+* Scratch cross-checks, not cited as evidence for any shipped sentence:
+  * the `srmech_kepler_solve` symbol fuzz — 200000 rows, seed 9131, 184218 compared, 0 status and 0 bit mismatches, 15782 refused by both;
+  * the served-value witness — 20 lines per cell. The one differing line is its header, which names the cell (`HAS_NATIVE True` / `False`, and each clone's path).
+
+**The whole ripple manifest**, native, from `~/rc473c/repo`: 139 targets in six parts, "union equal True".
+
+| part | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| result | 495 passed | 455 passed | 1 failed, 348 passed | 567 passed, 2 skipped, 6 xfailed | 558 passed | 805 passed, 1 skipped |
+
+* **Total: 3238 items — 3228 passed, 3 skipped, 6 xfailed, 1 failed**, with no part re-run. That is the final round's 3235 plus the leak gate's three new tests in part 1.
+* **The failure** is `test_citation_manifest_rc428.py::test_the_validate_entry_point_exits_nonzero_on_a_failing_control`.
+  * Run alone at `5a75bf347` and at `1ab8d405b` (`fr1/w_env428.sh`), in clone paths of 26 characters each, both print "1 failed" with 8 failure lines.
+  * The first comparison normalised only the clone path. It printed DIFFER on one line, which differed only in uv's per-run interpreter directory.
+  * With that normalised too (`fr1/w_env428_norm.sh`, no test re-run), the lines are **IDENTICAL**, "the shadowed import failed WITHOUT naming the cause: … ModuleNotFoundError: No module named 'srmech'". It is environmental.
+
+**The demotion census from an EMPTY manifest.**
+* The pure column first ("manifest before: EMPTY", 181.5 s), then the native column merged into it (45.1 s, authenticated).
+* `tools/census_regen_diff.py` against the committed census:
+  * "(i) meta keys that MOVED: []";
+  * rows added 0, removed 0; "data lines differing at all: 0 of 835 shared";
+  * "VERDICT CHANGES: 0";
+  * **"INVARIANT: HELD (5/5)"**.
+
+**CI on `5a75bf347`**, each job's conclusion read after the run completed:
+* `srmech-ci` run 34938131213 `completed`, `success`, with all 22 jobs `success`;
+* `srmech-ref-guard` run 34938130555 `success`;
+* **23 of 23.**
+
 ---
 
 ## [0.9.0rc472] - `#T1188`: the census learns SCALARS, an op that answered in one projection and refused in the other, the required-scalar fill that let thirteen rows be asked — and two of rc471's own shipped sentences corrected, one for a claim that is true at exactly one binade and one for a cause that was never the cause
