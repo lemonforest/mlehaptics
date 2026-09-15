@@ -716,6 +716,21 @@ SCAN_ROOTS = {
     # A `python/`-only scan would have been green over every one of them.
     "tests/test_rc473_a6_phrase_gate_runs.py": (
         "docs/srmech/python", "docs/srmech/c", "docs/srmech/notes"),
+    # rc473 final round (`#T1188`): the removed-Kepler-identity phrase gate reads
+    # the six surfaces the sentences shipped on — the curated SSoT, `_tool_docs.py`
+    # and `srmech/math/kepler.py` under python/, and `srmech_tool_registry.c`,
+    # `srmech.h` and `srmech_kepler.c` under c/. Two of those three c/ files are
+    # where the family was first written, so a python/-only scan would miss the
+    # surfaces a bare-C host reads. (This entry was MISSING when the gate landed at
+    # `1287b3ed0`; srmech-ref-guard went red on it, which is this meta-test working.)
+    "tests/test_kepler_identity_phrases_absent_rc473.py": (
+        "docs/srmech/python", "docs/srmech/c"),
+    # rc473 final round (`#T1188`): the curated line-citation gate walks EVERY
+    # `*.py` under docs/srmech to resolve a cited path — the curated prose cites
+    # package modules, tools, tests and at least one `notes/` script
+    # (`notes/nucleosome_turn_asymmetry_frame_spike.py`) — so its root is the whole
+    # subtree, which srmech-ref-guard.yml's `docs/srmech/**` trigger watches.
+    "tests/test_curated_line_citations_resolve_rc473.py": ("docs/srmech",),
     # rc436 (`#T1141`): the citation-CONTRADICTION gate reads the compiled-in C
     # tool registry alongside every package module, because the contradiction it
     # is strict-zero on shipped in BOTH -- the rc429 Fuller-1971 claim reached
