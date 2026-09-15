@@ -337,6 +337,11 @@ FROZEN_KNOWN_GATES = frozenset({
     "tests/test_git_env_cannot_reach_a_repository_rc473.py",
     "tests/test_kepler_identity_phrases_absent_rc473.py",
     "tests/test_curated_line_citations_resolve_rc473.py",
+    # rc473 instrument round (`#T1188`): the export-advice gate, frozen for the
+    # reason the leak gate is. The advice it keeps out is what operators acted on
+    # before a fixture wrote the live repository's shared config, and its return
+    # was measured green on every gate the tree had.
+    "tests/test_git_export_advice_absent_rc473.py",
 })
 
 

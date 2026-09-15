@@ -49,8 +49,17 @@ WHAT EACH TEST PROVES, AND HOW IT CAN FAIL
   PARSED from check_hooks' summary and must be at least one: a run that
   selects no check prints ``0 passed, 0 failed, 0 skipped (0 cases)`` and exits
   0, and every other assertion of the arm is then vacuously true.
+* ARM 3a and ARM 3b (rc473 instrument round) pin the two hook-side scrubs ONE AT
+  A TIME. ARM 3 needs both removed before it reds, because each hides the
+  other's removal: ``check_hooks.invoke()``'s scrub is pinned by a probe child
+  that runs no git and reports the ``GIT_*`` names it was handed, and
+  ``_hooklib.git()``'s — the only layer for a hook the harness launches
+  directly — by calling it in this process under the export, where it must
+  answer for its cwd and write only there.
 * The PIN: the guard's list is a superset of what the RUNNING git prints for
   ``git rev-parse --local-env-vars``, so a future git that adds a name reds.
+  The three write-redirect names git does not list are pinned LITERALLY, with a
+  per-name control that the running git honours each one and the scrub stops it.
 * The DECIDER: the worktree-pointer lookup answers in both directions.
 * The WALK: a real ``.git`` directory ends the walk, and does so under a
   worktree-pointer checkout whose ``/mnt`` twin exists — the geometry in which
@@ -340,6 +349,182 @@ def test_the_scrub_removes_the_list_and_the_numbered_config_family_and_nothing_e
     removed = _git_env.scrub(env)
     assert sorted(env) == ["GIT_CEILING_DIRECTORIES", "GIT_EDITOR", "PATH"], sorted(env)
     assert "GIT_CONFIG_KEY_0" in removed and "GIT_DIR" in removed
+
+
+# ── ARM 3a / 3b: each hook-side scrub ALONE (rc473 instrument round) ────────
+
+def _hook_modules():
+    hooks = PY_ROOT / "tools" / "hooks"
+    if str(hooks) not in sys.path:
+        sys.path.insert(0, str(hooks))
+    import _hooklib as H
+    import check_hooks as CH
+    return CH, H
+
+
+def _git_out(args, cwd: Path, env=None):
+    """``(exit, stripped stdout)`` of a git call; ``env`` defaults to the scrubbed
+    environment with a ceiling, as :func:`_git` uses."""
+    if env is None:
+        env = _git_env.scrubbed()
+        env["GIT_CEILING_DIRECTORIES"] = str(Path(cwd).resolve().parent)
+    proc = subprocess.run(["git", *args], cwd=str(cwd), env=env,
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    return proc.returncode, proc.stdout.decode("utf-8", "replace").strip()
+
+
+def _make_fixture(path: Path) -> Path:
+    path.mkdir(parents=True)
+    for args in (["init", "-q", "-b", "main"],
+                 ["config", "--local", "user.name", "Fixture Owner"],
+                 ["config", "--local", "user.email", "fixture@example.invalid"]):
+        _git(args, path)
+    (path / "f.txt").write_bytes(b"fixture\n")
+    _git(["add", "--", "f.txt"], path)
+    _git(["-c", "commit.gpgsign=false", "commit", "-q", "-m", "fixture"], path)
+    return path
+
+
+def test_invoke_hands_the_hook_child_no_repository_selecting_variable(tmp_path, monkeypatch) -> None:
+    """ARM 3a — ``check_hooks.invoke()``'s scrub, with no other layer in the path.
+
+    ARM 3 sees this scrub only together with ``_hooklib.git()``'s: measured at
+    the rc473 instrument round, removing either one alone left this file green,
+    because every hook git call ALSO goes through the other. So the child here
+    is a probe script that runs no git at all and reports the ``GIT_*`` names it
+    was handed. The control first shows the probe DOES see the planted names
+    when it is launched without the scrub.
+    """
+    import json
+
+    CH, _H = _hook_modules()
+    probe = tmp_path / "probe_env.py"
+    probe.write_text("import json, os, sys\nsys.stdin.read()\nsys.stderr.write(json.dumps("
+                     "sorted(k for k in os.environ if k.startswith('GIT_'))))\n", encoding="utf-8")
+    planted = {name: str(tmp_path / "elsewhere") for name in _git_env.GIT_REPO_LOCAL_ENV}
+    planted.update({"GIT_CONFIG_KEY_0": "user.name", "GIT_CONFIG_VALUE_0": "planted"})
+    for name, value in planted.items():
+        monkeypatch.setenv(name, value)
+    control = subprocess.run([sys.executable, str(probe)], input=b"{}", env=dict(os.environ),
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
+    unscrubbed = json.loads(control.stderr.decode("utf-8").strip().splitlines()[-1])
+    assert set(planted) <= set(unscrubbed), (
+        f"control: the probe did not see the planted names unscrubbed: {unscrubbed}")
+    code, err = CH.invoke(str(probe), {})
+    assert code == 0, err
+    handed = json.loads(err.strip().splitlines()[-1])
+    leaked = sorted(set(handed) & set(planted))
+    assert leaked == [], f"check_hooks.invoke() handed the hook child {leaked}"
+
+
+@_NEEDS_GIT
+def test_hooklib_git_answers_for_its_cwd_and_writes_nothing_else_under_an_exported_GIT_DIR(tmp_path, monkeypatch) -> None:
+    """ARM 3b — ``_hooklib.git()``'s scrub, in this process, with no suite guard
+    and no ``invoke()`` in the path: the variables are set by this test after
+    conftest ran. It is the only layer for a hook the harness launches directly.
+
+    Under the export at a sentinel worktree gitdir, ``git rev-parse HEAD`` must
+    answer the FIXTURE's HEAD and ``git config --local`` must land in the fixture;
+    the sentinel's gitdir must not move a byte. The last assertion is the
+    control that the write happened at all.
+    """
+    _CH, H = _hook_modules()
+    repo, worktree, gitdir = _make_sentinel(tmp_path)
+    fixture = _make_fixture(tmp_path / "fixture")
+    want = _git_out(["rev-parse", "HEAD"], fixture)[1]
+    before = _state(repo)
+    monkeypatch.delenv(H.HOOK_GIT_ENV, raising=False)
+    monkeypatch.setenv("GIT_DIR", str(gitdir))
+    monkeypatch.setenv("GIT_WORK_TREE", str(worktree))
+    head_code, head = H.git(["rev-parse", "HEAD"], cwd=fixture)
+    write_code, write_out = H.git(["config", "--local", "user.name", "hooklib planted"], cwd=fixture)
+    monkeypatch.delenv("GIT_DIR")
+    monkeypatch.delenv("GIT_WORK_TREE")
+    moved = _moved(before, _state(repo))
+    assert moved == [], f"_hooklib.git() wrote the repository GIT_DIR named: {moved}"
+    assert head_code == 0 and head.strip() == want, (
+        f"_hooklib.git() answered {head.strip()!r}; its cwd's HEAD is {want!r}")
+    assert write_code == 0 and _git_out(["config", "--local", "--get", "user.name"], fixture)[1] \
+        == "hooklib planted", f"control: the write landed nowhere visible ({write_out!r})"
+
+
+# ── the write-redirect names, pinned literally and by behaviour ─────────────
+
+#: Named HERE, not read from ``_git_env.GIT_WRITE_REDIRECT_ENV``: the scrub test
+#: above builds its input FROM the tuple, so emptying the tuple emptied the
+#: test's own input and it stayed green (measured at the rc473 instrument round).
+_REDIRECT_NAMES = ("GIT_NAMESPACE", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM")
+
+
+def test_the_scrub_removes_the_write_redirect_names_named_literally() -> None:
+    env = {name: "/elsewhere" for name in _REDIRECT_NAMES}
+    env.update({"GIT_CONFIG_COUNT": "3",
+                "GIT_CONFIG_KEY_0": "user.name", "GIT_CONFIG_VALUE_0": "planted",
+                "GIT_CONFIG_KEY_1": "user.email", "GIT_CONFIG_VALUE_1": "p@example.invalid",
+                "GIT_CONFIG_KEY_12": "core.worktree", "GIT_CONFIG_VALUE_12": "/elsewhere",
+                "PATH": "/bin"})
+    removed = _git_env.scrub(env)
+    assert sorted(env) == ["PATH"], sorted(env)
+    missing = sorted(set(_REDIRECT_NAMES) - set(removed))
+    assert missing == [], f"scrub() no longer removes {missing}"
+
+
+def _redirect_env(cwd: Path, home: Path) -> dict:
+    env = _git_env.scrubbed()
+    env.pop("GIT_CONFIG_NOSYSTEM", None)
+    env["GIT_CEILING_DIRECTORIES"] = str(Path(cwd).resolve().parent)
+    env.update({"HOME": str(home), "USERPROFILE": str(home),
+                "XDG_CONFIG_HOME": str(home / ".config")})
+    return env
+
+
+@_NEEDS_GIT
+@pytest.mark.parametrize("name", ["GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
+                                  "GIT_CONFIG_COUNT", "GIT_NAMESPACE"])
+def test_each_redirect_moves_what_the_running_git_reads_or_writes_and_the_scrub_stops_it(tmp_path, name) -> None:
+    """Per name: the RUNNING git honours it (the control — else the literal pin
+    above guards a name this git ignores) and the scrubbed environment does not."""
+    home = tmp_path / "home"
+    home.mkdir()
+    fixture = _make_fixture(tmp_path / "fixture")
+    base = _redirect_env(fixture, home)
+    if name in ("GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM"):
+        target = tmp_path / "redirected.cfg"
+        target.write_text("[user]\n\tname = redirected\n", encoding="utf-8")
+        args = ["config", "--global" if name == "GIT_CONFIG_GLOBAL" else "--system",
+                "--get", "user.name"]
+        planted = dict(base, **{name: str(target)})
+        control = _git_out(args, fixture, planted)
+        scrubbed = dict(planted)
+        _git_env.scrub(scrubbed)
+        got = _git_out(args, fixture, scrubbed)
+        assert control == (0, "redirected"), f"control: this git ignores {name}: {control}"
+        assert got[1] != "redirected", f"the scrubbed environment still honours {name}: {got}"
+    elif name == "GIT_CONFIG_COUNT":
+        args = ["config", "--get", "user.name"]
+        planted = dict(base, GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="user.name",
+                       GIT_CONFIG_VALUE_0="redirected")
+        control = _git_out(args, fixture, planted)
+        scrubbed = dict(planted)
+        _git_env.scrub(scrubbed)
+        got = _git_out(args, fixture, scrubbed)
+        assert control[1] == "redirected", f"control: this git ignores the numbered pair: {control}"
+        assert got == (0, "Fixture Owner"), f"the scrubbed environment still honours it: {got}"
+    else:
+        bares = [tmp_path / "bare_planted.git", tmp_path / "bare_scrubbed.git"]
+        for bare in bares:
+            _git(["init", "-q", "--bare", str(bare)], tmp_path)
+        planted = dict(base, GIT_NAMESPACE="planted_ns")
+        scrubbed = dict(planted)
+        _git_env.scrub(scrubbed)
+        pushed = [_git_out(["push", "-q", str(bares[0]), "HEAD:refs/heads/x"], fixture, planted),
+                  _git_out(["push", "-q", str(bares[1]), "HEAD:refs/heads/x"], fixture, scrubbed)]
+        refs = [sorted(p.relative_to(b).as_posix() for p in (b / "refs").rglob("*") if p.is_file())
+                for b in bares]
+        assert pushed[0][0] == 0 and "refs/namespaces/planted_ns/refs/heads/x" in refs[0], (
+            f"control: the namespace did not redirect the push: {pushed[0]} {refs[0]}")
+        assert pushed[1][0] == 0 and refs[1] == ["refs/heads/x"], (
+            f"the scrubbed environment still honours GIT_NAMESPACE: {pushed[1]} {refs[1]}")
 
 
 # ── the decider, both directions ─────────────────────────────────────────────

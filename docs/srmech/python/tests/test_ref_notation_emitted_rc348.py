@@ -731,6 +731,12 @@ SCAN_ROOTS = {
     # (`notes/nucleosome_turn_asymmetry_frame_spike.py`) — so its root is the whole
     # subtree, which srmech-ref-guard.yml's `docs/srmech/**` trigger watches.
     "tests/test_curated_line_citations_resolve_rc473.py": ("docs/srmech",),
+    # rc473 instrument round (`#T1188`): the export-advice gate reads four roots
+    # under docs/srmech — the package, tests and tools under python/, and the
+    # notes/ instruments beside it, because the advice it keeps out shipped in
+    # tools/hooks/ and one notes/ recipe carried it too.
+    "tests/test_git_export_advice_absent_rc473.py": (
+        "docs/srmech/python", "docs/srmech/notes"),
     # rc436 (`#T1141`): the citation-CONTRADICTION gate reads the compiled-in C
     # tool registry alongside every package module, because the contradiction it
     # is strict-zero on shipped in BOTH -- the rc429 Fuller-1971 claim reached
