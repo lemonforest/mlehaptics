@@ -46,8 +46,23 @@ fail=0; bad() { say "  EXPECTATION FAILED: $*"; fail=1; }
 n_exported=$(env | grep -c -E '^GIT_(DIR|WORK_TREE)=')
 say "exported GIT_DIR/GIT_WORK_TREE: $n_exported  $(date -u +%FT%TZ)"
 [ "$n_exported" = 0 ] || { say "REFUSED: this instrument never runs under an exported GIT_DIR/GIT_WORK_TREE"; exit 2; }
+# rc473 instrument round (`#T1188`): every OTHER repository-local variable is removed
+# from this shell too, so none of this script's own git calls (config --get, status,
+# show-ref, rev-list, archive) can answer for another repository. The list is the
+# running git's own, plus the three write-redirect names and the numbered pairs.
+scrubbed=0
+for v in $(git rev-parse --local-env-vars) GIT_NAMESPACE GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM \
+         $(env | sed -n -E 's/^(GIT_CONFIG_(KEY|VALUE)_[0-9]+)=.*/\1/p'); do
+  [ -n "${!v+x}" ] && scrubbed=$((scrubbed + 1)); unset "$v"
+done
+say "repository-local variables removed from this shell: $scrubbed"
 case "$WORK" in /mnt/[a-z]/*) ;; *) say "REFUSED: <work-dir> must be under /mnt/<drive>/"; exit 2;; esac
-GITEXE=$(command -v git.exe) || { say "REFUSED: git.exe (Windows git) is not reachable"; exit 2; }
+# GITEXE may be given (default: git.exe on PATH). It must EXECUTE, not merely exist:
+# without WSL interop `command -v git.exe` still finds it, and every call then fails
+# with "Exec format error" while the snapshots below compare empty strings.
+GITEXE=${GITEXE:-$(command -v git.exe)} || true
+[ -n "$GITEXE" ] || { say "REFUSED: git.exe (Windows git) is not reachable"; exit 2; }
+"$GITEXE" --version > /dev/null 2>&1 || { say "REFUSED: $GITEXE does not execute (is WSL interop available?)"; exit 2; }
 [ -n "$GUARD" ] && say "guard $GUARD sha256 $(sha256sum "$GUARD" | cut -c1-64)"
 say "WSL $(git --version); Windows $("$GITEXE" --version | tr -d '\r')"
 say "source $(git -C "$SRC" rev-parse HEAD) tracked changes $(git -C "$SRC" status --porcelain --untracked-files=no | wc -l)"
@@ -68,7 +83,11 @@ WM=$(wslpath -w "$M"); WMW=$(wslpath -w "$MW")
 "$GITEXE" -C "$WM" add -- docs
 "$GITEXE" -C "$WM" -c commit.gpgsign=false commit -q -m replica
 "$GITEXE" -C "$WM" worktree add -q -b w "$WMW"
+# rc473 instrument round (`#T1188`): a sandbox that was never created FAILS here. Until
+# then every snapshot below compared empty fields and printed "unchanged".
+[ -d "$M/.git" ] && [ -f "$MW/.git" ] || { say "FAILED: repository M or worktree MW was never created (M/.git dir: $([ -d "$M/.git" ] && echo yes || echo no), MW/.git file: $([ -f "$MW/.git" ] && echo yes || echo no))"; say "VERDICT: FAILED"; exit 1; }
 HEAD_M=$("$GITEXE" -C "$WM" rev-parse HEAD | tr -d '\r')
+[ -n "$HEAD_M" ] || { say "FAILED: M has no HEAD"; say "VERDICT: FAILED"; exit 1; }
 say "M (Windows git) HEAD $HEAD_M tracked $("$GITEXE" -C "$WM" ls-files | wc -l)"
 POINTER=$(tr -d '\r' < "$MW/.git")
 say "MW/.git: $POINTER"

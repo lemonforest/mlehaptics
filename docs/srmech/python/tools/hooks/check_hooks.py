@@ -1245,8 +1245,18 @@ def check_jpl_audit() -> None:
         # ceiling behind it, and it will go stale again. The real Rule-4/5
         # ratchets live in tests/test_jpl_audit.py, which is green at 13
         # passed / RED: 0 on this tree.
+        #
+        # RE-PINNED 3598 -> 3620 (rc473 instrument round, `#T1188`). It went
+        # stale exactly as the paragraph above predicted: 3598 is rc472's
+        # population (`b398b8c46`), and rc473 added 22 C functions, every one
+        # in srmech_trig.c — `trig_is_inf`, `trig_write_nan`, the eleven `kq_*`
+        # helpers with `srmech_trig_kepler_q61`, and the eight `wf_*` helpers.
+        # The derivation (the audit's own scanner over rc472 and over this
+        # tree, names differenced) is `notes/_rc473_instr_jpl_population.py`.
+        # This case read FAIL on every rc473 head from `1ab8d405b` on, and no
+        # gate runs this file.
         _selftest_case("jpl-audit scans a non-empty function population",
-                       _JPL, "_scan_functions() total   :  3598 funcs")
+                       _JPL, "_scan_functions() total   :  3620 funcs")
 
     # A missing audit file is an INFRASTRUCTURE failure and must fail OPEN.
     # ⚠️ The fixture carries a C tree ON PURPOSE. It used to be `python/` alone,

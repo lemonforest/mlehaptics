@@ -18,6 +18,11 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+# rc473 instrument round (`#T1188`): the hits carry non-ASCII (e.g. U+2265), and a
+# Windows console's cp1252 stdout redirected to a file raised UnicodeEncodeError
+# after 16 lines. The output is UTF-8 on every host now, redirected or not.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 ROOT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".")
 DIRS = ("python/srmech", "c")
 TERMS = ("SAME shape", "IS the Kepler", "IS pin-slot", "IS this series", "Kepler shape",

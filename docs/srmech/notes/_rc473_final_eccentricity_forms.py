@@ -4,8 +4,17 @@ Two shipped spellings name an eccentricity for the same op with RECIPROCAL ratio
 
 * the curated ``kepler.pin_slot`` worked comment: "the ratio eps = d / i IS the
   mechanism's eccentricity", for ``pin_slot(theta, 1.0, 0.0549)`` (i = 1, d = 0.0549);
-* the curated ``rational.sin`` / ``cos`` / ``atan2`` examples: "eps = i/d = 0.0549
-  (Moon eccentricity)", for ``pin_slot(1.0, 0.0549, 1.0)`` (i = 0.0549, d = 1).
+* the curated ``rational.atan2`` example input: "ε = i/d = 0.0549 (Moon
+  eccentricity)", for ``pin_slot(1.0, 0.0549, 1.0)`` (i = 0.0549, d = 1).
+
+(Corrected at the rc473 instrument round, `#T1188`. This bullet named the
+``rational.sin`` / ``cos`` / ``atan2`` examples as carrying "eps = i/d = 0.0549 (Moon
+eccentricity)". At ``52371629a`` all three carry ``i/d = 0.0549``, but only
+``rational.atan2``'s carries "(Moon eccentricity)"; ``cos`` reads "(eps = i/d =
+0.0549)" and ``sin`` "ε = i/d = 0.0549" with no eccentricity label. Measured with
+``git show 52371629a:docs/srmech/python/srmech/introspect/_tool_docs_curated.py``
+piped to ``grep -n -i "moon eccentricity"`` (one line, ``rational.atan2``) and to
+``grep -n "i/d = 0.0549"`` (three lines: ``atan2``, ``cos``, ``sin``).)
 
 ``pin_slot(theta, i, d) = atan2(i sin theta, d + i cos theta)``. Printed here, for each
 form, the first three sine harmonics of the quantity that form produces, so the
