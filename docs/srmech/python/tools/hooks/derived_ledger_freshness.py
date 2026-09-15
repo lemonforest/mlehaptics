@@ -1,5 +1,12 @@
-"""Stop / SubagentStop — the worked-examples ledger must not claim results it
-has not re-measured. (rc452, `#T1166`)
+"""Stop / SubagentStop — neither derived ledger may claim results it has not
+re-measured. (rc452, `#T1166`; both ledgers and the snippet clause since the
+rc473 instrument round, `#T1188`)
+
+The two derived ledgers are ``tests/worked_examples_result.ndjson`` (rows named
+by ``name``) and ``tests/example_args_ledger.ndjson`` (rows named by ``op``). The
+sections below were written when this hook read the first one alone; where one
+says "the ledger", it applies to each, judged against its OWN last commit. (This
+opening named the worked-examples ledger alone until rc473 instrument repair 1.)
 
 WHAT IT CATCHES, MEASURED
 =========================
@@ -38,8 +45,9 @@ records why.
 THE PREDICATE THIS HOOK ACTUALLY USES
 =====================================
 **A ledger row is unverified if the module that DEFINES its op has changed
-since that row was measured.** Three clauses, OR-ed; a row is stale if any
-fires:
+since that row was measured, or if the snippet it records no longer ships.**
+Both ledgers are read, each against its own last commit. Four clauses, OR-ed;
+a row is stale if any fires, and the first that fires is its reason:
 
   1. CONTENT   — the row carries ``def_module`` + ``def_blob``, and the current
                  HEAD blob of that module's file differs from the stamp.
@@ -47,6 +55,17 @@ fires:
   3. PUBLISHED — (the original rule, kept) any module changed between the
                  ledger's own commit and HEAD matches the row's PUBLISHED name
                  under ``n == m or n.startswith(m + ".")``.
+  4. SNIPPET   — (rc473 instrument round) the row's recorded ``src_sha256``
+                 differs from the live key: ``run_worked_examples.src_sha256``
+                 (imported, so the key has one spelling) of the entry's
+                 ``example`` in ``_tool_docs.py``'s ``TOOL_DOCS`` literal, read
+                 with ``ast.literal_eval`` and never executed; ``""`` where the
+                 entry carries no ``worked`` snippet. Clauses 1-3 cannot see a
+                 snippet move, and clause 4 cannot see an implementation move.
+
+*(This section said "Three clauses" over one ledger until rc473 instrument
+repair 1; the instrument round had added the second ledger and clause 4 without
+it.)*
 
 Per-row scoping keeps the tax proportional: a change to one module never
 demands the full 651-snippet run.
@@ -121,8 +140,18 @@ native side has its own instrument: ``stale_native_tripwire.py``.
 
 COST
 ====
-Three git invocations (``log``, ``diff``, ``ls-tree``) plus ONE
-``dirty_paths`` (two more), and one NDJSON parse (651 rows). MEASURED at rc468:
+Since the rc473 instrument round: per ledger, one ``git log`` and one
+``git diff`` (in :func:`_changed_paths`) and one NDJSON parse (649 and 732 rows
+at that round); once for both, one ``ls-tree``, ONE ``dirty_paths`` (two
+invocations) and one ``ast.parse`` of ``_tool_docs.py`` — seven git invocations
+where the rc468 hook made five. *(Until rc473 instrument repair 1 this paragraph
+said "Three git invocations ... plus ONE dirty_paths ... and one NDJSON parse
+(651 rows)", the one-ledger hook's count.)* The figures below are the rc468
+ONE-ledger hook's; the two-ledger hook's are recorded with the command that
+printed them in the rc473 CHANGELOG, and its cost on the WSL2 9p mount is not
+among them. The rc468 record — Three git invocations (``log``, ``diff``,
+``ls-tree``) plus ONE ``dirty_paths`` (two more), and one NDJSON parse (651
+rows). MEASURED at rc468:
 **0.69 s warm / 7.69 s cold** Windows-native, **17.2-18.7 s** on the WSL2-9p
 mount — where the rc467 hook measured **16.4-17.8 s** in the same session, so
 the whole three-clause union costs about **1 s**, which is the added
@@ -417,7 +446,10 @@ def body(payload: Dict[str, Any]) -> int:
         "(src_sha256) does not move when the implementation moves, which is "
         "exactly how the ℚ-flip defect shipped — clauses 1-3 exist for that. "
         "And a def_blob stamp does not move when a SNIPPET moves — clause 4 "
-        "exists for that (rc473). The lists above are printed IN FULL.",
+        "exists for that (rc473). Every unverified row is named above IN FULL: "
+        "in the remedy command for the worked-example ledger, and in the list "
+        "under the remedy for the example-args ledger. The one-line module(s) "
+        "and unverified-rows summaries stop at 8.",
     ])
 
 
@@ -479,9 +511,14 @@ def _block_lines(rel: str, key: str, label: str, base: str,
     # because Windows `cmd` truncates an argv beyond 8191 characters and a
     # truncated remedy is a partial pass wearing a complete one's clothes.
     if key == "op":
+        # rc473 instrument repair 1 (`#T1188`): this remedy names no row, and the
+        # summary line above stops at MAX_SHOWN, so an 80-row block named 8. The
+        # full list follows it, one row per line, as the worked remedy's does.
         remedy = ["    python3 tools/run_example_args.py",
                   "  (it has no scoped form: rc469 removed it, and the harvest "
-                  "re-measures every row)"]
+                  "re-measures every row)",
+                  f"  every unverified row ({len(stale)}):"]
+        remedy += ["    " + n for n in stale]
     elif len(stale) <= 24:
         remedy = ["    python3 tools/run_worked_examples.py --only "
                   + " ".join(stale)]

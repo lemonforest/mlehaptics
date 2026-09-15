@@ -21,16 +21,23 @@ of them, deliberately: its rc473 section QUOTES the old advice inside dated,
 marked corrections, and a dated record is not rewritten. ``tools/`` and ``notes/``
 are not in ``sdist.include``, so those two roots skip where they are absent.
 
-THE PREDICATE — eight forms (:data:`PATTERNS`)
-----------------------------------------------
+THE PREDICATE — thirteen forms (:data:`PATTERNS`)
+-------------------------------------------------
 A prose imperative (the verb, optional article words, then one of the two names,
 across the phrase gate's gap characters: whitespace, comment leaders, quotes and
 an escaped newline of any backslash count); a shell line setting a name with the
 verb; a PowerShell ``$env:`` assignment; a ``cmd`` ``set`` / ``setx``; prose that
 sets both names; the older "the name OVERRIDES discovery" wording; "give / hand /
 pass the name"; and a per-command ``NAME=value`` prefix in front of a Python,
-pytest, uv, bash or tool invocation — a per-command prefix still reaches every
-child git of that command, which is exactly the incident.
+pytest, uv, bash, ``make`` or any ``*.py`` / ``*.sh`` invocation — a per-command
+prefix still reaches every child git of that command, which is exactly the
+incident.
+
+Five more since instrument repair 1 (`#T1188`), each an input gate round i1
+measured NO MATCH on: a JSON key naming either variable (a settings file's
+``"env"`` object is how a variable reaches every hook command); "set / setting /
+point / pointing" ONE name "to" or "at" something; ``declare -x``; ``setx [/M]
+NAME value``; and ``[Environment]::SetEnvironmentVariable('NAME', …)``.
 
 EXEMPT only when a negation sits IMMEDIATELY before the match, with nothing but
 gap characters between: do not, don't, never, must not, should not, nobody / no
@@ -39,9 +46,16 @@ nothing ("if git cannot follow the pointer, <verb> it" is advice).
 
 THE ALLOW LIST is an EQUALITY over (path, sentence fragment): the residual that is
 history or a warning. An unlisted hit reds, and a listed fragment that no longer
-occurs reds too, so the list cannot go stale. LIMIT, stated: the list matches a
-fragment inside a sentence, so new advice written INSIDE an allow-listed sentence
-would be admitted.
+occurs reds too, so the list cannot go stale.
+
+LIMITS, stated. (1) The list matches a fragment inside a sentence, so new advice
+written INSIDE an allow-listed sentence would be admitted. (2) Forms outside the
+thirteen are NOT seen, and a phrase gate cannot be complete: code that assigns
+the variable (``os.environ[...] = ...``), passive or indirect wording ("with both
+exported", "put them in your environment"), and a per-command prefix in front of
+a command the ``cmd_prefix`` list does not name all pass. This limit was
+unstated until instrument repair 1, when gate round i1 measured the settings
+``"env"`` spelling and one-name "set ... to" prose passing it.
 
 This file spells no advice in its own source: the verb and the names are joined
 at run time, so the scan of ``python/tests`` reads this file too and finds nothing.
@@ -78,7 +92,15 @@ PATTERNS = {
     "give": re.compile(r"\b(?:give|hand|pass)" + _GAP
                        + r"(?:(?:it|them|a|an|the|read-only)" + _GAP + r")*" + _NAME, re.I),
     "cmd_prefix": re.compile(r"\bGIT_(?:DIR|WORK_TREE)=\S+(?:[ \t]+GIT_\w+=\S+)*[ \t]+(?:env[ \t]+)?"
-                             r"\S*(?:python3?|pytest|uv|bash|sh|check_hooks\.py|run_\w+\.py)\b"),
+                             r"\S*(?:python3?|pytest|uv|bash|sh|make|\w+\.py|\w+\.sh)\b"),
+    # Instrument repair 1 (`#T1188`): five forms gate round i1 measured NO MATCH on.
+    # A settings file's "env" object is how a variable reaches every hook command.
+    "json_key": re.compile(r"\"GIT_(?:DIR|WORK_TREE)\"\s*:"),
+    "prose_set_one": re.compile(r"\b(?:set(?:ting)?|point(?:ing)?)" + _GAP
+                                + r"(?:(?:the|a|an)" + _GAP + r")*" + _NAME + _GAP + r"(?:to|at)\b", re.I),
+    "declare_x": re.compile(r"\bdeclare[ \t]+-\w*x\w*[ \t]+GIT_(?:DIR|WORK_TREE)\b"),
+    "setx_space": re.compile(r"\bsetx(?:[ \t]+/[mM])?[ \t]+GIT_(?:DIR|WORK_TREE)\b", re.I),
+    "dotnet_env": re.compile(r"SetEnvironmentVariable\(\s*['\"]GIT_(?:DIR|WORK_TREE)['\"]", re.I),
 }
 _NEGATION_ADJACENT = re.compile(
     r"(?:\bdo\s+not|\bdon't|\bnever|\bmust\s+not|\bshould\s+not|"
@@ -181,8 +203,21 @@ def test_each_form_matches_its_own_advice_and_only_an_adjacent_negation_exempts_
         "override": f"without `{_D}` over" + "rides the worktree cannot be opened",
         "give": f"it is safe to give a read-only ``{_D}`` to the tool",
         "cmd_prefix": f"# Run as {_D}=D:/x/.git {_W}=D:/x python -m pytest tests/",
+        # instrument repair 1: gate round i1's NO MATCH inputs, one per new form
+        "json_key": '{"env": {"' + _D + '": "/mnt/d/x/.git/worktrees/w", "' + _W + '": "/mnt/d/x"}}',
+        "prose_set_one": f"If WSL git cannot follow the pointer, set {_D} to the worktree gitdir first.",
+        "declare_x": f"declare -x {_D}=/mnt/d/x/.git",
+        "setx_space": f"setx /M {_D} D:\\x\\.git",
+        "dotnet_env": f"[Environment]::SetEnvironmentVariable('{_D}', 'D:/x/.git', 'User')",
     }
-    for form, text in examples.items():
+    more = [
+        ("prose_set_one", f"Setting {_D} to the gitdir is enough."),
+        ("prose_set_one", f"Point {_D} at the worktree's gitdir before running the hook."),
+        ("cmd_prefix", f"{_D}=/mnt/d/x/.git {_W}=/mnt/d/x ./tools/ripple_check.py"),
+        ("cmd_prefix", f"{_D}=/mnt/d/x/.git make test"),
+    ]
+    assert set(examples) == set(PATTERNS), sorted(set(PATTERNS) ^ set(examples))
+    for form, text in [*examples.items(), *more]:
         got = _one(form, text)
         assert got and not got[0][2], (form, text, got)
     wrapped = f"# If WSL git does not follow the pointer, {_VERB}\\n# {_D} first"

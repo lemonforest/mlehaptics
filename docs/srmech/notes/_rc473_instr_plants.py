@@ -89,6 +89,56 @@ TEXT = {
         "so the mechanism approximates the anomaly; it does not compute it at all")],
     "R_registry_len": [("c/src/srmech_tool_registry.c",
         "at double precision, which is not a bound", "at double precision, which is a bound")],
+    # ── instrument repair 1 (`#T1188`) ────────────────────────────────────────────
+    # gate round i1 B2: the advice spellings the eight forms could not see
+    "P20_settings_env": [(P + "tools/hooks/settings.sample.json",
+        '\n  "hooks": {\n',
+        '\n  "env": {"' + D + '": "/mnt/d/GitHub/mlehaptics/.git/worktrees/x", "' + W
+        + '": "/mnt/d/GitHub/mlehaptics"},\n\n  "hooks": {\n')],
+    "P21_readme_set_one": [(P + "tools/hooks/README.md",
+        "falsehood was fixed, and the instrument still demonstrably fires on the same\nclass.\n",
+        "falsehood was fixed, and the instrument still demonstrably fires on the same\nclass.\n\n"
+        "If WSL git cannot follow the pointer, set " + D + " to the worktree gitdir first.\n")],
+    "P22_readme_point_at": [(P + "tools/hooks/README.md",
+        "falsehood was fixed, and the instrument still demonstrably fires on the same\nclass.\n",
+        "falsehood was fixed, and the instrument still demonstrably fires on the same\nclass.\n\n"
+        "Point " + D + " at the worktree's gitdir before running the hook.\n")],
+    "P23_notes_declare": [("notes/_rc473_final_layer3_geometry.sh",
+        'exit "$fail"\n',
+        'exit "$fail"\ndeclare -x ' + D + "=/mnt/d/GitHub/mlehaptics/.git\n")],
+    "P24_readme_setx": [(P + "tools/hooks/README.md",
+        "falsehood was fixed, and the instrument still demonstrably fires on the same\nclass.\n",
+        "falsehood was fixed, and the instrument still demonstrably fires on the same\nclass.\n\n"
+        "    setx /M " + D + " D:" + B + "GitHub" + B + "mlehaptics" + B + ".git\n")],
+    "P25_readme_dotnet": [(P + "tools/hooks/README.md",
+        "falsehood was fixed, and the instrument still demonstrably fires on the same\nclass.\n",
+        "falsehood was fixed, and the instrument still demonstrably fires on the same\nclass.\n\n"
+        "    [Environment]::SetEnvironmentVariable('" + D + "', 'D:/GitHub/mlehaptics/.git', 'User')\n")],
+    "P26_readme_prefix_tool": [(P + "tools/hooks/README.md",
+        "falsehood was fixed, and the instrument still demonstrably fires on the same\nclass.\n",
+        "falsehood was fixed, and the instrument still demonstrably fires on the same\nclass.\n\n"
+        "    " + D + "=/mnt/d/x/.git " + W + "=/mnt/d/x ./tools/ripple_check.py\n")],
+    "P27_readme_prefix_make": [(P + "tools/hooks/README.md",
+        "falsehood was fixed, and the instrument still demonstrably fires on the same\nclass.\n",
+        "falsehood was fixed, and the instrument still demonstrably fires on the same\nclass.\n\n"
+        "    " + D + "=/mnt/d/x/.git make test\n")],
+    # gate round i1 F2: a conftest filter below function granularity, plain and wrapped
+    "M_param_conftest": [(P + "tests/conftest.py",
+        "from tests import _git_env_guard  # noqa: E402,F401  (import-time scrub)\n",
+        "from tests import _git_env_guard  # noqa: E402,F401  (import-time scrub)\n\n\n"
+        "def pytest_collection_modifyitems(config, items):\n"
+        "    items[:] = [i for i in items if not i.nodeid.endswith('selecting_pair[notes]')]\n")],
+    "M_wrapper_conftest": [(P + "tests/conftest.py",
+        "from tests import _git_env_guard  # noqa: E402,F401  (import-time scrub)\n",
+        "from tests import _git_env_guard  # noqa: E402,F401  (import-time scrub)\n\n\n"
+        "@pytest.hookimpl(hookwrapper=True, tryfirst=True)\n"
+        "def pytest_collection_modifyitems(config, items):\n"
+        "    yield\n"
+        "    items[:] = [i for i in items if not i.nodeid.endswith('selecting_pair[notes]')]\n")],
+    # gate round i1 B1 / F1: the runner's allow-list switched off, so only the count check stands
+    "R_allowlist_off": [(P + "tools/ripple_check.py",
+        "    refused = refused_forwarded_args(args.pytest_args)\n",
+        "    refused = []\n")],
 }
 
 LEDGER_FIELDS = {

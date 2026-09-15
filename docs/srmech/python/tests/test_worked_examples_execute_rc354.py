@@ -211,7 +211,11 @@ def test_every_row_def_blob_is_its_defining_modules_blob_at_head() -> None:
     The assertion above keys on ``src_sha256``, the snippet text, so a row whose
     IMPLEMENTATION moved passed it. Measured at rc473: with only the three
     ``srmech.math.kepler`` rows' ``def_blob`` put back to ``02051b004^``'s, that
-    assertion stayed green, and so did every other gate in the tree. This one
+    assertion stayed green, as did ``test_synth_args_provenance_rc430``'s on the
+    example-args ledger's same plant. (The Stop hook of that commit DID block this
+    ledger's plant, and did not read the example-args ledger. Instrument repair 1:
+    this said "and so did every other gate in the tree", which no run measured
+    and the hook contradicts.) This one
     compares each row's recorded stamp with its recorded module's blob at HEAD
     (``tests/_ledger_stamps.py`` says why the two halves are kept apart).
     """

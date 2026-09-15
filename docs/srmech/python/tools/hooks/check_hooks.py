@@ -1254,7 +1254,10 @@ def check_jpl_audit() -> None:
         # The derivation (the audit's own scanner over rc472 and over this
         # tree, names differenced) is `notes/_rc473_instr_jpl_population.py`.
         # This case read FAIL on every rc473 head from `1ab8d405b` on, and no
-        # gate runs this file.
+        # gate runs its jpl-audit case: the two manifest gates that run this
+        # file (`tests/test_ledger_freshness_hook_rc468.py` and the leak gate's
+        # ARM 3) run its `ledger` checks only. (Instrument repair 1: this read
+        # "no gate runs this file", which both of those gates contradict.)
         _selftest_case("jpl-audit scans a non-empty function population",
                        _JPL, "_scan_functions() total   :  3620 funcs")
 

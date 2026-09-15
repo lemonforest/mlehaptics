@@ -227,8 +227,10 @@ def test_codegen_is_idempotent() -> None:
     regenerated = mod.generate().replace("\r\n", "\n")
     on_disk = _C_SRC.read_text(encoding="utf-8").replace("\r\n", "\n")
     if regenerated != on_disk:
-        # rc473 instrument round (`#T1188`): a ~3.3 MB string pair, so the same
-        # bounded failure as the JSON node above rather than a rendered diff.
+        # rc473 instrument round (`#T1188`): a ~3.6 MB string pair (3,619,692
+        # characters at the instrument round), so the same bounded failure as
+        # the JSON node above rather than a rendered diff. (Instrument repair 1:
+        # this read "~3.3 MB", which is the JSON pair's size, not this one's.)
         _fail_diverged("c/src/srmech_tool_registry.c is out of date",
                        "regenerated", regenerated, "on-disk", on_disk,
                        "regenerate with c/tools/gen_tool_registry.py")

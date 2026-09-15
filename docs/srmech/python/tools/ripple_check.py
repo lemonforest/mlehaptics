@@ -93,8 +93,12 @@ fails). ``--regen`` aborts nonzero if the regen preamble itself fails.
 from __future__ import annotations
 
 import argparse
+import json
+import os
+import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent          # docs/srmech/python/tools
@@ -129,9 +133,9 @@ def target_file(target: str) -> str:
     return target.split("::", 1)[0]
 
 
-def _run(cmd: list[str], cwd: Path) -> int:
+def _run(cmd: list[str], cwd: Path, env: dict | None = None) -> int:
     print("+ " + " ".join(str(c) for c in cmd), flush=True)
-    return subprocess.run(cmd, cwd=str(cwd)).returncode
+    return subprocess.run(cmd, cwd=str(cwd), env=env).returncode
 
 
 def run_regen(pkg_root: Path) -> int:
@@ -183,29 +187,127 @@ def run_collect_sweep(pkg_root: Path) -> int:
     return proc.returncode
 
 
-#: Forwarded pytest options that REMOVE tests from the gate run, or run none
-#: (rc473 instrument round, `#T1188`). The manifest meta-test can see a line
-#: that narrows a gate; it cannot see an option typed at run time, and every
-#: one of these lets this runner print a green result for a manifest it did not
-#: run. ``-x`` / ``--maxfail`` stop early too, but only after a failure, so the
-#: run is red either way and they stay allowed.
-NARROWING_OPTIONS = ("-k", "-m", "--deselect", "--ignore", "--ignore-glob",
-                     "--lf", "--last-failed", "--sw", "--stepwise",
-                     "--sw-skip", "--stepwise-skip", "--co", "--collect-only")
+#: The forwarded pytest options this runner ACCEPTS (rc473 instrument repair 1,
+#: `#T1188`). It is an allow-list: every other forwarded argument is refused
+#: before anything runs. The manifest meta-test can see a line that narrows a
+#: gate; it cannot see an option typed at run time.
+#:
+#: ⚠️ The instrument round shipped a DENY-list here — ``-k``, ``-m``,
+#: ``--deselect`` and nine more — and gate round i1 ran ``-xk``, ``-qk``,
+#: ``-o addopts=-k ...`` and ``--setup-plan`` straight past it, with this runner
+#: exiting 0 on a subset or on nothing. A deny-list must name every spelling of a
+#: filter, and pytest's parser accepts more spellings than a list names (short
+#: flags CLUSTER, and ``addopts`` can be overridden from the command line).
+#:
+#: Everything below changes what is REPORTED or when a failing run STOPS; none
+#: selects, skips or replaces a test. ``-x`` / ``--maxfail`` stop early only after
+#: a failure, so the run is red either way. Short flags cluster (``-xq``,
+#: ``-vv``); ``-r`` takes the rest of its cluster, or the next argument, as its
+#: report characters. And the list is not the only guard: the gate run loads
+#: ``tests/_collection_count_plugin.py`` and fails a green run whose collection
+#: lost an item, however that removal was spelled (:func:`judge_counts`).
+ALLOWED_SHORT_FLAGS = frozenset("xqvsl")
+ALLOWED_LONG_FLAGS = frozenset({"--exitfirst", "--quiet", "--verbose",
+                                "--showlocals", "--no-header", "--full-trace"})
+#: Long options that take a value, each with the values accepted for it.
+ALLOWED_LONG_VALUED = {
+    "--maxfail": re.compile(r"[0-9]+"),
+    "--tb": re.compile(r"auto|long|short|no|line|native"),
+    "--capture": re.compile(r"fd|sys|no|tee-sys"),
+    "--durations": re.compile(r"[0-9]+"),
+    "--durations-min": re.compile(r"[0-9]+(?:\.[0-9]+)?"),
+    "--color": re.compile(r"yes|no|auto"),
+}
+_REPORT_CHARS = re.compile(r"[A-Za-z]+")
+
+#: The plugin the gate run loads, and the variable naming the file it writes.
+COUNT_PLUGIN = "tests._collection_count_plugin"
+COUNT_ENV = "SRMECH_COLLECTION_COUNT_OUT"
 
 
-def narrowing_args(pytest_args: list[str]) -> list[str]:
-    """The forwarded arguments that are (or begin) a :data:`NARROWING_OPTIONS`
-    option — ``-k``, ``-kexpr``, ``--deselect=...`` alike."""
+def refused_forwarded_args(pytest_args: list[str]) -> list[str]:
+    """Every forwarded argument that is not on the allow-list, in order.
+
+    Walks the arguments the way pytest's own parser reads them: a single-dash
+    argument is a CLUSTER of short flags (``-xk pin`` is ``-x`` and then
+    ``-k pin``), a long option may carry ``=value``, and a value-taking option
+    consumes the next argument. Anything else — a short flag outside
+    :data:`ALLOWED_SHORT_FLAGS`, an unlisted long option, a value the option does
+    not accept, a positional argument — is returned rather than guessed at.
+    """
     bad: list[str] = []
-    for arg in pytest_args:
-        for opt in NARROWING_OPTIONS:
-            joined_short = (len(opt) == 2 and arg.startswith(opt)
-                            and not arg.startswith("--"))
-            if arg == opt or arg.startswith(opt + "=") or joined_short:
+    i = 0
+    while i < len(pytest_args):
+        arg = pytest_args[i]
+        i += 1
+        if arg.startswith("--"):
+            name, eq, value = arg.partition("=")
+            if name in ALLOWED_LONG_FLAGS and not eq:
+                continue
+            rx = ALLOWED_LONG_VALUED.get(name)
+            if rx is not None:
+                if not eq and i < len(pytest_args):
+                    value = pytest_args[i]
+                    i += 1
+                if (eq or value) and rx.fullmatch(value):
+                    continue
+            bad.append(arg)
+        elif arg.startswith("-") and len(arg) > 1:
+            letters = arg[1:]
+            for j, ch in enumerate(letters):
+                if ch in ALLOWED_SHORT_FLAGS:
+                    continue
+                if ch == "r":
+                    chars = letters[j + 1:]
+                    if not chars and i < len(pytest_args):
+                        chars = pytest_args[i]
+                        i += 1
+                    if not _REPORT_CHARS.fullmatch(chars):
+                        bad.append(arg)
+                    break
                 bad.append(arg)
                 break
+        else:
+            bad.append(arg)
     return bad
+
+
+def read_counts(path: str | Path) -> dict | None:
+    """The three counts ``tests/_collection_count_plugin.py`` wrote, or ``None``
+    when it wrote nothing readable."""
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+        data = json.loads(text) if text.strip() else None
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def judge_counts(rc: int, counts: dict | None) -> int:
+    """pytest's return code, unless the run it reports on is not the manifest's.
+
+    Spelling-independent (rc473 instrument repair 1, `#T1188`): whatever removed
+    an item between collection and the end of it — a forwarded option, an
+    ``addopts``, a conftest hook — a GREEN run with ``selected != collected`` or
+    any ``deselected`` item fails, and so does a run that reported no counts at
+    all. A red run stays red with pytest's own code.
+    """
+    if counts is None or counts.get("collected") is None:
+        print("ripple_check: FAILED -- the gate run reported no collection counts "
+              f"({COUNT_PLUGIN} wrote nothing), so it cannot show that it ran what "
+              "the manifest collects.", file=sys.stderr)
+        return rc or 1
+    collected, selected = counts.get("collected"), counts.get("selected")
+    deselected = counts.get("deselected") or 0
+    if selected != collected or deselected:
+        print(f"ripple_check: FAILED -- the gate run collected {collected} items and "
+              f"kept {selected} ({deselected} deselected). A run that removed items "
+              "is not the manifest's run, and its green would read as the "
+              "manifest's.", file=sys.stderr)
+        return rc or 1
+    print(f"ripple_check: collection kept all {collected} items the manifest's "
+          "targets collect", flush=True)
+    return rc
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -246,17 +348,29 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = ap.parse_args(argv)
 
-    # REFUSED before anything runs (rc473 instrument round, `#T1188`): a
-    # forwarded `-k` / `--deselect` / `--lf` ... narrows the gate run to a
-    # subset that no manifest reader can see, and the runner would then report
-    # that subset's green as the manifest's.
-    narrowed = narrowing_args(args.pytest_args)
-    if narrowed:
-        print("ripple_check: REFUSED -- forwarded pytest option(s) "
-              f"{narrowed} would narrow the gate run to a subset the manifest "
-              "does not name, and a green subset would read as a green "
-              "manifest. Run the whole manifest, or run pytest on the file you "
-              "want directly.", file=sys.stderr)
+    # REFUSED before anything runs (rc473 instrument round, `#T1188`; an
+    # allow-list since instrument repair 1): a forwarded `-k` / `-xk` /
+    # `-o addopts=...` / `--setup-plan` ... narrows the gate run to a subset no
+    # manifest reader can see, or runs nothing, and the runner would then report
+    # that green as the manifest's. PYTEST_ADDOPTS reaches the same parser from
+    # the environment, so a non-empty one is refused too.
+    refused = refused_forwarded_args(args.pytest_args)
+    if refused:
+        print("ripple_check: REFUSED -- forwarded pytest argument(s) "
+              f"{refused} are not on this runner's allow-list (-x -q -v -s -l, "
+              "-r<chars>, --tb, --maxfail, --capture, --durations, "
+              "--durations-min, --color, --exitfirst, --quiet, --verbose, "
+              "--showlocals, --no-header, --full-trace). Anything else can "
+              "narrow the gate run to a subset the manifest does not name, and a "
+              "green subset would read as a green manifest. Run the whole "
+              "manifest, or run pytest on the file you want directly.",
+              file=sys.stderr)
+        return 2
+    if os.environ.get("PYTEST_ADDOPTS", "").strip():
+        print("ripple_check: REFUSED -- PYTEST_ADDOPTS is set "
+              f"({os.environ['PYTEST_ADDOPTS']!r}). pytest reads it as extra "
+              "command-line arguments, past this runner's allow-list; unset it "
+              "for the ripple sweep.", file=sys.stderr)
         return 2
 
     targets = load_manifest(args.manifest)
@@ -302,13 +416,25 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ripple_check: manifest {args.manifest} has no targets", file=sys.stderr)
         return 1
 
-    cmd = [
-        sys.executable, "-m", "pytest",
-        *targets,
-        "-q", "-p", "no:cacheprovider",
-        *args.pytest_args,
-    ]
-    return _run(cmd, PKG_ROOT)
+    # The gate run loads tests/_collection_count_plugin.py (instrument repair 1,
+    # `#T1188`), and judge_counts fails a green run that lost an item between
+    # collection and the end of it, whatever spelling removed it.
+    fd, count_path = tempfile.mkstemp(prefix="ripple_count_", suffix=".json")
+    os.close(fd)
+    try:
+        cmd = [
+            sys.executable, "-m", "pytest",
+            *targets,
+            "-q", "-p", "no:cacheprovider", "-p", COUNT_PLUGIN,
+            *args.pytest_args,
+        ]
+        rc = _run(cmd, PKG_ROOT, env=dict(os.environ, **{COUNT_ENV: count_path}))
+        return judge_counts(rc, read_counts(count_path))
+    finally:
+        try:
+            os.unlink(count_path)
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":

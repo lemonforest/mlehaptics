@@ -13,7 +13,11 @@ gates compared ``src_sha256`` alone — the hash of the SNIPPET TEXT, which does
 not move when an implementation does — and ``def_blob`` was asserted non-empty
 and never compared (the rc470 note said so and handed the comparison to the
 Stop hook, which did not read the example-args ledger at all). So a ledger
-stale ONLY in ``def_blob`` passed every check in the tree.
+stale ONLY in ``def_blob`` passed both pytest freshness gates — and, for the
+example-args ledger, the Stop hook too. (The worked-example ledger's Stop hook
+did compare ``def_blob``, and blocked that plant. Instrument repair 1: this
+paragraph said such a ledger "passed every check in the tree", which the
+worked-example half contradicts and no run measured.)
 
 TWO COMPARISONS, KEPT APART, because only one of them can depend on the cell:
 
