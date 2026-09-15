@@ -596,6 +596,12 @@ def check_ssot_agreement() -> None:
 # ── 6. derived-ledger-freshness ───────────────────────────────────────────
 
 LEDGER_REL = "docs/srmech/python/tests/worked_examples_result.ndjson"
+#: rc473 instrument round (`#T1188`): the hook reads BOTH derived ledgers and
+#: the generated docs' snippets. Until then it read ``LEDGER_REL`` alone, and no
+#: fixture here held the second ledger or a ``_tool_docs.py`` — so no case could
+#: have seen either blindness.
+ARGS_LEDGER_REL = "docs/srmech/python/tests/example_args_ledger.ndjson"
+DOCS_REL = "docs/srmech/python/srmech/introspect/_tool_docs.py"
 
 #: ledger row name -> (defining module, its repo-relative path). The last entry
 #: is THE RE-EXPORT SHAPE: published under ``srmech.cascade``, defined in
@@ -623,23 +629,66 @@ def _blob(root: Path, rel: str) -> str:
 
 
 def _ledger_text(root: Path, names: Sequence[str],
-                 stale_stamp: Sequence[str] = ()) -> str:
+                 stale_stamp: Sequence[str] = (), key: str = "name",
+                 snippets: Optional[Dict[str, Dict[str, str]]] = None) -> str:
     """Serialise a ledger holding ``names``, stamped against HEAD.
 
     A name in ``stale_stamp`` gets a WRONG ``def_blob`` — that is the planted
     partial re-run: the row is still present and still says ``ok``, it simply
-    was not re-measured against the current source.
+    was not re-measured against the current source. ``key`` names the row field
+    (``name`` for the worked-example ledger, ``op`` for the example-args
+    ledger). With ``snippets`` the row records the REAL snippet key of that
+    example, as both harvesters do; without it, a placeholder the hook can only
+    compare when a ``_tool_docs.py`` is present.
     """
     rows: List[Dict[str, Any]] = [
         {"n": len(names), "record": "meta", "native": True, "python": "3.10"}]
     for i, n in enumerate(names):
         mod, rel = _LEDGER_ROWS[n]
-        rows.append({"name": n, "status": "ok",
-                     "src_sha256": chr(ord("a") + i) * 64,
+        rows.append({key: n, "status": "ok",
+                     "src_sha256": (_snippet_key(snippets[n]) if snippets
+                                    else chr(ord("a") + i) * 64),
                      "def_module": mod,
                      "def_blob": ("0" * 40) if n in stale_stamp
                                  else _blob(root, rel)})
     return "".join(json.dumps(r, sort_keys=True) + "\n" for r in rows)
+
+
+def _snippet_key(example: Dict[str, str]) -> str:
+    """The harvesters' own snippet key, imported rather than re-spelled."""
+    if str(HOOKS.parent) not in sys.path:
+        sys.path.insert(0, str(HOOKS.parent))
+    import run_worked_examples as RWE  # noqa: E402
+    return RWE.src_sha256(example)
+
+
+#: One worked snippet per fixture row — the shape ``_tool_docs.py`` carries.
+_SNIPPETS = {n: {"setup": "", "worked": f"# {n}\nx = 1\n"} for n in _LEDGER_ROWS}
+
+
+def _docs_text(snippets: Dict[str, Dict[str, str]]) -> str:
+    """A generated-docs module holding ``TOOL_DOCS`` for the fixture rows."""
+    docs = {n: {"example": dict(ex)} for n, ex in snippets.items()}
+    return ("from typing import Any, Dict\n\n"
+            f"TOOL_DOCS: Dict[str, Dict[str, Any]] = {docs!r}\n")
+
+
+def _two_ledger_fixture(tmp: Path) -> Path:
+    """Both derived ledgers AND the generated docs, all written against HEAD.
+
+    Written so that every one of the four clauses has something true to
+    compare: stamps against the committed sources, snippet keys against the
+    committed ``TOOL_DOCS``.
+    """
+    root = _ledger_fixture(tmp)
+    _write(root / DOCS_REL, _docs_text(_SNIPPETS))
+    _commit(root, "generated docs")
+    _write(root / LEDGER_REL,
+           _ledger_text(root, list(_LEDGER_ROWS), snippets=_SNIPPETS))
+    _write(root / ARGS_LEDGER_REL,
+           _ledger_text(root, list(_LEDGER_ROWS), key="op", snippets=_SNIPPETS))
+    _commit(root, "both ledgers written against these sources and snippets")
+    return root
 
 
 def _ledger_fixture(tmp: Path) -> Path:
@@ -760,6 +809,45 @@ def check_ledger_freshness() -> None:
              "derived_ledger_freshness.py",
              {"hook_event_name": "Stop", "stop_hook_active": True}, 0,
              project_dir=loop)
+
+        # ── rc473 instrument round (`#T1188`): the two blindnesses ──────────
+        #
+        # The rc472 hook read ONE ledger path and none of its three clauses
+        # read `src_sha256`. Each case below exits 0 against that hook; the
+        # clean two-ledger fixture is the control that every clause, the
+        # snippet one included, reads fresh where nothing moved.
+        both = _two_ledger_fixture(tmp / "both")
+        case("ledger-freshness ALLOWS both ledgers written against current "
+             "sources AND current snippets",
+             "derived_ledger_freshness.py", stop, 0, project_dir=both)
+
+        args_stale = _two_ledger_fixture(tmp / "args_stale")
+        _write(args_stale / ARGS_LEDGER_REL,
+               _ledger_text(args_stale, list(_LEDGER_ROWS), key="op",
+                            snippets=_SNIPPETS,
+                            stale_stamp=["srmech.amsc.catalog.get_attested_dataset"]))
+        _commit(args_stale, "example-args ledger with one stale stamp")
+        case("ledger-freshness BLOCKS a stale EXAMPLE-ARGS ledger while the "
+             "worked-example ledger is fresh (rc473: the hook read one ledger)",
+             "derived_ledger_freshness.py", stop, 2,
+             contains="1 of 4 example-args ledger rows", project_dir=args_stale)
+
+        snip = _two_ledger_fixture(tmp / "snippet")
+        moved = dict(_SNIPPETS)
+        moved["srmech.math.rational.rational_mul"] = {
+            "setup": "", "worked": "# srmech.math.rational.rational_mul\nx = 2\n"}
+        _write(snip / DOCS_REL, _docs_text(moved))
+        case("ledger-freshness BLOCKS a SNIPPET edit with no implementation "
+             "change, in BOTH ledgers (rc473: no clause read src_sha256)",
+             "derived_ledger_freshness.py", stop, 2,
+             contains="published-name=0 snippet=1", project_dir=snip)
+
+        nodocs = _two_ledger_fixture(tmp / "nodocs")
+        _write(nodocs / DOCS_REL, "TOOL_DOCS_RENAMED = {}\n")
+        case("ledger-freshness FAILS OPEN loudly when _tool_docs.py carries no "
+             "TOOL_DOCS literal, rather than reading 'no snippet moved'",
+             "derived_ledger_freshness.py", stop, 0,
+             contains="no TOOL_DOCS literal", project_dir=nodocs)
 
 
 # ── 7. ripple-stamp-before-push ───────────────────────────────────────────

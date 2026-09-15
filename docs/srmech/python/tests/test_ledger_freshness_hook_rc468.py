@@ -52,6 +52,12 @@ REQUIRED_CASES = (
     "the rc468 blind spot",          # re-exported row, defining module changed
     "the union's other half",        # package __init__ still claims its rows
     "PARTIAL re-run",                # both rows present, one stamp stale
+    # rc473 instrument round (`#T1188`): the two blindnesses of the rc472 hook,
+    # each a case that exits 0 against it. The hook read only the worked-example
+    # ledger, and none of its three clauses read the snippet key.
+    "a stale EXAMPLE-ARGS ledger",   # the second ledger, stale by content
+    "a SNIPPET edit",                # a snippet moved, no implementation did
+    "no TOOL_DOCS literal",          # the snippet clause cannot read: loud, not silent
 )
 
 
