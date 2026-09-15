@@ -19,7 +19,7 @@ In a single session an Opus-5 agent queued TWO phantom gaps against
 already-delivered code and came close to rebuilding both:
 
 * ``mat_rank`` — ``QMat.rank`` ships at ``srmech/amsc/qmat.py:447`` with the C
-  peer ``srmech_qmat_rank`` declared at ``c/include/srmech.h:11761``;
+  peer ``srmech_qmat_rank`` declared at ``c/include/srmech.h:11801``;
 * an enumeration primitive that already exists seven times over in C.
 
 The agent had the same source tree. The signature echo did not tell it the op

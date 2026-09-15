@@ -152,11 +152,21 @@ static int64_t explog_log_core(int64_t t)
     return sum * 2;
 }
 
+/* 0.9.0rc473 (`#T1188`): NaN is REFUSED, not served. Through rc472 the line
+ * below read `if (x != x) { *out = x; return SRMECH_OK; }` — an explicit
+ * decision to answer SRMECH_OK for a NaN argument, libm-shaped. The pure peer
+ * has always raised ("exp: x must be finite (Q is the finite-rational
+ * carrier)"), and srmech_exp_q61 in this same file has always returned
+ * SRMECH_ERR_BAD_INPUT for it, so the double projection was the only one of
+ * the three serving an input the other two refuse — ADR-0009 §2.4, "may not
+ * differ in which inputs they serve". The written value is unchanged: x is
+ * itself the NaN. ±Inf is NOT widened here and that decline is tracked; see
+ * the pinned rows in c/test/test_srmech_value_status_rc473.c. */
 srmech_status_t srmech_exp(double x, double *out)
 {
     assert(out != NULL);
     if (out == NULL) { return SRMECH_ERR_NULL_ARG; }
-    if (x != x) { *out = x; return SRMECH_OK; }                       /* NaN */
+    if (x != x) { *out = x; return SRMECH_ERR_BAD_INPUT; }            /* NaN */
     if (x > SRMECH_EXPLOG_OVERFLOW) {
         uint64_t inf = UINT64_C(0x7FF0000000000000);
         memcpy(out, &inf, sizeof *out);
@@ -174,11 +184,14 @@ srmech_status_t srmech_exp(double x, double *out)
     return SRMECH_OK;
 }
 
+/* 0.9.0rc473 (`#T1188`): NaN is REFUSED — the srmech_exp note above applies
+ * verbatim, including that srmech_log_q61 already refused it. +Inf is NOT
+ * widened and is a pinned, tracked decline. */
 srmech_status_t srmech_log(double x, double *out)
 {
     assert(out != NULL);
     if (out == NULL) { return SRMECH_ERR_NULL_ARG; }
-    if (x != x) { *out = x; return SRMECH_OK; }                       /* NaN */
+    if (x != x) { *out = x; return SRMECH_ERR_BAD_INPUT; }            /* NaN */
     if (x < 0.0) {
         uint64_t nan = UINT64_C(0x7FF8000000000000);
         memcpy(out, &nan, sizeof *out);

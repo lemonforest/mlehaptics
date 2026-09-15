@@ -452,7 +452,7 @@ from srmech.math.text import fold_marks, glyph_stream
 #: frames, and 690 = 661 ops + 29 carriers with the ops half still exactly the
 #: live registry total. Two curated entries moved, both Class-B TLV:
 #: ``tlv_pack``'s explanation stopped citing its C peer by LINE number
-#: (``c/include/srmech.h:2707`` had drifted onto unrelated prose — stale before
+#: (``c/include/srmech.h:2747`` had drifted onto unrelated prose — stale before
 #: this rc touched the header, and a symbol name cannot go stale where a line
 #: offset does) and now records that ``tlv_unpack`` has a C peer of its own;
 #: ``tlv_unpack``'s gained that peer's contract, because rc441 is the rc that
@@ -510,7 +510,7 @@ from srmech.math.text import fold_marks, glyph_stream
 #: rc445 (`#T1153`) MOVES IT AGAIN, for the same reason and on a wider surface.
 #: The FALSE-tier prose pass rewrote **25 ToolEntry ``summary=`` fields** and
 #: **6 curated ``explanation`` blocks** — the false ``n <= 256`` native cap
-#: (measured: ``_can_dispatch_native`` never reads its ``n``; ``srmech.h:1536``
+#: (measured: ``_can_dispatch_native`` never reads its ``n``; ``srmech.h:1576``
 #: says "No N cap"), the false "NumPy eigh fallback" on
 #: ``hermitian_eigendecompose`` and "via NumPy eigh" on
 #: ``symmetric_eigendecompose`` (both measured to run with numpy absent from
@@ -1238,8 +1238,160 @@ from srmech.math.text import fold_marks, glyph_stream
 #: 732 ops + 29 carriers. THE CAUSE IS ISOLATED, both directions: reverting
 #: `srmech/introspect/tool_schema.py` ALONE to ada84402a returns the digest
 #: to `6c51206c…` at 761 frames, and restoring it returns `dfa2770091…`.
+#: AN EIGHTH pin, in rc473's REPAIR PASS (`#T1188`), for a cause that is
+#: entirely mechanical and worth naming BECAUSE it is: the repair pass added
+#: two prose blocks to `c/include/srmech.h` — the corrected v26 ABI paragraph
+#: and the note saying where the SRMECH_NODISCARD roster stops — which grew
+#: the header 14782 -> 14822 lines and so moved the content under every
+#: `c/include/srmech.h:NNN` citation below the insertions. Twenty-two of those
+#: citations sit inside `explanation` strings in `_tool_docs_curated.py`, and
+#: those explanations ARE the corpus, so the digest moves by construction.
+#: The generated pair was regenerated from the curated source rather than
+#: hand-edited (`tools/regen_all.py --accept-seed-drift`; the guard that
+#: refuses otherwise is doing its job and the flag is the documented escape
+#: for a deliberate curated edit), and the two regenerated files changed 22
+#: lines each with EVERY changed line explained entirely by an
+#: `srmech.h:<digits>` substitution — 0 lines not so explained, checked by
+#: normalising the digits away and requiring the before/after pair to become
+#: identical, because 44 insertions against 44 deletions is also the
+#: signature of a CRLF flip and this tree has that trap live.
+#: CONFIRMED A PROSE MOVE AND NOT A NON-DETERMINISTIC BUILD, by the
+#: procedure this pin has used since rc468: FIVE successive
+#: `_build_frames("all")` calls inside each of THREE fresh interpreters on
+#: WSL2 (CPython 3.12.3, numpy absent, native cell, ABI 26 == 26) returned
+#: `f595e2da9b69…cc7ad5c01e35a` every time, the recomputation over the
+#: returned frames agrees, and `search("rank", k=1).witness` agrees. THE
+#: FRAME COUNT DID NOT MOVE: 761 = 732 ops + 29 carriers, before and after.
+#: THE CAUSE IS ISOLATED, both directions: reverting
+#: `srmech/introspect/_tool_docs.py` ALONE to its 7665c594c blob returns the
+#: digest to `dfa2770091…` at 761 frames, and restoring it returns
+#: `f595e2da9b…`. One file, one cause, measured in both directions.
+#: A NINTH pin, in rc473's TWIN-DEFECT PASS (`#T1188`), for two causes at
+#: once, and both are prose the pass moved on purpose. (i) `tool_schema.py`:
+#: the `winding_fold` and `propagate_wound` ToolEntry strings stopped saying
+#: the two projections fold against "the Machin-2π rational pure / Q61 2/π
+#: native" and "theta_res to the fold grids' common resolution" — false, the
+#: residues drifted 8.0387e-21 rad per whole turn apart — and now say one 2π,
+#: one grid, bit-identical. (ii) `_tool_docs.py`: the curated `winding_fold`
+#: transcript was CELL-DEPENDENT and now prints the one answer both cells give
+#: (`(5, 0.0)` where the native cell printed `(5, -1.2247147740396258e-15)`),
+#: the `search.search` example that quotes it moved with it, and 23
+#: `c/include/srmech.h:NNN` citations in curated explanations were re-pointed
+#: after the pass grew the header. Explanations and summaries ARE the corpus.
+#: CONFIRMED A PROSE MOVE AND NOT A NON-DETERMINISTIC BUILD, by the procedure
+#: this pin has used since rc468: FIVE `_build_frames("all")` calls inside each
+#: of THREE fresh interpreters on WSL2 (CPython 3.12.3, numpy absent, native
+#: cell, ABI 26) returned `ddcc47f6c5c3…a3dcea1` every time,
+#: `search("rank", k=1).witness` agrees, and a pure snapshot of the same bytes
+#: returns the same digest. THE FRAME COUNT DID NOT MOVE: 761 = 732 ops + 29
+#: carriers. THE CAUSE IS ISOLATED, file by file, each reverted ALONE to its
+#: `1ab8d405b` blob and then restored: `_tool_docs.py` -> `be8e0500c78c…` and
+#: back to `ddcc47f6…`; `tool_schema.py` -> `37d3ea98b118…` and back;
+#: `_tool_docs_curated.py`, `cascade/one.py`, `math/kepler.py` and
+#: `math/laplacian.py` -> no move at all (the corpus reads the GENERATED docs,
+#: not the curated source, and no op docstring). All six reverted together ->
+#: `f595e2da9b…`, the pin below; restored -> `ddcc47f6…`.
+#: A TENTH pin, in rc473's REPAIR ROUND 1 (`#T1188`), for one cause: the
+#: regenerated `_tool_docs.py`. The merge gate found the 23 curated C-peer
+#: citations missing the symbols they name, so they now cite
+#: `c/include/srmech.h` by symbol; the curated `search.search` example's
+#: `['Mat', 'QMat']` became the `['Mat', 'int']` both cells return; and the
+#: `kepler_solve` transcript moved to `2.263415106356943`. CONFIRMED A PROSE
+#: MOVE AND NOT A NON-DETERMINISTIC BUILD, by the same procedure: FIVE
+#: `_build_frames("all")` calls inside each of THREE fresh interpreters in a
+#: WSL2 clone outside every session worktree at `f93ca67bc` (CPython 3.12.3,
+#: native cell, library `607700d5152cff82`, authenticated) returned
+#: `bb82a3fd0f0f…683711659` every time, `search("rank", k=1).witness` agrees,
+#: and a pure snapshot of the same bytes returns the same digest. THE FRAME
+#: COUNT DID NOT MOVE: 761 = 732 ops + 29 carriers. THE CAUSE IS ISOLATED,
+#: each file reverted ALONE to its `2eb05877f` blob and then restored:
+#: `_tool_docs.py` -> `ddcc47f6…` and back to `bb82a3fd…`;
+#: `_tool_docs_curated.py`, `math/kepler.py` and `cascade/one.py` -> no move.
+#: All four reverted together -> `ddcc47f6…`; restored -> `bb82a3fd…`.
+#: An ELEVENTH pin, in rc473's close-out (`#T1188`), for two causes, both
+#: prose that ships. `tool_schema.py`'s kepler_solve summary lost "converges
+#: in 4-6 iter for e < 0.5" (false against the measured 3-7) and now names the
+#: declared Q61 precision; the regenerated `_tool_docs.py` carries curated
+#: kepler / pin_slot / equation_of_centre explanations that no longer call the
+#: solver exact or the pin-slot identical to Kepler's equation, and module
+#: citations in place of eight kepler.py:NN spellings. The :51, :102 and :169
+#: spellings were already one line off at rc472's `b398b8c46`, where each def
+#: sat one line lower than at the rc470 and rc471 tags, and rc473 moved them
+#: further; the :27-29, :28 and :29 spellings were exact there and were made
+#: false by rc473's own growth of kepler.py. (This comment gave rc473's growth
+#: as the cause of all eight until close-out repair round 1.) CONFIRMED A
+#: PROSE MOVE AND NOT A NON-DETERMINISTIC BUILD, by
+#: the same procedure: FIVE `_build_frames("all")` calls inside each of THREE
+#: fresh interpreters in a WSL2 clone outside every session worktree (CPython
+#: 3.12.3, native cell, library `3f587b6a57ab0cdf`, authenticated) returned
+#: `f28fb52c01b6…225dd0b4` every time, `search("rank", k=1).witness` agrees,
+#: and a pure clone of the same bytes returns the same digest. THE FRAME COUNT
+#: DID NOT MOVE: 761 = 732 ops + 29 carriers. THE CAUSE IS ISOLATED BOTH WAYS
+#: against the `5a0f65855` blobs. Each file reverted ALONE from the new state:
+#: `_tool_docs.py` -> `59686a36…`, `tool_schema.py` -> `74fb3809…`,
+#: `_tool_docs_curated.py` and `math/kepler.py` -> no move. Each file applied
+#: ALONE onto the old state: `_tool_docs.py` -> `74fb3809…`, `tool_schema.py`
+#: -> `59686a36…`, the other two -> no move. All four old -> `bb82a3fd…`, the
+#: pin below; all four new -> `f28fb52c…`.
+#: A TWELFTH pin, in rc473's truth round (`#T1188`), for one cause: the
+#: regenerated `_tool_docs.py`. The curated kepler / pin_slot /
+#: equation_of_centre explanations now state what a pure cell measured against
+#: Kepler's equation instead of an identity to second order, and the stale
+#: file:line citations the close-out gates listed (six in `one.py`, the
+#: `atoms.py` / `compose.py` / `rational.py` spellings) name the module that
+#: defines each symbol, with no line number. CONFIRMED A PROSE MOVE AND NOT A
+#: NON-DETERMINISTIC BUILD, by the same procedure: FIVE `_build_frames("all")`
+#: calls inside each of THREE fresh interpreters in a git-free WSL2 tree outside
+#: every session worktree (CPython 3.12.3, native cell, library
+#: `3f587b6a57ab0cdf`, authenticated) returned `da8db24232bd…296173c9` every
+#: time, `search("rank", k=1).witness` agrees, and a pure snapshot of the same
+#: bytes returns the same digest. THE FRAME COUNT DID NOT MOVE: 761 = 732 ops +
+#: 29 carriers. THE CAUSE IS ISOLATED BOTH WAYS against the `4098516e6` blobs;
+#: exactly three package files differ. Each reverted ALONE from the new state:
+#: `_tool_docs.py` -> `f28fb52c…`, `_tool_docs_curated.py` and
+#: `math/kepler.py` -> no move. Each applied ALONE onto the old state:
+#: `_tool_docs.py` -> `da8db242…`, the other two -> no move. All three old ->
+#: `f28fb52c…`, the pin below; all three new -> `da8db242…`.
+#: A THIRTEENTH pin, in rc473's truth repair 1 (`#T1188`), for one cause: the
+#: regenerated `_tool_docs.py`. The curated file:line citations were resolved by
+#: ast and every one off its definition line now names its module, and pin_slot's
+#: WHEN / why and equation_of_centre's nu - E sentence state measured figures.
+#: CONFIRMED A PROSE MOVE AND NOT A NON-DETERMINISTIC BUILD, by the same
+#: procedure: FIVE `_build_frames("all")` calls inside each of THREE fresh
+#: interpreters in a git-free WSL2 tree extracted LF from `4e9972bab` plus the
+#: regenerated files (CPython 3.12.3, native cell, library `8c3b5982879d4b36`,
+#: authenticated) returned `5ce08382175…27eb3b4839` every time, `search("rank",
+#: k=1).witness` agrees, and a pure snapshot of the same bytes returns the same
+#: digest. 761 = 732 ops + 29 carriers, unmoved. ISOLATED BOTH WAYS against the
+#: `d346173fc` blobs, where exactly three package files differ: reverted ALONE,
+#: `_tool_docs.py` -> `da8db242…`, `_tool_docs_curated.py` and `math/kepler.py`
+#: -> no move; applied ALONE onto the old state, `_tool_docs.py` -> `5ce08382…`,
+#: the other two -> no move. All three old -> `da8db242…`, the pin below.
+#: A FOURTEENTH pin, in rc473's final round (`#T1188`), for one cause again: the
+#: regenerated `_tool_docs.py`, which now names the grids the Kepler figures were
+#: measured on, says which ratio each "eccentricity" sentence means, and names
+#: `cascade.pin_slot_at_zero` in `cascade.reorient`'s input. CONFIRMED A PROSE
+#: MOVE AND NOT A NON-DETERMINISTIC BUILD: FIVE `_build_frames("all")` calls in
+#: each of THREE fresh interpreters in the WSL2 clone `~/rc473c/repo` (no
+#: `.claude` / `worktrees` component; CPython 3.12.3, native cell, library
+#: `205f661661ba2cd0` built from the regenerated registry, authenticated)
+#: returned `01ff7bc2a1f7…32149401da` every time, `search("rank", k=1).witness`
+#: agrees, and a pure snapshot of the same bytes (0 library files) returns the
+#: same digest. 761 = 732 ops + 29 carriers, unmoved. ISOLATED BOTH WAYS against
+#: the `52371629a` blobs, where exactly three package files differ: reverted
+#: ALONE, `_tool_docs.py` -> `5ce08382…`, `_tool_docs_curated.py` and
+#: `math/kepler.py` -> no move; applied ALONE onto the all-reverted state,
+#: `_tool_docs.py` -> `01ff7bc2…`, the other two -> no move. All three old ->
+#: `5ce08382…`, the pin below it was; restored, byte-identical, `01ff7bc2…`.
 WITNESS_RC416 = (
-    "dfa2770091f08f92774fa3e4fc52617e0f8091bfde9961b3223e60a47fc3fad7")
+    "01ff7bc2a1f7a10e85bb442164268def4163cd6f92287087f137af32149401da")
+#: was: 5ce08382175192d63e794bf0008532ed5d80402e08f873fd7f284e27eb3b4839 (rc473 truth repair 1)
+#: before that: da8db24232bd1b404cc0a0daa307f8f93c688a9f8a80a2eead8ab6ef296173c9 (rc473 truth round)
+#: was: f28fb52c01b61054dd3424eb26071b9324408b4781d6159cc6016c42225dd0b4 (rc473 close-out)
+#: was: bb82a3fd0f0f51b9e8ce23ddb2c952255ce5c56924a2b061119a55e683711659 (rc473 repair round 1)
+#: was: ddcc47f6c5c33d985c0101e245ca3658805811c4edca01ab63ab267e3a3dcea1 (rc473 twin-defect pass)
+#: was: f595e2da9b69b91fc8ecc04e25f4f00bd870ef45dac9b19bcf2cc7ad5c01e35a (rc473 repair pass)
+#: was: dfa2770091f08f92774fa3e4fc52617e0f8091bfde9961b3223e60a47fc3fad7 (rc472 repair pass)
 #: was: 6c51206c057f6728dc80d2cd08821b9ca67b19695e219a8ddc1af03ede1c2b0e (rc471 repair pass)
 #: was: 40a2d8ebb1cf59de0302dcaf8052aee20eb8ed119e43584fdd0b10278a3bcc14 (rc469)
 #: was: 0fb043cc3c534f95038ada90e824b276c632dfdc141c3ecbca2d00d03bc1cedc (rc468 stage 5)

@@ -1094,8 +1094,11 @@ _TOOL_SCHEMA = "docs/srmech/python/srmech/introspect/tool_schema.py"
 def _git_show(rev_path):
     """``git show <rev>:<path>`` as text, or ``None`` when git cannot answer."""
     root = Path(__file__).resolve().parents[3]
+    # rc473 final round (`#T1188`): the checkout is located per invocation, so a
+    # WSL git on a Windows-made worktree reads it without an exported GIT_DIR.
+    from tests import _git_env
     try:
-        out = subprocess.run(["git", "show", rev_path], cwd=str(root),
+        out = subprocess.run(_git_env.git_argv(root, ["show", rev_path]), cwd=str(root),
                              capture_output=True, timeout=60)
     except (OSError, subprocess.SubprocessError):
         return None

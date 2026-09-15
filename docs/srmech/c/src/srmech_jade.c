@@ -132,10 +132,19 @@ static void jade_build_givens(uint32_t k, uint32_t i, uint32_t j,
 
 /* One (i,j) pair update: compute the JADE angle, and — when it clears the
  * tol/eps guards — rotate V and the cumulant tensor (twice, per the
- * reference), adding |theta| to *poff. */
-static void jade_pair(double *cum, uint32_t k, uint32_t i, uint32_t j,
-                      double tol, double *g, double *vscr,
-                      double *cumscr, double *v, double *poff)
+ * reference), adding |theta| to *poff.
+ *
+ * 0.9.0rc473 (`#T1188`): returns a STATUS. It was `static void`, which gave
+ * it no way to report that its three Class-N calls refused, so it discarded
+ * all three. srmech_jade_jointdiag has no finiteness pre-scan on `cum`, so
+ * these are reachable: a NaN or a ±2^55 entry in the cumulant tensor reaches
+ * srmech_atan2 and, after this rc's contract repair, is refused there.
+ * `*poff` is only ADDED to after both guards pass, so a refusal on the atan2
+ * leaves the caller's accumulator untouched. Early-return on non-OK, the
+ * tree's 2804-site convention. */
+static srmech_status_t jade_pair(double *cum, uint32_t k, uint32_t i, uint32_t j,
+                                 double tol, double *g, double *vscr,
+                                 double *cumscr, double *v, double *poff)
 {
     double num = 2.0 * cum[(((size_t)i * k + j) * k + i) * k + j];
     double dii = cum[(((size_t)i * k + i) * k + i) * k + i];
@@ -149,17 +158,20 @@ static void jade_pair(double *cum, uint32_t k, uint32_t i, uint32_t j,
     assert(cum != NULL && v != NULL && poff != NULL);
     assert(i < k && j < k);
     if (mnum + mden < JADE_SKIP_EPS) {
-        return;
+        return SRMECH_OK;
     }
-    (void)srmech_atan2(num, den + JADE_SKIP_EPS, &theta);
+    srmech_status_t st = srmech_atan2(num, den + JADE_SKIP_EPS, &theta);
+    if (st != SRMECH_OK) { return st; }
     theta *= 0.25;
     double mtheta = (theta >= 0.0) ? theta : -theta;
     if (mtheta < tol) {
-        return;
+        return SRMECH_OK;
     }
     *poff += mtheta;
-    (void)srmech_cos(theta, &c);
-    (void)srmech_sin(theta, &s);
+    st = srmech_cos(theta, &c);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_sin(theta, &s);
+    if (st != SRMECH_OK) { return st; }
     jade_build_givens(k, i, j, c, s, g);
     jade_matmul(k, v, g, vscr);
     for (size_t t = 0; t < (size_t)k * k; t++) {
@@ -167,22 +179,32 @@ static void jade_pair(double *cum, uint32_t k, uint32_t i, uint32_t j,
     }
     jade_rotate_first_axis(k, cum, g, cumscr);
     jade_rotate_first_axis(k, cumscr, g, cum);
+    return SRMECH_OK;
 }
 
-/* One full sweep over every (i<j) column pair; returns the accumulated
- * off-diagonal rotation magnitude Σ|theta| (the convergence signal). */
-static double jade_sweep(double *cum, uint32_t k, double tol, double *g,
-                         double *vscr, double *cumscr, double *v)
+/* One full sweep over every (i<j) column pair; writes the accumulated
+ * off-diagonal rotation magnitude Σ|theta| (the convergence signal) through
+ * *out_off. rc473 (`#T1188`): was `static double`, so jade_pair's new status
+ * had nowhere to go; the sum moves to an out-parameter and the return channel
+ * carries the status. */
+static srmech_status_t jade_sweep(double *cum, uint32_t k, double tol, double *g,
+                                  double *vscr, double *cumscr, double *v,
+                                  double *out_off)
 {
     double off = 0.0;
     assert(cum != NULL && v != NULL);
+    assert(out_off != NULL);
     assert(k > 0u);
+    *out_off = 0.0;
     for (uint32_t i = 0; i < k; i++) {
         for (uint32_t j = i + 1; j < k; j++) {
-            jade_pair(cum, k, i, j, tol, g, vscr, cumscr, v, &off);
+            srmech_status_t st =
+                jade_pair(cum, k, i, j, tol, g, vscr, cumscr, v, &off);
+            if (st != SRMECH_OK) { return st; }
         }
     }
-    return off;
+    *out_off = off;
+    return SRMECH_OK;
 }
 
 size_t srmech_jade_jointdiag_ws_bound(uint32_t k)
@@ -224,7 +246,9 @@ srmech_status_t srmech_jade_jointdiag(double *cum, uint32_t k,
         }
     }
     for (uint32_t it = 0; it < max_iter; it++) {
-        double off = jade_sweep(cum, k, tol, g, vscr, cumscr, v_out);
+        double off = 0.0;
+        srmech_status_t st = jade_sweep(cum, k, tol, g, vscr, cumscr, v_out, &off);
+        if (st != SRMECH_OK) { return st; }
         if (off < tol) {
             break;
         }

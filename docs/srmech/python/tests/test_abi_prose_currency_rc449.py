@@ -56,6 +56,17 @@ _CLAUDE_ABI = re.compile(
 _C_README_ABI = re.compile(
     r"C ABI version is \*\*(\d+)\*\*\s*\(`SRMECH_ABI_VERSION (\d+)`")
 
+#: The SECOND cardinal in the SAME CLAUDE.md sentence — "; `EXPECTED_ABI_VERSION
+#: = 26` in `python/srmech/_native/__init__.py`". rc473 (`#T1188`) added this,
+#: because rc473 itself broke it: the ABI sweep moved the two cardinals
+#: ``_CLAUDE_ABI`` covers and left this third one on 25, producing a sentence
+#: that read "currently **26** (`SRMECH_ABI_VERSION = 26` …; `EXPECTED_ABI_VERSION
+#: = 25` …)". The gate's own closing paragraph said it "asserts one decidable
+#: thing per file"; this sentence carries TWO decidable things, and the second
+#: one is exactly as decidable as the first. The line break between the clauses
+#: is why ``\s*`` rather than a space.
+_CLAUDE_EXPECTED_ABI = re.compile(r"`EXPECTED_ABI_VERSION = (\d+)`")
+
 
 def _macro_abi() -> int:
     """SRMECH_ABI_VERSION as the C header defines it — the SSoT.
@@ -88,6 +99,53 @@ def test_claude_md_abi_narrative_matches_the_macro() -> None:
         f"c/include/srmech.h says {macro}. This line has now been stale on "
         f"SIX consecutive bumps, the last of them for two releases running; that "
         f"is what this gate exists to stop.")
+
+
+def test_claude_md_expected_abi_cardinal_matches_the_shim() -> None:
+    """The SECOND cardinal in the same sentence — the one rc473 broke.
+
+    ``_CLAUDE_ABI`` stops at the ``;``. Everything after it was unconstrained,
+    and rc473's own ABI sweep moved the first two cardinals to 26 and left this
+    one on 25 — so the shipped sentence read *"C ABI version is currently
+    **26** (`SRMECH_ABI_VERSION = 26` in `c/include/srmech.h`;
+    `EXPECTED_ABI_VERSION = 25` in `python/srmech/_native/__init__.py`)"*. At
+    ``b398b8c46`` all three read 25 and all three were correct, so this is not
+    an inherited lag; it was minted by the sweep that fixed the other two.
+
+    Asserted against the SHIM's own constant rather than against the macro,
+    because that is what the sentence claims: the sentence names
+    ``python/srmech/_native/__init__.py`` by path. Checking it against the
+    macro would pass in the one state that matters least (macro and shim
+    already agree) and say nothing about the state the sentence describes.
+
+    Every ``EXPECTED_ABI_VERSION = N`` in the file is checked, not just the
+    first. There is one today; a second stale copy is exactly the shape this
+    gate keeps meeting.
+    """
+    import re as _re
+    from srmech import _native
+
+    text = _CLAUDE_MD.read_text(encoding="utf-8")
+    found = [int(n) for n in _CLAUDE_EXPECTED_ABI.findall(text)]
+    assert found, (
+        f"no '`EXPECTED_ABI_VERSION = N`' cardinal found in {_CLAUDE_MD}. The "
+        f"ABI sentence names that constant by path; if the section was "
+        f"reworded, update this regex deliberately — do not delete the gate. "
+        f"An empty scan is not a clean file.")
+    live = int(_native.EXPECTED_ABI_VERSION)
+    wrong = sorted({n for n in found if n != live})
+    assert not wrong, (
+        f"{_CLAUDE_MD} states EXPECTED_ABI_VERSION = {wrong} in "
+        f"{len(found)} cardinal(s); python/srmech/_native/__init__.py says "
+        f"{live}. rc473 shipped exactly this — the same sentence carrying a "
+        f"correct **{_macro_abi()}** and a stale {wrong[0] if wrong else '?'} "
+        f"— which is why this assertion exists.")
+    # Non-vacuity: the sentence this gate reads must be the ABI sentence, not
+    # some other line that happens to spell the constant.
+    assert _re.search(r"C ABI version is currently \*\*\d+\*\*", text), (
+        "the 'C ABI version is currently **N**' sentence is gone from "
+        f"{_CLAUDE_MD}; this gate would then be reading a cardinal out of "
+        "unrelated prose.")
 
 
 def test_c_readme_abi_matches_the_macro() -> None:

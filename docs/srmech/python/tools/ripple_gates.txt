@@ -932,3 +932,96 @@ tests/test_eoc_q61_parity_rc472.py
 #    manifest carrying this tree's three live digests and a foreign release,
 #    with census() replaced by a function that fails if reached). ~2 s, pure.
 tests/test_merge_cell_cross_release_rc472.py
+
+# -- the ABI-PIN gate, and the C boundary (rc473 B2/B1, `#T1188`) -------------
+#    test_abi_pin_sites_agree_rc464.py was ABSENT from this manifest and from
+#    tests/test_ripple_manifest_covers_known_gates.py's known-gate list, while
+#    its sibling tests/test_abi_prose_currency_rc449.py was in both. Measured
+#    at rc473 before the append: `grep -c abi_pin_sites tools/ripple_gates.txt`
+#    -> 0, out of 133 targets. That is the gate for the defect class which has
+#    shipped RED three times -- its own docstring records rc452, rc455 and
+#    rc464 each sweeping the ABI-PIN COMMENTS to the new value and leaving the
+#    grep-invisible int LOCALS on the old one -- and it was the one an
+#    ABI-bumping rc's pre-push runner would not execute. ~2 s, pure-Python
+#    (it reads _native.EXPECTED_ABI_VERSION, an int in both cells).
+tests/test_abi_pin_sites_agree_rc464.py
+
+#    And the gate that judges this rc, listed BY HAND for the reason every
+#    rc45x block above gives: the manifest meta-test has no growth obligation.
+#    It reads the C boundary DIRECTLY (_native.LIB.srmech_*, ctypes, no
+#    wrapper) and asserts status AND written value, plus the both-directions
+#    clause -- C refuses <=> the pure projection raises. It is the instrument
+#    a guard added inside a Python wrapper CANNOT satisfy, which is what rc472
+#    did. Any rc touching a Class-N scalar's domain, one of the composites
+#    that calls it, or SRMECH_NODISCARD's roster moves it. ~12 s native.
+tests/test_value_status_c_boundary_rc473.py
+
+# -- the R3 reader's declared label map (rc473 close-out, `#T1188`) -----------
+#    ABSENT from this manifest through rc473's repair round 1. Between
+#    2eb05877f and 5a0f65855 the folded label map moved one entry, measured:
+#    `kepler_solve`, ["tolerance"] -> ["ulp", "rounding", "tolerance"], off its
+#    rewritten docstring, with 236 declared ops on both sides. Commit
+#    5a0f65855 re-pinned it after CI went red on it; a run of this manifest
+#    could not have seen it, because the file was not listed. Any rc that
+#    edits a registered op's docstring can move the map, which is exactly the
+#    edit this list exists to ripple-check. Pure-Python.
+tests/test_r3_reader_rc470.py
+
+# -- the git-environment guard (rc473 final round, `#T1188`) -----------------
+#    From 2026-09-11 to 2026-09-14 the live repository's shared .git/config held
+#    `user.name = decoy identity`: test_hook_fixture_env_isolation_rc471's own
+#    setup ran `git init` + `git config --local` with an INHERITED environment
+#    while GIT_DIR was exported at a worktree gitdir, and that export was the
+#    shipped remedy for WSL git. This gate runs the two git-writing test files
+#    and `check_hooks.py ledger` with GIT_DIR exported at a SENTINEL repository
+#    and fails if a byte of it moves; its can-fail arm proves the sentinel sees
+#    a planted write unguarded. Listed beside the ledger-freshness entry above
+#    because a ripple sweep under WSL is exactly the run an agent was tempted
+#    to export for. Measured red on 52371629a (2 failed, 6 passed, when the
+#    file held 8 tests: the sentinel gained `worktree = ...` and
+#    `name = decoy identity`; the ledger subset 4 passed, 5 failed).
+#    Currency, rc473 instrument round (`#T1188`), on the 18-test file: WSL2
+#    pure CPython 3.12.3 "18 passed in 15.01s" (clone at e20e16502), Windows
+#    pure CPython 3.14.3 "18 passed in 121.88s" (session worktree). Red
+#    figure: with check_hooks.invoke()'s scrub removed, "1 failed, 17 passed"
+#    (ARM 3a), a removal the 11-test file of 81c55dba6 passed at "11 passed".
+#    (This line said "~50 s" until then.) Pure-Python.
+tests/test_git_env_cannot_reach_a_repository_rc473.py
+
+# -- the removed Kepler-identity sentences stay removed (rc473 final round) ---
+#    The truth round replaced "Kepler-equation algebra IS pin-slot composition",
+#    "IS the Kepler equation of centre", the "SAME shape" clause and their
+#    family with measured statements, on six shipped surfaces including the
+#    compiled-in C registry. Two merge-gate lenses re-planted those sentences
+#    and every gate stayed green. This one scans the six surfaces, whitespace-
+#    and wrap-normalised, for each removed sentence; strict zero, with controls
+#    that each phrase matches its own recorded original. Any rc that edits
+#    Kepler / pin_slot prose moves it. ~1 s, pure-Python, no native .so.
+tests/test_kepler_identity_phrases_absent_rc473.py
+
+# -- curated file:line citations resolve to what they name (rc473 final) -----
+#    Truth repair 1 drained 531 stale `path.py:NNN` tokens and 170 bare `:NNN`
+#    follow-ons from the curated ToolEntry prose with two committed census
+#    scripts, and nothing ran them afterwards: the 131 + 18 that remain move
+#    the moment a cited module gains a line above the cited definition. This
+#    gate is those scripts' rules as a test (git-free), strict zero on stale,
+#    with an in-test mutation that shifts one real citation by a line and must
+#    be judged stale. Any rc that edits a cited module or the curated file
+#    moves it. ~5 s, pure-Python, no native .so.
+tests/test_curated_line_citations_resolve_rc473.py
+
+# -- the export advice stays out of shipped text (rc473 instrument round) ----
+#    The final round corrected the shipped sentences that told an operator to
+#    put the repository-selecting pair in the environment, and no gate kept them
+#    corrected: two merge-gate lenses planted the advice back into a remedy
+#    string and the hooks README, and the gates they ran stayed green. (This
+#    read "every shipped sentence" and "every gate stayed green" until
+#    instrument repair 2, `#T1188`; the lenses ran named gate files, not every
+#    gate, and this gate's own reach is its forms and roots.) This scans the
+#    package, tests, tools and notes for thirteen phrase forms, exempting only an
+#    immediately preceding negation, against an allow list held as an equality.
+#    (Instrument repair 2, `#T1188`: this read "eight phrase forms"; instrument
+#    repair 1 added five, and the gate's PATTERNS holds thirteen.)
+#    Any rc that edits a remedy string, a hooks doc or a notes recipe moves it.
+#    Pure-Python, no native .so.
+tests/test_git_export_advice_absent_rc473.py

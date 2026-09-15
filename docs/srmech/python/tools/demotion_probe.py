@@ -1432,12 +1432,16 @@ def declaration_hits(fn) -> List[str]:
     / 3.14.7: the folded label MAP was byte-identical on all five, all 223
     rows, sha256 ``b43563f9e417da49…`` (222 rows / ``06f93439fe15b27f…`` at
     rc470; rc471's W6 prose added one, hand-read at
-    ``_DECLARED_LABEL_MAP_DIGEST``). rc472 (`#T1188`) moved the map to
-    **236 rows** at ``ee4922b5817ead0c…`` (232 rows / ``1be7956c86ddd197…``
-    after C2, 236 after C3), on CPython 3.12.3 ALONE: thirteen own-docstring
-    ACCURACY paragraphs, none touching the delegate walk, so the
-    five-interpreter re-measure is OWED by the next rc that touches that
-    walk — the ⚠️ chain at ``_DECLARED_LABEL_MAP_DIGEST`` says the same.
+    ``_DECLARED_LABEL_MAP_DIGEST``). rc473's repair round 1 (`#T1188`)
+    moved the map to **236 rows** at ``aeca4d386e25e900…``, with membership
+    unchanged: ONE label moved, on ``kepler_solve``'s own docstring, and the
+    map is byte-identical on CPython 3.10.21 and 3.12.3. Before it, rc472
+    took the map to 236 rows at ``ee4922b5817ead0c`` (232 rows at
+    ``1be7956c86ddd197`` after its C2, 236 after C3), on CPython 3.12.3
+    ALONE: thirteen own-docstring ACCURACY paragraphs, none touching the
+    delegate walk, so the five-interpreter re-measure is OWED by the next rc
+    that touches that walk — the ⚠️ chain at ``_DECLARED_LABEL_MAP_DIGEST``
+    says the same.
     (This paragraph carried the rc471 pair as if live until the rc472 repair
     pass; ``tests/test_r3_reader_rc470.py`` now reads the count and digest
     prefix back from it.) That is the LABEL map and not merely the count,

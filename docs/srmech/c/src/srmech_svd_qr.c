@@ -81,13 +81,57 @@
 #define SVD_MAX_SWEEPS 60u
 
 /* libm-free double square root via the Class-N rational cascade (the same
- * lap_sqrt route the native Jacobi eigensolver uses). All call sites pass a
- * provably non-negative argument. */
+ * lap_sqrt route the native Jacobi eigensolver uses).
+ *
+ * 0.9.0rc473 (`#T1188`): the status is CAPTURED, asserted and consumed — the
+ * srmech_modular_linalg.c:70-71 idiom (call outside the assert so it survives
+ * -DNDEBUG; (void)st keeps st used when the assert strips). The `double`
+ * return is kept for the same measured reason lap_sqrt keeps its own: 6 call
+ * sites across 4 enclosing functions, and ALL FOUR — qr_step, svd_finalize,
+ * svd_jacobi_rotation (`static void`) and svd_one_sweep (`static int`) — have
+ * no status channel.
+ *
+ * srmech_rational_sqrt refuses two argument classes, x < 0 and NaN, and they
+ * are NOT in the same position here — rc473's pre-publish pass corrected this
+ * block for having said each argument escaped both.
+ *
+ * NEGATIVE — no call site can produce one, re-walked by FUNCTION rather than
+ * by line (measured: the six line numbers this block used to cite were all
+ * already stale, by a uniform +17; a comment's own growth moves them):
+ *   qr_step              `nrm2`, a running sum of squares
+ *   svd_finalize         `nrm2`, the same
+ *   svd_jacobi_rotation  x3, `1 + zeta*zeta` / `1 + t*t`
+ *   svd_one_sweep        `aa * bb`, both factors past a positive zero-floor
+ *                        on the lines above
+ *
+ * NaN — REACHABLE at all six. No guard excludes it: `aa <= zero_floor` is
+ * FALSE for NaN, and the other five sites have no guard at all. PROVEN, not
+ * inferred: a DEBUG build (asserts live) calling the PUBLIC symbol
+ * srmech_svd_f64 on a 2x2 with NaN in A[0][0] ABORTS in sq_sqrt on this
+ * helper's own `assert(x >= 0.0)`. The SHIPPED Release build does not abort —
+ * it returns SRMECH_ERR_OVERFLOW (4), the NOT-CONVERGED status, with
+ * S = [0, 0]; the NaN defeats convergence, it is not refused. Control with
+ * A[0][0] = 4.0: status 0 and S = [4.414213562373096, 1.585786437626905] on
+ * BOTH builds, so the instrument can return otherwise.
+ *
+ * No refusal is threaded anyway, for the reason lap_sqrt records at length:
+ * at the float carrier NaN is a value BOTH projections carry through
+ * identically (measured on the authenticated rc473 native cell against the
+ * pure cell), so refusing it in C alone would make C narrower than pure — an
+ * ADR-0009 §2.4 row pointing the wrong way.
+ *
+ * ⚠️ The wheel builds Release (-DNDEBUG), so this site carries NO runtime
+ * refusal in the shipped artifact — one of the rc's six asserted-unreachable
+ * sites (a label the pre-publish pass narrowed to the NEGATIVE class). The
+ * assert is live only in CI's asserts-live-smoke Debug lane. */
 static double sq_sqrt(double x)
 {
     double out = 0.0;
+    srmech_status_t st;
     assert(x >= 0.0);
-    (void)srmech_rational_sqrt(x, &out);
+    st = srmech_rational_sqrt(x, &out);
+    assert(st == SRMECH_OK);
+    (void)st;
     assert(out >= 0.0);
     return out;
 }

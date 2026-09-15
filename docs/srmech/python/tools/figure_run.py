@@ -117,6 +117,36 @@ def sha(data: bytes) -> str:
     return sha256_bytes(data)
 
 
+def _load_git_env():
+    """``tests/_git_env.py``, loaded by path (rc473 final round, `#T1188`).
+
+    Every ``git`` below gets a SCRUBBED environment and, where this host cannot
+    follow the checkout's worktree pointer as written, a per-invocation
+    ``--git-dir`` / ``--work-tree``. ``tools/rc471_figures.py`` used to call an
+    exported ``GIT_DIR`` "the only way git answers inside a worktree whose
+    ``.git`` is a pointer file holding a Windows path"; that was false, and the
+    export is what let a test fixture write the live repository's shared config.
+    """
+    import importlib.util
+    name = "_srmech_git_env"
+    mod = sys.modules.get(name)
+    if mod is None:
+        path = PY_ROOT / "tests" / "_git_env.py"
+        spec = importlib.util.spec_from_file_location(name, str(path))
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[name] = mod
+        spec.loader.exec_module(mod)
+    return mod
+
+
+_GIT_ENV = _load_git_env()
+
+
+def _git_argv(*args: str) -> list:
+    """``git -C <repo> [--git-dir … --work-tree …] <args>``."""
+    return ["git", "-C", str(REPO), *_GIT_ENV.git_location_args(REPO), *args]
+
+
 def git(*args: str) -> str:
     """``git -C <repo> …``, stdout only, decoded as UTF-8.
 
@@ -137,8 +167,8 @@ def git(*args: str) -> str:
     line this core only ever SEARCHES is a better answer than an exception —
     but a silent ``None`` is not, and that is what changed.
     """
-    proc = subprocess.run(["git", "-C", str(REPO), *args],
-                          capture_output=True)
+    proc = subprocess.run(_git_argv(*args), capture_output=True,
+                          env=_GIT_ENV.scrubbed())
     return proc.stdout.decode("utf-8", "replace")
 
 
@@ -193,8 +223,8 @@ def git_available() -> bool:
     where a git failure stamped an empty blob on **428 of 428 ops** and looked
     like "nothing changed".
     """
-    return subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"],
-                          capture_output=True).returncode == 0
+    return subprocess.run(_git_argv("rev-parse", "HEAD"), capture_output=True,
+                          env=_GIT_ENV.scrubbed()).returncode == 0
 
 
 def head_state(rel: str) -> str:
@@ -210,8 +240,8 @@ def head_state(rel: str) -> str:
     :func:`git_available`.
     """
     blob = subprocess.run(
-        ["git", "-C", str(REPO), "show", f"HEAD:docs/srmech/python/{rel}"],
-        capture_output=True)
+        _git_argv("show", f"HEAD:docs/srmech/python/{rel}"),
+        capture_output=True, env=_GIT_ENV.scrubbed())
     if blob.returncode != 0:
         if not git_available():
             raise RuntimeError(

@@ -1,5 +1,12 @@
-"""Stop / SubagentStop — the worked-examples ledger must not claim results it
-has not re-measured. (rc452, `#T1166`)
+"""Stop / SubagentStop — neither derived ledger may claim results it has not
+re-measured. (rc452, `#T1166`; both ledgers and the snippet clause since the
+rc473 instrument round, `#T1188`)
+
+The two derived ledgers are ``tests/worked_examples_result.ndjson`` (rows named
+by ``name``) and ``tests/example_args_ledger.ndjson`` (rows named by ``op``). The
+sections below were written when this hook read the first one alone; where one
+says "the ledger", it applies to each, judged against its OWN last commit. (This
+opening named the worked-examples ledger alone until rc473 instrument repair 1.)
 
 WHAT IT CATCHES, MEASURED
 =========================
@@ -38,8 +45,9 @@ records why.
 THE PREDICATE THIS HOOK ACTUALLY USES
 =====================================
 **A ledger row is unverified if the module that DEFINES its op has changed
-since that row was measured.** Three clauses, OR-ed; a row is stale if any
-fires:
+since that row was measured, or if the snippet it records no longer ships.**
+Both ledgers are read, each against its own last commit. Four clauses, OR-ed;
+a row is stale if any fires, and the first that fires is its reason:
 
   1. CONTENT   — the row carries ``def_module`` + ``def_blob``, and the current
                  HEAD blob of that module's file differs from the stamp.
@@ -47,6 +55,17 @@ fires:
   3. PUBLISHED — (the original rule, kept) any module changed between the
                  ledger's own commit and HEAD matches the row's PUBLISHED name
                  under ``n == m or n.startswith(m + ".")``.
+  4. SNIPPET   — (rc473 instrument round) the row's recorded ``src_sha256``
+                 differs from the live key: ``run_worked_examples.src_sha256``
+                 (imported, so the key has one spelling) of the entry's
+                 ``example`` in ``_tool_docs.py``'s ``TOOL_DOCS`` literal, read
+                 with ``ast.literal_eval`` and never executed; ``""`` where the
+                 entry carries no ``worked`` snippet. Clauses 1-3 cannot see a
+                 snippet move, and clause 4 cannot see an implementation move.
+
+*(This section said "Three clauses" over one ledger until rc473 instrument
+repair 1; the instrument round had added the second ledger and clause 4 without
+it.)*
 
 Per-row scoping keeps the tax proportional: a change to one module never
 demands the full 651-snippet run.
@@ -121,8 +140,18 @@ native side has its own instrument: ``stale_native_tripwire.py``.
 
 COST
 ====
-Three git invocations (``log``, ``diff``, ``ls-tree``) plus ONE
-``dirty_paths`` (two more), and one NDJSON parse (651 rows). MEASURED at rc468:
+Since the rc473 instrument round: per ledger, one ``git log`` and one
+``git diff`` (in :func:`_changed_paths`) and one NDJSON parse (649 and 732 rows
+at that round); once for both, one ``ls-tree``, ONE ``dirty_paths`` (two
+invocations) and one ``ast.parse`` of ``_tool_docs.py`` — seven git invocations
+where the rc468 hook made five. *(Until rc473 instrument repair 1 this paragraph
+said "Three git invocations ... plus ONE dirty_paths ... and one NDJSON parse
+(651 rows)", the one-ledger hook's count.)* The figures below are the rc468
+ONE-ledger hook's; the two-ledger hook's are recorded with the command that
+printed them in the rc473 CHANGELOG, and its cost on the WSL2 9p mount is not
+among them. The rc468 record — Three git invocations (``log``, ``diff``,
+``ls-tree``) plus ONE ``dirty_paths`` (two more), and one NDJSON parse (651
+rows). MEASURED at rc468:
 **0.69 s warm / 7.69 s cold** Windows-native, **17.2-18.7 s** on the WSL2-9p
 mount — where the rc467 hook measured **16.4-17.8 s** in the same session, so
 the whole three-clause union costs about **1 s**, which is the added
@@ -145,18 +174,31 @@ rather than an oversight.
 
 from __future__ import annotations
 
+import ast
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+HOOKS_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(HOOKS_DIR))
 import _hooklib as H  # noqa: E402
 
 LEDGER_REL = "docs/srmech/python/tests/worked_examples_result.ndjson"
+ARGS_LEDGER_REL = "docs/srmech/python/tests/example_args_ledger.ndjson"
+DOCS_REL = "docs/srmech/python/srmech/introspect/_tool_docs.py"
 PY_PREFIX = "docs/srmech/python/"
 WATCHED = "docs/srmech/python/srmech"
 C_WATCHED = ("docs/srmech/c/src", "docs/srmech/c/include")
+
+#: The derived ledgers this hook judges, each against its OWN last commit:
+#: ``(repo-relative path, the key a row is named by, label)``. rc473 instrument
+#: round (`#T1188`): this was one path, ``LEDGER_REL``, so no revert of the
+#: example-args ledger could move the verdict — see the module docstring.
+LEDGERS = (
+    (LEDGER_REL, "name", "worked-example"),
+    (ARGS_LEDGER_REL, "op", "example-args"),
+)
 
 MAX_SHOWN = 8
 
@@ -212,18 +254,30 @@ def _changed_paths(root: Path, base: str, dirty: List[str]) -> List[str]:
     planted two-line edit. The commit-to-commit half below never needed the
     repair — both sides of ``base..HEAD`` are index blobs, so EOL policy does
     not enter.
+
+    rc473 (`#T1188`): the commit-to-commit half tested ``if code == 0`` and
+    otherwise contributed NOTHING, so a git that could not resolve
+    ``base..HEAD`` left this reading exactly like "no file changed between
+    those commits". It now refuses, the same way :func:`_hooklib.dirty_paths`
+    does, and :func:`_hooklib.run_hook` turns that into the documented LOUD
+    fail-open rather than a silent verdict.
     """
     seen: List[str] = []
-    code, out = H.git(["diff", "--name-only", f"{base}..HEAD"], cwd=root)
-    if code == 0:
-        seen.extend(l.strip() for l in out.splitlines() if l.strip())
+    out = H._git_or_refuse(
+        ["diff", "--name-only", f"{base}..HEAD"], root,
+        "The commit-to-commit half of the change set would otherwise be "
+        "silently empty, so every module touched since the ledger was written "
+        "would read as untouched.")
+    seen.extend(l.strip() for l in out.splitlines() if l.strip())
     seen.extend(dirty)
     return seen
 
 
-def _rows(ledger: Path) -> List[Dict[str, Any]]:
-    """Every non-meta row, whole. The row carries its own ``def_module`` /
-    ``def_blob`` stamp, which is what keeps this hook import-free."""
+def _rows(ledger: Path, key: str = "name") -> List[Dict[str, Any]]:
+    """Every non-meta row, whole, named by ``key`` (``name`` in the worked-
+    example ledger, ``op`` in the example-args ledger). The row carries its own
+    ``def_module`` / ``def_blob`` stamp, which is what keeps this hook
+    import-free."""
     rows: List[Dict[str, Any]] = []
     try:
         with ledger.open("r", encoding="utf-8", errors="replace") as fh:
@@ -237,11 +291,61 @@ def _rows(ledger: Path) -> List[Dict[str, Any]]:
                     continue
                 if obj.get("record") == "meta":
                     continue
-                if isinstance(obj.get("name"), str):
+                if isinstance(obj.get(key), str):
+                    obj["_row_name"] = obj[key]
                     rows.append(obj)
     except OSError:
         pass
     return rows
+
+
+def live_snippet_keys(root: Path) -> Optional[Dict[str, str]]:
+    """``{tool name: snippet key}`` of the LIVE generated docs, or ``None`` when
+    ``_tool_docs.py`` is absent. (rc473 instrument round, `#T1188`.)
+
+    The key is ``src_sha256`` exactly as both harvesters record it —
+    ``tools/run_worked_examples.py::src_sha256`` of the entry's ``example``
+    when it carries a ``worked`` snippet, else ``""`` — so a row whose recorded
+    key differs from this one records a snippet that no longer ships.
+
+    Still no srmech import: the ``TOOL_DOCS`` literal is read with
+    ``ast.parse`` + ``ast.literal_eval``, never executed, so a tree that is
+    mid-edit elsewhere cannot make this silently pass. The hash function is
+    IMPORTED from ``run_worked_examples`` (stdlib-only at module level), so the
+    key has one spelling in the tree and this hook adds no hash call of its
+    own. A ``_tool_docs.py`` that parses but carries no ``TOOL_DOCS`` literal
+    RAISES: reading no snippets is not the same fact as "no snippet moved", and
+    :func:`_hooklib.run_hook` reports the raise as a loud fail-open.
+    """
+    path = root / DOCS_REL
+    if not path.is_file():
+        return None
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    docs = None
+    for node in tree.body:
+        target = None
+        if isinstance(node, ast.AnnAssign):
+            target = node.target
+        elif isinstance(node, ast.Assign) and len(node.targets) == 1:
+            target = node.targets[0]
+        if isinstance(target, ast.Name) and target.id == "TOOL_DOCS" and node.value is not None:
+            docs = ast.literal_eval(node.value)
+            break
+    if not isinstance(docs, dict):
+        raise RuntimeError(
+            f"{DOCS_REL} carries no TOOL_DOCS literal, so the snippet clause "
+            "cannot read the live snippets, and reading none is not 'no "
+            "snippet moved'")
+    tools_dir = str(HOOKS_DIR.parent)
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    import run_worked_examples as RWE  # noqa: E402  (stdlib-only at import)
+    out: Dict[str, str] = {}
+    for name, entry in docs.items():
+        example = entry.get("example") if isinstance(entry, dict) else None
+        out[name] = (RWE.src_sha256(example)
+                     if isinstance(example, dict) and example.get("worked") else "")
+    return out
 
 
 def _head_blobs(root: Path) -> Dict[str, str]:
@@ -249,10 +353,19 @@ def _head_blobs(root: Path) -> Dict[str, str]:
 
     ONE ``ls-tree`` for the whole subtree; the alternative is one
     ``rev-parse HEAD:<path>`` per distinct module.
+
+    rc473 (`#T1188`): this returned ``{}`` on a git it could not run, which
+    makes clause 1 (``blobs[dm] != db``) VACUOUS for every row — ``dm in
+    blobs`` is false throughout — so the hook reported no content staleness
+    for a reason that had nothing to do with content. It refuses now, exactly
+    as ``tools/run_worked_examples.py``'s ``head_blob_map`` already did for
+    the same ``ls-tree`` on the same condition.
     """
-    code, out = H.git(["ls-tree", "-r", "HEAD", "--", WATCHED], cwd=root)
-    if code != 0:
-        return {}
+    out = H._git_or_refuse(
+        ["ls-tree", "-r", "HEAD", "--", WATCHED], root,
+        "Clause 1 compares each row's def_blob against this map; an empty map "
+        "makes that comparison vacuous for every row, which reads as 'nothing "
+        "moved'.")
     blobs: Dict[str, str] = {}
     for line in out.splitlines():
         if "\t" not in line:
@@ -274,16 +387,76 @@ def body(payload: Dict[str, Any]) -> int:
             "this stop without re-checking ledger freshness."])
 
     root = H.repo_root()
-    ledger = root / LEDGER_REL
-    if not ledger.is_file():
+    present = [(rel, key, label) for rel, key, label in LEDGERS
+               if (root / rel).is_file()]
+    if not present:
         return H.allow()
 
-    code, out = H.git(["log", "-1", "--format=%H", "--", LEDGER_REL], cwd=root)
-    base = out.strip().splitlines()[-1].strip() if (code == 0 and out.strip()) else ""
-    if not base:
-        return H.allow()          # never committed: nothing to compare against
+    dirty: Optional[List[str]] = None
+    blobs: Optional[Dict[str, str]] = None
+    snippet_read = False
+    snippet: Optional[Dict[str, str]] = None
+    advisory: List[str] = []
+    lines: List[str] = []
+    blocked = 0
+    for rel, key, label in present:
+        # rc473 (`#T1188`): the two reasons this can be empty are NOT the same
+        # reason, and they used to be spelled the same way. `git log` EXITING
+        # NON-ZERO means the instrument could not answer; `git log` succeeding
+        # with no output means the ledger has never been committed, which
+        # genuinely is "nothing to compare against". Only the second may allow.
+        out = H._git_or_refuse(
+            ["log", "-1", "--format=%H", "--", rel], root,
+            "An unreadable log is not the same fact as an uncommitted ledger, "
+            "and allowing on both makes the hook silent exactly when it cannot "
+            "see.")
+        base = out.strip().splitlines()[-1].strip() if out.strip() else ""
+        if not base:
+            continue              # never committed: nothing to compare against
 
-    dirty = H.dirty_paths(root, [WATCHED, *C_WATCHED])
+        if dirty is None:
+            dirty = H.dirty_paths(root, [WATCHED, *C_WATCHED])
+            blobs = _head_blobs(root)
+        if not snippet_read:
+            snippet, snippet_read = live_snippet_keys(root), True
+            if snippet is None:
+                advisory.append(
+                    f"[derived-ledger-freshness] ADVISORY: {DOCS_REL} is absent, "
+                    "so the snippet clause was NOT evaluated; clauses 1-3 were.")
+        judged = _judge(root, base, dirty, blobs or {}, snippet,
+                        _rows(root / rel, key))
+        if judged["c_touched"]:
+            advisory.append(
+                f"[derived-ledger-freshness] ADVISORY: {judged['c_touched']} C "
+                f"source file(s) also changed since the {label} ledger was "
+                "written. Native-dispatched results may have moved; this hook "
+                "does not block on that (see stale_native_tripwire.py).")
+        if judged["stale"]:
+            blocked += len(judged["stale"])
+            lines += _block_lines(rel, key, label, base, judged)
+
+    if not blocked:
+        return H.allow(advisory)
+    return H.block(lines + advisory + [
+        "An instrument that has not been re-run cannot return otherwise: those "
+        "rows still record the OLD implementation or the OLD snippet, and they "
+        "ship through the MCP tool list and the compiled-in C registry.",
+        "",
+        "⚠️ Neither key finds the other's rows. The snippet-text hash "
+        "(src_sha256) does not move when the implementation moves, which is "
+        "exactly how the ℚ-flip defect shipped — clauses 1-3 exist for that. "
+        "And a def_blob stamp does not move when a SNIPPET moves — clause 4 "
+        "exists for that (rc473). Every unverified row is named above IN FULL: "
+        "in the remedy command for the worked-example ledger, and in the list "
+        "under the remedy for the example-args ledger. The one-line module(s) "
+        "and unverified-rows summaries stop at 8.",
+    ])
+
+
+def _judge(root: Path, base: str, dirty: List[str], blobs: Dict[str, str],
+           snippet: Optional[Dict[str, str]],
+           rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """One ledger's rows against the four clauses, first clause that fires wins."""
     changed = _changed_paths(root, base, dirty)
     modules: Set[str] = set()
     c_touched: Set[str] = set()
@@ -297,23 +470,12 @@ def body(payload: Dict[str, Any]) -> int:
     dirty_modules: Set[str] = {_module_of(p) for p in dirty
                                if p.startswith(WATCHED)}
     dirty_modules.discard("")
-
-    advisory: List[str] = []
-    if c_touched:
-        advisory.append(
-            f"[derived-ledger-freshness] ADVISORY: {len(c_touched)} C source "
-            "file(s) also changed since the ledger was written. Native-dispatched "
-            "results may have moved; this hook does not block on that (see "
-            "stale_native_tripwire.py).")
-
-    rows = _rows(ledger)
-    blobs = _head_blobs(root)
     mods_sorted = sorted(modules)
 
     stale: List[str] = []
     why: Dict[str, str] = {}
     for r in rows:
-        n = r["name"]
+        n = r["_row_name"]
         dm = r.get("def_module") or ""
         db = r.get("def_blob") or ""
         reason = ""
@@ -323,21 +485,24 @@ def body(payload: Dict[str, Any]) -> int:
             reason = "dirty"                        # clause 2
         elif any(n == m or n.startswith(m + ".") for m in mods_sorted):
             reason = "published-name"               # clause 3
+        elif snippet is not None and (r.get("src_sha256") or "") != snippet.get(n, ""):
+            reason = "snippet"                      # clause 4 (rc473)
         if reason:
             stale.append(n)
             why[n] = reason
+    mods = sorted(modules | {r.get("def_module") or "" for r in rows
+                             if why.get(r["_row_name"]) in ("content", "dirty")})
+    return {"rows": len(rows), "stale": stale, "why": why,
+            "modules": [m for m in mods if m], "c_touched": len(c_touched)}
 
-    if not stale:
-        return H.allow(advisory)
 
+def _block_lines(rel: str, key: str, label: str, base: str,
+                 judged: Dict[str, Any]) -> List[str]:
+    stale, why, mods = judged["stale"], judged["why"], judged["modules"]
     shown = stale[:MAX_SHOWN]
     more = len(stale) - len(shown)
-    mods = sorted(modules | {r.get("def_module") or "" for r in rows
-                             if r["name"] in stale
-                             and why[r["name"]] != "published-name"})
-    mods = [m for m in mods if m]
     tally = {k: sum(1 for v in why.values() if v == k)
-             for k in ("content", "dirty", "published-name")}
+             for k in ("content", "dirty", "published-name", "snippet")}
     # ⚠️ THE REMEDY LISTS EVERY STALE ROW, NEVER THE FIRST THREE. Until rc468
     # it printed one `--only <name>` line per row for `shown[:3]`, so following
     # the hook's own instructions on a 55-row block re-ran 3 and left 52 —
@@ -345,41 +510,39 @@ def body(payload: Dict[str, Any]) -> int:
     # names the single-command form is written as a `--names-file -` heredoc,
     # because Windows `cmd` truncates an argv beyond 8191 characters and a
     # truncated remedy is a partial pass wearing a complete one's clothes.
-    if len(stale) <= 24:
+    if key == "op":
+        # rc473 instrument repair 1 (`#T1188`): this remedy names no row, and the
+        # summary line above stops at MAX_SHOWN, so an 80-row block named 8. The
+        # full list follows it, one row per line, as the worked remedy's does.
+        remedy = ["    python3 tools/run_example_args.py",
+                  "  (it has no scoped form: rc469 removed it, and the harvest "
+                  "re-measures every row)",
+                  f"  every unverified row ({len(stale)}):"]
+        remedy += ["    " + n for n in stale]
+    elif len(stale) <= 24:
         remedy = ["    python3 tools/run_worked_examples.py --only "
                   + " ".join(stale)]
     else:
         remedy = ["    python3 tools/run_worked_examples.py --names-file - <<'EOF'"]
         remedy += [n for n in stale]
         remedy += ["EOF"]
-
-    return H.block([
-        f"BLOCKED (derived-ledger-freshness): {len(stale)} of {len(rows)} "
-        "worked-example ledger rows are UNVERIFIED — the modules defining them "
-        "changed after those rows were measured.",
+    return [
+        f"BLOCKED (derived-ledger-freshness): {len(stale)} of {judged['rows']} "
+        f"{label} ledger rows are UNVERIFIED — the module defining them, or "
+        "the snippet they record, changed after those rows were measured.",
+        f"  ledger        : {rel}",
         f"  ledger commit : {base[:12]}",
         f"  by clause     : content={tally['content']} dirty={tally['dirty']} "
-        f"published-name={tally['published-name']}",
+        f"published-name={tally['published-name']} snippet={tally['snippet']}",
         f"  module(s): {', '.join(mods[:MAX_SHOWN])}"
         + (f" (+{len(mods) - MAX_SHOWN} more)" if len(mods) > MAX_SHOWN else ""),
         "  unverified rows: " + ", ".join(shown)
         + (f" (+{more} more)" if more > 0 else ""),
-        *advisory,
-        "",
-        "An instrument that has not been re-run cannot return otherwise: those "
-        "rows still record the status of the OLD implementation, and they ship "
-        "through the MCP tool list and the compiled-in C registry.",
-        "",
-        "Re-run the affected snippets — ALL of them, in one pass — then commit "
-        "the ledger with the change:",
+        "  Re-run the affected rows — ALL of them, in one pass — then commit the "
+        "ledger with the change:",
         *remedy,
         "",
-        "⚠️ Nothing keyed on the snippet-text hash (src_sha256) can find "
-        "these: that hash does not move when the implementation moves, which "
-        "is exactly how the ℚ-flip defect shipped. It is why the list above is "
-        "printed IN FULL and why rc469 removed the scoping flag that shared "
-        "the blind spot. Re-run the named rows, or the whole ledger.",
-    ])
+    ]
 
 
 if __name__ == "__main__":

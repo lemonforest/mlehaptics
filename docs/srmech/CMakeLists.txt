@@ -408,11 +408,47 @@ if(SRMECH_SRCS)
         # unregistered and a registration cannot outlive its file. That
         # closes the rc356 shape STRUCTURALLY instead of once.
         #
-        # ⚠️ These 20 have only ever been executed on WSL2. The macOS
-        # clang and Windows MSVC cells are UNMEASURED for them as of this
-        # commit. A cell that reds is a finding to FIX, not to
-        # deregister — deregistering would restore exactly the state this
-        # block removes.
+        # ⚠️ These 22 RUN on all three cells. A cell that reds is a finding
+        # to FIX, not to deregister — deregistering would restore exactly the
+        # state this block removes.
+        #
+        # This comment read "These 20 have only ever been executed on WSL2.
+        # The macOS clang and Windows MSVC cells are UNMEASURED for them as of
+        # this commit", and BOTH halves were wrong by the rc473 repair pass.
+        # The count: the set() below carries 22 names, measured by the parity
+        # gate's own non-greedy `set\(\s*(\w+)\s+(.*?)\)` parse — it was
+        # already 21 when "20" was written at rc452, the same commit whose
+        # srmech-ci.yml comment said "38" for a 39-test set and was corrected
+        # for that reason. The platform claim: rc452 is what wired this list
+        # into ctest, and the pedantic job runs ctest on ubuntu-latest/gcc,
+        # macos-14/clang and windows-latest/MSVC, so these have not been
+        # WSL2-only since that commit. Re-count here rather than editing the
+        # number by hand — a cardinal above a list that grows is the shape
+        # this file keeps re-minting.
+        #
+        # rc473 (`#T1188`) added test_srmech_value_status_rc473 to the list
+        # below, and WHICH list is not cosmetic. The foreach at ~:376 issues
+        # add_test only — each of its names has its own add_executable stanza
+        # written out above it. A name added THERE would be registered with
+        # ctest, would satisfy test_ctest_collection_parity_rc452's two-way set
+        # equality, would make `ctest -N` print the expected total, and would
+        # never be compiled: the -Werror / /WX matrix would never see the file,
+        # and ctest would report "(Not Run)", a message that does not say
+        # "wrong list". A minimal CMake project with an add_test and no target
+        # CONFIGURES successfully, so nothing earlier than the run step
+        # objects. THIS list's foreach does all three of add_executable /
+        # target_link_libraries / add_test, which is why it is the one-line
+        # home its own comment above advertises.
+        #
+        # ⚠️ DO NOT WRITE A COMMENT CONTAINING ")" INSIDE THE set() BODY
+        # BELOW. test_ctest_collection_parity_rc452::_registered parses the
+        # list with the NON-GREEDY regex `set\(\s*(\w+)\s+(.*?)\)`, so the
+        # first ")" anywhere in the body — including one inside a "#" comment,
+        # which CMake itself ignores — ends the captured text and silently
+        # drops every name after it. Measured while adding the line below: a
+        # comment carrying a backticked task id truncated the parse at the
+        # comment and reported the new file as UNREGISTERED. Put the prose
+        # here, above the set(), where it cannot be captured.
         # ─────────────────────────────────────────────────────────────
         set(SRMECH_C_TESTS_RC452
             test_srmech_bigexp test_srmech_cascade_toml_host
@@ -422,7 +458,8 @@ if(SRMECH_SRCS)
             test_srmech_json test_srmech_ndjson test_srmech_parallel
             test_srmech_poly test_srmech_q_wz_verify test_srmech_qi
             test_srmech_qmat test_srmech_recursive_cut test_srmech_sha256
-            test_srmech_toml test_srmech_wz test_srmech_zeilberger)
+            test_srmech_toml test_srmech_wz test_srmech_zeilberger
+            test_srmech_value_status_rc473)
         foreach(t ${SRMECH_C_TESTS_RC452})
             add_executable(${t} c/test/${t}.c)
             target_link_libraries(${t} PRIVATE srmech ${SRMECH_MATH_LIB})

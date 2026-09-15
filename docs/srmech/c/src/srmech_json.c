@@ -29,7 +29,7 @@
  * doubles too ("NaN" / "Infinity" / "-Infinity"). Before rc403 this
  * was a best-effort snprintf("%.17g") whose output was
  * platform-dependent, and THIS BLOCK STILL SAID SO UNTIL rc404, having
- * been missed when rc403 updated include/srmech.h:5227 beside it. The
+ * been missed when rc403 updated include/srmech.h:5267 beside it. The
  * parity guarantee now covers null / bool / int / double / string /
  * object / array trees alike. Still libm-free. See JPL_AUDIT.md +
  * CHANGELOG.

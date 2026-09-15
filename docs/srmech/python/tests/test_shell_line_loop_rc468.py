@@ -65,6 +65,8 @@ from pathlib import Path
 
 import pytest
 
+from tests import _git_env
+
 REPO = Path(__file__).resolve().parents[4]
 
 
@@ -74,10 +76,17 @@ def _is_checkout() -> bool:
     A SKIP is reported and visible; a hard failure outside a checkout would be
     a false red, and silently scanning nothing would be the vacuous pass this
     file exists to avoid. CI runs in a checkout, which is where it matters.
+
+    rc473 final round (`#T1188`): both git calls here pass
+    :func:`tests._git_env.git_location_args`, so a WSL git reading a
+    Windows-made worktree gets the pointer's ``/mnt`` twin per invocation.
+    Before, that cell SKIPPED this strict-zero gate ("not a git checkout") and
+    the only way to un-skip it was to export ``GIT_DIR`` — the export the
+    suite guard now removes.
     """
     if shutil.which("git") is None:
         return False
-    p = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"],
+    p = subprocess.run(_git_env.git_argv(REPO, ["rev-parse", "--is-inside-work-tree"]),
                        cwd=str(REPO), stdout=subprocess.PIPE,
                        stderr=subprocess.DEVNULL, check=False)
     return p.returncode == 0
@@ -101,7 +110,7 @@ _FENCE = re.compile(r"^\s*```+\s*(\w*)", re.M)
 
 
 def _tracked(suffixes: tuple) -> list:
-    out = subprocess.run(["git", "ls-files"], cwd=str(REPO),
+    out = subprocess.run(_git_env.git_argv(REPO, ["ls-files"]), cwd=str(REPO),
                          stdout=subprocess.PIPE, check=False)
     if out.returncode != 0:
         return []
