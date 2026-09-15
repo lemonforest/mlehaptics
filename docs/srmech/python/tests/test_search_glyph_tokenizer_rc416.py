@@ -1367,9 +1367,26 @@ from srmech.math.text import fold_marks, glyph_stream
 #: `_tool_docs.py` -> `da8db242…`, `_tool_docs_curated.py` and `math/kepler.py`
 #: -> no move; applied ALONE onto the old state, `_tool_docs.py` -> `5ce08382…`,
 #: the other two -> no move. All three old -> `da8db242…`, the pin below.
+#: A FOURTEENTH pin, in rc473's final round (`#T1188`), for one cause again: the
+#: regenerated `_tool_docs.py`, which now names the grids the Kepler figures were
+#: measured on, says which ratio each "eccentricity" sentence means, and names
+#: `cascade.pin_slot_at_zero` in `cascade.reorient`'s input. CONFIRMED A PROSE
+#: MOVE AND NOT A NON-DETERMINISTIC BUILD: FIVE `_build_frames("all")` calls in
+#: each of THREE fresh interpreters in the WSL2 clone `~/rc473c/repo` (no
+#: `.claude` / `worktrees` component; CPython 3.12.3, native cell, library
+#: `205f661661ba2cd0` built from the regenerated registry, authenticated)
+#: returned `01ff7bc2a1f7…32149401da` every time, `search("rank", k=1).witness`
+#: agrees, and a pure snapshot of the same bytes (0 library files) returns the
+#: same digest. 761 = 732 ops + 29 carriers, unmoved. ISOLATED BOTH WAYS against
+#: the `52371629a` blobs, where exactly three package files differ: reverted
+#: ALONE, `_tool_docs.py` -> `5ce08382…`, `_tool_docs_curated.py` and
+#: `math/kepler.py` -> no move; applied ALONE onto the all-reverted state,
+#: `_tool_docs.py` -> `01ff7bc2…`, the other two -> no move. All three old ->
+#: `5ce08382…`, the pin below it was; restored, byte-identical, `01ff7bc2…`.
 WITNESS_RC416 = (
-    "5ce08382175192d63e794bf0008532ed5d80402e08f873fd7f284e27eb3b4839")
-#: was: da8db24232bd1b404cc0a0daa307f8f93c688a9f8a80a2eead8ab6ef296173c9 (rc473 truth round)
+    "01ff7bc2a1f7a10e85bb442164268def4163cd6f92287087f137af32149401da")
+#: was: 5ce08382175192d63e794bf0008532ed5d80402e08f873fd7f284e27eb3b4839 (rc473 truth repair 1)
+#: before that: da8db24232bd1b404cc0a0daa307f8f93c688a9f8a80a2eead8ab6ef296173c9 (rc473 truth round)
 #: was: f28fb52c01b61054dd3424eb26071b9324408b4781d6159cc6016c42225dd0b4 (rc473 close-out)
 #: was: bb82a3fd0f0f51b9e8ce23ddb2c952255ce5c56924a2b061119a55e683711659 (rc473 repair round 1)
 #: was: ddcc47f6c5c33d985c0101e245ca3658805811c4edca01ab63ab267e3a3dcea1 (rc473 twin-defect pass)
