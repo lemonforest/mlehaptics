@@ -1664,6 +1664,58 @@ Gate round t2 named both absences as missing pins: can-fail N1 and N6, sweep N3.
 * The `manifest` group's echo label named a `81c55dba6` runner run it does not make; corrected in `dafad890d`. No figure depended on the label.
 * The `advice` group's detail grep over the base run printed 0 lines (its pattern did not match pytest's failure-message layout); only the tally "3 failed, 3 passed" and the three failing node ids are used.
 
+##### Validation of `f5766aa61` (2026-09-15) — the head carrying every change of this round; the commit carrying this record changes only this file
+
+**Conditions.**
+* **WSL2.** `~/rc473c/repo` (native) and `~/rc473c/pure` (0 library files), each at `f5766aa61` with 0 tracked changes before and after every step. Every step is `bash notes/_rc473_instr_validate.sh <step> ~/rc473c/repo ~/rc473c/pure [arg]` (committed in `f5766aa61`), which prints the exported `GIT_DIR` / `GIT_WORK_TREE` count and refuses unless it is 0; every count printed was 0. Every native figure was authenticated first by `notes/_rc473_instr_auth.py`: library `205f661661ba2cd0`, `abi / c version : 26 0.9.0rc473`, `AUTH srmech_rational_sqrt(NaN) -> status 2`, `AUTHENTIC : True`, numpy not imported. CPython 3.12.3 (3.10.21 where named); `SRMECH_ALLOW_STALE_NATIVE` unset; no mtime touched.
+* **The live repository.** `git config --show-origin user.name` / `user.email` printed `file:C:/Users/sckir/.gitconfig` `Steven Kirkland` / `sckirklan@gmail.com`, and `sha256(D:/GitHub/mlehaptics/.git/config)` printed `ffaa8595e317ed80dd6b9a28efed7b0d9f5a0726149ceaa7a24e8a2be59ce2c6`, at 12:59:30Z before the validation and at 13:40:29Z after it. Unchanged.
+
+**Builds.**
+* **WSL gcc 13.3.0**, a CLEAN pedantic Release in a fresh `~/rc473c/build_ir` (step `build`): configure 0, build 0, 0 warnings / 0 errors, `[219/219]`, 178 `-Werror`, 0 `__assert_fail`, library **`205f661661ba2cd0`**, ctest "100% tests passed out of 40".
+* **Windows clang-cl 22.1.0** (cmake 4.3.1, Ninja 1.12.0, `-DSRMECH_PEDANTIC=ON`, `/arch:AVX2 /clang:-msha /clang:-msse4.1`), from a `git -c core.autocrlf=false archive` extract of `f5766aa61` (1341 files, 0 CR bytes in `srmech_kepler.c`, 0 library files):
+  * **Release:** configure 0, build 0, 0 warning lines, 0 error lines, 178 `/WX`, ctest 40/40, DLL `34e99772aefd69e0`;
+  * **Debug:** the same, DLL `26dc1d8afe43499f`.
+* **The Windows C-boundary pair** (`test_kepler_non_finite_slots_rc473` + `test_value_status_c_boundary_rc473`), inside the extract, CPython 3.14.3, one DLL at a time, each AUTHENTIC: Release **251 passed, 6 xfailed**; Debug **251 passed, 6 xfailed**; pure (`HAS_NATIVE False`) **74 passed, 183 skipped**. The extract was removed afterwards.
+
+**The named gates** (step `gates <group> <cell>`): groups 1–4 are the truth and final rounds' files as listed in the final round's validation above; group 5 is this round's new file, `test_git_export_advice_absent_rc473`. This round's other new tests live inside files of groups 1–4.
+
+| group | native | pure |
+|---|---|---|
+| 1 | 349 passed, 6 xfailed | 169 passed, 186 skipped |
+| 2 | 94 passed | 94 passed |
+| 3 | 207 passed, 1 skipped | 174 passed, 34 skipped |
+| 4 | 121 passed, 3 skipped | 121 passed, 3 skipped |
+| 5 | 6 passed | 6 passed |
+| **total** | **777 passed, 4 skipped, 6 xfailed** | **564 passed, 223 skipped** |
+
+* The 3 skips of group 4 in each cell are all `tests/test_pypi_readme_changelog.py:351`, "could not import 'hatch_fancy_pypi_readme'".
+* **The new ledger nodes on four cells** (`bash notes/_rc473_instr_canfail.sh cells …`): the two BLOB and two RESOLUTION nodes gave **4 passed** on native CPython 3.10.21, native 3.12.3, pure 3.10.21 and pure 3.12.3.
+
+**The Stop hook against both committed ledgers** (step `hook`): the worked-example ledger holds 649 rows and the example-args ledger 732; the hook exited 0 twice (507 ms and 299 ms, `uv run` start included) with no stderr.
+
+**D1 and D2** (step `d1d2`, the committed probes):
+* **D2:** the slot sweep printed "rows compared: 107 {'SAME': 107, 'SAME-VERDICT': 0, 'SERVE-vs-REFUSE': 0}"; the tolerance frontier "rows compared: 306 {'SAME': 306, 'SAME-VERDICT': 0, 'SERVE-vs-REFUSE': 0}".
+* **D1:** "fuzz rows 40000 symbol mismatches 0 wrapper mismatches 0", families `{'0': 11338, '1': 11338, '2': 11337, '3': 5987}`, and every door row (±3.602879701896397e+16, NaN, ±Inf, 1e+300) `st 2 … res nan`.
+
+**The whole ripple manifest**, native, from `~/rc473c/repo` (steps `ripple_split 6` and `ripple_part <i>`): "total targets 140; every target in exactly one part: True".
+
+| part | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| result | 502 passed | 458 passed | 1 failed, 350 passed | 567 passed, 2 skipped, 6 xfailed | 564 passed | 805 passed, 1 skipped |
+
+* **Total: 3256 items — 3246 passed, 3 skipped, 6 xfailed, 1 failed**, with no part re-run.
+* **The failure** is `test_citation_manifest_rc428.py::test_the_validate_entry_point_exits_nonzero_on_a_failing_control`, the one final repair 1 recorded. Run alone at `f5766aa61` and at `1ab8d405b` by the archived `notes/_rc473_scratch/fr1/w_env428.sh` (clone paths of 26 characters each), both print "1 failed" with 8 failure lines. Its comparison printed DIFFER on one line, which differed only in uv's per-run interpreter directory; `notes/_rc473_scratch/fr1/w_env428_norm.sh`, normalising that too, printed **"normalised failure lines IDENTICAL"**: "the shadowed import failed WITHOUT naming the cause: … ModuleNotFoundError: No module named 'srmech'". It is environmental.
+
+**The demotion census from an EMPTY manifest** (steps `census_pure`, `census_native`, `census_diff`): the pure column first ("manifest before: EMPTY", 186.1 s), then the native column merged (48.9 s, authenticated). `tools/census_regen_diff.py` against the committed census: "(i) meta keys that MOVED: []"; rows added 0, removed 0, "data lines differing at all: 0 of 835 shared"; "VERDICT CHANGES: 0"; **"INVARIANT: HELD (5/5)"**.
+
+**`tools/hooks/check_hooks.py`, every check** (step `check_hooks`, run alone on the native clone): exit 0 in 175.7 s, **"127 passed, 0 failed, 2 skipped (129 cases)"**, and the case "jpl-audit scans a non-empty function population" passes at "_scan_functions() total : 3620 funcs". The two skips, as printed:
+* "ssot-agreement BLOCKS the REAL tree" — "the ABI prose lag has been repaired — re-plant a fixture to re-verify";
+* "prose-currency NAMES the skip" — "no gate skips on this interpreter ({'passed': 21}) — the skip is native-library-dependent, so it is present on Windows and absent under WSL2".
+
+**`tools/regen_all.py --check`** (step `regen`, native): "all 6 generated files are up to date (61.1s)".
+
+**CI on `f5766aa61`**, each job's conclusion read after the run completed: `srmech-ci` run 34972193409 `completed`, `success`, with all 22 jobs `success`; `srmech-ref-guard` run 34972193426 `success` (1/1). **23 of 23.**
+
 ---
 
 ## [0.9.0rc472] - `#T1188`: the census learns SCALARS, an op that answered in one projection and refused in the other, the required-scalar fill that let thirteen rows be asked — and two of rc471's own shipped sentences corrected, one for a claim that is true at exactly one binade and one for a cause that was never the cause
