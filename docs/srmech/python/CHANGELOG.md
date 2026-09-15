@@ -1967,6 +1967,66 @@ How they were found, and how far that reaches. Two helpers, archived byte-identi
 * The PowerShell wrapper that synced the WSL clones to `b38fbe46b` printed "sync exit True": PowerShell, not bash, expanded its `$?`. The sync's own "after" lines (HEAD `b38fbe46b…`, 0 tracked changes) are the evidence.
 * `b38fbe46b` shipped two JPL sentences — I6's marked note ("The case was run at `81c55dba6`, and the population script counted `1ab8d405b`") and the `tools/hooks/check_hooks.py` comment ("it was run at `81c55dba6`, and the audit's scanner already counted a population other than the literal at `1ab8d405b`") — whose figures came from a research report, not from a committed record or a run of this repair. THE INSTRUMENT ROUND's own premises note says it "did not print `1ab8d405b`'s" population. Both were rewritten in the commit carrying this record, on I6's printed 3598 / 3620 and this repair's printed 3600 at `1ab8d405b`.
 
+##### Validation of `5328c518a` (2026-09-15) — the head carrying every change of this repair; the commit carrying this record adds only this subsection
+
+**Conditions.**
+* **WSL2.** `~/rc473c/repo` (native) and `~/rc473c/pure` (0 library files), each at `5328c518a2f6496ba99aed2fbb285bbd2c87767a` with 0 tracked changes before and after every step, neither under `.claude` or `worktrees`. Every step is `bash notes/_rc473_instr_validate.sh <step> ~/rc473c/repo ~/rc473c/pure [arg]`, run from a copy byte-identical to its blob at that head (sha256 prefix `d8a763412cd385cd`, 0 CR); it prints the exported `GIT_DIR` / `GIT_WORK_TREE` count and refuses unless it is 0, and every count printed was 0. Every native figure was authenticated first by `notes/_rc473_instr_auth.py`: `_native.__file__` inside the repo clone, library `205f661661ba2cd0`, `abi / c version : 26 0.9.0rc473`, `AUTH srmech_rational_sqrt(NaN) -> status 2`, `AUTHENTIC : True`, numpy not imported. CPython 3.12.3; `SRMECH_ALLOW_STALE_NATIVE` unset; no mtime touched. The steps ran one at a time, in the order below, `check_hooks` last.
+* **Windows.** CPython 3.14.3, pytest 9.0.3; clang-cl 22.1.0, cmake 4.3.1, Ninja 1.12.0; a git-free extract of the validated head (below), removed after the pair.
+* **The live repository.** `git config --show-origin user.name` / `user.email` printed `file:C:/Users/sckir/.gitconfig` `Steven Kirkland` / `sckirklan@gmail.com`, and `sha256(D:/GitHub/mlehaptics/.git/config)` printed `ffaa8595e317ed80dd6b9a28efed7b0d9f5a0726149ceaa7a24e8a2be59ce2c6`, at 20:30:26Z before `5328c518a` was committed and at 21:18:10Z after the validation; the WSL chain printed the live digest prefix `ffaa8595e317ed80` at its sync (20:33:29Z) and at its end (21:16:19Z). Unchanged.
+
+**Builds.**
+* **WSL gcc 13.3.0**, a CLEAN pedantic Release in a fresh `~/rc473c/build_ir2` (step `build`; cmake 4.4.3, ninja 1.11.1): configure exit 0, "SRMECH_PEDANTIC=ON — compiler warnings will fail the build"; build exit 0, 0 warnings, 0 errors, `[219/219]`; 178 `-Werror`, 0 `__assert_fail`; library **`205f661661ba2cd0`**; ctest "100% tests passed out of 40".
+* **Windows clang-cl 22.1.0** (cmake 4.3.1, Ninja 1.12.0, `-DSRMECH_PEDANTIC=ON`, `/arch:AVX2 /clang:-msha /clang:-msse4.1`), from a `git -c core.autocrlf=false archive` of `5328c518a` (archive sha256 prefix `318730029cebd003`; 1342 files, 0 CR bytes in `srmech_kepler.c`, 0 library files):
+  * **Release:** configure 0, build 0, 0 `warning` lines, 0 `: error` lines, 178 `/WX`, ctest "100% tests passed, 0 tests failed out of 40", DLL `d9ddbe0a2e2a0035`;
+  * **Debug:** the same, DLL `30554afe8edab821`.
+* **The Windows C-boundary pair** (`test_kepler_non_finite_slots_rc473` + `test_value_status_c_boundary_rc473`), inside the extract, CPython 3.14.3, one DLL at a time, each authenticated (`abi / c version : 26 0.9.0rc473`, `AUTH srmech_rational_sqrt(NaN) -> status 2`, `AUTHENTIC : True`): Release **251 passed, 6 xfailed**; Debug **251 passed, 6 xfailed**; pure (`HAS_NATIVE False`) **74 passed, 183 skipped**; 0 library files left after each. The extract was removed afterwards.
+
+**The named gates** (step `gates <group> <cell>`; the groups of the validation of `fb09a8918`):
+
+| group | native | pure |
+|---|---|---|
+| 1 | 349 passed, 6 xfailed | 169 passed, 186 skipped |
+| 2 | 95 passed | 95 passed |
+| 3 | 209 passed, 1 skipped | 176 passed, 34 skipped |
+| 4 | 121 passed, 3 skipped | 121 passed, 3 skipped |
+| 5 | 6 passed | 6 passed |
+| **total** | **780 passed, 4 skipped, 6 xfailed** | **567 passed, 223 skipped** |
+
+* Equal, group by group and cell by cell, to the validation of `fb09a8918`. Group 3 holds the meta-test file, whose count did not change: the plugin test was renamed and widened, not added.
+* The 3 skips of group 4 in each cell are all `tests/test_pypi_readme_changelog.py:351`, "could not import 'hatch_fancy_pypi_readme'".
+
+**The Stop hook against both committed ledgers** (step `hook`): the worked-example ledger holds 649 rows and the example-args ledger 732; the hook exited 0 twice (484 ms and 391 ms, `uv run` start included) with 0 stderr lines.
+
+**D1 and D2** (step `d1d2`, authenticated):
+* **D2:** the slot sweep printed "rows compared: 107 {'SAME': 107, 'SAME-VERDICT': 0, 'SERVE-vs-REFUSE': 0}"; the tolerance frontier "rows compared: 306 {'SAME': 306, 'SAME-VERDICT': 0, 'SERVE-vs-REFUSE': 0}".
+* **D1:** "fuzz rows 40000 symbol mismatches 0 wrapper mismatches 0", families `{'0': 11338, '1': 11338, '2': 11337, '3': 5987}`, and every door row (θ = ±3.602879701896397e+16, NaN, ±Inf, 1e+300) `'st': 2, 'w': 0, 'res': 'nan'`.
+
+**The whole ripple manifest**, native, from `~/rc473c/repo`, through this repair's `tools/ripple_check.py` (steps `ripple_split 6` and `ripple_part <i>`, each authenticated against `205f661661ba2cd0`): "total targets 140; every target in exactly one part: True".
+
+| part | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| targets | 20 | 24 | 24 | 23 | 25 | 24 |
+| `ripple_check` exit | 0 | 0 | 1 | 0 | 0 | 0 |
+| result | 502 passed | 458 passed | 1 failed, 350 passed | 567 passed, 2 skipped, 6 xfailed | 564 passed | 806 passed, 1 skipped |
+| the runner's count line | "ran all 502 items" | 458 | 351 | 575 | 564 | 807 |
+
+* **Total: 3257 items — 3247 passed, 3 skipped, 6 xfailed, 1 failed**, with no part re-run. Equal to the validation of `fb09a8918`.
+* **The repaired count check on the real manifest.** Every part printed "ripple_check: the gate run ran all N items the manifest's targets collect", so in a run of the whole manifest the count of items run equalled the count collected in all six parts; part 3's exit 1 is pytest's own.
+* **The failure** is `tests/test_citation_manifest_rc428.py::test_the_validate_entry_point_exits_nonzero_on_a_failing_control`, the one recorded at `f5766aa61` and `fb09a8918`. `bash notes/_rc473_instr_r1_env428.sh ~/rc473c/repo ~/rc473c/base`, run from a copy byte-identical to its blob at `5328c518a` (sha256 prefix `bebe5c2c472ff01d`, 0 CR), ran the node ALONE at `5328c518a` (clone path of 26 characters, 1 library file) and at `1ab8d405b` (26 characters, 0 library files). Each printed "1 failed" and 8 normalised failure lines, and the comparison printed **"normalised failure lines IDENTICAL"**: "the shadowed import failed WITHOUT naming the cause". It is environmental.
+
+**The demotion census from an EMPTY manifest** (steps `census_pure`, `census_native`, `census_diff`): the pure column first ("manifest before: EMPTY", 207.1 s; `n_rows` 835, `n_ops` 473; `CONTRACT_SKIP 16, DEMOTED 93, EXACT 166, INEXACT_BASE 60, INSENSITIVE 95, NO_SHAPE 57, RAISED 331, UNRESOLVED_AT_WITNESS 8, VACUOUS 9`), then the native column merged (50.8 s, authenticated; `EXACT 164, INEXACT_BASE 61, INSENSITIVE 97, RAISED 330`, the rest equal). `tools/census_regen_diff.py` against the committed census: "(i) meta keys that MOVED: []"; rows added 0, removed 0, "data lines differing at all: 0 of 835 shared"; "verdict cells compared: 1670 over 835 rows x 2 cells", "VERDICT CHANGES: 0"; clauses (iv) and (v) PASS; **"INVARIANT: HELD (5/5)"**.
+
+**`tools/regen_all.py --check`** (step `regen`, native, authenticated): "all 6 generated files are up to date (69.5s)".
+
+**`tools/hooks/check_hooks.py`, every check** (step `check_hooks`, run last in the WSL chain, after the Windows cell had finished): exit 0 in 200077 ms, **"127 passed, 0 failed, 2 skipped (129 cases)"**; the skips are "ssot-agreement BLOCKS the REAL tree" and "prose-currency NAMES the skip".
+
+**CI on `5328c518a`**, each job's conclusion read after the run completed: `srmech-ci` run 35020460190 `completed`, `success`, all 22 jobs `success` — the pure-wheel build; pedantic C builds on ubuntu-latest, macos-14 and windows-latest; ubuntu-latest py3.12 and py3.10, macos-14 py3.12, windows-latest py3.12; asserts-live shards 1/4–4/4 and their coverage-union; fallback shards 1/6–6/6, their coverage-union, the pure-by-design skip audit and the durations merge — and `srmech-ref-guard` run 35020460307 `success` (1/1, "ref-notation + proof-NDJSON guard"). **23 of 23.** The `srmech-ci` runs of the two pushes before it ended `cancelled`, each last updated after the next push: `b625f7314` (35015876032) with 17 jobs `success` and 5 `cancelled`, `b38fbe46b` (35017666470) with 18 `success` and 4 `cancelled`; their `srmech-ref-guard` runs (35015876029, 35017666331) `success`.
+
+**Instrument errors of this validation (recorded, not counted):** 
+* The Windows cell's steps were first launched as one compound Bash command, which the harness refused before anything ran; they ran from a scratch script (`ir2/win_c3_chain.sh`) that extracts the archive a plain `git archive` command had written and calls the build and pair steps.
+* `gh run list --commit 5328c518a…` returned no runs twice in the first two minutes after the push; the branch listing then showed both runs, created 20:34:24Z.
+* The rc428 comparison script writes under `~/rc473c/out/ir1_env428`, a directory named for instrument repair 1; it was removed with this validation's other WSL outputs after they were saved.
+
 ---
 
 ## [0.9.0rc472] - `#T1188`: the census learns SCALARS, an op that answered in one projection and refused in the other, the required-scalar fill that let thirteen rows be asked — and two of rc471's own shipped sentences corrected, one for a claim that is true at exactly one binade and one for a cause that was never the cause
