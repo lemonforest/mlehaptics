@@ -966,3 +966,40 @@ tests/test_value_status_c_boundary_rc473.py
 #    edits a registered op's docstring can move the map, which is exactly the
 #    edit this list exists to ripple-check. Pure-Python.
 tests/test_r3_reader_rc470.py
+
+# -- the git-environment guard (rc473 final round, `#T1188`) -----------------
+#    From 2026-09-11 to 2026-09-14 the live repository's shared .git/config held
+#    `user.name = decoy identity`: test_hook_fixture_env_isolation_rc471's own
+#    setup ran `git init` + `git config --local` with an INHERITED environment
+#    while GIT_DIR was exported at a worktree gitdir, and that export was the
+#    shipped remedy for WSL git. This gate runs the two git-writing test files
+#    and `check_hooks.py ledger` with GIT_DIR exported at a SENTINEL repository
+#    and fails if a byte of it moves; its can-fail arm proves the sentinel sees
+#    a planted write unguarded. Listed beside the ledger-freshness entry above
+#    because a ripple sweep under WSL is exactly the run an agent was tempted
+#    to export for. Measured red on 52371629a (2 failed, 6 passed: the
+#    sentinel gained `worktree = ...` and `name = decoy identity`; the ledger
+#    subset 4 passed, 5 failed). ~50 s, pure-Python.
+tests/test_git_env_cannot_reach_a_repository_rc473.py
+
+# -- the removed Kepler-identity sentences stay removed (rc473 final round) ---
+#    The truth round replaced "Kepler-equation algebra IS pin-slot composition",
+#    "IS the Kepler equation of centre", the "SAME shape" clause and their
+#    family with measured statements, on six shipped surfaces including the
+#    compiled-in C registry. Two merge-gate lenses re-planted those sentences
+#    and every gate stayed green. This one scans the six surfaces, whitespace-
+#    and wrap-normalised, for each removed sentence; strict zero, with controls
+#    that each phrase matches its own recorded original. Any rc that edits
+#    Kepler / pin_slot prose moves it. ~1 s, pure-Python, no native .so.
+tests/test_kepler_identity_phrases_absent_rc473.py
+
+# -- curated file:line citations resolve to what they name (rc473 final) -----
+#    Truth repair 1 drained 531 stale `path.py:NNN` tokens and 170 bare `:NNN`
+#    follow-ons from the curated ToolEntry prose with two committed census
+#    scripts, and nothing ran them afterwards: the 131 + 18 that remain move
+#    the moment a cited module gains a line above the cited definition. This
+#    gate is those scripts' rules as a test (git-free), strict zero on stale,
+#    with an in-test mutation that shifts one real citation by a line and must
+#    be judged stale. Any rc that edits a cited module or the curated file
+#    moves it. ~5 s, pure-Python, no native .so.
+tests/test_curated_line_citations_resolve_rc473.py

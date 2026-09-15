@@ -321,6 +321,22 @@ FROZEN_KNOWN_GATES = frozenset({
     "tests/test_r3_reader_rc470.py",
     "tests/test_value_status_c_boundary_rc473.py",
     "tests/test_abi_pin_sites_agree_rc464.py",
+    # rc473 final round (`#T1188`): the three gates that did not exist until
+    # the round that shipped them, frozen for the reason each was missing.
+    # * The git-environment guard: from 2026-09-11 to 2026-09-14 a test
+    #   fixture wrote `decoy identity` into the live repository's shared
+    #   .git/config under an exported GIT_DIR, and nothing could see it. A
+    #   ripple sweep under WSL is the run an agent exports GIT_DIR for, so the
+    #   gate that fails on that write belongs to the sweep and may not be
+    #   trimmed from it.
+    # * The Kepler-identity phrase gate and the curated citation gate: two
+    #   merge-gate lenses planted the removed Kepler sentences back, and the
+    #   census scripts that drained 701 stale citations were run by nothing
+    #   afterwards; both absences were named as missing pins, not as pins that
+    #   could fail. An unlisted gate is the same absence one level up.
+    "tests/test_git_env_cannot_reach_a_repository_rc473.py",
+    "tests/test_kepler_identity_phrases_absent_rc473.py",
+    "tests/test_curated_line_citations_resolve_rc473.py",
 })
 
 
