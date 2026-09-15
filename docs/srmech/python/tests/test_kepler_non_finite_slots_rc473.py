@@ -529,22 +529,53 @@ def test_kepler_solve_is_one_answer_in_both_projections() -> None:
     )
 
 
+#: rc473 instrument round (`#T1188`): four NON-CONVERGENCE rows on which the
+#: double Newton iteration (`_pre_repair_outcome`, the `1ab8d405b` C loop) and
+#: the Q61 iteration both refuse, with DIFFERENT `best_E`. The eight rows above
+#: all agree in both iterations, so a C-only revert of `srmech_kepler_solve` to
+#: the double loop left them agreeing; the rows below cannot. One per (M, e).
+_ONE_TEXT_SEPARATING_ROWS: "tuple[tuple[float, float, dict], ...]" = (
+    (0.1, 0.99, {"tolerance": 1e-12, "max_iter": 1}),
+    (1.0, 0.5, {"tolerance": 1e-12, "max_iter": 1}),
+    (PI_2, 0.9, {"tolerance": 0.0, "max_iter": 5}),
+    (100.0, 0.9, {"tolerance": 1e-12, "max_iter": 1}),
+)
+
+
+def _one_text_rows():
+    return ([(PI_2, 0.0549, kw) for kw in _TEXT_AND_TINY_ROWS[:6] + _TEXT_AND_TINY_ROWS[-2:]]
+            + list(_ONE_TEXT_SEPARATING_ROWS))
+
+
 @_needs_native
 def test_kepler_solve_non_convergence_is_one_text() -> None:
     """The text half on its own: ``best_E`` renders as the float last mile in
     BOTH cells. At `2eb05877f` the pure cell rendered the exact Q, whose
     digits began ``33350282498237497256435084978559495037``."""
-    for kw in _TEXT_AND_TINY_ROWS[:6] + _TEXT_AND_TINY_ROWS[-2:]:
-        native = _outcome(lambda: kepler.kepler_solve(PI_2, 0.0549, **kw))
+    for m_rad, e, kw in _one_text_rows():
+        native = _outcome(lambda: kepler.kepler_solve(m_rad, e, **kw))
         pure = _force_pure(
-            lambda: _outcome(lambda: kepler.kepler_solve(PI_2, 0.0549, **kw)))
+            lambda: _outcome(lambda: kepler.kepler_solve(m_rad, e, **kw)))
         assert native.startswith("refuse RuntimeError: kepler_solve: did not "
-                                 "converge"), (kw, native)
-        assert native == pure, (kw, native, pure)
+                                 "converge"), (m_rad, e, kw, native)
+        assert native == pure, (m_rad, e, kw, native, pure)
         best = native.rsplit("best_E=", 1)[1].rstrip(")")
         assert repr(float(best)) == best, (
             f"best_E={best!r} is not a float's repr; it must be the last mile"
         )
+
+
+def test_the_separating_one_text_rows_separate_the_double_iteration_from_q61() -> None:
+    """Library-free, so it runs on a pure cell too: each added row refuses in
+    both iterations and the two texts DIFFER — which is what lets the native
+    row above see a C projection that went back to the double loop."""
+    for m_rad, e, kw in _ONE_TEXT_SEPARATING_ROWS:
+        q61 = _force_pure(lambda: _outcome(lambda: kepler.kepler_solve(m_rad, e, **kw)))
+        double = _pre_repair_outcome(m_rad, e, kw["tolerance"], kw["max_iter"])
+        for text in (q61, double):
+            assert text.startswith("refuse RuntimeError: kepler_solve: did not "
+                                   "converge"), (m_rad, e, kw, text)
+        assert q61 != double, (m_rad, e, kw, q61)
 
 
 def _double(bits: int) -> float:

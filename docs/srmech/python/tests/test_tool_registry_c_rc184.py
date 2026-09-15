@@ -72,6 +72,48 @@ def _canonical_payload() -> bytes:
 # ──────────────────────────────────────────────────────────────────────
 
 
+def _first_difference(a, b) -> int:
+    """The first index at which the sequences ``a`` and ``b`` differ (``min`` of
+    the lengths when one is a prefix of the other), by binary search over
+    prefixes — O(log n) slice comparisons, no per-element Python loop."""
+    lo, hi = 0, min(len(a), len(b))
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if a[lo:mid + 1] == b[lo:mid + 1]:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+
+
+def _fail_diverged(what: str, a_name: str, a, b_name: str, b, remedy: str) -> None:
+    """``pytest.fail`` with both lengths, the first differing offset and a
+    bounded window — never an ``assert a == b`` on multi-megabyte values.
+
+    rc473 instrument round (`#T1188`): the bare assertion handed pytest's
+    assertion rewriting a diff of two ~3.3 MB values. At ``-q`` that is cheap;
+    at ``-v`` pytest renders a difflib ``ndiff``, and whether it returns
+    depends on the drift's CONTENT. Measured: a one-byte length shift in a
+    ToolEntry sentence (curated + ``_tool_docs.py`` edited, registry not
+    regenerated) did not return in 240 s with the node run alone under
+    ``-v -rfEs`` — a real drift presenting as a hang instead of a red.
+    """
+    i = _first_difference(a, b)
+    pytest.fail(
+        f"{what} ({a_name} {len(a)} vs {b_name} {len(b)}); first difference at "
+        f"index {i}: {a_name} {a[max(0, i - 60):i + 60]!r} {b_name} "
+        f"{b[max(0, i - 60):i + 60]!r} — {remedy}", pytrace=False)
+
+
+def test_first_difference_is_exact() -> None:
+    assert _first_difference(b"abcdef", b"abcdef") == 6
+    assert _first_difference(b"abcdef", b"abXdef") == 2
+    assert _first_difference(b"abc", b"abcd") == 3
+    assert _first_difference(b"", b"x") == 0
+    assert _first_difference("x" * 100000 + "a", "x" * 100000 + "b") == 100000
+    assert _first_difference(b"a" + b"x" * 7, b"b" + b"x" * 7) == 0
+
+
 @_needs_native
 def test_c_json_byte_identical_to_python_ssot() -> None:
     """The C serialiser is byte-for-byte identical to the Python
@@ -80,11 +122,11 @@ def test_c_json_byte_identical_to_python_ssot() -> None:
     c_json = _native.tool_schema_json_c()
     assert c_json is not None
     py = _canonical_payload()
-    assert c_json == py, (
-        f"C tool-schema JSON diverged from the Python SSoT "
-        f"(C {len(c_json)} bytes vs PY {len(py)} bytes) — regenerate "
-        f"c/src/srmech_tool_registry.c with c/tools/gen_tool_registry.py"
-    )
+    if c_json != py:
+        _fail_diverged("C tool-schema JSON diverged from the Python SSoT",
+                       "C", c_json, "PY", py,
+                       "regenerate c/src/srmech_tool_registry.c with "
+                       "c/tools/gen_tool_registry.py")
 
 
 @_needs_native
