@@ -205,6 +205,54 @@ def test_ledger_is_fresh_against_the_live_schema() -> None:
         f"  edited({len(edited)}):  {edited}")
 
 
+def test_every_row_def_blob_is_its_defining_modules_blob_at_head() -> None:
+    """``def_blob`` COMPARED, not only present (rc473 instrument round, `#T1188`).
+
+    The assertion above keys on ``src_sha256``, the snippet text, so a row whose
+    IMPLEMENTATION moved passed it. Measured at rc473: with only the three
+    ``srmech.math.kepler`` rows' ``def_blob`` put back to ``02051b004^``'s, that
+    assertion stayed green, and so did every other gate in the tree. This one
+    compares each row's recorded stamp with its recorded module's blob at HEAD
+    (``tests/_ledger_stamps.py`` says why the two halves are kept apart).
+    """
+    from tests import _ledger_stamps as LS
+
+    if not LS.in_a_checkout():
+        pytest.skip("no .git above the package (an sdist cell): def_blob is a git "
+                    "blob, and there is no repository to read it from")
+    blobs = LS.head_blob_map()
+    _meta, rows = LS.load(LEDGER, "name")
+    assert len(rows) >= 600 and len(blobs) >= 200, (len(rows), len(blobs))
+    stale = LS.stale_def_blobs(rows, "name", blobs)
+    assert not stale, (
+        f"{len(stale)} of {len(rows)} worked-example ledger rows record a "
+        "def_blob that is not their defining module's blob at HEAD — measured "
+        "against an implementation that has since moved. Re-run, then commit "
+        "the ledger AFTER the module change (row, module, recorded, HEAD):\n"
+        + _remedy(sorted(s[0] for s in stale)) + "\n" + repr(stale))
+
+
+def test_every_row_def_module_is_where_the_live_callable_is_defined() -> None:
+    """The other half of the stamp, re-resolved on THIS cell, never skipped.
+
+    rc473 instrument round (`#T1188`). Measured 0 differences on WSL2 CPython
+    3.10 and 3.12, native and pure, and on Windows CPython 3.14 pure. A
+    difference fails wherever it is seen, naming this cell and the ledger's.
+    """
+    from tests import _ledger_stamps as LS
+
+    meta, rows = LS.load(LEDGER, "name")
+    moved = LS.moved_def_modules(rows, "name")
+    here, declared = LS.cell(), (meta.get("python"), bool(meta.get("native")))
+    assert not moved, (
+        f"{len(moved)} of {len(rows)} worked-example ledger rows record a "
+        f"def_module the live callable is not defined in, on the cell {here}; "
+        f"the ledger declares {declared}. If this cell is not the declared one, "
+        "the resolution itself differs between cells, which no ledger can "
+        "record — that is the finding, not an environment to skip "
+        f"(row, recorded, live): {moved[:12]}")
+
+
 def test_the_stale_remedy_names_every_row_and_never_a_prefix() -> None:
     """The remedy above is a COMMAND an operator will paste. Drive it.
 
