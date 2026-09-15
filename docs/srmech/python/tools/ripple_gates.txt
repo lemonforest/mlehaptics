@@ -977,9 +977,15 @@ tests/test_r3_reader_rc470.py
 #    and fails if a byte of it moves; its can-fail arm proves the sentinel sees
 #    a planted write unguarded. Listed beside the ledger-freshness entry above
 #    because a ripple sweep under WSL is exactly the run an agent was tempted
-#    to export for. Measured red on 52371629a (2 failed, 6 passed: the
-#    sentinel gained `worktree = ...` and `name = decoy identity`; the ledger
-#    subset 4 passed, 5 failed). ~50 s, pure-Python.
+#    to export for. Measured red on 52371629a (2 failed, 6 passed, when the
+#    file held 8 tests: the sentinel gained `worktree = ...` and
+#    `name = decoy identity`; the ledger subset 4 passed, 5 failed).
+#    Currency, rc473 instrument round (`#T1188`), on the 18-test file: WSL2
+#    pure CPython 3.12.3 "18 passed in 15.01s" (clone at e20e16502), Windows
+#    pure CPython 3.14.3 "18 passed in 121.88s" (session worktree). Red
+#    figure: with check_hooks.invoke()'s scrub removed, "1 failed, 17 passed"
+#    (ARM 3a), a removal the 11-test file of 81c55dba6 passed at "11 passed".
+#    (This line said "~50 s" until then.) Pure-Python.
 tests/test_git_env_cannot_reach_a_repository_rc473.py
 
 # -- the removed Kepler-identity sentences stay removed (rc473 final round) ---
