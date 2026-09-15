@@ -1253,11 +1253,12 @@ def check_jpl_audit() -> None:
         # helpers with `srmech_trig_kepler_q61`, and the eight `wf_*` helpers.
         # The derivation (the audit's own scanner over rc472 and over this
         # tree, names differenced) is `notes/_rc473_instr_jpl_population.py`.
-        # This case read FAIL at the rc473 heads the instrument round measured:
-        # it was run at `81c55dba6`, and the audit's scanner already counted a
-        # population other than the literal at `1ab8d405b`. (Until instrument
-        # repair 2, `#T1188`, this read "on every rc473 head from `1ab8d405b`
-        # on", which no run measured.) No gate runs its jpl-audit case: the two
+        # The old literal 3598 could not match at the rc473 trees whose
+        # population was printed: the audit's scanner gave 3620 at the
+        # instrument round's head, and 3600 at `1ab8d405b` (printed at
+        # instrument repair 2, `#T1188`). The heads between were not measured. (This read "This case read FAIL on every
+        # rc473 head from `1ab8d405b` on" until instrument repair 2, which no run
+        # measured.) No gate runs its jpl-audit case: the two
         # manifest gates that run this
         # file (`tests/test_ledger_freshness_hook_rc468.py` and the leak gate's
         # ARM 3) run its `ledger` checks only. (Instrument repair 1: this read
