@@ -21,7 +21,7 @@
  * [[user_stance_kepler_shape_universal]] + PR #416 F2/F15/F17 read Kepler-equation algebra
  * as pin-slot composition. Measured at rc473 on the pure projection: ONE stage (theta = pi - M,
  * eps = e) matches E - M through e^2 and departs at e^3; nu - E is a doubled stage at double
- * precision, not a bound (1.998e-15 rad max over 64 E at five e to 0.99, larger as e -> 1);
+ * precision, not a bound (1.998e-15 rad max on E = -pi + 2 pi (j + 0.5)/64 at five e to 0.99);
  * M -> E is no stage, and srmech_kepler_solve reaches it by Newton at a declared precision
  * (grids, figures, eps conventions: srmech/math/kepler.py). The bronze instantiates Class K natively (pin-on-eccentric-disc + radial slot follower) per [[user_stance_1d_t_as_storage_extraction]].
  *

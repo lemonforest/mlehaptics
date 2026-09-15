@@ -4407,11 +4407,11 @@ srmech_status_t srmech_cf_convergents_int64(const int64_t *coefs,
 /* ------------------------------------------------------------------ *
  * Class K — equation-of-centre / pin-slot (Task #217 Phase C1 rc7)
  *
- * Three continuous-projection operations of the integer-cyclic upstream (Class I cyclic
- * groups + Class J prime-period); no libm, trig is the Class-N Q61 cascade (srmech_sin /
- * srmech_cos / srmech_atan2). [[user_stance_kepler_shape_universal]] + PR #416 F2/F15/F17
- * read Kepler's equation as pin-slot composition; measured at rc473 it is not ONE stage:
- * pin_slot matches E - M through e^2, nu - E is a doubled stage, M -> E is Newton (kepler.py).
+ * Continuous-projection ops of the Class I/J cyclic upstream; no libm (Class-N Q61 sin/cos/atan2).
+ * [[user_stance_kepler_shape_universal]] + PR #416 F2/F15/F17 read Kepler's equation as pin-slot
+ * composition; measured at rc473 (kepler.py) it is not ONE stage: pin_slot(pi - M, e, 1.0) matches
+ * E - M through e^2; nu - E = 2 pin_slot(pi - E, e/(1+sqrt(1-e^2)), 1.0) to double precision;
+ * M -> E is Newton (theta = pi - M / pi - E, eps = pin_offset / pin_distance).
  *
  * Canonical SSoT per [[feedback_science_is_ssot_not_project]]:
  *   - Pin-slot transform        : Freeth (2021) Nature Sci Rep, Supp S9.

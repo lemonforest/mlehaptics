@@ -3,24 +3,31 @@
 Continuous projection-shadow of the integer-cyclic upstream (Class I
 cyclic groups + Class J prime-period). ``[[user_stance_kepler_shape_universal]]``
 + PR #416 F2/F15/F17 read Kepler-equation algebra as pin-slot composition.
-What rc473 (`#T1188`) measured against that reading, on a pure cell with
-this module's own three ops (a 256-point sine quadrature), where ONE
-pin-slot stage means ``pin_slot(theta, eps, 1.0) = atan2(eps sin theta,
-1 + eps cos theta)``, i.e. ``eps = pin_offset / pin_distance``:
+What rc473 (`#T1188`) measured against that reading, on a pure cell. The
+ops under test are this module's three (``pin_slot``, ``kepler_solve``,
+``equation_of_centre``); the reference trig and square root are
+``srmech.math.rational``'s ``sin``, ``cos``, ``atan2`` and ``sqrt``; the
+Fourier coefficients are a hand-rolled 256-point sine quadrature over the
+grid ``M_j = 2 pi j / 256`` (``j = 0 .. 255``, a grid that contains
+``pi/2``). ONE pin-slot stage means ``pin_slot(theta, eps, 1.0) =
+atan2(eps sin theta, 1 + eps cos theta)``, i.e. ``eps = pin_offset /
+pin_distance``. Every figure below is a value on its named grid, not a
+bound; the commands are ``notes/_rc473_truth_kepler_family.py`` and
+``notes/_rc473_truth_repair1_kepler.py``:
 
 - ``E - M`` (Kepler's equation) is matched by one stage only through
   ``e**2``. With ``theta = pi - M`` and ``eps = e`` the stage's harmonics
   are ``e**k / k``; at ``e = 0.002`` the ``e**3`` terms read -0.125 (at
   ``sin M``) and +0.375 (at ``sin 3M``) for Kepler against 0 and +0.333333
-  for the stage, and ``E - M - pin_slot(pi - M, e, 1.0)`` peaks over the
+  for the stage, and ``E - M - pin_slot(pi - M, e, 1.0)`` peaks over that
   M grid at 0.166667 ``e**3`` at ``e = 0.001``.
 - ``nu - E`` IS a stage, doubled: ``E + 2 * pin_slot(pi - E, beta, 1.0)``
   with ``beta = e / (1 + sqrt(1 - e**2))`` agreed with the true anomaly at
-  double precision, which is not a bound: the largest difference over 64
-  uniformly spaced ``E`` at ``e`` = 0.0549, 0.3, 0.7, 0.9 and 0.99 was
-  1.998e-15 rad (at 0.99), over 4096 ``E`` it was 2.220e-15 rad, and over
-  1024 ``E`` it grows toward ``e = 1`` (9.326e-15 rad at 0.999, 1.377e-13
-  at 0.9999).
+  double precision, which is not a bound. On the half-step grid
+  ``E_j = -pi + 2 pi (j + 0.5) / N`` the largest difference at ``N = 64``
+  over ``e`` = 0.0549, 0.3, 0.7, 0.9 and 0.99 was 1.998e-15 rad (at 0.99);
+  at ``N = 4096`` it was 2.220e-15 rad, and at ``N = 1024`` it grows toward
+  ``e = 1`` (9.326e-15 rad at 0.999, 1.377e-13 at 0.9999).
 - ``nu - M`` (the equation of centre) is not one stage: ``c2 / c1**2`` is
   0.3125 for the series and 0.5 for a single stage at every ``eps``.
 - ``M -> E`` is not a stage: :func:`kepler_solve` reaches ``E`` by
@@ -170,16 +177,17 @@ def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
     ``[[user_stance_kepler_shape_universal]]`` + PR #416 F2/F15/F17 read
     this transform as Kepler's shape. With ``eps = pin_offset /
     pin_distance``, ``pin_slot(theta, eps, 1.0)`` has sine harmonics
-    ``(-1)**(k+1) eps**k / k``. Measured at rc473 (`#T1188`), pure cell,
-    256-point quadrature: it is NOT the equation of centre ``nu - M`` to
-    second order (``c2 / c1**2`` is 0.3125 for that series and 0.5 here, at
-    every ``eps``); at ``theta = pi - M`` and ``eps = e`` it matches
-    ``E - M`` through ``e**2`` and departs at ``e**3``; and at
-    ``theta = pi - E`` and ``eps = e / (1 + sqrt(1 - e**2))``,
-    ``E + 2 * pin_slot(theta, eps, 1.0)`` is the true anomaly at double
-    precision (largest difference 1.998e-15 rad over 64 uniformly spaced
-    ``E`` at five ``e`` from 0.0549 to 0.99). The module docstring carries
-    the grids and the figures.
+    ``(-1)**(k+1) eps**k / k``. Measured at rc473 (`#T1188`) on a pure cell
+    with a 256-point sine quadrature over ``M_j = 2 pi j / 256``: it is NOT
+    the equation of centre ``nu - M`` to second order (``c2 / c1**2`` is
+    0.3125 for that series and 0.5 here, at every ``eps``); at
+    ``theta = pi - M`` and ``eps = e`` it matches ``E - M`` through ``e**2``
+    and departs at ``e**3``; and at ``theta = pi - E`` and
+    ``eps = e / (1 + sqrt(1 - e**2))``, ``E + 2 * pin_slot(theta, eps, 1.0)``
+    is the true anomaly at double precision (largest difference 1.998e-15
+    rad on the 64 ``E_j = -pi + 2 pi (j + 0.5) / 64`` at five ``e`` from
+    0.0549 to 0.99 — a value on that grid, not a bound). The module
+    docstring carries the instruments, the grids and the figures.
 
     Args:
         theta: Input shaft angle in radians.
