@@ -1804,6 +1804,63 @@ Gate round t2 named both absences as missing pins: can-fail N1 and N6, sweep N3.
 * The first call for the `hook` and `figures` groups looped over the group names inside a double-quoted PowerShell string. PowerShell expanded the loop variable to nothing, and the driver refused on a missing argument before running anything.
 * The first scratch re-measurement of B7 named a partition-script path that does not exist, and a second one printed through a filter that removed its lines. No figure came from either. The third, with the script's real path, printed the figures B7 now cites from the committed driver.
 
+##### Validation of `fb09a8918` (2026-09-15) — the head carrying every change of this repair; the commit carrying this record adds this subsection and `notes/_rc473_instr_r1_env428.sh`
+
+**Conditions.**
+* **WSL2.** `~/rc473c/repo` (native) and `~/rc473c/pure` (0 library files), each at `fb09a891816a6817dbfa66dbca6ed7804a43b1d3` with 0 tracked changes before and after every step. Every step is `bash notes/_rc473_instr_validate.sh <step> ~/rc473c/repo ~/rc473c/pure [arg]` (committed at `f5766aa61`), which prints the exported `GIT_DIR` / `GIT_WORK_TREE` count and refuses unless it is 0; every count printed was 0. Every native figure was authenticated first by `notes/_rc473_instr_auth.py`: library `205f661661ba2cd0`, `abi / c version : 26 0.9.0rc473`, `AUTH srmech_rational_sqrt(NaN) -> status 2`, `AUTHENTIC : True`, numpy not imported. CPython 3.12.3; `SRMECH_ALLOW_STALE_NATIVE` unset; no mtime touched.
+* **The live repository.** `git config --show-origin user.name` / `user.email` printed `file:C:/Users/sckir/.gitconfig` `Steven Kirkland` / `sckirklan@gmail.com`, and `sha256(D:/GitHub/mlehaptics/.git/config)` printed `ffaa8595e317ed80dd6b9a28efed7b0d9f5a0726149ceaa7a24e8a2be59ce2c6`, at 16:36:24Z before the validation (it began 16:37:16Z) and at 17:23:14Z after it. Unchanged.
+
+**Builds.**
+* **WSL gcc 13.3.0**, a CLEAN pedantic Release in a fresh `~/rc473c/build_ir1` (step `build`): configure 0, build 0, 0 warnings / 0 errors, `[219/219]`, 178 `-Werror`, 0 `__assert_fail`, library **`205f661661ba2cd0`**, ctest "100% tests passed out of 40".
+* **Windows clang-cl 22.1.0** (cmake 4.3.1, Ninja 1.12.0, `-DSRMECH_PEDANTIC=ON`, `/arch:AVX2 /clang:-msha /clang:-msse4.1`), from a `git -c core.autocrlf=false archive` extract of `fb09a8918` (1342 files — the instrument round's 1341 plus `tests/_collection_count_plugin.py` — 0 CR bytes in `srmech_kepler.c`, 0 library files):
+  * **Release:** configure 0, build 0, 0 `warning` lines, 0 `: error` lines, 178 `/WX`, ctest 40/40, DLL `25c51fbe9a36674d`;
+  * **Debug:** the same, DLL `65d295ed3f2c7517`.
+* **The Windows C-boundary pair** (`test_kepler_non_finite_slots_rc473` + `test_value_status_c_boundary_rc473`), inside the extract, CPython 3.14.4, one DLL at a time, each AUTHENTIC: Release **251 passed, 6 xfailed**; Debug **251 passed, 6 xfailed**; pure (`HAS_NATIVE False`) **74 passed, 183 skipped**. The extract was removed afterwards.
+
+**The named gates** (step `gates <group> <cell>`; the groups of the validation of `f5766aa61`):
+
+| group | native | pure |
+|---|---|---|
+| 1 | 349 passed, 6 xfailed | 169 passed, 186 skipped |
+| 2 | 95 passed | 95 passed |
+| 3 | 209 passed, 1 skipped | 176 passed, 34 skipped |
+| 4 | 121 passed, 3 skipped | 121 passed, 3 skipped |
+| 5 | 6 passed | 6 passed |
+| **total** | **780 passed, 4 skipped, 6 xfailed** | **567 passed, 223 skipped** |
+
+* Against the validation of `f5766aa61`: group 2 is one more in each cell (`test_the_block_names_every_unverified_row_of_both_ledgers`), group 3 two more in each cell (the meta-test's `test_the_runner_fails_a_green_run_whose_collection_lost_items` and `test_the_collection_count_plugin_sees_a_removal_at_every_granularity`); groups 1, 4 and 5 are equal.
+* The 3 skips of group 4 in each cell are all `tests/test_pypi_readme_changelog.py:351`, "could not import 'hatch_fancy_pypi_readme'".
+
+**The Stop hook against both committed ledgers** (step `hook`): the worked-example ledger holds 649 rows and the example-args ledger 732; the hook exited 0 twice (1058 ms and 543 ms, `uv run` start included) with no stderr.
+
+**D1 and D2** (step `d1d2`):
+* **D2:** the slot sweep printed "rows compared: 107 {'SAME': 107, 'SAME-VERDICT': 0, 'SERVE-vs-REFUSE': 0}"; the tolerance frontier "rows compared: 306 {'SAME': 306, 'SAME-VERDICT': 0, 'SERVE-vs-REFUSE': 0}".
+* **D1:** "fuzz rows 40000 symbol mismatches 0 wrapper mismatches 0", families `{'0': 11338, '1': 11338, '2': 11337, '3': 5987}`, and every door row (±3.602879701896397e+16, NaN, ±Inf, 1e+300) `st 2 … res nan`.
+
+**The whole ripple manifest**, native, from `~/rc473c/repo`, through this repair's `tools/ripple_check.py` (steps `ripple_split 6` and `ripple_part <i>`): "total targets 140; every target in exactly one part: True".
+
+| part | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| result | 502 passed | 458 passed | 1 failed, 350 passed | 567 passed, 2 skipped, 6 xfailed | 564 passed | 806 passed, 1 skipped |
+| the runner's count line | "kept all 502 items" | 458 | 351 | 575 | 564 | 807 |
+
+* **Total: 3257 items — 3247 passed, 3 skipped, 6 xfailed, 1 failed**, with no part re-run. One more than the validation of `f5766aa61`: `tests/test_ledger_freshness_hook_rc468.py` is a manifest target, and its new node is in part 6.
+* **The count check on the real manifest.** Every part printed "ripple_check: collection kept all N items the manifest's targets collect", so the new check removed nothing from, and failed nothing in, a run of the whole manifest; part 3's exit 1 is pytest's own.
+* **The failure** is the one recorded at `f5766aa61`, `test_citation_manifest_rc428.py::test_the_validate_entry_point_exits_nonzero_on_a_failing_control`. `bash notes/_rc473_instr_r1_env428.sh ~/rc473c/repo ~/rc473c/base` — committed in the commit carrying this record, and run from its CR-stripped copy (sha256 prefix `bebe5c2c472ff01d`) — ran it ALONE at `fb09a8918` (clone path of 26 characters, 1 library file) and at `1ab8d405b` (26 characters, 0 library files). Each printed "1 failed" and 8 normalised failure lines, and the comparison printed **"normalised failure lines IDENTICAL"**: "the shadowed import failed WITHOUT naming the cause". It is environmental.
+
+**The demotion census from an EMPTY manifest** (steps `census_pure`, `census_native`, `census_diff`): the pure column first ("manifest before: EMPTY", 263.9 s), then the native column merged (48.4 s, authenticated). `tools/census_regen_diff.py` against the committed census: "(i) meta keys that MOVED: []"; rows added 0, removed 0, "data lines differing at all: 0 of 835 shared"; "VERDICT CHANGES: 0"; **"INVARIANT: HELD (5/5)"**.
+
+**`tools/hooks/check_hooks.py`, every check** (step `check_hooks`, run alone on the native clone): exit 0 in 183302 ms, **"127 passed, 0 failed, 2 skipped (129 cases)"**; the skips are "ssot-agreement BLOCKS the REAL tree" and "prose-currency NAMES the skip".
+
+**`tools/regen_all.py --check`** (step `regen`, native): "all 6 generated files are up to date (63.1s)".
+
+**CI on `fb09a8918`**, each job's conclusion read after the run completed: `srmech-ci` run 34996017261 `completed`, `success`, with all 22 jobs `success`; `srmech-ref-guard` run 34996017299 `success` (1/1, "ref-notation + proof-NDJSON guard"). **23 of 23.**
+
+**Instrument errors of this validation (recorded, not counted):**
+* The first sync of the clones to `fb09a8918` was handed a 40-hex id that had not been read from git. The checkout refused it ("reference is not a tree"), and both clones stayed at `73676ada4` with 0 tracked changes. The second sync used the id `git rev-parse fb09a8918` printed, `fb09a891816a6817dbfa66dbca6ed7804a43b1d3`.
+* The Windows extract was first launched inside a script, then as a compound command with a shell variable; the harness refused both before anything ran, and it ran as plain commands.
+* When the repair's WSL logs were saved, the copy of the can-fail groups' `/tmp` logs found 0 files. Every can-fail figure above was printed in the session by the committed drivers and is reproducible from them.
+
 ---
 
 ## [0.9.0rc472] - `#T1188`: the census learns SCALARS, an op that answered in one projection and refused in the other, the required-scalar fill that let thirteen rows be asked — and two of rc471's own shipped sentences corrected, one for a claim that is true at exactly one binade and one for a cause that was never the cause
