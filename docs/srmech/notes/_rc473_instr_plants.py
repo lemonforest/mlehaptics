@@ -32,6 +32,11 @@ ARGS = P + "tests/example_args_ledger.ndjson"
 DOCS = P + "srmech/introspect/_tool_docs.py"
 KEPLER = ("srmech.math.kepler.equation_of_centre", "srmech.math.kepler.kepler_solve",
           "srmech.math.kepler.pin_slot")
+# instrument repair 2: the conftest anchor its plants insert after, and the two drops they make
+CONFTEST_ANCHOR = "from tests import _git_env_guard  # noqa: E402,F401  (import-time scrub)\n"
+DROP_ITEMS = "    items[:] = [i for i in items if not i.nodeid.endswith('selecting_pair[notes]')]\n"
+DROP_SESSION = ("    session.items[:] = [i for i in session.items\n"
+                "                        if not i.nodeid.endswith('selecting_pair[notes]')]\n")
 
 TEXT = {
     # B — the git-environment layers, one at a time
@@ -139,6 +144,57 @@ TEXT = {
     "R_allowlist_off": [(P + "tools/ripple_check.py",
         "    refused = refused_forwarded_args(args.pytest_args)\n",
         "    refused = []\n")],
+    # ── instrument repair 2 (`#T1188`) ────────────────────────────────────────────
+    # gate round i2 B1: a conftest filter that runs before the plugin's first count, and
+    # three later removal points (collection finish, the run loop, the run protocol).
+    # Each drops the advice gate's `[notes]` parametrization.
+    "M_wrapper_old_before_yield": [(P + "tests/conftest.py", CONFTEST_ANCHOR, CONFTEST_ANCHOR + "\n\n"
+        "@pytest.hookimpl(hookwrapper=True, tryfirst=True)\n"
+        "def pytest_collection_modifyitems(config, items):\n" + DROP_ITEMS + "    yield\n")],
+    "M_wrapper_new_before_yield": [(P + "tests/conftest.py", CONFTEST_ANCHOR, CONFTEST_ANCHOR + "\n\n"
+        "@pytest.hookimpl(wrapper=True, tryfirst=True)\n"
+        "def pytest_collection_modifyitems(config, items):\n" + DROP_ITEMS + "    return (yield)\n")],
+    "M_finish_trylast": [(P + "tests/conftest.py", CONFTEST_ANCHOR, CONFTEST_ANCHOR + "\n\n"
+        "@pytest.hookimpl(trylast=True)\n"
+        "def pytest_collection_finish(session):\n" + DROP_SESSION)],
+    "M_runtestloop_wrapper": [(P + "tests/conftest.py", CONFTEST_ANCHOR, CONFTEST_ANCHOR + "\n\n"
+        "@pytest.hookimpl(hookwrapper=True, tryfirst=True)\n"
+        "def pytest_runtestloop(session):\n" + DROP_SESSION + "    yield\n")],
+    "M_protocol_returns_true": [(P + "tests/conftest.py", CONFTEST_ANCHOR, CONFTEST_ANCHOR + "\n\n"
+        "@pytest.hookimpl(tryfirst=True)\n"
+        "def pytest_runtest_protocol(item, nextitem):\n"
+        "    if item.nodeid.endswith('selecting_pair[notes]'):\n        return True\n")],
+    # outside the class the count check names, planted so the stated limit is a measurement
+    "LIMIT_make_collect_report": [(P + "tests/conftest.py", CONFTEST_ANCHOR, CONFTEST_ANCHOR + "\n\n"
+        "@pytest.hookimpl(hookwrapper=True)\n"
+        "def pytest_make_collect_report(collector):\n"
+        "    outcome = yield\n    rep = outcome.get_result()\n    if rep.result:\n"
+        "        rep.result[:] = [r for r in rep.result\n"
+        "                         if not getattr(r, 'nodeid', '').endswith('selecting_pair[notes]')]\n")],
+    "LIMIT_setup_skips": [(P + "tests/conftest.py", CONFTEST_ANCHOR, CONFTEST_ANCHOR + "\n\n"
+        "def pytest_runtest_setup(item):\n"
+        "    if item.nodeid.endswith('selecting_pair[notes]'):\n        pytest.skip('planted')\n")],
+    # the runner's environment refusal switched off, so only the count check stands against PYTEST_PLUGINS
+    "R_env_refusal_off": [(P + "tools/ripple_check.py",
+        '    for name in ("PYTEST_ADDOPTS", "PYTEST_PLUGINS"):\n',
+        "    for name in ():\n")],
+    # the count check's run half switched off: a removal after collection finishes is then unseen
+    "R_ran_check_off": [(P + "tools/ripple_check.py",
+        "    if selected != collected or deselected or ran != collected:\n",
+        "    if selected != collected or deselected:\n")],
+}
+
+#: The same removals as a module named by PYTEST_PLUGINS, written OUTSIDE the tree by `envplug`.
+ENVPLUG = {
+    "E_wrapper_old_before_yield": ("import pytest\n\n\n@pytest.hookimpl(hookwrapper=True, tryfirst=True)\n"
+                                   "def pytest_collection_modifyitems(config, items):\n" + DROP_ITEMS + "    yield\n"),
+    "E_wrapper_new_before_yield": ("import pytest\n\n\n@pytest.hookimpl(wrapper=True, tryfirst=True)\n"
+                                   "def pytest_collection_modifyitems(config, items):\n" + DROP_ITEMS
+                                   + "    return (yield)\n"),
+    "E_finish_trylast": ("import pytest\n\n\n@pytest.hookimpl(trylast=True)\n"
+                         "def pytest_collection_finish(session):\n" + DROP_SESSION),
+    "E_runtestloop_wrapper": ("import pytest\n\n\n@pytest.hookimpl(hookwrapper=True, tryfirst=True)\n"
+                              "def pytest_runtestloop(session):\n" + DROP_SESSION + "    yield\n"),
 }
 
 LEDGER_FIELDS = {
@@ -288,11 +344,19 @@ def rowdiff(root: Path, which: str, rev: str) -> None:
 
 def main(argv):
     if argv[1:2] == ["--list"]:
-        for pid in list(TEXT) + list(LEDGER_FIELDS) + list(REVERTS) + list(OTHER):
+        for pid in list(TEXT) + list(LEDGER_FIELDS) + list(REVERTS) + list(OTHER) + list(ENVPLUG):
             print(pid)
         return 0
     root, pid = Path(argv[1]), argv[2]
-    if pid == "revert":
+    if pid == "envplug":
+        # instrument repair 2: write a PYTEST_PLUGINS module OUTSIDE the tree (<root> is ignored)
+        where, which = Path(argv[3]), argv[4]
+        if which not in ENVPLUG:
+            raise SystemExit(f"unknown envplug {which}")
+        where.mkdir(parents=True, exist_ok=True)
+        (where / "r2_envplug.py").write_bytes(ENVPLUG[which].encode("utf-8"))
+        print(f"wrote {which}: {where / 'r2_envplug.py'} (name it with PYTEST_PLUGINS=r2_envplug)")
+    elif pid == "revert":
         rev = argv[3]
         for rel in argv[4:]:
             (root / rel).write_bytes(git_show(root, rev, rel))
