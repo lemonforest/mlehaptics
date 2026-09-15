@@ -183,6 +183,31 @@ def run_collect_sweep(pkg_root: Path) -> int:
     return proc.returncode
 
 
+#: Forwarded pytest options that REMOVE tests from the gate run, or run none
+#: (rc473 instrument round, `#T1188`). The manifest meta-test can see a line
+#: that narrows a gate; it cannot see an option typed at run time, and every
+#: one of these lets this runner print a green result for a manifest it did not
+#: run. ``-x`` / ``--maxfail`` stop early too, but only after a failure, so the
+#: run is red either way and they stay allowed.
+NARROWING_OPTIONS = ("-k", "-m", "--deselect", "--ignore", "--ignore-glob",
+                     "--lf", "--last-failed", "--sw", "--stepwise",
+                     "--sw-skip", "--stepwise-skip", "--co", "--collect-only")
+
+
+def narrowing_args(pytest_args: list[str]) -> list[str]:
+    """The forwarded arguments that are (or begin) a :data:`NARROWING_OPTIONS`
+    option — ``-k``, ``-kexpr``, ``--deselect=...`` alike."""
+    bad: list[str] = []
+    for arg in pytest_args:
+        for opt in NARROWING_OPTIONS:
+            joined_short = (len(opt) == 2 and arg.startswith(opt)
+                            and not arg.startswith("--"))
+            if arg == opt or arg.startswith(opt + "=") or joined_short:
+                bad.append(arg)
+                break
+    return bad
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         prog="ripple_check.py",
@@ -220,6 +245,19 @@ def main(argv: list[str] | None = None) -> int:
         help="extra args forwarded to pytest (put them after a bare --)",
     )
     args = ap.parse_args(argv)
+
+    # REFUSED before anything runs (rc473 instrument round, `#T1188`): a
+    # forwarded `-k` / `--deselect` / `--lf` ... narrows the gate run to a
+    # subset that no manifest reader can see, and the runner would then report
+    # that subset's green as the manifest's.
+    narrowed = narrowing_args(args.pytest_args)
+    if narrowed:
+        print("ripple_check: REFUSED -- forwarded pytest option(s) "
+              f"{narrowed} would narrow the gate run to a subset the manifest "
+              "does not name, and a green subset would read as a green "
+              "manifest. Run the whole manifest, or run pytest on the file you "
+              "want directly.", file=sys.stderr)
+        return 2
 
     targets = load_manifest(args.manifest)
 

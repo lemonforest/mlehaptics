@@ -514,3 +514,104 @@ def test_the_collection_sweep_runs_before_the_gates_and_aborts_on_failure() -> N
         "a nonzero collection sweep must ABORT the run; without the early "
         "return the runner would go on to report gate results for a tree that "
         "does not import.")
+
+
+# ── the manifest may not NARROW a frozen gate (rc473 instrument round, `#T1188`) ──
+#
+# `test_manifest_covers_every_frozen_gate` asserts coverage at FILE granularity,
+# so any node id satisfies a frozen file entry. Measured at rc473: the leak
+# gate's line narrowed to its first test left this file at 7 passed while a
+# ripple sweep dropped the arms that pin the fix. Two instruments, because they
+# see different defects: the TEXT check names a narrowed line; the COLLECTION
+# check also sees a filter that never appears in the manifest — a conftest hook,
+# an `addopts` deselect, an option smuggled into a line.
+
+def test_every_frozen_file_gate_is_listed_as_the_whole_file() -> None:
+    """A FROZEN file-level gate appears in the manifest as the file itself. It may
+    appear only as a node id if FROZEN_KNOWN_GATES lists it as a node id."""
+    targets = set(_manifest_targets())
+    frozen_files = sorted(g for g in FROZEN_KNOWN_GATES if not _is_node_id(g))
+    narrowed = [f for f in frozen_files if f not in targets]
+    assert not narrowed, (
+        "these FROZEN gates appear in the manifest only as node ids or narrowed "
+        "lines, so a ripple sweep runs part of each:\n  " + "\n  ".join(narrowed)
+        + f"\n\nList each as the whole file in {_MANIFEST.name}.")
+
+
+def _defined_test_functions(path: Path) -> set:
+    """Top-level ``test*`` functions and ``Test*`` class methods, read by AST."""
+    import ast
+
+    names = set()
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test"):
+            names.add(node.name)
+        elif isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
+            for sub in node.body:
+                if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)) and sub.name.startswith("test"):
+                    names.add(f"{node.name}::{sub.name}")
+    return names
+
+
+def test_the_manifest_collects_every_test_function_each_frozen_file_defines() -> None:
+    """The manifest's OWN targets for the frozen files, collected by pytest as
+    ``ripple_check`` passes them, reach every test function each file defines.
+
+    A frozen file whose whole module skips at collection on this cell (a
+    ``pytest.skip(allow_module_level=True)`` raised in that file) is reported
+    and not counted as narrowed; a skip raised anywhere else is not exempt.
+    """
+    import re
+    import subprocess
+    import time
+
+    frozen = sorted(g for g in FROZEN_KNOWN_GATES if not _is_node_id(g))
+    argv = [t for t in _manifest_targets() if ripple_check.target_file(t) in frozen]
+    t0 = time.perf_counter()
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-rs", "--no-header",
+         "-p", "no:cacheprovider", *argv],
+        cwd=str(_PKG_ROOT), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=1800)
+    out = proc.stdout.decode("utf-8", "replace")
+    collected, module_skipped = set(), {}
+    for line in out.splitlines():
+        skip = re.match(r"^SKIPPED \[\d+\] (tests/[^:]+\.py):\d+: (.*)$", line.strip())
+        if skip:
+            module_skipped[skip.group(1)] = skip.group(2)
+        elif "::" in line and not line.startswith(("ERROR", "FAILED", "SKIPPED")):
+            file_part, rest = line.strip().split("::", 1)
+            collected.add((file_part, re.sub(r"\[.*\]$", "", rest)))
+    missing = sorted(f"{f}::{n}" for f in frozen if f not in module_skipped
+                     for n in _defined_test_functions(_PKG_ROOT / f)
+                     if (f, n) not in collected)
+    print(f"\n[rc473] collection: exit {proc.returncode}, {len(frozen)} frozen files, "
+          f"{len(argv)} manifest targets, {len(collected)} test functions collected, "
+          f"module-skipped {sorted(module_skipped)}, missing {len(missing)}, "
+          f"{time.perf_counter() - t0:.1f} s")
+    assert proc.returncode == 0, out[-3000:]
+    assert len(collected) >= 300, f"collected only {len(collected)} functions:\n{out[-2000:]}"
+    assert not missing, (
+        f"{len(missing)} test function(s) defined in FROZEN gate files are not "
+        "collected through the manifest's own targets — narrowed, filtered or "
+        "deselected:\n  " + "\n  ".join(missing[:40]))
+
+
+def test_the_runner_refuses_forwarded_options_that_narrow_the_gate_run(monkeypatch) -> None:
+    """A `-k` typed at run time is invisible to every manifest reader, so the
+    runner refuses it before running anything, and a non-narrowing option
+    (the documented ``-x``) still runs."""
+    def ran(*_a, **_k):
+        raise AssertionError("ripple_check ran something before refusing")
+
+    monkeypatch.setattr(ripple_check, "run_collect_sweep", ran)
+    monkeypatch.setattr(ripple_check, "_run", ran)
+    for argv in (["--", "-k", "pin"], ["--", "-kpin"], ["--", "-m", "slow"],
+                 ["--", "--deselect=tests/test_jpl_audit.py::x"],
+                 ["--", "--ignore", "tests/test_jpl_audit.py"], ["--", "--lf"],
+                 ["--", "--sw"], ["--", "--collect-only"]):
+        assert ripple_check.main(argv) == 2, argv
+    calls = []
+    monkeypatch.setattr(ripple_check, "run_collect_sweep", lambda root: calls.append("sweep") or 0)
+    monkeypatch.setattr(ripple_check, "_run", lambda cmd, cwd: calls.append(cmd) or 0)
+    assert ripple_check.main(["--", "-x"]) == 0
+    assert calls[0] == "sweep" and "-x" in calls[1], calls
