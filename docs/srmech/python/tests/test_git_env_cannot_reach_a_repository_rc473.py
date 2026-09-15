@@ -24,18 +24,38 @@ WHAT EACH TEST PROVES, AND HOW IT CAN FAIL
   stops the writers working is not a fix. Measured red on ``52371629a``, the
   tree before this repair: the sentinel config gained ``worktree = …`` and
   ``[user] name = decoy identity``.
+* ARM 1b is the same run with ``--noconftest``: the writers scrubbing at their
+  SOURCE, with no suite guard in the process. ARM 1's child runs from this
+  tree, so this tree's conftest scrubs the export before any writer runs, and
+  ARM 1 only ever saw the two layers together — the rc471 helpers could go
+  back to the inherited environment with ARM 1 green (measured at the final
+  round's gate). The child must collect and PASS at least one test per writer
+  file, with nothing skipped, or the arm measured nothing.
 * ARM 2 is the can-fail of the instrument itself: a planted one-line writer, run
   OUTSIDE this tree's conftest, MUST move the sentinel unguarded (else this
   environment cannot see a write and ARM 1 is vacuous — inconclusive, not a
   pass) and must NOT move it with ``-p tests._git_env_guard``.
+* ARM 2b loads the guard the way the SUITE does: the same planted writer with
+  ``-p tests.conftest``, so the scrub reaches it only through conftest's own
+  import line. ARM 2's ``-p tests._git_env_guard`` loads the module whether or
+  not conftest imports it, so it pinned the guard's body and not its wiring —
+  deleting that import line left every gate green (measured at the final
+  round's gate). The sentinel must not move and the writer must pass.
 * ARM 3 runs ``tools/hooks/check_hooks.py ledger`` DIRECTLY — no pytest, so no
   conftest guard — under the same export. Every case must pass and the sentinel
   must not move. This is the operator who runs the self-check by hand, and it
   is where the read-side defect lived: the hook child inherited the export and
-  answered for the sentinel, so BLOCK cases read ALLOW.
+  answered for the sentinel, so BLOCK cases read ALLOW. The case count is
+  PARSED from check_hooks' summary and must be at least one: a run that
+  selects no check prints ``0 passed, 0 failed, 0 skipped (0 cases)`` and exits
+  0, and every other assertion of the arm is then vacuously true.
 * The PIN: the guard's list is a superset of what the RUNNING git prints for
   ``git rev-parse --local-env-vars``, so a future git that adds a name reds.
 * The DECIDER: the worktree-pointer lookup answers in both directions.
+* The WALK: a real ``.git`` directory ends the walk, and does so under a
+  worktree-pointer checkout whose ``/mnt`` twin exists — the geometry in which
+  continuing past it would hand a nested repository's git the outer
+  checkout's gitdir.
 
 numpy-free. No ``abs()``. No ``hashlib`` — bytes are compared, not digested.
 """
@@ -43,6 +63,7 @@ numpy-free. No ``abs()``. No ``hashlib`` — bytes are compared, not digested.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -132,6 +153,29 @@ def _pytest(args, cwd: Path, env: dict, timeout: float):
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
 
+_TALLY_LINE = re.compile(r"\b(?:passed|failed|errors?|skipped|no tests ran)\b.* in [0-9.]+s")
+_TALLY_ITEM = re.compile(
+    r"(\d+) (passed|failed|skipped|deselected|xfailed|xpassed|errors?|warnings?)\b")
+
+
+def _tally(text: str) -> dict:
+    """pytest's final tally line, parsed — ``{"passed": 5}`` — or ``{}`` if none.
+
+    Warnings are dropped: they say nothing about whether a test RAN. ``error`` /
+    ``errors`` fold to ``error``.
+    """
+    for line in reversed(text.splitlines()):
+        if _TALLY_LINE.search(line):
+            out: dict = {}
+            for count, kind in _TALLY_ITEM.findall(line):
+                if kind.startswith("warning"):
+                    continue
+                kind = "error" if kind.startswith("error") else kind
+                out[kind] = out.get(kind, 0) + int(count)
+            return out
+    return {}
+
+
 # ── ARM 1 ────────────────────────────────────────────────────────────────────
 
 @_NEEDS_GIT
@@ -151,6 +195,30 @@ def test_the_git_writing_tests_cannot_reach_a_repository_GIT_DIR_names(tmp_path)
         "variables — a guard that stops them working is not a fix:\n" + text[-2500:])
 
 
+# ── ARM 1b ───────────────────────────────────────────────────────────────────
+
+@_NEEDS_GIT
+def test_the_git_writing_tests_scrub_at_their_source_without_the_suite_guard(tmp_path) -> None:
+    assert CHECKER.is_file(), f"{CHECKER} is missing, so the writers cannot run"
+    repo, worktree, gitdir = _make_sentinel(tmp_path)
+    before = _state(repo)
+    env = _child_env(GIT_DIR=str(gitdir), GIT_WORK_TREE=str(worktree))
+    proc = _pytest(["--noconftest", f"--basetemp={tmp_path / 'bt'}", *WRITERS],
+                   PY_ROOT, env, 1200)
+    text = proc.stdout.decode("utf-8", "replace")
+    moved = _moved(before, _state(repo))
+    assert moved == [], (
+        f"with no conftest in the process, the git-writing tests WROTE the "
+        f"repository GIT_DIR named: {moved} — a writer is not scrubbing at its "
+        f"source. Its config now reads:\n{(repo / '.git' / 'config').read_text()}\n"
+        + text[-1500:])
+    tally = _tally(text)
+    assert proc.returncode == 0 and set(tally) == {"passed"} and tally["passed"] >= len(WRITERS), (
+        f"the writers did not all collect and pass under --noconftest (tally "
+        f"{tally}), so this arm measured nothing, or a guard stopped them "
+        f"working:\n" + text[-2500:])
+
+
 # ── ARM 2 ────────────────────────────────────────────────────────────────────
 
 PLANTED_WRITER = (
@@ -160,9 +228,10 @@ PLANTED_WRITER = (
     "                   cwd=str(tmp_path))\n")
 
 
-@_NEEDS_GIT
-@pytest.mark.parametrize("guarded", [False, True], ids=["unguarded", "guarded"])
-def test_the_sentinel_sees_a_write_and_the_guard_stops_it(tmp_path, guarded) -> None:
+def _run_planted_writer(tmp_path: Path, plugin: list):
+    """The planted writer in its own rootdir, OUTSIDE this tree's conftest, under
+    the sentinel export, with ``plugin`` (``-p`` arguments) loaded. Returns the
+    child's output and the sentinel keys that moved."""
     repo, worktree, gitdir = _make_sentinel(tmp_path)
     before = _state(repo)
     planted = tmp_path / "planted"
@@ -173,18 +242,24 @@ def test_the_sentinel_sees_a_write_and_the_guard_stops_it(tmp_path, guarded) -> 
         [str(PY_ROOT)] + ([os.environ["PYTHONPATH"]] if os.environ.get("PYTHONPATH") else []))
     env = _child_env(GIT_DIR=str(gitdir), GIT_WORK_TREE=str(worktree),
                      PYTHONPATH=pythonpath)
-    plugin = ["-p", "tests._git_env_guard"] if guarded else []
     proc = _pytest(["-c", str(planted / "pytest.ini"), "--rootdir", str(planted),
                     *plugin, f"--basetemp={tmp_path / 'bt'}", str(planted)],
                    planted, env, 300)
     text = proc.stdout.decode("utf-8", "replace")
-    moved = _moved(before, _state(repo))
-    # The planted test must have RUN in both arms. A plugin that failed to load
-    # stops pytest before any test, and a sentinel nobody wrote to is then a
-    # vacuous "the guard stopped it".
+    # The planted test must have RUN. A plugin that failed to load stops pytest
+    # before any test, and a sentinel nobody wrote to is then a vacuous "the
+    # guard stopped it".
     assert proc.returncode == 0 and "1 passed" in text, (
         "the planted writer did not run to a pass, so this arm measured "
         "nothing:\n" + text[-800:])
+    return text, _moved(before, _state(repo))
+
+
+@_NEEDS_GIT
+@pytest.mark.parametrize("guarded", [False, True], ids=["unguarded", "guarded"])
+def test_the_sentinel_sees_a_write_and_the_guard_stops_it(tmp_path, guarded) -> None:
+    plugin = ["-p", "tests._git_env_guard"] if guarded else []
+    text, moved = _run_planted_writer(tmp_path, plugin)
     if guarded:
         assert moved == [], f"-p tests._git_env_guard did not stop the write: {moved}"
     else:
@@ -194,7 +269,23 @@ def test_the_sentinel_sees_a_write_and_the_guard_stops_it(tmp_path, guarded) -> 
             "inconclusive, not a pass:\n" + text[-800:])
 
 
+# ── ARM 2b ───────────────────────────────────────────────────────────────────
+
+@_NEEDS_GIT
+def test_the_suite_conftest_loads_the_guard_before_a_writer_runs(tmp_path) -> None:
+    assert (PY_ROOT / "tests" / "conftest.py").is_file(), "tests/conftest.py is missing"
+    text, moved = _run_planted_writer(tmp_path, ["-p", "tests.conftest"])
+    assert moved == [], (
+        f"loaded through tests/conftest.py, the planted writer WROTE the "
+        f"repository GIT_DIR named: {moved}. The suite guard is not wired: "
+        f"conftest must import tests._git_env_guard at import time.\n" + text[-800:])
+
+
 # ── ARM 3 ────────────────────────────────────────────────────────────────────
+
+_CHECK_HOOKS_SUMMARY = re.compile(
+    r"^\s*(\d+) passed, (\d+) failed, (\d+) skipped \((\d+) cases\)\s*$")
+
 
 @_NEEDS_GIT
 def test_check_hooks_ledger_under_an_exported_GIT_DIR_passes_and_writes_nothing(tmp_path) -> None:
@@ -208,9 +299,13 @@ def test_check_hooks_ledger_under_an_exported_GIT_DIR_passes_and_writes_nothing(
     err = proc.stderr.decode("utf-8", "replace")
     moved = _moved(before, _state(repo))
     assert moved == [], f"check_hooks.py ledger WROTE the exported repository: {moved}"
-    summary = [line for line in err.splitlines() if "passed," in line]
-    assert summary and " 0 passed," not in summary[-1], (
-        f"check_hooks.py ledger ran no cases under the export: {err[-600:]!r}")
+    # rc473 final repair 1 (`#T1188`): the count is PARSED. Until then this read
+    # `" 0 passed," not in summary[-1]`, and check_hooks prints the summary with
+    # the count at the START of its line, so a zero-case run never matched.
+    counts = [m for m in map(_CHECK_HOOKS_SUMMARY.match, err.splitlines()) if m]
+    assert counts and int(counts[-1].group(4)) >= 1 and int(counts[-1].group(1)) >= 1, (
+        f"check_hooks.py ledger ran no cases under the export, so the assertions "
+        f"below would be vacuously true: {err[-600:]!r}")
     assert proc.returncode == 0 and "[FAIL]" not in err, (
         "a hook fixture case gave a WRONG VERDICT under an exported GIT_DIR — the "
         "hook child answered for the exported repository instead of its fixture:\n"
@@ -282,3 +377,32 @@ def test_the_walk_answers_nothing_for_an_ordinary_repository_directory(tmp_path)
     assert _git_env.git_location_args(pointer_checkout) == [], (
         "a pointer whose path and /mnt twin are both absent must leave git's own "
         "discovery (and its own error) alone")
+
+
+def test_the_walk_stops_at_a_repository_directory_nested_under_a_pointer_checkout(tmp_path) -> None:
+    """A real ``.git`` directory ends the walk even when the checkout ABOVE it is
+    a worktree pointer whose twin exists (rc473 final repair 1, `#T1188`).
+
+    The test above put nothing above its repository, so stopping at the ``.git``
+    directory and continuing past it gave the same ``[]``: the stop replaced by
+    ``continue`` left this file green, and the walk then answered a nested
+    repository with the outer checkout's gitdir (measured at the final round's
+    gate). Here the outer checkout's answer is shown first — so a walk that
+    continues has a wrong answer to give — and then the nested repository must
+    get none of it.
+    """
+    twin = "/mnt/d/GitHub/outer/.git/worktrees/w"
+    only_twin = lambda path: path == twin                       # noqa: E731
+    outer = tmp_path / "outer"
+    (outer / "plain").mkdir(parents=True)
+    (outer / ".git").write_text("gitdir: D:/GitHub/outer/.git/worktrees/w\n", encoding="utf-8")
+    handed = ["--git-dir=" + twin, "--work-tree=" + str(outer.resolve())]
+    # the control: inside the pointer checkout, its twin IS handed over
+    assert _git_env.git_location_args(outer / "plain", environ={}, exists=only_twin) == handed
+    nested = outer / "fixture_repo"
+    (nested / ".git").mkdir(parents=True)
+    (nested / "sub").mkdir()
+    for start in (nested, nested / "sub"):
+        assert _git_env.git_location_args(start, environ={}, exists=only_twin) == [], (
+            f"the walk went past {nested / '.git'} (a repository directory) and "
+            f"handed its git the outer checkout's gitdir")

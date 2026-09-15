@@ -157,7 +157,8 @@ def _ceilings(environ: Optional[MutableMapping[str, str]] = None) -> List[Path]:
 
 
 def git_location_args(start: "os.PathLike[str] | str",
-                      environ: Optional[MutableMapping[str, str]] = None) -> List[str]:
+                      environ: Optional[MutableMapping[str, str]] = None,
+                      exists: Callable[[str], bool] = os.path.exists) -> List[str]:
     """``--git-dir`` / ``--work-tree`` for the checkout ``start`` is in, or ``[]``.
 
     Walks up from ``start`` the way git's discovery does, stopping before any
@@ -165,6 +166,14 @@ def git_location_args(start: "os.PathLike[str] | str",
     directory answers ``[]`` (git reads it), a pointer FILE is handed to
     :func:`pointer_git_args`. Reads files only — it never runs git and never
     touches the environment.
+
+    The first ``.git`` DIRECTORY ends the walk. A repository nested inside a
+    worktree checkout (a test fixture under a WSL-read checkout) is its own
+    repository, and handing its git the outer checkout's pointer twin would
+    answer for a repository other than its own. ``exists`` is the pointer
+    decider's, injected (rc473 final repair 1, `#T1188`) so a test can put a
+    pointer checkout whose twin "exists" ABOVE a real repository on any host
+    and see the walk stop.
     """
     try:
         here = Path(start).resolve()
@@ -182,7 +191,7 @@ def git_location_args(start: "os.PathLike[str] | str",
                 text = dotgit.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 return []
-            return pointer_git_args(text, str(directory), os.path.exists)
+            return pointer_git_args(text, str(directory), exists)
     return []
 
 
