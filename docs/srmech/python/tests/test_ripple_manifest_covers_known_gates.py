@@ -551,7 +551,13 @@ def test_the_collection_sweep_runs_before_the_gates_and_aborts_on_failure() -> N
 # `deselected` were all unmoved (1278 / 1278 / 0) and this node passed, while the
 # advice gate's `[notes]` root was never scanned. The plugin now also writes the
 # node ids that are in one of its multisets and not the other, and this node fails
-# on a non-empty `selected_missing` or `selected_extra` as well.
+# on a non-empty `selected_missing` or `selected_extra` as well. Two more limits of
+# this collect-only view, measured at instrument repair 3: a filter conditional on
+# `--collect-only` (gate round j1 can-fail N2) keeps every item here and is read by
+# the runner instead; and under a setup-only protocol (an ini `addopts` of
+# `--setup-plan` / `--setup-only`, or a conftest `pytest_configure`) the whole outer
+# pytest runs nothing, so this node does not run at all — that geometry is the
+# runner's `ran` to see, and it does.
 # The removals this check was measured to fail on, with the command, are in the
 # rc473 CHANGELOG, INSTRUMENT REPAIR 2, and in the plugin's docstring. Its limits,
 # stated: it collects with `--collect-only`, so a removal made once collection has
