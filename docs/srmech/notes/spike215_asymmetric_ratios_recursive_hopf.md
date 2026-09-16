@@ -95,6 +95,15 @@ shape (composite × prime), no anomaly.
 - **Spike #214 (depth-3 recursion, concurrent)** — does the ratio-agnostic
   universality extend to triple-nested composition `r1 · r2 · r3`? If yes,
   recursive-Hopf is unbounded in both ratio asymmetry and depth.
+  *(⚠️ **Qualified 2026-09-16, `#T1188`, per srmech notebook §3.61.** The
+  ratio-agnosticism result STANDS — 5/5 stacks, integer-exact flip counts
+  `2·∏rᵢ`, FFT peaks at `∏rᵢ`, 2:1 bit-exact. But the inference "if yes,
+  unbounded" does not follow in either variable: a construction whose rule is
+  defined at every depth and for every ratio can only ever report *"still
+  going"*, having no reachable **bounded** state, and such an instrument does
+  not measure boundedness
+  (`[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`).
+  Read it as the grammar's unbounded construction, with the frame named.)*
 - **Spike #216 (M-theory bridge, concurrent)** — the 11D Hopf-bundle
   ladder structure that the dimension-counting argument lives on.
 

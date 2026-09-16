@@ -4,6 +4,8 @@
 **Tier**: MS-16 Tier 4 fermata-closure (follow-up to Spike #213)
 **Verdict**: **DEPTH-3-CONFIRMED-RECURSIVE-HOPF-UNBOUNDED**
 
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), per srmech notebook §3.61. The DEPTH-3-CONFIRMED half STANDS bit-exact; the UNBOUNDED half is not what the run measured.** Untouched: 686 sign-flips at L3 = 2·7³, FFT peak bin 343, all six cross-level integer ratios, the 2:1 ratio preserved at four levels. The qualifier: the recursion's rule is defined at every depth, so the instrument can only ever report *"still going"* — there is no state in which it could return **bounded**, and a measurement whose instrument cannot return otherwise is not a measurement of that property (`[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`). This bears directly on the tightening recorded below, where #213's *"structural form supports unbounded recursion"* becomes #214's *"no observed stopping condition"*: **that is the honest wording and it is weaker than the verdict label** — a third depth removes a fermata about depth-3 specifically, and adds no evidence about boundedness that depth-2 did not already fail to supply. What three depths attest is the grammar's unbounded construction (§3.61), and the frame must be named because depth and mode count are different truncation lattices with different rates, the Laplace limit `0.6627434` being a third. A future *"confirmed unbounded"* needs an instrument with a reachable **bounded** verdict.
+
 ## Summary
 
 Spike #213 confirmed depth-2 recursive Hopf bit-exact (98/98 sign-flips at
