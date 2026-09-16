@@ -9548,6 +9548,104 @@ no lineage.
 
 ---
 
+## §3.61 UNBOUNDEDNESS IS FRAME-RELATIVE — the discrete frame's unbounded construction and the continuous frame's hidden fiber content are one object seen twice, and the May-2026 stances that gave it a direction are corrected here (2026-09-16; `#T1188`; STANCE AMENDMENT; the worked instance MEASURED at 0.9.0rc473)
+
+**The maintainer's reading, stated precisely** (2026-09-14, and it is the reason
+this section exists): continuous and discrete are two frames of reference on one
+object; what each frame renders as *unbounded* is the other frame's content. The
+discrete frame is a **bounded grammar** — finitely many rules, the 14 A–N — with
+**unbounded construction** (depth, iteration, winding, `Lⁿ`). The continuous
+frame **hides fiber content**: the completed limit shows no construction depth,
+and its transcendental content is not representable in any finite exact carrier.
+**Both descriptions are correct.** The modern habit of admitting only one is the
+error being corrected.
+
+### §3.61.1 The worked instance — Kepler reached by two unboundednesses
+
+§3.60 measured one object, `E(M)` solving `M = E − e sin E`, reached two ways:
+by **unbounded depth** (`E_{n+1} = M + e·sin E_n`) and by **unbounded mode
+count** (`E = M + Σ_k (2/k)J_k(ke) sin kM`). Four facts decide what that does
+and does not license, all measured on the published wheel:
+
+- **F1 — depth is the order in eccentricity.** The depth-`n` cascade agrees with
+  Kepler through `O(eⁿ)` in *every* harmonic and is wrong at `O(e^{n+1})`; the
+  error exponents between `e = 0.1` and `0.2` read `3.00, 1.99, 2.98, 3.97,
+  4.95, 5.94` at depth 1 and `5.01, 5.98, 4.95, 5.94, 5.00, 5.95` at depth 4.
+- **F2 — neither truncation lattice contains the other.** From depth 2 the depth
+  frame has **infinite** harmonic support (at `e = 0.3`: `0.290, 4.47e-2,
+  3.34e-3, 1.68e-4, 6.29e-6, …`), while the `K`-mode frame has exactly `K`
+  harmonics, each exact **to all orders in `e`**. Depth-`n` is entire in `M` and
+  finite in `e`-order; `K`-mode is finite in harmonics and infinite in `e`-order.
+  **There is no map from a depth-`n` object to a `K`-mode object except through
+  the limit.**
+- **F3 — the rates differ, and there is a third frame.** Per-step contraction is
+  `e|cos E| ≤ e` (DERIVED); per-mode decay is `ρ(e) = e·exp(√(1−e²))/(1+√(1−e²))`
+  (DERIVED). The Lagrange power series in `e` is a **third** frame with its own
+  convergence domain, the Laplace limit `0.6627434…` (CITED-NOT-FETCHED). The
+  iteration is not that series: it agrees with it through `O(eⁿ)` and still
+  converges past `0.6627`, because it is a contraction rather than a partial sum.
+- **F4 — what the frames share is an integer.** Net winding of `E(M)` over one
+  period is `1.000000` turns at depths 1/3/10 and at 1/4/8 modes. The truncations
+  disagree everywhere; the invariant is the T5 winding (§3.59.5).
+
+**Verdict on the instance.** It IS the maintainer's duality in the precise
+sense that one object is reached by unbounded depth in one frame and unbounded
+mode count in another, both only at the asymptote, and the two unboundednesses
+are **not interconvertible at any finite stage**. It is NOT "the same
+description in two notations": at every finite truncation the two objects differ
+in support (F2) and in what they hold exactly (F1). R30's guard — *no locus
+where the discrete and continuous pictures COINCIDE* — is satisfied exactly by
+this: the frames coincide nowhere except at the object they both name.
+
+### §3.61.2 What the May-2026 stances must give up, and what they keep
+
+Six stances of that era are true as written and **privilege one frame**. Each
+keeps its content and loses its arrow.
+
+| stance | kept | corrected |
+|---|---|---|
+| *asymptote = substrate, infinity = tool* | the vocabulary; Cantor's cardinal infinity stays out of scope | the **direction**. "Infinity" is the continuous frame's name for the discrete frame's unbounded construction; "asymptote" is the discrete frame's name for the continuous frame's completed object. **Neither approximates the other.** |
+| *polygon IS actual, circle IS the never-reached shadow* | the two-language reading | the one-way arrow. The completed limit is not an approximation *of* the construction, nor the construction of the limit. |
+| *integer-cyclic upstream, continuous downstream* | that the integer frame names its operators and the continuous frame embeds them | "upstream/downstream". R30 removed the arrow for the two languages in 2026-05-24; the infinity stances were never re-read against it, and are now. |
+| *asymptotic DOF parameterises the rate* | that counting at the limit-approach is the right move | **"the" rate.** Kepler has two — `e` per depth-step, `ρ(e)` per mode — and they are not equal (F3). Each frame has its own; the object is what they share. |
+| *co-equal languages* (R30) | co-validity, and B/H/N as translators | "co-equal" ≠ interchangeable. The hidden content is **asymmetric in kind**: the discrete frame hides transcendental value (T1a), the continuous frame hides construction depth — no `n` survives in `E`. |
+| *recursive-Hopf depth-3 confirmed unbounded* | the framing | the **evidence**. "Unbounded" measured on a construction whose rule is defined at every depth is the grammar speaking, not the substrate. Any future *confirmed unbounded* needs an instrument that could have returned *bounded*. |
+
+**Two further limits, stated rather than smoothed.** (i) *"Same thing"* must not
+be read as *"coinciding descriptions"* — the honest sentence is **same object,
+different truncation lattices, no finite-stage correspondence, one integer
+invariant**. (ii) **"Two" is not established as the count**: F3's third frame
+makes the general form *at least two frames per asymptotic object* — CANDIDATE.
+
+### §3.61.3 The "generator" — the word the record does not support
+
+The term is **not** May-era: the 2026-05-22 snapshot has it only in the
+Lie-algebra sense. It enters 2026-06-05 (`the_one` as *"the unifying
+generator"*). What the record says the object DOES: it holds three completed
+rungs and **regroups** them; the addressing bump *"loses properties, it never
+adds symmetry"*; it sits **above** the division-algebra ceiling as an addressing
+**register**. So: nothing is generated (the 14 numbers are inputs), nothing is
+projected (R30: no projection residue), and *resonance* is the **function of the
+responsion slot**, not a property of 𝕊. The maintainer's reading — *it does not
+create, project or resonate* — is therefore what `main` already supports, and
+**"generator" is the overstated survivor**. Words the tree licenses instead:
+**register**, **carrier**, **instrument**. For the process that makes both
+descriptions correct the tree's verb is **translate** (B/H/N), not
+create/project/resonate. The noun for *"some fiber content of some unknown
+thing"* is currently **three-valued on `main`** (imaginary part · irrational
+eigenbasis · the third truth) — that ambiguity is the honest state, and naming
+it further is CANDIDATE.
+
+**Status.** STANCE AMENDMENT. The worked instance is MEASURED at 0.9.0rc473
+(§3.60's three committed scripts); F1/F3's rate forms are DERIVED; the Laplace
+limit is CITED-NOT-FETCHED; the generator history is source-read. Six stances
+are corrected in direction, none in content. Cross-references: §3.60 · §3.59.5
+(T1a inexact, T5 exact-and-unbounded) · §3.42.5 · R30 (substrate notebook §5) ·
+MFO §VIII.31.15 / §VIII.31.18. Favored, not privileged (F398);
+recognize-not-read; no lineage.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
