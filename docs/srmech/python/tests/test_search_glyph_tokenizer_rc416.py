@@ -1383,8 +1383,37 @@ from srmech.math.text import fold_marks, glyph_stream
 #: `math/kepler.py` -> no move; applied ALONE onto the all-reverted state,
 #: `_tool_docs.py` -> `01ff7bc2…`, the other two -> no move. All three old ->
 #: `5ce08382…`, the pin below it was; restored, byte-identical, `01ff7bc2…`.
+#: A FIFTEENTH pin, in rc474 (`#T1188`), and the FIRST whose cause is NOT a
+#: prose file: the regenerated `srmech_carrier_registry.c`. rc474 widened ten
+#: `parameters[].type` strings from bare `"float"` to `"float | Q"` across eight
+#: `srmech.math.rational.*` ops, which puts each op's name in the `Q` carrier's
+#: back-index — the same +8 the decode-aware pin next door counts. No prose
+#: moved: `_tool_docs.py`, `_tool_docs_curated.py` and every `summary=` /
+#: `explanation=` in `tool_schema.py` are BYTE-IDENTICAL across `2f8cded60..HEAD`,
+#: which is why the first fourteen pins' cause was ruled out by measurement
+#: rather than assumed absent.
+#:
+#: ⚠️ THE TRAP THIS ONE SETS, recorded because it cost six rounds to see: this
+#: witness reads the carrier registry through the LOADED LIBRARY. A `libsrmech.so`
+#: built BEFORE the registry was regenerated reproduces the OLD digest, so the
+#: three tests PASS locally and FAIL in every CI cell — CI builds fresh, a
+#: developer tree does not. Measured here: registries stamped 11:54, library
+#: 09:15, and the stale library returned `01ff7bc2…` deterministically. Rebuilt
+#: from the SAME sources the commit carries, the digest is `2b092a14…`, equal to
+#: what all six CI cell types computed. If these tests pass locally and fail in
+#: CI, REBUILD THE LIBRARY before touching this pin — the local pass is the
+#: wrong instrument, not the truth.
+#:
+#: CONFIRMED A REGISTRY MOVE AND NOT A NON-DETERMINISTIC BUILD: three fresh
+#: CPython 3.12.3 interpreters, two `_build_frames("all")` calls plus
+#: `search("rank", k=1).witness` in each — NINE computations, all
+#: `2b092a14f70a…64d7de6160341`, `rows` 761 = 732 ops + 29 carriers, unmoved.
+#: The PURE cell agrees independently: CI's `fallback • shard 6/6` computed the
+#: same digest with no library loaded at all, so the value is not an artefact of
+#: native dispatch.
 WITNESS_RC416 = (
-    "01ff7bc2a1f7a10e85bb442164268def4163cd6f92287087f137af32149401da")
+    "2b092a14f70aaaf4e37d6b9b834dc72dc647d01351c419899ae64d7de6160341")
+#: was: 01ff7bc2a1f7a10e85bb442164268def4163cd6f92287087f137af32149401da (rc473 final round)
 #: was: 5ce08382175192d63e794bf0008532ed5d80402e08f873fd7f284e27eb3b4839 (rc473 truth repair 1)
 #: before that: da8db24232bd1b404cc0a0daa307f8f93c688a9f8a80a2eead8ab6ef296173c9 (rc473 truth round)
 #: was: f28fb52c01b61054dd3424eb26071b9324408b4781d6159cc6016c42225dd0b4 (rc473 close-out)

@@ -1023,8 +1023,45 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # which is the informative half - absorbing two ops does not widen the
     # absorber's carrier footprint, because the back-index is per (op, carrier)
     # and the survivor already named `int`.
-    assert math == 459, (
-        f"expected 459 srmech.math op references inside the DECODED channel "
+    # rc474 (`#T1188`) — 459 -> 467, the WIDENED-DECLARATION category a THIRD
+    # time (rc463's and rc467's, not rc456's): no op is registered, none is
+    # renamed, and no prose moves. Ten `parameters[].type` strings widen from
+    # bare `"float"` to `"float | Q"` because the exact-operand route gives
+    # these ops an exact branch above the float line, so they ACCEPTED a `Q`
+    # while DECLARING only `float` — `tests/test_declared_type_honesty_rc363.py`
+    # measured exactly that, 8 ops against a CEIL of 0.
+    #
+    # The delta is +8 and not +10, and the reason is the SAME arithmetic rc468
+    # spells out above: the back-index is per (op, carrier), NOT per operand.
+    # `atan2` widens two operands (`y`, `x`) and `hypot` two (`a`, `b`), but
+    # both operands of each carry the IDENTICAL new type string, so neither op
+    # earns a second reference — unlike `qmat_solve` at rc463, which contributed
+    # a ninth because its two operands carry DIFFERENT type strings.
+    #
+    # There is no structural split to subtract here, and that is worth stating
+    # because every prior term in this ledger had one: all eight ops register
+    # under `srmech.math.rational.*`, so all eight clear the `srmech.math.`
+    # prefix this pin counts. `cexp` is included for that reason — it is
+    # `srmech.math.rational.cexp`, and it acquires `Q` acceptance through the
+    # shared route rather than by being edited directly, as does `tan`.
+    #
+    # MEASURED per op against the regenerated carrier registry, not projected —
+    # each joins the `Q` back-index exactly once, and none gains an `int` row
+    # because every one of them already named `int` through its `precision`
+    # operand:
+    #
+    #     cos    +1   Q +1        atan2  +1   Q +1  (two operands, one string)
+    #     sin    +1   Q +1        cexp   +1   Q +1
+    #     tan    +1   Q +1        sqrt   +1   Q +1
+    #     atan   +1   Q +1        hypot  +1   Q +1  (two operands, one string)
+    #                            ---
+    #                            +8   = 8 x Q + 0 x int
+    assert math == 467, (
+        f"expected 467 srmech.math op references inside the DECODED channel "
+        f"(459 at rc468 CONSOLIDATION + rc474 +8: the eight ops whose operands "
+        f"widened from `float` to `float | Q`, each joining the `Q` carrier "
+        f"back-index ONCE — per (op, carrier), so atan2's two operands and "
+        f"hypot's two contribute one apiece; see the per-op table above) "
         f"(447 at rc466 + rc467 +13 + rc468 +1: the eight widened srmech.math.laplacian "
         f"exact= operands, each joining the `Q` carrier back-index and five "
         f"of them also `int`; see the per-op table above) "
