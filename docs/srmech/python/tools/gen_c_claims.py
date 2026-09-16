@@ -269,6 +269,44 @@ Consumed by :func:`srmech._native.c_claim_report` and surfaced as
 
 ``tests/test_c_claim_resolution_rc300.py`` re-derives this from the live tree and
 fails on drift, so the manifest cannot silently go stale.
+
+HOW TO READ THIS FILE WITHOUT READING ALL OF IT
+-----------------------------------------------
+There is one claim table, ``C_CLAIMS``. The two ``UNVERIFIABLE_*`` names at
+the bottom ratchet the region it cannot check.
+
+* **Keys** are an op's ``defined_at``: the dotted path of the module that
+  DEFINES the op, then the op's name — ``srmech.<package>.<module>.<op>``. A
+  re-export has no key of its own, so look an op up by where it is defined,
+  not by where it is imported from.
+* **Values** are a tuple of C symbol names, sorted, one per line when there
+  is more than one. One symbol can appear under many keys: a shared helper is
+  listed under every op whose dispatch path names it, so a repeat is not a
+  duplicate.
+* **Keys and symbols are both SINGLE-quoted**, because the generator writes
+  them with Python ``repr``. A search for a DOUBLE-quoted name matches nothing,
+  and that nothing looks exactly like a real zero. Search for the name inside
+  single quotes; the closing quote also stops a short symbol from matching
+  inside a longer one that starts with it.
+
+Every symbol in the tuples carries the ``srmech_`` prefix; the rest of the
+name says what it is for:
+
+* no suffix — the kernel itself, usually named after the op;
+* ``_ws_bound`` — sizes the caller's workspace for the kernel beside it;
+* ``_out_cap`` — sizes the caller's output buffer;
+* ``_q61`` — the Q61 fixed-point peer, an integer projection of the same job;
+* ``bigint_`` straight after the prefix — a shared bignum helper, claimed by
+  many ops.
+
+Reading an ABSENCE. An op that is not a key has no C symbol attributed to it:
+it runs pure-Python, or it is listed in ``UNVERIFIABLE_CLAIMS``. A symbol the
+public C header exports that appears under NO key is not claimed by any
+attributable op — C-internal plumbing, orphaned, or reached only through an op
+in ``UNVERIFIABLE_CLAIMS``. Before trusting a zero from any search of this
+file, run the same search for a symbol you know is claimed and confirm it
+returns a non-zero count. A search that cannot return non-zero proves nothing
+about absence.
 """
 from __future__ import annotations
 
