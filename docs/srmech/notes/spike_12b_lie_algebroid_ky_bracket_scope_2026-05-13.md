@@ -267,7 +267,7 @@ Expected cost: 1-2 conductor-day equivalents. Expected information yield: high (
 
 - **Spike #11 script** (`docs/srmech/notes/spike_11_ky_casimir_kerr_script.py` on `main` at `07d1a7e`): the operator-level abelian-collapse proof that this spike refines below.
 - **Spike #12A script** (`docs/srmech/notes/spike_12a_ky_photonring_interpolation_script.py` on `main` at `07d1a7e`): the contraction-failure analysis that establishes the meta-pattern of obstruction discovery this spike continues.
-- **KY literature review** (`docs/srmech/notes/killing_yano_kerr_literature_review_2026-05-12.md` on branch `research/killing-yano-literature-review` at `c85259c`): the state-of-field scan whose §5 Gap 4 ("Carter constant `K` as a Casimir eigenvalue — formalization… the right algebraic framework may be a Lie algebroid or NQ-manifold rather than a Lie algebra") is the precise gap this spike targets.
+- **KY literature review** (`docs/srmech/notes/killing_yano_kerr_literature_review_2026-05-12.md`, integrated onto the PR #687 branch `research/rbs-lm-rolling-2` at `a735365bd` — 2026-09-16; it was cited here as being on branch `research/killing-yano-literature-review` at `c85259c`, which is being retired, and `a735365bd` is an ancestor of the #687 branch so the file survives that cleanup): the state-of-field scan whose §5 Gap 4 ("Carter constant `K` as a Casimir eigenvalue — formalization… the right algebraic framework may be a Lie algebroid or NQ-manifold rather than a Lie algebra") is the precise gap this spike targets.
 - **MFO §VII.4.1.2** (`docs/antikythera-maths/mfo_spectral_research_notebook.md` on `main`): the §"open Killing-Yano gap" paragraph that frames this as the natural next research direction in the universal-Casimir-decomposition pattern.
 
 ---
