@@ -273,9 +273,20 @@ def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
             f"finite-rational carrier); got pin_offset={pin_offset!r}, "
             f"pin_distance={pin_distance!r}"
         )
-    x = pin_distance + pin_offset * _rcos(theta)
-    y = pin_offset * _rsin(theta)
-    return float(_ratan2(y, x))
+    # rc474 (`#T1188`): this op ELECTS the float carrier, and now says so at the
+    # call rather than by letting rational.cos/sin/atan2 do it silently. Since
+    # rc474 those ops take an EXACT route for an exact operand, and all three
+    # arrivals here are exact on the pure cell — MEASURED: pin_slot(1, 2, 3)
+    # hands cos/sin an ``int``, and pin_slot(0.7, 0.2, 1.0) hands atan2 a ``Q``
+    # on BOTH arguments, because ``pin_distance + pin_offset*cos`` is float·Q.
+    # Taking the exact route here would fork the projections: srmech_pin_slot
+    # takes three ``double`` and returns one, so the C peer cannot carry it, and
+    # the native cell (which returns at that symbol) would keep today's value
+    # while the pure cell moved. float() FIRST is bit-identical to rc473.
+    theta_f = float(theta)
+    x = pin_distance + pin_offset * _rcos(theta_f)
+    y = pin_offset * _rsin(theta_f)
+    return float(_ratan2(float(y), float(x)))
 
 
 def kepler_solve(
@@ -443,7 +454,12 @@ def kepler_solve(
     # rc473 repair round 1 (`#T1188`): the refusal of an M the Q61 reduction
     # cannot hold is rational.sin's, in its own words, and C refuses the same M
     # at the same reduction. Then the one Q61 iteration both projections run.
-    _rsin(M_rad)
+    # rc474 (`#T1188`): float() FIRST. kepler_solve(1, 0.2) hands this an
+    # ``int`` (MEASURED), and rc474 gives rational.sin an exact route — but the
+    # refusal being reproduced here is the Q61 one the C peer also raises, so it
+    # must be asked on the SAME carrier the C peer uses, or the two projections
+    # would refuse different M. Bit-identical to rc473.
+    _rsin(float(M_rad))
     converged, E = _kepler_q61(M_rad, e, tolerance, max_iter)
     if converged:
         return E                   # FPU last mile, the double srmech_kepler_solve writes
@@ -536,7 +552,11 @@ def equation_of_centre(
     for k_idx in range(n_terms):
         e_power *= e
         harmonic = (k_idx + 1) * M_rad
-        delta += _EOC_COEFFS[k_idx] * e_power * _rsin(harmonic)
+        # rc474 (`#T1188`): float() FIRST — equation_of_centre(1, …) makes
+        # ``harmonic`` an ``int`` (MEASURED, 4 calls), and this op's C peer
+        # srmech_equation_of_centre takes doubles, so the exact route would fork
+        # the two projections. Bit-identical to rc473.
+        delta += _EOC_COEFFS[k_idx] * e_power * _rsin(float(harmonic))
     return float(delta)            # FPU last-mile (native srmech_equation_of_centre → c_double)
 
 

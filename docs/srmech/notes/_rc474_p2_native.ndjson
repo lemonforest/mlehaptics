@@ -1,0 +1,30 @@
+{"EXPECTED_ABI": 26, "HAS_NATIVE": true, "NATIVE_ABI": 26, "cell": "native", "f_rational": "/mnt/d/GitHub/mlehaptics/.claude/worktrees/srmech-rc474/docs/srmech/python/srmech/math/rational.py", "rec": "banner", "trans_q61": true, "version": "0.9.0rc473"}
+{"a_float": 0.4287904318447045, "b_float": -0.5285117844130887, "fg_differ": true, "op": "cos", "pf_differ": true, "rec": "exact_entry", "separates": true}
+{"a_float": -0.9034039880133538, "b_float": -0.848925964814655, "fg_differ": true, "op": "sin", "pf_differ": true, "rec": "exact_entry", "separates": true}
+{"fg_differ": true, "op": "atan", "pf_differ": true, "rec": "exact_entry", "separates": true}
+{"op": "atan2", "rec": "exact_entry", "separates": true}
+{"fg_differ": true, "k": 54, "op": "sqrt", "rec": "exact_entry", "separates": true}
+{"fg_differ": true, "op": "hypot", "rec": "exact_entry", "separates": true}
+{"atan": true, "cos": true, "hypot": true, "precision": 53, "rec": "precision_sweep", "sin": true, "sqrt": true}
+{"atan": true, "cos": true, "hypot": true, "precision": 61, "rec": "precision_sweep", "sin": true, "sqrt": true}
+{"atan": true, "cos": true, "hypot": true, "precision": 96, "rec": "precision_sweep", "sin": true, "sqrt": true}
+{"atan": true, "cos": true, "hypot": true, "precision": 128, "rec": "precision_sweep", "sin": true, "sqrt": true}
+{"atan": true, "cos": true, "hypot": true, "precision": 160, "rec": "precision_sweep", "sin": true, "sqrt": true}
+{"atan": true, "cos": true, "hypot": true, "precision": 224, "rec": "precision_sweep", "sin": true, "sqrt": true}
+{"precision": 96, "rec": "atan_bits", "seconds": 0.000539, "separates": true}
+{"precision": 107, "rec": "atan_bits", "seconds": 0.000757, "separates": true}
+{"precision": 108, "rec": "atan_bits", "seconds": 0.000551, "separates": true}
+{"precision": 112, "rec": "atan_bits", "seconds": 0.000616, "separates": true}
+{"precision": 128, "rec": "atan_bits", "seconds": 0.00051, "separates": true}
+{"exact_s": 0.000161438, "op": "cos", "q61_s": 1.2761e-05, "ratio": 12.65, "rec": "exact_cost"}
+{"exact_s": 0.0001167, "op": "sin", "q61_s": 6.627e-06, "ratio": 17.61, "rec": "exact_cost"}
+{"exact_s": 0.000220188, "op": "atan", "q61_s": 1.0649e-05, "ratio": 20.68, "rec": "exact_cost"}
+{"exact_s": 0.000285974, "op": "atan2", "q61_s": 6.986e-06, "ratio": 40.94, "rec": "exact_cost"}
+{"exact_s": 1.027e-05, "op": "sqrt", "q61_s": 1.5645e-05, "ratio": 0.66, "rec": "exact_cost"}
+{"exact_s": 6.734e-06, "op": "hypot", "q61_s": 6.496e-06, "ratio": 1.04, "rec": "exact_cost"}
+{"calls": [], "rec": "arrival", "site": "pin_slot(0.7,0.2,1.0)", "value": "0.11128768723421471"}
+{"calls": [], "rec": "arrival", "site": "pin_slot(1,2,3)", "value": "0.3911711928586753"}
+{"calls": [], "rec": "arrival", "site": "kepler_solve(1,0.2)", "value": "1.1853242038613385"}
+{"calls": [], "rec": "arrival", "site": "equation_of_centre(1,0.0549,4)", "value": "0.09583722418961849"}
+{"calls": [], "n_calls": 0, "rec": "arrival", "site": "ica_jade.op"}
+{"n": 208, "rec": "float_baseline", "sha256": "438181738d19f9cc5a4f8c121c4743a2d7364bd21a45fa12fc6ae3d4dfcf385f"}

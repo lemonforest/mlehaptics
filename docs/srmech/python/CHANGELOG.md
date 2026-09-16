@@ -18,6 +18,138 @@ All notable changes to this package will be documented here. The format follows 
      `srmech.__version__` and that the slice holds EVERY current-minor entry in the file, so a
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc474] - `#T1188`: nine Class-N scalar ops that rounded an exact operand before they looked at it — seven given an entry above the float line and above the native dispatch, two carved out with the measurement that refuses them, and the first gate in the tree that names any of them
+
+*(rc-C of the "ALU All The Way" arc. rc-A fixed the ruler and rc-B the instruments; this is the first rc of the arc that moves an op. **The subject is the ENTRY, not the algorithm** — every exact-rational reduction used below already shipped; what demoted the operand was the line above it.)*
+
+**CONDITIONS FOR EVERY FIGURE BELOW.** WSL2, session worktree `.claude/worktrees/srmech-rc474/docs/srmech`, branched from `39b695025` (v0.9.0rc473), gcc 13.3.0, CPython 3.12.3, **numpy absent**, `SRMECH_PEDANTIC=ON` / `CMAKE_BUILD_TYPE=Release`, native cell live and current (`HAS_NATIVE True`, `EXPECTED_ABI_VERSION 26 == NATIVE_ABI_VERSION 26`, 0 build warnings). Every number is reported for BOTH cells, and the pure cell is a genuinely pure one — the `.so` moved aside, `HAS_NATIVE False`. Generating code is committed under `docs/srmech/notes/_rc474_*.py` with its NDJSON output beside it.
+
+### The defect, in one line
+
+```
+rc473 :  cos(2**53 + 1) == cos(2**53)      ->  True
+rc474 :  cos(2**53 + 1) == cos(2**53)      ->  False
+```
+
+Nine ops in `srmech.math.rational` — `cos` `sin` `tan` `atan` `atan2` `exp` `log` `sqrt` `hypot` — opened their bodies with `x = float(x)`. Handed an operand the EXACT carrier can hold (an `int`, a `Q`, a `Fraction`) they rounded it to float64 and answered about the rounded value, silently. `sqrt(2**53+1)` returned `sqrt(2**53)`.
+
+**No gate in the tree named any of them.** Measured at rc473: `CEIL_DEMOTION_UNREACHED` ratchets `NO_SHAPE`, not `DEMOTED`; `_RC463_SIX` pins six `laplacian` rows. The committed census CARRIED these nine as DEMOTED / UNRESOLVED_AT_WITNESS and no assertion read them, so the defect and its repair would both have landed invisibly. `tests/test_exact_operand_route_rc474.py` is the assertion, and it was proven RED before it was made green — see below.
+
+### The two things the written plan got wrong, both refuted by execution
+
+**1. "Route it to the `precision=P` reference" does not work, and the reason is structural.** Every `precision=P` route is entered BELOW `x = float(x)`, so the exact-rational reference is handed an operand that has already been demoted. MEASURED at rc473: `cos(2**53+1, precision=P) == cos(2**53, precision=P)` at **every** `P` in 24 / 53 / 61 / 128 — and the same for `sin`, `tan`, `atan`, `atan2`, `sqrt`, `hypot`, `log`. The reference machinery was never the problem. It needed an EXACT ENTRY POINT, which is what `_trig_reference_q` and `_atan2_reference_q` are: the shipped bodies with the float entry lifted off. Entered that way the witness separates at every one of 53 / 61 / 96 / 128 / 160 / 224.
+
+**2. The cost figures were measurements of the wrong thing.** The plan quoted 3.18×; a rerun of the same shape gave cos **146×**, sin 130×, atan 239×, atan2 428×. Both are measurements of the reference fed a FLOAT-DERIVED rational — and `0.7.as_integer_ratio()` has denominator 2**52, so what was being timed was a bignum the exact route never sees. The real driver is the OPERAND'S DENOMINATOR, and after it, whether the argument needs π-reduction at all: `cos(7/10)` (no reduction) runs at ~12×, `cos(1)` (one octant step, so π's denominator enters) at **474× native / 574× pure**, `sqrt` at **0.66×** — FASTER than the float route — and `hypot` at ~1.0×.
+
+**A third correction, to this rc's own earlier reading.** The regression surface is **pure-cell only** and the first survey could not see it: on a native cell `pin_slot` returns at the `srmech_pin_slot` dispatch and the pure cascade is never reached, so every arrival site measured ZERO calls. Re-measured in the cell where it executes, the plan's description is exactly right — `pin_slot(0.7, 0.2, 1.0)` hands `atan2` a `Q` on BOTH arguments even for all-float input, and `ica_jade`'s Givens sweep makes **4500** `cos`/`sin` calls on a 2×6 input, every one arriving `Q`.
+
+### The decision the rc turns on: the route is elected by the OPERAND
+
+There is deliberately **no `exact=` keyword**. The R3 reader counts one as a declaration by its mere PRESENCE, so adding a keyword drains a census row for free (rule F1 of rc466's FIX half, read backwards). The carrier is read off the operand with `srmech.math.q.exact_scalar` — the ONE exact reader, `pair=False` so a 2-tuple is not silently admitted as a scalar — reached through a deferred import, because `q` imports `rational` and a top-level import is circular.
+
+**A float operand therefore pays NOTHING, and that is proven rather than asserted.** Over a 208-row grid of float arguments across all nine ops, the returned `(num, den)` pairs hash to `438181738d19f9cc…` on the native cell and `0c4f3cabb36f4489…` on the pure cell — byte-identical to rc473 in both. The gate additionally asserts the property that digest is evidence FOR, in a host-independent form: a float operand must land on the power-of-two Q61 / `_sqrt_rational` grid, which the exact route's π- and series-denominators never are (measured at the witness: 3289 bits for `cos`, 515 for `atan`).
+
+**The refusal stays CARRIER-INDEPENDENT, and that is a decision.** The exact reduction has no `2**55` ceiling and could answer above it; it refuses anyway, at the same bound and in the same words, because rc466 rule F3 and ADR-0009 §2.4 both say the projections may not differ in which inputs they serve. An exact operand SERVED where the identical float one is REFUSED is the same defect as a silent demotion wearing the other sign.
+
+### Per op
+
+| op | what changed | witness separates |
+|---|---|---|
+| `cos` / `sin` | exact branch above `x = float(x)` AND above `has_native_trans_q61()`; `_trig_reference` split into `_trig_reference_q` | yes |
+| `tan` | **nothing** — its default branch is `sin(x)/cos(x)` and passes `x` through, so it INHERITS both exact routes | yes |
+| `atan` | exact branch straight to `_atan_ratio_reference`, which already took an exact `(num, den)` | yes |
+| `atan2` | exact branch to the new `_atan2_reference_q`; **WHOLE-operand** admission (rule F2) — one float elects the float route for the pair | yes |
+| `sqrt` | entry test widened from `hasattr(x, "as_pair")` (a live `Q` and nothing else) to `exact_scalar`; the ROUTE was already there | yes |
+| `hypot` | both operand reads widened the same way; **PER-operand**, because the sum of squares is formed exactly from whatever each side exactly IS | yes |
+| `log` | **CARVE-OUT** | no — by design |
+| `exp` | **CARVE-OUT** | not executable |
+
+**The carve-outs are pinned as facts, with the measurement that refuses them**, so neither can quietly become a claim of completeness. `log` has no exact route at ANY precision: both of its routes begin by bit-extracting `x = m·2^e` with `struct.unpack`, which requires a float, so even its exact reference cannot separate the witness — EXECUTED at 24 / 53 / 61 / 128, equal at all four. `exp` cannot be EXERCISED at the witness at all: the reduction picks `n ~ 1.3e16`, so `2**n` is a petabyte-scale integer (`tests/test_value_status_c_boundary_rc473.py` records the same refusal — "a gate must not execute it"), and its exact reference RAISES first at every precision with `log1p_series_truncate: num_terms exceeds max 512`.
+
+### The callers, decided one at a time
+
+Every in-package caller was read, and all but two already hand a float explicitly (`hypercomplex_dft`'s `eff` / `th = float(theta)`, `exact_dft`'s `_atan(1.0)`, `composites`, `matrix_cascades`). The two that did not now do, and **both are bit-identical to rc473**:
+
+* **`kepler.py`** (`pin_slot` ×3, `kepler_solve`, `equation_of_centre`) ELECTS float, and now says so at the call instead of letting `rational.*` do it silently. Taking the exact route would FORK the projections: `srmech_pin_slot` takes three `double` and returns one, so the C peer cannot carry it, and a native cell — which returns at that symbol — would keep today's value while the pure cell moved.
+* **`ica_jade.py`**'s Givens sweep, where it is load-bearing rather than tidy: `theta` is `0.25 * atan2(...)`, a `Q` on every step, and the sweep rounds it to build a float64 rotation. Without the explicit `float()` it would run the bignum reference 4500 times per sweep to produce a number it immediately truncates — ~13 ms per call, so ~60 s where the measured sweep is 1.18 s (pure) / 0.014 s (native).
+
+### Census, regenerated on BOTH cells
+
+The committed manifest was stamped rc473, and `merge_cell` REFUSES to carry a column across a release (the release stamp is the one axis its three digests cannot see), so it was deleted and both cells re-measured on this tree — which is the documented remedy, and the right one.
+
+| | native | pure |
+|---|---|---|
+| DEMOTED | 93 → **87** | 93 → **87** |
+| EXACT | 164 → **177** | 166 → **179** |
+| INEXACT_BASE | 61 → **55** | 60 → **54** |
+| UNRESOLVED_AT_WITNESS | 8 → **7** | 8 → **7** |
+
+`n_rows` 835, `n_ops` 473, `NO_SHAPE` 57 and `divergent` 11 are all UNCHANGED, and the undeclared roster stays EMPTY — so no ratchet constant moved and none was edited. **Seven of the eleven rows for these ops moved**, identically in both cells: `cos::x` `sin::x` `tan::x` `sqrt::x` DEMOTED → EXACT, `atan::x` UNRESOLVED_AT_WITNESS → EXACT, `hypot::a` / `::b` INEXACT_BASE → EXACT.
+
+⚠️ **`atan2::x` and `atan2::y` did NOT move, and the reason is this rc's own design rather than a shortfall.** The probe substitutes its witness at ONE parameter and holds the sibling at the harvested value; `atan2` uses WHOLE-operand admission, so the float sibling elects the float route and the exact branch never fires under the probe's binding. `hypot` is per-operand and its rows therefore DO move. The route is real either way — `tests/test_exact_operand_route_rc474.py` asserts `atan2(2**53+1, 1) != atan2(2**53, 1)` directly — but the census cannot see it, which is the same blind-spot shape rc468 recorded for the DFT twiddles: a green census row is not evidence about an op the instrument cannot enter.
+
+⚠️ **One prediction made while building this rc was WRONG and is recorded rather than quietly dropped**: `hypot`'s two rows were expected NOT to move, on the ground that the harvested binding carries a non-integral float in the other operand and can only read INEXACT_BASE. They moved to EXACT in both cells. The prediction was about the instrument, the measurement was of the instrument, and the measurement wins.
+
+### The gate, RED before it was green
+
+`tests/test_exact_operand_route_rc474.py` — 37 tests over six layers: the witness separation (strict zero), the vacuity guard `G != F` beside it, the two carve-outs pinned WITH their reasons, the float-route grid invariance, the carrier-independent refusal, the callers' int-vs-float invariance, and the exact VALUES (`hypot(3,4) == 5`, `sqrt(4) == 2`, `cos(0) == 1`) so that separation cannot be satisfied by an answer that merely differs.
+
+```
+rc473 rational.py + rc474 gate  ->  10 failed, 27 passed
+rc474 rational.py + rc474 gate  ->  37 passed
+```
+
+The red run is the whole point: a gate that was never seen red is a prediction, not a measurement. All seven separation rows fail there, both `atan`/`atan2` vacuity rows fail (at rc473 those two read UNRESOLVED_AT_WITNESS — all three witnesses equal, so `G == F` too), and the entry predicate fails outright.
+
+**Two pinned blind-spot assertions in `tests/test_declared_inexactness_rc466.py` went RED and were INVERTED, not deleted** — which is what that file's own rule D4 instructs ("a test that pins a blind spot goes RED the day the instrument learns — which is the day the disclosure must be rewritten"). Both asserted the demotion this rc repairs; `rational.sin`'s scalar-lane row moves DEMOTED → EXACT, so `declares` is now asserted ABSENT (the probe records a declaration only for a DEMOTED row, so demanding one would be asserting the defect). D4 itself is rewritten in the same change, and the rc472 half of it — "the probe emits no row" — is recorded as having died at rc472.
+
+### The repair round — a faster exact route, the declarations caught up, and a discriminator that had quietly stopped discriminating
+
+*(CI run 35111361716 on `2f8cded60` read **7 failing tests / 6 defects**: one real design gap, five version-bump currency ripple. The route adoption below is a separate maintainer ruling and is the only item that moves an op.)*
+
+**1. The exact `cos`/`sin` route is now DYADIC, and the series it replaced was the cost.** The shipped rc474 route drove an exact-rational Taylor series, and because `r = x − n·(π/2)` carries the DERIVED π's denominator, `sin_series_truncate` / `cos_series_truncate` then amplified that denominator by `2N` — 84–94% of the call. The reduction is unchanged and still exact; what changed is that `r` is now rounded ONCE onto a `2**-K` grid with **K = P + 24** and driven through the already-shipped Q61 cores, widened from their fixed K=61 to a K parameter (`_q61_sin_core` / `_q61_cos_core` / `_q61_fxmul` all take a defaulted `k`, so `srmech.math.kepler` and `tests/test_trig_q61_parity.py` keep calling them one-arg and bit-identically).
+
+**The contract is an ERROR BOUND, not correct rounding** — four shipped surfaces state `error < 2**-P` and nothing anywhere promises a bit-identical `precision=P` value. The budget: argument rounding `≤ 2**-(K+1)`, accumulation `< (2N+2)·2**-K`, Leibniz truncation `< 2**-(P+8)`. **The route this replaces sized the same series to `P+8` and carried EIGHT guard bits; this carries 24.** MEASURED against an INDEPENDENT `decimal` reference at **930 bits** of working precision (280-digit π literal, its own octant reduction, self-checked against `math.pi`) over `cos`/`sin`/`tan` × 4 arguments × P in 24/40/53/61/80/128/160 — **84 rows, 0 violations**, worst `|error| / 2**-P` = **2.1E-7**, i.e. **22.2 bits of margin** at the worst row. A 200-bit reference would have had its own floor above the quantity being measured and reported false failures; that is why the oracle is at 930.
+
+MEASURED cost, in-tree (not the standalone prototype), BOTH cells. **Native:** `cos(1)` **5292 µs → 31.5 µs**, a **168×** speedup, landing at **3.9×** the float route's 8.0 µs. **Pure:** **50.1 µs**, against a float route that is itself 41.7 µs there — the Q61 cascade runs in Python when no library is loaded — so the exact route sits at **1.2×** the float route. ⚠️ The 168× is a NATIVE-cell before/after and is deliberately not restated for pure: the pre-change pure figure was never captured, so what is stated for both cells is the DELIVERED cost, and the speedup is claimed only where both halves were measured. `tan` inherits the route through `sin`/`cos`.
+
+**The float path is BIT-IDENTICAL, and that is proven rather than asserted**: the 208-row float grid across all nine ops still hashes to `438181738d19f9cc…` on the native cell, and the four regression-surface callers (`pin_slot` ×2, `kepler_solve`, `equation_of_centre`) return their rc473 values unchanged. Layers L1/L2/L6 of the rc474 gate hold: the witness separates for all seven ops, `G != F` beside it, and `cos(0) == 1` / `sin(0) == 0` exactly.
+
+**C-parity.** No C source is touched and `srmech_{cos,sin}_series_truncate_big` are NOT deleted — `tests/test_c_bignum_transcendentals_rc35.py` exercises them directly. They simply leave the trig path, which the regenerated `_c_claims.py` records mechanically: `cos`, `sin` and `tan` drop `srmech_bigint_divmod` / `srmech_bigint_gcd` / `srmech_bigint_gcd_ws_bound`, and `tan`'s entry disappears because it now claims no C symbol at all. The exact trig route is pure integer work in both cells, so it is trivially cell-identical — there is nothing left for a C series peer to dispatch differently.
+
+**2. The declared types WIDENED — the real design gap.** `tests/test_declared_type_honesty_rc363.py` measured **8** ops accepting `Q` while declaring `['float','int']` against a CEIL of **0**: `cos` `sin` `tan` `atan` `atan2` `cexp` `sqrt` `hypot` (`cexp` and `tan` acquire `Q` acceptance through the shared route). Fixed by widening the DECLARATION to `"float | Q"` on ten parameters, **not** by raising the CEIL — the gate's own stated preference, and raising it would have required a written justification for keeping the acceptance undeclared. The wire behaviour does not move: `_TYPE_LEXICON` already published `"float | Q"` as JSON-schema `"number"`, and `_PARAM_COERCERS` already carried the key, so **no coercer change was needed**. Both assertions are back to strict zero.
+
+**3. `_FLOAT_GRID`'s discriminator had become FALSE SECURITY, which is worse than breakage because it still passed.** Its rationale said "the exact route's denominators are not powers of two". Under the dyadic route the exact route returns `_q(v, 1 << K)` — a power of two — so `_is_pow2` reads true on BOTH sides for `cos`/`sin` and separates nothing. Replaced with `(2**61) % den == 0` ("a power of two no wider than the Q61 grid"), precedent at `test_exact_carrier_drain_rc466.py:636` and `test_exact_twiddle_rc468.py:586`; at the default `_EXACT_SCALAR_PRECISION` of 61 the exact route lands on `2**85`, and the predicate is MEASURED false on **30 of 32** candidate exact-route rows.
+
+⚠️ **It is applied to the Q61-grid ops ONLY, and that is a MEASUREMENT that contradicted the plan.** Applying it to all six parametrised ops would have RED-ed a correct row: `sqrt(1e-08)` returns denominator `2**68` on the shipped float path, so `(2**61) % den == 0` is **false there already**. `sqrt` / `hypot` ride `_sqrt_relative_k`, not the Q61 cascade, and keep `_is_pow2` — with the further honesty that `_is_pow2` never separated those two anyway, since their exact route is a power of two too. The rows that reduce to den 1 are vacuous under ANY denominator predicate, so a non-vacuity guard now counts the deciding rows explicitly rather than leaving them silently inert; MEASURED, **10** of the 81 rows across the six ops reduce to den 1, not the 3 that a `cos`/`sin`-only reading suggests.
+
+**4. Regenerated, in order.** `tools/regen_all.py` (3 of 6 outputs moved; idempotent on the second pass), then the demotion census on **BOTH** cells, then `tools/frame_scope_census.py`, then the README worked `native_status()` block to `0.9.0rc474`.
+
+The census had to be re-measured because widening the declared types moved `registry_signature_sha256` (`5bdea931…` → `035ffcf3…`) and `merge_cell` refuses to carry a column across it. Both columns re-measured on this tree, and the result is the clean one: **0 verdict changes across all 835 rows in either cell**, 0 rows added or removed, `divergent` unchanged at 11, `undeclared` empty in both cells. The only row-level delta is **10 `type` strings moving `float` → `float | Q`** — exactly the ten parameters widened. So the route change moved no verdict and the declaration change moved only declarations.
+
+| | native | pure |
+|---|---|---|
+| DEMOTED | 87 | 87 |
+| EXACT | 177 | 179 |
+| INEXACT_BASE | 55 | 54 |
+| UNRESOLVED_AT_WITNESS | 7 | 7 |
+
+**5. The ledgers, re-harvested LAST.** Both key on `def_blob` hashes of `srmech.math.rational` / `srmech.math.kepler`, which item 1 moves, so neither was touched until every code change was final: `tools/run_example_args.py` on its declared interpreter (`uv run --python 3.10 --no-project`, PURE cell) and `tools/run_worked_examples.py` in its declared `native: true` / 3.10 cell. Each producer runs in the cell its own meta row declares, and `run_example_args` enforces that rather than trusting it — `SRMECH_EXPECT_PURE` defaults to `1` and the tool refuses a harvest against a loaded native library, which is what stops a wrong-cell harvest from being recorded as a right one.
+
+MEASURED outcomes. **`example_args_ledger.ndjson`** — 732 ops harvested in the PURE cell on 3.10, `by_status` byte-identical to the prior harvest (`ok` 456, `no_jsonable_arg` 105, `no_returning_call` 83, `no_worked_snippet` 83, `needs_subprocess` 4, `timeout` 1), and **42 rows replaced one-for-one**, no row gained or lost. Those 42 decompose exactly: 29 `srmech.math.rational` + 3 `srmech.math.kepler` rows whose `def_blob` THIS rc moves; **one `ica_jade` row whose `def_blob` moved for a reason that is not this repair** — rc474's own earlier commit put the explicit `float()` into that Givens sweep and never re-harvested, so the committed ledger had been carrying a stale blob (`f247f7855bf0…` → `a22290caee66…`); and 6 rows across modules nothing touched, which differ in `args` only with `def_blob` IDENTICAL old-to-new. **`worked_examples_result.ndjson`** — 649 snippets in 545 s in the NATIVE cell on 3.10: `ok` 548, `unexpected_raise` 96, `needs_subprocess` 4, `timeout` 1, the `unexpected_raise` count equal to the committed native ceiling, so no ceiling moved.
+
+⚠️ **One worked-examples harvest was DISCARDED and re-run, and the reason belongs in the record.** The first one stamped `"python": "3.12"` against a declared 3.10 — and its gate passed anyway, because the cell assertion compares LIVE against DECLARED and both were 3.12. So the artefact's declared interpreter had silently changed and nothing in the tree objected; the defect is only visible by reading the meta row. Re-run with a pre-flight that PROVES the cell before harvesting (`python (3, 10, 21) | srmech 0.9.0rc474 | HAS_NATIVE True | ABI 26`), it stamps 3.10 with every count identical. ⚠️ The cause of the first run's 3.12 was never identified — the same invocation probed interactively returns 3.10.21 both with and without the `PYTHONPATH` prefix. What is claimed here is a RE-MEASUREMENT, not a diagnosis, and the pre-flight print is kept so the next harvest cannot repeat it unnoticed.
+
+⚠️ **One piece of tooling deserves naming here, because the harvest looks like it should have failed and did not.** A session worktree carries a `.git` FILE pointing at an absolute WINDOWS path (`D:/GitHub/…`), which a WSL git cannot resolve — `fatal: not a git repository`. Both ledger tools swallow a git failure SILENTLY (`_head_commit` returns `""` on a non-zero exit with stderr to `DEVNULL`; `run_example_args` stamps `blobs.get(dm, "")`), so a broken git there would have written empty `def_blob`s and an empty `verified_at` with no error anywhere — a ledger that looks harvested and stamps nothing. It does not happen, because `tests/_git_env.py:pointer_git_args` already solves that exact geometry: it detects a pointer naming a Windows path absent on this host whose `/mnt/` twin exists, and hands the twin to that ONE invocation as `--git-dir` + `--work-tree`, exporting nothing (so no child git with another working directory is affected, and no `GIT_DIR` escapes). EXECUTED under WSL2 in this worktree: `rev-parse HEAD` → `2f8cded6…`, returncode 0.
+
+**The R3 label-map digest `aeca4d386e25e900` and DECLARED 236 are still UNMOVED** — but that took deliberate work rather than luck, and the first attempt broke it. Correcting the `cos`/`sin` docstrings away from "drive `*_series_truncate` until the truncation remainder is < `2**-P`" deleted the reader's literal `truncation` cue, dropping those two ops and five delegates out of DECLARED (**236 → 229**) and reddening four `test_r3_reader_rc470` assertions plus one in `test_declared_inexactness_rc466`. The repair is not a re-pin: the dyadic route genuinely HAS a Taylor truncation remainder (`< 2**-(P+8)`), so the corrected sentences state it, the cue survives, and the digest returns to its pinned value.
+
+### Held across the whole rc
+
+`SRMECH_ABI_VERSION` **26**, and this is deliberate rather than incidental: **no C source is touched**, no symbol is added or removed, no signature changes, and nothing changes about what any exported function refuses or returns. The exact route CANNOT have a C peer — every native peer takes a `double` (`srmech_cos_q61(double, int64_t*)` and kin), and there is no `srmech_tan` / `srmech_hypot` at all — which is also why the exact branch must sit ABOVE the `has_native_trans_q61()` dispatch: placed lower, the native cell would demote where pure does not and the two census columns would stop agreeing. Registry unchanged (no parameter added, so `test_declared_param_completeness_rc408` is untouched). **The R3 label-map digest `aeca4d386e25e900` and DECLARED 236 are UNMOVED** across nine docstring edits — verified, not assumed: the new prose was written to avoid introducing R3 stems, and `tests/test_r3_reader_rc470.py` reads 65 passed. No Python `abs()` introduced; no new `hashlib` call.
+
+**Gates run:** `test_exact_operand_route_rc474` 37 passed · `test_silent_carrier_demotion_rc463` + `test_exact_carrier_drain_rc466` + `test_declared_inexactness_rc466` + `test_rational_parity` + `test_kepler_parity` + `test_signal_processing_scaffolding` **467 passed, 1 skipped** · `test_r3_reader_rc470` 65 passed · the wider directly-affected sweep (11 files) **503 passed** before the two inversions, 75 passed after. CI runs the full suite.
+
 ## [0.9.0rc473] - `#T1188`: the instrument first and then the repair — two gates read at the C boundary and proven RED on the unmodified tree, the twenty-four discarded statuses counted off a planted header without ever committing a red build, then all twenty-four repaired with the callee contracts they exposed, ABI 25 → 26, and a twenty-fifth site the attribute found in a place neither instrument was looking, and finally the two Python covers deleted so the refusal is reached THROUGH the C symbol instead of around it
 
 *(**STAGE A** of rc473. The rc has two halves and neither is optional: make the co-equal-projections claim TRUE — 24 call sites across 7 C files stop discarding a `srmech_status_t` — and make the instrument able to DETECT when it is not. This stage ships the SECOND half, and ships it FIRST. rc472 did it the other way round: it added a guard inside the Python wrapper, which turned every parity gate green while the defect stayed exactly where it was. **No call site is repaired here.** Order is the deliverable: a gate that was never seen red is a prediction, not a measurement.)*

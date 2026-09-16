@@ -659,9 +659,6 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.math.rational.continued_fraction': ('srmech_continued_fraction',),
     'srmech.math.rational.continued_fraction_convergents': ('srmech_cf_convergents_int64',),
     'srmech.math.rational.cos': (
-        'srmech_bigint_divmod',
-        'srmech_bigint_gcd',
-        'srmech_bigint_gcd_ws_bound',
         'srmech_cos_q61',
         'srmech_exp_q61',
         'srmech_sin_q61',
@@ -768,9 +765,6 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_bigint_gcd_ws_bound',
     ),
     'srmech.math.rational.sin': (
-        'srmech_bigint_divmod',
-        'srmech_bigint_gcd',
-        'srmech_bigint_gcd_ws_bound',
         'srmech_exp_q61',
         'srmech_sin_q61',
         'srmech_sqrt_q61',
@@ -792,11 +786,6 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_isqrt',
         'srmech_sin_q61',
         'srmech_sqrt_q61',
-    ),
-    'srmech.math.rational.tan': (
-        'srmech_bigint_divmod',
-        'srmech_bigint_gcd',
-        'srmech_bigint_gcd_ws_bound',
     ),
     'srmech.math.search.byte_search': ('srmech_byte_search',),
     'srmech.math.search.byte_search_backward': ('srmech_byte_search_backward',),
