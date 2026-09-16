@@ -9429,6 +9429,125 @@ lineage.
 
 ---
 
+## §3.60 Kepler's equation as a CASCADE — two that reach it, one that does not, and the one exact identity (2026-09-16; `#T1188`; MEASURED on the published wheel srmech 0.9.0rc473)
+
+**Why this section exists.** The maintainer's reading is that Kepler's
+equation should be reachable as *"some composition of cyclic `ℤ/n` algebra, of
+some cascade or cascades of cyclic A–N maths"* rather than as one continuous
+solve. rc473 measured that reading. It holds for **two** cascades, it does
+**not** hold for the single pin-and-slot stage the tree had been calling
+identical to Kepler, and there is **one** exact identity in the family — which
+is not the one the shipped prose claimed.
+
+**Instrument and cell.** `srmech.math.kepler.kepler_solve` supplies `E(M)` for
+`M = E − e sin E`; `kepler.pin_slot` supplies the rocker angle
+`atan2(ε sin θ, 1 + ε cos θ)`; `srmech.music.bessel_j_fixed` supplies
+`J_k(k e)` as an exact rational at a **declared** 2⁻²⁵⁶ scale (not a claim that
+`J_k` is rational). The Fourier projection is a plain N-point quadrature,
+**hand-rolled and disclosed as such**. Every figure below is from the
+**published wheel** `srmech 0.9.0rc473` (`HAS_NATIVE True`, installed in a venv
+outside this repository, numpy absent); the same scripts against the rc472
+source tree printed the same numbers. Generating code, committed:
+`notes/_rc473_kepler_cascade_coeffs.py`, `notes/_rc473_kepler_cascade_iter.py`,
+`notes/_rc473_kepler_cascade_harmonic.py`.
+
+### §3.60.1 The single pin-slot stage is NOT Kepler's equation — it agrees to second order and departs at the third
+
+The pin-slot's harmonic magnitudes are `ε^k/k` with alternating sign. Kepler's
+`E(M) − M` has the Kapteyn coefficients `(2/k)·J_k(k e)`. At `e = 0.3`:
+
+| k | Kepler `E(M) − M` | pin-slot | `ε^k/k` | Kepler ÷ `ε^k/k` |
+|---|---|---|---|---|
+| 1 | 0.296637632546208 | +0.300000000000000 | 0.300000000000000 | 0.988792 |
+| 2 | 0.043665096715842 | −0.045000000000000 | 0.045000000000000 | 0.970335 |
+| 3 | 0.009622685650577 | +0.009000000000000 | 0.009000000000000 | 1.069187 |
+| 4 | 0.002511333138656 | −0.002025000000000 | 0.002025000000000 | 1.240165 |
+| 5 | 0.000719768706944 | +0.000486000000000 | 0.000486000000000 | 1.481006 |
+
+The ratio walks away from 1 monotonically. At `e = 0.1` it is 0.998751 /
+0.996671 / 1.118686 / 1.322702 / 1.610725 — the same shape, an order of
+magnitude closer at `k ≤ 2` and no closer at `k = 5`. **So "the pin-and-slot IS
+the Kepler equation of centre" is false as an identity**, and rc473 corrected
+that sentence wherever it shipped. What survives is the SECOND-ORDER reading,
+and it needs its phase stated: with `ε = e` and `θ = π − M` the stage's series
+is `Σ e^k/k · sin kM`, which matches `E − M` through `e²` and departs at `e³`
+(the stage gives `e³/3` at `sin 3M`; Kepler gives `3e³/8` at `sin 3M` and
+`−e³/8` at `sin M`).
+
+⚠️ **Against the equation of centre (`ν − M`) it does not even reach second
+order.** `ν − M` has `c₂/c₁² = 0.3125`; the pin-slot has `|c₂|/c₁² = 0.5`, and
+no rescaling of `ε` closes that — the shipped text said "equation of centre"
+where the measurement only ever supported `E − M`.
+
+### §3.60.2 The ITERATED one-pin cascade — `E_{n+1} = M + e·sin E_n`
+
+Each stage is one epicycle: a gear at `M` carrying a pin of radius `e` whose
+phase is the previous stage's output; the stage's `sin` is srmech's Class-N
+`sin`. Depth `n` builds Kepler's own harmonics, and the error falls to the
+carrier floor:
+
+| e | depth 1 | 2 | 3 | 5 | 10 | 20 | 40 |
+|---|---|---|---|---|---|---|---|
+| 0.1 | 5.179e-03 | 3.929e-04 | 3.297e-05 | 2.612e-07 | 1.875e-12 | **8.882e-16** | 8.882e-16 |
+| 0.3 | 4.997e-02 | 1.119e-02 | 2.782e-03 | 1.952e-04 | 3.340e-07 | 1.410e-12 | **8.882e-16** |
+| 0.7 | 3.096e-01 | 1.648e-01 | 9.488e-02 | 3.553e-02 | 4.055e-03 | 7.323e-05 | 4.355e-08 |
+
+At `e = 0.3`, depth 40's harmonics are `0.296638 / 0.043665 / 0.009623 /
+0.002511` — Kepler's own, to the printed digits. **The cascade reaches Kepler
+only at the asymptote**: 8.882e-16 is the double floor, not zero, and at
+`e = 0.7` depth 40 is still 4.4e-08 away.
+
+### §3.60.3 The HARMONIC epicycle cascade — radii `(2/k)·J_k(k e)`
+
+Each mode is one epicycle at integer ratio `k` (Class I) carrying a pin of
+radius `(2/k)·J_k(k e)`. The declared-scale radii agree with the harmonics
+measured from `kepler_solve` to the printed digits at both eccentricities
+(e.g. `e = 0.7`: 0.657991 / 0.207356 / 0.096851 / 0.053334). Truncating at `K`
+modes:
+
+| e | K=1 | 2 | 4 | 8 | 16 | 32 | 60 |
+|---|---|---|---|---|---|---|---|
+| 0.3 | 5.198e-02 | 1.246e-02 | 1.012e-03 | 1.129e-05 | 2.908e-09 | **8.882e-16** | 8.882e-16 |
+| 0.7 | 3.257e-01 | 1.928e-01 | 8.433e-02 | 2.171e-02 | 2.262e-03 | 5.879e-05 | 4.336e-08 |
+
+**Same verdict, different axis.** The iterated cascade is exact in the
+eccentricity order (depth `n` carries `e`-order `≤ n`); the harmonic cascade is
+exact in the mode index (`k ≤ K` at every order). Neither terminates.
+
+### §3.60.4 The one EXACT identity in the family — and it is `ν − E`, not `ν − M`
+
+With `β = e / (1 + √(1 − e²))`, the true-minus-eccentric anomaly is exactly
+twice one pin-slot stage: `ν = E + 2·pin_slot(π − E, β, 1)`. rc473's
+disclosure lens measured the residual at **≤ 1.998e-15 rad** over 64 values of
+`E` (2.220e-15 over 4096 values at `e = 0.99`), against a control that ran
+4.1e-05 to 1.4 rad. That is the carrier floor, not an approximation order — so
+**the pin-and-slot IS exact for the `E → ν` leg**, and the leg it was claimed
+exact for, `M → E`, is the one it cannot do.
+
+### §3.60.5 What this settles, and what it does not
+
+- **Settled.** Kepler's `E(M)` is reachable by cyclic cascades of A–N ops, in
+  two independent ways, each exact only at its asymptote. One pin-slot stage is
+  not the equation; two pin-slot stages are exactly `ν − E`.
+- **Not settled.** Whether a FINITE exact form exists beyond rational-turn
+  sample points. `kepler_solve` itself is Newton with Q61 fixed-point
+  Taylor-series trig at a declared 2⁻⁶¹ rad precision — the ALU way of doing
+  the calculus, which is what the maintainer suspected it would turn out to be,
+  and **not** a cyclotomic closed form. Per §3.59.5, *cyclic* names the index
+  set these cascades live in (depth `n`, harmonic `k`), and *cyclotomic* would
+  name an exact VALUE field; these cascades are cyclic in their indices and
+  carried at a declared precision in their values.
+- **Vocabulary.** "Kepler-equation algebra IS pin-slot composition" now reads,
+  where it ships, as what was measured: the composition reaches `E(M)` at the
+  asymptote and `ν` from `E` exactly.
+
+**Status.** MEASURED at 0.9.0rc473, published wheel, three committed scripts.
+Cross-references: §3.59.5 (cyclic vs cyclotomic; the six turn objects) ·
+§3.42.5 · MFO §VIII.31.18. Favored, not privileged (F398); recognize-not-read;
+no lineage.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
