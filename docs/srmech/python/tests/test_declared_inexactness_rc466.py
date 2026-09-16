@@ -368,17 +368,28 @@ def test_blind_spot_8_scalar_parameters_are_now_probed_rc472() -> None:
     reduction intact and the witness separates. The row is **EXACT**.
 
     What is pinned here is the LANE's contract, which is unchanged: it admits
-    ``x`` (``float``) and NOT ``precision`` (``int`` is outside the ident set —
-    the int lane was measured and refused in the rc472 scoping). ``declares`` is
+    ``x`` and NOT ``precision`` (``int`` is outside the ident set — the int lane
+    was measured and refused in the rc472 scoping). ``declares`` is
     asserted ABSENT rather than ``["truncation"]``: :func:`probe_op` records a
     declaration only for a DEMOTED row, so requiring one here would be asserting
     the defect. ``sin``'s own ``2**-P`` bound is still on its docstring and is
     still true of the ``precision=P`` route.
+
+    ⚠️ **``x``'s DECLARED TYPE moved ``float`` → ``float | Q`` at the rc474
+    repair, and that is the third authorised inversion of this pin.** rc474
+    gave ``sin`` an exact route but left the registry declaring ``float``, so
+    ``tests/test_declared_type_honesty_rc363.py`` measured 8 ops accepting a
+    carrier their declared types withheld against a CEIL of 0 — the WIDE
+    channel. The repair widens the DECLARATION to match the acceptance the lane
+    above already proves; the wire behaviour does not change (``float | Q``
+    publishes JSON-schema ``"number"`` exactly as ``float`` did, and
+    ``_PARAM_COERCERS`` already carried the key). The lane still admits ``x``
+    because the SCALAR ident set reads ``float`` inside the union.
     """
     from srmech.introspect.tool_schema import get_tool_schema
     from srmech.math import rational
     ent = {e.name: e for e in get_tool_schema().tools}["srmech.math.rational.sin"]
-    assert [p.type for p in ent.parameters] == ["float", "int"]
+    assert [p.type for p in ent.parameters] == ["float | Q", "int"]
     assert rational.sin(Q(P, 1)) != rational.sin(Q(F, 1)), (
         "rc474: an exact Q operand must no longer be rounded to float64")
     rows = _dp.probe_op(ent, {})
