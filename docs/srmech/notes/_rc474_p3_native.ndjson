@@ -1,0 +1,32 @@
+{"EXPECTED_ABI": 26, "HAS_NATIVE": true, "NATIVE_ABI": 26, "cell": "native", "exact_precision": 61, "f_rational": "/mnt/d/GitHub/mlehaptics/.claude/worktrees/srmech-rc474/docs/srmech/python/srmech/math/rational.py", "rec": "banner", "trans_q61": true, "version": "0.9.0rc474"}
+{"f": "-16373478884827627873128933831201933428110598279867411232834", "op": "cos", "p": "277900418429063479158936494378780881084973400126733361686414", "p_den_bits": 3289, "rec": "witness", "separates": true, "vacuity_g_ne_f": true}
+{"f": "-88368072663452774768235425947580934074667606624293412625027", "op": "sin", "p": "-66990726188203581544548245712493249921517127435513844086639", "p_den_bits": 3139, "rec": "witness", "separates": true, "vacuity_g_ne_f": true}
+{"f": "883680726634527747682354259475809340746676066242934126250272", "op": "tan", "p": "-58549894688489930269935166752719100431405969378639099731723", "p_den_bits": 3287, "rec": "witness", "separates": true, "vacuity_g_ne_f": true}
+{"f": "360751167448206175381248800311373318407695901328514430817837", "op": "atan", "p": "105773360891485286486332379150559677035097321571173010347162", "p_den_bits": 515, "rec": "witness", "separates": true, "vacuity_g_ne_f": true}
+{"f": "1709679290002018430137083/18014398509481984", "op": "sqrt", "p": "427419822500504631260837/4503599627370496", "p_den_bits": 53, "rec": "witness", "separates": true, "vacuity_g_ne_f": true}
+{"f": "360751167448206175381248800311373318407695901328514430817837", "op": "atan2", "p": "105773360891485286486332379150559677035097321571173010347162", "p_den_bits": 515, "rec": "witness", "separates": true, "vacuity_g_ne_f": true}
+{"f": "9007199254740992", "op": "hypot", "p": "9007199254740993", "p_den_bits": 1, "rec": "witness", "separates": true, "vacuity_g_ne_f": true}
+{"f": "84709294774467593721/2305843009213693952", "op": "log", "p": "84709294774467593721/2305843009213693952", "p_den_bits": 62, "rec": "witness", "separates": false, "vacuity_g_ne_f": true}
+{"msg": "", "op": "exp", "raised": "MemoryError", "rec": "carveout"}
+{"msg": "cos: |x| too large for the Q61 octant reduction; got 3.602879701896397e+16", "op": "cos", "operand": "float", "rec": "refusal", "refused": true}
+{"msg": "sin: |x| too large for the Q61 octant reduction; got 3.602879701896397e+16", "op": "sin", "operand": "float", "rec": "refusal", "refused": true}
+{"msg": "cos: |x| too large for the Q61 octant reduction; got 3.602879701896397e+16", "op": "cos", "operand": "exact int", "rec": "refusal", "refused": true}
+{"msg": "sin: |x| too large for the Q61 octant reduction; got 3.602879701896397e+16", "op": "sin", "operand": "exact int", "rec": "refusal", "refused": true}
+{"bit_identical": true, "n": 208, "rc473": "438181738d19f9cc5a4f8c121c4743a2d7364bd21a45fa12fc6ae3d4dfcf385f", "rec": "float_baseline", "sha256": "438181738d19f9cc5a4f8c121c4743a2d7364bd21a45fa12fc6ae3d4dfcf385f"}
+{"rc473": "0.11128768723421471", "rec": "caller", "site": "pin_slot(0.7,0.2,1.0)", "unchanged": true, "value": "0.11128768723421471"}
+{"rc473": "0.3911711928586753", "rec": "caller", "site": "pin_slot(1,2,3)", "unchanged": true, "value": "0.3911711928586753"}
+{"rc473": "1.1853242038613385", "rec": "caller", "site": "kepler_solve(1,0.2)", "unchanged": true, "value": "1.1853242038613385"}
+{"rc473": "0.09583722418961849", "rec": "caller", "site": "equation_of_centre(1,0.0549,4)", "unchanged": true, "value": "0.09583722418961849"}
+{"digest": "b13a73bcc9a94167", "rec": "caller", "seconds": 0.0138, "site": "ica_jade.op"}
+{"exact_s": 0.003466519, "float_s": 8.571e-06, "op": "cos", "ratio": 474.24, "rec": "cost"}
+{"exact_s": 0.003114634, "float_s": 7.03e-06, "op": "sin", "ratio": 465.1, "rec": "cost"}
+{"exact_s": 3.4717e-05, "float_s": 7.34e-06, "op": "atan", "ratio": 4.94, "rec": "cost"}
+{"exact_s": 0.000378915, "float_s": 1.0311e-05, "op": "atan2", "ratio": 16.23, "rec": "cost"}
+{"exact_s": 1.792e-05, "float_s": 1.7894e-05, "op": "sqrt", "ratio": 1.37, "rec": "cost"}
+{"exact_s": 2.6367e-05, "float_s": 2.2493e-05, "op": "hypot", "ratio": 1.78, "rec": "cost"}
+{"case": "hypot(3,4) == 5", "equals": true, "got": "5", "rec": "exact_value"}
+{"case": "sqrt(4) == 2", "equals": true, "got": "2", "rec": "exact_value"}
+{"case": "cos(0) == 1", "equals": true, "got": "1", "rec": "exact_value"}
+{"case": "sin(0) == 0", "equals": true, "got": "0", "rec": "exact_value"}
+{"case": "atan(0) == 0", "equals": true, "got": "0", "rec": "exact_value"}
+{"case": "atan2(0,1) == 0", "equals": true, "got": "0", "rec": "exact_value"}

@@ -18,6 +18,97 @@ All notable changes to this package will be documented here. The format follows 
      `srmech.__version__` and that the slice holds EVERY current-minor entry in the file, so a
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc474] - `#T1188`: nine Class-N scalar ops that rounded an exact operand before they looked at it — seven given an entry above the float line and above the native dispatch, two carved out with the measurement that refuses them, and the first gate in the tree that names any of them
+
+*(rc-C of the "ALU All The Way" arc. rc-A fixed the ruler and rc-B the instruments; this is the first rc of the arc that moves an op. **The subject is the ENTRY, not the algorithm** — every exact-rational reduction used below already shipped; what demoted the operand was the line above it.)*
+
+**CONDITIONS FOR EVERY FIGURE BELOW.** WSL2, session worktree `.claude/worktrees/srmech-rc474/docs/srmech`, branched from `39b695025` (v0.9.0rc473), gcc 13.3.0, CPython 3.12.3, **numpy absent**, `SRMECH_PEDANTIC=ON` / `CMAKE_BUILD_TYPE=Release`, native cell live and current (`HAS_NATIVE True`, `EXPECTED_ABI_VERSION 26 == NATIVE_ABI_VERSION 26`, 0 build warnings). Every number is reported for BOTH cells, and the pure cell is a genuinely pure one — the `.so` moved aside, `HAS_NATIVE False`. Generating code is committed under `docs/srmech/notes/_rc474_*.py` with its NDJSON output beside it.
+
+### The defect, in one line
+
+```
+rc473 :  cos(2**53 + 1) == cos(2**53)      ->  True
+rc474 :  cos(2**53 + 1) == cos(2**53)      ->  False
+```
+
+Nine ops in `srmech.math.rational` — `cos` `sin` `tan` `atan` `atan2` `exp` `log` `sqrt` `hypot` — opened their bodies with `x = float(x)`. Handed an operand the EXACT carrier can hold (an `int`, a `Q`, a `Fraction`) they rounded it to float64 and answered about the rounded value, silently. `sqrt(2**53+1)` returned `sqrt(2**53)`.
+
+**No gate in the tree named any of them.** Measured at rc473: `CEIL_DEMOTION_UNREACHED` ratchets `NO_SHAPE`, not `DEMOTED`; `_RC463_SIX` pins six `laplacian` rows. The committed census CARRIED these nine as DEMOTED / UNRESOLVED_AT_WITNESS and no assertion read them, so the defect and its repair would both have landed invisibly. `tests/test_exact_operand_route_rc474.py` is the assertion, and it was proven RED before it was made green — see below.
+
+### The two things the written plan got wrong, both refuted by execution
+
+**1. "Route it to the `precision=P` reference" does not work, and the reason is structural.** Every `precision=P` route is entered BELOW `x = float(x)`, so the exact-rational reference is handed an operand that has already been demoted. MEASURED at rc473: `cos(2**53+1, precision=P) == cos(2**53, precision=P)` at **every** `P` in 24 / 53 / 61 / 128 — and the same for `sin`, `tan`, `atan`, `atan2`, `sqrt`, `hypot`, `log`. The reference machinery was never the problem. It needed an EXACT ENTRY POINT, which is what `_trig_reference_q` and `_atan2_reference_q` are: the shipped bodies with the float entry lifted off. Entered that way the witness separates at every one of 53 / 61 / 96 / 128 / 160 / 224.
+
+**2. The cost figures were measurements of the wrong thing.** The plan quoted 3.18×; a rerun of the same shape gave cos **146×**, sin 130×, atan 239×, atan2 428×. Both are measurements of the reference fed a FLOAT-DERIVED rational — and `0.7.as_integer_ratio()` has denominator 2**52, so what was being timed was a bignum the exact route never sees. The real driver is the OPERAND'S DENOMINATOR, and after it, whether the argument needs π-reduction at all: `cos(7/10)` (no reduction) runs at ~12×, `cos(1)` (one octant step, so π's denominator enters) at **474× native / 574× pure**, `sqrt` at **0.66×** — FASTER than the float route — and `hypot` at ~1.0×.
+
+**A third correction, to this rc's own earlier reading.** The regression surface is **pure-cell only** and the first survey could not see it: on a native cell `pin_slot` returns at the `srmech_pin_slot` dispatch and the pure cascade is never reached, so every arrival site measured ZERO calls. Re-measured in the cell where it executes, the plan's description is exactly right — `pin_slot(0.7, 0.2, 1.0)` hands `atan2` a `Q` on BOTH arguments even for all-float input, and `ica_jade`'s Givens sweep makes **4500** `cos`/`sin` calls on a 2×6 input, every one arriving `Q`.
+
+### The decision the rc turns on: the route is elected by the OPERAND
+
+There is deliberately **no `exact=` keyword**. The R3 reader counts one as a declaration by its mere PRESENCE, so adding a keyword drains a census row for free (rule F1 of rc466's FIX half, read backwards). The carrier is read off the operand with `srmech.math.q.exact_scalar` — the ONE exact reader, `pair=False` so a 2-tuple is not silently admitted as a scalar — reached through a deferred import, because `q` imports `rational` and a top-level import is circular.
+
+**A float operand therefore pays NOTHING, and that is proven rather than asserted.** Over a 208-row grid of float arguments across all nine ops, the returned `(num, den)` pairs hash to `438181738d19f9cc…` on the native cell and `0c4f3cabb36f4489…` on the pure cell — byte-identical to rc473 in both. The gate additionally asserts the property that digest is evidence FOR, in a host-independent form: a float operand must land on the power-of-two Q61 / `_sqrt_rational` grid, which the exact route's π- and series-denominators never are (measured at the witness: 3289 bits for `cos`, 515 for `atan`).
+
+**The refusal stays CARRIER-INDEPENDENT, and that is a decision.** The exact reduction has no `2**55` ceiling and could answer above it; it refuses anyway, at the same bound and in the same words, because rc466 rule F3 and ADR-0009 §2.4 both say the projections may not differ in which inputs they serve. An exact operand SERVED where the identical float one is REFUSED is the same defect as a silent demotion wearing the other sign.
+
+### Per op
+
+| op | what changed | witness separates |
+|---|---|---|
+| `cos` / `sin` | exact branch above `x = float(x)` AND above `has_native_trans_q61()`; `_trig_reference` split into `_trig_reference_q` | yes |
+| `tan` | **nothing** — its default branch is `sin(x)/cos(x)` and passes `x` through, so it INHERITS both exact routes | yes |
+| `atan` | exact branch straight to `_atan_ratio_reference`, which already took an exact `(num, den)` | yes |
+| `atan2` | exact branch to the new `_atan2_reference_q`; **WHOLE-operand** admission (rule F2) — one float elects the float route for the pair | yes |
+| `sqrt` | entry test widened from `hasattr(x, "as_pair")` (a live `Q` and nothing else) to `exact_scalar`; the ROUTE was already there | yes |
+| `hypot` | both operand reads widened the same way; **PER-operand**, because the sum of squares is formed exactly from whatever each side exactly IS | yes |
+| `log` | **CARVE-OUT** | no — by design |
+| `exp` | **CARVE-OUT** | not executable |
+
+**The carve-outs are pinned as facts, with the measurement that refuses them**, so neither can quietly become a claim of completeness. `log` has no exact route at ANY precision: both of its routes begin by bit-extracting `x = m·2^e` with `struct.unpack`, which requires a float, so even its exact reference cannot separate the witness — EXECUTED at 24 / 53 / 61 / 128, equal at all four. `exp` cannot be EXERCISED at the witness at all: the reduction picks `n ~ 1.3e16`, so `2**n` is a petabyte-scale integer (`tests/test_value_status_c_boundary_rc473.py` records the same refusal — "a gate must not execute it"), and its exact reference RAISES first at every precision with `log1p_series_truncate: num_terms exceeds max 512`.
+
+### The callers, decided one at a time
+
+Every in-package caller was read, and all but two already hand a float explicitly (`hypercomplex_dft`'s `eff` / `th = float(theta)`, `exact_dft`'s `_atan(1.0)`, `composites`, `matrix_cascades`). The two that did not now do, and **both are bit-identical to rc473**:
+
+* **`kepler.py`** (`pin_slot` ×3, `kepler_solve`, `equation_of_centre`) ELECTS float, and now says so at the call instead of letting `rational.*` do it silently. Taking the exact route would FORK the projections: `srmech_pin_slot` takes three `double` and returns one, so the C peer cannot carry it, and a native cell — which returns at that symbol — would keep today's value while the pure cell moved.
+* **`ica_jade.py`**'s Givens sweep, where it is load-bearing rather than tidy: `theta` is `0.25 * atan2(...)`, a `Q` on every step, and the sweep rounds it to build a float64 rotation. Without the explicit `float()` it would run the bignum reference 4500 times per sweep to produce a number it immediately truncates — ~13 ms per call, so ~60 s where the measured sweep is 1.18 s (pure) / 0.014 s (native).
+
+### Census, regenerated on BOTH cells
+
+The committed manifest was stamped rc473, and `merge_cell` REFUSES to carry a column across a release (the release stamp is the one axis its three digests cannot see), so it was deleted and both cells re-measured on this tree — which is the documented remedy, and the right one.
+
+| | native | pure |
+|---|---|---|
+| DEMOTED | 93 → **87** | 93 → **87** |
+| EXACT | 164 → **177** | 166 → **179** |
+| INEXACT_BASE | 61 → **55** | 60 → **54** |
+| UNRESOLVED_AT_WITNESS | 8 → **7** | 8 → **7** |
+
+`n_rows` 835, `n_ops` 473, `NO_SHAPE` 57 and `divergent` 11 are all UNCHANGED, and the undeclared roster stays EMPTY — so no ratchet constant moved and none was edited. **Seven of the eleven rows for these ops moved**, identically in both cells: `cos::x` `sin::x` `tan::x` `sqrt::x` DEMOTED → EXACT, `atan::x` UNRESOLVED_AT_WITNESS → EXACT, `hypot::a` / `::b` INEXACT_BASE → EXACT.
+
+⚠️ **`atan2::x` and `atan2::y` did NOT move, and the reason is this rc's own design rather than a shortfall.** The probe substitutes its witness at ONE parameter and holds the sibling at the harvested value; `atan2` uses WHOLE-operand admission, so the float sibling elects the float route and the exact branch never fires under the probe's binding. `hypot` is per-operand and its rows therefore DO move. The route is real either way — `tests/test_exact_operand_route_rc474.py` asserts `atan2(2**53+1, 1) != atan2(2**53, 1)` directly — but the census cannot see it, which is the same blind-spot shape rc468 recorded for the DFT twiddles: a green census row is not evidence about an op the instrument cannot enter.
+
+⚠️ **One prediction made while building this rc was WRONG and is recorded rather than quietly dropped**: `hypot`'s two rows were expected NOT to move, on the ground that the harvested binding carries a non-integral float in the other operand and can only read INEXACT_BASE. They moved to EXACT in both cells. The prediction was about the instrument, the measurement was of the instrument, and the measurement wins.
+
+### The gate, RED before it was green
+
+`tests/test_exact_operand_route_rc474.py` — 37 tests over six layers: the witness separation (strict zero), the vacuity guard `G != F` beside it, the two carve-outs pinned WITH their reasons, the float-route grid invariance, the carrier-independent refusal, the callers' int-vs-float invariance, and the exact VALUES (`hypot(3,4) == 5`, `sqrt(4) == 2`, `cos(0) == 1`) so that separation cannot be satisfied by an answer that merely differs.
+
+```
+rc473 rational.py + rc474 gate  ->  10 failed, 27 passed
+rc474 rational.py + rc474 gate  ->  37 passed
+```
+
+The red run is the whole point: a gate that was never seen red is a prediction, not a measurement. All seven separation rows fail there, both `atan`/`atan2` vacuity rows fail (at rc473 those two read UNRESOLVED_AT_WITNESS — all three witnesses equal, so `G == F` too), and the entry predicate fails outright.
+
+**Two pinned blind-spot assertions in `tests/test_declared_inexactness_rc466.py` went RED and were INVERTED, not deleted** — which is what that file's own rule D4 instructs ("a test that pins a blind spot goes RED the day the instrument learns — which is the day the disclosure must be rewritten"). Both asserted the demotion this rc repairs; `rational.sin`'s scalar-lane row moves DEMOTED → EXACT, so `declares` is now asserted ABSENT (the probe records a declaration only for a DEMOTED row, so demanding one would be asserting the defect). D4 itself is rewritten in the same change, and the rc472 half of it — "the probe emits no row" — is recorded as having died at rc472.
+
+### Held across the whole rc
+
+`SRMECH_ABI_VERSION` **26**, and this is deliberate rather than incidental: **no C source is touched**, no symbol is added or removed, no signature changes, and nothing changes about what any exported function refuses or returns. The exact route CANNOT have a C peer — every native peer takes a `double` (`srmech_cos_q61(double, int64_t*)` and kin), and there is no `srmech_tan` / `srmech_hypot` at all — which is also why the exact branch must sit ABOVE the `has_native_trans_q61()` dispatch: placed lower, the native cell would demote where pure does not and the two census columns would stop agreeing. Registry unchanged (no parameter added, so `test_declared_param_completeness_rc408` is untouched). **The R3 label-map digest `aeca4d386e25e900` and DECLARED 236 are UNMOVED** across nine docstring edits — verified, not assumed: the new prose was written to avoid introducing R3 stems, and `tests/test_r3_reader_rc470.py` reads 65 passed. No Python `abs()` introduced; no new `hashlib` call.
+
+**Gates run:** `test_exact_operand_route_rc474` 37 passed · `test_silent_carrier_demotion_rc463` + `test_exact_carrier_drain_rc466` + `test_declared_inexactness_rc466` + `test_rational_parity` + `test_kepler_parity` + `test_signal_processing_scaffolding` **467 passed, 1 skipped** · `test_r3_reader_rc470` 65 passed · the wider directly-affected sweep (11 files) **503 passed** before the two inversions, 75 passed after. CI runs the full suite.
+
 ## [0.9.0rc473] - `#T1188`: the instrument first and then the repair — two gates read at the C boundary and proven RED on the unmodified tree, the twenty-four discarded statuses counted off a planted header without ever committing a red build, then all twenty-four repaired with the callee contracts they exposed, ABI 25 → 26, and a twenty-fifth site the attribute found in a place neither instrument was looking, and finally the two Python covers deleted so the refusal is reached THROUGH the C symbol instead of around it
 
 *(**STAGE A** of rc473. The rc has two halves and neither is optional: make the co-equal-projections claim TRUE — 24 call sites across 7 C files stop discarding a `srmech_status_t` — and make the instrument able to DETECT when it is not. This stage ships the SECOND half, and ships it FIRST. rc472 did it the other way round: it added a guard inside the Python wrapper, which turned every parity gate green while the defect stayed exactly where it was. **No call site is repaired here.** Order is the deliverable: a gate that was never seen red is a prediction, not a measurement.)*
