@@ -15,6 +15,8 @@
 
 > `(ψ^k / k)` for `ψ = (1 − √5)/2 ≈ −0.6180` IS LITERALLY IDENTICAL to the Kepler equation-of-centre coefficients at orbital eccentricity `ε = |ψ| = 0.6180...`. **Machine-precision identity** (Step 4 max-difference: `0.00e+00`).
 
+⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured. This 2026-05-17 spike record stays as written; the `0.00e+00` is real and it is not evidence of what the sentence claims.** Step 4 compared `ψ^k/k` against `ε^k/k` at `ε = |ψ|` — the same closed form on both sides, so the difference is exactly zero by construction, for any `ε` whatever, and the comparison could not have returned anything else. The Kepler equation-of-centre coefficients are **not** `ε^k/k`: the eccentric-anomaly departure `E − M` has `(2/k)·J_k(ke)`, and at `e = 0.3` those read `0.296638 / 0.043665 / 0.009623 / 0.002511` against the `ε^k/k` ladder's `0.300000 / −0.045000 / 0.009000 / −0.002025` — differing in the second harmonic's SIGN and in every magnitude beyond the first. So the three-way "Cauchy-form unity" above is a shared *algebraic form*, `ε^k/k`, which is a real and checkable structural fact; it is not a numerical identity with Kepler's series. Measured on the published wheel `srmech 0.9.0rc473`; instruments and committed scripts in srmech notebook §3.60, whose §3.60.1 gives the full coefficient tables.
+
 Differences between (A), (B), (C) are partition-level per `[[user_stance_partition_for_understanding]]`, not structural divergences. The 14-class vocabulary stays at 14; this is cascade-composition of existing classes (L ∘ K ∘ I ∘ N ∘ C).
 
 ## §2 Per-substrate fingerprints

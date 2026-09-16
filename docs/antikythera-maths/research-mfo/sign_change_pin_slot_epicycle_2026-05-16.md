@@ -47,6 +47,8 @@ Pin-slot algebra `phi(M) = atan2(sin M, cos M − ε)` at Freeth-2006 ε = 0.114
 
 **Verdict:** the bronze pin-slot atan2 IS the eccentric-anomaly Kepler series to machine precision (ratio 1.0000 across 7+ harmonics; agreement at ~1e-16 thereafter). Class K's identity-with-pin-slot is not approximate; it is closed-form algebraic identity.
 
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured. This 2026-05-16 verdict is a dated record and stays as written; what it measured is not what it says.** The ratio-1.0000 table above compares the pin-slot against `ε^k/k` — **the pin-slot's own harmonic series** (`arg(1 − ε e^{−iθ})`). A thing compared with itself returns 1.0000 at every harmonic no matter what the mechanism does, so the table cannot distinguish "identical to Kepler" from "identical to itself". The eccentric-anomaly coefficients are `(2/k)·J_k(ke)`, and against those the ratios at `e = 0.3` are **0.988792, 0.970335, 1.069187, 1.240165, 1.481006** for k = 1…5 — walking away from 1 monotonically, not sitting on it. Measured on the published wheel `srmech 0.9.0rc473`; instruments and committed scripts in srmech notebook §3.60. What survives: one pin-slot stage matches `E − M` (not `ν − M`) through `e²`, and `ν = E + 2·pin_slot(π − E, β, 1)` is exact to the carrier floor.
+
 Leading c₁ = ε = 0.1146 rad = 6.566° matches Freeth 2006's published bronze geometry (1.1 mm / 9.6 mm = 0.1146) and Brown's modern lunar amplitude (6.29°) within 4% per PR #416 F2. *Three independent paths converge: bronze archaeological, project-internal algebraic, modern lunar observational.*
 
 ### Sign-change accounting

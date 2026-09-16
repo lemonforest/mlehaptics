@@ -897,11 +897,30 @@ def test_the_repair_did_not_widen_the_false_excusal_surface() -> None:
     and a marker that accepted EVERYTHING would also report 9, because 9 is
     what the unmarked residual is. This figure and the planted rejections
     below are the evidence that the ruler still REFUSES anything.
+
+    RE-DERIVED 2026-09-16 (`#T1188`), 80 -> 82 LIVE, and the reason is stated
+    here because the assertion below demands it in the same change. The
+    protected quantity is ``marked`` — a marker reaching MORE live-path prose
+    is one that would silently excuse those paths when they die. It did NOT
+    move: 17 before, 17 after, and NO line that qualified on ``main`` stopped
+    qualifying (measured: 0). What grew is the live-path POPULATION, by the two
+    lines srmech §3.60 adds to name the instrument its figures came from:
+
+      * *"**Instrument and cell.** ``srmech.math.kepler.kepler_solve`` supplies
+        ``E(M)`` for …"*
+      * *"``atan2(ε sin θ, 1 + ε cos θ)``; ``srmech.music.bessel_j_fixed``
+        supplies …"*
+
+    Both cite paths that RESOLVE, which is the point of the sentence: §3.60's
+    numbers are provenance-bearing and name the shipped ops that produced them.
+    Neither carries a ``_MARKED`` word, so neither is excused by this marker,
+    and the false-excusal surface is 17 of 82 rather than 17 of 80 — a smaller
+    fraction of a larger population, which is the direction this gate wants.
     """
     marked, live = _live_path_exposure(_text(), _MARKED)
-    assert (marked, live) == (17, 80), (
+    assert (marked, live) == (17, 82), (
         f"live-path exposure moved to {(marked, live)} from the measured "
-        f"(17, 80). A marker that reaches MORE live-path prose lines is one "
+        f"(17, 82). A marker that reaches MORE live-path prose lines is one "
         f"that will silently excuse more paths when they die; re-derive it "
         f"with _live_path_exposure and say why in the same change.")
 

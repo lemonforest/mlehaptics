@@ -88,8 +88,8 @@ A citation without attestation is not real; an attestation that can't be re-veri
 | Content-addressing / hash | `srmech.amsc.format.sha256_bytes` | **A** |
 | Cyclic / modular gcd | `srmech.math.cyclic.gcd` | **I** |
 | Rational anchor (best-rational) | `srmech.math.rational.best_rational(num: int, denom: int, max_d: int)` | **N** |
-| Cascade primitives (planned) | `srmech.amsc.cascade.*` (precursor at `docs/unsolved-maths/_cascade_helpers.py`) | foundational |
-| TOML cascade-runner (planned; NOT yet packaged — no `srmech.cosmos` module exists) | `srmech.amsc.cascade.*` are the shipped cascade primitives | composition |
+| Cascade primitives (SHIPPED) | `srmech.cascade.*` — `pin_slot_at_zero`, `reorient`, `magnitude`, `CASCADE_OPS` and the rest of `__all__` (precursor at `docs/unsolved-maths/_cascade_helpers.py`) | foundational |
+| TOML cascade-runner (NOT packaged — no `srmech.cosmos` module exists) | `srmech.dsl` runs the `[cascade]` descriptors under `srmech/cascade/catalogs/cascade_catalog/`; the ops themselves are `srmech.cascade.*` | composition |
 | Spectral decompose / delta / recompose / similarity | `srmech.signal_processing.*` (v0.4.2+) | spectral |
 | AMSC catalogs (attested data) | `srmech.amsc.tool_schema` for catalog creation | provenance |
 | Asymptotic calculus (trig / transcendentals / calculus) | `srmech.asymptotic_calculus.*` (+ `srmech.trigonometry.*`) — **importable since v0.7.0rc26**; thin re-exports of the **Class-N** primitives in `srmech.math.rational` (`sin/cos/exp/log1p/atan_series_truncate(numerator, denominator, num_terms)` → exact `(num, den)` rational; the substrate-native "continuous" trig). Attested worked-instances at `srmech/amsc/attested/asymptotic_calculus/` | math |
