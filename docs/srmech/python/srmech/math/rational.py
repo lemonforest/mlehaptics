@@ -1562,17 +1562,22 @@ def _q61_cdiv(a: int, b: int) -> int:
     return -q if (a < 0) != (b < 0) else q          # Class-C re-orientation
 
 
-def _q61_fxmul(a: int, b: int) -> int:
-    """Q61 signed fixed-point multiply ``(a/2^61)*(b/2^61) -> r/2^61``.
+def _q61_fxmul(a: int, b: int, k: int = _Q61_FBITS) -> int:
+    """Qk signed fixed-point multiply ``(a/2^k)*(b/2^k) -> r/2^k``.
 
     Mirrors ``trig_fxmul``: the magnitude product is **Class K** (the explicit
     sign-branch, never ``abs()`` of the value), the sign re-application
-    **Class C**. ``(|a|·|b|) >> 61`` is the exact product>>61.
+    **Class C**. ``(|a|·|b|) >> k`` is the exact product>>k.
+
+    ``k = 61`` — the default — IS the shipped Q61 multiply. 0.9.0rc474
+    (`#T1188`) widened the fixed 61 to a parameter for the exact-operand trig
+    route; every existing caller passes two arguments and is bit-for-bit
+    unmoved (:mod:`srmech.cascade.hypercomplex_dft` and the two parity tests).
     """
     neg = (a < 0) != (b < 0)
     ua = a if a >= 0 else -a                        # Class-K magnitude
     ub = b if b >= 0 else -b
-    mag = (ua * ub) >> _Q61_FBITS
+    mag = (ua * ub) >> k
     return -mag if neg else mag                     # Class-C re-orientation
 
 
@@ -1651,27 +1656,42 @@ def _q61_reduce(x: float):
     return (True, octant, r_q61)
 
 
-def _q61_sin_core(r: int) -> int:
-    """``sin(r)`` for ``|r| <= pi/4``, Q61 → Q61 (mirror ``trig_sin_core``)."""
-    r2 = _q61_fxmul(r, r)
+def _q61_sin_core(r: int, k: int = _Q61_FBITS,
+                  terms: int = _Q61_SIN_TERMS) -> int:
+    """``sin(r)`` for ``|r| <= pi/4`` on a DYADIC grid, Qk → Qk.
+
+    ``k = 61`` with ``terms = 10`` — the defaults — IS the shipped Q61 core and
+    mirrors ``trig_sin_core`` byte-for-byte; :mod:`srmech.math.kepler` and
+    ``tests/test_trig_q61_parity.py`` both call it that way and are unmoved.
+    0.9.0rc474 (`#T1188`) widened the fixed 61 to a PARAMETER so the
+    exact-operand route can evaluate this same integer cascade at ``k = P + 24``
+    instead of driving an exact-rational Taylor series whose argument carries
+    π's denominator (which ``sin_series_truncate`` then amplifies by ``2N``)."""
+    r2 = _q61_fxmul(r, r, k)
     term = r
     s = r
-    for k in range(1, _Q61_SIN_TERMS + 1):
-        term = _q61_fxmul(term, r2)
-        term = _q61_cdiv(term, (2 * k) * (2 * k + 1))
-        s = s - term if (k & 1) else s + term
+    for i in range(1, terms + 1):
+        term = _q61_fxmul(term, r2, k)
+        term = _q61_cdiv(term, (2 * i) * (2 * i + 1))
+        s = s - term if (i & 1) else s + term
     return s
 
 
-def _q61_cos_core(r: int) -> int:
-    """``cos(r)`` for ``|r| <= pi/4``, Q61 → Q61 (mirror ``trig_cos_core``)."""
-    r2 = _q61_fxmul(r, r)
-    term = _Q61_ONE
-    s = _Q61_ONE
-    for k in range(1, _Q61_SIN_TERMS + 1):
-        term = _q61_fxmul(term, r2)
-        term = _q61_cdiv(term, (2 * k - 1) * (2 * k))
-        s = s - term if (k & 1) else s + term
+def _q61_cos_core(r: int, k: int = _Q61_FBITS,
+                  terms: int = _Q61_SIN_TERMS) -> int:
+    """``cos(r)`` for ``|r| <= pi/4`` on a DYADIC grid, Qk → Qk.
+
+    The peer of :func:`_q61_sin_core`, widened in the same change and for the
+    same reason; ``k = 61`` / ``terms = 10`` is the shipped Q61 core and mirrors
+    ``trig_cos_core`` byte-for-byte."""
+    one = 1 << k
+    r2 = _q61_fxmul(r, r, k)
+    term = one
+    s = one
+    for i in range(1, terms + 1):
+        term = _q61_fxmul(term, r2, k)
+        term = _q61_cdiv(term, (2 * i - 1) * (2 * i))
+        s = s - term if (i & 1) else s + term
     return s
 
 
@@ -1731,6 +1751,22 @@ def _q(num: int, den: int):
 #: without silently changing the RESOLUTION a caller gets. It is not a
 #: precision the caller can lose: an explicit ``precision=P`` still wins.
 _EXACT_SCALAR_PRECISION: int = 61
+
+#: Guard bits the EXACT trig reduction carries above the caller's ``P``
+#: (0.9.0rc474 repair, `#T1188`). ``r`` is rounded onto a ``2**-(P+24)`` grid
+#: and the Q61 cores are driven at that width, so the error budget is argument
+#: rounding ``≤ 2**-(K+1)`` + accumulation ``< (2N+2)·2**-K`` + Leibniz
+#: truncation ``< 2**-(P+8)``. The route this replaced sized the same series to
+#: ``P+8`` and carried EIGHT guard bits; this carries 24, and the worst row of
+#: an 84-row measurement against a 930-bit ``decimal`` reference sat 22.2 bits
+#: inside the bound.
+_TRIG_DYADIC_GUARD_BITS: int = 24
+
+#: A rational UPPER BOUND on ``|r| ≤ π/4`` (``π/4 = 0.7853981…``), used only to
+#: SIZE the Taylor term count — never as a value. Integer pair, so no float
+#: sizes the count (the Class-N rule the sibling reductions already follow).
+_QUARTER_PI_NUM: int = 785
+_QUARTER_PI_DEN: int = 1000
 
 #: ``Q61_TRIG_RANGE`` as an exact INTEGER, so the octant-reduction refusal can
 #: be applied to an exact ``(num, den)`` operand by integer compare rather than
@@ -2029,10 +2065,10 @@ def _trig_reference(x: float, precision: int, want: str) -> "Q":
     """``cos``/``sin`` EXACT-rational reference at ``precision=P`` (finite x).
 
     Octant-reduce ``x = n·(π/2) + r`` with ``|r| ≤ π/4`` (``n`` picked by an
-    exact rational round against a DERIVED exact π; ``r`` exact). The reduced
-    ``cos_series_truncate`` / ``sin_series_truncate`` is sized to < ``2**-P``,
-    and the octant select applies the sign as Class-K ∘ Class-C — never
-    ``abs()``."""
+    exact rational round against a DERIVED exact π; ``r`` exact), then evaluate
+    the reduced argument on the ``2**-(P+24)`` DYADIC grid of
+    :func:`_trig_reference_q` so the result error is < ``2**-P``; the octant
+    select applies the sign as Class-K ∘ Class-C — never ``abs()``."""
     xn, xd = x.as_integer_ratio()                    # exact, xd > 0
     return _trig_reference_q(xn, xd, precision, want)
 
@@ -2047,16 +2083,40 @@ def _trig_reference_q(xn: int, xd: int, precision: int, want: str) -> "Q":
     ``x = float(x)``. MEASURED at rc473: ``cos(2**53+1, precision=P)`` equals
     ``cos(2**53, precision=P)`` at EVERY ``P`` in 24 / 53 / 61 / 128, because
     both calls reduce the SAME float; entered here with the exact pair they
-    differ at every one of 53 / 61 / 96 / 128 / 160 / 224."""
+    differ at every one of 53 / 61 / 96 / 128 / 160 / 224.
+
+    **THE REDUCED SERIES IS EVALUATED ON A DYADIC GRID (0.9.0rc474 repair,
+    `#T1188`).** The octant reduction above is still exact rational; what
+    changed is what happens to ``r`` afterwards. Through the first rc474 cut
+    ``r`` went STRAIGHT into ``cos_series_truncate`` / ``sin_series_truncate``
+    as an exact rational — and because ``r = x − n·(π/2)`` carries the DERIVED
+    π's denominator, the series then amplified that denominator by ``2N``.
+    MEASURED: 84–94% of the call, ``cos(1)`` at 5292 µs against 10.6 µs for the
+    float route. ``r`` is now rounded ONCE onto a ``2**-K`` grid with
+    ``K = P + 24`` and driven through the shipped Q61 cores at that width, so
+    the whole reduction is pure integer work — no bignum rational, and
+    trivially cell-identical, since there is nothing left for a C series peer
+    to dispatch differently.
+
+    **THE CONTRACT IS AN ERROR BOUND, NOT CORRECT ROUNDING**, and the budget
+    clears it with room: argument rounding ``≤ 2**-(K+1)`` (``|d sin/dr| ≤ 1``),
+    accumulation ``< (2N+2)·2**-K``, Leibniz truncation ``< 2**-(P+8)``. The
+    shipped route sized the same series to ``P+8`` and carried 8 guard bits;
+    this carries 24. MEASURED against an INDEPENDENT 930-bit ``decimal``
+    reference over cos / sin / tan × 4 arguments × P in 24/40/53/61/80/128/160
+    — 84 rows, **0 violations**, worst ``|error| / 2**-P`` = 2.1E-7, i.e.
+    **22.2 bits of margin** at the worst row (generating code:
+    ``docs/srmech/notes/_rc474_p4_dyadic_probe.py``)."""
     P = _classn_working(precision, kind="terms").effective
-    tgt = P + 8
+    K = P + _TRIG_DYADIC_GUARD_BITS                   # 24 guard bits
     pin0, pid0 = _pi_exact(64)                        # 64-bit π → pick integer n
     n = _round_div(2 * xn * pid0, xd * pin0)          # round(x / (π/2))
     nbits = n if n >= 0 else -n                        # Class-K magnitude
-    pin, pid = _pi_exact(tgt + nbits.bit_length() + 6)
+    pin, pid = _pi_exact(K + nbits.bit_length() + 8)
     rn = xn * (2 * pid) - n * pin * xd               # r = x − n·(π/2), exact
-    rd = xd * (2 * pid)
-    rn, rd = _reduce_rational(rn, rd)                 # |r| ≤ π/4
+    rd = xd * (2 * pid)                               # > 0: xd > 0 and pid > 0
+    r_q = _round_div(rn << K, rd)                     # |r| ≤ π/4, onto the Qk grid
+    terms = _num_terms_for(_QUARTER_PI_NUM, _QUARTER_PI_DEN, K, "sin")
     octant = n % 4
     if want == "cos":                                # cos(o·π/2 + r)
         use_cos = octant in (0, 2)                    # 0→cos r, 2→−cos r
@@ -2064,13 +2124,11 @@ def _trig_reference_q(xn: int, xd: int, precision: int, want: str) -> "Q":
     else:                                             # sin(o·π/2 + r)
         use_cos = octant in (1, 3)                    # 1→cos r, 3→−cos r
         neg = octant in (2, 3)                        # 2→−sin r, 3→−cos r
-    if use_cos:
-        vn, vd = cos_series_truncate(rn, rd, _num_terms_for(rn, rd, tgt, "cos"))
-    else:
-        vn, vd = sin_series_truncate(rn, rd, _num_terms_for(rn, rd, tgt, "sin"))
+    v = (_q61_cos_core(r_q, K, terms) if use_cos
+         else _q61_sin_core(r_q, K, terms))
     if neg:
-        vn = -vn                                      # Class-K flip ∘ Class-C
-    return _q(vn, vd)
+        v = -v                                        # Class-K flip ∘ Class-C
+    return _q(v, 1 << K)
 
 
 def _tan_reference(x: float, precision: int) -> "Q":
@@ -2204,9 +2262,10 @@ def cos(x: float, *, precision: int | None = None) -> "Q":
     finite-rational carrier).
 
     ``precision=P`` (int ≥ 1, keyword-only) → the EXACT-rational REFERENCE at
-    ``P`` fractional bits: octant-reduce in exact rationals and drive
-    ``cos_series_truncate`` / ``sin_series_truncate`` until the truncation
-    remainder is < ``2**-P`` (0.9.0rc320, Class-N precision-contract WAVE 2 —
+    ``P`` fractional bits: octant-reduce in exact rationals, then evaluate the
+    reduced argument on a ``2**-(P+24)`` dyadic grid whose Taylor truncation
+    remainder is < ``2**-(P+8)``, so the result error is < ``2**-P``
+    (0.9.0rc320, Class-N precision-contract WAVE 2 —
     the dead ``terms`` kwarg is REPLACED, no legacy alias).
 
     **EXACT OPERAND (0.9.0rc474, `#T1188`).** An operand the exact carrier can
@@ -2250,9 +2309,10 @@ def sin(x: float, *, precision: int | None = None) -> "Q":
     REFERENCE at ``P`` fractional bits (0.9.0rc320 WAVE 2; the dead ``terms``
     kwarg is REPLACED).
 
-    That reference route octant-reduces in exact rationals and drives
-    ``sin_series_truncate`` / ``cos_series_truncate`` until the truncation
-    remainder is < ``2**-P``. The bound is stated HERE and not left to
+    That reference route octant-reduces in exact rationals and evaluates the
+    reduced argument on a ``2**-(P+24)`` dyadic grid whose Taylor truncation
+    remainder is < ``2**-(P+8)``, so the result error is < ``2**-P``. The bound
+    is stated HERE and not left to
     :func:`cos` alone, because ``inspect.getdoc``, ``help()`` and the R3
     declaration reader all read THIS op's own surface — rc466 rule D1.
 

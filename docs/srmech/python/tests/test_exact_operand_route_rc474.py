@@ -143,31 +143,82 @@ def test_exp_is_carved_out_because_it_cannot_be_exercised() -> None:
 
 
 # ── LAYER 3 — the float path did not move ───────────────────────────────────
-#: A float operand must still land on the Q61 / ``_sqrt_rational`` grid, whose
-#: denominator is always a POWER OF TWO. The exact route's denominators are
-#: not: they carry the derived-π and Taylor-series denominators (measured at
-#: the witness: 3289 bits for ``cos``, 515 for ``atan``). So this is a
-#: host-independent way to assert the exact branch has not leaked onto floats
-#: — stronger than pinning values, which differ between the two cells.
+#: A float operand must still land on the grid its own route owns, and the
+#: DISCRIMINATOR differs per op because the two float routes do.
+#:
+#: ⚠️ **``_is_pow2`` STOPPED SEPARATING ``cos`` / ``sin`` AT THE rc474 REPAIR,
+#: and the test went on passing — which is false security, not breakage.** The
+#: first rc474 cut drove an exact-rational Taylor series, so the exact route's
+#: denominators were huge and odd (measured at the witness: 3289 bits for
+#: ``cos``, 515 for ``atan``) and "is it a power of two" told the two routes
+#: apart. The repaired route returns ``_q(v, 1 << K)`` with ``K = P + 24``, a
+#: power of two — so ``_is_pow2`` is now true on BOTH sides for those ops and
+#: asserts nothing about them.
+#:
+#: The replacement is ``(2**61) % den == 0`` — "a power of two NO WIDER than
+#: the Q61 grid" — with precedent at ``test_exact_carrier_drain_rc466.py:636``
+#: and ``test_exact_twiddle_rc468.py:586``. At the default
+#: ``_EXACT_SCALAR_PRECISION`` of 61 the exact route lands on ``2**85``, so it
+#: separates; MEASURED false on 30 of 32 candidate exact-route rows.
+#:
+#: ⚠️ **It is applied to the Q61-GRID ops ONLY, and that is a MEASUREMENT, not
+#: a hedge.** ``sqrt`` / ``hypot`` ride ``_sqrt_relative_k`` rather than the
+#: Q61 cascade, and their float route legitimately exceeds 61 bits:
+#: ``sqrt(1e-08)`` returns denominator ``2**68`` on the shipped float path, so
+#: the tighter predicate would fail a row that is entirely correct. Those two
+#: keep ``_is_pow2``. Neither op changed route at this repair, and for both of
+#: them ``_is_pow2`` never separated anything anyway — their exact route is a
+#: power of two too — which is recorded here rather than left to look like a
+#: claim.
 #:
 #: ``tan`` is excluded BY MEASUREMENT, not by oversight: it is a quotient of
 #: two Q61 values, so its denominator is generally odd even on the float route.
 _FLOAT_GRID = [0.0, 0.5, -0.5, 0.7, 1.0, -1.0, 2.0, 3.25, 1e-8, 1e8,
                1234.5678, -1234.5678, 0.1, 3.141592653589793]
 
+#: The ops whose float route is the Q61 cascade, so a denominator wider than
+#: ``2**61`` proves the exact branch leaked onto a float.
+_Q61_GRID_OPS = ("cos", "sin", "atan", "atan2")
 
-@pytest.mark.parametrize("name", ("cos", "sin", "atan", "atan2", "sqrt", "hypot"))
+#: ``sqrt`` / ``hypot``: the ``_sqrt_relative_k`` grid, measured up to ``2**68``.
+_SQRT_GRID_OPS = ("sqrt", "hypot")
+
+
+def _on_q61_grid(den: int) -> bool:
+    """Is ``den`` a power of two no wider than the Q61 grid?"""
+    return (2 ** 61) % den == 0
+
+
+@pytest.mark.parametrize("name", _Q61_GRID_OPS + _SQRT_GRID_OPS)
 def test_a_float_operand_still_lands_on_the_power_of_two_grid(name) -> None:
+    tight = name in _Q61_GRID_OPS
+    decided = 0
     for x in _FLOAT_GRID:
         if name == "sqrt" and x < 0.0:
             continue
         got = _call(name, x)
         den = got.as_pair()[1]
-        assert _is_pow2(den), (
-            f"rational.{name}({x!r}) returned denominator {den}, which is not "
-            f"a power of two — the float operand took the EXACT route. The "
-            f"exact branch must fire only when `exact_scalar` reads the "
-            f"operand as exact; a float is the caller's own election.")
+        ok = _on_q61_grid(den) if tight else _is_pow2(den)
+        assert ok, (
+            f"rational.{name}({x!r}) returned denominator {den} "
+            f"({den.bit_length()} bits), which is not "
+            f"{'a power of two dividing 2**61' if tight else 'a power of two'}"
+            f" — the float operand took the EXACT route. The exact branch must "
+            f"fire only when `exact_scalar` reads the operand as exact; a float "
+            f"is the caller's own election.")
+        if den != 1:
+            decided += 1
+    # An instrument that cannot return otherwise is not a measurement: a row
+    # reducing to den 1 passes EVERY denominator predicate, so the rows that
+    # can actually decide are counted rather than assumed. MEASURED on the
+    # shipped tree: 10 of the 81 rows across these six ops reduce to den 1
+    # (cos 0.0 / cos π / sin 0.0 / atan 0.0 / atan2 0.0 / sqrt 0.0 / sqrt 1.0 /
+    # sqrt 1e8 / hypot 0.0 / hypot 1e-8), so no op is left with none.
+    assert decided >= 8, (
+        f"rational.{name}: only {decided} of the {len(_FLOAT_GRID)} grid rows "
+        f"returned a denominator other than 1, so this parametrisation is "
+        f"close to vacuous — every predicate here is true at den 1. Add "
+        f"arguments that exercise a real denominator before trusting the pass.")
 
 
 def test_a_float_is_not_read_as_exact() -> None:
