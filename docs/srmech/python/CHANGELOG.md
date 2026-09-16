@@ -2118,6 +2118,62 @@ The INSTRUMENT REPAIR 2 preface in the PR body said every figure of that record 
 * The `probe` and `manifest` groups ran concurrently in the same pure clone. The probe's end line printed "pure tracked changes at end 1"; that count was the manifest group's live plant, not the probe's, which plants nothing. Each group's own restores printed 0, and both ended with the clone at 0.
 * The untruncated runner lines of the `runner` group are not recoverable: the driver's per-run logs live under `/tmp`, which does not persist between WSL invocations here (the same error instrument repair 1 recorded), and the saved copy carries the driver's own 260-character cut. The full message shape is the sandbox's, printed in full above.
 
+##### Validation of `0465c4a71` (2026-09-16) — the head carrying every change of this repair; the commit carrying this record adds only this subsection
+
+**Conditions.**
+* **WSL2.** `~/rc473c/repo` (native) and `~/rc473c/pure` (0 library files), each at `0465c4a716345f46e0562d0b1043deb73d067b68` with 0 tracked changes printed before and after every step, neither under `.claude` or `worktrees`. Every step is `bash notes/_rc473_instr_validate.sh <step> ~/rc473c/repo ~/rc473c/pure [arg]`, run from the native clone's own checkout of that blob (sha256 prefix `d8a763412cd385cd`, 0 CR); it prints the exported `GIT_DIR` / `GIT_WORK_TREE` count and refuses unless it is 0, and every count printed was 0. Every native figure was authenticated first by `notes/_rc473_instr_auth.py`: `_native.__file__` inside the repo clone, library `205f661661ba2cd0`, `abi / c version : 26 0.9.0rc473`, `AUTH srmech_rational_sqrt(NaN) -> status 2`, `AUTHENTIC : True`, numpy not imported. CPython 3.12.3; `SRMECH_ALLOW_STALE_NATIVE` unset; no mtime touched. **The native and pure lanes ran CONCURRENTLY**, one foreground step at a time within each lane and on separate clones, with the Windows cell running beside them; `check_hooks` ran last and alone. Counts and verdicts are unaffected by that; TIMES are inflated against a quiet host, and where a time differs from the validation of `5328c518a` that is why.
+* **Windows.** CPython 3.14.3, pytest 9.0.3; clang-cl 22.1.0, cmake 4.3.1, Ninja 1.12.0; a git-free extract of the validated head, removed after the pair.
+* **The live repository.** `git config --show-origin user.name` / `user.email` printed `file:C:/Users/sckir/.gitconfig` `Steven Kirkland` / `sckirklan@gmail.com`, and `sha256(D:/GitHub/mlehaptics/.git/config)` printed `ffaa8595e317ed80dd6b9a28efed7b0d9f5a0726149ceaa7a24e8a2be59ce2c6`, at 00:22:39Z before `0465c4a71` was committed and at 01:03:08Z after the validation; every WSL script printed the prefix `ffaa8595e317ed80` at its start and end. Unchanged.
+
+**Builds.**
+* **WSL gcc 13.3.0**, a CLEAN pedantic Release in a fresh `~/rc473c/build_ir3` (step `build`; cmake 4.4.3, ninja 1.11.1): configure exit 0, "SRMECH_PEDANTIC=ON — compiler warnings will fail the build"; build exit 0, 0 warnings, 0 errors, `[219/219]`; 178 `-Werror`, 0 `__assert_fail`; library **`205f661661ba2cd0`**; ctest "100% tests passed out of 40"; authenticated after install.
+* **Windows clang-cl 22.1.0** (`-DSRMECH_PEDANTIC=ON`, `/arch:AVX2 /clang:-msha /clang:-msse4.1`), from a `git -c core.autocrlf=false -c core.eol=lf archive` of `0465c4a71` (1342 files, 0 library files):
+  * **Release:** configure 0, build 0, 0 `warning` lines, 0 `: error` lines, 178 `/WX`, ctest "100% tests passed, 0 tests failed out of 40", DLL `07f0dd64e715292e`;
+  * **Debug:** the same, DLL `bdf8bc3e41eec45f`.
+  * The extract carries CRLF in the C sources although the stored blob has none (0 CR bytes, measured on `c/src/srmech_kepler.c`); `text` and `eol` are unspecified and the tree has no `.gitattributes`, and which stage of the archive → tar path converts was not isolated. It did not affect the cell.
+* **The Windows C-boundary pair** (`test_kepler_non_finite_slots_rc473` + `test_value_status_c_boundary_rc473`), inside the extract, CPython 3.14.3, one DLL at a time, each authenticated (`abi / c version : 26 0.9.0rc473`, `AUTH srmech_rational_sqrt(NaN) -> status 2`, `AUTHENTIC : True`): Release **251 passed, 6 xfailed**; Debug **251 passed, 6 xfailed**; pure (`HAS_NATIVE False`) **74 passed, 183 skipped**; 0 library files left after each. The extract was removed afterwards.
+
+**The named gates** (step `gates <group> <cell>`; the groups of the validation of `5328c518a`):
+
+| group | native | pure |
+|---|---|---|
+| 1 | 349 passed, 6 xfailed (99.06 s) | 169 passed, 186 skipped (96.27 s) |
+| 2 | 95 passed (62.61 s) | 95 passed (66.00 s) |
+| 3 | 209 passed, 1 skipped (116.93 s) | 176 passed, 34 skipped (117.99 s) |
+| 4 | 121 passed, 3 skipped (57.97 s) | 121 passed, 3 skipped (57.83 s) |
+| 5 | 6 passed (22.82 s) | 6 passed (22.81 s) |
+| **total** | **780 passed, 4 skipped, 6 xfailed** | **567 passed, 223 skipped** |
+
+* Equal, group by group and cell by cell, to the validation of `5328c518a`. Group 3 holds the meta-test file, whose count did not change: this repair widened rows and a comment, and added no test.
+* The 3 skips of group 4 in each cell are all `tests/test_pypi_readme_changelog.py:351`, "could not import 'hatch_fancy_pypi_readme'".
+
+**The Stop hook against both committed ledgers** (step `hook`): the worked-example ledger holds 649 rows and the example-args ledger 732; the hook exited 0 twice (559 ms and 445 ms, `uv run` start included) with 0 stderr lines.
+
+**D1 and D2** (step `d1d2`, authenticated):
+* **D2:** the slot sweep printed "rows compared: 107 {'SAME': 107, 'SAME-VERDICT': 0, 'SERVE-vs-REFUSE': 0}"; the tolerance frontier "rows compared: 306 {'SAME': 306, 'SAME-VERDICT': 0, 'SERVE-vs-REFUSE': 0}".
+* **D1:** "fuzz rows 40000 symbol mismatches 0 wrapper mismatches 0", families `{'0': 11338, '1': 11338, '2': 11337, '3': 5987}`, and every door row (θ = ±3.602879701896397e+16, NaN, ±Inf, 1e+300) `'st': 2, 'w': 0, 'res': 'nan'`.
+
+**The whole ripple manifest**, native, from `~/rc473c/repo`, through this repair's `tools/ripple_check.py` (steps `ripple_split 6` and `ripple_part <i>`, each authenticated against `205f661661ba2cd0`): "total targets 140; every target in exactly one part: True".
+
+| part | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| targets | 20 | 24 | 24 | 23 | 25 | 24 |
+| `ripple_check` exit | 0 | 0 | 1 | 0 | 0 | 0 |
+| result | 502 passed | 458 passed | 1 failed, 350 passed | 567 passed, 2 skipped, 6 xfailed | 564 passed | 806 passed, 1 skipped |
+| the runner's count line | "ran all 502 items" | 458 | 351 | 575 | 564 | 807 |
+
+* **Total: 3257 items — 3247 passed, 3 skipped, 6 xfailed, 1 failed**, with no part re-run. Equal to the validation of `5328c518a`.
+* **The repaired count check on the real manifest.** Every part printed the new line in full: "ripple_check: the gate run ran all N items the manifest's targets collect -- the node ids that ran are the node ids collected, none missing and none repeated". So in a run of the whole manifest the ids that ran were the ids collected, in all six parts; part 3's exit 1 is pytest's own.
+* **The failure** is `tests/test_citation_manifest_rc428.py::test_the_validate_entry_point_exits_nonzero_on_a_failing_control`, the one recorded at `f5766aa61`, `fb09a8918` and `5328c518a`. `bash notes/_rc473_instr_r1_env428.sh ~/rc473c/repo ~/rc473c/base` (blob sha256 prefix `bebe5c2c472ff01d`) ran the node ALONE at `0465c4a71` (clone path 26 characters, 1 library file) and at `1ab8d405b` (26 characters, 0 library files): each printed "1 failed" and 8 normalised failure lines, and the comparison printed **"normalised failure lines IDENTICAL"** — "the shadowed import failed WITHOUT naming the cause". It is environmental.
+
+**The demotion census from an EMPTY manifest** (steps `census_pure`, `census_native`, `census_diff`): the pure column first ("manifest before: EMPTY", 303.6 s; `n_rows` 835, `n_ops` 473; `CONTRACT_SKIP 16, DEMOTED 93, EXACT 166, INEXACT_BASE 60, INSENSITIVE 95, NO_SHAPE 57, RAISED 331, UNRESOLVED_AT_WITNESS 8, VACUOUS 9`), then the native column merged (49.2 s, authenticated; `EXACT 164, INEXACT_BASE 61, INSENSITIVE 97, RAISED 330`, the rest equal). `tools/census_regen_diff.py` against the committed census: "(i) meta keys that MOVED: []", with every meta key byte-identical but the allowed `measured_at`; rows added 0, removed 0, "data lines differing at all: 0 of 835 shared"; "verdict cells compared: 1670 over 835 rows x 2 cells", "**VERDICT CHANGES: 0**"; clause (iv) PASS, both cells' `by_verdict` equal to the baseline's; clause (v) PASS (`n_rows` 835, `n_ops` 473, cells `['native', 'pure']`); **"INVARIANT: HELD (5/5)"**.
+
+**`tools/regen_all.py --check`** (step `regen`, native, authenticated): "all 6 generated files are up to date (78.9s)".
+
+**`tools/hooks/check_hooks.py`, every check** (step `check_hooks`, run last in the chain and alone — the step printed "other python/pytest processes before check_hooks: 2", which are the shell and the step's own reader): exit 0 in 180806 ms, **"127 passed, 0 failed, 2 skipped (129 cases)"**; the skips are "ssot-agreement BLOCKS the REAL tree" and "prose-currency NAMES the skip".
+
+**CI on `0465c4a71`**, each conclusion read after the run completed: `srmech-ci` run 35039803150 `completed`, `success`, **all 22 jobs `success`**; `srmech-ref-guard` run 35039803020 `success` (1/1, "ref-notation + proof-NDJSON guard"). **23 of 23.** The `srmech-ci` run of the push before it, `cd9ade11d` (35038672761), was still in progress when this one started and is not counted here; its `srmech-ref-guard` (35038672756) is `success`.
+
 ---
 
 ## [0.9.0rc472] - `#T1188`: the census learns SCALARS, an op that answered in one projection and refused in the other, the required-scalar fill that let thirteen rows be asked — and two of rc471's own shipped sentences corrected, one for a claim that is true at exactly one binade and one for a cause that was never the cause
