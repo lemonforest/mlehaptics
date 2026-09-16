@@ -56,6 +56,17 @@ D4  **Two instrument blind spots measured this stage are pinned as FACTS**, not
     pins a blind spot goes RED the day the instrument learns — which is the
     day the disclosure must be rewritten, not the day the test is deleted.
 
+    ⚠️ **BOTH HALVES OF THE FIRST ONE HAVE SINCE MOVED, exactly as D4 says they
+    should, and the record is kept here rather than overwritten.** rc472
+    (`#T1188`) taught the probe scalars, so the row EXISTS — the "emits no row"
+    clause died there. rc474 (`#T1188`) repaired the rounding itself: ``sin``
+    takes an exact route for an exact operand, so the "rounds a ``Q`` argument"
+    clause is false too, and the row it emits now reads EXACT rather than
+    DEMOTED. Both inversions rewrote the disclosure in the same change; neither
+    deleted the test. See
+    ``test_blind_spot_8_scalar_parameters_are_now_probed_rc472`` below and
+    ``tests/test_exact_operand_route_rc474.py``.
+
 THE ONE REFUSAL MADE CARRIER-INDEPENDENT ON THE WAY
 ====================================================
 Writing the ``recover_check`` sentence meant measuring the native/pure
@@ -284,8 +295,14 @@ def test_kuramoto_sin_term_forms_the_difference_exactly_then_rounds_it_once() ->
     # a float phase on either side keeps the rc420 float64 difference, byte for byte
     assert kuramoto_sin_term([0.5, 1.25], 0, 1) == rational.sin(1.25 - 0.5)
     assert kuramoto_sin_term([P, 1.0], 0, 1) == rational.sin(1.0 - float(P))
-    # the reason the OUTPUT stays declared: rational.sin reads a Q as float64
-    assert rational.sin(Q(P, 1)) == rational.sin(F)
+    # ⚠️ INVERTED AT rc474 (`#T1188`). This read ``== rational.sin(F)`` and was
+    # the pinned fact that rational.sin reads a Q as float64. rc474 gives sin an
+    # EXACT route for an exact operand — the branch sits ABOVE ``x = float(x)``
+    # and above the native dispatch — so a ``Q`` argument is no longer rounded
+    # and the two answers separate. What this test is actually about is
+    # UNCHANGED and is the line above: kuramoto_sin_term forms the DIFFERENCE in
+    # float64, so ITS declared demotion stands either way.
+    assert rational.sin(Q(P, 1)) != rational.sin(F)
     assert rational.sin(G) != rational.sin(F)
     # kuramoto_step coerces its phases to float BEFORE the term op, so its
     # projections cannot disagree on a wide phase (the C peer reads doubles)
@@ -332,42 +349,47 @@ def test_q61_trig_range_refusal_is_one_text_in_this_cell() -> None:
 
 # ── D4: the two blind spots, pinned as measured instrument facts ──────────────
 def test_blind_spot_8_scalar_parameters_are_now_probed_rc472() -> None:
-    """``rational.sin`` rounds a ``Q`` argument to float64 — and the probe now
-    EMITS THE ROW.
+    """The SCALAR lane exists (rc472) — and since rc474 the row it emits reads
+    EXACT, because the demotion it was minted to see has been REPAIRED.
 
-    Through rc471 this test asserted the OPPOSITE (``probe_op(ent, {}) == []``)
-    and its own docstring pre-authorised the inversion: *"If this goes RED the
-    probe has learned scalars — rewrite disclosure 8 in
+    ⚠️ **INVERTED TWICE, and each inversion was pre-authorised by the text it
+    replaced — which is the discipline, not a coincidence.** Through rc471 this
+    test asserted ``probe_op(ent, {}) == []`` and its docstring said: *"If this
+    goes RED the probe has learned scalars — rewrite disclosure 8 in
     ``tools/demotion_probe.py`` in the same change."* rc472 (`#T1188`) learned
     them: the SCALAR lane admits a registry parameter whose type names
     ``float`` / ``number`` / ``complex`` and is not sequence-shaped, and puts
-    the witness at the VALUE (``SCALAR_SLOT``) rather than at a leaf. Disclosure
-    8 is rewritten in the same change, as the old text asked.
+    the witness at the VALUE (``SCALAR_SLOT``) rather than at a leaf. The row
+    then read **DEMOTED**, because ``rational.sin`` opened its body with
+    ``x = float(x)`` and answered about the rounded operand.
 
-    Three things are pinned, and the third is the one that makes the row an
-    honest one rather than a new debt: the lane admits ``x`` (``float``) and
-    NOT ``precision`` (``int`` is outside the ident set — the int lane was
-    measured and refused in the rc472 scoping); the row reads ``DEMOTED``,
-    which is the disclosure-8 fact the instrument could not previously state;
-    and ``declares`` is non-empty ON THE OP'S OWN DOCSTRING (``sin`` states
-    its ``2**-P`` truncation bound), so the row lands declared, not in the
-    strict-zero roster.
+    rc474 (`#T1188`) repairs THAT: the exact branch sits above the float entry
+    and above the native dispatch, so an exact operand reaches the exact-rational
+    reduction intact and the witness separates. The row is **EXACT**.
+
+    What is pinned here is the LANE's contract, which is unchanged: it admits
+    ``x`` (``float``) and NOT ``precision`` (``int`` is outside the ident set —
+    the int lane was measured and refused in the rc472 scoping). ``declares`` is
+    asserted ABSENT rather than ``["truncation"]``: :func:`probe_op` records a
+    declaration only for a DEMOTED row, so requiring one here would be asserting
+    the defect. ``sin``'s own ``2**-P`` bound is still on its docstring and is
+    still true of the ``precision=P`` route.
     """
     from srmech.introspect.tool_schema import get_tool_schema
     from srmech.math import rational
     ent = {e.name: e for e in get_tool_schema().tools}["srmech.math.rational.sin"]
     assert [p.type for p in ent.parameters] == ["float", "int"]
-    assert rational.sin(Q(P, 1)) == rational.sin(Q(F, 1)), (
-        "the demotion the probe could not see through rc471")
+    assert rational.sin(Q(P, 1)) != rational.sin(Q(F, 1)), (
+        "rc474: an exact Q operand must no longer be rounded to float64")
     rows = _dp.probe_op(ent, {})
     assert [r["param"] for r in rows] == ["x"], (
         f"the scalar lane must admit exactly `x` (float) and not `precision` "
         f"(int) on rational.sin; got {[(r['param'], r['type']) for r in rows]}")
     (row,) = rows
-    assert row["verdict"] == "DEMOTED", row
-    assert row.get("declares") == ["truncation"], (
-        f"rational.sin must land DECLARED on its own docstring, not in the "
-        f"undeclared roster: {row}")
+    assert row["verdict"] == "EXACT", row
+    assert "declares" not in row, (
+        f"a declaration is recorded only for a DEMOTED row; an EXACT row "
+        f"carrying one would mean the probe still reads sin as demoting: {row}")
 
 
 def test_blind_spot_9_the_reader_refuses_negation() -> None:

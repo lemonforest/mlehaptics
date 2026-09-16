@@ -1723,6 +1723,59 @@ def _q(num: int, den: int):
     return _Q_CLS(num, den)
 
 
+#: The fractional-bit budget the EXACT-operand route runs at when the caller
+#: named no ``precision`` (0.9.0rc474, `#T1188`). It is **61** because that is
+#: the grid the float route already lands on: ``cos`` / ``sin`` / ``atan`` /
+#: ``atan2`` return ``Q(v, 2**61)`` on the Q61 cascade, so an exact operand
+#: buys a strictly better answer — the reduction never rounds the ARGUMENT —
+#: without silently changing the RESOLUTION a caller gets. It is not a
+#: precision the caller can lose: an explicit ``precision=P`` still wins.
+_EXACT_SCALAR_PRECISION: int = 61
+
+#: ``Q61_TRIG_RANGE`` as an exact INTEGER, so the octant-reduction refusal can
+#: be applied to an exact ``(num, den)`` operand by integer compare rather than
+#: by a float one.
+_Q61_TRIG_RANGE_NUM: int = 2 ** 55
+
+
+def _exact_scalar(value):
+    """``srmech.math.q.exact_scalar`` reached through a DEFERRED import.
+
+    Same reason :func:`_q` defers: ``q`` imports THIS module, so a top-level
+    import here is circular. This is the ONE exact reader (rc466, `#T1188`);
+    ``pair=False`` because a 2-tuple handed to a scalar transcendental is not a
+    scalar — admitting one would widen these ops' accepted types, which is a
+    separate decision from giving an exact operand an exact route."""
+    global _EXACT_SCALAR_FN
+    if _EXACT_SCALAR_FN is None:
+        from .q import exact_scalar as _es
+        _EXACT_SCALAR_FN = _es
+    return _EXACT_SCALAR_FN(value, pair=False)
+
+
+_EXACT_SCALAR_FN = None
+
+
+def _trig_exact_entry(q, precision, want: str) -> "Q":
+    """The EXACT-operand entry shared by :func:`cos` and :func:`sin`.
+
+    ⚠️ **The refusal is CARRIER-INDEPENDENT, and that is a decision, not an
+    oversight.** The exact-rational reduction has no ``2**55`` ceiling — it
+    could answer where the Q61 octant reduction cannot. It refuses anyway, at
+    the SAME bound and in the SAME words, because rc466 rule F3 and ADR-0009
+    §2.4 both say the projections may not differ in which inputs they serve: an
+    exact operand that is served where the identical float one is refused is
+    the same defect as a silent demotion, wearing the other sign."""
+    xn, xd = q.as_pair()
+    mag = xn if xn >= 0 else -xn                   # Class-K magnitude, never abs()
+    if mag >= _Q61_TRIG_RANGE_NUM * xd:
+        raise ValueError(
+            f"{want}: |x| too large for the Q61 octant reduction; got {float(q)}")
+    return _trig_reference_q(
+        xn, xd, _EXACT_SCALAR_PRECISION if precision is None else precision,
+        want)
+
+
 # ln(2) in Q61 (denominator 2**61), DERIVED from the Class-N log1p cascade
 # (no math.log): ln2 = −log1p(−1/2) (|−1/2|<1 → fast), quantised to Q61. The
 # e·ln2 recombine in ``log`` stays in this Q61 model (matching ``pi/2`` =
@@ -1980,8 +2033,22 @@ def _trig_reference(x: float, precision: int, want: str) -> "Q":
     ``cos_series_truncate`` / ``sin_series_truncate`` is sized to < ``2**-P``,
     and the octant select applies the sign as Class-K ∘ Class-C — never
     ``abs()``."""
-    P = _classn_working(precision, kind="terms").effective
     xn, xd = x.as_integer_ratio()                    # exact, xd > 0
+    return _trig_reference_q(xn, xd, precision, want)
+
+
+def _trig_reference_q(xn: int, xd: int, precision: int, want: str) -> "Q":
+    """:func:`_trig_reference` with the FLOAT ENTRY REMOVED — the operand is an
+    exact ``(num, den)`` pair and nothing rounds it (0.9.0rc474, `#T1188`).
+
+    This split is the whole reason the exact route can answer at all. The
+    reduction below was always exact-rational; what demoted the operand was the
+    ``x.as_integer_ratio()`` above it, reached only AFTER the caller's
+    ``x = float(x)``. MEASURED at rc473: ``cos(2**53+1, precision=P)`` equals
+    ``cos(2**53, precision=P)`` at EVERY ``P`` in 24 / 53 / 61 / 128, because
+    both calls reduce the SAME float; entered here with the exact pair they
+    differ at every one of 53 / 61 / 96 / 128 / 160 / 224."""
+    P = _classn_working(precision, kind="terms").effective
     tgt = P + 8
     pin0, pid0 = _pi_exact(64)                        # 64-bit π → pick integer n
     n = _round_div(2 * xn * pid0, xd * pin0)          # round(x / (π/2))
@@ -2097,6 +2164,36 @@ def _atan2_reference(y: float, x: float, precision: int) -> "Q":
     return base + pi_q if y >= 0.0 else base - pi_q
 
 
+def _atan2_reference_q(yn: int, yd: int, xn: int, xd: int,
+                       precision: int) -> "Q":
+    """``atan2(y, x)`` over an EXACT rational PAIR of operands (0.9.0rc474,
+    `#T1188`) — the entry :func:`atan2` takes when BOTH operands are exact.
+
+    An exact operand is finite by construction (``Q`` is the finite-rational
+    carrier), so the ``±Inf`` quadrant arms of :func:`_atan2_reference` have no
+    counterpart here; the ``x == 0`` axis and the ``x < 0`` ``±π`` shift do, and
+    are the same Class-C reorientation. The ratio handed to
+    :func:`_atan_ratio_reference` is ``y/x`` formed EXACTLY by cross-multiply,
+    never a float quotient."""
+    P = _classn_working(precision, kind="terms").effective
+    pin, pid = _pi_exact(P + 16)
+    if yd < 0:                                       # normalise den > 0 (Class C)
+        yn, yd = -yn, -yd
+    if xd < 0:
+        xn, xd = -xn, -xd
+    if xn == 0:                                      # the ±π/2 axis, or ±0
+        if yn > 0:
+            return _q(pin, 2 * pid)
+        if yn < 0:
+            return _q(-pin, 2 * pid)
+        return _q(0, 1)
+    base = _atan_ratio_reference(yn * xd, yd * xn, precision)
+    if xn > 0:
+        return base
+    pi_q = _q(pin, pid)                              # x<0 quadrant shift (Class C)
+    return base + pi_q if yn >= 0 else base - pi_q
+
+
 def cos(x: float, *, precision: int | None = None) -> "Q":
     """``cos(x)`` (radians) → an EXACT :class:`~srmech.math.q.Q`.
 
@@ -2110,7 +2207,23 @@ def cos(x: float, *, precision: int | None = None) -> "Q":
     ``P`` fractional bits: octant-reduce in exact rationals and drive
     ``cos_series_truncate`` / ``sin_series_truncate`` until the truncation
     remainder is < ``2**-P`` (0.9.0rc320, Class-N precision-contract WAVE 2 —
-    the dead ``terms`` kwarg is REPLACED, no legacy alias)."""
+    the dead ``terms`` kwarg is REPLACED, no legacy alias).
+
+    **EXACT OPERAND (0.9.0rc474, `#T1188`).** An operand the exact carrier can
+    hold — ``int`` / ``Q`` / ``Fraction``, read by
+    :func:`srmech.math.q.exact_scalar` — no longer passes through the
+    ``x = float(x)`` entry. It reaches the exact-rational octant reduction
+    intact, at :data:`_EXACT_SCALAR_PRECISION` fractional bits when the caller
+    names no ``precision``, so ``cos(2**53 + 1)`` and ``cos(2**53)`` are
+    DIFFERENT numbers; through rc473 they were the same one. A ``float`` operand
+    is the caller's own election of the continuous carrier and keeps the Q61
+    route BIT-FOR-BIT. The ``|x| >= 2**55`` refusal is applied on BOTH carriers
+    deliberately: the exact reduction has no such ceiling and could answer
+    there, but rc466 rule F3 and ADR-0009 §2.4 require the two projections to
+    serve the same inputs."""
+    _qx = _exact_scalar(x)                         # rc474 (`#T1188`)
+    if _qx is not None:      # EXACT operand: ABOVE the float entry AND dispatch
+        return _trig_exact_entry(_qx, precision, "cos")
     x = float(x)
     if not _is_finite(x):
         raise ValueError("cos: x must be finite (Q is the finite-rational carrier)")
@@ -2141,7 +2254,19 @@ def sin(x: float, *, precision: int | None = None) -> "Q":
     ``sin_series_truncate`` / ``cos_series_truncate`` until the truncation
     remainder is < ``2**-P``. The bound is stated HERE and not left to
     :func:`cos` alone, because ``inspect.getdoc``, ``help()`` and the R3
-    declaration reader all read THIS op's own surface — rc466 rule D1."""
+    declaration reader all read THIS op's own surface — rc466 rule D1.
+
+    **EXACT OPERAND (0.9.0rc474, `#T1188`).** The peer of :func:`cos`'s exact
+    route, and stated here for the same rule-D1 reason: an ``int`` / ``Q`` /
+    ``Fraction`` operand reaches the exact-rational octant reduction without
+    passing through ``x = float(x)``, at :data:`_EXACT_SCALAR_PRECISION`
+    fractional bits when no ``precision`` is named, so ``sin(2**53 + 1)`` and
+    ``sin(2**53)`` are DIFFERENT numbers. A ``float`` operand keeps the Q61
+    route BIT-FOR-BIT, and the ``|x| >= 2**55`` refusal is applied on both
+    carriers."""
+    _qx = _exact_scalar(x)                         # rc474 (`#T1188`)
+    if _qx is not None:      # EXACT operand: ABOVE the float entry AND dispatch
+        return _trig_exact_entry(_qx, precision, "sin")
     x = float(x)
     if not _is_finite(x):
         raise ValueError("sin: x must be finite (Q is the finite-rational carrier)")
@@ -2214,7 +2339,16 @@ def tan(x: float, *, precision: int | None = None) -> "Q":
     recorded rather than repaired.
 
     If a stated bound is what you need, call :func:`sin` and :func:`cos` at
-    ``precision=P`` and divide with the quotient's amplification in hand."""
+    ``precision=P`` and divide with the quotient's amplification in hand.
+
+    **EXACT OPERAND (0.9.0rc474, `#T1188`) — INHERITED, not added.** This op's
+    default branch is ``sin(x) / cos(x)``, and it passes ``x`` THROUGH, so an
+    ``int`` / ``Q`` / ``Fraction`` operand takes both callees' exact route and
+    the quotient of two exact rationals is exact: ``tan(2**53 + 1)`` and
+    ``tan(2**53)`` are DIFFERENT numbers. No line of this op changed at rc474,
+    which is exactly why ``tests/test_exact_operand_route_rc474.py`` asserts it
+    — an inherited property is the kind a later dispatch change breaks
+    silently."""
     if precision is not None:
         xf = float(x)
         if not _is_finite(xf):
@@ -2256,7 +2390,21 @@ def atan(x: float, *, precision: int | None = None) -> "Q":
 
     ⚠️ 91 rows is a GRID, not a proof over ℝ. What is asserted is that the
     bound was measured and held there, and that the reduction carries no
-    amplification term; what is NOT asserted is a theorem."""
+    amplification term; what is NOT asserted is a theorem.
+
+    **EXACT OPERAND (0.9.0rc474, `#T1188`).** An ``int`` / ``Q`` / ``Fraction``
+    operand goes straight to :func:`_atan_ratio_reference` over its own exact
+    ``(num, den)``, without passing through ``x = float(x)``, at
+    :data:`_EXACT_SCALAR_PRECISION` fractional bits when no ``precision`` is
+    named. There is no magnitude ceiling to mirror here — this op has none on
+    either carrier. A ``float`` operand keeps the Q61 three-band cascade
+    BIT-FOR-BIT."""
+    _qx = _exact_scalar(x)                         # rc474 (`#T1188`)
+    if _qx is not None:      # EXACT operand: ABOVE the float entry AND dispatch
+        _xn, _xd = _qx.as_pair()                   # finite by construction
+        return _atan_ratio_reference(
+            _xn, _xd,
+            _EXACT_SCALAR_PRECISION if precision is None else precision)
     x = float(x)
     if x != x:                                     # NaN
         raise ValueError("atan: x is NaN (not a rational)")
@@ -2300,7 +2448,24 @@ def atan2(y: float, x: float, *, precision: int | None = None) -> "Q":
     the exact ratio is a bignum whose float projection overflows, and only the
     BAND CHOICE needs it. rc471 moves no op behaviour, so this is recorded
     with its reproducer rather than repaired in the same change that
-    re-measures the ruler."""
+    re-measures the ruler.
+
+    **EXACT OPERAND (0.9.0rc474, `#T1188`) — WHOLE-OPERAND admission.** BOTH
+    arguments must read exact for the exact route to fire; ONE ``float``
+    elects the continuous carrier for the pair, which is rc466 rule F2 (mixing
+    carriers mid-computation is the defect, not the cure). Given two exact
+    operands the quadrant logic runs over the EXACT cross-multiplied ratio
+    ``y/x`` with a DERIVED π, so ``atan2(2**53 + 1, 1)`` and ``atan2(2**53, 1)``
+    are DIFFERENT numbers. Two ``float`` operands keep the Q61 route
+    BIT-FOR-BIT."""
+    _qy = _exact_scalar(y)                         # rc474 (`#T1188`)
+    _qx = _exact_scalar(x)
+    if _qy is not None and _qx is not None:        # WHOLE-operand admission (F2)
+        _yn, _yd = _qy.as_pair()                   # one float elects the float
+        _xn, _xd = _qx.as_pair()                   # route for BOTH arguments
+        return _atan2_reference_q(
+            _yn, _yd, _xn, _xd,
+            _EXACT_SCALAR_PRECISION if precision is None else precision)
     y = float(y)
     x = float(x)
     if y != y or x != x:                           # any NaN → not a rational
@@ -2403,7 +2568,20 @@ def exp(x: float, *, precision: int | None = None) -> "Q":
     ``P`` fractional bits: the SAME ``n·ln2 + r`` reduction in exact rationals,
     ``exp_series_truncate`` sized so the ``2^n``-scaled absolute error is <
     ``2**-P`` (0.9.0rc320, Class-N precision-contract WAVE 2 — the dead ``terms``
-    kwarg is REPLACED, no legacy alias)."""
+    kwarg is REPLACED, no legacy alias).
+
+    ⚠️ **NO EXACT-OPERAND ROUTE, and that is a CARVE-OUT rather than an
+    oversight (0.9.0rc474, `#T1188`).** Its seven siblings on this surface took
+    one; this op cannot, and the reason is the ``2^n`` recombine rather than the
+    series. At the carrier witness ``2**53 + 1`` the reduction picks
+    ``n ~ 1.3e16``, so the exact result is an integer of ~1.3e16 BITS — a
+    petabyte-scale allocation, not a slow call, which is why
+    ``tests/test_value_status_c_boundary_rc473.py`` already refuses to execute
+    it and why no gate here does either. The ``precision=P`` reference does not
+    reach that point: it RAISES first, at every precision tried (24 / 53 / 61 /
+    128), with ``log1p_series_truncate: num_terms exceeds max 512``. An exact
+    ``exp`` needs a representation that does not materialise ``2^n`` — a
+    different piece of work, not a wider entry test."""
     x = float(x)
     if not _is_finite(x):
         raise ValueError("exp: x must be finite (Q is the finite-rational carrier)")
@@ -2451,7 +2629,19 @@ def log(x: float, *, precision: int | None = None) -> "Q":
     ``log(2**53)`` — and the ``m·2^e`` bit extraction above reads THAT float64
     and never the rational the caller held. ``precision=P`` changes the series
     bound and leaves the entry read as it is. Measured: the rc472 census row
-    ``rational.log::x``, DEMOTED in both cells."""
+    ``rational.log::x``, DEMOTED in both cells.
+
+    ⚠️ **NO EXACT-OPERAND ROUTE, and that is a CARVE-OUT rather than an
+    oversight (0.9.0rc474, `#T1188`).** Seven siblings on this surface gained
+    one at rc474 and this op did not, because it has nowhere to take it TO:
+    BOTH of its routes begin by bit-extracting ``x = m·2^e`` with
+    ``struct.unpack``, which requires a float. So the ``precision=P`` reference
+    cannot separate the carrier witness either — EXECUTED at 24 / 53 / 61 / 128
+    fractional bits, ``_log_reference(2**53 + 1, P) == _log_reference(2**53, P)``
+    at all four. Widening the ENTRY test would therefore change nothing except
+    which line does the collapsing, which is why it was not widened. An exact
+    ``log`` needs a reduction with no IEEE read in it — a different piece of
+    work, and the census row above stays DEMOTED until it lands."""
     x = float(x)
     if not _is_finite(x):
         raise ValueError("log: x must be finite (Q is the finite-rational carrier)")
@@ -2651,10 +2841,26 @@ def sqrt(x, *, precision: int | None = None) -> "Q":
     the value must SATISFY its defining equation; reach for this op when a rational of
     declared precision is what is wanted. This op is deliberately the
     approximating Class-N path and is not being re-routed.
+
+    **EXACT OPERAND (0.9.0rc474, `#T1188`) — the entry WIDENED, the route did
+    not change.** The ``Q``-input branch above has always rooted an exact
+    rational directly; what it could not see was any OTHER exact reading. Its
+    test was ``hasattr(x, "as_pair")``, which admits a live ``Q`` and nothing
+    else, so an ``int`` operand fell through to ``x = float(x)`` and
+    ``sqrt(2**53 + 1)`` answered ``sqrt(2**53)``. The test is now
+    :func:`srmech.math.q.exact_scalar`, the ONE exact reader, so ``int`` /
+    ``bool`` / ``Fraction`` / ``Q`` all take the branch that was already here.
+    A ``float`` operand keeps the IEEE-bit route BIT-FOR-BIT, and the
+    negative-domain refusal is unmoved on both carriers.
     """
-    # Q-input: root the exact rational directly (stay-rational; e.g. hypot).
-    if hasattr(x, "as_pair") and not isinstance(x, float):
-        xn, xd = x.as_pair()
+    # EXACT-input: root the exact rational directly (stay-rational; e.g. hypot).
+    # rc474 (`#T1188`): this read was ``hasattr(x, "as_pair")``, which admits a
+    # live ``Q`` and NOTHING ELSE — an ``int`` operand fell through to
+    # ``x = float(x)`` below and was demoted. ``_exact_scalar`` is the ONE exact
+    # reader (rc466), so int / bool / Fraction / Q now take the same route.
+    _qx = _exact_scalar(x)
+    if _qx is not None:
+        xn, xd = _qx.as_pair()
         if xn < 0:
             raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
         if xn == 0:
@@ -2722,11 +2928,26 @@ def hypot(a: float, b: float, *, precision: int | None = None) -> "Q":
     :func:`sqrt` path. See :func:`sqrt` for the exact peer (``Qalg`` over
     ``t² − (a² + b²)``) and why this op is deliberately not routed to it
     (0.9.0rc467, `#T1188`).
+
+    **EXACT OPERAND (0.9.0rc474, `#T1188`) — PER-OPERAND, unlike
+    :func:`atan2`.** Each side is read by :func:`srmech.math.q.exact_scalar`
+    rather than by ``hasattr(·, "as_pair")``, so an ``int`` / ``Fraction`` side
+    contributes its own exact value instead of being collapsed to the
+    continuous carrier first; ``hypot(3, 4)`` is exactly ``5``. Per-operand is
+    right HERE and whole-operand is right for :func:`atan2` because the sum of
+    squares is formed exactly from whatever each side exactly IS — a ``float``
+    side still contributes its own exact ``as_integer_ratio``, so no carrier is
+    mixed. Two ``float`` operands keep the shipped route BIT-FOR-BIT.
     """
-    an, ad = (a.as_pair() if hasattr(a, "as_pair") and not isinstance(a, float)
-              else float(a).as_integer_ratio())
-    bn, bd = (b.as_pair() if hasattr(b, "as_pair") and not isinstance(b, float)
-              else float(b).as_integer_ratio())
+    # rc474 (`#T1188`): ``_exact_scalar`` replaces ``hasattr(·, "as_pair")`` on
+    # BOTH operands, so an ``int`` / ``Fraction`` side is read exactly instead of
+    # being rounded to float first. Per-operand by design: the sum of squares is
+    # formed exactly from whatever each side exactly IS, and a float side still
+    # contributes its own exact ``as_integer_ratio``.
+    _qa = _exact_scalar(a)
+    _qb = _exact_scalar(b)
+    an, ad = _qa.as_pair() if _qa is not None else float(a).as_integer_ratio()
+    bn, bd = _qb.as_pair() if _qb is not None else float(b).as_integer_ratio()
     num = an * an * bd * bd + bn * bn * ad * ad    # (a²+b²) exact numerator
     den = ad * ad * bd * bd
     if precision is not None:                       # literal ABSOLUTE grid, as asked

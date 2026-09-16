@@ -137,7 +137,15 @@ def _jade_sweep_pure(
                 if _abs(theta) < tol:
                     continue
                 off += _abs(theta)
-                c, s = float(_srn.cos(theta)), float(_srn.sin(theta))  # float Givens
+                # rc474 (`#T1188`): float() FIRST, and it is load-bearing here.
+                # ``theta`` is ``0.25 * atan2(...)``, i.e. a ``Q`` on EVERY
+                # Givens step even for an all-float input matrix — MEASURED:
+                # 4500 cos/sin calls on a 2x6 input, every one arriving ``Q``.
+                # rc474 gives cos/sin an exact route for an exact operand, so
+                # without this the sweep would run the bignum reference 4500
+                # times to build a float64 rotation it immediately rounds.
+                tf = float(theta)
+                c, s = float(_srn.cos(tf)), float(_srn.sin(tf))  # float Givens
                 # Givens rotation G.
                 G = [[1.0 if a == b else 0.0 for b in range(k)] for a in range(k)]
                 G[i][i] = c
