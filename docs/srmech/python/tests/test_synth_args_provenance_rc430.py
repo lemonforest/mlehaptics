@@ -367,6 +367,55 @@ def test_ledger_is_fresh_against_the_live_schema() -> None:
         "    python3 tools/run_example_args.py")
 
 
+def test_every_row_def_blob_is_its_defining_modules_blob_at_head() -> None:
+    """``def_blob`` COMPARED, not only present (rc473 instrument round, `#T1188`).
+
+    ``test_every_row_carries_its_defining_module_stamp`` below asserts the stamp
+    EXISTS; the freshness assertion above keys on ``src_sha256``. So a row
+    stale only in its implementation passed both: measured at rc473, the three
+    ``srmech.math.kepler`` rows' ``def_blob`` put back to ``02051b004^``'s left
+    this file green. The rc470 note named the gap and handed it to the Stop
+    hook, which did not read this ledger. ``tests/_ledger_stamps.py`` holds the
+    comparison, shared with the worked-example ledger's gate.
+    """
+    from tests import _ledger_stamps as LS
+
+    if not LS.in_a_checkout():
+        pytest.skip("no .git above the package (an sdist cell): def_blob is a git "
+                    "blob, and there is no repository to read it from")
+    blobs = LS.head_blob_map()
+    _meta, rows = LS.load(ea.LEDGER, "op")
+    assert len(rows) >= 600 and len(blobs) >= 200, (len(rows), len(blobs))
+    stale = LS.stale_def_blobs(rows, "op", blobs)
+    assert not stale, (
+        f"{len(stale)} of {len(rows)} example-args ledger rows record a def_blob "
+        "that is not their defining module's blob at HEAD — harvested against an "
+        "implementation that has since moved (row, module, recorded, HEAD): "
+        f"{stale[:24]}\nRe-harvest AFTER the module change is committed:\n"
+        "    python3 tools/run_example_args.py")
+
+
+def test_every_row_def_module_is_where_the_live_callable_is_defined() -> None:
+    """The other half of the stamp, re-resolved on THIS cell, never skipped.
+
+    rc473 instrument round (`#T1188`). Measured 0 differences on WSL2 CPython
+    3.10 and 3.12, native and pure, and on Windows CPython 3.14 pure. A
+    difference fails wherever it is seen, naming this cell and the ledger's.
+    """
+    from tests import _ledger_stamps as LS
+
+    meta, rows = LS.load(ea.LEDGER, "op")
+    moved = LS.moved_def_modules(rows, "op")
+    here, declared = LS.cell(), (meta.get("python"), bool(meta.get("has_native")))
+    assert not moved, (
+        f"{len(moved)} of {len(rows)} example-args ledger rows record a "
+        f"def_module the live callable is not defined in, on the cell {here}; "
+        f"the ledger declares {declared}. If this cell is not the declared one, "
+        "the resolution itself differs between cells, which no ledger can "
+        "record — that is the finding, not an environment to skip "
+        f"(row, recorded, live): {moved[:12]}")
+
+
 def test_harness_integrity_is_recorded_not_tolerated() -> None:
     """PF9. A run in which workers died must not be able to look clean.
 

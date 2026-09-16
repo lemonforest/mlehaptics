@@ -18,6 +18,17 @@ from typing import Any, List
 
 import pytest
 
+# rc473 final round (`#T1188`) — the git-environment guard. Imported HERE, at
+# conftest import time, so it runs before collection and before every test
+# module that shells out to git. It removes every repository-selecting git
+# variable (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_CONFIG, ...) from
+# os.environ: from 2026-09-11 to 2026-09-14 an exported GIT_DIR let this suite's
+# own fixture setup write `decoy identity` into the live repository's shared
+# .git/config. `from tests import` and NOT `import _git_env_guard`: tests/ is a
+# package, so pytest puts docs/srmech/python on sys.path, not tests/ (the plain
+# import was measured to raise ModuleNotFoundError). See tests/_git_env.py.
+from tests import _git_env_guard  # noqa: E402,F401  (import-time scrub)
+
 
 # ──────────────────────────────────────────────────────────────────────
 # rc283 — the bus registry dir is a PROCESS-EXTERNAL SINGLETON; give each

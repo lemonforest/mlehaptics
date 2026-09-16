@@ -67,9 +67,17 @@ tracked ``.py`` mapping to 266 distinct modules.)*
 
 **Windows git is the authority for this checkout**, and the reason is not
 preference: the worktree's own ``.git`` file holds ``gitdir:
-D:/GitHub/mlehaptics/.git/worktrees/...``, a Windows path, so WSL git cannot
-open this worktree at all without ``GIT_DIR``/``GIT_WORK_TREE`` overrides. The
-git that owns the checkout is the git that can read it.
+D:/GitHub/mlehaptics/.git/worktrees/...``, a Windows path, which WSL git cannot
+follow as written. The git that owns the checkout is the git that can read it.
+
+⚠️ *This paragraph said WSL git "cannot open this worktree at all without
+``GIT_DIR``/``GIT_WORK_TREE`` overrides" until the rc473 final round
+(`#T1188`), which read as the way in and was taken as one — and an EXPORTED
+override is inherited by every child git, including test fixtures that write
+config. The pair is now given per invocation: :func:`git` asks
+:func:`git_location_args` for ``--git-dir=/mnt/<drive>/…`` +
+``--work-tree=<checkout>`` when, and only when, the pointer's Windows path is
+absent on this host and its mount twin is present. Never export it.*
 
 Pinning the binary alone would be brittle — a hook must still give the right
 answer under a WSL agent, which is the standing build-subagent environment.
@@ -173,14 +181,19 @@ def stop_is_repeat(payload: Dict[str, Any]) -> bool:
 # ── shelling out ──────────────────────────────────────────────────────────
 
 def run(argv: Sequence[str], cwd: Path, timeout: float = 120.0,
-        env_extra: Optional[Dict[str, str]] = None) -> Tuple[int, str]:
+        env_extra: Optional[Dict[str, str]] = None,
+        env: Optional[Dict[str, str]] = None) -> Tuple[int, str]:
     """Run a command, returning ``(returncode, combined_output)``.
 
     A timeout returns ``(-1, ...)`` so callers can distinguish "the instrument
     did not finish" from "the instrument said no" — the two must never be
     collapsed, because only the second is evidence.
+
+    ``env`` replaces the inherited environment as the base (rc473 final round,
+    `#T1188`: :func:`git` passes a scrubbed copy); ``env_extra`` is layered on
+    top of whichever base applies.
     """
-    env = dict(os.environ)
+    env = dict(os.environ if env is None else env)
     if env_extra:
         env.update(env_extra)
     try:
@@ -207,8 +220,116 @@ def git_exe() -> str:
     return os.environ.get(HOOK_GIT_ENV) or "git"
 
 
+def _load_git_env():
+    """``tests/_git_env.py``, loaded by path (rc473 final round, `#T1188`).
+
+    That file is the ONE home of the repository-selecting variable list and of
+    the worktree-pointer lookup; it lives in ``tests/`` because
+    ``sdist.include`` ships ``tests/**`` and not ``tools/``, so the suite guard
+    beside it works in every cell. A repository checkout always carries both
+    directories, which is the only place this module runs. Loading it has no
+    side effects.
+    """
+    import importlib.util
+    name = "_srmech_git_env"
+    mod = sys.modules.get(name)
+    if mod is None:
+        path = Path(__file__).resolve().parents[2] / "tests" / "_git_env.py"
+        spec = importlib.util.spec_from_file_location(name, str(path))
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[name] = mod
+        spec.loader.exec_module(mod)
+    return mod
+
+
+_GIT_ENV = _load_git_env()
+
+#: Re-exported from ``tests/_git_env.py`` — see that module for why each name
+#: is on the list. ``check_hooks.GIT_REPO_SELECTING_ENV`` is this plus
+#: ``GIT_CEILING_DIRECTORIES``, which a fixture pins rather than inherits.
+GIT_REPO_LOCAL_ENV = _GIT_ENV.GIT_REPO_LOCAL_ENV
+scrub_git_env = _GIT_ENV.scrub
+git_location_args = _GIT_ENV.git_location_args
+pointer_git_args = _GIT_ENV.pointer_git_args
+
+
 def git(args: Sequence[str], cwd: Path, timeout: float = 30.0) -> Tuple[int, str]:
-    return run([git_exe(), *args], cwd=cwd, timeout=timeout)
+    """``git <args>`` answering for the checkout ``cwd`` is in, and only that one.
+
+    rc473 final round (`#T1188`), two changes, both so that no operator ever has
+    to export ``GIT_DIR`` / ``GIT_WORK_TREE`` for a hook to answer:
+
+    * the child's environment is SCRUBBED of every repository-selecting
+      variable, so an exported ``GIT_DIR`` cannot make a hook answer for a
+      different repository than the one it was pointed at;
+    * when this host cannot follow ``cwd``'s worktree pointer as written (WSL
+      git on a Windows-made worktree), :func:`git_location_args` hands the
+      pointer's ``/mnt/<drive>/`` twin to THIS invocation as ``--git-dir`` with
+      the checkout as ``--work-tree``. With :data:`HOOK_GIT_ENV` set, no lookup
+      is added: the pinned git is the one declared to own the checkout, and a
+      Windows ``git.exe`` reached through WSL interop reads the Windows path
+      itself and could not use a ``/mnt`` one.
+    """
+    pinned = bool(os.environ.get(HOOK_GIT_ENV))
+    where = [] if pinned else git_location_args(cwd)
+    return run([git_exe(), *where, *args], cwd=cwd, timeout=timeout,
+               env=_GIT_ENV.scrubbed())
+
+
+class GitUnusable(RuntimeError):
+    """The running git could not answer — as distinct from answering "none".
+
+    rc473 (`#T1188`). :func:`dirty_paths` and :func:`tracked_files` tested
+    ``if code == 0`` and otherwise fell through to an EMPTY list, so a git that
+    could not read the checkout at all was spelled exactly the same way as a
+    git that read it and found nothing changed. MEASURED on the rc473 worktree
+    (``.claude/worktrees/wf_9fa19a06-4e3-10``, whose ``.git`` is a pointer file
+    holding the WINDOWS path ``D:/GitHub/mlehaptics/.git/worktrees/...``, which
+    WSL git cannot open), CPython 3.12.3 under WSL2, git on PATH::
+
+        git rev-parse  : exit 128 | fatal: not a git repository: ...
+        git diff HEAD  : exit 128 | fatal: not a git repository: ...
+        git ls-files   : exit 128 | fatal: not a git repository: ...
+        dirty_paths    : returned 0 paths  <-- NO EXCEPTION
+        tracked_files  : returned 0 paths  <-- NO EXCEPTION
+
+    That is how ``derived_ledger_freshness`` reported **0 stale rows on a tree
+    with 91**: a success status carrying a wrong answer, in the one state it
+    must not be silent in. The sibling :func:`tools.run_worked_examples
+    .head_blob_map` already REFUSES on the identical condition and names git's
+    own stderr; this is that shape, moved down to the shared helpers.
+
+    It does NOT change the open-vs-closed policy the module docstring sets. A
+    git that cannot run is an INFRASTRUCTURE failure, and infrastructure
+    failures still fail OPEN — but :func:`run_hook` fails open **loudly**, with
+    a named exception on stderr, which is a different thing from returning an
+    empty measurement that reads as a verdict.
+    """
+
+
+def _git_or_refuse(args: Sequence[str], cwd: Path, why: str) -> str:
+    """``git(args)``'s output, or :class:`GitUnusable` naming git's own words.
+
+    ``run`` merges stderr into stdout, so ``out`` already carries git's
+    message; a timeout arrives as ``-1`` and a missing binary as ``-2``, and
+    all three are "could not answer", never "answered none".
+    """
+    code, out = git(args, cwd=cwd)
+    if code == 0:
+        return out
+    raise GitUnusable(
+        f"`{git_exe()} {' '.join(args)}` exited {code} in {cwd}. git said: "
+        f"{out.strip().splitlines()[0] if out.strip() else '<no output>'}. "
+        f"{why} Fix the git environment rather than reading the empty result "
+        f"as an answer. A worktree .git pointer holding a Windows path is "
+        f"already handed to this git as its /mnt/<drive>/ twin "
+        f"(--git-dir/--work-tree, per invocation) when that twin exists, so "
+        f"this is a git that could not read the checkout even so: set "
+        f"{HOOK_GIT_ENV} to the git that owns the checkout, or run under that "
+        f"toolchain. Do NOT export GIT_DIR or GIT_WORK_TREE — every child git "
+        f"inherits the export, and it let a test fixture's `git config "
+        f"--local` write a live repository's shared .git/config (rc473)."
+    )
 
 
 def python_exe() -> str:
@@ -230,23 +351,30 @@ def dirty_paths(root: Path, paths: Sequence[str]) -> List[str]:
 
     Binary files report ``-`` for both counts; those are kept, because a binary
     difference is never EOL noise.
+
+    Raises :class:`GitUnusable` if either query fails (rc473, `#T1188`). Both
+    tested ``if code == 0`` and otherwise fell through to ``[]``, which spells
+    "git could not read this checkout" identically to "nothing is dirty".
     """
     out_paths: List[str] = []
-    code, out = git(["diff", "HEAD", "--numstat", "--ignore-cr-at-eol", "--",
-                     *paths], cwd=root)
-    if code == 0:
-        for line in out.splitlines():
-            parts = line.rstrip().split("\t")
-            if len(parts) < 3:
-                continue
-            adds, dels, path = parts[0], parts[1], parts[-1]
-            if adds == "0" and dels == "0":
-                continue                      # EOL-only: not a content change
-            out_paths.append(path.strip().strip('"'))
-    code, out = git(["ls-files", "--others", "--exclude-standard", "--",
-                     *paths], cwd=root)
-    if code == 0:
-        out_paths.extend(l.strip() for l in out.splitlines() if l.strip())
+    out = _git_or_refuse(
+        ["diff", "HEAD", "--numstat", "--ignore-cr-at-eol", "--", *paths], root,
+        "Every caller would otherwise read the empty result as 'no file has "
+        "changed', which is what let the derived-ledger freshness hook report "
+        "0 stale rows on a tree with 91.")
+    for line in out.splitlines():
+        parts = line.rstrip().split("\t")
+        if len(parts) < 3:
+            continue
+        adds, dels, path = parts[0], parts[1], parts[-1]
+        if adds == "0" and dels == "0":
+            continue                          # EOL-only: not a content change
+        out_paths.append(path.strip().strip('"'))
+    out = _git_or_refuse(
+        ["ls-files", "--others", "--exclude-standard", "--", *paths], root,
+        "The untracked half would otherwise be silently empty, so a brand-new "
+        "file would read as absent rather than as unmeasurable.")
+    out_paths.extend(l.strip() for l in out.splitlines() if l.strip())
     return out_paths
 
 
@@ -256,10 +384,17 @@ def tracked_files(root: Path, paths: Sequence[str]) -> List[str]:
     Index membership is EOL-agnostic — measured identical (151 entries for
     ``c/src`` + ``c/include``) under both gits — so this is safe to build a
     scan population from.
+
+    Raises :class:`GitUnusable` rather than returning ``[]`` (rc473,
+    `#T1188`). This one is the sharper half of the pair: its callers use the
+    result as a SCAN POPULATION (``jpl_audit_gate.py`` and
+    ``sha256_routing_gate.py`` both iterate it), and a gate that scans an
+    empty population passes vacuously.
     """
-    code, out = git(["ls-files", "--", *paths], cwd=root)
-    if code != 0:
-        return []
+    out = _git_or_refuse(
+        ["ls-files", "--", *paths], root,
+        "Callers build a scan POPULATION from this, and a gate over an empty "
+        "population passes vacuously — 'not A' is not 'B'.")
     return [l.strip().strip('"') for l in out.splitlines() if l.strip()]
 
 
@@ -270,10 +405,22 @@ def eol_noise(root: Path, paths: Sequence[str]) -> Tuple[int, int]:
     checkout's EOL policy, and any hook keyed on ``status --porcelain`` is
     about to false-fire. Reported by :func:`describe_env`; never used to
     decide a verdict, because :func:`dirty_paths` already answers correctly.
+
+    rc473 repair pass (`#T1188`): this function ALREADY had the right shape
+    for "could not answer" — it returns ``-1`` for the porcelain half rather
+    than ``0``, so an unusable git is spelled differently from a clean tree.
+    It is kept, and the content half is given the same treatment now that
+    :func:`dirty_paths` raises: ``(-1, -1)``. It does NOT re-raise, and the
+    distinction is the one the module docstring draws — this is a canary a
+    diagnostic prints, not a measurement a verdict rests on, and a diagnostic
+    that dies on the condition it exists to report reports nothing.
     """
     code, out = git(["status", "--porcelain", "--", *paths], cwd=root)
     porcelain = len([l for l in out.splitlines() if l.strip()]) if code == 0 else -1
-    return porcelain, len(dirty_paths(root, paths))
+    try:
+        return porcelain, len(dirty_paths(root, paths))
+    except GitUnusable:
+        return porcelain, -1
 
 
 # ── pytest summary parsing — a SKIP IS NOT A PASS ─────────────────────────

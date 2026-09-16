@@ -792,8 +792,24 @@ _MISREAD_CLASS_COUNTS = {
 #: ee4922b5817ead0c — AND THE COUNT MOVED WITH IT (232 -> 236)**: the four
 #: required-scalar-fill ACCURACY paragraphs, each on the op's OWN docstring;
 #: same interpreter, same cell, same reader (``_READER_SIGNATURE`` unmoved).
+#: ⚠️ **MOVED AT rc473 REPAIR ROUND 1 (`#T1188`) — ee4922b5817ead0c ->
+#: aeca4d386e25e900 — and the count did NOT move (236 -> 236)**: the "a LABEL
+#: moved while membership held" branch, and the delegate question is answered
+#: by reading, not assumed. Dumped op by op with this file's own ``_registry``
+#: and ``declaration_hits``, pure cells, CPython 3.12.3: at ``2eb05877f`` the
+#: map hashes to the old pin, and at ``6743ae6dd`` EXACTLY ONE entry differs —
+#: ``srmech.math.kepler.kepler_solve``, ``["tolerance"]`` ->
+#: ``["ulp", "rounding", "tolerance"]``. The cause is that op's OWN docstring:
+#: the repair round's convergence paragraph says the old double step could
+#: "stall one ULP away" and that the answer is "correctly rounded to float".
+#: Both labels are substantively RIGHT — the op does round its last mile and
+#: its contract is stated to the ULP — and no delegate, and so no co_names
+#: ORDER, is involved. Re-measured on CPython 3.10.21 in the same cell: 236
+#: rows and this digest, byte for byte. Found by CI on ``6743ae6dd`` (five
+#: cells, one failure each, this test); ``tools/ripple_gates.txt`` does not
+#: list this file, which is why the round's local ripple run did not.
 _DECLARED_LABEL_MAP_DIGEST = (
-    "ee4922b5817ead0c191ee40ccfa9fcc3d65058727c309554bbbcf715af6f8473")
+    "aeca4d386e25e90013350a4f1fd8aed01c6536d77cf02d91ebbfcd18b418a2ef")
 
 
 def _declared_label_map_digest(pairs) -> str:

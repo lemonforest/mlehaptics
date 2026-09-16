@@ -275,7 +275,8 @@ int main(void)
                  "isqrt st");
     check_i64(bi_to_i64(&o), 1000, "isqrt 1e6");
     srmech_bigint_set_i64(&a, 99);
-    srmech_bigint_isqrt(&o, &a, g_ws, sizeof(g_ws));
+    check_status(srmech_bigint_isqrt(&o, &a, g_ws, sizeof(g_ws)), SRMECH_OK,
+                 "isqrt 99 st");
     check_i64(bi_to_i64(&o), 9, "isqrt 99");
     srmech_bigint_set_i64(&a, -4);
     check_status(srmech_bigint_isqrt(&o, &a, g_ws, sizeof(g_ws)),

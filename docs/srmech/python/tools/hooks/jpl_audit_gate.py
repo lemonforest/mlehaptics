@@ -247,9 +247,28 @@ class TrackedSetUnavailable(RuntimeError):
 
 
 def _tracked_names(root: Path) -> "dict[str, set[str]]":
-    """``{'src': {names...}, 'include': {names...}}`` from the git index."""
+    """``{'src': {names...}, 'include': {names...}}`` from the git index.
+
+    rc473 repair pass (`#T1188`): ``_hooklib.tracked_files`` now RAISES
+    ``GitUnusable`` on a git it cannot run, where it used to return ``[]``.
+    That is the right change — an empty scan population is not an empty tree —
+    but this caller had already solved the same problem BETTER for itself, and
+    the more specific diagnosis must not be lost to the more general one. So
+    the general failure is translated into :class:`TrackedSetUnavailable`
+    here, carrying git's own words, and the hook's existing handler at the
+    bottom of this file reports it with the reason that names THIS gate's
+    narrowing rather than a shared helper.
+    """
     out: "dict[str, set[str]]" = {"src": set(), "include": set()}
-    for rel in H.tracked_files(root, C_PATHS):
+    try:
+        tracked = H.tracked_files(root, C_PATHS)
+    except H.GitUnusable as exc:
+        raise TrackedSetUnavailable(
+            f"git could not list the tracked C files at all: {exc} The scan "
+            "population cannot be narrowed to the tracked set, and falling "
+            "back to the working-tree glob would silently reinstate the "
+            "fixture-collision flake this narrowing closes.") from exc
+    for rel in tracked:
         parts = rel.replace("\\", "/").split("/")
         if len(parts) < 2:
             continue

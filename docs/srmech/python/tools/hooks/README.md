@@ -68,7 +68,7 @@ startup plus `_hooklib` import on this mount, and no hook can be cheaper. So
 | **`git_add_all_blocker.py`** | PreToolUse (Bash) | `git add -A`, `git add --all`, `git add .`, `git commit -a`/`-am`. Not `git add -u` (tracked-only, cannot sweep). Not a mention inside `echo`. | **0.33–0.36 s** (was stated ~0) | ~0 — this row **is** the floor |
 | **`generated_file_edit_blocker.py`** | PreToolUse (Edit/Write/NotebookEdit) | Hand-edits to any `regen_all.py` output (6, from `codegen_manifest.GENERATORS`) or any file whose first five lines carry a generated-file banner — *"generated"* **and** *"do not edit"*, case-insensitively. Regeneration is never blocked: `regen_all.py` writes via Bash, not the Edit tool. | **0.59–0.71 s** (was stated ~1 ms — **the largest error in the old table, ~590×**) | ~0.26 s — it execs `codegen_manifest.py` |
 | **`ssot_agreement.py`** | Stop, SubagentStop, PreToolUse (`git commit`) | A disagreement among the **five** version SSoT files (ADR-0007 §2.1) or among the **seven** ABI surfaces — the `srmech.h` macro, `EXPECTED_ABI_VERSION`, and **five** prose/generated statements (`docs/srmech/CLAUDE.md`, `c/README.md`, `python/README.md`, the notebook stamp, and the generated `_c_claims.py`). **Twelve surfaces, not nine.** | **0.50–0.53 s** (stated <0.5 s — the only row that was nearly right) | ~0.17 s — 12 regex reads |
-| **`derived_ledger_freshness.py`** | Stop, SubagentStop | Stopping while `tests/worked_examples_result.ndjson` records results for ops whose defining module has moved. Three OR-ed clauses (rc468): the row's `def_blob` content stamp no longer matches that module's HEAD blob; that module is dirty in the working tree; or the row's PUBLISHED name falls under a module changed since the ledger's own commit. | **rc455: 4.5–5.7 s.** rc468 re-measured, and the figure is dominated by the MOUNT, not the hook: **0.69 s warm / 7.69 s cold** Windows-native, **17.2–18.7 s** WSL2-9p. The rc467 hook measured **16.4–17.8 s** on the same WSL mount in the same session, so the three-clause union costs ~1 s — one `git ls-tree` of the srmech subtree, measured bare at 0.52–0.61 s. | ~4.2 s — the git calls cost 2.4–8.1 s on this mount |
+| **`derived_ledger_freshness.py`** | Stop, SubagentStop | Stopping while either derived ledger — `tests/worked_examples_result.ndjson` or `tests/example_args_ledger.ndjson`, each judged against its own last commit — records results for ops whose defining module has moved, or a snippet that no longer ships. Four OR-ed clauses: the row's `def_blob` content stamp no longer matches that module's HEAD blob; that module is dirty in the working tree; the row's PUBLISHED name falls under a module changed since the ledger's own commit (those three rc468); or, since the rc473 instrument round, the row's recorded `src_sha256` differs from the live snippet key in `_tool_docs.py`. *(Until rc473 instrument repair 1 this cell named one ledger and three clauses, which the rc473 instrument round had already made false.)* | **rc455: 4.5–5.7 s.** rc468 re-measured, and the figure is dominated by the MOUNT, not the hook: **0.69 s warm / 7.69 s cold** Windows-native, **17.2–18.7 s** WSL2-9p. The rc467 hook measured **16.4–17.8 s** on the same WSL mount in the same session, so the three-clause union costs ~1 s — one `git ls-tree` of the srmech subtree, measured bare at 0.52–0.61 s. | ~4.2 s — the git calls cost 2.4–8.1 s on this mount |
 | **`ripple_stamp_before_push.py`** | PreToolUse (`git push`) | Pushing an op-touching branch with no green `tools/hooks/ripple_stamp.py` record at the current HEAD. Escape token: `[ripple-pending]` in the HEAD commit message. | **1.42–1.49 s** (was stated <1 s) | ~1.1 s — diff against upstream |
 | **`jpl_audit_gate.py`** *(rc455)* | Stop, SubagentStop, PreToolUse (`git commit`, **any option form**) | Declaring done or committing while any of `tests/test_jpl_audit.py`'s **13** checks is red — goto, new recursion, malloc, >60-line functions, <2 asserts, multi-line macros, new function-pointer declarators, and the three seed-tightness plus two detector-vacuity checks. Overrides: `SRMECH_ALLOW_JPL_VIOLATION=1`, or `[jpl-pending]` in the commit message. | in scope: **4.1–4.9 s, median 4.3 s** Windows-native / **4.5–9.5 s, median 5.4 s** WSL2-9p, 6 spaced samples each; **0.15 s** on any other Bash command | ~4.1 s — it imports the audit and calls its own functions |
 | **`prose_currency_gate.py`** *(rc455)* | Stop, SubagentStop | Stopping while a prose gate armed by *this session's* edits is red — **committed drift as well as working-tree drift**. Four gates, each armed by its own pathspec. A SKIP is reported, never counted as a pass. Override: `SRMECH_ALLOW_PROSE_LAG=1`. | **0.46–0.47 s** Windows-native / 0.30–0.33 s WSL2 when no prose surface moved; **13.8 s** with all four armed | ~13.3 s — it re-enters pytest |
@@ -149,7 +149,14 @@ a different cause.
 
 **Windows git is the authority for this checkout**, and not by preference — the
 worktree's own `.git` file holds `gitdir: D:/GitHub/mlehaptics/.git/worktrees/…`,
-so WSL git cannot open the worktree at all without `GIT_DIR` overrides. But
+a Windows path WSL git cannot follow as written. *(This read "cannot open the
+worktree at all without `GIT_DIR` overrides" until the rc473 final round,
+`#T1188`, and was taken as advice. An EXPORTED `GIT_DIR` is inherited by every
+child git, and from 2026-09-11 to 2026-09-14 it let a test fixture's
+`git config --local` write `decoy identity` into the live repository's shared
+`.git/config`. `_hooklib.git` now scrubs the child environment and hands the
+pointer's `/mnt/<drive>/` twin to the one invocation as `--git-dir` /
+`--work-tree`, so there is nothing to export. Never export it.)* But
 pinning a binary would break under a WSL agent, so the repair is at the
 **query**. `_hooklib.dirty_paths` asks for a difference in CONTENT —
 `git diff HEAD --numstat --ignore-cr-at-eol`, keeping only rows whose
@@ -344,7 +351,12 @@ and would not have re-run those rows either; rc469 removed it, and this hook is
 what replaced it. The hook therefore asks a different, decidable
 question: *has the module that defines this op changed since that row was
 measured?* — per-row scoped, so one module's edit never demands the full
-651-snippet run. C-source changes are reported as an advisory and do not block;
+651-snippet run. *(Since the rc473 instrument round it asks that of BOTH derived
+ledgers, the worked-example ledger and `tests/example_args_ledger.ndjson`, and
+asks a second question beside it — does the row's recorded `src_sha256` still
+equal the live snippet key? — because a `def_blob` stamp does not move when only
+a snippet does. This paragraph described one ledger and one question until rc473
+instrument repair 1.)* C-source changes are reported as an advisory and do not block;
 attributing them to individual rows is not decidable from the ledger, and
 blocking would flag all 651 rows on any C edit.
 

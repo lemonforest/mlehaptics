@@ -150,7 +150,7 @@ _MIN_QUOTE = 12
 #:     now falls inside the other's window. Recorded rather than tuned away:
 #:     the window is a dial and this is what the dial costs.
 #:   * **1 — a genuine imprecision, left for a later rc.** `0013:1178` cites
-#:     `c/include/srmech.h:5378-5437` for `srmech_tool_entry_t`; that range is
+#:     `c/include/srmech.h:5418-5437` for `srmech_tool_entry_t`; that range is
 #:     the tool-schema-registry doc BANNER and the struct is at `:5457-5467`.
 #:     Not in this rc's correction list, correctly non-zero here.
 #:
@@ -199,7 +199,7 @@ CEIL_TOKEN_EVIDENCE = 7
 #: window.
 #:
 #: The one at rc415 is real signal: ADR-0013 `:990` quotes *"DSL-declared
-#: class"* against `srmech.h:5977`, and that phrase occurs **nowhere in
+#: class"* against `srmech.h:6017`, and that phrase occurs **nowhere in
 #: srmech.h** — `:5977` reads *"constructs a DSL [class] instance from its
 #: packaged TOML descriptor"*. It is the ADR's own paraphrase wearing
 #: quotation marks. Left in the CEIL rather than corrected here because the

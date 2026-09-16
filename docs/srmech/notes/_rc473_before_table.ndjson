@@ -1,0 +1,34 @@
+{"export_route": "pre-exported", "exported_root": "/mnt/c/Users/sckir/AppData/Local/Temp/claude/D--GitHub-mlehaptics/623ea061-948c-4282-968d-ca4179875bf2/scratchpad/rc472src/docs/srmech/c", "git_ref": "b398b8c46", "kind": "ref"}
+{"kind": "build", "other_diagnostic_lines": 0, "returncode": 0, "unused_result_diagnostics": 0}
+{"abi_version": 25, "kind": "artifact"}
+{"call": "equation_of_centre(2**53+1, 0.0549, 4)", "status": 0, "value": "-0.08984990210223018"}
+{"call": "pin_slot(2**55, 0.5, 1.0)", "status": 0, "value": "0.0"}
+{"call": "kepler_solve(2**55, 0.3, 1e-12, 20)", "status": 0, "value": "3.602879701896397e+16"}
+{"call": "srmech_sin(nan)", "status": 0, "value": "nan"}
+{"call": "srmech_cos(nan)", "status": 0, "value": "nan"}
+{"call": "srmech_atan(nan)", "status": 0, "value": "-3.2146018366025517"}
+{"call": "srmech_exp(nan)", "status": 0, "value": "nan"}
+{"call": "srmech_log(nan)", "status": 0, "value": "nan"}
+{"call": "srmech_rational_sqrt(nan)", "status": 0, "value": "nan"}
+{"call": "srmech_sin(3.602879701896397e+16)", "status": 2, "value": "0.0"}
+{"call": "srmech_cos(3.602879701896397e+16)", "status": 2, "value": "0.0"}
+{"call": "srmech_rational_sqrt(-4.0)", "status": 2, "value": "0.0"}
+{"call": "srmech_atan(inf)", "status": 0, "value": "1.5707963267948966"}
+{"call": "srmech_atan(-inf)", "status": 0, "value": "-1.5707963267948966"}
+{"call": "atan2(nan, 1.0)", "status": 0, "value": "-3.2146018366025517"}
+{"call": "atan2(1.0, nan)", "status": 0, "value": "-0.0730091830127586"}
+{"call": "atan2(nan, 0.0)", "status": 0, "value": "0.0"}
+{"call": "atan2(inf, inf)", "status": 0, "value": "-3.2146018366025517"}
+{"call": "atan2(-inf, -inf)", "status": 0, "value": "-6.356194490192345"}
+{"call": "atan2(inf, -inf)", "status": 0, "value": "-0.0730091830127586"}
+{"call": "atan2(-inf, inf)", "status": 0, "value": "-3.2146018366025517"}
+{"call": "elementwise([3.602879701896397e+16], COS)", "status": 0, "value": "0.0"}
+{"call": "elementwise([nan], SIN)", "status": 0, "value": "nan"}
+{"call": "elementwise([nan], EXP)", "status": 0, "value": "nan"}
+{"call": "elementwise([nan], LOG)", "status": 0, "value": "nan"}
+{"call": "kuramoto_step_f64([0, 3.602879701896397e+16])", "status": 0, "value": "[0.0, 3.602879701896397e+16]"}
+{"call": "kuramoto_step_f64([0, inf])", "status": 0, "value": "[nan, nan]"}
+{"call": "kuramoto_step_f64([0, nan])", "status": 0, "value": "[nan, nan]"}
+{"call": "winding_fold(nan)", "status": 0, "value": "(0, nan)"}
+{"call": "winding_fold(3.602879701896397e+16)", "status": 2, "value": "(0, 0.0)"}
+{"call": "winding_fold(inf)", "status": 2, "value": "(0, nan)"}

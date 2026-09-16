@@ -1584,9 +1584,22 @@ def _q61_fxmul(a: int, b: int) -> int:
 #: the native branch raised ``"srmech_cos_q61: argument has no Q61 rational
 #: (status 2)"`` — a message that did not name the argument — while the pure
 #: cascade's did, and ``recover_check::charges`` read INSENSITIVE native /
-#: DEMOTED pure on nothing but that difference. The array kernel's own copy of
-#: the defect (a silently returned ``0.0``) is guarded at
-#: ``srmech.math.laplacian._q61_trig_range_refuse``, which imports this bound.
+#: DEMOTED pure on nothing but that difference.
+#:
+#: ⚠️ THIS PRECONDITION IS NOT A COVER, AND THAT IS WHY rc473 KEPT IT WHILE
+#: DELETING TWO OTHERS. :func:`cos` / :func:`sin` dispatch to
+#: ``srmech_cos_q61`` / ``srmech_sin_q61``, an accelerator INSIDE this op, and
+#: those peers already refuse every argument this bound refuses. MEASURED at
+#: rc473 (WSL2, CPython 3.12.3, libsrmech.so at ABI 26, numpy absent), by the
+#: ctypes symbol with no wrapper in the path: ``srmech_sin_q61`` and
+#: ``srmech_cos_q61`` return status ``2`` and leave the out slot UNTOUCHED for
+#: ``2**55``, for NaN and for ±Inf, and status ``0`` for ``0.7``. So the two
+#: projections already agree on what they refuse here; what this precondition
+#: adds is one TEXT over both, which is a unifier, not a guard that answers
+#: before the C peer is consulted. The covers rc473 deleted —
+#: ``kepler.equation_of_centre``'s rc472 harmonic loop and
+#: ``laplacian._q61_trig_range_refuse`` — sat in front of C peers that were
+#: still SERVING the same arguments, which is the difference that matters.
 Q61_TRIG_RANGE = 2.0 ** 55
 
 

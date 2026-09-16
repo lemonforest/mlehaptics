@@ -13,11 +13,18 @@ rc470's harness re-ran gate files to recover their totals, which is why it needs
 a ``--quick`` mode that its own banner calls *"NOT sufficient for a final run"*.
 Every figure below is derived from the TREE — the census manifest, the registry,
 the probe's own constants and the git baseline — so there is one mode and it is
-the final one. It also means the run is safe to give a read-only ``GIT_DIR``
-export, which is the only way git answers inside a worktree whose ``.git`` is a
-pointer file holding a Windows path; rc471 measured what an ambient ``GIT_DIR``
-does to a process that CAN reach pytest, and the answer was a fixture commit on
-the live branch.
+the final one. It also meant, as this paragraph used to put it, that the run
+was "safe to give a read-only ``GIT_DIR`` export, which is the only way git
+answers inside a worktree whose ``.git`` is a pointer file holding a Windows
+path". ⚠️ *Both halves are corrected at the rc473 final round (`#T1188`).*
+"The only way" was false: ``tools/figure_run.py`` now hands the pointer's
+``/mnt/<drive>/`` twin to each git invocation as ``--git-dir`` /
+``--work-tree``, and scrubs the child environment. And "safe" is a property of
+the process, not of the export: an exported ``GIT_DIR`` outlives the run in the
+shell that set it. rc471 measured what an ambient ``GIT_DIR`` does to a process
+that CAN reach pytest (a fixture commit on the live branch), and from
+2026-09-11 to 2026-09-14 the same export let a test fixture write
+``decoy identity`` into the live repository's shared ``.git/config``.
 
 WHAT IT CANNOT DO, stated rather than left to be discovered
 -----------------------------------------------------------

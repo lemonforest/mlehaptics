@@ -728,8 +728,8 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **25** (`SRMECH_ABI_VERSION = 25` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 25` in
+C ABI version is currently **26** (`SRMECH_ABI_VERSION = 26` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 26` in
 *(this line said 12 until rc420, 13 until rc425, 14 until rc438, 15 until
 rc439, 16 until rc442, 17 until rc449 and — the point — **17 through the whole of
 rc447 AND rc448**, so it was two bumps behind by the time rc449 read it: a SIXTH
@@ -782,7 +782,9 @@ WRITER-RESERVE contract move** of the v10/v12 shape — no signature changed, bu
 `srmech_chain_run_arena_bytes` began returning a LARGER envelope, because the
 value-descriptor writer's reserve was derived from the INPUT length while it
 bounds the OUTPUT tree.
-The v25 bump is rc464's (`#T1188`) and it is the fourth of the REMOVAL kind (v7 / v8 / v11 before it), the plainest shape there is. Three exported symbols go — `srmech_sedenion_navmap`, `srmech_sedenion_navigate` and `srmech_sed_slots` — with the 16-slot `SedenionRegister` they were the Rosetta peer of. They are SUBSUMED, not dropped: `srmech_cd_navmap` / `srmech_cd_navigate` take the rung as a parameter and this header has documented them as bit-identical at dim 16 since rc298, and `srmech_sed_slots` was a validate-and-copy its one caller now does inline. A removed export produces no symptom other than a version mismatch, so by standing policy it always bumps. The `SRMECH_SEDENION_NUM_SLOTS` macro goes with them and contributes nothing — macros are not exported symbols. `srmech_sedenion_is_navigable` STAYS: it is the general DENSE kernel for every rung up to `SRMECH_CD_DENSE_MAX_DIM`, dispatched live by `left_mult_is_invertible`, and only its NAME was ever sedenion-specific. rc464 also changes what one existing function returns — `srmech_make_class_run_arena_bytes` now budgets the TOML parser's own stated bound instead of a hand-rolled `32 * toml_len` heuristic, so the envelope is LARGER — which is the v10 / v12 / v23 / v24 wire-sizing shape and would have bumped on its own; it rides this one. `SRMECH_GENOME_FORMAT_VERSION` stays 20.
+**The v26 bump is rc473's (`#T1188`) and it is the SECOND on this library driven by a SILENT WRONG VALUE rather than by a raise** — v21's ground, moved off the chain wire and onto the Class-N scalar surface. It adds no symbol, removes none, changes no signature: what moves is **which inputs the C projection serves**, which is exactly the class v21's second move bumped for, and under v21's own sentence — *"co-equal projections must agree on what they refuse."* Two independent halves. **(1) Twenty-four discarded statuses** across seven translation units spelled `(void)srmech_sin(...)` and friends, so a callee that had ALREADY refused its argument was overruled by its own caller. Measured at rc472 at the exported symbols, no Python in the path: `srmech_equation_of_centre(2^53+1, 0.0549, 4)` → `(SRMECH_OK, -0.08984990210223018)` where Python raised `ValueError`; `srmech_pin_slot(2^55, 0.5, 1.0)` → `(SRMECH_OK, 0.0)`; `srmech_kepler_solve(2^55, 0.3, 1e-12, 20)` → `(SRMECH_OK, 3.602879701896397e+16)`, i.e. `E == M`, the Newton iteration never able to move; `srmech_cascade_kuramoto_step_f64([0, 2^55], …)` → `(SRMECH_OK, [0.0, 3.602879701896397e+16])`, oscillator 0 silently frozen. **(2) The callee contracts**, where this header's own promise was being violated: `srmech_sin` / `srmech_cos` answered `SRMECH_OK` for NaN against a published `SRMECH_ERR_BAD_INPUT for non-finite x`, and wrote `0.0` rather than NaN at `|x| >= 2^55` because the idiom was `x - x`; `srmech_atan` / `srmech_atan2` answered `SRMECH_OK` with `-3.2146018366025517` — a finite value BELOW −π, outside their own range — for NaN and, via `Inf/Inf`, for both-infinite arguments with no NaN passed in; `srmech_exp` / `srmech_log` carried an explicit `if (x != x) return SRMECH_OK;`; `srmech_rational_sqrt` served NaN and wrote `0.0` for every finite negative argument; `srmech_winding_fold` carried both halves. All refuse now and all write NaN; `srmech_atan2` gains the quadrant diagonal so `atan2(±Inf, ±Inf)` answers ±π/4 / ±3π/4 as the pure projection does. The pairing this rejects is the one that matters — an **rc472 `.so` against rc473 Python** restores the silent value with no other symptom, and `NATIVE_ABI_VERSION != EXPECTED_ABI_VERSION` is the only thing that refuses it. The `SRMECH_NODISCARD` attribute added in the same rc is a DIAGNOSTIC, not a wire change, and contributes nothing to the bump. `SRMECH_GENOME_FORMAT_VERSION` stays 20.
+
+The v25 bump before it is rc464's (`#T1188`) and it is the fourth of the REMOVAL kind (v7 / v8 / v11 before it), the plainest shape there is. Three exported symbols go — `srmech_sedenion_navmap`, `srmech_sedenion_navigate` and `srmech_sed_slots` — with the 16-slot `SedenionRegister` they were the Rosetta peer of. They are SUBSUMED, not dropped: `srmech_cd_navmap` / `srmech_cd_navigate` take the rung as a parameter and this header has documented them as bit-identical at dim 16 since rc298, and `srmech_sed_slots` was a validate-and-copy its one caller now does inline. A removed export produces no symptom other than a version mismatch, so by standing policy it always bumps. The `SRMECH_SEDENION_NUM_SLOTS` macro goes with them and contributes nothing — macros are not exported symbols. `srmech_sedenion_is_navigable` STAYS: it is the general DENSE kernel for every rung up to `SRMECH_CD_DENSE_MAX_DIM`, dispatched live by `left_mult_is_invertible`, and only its NAME was ever sedenion-specific. rc464 also changes what one existing function returns — `srmech_make_class_run_arena_bytes` now budgets the TOML parser's own stated bound instead of a hand-rolled `32 * toml_len` heuristic, so the envelope is LARGER — which is the v10 / v12 / v23 / v24 wire-sizing shape and would have bumped on its own; it rides this one. `SRMECH_GENOME_FORMAT_VERSION` stays 20.
 **The v24 bump is rc455's, and it is that same writer-reserve move on the
 SIBLING function.** `srmech_dsl_chain_run_arena_bytes` now returns a **smaller**
 envelope — by exactly `32768 + 16*(chain_len + input_len)` — because the DSL
@@ -814,7 +816,19 @@ stories with both numbers.)*
 pointed at `python/srmech/amsc/_native.py` until rc404 (`#T1069`) — two stale
 facts in three lines: the version was three bumps behind, and ADR-0010 moved
 the shim, so the named path had ceased to exist. This file is NOT
-hygiene-gated, so nothing but a reader catches that.)* **Bump in lockstep**
+hygiene-gated, so nothing but a reader catches that. **And it happened a
+SEVENTH time, inside rc473 itself.** rc473's ABI sweep moved the gated cardinal
+`**26**` and the `SRMECH_ABI_VERSION = 26` beside it, and left
+`EXPECTED_ABI_VERSION` on **25** — one clause later, in the same sentence, where
+both halves had read a correct 25 at `b398b8c46`. That is the rc454 shape
+inverted: a correct cardinal and a correct story with a STALE cardinal wedged
+between them. It is repaired in the same rc that wrote it, and the residual is
+closed rather than re-noted: `test_abi_prose_currency_rc449` now asserts BOTH
+cardinals in this sentence, not one — see that file's
+`test_claude_md_expected_abi_cardinal_matches_the_shim`. The bracketed
+prediction six lines above ("nothing but a reader catches that") was true for
+six consecutive lags and is no longer true for this half of the sentence.)*
+**Bump in lockstep**
 whenever
 the wire format of any existing exported function changes. Adding
 a new symbol does NOT bump ABI (the Python shim just doesn't bind
@@ -916,9 +930,42 @@ scratch remains single-thread-at-a-time until similarly converted.
 
 ### JPL Power-of-Ten audit
 
-The C library is clean on **eight** of the 10 Holzmann Power-of-Ten
-rules; **Rule 1 and Rule 9 are both PARTIAL**, each under a seeded
-down-only ratchet (see [c/JPL_AUDIT.md](c/JPL_AUDIT.md)). Rule 9's
+The C library is clean on **seven** of the 10 Holzmann Power-of-Ten
+rules; **Rules 1, 7 and 9 are PARTIAL** (see
+[c/JPL_AUDIT.md](c/JPL_AUDIT.md)). All three are under a seeded
+down-only ratchet — **Rule 7's since rc473's pre-publish pass; it had
+no detector at all before that**, and the
+audit document recorded it "0 violations / Pass" from its first
+commit through rc472, on a four-function evidence table, while **24**
+discarded `srmech_status_t` values sat across 7 translation units;
+rc473 (`#T1188`) repaired them to **0** and closed the family with
+`SRMECH_NODISCARD` on 29 declarations (14 at the first pass, 17 after the
+repair pass, 29 after the pre-publish pass, which also retired the header's
+false "EQUAL at 17" equality in favour of a coverage fraction over the 512
+status-returning exports — derivation in
+`notes/_rc473_a3b_nodiscard_family.py`) — a compiler guard on gcc AND
+clang for a BARE-statement discard, on **gcc alone** for the
+`(void)`-cast form all 24 repaired sites used, and nothing on MSVC
+(measured at the rc473 pre-publish pass on gcc 13.3.0 / clang 22.1.0
+/ cl 19.31.31104; CI's macos-14 and windows-latest compilers are
+UNMEASURED). ⚠️ **This paragraph ended "a `RULE_7_ROSTER` ratchet is
+named as owed and is NOT shipped, so this count is a measurement and
+not a floor" until the A4 pre-publish pass shipped it.** It is a floor
+now: four `test_rule_7_*` functions (`13 passed` → `17 passed`) holding
+strict zero on the 29-name roster — pinned two-way against a live
+masked scan of the header, so the attribute cannot be silently lost —
+plus down-only `==` ceilings on the residual, `c/src` **18** and
+`c/test` **118**, counted separately so a harness drain cannot hide a
+library regression. Being a SOURCE scan it runs on the MSVC cell too,
+where the compiler guard diagnoses nothing. It does NOT make the rule
+pass: its own scope stops at the public header plus each TU's statics
+(so the 44 `srmech_plat_*` discards declared in the private
+`c/src/srmech_platform.h` stay enumerated rather than gated — the next
+drain), it is blind to a call that is the second statement on one line
+(a BARE discard, which gcc and clang both refuse, so the two detectors'
+blind spots are complementary), and Rule 7's parameter-validation half
+is still unmeasured. Predicate, seeds, sensitivity and the three-plant
+mutation are in `notes/_rc473_a4_rule7_ratchet.py`. Rule 9's
 measured population is **10 function-pointer declarator sites** —
 this line said "one deliberate deviation" until rc452, while the tree
 carried 12 pre-rc452 sites including `IV_VTABLE` (a 38-row dispatch
@@ -943,7 +990,12 @@ Enforcement:
    detects Rules 1 (no goto **and, since rc441, no new direct/indirect
    recursion — strict on novel cycles, down-only on the seeded
    population of 9**), 3 (no malloc), 4 (≤60-line functions), 5 (≥2
-   asserts per non-exempt function), 8 (no multi-line macros), and —
+   asserts per non-exempt function), **7 (since rc473's pre-publish
+   pass — no discarded `srmech_status_t` from a `SRMECH_NODISCARD`-tagged
+   callee, strict zero, plus down-only residual ceilings of 18 in
+   `c/src` and 118 in `c/test`; the test-side ceiling carries its own
+   `c/test` existence skip because `sdist.include` does not ship that
+   directory)**, 8 (no multi-line macros), and —
    since rc452 — 9 (**no new function-pointer declarators** — masked
    scan, strict on novel sites, down-only on the seeded population of
    10, with a vacuity check that must find the documented

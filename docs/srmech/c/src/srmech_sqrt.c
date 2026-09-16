@@ -74,11 +74,34 @@ static double srmech_pow2(int p)
     return out;
 }
 
+/* 0.9.0rc473 (`#T1188`) — two repairs in the refusal path, one to the STATUS
+ * and one to the written VALUE, and they are independent defects.
+ *
+ *  1. NaN was SERVED. `x < 0.0` is false for NaN and so is `x == 0.0`, so a
+ *     NaN fell through to the bit-read, matched raw == 0x7FF, and returned
+ *     (SRMECH_OK, NaN) on the +Inf path. The pure peer raises ("sqrt: x must
+ *     be finite"); srmech_sqrt_q61 already returned SRMECH_ERR_BAD_INPUT.
+ *  2. The negative branch wrote `x - x`, which the comment called NaN and
+ *     which is NaN only for a non-finite x. For every FINITE negative x it is
+ *     exactly 0.0 — measured at rc472, srmech_rational_sqrt(-4.0) returned
+ *     (SRMECH_ERR_BAD_INPUT, 0.0), so the status was already right and a
+ *     caller reading the value alone got a real number where srmech.h and the
+ *     comment on that very line both promised NaN. The status-only half of
+ *     this rc would not have closed it, which is why the gate asserts the
+ *     written value as well.
+ *
+ * +Inf stays served (-> +Inf) and that decline is tracked: lap_sqrt and
+ * sq_sqrt reach it on the tau-overflow path and rely on sqrt(+Inf) = +Inf. */
 srmech_status_t srmech_rational_sqrt(double x, double *out)
 {
     assert(out != NULL);
     if (out == NULL) { return SRMECH_ERR_NULL_ARG; }
-    if (x < 0.0) { *out = x - x; return SRMECH_ERR_BAD_INPUT; }   /* NaN; domain */
+    if (x != x) { *out = x; return SRMECH_ERR_BAD_INPUT; }        /* NaN; no root */
+    if (x < 0.0) {
+        uint64_t nan_bits = UINT64_C(0x7FF8000000000000);
+        memcpy(out, &nan_bits, sizeof *out);
+        return SRMECH_ERR_BAD_INPUT;                              /* NaN; domain */
+    }
     if (x == 0.0) { *out = 0.0; return SRMECH_OK; }
     uint64_t bits;
     memcpy(&bits, &x, sizeof bits);

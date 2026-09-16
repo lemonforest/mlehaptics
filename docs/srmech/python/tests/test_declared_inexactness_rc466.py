@@ -298,7 +298,14 @@ def test_q61_trig_range_refusal_is_one_text_in_this_cell() -> None:
     from srmech.math import laplacian as la, rational
     x = 5.659390201622752e+16                       # the census's ::charges phase
     assert rational.Q61_TRIG_RANGE == 2.0 ** 55
-    assert la._Q61_TRIG_RANGE is rational.Q61_TRIG_RANGE, "one bound, imported"
+    # rc473 (`#T1188`): this line read
+    #   assert la._Q61_TRIG_RANGE is rational.Q61_TRIG_RANGE, "one bound, imported"
+    # rc473 deleted ``_q61_trig_range_refuse`` — the array kernel now refuses
+    # in C and the existing fallthrough gives the pure cascade's text — and the
+    # alias went with its only user. The rule it asserted is unchanged and is
+    # now assertable more strongly: NO module here re-states the bound.
+    assert [n for n, v in vars(la).items()
+            if type(v) is float and v == 2.0 ** 55] == [], "one bound, not copied"
     want = f"cos: |x| too large for the Q61 octant reduction; got {x}"
     with pytest.raises(ValueError, match="too large for the Q61 octant reduction") as e1:
         rational.cos(x)

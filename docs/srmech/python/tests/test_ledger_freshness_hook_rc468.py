@@ -24,6 +24,8 @@ WHAT IT PINS
    the point is that these particular plants are still driven, and a count can
    be held constant while a case is swapped for a weaker one.
 3. Non-vacuity: the summary line is present and reports a nonzero case count.
+4. (rc473 instrument repair 1, `#T1188`) The block message names every stale
+   row of either ledger, not the first eight.
 
 SCOPE: the ``ledger`` subset only. ``check_hooks.py ratchet`` and ``jpl`` write
 fixture files into the REAL tree (``docs/srmech/c/src/_hook_fixture_rc452.c``
@@ -52,6 +54,12 @@ REQUIRED_CASES = (
     "the rc468 blind spot",          # re-exported row, defining module changed
     "the union's other half",        # package __init__ still claims its rows
     "PARTIAL re-run",                # both rows present, one stamp stale
+    # rc473 instrument round (`#T1188`): the two blindnesses of the rc472 hook,
+    # each a case that exits 0 against it. The hook read only the worked-example
+    # ledger, and none of its three clauses read the snippet key.
+    "a stale EXAMPLE-ARGS ledger",   # the second ledger, stale by content
+    "a SNIPPET edit",                # a snippet moved, no implementation did
+    "no TOOL_DOCS literal",          # the snippet clause cannot read: loud, not silent
 )
 
 
@@ -84,3 +92,38 @@ def test_ledger_freshness_hook_fixtures_all_pass() -> None:
         "hook that resolves a row to its DEFINING module from one that matches "
         "its published name. Deleting or renaming one takes the guard with it.\n"
         + err[-2000:])
+
+
+def test_the_block_names_every_unverified_row_of_both_ledgers() -> None:
+    """Every stale row is named in the block message, for BOTH ledgers.
+    (rc473 instrument repair 1, `#T1188`)
+
+    The message ends by saying its lists are printed in full, and on an
+    example-args block they were not: that remedy is a whole-ledger re-harvest
+    naming no row, and the one summary line stops at ``MAX_SHOWN``, so gate round
+    i1's revert of that ledger to ``1ab8d405b`` printed 8 of 80 names
+    ("(+72 more)"). Driven through ``_block_lines`` itself, for each ledger the
+    hook reads, at 30 rows (the worked remedy's ``--names-file`` form) and at 12
+    (its single ``--only`` line) — both above ``MAX_SHOWN``.
+    """
+    import re
+
+    hooks = str(PY_ROOT / "tools" / "hooks")
+    if hooks not in sys.path:
+        sys.path.insert(0, hooks)
+    import derived_ledger_freshness as D
+
+    assert D.MAX_SHOWN < 12, D.MAX_SHOWN
+    for n_stale in (30, 12):
+        stale = [f"srmech.planted.op_{i:02d}" for i in range(n_stale)]
+        judged = {"rows": 100, "stale": stale, "why": {n: "content" for n in stale},
+                  "modules": ["srmech.planted"], "c_touched": 0}
+        for rel, key, label in D.LEDGERS:
+            lines = D._block_lines(rel, key, label, "0" * 40, judged)
+            body = "\n".join(l for l in lines if "unverified rows:" not in l)
+            missing = [n for n in stale
+                       if not re.search(r"(?<![\w.])" + re.escape(n) + r"(?![\w.])", body)]
+            assert not missing, (
+                f"the {label} block names {n_stale - len(missing)} of {n_stale} stale rows "
+                f"outside its abbreviated summary line; missing {missing[:5]}\n"
+                + "\n".join(lines))

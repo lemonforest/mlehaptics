@@ -70,7 +70,14 @@ def invoke(script: str, payload: Dict[str, Any], *,
            project_dir: Optional[Path] = None,
            env_extra: Optional[Dict[str, str]] = None,
            timeout: float = 300.0) -> Tuple[int, str]:
+    # rc473 final round (`#T1188`): the hook under test gets a SCRUBBED copy of
+    # the environment. It used to get dict(os.environ), so with GIT_DIR exported
+    # the freshness hook's read-only git answered for THAT repository instead of
+    # the fixture CLAUDE_PROJECT_DIR names — measured in a sandbox: `ledger` 4
+    # passed / 5 failed under the export (every BLOCK case read ALLOW), 9 / 0
+    # with this scrub. A wrong verdict, not a write, and invisible from outside.
     env = dict(os.environ)
+    H.scrub_git_env(env)
     env["CLAUDE_PROJECT_DIR"] = str(project_dir or REPO)
     env.pop("SRMECH_ALLOW_STALE_NATIVE", None)
     if env_extra:
@@ -152,7 +159,8 @@ def _selftest_case(name: str, script: str, must_contain: str) -> None:
     proc = subprocess.run(
         [sys.executable, str(HOOKS / script), "--selftest"],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        env={**os.environ, "CLAUDE_PROJECT_DIR": str(REPO)}, timeout=120)
+        env={**H._GIT_ENV.scrubbed(), "CLAUDE_PROJECT_DIR": str(REPO)},
+        timeout=120)
     out = proc.stdout.decode("utf-8", "replace")
     if proc.returncode == 0 and must_contain in out:
         _results.append((name, PASS, must_contain))
@@ -189,19 +197,21 @@ def _write(p: Path, text: str) -> Path:
 #: a ``TemporaryDirectory``". That reasoning is exactly the one ``GIT_DIR`` is
 #: designed to defeat: a temp directory plus ``cwd=`` is not isolation when the
 #: environment names a repository, because the ENVIRONMENT WINS.
-GIT_REPO_SELECTING_ENV = (
-    "GIT_DIR",
-    "GIT_WORK_TREE",
-    "GIT_COMMON_DIR",
-    "GIT_INDEX_FILE",
-    "GIT_OBJECT_DIRECTORY",
-    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-    "GIT_CEILING_DIRECTORIES",
-    "GIT_CONFIG",
-    "GIT_CONFIG_GLOBAL",
-    "GIT_CONFIG_SYSTEM",
-    "GIT_CONFIG_COUNT",
-)
+#:
+#: ⚠️ rc473 final round (`#T1188`): this tuple used to be spelled out HERE, and
+#: it lacked seven of the names git itself declares repository-local
+#: (``git rev-parse --local-env-vars``: ``GIT_CONFIG_PARAMETERS``,
+#: ``GIT_IMPLICIT_WORK_TREE``, ``GIT_GRAFT_FILE``, ``GIT_NO_REPLACE_OBJECTS``,
+#: ``GIT_REPLACE_REF_BASE``, ``GIT_PREFIX``, ``GIT_SHALLOW_FILE``) plus
+#: ``GIT_NAMESPACE`` and the numbered ``GIT_CONFIG_KEY_<n>`` family. It is now
+#: the shared list (``tests/_git_env.py``, re-exported by ``_hooklib``) plus the
+#: ceiling this file pins. And the rc471 repair this block records was not the
+#: whole story: the writer that put ``decoy identity`` into the live shared
+#: config from 2026-09-11 to 2026-09-14 was not this file — its fixture calls
+#: were measured inert under the export — but
+#: ``tests/test_hook_fixture_env_isolation_rc471.py``'s own ``_make_decoy``,
+#: which ran ``git init`` + ``git config --local`` UNSCRUBBED.
+GIT_REPO_SELECTING_ENV = H.GIT_REPO_LOCAL_ENV + ("GIT_CEILING_DIRECTORIES",)
 
 
 def fixture_git_env(root: Path,
@@ -219,6 +229,7 @@ def fixture_git_env(root: Path,
        checkout would otherwise discover that checkout by plain discovery.
     """
     env = dict(os.environ if base is None else base)
+    H.scrub_git_env(env)                     # the shared list + GIT_CONFIG_KEY_<n>
     for name in GIT_REPO_SELECTING_ENV:
         env.pop(name, None)
     env["GIT_CEILING_DIRECTORIES"] = str(Path(root).resolve().parent)
@@ -585,6 +596,12 @@ def check_ssot_agreement() -> None:
 # ── 6. derived-ledger-freshness ───────────────────────────────────────────
 
 LEDGER_REL = "docs/srmech/python/tests/worked_examples_result.ndjson"
+#: rc473 instrument round (`#T1188`): the hook reads BOTH derived ledgers and
+#: the generated docs' snippets. Until then it read ``LEDGER_REL`` alone, and no
+#: fixture here held the second ledger or a ``_tool_docs.py`` — so no case could
+#: have seen either blindness.
+ARGS_LEDGER_REL = "docs/srmech/python/tests/example_args_ledger.ndjson"
+DOCS_REL = "docs/srmech/python/srmech/introspect/_tool_docs.py"
 
 #: ledger row name -> (defining module, its repo-relative path). The last entry
 #: is THE RE-EXPORT SHAPE: published under ``srmech.cascade``, defined in
@@ -612,23 +629,66 @@ def _blob(root: Path, rel: str) -> str:
 
 
 def _ledger_text(root: Path, names: Sequence[str],
-                 stale_stamp: Sequence[str] = ()) -> str:
+                 stale_stamp: Sequence[str] = (), key: str = "name",
+                 snippets: Optional[Dict[str, Dict[str, str]]] = None) -> str:
     """Serialise a ledger holding ``names``, stamped against HEAD.
 
     A name in ``stale_stamp`` gets a WRONG ``def_blob`` — that is the planted
     partial re-run: the row is still present and still says ``ok``, it simply
-    was not re-measured against the current source.
+    was not re-measured against the current source. ``key`` names the row field
+    (``name`` for the worked-example ledger, ``op`` for the example-args
+    ledger). With ``snippets`` the row records the REAL snippet key of that
+    example, as both harvesters do; without it, a placeholder the hook can only
+    compare when a ``_tool_docs.py`` is present.
     """
     rows: List[Dict[str, Any]] = [
         {"n": len(names), "record": "meta", "native": True, "python": "3.10"}]
     for i, n in enumerate(names):
         mod, rel = _LEDGER_ROWS[n]
-        rows.append({"name": n, "status": "ok",
-                     "src_sha256": chr(ord("a") + i) * 64,
+        rows.append({key: n, "status": "ok",
+                     "src_sha256": (_snippet_key(snippets[n]) if snippets
+                                    else chr(ord("a") + i) * 64),
                      "def_module": mod,
                      "def_blob": ("0" * 40) if n in stale_stamp
                                  else _blob(root, rel)})
     return "".join(json.dumps(r, sort_keys=True) + "\n" for r in rows)
+
+
+def _snippet_key(example: Dict[str, str]) -> str:
+    """The harvesters' own snippet key, imported rather than re-spelled."""
+    if str(HOOKS.parent) not in sys.path:
+        sys.path.insert(0, str(HOOKS.parent))
+    import run_worked_examples as RWE  # noqa: E402
+    return RWE.src_sha256(example)
+
+
+#: One worked snippet per fixture row — the shape ``_tool_docs.py`` carries.
+_SNIPPETS = {n: {"setup": "", "worked": f"# {n}\nx = 1\n"} for n in _LEDGER_ROWS}
+
+
+def _docs_text(snippets: Dict[str, Dict[str, str]]) -> str:
+    """A generated-docs module holding ``TOOL_DOCS`` for the fixture rows."""
+    docs = {n: {"example": dict(ex)} for n, ex in snippets.items()}
+    return ("from typing import Any, Dict\n\n"
+            f"TOOL_DOCS: Dict[str, Dict[str, Any]] = {docs!r}\n")
+
+
+def _two_ledger_fixture(tmp: Path) -> Path:
+    """Both derived ledgers AND the generated docs, all written against HEAD.
+
+    Written so that every one of the four clauses has something true to
+    compare: stamps against the committed sources, snippet keys against the
+    committed ``TOOL_DOCS``.
+    """
+    root = _ledger_fixture(tmp)
+    _write(root / DOCS_REL, _docs_text(_SNIPPETS))
+    _commit(root, "generated docs")
+    _write(root / LEDGER_REL,
+           _ledger_text(root, list(_LEDGER_ROWS), snippets=_SNIPPETS))
+    _write(root / ARGS_LEDGER_REL,
+           _ledger_text(root, list(_LEDGER_ROWS), key="op", snippets=_SNIPPETS))
+    _commit(root, "both ledgers written against these sources and snippets")
+    return root
 
 
 def _ledger_fixture(tmp: Path) -> Path:
@@ -749,6 +809,45 @@ def check_ledger_freshness() -> None:
              "derived_ledger_freshness.py",
              {"hook_event_name": "Stop", "stop_hook_active": True}, 0,
              project_dir=loop)
+
+        # ── rc473 instrument round (`#T1188`): the two blindnesses ──────────
+        #
+        # The rc472 hook read ONE ledger path and none of its three clauses
+        # read `src_sha256`. Each case below exits 0 against that hook; the
+        # clean two-ledger fixture is the control that every clause, the
+        # snippet one included, reads fresh where nothing moved.
+        both = _two_ledger_fixture(tmp / "both")
+        case("ledger-freshness ALLOWS both ledgers written against current "
+             "sources AND current snippets",
+             "derived_ledger_freshness.py", stop, 0, project_dir=both)
+
+        args_stale = _two_ledger_fixture(tmp / "args_stale")
+        _write(args_stale / ARGS_LEDGER_REL,
+               _ledger_text(args_stale, list(_LEDGER_ROWS), key="op",
+                            snippets=_SNIPPETS,
+                            stale_stamp=["srmech.amsc.catalog.get_attested_dataset"]))
+        _commit(args_stale, "example-args ledger with one stale stamp")
+        case("ledger-freshness BLOCKS a stale EXAMPLE-ARGS ledger while the "
+             "worked-example ledger is fresh (rc473: the hook read one ledger)",
+             "derived_ledger_freshness.py", stop, 2,
+             contains="1 of 4 example-args ledger rows", project_dir=args_stale)
+
+        snip = _two_ledger_fixture(tmp / "snippet")
+        moved = dict(_SNIPPETS)
+        moved["srmech.math.rational.rational_mul"] = {
+            "setup": "", "worked": "# srmech.math.rational.rational_mul\nx = 2\n"}
+        _write(snip / DOCS_REL, _docs_text(moved))
+        case("ledger-freshness BLOCKS a SNIPPET edit with no implementation "
+             "change, in BOTH ledgers (rc473: no clause read src_sha256)",
+             "derived_ledger_freshness.py", stop, 2,
+             contains="published-name=0 snippet=1", project_dir=snip)
+
+        nodocs = _two_ledger_fixture(tmp / "nodocs")
+        _write(nodocs / DOCS_REL, "TOOL_DOCS_RENAMED = {}\n")
+        case("ledger-freshness FAILS OPEN loudly when _tool_docs.py carries no "
+             "TOOL_DOCS literal, rather than reading 'no snippet moved'",
+             "derived_ledger_freshness.py", stop, 0,
+             contains="no TOOL_DOCS literal", project_dir=nodocs)
 
 
 # ── 7. ripple-stamp-before-push ───────────────────────────────────────────
@@ -1146,8 +1245,26 @@ def check_jpl_audit() -> None:
         # ceiling behind it, and it will go stale again. The real Rule-4/5
         # ratchets live in tests/test_jpl_audit.py, which is green at 13
         # passed / RED: 0 on this tree.
+        #
+        # RE-PINNED 3598 -> 3620 (rc473 instrument round, `#T1188`). It went
+        # stale exactly as the paragraph above predicted: 3598 is rc472's
+        # population (`b398b8c46`), and rc473 added 22 C functions, every one
+        # in srmech_trig.c — `trig_is_inf`, `trig_write_nan`, the eleven `kq_*`
+        # helpers with `srmech_trig_kepler_q61`, and the eight `wf_*` helpers.
+        # The derivation (the audit's own scanner over rc472 and over this
+        # tree, names differenced) is `notes/_rc473_instr_jpl_population.py`.
+        # The old literal 3598 could not match at the rc473 trees whose
+        # population was printed: the audit's scanner gave 3620 at the
+        # instrument round's head, and 3600 at `1ab8d405b` (printed at
+        # instrument repair 2, `#T1188`). The heads between were not measured. (This read "This case read FAIL on every
+        # rc473 head from `1ab8d405b` on" until instrument repair 2, which no run
+        # measured.) No gate runs its jpl-audit case: the two
+        # manifest gates that run this
+        # file (`tests/test_ledger_freshness_hook_rc468.py` and the leak gate's
+        # ARM 3) run its `ledger` checks only. (Instrument repair 1: this read
+        # "no gate runs this file", which both of those gates contradict.)
         _selftest_case("jpl-audit scans a non-empty function population",
-                       _JPL, "_scan_functions() total   :  3598 funcs")
+                       _JPL, "_scan_functions() total   :  3620 funcs")
 
     # A missing audit file is an INFRASTRUCTURE failure and must fail OPEN.
     # ⚠️ The fixture carries a C tree ON PURPOSE. It used to be `python/` alone,

@@ -28,6 +28,27 @@ environment at all: :func:`check_hooks.fixture_git_env` scrubs every
 repository-selecting variable and pins ``GIT_CEILING_DIRECTORIES`` so plain
 upward discovery cannot leave the fixture either.
 
+⚠️ AND THIS FILE WAS ITSELF THE NEXT WRITER (rc473 final round)
+----------------------------------------------------------------
+From 2026-09-11 21:55 (commit ``e3720e256``) until 2026-09-14 the live
+repository's SHARED ``.git/config`` held ``user.name = decoy identity`` /
+``user.email = decoy@example.invalid`` — this file's constants — and 60 commits
+on the rc473 branch carried that identity
+(``git log --author="decoy identity" b398b8c46..52371629a``). The writer was not
+``check_hooks.py`` (its fixture calls were measured inert under the export) but
+this file's own ``_make_decoy``: its helper ran ``git init`` and two
+``git config --local`` with the INHERITED environment, under a ``GIT_DIR``
+exported at a worktree gitdir of the live repository, so the "throwaway decoy"
+was the live repository. A PASSING test did it
+(``test_the_fixture_cannot_write_a_repository_GIT_DIR_names``); the can-fail
+below went red afterwards, on a cell whose config its own setup had already
+written. Measured in a sandbox replica, not reasoned about. Every setup and
+read helper now runs through :func:`check_hooks.fixture_git_env`, the control's
+environment is built from that scrubbed base plus one pair aimed at its own
+decoy, and ``tests/_git_env_guard.py`` removes the repository-selecting names
+from the whole pytest process. The guard is pinned, and proven able to fail, in
+``tests/test_git_env_cannot_reach_a_repository_rc473.py``.
+
 ⚠️ **THE CAN-FAIL IS THE POINT.** ``test_the_decoy_IS_reachable_without_the_scrub``
 runs the same three fixture commands through an UNSCRUBBED ``subprocess.run``
 and asserts the decoy DOES get written. Without it, every other assertion here
@@ -59,30 +80,46 @@ DECOY_NAME = "decoy identity"
 DECOY_EMAIL = "decoy@example.invalid"
 
 
-def _git_plain(args, cwd, env=None):
-    """``git`` with NO scrubbing — the shape the defect had."""
+def _git_plain(args, cwd, env):
+    """``git`` with the environment the CALLER built — the shape the defect had.
+
+    rc473 final round (`#T1188`): ``env`` is now REQUIRED. Through rc473 it
+    defaulted to ``None``, i.e. the inherited environment, and that default is
+    what wrote ``decoy identity`` into the live repository (see the module
+    docstring's rc473 section). The one caller that wants an unscrubbed shape,
+    the can-fail control, builds it explicitly and aims it at its own decoy.
+    """
     return subprocess.run(["git", *args], cwd=str(cwd), env=env,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+
+def _git_fixture(args, root: Path):
+    """``git`` in the throwaway repository ``root``, and nowhere else.
+
+    Through :func:`check_hooks.fixture_git_env`: every repository-selecting
+    variable removed, and the ceiling pinned to ``root``'s parent.
+    """
+    return _git_plain(args, root, CH.fixture_git_env(root))
 
 
 def _make_decoy(root: Path) -> Path:
     """A throwaway repository standing in for the real one."""
     root.mkdir(parents=True, exist_ok=True)
-    _git_plain(["init", "-q", "-b", "main"], root)
-    _git_plain(["config", "--local", "user.name", DECOY_NAME], root)
-    _git_plain(["config", "--local", "user.email", DECOY_EMAIL], root)
+    _git_fixture(["init", "-q", "-b", "main"], root)
+    _git_fixture(["config", "--local", "user.name", DECOY_NAME], root)
+    _git_fixture(["config", "--local", "user.email", DECOY_EMAIL], root)
     return root
 
 
 def _decoy_identity(root: Path) -> tuple[str, str]:
-    name = _git_plain(["config", "--local", "--get", "user.name"], root)
-    mail = _git_plain(["config", "--local", "--get", "user.email"], root)
+    name = _git_fixture(["config", "--local", "--get", "user.name"], root)
+    mail = _git_fixture(["config", "--local", "--get", "user.email"], root)
     return (name.stdout.decode("utf-8", "replace").strip(),
             mail.stdout.decode("utf-8", "replace").strip())
 
 
 def _decoy_commit_count(root: Path) -> int:
-    out = _git_plain(["rev-list", "--count", "--all"], root)
+    out = _git_fixture(["rev-list", "--count", "--all"], root)
     text = out.stdout.decode("utf-8", "replace").strip()
     return int(text) if text.isdigit() else -1
 
@@ -157,12 +194,19 @@ def test_the_decoy_IS_reachable_without_the_scrub(tmp_path):
     before_id = _decoy_identity(decoy)
     assert before_id == (DECOY_NAME, DECOY_EMAIL)
 
-    env = dict(os.environ)
+    fixture = tmp_path / "fixture"
+    fixture.mkdir(parents=True, exist_ok=True)
+
+    # rc473 final round (`#T1188`): the control's environment starts from the
+    # SCRUBBED fixture environment and adds back exactly ONE repository-
+    # selecting pair, aimed at this test's own decoy. Through rc473 it started
+    # from dict(os.environ), so an ambient GIT_CONFIG (which redirects the
+    # `git config` below, written without --local) could still aim it
+    # elsewhere; now the decoy is the only repository it can reach.
+    env = CH.fixture_git_env(fixture)
     env["GIT_DIR"] = str(decoy / ".git")
     env["GIT_WORK_TREE"] = str(decoy)
 
-    fixture = tmp_path / "fixture"
-    fixture.mkdir(parents=True, exist_ok=True)
     _git_plain(["config", "user.email", "hooks@example.invalid"], fixture, env)
     _git_plain(["config", "user.name", "hook fixture"], fixture, env)
 
