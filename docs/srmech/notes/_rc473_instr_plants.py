@@ -37,6 +37,10 @@ CONFTEST_ANCHOR = "from tests import _git_env_guard  # noqa: E402,F401  (import-
 DROP_ITEMS = "    items[:] = [i for i in items if not i.nodeid.endswith('selecting_pair[notes]')]\n"
 DROP_SESSION = ("    session.items[:] = [i for i in session.items\n"
                 "                        if not i.nodeid.endswith('selecting_pair[notes]')]\n")
+# instrument repair 3: the pyproject anchor its ini plants insert a [tool.pytest.ini_options]
+# table after. Two lines, because the header alone also appears in a comment above it.
+PYPROJECT_ANCHOR = ('[tool.hatch.metadata.hooks.fancy-pypi-readme]\n'
+                    'content-type = "text/markdown"\n')
 
 TEXT = {
     # B — the git-environment layers, one at a time
@@ -178,10 +182,35 @@ TEXT = {
     "R_env_refusal_off": [(P + "tools/ripple_check.py",
         '    for name in ("PYTEST_ADDOPTS", "PYTEST_PLUGINS"):\n',
         "    for name in ():\n")],
+    # ── instrument repair 3 (`#T1188`) ────────────────────────────────────────────
+    # gate round j1: two geometries that move no COUNT. One drops the advice gate's
+    # `[notes]` item and appends a second reference to `[python/tools]`; three make the
+    # gate run a setup-only protocol, which reports setup for every item and calls no
+    # test function (through an ini `addopts`, and through `config.option`).
+    "M_dup_conftest": [(P + "tests/conftest.py", CONFTEST_ANCHOR, CONFTEST_ANCHOR + "\n\n"
+        "def pytest_collection_modifyitems(config, items):\n"
+        "    kept = [i for i in items if not i.nodeid.endswith('selecting_pair[notes]')]\n"
+        "    dup = [i for i in kept if i.nodeid.endswith('selecting_pair[python/tools]')]\n"
+        "    items[:] = kept + dup[:1]\n")],
+    "M_conftest_setuponly": [(P + "tests/conftest.py", CONFTEST_ANCHOR, CONFTEST_ANCHOR + "\n\n"
+        "def pytest_configure(config):\n    config.option.setuponly = True\n")],
+    "M_ini_setup_plan": [(P + "pyproject.toml", PYPROJECT_ANCHOR,
+        PYPROJECT_ANCHOR + '\n[tool.pytest.ini_options]\naddopts = "--setup-plan"\n')],
+    "M_ini_setup_only": [(P + "pyproject.toml", PYPROJECT_ANCHOR,
+        PYPROJECT_ANCHOR + '\n[tool.pytest.ini_options]\naddopts = "--setup-only"\n')],
     # the count check's run half switched off: a removal after collection finishes is then unseen
     "R_ran_check_off": [(P + "tools/ripple_check.py",
-        "    if selected != collected or deselected or ran != collected:\n",
+        "    if selected != collected or deselected or ran != collected or off:\n",
         "    if selected != collected or deselected:\n")],
+    # instrument repair 3's two halves, each switched off alone, so each is shown causal:
+    # the id comparison (which reads a substitution) and the `call`-phase `ran` (which
+    # reads a setup-only protocol; this writes instrument repair 2's rule back).
+    "R_ids_check_off": [(P + "tools/ripple_check.py",
+        "    if selected != collected or deselected or ran != collected or off:\n",
+        "    if selected != collected or deselected or ran != collected:\n")],
+    "P_ran_setup_reports": [(P + "tests/_collection_count_plugin.py",
+        '    if report.when == "call" or (report.when == "setup" and report.outcome != "passed"):\n',
+        '    if report.when == "setup":\n')],
 }
 
 #: The same removals as a module named by PYTEST_PLUGINS, written OUTSIDE the tree by `envplug`.
