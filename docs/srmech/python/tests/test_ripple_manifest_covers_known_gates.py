@@ -544,6 +544,14 @@ def test_the_collection_sweep_runs_before_the_gates_and_aborts_on_failure() -> N
 # hookwrapper that filtered before its `yield`, in either wrapper style, or the
 # same wrapper loaded by PYTEST_PLUGINS, left this file green, because the plugin
 # took its first count inside that same hook. It now counts `pytest_itemcollected`.
+#
+# ⚠️ Instrument repair 3 (`#T1188`): counting alone compares CARDINALITIES. Gate
+# round j1 planted a conftest `pytest_collection_modifyitems` that drops one item
+# and appends a second reference to another: `collected`, `selected` and
+# `deselected` were all unmoved (1278 / 1278 / 0) and this node passed, while the
+# advice gate's `[notes]` root was never scanned. The plugin now also writes the
+# node ids that are in one of its multisets and not the other, and this node fails
+# on a non-empty `selected_missing` or `selected_extra` as well.
 # The removals this check was measured to fail on, with the command, are in the
 # rc473 CHANGELOG, INSTRUMENT REPAIR 2, and in the plugin's docstring. Its limits,
 # stated: it collects with `--collect-only`, so a removal made once collection has
@@ -593,9 +601,11 @@ def test_the_manifest_collects_every_test_function_each_frozen_file_defines() ->
     and not counted as narrowed; a skip raised anywhere else is not exempt.
 
     The collection also loads ``tests/_collection_count_plugin.py`` (instrument
-    repairs 1 and 2, `#T1188`) and fails when that plugin counts fewer items kept
+    repairs 1, 2 and 3, `#T1188`) and fails when that plugin counts fewer items kept
     at the end of collection than it counted collected (``pytest_itemcollected``),
-    or any deselected. Which removals produce that is measured in the plugin's
+    or any deselected, or when the node ids kept are not the node ids collected as a
+    multiset (``selected_missing`` / ``selected_extra``, which is what a substitution
+    moves and no count does). Which removals produce that is measured in the plugin's
     docstring and the comment above; a removal made after collection finishes is
     outside this collect-only node.
     """
@@ -631,20 +641,28 @@ def test_the_manifest_collects_every_test_function_each_frozen_file_defines() ->
     missing = sorted(f"{f}::{n}" for f in frozen if f not in module_skipped
                      for n in _defined_test_functions(_PKG_ROOT / f)
                      if (f, n) not in collected)
+    totals = {k: (counts or {}).get(k) for k in ("collected", "selected", "deselected", "ran")}
+    by_id = {k: ((counts or {}).get(k) or {}).get("n")
+             for k in ("selected_missing", "selected_extra")}
     print(f"\n[rc473] collection: exit {proc.returncode}, {len(frozen)} frozen files, "
           f"{len(argv)} manifest targets, {len(collected)} test functions collected, "
           f"module-skipped {sorted(module_skipped)}, missing {len(missing)}, "
-          f"items {counts}, {time.perf_counter() - t0:.1f} s")
+          f"items {totals}, by node id {by_id}, {time.perf_counter() - t0:.1f} s")
     assert proc.returncode == 0, out[-3000:]
     assert counts is not None and isinstance(counts.get("collected"), int), (
         f"{ripple_check.COUNT_PLUGIN} reported no counts, so this check cannot see a "
         f"filter below function granularity:\n{out[-2000:]}")
     assert counts.get("selected") == counts["collected"] and not counts.get("deselected"), (
-        f"collecting the manifest's frozen targets REMOVED items: {counts}. Something in "
+        f"collecting the manifest's frozen targets REMOVED items: {totals}. Something in "
         "this collection — a conftest or PYTEST_PLUGINS hook, an addopts or PYTEST_ADDOPTS "
         "filter, an option carried in a manifest line — narrowed a frozen gate, possibly "
         "below function granularity, where a dropped parametrization leaves every "
         "function collected.")
+    assert by_id == {"selected_missing": 0, "selected_extra": 0}, (
+        f"the node ids collection KEPT are not the node ids it COLLECTED: {counts}. A "
+        "filter that drops one item and repeats another leaves every count equal "
+        "(measured, gate round j1), so this is the half the totals above cannot show. "
+        "A `None` here means the plugin wrote no per-item accounting.")
     assert len(collected) >= 300, f"collected only {len(collected)} functions:\n{out[-2000:]}"
     assert not missing, (
         f"{len(missing)} test function(s) defined in FROZEN gate files are not "
@@ -700,8 +718,13 @@ def test_the_runner_refuses_forwarded_options_that_narrow_the_gate_run(monkeypat
 
     def fake_run(cmd, cwd, env=None):
         calls.append(cmd)
+        # the payload shape the plugin writes: four totals, and (instrument repair 3)
+        # four id differences, all empty for a run that ran what it collected
+        empty = '{"n": 0, "names": []}'
         Path(env[ripple_check.COUNT_ENV]).write_text(
-            '{"collected": 5, "selected": 5, "deselected": 0, "ran": 5}', encoding="utf-8")
+            '{"collected": 5, "selected": 5, "deselected": 0, "ran": 5, '
+            + ", ".join(f'"{name}": {empty}' for name in ripple_check.COUNT_ID_DIFFS)
+            + "}", encoding="utf-8")
         return 0
 
     monkeypatch.setattr(ripple_check, "run_collect_sweep", lambda root: calls.append("sweep") or 0)
@@ -715,18 +738,20 @@ def test_the_runner_refuses_forwarded_options_that_narrow_the_gate_run(monkeypat
 
 
 def test_the_runner_fails_a_green_run_whose_collection_lost_items(monkeypatch) -> None:
-    """``judge_counts`` on count payloads (instrument repairs 1 and 2, `#T1188`): a
+    """``judge_counts`` on count payloads (instrument repairs 1, 2 and 3, `#T1188`): a
     green pytest whose counts show an item collected but not kept, deselected, or
-    not run fails, and so does one that reported no counts or no ``ran``; a red
-    run keeps pytest's own code. Which real removals produce those counts is
-    measured by the plugin's can-fail below and by
-    ``notes/_rc473_instr_r2_canfail.sh``, not here.
+    not run fails; so does one whose per-item accounting names a collected node id
+    that did not run, or a node id that ran twice, with every count equal; and so
+    does one that reported no counts, no ``ran``, or no accounting. A red run keeps
+    pytest's own code. Which real removals produce those payloads is measured by the
+    plugin's can-fail below and by ``notes/_rc473_instr_r3_canfail.sh``, not here.
 
     (This docstring opened "Spelling-independent …: whatever removed an item — an
     option no list names yet, an ``addopts``, a conftest hook — a green pytest
     whose collection lost items fails" until instrument repair 2. It drove fake
     payloads, so it could not show that, and gate round i2 found a conftest hook
     whose removal the payload never carried.)"""
+    import json
     from pathlib import Path
 
     monkeypatch.delenv("PYTEST_ADDOPTS", raising=False)
@@ -741,15 +766,31 @@ def test_the_runner_fails_a_green_run_whose_collection_lost_items(monkeypatch) -
             return rc
         return fake_run
 
+    def pay(collected, selected, deselected, ran, sel_missing=0, sel_extra=0,
+            ran_missing=0, ran_extra=0):
+        """One payload in the shape the plugin writes: four totals, four id diffs."""
+        def diff(n):
+            return {"n": n, "names": [f"tests/x.py::test_y[{i}]" for i in range(min(n, 8))]}
+        return json.dumps({"collected": collected, "selected": selected,
+                           "deselected": deselected, "ran": ran,
+                           "selected_missing": diff(sel_missing),
+                           "selected_extra": diff(sel_extra),
+                           "ran_missing": diff(ran_missing), "ran_extra": diff(ran_extra)})
+
     for payload, rc, want in (
-            ('{"collected": 5, "selected": 5, "deselected": 0, "ran": 5}', 0, 0),
-            ('{"collected": 5, "selected": 4, "deselected": 0, "ran": 4}', 0, 1),  # dropped in collection
-            ('{"collected": 5, "selected": 1, "deselected": 4, "ran": 1}', 0, 1),  # deselected
-            ('{"collected": 5, "selected": 5, "deselected": 0, "ran": 4}', 0, 1),  # dropped after collection
-            ('{"collected": 5, "selected": 5, "deselected": 0}', 0, 1),            # a plugin that writes no ran
-            (None, 0, 1),                                                            # nothing reported
-            ('{"collected": 5, "selected": 4, "deselected": 0, "ran": 4}', 3, 3),  # red stays red
-            ('{"collected": 5, "selected": 5, "deselected": 0, "ran": 2}', 1, 1)):  # stopped early, red
+            (pay(5, 5, 0, 5), 0, 0),
+            (pay(5, 4, 0, 4, sel_missing=1, ran_missing=1), 0, 1),   # dropped in collection
+            (pay(5, 1, 4, 1, sel_missing=4, ran_missing=4), 0, 1),   # deselected
+            (pay(5, 5, 0, 4, ran_missing=1), 0, 1),                  # dropped after collection
+            # instrument repair 3: every total equal, one item swapped for a repeat of another
+            (pay(5, 5, 0, 5, sel_missing=1, sel_extra=1, ran_missing=1, ran_extra=1), 0, 1),
+            (pay(5, 5, 0, 0, ran_missing=5), 0, 1),                  # a setup-only protocol
+            ('{"collected": 5, "selected": 5, "deselected": 0}', 0, 1),  # a plugin that writes no ran
+            # counts but no per-item accounting (a plugin older than instrument repair 3)
+            ('{"collected": 5, "selected": 5, "deselected": 0, "ran": 5}', 0, 1),
+            (None, 0, 1),                                                # nothing reported
+            (pay(5, 4, 0, 4, sel_missing=1, ran_missing=1), 3, 3),   # red stays red
+            (pay(5, 5, 0, 2, ran_missing=3), 1, 1)):                 # stopped early, red
         monkeypatch.setattr(ripple_check, "_run", reporting(payload, rc))
         assert ripple_check.main([]) == want, (payload, rc)
 
@@ -757,24 +798,28 @@ def test_the_runner_fails_a_green_run_whose_collection_lost_items(monkeypatch) -
 def test_the_collection_count_plugin_reports_the_planted_removals(tmp_path) -> None:
     """The COLLECTION check and the runner both trust
     ``tests/_collection_count_plugin.py``, so it gets its own can-fail over a
-    four-item sandbox (instrument repairs 1 and 2, `#T1188`). Each row plants one
-    removal of ``test_b[2]`` and pins the counts the plugin writes,
-    ``(collected, selected, deselected, ran)``: on a run, and in two rows under
-    ``--collect-only``, the COLLECTION check's view. The removals are the ones
-    named in the rows, not every way to remove an item; the two LIMIT rows pin
-    removals the plugin's docstring says it does NOT see, so a change in either
-    direction is reported.
+    four-item sandbox (instrument repairs 1, 2 and 3, `#T1188`). Each row plants one
+    change to ``test_b[2]`` and pins what the plugin writes, as
+    ``(collected, selected, deselected, ran, selected_missing, selected_extra,
+    ran_missing, ran_extra)`` — the four totals, then the four id differences as
+    counts: on a run, and in two rows under ``--collect-only``, the COLLECTION
+    check's view. The rows are the removals named here, not every way to remove an
+    item; the three LIMIT rows pin cases the plugin's docstring says it does NOT
+    see, so a change in either direction is reported.
 
     (Instrument repair 2: this test was named
     ``test_the_collection_count_plugin_sees_a_removal_at_every_granularity`` and
     planted four filters, none of which ran before the plugin's first count. Gate
     round i2's hookwrapper that filters before its ``yield`` — old-style,
-    new-style, and loaded by ``PYTEST_PLUGINS`` — is among the rows now.)
+    new-style, and loaded by ``PYTEST_PLUGINS`` — is among the rows now.
+    Instrument repair 3: gate round j1's two geometries that move no total — a
+    setup-only protocol, from an ini ``addopts`` or a conftest ``pytest_configure``,
+    and a drop paired with a duplicate — are rows here too, which is why every row
+    pins the id differences as well.)
     """
     import os
     import subprocess
 
-    (tmp_path / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
     (tmp_path / "test_probe.py").write_text(
         "import pytest\n\n\n@pytest.mark.parametrize('n', [1, 2, 3])\n"
         "def test_b(n):\n    assert n\n\n\ndef test_c():\n    assert True\n", encoding="utf-8")
@@ -805,11 +850,26 @@ def test_the_collection_count_plugin_reports_the_planted_removals(tmp_path) -> N
                                       " if not getattr(r, 'nodeid', '').endswith('test_b[2]')]\n"),
         "LIMIT_setup_skips": (imp + "def pytest_runtest_setup(item):\n"
                               "    if item.nodeid.endswith('test_b[2]'):\n        pytest.skip('planted')\n"),
+        # instrument repair 3 (gate round j1): a substitution and a setup-only protocol,
+        # neither of which moves any total, and a body replaced under a run that is
+        # collected, kept, run and reported passed (a stated limit)
+        "drop_and_duplicate": ("def pytest_collection_modifyitems(config, items):\n"
+                               "    kept = [i for i in items if not i.nodeid.endswith('test_b[2]')]\n"
+                               "    dup = [i for i in kept if i.nodeid.endswith('test_b[1]')]\n"
+                               "    items[:] = kept + dup[:1]\n"),
+        "configure_setuponly": ("def pytest_configure(config):\n"
+                                "    config.option.setuponly = True\n"),
+        "LIMIT_pyfunc_call_true": (imp + "@pytest.hookimpl(tryfirst=True)\n"
+                                   "def pytest_pyfunc_call(pyfuncitem):\n"
+                                   "    if pyfuncitem.nodeid.endswith('test_b[2]'):\n"
+                                   "        return True\n"),
     }
 
-    def counts(source, *extra, env_plugin=False, collect_only=False):
+    def counts(source, *extra, env_plugin=False, collect_only=False, addopts=None):
         (tmp_path / "conftest.py").write_text("" if env_plugin else sources[source], encoding="utf-8")
         (tmp_path / "r2_envplug.py").write_text(sources[source] if env_plugin else "", encoding="utf-8")
+        (tmp_path / "pytest.ini").write_text(
+            "[pytest]\n" + (f"addopts = {addopts}\n" if addopts else ""), encoding="utf-8")
         out = tmp_path / "counts.json"
         if out.exists():
             out.unlink()
@@ -828,25 +888,38 @@ def test_the_collection_count_plugin_reports_the_planted_removals(tmp_path) -> N
                               stderr=subprocess.STDOUT, timeout=300)
         got = ripple_check.read_counts(out)
         assert got is not None, proc.stdout.decode("utf-8", "replace")[-2000:]
-        return got["collected"], got["selected"], got["deselected"], got["ran"]
+        return (got["collected"], got["selected"], got["deselected"], got["ran"],
+                *(got[name]["n"] for name in ripple_check.COUNT_ID_DIFFS))
 
-    # (collected, selected, deselected, ran), on a run
-    assert counts("none") == (4, 4, 0, 4)
-    assert counts("hook") == (4, 3, 0, 3)
-    assert counts("wrapper_after_yield") == (4, 3, 0, 3)
-    assert counts("wrapper_before_yield") == (4, 3, 0, 3)                   # gate round i2
-    assert counts("new_wrapper_before_yield") == (4, 3, 0, 3)               # gate round i2
-    assert counts("wrapper_before_yield", env_plugin=True) == (4, 3, 0, 3)  # gate round i2
-    assert counts("finish_trylast") == (4, 4, 0, 3)
-    assert counts("runtestloop_wrapper") == (4, 4, 0, 3)
-    assert counts("protocol_returns_true") == (4, 4, 0, 3)
-    assert counts("none", "-k", "test_c") == (4, 1, 3, 1)
-    assert counts("none", "-o", "addopts=-k test_c") == (4, 1, 3, 1)
+    # (collected, selected, deselected, ran | selected_missing, selected_extra,
+    #  ran_missing, ran_extra), on a run
+    assert counts("none") == (4, 4, 0, 4, 0, 0, 0, 0)
+    assert counts("hook") == (4, 3, 0, 3, 1, 0, 1, 0)
+    assert counts("wrapper_after_yield") == (4, 3, 0, 3, 1, 0, 1, 0)
+    assert counts("wrapper_before_yield") == (4, 3, 0, 3, 1, 0, 1, 0)                   # i2
+    assert counts("new_wrapper_before_yield") == (4, 3, 0, 3, 1, 0, 1, 0)               # i2
+    assert counts("wrapper_before_yield", env_plugin=True) == (4, 3, 0, 3, 1, 0, 1, 0)  # i2
+    assert counts("finish_trylast") == (4, 4, 0, 3, 0, 0, 1, 0)
+    assert counts("runtestloop_wrapper") == (4, 4, 0, 3, 0, 0, 1, 0)
+    assert counts("protocol_returns_true") == (4, 4, 0, 3, 0, 0, 1, 0)
+    assert counts("none", "-k", "test_c") == (4, 1, 3, 1, 3, 0, 3, 0)
+    assert counts("none", "-o", "addopts=-k test_c") == (4, 1, 3, 1, 3, 0, 3, 0)
+    # instrument repair 3, gate round j1: every TOTAL is unmoved and the IDS are not —
+    # one item dropped and another repeated, so one item never runs
+    assert counts("drop_and_duplicate") == (4, 4, 0, 4, 1, 1, 1, 1)
+    # ... and a protocol that calls no test function: `ran` counts the `call` phase, so
+    # it is 0 where a count of setup reports was 4 (instrument repair 2's rule)
+    assert counts("none", addopts="--setup-plan") == (4, 4, 0, 0, 0, 0, 4, 0)
+    assert counts("none", addopts="--setup-only") == (4, 4, 0, 0, 0, 0, 4, 0)
+    assert counts("configure_setuponly") == (4, 4, 0, 0, 0, 0, 4, 0)
     # --collect-only: the pre-yield wrapper is in the counts; a removal made after
-    # collection finishes is not (the COLLECTION check's stated limit)
-    assert counts("wrapper_before_yield", collect_only=True) == (4, 3, 0, 0)
-    assert counts("finish_trylast", collect_only=True) == (4, 4, 0, 0)
+    # collection finishes is not (the COLLECTION check's stated limit). Nothing runs in
+    # that view, so every item is `ran_missing` there.
+    assert counts("wrapper_before_yield", collect_only=True) == (4, 3, 0, 0, 1, 0, 4, 0)
+    assert counts("finish_trylast", collect_only=True) == (4, 4, 0, 0, 0, 0, 4, 0)
     # the plugin's stated limits, pinned: an item that never reaches
-    # pytest_itemcollected, and an item that runs and is reported skipped
-    assert counts("LIMIT_make_collect_report") == (3, 3, 0, 3)
-    assert counts("LIMIT_setup_skips") == (4, 4, 0, 4)
+    # pytest_itemcollected; an item that runs and is reported skipped; an item whose
+    # BODY is replaced while it is collected, kept, run and reported passed
+    assert counts("LIMIT_make_collect_report") == (3, 3, 0, 3, 0, 0, 0, 0)
+    assert counts("LIMIT_setup_skips") == (4, 4, 0, 4, 0, 0, 0, 0)
+    assert counts("LIMIT_pyfunc_call_true") == (4, 4, 0, 4, 0, 0, 0, 0)
