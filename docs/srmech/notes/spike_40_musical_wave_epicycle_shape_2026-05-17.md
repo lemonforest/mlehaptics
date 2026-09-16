@@ -115,6 +115,12 @@ which IS the canonical FM-with-modulating-index-ε expansion. At small modulatio
 
 Signatures diverge in detail at higher k: Bessel `J_k(β) ~ (β/2)^k / k!` has 1/k! tail; Kepler EOC `c_k ~ ε^k / k` has 1/k tail. At k=3 the factorial-vs-linear difference is a factor of 6; at k=5 it's a factor of 120. But at k_max=6 with r²>0.99 gate, both pass.
 
+⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured. This 2026-05-17 record stays as written. Two of its labels are wrong, and correcting them WEAKENS the tail contrast above rather than the FM finding itself.**
+
+1. **The expansion printed above is the EQUATION OF CENTRE, not the eccentric-anomaly one.** `ν − M = 2ε sin M + (5/4)ε² sin 2M + (13/12)ε³ sin 3M + …` is `ν − M` (true minus mean anomaly), exactly as its own left-hand side says. The **eccentric**-anomaly expansion is a different series: `E − M = Σ_k (2/k)·J_k(kε)·sin kM`. The formula is right; the name over it is not.
+2. **`c_k ~ ε^k/k` is not Kepler's tail — it is the PIN-SLOT's.** So the k-tail contrast drawn above sets Bessel against a series that is not Kepler's, while Kepler's own `E − M` coefficients **are** Bessel (`(2/k)·J_k(kε)`). Measured at ε = 0.054 (published wheel `srmech 0.9.0rc473`): `ε^k/k` = 0.054000000 / 0.001458000 / 0.000052488 against `(2/k)J_k(kε)` = 0.053980319 / 0.001456583 / 0.000058952 — 0.04% apart at k=1, 0.1% at k=2, **12.3% at k=3**. The "factor of 6 at k=3" the paragraph predicts is therefore a comparison of the pin-slot ladder with Bessel, not of Kepler with FM.
+3. **What survives, and it is the load-bearing half.** FM synthesis and the pin-slot BOTH produce an `ε^k/k`-shaped low-k ladder, and at small modulation index a strict K-test cannot separate them — that is a real, checkable statement about two mechanisms sharing an algebraic form, and it is what `[[user_stance_kepler_shape_universal]]` is entitled to. What does not follow is that either one IS Kepler's series. srmech §3.60 separates all three ladders with committed scripts.
+
 **This is a real structural identity, not an artifact.** Per `[[user_stance_kepler_shape_universal]]` and `[[user_stance_epicycle_via_gear_plus_pin]]`, the K-shape is universal where pin-slot kinematics appears — INCLUDING in FM synthesis (Chowning 1973 musical FM patent). **FM synthesis IS epicycle kinematics in the frequency domain.**
 
 ### §4.2 Anomaly A2: identical eps_fit=0.7098 across multiple substrates
