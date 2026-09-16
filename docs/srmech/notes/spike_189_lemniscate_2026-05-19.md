@@ -65,6 +65,8 @@ Identifying lemniscate parameter `t` with substrate phase `phi` (natural under T
 
 This is IDENTITY-level, not coincidence: both arise from the same quarter-cycle algebra on S¹. The Bernoulli lemniscate's first crossing event IS the framework's first sign-flip.
 
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured. The sentence above is the correct diagnosis, and Cell 2's `H1 ... EXACTLY` verdict does not follow from it.** Both sides are taken at a quarter-cycle of the same `T_sub` — the lemniscate crossing at `t = π/2`, the Spike #152 anchor at `φ = π/2` — so the two are one construction evaluated twice and the relative error is `0.00e+00` **by construction, for any `T_sub` whatever**. That makes Cell 2 an instrument with no reachable *fail* state, and such an instrument does not deliver a hypothesis PASS (`[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`). **The reading is NOT overturned** — identifying the lemniscate crossing with the first sign-flip is a real structural claim, and this note leaves it standing exactly as the paragraph above states it. What changes is the evidentiary weight of the `0.00e+00`: it attests that the quarter-cycle algebra is self-consistent, not that two independent derivations agree. **Cells 3–6 are unaffected** — Cell 4's `1.11×10⁻¹⁶` is a genuine comparison of two different parametrisations (Gerono vs Lissajous 2:1), and Cell 6's Bernoulli-vs-Möbius mismatch is a real discriminator. The same correction was applied to the srmech notebook's §3.11.7 table row, where this verdict is tabulated without the disclosure sentence above travelling with it.
+
 ### Cell 3 — Linear-hiccup observation (lobe-1-frame projection)
 
 | Quantity | Value |

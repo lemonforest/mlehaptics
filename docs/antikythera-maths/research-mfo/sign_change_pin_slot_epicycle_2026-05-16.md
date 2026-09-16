@@ -74,6 +74,8 @@ So the project-precise pin-slot signature is: **leading Fourier coefficient at t
 
 **Sign-change ≡ pin-slot is a clean equivalence at the closed-form algebraic level for the eccentric-anomaly Kepler series, NOT just a leading-order Fourier match.** The full sin-series identity `phi − M = Σ_{k≥1} (ε^k / k) sin(kM)` holds to machine precision (verified above) and IS the algebraic content of Class K. Counter-examples (anharmonic / damped / parametric) confirm the signature is non-trivial.
 
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured. This 2026-05-16 verdict stays as written; the phrase *"holds to machine precision (verified above)"* inherits the §2 self-comparison the note at §2 names.** `Σ (ε^k/k) sin(kM)` is the pin-slot's own series, so "holds to machine precision" is a statement about the transform agreeing with itself, and it cannot distinguish the eccentric-anomaly series from any other. The eccentric-anomaly departure is `E − M = Σ (2/k)·J_k(ke)·sin kM`; against THAT, at `e = 0.3`, the ratios run **0.988792 / 0.970335 / 1.069187 / 1.240165 / 1.481006** for k = 1…5 — walking away from 1, not sitting on it. **What survives is real and is the useful half:** the pin-slot's ladder and Kepler's agree through `e²` (0.03% at k=1, 0.09% at k=2, but **11% at k=3**), so "Kepler-SHAPE" is a defensible family claim and "IS the Kepler series" is not. The counter-example work (anharmonic / damped / parametric) is untouched — it establishes the signature is non-trivial, which is independent of whose series it is. srmech notebook §3.60.
+
 ---
 
 ## §3 Thread 2 — Class K ↔ Class L signed-variant relationship
@@ -118,6 +120,8 @@ This matches the bonus 9 addendum's framing: H4 ("sign-flip-as-equation-side-sha
 ### Thread 2 verdict
 
 **Class K does NOT dissolve into Class L signed-variant. The 14-class vocabulary stays at 14.** Class K's pin-slot algebra is structurally distinct from Class L's signed-variant: different operand types (continuous angle vs vector eigenmode), different algebraic identity (`c_k = ε^k/k` vs spectrum of `D − A_signed`), different substrate kind (Lie-group vs Lie-algebra). They share the *shape* of involving sign-flips but operate at different abstraction levels and produce different content.
+
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured. The Thread 2 verdict STANDS; the label `c_k = ε^k/k` **(Kepler series)** used as one of its three legs — in the §3 comparison table's "Algebraic identity" row, in the "Can pin-slot be expressed AS a signed-Laplacian" paragraph, and in this verdict — names the wrong owner.** `ε^k/k` is the **pin-slot's own** harmonic series (`arg(1 − ε e^{−iθ})`, coefficients `(−1)^(k+1)·ε^k/k`); Kepler's `E − M` is `Σ (2/k)·J_k(ke)·sin kM`. **The verdict does not rest on that leg:** operand type (continuous SO(2) angle vs `|V|`-dim graph eigenmodes) and substrate kind (Lie-group vs Lie-algebra) carry it, and neither depends on whose series the multiplier is. Read every `ε^k/k` in §3 as "the pin-slot's own ladder" and the argument goes through unchanged. srmech notebook §3.60; the same repair landed at srmech §3.8.0a and MFO §VIII.31.
 
 This reinforces `[[feedback_no_privileged_primitive_classes]]` in the *opposite* direction from Class O's dissolution: just as Class O dissolved because it could be expressed as Class L signed-variant, Class K stays separate because it canNOT be so expressed. The dissolution-by-default test ran in both directions; one passed and one didn't.
 
@@ -182,6 +186,8 @@ The strong reading is correct *and* needs a scope statement. The trivial-Fourier
 1. **Class K = pin-slot = eccentric-anomaly Kepler series identity** is verified at machine precision (§2). The atan2 bronze form, the closed-form sin-series, and the modern lunar amplitude all converge to the same number to ≤4% across three independent paths.
 2. **The 14-class vocabulary stays at 14.** Class K does not dissolve into Class L signed-variant; Thread 2's structural-irreducibility test passes.
 3. **The user's "everything must model epicycle" is scope-bounded but decisively universal within scope.** Conservative cyclic systems with leading-deficit-at-fundamental admit Class K decomposition; anharmonic / damped / parametric / discrete-combinatorial systems instantiate different primitives.
+
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured. Item 1 of "What stands" does not stand as worded, and two sibling lines inherit it.** *"Class K = pin-slot = eccentric-anomaly Kepler series identity is verified at machine precision (§2)"* — §2 verified the pin-slot against `ε^k/k`, which IS the pin-slot's own series, so what was verified is self-agreement. The same inheritance runs through **§6's third Falsifier** (*"§2 above verified 7+ harmonics at ratio 1.0000"* — a falsifier resting on a check that cannot fail is not a falsifier) and through **§4's Reading B** (*"c_k ∝ ε^k/k … the signature is the Kepler series specifically"* — it is the pin-slot's ladder specifically). **Items 2 and 3 are untouched**, as is the ≤4% three-path convergence on the leading coefficient in item 1's second sentence, which is a real agreement between bronze geometry, the closed form and Brown's lunar amplitude. Restated, item 1 reads: *Class K = pin-slot, and the pin-slot's ladder agrees with Kepler's `E − M` through `e²`.* srmech notebook §3.60.
 
 ### What falls
 
@@ -250,6 +256,8 @@ The contrapositive falsifier (chess as Class K-absent substrate) holds — Spike
 
 ### Draft paragraph (for srmech §3.8 — candidate insertion before §3.8.1, after §3.8 intro)
 
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`). The fenced draft below SHIPPED, and it carried this artifact's §2 defect with it — this is the propagation vector, recorded here rather than edited inside the fence.** The draft's kinematic-level bullet (*"Fourier coefficients satisfy `c_k = ε^k/k` to machine precision … This IS the eccentric-anomaly Kepler series"*) was landed as srmech notebook **§3.8.0a**, which MFO §VIII.31 then named as *"the srmech canonical entry"* for Class K. Both the citing paragraph (MFO, 2026-09-16, round 1) and the cited entry (srmech §3.8.0a, 2026-09-16, this round) now carry corrections; the fence below is left verbatim because it is the dated record of what was proposed. Read it as history, not as current guidance — srmech §3.60 is the live statement.
+
 ```markdown
 ### §3.8.0a Sign-change ≡ pin-slot ≡ Class K (Spike #29, 2026-05-16)
 
@@ -310,7 +318,7 @@ Cross-references:
 
 The user's claim chain — sign change ≡ pin-slot ≡ Class K, with epicycle universality as Kepler-shape corollary — verifies cleanly under MPM discipline:
 
-- **Thread 1 (sign-change ≡ pin-slot):** clean equivalence at the closed-form algebraic level; machine-precision identity `c_k = ε^k/k` across 7+ harmonics for the eccentric-anomaly Kepler series. The two-vs-four sign-flips disambiguation is the substantive sharpening.
+- **Thread 1 (sign-change ≡ pin-slot):** clean equivalence at the closed-form algebraic level; machine-precision identity `c_k = ε^k/k` across 7+ harmonics for the eccentric-anomaly Kepler series. The two-vs-four sign-flips disambiguation is the substantive sharpening. *(⚠️ **Corrected 2026-09-16, `#T1188`** — the "machine-precision identity" is the §2 self-comparison; see the notes at §2, §2 Thread 1 verdict and §6. The **two-vs-four sign-flip disambiguation named as the substantive sharpening is untouched and remains this artifact's durable finding** — it does not involve the coefficient claim at all. srmech notebook §3.60.)*
 - **Thread 2 (Class K vs Class L signed-variant):** structurally distinct; Class K stays separate; vocabulary stays at 14. Same dissolution discipline that dropped Class O passed (dissolved) and Class K failed (stays separate); both verdicts strengthen `[[feedback_no_privileged_primitive_classes]]`.
 - **Thread 3 (epicycle universality):** scope-bounded but decisively universal within scope. Reading-B (Kepler-shape-non-trivial) is load-bearing; Reading-A (trivial-Fourier) is the wrong reading the user's compression already encodes against ("moves the same way" qualifier).
 - **Thread 4 (project payoff):** four candidate loci identified; recommendation (B) srmech §3.8 as primary landing with (A) antikythera light cross-reference.

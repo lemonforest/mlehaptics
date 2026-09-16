@@ -29,6 +29,8 @@ At ε_AoE = 0.0506:
 
 The kinematic Brouwer-Clemence ladder is **exact to machine precision**. Closed-form algebra: `dφ/dM = (1 − ε cos M) / (1 − 2ε cos M + ε²)`, whose cosine Fourier series IS `Σ_k ε^k cos(kM)` via the textbook identity `Σ_k x^k cos(kM) = (1 − x cos M) / (1 − 2x cos M + x²)`. **Geometric necessity, not numerical accident.**
 
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured. This 2026-05-16 record stays as written. The exact half of Q1.A STANDS; the NAME on it does not, and "rel.err = 0" is the tell.** What is exact is the Poisson-kernel identity the paragraph itself states: `dφ/dM` really does have the cosine series `Σ_k ε^k cos(kM)`, and checking the measured coefficients against `ε^k` is checking that identity **against itself** — which is why all three rows read `rel.err = 0` and `r² = 1.0000 exactly`, and why they could not have read anything else. That is a verification of the algebra, not a measurement of a ladder's identity, so **Q1's verdict line — *"produces Brouwer-Clemence c_k = ε^k ladder"* — attributes the ladder to the wrong source.** The `ε^k` ladder is the Poisson kernel's, i.e. the off-centre projection's own; Brouwer & Clemence's equation-of-centre form is `2e`, `(5/4)e²`, `(13/12)e³`. **Q1.B directly below is the contrast that proves the point and is NOT affected** — it matches against `2ε`, `(5/4)ε²`, `(13/12)ε³`, names them correctly, and honestly reports ~0.3%, which is a FIT and is labelled as one. §8's *"the canonical signature of the Fourier expansion `1/(1 − 2x cos M + x²)`"* and §10's finding 1 carry the same misattribution. srmech notebook §3.60 separates the three ladders.
+
 ### Q1.B — Equation of Centre φ−M: Brouwer-Clemence canonical
 
 - |c_1(φ−M)| = 0.1012 (theory 2ε = 0.1012, rel.err = 3.2e-4)
@@ -135,7 +137,7 @@ The c_k = ε^k ladder of Q1 is the canonical signature of the Fourier expansion 
 
 ## §10 Load-bearing findings
 
-1. **Brouwer-Clemence c_k = ε^k ladder at ε_AoE = 0.0506 is EXACT closed-form geometric necessity in the kinematic direction** (dφ/dM Poisson-kernel identity)
+1. **Brouwer-Clemence c_k = ε^k ladder at ε_AoE = 0.0506 is EXACT closed-form geometric necessity in the kinematic direction** (dφ/dM Poisson-kernel identity) *(⚠️ **Corrected 2026-09-16, `#T1188`** — the exactness is real and is the Poisson-kernel identity checked against itself; the `ε^k` ladder is the projection's own, not Brouwer & Clemence's equation-of-centre form. Read this finding as "the kinematic direction carries an exact `ε^k` Poisson ladder". See the note at Q1.A and srmech notebook §3.60.)*
 2. **Apse-direction sign-flip produces measurable left/right asymmetry at time-phase level: q1 − q2 → 2ε at small ε** (confirmed to 0.01%)
 3. **Gateway-graph Fiedler-partition machinery (Class L, ephemerides-spectral solar-system ITN) applies structurally at cosmic-web scale**
 4. **The three threads INTEGRATE**: |corr(|f_2|, |c_1|)| = 0.895 in synthetic test
