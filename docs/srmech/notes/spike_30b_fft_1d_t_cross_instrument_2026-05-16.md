@@ -17,6 +17,8 @@ Spike #30B is the **empirical sister-test**. If H_c stands at the algebraic leve
 - **Axis 2 — K-signature ONLY in Kepler-substrates**: mechanical / orbital / torsional substrates carry the equation-of-centre `c_k = ε^k/k` Fourier signature
 - **Axis 3 — K-silence in non-Kepler substrates**: chess piece-graph, QM operations, HDC bind/bundle, SHA-256 hash spectra — none carry the Kepler-shape signature
 
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured. This 2026-05-16 record stays as written; Axis 2 names `c_k = ε^k/k` "the equation-of-centre Fourier signature", and that is the pin-slot's own ladder rather than the equation of centre.** The equation of centre is `ν − M = 2e·sin M + (5/4)e²·sin 2M + (13/12)e³·sin 3M`; the eccentric-anomaly departure is `E − M = Σ (2/k)·J_k(ke)·sin kM`. **Axis 2's empirical content survives intact** because the test it actually runs is a geometric-decay FIT (`|c_k| ~ A·ε^k` at r² > 0.99, monotonic, ε in physical range) — a family-shape test, which is exactly the right instrument for "K-signature present" and is not an identity claim. So the three-axis verdict, the 41/49 ephemerides pass and the 9-substrate K-silence result all stand; only the ladder's name changes. srmech notebook §3.60.
+
 This is **more falsifiable than the original Spike #30B framing** ("does gear+pin signature appear universally"): it predicts WHERE K appears and where it doesn't.
 
 ## §2 Methodology
@@ -111,6 +113,8 @@ Three anomalies surfaced and resolved during the spike:
 2. **Sierpinski d_S reference value initially mis-stated** — code initially compared empirical d_S = 1.38 against Hausdorff dimension 1.585. Investigation confirmed canonical spectral dimension per Rammal & Toulouse 1983 is `d_S = 2 log(3)/log(5) = 1.365`; empirical instrument was actually right (1.2% agreement). Resolved.
 
 3. **Pin-slot ε_fit (0.038) below actual ε (0.054)** — investigation confirmed `c_k = ε^k/k` (Cauchy form); log-linear fit on `log|c_k|` is biased by the `-log(k)` term. Fitting `log|c_k · k|` gives better ε recovery. Expected artifact of Cauchy expansion; **does not falsify K-signature presence**.
+
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured. Anomaly 3's diagnosis is CORRECT and its "confirmed" is circular.** The `-log(k)` bias is real and the `log|c_k · k|` remedy is right — that half is a genuine finding about log-linear fitting. But *"investigation confirmed `c_k = ε^k/k`"* confirmed the pin-slot against its own series (see the note at §3.1), so it could not have disconfirmed it. **The open extension E5** — *"Joint-fit ε + 1/k correction across the 41 ephemerides bodies to confirm Cauchy form `c_k = ε^k/k` uniformly"* — inherits the same shape and would need restating before it is run: the 41 bodies are real orbital objects whose departure is `(2/k)·J_k(ke)`, not `ε^k/k`, so a joint fit against `ε^k/k` would measure how well a wrong ladder fits rather than confirming a form. srmech notebook §3.60.
 
 ## §8 Open extensions (out of scope for this spike)
 

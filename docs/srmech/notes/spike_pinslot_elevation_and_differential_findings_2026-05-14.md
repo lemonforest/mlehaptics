@@ -219,6 +219,10 @@ Single pin-slot sin coefficients (ε = 0.054):
 
 Pattern: `c_k ≈ ε^k / k` (Kepler-equation series form).
 
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured, and it applies to every *"Kepler-equation form"* label in this document.** `c_k = (−1)^(k+1)·ε^k/k` is the **pin-slot's own** harmonic series (`arg(1 − ε e^{−iθ})`), not Kepler's. Kepler's eccentric-anomaly departure is `E − M = Σ (2/k)·J_k(ke)·sin kM` (Bessel); the equation of centre is `ν − M = 2e·sin M + (5/4)e²·sin 2M + (13/12)e³·sin 3M`. At `e = 0.3` the pin-slot reads **+0.3 / −0.045 / +0.009 / −0.002025** against Kepler's **0.296638 / 0.043665 / 0.009623 / 0.002511** — the second harmonic differs in SIGN. The label recurs at **F1** (*"exact to machine precision through k=5"* — a self-comparison, since both sides are the same closed form), at the **Q-Jacobi-Anger verdict** (*"the equation-of-centre's natural ε²/k series"*), in the **Batch-summary bullet** (*"dominated by the single equation-of-centre `ε^k/k` series"*), and in the **C1** and **C2** closed-form blocks.
+>
+> **This document already contains its own correction, which is why the note qualifies rather than overturns.** The F2 deep-dive states the distinction correctly and at length — *"these are GEOMETRICALLY DIFFERENT operations"* — and the C3 comparison table derives the `8/5` second-order over-prediction and the `~3.2` third-order figure from exactly the right pair of series. So the numerics throughout are sound and the structural reading is sound; what is inconsistent is the naming, in one direction only. srmech notebook §3.60 separates the three ladders; §3.60.4 carries the one exact identity, `ν = E + 2·pin_slot(π − E, β, 1)`, `β = e/(1+√(1−e²))`, residual ≤ 2e-15 rad.
+
 Two-stage cascade (k_1=2, ε_1=0.054, k_2=3, ε_2=0.054) top 10 harmonics by magnitude:
 | k | residual |2a_k| (rad) |
 |---:|---:|
@@ -262,7 +266,7 @@ The correct expansion is:
 ```
 f_ε(θ) ≈ θ + ε sin θ + (ε²/2) sin 2θ + O(ε³)
 ```
-Verified by direct atan2 computation: at ε=0.054, leading sin coefficient is **0.054 rad** (= 11138 arcsec), not 0.108 rad. Numerically: `c_k ≈ ε^k / k` (Kepler-equation form), exact to machine precision through k=5.
+Verified by direct atan2 computation: at ε=0.054, leading sin coefficient is **0.054 rad** (= 11138 arcsec), not 0.108 rad. Numerically: `c_k ≈ ε^k / k` (Kepler-equation form), exact to machine precision through k=5. *(⚠️ **Corrected 2026-09-16, `#T1188`** — the F1 spec-typo finding STANDS: the leading coefficient really is `ε` and not `2ε`, and that is what this section exists to establish. But *"exact to machine precision through k=5"* compares the atan2 output against `ε^k/k`, which is that same transform's own series, so it is a self-comparison and not a Kepler result. See the note at the Q-Jacobi-Anger table above.)*
 
 Recommendation: post a correction to the spec body OR leave the spec untouched and let the findings carry the corrected expansion. Per the user's "no spec-body modifications" instruction, leave the spec; this findings doc carries the correction. Downstream uses of the spec (Q2c cascade reduces to ε_eff = ε_1 + ε_2 etc.) should be re-derived; the structural conclusion likely survives but the constants do not.
 
@@ -713,7 +717,7 @@ Freeth 2021 Supplementary Discussion S4 / Supplementary Table S9 are referenced 
 ```
 
 - Leading coefficient c_1 = ε rad = ε × 206265 arcsec
-- Harmonic c_m = ε^m / m (Kepler-series form; F1-verified to machine precision through m=5)
+- Harmonic c_m = ε^m / m (Kepler-series form; F1-verified to machine precision through m=5) *(⚠️ **"Kepler-series form" corrected 2026-09-16, `#T1188`** — this is the pin-slot's own ladder; see the note at the Q-Jacobi-Anger table. The closed form and every amplitude in this block are unaffected, and the bullet below correctly distinguishes focus-frame `ν(M)` at `c_1 = 2e`.)*
 - Pure frequency comb at integer multiples of k·ω; no content at non-multiples; no cross-terms
 - Distinct from focus-frame Keplerian ν(M) which has c_1 = 2e (the 2e ⇔ ε identity is the leading-order Greek-convention doubling — see C3)
 
@@ -763,7 +767,7 @@ Per-harmonic amplitude rule: c_m / c_1 = ε^(m-1) / m. At ε=0.1146 this means t
 - c_m / c_1 = ε^(m-1) / m — depends only on ε, not on k
 - The chain ratio k is a pure frequency rescaling
 
-This is structurally distinct from the modern focus-frame epicyclic theory: modern ν(M) at small e has c_m = (2e)^m × a_m where a_1 = 1, a_2 = 5/8, a_3 = 13/24, ... (per Brouwer-Clemence 1961). Pin-slot E(M) has the simpler c_m = ε^m / m.
+This is structurally distinct from the modern focus-frame epicyclic theory: modern ν(M) at small e has c_m = (2e)^m × a_m where a_1 = 1, a_2 = 5/8, a_3 = 13/24, ... (per Brouwer-Clemence 1961). Pin-slot E(M) has the simpler c_m = ε^m / m. *(⚠️ **Sharpened 2026-09-16, `#T1188`** — the distinction drawn here is correct and is the right one to draw; the only repair is the label "Pin-slot E(M)". The pin-slot's `ε^m/m` is its OWN ladder, and true `E − M` is `Σ (2/k)·J_k(ke)·sin kM`, so the pin-slot is distinct from BOTH published series — it agrees with `E − M` through `e²` and departs at `e³`. srmech notebook §3.60.)*
 
 **Verdict. LANDED.** Bronze: lunar Fourier signature fully characterized; lunar ratio match validates the entire decoded gear-train family. General algebra: closed-form spectrum complete.
 
@@ -795,6 +799,8 @@ Lunar single-point: bronze ε is 4.4% above the prediction. Whether the doubling
 | c_1 (sin M) | ε | 2e | **1.0** (exact) |
 | c_2 (sin 2M) | ε²/2 = 2e² | (5/4)e² | **8/5 = 1.6** (over) |
 | c_3 (sin 3M) | ε³/3 = (8/3)e³ | (13/12)e³ − (1/4)e³ | **~3.2** (worse over) |
+
+*(⚠️ **Row 3's middle cell flagged UNCERTAIN 2026-09-16, `#T1188` — not corrected, because the convention is not recoverable from the table.** The standard equation-of-centre third coefficient is `(13/12)e³` as a total, so `(13/12)e³ − (1/4)e³` either double-counts or is carrying a convention this table does not state — plausibly a `ν − M` third-order term split against a different expansion variable. The printed **~3.2** ratio is consistent with the subtracted value, so the two were computed together and one of them would have to move. The C3 verdict does not turn on it: the load-bearing results here are the exact `1.0` at `c_1` and the convention-independent `8/5` at `c_2`, both unaffected. Recorded rather than rewritten, per "when unsure, leave it and say so".)*
 
 Numerical verification at three eccentricities (small, moon e=0.055, mercury e=0.206):
 

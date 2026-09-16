@@ -235,6 +235,8 @@ Per body, predicted residual signature assuming **Class K (equation-of-centre / 
 - Higher harmonics: c_k = ε^k / k at frequency k · (1/P_days) cycles/day
 - *Upper bound* — no real-coupling subtraction yet (deferred to 3c)
 
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured. This 2026-05-15 record stays as written; the higher-harmonic rule is the wrong ladder for the objects it is applied to, and — load-bearing — the result this Phase actually reports does not depend on it.** These are REAL orbital bodies, whose departure from mean motion is Kepler's, not a pin-slot's: `E − M = Σ (2/k)·J_k(ke)·sin kM`, or `ν − M = 2e·sin M + (5/4)e²·sin 2M + (13/12)e³·sin 3M` in the focus frame. `c_k = ε^k/k` is the pin-slot's own ladder and does not describe them past the first harmonic — at Mercury's `e = 0.2056` the k=2 terms differ by more than a factor of two, and at `e = 0.3` the two ladders differ in the SIGN of the second harmonic. **What is NOT affected, and it is the whole of Phase 3's evidentiary weight:** the two lines above it — `ε = 2·e` and `c₁ = ε` — are the genuine equation-of-centre leading coefficient, correctly stated; and Phase 3b's **9/9 match within ≤0.07°** is a **c₁-only** result, measured at each body's anomalistic frequency. The higher-harmonic rule was never exercised against DE441 here, so no reported number moves. srmech notebook §3.60.
+
 **Top 5 expected signals (largest predicted c₁):**
 
 | Body | c₁ amplitude (deg) | Frequency basis |

@@ -75,6 +75,8 @@ def equation_of_centre(
     ...
 ```
 
+> ⚠️ **NOTE APPENDED 2026-09-16 (`#T1188`), measured. This 2026-05-15 handoff stays as written; the proposed signature above would ship the wrong series under the right name, and it is a PROPOSED API rather than prose, which raises the stakes.** The docstring says *"Kepler equation-of-centre series at small e"* and then defines `convention="greek"` as `Δλ = Σ_k (ε^k / k) sin(k·M)` — but `ε^k/k` is the **pin-slot's own** harmonic ladder, not the equation of centre. The equation of centre is `ν − M = 2e·sin M + (5/4)e²·sin 2M + (13/12)e³·sin 3M`; the eccentric-anomaly departure is `E − M = Σ (2/k)·J_k(ke)·sin kM`. A function named `equation_of_centre` returning the first of these past `k = 1` would be wrong for the ephemerides bodies it is proposed for — the `"greek"` branch is right at leading order (`c₁ = 2e`) and wrong at every order after. **If this recommendation is picked up, the `"greek"` branch needs either renaming to name the pin-slot ladder it computes, or replacing with the Bessel form.** Recorded here rather than silently repaired because the surrounding recommendations are unaffected and the record is dated. srmech notebook §3.60; the shipped Class K surface is `srmech.math.kepler.*`, which this note does not audit.
+
 Mirror in C if the existing native library wants Class K acceleration (small cost; sin / multiply only).
 
 ### Recommendation 3 — Wire Class K into the bridge
