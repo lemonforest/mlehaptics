@@ -53,8 +53,72 @@ The two newest v0.6.0 C files:
 
 ### ABI
 
-C ABI version is **26** (`SRMECH_ABI_VERSION 26` in
-`c/include/srmech.h`). **The v26 bump is rc473's (`#T1188`), and it is the SECOND bump on this
+C ABI version is **27** (`SRMECH_ABI_VERSION 27` in
+`c/include/srmech.h`). **The v27 bump is rc475's (`#T1188`): the Zassenhaus core's bignum pool
+WIDTH, plus a deterministic equal-degree split.** One bump over three changes to
+`srmech_factor_squarefree_primitive` and `srmech_factor_integer_poly`. The exported symbol set is
+IDENTICAL either side — 815 names, none added, none removed, every new function `static` — so
+neither the additive rule nor the removal rule reaches it. It bumps on the two grounds that remain,
+and on each independently: **served values move** (v21 / v26's ground) and **an existing function
+returns a larger envelope** (v10 / v12 / v23 / v24 / v25's).
+
+**(1) The width.** `bp_buf` spaced the 30 bignum poly buffers `cw = deg+1` apart, while a quadratic
+Hensel step forms products of length `n + max(a,b) - 1` (`s·e`, `t·e`, `q·g`, `s·B`, `t·B`, `c·g*`)
+— longer than `deg+1` whenever a non-last mod-p split has `max(a,b) ≥ 3` — and none of `bp_mulmod`
+/ `bp_addmod` / `bp_submod` / `bp_divmod_monic` checked its output against a width. So the product
+ran into the NEXT pool buffer, which holds live Hensel state (the quotient, then `H`'s lead
+coefficient); `bp_divmod_monic` was then handed a divisor that was no longer monic, its quotient
+digit was `rem[r-1]` with no division by the lead, the top coefficient never cancelled and `r` never
+decreased. **The hang was the symptom; the defect was the overrun.** Measured over 84 polynomials at
+rc474, 8 s per call in a subprocess, against the pure oracle: **34 did not return, 6 returned a
+WRONG VALUE, 3 DECLINED silently, 41 agreed** — and 84/84 agree after the fix. The wrong-value class
+is what makes this a served-value bump rather than a bug-fix note: on
+`[14,50,61,-149,-259,47,209,106,-76,-4,1]` rc474 answered `(x-1)` times ONE degree-9 factor, whose
+product still equals the input, so the composite's own self-check passed while a reducible factor
+was served as irreducible.
+
+**(2) The status.** The new guards return `SRMECH_ERR_INTERNAL`, not `SRMECH_ERR_OVERFLOW`, and both
+Python wrappers **raise** on it. `OVERFLOW` is documented as "the caller's arena is too small — grow
+it and retry", and the wrappers mapped every non-OK status to `None`, i.e. to a silent pure
+fallback. That is how the 3 declined rows above went unseen. `fw` is derived from `deg`, so a width
+violation cannot be relieved by a larger arena; it is an internal invariant break and now says so.
+
+**(3) The split.** `fp_equal_degree` no longer draws random polynomials and retries. It computes the
+Berlekamp subalgebra `{v : v^p ≡ v mod g}` as `nullspace((Q − I)ᵀ)` with `Q[i] = x^(i·p) mod g`, and
+separates each block by `gcd(v − s, part)` over every basis vector and every shift `s ∈ 𝔽_p`. By CRT
+that subalgebra has dimension exactly `k = n/d`, and *any* basis of it separates every pair (if all
+basis vectors agreed on a pair, linearity would make the whole subalgebra agree, contradicting CRT),
+so the split terminates in a **proven static** number of steps where the Cantor–Zassenhaus retry it
+replaces had only an EXPECTED one. The tight form of that bound is **`(k−1)·p` passes and
+`p·(k−1)·⌊k/2⌋` gcds** — the constant `1` is always the first RREF basis vector, separates nothing,
+and is skipped, and only parts of degree `> d` are gcd'd, each holding ≥ 2 irreducibles. (`k·p` /
+`k·p·k` is also true and is what the source docstrings quote; it is not the worst case, and the
+difference matters for a gate: the measured maximum is **0.9545** of the tight bound over 17,238
+blocks against 0.26 of `k·p·k`, so asserting the loose form leaves a 4× slack a regression could
+hide under.) Censused exhaustively over `p ∈ {3,5,7,11,13} × d ∈ {1,2,3}`, `k ≤ 6`: **0 dimension
+failures, 0 incomplete returns, 0 over either bound, and the constant was the first basis vector on
+17,238 of 17,238 blocks**. `p = 2` is unreachable — both prime searches start at 3. `FAC_RNG_SEED`,
+`fac_rng_next`, `fp_polypow_big`, `fp_ed_exp` and `fp_equal` are gone. The mod-p factor list now
+comes back in canonical `(len, coeffs)` order (`fp_mp_sort`, matching the pure peer's `sorted()`),
+which is load-bearing: everything downstream — which subsets the recombination enumerates, hence the
+ℤ peel order and `hit_cap` — is a function of that order. **The CORE's peel order therefore MOVES**:
+on an independent 48-row set the composite is identical 48/48 *with* order, while
+`srmech_factor_squarefree_primitive`'s list is reordered on 14 of 46 served rows and is an identical
+multiset on 46/46. That is forced — any deterministic replacement gives a different mod-p order.
+
+**(4) The envelope.** `srmech_factor_squarefree_primitive_ws_bound` counts `FAC_BP_N * fw` rather
+than `FAC_BP_N * cw` and carves `bk_m` + `bk_piv`: 215,176 → 286,996 at `coeff_limbs` 1 / deg 6, and
+48,008,632 → 48,827,716 at `coeff_limbs` 4 / deg 48. `srmech_factor_integer_poly_ws_bound` follows,
+because it sums the core's. An existing function returning a larger envelope would have bumped on
+its own.
+
+The pairing this refuses is an **rc474 `.so` under rc475 Python**: it loads with `HAS_NATIVE True`
+and then hangs or serves a reducible factor as irreducible, because Python asks the library for
+`ws_bound` on every call and the stale library's answer is self-consistent.
+`NATIVE_ABI_VERSION != EXPECTED_ABI_VERSION` is the only thing that stops it.
+`SRMECH_GENOME_FORMAT_VERSION` stays 20 — no on-disk format moves.
+
+**The v26 bump before it is rc473's (`#T1188`), and it is the SECOND bump on this
 library driven by a SILENT WRONG VALUE rather than by a raise** — v21's ground, applied to the
 Class-N scalar surface instead of to a chain wire. It adds no symbol, removes none and changes no
 signature; what moves is *which inputs the C projection serves*, and that is the class v21's second

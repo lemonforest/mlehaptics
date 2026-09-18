@@ -267,7 +267,37 @@ from typing import Optional
 #        figure into a v24 library: over-provisioned, correct. New (smaller)
 #        figure into a v23 library: the old tail-slice guard answers a correct
 #        SRMECH_ERR_OVERFLOW. Neither computes and lies.
-EXPECTED_ABI_VERSION: int = 26
+#
+# v27 (rc475, `#T1188`) — THE ZASSENHAUS CORE'S POOL WIDTH + A DETERMINISTIC
+#        EQUAL-DEGREE SPLIT. No symbol added, none removed, no signature
+#        changed: 815 exported names either side. It bumps on the two grounds
+#        that remain, and on BOTH independently.
+#
+#        SERVED VALUES MOVE (v21 / v26's ground). ``bp_buf`` spaced the 30
+#        bignum poly buffers ``deg+1`` apart while a quadratic Hensel step
+#        forms products of length ``n + max(a,b) - 1``, and no bp_* kernel
+#        checked its output width — so the product overran into the NEXT pool
+#        buffer, which is live Hensel state. Measured over 84 polynomials at
+#        rc474: 34 DID NOT RETURN, 6 returned a WRONG VALUE, 3 DECLINED, 41
+#        agreed with pure; 84/84 agree after the fix. The wrong-value rows are
+#        the reason this is a bump and not a footnote — one of them served a
+#        REDUCIBLE degree-9 factor as irreducible, and because the product
+#        still equalled the input the composite's own self-check passed.
+#
+#        A LARGER ENVELOPE (v10 / v12 / v23 / v24 / v25's ground).
+#        ``srmech_factor_squarefree_primitive_ws_bound`` grows twice — the pool
+#        is now ``FAC_BP_N * fw`` and the Berlekamp matrix adds ``bk_m`` +
+#        ``bk_piv``: 215,176 -> 286,996 at coeff_limbs 1 / deg 6, and
+#        48,008,632 -> 48,827,716 at coeff_limbs 4 / deg 48.
+#        ``srmech_factor_integer_poly_ws_bound`` follows, because it sums the
+#        core's.
+#
+#        THE PAIRING THIS PIN REJECTS is the load-bearing one: an rc474 ``.so``
+#        under rc475 Python loads with ``HAS_NATIVE True`` and then hangs or
+#        serves a reducible factor as irreducible. Python asks the library for
+#        ``ws_bound`` on every call, so the stale library's answer is
+#        self-consistent and nothing else notices. This pin is the only refusal.
+EXPECTED_ABI_VERSION: int = 27
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -9701,7 +9731,21 @@ def factor_squarefree_primitive_c(coeffs):
     ``_factor_square_free_primitive`` (the factorization is unique; the caller
     ``factor_integer_poly`` sorts the merged factors identically on both paths).
     Returns ``None`` on a no-C / pre-rc165 lib, a degree above the native cap, an
-    arena OVERFLOW, or a degenerate input (the caller's pure oracle handles it)."""
+    arena OVERFLOW, or a degenerate input (the caller's pure oracle handles it).
+
+    ⚠️ rc475 (`#T1188`): "in the C peel order" names an order that MOVED. The
+    equal-degree split is deterministic Berlekamp now, the mod-p factor list
+    comes back in canonical ``(len, coeffs)`` order, and this function's factor
+    list is reordered on 14 of 46 measured rows — an identical MULTISET on
+    46/46, and the composite above is identical 48/48 with order. Nothing
+    downstream of ``factor_integer_poly`` sees it, because that caller sorts.
+
+    ⚠️ ``SRMECH_ERR_INTERNAL`` is the ONE status that does not decline — it
+    RAISES. Every other non-OK status keeps its documented meaning, and
+    ``OVERFLOW`` in particular means "grow the arena and retry", which the pure
+    oracle answers correctly. An INTERNAL means a width guard or a completeness
+    return inside the core fired, i.e. an invariant broke, and answering that
+    from pure is how the rc474 corruption stayed invisible on 3 of 84 rows."""
     if not has_native_factor_squarefree_primitive():
         return None
     ints = [int(c) for c in coeffs]
@@ -9728,6 +9772,13 @@ def factor_squarefree_primitive_c(coeffs):
         ctypes.byref(out_hit),
         ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
     _ = (ka, kb)
+    if rc == SRMECH_ERR_INTERNAL:
+        raise RuntimeError(
+            "srmech_factor_squarefree_primitive: invariant violation "
+            "(SRMECH_ERR_INTERNAL) on a degree-%d input — a bp_* width guard "
+            "or an fp_equal_degree completeness return fired. This is NOT an "
+            "arena-size decline and must not be answered from the pure oracle "
+            "(rc475, `#T1188`)." % deg)
     if rc != SRMECH_OK:
         return None
     nfac = int(out_nfac.value)
@@ -9772,7 +9823,12 @@ def factor_integer_poly_c(coeffs):
     ``[(factor_tuple, multiplicity)]`` list in the sorted order — byte-identical
     to the pure ``factor_integer_poly`` body. Returns ``None`` on a no-C /
     composite-less lib, a degree above the native cap, an arena OVERFLOW, or the
-    internal self-check mismatch (the caller's pure oracle handles it)."""
+    internal self-check mismatch (the caller's pure oracle handles it).
+
+    ⚠️ rc475 (`#T1188`): ``SRMECH_ERR_INTERNAL`` RAISES rather than declining —
+    see :func:`factor_squarefree_primitive_c` for why. The composite propagates
+    every non-OK status from the core verbatim, so an invariant break inside the
+    core reaches here too."""
     if not has_native_factor_integer_poly():
         return None
     ints = [int(c) for c in coeffs]
@@ -9800,6 +9856,13 @@ def factor_integer_poly_c(coeffs):
         ctypes.byref(out_nfac), ctypes.byref(out_capped),
         ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
     _ = (ka, kb)
+    if rc == SRMECH_ERR_INTERNAL:
+        raise RuntimeError(
+            "srmech_factor_integer_poly: invariant violation "
+            "(SRMECH_ERR_INTERNAL) on a degree-%d input — the core it calls "
+            "propagated a bp_* width guard or an fp_equal_degree completeness "
+            "return. This is NOT an arena-size decline and must not be "
+            "answered from the pure oracle (rc475, `#T1188`)." % deg)
     if rc != SRMECH_OK:
         return None
     nfac = int(out_nfac.value)

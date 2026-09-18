@@ -685,7 +685,7 @@ def test_native_status():
 
     # expected_abi is the compiled-against ABI (rc275: 6 — the §101 encode-progress /
     # graceful-abort callback typedef bumped it 5 → 6, #886; rc242 had bumped 4 → 5, #840).
-    # ⚠️ ABI-PIN: EXPECTED_ABI_VERSION == 26   (grep target — this is the
+    # ⚠️ ABI-PIN: EXPECTED_ABI_VERSION == 27   (grep target — this is the
     # SUBSCRIPT form, and test_bus.py's own note names it as the site the
     # rc452 `(NATIVE|EXPECTED)_ABI_VERSION == 22` sweep could not see. It was
     # invisible to rc455's sweep for the same reason and moved by hand.
@@ -695,7 +695,13 @@ def test_native_status():
     # statuses propagated and the scalar callees brought up to their own
     # published domain, which is a status reinterpretation on the bare-C
     # surface and therefore a wire change.
-    assert status["expected_abi"] == 26
+    # rc475 (`#T1188`): 26 -> 27, the Zassenhaus core's bignum pool WIDTH (a
+    # buffer overrun into live Hensel state: 34 non-returns, 6 wrong values
+    # and 3 silent declines out of 84 rows at rc474) plus the deterministic
+    # Berlekamp equal-degree split, which moves the CORE's peel order, plus
+    # a twice-grown factor_squarefree_primitive_ws_bound. Served values move
+    # and an existing function returns a larger envelope — two grounds.
+    assert status["expected_abi"] == 27
 
     # Agrees with describe()['native'] on the shared fields (single source
     # of truth: both read srmech._native).
