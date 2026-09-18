@@ -2585,7 +2585,11 @@ _EXPLOG_EXP_TERMS = 18                            # |r|<=ln2/2: r^19/19! < 2^-62
 _EXPLOG_LOG_TERMS = 13                            # |t|<=√2-edge: t^27/27 < 2^-62
 _EXPLOG_OVERFLOW = 709.782712893384              # ln(DBL_MAX)
 _EXPLOG_UNDERFLOW = -745.2                        # ln(smallest subnormal)
-_SQRT_C_K = 27                                    # root precision bits (C peer)
+# (rc476, `#T1188`: ``_SQRT_C_K = 27`` stood here — the float route's root
+# width, and the defect. Its two readers went with the route; measured ZERO
+# other readers tree-wide, so the constant went too rather than sitting here
+# describing a deleted algorithm, the ``_SQRT_PRECISION_BITS`` precedent.
+# Its successor is :data:`_SQRT_CORE_BITS` = 108, beside ``_sqrt_core``.)
 
 
 def _q_exp_core(r: int) -> int:
@@ -2814,9 +2818,63 @@ def complex_exp(z: complex, *, precision: int | None = None) -> complex:
 
 #: Default fractional bits for the √ of an EXACT rational (Q input / hypot's
 #: exact sum-of-squares): 54 — double the float64 mantissa, so the rational
-#: root carries more than the float floor. The float-input path keeps K=27
-#: (the native C-parity baseline) for the IEEE-bit decomposition.
+#: root carries more than the float floor.
+#:
+#: ⚠️ **This comment said "The float-input path keeps K=27 (the native
+#: C-parity baseline) for the IEEE-bit decomposition" until 0.9.0rc476
+#: (`#T1188`), and K=27 is GONE.** It was the recipe that produced a 28-bit
+#: root for a subnormal radicand. The float route now runs :func:`_sqrt_core`,
+#: which NORMALISES the radicand to at least ``2**106`` before rooting, so the
+#: root carries 54 or 55 bits at EVERY magnitude and the returned rational's
+#: ``float()`` is the correctly rounded double. The exact route keeps this
+#: RELATIVE 54 and gains only the sticky bit, which is what keeps an exact
+#: operand strictly wider than a float one.
 _SQRT_Q_K: int = 54
+
+
+#: 0.9.0rc476 (`#T1188`) — the window the STICKY, MAGNITUDE-NORMALISED core
+#: roots in. ``s = 108 - (bit_length(num) - bit_length(den))`` lands the scaled
+#: radicand in ``[2**106, 2**109)`` at every magnitude, so the floor root always
+#: carries **54 or 55** bits and the sticky root 55 or 56. One rule for both
+#: entries, and it is the rule the C twin ``srmech_sqrt_core`` implements.
+#:
+#: **Why a constant and not ``while mant < 2**52``.** The doubling loop works
+#: for a double mantissa (``den == 1``) and says nothing about a rational
+#: radicand, so it would be a second rule beside the exact route's. 108 is the
+#: measured floor: at 107 the Class-K parity pin can drop the radicand to 105
+#: bits and the root to 53, which is one bit short of deciding the rounding.
+_SQRT_CORE_BITS: int = 108
+
+
+def _sqrt_core(num: int, den: int, e0: int):
+    """Sticky root of ``(num/den)·2**e0`` as an exact ``(root, p)`` pair.
+
+    ``(root-1)·2**p < √((num/den)·2**e0) <= (root+1)·2**p``, with equality on
+    the right only for a perfect dyadic square, where ``root`` IS that root.
+    Otherwise ``root`` is ODD — the sticky bit — so ``Q(root, 2**-p)`` can
+    never sit exactly on a double's rounding midpoint and ``float()`` of it is
+    therefore the CORRECTLY ROUNDED double.  ``root >= 2**53`` ALWAYS.
+
+    **Class N** (the rational anchor) ∘ **Class K** (the parity pin-slot: the
+    halved exponent must be an integer, so ``e0 - s`` is pinned even).  The
+    NORMALISE happens FIRST and the parity pin second — ``s -= 1`` keeps
+    ``e0 - s`` even without leaving the 107..109-bit window.
+
+    C twin: ``srmech_sqrt_core`` in ``c/src/srmech_sqrt_internal.h``, same
+    integers, bit for bit.
+    """
+    assert num > 0 and den > 0, "sqrt core: positive rational radicand only"
+    s = _SQRT_CORE_BITS - (num.bit_length() - den.bit_length())   # NORMALISE
+    if (e0 - s) & 1:                       # Class-K parity pin, AFTER normalise
+        s -= 1
+    if s >= 0:                             # small radicand: lift the numerator
+        rad, rem = divmod(num << s, den)
+    else:                                  # large radicand: lift the denominator
+        rad, rem = divmod(num, den << (-s))
+    root = _integer_sqrt(rad)
+    if rem == 0 and root * root == rad:
+        return root, (e0 - s) // 2
+    return 2 * root + 1, (e0 - s) // 2 - 1                        # STICKY bit
 
 
 def _sqrt_rational(num: int, den: int, k: int):
@@ -2832,6 +2890,31 @@ def _sqrt_rational(num: int, den: int, k: int):
     assert k >= 0, "fractional-bit count must be non-negative"
     root = _integer_sqrt((num << (2 * k)) // den)   # floor(√(num/den) · 2^k)
     return _q(root, 1 << k)
+
+
+def _sqrt_sticky(num: int, den: int, k: int):
+    """:func:`_sqrt_rational` plus the STICKY bit: ``Q(2s+1, 2**(k+1))`` when
+    the scaled radicand is not a perfect square.
+
+    The FLOOR was half the defect and the missing NORMALISE was the other half.
+    This closes the floor half on the EXACT route, where :func:`_sqrt_relative_k`
+    already supplies the magnitude-sized grid that the float route needed
+    :func:`_sqrt_core` for: a floored root can sit exactly on a double's
+    rounding midpoint, and ``float()`` then rounds it to the wrong neighbour.
+    An odd numerator cannot, so ``float()`` of the result is the CORRECTLY
+    ROUNDED double of ``√(num/den)``.
+
+    **Class N** ∘ **Class K** — the perfect-square test IS the pin-slot: the
+    exact case must stay exact, or ``√4`` would answer ``Q(5, 2)``.
+    """
+    assert num >= 0 and den > 0, "sqrt of a non-negative rational only"
+    assert k >= 0, "fractional-bit count must be non-negative"
+    scaled = num << (2 * k)
+    rad, rem = divmod(scaled, den)
+    root = _integer_sqrt(rad)
+    if rem == 0 and root * root == rad:
+        return _q(root, 1 << k)
+    return _q(2 * root + 1, 1 << (k + 1))
 
 
 def _sqrt_relative_k(num: int, den: int, k: int) -> int:
@@ -2850,12 +2933,24 @@ def _sqrt_relative_k(num: int, den: int, k: int) -> int:
 
     The premise that a rational cascade cannot reach small magnitudes is
     **false**, and :func:`sqrt`'s float path already disproves it: it
-    decomposes ``x = M·2^e`` and carries an EXACT power-of-two scale, so it is
-    relative-precision at every magnitude (``sqrt(1e-300)`` is exact to full
-    precision). ``Q`` is an arbitrary-precision integer pair — the floor was
-    never the carrier, only the hard-coded ``k``. So this does not add an
-    epsilon or a guard band; it sizes the grid to the value, which is what the
-    float path always did.
+    decomposes ``x = M·2^e`` and carries an EXACT power-of-two scale. ``Q`` is
+    an arbitrary-precision integer pair — the floor was never the carrier, only
+    the hard-coded ``k``. So this does not add an epsilon or a guard band; it
+    sizes the grid to the value, which is what the float path always did.
+
+    ⚠️ **This paragraph claimed the float path was therefore
+    "relative-precision at every magnitude (``sqrt(1e-300)`` is exact to full
+    precision)". MEASURED FALSE, and repaired in 0.9.0rc476 (`#T1188`).** The
+    scale was exact; the ROOT was not. The shipped route rooted ``M << 54``
+    with ``M`` taken straight from the IEEE field, and a SUBNORMAL ``x`` has a
+    mantissa far below ``2**52`` — ``M = 1`` gives ``isqrt(1 << 54) = 2**27``,
+    a **28-bit** root where 53 are needed. Over every subnormal mantissa
+    1..4096, **4032 of 4096** served doubles were not the correctly rounded
+    root, the worst by **16,609,076 ulps**. The repair is :func:`_sqrt_core`'s
+    NORMALISE step, which lifts the radicand into ``[2**106, 2**109)`` first;
+    the minimum root width over that row set is now 55 and the misround count
+    is 0. The claim above is TRUE of the post-rc476 route, which is why it is
+    corrected rather than deleted.
 
     ``num.bit_length() - den.bit_length()`` brackets ``log2(num/den)`` to ±1, so
     the root's binary exponent is that halved; ``+1`` absorbs the bracket. For a
@@ -2874,12 +2969,29 @@ def sqrt(x, *, precision: int | None = None) -> "Q":
 
     ``x`` may be a ``float`` OR a :class:`~srmech.math.q.Q` (rc7 — stays
     rational through :func:`hypot` and the complex modulus). Default
-    (``precision=None``): the IEEE-bit ``M·2^e`` decomposition with
-    ``root = isqrt(M << 2K)`` (K=27) scaled by the EXACT ``2^(e/2−K)`` — the
-    result is the exact ``Q(root, 2^k)`` (``float`` of it betters the old
-    ``float(root)·2^…`` which pre-rounded ``root``). **Class N** rational ∘
-    **Class K** sqrt-convergence. A ``Q`` input is rooted at ``_SQRT_Q_K`` bits
-    (exact rational radicand). Negative ``x`` raises (Class-K pin-slot at zero).
+    (``precision=None``): the IEEE-bit ``M·2^e`` decomposition handed to
+    :func:`_sqrt_core`, which NORMALISES the radicand into ``[2^106, 2^109)``,
+    roots it, and sets a STICKY low bit when the radicand is not a perfect
+    square — so the result is the exact ``Q(root, 2^k)`` whose ``float()`` is
+    the **CORRECTLY ROUNDED** double of ``√x``. **Class N** rational ∘
+    **Class K** sqrt-convergence. A ``Q`` input is rooted at ``_SQRT_Q_K``
+    SIGNIFICANT bits (exact rational radicand), sticky included, which is
+    strictly wider than the float route. Negative ``x`` raises (Class-K
+    pin-slot at zero).
+
+    ⚠️ **THE RECIPE THIS DOCSTRING PUBLISHED WAS THE DEFECT** (0.9.0rc476,
+    `#T1188`). It read *"``root = isqrt(M << 2K)`` (K=27) scaled by the EXACT
+    ``2^(e/2−K)``"*, and that is exactly what shipped: ``M`` came straight out
+    of the IEEE mantissa field with no normalise, so the root's WIDTH tracked
+    the operand's magnitude instead of being fixed. Measured at rc475 through
+    this entry point, native dispatch live: **480 of the 1956** non-square
+    integers in 2..2000 served a double one ulp BELOW the correctly rounded
+    root; **4032 of 4096** subnormal mantissas did, the worst by **16,609,076
+    ulps**; and the narrowest root over that row set was **28 bits**. The
+    floor was half of it and the missing normalise was the other half — a
+    floored root can land on a rounding midpoint, and ``float()`` then rounds
+    it the wrong way. Both are closed here, measured 0/1956 and 0/4096, with a
+    minimum root width of 55.
 
     ``precision=N`` selects the higher-precision path (the exact rational
     rooted at ``N`` fractional bits), e.g. for the π-cascade. (rc318: the knob
@@ -2910,8 +3022,23 @@ def sqrt(x, *, precision: int | None = None) -> "Q":
     ``sqrt(2**53 + 1)`` answered ``sqrt(2**53)``. The test is now
     :func:`srmech.math.q.exact_scalar`, the ONE exact reader, so ``int`` /
     ``bool`` / ``Fraction`` / ``Q`` all take the branch that was already here.
-    A ``float`` operand keeps the IEEE-bit route BIT-FOR-BIT, and the
-    negative-domain refusal is unmoved on both carriers.
+    A ``float`` operand still takes the IEEE-bit route and the negative-domain
+    refusal is unmoved on both carriers. *(That sentence said the float operand
+    keeps the IEEE-bit route "BIT-FOR-BIT". True when written and FALSE from
+    0.9.0rc476 (`#T1188`), which repaired that route: the ROUTE is the same
+    decomposition, the VALUES on it move wherever the old floor was not the
+    correctly rounded root — 480 of the 1956 non-square integers in 2..2000 and
+    4032 of 4096 subnormal mantissas. The rc474 CHANGELOG entry is a dated
+    record and keeps its own wording; this is a live docstring and does not.)*
+
+    **BOTH ROUTES ARE CORRECTLY ROUNDED, AND THEY ARE STILL NOT THE SAME**
+    (0.9.0rc476). The exact route roots at ``_sqrt_relative_k(num, den, 54)``
+    FRACTIONAL bits and the float route at the fixed 54-or-55-bit core window,
+    so an exact operand keeps strictly more information than a float one and
+    ``sqrt(2**53 + 1) != sqrt(float(2**53 + 1))`` as rc474 established. What
+    correct rounding adds is that ``float()`` of EITHER is the same, correct,
+    double — the separation is now in the ``Q``, where it belongs, rather than
+    in the error.
     """
     # EXACT-input: root the exact rational directly (stay-rational; e.g. hypot).
     # rc474 (`#T1188`): this read was ``hasattr(x, "as_pair")``, which admits a
@@ -2929,7 +3056,14 @@ def sqrt(x, *, precision: int | None = None) -> "Q":
             return _sqrt_rational(xn, xd, precision)
         # rc299 (`#919`): size the grid to the radicand so a sub-1 Q keeps its
         # significant bits instead of flooring away toward an exact 0.0.
-        return _sqrt_rational(xn, xd, _sqrt_relative_k(xn, xd, _SQRT_Q_K))
+        # rc476 (`#T1188`): the EXACT route keeps that RELATIVE grid and gains
+        # only the STICKY bit. Routing it through ``_sqrt_core`` instead would
+        # be one rule rather than two and is ALSO correctly rounded — measured
+        # 0 / 26295 rows — but it collapses the exact and float routes onto the
+        # same window, and rc474's exact-vs-float separation witness then FAILS
+        # (measured: ``sqrt(2**53+1) == sqrt(float(2**53+1))``). The exact
+        # operand must stay observably exact, so the two routes stay distinct.
+        return _sqrt_sticky(xn, xd, _sqrt_relative_k(xn, xd, _SQRT_Q_K))
     x = float(x)
     if x < 0.0:                                   # Class-K pin-slot at zero
         raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
@@ -2948,11 +3082,13 @@ def sqrt(x, *, precision: int | None = None) -> "Q":
     frac = bits & ((1 << 52) - 1)
     mant = frac if raw == 0 else (frac | (1 << 52))
     e = -1074 if raw == 0 else raw - 1075         # x = mant · 2^e
-    if e & 1:                                      # make e even
-        mant <<= 1
-        e -= 1
-    root = _integer_sqrt(mant << (2 * _SQRT_C_K))   # 128-bit; native srmech_isqrt
-    p = e // 2 - _SQRT_C_K                          # exact power-of-two scale
+    # rc476 (`#T1188`): ``_sqrt_core`` owns BOTH steps this used to do inline —
+    # the Class-K parity pin on ``e`` and the root — and adds the NORMALISE the
+    # inline version lacked. A subnormal ``mant`` is far below 2^52, so
+    # ``isqrt(mant << 54)`` reached a 28-bit root; the core lifts the radicand
+    # into [2^106, 2^109) first, so the root is 54 or 55 bits at every
+    # magnitude, and the sticky low bit keeps ``float()`` off every midpoint.
+    root, p = _sqrt_core(mant, 1, e)
     return _q(root << p, 1) if p >= 0 else _q(root, 1 << (-p))
 
 
@@ -3015,7 +3151,9 @@ def hypot(a: float, b: float, *, precision: int | None = None) -> "Q":
     # rc299 (`#919`): RELATIVE precision. The old fixed 2^-54 grid returned an
     # exact 0.0 below ~1e-17 — unsafe as a divisor, and inaccurate well above
     # that (44% at 1e-16). See :func:`_sqrt_relative_k`.
-    return _sqrt_rational(num, den, _sqrt_relative_k(num, den, _SQRT_Q_K))
+    # rc476 (`#T1188`): hypot INHERITS the exact route, sticky included, so
+    # ``float(hypot(a, b))`` is the correctly rounded double of √(a²+b²).
+    return _sqrt_sticky(num, den, _sqrt_relative_k(num, den, _SQRT_Q_K))
 
 
 # ──────────────────────────────────────────────────────────────────────
