@@ -81,6 +81,32 @@ The two routes stay DISTINCT, deliberately. Routing the EXACT entry through the 
 
 **Ripple, measured, both cells.** All three eigenvalues of `jacobi_eigvals` on `[[2,1,0],[1,3,1],[0,1,2]]` move (`0x3ff0000000000003` → `…01`, `0x4000000000000000` → `…02`, `0x400ffffffffffffd` → `0x4010000000000001`, the last crossing the binade at 4.0); a 5×5 moves by up to ~8 ulps; `mat_svd`'s second singular value on `[[3,1],[0,2]]` moves one ulp; `mat_norm` moves one ulp; the SU(3) Casimir diagonal becomes uniformly `4/3` where one entry was `1.3333333333333335`; `lie_algebra_residual` falls **1.57e-16 → 6.21e-17**.
 
+### The ripple reached a SECOND defect, and CI is what found it: the two projections were running DIFFERENT stopping rules
+
+`tests/test_qm_gauge.py::test_gauge_path_segment_unitary` went red on the **PURE** shards only (4/6 and 5/6) while both native cells stayed green. A projections disagreement is a finding, not a threshold nuisance, so it was measured before anything was changed — on `origin/main` in the same pure cell first, then in both cells on this branch.
+
+| `gauge_path_segment`, SU(3), coupling 0.5 | rc475 pure | rc476 pure (before) | rc476 pure (after) | rc476 native |
+|---|---|---|---|---|
+| max \|U·Uᴴ − I\| (the assertion, bound 1e-12) | 1.33e-15 | **1.55e-12** | **1.44e-15** | 5.59e-16 |
+| max \|V·Vᴴ − I\| | 6.66e-16 | 1.01e-12 | 7.77e-16 | — |
+| max \|M·V − V·Λ\| | 8.34e-16 | 5.53e-13 | **3.15e-16** | — |
+
+**Root cause.** `_jacobi_eigvals_py` / `_jacobi_eig_py` stopped at `off <= tolerance` with `tolerance = 1e-12` read as an **ABSOLUTE** bound, against a quantity that carries the units and the SCALE of the matrix. Cyclic Jacobi converges QUADRATICALLY, so `off` does not approach a threshold — it dives past it, and whichever sweep first lands below the constant is where the loop stops. Identical code, identical `‖A‖_F = 0.6`, a well-conditioned input (eigenvalue gaps 0.331 / 0.267, pair-doubling residual ≤ 3.34e-16); the two runs differ by ONE ULP in the λ⁸ normaliser this release corrected:
+
+```
+rc475   sweep 6: off = 2.15e-17   <- first below 1e-12, STOP
+rc476   sweep 7: off = 7.63e-13   <- first below 1e-12, STOP
+        sweep 8: off = 1.86e-19      (never reached)
+```
+
+So the delivered accuracy was decided by where a quadratically-collapsing sequence happened to straddle a constant — a property of luck, not of the input, the conditioning or the algorithm. The eigenVECTORS carry the damage and not the eigenvalues: `U = V·diag(e^{iλ})·Vᴴ` is unitary EXACTLY when `V` is, so a `V` good only to 1e-12 gives a `U` unitary only to 1e-12, whatever the eigenvalues do.
+
+**The bound is not invented here, the tolerance is NOT widened, and the test's 1e-12 is NOT widened.** `srmech_laplacian_jacobi_eigvals` (`c/src/srmech_laplacian.c:1446`) has always computed `target = tolerance² × off_diag_sq(A₀)` and compared `off_sq <= target` — i.e. `off <= tolerance × ‖offdiag(A₀)‖_F`, **RELATIVE to the initial off-diagonal norm**, with a `1e-300` underflow floor. This projection took `tolerance` raw. The two co-equal projections were therefore running different stopping rules, which is precisely why the native cell passed the assertion the pure cell failed; both Python kernels now use the C rule. The arithmetic that justifies it, on the failing matrix: `‖offdiag(A₀)‖_F = 0.4046603514059661`, so `target = 1e-12 × 0.40466… = 4.0466e-13`. rc476's `7.63e-13` is ABOVE that and does not stop, so the sweep to `1.86e-19` runs; rc475's `2.15e-17` is below it and stops exactly where it already did. **The repair fixes the failing case and moves nothing that was already right** — measured, not argued: the eigen-adjacent suites are unchanged (169 passed), and the assertion now clears its untouched 1e-12 by ~4 orders.
+
+**The C-vs-pure divergence on iterative float kernels, listed below as SURVIVING, still survives.** Re-measured after this repair rather than assumed: the three probe NDJSONs are byte-identical in both cells.
+
+Generating code: `notes/_rc476_jacobi_threshold.py` + its NDJSON. It carries its OWN copy of the sweep loop and drives it with each rule in turn, so the "before" column does not depend on a deleted code path — and it checks that copy against the shipped kernel, so both columns describe the code that ships.
+
 ### Gates
 
 * `python/tests/test_sqrt_correct_rounding_rc476.py` — the integer certificate over ~26,000 float rows (integers 2..2000, **every** subnormal mantissa 1..4096, the `2^k ± 1` subnormal classes, the max subnormal / min normal / max double, and 20,000 seeded bit patterns whose seed IS their provenance) plus ~5,500 exact-rational rows. It carries FOUR can-fail controls that must each let misrounds back in — `root ± 1`, the sticky bit removed, and **the normalise removed**, which is the one proving the sticky bit ALONE does not close the defect — and a test that RECONSTRUCTS the rc475 recipe and requires the certificate to reject it on all five of its known-bad rows.
@@ -102,6 +128,8 @@ The two routes stay DISTINCT, deliberately. Routing the EXACT entry through the 
 rc474's float-grid digest `438181738d19f9cc…` MOVED. It appears in exactly two places, both CHANGELOG lines, and in **0** test files — nothing bit-compares it, so there is nothing to re-pin, and the surviving PROPERTY is re-stated instead: a float operand still lands on a power-of-two denominator, because the sticky `Q` is still `root / 2^(k+1)`. rc474's own entry is a DATED record and keeps its wording.
 
 Two LIVE records are re-stated as assertions about the maths rather than re-pinned to new literals: `test_rational_sqrt_relative_precision_rc299.py` pinned `hypot(1.0, 1.0)` to the EXECUTED value of the pre-rc299 code, which was one ulp below the correctly rounded `√2` — it was pinning a defect; and `test_qm_constants_c_rc212.py` computed its own λ⁸ expectation by re-running the code under test's spelling, which is a mirror rather than an oracle and passed while BOTH projections served the misround. `test_classn_precision_wave1_rc318.py`'s four `precision=None` literals go the same way; every one of its `precision=P` literals stays exactly as captured.
+
+One registry-derived pin moved, and it is re-pinned WITH AN ACCOUNTING rather than bumped: `test_namespace_prefix_decode_aware_rc361.py`'s decoded-channel `srmech.physics.qm.` count, **211 → 214**. It is the WIDENED-DECLARATION category (rc465's / rc467's / rc468's), not population growth — no qm op is registered, removed or renamed, distinct op paths hold at **99**, and `srmech.math.` (467) / `srmech.cascade.` (231) / `srmech.amsc.` (2) are all unmoved. The two ops that moved are the two this release taught to read an exact operand: `relativistic.klein_gordon_dispersion` **2 → 4** (`Q` +1 and `int` +1, from its widened `Vec | Sequence[int | Q]` operand) and `sm.fermion_mass_from_yukawa` **2 → 3** (`Q` +1 only — its TWO widened `float | Q` params share ONE row, because the back-index is keyed by (op, CARRIER) and not by param, the same multiplicity rule rc465 recorded for `quaternion_slerp`). Measured per blob, each blob's carrier read off its own `"name"` field rather than inferred from its index; generating code `notes/_rc476_decode_accounting.py` + NDJSON.
 
 **The rule, in one sentence:** *an op's own exact constants are built exact on every route; the operand's carrier elects the terminal projection; a NAMED axis is a label and has no carrier.*
 
