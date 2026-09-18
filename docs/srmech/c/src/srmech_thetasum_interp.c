@@ -1032,7 +1032,53 @@ static srmech_status_t ti_collect_leaf_primes(ti_ctx_t *c, const ti_term_t *term
 }
 
 /* dst := src with `prime` factored out of the bignum coeff (num/den) into exps[lv].
- * `quo` is a caller-bound scratch bignum. No int64 downcast -> no decline. */
+ * `quo` is a caller-bound scratch bignum. No int64 downcast -> no decline.
+ *
+ * ⚠️ BOTH loops are guarded against a ZERO coefficient (rc475, `#T1188`), and the
+ * guard is load-bearing rather than defensive. srmech_bigint_divmod_small(quo,
+ * &rem, 0, p) returns SRMECH_OK with quo = 0 and rem = 0 for every prime p, so an
+ * unguarded loop is not merely "unbounded" — it is a FIXED POINT. The next
+ * iteration is byte-identical to this one, it never breaks, and `e++` / `e--` run
+ * away on a signed int32_t. MEASURED by execution at rc474 in BOTH projections:
+ * a = 0 with p in {2, 3, 65537} returned OK/quo=0/rem=0 every time, and the pure
+ * twin (_lift_prime_terms.lift_mono in apokatastasis/thetasum.py, where
+ * 0 % p == 0 and 0 // p == 0) did not return inside 12 s on Q(0, 1). The
+ * controls in the same run confirm the loop is otherwise live: a = 7, p = 2
+ * breaks on rem = 1, and a = 12, p = 2 continues with q strictly shrinking.
+ *
+ * ⚠️ THE TWO GUARDS ARE NOT THE SAME GUARD, and copying the sibling verbatim on
+ * both would have been wrong. ti_collect_mono_primes above skips a zero num AND
+ * a zero den, which is right THERE because a zero contributes no primes. Here:
+ *   - num == 0: SKIP, with `e` unchanged. v_p(0) is undefined, and the lift's
+ *     contract ("substituting sym := prime reproduces the coefficient") holds
+ *     for a zero coefficient at ANY exponent, so leaving `e` at 0 is the exact
+ *     and minimal choice.
+ *   - den == 0: REFUSE with SRMECH_ERR_BAD_INPUT. That is not a rational, there
+ *     is no correct value to lift, and SKIPPING would launder an invalid object
+ *     onward instead of rejecting it. The Python projection has no equivalent
+ *     branch because it cannot reach the state: Q raises ZeroDivisionError on a
+ *     zero denominator at construction (math/q.py), so a den guard there would
+ *     be dead code.
+ *
+ * REACHABILITY, stated exactly rather than as "defensive". From the PUBLIC
+ * PYTHON ops the zero state is UNREACHABLE (proven from three invariants: Q
+ * refuses den 0 and reduces to den >= 1; Theta.__init__ refuses a zero argument;
+ * _struct_combine drops every zero prefactor before Z5/Z6). From the EXPORTED C
+ * ENTRIES it is reachable on an INVALID input, because ti_parse copied
+ * coeff_num/coeff_den verbatim with no validation — so rc475 also rejects both
+ * at that entry, and these guards are the loop-form defence behind it rather
+ * than the only line. The signed `e` overflow was reachable ONLY through the
+ * zero fixed point: on a nonzero num, e <= 32 * num.n and num.n <= c.cap, so
+ * overflowing int32_t needs a coefficient of ~2^26 limbs.
+ *
+ * ⚠️ The repair also moves both loops OUT of the rc475 Rule 2 detector's view,
+ * and that is stated rather than enjoyed: the predicate matches the literal
+ * `while (1)` / `for (;;)` forms only, so rewriting these two as
+ * `while (!is_zero(...))` drops the tree-wide census from 17 sites to 15 without
+ * the detector having verified anything about them. What makes them BOUNDED is
+ * the arithmetic, not the spelling — each pass divides a strictly positive
+ * magnitude by p >= 2, so the trip count is at most log_p of the coefficient,
+ * and the loop condition is re-tested every pass. */
 static srmech_status_t ti_lift_mono(ti_ctx_t *c, ti_mono_t *dst, const ti_mono_t *src,
                                        uint32_t prime, int lv, srmech_bigint_t *quo)
 {
@@ -1043,7 +1089,10 @@ static srmech_status_t ti_lift_mono(ti_ctx_t *c, ti_mono_t *dst, const ti_mono_t
     assert(prime >= 2u && lv >= 0);
     st = ti_mono_copy(c, dst, src);                    /* copies coeff + exps          */
     if (st != SRMECH_OK) { return st; }
-    for (;;) {                                          /* factor prime out of num      */
+    if (srmech_bigint_is_zero(&dst->coeff.den)) {
+        return SRMECH_ERR_BAD_INPUT;      /* not a rational; refuse, never skip */
+    }
+    while (!srmech_bigint_is_zero(&dst->coeff.num)) {   /* factor prime out of num      */
         st = srmech_bigint_divmod_small(quo, &rem, &dst->coeff.num, prime);
         if (st != SRMECH_OK) { return st; }
         if (rem != 0u) { break; }
@@ -1051,7 +1100,7 @@ static srmech_status_t ti_lift_mono(ti_ctx_t *c, ti_mono_t *dst, const ti_mono_t
         if (st != SRMECH_OK) { return st; }
         e++;
     }
-    for (;;) {                                          /* factor prime out of den      */
+    while (!srmech_bigint_is_zero(&dst->coeff.den)) {   /* factor prime out of den      */
         st = srmech_bigint_divmod_small(quo, &rem, &dst->coeff.den, prime);
         if (st != SRMECH_OK) { return st; }
         if (rem != 0u) { break; }
@@ -1471,7 +1520,31 @@ static srmech_status_t ti_decide(ti_ctx_t *c, ti_term_t *root, size_t n_root,
 /* ---- wire parse + runtime bind + public entry + ws sizing -------------------- */
 
 /* Parse the flat wire form into `terms` (identical layout to srmech_thetasum_is_zero:
- * term0.pref, term0.theta0..K, term1.pref, ... over coeff_num/coeff_den + exps rows). */
+ * term0.pref, term0.theta0..K, term1.pref, ... over coeff_num/coeff_den + exps rows).
+ *
+ * ⚠️ THIS ENTRY VALIDATES (rc475, `#T1188`), and it is the ROOT repair, not a
+ * belt. Through rc474 it copied coeff_num / coeff_den VERBATIM with no check,
+ * and it is the only route by which an invalid rational can reach the interp
+ * machinery: everything downstream canonicalises rather than validates
+ * (ti_combine tests only `pref.coeff.num`, and never looks at `targs` at all).
+ * Two states are refused:
+ *
+ *   - a ZERO DENOMINATOR on any monomial. Not a rational. It survived
+ *     ti_combine and reached ti_lift_mono's den loop, which was a FIXED POINT
+ *     on it (srmech_bigint_divmod_small(quo, &rem, 0, p) answers OK with
+ *     quo = 0 and rem = 0, so the loop never breaks).
+ *   - a ZERO NUMERATOR on a THETA ARGUMENT. Theta(0) is undefined, and it is
+ *     worse than the den case: srmech_ellbase_theta_canon_full unconditionally
+ *     computes mono_inv(z0), whose zero check is an `assert` ONLY — stripped
+ *     under -DNDEBUG, which is the release build — after which it swaps num and
+ *     den and MANUFACTURES a den = 0 monomial. A zero PREFACTOR numerator is
+ *     legal and stays legal; ti_combine drops those terms by design.
+ *
+ * The Python projection refuses both at CONSTRUCTION — Q raises
+ * ZeroDivisionError on a zero denominator, Theta.__init__ raises on a zero
+ * argument — so this closes a gap between the projections rather than adding a
+ * restriction: the Python wrapper packs Q pairs and cannot produce either
+ * state, and a bare-C caller could. */
 static srmech_status_t ti_parse(ti_ctx_t *c, ti_term_t *terms, size_t n_terms,
                                 const size_t *term_nthetas,
                                 const srmech_bigint_t *coeff_num,
@@ -1494,6 +1567,7 @@ static srmech_status_t ti_parse(ti_ctx_t *c, ti_term_t *terms, size_t n_terms,
     assert(in_n_syms <= c->n_syms);
     for (ti = 0; ti < n_terms; ti++) {
         size_t k;
+        if (srmech_bigint_is_zero(&coeff_den[mi])) { return SRMECH_ERR_BAD_INPUT; }
         st = srmech_bigint_copy(&terms[ti].pref.coeff.num, &coeff_num[mi]);
         if (st == SRMECH_OK) { st = srmech_bigint_copy(&terms[ti].pref.coeff.den, &coeff_den[mi]); }
         if (st != SRMECH_OK) { return st; }
@@ -1504,6 +1578,10 @@ static srmech_status_t ti_parse(ti_ctx_t *c, ti_term_t *terms, size_t n_terms,
         mi++;
         ej += in_n_syms;
         for (k = 0; k < term_nthetas[ti]; k++) {
+            if (srmech_bigint_is_zero(&coeff_den[mi])
+                || srmech_bigint_is_zero(&coeff_num[mi])) {
+                return SRMECH_ERR_BAD_INPUT;       /* Theta(0) is undefined */
+            }
             st = srmech_bigint_copy(&terms[ti].targs[k].coeff.num, &coeff_num[mi]);
             if (st == SRMECH_OK) { st = srmech_bigint_copy(&terms[ti].targs[k].coeff.den, &coeff_den[mi]); }
             if (st != SRMECH_OK) { return st; }
