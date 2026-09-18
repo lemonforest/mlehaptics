@@ -1423,18 +1423,23 @@ from srmech.math.text import fold_marks, glyph_stream
 #:
 #: RE-VERIFIED BEFORE MOVING, both halves the pin's history says to check.
 #: DETERMINISM: three fresh CPython 3.12.3 interpreters, two `_build_frames`
-#: calls each — six computations, all `a826de66…1f7445e1`. CELL INDEPENDENCE:
+#: calls each — six computations, all `11077f6d…35b8a8d7`. CELL INDEPENDENCE:
 #: the same digest with NO library loaded at all, so the value is not an
 #: artefact of native dispatch. Both checks matter here because this rc DOES
 #: move served values, and a witness that moved for the wrong reason would be
 #: indistinguishable from one that moved for the right one.
 #:
-#: It moved TWICE inside this rc, and the second move is recorded rather than
-#: folded into the first: the `psk_qam` edit came out of the ripple gate's
-#: call-graph trace, after the first re-pin. The value below was measured
-#: after it, on the committed registry.
+#: It moved THREE TIMES inside this rc and each move is recorded rather than
+#: folded into the last, because a pin that shows one move where three
+#: happened cannot be audited. The second came from the ripple gate's
+#: call-graph trace (`psk_qam`'s dead `composes` edge); the third from CI,
+#: which found two ops ACCEPTING a carrier their declared `parameters[].type`
+#: did not name — the declarations were widened to the honest union rather
+#: than the acceptance narrowed back, and a parameter's type string is frame
+#: text. `rows` is unmoved at 761 through all three.
 WITNESS_RC416 = (
-    "a826de664379ff976ea6967e887b5060139d33120d2957f6c4fa14371f7445e1")
+    "11077f6de96977fedc6379741667896d91b57fb30cc84d303b607b0d35b8a8d7")
+#: was: a826de664379ff976ea6967e887b5060139d33120d2957f6c4fa14371f7445e1 (rc476, before the declared-type widening)
 #: was: 68e29b4c86da68f16bbcbfb2d42ee4b5b609128fda23d617a87dffaa48db4e6d (rc476, before the psk_qam composes edit)
 #: was: 2b092a14f70aaaf4e37d6b9b834dc72dc647d01351c419899ae64d7de6160341 (rc475)
 #: was: 01ff7bc2a1f7a10e85bb442164268def4163cd6f92287087f137af32149401da (rc473 final round)

@@ -3704,8 +3704,8 @@ static const srmech_tool_param_t ts_params_564[] = {
     { "m", "float", 1, "mass" },
 };
 static const srmech_tool_param_t ts_params_565[] = {
-    { "k_spatial", "Vec", 1, "3-vector" },
-    { "m", "float", 1, "\342\211\245 0" },
+    { "k_spatial", "Vec | Sequence[int | Q]", 1, "3-vector; the LEAVES select the carrier (rc476, `#T1188`): integers / Q / Fraction take the EXACT route, so |k|\302\262 + m\302\262 is formed exactly and float() of the root is the correctly rounded energy; one float anywhere keeps the float64 sum of squares BIT-FOR-BIT" },
+    { "m", "float | Q", 1, "\342\211\245 0; read exactly alongside k_spatial, and both must be exact for the exact route to be taken" },
 };
 static const srmech_tool_param_t ts_params_566[] = {
     { "k", "Vec | Sequence[int | Q]", 1, "4-vector; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one" },
@@ -3812,8 +3812,8 @@ static const srmech_tool_param_t ts_params_593[] = {
     { "vev", "float", 1, "" },
 };
 static const srmech_tool_param_t ts_params_594[] = {
-    { "yukawa", "float", 1, "" },
-    { "vev", "float", 1, "" },
+    { "yukawa", "float | Q", 1, "Yukawa coupling; read EXACTLY (rc476, `#T1188`) \342\200\224 an int / Q / Fraction contributes its own exact value instead of being collapsed to float first" },
+    { "vev", "float | Q", 1, "Higgs vacuum expectation value, > 0; read exactly, as yukawa is" },
 };
 static const srmech_tool_param_t ts_params_595[] = {
     { "theta_12", "float", 1, "" },
@@ -17544,7 +17544,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "Fermion mass m_f = y_f v / \342\210\2322 from Yukawa coupling. Peskin-Schroeder \302\24720.2.",
         ts_params_594, 2u,
         "float",
-        "",
+        "the CORRECTLY ROUNDED double of y\302\267v/\342\210\2322 (rc476) \342\200\224 the exact product is rooted, so there is one rounding, at the exit",
         1,
         NULL,
         "{\"input\":{\"vev\":\"246.0\",\"yukawa\":\"1.0\"},\"output\":\"y_t = 1.0 -> 173.9482681718907 GeV (top-scale)\\ny = 0.0102 -> 1.7742723353532852 GeV (tau-scale)\\ny = 2.9e-6 -> 0.000504449977698483 GeV (electron-scale)\\nratio m(y=1.0)/m(y=2.9e-6) = 344827.5862068966\",\"why\":\"y = 1 lands at 173.95 GeV - the top-quark scale - and the SAME linear map spans five and a half orders of magnitude down to the electron, which is the flavour hierarchy stated as one multiplication.\",\"worked\":\"from srmech.physics.qm.sm import fermion_mass_from_yukawa\\nprint('y = 1.0    ->', fermion_mass_from_yukawa(1.0, 246.0), 'GeV')\\nprint('y = 0.0102 ->', fermion_mass_from_yukawa(0.0102, 246.0), 'GeV')\\nprint('y = 2.9e-6 ->', fermion_mass_from_yukawa(2.9e-6, 246.0), 'GeV')\\nprint('mass ratio =', fermion_mass_from_yukawa(1.0, 246.0)\\n                     / fermion_mass_from_yukawa(2.9e-6, 246.0))\"}",

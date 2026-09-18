@@ -16087,8 +16087,24 @@ def _register_qm_tools() -> None:
             owner="srmech", category="qm.relativistic",
             summary="Klein-Gordon dispersion E = +√(|k|² + m²). "
                     "Klein/Gordon (1926); Peskin-Schroeder §2.3.",
-            parameters=(P("k_spatial", "Vec", True, "3-vector"),
-                        P("m", "float", True, "≥ 0")),
+            # rc476 (`#T1188`): WIDENED to match what the op accepts. Through
+            # rc475 the body's first statement was `[float(x) for x in
+            # k_spatial]`, so an exact 3-momentum was collapsed before |k|² and
+            # before the root; rc476 reads it with `exact_vector` /
+            # `exact_scalar`, which is the reading `four_momentum_squared`
+            # below has taken since rc466 and declares in the same words. The
+            # declaration catches up with the acceptance rather than the
+            # acceptance being narrowed back — the honesty gate's own remedy.
+            parameters=(P("k_spatial", "Vec | Sequence[int | Q]", True,
+                          "3-vector; the LEAVES select the carrier (rc476, "
+                          "`#T1188`): integers / Q / Fraction take the EXACT "
+                          "route, so |k|² + m² is formed exactly and float() "
+                          "of the root is the correctly rounded energy; one "
+                          "float anywhere keeps the float64 sum of squares "
+                          "BIT-FOR-BIT"),
+                        P("m", "float | Q", True,
+                          "≥ 0; read exactly alongside k_spatial, and both "
+                          "must be exact for the exact route to be taken")),
             returns=R("float", "positive on-shell energy"),
         ),
         ToolEntry(
@@ -16349,8 +16365,23 @@ def _register_qm_tools() -> None:
             category="qm.sm",
             summary="Fermion mass m_f = y_f v / √2 from Yukawa coupling. "
                     "Peskin-Schroeder §20.2.",
-            parameters=(P("yukawa", "float", True), P("vev", "float", True)),
-            returns=R("float", ""),
+            # rc476 (`#T1188`): WIDENED to match what the op accepts. The body
+            # was `float(yukawa * vev / sqrt(2.0))`, which rounded the product
+            # whenever either side was a float AND divided by a rational
+            # APPROXIMATION of √2; it now reads both operands with `to_q` (a
+            # float's as_integer_ratio loses nothing) and forms the whole value
+            # as ONE root of an EXACT radicand, ±√((y·v)²/2). Reading a Q was
+            # already possible and is now the point, so the declaration says so.
+            parameters=(P("yukawa", "float | Q", True,
+                          "Yukawa coupling; read EXACTLY (rc476, `#T1188`) — "
+                          "an int / Q / Fraction contributes its own exact "
+                          "value instead of being collapsed to float first"),
+                        P("vev", "float | Q", True,
+                          "Higgs vacuum expectation value, > 0; read exactly, "
+                          "as yukawa is")),
+            returns=R("float", "the CORRECTLY ROUNDED double of y·v/√2 "
+                               "(rc476) — the exact product is rooted, so "
+                               "there is one rounding, at the exit"),
         ),
         ToolEntry(
             name="srmech.physics.qm.sm.ckm_matrix", owner="srmech", category="qm.sm",
