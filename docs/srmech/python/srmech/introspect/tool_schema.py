@@ -19118,10 +19118,16 @@ def _register_closed_form_path_a_tools() -> None:
     the cell it runs in.
 
     TWO ROWS NEEDED A SECOND BRANCH TO SHOW THEIR FULL SET. ``psk_qam``'s
-    ``rational.sqrt`` is reached only by the QAM constellation build and its
-    ``cos``/``sin`` only by the PSK one — the two branches are DISJOINT, so no
-    single call enters all three, and the declared order follows the op's own
-    dispatch (``if modulation == "psk"`` first, ``elif ... "qam"`` second).
+    ``cos``/``sin`` are reached only by the PSK branch, and through rc475 its
+    ``rational.sqrt`` only by the QAM one — the two branches are DISJOINT, so
+    no single call entered all three, and the declared order followed the op's
+    own dispatch (``if modulation == "psk"`` first, ``elif ... "qam"``
+    second). *(rc476, `#T1188`: the ``rational.sqrt`` edge is GONE. The QAM
+    branch asked an INTEGER question — is M a perfect square — through the
+    continuous carrier and back, and now takes the Class-N integer floor root,
+    which is not a registered op. The row is two entries and one branch; the
+    disjoint-branch note is kept because it is why the remaining pair reads the
+    way it does.)*
     ``ofdm``'s ``rational.hypot`` is the per-subcarrier equaliser guard, reached
     only when demodulating with a channel supplied; its order was taken from a
     full modulate-then-demodulate round trip so the tuple describes the whole
@@ -19881,9 +19887,17 @@ def _register_closed_form_path_a_tools() -> None:
             returns=R("list",
                       "the constellation points when modulating, or the "
                       "decoded integer symbol indices when demodulating"),
+            # rc476 (`#T1188`): `srmech.math.rational.sqrt` DROPPED. The square-
+            # QAM build asked an INTEGER question — is M a perfect square, and
+            # what is its root — and answered it by going out to the continuous
+            # carrier and back: `int(round(float(sqrt(float(M)))))`. It now
+            # takes the Class-N integer floor root directly, which is exact at
+            # every M and is not a registered op, so the declared edge is gone
+            # rather than renamed. Caught by
+            # test_composes_grain_rc412::test_every_declared_sub_op_is_actually_called,
+            # which traces the call graph rather than trusting the tuple.
             composes=("srmech.math.rational.cos",
-                      "srmech.math.rational.sin",
-                      "srmech.math.rational.sqrt"),
+                      "srmech.math.rational.sin"),
             preserves=_DISC,
         ),
         ToolEntry(

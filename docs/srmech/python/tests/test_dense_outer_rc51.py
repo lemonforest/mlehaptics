@@ -15,7 +15,6 @@ surfaces still compute their tensors correctly (as numpy-free ``Mat`` outputs).
 """
 from __future__ import annotations
 
-import math
 
 import pytest
 

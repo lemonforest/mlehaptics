@@ -536,7 +536,7 @@ def test_group_d_the_case_policy_is_wired_not_declared() -> None:
 #: census because its required ``n_sources`` is ``int``-typed — outside the
 #: fill by the lane's own rule — and is declared on a direct probe-walk
 #: measurement so that closing that residue later adds no roster debt.
-#: MEASURED at 0.9.0rc472: 236 DECLARED, 41 pinned here, **195 substantive**
+#: MEASURED at 0.9.0rc476: 237 DECLARED, 41 pinned here, **196 substantive**
 #: — the live triple after C3, restated in the ONE-LINE form
 #: ``tools/rc470_figures.py``'s ``_the_gates_own_baseline_line`` parses (it
 #: takes the LAST such line in this file; the two rc472 steps above are its
@@ -544,9 +544,9 @@ def test_group_d_the_case_policy_is_wired_not_declared() -> None:
 #: repair pass: with only rc471's line in that form, the harness read
 #: (223, 41, 182) against a tree measuring (236, 41, 195) and printed RED for
 #: its own staleness, not the gate's.
-#: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 236 is LEXICAL and
-#: regenerable by anyone with this tree; 195 is 236 minus a HAND-MAINTAINED
-#: ledger, so it is only as fresh as the last hand-read. Quoting 195 alone
+#: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 237 is LEXICAL and
+#: regenerable by anyone with this tree; 196 is 237 minus a HAND-MAINTAINED
+#: ledger, so it is only as fresh as the last hand-read. Quoting 196 alone
 #: implies a measurement the instrument cannot make. (This paragraph said
 #: 232 / 191 — the C2 pair — until the rc472 repair pass, four lines below
 #: the C3 paragraph that moved it: the same slip, in the same rc, as
@@ -808,8 +808,19 @@ _MISREAD_CLASS_COUNTS = {
 #: rows and this digest, byte for byte. Found by CI on ``6743ae6dd`` (five
 #: cells, one failure each, this test); ``tools/ripple_gates.txt`` does not
 #: list this file, which is why the round's local ripple run did not.
+#: ⚠️ **MOVED AT rc476 (`#T1188`) — aeca4d386e25e900 -> 585c90f411e1b48e — AND THE COUNT MOVED WITH IT (236 -> 237)**: ONE op
+#: joins DECLARED, ``srmech.physics.qm.relativistic.klein_gordon_dispersion``,
+#: on its OWN docstring — no delegate and so no co_names ORDER is involved.
+#: That op demoted its operand with ``[float(x) for x in k_spatial]`` before
+#: forming |k|² and before the root; rc476 reads it exactly (the reading its
+#: sibling ``four_momentum_squared`` has taken since rc466) and the docstring
+#: now STATES that contract, which is what makes it declare. The
+#: declaration is the repair being visible, not prose drift: the census
+#: found the demotion in the same round, by moving that row to DEMOTED the
+#: moment the root became correctly rounded. Same interpreter, same cell,
+#: same reader (``_READER_SIGNATURE`` unmoved).
 _DECLARED_LABEL_MAP_DIGEST = (
-    "aeca4d386e25e90013350a4f1fd8aed01c6536d77cf02d91ebbfcd18b418a2ef")
+    "585c90f411e1b48ea7f5b748ed7bae4752a6ab1dec09f19641a65a39ccf74aea")
 
 
 def _declared_label_map_digest(pairs) -> str:
@@ -952,8 +963,8 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
     # since DECLARED would hold its count (236 at rc472; 223 when this was
     # written at rc471) everywhere while the credited delegate silently
     # differed.
-    assert len(declared) == 236, (
-        f"lexical DECLARED is {len(declared)}, not 236. Every count in this "
+    assert len(declared) == 237, (
+        f"lexical DECLARED is {len(declared)}, not 237. Every count in this "
         f"file, in tools/demotion_probe.py's disclosures and in the rc472 "
         f"CHANGELOG entry is quoted against that figure (223 through rc471; "
         f"rc472's nine scalar-lane own-docstring ACCURACY paragraphs are the "
@@ -972,7 +983,7 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
         f"change, never a reader-vocabulary change. {_reader_identity()}")
     unknown = sorted(set(_RESIDUAL_TOPIC_MISREADS) - declared)
     assert not unknown, f"pinned but not DECLARED: {unknown}"
-    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 195
+    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 196
 
 
 #: rc472 repair pass (`#T1188`): the two sentences in ``tools/demotion_probe.py``

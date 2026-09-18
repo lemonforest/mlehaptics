@@ -332,10 +332,17 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     and the docstring, can the caller predict the returned value is not the
     exact one?*): **41 are TOPICAL MISREADS**, leaving **182 substantive**
     (rc471's pair).
-    rc472 (`#T1188`) moves the pair to **236 / 41 / 195**, in two dated steps
+    rc476 (`#T1188`) moves the pair to **237 / 41 / 196** — ONE op joins, on its
+    OWN docstring: ``klein_gordon_dispersion``, whose rc476 repair reads its
+    operand exactly (it demoted a 3-momentum with ``[float(x) for x in ...]``
+    before forming |k|² AND before the root) and whose docstring now STATES
+    the accuracy contract that follows. The declaration is the repair being
+    visible: this census found that demotion in the same round, by moving the
+    row to DEMOTED the moment the root became correctly rounded.
+    Before it, rc472 moved the pair to **236 / 41 / 195**, in two dated steps
     that ``tests/test_r3_reader_rc470.py`` records one by one: C2 to 232 / 41
     / 191 — the +9 is exactly the nine ops that received the scalar lane's
-    ten ACCURACY paragraphs — and C3 to 236 / 41 / 195 — the +4 is exactly
+    ten ACCURACY paragraphs — and C3 to 236 / 41 / 195 — the +4 was exactly
     the four ops that received the required-scalar-fill paragraphs
     (``propagate_wound``, ``dirac_operator_momentum_space``,
     ``feynman_scalar_propagator``, ``music_doa``). Every one of the thirteen
@@ -347,8 +354,8 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     exists for, inside the file that carries the warning — and
     ``test_r3_reader_rc470.py`` now reads THIS paragraph's pair back against
     the live count, so the next move cannot leave it behind again.
-    ⚠️ **QUOTE THE PAIR, NEVER THE 195 ALONE.** 236 is LEXICAL and
-    regenerable from this tree by anyone; 195 is 236 minus a HAND-MAINTAINED
+    ⚠️ **QUOTE THE PAIR, NEVER THE 196 ALONE.** 237 is LEXICAL and
+    regenerable from this tree by anyone; 196 is 237 minus a HAND-MAINTAINED
     by-name ledger, so it is exactly as fresh as the last hand-read and no
     fresher. A single "195 substantive declarations" implies a measurement
     this instrument cannot make.
@@ -1433,7 +1440,7 @@ def declaration_hits(fn) -> List[str]:
     rows, sha256 ``b43563f9e417da49…`` (222 rows / ``06f93439fe15b27f…`` at
     rc470; rc471's W6 prose added one, hand-read at
     ``_DECLARED_LABEL_MAP_DIGEST``). rc473's repair round 1 (`#T1188`)
-    moved the map to **236 rows** at ``aeca4d386e25e900…``, with membership
+    moved the map to **237 rows** at ``585c90f411e1b48e…``, with membership
     unchanged: ONE label moved, on ``kepler_solve``'s own docstring, and the
     map is byte-identical on CPython 3.10.21 and 3.12.3. Before it, rc472
     took the map to 236 rows at ``ee4922b5817ead0c`` (232 rows at
