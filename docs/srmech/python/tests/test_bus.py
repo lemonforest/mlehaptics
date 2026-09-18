@@ -1017,7 +1017,7 @@ def test_native_bus_symbols_present():
     from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    # ABI-PIN: NATIVE_ABI_VERSION == 26
+    # ABI-PIN: NATIVE_ABI_VERSION == 27
     # ⚠️ rc455: the local below is the SAME grep-invisible site the note that
     # follows describes. It was found by hand this time, not by the
     # `ABI_VERSION == 23` sweep, which matched only the comment above.
@@ -1030,17 +1030,21 @@ def test_native_bus_symbols_present():
     # a SECOND one, of a different kind - indirection through a local, introduced
     # by the previous fix. Keeping a comment that spells NAME == LITERAL restores
     # what the interpolation took away, without giving back the drift it prevents.
-    want_abi = 26
+    want_abi = 27
     assert _native.NATIVE_ABI_VERSION == want_abi, (
-        f"ABI {want_abi} expected (rc473 `#T1188` REINTERPRETED the status of "
-        f"the Class-N scalar surface and every exported composite that calls "
-        f"it: 24 discarded srmech_status_t values across 7 translation units "
-        f"are now propagated, and srmech_sin / cos / atan / atan2 / exp / log "
-        f"/ rational_sqrt / winding_fold REFUSE a NaN they used to serve with "
-        f"SRMECH_OK. An rc472 library against rc473 Python computes the wrong "
-        f"number and reports SRMECH_OK with no other symptom, so the ABI pin "
-        f"is the only thing that refuses that pairing, 25 -> {want_abi}); got "
-        f"{_native.NATIVE_ABI_VERSION}"
+        f"ABI {want_abi} expected (rc475 `#T1188` fixed the Zassenhaus core's "
+        f"bignum pool WIDTH — bp_buf spaced 30 poly buffers deg+1 apart while "
+        f"a quadratic Hensel step forms products of length n+max(a,b)-1, so "
+        f"the product overran into the next buffer, which is live Hensel "
+        f"state. Measured over 84 polynomials at rc474: 34 did not return, 6 "
+        f"returned a WRONG VALUE (one serving a reducible degree-9 factor as "
+        f"irreducible), 3 declined silently to pure; 84/84 agree after the "
+        f"fix. The same rc replaced the Cantor-Zassenhaus retry with "
+        f"deterministic Berlekamp, which moves the core's peel order, and "
+        f"grew factor_squarefree_primitive_ws_bound twice. An rc474 library "
+        f"against rc475 Python hangs or lies with HAS_NATIVE True, so the ABI "
+        f"pin is the only thing that refuses that pairing, 26 -> {want_abi}); "
+        f"got {_native.NATIVE_ABI_VERSION}"
     )
     for sym in (
         "srmech_bus_serve",
@@ -1111,8 +1115,8 @@ def test_abi_version_is_pinned():
     # `ABI-PIN:` comment AND any int-valued local whose name matches /abi/)
     # out of tests/ and compares each to the live EXPECTED_ABI_VERSION. The
     # grep target stays for the human; the gate is now what catches the script.
-    # ABI-PIN: EXPECTED_ABI_VERSION == 26   (grep target - see the note above)
-    want_abi = 26
+    # ABI-PIN: EXPECTED_ABI_VERSION == 27   (grep target - see the note above)
+    want_abi = 27
     assert _native.EXPECTED_ABI_VERSION == want_abi, (
         f"EXPECTED_ABI_VERSION should be {want_abi}; got "
         f"{_native.EXPECTED_ABI_VERSION}"

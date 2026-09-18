@@ -728,8 +728,8 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **26** (`SRMECH_ABI_VERSION = 26` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 26` in
+C ABI version is currently **27** (`SRMECH_ABI_VERSION = 27` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 27` in
 *(this line said 12 until rc420, 13 until rc425, 14 until rc438, 15 until
 rc439, 16 until rc442, 17 until rc449 and — the point — **17 through the whole of
 rc447 AND rc448**, so it was two bumps behind by the time rc449 read it: a SIXTH
@@ -782,6 +782,9 @@ WRITER-RESERVE contract move** of the v10/v12 shape — no signature changed, bu
 `srmech_chain_run_arena_bytes` began returning a LARGER envelope, because the
 value-descriptor writer's reserve was derived from the INPUT length while it
 bounds the OUTPUT tree.
+
+**The v27 bump is rc475's (`#T1188`): the Zassenhaus core's bignum pool WIDTH, plus a deterministic equal-degree split.** One bump over three changes to `srmech_factor_squarefree_primitive` and `srmech_factor_integer_poly`. The exported symbol set is IDENTICAL either side — 815 names, none added, none removed, every new function `static` — so neither the additive rule nor the removal rule reaches it; it bumps on the two grounds that remain, and on each independently. **SERVED VALUES MOVE** (v21 / v26's ground): `bp_buf` spaced the 30 bignum poly buffers `cw = deg+1` apart while a quadratic Hensel step forms products of length `n + max(a,b) − 1`, and no `bp_*` kernel checked its output width, so the product overran into the NEXT pool buffer — live Hensel state — after which `bp_divmod_monic` was handed a non-monic divisor and its remainder degree never decreased. Measured over 84 polynomials at rc474 against the pure oracle: **34 did not return, 6 returned a WRONG VALUE, 3 DECLINED silently, 41 agreed**; 84/84 agree after the fix. The wrong-value rows are why this is a bump and not a footnote — on `[14,50,61,-149,-259,47,209,106,-76,-4,1]` rc474 served a REDUCIBLE degree-9 factor as irreducible, and because the product still equalled the input the composite's own self-check passed. The guards return `SRMECH_ERR_INTERNAL` and not `SRMECH_ERR_OVERFLOW`, and both Python wrappers now **raise** on it: `OVERFLOW` means "grow the arena and retry", the wrappers mapped every non-OK status to `None`, and that silent pure fallback is exactly how the 3 declined rows went unseen. **AN EXISTING FUNCTION RETURNS A LARGER ENVELOPE** (v10 / v12 / v23 / v24 / v25's ground): `srmech_factor_squarefree_primitive_ws_bound` counts `FAC_BP_N * fw` and carves the Berlekamp matrix, 215,176 → 286,996 at `coeff_limbs` 1 / deg 6 and 48,008,632 → 48,827,716 at `coeff_limbs` 4 / deg 48, with `srmech_factor_integer_poly_ws_bound` following because it sums the core's. The third change is the SPLIT: `fp_equal_degree` computes the Berlekamp subalgebra `nullspace((Q − I)ᵀ)` and separates by `gcd(v − s, part)` over every basis vector and shift, which terminates in a **proven static** number of steps where the Cantor–Zassenhaus retry had only an EXPECTED bound. The tight form is `(k−1)·p` passes / `p·(k−1)·⌊k/2⌋` gcds — the constant `1` is always the first RREF basis vector and is skipped, and only parts of degree `> d` are gcd'd; `k·p` / `k·p·k` is also true (and is what the docstrings quote) but is NOT the worst case, and a gate asserting the loose form leaves a 4× slack (measured max 0.9545 of the tight bound against 0.26 of `k·p·k`). Censused exhaustively over `p ∈ {3,5,7,11,13} × d ∈ {1,2,3}`, `k ≤ 6`: 17,238 blocks, 0 failures on dimension, completeness or either bound, and the constant first on 17,238 of 17,238. Its canonical `(len, coeffs)` mod-p order MOVES the core's peel order — reordered on 14 of 46 served rows, an identical multiset on 46/46, and the composite identical 48/48 WITH order — which is forced, because any deterministic replacement produces a different mod-p order. The pairing this refuses is an **rc474 `.so` under rc475 Python**: it loads with `HAS_NATIVE True` and then hangs or lies, because Python asks the library for `ws_bound` on every call and the stale library's answer is self-consistent. `SRMECH_GENOME_FORMAT_VERSION` stays 20.
+
 **The v26 bump is rc473's (`#T1188`) and it is the SECOND on this library driven by a SILENT WRONG VALUE rather than by a raise** — v21's ground, moved off the chain wire and onto the Class-N scalar surface. It adds no symbol, removes none, changes no signature: what moves is **which inputs the C projection serves**, which is exactly the class v21's second move bumped for, and under v21's own sentence — *"co-equal projections must agree on what they refuse."* Two independent halves. **(1) Twenty-four discarded statuses** across seven translation units spelled `(void)srmech_sin(...)` and friends, so a callee that had ALREADY refused its argument was overruled by its own caller. Measured at rc472 at the exported symbols, no Python in the path: `srmech_equation_of_centre(2^53+1, 0.0549, 4)` → `(SRMECH_OK, -0.08984990210223018)` where Python raised `ValueError`; `srmech_pin_slot(2^55, 0.5, 1.0)` → `(SRMECH_OK, 0.0)`; `srmech_kepler_solve(2^55, 0.3, 1e-12, 20)` → `(SRMECH_OK, 3.602879701896397e+16)`, i.e. `E == M`, the Newton iteration never able to move; `srmech_cascade_kuramoto_step_f64([0, 2^55], …)` → `(SRMECH_OK, [0.0, 3.602879701896397e+16])`, oscillator 0 silently frozen. **(2) The callee contracts**, where this header's own promise was being violated: `srmech_sin` / `srmech_cos` answered `SRMECH_OK` for NaN against a published `SRMECH_ERR_BAD_INPUT for non-finite x`, and wrote `0.0` rather than NaN at `|x| >= 2^55` because the idiom was `x - x`; `srmech_atan` / `srmech_atan2` answered `SRMECH_OK` with `-3.2146018366025517` — a finite value BELOW −π, outside their own range — for NaN and, via `Inf/Inf`, for both-infinite arguments with no NaN passed in; `srmech_exp` / `srmech_log` carried an explicit `if (x != x) return SRMECH_OK;`; `srmech_rational_sqrt` served NaN and wrote `0.0` for every finite negative argument; `srmech_winding_fold` carried both halves. All refuse now and all write NaN; `srmech_atan2` gains the quadrant diagonal so `atan2(±Inf, ±Inf)` answers ±π/4 / ±3π/4 as the pure projection does. The pairing this rejects is the one that matters — an **rc472 `.so` against rc473 Python** restores the silent value with no other symptom, and `NATIVE_ABI_VERSION != EXPECTED_ABI_VERSION` is the only thing that refuses it. The `SRMECH_NODISCARD` attribute added in the same rc is a DIAGNOSTIC, not a wire change, and contributes nothing to the bump. `SRMECH_GENOME_FORMAT_VERSION` stays 20.
 
 The v25 bump before it is rc464's (`#T1188`) and it is the fourth of the REMOVAL kind (v7 / v8 / v11 before it), the plainest shape there is. Three exported symbols go — `srmech_sedenion_navmap`, `srmech_sedenion_navigate` and `srmech_sed_slots` — with the 16-slot `SedenionRegister` they were the Rosetta peer of. They are SUBSUMED, not dropped: `srmech_cd_navmap` / `srmech_cd_navigate` take the rung as a parameter and this header has documented them as bit-identical at dim 16 since rc298, and `srmech_sed_slots` was a validate-and-copy its one caller now does inline. A removed export produces no symptom other than a version mismatch, so by standing policy it always bumps. The `SRMECH_SEDENION_NUM_SLOTS` macro goes with them and contributes nothing — macros are not exported symbols. `srmech_sedenion_is_navigable` STAYS: it is the general DENSE kernel for every rung up to `SRMECH_CD_DENSE_MAX_DIM`, dispatched live by `left_mult_is_invertible`, and only its NAME was ever sedenion-specific. rc464 also changes what one existing function returns — `srmech_make_class_run_arena_bytes` now budgets the TOML parser's own stated bound instead of a hand-rolled `32 * toml_len` heuristic, so the envelope is LARGER — which is the v10 / v12 / v23 / v24 wire-sizing shape and would have bumped on its own; it rides this one. `SRMECH_GENOME_FORMAT_VERSION` stays 20.
@@ -930,11 +933,30 @@ scratch remains single-thread-at-a-time until similarly converted.
 
 ### JPL Power-of-Ten audit
 
-The C library is clean on **seven** of the 10 Holzmann Power-of-Ten
-rules; **Rules 1, 7 and 9 are PARTIAL** (see
-[c/JPL_AUDIT.md](c/JPL_AUDIT.md)). All three are under a seeded
-down-only ratchet — **Rule 7's since rc473's pre-publish pass; it had
-no detector at all before that**, and the
+The C library is clean on **six** of the 10 Holzmann Power-of-Ten
+rules; **Rules 1, 2, 7 and 9 are PARTIAL** (see
+[c/JPL_AUDIT.md](c/JPL_AUDIT.md)). All four are under a seeded
+down-only ratchet — **Rule 2's since rc475 (`#T1188`), and it too had
+no detector at all before that.** The audit document recorded Rule 2
+"Violations: 0" and "We never use `while(1)` or `for(;;)`" from its
+first commit on an eight-row illustrative table, while **17**
+`while (1)` / `for (;;)` sites sat across 10 translation units — and
+TWO of them, `ti_lift_mono`'s bignum-factoring loops, were genuine
+latent-infinite loops: `srmech_bigint_divmod_small(quo, &rem, 0, p)`
+answers OK with `quo = 0` and `rem = 0`, so on a zero coefficient the
+loop is a FIXED POINT, measured by execution in BOTH projections.
+rc475 REPAIRED those two (and the `ti_parse` entry that was the only
+route to them) rather than seeding them, so the roster is **15** and
+the violation count is **0**; the census fell 17 → 15 because the
+repair changed the loop FORM, which the detector cannot see, and that
+is recorded rather than glossed. The remaining 15 split 11 PROVEN
+BOUND / 2 DESIGNED-BLOCKING / 2 OS-IDIOM, and the rule stays PARTIAL
+because a loop that terminates by design or by an OS condition is not
+a loop with a fixed upper bound in Holzmann's sense. Seeded by
+`(file, enclosing function)` rather than `(file, line)` — rc475 moved
+`srmech_factor_poly.c`'s own site by +92 lines inside the same
+release. Rule 7's ratchet dates from **rc473's pre-publish pass; it
+had no detector at all before that** either, and the
 audit document recorded it "0 violations / Pass" from its first
 commit through rc472, on a four-function evidence table, while **24**
 discarded `srmech_status_t` values sat across 7 translation units;
@@ -989,7 +1011,13 @@ Enforcement:
 1. **`tests/test_jpl_audit.py`** — pytest ratchet, mechanically
    detects Rules 1 (no goto **and, since rc441, no new direct/indirect
    recursion — strict on novel cycles, down-only on the seeded
-   population of 9**), 3 (no malloc), 4 (≤60-line functions), 5 (≥2
+   population of 9**), **2 (since rc475 — no NEW `while (1)` /
+   `for (;;)`; a literal-masked scan attributed to its enclosing
+   function by the same brace-walk Rules 4/5 use, strict on novel
+   sites, a two-way `==` ceiling of 15, a `CEIL_RULE_2_VIOLATION` of 0
+   for the class-(c) rows, an `unattributed == 0` blind-spot counter,
+   and a planted-mutation test)**, 3 (no malloc), 4 (≤60-line
+   functions), 5 (≥2
    asserts per non-exempt function), **7 (since rc473's pre-publish
    pass — no discarded `srmech_status_t` from a `SRMECH_NODISCARD`-tagged
    callee, strict zero, plus down-only residual ceilings of 18 in

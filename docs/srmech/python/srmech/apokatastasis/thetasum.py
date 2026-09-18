@@ -467,6 +467,29 @@ def _lift_prime_terms(terms: "List", prime_syms: "List[Tuple[int, str]]") -> "Li
         exps: "Dict[str, int]" = dict(m.exps)
         for prime, sym in prime_syms:
             e = 0
+            # ⚠️ The zero-numerator skip is load-bearing, not defensive
+            # (rc475, `#T1188`). In Python ``0 % p == 0`` and ``0 // p == 0``,
+            # so on a zero numerator the first loop is a FIXED POINT: the next
+            # pass is byte-identical and it never exits. MEASURED by execution
+            # at rc474 — this function did not return inside 12 s on
+            # ``Q(0, 1)``, while the control ``Q(12, 5)`` at prime 2 returned
+            # ``3/5`` with ``e = +2``. Skipping with ``e`` unchanged is the
+            # exact choice: ``v_p(0)`` is undefined, and the lift's contract
+            # (substituting ``sym := prime`` reproduces the coefficient) holds
+            # for a zero coefficient at any exponent.
+            #
+            # There is deliberately NO denominator guard here, and the asymmetry
+            # is not an oversight. :class:`~srmech.math.q.Q` raises
+            # ``ZeroDivisionError`` on a zero denominator at construction and
+            # stores a reduced pair with ``den >= 1``, so ``den == 0`` cannot
+            # reach this loop and a guard would be dead code. The C twin
+            # (``ti_lift_mono`` in ``c/src/srmech_thetasum_interp.c``) DOES
+            # carry one, and REFUSES rather than skipping, because its entry
+            # (``ti_parse``) takes the pair off a bare-C wire where nothing has
+            # rejected it yet — rc475 rejects it there too. The projections
+            # agree on the outcome; they differ on which layer refuses.
+            if num == 0:
+                continue
             while num % prime == 0:
                 num //= prime
                 e += 1

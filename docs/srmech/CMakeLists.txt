@@ -426,6 +426,25 @@ if(SRMECH_SRCS)
         # number by hand — a cardinal above a list that grows is the shape
         # this file keeps re-minting.
         #
+        # rc475 (`#T1188`) added test_srmech_factor_poly_hensel_width to the
+        # list below AND gave it the first TIMEOUT property in this file. Both
+        # halves are load-bearing. `grep -c TIMEOUT CMakeLists.txt` answered 0
+        # before this commit, so the DEFAULT ctest timeout — 1500 s — was the
+        # only bound on every one of these binaries. That is not a theoretical
+        # concern here: the defect this test was written for is a HANG, and
+        # through rc474 the core did not return on the test's first row. A gate
+        # whose failure mode is "the CI cell sits for 25 minutes and then the
+        # job is cancelled" does not report the defect it exists to report; it
+        # reports an infrastructure flake. 60 s is ~100x the whole registered
+        # set's measured wall time (551 ms) and ~1000x this test's own.
+        #
+        # The timeout is scoped to THIS test on purpose. Blanket-timing the
+        # other 39 would be a behaviour change to tests this rc does not touch,
+        # on three OS cells whose cold-start costs are unmeasured here, and the
+        # right way to make that change is to measure each cell first. The gap
+        # is named rather than quietly widened: every other registered test
+        # still runs under the 1500 s default.
+        #
         # rc473 (`#T1188`) added test_srmech_value_status_rc473 to the list
         # below, and WHICH list is not cosmetic. The foreach at ~:376 issues
         # add_test only — each of its names has its own add_executable stanza
@@ -459,12 +478,18 @@ if(SRMECH_SRCS)
             test_srmech_poly test_srmech_q_wz_verify test_srmech_qi
             test_srmech_qmat test_srmech_recursive_cut test_srmech_sha256
             test_srmech_toml test_srmech_wz test_srmech_zeilberger
-            test_srmech_value_status_rc473)
+            test_srmech_value_status_rc473
+            test_srmech_factor_poly_hensel_width)
         foreach(t ${SRMECH_C_TESTS_RC452})
             add_executable(${t} c/test/${t}.c)
             target_link_libraries(${t} PRIVATE srmech ${SRMECH_MATH_LIB})
             add_test(NAME ${t} COMMAND ${t})
         endforeach()
+
+        # The FIRST TIMEOUT property in this file — see the note above the
+        # set() for why it is scoped to this one test and why 60 s.
+        set_tests_properties(test_srmech_factor_poly_hensel_width PROPERTIES
+                             TIMEOUT 60)
 
         # test_srmech_config.c includes the INTERNAL header srmech_platform.h,
         # which lives in c/src rather than the public c/include. Same treatment

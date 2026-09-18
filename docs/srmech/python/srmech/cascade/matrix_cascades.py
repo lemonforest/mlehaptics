@@ -2519,7 +2519,7 @@ def _jordan_chains_native(a, lam):
 # primitive ℤ-factors up to a rational unit). The classical algorithm (Zassenhaus):
 #   1. split off content + square-free-decompose (reuse the Yun helper above);
 #   2. factor each square-free primitive f mod a good prime p (f square-free mod p),
-#      via distinct-degree + equal-degree (Cantor–Zassenhaus) splitting over 𝔽_p;
+#      via distinct-degree + equal-degree (DETERMINISTIC Berlekamp, rc475) splitting;
 #   3. Hensel-lift the mod-p factorisation to mod p^k with p^k ≥ 2·B+1 (B = the
 #      Mignotte coefficient bound for true factors), so a true factor's coefficients
 #      are recoverable as the symmetric residues mod p^k;
@@ -2711,54 +2711,148 @@ def _poly_sub_fp(a: List[int], b: List[int], q: int) -> List[int]:
                      for i in range(n)], q)
 
 
-def _equal_degree_split(f: List[int], d: int, q: int,
-                        rng) -> List[List[int]]:
-    """Cantor–Zassenhaus equal-degree factorisation: split the product of
-    distinct monic irreducibles of degree ``d`` in ``f`` (over 𝔽_p, p odd) into
-    its irreducible factors. Deterministic-seeded randomness for reproducibility
-    (von zur Gathen–Gerhard §14.3)."""
-    f = _fp_make_monic(f, q)
-    deg = len(f) - 1
-    if deg == d:
-        return [f]
-    factors = [f]
-    out: List[List[int]] = []
-    exp = (pow(q, d) - 1) // 2
-    n = len(f) - 1
-    while factors:
-        g = factors.pop()
-        if len(g) - 1 == d:
-            out.append(g)
-            continue
-        # random degree < deg(g) polynomial
-        while True:
-            r = [rng(q) for _ in range(len(g) - 1)]
-            r = _fp_trim(r, q)
-            if r != [0] and len(r) > 1:
+def _fp_berlekamp_matrix(g: List[int], n: int, q: int) -> List[List[int]]:
+    """``Q[i]`` = the coefficients of ``x^(i·p) mod g``, ``i = 0..n-1`` (each row
+    padded to length ``n``). One ``x^p mod g`` power, then ``n-1`` modular
+    multiplications — every loop a bounded ``for``."""
+    xp = _fp_powmod([0, 1], q, g, q)
+    rows: List[List[int]] = []
+    cur = [1 % q]
+    for i in range(n):
+        if i:
+            cur = _fp_trim(_fp_divmod(_fp_mulmod(cur, xp, q), g, q)[1], q)
+        rows.append([(cur[j] if j < len(cur) else 0) % q for j in range(n)])
+    return rows
+
+
+def _fp_berlekamp_basis(g: List[int], n: int, q: int) -> List[List[int]]:
+    """The RREF basis of the **Berlekamp subalgebra** ``{v : v^p ≡ v mod g}``.
+
+    ``v = Σ vᵢxⁱ`` satisfies ``v^p = Σ vᵢx^(i·p)``, so ``v`` lies in the
+    subalgebra iff the row vector ``v`` annihilates ``Q − I``; the subalgebra is
+    therefore ``nullspace((Q − I)ᵀ)``. Reduced top-down by ascending pivot
+    column; one basis vector per FREE column, in ascending order, with 1 in that
+    column and ``−R[pivot_row][free]`` in each pivot column — a canonical basis,
+    so the C peer (``fp_bk_rref`` + ``fp_bk_basis_vec``) produces it identically.
+    """
+    Q = _fp_berlekamp_matrix(g, n, q)
+    M = [[(Q[c][r] - (1 if r == c else 0)) % q for c in range(n)]
+         for r in range(n)]
+    pivot_of_row: List[int] = []
+    row = 0
+    for col in range(n):
+        piv = -1
+        for r in range(row, n):
+            if M[r][col]:
+                piv = r
                 break
-        h = _fp_powmod(r, exp, g, q)
-        h = _poly_sub_fp(h, [1], q)                  # h = r^exp − 1
-        gg = _fp_gcd(h, g, q)
-        if gg == [1] or _fp_trim(gg, q) == _fp_make_monic(g, q):
-            factors.append(g)                        # split failed; retry
+        if piv < 0:
             continue
-        gg = _fp_make_monic(gg, q)
-        other, _ = _fp_divmod(g, gg, q)
-        factors.append(gg)
-        factors.append(_fp_make_monic(other, q))
-    return out
+        M[row], M[piv] = M[piv], M[row]
+        inv = pow(M[row][col], q - 2, q)
+        M[row] = [(x * inv) % q for x in M[row]]
+        for r in range(n):
+            if r != row and M[r][col]:
+                fv = M[r][col]
+                M[r] = [(M[r][k] - fv * M[row][k]) % q for k in range(n)]
+        pivot_of_row.append(col)
+        row += 1
+        if row == n:
+            break
+    pivots = set(pivot_of_row)
+    basis: List[List[int]] = []
+    for free in range(n):
+        if free in pivots:
+            continue
+        v = [0] * n
+        v[free] = 1 % q
+        for ri, pc in enumerate(pivot_of_row):
+            v[pc] = (-M[ri][free]) % q
+        basis.append(_fp_trim(v, q))
+    return basis
 
 
-def _factor_mod_p(f: List[int], q: int, rng) -> List[List[int]]:
+def _equal_degree_split(f: List[int], d: int, q: int) -> List[List[int]]:
+    """**DETERMINISTIC Berlekamp** equal-degree factorisation: split the product
+    of distinct monic irreducibles of degree ``d`` in ``f`` (over 𝔽_p, p odd)
+    into its irreducible factors, with a **PROVEN STATIC BOUND** on every loop.
+
+    Let ``n = deg f`` and ``k = n/d``. By CRT ``𝔽_p[x]/(f) = Π 𝔽_p[x]/(f_i) =
+    Π 𝔽_{p^d}``, and ``v^p = v`` holds in ``𝔽_{p^d}`` exactly on its ``𝔽_p``, so
+    the Berlekamp subalgebra is isomorphic to ``𝔽_p^k`` and has dimension
+    **exactly k** — the RREF basis of :func:`_fp_berlekamp_basis` has exactly
+    ``k`` vectors. For any two distinct ``f_a, f_b`` some basis vector ``v``
+    takes different 𝔽_p values on them (if every basis vector agreed, all of the
+    subalgebra would, contradicting CRT), and then the pass
+    ``(v, s = v mod f_a)`` has ``f_a | v − s`` while ``f_b ∤ v − s``, so it
+    splits any part carrying both. Exhausting ``k`` basis vectors × ``p`` shifts
+    therefore separates EVERY pair: at most ``k·p`` passes and ``k·p·k`` gcds,
+    all bounded ``for`` loops. **No retry, no randomness, no expected bound**
+    (rc475 ruling 1 — replaces the rc165 Cantor–Zassenhaus Las Vegas retry
+    loops that stood at :2728-2748, which had only an EXPECTED bound; von zur
+    Gathen & Gerhard §14.8).
+
+    The part list is appended-at-END and each pass sweeps only the count present
+    at its entry, matching the C peer's ``st_flat``/``st_top`` discipline
+    exactly, so both projections spend the same gcds in the same order.
+    """
+    g = _fp_make_monic(f, q)
+    n = len(g) - 1
+    if n == d:
+        return [g]
+    k = n // d
+    basis = _fp_berlekamp_basis(g, n, q)
+    if len(basis) != k:                              # dim != k ⇒ bad input
+        raise ValueError(
+            "_equal_degree_split: Berlekamp dimension %d != %d factors of "
+            "degree %d in a degree-%d block" % (len(basis), k, d, n))
+    parts = [g]
+    for v in basis:
+        if len(parts) == k:
+            break
+        if len(v) <= 1:                              # a constant separates none
+            continue
+        for s in range(q):
+            if len(parts) == k:
+                break
+            vs = _poly_sub_fp(v, [s % q], q)
+            top0 = len(parts)
+            for i in range(top0):
+                h = parts[i]
+                if len(h) - 1 <= d:
+                    continue
+                gg = _fp_gcd(vs, h, q)
+                if len(gg) < 2 or len(gg) >= len(h):
+                    continue                         # no proper split
+                gg = _fp_make_monic(gg, q)
+                other, _r = _fp_divmod(h, gg, q)
+                parts[i] = gg
+                parts.append(_fp_make_monic(other, q))
+    if len(parts) != k:
+        raise ValueError(
+            "_equal_degree_split: Berlekamp left %d parts, expected %d"
+            % (len(parts), k))
+    return parts
+
+
+def _factor_mod_p(f: List[int], q: int) -> List[List[int]]:
     """Full factorisation of a SQUARE-FREE monic ``f`` over 𝔽_p into monic
-    irreducibles (distinct-degree then equal-degree)."""
+    irreducibles (distinct-degree then DETERMINISTIC Berlekamp equal-degree),
+    returned in the canonical ``(len, coeffs)`` order.
+
+    rc475: the sort is load-bearing, not cosmetic. Everything downstream — which
+    subsets the recombination enumerates, hence the order the ℤ factors are
+    peeled in and the ``hit_cap`` flag — is a function of THIS list's order. A
+    canonical order makes all of it independent of HOW a block was split, so a
+    future change of splitting method cannot move a served value. The C peer
+    sorts with the same key in ``fp_mp_sort``."""
     fac: List[List[int]] = []
     for g, d in _distinct_degree_factor(f, q):
         if len(g) - 1 == d:
             fac.append(g)
         else:
-            fac.extend(_equal_degree_split(g, d, q, rng))
-    return [_fp_make_monic(g, q) for g in fac]
+            fac.extend(_equal_degree_split(g, d, q))
+    return sorted((_fp_make_monic(g, q) for g in fac), key=lambda p: (len(p), p))
 
 
 # ── Mignotte bound + Hensel lifting ─────────────────────────────────────────────
@@ -3259,7 +3353,8 @@ def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
 
     # rc165 (Qalg TAIL Batch 8): the Zassenhaus core dispatches to
     # srmech_factor_squarefree_primitive — the C kernel that runs the SAME
-    # pipeline (𝔽_p Cantor–Zassenhaus over the byte-identical xorshift64 rng +
+    # pipeline (𝔽_p DETERMINISTIC Berlekamp equal-degree + the same canonical
+    # (len, coeffs) mod-p order +
     # quadratic Hensel lift to mod p^k >= 2·B+1 + subset recombination), returning
     # the irreducible ℤ factors. The pure body below stays the Pyodide / no-native
     # fallback AND the parity oracle (the factorization is unique, so both paths
@@ -3288,21 +3383,10 @@ def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
             "factor_integer_poly: no good reduction prime found below 100000 "
             "(degenerate input?)")
 
-    # deterministic-seeded 𝔽_p randomness for reproducible Cantor–Zassenhaus.
-    state = [0x2545F4914F6CDD1D ^ (prime * (deg + 1))]
-
-    def _rng(q):
-        # a tiny xorshift → uniform-ish residue; deterministic for a given prime.
-        x = state[0]
-        x ^= (x << 13) & 0xFFFFFFFFFFFFFFFF
-        x ^= x >> 7
-        x ^= (x << 17) & 0xFFFFFFFFFFFFFFFF
-        state[0] = x
-        return x % q
-
-    # 2. factor f (its monic associate) mod p.
+    # 2. factor f (its monic associate) mod p — DETERMINISTIC Berlekamp
+    # equal-degree (rc475 ruling 1), returned in canonical (len, coeffs) order.
     fp_monic = _fp_make_monic(f, prime)
-    modp_factors = _factor_mod_p(fp_monic, prime, _rng)
+    modp_factors = _factor_mod_p(fp_monic, prime)
     if len(modp_factors) == 1:
         return [f], False                            # irreducible (one factor mod p)
 
@@ -3422,7 +3506,9 @@ def factor_integer_poly(coeffs):
        (reuse :func:`_square_free_factors`) so each multiplicity is handled exactly;
     2. for each square-free primitive ``f`` (deg ≥ 1): deg ≤ 1 ⇒ irreducible; else
        choose a prime ``p ∤ lead(f)`` with ``f`` square-free mod ``p``, factor
-       ``f mod p`` in 𝔽_p[x] (distinct-degree + **Cantor–Zassenhaus** equal-degree),
+       ``f mod p`` in 𝔽_p[x] (distinct-degree + **deterministic Berlekamp**
+       equal-degree — rc475; the mod-p list comes back in canonical
+       ``(len, coeffs)`` order, which is what fixes everything downstream of it),
        **Hensel-lift** to mod ``p^k`` with ``p^k ≥ 2·B+1`` (``B`` = the **Mignotte**
        coefficient bound), then **recombine**: subset sizes ≤ 3 first, the **van
        Hoeij LLL knapsack** (rc222 — ONE polynomial-time lattice reduction; *J.

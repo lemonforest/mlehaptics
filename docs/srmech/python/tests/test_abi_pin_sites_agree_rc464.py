@@ -65,9 +65,19 @@ from srmech import _native
 
 _TESTS = os.path.dirname(os.path.abspath(__file__))
 
-#: ``ABI-PIN: EXPECTED_ABI_VERSION == 26  (any trailing prose)``, as it appears
-#: inside a comment token. Two of the three live sites carry a ``⚠️`` before the
+#: ``ABI-PIN: EXPECTED_ABI_VERSION == 27  (any trailing prose)``, as it appears
+#: inside a comment token. Two of the live sites carry a ``⚠️`` before the
 #: keyword, which sits outside the match rather than needing to be spelled.
+#:
+#: ⚠️ rc475 (`#T1188`): THIS COMMENT IS ITSELF A PIN, and the gate is right to
+#: say so. It is a ``#:`` comment, not part of the docstring, so ``tokenize``
+#: yields it as a genuine COMMENT token and the pattern above matches its own
+#: example. The rc475 ABI sweep updated the four sites in ``test_bus.py`` and
+#: ``test_introspect.py``, missed this one, and the gate caught it — which is
+#: the gate working, and a fifth consecutive rc in which an ABI sweep left a
+#: pin behind. The example is deliberately NOT de-fanged (by mangling the
+#: keyword, say): a pattern that cannot match its own documentation is a
+#: pattern nobody can check by eye. It moves with the number, like any pin.
 _PIN_COMMENT = re.compile(r"ABI-PIN:\s*(\w*ABI\w*)\s*==\s*(\d+)")
 
 #: A local holding an ABI literal — the half a ``== <n>`` sweep cannot see.

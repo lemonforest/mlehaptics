@@ -581,8 +581,24 @@ RULE_5_MIN_ASSERTS: int = 2
 
 
 def _scan_functions(path: Path) -> list[tuple[str, int, int]]:
-    """Crude C function scanner — returns ``(name, lines, asserts)``
-    per function defined in `path`. Same algorithm the
+    """``(name, lines, asserts)`` per function — the long-standing contract.
+
+    Derived from :func:`_scan_function_records` so that there is exactly ONE
+    brace-walk in this file. rc475 (``#T1188``) needed the same walk to report
+    SPANS, for Rule 2's attribution of a ``while (1)`` to its enclosing
+    function; a second scanner would have been a second set of blind spots to
+    keep in step, and this scanner has already had three
+    (``static const``-returning definitions, the 10-line brace look-ahead, and
+    braces inside char literals).
+    """
+    return [(name, end - start + 1, asserts)
+            for name, start, end, asserts in _scan_function_records(path)]
+
+
+def _scan_function_records(path: Path) -> "list[tuple[str, int, int, int]]":
+    """Crude C function scanner — returns ``(name, start_line, end_line,
+    asserts)`` per function defined in `path`, with the line numbers 1-BASED
+    and INCLUSIVE. Same algorithm the
     JPL_AUDIT.md audit script uses; pure regex + brace counting.
 
     Limitations: this isn't a real C parser. It assumes srmech's
@@ -645,7 +661,7 @@ def _scan_functions(path: Path) -> list[tuple[str, int, int]]:
 
     # For each detected function start, count brace depth to find
     # the closing brace + count asserts in between.
-    out: list[tuple[str, int, int]] = []
+    out: "list[tuple[str, int, int, int]]" = []
     for name, start_idx in fn_starts:
         depth = 0
         asserts = 0
@@ -664,7 +680,7 @@ def _scan_functions(path: Path) -> list[tuple[str, int, int]]:
             if depth == 0:
                 end_idx = j
                 break
-        out.append((name, end_idx - start_idx + 1, asserts))
+        out.append((name, start_idx + 1, end_idx + 1, asserts))
     return out
 
 
@@ -1128,6 +1144,283 @@ def test_rule_7_test_ceiling_is_not_slack() -> None:
         f"CEIL_RULE_7_TEST is {CEIL_RULE_7_TEST} — if a discard was repaired "
         f"(the `check_*(...)` row rc473 used in test_srmech_trans_q61.c and "
         f"test_srmech_bigint.c), LOWER the ceiling; it is down-only"
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Rule 2: BOUNDED LOOPS (rc475, `#T1188` — the first detector of any kind)
+# ──────────────────────────────────────────────────────────────────────
+#
+# JPL Rule 2: "All loops must have a fixed upper bound." `JPL_AUDIT.md` recorded
+# "Violations: 0" and "We never use `while(1)` or `for(;;)`" from its first
+# commit, on an eight-row illustrative table. Both sentences were FALSE, and
+# they survived because this file had no Rule-2 detector at all — the same shape
+# as the Rule 7 correction at rc473, where the audit read "0 violations / Pass"
+# while 24 discarded statuses sat in the tree. Measured at rc475 on
+# `46eeea6c9`: 17 `while (1)` / `for (;;)` sites across 10 units in `c/src`,
+# identical raw and literal-masked, with ZERO in `c/include`.
+#
+# WHAT THE REPAIR IN THIS RC DID TO THAT NUMBER, stated rather than glossed.
+# Two of the 17 were `ti_lift_mono`'s bignum-factoring loops, and they were the
+# only GENUINE violations in the population: they assumed a nonzero coefficient
+# with no in-loop cap, and `srmech_bigint_divmod_small(quo, &rem, 0, p)` returns
+# SRMECH_OK with `quo = 0` and `rem = 0`, so on a zero they were a FIXED POINT —
+# the next iteration byte-identical to the last, forever, with `e++` / `e--`
+# running away on a signed int32_t. Measured by EXECUTION in both projections
+# (the pure twin in `apokatastasis/thetasum.py` did not return inside 12 s on
+# `Q(0, 1)`), and the sibling `ti_collect_mono_primes` 50 lines earlier guards
+# exactly that state, so the tree already treated it as reachable. rc475 repairs
+# both by making the zero test the loop CONDITION, which also removes both from
+# this detector's view: the census is now 15, and the detector verified nothing
+# about the two that left. What bounds them is arithmetic — each pass divides a
+# strictly positive magnitude by p >= 2 — not the spelling.
+#
+# ⚠️ SEEDED BY (file, ENCLOSING FUNCTION), NOT BY (file, line). This file
+# already states the reason at `RULE_9_FN_PTR_SEEDED`: "line numbers
+# deliberately NOT pinned (they drift; the identifier is the site)". rc475
+# proves it on itself — its own splitting change moves
+# `srmech_factor_poly.c`'s `while (1)` by +92 lines, so a line-keyed table
+# written against the pre-change tree would have been wrong before the rc even
+# landed. The `(file, function)` table below was MEASURED byte-identical on the
+# pre-change and post-change trees.
+#
+# ⚠️ THE SCAN IS LITERAL-MASKED, and that is measured load-bearing rather than
+# insurance. A `for (;;)` QUOTED INSIDE A COMMENT is matched by a raw scan and
+# correctly rejected by the masked one, and the splitting lane hit exactly that
+# — its first draft's docstring quoted the retry loop it was removing, and the
+# raw census counted it as an ADDED loop form. Same discipline CLAUDE.md records
+# for the bare-`#NNN` ref guard.
+#
+# WHAT THIS CANNOT PROVE. Source SHAPE only. It cannot verify that a stated
+# bound is CORRECT, that a `do { } while` or a plain `while` with a
+# data-dependent condition terminates, or that a classified "invariant" holds —
+# the `ti_lift_mono` rows are the standing proof that the reader can get that
+# wrong, since a previous pass classified them as benign
+# "invariant-terminating" and they were infinite loops. The classification in
+# the seed comments is a READER's claim, recorded so it can be challenged.
+
+_RULE2_RE = re.compile(r"while\s*\(\s*1\s*\)|for\s*\(\s*;\s*;\s*\)")
+
+#: (file, enclosing function) -> hit count. Line numbers deliberately NOT
+#: pinned (they drift — rc475 itself moved srmech_factor_poly.c's site by
+#: +92 lines); the enclosing function is the site. Same discipline as
+#: RULE_9_FN_PTR_SEEDED. DOWN-ONLY, and STRICT ON NOVEL.
+#:
+#: The class letter in each comment is the rc475 classification:
+#:   (a)  PROVEN BOUND      — a stated numeric or caller-supplied limit,
+#:                            checked every pass.
+#:   (b1) DESIGNED-BLOCKING — a server dispatch loop, unbounded ON PURPOSE,
+#:                            exiting on transport EOF / a callback stop.
+#:   (b2) OS-IDIOM          — the POSIX EINTR retry; advances only on a signal.
+#:   (c)  LATENT-UNBOUNDED  — the class that matters. EMPTY at rc475, because
+#:                            its two members were repaired rather than seeded.
+#: The (b) split is not cosmetic: lumping "blocks forever by design" together
+#: with "spins forever if an upstream invariant breaks" under one letter is what
+#: let two genuine infinite loops sit beside two intentional server loops.
+RULE_2_SEEDED: "dict[tuple[str, str], int]" = {
+    # (a) <= 2*n_syms; both indices non-decreasing, every branch returns or advances
+    ("srmech_ellbase.c",         "srmech_ellbase_exps_cmp"):   1,
+    # (a) C(rem_n, size); next_combo is a strictly increasing combinadic that returns 0 once exhausted
+    ("srmech_factor_poly.c",     "fac_walk"):                  1,
+    # (a) SRMECH_GK_MAX_DIGITS = 15, checked before every increment
+    ("srmech_genome.c",          "gk_emit"):                   1,
+    # (a) heap height, ceil(log2 n)
+    ("srmech_genome.c",          "sc_sift"):                   1,
+    # (a) heap height, ceil(log2 n)
+    ("srmech_genome.c",          "gap_u64_sift"):              1,
+    # (a) heap height, ceil(log2 n)
+    ("srmech_genome.c",          "gap_edge_sift"):             1,
+    # (a) line_cap + 1; `if (n >= cap) return OVERFLOW` precedes the increment
+    ("srmech_mcp.c",             "mcp_read_line"):             1,
+    # (a) SSE_REQ_CAP + 1, same shape
+    ("srmech_mcp_sse.c",         "sse_read_head"):             1,
+    # (a) n + 1, explicit `idx > n` exit
+    ("srmech_qalg.c",            "qalg_jordan_powers"):        1,
+    # (a) 27, documented inline AND asserted
+    ("srmech_ryu.c",             "ryu_pow5_factor"):           1,
+    # (a) TI_Z6_MAX_ATTEMPTS, the first statement in the body, commented "JPL cap"
+    ("srmech_thetasum_interp.c", "ti_z6_leaf"):                1,
+    # (b1) designed-blocking: a subscribe API; exits on transport EOF/error or a callback stop
+    ("srmech_bus.c",             "srmech_bus_subscribe"):      1,
+    # (b1) designed-blocking: JSON-RPC stdio dispatch; exits on EOF
+    ("srmech_mcp.c",             "srmech_mcp_serve_stdio"):    1,
+    # (b2) EINTR idiom: continues ONLY on errno == EINTR
+    ("srmech_platform.c",        "srmech_plat_stdin_read"):    1,
+    # (b2) EINTR idiom, identical shape
+    ("srmech_platform.c",        "srmech_plat_tcp_read_some"): 1,
+}
+
+#: Total hits the masked scan must find. DOWN-ONLY, and asserted in BOTH
+#: directions, so draining a site forces the table and the ceiling down
+#: together. 17 before the rc475 ti_lift_mono repair; 15 after it.
+CEIL_RULE_2: int = 15
+
+#: Class-(c) rows — a loop this audit calls a GENUINE latent-infinite loop and
+#: ships anyway. DOWN-ONLY, and it is 0 because rc475 REPAIRED its two members
+#: rather than seeding them. A nonzero value here is the audit admitting it
+#: knows about an unterminating loop, which is shipping known-broken.
+CEIL_RULE_2_VIOLATION: int = 0
+
+#: What the detector MUST see, or it is not looking: an always-present class-(a)
+#: site, documented and asserted in the C itself. Mirrors Rule 9's vacuity check
+#: on `srmech_ndjson_line_cb`.
+RULE_2_VACUITY_SEED: "tuple[str, str]" = ("srmech_ryu.c", "ryu_pow5_factor")
+
+
+def _rule2_hits() -> "tuple[dict[tuple[str, str], int], int]":
+    """``({(file, enclosing function): count}, unattributed)`` over the same
+    file set Rule 9 scans, on literal-MASKED text.
+
+    ``unattributed`` counts hits that fall outside every span
+    :func:`_scan_function_records` reports. It is a DETECTOR-GAP counter, not a
+    finding: a hit the walker cannot place would otherwise vanish from the
+    census and take the gate green with it.
+    """
+    found: "dict[tuple[str, str], int]" = {}
+    unattributed = 0
+    for path in _c_files():
+        masked = _mask_c_literals(path.read_text(encoding="utf-8"))
+        spans = _scan_function_records(path)
+        for lineno, line in enumerate(masked.split("\n"), start=1):
+            n_hits = len(_RULE2_RE.findall(line))
+            if not n_hits:
+                continue
+            owner = None
+            for name, start, end, _asserts in spans:
+                if start <= lineno <= end:
+                    owner = name
+                    break
+            if owner is None:
+                unattributed += n_hits
+                continue
+            key = (path.name, owner)
+            found[key] = found.get(key, 0) + n_hits
+    return found, unattributed
+
+
+def test_rule_2_detector_is_not_vacuous() -> None:
+    """The scan must find a site known to be there, attributed to its owner.
+
+    Without this, a regex that stopped matching — or a span walk that placed
+    nothing — would report an empty census, and every assertion below would
+    pass on it.
+    """
+    found, _unattributed = _rule2_hits()
+    assert RULE_2_VACUITY_SEED in found, (
+        f"Rule 2 detector found no `for (;;)` in {RULE_2_VACUITY_SEED[1]} "
+        f"({RULE_2_VACUITY_SEED[0]}) — a documented, asserted, always-present "
+        f"class-(a) site. The scan is broken, not the tree. Census was: "
+        f"{sorted(found)}"
+    )
+    assert found, "Rule 2 census is empty; 15 sites were measured at rc475"
+
+
+def test_rule_2_no_new_unbounded_loops() -> None:
+    """STRICT on novelty: a NEW `while (1)` / `for (;;)` fails outright.
+
+    A seeded site may only shrink. Both halves matter — a new loop form in a
+    function that already has one would otherwise hide inside its count.
+    """
+    found, _unattributed = _rule2_hits()
+    novel = sorted(set(found) - set(RULE_2_SEEDED))
+    assert not novel, (
+        "NEW unbounded loop form(s) — JPL Rule 2 requires a fixed upper bound "
+        "on every loop:\n  "
+        + "\n  ".join(f"{f}: {fn} ({found[(f, fn)]} hit(s))" for f, fn in novel)
+        + "\nIf the loop genuinely has a bound, express it in the loop HEADER "
+          "(a counted `for`, or a `while` whose condition is the bound) rather "
+          "than seeding it here. If it cannot be, it is class (c) and the "
+          "answer is to fix it: rc475 measured two such loops and both were "
+          "infinite on a reachable input."
+    )
+    grown = sorted(
+        (k, RULE_2_SEEDED[k], found[k]) for k in found
+        if k in RULE_2_SEEDED and found[k] > RULE_2_SEEDED[k]
+    )
+    assert not grown, (
+        "seeded Rule 2 site(s) GREW — down-only:\n  "
+        + "\n  ".join(f"{f}: {fn} {was} -> {now}" for (f, fn), was, now in grown)
+    )
+
+
+def test_rule_2_ceiling_is_not_slack() -> None:
+    """``sum(found) == CEIL_RULE_2``, in BOTH directions.
+
+    An inequality would let the census drift downward silently and leave a seed
+    table describing loops that no longer exist. Equality forces a drain to move
+    the table and the ceiling in the same commit — the discipline the Rule 4 and
+    Rule 7 seeds already use.
+    """
+    found, _unattributed = _rule2_hits()
+    total = sum(found.values())
+    assert total == CEIL_RULE_2, (
+        f"Rule 2 census is {total}, CEIL_RULE_2 is {CEIL_RULE_2}. "
+        + ("A site was DRAINED — lower the ceiling and remove its row from "
+           "RULE_2_SEEDED in the same commit." if total < CEIL_RULE_2 else
+           "A site was ADDED — see test_rule_2_no_new_unbounded_loops.")
+        + f" Census: {sorted(found.items())}"
+    )
+    seeded_total = sum(RULE_2_SEEDED.values())
+    assert seeded_total == CEIL_RULE_2, (
+        f"RULE_2_SEEDED sums to {seeded_total} but CEIL_RULE_2 is "
+        f"{CEIL_RULE_2}; the table and the ceiling must agree by construction"
+    )
+    assert CEIL_RULE_2_VIOLATION == 0, (
+        f"CEIL_RULE_2_VIOLATION is {CEIL_RULE_2_VIOLATION}, not 0 — the audit "
+        "is recording a loop it calls genuinely unterminating and shipping it. "
+        "Repair it instead; rc475's two class-(c) rows cost ~6 lines of C and "
+        "~4 of Python, mirroring a guard the same file already had."
+    )
+
+
+def test_rule_2_every_hit_is_attributed() -> None:
+    """``unattributed == 0`` — the detector's own blind-spot guard.
+
+    A `while (1)` the function walker cannot place is invisible to the seed
+    table, to the novelty check and to the ceiling at once, so the gate would go
+    green on a gap rather than on a clean tree. This scanner has had three
+    measured blind spots already (see :func:`_scan_function_records`), which is
+    the argument for counting rather than assuming.
+    """
+    found, unattributed = _rule2_hits()
+    assert unattributed == 0, (
+        f"{unattributed} Rule 2 hit(s) fall outside every function span the "
+        f"scanner reports, so they are in the tree and NOT in the census "
+        f"({sum(found.values())} attributed). Fix the span walk — do not widen "
+        f"the ceiling."
+    )
+
+
+def test_rule_2_planted_loop_is_detected() -> None:
+    """Prove the predicate can FAIL, on both spellings and through the mask.
+
+    Replays what a future author would actually write, through the same regex
+    and the same masking helper the gate uses. Without this, "no novel sites"
+    and "the regex no longer matches anything" read identically green.
+    """
+    src = (
+        "static int planted(void)\n"
+        "{\n"
+        "    for (;;) { break; }\n"
+        "    while (1) { break; }\n"
+        "    return 0;\n"
+        "}\n"
+    )
+    assert len(_RULE2_RE.findall(src)) == 2, "both spellings must match"
+    assert _RULE2_RE.search("while(1)") is not None, "no-space spelling"
+    assert _RULE2_RE.search("for(;;)") is not None, "no-space spelling"
+
+    # ...and the mask must SUPPRESS a quoted one. This is the control that
+    # caught a real false positive: a draft docstring quoting the loop it
+    # removed, counted by the raw census as an ADDED loop form.
+    quoted = "/* the old retry was `for (;;) { ... }` here */\nint x;\n"
+    assert _RULE2_RE.search(quoted) is not None, "raw scan sees the comment"
+    assert _RULE2_RE.search(_mask_c_literals(quoted)) is None, (
+        "the literal mask must reject a `for (;;)` quoted inside a comment"
+    )
+    in_string = 'const char *s = "for (;;)";\n'
+    assert _RULE2_RE.search(_mask_c_literals(in_string)) is None, (
+        "the literal mask must reject a `for (;;)` inside a string literal"
     )
 
 

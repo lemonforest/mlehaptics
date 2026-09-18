@@ -10,8 +10,10 @@
  *      (srmech_poly_gcd chains) so each multiplicity is exact;
  *   2. per square-free primitive f (deg >= 1): choose a prime p ∤ lead with f
  *      square-free mod p; factor f mod p in 𝔽_p[x] (distinct-degree then
- *      Cantor–Zassenhaus equal-degree, over a DETERMINISTIC xorshift64 rng that
- *      reproduces the Python rng stream byte-for-byte); Hensel-lift the mod-p
+ *      DETERMINISTIC Berlekamp equal-degree — the nullspace of (Frobenius - I),
+ *      then gcd(v - s, part) over every basis vector v and every shift s in
+ *      𝔽_p, which is a PROVEN STATIC bound and needs no rng at all (rc475;
+ *      see fp_equal_degree); Hensel-lift the mod-p
  *      factors to mod p^k with p^k >= 2·B+1 (B = the Mignotte coefficient
  *      bound; raised to the rc222 van Hoeij plan's k_need when the knapsack
  *      may engage); recombine PHASED (rc222): subset sizes <= 3 first, then
@@ -31,10 +33,27 @@
  * byte-identical pure path (the parity oracle) — so the standalone-complete
  * honor holds.
  *
+ * ⚠️ rc475 (`#T1188`) splits that sentence in two. OVERFLOW keeps its documented
+ * meaning — "the caller's arena is too small, grow it and retry" — and still
+ * declines to pure. SRMECH_ERR_INTERNAL does NOT: the bp_* width guards and
+ * fp_equal_degree's three completeness returns emit it, and both Python wrappers
+ * RAISE on it. A broken internal invariant must not be answerable by the oracle,
+ * because then nobody sees it (measured: 3 of 84 rows at rc474).
+ *
  * The srmech factorization is UNIQUE (the irreducible factors of ℤ[x] are unique
  * up to order + sign), so any correct Zassenhaus yields the same factors; the
- * final sort fixes the order identically on both paths. The rng match makes the
- * WHOLE internal computation identical too (defensive byte-identity).
+ * final sort fixes the order identically on both paths.
+ *
+ * ⚠️ This paragraph ended "The rng match makes the WHOLE internal computation
+ * identical too (defensive byte-identity)" through rc474. There is no rng any
+ * more (rc475 ruling 1). What now guarantees the byte-identity is a PAIR: the
+ * canonical (len, coeffs) mod-p order that fp_mp_sort and the pure peer's
+ * sorted() both impose, plus the identical loop structure of the two Berlekamp
+ * projections — each pass sweeping only the parts present at its own entry, in
+ * ascending shift order. The sort is the load-bearing half: everything
+ * downstream (which subsets the recombination enumerates, hence the peel order
+ * and hit_cap) is a function of the mod-p list's order, so canonicalising it
+ * makes all of that independent of HOW a block was split.
  *
  * Class L (the algebraic content) ∘ Class J (the prime-field reduction + Hensel
  * lift) ∘ Class I (the 𝔽_p modular arithmetic) ∘ Class K (the symmetric-rep sign
@@ -90,9 +109,6 @@
 #define VH_SC_W4    22
 #define VH_SC_W5    23
 #define VH_SC_N     24
-
-/* The Python xorshift64 rng seed constant (byte-identity: same stream). */
-#define FAC_RNG_SEED UINT64_C(0x2545F4914F6CDD1D)
 
 /* ---- caller-arena bump allocator ---------------------------------- */
 
@@ -353,7 +369,8 @@ typedef struct fac_ctx {
     uint64_t *dd_fs, *dd_xq, *dd_x, *dd_sb, *dd_g, *dd_qt, *dd_t2; /* distinct */
     uint64_t *ed_g, *ed_r, *ed_h, *ed_gg, *ed_ot, *ed_qt, *ed_mn; /* equal   */
     uint64_t *hp;        /* Hensel-phase 𝔽_p pool (FAC_HP_N * fw)        */
-    uint64_t *st_flat; int *st_len; int st_top;   /* equal-degree stack   */
+    uint64_t *st_flat; int *st_len; int st_top;   /* equal-degree parts   */
+    uint64_t *bk_m;   int *bk_piv;                /* Berlekamp (Q-I)^T + pivots */
     uint64_t *db_flat; int *db_deg; int *db_len; int db_n; /* distinct buckets */
     uint64_t *mp_flat; int *mp_len; int mp_n;     /* mod-p factor list    */
     /* ---- bignum scratch (srmech_bigint) ---- */
@@ -389,12 +406,16 @@ typedef struct fac_ctx {
 #define FAC_BP_N 30   /* bignum poly working buffers */
 #define FAC_HP_N 14   /* Hensel-phase 𝔽_p working buffers */
 
-/* Poly buffer k (0-based) in the bignum working pool. */
+/* Poly buffer k (0-based) in the bignum working pool. Each buffer is fw =
+ * 2*deg+2 wide: a quadratic Hensel step against F (deg n <= deg) with g/h of
+ * degrees a/b (a+b = n, deg s < b, deg t < a) forms products of length up to
+ * n + max(a,b) - 1 <= 2*deg - 2 (s*e, t*e, q*g, s*b, t*b, c*g*), so the old
+ * cw = deg+1 width let those products run into the NEXT buffer (rcFH). */
 static srmech_bigint_t *bp_buf(fac_ctx_t *c, int k)
 {
     assert(c != NULL);
     assert(k >= 0 && k < FAC_BP_N);
-    return c->pool + (size_t)k * (size_t)c->cw;
+    return c->pool + (size_t)k * (size_t)c->fw;
 }
 
 /* 𝔽_p Hensel-phase scratch buffer k (0-based), each fw-wide. */
@@ -482,7 +503,8 @@ static srmech_status_t fbi_modinv(fac_ctx_t *c, srmech_bigint_t *out,
 }
 
 /* ================================================================== *
- *  𝔽_p poly powmod + the Cantor–Zassenhaus rng
+ *  𝔽_p poly powmod + the Berlekamp equal-degree split (rc475: was the
+ *  Cantor–Zassenhaus rng)
  * ================================================================== */
 
 /* out = (a * b) mod (mod) over 𝔽_p, trimmed. Returns out length. Scratch:
@@ -527,64 +549,6 @@ static int fp_polypow_u64(fac_ctx_t *c, uint64_t *out, const uint64_t *base,
     }
     for (i = 0; i < lr; i++) { out[i] = c->pm_r[i]; }
     return lr;
-}
-
-/* out = base^e mod (mod), e the srmech_bigint exponent (bits LSB->MSB).
- * Returns out length. out != base. */
-static int fp_polypow_big(fac_ctx_t *c, uint64_t *out, const uint64_t *base,
-                          int lb, const srmech_bigint_t *e,
-                          const uint64_t *mod, int lm)
-{
-    int lr = 1, lbb = 0, i, ql, rl;
-    uint32_t topbit = 0u, bit, hi;
-    uint64_t nbits;
-    assert(c != NULL);
-    assert(out != NULL && lm >= 1);
-    if (e->sign == 0) { out[0] = 1u % c->q; return 1; }
-    hi = e->limbs[e->n - 1u];
-    while (hi != 0u) { hi >>= 1; topbit++; }
-    nbits = (uint64_t)(e->n - 1u) * 32u + topbit;
-    c->pm_r[0] = 1u % c->q;
-    fp_divmod(c->mr1, &ql, c->mr2, &rl, base, lb, mod, lm, c->q);
-    for (i = 0; i < rl; i++) { c->pm_b[i] = c->mr2[i]; }
-    lbb = rl;
-    for (bit = 0u; (uint64_t)bit < nbits; bit++) {
-        if (((e->limbs[bit >> 5] >> (bit & 31u)) & 1u) != 0u) {
-            lr = fp_mulreduce(c, c->pm_t, c->pm_r, lr, c->pm_b, lbb, mod, lm);
-            for (i = 0; i < lr; i++) { c->pm_r[i] = c->pm_t[i]; }
-        }
-        if ((uint64_t)bit + 1u < nbits) {
-            lbb = fp_mulreduce(c, c->pm_t, c->pm_b, lbb, c->pm_b, lbb, mod, lm);
-            for (i = 0; i < lbb; i++) { c->pm_b[i] = c->pm_t[i]; }
-        }
-    }
-    for (i = 0; i < lr; i++) { out[i] = c->pm_r[i]; }
-    return lr;
-}
-
-/* The Python xorshift64 rng: x^=(x<<13); x^=(x>>7); x^=(x<<17); return x % q.
- * uint64 wraparound reproduces the Python `& 0xFFFF...FFFF` masks exactly. */
-static uint64_t fac_rng_next(uint64_t *state, uint64_t q)
-{
-    uint64_t x = *state;
-    assert(state != NULL);
-    assert(q > 0u);
-    x ^= (x << 13);
-    x ^= (x >> 7);
-    x ^= (x << 17);
-    *state = x;
-    return x % q;
-}
-
-/* Two trimmed monic 𝔽_p polys equal? (same length + coefficients.) */
-static int fp_equal(const uint64_t *a, int la, const uint64_t *b, int lb)
-{
-    int i;
-    assert(a != NULL);
-    assert(b != NULL);
-    if (la != lb) { return 0; }
-    for (i = 0; i < la; i++) { if (a[i] != b[i]) { return 0; } }
-    return 1;
 }
 
 /* Append a trimmed monic 𝔽_p poly (make_monic first) to the mod-p factor list. */
@@ -650,69 +614,210 @@ static void fp_distinct_degree(fac_ctx_t *c, const uint64_t *f, int lf)
     }
 }
 
-/* exp = (q^d - 1) / 2 into `out` (the equal-degree Cantor–Zassenhaus power). */
-static srmech_status_t fp_ed_exp(fac_ctx_t *c, srmech_bigint_t *out, int d)
+/* Berlekamp matrix rows Q[i] = x^(i*p) mod g (i = 0..n-1) into c->bk_m, row
+ * stride c->cw. Scratch: ed_mn (the base x), ed_h (x^p), ed_r (running power),
+ * ed_qt (mulreduce out). Does NOT touch ed_g. */
+static void fp_bk_matrix(fac_ctx_t *c, const uint64_t *g, int lg, int n)
 {
-    srmech_bigint_t *qd = &c->bt[1], *qb = &c->bt[2], *one = &c->bt[3];
-    srmech_status_t st;
+    int lxp, lcur = 1, i, j;
+    uint64_t *row;
     assert(c != NULL);
-    assert(out != NULL && d >= 1);
-    st = fbi_seti(qb, (int64_t)c->q);        if (st != SRMECH_OK) { return st; }
-    st = fbi_seti(one, 1);                   if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_pow_u32(qd, qb, (uint32_t)d, c->bws, c->bws_len);
-    if (st != SRMECH_OK) { return st; }
-    st = fbi_sub(out, qd, one);              if (st != SRMECH_OK) { return st; }
-    return srmech_bigint_shr_bits(out, out, 1u);   /* (q^d - 1) >> 1 */
+    assert(g != NULL && n >= 1 && n < c->cw && lg == n + 1);
+    c->ed_mn[0] = 0u; c->ed_mn[1] = 1u % c->q;            /* base = x */
+    lxp = fp_polypow_u64(c, c->ed_h, c->ed_mn, 2, c->q, g, lg);
+    c->ed_r[0] = 1u % c->q;                               /* x^(0*p) = 1 */
+    for (i = 0; i < n; i++) {
+        if (i != 0) {
+            lcur = fp_mulreduce(c, c->ed_qt, c->ed_r, lcur, c->ed_h, lxp, g, lg);
+            for (j = 0; j < lcur; j++) { c->ed_r[j] = c->ed_qt[j]; }
+        }
+        row = c->bk_m + (size_t)i * (size_t)c->cw;
+        for (j = 0; j < n; j++) { row[j] = (j < lcur) ? c->ed_r[j] : 0u; }
+    }
 }
 
-/* Cantor–Zassenhaus equal-degree split of the product of degree-d monic
- * irreducibles in f (over 𝔽_p, p odd), appending each irreducible to the mod-p
- * factor list. Deterministic-seeded rng (byte-identity). */
-static srmech_status_t fp_equal_degree(fac_ctx_t *c, const uint64_t *f, int lf,
-                                       int d, uint64_t *state)
+/* bk_m <- (Q - I)^T, then row-reduced echelon form IN PLACE. Pivot columns, in
+ * ascending order, into c->bk_piv. Returns the rank. Every loop is a `for` over
+ * n <= deg. */
+static int fp_bk_rref(fac_ctx_t *c, int n)
 {
-    srmech_bigint_t *exp = &c->bt[0];
-    int lg, lr, lh, lgg, ql, rl, lot, i;
-    srmech_status_t st;
+    int i, j, r, col, piv, rank = 0;
+    uint64_t t, inv, fv, *ra, *rb;
     assert(c != NULL);
-    assert(f != NULL && d >= 1);
+    assert(n >= 1 && n < c->cw && c->q >= 3u);
+    for (i = 0; i < n; i++) {                             /* transpose */
+        for (j = i + 1; j < n; j++) {
+            t = c->bk_m[(size_t)i * (size_t)c->cw + (size_t)j];
+            c->bk_m[(size_t)i * (size_t)c->cw + (size_t)j] =
+                c->bk_m[(size_t)j * (size_t)c->cw + (size_t)i];
+            c->bk_m[(size_t)j * (size_t)c->cw + (size_t)i] = t;
+        }
+    }
+    for (i = 0; i < n; i++) {                             /* subtract I */
+        ra = c->bk_m + (size_t)i * (size_t)c->cw;
+        ra[i] = (ra[i] + c->q - (1u % c->q)) % c->q;
+    }
+    for (col = 0; col < n && rank < n; col++) {
+        piv = -1;
+        for (r = rank; r < n; r++) {
+            if (c->bk_m[(size_t)r * (size_t)c->cw + (size_t)col] != 0u) {
+                piv = r; break;
+            }
+        }
+        if (piv < 0) { continue; }
+        ra = c->bk_m + (size_t)rank * (size_t)c->cw;
+        rb = c->bk_m + (size_t)piv * (size_t)c->cw;
+        for (j = 0; j < n; j++) { t = ra[j]; ra[j] = rb[j]; rb[j] = t; }
+        inv = fp_powmod_s(ra[col], c->q - 2u, c->q);
+        for (j = 0; j < n; j++) { ra[j] = fp_mulmod_s(ra[j], inv, c->q); }
+        for (r = 0; r < n; r++) {
+            rb = c->bk_m + (size_t)r * (size_t)c->cw;
+            fv = rb[col];
+            if (r == rank || fv == 0u) { continue; }
+            for (j = 0; j < n; j++) {
+                rb[j] = (rb[j] + c->q - fp_mulmod_s(fv, ra[j], c->q)) % c->q;
+            }
+        }
+        c->bk_piv[rank] = col;
+        rank++;
+    }
+    return rank;
+}
+
+/* The `which`-th (0-based, ascending free column) RREF nullspace basis vector
+ * of the reduced bk_m into `out`. Returns its trimmed length (0 if none). */
+static int fp_bk_basis_vec(fac_ctx_t *c, int n, int rank, int which,
+                           uint64_t *out)
+{
+    int j, t, ri, isp, seen = 0, freec = -1;
+    assert(c != NULL);
+    assert(out != NULL && n >= 1 && which >= 0 && rank >= 0 && rank <= n);
+    for (j = 0; j < n; j++) {
+        isp = 0;
+        for (t = 0; t < rank; t++) { if (c->bk_piv[t] == j) { isp = 1; break; } }
+        if (isp != 0) { continue; }
+        if (seen == which) { freec = j; break; }
+        seen++;
+    }
+    if (freec < 0) { return 0; }
+    for (j = 0; j < n; j++) { out[j] = 0u; }
+    out[freec] = 1u % c->q;
+    for (ri = 0; ri < rank; ri++) {
+        out[c->bk_piv[ri]] =
+            (c->q - c->bk_m[(size_t)ri * (size_t)c->cw + (size_t)freec]) % c->q;
+    }
+    return fp_trim(out, n);
+}
+
+/* ONE separation pass: split every part of degree > d by gcd(v - s, part).
+ * The part list is st_flat / st_len / st_top. Scratch: ed_mn (s), ed_ot (v-s),
+ * ed_g (the part copy), ed_gg (the gcd), ed_qt + dd_t2 (the division). */
+static void fp_bk_pass(fac_ctx_t *c, const uint64_t *v, int lv, uint64_t s,
+                       int d)
+{
+    int i, j, lh, lgg, lot, ql, rl, top0;
+    uint64_t *h;
+    assert(c != NULL);
+    assert(v != NULL && lv >= 1 && d >= 1 && c->st_top >= 1);
+    c->ed_mn[0] = s % c->q;
+    lot = fp_sub(c->ed_ot, v, lv, c->ed_mn, 1, c->q);     /* ed_ot = v - s */
+    top0 = c->st_top;
+    for (i = 0; i < top0; i++) {
+        lh = c->st_len[i];
+        if (lh - 1 <= d) { continue; }
+        h = c->st_flat + (size_t)i * (size_t)c->cw;
+        for (j = 0; j < lh; j++) { c->ed_g[j] = h[j]; }
+        lgg = fp_gcd(c->ed_gg, c->ed_ot, lot, c->ed_g, lh, c->q,
+                     c->g0, c->g1, c->g2, c->g3);
+        if (lgg < 2 || lgg >= lh) { continue; }           /* no proper split */
+        lgg = fp_make_monic(c->ed_gg, c->ed_gg, lgg, c->q);
+        fp_divmod(c->ed_qt, &ql, c->dd_t2, &rl, c->ed_g, lh, c->ed_gg, lgg,
+                  c->q);
+        ql = fp_make_monic(c->ed_qt, c->ed_qt, ql, c->q);
+        for (j = 0; j < lgg; j++) { h[j] = c->ed_gg[j]; }
+        c->st_len[i] = lgg;
+        fp_st_push(c, c->ed_qt, ql);
+    }
+}
+
+/* Insertion-sort the mod-p factor list by (len, coeffs) — the canonical order
+ * the pure peer's sorted() produces, so the list the Hensel lift and the
+ * recombination see does not depend on HOW the block was split. */
+static void fp_mp_sort(fac_ctx_t *c)
+{
+    int i, j, k, la, lb, cmp;
+    uint64_t *a, *b, t;
+    assert(c != NULL);
+    assert(c->mp_n >= 0);
+    for (i = 1; i < c->mp_n; i++) {
+        for (j = i; j > 0; j--) {
+            a = c->mp_flat + (size_t)(j - 1) * (size_t)c->cw;
+            b = c->mp_flat + (size_t)j * (size_t)c->cw;
+            la = c->mp_len[j - 1]; lb = c->mp_len[j];
+            cmp = (la < lb) ? -1 : ((la > lb) ? 1 : 0);
+            for (k = 0; cmp == 0 && k < la; k++) {
+                cmp = (a[k] < b[k]) ? -1 : ((a[k] > b[k]) ? 1 : 0);
+            }
+            if (cmp <= 0) { break; }
+            for (k = 0; k < c->cw; k++) { t = a[k]; a[k] = b[k]; b[k] = t; }
+            c->mp_len[j - 1] = lb; c->mp_len[j] = la;
+        }
+    }
+}
+
+/* DETERMINISTIC Berlekamp equal-degree split of the product of the degree-d
+ * monic irreducibles in f over 𝔽_p, appending each irreducible to the mod-p
+ * factor list.
+ *
+ * PROVEN STATIC BOUND. Let n = deg f and k = n / d. By CRT 𝔽_p[x]/(f) =
+ * prod_i 𝔽_p[x]/(f_i) = prod_i 𝔽_{p^d}, and v^p = v holds in 𝔽_{p^d} exactly
+ * on its 𝔽_p, so the Berlekamp subalgebra { v : v^p = v } is isomorphic to
+ * 𝔽_p^k and has dimension EXACTLY k. Writing v = sum v_i x^i gives v^p =
+ * sum v_i x^(i p), so v lies in it iff the row vector v annihilates (Q - I)
+ * with Q[i] = x^(i p) mod f: the subalgebra IS nullspace((Q - I)^T), and its
+ * RREF basis has exactly k vectors. For any two distinct f_a, f_b some basis
+ * vector v takes different 𝔽_p values on them (if every basis vector agreed,
+ * all of the subalgebra would, contradicting CRT), and then the pass
+ * (v, s = v mod f_a) has f_a | v - s and f_b not dividing v - s, so it splits
+ * any part carrying both. Exhausting k basis vectors x p shifts therefore
+ * separates EVERY pair: <= k*p passes and <= k*p*k gcds, all `for` loops. No
+ * retry, no randomness, no expectation (rc475 ruling 1; replaces the rc165
+ * Cantor-Zassenhaus Las Vegas retry loop that stood at :684-709, whose bound
+ * was an EXPECTED one, not a static one). */
+static srmech_status_t fp_equal_degree(fac_ctx_t *c, const uint64_t *f, int lf,
+                                       int d)
+{
+    int lg, n, k, rank, nb, bi, lv, i;
+    uint64_t s;
+    assert(c != NULL);
+    assert(f != NULL && d >= 1 && lf >= 2);
     lg = fp_make_monic(c->ed_g, f, lf, c->q);
-    if (lg - 1 == d) { fp_mp_append(c, c->ed_g, lg); return SRMECH_OK; }
-    st = fp_ed_exp(c, exp, d);               if (st != SRMECH_OK) { return st; }
+    n = lg - 1;
+    if (n == d) { fp_mp_append(c, c->ed_g, lg); return SRMECH_OK; }
+    k = n / d;
+    if (n % d != 0 || k < 2 || k > c->deg + 1) { return SRMECH_ERR_INTERNAL; }
+    fp_bk_matrix(c, c->ed_g, lg, n);
+    rank = fp_bk_rref(c, n);
+    nb = n - rank;
+    if (nb != k) { return SRMECH_ERR_INTERNAL; }   /* dim != k: corrupt state */
     c->st_top = 0;
     fp_st_push(c, c->ed_g, lg);
-    while (c->st_top > 0) {
-        c->st_top--;
-        lg = c->st_len[c->st_top];
-        for (i = 0; i < lg; i++) {
-            c->ed_g[i] = c->st_flat[(size_t)c->st_top * (size_t)c->cw + (size_t)i];
+    for (bi = 0; bi < nb && c->st_top < k; bi++) {
+        lv = fp_bk_basis_vec(c, n, rank, bi, c->dd_g);
+        if (lv <= 1) { continue; }                 /* a constant separates none */
+        for (s = 0u; s < c->q && c->st_top < k; s++) {
+            fp_bk_pass(c, c->dd_g, lv, s, d);
         }
-        if (lg - 1 == d) { fp_mp_append(c, c->ed_g, lg); continue; }
-        do {
-            for (i = 0; i < lg - 1; i++) { c->ed_r[i] = fac_rng_next(state, c->q); }
-            lr = fp_trim(c->ed_r, lg - 1);
-        } while (lr <= 1);
-        lh = fp_polypow_big(c, c->ed_h, c->ed_r, lr, exp, c->ed_g, lg);
-        c->ed_mn[0] = 1u % c->q;
-        lh = fp_sub(c->ed_h, c->ed_h, lh, c->ed_mn, 1, c->q);
-        lgg = fp_gcd(c->ed_gg, c->ed_h, lh, c->ed_g, lg, c->q,
-                     c->g0, c->g1, c->g2, c->g3);
-        if ((lgg == 1 && c->ed_gg[0] == 1u) || fp_equal(c->ed_gg, lgg, c->ed_g, lg)) {
-            fp_st_push(c, c->ed_g, lg);
-            continue;
-        }
-        lgg = fp_make_monic(c->ed_gg, c->ed_gg, lgg, c->q);
-        fp_divmod(c->ed_qt, &ql, c->dd_t2, &rl, c->ed_g, lg, c->ed_gg, lgg, c->q);
-        lot = fp_make_monic(c->ed_ot, c->ed_qt, ql, c->q);
-        fp_st_push(c, c->ed_gg, lgg);
-        fp_st_push(c, c->ed_ot, lot);
+    }
+    if (c->st_top != k) { return SRMECH_ERR_INTERNAL; }
+    for (i = 0; i < k; i++) {
+        fp_mp_append(c, c->st_flat + (size_t)i * (size_t)c->cw, c->st_len[i]);
     }
     return SRMECH_OK;
 }
 
 /* Full 𝔽_p factorization of a SQUARE-FREE monic f into monic irreducibles. */
-static srmech_status_t fp_factor_mod_p(fac_ctx_t *c, const uint64_t *f, int lf,
-                                       uint64_t *state)
+static srmech_status_t fp_factor_mod_p(fac_ctx_t *c, const uint64_t *f, int lf)
 {
     int b, lgd;
     const uint64_t *gd;
@@ -727,10 +832,11 @@ static srmech_status_t fp_factor_mod_p(fac_ctx_t *c, const uint64_t *f, int lf,
         if (lgd - 1 == c->db_deg[b]) {
             fp_mp_append(c, gd, lgd);
         } else {
-            st = fp_equal_degree(c, gd, lgd, c->db_deg[b], state);
+            st = fp_equal_degree(c, gd, lgd, c->db_deg[b]);
             if (st != SRMECH_OK) { return st; }
         }
     }
+    fp_mp_sort(c);
     return SRMECH_OK;
 }
 
@@ -779,6 +885,29 @@ static srmech_status_t bp_reduce(fac_ctx_t *c, srmech_bigint_t *p, int len,
     return SRMECH_OK;
 }
 
+/* ---- the bp_* width guards (rc475, `#T1188`) ----------------------
+ *
+ * Each of the four bp_* kernels below refuses an output longer than the pool
+ * buffer width c->fw before it writes a single coefficient, and bp_divmod_monic
+ * additionally refuses a non-monic divisor. Through rc474 none of them checked,
+ * so a quadratic Hensel product of length n + max(a,b) - 1 ran past the end of
+ * its deg+1-wide buffer and into the NEXT one, which is live Hensel state (the
+ * quotient, then H's lead coefficient) — after which bp_divmod_monic was called
+ * with a divisor that was no longer monic and its remainder degree never
+ * decreased. The hang was the symptom; the defect was the overrun.
+ *
+ * ⚠️ THE STATUS IS SRMECH_ERR_INTERNAL, DELIBERATELY, AND NOT OVERFLOW.
+ * srmech.h gives SRMECH_ERR_OVERFLOW the meaning "the caller's arena is too
+ * small — grow it and retry", and the Python wrappers act on exactly that
+ * reading: any non-OK status makes factor_squarefree_primitive_c /
+ * factor_integer_poly_c decline, and the composite is then answered by the
+ * pure peer with nobody seeing. Measured at rc474: that silent decline happened
+ * on 3 of 84 corrupted rows. A width violation here is NOT a sizing problem —
+ * fw is derived from deg, so it cannot be grown, and reaching one of these
+ * guards means an internal invariant broke. INTERNAL says so, and the two
+ * wrappers RAISE on it rather than falling back.
+ */
+
 /* out = a + b mod m, trimmed. out distinct from a, b. */
 static srmech_status_t bp_addmod(fac_ctx_t *c, srmech_bigint_t *out, int *ol,
                                  const srmech_bigint_t *a, int la,
@@ -789,6 +918,7 @@ static srmech_status_t bp_addmod(fac_ctx_t *c, srmech_bigint_t *out, int *ol,
     srmech_status_t st;
     assert(c != NULL);
     assert(out != NULL && ol != NULL);
+    if (n > c->fw) { return SRMECH_ERR_INTERNAL; }   /* not OVERFLOW: see above */
     for (i = 0; i < n; i++) {
         if (i < la && i < lb) {
             st = fbi_add(&c->bt[7], &a[i], &b[i]); if (st != SRMECH_OK) { return st; }
@@ -814,6 +944,7 @@ static srmech_status_t bp_submod(fac_ctx_t *c, srmech_bigint_t *out, int *ol,
     srmech_status_t st;
     assert(c != NULL);
     assert(out != NULL && ol != NULL);
+    if (n > c->fw) { return SRMECH_ERR_INTERNAL; }   /* not OVERFLOW: see above */
     for (i = 0; i < n; i++) {
         if (i < la && i < lb) {
             st = fbi_sub(&c->bt[7], &a[i], &b[i]); if (st != SRMECH_OK) { return st; }
@@ -841,6 +972,7 @@ static srmech_status_t bp_mulmod(fac_ctx_t *c, srmech_bigint_t *out, int *ol,
     srmech_status_t st;
     assert(c != NULL);
     assert(out != NULL && ol != NULL && n >= 1);
+    if (n > c->fw) { return SRMECH_ERR_INTERNAL; }   /* not OVERFLOW: see above */
     for (k = 0; k < n; k++) {
         st = fbi_seti(&c->bt[0], 0);       if (st != SRMECH_OK) { return st; }
         lo = (k - (lb - 1) > 0) ? k - (lb - 1) : 0;
@@ -864,26 +996,29 @@ static srmech_status_t bp_divmod_monic(fac_ctx_t *c, srmech_bigint_t *quo,
                                        const srmech_bigint_t *b, int lb,
                                        const srmech_bigint_t *m)
 {
-    int qn = (la - lb + 1 > 1) ? la - lb + 1 : 1, i, d, r = la;
+    int qn = (la - lb + 1 > 1) ? la - lb + 1 : 1, i, d;
     srmech_status_t st;
     assert(c != NULL);
     assert(quo != NULL && rem != NULL && lb >= 1);
+    if (la > c->fw || qn > c->fw) { return SRMECH_ERR_INTERNAL; }   /* see above */
+    if (!(b[lb - 1].sign > 0 && b[lb - 1].n == 1u && b[lb - 1].limbs[0] == 1u)) {
+        return SRMECH_ERR_INTERNAL;    /* b monic is an INVARIANT, not an input */
+    }
     for (i = 0; i < qn; i++) { st = fbi_seti(&quo[i], 0); if (st != SRMECH_OK) { return st; } }
     st = bp_copy(rem, a, la); if (st != SRMECH_OK) { return st; }
-    r = bp_trim(rem, r);
-    while (r >= lb && !(r == 1 && srmech_bigint_is_zero(&rem[0]))) {
-        d = r - lb;
-        st = fbi_copy(&c->bt[3], &rem[r - 1]); if (st != SRMECH_OK) { return st; }
-        st = fbi_copy(&quo[d], &c->bt[3]);     if (st != SRMECH_OK) { return st; }
+    /* one pass per quotient slot: bound = la - lb + 1 iterations (rcFH). */
+    for (d = la - lb; d >= 0; d--) {
+        if (srmech_bigint_is_zero(&rem[d + lb - 1])) { continue; }
+        st = fbi_copy(&c->bt[3], &rem[d + lb - 1]); if (st != SRMECH_OK) { return st; }
+        st = fbi_copy(&quo[d], &c->bt[3]);          if (st != SRMECH_OK) { return st; }
         for (i = 0; i < lb; i++) {
             st = fbi_mul(&c->bt[4], &c->bt[3], &b[i]); if (st != SRMECH_OK) { return st; }
             st = fbi_sub(&c->bt[5], &rem[d + i], &c->bt[4]); if (st != SRMECH_OK) { return st; }
             st = fbi_mod(c, &rem[d + i], &c->bt[5], m); if (st != SRMECH_OK) { return st; }
         }
-        r = bp_trim(rem, r);
     }
     *ql = bp_trim(quo, qn);
-    *rl = r;
+    *rl = bp_trim(rem, la);
     return SRMECH_OK;
 }
 
@@ -2025,7 +2160,7 @@ static uint64_t fac_choose_prime(fac_ctx_t *c)
  * irreducible ℤ factors (Zassenhaus). Fills c->irr / c->irr_len / c->irr_n. */
 static srmech_status_t fac_squarefree_primitive(fac_ctx_t *c, int *hit_cap)
 {
-    uint64_t prime, state;
+    uint64_t prime;
     int lfp, lfm;
     srmech_status_t st;
     assert(c != NULL);
@@ -2034,10 +2169,9 @@ static srmech_status_t fac_squarefree_primitive(fac_ctx_t *c, int *hit_cap)
     prime = fac_choose_prime(c);
     if (prime == 0u) { return SRMECH_ERR_BAD_INPUT; }
     c->q = prime;
-    state = FAC_RNG_SEED ^ (prime * (uint64_t)(c->deg + 1));
     lfp = fac_reduce_mod_p(hp_buf(c, 0), c->ip, c->deg + 1, prime);
     lfm = fp_make_monic(hp_buf(c, 13), hp_buf(c, 0), lfp, prime);
-    st = fp_factor_mod_p(c, hp_buf(c, 13), lfm, &state);
+    st = fp_factor_mod_p(c, hp_buf(c, 13), lfm);
     if (st) { return st; }
     if (c->mp_n == 1) { return fac_irr_is_input(c, hit_cap); }
     st = fac_build_modulus(c, c->ip, c->deg + 1);
@@ -2096,6 +2230,8 @@ static int fac_carve_lists(fac_ctx_t *c)
     assert(c != NULL);
     nl = (size_t)c->deg + 1u; flat = nl * (size_t)c->cw;
     c->st_flat = fac_carve_u64(&c->ar, flat);
+    c->bk_m = fac_carve_u64(&c->ar, nl * (size_t)c->cw);
+    c->bk_piv = fac_carve_int(&c->ar, nl);
     c->db_flat = fac_carve_u64(&c->ar, flat);
     c->mp_flat = fac_carve_u64(&c->ar, flat);
     c->st_len = fac_carve_int(&c->ar, nl); c->db_deg = fac_carve_int(&c->ar, nl);
@@ -2103,7 +2239,8 @@ static int fac_carve_lists(fac_ctx_t *c)
     c->rem_idx = fac_carve_int(&c->ar, nl); c->combo = fac_carve_int(&c->ar, nl);
     c->lif_len = fac_carve_int(&c->ar, nl); c->irr_len = fac_carve_int(&c->ar, nl);
     assert(c->st_flat != NULL || c->ar.off <= c->ar.cap);
-    return (c->irr_len != NULL && c->combo != NULL);
+    return (c->irr_len != NULL && c->combo != NULL && c->bk_m != NULL
+            && c->bk_piv != NULL);
 }
 
 /* Carve the srmech_bigint scalars + poly pool + ip/lifted/irr. Returns 0 OOM. */
@@ -2117,7 +2254,7 @@ static int fac_carve_big(fac_ctx_t *c)
     c->modhalf = fac_carve_bigints(&c->ar, 1u, c->cap);
     c->m2 = fac_carve_bigints(&c->ar, 1u, c->cap);
     c->modn = fac_carve_bigints(&c->ar, 1u, c->cap);
-    c->pool = fac_carve_bigints(&c->ar, (size_t)FAC_BP_N * cw, c->cap);
+    c->pool = fac_carve_bigints(&c->ar, (size_t)FAC_BP_N * (size_t)c->fw, c->cap);
     c->ip = fac_carve_bigints(&c->ar, cw, c->cap);
     c->lifted = fac_carve_bigints(&c->ar, nl * cw, c->cap);
     c->irr = fac_carve_bigints(&c->ar, nl * cw, c->cap);
@@ -2198,10 +2335,10 @@ size_t srmech_factor_squarefree_primitive_ws_bound(size_t coeff_limbs, int deg)
     cw = (size_t)deg + 1u; nl = (size_t)deg + 1u; fw = 2u * (size_t)deg + 2u;
     cap = fac_cap_for(coeff_limbs, deg);
     size_t hdrw = (sizeof(srmech_bigint_t) + 3u) / 4u;
-    size_t big_cells = 16u + 5u + (size_t)FAC_BP_N * cw + cw + 2u * nl * cw;
+    size_t big_cells = 16u + 5u + (size_t)FAC_BP_N * fw + cw + 2u * nl * cw;
     size_t big_words = big_cells * (hdrw + cap + 2u);
-    size_t fp_words = (24u + (size_t)FAC_HP_N) * fw * 2u + 3u * nl * cw * 2u;
-    size_t int_words = 12u * nl + 16u;
+    size_t fp_words = (24u + (size_t)FAC_HP_N) * fw * 2u + 4u * nl * cw * 2u;
+    size_t int_words = 13u * nl + 16u;
     size_t bws_words = 96u * cap + 8192u;
     size_t total = big_words + fp_words + int_words + bws_words + 8192u;
     if (deg >= VH_MIN_N) {                    /* the rc222 van Hoeij block */
