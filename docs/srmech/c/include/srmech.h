@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE "rc475"
-#define SRMECH_VERSION "0.9.0rc475"
+#define SRMECH_VERSION_PRE "rc476"
+#define SRMECH_VERSION "0.9.0rc476"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -832,8 +832,69 @@ extern "C" {
  *      pairing is benign for the same reason.
  *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
+ *
+ * v28 — v0.9.0rc476 (`#T1188`): THE SQUARE ROOT IS CORRECTLY ROUNDED, AND WAS
+ *      NOT. One bump on the oldest of the grounds this header records —
+ *      SERVED VALUES MOVE (v21 / v26 / v27) — and on nothing else. No symbol
+ *      is removed, no signature changes, and the two names the library gains
+ *      (srmech_sqrt_scaled, srmech_inv_sqrt) are declared in the PRIVATE
+ *      c/src/srmech_sqrt_internal.h, reach no srmech.h declaration and no
+ *      ctypes binding, and are additive, which never bumps. 806 -> 808
+ *      `T srmech_*` measured with nm -D --defined-only.
+ *
+ *      THE DEFECT. srmech_rational_sqrt and srmech_sqrt_q61 read x = M*2^e
+ *      out of the IEEE fields and computed isqrt(M << 54). M is the RAW
+ *      mantissa field, so for a SUBNORMAL x it is far below 2^52 and the
+ *      root's WIDTH tracked the operand's magnitude instead of being fixed:
+ *      M = 1 gives isqrt(1 << 54) = 2^27, a 28-BIT root where 53 are needed.
+ *      And even at full width a FLOOR is not a rounding — a floored root can
+ *      sit on a rounding midpoint, and float() then rounds it the wrong way.
+ *
+ *      MEASURED at rc475, at the exported symbols, no Python in the path:
+ *      480 of the 1956 non-square integers in 2..2000 served a double one ulp
+ *      BELOW the correctly rounded root (all 480 on the same side); 4032 of
+ *      the 4096 subnormal mantissas 1..4096 served a misrounded double, the
+ *      WORST by 16,609,076 ulps; the narrowest root over that row set was 28
+ *      bits. After the repair: 0 / 1956 and 0 / 4096, minimum root width 54.
+ *      The evidence that had stood in for this was srmech_sqrt.c's own banner,
+ *      "validated vs libm to machine epsilon (rel err <= 2.3e-16)" — a LIBM
+ *      ORACLE this library does not link, reporting a RELATIVE-ERROR bound,
+ *      which cannot see a 1-ulp misround at all.
+ *
+ *      WHAT MOVES BESIDES THE TWO ROOTS. Every consumer that rides them.
+ *      Measured on a 3x3 [[2,1,0],[1,3,1],[0,1,2]], native dispatch live: ALL
+ *      THREE jacobi_eigvals eigenvalues move (0x3ff0000000000003 ->
+ *      0x3ff0000000000001, 0x4000000000000000 -> 0x4000000000000002,
+ *      0x400ffffffffffffd -> 0x4010000000000001, the last crossing the binade
+ *      at 4.0); a 5x5 moves by up to ~8 ulps; mat_svd's second singular value
+ *      on [[3,1],[0,2]] moves one ulp. The qm constants move with their own
+ *      repair: srmech_qm_gell_mann's lambda-8 normaliser was 1.0 / s3 — a
+ *      floored root, then a reciprocal, then a multiply, three roundings where
+ *      that file's prose claimed one — and served 0.5773502691896258 for a
+ *      1/sqrt(3) whose correctly rounded double is 0.5773502691896257. It and
+ *      the four other reciprocal sites (srmech_laplacian's D^(-1/2) scales)
+ *      now put the reciprocal INSIDE the exact radicand, which is one
+ *      rounding. The Python projection is spelled the same way and the two
+ *      agree bit for bit on every constant, as they did before — both were
+ *      equally wrong, which is precisely why byte-identity could not see it.
+ *
+ *      THE PAIRING THIS REFUSES is an rc475 `.so` under rc476 Python, or the
+ *      reverse. Both load with HAS_NATIVE True and neither errors: the stale
+ *      library simply serves the misrounded root, and the Python glue rebuilds
+ *      it into an exact-looking Q. There is no other symptom, which is the
+ *      silent-wrong-value shape v21 and v26 bumped for.
+ *
+ *      NOT CLOSED BY THIS BUMP, named so it is not mistaken for closed: the
+ *      C-vs-pure divergence on ITERATIVE float kernels (a 5x5 Jacobi's third
+ *      eigenvalue, an SVD's first singular value) survives the repair — it is
+ *      a kernel-order difference, not a root difference, and it is owned
+ *      elsewhere. And rational.py's _q61_reduce twin reads a subnormal
+ *      mantissa the same unnormalised way; its effect on cos/sin of a
+ *      subnormal argument is UNMEASURED and is a later rc's.
+ *
+ *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  */
-#define SRMECH_ABI_VERSION 27
+#define SRMECH_ABI_VERSION 28
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -4657,11 +4718,23 @@ SRMECH_NODISCARD srmech_status_t srmech_atan_q61(double x, int64_t *out_q61);
  * the v26 entry above.) */
 SRMECH_NODISCARD srmech_status_t srmech_rational_sqrt(double x, double *out);
 
-/* 0.9.0rc7 stay-rational Q61 peer (F868). sqrt(x) = root * 2^(e/2 - K) EXACTLY
- * (root = isqrt(M << 2K), K = 27). Returns the integer pieces (*out_root,
- * *out_p) so the Python rational.sqrt forms Q(root << p, 1) for p >= 0 else
- * Q(root, 1 << -p). sqrt(0) -> (0, 0); negative / non-finite -> BAD_INPUT.
- * Additive -> ABI unchanged. */
+/* 0.9.0rc7 stay-rational Q61 peer (F868). sqrt(x) = root * 2^p EXACTLY.
+ * Returns the integer pieces (*out_root, *out_p) so the Python rational.sqrt
+ * forms Q(root << p, 1) for p >= 0 else Q(root, 1 << -p) — THAT GLUE IS
+ * UNCHANGED. sqrt(0) -> (0, 0); negative / non-finite -> BAD_INPUT.
+ *
+ * 0.9.0rc476 (`#T1188`): THE PAIR MOVED, and this comment said what the old
+ * one was: "(root = isqrt(M << 2K), K = 27)". That recipe was the defect. M
+ * comes straight out of the IEEE mantissa field, so for a SUBNORMAL x it is
+ * far below 2^52 and the root's WIDTH tracked the operand's magnitude —
+ * M = 1 gave isqrt(1 << 54) = 2^27, a 28-BIT root. Measured at this symbol:
+ * 4032 of the 4096 subnormal mantissas 1..4096 produced a pair whose double
+ * projection is not the correctly rounded root, the worst by 16,609,076 ulps.
+ * The pair is now NORMALISED (root >= 2^53 always, 54..56 bits) and STICKY
+ * (root is ODD unless the radicand is a perfect square), so it can be rounded
+ * to a double without ever landing on a midpoint. root stays well inside
+ * int64, which is why this signature does not change while its VALUES do.
+ * Additive -> ABI unchanged; rc476 bumps on the moved values, not on this. */
 SRMECH_NODISCARD srmech_status_t srmech_sqrt_q61(double x, int64_t *out_root, int64_t *out_p);
 
 /* 0.9.0rc13 public integer floor-sqrt — floor(sqrt((nhi:nlo))) for a 128-bit
@@ -14737,9 +14810,21 @@ srmech_status_t srmech_responsion_schema(char *buf, size_t buf_len,
  * literals' -0.0 slots from `-1j` / `-1.0 · Mat` were canonicalized in
  * the same rc), integer entries are exact, and the two irrational
  * values (the λ⁸ 1/√3 normaliser; the SU(3) f^{458} = f^{678} = √3/2)
- * route through srmech's own libm-free srmech_rational_sqrt so the
- * double projection matches Python's float(rational.sqrt(3.0)) path
- * bit-for-bit.
+ * route through srmech's own libm-free sqrt so the double projection
+ * matches the Python path bit-for-bit.
+ *
+ * ⚠️ 0.9.0rc476 (`#T1188`): those two constants MOVED, and the sentence
+ * above used to say they matched "Python's float(rational.sqrt(3.0))
+ * path". They did — and both were WRONG, byte-identically, which is
+ * exactly why a byte-identity gate could not see it. The λ⁸ normaliser
+ * was built as 1.0 / sqrt(3.0): a floored root, then a reciprocal, then
+ * (for the -2/√3 entry) a multiply — three roundings where this file's
+ * own prose claimed one. It served 0.5773502691896258 where the
+ * correctly rounded 1/√3 is 0.5773502691896257. Both projections now
+ * put the reciprocal INSIDE the exact radicand (1/√3 = √(1/3),
+ * 2/√3 = √(4/3), √3/2 = √(3/4)), so each constant is ONE correctly
+ * rounded root. Byte-identity between the projections still holds and
+ * is still gated; what changed is that both are now right.
  *
  * Layout: complex matrices are row-major interleaved (re,im) doubles
  * (the Mat carrier layout); the Minkowski metric is row-major REAL

@@ -53,8 +53,41 @@ The two newest v0.6.0 C files:
 
 ### ABI
 
-C ABI version is **27** (`SRMECH_ABI_VERSION 27` in
-`c/include/srmech.h`). **The v27 bump is rc475's (`#T1188`): the Zassenhaus core's bignum pool
+C ABI version is **28** (`SRMECH_ABI_VERSION 28` in
+`c/include/srmech.h`). **The v28 bump is rc476's (`#T1188`): the square root is CORRECTLY ROUNDED,
+and was not.** One bump on the oldest ground this header records — **served values move** (v21 /
+v26 / v27's) — and on nothing else.
+
+`srmech_rational_sqrt` and `srmech_sqrt_q61` read `x = M·2^e` out of the IEEE fields and computed
+`isqrt(M << 54)`. `M` is the RAW mantissa field, so for a **subnormal** `x` it is far below `2^52`
+and the root's WIDTH tracked the operand's magnitude instead of being fixed: `M = 1` gives
+`isqrt(1 << 54) = 2^27`, a **28-bit** root where 53 are needed. And even at full width a FLOOR is
+not a rounding — a floored root can sit on a rounding midpoint, and the projection then rounds it
+the wrong way. **Measured at rc475, at the exported symbols, no Python in the path: 480 of the 1956
+non-square integers in 2..2000 served a double one ulp LOW (all on the same side); 4032 of the 4096
+subnormal mantissas 1..4096 were misrounded, the worst by 16,609,076 ulps; the narrowest root was
+28 bits.** After the repair — normalise the radicand into `[2^106, 2^109)`, then a sticky low bit,
+then a 53-bit rounding done in INTEGERS — the same sweeps measure **0 / 1956** and **0 / 4096**,
+with a minimum root width of 54.
+
+The evidence that had stood in for this was `srmech_sqrt.c`'s own banner: *"validated vs libm to
+machine epsilon (rel err ≤ 2.3e-16) over 50000+ values"*. That is a **libm oracle** this library
+does not link and a bare-C host cannot appeal to, reporting a **relative-error bound**, which cannot
+see a 1-ulp misround at all. `c/test/test_srmech_sqrt_subnormal.c` replaces it with an exact
+128-bit integer certificate over ~14,500 rows, and carries a can-fail control that must reject both
+neighbours of the true `√2`.
+
+Every consumer that rides those roots moves with them: all three eigenvalues of a 3×3
+`jacobi_eigvals` (the largest crossing the binade at 4.0), a singular value of a 2×2 `mat_svd`, and
+the λ⁸ / D^(−1/2) constants, whose own reciprocal sites are repaired in the same release —
+`1.0 / s3` was a floored root then a reciprocal then a multiply, three roundings where the file's
+prose claimed one, serving `0.5773502691896258` for a `1/√3` whose correctly rounded double is
+`0.5773502691896257`. **The library gains two names** (`srmech_sqrt_scaled`, `srmech_inv_sqrt`,
+806 → 808 `T srmech_*`) and neither is a reason to bump: both are declared in the private
+`c/src/srmech_sqrt_internal.h`, reach no `srmech.h` declaration and no ctypes binding, and adding a
+symbol has never bumped. `GENOME_FORMAT_VERSION` stays 20.
+
+**The v27 bump was rc475's (`#T1188`): the Zassenhaus core's bignum pool
 WIDTH, plus a deterministic equal-degree split.** One bump over three changes to
 `srmech_factor_squarefree_primitive` and `srmech_factor_integer_poly`. The exported symbol set is
 IDENTICAL either side — 815 names, none added, none removed, every new function `static` — so

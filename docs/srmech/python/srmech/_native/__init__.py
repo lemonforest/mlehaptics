@@ -297,7 +297,34 @@ from typing import Optional
 #        serves a reducible factor as irreducible. Python asks the library for
 #        ``ws_bound`` on every call, so the stale library's answer is
 #        self-consistent and nothing else notices. This pin is the only refusal.
-EXPECTED_ABI_VERSION: int = 27
+#
+# v28 (rc476, `#T1188`) — THE SQUARE ROOT IS CORRECTLY ROUNDED, AND WAS NOT.
+#        SERVED VALUES MOVE (v21 / v26 / v27's ground), and nothing else.
+#        ``srmech_rational_sqrt`` / ``srmech_sqrt_q61`` computed
+#        ``isqrt(M << 54)`` with ``M`` the RAW IEEE mantissa field, so for a
+#        SUBNORMAL x the root's WIDTH tracked the operand's magnitude: ``M = 1``
+#        gives ``isqrt(1 << 54) = 2**27``, a 28-BIT root. And a FLOOR is not a
+#        rounding — a floored root can sit on a midpoint and ``float()`` then
+#        rounds it the wrong way.
+#
+#        MEASURED at rc475 through ``rational.sqrt`` itself, native dispatch
+#        live: 480 of the 1956 non-square integers in 2..2000 came back one ulp
+#        LOW, all on the same side; 4032 of the 4096 subnormal mantissas
+#        1..4096 were misrounded, the worst by 16,609,076 ulps; the narrowest
+#        root was 28 bits. After: 0 / 1956, 0 / 4096, minimum width 54.
+#
+#        The library gains two names — ``srmech_sqrt_scaled`` and
+#        ``srmech_inv_sqrt``, 806 -> 808 `T srmech_*` — and neither is a reason
+#        to bump: both are declared in the PRIVATE ``c/src/srmech_sqrt_internal.h``,
+#        have no ``srmech.h`` declaration and no binding in this file, and
+#        adding a symbol has never bumped.
+#
+#        THE PAIRING THIS PIN REJECTS: an rc475 ``.so`` under rc476 Python, or
+#        the reverse. Both load with ``HAS_NATIVE True`` and neither errors —
+#        the stale library just serves the misrounded root, and the glue here
+#        rebuilds it into an exact-looking ``Q``. Silent wrong value, no other
+#        symptom, which is the shape v21 and v26 bumped for.
+EXPECTED_ABI_VERSION: int = 28
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
