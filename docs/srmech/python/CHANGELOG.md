@@ -18,6 +18,93 @@ All notable changes to this package will be documented here. The format follows 
      `srmech.__version__` and that the slice holds EVERY current-minor entry in the file, so a
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc476] - `#T1188`: the square root was never correctly rounded, and the evidence that said otherwise was a libm oracle reading a relative-error bound — 4032 of 4096 subnormal mantissas wrong, the worst by 16,609,076 ulps, and a 28-bit root where 53 were needed
+
+*(ABI **27 → 28**. One bump, on the oldest ground this changelog records — **served values move** (the v21 / v26 / v27 ground) — and on nothing else. The library gains **two** names, `srmech_sqrt_scaled` and `srmech_inv_sqrt` (**806 → 808** `T srmech_*`, measured with `nm -D --defined-only`), and neither is a reason to bump: both are declared in the PRIVATE `c/src/srmech_sqrt_internal.h`, reach no `srmech.h` declaration and no ctypes binding, and adding a symbol has never bumped. Note the wording — "no new `srmech.h` / ABI / ctypes surface", not "zero new exported symbols", because the second is a measurable falsehood at the link level.)*
+
+**CONDITIONS FOR EVERY FIGURE BELOW.** WSL2, session worktree, branched from `29b5cd33d` (v0.9.0rc475), gcc 13.3.0, CPython 3.12.3, **numpy absent**, `PYTHONDONTWRITEBYTECODE=1`, `SRMECH_PEDANTIC=ON` / `CMAKE_BUILD_TYPE=Release`, **0 build errors and 0 warnings under `-Werror`**. Native cell live and current: `HAS_NATIVE True`, `EXPECTED_ABI_VERSION 28 == NATIVE_ABI_VERSION 28`, `LOAD_ERROR None`, and the library AUTHENTICATED by calling the changed symbol rather than by reading its version — `_native.sqrt_q61_c(2.0)` returns `(25476206690103091, -54)` where rc475 returned `(12738103345051545, -53)`. The stale-native bypass was never set. **Every misround figure below was measured through `rational.sqrt` ITSELF with native dispatch live**, not through the pure helper: `rational.py` short-circuits to `_native.sqrt_q61_c` before any Python root code whenever a library is loaded, so a pure-cell measurement of this defect measures a different route from the one that ships.
+
+### The defect, in one line
+
+```
+rc475 :  float(rational.sqrt(5e-324))  ->  wrong by 16,609,076 ulps
+rc476 :  float(rational.sqrt(5e-324))  ->  the correctly rounded root
+```
+
+`srmech_rational_sqrt` and `srmech_sqrt_q61` read `x = M·2^e` out of the IEEE fields and computed `isqrt(M << 54)`. **`M` is the RAW mantissa field**, so for a SUBNORMAL `x` it is far below `2^52` — `M = 1` gives `isqrt(1 << 54) = 2^27`, a **28-bit** root where 53 are needed — and the root's WIDTH therefore tracked the operand's magnitude instead of being fixed. That is half of it. The other half is that a **FLOOR is not a rounding**: a floored root can sit exactly on a double's rounding midpoint, and `float()` then rounds it to the wrong neighbour.
+
+| predicate, through `rational.sqrt` with native dispatch live | rc475 | rc476 |
+|---|---|---|
+| non-square integers 2..2000, float operand | **480 / 1956** misround, **every one LOW** | **0 / 1956** |
+| the rc474 EXACT-operand route, same rows | **16 / 1956** | **0 / 1956** |
+| **every** subnormal mantissa 1..4096 | **4032 / 4096**, worst **−16,609,076 ulps** | **0 / 4096** |
+| narrowest `srmech_sqrt_q61` root over those rows | **28 bits** | **54 bits** |
+| `1.0/float(sqrt(float(k)))`, non-square k 2..200 | 61 / 186 | 47 / 186 *(the primitive alone), then **0** once the SITES are re-spelled* |
+
+**Positive control for the subnormal row:** the min NORMAL double `2^-1022` is **0 ulps** off in BOTH releases, so the predicate selects the subnormal class and not "small numbers".
+
+### Why nothing caught it for the whole life of the op
+
+`srmech_sqrt.c`'s own banner said *"Validated vs libm to machine epsilon (rel err <= 2.3e-16) over 50000+ values; 1/sqrt(d) bit-exact. K = 27 gives full double precision."* Three things were wrong at once, and the third is the one that mattered:
+
+1. **`K = 27` does not give full double precision** — see above.
+2. **"validated vs libm" is a LIBM ORACLE.** This library does not link libm and a bare-C host cannot appeal to one, so the claim was uncheckable by the very host the C projection exists for.
+3. **A relative-error bound cannot see a 1-ulp misround at all.** `2.3e-16` is about one ulp at the top of a binade, so the whole 480/1956 class sits comfortably inside it. The instrument could not return "wrong" for the defect it was pointed at.
+
+This is the same shape as Rule 7 at rc473 ("0 violations / Pass" beside 24 discarded statuses) and Rule 2 at rc475 ("we never use `while(1)`" beside 17 of them): **the audit asserted what it had no detector for.** The replacement is an EXACT INTEGER certificate — `d = m·2^f` is the correctly rounded root of `p/q` iff `(2m−1)²·q·2^(2f−2) < p < (2m+1)²·q·2^(2f−2)`, with `(4m−1)²·4^(f−2)` on the low side at the binade floor — decided in `int` on the Python side and in a local 128-bit compare on the C side. No libm, no numpy, no `math`, no `fractions` anywhere in either gate.
+
+### The repair
+
+One rule for both entries, and it is the rule the C twin implements:
+
+* **NORMALISE.** `s = 108 − (bitlen(num) − bitlen(den))` lands the scaled radicand in `[2^106, 2^109)` at every magnitude, so the floor root always carries **54 or 55** bits. 108 is the measured floor: at 107 the Class-K parity pin can drop the radicand to 105 bits and the root to 53, one bit short of deciding the rounding.
+* **Class-K parity pin, AFTER the normalise.** The halved exponent must be an integer, so `e0 − s` is pinned even; `s -= 1` keeps it even without leaving the window.
+* **STICKY.** When the radicand is not a perfect square the root is returned as `2·floor + 1`, which is ODD — and a rounding midpoint's low `k` bits are `2^(k−1)`, whose low bit is 0. So the projection **cannot land on a tie**, and the tie case that remains belongs to an EXACT root, where ties-to-even is the right answer.
+* **The 53-bit rounding is done IN INTEGERS**, so the served value does not depend on the host's `uint64`→`double` conversion or on the FPU rounding mode — which is what makes the MSVC and clang cells an argument rather than a hope.
+
+The two routes stay DISTINCT, deliberately. Routing the EXACT entry through the same core is one rule instead of two and is also correctly rounded (**0 / 26,295** rows) — and it makes `sqrt(2**53 + 1)` equal `sqrt(float(2**53 + 1))`, retiring rc474's exact-vs-float separation witness. So the exact route keeps `_sqrt_relative_k`'s RELATIVE grid and gains only the sticky bit: an exact operand still carries strictly more than a float one, and `float()` of either is the same, correct, double. **The separation moved into the `Q`, where it belongs, out of the error.**
+
+### The reciprocal was a SECOND rounding, and fixing the root made it visible
+
+`1.0 / float(sqrt(x))` rounds twice, and the second rounding is not repaired by fixing the first. MEASURED: with the repaired root but the old spelling, `bell`'s `inv_sqrt2` moved from `0x3ff6a09e667f3bcd` — right, by the two errors cancelling — to `0x…bcc`, wrong. **Nineteen sites are re-spelled** so the division, halving or doubling happens INSIDE the exact radicand: `1/√3 = √(1/3)`, `2/√3 = √(4/3)`, `√3/2 = √(3/4)`, `1/√2 = √(1/2)`, `2√2 = √8`, `1/√d = √(1/d)`.
+
+| site | what moved |
+|---|---|
+| `gauge.py` λ⁸ + `srmech_qm_constants.c` | `1/√3` **0.5773502691896258 → 0.5773502691896257**, `−2/√3` **−1.1547005383792517 → −1.1547005383792515**, both now the correctly rounded values, in BOTH projections |
+| `srmech_qm_constants.c` f⁴⁵⁸ = f⁶⁷⁸ | value UNCHANGED (`√3/2` was already correct); the SHAPE moves, because "right today" is not a property of a spelling |
+| `bell.py` `TSIRELSON_BOUND` | value UNCHANGED at 2.8284271247461903, and its `precision=64` is GONE — an internal projection must never read a caller-facing absolute grid |
+| `bell.chsh_operator()` | each entry back to the correctly rounded `√2` |
+| `laplacian.py` / `srmech_laplacian.c` D^(−1/2) ×4 | the normalised-Laplacian off-diagonal moves one ulp, in both projections |
+| `potentials.py` ladder | `sqrt(float(n))` → `sqrt(n)`: the `float()` was demoting an op-held `int` past rc474's widened exact entry |
+| `psk_qam.py` | the square-`M` test is now the exact integer floor root; it was `int(round(float(sqrt(float(M)))))`, an integer question routed through the continuous carrier and back |
+| `sm.py` `fermion_mass_from_yukawa` | `y·v/√2` is formed as `±√((y·v)²/2)` — one correctly rounded root of an EXACT radicand, sign as a Class-K pin-slot re-applied as Class C, never `abs()` |
+
+**Ripple, measured, both cells.** All three eigenvalues of `jacobi_eigvals` on `[[2,1,0],[1,3,1],[0,1,2]]` move (`0x3ff0000000000003` → `…01`, `0x4000000000000000` → `…02`, `0x400ffffffffffffd` → `0x4010000000000001`, the last crossing the binade at 4.0); a 5×5 moves by up to ~8 ulps; `mat_svd`'s second singular value on `[[3,1],[0,2]]` moves one ulp; `mat_norm` moves one ulp; the SU(3) Casimir diagonal becomes uniformly `4/3` where one entry was `1.3333333333333335`; `lie_algebra_residual` falls **1.57e-16 → 6.21e-17**.
+
+### Gates
+
+* `python/tests/test_sqrt_correct_rounding_rc476.py` — the integer certificate over ~26,000 float rows (integers 2..2000, **every** subnormal mantissa 1..4096, the `2^k ± 1` subnormal classes, the max subnormal / min normal / max double, and 20,000 seeded bit patterns whose seed IS their provenance) plus ~5,500 exact-rational rows. It carries FOUR can-fail controls that must each let misrounds back in — `root ± 1`, the sticky bit removed, and **the normalise removed**, which is the one proving the sticky bit ALONE does not close the defect — and a test that RECONSTRUCTS the rc475 recipe and requires the certificate to reject it on all five of its known-bad rows.
+* `c/test/test_srmech_sqrt_subnormal.c` — the same claim from a BARE-C HOST, no Python in the acceptance path: **14,537 rows passed, 0 failed, 0 skipped**, runtime `if` and never `assert` so it means something under `-DNDEBUG` (verified: identical under `-DNDEBUG`), registered in the ctest matrix with a scoped `TIMEOUT 60` per the rc475 precedent. Its certificate carries its own can-fail control: it must REJECT both neighbours of the true `√2`.
+* `python/tests/test_float_detour_class_rc476.py` — the class ratchet. **S2 is strict ZERO and reached.** S1 is a DEADLINE table, not an exemption list: 15 rows, each owner-tagged, with four assertions — an unlisted hit fails, a stale entry fails, the count is a down-only EQUALITY, and **an entry whose owning rc has already shipped fails**. Strict zero is arithmetically impossible here and saying so is the point: 8 rows are G1 axis constants another group owns and 7 are operand-carried sites P-C owns.
+
+⚠️ **The predicate this ratchet inherited was wrong in BOTH directions, and the fix is not a third heuristic.** It dropped any line whose first non-space character was `#`, `*`, `/` or a quote. WITH that filter, `srmech_compose_run.c:2405` — `*out = 1.0 / f;`, a real C statement beginning with a dereference — was invisible, and it is a genuine member. WITHOUT it, six BLOCK-COMMENT continuation lines entered the C population, three of them written by this very rc while explaining the defect. The scan now MASKS real comments and string literals (`tokenize` for Python, a character walk for C) and matches code; both directions are pinned, and `compose_run.c:2405` is named as an explicit anti-vacuity member so narrowing the pattern fails a test instead of shrinking a number.
+
+### What this release does NOT close, named so it is not mistaken for closed
+
+* **clang and MSVC are UNVERIFIED here.** gcc 13.3.0 on WSL2 only. Every rounding decision is an integer comparison and `(double)m` is exact for `m < 2^53`, so a divergence would be a compiler bug — but that is an argument, not a measurement. The pedantic CI matrix plus the bare-C host test are the measurement.
+* **The C-vs-pure divergence on ITERATIVE float kernels SURVIVES.** A 5×5 Jacobi's third eigenvalue reads `…cd31` native against `…cd32` pure, and a 2×2 SVD's first singular value differs by one ulp. That is a kernel-ORDER difference, not a root difference; it is owned elsewhere and this release does not touch it.
+* **`rational.py`'s `_q61_reduce` twin reads a subnormal mantissa the same unnormalised way.** Its effect on `cos` / `sin` of a subnormal argument is UNMEASURED and belongs to a later rc.
+* **Rule 7's detector cannot see a discarded status from either new internal name**, because its population is `srmech.h` exports plus same-file statics and both are declared in a private header under `c/src`. Every call site therefore captures the status and asserts on it with a stated reason; widening the scanner to those headers is the drain `test_jpl_audit.py` already names as next. No JPL rule reads `c/src/*.h` at all.
+* **The certificate proves correct ROUNDING**, not that the returned `Q` is the best rational of its width, and nothing about `precision=P` beyond its floored-grid promise — which is UNCHANGED and separately pinned. The seeded patterns are a SAMPLE; only the integers, the 4096 subnormal mantissas, the boundary rows and the rational grid are exhaustive over their declared ranges. There is no sweep of the 2^63 positive finite doubles and there will not be one.
+
+### Records
+
+rc474's float-grid digest `438181738d19f9cc…` MOVED. It appears in exactly two places, both CHANGELOG lines, and in **0** test files — nothing bit-compares it, so there is nothing to re-pin, and the surviving PROPERTY is re-stated instead: a float operand still lands on a power-of-two denominator, because the sticky `Q` is still `root / 2^(k+1)`. rc474's own entry is a DATED record and keeps its wording.
+
+Two LIVE records are re-stated as assertions about the maths rather than re-pinned to new literals: `test_rational_sqrt_relative_precision_rc299.py` pinned `hypot(1.0, 1.0)` to the EXECUTED value of the pre-rc299 code, which was one ulp below the correctly rounded `√2` — it was pinning a defect; and `test_qm_constants_c_rc212.py` computed its own λ⁸ expectation by re-running the code under test's spelling, which is a mirror rather than an oracle and passed while BOTH projections served the misround. `test_classn_precision_wave1_rc318.py`'s four `precision=None` literals go the same way; every one of its `precision=P` literals stays exactly as captured.
+
+**The rule, in one sentence:** *an op's own exact constants are built exact on every route; the operand's carrier elects the terminal projection; a NAMED axis is a label and has no carrier.*
+
 ## [0.9.0rc475] - `#T1188`: the Zassenhaus core wrote past the end of its bignum pool buffers into live Hensel state — 34 hangs, 6 wrong values and 3 silent declines out of 84 rows — plus a deterministic replacement for the one loop in the file that had no static bound, and the first Rule-2 detector this tree has ever had
 
 *(ABI **26 → 27**. Three changes to `srmech_factor_squarefree_primitive` and `srmech_factor_integer_poly`, one bump. The exported symbol set is IDENTICAL either side — 815 names, none added, none removed, every new function `static` — so neither the additive rule nor the removal rule reaches it; it bumps on **served values move** (v21/v26's ground) and on **an existing function returns a larger envelope** (v10/v12/v23/v24/v25's), independently.)*
