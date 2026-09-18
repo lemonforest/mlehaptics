@@ -966,10 +966,11 @@ def _jacobi_eig_py(
     sequence happened to straddle a constant — which is not a property of the
     input, the conditioning or the algorithm, but of luck.
 
-    MEASURED, on the 6×6 real embedding of ``qm.gauge``'s SU(3) connection
-    (``‖A‖_F = 0.6``, eigenvalue gaps 0.27 / 0.33 / 0.60 — no degeneracy, a
-    well-conditioned problem). Identical code, identical ``‖A‖_F``; the inputs
-    differ by ONE ULP in the λ⁸ normaliser this release corrected::
+    MEASURED, on the 6×6 real embedding of ``srmech.physics.qm.gauge``'s SU(3)
+    connection (``‖A‖_F = 0.6``, eigenvalue gaps 0.27 / 0.33 / 0.60 — no
+    degeneracy, a well-conditioned problem). Identical code, identical
+    ``‖A‖_F``; the inputs differ by ONE ULP in the λ⁸ normaliser this release
+    corrected::
 
         rc475   sweep 6: off = 2.15e-17   <- first below 1e-12, STOP
         rc476   sweep 7: off = 7.63e-13   <- first below 1e-12, STOP

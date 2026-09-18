@@ -199,10 +199,10 @@ S1_RESIDUAL: "dict[tuple[str, int], tuple[str, str, str]]" = {
     ("python/srmech/math/laplacian.py", 915): (
         "0.9.0rc482", "c = 1.0 / _fsqrt(1.0 + t * t)",
         "Jacobi rotation cosine; operand-carried, owned by P-C"),
-    ("python/srmech/math/laplacian.py", 1057): (
+    ("python/srmech/math/laplacian.py", 1058): (
         "0.9.0rc482", "c = 1.0 / _fsqrt(1.0 + t * t)",
         "Jacobi rotation cosine; operand-carried, owned by P-C"),
-    ("python/srmech/math/laplacian.py", 2901): (
+    ("python/srmech/math/laplacian.py", 2902): (
         "0.9.0rc482", "inv = 1.0 / _fsqrt(norm2)",
         "vector normalise; operand-carried, owned by P-C"),
     ("python/srmech/signal_processing/closed_form_ops/ica_jade.py", 253): (
