@@ -137,6 +137,28 @@ def _files(roots, exts):
                 yield os.path.join(dirpath, name)
 
 
+def _rel(path):
+    """``path`` as a tree-relative posix key, or its own absolute form.
+
+    ⚠️ ``os.path.relpath`` RAISES across Windows drive letters
+    (``ValueError: path is on mount 'C:', start on mount 'D:'``), and the
+    non-vacuity tests below deliberately scan a file OUTSIDE the tree — a
+    planted site in pytest's ``tmp_path``, which on a GitHub Windows runner
+    sits on ``C:`` while the checkout sits on ``D:``. Measured: five
+    ``test_the_scan_fires_on_a_planted_site`` parametrisations, Windows only,
+    green on Linux and macOS because both paths share ``/`` there.
+
+    A file outside the tree simply has no relative form, and its absolute path
+    is the honest key. Nothing downstream is weakened: every ``S1_RESIDUAL``
+    key is a tree-relative path, so an absolute key can never match one, and
+    the real scans (:func:`_s1_live`) only ever walk roots under ``_SRMECH``.
+    """
+    try:
+        return os.path.relpath(path, _SRMECH).replace(os.sep, "/")
+    except ValueError:
+        return str(path).replace(os.sep, "/")
+
+
 def _scan(roots, exts, pattern, masker):
     """``(relative path, 1-based line, stripped text)`` per masked-code hit."""
     rx = re.compile(pattern)
@@ -147,8 +169,7 @@ def _scan(roots, exts, pattern, masker):
         original = raw.split("\n")
         for i, line in enumerate(masked.split("\n"), 1):
             if rx.search(line):
-                rel = os.path.relpath(path, _SRMECH).replace(os.sep, "/")
-                hits.append((rel, i, original[i - 1].strip()))
+                hits.append((_rel(path), i, original[i - 1].strip()))
     return hits
 
 
@@ -490,6 +511,36 @@ def test_the_scan_fires_on_a_planted_site(tmp_path, lang, snippet) -> None:
     masker = _mask_py if lang == "py" else _mask_c
     hits = _scan([str(tmp_path)], (ext,), pat, masker)
     assert hits, f"the scan did not fire on the planted {lang} site {snippet!r}"
+
+
+def test_the_scan_survives_a_path_it_cannot_relativise(tmp_path,
+                                                       monkeypatch) -> None:
+    """The planted-site scan must not DIE on a cross-drive path.
+
+    Measured on CI, Windows only (run 35395828855, `windows-latest • py3.12`):
+    all five parametrisations above died with ``ValueError: path is on mount
+    'C:', start on mount 'D:'`` because pytest's ``tmp_path`` sits on ``C:``
+    while the checkout sits on ``D:``, and ``os.path.relpath`` refuses across
+    mounts. Linux and macOS could never show it — both paths share ``/`` there
+    — so the defect was invisible to every cell but one.
+
+    This guard runs EVERYWHERE, by forcing the condition rather than waiting
+    for a platform to supply it: ``relpath`` is patched to raise exactly what
+    Windows raises. It asserts both halves — the scan still reports the hit,
+    and the key it reports is the absolute path, not a silently-dropped row.
+    """
+    f = tmp_path / "planted.py"
+    f.write_text("x = 1\n    s = 1.0 / _fsqrt(deg[i])\n", encoding="utf-8")
+
+    def _refuse(path, start):  # the exact Windows failure
+        raise ValueError(f"path is on mount 'C:', start on mount 'D:'")
+
+    monkeypatch.setattr(os.path, "relpath", _refuse)
+    hits = _scan([str(tmp_path)], (".py",), S1_PY, _mask_py)
+    assert hits, ("the scan dropped a planted site because its path could not "
+                  "be relativised — a cross-drive tmp dir must not silence it")
+    assert hits[0][0].endswith("planted.py"), (
+        f"the fallback key should be the file's own path; got {hits[0][0]!r}")
 
 
 @pytest.mark.parametrize(
