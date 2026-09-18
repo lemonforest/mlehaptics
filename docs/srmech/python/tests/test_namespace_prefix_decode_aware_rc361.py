@@ -1389,11 +1389,45 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # They gain ONE row apiece and not two - `Qalg` is not a back-indexed
     # emitted carrier token here, which is the same rule rc399 records for the
     # four ops that returned `Q` and added zero, run in the other direction.
-    assert physics_qm == 211, (
-        f"expected 209 srmech.physics.qm op references inside the DECODED channel "
+    # rc476 (`#T1188`) - 211 -> 214, the WIDENED-DECLARATION category again
+    # (rc465's, rc467's and rc468's): no qm op is registered, none is removed
+    # and none is renamed - `distinct physics.qm op paths` holds at 99 across
+    # the move, and `srmech.math.` (467), `srmech.cascade.` (231) and
+    # `srmech.amsc.` (2) are all unmoved.
+    #
+    # TWO ops widened, and they are the two `test_declared_type_honesty_rc363`
+    # named: this release taught them to read an EXACT operand and their
+    # declared `parameters[].type` had to stop withholding the carrier they
+    # accept. MEASURED per op and per carrier, by decoding BOTH
+    # `c/src/srmech_carrier_registry.c` artefacts through this file's own
+    # `decoded_blobs` and differencing them PER BLOB - each hoisted blob holds
+    # exactly one carrier's record and says which in its own `"name"` field, so
+    # the carrier a delta belongs to is read rather than inferred from the blob
+    # index (cs_lstr_0 HV / _1 Mat / _2 Q / _3 float / _4 int). Generating code
+    # + the full delta: `notes/_rc476_decode_accounting.py` and its NDJSON.
+    #
+    #   klein_gordon_dispersion   2 -> 4   Q +1 (cs_lstr_2), int +1 (cs_lstr_4)
+    #   fermion_mass_from_yukawa  2 -> 3   Q +1 (cs_lstr_2)
+    #
+    # klein_gordon_dispersion gains TWO because its `k_spatial` widened to
+    # `Vec | Sequence[int | Q]`, which names int AND Q where the bare `Vec`
+    # named neither; fermion_mass_from_yukawa's two params both widened to
+    # `float | Q` and gain ONE between them, because the back-index row is
+    # keyed by (op, CARRIER) and not by param - the same multiplicity rule the
+    # rc465 note above records for `quaternion_slerp`, which also gained one
+    # from two widened params. Neither op's `float` row moves: both already
+    # had it.
+    assert physics_qm == 214, (
+        f"expected 214 srmech.physics.qm op references inside the DECODED channel "
+        f"(211 at rc468 + rc476 +3: klein_gordon_dispersion 2 -> 4, Q +1 and "
+        f"int +1 from its `Vec | Sequence[int | Q]` k_spatial; "
+        f"fermion_mass_from_yukawa 2 -> 3, Q +1 from its two `float | Q` "
+        f"operands, which share ONE row because the back-index is keyed by "
+        f"carrier and not by param) "
         f"(207 at rc466 + rc467 +2: triality_companions' widened g_v, Q +1 and "
         f"int +1 -- the ninth of the nine widened exact= operands, the eight "
-        f"others being under srmech.math.laplacian) "
+        f"others being under srmech.math.laplacian; + rc468 +2, the two DFT "
+        f"twiddles' widened returns) "
         f"(the rc381 qm-subpackage rename's carrier back-index — octonion / "
         f"quaternion / so8 / triality / gauge / sm op names — plus rc385's "
         f"quaternion_log (+2) / quaternion_slerp (+3), rc396's clock_operator "
@@ -1403,7 +1437,7 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
         f"earns no slot — and rc465's DECLARATION widening (+10, one row apiece "
         f"for the ten qm ops whose declared param type stopped withholding the "
         f"`Q` they already accepted; no op was added), found {physics_qm}. "
-        f"srmech.qm. fell to 0 by exactly the original 154; if this is not 176 the "
+        f"srmech.qm. fell to 0 by exactly the original 154; if this is not 214 the "
         f"population is not conserved — re-measure. (This is a physics.qm "
         f"declaration widening, not an amsc drain, so no amsc pin moves.)")
     assert joined.count("srmech.qm.") == 0, (

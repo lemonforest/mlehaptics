@@ -1,0 +1,16 @@
+{"kind": "artefact", "path": "../c/src/srmech_carrier_registry.c", "role": "current"}
+{"distinct_physics_qm_op_paths": 99, "kind": "totals", "role": "current", "srmech.amsc.": 2, "srmech.cascade.": 231, "srmech.math.": 467, "srmech.physics.qm.": 214}
+{"blob": "cs_lstr_0", "carrier": "HV", "kind": "blob", "physics_qm_refs": 11, "role": "current"}
+{"blob": "cs_lstr_1", "carrier": "Mat", "kind": "blob", "physics_qm_refs": 71, "role": "current"}
+{"blob": "cs_lstr_2", "carrier": "Q", "kind": "blob", "physics_qm_refs": 31, "role": "current"}
+{"blob": "cs_lstr_3", "carrier": "float", "kind": "blob", "physics_qm_refs": 69, "role": "current"}
+{"blob": "cs_lstr_4", "carrier": "int", "kind": "blob", "physics_qm_refs": 32, "role": "current"}
+{"kind": "artefact", "path": "/mnt/c/Users/sckir/AppData/Local/Temp/claude/D--GitHub-mlehaptics/623ea061-948c-4282-968d-ca4179875bf2/scratchpad/rc476pr/baseline_registry.c", "role": "baseline"}
+{"distinct_physics_qm_op_paths": 99, "kind": "totals", "role": "baseline", "srmech.amsc.": 2, "srmech.cascade.": 231, "srmech.math.": 467, "srmech.physics.qm.": 211}
+{"baseline": 99, "channel": "distinct_physics_qm_op_paths", "current": 99, "delta": 0, "kind": "delta_total"}
+{"baseline": 2, "channel": "srmech.amsc.", "current": 2, "delta": 0, "kind": "delta_total"}
+{"baseline": 231, "channel": "srmech.cascade.", "current": 231, "delta": 0, "kind": "delta_total"}
+{"baseline": 467, "channel": "srmech.math.", "current": 467, "delta": 0, "kind": "delta_total"}
+{"baseline": 211, "channel": "srmech.physics.qm.", "current": 214, "delta": 3, "kind": "delta_total"}
+{"baseline": 2, "by_blob": [{"baseline": 0, "blob": "cs_lstr_2", "carrier": "Q", "current": 1, "delta": 1}, {"baseline": 0, "blob": "cs_lstr_4", "carrier": "int", "current": 1, "delta": 1}], "current": 4, "delta": 2, "kind": "delta_op", "op": "srmech.physics.qm.relativistic.klein_gordon_dispersion"}
+{"baseline": 2, "by_blob": [{"baseline": 0, "blob": "cs_lstr_2", "carrier": "Q", "current": 1, "delta": 1}], "current": 3, "delta": 1, "kind": "delta_op", "op": "srmech.physics.qm.sm.fermion_mass_from_yukawa"}
