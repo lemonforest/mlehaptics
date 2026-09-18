@@ -65,7 +65,7 @@ from srmech import _native
 
 _TESTS = os.path.dirname(os.path.abspath(__file__))
 
-#: ``ABI-PIN: EXPECTED_ABI_VERSION == 27  (any trailing prose)``, as it appears
+#: ``ABI-PIN: EXPECTED_ABI_VERSION == 28  (any trailing prose)``, as it appears
 #: inside a comment token. Two of the live sites carry a ``⚠️`` before the
 #: keyword, which sits outside the match rather than needing to be spelled.
 #:
@@ -82,6 +82,20 @@ _PIN_COMMENT = re.compile(r"ABI-PIN:\s*(\w*ABI\w*)\s*==\s*(\d+)")
 
 #: A local holding an ABI literal — the half a ``== <n>`` sweep cannot see.
 _ABI_NAME = re.compile(r"abi", re.IGNORECASE)
+
+#: "abi" inside an EXPRESSION, not preceded by a letter. See
+#: :func:`_subscript_pins` for the false positive this exists to exclude.
+_ABI_IN_EXPR = re.compile(r"(?<![A-Za-z])abi", re.IGNORECASE)
+
+#: ``(module, expression)`` rows that read "abi" and are NOT live pins: a
+#: cascade DESCRIPTOR's declared graduation ABI is DATED data about when the C
+#: peer landed, and moving it with a bump would falsify the record. Held as an
+#: explicit, exactly-asserted pair rather than as a file exemption, so a THIRD
+#: such row has to be adjudicated instead of joining them silently.
+_DESCRIPTOR_ABI_ROWS = frozenset({
+    ("test_octonion_dft_rc111.py", "cascade['native']['abi_version']"),
+    ("test_quaternion_dft_rc110.py", "cascade['native']['abi_version']"),
+})
 
 
 def _modules():
@@ -135,6 +149,66 @@ def _local_pins():
                     yield name, node.lineno, target.id, node.value.value
 
 
+def _subscript_pins():
+    """``(module, lineno, expression, literal)`` for the SUBSCRIPT form.
+
+    ⚠️ THE THIRD SPELLING, AND IT SHIPPED STALE AT rc476 (`#T1188`). The rc476
+    sweep enumerated every site both predicates above know — 4 comment tokens,
+    2 grep-invisible locals, 21 assert lines, 5 sources — moved all of them,
+    ran THIS FILE GREEN, and still left ``test_introspect.py``'s
+    ``assert status["expected_abi"] == 27`` behind, because the value sits in a
+    ``Compare`` against a ``Subscript`` and is therefore neither an
+    ``ast.Assign`` to an /abi/i NAME (the local form) nor a
+    ``(NATIVE|EXPECTED)_ABI_VERSION == <n>`` line (the ad-hoc grep form). Its
+    ABI-PIN comment two lines above WAS updated, which is the rc452 / rc455 /
+    rc464 defect exactly: edit the grep target, stop. The comment at that site
+    has named itself "the SUBSCRIPT form ... the sweep could not see" since
+    rc455, and prose was not enough — twice.
+
+    The predicate is an equality comparison whose LEFT side's source text
+    mentions "abi" NOT PRECEDED BY A LETTER, against a plain int literal. Keyed
+    on the left side rather than on a key name so ``status["expected_abi"]``,
+    ``native["abi_version"]`` and any future ``foo.abi_version`` all land in it.
+
+    The letter guard is not decoration: without it the scan matched
+    ``commensurability_verdict(ok)['period_multiplier'] == 17948700`` in
+    ``test_music_relations_rc424.py`` — "commensur-ABI-lity" — which is a
+    17-million-line away from an ABI pin and would have made this gate demand
+    that the music ledger track the ABI.
+
+    :data:`_DESCRIPTOR_ABI_ROWS` carries the rows that ARE ``abi`` and are NOT
+    live pins, with the reason, rather than exempting their files.
+    """
+    for name, path in _modules():
+        with open(path, "r", encoding="utf-8") as fh:
+            src = fh.read()
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:                                  # pragma: no cover
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Compare):
+                continue
+            if len(node.ops) != 1 or not isinstance(node.ops[0], ast.Eq):
+                continue
+            right = node.comparators[0]
+            if not (isinstance(right, ast.Constant)
+                    and isinstance(right.value, int)
+                    and not isinstance(right.value, bool)):
+                continue
+            if not isinstance(node.left, (ast.Subscript, ast.Attribute)):
+                continue
+            try:
+                text = ast.unparse(node.left)
+            except Exception:                                # pragma: no cover
+                continue
+            if not _ABI_IN_EXPR.search(text):
+                continue
+            if (name, text) in _DESCRIPTOR_ABI_ROWS:
+                continue
+            yield name, node.lineno, text, right.value
+
+
 def test_abi_pin_comments_match_the_live_abi():
     """The grep-target comments are what a sweep edits — they must be right."""
     live = _native.EXPECTED_ABI_VERSION
@@ -169,14 +243,36 @@ def test_abi_pin_locals_match_the_live_abi():
     )
 
 
-def test_the_scan_finds_both_spellings():
-    """A negative control: neither half may silently find nothing.
+def test_abi_pin_expressions_match_the_live_abi():
+    """The SUBSCRIPT / ATTRIBUTE form — added rc476 (`#T1188`), because the
+    rc476 sweep shipped it stale after passing every other clause in this file.
 
-    Both assertions above pass vacuously if their scan returns an empty list,
+    Strict zero, same reasoning as the locals: every site this finds compares a
+    LIVE ABI reading against a literal, and a literal that disagrees with the
+    live value is simply wrong.
+    """
+    live = _native.EXPECTED_ABI_VERSION
+    stale = [p for p in _subscript_pins() if p[3] != live]
+    assert not stale, (
+        f"ABI pin expression(s) left behind by a bump to {live}: "
+        + "; ".join(f"{m}:{ln} has {ex} == {got}" for m, ln, ex, got in stale)
+        + ". This is the SUBSCRIPT / ATTRIBUTE spelling — the value is not "
+        "bound to an ABI-named local and the line does not read "
+        "`(NATIVE|EXPECTED)_ABI_VERSION == <n>`, so neither of the other two "
+        "predicates sees it. Update the EXPRESSION, not just the ABI-PIN "
+        "comment above it."
+    )
+
+
+def test_the_scan_finds_all_three_spellings():
+    """A negative control: no half may silently find nothing.
+
+    Every assertion above passes vacuously if its scan returns an empty list,
     which is exactly how a broken regex or a renamed pin would read as green.
     """
     comments = list(_comment_pins())
     locals_ = list(_local_pins())
+    exprs = list(_subscript_pins())
     assert len(comments) >= 3, (
         f"expected at least the 3 ABI-PIN comments measured at rc464, "
         f"found {len(comments)}: {comments}"
@@ -184,6 +280,57 @@ def test_the_scan_finds_both_spellings():
     assert len(locals_) >= 2, (
         f"expected at least the 2 grep-invisible locals measured at rc464 "
         f"(both in test_bus.py), found {len(locals_)}: {locals_}"
+    )
+    assert len(exprs) >= 22, (
+        f"expected at least the 22 expression-form pins measured at rc476 "
+        f"(21 `_native.*_ABI_VERSION` attribute comparisons plus "
+        f"test_introspect.py's `status['expected_abi']`), found "
+        f"{len(exprs)}: {exprs}"
+    )
+    assert any(m == "test_introspect.py" for m, _ln, _ex, _v in exprs), (
+        "the expression scan no longer sees test_introspect.py's "
+        "`status['expected_abi']` — the one site that motivated this predicate "
+        "and the one no other clause in this file can reach"
+    )
+
+
+def test_the_descriptor_rows_are_exactly_the_two_measured():
+    """The excluded rows are DATA, and the exclusion cannot grow quietly.
+
+    A cascade descriptor's `native.abi_version` records the ABI its C peer
+    graduated at. It is a dated fact and must NOT move with a bump — but it
+    reads "abi" and compares against an int, so the predicate would demand it.
+    Two such rows exist; this asserts EXACTLY two, so a third is adjudicated
+    rather than appended.
+    """
+    found = set()
+    for name, path in _modules():
+        with open(path, "r", encoding="utf-8") as fh:
+            src = fh.read()
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:                                  # pragma: no cover
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Compare) or len(node.ops) != 1:
+                continue
+            if not isinstance(node.ops[0], ast.Eq):
+                continue
+            right = node.comparators[0]
+            if not (isinstance(right, ast.Constant)
+                    and isinstance(right.value, int)
+                    and not isinstance(right.value, bool)):
+                continue
+            if not isinstance(node.left, (ast.Subscript, ast.Attribute)):
+                continue
+            text = ast.unparse(node.left)
+            if _ABI_IN_EXPR.search(text) and (name, text) in _DESCRIPTOR_ABI_ROWS:
+                found.add((name, text))
+    assert found == set(_DESCRIPTOR_ABI_ROWS), (
+        "the descriptor-ABI exclusion list does not match what the tree "
+        f"carries. missing: {sorted(set(_DESCRIPTOR_ABI_ROWS) - found)}; "
+        f"unexpected: {sorted(found - set(_DESCRIPTOR_ABI_ROWS))}. An entry "
+        "that no longer matches is an exclusion protecting nothing."
     )
 
 

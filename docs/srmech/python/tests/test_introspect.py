@@ -685,7 +685,7 @@ def test_native_status():
 
     # expected_abi is the compiled-against ABI (rc275: 6 — the §101 encode-progress /
     # graceful-abort callback typedef bumped it 5 → 6, #886; rc242 had bumped 4 → 5, #840).
-    # ⚠️ ABI-PIN: EXPECTED_ABI_VERSION == 27   (grep target — this is the
+    # ⚠️ ABI-PIN: EXPECTED_ABI_VERSION == 28   (grep target — this is the
     # SUBSCRIPT form, and test_bus.py's own note names it as the site the
     # rc452 `(NATIVE|EXPECTED)_ABI_VERSION == 22` sweep could not see. It was
     # invisible to rc455's sweep for the same reason and moved by hand.
@@ -701,7 +701,26 @@ def test_native_status():
     # Berlekamp equal-degree split, which moves the CORE's peel order, plus
     # a twice-grown factor_squarefree_primitive_ws_bound. Served values move
     # and an existing function returns a larger envelope — two grounds.
-    assert status["expected_abi"] == 27
+    # rc476 (`#T1188`): 27 -> 28, the square root was never correctly rounded —
+    # `isqrt(M << 54)` with M the RAW mantissa field, so a subnormal operand
+    # reached a 28-BIT root and 4032 of 4096 subnormal mantissas served a
+    # misrounded double, the worst by 16,609,076 ulps. Served values move.
+    #
+    # ⚠️ AND THE rc476 SWEEP FOUND THIS LINE THE HARD WAY, which is worth more
+    # than the number. That sweep enumerated all four kinds the gate knows —
+    # 4 comment tokens, 2 grep-invisible `want_abi` locals, 21 assert lines,
+    # 5 sources — moved every one, ran
+    # tests/test_abi_pin_sites_agree_rc464.py green, and STILL left this
+    # assertion on 27, because a SUBSCRIPT comparison is a fifth form none of
+    # the four predicates matches: the comment two lines up is an `ABI-PIN`
+    # token (kind A, moved), and the value below it is neither an
+    # `ast.Assign` to an /abi/i name (kind B) nor a
+    # `(NATIVE|EXPECTED)_ABI_VERSION == <n>` line (kind C). It is the rc452 /
+    # rc455 / rc464 defect a sixth time — edit the grep target, stop — and the
+    # comment above has said so since rc455 without that being enough. The
+    # gate now carries a THIRD predicate for this form, so the next sweep
+    # fails here instead of shipping.
+    assert status["expected_abi"] == 28
 
     # Agrees with describe()['native'] on the shared fields (single source
     # of truth: both read srmech._native).

@@ -67,6 +67,7 @@
 
 #include "srmech.h"
 #include "srmech_platform.h"   /* §52 Part 2: PAL streaming-read for the out-of-core Fiedler */
+#include "srmech_sqrt_internal.h"  /* rc476 (`#T1188`): the one-rounding 1/sqrt */
 
 #include <assert.h>
 #include <stddef.h>
@@ -173,6 +174,33 @@ static double lap_sqrt(double x)
     srmech_status_t st;
     assert(x >= 0.0);
     st = srmech_rational_sqrt(x, &out);
+    assert(st == SRMECH_OK);
+    (void)st;
+    assert(out >= 0.0);
+    return out;
+}
+
+/* 1/sqrt(x) as ONE correctly rounded double — the D^(-1/2) scale.
+ *
+ * rc476 (`#T1188`). The four sites below spelled this `1.0 / lap_sqrt(d)`,
+ * which rounds TWICE, and the second rounding is not repaired by fixing the
+ * first: measured, repairing the root alone moved the normalised Laplacian's
+ * off-diagonal by one ulp, because the shipped value was right only by the two
+ * errors cancelling. srmech_inv_sqrt reads the double's exact dyadic
+ * reciprocal into the root instead, so there is one rounding.
+ *
+ * Same asserted-unreachable convention as lap_sqrt above, and the same reason:
+ * every caller guards `d > 0.0` and a finite edge-weight sum cannot be +Inf,
+ * so the refusal is unreachable HERE while the callee still refuses for a
+ * bare-C host that calls it directly. The status is captured rather than
+ * discarded because srmech_inv_sqrt is declared in a PRIVATE header, which
+ * Rule 7's detector never reads (srmech_sqrt_internal.h says so). */
+static double lap_inv_sqrt(double x)
+{
+    double out = 0.0;
+    srmech_status_t st;
+    assert(x > 0.0);
+    st = srmech_inv_sqrt(x, &out);
     assert(st == SRMECH_OK);
     (void)st;
     assert(out >= 0.0);
@@ -286,7 +314,7 @@ srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
      * is 0 there by convention). */
     for (uint32_t i = 0; i < n; i++) {
         double d = srmech_laplacian_row_degree(n, i, out_matrix);
-        out_matrix[(size_t)i * n + i] = (d > 0.0) ? (1.0 / lap_sqrt(d)) : 0.0;
+        out_matrix[(size_t)i * n + i] = (d > 0.0) ? lap_inv_sqrt(d) : 0.0;  /* rc476 */
     }
     /* L_sym = I − D^(−1/2) A D^(−1/2): off-diagonals first (reading the
      * stashed d^(−1/2) from the diagonals, which this pass never writes),
@@ -350,7 +378,10 @@ srmech_status_t srmech_graph_mass_normalized_laplacian(uint32_t        n,
                                       : out_matrix[(size_t)i * n + i];
         double s_i = 0.0;
         if (m_i > 0.0) {
-            s_i = (kind == 0u) ? (1.0 / lap_sqrt(m_i)) : (1.0 / m_i);
+            /* rc476 (`#T1188`): the symmetric arm was 1.0 / lap_sqrt(m_i),
+             * two roundings. The random-walk arm has no root in it and is
+             * untouched. */
+            s_i = (kind == 0u) ? lap_inv_sqrt(m_i) : (1.0 / m_i);
         }
         scale_ws[i] = s_i;
     }
@@ -1914,9 +1945,11 @@ static double fiedler_build_sp(uint32_t n, const double *deg,
     double pn2 = 0.0;
     for (uint32_t i = 0; i < n; i++) {
         if (deg[i] > 0.0) {
-            double r = lap_sqrt(deg[i]);
-            s[i] = 1.0 / r;
-            p[i] = r;
+            /* rc476 (`#T1188`): s[i] was 1.0 / r — two roundings. p[i] is a
+             * plain root and keeps lap_sqrt; the Python twin splits the same
+             * way at laplacian.py's _fiedler_sparse_py. */
+            s[i] = lap_inv_sqrt(deg[i]);
+            p[i] = lap_sqrt(deg[i]);
         } else {
             s[i] = 0.0;
             p[i] = 0.0;
@@ -2569,7 +2602,7 @@ static uint32_t kext_inject_trivial(uint32_t n, uint32_t kb, double *out_tension
 {
     assert(out_tensions != NULL && out_modes != NULL);
     assert(count != NULL && kb >= 1u);
-    double c = 1.0 / lap_sqrt((double)n);
+    double c = lap_inv_sqrt((double)n);   /* rc476: 1/sqrt(n), one rounding */
     for (uint32_t i = 0; i < n; i++) {
         out_modes[i] = c;                               /* row 0 = the constant mode */
     }

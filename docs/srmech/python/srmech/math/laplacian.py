@@ -162,6 +162,38 @@ def _fsqrt(x) -> float:
     return float(_rsqrt(x))
 
 
+def _finv_sqrt(x) -> float:
+    """``1/√x`` as ONE correctly rounded double — the D^(−1/2) scale.
+
+    rc476 (`#T1188`). The three normalised-Laplacian sites below spelled this
+    ``1.0 / _fsqrt(d)``, which rounds TWICE: once when the root leaves the
+    exact carrier and again at the divide. The second rounding is not repaired
+    by fixing the first — measured, repairing the root alone moved
+    :func:`normalized_laplacian`'s off-diagonal from ``0x…2c3f`` to ``0x…2c3e``,
+    because the old value was right only by the two errors cancelling. Here the
+    RECIPROCAL goes inside the exact radicand instead: ``1/√x = √(1/x)``, and a
+    positive finite float's reciprocal is an EXACT ``Q`` (swap its
+    ``as_integer_ratio`` pair), so there is exactly one rounding, at the
+    carrier boundary where the FPU kernel begins.
+
+    Domain: mirrors :func:`_fsqrt` at the edges the iterative sweeps reach, so
+    ``x = +inf`` still gives ``0.0`` and a NaN still propagates. **Class N**
+    (the exact rational anchor) ∘ **Class K** (the pin-slot: ``x > 0`` is a
+    domain boundary, not a magnitude test — no ``abs()`` here).
+    """
+    fx = float(x)
+    if fx != fx:                        # nan → nan
+        return fx
+    if fx == float("inf"):              # 1/sqrt(+inf) = 0.0 (libm-faithful)
+        return 0.0
+    if fx < 0.0:                        # Class-K pin-slot: no real root
+        raise ValueError(f"_finv_sqrt domain error: x must be > 0; got {fx}")
+    if fx == 0.0:                       # every caller guards x > 0; keep the
+        raise ZeroDivisionError("_finv_sqrt: 1/sqrt(0) is undefined")  # old type
+    num, den = fx.as_integer_ratio()    # EXACT: a float IS a dyadic rational
+    return float(_rsqrt(Q(den, num)))   # √(1/x), one rounding
+
+
 def _fhypot(a, b) -> float:
     """``float(rational.hypot(a, b))`` — the float projection for the FPU kernels.
 
@@ -808,7 +840,8 @@ def _normalized_laplacian_py(
 ) -> List[List[float]]:
     A = _dense_adjacency_py(n, edges, weights)
     deg = [sum(A[r][c] for c in range(n) if c != r) for r in range(n)]
-    d_inv_sqrt = [(1.0 / _fsqrt(d)) if d > 0 else 0.0 for d in deg]
+    # rc476 (`#T1188`): was ``1.0 / _fsqrt(d)`` — two roundings; see _finv_sqrt.
+    d_inv_sqrt = [_finv_sqrt(d) if d > 0 else 0.0 for d in deg]
     L = [[0.0] * n for _ in range(n)]
     for r in range(n):
         for c in range(n):
@@ -835,6 +868,15 @@ def _jacobi_eigvals_py(
     sum of squares (inherently non-negative) and the rotation tangent handles
     its sign explicitly via the ``tau >= 0`` branch (Class-K sign-handling, not
     an ALU ``abs()``).
+
+    ⚠️ **``tolerance`` IS RELATIVE TO THE INITIAL OFF-DIAGONAL NORM, and read
+    as an absolute one it was a defect** (0.9.0rc476, `#T1188`). See
+    :func:`_jacobi_eig_py` for the measurement; the two kernels carried the
+    same stopping rule and the same mistake, and the sentence above —
+    "matches the native-C path to Jacobi round-off" — is what the repair makes
+    true. ``srmech_laplacian_jacobi_eigvals`` in ``c/src/srmech_laplacian.c``
+    has always computed ``target = tolerance² × off_diag_sq(A₀)``, i.e. the
+    same relative rule; this projection took ``tolerance`` raw.
     """
     rows = [list(row) for row in matrix]
     n = len(rows)
@@ -849,11 +891,16 @@ def _jacobi_eigvals_py(
     a = [[float(rows[i][j]) for j in range(n)] for i in range(n)]
     if n == 1:
         return [a[0][0]]
+    # rc476 (`#T1188`): RELATIVE, matching the C kernel. See _jacobi_eig_py's
+    # note for the derivation and the measurement.
+    _target = tolerance * _fsqrt(
+        sum(a[p][q] * a[p][q] for p in range(n) for q in range(p + 1, n))
+    )
     for _sweep in range(max_sweeps):
         off = _fsqrt(
             sum(a[p][q] * a[p][q] for p in range(n) for q in range(p + 1, n))
         )
-        if off <= tolerance:
+        if off <= _target or off < 1e-300:
             break
         for p in range(n - 1):
             for q in range(p + 1, n):
@@ -904,6 +951,68 @@ def _jacobi_eig_py(
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §8.5.3 (cyclic-Jacobi eigenvector accumulation).
+
+    ⚠️ **``tolerance`` IS RELATIVE TO THE INITIAL OFF-DIAGONAL NORM. Reading it
+    as an ABSOLUTE bound was a defect, and the delivered accuracy was a coin
+    flip with a six-order spread** (0.9.0rc476, `#T1188`).
+
+    The stopping test was ``off <= tolerance`` with ``tolerance = 1e-12`` — a
+    fixed absolute number compared against a quantity that has the units and
+    the SCALE of the matrix. Cyclic Jacobi converges QUADRATICALLY once the
+    off-diagonal is small, so ``off`` does not approach a threshold, it dives
+    past it: whichever sweep first lands below 1e-12 is where the loop stops,
+    and the sweep after it would have been three to six orders lower. The
+    delivered residual therefore depended on where a quadratically-collapsing
+    sequence happened to straddle a constant — which is not a property of the
+    input, the conditioning or the algorithm, but of luck.
+
+    MEASURED, on the 6×6 real embedding of ``srmech.physics.qm.gauge``'s SU(3)
+    connection (``‖A‖_F = 0.6``, eigenvalue gaps 0.27 / 0.33 / 0.60 — no
+    degeneracy, a well-conditioned problem). Identical code, identical
+    ``‖A‖_F``; the inputs differ by ONE ULP in the λ⁸ normaliser this release
+    corrected::
+
+        rc475   sweep 6: off = 2.15e-17   <- first below 1e-12, STOP
+        rc476   sweep 7: off = 7.63e-13   <- first below 1e-12, STOP
+                sweep 8: off = 1.86e-19      (never reached)
+
+    Downstream of those two stops, in the same pure cell:
+
+        max |A·V − V·Λ|        8.33e-16   ->  5.53e-13     (665x)
+        ‖V·Vᴴ − I‖ (complex)   6.66e-16   ->  1.01e-12
+        gauge_path_segment unitarity
+                               1.33e-15   ->  1.55e-12    (1163x)
+
+    and the last of those is what turned ``test_gauge_path_segment_unitary``
+    red against its 1e-12 bound. The eigenVECTORS, not the eigenvalues, carry
+    the damage: ``U = V·diag(e^{iλ})·Vᴴ`` is unitary EXACTLY when ``V`` is, so
+    a ``V`` that is only good to 1e-12 gives a ``U`` that is only unitary to
+    1e-12, whatever the eigenvalues do.
+
+    THE RULE IS NOT INVENTED HERE — IT IS THE ONE THE C TWIN ALREADY USES, and
+    that is the whole repair. ``srmech_laplacian_jacobi_eigvals``
+    (``c/src/srmech_laplacian.c``) computes ``target = tolerance² ×
+    off_diag_sq(A₀)`` and stops at ``off_sq <= target``, i.e. ``off <=
+    tolerance × ‖offdiag(A₀)‖_F`` — RELATIVE to the initial off-diagonal norm,
+    with a ``1e-300`` underflow guard. This projection took ``tolerance`` raw.
+    The two projections were therefore running DIFFERENT stopping rules, which
+    is why the native cell passed the same assertion the pure cell failed;
+    co-equal projections may not differ in what they compute. On the matrix
+    above the C rule gives ``target = 1e-12 × 0.4047 = 4.05e-13``, so rc476's
+    ``7.63e-13`` does NOT stop and the sweep to ``1.86e-19`` runs — while
+    rc475's ``2.15e-17`` stops exactly where it already did. The repair fixes
+    the failing case and moves nothing that was already right.
+
+    The tolerance is NOT widened, and the bound in the caller's test is NOT
+    widened: the 1e-12 assertion that failed now passes with ~4 orders to
+    spare, because the solver delivers what its own docstring promised —
+    ``A = V·diag(eigvals)·Vᵀ`` **to Jacobi round-off**.
+
+    Generating code for every number above: ``notes/_rc476_jacobi_threshold.py``
+    (and its NDJSON). It carries its OWN copy of this sweep loop and drives it
+    with each rule in turn, so the "before" column does not depend on a deleted
+    code path — and it checks that copy against THIS kernel, so the two columns
+    describe the code that ships.
     """
     rows = [list(r) for r in matrix]
     n = len(rows)
@@ -919,11 +1028,22 @@ def _jacobi_eig_py(
     v = [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]
     if n == 1:
         return [a[0][0]], [[1.0]]
+    # rc476 (`#T1188`): the threshold is RELATIVE to the INITIAL off-diagonal
+    # norm — `target = tolerance * ‖offdiag(A₀)‖_F` — which is the rule
+    # srmech_laplacian_jacobi_eigvals has always used, expressed there in
+    # squared form. Computed ONCE: A₀ is the input, and the comparison must be
+    # against a fixed scale rather than a moving one, or the test is circular.
+    # The `1e-300` guard mirrors the C underflow floor and makes an already-
+    # diagonal input (target 0) terminate on the first check. See the docstring
+    # for the measurement this replaced.
+    _target = tolerance * _fsqrt(
+        sum(a[p][q] * a[p][q] for p in range(n) for q in range(p + 1, n))
+    )
     for _sweep in range(max_sweeps):
         off = _fsqrt(
             sum(a[p][q] * a[p][q] for p in range(n) for q in range(p + 1, n))
         )
-        if off <= tolerance:
+        if off <= _target or off < 1e-300:
             break
         for p in range(n - 1):
             for q in range(p + 1, n):
@@ -1117,7 +1237,10 @@ def _mass_normalized_laplacian_py(
     for i in range(n):
         mi = m[i]
         if mi > 0.0:
-            s[i] = (1.0 / _fsqrt(mi)) if kind_code == 0 else (1.0 / mi)
+            # rc476 (`#T1188`): the symmetric arm was ``1.0 / _fsqrt(mi)`` —
+            # two roundings; see _finv_sqrt. The rw arm's ``1.0 / mi`` is a
+            # plain float reciprocal with no root in it and is untouched.
+            s[i] = _finv_sqrt(mi) if kind_code == 0 else (1.0 / mi)
     for r in range(n):
         sr = s[r]
         for c in range(n):
@@ -4106,9 +4229,20 @@ def elementwise_hypot(a, b):
     sum-of-squares ∘ Class N∘K :func:`~srmech.math.rational.sqrt`; native
     ``srmech_rational_sqrt``-dispatched) — the math is the libm-free cascade.
 
-    Round-off-faithful to numpy's hypot (the rational sqrt is floor-projected vs
-    IEEE round-to-nearest — a ≤1-ULP shift, accepted per the cascades-replace-
-    numpy-math discipline; bit-exact whenever ``aᵢ² + bᵢ²`` is a perfect square).
+    **CORRECTLY ROUNDED** from 0.9.0rc476 (`#T1188`): each element is the
+    binary64 nearest ``√(aᵢ² + bᵢ²)``, the sum of squares having been formed
+    EXACTLY first. *(Until rc476 this promised round-off fidelity to numpy's
+    hypot, describing the rational root as floor-projected against IEEE
+    round-to-nearest — a shift of up to one ULP, accepted as the price of
+    replacing numpy's math. Two things were wrong with that. The shift was the
+    DEFECT, not a price: at subnormal magnitudes it reached 16,609,076 ulps,
+    and it is gone. And stating the contract against numpy makes numpy the
+    ORACLE for an op whose whole point is that this package has neither numpy
+    nor libm; a bare-C host could not check the promise at all. The contract is
+    now stated against the VALUE, which anyone can check with integers. The old
+    sentence is paraphrased rather than quoted here because
+    ``tests/test_float_detour_class_rc476.py`` holds strict zero on its
+    wording, and a verbatim quotation would make that gate unable to pass.)*
 
     Parameters
     ----------
@@ -4147,9 +4281,12 @@ def elementwise_sqrt(arr):
     :func:`srmech.math.rational.sqrt` (Class-N∘K integer-``isqrt`` cascade;
     native ``srmech_rational_sqrt``-dispatched) — the math is the libm-free cascade.
 
-    Round-off-faithful to numpy's sqrt (the rational sqrt is floor-projected vs
-    IEEE round-to-nearest — a ≤1-ULP shift, accepted per the cascades-replace-
-    numpy-math discipline; bit-exact whenever ``arrᵢ`` is a perfect square).
+    **CORRECTLY ROUNDED** from 0.9.0rc476 (`#T1188`): each element is the
+    binary64 nearest ``√arrᵢ``. *(Until rc476 this promised round-off fidelity
+    to numpy's sqrt, on the same floor-projection wording as
+    :func:`elementwise_hypot` above and with the same two defects: the shift was
+    the bug, and a numpy oracle has no place in the contract of a numpy-free
+    op. Paraphrased, not quoted, for the reason given there.)*
 
     Parameters
     ----------
@@ -7834,7 +7971,9 @@ def _fiedler_sparse_py(
     for (a, b), w in zip(edge_list, w_list):
         nbr[a].append((b, w)); deg[a] += w
         nbr[b].append((a, w)); deg[b] += w
-    s = [(1.0 / _fsqrt(deg[i])) if deg[i] > 0 else 0.0 for i in range(n)]  # D^-1/2
+    # rc476 (`#T1188`): was ``1.0 / _fsqrt(deg[i])`` — two roundings; see
+    # _finv_sqrt. The √deg line below it is a plain root and is untouched.
+    s = [_finv_sqrt(deg[i]) if deg[i] > 0 else 0.0 for i in range(n)]      # D^-1/2
     p = [_fsqrt(deg[i]) if deg[i] > 0 else 0.0 for i in range(n)]          # √deg (λ₀)
     pn2 = sum(x * x for x in p)
     if pn2 <= 0:

@@ -1,0 +1,41 @@
+{"expected_abi": 28, "has_native": true, "native_abi": 28, "probe": "cell", "q61": true, "version": "0.9.0rc476"}
+{"bad": 0, "first": [], "low": 0, "of": 1956, "probe": "defect.M1a_float_route_ints", "worst_ulps": 0}
+{"bad": 47, "of": 186, "probe": "defect.M1b_reciprocal_compose"}
+{"bad": 0, "of": 1956, "probe": "defect.M1c_exact_route_ints"}
+{"bad": 0, "of": 4096, "probe": "defect.M1d_subnormal_mantissas", "worst_ulps": 0}
+{"delta": 0, "probe": "defect.M1d_control_min_normal"}
+{"max_bits": 56, "min_bits": 54, "probe": "defect.M1e_native_root_width", "rows": 6095}
+{"certified": true, "cr": "0x3ff6a09e667f3bcd", "p": 2, "probe": "defect.certificate", "q": 1, "rejects_down": true, "rejects_up": true}
+{"certified": true, "cr": "0x3ffbb67ae8584caa", "p": 3, "probe": "defect.certificate", "q": 1, "rejects_down": true, "rejects_up": true}
+{"certified": true, "cr": "0x3fe6a09e667f3bcd", "p": 1, "probe": "defect.certificate", "q": 2, "rejects_down": true, "rejects_up": true}
+{"certified": true, "cr": "0x3fe279a74590331c", "p": 1, "probe": "defect.certificate", "q": 3, "rejects_down": true, "rejects_up": true}
+{"certified": true, "cr": "0x3febb67ae8584caa", "p": 3, "probe": "defect.certificate", "q": 4, "rejects_down": true, "rejects_up": true}
+{"certified": true, "cr": "0x4006a09e667f3bcd", "p": 8, "probe": "defect.certificate", "q": 1, "rejects_down": true, "rejects_up": true}
+{"f": "0x3ff6a09e667f3bcd", "probe": "site.rational_sqrt_2", "q": "25476206690103091/18014398509481984"}
+{"f": "0x3ffbb67ae8584caa", "probe": "site.rational_sqrt_3", "q": "31201853486215849/18014398509481984"}
+{"probe": "site.rational_sqrt_exact_2p53p1", "q": "3419358580004037050086697/36028797018963968"}
+{"probe": "site.rational_sqrt_prec200", "q": "1136276788042180458070828951474823657989790988021617205464301/803469022129495137770981046170581301261101496891396417650688"}
+{"f": "0x3ff6a09e667f3bcd", "probe": "site.rational_hypot_1_1", "q": "50952413380206181/36028797018963968"}
+{"probe": "site.rational_hypot_3_4", "q": "5/1"}
+{"probe": "site.rational_hypot_tiny", "q": "6490371073168535/649037107316853453566312041152512"}
+{"d00": "0x3fe279a74590331c", "d22": "0xbff279a74590331c", "probe": "site.CF012_gauge_lambda8"}
+{"f347": "0x3febb67ae8584caa", "f567": "0x3febb67ae8584caa", "probe": "site.CF014_gauge_f458"}
+{"probe": "site.CF017_tsirelson", "v": "0x4006a09e667f3bcd"}
+{"probe": "site.CF016_chsh_operator_norm", "v": "0x4006a09e667f3bcc"}
+{"probe": "site.CF016_chsh_operator", "v": ["0x3ff6a09e667f3bcd", "0x0000000000000000", "0x0000000000000000", "0x3ff6a09e667f3bcd", "0x0000000000000000", "0xbff6a09e667f3bcd", "0x3ff6a09e667f3bcd", "0x0000000000000000", "0x0000000000000000", "0x3ff6a09e667f3bcd", "0xbff6a09e667f3bcd", "0x0000000000000000", "0x3ff6a09e667f3bcd", "0x0000000000000000", "0x0000000000000000", "0x3ff6a09e667f3bcd"]}
+{"probe": "site.CF018_sm_fermion_mass", "v": "0x3ffc69e891191efd"}
+{"probe": "site.CF018_sm_higgs_vev", "v": "0x406e44fe101091ea"}
+{"probe": "site.CF019_ladder", "r": ["0x3ff0000000000000", "0x3ff6a09e667f3bcd", "0x3ffbb67ae8584caa", "0x4000000000000000"]}
+{"probe": "site.CF021_wavelet", "v": ["0x4016000000000001", "0x4043000000000001", "0xc004000000000002", "0xc031000000000000", "0xbfe6a09e667f3bcd", "0xbff6a09e667f3bcc", "0xc00c48c6001f0ac2", "0xc0226280b3476097"]}
+{"probe": "site.CF023_normalized_laplacian", "v": ["0x3ff0000000000000", "0xbfda20bd700c2c3e", "0xbfd5555555555555", "0xbfda20bd700c2c3e", "0xbfda20bd700c2c3e", "0x3ff0000000000000", "0xbfda20bd700c2c3e", "0x8000000000000000", "0xbfd5555555555555", "0xbfda20bd700c2c3e", "0x3ff0000000000000", "0xbfda20bd700c2c3e", "0xbfda20bd700c2c3e", "0x8000000000000000", "0xbfda20bd700c2c3e", "0x3ff0000000000000"]}
+{"probe": "site.CF025_mass_normalized_laplacian", "v": ["0x3ff8000000000001", "0xbfda20bd700c2c3e", "0xbfd43d136248490f", "0xbfd11acee560242a", "0xbfda20bd700c2c3e", "0x3fe5555555555555", "0xbfd08654a2d4f6da", "0x8000000000000000", "0xbfd43d136248490f", "0xbfd08654a2d4f6da", "0x3fe3333333333333", "0xbfc5a2cd8c69d61b", "0xbfd11acee560242a", "0x8000000000000000", "0xbfc5a2cd8c69d61b", "0x3fd2492492492493"]}
+{"probe": "site.CF027_fiedler_sparse", "v": ["0x3f51743628d26031", "0x3ff0000000000000", "0x3feff54c0e8548e0", "0xbf518067da366739", "0xbfeffffc442d65a1", "0xbfeff54852b46117"]}
+{"probe": "site.CF030_coupling_kext", "v": {"keys": ["k", "modes", "n", "n_modes", "resonances", "tensions"], "tensions": ["0x0000000000000000", "0x4000000000000000", "0x4000000000000001", "0x4010000000000000"]}}
+{"accepted": [4, 16, 64, 256, 1024, 4096], "other": [], "points": {"1024": ["0xc03f000000000000", "0xc03d000000000000"], "16": ["0xc008000000000000", "0xbff0000000000000"], "256": ["0xc02e000000000000", "0xc02a000000000000"], "4": ["0xbff0000000000000", "0x3ff0000000000000"], "4096": ["0xc04f800000000000", "0xc04e800000000000"], "64": ["0xc01c000000000000", "0xc014000000000000"]}, "probe": "site.CF031_psk_qam_M", "raised": [8, 32, 2, 3, 5, 12, 1023]}
+{"probe": "site.ripple_jacobi_eigvals_3x3", "v": ["0x3ff0000000000001", "0x4000000000000002", "0x4010000000000001"]}
+{"probe": "site.ripple_jacobi_eigvals_5x5", "v": ["0x400913f6acd3e14f", "0x401279127a5e12f8", "0x401894832801cd31", "0x401ccd4090915837", "0x4021cd973b526b86"]}
+{"probe": "site.ripple_mat_svd_2x2", "v": ["0x400a0d8cf8b1fee9", "0x3ffd7a7b8ae4c205"]}
+{"probe": "site.ripple_mat_norm", "v": "0x4015e8add236a58f"}
+{"probe": "site.ripple_elementwise_sqrt", "v": ["0x3ff6a09e667f3bcd", "0x3ffbb67ae8584caa", "0x4001e3779b97f4a8", "0x40052a7fa9d2f8ea"]}
+{"probe": "site.ripple_elementwise_hypot", "v": ["0x3ff6a09e667f3bcd", "0x4014000000000000"]}
+{"probe": "site.ripple_quaternion_log", "v": ["0x0000000000000000", "0x3fe358e1a79ed7e1", "0x3fe358e1a79ed7e1", "0x3fe358e1a79ed7e1"]}

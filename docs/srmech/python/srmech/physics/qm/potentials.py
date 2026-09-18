@@ -179,7 +179,13 @@ def harmonic_oscillator_ladder(
     # elsewhere. Built as a complex Mat; a† is its conjugate transpose.
     rows = [[0j] * n_dim for _ in range(n_dim)]
     for n in range(1, n_dim):
-        rows[n - 1][n] = _srn.sqrt(float(n))
+        # rc476 (`#T1188`): was ``_srn.sqrt(float(n))``. ``n`` is an op-held
+        # INT — the loop variable — so the ``float()`` was demoting an exact
+        # operand to the continuous carrier before rooting it, and rc474's
+        # widened exact entry has taken an ``int`` directly since. The exact
+        # route roots at RELATIVE 54 significant bits rather than the float
+        # route's fixed window, so the ladder entry carries more, not less.
+        rows[n - 1][n] = _srn.sqrt(n)
     a = Mat.from_rows(rows, is_complex=True)
     a_dagger = a.conj().T
     return a, a_dagger

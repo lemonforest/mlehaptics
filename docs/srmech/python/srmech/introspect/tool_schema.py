@@ -3739,9 +3739,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.math.rational.sqrt", owner="srmech", category="rational",
-            summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — IEEE-bit x = M*2^e, root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K). Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error. EXACTNESS (0.9.0rc467): 'exact rational' scopes to the CARRIER — the returned Q is an exact rational APPROXIMATION of sqrt(x), and for a non-square rational it cannot be the value itself. An exact peer EXISTS and is not this op: sqrt(r) for rational r generates the quadratic (hence abelian, hence by Kronecker-Weber cyclotomic) field Q(sqrt(r)), carried exactly by srmech.math.qalg.Qalg over t^2 - r; for sqrt(2) specifically the exact value is 2*srmech.math.qalg.cos_sin_2pi_k_over_n(8)[0]. Reach for those when the value must SATISFY its defining equation, and for this op when a rational of declared precision is what is wanted.",
+            summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — IEEE-bit x = M*2^e, NORMALISED into [2^106, 2^109) so the integer root always carries 54 or 55 bits, plus a STICKY low bit when the radicand is not a perfect square, so float() of the returned Q is the CORRECTLY ROUNDED double of sqrt(x) (0.9.0rc476, `#T1188`). This said 'root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K)', and that recipe WAS the defect: M comes straight out of the mantissa field, so a subnormal x reached a 28-bit root and 4032 of the 4096 subnormal mantissas 1..4096 served a misrounded double, the worst by 16,609,076 ulps. Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error. EXACTNESS (0.9.0rc467): 'exact rational' scopes to the CARRIER — the returned Q is an exact rational APPROXIMATION of sqrt(x), and for a non-square rational it cannot be the value itself. An exact peer EXISTS and is not this op: sqrt(r) for rational r generates the quadratic (hence abelian, hence by Kronecker-Weber cyclotomic) field Q(sqrt(r)), carried exactly by srmech.math.qalg.Qalg over t^2 - r; for sqrt(2) specifically the exact value is 2*srmech.math.qalg.cos_sin_2pi_k_over_n(8)[0]. Reach for those when the value must SATISFY its defining equation, and for this op when a rational of declared precision is what is wanted.",
             parameters=(P("x", "float | Q", True, "radicand, x >= 0"),
-                        P("precision", "int", False, "higher-precision bignum reference (keyword-only); default None = C-bit-exact K=27 cascade")),
+                        P("precision", "int", False, "higher-precision bignum reference on the literal ABSOLUTE 2^-N floored grid (keyword-only); default None = the C-bit-exact correctly rounded cascade, which is NOT this grid and is not an absolute one")),
             returns=R("Q", "sqrt(x) as an exact-rational APPROXIMATION (Class-N Q carrier) from the integer root; the exact algebraic value is Qalg over t^2 - x"),
         ),
         ToolEntry(
@@ -16087,8 +16087,24 @@ def _register_qm_tools() -> None:
             owner="srmech", category="qm.relativistic",
             summary="Klein-Gordon dispersion E = +√(|k|² + m²). "
                     "Klein/Gordon (1926); Peskin-Schroeder §2.3.",
-            parameters=(P("k_spatial", "Vec", True, "3-vector"),
-                        P("m", "float", True, "≥ 0")),
+            # rc476 (`#T1188`): WIDENED to match what the op accepts. Through
+            # rc475 the body's first statement was `[float(x) for x in
+            # k_spatial]`, so an exact 3-momentum was collapsed before |k|² and
+            # before the root; rc476 reads it with `exact_vector` /
+            # `exact_scalar`, which is the reading `four_momentum_squared`
+            # below has taken since rc466 and declares in the same words. The
+            # declaration catches up with the acceptance rather than the
+            # acceptance being narrowed back — the honesty gate's own remedy.
+            parameters=(P("k_spatial", "Vec | Sequence[int | Q]", True,
+                          "3-vector; the LEAVES select the carrier (rc476, "
+                          "`#T1188`): integers / Q / Fraction take the EXACT "
+                          "route, so |k|² + m² is formed exactly and float() "
+                          "of the root is the correctly rounded energy; one "
+                          "float anywhere keeps the float64 sum of squares "
+                          "BIT-FOR-BIT"),
+                        P("m", "float | Q", True,
+                          "≥ 0; read exactly alongside k_spatial, and both "
+                          "must be exact for the exact route to be taken")),
             returns=R("float", "positive on-shell energy"),
         ),
         ToolEntry(
@@ -16349,8 +16365,23 @@ def _register_qm_tools() -> None:
             category="qm.sm",
             summary="Fermion mass m_f = y_f v / √2 from Yukawa coupling. "
                     "Peskin-Schroeder §20.2.",
-            parameters=(P("yukawa", "float", True), P("vev", "float", True)),
-            returns=R("float", ""),
+            # rc476 (`#T1188`): WIDENED to match what the op accepts. The body
+            # was `float(yukawa * vev / sqrt(2.0))`, which rounded the product
+            # whenever either side was a float AND divided by a rational
+            # APPROXIMATION of √2; it now reads both operands with `to_q` (a
+            # float's as_integer_ratio loses nothing) and forms the whole value
+            # as ONE root of an EXACT radicand, ±√((y·v)²/2). Reading a Q was
+            # already possible and is now the point, so the declaration says so.
+            parameters=(P("yukawa", "float | Q", True,
+                          "Yukawa coupling; read EXACTLY (rc476, `#T1188`) — "
+                          "an int / Q / Fraction contributes its own exact "
+                          "value instead of being collapsed to float first"),
+                        P("vev", "float | Q", True,
+                          "Higgs vacuum expectation value, > 0; read exactly, "
+                          "as yukawa is")),
+            returns=R("float", "the CORRECTLY ROUNDED double of y·v/√2 "
+                               "(rc476) — the exact product is rooted, so "
+                               "there is one rounding, at the exit"),
         ),
         ToolEntry(
             name="srmech.physics.qm.sm.ckm_matrix", owner="srmech", category="qm.sm",
@@ -19118,10 +19149,16 @@ def _register_closed_form_path_a_tools() -> None:
     the cell it runs in.
 
     TWO ROWS NEEDED A SECOND BRANCH TO SHOW THEIR FULL SET. ``psk_qam``'s
-    ``rational.sqrt`` is reached only by the QAM constellation build and its
-    ``cos``/``sin`` only by the PSK one — the two branches are DISJOINT, so no
-    single call enters all three, and the declared order follows the op's own
-    dispatch (``if modulation == "psk"`` first, ``elif ... "qam"`` second).
+    ``cos``/``sin`` are reached only by the PSK branch, and through rc475 its
+    ``rational.sqrt`` only by the QAM one — the two branches are DISJOINT, so
+    no single call entered all three, and the declared order followed the op's
+    own dispatch (``if modulation == "psk"`` first, ``elif ... "qam"``
+    second). *(rc476, `#T1188`: the ``rational.sqrt`` edge is GONE. The QAM
+    branch asked an INTEGER question — is M a perfect square — through the
+    continuous carrier and back, and now takes the Class-N integer floor root,
+    which is not a registered op. The row is two entries and one branch; the
+    disjoint-branch note is kept because it is why the remaining pair reads the
+    way it does.)*
     ``ofdm``'s ``rational.hypot`` is the per-subcarrier equaliser guard, reached
     only when demodulating with a channel supplied; its order was taken from a
     full modulate-then-demodulate round trip so the tuple describes the whole
@@ -19881,9 +19918,17 @@ def _register_closed_form_path_a_tools() -> None:
             returns=R("list",
                       "the constellation points when modulating, or the "
                       "decoded integer symbol indices when demodulating"),
+            # rc476 (`#T1188`): `srmech.math.rational.sqrt` DROPPED. The square-
+            # QAM build asked an INTEGER question — is M a perfect square, and
+            # what is its root — and answered it by going out to the continuous
+            # carrier and back: `int(round(float(sqrt(float(M)))))`. It now
+            # takes the Class-N integer floor root directly, which is exact at
+            # every M and is not a registered op, so the declared edge is gone
+            # rather than renamed. Caught by
+            # test_composes_grain_rc412::test_every_declared_sub_op_is_actually_called,
+            # which traces the call graph rather than trusting the tuple.
             composes=("srmech.math.rational.cos",
-                      "srmech.math.rational.sin",
-                      "srmech.math.rational.sqrt"),
+                      "srmech.math.rational.sin"),
             preserves=_DISC,
         ),
         ToolEntry(

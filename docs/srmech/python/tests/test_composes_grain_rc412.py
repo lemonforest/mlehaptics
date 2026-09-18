@@ -548,14 +548,22 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.math.rational.hypot",
     ),
     # ⚠️ The two constellation branches are DISJOINT — cos/sin belong to PSK
-    # and sqrt only to the QAM grid build, so NO single call enters all three
-    # and no one trace could order them. The order therefore follows the op's
-    # own dispatch, which is `if modulation == "psk"` first and
-    # `elif ... "qam"` second; each branch's internal order is traced.
+    # and, through rc475, sqrt only to the QAM grid build, so NO single call
+    # entered all three and no one trace could order them. The order therefore
+    # follows the op's own dispatch, which is `if modulation == "psk"` first
+    # and `elif ... "qam"` second; each branch's internal order is traced.
+    #
+    # rc476 (`#T1188`): `srmech.math.rational.sqrt` REMOVED, because the call
+    # is gone. The QAM branch tested whether M is a perfect square with
+    # `int(round(float(sqrt(float(M)))))` — an INTEGER question routed through
+    # the continuous carrier and back, whose answer depended on the root's last
+    # bit and on round()'s banker's rule — and it now takes the Class-N integer
+    # floor root, which is not a registered op. Found by this file's own
+    # call-graph trace rather than by reading the diff, which is the whole
+    # reason the roster is traced instead of declared.
     "srmech.signal_processing.psk_qam": (
         "srmech.math.rational.cos",
         "srmech.math.rational.sin",
-        "srmech.math.rational.sqrt",
     ),
     # ⚠️ The trig sits BETWEEN the two transforms, not after both: forward
     # transform, decompose each bin into magnitude (sqrt over cos/sin

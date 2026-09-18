@@ -1,0 +1,24 @@
+{"expected_abi": 28, "has_native": true, "kind": "env", "native_abi": 28, "srmech_version": "0.9.0rc476"}
+{"fro": "0.6", "kind": "norm", "n": 6, "offdiag0": "0.4046603514059661", "target_absolute": "1e-12", "target_relative": "4.0466035140596613e-13", "tolerance": "1e-12"}
+{"kind": "trajectory", "off": "0.4046603514059661", "rule": "absolute", "sweep": 0}
+{"kind": "trajectory", "off": "0.17475846529665778", "rule": "absolute", "sweep": 1}
+{"kind": "trajectory", "off": "0.024392340386942355", "rule": "absolute", "sweep": 2}
+{"kind": "trajectory", "off": "0.00034346347304706134", "rule": "absolute", "sweep": 3}
+{"kind": "trajectory", "off": "8.925360426967806e-09", "rule": "absolute", "sweep": 4}
+{"kind": "trajectory", "off": "5.322140786619643e-09", "rule": "absolute", "sweep": 5}
+{"kind": "trajectory", "off": "1.5183514391251002e-10", "rule": "absolute", "sweep": 6}
+{"kind": "trajectory", "off": "7.625413381726798e-13", "rule": "absolute", "sweep": 7}
+{"bound": "1e-12", "kind": "stop", "off_at_stop": "7.625413381726798e-13", "residual": "5.527522883852498e-13", "rule": "absolute", "sweeps": 7, "unitarity_dev": "1.549982364679181e-12", "vtv_dev": "1.1102230246251565e-15", "within_bound": false}
+{"kind": "trajectory", "off": "0.4046603514059661", "rule": "relative", "sweep": 0}
+{"kind": "trajectory", "off": "0.17475846529665778", "rule": "relative", "sweep": 1}
+{"kind": "trajectory", "off": "0.024392340386942355", "rule": "relative", "sweep": 2}
+{"kind": "trajectory", "off": "0.00034346347304706134", "rule": "relative", "sweep": 3}
+{"kind": "trajectory", "off": "8.925360426967806e-09", "rule": "relative", "sweep": 4}
+{"kind": "trajectory", "off": "5.322140786619643e-09", "rule": "relative", "sweep": 5}
+{"kind": "trajectory", "off": "1.5183514391251002e-10", "rule": "relative", "sweep": 6}
+{"kind": "trajectory", "off": "7.625413381726798e-13", "rule": "relative", "sweep": 7}
+{"kind": "trajectory", "off": "1.8635452455959786e-19", "rule": "relative", "sweep": 8}
+{"bound": "1e-12", "kind": "stop", "off_at_stop": "1.8635452455959786e-19", "residual": "2.220446049250313e-16", "rule": "relative", "sweeps": 8, "unitarity_dev": "1.4432899320127035e-15", "vtv_dev": "1.1102230246251565e-15", "within_bound": true}
+{"doubling_dev": ["1.6653345369377348e-16", "4.85722573273506e-17", "3.3306690738754696e-16"], "embedding_eigvals": ["-0.31009575992376204", "-0.31009575992376187", "0.021330024916346956", "0.021330024916347005", "0.2887657350074146", "0.2887657350074149"], "kind": "spectrum", "pair_gaps": ["0.331425784840109", "0.26743571009106765"]}
+{"kind": "agree", "probe_matches_shipped_kernel": true, "shipped_eigvals": ["-0.31009575992376204", "-0.31009575992376187", "0.021330024916346956", "0.021330024916347005", "0.2887657350074146", "0.2887657350074149"]}
+{"bound": "1e-12", "kind": "gauge", "max_dev_identity": "5.587425560892699e-16", "passes": true, "route": "shipped gauge_path_segment"}

@@ -191,13 +191,47 @@ def test_gamma_exact_oracle():
 
 
 def test_gell_mann_lambda8_exact_normaliser():
-    """λ⁸ = (1/√3)·diag(1, 1, -2) with the normaliser byte-equal to the
-    Class-N rational-sqrt cascade (the C path routes the SAME cascade)."""
+    """λ⁸ = (1/√3)·diag(1, 1, -2), with the normaliser the CORRECTLY ROUNDED
+    1/√3 and the −2/√3 entry the correctly rounded 2/√3, negated.
+
+    ⚠️ 0.9.0rc476 (`#T1188`) — this test used to compute its own expectation as
+    ``s = 1.0 / float(_srn.sqrt(3.0))``, i.e. by re-running the code under
+    test's spelling. That is not an oracle, it is a mirror: it passed while
+    BOTH projections served 0.5773502691896258 for a 1/√3 whose correctly
+    rounded double is 0.5773502691896257, because the root floored and the
+    reciprocal rounded again — three roundings where the file's own banner
+    claimed one. rc476 puts the reciprocal inside the exact radicand, and this
+    test now states the CONTRACT (an exact integer bracket on the served
+    double) instead of re-deriving the implementation. The byte-identity claim
+    between the C and Python projections is a SEPARATE assertion and is kept:
+    both were equally wrong before, which is exactly why byte-identity alone
+    could never have caught this.
+    """
     from srmech.math import rational as _srn
+    from srmech.math.q import Q
 
     lam8 = G.su3_gell_mann_matrices()[7]
-    s = 1.0 / float(_srn.sqrt(3.0))
-    assert lam8.tolist() == [[s, 0, 0], [0, s, 0], [0, 0, -2.0 * s]]
+    s = float(_srn.sqrt(Q(1, 3)))
+    two_s = float(_srn.sqrt(Q(4, 3)))
+    assert lam8.tolist() == [[s, 0, 0], [0, s, 0], [0, 0, -two_s]]
+
+    # The contract, in exact integers: s = m·2**f is the correctly rounded
+    # 1/√3 iff (2m-1)²·3 < 2**(2-2f) < (2m+1)²·3.
+    for value, num, den in ((s, 1, 3), (two_s, 4, 3)):
+        m, f = _ieee_mantissa_exponent(value)
+        assert (2 * m - 1) ** 2 * den < (num << (2 - 2 * f)) \
+            < (2 * m + 1) ** 2 * den, (
+            f"{value!r} is not the correctly rounded √({num}/{den})"
+        )
+
+
+def _ieee_mantissa_exponent(x: float):
+    """``(m, f)`` with ``x == m * 2**f`` and ``m`` exactly 53 bits."""
+    import struct
+    bits = struct.unpack("<Q", struct.pack("<d", x))[0]
+    biased = (bits >> 52) & 0x7FF
+    assert 1 <= biased <= 2046, "positive normal doubles only"
+    return (bits & ((1 << 52) - 1)) | (1 << 52), biased - 1023 - 52
 
 
 def test_structure_constants_exact_oracle():

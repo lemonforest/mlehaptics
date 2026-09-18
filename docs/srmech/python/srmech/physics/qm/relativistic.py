@@ -41,7 +41,8 @@ from __future__ import annotations
 
 import ctypes
 from typing import Sequence, Tuple
-from srmech.math.q import Q, exact_vector as _exact_vector  # rc466 (`#T1188`): the ONE exact reader
+from srmech.math.q import (  # rc466 (`#T1188`): the ONE exact reader
+    Q, exact_vector as _exact_vector, exact_scalar as _exact_scalar)
 
 from srmech import _native
 from srmech.math import rational as _srn
@@ -367,23 +368,44 @@ def klein_gordon_dispersion(k_spatial: Sequence[float], m: float) -> float:
     Canonical SSoT: Klein (1926) eq 5; Gordon (1926) eq 1;
     Peskin-Schroeder §2.3 eq 2.39.
 
+    **THE RADICAND IS THE OPERAND'S CARRIER** (0.9.0rc476, `#T1188`), the same
+    reading :func:`four_momentum_squared` below took at rc466 and for the same
+    reason. Through rc475 the first statement here was
+    ``[float(x) for x in k_spatial]``, so an EXACT 3-momentum was collapsed to
+    the continuous carrier before ``|k|²`` was formed and before the root — two
+    roundings ahead of a third. The demotion was invisible while the root
+    itself was misrounded; the moment rc476 made the root correctly rounded,
+    the carrier census saw it (``klein_gordon_dispersion::k_spatial`` moved to
+    DEMOTED in BOTH cells). An exact ``k_spatial`` and ``m`` now form the exact
+    rational ``|k|² + m²`` and take the exact route, so ``float()`` of the
+    result is the correctly rounded energy; a float anywhere keeps the float
+    sum of squares exactly as before, BIT-FOR-BIT.
+
     Args:
-        k_spatial: 3-momentum vector as a length-3 sequence of floats.
+        k_spatial: 3-momentum vector, length 3. ``int`` / ``Q`` / ``Fraction``
+            components are read EXACTLY; ``float`` components take the float
+            sum of squares.
         m: Mass.
 
     Returns:
         Positive-frequency on-shell energy.
     """
-    k_spatial = [float(x) for x in k_spatial]
-    if len(k_spatial) != 3:
+    if len(list(k_spatial)) != 3:
         raise ValueError(
             f"klein_gordon_dispersion: k_spatial must be 3-vector; "
-            f"got length {len(k_spatial)}"
+            f"got length {len(list(k_spatial))}"
         )
     if m < 0:
         raise ValueError(f"klein_gordon_dispersion: m must be ≥ 0; got {m}")
+    exact_k = _exact_vector(k_spatial, n=3)
+    exact_m = _exact_scalar(m)
+    if exact_k is not None and exact_m is not None:
+        rad = (exact_k[0] * exact_k[0] + exact_k[1] * exact_k[1]
+               + exact_k[2] * exact_k[2] + exact_m * exact_m)
+        return float(_srn.sqrt(rad))       # ONE rounding, at the exit
+    k_spatial = [float(x) for x in k_spatial]
     k_sq = sum(x * x for x in k_spatial)   # |k|² — Class-N plain dot
-    return float(_srn.sqrt(k_sq + m * m))
+    return float(_srn.sqrt(k_sq + float(m) * float(m)))
 
 
 def four_momentum_squared(k: Sequence) -> "float | Q":

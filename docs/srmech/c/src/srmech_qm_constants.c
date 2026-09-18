@@ -13,15 +13,27 @@
  * were canonicalized in the same rc, so the C tables here are plain constant
  * data with no signed-zero replication hazard. The only non-integer values
  * are the λ⁸ 1/√3 normaliser and the f^{458}=f^{678}=√3/2 SU(3) structure
- * constants — both derived through srmech's own libm-free
- * `srmech_rational_sqrt` (srmech_sqrt.c), whose double projection is
- * byte-identical to the Python `float(rational.sqrt(3.0))` (one rounding +
- * exact power-of-two scaling on both paths).
+ * constants — both derived through srmech's own libm-free `srmech_sqrt_scaled`
+ * (srmech_sqrt.c), whose double projection is byte-identical to the Python
+ * `float(rational.sqrt(Q(1, 3)))` / `float(rational.sqrt(Q(3, 4)))`: ONE
+ * correctly rounded root of an EXACT rational on both paths.
  *
  * Layout: complex matrices are row-major interleaved (re,im) pairs — the
  * `Mat` carrier layout (C99 `double _Complex` compatible); the Minkowski
  * metric is row-major REAL doubles (`is_complex=False`); the structure
  * constants are flat rank-3 row-major real doubles f[a][b][c].
+ *
+ * ⚠️ rc476 (`#T1188`) — THE PARENTHETICAL ABOVE SAID "one rounding + exact
+ * power-of-two scaling on both paths". MEASURED THREE roundings on the λ⁸
+ * normaliser: the root floored onto a grid, `1.0 / s3` rounded again, and
+ * `-2.0 * (1.0 / s3)` a third time. The served 1/√3 was 0.5773502691896258
+ * where the correctly rounded value is 0.5773502691896257, and the λ⁸ entries
+ * were 1 ulp out in BOTH projections, byte-identically — which is why a
+ * byte-identity gate could not see it. The reciprocal and the halving now sit
+ * INSIDE the exact radicand (1/√3 = √(1/3), 2/√3 = √(4/3), √3/2 = √(3/4)), so
+ * each constant is ONE correctly rounded root, and the Python twins are
+ * spelled the same way. Byte-identity between the projections still holds and
+ * is still gated; what changed is that both are now right.
  *
  * Canonical SSoT: Pauli (1927) Z. Phys. 43, 601; Peskin-Schroeder §3.2
  * eq 3.25 + A.6 (Dirac basis) + §3.1 eq 3.4 (mostly-minus metric);
@@ -40,6 +52,7 @@
  */
 
 #include "srmech.h"
+#include "srmech_sqrt_internal.h"   /* rc476 (`#T1188`): the exact-radicand root */
 
 #include <assert.h>
 #include <stddef.h>
@@ -156,16 +169,31 @@ srmech_status_t srmech_qm_gell_mann(int32_t a, double *out)
         return SRMECH_OK;
     }
     /* λ⁸ = (1/√3) · diag(1, 1, -2) — the normaliser through srmech's own
-     * libm-free rational sqrt (byte-identical to the Python
-     * 1.0 / float(rational.sqrt(3.0)): one rounding each path). */
-    double s3 = 0.0;
-    srmech_status_t st = srmech_rational_sqrt(3.0, &s3);
+     * libm-free rational sqrt, byte-identical to the Python
+     * float(rational.sqrt(Q(1, 3))).
+     *
+     * rc476 (`#T1188`): this read `srmech_rational_sqrt(3.0, &s3)` and then
+     * `1.0 / s3`, and its comment said "one rounding each path". MEASURED
+     * THREE: the root's floor, the reciprocal, and (for out[16]) the multiply.
+     * It served 0.5773502691896258 where the correctly rounded 1/√3 is
+     * 0.5773502691896257. The reciprocal and the doubling now go INSIDE the
+     * exact radicand — 1/√3 = √(1/3) and 2/√3 = √(4/3) — so each constant is
+     * one correctly rounded root of an exact rational. The status is CAPTURED
+     * at both sites: srmech_sqrt_scaled is declared in a private header, which
+     * Rule 7's detector does not read, so the gate cannot catch a discard here
+     * (see srmech_sqrt_internal.h). */
+    double inv_s3 = 0.0;
+    double two_inv_s3 = 0.0;
+    srmech_status_t st = srmech_sqrt_scaled(1u, 3u, 0, &inv_s3);
     if (st != SRMECH_OK) { return st; }
-    assert(s3 > 1.0 && s3 < 2.0);   /* √3 ≈ 1.732 */
+    st = srmech_sqrt_scaled(4u, 3u, 0, &two_inv_s3);
+    if (st != SRMECH_OK) { return st; }
+    assert(inv_s3 > 0.5 && inv_s3 < 0.6);        /* 1/√3 ≈ 0.5774 */
+    assert(two_inv_s3 > 1.1 && two_inv_s3 < 1.2); /* 2/√3 ≈ 1.1547 */
     for (size_t k = 0; k < 18u; ++k) { out[k] = 0.0; }
-    out[0] = 1.0 / s3;
-    out[8] = 1.0 / s3;
-    out[16] = -2.0 * (1.0 / s3);
+    out[0] = inv_s3;
+    out[8] = inv_s3;
+    out[16] = -two_inv_s3;
     return SRMECH_OK;
 }
 
@@ -203,16 +231,22 @@ srmech_status_t srmech_qm_su3_structure(double *out)
     };
     assert(out != NULL);
     if (out == NULL) { return SRMECH_ERR_NULL_ARG; }
-    double s3 = 0.0;
-    srmech_status_t st = srmech_rational_sqrt(3.0, &s3);
+    /* rc476 (`#T1188`): was `srmech_rational_sqrt(3.0, &s3)` then `s3 / 2.0`.
+     * The halving moves INSIDE the exact radicand — √3/2 = √(3/4) — so the
+     * value is one correctly rounded root rather than a root then a divide.
+     * MEASURED: this constant does not move (√3/2 was already the correctly
+     * rounded double either way). The SHAPE moves, and the shape is what the
+     * class ratchet reads: "right today" is not a property of the spelling. */
+    double s3_half = 0.0;
+    srmech_status_t st = srmech_sqrt_scaled(3u, 4u, 0, &s3_half);
     if (st != SRMECH_OK) { return st; }
-    assert(s3 > 1.0 && s3 < 2.0);   /* √3 ≈ 1.732 */
+    assert(s3_half > 0.8 && s3_half < 0.9);   /* √3/2 ≈ 0.8660 */
     for (size_t k = 0; k < 512u; ++k) { out[k] = 0.0; }
     for (size_t r = 0; r < 9u; ++r) {
         int32_t a = seed_idx[r][0];
         int32_t b = seed_idx[r][1];
         int32_t c = seed_idx[r][2];
-        double val = (r >= 7u) ? (s3 / 2.0) : seed_val[r];
+        double val = (r >= 7u) ? s3_half : seed_val[r];
         const int32_t perm[6][3] = {
             {a, b, c}, {b, c, a}, {c, a, b}, {a, c, b}, {c, b, a}, {b, a, c},
         };

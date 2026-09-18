@@ -479,7 +479,8 @@ if(SRMECH_SRCS)
             test_srmech_qmat test_srmech_recursive_cut test_srmech_sha256
             test_srmech_toml test_srmech_wz test_srmech_zeilberger
             test_srmech_value_status_rc473
-            test_srmech_factor_poly_hensel_width)
+            test_srmech_factor_poly_hensel_width
+            test_srmech_sqrt_subnormal)
         foreach(t ${SRMECH_C_TESTS_RC452})
             add_executable(${t} c/test/${t}.c)
             target_link_libraries(${t} PRIVATE srmech ${SRMECH_MATH_LIB})
@@ -490,6 +491,15 @@ if(SRMECH_SRCS)
         # set() for why it is scoped to this one test and why 60 s.
         set_tests_properties(test_srmech_factor_poly_hensel_width PROPERTIES
                              TIMEOUT 60)
+
+        # rc476 (`#T1188`) — the sqrt correct-rounding gate sweeps ~14,500 rows
+        # and finishes well inside a second on the Linux cell, but it is a
+        # SWEEP and the rc475 precedent above is that a sweep gets a scoped
+        # timeout rather than the 1500 s default, so a hang on a cell nobody
+        # has measured reports as a timeout instead of as a stalled job. Same
+        # 60 s, same reason, same scoping: the other registered tests are not
+        # touched by this rc and their cold-start costs stay unmeasured here.
+        set_tests_properties(test_srmech_sqrt_subnormal PROPERTIES TIMEOUT 60)
 
         # test_srmech_config.c includes the INTERNAL header srmech_platform.h,
         # which lives in c/src rather than the public c/include. Same treatment

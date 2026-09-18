@@ -154,19 +154,58 @@ def test_hypot_matches_libm_over_220_orders_of_magnitude():
 # ── (3) backward compatibility: radicands >= 1 are BYTE-identical ─────────────
 
 def test_radicands_at_or_above_one_are_untouched():
-    """``_sqrt_relative_k`` returns ``k`` unchanged for a radicand >= 1.
+    """``_sqrt_relative_k`` returns ``k`` unchanged for a radicand >= 1, so the
+    GRID this repair sizes is the same grid above 1 as it was before rc299.
 
-    So every value at or above 1 — including the ``_tool_docs`` example and the
-    exact perfect squares — is byte-identical to what shipped before rc299.
-    This is what keeps the repair off the doc/registry ripple surface.
+    ⚠️ 0.9.0rc476 (`#T1188`) — WHAT THIS TEST USED TO ASSERT, AND WHY IT HAD TO
+    CHANGE. It read ``hypot(a, b) == _hypot_pre_rc299(a, b)`` over four pairs,
+    i.e. it pinned rc299's output to the EXECUTED value of the pre-rc299 code.
+    That is a recording of what the code did, not a statement of what is true,
+    and rc476 made the difference visible: ``hypot(1.0, 1.0)`` moved from
+    ``Q(12738103345051545, 9007199254740992)`` to
+    ``Q(50952413380206181, 36028797018963968)``, because the root gained the
+    STICKY low bit that keeps ``float()`` off a rounding midpoint. The old
+    value was one ulp below the correctly rounded √2 and the new one is the
+    correctly rounded √2 — so the pin was pinning a defect.
+
+    What rc299 actually claims about radicands >= 1 SURVIVES and is asserted
+    here directly: the grid selector is the identity there (the test below
+    pins that), the EXACT rows stay exactly exact, and the served double is
+    the correctly rounded one. The exact-integer certificate is
+    ``tests/test_sqrt_correct_rounding_rc476.py``; what is checked here is the
+    property rc299 owns, on rc299's own rows.
     """
     assert hypot(3.0, 4.0) == Q(5, 1)
-    assert hypot(1.0, 1.0) == _hypot_pre_rc299(1.0, 1.0)
     assert hypot(5.0, 12.0) == Q(13, 1)
+    assert hypot(1.0, 0.0) == Q(1, 1)
+    # the GRID, which is what rc299 changed, is unmoved above 1
     for a, b in ((1.0, 1.0), (2.0, 3.0), (10.0, 0.25), (1.0, 0.0)):
-        assert hypot(a, b) == _hypot_pre_rc299(a, b), (
-            f"hypot({a}, {b}) moved; radicands >= 1 must stay byte-identical"
+        an, ad = a.as_integer_ratio()
+        bn, bd = b.as_integer_ratio()
+        num = an * an * bd * bd + bn * bn * ad * ad
+        den = ad * ad * bd * bd
+        assert _sqrt_relative_k(num, den, _SQRT_Q_K) == _SQRT_Q_K, (
+            f"hypot({a}, {b})'s radicand is >= 1, so the grid must be the "
+            f"unchanged {_SQRT_Q_K} fractional bits"
         )
+    # and the VALUE is the correctly rounded root, asserted as an exact
+    # INTEGER bracket rather than against libm.
+    #
+    # (1) the returned Q is the STICKY root: (n-1)/d < √2 < (n+1)/d, i.e.
+    #     (n-1)² < 2d² < (n+1)², with n odd so the value is never a midpoint.
+    n, d = hypot(1.0, 1.0).as_pair()
+    assert n & 1, "the sticky root must be odd for an irrational radicand"
+    assert (n - 1) ** 2 < 2 * d * d < (n + 1) ** 2, (
+        f"Q({n}, {d}) does not bracket √2"
+    )
+    # (2) float() of it is the correctly rounded double. √2 ∈ (1, 2), so the
+    #     double is m·2⁻⁵², its midpoints are (2m±1)·2⁻⁵³, and squaring gives
+    #     (2m-1)² < 2·2¹⁰⁶ < (2m+1)².
+    m = int(float(hypot(1.0, 1.0)) * (1 << 52))
+    assert (1 << 52) <= m < (1 << 53)
+    assert (2 * m - 1) ** 2 < (2 << 106) < (2 * m + 1) ** 2, (
+        "float(hypot(1.0, 1.0)) is not the correctly rounded √2"
+    )
 
 
 def test_sqrt_relative_k_is_identity_above_one_and_grows_below():

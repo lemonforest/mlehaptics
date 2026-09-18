@@ -15,7 +15,6 @@ surfaces still compute their tensors correctly (as numpy-free ``Mat`` outputs).
 """
 from __future__ import annotations
 
-import math
 
 import pytest
 
@@ -126,7 +125,15 @@ def test_propagators_momentum_tensor_routed():
 def test_single_particle_density_matrix_routed():
     from srmech.math.mat import Mat
     from srmech.physics.qm.single_particle import density_matrix
-    s = 1.0 / math.sqrt(2.0)        # math in TEST code is fine
+    # rc476 (`#T1188`): was ``1.0 / math.sqrt(2.0)``, licensed by a comment
+    # reading "math in TEST code is fine". It is fine, and it is also an
+    # unnecessary libm reference in a fixture whose value nothing here checks
+    # against libm — so it is built with the srmech op instead, which is the
+    # discipline this suite is for. The fixture moves by 1 ulp and the
+    # assertions below carry 1e-12 tolerances.
+    from srmech.math.q import Q
+    from srmech.math.rational import sqrt as _rsqrt
+    s = float(_rsqrt(Q(1, 2)))      # 1/√2, one correctly rounded root
     psi = [complex(s, 0.0), complex(0.0, s)]
     rho = density_matrix(psi)
     assert isinstance(rho, Mat) and rho.shape == (2, 2)

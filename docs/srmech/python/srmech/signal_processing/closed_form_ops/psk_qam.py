@@ -40,6 +40,7 @@ from __future__ import annotations
 from typing import List
 
 from srmech.math import rational as _srn
+from srmech.math.rational import _integer_sqrt   # rc476 (`#T1188`): exact √M test
 
 OPERATION_NAME = "psk_qam"
 CLASS_COMPOSITION = ("I", "K")
@@ -77,7 +78,14 @@ def _psk_constellation(M: int) -> List[complex]:
 
 def _qam_constellation(M: int) -> List[complex]:
     """Square M-QAM constellation; requires sqrt(M) to be integer."""
-    sqrt_m = int(round(float(_srn.sqrt(float(M)))))   # √M → float before round()
+    # rc476 (`#T1188`): was ``int(round(float(_srn.sqrt(float(M)))))`` — an
+    # INTEGER question (is M a perfect square, and what is its root?) routed
+    # through the continuous carrier and back, so its answer depended on the
+    # root's last bit and on ``round``'s banker's rule. ``M`` is an op-held
+    # int; the Class-N integer floor root answers it exactly, at every M, with
+    # no float anywhere. The test below is unchanged and is now the WHOLE
+    # decision rather than a check on a rounded guess.
+    sqrt_m = _integer_sqrt(M)                         # exact Class-N floor root
     if sqrt_m * sqrt_m != M:
         raise ValueError(f"square QAM requires M = K^2; got M={M}")
     # Gray-coded levels: {-(sqrt_m-1), ..., -1, 1, ..., (sqrt_m-1)}

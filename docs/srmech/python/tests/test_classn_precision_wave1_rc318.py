@@ -24,6 +24,8 @@ P5  the OLD ``precision_bits=`` keyword is GONE (raises ``TypeError``; no shim).
 
 numpy-free (no numpy import anywhere in the call graph).
 """
+import struct
+
 import pytest
 
 from srmech import _native
@@ -45,25 +47,35 @@ def _pair(q):
 # (native AND numpy-absent pure produced identical values). The rename must
 # reproduce each of these byte-for-byte at the matched precision.  None = the
 # default (old ``precision_bits=None``); an int key = old ``precision_bits=<key>``.
+#
+# ⚠️ 0.9.0rc476 (`#T1188`) — THE ``None`` ROWS MOVED AND ARE NO LONGER PINNED
+# AS LITERALS. They recorded what the pre-rename code DID at the default
+# precision, and what it did was floor onto a grid: ``sqrt(2.0)`` came back one
+# ulp below the correctly rounded √2, and at subnormal magnitudes the same
+# route was wrong by up to 16,609,076 ulps. rc476 repaired it, so a literal
+# captured from that route is a recording of a defect. The rows are replaced by
+# :func:`_assert_is_sticky_root`, which asserts the MATHS — the returned ``Q``
+# brackets the true root, its numerator is odd so ``float()`` cannot land on a
+# midpoint, and that ``float()`` is the correctly rounded double — and which
+# cannot go stale the way a captured literal can.
+#
+# EVERY ``precision=P`` ROW BELOW STAYS EXACTLY AS CAPTURED. That grid is the
+# literal absolute floored one a caller asks for; rc476 did not touch it, and
+# these literals remain the dated byte-identity record the rc318 rename owns.
 SQRT_2 = {
-    None: (12738103345051545, 9007199254740992),
     10: (181, 128),
     64: (3260954456333195553, 2305843009213693952),
     128: (240615969168004511545033772477625056927,
           170141183460469231731687303715884105728),
 }
-SQRT_1EM16_DEFAULT = (12089258196146291, 1208925819614629174706176)
-SQRT_Q5 = {None: (20140709820486303, 9007199254740992),
-           30: (600239927, 268435456)}
-SQRT_QHALF = {None: (1, 2), 100: (1, 2)}
+SQRT_Q5 = {30: (600239927, 268435456)}
+SQRT_QHALF = {None: (1, 2), 100: (1, 2)}      # an EXACT square: unmoved
 
 HYPOT_1_1 = {
-    None: (12738103345051545, 9007199254740992),
     10: (181, 128),
     54: (12738103345051545, 9007199254740992),
 }
-HYPOT_3_4_DEFAULT = (5, 1)
-HYPOT_1EM16_0_DEFAULT = (2028240960365167, 20282409603651670423947251286016)
+HYPOT_3_4_DEFAULT = (5, 1)                    # exact: unmoved
 
 PI = {
     (15, None, None): "3.141592653589793",
@@ -91,6 +103,49 @@ RW_BIG64 = {
 }
 
 
+def _square_ratio(x: float):
+    """The exact rational ``x²`` as ``(num, den)`` — ``hypot(x, 0.0)``'s radicand."""
+    n, d = float(x).as_integer_ratio()
+    return n * n, d * d
+
+
+def _assert_is_sticky_root(q, num, den, what):
+    """``q`` is the STICKY root of ``num/den``, and ``float(q)`` is the CR double.
+
+    rc476 (`#T1188`) replaces four captured literals with this. A literal
+    records what the code did; these three clauses state what must be TRUE, in
+    exact integers, and would have failed on the pre-rc476 route:
+
+      1. ``(n-1)/d < √(num/den) <= (n+1)/d`` — the bracket;
+      2. ``n`` is ODD unless the radicand is a perfect square — the sticky bit,
+         which is what keeps ``float()`` off a rounding midpoint;
+      3. ``float(q)``'s two midpoints straddle the true root — correct rounding.
+    """
+    n, d = _pair(q)
+    assert n > 0 and d > 0, what
+    assert (n - 1) ** 2 * den < num * d * d <= (n + 1) ** 2 * den, (
+        f"{what}: Q({n}, {d}) does not bracket the root"
+    )
+    exact_square = (n * n * den == num * d * d)
+    assert exact_square or (n & 1), (
+        f"{what}: the radicand is not a perfect square, so the root must carry "
+        f"the STICKY low bit; got the even {n}"
+    )
+    bits = struct.unpack("<Q", struct.pack("<d", float(q)))[0]
+    biased = (bits >> 52) & 0x7FF
+    assert 1 <= biased <= 2046, f"{what}: float(q) is not a positive normal"
+    m = (bits & ((1 << 52) - 1)) | (1 << 52)
+    f = biased - 1023 - 52
+    e = 2 - 2 * f
+    lo, hi = (2 * m - 1) ** 2 * den, (2 * m + 1) ** 2 * den
+    rad = (num << e) if e >= 0 else num
+    if e < 0:
+        lo, hi = lo << (-e), hi << (-e)
+    assert lo < rad < hi, (
+        f"{what}: float(q) = {float(q)!r} is not the correctly rounded root"
+    )
+
+
 # ── P1 — bit-identity against the pre-migration reference (the load-bearing gate)
 def _assert_bit_identity():
     """Every migrated op at ``precision=None|P`` reproduces the OLD
@@ -98,25 +153,29 @@ def _assert_bit_identity():
     q5 = R._q(5, 1)
     qhalf = R._q(1, 4)
 
-    # sqrt (float input) — omitted default AND explicit precision=None both = old None
-    assert _pair(sqrt(2.0)) == SQRT_2[None]
-    assert _pair(sqrt(2.0, precision=None)) == SQRT_2[None]
+    # sqrt (float input) — omitted default AND explicit precision=None agree,
+    # and each is the STICKY, correctly rounded root (rc476; see the note above
+    # SQRT_2 for why these are no longer captured literals).
+    assert _pair(sqrt(2.0)) == _pair(sqrt(2.0, precision=None))
+    _assert_is_sticky_root(sqrt(2.0), 2, 1, "sqrt(2.0)")
     for p in (10, 64, 128):
         assert _pair(sqrt(2.0, precision=p)) == SQRT_2[p], p
-    assert _pair(sqrt(1e-16)) == SQRT_1EM16_DEFAULT           # relative-k default path
+    _assert_is_sticky_root(sqrt(1e-16), *(1e-16).as_integer_ratio(),
+                           what="sqrt(1e-16)")        # relative-k default path
     # sqrt (Q input)
-    assert _pair(sqrt(q5)) == SQRT_Q5[None]
+    _assert_is_sticky_root(sqrt(q5), 5, 1, "sqrt(Q(5, 1))")
     assert _pair(sqrt(q5, precision=30)) == SQRT_Q5[30]
-    assert _pair(sqrt(qhalf)) == SQRT_QHALF[None]
+    assert _pair(sqrt(qhalf)) == SQRT_QHALF[None]     # exact square: unmoved
     assert _pair(sqrt(qhalf, precision=100)) == SQRT_QHALF[100]
 
     # hypot
     assert _pair(hypot(3.0, 4.0)) == HYPOT_3_4_DEFAULT
-    assert _pair(hypot(1.0, 1.0)) == HYPOT_1_1[None]
-    assert _pair(hypot(1.0, 1.0, precision=None)) == HYPOT_1_1[None]
+    assert _pair(hypot(1.0, 1.0)) == _pair(hypot(1.0, 1.0, precision=None))
+    _assert_is_sticky_root(hypot(1.0, 1.0), 2, 1, "hypot(1.0, 1.0)")
     for p in (10, 54):
         assert _pair(hypot(1.0, 1.0, precision=p)) == HYPOT_1_1[p], p
-    assert _pair(hypot(1e-16, 0.0)) == HYPOT_1EM16_0_DEFAULT
+    _assert_is_sticky_root(hypot(1e-16, 0.0),
+                           *_square_ratio(1e-16), what="hypot(1e-16, 0.0)")
 
     # pi_cascade_digits
     for (nd, depth, prec), expected in PI.items():

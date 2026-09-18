@@ -150,7 +150,10 @@ def op(signal, *, levels: int = 3, wavelet: str = "haar", D: int = 8192):
         current = [float(x) for x in signal]
     except TypeError as exc:  # nested sequence -> not 1-D
         raise ValueError("wavelet expects a 1-D real signal") from exc
-    inv_sqrt2 = 1.0 / float(_srn.sqrt(2.0))   # float scale for the recursive DWT
+    # rc476 (`#T1188`): was ``1.0 / float(_srn.sqrt(2.0))`` — two roundings,
+    # the root's and the reciprocal's. 1/√2 = √(1/2), so the reciprocal goes
+    # inside the exact radicand and only the carrier boundary rounds.
+    inv_sqrt2 = float(_srn.sqrt(_Q(1, 2)))    # float scale for the recursive DWT
     from srmech.math.laplacian import mat_matvec  # lazy: avoid import cycle
 
     details = []

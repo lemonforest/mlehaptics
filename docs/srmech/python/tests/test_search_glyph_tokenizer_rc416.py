@@ -1411,8 +1411,37 @@ from srmech.math.text import fold_marks, glyph_stream
 #: The PURE cell agrees independently: CI's `fallback • shard 6/6` computed the
 #: same digest with no library loaded at all, so the value is not an artefact of
 #: native dispatch.
+#: rc476 (`#T1188`) RE-PIN, and the cause is PROSE, not a value. The frame text
+#: is built from every ToolEntry's summary / parameter text / explanation, and
+#: this rc rewrites four of them — `srmech.math.rational.sqrt`'s registry
+#: summary and `precision` parameter text (the MCP emission surface, which is
+#: also where `srmech_tool_registry.c` gets its copy), the `elementwise_sqrt` /
+#: `elementwise_hypot` explanations, which promised round-off fidelity to numpy
+#: for ops in a package that has no numpy, and `psk_qam`'s `composes`, which
+#: declared a `rational.sqrt` edge the code no longer has. `rows` is UNMOVED at
+#: 761 = 732 ops + 29 carriers: no op is registered or removed.
+#:
+#: RE-VERIFIED BEFORE MOVING, both halves the pin's history says to check.
+#: DETERMINISM: three fresh CPython 3.12.3 interpreters, two `_build_frames`
+#: calls each — six computations, all `11077f6d…35b8a8d7`. CELL INDEPENDENCE:
+#: the same digest with NO library loaded at all, so the value is not an
+#: artefact of native dispatch. Both checks matter here because this rc DOES
+#: move served values, and a witness that moved for the wrong reason would be
+#: indistinguishable from one that moved for the right one.
+#:
+#: It moved THREE TIMES inside this rc and each move is recorded rather than
+#: folded into the last, because a pin that shows one move where three
+#: happened cannot be audited. The second came from the ripple gate's
+#: call-graph trace (`psk_qam`'s dead `composes` edge); the third from CI,
+#: which found two ops ACCEPTING a carrier their declared `parameters[].type`
+#: did not name — the declarations were widened to the honest union rather
+#: than the acceptance narrowed back, and a parameter's type string is frame
+#: text. `rows` is unmoved at 761 through all three.
 WITNESS_RC416 = (
-    "2b092a14f70aaaf4e37d6b9b834dc72dc647d01351c419899ae64d7de6160341")
+    "11077f6de96977fedc6379741667896d91b57fb30cc84d303b607b0d35b8a8d7")
+#: was: a826de664379ff976ea6967e887b5060139d33120d2957f6c4fa14371f7445e1 (rc476, before the declared-type widening)
+#: was: 68e29b4c86da68f16bbcbfb2d42ee4b5b609128fda23d617a87dffaa48db4e6d (rc476, before the psk_qam composes edit)
+#: was: 2b092a14f70aaaf4e37d6b9b834dc72dc647d01351c419899ae64d7de6160341 (rc475)
 #: was: 01ff7bc2a1f7a10e85bb442164268def4163cd6f92287087f137af32149401da (rc473 final round)
 #: was: 5ce08382175192d63e794bf0008532ed5d80402e08f873fd7f284e27eb3b4839 (rc473 truth repair 1)
 #: before that: da8db24232bd1b404cc0a0daa307f8f93c688a9f8a80a2eead8ab6ef296173c9 (rc473 truth round)
