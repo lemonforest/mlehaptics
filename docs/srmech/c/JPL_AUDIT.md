@@ -45,7 +45,7 @@ DOWN but not UP.
 | Rule | Description                                       | Baseline | Status |
 | :--: | ------------------------------------------------- | -------- | ------ |
 |   1  | No goto / setjmp / longjmp / recursion            | goto 0; **recursion 9** | ⚠️ **partial** — goto/setjmp/longjmp clean; 9 recursion cycles under a seeded down-only ratchet (rc441, `#T1148`; see Rule 1 below) |
-|   2  | All loops have fixed upper bounds                 | 0        | ✅ pass |
+|   2  | All loops have fixed upper bounds                 | roster **15** (was claimed 0); violations **0** after the rc475 repair | ⚠️ **partial** — 11 PROVEN BOUND, 2 DESIGNED-BLOCKING (bus / mcp dispatch), 2 OS-IDIOM (POSIX `EINTR`), 2 class-(c) latent-infinite loops REPAIRED at rc475; `RULE_2_SEEDED` + `CEIL_RULE_2` + `CEIL_RULE_2_VIOLATION` ratchet in `test_jpl_audit.py` (rc475, `#T1188`; see Rule 2 below). Before rc475 this rule had NO detector at all and the 0 was the auditor's expectation |
 |   3  | No dynamic allocation after init                  | 0        | ✅ pass |
 |   4  | Functions ≤ 60 lines                              | 0        | ✅ pass *(was 1; fixed in this ship by extracting `srmech_ndjson_process_chunk`)* |
 |   5  | ≥ 2 assertions per non-trivial function           | 0        | ✅ pass *(trivial accessors exempt per documented rationale; inline arithmetic helpers exempt)* |
@@ -162,10 +162,123 @@ stack lowers the ceiling.
 
 > *"All loops must have a fixed upper-bound. It must be trivially possible for a checking tool to prove statically that a preset upper-bound on the number of iterations of a loop cannot be exceeded."*
 
-### Violations: 0
+### Violations: 0 after the rc475 repair; sites on the roster: 15 (was claimed 0)
 
-Every loop in srmech's C has either a compile-time constant bound
-or a caller-supplied size_t bound:
+Measured at rc475 (`#T1188`): **17** `while (1)` / `for (;;)` sites across 10
+translation units in `c/src`, identical raw and literal-masked, with **zero** in
+`c/include`. **This document said "Violations: 0" and "We never use `while(1)`
+or `for(;;)`" from its first commit, and both sentences were false.** They
+survived because `tests/test_jpl_audit.py` had **no Rule-2 detector of any
+kind** — the same shape as the Rule 7 correction at rc473, where the audit read
+"0 violations / Pass" on a four-function evidence table while 24 discarded
+statuses sat across seven units. An audit rule with no detector records the
+auditor's expectation, not the tree.
+
+The population splits FOUR ways, and the split is the point:
+
+| class | sites | what it means |
+| ----- | ----- | ------------- |
+| **(a) PROVEN BOUND** | 11 | a stated numeric or caller-supplied limit, checked every pass |
+| **(b1) DESIGNED-BLOCKING** | 2 | server dispatch loops, unbounded ON PURPOSE, exiting on transport EOF or a callback stop |
+| **(b2) OS-IDIOM** | 2 | the POSIX `EINTR` retry; advances only on a signal |
+| **(c) LATENT-UNBOUNDED** | **2, repaired at rc475** | the class that matters — see below |
+
+⚠️ **Do not write "invariant-terminating" as a single benign class.** That
+wording is what let two genuine infinite loops sit beside two intentional server
+loops under one letter, and a previous classification pass did exactly that and
+called the pair benign.
+
+| site (file · enclosing function) | class | bound / invariant |
+| -------------------------------- | ----- | ----------------- |
+| `srmech_ellbase.c` · `srmech_ellbase_exps_cmp` | a | ≤ 2·`n_syms`; both indices non-decreasing, every branch returns or advances |
+| `srmech_factor_poly.c` · `fac_walk` | a | `C(rem_n, size)`; `next_combo` is a strictly increasing combinadic returning 0 once exhausted |
+| `srmech_genome.c` · `gk_emit` | a | `SRMECH_GK_MAX_DIGITS` = 15, checked before every increment |
+| `srmech_genome.c` · `sc_sift` | a | heap height ⌈log₂ n⌉ |
+| `srmech_genome.c` · `gap_u64_sift` | a | heap height ⌈log₂ n⌉ |
+| `srmech_genome.c` · `gap_edge_sift` | a | heap height ⌈log₂ n⌉ |
+| `srmech_mcp.c` · `mcp_read_line` | a | `line_cap + 1`; `if (n >= cap) return OVERFLOW` precedes the increment |
+| `srmech_mcp_sse.c` · `sse_read_head` | a | `SSE_REQ_CAP + 1`, same shape |
+| `srmech_qalg.c` · `qalg_jordan_powers` | a | `n + 1`; explicit `idx > n` exit |
+| `srmech_ryu.c` · `ryu_pow5_factor` | a | 27, documented inline AND `assert(count <= 27u)` |
+| `srmech_thetasum_interp.c` · `ti_z6_leaf` | a | `TI_Z6_MAX_ATTEMPTS`, the first statement in the body, commented "JPL cap" |
+| `srmech_bus.c` · `srmech_bus_subscribe` | b1 | terminates on transport EOF/error or a callback stop; a subscribe API |
+| `srmech_mcp.c` · `srmech_mcp_serve_stdio` | b1 | JSON-RPC stdio dispatch; exits on EOF |
+| `srmech_platform.c` · `srmech_plat_stdin_read` | b2 | continues ONLY on `errno == EINTR`; every other outcome returns |
+| `srmech_platform.c` · `srmech_plat_tcp_read_some` | b2 | identical `EINTR` shape |
+
+### The two class-(c) rows, and why they were REPAIRED rather than seeded
+
+`ti_lift_mono` (`srmech_thetasum_interp.c`) held **two** `for (;;)` loops that
+factored a prime out of a bignum rational, exiting on `rem != 0`. They assumed a
+nonzero coefficient and had **no in-loop cap**, unlike `ryu.c` and `qalg.c`.
+`srmech_bigint_divmod_small(quo, &rem, 0, p)` returns `SRMECH_OK` with `quo = 0`
+and `rem = 0` for every prime `p`, so on a zero the loop is not merely
+"unbounded" — it is a **FIXED POINT**: the next iteration is byte-identical to
+the last, forever, with `e++` / `e--` running away on a signed `int32_t`.
+MEASURED by execution, and in **BOTH** projections — the pure twin
+(`_lift_prime_terms.lift_mono` in `apokatastasis/thetasum.py`, where
+`0 % p == 0` and `0 // p == 0`) did not return inside 12 s on `Q(0, 1)`, against
+a control of `Q(12, 5)` at prime 2 returning `3/5`. The sibling
+`ti_collect_mono_primes`, same file and same call path, guards exactly that state
+50 lines earlier, so the tree already treated it as reachable.
+
+**REACHABILITY, stated exactly.** From the **public Python ops it is
+UNREACHABLE, and provably so**: `Q` raises `ZeroDivisionError` on a zero
+denominator and reduces to `den ≥ 1`; `Theta.__init__` raises on a zero argument;
+`_struct_combine` drops every zero prefactor before Z5/Z6. From the **exported C
+entries it WAS reachable** — `srmech_thetasum_is_zero_interpolation` /
+`srmech_thetasum_is_zero` on an unvalidated zero denominator or zero
+theta-argument — because `ti_parse` copied `coeff_num` / `coeff_den` verbatim,
+`ti_combine` tests only the prefactor's numerator and never inspects theta
+arguments, and `srmech_ellbase_theta_canon_full` inverts the theta argument
+through a zero check that is an `assert` **only**, absent in the release build.
+The signed `e` overflow was reachable **only** through the zero fixed point: on a
+nonzero numerator `e ≤ 32·num.n` with `num.n ≤ c.cap`, so overflowing `int32_t`
+needs a ~2^26-limb coefficient.
+
+rc475 repairs it in **two layers**: `ti_parse` now REJECTS both states with
+`SRMECH_ERR_BAD_INPUT` (the root — it closes the only route, and makes the C
+entry refuse what the Python constructors already refuse), and `ti_lift_mono`
+guards the loops anyway — SKIP on a zero numerator (`v_p(0)` is undefined and the
+lift's contract holds at any exponent) and REFUSE on a zero denominator (not a
+rational; skipping would launder an invalid object onward). The Python twin
+carries only the numerator skip, because `Q` makes the denominator branch dead
+code. Gated by `tests/test_thetasum_zero_coeff_rc475.py`.
+
+⚠️ **The repair also moved both loops out of the detector's view, and that is
+recorded rather than enjoyed.** The predicate matches the literal `while (1)` /
+`for (;;)` forms only, so rewriting these two as `while (!is_zero(...))` drops
+the census from **17 to 15** without the detector having verified anything about
+them. What bounds them is the arithmetic — each pass divides a strictly positive
+magnitude by `p ≥ 2` — not the spelling.
+
+### Enforcement
+
+`RULE_2_SEEDED` + `CEIL_RULE_2` (15) + `CEIL_RULE_2_VIOLATION` (0) in
+`tests/test_jpl_audit.py` (rc475, `#T1188`), five tests: a vacuity check that
+must find `ryu_pow5_factor`; strict-zero on NOVEL sites and down-only on seeded
+counts; a two-way `==` on the ceiling so a drain moves the table and the number
+together; `unattributed == 0`, the detector's own blind-spot counter; and a
+planted-mutation test that proves the predicate can fire on both spellings and is
+correctly suppressed by the literal mask.
+
+**Seeded by `(file, enclosing function)`, NOT by `(file, line)`** — the same
+discipline, and for the same stated reason, as `RULE_9_FN_PTR_SEEDED`: line
+numbers drift. rc475 proves it on itself, moving `srmech_factor_poly.c`'s site
+by +92 lines within the same release.
+
+**The scan is literal-masked**, and that is measured load-bearing: a `for (;;)`
+quoted inside a comment is matched by a raw scan and correctly rejected by the
+masked one, and a draft docstring quoting the loop it was removing was counted by
+a raw census as an ADDED loop form.
+
+⚠️ **Rule 2 stays PARTIAL.** A loop that terminates by design (b1) or by an OS
+condition (b2) is not a loop with a fixed upper bound in Holzmann's sense, and
+the ratchet guards the source SHAPE only — it cannot verify that a stated bound
+is CORRECT, that a `do { } while` or a plain `while` with a data-dependent
+condition terminates, or that a classified invariant holds. The class-(c) rows
+are the standing proof that the reader can get that wrong. The eight-row table
+below is kept as ILLUSTRATIVE of the (a) class; it was never a census.
 
 | Loop                                              | Bound          | Source                                |
 | ------------------------------------------------- | -------------- | ------------------------------------- |
@@ -180,9 +293,25 @@ or a caller-supplied size_t bound:
 
 The `while (!eof_reached)` deserves note: the explicit `eof_reached`
 flag + `break` on zero-read makes the termination condition
-mechanically obvious. We never use `while(1)` or `for(;;)`.
+mechanically obvious.
 
-✅ **Pass.**
+⚠️ **partial** — 11 PROVEN BOUND, 2 DESIGNED-BLOCKING, 2 OS-IDIOM, 2 repaired at
+rc475; violations **0**, roster **15**, both under a down-only ratchet.
+
+### A THIRD Rule-2 debt the same release paid, in `srmech_factor_poly.c`
+
+The equal-degree split was Cantor–Zassenhaus: a `do { ... } while (lr <= 1)`
+retry over a deterministic xorshift draw. That is a Las Vegas loop with an
+**EXPECTED** bound and no static one, and it is NOT one of the 17 — the predicate
+above does not match `do { } while`, which is itself a named blind spot. rc475
+replaces it with deterministic Berlekamp, whose loops are `for`s with trip counts
+fixed at entry and a **proven static bound**: `(k−1)·p` passes and
+`p·(k−1)·⌊k/2⌋` gcds, where `k = n/d` is the block's factor count. Gated by
+`tests/test_factor_berlekamp_bound_rc475.py`, which asserts the TIGHT bound
+rather than the loose `k·p·k` the source docstrings quote — the measured maximum
+is 0.9545 of the tight bound against 0.26 of the loose one, and a ceiling a real
+regression cannot reach is not a ceiling. The supplementary `do { } while` census
+is 4 sites tree-wide before this change and **3** after.
 
 ---
 
