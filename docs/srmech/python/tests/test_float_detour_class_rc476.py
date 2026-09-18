@@ -533,7 +533,7 @@ def test_the_scan_survives_a_path_it_cannot_relativise(tmp_path,
     f.write_text("x = 1\n    s = 1.0 / _fsqrt(deg[i])\n", encoding="utf-8")
 
     def _refuse(path, start):  # the exact Windows failure
-        raise ValueError(f"path is on mount 'C:', start on mount 'D:'")
+        raise ValueError("path is on mount 'C:', start on mount 'D:'")
 
     monkeypatch.setattr(os.path, "relpath", _refuse)
     hits = _scan([str(tmp_path)], (".py",), S1_PY, _mask_py)
