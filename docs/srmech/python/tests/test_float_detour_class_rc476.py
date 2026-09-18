@@ -196,13 +196,13 @@ S1_RESIDUAL: "dict[tuple[str, int], tuple[str, str, str]]" = {
     # ── OPERAND-CARRIED: the value divided is the CALLER's float, inside an
     #    iterative FPU kernel. SCHEDULED FOR REPAIR, not exempt — the
     #    operand-carried exemption was withdrawn, and P-C owns these.
-    ("python/srmech/math/laplacian.py", 901): (
+    ("python/srmech/math/laplacian.py", 915): (
         "0.9.0rc482", "c = 1.0 / _fsqrt(1.0 + t * t)",
         "Jacobi rotation cosine; operand-carried, owned by P-C"),
-    ("python/srmech/math/laplacian.py", 971): (
+    ("python/srmech/math/laplacian.py", 1057): (
         "0.9.0rc482", "c = 1.0 / _fsqrt(1.0 + t * t)",
         "Jacobi rotation cosine; operand-carried, owned by P-C"),
-    ("python/srmech/math/laplacian.py", 2815): (
+    ("python/srmech/math/laplacian.py", 2901): (
         "0.9.0rc482", "inv = 1.0 / _fsqrt(norm2)",
         "vector normalise; operand-carried, owned by P-C"),
     ("python/srmech/signal_processing/closed_form_ops/ica_jade.py", 253): (
